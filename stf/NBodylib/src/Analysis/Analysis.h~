@@ -1,0 +1,9 @@
+#ifndef ANALYSIS_H
+#define ANALYSIS_H
+
+#include <NBody/Analysis/Density.h>
+#include <NBody/Analysis/Energy.h>
+#include <NBody/Analysis/Morphology.h>
+#include <NBody/Analysis/Power.h>
+
+#endif

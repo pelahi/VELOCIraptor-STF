@@ -1,0 +1,7 @@
+#include <Statistics.h>
+
+using namespace std;
+namespace Math
+{
+
+}

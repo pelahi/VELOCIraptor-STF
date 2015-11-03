@@ -1,0 +1,12 @@
+/*! \file allvars.cxx
+ *  \brief provides instances of global variables
+ */
+
+/*! 
+    For MPI 
+*/
+//@{
+#ifdef USEMPI
+int ThisTask,NProcs;
+#endif
+//@}

@@ -1,0 +1,476 @@
+/*! \file hdfitems.h
+ *  \brief this file contains definitions and routines for reading HDF5 files
+ * 
+ *   NOTE: the routines are based on reading Illustris HDF outputs
+ */
+
+#ifndef HDFITEMS_H
+#define HDFITEMS_H
+
+
+#include "H5Cpp.h"
+using namespace H5;
+
+///number of particle types
+#define NHDFTYPE 6
+///define gadget particle types
+//@{
+#define HDFGASTYPE 0
+#define HDFDMTYPE 1
+#define HDFEXTRATYPE 2
+#define HDFTRACERTYPE 3
+#define HDFSTARTYPE 4
+#define HDFBHTYPE 5
+//@}
+
+///number of entries in various data groups 
+//@{
+#define HDFHEADNINFO 11
+#define HDFGASNINFO 20
+#define HDFDMNINFO 7
+#define HDFTRACERNINFO 3
+#define HDFSTARNINFO 13
+#define HDFBHNINFO 21
+#define HDFMAXPINFO 40
+//@}
+
+///number of luminosity bands for stars
+#define NLUMBANDS 8
+
+///how many particle properties are read from file in one go
+#define HDFCHUNKSIZE 1000000
+
+///\name Structures for the HDF5 interface, primarily used to store the strings of Groups and DataSets
+//@{
+
+///This structures stores the strings defining the groups of data in the hdf input. NOTE: HERE I show the strings for Illustris format
+struct HDF_Group_Names {
+    //define the strings associated with the types of structures contained in the hdf file. 
+    H5std_string Header_name;
+    H5std_string GASpart_name;
+    H5std_string DMpart_name;
+    H5std_string EXTRApart_name;
+    H5std_string TRACERpart_name;
+    H5std_string STARpart_name;
+    H5std_string BHpart_name;
+    H5std_string part_names[NHDFTYPE];
+    H5std_string names[NHDFTYPE+1];
+
+    ///constructor
+    HDF_Group_Names(){
+        Header_name=H5std_string("Header");
+        GASpart_name=H5std_string("PartType0");
+        DMpart_name=H5std_string("PartType1");
+        EXTRApart_name=H5std_string("PartType2");
+        TRACERpart_name=H5std_string("PartType3");
+        STARpart_name=H5std_string("PartType4");
+        BHpart_name=H5std_string("PartType5");
+        part_names[0]=GASpart_name;
+        part_names[1]=DMpart_name;
+        part_names[2]=EXTRApart_name;
+        part_names[3]=TRACERpart_name;
+        part_names[4]=STARpart_name;
+        part_names[5]=BHpart_name;
+        
+        names[6]=Header_name;
+        names[0]=GASpart_name;
+        names[1]=DMpart_name;
+        names[2]=EXTRApart_name;
+        names[3]=TRACERpart_name;
+        names[4]=STARpart_name;
+        names[5]=BHpart_name;
+    }
+};
+
+///data stored in the header group structure in the HDF format
+struct HDF_Header {
+
+    double      BoxSize;
+    int         npart[NHDFTYPE];
+    int         npartTotal[NHDFTYPE];
+    int         npartTotalHW[NHDFTYPE];
+    double      mass[NHDFTYPE];
+    double      Omega0, OmegaLambda, HubbleParam;
+    double      redshift, time;
+    int         num_files;
+
+    H5std_string names[HDFHEADNINFO];
+    const static int IBoxSize  =0;
+    const static int IMass     =1;
+    const static int INuminFile=2;
+    const static int INumTot   =3;
+    const static int INumTotHW =4;
+    const static int IOmega0   =5;
+    const static int IOmegaL   =6;
+    const static int IRedshift =7;
+    const static int ITime     =8;
+    const static int INumFiles =9;
+    const static int IHubbleParam =10;
+
+    ///constructor
+    HDF_Header() {
+        int itemp=0;
+        names[itemp++]=H5std_string("BoxSize");
+        names[itemp++]=H5std_string("MassTable");
+        names[itemp++]=H5std_string("NumPart_ThisFile");
+        names[itemp++]=H5std_string("NumPart_Total");
+        names[itemp++]=H5std_string("NumPart_Total_HighWord");
+        names[itemp++]=H5std_string("Omega0");
+        names[itemp++]=H5std_string("OmegaLambda");
+        names[itemp++]=H5std_string("Redshift");
+        names[itemp++]=H5std_string("Time");
+        names[itemp++]=H5std_string("NumFilesPerSnapshot");
+        names[itemp++]=H5std_string("HubbleParam");
+    }
+};
+
+struct HDF_Part_Info {
+    H5std_string names[HDFMAXPINFO];
+    int ptype;
+    int nentries;
+    HDF_Part_Info(int PTYPE) {
+        ptype=PTYPE;
+        int itemp=0;
+        if (ptype==HDFGASTYPE) {
+        names[itemp++]=H5std_string("Coordinates");
+        names[itemp++]=H5std_string("Velocities");
+        names[itemp++]=H5std_string("ParticleIDs");
+        names[itemp++]=H5std_string("Masses");
+        names[itemp++]=H5std_string("Density");
+        names[itemp++]=H5std_string("InternalEnergy");
+        names[itemp++]=H5std_string("StarFormationRate");
+        names[itemp++]=H5std_string("ElectronAbundance");
+        names[itemp++]=H5std_string("NeutralHydrogenAbundance");
+        names[itemp++]=H5std_string("Volume");
+        names[itemp++]=H5std_string("SmoothingLength");
+        names[itemp++]=H5std_string("Potential");
+        names[itemp++]=H5std_string("SubfindDensity");
+        names[itemp++]=H5std_string("SubfindHsml");
+        names[itemp++]=H5std_string("SubfindVelDisp");
+        names[itemp++]=H5std_string("GFM_AGNRadiation");
+        names[itemp++]=H5std_string("GFM_CoolingRate");
+        names[itemp++]=H5std_string("GFM_Metallicity");
+        names[itemp++]=H5std_string("GFM_WindDMVelDisp");
+        names[itemp++]=H5std_string("NumTracers");
+        nentries=itemp;
+        }
+        if (ptype==HDFDMTYPE) {
+        names[itemp++]=H5std_string("Coordinates");
+        names[itemp++]=H5std_string("Velocities");
+        names[itemp++]=H5std_string("ParticleIDs");
+        names[itemp++]=H5std_string("Potential");
+        names[itemp++]=H5std_string("SubfindDensity");
+        names[itemp++]=H5std_string("SubfindHsml");
+        names[itemp++]=H5std_string("SubfindVelDisp");
+        nentries=itemp;
+        }
+        if (ptype==HDFTRACERTYPE) {
+        names[itemp++]=H5std_string("FluidQuantities");
+        names[itemp++]=H5std_string("ParentID");
+        names[itemp++]=H5std_string("TracerID");
+        nentries=itemp;
+        }
+        if (ptype==HDFSTARTYPE) {
+        names[itemp++]=H5std_string("Coordinates");
+        names[itemp++]=H5std_string("Velocities");
+        names[itemp++]=H5std_string("ParticleIDs");
+        names[itemp++]=H5std_string("Masses");
+        names[itemp++]=H5std_string("Potential");
+        names[itemp++]=H5std_string("SubfindDensity");
+        names[itemp++]=H5std_string("SubfindHsml");
+        names[itemp++]=H5std_string("SubfindVelDisp");
+        names[itemp++]=H5std_string("GFM_InitialMass");
+        names[itemp++]=H5std_string("GFM_Metallicity");
+        names[itemp++]=H5std_string("GFM_StellarFormationTime");
+        names[itemp++]=H5std_string("GFM_StellarPhotometrics");
+        names[itemp++]=H5std_string("NumTracers");
+        nentries=itemp;
+        }
+        if (ptype==HDFBHTYPE) {
+        names[itemp++]=H5std_string("Coordinates");
+        names[itemp++]=H5std_string("Velocities");
+        names[itemp++]=H5std_string("ParticleIDs");
+        names[itemp++]=H5std_string("Masses");
+        names[itemp++]=H5std_string("HostHaloMass");
+        names[itemp++]=H5std_string("Potential");
+        names[itemp++]=H5std_string("SubfindDensity");
+        names[itemp++]=H5std_string("SubfindHsml");
+        names[itemp++]=H5std_string("SubfindVelDisp");
+        names[itemp++]=H5std_string("BH_CumEgyInjection_QM");
+        names[itemp++]=H5std_string("BH_CumMassGrowth_QM");
+        names[itemp++]=H5std_string("BH_Density");
+        names[itemp++]=H5std_string("BH_Hsml");
+        names[itemp++]=H5std_string("BH_Mass");
+        names[itemp++]=H5std_string("BH_Mass_bubbles");
+        names[itemp++]=H5std_string("BH_Mass_ini");
+        names[itemp++]=H5std_string("BH_Mdot");
+        names[itemp++]=H5std_string("BH_Pressure");
+        names[itemp++]=H5std_string("BH_Progs");
+        names[itemp++]=H5std_string("BH_U");
+        names[itemp++]=H5std_string("NumTracers");
+        nentries=itemp;
+        }
+    }
+};
+
+/*
+///data stored in the PartType0 (or GAS) group structure in the HDF format
+struct HDF_Gas {
+
+    double pos[3],vel[3];
+    double mass,den,Ne,Nh,U,phi,hsml,SFR,vol;
+    double GFM_agn,GFM_cool,GFM_Z,GFM_windveldisp;
+    double subfind_den,subfind_hsml,subfind_veldisp;
+    unsigned long long pid;
+    int ntracers;
+
+    H5std_string names[HDFGASNINFO];
+
+    ///constructor
+    HDF_Gas() {
+        int itemp=0;
+        names[itemp++]=H5std_string("Coordinates");
+        names[itemp++]=H5std_string("Velocities");
+        names[itemp++]=H5std_string("ParticleIDs");
+        names[itemp++]=H5std_string("Masses");
+        names[itemp++]=H5std_string("Density");
+        names[itemp++]=H5std_string("InternalEnergy");
+        names[itemp++]=H5std_string("StarFormationRate");
+        names[itemp++]=H5std_string("ElectronAbundance");
+        names[itemp++]=H5std_string("NeutralHydrogenAbundance");
+        names[itemp++]=H5std_string("Volume");
+        names[itemp++]=H5std_string("SmoothingLength");
+        names[itemp++]=H5std_string("Potential");
+        names[itemp++]=H5std_string("SubfindDensity");
+        names[itemp++]=H5std_string("SubfindHsml");
+        names[itemp++]=H5std_string("SubfindVelDisp");
+        names[itemp++]=H5std_string("GFM_AGNRadiation");
+        names[itemp++]=H5std_string("GFM_CoolingRate");
+        names[itemp++]=H5std_string("GFM_Metallicity");
+        names[itemp++]=H5std_string("GFM_WindDMVelDisp");
+        names[itemp++]=H5std_string("NumTracers");
+    }
+};
+
+///data stored in the PartType1 (or DM) group structure in the HDF format
+struct HDF_DM {
+    double pos[3],vel[3];
+    double phi;
+    double subfind_den,subfind_hsml,subfind_veldisp;
+    unsigned long long pid;
+
+    H5std_string names[HDFDMNINFO];
+
+    ///constructor
+    HDF_DM() {
+        int itemp=0;
+        names[itemp++]=H5std_string("Coordinates");
+        names[itemp++]=H5std_string("Velocities");
+        names[itemp++]=H5std_string("ParticleIDs");
+        names[itemp++]=H5std_string("Potential");
+        names[itemp++]=H5std_string("SubfindDensity");
+        names[itemp++]=H5std_string("SubfindHsml");
+        names[itemp++]=H5std_string("SubfindVelDisp");
+    }
+};
+
+///data stored in the PartType3 (or Tracer) group structure in the HDF format
+struct HDF_Tracer {
+    ///fluid quantities are specific to Illustris, see \ref http://www.illustris-project.org/data/docs/specifications/
+    double fquan[13];
+    unsigned long long pid;
+    unsigned long long tid;
+
+    H5std_string names[HDFTRACERNINFO];
+
+    ///constructor
+    HDF_Tracer(){
+        int itemp=0;
+        names[itemp++]=H5std_string("FluidQuantities");
+        names[itemp++]=H5std_string("ParentID");
+        names[itemp++]=H5std_string("TracerID");
+    }
+};
+
+///data stored in the PartType4 (or STAR) group structure in the HDF format
+struct HDF_Star {
+    double pos[3],vel[3];
+    double mass,phi;
+    double GFM_initmass,GFM_Z,GFM_tform;
+    double GFM_lum[NLUMBANDS];//luminosity in various bands
+    double subfind_den,subfind_hsml,subfind_veldisp;
+    unsigned long long pid;
+    int ntracers;
+
+    H5std_string names[HDFSTARNINFO];
+
+    ///constructor
+    HDF_Star() {
+        int itemp=0;
+        names[itemp++]=H5std_string("Coordinates");
+        names[itemp++]=H5std_string("Velocities");
+        names[itemp++]=H5std_string("ParticleIDs");
+        names[itemp++]=H5std_string("Masses");
+        names[itemp++]=H5std_string("Potential");
+        names[itemp++]=H5std_string("SubfindDensity");
+        names[itemp++]=H5std_string("SubfindHsml");
+        names[itemp++]=H5std_string("SubfindVelDisp");
+        names[itemp++]=H5std_string("GFM_InitialMass");
+        names[itemp++]=H5std_string("GFM_Metallicity");
+        names[itemp++]=H5std_string("GFM_StellarFormationTime");
+        names[itemp++]=H5std_string("GFM_StellarPhotometrics");
+        names[itemp++]=H5std_string("NumTracers");
+    }
+
+
+};
+
+///data stored in the PartType5 (or BH) group structure in the HDF format
+struct HDF_BH {
+public:
+    double pos[3],vel[3];
+    double mass,phi;
+    ///black hole quantities specific to Illustris
+    double BH_quants[11];
+    double hostmass;
+    double subfind_den,subfind_hsml,subfind_veldisp;
+    unsigned long long pid;
+    int ntracers;
+
+    H5std_string names[HDFBHNINFO];
+
+    ///constructor
+    HDF_BH() {
+        int itemp=0;
+        names[itemp++]=H5std_string("Coordinates");
+        names[itemp++]=H5std_string("Velocities");
+        names[itemp++]=H5std_string("ParticleIDs");
+        names[itemp++]=H5std_string("Masses");
+        names[itemp++]=H5std_string("HostHaloMass");
+        names[itemp++]=H5std_string("Potential");
+        names[itemp++]=H5std_string("SubfindDensity");
+        names[itemp++]=H5std_string("SubfindHsml");
+        names[itemp++]=H5std_string("SubfindVelDisp");
+        names[itemp++]=H5std_string("BH_CumEgyInjection_QM");
+        names[itemp++]=H5std_string("BH_CumMassGrowth_QM");
+        names[itemp++]=H5std_string("BH_Density");
+        names[itemp++]=H5std_string("BH_Hsml");
+        names[itemp++]=H5std_string("BH_Mass");
+        names[itemp++]=H5std_string("BH_Mass_bubbles");
+        names[itemp++]=H5std_string("BH_Mass_ini");
+        names[itemp++]=H5std_string("BH_Mdot");
+        names[itemp++]=H5std_string("BH_Pressure");
+        names[itemp++]=H5std_string("BH_Progs");
+        names[itemp++]=H5std_string("BH_U");
+        names[itemp++]=H5std_string("NumTracers");
+    }
+};
+*/
+
+//@}
+
+/// \name Get the number of particles in the hdf files
+//@{
+inline Int_t HDF_get_nbodies(char *fname, int ptype=-1) 
+{
+    char buf[2000],buf1[2000],buf2[2000];
+    sprintf(buf1,"%s.0.hdf5",fname);
+    sprintf(buf2,"%s.hdf5",fname);
+    if (FileExists(buf1)) sprintf(buf,"%s",buf1);
+    else if (FileExists(buf2)) sprintf(buf,"%s",buf2);
+    else {
+        printf("Error. Can't find snapshot!\nneither as `%s'\nnor as `%s'\n\n", buf1, buf2);
+        exit(9);
+    }
+
+    H5File Fhdf;
+    HDF_Group_Names hdf_gnames;
+    //to store the groups, data sets and their associated data spaces
+    Group headergroup;
+    Attribute headerattribs;
+    HDF_Header hdf_header_info;
+    //buffers to load data
+    int intbuff[NHDFTYPE];
+    long long longbuff[NHDFTYPE];
+    int j,ireaderror=0;
+    Int_t nbodies=0;
+    IntType inttype;
+    //Try block to detect exceptions raised by any of the calls inside it
+    try
+    {
+        //turn off the auto-printing when failure occurs so that we can
+        //handle the errors appropriately
+        Exception::dontPrint();
+
+        //Open the specified file and the specified dataset in the file.
+        Fhdf.openFile(buf, H5F_ACC_RDONLY);
+        //get header group 
+        headergroup=Fhdf.openGroup(hdf_gnames.Header_name);
+
+        headerattribs=headergroup.openAttribute(hdf_header_info.names[hdf_header_info.INumTot]);
+        inttype=headerattribs.getIntType();
+        if (inttype.getSize()==sizeof(int)) {
+            headerattribs.read(PredType::NATIVE_INT,&intbuff);
+            for (j=0;j<NHDFTYPE;j++) hdf_header_info.npartTotal[j]=intbuff[j];
+        }
+        if (inttype.getSize()==sizeof(long long)) {
+            headerattribs.read(PredType::NATIVE_LONG,&longbuff);
+            for (j=0;j<NHDFTYPE;j++) hdf_header_info.npartTotal[j]=longbuff[j];
+        }
+
+        headerattribs=headergroup.openAttribute(hdf_header_info.names[hdf_header_info.INumTotHW]);
+        inttype=headerattribs.getIntType();
+        if (inttype.getSize()==sizeof(int)) {
+            headerattribs.read(PredType::NATIVE_INT,&intbuff);
+            for (j=0;j<NHDFTYPE;j++) hdf_header_info.npartTotalHW[j]=intbuff[j];
+        }
+        if (inttype.getSize()==sizeof(long long)) {
+            headerattribs.read(PredType::NATIVE_LONG,&longbuff);
+            for (j=0;j<NHDFTYPE;j++) hdf_header_info.npartTotalHW[j]=longbuff[j];
+        }
+    }
+    catch(GroupIException error)
+    {
+        error.printError();
+    }
+    // catch failure caused by the H5File operations
+    catch( FileIException error )
+    {
+        error.printError();
+
+    }
+    // catch failure caused by the DataSet operations
+    catch( DataSetIException error )
+    {
+        error.printError();
+        ireaderror=1;
+    }
+    // catch failure caused by the DataSpace operations
+    catch( DataSpaceIException error )
+    {
+        error.printError();
+        ireaderror=1;
+    }
+    // catch failure caused by the DataSpace operations
+    catch( DataTypeIException error )
+    {
+        error.printError();
+        ireaderror=1;
+    }
+    Fhdf.close();
+
+    if (ptype==-1) {
+        for(j=0, nbodies=0; j<NHDFTYPE; j++) {
+            nbodies+=hdf_header_info.npartTotal[j];
+            nbodies+=((long long)(hdf_header_info.npartTotalHW[j]) << 32);
+        }
+    }
+    else {
+        nbodies=hdf_header_info.npartTotal[ptype];
+        nbodies+=((long long)(hdf_header_info.npartTotalHW[ptype]) << 32);
+    }
+    return nbodies;
+}
+//@}
+
+#endif 

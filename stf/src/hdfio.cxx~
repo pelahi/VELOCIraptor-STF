@@ -1,0 +1,688 @@
+/*! \file hdfio.cxx
+ *  \brief this file contains routines for hdf snapshot file io
+
+ Note that the code is partly based on HDF examples which have the following liscence
+
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have                 *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+ */
+#ifdef USEHDF
+
+//-- HDF5 SPECIFIC IO
+
+#include "stf.h"
+
+#include "hdfitems.h"
+
+extern "C" herr_t file_attrib_info(hid_t loc_id, const char *name, const H5L_info_t *linfo, void *opdata)
+{
+    hid_t attrib_id;
+    //Open the group using its name via the c interface
+    attrib_id = H5Aopen(loc_id, name, H5P_DEFAULT);
+    //Display group name.
+    cout<<"Attribute Name : " <<name<<" "<<attrib_id<<endl;
+    //close the group via the c interface
+    H5Aclose(attrib_id);
+    return 0;
+}
+
+extern "C" herr_t file_data_info(hid_t loc_id, const char *name, const H5L_info_t *linfo, void *opdata)
+{
+    hid_t dataset_id;
+    //Open the group using its name via the c interface
+    dataset_id = H5Dopen2(loc_id, name, H5P_DEFAULT);
+    //Display group name.
+    cout<<"Data Name : " <<name<<" "<<dataset_id<<endl;
+    //close the group via the c interface
+    H5Dclose(dataset_id);
+    return 0;
+}
+
+// operator function to interface with HDF c code and print out the Group names in the hdf file
+extern "C" herr_t file_info(hid_t loc_id, const char *name, const H5L_info_t *linfo, void *opdata)
+{
+    hid_t group_id;
+    //Open the group using its name via the c interface
+    group_id = H5Gopen2(loc_id, name, H5P_DEFAULT);
+    //Display group name.
+    cout<<"Group Name : " <<name<<endl;
+    //H5Literate(group_id, H5_INDEX_NAME, H5_ITER_INC, NULL, file_data_info, NULL);
+    //close the group via the c interface
+    H5Gclose(group_id);
+    return 0;
+}
+
+///reads an hdf5 formatted file. 
+void ReadHDF(Options &opt, Particle *Part, const Int_t nbodies,Particle *Pbaryons, Int_t nbaryons) 
+{
+    //when passing hdf data, snapshotnum is -1 times its value. 
+    opt.snapshotnum*=-1;
+
+    //structure stores the names of the groups in the hdf input
+    char buf[2000];
+    HDF_Group_Names hdf_gnames;
+    //structures store names in groups
+    HDF_Header *hdf_header_info;
+    HDF_Part_Info hdf_gas_info(HDFGASTYPE);
+    HDF_Part_Info hdf_dm_info(HDFDMTYPE);
+    HDF_Part_Info hdf_tracer_info(HDFTRACERTYPE);
+    HDF_Part_Info hdf_star_info(HDFSTARTYPE);
+    HDF_Part_Info hdf_bh_info(HDFBHTYPE);
+
+    HDF_Part_Info *hdf_parts[NHDFTYPE];
+    hdf_parts[0]=&hdf_gas_info;
+    hdf_parts[1]=&hdf_dm_info;
+    //hdf_parts[2]=(void*)&hdf_extra_info;
+    hdf_parts[3]=&hdf_tracer_info;
+    hdf_parts[4]=&hdf_star_info;
+    hdf_parts[5]=&hdf_bh_info;
+
+    H5File *Fhdf;
+    //to store the groups, data sets and their associated data spaces
+    Group *headergroup;
+    Group *partsgroup;
+    Attribute *headerattribs;
+    DataSpace *headerdataspace;
+    DataSet *partsdataset;
+    DataSpace *partsdataspace;
+    DataSpace chunkspace;
+    //buffers to load data
+    int *intbuff=new int[HDFCHUNKSIZE];
+    long long *longbuff=new long long[HDFCHUNKSIZE];
+    float *floatbuff=new float[HDFCHUNKSIZE*3];
+    double *doublebuff=new double[HDFCHUNKSIZE*3];
+    void *integerbuff,*realbuff;
+    //arrays to store number of items to read and offsets when selecting hyperslabs
+    //at most one needs a dimensionality of 13 for the tracer particles in Illustris
+    hsize_t filespacecount[13],filespaceoffset[13];
+    //to determine types 
+    IntType inttype;
+    FloatType floattype;
+    PredType HDFREALTYPE(PredType::NATIVE_FLOAT);
+    PredType HDFINTEGERTYPE(PredType::NATIVE_LONG);
+    int ifloat,iint;
+    int datarank;
+    hsize_t datadim[5];
+
+    ///array listing number of particle types used.
+    ///Since Illustris contains an unused type of particles (2) and tracer particles (3) really not useful to iterate over all particle types in loops
+    int nusetypes,nbusetypes;
+    int usetypes[NHDFTYPE];
+    if (opt.partsearchtype==PSTALL) {nusetypes=4;usetypes[0]=0;usetypes[1]=1;usetypes[2]=4;usetypes[3]=5;}
+    else if (opt.partsearchtype==PSTDARK) {nusetypes=1;usetypes[0]=1;if (opt.igsflag) {nbusetypes=3;usetypes[1]=0;usetypes[2]=4;usetypes[3]=5;}}
+    else if (opt.partsearchtype==PSTGAS) {nusetypes=1;usetypes[0]=0;}
+    else if (opt.partsearchtype==PSTSTAR) {nusetypes=1;usetypes[0]=4;}
+    else if (opt.partsearchtype==PSTBH) {nusetypes=1;usetypes[0]=5;}
+
+    int i,j,k,n,nchunk,count,bcount,itemp;
+
+    //store cosmology
+    double z,aadjust,Hubble,Hubbleflow;
+
+    Double_t mscale,lscale,lvscale;
+    int ifirstfile=0,*ireadfile,ireaderror=0;
+#ifndef USEMPI
+    Int_t Ntotal;
+    int ThisTask=0,NProcs=1;
+    ireadfile=new int[opt.snapshotnum];
+    for (i=0;i<opt.snapshotnum;i++) ireadfile[i]=1;
+#endif
+
+    //if MPI is used, read processors (all tasks with task numbers less than the number of snapshots) opens the file and loads the data into a particle buffer
+    //this particle buffer is used to broadcast data to the appropriate processor
+#ifdef USEMPI
+    //since positions, velocities, masses are all at different points in the file,
+    //to correctly assign particle to proccessor with correct velocities and mass must have several file pointers
+    MPI_Status status;
+    Particle *Pbuf;
+    int mpi_ireaderror;
+
+    //for parallel io
+    Int_t Nlocalbuf,ibuf=0,*Nbuf, *Nreadbuf,*nreadoffset;
+    Int_t *Nlocalthreadbuf,Nlocaltotalbuf;
+    int *irecv, sendTask,recvTask,irecvflag, *mpi_irecvflag;
+    MPI_Request *mpi_request;
+    Int_t *mpi_nsend_baryon;
+    if (opt.igsflag) mpi_nsend_baryon=new Int_t[NProcs];
+
+    Nbuf=new Int_t[NProcs];
+    nreadoffset=new Int_t[opt.nsnapread];
+
+    if (ThisTask<opt.nsnapread)
+    {
+        //to temporarily store data from gadget file
+        Pbuf=new Particle[BufSize*NProcs];
+        Nreadbuf=new Int_t[opt.snapshotnum];
+        for (int j=0;j<NProcs;j++) Nbuf[j]=0;
+        for (int j=0;j<opt.snapshotnum;j++) Nreadbuf[j]=0;
+
+        //to determine which files the thread should read
+        ireadfile=new int[opt.snapshotnum];
+        for (i=0;i<opt.snapshotnum;i++) ireadfile[i]=0;
+        int nread=opt.snapshotnum/opt.nsnapread;
+        int niread=ThisTask*nread,nfread=(ThisTask+1)*nread;
+        if (ThisTask==opt.nsnapread-1) nfread=opt.snapshotnum;
+        for (i=niread;i<nfread;i++) ireadfile[i]=1;
+        ifirstfile=niread;
+    }
+    else {
+        Nlocalthreadbuf=new Int_t[opt.nsnapread];
+        irecv=new int[opt.nsnapread];
+        mpi_irecvflag=new int[opt.nsnapread];
+        for (i=0;i<opt.nsnapread;i++) irecv[i]=1;
+        mpi_request=new MPI_Request[opt.nsnapread];
+    }
+    Nlocal=0;
+    if (opt.igsflag) Nlocalbaryon[0]=0;
+
+#ifndef MPIREDUCEMEM
+    MPIDomainExtentHDF(opt);
+    if (NProcs>1) {
+    MPIDomainDecompositionHDF(opt);
+    MPIInitialDomainDecomposition();
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+#endif
+    if (ThisTask<opt.nsnapread) {
+#endif
+    Fhdf=new H5File[opt.snapshotnum];
+    headergroup=new Group[opt.snapshotnum];
+    partsgroup=new Group[opt.snapshotnum*NHDFTYPE];
+    headerattribs=new Attribute[opt.snapshotnum];
+    partsdataset=new DataSet[opt.snapshotnum*NHDFTYPE];
+    headerdataspace=new DataSpace[opt.snapshotnum];
+    partsdataspace=new DataSpace[opt.snapshotnum*NHDFTYPE];
+    hdf_header_info=new HDF_Header[opt.snapshotnum];
+    for(i=0; i<opt.snapshotnum; i++) {
+    if(ireadfile[i])
+    {
+        if(opt.snapshotnum>1) sprintf(buf,"%s.%d.hdf5",opt.fname,i);
+        else sprintf(buf,"%s.hdf5",opt.fname);
+        //Try block to detect exceptions raised by any of the calls inside it
+        try
+        {
+            //turn off the auto-printing when failure occurs so that we can
+            //handle the errors appropriately
+            Exception::dontPrint();
+
+            //Open the specified file and the specified dataset in the file.
+            Fhdf[i].openFile(buf, H5F_ACC_RDONLY);
+            if (ThisTask==0 && i==0) {
+                cout<<buf<<endl;
+                cout<<"HDF file contains the following group structures "<<endl;
+                H5Literate(Fhdf[i].getId(), H5_INDEX_NAME, H5_ITER_INC, NULL, file_info, NULL);
+                cout<<" Expecting "<<endl;
+                for (j=0;j<6;j++) cout<<hdf_gnames.names[j]<<endl;
+                Fhdf[i].close();
+                Fhdf[i].openFile(buf, H5F_ACC_RDONLY);
+            }
+            headergroup[i]=Fhdf[i].openGroup(hdf_gnames.Header_name);
+            //headergroup[i]=Fhdf[i].openGroup("Header");
+
+            //start reading attributes
+            headerattribs[i]=headergroup[i].openAttribute(hdf_header_info[i].names[hdf_header_info[i].IBoxSize]);
+            headerdataspace[i]=headerattribs[i].getSpace();
+            floattype=headerattribs[i].getFloatType();
+            if (floattype.getSize()==sizeof(float)) {
+                headerattribs[i].read(PredType::NATIVE_FLOAT,&floatbuff[0]);
+                hdf_header_info[i].BoxSize=floatbuff[0];
+            }
+            if (floattype.getSize()==sizeof(double)) {
+                headerattribs[i].read(PredType::NATIVE_DOUBLE,&doublebuff[0]);
+                hdf_header_info[i].BoxSize=doublebuff[0];
+            }
+            cout<<hdf_header_info[i].BoxSize<<endl;
+            cout<<"help ?"<<endl;
+
+            headerattribs[i]=headergroup[i].openAttribute(hdf_header_info[i].names[hdf_header_info[i].IMass]);
+            headerdataspace[i]=headerattribs[i].getSpace();
+            if (headerdataspace[i].getSimpleExtentNdims()!=1) ireaderror=1;
+            floattype=headerattribs[i].getFloatType();
+            if (floattype.getSize()==sizeof(float)) {
+                headerattribs[i].read(PredType::NATIVE_FLOAT,&floatbuff);
+                for (k=0;k<NHDFTYPE;k++)hdf_header_info[i].mass[k]=floatbuff[k];
+            }
+            if (floattype.getSize()==sizeof(double)) {
+                headerattribs[i].read(PredType::NATIVE_DOUBLE,&doublebuff);
+                for (k=0;k<NHDFTYPE;k++)hdf_header_info[i].mass[k]=doublebuff[k];
+            }
+
+            headerattribs[i]=headergroup[i].openAttribute(hdf_header_info[i].names[hdf_header_info[i].INuminFile]);
+            headerdataspace[i]=headerattribs[i].getSpace();
+            if (headerdataspace[i].getSimpleExtentNdims()!=1) ireaderror=1;
+            inttype=headerattribs[i].getIntType();
+            if (inttype.getSize()==sizeof(int)) {
+                headerattribs[i].read(PredType::NATIVE_INT,&intbuff);
+                for (k=0;k<NHDFTYPE;k++) hdf_header_info[i].npart[k]=intbuff[k];
+            }
+            if (inttype.getSize()==sizeof(long long)) {
+                headerattribs[i].read(PredType::NATIVE_LONG,&longbuff);
+                for (k=0;k<NHDFTYPE;k++) hdf_header_info[i].npart[k]=longbuff[k];
+            }
+
+            headerattribs[i]=headergroup[i].openAttribute(hdf_header_info[i].names[hdf_header_info[i].INumTot]);
+            headerdataspace[i]=headerattribs[i].getSpace();
+            inttype=headerattribs[i].getIntType();
+            if (inttype.getSize()==sizeof(int)) {
+                headerattribs[i].read(PredType::NATIVE_INT,&intbuff);
+                for (k=0;k<NHDFTYPE;k++) hdf_header_info[i].npartTotal[k]=intbuff[k];
+            }
+            if (inttype.getSize()==sizeof(long long)) {
+                headerattribs[i].read(PredType::NATIVE_LONG,&longbuff);
+                for (k=0;k<NHDFTYPE;k++) hdf_header_info[i].npartTotal[k]=longbuff[k];
+            }
+
+            headerattribs[i]=headergroup[i].openAttribute(hdf_header_info[i].names[hdf_header_info[i].INumTotHW]);
+            headerdataspace[i]=headerattribs[i].getSpace();
+            inttype=headerattribs[i].getIntType();
+            if (inttype.getSize()==sizeof(int)) {
+                headerattribs[i].read(PredType::NATIVE_INT,&intbuff);
+                for (k=0;k<NHDFTYPE;k++) hdf_header_info[i].npartTotalHW[k]=intbuff[k];
+            }
+            if (inttype.getSize()==sizeof(long long)) {
+                headerattribs[i].read(PredType::NATIVE_LONG,&longbuff);
+                for (k=0;k<NHDFTYPE;k++) hdf_header_info[i].npartTotalHW[k]=longbuff[k];
+            }
+
+            headerattribs[i]=headergroup[i].openAttribute(hdf_header_info[i].names[hdf_header_info[i].IOmega0]);
+            headerdataspace[i]=headerattribs[i].getSpace();
+            floattype=headerattribs[i].getFloatType();
+            if (floattype.getSize()==sizeof(float)) {
+                headerattribs[i].read(PredType::NATIVE_FLOAT,&floatbuff[0]);
+                hdf_header_info[i].Omega0=floatbuff[0];
+            }
+            if (floattype.getSize()==sizeof(double)) {
+                headerattribs[i].read(PredType::NATIVE_DOUBLE,&doublebuff[0]);
+                hdf_header_info[i].Omega0=doublebuff[0];
+            }
+
+            headerattribs[i]=headergroup[i].openAttribute(hdf_header_info[i].names[hdf_header_info[i].IOmegaL]);
+            headerdataspace[i]=headerattribs[i].getSpace();
+            floattype=headerattribs[i].getFloatType();
+            if (floattype.getSize()==sizeof(float)) {
+                headerattribs[i].read(PredType::NATIVE_FLOAT,&floatbuff[0]);
+                hdf_header_info[i].OmegaLambda=floatbuff[0];
+            }
+            if (floattype.getSize()==sizeof(double)) {
+                headerattribs[i].read(PredType::NATIVE_DOUBLE,&doublebuff[0]);
+                hdf_header_info[i].OmegaLambda=doublebuff[0];
+            }
+
+            headerattribs[i]=headergroup[i].openAttribute(hdf_header_info[i].names[hdf_header_info[i].IRedshift]);
+            headerdataspace[i]=headerattribs[i].getSpace();
+            floattype=headerattribs[i].getFloatType();
+            if (floattype.getSize()==sizeof(float)) {
+                headerattribs[i].read(PredType::NATIVE_FLOAT,&floatbuff[0]);
+                hdf_header_info[i].redshift=floatbuff[0];
+            }
+            if (floattype.getSize()==sizeof(double)) {
+                headerattribs[i].read(PredType::NATIVE_DOUBLE,&doublebuff[0]);
+                hdf_header_info[i].redshift=doublebuff[0];
+            }
+
+            headerattribs[i]=headergroup[i].openAttribute(hdf_header_info[i].names[hdf_header_info[i].ITime]);
+            headerdataspace[i]=headerattribs[i].getSpace();
+            floattype=headerattribs[i].getFloatType();
+            if (floattype.getSize()==sizeof(float)) {
+                headerattribs[i].read(PredType::NATIVE_FLOAT,&floatbuff[0]);
+                hdf_header_info[i].time=floatbuff[0];
+            }
+            if (floattype.getSize()==sizeof(double)) {
+                headerattribs[i].read(PredType::NATIVE_DOUBLE,&doublebuff[0]);
+                hdf_header_info[i].time=doublebuff[0];
+            }
+
+            headerattribs[i]=headergroup[i].openAttribute(hdf_header_info[i].names[hdf_header_info[i].IHubbleParam]);
+            headerdataspace[i]=headerattribs[i].getSpace();
+            floattype=headerattribs[i].getFloatType();
+            if (floattype.getSize()==sizeof(float)) {
+                headerattribs[i].read(PredType::NATIVE_FLOAT,&floatbuff[0]);
+                hdf_header_info[i].HubbleParam=floatbuff[0];
+            }
+            if (floattype.getSize()==sizeof(double)) {
+                headerattribs[i].read(PredType::NATIVE_DOUBLE,&doublebuff[0]);
+                hdf_header_info[i].HubbleParam=doublebuff[0];
+            }
+
+            headerattribs[i]=headergroup[i].openAttribute(hdf_header_info[i].names[hdf_header_info[i].INumFiles]);
+            headerdataspace[i]=headerattribs[i].getSpace();
+            inttype=headerattribs[i].getIntType();
+            if (inttype.getSize()==sizeof(int)) {
+                headerattribs[i].read(PredType::NATIVE_INT,&intbuff[0]);
+                hdf_header_info[i].num_files=intbuff[0];
+            }
+            if (inttype.getSize()==sizeof(long long)) {
+                headerattribs[i].read(PredType::NATIVE_LONG,&longbuff[0]);
+                hdf_header_info[i].num_files=longbuff[0];
+            }
+            cout<<"hA:KLJSAF"<<endl;
+        }
+        catch(GroupIException error)
+        {
+            error.printError();
+        }
+        // catch failure caused by the H5File operations
+        catch( FileIException error )
+        {
+            error.printError();
+
+        }
+        // catch failure caused by the DataSet operations
+        catch( DataSetIException error )
+        {
+            error.printError();
+            ireaderror=1;
+        }
+        // catch failure caused by the DataSpace operations
+        catch( DataSpaceIException error )
+        {
+            error.printError();
+            ireaderror=1;
+        }
+        // catch failure caused by the DataSpace operations
+        catch( DataTypeIException error )
+        {
+            error.printError();
+            ireaderror=1;
+        }
+    }
+    }
+    //after info read, initialise cosmological parameters
+    opt.p=hdf_header_info[ifirstfile].BoxSize;
+    z=hdf_header_info[ifirstfile].redshift;
+    opt.a=1./(1.+z);
+    opt.Omega_m=hdf_header_info[ifirstfile].Omega0;
+    opt.Omega_Lambda=hdf_header_info[ifirstfile].OmegaLambda;
+    opt.h=hdf_header_info[ifirstfile].HubbleParam;
+    opt.Omega_cdm=opt.Omega_m-opt.Omega_b;
+    //Hubble flow
+    if (opt.comove) aadjust=1.0;
+    else aadjust=opt.a;
+    Hubble=opt.h*opt.H*sqrt((1-opt.Omega_m-opt.Omega_Lambda)*pow(aadjust,-2.0)+opt.Omega_m*pow(aadjust,-3.0)+opt.Omega_Lambda);
+    opt.rhobg=3.*Hubble*Hubble/(8.0*M_PI*opt.G)*opt.Omega_m;
+    //if opt.virlevel<0, then use virial overdensity based on Bryan and Norman 1998 virialization level is given by
+    if (opt.virlevel<0) 
+    {
+        Double_t bnx=-((1-opt.Omega_m-opt.Omega_Lambda)*pow(aadjust,-2.0)+opt.Omega_Lambda)/((1-opt.Omega_m-opt.Omega_Lambda)*pow(aadjust,-2.0)+opt.Omega_m*pow(aadjust,-3.0)+opt.Omega_Lambda);
+        opt.virlevel=(18.0*M_PI*M_PI+82.0*bnx-39*bnx*bnx)/opt.Omega_m;
+    }
+    mscale=opt.M/opt.h;lscale=opt.L/opt.h*aadjust;lvscale=opt.L/opt.h*opt.a;
+    //ignore hubble flow
+    Hubbleflow=0.;
+    Ntotal=0;
+    for (int j=0;j<NHDFTYPE;j++)
+    {
+        opt.numpart[j]=hdf_header_info[ifirstfile].npartTotal[j];
+        Ntotal+=hdf_header_info[ifirstfile].npartTotal[j];
+    }
+    for (int j=0;j<NHDFTYPE;j++)
+    {
+        opt.numpart[j]+=((long long)hdf_header_info[ifirstfile].npartTotalHW[j]<<32);
+        Ntotal+=((long long)hdf_header_info[ifirstfile].npartTotalHW[j]<<32);
+    }
+    cout<<"File contains "<<Ntotal<<" particles at is at time "<<opt.a<<endl;
+    cout<<"Particle system contains "<<nbodies<<" particles at is at time "<<opt.a<<" in a box of size "<<opt.p<<endl;
+    cout<<"Cosmology (h,Omega_m,Omega_cdm,Omega_b,Omega_L) = ("<< opt.h<<","<<opt.Omega_m<<","<<opt.Omega_cdm<<","<<opt.Omega_b<<","<<opt.Omega_Lambda<<")"<<endl;
+#ifdef USEMPI
+    }
+#endif
+#ifdef USEMPI
+    MPI_Reduce(&ireaderror, &mpi_ireaderror, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+    if (mpi_ireaderror) {
+        MPI_Finalize();
+        exit(9);
+    }
+#else
+    if (ireaderror) exit(9);
+#endif
+
+#ifndef USEMPI
+    //start loding particle data
+    for(i=0; i<opt.snapshotnum; i++) {
+    if(ireadfile[i])
+    {
+        ///\todo should be more rigorous with try/catch stuff
+        //open particle group structures 
+        for (j=0;j<nusetypes;j++) {k=usetypes[j]; partsgroup[i*NHDFTYPE+k]=Fhdf[i].openGroup(hdf_gnames.part_names[k]);}
+        if (opt.partsearchtype==PSTDARK && opt.igsflag) for (j=1;j<=nbusetypes;j++) {k=usetypes[j];partsgroup[i*NHDFTYPE+k]=Fhdf[i].openGroup(hdf_gnames.part_names[k]);}
+        itemp=0;
+        //get positions
+        for (k=0;k<NHDFTYPE;k++) if (k!=HDFEXTRATYPE) {
+            partsdataset[i*NHDFTYPE+k]=partsgroup[i*NHDFTYPE+k].openDataSet(hdf_parts[k]->names[itemp]);
+            partsdataspace[i*NHDFTYPE+k]=partsdataset[i*NHDFTYPE+k].getSpace();
+            //assuming all particles use the same float type for shared property structures
+            floattype=partsdataset[i*NHDFTYPE+k].getFloatType();
+        }
+        if (floattype.getSize()==sizeof(float)) {HDFREALTYPE=PredType::NATIVE_FLOAT;realbuff=floatbuff;ifloat=1;}
+        else {HDFREALTYPE=PredType::NATIVE_DOUBLE ;realbuff=doublebuff;ifloat=0;}
+        count=0;
+        for (j=0;j<nusetypes;j++) {
+            k=usetypes[j];
+            //data loaded into memory in chunks
+            if (hdf_header_info[i].npart[k]<HDFCHUNKSIZE)nchunk=hdf_header_info[i].npart[k];
+            else nchunk=HDFCHUNKSIZE;
+            for(n=0;n<hdf_header_info[i].npart[k];n+=nchunk)
+            {
+                if (hdf_header_info[i].npart[k]-n<HDFCHUNKSIZE&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
+                //setup hyperslab so that it is loaded into the buffer
+                datarank=1;
+                datadim[0]=nchunk*3;
+                chunkspace=DataSpace(datarank,datadim);
+                filespacecount[0]=HDFCHUNKSIZE;filespacecount[1]=3;
+                filespaceoffset[0]=n;filespaceoffset[1]=0;
+                partsdataspace[i*NHDFTYPE+k].selectHyperslab(H5S_SELECT_SET, filespacecount, filespaceoffset);
+                partsdataset[i*NHDFTYPE+k].read(realbuff,HDFREALTYPE,chunkspace,partsdataspace[i*NHDFTYPE+k]);
+
+                if (ifloat) for (int nn=0;nn<nchunk;nn++) Part[count++].SetPosition(floatbuff[nn*3],floatbuff[nn*3+1],floatbuff[nn*3+2]);
+                else for (int nn=0;nn<nchunk;nn++) Part[count++].SetPosition(doublebuff[nn*3],doublebuff[nn*3+1],doublebuff[nn*3+2]);
+            }
+        }
+        if (opt.partsearchtype==PSTDARK && opt.igsflag) {
+        for (j=1;j<=nbusetypes;j++) {
+            k=usetypes[j];
+            //data loaded into memory in chunks
+            if (hdf_header_info[i].npart[k]<HDFCHUNKSIZE)nchunk=hdf_header_info[i].npart[k];
+            else nchunk=HDFCHUNKSIZE;
+            for(n=0;n<hdf_header_info[i].npart[k];n+=nchunk)
+            {
+                if (hdf_header_info[i].npart[k]-n<HDFCHUNKSIZE&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
+                //setup hyperslab so that it is loaded into the buffer
+                datarank=1;
+                datadim[0]=nchunk*3;
+                chunkspace=DataSpace(datarank,datadim);
+                filespacecount[0]=HDFCHUNKSIZE;filespacecount[1]=3;
+                filespaceoffset[0]=n;filespaceoffset[1]=0;
+                partsdataspace[i*NHDFTYPE+k].selectHyperslab(H5S_SELECT_SET, filespacecount, filespaceoffset);
+                partsdataset[i*NHDFTYPE+k].read(realbuff,HDFREALTYPE,chunkspace,partsdataspace[i*NHDFTYPE+k]);
+
+                if (ifloat) for (int nn=0;nn<nchunk;nn++) Pbaryons[bcount++].SetPosition(floatbuff[nn*3],floatbuff[nn*3+1],floatbuff[nn*3+2]);
+                else for (int nn=0;nn<nchunk;nn++) Pbaryons[bcount++].SetPosition(doublebuff[nn*3],doublebuff[nn*3+1],doublebuff[nn*3+2]);
+            }
+        }
+        }
+        //get velocities
+        itemp++;
+        for (k=0;k<NHDFTYPE;k++) if (k!=HDFEXTRATYPE) {
+            partsdataset[i*NHDFTYPE+k]=partsgroup[i*NHDFTYPE+k].openDataSet(hdf_parts[k]->names[itemp]);
+            partsdataspace[i*NHDFTYPE+k]=partsdataset[i*NHDFTYPE+k].getSpace();
+            //assuming all particles use the same float type for shared property structures
+            floattype=partsdataset[i*NHDFTYPE+k].getFloatType();
+        }
+        if (floattype.getSize()==sizeof(float)) {HDFREALTYPE=PredType::NATIVE_FLOAT;realbuff=floatbuff;ifloat=1;}
+        else {HDFREALTYPE=PredType::NATIVE_DOUBLE ;realbuff=doublebuff;ifloat=0;}
+        count=0;
+        for (j=0;j<nusetypes;j++) {
+            k=usetypes[j];
+            //data loaded into memory in chunks
+            if (hdf_header_info[i].npart[k]<HDFCHUNKSIZE)nchunk=hdf_header_info[i].npart[k];
+            else nchunk=HDFCHUNKSIZE;
+            for(n=0;n<hdf_header_info[i].npart[k];n+=nchunk)
+            {
+                if (hdf_header_info[i].npart[k]-n<HDFCHUNKSIZE&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
+                //setup hyperslab so that it is loaded into the buffer
+                datarank=1;
+                datadim[0]=nchunk*3;
+                chunkspace=DataSpace(datarank,datadim);
+                filespacecount[0]=HDFCHUNKSIZE;filespacecount[1]=3;
+                filespaceoffset[0]=n;filespaceoffset[1]=0;
+                partsdataspace[i*NHDFTYPE+k].selectHyperslab(H5S_SELECT_SET, filespacecount, filespaceoffset);
+                partsdataset[i*NHDFTYPE+k].read(realbuff,HDFREALTYPE,chunkspace,partsdataspace[i*NHDFTYPE+k]);
+
+                if (ifloat) for (int nn=0;nn<nchunk;nn++) Part[count++].SetVelocity(floatbuff[nn*3],floatbuff[nn*3+1],floatbuff[nn*3+2]);
+                else for (int nn=0;nn<nchunk;nn++) Part[count++].SetVelocity(doublebuff[nn*3],doublebuff[nn*3+1],doublebuff[nn*3+2]);
+            }
+        }
+        if (opt.partsearchtype==PSTDARK && opt.igsflag) {
+        for (j=1;j<=nbusetypes;j++) {
+            k=usetypes[j];
+            //data loaded into memory in chunks
+            if (hdf_header_info[i].npart[k]<HDFCHUNKSIZE)nchunk=hdf_header_info[i].npart[k];
+            else nchunk=HDFCHUNKSIZE;
+            for(n=0;n<hdf_header_info[i].npart[k];n+=nchunk)
+            {
+                if (hdf_header_info[i].npart[k]-n<HDFCHUNKSIZE&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
+                //setup hyperslab so that it is loaded into the buffer
+                datarank=1;
+                datadim[0]=nchunk*3;
+                chunkspace=DataSpace(datarank,datadim);
+                filespacecount[0]=HDFCHUNKSIZE;filespacecount[1]=3;
+                filespaceoffset[0]=n;filespaceoffset[1]=0;
+                partsdataspace[i*NHDFTYPE+k].selectHyperslab(H5S_SELECT_SET, filespacecount, filespaceoffset);
+                partsdataset[i*NHDFTYPE+k].read(realbuff,HDFREALTYPE,chunkspace,partsdataspace[i*NHDFTYPE+k]);
+
+                if (ifloat) for (int nn=0;nn<nchunk;nn++) Pbaryons[bcount++].SetVelocity(floatbuff[nn*3],floatbuff[nn*3+1],floatbuff[nn*3+2]);
+                else for (int nn=0;nn<nchunk;nn++) Pbaryons[bcount++].SetVelocity(doublebuff[nn*3],doublebuff[nn*3+1],doublebuff[nn*3+2]);
+            }
+        }
+        }
+        //get ids
+        itemp++;
+        for (k=0;k<NHDFTYPE;k++) if (k!=HDFEXTRATYPE) {
+            partsdataset[i*NHDFTYPE+k]=partsgroup[i*NHDFTYPE+k].openDataSet(hdf_parts[k]->names[itemp]);
+            partsdataspace[i*NHDFTYPE+k]=partsdataset[i*NHDFTYPE+k].getSpace();
+            //assuming all particles use the same int type for shared property structures
+            inttype=partsdataset[i*NHDFTYPE+k].getIntType();
+        }
+        if (inttype.getSize()==sizeof(int)) {HDFINTEGERTYPE=PredType::NATIVE_INT;integerbuff=intbuff;iint=1;}
+        else {HDFINTEGERTYPE=PredType::NATIVE_LONG;integerbuff=longbuff;iint=0;}
+        //if (inttype.getSize()==sizeof(int)) {typedef PredType::NATIVE_INT HDFINTERTYPE;integerbuff=intbuff;iint=1;}
+        //else {typedef PredType::NATIVE_LONG HDFINTEGERTYPE;integerbuff=longbuff;iint=0;}
+        count=0;
+        for (j=0;j<nusetypes;j++) {
+            k=usetypes[j];
+            //data loaded into memory in chunks
+            if (hdf_header_info[i].npart[k]<HDFCHUNKSIZE)nchunk=hdf_header_info[i].npart[k];
+            else nchunk=HDFCHUNKSIZE;
+            for(n=0;n<hdf_header_info[i].npart[k];n+=nchunk)
+            {
+                if (hdf_header_info[i].npart[k]-n<HDFCHUNKSIZE&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
+                //setup hyperslab so that it is loaded into the buffer
+                datarank=1;
+                datadim[0]=nchunk;
+                chunkspace=DataSpace(datarank,datadim);
+                filespacecount[0]=HDFCHUNKSIZE;
+                filespaceoffset[0]=n;
+                partsdataspace[i*NHDFTYPE+k].selectHyperslab(H5S_SELECT_SET, filespacecount, filespaceoffset);
+                partsdataset[i*NHDFTYPE+k].read(integerbuff,HDFINTEGERTYPE,chunkspace,partsdataspace[i*NHDFTYPE+k]);
+
+                for (int nn=0;nn<nchunk;nn++) {
+                    if (iint) Part[count].SetPID(intbuff[nn]);
+                    else Part[count].SetPID(longbuff[nn]);
+                    Part[count].SetID(count);
+                    if (k==HDFGASTYPE) Part[count].SetType(GASTYPE);
+                    else if (k==HDFDMTYPE) Part[count].SetType(DARKTYPE);
+                    else if (k==HDFSTARTYPE) Part[count].SetType(STARTYPE);
+                    else if (k==HDFBHTYPE) Part[count].SetType(BHTYPE);
+                    count++;
+                }
+            }
+        }
+        if (opt.partsearchtype==PSTALL && opt.igsflag) {
+        for (j=1;j<=nbusetypes;j++) {
+            k=usetypes[j];
+            //data loaded into memory in chunks
+            if (hdf_header_info[i].npart[k]<HDFCHUNKSIZE)nchunk=hdf_header_info[i].npart[k];
+            else nchunk=HDFCHUNKSIZE;
+            for(n=0;n<hdf_header_info[i].npart[k];n+=nchunk)
+            {
+                if (hdf_header_info[i].npart[k]-n<HDFCHUNKSIZE&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
+                datarank=1;
+                datadim[0]=nchunk;
+                chunkspace=DataSpace(datarank,datadim);
+                filespacecount[0]=HDFCHUNKSIZE;
+                filespaceoffset[0]=n;
+                partsdataspace[i*NHDFTYPE+k].selectHyperslab(H5S_SELECT_SET, filespacecount, filespaceoffset);
+                partsdataset[i*NHDFTYPE+k].read(integerbuff,HDFINTEGERTYPE,chunkspace,partsdataspace[i*NHDFTYPE+k]);
+
+                for (int nn=0;nn<nchunk;nn++) {
+                    if (iint) Pbaryons[bcount].SetPID(intbuff[nn]);
+                    else Pbaryons[bcount].SetPID(longbuff[nn]);
+                    Pbaryons[bcount].SetID(bcount);
+                    if (k==HDFGASTYPE) Pbaryons[bcount].SetType(GASTYPE);
+                    else if (k==HDFSTARTYPE) Pbaryons[bcount].SetType(STARTYPE);
+                    else if (k==HDFBHTYPE) Pbaryons[bcount].SetType(BHTYPE);
+                    bcount++;
+                }
+            }
+        }
+        }
+/*
+        //get masses
+        itemp++;
+        for (j=0;j<NHDFUSETYPE;j++) {k=UseTypeMap(j);if (k!=HDFDMTYPE) partsdataset[i*NHDFTYPE+k]=partsgroup[i*NHDFTYPE+k].openDataSet(hdf_parts[k].names[itemp]);}
+        if (opt.partsearchtype==1) {
+        }
+        else {
+        }
+        */
+        //and if not just searching DM, load other parameters
+        //get internal energy 
+    }
+    }
+    //finally adjust to appropriate units
+    for (i=0;i<nbodies;i++)
+    {
+        Part[i].SetMass(Part[i].GetMass()*mscale);
+        for (int j=0;j<3;j++) Part[i].SetVelocity(j,Part[i].GetVelocity(j)*opt.V*sqrt(opt.a)+Hubbleflow*Part[i].GetPosition(j));
+        for (int j=0;j<3;j++) Part[i].SetPosition(j,Part[i].GetPosition(j)*lscale);
+        cout<<i<<" "<<Part[i].X()<<" "<<Part[i].Y()<<" "<<Part[i].Z()<<" "<<Part[i].Vx()<<" "<<Part[i].Vy()<<" "<<Part[i].Vz()<<" "<<Part[i].GetPID()<<" "<<endl;
+    }
+    if (Pbaryons!=NULL && opt.igsflag==1) {
+    for (i=0;i<nbaryons;i++)
+    {
+        Pbaryons[i].SetMass(Pbaryons[i].GetMass()*mscale);
+        for (int j=0;j<3;j++) Pbaryons[i].SetVelocity(j,Pbaryons[i].GetVelocity(j)*opt.V*sqrt(opt.a)+Hubbleflow*Pbaryons[i].GetPosition(j));
+        for (int j=0;j<3;j++) Pbaryons[i].SetPosition(j,Pbaryons[i].GetPosition(j)*lscale);
+#ifdef GASON
+        Pbaryons[i].SetU(Pbaryons[i].GetU()*opt.V*opt.V);
+#endif
+    }
+    }
+
+#else
+    if (ThisTask<opt.nsnapread) {
+    for(i=0; i<opt.snapshotnum; i++) {
+    if(ireadfile[i])
+    {
+    }
+    }
+    }
+#endif
+
+}
+
+
+#endif

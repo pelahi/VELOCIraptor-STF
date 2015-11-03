@@ -1,0 +1,232 @@
+/*! \file fofalgo.h
+ *  \brief this file contains inline function declarations of fof algoritms
+ */
+
+
+#ifndef STFFOF_H
+#define STFFOF_H
+
+/// \name inline stream FOF algorithms
+//@{
+
+///\name stream FOF algorithm.
+/*! Checks to see if particles have similar velocities and are linked in physical space. 
+    here param 6 is physical linking length, 7 is speed ratio  8 is min cosine of the velocity angle 
+*/
+inline int FOFStream(Particle &a, Particle &b, Double_t *params){
+    Double_t total=0,v1=0,v2=0,vdot=0,vnorm;
+    for (int j=0;j<3;j++){
+        total+=(a.GetPosition(j)-b.GetPosition(j))*(a.GetPosition(j)-b.GetPosition(j))/params[6];
+        v1+=a.GetVelocity(j)*a.GetVelocity(j);
+        v2+=b.GetVelocity(j)*b.GetVelocity(j);
+        vdot+=a.GetVelocity(j)*b.GetVelocity(j);
+    }
+    v1=sqrt(v1);v2=sqrt(v2);
+    vnorm=1.0/v1/v2;
+    vdot*=vnorm;
+    return (total<1&&vdot>params[8]&&v1/v2<params[7]&&v1/v2>1.0/params[7]);
+}
+
+///Similar to \ref FOFStream but also requires potential to be outlier value and both particles must be above threshold param 9
+inline int FOFStreamwithprob(Particle &a, Particle &b, Double_t *params){
+    if (a.GetPotential()<params[9]||b.GetPotential()<params[9]) return 0;
+    Double_t total=0,v1=0,v2=0,vdot=0,vnorm;
+    for (int j=0;j<3;j++){
+        total+=(a.GetPosition(j)-b.GetPosition(j))*(a.GetPosition(j)-b.GetPosition(j))/params[6];
+        v1+=a.GetVelocity(j)*a.GetVelocity(j);
+        v2+=b.GetVelocity(j)*b.GetVelocity(j);
+        vdot+=a.GetVelocity(j)*b.GetVelocity(j);
+    }
+    v1=sqrt(v1);v2=sqrt(v2);
+    vnorm=1.0/v1/v2;
+    vdot*=vnorm;
+    return (total<1&&vdot>params[8]&&v1/v2<params[7]&&v1/v2>1.0/params[7]);
+}
+
+///Similar to \ref FOFStreamwithprob but only one particle needs to be above threshold
+inline int FOFStreamwithprobIterative(Particle &a, Particle &b, Double_t *params){
+    if (a.GetPotential()<params[9]&&b.GetPotential()<params[9]) return 0;
+    Double_t total=0,v1=0,v2=0,vdot=0,vnorm;
+    for (int j=0;j<3;j++){
+        total+=(a.GetPosition(j)-b.GetPosition(j))*(a.GetPosition(j)-b.GetPosition(j))/params[6];
+        v1+=a.GetVelocity(j)*a.GetVelocity(j);
+        v2+=b.GetVelocity(j)*b.GetVelocity(j);
+        vdot+=a.GetVelocity(j)*b.GetVelocity(j);
+    }
+    v1=sqrt(v1);v2=sqrt(v2);
+    vnorm=1.0/v1/v2;
+    vdot*=vnorm;
+    return (total<1&&vdot>params[8]&&v1/v2<params[7]&&v1/v2>1.0/params[7]);
+}
+
+//test new variation of above where VR is scaled by the opening angle
+//specifically the allowed ratio is VR'=(VR-1.0)*((cos(Theta12)-cos(thetaop))/(1.0-cos(thetaop)) so that aligned 
+//velocity vectors can differ in values of VR and as angle increases, decrease in linear fashion the allowed velocity ratio
+/*    inline int FOFStreamwithprob(Particle &a, Particle &b, Double_t *params){
+    if (a.GetPotential()*b.GetPotential()<params[9]) return 0;
+    Double_t dx=0,v1=0,v2=0,vdot=0,anglenorm,vratio,vrp;
+    for (int j=0;j<3;j++){
+        dx+=(a.GetPosition(j)-b.GetPosition(j))*(a.GetPosition(j)-b.GetPosition(j))/params[6];
+        v1+=a.GetVelocity(j)*a.GetVelocity(j);
+        v2+=b.GetVelocity(j)*b.GetVelocity(j);
+        vdot+=a.GetVelocity(j)*b.GetVelocity(j);
+    }
+    v1=sqrt(v1);v2=sqrt(v2);
+    vdot/=(v1*v2);
+    vratio=v1/v2;
+    if (vdot<cos(params[8])) return 0;
+    anglenorm=(vdot-cos(params[8]))/(1.0-cos(params[8]));
+    vrp=exp(-0.5*anglenorm*anglenorm)*(params[7])+1.0;
+    return (dx<=1.0&&vratio<vrp&&vratio>1.0/vrp);
+}
+*/
+//another idea is to get velocity diff scaled by some fraction vr of the particles velocity
+/*inline int FOFStreamwithprob(Particle &a, Particle &b, Double_t *params){
+    if (a.GetPotential()*b.GetPotential()<params[9]) return 0;
+    Double_t dx=0,dv=0;
+    for (int j=0;j<3;j++){
+        dx+=(a.GetPosition(j)-b.GetPosition(j))*(a.GetPosition(j)-b.GetPosition(j))/params[6];
+        double deltav=(a.GetVelocity(j)-b.GetVelocity(j));
+        double metricv=1.0/(params[7]*params[7]*(a.GetVelocity(j)*a.GetVelocity(j))+1e-32);
+        dv+=deltav*deltav*metricv;
+    }
+    return (dx<=1.0&&dv<=1.0);
+}*/
+
+//similar to FOFStreamwithprob but for NN
+inline int FOFStreamwithprobNN(Particle &a, Particle &b, Double_t *params){
+    if (a.GetPotential()<params[9]||b.GetPotential()<params[9]) return 0;
+    Double_t total=0,v1=0,v2=0,vdot=0,vnorm;
+    for (int j=0;j<3;j++){
+        total+=(a.GetPosition(j)-b.GetPosition(j))*(a.GetPosition(j)-b.GetPosition(j))/params[6];
+        v1+=a.GetVelocity(j)*a.GetVelocity(j);
+        v2+=b.GetVelocity(j)*b.GetVelocity(j);
+        vdot+=a.GetVelocity(j)*b.GetVelocity(j);
+    }
+    v1=sqrt(v1);v2=sqrt(v2);
+    vnorm=1.0/v1/v2;
+    vdot*=vnorm;
+    return (total<=1.0&&vdot>params[8]&&v1/v2<params[7]&&v1/v2>1.0/params[7]);
+}
+//again similar to above but distance not checked
+inline int FOFStreamwithprobNNNODIST(Particle &a, Particle &b, Double_t *params){
+    if (a.GetPotential()<params[9]||b.GetPotential()<params[9]) return 0;
+    Double_t total=0,v1=0,v2=0,vdot=0,vnorm;
+    for (int j=0;j<3;j++){
+        v1+=a.GetVelocity(j)*a.GetVelocity(j);
+        v2+=b.GetVelocity(j)*b.GetVelocity(j);
+        vdot+=a.GetVelocity(j)*b.GetVelocity(j);
+    }
+    v1=sqrt(v1);v2=sqrt(v2);
+    vnorm=1.0/v1/v2;
+    vdot*=vnorm;
+    return (vdot>params[8]&&v1/v2<params[7]&&v1/v2>1.0/params[7]);
+}
+//similar to FOFStreamwithprob but the length scale is adjusted by the offset in velocities
+inline int FOFStreamwithprobLX(Particle &a, Particle &b, Double_t *params){
+    if (a.GetPotential()<params[9]||b.GetPotential()<params[9]) return 0;
+    Double_t ds1=0,ds2=0,v1=0,v2=0,vdot=0,vnorm,total=0;
+    for (int j=0;j<3;j++){
+        v1+=a.GetVelocity(j)*a.GetVelocity(j);
+        v2+=b.GetVelocity(j)*b.GetVelocity(j);
+        vdot+=a.GetVelocity(j)*b.GetVelocity(j);
+    }
+    for (int j=0;j<3;j++){
+        ds1+=(a.GetPosition(j)-b.GetPosition(j))*(a.GetPosition(j)-b.GetPosition(j))/(params[6]*0.25*(1.0+a.GetVelocity(j)*a.GetVelocity(j)/v1)*(1.0+a.GetVelocity(j)*a.GetVelocity(j)/v1));
+        ds2+=(a.GetPosition(j)-b.GetPosition(j))*(a.GetPosition(j)-b.GetPosition(j))/(params[6]*0.25*(1.0+b.GetVelocity(j)*b.GetVelocity(j)/v2)*(1.0+b.GetVelocity(j)*b.GetVelocity(j)/v2));
+    }
+    v1=sqrt(v1);v2=sqrt(v2);
+    vnorm=1.0/v1/v2;
+    total=min(ds1,ds2);
+    vdot*=vnorm;
+    return (total<=1.0&&vdot>params[8]&&v1/v2<params[7]&&v1/v2>1.0/params[7]);
+}
+//similar to above but for NN search
+inline int FOFStreamwithprobNNLX(Particle &a, Particle &b, Double_t *params){
+    if (a.GetPotential()<params[9]||b.GetPotential()<params[9]) return 0;
+    Double_t dist2=params[6];
+    Double_t ds1=0,ds2=0,v1=0,v2=0,vdot=0,vnorm,total=0;
+    for (int j=0;j<3;j++){
+        v1+=a.GetVelocity(j)*a.GetVelocity(j);
+        v2+=b.GetVelocity(j)*b.GetVelocity(j);
+        vdot+=a.GetVelocity(j)*b.GetVelocity(j);
+    }
+    for (int j=0;j<3;j++){
+        ds1+=(a.GetPosition(j)-b.GetPosition(j))*(a.GetPosition(j)-b.GetPosition(j))/(dist2*0.25*(1.0+a.GetVelocity(j)*a.GetVelocity(j)/v1)*(1.0+a.GetVelocity(j)*a.GetVelocity(j)/v1));
+        ds2+=(a.GetPosition(j)-b.GetPosition(j))*(a.GetPosition(j)-b.GetPosition(j))/(dist2*0.25*(1.0+b.GetVelocity(j)*b.GetVelocity(j)/v2)*(1.0+b.GetVelocity(j)*b.GetVelocity(j)/v2));
+    }
+    v1=sqrt(v1);v2=sqrt(v2);
+    vnorm=1.0/v1/v2;
+    total=min(ds1,ds2);
+    vdot*=vnorm;
+    return (total<=1.0&&vdot>params[8]&&v1/v2<params[7]&&v1/v2>1.0/params[7]);
+}
+
+inline int FOFStreamwithprobscaleell(Particle &a, Particle &b, Double_t *params){
+    if (a.GetPotential()<params[9]||b.GetPotential()<params[9]) return 0;
+    Double_t total=0,v1=0,v2=0,vdot=0,vnorm,ellscale;
+    //use smaller ellscale where linking length scales with mass relative to smallest mass params[10]
+    if (a.GetMass()<=b.GetMass()) ellscale=params[6]*pow(a.GetMass()/params[10],(Double_t)(2./3.0));
+    else ellscale=params[6]*pow(b.GetMass()/params[10],(Double_t)(2./3.0));
+    for (int j=0;j<3;j++){
+        total+=(a.GetPosition(j)-b.GetPosition(j))*(a.GetPosition(j)-b.GetPosition(j))/ellscale;
+        v1+=a.GetVelocity(j)*a.GetVelocity(j);
+        v2+=b.GetVelocity(j)*b.GetVelocity(j);
+        vdot+=a.GetVelocity(j)*b.GetVelocity(j);
+    }
+    v1=sqrt(v1);v2=sqrt(v2);
+    vnorm=1.0/v1/v2;
+    vdot*=vnorm;
+    return (total<1&&vdot>params[8]&&v1/v2<params[7]&&v1/v2>1.0/params[7]);
+}
+
+inline int FOFStreamwithprobscaleellNN(Particle &a, Particle &b, Double_t *params){
+    if (a.GetPotential()<params[9]||b.GetPotential()<params[9]) return 0;
+    Double_t total=0,v1=0,v2=0,vdot=0,vnorm,ellscale;
+    //use smaller ellscale where linking length scales with mass relative to smallest mass params[10]
+    if (a.GetMass()<=b.GetMass()) ellscale=params[6]*pow(2.1,2.0*log(a.GetMass()/params[10])/log(2.0)/3.0);
+    else ellscale=params[6]*pow(2.1,2.0*log(a.GetMass()/params[10])/log(2.0)/3.0);
+    for (int j=0;j<3;j++){
+        total+=(a.GetPosition(j)-b.GetPosition(j))*(a.GetPosition(j)-b.GetPosition(j))/ellscale;
+        v1+=a.GetVelocity(j)*a.GetVelocity(j);
+        v2+=b.GetVelocity(j)*b.GetVelocity(j);
+        vdot+=a.GetVelocity(j)*b.GetVelocity(j);
+    }
+    v1=sqrt(v1);v2=sqrt(v2);
+    vnorm=1.0/v1/v2;
+    vdot*=vnorm;
+    return (total<1&&vdot>params[8]&&v1/v2<params[7]&&v1/v2>1.0/params[7]);
+}
+
+inline int FOF6dbg(Particle &a, Particle &b, Double_t *params){
+    if (a.GetPotential()>=params[9]||b.GetPotential()>=params[9]) return 0;
+    Double_t total=0;
+    for (int j=0;j<3;j++){
+        total+=(a.GetPosition(j)-b.GetPosition(j))*(a.GetPosition(j)-b.GetPosition(j))/params[6];
+        total+=(a.GetVelocity(j)-b.GetVelocity(j))*(a.GetVelocity(j)-b.GetVelocity(j))/params[7];
+    }
+    return (total<1);
+}
+inline int FOF6dbgup(Particle &a, Particle &b, Double_t *params){
+    if (a.GetPotential()<params[9]||b.GetPotential()<params[9]) return 0;
+    Double_t total=0;
+    for (int j=0;j<3;j++){
+        total+=(a.GetPosition(j)-b.GetPosition(j))*(a.GetPosition(j)-b.GetPosition(j))/params[6];
+        total+=(a.GetVelocity(j)-b.GetVelocity(j))*(a.GetVelocity(j)-b.GetVelocity(j))/params[7];
+    }
+    return (total<1);
+}
+
+
+inline int FOFchecksub(Particle &a, Double_t *params){
+    if (a.GetPotential()>=params[9]) return 0;
+    else return -1;
+}
+inline int FOFcheckbg(Particle &a, Double_t *params){
+    if (a.GetPotential()<params[9]) return 0;
+    else return -1;
+}
+
+//@}
+
+#endif
