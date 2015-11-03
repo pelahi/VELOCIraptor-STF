@@ -1,1 +1,1 @@
-Test git for stf
+stf/README
