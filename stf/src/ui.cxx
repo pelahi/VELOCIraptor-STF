@@ -133,6 +133,7 @@ void usage(void)
     See \ref search.cxx \ref fofalgo.h for more details
 
     \subsection fofsubconfig Configuration for substructure search
+    \arg <b> \e Search_for_substructure </b> By default field objects are searched for internal substructures but can disable this by setting this to 0 \n
     \arg <b> \e FoF_search_type </b> There are several substructure FOF criteria implemented (see \ref FOFTYPES for more types and \ref fofalgo.h for implementation) \n
         - \b 1 \e standard phase-space based, well tested VELOCIraptor criterion.
 

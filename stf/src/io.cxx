@@ -553,7 +553,7 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
     headerdatainfo.push_back("Mass_tot");
     headerdatainfo.push_back("Mass_FOF");
     headerdatainfo.push_back("Mass_200mean");
-    headerdatainfo.push_back("Mass_200cirt");
+    headerdatainfo.push_back("Mass_200crit");
     headerdatainfo.push_back("Mass_BN97");
     headerdatainfo.push_back("Efrac");
     headerdatainfo.push_back("Rvir");
