@@ -16,17 +16,19 @@ HFILES = $(wildcard src/*.h)
 EXEFILES = $(wildcard bin/*)
 
 binc_ : 
-	for file in $(EXEFILES); do rm $$file; done;
+	if [ -d "bin" ]; then for file in $(EXEFILES); do rm $$file; done; fi
 NBodylib_ : Makefile.config
 	cd NBodylib; make
 NBodylibc_ : 
 	cd NBodylib; make clean
 stf_ : Makefile.config
+	mkdir -p bin
 	cd src; make
 stfc_ : 
 	cd src; make clean
 
 analysis_ : Makefile.config
+	mkdir -p bin
 	cd analysis; make
 analysisc_ : 
 	cd analysis; make clean
@@ -35,11 +37,11 @@ ifeq "$(wildcard doc/doxy.log)" ""
 doc: doc_
 doc_:
 	cd NBodylib; make doc;
-	cd doc; doxygen Doxyfile > doxy.log;
+	cd doc; mkdir -p html; mkdir -p latex; doxygen Doxyfile > doxy.log;
 else
 doc:  doc/Doxyfile $(CFILES) $(HFILES)
 	cd NBodylib; make doc;
-	cd doc; doxygen Doxyfile > doxy.log;
+	cd doc; mkdir -p html; mkdir -p latex; doxygen Doxyfile > doxy.log;
 endif
 docc_:
 ifneq "$(wildcard doc/html)" ""
