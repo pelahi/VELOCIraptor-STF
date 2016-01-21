@@ -444,7 +444,6 @@ void GetParamFile(Options &opt)
                         opt.gnstarblocks = atoi(vbuff);
                     else if (strcmp(tbuff, "NBH_extra_blocks")==0)
                         opt.gnbhblocks = atoi(vbuff);
-                    
                 }
             }
         }

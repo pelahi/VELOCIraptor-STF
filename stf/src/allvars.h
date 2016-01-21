@@ -557,7 +557,8 @@ struct PropData
 {
     ///\name order in structure hierarchy and number of subhaloes
     //@{
-    Int_t haloid,hostid,directhostid,numsubs;
+    long long haloid,hostid,directhostid;
+    Int_t numsubs;
     //@}
 
     ///\name properties of total object including DM, gas, stars, bh, etc
