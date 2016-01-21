@@ -13,9 +13,10 @@ allclean: stfc_ binc_ analysisc_ NBodylibc_ docc_
 
 CFILES = $(wildcard src/*.cxx) 
 HFILES = $(wildcard src/*.h)
+EXEFILES = $(wildcard bin/*)
 
 binc_ : 
-	cd bin; rm *
+	for file in $(EXEFILES); do rm $$file; done;
 NBodylib_ : Makefile.config
 	cd NBodylib; make
 NBodylibc_ : 

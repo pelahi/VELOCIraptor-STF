@@ -307,7 +307,7 @@ private(j,Pval,x,y,z)
     //the reason is that a simple PP calculation is more efficient than a tree calculation simply due to the overhead
     //of producing a tree
 #ifdef NOMASS
-    Double_t mv2=opt.MassValue*opt.MassValue;
+    Double_t mw2=opt.MassValue*opt.MassValue;
 #endif
         //calculate the potential energy
 #ifdef USEOPENMP
@@ -331,7 +331,7 @@ private(i,j,k)
             Ti=0.5*Part[j+noffset[i]].GetMass()*v2;
 #ifdef NOMASS
             Ti*=opt.MassValue;
-            Part[k+noffset[i]].SetPotential(Part[k+noffset[i]].GetPotential()*mv2);
+            Part[k+noffset[i]].SetPotential(Part[k+noffset[i]].GetPotential()*mw2);
 #endif
             pdata[i].T+=Ti;
             if(Ti+Part[j+noffset[i]].GetPotential()<0) pdata[i].Efrac+=1.0;
@@ -1786,7 +1786,7 @@ void GetBindingEnergy(Options &opt, const Int_t nbodies, Particle *&Part, Int_t 
     Double_t r2,v2,Ti,poti,pot;
     Double_t Tval,Potval,Efracval,Eval,Emostbound,Eunbound,imostbound,iunbound;
     Double_t Efracval_gas,Efracval_star;
-    Double_t mv2=opt.MassValue*opt.MassValue;
+    Double_t mw2=opt.MassValue*opt.MassValue;
     Double_t potmin,menc;
     Int_t npot,ipotmin;
 
@@ -1809,7 +1809,7 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin)
                 r2+=eps2;
                 r2=1.0/sqrt(r2);
 #ifdef NOMASS
-                pot=-opt.G*r2*mv2;
+                pot=-opt.G*r2*mw2;
 #else
                 pot=-opt.G*(Part[j+noffset[i]].GetMass()*Part[k+noffset[i]].GetMass())*r2;
 #endif
@@ -1993,8 +1993,8 @@ private(j,v2,Ti)
 #ifdef GASON
             Ti+=opt.MassValue*Part[j+noffset[i]].GetU();
 #endif
-            Potval+=Part[j+noffset[i]].GetPotential()*mv2;
-            Part[j+noffset[i]].SetPotential(Part[j+noffset[i]].GetPotential()*mv2+Ti);
+            Potval+=Part[j+noffset[i]].GetPotential()*mw2;
+            Part[j+noffset[i]].SetPotential(Part[j+noffset[i]].GetPotential()*mw2+Ti);
 #else
             Ti=0.5*Part[j+noffset[i]].GetMass()*v2;
 #ifdef GASON
