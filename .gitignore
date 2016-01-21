@@ -1,7 +1,11 @@
 stf/doc/latex/*
 stf/doc/html/*
 stf/bin/*
+stf/src/*.o
+stf/analysis/*/*.o
+stf/NBodylib/src/*/*.o
+stf/NBodylib/src/*/*.a
 stf/NBodylib/include/*
 stf/NBodylib/lib/*
 *~
-*.o
+
