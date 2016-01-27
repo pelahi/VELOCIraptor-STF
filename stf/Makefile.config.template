@@ -254,29 +254,38 @@ endif
 #===========================================
 #hydro stuff
 #===========================================
+IHYDRO=off
 ifeq ($(USEBARYONS),"on")
     USEGAS="on"
     USESTARS="on"
+    IHYDRO=on
 endif
 ifeq ($(USEHYDRO),"on")
     USEGAS="on"
     USESTARS="on"
     USEBH="on"
+    IHYDRO=on
 endif
 
 ifeq ($(USEGAS),"on")
     HYDROFLAGS+= -DGASON
     GASNAME=gas
+    IHYDRO=on
 endif
 ifeq ($(USESTARS),"on")
     HYDROFLAGS+= -DSTARON
     STARNAME=star
+    IHYDRO=1
 endif
 ifeq ($(USEBH),"on")
     HYDROFLAGS+= -DBHON
     BHNAME=bh
+    IHYDRO=on
 endif
-HYDRONAME=-$(GASNAME)$(STARNAME)$(BHNAME)
+HYDRONAME=
+ifeq ($(IHYDRO),"on")
+    HYDRONAME=-$(GASNAME)$(STARNAME)$(BHNAME)
+endif
 COMPILEFLAGS+= $(HYDROFLAGS)
 #===========================================
 

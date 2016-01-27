@@ -77,10 +77,17 @@ HaloData *ReadHaloGroupCatalogData(char* infile, Int_t &numhalos, int mpi_ninput
         sprintf(fname9,"%s.sublevels.catalog_parttypes.%d",infile,k);
         sprintf(fname10,"%s.sublevels.catalog_parttypes.unbound.%d",infile,k);
     }
-    fnamearray[0]=fname1;fnamearray[1]=fname2;fnamearray[2]=fname3;
-    fnamearray[3]=fname4;fnamearray[4]=fname5;fnamearray[5]=fname6;
-    fnamearray[6]=fname7;fnamearray[7]=fname8;
-    fnamearray[8]=fname9;fnamearray[9]=fname10;
+    itemp=0;
+    fnamearray[itemp++]=fname1;fnamearray[itemp++]=fname2;fnamearray[itemp++]=fname3;
+    if (ifieldhalos) {
+        fnamearray[itemp++]=fname4;fnamearray[itemp++]=fname5;fnamearray[itemp++]=fname6;
+    }
+    if (itypematch!=ALLTYPEMATCH) { 
+        fnamearray[itemp++]=fname7;fnamearray[itemp++]=fname8;
+        if (ifieldhalos) {
+            fnamearray[itemp++]=fname9;fnamearray[itemp++]=fname10;
+        }
+    }
     if (ibinary) {
     Fgroup.open(fname1,ios::in|ios::binary);
     Fpart.open(fname2,ios::in|ios::binary);
@@ -117,10 +124,16 @@ HaloData *ReadHaloGroupCatalogData(char* infile, Int_t &numhalos, int mpi_ninput
         }
     }
     }
-    Farray[0]=&Fgroup;Farray[1]=&Fpart;Farray[2]=&Fupart;
-    Farray[3]=&Fsgroup;Farray[4]=&Fspart;Farray[5]=&Fsupart;
+    itemp=0;
+    Farray[itemp++]=&Fgroup;Farray[itemp++]=&Fpart;Farray[itemp++]=&Fupart;
+    if (ifieldhalos) {
+        Farray[itemp++]=&Fsgroup;Farray[itemp++]=&Fspart;Farray[itemp++]=&Fsupart;
+    }
     if (itypematch!=ALLTYPEMATCH) {
-    Farray[6]=&Fparttype;Farray[7]=&Fuparttype;Farray[8]=&Fsparttype;Farray[9]=&Fsuparttype;
+        Farray[itemp++]=&Fparttype;Farray[itemp++]=&Fuparttype;
+        if (ifieldhalos) {
+            Farray[itemp++]=&Fsparttype;Farray[itemp++]=&Fsuparttype;
+        }
     }
     for (int i=0;i<numfiletypes;i++) {
         if(!Farray[i]->is_open()){cerr<<"can't open "<<fnamearray[i]<<endl;exit(9);}
