@@ -10,7 +10,7 @@ void GetArgs(int argc, char *argv[], Options &opt)
 {
     int option;
     int NumArgs = 0;
-    while ((option = getopt(argc, argv, ":i:s:n:o:C:c:S:I:N:B:F:M:H:D:O:T:")) != EOF)
+    while ((option = getopt(argc, argv, ":i:s:n:o:C:c:S:I:N:B:F:M:H:h:D:O:T:")) != EOF)
     {
         switch(option)
         {
@@ -74,6 +74,10 @@ void GetArgs(int argc, char *argv[], Options &opt)
                 opt.snapshotvaloffset = atoi(optarg);
                 NumArgs += 2;
                 break;
+            case 'h': 
+                opt.haloidval= atol(optarg);
+                NumArgs += 2;
+                break;
             case 'T': 
                 opt.itypematch = atoi(optarg);
                 NumArgs += 2;
@@ -113,7 +117,6 @@ void usage(void)
     cerr<<"-O <output format>\n";
     cerr<<"-C <cross correlation function type to identify main progenitor ("<<opt.matchtype<<" ["<<NsharedN1N2<<" "<<Nshared<<"])\n";
     cerr<<"-c <produce cross catalog match (0/1) default ("<<opt.icatalog<<")\n";
-    cerr<<"-D <adjust IDs for nIFTY cross catalogs across simulations ("<<opt.idcorrectflag<<")\n";
     cerr<<"-T <type of particles to cross correlate ("<<opt.itypematch<<" ["<<ALLTYPEMATCH<<" is all particle types, ";
     cerr<<DMTYPEMATCH<<" is DM particle types, ";
     cerr<<GASTYPEMATCH<<" is GAS particle types, ";
@@ -125,6 +128,10 @@ void usage(void)
     cerr<<"-N <if output is split between multiple files due to mpi, number of files written ("<<opt.nmpifiles<<")>\n";
     cerr<<"-B <binary or ascii format ("<<opt.ibinary<<")>\n";
     cerr<<"-F <field objects in separate file ("<<opt.ifield<<")>\n";
+    cerr<<"-H <offset snapshot values by this number ("<<opt.snapshotvaloffset<<")>\n";
+    cerr<<"-h <adjust Halo ID values stored in group catalog, useful for matching these values to those stored in .properties files produced by the halo finder. output is ID+(snap+snapshotvaloffset)*haloIDval ("<<opt.haloidval<<")\n";
+
+    cerr<<"-D <adjust particle IDs for nIFTY cross catalogs across simulations ("<<opt.idcorrectflag<<")\n";
     cerr<<"-M <Mapping of particle ids to index ("<<opt.imapping<<" [ no maping "<<DNOMAP<<", simple mapping "<<DSIMPLEMAP<<"])\n";
 #ifdef USEMPI
     }

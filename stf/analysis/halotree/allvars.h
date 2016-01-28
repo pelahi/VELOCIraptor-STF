@@ -105,6 +105,13 @@ using namespace NBody;
 #define STARTYPEMATCH 4
 //@}
 
+///VALUE USED TO MAKE UNIQUE halo identifiers
+#ifdef LONGINT
+#define HALOIDSNVAL 1000000000000L
+#else
+#define HALOIDSNVAL 1000000
+#endif
+
 /// Options structure stores useful variables that have user determined values which are altered by \ref GetArgs in \ref ui.cxx
 struct Options
 {
@@ -146,6 +153,9 @@ struct Options
     ///for offseting the snapshot id value when writing to a file
     Int_t snapshotvaloffset;
 
+    ///for adjust halo ids by (current_snap + \ref snapshotvaloffset )* times this value
+    long long haloidval;
+
     ///to fix ids for nifty project
     int idcorrectflag;
 
@@ -172,6 +182,7 @@ struct Options
         mappingfunc=NULL;
 
         snapshotvaloffset=0;
+        haloidval=0;
         icatalog=0;
         idcorrectflag=0;
         outputformat=0;

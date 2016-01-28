@@ -148,7 +148,11 @@ int main(int argc,char **argv)
     }
     delete[] pfofd;
     }
-    cout<<"done now write"<<endl;
+    cout<<"Done"<<endl;
+    if (opt.haloidval>0) {
+        for (i=opt.numsnapshots-1;i>=0;i--) 
+            if(pht[i].numhalos>0) for (j=0;j<pht[i].numhalos;j++) pht[i].Halo[j].haloID+=opt.haloidval*i;
+    }
     if (opt.icatalog==0) {
     WriteHaloMergerTree(opt,pprogen,pht);
     sprintf(fname,"%s.graph",opt.outname);
