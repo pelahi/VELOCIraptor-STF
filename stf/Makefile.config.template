@@ -161,7 +161,7 @@ ifeq ($(SYSTEM)$(MPI)$(OMP),"intel-standard""on""on")
 endif
 
 ifeq ($(MPIREDUCE),"on")
-    C+FLAGS+= -DMPIREDUCEMEM
+    PARALLEL += -DMPIREDUCEMEM
 endif
 #===========================================
 
