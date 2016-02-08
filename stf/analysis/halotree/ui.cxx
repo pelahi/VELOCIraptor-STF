@@ -10,7 +10,7 @@ void GetArgs(int argc, char *argv[], Options &opt)
 {
     int option;
     int NumArgs = 0;
-    while ((option = getopt(argc, argv, ":i:s:n:o:C:c:S:I:N:B:F:M:H:h:D:O:T:")) != EOF)
+    while ((option = getopt(argc, argv, ":i:s:t:n:o:C:c:S:I:N:B:F:M:H:h:D:O:T:")) != EOF)
     {
         switch(option)
         {
@@ -20,6 +20,10 @@ void GetArgs(int argc, char *argv[], Options &opt)
                 break;
             case 's': 
                 opt.numsnapshots = atoi(optarg);
+                NumArgs += 2;
+                break;
+            case 't': 
+                opt.numsteps = atoi(optarg);
                 NumArgs += 2;
                 break;
             case 'n': 
@@ -98,6 +102,26 @@ void GetArgs(int argc, char *argv[], Options &opt)
     }
 
     if (opt.imapping==DSIMPLEMAP) opt.mappingfunc=simplemap;
+    if (opt.numsnapshots<2){
+#ifdef USEMPI
+    if (ThisTask==0)
+#endif
+        cerr<<"Number of snapshots must be >=2\n";
+#ifdef USEMPI
+        MPI_Finalize();
+#endif
+        exit(8);
+    }
+    if (opt.numsteps<1){
+#ifdef USEMPI
+    if (ThisTask==0)
+#endif
+        cerr<<"Number of steps over which to produce links must be >=1\n";
+#ifdef USEMPI
+        MPI_Finalize();
+#endif
+        exit(8);
+    }
     //else if (opt.imapping==???) opt.mappingfunc=???;
 }
 
@@ -112,11 +136,12 @@ void usage(void)
     cerr<<"\n";
     cerr<<"-i <file containing filelist>\n";
     cerr<<"-s <number of files/snapshots>\n";
+    cerr<<"-t <number of steps integrated over to find links ("<<opt.numsteps<<")\n";
     cerr<<"-n <number of particles>\n";
     cerr<<"-o <output filename>\n";
     cerr<<"-O <output format>\n";
     cerr<<"-C <cross correlation function type to identify main progenitor ("<<opt.matchtype<<" ["<<NsharedN1N2<<" "<<Nshared<<"])\n";
-    cerr<<"-c <produce cross catalog match (0/1) default ("<<opt.icatalog<<")\n";
+    cerr<<"-c <produce cross catalog match (0 halo tree ,1 cross catalog ,2 full graph) default ("<<opt.icatalog<<")\n";
     cerr<<"-T <type of particles to cross correlate ("<<opt.itypematch<<" ["<<ALLTYPEMATCH<<" is all particle types, ";
     cerr<<DMTYPEMATCH<<" is DM particle types, ";
     cerr<<GASTYPEMATCH<<" is GAS particle types, ";

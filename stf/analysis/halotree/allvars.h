@@ -86,6 +86,13 @@ using namespace NBody;
 #define DNIFTY 3
 //@}
 
+/// \name operation/type of catalog
+//@{
+#define DTREE 0
+#define DCROSSCAT 1
+#define DGRAPH 2
+//@}
+
 /// \name Mapping functions
 //@{
 #define DNOMAP 0
@@ -121,6 +128,8 @@ struct Options
     //@}
     ///number of snapshots
     int numsnapshots;
+    ///nubmer of steps integrated over to find links (two steps needs three snapshots)
+    int numsteps;
     ///number of particles
     long unsigned NumPart;
     ///total number of haloes across all snapshots    
@@ -162,9 +171,13 @@ struct Options
     ///particle type cross matching subselection
     int itypematch;
 
+    ///verbose output flag
+    int iverbose;
+
     Options()
     {
         numsnapshots=2;
+        numsteps=1;
 
         fname=outname=NULL;
         matchtype=NsharedN1N2;
@@ -183,11 +196,12 @@ struct Options
 
         snapshotvaloffset=0;
         haloidval=0;
-        icatalog=0;
+        icatalog=DTREE;
         idcorrectflag=0;
         outputformat=0;
 
         itypematch=ALLTYPEMATCH;
+        iverbose=1;
     }
 };
 
@@ -247,19 +261,26 @@ struct HaloTreeData{
 */
 struct ProgenitorData
 {
-    ///structure type and number in current level of hierarchy 
+    ///structure type and number of links (progenitors)
+    //@{
     int stype;
     int NumberofProgenitors;
+    //@}
+    ///store list of progenitors
     long unsigned* ProgenitorList;
+    ///store the merit value
     Double_t *Merit;
     ///store the fraction of shared particles
     Double_t *nsharedfrac;
-    //points to the the head pfof address of the group and parent
+    ///store number of steps back in time progenitor found
+    int istep;
+
     ProgenitorData(){
         NumberofProgenitors=0;
         ProgenitorList=NULL;
         Merit=NULL;
         nsharedfrac=NULL;
+        istep=1;
     }
     ~ProgenitorData(){
         if (NumberofProgenitors>0) {
@@ -268,6 +289,26 @@ struct ProgenitorData
             if (nsharedfrac!=NULL) delete[] nsharedfrac;
         }
     }
+    ProgenitorData &operator=(const ProgenitorData &p){
+        if (NumberofProgenitors>0) {
+            delete[] ProgenitorList;
+            delete[] Merit;
+            if (nsharedfrac!=NULL) delete[] nsharedfrac;
+        }
+        NumberofProgenitors=p.NumberofProgenitors;
+        ProgenitorList=new long unsigned[NumberofProgenitors];
+        Merit=new Double_t[NumberofProgenitors];
+        for (int i=0;i<NumberofProgenitors;i++) {
+            ProgenitorList[i]=p.ProgenitorList[i];
+            Merit[i]=p.Merit[i];
+        }
+        if (p.nsharedfrac!=NULL) {
+            nsharedfrac=new Double_t[NumberofProgenitors];
+            for (int i=0;i<NumberofProgenitors;i++) nsharedfrac[i]=p.nsharedfrac[i];
+        }
+        istep=p.istep;
+    }
+
 };
 
 /*!
@@ -275,19 +316,26 @@ struct ProgenitorData
 */
 struct DescendantData
 {
-    ///structure type and number in current level of hierarchy
+    ///structure type and number of links (descendants)
+    //@{
     int stype;
     int NumberofDescendants;
+    //@}
+    ///store list of descendants
     long unsigned* DescendantList;
+    ///store the merit value
     Double_t *Merit;
     ///store the fraction of shared particles
     Double_t *nsharedfrac;
-    //points to the the head pfof address of the group and parent
+    ///store number of steps back in time progenitor found
+    int istep;
+
     DescendantData(){
         NumberofDescendants=0;
         DescendantList=NULL;
         Merit=NULL;
         nsharedfrac=NULL;
+        istep=1;
     }
     ~DescendantData(){
         if (NumberofDescendants>0) {
@@ -295,6 +343,25 @@ struct DescendantData
             delete[] Merit;
             if (nsharedfrac!=NULL) delete[] nsharedfrac;
         }
+    }
+    DescendantData &operator=(const DescendantData &d){
+        if (NumberofDescendants>0) {
+            delete[] DescendantList;
+            delete[] Merit;
+            if (nsharedfrac!=NULL) delete[] nsharedfrac;
+        }
+        NumberofDescendants=d.NumberofDescendants;
+        DescendantList=new long unsigned[NumberofDescendants];
+        Merit=new Double_t[NumberofDescendants];
+        for (int i=0;i<NumberofDescendants;i++) {
+            DescendantList[i]=d.DescendantList[i];
+            Merit[i]=d.Merit[i];
+        }
+        if (d.nsharedfrac!=NULL) {
+            nsharedfrac=new Double_t[NumberofDescendants];
+            for (int i=0;i<NumberofDescendants;i++) nsharedfrac[i]=d.nsharedfrac[i];
+        }
+        istep=d.istep;
     }
 };
 

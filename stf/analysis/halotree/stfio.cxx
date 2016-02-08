@@ -137,7 +137,7 @@ HaloData *ReadHaloGroupCatalogData(char* infile, Int_t &numhalos, int mpi_ninput
     }
     for (int i=0;i<numfiletypes;i++) {
         if(!Farray[i]->is_open()){cerr<<"can't open "<<fnamearray[i]<<endl;exit(9);}
-        else cerr<<"open "<<fnamearray[i]<<endl;
+        else cout<<"open "<<fnamearray[i]<<endl;
     }
     //check header make sure that number of mpi values considered agree
     if (ibinary) {

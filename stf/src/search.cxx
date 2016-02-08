@@ -819,7 +819,7 @@ private(i,tid)
     //now search particle list for large compact substructures that are considered part of the background when using smaller grids
     //if smaller substructures have been found, also search for true 6d cores for signs of similar mass mergers
     //if (nsubset>opt.HaloMergerSize&&((!opt.iSingleHalo&&sublevel==1)||(opt.iSingleHalo&&sublevel==0)))
-    if (nsubset>MINSUBSIZE)
+    if (nsubset>=MINSUBSIZE)
     {
         //first have to delete tree used in search so that particles are in original particle order
         //then construct a new grid with much larger cells so that new bg velocity dispersion can be estimated
@@ -1279,7 +1279,7 @@ private(i,tid,Pval,x1,D2,dval,mval,pid,pidcore)
 #ifdef USEMPI
     }
 #endif
-    cout<<"Done"<<endl;
+    if (opt.iverbose) cout<<"Done"<<endl;
     return pfof;
 }
 

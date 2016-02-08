@@ -58,6 +58,7 @@ private(i)
 void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
     fstream Fout;
     char fname[1000];
+    int istep;
     sprintf(fname,"%s",opt.outname);
     cout<<"saving halo merger tree to "<<fname<<endl;
     Fout.open(fname,ios::out);
@@ -70,7 +71,8 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
         for (int j=0;j<h[i].numhalos;j++) {
             Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofProgenitors<<endl;
             for (int k=0;k<p[i][j].NumberofProgenitors;k++) {
-                Fout<<h[i-1].Halo[p[i][j].ProgenitorList[k]-1].haloID<<endl;
+                Fout<<h[i-p[i][j].istep].Halo[p[i][j].ProgenitorList[k]-1].haloID<<endl;
+                //Fout<<h[i-1].Halo[p[i][j].ProgenitorList[k]-1].haloID<<endl;
             }
         }
     }
@@ -81,7 +83,8 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
         for (int j=0;j<h[i].numhalos;j++) {
             Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofProgenitors<<endl;
             for (int k=0;k<p[i][j].NumberofProgenitors;k++) {
-                Fout<<h[i-1].Halo[p[i][j].ProgenitorList[k]-1].haloID<<" "<<p[i][j].Merit[k]<<endl;
+                Fout<<h[i-p[i][j].istep].Halo[p[i][j].ProgenitorList[k]-1].haloID<<" "<<p[i][j].Merit[k]<<endl;
+                //Fout<<h[i-1].Halo[p[i][j].ProgenitorList[k]-1].haloID<<" "<<p[i][j].Merit[k]<<endl;
             }
         }
     }
@@ -108,13 +111,15 @@ void WriteHaloGraph(Options &opt, ProgenitorData **p, DescendantData **d, HaloTr
         Fout<<i+opt.snapshotvaloffset<<"\t"<<h[i].numhalos<<endl;
         for (int j=0;j<h[i].numhalos;j++) {
             Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofProgenitors<<"\t"<<d[i][j].NumberofDescendants<<endl;
+            //Fout<<h[i].Halo[j].haloID<<"\t"<<d[i][j].NumberofDescendants<<endl;
             for (int k=0;k<p[i][j].NumberofProgenitors;k++) {
-                Fout<<h[i-1].Halo[p[i][j].ProgenitorList[k]-1].haloID<<endl;
+                Fout<<h[i-p[i][j].istep].Halo[p[i][j].ProgenitorList[k]-1].haloID<<endl;
             }
             for (int k=0;k<d[i][j].NumberofDescendants;k++) {
-                Fout<<h[i+1].Halo[d[i][j].DescendantList[k]-1].haloID<<endl;
+                Fout<<h[i+d[i][j].istep].Halo[d[i][j].DescendantList[k]-1].haloID<<endl;
             }
         }
+        //Fout<<"-----------------"<<endl;
     }
     }
     else {
@@ -123,10 +128,10 @@ void WriteHaloGraph(Options &opt, ProgenitorData **p, DescendantData **d, HaloTr
         for (int j=0;j<h[i].numhalos;j++) {
             Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofProgenitors<<"\t"<<d[i][j].NumberofDescendants<<endl;
             for (int k=0;k<p[i][j].NumberofProgenitors;k++) {
-                Fout<<h[i-1].Halo[p[i][j].ProgenitorList[k]-1].haloID<<" "<<p[i][j].Merit[k]<<endl;
+                Fout<<h[i-p[i][j].istep].Halo[p[i][j].ProgenitorList[k]-1].haloID<<" "<<p[i][j].Merit[k]<<endl;
             }
             for (int k=0;k<d[i][j].NumberofDescendants;k++) {
-                Fout<<h[i+1].Halo[d[i][j].DescendantList[k]-1].haloID<<" "<<d[i][j].Merit[k]<<endl;
+                Fout<<h[i+d[i][j].istep].Halo[d[i][j].DescendantList[k]-1].haloID<<" "<<d[i][j].Merit[k]<<endl;
             }
         }
     }

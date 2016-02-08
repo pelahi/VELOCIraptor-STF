@@ -5,9 +5,13 @@
 
 #include "halomergertree.h"
 
+
+/// \name cross matching routines
+//@{
+
 /// Determine initial progenitor list based on just merit
 /// does not guarantee that progenitor list is exclusive
-ProgenitorData *CrossMatch(Options &opt, const Int_t nbodies, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData *&h2, long unsigned *&pglist, long unsigned *&noffset, long unsigned *&pfof2){
+ProgenitorData *CrossMatch(Options &opt, const Int_t nbodies, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData *&h2, long unsigned *&pglist, long unsigned *&noffset, long unsigned *&pfof2, int istepval){
     long int i,j;
     Int_t numshared;
     Double_t merit;
@@ -120,12 +124,15 @@ private(i,j,tid,pq,numshared,merit)
         p1[i].ProgenitorList=NULL;p1[i].Merit=NULL;
     }
     }
+    //adjust number of steps looked back when referencing progenitors
+    if (istepval>1) for (i=0;i<nhalos1;i++) p1[i].istep=istepval;
+
     return p1;
 }
 
 ///effectively the same code as \ref CrossMatch but allows for the possibility of matching descendant/child nodes using a different merit function
 ///here the lists are different as input order is reverse of that used in \ref CrossMatch
-DescendantData *CrossMatchDescendant(Options &opt, const Int_t nbodies, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData *&h2, long unsigned *&pglist, long unsigned *&noffset, long unsigned *&pfof2){
+DescendantData *CrossMatchDescendant(Options &opt, const Int_t nbodies, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData *&h2, long unsigned *&pglist, long unsigned *&noffset, long unsigned *&pfof2, int istepval){
     long int i,j;
     Int_t numshared;
     Double_t merit;
@@ -239,6 +246,8 @@ private(i,j,tid,pq,numshared,merit)
         d1[i].DescendantList=NULL;d1[i].Merit=NULL;
     }
     }
+    //adjust number of steps looked forward when referencing descendants
+    if (istepval>1) for (i=0;i<nhalos1;i++) d1[i].istep=istepval;
     return d1;
 }
 
@@ -319,6 +328,12 @@ private(i,j,k)
     delete[] merit;
 }
 
+void UpdateRefProgenitors(const Int_t numhalos, ProgenitorData *&pref, ProgenitorData *&ptemp)
+{
+    for (Int_t i=0;i<numhalos;i++) 
+        if (pref[i].NumberofProgenitors==0 && ptemp[i].NumberofProgenitors>0) pref[i]=ptemp[i];
+}
+
 void CleanCrossMatchDescendant(const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData *&h2, DescendantData *&p1)
 {
     Int_t i,j,k;
@@ -394,6 +409,14 @@ private(i,j,k)
     delete[] nh2nummatches;
     delete[] merit;
 }
+
+void UpdateRefDescendants(const Int_t numhalos, DescendantData *&dref, DescendantData *&dtemp)
+{
+    for (Int_t i=0;i<numhalos;i++) 
+        if (dref[i].NumberofDescendants==0 && dtemp[i].NumberofDescendants>0) dref[i]=dtemp[i];
+}
+
+//@}
 
 /// \name if particle ids need to be mapped to indices
 //@{

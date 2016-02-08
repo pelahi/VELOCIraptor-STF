@@ -1218,7 +1218,7 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
             for (i=0;i<opt.nsnapread;i++) irecvflag+=irecv[i];
         } while(irecvflag>0);
         //now that data is local, must adjust data iff a separate baryon search is required. 
-        if (opt.iBaryonSearch) {
+        if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) {
             for (i=0;i<Nlocal;i++) {
                 k=Part[i].GetType();
                 if (!(k==GASTYPE||k==STARTYPE||k==BHTYPE)) Part[i].SetID(0);
@@ -1481,7 +1481,7 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
     //gather all the items that must be sent.
     MPI_Allgather(Nbuf, NProcs, MPI_Int_t, mpi_nsend, NProcs, MPI_Int_t, MPI_COMM_WORLD);
     //if separate baryon search then sort the Pbuf array so that it is separated by type 
-    if (opt.iBaryonSearch) {
+    if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) {
         if (ThisTask<opt.nsnapread) {
         for(ibuf = 0; ibuf < opt.nsnapread; ibuf++) if (mpi_nsend[ThisTask * NProcs + ibuf] > 0)
         {
@@ -1522,7 +1522,7 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
     }
     }
     if (ThisTask<opt.nsnapread) {
-    if (opt.iBaryonSearch) {
+    if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) {
     for(ibuf = 0; ibuf < opt.nsnapread; ibuf++)
     {
         if (ibuf!=ThisTask)
