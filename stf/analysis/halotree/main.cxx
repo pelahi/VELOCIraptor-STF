@@ -157,7 +157,7 @@ int main(int argc,char **argv)
                 }
                 //otherwise only care about objects with no links
                 else {
-                    pdescentemp=CrossMatchDescendant(opt, opt.NumPart, pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pglist, noffset, pfofd);
+                    pdescentemp=CrossMatchDescendant(opt, opt.NumPart, pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pglist, noffset, pfofd,istep);
                     CleanCrossMatchDescendant(pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pdescen[i]);
                     UpdateRefDescendants(pht[i].numhalos, pdescen[i], pdescentemp);
                     delete[] pdescentemp;
