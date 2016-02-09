@@ -32,6 +32,8 @@ int FOFStreamwithprobscaleellNN(Particle &a, Particle &b, Double_t *params);
 int FOF6dbg(Particle &a, Particle &b, Double_t *params);
 ///similar to \ref FOF6dbg but here particles have to be above threshold value
 int FOF6dbgup(Particle &a, Particle &b, Double_t *params);
+///checks to see if particles have positive types (useful for \ref GetVelocityDensity calculation with \ref STRUCDEN flag)
+int FOFPositivetypes(Particle &a, Particle &b, Double_t *params);
 //@}
 
 /// \name FOF precheck algorithms
@@ -41,4 +43,5 @@ int FOFchecksub(Particle &a, Double_t *params);
 ///checks to see if particle should be ingored based on potential being below threshold value stored in param 9
 int FOFcheckbg(Particle &a, Double_t *params);
 //@}
+
 #endif

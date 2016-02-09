@@ -328,12 +328,6 @@ private(i,j,k)
     delete[] merit;
 }
 
-void UpdateRefProgenitors(const Int_t numhalos, ProgenitorData *&pref, ProgenitorData *&ptemp)
-{
-    for (Int_t i=0;i<numhalos;i++) 
-        if (pref[i].NumberofProgenitors==0 && ptemp[i].NumberofProgenitors>0) pref[i]=ptemp[i];
-}
-
 void CleanCrossMatchDescendant(const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData *&h2, DescendantData *&p1)
 {
     Int_t i,j,k;
@@ -410,10 +404,31 @@ private(i,j,k)
     delete[] merit;
 }
 
-void UpdateRefDescendants(const Int_t numhalos, DescendantData *&dref, DescendantData *&dtemp)
+void UpdateRefProgenitors(const int ilink, const Int_t numhalos, ProgenitorData *&pref, ProgenitorData *&ptemp)
 {
-    for (Int_t i=0;i<numhalos;i++) 
-        if (dref[i].NumberofDescendants==0 && dtemp[i].NumberofDescendants>0) dref[i]=dtemp[i];
+    if (ilink==MSLCMISSING) {
+        for (Int_t i=0;i<numhalos;i++) 
+            if (pref[i].NumberofProgenitors==0 && ptemp[i].NumberofProgenitors>0) pref[i]=ptemp[i];
+    }
+    else if (ilink==MSLCMERIT) {
+        for (Int_t i=0;i<numhalos;i++) {
+            if (pref[i].NumberofProgenitors==0 && ptemp[i].NumberofProgenitors>0) pref[i]=ptemp[i];
+            else if (pref[i].NumberofProgenitors>0 && ptemp[i].NumberofProgenitors>0 && pref[i].Merit[0]<ptemp[i].Merit[0]) pref[i]=ptemp[i];
+        }
+    }
+}
+void UpdateRefDescendants(const int ilink, const Int_t numhalos, DescendantData *&dref, DescendantData *&dtemp)
+{
+    if (ilink==MSLCMISSING) {
+        for (Int_t i=0;i<numhalos;i++) 
+            if (dref[i].NumberofDescendants==0 && dtemp[i].NumberofDescendants>0) dref[i]=dtemp[i];
+    }
+    else if (ilink==MSLCMERIT) {
+        for (Int_t i=0;i<numhalos;i++) {
+            if (dref[i].NumberofDescendants==0 && dtemp[i].NumberofDescendants>0) dref[i]=dtemp[i];
+            else if (dref[i].NumberofDescendants>0 && dtemp[i].NumberofDescendants>0 && dref[i].Merit[0]<dtemp[i].Merit[0]) dref[i]=dtemp[i];
+        }
+    }
 }
 
 //@}

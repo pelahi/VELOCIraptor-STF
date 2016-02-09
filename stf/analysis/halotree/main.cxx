@@ -96,7 +96,7 @@ int main(int argc,char **argv)
                 else {
                     pprogentemp=CrossMatch(opt, opt.NumPart, pht[i].numhalos, pht[i-istep].numhalos, pht[i].Halo, pht[i-istep].Halo, pglist, noffset, pfofp, istep);
                     CleanCrossMatch(pht[i].numhalos, pht[i-istep].numhalos, pht[i].Halo, pht[i-istep].Halo, pprogentemp);
-                    UpdateRefProgenitors(pht[i].numhalos, pprogen[i], pprogentemp);
+                    UpdateRefProgenitors(opt.imultsteplinkcrit,pht[i].numhalos, pprogen[i], pprogentemp);
                     delete[] pprogentemp;
                 }
 
@@ -159,7 +159,7 @@ int main(int argc,char **argv)
                 else {
                     pdescentemp=CrossMatchDescendant(opt, opt.NumPart, pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pglist, noffset, pfofd,istep);
                     CleanCrossMatchDescendant(pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pdescen[i]);
-                    UpdateRefDescendants(pht[i].numhalos, pdescen[i], pdescentemp);
+                    UpdateRefDescendants(opt.imultsteplinkcrit,pht[i].numhalos, pdescen[i], pdescentemp);
                     delete[] pdescentemp;
                 }
 

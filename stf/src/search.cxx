@@ -78,7 +78,11 @@ if (opt.p>0) {
     if (numgroups>0) {
     storetype=new Int_t[nbodies];
     for (i=0;i<nbodies;i++) storetype[i]=Part[i].GetType();
-    for (i=0;i<nbodies;i++) Part[i].SetType(pfof[Part[i].GetID()]);
+    //if not searching all particle then searching for baryons associated with substructures, then set type to group value
+    //so that velocity density just calculated for particles in groups (type>0)
+    if (!(opt.iBaryonSearch==1 && opt.partsearchtype==PSTALL)) for (i=0;i<nbodies;i++) Part[i].SetType(pfof[Part[i].GetID()]);
+    //otherwise set type to group value for dark matter
+    else for (i=0;i<nbodies;i++) Part[i].SetType(pfof[Part[i].GetID()]*(Part[i].GetType()==DMTYPE));
     GetVelocityDensity(opt, nbodies, Part,tree);
     for (i=0;i<nbodies;i++) Part[i].SetType(storetype[i]);
     delete[] storetype;

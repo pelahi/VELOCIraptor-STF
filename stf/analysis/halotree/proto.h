@@ -59,13 +59,13 @@ ProgenitorData *CrossMatch(Options &opt, const Int_t nbodies, const long unsigne
 void CleanCrossMatch(const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData *&h2, ProgenitorData *&pprogen);
 ///fill in empty links of the reference list with another progenitor list produced using same reference snapshot but different linking snapshot. 
 ///Allows for multiple steps in snapshots to be used. 
-void UpdateRefProgenitors(const Int_t numhalos,ProgenitorData *&pref, ProgenitorData *&ptemp);
+void UpdateRefProgenitors(const int ilinkcriteria, const Int_t numhalos,ProgenitorData *&pref, ProgenitorData *&ptemp);
 ///similar to \ref CrossMatch but for descendants
 DescendantData *CrossMatchDescendant(Options &opt, const Int_t nbodies, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData* &h2, long unsigned *&pglist, long unsigned *&noffset, long unsigned *&pfof2, int istepval=1);
 ///similar to \ref CleanCrossMatch but for descendants
 void CleanCrossMatchDescendant(const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData *&h2, DescendantData *&pdescen);
 ///similar to \ref UpdateRefProgenitors but for descendants
-void UpdateRefDescendants(const Int_t numhalos,DescendantData *&pref, DescendantData *&ptemp);
+void UpdateRefDescendants(const int ilinkcriteria, const Int_t numhalos,DescendantData *&pref, DescendantData *&ptemp);
 
 //@}
 

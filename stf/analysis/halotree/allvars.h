@@ -112,6 +112,14 @@ using namespace NBody;
 #define STARTYPEMATCH 4
 //@}
 
+/// \name defining types of multisnapshot linking done
+//@{
+///missing link
+#define MSLCMISSING 0
+///higher merit
+#define MSLCMERIT 1
+//@}
+
 ///VALUE USED TO MAKE UNIQUE halo identifiers
 #ifdef LONGINT
 #define HALOIDSNVAL 1000000000000L
@@ -135,20 +143,26 @@ struct Options
     ///total number of haloes across all snapshots    
     long unsigned TotalNumberofHalos;
 
-    ///type of cross-match search
-    int matchtype;
     /// store description of code
     char *description;
-    ///flag for whether a simple cross comparsion between two catalogs is run or default merger tree produced
+
+    ///type of cross-match search
+    int matchtype;
+    ///cross match merit limit significance, that is match only when quantity is above MERITLIM*some measure of noise
+    Double_t mlsig;
+    ///particle type cross matching subselection
+    int itypematch;
+    ///when using multiple links, how links should be updated, either only for those missing links, or better merit found
+    int imultsteplinkcrit;
+
+    ///flag for whether default merger tree produced, a simple cross comparsion between two catalogs is run or a full graph is constructed
     int icatalog;
 
     ///output format
     int outputformat;
 
-    ///cross match merit limit significance, that is match only when quantity is above MERITLIM*some measure of noise
-    Double_t mlsig;
 
-    ///io format flags for basic format, whether data split into multiple files, binary, and field objects separate
+    ///\name io format flags for basic format, whether data split into multiple files, binary, and field objects separate
     //@{
     int ioformat,nmpifiles,ibinary,ifield;
     //@}
@@ -168,39 +182,38 @@ struct Options
     ///to fix ids for nifty project
     int idcorrectflag;
 
-    ///particle type cross matching subselection
-    int itypematch;
-
     ///verbose output flag
     int iverbose;
 
     Options()
     {
+        fname=outname=NULL;
+
         numsnapshots=2;
         numsteps=1;
-
-        fname=outname=NULL;
-        matchtype=NsharedN1N2;
         NumPart=512*512*512;
         TotalNumberofHalos=0;
 
+        matchtype=NsharedN1N2;
+        mlsig=0.1;
+        itypematch=ALLTYPEMATCH;
+        imultsteplinkcrit=MSLCMISSING;
+
         ioformat=DCATALOG;
+        icatalog=DTREE;
+
         nmpifiles=0;
         ibinary=1;
         ifield=1;
-
-        mlsig=0.1;
 
         imapping=DNOMAP;//no mapping
         mappingfunc=NULL;
 
         snapshotvaloffset=0;
         haloidval=0;
-        icatalog=DTREE;
         idcorrectflag=0;
         outputformat=0;
 
-        itypematch=ALLTYPEMATCH;
         iverbose=1;
     }
 };

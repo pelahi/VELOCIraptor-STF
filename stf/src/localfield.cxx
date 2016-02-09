@@ -78,10 +78,16 @@ private(i,j,k,tid,id,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,pqx,pqv
 #pragma omp for schedule(dynamic)
 #endif
     for (i=0;i<nbodies;i++) {
+        //if strucden compile flag set then only calculate velocity density for particles in groups
 #ifdef STRUCDEN
         if (Part[i].GetType()>0) {
-#endif
+        //if not searching all particles in FOF then also doing baryon search then just find nearest neighbours
+        if (!(opt.iBaryonSearch==1 && opt.partsearchtype==PSTALL)) tree->FindNearest(i,nnids,nnr2,opt.Nsearch);
+        //otherwise distinction must be made so that only base calculation on dark matter particles
+        else tree->FindNearestCriterion(i,FOFPositivetypes,NULL,nnids,nnr2,opt.Nsearch);
+#else 
         tree->FindNearest(i,nnids,nnr2,opt.Nsearch);
+#endif
         //once NN set is found, store maxrdist and see if particle's search radius overlaps with another mpi domain
         maxrdist[i]=sqrt(nnr2[opt.Nsearch-1]);
         if (MPISearchForOverlap(Part[i],maxrdist[i])==0) {
@@ -163,7 +169,12 @@ private(i,j,k,tid,pid,pid2,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,p
         pid=Part[i].GetID();
         if (Part[i].GetDensity()==-1) {
             //search trees
-            tree->FindNearest(i,nnids,nnr2,opt.Nsearch);
+
+            //if not searching all particles in FOF then also doing baryon search then just find nearest neighbours
+            if (!(opt.iBaryonSearch==1 && opt.partsearchtype==PSTALL)) tree->FindNearest(i,nnids,nnr2,opt.Nsearch);
+            //otherwise distinction must be made so that only base calculation on dark matter particles
+            else tree->FindNearestCriterion(i,FOFPositivetypes,NULL,nnids,nnr2,opt.Nsearch);
+
             //fill priority queue, where queue value for neighbours is offset by local particle number
             for (j = 0; j <opt.Nsearch; j++) pqx->Push(-1, MAXVALUE);
             for (j=0;j<opt.Nsearch;j++) {
@@ -175,6 +186,7 @@ private(i,j,k,tid,pid,pid2,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,p
             //now search the export particle list and fill appropriately
             if (nimport>0) { 
                 Coordinate x(Part[i].GetPosition());
+                //need to update this ????
                 treeneighbours->FindNearestPos(x,nnidsneighbours,nnr2neighbours,nimportsearch);
                 for (j=0;j<nimportsearch;j++) {
                     if (nnr2neighbours[j] < pqx->TopPriority()){
@@ -242,17 +254,19 @@ private(i,j,k,tid,pid,pid2,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,p
     int minamount=(double)nbodies/(double)nthreads*0.01+1;
     Int_t addamount=(double)nbodies/(double)nthreads*0.1+1;
     for (int j=0;j<nthreads;j++){fracdone[j]=0;fraclim[j]=addamount;}
-    Int_t **nnids;
-    Double_t **nnr2;
+    Int_t *nnids;
+    Double_t *nnr2;
+    Double_t *weight;
     PriorityQueue **pqx, **pqv;
 
-    nnids=new Int_t*[nthreads];
-    nnr2=new Double_t*[nthreads];
+    nnids=new Int_t*[nthreads*opt.Nsearch];
+    nnr2=new Double_t*[nthreads*opt.Nsearch];
     pqx=new PriorityQueue*[nthreads];
     pqv=new PriorityQueue*[nthreads];
+    weight=new Double_t[nthreads*opt.Nvel];
     for (j=0;j<nthreads;j++) {
-        nnids[j]=new Int_t[opt.Nsearch];
-        nnr2[j]=new Double_t[opt.Nsearch];
+        //nnids[j]=new Int_t[opt.Nsearch];
+        //nnr2[j]=new Double_t[opt.Nsearch];
         pqx[j]=new PriorityQueue(opt.Nsearch);
         pqv[j]=new PriorityQueue(opt.Nvel);
     }
@@ -265,9 +279,29 @@ private(i,tid)
         if (Part[i].GetType()>0) {
 #endif
         tid=omp_get_thread_num();
-        Part[i].SetDensity(tree->CalcVelDensityParticle(i,opt.Nvel,opt.Nsearch,1,pqx[tid],pqv[tid],nnids[tid],nnr2[tid]));
+        //if not searching all particles in FOF then also doing baryon search then just find nearest neighbours
+        if (!(opt.iBaryonSearch==1 && opt.partsearchtype==PSTALL)) Part[i].SetDensity(tree->CalcVelDensityParticle(i,opt.Nvel,opt.Nsearch,1,pqx[tid],pqv[tid],&nnids[tid*opt.Nsearch],&nnr2[tid*opt.Nsearch]));
+        //otherwise distinction must be made so that only base calculation on dark matter particles
+        else {
+            //????
+            tree->FindNearestCriterion(i,FOFPositivetypes,NULL,&nnids[tid*opt.Nsearcher],&nnr2[tid*opt.Nsearcher],opt.Nsearch);
+            for (j=0;j<opt.Nvel;j++) {
+                pqv->Push(-1, MAXVALUE);
+                weight[j]=1.0;
+            }
+            for (j=0;j<opt.Nsearch;j++) {
+                v2=0;
+                id=nnids[j+tid*opt.Nsearcher];
+                for (k=0;k<3;k++) v2+=(Part[i].GetVelocity(k)-Part[id].GetVelocity(k))*(Part[i].GetVelocity(k)-Part[id].GetVelocity(k));
+                if (v2 < pqv->TopPriority()){
+                    pqv->Pop();
+                    pqv->Push(id, v2);
+                }
+            }
+            Part[i].SetDensity(tree->CalcSmoothLocalValue(opt.Nvel, pqv, &weight[tid*opt.Nvel]));
+        }
+
         fracdone[tid]++;
-        //printf("%d %d %d \n",tid,i,fracdone[tid]);
         if (opt.iverbose) if (fracdone[tid]>fraclim[tid]) {printf("Task %d done %e of its share \n",tid,fracdone[tid]/((double)nbodies/(double)nthreads));fraclim[tid]+=addamount;}
 #ifdef STRUCDEN
         }
@@ -290,6 +324,7 @@ private(i,tid)
 #endif
 #endif
 #else
+    //start halo only density calculations, where particles are localized to single mpi domain
 #ifndef USEOPENMP
     tree->CalcVelDensity(opt.Nvel,opt.Nsearch);
 #else
