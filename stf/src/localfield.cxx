@@ -133,7 +133,7 @@ private(i,j,k,tid,id,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,pqx,pqv
     PartDataGet = new Particle[NImport];
     MPI_Barrier(MPI_COMM_WORLD);
     //run search on exported particles and determine which local particles need to be exported back (or imported)
-    nimport=MPIBuildParticleNNImportList(nbodies, tree, Part);
+    nimport=MPIBuildParticleNNImportList(nbodies, tree, Part,(!(opt.iBaryonSearch==1 && opt.partsearchtype==PSTALL)));
     int nimportsearch=opt.Nsearch;
     if (nimportsearch>nimport) nimportsearch=nimport;
     if (opt.iverbose) cout<<ThisTask<<" Searching particles in other domains"<<endl;
@@ -185,8 +185,12 @@ private(i,j,k,tid,pid,pid2,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,p
             }
             //now search the export particle list and fill appropriately
             if (nimport>0) { 
+                /*if (!(opt.iBaryonSearch==1 && opt.partsearchtype==PSTALL)) {
+                    Coordinate x(Part[i].GetPosition());
+                    treeneighbours->FindNearestPos(x,nnidsneighbours,nnr2neighbours,nimportsearch);
+                }
+                else treeneighbours->FindNearestCriterion(Part[i],FOFPositivetypes,NULL,nnidsneighbours,nnr2neighbours,nimportsearch);*/
                 Coordinate x(Part[i].GetPosition());
-                //need to update this ????
                 treeneighbours->FindNearestPos(x,nnidsneighbours,nnr2neighbours,nimportsearch);
                 for (j=0;j<nimportsearch;j++) {
                     if (nnr2neighbours[j] < pqx->TopPriority()){
@@ -283,8 +287,7 @@ private(i,tid)
         if (!(opt.iBaryonSearch==1 && opt.partsearchtype==PSTALL)) Part[i].SetDensity(tree->CalcVelDensityParticle(i,opt.Nvel,opt.Nsearch,1,pqx[tid],pqv[tid],&nnids[tid*opt.Nsearch],&nnr2[tid*opt.Nsearch]));
         //otherwise distinction must be made so that only base calculation on dark matter particles
         else {
-            //????
-            tree->FindNearestCriterion(i,FOFPositivetypes,NULL,&nnids[tid*opt.Nsearcher],&nnr2[tid*opt.Nsearcher],opt.Nsearch);
+            tree->FindNearestCriterion(i,FOFPositivetypes,NULL,&nnids[tid*opt.Nsearcher],&nnr2[tid*opt.Nsearch],opt.Nsearch);
             for (j=0;j<opt.Nvel;j++) {
                 pqv->Push(-1, MAXVALUE);
                 weight[j]=1.0;
@@ -312,8 +315,8 @@ private(i,tid)
     if (itreeflag) delete tree;
 #ifdef USEOPENMP
     for (j=0;j<nthreads;j++) {
-        delete[] nnids[j];
-        delete[] nnr2[j];
+        //delete[] nnids[j];
+        //delete[] nnr2[j];
         delete pqx[j];
         delete pqv[j];
     }
@@ -324,6 +327,7 @@ private(i,tid)
 #endif
 #endif
 #else
+
     //start halo only density calculations, where particles are localized to single mpi domain
 #ifndef USEOPENMP
     tree->CalcVelDensity(opt.Nvel,opt.Nsearch);
@@ -338,17 +342,17 @@ private(i,tid)
     int minamount=(double)nbodies/(double)nthreads*0.01+1;
     Int_t addamount=(double)nbodies/(double)nthreads*0.1+1;
     for (j=0;j<nthreads;j++){fracdone[j]=0;fraclim[j]=addamount;}
-    Int_t **nnids;
-    Double_t **nnr2;
+    Int_t *nnids;
+    Double_t *nnr2;
     PriorityQueue **pqx, **pqv;
 
-    nnids=new Int_t*[nthreads];
-    nnr2=new Double_t*[nthreads];
+    nnids=new Int_t[nthreads*opt.Nsearch];
+    nnr2=new Double_t[nthreads*opt.Nsearch];
     pqx=new PriorityQueue*[nthreads];
     pqv=new PriorityQueue*[nthreads];
     for (j=0;j<nthreads;j++) {
-        nnids[j]=new Int_t[opt.Nsearch];
-        nnr2[j]=new Double_t[opt.Nsearch];
+        //nnids[j]=new Int_t[opt.Nsearch];
+        //nnr2[j]=new Double_t[opt.Nsearch];
         pqx[j]=new PriorityQueue(opt.Nsearch);
         pqv[j]=new PriorityQueue(opt.Nvel);
     }
@@ -363,18 +367,17 @@ private(i,tid)
         if (Part[i].GetType()>0) {
 #endif
         tid=omp_get_thread_num();
-        Part[i].SetDensity(tree->CalcVelDensityParticle(i,opt.Nvel,opt.Nsearch,1,pqx[tid],pqv[tid],nnids[tid],nnr2[tid]));
+        Part[i].SetDensity(tree->CalcVelDensityParticle(i,opt.Nvel,opt.Nsearch,1,pqx[tid],pqv[tid],&nnids[tid*opt.Nsearch],&nnr2[tid*opt.Nsearch]));
         fracdone[tid]++;
-        //printf("%d %d %d \n",tid,i,fracdone[tid]);
-        //if (fracdone[tid]>fraclim[tid]) {printf("Task %d done %e of its share \n",tid,fracdone[tid]/((double)nbodies/(double)nthreads));fraclim[tid]+=addamount;}
+        if (opt.iverbose) if (fracdone[tid]>fraclim[tid]) {printf("Task %d done %e of its share \n",tid,fracdone[tid]/((double)nbodies/(double)nthreads));fraclim[tid]+=addamount;}
 #ifdef STRUCDEN
         }
 #endif
     }
 }
     for (j=0;j<nthreads;j++) {
-        delete[] nnids[j];
-        delete[] nnr2[j];
+        //delete[] nnids[j];
+        //delete[] nnr2[j];
         delete pqx[j];
         delete pqv[j];
     }

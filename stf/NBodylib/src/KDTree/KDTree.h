@@ -211,6 +211,8 @@ namespace NBody
 
         //using tree nearest particles that meet a criterion relative to particle bucket[tt]
         void FindNearestCriterion(Int_t tt, FOFcompfunc cmp, Double_t *params,Int_t *nn, Double_t *dist2, Int_t Nsearch=64);
+        //using tree nearest particles that meet a criterion relative to particle passed
+        void FindNearestCriterion(Particle p, FOFcompfunc cmp, Double_t *params,Int_t *nn, Double_t *dist2, Int_t Nsearch=64);
         //@}
 
         /// \name Search for all particles within a given distance 

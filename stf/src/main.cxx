@@ -212,7 +212,7 @@ int main(int argc,char **argv)
     //if mpi and want separate baryon search then once particles are loaded into contigous block of memory and sorted according to type order, 
     //allocate memory for baryons
     if (opt.iBaryonSearch==1 && opt.partsearchtype!=PSTALL) {
-#ifdef MPIREDUCE
+#ifdef MPIREDUCEMEM
         Part=new Particle[Nmemlocal];
         Pbaryons=new Particle[Nmemlocalbaryon];
 #else

@@ -417,6 +417,23 @@ namespace NBody
         LoadNN(Nsearch,pq,nn,dist2);
         delete pq;
     }
+    //criterion NN
+    void KDTree::FindNearestCriterion(Particle p, FOFcompfunc cmp, Double_t *params, Int_t *nn, Double_t *dist2, Int_t Nsearch)
+    {
+        if (period!=NULL) Nsearch+=1;
+        PriorityQueue *pq=new PriorityQueue(Nsearch);
+        Double_t off[3];
+        for (Int_t i = 0; i < Nsearch; i++) pq->Push(-1, MAXVALUE);
+
+        for (int i = 0; i < 3; i++) off[i] = 0.0;
+
+        if (period==NULL) root->FindNearestCriterion(0.0,cmp,params,bucket,pq,off,p);
+        else root->FindNearestCriterionPeriodic(0.0,cmp,params,bucket,pq,off,period,p);
+        if (period!=NULL) {Nsearch-=1;}
+        LoadNN(Nsearch,pq,nn,dist2);
+        delete pq;
+    }
+
     // Same as above but done for every particle
     void KDTree::FindNearest(Int_t **nn, Double_t **dist2, Int_t Nsearch){
         for (Int_t i=0;i<numparts;i++) FindNearest(i,nn[i],dist2[i],Nsearch);

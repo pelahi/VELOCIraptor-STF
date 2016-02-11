@@ -656,7 +656,7 @@ private(i)
 /*! Mirror to \ref MPIBuildParticleNNExportList, use exported particles, run ball search to find all local particles that need to be
     imported back to exported particle's thread so that a proper NN search can be made.
 */
-Int_t MPIBuildParticleNNImportList(const Int_t nbodies, KDTree *tree, Particle *Part){
+Int_t MPIBuildParticleNNImportList(const Int_t nbodies, KDTree *tree, Particle *Part, int iallflag){
     Int_t i, j,nthreads,nexport=0,ncount;
     Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
     Double_t xsearch[3][2];
@@ -694,6 +694,10 @@ private(i)
             for (i=nbuffer[j];i<nbuffer[j]+mpi_nsend[ThisTask+j*NProcs];i++) {
                 tree->SearchBallPos(NNDataGet[i].Pos, NNDataGet[i].R2, j, nn, nnr2);
             }
+            //if not spliting search so that only calculated velocity density function based on dark matter particles 
+            //as fof search is all but a separate baryon search is choosen for substructure, then just export particles
+            //that are in spaitial window
+            if (iallflag) {
             for (i=0;i<nbodies;i++) {
                 if (nn[i]!=-1) {
                     for (int k=0;k<3;k++) {
@@ -703,6 +707,25 @@ private(i)
                     nexport++;
                     nsend_local[j]++;
                 }
+            }
+            }
+            //otherwise, check the particle type either == dark matter or if struct den is on then type set to group number if dark and negative group number if not
+            else {
+            for (i=0;i<nbodies;i++) {
+#ifdef STRUCDEN
+                if (nn[i]!=-1 && Part[i].GetType()>0) 
+#else
+                if (nn[i]!=-1 && Part[i].GetType()==DARKTYPE)
+#endif
+                {
+                    for (int k=0;k<3;k++) {
+                        PartDataIn[nexport].SetPosition(k,Part[i].GetPosition(k));
+                        PartDataIn[nexport].SetVelocity(k,Part[i].GetVelocity(k));
+                    }
+                    nexport++;
+                    nsend_local[j]++;
+                }
+            }
             }
         }
     }

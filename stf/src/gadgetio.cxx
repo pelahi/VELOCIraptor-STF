@@ -514,11 +514,15 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                 for(n=0;n<header[i].npart[k];n++) {
                     Fgad[i].read((char*)&ctemp[0], sizeof(FLOAT));
                     if (opt.partsearchtype==PSTALL) {
+#ifdef STARON
                         Part[count2].SetSFR(ctemp[0]);
+#endif
                         count2++;
                     }
                     else if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch==1) {
+#ifdef STARON
                         Pbaryons[bcount2].SetSFR(ctemp[0]);
+#endif
                         bcount2++;
                     }
                     pc_new++;
@@ -551,7 +555,11 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
             for(n=0;n<header[i].npart[k];n++) {
                 if (k==GSTARTYPE) Fgad[i].read((char*)&ctemp[0], sizeof(FLOAT));
                 if (opt.partsearchtype==PSTALL) {
-                    if (k==GSTARTYPE) Part[count2].SetTage(ctemp[0]);
+                    if (k==GSTARTYPE) {
+#ifdef STARON
+                        Part[count2].SetTage(ctemp[0]);
+#endif
+                    }
                     count2++;
                 }
                 else if (opt.partsearchtype==PSTDARK) {
@@ -560,14 +568,20 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                     }
                     else {
                         if (opt.iBaryonSearch==1 && (k==GGASTYPE || k==GSTARTYPE)) {
-                            if (k==GSTARTYPE) Pbaryons[bcount2].SetTage(ctemp[0]);
+                            if (k==GSTARTYPE) {
+#ifdef STARON
+                                Pbaryons[bcount2].SetTage(ctemp[0]);
+#endif
+                            }
                             bcount2++;
                         }
                     }
                 }
                 else if (opt.partsearchtype==PSTSTAR) {
                     if (k==GSTARTYPE) {
+#ifdef STARON
                         Part[count2].SetTage(ctemp[0]);
+#endif
                         count2++;
                     }
                 }
@@ -595,7 +609,11 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
             for(n=0;n<header[i].npart[k];n++) {
                 if (k==GSTARTYPE||k==GGASTYPE) Fgad[i].read((char*)&ctemp[0], sizeof(FLOAT));
                 if (opt.partsearchtype==PSTALL) {
-                    if (k==GSTARTYPE||k==GGASTYPE) Part[count2].SetZmet(ctemp[0]);
+                    if (k==GSTARTYPE||k==GGASTYPE) {
+#if defined(STARON)
+                        Part[count2].SetZmet(ctemp[0]);
+#endif
+                    }
                     count2++;
                 }
                 else if (opt.partsearchtype==PSTDARK) {
@@ -604,20 +622,28 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                     }
                     else {
                         if (opt.iBaryonSearch==1 && (k==GGASTYPE || k==GSTARTYPE)) {
-                            if (k==GSTARTYPE||k==GGASTYPE) Pbaryons[bcount2].SetZmet(ctemp[0]);
+                            if (k==GSTARTYPE||k==GGASTYPE) {
+#if defined(STARON)
+                                Pbaryons[bcount2].SetZmet(ctemp[0]);
+#endif
+                            }
                             bcount2++;
                         }
                     }
                 }
                 else if (opt.partsearchtype==PSTSTAR) {
                     if (k==GSTARTYPE) {
+#if defined(STARON)
                         Part[count2].SetZmet(ctemp[0]);
+#endif
                         count2++;
                     }
                 }
                 else if (opt.partsearchtype==PSTGAS) {
                     if (k==GGASTYPE) {
+#if defined(STARON)
                         Part[count2].SetZmet(ctemp[0]);
+#endif
                         count2++;
                     }
                 }

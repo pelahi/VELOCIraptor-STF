@@ -375,7 +375,7 @@ void MPIBuildParticleNNExportList(const Int_t nbodies, Particle *Part, Double_t 
 ///Determine number of local particles that need to be exported back based on ball search.
 void MPIGetNNImportNum(const Int_t nbodies, KDTree *tree, Particle *Part);
 ///Determine local particles that need to be exported back based on ball search.
-Int_t MPIBuildParticleNNImportList(const Int_t nbodies, KDTree *tree, Particle *Part);
+Int_t MPIBuildParticleNNImportList(const Int_t nbodies, KDTree *tree, Particle *Part, int iallflag=true);
 ///comparison function to order particles for export
 int nn_export_cmp(const void *a, const void *b);
 

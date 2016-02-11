@@ -95,16 +95,16 @@ HDFINPUT="on"
 #===========================================
 ifeq ($(LOCALGSL),"on")
     GSL_DIR = 
-    GSL_INCL =  
-    GSL_LIBS =  
+    GSL_INCL = -I$(GSL_DIR)/include/
+    GSL_LIBS = -L$(GSL_DIR)/lib/
     GSL_CONFIG = 
-    GSL_CFLAGS =
+    GSL_CFLAGS = $(GSL_INCL) $(GSL_LIBS)
 endif
 ifeq ($(LOCALFFTW),"on")
     FFTW_DIR =  
-    FFTW_INCL =  
-    FFTW_LIBS =   
-    FFTW_CFLAGS =  
+    FFTW_INCL = -I$(FFTW_DIR)/include/
+    FFTW_LIBS = -L$(FFTW_DIR)/lib/
+    FFTW_CFLAGS =  $(FFTW_INCL) $(FFTW_LIBS)
 endif
 ifeq ($(HDFINPUT)$(LOCALHDF),"on""on")
     HDF_DIR = /home/pelahi/myresearch/SSimPL-DEDM/codes/hdf5-1.8.13
