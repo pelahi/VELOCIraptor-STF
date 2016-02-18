@@ -150,6 +150,7 @@ typedef Double_t DoublePos_t;
 #if defined(GASON) && defined(STARON)
             ival*=((zmet==p.zmet)&&(sfr==p.sfr));
 #endif
+            return ival;
         }
         bool operator!=(const Particle &p) const {return !((*this)==p);}
         // Inserter: prints out the particle in ascii format,

@@ -85,10 +85,10 @@ namespace NBody
         u=0;
         sphden=0;
 #endif
-#ifdef STARSON
+#ifdef STARON
         tage=0;
 #endif
-#if defined (GASON) && (STARSON)
+#if defined (GASON) && (STARON)
         zmet=0;
         sfr=0;
 #endif
@@ -116,10 +116,10 @@ namespace NBody
         u=0;
         sphden=0;
 #endif
-#ifdef STARSON
+#ifdef STARON
         tage=0;
 #endif
-#if defined (GASON) && (STARSON)
+#if defined (GASON) && (STARON)
         zmet=0;
         sfr=0;
 #endif
@@ -148,10 +148,10 @@ namespace NBody
             u=p.u;
             sphden=p.sphden;
 #endif
-#ifdef STARSON
+#ifdef STARON
             tage=p.tage;
 #endif
-#if defined (GASON) && (STARSON)
+#if defined (GASON) && (STARON)
             zmet=p.zmet;
             sfr=p.sfr;
 #endif
@@ -182,10 +182,10 @@ namespace NBody
             u=p.u;
             sphden=p.sphden;
 #endif
-#ifdef STARSON
+#ifdef STARON
             tage=p.tage;
 #endif
-#if defined (GASON) && (STARSON)
+#if defined (GASON) && (STARON)
             zmet=p.zmet;
             sfr=p.sfr;
 #endif

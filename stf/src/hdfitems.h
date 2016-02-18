@@ -11,9 +11,15 @@
 #include "H5Cpp.h"
 using namespace H5;
 
+///\name ILLUSTRIS specific constants
+//@{
+///convert illustris metallicty to ratio to solar
+#define ILLUSTRISZMET 1.0/0.0127 
+//@}
+
 ///number of particle types
 #define NHDFTYPE 6
-///define hdf particle types
+///\name define hdf particle types
 //@{
 #define HDFGASTYPE 0
 #define HDFDMTYPE 1
@@ -23,7 +29,7 @@ using namespace H5;
 #define HDFBHTYPE 5
 //@}
 
-///number of entries in various data groups 
+///\name number of entries in various data groups 
 //@{
 #define HDFHEADNINFO 11
 #define HDFGASNINFO 20

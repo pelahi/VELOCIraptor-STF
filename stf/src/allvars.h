@@ -705,7 +705,7 @@ struct PropData
         gmaxvel=gmaxvel=p.gmaxvel;gRmaxvel=p.gRmaxvel;gMmaxvel=p.gMmaxvel;
         gM200c=p.gM200c;gR200c=p.gR200c;
         gM200m=p.gM200m;gR200m=p.gR200m;
-
+        return *this;
     }
 };
 
