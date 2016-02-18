@@ -1103,7 +1103,7 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval)
 #endif
         //store data
         //store temperature in units of internal energy
-        pdata[i].T_gas=Tsum;
+        pdata[i].Temp_gas=Tsum;
         //pdata[i].sphden_gas+=Pval->GetMass()*Pval->GetSPHDen();
 #ifdef STARON
         pdata[i].Z_gas=Zsum;
@@ -1127,7 +1127,7 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval)
             pdata[i].veldisp_gas=pdata[i].veldisp_gas*(1.0/pdata[i].M_gas);
             pdata[i].cm_gas=pdata[i].cm_gas*(1.0/pdata[i].M_gas);
             pdata[i].cmvel_gas=pdata[i].cm_gas*(1.0/pdata[i].M_gas);
-            pdata[i].T_gas/=pdata[i].M_gas;
+            pdata[i].Temp_gas/=pdata[i].M_gas;
 #ifdef STARON
             pdata[i].Z_gas/=pdata[i].M_gas;
             pdata[i].SFR_gas/=pdata[i].M_gas;
@@ -1237,7 +1237,7 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval)
 }
 #endif
         //store data
-        pdata[i].t_star=Tsum;
+        pdata[i].t_star=tsum;
         pdata[i].Z_star=Zsum;
 
         pdata[i].cm_star[0]=cmx;pdata[i].cm_star[1]=cmy;pdata[i].cm_star[2]=cmz;
