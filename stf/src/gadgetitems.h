@@ -45,7 +45,7 @@
 //gadget stuff
 
 //how many chunks of a gadget array to read in one go
-#define GADGETCHUNKSIZE 1000000
+#define GADGETCHUNKSIZE 200000
 
 ///for waves data, u, rho, Ne, Nh, HSML contiguous block
 #define NUMGADGETSPHBLOCKS 5 

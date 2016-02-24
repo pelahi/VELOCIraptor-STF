@@ -18,12 +18,9 @@ int main(int argc,char **argv)
     MPI_Comm_size(MPI_COMM_WORLD,&NProcs);
     //and this processes' rank is
     MPI_Comm_rank(MPI_COMM_WORLD,&ThisTask);
-
 #else
     int ThisTask=0,NProcs=1,Nlocal,Ntotal;
 #endif
-    ///\todo need to implement mpi routines. At the moment, just ThisTask zero does anything
-    if (ThisTask==0) {
 
     HaloTreeData *pht;
     ProgenitorData **pprogen;
@@ -50,6 +47,7 @@ int main(int argc,char **argv)
     else if (opt.matchtype==Nsharedcombo)
         opt.description=(char*)"VELOCIraptor halo merger tree constructed by identifying the main progenitor with the highest value of Nshared/Nh+(Nshared^2/Nh/Np) so as to weight progenitors that contribute similar amounts by how much of their mass contributes to the new object";
 
+    if (ThisTask==0) {
     //read particle information and allocate memory
     cout<<"Read Data ... "<<endl;
     pht=ReadData(opt);
@@ -203,7 +201,7 @@ int main(int argc,char **argv)
     delete[] pht;
 
     //end of thistask==0 
-    }
+    //}
 
 #ifdef USEMPI
     MPI_Finalize();

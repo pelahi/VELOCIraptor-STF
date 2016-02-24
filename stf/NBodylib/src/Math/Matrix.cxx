@@ -25,7 +25,7 @@ std::ostream &operator << (std::ostream& stream, const Matrix& m)
             stream.width(6); stream.precision(3);
             stream << m.matrix[j + 3 * i] << " ";
         }
-        if (i != 2) stream << "\n";
+        stream << "\n";
     }
     return stream;
 }

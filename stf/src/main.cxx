@@ -141,17 +141,19 @@ int main(int argc,char **argv)
     MPI_Bcast(&nbodies,1, MPI_Int_t,0,MPI_COMM_WORLD);
     if (opt.iBaryonSearch) MPI_Bcast(&nbaryons,1, MPI_Int_t,0,MPI_COMM_WORLD);
     //initial estimate need for memory allocation assuming that work balance is not greatly off
-    if (ThisTask==0)
+#endif
+#ifndef MPIREDUCEMEM
+#ifdef USEMPI
+    if (ThisTask==0) 
 #endif
     cout<<"There are "<<nbodies<<" particles that require "<<nbodies*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
-
 #ifdef USEMPI
     if (opt.iBaryonSearch && ThisTask==0) cout<<"There are "<<nbaryons<<" baryon particles that require "<<nbaryons*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
 #else
     if (opt.iBaryonSearch) cout<<"There are "<<nbaryons<<" baryon particles that require "<<nbaryons*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
 #endif
-        
-    
+#endif
+
     //note that for nonmpi particle array is a contiguous block of memory regardless of whether a separate baryon search is required
 #ifndef USEMPI
     Nlocal=nbodies;
@@ -176,10 +178,11 @@ int main(int argc,char **argv)
 #ifdef MPIREDUCEMEM
     MPINumInDomain(opt);
     if (NProcs==1) {Nlocal=Nmemlocal=nbodies;NExport=NImport=1;}
+    cout<<ThisTask<<" There are "<<Nmemlocal<<" particles that require "<<Nmemlocal*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
+    if (opt.iBaryonSearch) cout<<ThisTask<<"There are "<<Nmemlocalbaryon<<" baryon particles that require "<<Nmemlocalbaryon*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
 #endif
     if (opt.iBaryonSearch==1 && opt.partsearchtype!=PSTALL) {
 #ifdef MPIREDUCEMEM
-
         Pall=new Particle[Nmemlocal+Nmemlocalbaryon];
         Part=&Pall[0];
         Pbaryons=&Pall[Nlocal];

@@ -181,11 +181,14 @@ if (opt.p>0) {
 
     //if calculating velocity density only of particles resident in field structures large enough for substructure search
 #if defined(STRUCDEN) && defined(USEMPI)
-if (totalgroups>0)
+    if (totalgroups>0)
     {
         storetype=new Int_t[Nlocal];
         for (i=0;i<Nlocal;i++) storetype[i]=Part[i].GetType();
         for (i=0;i<Nlocal;i++) Part[i].SetType((pfof[i]>0));
+        if (!(opt.iBaryonSearch==1 && opt.partsearchtype==PSTALL)) for (i=0;i<Nlocal;i++) Part[i].SetType((pfof[i]>0));
+        //otherwise set type to group value for dark matter
+        else for (i=0;i<Nlocal;i++) Part[i].SetType((pfof[i]>0)*(Part[i].GetType()==DMTYPE));
         tree=new KDTree(Part,Nlocal,opt.Bsize,tree->TPHYS,tree->KEPAN,100,0,0,0,period);
         GetVelocityDensity(opt, Nlocal, Part,tree);
         delete tree;
