@@ -296,7 +296,7 @@ private(i,tid)
                 v2=0;
                 id=nnids[j+tid*opt.Nsearch];
                 for (k=0;k<3;k++) v2+=(Part[i].GetVelocity(k)-Part[id].GetVelocity(k))*(Part[i].GetVelocity(k)-Part[id].GetVelocity(k));
-                if (v2 < pqv->TopPriority()){
+                if (v2 < pqv[tid]->TopPriority()){
                     pqv[tid]->Pop();
                     pqv[tid]->Push(id, v2);
                 }
