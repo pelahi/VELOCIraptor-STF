@@ -78,9 +78,10 @@ using namespace NBody;
 #define  DARK3TYPE 3
 #define  STARTYPE 4
 #define  BHTYPE 5
-#define  NPARTTYPES 6
+#define  WINDTYPE 6
+#define  NPARTTYPES 7
 //number of baryon types +1, to store all baryons
-#define  NBARYONTYPES 4
+#define  NBARYONTYPES 5
 //@}
 //@}
 

@@ -1230,7 +1230,9 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval)
                 syz+=vy*vz*mval;
 
                 tsum+=mval*Pval->GetTage();
+#ifdef GASON
                 Zsum+=mval*Pval->GetZmet();
+#endif
             }
         }
 #ifdef USEOPENMP
@@ -1259,7 +1261,9 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval)
             pdata[i].cm_star=pdata[i].cm_star*(1.0/pdata[i].M_star);
             pdata[i].cmvel_star=pdata[i].cm_star*(1.0/pdata[i].M_star);
             pdata[i].t_star/=pdata[i].M_star;
+#ifdef GASON
             pdata[i].Z_star/=pdata[i].M_star;
+#endif
         }
 
         //rotational calcs

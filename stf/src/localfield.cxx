@@ -287,21 +287,21 @@ private(i,tid)
         if (!(opt.iBaryonSearch==1 && opt.partsearchtype==PSTALL)) Part[i].SetDensity(tree->CalcVelDensityParticle(i,opt.Nvel,opt.Nsearch,1,pqx[tid],pqv[tid],&nnids[tid*opt.Nsearch],&nnr2[tid*opt.Nsearch]));
         //otherwise distinction must be made so that only base calculation on dark matter particles
         else {
-            tree->FindNearestCriterion(i,FOFPositivetypes,NULL,&nnids[tid*opt.Nsearcher],&nnr2[tid*opt.Nsearch],opt.Nsearch);
+            tree->FindNearestCriterion(i,FOFPositivetypes,NULL,&nnids[tid*opt.Nsearch],&nnr2[tid*opt.Nsearch],opt.Nsearch);
             for (j=0;j<opt.Nvel;j++) {
-                pqv->Push(-1, MAXVALUE);
+                pqv[tid]->Push(-1, MAXVALUE);
                 weight[j]=1.0;
             }
             for (j=0;j<opt.Nsearch;j++) {
                 v2=0;
-                id=nnids[j+tid*opt.Nsearcher];
+                id=nnids[j+tid*opt.Nsearch];
                 for (k=0;k<3;k++) v2+=(Part[i].GetVelocity(k)-Part[id].GetVelocity(k))*(Part[i].GetVelocity(k)-Part[id].GetVelocity(k));
                 if (v2 < pqv->TopPriority()){
-                    pqv->Pop();
-                    pqv->Push(id, v2);
+                    pqv[tid]->Pop();
+                    pqv[tid]->Push(id, v2);
                 }
             }
-            Part[i].SetDensity(tree->CalcSmoothLocalValue(opt.Nvel, pqv, &weight[tid*opt.Nvel]));
+            Part[i].SetDensity(tree->CalcSmoothLocalValue(opt.Nvel, pqv[tid], &weight[tid*opt.Nvel]));
         }
 
         fracdone[tid]++;
