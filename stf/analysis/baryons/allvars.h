@@ -109,9 +109,6 @@
 #define sphioblock_h
 //@}
 
-///read gadget file in particle chunks of this size
-#define GADGETCHUNKSIZE 1000000
-
 ///define different reference frames
 //@{
 ///cm ref

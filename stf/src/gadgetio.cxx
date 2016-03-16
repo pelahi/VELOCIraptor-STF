@@ -59,7 +59,7 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     int *irecv, sendTask,recvTask,irecvflag, *mpi_irecvflag;
     MPI_Request *mpi_request;
     Int_t *mpi_nsend_baryon;
-    if (opt.iBaryonSearch) mpi_nsend_baryon=new Int_t[NProcs*NProcs];
+    if (opt.iBaryonSearch && opt.partsearchtype!=PSTALL) mpi_nsend_baryon=new Int_t[NProcs*NProcs];
 
     //altering io so that all tasks with task numbers less than the number of snapshots are used to read the data
     //this means that all ThisTask==0 need to be changed!
@@ -1309,7 +1309,7 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
             for (i=0;i<opt.nsnapread;i++) irecvflag+=irecv[i];
         } while(irecvflag>0);
         //now that data is local, must adjust data iff a separate baryon search is required. 
-        if (opt.iBaryonSearch) {
+        if (opt.iBaryonSearch && opt.partsearchtype!=PSTALL) {
             for (i=0;i<Nlocal;i++) {
                 k=Part[i].GetType();
                 if (!(k==GGASTYPE||k==GSTARTYPE||k==GBHTYPE)) Part[i].SetID(0);
@@ -1348,7 +1348,6 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
 
     for(i=0; i<opt.num_files; i++)
     if (ireadfile[i])
-    //if(i==ThisTask)
     {
         if(opt.num_files>1) sprintf(buf,"%s.%d",opt.fname,i);
         else sprintf(buf,"%s",opt.fname);
@@ -1632,7 +1631,6 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     }
     for(i=0,count=0,pc=0;i<opt.num_files; i++,pc=pc_new,count=count2)
     if (ireadfile[i])
-    //if (i==ThisTask)
     {
         //determine number of particles with masses that need to be read
         for(k=0, ntot_withmasses=0; k<NGTYPE; k++) if(header[i].mass[k]==0) ntot_withmasses+= header[i].npart[k];
@@ -1786,7 +1784,7 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     //gather all the items that must be sent.
     MPI_Allgather(Nbuf, NProcs, MPI_Int_t, mpi_nsend, NProcs, MPI_Int_t, MPI_COMM_WORLD);
     //if separate baryon search then sort the Pbuf array so that it is separated by type 
-    if (opt.iBaryonSearch) {
+    if (opt.iBaryonSearch && opt.partsearchtype!=PSTALL) {
         for(ibuf = 0; ibuf < opt.nsnapread; ibuf++) if (mpi_nsend[ThisTask * NProcs + ibuf] > 0)
         {
             Nbuf[ibuf]=0;
@@ -1822,7 +1820,7 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                 Nlocal+=mpi_nsend[recvTask * NProcs + ThisTask];
             }
             //if separate baryon search, send baryons too
-            if (opt.iBaryonSearch) {
+            if (opt.iBaryonSearch && opt.partsearchtype!=PSTALL) {
                 if(mpi_nsend_baryon[ThisTask * NProcs + recvTask] > 0 || mpi_nsend_baryon[recvTask * NProcs + ThisTask] > 0) 
                 MPI_Sendrecv(&Pbuf[nreadoffset[recvTask]+mpi_nsend[ThisTask * NProcs + recvTask]],sizeof(Particle)*mpi_nsend_baryon[ThisTask * NProcs + recvTask], MPI_BYTE, recvTask, TAG_IO_B,
                     &Pbaryons[Nlocalbaryon[0]],sizeof(Particle)*mpi_nsend_baryon[recvTask * NProcs + ThisTask], MPI_BYTE, recvTask, TAG_IO_B, MPI_COMM_WORLD, &status);
@@ -1830,7 +1828,7 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
             }
         }
     }
-    if (opt.iBaryonSearch) delete[] mpi_nsend_baryon;
+    if (opt.iBaryonSearch && opt.partsearchtype!=PSTALL) delete[] mpi_nsend_baryon;
     //set IDS
     for (i=0;i<Nlocal;i++) Part[i].SetID(i);
     if (opt.iBaryonSearch) for (i=0;i<Nlocalbaryon[0];i++) Pbaryons[i].SetID(i+Nlocal);

@@ -227,8 +227,8 @@ struct HaloData{
     long unsigned *ParticleID;
     //Coordinate         *X;
     //Coordinate         *V;
-    HaloData(long unsigned nhalos=0){
-        NumberofParticles=nhalos;
+    HaloData(long unsigned np=0){
+        NumberofParticles=np;
         if (NumberofParticles>0) {
             ParticleID=new long unsigned[NumberofParticles];
             //X=new Coordinate[NumberofParticles];

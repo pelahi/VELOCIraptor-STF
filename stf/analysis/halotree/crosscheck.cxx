@@ -11,7 +11,7 @@
 
 /// Determine initial progenitor list based on just merit
 /// does not guarantee that progenitor list is exclusive
-ProgenitorData *CrossMatch(Options &opt, const Int_t nbodies, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData *&h2, long unsigned *&pglist, long unsigned *&noffset, long unsigned *&pfof2, int istepval){
+ProgenitorData *CrossMatch(Options &opt, const Int_t nbodies, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData *&h2, long unsigned *&pglist, long unsigned *&noffset, long unsigned *&pfof2, int istepval, ProgenitorData *refprogen){
     long int i,j;
     Int_t numshared;
     Double_t merit;
@@ -26,7 +26,105 @@ ProgenitorData *CrossMatch(Options &opt, const Int_t nbodies, const long unsigne
     int *sharelist;
     PriorityQueue *pq;
 
+    //if there are halos to link
     if (nhalos2>0){
+    //if a reference list is not provided, then build for every halo
+    if (refprogen==NULL) {
+#ifdef USEOPENMP
+    sharelist=new int[nhalos2*nthreads];
+    for (i=0;i<nhalos2*nthreads;i++)sharelist[i]=0;
+#pragma omp parallel default(shared) \
+private(i,j,tid,pq,numshared,merit)
+{
+#pragma omp for schedule(dynamic)
+    //if openmp declared
+    for (i=0;i<nhalos1;i++){
+        tid=omp_get_thread_num();
+        for (j=0;j<h1[i].NumberofParticles;j++){
+            if (pfof2[pglist[noffset[i]+j]]>0) sharelist[tid*nhalos2+pfof2[pglist[noffset[i]+j]]-1]+=1;
+        }
+        numshared=0;
+        //determine # of cross-correlations, but if it is not significant relative to Poisson noise, then
+        for (j=0;j<nhalos2;j++)
+            if(sharelist[tid*nhalos2+j]>opt.mlsig*sqrt((Double_t)h2[j].NumberofParticles)){numshared++;}
+            else sharelist[tid*nhalos2+j]=0;
+        pq=new PriorityQueue(numshared);
+        for (j=0;j<nhalos2;j++)if(sharelist[tid*nhalos2+j]>0){
+            if (opt.matchtype==NsharedN1N2)
+                merit=(Double_t)sharelist[tid*nhalos2+j]*(Double_t)sharelist[tid*nhalos2+j]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
+            else if (opt.matchtype==NsharedN1)
+                merit=(Double_t)sharelist[tid*nhalos2+j]/(Double_t)h1[i].NumberofParticles;
+            else if (opt.matchtype==Nshared)
+                merit=(Double_t)sharelist[tid*nhalos2+j];
+            else if (opt.matchtype==Nsharedcombo)
+                merit=(Double_t)sharelist[tid*nhalos2+j]/(Double_t)h1[i].NumberofParticles+(Double_t)sharelist[tid*nhalos2+j]*(Double_t)sharelist[tid*nhalos2+j]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
+            pq->Push(j,merit);
+            sharelist[tid*nhalos2+j]=0;
+        }
+        p1[i].NumberofProgenitors=numshared;
+        if (numshared>0) {
+            p1[i].ProgenitorList=new long unsigned[numshared];
+            p1[i].Merit=new Double_t[numshared];
+            p1[i].nsharedfrac=new Double_t[numshared];
+            for (j=0;j<numshared;j++){
+                //p1[i].ProgenitorList[j]=h2[pq->TopQueue()].haloID;
+                p1[i].ProgenitorList[j]=pq->TopQueue();
+                p1[i].Merit[j]=pq->TopPriority();
+                pq->Pop();
+            }
+        }
+        else {p1[i].ProgenitorList=NULL;p1[i].Merit=NULL;}
+        delete pq;
+    }
+}
+    delete[] sharelist;
+#else
+    //if openmp not declared
+    sharelist=new int[nhalos2];
+    //set max number of progenitors for a single halo
+    for (i=0;i<nhalos2;i++)sharelist[i]=0;
+    for (i=0;i<nhalos1;i++){
+        for (j=0;j<h1[i].NumberofParticles;j++){
+            if (pfof2[pglist[noffset[i]+j]]>0) sharelist[pfof2[pglist[noffset[i]+j]]-1]+=1;
+        }
+        numshared=0;
+        //determine # of cross-correlations, but if it is not significant relative to Poisson noise, then
+        for (j=0;j<nhalos2;j++)
+            if(sharelist[j]>opt.mlsig*sqrt((Double_t)h2[j].NumberofParticles)){numshared++;}
+            else sharelist[j]=0;
+        pq=new PriorityQueue(numshared);
+        for (j=0;j<nhalos2;j++)if(sharelist[j]>0){
+            if (opt.matchtype==NsharedN1N2)
+                merit=(Double_t)sharelist[j]*(Double_t)sharelist[j]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
+            else if (opt.matchtype==NsharedN1)
+                merit=(Double_t)sharelist[j]/(Double_t)h1[i].NumberofParticles;
+            else if (opt.matchtype==Nshared)
+                merit=(Double_t)sharelist[j];
+            else if (opt.matchtype==Nsharedcombo)
+                merit=(Double_t)sharelist[j]/(Double_t)h1[i].NumberofParticles+(Double_t)sharelist[j]*(Double_t)sharelist[j]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
+            pq->Push(j,merit);
+            sharelist[j]=0;
+        }
+        p1[i].NumberofProgenitors=numshared;
+        if (numshared>0) {
+            p1[i].ProgenitorList=new long unsigned[numshared];
+            p1[i].Merit=new Double_t[numshared];
+            p1[i].nsharedfrac=new Double_t[numshared];
+            for (j=0;j<numshared;j++){
+                //p1[i].ProgenitorList[j]=h2[pq->TopQueue()].haloID;
+                p1[i].ProgenitorList[j]=pq->TopQueue();
+                p1[i].Merit[j]=pq->TopPriority();
+                pq->Pop();
+            }
+        }
+        else {p1[i].ProgenitorList=NULL;p1[i].Merit=NULL;}
+        delete pq;
+    }
+    delete[] sharelist;
+#endif
+    }
+    //if a reference list is provided then only link halos with no current link
+    else {
 #ifdef USEOPENMP
     sharelist=new int[nhalos2*nthreads];
     for (i=0;i<nhalos2*nthreads;i++)sharelist[i]=0;
@@ -35,6 +133,10 @@ private(i,j,tid,pq,numshared,merit)
 {
 #pragma omp for schedule(dynamic)
     for (i=0;i<nhalos1;i++){
+        //if a reference progenitor list is passed, only check if no progenitor is found
+        p1[i].NumberofProgenitors=0;p1[i].ProgenitorList=NULL;p1[i].Merit=NULL;
+        if (refprogen[i].NumberofProgenitors>0) continue;
+
         tid=omp_get_thread_num();
         for (j=0;j<h1[i].NumberofParticles;j++){
             if (pfof2[pglist[noffset[i]+j]]>0) sharelist[tid*nhalos2+pfof2[pglist[noffset[i]+j]]-1]+=1;
@@ -79,6 +181,8 @@ private(i,j,tid,pq,numshared,merit)
     //set max number of progenitors for a single halo
     for (i=0;i<nhalos2;i++)sharelist[i]=0;
     for (i=0;i<nhalos1;i++){
+        p1[i].NumberofProgenitors=0;p1[i].ProgenitorList=NULL;p1[i].Merit=NULL;
+        if (refprogen[i].NumberofProgenitors>0) continue;
         for (j=0;j<h1[i].NumberofParticles;j++){
             if (pfof2[pglist[noffset[i]+j]]>0) sharelist[pfof2[pglist[noffset[i]+j]]-1]+=1;
         }
@@ -116,8 +220,11 @@ private(i,j,tid,pq,numshared,merit)
         delete pq;
     }
     delete[] sharelist;
+
 #endif
     }
+    }
+    //if no halos then there are no links
     else {
     for (i=0;i<nhalos1;i++){
         p1[i].NumberofProgenitors=0;
@@ -132,7 +239,7 @@ private(i,j,tid,pq,numshared,merit)
 
 ///effectively the same code as \ref CrossMatch but allows for the possibility of matching descendant/child nodes using a different merit function
 ///here the lists are different as input order is reverse of that used in \ref CrossMatch
-DescendantData *CrossMatchDescendant(Options &opt, const Int_t nbodies, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData *&h2, long unsigned *&pglist, long unsigned *&noffset, long unsigned *&pfof2, int istepval){
+DescendantData *CrossMatchDescendant(Options &opt, const Int_t nbodies, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData *&h2, long unsigned *&pglist, long unsigned *&noffset, long unsigned *&pfof2, int istepval, DescendantData *refdescen){
     long int i,j;
     Int_t numshared;
     Double_t merit;
@@ -148,6 +255,7 @@ DescendantData *CrossMatchDescendant(Options &opt, const Int_t nbodies, const lo
     int *sharelist;
     PriorityQueue *pq;
     if (nhalos2>0){
+    if (refdescen==NULL) {
 #ifdef USEOPENMP
     sharelist=new int[nhalos2*nthreads];
     for (i=0;i<nhalos2*nthreads;i++)sharelist[i]=0;
@@ -239,6 +347,105 @@ private(i,j,tid,pq,numshared,merit)
     }
     delete[] sharelist;
 #endif
+    }
+    else {
+#ifdef USEOPENMP
+    sharelist=new int[nhalos2*nthreads];
+    for (i=0;i<nhalos2*nthreads;i++)sharelist[i]=0;
+#pragma omp parallel default(shared) \
+private(i,j,tid,pq,numshared,merit)
+{
+#pragma omp for schedule(dynamic)
+    for (i=0;i<nhalos1;i++){
+        d1[i].NumberofDescendants=0;d1[i].DescendantList=NULL;d1[i].Merit=NULL;
+        if (refdescen[i].NumberofDescendants>0) continue;
+
+        tid=omp_get_thread_num();
+        for (j=0;j<h1[i].NumberofParticles;j++){
+            if (pfof2[pglist[noffset[i]+j]]>0) sharelist[tid*nhalos2+pfof2[pglist[noffset[i]+j]]-1]+=1;
+        }
+        numshared=0;
+        //determine # of cross-correlations, but if it is not significant relative to Poisson noise, then
+        for (j=0;j<nhalos2;j++)
+            if(sharelist[tid*nhalos2+j]>opt.mlsig*sqrt((Double_t)h2[j].NumberofParticles)){numshared++;}
+            else sharelist[tid*nhalos2+j]=0;
+        pq=new PriorityQueue(numshared);
+        for (j=0;j<nhalos2;j++)if(sharelist[tid*nhalos2+j]>0){
+            if (opt.matchtype==NsharedN1N2)
+                merit=(Double_t)sharelist[tid*nhalos2+j]*(Double_t)sharelist[tid*nhalos2+j]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
+            else if (opt.matchtype==NsharedN1)
+                merit=(Double_t)sharelist[tid*nhalos2+j]/(Double_t)h1[i].NumberofParticles;
+            else if (opt.matchtype==Nshared)
+                merit=(Double_t)sharelist[tid*nhalos2+j];
+            else if (opt.matchtype==Nsharedcombo)
+                merit=(Double_t)sharelist[tid*nhalos2+j]/(Double_t)h1[i].NumberofParticles+(Double_t)sharelist[tid*nhalos2+j]*(Double_t)sharelist[tid*nhalos2+j]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
+            pq->Push(j,merit);
+            sharelist[tid*nhalos2+j]=0;
+        }
+        d1[i].NumberofDescendants=numshared;
+        if (numshared>0) {
+            d1[i].DescendantList=new long unsigned[numshared];
+            d1[i].Merit=new Double_t[numshared];
+            d1[i].nsharedfrac=new Double_t[numshared];
+            for (j=0;j<numshared;j++){
+                //d1[i].DescendantList[j]=h2[pq->TopQueue()].haloID;
+                d1[i].DescendantList[j]=pq->TopQueue();
+                d1[i].Merit[j]=pq->TopPriority();
+                pq->Pop();
+            }
+        }
+        else {d1[i].DescendantList=NULL;d1[i].Merit=NULL;}
+        delete pq;
+    }
+}
+    delete[] sharelist;
+#else
+    sharelist=new int[nhalos2];
+    //set max number of progenitors for a single halo
+    for (i=0;i<nhalos2;i++)sharelist[i]=0;
+    for (i=0;i<nhalos1;i++){
+        d1[i].NumberofDescendants=0;d1[i].DescendantList=NULL;d1[i].Merit=NULL;
+        if (refdescen[i].NumberofDescendants>0) continue;
+
+        for (j=0;j<h1[i].NumberofParticles;j++){
+            if (pfof2[pglist[noffset[i]+j]]>0) sharelist[pfof2[pglist[noffset[i]+j]]-1]+=1;
+        }
+        numshared=0;
+        //determine # of cross-correlations, but if it is not significant relative to Poisson noise, then
+        for (j=0;j<nhalos2;j++)
+            if(sharelist[j]>opt.mlsig*sqrt((Double_t)h2[j].NumberofParticles)){numshared++;}
+            else sharelist[j]=0;
+        pq=new PriorityQueue(numshared);
+        for (j=0;j<nhalos2;j++)if(sharelist[j]>0){
+            if (opt.matchtype==NsharedN1N2)
+                merit=(Double_t)sharelist[j]*(Double_t)sharelist[j]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
+            else if (opt.matchtype==NsharedN1)
+                merit=(Double_t)sharelist[j]/(Double_t)h1[i].NumberofParticles;
+            else if (opt.matchtype==Nshared)
+                merit=(Double_t)sharelist[j];
+            else if (opt.matchtype==Nsharedcombo)
+                merit=(Double_t)sharelist[j]/(Double_t)h1[i].NumberofParticles+(Double_t)sharelist[j]*(Double_t)sharelist[j]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
+            pq->Push(j,merit);
+            sharelist[j]=0;
+        }
+        d1[i].NumberofDescendants=numshared;
+        if (numshared>0) {
+            d1[i].DescendantList=new long unsigned[numshared];
+            d1[i].Merit=new Double_t[numshared];
+            d1[i].nsharedfrac=new Double_t[numshared];
+            for (j=0;j<numshared;j++){
+                //d1[i].DescendantList[j]=h2[pq->TopQueue()].haloID;
+                d1[i].DescendantList[j]=pq->TopQueue();
+                d1[i].Merit[j]=pq->TopPriority();
+                pq->Pop();
+            }
+        }
+        else {d1[i].DescendantList=NULL;d1[i].Merit=NULL;}
+        delete pq;
+    }
+    delete[] sharelist;
+#endif
+    }
     }
     else {
     for (i=0;i<nhalos1;i++){

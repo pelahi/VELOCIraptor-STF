@@ -4,10 +4,10 @@
 #include "allvars.h"
 
 #ifdef USEMPI
-/*! 
-    For MPI 
-*/
+/// \name For MPI 
 //@{
 int ThisTask,NProcs;
+int NSnap,StartSnap,EndSnap;
 //@}
+
 #endif

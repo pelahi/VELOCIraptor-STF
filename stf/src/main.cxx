@@ -157,7 +157,7 @@ int main(int argc,char **argv)
     //note that for nonmpi particle array is a contiguous block of memory regardless of whether a separate baryon search is required
 #ifndef USEMPI
     Nlocal=nbodies;
-    if (opt.iBaryonSearch==1) {
+    if (opt.iBaryonSearch==1 && opt.partsearchtype!=PSTALL) {
         Part=new Particle[nbodies+nbaryons];
         Pbaryons=&Part[nbodies];
         Nlocalbaryon[0]=nbaryons;

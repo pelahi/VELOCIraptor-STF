@@ -30,6 +30,7 @@ bool FileExists(const char *fname);
 
 //-- Read routines
 
+
 ///Reads the header information
 Int_t ReadHeader(Options &opt);
 ///Reads halo particle id data
@@ -39,7 +40,19 @@ HaloData *ReadHaloData(char *fname, Int_t &nhalos);
 ///Reads NIFTY AHF individual halo data file
 HaloData *ReadNIFTYData(char *fname, Int_t &nhalos, int idcorrectflag=0);
 ///Reads VELOCIraptor like Group Catalog Data. Can adjust so that only particles of some type are check for cross matching
-HaloData *ReadHaloGroupCatalogData(char* infile, Int_t &numhalos, int mpi_ninput=0, int ibinary=1, int ifieldhalos=1, int itypesort=ALLTYPEMATCH);
+HaloData *ReadHaloGroupCatalogData(char* infile, Int_t &numhalos, int mpi_ninput=0, int ibinary=1, int ifieldhalos=1, int itypesort=ALLTYPEMATCH, int iverbose=0);
+
+/// for mpi related reads
+#ifdef USEMPI
+///Reads the number of haloes in the files, wrapper routine
+Int_t ReadNumberofHalos(Options &opt, Int_t *numhalos);
+///Reads Number of halos from VELOCIraptor Group catalogs
+Int_t MPIReadHaloGroupCatalogDataNum(char* infile, int mpi_ninput=0, int ibinary=1, int ifieldhalos=1, int itypesort=ALLTYPEMATCH);
+///Reads data to allocate memory, useful for mpi
+HaloData *MPIReadHaloGroupCatalogDataAllocation(char* infile, Int_t &numhalos, int mpi_ninput=0, int ibinary=1, int ifieldhalos=1, int itypesort=ALLTYPEMATCH);
+///Reads VELOCIraptor like Group Catalog Data with memory already allocated for MPI version. 
+void MPIReadHaloGroupCatalogData(char* infile, Int_t &numhalos, HaloData *&Halo, int mpi_ninput=0, int ibinary=1, int ifieldhalos=1, int itypesort=ALLTYPEMATCH, int iverbose=0);
+#endif
 
 ///Writes the merger tree
 void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h);
@@ -54,14 +67,14 @@ void WriteCrossComp(Options &opt, ProgenitorData **p, HaloTreeData *h);
 //@{
 
 /// determine the cross matches of halos in h1 in "progenitor list" h2
-ProgenitorData *CrossMatch(Options &opt, const Int_t nbodies, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData* &h2, long unsigned *&pglist, long unsigned *&noffset, long unsigned *&pfof2, int istepval=1);
+ProgenitorData *CrossMatch(Options &opt, const Int_t nbodies, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData* &h2, long unsigned *&pglist, long unsigned *&noffset, long unsigned *&pfof2, int istepval=1, ProgenitorData *refprogen=NULL);
 ///clean cross matches of duplicate entries so that a progenitor can have ONLY ONE descendent. 
 void CleanCrossMatch(const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData *&h2, ProgenitorData *&pprogen);
 ///fill in empty links of the reference list with another progenitor list produced using same reference snapshot but different linking snapshot. 
 ///Allows for multiple steps in snapshots to be used. 
 void UpdateRefProgenitors(const int ilinkcriteria, const Int_t numhalos,ProgenitorData *&pref, ProgenitorData *&ptemp);
 ///similar to \ref CrossMatch but for descendants
-DescendantData *CrossMatchDescendant(Options &opt, const Int_t nbodies, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData* &h2, long unsigned *&pglist, long unsigned *&noffset, long unsigned *&pfof2, int istepval=1);
+DescendantData *CrossMatchDescendant(Options &opt, const Int_t nbodies, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData* &h2, long unsigned *&pglist, long unsigned *&noffset, long unsigned *&pfof2, int istepval=1, DescendantData *refdescen=NULL);
 ///similar to \ref CleanCrossMatch but for descendants
 void CleanCrossMatchDescendant(const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData *&h2, DescendantData *&pdescen);
 ///similar to \ref UpdateRefProgenitors but for descendants

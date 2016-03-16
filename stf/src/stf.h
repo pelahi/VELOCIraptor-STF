@@ -263,7 +263,7 @@ Note that for practical reasons, the combination of OpenMP/MPI only works on cor
 - \b USEMPI \n Code is compiled with mpi. must also set the appropriate compiler
 - \b SINGLEPRECISION, \b QUADPRECISION \n Code is compiled with double (normal), single and quad precision. must also compile 
   \ref libNBody contained in "NBodylib" with the same precision
-- \b REDUCEMPIMEM \n If this flag is set, then the amount of memory allocated for MPI routines is reduced and one does not have to worry as much about the 
+- \b MPIREDUCEMEM \n If this flag is set, then the amount of memory allocated for MPI routines is reduced and one does not have to worry as much about the 
 MPI factors \ref MPIProcFac & \ref MPIExportFac defined in \ref mpivar.h
 
 \n

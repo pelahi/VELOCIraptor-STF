@@ -197,9 +197,15 @@ if (opt.p>0) {
     }
 #endif
 
+    //if search was periodic, alter particle positions in structures so substructure search no longer has to be
+    //periodic
+    if (opt.p>0&&numgroups>0) {
+        if (numgroups>0)AdjustStructureForPeriod(opt,Nlocal,Part,numgroups,pfof);
+        delete[] period;
+    }
+
     //have now 3dfof groups local to a MPI thread and particles are back in index order that will be used from now on
     //note that from on, use Nlocal, which is altered in mpi but set to nbodies in non-mpi
-
     if (opt.fofbgtype==FOF6D && totalgroups>0) {
     //now if 6dfof search to overcome issues with 3DFOF by searching only particles that have been previously linked by the 3dfof
     //use the largest "halo" to determine an appropriate velocity scale
@@ -269,6 +275,7 @@ if (opt.p>0) {
     cout<<"Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits, ellvel="<<sqrt(param[7])<<" Vunits."<<endl;
     fofcmp=&FOF6d;
 #ifdef USEOPENMP
+    ///\todo seems the openmp 6dfof search is unstable but why?
     Head=new Int_t[Nlocal];Next=new Int_t[Nlocal];Tail=new Int_t[Nlocal];Len=new Int_t[Nlocal];
     KDTree *treeomp[nthreads];
     Int_t **pfofomp;
@@ -288,7 +295,7 @@ private(i,tid)
 #pragma omp for schedule(dynamic,1) nowait
     for (i=1;i<=iend;i++) {
         tid=omp_get_thread_num();
-        treeomp[tid]=new KDTree(&Part[noffset[i]],numingroup[i],opt.Bsize,treeomp[tid]->TPHYS,tree->KEPAN,100,0,0,0,period);
+        treeomp[tid]=new KDTree(&Part[noffset[i]],numingroup[i],opt.Bsize,treeomp[tid]->TPHYS,tree->KEPAN,100);
         pfofomp[i]=treeomp[tid]->FOFCriterion(fofcmp,param,ngomp[i],minsize,1,0,Pnocheck,&Head[noffset[i]],&Next[noffset[i]],&Tail[noffset[i]],&Len[noffset[i]]);
         delete treeomp[tid];
     }
@@ -320,7 +327,7 @@ private(i,tid)
         delete[] numingroup;
     }
 #else
-    tree=new KDTree(Part,npartingroups,opt.Bsize,tree->TPHYS,tree->KEPAN,1000,0,0,0,period);
+    tree=new KDTree(Part,npartingroups,opt.Bsize,tree->TPHYS,tree->KEPAN,100);
     pfoftemp=tree->FOFCriterion(fofcmp,param,ng,minsize,1);
     for (i=0;i<npartingroups;i++) pfof[ids[Part[i].GetID()]]=pfoftemp[Part[i].GetID()];
     delete[] pfoftemp;
@@ -366,12 +373,6 @@ private(i,tid)
         }
     psldata->stype=HALOSTYPE;
     if (opt.iverbose) cout<<ThisTask<<" Done storing halo substructre level data"<<endl;
-    //if search was periodic, alter particle positions in structures so substructure search no longer has to be
-    //periodic
-    if (opt.p>0&&numgroups>0) {
-        if (numgroups>0)AdjustStructureForPeriod(opt,Nlocal,Part,numgroups,pfof);
-        delete[] period;
-    }
     return pfof;
 }
 

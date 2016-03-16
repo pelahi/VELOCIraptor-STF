@@ -25,5 +25,24 @@ using namespace NBody;
 //@{
 extern int ThisTask, NProcs;
 //@}
+///number of snapshots read and proccessed by thread
+extern int NSnap,StartSnap,EndSnap;
+
+/// \name definitions for MPI types
+//@{
+#ifdef LONGINT
+#define MPI_Int_t MPI_LONG_LONG_INT
+#define MPI_UInt_t MPI_UNSIGNED_LONG_LONG 
+#else
+#define MPI_Int_t MPI_INT 
+#define MPI_UInt_t MPI_UNSIGNED
+#endif
+#ifdef SINGLEPRECISION
+#define MPI_Real_t MPI_FLOAT 
+#else
+#define MPI_Real_t MPI_DOUBLE 
+#endif
+
+//@}
 
 #endif

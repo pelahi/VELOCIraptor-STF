@@ -10,7 +10,7 @@ void GetArgs(int argc, char *argv[], Options &opt)
 {
     int option;
     int NumArgs = 0;
-    while ((option = getopt(argc, argv, ":i:s:t:n:o:C:c:S:I:N:B:F:M:H:h:D:O:T:")) != EOF)
+    while ((option = getopt(argc, argv, ":i:s:t:n:o:C:c:S:I:N:B:F:M:H:h:D:O:T:v:")) != EOF)
     {
         switch(option)
         {
@@ -86,6 +86,10 @@ void GetArgs(int argc, char *argv[], Options &opt)
                 opt.itypematch = atoi(optarg);
                 NumArgs += 2;
                 break;
+            case 'v': 
+                opt.iverbose = atoi(optarg);
+                NumArgs += 2;
+                break;
             case '?':
                 usage();
         }
@@ -158,6 +162,7 @@ void usage(void)
 
     cerr<<"-D <adjust particle IDs for nIFTY cross catalogs across simulations ("<<opt.idcorrectflag<<")\n";
     cerr<<"-M <Mapping of particle ids to index ("<<opt.imapping<<" [ no maping "<<DNOMAP<<", simple mapping "<<DSIMPLEMAP<<"])\n";
+    cerr<<"-v <verbose flag 1/0 ("<<opt.iverbose<<")\n";
 #ifdef USEMPI
     }
     MPI_Finalize();
