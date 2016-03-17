@@ -245,7 +245,7 @@ private(i,j,k,tid,pid,pid2,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,p
     delete[] NNDataGet;
     if(opt.iverbose) cout<<ThisTask<<" finished other domain search "<<endl;
 #else 
-
+    //NO MPI invoked
 #ifndef USEOPENMP
     tree->CalcVelDensity(opt.Nvel,opt.Nsearch);
 #else
@@ -263,8 +263,8 @@ private(i,j,k,tid,pid,pid2,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,p
     Double_t *weight;
     PriorityQueue **pqx, **pqv;
 
-    nnids=new Int_t*[nthreads*opt.Nsearch];
-    nnr2=new Double_t*[nthreads*opt.Nsearch];
+    nnids=new Int_t[nthreads*opt.Nsearch];
+    nnr2=new Double_t[nthreads*opt.Nsearch];
     pqx=new PriorityQueue*[nthreads];
     pqv=new PriorityQueue*[nthreads];
     weight=new Double_t[nthreads*opt.Nvel];
@@ -324,6 +324,8 @@ private(i,tid)
     delete[] nnr2;
     delete[] pqx;
     delete[] pqv;
+    delete[] fracdone;
+    delete[] fraclim;
 #endif
 #endif
 #else
@@ -385,6 +387,8 @@ private(i,tid)
     delete[] nnr2;
     delete[] pqx;
     delete[] pqv;
+    delete[] fracdone;
+    delete[] fraclim;
     if (opt.iverbose) cout<<ThisTask<<" finished local calculation in "<<MyGetTime()-t1<<endl;
 #endif
     if (itreeflag) delete tree;
