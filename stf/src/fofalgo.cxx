@@ -173,7 +173,7 @@ int FOF6dbgup(Particle &a, Particle &b, Double_t *params){
 }
 
 int FOFPositivetypes(Particle &a, Particle &b, Double_t *params){
-    return (a.GetType()>0 && b.GetType()>0);
+    return (a.GetType()>=0 && b.GetType()>=0);
 }
 
 

@@ -331,13 +331,13 @@ private(i,tid)
 #else
 
     //start halo only density calculations, where particles are localized to single mpi domain
-#ifndef USEOPENMP
-    tree->CalcVelDensity(opt.Nvel,opt.Nsearch);
-#else
+    nthreads=1;
+#ifdef USEOPENMP
 #pragma omp parallel 
     {
             if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
     }
+#endif
 
     Int_t *fracdone=new Int_t[nthreads];
     Int_t *fraclim=new Int_t[nthreads];
@@ -359,24 +359,25 @@ private(i,tid)
         pqv[j]=new PriorityQueue(opt.Nvel);
     }
     double t1=MyGetTime();
-
+#ifdef USEOPENMP
 #pragma omp parallel default(shared) \
 private(i,tid)
 {
 #pragma omp for schedule(dynamic,minamount) nowait
-    for (i=0;i<nbodies;i++) {
-#ifdef STRUCDEN
-        if (Part[i].GetType()>0) {
 #endif
+    for (i=0;i<nbodies;i++) {
+#ifdef USEOPENMP
         tid=omp_get_thread_num();
+#else
+        tid=0;
+#endif
         Part[i].SetDensity(tree->CalcVelDensityParticle(i,opt.Nvel,opt.Nsearch,1,pqx[tid],pqv[tid],&nnids[tid*opt.Nsearch],&nnr2[tid*opt.Nsearch]));
         fracdone[tid]++;
         if (opt.iverbose) if (fracdone[tid]>fraclim[tid]) {printf("Task %d done %e of its share \n",tid,fracdone[tid]/((double)nbodies/(double)nthreads));fraclim[tid]+=addamount;}
-#ifdef STRUCDEN
-        }
-#endif
     }
+#ifdef USEOPENMP
 }
+#endif
     for (j=0;j<nthreads;j++) {
         //delete[] nnids[j];
         //delete[] nnr2[j];
@@ -390,7 +391,6 @@ private(i,tid)
     delete[] fracdone;
     delete[] fraclim;
     if (opt.iverbose) cout<<ThisTask<<" finished local calculation in "<<MyGetTime()-t1<<endl;
-#endif
     if (itreeflag) delete tree;
 #endif
     if (period!=NULL) delete[] period;
