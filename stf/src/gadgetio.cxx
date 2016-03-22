@@ -325,7 +325,6 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                 else if (opt.partsearchtype==PSTDARK) {
                     if (!(k==GGASTYPE||k==GSTARTYPE||k==GBHTYPE)) {
                         Part[count2].SetPID(idval);
-                        Part[count2].SetPID(count2);
                         Part[count2].SetID(count2);
                         Part[count2].SetType(DARKTYPE);
                         count2++;
@@ -333,7 +332,6 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                     else {
                         if (opt.iBaryonSearch==1 && (k==GGASTYPE || k==GSTARTYPE || k==GBHTYPE)) {
                             Pbaryons[bcount2].SetPID(idval);
-                            Pbaryons[bcount2].SetPID(bcount2+nbodies);
                             Pbaryons[bcount2].SetID(bcount2+nbodies);
                             Pbaryons[bcount2].SetType(STARTYPE*(k==GSTARTYPE)+GASTYPE*(k==GGASTYPE)+BHTYPE*(k==GBHTYPE));
                             bcount2++;
