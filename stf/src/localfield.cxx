@@ -290,7 +290,7 @@ private(i,tid)
             tree->FindNearestCriterion(i,FOFPositivetypes,NULL,&nnids[tid*opt.Nsearch],&nnr2[tid*opt.Nsearch],opt.Nsearch);
             for (j=0;j<opt.Nvel;j++) {
                 pqv[tid]->Push(-1, MAXVALUE);
-                weight[j]=1.0;
+                weight[j+tid*opt.Nvel]=1.0;
             }
             for (j=0;j<opt.Nsearch;j++) {
                 v2=0;

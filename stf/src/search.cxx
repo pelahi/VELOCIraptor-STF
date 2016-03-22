@@ -82,7 +82,12 @@ if (opt.p>0) {
     //so that velocity density just calculated for particles in groups (type>0)
     if (!(opt.iBaryonSearch==1 && opt.partsearchtype==PSTALL)) for (i=0;i<nbodies;i++) Part[i].SetType(pfof[Part[i].GetID()]);
     //otherwise set type to group value for dark matter
-    else for (i=0;i<nbodies;i++) Part[i].SetType(pfof[Part[i].GetID()]*(Part[i].GetType()==DARKTYPE)-(pfof[Part[i].GetID()]+1)*(Part[i].GetType()!=DARKTYPE));
+    else {
+        for (i=0;i<nbodies;i++) {
+            if (Part[i].GetType()==DARKTYPE) Part[i].SetType(pfof[Part[i].GetID()]);
+            else Part[i].SetType(-1);
+        }
+    }
     GetVelocityDensity(opt, nbodies, Part,tree);
     for (i=0;i<nbodies;i++) Part[i].SetType(storetype[i]);
     delete[] storetype;
@@ -187,7 +192,12 @@ if (opt.p>0) {
         for (i=0;i<Nlocal;i++) storetype[i]=Part[i].GetType();
         if (!(opt.iBaryonSearch==1 && opt.partsearchtype==PSTALL)) for (i=0;i<Nlocal;i++) Part[i].SetType((pfof[i]>0));
         //otherwise set type to group value for dark matter
-        else for (i=0;i<Nlocal;i++) Part[i].SetType((pfof[i])*(Part[i].GetType()==DARKTYPE)-(pfof[i]+1)*(Part[i].GetType()!=DARKTYPE));
+        else {
+            for (i=0;i<Nlocal;i++) {
+                if (Part[i].GetType()==DARKTYPE) Part[i].SetType(pfof[i]);
+                else Part[i].SetType(-1);
+            }
+        }
         tree=new KDTree(Part,Nlocal,opt.Bsize,tree->TPHYS,tree->KEPAN,100,0,0,0,period);
         GetVelocityDensity(opt, Nlocal, Part,tree);
         delete tree;
