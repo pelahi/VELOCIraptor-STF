@@ -432,22 +432,22 @@ private(i,tid)
     fixp[itemp][0]=1;fixp[itemp][1]=0;fixp[itemp][2]=0;fixp[itemp][3]=0;itemp++;
     fixp[itemp][0]=0;fixp[itemp][1]=0;fixp[itemp][2]=0;fixp[itemp][3]=0;itemp++;
 
-    if (opt.iverbose) printf("Initial estimate: mu=%e var=%e \n",params[1],sqrt(params[2]));
+    if (opt.iverbose>1) printf("Initial estimate: mu=%e var=%e \n",params[1],sqrt(params[2]));
     nfits=8;
     oldchi2=MAXVALUE;
     for (int i=0;i<nfits;i++) {
         chi2=FitNonLinLS(fitfunc, difffuncs, nparams, params, covar, nbins, xbin, rbin, &W,  1e-2, 0.95, fixp[i],1,20);
         int ifitfail=0;
         for (int j=0;j<nparams;j++) ifitfail+=isnan(params[j]);
-        if (chi2<oldchi2&&chi2!=-1&&isnan(chi2)==0&&sqrt(params[3])>0.&&ifitfail==0) {
+        if (chi2<oldchi2&&chi2!=-1&&isnan(chi2)==0&&params[3]>0.&&ifitfail==0) {
             meanr=params[1];sdlow=sqrt(params[2]*params[3]);sdhigh=sqrt(params[2]);
             nfix=0;for (int j=0;j<nparams;j++) nfix+=(fixp[i][j]==1);
             oldchi2=chi2;
-//            printf("chi2/dof=%e/%d, A=%e mu=%e var=%e s=%e\n",chi2,nbins-(nparams-nfix)-1,params[0],params[1],sqrt(params[2]),sqrt(params[3]));
+            if(opt.iverbose>1) printf("chi2/dof=%e/%d, A=%e mu=%e var=%e s=%e\n",chi2,nbins-(nparams-nfix)-1,params[0],params[1],sqrt(params[2]),sqrt(params[3]));
         }
         else if (oldchi2<chi2) break;
         else {
-//            printf("fit failed, using previous values\n");
+            if (opt.iverbose>1)printf("fit failed, using previous values\n");
             params[0]=maxprob;params[1]=meanr;params[2]=sdhigh*sdhigh;params[3]=(sdlow*sdlow)/(sdhigh*sdhigh);
         }
     }
