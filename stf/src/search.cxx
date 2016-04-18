@@ -236,7 +236,7 @@ if (opt.p>0) {
         numingroup[pfof[i]]++;
     }
     for (i=2;i<=numgroups;i++) noffset[i]=noffset[i-1]+numingroup[i-1];
-    gsl_heapsort(Part, Nlocal, sizeof(Particle), PIDCompare);
+    qsort(Part, Nlocal, sizeof(Particle), PIDCompare);
     for (i=0;i<Nlocal;i++) Part[i].SetPID(storetype[Part[i].GetID()]);
     delete[] storetype;
 
@@ -248,7 +248,7 @@ if (opt.p>0) {
         npartingroups+=(Int_t)(pfof[i]>0);
         iend+=(pfof[i]==1);
     }
-    gsl_heapsort(Part, Nlocal, sizeof(Particle), PIDCompare);
+    qsort(Part, Nlocal, sizeof(Particle), PIDCompare);
     for (i=0;i<Nlocal;i++) Part[i].SetPID(storetype[Part[i].GetID()]);
     delete[] storetype;
 #endif
