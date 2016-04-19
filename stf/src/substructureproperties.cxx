@@ -2168,12 +2168,13 @@ void GetConcentration(PropData &p)
     const gsl_root_fsolver_type *T;
     gsl_root_fsolver *s;
     double cval = 2.3;
+    double VmaxVvir2= p.VmaxVvir2;
     //start point for concentration
-    double x_lo = 2.3, x_hi = 1000.0;
+    double x_lo = 1.9, x_hi = 1000.0;
     gsl_function F;
     if (p.VmaxVvir2<=36) {
     F.function = &mycNFW;
-    F.params = &p.VmaxVvir2;
+    F.params = &VmaxVvir2;
     T = gsl_root_fsolver_brent;
     s = gsl_root_fsolver_alloc (T);
     gsl_root_fsolver_set (s, &F, x_lo, x_hi);
