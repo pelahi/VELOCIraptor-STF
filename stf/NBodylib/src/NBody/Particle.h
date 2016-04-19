@@ -102,16 +102,26 @@ typedef Double_t DoublePos_t;
 #ifdef GASON
         ///self energy
         DoublePos_t u;
+        ///sph based density
         DoublePos_t sphden;
 #endif
 #ifdef STARON
+        ///stellar age
         DoublePos_t tage;
 #endif
 #if defined (GASON) && (STARON)
+        ///metallicity
         DoublePos_t zmet;
+        ///star formation rate of gas
         DoublePos_t sfr;
 #endif
+#if defined(GASON)&&defined(GASEXTRA)
+        ///store entropy, useful for searching for shocks and related entropy structures
+        DoublePos_t entropy;
+#endif
         //@}
+        
+        
 
         public:
 
@@ -149,6 +159,10 @@ typedef Double_t DoublePos_t;
 #endif
 #if defined(GASON) && defined(STARON)
             ival*=((zmet==p.zmet)&&(sfr==p.sfr));
+#endif
+
+#if defined(GASON) && (GASEXTRA)
+            ival*=((entropy==p.entropy));
 #endif
             return ival;
         }
@@ -271,6 +285,11 @@ typedef Double_t DoublePos_t;
         void SetZmet(const Double_t &Zmet){zmet=Zmet;}
         Double_t GetSFR() {return sfr;}
         void SetSFR(const Double_t &SFR){sfr=SFR;}
+#endif
+
+#if defined(GASON) && (GASEXTRA) 
+        Double_t GetEntropy() {return entropy;}
+        void SetEntropy(const Double_t &Entropy) {entropy=Entropy;}
 #endif
         //@}
 
