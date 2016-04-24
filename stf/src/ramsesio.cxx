@@ -64,24 +64,27 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
 {
     char buf[2000],buf1[2000],buf2[2000];
     string stringbuf;
-    sprintf(buf1,"amr_%s00001",fname);
-    sprintf(buf2,"amr_%s",fname);
+    sprintf(buf1,"amr_%s.out00001",fname);
+    sprintf(buf2,"amr_%s.out",fname);
     if (FileExists(buf1)) sprintf(buf,"%s",buf1);
     else if (FileExists(buf2)) sprintf(buf,"%s",buf2);
     else {
         printf("Error. Can't find AMR data \nneither as `%s'\nnor as `%s'\n\n", buf1, buf2);
         exit(9);
     }
-    sprintf(buf1,"hydro_%s00001",fname);
-    sprintf(buf2,"hydro_%s",fname);
+    //if gas searched in some fashion then load amr/hydro data
+    if (opt.partsearchtype==PSTGAS||opt.partsearchtype==PSTALL||(opt.partsearchtype==PSTDARK&&opt.iBaryonSearch)) {
+    sprintf(buf1,"hydro_%s.out00001",fname);
+    sprintf(buf2,"hydro_%s.out",fname);
     if (FileExists(buf1)) sprintf(buf,"%s",buf1);
     else if (FileExists(buf2)) sprintf(buf,"%s",buf2);
     else {
         printf("Error. Can't find Hydro data \nneither as `%s'\nnor as `%s'\n\n", buf1, buf2);
         exit(9);
     }
-    sprintf(buf1,"part_%s00001",fname);
-    sprintf(buf2,"part_%s",fname);
+    }
+    sprintf(buf1,"part_%s.out00001",fname);
+    sprintf(buf2,"part_%s.out",fname);
     if (FileExists(buf1)) sprintf(buf,"%s",buf1);
     else if (FileExists(buf2)) sprintf(buf,"%s",buf2);
     else {
@@ -110,8 +113,8 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
 
     //Open the specified file and the specified dataset in the file.
     //first open amr data
-    sprintf(buf1,"amr_%s00001",fname);
-    sprintf(buf2,"amr_%s",fname);
+    sprintf(buf1,"amr_%s.out00001",fname);
+    sprintf(buf2,"amr_%s.out",fname);
     if (FileExists(buf1)) sprintf(buf,"%s",buf1);
     else if (FileExists(buf2)) sprintf(buf,"%s",buf2);
     Framses.open(buf, ios::binary|ios::in);
@@ -189,9 +192,10 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
     Framses.close();
 
     //reopen to get number of amr cells might need to alter to read grid information and what cells have no so-called son cells
+    if (opt.partsearchtype==PSTGAS||opt.partsearchtype==PSTALL||(opt.partsearchtype==PSTDARK&&opt.iBaryonSearch)) {
     for (i=0;i<ramses_header_info.num_files;i++) {
-        sprintf(buf1,"amr_%s%05d",fname,i);
-        sprintf(buf2,"amr_%s",fname);
+        sprintf(buf1,"amr_%s.out%05d",fname,i);
+        sprintf(buf2,"amr_%s.out",fname);
         if (FileExists(buf1)) sprintf(buf,"%s",buf1);
         else if (FileExists(buf2)) sprintf(buf,"%s",buf2);
         Framses.open(buf, ios::binary|ios::in);
@@ -207,8 +211,8 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
     }
 
     //now hydro header data 
-    sprintf(buf1,"hydro_%s00001",fname);
-    sprintf(buf2,"hydro_%s",fname);
+    sprintf(buf1,"hydro_%s.out00001",fname);
+    sprintf(buf2,"hydro_%s.out",fname);
     if (FileExists(buf1)) sprintf(buf,"%s",buf1);
     else if (FileExists(buf2)) sprintf(buf,"%s",buf2);
     Framses.open(buf, ios::binary|ios::in);
@@ -229,6 +233,7 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
     Framses.read((char*)&ramses_header_info.gamma_index, sizeof(RAMSESFLOAT));
     Framses.read((char*)&dummy, sizeof(dummy));
     Framses.close();
+    }
 
     //now cosmological header data and unit info
     /*
@@ -271,8 +276,8 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
 
     //now particle info
     for (i=0;i<ramses_header_info.num_files;i++) {
-        sprintf(buf1,"part_%s%05d",fname,i);
-        sprintf(buf2,"part_%s",fname);
+        sprintf(buf1,"part_%s.out%05d",fname,i);
+        sprintf(buf2,"part_%s.out",fname);
         if (FileExists(buf1)) sprintf(buf,"%s",buf1);
         else if (FileExists(buf2)) sprintf(buf,"%s",buf2);
         Framses.open(buf, ios::binary|ios::in);
@@ -323,6 +328,7 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
 
 ///reads a ramses file. If cosmological simulation uses cosmology (generally assuming LCDM or small deviations from this) to estimate the mean interparticle spacing
 ///and scales physical linking length passed by this distance. Also reads header and overrides passed cosmological parameters with ones stored in header.
+///\todo still need to have receives for non-reading threads
 void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbaryons, Int_t nbaryons)
 {
     char buf[2000],buf1[2000],buf2[2000];
@@ -478,13 +484,19 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     cout<<"Cosmology (h,Omega_m,Omega_cdm,Omega_b,Omega_L) = ("<< opt.h<<","<<opt.Omega_m<<","<<opt.Omega_cdm<<","<<opt.Omega_b<<","<<opt.Omega_Lambda<<")"<<endl;
     N_DM=opt.numpart[DARKTYPE];
     LN=(opt.p*lscale/pow(N_DM,1.0/3.0));
+#ifdef USEMPI
+    //now read tasks prepped and can read files to send information
+    }
+#endif 
+    
     //if not only gas being searched open particle data
     count2=bcount2=0;
     if (opt.partsearchtype!=PSTGAS) {
+    if (ThisTask<opt.nsnapread) {
     //read particle files consists of positions,velocities, mass, id, and level (along with ages and met if some flags set)
     for (i=0;i<opt.num_files;i++) {
-        sprintf(buf1,"part_%s%05d",opt.fname,i);
-        sprintf(buf2,"part_%s",opt.fname);
+        sprintf(buf1,"part_%s.out%05d",opt.fname,i);
+        sprintf(buf2,"part_%s.out",opt.fname);
         if (FileExists(buf1)) sprintf(buf,"%s",buf1);
         else if (FileExists(buf2)) sprintf(buf,"%s",buf2);
         Fpart[i].open(buf, ios::binary|ios::in);
@@ -758,19 +770,91 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
         Fpartage[i].close();
         Fpartmet[i].close();
     }
-
+#ifdef USEMPI
+    //once finished reading the file if there are any particles left in the buffer broadcast them
+    for(ibuf = opt.nsnapread; ibuf < NProcs; ibuf++)
+    {
+        MPI_Ssend(&Nbuf[ibuf],1,MPI_Int_t, ibuf, ibuf+NProcs, MPI_COMM_WORLD);
+        if (Nbuf[ibuf]>0) {
+            MPI_Ssend(&Pbuf[ibuf*BufSize], sizeof(Particle)*Nbuf[ibuf], MPI_BYTE, ibuf, ibuf, MPI_COMM_WORLD);
+            Nbuf[ibuf]=0;
+            //last broadcast with Nbuf[ibuf]=0 so that receiver knows no more particles are to be broadcast
+            MPI_Ssend(&Nbuf[ibuf],1,MPI_Int_t,ibuf,ibuf+NProcs,MPI_COMM_WORLD);
+        }
+    }
+#endif
+    }
+#ifdef USEMPI
+    //if not reading information than waiting to receive information
+    else {
+        //for all threads not reading snapshots, simply receive particles as necessary from all threads involved with reading the data
+        //first determine which threads are going to send information to this thread.
+        for (i=0;i<opt.nsnapread;i++) if (irecv[i]) {
+            mpi_irecvflag[i]=0;
+            MPI_Irecv(&Nlocalthreadbuf[i], 1, MPI_Int_t, i, ThisTask+NProcs, MPI_COMM_WORLD, &mpi_request[i]);
+        }
+        Nlocaltotalbuf=0;
+        //non-blocking receives for the number of particles one expects to receive
+        do {
+            irecvflag=0;
+            for (i=0;i<opt.nsnapread;i++) if (irecv[i]) {
+                if (mpi_irecvflag[i]==0) {
+                    //test if a request has been sent for a Recv call by one of the read threads
+                    MPI_Test(&mpi_request[i], &mpi_irecvflag[i], &status);
+                    if (mpi_irecvflag[i]) {
+                        if (Nlocalthreadbuf[i]>0) {
+                            MPI_Recv(&Part[Nlocal],sizeof(Particle)*Nlocalthreadbuf[i],MPI_BYTE,i,ThisTask, MPI_COMM_WORLD,&status);
+                            Nlocal+=Nlocalthreadbuf[i];
+                            Nlocaltotalbuf+=Nlocalthreadbuf[i];
+                            mpi_irecvflag[i]=0;
+                            MPI_Irecv(&Nlocalthreadbuf[i], 1, MPI_Int_t, i, ThisTask+NProcs, MPI_COMM_WORLD, &mpi_request[i]);
+                        }
+                        else {
+                            irecv[i]=0;
+                        }
+                    }
+                }
+            }
+            for (i=0;i<opt.nsnapread;i++) irecvflag+=irecv[i];
+        } while(irecvflag>0);
+        //now that data is local, must adjust data iff a separate baryon search is required. 
+        if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) {
+            for (i=0;i<Nlocal;i++) {
+                k=Part[i].GetType();
+                if (!(k==GASTYPE||k==STARTYPE||k==BHTYPE)) Part[i].SetID(0);
+                else {
+                    Nlocalbaryon[0]++;
+                    if  (k==GASTYPE) {Part[i].SetID(1);Nlocalbaryon[1]++;}
+                    else if  (k==STARTYPE) {Part[i].SetID(2);Nlocalbaryon[2]++;}
+                    else if  (k==BHTYPE) {Part[i].SetID(3);Nlocalbaryon[3]++;}
+                }
+            }
+            //sorted so that dark matter particles first, baryons after
+            qsort(Part,Nlocal, sizeof(Particle), IDCompare);
+            Nlocal-=Nlocalbaryon[0];
+            //index type separated
+            for (i=0;i<Nlocal;i++) Part[i].SetID(i);
+            for (i=0;i<Nlocalbaryon[0];i++) Part[i+Nlocal].SetID(i+Nlocal);
+            //finally, need to move baryons forward by the Export Factor * Nlocal as need that extra buffer to copy data two and from mpi threads
+//#ifndef MPIREDUCE
+//            for (i=Nlocalbaryon[0]-1;i>=0;i--) Part[i+(Int_t)(Nlocal*MPIExportFac)]=Part[i+Nlocal];
+//#endif
+        }
+    }
+#endif
     }
 
     //if gas searched in some fashion then load amr/hydro data
     if (opt.partsearchtype==PSTGAS||opt.partsearchtype==PSTALL||(opt.partsearchtype==PSTDARK&&opt.iBaryonSearch)) {
+    if (ThisTask<opt.nsnapread) {
     for (i=0;i<opt.num_files;i++) {
-        sprintf(buf1,"amr_%s%05d",opt.fname,i);
-        sprintf(buf2,"amr_%s",opt.fname);
+        sprintf(buf1,"amr_.out%s%05d",opt.fname,i);
+        sprintf(buf2,"amr_.out%s",opt.fname);
         if (FileExists(buf1)) sprintf(buf,"%s",buf1);
         else if (FileExists(buf2)) sprintf(buf,"%s",buf2);
         Famr[i].open(buf, ios::binary|ios::in);
-        sprintf(buf1,"hydro_%s%05d",opt.fname,i);
-        sprintf(buf2,"hydro_%s",opt.fname);
+        sprintf(buf1,"hydro_%s.out%05d",opt.fname,i);
+        sprintf(buf2,"hydro_%s.out",opt.fname);
         if (FileExists(buf1)) sprintf(buf,"%s",buf1);
         else if (FileExists(buf2)) sprintf(buf,"%s",buf2);
         Fhydro[i].open(buf, ios::binary|ios::in);
@@ -1008,7 +1092,79 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
             }
         }
     }
+#ifdef USEMPI
+    //once finished reading the file if there are any particles left in the buffer broadcast them
+    for(ibuf = opt.nsnapread; ibuf < NProcs; ibuf++)
+    {
+        MPI_Ssend(&Nbuf[ibuf],1,MPI_Int_t, ibuf, ibuf+NProcs, MPI_COMM_WORLD);
+        if (Nbuf[ibuf]>0) {
+            MPI_Ssend(&Pbuf[ibuf*BufSize], sizeof(Particle)*Nbuf[ibuf], MPI_BYTE, ibuf, ibuf, MPI_COMM_WORLD);
+            Nbuf[ibuf]=0;
+            //last broadcast with Nbuf[ibuf]=0 so that receiver knows no more particles are to be broadcast
+            MPI_Ssend(&Nbuf[ibuf],1,MPI_Int_t,ibuf,ibuf+NProcs,MPI_COMM_WORLD);
+        }
     }
+#endif
+    }//end of reading task
+#ifdef USEMPI
+    //if not reading information than waiting to receive information
+    else {
+        //for all threads not reading snapshots, simply receive particles as necessary from all threads involved with reading the data
+        //first determine which threads are going to send information to this thread.
+        for (i=0;i<opt.nsnapread;i++) if (irecv[i]) {
+            mpi_irecvflag[i]=0;
+            MPI_Irecv(&Nlocalthreadbuf[i], 1, MPI_Int_t, i, ThisTask+NProcs, MPI_COMM_WORLD, &mpi_request[i]);
+        }
+        Nlocaltotalbuf=0;
+        //non-blocking receives for the number of particles one expects to receive
+        do {
+            irecvflag=0;
+            for (i=0;i<opt.nsnapread;i++) if (irecv[i]) {
+                if (mpi_irecvflag[i]==0) {
+                    //test if a request has been sent for a Recv call by one of the read threads
+                    MPI_Test(&mpi_request[i], &mpi_irecvflag[i], &status);
+                    if (mpi_irecvflag[i]) {
+                        if (Nlocalthreadbuf[i]>0) {
+                            MPI_Recv(&Part[Nlocal],sizeof(Particle)*Nlocalthreadbuf[i],MPI_BYTE,i,ThisTask, MPI_COMM_WORLD,&status);
+                            Nlocal+=Nlocalthreadbuf[i];
+                            Nlocaltotalbuf+=Nlocalthreadbuf[i];
+                            mpi_irecvflag[i]=0;
+                            MPI_Irecv(&Nlocalthreadbuf[i], 1, MPI_Int_t, i, ThisTask+NProcs, MPI_COMM_WORLD, &mpi_request[i]);
+                        }
+                        else {
+                            irecv[i]=0;
+                        }
+                    }
+                }
+            }
+            for (i=0;i<opt.nsnapread;i++) irecvflag+=irecv[i];
+        } while(irecvflag>0);
+        //now that data is local, must adjust data iff a separate baryon search is required. 
+        if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) {
+            for (i=0;i<Nlocal;i++) {
+                k=Part[i].GetType();
+                if (!(k==GASTYPE||k==STARTYPE||k==BHTYPE)) Part[i].SetID(0);
+                else {
+                    Nlocalbaryon[0]++;
+                    if  (k==GASTYPE) {Part[i].SetID(1);Nlocalbaryon[1]++;}
+                    else if  (k==STARTYPE) {Part[i].SetID(2);Nlocalbaryon[2]++;}
+                    else if  (k==BHTYPE) {Part[i].SetID(3);Nlocalbaryon[3]++;}
+                }
+            }
+            //sorted so that dark matter particles first, baryons after
+            qsort(Part,Nlocal, sizeof(Particle), IDCompare);
+            Nlocal-=Nlocalbaryon[0];
+            //index type separated
+            for (i=0;i<Nlocal;i++) Part[i].SetID(i);
+            for (i=0;i<Nlocalbaryon[0];i++) Part[i+Nlocal].SetID(i+Nlocal);
+            //finally, need to move baryons forward by the Export Factor * Nlocal as need that extra buffer to copy data two and from mpi threads
+//#ifndef MPIREDUCE
+//            for (i=Nlocalbaryon[0]-1;i>=0;i--) Part[i+(Int_t)(Nlocal*MPIExportFac)]=Part[i+Nlocal];
+//#endif
+        }
+    }
+#endif
+    }//end of check if gas loaded
 
 #ifdef USEMPI
     }

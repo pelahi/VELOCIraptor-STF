@@ -357,7 +357,7 @@ int fof_id_cmp(const void *a, const void *b);
 ///similar to \ref MPIBuildParticleExportList but specific interface for baryon search 
 void MPIBuildParticleExportBaryonSearchList(const Int_t nbodies, Particle *&Part, Int_t *&pfof, Int_t *ids, Int_t *numingroup, Double_t rdist);
 ///search local baryons with exported particle list.
-Int_t MPISearchBaryons(const Int_t nbaryons, Particle *&Pbaryons, Int_t *&pfofbaryons, Int_t *numingroup, Double_t *localdist, Int_t nsearch, Double_t *param, Double_t *period, Int_t **nnID, Double_t **dist2);
+Int_t MPISearchBaryons(const Int_t nbaryons, Particle *&Pbaryons, Int_t *&pfofbaryons, Int_t *numingroup, Double_t *localdist, Int_t nsearch, Double_t *param, Double_t *period);
 ///localize the baryons to the mpi thread on which their associated DM group exists. 
 Int_t MPIBaryonExchange(const Int_t nbaryons, Particle *&Pbaryons, Int_t *&pfofbaryons);
 //@}

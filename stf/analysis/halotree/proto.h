@@ -46,8 +46,12 @@ HaloData *ReadHaloGroupCatalogData(char* infile, Int_t &numhalos, int mpi_ninput
 #ifdef USEMPI
 ///Reads the number of haloes in the files, wrapper routine
 Int_t ReadNumberofHalos(Options &opt, Int_t *numhalos);
+///Reads the number of particle in haloes in the files, wrapper routine
+Int_t ReadNumberofParticlesInHalos(Options &opt, Int_t *numpartinhalos);
 ///Reads Number of halos from VELOCIraptor Group catalogs
 Int_t MPIReadHaloGroupCatalogDataNum(char* infile, int mpi_ninput=0, int ibinary=1, int ifieldhalos=1, int itypesort=ALLTYPEMATCH);
+///Reads Number of particles in halos from VELOCIraptor Group catalogs
+Int_t MPIReadHaloGroupCatalogDataParticleNum(char* infile, int mpi_ninput=0, int ibinary=1, int ifieldhalos=1, int itypesort=ALLTYPEMATCH);
 ///Reads data to allocate memory, useful for mpi
 HaloData *MPIReadHaloGroupCatalogDataAllocation(char* infile, Int_t &numhalos, int mpi_ninput=0, int ibinary=1, int ifieldhalos=1, int itypesort=ALLTYPEMATCH);
 ///Reads VELOCIraptor like Group Catalog Data with memory already allocated for MPI version. 

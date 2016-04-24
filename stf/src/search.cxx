@@ -40,7 +40,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
     }
 #endif
 
-if (opt.p>0) {
+    if (opt.p>0) {
         period=new Double_t[3];
         for (int j=0;j<3;j++) period[j]=opt.p;
     }
@@ -1823,8 +1823,8 @@ Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, const I
     FOFcompfunc fofcmp;
     Double_t param[20];
     int nsearch=opt.Nvel;
-    Int_t **nnID,*numingroup;
-    Double_t **dist2, *localdist;
+    Int_t *nnID,*numingroup;
+    Double_t *dist2, *localdist;
     int nthreads=1,maxnthreads,tid;
     int minsize;
     Int_t nparts=ndark+nbaryons;
@@ -1835,25 +1835,26 @@ Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, const I
 #endif
 
     cout<<ThisTask<<" search baryons "<<nparts<<" "<<ndark<<endl;
+    //if searched all particles in FOF, reorder particles and also the pfof group id array
     if (opt.partsearchtype==PSTALL) {
         cout<<" of only substructures as baryons have already been grouped in FOF search "<<endl;
         //store original pfof value
         pfofall=pfofdark;//new Int_t[nparts];
         pfofbaryons=&pfofall[ndark];
-	    storeval=new Int_t[nparts];
-    	storeval2=new Int_t[nparts];
+        storeval=new Int_t[nparts];
+        storeval2=new Int_t[nparts];
         for (i=0;i<nparts;i++) {
             if (Part[i].GetType()==DARKTYPE) Part[i].SetType(-1);
-	        storeval2[i]=Part[i].GetPID();
-		    Part[i].SetPID(pfofdark[i]);
+            storeval2[i]=Part[i].GetPID();
+            Part[i].SetPID(pfofdark[i]);
         }
         qsort(Part,nparts,sizeof(Particle),TypeCompare);
         Pbaryons=&Part[ndark];
         for (i=0;i<nparts;i++) {
-	         //store id order after type sort
-	        storeval[i]=Part[i].GetID();
+            //store id order after type sort
+            storeval[i]=Part[i].GetID();
             Part[i].SetID(i);
-	        pfofdark[i]=Part[i].GetPID();
+            pfofdark[i]=Part[i].GetPID();
         }
     }
 #ifdef USEOPENMP
@@ -1896,7 +1897,7 @@ Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, const I
         for (int j=0;j<3;j++) period[j]=opt.p;
     }
 
-    //sort particles so that first group is first, then all others in groups
+    //sort dark matter particles so that particles belonging to a group are first, then all other dm particles
     if (opt.iverbose) cout<<"sort particles so that tree only uses particles in groups "<<npartingroups<<endl;
 /*    if (opt.partsearchtype!=PSTALL) {
         for (i=0;i<ndark;i++) Part[i].SetPotential(2*(pfofdark[i]==0)+(pfofdark[i]>1));
@@ -1908,6 +1909,7 @@ Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, const I
     for (i=0;i<ndark;i++) Part[i].SetPotential(2*(pfofdark[i]==0)+(pfofdark[i]>1));
     qsort(Part, ndark, sizeof(Particle), PotCompare);
     ids=new Int_t[ndark+1];
+    //store the original order of the dark matter particles
     for (i=0;i<ndark;i++) ids[i]=Part[i].GetID();
 
     if (npartingroups>0) {
@@ -1939,25 +1941,22 @@ Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, const I
     //Set fof type
     fofcmp=&FOF6d;
     if (opt.iverbose) {
-    cout<<"Baryon search "<<nbaryons<<endl;
-    cout<<"FOF6D uses ellphys and ellvel.\n";
-    cout<<"Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits, ellvel="<<sqrt(param[7])<<" Vunits.\n";
-    cout<<"Building tree to search dm containing "<<npartingroups<<endl;
+        cout<<"Baryon search "<<nbaryons<<endl;
+        cout<<"FOF6D uses ellphys and ellvel.\n";
+        cout<<"Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits, ellvel="<<sqrt(param[7])<<" Vunits.\n";
+        cout<<"Building tree to search dm containing "<<npartingroups<<endl;
     }
+    //build tree of baryon particles (in groups if a full particle search was done, otherwise npartingroups=nbaryons
     tree=new KDTree(Part,npartingroups,nsearch/2,tree->TPHYS,tree->KEPAN,100,0,0,0,period);
     //allocate memory for search
-    nnID=new Int_t*[nthreads];
-    dist2=new Double_t*[nthreads];
-    for (i=0;i<nthreads;i++) {
-        nnID[i]=new Int_t[nsearch];
-        dist2[i]=new Double_t[nsearch];
-    }
     //find the closest dm particle that belongs to the largest dm group and associate the baryon with that group (including phase-space window)
     if (opt.iverbose) cout<<"Searching ..."<<endl;
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
-private(i,tid,p1,pindex,x1,D2,dval,rval,icheck)
-{
+private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2)
+{    
+    nnID=new Int_t[nsearch];
+    dist2=new Double_t[nsearch];
 #pragma omp for
 #endif
     for (i=0;i<nbaryons;i++)
@@ -1971,17 +1970,17 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck)
         p1=Pbaryons[i];
         x1=Coordinate(p1.GetPosition());
         rval=dval=MAXVALUE;
-        tree->FindNearestPos(x1, nnID[tid], dist2[tid],nsearch);
-        if (dist2[tid][0]<param[6]) {
+        tree->FindNearestPos(x1, nnID, dist2,nsearch);
+        if (dist2[0]<param[6]) {
         for (int j=0;j<nsearch;j++) {
             D2=0;
-            pindex=ids[Part[nnID[tid][j]].GetID()];
+            pindex=ids[Part[nnID[j]].GetID()];
             if (opt.partsearchtype==PSTALL) icheck=1;
             else icheck=(numingroup[pfofbaryons[i]]<numingroup[pfofdark[pindex]]);
             if (icheck) {
-                if (fofcmp(p1,Part[nnID[tid][j]],param)) {
+                if (fofcmp(p1,Part[nnID[j]],param)) {
                     for (int k=0;k<3;k++) {
-                        D2+=(p1.GetPosition(k)-Part[nnID[tid][j]].GetPosition(k))*(p1.GetPosition(k)-Part[nnID[tid][j]].GetPosition(k))/param[6]+(p1.GetVelocity(k)-Part[nnID[tid][j]].GetVelocity(k))*(p1.GetVelocity(k)-Part[nnID[tid][j]].GetVelocity(k))/param[7];
+                        D2+=(p1.GetPosition(k)-Part[nnID[j]].GetPosition(k))*(p1.GetPosition(k)-Part[nnID[j]].GetPosition(k))/param[6]+(p1.GetVelocity(k)-Part[nnID[j]].GetVelocity(k))*(p1.GetVelocity(k)-Part[nnID[j]].GetVelocity(k))/param[7];
                     }
                     //if gas thermal properties stored then also add self-energy to distance measure
 #ifdef GASON
@@ -1990,7 +1989,7 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck)
                     //check to see if phase-space distance is small 
                     if (dval>D2) {
                         dval=D2;pfofbaryons[i]=pfofdark[pindex];
-                        rval=dist2[tid][j];
+                        rval=dist2[j];
 #ifdef USEMPI
                         if (opt.partsearchtype!=PSTALL) localdist[i]=dval;
 #endif
@@ -2000,115 +1999,133 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck)
         }
         }
     }
+    delete[] nnID;
+    delete[] dist2;
 #ifdef USEOPENMP
 }
 #endif
     }
 #ifdef USEMPI
     if (opt.partsearchtype!=PSTALL) {
-    if (opt.iverbose) cout<<ThisTask<<" finished local search"<<endl;
-    MPI_Barrier(MPI_COMM_WORLD);
-    //determine all tagged dark matter particles that have search areas that overlap another mpi domain
-    MPIGetExportNum(npartingroups, Part, sqrt(param[1]));
-    //to store local mpi task 
-    mpi_foftask=new Int_t[nbaryons];
-    //then determine export particles, declare arrays used to export data
-    PartDataIn = new Particle[NExport+1];
-    PartDataGet = new Particle[NImport+1];
-    FoFDataIn = new fofdata_in[NExport+1];
-    FoFDataGet = new fofdata_in[NImport+1];
-    //exchange particles
-    MPISetTaskID(nbaryons);
-    MPIBuildParticleExportBaryonSearchList(npartingroups, Part, pfofdark, ids, numingroup, sqrt(param[1]));
+        if (opt.iverbose) cout<<ThisTask<<" finished local search"<<endl;
+        MPI_Barrier(MPI_COMM_WORLD);
+        //determine all tagged dark matter particles that have search areas that overlap another mpi domain
+        MPIGetExportNum(npartingroups, Part, sqrt(param[1]));
+        //to store local mpi task 
+        mpi_foftask=new Int_t[nbaryons];
+        //then determine export particles, declare arrays used to export data
+        PartDataIn = new Particle[NExport+1];
+        PartDataGet = new Particle[NImport+1];
+        FoFDataIn = new fofdata_in[NExport+1];
+        FoFDataGet = new fofdata_in[NImport+1];
+        //exchange particles
+        MPISetTaskID(nbaryons);
+        MPIBuildParticleExportBaryonSearchList(npartingroups, Part, pfofdark, ids, numingroup, sqrt(param[1]));
 
-    //now dark matter particles associated with a group existing on another mpi domain are local and can be searched. 
-    NExport=MPISearchBaryons(nbaryons, Pbaryons, pfofbaryons, numingroup, localdist, nsearch, param, period, nnID, dist2);
+        //now dark matter particles associated with a group existing on another mpi domain are local and can be searched. 
+        NExport=MPISearchBaryons(nbaryons, Pbaryons, pfofbaryons, numingroup, localdist, nsearch, param, period);
 
-    //reset order
-    delete tree;
-    for (i=0;i<ndark;i++) Part[i].SetID(ids[i]);
-    qsort(Part, ndark, sizeof(Particle), IDCompare);
-    delete[] ids;
+        //reset order
+        delete tree;
+        for (i=0;i<ndark;i++) Part[i].SetID(ids[i]);
+        qsort(Part, ndark, sizeof(Particle), IDCompare);
+        delete[] ids;
 
-    //reorder local particle array and delete memory associated with Head arrays, only need to keep Particles, pfof and some id and idexing information
-    delete[] FoFDataIn;
-    delete[] FoFDataGet;
-    delete[] PartDataIn;
-    delete[] PartDataGet;
+        //reorder local particle array and delete memory associated with Head arrays, only need to keep Particles, pfof and some id and idexing information
+        delete[] FoFDataIn;
+        delete[] FoFDataGet;
+        delete[] PartDataIn;
+        delete[] PartDataGet;
 
-    Int_t newnbaryons=MPIBaryonGroupExchange(nbaryons,Pbaryons,pfofbaryons);
-    //once baryons are correctly associated to the appropriate mpi domain and are local (either in Pbaryons or in the \ref fofid_in structure, specifically FOFGroupData arrays) must then copy info correctly.
+        Int_t newnbaryons=MPIBaryonGroupExchange(nbaryons,Pbaryons,pfofbaryons);
+        //once baryons are correctly associated to the appropriate mpi domain and are local (either in Pbaryons or in the \ref fofid_in structure, specifically FOFGroupData arrays) must then copy info correctly.
 #ifdef MPIREDUCEMEM
-    if (Nmemlocalbaryon<newnbaryons) 
+        if (Nmemlocalbaryon<newnbaryons) 
 #endif
-    {
-    //note that if mpireduce is not set then all info is copied into the FOFGroupData structure and must deallocated and reallocate Pbaryon array
-    delete[] Pbaryons;
-    Pbaryons=new Particle[newnbaryons];
-    delete[] pfofbaryons;
-    pfofbaryons=new Int_t[newnbaryons];
-    }
-    //then compile groups and if inclusive halo masses not calculated, reorder group ids
-    MPIBaryonCompileGroups(newnbaryons,Pbaryons,pfofbaryons,opt.MinSize,(opt.iInclusiveHalo==0));
-    delete[] mpi_foftask;
-    if (opt.iverbose) cout<<ThisTask<<" finished search across domains"<<endl;
-    //now allocate pfofall and store info
-    pfofall=new Int_t[newnbaryons+ndark];
-    for (i=0;i<ndark;i++) pfofall[i]=pfofdark[i];
-    for (i=0;i<newnbaryons;i++) pfofall[i+ndark]=pfofbaryons[i];
-    delete[] pfofbaryons;
+        {
+        //note that if mpireduce is not set then all info is copied into the FOFGroupData structure and must deallocated and reallocate Pbaryon array
+            delete[] Pbaryons;
+            Pbaryons=new Particle[newnbaryons];
+            delete[] pfofbaryons;
+            pfofbaryons=new Int_t[newnbaryons];
+        }
+        //then compile groups and if inclusive halo masses not calculated, reorder group ids
+        MPIBaryonCompileGroups(newnbaryons,Pbaryons,pfofbaryons,opt.MinSize,(opt.iInclusiveHalo==0));
+        delete[] mpi_foftask;
+        if (opt.iverbose) cout<<ThisTask<<" finished search across domains"<<endl;
+        //now allocate pfofall and store info
+        pfofall=new Int_t[newnbaryons+ndark];
+        for (i=0;i<ndark;i++) pfofall[i]=pfofdark[i];
+        for (i=0;i<newnbaryons;i++) pfofall[i+ndark]=pfofbaryons[i];
+        delete[] pfofbaryons;
 
-    //update nbaryons
-    nbaryons=newnbaryons;
-    Nlocalbaryon[0]=newnbaryons;
+        //update nbaryons
+        nbaryons=newnbaryons;
+        Nlocalbaryon[0]=newnbaryons;
 
-
-    //and place all particles into a contiguous memory block
-    nparts=ndark+nbaryons;
-    mpi_Part2=new Particle[nparts];
-    for (i=0;i<ndark;i++)mpi_Part2[i]=Part[i];
-    for (i=0;i<nbaryons;i++)mpi_Part2[i+ndark]=Pbaryons[i];
-    if (mpi_Part1!=NULL) delete[] mpi_Part1;
-    else delete[] Part;
-    delete[] Pbaryons;
-    Part=mpi_Part2;
-    Pbaryons=&mpi_Part2[ndark];
-    for (i=0;i<nbaryons;i++) Pbaryons[i].SetID(i+ndark);
-    Nlocal=nparts;
-    }
+        //and place all particles into a contiguous memory block
+        nparts=ndark+nbaryons;
+        mpi_Part2=new Particle[nparts];
+        for (i=0;i<ndark;i++)mpi_Part2[i]=Part[i];
+        for (i=0;i<nbaryons;i++)mpi_Part2[i+ndark]=Pbaryons[i];
+        if (mpi_Part1!=NULL) delete[] mpi_Part1;
+        else delete[] Part;
+        delete[] Pbaryons;
+        Part=mpi_Part2;
+        Pbaryons=&mpi_Part2[ndark];
+        for (i=0;i<nbaryons;i++) Pbaryons[i].SetID(i+ndark);
+        Nlocal=nparts;
+    } // if preliminary search is NOT all particles 
     else {
         //reset order
         if (npartingroups>0) delete tree;
-      	for (i=0;i<ndark;i++) Part[i].SetID(ids[i]);
+        for (i=0;i<ndark;i++) Part[i].SetID(ids[i]);
         qsort(Part, ndark, sizeof(Particle), IDCompare);
         delete[] ids;
         for (i=0;i<nparts;i++) {Part[i].SetPID(pfofall[Part[i].GetID()]);Part[i].SetID(storeval[i]);}
         qsort(Part, nparts, sizeof(Particle), IDCompare);
-	    for (i=0;i<nparts;i++) {
+        for (i=0;i<nparts;i++) {
             pfofall[i]=Part[i].GetPID();Part[i].SetPID(storeval2[i]);
             if (Part[i].GetType()==-1)Part[i].SetType(DARKTYPE);
         }
-    	delete[] storeval;
-    	delete[] storeval2;
+        delete[] storeval;
+        delete[] storeval2;
     }
-#else
-    delete tree;
-    for (i=0;i<ndark;i++) Part[i].SetID(ids[i]);
-    qsort(Part, ndark, sizeof(Particle), IDCompare);
-    delete[] ids;
-    for (i=0;i<nbaryons;i++) Pbaryons[i].SetID(i+ndark);
+//if NOT mpi
+#else 
+    //now that search has finished, reset dark matter particles back to prior to search order
+    //extra sorts are needed to reset the particles back to input order if all particles were searched initially
+    if (opt.partsearchtype==PSTALL) {
+        //reset order
+        if (npartingroups>0) delete tree;
+        for (i=0;i<ndark;i++) Part[i].SetID(ids[i]);
+        qsort(Part, ndark, sizeof(Particle), IDCompare);
+        delete[] ids;
+        for (i=0;i<nparts;i++) {Part[i].SetPID(pfofall[Part[i].GetID()]);Part[i].SetID(storeval[i]);}
+        qsort(Part, nparts, sizeof(Particle), IDCompare);
+        for (i=0;i<nparts;i++) {
+            pfofall[i]=Part[i].GetPID();Part[i].SetPID(storeval2[i]);
+            if (Part[i].GetType()==-1)Part[i].SetType(DARKTYPE);
+        }
+        delete[] storeval;
+        delete[] storeval2;
+    }
+    else {
+        delete tree;
+        for (i=0;i<ndark;i++) Part[i].SetID(ids[i]);
+        qsort(Part, ndark, sizeof(Particle), IDCompare);
+        delete[] ids;
+        for (i=0;i<nbaryons;i++) Pbaryons[i].SetID(i+ndark);
+    }
 #endif
     //and free up memory
     delete[] numingroup;
-    if (npartingroups>0) {
-        for (int j=0;j<nthreads;j++) {delete[] nnID[j];delete[] dist2[j];}
-        delete[] nnID;
-        delete[] dist2;
-    }
 
     cout<<"Done"<<endl;
 
     //if unbinding go back and redo full unbinding after including baryons
+    //note that here if all particles are searched, the particle array has been reorderd from the input order
+    //to dark matter first followed by baryons as has the pfofall array
     if (opt.uinfo.unbindflag&&ngroupdark>0) {
         if (opt.iverbose) cout<<ThisTask<<" starting unbind of dm+baryons"<<endl;
         //build new arrays based on pfofall. 

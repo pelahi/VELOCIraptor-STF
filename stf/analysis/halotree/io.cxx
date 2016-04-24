@@ -33,6 +33,36 @@ Int_t ReadNumberofHalos(Options &opt, Int_t *numhalos)
     Fin.close();
     return tothalos;
 }
+
+Int_t ReadNumberofParticlesInHalos(Options &opt, Int_t *numpartinhalos)
+{
+    fstream Fin;//file is list of halo data files
+    char buf[1000*opt.numsnapshots];
+    Int_t tothalos=0,totpart=0;
+
+    Fin.open(opt.fname);
+    if (!Fin.is_open()) {
+        cerr<<"file containing snapshot list can't be opened"<<endl;
+#ifdef USEMPI
+        MPI_Abort(MPI_COMM_WORLD,9);
+#else
+        exit(9);
+#endif
+    }
+    for(int i=0; i<opt.numsnapshots; i++) 
+    {
+        Fin>>&(buf[i*1000]);
+            //if (opt.ioformat==DSUSSING) HaloTree[i].Halo=ReadHaloData(&buf[i*1000],HaloTree[i].numhalos);
+            //else if (opt.ioformat==DCATALOG) 
+                //numhalos[i]=MPIReadHaloGroupCatalogDataNum(&buf[i*1000],opt.nmpifiles, opt.ibinary,opt.ifield, opt.itypematch);
+                numpartinhalos[i]=MPIReadHaloGroupCatalogDataParticleNum(&buf[i*1000],opt.nmpifiles, opt.ibinary,opt.ifield, opt.itypematch);
+            //else if (opt.ioformat==DNIFTY) HaloTree[i].Halo=ReadNIFTYData(&buf[i*1000],HaloTree[i].numhalos, opt.idcorrectflag);
+            //tothalos+=numhalos[i];
+            totpart+=numpartinhalos[i];
+    }
+    Fin.close();
+    return totpart;
+}
 #endif
 
 

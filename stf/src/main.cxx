@@ -25,7 +25,7 @@ int main(int argc,char **argv)
     //if using hybrid then need to check that threads are available and use the correct initialization
     //Each thread will call MPI routines, but these calls will be coordinated to occur only one at a time within a process.
     int required=MPI_THREAD_FUNNELED;  // Required level of MPI threading support
-	int provided; // Provided level of MPI threading support
+    int provided; // Provided level of MPI threading support
     MPI_Init_thread(&argc, &argv, required, &provided);
 #else
     MPI_Init(&argc,&argv);

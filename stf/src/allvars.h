@@ -198,7 +198,7 @@ using namespace NBody;
 #define UPART 1
 ///use the bulk centre of mass velocity to define velocity reference frame when determining if particle bound
 #define CMVELREF 0
-///use the particle at potential minimum. NOT a ideal kinetic reference frame as particles will move in and out of deepest point of the potential well
+///use the particle at potential minimum. Issues if too few particles used as particles will move in and out of deepest point of the potential well
 #define POTREF 1
 
 //@}
@@ -212,10 +212,6 @@ using namespace NBody;
 #define splitflag -1
 ///cellflag means a node that is not necessarily a leaf node can be approximated by mono-pole
 #define cellflag 0
-///use the bulk centre of mass velocity to define velocity reference frame when determining if particle bound
-#define CMVELREF 0
-///use the particle at potential minimum. Issues if too few particles used as particles will move in and out of deepest point of the potential well
-#define POTREF 1
 
 //@}
 

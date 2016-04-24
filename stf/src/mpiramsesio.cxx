@@ -153,6 +153,7 @@ void MPIDomainDecompositionRAMSES(Options &opt){
 }
 
 ///reads a gadget file to determine number of particles in each MPIDomain
+///\todo need to add codeo to read positions of particles/gas cells and send them to the appropriate mpi thead
 void MPINumInDomainRAMSES(Options &opt)
 {
     MPIDomainExtentRAMSES(opt);

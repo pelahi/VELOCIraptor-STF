@@ -1555,7 +1555,7 @@ Int_t MPIBaryonCompileGroups(const Int_t nbodies, Particle *&Part, Int_t *&pfof,
 }
 
 ///Determine which exported dm particle is closest in phase-space to a local baryon particle and assign that particle to the group of that dark matter particle if is closest particle
-Int_t MPISearchBaryons(const Int_t nbaryons, Particle *&Pbaryons, Int_t *&pfofbaryons, Int_t *numingroup, Double_t *localdist, Int_t nsearch, Double_t *param, Double_t *period, Int_t **nnID, Double_t **dist2)
+Int_t MPISearchBaryons(const Int_t nbaryons, Particle *&Pbaryons, Int_t *&pfofbaryons, Int_t *numingroup, Double_t *localdist, Int_t nsearch, Double_t *param, Double_t *period)
 {
     Double_t D2, dval, rval;
     Coordinate x1; 
@@ -1563,14 +1563,18 @@ Int_t MPISearchBaryons(const Int_t nbaryons, Particle *&Pbaryons, Int_t *&pfofba
     Int_t  i, j, k, pindex,nexport=0;
     int tid;
     FOFcompfunc fofcmp=FOF6d;
+    Int_t *nnID;
+    Double_t *dist2
     if (NImport>0) {
     //now dark matter particles associated with a group existing on another mpi domain are local and can be searched. 
     KDTree *mpitree=new KDTree(PartDataGet,NImport,nsearch/2,mpitree->TPHYS,mpitree->KEPAN,100,0,0,0,period);
     if (nsearch>NImport) nsearch=NImport;
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
-private(i,j,k,tid,p1,pindex,x1,D2,dval,rval)
+private(i,j,k,tid,p1,pindex,x1,D2,dval,rval,nnID,dist2)
 {
+    nnID=new Int_t[nsearch];
+    dist2=new Double_t[nsearch];
 #pragma omp for reduction(+:nexport)
 #endif
     for (i=0;i<nbaryons;i++)
@@ -1584,20 +1588,20 @@ private(i,j,k,tid,p1,pindex,x1,D2,dval,rval)
         x1=Coordinate(p1.GetPosition());
         rval=MAXVALUE;
         dval=localdist[i];
-        mpitree->FindNearestPos(x1, nnID[tid], dist2[tid],nsearch);
-        if (dist2[tid][0]<param[6]) {
+        mpitree->FindNearestPos(x1, nnID, dist2,nsearch);
+        if (dist2[0]<param[6]) {
         for (j=0;j<nsearch;j++) {
             D2=0;
-            pindex=PartDataGet[nnID[tid][j]].GetID();
+            pindex=PartDataGet[nnID[j]].GetID();
             if (numingroup[pfofbaryons[i]]<FoFDataGet[pindex].iLen) {
-                if (fofcmp(p1,PartDataGet[nnID[tid][j]],param)) {
+                if (fofcmp(p1,PartDataGet[nnID[j]],param)) {
                     for (k=0;k<3;k++) {
-                        D2+=(p1.GetPosition(k)-PartDataGet[nnID[tid][j]].GetPosition(k))*(p1.GetPosition(k)-PartDataGet[nnID[tid][j]].GetPosition(k))/param[6]+(p1.GetVelocity(k)-PartDataGet[nnID[tid][j]].GetVelocity(k))*(p1.GetVelocity(k)-PartDataGet[nnID[tid][j]].GetVelocity(k))/param[7];
+                        D2+=(p1.GetPosition(k)-PartDataGet[nnID[j]].GetPosition(k))*(p1.GetPosition(k)-PartDataGet[nnID[j]].GetPosition(k))/param[6]+(p1.GetVelocity(k)-PartDataGet[nnID[j]].GetVelocity(k))*(p1.GetVelocity(k)-PartDataGet[nnID[j]].GetVelocity(k))/param[7];
                     }
 #ifdef GASON
                     D2+=p1.GetU()/param[7];
 #endif
-                    if (dval>D2) {dval=D2;pfofbaryons[i]=FoFDataGet[pindex].iGroup;rval=dist2[tid][j];mpi_foftask[i]=FoFDataGet[pindex].iGroupTask;}
+                    if (dval>D2) {dval=D2;pfofbaryons[i]=FoFDataGet[pindex].iGroup;rval=dist2[j];mpi_foftask[i]=FoFDataGet[pindex].iGroupTask;}
                 }
             }
         }

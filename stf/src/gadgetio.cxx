@@ -1081,7 +1081,6 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                     else if (k==GSTARTYPE) Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetType(STARTYPE);
                     else if (k==GBHTYPE) Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetType(BHTYPE);
                     else Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetType(DARKTYPE);
-                    //Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetPID(count2);
                     //ensure that store number of particles to be sent to the threads involved with reading snapshot files
                     if(ibuf<opt.nsnapread&&ibuf!=ThisTask) Nreadbuf[ibuf]++;
                     Nbuf[ibuf]++;
