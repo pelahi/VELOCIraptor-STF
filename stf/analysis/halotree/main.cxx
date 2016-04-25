@@ -62,10 +62,40 @@ int main(int argc,char **argv)
     ///determine the total number of haloes and ideal splitting
     int startsnap[NProcs],endsnap[NProcs];
     if (ThisTask==0) {
+    //there are two ways to load balance the data, halos or particles in haloes 
+    //load balancing via particles is the defaul option but could compile with halo load balancing
+#ifndef MPIHALOBALANCE
+    Int_t *partinhalonum=new Int_t[opt.numsnapshots];
+    Int_t totpart=ReadNumberofParticlesInHalos(opt,partinhalonum);
+    //now number of particles per mpi thread
+    Int_t partinhalonumpermpi=totpart/NProcs;
+    Int_t sum=0, itask=NProcs-1, inumsteps=0;
+    endsnap[itask]=opt.numsnapshots;
+    cout<<ThisTask<<" total is "<<totpart<<" and should have "<<partinhalonumpermpi<<endl;
+    for (int i=opt.numsnapshots-1;i>=0;i--) {
+        sum+=partinhalonum[i];
+        if (sum>partinhalonumpermpi && inumsteps>opt.numsteps) {
+            startsnap[itask]=i;
+            endsnap[itask-1]=i+opt.numsteps;
+            itask--;
+            inumsteps=0;
+            sum=0;
+            if (itask==0) break;
+        }
+        inumsteps++;
+    }
+    startsnap[itask]=0;
+    for (itask=0;itask<NProcs;itask++) 
+    {
+        sum=0;
+        for (int i=startsnap[itask];i<endsnap[itask];i++) sum+=partinhalonum[i];
+        cout<<itask<<" will use snaps "<<startsnap[itask]<<" to "<<endsnap[itask]<<" with overlap of "<<opt.numsteps<<" that contains "<<sum<<" particles in halos"<<endl;
+    }
+    delete[] partinhalonum;
+#else
+    //here halo balancing
     Int_t *halonum=new Int_t[opt.numsnapshots];
     Int_t totnum=ReadNumberofHalos(opt,halonum);
-    //MPI_Bcast(totnum, 1, MPI_Int_t, 0, MPI_COMM_WORLD);
-    //MPI_Bcast(halonum, opt.numsnapshots, MPI_Int_t, 0, MPI_COMM_WORLD);
     //now number of halos per mpi thread
     Int_t halonumpermpi=totnum/NProcs;
     Int_t sum=0, itask=NProcs-1, inumsteps=0;
@@ -91,7 +121,10 @@ int main(int argc,char **argv)
         cout<<itask<<" will use snaps "<<startsnap[itask]<<" to "<<endsnap[itask]<<" with overlap of "<<opt.numsteps<<" that contains "<<sum<<" halos"<<endl;
     }
     delete[] halonum;
+#endif
     }
+    //task 0 has finished determining which snapshots a given mpi thread will process
+
     MPI_Bcast(startsnap, NProcs, MPI_Int_t, 0, MPI_COMM_WORLD);
     MPI_Bcast(endsnap, NProcs, MPI_Int_t, 0, MPI_COMM_WORLD);
     StartSnap=startsnap[ThisTask];
