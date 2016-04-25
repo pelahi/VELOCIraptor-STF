@@ -702,7 +702,9 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         for (Int_t i=0;i<headerdatainfo.size();i++) Fout<<headerdatainfo[i]<<"("<<i+1<<") ";Fout<<endl;
         Fout<<setprecision(10);
     }
-
+    //if need to convert from physical back to comoving
+    if (opt.icomoveunit) for (Int_t i=1;i<=ngroups;i++) pdata[i].ConverttoComove(opt);
+    
     long long idbound;
     //for ensuring downgrade of precision as subfind uses floats when storing values save for Mvir (??why??)
     float value,ctemp[3],mtemp[9];

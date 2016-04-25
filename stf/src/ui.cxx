@@ -211,6 +211,7 @@ void usage(void)
     \arg <b> \e Write_group_array_file </b> 0/1 flag indicating whether write a single large tipsy style group assignment file is written. \ref Options.iwritefof \n
     \arg <b> \e Separate_output_files </b> 1/0 flag indicating whether separate files are written for field and subhalo groups. \ref Options.iseparatefiles \n
     \arg <b> \e Binary_output </b> 1/0 flag indicating whether output is binary or ascii. \ref Options.ibinaryout \n
+    \arg <b> \e Comoving_units </b> 1/0 flag indicating whether the properties output is in physical or comoving little h units. \ref Options.icomoveunit \n
     \arg <b> \e NSPH_extra_blocks </b> If gadget snapshot is loaded one can specific the number of extra <b> SPH </b> blocks are read/in the file. \ref Options.gnsphblocks \n
     \arg <b> \e NStar_extra_blocks </b> If gadget snapshot is loaded one can specific the number of extra <b> Star </b> blocks are read/in the file. \ref Options.gnstarblocks \n
     \arg <b> \e NBH_extra_blocks </b> If gadget snapshot is loaded one can specific the number of extra <b> Black hole </b> blocks are read/in the file. \ref Options.gnbhblocks \n

@@ -227,7 +227,7 @@ using namespace NBody;
 //@}
 
 
-///VALUE USED TO MAKE UNIQUE halo identifiers
+///\name halo id modifers used with current snapshot value to make temporally unique halo identifiers
 #ifdef LONGINT
 #define HALOIDSNVAL 1000000000000L
 #else
@@ -242,6 +242,7 @@ using namespace NBody;
 #define M_HetoM_H 4.0026
 //@}
 //@}
+
 
 /// Structure stores unbinding information
 struct UnbindInfo 
@@ -314,6 +315,9 @@ struct Options
     int nsnapread;
     ///for output, specify the formats, ie. many separate files, binary or ascii
     int iseparatefiles,ibinaryout;
+    ///return propery data in in comoving little h units instead of standard physical units
+    int icomoveunit;
+
     ///\name length,m,v,grav units
     //@{
     Double_t L, M, V, G;
@@ -510,6 +514,7 @@ struct Options
         iwritefof=0;
         iseparatefiles=0;
         ibinaryout=0;
+        icomoveunit=0;
 
         snapshotvalue=0;
 
@@ -692,7 +697,7 @@ struct PropData
         acc_bh=0;
 #endif
     }
-    //equals operator, useful if want inclusive information before substructure search
+    ///equals operator, useful if want inclusive information before substructure search
     PropData& operator=(const PropData &p){
         num=p.num;
         gcm=p.gcm;gcmvel=p.gcmvel;
@@ -703,6 +708,40 @@ struct PropData
         gM200c=p.gM200c;gR200c=p.gR200c;
         gM200m=p.gM200m;gR200m=p.gR200m;
         return *this;
+    }
+    
+    ///converts the properties data into comoving little h values
+    ///so masses, positions have little h values and positions are comoving
+    void ConverttoComove(Options &opt){
+        gcm=gcm*opt.h/opt.a;
+        gpos=gpos*opt.h/opt.a;
+        gmass*=opt.h;
+        gMvir*=opt.h;
+        gM200c*=opt.h;
+        gM200m*=opt.h;
+        gMFOF*=opt.h;
+        gsize*=opt.h/opt.a;
+        gRmbp*=opt.h/opt.a;
+        gRmaxvel*=opt.h/opt.a;
+        gRvir*=opt.h/opt.a;
+        gR200c*=opt.h/opt.a;
+        gR200m*=opt.h/opt.a;
+        gJ=gJ*opt.h*opt.h/opt.a;
+#ifdef GASON
+        M_gas*=opt.h;
+        cm_gas=cm_gas*opt.h/opt.a;
+        Rhalfmass_gas*=opt.h/opt.a;
+        L_gas=L_gas*opt.h*opt.h/opt.a;
+#endif
+#ifdef STARON
+        M_star*=opt.h;
+        cm_star=cm_star*opt.h/opt.a;
+        Rhalfmass_star*=opt.h/opt.a;
+        L_star=L_star*opt.h*opt.h/opt.a;
+#endif
+#ifdef BHON
+        M_bh*=opt.h;
+#endif
     }
 };
 
