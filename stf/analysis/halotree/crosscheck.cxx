@@ -665,7 +665,46 @@ void simplemap(long unsigned int &i) {}
 
 //@}
 
-/// \name Simple group id based array building
+//check to see if ID data compatible with accessing index array allocated
+void IDcheck(Options &opt, HaloTreeData *&pht){
+    int ierrorflag=0,ierrorsumflag=0;
+    for (int i=opt.numsnapshots-1;i>=0;i--) {
+#ifdef USEMPI
+    if (i>=StartSnap && i<EndSnap) {
+#endif
+        ierrorflag=0;
+        for (Int_t j=0;j<pht[i].numhalos;j++) {
+            for (Int_t k=0;k<pht[i].Halo[j].NumberofParticles;k++) 
+                if (pht[i].Halo[j].ParticleID[k]<0||pht[i].Halo[j].ParticleID[k]>opt.NumPart) {
+                    cout<<ThisTask<<" for snapshot "<<i<<" particle id out of range "<<pht[i].Halo[j].ParticleID[k]<<" not in [0,"<<opt.NumPart<<")"<<endl;
+                    ierrorflag=1;
+                    break;
+                }
+            if (ierrorflag==1) {ierrorsumflag+=1;break;}
+        }
+#ifdef USEMPI
+    }
+#endif
+    }
+#ifdef USEMPI
+    int mpierrorflag;
+    MPI_Allreduce(&ierrorsumflag,&mpierrorflag,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD);
+    ierrorsumflag=mpierrorflag;
+#endif
+    if (ierrorsumflag>0) {
+#ifdef USEMPI
+        if (ThisTask==0) 
+#endif
+        cout<<"Error in particle ids, outside of range. Exiting"<<endl;
+#ifdef USEMPI
+        MPI_Abort(MPI_COMM_WORLD,9);
+#else
+        exit(9);
+#endif
+    }
+}
+
+    /// \name Simple group id based array building
 //@{
 
 ///build group size array

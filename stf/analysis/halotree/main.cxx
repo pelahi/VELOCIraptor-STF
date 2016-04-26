@@ -46,7 +46,7 @@ int main(int argc,char **argv)
         opt.description=(char*)"VELOCIraptor halo merger tree constructed by identifying the main progenitor with the highest value of Nshared";
     else if (opt.matchtype==Nsharedcombo)
         opt.description=(char*)"VELOCIraptor halo merger tree constructed by identifying the main progenitor with the highest value of Nshared/Nh+(Nshared^2/Nh/Np) so as to weight progenitors that contribute similar amounts by how much of their mass contributes to the new object";
-
+/*
 #ifdef USEMPI
     //now if there are too many tasks for the number of snapshots read, exit
     if (NProcs>(0.5*opt.numsnapshots/opt.numsteps)) {
@@ -69,20 +69,22 @@ int main(int argc,char **argv)
     Int_t totpart=ReadNumberofParticlesInHalos(opt,partinhalonum);
     //now number of particles per mpi thread
     Int_t partinhalonumpermpi=totpart/NProcs;
-    Int_t sum=0, itask=NProcs-1, inumsteps=0;
+    Int_t sum=0, itask=NProcs-1, inumsteps=-1;
     endsnap[itask]=opt.numsnapshots;
     cout<<ThisTask<<" total is "<<totpart<<" and should have "<<partinhalonumpermpi<<endl;
     for (int i=opt.numsnapshots-1;i>=0;i--) {
         sum+=partinhalonum[i];
-        if (sum>partinhalonumpermpi && inumsteps>opt.numsteps) {
+        inumsteps++;
+        if (sum>partinhalonumpermpi && inumsteps>=opt.numsteps) {
             startsnap[itask]=i;
             endsnap[itask-1]=i+opt.numsteps;
             itask--;
-            inumsteps=0;
-            sum=0;
+            //inumsteps=-1;
+            //sum=0;
+            inumsteps=opt.numsteps-1;
+            sum=0;for (int j=0;j<=opt.numsteps;j++) sum+=partinhalonum[i+j];
             if (itask==0) break;
         }
-        inumsteps++;
     }
     startsnap[itask]=0;
     for (itask=0;itask<NProcs;itask++) 
@@ -98,20 +100,22 @@ int main(int argc,char **argv)
     Int_t totnum=ReadNumberofHalos(opt,halonum);
     //now number of halos per mpi thread
     Int_t halonumpermpi=totnum/NProcs;
-    Int_t sum=0, itask=NProcs-1, inumsteps=0;
+    Int_t sum=0, itask=NProcs-1, inumsteps=-1;
     endsnap[itask]=opt.numsnapshots;
     cout<<ThisTask<<" total is "<<totnum<<" and should have "<<halonumpermpi<<endl;
     for (int i=opt.numsnapshots-1;i>=0;i--) {
         sum+=halonum[i];
+        inumsteps++;
         if (sum>halonumpermpi && inumsteps>opt.numsteps) {
             startsnap[itask]=i;
             endsnap[itask-1]=i+opt.numsteps;
             itask--;
-            inumsteps=0;
-            sum=0;
+            //inumsteps=-1;
+            //sum=0;
+            inumsteps=opt.numsteps-1;
+            sum=0;for (int j=0;j<=opt.numsteps;j++) sum+=halonum[i+j];
             if (itask==0) break;
         }
-        inumsteps++;
     }
     startsnap[itask]=0;
     for (itask=0;itask<NProcs;itask++) 
@@ -137,9 +141,12 @@ int main(int argc,char **argv)
         StartSnap=0;
         EndSnap=opt.numsnapshots;
         NSnap=opt.numsnapshots;
-	}
+    }
 #endif 
-    
+*/
+#ifdef USEMPI
+    MPILoadBalanceSnapshots(opt);
+#endif
     //read particle information and allocate memory
     if (ThisTask==0) cout<<"Read Data ... "<<endl;
     pht=ReadData(opt);
@@ -150,42 +157,8 @@ int main(int argc,char **argv)
     }
     //adjust ids if necessary
     if (opt.imapping>DNOMAP) MapPIDStoIndex(opt,pht);
-    //check to see if ID data compatible with accessing index array allocated
-    int ierrorflag=0,ierrorsumflag=0;
-    for (i=opt.numsnapshots-1;i>=0;i--) {
-#ifdef USEMPI
-    if (i>=StartSnap && i<EndSnap) {
-#endif
-        ierrorflag=0;
-        for (j=0;j<pht[i].numhalos;j++) {
-            for (Int_t k=0;k<pht[i].Halo[j].NumberofParticles;k++) 
-                if (pht[i].Halo[j].ParticleID[k]<0||pht[i].Halo[j].ParticleID[k]>opt.NumPart) {
-                    cout<<ThisTask<<" for snapshot "<<i<<" particle id out of range "<<pht[i].Halo[j].ParticleID[k]<<" not in [0,"<<opt.NumPart<<")"<<endl;
-                    ierrorflag=1;
-                    break;
-                }
-            if (ierrorflag==1) {ierrorsumflag+=1;break;}
-        }
-#ifdef USEMPI
-    }
-#endif
-    }
-#ifdef USEMPI
-    int mpierrorflag;
-    MPI_Allreduce(&ierrorsumflag,&mpierrorflag,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD);
-    ierrorsumflag=mpierrorflag;
-#endif
-    if (ierrorsumflag>0) {
-#ifdef USEMPI
-        if (ThisTask==0) 
-#endif
-        cout<<"Error in particle ids, outside of range. Exiting"<<endl;
-#ifdef USEMPI
-        MPI_Abort(MPI_COMM_WORLD,9);
-#else
-        exit(9);
-#endif
-    }
+    //check that ids are within allowed range for linking
+    IDcheck(opt,pht);
 
     pfofp=new long unsigned[opt.NumPart];
     for (i=0;i<opt.NumPart;i++) pfofp[i]=0;

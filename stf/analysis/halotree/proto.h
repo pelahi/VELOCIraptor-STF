@@ -30,7 +30,8 @@ bool FileExists(const char *fname);
 
 //-- Read routines
 
-
+///\name Reading routines
+//@{
 ///Reads the header information
 Int_t ReadHeader(Options &opt);
 ///Reads halo particle id data
@@ -41,9 +42,21 @@ HaloData *ReadHaloData(char *fname, Int_t &nhalos);
 HaloData *ReadNIFTYData(char *fname, Int_t &nhalos, int idcorrectflag=0);
 ///Reads VELOCIraptor like Group Catalog Data. Can adjust so that only particles of some type are check for cross matching
 HaloData *ReadHaloGroupCatalogData(char* infile, Int_t &numhalos, int mpi_ninput=0, int ibinary=1, int ifieldhalos=1, int itypesort=ALLTYPEMATCH, int iverbose=0);
+//@}
 
-/// for mpi related reads
+///\name Write routines
+//@{
+///Writes the merger tree
+void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h);
+void WriteHaloGraph(Options &opt, ProgenitorData **p, DescendantData **d, HaloTreeData *h);
+///writes a cross comparison between two catalogs
+void WriteCrossComp(Options &opt, ProgenitorData **p, HaloTreeData *h);
+//@}
+
 #ifdef USEMPI
+///\name  for mpi related reads
+/// see \ref io.cxx and \ref mpiroutines.cxx for implementation
+//@{
 ///Reads the number of haloes in the files, wrapper routine
 Int_t ReadNumberofHalos(Options &opt, Int_t *numhalos);
 ///Reads the number of particle in haloes in the files, wrapper routine
@@ -56,13 +69,10 @@ Int_t MPIReadHaloGroupCatalogDataParticleNum(char* infile, int mpi_ninput=0, int
 HaloData *MPIReadHaloGroupCatalogDataAllocation(char* infile, Int_t &numhalos, int mpi_ninput=0, int ibinary=1, int ifieldhalos=1, int itypesort=ALLTYPEMATCH);
 ///Reads VELOCIraptor like Group Catalog Data with memory already allocated for MPI version. 
 void MPIReadHaloGroupCatalogData(char* infile, Int_t &numhalos, HaloData *&Halo, int mpi_ninput=0, int ibinary=1, int ifieldhalos=1, int itypesort=ALLTYPEMATCH, int iverbose=0);
+///load balance input data
+void MPILoadBalanceSnapshots(Options &opt);
+//@}
 #endif
-
-///Writes the merger tree
-void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h);
-void WriteHaloGraph(Options &opt, ProgenitorData **p, DescendantData **d, HaloTreeData *h);
-///writes a cross comparison between two catalogs
-void WriteCrossComp(Options &opt, ProgenitorData **p, HaloTreeData *h);
 
 //@}
 
@@ -90,6 +100,8 @@ void UpdateRefDescendants(const int ilinkcriteria, const Int_t numhalos,Descenda
 //@{
 ///map particle id to index position
 void MapPIDStoIndex(Options &opt, HaloTreeData *&pht);
+///make sure particle ids are acceptable values for generating links
+void IDcheck(Options &opt,HaloTreeData *&pht);
 
 void simplemap(long unsigned &i);
 
