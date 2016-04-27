@@ -11,8 +11,16 @@
 #ifndef RAMSESITEMS_H
 #define RAMSESITEMS_H
 
+#ifdef RAMSESSINGLEPRECISION
 #define RAMSESFLOAT float
+#else
+#define RAMSESFLOAT double
+#endif
+#ifdef RAMSESLONGIDS
 #define RAMSESIDTYPE int
+#else
+#define RAMSESIDTYPE int
+#endif
 #define RAMSESINTTYPE int 
 
 ///number of particle types
@@ -39,6 +47,8 @@ struct RAMSES_Header {
 
     ///\name amr information
     //@{
+    ///number of files ramses output was written with (is the number of cpus used)
+    int         nfiles;
     ///number of dimensions of the cells
     int         ndim;
     ///2 to the power of number of dimensions

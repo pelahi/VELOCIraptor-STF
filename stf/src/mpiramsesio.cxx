@@ -40,9 +40,37 @@
 */
 void MPIDomainExtentRAMSES(Options &opt){
     Int_t i;
+    char buf[2000];
+    fstream Framses;
+    RAMSES_Header ramses_header_info;
+    string stringbuf;
+    if (ThisTask==0) {
+    sprintf(buf,"info_%s.txt",opt.fname);
+    Framses.open(buf, ios::in);
+    getline(Framses,stringbuf);
+    getline(Framses,stringbuf);
+    getline(Framses,stringbuf);
+    getline(Framses,stringbuf);
+    getline(Framses,stringbuf);
+    getline(Framses,stringbuf);
+    getline(Framses,stringbuf);
+    Framses>>stringbuf>>stringbuf>>ramses_header_info.BoxSize;
+    Framses>>stringbuf>>stringbuf>>ramses_header_info.time;
+    Framses>>stringbuf>>stringbuf>>ramses_header_info.aexp;
+    Framses>>stringbuf>>stringbuf>>ramses_header_info.HubbleParam;
+    Framses>>stringbuf>>stringbuf>>ramses_header_info.Omegam;
+    Framses>>stringbuf>>stringbuf>>ramses_header_info.OmegaLambda;
+    Framses>>stringbuf>>stringbuf>>ramses_header_info.Omegak;
+    Framses>>stringbuf>>stringbuf>>ramses_header_info.Omegab;
+    Framses>>stringbuf>>stringbuf>>ramses_header_info.scale_l;
+    Framses>>stringbuf>>stringbuf>>ramses_header_info.scale_d;
+    Framses>>stringbuf>>stringbuf>>ramses_header_info.scale_t;
+    Framses.close();
+    ///note that code units are 0 to 1 
+    for (int j=0;j<3;j++) {mpi_xlim[j][0]=0;mpi_xlim[j][1]=1.0;}
+
     //There may be issues with particles exactly on the edge of a domain so before expanded limits by a small amount
     //now only done if a specific compile option passed
-    if (ThisTask==0) {
 #ifdef MPIEXPANDLIM
     for (int j=0;j<3;j++) {
         Double_t dx=0.001*(mpi_xlim[j][1]-mpi_xlim[j][0]);

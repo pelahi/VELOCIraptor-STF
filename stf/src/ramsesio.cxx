@@ -194,7 +194,7 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
     //reopen to get number of amr cells might need to alter to read grid information and what cells have no so-called son cells
     if (opt.partsearchtype==PSTGAS||opt.partsearchtype==PSTALL||(opt.partsearchtype==PSTDARK&&opt.iBaryonSearch)) {
     for (i=0;i<ramses_header_info.num_files;i++) {
-        sprintf(buf1,"amr_%s.out%05d",fname,i);
+        sprintf(buf1,"amr_%s.out%05d",fname,i+1);
         sprintf(buf2,"amr_%s.out",fname);
         if (FileExists(buf1)) sprintf(buf,"%s",buf1);
         else if (FileExists(buf2)) sprintf(buf,"%s",buf2);
@@ -276,7 +276,7 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
 
     //now particle info
     for (i=0;i<ramses_header_info.num_files;i++) {
-        sprintf(buf1,"part_%s.out%05d",fname,i);
+        sprintf(buf1,"part_%s.out%05d",fname,i+1);
         sprintf(buf2,"part_%s.out",fname);
         if (FileExists(buf1)) sprintf(buf,"%s",buf1);
         else if (FileExists(buf2)) sprintf(buf,"%s",buf2);
@@ -295,7 +295,9 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
         Framses.seekg(dummy,ios::cur);
         Framses.read((char*)&dummy, sizeof(dummy));
         Framses.read((char*)&dummy, sizeof(dummy));
-        Framses.read((char*)&ramses_header_info.npartTotal[RAMSESSTARTYPE], sizeof(int));
+        //?? had total but probably not correct
+        //Framses.read((char*)&ramses_header_info.npartTotal[RAMSESSTARTYPE], sizeof(int));
+        Framses.read((char*)&ramses_header_info.npart[RAMSESSTARTYPE], sizeof(int));
         Framses.read((char*)&dummy, sizeof(dummy));
         Framses.read((char*)&dummy, sizeof(dummy));
         Framses.seekg(dummy,ios::cur);
@@ -308,7 +310,9 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
         Framses.read((char*)&dummy, sizeof(dummy));
         Framses.close();
         ramses_header_info.npartTotal[RAMSESDMTYPE]+=ramses_header_info.npart[RAMSESDMTYPE];
+        ramses_header_info.npartTotal[RAMSESSTARTYPE]+=ramses_header_info.npart[RAMSESSTARTYPE];
         ramses_header_info.npartTotal[RAMSESSINKTYPE]+=ramses_header_info.npart[RAMSESSINKTYPE];
+        ramses_header_info.npartTotal[RAMSESDMTYPE]-=ramses_header_info.npart[RAMSESSTARTYPE];
         ramses_header_info.npartTotal[RAMSESDMTYPE]-=ramses_header_info.npart[RAMSESSINKTYPE];
     }
     ramses_header_info.npartTotal[RAMSESDMTYPE]-=ramses_header_info.npartTotal[RAMSESSTARTYPE];
@@ -437,22 +441,25 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     Finfo.open(buf1, ios::in);
     getline(Finfo,stringbuf);
     getline(Finfo,stringbuf);
-    Finfo>>stringbuf>>header[ifirstfile].levelmin;
+    Finfo>>stringbuf>>stringbuf>>header[ifirstfile].levelmin;
     getline(Finfo,stringbuf);
     getline(Finfo,stringbuf);
     getline(Finfo,stringbuf);
     getline(Finfo,stringbuf);
     getline(Finfo,stringbuf);
-    Finfo>>stringbuf>>header[ifirstfile].time;
-    Finfo>>stringbuf>>header[ifirstfile].aexp;
-    Finfo>>stringbuf>>header[ifirstfile].HubbleParam;
-    Finfo>>stringbuf>>header[ifirstfile].Omegam;
-    Finfo>>stringbuf>>header[ifirstfile].OmegaLambda;
-    Finfo>>stringbuf>>header[ifirstfile].Omegak;
-    Finfo>>stringbuf>>header[ifirstfile].Omegab;
-    Finfo>>stringbuf>>header[ifirstfile].scale_l;
-    Finfo>>stringbuf>>header[ifirstfile].scale_d;
-    Finfo>>stringbuf>>header[ifirstfile].scale_t;
+    Finfo>>stringbuf>>stringbuf>>header[ifirstfile].BoxSize;
+    Finfo>>stringbuf>>stringbuf>>header[ifirstfile].time;
+    Finfo>>stringbuf>>stringbuf>>header[ifirstfile].aexp;
+    Finfo>>stringbuf>>stringbuf>>header[ifirstfile].HubbleParam;
+    Finfo>>stringbuf>>stringbuf>>header[ifirstfile].Omegam;
+    Finfo>>stringbuf>>stringbuf>>header[ifirstfile].OmegaLambda;
+    Finfo>>stringbuf>>stringbuf>>header[ifirstfile].Omegak;
+    Finfo>>stringbuf>>stringbuf>>header[ifirstfile].Omegab;
+    Finfo>>stringbuf>>stringbuf>>header[ifirstfile].scale_l;
+    Finfo>>stringbuf>>stringbuf>>header[ifirstfile].scale_d;
+    Finfo>>stringbuf>>stringbuf>>header[ifirstfile].scale_t;
+    //convert boxsize to comoving mpc
+    header[ifirstfile].BoxSize*=header[ifirstfile].scale_l/3.08e24/header[ifirstfile].aexp;
     getline(Finfo,stringbuf);
     Finfo>>stringbuf>>orderingstring;
     getline(Finfo,stringbuf);
@@ -476,6 +483,10 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
         Double_t bnx=-((1-opt.Omega_m-opt.Omega_Lambda)*pow(aadjust,-2.0)+opt.Omega_Lambda)/((1-opt.Omega_m-opt.Omega_Lambda)*pow(aadjust,-2.0)+opt.Omega_m*pow(aadjust,-3.0)+opt.Omega_Lambda);
         opt.virlevel=(18.0*M_PI*M_PI+82.0*bnx-39*bnx*bnx)/opt.Omega_m;
     }
+    //adjust length scale so that convert from 0 to 1 (box units) to Mpc comoving
+    opt.L*=header[ifirstfile].scale_l/3.08e24/header[ifirstfile].aexp;
+    //adjust velocity scale to that ramses is converted to km/s from which you can convert again;
+    opt.V*=header[ifirstfile].scale_l/header[ifirstfile].scale_t*1e-5;
     mscale=opt.M/opt.h;lscale=opt.L/opt.h*aadjust;lvscale=opt.L/opt.h*opt.a;rhoscale=mscale/(lscale*lscale*lscale);
     //ignore hubble flow
     Hubbleflow=0.;
@@ -484,18 +495,28 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     cout<<"Cosmology (h,Omega_m,Omega_cdm,Omega_b,Omega_L) = ("<< opt.h<<","<<opt.Omega_m<<","<<opt.Omega_cdm<<","<<opt.Omega_b<<","<<opt.Omega_Lambda<<")"<<endl;
     N_DM=opt.numpart[DARKTYPE];
     LN=(opt.p*lscale/pow(N_DM,1.0/3.0));
+
+    //grab from the first particle file the dimensions of the arrays and also the number of cpus (should be number of files)
+    sprintf(buf1,"part_%s.out00001",opt.fname);
+    Fpart[ifirstfile].open(buf1, ios::binary|ios::in);
+    RAMSES_fortran_read(Fpart[ifirstfile],header[ifirstfile].nfiles);
+    RAMSES_fortran_read(Fpart[ifirstfile],header[ifirstfile].ndim);
+    //adjust the number of files 
+    opt.num_files=header[ifirstfile].nfiles;
+    Fpart[ifirstfile].close();
 #ifdef USEMPI
     //now read tasks prepped and can read files to send information
     }
 #endif 
     
+
     //if not only gas being searched open particle data
     count2=bcount2=0;
     if (opt.partsearchtype!=PSTGAS) {
     if (ThisTask<opt.nsnapread) {
     //read particle files consists of positions,velocities, mass, id, and level (along with ages and met if some flags set)
-    for (i=0;i<opt.num_files;i++) {
-        sprintf(buf1,"part_%s.out%05d",opt.fname,i);
+    for (i=0;i<opt.num_files;i++) if (ireadfile[i]) {
+        sprintf(buf1,"part_%s.out%05d",opt.fname,i+1);
         sprintf(buf2,"part_%s.out",opt.fname);
         if (FileExists(buf1)) sprintf(buf,"%s",buf1);
         else if (FileExists(buf2)) sprintf(buf,"%s",buf2);
@@ -514,7 +535,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
         byteoffset+=RAMSES_fortran_skip(Fpart[i]);
         //store number of particles locally in file
         byteoffset+=RAMSES_fortran_read(Fpart[i],header[i].npartlocal);
-        byteoffset+=RAMSES_fortran_skip(Fpart[i],6);
+        byteoffset+=RAMSES_fortran_skip(Fpart[i],5);
 
         //byteoffset now stores size of header offset for particles 
         Fpartvel[i].seekg(byteoffset,ios::cur);
@@ -524,7 +545,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
         Fpartage[i].seekg(byteoffset,ios::cur);
         Fpartmet[i].seekg(byteoffset,ios::cur);
         //skip positions
-        for(n=0;n<header[i].ndim;n++)
+        for(idim=0;idim<header[ifirstfile].ndim;idim++)
         {
             RAMSES_fortran_skip(Fpartvel[i]);
             RAMSES_fortran_skip(Fpartmass[i]);
@@ -534,7 +555,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
             RAMSES_fortran_skip(Fpartmet[i]);
         }
         //skip velocities
-        for(n=0;n<header[i].ndim;n++)
+        for(idim=0;idim<header[ifirstfile].ndim;idim++)
         {
             RAMSES_fortran_skip(Fpartmass[i]);
             RAMSES_fortran_skip(Fpartid[i]);
@@ -566,7 +587,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
         idvalchunk=new RAMSESIDTYPE[chunksize];
         agetempchunk=new RAMSESFLOAT[chunksize];
         mettempchunk=new RAMSESFLOAT[chunksize];
-        for(n=0;n<header[i].ndim;n++)
+        for(idim=0;idim<header[ifirstfile].ndim;idim++)
         {
             RAMSES_fortran_read(Fpart[i],&xtempchunk[idim*nchunk]);
             RAMSES_fortran_read(Fpartvel[i],&vtempchunk[idim*nchunk]);
@@ -847,13 +868,13 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     //if gas searched in some fashion then load amr/hydro data
     if (opt.partsearchtype==PSTGAS||opt.partsearchtype==PSTALL||(opt.partsearchtype==PSTDARK&&opt.iBaryonSearch)) {
     if (ThisTask<opt.nsnapread) {
-    for (i=0;i<opt.num_files;i++) {
-        sprintf(buf1,"amr_.out%s%05d",opt.fname,i);
+    for (i=0;i<opt.num_files;i++) if (ireadfile[i]) {
+        sprintf(buf1,"amr_.out%s%05d",opt.fname,i+1);
         sprintf(buf2,"amr_.out%s",opt.fname);
         if (FileExists(buf1)) sprintf(buf,"%s",buf1);
         else if (FileExists(buf2)) sprintf(buf,"%s",buf2);
         Famr[i].open(buf, ios::binary|ios::in);
-        sprintf(buf1,"hydro_%s.out%05d",opt.fname,i);
+        sprintf(buf1,"hydro_%s.out%05d",opt.fname,i+1);
         sprintf(buf2,"hydro_%s.out",opt.fname);
         if (FileExists(buf1)) sprintf(buf,"%s",buf1);
         else if (FileExists(buf2)) sprintf(buf,"%s",buf2);
@@ -888,7 +909,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
         RAMSES_fortran_read(Fhydro[i],header[i].gamma_index);
         //@}
     }
-    for (i=0;i<opt.num_files;i++) {
+    for (i=0;i<opt.num_files;i++) if (ireadfile[i]) {
         //then apparently read ngridlevels, which appears to be an array storing the number of grids at a given level
         ngridlevel=new int[header[i].nlevelmax];
         ngridfile=new int[(1+header[i].nboundary)*header[i].nlevelmax];
@@ -1166,7 +1187,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
 #endif
     }//end of check if gas loaded
 
-#ifdef USEMPI
-    }
-#endif
+//#ifdef USEMPI
+//    }
+//#endif
 }

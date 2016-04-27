@@ -1564,7 +1564,7 @@ Int_t MPISearchBaryons(const Int_t nbaryons, Particle *&Pbaryons, Int_t *&pfofba
     int tid;
     FOFcompfunc fofcmp=FOF6d;
     Int_t *nnID;
-    Double_t *dist2
+    Double_t *dist2;
     if (NImport>0) {
     //now dark matter particles associated with a group existing on another mpi domain are local and can be searched. 
     KDTree *mpitree=new KDTree(PartDataGet,NImport,nsearch/2,mpitree->TPHYS,mpitree->KEPAN,100,0,0,0,period);
