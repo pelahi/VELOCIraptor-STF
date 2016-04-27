@@ -66,13 +66,22 @@ void MPILoadBalanceSnapshots(Options &opt){
             }
         }
         startsnap[itask]=0;
+        int itaskworkload=0;
         for (itask=0;itask<NProcs;itask++) 
         {
             sum=0;
             for (int i=startsnap[itask];i<endsnap[itask];i++) sum+=numinfo[i];
             cout<<itask<<" will use snaps "<<startsnap[itask]<<" to "<<endsnap[itask]<<" with overlap of "<<opt.numsteps<<" that contains "<<sum<<" item"<<endl;
+            itaskworkload+=(sum>0);
+            if (sum==0) {
+                cerr<<"WARNING : task "<<itask<<" will not analyze any snapshots with current number of MPI threads"<<endl;
+            }
         }
         delete[] numinfo;
+        if (itaskworkload<NProcs) {
+            cerr<<"MPI theads number + number of desired steps less than optimal, only "<<itaskworkload<<" of "<<NProcs<<" running "<<endl;
+            if (itaskworkload<0.75*NProcs) {cerr<<"Exiting, adjust to "<<itaskworkload<<" number of mpi theads "<<endl;MPI_Abort(MPI_COMM_WORLD,1);}
+        }
     }
     //task 0 has finished determining which snapshots a given mpi thread will process
 
