@@ -527,10 +527,15 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
 ///\name Final outputs such as properties and output that can be used to construct merger trees and substructure hierarchy
 //@{
 ///Writes the bulk properties of the substructures
+///\todo need to implement hdf5 output format
+///\todo need to move the header data info to the
 void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
     fstream Fout;
     char fname[1000];
     Int_t ngtot=0, noffset=0;
+
+    PropDataHeader head;
+    /*
     //list the header info
     vector<string> headerdatainfo;
     headerdatainfo.push_back("ID");
@@ -673,8 +678,7 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
     headerdatainfo.push_back("tage_star");
     headerdatainfo.push_back("Zmet_star");
 #endif
-    ///\todo CODE ALTERED SO THAT HEADER IS ALWAYS 4 ints, this file, number of files, number of groups, total number of groups
-    //Int_t noffset=0,ngtot=0;
+    */
     
 #ifdef USEMPI
     sprintf(fname,"%s.properties.%d",opt.outname,ThisTask);
@@ -688,19 +692,26 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
     cout<<"saving property data to "<<fname<<endl;
 
     //write header
-    if (opt.ibinaryout) {
+    if (opt.ibinaryout==1) {
         Fout.open(fname,ios::out|ios::binary);
         Fout.write((char*)&ThisTask,sizeof(int));
         Fout.write((char*)&NProcs,sizeof(int));
         Fout.write((char*)&ngroups,sizeof(Int_t));
         Fout.write((char*)&ngtot,sizeof(Int_t));
+        int hsize=head.headerdatainfo.size();
+        Fout.write((char*)&hsize,sizeof(int));
         ///\todo ADD string containing information of what is in output since this will possibly change with time
+        for (Int_t i=0;i<head.headerdatainfo.size();i++)Fout.write(head.headerdatainfo[i].c_str(),head.headerdatainfo[i].size());
     }
+#ifdef USEHDF
+    else if (opt.ibinary==2) {
+    }
+#endif
     else {
         Fout.open(fname,ios::out);
         Fout<<ThisTask<<" "<<NProcs<<endl;
         Fout<<ngroups<<" "<<ngtot<<endl;
-        for (Int_t i=0;i<headerdatainfo.size();i++) Fout<<headerdatainfo[i]<<"("<<i+1<<") ";Fout<<endl;
+        for (Int_t i=0;i<head.headerdatainfo.size();i++) Fout<<head.headerdatainfo[i]<<"("<<i+1<<") ";Fout<<endl;
         Fout<<setprecision(10);
     }
     //if need to convert from physical back to comoving
@@ -712,54 +723,17 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
     double dvalue;
     int ivalue;
     for (Int_t i=1;i<=ngroups;i++) {
-        if (opt.ibinaryout) {
-            idbound=pdata[i].ibound;
-            Fout.write((char*)&idbound,sizeof(long long));
-            dvalue=pdata[i].gMvir;
-            Fout.write((char*)&dvalue,sizeof(dvalue));
-            ivalue=pdata[i].num;
-            Fout.write((char*)&ivalue,sizeof(ivalue));
-            for (int k=0;k<3;k++) ctemp[k]=pdata[i].gcm[k];
-            Fout.write((char*)ctemp,sizeof(float)*3);
-            for (int k=0;k<3;k++) ctemp[k]=pdata[i].gpos[k];
-            Fout.write((char*)ctemp,sizeof(float)*3);
-            for (int k=0;k<3;k++) ctemp[k]=pdata[i].gcmvel[k];
-            Fout.write((char*)ctemp,sizeof(float)*3);
-            for (int k=0;k<3;k++) ctemp[k]=pdata[i].gvel[k];
-            Fout.write((char*)ctemp,sizeof(float)*3);
-            value=pdata[i].gRvir;
-            Fout.write((char*)&value,sizeof(value));
-            value=pdata[i].gRmbp;
-            Fout.write((char*)&value,sizeof(value));
-            value=pdata[i].gRmaxvel;
-            Fout.write((char*)&value,sizeof(value));
-            value=pdata[i].gmaxvel;
-            Fout.write((char*)&value,sizeof(value));
-            value=pdata[i].gsigma_v;
-            Fout.write((char*)&value,sizeof(value));
-            for (int k=0;k<3;k++) ctemp[k]=pdata[i].gJ[k];
-            Fout.write((char*)ctemp,sizeof(float)*3);
-            value=pdata[i].gq;
-            Fout.write((char*)&value,sizeof(value));
-            value=pdata[i].gs;
-            Fout.write((char*)&value,sizeof(value));
-            for (int k=0;k<3;k++) for (int n=0;n<3;n++) mtemp[k*3+n]=pdata[i].geigvec(k,n);
-            Fout.write((char*)mtemp,sizeof(float)*9);
-            //afterwards would be padding for 8 more floats (chars), add extra stuff like total mass, mass enclosed in Rmax, T, Pot, Efrac
-            dvalue=pdata[i].gmass;
-            Fout.write((char*)&dvalue,sizeof(dvalue));
-            dvalue=pdata[i].gMmaxvel;
-            Fout.write((char*)&dvalue,sizeof(dvalue));
-            value=pdata[i].T;
-            Fout.write((char*)&value,sizeof(value));
-            value=pdata[i].Pot;
-            Fout.write((char*)&value,sizeof(value));
-            value=pdata[i].Efrac;
-            Fout.write((char*)&value,sizeof(value));
-            value=0;
-            for (int k=0;k<1;k++) Fout.write((char*)&value,sizeof(value));//for fact that 2*2*4+3*4
+        if (opt.ibinaryout==1) {
+            pdata[i].WriteBinary(Fout);
         }
+#ifdef USEHDF
+        else if (opt.ibinary==2) {
+            pdata[i].WriteHDF(Fout);
+        }
+#endif
         else {
+            pdata[i].WriteAscii(Fout);
+            /*
             Fout<<pdata[i].haloid<<" ";
             Fout<<pdata[i].ibound<<" ";
             Fout<<pdata[i].hostid<<" ";
@@ -832,6 +806,7 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
             Fout<<pdata[i].Z_star<<" ";
 #endif
             Fout<<endl;
+            */
         }
     }
     cout<<"Done"<<endl;

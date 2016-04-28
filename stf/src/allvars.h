@@ -551,7 +551,7 @@ struct GridCell
     }
 };
 
-/*! structure stores bulk properties specifically
+/*! structure stores bulk properties like
     \f$ m,\ (x,y,z)_{\rm cm},\ (vx,vy,vz)_{\rm cm},\ V_{\rm max},\ R_{\rm max}, \f$
     which is calculated in \ref substructureproperties.cxx
 */
@@ -741,6 +741,450 @@ struct PropData
 #endif
 #ifdef BHON
         M_bh*=opt.h;
+#endif
+    }
+
+    void WriteBinary(fstream &Fout){
+        long unsigned idval;
+        unsigned int ival;
+        double val, val3[3],val9[9];
+        idval=haloid;
+        Fout.write((char*)&idval,sizeof(idval));
+        idval=ibound;
+        Fout.write((char*)&idval,sizeof(idval));
+        idval=hostid;
+        Fout.write((char*)&idval,sizeof(idval));
+        ival=numsubs;
+        Fout.write((char*)&ival,sizeof(ival));
+        idval=num;
+        Fout.write((char*)&idval,sizeof(idval));
+        
+        val=gMvir;
+        Fout.write((char*)&val,sizeof(val));
+ 
+        for (int k=0;k<3;k++) val3[k]=gcm[k];
+        Fout.write((char*)val3,sizeof(val)*3);
+        for (int k=0;k<3;k++) val3[k]=gpos[k];
+        Fout.write((char*)val3,sizeof(val)*3);
+        for (int k=0;k<3;k++) val3[k]=gcmvel[k];
+        Fout.write((char*)val3,sizeof(val)*3);
+        for (int k=0;k<3;k++) val3[k]=gvel[k];
+        Fout.write((char*)val3,sizeof(val)*3);
+
+        val=gmass;
+        Fout.write((char*)&val,sizeof(val));
+        val=gMFOF;
+        Fout.write((char*)&val,sizeof(val));
+        val=gM200m;
+        Fout.write((char*)&val,sizeof(val));
+        val=gM200c;
+        Fout.write((char*)&val,sizeof(val));
+        val=gMvir;
+        Fout.write((char*)&val,sizeof(val));
+
+        val=Efrac;
+        Fout.write((char*)&val,sizeof(val));
+
+        val=gRvir;
+        Fout.write((char*)&val,sizeof(val));
+        val=gsize;
+        Fout.write((char*)&val,sizeof(val));
+        val=gR200m;
+        Fout.write((char*)&val,sizeof(val));
+        val=gR200c;
+        Fout.write((char*)&val,sizeof(val));
+        val=gRvir;
+        Fout.write((char*)&val,sizeof(val));
+        val=gRhalfmass;
+        Fout.write((char*)&val,sizeof(val));
+        val=gRmaxvel;
+        Fout.write((char*)&val,sizeof(val));
+
+        val=gmaxvel;
+        Fout.write((char*)&val,sizeof(val));
+        val=gsigma_v;
+        Fout.write((char*)&val,sizeof(val));
+        for (int k=0;k<3;k++) for (int n=0;n<3;n++) val9[k*3+n]=gveldisp(k,n);
+        Fout.write((char*)val9,sizeof(val)*9);
+
+        val=glambda_B;
+        Fout.write((char*)&val,sizeof(val));
+        for (int k=0;k<3;k++) val3[k]=gJ[k];
+        Fout.write((char*)val3,sizeof(val)*3);
+
+        val=gq;
+        Fout.write((char*)&val,sizeof(val));
+        val=gs;
+        Fout.write((char*)&val,sizeof(val));
+        for (int k=0;k<3;k++) for (int n=0;n<3;n++) val9[k*3+n]=geigvec(k,n);
+        Fout.write((char*)val9,sizeof(val)*9);
+
+        val=cNFW;
+        Fout.write((char*)&val,sizeof(val));
+        val=Krot;
+        Fout.write((char*)&val,sizeof(val));
+        val=T;
+        Fout.write((char*)&val,sizeof(val));
+        val=Pot;
+        Fout.write((char*)&val,sizeof(val));
+
+#ifdef GASON
+        idval=n_gas;
+        Fout.write((char*)&idval,sizeof(idval));
+        val=M_gas;
+        Fout.write((char*)&val,sizeof(val));
+
+        for (int k=0;k<3;k++) val3[k]=cm_gas[k];
+        Fout.write((char*)val3,sizeof(val)*3);
+        for (int k=0;k<3;k++) val3[k]=cmvel_gas[k];
+        Fout.write((char*)val3,sizeof(val)*3);
+
+        val=Efrac_gas;
+        Fout.write((char*)&val,sizeof(val));
+
+        val=Rhalfmass_gas;
+        Fout.write((char*)&val,sizeof(val));
+
+        for (int k=0;k<3;k++) for (int n=0;n<3;n++) val9[k*3+n]=veldisp_gas(k,n);
+        Fout.write((char*)val9,sizeof(val)*9);
+
+        for (int k=0;k<3;k++) val3[k]=L_gas[k];
+        Fout.write((char*)val3,sizeof(val)*3);
+
+        val=q_gas;
+        Fout.write((char*)&val,sizeof(val));
+        val=s_gas;
+        Fout.write((char*)&val,sizeof(val));
+        for (int k=0;k<3;k++) for (int n=0;n<3;n++) val9[k*3+n]=eigvec_gas(k,n);
+        Fout.write((char*)val9,sizeof(val)*9);
+
+        val=Krot_gas;
+        Fout.write((char*)&val,sizeof(val));
+        val=Temp_gas;
+        Fout.write((char*)&val,sizeof(val));
+
+#ifdef STARON
+        val=Z_gas;
+        Fout.write((char*)&val,sizeof(val));
+        val=SFR_gas;
+        Fout.write((char*)&val,sizeof(val));
+#endif
+#endif
+
+#ifdef STARON
+        idval=n_star;
+        Fout.write((char*)&idval,sizeof(idval));
+        val=M_star;
+        Fout.write((char*)&val,sizeof(val));
+
+        for (int k=0;k<3;k++) val3[k]=cm_star[k];
+        Fout.write((char*)val3,sizeof(val)*3);
+        for (int k=0;k<3;k++) val3[k]=cmvel_star[k];
+        Fout.write((char*)val3,sizeof(val)*3);
+
+        val=Efrac_star;
+        Fout.write((char*)&val,sizeof(val));
+
+        val=Rhalfmass_star;
+        Fout.write((char*)&val,sizeof(val));
+
+        for (int k=0;k<3;k++) for (int n=0;n<3;n++) val9[k*3+n]=veldisp_star(k,n);
+        Fout.write((char*)val9,sizeof(val)*9);
+
+        for (int k=0;k<3;k++) val3[k]=L_star[k];
+        Fout.write((char*)val3,sizeof(val)*3);
+
+        val=q_star;
+        Fout.write((char*)&val,sizeof(val));
+        val=s_star;
+        Fout.write((char*)&val,sizeof(val));
+        for (int k=0;k<3;k++) for (int n=0;n<3;n++) val9[k*3+n]=eigvec_star(k,n);
+        Fout.write((char*)val9,sizeof(val)*9);
+
+        val=Krot_star;
+        Fout.write((char*)&val,sizeof(val));
+        val=t_star;
+        Fout.write((char*)&val,sizeof(val));
+        val=Z_star;
+        Fout.write((char*)&val,sizeof(val));
+
+#endif
+
+        /*
+        idbound=pdata[i].ibound;
+        Fout.write((char*)&idbound,sizeof(long long));
+        dvalue=pdata[i].gMvir;
+        Fout.write((char*)&dvalue,sizeof(dvalue));
+        ivalue=pdata[i].num;
+        Fout.write((char*)&ivalue,sizeof(ivalue));
+        for (int k=0;k<3;k++) ctemp[k]=pdata[i].gcm[k];
+        Fout.write((char*)ctemp,sizeof(float)*3);
+        for (int k=0;k<3;k++) ctemp[k]=pdata[i].gpos[k];
+        Fout.write((char*)ctemp,sizeof(float)*3);
+        for (int k=0;k<3;k++) ctemp[k]=pdata[i].gcmvel[k];
+        Fout.write((char*)ctemp,sizeof(float)*3);
+        for (int k=0;k<3;k++) ctemp[k]=pdata[i].gvel[k];
+        Fout.write((char*)ctemp,sizeof(float)*3);
+        value=pdata[i].gRvir;
+        Fout.write((char*)&value,sizeof(value));
+        value=pdata[i].gRmbp;
+        Fout.write((char*)&value,sizeof(value));
+        value=pdata[i].gRmaxvel;
+        Fout.write((char*)&value,sizeof(value));
+        value=pdata[i].gmaxvel;
+        Fout.write((char*)&value,sizeof(value));
+        value=pdata[i].gsigma_v;
+        Fout.write((char*)&value,sizeof(value));
+        for (int k=0;k<3;k++) ctemp[k]=pdata[i].gJ[k];
+        Fout.write((char*)ctemp,sizeof(float)*3);
+        value=pdata[i].gq;
+        Fout.write((char*)&value,sizeof(value));
+        value=pdata[i].gs;
+        Fout.write((char*)&value,sizeof(value));
+        for (int k=0;k<3;k++) for (int n=0;n<3;n++) mtemp[k*3+n]=pdata[i].geigvec(k,n);
+        Fout.write((char*)mtemp,sizeof(float)*9);
+        //afterwards would be padding for 8 more floats (chars), add extra stuff like total mass, mass enclosed in Rmax, T, Pot, Efrac
+        dvalue=pdata[i].gmass;
+        Fout.write((char*)&dvalue,sizeof(dvalue));
+        dvalue=pdata[i].gMmaxvel;
+        Fout.write((char*)&dvalue,sizeof(dvalue));
+        value=pdata[i].T;
+        Fout.write((char*)&value,sizeof(value));
+        value=pdata[i].Pot;
+        Fout.write((char*)&value,sizeof(value));
+        value=pdata[i].Efrac;
+        Fout.write((char*)&value,sizeof(value));
+        value=0;
+        for (int k=0;k<1;k++) Fout.write((char*)&value,sizeof(value));//for fact that 2*2*4+3*4
+        */
+    }
+    
+    void WriteAscii(fstream &Fout){
+        Fout<<haloid<<" ";
+        Fout<<ibound<<" ";
+        Fout<<hostid<<" ";
+        Fout<<numsubs<<" ";
+        Fout<<num<<" ";
+        Fout<<gMvir<<" ";
+        for (int k=0;k<3;k++) Fout<<gcm[k]<<" ";
+        for (int k=0;k<3;k++) Fout<<gpos[k]<<" ";
+        for (int k=0;k<3;k++) Fout<<gcmvel[k]<<" ";
+        for (int k=0;k<3;k++) Fout<<gvel[k]<<" ";
+        Fout<<gmass<<" ";
+        Fout<<gMFOF<<" ";
+        Fout<<gM200m<<" ";
+        Fout<<gM200c<<" ";
+        Fout<<gMvir<<" ";
+        Fout<<Efrac<<" ";
+        Fout<<gRvir<<" ";
+        Fout<<gsize<<" ";
+        Fout<<gR200m<<" ";
+        Fout<<gR200c<<" ";
+        Fout<<gRvir<<" ";
+        Fout<<gRhalfmass<<" ";
+        Fout<<gRmaxvel<<" ";
+        Fout<<gmaxvel<<" ";
+        Fout<<gsigma_v<<" ";
+        for (int k=0;k<3;k++) for (int n=0;n<3;n++) Fout<<gveldisp(k,n)<<" ";
+        Fout<<glambda_B<<" ";
+        for (int k=0;k<3;k++) Fout<<gJ[k]<<" ";
+        Fout<<gq<<" ";
+        Fout<<gs<<" ";
+        for (int k=0;k<3;k++) for (int n=0;n<3;n++) Fout<<geigvec(k,n)<<" ";
+        Fout<<cNFW<<" ";
+        Fout<<Krot<<" ";
+        Fout<<T<<" ";
+        Fout<<Pot<<" ";
+#ifdef GASON
+        Fout<<n_gas<<" ";
+        Fout<<M_gas<<" ";
+        for (int k=0;k<3;k++) Fout<<cm_gas[k]<<" ";
+        for (int k=0;k<3;k++) Fout<<cmvel_gas[k]<<" ";
+        Fout<<Efrac_gas<<" ";
+        Fout<<Rhalfmass_gas<<" ";
+        for (int k=0;k<3;k++) for (int n=0;n<3;n++) Fout<<veldisp_gas(k,n)<<" ";
+        for (int k=0;k<3;k++) Fout<<L_gas[k]<<" ";
+        Fout<<q_gas<<" ";
+        Fout<<s_gas<<" ";
+        for (int k=0;k<3;k++) for (int n=0;n<3;n++) Fout<<eigvec_gas(k,n)<<" ";
+        Fout<<Krot_gas<<" ";
+        Fout<<Temp_gas<<" ";
+#ifdef STARON
+        Fout<<Z_gas<<" ";
+        Fout<<SFR_gas<<" ";
+#endif
+#endif
+
+#ifdef STARON
+        Fout<<n_star<<" ";
+        Fout<<M_star<<" ";
+        for (int k=0;k<3;k++) Fout<<cm_star[k]<<" ";
+        for (int k=0;k<3;k++) Fout<<cmvel_star[k]<<" ";
+        Fout<<Efrac_star<<" ";
+        Fout<<Rhalfmass_star<<" ";
+        for (int k=0;k<3;k++) for (int n=0;n<3;n++) Fout<<veldisp_star(k,n)<<" ";
+        for (int k=0;k<3;k++) Fout<<L_star[k]<<" ";
+        Fout<<q_star<<" ";
+        Fout<<s_star<<" ";
+        for (int k=0;k<3;k++) for (int n=0;n<3;n++) Fout<<eigvec_star(k,n)<<" ";
+        Fout<<Krot_star<<" ";
+        Fout<<t_star<<" ";
+        Fout<<Z_star<<" ";
+#endif
+        Fout<<endl;
+    }
+#ifdef USEHDF
+    void WriteHDF(fstream &Fout){};
+#endif 
+};
+
+/*! Structures stores header info of the data writen by the \ref PropData data structure, 
+    specifically the \ref PropData::WriteBinary, \ref PropData::WriteAscii, \ref PropData::WriteHDF routines
+    Must ensure that these routines are all altered together so that the io makes sense.
+*/
+struct PropDataHeader{
+    //list the header info
+    vector<string> headerdatainfo;
+    PropDataHeader(){
+        headerdatainfo.push_back("ID");
+        headerdatainfo.push_back("ID_mbp");
+        headerdatainfo.push_back("hostHaloID");
+        headerdatainfo.push_back("numSubStruct");
+        headerdatainfo.push_back("npart");
+        headerdatainfo.push_back("Mvir");
+        headerdatainfo.push_back("Xc");
+        headerdatainfo.push_back("Yc");
+        headerdatainfo.push_back("Zc");
+        headerdatainfo.push_back("Xcmbp");
+        headerdatainfo.push_back("Ycmbp");
+        headerdatainfo.push_back("Zcmbp");
+        headerdatainfo.push_back("VXc");
+        headerdatainfo.push_back("VYc");
+        headerdatainfo.push_back("VZc");
+        headerdatainfo.push_back("VXcmbp");
+        headerdatainfo.push_back("VYcmbp");
+        headerdatainfo.push_back("VZcmbp");
+        headerdatainfo.push_back("Mass_tot");
+        headerdatainfo.push_back("Mass_FOF");
+        headerdatainfo.push_back("Mass_200mean");
+        headerdatainfo.push_back("Mass_200crit");
+        headerdatainfo.push_back("Mass_BN97");
+        headerdatainfo.push_back("Efrac");
+        headerdatainfo.push_back("Rvir");
+        headerdatainfo.push_back("R_size");
+        headerdatainfo.push_back("R_200mean");
+        headerdatainfo.push_back("R_200crit");
+        headerdatainfo.push_back("R_BN97");
+        headerdatainfo.push_back("R_HalfMass");
+        headerdatainfo.push_back("Rmax");
+        headerdatainfo.push_back("Vmax");
+        headerdatainfo.push_back("sigV");
+        headerdatainfo.push_back("veldisp_xx");
+        headerdatainfo.push_back("veldisp_xy");
+        headerdatainfo.push_back("veldisp_xz");
+        headerdatainfo.push_back("veldisp_yx");
+        headerdatainfo.push_back("veldisp_yy");
+        headerdatainfo.push_back("veldisp_yz");
+        headerdatainfo.push_back("veldisp_zx");
+        headerdatainfo.push_back("veldisp_zy");
+        headerdatainfo.push_back("veldisp_zz");
+        headerdatainfo.push_back("lambda_B");
+        headerdatainfo.push_back("Lx");
+        headerdatainfo.push_back("Ly");
+        headerdatainfo.push_back("Lz");
+        headerdatainfo.push_back("q");
+        headerdatainfo.push_back("s");
+        headerdatainfo.push_back("eig_xx");
+        headerdatainfo.push_back("eig_xy");
+        headerdatainfo.push_back("eig_xz");
+        headerdatainfo.push_back("eig_yx");
+        headerdatainfo.push_back("eig_yy");
+        headerdatainfo.push_back("eig_yz");
+        headerdatainfo.push_back("eig_zx");
+        headerdatainfo.push_back("eig_zy");
+        headerdatainfo.push_back("eig_zz");
+        headerdatainfo.push_back("cNFW");
+        headerdatainfo.push_back("Krot");
+        headerdatainfo.push_back("Ekin");
+        headerdatainfo.push_back("Epot");
+#ifdef GASON
+        headerdatainfo.push_back("n_gas");
+        headerdatainfo.push_back("M_gas");
+        headerdatainfo.push_back("Xc_gas");
+        headerdatainfo.push_back("Yc_gas");
+        headerdatainfo.push_back("Zc_gas");
+        headerdatainfo.push_back("VXc_gas");
+        headerdatainfo.push_back("VYc_gas");
+        headerdatainfo.push_back("VZc_gas");
+        headerdatainfo.push_back("Efrac_gas");
+        headerdatainfo.push_back("R_HalfMass_gas");
+        headerdatainfo.push_back("veldisp_xx_gas");
+        headerdatainfo.push_back("veldisp_xy_gas");
+        headerdatainfo.push_back("veldisp_xz_gas");
+        headerdatainfo.push_back("veldisp_yx_gas");
+        headerdatainfo.push_back("veldisp_yy_gas");
+        headerdatainfo.push_back("veldisp_yz_gas");
+        headerdatainfo.push_back("veldisp_zx_gas");
+        headerdatainfo.push_back("veldisp_zy_gas");
+        headerdatainfo.push_back("veldisp_zz_gas");
+        headerdatainfo.push_back("Lx_gas");
+        headerdatainfo.push_back("Ly_gas");
+        headerdatainfo.push_back("Lz_gas");
+        headerdatainfo.push_back("q_gas");
+        headerdatainfo.push_back("s_gas");
+        headerdatainfo.push_back("eig_xx_gas");
+        headerdatainfo.push_back("eig_xy_gas");
+        headerdatainfo.push_back("eig_xz_gas");
+        headerdatainfo.push_back("eig_yx_gas");
+        headerdatainfo.push_back("eig_yy_gas");
+        headerdatainfo.push_back("eig_yz_gas");
+        headerdatainfo.push_back("eig_zx_gas");
+        headerdatainfo.push_back("eig_zy_gas");
+        headerdatainfo.push_back("eig_zz_gas");
+        headerdatainfo.push_back("Krot_gas");
+        headerdatainfo.push_back("T_gas");
+#ifdef STARON
+        headerdatainfo.push_back("Zmet_gas");
+        headerdatainfo.push_back("SFR_gas");
+#endif
+#endif
+#ifdef STARON
+        headerdatainfo.push_back("n_star");
+        headerdatainfo.push_back("M_star");
+        headerdatainfo.push_back("Xc_star");
+        headerdatainfo.push_back("Yc_star");
+        headerdatainfo.push_back("Zc_star");
+        headerdatainfo.push_back("VXc_star");
+        headerdatainfo.push_back("VYc_star");
+        headerdatainfo.push_back("VZc_star");
+        headerdatainfo.push_back("Efrac_star");
+        headerdatainfo.push_back("R_HalfMass_star");
+        headerdatainfo.push_back("veldisp_xx_star");
+        headerdatainfo.push_back("veldisp_xy_star");
+        headerdatainfo.push_back("veldisp_xz_star");
+        headerdatainfo.push_back("veldisp_yx_star");
+        headerdatainfo.push_back("veldisp_yy_star");
+        headerdatainfo.push_back("veldisp_yz_star");
+        headerdatainfo.push_back("veldisp_zx_star");
+        headerdatainfo.push_back("veldisp_zy_star");
+        headerdatainfo.push_back("veldisp_zz_star");
+        headerdatainfo.push_back("Lx_star");
+        headerdatainfo.push_back("Ly_star");
+        headerdatainfo.push_back("Lz_star");
+        headerdatainfo.push_back("q_star");
+        headerdatainfo.push_back("s_star");
+        headerdatainfo.push_back("eig_xx_star");
+        headerdatainfo.push_back("eig_xy_star");
+        headerdatainfo.push_back("eig_xz_star");
+        headerdatainfo.push_back("eig_yx_star");
+        headerdatainfo.push_back("eig_yy_star");
+        headerdatainfo.push_back("eig_yz_star");
+        headerdatainfo.push_back("eig_zx_star");
+        headerdatainfo.push_back("eig_zy_star");
+        headerdatainfo.push_back("eig_zz_star");
+        headerdatainfo.push_back("Krot_star");
+        headerdatainfo.push_back("tage_star");
+        headerdatainfo.push_back("Zmet_star");
 #endif
     }
 };
