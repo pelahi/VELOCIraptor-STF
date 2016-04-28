@@ -431,10 +431,10 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
         for(k=0,count2=count,bcount2=bcount,pc_new=pc;k<NGTYPE;k++)
         {
             if (k==GGASTYPE) {
-                if ((opt.partsearchtype==PSTGAS || (opt.partsearchtype==PSTDARK && opt.iBaryonSearch==1))) {
+                if ((opt.partsearchtype==PSTALL || opt.partsearchtype==PSTGAS || (opt.partsearchtype==PSTDARK && opt.iBaryonSearch==1))) {
                 for(n=0;n<header[i].npart[k];n++) {
                     Fgad[i].read((char*)&ctemp[0], sizeof(FLOAT));
-                    if (opt.partsearchtype==PSTALL) {
+                    if (opt.partsearchtype==PSTALL || opt.partsearchtype==PSTGAS) {
 #ifdef GASON
                         Part[count2].SetU(ctemp[0]);
 #endif
@@ -467,10 +467,10 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
         for(k=0,count2=count,bcount2=bcount,pc_new=pc;k<NGTYPE;k++)
         {
             if (k==GGASTYPE) {
-                if ((opt.partsearchtype==PSTGAS || (opt.partsearchtype==PSTDARK && opt.iBaryonSearch==1))) {
+                if ((opt.partsearchtype==PSTALL || opt.partsearchtype==PSTGAS || (opt.partsearchtype==PSTDARK && opt.iBaryonSearch==1))) {
                 for(n=0;n<header[i].npart[k];n++) {
                     Fgad[i].read((char*)&ctemp[0], sizeof(FLOAT));
-                    if (opt.partsearchtype==PSTALL) {
+                    if (opt.partsearchtype==PSTALL || opt.partsearchtype==PSTGAS) {
                         Part[count2].SetSPHDen(ctemp[0]);
                         count2++;
                     }
@@ -508,10 +508,10 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
         for(k=0,count2=count,bcount2=bcount,pc_new=pc;k<NGTYPE;k++)
         {
             if (k==GGASTYPE) {
-                if ((opt.partsearchtype==PSTGAS || (opt.partsearchtype==PSTDARK && opt.iBaryonSearch==1))) {
+                if ((opt.partsearchtype==PSTALL || opt.partsearchtype==PSTGAS || (opt.partsearchtype==PSTDARK && opt.iBaryonSearch==1))) {
                 for(n=0;n<header[i].npart[k];n++) {
                     Fgad[i].read((char*)&ctemp[0], sizeof(FLOAT));
-                    if (opt.partsearchtype==PSTALL) {
+                    if (opt.partsearchtype==PSTALL || opt.partsearchtype==PSTGAS) {
 #ifdef STARON
                         Part[count2].SetSFR(ctemp[0]);
 #endif
