@@ -676,7 +676,7 @@ void IDcheck(Options &opt, HaloTreeData *&pht){
         for (Int_t j=0;j<pht[i].numhalos;j++) {
             for (Int_t k=0;k<pht[i].Halo[j].NumberofParticles;k++) 
                 if (pht[i].Halo[j].ParticleID[k]<0||pht[i].Halo[j].ParticleID[k]>opt.NumPart) {
-                    cout<<ThisTask<<" for snapshot "<<i<<" particle id out of range "<<pht[i].Halo[j].ParticleID[k]<<" not in [0,"<<opt.NumPart<<")"<<endl;
+                    cout<<"snapshot "<<i<<" particle id out of range "<<pht[i].Halo[j].ParticleID[k]<<" not in [0,"<<opt.NumPart<<")"<<endl;
                     ierrorflag=1;
                     break;
                 }
