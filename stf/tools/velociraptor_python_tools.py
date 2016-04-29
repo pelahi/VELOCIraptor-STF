@@ -33,11 +33,11 @@ def ReadPropertyFile(basefilename,ibinary=0,iverbose=0):
     start = time.clock()
     if (iverbose): print "reading properties file"
     #load header
-    if (path.isfile(basefilename)):
+    if (os.path.isfile(basefilename)):
         filename=basefilename
     else:
         filename=basefilename+".0"
-        if (path.isfile(filename)==False):
+        if (os.path.isfile(filename)==False):
             print "file not found"
             return []
     byteoffset=0
