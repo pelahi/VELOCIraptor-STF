@@ -754,8 +754,8 @@ struct PropData
         Fout.write((char*)&idval,sizeof(idval));
         idval=hostid;
         Fout.write((char*)&idval,sizeof(idval));
-        ival=numsubs;
-        Fout.write((char*)&ival,sizeof(ival));
+        idval=numsubs;
+        Fout.write((char*)&idval,sizeof(idval));
         idval=num;
         Fout.write((char*)&idval,sizeof(idval));
         

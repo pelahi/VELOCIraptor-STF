@@ -532,7 +532,8 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
 void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
     fstream Fout;
     char fname[1000];
-    Int_t ngtot=0, noffset=0;
+    char buf[40];
+    long unsigned ngtot=0, noffset=0, ng=ngroups;
 
     PropDataHeader head;
     /*
@@ -696,12 +697,15 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         Fout.open(fname,ios::out|ios::binary);
         Fout.write((char*)&ThisTask,sizeof(int));
         Fout.write((char*)&NProcs,sizeof(int));
-        Fout.write((char*)&ngroups,sizeof(Int_t));
-        Fout.write((char*)&ngtot,sizeof(Int_t));
+        Fout.write((char*)&n,sizeof(long unsigned));
+        Fout.write((char*)&ngtot,sizeof(long unsigned));
         int hsize=head.headerdatainfo.size();
         Fout.write((char*)&hsize,sizeof(int));
         ///\todo ADD string containing information of what is in output since this will possibly change with time
-        for (Int_t i=0;i<head.headerdatainfo.size();i++)Fout.write(head.headerdatainfo[i].c_str(),head.headerdatainfo[i].size());
+        for (Int_t i=0;i<head.headerdatainfo.size();i++) {
+            copy(buf,head.headerdatainfo[i].c_str());
+            Fout.write(buf,sizeof(char)*40);
+        }
     }
 #ifdef USEHDF
     else if (opt.ibinary==2) {
