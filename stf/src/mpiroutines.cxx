@@ -1608,6 +1608,8 @@ private(i,j,k,tid,p1,pindex,x1,D2,dval,rval,nnID,dist2)
         }
         nexport+=(mpi_foftask[i]!=ThisTask);
     }
+    delete[] nnID;
+    delete[] dist2;
 #ifdef USEOPENMP
 }
 #endif 
