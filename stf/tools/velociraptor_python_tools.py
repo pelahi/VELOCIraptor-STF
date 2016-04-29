@@ -1,4 +1,4 @@
-import sys,os,string,time,re,struct
+import sys,os,os.path,string,time,re,struct
 import math,operator
 from pylab import *
 import numpy as np
@@ -47,7 +47,7 @@ def ReadPropertyFile(basefilename,ibinary=0,iverbose=0):
         filenum=int(filenum);numfiles=int(numfiles)
         [numhalos, numtothalos]= halofile.readline().split()
         numhalos=int(numhalos);numtothalos=int(numtothalos)
-        fieldnames = ((halofile.readline())[1:]).split()
+        fieldnames = ((halofile.readline())).split()
         halofile.close()
     elif (ibinary==1):
         halofile = open(filename, 'rb')
@@ -56,7 +56,6 @@ def ReadPropertyFile(basefilename,ibinary=0,iverbose=0):
         headersize=np.fromfile(halofile,dtype=np.int32,count=1)[0]
         fieldnames=[]
         byteoffset=np.dtype(np.int32).itemsize*3+np.dtype(np.uint64).itemsize*2+4*headersize
-        
         for i in range(headersize):
             fieldnames.append(unpack('s', halofile.read(CHARSIZE)).strip())
         for i in np.arange(fieldnames.__len__()):
@@ -64,14 +63,13 @@ def ReadPropertyFile(basefilename,ibinary=0,iverbose=0):
                 dt.append((fieldname,np.uint64))
             else:
                 dt.append((fieldname,np.float64))
-                
-            
         halofile.close()
 
     for ifile in range(numfiles):
         #produce dictionary
         if (numfiles==0): filename=basefilename
         else: filename=basefilename+"."+str(ifile)
+        if (iverbose) : print "reading ",filename
         if (ifile==0): 
             catalog = dict()
             if (ibinary==0): halos = np.loadtxt(filename,skiprows=3)
@@ -84,15 +82,17 @@ def ReadPropertyFile(basefilename,ibinary=0,iverbose=0):
             elif(ibinary==1):
                 halofile = open(filename, 'rb')
                 halofile.seek(byteoffset);
-                halos=np.fromfile(halofile,dtype=dt)
-            halos=np.append(halos,htemp)
+                htemp=np.fromfile(halofile,dtype=dt)
+            halos=np.append(halos,htemp,axis=0)
 
     #load halos
     for i in np.arange(fieldnames.__len__()):
         fieldname = fieldnames[i].split("(")[0]
         catalog[fieldname] = halos[:,i]
-        if fieldname in ["ID","hostHalo","numSubStruct","npart","n_gas","n_star"]:
-            catalog[fieldname] = int64(cat[fieldname].round())
+        #only correct data format for ascii loading
+        if (ibinary==0):
+            if fieldname in ["ID","hostHalo","numSubStruct","npart","n_gas","n_star"]:
+                catalog[fieldname] = int64(catalog[fieldname].round())
             
     if (iverbose): print "done reading properties file ",time.clock()-start
     return catalog,numtothalos
@@ -147,75 +147,5 @@ def BuildHierarchy(halodata,iverbose=0):
             halohierarchy[hid]=np.append(halohierarchy[hid],halohierarchy[k])
     if (iverbose): print "hierarchy set in read in ",time.clock()-start
     return halohierarchy
-
-def getselectedhalos(iselflag,halolist,halodata,halohierarchy,radcut=0,pos=[],iverbose=0):
-    """
-    Parse a list of halos to select subhaloes, halos within a given radius, or other criteria to select specific halos the population of halos
-    implemented selection are 
-        select subhaloes of a given halo, ISUBSEL=0
-        select subhaloes of a given halo within some radius, ISUBRADEL=1
-        select haloes within a given radius to some position, IRADSEL=2
-    
-    """
-
-    #defined constants in selection
-    ISUBSEL=0
-    ISUBRADEL=1
-    IRADSEL=2
-
-    selectedhalos=[]
-    if (iselflag==ISUBSEL):
-        for nn in range(len(halolist)):
-        for j in range(0,len(halohierarchy[halolist[nn]])):
-            haloid=halohierarchy[halolist[nn]][j]
-            #could add in other selections like
-            #if (halodata["npart"][haloid]-halodata["n_gas"][haloid]-halodata["n_star"][haloid]>=NDMSELCUT):
-            #    selectedhalos.append(haloid)
-            selectedhalos.append(haloid)
-    elif (iselflag==ISUBRADSEL):
-        for j in range(0,len(halohierarchy[halolist[nn]])):
-            haloid=halohierarchy[halolist[nn]][j]
-            rad1=0
-            rad1+=np.power(halodata["Xc"][haloid]-halodata["Xc"][halolist[nn]],2.0)
-            rad1+=np.power(halodata["Yc"][haloid]-halodata["Yc"][halolist[nn]],2.0)
-            rad1+=np.power(halodata["Zc"][haloid]-halodata["Zc"][halolist[nn]],2.0)
-            if (np.sqrt(rad1)<radcut):
-                selectedhalos.append(haloid)
-    elif (iselflag==IRADSEL):
-        for j in range(1,len(halodata["Mvir"])):
-            haloid=j
-            rad1=0
-            rad1+=np.power(halodata["Xc"][haloid]-pos[0],2.0)
-            rad1+=np.power(halodata["Yc"][haloid]-pos[1],2.0)
-            rad1+=np.power(halodata["Zc"][haloid]-pos[2],2.0)
-            if (np.sqrt(rad1)<radcut):
-                selectedhalos.append(haloid)
-    if (iverbose):
-        print "selecting all halos ",
-        if (iselflag==ISUBSEL): print "using all subhaloes in FOF envelop",
-        elif (iselflag==ISUBRADSEL): print "using all subhaloes in FOF envelop within R= ",radcut
-        elif (iselflag==IRADSEL): print "using all (sub)haloes within R= ",radcut
-        print "giving N_sel= ",len(selectedhalos)
-    return selectedhalos
-
-
-"""
-Example code for plotting a cumulative mass function
-"""
-#allocate figure 
-fig1=figure()
-fig1.clf()
-fig1.subplots_adjust(hspace=0.0,wspace=0.0)
-
-halolist=[1]
-selectedhalos=getselectedhalos(0,halolist)
-for nn in range(len(halolist)):
-    for haloid in selectedhalos:
-        xval1=halodata["Mvir"][haloid]/halodata["Mvir"][halolist[nn]]
-        bdata.append(xval1)
-        bidx=reversed(np.argsort(bdata))
-        xdata=[bdata[bi] for bi in bidx][::-1]
-        ydata=np.arange(1,len(bdata)+1)[::-1]
-        #then could plot stuff
 
 

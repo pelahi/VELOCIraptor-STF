@@ -8,7 +8,7 @@
 #include "allvars.h"
 #include "proto.h"
 
-#define STFVERSION 1.13
+#define STFVERSION 1.14
 
 #endif
 
@@ -22,10 +22,10 @@
 /*! 
 \mainpage  Reference documentation for VELOCIraptor (aka STF)
 \author Pascal J. Elahi \n
-        Sydney Institute for Astronomy \n
-        University of Sydney \n
-        Sydney, NSW, Australia, 2006 \n
-        pelahi@physics.usyd.edu.au, pascaljelahi@gmail.com \n
+        ICRAR \n
+        University of Western Australia \n
+        Crawley, WA, Australia, 6009 \n
+        pascal.elahi@uwa.edu.au, pelahi@physics.usyd.edu.au, pascaljelahi@gmail.com \n
 \version 1.13
 \section license License
 This program is free software; you can redistribute it and/or
