@@ -31,12 +31,14 @@ def ReadPropertyFile(basefilename,ibinary=0,iverbose=0):
     dt = []
 
     start = time.clock()
+    inompi=True
     if (iverbose): print "reading properties file"
     #load header
-    if (os.path.isfile(basefilename)):
+    if (os.path.isfile(basefilename)==True):
         filename=basefilename
     else:
         filename=basefilename+".0"
+        inompi=False
         if (os.path.isfile(filename)==False):
             print "file not found"
             return []
@@ -67,7 +69,7 @@ def ReadPropertyFile(basefilename,ibinary=0,iverbose=0):
 
     for ifile in range(numfiles):
         #produce dictionary
-        if (numfiles==0): filename=basefilename
+        if (inompi==True): filename=basefilename
         else: filename=basefilename+"."+str(ifile)
         if (iverbose) : print "reading ",filename
         if (ifile==0): 

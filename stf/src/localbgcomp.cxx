@@ -488,7 +488,8 @@ Int_t GetOutliersValues(Options &opt, const Int_t nbodies, Particle *Part, int s
     temp3=1.0/(globalsdlow);
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
-private(i,tempell) 
+private(i,tempell) \
+firstprivate(temp1,temp2,temp3)
 {
 #pragma omp for reduction(+:nsubset)
 #endif
