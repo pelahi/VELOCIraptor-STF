@@ -116,8 +116,8 @@ private(i)
 #ifdef USEMPI
             //if mpi then there is data overlap so only add to total if no overlap
             if (ThisTask<NProcs-1 && NProcs>1) {
-		        if (i<EndSnap-opt.numsteps) tothalos+=HaloTree[i].numhalos;
-	        }
+                if (i<EndSnap-opt.numsteps) tothalos+=HaloTree[i].numhalos;
+            }
             else tothalos+=HaloTree[i].numhalos;
 #else
             tothalos+=HaloTree[i].numhalos;
