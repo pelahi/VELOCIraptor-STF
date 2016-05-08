@@ -62,12 +62,22 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
     cout<<"Done"<<endl;
     cout<<"Search particles using 3DFOF in physical space"<<endl;
     cout<<"Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits (and likely "<<sqrt(param[6])/opt.ellxscale<<" in interparticle spacing"<<endl;
-    fofcmp=&FOF3d;
+    if (opt.partsearchtype==PSTALL && opt.iBaryonSearch==1) fofcmp=&FOF3dDM;
+    else fofcmp=&FOF3d;
     //if using mpi no need to locally sort just yet and might as well return the Head, Len, Next arrays
 #ifdef USEMPI
     Head=new Int_t[nbodies];Next=new Int_t[nbodies];
+    /*
+    //posible alteration for all particle search 
+    if (opt.partsearchtype==PSTALL && opt.iBaryonSearch==1) pfof=tree->FOFCriterion(fofcmp,param,numgroups,minsize,0,0,Pnocheck,Head,Next);
+    else pfof=tree->FOF(sqrt(param[1]),numgroups,minsize,0,Head,Next);
+    */
     pfof=tree->FOF(sqrt(param[1]),numgroups,minsize,0,Head,Next);
 #else
+    /*
+    if (opt.partsearchtype==PSTALL && opt.iBaryonSearch==1) pfof=tree->FOFCriterion(fofcmp,param,numgroups,minsize,1);
+    else pfof=tree->FOF(sqrt(param[1]),numgroups,minsize,1);
+    */
     pfof=tree->FOF(sqrt(param[1]),numgroups,minsize,1);
 #endif
 

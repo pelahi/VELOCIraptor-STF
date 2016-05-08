@@ -34,6 +34,9 @@ int FOF6dbg(Particle &a, Particle &b, Double_t *params);
 int FOF6dbgup(Particle &a, Particle &b, Double_t *params);
 ///checks to see if particles have positive types (useful for \ref GetVelocityDensity calculation with \ref STRUCDEN flag)
 int FOFPositivetypes(Particle &a, Particle &b, Double_t *params);
+
+///stream FOF algorithm that requires one of the particles to be dark matter for a link to occur
+int FOF3dDM(Particle &a, Particle &b, Double_t *params);
 //@}
 
 /// \name FOF precheck algorithms

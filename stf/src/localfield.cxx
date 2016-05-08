@@ -139,7 +139,7 @@ private(i,j,k,tid,id,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,pqx,pqv
     if (opt.iverbose) cout<<ThisTask<<" Searching particles in other domains"<<endl;
     //now with imported particle list and local particle list can run proper NN search
     //first build neighbouring tree
-    KDTree *treeneighbours;
+    KDTree *treeneighbours=NULL;
     if (nimport>0) treeneighbours=new KDTree(PartDataGet,nimport,1,tree->TPHYS,tree->KEPAN,100,0,0,0,period);
     //then run search
 #ifdef USEOPENMP

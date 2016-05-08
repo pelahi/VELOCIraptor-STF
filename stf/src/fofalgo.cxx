@@ -172,6 +172,14 @@ int FOF6dbgup(Particle &a, Particle &b, Double_t *params){
     return (total<1);
 }
 
+///stream FOF algorithm that requires one of the particles to be dark matter for a link to occur
+int FOF3dDM(Particle &a, Particle &b, Double_t *params){
+    if (a.GetType()!=DARKTYPE && b.GetType()!=DARKTYPE) return 0;
+    Double_t total=0;
+    for (int j=0;j<3;j++) total+=(a.GetPosition(j)-b.GetPosition(j))*(a.GetPosition(j)-b.GetPosition(j))/params[6];
+    return (total<1);
+}
+
 int FOFPositivetypes(Particle &a, Particle &b, Double_t *params){
     return (a.GetType()>=0 && b.GetType()>=0);
 }
