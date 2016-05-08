@@ -94,7 +94,7 @@ void ReadLocalVelocityDensity(Options &opt, const Int_t nbodies, Particle * Part
 #endif
 
     cout<<"Reading smooth density data from "<<fname<<endl;
-    if (opt.ibinaryout) {
+    if (opt.ibinaryout==OUTBINARY) {
         Fin.open(fname,ios::in| ios::binary);
         Fin.read((char*)&tempi,sizeof(Int_t));
         if (tempi!=nbodies) {
@@ -132,13 +132,13 @@ void WriteLocalVelocityDensity(Options &opt, const Int_t nbodies, Particle * Par
     if(opt.smname==NULL) sprintf(fname,"%s.smdata",opt.outname);
     else sprintf(fname,"%s",opt.smname);
 #endif
-    if (opt.ibinaryout) {
+    if (opt.ibinaryout==OUTBINARY) {
         Fout.open(fname,ios::out|ios::binary);
         Fout.write((char*)&nbodies,sizeof(Int_t));
         Double_t tempd;
         for(Int_t i=0;i<nbodies;i++) {tempd=Part[i].GetDensity();Fout.write((char*)&tempd,sizeof(Double_t));}
     }
-    if (opt.ibinaryout) {
+    if (opt.ibinaryout==OUTBINARY) {
         Fout.open(fname,ios::out);
         Fout<<nbodies<<endl;
         Fout<<scientific<<setprecision(10);
@@ -287,6 +287,13 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     char fname3[500];
     unsigned long noffset=0,ngtot=0,nids=0,nidstot,nuids=0,nuidstot,ng=0;
     Int_t *offset;
+#ifdef USEHDF
+    H5File Fhdf;
+    H5std_string datasetname;
+    DataSpace dataspace;
+    DataSet dataset;
+    hsize_t *dims;
+#endif
 
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
@@ -299,7 +306,14 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
 #endif
 
     cout<<"saving group catalog to "<<fname<<endl;
-    if (opt.ibinaryout) Fout.open(fname,ios::out|ios::binary);
+    if (opt.ibinaryout==OUTBINARY) Fout.open(fname,ios::out|ios::binary);
+#ifdef USEHDF
+    else if (opt.ibinaryout==OUTHDF) {
+        //create file 
+        Fhdf=H5File(fname,H5F_ACC_TRUNC);
+        //Fhdf.H5Fcreate(fname,H5F_ACC_TRUNC,H5P_DEFAULT,H5P_DEFAULT);
+    }
+#endif    
     else Fout.open(fname,ios::out);
     ng=ngroups;
 
@@ -309,20 +323,46 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     ngtot=ngroups+nadditional;//useful if outputing field halos
 #endif
     //write header
-    if (opt.ibinaryout) {
+    if (opt.ibinaryout==OUTBINARY) {
         Fout.write((char*)&ThisTask,sizeof(int));
         Fout.write((char*)&NProcs,sizeof(int));
-        Fout.write((char*)&ngroups,sizeof(unsigned long));
+        Fout.write((char*)&ng,sizeof(unsigned long));
         Fout.write((char*)&ngtot,sizeof(unsigned long));
-        //Fout.write((char*)&mpi_ngroups[ThisTask],sizeof(Int_t));
     }
+#ifdef USEHDF
+    else if (opt.ibinaryout==OUTHDF) {
+        //set file info
+        dims=new hsize_t[1];
+        dims[0]=1;
+        datasetname=H5std_string("File_id");
+        dataspace=DataSpace(dims[0],dims);
+        dataset = Fhdf.createDataSet(datasetname, PredType::STD_I32BE, dataspace);
+        dataset.write(&ThisTask,PredType::STD_I32BE);
+
+        datasetname=H5std_string("Num_of_files");
+        dataspace=DataSpace(dims[0],dims);
+        dataset = Fhdf.createDataSet(datasetname, PredType::STD_I32BE, dataspace);
+        dataset.write(&NProcs,PredType::STD_I32BE);
+        
+        datasetname=H5std_string("Num_of_groups");
+        dataspace=DataSpace(dims[0],dims);
+        dataset = Fhdf.createDataSet(datasetname, PredType::STD_U64BE, dataspace);
+        dataset.write(&ng,PredType::STD_U64BE);
+
+        datasetname=H5std_string("Total_num_of_groups");
+        dataspace=DataSpace(dims[0],dims);
+        dataset = Fhdf.createDataSet(datasetname, PredType::STD_U64BE, dataspace);
+        dataset.write(&ngtot,PredType::STD_U64BE);
+//set group info
+    }
+#endif
     else{
         Fout<<ThisTask<<" "<<NProcs<<endl;
-        Fout<<ngroups<<" "<<ngtot<<endl;
+        Fout<<ng<<" "<<ngtot<<endl;
     }
 
     //write group size
-    if (opt.ibinaryout) Fout.write((char*)&numingroup[1],sizeof(Int_t)*ngroups);
+    if (opt.ibinaryout==OUTBINARY) Fout.write((char*)&numingroup[1],sizeof(Int_t)*ngroups);
     else for (Int_t i=1;i<=ngroups;i++) Fout<<numingroup[i]<<endl;
 
 
@@ -332,12 +372,12 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     //note before had offsets at numingroup but to account for unbound particles use value of pglist at numingroup 
     for (Int_t i=2;i<=ngroups;i++) offset[i]=offset[i-1]+pglist[i-1][numingroup[i-1]];
 
-    if (opt.ibinaryout) Fout.write((char*)&offset[1],sizeof(Int_t)*ngroups);
+    if (opt.ibinaryout==OUTBINARY) Fout.write((char*)&offset[1],sizeof(Int_t)*ngroups);
     else for (Int_t i=1;i<=ngroups;i++) Fout<<offset[i]<<endl;
 
     //position of unbound particle
     for (Int_t i=2;i<=ngroups;i++) offset[i]=offset[i-1]+numingroup[i-1]-pglist[i-1][numingroup[i-1]];
-    if (opt.ibinaryout) Fout.write((char*)&offset[1],sizeof(Int_t)*ngroups);
+    if (opt.ibinaryout==OUTBINARY) Fout.write((char*)&offset[1],sizeof(Int_t)*ngroups);
     else for (Int_t i=1;i<=ngroups;i++) Fout<<offset[i]<<endl;
 
     delete[] offset;
@@ -353,7 +393,7 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
 #endif
     cout<<"saving particle catalog to "<<fname<<endl;
 
-    if (opt.ibinaryout) {
+    if (opt.ibinaryout==OUTBINARY) {
         Fout.open(fname,ios::out|ios::binary);
         Fout3.open(fname3,ios::out|ios::binary);
     }
@@ -379,7 +419,7 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
 #endif
 
     //write header
-    if (opt.ibinaryout) {
+    if (opt.ibinaryout==OUTBINARY) {
         Fout.write((char*)&ThisTask,sizeof(int));
         Fout.write((char*)&NProcs,sizeof(int));
         Fout.write((char*)&nids,sizeof(unsigned long));
@@ -405,7 +445,7 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     for (Int_t i=1;i<=ngroups;i++) 
         for (Int_t j=0;j<pglist[i][numingroup[i]];j++) 
             idval[nids++]=Part[pglist[i][j]].GetPID();
-    if (opt.ibinaryout) Fout.write((char*)idval,sizeof(Int_t)*nids);
+    if (opt.ibinaryout==OUTBINARY) Fout.write((char*)idval,sizeof(Int_t)*nids);
     else for (Int_t i=0;i<nids;i++) Fout<<idval[i]<<endl;
     delete[] idval;
     }
@@ -417,7 +457,7 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     for (Int_t i=1;i<=ngroups;i++) 
         for (Int_t j=pglist[i][numingroup[i]];j<numingroup[i];j++) 
             idval[nuids++]=Part[pglist[i][j]].GetPID();
-    if (opt.ibinaryout) Fout3.write((char*)idval,sizeof(Int_t)*nuids);
+    if (opt.ibinaryout==OUTBINARY) Fout3.write((char*)idval,sizeof(Int_t)*nuids);
     else for (Int_t i=0;i<nuids;i++) Fout3<<idval[i]<<endl;
     delete[] idval;
     }
@@ -450,7 +490,7 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
     cout<<"saving particle type info to "<<fname<<endl;
 
 
-    if (opt.ibinaryout) {
+    if (opt.ibinaryout==OUTBINARY) {
         Fout.open(fname,ios::out|ios::binary);
         Fout2.open(fname2,ios::out|ios::binary);
     }
@@ -474,7 +514,7 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
 #endif
 
     //write header
-    if (opt.ibinaryout) {
+    if (opt.ibinaryout==OUTBINARY) {
         Fout.write((char*)&ThisTask,sizeof(int));
         Fout.write((char*)&NProcs,sizeof(int));
         Fout.write((char*)&nids,sizeof(Int_t));
@@ -499,7 +539,7 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
     for (Int_t i=1;i<=ngroups;i++) 
         for (Int_t j=0;j<pglist[i][numingroup[i]];j++) 
             typeval[nids++]=Part[pglist[i][j]].GetType();
-    if (opt.ibinaryout) Fout.write((char*)typeval,sizeof(int)*nids);
+    if (opt.ibinaryout==OUTBINARY) Fout.write((char*)typeval,sizeof(int)*nids);
     else for (Int_t i=0;i<nids;i++) Fout<<typeval[i]<<endl;
     delete[] typeval;
     }
@@ -511,7 +551,7 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
     for (Int_t i=1;i<=ngroups;i++) 
         for (Int_t j=pglist[i][numingroup[i]];j<numingroup[i];j++) 
             typeval[nuids++]=Part[pglist[i][j]].GetType();
-    if (opt.ibinaryout) Fout2.write((char*)typeval,sizeof(int)*nuids);
+    if (opt.ibinaryout==OUTBINARY) Fout2.write((char*)typeval,sizeof(int)*nuids);
     else for (Int_t i=0;i<nuids;i++) Fout2<<typeval[i]<<endl;
     delete[] typeval;
     }
@@ -534,6 +574,14 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
     char fname[1000];
     char buf[40];
     long unsigned ngtot=0, noffset=0, ng=ngroups;
+
+#ifdef USEHDF
+    H5File *Fhdf;
+    H5std_string datasetname;
+    DataSpace dataspace;
+    DataSet dataset;
+    hsize_t *dims;
+#endif
 
     PropDataHeader head;
     /*
@@ -693,7 +741,7 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
     cout<<"saving property data to "<<fname<<endl;
 
     //write header
-    if (opt.ibinaryout==1) {
+    if (opt.ibinaryout==OUTBINARY) {
         Fout.open(fname,ios::out|ios::binary);
         Fout.write((char*)&ThisTask,sizeof(int));
         Fout.write((char*)&NProcs,sizeof(int));
@@ -708,7 +756,7 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         }
     }
 #ifdef USEHDF
-    else if (opt.ibinary==2) {
+    else if (opt.ibinaryout==OUTHDF) {
     }
 #endif
     else {
@@ -727,12 +775,12 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
     double dvalue;
     int ivalue;
     for (Int_t i=1;i<=ngroups;i++) {
-        if (opt.ibinaryout==1) {
+        if (opt.ibinaryout==OUTBINARY) {
             pdata[i].WriteBinary(Fout);
         }
 #ifdef USEHDF
-        else if (opt.ibinary==2) {
-            pdata[i].WriteHDF(Fout);
+        else if (opt.ibinaryout==OUTHDF) {
+            pdata[i].WriteHDF(Fhdf);
         }
 #endif
         else {
@@ -832,7 +880,7 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
 #endif
     cout<<"saving hierarchy data to "<<fname<<endl;
 
-    if (opt.ibinaryout) Fout.open(fname,ios::out|ios::binary|ios::app);
+    if (opt.ibinaryout==OUTBINARY) Fout.open(fname,ios::out|ios::binary|ios::app);
     else Fout.open(fname,ios::out|ios::app);
 
     //since the hierarchy file is appended to the catalog_groups files, no header written
@@ -840,16 +888,16 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
     for (int j=0;j<NProcs;j++) ngtot+=mpi_ngroups[j];
     for (int j=0;j<ThisTask;j++)noffset+=mpi_ngroups[j];
 #else
-    ng=ngroups;
+    ngtot=ngroups;
 #endif
 
     //if subflag==0 only write number of substructures
     if (subflag==0) {
-    if (opt.ibinaryout) Fout.write((char*)&nsub[1],sizeof(Int_t)*nfield);
+    if (opt.ibinaryout==OUTBINARY) Fout.write((char*)&nsub[1],sizeof(Int_t)*nfield);
     else for (Int_t i=1;i<=nfield;i++)Fout<<nsub[i]<<endl;
     }
     else if (subflag==1) {
-    if (opt.ibinaryout) {
+    if (opt.ibinaryout==OUTBINARY) {
         Fout.write((char*)&nsub[1+nfield],sizeof(Int_t)*(ngroups-nfield));
         Fout.write((char*)&parentgid[nfield+1],sizeof(Int_t)*(ngroups-nfield));
     }
@@ -860,7 +908,7 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
     }
     //write everything, no distinction made between field and substructure
     else if (subflag==-1) {
-    if (opt.ibinaryout) {
+    if (opt.ibinaryout==OUTBINARY) {
         Fout.write((char*)&nsub[1],sizeof(Int_t)*ngroups);
         Fout.write((char*)&parentgid[1],sizeof(Int_t)*ngroups);
     }
@@ -877,30 +925,30 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
 #else
     sprintf(fname,"%s.hierarchy",opt.outname);
 #endif
-    if (opt.ibinaryout) Fout.open(fname,ios::out|ios::binary);
+    if (opt.ibinaryout==OUTBINARY) Fout.open(fname,ios::out|ios::binary);
     else Fout.open(fname,ios::out);
 
     cout<<"saving hierarchy data to "<<fname<<endl;
-    if (opt.ibinaryout) {
-    Fout.write((char*)&ThisTask,sizeof(int));
-    Fout.write((char*)&NProcs,sizeof(int));
-    Fout.write((char*)&ng,sizeof(unsigned long));
-    Fout.write((char*)&ngtot,sizeof(unsigned long));
+    if (opt.ibinaryout==OUTBINARY) {
+        Fout.write((char*)&ThisTask,sizeof(int));
+        Fout.write((char*)&NProcs,sizeof(int));
+        Fout.write((char*)&ng,sizeof(unsigned long));
+        Fout.write((char*)&ngtot,sizeof(unsigned long));
     }
     else {
-    Fout<<ThisTask<<" "<<NProcs<<endl;
-    Fout<<ng<<" "<<ngtot<<endl;
-    Fout<<setprecision(10);
+        Fout<<ThisTask<<" "<<NProcs<<endl;
+        Fout<<ng<<" "<<ngtot<<endl;
+        Fout<<setprecision(10);
     }
     if (subflag==0) {
-    if (opt.ibinaryout) {
+    if (opt.ibinaryout==OUTBINARY) {
         Fout.write((char*)&parentgid[1],sizeof(Int_t)*nfield);
         Fout.write((char*)&nsub[1],sizeof(Int_t)*nfield);
     }
     else for (Int_t i=1;i<=nfield;i++)Fout<<parentgid[i]<<" "<<nsub[i]<<endl;
     }
     else if (subflag==1) {
-    if (opt.ibinaryout) {
+    if (opt.ibinaryout==OUTBINARY) {
         Fout.write((char*)&parentgid[1+nfield],sizeof(Int_t)*(ngroups-nfield));
         Fout.write((char*)&nsub[1+nfield],sizeof(Int_t)*(ngroups-nfield));
     }
@@ -925,7 +973,7 @@ void WriteCellValues(Options &opt, const Int_t nbodies, const Int_t ngrid, GridC
     if(opt.gname==NULL) sprintf(fname,"%s.griddata",opt.outname);
     else sprintf(fname,"%s",opt.gname);
 #endif
-    if (opt.ibinaryout) {
+    if (opt.ibinaryout==OUTBINARY) {
     Fout.open(fname,ios::out|ios::binary);
     Fout.write((char*)&nbodies,sizeof(Int_t));
     Fout.write((char*)&ngrid,sizeof(Int_t));

@@ -186,6 +186,16 @@ using namespace NBody;
 //@}
 //@}
 
+
+///\defgroup OUTPUTTYPES
+//@{
+/// \name defining format types of output
+//@{
+#define OUTASCII 0
+#define OUTBINARY 1
+#define OUTHDF 2
+//@}
+//@}
 /// \name For Unbinding
 //@{
 
@@ -1034,7 +1044,8 @@ struct PropData
         Fout<<endl;
     }
 #ifdef USEHDF
-    void WriteHDF(fstream &Fout){};
+    void WriteHDF(H5File *Fhdf){        
+    };
 #endif 
 };
 
