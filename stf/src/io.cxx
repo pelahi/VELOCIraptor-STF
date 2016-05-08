@@ -285,7 +285,7 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     char fname[500];
     char fname2[500];
     char fname3[500];
-    Int_t noffset=0,ngtot=0,nids=0,nidstot,nuids=0,nuidstot;
+    unsigned long noffset=0,ngtot=0,nids=0,nidstot,nuids=0,nuidstot,ng=0;
     Int_t *offset;
 
 #ifndef USEMPI
@@ -301,7 +301,7 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     cout<<"saving group catalog to "<<fname<<endl;
     if (opt.ibinaryout) Fout.open(fname,ios::out|ios::binary);
     else Fout.open(fname,ios::out);
-
+    ng=ngroups;
 
 #ifdef USEMPI
     for (int j=0;j<NProcs;j++) ngtot+=mpi_ngroups[j];
@@ -312,8 +312,8 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     if (opt.ibinaryout) {
         Fout.write((char*)&ThisTask,sizeof(int));
         Fout.write((char*)&NProcs,sizeof(int));
-        Fout.write((char*)&ngroups,sizeof(Int_t));
-        Fout.write((char*)&ngtot,sizeof(Int_t));
+        Fout.write((char*)&ngroups,sizeof(unsigned long));
+        Fout.write((char*)&ngtot,sizeof(unsigned long));
         //Fout.write((char*)&mpi_ngroups[ThisTask],sizeof(Int_t));
     }
     else{
@@ -382,13 +382,13 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     if (opt.ibinaryout) {
         Fout.write((char*)&ThisTask,sizeof(int));
         Fout.write((char*)&NProcs,sizeof(int));
-        Fout.write((char*)&nids,sizeof(Int_t));
-        Fout.write((char*)&nidstot,sizeof(Int_t));
+        Fout.write((char*)&nids,sizeof(unsigned long));
+        Fout.write((char*)&nidstot,sizeof(unsigned long));
 
         Fout3.write((char*)&ThisTask,sizeof(int));
         Fout3.write((char*)&NProcs,sizeof(int));
-        Fout3.write((char*)&nuids,sizeof(Int_t));
-        Fout3.write((char*)&nuidstot,sizeof(Int_t));
+        Fout3.write((char*)&nuids,sizeof(unsigned long));
+        Fout3.write((char*)&nuidstot,sizeof(unsigned long));
     }
     else {
         Fout<<ThisTask<<" "<<NProcs<<endl;
@@ -823,7 +823,7 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
     fstream Fout;
     fstream Fout2;
     char fname[500],fname2[500];
-    Int_t ng=0,noffset=0;
+    unsigned long ng=ngroups,ngtot=0,noffset=0;
 #ifdef USEMPI
     sprintf(fname,"%s.catalog_groups.%d",opt.outname,ThisTask);
 #else
@@ -837,7 +837,7 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
 
     //since the hierarchy file is appended to the catalog_groups files, no header written
 #ifdef USEMPI
-    for (int j=0;j<NProcs;j++) ng+=mpi_ngroups[j];
+    for (int j=0;j<NProcs;j++) ngtot+=mpi_ngroups[j];
     for (int j=0;j<ThisTask;j++)noffset+=mpi_ngroups[j];
 #else
     ng=ngroups;
@@ -884,12 +884,12 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
     if (opt.ibinaryout) {
     Fout.write((char*)&ThisTask,sizeof(int));
     Fout.write((char*)&NProcs,sizeof(int));
-    Fout.write((char*)&ngroups,sizeof(Int_t));
-    Fout.write((char*)&ng,sizeof(Int_t));
+    Fout.write((char*)&ng,sizeof(unsigned long));
+    Fout.write((char*)&ngtot,sizeof(unsigned long));
     }
     else {
     Fout<<ThisTask<<" "<<NProcs<<endl;
-    Fout<<ngroups<<" "<<ng<<endl;
+    Fout<<ng<<" "<<ngtot<<endl;
     Fout<<setprecision(10);
     }
     if (subflag==0) {
@@ -972,17 +972,17 @@ Int_t ReadPFOF(Options &opt, Int_t nbodies, Int_t *pfof){
     fstream Fin;
     Int_t temp;
     char fname[400];
-	Int_t ngroup=0;
+    Int_t ngroup=0;
     sprintf(fname,"%s.fof.grp",opt.outname);
     cout<<"reading fof data "<<fname<<endl;
     Fin.open(fname,ios::in);
     Fin>>nbodies;
     //nbodies=opt.numpart[DARKTYPE];
     //for (Int_t i=0;i<opt.numpart[GASTYPE];i++) Fin>>temp;
-	for (Int_t i=0;i<nbodies;i++) {Fin>>pfof[i];if (pfof[i]>ngroup) ngroup=pfof[i];}
+    for (Int_t i=0;i<nbodies;i++) {Fin>>pfof[i];if (pfof[i]>ngroup) ngroup=pfof[i];}
     Fin.close();
     cout<<"Done"<<endl;
-	return ngroup;
+    return ngroup;
 }
 
 //load binary group fof catalogue 
