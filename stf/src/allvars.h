@@ -698,7 +698,7 @@ struct PropData
         Krot=0.;
         
         RV_sigma_v=0;
-        RV_q=RV_s=0.;
+        RV_q=RV_s=1.;
         RV_J[0]=RV_J[1]=RV_J[2]=0;
         RV_veldisp=Matrix(0.);
         RV_eigvec=Matrix(0.);
