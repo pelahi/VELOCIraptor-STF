@@ -1221,7 +1221,16 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
     fstream Fout2;
     char fname[500],fname2[500];
     unsigned long ng=ngroups,ngtot=0,noffset=0;
-#ifdef USEMPI
+#ifdef USEHDF
+    H5File Fhdf;
+    H5std_string datasetname;
+    DataSpace dataspace;
+    DataSet dataset;
+    hsize_t *dims;
+    int rank;
+#endif
+
+    #ifdef USEMPI
     sprintf(fname,"%s.catalog_groups.%d",opt.outname,ThisTask);
 #else
     int ThisTask=0,NProcs=1;
@@ -1230,6 +1239,11 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
     cout<<"saving hierarchy data to "<<fname<<endl;
 
     if (opt.ibinaryout==OUTBINARY) Fout.open(fname,ios::out|ios::binary|ios::app);
+#ifdef USEHDF
+    if (opt.ibinaryout==OUTHDF) {
+        Fhdf=H5File(fname,H5F_ACC_RDWR);       
+    }
+#endif
     else Fout.open(fname,ios::out|ios::app);
 
     //since the hierarchy file is appended to the catalog_groups files, no header written
@@ -1242,31 +1256,93 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
 
     //if subflag==0 only write number of substructures
     if (subflag==0) {
-    if (opt.ibinaryout==OUTBINARY) Fout.write((char*)&nsub[1],sizeof(Int_t)*nfield);
-    else for (Int_t i=1;i<=nfield;i++)Fout<<nsub[i]<<endl;
+        if (opt.ibinaryout==OUTBINARY) Fout.write((char*)&nsub[1],sizeof(Int_t)*nfield);
+#ifdef USEHDF
+        else if (opt.ibinaryout==OUTHDF) {
+            dims=new hsize_t[1];
+            dims[0]=nfield;
+            rank=1;
+            datasetname=H5std_string("Number_of_substructures_in_halo");
+            dataspace=DataSpace(rank,dims);
+            dataset = Fhdf.createDataSet(datasetname, PredType::STD_U32BE, dataspace);
+            unsigned int *data=new unsigned int[nfield];
+            for (Int_t i=1;i<=nfield;i++) data[i-1]=nsub[i];
+            dataset.write(data,PredType::STD_U32BE);
+            delete[] data;
+            delete[] dims;
+        }
+#endif
+        else for (Int_t i=1;i<=nfield;i++)Fout<<nsub[i]<<endl;
     }
     else if (subflag==1) {
-    if (opt.ibinaryout==OUTBINARY) {
-        Fout.write((char*)&nsub[1+nfield],sizeof(Int_t)*(ngroups-nfield));
-        Fout.write((char*)&parentgid[nfield+1],sizeof(Int_t)*(ngroups-nfield));
-    }
-    else {
-        for (Int_t i=nfield+1;i<=ngroups;i++)Fout<<nsub[i]<<endl;
-        for (Int_t i=nfield+1;i<=ngroups;i++)Fout<<parentgid[i]<<endl;
-    }
+        if (opt.ibinaryout==OUTBINARY) {
+            Fout.write((char*)&nsub[1+nfield],sizeof(Int_t)*(ngroups-nfield));
+            Fout.write((char*)&parentgid[nfield+1],sizeof(Int_t)*(ngroups-nfield));
+        }
+#ifdef USEHDF
+        else if (opt.ibinaryout==OUTHDF) {
+            dims=new hsize_t[1];
+            dims[0]=ngroups-nfield;
+            rank=1;
+            datasetname=H5std_string("Number_of_substructures_in_subhalo");
+            dataspace=DataSpace(rank,dims);
+            dataset = Fhdf.createDataSet(datasetname, PredType::STD_U32BE, dataspace);
+            unsigned int *data=new unsigned int[ngroups-nfield];
+            for (Int_t i=nfield+1;i<=ngroups;i++) data[i-nfield-1]=nsub[i];
+            dataset.write(data,PredType::STD_U32BE);
+            delete[] data;
+            datasetname=H5std_string("Parent_halo_ID");
+            dataspace=DataSpace(rank,dims);
+            dataset = Fhdf.createDataSet(datasetname, PredType::STD_I64BE, dataspace);
+            long long *data2=new long long[ngroups-nfield];
+            for (Int_t i=nfield+1;i<=ngroups;i++) data2[i-nfield-1]=parentgid[i];
+            dataset.write(data2,PredType::STD_I64BE);
+            delete[] data2;
+            delete[] dims;
+        }
+#endif
+        else {
+            for (Int_t i=nfield+1;i<=ngroups;i++)Fout<<nsub[i]<<endl;
+            for (Int_t i=nfield+1;i<=ngroups;i++)Fout<<parentgid[i]<<endl;
+        }
     }
     //write everything, no distinction made between field and substructure
     else if (subflag==-1) {
-    if (opt.ibinaryout==OUTBINARY) {
-        Fout.write((char*)&nsub[1],sizeof(Int_t)*ngroups);
-        Fout.write((char*)&parentgid[1],sizeof(Int_t)*ngroups);
+        if (opt.ibinaryout==OUTBINARY) {
+            Fout.write((char*)&nsub[1],sizeof(Int_t)*ngroups);
+            Fout.write((char*)&parentgid[1],sizeof(Int_t)*ngroups);
+        }
+#ifdef USEHDF
+        else if (opt.ibinaryout==OUTHDF) {
+            dims=new hsize_t[1];
+            dims[0]=ngroups;
+            rank=1;
+            datasetname=H5std_string("Number_of_substructures_in_subhalo");
+            dataspace=DataSpace(rank,dims);
+            dataset = Fhdf.createDataSet(datasetname, PredType::STD_U32BE, dataspace);
+            unsigned int *data=new unsigned int[ngroups];
+            for (Int_t i=1;i<=ngroups;i++) data[i-1]=nsub[i];
+            dataset.write(data,PredType::STD_U32BE);
+            delete[] data;
+            datasetname=H5std_string("Parent_halo_ID");
+            dataspace=DataSpace(rank,dims);
+            dataset = Fhdf.createDataSet(datasetname, PredType::STD_I64BE, dataspace);
+            long long *data2=new long long[ngroups-nfield];
+            for (Int_t i=1;i<=ngroups;i++) data2[i-1]=parentgid[i];
+            dataset.write(data2,PredType::STD_I64BE);
+            delete[] data2;
+            delete[] dims;
+        }
+#endif
+        else {
+            for (Int_t i=1;i<=ngroups;i++)Fout<<nsub[i]<<endl;
+            for (Int_t i=1;i<=ngroups;i++)Fout<<parentgid[i]<<endl;
+        }
     }
-    else {
-        for (Int_t i=1;i<=ngroups;i++)Fout<<nsub[i]<<endl;
-        for (Int_t i=1;i<=ngroups;i++)Fout<<parentgid[i]<<endl;
-    }
-    }
-    Fout.close();
+    if (opt.ibinaryout!=OUTHDF) Fout.close();
+#ifdef USEHDF
+    else Fhdf.close();
+#endif
 
     //now write a completely separate hierarchy file which I find more intuitive to parse
 #ifdef USEMPI
@@ -1284,24 +1360,98 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
         Fout.write((char*)&ng,sizeof(unsigned long));
         Fout.write((char*)&ngtot,sizeof(unsigned long));
     }
+#ifdef USEHDF
+    else if (opt.ibinaryout==OUTHDF) {
+        Fhdf=H5File(fname,H5F_ACC_TRUNC);
+        //set file info
+        dims=new hsize_t[1];
+        dims[0]=1;
+        rank=1;
+        datasetname=H5std_string("File_id");
+        dataspace=DataSpace(rank,dims);
+        dataset = Fhdf.createDataSet(datasetname, PredType::STD_I32BE, dataspace);
+        dataset.write(&ThisTask,PredType::STD_I32BE);
+
+        datasetname=H5std_string("Num_of_files");
+        dataspace=DataSpace(rank,dims);
+        dataset = Fhdf.createDataSet(datasetname, PredType::STD_I32BE, dataspace);
+        dataset.write(&NProcs,PredType::STD_I32BE);
+        
+        datasetname=H5std_string("Num_of_groups");
+        dataspace=DataSpace(rank,dims);
+        dataset = Fhdf.createDataSet(datasetname, PredType::STD_U64BE, dataspace);
+        dataset.write(&ng,PredType::STD_U64BE);
+
+        datasetname=H5std_string("Total_num_of_groups");
+        dataspace=DataSpace(rank,dims);
+        dataset = Fhdf.createDataSet(datasetname, PredType::STD_U64BE, dataspace);
+        dataset.write(&ngtot,PredType::STD_U64BE);
+        delete[] dims;
+    }
+#endif
     else {
         Fout<<ThisTask<<" "<<NProcs<<endl;
         Fout<<ng<<" "<<ngtot<<endl;
         Fout<<setprecision(10);
     }
+
     if (subflag==0) {
-    if (opt.ibinaryout==OUTBINARY) {
-        Fout.write((char*)&parentgid[1],sizeof(Int_t)*nfield);
-        Fout.write((char*)&nsub[1],sizeof(Int_t)*nfield);
-    }
-    else for (Int_t i=1;i<=nfield;i++)Fout<<parentgid[i]<<" "<<nsub[i]<<endl;
+        if (opt.ibinaryout==OUTBINARY) {
+            Fout.write((char*)&parentgid[1],sizeof(Int_t)*nfield);
+            Fout.write((char*)&nsub[1],sizeof(Int_t)*nfield);
+        }
+#ifdef USEHDF
+        else if (opt.ibinaryout==OUTHDF) {
+            dims=new hsize_t[1];
+            dims[0]=nfield;
+            rank=1;
+            datasetname=H5std_string("Number_of_substructures");
+            dataspace=DataSpace(rank,dims);
+            dataset = Fhdf.createDataSet(datasetname, PredType::STD_U32BE, dataspace);
+            unsigned int *data=new unsigned int[nfield];
+            for (Int_t i=1;i<=nfield;i++) data[i-1]=nsub[i];
+            dataset.write(data,PredType::STD_U32BE);
+            delete[] data;
+            datasetname=H5std_string("Parent_halo_ID");
+            dataspace=DataSpace(rank,dims);
+            dataset = Fhdf.createDataSet(datasetname, PredType::STD_I64BE, dataspace);
+            long long *data2=new long long[nfield];
+            for (Int_t i=1;i<=nfield;i++) data2[i-1]=parentgid[i];
+            dataset.write(data2,PredType::STD_I64BE);
+            delete[] data2;
+            delete[] dims;
+        }
+#endif
+        else for (Int_t i=1;i<=nfield;i++)Fout<<parentgid[i]<<" "<<nsub[i]<<endl;
     }
     else if (subflag==1) {
-    if (opt.ibinaryout==OUTBINARY) {
-        Fout.write((char*)&parentgid[1+nfield],sizeof(Int_t)*(ngroups-nfield));
-        Fout.write((char*)&nsub[1+nfield],sizeof(Int_t)*(ngroups-nfield));
-    }
-    else for (Int_t i=nfield+1;i<=ngroups;i++)Fout<<parentgid[i]<<" "<<nsub[i]<<endl;
+        if (opt.ibinaryout==OUTBINARY) {
+            Fout.write((char*)&parentgid[1+nfield],sizeof(Int_t)*(ngroups-nfield));
+            Fout.write((char*)&nsub[1+nfield],sizeof(Int_t)*(ngroups-nfield));
+        }
+#ifdef USEHDF
+        else if (opt.ibinaryout==OUTHDF) {
+            dims=new hsize_t[1];
+            dims[0]=ngroups;
+            rank=1;
+            datasetname=H5std_string("Number_of_substructures");
+            dataspace=DataSpace(rank,dims);
+            dataset = Fhdf.createDataSet(datasetname, PredType::STD_U32BE, dataspace);
+            unsigned int *data=new unsigned int[ngroups-nfield];
+            for (Int_t i=nfield+1;i<=ngroups;i++) data[i-nfield-1]=nsub[i];
+            dataset.write(data,PredType::STD_U32BE);
+            delete[] data;
+            datasetname=H5std_string("Parent_halo_ID");
+            dataspace=DataSpace(rank,dims);
+            dataset = Fhdf.createDataSet(datasetname, PredType::STD_I64BE, dataspace);
+            long long *data2=new long long[ngroups-nfield];
+            for (Int_t i=nfield+1;i<=ngroups;i++) data2[i-nfield-1]=parentgid[i];
+            dataset.write(data2,PredType::STD_I64BE);
+            delete[] data2;
+            delete[] dims;
+        }
+#endif
+        else for (Int_t i=nfield+1;i<=ngroups;i++)Fout<<parentgid[i]<<" "<<nsub[i]<<endl;
     }
     Fout.close();
     cout<<"Done saving hierarchy"<<endl;
