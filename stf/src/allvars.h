@@ -590,12 +590,16 @@ struct PropData
     //@}
     ///\name physical properties for shape/mass distribution
     //@{
+    ///axis ratios
     Double_t gq,gs;
+    ///eigenvector
     Matrix geigvec;
     //@}
     ///\name physical properties for velocity
     //@{
+    ///velocity dispersion
     Double_t gsigma_v;
+    ///dispersion tensor
     Matrix gveldisp;
     //@}
     ///physical properties for dynamical state
@@ -603,7 +607,7 @@ struct PropData
     ///physical properties for angular momentum
     Coordinate gJ;
     ///Keep track of position of least unbound particle and most bound particle pid
-    UInt_t iunbound,ibound;
+    Int_t iunbound,ibound;
     ///Type of structure
     int stype;
     ///concentration (and related quantity used to calculate a concentration)
@@ -613,6 +617,18 @@ struct PropData
     ///measure of rotational support
     Double_t Krot;
     //@}
+
+    ///\name halo properties within RVmax
+    //@{
+    Double_t RV_q,RV_s;
+    Matrix RV_eigvec;
+    Double_t RV_sigma_v;
+    Matrix RV_veldisp;
+    Coordinate RV_J;
+    Double_t RV_lambda_B,RV_lambda_P;
+    Double_t RV_Krot;
+    //@}
+
 #ifdef GASON
     ///\name gas specific quantities
     //@{
@@ -680,6 +696,14 @@ struct PropData
         gveldisp=Matrix(0.);
         gq=gs=1.0;
         Krot=0.;
+        
+        RV_sigma_v=0;
+        RV_q=RV_s=0.;
+        RV_J[0]=RV_J[1]=RV_J[2]=0;
+        RV_veldisp=Matrix(0.);
+        RV_eigvec=Matrix(0.);
+        RV_lambda_B=RV_lambda_P=RV_Krot=0;
+        
 #ifdef GASON
         n_gas=M_gas=Efrac_gas=0;
         cm_gas[0]=cm_gas[1]=cm_gas[2]=cmvel_gas[0]=cmvel_gas[1]=cmvel_gas[2]=0.;
@@ -719,7 +743,7 @@ struct PropData
         gM200m=p.gM200m;gR200m=p.gR200m;
         return *this;
     }
-    
+        
     ///converts the properties data into comoving little h values
     ///so masses, positions have little h values and positions are comoving
     void ConverttoComove(Options &opt){
@@ -754,16 +778,18 @@ struct PropData
 #endif
     }
 
+    ///write (append) the properties data to an already open binary file
     void WriteBinary(fstream &Fout){
+        long long lval;
         long unsigned idval;
         unsigned int ival;
         double val, val3[3],val9[9];
         idval=haloid;
         Fout.write((char*)&idval,sizeof(idval));
-        idval=ibound;
-        Fout.write((char*)&idval,sizeof(idval));
-        idval=hostid;
-        Fout.write((char*)&idval,sizeof(idval));
+        lval=ibound;
+        Fout.write((char*)&lval,sizeof(idval));
+        lval=hostid;
+        Fout.write((char*)&lval,sizeof(idval));
         idval=numsubs;
         Fout.write((char*)&idval,sizeof(idval));
         idval=num;
@@ -837,6 +863,23 @@ struct PropData
         Fout.write((char*)&val,sizeof(val));
         val=Pot;
         Fout.write((char*)&val,sizeof(val));
+
+        val=RV_sigma_v;
+        Fout.write((char*)&val,sizeof(val));
+        for (int k=0;k<3;k++) for (int n=0;n<3;n++) val9[k*3+n]=RV_veldisp(k,n);
+        Fout.write((char*)val9,sizeof(val)*9);
+
+        val=RV_lambda_B;
+        Fout.write((char*)&val,sizeof(val));
+        for (int k=0;k<3;k++) val3[k]=RV_J[k];
+        Fout.write((char*)val3,sizeof(val)*3);
+
+        val=RV_q;
+        Fout.write((char*)&val,sizeof(val));
+        val=RV_s;
+        Fout.write((char*)&val,sizeof(val));
+        for (int k=0;k<3;k++) for (int n=0;n<3;n++) val9[k*3+n]=RV_eigvec(k,n);
+        Fout.write((char*)val9,sizeof(val)*9);
 
 #ifdef GASON
         idval=n_gas;
@@ -920,55 +963,9 @@ struct PropData
 
 #endif
 
-        /*
-        idbound=pdata[i].ibound;
-        Fout.write((char*)&idbound,sizeof(long long));
-        dvalue=pdata[i].gMvir;
-        Fout.write((char*)&dvalue,sizeof(dvalue));
-        ivalue=pdata[i].num;
-        Fout.write((char*)&ivalue,sizeof(ivalue));
-        for (int k=0;k<3;k++) ctemp[k]=pdata[i].gcm[k];
-        Fout.write((char*)ctemp,sizeof(float)*3);
-        for (int k=0;k<3;k++) ctemp[k]=pdata[i].gpos[k];
-        Fout.write((char*)ctemp,sizeof(float)*3);
-        for (int k=0;k<3;k++) ctemp[k]=pdata[i].gcmvel[k];
-        Fout.write((char*)ctemp,sizeof(float)*3);
-        for (int k=0;k<3;k++) ctemp[k]=pdata[i].gvel[k];
-        Fout.write((char*)ctemp,sizeof(float)*3);
-        value=pdata[i].gRvir;
-        Fout.write((char*)&value,sizeof(value));
-        value=pdata[i].gRmbp;
-        Fout.write((char*)&value,sizeof(value));
-        value=pdata[i].gRmaxvel;
-        Fout.write((char*)&value,sizeof(value));
-        value=pdata[i].gmaxvel;
-        Fout.write((char*)&value,sizeof(value));
-        value=pdata[i].gsigma_v;
-        Fout.write((char*)&value,sizeof(value));
-        for (int k=0;k<3;k++) ctemp[k]=pdata[i].gJ[k];
-        Fout.write((char*)ctemp,sizeof(float)*3);
-        value=pdata[i].gq;
-        Fout.write((char*)&value,sizeof(value));
-        value=pdata[i].gs;
-        Fout.write((char*)&value,sizeof(value));
-        for (int k=0;k<3;k++) for (int n=0;n<3;n++) mtemp[k*3+n]=pdata[i].geigvec(k,n);
-        Fout.write((char*)mtemp,sizeof(float)*9);
-        //afterwards would be padding for 8 more floats (chars), add extra stuff like total mass, mass enclosed in Rmax, T, Pot, Efrac
-        dvalue=pdata[i].gmass;
-        Fout.write((char*)&dvalue,sizeof(dvalue));
-        dvalue=pdata[i].gMmaxvel;
-        Fout.write((char*)&dvalue,sizeof(dvalue));
-        value=pdata[i].T;
-        Fout.write((char*)&value,sizeof(value));
-        value=pdata[i].Pot;
-        Fout.write((char*)&value,sizeof(value));
-        value=pdata[i].Efrac;
-        Fout.write((char*)&value,sizeof(value));
-        value=0;
-        for (int k=0;k<1;k++) Fout.write((char*)&value,sizeof(value));//for fact that 2*2*4+3*4
-        */
     }
     
+    ///write (append) the properties data to an already open ascii file
     void WriteAscii(fstream &Fout){
         Fout<<haloid<<" ";
         Fout<<ibound<<" ";
@@ -1005,6 +1002,15 @@ struct PropData
         Fout<<Krot<<" ";
         Fout<<T<<" ";
         Fout<<Pot<<" ";
+        
+        Fout<<RV_sigma_v<<" ";
+        for (int k=0;k<3;k++) for (int n=0;n<3;n++) Fout<<RV_veldisp(k,n)<<" ";
+        Fout<<RV_lambda_B<<" ";
+        for (int k=0;k<3;k++) Fout<<RV_J[k]<<" ";
+        Fout<<RV_q<<" ";
+        Fout<<RV_s<<" ";
+        for (int k=0;k<3;k++) for (int n=0;n<3;n++) Fout<<RV_eigvec(k,n)<<" ";
+
 #ifdef GASON
         Fout<<n_gas<<" ";
         Fout<<M_gas<<" ";
@@ -1044,7 +1050,8 @@ struct PropData
         Fout<<endl;
     }
 #ifdef USEHDF
-    void WriteHDF(H5File *Fhdf){        
+    ///write (append) the properties data to an already open hdf file
+    void WriteHDF(H5File &Fhdf, DataSpace *&dataspaces, DataSet *&datasets){
     };
 #endif 
 };
@@ -1056,12 +1063,27 @@ struct PropData
 struct PropDataHeader{
     //list the header info
     vector<string> headerdatainfo;
+#ifdef USEHDF
+    vector<PredType> predtypeinfo;
+#endif
     PropDataHeader(){
+        int sizeval;
+        
         headerdatainfo.push_back("ID");
         headerdatainfo.push_back("ID_mbp");
         headerdatainfo.push_back("hostHaloID");
         headerdatainfo.push_back("numSubStruct");
         headerdatainfo.push_back("npart");
+
+        //if using hdf, store the type
+#ifdef USEHDF
+        predtypeinfo.push_back(PredType::STD_U64BE);
+        predtypeinfo.push_back(PredType::STD_I64BE);
+        predtypeinfo.push_back(PredType::STD_I64BE);
+        predtypeinfo.push_back(PredType::STD_U64BE);
+        predtypeinfo.push_back(PredType::STD_U64BE);
+#endif
+
         headerdatainfo.push_back("Mvir");
         headerdatainfo.push_back("Xc");
         headerdatainfo.push_back("Yc");
@@ -1118,8 +1140,44 @@ struct PropDataHeader{
         headerdatainfo.push_back("Krot");
         headerdatainfo.push_back("Ekin");
         headerdatainfo.push_back("Epot");
+        
+        //some properties within RVmax
+        headerdatainfo.push_back("RVmax_sigV");
+        headerdatainfo.push_back("RVmax_veldisp_xx");
+        headerdatainfo.push_back("RVmax_veldisp_xy");
+        headerdatainfo.push_back("RVmax_veldisp_xz");
+        headerdatainfo.push_back("RVmax_veldisp_yx");
+        headerdatainfo.push_back("RVmax_veldisp_yy");
+        headerdatainfo.push_back("RVmax_veldisp_yz");
+        headerdatainfo.push_back("RVmax_veldisp_zx");
+        headerdatainfo.push_back("RVmax_veldisp_zy");
+        headerdatainfo.push_back("RVmax_veldisp_zz");
+        headerdatainfo.push_back("RVmax_lambda_B");
+        headerdatainfo.push_back("RVmax_Lx");
+        headerdatainfo.push_back("RVmax_Ly");
+        headerdatainfo.push_back("RVmax_Lz");
+        headerdatainfo.push_back("RVmax_q");
+        headerdatainfo.push_back("RVmax_s");
+        headerdatainfo.push_back("RVmax_eig_xx");
+        headerdatainfo.push_back("RVmax_eig_xy");
+        headerdatainfo.push_back("RVmax_eig_xz");
+        headerdatainfo.push_back("RVmax_eig_yx");
+        headerdatainfo.push_back("RVmax_eig_yy");
+        headerdatainfo.push_back("RVmax_eig_yz");
+        headerdatainfo.push_back("RVmax_eig_zx");
+        headerdatainfo.push_back("RVmax_eig_zy");
+        headerdatainfo.push_back("RVmax_eig_zz");
+        
+#ifdef USEHDF
+        sizeval=predtypeinfo.size();
+        for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(PredType::NATIVE_DOUBLE);
+#endif
+
 #ifdef GASON
         headerdatainfo.push_back("n_gas");
+#ifdef USEHDF
+        predtypeinfo.push_back(PredType::STD_U64BE);
+#endif
         headerdatainfo.push_back("M_gas");
         headerdatainfo.push_back("Xc_gas");
         headerdatainfo.push_back("Yc_gas");
@@ -1158,9 +1216,16 @@ struct PropDataHeader{
         headerdatainfo.push_back("Zmet_gas");
         headerdatainfo.push_back("SFR_gas");
 #endif
+#ifdef USEHDF
+        sizeval=predtypeinfo.size();
+        for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(PredType::NATIVE_DOUBLE);
+#endif
 #endif
 #ifdef STARON
         headerdatainfo.push_back("n_star");
+#ifdef USEHDF
+        predtypeinfo.push_back(PredType::STD_U64BE);
+#endif
         headerdatainfo.push_back("M_star");
         headerdatainfo.push_back("Xc_star");
         headerdatainfo.push_back("Yc_star");
@@ -1196,7 +1261,12 @@ struct PropDataHeader{
         headerdatainfo.push_back("Krot_star");
         headerdatainfo.push_back("tage_star");
         headerdatainfo.push_back("Zmet_star");
+#ifdef USEHDF
+        sizeval=predtypeinfo.size();
+        for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(PredType::NATIVE_DOUBLE);
 #endif
+#endif
+      
     }
 };
 

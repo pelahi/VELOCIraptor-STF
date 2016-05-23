@@ -288,11 +288,12 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     unsigned long noffset=0,ngtot=0,nids=0,nidstot,nuids=0,nuidstot,ng=0;
     Int_t *offset;
 #ifdef USEHDF
-    H5File Fhdf;
+    H5File Fhdf,Fhdf3;
     H5std_string datasetname;
     DataSpace dataspace;
     DataSet dataset;
     hsize_t *dims;
+    hsize_t rank;
 #endif
 
 #ifndef USEMPI
@@ -334,26 +335,27 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
         //set file info
         dims=new hsize_t[1];
         dims[0]=1;
+        rank=1;
         datasetname=H5std_string("File_id");
-        dataspace=DataSpace(dims[0],dims);
+        dataspace=DataSpace(rank,dims);
         dataset = Fhdf.createDataSet(datasetname, PredType::STD_I32BE, dataspace);
         dataset.write(&ThisTask,PredType::STD_I32BE);
 
         datasetname=H5std_string("Num_of_files");
-        dataspace=DataSpace(dims[0],dims);
+        dataspace=DataSpace(rank,dims);
         dataset = Fhdf.createDataSet(datasetname, PredType::STD_I32BE, dataspace);
         dataset.write(&NProcs,PredType::STD_I32BE);
         
         datasetname=H5std_string("Num_of_groups");
-        dataspace=DataSpace(dims[0],dims);
+        dataspace=DataSpace(rank,dims);
         dataset = Fhdf.createDataSet(datasetname, PredType::STD_U64BE, dataspace);
         dataset.write(&ng,PredType::STD_U64BE);
 
         datasetname=H5std_string("Total_num_of_groups");
-        dataspace=DataSpace(dims[0],dims);
+        dataspace=DataSpace(rank,dims);
         dataset = Fhdf.createDataSet(datasetname, PredType::STD_U64BE, dataspace);
         dataset.write(&ngtot,PredType::STD_U64BE);
-//set group info
+        delete[] dims;
     }
 #endif
     else{
@@ -363,6 +365,21 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
 
     //write group size
     if (opt.ibinaryout==OUTBINARY) Fout.write((char*)&numingroup[1],sizeof(Int_t)*ngroups);
+#ifdef USEHDF
+    else if (opt.ibinaryout==OUTHDF) {
+        dims=new hsize_t[1];
+        dims[0]=ng;
+        rank=1;
+        datasetname=H5std_string("Group_size");
+        dataspace=DataSpace(rank,dims);
+        dataset = Fhdf.createDataSet(datasetname, PredType::STD_U32BE, dataspace);
+        unsigned int *data=new unsigned int[ng];
+        for (Int_t i=1;i<=ng;i++) data[i-1]=numingroup[i];
+        dataset.write(data,PredType::STD_U32BE);
+        delete[] data;
+        delete[] dims;
+    }
+#endif
     else for (Int_t i=1;i<=ngroups;i++) Fout<<numingroup[i]<<endl;
 
 
@@ -373,15 +390,48 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     for (Int_t i=2;i<=ngroups;i++) offset[i]=offset[i-1]+pglist[i-1][numingroup[i-1]];
 
     if (opt.ibinaryout==OUTBINARY) Fout.write((char*)&offset[1],sizeof(Int_t)*ngroups);
+#ifdef USEHDF
+    else if (opt.ibinaryout==OUTHDF) {
+        dims=new hsize_t[1];
+        dims[0]=ng;
+        rank=1;
+        datasetname=H5std_string("Offset");
+        dataspace=DataSpace(rank,dims);
+        dataset = Fhdf.createDataSet(datasetname, PredType::STD_U32BE, dataspace);
+        unsigned int *data=new unsigned int[ng];
+        for (Int_t i=1;i<=ng;i++) data[i-1]=offset[i];
+        dataset.write(data,PredType::STD_U32BE);
+        delete[] data;
+        delete[] dims;
+    }
+#endif
     else for (Int_t i=1;i<=ngroups;i++) Fout<<offset[i]<<endl;
 
     //position of unbound particle
     for (Int_t i=2;i<=ngroups;i++) offset[i]=offset[i-1]+numingroup[i-1]-pglist[i-1][numingroup[i-1]];
     if (opt.ibinaryout==OUTBINARY) Fout.write((char*)&offset[1],sizeof(Int_t)*ngroups);
+#ifdef USEHDF
+    else if (opt.ibinaryout==OUTHDF) {
+        dims=new hsize_t[1];
+        dims[0]=ng;
+        rank=1;
+        datasetname=H5std_string("Offset_unbound");
+        dataspace=DataSpace(rank,dims);
+        dataset = Fhdf.createDataSet(datasetname, PredType::STD_U32BE, dataspace);
+        unsigned int *data=new unsigned int[ng];
+        for (Int_t i=1;i<=ng;i++) data[i-1]=offset[i];
+        dataset.write(data,PredType::STD_U32BE);
+        delete[] data;
+        delete[] dims;
+    }
+#endif
     else for (Int_t i=1;i<=ngroups;i++) Fout<<offset[i]<<endl;
 
     delete[] offset;
-    Fout.close();
+    if (opt.ibinaryout!=OUTHDF) Fout.close();
+#ifdef USEHDF
+    else Fhdf.close();
+#endif
 
     //now write pid files
 #ifdef USEMPI
@@ -397,6 +447,12 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
         Fout.open(fname,ios::out|ios::binary);
         Fout3.open(fname3,ios::out|ios::binary);
     }
+#ifdef USEHDF
+    else if (opt.ibinaryout==OUTHDF) {
+        Fhdf=H5File(fname,H5F_ACC_TRUNC);
+        Fhdf3=H5File(fname3,H5F_ACC_TRUNC);
+    }
+#endif
     else {
         Fout.open(fname,ios::out);
         Fout3.open(fname3,ios::out);
@@ -430,6 +486,43 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
         Fout3.write((char*)&nuids,sizeof(unsigned long));
         Fout3.write((char*)&nuidstot,sizeof(unsigned long));
     }
+#ifdef USEHDF
+    else if (opt.ibinaryout==OUTHDF) {
+        //set file info
+        dims=new hsize_t[1];
+        dims[0]=1;
+        rank=1;
+        datasetname=H5std_string("File_id");
+        dataspace=DataSpace(rank,dims);
+        dataset = Fhdf.createDataSet(datasetname, PredType::STD_I32BE, dataspace);
+        dataset.write(&ThisTask,PredType::STD_I32BE);
+        dataset = Fhdf3.createDataSet(datasetname, PredType::STD_I32BE, dataspace);
+        dataset.write(&ThisTask,PredType::STD_I32BE);
+
+        datasetname=H5std_string("Num_of_files");
+        dataspace=DataSpace(rank,dims);
+        dataset = Fhdf.createDataSet(datasetname, PredType::STD_I32BE, dataspace);
+        dataset.write(&NProcs,PredType::STD_I32BE);
+        dataset = Fhdf3.createDataSet(datasetname, PredType::STD_I32BE, dataspace);
+        dataset.write(&NProcs,PredType::STD_I32BE);
+        
+        datasetname=H5std_string("Num_of_particles_in_groups");
+        dataspace=DataSpace(rank,dims);
+        dataset = Fhdf.createDataSet(datasetname, PredType::STD_U64BE, dataspace);
+        dataset.write(&nids,PredType::STD_U64BE);
+        dataset = Fhdf3.createDataSet(datasetname, PredType::STD_U64BE, dataspace);
+        dataset.write(&nuids,PredType::STD_U64BE);
+
+        datasetname=H5std_string("Total_num_of_particles_in_all_groups");
+        dataspace=DataSpace(rank,dims);
+        dataset = Fhdf.createDataSet(datasetname, PredType::STD_U64BE, dataspace);
+        dataset.write(&nidstot,PredType::STD_U64BE);
+        dataset = Fhdf3.createDataSet(datasetname, PredType::STD_U64BE, dataspace);
+        dataset.write(&nuidstot,PredType::STD_U64BE);
+//set group info
+        delete[] dims;
+    }
+#endif
     else {
         Fout<<ThisTask<<" "<<NProcs<<endl;
         Fout<<nids<<" "<<nidstot<<endl;
@@ -440,28 +533,65 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
 
     Int_t *idval;
     if (nids>0) {
-    idval=new Int_t[nids];
-    nids=0;
-    for (Int_t i=1;i<=ngroups;i++) 
-        for (Int_t j=0;j<pglist[i][numingroup[i]];j++) 
-            idval[nids++]=Part[pglist[i][j]].GetPID();
-    if (opt.ibinaryout==OUTBINARY) Fout.write((char*)idval,sizeof(Int_t)*nids);
-    else for (Int_t i=0;i<nids;i++) Fout<<idval[i]<<endl;
-    delete[] idval;
+        idval=new Int_t[nids];
+        nids=0;
+        for (Int_t i=1;i<=ngroups;i++) 
+            for (Int_t j=0;j<pglist[i][numingroup[i]];j++) 
+                idval[nids++]=Part[pglist[i][j]].GetPID();
+        if (opt.ibinaryout==OUTBINARY) Fout.write((char*)idval,sizeof(Int_t)*nids);
+#ifdef USEHDF
+        else if (opt.ibinaryout==OUTHDF) {
+            dims=new hsize_t[1];
+            dims[0]=nids;
+            rank=1;
+            datasetname=H5std_string("Particle_IDs");
+            dataspace=DataSpace(rank,dims);
+            dataset = Fhdf.createDataSet(datasetname, PredType::STD_I64BE, dataspace);
+            long long *data=new long long[nids];
+            for (Int_t i=0;i<nids;i++) data[i]=idval[i];
+            dataset.write(data,PredType::STD_I64BE);
+            delete[] data;
+            delete[] dims;
+        }
+#endif
+        else for (Int_t i=0;i<nids;i++) Fout<<idval[i]<<endl;
+        delete[] idval;
     }
-    Fout.close();
+    if (opt.ibinaryout!=OUTHDF) Fout.close();
+#ifdef USEHDF
+    else Fhdf.close();
+#endif
 
     if (nuids>0) {
-    idval=new Int_t[nuids];
-    nuids=0;
-    for (Int_t i=1;i<=ngroups;i++) 
-        for (Int_t j=pglist[i][numingroup[i]];j<numingroup[i];j++) 
-            idval[nuids++]=Part[pglist[i][j]].GetPID();
-    if (opt.ibinaryout==OUTBINARY) Fout3.write((char*)idval,sizeof(Int_t)*nuids);
-    else for (Int_t i=0;i<nuids;i++) Fout3<<idval[i]<<endl;
-    delete[] idval;
+        idval=new Int_t[nuids];
+        nuids=0;
+        for (Int_t i=1;i<=ngroups;i++) 
+            for (Int_t j=pglist[i][numingroup[i]];j<numingroup[i];j++) 
+                idval[nuids++]=Part[pglist[i][j]].GetPID();
+        if (opt.ibinaryout==OUTBINARY) Fout3.write((char*)idval,sizeof(Int_t)*nuids);
+#ifdef USEHDF
+        else if (opt.ibinaryout==OUTHDF) {
+            dims=new hsize_t[1];
+            dims[0]=nuids;
+            rank=1;
+            datasetname=H5std_string("Particle_IDs");
+            dataspace=DataSpace(rank,dims);
+            dataset = Fhdf3.createDataSet(datasetname, PredType::STD_I64BE, dataspace);
+            long long *data=new long long[nuids];
+            for (Int_t i=0;i<nuids;i++) data[i]=idval[i];
+            dataset.write(data,PredType::STD_I64BE);
+            delete[] data;
+            delete[] dims;
+        }
+#endif
+        else for (Int_t i=0;i<nuids;i++) Fout3<<idval[i]<<endl;
+        delete[] idval;
     }
-    Fout3.close();
+    if (opt.ibinaryout!=OUTHDF) Fout3.close();
+#ifdef USEHDF
+    else Fhdf3.close();
+#endif
+
 #ifdef USEMPI
     MPI_Barrier(MPI_COMM_WORLD);
 #endif
@@ -476,7 +606,16 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
     Int_t *offset;
     int *typeval;
 
-#ifndef USEMPI
+#ifdef USEHDF
+    H5File Fhdf,Fhdf2;
+    H5std_string datasetname;
+    DataSpace dataspace;
+    DataSet dataset;
+    hsize_t *dims;
+    hsize_t rank;
+#endif
+
+    #ifndef USEMPI
     int ThisTask=0,NProcs=1;
 #endif
 
@@ -494,6 +633,14 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
         Fout.open(fname,ios::out|ios::binary);
         Fout2.open(fname2,ios::out|ios::binary);
     }
+#ifdef USEHDF
+    else if (opt.ibinaryout==OUTHDF) {
+        //create file 
+        Fhdf=H5File(fname,H5F_ACC_TRUNC);
+        //Fhdf.H5Fcreate(fname,H5F_ACC_TRUNC,H5P_DEFAULT,H5P_DEFAULT);
+        Fhdf2=H5File(fname2,H5F_ACC_TRUNC);
+    }
+#endif    
     else {
         Fout.open(fname,ios::out);
         Fout2.open(fname2,ios::out);
@@ -525,6 +672,43 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
         Fout2.write((char*)&nuids,sizeof(Int_t));
         Fout2.write((char*)&nuidstot,sizeof(Int_t));
     }
+#ifdef USEHDF
+    else if (opt.ibinaryout==OUTHDF) {
+        //set file info
+        dims=new hsize_t[1];
+        dims[0]=1;
+        rank=1;
+        datasetname=H5std_string("File_id");
+        dataspace=DataSpace(rank,dims);
+        dataset = Fhdf.createDataSet(datasetname, PredType::STD_I32BE, dataspace);
+        dataset.write(&ThisTask,PredType::STD_I32BE);
+        dataset = Fhdf2.createDataSet(datasetname, PredType::STD_I32BE, dataspace);
+        dataset.write(&ThisTask,PredType::STD_I32BE);
+
+        datasetname=H5std_string("Num_of_files");
+        dataspace=DataSpace(rank,dims);
+        dataset = Fhdf.createDataSet(datasetname, PredType::STD_I32BE, dataspace);
+        dataset.write(&NProcs,PredType::STD_I32BE);
+        dataset = Fhdf2.createDataSet(datasetname, PredType::STD_I32BE, dataspace);
+        dataset.write(&NProcs,PredType::STD_I32BE);
+        
+        datasetname=H5std_string("Num_of_particles_in_groups");
+        dataspace=DataSpace(rank,dims);
+        dataset = Fhdf.createDataSet(datasetname, PredType::STD_U64BE, dataspace);
+        dataset.write(&nids,PredType::STD_U64BE);
+        dataset = Fhdf2.createDataSet(datasetname, PredType::STD_U64BE, dataspace);
+        dataset.write(&nuids,PredType::STD_U64BE);
+
+        datasetname=H5std_string("Total_num_of_particles_in_all_groups");
+        dataspace=DataSpace(rank,dims);
+        dataset = Fhdf.createDataSet(datasetname, PredType::STD_U64BE, dataspace);
+        dataset.write(&nidstot,PredType::STD_U64BE);
+        dataset = Fhdf2.createDataSet(datasetname, PredType::STD_U64BE, dataspace);
+        dataset.write(&nuidstot,PredType::STD_U64BE);
+//set group info
+        delete[] dims;
+    }
+#endif
     else {
         Fout<<ThisTask<<" "<<NProcs<<endl;
         Fout<<nids<<" "<<nidstot<<endl;
@@ -534,28 +718,65 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
     }
 
     if (nids>0) {
-    typeval=new int[nids];
-    nids=0;
-    for (Int_t i=1;i<=ngroups;i++) 
-        for (Int_t j=0;j<pglist[i][numingroup[i]];j++) 
-            typeval[nids++]=Part[pglist[i][j]].GetType();
-    if (opt.ibinaryout==OUTBINARY) Fout.write((char*)typeval,sizeof(int)*nids);
-    else for (Int_t i=0;i<nids;i++) Fout<<typeval[i]<<endl;
-    delete[] typeval;
+        typeval=new int[nids];
+        nids=0;
+        for (Int_t i=1;i<=ngroups;i++) 
+            for (Int_t j=0;j<pglist[i][numingroup[i]];j++) 
+                typeval[nids++]=Part[pglist[i][j]].GetType();
+        if (opt.ibinaryout==OUTBINARY) Fout.write((char*)typeval,sizeof(int)*nids);
+#ifdef USEHDF
+        else if (opt.ibinaryout==OUTHDF) {
+            dims=new hsize_t[1];
+            dims[0]=nids;
+            rank=1;
+            datasetname=H5std_string("Particle_types");
+            dataspace=DataSpace(rank,dims);
+            dataset = Fhdf.createDataSet(datasetname, PredType::STD_U32BE, dataspace);
+            unsigned int *data=new unsigned int[nids];
+            for (Int_t i=0;i<nids;i++) data[i]=typeval[i];
+            dataset.write(data,PredType::STD_U32BE);
+            delete[] data;
+            delete[] dims;
+        }
+#endif
+        else for (Int_t i=0;i<nids;i++) Fout<<typeval[i]<<endl;
+        delete[] typeval;
     }
-    Fout.close();
+    if (opt.ibinaryout!=OUTHDF) Fout.close();
+#ifdef USEHDF
+    else Fhdf.close();
+#endif
 
     if (nuids>0) {
-    typeval=new int[nuids];
-    nuids=0;
-    for (Int_t i=1;i<=ngroups;i++) 
-        for (Int_t j=pglist[i][numingroup[i]];j<numingroup[i];j++) 
-            typeval[nuids++]=Part[pglist[i][j]].GetType();
-    if (opt.ibinaryout==OUTBINARY) Fout2.write((char*)typeval,sizeof(int)*nuids);
-    else for (Int_t i=0;i<nuids;i++) Fout2<<typeval[i]<<endl;
-    delete[] typeval;
+        typeval=new int[nuids];
+        nuids=0;
+        for (Int_t i=1;i<=ngroups;i++) 
+            for (Int_t j=pglist[i][numingroup[i]];j<numingroup[i];j++) 
+                typeval[nuids++]=Part[pglist[i][j]].GetType();
+        if (opt.ibinaryout==OUTBINARY) Fout2.write((char*)typeval,sizeof(int)*nuids);
+#ifdef USEHDF
+        else if (opt.ibinaryout==OUTHDF) {
+            dims=new hsize_t[1];
+            dims[0]=nuids;
+            rank=1;
+            datasetname=H5std_string("Particle_types");
+            dataspace=DataSpace(rank,dims);
+            dataset = Fhdf2.createDataSet(datasetname, PredType::STD_U32BE, dataspace);
+            unsigned int *data=new unsigned int[nuids];
+            for (Int_t i=0;i<nuids;i++) data[i]=typeval[i];
+            dataset.write(data,PredType::STD_U32BE);
+            delete[] data;
+            delete[] dims;
+        }
+#endif
+        else for (Int_t i=0;i<nuids;i++) Fout2<<typeval[i]<<endl;
+        delete[] typeval;
     }
-    Fout2.close();
+    if (opt.ibinaryout!=OUTHDF) Fout2.close();
+#ifdef USEHDF
+    else Fhdf2.close();
+#endif
+
 #ifdef USEMPI
     MPI_Barrier(MPI_COMM_WORLD);
 #endif
@@ -576,158 +797,17 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
     long unsigned ngtot=0, noffset=0, ng=ngroups;
 
 #ifdef USEHDF
-    H5File *Fhdf;
+    H5File Fhdf;
     H5std_string datasetname;
     DataSpace dataspace;
     DataSet dataset;
     hsize_t *dims;
+    int rank;
+    DataSpace *propdataspace;
+    DataSet *propdataset;
 #endif
 
     PropDataHeader head;
-    /*
-    //list the header info
-    vector<string> headerdatainfo;
-    headerdatainfo.push_back("ID");
-    headerdatainfo.push_back("ID_mbp");
-    headerdatainfo.push_back("hostHaloID");
-    headerdatainfo.push_back("numSubStruct");
-    headerdatainfo.push_back("npart");
-    headerdatainfo.push_back("Mvir");
-    headerdatainfo.push_back("Xc");
-    headerdatainfo.push_back("Yc");
-    headerdatainfo.push_back("Zc");
-    headerdatainfo.push_back("Xcmbp");
-    headerdatainfo.push_back("Ycmbp");
-    headerdatainfo.push_back("Zcmbp");
-    headerdatainfo.push_back("VXc");
-    headerdatainfo.push_back("VYc");
-    headerdatainfo.push_back("VZc");
-    headerdatainfo.push_back("VXcmbp");
-    headerdatainfo.push_back("VYcmbp");
-    headerdatainfo.push_back("VZcmbp");
-    headerdatainfo.push_back("Mass_tot");
-    headerdatainfo.push_back("Mass_FOF");
-    headerdatainfo.push_back("Mass_200mean");
-    headerdatainfo.push_back("Mass_200crit");
-    headerdatainfo.push_back("Mass_BN97");
-    headerdatainfo.push_back("Efrac");
-    headerdatainfo.push_back("Rvir");
-    headerdatainfo.push_back("R_size");
-    headerdatainfo.push_back("R_200mean");
-    headerdatainfo.push_back("R_200crit");
-    headerdatainfo.push_back("R_BN97");
-    headerdatainfo.push_back("R_HalfMass");
-    headerdatainfo.push_back("Rmax");
-    headerdatainfo.push_back("Vmax");
-    headerdatainfo.push_back("sigV");
-    headerdatainfo.push_back("veldisp_xx");
-    headerdatainfo.push_back("veldisp_xy");
-    headerdatainfo.push_back("veldisp_xz");
-    headerdatainfo.push_back("veldisp_yx");
-    headerdatainfo.push_back("veldisp_yy");
-    headerdatainfo.push_back("veldisp_yz");
-    headerdatainfo.push_back("veldisp_zx");
-    headerdatainfo.push_back("veldisp_zy");
-    headerdatainfo.push_back("veldisp_zz");
-    headerdatainfo.push_back("lambda_B");
-    headerdatainfo.push_back("Lx");
-    headerdatainfo.push_back("Ly");
-    headerdatainfo.push_back("Lz");
-    headerdatainfo.push_back("q");
-    headerdatainfo.push_back("s");
-    headerdatainfo.push_back("eig_xx");
-    headerdatainfo.push_back("eig_xy");
-    headerdatainfo.push_back("eig_xz");
-    headerdatainfo.push_back("eig_yx");
-    headerdatainfo.push_back("eig_yy");
-    headerdatainfo.push_back("eig_yz");
-    headerdatainfo.push_back("eig_zx");
-    headerdatainfo.push_back("eig_zy");
-    headerdatainfo.push_back("eig_zz");
-    headerdatainfo.push_back("cNFW");
-    headerdatainfo.push_back("Krot");
-    headerdatainfo.push_back("Ekin");
-    headerdatainfo.push_back("Epot");
-#ifdef GASON
-    headerdatainfo.push_back("n_gas");
-    headerdatainfo.push_back("M_gas");
-    headerdatainfo.push_back("Xc_gas");
-    headerdatainfo.push_back("Yc_gas");
-    headerdatainfo.push_back("Zc_gas");
-    headerdatainfo.push_back("VXc_gas");
-    headerdatainfo.push_back("VYc_gas");
-    headerdatainfo.push_back("VZc_gas");
-    headerdatainfo.push_back("Efrac_gas");
-    headerdatainfo.push_back("R_HalfMass_gas");
-    headerdatainfo.push_back("veldisp_xx_gas");
-    headerdatainfo.push_back("veldisp_xy_gas");
-    headerdatainfo.push_back("veldisp_xz_gas");
-    headerdatainfo.push_back("veldisp_yx_gas");
-    headerdatainfo.push_back("veldisp_yy_gas");
-    headerdatainfo.push_back("veldisp_yz_gas");
-    headerdatainfo.push_back("veldisp_zx_gas");
-    headerdatainfo.push_back("veldisp_zy_gas");
-    headerdatainfo.push_back("veldisp_zz_gas");
-    headerdatainfo.push_back("Lx_gas");
-    headerdatainfo.push_back("Ly_gas");
-    headerdatainfo.push_back("Lz_gas");
-    headerdatainfo.push_back("q_gas");
-    headerdatainfo.push_back("s_gas");
-    headerdatainfo.push_back("eig_xx_gas");
-    headerdatainfo.push_back("eig_xy_gas");
-    headerdatainfo.push_back("eig_xz_gas");
-    headerdatainfo.push_back("eig_yx_gas");
-    headerdatainfo.push_back("eig_yy_gas");
-    headerdatainfo.push_back("eig_yz_gas");
-    headerdatainfo.push_back("eig_zx_gas");
-    headerdatainfo.push_back("eig_zy_gas");
-    headerdatainfo.push_back("eig_zz_gas");
-    headerdatainfo.push_back("Krot_gas");
-    headerdatainfo.push_back("T_gas");
-#ifdef STARON
-    headerdatainfo.push_back("Zmet_gas");
-    headerdatainfo.push_back("SFR_gas");
-#endif
-#endif
-#ifdef STARON
-    headerdatainfo.push_back("n_star");
-    headerdatainfo.push_back("M_star");
-    headerdatainfo.push_back("Xc_star");
-    headerdatainfo.push_back("Yc_star");
-    headerdatainfo.push_back("Zc_star");
-    headerdatainfo.push_back("VXc_star");
-    headerdatainfo.push_back("VYc_star");
-    headerdatainfo.push_back("VZc_star");
-    headerdatainfo.push_back("Efrac_star");
-    headerdatainfo.push_back("R_HalfMass_star");
-    headerdatainfo.push_back("veldisp_xx_star");
-    headerdatainfo.push_back("veldisp_xy_star");
-    headerdatainfo.push_back("veldisp_xz_star");
-    headerdatainfo.push_back("veldisp_yx_star");
-    headerdatainfo.push_back("veldisp_yy_star");
-    headerdatainfo.push_back("veldisp_yz_star");
-    headerdatainfo.push_back("veldisp_zx_star");
-    headerdatainfo.push_back("veldisp_zy_star");
-    headerdatainfo.push_back("veldisp_zz_star");
-    headerdatainfo.push_back("Lx_star");
-    headerdatainfo.push_back("Ly_star");
-    headerdatainfo.push_back("Lz_star");
-    headerdatainfo.push_back("q_star");
-    headerdatainfo.push_back("s_star");
-    headerdatainfo.push_back("eig_xx_star");
-    headerdatainfo.push_back("eig_xy_star");
-    headerdatainfo.push_back("eig_xz_star");
-    headerdatainfo.push_back("eig_yx_star");
-    headerdatainfo.push_back("eig_yy_star");
-    headerdatainfo.push_back("eig_yz_star");
-    headerdatainfo.push_back("eig_zx_star");
-    headerdatainfo.push_back("eig_zy_star");
-    headerdatainfo.push_back("eig_zz_star");
-    headerdatainfo.push_back("Krot_star");
-    headerdatainfo.push_back("tage_star");
-    headerdatainfo.push_back("Zmet_star");
-#endif
-    */
     
 #ifdef USEMPI
     sprintf(fname,"%s.properties.%d",opt.outname,ThisTask);
@@ -757,6 +837,43 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
     }
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
+        Fhdf=H5File(fname,H5F_ACC_TRUNC);
+        //set file info
+        dims=new hsize_t[1];
+        dims[0]=1;
+        rank=1;
+        datasetname=H5std_string("File_id");
+        dataspace=DataSpace(rank,dims);
+        dataset = Fhdf.createDataSet(datasetname, PredType::STD_I32BE, dataspace);
+        dataset.write(&ThisTask,PredType::STD_I32BE);
+
+        datasetname=H5std_string("Num_of_files");
+        dataspace=DataSpace(rank,dims);
+        dataset = Fhdf.createDataSet(datasetname, PredType::STD_I32BE, dataspace);
+        dataset.write(&NProcs,PredType::STD_I32BE);
+        
+        datasetname=H5std_string("Num_of_groups");
+        dataspace=DataSpace(rank,dims);
+        dataset = Fhdf.createDataSet(datasetname, PredType::STD_U64BE, dataspace);
+        dataset.write(&ng,PredType::STD_U64BE);
+
+        datasetname=H5std_string("Total_num_of_groups");
+        dataspace=DataSpace(rank,dims);
+        dataset = Fhdf.createDataSet(datasetname, PredType::STD_U64BE, dataspace);
+        dataset.write(&ngtot,PredType::STD_U64BE);
+        delete[] dims;
+        
+        //load data spaces
+        propdataspace=new DataSpace[head.headerdatainfo.size()];
+        propdataset=new DataSet[head.headerdatainfo.size()];
+        dims[0]=ng;
+        rank=1;
+        dataspace=DataSpace(rank,dims);
+        for (Int_t i=0;i<head.headerdatainfo.size();i++) {
+            datasetname=H5std_string(head.headerdatainfo[i]);
+            propdataspace[i]=DataSpace(rank,dims);
+            propdataset[i] = Fhdf.createDataSet(datasetname, head.predtypeinfo[i], propdataspace[i]);
+        }
     }
 #endif
     else {
@@ -780,89 +897,321 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         }
 #ifdef USEHDF
         else if (opt.ibinaryout==OUTHDF) {
-            pdata[i].WriteHDF(Fhdf);
+            //pdata[i].WriteHDF(Fhdf);
+            //for hdf may be more useful to produce an array of the appropriate size and write each data set in one go
+            //requires allocating memory
         }
 #endif
-        else {
+        else if (opt.ibinaryout==OUTASCII){
             pdata[i].WriteAscii(Fout);
-            /*
-            Fout<<pdata[i].haloid<<" ";
-            Fout<<pdata[i].ibound<<" ";
-            Fout<<pdata[i].hostid<<" ";
-            Fout<<pdata[i].numsubs<<" ";
-            Fout<<pdata[i].num<<" ";
-            Fout<<pdata[i].gMvir<<" ";
-            for (int k=0;k<3;k++) Fout<<pdata[i].gcm[k]<<" ";
-            for (int k=0;k<3;k++) Fout<<pdata[i].gpos[k]<<" ";
-            for (int k=0;k<3;k++) Fout<<pdata[i].gcmvel[k]<<" ";
-            for (int k=0;k<3;k++) Fout<<pdata[i].gvel[k]<<" ";
-            Fout<<pdata[i].gmass<<" ";
-            Fout<<pdata[i].gMFOF<<" ";
-            Fout<<pdata[i].gM200m<<" ";
-            Fout<<pdata[i].gM200c<<" ";
-            Fout<<pdata[i].gMvir<<" ";
-            Fout<<pdata[i].Efrac<<" ";
-            Fout<<pdata[i].gRvir<<" ";
-            Fout<<pdata[i].gsize<<" ";
-            Fout<<pdata[i].gR200m<<" ";
-            Fout<<pdata[i].gR200c<<" ";
-            Fout<<pdata[i].gRvir<<" ";
-            Fout<<pdata[i].gRhalfmass<<" ";
-            Fout<<pdata[i].gRmaxvel<<" ";
-            Fout<<pdata[i].gmaxvel<<" ";
-            Fout<<pdata[i].gsigma_v<<" ";
-            for (int k=0;k<3;k++) for (int n=0;n<3;n++) Fout<<pdata[i].gveldisp(k,n)<<" ";
-            Fout<<pdata[i].glambda_B<<" ";
-            for (int k=0;k<3;k++) Fout<<pdata[i].gJ[k]<<" ";
-            Fout<<pdata[i].gq<<" ";
-            Fout<<pdata[i].gs<<" ";
-            for (int k=0;k<3;k++) for (int n=0;n<3;n++) Fout<<pdata[i].geigvec(k,n)<<" ";
-            Fout<<pdata[i].cNFW<<" ";
-            Fout<<pdata[i].Krot<<" ";
-            Fout<<pdata[i].T<<" ";
-            Fout<<pdata[i].Pot<<" ";
+        }
+    }
+#ifdef USEHDF
+    if (opt.ibinaryout==OUTHDF) {
+        //for hdf may be more useful to produce an array of the appropriate size and write each data set in one go
+        //requires allocating memory
+        int *iarray,itemp;
+        unsigned int *uiarray;
+        long long *larray;
+        unsigned long *ularray;
+        double *darray;
+        //void pointer to hold data
+        void *data;
+        //allocate enough memory to store largest data type
+        data= ::operator new(sizeof(long long)*(ng+1));
+        itemp=0;
+
+        //first is halo ids, then id of most bound particle, host halo id, number of direct subhaloes, number of particles
+        for (Int_t i=1;i<=ngroups;i++) ((unsigned long*)data)[i]=pdata[i].haloid;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (Int_t i=1;i<=ngroups;i++) ((long long*)data)[i]=pdata[i].ibound;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (Int_t i=1;i<=ngroups;i++) ((long long*)data)[i]=pdata[i].hostid;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (Int_t i=1;i<=ngroups;i++) ((unsigned long*)data)[i]=pdata[i].numsubs;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (Int_t i=1;i<=ngroups;i++) ((unsigned long*)data)[i]=pdata[i].num;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        
+        //now halo properties that are doubles
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].gMvir;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (int k=0;k<3;k++){
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].gcm[k];
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        }
+        for (int k=0;k<3;k++){
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].gpos[k];
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        }
+        for (int k=0;k<3;k++){
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].gcmvel[k];
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        }
+        for (int k=0;k<3;k++){
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].gvel[k];
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        }
+        
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].gmass;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].gMFOF;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].gM200m;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].gM200c;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].gMvir;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].Efrac;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].gRvir;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].gsize;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].gR200m;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].gR200c;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].gRvir;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].gRhalfmass;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].gRmaxvel;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].gmaxvel;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].gsigma_v;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (int k=0;k<3;k++) for (int n=0;n<3;n++) {
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].gveldisp(k,n);
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        }
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].glambda_B;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (int k=0;k<3;k++){
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].gJ[k];
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        }
+
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].gq;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].gs;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (int k=0;k<3;k++) for (int n=0;n<3;n++) {
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].geigvec(k,n);
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        }
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].cNFW;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].Krot;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].T;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].Pot;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+
+
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].RV_sigma_v;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (int k=0;k<3;k++) for (int n=0;n<3;n++) {
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].RV_veldisp(k,n);
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        }
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].RV_lambda_B;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (int k=0;k<3;k++){
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].RV_J[k];
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        }
+
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].RV_q;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].RV_s;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (int k=0;k<3;k++) for (int n=0;n<3;n++) {
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].RV_eigvec(k,n);
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        }
+
 #ifdef GASON
-            Fout<<pdata[i].n_gas<<" ";
-            Fout<<pdata[i].M_gas<<" ";
-            for (int k=0;k<3;k++) Fout<<pdata[i].cm_gas[k]<<" ";
-            for (int k=0;k<3;k++) Fout<<pdata[i].cmvel_gas[k]<<" ";
-            Fout<<pdata[i].Efrac_gas<<" ";
-            Fout<<pdata[i].Rhalfmass_gas<<" ";
-            for (int k=0;k<3;k++) for (int n=0;n<3;n++) Fout<<pdata[i].veldisp_gas(k,n)<<" ";
-            for (int k=0;k<3;k++) Fout<<pdata[i].L_gas[k]<<" ";
-            Fout<<pdata[i].q_gas<<" ";
-            Fout<<pdata[i].s_gas<<" ";
-            for (int k=0;k<3;k++) for (int n=0;n<3;n++) Fout<<pdata[i].eigvec_gas(k,n)<<" ";
-            Fout<<pdata[i].Krot_gas<<" ";
-            Fout<<pdata[i].Temp_gas<<" ";
+        for (Int_t i=1;i<=ngroups;i++) ((unsigned long*)data)[i]=pdata[i].n_gas;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].M_gas;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (int k=0;k<3;k++){
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].cm_gas[k];
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        }
+        for (int k=0;k<3;k++){
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].cmvel_gas[k];
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        }
+
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].Efrac_gas;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].Rhalfmass_gas;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (int k=0;k<3;k++) for (int n=0;n<3;n++) {
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].veldisp_gas(k,n);
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        }
+        for (int k=0;k<3;k++){
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].L_gas[k];
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        }
+
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].q_gas;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].s_gas;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (int k=0;k<3;k++) for (int n=0;n<3;n++) {
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].eigvec_gas(k,n);
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        }
+
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].Krot_gas;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].Temp_gas;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
 #ifdef STARON
-            Fout<<pdata[i].Z_gas<<" ";
-            Fout<<pdata[i].SFR_gas<<" ";
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].Z_gas;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].SFR_gas;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
 #endif
 #endif
 
 #ifdef STARON
-            Fout<<pdata[i].n_star<<" ";
-            Fout<<pdata[i].M_star<<" ";
-            for (int k=0;k<3;k++) Fout<<pdata[i].cm_star[k]<<" ";
-            for (int k=0;k<3;k++) Fout<<pdata[i].cmvel_star[k]<<" ";
-            Fout<<pdata[i].Efrac_star<<" ";
-            Fout<<pdata[i].Rhalfmass_star<<" ";
-            for (int k=0;k<3;k++) for (int n=0;n<3;n++) Fout<<pdata[i].veldisp_star(k,n)<<" ";
-            for (int k=0;k<3;k++) Fout<<pdata[i].L_star[k]<<" ";
-            Fout<<pdata[i].q_star<<" ";
-            Fout<<pdata[i].s_star<<" ";
-            for (int k=0;k<3;k++) for (int n=0;n<3;n++) Fout<<pdata[i].eigvec_star(k,n)<<" ";
-            Fout<<pdata[i].Krot_star<<" ";
-            Fout<<pdata[i].t_star<<" ";
-            Fout<<pdata[i].Z_star<<" ";
-#endif
-            Fout<<endl;
-            */
+        for (Int_t i=1;i<=ngroups;i++) ((unsigned long*)data)[i]=pdata[i].n_star;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].M_star;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (int k=0;k<3;k++){
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].cm_star[k];
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
         }
+        for (int k=0;k<3;k++){
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].cmvel_star[k];
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        }
+
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].Efrac_star;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].Rhalfmass_star;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (int k=0;k<3;k++) for (int n=0;n<3;n++) {
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].veldisp_star(k,n);
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        }
+        for (int k=0;k<3;k++){
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].L_star[k];
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        }
+
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].q_star;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].s_star;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (int k=0;k<3;k++) for (int n=0;n<3;n++) {
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].eigvec_star(k,n);
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        }
+
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].Krot_star;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].t_star;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].Z_star;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+#endif
+        //delete memory associated with void pointer
+        ::operator delete(data);
     }
+#endif
     cout<<"Done"<<endl;
-    Fout.close();
+    if (opt.ibinaryout!=OUTHDF) Fout.close();
+#ifdef USEHDF
+    else Fhdf.close();
+#endif
+
+
 }
 //@}
 

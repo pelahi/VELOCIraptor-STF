@@ -397,10 +397,12 @@ void GetCMProp(Options &opt, const Int_t nbodies, Particle *&Part, Int_t ngroup,
     Double_t ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside;
     Double_t cmvx,cmvy,cmvz;
     Double_t vc,rc,x,y,z,vx,vy,vz,jzval,Rdist,zdist,Ekin,Krot,mval;
+    Double_t RV_Ekin,RV_Krot;
     Double_t Tsum,tsum,Zsum,sfrsum;
     Coordinate jval;
     Double_t change=MAXVALUE,tol=1e-2;
     Int_t ii,icmv;
+    Int_t RV_num;
     Double_t virval=log(opt.virlevel*opt.rhobg);
     Double_t m200val=log(opt.rhobg/opt.Omega_m*200.0);
     Double_t m200mval=log(opt.rhobg*200.0);
@@ -417,7 +419,7 @@ private(i)
     //for small groups loop over groups
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
-private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z,vx,vy,vz,vc,rc,jval,jzval,Rdist,zdist,Ekin,Krot,mval)
+private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z,vx,vy,vz,vc,rc,jval,jzval,Rdist,zdist,Ekin,Krot,mval,RV_Ekin,RV_Krot,RV_num)
 {
     #pragma omp for schedule(dynamic,1) nowait
 #endif
@@ -564,7 +566,7 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
             //calculate vc
             if (rc>0) if (EncMass>0) vc=sqrt(opt.G*EncMass*opt.MassValue/rc);
             //max circ and then vir data
-            if (vc>pdata[i].gmaxvel && EncMass>=1.0/sqrt(numingroup[i])*pdata[i].gmass) {pdata[i].gmaxvel=vc;pdata[i].gRmaxvel=rc;pdata[i].gMmaxvel=EncMass;}
+            if (vc>pdata[i].gmaxvel && EncMass>=1.0/sqrt(numingroup[i])*pdata[i].gmass) {pdata[i].gmaxvel=vc;pdata[i].gRmaxvel=rc;pdata[i].gMmaxvel=EncMass;RV_num=j+1;}
             if (EncMass>0.5*pdata[i].gmass && pdata[i].gRhalfmass==0) pdata[i].gRhalfmass=rc;
         }
         pdata[i].gveldisp(1,0)=pdata[i].gveldisp(0,1);
@@ -580,10 +582,11 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
         Ekin*=opt.MassValue;
 #endif
         pdata[i].glambda_B=pdata[i].gJ.Length()/(pdata[i].gM200c*sqrt(2.0*opt.G*pdata[i].gM200c*pdata[i].gR200c));
-
+        
         //calculate the rotational energy about the angular momentum axis
         //this is defined as the specific angular momentum about the angular momentum
         //axis (see sales et al 2010)
+        RV_Ekin=0;
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
             vx = (*Pval).Vx()-pdata[i].gcmvel[0];
@@ -600,6 +603,51 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
         pdata[i].Krot*=opt.MassValue;
 #endif
 
+        //now calculate stuff within RV knowing particle array sorted according to radius
+        for (j=0;j<RV_num;j++) {
+            Pval=&Part[j+noffset[i]];
+            rc=Pval->Radius();
+            vx = (*Pval).Vx()-pdata[i].gcmvel[0];
+            vy = (*Pval).Vy()-pdata[i].gcmvel[1];
+            vz = (*Pval).Vz()-pdata[i].gcmvel[2];
+            RV_Ekin+=Pval->GetMass()*(vx*vx+vy*vy+vz*vz);
+            pdata[i].RV_J=pdata[i].RV_J+Coordinate(Pval->GetPosition()).Cross(Coordinate(vx,vy,vz))*Pval->GetMass();
+            pdata[i].RV_veldisp(0,0)+=vx*vx*Pval->GetMass();
+            pdata[i].RV_veldisp(1,1)+=vy*vy*Pval->GetMass();
+            pdata[i].RV_veldisp(2,2)+=vz*vz*Pval->GetMass();
+            pdata[i].RV_veldisp(0,1)+=vx*vy*Pval->GetMass();
+            pdata[i].RV_veldisp(0,2)+=vx*vz*Pval->GetMass();
+            pdata[i].RV_veldisp(1,2)+=vy*vz*Pval->GetMass();
+
+        }
+        //adjust RVmax values
+        pdata[i].RV_veldisp(1,0)=pdata[i].RV_veldisp(0,1);
+        pdata[i].RV_veldisp(2,0)=pdata[i].RV_veldisp(0,2);
+        pdata[i].RV_veldisp(2,1)=pdata[i].RV_veldisp(1,2);
+        pdata[i].RV_veldisp=pdata[i].RV_veldisp*(1.0/pdata[i].gMmaxvel);
+        pdata[i].RV_sigma_v=pow(pdata[i].RV_veldisp.Det(),1.0/6.0);
+        RV_Ekin*=0.5;
+#ifdef NOMASS
+        pdata[i].RV_J=pdata[i].RV_J*opt.MassValue;
+        RV_Ekin*=opt.MassValue;
+#endif
+        pdata[i].RV_lambda_B=pdata[i].RV_J.Length()/(pdata[i].gMmaxvel*sqrt(2.0*opt.G*pdata[i].gMmaxvel*pdata[i].gRmaxvel));
+        for (j=0;j<RV_num;j++) {
+            Pval=&Part[j+noffset[i]];
+            vx = (*Pval).Vx()-pdata[i].gcmvel[0];
+            vy = (*Pval).Vy()-pdata[i].gcmvel[1];
+            vz = (*Pval).Vz()-pdata[i].gcmvel[2];
+            jval=Coordinate(Pval->GetPosition()).Cross(Coordinate(vx,vy,vz));
+            jzval=(jval*pdata[i].RV_J)/pdata[i].RV_J.Length();
+            zdist=(Coordinate(Pval->GetPosition())*pdata[i].RV_J)/pdata[i].RV_J.Length();
+            Rdist=sqrt(Pval->Radius2()-zdist*zdist);
+            pdata[i].RV_Krot+=Pval->GetMass()*(jzval*jzval/(Rdist*Rdist));
+        }
+        pdata[i].RV_Krot*=0.5/RV_Ekin;
+#ifdef NOMASS
+        pdata[i].RV_Krot*=opt.MassValue;
+#endif
+        
         //calculate the concentration based on prada 2012 where [(Vmax)/(GM/R)]^2-(0.216*c)/f(c)=0,
         //where f(c)=ln(1+c)-c/(1+c) and M is some "virial" mass and associated radius
         if (pdata[i].gR200c==0) pdata[i].VmaxVvir2=(pdata[i].gmaxvel*pdata[i].gmaxvel)/(opt.G*pdata[i].gmass/pdata[i].gsize);
@@ -789,9 +837,13 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
         //morphology calcs
 #ifdef NOMASS
         GetGlobalSpatialMorphology(numingroup[i], &Part[noffset[i]], pdata[i].gq, pdata[i].gs, 1e-2, pdata[i].geigvec,0);
+        //calculate morphology based on particles within RV, the radius of maximum circular velocity
+        GetGlobalSpatialMorphology(RV_num, &Part[noffset[i]], pdata[i].RV_q, pdata[i].RV_s, 1e-2, pdata[i].RV_eigvec,0);
 #else
         GetGlobalSpatialMorphology(numingroup[i], &Part[noffset[i]], pdata[i].gq, pdata[i].gs, 1e-2, pdata[i].geigvec,1);
+        GetGlobalSpatialMorphology(RV_num, &Part[noffset[i]], pdata[i].RV_q, pdata[i].RV_s, 1e-2, pdata[i].RV_eigvec,1);
 #endif
+        
         //reset particle positions 
         for (j=0;j<numingroup[i];j++) {
             x = (*Pval).X()+pdata[i].gcm[0];
@@ -976,9 +1028,9 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval)
 }
 #endif
 
-        pdata[i].gJ[0]=Jx*opt.MassValue;
-        pdata[i].gJ[1]=Jy*opt.MassValue;
-        pdata[i].gJ[2]=Jz*opt.MassValue;
+        pdata[i].gJ[0]=Jx;
+        pdata[i].gJ[1]=Jy;
+        pdata[i].gJ[2]=Jz;
         pdata[i].gveldisp(0,0)=sxx;
         pdata[i].gveldisp(1,1)=syy;
         pdata[i].gveldisp(2,2)=szz;
@@ -988,10 +1040,8 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval)
         pdata[i].gveldisp=pdata[i].gveldisp*(1.0/pdata[i].gmass);
         pdata[i].gsigma_v=pow(pdata[i].gveldisp.Det(),1.0/6.0);
         Ekin*=0.5;
-#ifdef NOMASS
-        Ekin*=opt.MassValue;
-#endif
         pdata[i].glambda_B=pdata[i].gJ.Length()/(pdata[i].gM200c*sqrt(2.0*opt.G*pdata[i].gM200c*pdata[i].gR200c));
+
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
 private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
@@ -1024,12 +1074,84 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
             EncMass+=Pval->GetMass();
             rc=Pval->Radius();
             if (rc>0) if (EncMass>0) vc=sqrt(opt.G*EncMass*opt.MassValue/rc);
-            if (vc>pdata[i].gmaxvel) {pdata[i].gmaxvel=vc;pdata[i].gRmaxvel=rc;pdata[i].gMmaxvel=EncMass;}
+            if (vc>pdata[i].gmaxvel) {pdata[i].gmaxvel=vc;pdata[i].gRmaxvel=rc;pdata[i].gMmaxvel=EncMass;RV_num=j+1;}
             if (EncMass>0.5*pdata[i].gmass && pdata[i].gRhalfmass==0) pdata[i].gRhalfmass=rc;
         }
         if (pdata[i].gRvir==0) {pdata[i].gMvir=pdata[i].gmass;pdata[i].gRvir=pdata[i].gsize;}
 #ifdef NOMASS
         pdata[i].gMmaxvel*=opt.MassValue;
+#endif
+        
+        //now that we have radius of maximum circular velocity, lets calculate properties internal to this radius
+        Ekin=Jx=Jy=Jz=sxx=sxy=sxz=syy=syz=szz=Krot=0.;
+#ifdef USEOPENMP
+#pragma omp parallel default(shared) \
+private(j,Pval,x,y,z,vx,vy,vz,J,mval)
+{
+    #pragma omp for reduction(+:Jx,Jy,Jz,sxx,sxy,sxz,syy,syz,szz,Ekin)
+#endif
+        for (j=0;j<RV_num;j++) {
+            Pval=&Part[j+noffset[i]];
+            mval=Pval->GetMass();
+#ifdef NOMASS
+            mval*=opt.MassValue;
+#endif 
+            vx = (*Pval).Vx()-pdata[i].gcmvel[0];
+            vy = (*Pval).Vy()-pdata[i].gcmvel[1];
+            vz = (*Pval).Vz()-pdata[i].gcmvel[2];
+            J=Coordinate(Pval->GetPosition()).Cross(Coordinate(vx,vy,vz))*mval;
+            Jx+=J[0];Jy+=J[1];Jz+=J[2];
+            sxx+=vx*vx*mval;
+            syy+=vy*vy*mval;
+            szz+=vz*vz*mval;
+            sxy+=vx*vy*mval;
+            sxz+=vx*vz*mval;
+            syz+=vy*vz*mval;
+            Ekin+=(vx*vx+vy*vy+vz*vz)*mval;
+        }
+#ifdef USEOPENMP
+}
+#endif
+        pdata[i].RV_J[0]=Jx;
+        pdata[i].RV_J[1]=Jy;
+        pdata[i].RV_J[2]=Jz;
+        pdata[i].RV_veldisp(0,0)=sxx;
+        pdata[i].RV_veldisp(1,1)=syy;
+        pdata[i].RV_veldisp(2,2)=szz;
+        pdata[i].RV_veldisp(0,1)=pdata[i].RV_veldisp(1,0)=sxy;
+        pdata[i].RV_veldisp(0,2)=pdata[i].RV_veldisp(2,0)=sxz;
+        pdata[i].RV_veldisp(1,2)=pdata[i].RV_veldisp(2,1)=syz;
+        pdata[i].RV_veldisp=pdata[i].RV_veldisp*(1.0/pdata[i].gMmaxvel);
+        pdata[i].RV_sigma_v=pow(pdata[i].RV_veldisp.Det(),1.0/6.0);
+        Ekin*=0.5;
+        pdata[i].RV_lambda_B=pdata[i].RV_J.Length()/(pdata[i].gMmaxvel*sqrt(2.0*opt.G*pdata[i].gMmaxvel*pdata[i].gRmaxvel));
+        Krot=0;
+#ifdef USEOPENMP
+#pragma omp parallel default(shared) \
+private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
+{
+    #pragma omp for reduction(+:Krot)
+#endif
+        for (j=0;j<RV_num;j++) {
+            Pval=&Part[j+noffset[i]];
+            x = (*Pval).X();
+            y = (*Pval).Y();
+            z = (*Pval).Z();
+            vx = (*Pval).Vx()-pdata[i].gcmvel[0];
+            vy = (*Pval).Vy()-pdata[i].gcmvel[1];
+            vz = (*Pval).Vz()-pdata[i].gcmvel[2];
+            jval=Coordinate(x,y,z).Cross(Coordinate(vx,vy,vz));
+            jzval=(jval*pdata[i].RV_J)/pdata[i].RV_J.Length();
+            zdist=(Coordinate(x,y,z)*pdata[i].RV_J)/pdata[i].RV_J.Length();
+            Rdist=sqrt(x*x+y*y+z*z-zdist*zdist);
+            Krot+=Pval->GetMass()*(jzval*jzval/(Rdist*Rdist));
+        }
+#ifdef USEOPENMP
+}
+#endif
+        pdata[i].RV_Krot=0.5*Krot/Ekin;
+#ifdef NOMASS
+        pdata[i].RV_Krot*=opt.MassValue;
 #endif
 
         //calculate the concentration based on prada 2012 where [(Vmax)/(GM/R)]^2-(0.216*c)/f(c)=0,
@@ -1317,8 +1439,10 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
 
 #ifdef NOMASS
         GetGlobalSpatialMorphology(numingroup[i], &Part[noffset[i]], pdata[i].gq, pdata[i].gs, 1e-2, pdata[i].geigvec,0);
+        GetGlobalSpatialMorphology(RV_num, &Part[noffset[i]], pdata[i].RV_q, pdata[i].RV_s, 1e-2, pdata[i].RV_eigvec,0);
 #else
         GetGlobalSpatialMorphology(numingroup[i], &Part[noffset[i]], pdata[i].gq, pdata[i].gs, 1e-2, pdata[i].geigvec,1);
+        GetGlobalSpatialMorphology(RV_num, &Part[noffset[i]], pdata[i].RV_q, pdata[i].RV_s, 1e-2, pdata[i].RV_eigvec,1);
 #endif
         //reset particle positions
         for (j=0;j<numingroup[i];j++) {

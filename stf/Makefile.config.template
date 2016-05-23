@@ -172,20 +172,15 @@ endif
 #===========================================
 #related to internal data/precision of calculations, integers
 #===========================================
-ifeq ($(NOMASS),"on")
-    COMPILEFLAGS+= -DNOMASS
-endif
 ifeq ($(SINGLEPRECISION),"on")
     COMPILEFLAGS+= -DSINGLEPRECISION
 endif
 ifeq ($(LONGINT),"on")
     COMPILEFLAGS+= -DLONGINT
 endif
-
 ifeq ($(NOMASS),"on")
-    COMPILEFLAGS+= -DNOMASS 
+    COMPILEFLAGS+= -DNOMASS
 endif
-
 ifeq ($(SINGLEPARTICLEPRECISION),"on")
     COMPILEFLAGS+= -DLOWPRECISIONPOS 
 endif
