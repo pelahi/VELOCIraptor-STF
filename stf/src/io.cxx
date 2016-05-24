@@ -731,10 +731,10 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
             rank=1;
             datasetname=H5std_string("Particle_types");
             dataspace=DataSpace(rank,dims);
-            dataset = Fhdf.createDataSet(datasetname, PredType::STD_U32LE, dataspace);
-            unsigned int *data=new unsigned int[nids];
+            dataset = Fhdf.createDataSet(datasetname, PredType::STD_U16LE, dataspace);
+            unsigned short *data=new unsigned short[nids];
             for (Int_t i=0;i<nids;i++) data[i]=typeval[i];
-            dataset.write(data,PredType::STD_U32LE);
+            dataset.write(data,PredType::STD_U16LE);
             delete[] data;
             delete[] dims;
         }
@@ -761,10 +761,10 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
             rank=1;
             datasetname=H5std_string("Particle_types");
             dataspace=DataSpace(rank,dims);
-            dataset = Fhdf2.createDataSet(datasetname, PredType::STD_U32LE, dataspace);
-            unsigned int *data=new unsigned int[nuids];
+            dataset = Fhdf2.createDataSet(datasetname, PredType::STD_U16LE, dataspace);
+            unsigned short *data=new unsigned short[nuids];
             for (Int_t i=0;i<nuids;i++) data[i]=typeval[i];
-            dataset.write(data,PredType::STD_U32LE);
+            dataset.write(data,PredType::STD_U16LE);
             delete[] data;
             delete[] dims;
         }
