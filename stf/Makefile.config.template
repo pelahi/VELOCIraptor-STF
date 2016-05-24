@@ -107,7 +107,7 @@ ifeq ($(LOCALFFTW),"on")
     FFTW_CFLAGS =  $(FFTW_INCL) $(FFTW_LIBS)
 endif
 ifeq ($(HDFINPUT)$(LOCALHDF),"on""on")
-    HDF_DIR = /home/pelahi/myresearch/SSimPL-DEDM/codes/hdf5-1.8.13
+    HDF_DIR = 
     HDF_INCL = -I$(HDF_DIR)/include/
     HDF_LIBS = -L$(HDF_DIR)/lib/
 endif
