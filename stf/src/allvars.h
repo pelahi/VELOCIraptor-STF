@@ -1077,11 +1077,11 @@ struct PropDataHeader{
 
         //if using hdf, store the type
 #ifdef USEHDF
-        predtypeinfo.push_back(PredType::STD_U64BE);
-        predtypeinfo.push_back(PredType::STD_I64BE);
-        predtypeinfo.push_back(PredType::STD_I64BE);
-        predtypeinfo.push_back(PredType::STD_U64BE);
-        predtypeinfo.push_back(PredType::STD_U64BE);
+        predtypeinfo.push_back(PredType::STD_U64LE);
+        predtypeinfo.push_back(PredType::STD_I64LE);
+        predtypeinfo.push_back(PredType::STD_I64LE);
+        predtypeinfo.push_back(PredType::STD_U64LE);
+        predtypeinfo.push_back(PredType::STD_U64LE);
 #endif
 
         headerdatainfo.push_back("Mvir");
@@ -1176,7 +1176,7 @@ struct PropDataHeader{
 #ifdef GASON
         headerdatainfo.push_back("n_gas");
 #ifdef USEHDF
-        predtypeinfo.push_back(PredType::STD_U64BE);
+        predtypeinfo.push_back(PredType::STD_U64LE);
 #endif
         headerdatainfo.push_back("M_gas");
         headerdatainfo.push_back("Xc_gas");
@@ -1224,7 +1224,7 @@ struct PropDataHeader{
 #ifdef STARON
         headerdatainfo.push_back("n_star");
 #ifdef USEHDF
-        predtypeinfo.push_back(PredType::STD_U64BE);
+        predtypeinfo.push_back(PredType::STD_U64LE);
 #endif
         headerdatainfo.push_back("M_star");
         headerdatainfo.push_back("Xc_star");
