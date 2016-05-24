@@ -1203,8 +1203,8 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
 #endif
         //delete memory associated with void pointer
         ::operator delete(data);
-        delete[] pdataspace;
-        delete[] pdataset;
+        delete[] propdataspace;
+        delete[] propdataset;
     }
 #endif
     cout<<"Done"<<endl;
