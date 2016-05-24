@@ -170,9 +170,9 @@ Int_t MPIReadHaloGroupCatalogDataNum(char* infile, int mpi_ninput, int ibinary, 
         Fgroup.read((char*)&ltemp,sizeof(unsigned long));
         TotalNumberofHalos=ltemp;
         if (ifieldhalos) {
-            Fsgroup.read((char*)&ltemp,sizeof((unsigned long));
+            Fsgroup.read((char*)&ltemp,sizeof(unsigned long));
             nsglocal=ltemp;
-            Fsgroup.read((char*)&ltemp,sizeof((unsigned long));
+            Fsgroup.read((char*)&ltemp,sizeof(unsigned long));
         }
     }
     else {
