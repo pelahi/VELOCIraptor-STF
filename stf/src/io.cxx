@@ -294,6 +294,8 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     DataSet dataset;
     hsize_t *dims;
     hsize_t rank;
+    HDFCatalogNames hdfnames;
+    int itemp=0;
 #endif
 
 #ifndef USEMPI
@@ -336,25 +338,30 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
         dims=new hsize_t[1];
         dims[0]=1;
         rank=1;
-        datasetname=H5std_string("File_id");
+        itemp=0;
+        //datasetname=H5std_string("File_id");
         dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datasetname, PredType::STD_I32LE, dataspace);
-        dataset.write(&ThisTask,PredType::STD_I32LE);
+        dataset = Fhdf.createDataSet(hdfnames.group[itemp], hdfnames.groupdatatype[itemp], dataspace);
+        dataset.write(&ThisTask,hdfnames.groupdatatype[itemp]);
+        itemp++;
 
-        datasetname=H5std_string("Num_of_files");
+        //datasetname=H5std_string("Num_of_files");
         dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datasetname, PredType::STD_I32LE, dataspace);
-        dataset.write(&NProcs,PredType::STD_I32LE);
+        dataset = Fhdf.createDataSet(hdfnames.group[itemp], hdfnames.groupdatatype[itemp], dataspace);
+        dataset.write(&NProcs,hdfnames.groupdatatype[itemp]);
+        itemp++;
         
-        datasetname=H5std_string("Num_of_groups");
+        //datasetname=H5std_string("Num_of_groups");
         dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datasetname, PredType::STD_U64LE, dataspace);
-        dataset.write(&ng,PredType::STD_U64LE);
+        dataset = Fhdf.createDataSet(hdfnames.group[itemp], hdfnames.groupdatatype[itemp], dataspace);
+        dataset.write(&ng,hdfnames.groupdatatype[itemp]);
+        itemp++;
 
-        datasetname=H5std_string("Total_num_of_groups");
+        //datasetname=H5std_string("Total_num_of_groups");
         dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datasetname, PredType::STD_U64LE, dataspace);
-        dataset.write(&ngtot,PredType::STD_U64LE);
+        dataset = Fhdf.createDataSet(hdfnames.group[itemp], hdfnames.groupdatatype[itemp], dataspace);
+        dataset.write(&ngtot,hdfnames.groupdatatype[itemp]);
+        itemp++;
         delete[] dims;
     }
 #endif
@@ -370,12 +377,13 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
         dims=new hsize_t[1];
         dims[0]=ng;
         rank=1;
-        datasetname=H5std_string("Group_size");
+        //datasetname=H5std_string("Group_size");
         dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datasetname, PredType::STD_U32LE, dataspace);
+        dataset = Fhdf.createDataSet(hdfnames.group[itemp], hdfnames.groupdatatype[itemp], dataspace);
         unsigned int *data=new unsigned int[ng];
         for (Int_t i=1;i<=ng;i++) data[i-1]=numingroup[i];
-        dataset.write(data,PredType::STD_U32LE);
+        dataset.write(data,hdfnames.groupdatatype[itemp]);
+        itemp++;
         delete[] data;
         delete[] dims;
     }
@@ -395,12 +403,13 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
         dims=new hsize_t[1];
         dims[0]=ng;
         rank=1;
-        datasetname=H5std_string("Offset");
+        //datasetname=H5std_string("Offset");
         dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datasetname, PredType::STD_U32LE, dataspace);
+        dataset = Fhdf.createDataSet(hdfnames.group[itemp], hdfnames.groupdatatype[itemp], dataspace);
         unsigned int *data=new unsigned int[ng];
         for (Int_t i=1;i<=ng;i++) data[i-1]=offset[i];
-        dataset.write(data,PredType::STD_U32LE);
+        dataset.write(data,hdfnames.groupdatatype[itemp]);
+        itemp++;
         delete[] data;
         delete[] dims;
     }
@@ -415,12 +424,13 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
         dims=new hsize_t[1];
         dims[0]=ng;
         rank=1;
-        datasetname=H5std_string("Offset_unbound");
+        //datasetname=H5std_string("Offset_unbound");
         dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datasetname, PredType::STD_U32LE, dataspace);
+        dataset = Fhdf.createDataSet(hdfnames.group[itemp], hdfnames.groupdatatype[itemp], dataspace);
         unsigned int *data=new unsigned int[ng];
         for (Int_t i=1;i<=ng;i++) data[i-1]=offset[i];
-        dataset.write(data,PredType::STD_U32LE);
+        dataset.write(data,hdfnames.groupdatatype[itemp]);
+        itemp++;
         delete[] data;
         delete[] dims;
     }
@@ -492,34 +502,38 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
         dims=new hsize_t[1];
         dims[0]=1;
         rank=1;
-        datasetname=H5std_string("File_id");
+        itemp=0;
+        //datasetname=H5std_string("File_id");
         dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datasetname, PredType::STD_I32LE, dataspace);
-        dataset.write(&ThisTask,PredType::STD_I32LE);
-        dataset = Fhdf3.createDataSet(datasetname, PredType::STD_I32LE, dataspace);
-        dataset.write(&ThisTask,PredType::STD_I32LE);
+        dataset = Fhdf.createDataSet(hdfnames.part[itemp], hdfnames.partdatatype[itemp], dataspace);
+        dataset.write(&ThisTask,hdfnames.partdatatype[itemp]);
+        dataset = Fhdf3.createDataSet(hdfnames.part[itemp], hdfnames.partdatatype[itemp], dataspace);
+        dataset.write(&ThisTask,hdfnames.partdatatype[itemp]);
+        itemp++;
 
-        datasetname=H5std_string("Num_of_files");
+        //datasetname=H5std_string("Num_of_files");
         dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datasetname, PredType::STD_I32LE, dataspace);
-        dataset.write(&NProcs,PredType::STD_I32LE);
-        dataset = Fhdf3.createDataSet(datasetname, PredType::STD_I32LE, dataspace);
-        dataset.write(&NProcs,PredType::STD_I32LE);
+        dataset = Fhdf.createDataSet(hdfnames.part[itemp], hdfnames.partdatatype[itemp], dataspace);
+        dataset.write(&NProcs,hdfnames.partdatatype[itemp]);
+        dataset = Fhdf3.createDataSet(hdfnames.part[itemp], hdfnames.partdatatype[itemp], dataspace);
+        dataset.write(&NProcs,hdfnames.partdatatype[itemp]);
+        itemp++;
         
-        datasetname=H5std_string("Num_of_particles_in_groups");
+        //datasetname=H5std_string("Num_of_particles_in_groups");
         dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datasetname, PredType::STD_U64LE, dataspace);
-        dataset.write(&nids,PredType::STD_U64LE);
-        dataset = Fhdf3.createDataSet(datasetname, PredType::STD_U64LE, dataspace);
-        dataset.write(&nuids,PredType::STD_U64LE);
+        dataset = Fhdf.createDataSet(hdfnames.part[itemp], hdfnames.partdatatype[itemp], dataspace);
+        dataset.write(&nids,hdfnames.partdatatype[itemp]);
+        dataset = Fhdf3.createDataSet(hdfnames.part[itemp], hdfnames.partdatatype[itemp], dataspace);
+        dataset.write(&nuids,hdfnames.partdatatype[itemp]);
+        itemp++;
 
-        datasetname=H5std_string("Total_num_of_particles_in_all_groups");
+        //datasetname=H5std_string("Total_num_of_particles_in_all_groups");
         dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datasetname, PredType::STD_U64LE, dataspace);
-        dataset.write(&nidstot,PredType::STD_U64LE);
-        dataset = Fhdf3.createDataSet(datasetname, PredType::STD_U64LE, dataspace);
-        dataset.write(&nuidstot,PredType::STD_U64LE);
-//set group info
+        dataset = Fhdf.createDataSet(hdfnames.part[itemp], hdfnames.partdatatype[itemp], dataspace);
+        dataset.write(&nidstot,hdfnames.partdatatype[itemp]);
+        dataset = Fhdf3.createDataSet(hdfnames.part[itemp], hdfnames.partdatatype[itemp], dataspace);
+        dataset.write(&nuidstot,hdfnames.partdatatype[itemp]);
+        itemp++;
         delete[] dims;
     }
 #endif
@@ -544,12 +558,12 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
             dims=new hsize_t[1];
             dims[0]=nids;
             rank=1;
-            datasetname=H5std_string("Particle_IDs");
+            //datasetname=H5std_string("Particle_IDs");
             dataspace=DataSpace(rank,dims);
-            dataset = Fhdf.createDataSet(datasetname, PredType::STD_I64LE, dataspace);
+            dataset = Fhdf.createDataSet(hdfnames.part[itemp], hdfnames.partdatatype[itemp], dataspace);
             long long *data=new long long[nids];
             for (Int_t i=0;i<nids;i++) data[i]=idval[i];
-            dataset.write(data,PredType::STD_I64LE);
+            dataset.write(data,hdfnames.partdatatype[itemp]);
             delete[] data;
             delete[] dims;
         }
@@ -574,12 +588,12 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
             dims=new hsize_t[1];
             dims[0]=nuids;
             rank=1;
-            datasetname=H5std_string("Particle_IDs");
+            //datasetname=H5std_string("Particle_IDs");
             dataspace=DataSpace(rank,dims);
-            dataset = Fhdf3.createDataSet(datasetname, PredType::STD_I64LE, dataspace);
+            dataset = Fhdf3.createDataSet(hdfnames.part[itemp], hdfnames.partdatatype[itemp], dataspace);
             long long *data=new long long[nuids];
             for (Int_t i=0;i<nuids;i++) data[i]=idval[i];
-            dataset.write(data,PredType::STD_I64LE);
+            dataset.write(data,hdfnames.partdatatype[itemp]);
             delete[] data;
             delete[] dims;
         }
@@ -613,6 +627,8 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
     DataSet dataset;
     hsize_t *dims;
     hsize_t rank;
+    HDFCatalogNames hdfnames;
+    int itemp;
 #endif
 
     #ifndef USEMPI
@@ -678,34 +694,38 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
         dims=new hsize_t[1];
         dims[0]=1;
         rank=1;
-        datasetname=H5std_string("File_id");
+        itemp=0;
+        //datasetname=H5std_string("File_id");
         dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datasetname, PredType::STD_I32LE, dataspace);
-        dataset.write(&ThisTask,PredType::STD_I32LE);
-        dataset = Fhdf2.createDataSet(datasetname, PredType::STD_I32LE, dataspace);
-        dataset.write(&ThisTask,PredType::STD_I32LE);
+        dataset = Fhdf.createDataSet(hdfnames.types[itemp], hdfnames.typesdatatype[itemp], dataspace);
+        dataset.write(&ThisTask,hdfnames.typesdatatype[itemp]);
+        dataset = Fhdf2.createDataSet(hdfnames.types[itemp], hdfnames.typesdatatype[itemp], dataspace);
+        dataset.write(&ThisTask,hdfnames.typesdatatype[itemp]);
+        itemp++;
 
-        datasetname=H5std_string("Num_of_files");
+        //datasetname=H5std_string("Num_of_files");
         dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datasetname, PredType::STD_I32LE, dataspace);
-        dataset.write(&NProcs,PredType::STD_I32LE);
-        dataset = Fhdf2.createDataSet(datasetname, PredType::STD_I32LE, dataspace);
-        dataset.write(&NProcs,PredType::STD_I32LE);
+        dataset = Fhdf.createDataSet(hdfnames.types[itemp], hdfnames.typesdatatype[itemp], dataspace);
+        dataset.write(&NProcs,hdfnames.typesdatatype[itemp]);
+        dataset = Fhdf2.createDataSet(hdfnames.types[itemp], hdfnames.typesdatatype[itemp], dataspace);
+        dataset.write(&NProcs,hdfnames.typesdatatype[itemp]);
+        itemp++;
         
-        datasetname=H5std_string("Num_of_particles_in_groups");
+        //datasetname=H5std_string("Num_of_particles_in_groups");
         dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datasetname, PredType::STD_U64LE, dataspace);
-        dataset.write(&nids,PredType::STD_U64LE);
-        dataset = Fhdf2.createDataSet(datasetname, PredType::STD_U64LE, dataspace);
-        dataset.write(&nuids,PredType::STD_U64LE);
+        dataset = Fhdf.createDataSet(hdfnames.types[itemp], hdfnames.typesdatatype[itemp], dataspace);
+        dataset.write(&nids,hdfnames.typesdatatype[itemp]);
+        dataset = Fhdf2.createDataSet(hdfnames.types[itemp], hdfnames.typesdatatype[itemp], dataspace);
+        dataset.write(&nuids,hdfnames.typesdatatype[itemp]);
+        itemp++;
 
-        datasetname=H5std_string("Total_num_of_particles_in_all_groups");
+        //datasetname=H5std_string("Total_num_of_particles_in_all_groups");
         dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datasetname, PredType::STD_U64LE, dataspace);
-        dataset.write(&nidstot,PredType::STD_U64LE);
-        dataset = Fhdf2.createDataSet(datasetname, PredType::STD_U64LE, dataspace);
-        dataset.write(&nuidstot,PredType::STD_U64LE);
-//set group info
+        dataset = Fhdf.createDataSet(hdfnames.types[itemp], hdfnames.typesdatatype[itemp], dataspace);
+        dataset.write(&nidstot,hdfnames.typesdatatype[itemp]);
+        dataset = Fhdf2.createDataSet(hdfnames.types[itemp], hdfnames.typesdatatype[itemp], dataspace);
+        dataset.write(&nuidstot,hdfnames.typesdatatype[itemp]);
+        itemp++;
         delete[] dims;
     }
 #endif
@@ -729,12 +749,12 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
             dims=new hsize_t[1];
             dims[0]=nids;
             rank=1;
-            datasetname=H5std_string("Particle_types");
+            //datasetname=H5std_string("Particle_types");
             dataspace=DataSpace(rank,dims);
-            dataset = Fhdf.createDataSet(datasetname, PredType::STD_U16LE, dataspace);
+            dataset = Fhdf.createDataSet(hdfnames.types[itemp], hdfnames.typesdatatype[itemp], dataspace);
             unsigned short *data=new unsigned short[nids];
             for (Int_t i=0;i<nids;i++) data[i]=typeval[i];
-            dataset.write(data,PredType::STD_U16LE);
+            dataset.write(data,hdfnames.typesdatatype[itemp]);
             delete[] data;
             delete[] dims;
         }
@@ -761,10 +781,10 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
             rank=1;
             datasetname=H5std_string("Particle_types");
             dataspace=DataSpace(rank,dims);
-            dataset = Fhdf2.createDataSet(datasetname, PredType::STD_U16LE, dataspace);
+            dataset = Fhdf2.createDataSet(hdfnames.types[itemp], hdfnames.typesdatatype[itemp], dataspace);
             unsigned short *data=new unsigned short[nuids];
             for (Int_t i=0;i<nuids;i++) data[i]=typeval[i];
-            dataset.write(data,PredType::STD_U16LE);
+            dataset.write(data,hdfnames.typesdatatype[itemp]);
             delete[] data;
             delete[] dims;
         }
@@ -805,6 +825,8 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
     int rank;
     DataSpace *propdataspace;
     DataSet *propdataset;
+    HDFCatalogNames hdfnames;
+    int itemp=0;
 #endif
 
     PropDataHeader head;
@@ -842,26 +864,31 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         dims=new hsize_t[1];
         dims[0]=1;
         rank=1;
-        datasetname=H5std_string("File_id");
+        //since header info is the same as the group catalog files, write to hdf file using same interface
+        itemp=0;
+        //datasetname=H5std_string("File_id");
         dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datasetname, PredType::STD_I32LE, dataspace);
-        dataset.write(&ThisTask,PredType::STD_I32LE);
+        dataset = Fhdf.createDataSet(hdfnames.group[itemp], hdfnames.groupdatatype[itemp], dataspace);
+        dataset.write(&ThisTask,hdfnames.groupdatatype[itemp]);
+        itemp++;
 
-        datasetname=H5std_string("Num_of_files");
+        //datasetname=H5std_string("Num_of_files");
         dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datasetname, PredType::STD_I32LE, dataspace);
-        dataset.write(&NProcs,PredType::STD_I32LE);
+        dataset = Fhdf.createDataSet(hdfnames.group[itemp], hdfnames.groupdatatype[itemp], dataspace);
+        dataset.write(&NProcs,hdfnames.groupdatatype[itemp]);
+        itemp++;
         
-        datasetname=H5std_string("Num_of_groups");
+        //datasetname=H5std_string("Num_of_groups");
         dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datasetname, PredType::STD_U64LE, dataspace);
-        dataset.write(&ng,PredType::STD_U64LE);
+        dataset = Fhdf.createDataSet(hdfnames.group[itemp], hdfnames.groupdatatype[itemp], dataspace);
+        dataset.write(&ng,hdfnames.groupdatatype[itemp]);
+        itemp++;
 
-        datasetname=H5std_string("Total_num_of_groups");
+        //datasetname=H5std_string("Total_num_of_groups");
         dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datasetname, PredType::STD_U64LE, dataspace);
-        dataset.write(&ngtot,PredType::STD_U64LE);
-        
+        dataset = Fhdf.createDataSet(hdfnames.group[itemp], hdfnames.groupdatatype[itemp], dataspace);
+        dataset.write(&ngtot,hdfnames.groupdatatype[itemp]);
+
         //load data spaces
         propdataspace=new DataSpace[head.headerdatainfo.size()];
         propdataset=new DataSet[head.headerdatainfo.size()];
@@ -1229,6 +1256,8 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
     DataSet dataset;
     hsize_t *dims;
     int rank;
+    HDFCatalogNames hdfnames;
+    int itemp=0;
 #endif
 
     #ifdef USEMPI
@@ -1263,12 +1292,13 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
             dims=new hsize_t[1];
             dims[0]=nfield;
             rank=1;
-            datasetname=H5std_string("Number_of_substructures_in_halo");
+            itemp=4;
+            //datasetname=H5std_string("Number_of_substructures_in_halo");
             dataspace=DataSpace(rank,dims);
-            dataset = Fhdf.createDataSet(datasetname, PredType::STD_U32LE, dataspace);
+            dataset = Fhdf.createDataSet(hdfnames.hierarchy[itemp], hdfnames.hierarchydatatype[itemp], dataspace);
             unsigned int *data=new unsigned int[nfield];
             for (Int_t i=1;i<=nfield;i++) data[i-1]=nsub[i];
-            dataset.write(data,PredType::STD_U32LE);
+            dataset.write(data,hdfnames.hierarchydatatype[itemp]);
             delete[] data;
             delete[] dims;
         }
@@ -1285,19 +1315,21 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
             dims=new hsize_t[1];
             dims[0]=ngroups-nfield;
             rank=1;
-            datasetname=H5std_string("Number_of_substructures_in_subhalo");
+            itemp=4;
+            //datasetname=H5std_string("Number_of_substructures_in_subhalo");
             dataspace=DataSpace(rank,dims);
-            dataset = Fhdf.createDataSet(datasetname, PredType::STD_U32LE, dataspace);
+            dataset = Fhdf.createDataSet(hdfnames.hierarchy[itemp], hdfnames.hierarchydatatype[itemp], dataspace);
             unsigned int *data=new unsigned int[ngroups-nfield];
             for (Int_t i=nfield+1;i<=ngroups;i++) data[i-nfield-1]=nsub[i];
-            dataset.write(data,PredType::STD_U32LE);
+            dataset.write(data,hdfnames.hierarchydatatype[itemp]);
             delete[] data;
-            datasetname=H5std_string("Parent_halo_ID");
+            itemp++;
+            //datasetname=H5std_string("Parent_halo_ID");
             dataspace=DataSpace(rank,dims);
-            dataset = Fhdf.createDataSet(datasetname, PredType::STD_I64LE, dataspace);
+            dataset = Fhdf.createDataSet(hdfnames.hierarchy[itemp], hdfnames.hierarchydatatype[itemp], dataspace);
             long long *data2=new long long[ngroups-nfield];
             for (Int_t i=nfield+1;i<=ngroups;i++) data2[i-nfield-1]=parentgid[i];
-            dataset.write(data2,PredType::STD_I64LE);
+            dataset.write(data2,hdfnames.hierarchydatatype[itemp]);
             delete[] data2;
             delete[] dims;
         }
@@ -1318,19 +1350,19 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
             dims=new hsize_t[1];
             dims[0]=ngroups;
             rank=1;
-            datasetname=H5std_string("Number_of_substructures_in_subhalo");
+            itemp=4;
             dataspace=DataSpace(rank,dims);
-            dataset = Fhdf.createDataSet(datasetname, PredType::STD_U32LE, dataspace);
+            dataset = Fhdf.createDataSet(hdfnames.hierarchy[itemp], hdfnames.hierarchydatatype[itemp], dataspace);
             unsigned int *data=new unsigned int[ngroups];
             for (Int_t i=1;i<=ngroups;i++) data[i-1]=nsub[i];
-            dataset.write(data,PredType::STD_U32LE);
+            dataset.write(data,hdfnames.hierarchydatatype[itemp]);
             delete[] data;
-            datasetname=H5std_string("Parent_halo_ID");
+            itemp++;
             dataspace=DataSpace(rank,dims);
-            dataset = Fhdf.createDataSet(datasetname, PredType::STD_I64LE, dataspace);
+            dataset = Fhdf.createDataSet(hdfnames.hierarchy[itemp], hdfnames.hierarchydatatype[itemp], dataspace);
             long long *data2=new long long[ngroups];
             for (Int_t i=1;i<=ngroups;i++) data2[i-1]=parentgid[i];
-            dataset.write(data2,PredType::STD_I64LE);
+            dataset.write(data2,hdfnames.hierarchydatatype[itemp]);
             delete[] data2;
             delete[] dims;
         }
@@ -1368,25 +1400,26 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
         dims=new hsize_t[1];
         dims[0]=1;
         rank=1;
-        datasetname=H5std_string("File_id");
+        itemp=0;
         dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datasetname, PredType::STD_I32LE, dataspace);
-        dataset.write(&ThisTask,PredType::STD_I32LE);
+        dataset = Fhdf.createDataSet(hdfnames.hierarchy[itemp], hdfnames.hierarchydatatype[itemp], dataspace);
+        dataset.write(&ThisTask,hdfnames.hierarchydatatype[itemp]);
+        itemp++;
 
-        datasetname=H5std_string("Num_of_files");
         dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datasetname, PredType::STD_I32LE, dataspace);
-        dataset.write(&NProcs,PredType::STD_I32LE);
+        dataset = Fhdf.createDataSet(hdfnames.hierarchy[itemp], hdfnames.hierarchydatatype[itemp], dataspace);
+        dataset.write(&NProcs,hdfnames.hierarchydatatype[itemp]);
+        itemp++;
         
-        datasetname=H5std_string("Num_of_groups");
         dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datasetname, PredType::STD_U64LE, dataspace);
-        dataset.write(&ng,PredType::STD_U64LE);
+        dataset = Fhdf.createDataSet(hdfnames.hierarchy[itemp], hdfnames.hierarchydatatype[itemp], dataspace);
+        dataset.write(&ng,hdfnames.hierarchydatatype[itemp]);
+        itemp++;
 
-        datasetname=H5std_string("Total_num_of_groups");
         dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datasetname, PredType::STD_U64LE, dataspace);
-        dataset.write(&ngtot,PredType::STD_U64LE);
+        dataset = Fhdf.createDataSet(hdfnames.hierarchy[itemp], hdfnames.hierarchydatatype[itemp], dataspace);
+        dataset.write(&ngtot,hdfnames.hierarchydatatype[itemp]);
+        itemp++;
         delete[] dims;
     }
 #endif
@@ -1406,19 +1439,18 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
             dims=new hsize_t[1];
             dims[0]=nfield;
             rank=1;
-            datasetname=H5std_string("Number_of_substructures");
             dataspace=DataSpace(rank,dims);
-            dataset = Fhdf.createDataSet(datasetname, PredType::STD_U32LE, dataspace);
+            dataset = Fhdf.createDataSet(hdfnames.hierarchy[itemp], hdfnames.hierarchydatatype[itemp], dataspace);
             unsigned int *data=new unsigned int[nfield];
             for (Int_t i=1;i<=nfield;i++) data[i-1]=nsub[i];
-            dataset.write(data,PredType::STD_U32LE);
+            dataset.write(data,hdfnames.hierarchydatatype[itemp]);
             delete[] data;
-            datasetname=H5std_string("Parent_halo_ID");
+            itemp++;
             dataspace=DataSpace(rank,dims);
-            dataset = Fhdf.createDataSet(datasetname, PredType::STD_I64LE, dataspace);
+            dataset = Fhdf.createDataSet(hdfnames.hierarchy[itemp], hdfnames.hierarchydatatype[itemp], dataspace);
             long long *data2=new long long[nfield];
             for (Int_t i=1;i<=nfield;i++) data2[i-1]=parentgid[i];
-            dataset.write(data2,PredType::STD_I64LE);
+            dataset.write(data2,hdfnames.hierarchydatatype[itemp]);
             delete[] data2;
             delete[] dims;
         }
@@ -1435,19 +1467,18 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
             dims=new hsize_t[1];
             dims[0]=ngroups-nfield;
             rank=1;
-            datasetname=H5std_string("Number_of_substructures");
             dataspace=DataSpace(rank,dims);
-            dataset = Fhdf.createDataSet(datasetname, PredType::STD_U32LE, dataspace);
+            dataset = Fhdf.createDataSet(hdfnames.hierarchy[itemp], hdfnames.hierarchydatatype[itemp], dataspace);
             unsigned int *data=new unsigned int[ngroups-nfield];
             for (Int_t i=nfield+1;i<=ngroups;i++) data[i-nfield-1]=nsub[i];
-            dataset.write(data,PredType::STD_U32LE);
+            dataset.write(data,hdfnames.hierarchydatatype[itemp]);
             delete[] data;
-            datasetname=H5std_string("Parent_halo_ID");
+            itemp++;
             dataspace=DataSpace(rank,dims);
-            dataset = Fhdf.createDataSet(datasetname, PredType::STD_I64LE, dataspace);
+            dataset = Fhdf.createDataSet(hdfnames.hierarchy[itemp], hdfnames.hierarchydatatype[itemp], dataspace);
             long long *data2=new long long[ngroups-nfield];
             for (Int_t i=nfield+1;i<=ngroups;i++) data2[i-nfield-1]=parentgid[i];
-            dataset.write(data2,PredType::STD_I64LE);
+            dataset.write(data2,hdfnames.hierarchydatatype[itemp]);
             delete[] data2;
             delete[] dims;
         }
@@ -1465,19 +1496,18 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
             dims=new hsize_t[1];
             dims[0]=ngroups;
             rank=1;
-            datasetname=H5std_string("Number_of_substructures_in_subhalo");
             dataspace=DataSpace(rank,dims);
-            dataset = Fhdf.createDataSet(datasetname, PredType::STD_U32LE, dataspace);
+            dataset = Fhdf.createDataSet(hdfnames.hierarchy[itemp], hdfnames.hierarchydatatype[itemp], dataspace);
             unsigned int *data=new unsigned int[ngroups];
             for (Int_t i=1;i<=ngroups;i++) data[i-1]=nsub[i];
-            dataset.write(data,PredType::STD_U32LE);
+            dataset.write(data,hdfnames.hierarchydatatype[itemp]);
             delete[] data;
-            datasetname=H5std_string("Parent_halo_ID");
+            itemp++;
             dataspace=DataSpace(rank,dims);
-            dataset = Fhdf.createDataSet(datasetname, PredType::STD_I64LE, dataspace);
+            dataset = Fhdf.createDataSet(hdfnames.hierarchy[itemp], hdfnames.hierarchydatatype[itemp], dataspace);
             long long *data2=new long long[ngroups];
             for (Int_t i=1;i<=ngroups;i++) data2[i-1]=parentgid[i];
-            dataset.write(data2,PredType::STD_I64LE);
+            dataset.write(data2,hdfnames.hierarchydatatype[itemp]);
             delete[] data2;
             delete[] dims;
         }

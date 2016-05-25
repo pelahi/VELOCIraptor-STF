@@ -1324,6 +1324,84 @@ struct StrucLevelData
 };
 extern StrucLevelData *psldata;
 
+#ifdef USEHDF
+///hdf structure to store the names of datasets in catalog output
+struct HDFCatalogNames {
+    ///store names of catalog group files
+    vector<H5std_string> group;
+    //store the data type
+    vector<PredType> groupdatatype;
+    
+    ///store the names of catalog particle files
+    vector<H5std_string> part;
+    //store the data type
+    vector<PredType> partdatatype;
+    
+    ///store the names of catalog particle files
+    vector<H5std_string> types;
+    //store the data type
+    vector<PredType> typesdatatype;
+
+    ///store the names of catalog particle files
+    vector<H5std_string> hierarchy;
+    //store the data type
+    vector<PredType> hierarchydatatype;
+
+    HDFCatalogNames(){
+        group.push_back("File_id");
+        group.push_back("Num_of_files");
+        group.push_back("Num_of_groups");
+        group.push_back("Total_num_of_groups");
+        group.push_back("Group_Size");
+        group.push_back("Offset");
+        group.push_back("Offset_unbound");
+        groupdatatype.push_back(PredType::STD_I32LE);
+        groupdatatype.push_back(PredType::STD_I32LE);
+        groupdatatype.push_back(PredType::STD_U64LE);
+        groupdatatype.push_back(PredType::STD_U64LE);
+        groupdatatype.push_back(PredType::STD_U32LE);
+        groupdatatype.push_back(PredType::STD_U64LE);
+        groupdatatype.push_back(PredType::STD_U64LE);
+
+        part.push_back("File_id");
+        part.push_back("Num_of_files");
+        part.push_back("Num_of_particles_in_groups");
+        part.push_back("Total_num_of_particles_in_all_groups");
+        part.push_back("Particle_IDs");
+        partdatatype.push_back(PredType::STD_I32LE);
+        partdatatype.push_back(PredType::STD_I32LE);
+        partdatatype.push_back(PredType::STD_U64LE);
+        partdatatype.push_back(PredType::STD_U64LE);
+        partdatatype.push_back(PredType::STD_I64LE);
+
+        types.push_back("File_id");
+        types.push_back("Num_of_files");
+        types.push_back("Num_of_particles_in_groups");
+        types.push_back("Total_num_of_particles_in_all_groups");
+        types.push_back("Particle_types");
+        typesdatatype.push_back(PredType::STD_I32LE);
+        typesdatatype.push_back(PredType::STD_I32LE);
+        typesdatatype.push_back(PredType::STD_U64LE);
+        typesdatatype.push_back(PredType::STD_U64LE);
+        typesdatatype.push_back(PredType::STD_U16LE);
+
+        
+        hierarchy.push_back("File_id");
+        hierarchy.push_back("Num_of_files");
+        hierarchy.push_back("Num_of_groups");
+        hierarchy.push_back("Total_num_of_groups");
+        hierarchy.push_back("Number_of_substructures_in_halo");
+        hierarchy.push_back("Parent_halo_ID");
+        hierarchydatatype.push_back(PredType::STD_I32LE);
+        hierarchydatatype.push_back(PredType::STD_I32LE);
+        hierarchydatatype.push_back(PredType::STD_U64LE);
+        hierarchydatatype.push_back(PredType::STD_U64LE);
+        hierarchydatatype.push_back(PredType::STD_U32LE);
+        hierarchydatatype.push_back(PredType::STD_I64LE);
+    }
+};
+#endif
+
 ///if using MPI API
 #ifdef USEMPI
 #include <mpi.h>

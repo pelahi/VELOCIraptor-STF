@@ -42,6 +42,11 @@ HaloData *ReadHaloData(char *fname, Int_t &nhalos);
 HaloData *ReadNIFTYData(char *fname, Int_t &nhalos, int idcorrectflag=0);
 ///Reads VELOCIraptor like Group Catalog Data. Can adjust so that only particles of some type are check for cross matching
 HaloData *ReadHaloGroupCatalogData(char* infile, Int_t &numhalos, int mpi_ninput=0, int ibinary=1, int ifieldhalos=1, int itypesort=ALLTYPEMATCH, int iverbose=0);
+///minor interface routines associated with reading VELOCIraptor output
+void OpenBinaryorAsciiFiles(char *infile, int ibinary, int numfiletypes, int k, int mpi_ninput, int ifieldhalos, int itypematch, fstream &Fgroup, fstream &Fpart, fstream &Fupart, fstream &Fsgroup, fstream &Fspart, fstream &Fsupart, fstream &Fparttype, fstream &Fuparttype, fstream &Fsparttype, fstream &Fsuparttype, int iverbose=0);
+#ifdef USEHDF
+void OpenHDFFiles(char *infile, int numfiletypes, int k, int mpi_ninput, int ifieldhalos, int itypematch, H5File &Fhdfgroup, H5File &Fhdfpart, H5File &Fhdfupart, H5File &Fhdfsgroup, H5File &Fhdfspart, H5File &Fhdfsupart, H5File &Fhdfparttype, H5File &Fhdfuparttype, H5File &Fhdfsparttype, H5File &Fhdfsuparttype, int iverbose=0);
+#endif
 //@}
 
 ///\name Write routines
@@ -55,7 +60,7 @@ void WriteCrossComp(Options &opt, ProgenitorData **p, HaloTreeData *h);
 
 #ifdef USEMPI
 ///\name  for mpi related reads
-/// see \ref io.cxx and \ref mpiroutines.cxx for implementation
+/// see \ref io.cxx, \ref stfio.cxx for implementation
 //@{
 ///Reads the number of haloes in the files, wrapper routine
 Int_t ReadNumberofHalos(Options &opt, Int_t *numhalos);
