@@ -144,7 +144,7 @@ struct Options
     long unsigned TotalNumberofHalos;
 
     /// store description of code
-    char *description;
+    string description;
 
     ///type of cross-match search
     int matchtype;

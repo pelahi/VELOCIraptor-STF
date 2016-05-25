@@ -168,7 +168,7 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
         if (ThisTask==itask) {
             if (ThisTask==NProcs-1) {
                 Fout.open(fname,ios::out);
-                Fout<<1<<endl;
+                Fout<<opt.numsnapshots<<endl;
                 Fout<<opt.description<<endl;
                 Fout<<opt.TotalNumberofHalos<<endl;
             }
@@ -215,7 +215,7 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
     }
     else{
     Fout.open(fname,ios::out);
-    Fout<<1<<endl;
+    Fout<<opt.numsnapshots<<endl;
     Fout<<opt.description<<endl;
     Fout<<opt.TotalNumberofHalos<<endl;
     if (opt.outputformat==0) {
@@ -256,7 +256,7 @@ void WriteHaloGraph(Options &opt, ProgenitorData **p, DescendantData **d, HaloTr
     sprintf(fname,"%s",opt.outname);
     cout<<"saving halo merger tree to "<<fname<<endl;
     Fout.open(fname,ios::out);
-    Fout<<1<<endl;
+    Fout<<opt.numsnapshots<<endl;
     Fout<<opt.description<<endl;
     Fout<<opt.TotalNumberofHalos<<endl;
     if (opt.outputformat==0) {

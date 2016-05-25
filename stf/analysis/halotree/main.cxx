@@ -38,14 +38,6 @@ int main(int argc,char **argv)
     char fname[1000];
 
     GetArgs(argc, argv, opt);
-    if(opt.matchtype==NsharedN1N2)
-        opt.description=(char*)"VELOCIraptor halo merger tree constructed by identifying the main progenitor with the highest value of Nshared^2/Nh/Np";
-    else if(opt.matchtype==NsharedN1)
-        opt.description=(char*)"VELOCIraptor halo merger tree constructed by identifying the main progenitor with the highest value of Nshared/Nh";
-    else if(opt.matchtype==Nshared)
-        opt.description=(char*)"VELOCIraptor halo merger tree constructed by identifying the main progenitor with the highest value of Nshared";
-    else if (opt.matchtype==Nsharedcombo)
-        opt.description=(char*)"VELOCIraptor halo merger tree constructed by identifying the main progenitor with the highest value of Nshared/Nh+(Nshared^2/Nh/Np) so as to weight progenitors that contribute similar amounts by how much of their mass contributes to the new object";
 /*
 #ifdef USEMPI
     //now if there are too many tasks for the number of snapshots read, exit

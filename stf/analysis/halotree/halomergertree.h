@@ -8,7 +8,7 @@
 #include "allvars.h"
 #include "proto.h"
 
-#define HALOMERGERTREE 0.1
+#define HALOMERGERTREE 1.0
 
 #ifdef USEOPENMP
 #include <omp.h>
@@ -19,7 +19,7 @@
 /*! 
 \mainpage  Reference documentation for HaloMergerTree
 \author Pascal J. Elahi \n
-\version 0.1
+\version 1.0
 \section license License
 
 */

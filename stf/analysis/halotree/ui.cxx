@@ -133,6 +133,18 @@ void GetArgs(int argc, char *argv[], Options &opt)
         exit(8);
     }
     //else if (opt.imapping==???) opt.mappingfunc=???;
+    opt.description=(char*)"VELOCIraptor halo merger tree constructed by identifying the main progenitor with the highest value of ";
+    if(opt.matchtype==NsharedN1N2)      opt.description+=(char*)"Nshared^2/Nh/Np |";
+    else if(opt.matchtype==NsharedN1)   opt.description+=(char*)"Nshared/Nh | ";
+    else if(opt.matchtype==Nshared)     opt.description+=(char*)"Nshared |";
+    else if (opt.matchtype==Nsharedcombo) opt.description=(char*)" Nshared/Nh+(Nshared^2/Nh/Np) so as to weight progenitors that contribute similar amounts by how much of their mass contributes to the new object | ";
+    opt.description+=(char*)"Tree built using ";
+    opt.description+=static_cast<ostringstream*>( &(ostringstream() << opt.numsteps) )->str();
+    opt.description+=(char*)"temporal steps |";
+    opt.description+=(char*)"Particle types for matching limited to ";
+    if (opt.itypematch==ALLTYPEMATCH) opt.description+=(char*)"all |";
+    else {opt.description+=(char*)"part type ";opt.description+=static_cast<ostringstream*>( &(ostringstream() << opt.itypematch) )->str();}
+    opt.description+=(char*)" |";
 }
 
 ///Outputs the usage to stdout 
