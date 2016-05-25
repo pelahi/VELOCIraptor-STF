@@ -406,7 +406,7 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
         //datasetname=H5std_string("Offset");
         dataspace=DataSpace(rank,dims);
         dataset = Fhdf.createDataSet(hdfnames.group[itemp], hdfnames.groupdatatype[itemp], dataspace);
-        unsigned int *data=new unsigned int[ng];
+        unsigned long *data=new unsigned long[ng];
         for (Int_t i=1;i<=ng;i++) data[i-1]=offset[i];
         dataset.write(data,hdfnames.groupdatatype[itemp]);
         itemp++;
@@ -427,7 +427,7 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
         //datasetname=H5std_string("Offset_unbound");
         dataspace=DataSpace(rank,dims);
         dataset = Fhdf.createDataSet(hdfnames.group[itemp], hdfnames.groupdatatype[itemp], dataspace);
-        unsigned int *data=new unsigned int[ng];
+        unsigned long *data=new unsigned long[ng];
         for (Int_t i=1;i<=ng;i++) data[i-1]=offset[i];
         dataset.write(data,hdfnames.groupdatatype[itemp]);
         itemp++;
