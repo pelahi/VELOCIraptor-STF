@@ -28,12 +28,23 @@ Int_t MPIReadHaloGroupCatalogDataNum(char* infile, int mpi_ninput, int ibinary, 
     char fname4[1000],fname5[1000],fname6[1000];
     char fname7[1000],fname8[1000];
     char fname9[1000],fname10[1000];
+    char *fnamearray[10];
     fstream Fgroup,Fpart,Fupart; //field objects
     fstream Fsgroup,Fspart,Fsupart; //sublevels
     fstream Fparttype,Fuparttype; //field objects
     fstream Fsparttype,Fsuparttype; //sublevels
-    char *fnamearray[10];
     fstream *Farray[10];
+#ifdef USEHDF
+    H5File Fhdfgroup,Fhdfpart,Fhdfupart; //field objects
+    H5File Fhdfsgroup,Fhdfspart,Fhdfsupart; //sublevels
+    H5File Fhdfparttype,Fhdfuparttype; //field objects
+    H5File Fhdfsparttype,Fhdfsuparttype; //sublevels
+    DataSpace dataspace;
+    DataSet dataset;
+    HDFCatalogNames hdfnames;
+    void * data;
+    H5File *Fhdfarray[10];
+#endif
     unsigned long nids,nuids,nsids,nsuids,nglocal,nsglocal;
     unsigned long nidstot,nuidstot,nsidstot,nsuidstot;
     Int_t *numingroup,*numingroupbound,*offset,*uoffset;
@@ -208,12 +219,23 @@ Int_t MPIReadHaloGroupCatalogDataParticleNum(char* infile, int mpi_ninput, int i
     char fname4[1000],fname5[1000],fname6[1000];
     char fname7[1000],fname8[1000];
     char fname9[1000],fname10[1000];
+    char *fnamearray[10];
     fstream Fgroup,Fpart,Fupart; //field objects
     fstream Fsgroup,Fspart,Fsupart; //sublevels
     fstream Fparttype,Fuparttype; //field objects
     fstream Fsparttype,Fsuparttype; //sublevels
-    char *fnamearray[10];
     fstream *Farray[10];
+#ifdef USEHDF
+    H5File Fhdfgroup,Fhdfpart,Fhdfupart; //field objects
+    H5File Fhdfsgroup,Fhdfspart,Fhdfsupart; //sublevels
+    H5File Fhdfparttype,Fhdfuparttype; //field objects
+    H5File Fhdfsparttype,Fhdfsuparttype; //sublevels
+    DataSpace dataspace;
+    DataSet dataset;
+    HDFCatalogNames hdfnames;
+    void * data;
+    H5File *Fhdfarray[10];
+#endif
     unsigned long nids,nuids,nsids,nsuids,nglocal,nsglocal;
     unsigned long nidstot,nuidstot,nsidstot,nsuidstot;
     Int_t *numingroup,*numingroupbound,*offset,*uoffset;
@@ -422,12 +444,23 @@ HaloData *MPIReadHaloGroupCatalogDataAllocation(char* infile, Int_t &numhalos, i
     char fname4[1000],fname5[1000],fname6[1000];
     char fname7[1000],fname8[1000];
     char fname9[1000],fname10[1000];
+    char *fnamearray[10];
     fstream Fgroup,Fpart,Fupart; //field objects
     fstream Fsgroup,Fspart,Fsupart; //sublevels
     fstream Fparttype,Fuparttype; //field objects
     fstream Fsparttype,Fsuparttype; //sublevels
-    char *fnamearray[10];
     fstream *Farray[10];
+#ifdef USEHDF
+    H5File Fhdfgroup,Fhdfpart,Fhdfupart; //field objects
+    H5File Fhdfsgroup,Fhdfspart,Fhdfsupart; //sublevels
+    H5File Fhdfparttype,Fhdfuparttype; //field objects
+    H5File Fhdfsparttype,Fhdfsuparttype; //sublevels
+    DataSpace dataspace;
+    DataSet dataset;
+    HDFCatalogNames hdfnames;
+    void * data;
+    H5File *Fhdfarray[10];
+#endif
     unsigned long nids,nuids,nsids,nsuids,nglocal,nsglocal;
     unsigned long nidstot,nuidstot,nsidstot,nsuidstot;
     Int_t *numingroup,*numingroupbound,*offset,*uoffset;
@@ -653,12 +686,23 @@ void MPIReadHaloGroupCatalogData(char* infile, Int_t &numhalos, HaloData *&Halo,
     char fname4[1000],fname5[1000],fname6[1000];
     char fname7[1000],fname8[1000];
     char fname9[1000],fname10[1000];
+    char *fnamearray[10];
     fstream Fgroup,Fpart,Fupart; //field objects
     fstream Fsgroup,Fspart,Fsupart; //sublevels
     fstream Fparttype,Fuparttype; //field objects
     fstream Fsparttype,Fsuparttype; //sublevels
-    char *fnamearray[10];
     fstream *Farray[10];
+#ifdef USEHDF
+    H5File Fhdfgroup,Fhdfpart,Fhdfupart; //field objects
+    H5File Fhdfsgroup,Fhdfspart,Fhdfsupart; //sublevels
+    H5File Fhdfparttype,Fhdfuparttype; //field objects
+    H5File Fhdfsparttype,Fhdfsuparttype; //sublevels
+    DataSpace dataspace;
+    DataSet dataset;
+    HDFCatalogNames hdfnames;
+    void * data;
+    H5File *Fhdfarray[10];
+#endif
     unsigned long nids,nuids,nsids,nsuids,nglocal,nsglocal;
     unsigned long nidstot,nuidstot,nsidstot,nsuidstot;
     Int_t *numingroup,*numingroupbound,*offset,*uoffset;
@@ -1067,10 +1111,13 @@ HaloData *ReadHaloGroupCatalogData(char* infile, Int_t &numhalos, int mpi_ninput
     char fname4[1000],fname5[1000],fname6[1000];
     char fname7[1000],fname8[1000];
     char fname9[1000],fname10[1000];
+    char *fnamearray[10];
     fstream Fgroup,Fpart,Fupart; //field objects
     fstream Fsgroup,Fspart,Fsupart; //sublevels
     fstream Fparttype,Fuparttype; //field objects
     fstream Fsparttype,Fsuparttype; //sublevels
+    fstream *Farray[10];
+    VELOCIraptorFileTypeNames vftn;
 #ifdef USEHDF
     H5File Fhdfgroup,Fhdfpart,Fhdfupart; //field objects
     H5File Fhdfsgroup,Fhdfspart,Fhdfsupart; //sublevels
@@ -1080,10 +1127,6 @@ HaloData *ReadHaloGroupCatalogData(char* infile, Int_t &numhalos, int mpi_ninput
     DataSet dataset;
     HDFCatalogNames hdfnames;
     void * data;
-#endif
-    char *fnamearray[10];
-    fstream *Farray[10];
-#ifdef USEHDF
     H5File *Fhdfarray[10];
 #endif
     unsigned long nids,nuids,nsids,nsuids,nglocal,nsglocal;
@@ -1110,7 +1153,10 @@ HaloData *ReadHaloGroupCatalogData(char* infile, Int_t &numhalos, int mpi_ninput
     noffset=0;
     for (int k=0;k<nmpicount;k++) {
         nglocal=nsglocal=0;
+        fnamearray[0]=fname1;fnamearray[1]=fname2;fnamearray[2]=fname3;fnamearray[4]=fname5;fnamearray[5]=fname6;fnamearray[6]=fname7;fnamearray[7]=fname8;fnamearray[8]=fname9;fnamearray[9]=fname10;
+        vftn.UpdateName(infile,fnamearray,k,mpi_ninput);
         //load the group catalogues and the related particle files
+        /*
         if (mpi_ninput==0) {
             sprintf(fname1,"%s.catalog_groups",infile);
             sprintf(fname2,"%s.catalog_particles",infile);
@@ -1134,7 +1180,7 @@ HaloData *ReadHaloGroupCatalogData(char* infile, Int_t &numhalos, int mpi_ninput
             sprintf(fname8,"%s.catalog_parttypes.unbound.%d",infile,k);
             sprintf(fname9,"%s.sublevels.catalog_parttypes.%d",infile,k);
             sprintf(fname10,"%s.sublevels.catalog_parttypes.unbound.%d",infile,k);
-        }
+        }*/
 
         //set names of files
         itemp=0;

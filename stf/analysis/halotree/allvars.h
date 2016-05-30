@@ -400,6 +400,26 @@ struct DescendantData
     }
 };
 
+///struct to store the file type names produced by velociraptor
+struct VELOCIraptorFileTypeNames {
+    vector<string> ftypename;
+    VELOCIraptorFileTypeNames(){
+        ftypename.push_back("catalog_groups");
+        ftypename.push_back("catalog_particles");
+        ftypename.push_back("catalog_particles.unbound");
+        ftypename.push_back("sublevels.catalog_groups");
+        ftypename.push_back("sublevels.catalog_particles");
+        ftypename.push_back("sublevels.catalog_particles.unbound");
+        ftypename.push_back("catalog_parttypes");
+        ftypename.push_back("catalog_parttypes.unbound");
+        ftypename.push_back("sublevels.catalog_parttypes");
+        ftypename.push_back("sublevels.catalog_parttypes.unbound");
+    }
+    void UpdateName(char *& infile, char *farray[], int k,int impi=0){
+        if (impi)   for (int i=0;i<ftypename.size();i++) sprintf(farray[i],"%s.%s.%d",infile,ftypename[i].c_str(),k);
+        else        for (int i=0;i<ftypename.size();i++) sprintf(farray[i],"%s.%s",infile,ftypename[i].c_str());
+    }
+};
 
 #ifdef USEHDF
 ///hdf structure to store the names of datasets in catalog output
