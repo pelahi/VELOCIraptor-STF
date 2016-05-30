@@ -238,6 +238,7 @@ inline void STFReadNumFileInfoAndCorrectNumFile(int &itask, int &nprocs, int &nm
         dataset=Fhdfgroup.openDataSet(hdfnames.group[itemp]);
         dataspace=dataset.getSpace();
         dataset.read(&itask,hdfnames.groupdatatype[itemp],dataspace);
+        itemp++;
         dataset=Fhdfgroup.openDataSet(hdfnames.group[itemp]);
         dataspace=dataset.getSpace();
         dataset.read(&nprocs,hdfnames.groupdatatype[itemp],dataspace);
@@ -859,6 +860,33 @@ void MPIReadHaloGroupCatalogData(char* infile, Int_t &numhalos, HaloData *&Halo,
                 Fgroup.read((char*)offset,sizeof(Int_t)*nglocal);
                 Fgroup.read((char*)uoffset,sizeof(Int_t)*nglocal);
             }
+#ifdef USEHDF
+            else if (ibinary==INHDF) {
+                //read from group file group size and offsets
+                itemp=4;
+                //allocate a void pointer large enough to store data
+                data=::operator new(sizeof(long long)*(nglocal+1));
+                dataset=Fhdfgroup.openDataSet(hdfnames.group[itemp]);
+                dataspace=dataset.getSpace();
+                dataset.read(data,hdfnames.groupdatatype[itemp],dataspace);
+                //group size is a unsigned int
+                ///\todo should generalize type casting
+                for (Int_t i=0;i<nglocal;i++) {numingroup[i]=((unsigned int*)data)[i];Halo[i+noffset].Alloc(numingroup[i]);}
+                itemp++;
+
+                dataset=Fhdfgroup.openDataSet(hdfnames.group[itemp]);
+                dataspace=dataset.getSpace();
+                dataset.read(data,hdfnames.groupdatatype[itemp],dataspace);
+                for (Int_t i=0;i<nglocal;i++) offset[i]=((unsigned long long*)data)[i];
+                itemp++;
+                dataset=Fhdfgroup.openDataSet(hdfnames.group[itemp]);
+                dataspace=dataset.getSpace();
+                dataset.read(data,hdfnames.groupdatatype[itemp],dataspace);
+                for (Int_t i=0;i<nglocal;i++) uoffset[i]=((unsigned long long*)data)[i];
+                itemp++;
+                ::operator delete(data);
+            }
+#endif
             else {
                 for (Int_t i=0;i<nglocal;i++) Fgroup>>numingroup[i];
                 for (Int_t i=0;i<nglocal;i++) Fgroup>>offset[i];
@@ -874,6 +902,35 @@ void MPIReadHaloGroupCatalogData(char* infile, Int_t &numhalos, HaloData *&Halo,
                     Fuparttype.read((char*)&typeval[nids],sizeof(UInt_t)*nuids);
                 }
             }
+#ifdef USEHDF
+            else if (ibinary==INHDF) {
+                //read from particle file group size and offsets
+                itemp=4;
+                //allocate a void pointer large enough to store data
+                data=::operator new(sizeof(long long)*(nids+nuids+1));
+
+                dataset=Fhdfpart.openDataSet(hdfnames.part[itemp]);
+                dataspace=dataset.getSpace();
+                dataset.read(data,hdfnames.partdatatype[itemp],dataspace);
+                for (Int_t i=0;i<nids;i++) idval[i]=((long long*)data)[i];
+                dataset=Fhdfupart.openDataSet(hdfnames.part[itemp]);
+                dataspace=dataset.getSpace();
+                dataset.read(data,hdfnames.partdatatype[itemp],dataspace);
+                for (Int_t i=0;i<nuids;i++) idval[i+nids]=((long long*)data)[i];
+                if (itypematch!=ALLTYPEMATCH) {
+                    dataset=Fhdfparttype.openDataSet(hdfnames.types[itemp]);
+                    dataspace=dataset.getSpace();
+                    dataset.read(data,hdfnames.typesdatatype[itemp],dataspace);
+                    for (Int_t i=0;i<nids;i++) typeval[i]=((unsigned short*)data)[i];
+                    dataset=Fhdfuparttype.openDataSet(hdfnames.types[itemp]);
+                    dataspace=dataset.getSpace();
+                    dataset.read(data,hdfnames.typesdatatype[itemp],dataspace);
+                    for (Int_t i=0;i<nuids;i++) typeval[i+nids]=((unsigned short*)data)[i];
+                }
+
+                ::operator delete(data);
+            }
+#endif
             else {
                 for (Int_t i=0;i<nids;i++) Fpart>>idval[i];
                 for (Int_t i=0;i<nuids;i++) Fupart>>idval[i+nids];
@@ -928,6 +985,33 @@ void MPIReadHaloGroupCatalogData(char* infile, Int_t &numhalos, HaloData *&Halo,
                     Fsgroup.read((char*)offset,sizeof(Int_t)*nsglocal);
                     Fsgroup.read((char*)uoffset,sizeof(Int_t)*nsglocal);
                 }
+#ifdef USEHDF
+            else if (ibinary==INHDF) {
+                //read from group file group size and offsets
+                itemp=4;
+                //allocate a void pointer large enough to store data
+                data=::operator new(sizeof(long long)*(nsglocal+1));
+                dataset=Fhdfsgroup.openDataSet(hdfnames.group[itemp]);
+                dataspace=dataset.getSpace();
+                dataset.read(data,hdfnames.groupdatatype[itemp],dataspace);
+                //group size is a unsigned int
+                ///\todo should generalize type casting
+                for (Int_t i=0;i<nsglocal;i++) {numingroup[i]=((unsigned int*)data)[i];Halo[i+noffset].Alloc(numingroup[i]);}
+                itemp++;
+
+                dataset=Fhdfsgroup.openDataSet(hdfnames.group[itemp]);
+                dataspace=dataset.getSpace();
+                dataset.read(data,hdfnames.groupdatatype[itemp],dataspace);
+                for (Int_t i=0;i<nsglocal;i++) offset[i]=((unsigned long long*)data)[i];
+                itemp++;
+                dataset=Fhdfsgroup.openDataSet(hdfnames.group[itemp]);
+                dataspace=dataset.getSpace();
+                dataset.read(data,hdfnames.groupdatatype[itemp],dataspace);
+                for (Int_t i=0;i<nsglocal;i++) uoffset[i]=((unsigned long long*)data)[i];
+                itemp++;
+                ::operator delete(data);
+            }
+#endif
                 else {
                     for (Int_t i=0;i<nsglocal;i++) Fsgroup>>numingroup[i];
                     for (Int_t i=0;i<nsglocal;i++) Fsgroup>>offset[i];
@@ -942,6 +1026,35 @@ void MPIReadHaloGroupCatalogData(char* infile, Int_t &numhalos, HaloData *&Halo,
                         Fsuparttype.read((char*)&typeval[nsids],sizeof(UInt_t)*nsuids);
                     }
                 }
+#ifdef USEHDF
+            else if (ibinary==INHDF) {
+                //read from particle file group size and offsets
+                itemp=4;
+                //allocate a void pointer large enough to store data
+                data=::operator new(sizeof(long long)*(nsids+nsuids+1));
+
+                dataset=Fhdfspart.openDataSet(hdfnames.part[itemp]);
+                dataspace=dataset.getSpace();
+                dataset.read(data,hdfnames.partdatatype[itemp],dataspace);
+                for (Int_t i=0;i<nsids;i++) idval[i]=((long long*)data)[i];
+                dataset=Fhdfsupart.openDataSet(hdfnames.part[itemp]);
+                dataspace=dataset.getSpace();
+                dataset.read(data,hdfnames.partdatatype[itemp],dataspace);
+                for (Int_t i=0;i<nsuids;i++) idval[i+nids]=((long long*)data)[i];
+                if (itypematch!=ALLTYPEMATCH) {
+                    dataset=Fhdfsparttype.openDataSet(hdfnames.types[itemp]);
+                    dataspace=dataset.getSpace();
+                    dataset.read(data,hdfnames.typesdatatype[itemp],dataspace);
+                    for (Int_t i=0;i<nsids;i++) typeval[i]=((unsigned short*)data)[i];
+                    dataset=Fhdfsuparttype.openDataSet(hdfnames.types[itemp]);
+                    dataspace=dataset.getSpace();
+                    dataset.read(data,hdfnames.typesdatatype[itemp],dataspace);
+                    for (Int_t i=0;i<nsuids;i++) typeval[i+nids]=((unsigned short*)data)[i];
+                }
+
+                ::operator delete(data);
+            }
+#endif
                 else {
                     for (Int_t i=0;i<nsids;i++) Fspart>>idval[i];
                     for (Int_t i=0;i<nsuids;i++) Fsupart>>idval[i+nsids];
@@ -1264,20 +1377,20 @@ HaloData *ReadHaloGroupCatalogData(char* infile, Int_t &numhalos, int mpi_ninput
                 data=::operator new(sizeof(long long)*(nglocal+1));
                 dataset=Fhdfgroup.openDataSet(hdfnames.group[itemp]);
                 dataspace=dataset.getSpace();
-                dataset.read(&data,hdfnames.groupdatatype[itemp],dataspace);
+                dataset.read(data,hdfnames.groupdatatype[itemp],dataspace);
                 //group size is a unsigned int
                 ///\todo should generalize type casting
-                for (Int_t i=0;i<nglocal;i++) Halo[i+noffset].Alloc(((unsigned int*)data)[i]);
+                for (Int_t i=0;i<nglocal;i++) {numingroup[i]=((unsigned int*)data)[i];Halo[i+noffset].Alloc(numingroup[i]);}
                 itemp++;
 
                 dataset=Fhdfgroup.openDataSet(hdfnames.group[itemp]);
                 dataspace=dataset.getSpace();
-                dataset.read(&data,hdfnames.groupdatatype[itemp],dataspace);
+                dataset.read(data,hdfnames.groupdatatype[itemp],dataspace);
                 for (Int_t i=0;i<nglocal;i++) offset[i]=((unsigned long long*)data)[i];
                 itemp++;
                 dataset=Fhdfgroup.openDataSet(hdfnames.group[itemp]);
                 dataspace=dataset.getSpace();
-                dataset.read(&data,hdfnames.groupdatatype[itemp],dataspace);
+                dataset.read(data,hdfnames.groupdatatype[itemp],dataspace);
                 for (Int_t i=0;i<nglocal;i++) uoffset[i]=((unsigned long long*)data)[i];
                 itemp++;
                 ::operator delete(data);
@@ -1310,20 +1423,20 @@ HaloData *ReadHaloGroupCatalogData(char* infile, Int_t &numhalos, int mpi_ninput
 
                 dataset=Fhdfpart.openDataSet(hdfnames.part[itemp]);
                 dataspace=dataset.getSpace();
-                dataset.read(&data,hdfnames.partdatatype[itemp],dataspace);
+                dataset.read(data,hdfnames.partdatatype[itemp],dataspace);
                 for (Int_t i=0;i<nids;i++) idval[i]=((long long*)data)[i];
                 dataset=Fhdfupart.openDataSet(hdfnames.part[itemp]);
                 dataspace=dataset.getSpace();
-                dataset.read(&data,hdfnames.partdatatype[itemp],dataspace);
+                dataset.read(data,hdfnames.partdatatype[itemp],dataspace);
                 for (Int_t i=0;i<nuids;i++) idval[i+nids]=((long long*)data)[i];
                 if (itypematch!=ALLTYPEMATCH) {
                     dataset=Fhdfparttype.openDataSet(hdfnames.types[itemp]);
                     dataspace=dataset.getSpace();
-                    dataset.read(&data,hdfnames.typesdatatype[itemp],dataspace);
+                    dataset.read(data,hdfnames.typesdatatype[itemp],dataspace);
                     for (Int_t i=0;i<nids;i++) typeval[i]=((unsigned short*)data)[i];
                     dataset=Fhdfuparttype.openDataSet(hdfnames.types[itemp]);
                     dataspace=dataset.getSpace();
-                    dataset.read(&data,hdfnames.typesdatatype[itemp],dataspace);
+                    dataset.read(data,hdfnames.typesdatatype[itemp],dataspace);
                     for (Int_t i=0;i<nuids;i++) typeval[i+nids]=((unsigned short*)data)[i];
                 }
 
@@ -1388,6 +1501,33 @@ HaloData *ReadHaloGroupCatalogData(char* infile, Int_t &numhalos, int mpi_ninput
                 Fsgroup.read((char*)offset,sizeof(Int_t)*nsglocal);
                 Fsgroup.read((char*)uoffset,sizeof(Int_t)*nsglocal);
             }
+#ifdef USEHDF
+            else if (ibinary==INHDF) {
+                //read from group file group size and offsets
+                itemp=4;
+                //allocate a void pointer large enough to store data
+                data=::operator new(sizeof(long long)*(nsglocal+1));
+                dataset=Fhdfsgroup.openDataSet(hdfnames.group[itemp]);
+                dataspace=dataset.getSpace();
+                dataset.read(data,hdfnames.groupdatatype[itemp],dataspace);
+                //group size is a unsigned int
+                ///\todo should generalize type casting
+                for (Int_t i=0;i<nsglocal;i++) {numingroup[i]=((unsigned int*)data)[i];Halo[i+noffset].Alloc(numingroup[i]);}
+                itemp++;
+
+                dataset=Fhdfsgroup.openDataSet(hdfnames.group[itemp]);
+                dataspace=dataset.getSpace();
+                dataset.read(data,hdfnames.groupdatatype[itemp],dataspace);
+                for (Int_t i=0;i<nsglocal;i++) offset[i]=((unsigned long long*)data)[i];
+                itemp++;
+                dataset=Fhdfsgroup.openDataSet(hdfnames.group[itemp]);
+                dataspace=dataset.getSpace();
+                dataset.read(data,hdfnames.groupdatatype[itemp],dataspace);
+                for (Int_t i=0;i<nsglocal;i++) uoffset[i]=((unsigned long long*)data)[i];
+                itemp++;
+                ::operator delete(data);
+            }
+#endif
             else {
                 for (Int_t i=0;i<nsglocal;i++) {
                     Fsgroup>>numingroup[i];
@@ -1405,6 +1545,35 @@ HaloData *ReadHaloGroupCatalogData(char* infile, Int_t &numhalos, int mpi_ninput
                     Fsuparttype.read((char*)&typeval[nsids],sizeof(UInt_t)*nsuids);
                 }
             }
+#ifdef USEHDF
+            else if (ibinary==INHDF) {
+                //read from particle file group size and offsets
+                itemp=4;
+                //allocate a void pointer large enough to store data
+                data=::operator new(sizeof(long long)*(nsids+nsuids+1));
+
+                dataset=Fhdfspart.openDataSet(hdfnames.part[itemp]);
+                dataspace=dataset.getSpace();
+                dataset.read(data,hdfnames.partdatatype[itemp],dataspace);
+                for (Int_t i=0;i<nsids;i++) idval[i]=((long long*)data)[i];
+                dataset=Fhdfsupart.openDataSet(hdfnames.part[itemp]);
+                dataspace=dataset.getSpace();
+                dataset.read(data,hdfnames.partdatatype[itemp],dataspace);
+                for (Int_t i=0;i<nsuids;i++) idval[i+nids]=((long long*)data)[i];
+                if (itypematch!=ALLTYPEMATCH) {
+                    dataset=Fhdfsparttype.openDataSet(hdfnames.types[itemp]);
+                    dataspace=dataset.getSpace();
+                    dataset.read(data,hdfnames.typesdatatype[itemp],dataspace);
+                    for (Int_t i=0;i<nsids;i++) typeval[i]=((unsigned short*)data)[i];
+                    dataset=Fhdfsuparttype.openDataSet(hdfnames.types[itemp]);
+                    dataspace=dataset.getSpace();
+                    dataset.read(data,hdfnames.typesdatatype[itemp],dataspace);
+                    for (Int_t i=0;i<nsuids;i++) typeval[i+nids]=((unsigned short*)data)[i];
+                }
+
+                ::operator delete(data);
+            }
+#endif
             else {
                 for (Int_t i=0;i<nsids;i++) Fspart>>idval[i];
                 for (Int_t i=0;i<nsuids;i++) Fsupart>>idval[i+nsids];
