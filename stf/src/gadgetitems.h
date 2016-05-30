@@ -38,8 +38,8 @@
 //@}
 
 //for gadget integers
-#define INTEGER int
-//#define INTEGER unsigned int
+//#define INTEGER int
+#define INTEGER unsigned int
 //#define INTEGER long long
 
 //gadget stuff

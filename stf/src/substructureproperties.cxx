@@ -2224,17 +2224,23 @@ private(i,j)
 #ifdef USEOPENMP
 }
 #endif
+    //before used to store the id in pglist and then have to reset particle order so that Ids correspond to indices
+    //but to reduce computing time could just store index and leave particle array unchanged but only really necessary
+    //if want to have separate field and subhalo files
     Int_t **pglist=new Int_t*[ngroup+1];
     for (i=1;i<=ngroup;i++){
         pglist[i]=new Int_t[numingroup[i]+1];//here store in very last position at n+1 the unbound particle point
-        for (j=0;j<numingroup[i];j++) pglist[i][j]=Part[j+noffset[i]].GetID();
+        if (opt.iseparatefiles) for (j=0;j<numingroup[i];j++) pglist[i][j]=Part[j+noffset[i]].GetID();
+        else for (j=0;j<numingroup[i];j++) pglist[i][j]=j+noffset[i];
         if (numingroup[i]>0) pglist[i][numingroup[i]]=pdata[i].iunbound;
         else pglist[i][0]=0;
     }
     delete[] noffset;
     //reset particles back to id order
+    if (opt.iseparatefiles) {
     cout<<"Reset particles to original order"<<endl;
     qsort(Part, nbodies, sizeof(Particle), IDCompare);
+    }
     cout<<"Done"<<endl;
     return pglist;
 }

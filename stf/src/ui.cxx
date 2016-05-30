@@ -205,7 +205,7 @@ void usage(void)
     \arg <b> \e Effective_Resolution </b> If running a multiple resolution cosmological zoom simulation, simple method of scaling the linking length by using the period, ie: \f$ p/N_{\rm eff} \f$ \ref Options.Neff \n
     \arg <b> \e Snapshot_value</b> If halo ids need to be offset to some starting value based on the snapshot of the output, which is useful for some halo merger tree codes, one can specific a snapshot number, and all halo ids will be listed as internal haloid + \f$ sn\times10^{12}\f$. \ref Options.snapshotvalue \n
     \arg <b> \e Verbose </b> 1/0 flag indicating how talkative the code is. Eventually will implement 2 for several levels of how much output is given . \ref Options.iverbose \n
-    \arg <b> \e Inclusive_Halo_Mass </b> 1/0 flag indicating whether inclusive masses are calculated for field objects. \ref Options.iInclusiveHalo \n
+    \arg <b> \e Inclusive_halo_mass </b> 1/0 flag indicating whether inclusive masses are calculated for field objects. \ref Options.iInclusiveHalo \n
     
     \section ioconfigs I/O options
     \arg <b> \e Write_group_array_file </b> 0/1 flag indicating whether write a single large tipsy style group assignment file is written. \ref Options.iwritefof \n
