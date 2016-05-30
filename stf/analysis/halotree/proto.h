@@ -42,10 +42,13 @@ HaloData *ReadHaloData(char *fname, Int_t &nhalos);
 HaloData *ReadNIFTYData(char *fname, Int_t &nhalos, int idcorrectflag=0);
 ///Reads VELOCIraptor like Group Catalog Data. Can adjust so that only particles of some type are check for cross matching
 HaloData *ReadHaloGroupCatalogData(char* infile, Int_t &numhalos, int mpi_ninput=0, int ibinary=1, int ifieldhalos=1, int itypesort=ALLTYPEMATCH, int iverbose=0);
-///minor interface routines associated with reading VELOCIraptor output
+///minor interface routine associated with reading VELOCIraptor output, openfiles appropriate files
 void OpenBinaryorAsciiFiles(char *infile, int ibinary, int numfiletypes, int k, int mpi_ninput, int ifieldhalos, int itypematch, fstream &Fgroup, fstream &Fpart, fstream &Fupart, fstream &Fsgroup, fstream &Fspart, fstream &Fsupart, fstream &Fparttype, fstream &Fuparttype, fstream &Fsparttype, fstream &Fsuparttype, int iverbose=0);
+///minor interface for closing appropriate files
+void CloseBinaryorAsciiFiles(fstream &Fgroup, fstream &Fpart, fstream &Fupart, fstream &Fsgroup, fstream &Fspart, fstream &Fsupart, fstream &Fparttype, fstream &Fuparttype, fstream &Fsparttype, fstream &Fsuparttype, int ifieldhalos, int itypematch);
 #ifdef USEHDF
-void OpenHDFFiles(char *infile, int numfiletypes, int k, int mpi_ninput, int ifieldhalos, int itypematch, H5File &Fhdfgroup, H5File &Fhdfpart, H5File &Fhdfupart, H5File &Fhdfsgroup, H5File &Fhdfspart, H5File &Fhdfsupart, H5File &Fhdfparttype, H5File &Fhdfuparttype, H5File &Fhdfsparttype, H5File &Fhdfsuparttype, int iverbose=0);
+void OpenHDFFiles(char *infile, int numfiletypes, int k, int mpi_ninput, int ifieldhalos, int itypematch, H5File &Fgroup, H5File &Fpart, H5File &Fupart, H5File &Fsgroup, H5File &Fspart, H5File &Fsupart, H5File &Fparttype, H5File &Fuparttype, H5File &Fsparttype, H5File &Fsuparttype, int iverbose=0);
+void CloseHDFFiles(H5File &Fgroup, H5File &Fpart, H5File &Fupart, H5File &Fsgroup, H5File &Fspart, H5File &Fsupart, H5File &Fparttype, H5File &Fuparttype, H5File &Fsparttype, H5File &Fsuparttype, int ifieldhalos, int itypematch);
 #endif
 //@}
 

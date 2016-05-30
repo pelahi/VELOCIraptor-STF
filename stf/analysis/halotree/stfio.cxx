@@ -16,6 +16,8 @@ int CheckType(unsigned int t, int tmatch){
 }
 
 #ifdef USEMPI
+///\name mpi related routines that open files for load balancing calculations
+//@{
 ///Read halo data from an idividual snapshot;
 Int_t MPIReadHaloGroupCatalogDataNum(char* infile, int mpi_ninput, int ibinary, int ifieldhalos, int itypematch)
 {
@@ -24,17 +26,10 @@ Int_t MPIReadHaloGroupCatalogDataNum(char* infile, int mpi_ninput, int ibinary, 
     Int_t noffset,numfiletypes;
     long unsigned nparts,haloid;
     long unsigned TotalNumberofHalos;
-    char fname1[1000],fname2[1000],fname3[1000];
-    char fname4[1000],fname5[1000],fname6[1000];
-    char fname7[1000],fname8[1000];
-    char fname9[1000],fname10[1000];
-    char *fnamearray[10];
     fstream Fgroup,Fpart,Fupart; //field objects
     fstream Fsgroup,Fspart,Fsupart; //sublevels
     fstream Fparttype,Fuparttype; //field objects
     fstream Fsparttype,Fsuparttype; //sublevels
-    fstream *Farray[10];
-    VELOCIraptorFileTypeNames vftn;
 #ifdef USEHDF
     H5File Fhdfgroup,Fhdfpart,Fhdfupart; //field objects
     H5File Fhdfsgroup,Fhdfspart,Fhdfsupart; //sublevels
@@ -44,8 +39,9 @@ Int_t MPIReadHaloGroupCatalogDataNum(char* infile, int mpi_ninput, int ibinary, 
     DataSet dataset;
     HDFCatalogNames hdfnames;
     void * data;
-    H5File *Fhdfarray[10];
 #endif
+    //void pointer to 
+    void * Farray;
     unsigned long nids,nuids,nsids,nsuids,nglocal,nsglocal;
     unsigned long nidstot,nuidstot,nsidstot,nsuidstot;
     Int_t *numingroup,*numingroupbound,*offset,*uoffset;
@@ -68,73 +64,12 @@ Int_t MPIReadHaloGroupCatalogDataNum(char* infile, int mpi_ninput, int ibinary, 
 
     nglocal=nsglocal=0;
     //load the group catalogues and the related particle files
-    //first store all possible file names
-    fnamearray[0]=fname1;fnamearray[1]=fname2;fnamearray[2]=fname3;fnamearray[3]=fname4;fnamearray[4]=fname5;fnamearray[5]=fname6;fnamearray[6]=fname7;fnamearray[7]=fname8;fnamearray[8]=fname9;fnamearray[9]=fname10;
-    vftn.UpdateName(infile,fnamearray,0,mpi_ninput);
-    itemp=0;
-    fnamearray[itemp++]=fname1;fnamearray[itemp++]=fname2;fnamearray[itemp++]=fname3;
-    if (ifieldhalos) {
-        fnamearray[itemp++]=fname4;fnamearray[itemp++]=fname5;fnamearray[itemp++]=fname6;
-    }
-    if (itypematch!=ALLTYPEMATCH) { 
-        fnamearray[itemp++]=fname7;fnamearray[itemp++]=fname8;
-        if (ifieldhalos) {
-            fnamearray[itemp++]=fname9;fnamearray[itemp++]=fname10;
-        }
-    }
-    if (ibinary==INBINARY) {
-        Fgroup.open(fname1,ios::in|ios::binary);
-        Fpart.open(fname2,ios::in|ios::binary);
-        Fupart.open(fname3,ios::in|ios::binary);
-        if (ifieldhalos) {
-            Fsgroup.open(fname4,ios::in|ios::binary);
-            Fspart.open(fname5,ios::in|ios::binary);
-            Fsupart.open(fname6,ios::in|ios::binary);
-        }
-        if (itypematch!=ALLTYPEMATCH) {
-            Fparttype.open(fname7,ios::in|ios::binary);
-            Fuparttype.open(fname8,ios::in|ios::binary);
-            if (ifieldhalos) {
-                Fsparttype.open(fname9,ios::in|ios::binary);
-                Fsuparttype.open(fname10,ios::in|ios::binary);
-            }
-        }
-    }
-    else {
-        Fgroup.open(fname1,ios::in);
-        Fpart.open(fname2,ios::in);
-        Fupart.open(fname3,ios::in);
-        if (ifieldhalos) {
-            Fsgroup.open(fname4,ios::in);
-            Fspart.open(fname5,ios::in);
-            Fsupart.open(fname6,ios::in);
-        }
-        if (itypematch!=ALLTYPEMATCH) {
-            Fparttype.open(fname7,ios::in);
-            Fuparttype.open(fname8,ios::in);
-            if (ifieldhalos) {
-                Fsparttype.open(fname9,ios::in);
-                Fsuparttype.open(fname10,ios::in);
-            }
-        }
-    }
-    itemp=0;
-    Farray[itemp++]=&Fgroup;Farray[itemp++]=&Fpart;Farray[itemp++]=&Fupart;
-    if (ifieldhalos) {
-        Farray[itemp++]=&Fsgroup;Farray[itemp++]=&Fspart;Farray[itemp++]=&Fsupart;
-    }
-    if (itypematch!=ALLTYPEMATCH) {
-        Farray[itemp++]=&Fparttype;Farray[itemp++]=&Fuparttype;
-        if (ifieldhalos) {
-            Farray[itemp++]=&Fsparttype;Farray[itemp++]=&Fsuparttype;
-        }
-    }
-    for (int i=0;i<numfiletypes;i++) {
-        if(!Farray[i]->is_open()){
-            cerr<<"can't open "<<fnamearray[i]<<endl;
-            MPI_Abort(MPI_COMM_WORLD,9);
-        }
-    }
+    //check if files exist and open
+    if (ibinary!=INHDF) OpenBinaryorAsciiFiles(infile, ibinary, numfiletypes, 0, mpi_ninput, ifieldhalos, itypematch, Fgroup, Fpart, Fupart, Fsgroup, Fspart, Fsupart, Fparttype, Fuparttype, Fsparttype, Fsuparttype);
+#ifdef USEHDF
+    else OpenHDFFiles(infile, numfiletypes, 0, mpi_ninput, ifieldhalos, itypematch, Fhdfgroup, Fhdfpart, Fhdfupart, Fhdfsgroup, Fhdfspart, Fhdfsupart, Fhdfparttype, Fhdfuparttype, Fhdfsparttype, Fhdfsuparttype);
+#endif
+
     //check header make sure that number of mpi values considered agree
     if (ibinary==INBINARY) {
         Fgroup.read((char*)&itask,sizeof(int));
@@ -180,7 +115,10 @@ Int_t MPIReadHaloGroupCatalogDataNum(char* infile, int mpi_ninput, int ibinary, 
             Fsgroup>>itemp;
         }
     }
-    for (int i=0;i<numfiletypes;i++) Farray[i]->close();
+    if (ibinary!=INHDF) CloseBinaryorAsciiFiles(Fgroup, Fpart, Fupart, Fsgroup, Fspart, Fsupart, Fparttype, Fuparttype, Fsparttype, Fsuparttype, ifieldhalos, itypematch);
+#ifdef USEHDF
+    else CloseHDFFiles(Fhdfgroup, Fhdfpart, Fhdfupart, Fhdfsgroup, Fhdfspart, Fhdfsupart, Fhdfparttype, Fhdfuparttype, Fhdfsparttype, Fhdfsuparttype, ifieldhalos, itypematch);
+#endif
     
     return TotalNumberofHalos;
 }
@@ -195,17 +133,10 @@ Int_t MPIReadHaloGroupCatalogDataParticleNum(char* infile, int mpi_ninput, int i
     Int_t noffset,numfiletypes;
     long unsigned nparts,haloid;
     long unsigned TotalNumberofParticles=0;
-    char fname1[1000],fname2[1000],fname3[1000];
-    char fname4[1000],fname5[1000],fname6[1000];
-    char fname7[1000],fname8[1000];
-    char fname9[1000],fname10[1000];
-    char *fnamearray[10];
     fstream Fgroup,Fpart,Fupart; //field objects
     fstream Fsgroup,Fspart,Fsupart; //sublevels
     fstream Fparttype,Fuparttype; //field objects
     fstream Fsparttype,Fsuparttype; //sublevels
-    fstream *Farray[10];
-    VELOCIraptorFileTypeNames vftn;
 #ifdef USEHDF
     H5File Fhdfgroup,Fhdfpart,Fhdfupart; //field objects
     H5File Fhdfsgroup,Fhdfspart,Fhdfsupart; //sublevels
@@ -215,7 +146,6 @@ Int_t MPIReadHaloGroupCatalogDataParticleNum(char* infile, int mpi_ninput, int i
     DataSet dataset;
     HDFCatalogNames hdfnames;
     void * data;
-    H5File *Fhdfarray[10];
 #endif
     unsigned long nids,nuids,nsids,nsuids,nglocal,nsglocal;
     unsigned long nidstot,nuidstot,nsidstot,nsuidstot;
@@ -239,74 +169,12 @@ Int_t MPIReadHaloGroupCatalogDataParticleNum(char* infile, int mpi_ninput, int i
     for (int k=0;k<nmpicount;k++) {
         nglocal=nsglocal=0;
         //load the group catalogues and the related particle files
-        //first store all possible file names
-        fnamearray[0]=fname1;fnamearray[1]=fname2;fnamearray[2]=fname3;fnamearray[3]=fname4;fnamearray[4]=fname5;fnamearray[5]=fname6;fnamearray[6]=fname7;fnamearray[7]=fname8;fnamearray[8]=fname9;fnamearray[9]=fname10;
-        vftn.UpdateName(infile,fnamearray,k,mpi_ninput);
+        //check if files exist and open
+        if (ibinary!=INHDF) OpenBinaryorAsciiFiles(infile, ibinary, numfiletypes, k, mpi_ninput, ifieldhalos, itypematch, Fgroup, Fpart, Fupart, Fsgroup, Fspart, Fsupart, Fparttype, Fuparttype, Fsparttype, Fsuparttype);
+#ifdef USEHDF
+        else OpenHDFFiles(infile, numfiletypes, k, mpi_ninput, ifieldhalos, itypematch, Fhdfgroup, Fhdfpart, Fhdfupart, Fhdfsgroup, Fhdfspart, Fhdfsupart, Fhdfparttype, Fhdfuparttype, Fhdfsparttype, Fhdfsuparttype);
+#endif
 
-        itemp=0;
-        fnamearray[itemp++]=fname1;fnamearray[itemp++]=fname2;fnamearray[itemp++]=fname3;
-        if (ifieldhalos) {
-            fnamearray[itemp++]=fname4;fnamearray[itemp++]=fname5;fnamearray[itemp++]=fname6;
-        }
-        if (itypematch!=ALLTYPEMATCH) { 
-            fnamearray[itemp++]=fname7;fnamearray[itemp++]=fname8;
-            if (ifieldhalos) {
-                fnamearray[itemp++]=fname9;fnamearray[itemp++]=fname10;
-            }
-        }
-        if (ibinary==INBINARY) {
-            Fgroup.open(fname1,ios::in|ios::binary);
-            Fpart.open(fname2,ios::in|ios::binary);
-            Fupart.open(fname3,ios::in|ios::binary);
-            if (ifieldhalos) {
-                Fsgroup.open(fname4,ios::in|ios::binary);
-                Fspart.open(fname5,ios::in|ios::binary);
-                Fsupart.open(fname6,ios::in|ios::binary);
-            }
-            if (itypematch!=ALLTYPEMATCH) {
-                Fparttype.open(fname7,ios::in|ios::binary);
-                Fuparttype.open(fname8,ios::in|ios::binary);
-                if (ifieldhalos) {
-                    Fsparttype.open(fname9,ios::in|ios::binary);
-                    Fsuparttype.open(fname10,ios::in|ios::binary);
-                }
-            }
-        }
-        else {
-            Fgroup.open(fname1,ios::in);
-            Fpart.open(fname2,ios::in);
-            Fupart.open(fname3,ios::in);
-            if (ifieldhalos) {
-                Fsgroup.open(fname4,ios::in);
-                Fspart.open(fname5,ios::in);
-                Fsupart.open(fname6,ios::in);
-            }
-            if (itypematch!=ALLTYPEMATCH) {
-                Fparttype.open(fname7,ios::in);
-                Fuparttype.open(fname8,ios::in);
-                if (ifieldhalos) {
-                    Fsparttype.open(fname9,ios::in);
-                    Fsuparttype.open(fname10,ios::in);
-                }
-            }
-        }
-        itemp=0;
-        Farray[itemp++]=&Fgroup;Farray[itemp++]=&Fpart;Farray[itemp++]=&Fupart;
-        if (ifieldhalos) {
-            Farray[itemp++]=&Fsgroup;Farray[itemp++]=&Fspart;Farray[itemp++]=&Fsupart;
-        }
-        if (itypematch!=ALLTYPEMATCH) {
-            Farray[itemp++]=&Fparttype;Farray[itemp++]=&Fuparttype;
-            if (ifieldhalos) {
-                Farray[itemp++]=&Fsparttype;Farray[itemp++]=&Fsuparttype;
-            }
-        }
-        for (int i=0;i<numfiletypes;i++) {
-            if(!Farray[i]->is_open()){
-                cerr<<"can't open "<<fnamearray[i]<<endl;
-                MPI_Abort(MPI_COMM_WORLD,9);
-            }
-        }
         //check header make sure that number of mpi values considered agree
         if (ibinary==INBINARY) {
             Fgroup.read((char*)&itask,sizeof(int));
@@ -370,23 +238,10 @@ Int_t MPIReadHaloGroupCatalogDataParticleNum(char* infile, int mpi_ninput, int i
         }
         noffset+=nglocal+nsglocal;
 
-        Fgroup.close();
-        Fpart.close();
-        Fupart.close();
-        if (ifieldhalos) {
-            Fsgroup.close();
-            Fspart.close();
-            Fsupart.close();
-        }
-        if (itypematch!=ALLTYPEMATCH) {
-            Fparttype.close();
-            Fuparttype.close();
-            if (ifieldhalos) {
-                Fsparttype.close();
-                Fsuparttype.close();
-            }
-        }
-
+        if (ibinary!=INHDF) CloseBinaryorAsciiFiles(Fgroup, Fpart, Fupart, Fsgroup, Fspart, Fsupart, Fparttype, Fuparttype, Fsparttype, Fsuparttype, ifieldhalos, itypematch);
+#ifdef USEHDF
+        else CloseHDFFiles(Fhdfgroup, Fhdfpart, Fhdfupart, Fhdfsgroup, Fhdfspart, Fhdfsupart, Fhdfparttype, Fhdfuparttype, Fhdfsparttype, Fhdfsuparttype, ifieldhalos, itypematch);
+#endif
     }
 
     return TotalNumberofParticles;
@@ -401,17 +256,10 @@ HaloData *MPIReadHaloGroupCatalogDataAllocation(char* infile, Int_t &numhalos, i
     Int_t noffset,numfiletypes;
     long unsigned nparts,haloid;
     long unsigned TotalNumberofHalos;
-    char fname1[1000],fname2[1000],fname3[1000];
-    char fname4[1000],fname5[1000],fname6[1000];
-    char fname7[1000],fname8[1000];
-    char fname9[1000],fname10[1000];
-    char *fnamearray[10];
     fstream Fgroup,Fpart,Fupart; //field objects
     fstream Fsgroup,Fspart,Fsupart; //sublevels
     fstream Fparttype,Fuparttype; //field objects
     fstream Fsparttype,Fsuparttype; //sublevels
-    fstream *Farray[10];
-    VELOCIraptorFileTypeNames vftn;
 #ifdef USEHDF
     H5File Fhdfgroup,Fhdfpart,Fhdfupart; //field objects
     H5File Fhdfsgroup,Fhdfspart,Fhdfsupart; //sublevels
@@ -421,7 +269,6 @@ HaloData *MPIReadHaloGroupCatalogDataAllocation(char* infile, Int_t &numhalos, i
     DataSet dataset;
     HDFCatalogNames hdfnames;
     void * data;
-    H5File *Fhdfarray[10];
 #endif
     unsigned long nids,nuids,nsids,nsuids,nglocal,nsglocal;
     unsigned long nidstot,nuidstot,nsidstot,nsuidstot;
@@ -445,73 +292,12 @@ HaloData *MPIReadHaloGroupCatalogDataAllocation(char* infile, Int_t &numhalos, i
     for (int k=0;k<nmpicount;k++) {
         nglocal=nsglocal=0;
         //load the group catalogues and the related particle files
-        //first store all possible file names
-        fnamearray[0]=fname1;fnamearray[1]=fname2;fnamearray[2]=fname3;fnamearray[3]=fname4;fnamearray[4]=fname5;fnamearray[5]=fname6;fnamearray[6]=fname7;fnamearray[7]=fname8;fnamearray[8]=fname9;fnamearray[9]=fname10;
-        vftn.UpdateName(infile,fnamearray,k,mpi_ninput);
-        itemp=0;
-        fnamearray[itemp++]=fname1;fnamearray[itemp++]=fname2;fnamearray[itemp++]=fname3;
-        if (ifieldhalos) {
-            fnamearray[itemp++]=fname4;fnamearray[itemp++]=fname5;fnamearray[itemp++]=fname6;
-        }
-        if (itypematch!=ALLTYPEMATCH) { 
-            fnamearray[itemp++]=fname7;fnamearray[itemp++]=fname8;
-            if (ifieldhalos) {
-                fnamearray[itemp++]=fname9;fnamearray[itemp++]=fname10;
-            }
-        }
-        if (ibinary==INBINARY) {
-            Fgroup.open(fname1,ios::in|ios::binary);
-            Fpart.open(fname2,ios::in|ios::binary);
-            Fupart.open(fname3,ios::in|ios::binary);
-            if (ifieldhalos) {
-                Fsgroup.open(fname4,ios::in|ios::binary);
-                Fspart.open(fname5,ios::in|ios::binary);
-                Fsupart.open(fname6,ios::in|ios::binary);
-            }
-            if (itypematch!=ALLTYPEMATCH) {
-                Fparttype.open(fname7,ios::in|ios::binary);
-                Fuparttype.open(fname8,ios::in|ios::binary);
-                if (ifieldhalos) {
-                    Fsparttype.open(fname9,ios::in|ios::binary);
-                    Fsuparttype.open(fname10,ios::in|ios::binary);
-                }
-            }
-        }
-        else {
-            Fgroup.open(fname1,ios::in);
-            Fpart.open(fname2,ios::in);
-            Fupart.open(fname3,ios::in);
-            if (ifieldhalos) {
-                Fsgroup.open(fname4,ios::in);
-                Fspart.open(fname5,ios::in);
-                Fsupart.open(fname6,ios::in);
-            }
-            if (itypematch!=ALLTYPEMATCH) {
-                Fparttype.open(fname7,ios::in);
-                Fuparttype.open(fname8,ios::in);
-                if (ifieldhalos) {
-                    Fsparttype.open(fname9,ios::in);
-                    Fsuparttype.open(fname10,ios::in);
-                }
-            }
-        }
-        itemp=0;
-        Farray[itemp++]=&Fgroup;Farray[itemp++]=&Fpart;Farray[itemp++]=&Fupart;
-        if (ifieldhalos) {
-            Farray[itemp++]=&Fsgroup;Farray[itemp++]=&Fspart;Farray[itemp++]=&Fsupart;
-        }
-        if (itypematch!=ALLTYPEMATCH) {
-            Farray[itemp++]=&Fparttype;Farray[itemp++]=&Fuparttype;
-            if (ifieldhalos) {
-                Farray[itemp++]=&Fsparttype;Farray[itemp++]=&Fsuparttype;
-            }
-        }
-        for (int i=0;i<numfiletypes;i++) {
-            if(!Farray[i]->is_open()){
-                cerr<<"can't open "<<fnamearray[i]<<endl;
-                MPI_Abort(MPI_COMM_WORLD,9);
-            }
-        }
+        //check if files exist and open
+        if (ibinary!=INHDF) OpenBinaryorAsciiFiles(infile, ibinary, numfiletypes, k, mpi_ninput, ifieldhalos, itypematch, Fgroup, Fpart, Fupart, Fsgroup, Fspart, Fsupart, Fparttype, Fuparttype, Fsparttype, Fsuparttype);
+#ifdef USEHDF
+        else OpenHDFFiles(infile, numfiletypes, k, mpi_ninput, ifieldhalos, itypematch, Fhdfgroup, Fhdfpart, Fhdfupart, Fhdfsgroup, Fhdfspart, Fhdfsupart, Fhdfparttype, Fhdfuparttype, Fhdfsparttype, Fhdfsuparttype);
+#endif
+
         //check header make sure that number of mpi values considered agree
         if (ibinary==INBINARY) {
             Fgroup.read((char*)&itask,sizeof(int));
@@ -593,22 +379,10 @@ HaloData *MPIReadHaloGroupCatalogDataAllocation(char* infile, Int_t &numhalos, i
         }
         noffset+=nglocal+nsglocal;
 
-        Fgroup.close();
-        Fpart.close();
-        Fupart.close();
-        if (ifieldhalos) {
-            Fsgroup.close();
-            Fspart.close();
-            Fsupart.close();
-        }
-        if (itypematch!=ALLTYPEMATCH) {
-            Fparttype.close();
-            Fuparttype.close();
-            if (ifieldhalos) {
-                Fsparttype.close();
-                Fsuparttype.close();
-            }
-        }
+        if (ibinary!=INHDF) CloseBinaryorAsciiFiles(Fgroup, Fpart, Fupart, Fsgroup, Fspart, Fsupart, Fparttype, Fuparttype, Fsparttype, Fsuparttype, ifieldhalos, itypematch);
+#ifdef USEHDF
+        else CloseHDFFiles(Fhdfgroup, Fhdfpart, Fhdfupart, Fhdfsgroup, Fhdfspart, Fhdfsupart, Fhdfparttype, Fhdfuparttype, Fhdfsparttype, Fhdfsuparttype, ifieldhalos, itypematch);
+#endif
     }
 
     return Halo;
@@ -622,17 +396,10 @@ void MPIReadHaloGroupCatalogData(char* infile, Int_t &numhalos, HaloData *&Halo,
     Int_t noffset,numfiletypes;
     long unsigned nparts,haloid;
     long unsigned TotalNumberofHalos;
-    char fname1[1000],fname2[1000],fname3[1000];
-    char fname4[1000],fname5[1000],fname6[1000];
-    char fname7[1000],fname8[1000];
-    char fname9[1000],fname10[1000];
-    char *fnamearray[10];
     fstream Fgroup,Fpart,Fupart; //field objects
     fstream Fsgroup,Fspart,Fsupart; //sublevels
     fstream Fparttype,Fuparttype; //field objects
     fstream Fsparttype,Fsuparttype; //sublevels
-    fstream *Farray[10];
-    VELOCIraptorFileTypeNames vftn;
 #ifdef USEHDF
     H5File Fhdfgroup,Fhdfpart,Fhdfupart; //field objects
     H5File Fhdfsgroup,Fhdfspart,Fhdfsupart; //sublevels
@@ -642,7 +409,6 @@ void MPIReadHaloGroupCatalogData(char* infile, Int_t &numhalos, HaloData *&Halo,
     DataSet dataset;
     HDFCatalogNames hdfnames;
     void * data;
-    H5File *Fhdfarray[10];
 #endif
     unsigned long nids,nuids,nsids,nsuids,nglocal,nsglocal;
     unsigned long nidstot,nuidstot,nsidstot,nsuidstot;
@@ -666,74 +432,12 @@ void MPIReadHaloGroupCatalogData(char* infile, Int_t &numhalos, HaloData *&Halo,
     for (int k=0;k<nmpicount;k++) {
         nglocal=nsglocal=0;
         //load the group catalogues and the related particle files
-        //first store all possible file names
-        fnamearray[0]=fname1;fnamearray[1]=fname2;fnamearray[2]=fname3;fnamearray[3]=fname4;fnamearray[4]=fname5;fnamearray[5]=fname6;fnamearray[6]=fname7;fnamearray[7]=fname8;fnamearray[8]=fname9;fnamearray[9]=fname10;
-        vftn.UpdateName(infile,fnamearray,k,mpi_ninput);
-        itemp=0;
-        fnamearray[itemp++]=fname1;fnamearray[itemp++]=fname2;fnamearray[itemp++]=fname3;
-        if (ifieldhalos) {
-            fnamearray[itemp++]=fname4;fnamearray[itemp++]=fname5;fnamearray[itemp++]=fname6;
-        }
-        if (itypematch!=ALLTYPEMATCH) { 
-            fnamearray[itemp++]=fname7;fnamearray[itemp++]=fname8;
-            if (ifieldhalos) {
-                fnamearray[itemp++]=fname9;fnamearray[itemp++]=fname10;
-            }
-        }
-        if (ibinary==INBINARY) {
-            Fgroup.open(fname1,ios::in|ios::binary);
-            Fpart.open(fname2,ios::in|ios::binary);
-            Fupart.open(fname3,ios::in|ios::binary);
-            if (ifieldhalos) {
-                Fsgroup.open(fname4,ios::in|ios::binary);
-                Fspart.open(fname5,ios::in|ios::binary);
-                Fsupart.open(fname6,ios::in|ios::binary);
-            }
-            if (itypematch!=ALLTYPEMATCH) {
-                Fparttype.open(fname7,ios::in|ios::binary);
-                Fuparttype.open(fname8,ios::in|ios::binary);
-                if (ifieldhalos) {
-                    Fsparttype.open(fname9,ios::in|ios::binary);
-                    Fsuparttype.open(fname10,ios::in|ios::binary);
-                }
-            }
-        }
-        else {
-            Fgroup.open(fname1,ios::in);
-            Fpart.open(fname2,ios::in);
-            Fupart.open(fname3,ios::in);
-            if (ifieldhalos) {
-                Fsgroup.open(fname4,ios::in);
-                Fspart.open(fname5,ios::in);
-                Fsupart.open(fname6,ios::in);
-            }
-            if (itypematch!=ALLTYPEMATCH) {
-                Fparttype.open(fname7,ios::in);
-                Fuparttype.open(fname8,ios::in);
-                if (ifieldhalos) {
-                    Fsparttype.open(fname9,ios::in);
-                    Fsuparttype.open(fname10,ios::in);
-                }
-            }
-        }
-        itemp=0;
-        Farray[itemp++]=&Fgroup;Farray[itemp++]=&Fpart;Farray[itemp++]=&Fupart;
-        if (ifieldhalos) {
-            Farray[itemp++]=&Fsgroup;Farray[itemp++]=&Fspart;Farray[itemp++]=&Fsupart;
-        }
-        if (itypematch!=ALLTYPEMATCH) {
-            Farray[itemp++]=&Fparttype;Farray[itemp++]=&Fuparttype;
-            if (ifieldhalos) {
-                Farray[itemp++]=&Fsparttype;Farray[itemp++]=&Fsuparttype;
-            }
-        }
-        for (int i=0;i<numfiletypes;i++) {
-            if(!Farray[i]->is_open()){
-                cerr<<"can't open "<<fnamearray[i]<<endl;
-                MPI_Abort(MPI_COMM_WORLD,9);
-            }
-            else if (iverbose) cout<<"open "<<fnamearray[i]<<endl;
-        }
+        //check if files exist and open
+        if (ibinary!=INHDF) OpenBinaryorAsciiFiles(infile, ibinary, numfiletypes, k, mpi_ninput, ifieldhalos, itypematch, Fgroup, Fpart, Fupart, Fsgroup, Fspart, Fsupart, Fparttype, Fuparttype, Fsparttype, Fsuparttype);
+#ifdef USEHDF
+        else OpenHDFFiles(infile, numfiletypes, k, mpi_ninput, ifieldhalos, itypematch, Fhdfgroup, Fhdfpart, Fhdfupart, Fhdfsgroup, Fhdfspart, Fhdfsupart, Fhdfparttype, Fhdfuparttype, Fhdfsparttype, Fhdfsuparttype);
+#endif
+
         //check header make sure that number of mpi values considered agree
         if (ibinary==INBINARY) {
             Fgroup.read((char*)&itask,sizeof(int));
@@ -996,25 +700,15 @@ void MPIReadHaloGroupCatalogData(char* infile, Int_t &numhalos, HaloData *&Halo,
         }
         noffset+=nglocal+nsglocal;
 
-        Fgroup.close();
-        Fpart.close();
-        Fupart.close();
-        if (ifieldhalos) {
-            Fsgroup.close();
-            Fspart.close();
-            Fsupart.close();
-        }
-        if (itypematch!=ALLTYPEMATCH) {
-            Fparttype.close();
-            Fuparttype.close();
-            if (ifieldhalos) {
-                Fsparttype.close();
-                Fsuparttype.close();
-            }
-        }
+        if (ibinary!=INHDF) CloseBinaryorAsciiFiles(Fgroup, Fpart, Fupart, Fsgroup, Fspart, Fsupart, Fparttype, Fuparttype, Fsparttype, Fsuparttype, ifieldhalos, itypematch);
+#ifdef USEHDF
+        else CloseHDFFiles(Fhdfgroup, Fhdfpart, Fhdfupart, Fhdfsgroup, Fhdfspart, Fhdfsupart, Fhdfparttype, Fhdfuparttype, Fhdfsparttype, Fhdfsuparttype, ifieldhalos, itypematch);
+#endif
 
     }
 }
+//@}
+
 #endif
 
 
@@ -1027,17 +721,10 @@ HaloData *ReadHaloGroupCatalogData(char* infile, Int_t &numhalos, int mpi_ninput
     Int_t noffset,numfiletypes;
     long unsigned nparts,haloid;
     long unsigned TotalNumberofHalos;
-    char fname1[1000],fname2[1000],fname3[1000];
-    char fname4[1000],fname5[1000],fname6[1000];
-    char fname7[1000],fname8[1000];
-    char fname9[1000],fname10[1000];
-    char *fnamearray[10];
     fstream Fgroup,Fpart,Fupart; //field objects
     fstream Fsgroup,Fspart,Fsupart; //sublevels
     fstream Fparttype,Fuparttype; //field objects
     fstream Fsparttype,Fsuparttype; //sublevels
-    fstream *Farray[10];
-    VELOCIraptorFileTypeNames vftn;
 #ifdef USEHDF
     H5File Fhdfgroup,Fhdfpart,Fhdfupart; //field objects
     H5File Fhdfsgroup,Fhdfspart,Fhdfsupart; //sublevels
@@ -1047,7 +734,6 @@ HaloData *ReadHaloGroupCatalogData(char* infile, Int_t &numhalos, int mpi_ninput
     DataSet dataset;
     HDFCatalogNames hdfnames;
     void * data;
-    H5File *Fhdfarray[10];
 #endif
     unsigned long nids,nuids,nsids,nsuids,nglocal,nsglocal;
     unsigned long nidstot,nuidstot,nsidstot,nsuidstot;
@@ -1073,119 +759,11 @@ HaloData *ReadHaloGroupCatalogData(char* infile, Int_t &numhalos, int mpi_ninput
     noffset=0;
     for (int k=0;k<nmpicount;k++) {
         nglocal=nsglocal=0;
-        /*
         //load the group catalogues and the related particle files
-        //first store all possible file names
-        fnamearray[0]=fname1;fnamearray[1]=fname2;fnamearray[2]=fname3;fnamearray[3]=fname4;fnamearray[4]=fname5;fnamearray[5]=fname6;fnamearray[6]=fname7;fnamearray[7]=fname8;fnamearray[8]=fname9;fnamearray[9]=fname10;
-        vftn.UpdateName(infile,fnamearray,k,mpi_ninput);
-
-        //set names of files
-        itemp=0;
-        fnamearray[itemp++]=fname1;fnamearray[itemp++]=fname2;fnamearray[itemp++]=fname3;
-        if (ifieldhalos) {
-            fnamearray[itemp++]=fname4;fnamearray[itemp++]=fname5;fnamearray[itemp++]=fname6;
-        }
-        if (itypematch!=ALLTYPEMATCH) { 
-            fnamearray[itemp++]=fname7;fnamearray[itemp++]=fname8;
-            if (ifieldhalos) {
-                fnamearray[itemp++]=fname9;fnamearray[itemp++]=fname10;
-            }
-        }
-        if (ibinary==INBINARY) {
-            Fgroup.open(fname1,ios::in|ios::binary);
-            Fpart.open(fname2,ios::in|ios::binary);
-            Fupart.open(fname3,ios::in|ios::binary);
-            if (ifieldhalos) {
-                Fsgroup.open(fname4,ios::in|ios::binary);
-                Fspart.open(fname5,ios::in|ios::binary);
-                Fsupart.open(fname6,ios::in|ios::binary);
-            }
-            if (itypematch!=ALLTYPEMATCH) {
-                Fparttype.open(fname7,ios::in|ios::binary);
-                Fuparttype.open(fname8,ios::in|ios::binary);
-                if (ifieldhalos) {
-                    Fsparttype.open(fname9,ios::in|ios::binary);
-                    Fsuparttype.open(fname10,ios::in|ios::binary);
-                }
-            }
-        }
+        if (ibinary!=INHDF) OpenBinaryorAsciiFiles(infile, ibinary, numfiletypes, k, mpi_ninput, ifieldhalos, itypematch, Fgroup, Fpart, Fupart, Fsgroup, Fspart, Fsupart, Fparttype, Fuparttype, Fsparttype, Fsuparttype, iverbose);
 #ifdef USEHDF
-        else if (ibinary==INHDF) {
-            itemp=0;
-            Fhdfarray[itemp++]=&Fhdfgroup;Fhdfarray[itemp++]=&Fhdfpart;Fhdfarray[itemp++]=&Fhdfupart;
-            if (ifieldhalos) {
-                Fhdfarray[itemp++]=&Fhdfsgroup;Fhdfarray[itemp++]=&Fhdfspart;Fhdfarray[itemp++]=&Fhdfsupart;
-            }
-            if (itypematch!=ALLTYPEMATCH) {
-                Fhdfarray[itemp++]=&Fhdfparttype;Fhdfarray[itemp++]=&Fhdfuparttype;
-                if (ifieldhalos) {
-                    Fhdfarray[itemp++]=&Fhdfsparttype;Fhdfarray[itemp++]=&Fhdfsuparttype;
-                }
-            }
-            for (int i=0;i<numfiletypes;i++) {
-                try {
-                    Fhdfarray[i]->openFile(fnamearray[i],H5F_ACC_RDONLY);
-                }
-                catch(const H5::FileIException&) {
-                    cerr<<"can't open "<<fnamearray[i]<<endl;
-#ifdef USEMPI
-                    MPI_Abort(MPI_COMM_WORLD,9);
-#else
-                    exit(9);
+        else OpenHDFFiles(infile, numfiletypes, k, mpi_ninput, ifieldhalos, itypematch, Fhdfgroup, Fhdfpart, Fhdfupart, Fhdfsgroup, Fhdfspart, Fhdfsupart, Fhdfparttype, Fhdfuparttype, Fhdfsparttype, Fhdfsuparttype, iverbose);
 #endif
-                }
-            }
-        }
-#endif
-        else {
-            Fgroup.open(fname1,ios::in);
-            Fpart.open(fname2,ios::in);
-            Fupart.open(fname3,ios::in);
-            if (ifieldhalos) {
-                Fsgroup.open(fname4,ios::in);
-                Fspart.open(fname5,ios::in);
-                Fsupart.open(fname6,ios::in);
-            }
-            if (itypematch!=ALLTYPEMATCH) {
-                Fparttype.open(fname7,ios::in);
-                Fuparttype.open(fname8,ios::in);
-                if (ifieldhalos) {
-                    Fsparttype.open(fname9,ios::in);
-                    Fsuparttype.open(fname10,ios::in);
-                }
-            }
-        }
-        
-        //now for input types not hdf do check to see if file is open
-        if (ibinary!=INHDF) {
-            itemp=0;
-            Farray[itemp++]=&Fgroup;Farray[itemp++]=&Fpart;Farray[itemp++]=&Fupart;
-            if (ifieldhalos) {
-                Farray[itemp++]=&Fsgroup;Farray[itemp++]=&Fspart;Farray[itemp++]=&Fsupart;
-            }
-            if (itypematch!=ALLTYPEMATCH) {
-                Farray[itemp++]=&Fparttype;Farray[itemp++]=&Fuparttype;
-                if (ifieldhalos) {
-                    Farray[itemp++]=&Fsparttype;Farray[itemp++]=&Fsuparttype;
-                }
-            }
-            for (int i=0;i<numfiletypes;i++) {
-                if(!Farray[i]->is_open()){
-                    cerr<<"can't open "<<fnamearray[i]<<endl;
-#ifdef USEMPI
-                    MPI_Abort(MPI_COMM_WORLD,9);
-#else
-                    exit(9);
-#endif
-                }
-                else if (iverbose) cout<<"open "<<fnamearray[i]<<endl;
-            }
-        }
-        ///\todo replace above with OpenFile routines
-        //finished loading the files and checking if files exist and can be opened
-        */
-        OpenBinaryorAsciiFiles(infile, ibinary, numfiletypes, k, mpi_ninput, ifieldhalos, itypematch, Fgroup, Fpart, Fupart, Fsgroup, Fspart, Fsupart, Fparttype, Fuparttype, Fsparttype, Fsuparttype, iverbose);
-
         //check header make sure that number of mpi values considered agree
         if (ibinary==INBINARY) {
             Fgroup.read((char*)&itask,sizeof(int));
@@ -1600,28 +1178,18 @@ HaloData *ReadHaloGroupCatalogData(char* infile, Int_t &numhalos, int mpi_ninput
         }
         noffset+=nglocal+nsglocal;
 
-        Fgroup.close();
-        Fpart.close();
-        Fupart.close();
-        if (ifieldhalos) {
-            Fsgroup.close();
-            Fspart.close();
-            Fsupart.close();
-        }
-        if (itypematch!=ALLTYPEMATCH) {
-            Fparttype.close();
-            Fuparttype.close();
-            if (ifieldhalos) {
-                Fsparttype.close();
-                Fsuparttype.close();
-            }
-        }
+        if (ibinary!=INHDF) CloseBinaryorAsciiFiles(Fgroup, Fpart, Fupart, Fsgroup, Fspart, Fsupart, Fparttype, Fuparttype, Fsparttype, Fsuparttype, ifieldhalos, itypematch);
+#ifdef USEHDF
+        else CloseHDFFiles(Fhdfgroup, Fhdfpart, Fhdfupart, Fhdfsgroup, Fhdfspart, Fhdfsupart, Fhdfparttype, Fhdfuparttype, Fhdfsparttype, Fhdfsuparttype, ifieldhalos, itypematch);
+#endif
 
     }
 
     return Halo;
 }
 
+///\name routines for opening closing the set of files produced by velociraptor 
+//@{
 void OpenBinaryorAsciiFiles(char *infile, int ibinary, int numfiletypes, int k, int mpi_ninput, int ifieldhalos, int itypematch,
     fstream &Fgroup, fstream &Fpart, fstream &Fupart, 
     fstream &Fsgroup, fstream &Fspart, fstream &Fsupart,
@@ -1639,32 +1207,6 @@ void OpenBinaryorAsciiFiles(char *infile, int ibinary, int numfiletypes, int k, 
     VELOCIraptorFileTypeNames vftn;
     fnamearray[0]=fname1;fnamearray[1]=fname2;fnamearray[2]=fname3;fnamearray[3]=fname4;fnamearray[4]=fname5;fnamearray[5]=fname6;fnamearray[6]=fname7;fnamearray[7]=fname8;fnamearray[8]=fname9;fnamearray[9]=fname10;
     vftn.UpdateName(infile,fnamearray,k,mpi_ninput);
-    /*
-    //load the group catalogues and the related particle files
-    if (mpi_ninput==0) {
-        sprintf(fname1,"%s.catalog_groups",infile);
-        sprintf(fname2,"%s.catalog_particles",infile);
-        sprintf(fname3,"%s.catalog_particles.unbound",infile);
-        sprintf(fname4,"%s.sublevels.catalog_groups",infile);
-        sprintf(fname5,"%s.sublevels.catalog_particles",infile);
-        sprintf(fname6,"%s.sublevels.catalog_particles.unbound",infile);
-        sprintf(fname7,"%s.catalog_parttypes",infile);
-        sprintf(fname8,"%s.catalog_parttypes.unbound",infile);
-        sprintf(fname9,"%s.sublevels.catalog_parttypes",infile);
-        sprintf(fname10,"%s.sublevels.catalog_parttypes.unbound",infile);
-    }
-    else {
-        sprintf(fname1,"%s.catalog_groups.%d",infile,k);
-        sprintf(fname2,"%s.catalog_particles.%d",infile,k);
-        sprintf(fname3,"%s.catalog_particles.unbound.%d",infile,k);
-        sprintf(fname4,"%s.sublevels.catalog_groups.%d",infile,k);
-        sprintf(fname5,"%s.sublevels.catalog_particles.%d",infile,k);
-        sprintf(fname6,"%s.sublevels.catalog_particles.unbound.%d",infile,k);
-        sprintf(fname7,"%s.catalog_parttypes.%d",infile,k);
-        sprintf(fname8,"%s.catalog_parttypes.unbound.%d",infile,k);
-        sprintf(fname9,"%s.sublevels.catalog_parttypes.%d",infile,k);
-        sprintf(fname10,"%s.sublevels.catalog_parttypes.unbound.%d",infile,k);
-    }*/
 
     //set names of files
     itemp=0;
@@ -1738,13 +1280,38 @@ void OpenBinaryorAsciiFiles(char *infile, int ibinary, int numfiletypes, int k, 
         else if (iverbose) cout<<"open "<<fnamearray[i]<<endl;
     }
 }
+void CloseBinaryorAsciiFiles(
+    fstream &Fgroup, fstream &Fpart, fstream &Fupart, 
+    fstream &Fsgroup, fstream &Fspart, fstream &Fsupart,
+    fstream &Fparttype, fstream &Fuparttype,
+    fstream &Fsparttype, fstream &Fsuparttype,
+    int ifieldhalos, int itypematch
+)
+{
+    Fgroup.close();
+    Fpart.close();
+    Fupart.close();
+    if (ifieldhalos) {
+        Fsgroup.close();
+        Fspart.close();
+        Fsupart.close();
+    }
+    if (itypematch!=ALLTYPEMATCH) {
+        Fparttype.close();
+        Fuparttype.close();
+        if (ifieldhalos) {
+            Fsparttype.close();
+            Fsuparttype.close();
+        }
+    }
+}
         
 #ifdef USEHDF
 void OpenHDFFiles(char *infile, int numfiletypes, int k, int mpi_ninput, int ifieldhalos, int itypematch,
-    H5File &Fhdfgroup, H5File &Fhdfpart, H5File &Fhdfupart, 
-    H5File &Fhdfsgroup, H5File &Fhdfspart, H5File &Fhdfsupart,
-    H5File &Fhdfparttype, H5File &Fhdfuparttype,
-    H5File &Fhdfsparttype, H5File &Fhdfsuparttype,
+    H5File &Fgroup, H5File &Fpart, H5File &Fupart, 
+    H5File &Fsgroup, H5File &Fspart, H5File &Fsupart,
+    H5File &Fparttype, H5File &Fuparttype,
+    H5File &Fsparttype, H5File &Fsuparttype,
     int iverbose)
 {
     char fname1[1000],fname2[1000],fname3[1000];
@@ -1752,37 +1319,11 @@ void OpenHDFFiles(char *infile, int numfiletypes, int k, int mpi_ninput, int ifi
     char fname7[1000],fname8[1000];
     char fname9[1000],fname10[1000];
     char *fnamearray[10];
-    H5File *Fhdfarray[10];
+    H5File *Farray[10];
     VELOCIraptorFileTypeNames vftn;
     int itemp;
     fnamearray[0]=fname1;fnamearray[1]=fname2;fnamearray[2]=fname3;fnamearray[3]=fname4;fnamearray[4]=fname5;fnamearray[5]=fname6;fnamearray[6]=fname7;fnamearray[7]=fname8;fnamearray[8]=fname9;fnamearray[9]=fname10;
     vftn.UpdateName(infile,fnamearray,k,mpi_ninput);
-    /*
-    if (mpi_ninput==0) {
-        sprintf(fname1,"%s.catalog_groups",infile);
-        sprintf(fname2,"%s.catalog_particles",infile);
-        sprintf(fname3,"%s.catalog_particles.unbound",infile);
-        sprintf(fname4,"%s.sublevels.catalog_groups",infile);
-        sprintf(fname5,"%s.sublevels.catalog_particles",infile);
-        sprintf(fname6,"%s.sublevels.catalog_particles.unbound",infile);
-        sprintf(fname7,"%s.catalog_parttypes",infile);
-        sprintf(fname8,"%s.catalog_parttypes.unbound",infile);
-        sprintf(fname9,"%s.sublevels.catalog_parttypes",infile);
-        sprintf(fname10,"%s.sublevels.catalog_parttypes.unbound",infile);
-    }
-    else {
-        sprintf(fname1,"%s.catalog_groups.%d",infile,k);
-        sprintf(fname2,"%s.catalog_particles.%d",infile,k);
-        sprintf(fname3,"%s.catalog_particles.unbound.%d",infile,k);
-        sprintf(fname4,"%s.sublevels.catalog_groups.%d",infile,k);
-        sprintf(fname5,"%s.sublevels.catalog_particles.%d",infile,k);
-        sprintf(fname6,"%s.sublevels.catalog_particles.unbound.%d",infile,k);
-        sprintf(fname7,"%s.catalog_parttypes.%d",infile,k);
-        sprintf(fname8,"%s.catalog_parttypes.unbound.%d",infile,k);
-        sprintf(fname9,"%s.sublevels.catalog_parttypes.%d",infile,k);
-        sprintf(fname10,"%s.sublevels.catalog_parttypes.unbound.%d",infile,k);
-    }
-    */
     //set names of files
     itemp=0;
     fnamearray[itemp++]=fname1;fnamearray[itemp++]=fname2;fnamearray[itemp++]=fname3;
@@ -1796,19 +1337,19 @@ void OpenHDFFiles(char *infile, int numfiletypes, int k, int mpi_ninput, int ifi
         }
     }
     itemp=0;
-    Fhdfarray[itemp++]=&Fhdfgroup;Fhdfarray[itemp++]=&Fhdfpart;Fhdfarray[itemp++]=&Fhdfupart;
+    Farray[itemp++]=&Fgroup;Farray[itemp++]=&Fpart;Farray[itemp++]=&Fupart;
     if (ifieldhalos) {
-        Fhdfarray[itemp++]=&Fhdfsgroup;Fhdfarray[itemp++]=&Fhdfspart;Fhdfarray[itemp++]=&Fhdfsupart;
+        Farray[itemp++]=&Fsgroup;Farray[itemp++]=&Fspart;Farray[itemp++]=&Fsupart;
     }
     if (itypematch!=ALLTYPEMATCH) {
-        Fhdfarray[itemp++]=&Fhdfparttype;Fhdfarray[itemp++]=&Fhdfuparttype;
+        Farray[itemp++]=&Fparttype;Farray[itemp++]=&Fuparttype;
         if (ifieldhalos) {
-            Fhdfarray[itemp++]=&Fhdfsparttype;Fhdfarray[itemp++]=&Fhdfsuparttype;
+            Farray[itemp++]=&Fsparttype;Farray[itemp++]=&Fsuparttype;
         }
     }
     for (int i=0;i<numfiletypes;i++) {
         try {
-            Fhdfarray[i]->openFile(fnamearray[i],H5F_ACC_RDONLY);
+            Farray[i]->openFile(fnamearray[i],H5F_ACC_RDONLY);
         }
         catch(const H5::FileIException&) {
             cerr<<"can't open "<<fnamearray[i]<<endl;
@@ -1820,4 +1361,30 @@ void OpenHDFFiles(char *infile, int numfiletypes, int k, int mpi_ninput, int ifi
         }
     }
 }
+void CloseHDFFiles(
+    H5File &Fgroup, H5File &Fpart, H5File &Fupart, 
+    H5File &Fsgroup, H5File &Fspart, H5File &Fsupart,
+    H5File &Fparttype, H5File &Fuparttype,
+    H5File &Fsparttype, H5File &Fsuparttype,
+    int ifieldhalos, int itypematch
+)
+{
+    Fgroup.close();
+    Fpart.close();
+    Fupart.close();
+    if (ifieldhalos) {
+        Fsgroup.close();
+        Fspart.close();
+        Fsupart.close();
+    }
+    if (itypematch!=ALLTYPEMATCH) {
+        Fparttype.close();
+        Fuparttype.close();
+        if (ifieldhalos) {
+            Fsparttype.close();
+            Fsuparttype.close();
+        }
+    }
+}
 #endif
+//@}
