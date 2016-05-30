@@ -42,6 +42,10 @@ HaloData *ReadHaloData(char *fname, Int_t &nhalos);
 HaloData *ReadNIFTYData(char *fname, Int_t &nhalos, int idcorrectflag=0);
 ///Reads VELOCIraptor like Group Catalog Data. Can adjust so that only particles of some type are check for cross matching
 HaloData *ReadHaloGroupCatalogData(char* infile, Int_t &numhalos, int mpi_ninput=0, int ibinary=1, int ifieldhalos=1, int itypesort=ALLTYPEMATCH, int iverbose=0);
+//@}
+
+///\name routines used to read VELOCIraptor output
+//@{
 ///minor interface routine associated with reading VELOCIraptor output, openfiles appropriate files
 void OpenBinaryorAsciiFiles(char *infile, int ibinary, int numfiletypes, int k, int mpi_ninput, int ifieldhalos, int itypematch, fstream &Fgroup, fstream &Fpart, fstream &Fupart, fstream &Fsgroup, fstream &Fspart, fstream &Fsupart, fstream &Fparttype, fstream &Fuparttype, fstream &Fsparttype, fstream &Fsuparttype, int iverbose=0);
 ///minor interface for closing appropriate files
@@ -51,13 +55,29 @@ void OpenHDFFiles(char *infile, int numfiletypes, int k, int mpi_ninput, int ifi
 void CloseHDFFiles(H5File &Fgroup, H5File &Fpart, H5File &Fupart, H5File &Fsgroup, H5File &Fspart, H5File &Fsupart, H5File &Fparttype, H5File &Fuparttype, H5File &Fsparttype, H5File &Fsuparttype, int ifieldhalos, int itypematch);
 #endif
 ///read routine to load number of files the VELOCIraptor output is split between
-inline void ReadNumFileInfoAndCorrectNumFile(int &itask, int &nprocs, int &nmpicount, int &mpi_ninput, fstream &Fgroup, fstream &Fsgroup,
+inline void STFReadNumFileInfoAndCorrectNumFile(int &itask, int &nprocs, int &nmpicount, int &mpi_ninput, fstream &Fgroup, fstream &Fsgroup,
 #ifdef USEHDF
     H5File &Fhdfgroup, DataSet &dataset, DataSpace &dataspace,
 #endif
     int ibinary, int ifieldhalos);
-
+///read information from the group catalog file and correct the number of files if necessary
+inline void STFReadNumGroups(unsigned long &nglocal, unsigned long &TotalNumberofHalos, unsigned long &nsglocal, fstream &Fgroup, fstream &Fsgroup,
+#ifdef USEHDF
+    H5File &Fhdfgroup, H5File &Fhdfsgroup, DataSet &dataset, DataSpace &dataspace,
+#endif
+    int ibinary, int ifieldhalos);
+inline void STFReadNumData(unsigned long &nids, unsigned long &nsids, unsigned long &nuids, unsigned long &nsuids, 
+    unsigned long &nidstot, unsigned long &nsidstot, unsigned long &nuidstot, unsigned long &nsuidstot, 
+    fstream &Fpart, fstream &Fupart, fstream &Fspart, fstream &Fsupart, 
+    fstream &Fparttype, fstream &Fuparttype, fstream &Fsparttype, fstream &Fsuparttype, 
+#ifdef USEHDF
+    H5File &Fhdfpart, H5File &Fhdfspart, H5File &Fhdfupart, H5File &Fhdfsupart, 
+    H5File &Fhdfparttype, H5File &Fhdfsparttype, H5File &Fhdfuparttype, H5File &Fhdfsuparttype, 
+    DataSet &dataset, DataSpace &dataspace,
+#endif
+    int ibinary, int ifieldhalos, int itypematch);
 //@}
+
 
 ///\name Write routines
 //@{
