@@ -50,6 +50,13 @@ void CloseBinaryorAsciiFiles(fstream &Fgroup, fstream &Fpart, fstream &Fupart, f
 void OpenHDFFiles(char *infile, int numfiletypes, int k, int mpi_ninput, int ifieldhalos, int itypematch, H5File &Fgroup, H5File &Fpart, H5File &Fupart, H5File &Fsgroup, H5File &Fspart, H5File &Fsupart, H5File &Fparttype, H5File &Fuparttype, H5File &Fsparttype, H5File &Fsuparttype, int iverbose=0);
 void CloseHDFFiles(H5File &Fgroup, H5File &Fpart, H5File &Fupart, H5File &Fsgroup, H5File &Fspart, H5File &Fsupart, H5File &Fparttype, H5File &Fuparttype, H5File &Fsparttype, H5File &Fsuparttype, int ifieldhalos, int itypematch);
 #endif
+///read routine to load number of files the VELOCIraptor output is split between
+inline void ReadNumFileInfoAndCorrectNumFile(int &itask, int &nprocs, int &nmpicount, int &mpi_ninput, fstream &Fgroup, fstream &Fsgroup,
+#ifdef USEHDF
+    H5File &Fhdfgroup, DataSet &dataset, DataSpace &dataspace,
+#endif
+    int ibinary, int ifieldhalos);
+
 //@}
 
 ///\name Write routines

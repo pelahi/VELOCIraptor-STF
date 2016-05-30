@@ -9,6 +9,60 @@
 using namespace H5;
 #endif
 
+///\name helper routines to read information from velociraptor output files
+//@{
+///read information from the group catalog file and correct the number of files if necessary
+inline void ReadNumFileInfoAndCorrectNumFile(int &itask, int &nprocs, int &nmpicount, int &mpi_ninput, fstream &Fgroup, fstream &Fsgroup,
+#ifdef USEHDF
+H5File &Fhdfgroup, DataSet &dataset, DataSpace &dataspace,
+#endif
+int ibinary, int ifieldhalos) 
+{
+    HDFCatalogNames hdfnames;
+    int itemp;
+    
+    if (ibinary==INBINARY) {
+        Fgroup.read((char*)&itask,sizeof(int));
+        Fgroup.read((char*)&nprocs,sizeof(int));
+        if (ifieldhalos) {
+            Fsgroup.read((char*)&itask,sizeof(int));
+            Fsgroup.read((char*)&nprocs,sizeof(int));
+        }
+    }
+#ifdef USEHDF
+    else if (ibinary==INHDF) {
+        itemp=0;
+        dataset=Fhdfgroup.openDataSet(hdfnames.group[itemp]);
+        dataspace=dataset.getSpace();
+        dataset.read(&itask,hdfnames.groupdatatype[itemp],dataspace);
+        dataset=Fhdfgroup.openDataSet(hdfnames.group[itemp]);
+        dataspace=dataset.getSpace();
+        dataset.read(&nprocs,hdfnames.groupdatatype[itemp],dataspace);
+    }
+#endif
+    else {
+        Fgroup>>itask>>nprocs;
+        if (ifieldhalos) {
+            Fsgroup>>itask>>nprocs;
+        }
+    }
+    if (nprocs!=mpi_ninput&&mpi_ninput>0) {
+        cout<<"Error, number of mpi outputs was set to "<<mpi_ninput<<" but file indicates there are "<<nprocs<<endl;
+        cout<<"Correcting to this number and proceeding"<<endl;
+        nmpicount=mpi_ninput=nprocs;
+    }
+    else if ((mpi_ninput==0&&nprocs!=1)) {
+        cout<<"Error, number of mpi outputs was set to zero but file indicates there are more than one mpi output"<<endl;
+        cout<<"Terminating"<<endl;
+#ifdef USEMPI
+        MPI_Abort(MPI_COMM_WORLD,9);
+#else
+        exit(9);
+#endif
+    }
+}
+//@}
+
 int CheckType(unsigned int t, int tmatch){
     if (tmatch>ALLTYPEMATCH) return (t==tmatch);
     else if (tmatch==DMGASTYPEMATCH) return (t==GASTYPEMATCH || t==DMTYPEMATCH);
@@ -764,6 +818,12 @@ HaloData *ReadHaloGroupCatalogData(char* infile, Int_t &numhalos, int mpi_ninput
 #ifdef USEHDF
         else OpenHDFFiles(infile, numfiletypes, k, mpi_ninput, ifieldhalos, itypematch, Fhdfgroup, Fhdfpart, Fhdfupart, Fhdfsgroup, Fhdfspart, Fhdfsupart, Fhdfparttype, Fhdfuparttype, Fhdfsparttype, Fhdfsuparttype, iverbose);
 #endif
+        ReadNumFileInfoAndCorrectNumFile(itask, nprocs, nmpicount, mpi_ninput, Fgroup, Fsgroup,
+#ifdef USEHDF
+            Fhdfgroup, dataset, dataspace,
+#endif
+            ibinary, ifieldhalos);
+        /*
         //check header make sure that number of mpi values considered agree
         if (ibinary==INBINARY) {
             Fgroup.read((char*)&itask,sizeof(int));
@@ -801,6 +861,7 @@ HaloData *ReadHaloGroupCatalogData(char* infile, Int_t &numhalos, int mpi_ninput
             exit(9);
         }
         //now have adjusted number of files if necessary
+        */
 
         //now read data
         if (ibinary==INBINARY) {
@@ -1387,4 +1448,5 @@ void CloseHDFFiles(
     }
 }
 #endif
+
 //@}
