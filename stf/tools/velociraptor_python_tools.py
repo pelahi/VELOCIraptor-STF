@@ -123,7 +123,7 @@ def ReadPropertyFile(basefilename,ibinary=0,iseparatesubfiles=0,iverbose=0):
                 halofile.seek(byteoffset);
                 htemp=np.fromfile(halofile,dtype=dt).transpose()
             elif(ibinary==2):
-                #here convert the hdf information into a numpy array
+                halofile = h5py.File(filename, 'r')
                 htemp=[np.array(halofile[catvalue]) for catvalue in fieldnames]
             numhalos=len(htemp[0])
             for i in range(len(fieldnames)):
