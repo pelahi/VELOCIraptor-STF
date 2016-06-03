@@ -12,7 +12,7 @@ For python3 please search for all print statemetns and replace them with print()
 """
 
 
-def ReadPropertyFile(basefilename,ibinary=0,iverbose=0):
+def ReadPropertyFile(basefilename,ibinary=0,iseparatesubfiles=0,iverbose=0):
     """
     VELOCIraptor/STF files in ascii format contain 
     a header with 
@@ -34,12 +34,12 @@ def ReadPropertyFile(basefilename,ibinary=0,iverbose=0):
     start = time.clock()
     inompi=True
     if (iverbose): print "reading properties file",basefilename,os.path.isfile(basefilename)
+    filename=basefilename+".properties"
     #load header
     if (os.path.isfile(basefilename)==True):
-        filename=basefilename
         numfiles=0
     else:
-        filename=basefilename+".0"
+        filename=basefilename+".properties"+".0"
         inompi=False
         if (os.path.isfile(filename)==False):
             print "file not found"
@@ -88,15 +88,13 @@ def ReadPropertyFile(basefilename,ibinary=0,iverbose=0):
         fieldnames.remove("Num_of_groups")
         fieldnames.remove("Total_num_of_groups")
         
-    #allocate memory that will store the halo catalog file
+    #allocate memory that will store the halo dictionary
     catalog = dict()
     halos=[np.zeros(numtothalos) for catvalue in fieldnames]
     noffset=0
     for ifile in range(numfiles):
-        print ifile,"of",numfiles
-        #produce dictionary
-        if (inompi==True): filename=basefilename
-        else: filename=basefilename+"."+str(ifile)
+        if (inompi==True): filename=basefilename+".properties"
+        else: filename=basefilename+".properties"+"."+str(ifile)
         if (iverbose) : print "reading ",filename
         if (ibinary==0): 
             htemp = np.loadtxt(filename,skiprows=3).transpose()
@@ -112,8 +110,28 @@ def ReadPropertyFile(basefilename,ibinary=0,iverbose=0):
             catvalue=fieldnames[i]
             halos[i][noffset:noffset+numhalos]=htemp[i]
         noffset+=numhalos
+    #if subhalos are written in separate files, then read them too
+    if (iseparatesubfiles==1):
+        for ifile in range(numfiles):
+            if (inompi==True): filename=basefilename+".sublevels"+".properties"
+            else: filename=basefilename+".sublevels"+".properties"+"."+str(ifile)
+            if (iverbose) : print "reading ",filename
+            if (ibinary==0): 
+                htemp = np.loadtxt(filename,skiprows=3).transpose()
+            elif(ibinary==1):
+                halofile = open(filename, 'rb')
+                halofile.seek(byteoffset);
+                htemp=np.fromfile(halofile,dtype=dt).transpose()
+            elif(ibinary==2):
+                #here convert the hdf information into a numpy array
+                htemp=[np.array(halofile[catvalue]) for catvalue in fieldnames]
+            numhalos=len(htemp[0])
+            for i in range(len(fieldnames)):
+                catvalue=fieldnames[i]
+                halos[i][noffset:noffset+numhalos]=htemp[i]
+            noffset+=numhalos        
 
-    #load halos
+    #set dictionary
     for i in np.arange(fieldnames.__len__()):
         fieldname = fieldnames[i]
         catalog[fieldname] = halos[i]
