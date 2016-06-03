@@ -2,6 +2,7 @@ import sys,os,os.path,string,time,re,struct
 import math,operator
 from pylab import *
 import numpy as np
+import h5py 
 
 """
 
@@ -32,10 +33,11 @@ def ReadPropertyFile(basefilename,ibinary=0,iverbose=0):
 
     start = time.clock()
     inompi=True
-    if (iverbose): print "reading properties file"
+    if (iverbose): print "reading properties file",basefilename,os.path.isfile(basefilename)
     #load header
     if (os.path.isfile(basefilename)==True):
         filename=basefilename
+        numfiles=0
     else:
         filename=basefilename+".0"
         inompi=False
@@ -43,15 +45,21 @@ def ReadPropertyFile(basefilename,ibinary=0,iverbose=0):
             print "file not found"
             return []
     byteoffset=0
+    #if ascii, binary or hdf5, first get field names
     if (ibinary==0):
+        #load ascii file
         halofile = open(filename, 'r')
+        #read header information
         [filenum,numfiles]=halofile.readline().split()
         filenum=int(filenum);numfiles=int(numfiles)
         [numhalos, numtothalos]= halofile.readline().split()
         numhalos=int(numhalos);numtothalos=int(numtothalos)
-        fieldnames = ((halofile.readline())).split()
+        names = ((halofile.readline())).split()
+        #remove the brackets in ascii file names 
+        fieldnames= [fieldname.split("(")[0] for fieldname in names]
         halofile.close()
     elif (ibinary==1):
+        #load binary file
         halofile = open(filename, 'rb')
         [filenum,numfiles]=np.fromfile(halofile,dtype=np.int32,count=2)
         [numhalos,numtothalos]=np.fromfile(halofile,dtype=np.uint64,count=2)
@@ -66,31 +74,49 @@ def ReadPropertyFile(basefilename,ibinary=0,iverbose=0):
             else:
                 dt.append((fieldname,np.float64))
         halofile.close()
-
+    elif (ibinary==2):
+        #load hdf file
+        halofile = h5py.File(filename, 'r')
+        filenum=int(halofile["File_id"][0])
+        numfiles=int(halofile["Num_of_files"][0])
+        numhalos=np.int64(halofile["Num_of_groups"][0])
+        numtothalos=np.int64(halofile["Total_num_of_groups"][0])
+        fieldnames=[str(n) for n in halofile.keys()]
+        #clean of header info
+        fieldnames.remove("File_id")
+        fieldnames.remove("Num_of_files")
+        fieldnames.remove("Num_of_groups")
+        fieldnames.remove("Total_num_of_groups")
+        
+    #allocate memory that will store the halo catalog file
+    catalog = dict()
+    halos=[np.zeros(numtothalos) for catvalue in fieldnames]
+    noffset=0
     for ifile in range(numfiles):
+        print ifile,"of",numfiles
         #produce dictionary
         if (inompi==True): filename=basefilename
         else: filename=basefilename+"."+str(ifile)
         if (iverbose) : print "reading ",filename
-        if (ifile==0): 
-            catalog = dict()
-            if (ibinary==0): halos = np.loadtxt(filename,skiprows=3)
-            elif(ibinary==1): 
-                halofile = open(filename, 'rb')
-                halofile.seek(byteoffset);
-                halos=np.fromfile(halofile,dtype=dt)
-        else:
-            if (ibinary==0): htemp = np.loadtxt(filename,skiprows=3)
-            elif(ibinary==1):
-                halofile = open(filename, 'rb')
-                halofile.seek(byteoffset);
-                htemp=np.fromfile(halofile,dtype=dt)
-            halos=np.append(halos,htemp,axis=0)
+        if (ibinary==0): 
+            htemp = np.loadtxt(filename,skiprows=3).transpose()
+        elif(ibinary==1):
+            halofile = open(filename, 'rb')
+            halofile.seek(byteoffset);
+            htemp=np.fromfile(halofile,dtype=dt).transpose()
+        elif(ibinary==2):
+            #here convert the hdf information into a numpy array
+            htemp=[np.array(halofile[catvalue]) for catvalue in fieldnames]
+        numhalos=len(htemp[0])
+        for i in range(len(fieldnames)):
+            catvalue=fieldnames[i]
+            halos[i][noffset:noffset+numhalos]=htemp[i]
+        noffset+=numhalos
 
     #load halos
     for i in np.arange(fieldnames.__len__()):
-        fieldname = fieldnames[i].split("(")[0]
-        catalog[fieldname] = halos[:,i]
+        fieldname = fieldnames[i]
+        catalog[fieldname] = halos[i]
         #only correct data format for ascii loading
         if (ibinary==0):
             if fieldname in ["ID","hostHalo","numSubStruct","npart","n_gas","n_star"]:
@@ -98,6 +124,63 @@ def ReadPropertyFile(basefilename,ibinary=0,iverbose=0):
             
     if (iverbose): print "done reading properties file ",time.clock()-start
     return catalog,numtothalos
+
+def ReadHaloMergerTree(treefilename,ibinary=0,iverbose=0):
+    """
+    VELOCIraptor/STF merger tree in ascii format contains 
+    a header with 
+        number_of_snapshots
+        a description of how the tree was built
+        total number of halos across all snapshots
+
+    then followed by data
+    for each snapshot 
+        snapshotvalue nhalos
+        haloid_1 numprogen_1
+        progenid_1
+        progenid_2
+        ...
+        progenid_numprogen_1
+        haloid_2 numprogen_2
+        .
+        .
+        .
+    one can also have an output format that has an additional field for each progenitor, the meritvalue    
+        
+    """
+    start = time.clock()
+    if (iverbose): print "reading Tree file",treefilename,os.path.isfile(treefilename)
+    if (os.path.isfile(treefilename)==False):
+        print "Error, file not found"
+        return []
+    #if ascii format
+    if (ibinary==0):
+        treefile = open(treefilename, 'r')
+        numsnap=int(treefile.readline())
+        descrip=treefile.readline().strip()
+        tothalos=int(treefile.readline())
+        tree=[{"haloID" , "Num_progen", "Progen"} for i in range(numsnap)]
+        offset=0
+        for i in range(numsnap):
+            [snapval,numhalos]=treefile.readline().strip().split(' ')
+            snapval=int(snapval);numhalos=int(numhalos)
+            tree[i]["haloID"]=np.zeros(numhalos, dtype=np.int64)
+            tree[i]["Num_progen"]=np.zeros(numhalos, dtype=np.int32)
+            tree[i]["Progen"]=[[] for j in range(numhalos)]
+            for j in range(numhalos):
+                [hid,nprog]=treefile.readline().strip().split(' ')
+                hid=np.int64(hid);nprog=int(nprog)
+                tree[i]["haloID"][j]=hid
+                tree[i]["Num_progen"][j]=nprog
+                if (nprog>0):
+                    tree[i]["Progen"][j]=np.zeros(nprog,dtype=np.int64)
+                    for k in range(nprog):
+                        tree[i]["Progen"][j][k]=np.int64(treefile.readline())
+    return tree            
+            
+        
+        
+    
 
 def ReadCrossCatalogList(fname,meritlim=0.1,iverbose=0):
     """
@@ -138,15 +221,24 @@ def BuildHierarchy(halodata,iverbose=0):
     halohierarchy=[]
     start=time.clock()
     if (iverbose): print "setting hierarchy"
-    for k in range(0,len(halodata["npart"])):
-        halohierarchy.append(where(halodata[i][j]["hostHalo"]==k)[0])
+    nhalos=len(halodata["npart"])
+    subhaloindex=np.where(halodata["hostHaloID"]!=-1)
+    lensub=len(subhaloindex[0])
+    haloindex=np.where(halodata["hostHaloID"]==-1)
+    lenhal=len(haloindex[0])
+    halohierarchy=[[] for k in range(nhalos)]
+    if (iverbose): print "prelims done ",time.clock()-start
+    for k in range(lenhal):
+        halohierarchy[haloindex[0][k]]=np.where(halodata["hostHaloID"]==halodata["ID"][haloindex[0][k]])
     #NOTE: IMPORTANT this is only adding the subsub halos! I need to eventually parse the hierarchy 
     #data first to deteremine the depth of the subhalo hierarchy and store how deep an object is in the hierarchy
     #then I can begin adding (sub)subhalos to parent subhalos from the bottom level up
-    for k in range(0,len(halodata[i][j]["npart"])):
-        hid=halodata["hostHalo"][k]
+    """
+    for k in range(0,len(halodata["npart"])):
+        hid=np.int32(halodata["hostHaloID"][k])
         if (hid>-1 and halohierarchy[k]!=[]):
-            halohierarchy[hid]=np.append(halohierarchy[hid],halohierarchy[k])
+            halohierarchy[hid]=np.append(np.int32(halohierarchy[hid]),halohierarchy[k])
+    """
     if (iverbose): print "hierarchy set in read in ",time.clock()-start
     return halohierarchy
 
