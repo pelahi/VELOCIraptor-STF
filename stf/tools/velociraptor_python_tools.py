@@ -177,16 +177,17 @@ def ReadHaloMergerTree(treefilename,ibinary=0,iverbose=0):
         numsnap=int(treefile.readline())
         descrip=treefile.readline().strip()
         tothalos=int(treefile.readline())
-        tree=[{"haloID" , "Num_progen", "Progen"} for i in range(numsnap)]
+        tree=[{"tree": [], "Num_progen": [], "Progen": []} for i in range(numsnap)]
         offset=0
+        return []
         for i in range(numsnap):
-            [snapval,numhalos]=treefile.readline().strip().split(' ')
+            [snapval,numhalos]=treefile.readline().strip().split('\t')
             snapval=int(snapval);numhalos=int(numhalos)
             tree[i]["haloID"]=np.zeros(numhalos, dtype=np.int64)
             tree[i]["Num_progen"]=np.zeros(numhalos, dtype=np.int32)
             tree[i]["Progen"]=[[] for j in range(numhalos)]
             for j in range(numhalos):
-                [hid,nprog]=treefile.readline().strip().split(' ')
+                [hid,nprog]=treefile.readline().strip().split('\t')
                 hid=np.int64(hid);nprog=int(nprog)
                 tree[i]["haloID"][j]=hid
                 tree[i]["Num_progen"][j]=nprog
@@ -194,7 +195,7 @@ def ReadHaloMergerTree(treefilename,ibinary=0,iverbose=0):
                     tree[i]["Progen"][j]=np.zeros(nprog,dtype=np.int64)
                     for k in range(nprog):
                         tree[i]["Progen"][j][k]=np.int64(treefile.readline())
-    return tree            
+    return tree
             
         
         
