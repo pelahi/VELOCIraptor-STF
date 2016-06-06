@@ -638,6 +638,55 @@ void UpdateRefDescendants(const int ilink, const Int_t numhalos, DescendantData 
     }
 }
 
+void BuildProgenitorBasedDescendantList(Int_t itimeprogen, Int_t itimedescen, Int_t nhalos, ProgenitorData *&pprogen, DescendantDataProgenBased **&pprogendescen, int istep) {
+    //if first pass then store descendants looking at all progenitors
+    if (istep==1) {
+        for (Int_t k=0;k<nhalos;k++) {
+            for (Int_t nprogs=0;nprogs<pprogen[k].NumberofProgenitors;nprogs++) {
+                pprogendescen[itimedescen][pprogen[k].ProgenitorList[nprogs]].haloindex.push_back(k);
+                pprogendescen[itimedescen][pprogen[k].ProgenitorList[nprogs]].halotemporalindex.push_back(itimeprogen);
+                pprogendescen[itimedescen][pprogen[k].ProgenitorList[nprogs]].Merit.push_back(pprogen[k].Merit[nprogs]);
+                pprogendescen[itimedescen][pprogen[k].ProgenitorList[nprogs]].NumberofDescendants++;
+            }
+        }
+    }
+    ///otherwise, just update descendants that have progenitors that are more than one step away in time
+    else {
+        for (Int_t k=0;k<nhalos;k++) {
+            for (Int_t nprogs=0;nprogs<pprogen[k].NumberofProgenitors;nprogs++) if (pprogen[k].istep>1) {
+                pprogendescen[itimedescen][pprogen[k].ProgenitorList[nprogs]].haloindex.push_back(k);
+                pprogendescen[itimedescen][pprogen[k].ProgenitorList[nprogs]].halotemporalindex.push_back(itimeprogen);
+                pprogendescen[itimedescen][pprogen[k].ProgenitorList[nprogs]].Merit.push_back(pprogen[k].Merit[nprogs]);
+                pprogendescen[itimedescen][pprogen[k].ProgenitorList[nprogs]].NumberofDescendants++;
+            }
+        }
+    }
+}
+
+void CleanProgenitorsUsingDescendants(Int_t i, HaloTreeData *&pht, DescendantDataProgenBased **&pprogendescen, ProgenitorData **&pprogen){
+    unsigned long itime;
+    unsigned long hid;
+    int itemp;
+    //parse list of descendants for objects with more than one and adjust the progenitor list
+    for (Int_t k=0;k<pht[i].numhalos;k++) if (pprogendescen[i][k].NumberofDescendants>1){
+        //adjust the progenitor list of all descendents affected, ie: that will have the progenitor removed from the list
+        //note that the optimal descendant is always placed at position 0
+        pprogendescen[i][k].OptimalTemporalMerit();
+        for (Int_t n=1;n<pprogendescen[i][k].NumberofDescendants;n++) {
+            itime=pprogendescen[i][k].halotemporalindex[n];
+            hid=pprogendescen[i][k].haloindex[n];
+            itemp=0;
+            while (pprogen[itime][hid].ProgenitorList[itemp]!=k) {itemp++;}
+            for (Int_t j=itemp;j<pprogen[itime][hid].NumberofProgenitors-1;j++) {
+                pprogen[itime][hid].ProgenitorList[j]=pprogen[itime][hid].ProgenitorList[j+1];
+                pprogen[itime][hid].Merit[j]=pprogen[itime][hid].Merit[j+1];
+                if (pprogen[itime][hid].nsharedfrac!=NULL) pprogen[itime][hid].nsharedfrac[j]=pprogen[itime][hid].nsharedfrac[j+1];
+            }
+            pprogen[itime][hid].NumberofProgenitors--;
+        }
+    }
+}
+
 //@}
 
 /// \name if particle ids need to be mapped to indices

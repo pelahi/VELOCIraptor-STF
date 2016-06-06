@@ -22,4 +22,6 @@
 \version 1.0
 \section license License
 
+\todo Need to restructure the code to clean up links between objects when searching for links across more than one snapshot in time. 
+
 */

@@ -125,6 +125,15 @@ using namespace NBody;
 #define INASCII 0 
 //@}
 
+/// \name output formats
+//@{
+#define OUTASCII 0
+#define OUTASCIIMERIT 1
+#define OUTBINARY 2
+#define OUTBINARYMERIT 3
+#define OUTHDF 5
+//@}
+
 /// \name defining types of multisnapshot linking done
 //@{
 ///missing link
@@ -230,7 +239,7 @@ struct Options
         snapshotvaloffset=0;
         haloidval=0;
         idcorrectflag=0;
-        outputformat=0;
+        outputformat=OUTASCII;
 
         iverbose=1;
         
@@ -347,6 +356,70 @@ struct ProgenitorData
 };
 
 /*!
+    Structure used to keep track of a structure's candidate descendants based on the progenitor construction
+*/
+struct DescendantDataProgenBased
+{
+    ///structure type and number of links (descendants)
+    //@{
+    int stype;
+    int NumberofDescendants;
+    //@}
+    /*
+    long unsigned* DescendantList;
+    ///store the merit value
+    Double_t *Merit;
+    ///store the fraction of shared particles
+    Double_t *nsharedfrac;
+    */
+    ///store list of descendants in the form of halo index and temporal index
+    vector<long unsigned> haloindex;
+    vector<long unsigned> halotemporalindex;
+    ///store the merit value
+    vector<Double_t> Merit;
+    DescendantDataProgenBased(){
+        NumberofDescendants=0;
+    }
+    ~DescendantDataProgenBased(){
+    }
+    DescendantDataProgenBased &operator=(const DescendantDataProgenBased &d){
+        NumberofDescendants=d.NumberofDescendants;
+        haloindex.resize(NumberofDescendants);
+        halotemporalindex.resize(NumberofDescendants);
+        Merit.resize(NumberofDescendants);
+        for (int i=0;i<NumberofDescendants;i++) {
+            haloindex[i]=d.haloindex[i];
+            halotemporalindex[i]=d.halotemporalindex[i];
+            Merit[i]=d.Merit[i];
+        }
+    }
+    ///Determine optimal descendent using a temporally weighted merit, and set it to position 0
+    ///start with just maximum merit, ignoring when this was found
+    ///otherwise use the reference time passed
+    void OptimalTemporalMerit(Int_t itimref=0){
+        int imax=0;
+        Double_t generalizedmerit=Merit[0];
+        for (int i=1;i<NumberofDescendants;i++) {
+            if (Merit[i]<generalizedmerit) {generalizedmerit=Merit[i];imax=i;}
+        }
+        if (imax>0) {
+            long unsigned hid, htid;
+            Double_t merit;
+            merit=Merit[0];
+            hid=haloindex[0];
+            htid=halotemporalindex[0];
+            Merit[0]=Merit[imax];
+            haloindex[0]=haloindex[imax];
+            halotemporalindex[0]=halotemporalindex[imax];
+            Merit[imax]=merit;
+            haloindex[imax]=hid;
+            halotemporalindex[imax]=htid;
+        }
+    }
+
+};
+
+/*!
     Structure used to keep track of a structure's descendant/child structure using temporal/spatial information
 */
 struct DescendantData
@@ -361,7 +434,8 @@ struct DescendantData
     ///store the merit value
     Double_t *Merit;
     ///store the fraction of shared particles
-    Double_t *nsharedfrac;
+    Double_t *nsharedfrac; 
+
     ///store number of steps back in time progenitor found
     int istep;
 

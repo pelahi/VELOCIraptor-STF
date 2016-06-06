@@ -22,20 +22,32 @@ int main(int argc,char **argv)
     int ThisTask=0,NProcs=1,Nlocal,Ntotal;
 #endif
 
+    //store the configuration settings in the options object
+    Options opt;
+
+    //store the halo tree
     HaloTreeData *pht;
+    //store the progenitors of a given set of objects
     ProgenitorData **pprogen;
+    //if multiple snapshots are used in constructing the progenitor list, must store the possible set of descendents 
+    //which can then be cleaned to ensure one descendent
+    ///\todo eventually must clean up graph construction so that the graph is completely reversible
+    DescendantDataProgenBased **pprogendescen;
+    
+    //stoe the descendants of a given set of objects
     DescendantData **pdescen;
+    //these are used to store temporary sets of posssible candidate progenitors/descendants when code links across multiple snaps
     ProgenitorData *pprogentemp;
     DescendantData *pdescentemp;
+    ///store the halo ids of particles in objects, with mapping of ids, makes it easy to look up the haloid of a given particle
     long unsigned *pfofp,*pfofd;
     long unsigned *noffset;
     long unsigned *pglist;
-    //long unsigned **pglist1;
     long int i,j;
     long unsigned nh,nhp,nhd;
+
+    //store the time taken by segments of the code
     double time1,time2;
-    Options opt;
-    char fname[1000];
 
     GetArgs(argc, argv, opt);
 #ifdef USEMPI
@@ -49,16 +61,32 @@ int main(int argc,char **argv)
         cout<<"Found "<<opt.TotalNumberofHalos<<" halos "<<endl;
         cout<<"Memory needed to store addressing for ids "<<sizeof(long unsigned)*opt.NumPart/1024./1024.0/1024.0<<" "<<opt.NumPart<<endl;
     }
-    //adjust ids if necessary
+    //adjust ids if particle ids need to be mapped to index
     if (opt.imapping>DNOMAP) MapPIDStoIndex(opt,pht);
     //check that ids are within allowed range for linking
     IDcheck(opt,pht);
-
+    //then allocate simple array used for accessing halo ids of particles through their IDs
     pfofp=new long unsigned[opt.NumPart];
     for (i=0;i<opt.NumPart;i++) pfofp[i]=0;
+    //allocate memory associated with progenitors
     pprogen=new ProgenitorData*[opt.numsnapshots];
-    //if particle ids need to be mapped to index
-
+    //if more than a single snapshot is used to identify possible progenitors then must store the descendants information
+    //so the list can later on be cleaned
+    if (opt.numsnapshots==1) pprogendescen=NULL;
+    else {
+        pprogendescen=new DescendantDataProgenBased*[opt.numsnapshots];
+        for (i=opt.numsnapshots-1;i>=0;i--) {
+#ifdef USEMPI
+        //check if data is load making sure i is in appropriate range
+        if (i>=StartSnap && i<EndSnap) {
+#endif
+            if (pht[i].numhalos>0) pprogendescen[i]=new DescendantDataProgenBased[pht[i].numhalos];
+            else pprogendescen[i]=NULL;
+#ifdef USEMPI
+        }
+#endif
+        }
+    }
     
     for (i=opt.numsnapshots-1;i>=0;i--) {
 #ifdef USEMPI
@@ -98,6 +126,20 @@ int main(int argc,char **argv)
                 if (istep==1) {
                     pprogen[i]=CrossMatch(opt, opt.NumPart, pht[i].numhalos, pht[i-istep].numhalos, pht[i].Halo, pht[i-istep].Halo, pglist, noffset, pfofp);
                     CleanCrossMatch(pht[i].numhalos, pht[i-istep].numhalos, pht[i].Halo, pht[i-istep].Halo, pprogen[i]);
+                    /*
+                    ///\todo now here must produce descendant list 
+                    if (opt.numsteps>1) {
+                        for (Int_t k=0;k<pht[i].numhalos;k++) {
+                            for (Int_t nprogs=0;nprogs<pprogen[i][k].NumberofProgenitors;nprogs++) {
+                                pprogendescen[i-istep][pprogen[i][k].ProgenitorList[nprogs]].haloindex.push_back(k);
+                                pprogendescen[i-istep][pprogen[i][k].ProgenitorList[nprogs]].halotemporalindex.push_back(i);
+                                pprogendescen[i-istep][pprogen[i][k].ProgenitorList[nprogs]].Merit.push_back(pprogen[i][k].Merit[nprogs]);
+                                pprogendescen[i-istep][pprogen[i][k].ProgenitorList[nprogs]].NumberofDescendants++;
+                            }
+                        }
+                    }
+                    */
+                    if (opt.numsteps>1) BuildProgenitorBasedDescendantList(i, i-istep, pht[i].numhalos, pprogen[i], pprogendescen);
                 }
                 //otherwise only care about objects with no links
                 else {
@@ -105,6 +147,19 @@ int main(int argc,char **argv)
                     CleanCrossMatch(pht[i].numhalos, pht[i-istep].numhalos, pht[i].Halo, pht[i-istep].Halo, pprogentemp);
                     UpdateRefProgenitors(opt.imultsteplinkcrit,pht[i].numhalos, pprogen[i], pprogentemp);
                     delete[] pprogentemp;
+                    /*
+                    if (opt.numsteps>1) {
+                        for (Int_t k=0;k<pht[i].numhalos;k++) if (pprogen[i][k].istep>1){
+                            for (Int_t nprogs=0;nprogs<pprogen[i][k].NumberofProgenitors;nprogs++) {
+                                pprogendescen[i-istep][pprogen[i][k].ProgenitorList[nprogs]].haloindex.push_back(k);
+                                pprogendescen[i-istep][pprogen[i][k].ProgenitorList[nprogs]].halotemporalindex.push_back(i);
+                                pprogendescen[i-istep][pprogen[i][k].ProgenitorList[nprogs]].Merit.push_back(pprogen[i][k].Merit[nprogs]);
+                                pprogendescen[i-istep][pprogen[i][k].ProgenitorList[nprogs]].NumberofDescendants++;
+                            }
+                        }
+                    }*/
+                    BuildProgenitorBasedDescendantList(i, i-istep, pht[i].numhalos, pprogen[i], pprogendescen, istep);
+
                 }
 
                 //reset pfof2 values 
@@ -133,6 +188,22 @@ int main(int argc,char **argv)
 #endif
     }
     delete[] pfofp;
+    
+    //now if more than one snapshot is used to generate links, must clean up across multiple snapshots to ensure that an object is the progenitor of a single other object
+    //this requires parsing the descendent data list produced by identifying progenitors
+    if (opt.numsteps>1) {
+    for (i=opt.numsnapshots-1;i>=0;i--) {
+#ifdef USEMPI
+    //check if data is load making sure i is in appropriate range
+    if (i>=StartSnap && i<EndSnap) {
+#endif
+        CleanProgenitorsUsingDescendants(i, pht, pprogendescen, pprogen);
+#ifdef USEMPI
+    }
+#endif
+    }
+    }
+
     //Produce a reverse cross comparison or descendant tree if a full graph is requested. 
     if(opt.icatalog==DGRAPH) {
     pdescen=new DescendantData*[opt.numsnapshots];
@@ -209,6 +280,7 @@ int main(int argc,char **argv)
     }
     cout<<ThisTask<<" Done"<<endl;
 
+    //now adjust the halo ids as prior, halo ids simple represent read order, allowing for addressing of memory by halo id value
     if (opt.haloidval>0) {
         for (i=opt.numsnapshots-1;i>=0;i--) {
 #ifdef USEMPI
@@ -223,9 +295,12 @@ int main(int argc,char **argv)
 #ifdef USEMPI
     MPI_Barrier(MPI_COMM_WORLD);
 #endif
+    
+    //now start writing the results
     if (opt.icatalog!=DCROSSCAT) {
         WriteHaloMergerTree(opt,pprogen,pht);
         if (opt.icatalog==DGRAPH) {
+            char fname[1000];
             sprintf(fname,"%s.graph",opt.outname);
             sprintf(opt.outname,"%s",fname);
             WriteHaloGraph(opt,pprogen,pdescen,pht);
