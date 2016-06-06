@@ -640,13 +640,15 @@ void UpdateRefDescendants(const int ilink, const Int_t numhalos, DescendantData 
 
 void BuildProgenitorBasedDescendantList(Int_t itimeprogen, Int_t itimedescen, Int_t nhalos, ProgenitorData *&pprogen, DescendantDataProgenBased **&pprogendescen, int istep) {
     //if first pass then store descendants looking at all progenitors
+    int did;
     if (istep==1) {
         for (Int_t k=0;k<nhalos;k++) {
             for (Int_t nprogs=0;nprogs<pprogen[k].NumberofProgenitors;nprogs++) {
-                pprogendescen[itimedescen][pprogen[k].ProgenitorList[nprogs]].haloindex.push_back(k);
-                pprogendescen[itimedescen][pprogen[k].ProgenitorList[nprogs]].halotemporalindex.push_back(itimeprogen);
-                pprogendescen[itimedescen][pprogen[k].ProgenitorList[nprogs]].Merit.push_back(pprogen[k].Merit[nprogs]);
-                pprogendescen[itimedescen][pprogen[k].ProgenitorList[nprogs]].NumberofDescendants++;
+                did=pprogen[k].ProgenitorList[nprogs]-1;//make sure halo descendent index set to start at 0
+                pprogendescen[itimedescen][did].haloindex.push_back(k);
+                pprogendescen[itimedescen][did].halotemporalindex.push_back(itimeprogen);
+                pprogendescen[itimedescen][did].Merit.push_back(pprogen[k].Merit[nprogs]);
+                pprogendescen[itimedescen][did].NumberofDescendants++;
             }
         }
     }
@@ -654,10 +656,11 @@ void BuildProgenitorBasedDescendantList(Int_t itimeprogen, Int_t itimedescen, In
     else {
         for (Int_t k=0;k<nhalos;k++) {
             for (Int_t nprogs=0;nprogs<pprogen[k].NumberofProgenitors;nprogs++) if (pprogen[k].istep>1) {
-                pprogendescen[itimedescen][pprogen[k].ProgenitorList[nprogs]].haloindex.push_back(k);
-                pprogendescen[itimedescen][pprogen[k].ProgenitorList[nprogs]].halotemporalindex.push_back(itimeprogen);
-                pprogendescen[itimedescen][pprogen[k].ProgenitorList[nprogs]].Merit.push_back(pprogen[k].Merit[nprogs]);
-                pprogendescen[itimedescen][pprogen[k].ProgenitorList[nprogs]].NumberofDescendants++;
+                did=pprogen[k].ProgenitorList[nprogs]-1;//make sure halo descendent index set to start at 0
+                pprogendescen[itimedescen][did].haloindex.push_back(k);
+                pprogendescen[itimedescen][did].halotemporalindex.push_back(itimeprogen);
+                pprogendescen[itimedescen][did].Merit.push_back(pprogen[k].Merit[nprogs]);
+                pprogendescen[itimedescen][did].NumberofDescendants++;
             }
         }
     }
