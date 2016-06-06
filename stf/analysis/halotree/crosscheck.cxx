@@ -679,7 +679,8 @@ void CleanProgenitorsUsingDescendants(Int_t i, HaloTreeData *&pht, DescendantDat
             itime=pprogendescen[i][k].halotemporalindex[n];
             hid=pprogendescen[i][k].haloindex[n];
             itemp=0;
-            while (pprogen[itime][hid].ProgenitorList[itemp]!=k) {itemp++;}
+            //k+1 is halo indexing versus halo id values
+            while (pprogen[itime][hid].ProgenitorList[itemp]!=k+1) {itemp++;}
             for (Int_t j=itemp;j<pprogen[itime][hid].NumberofProgenitors-1;j++) {
                 pprogen[itime][hid].ProgenitorList[j]=pprogen[itime][hid].ProgenitorList[j+1];
                 pprogen[itime][hid].Merit[j]=pprogen[itime][hid].Merit[j+1];
