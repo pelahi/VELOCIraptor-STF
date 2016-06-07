@@ -126,19 +126,6 @@ int main(int argc,char **argv)
                 if (istep==1) {
                     pprogen[i]=CrossMatch(opt, opt.NumPart, pht[i].numhalos, pht[i-istep].numhalos, pht[i].Halo, pht[i-istep].Halo, pglist, noffset, pfofp);
                     CleanCrossMatch(pht[i].numhalos, pht[i-istep].numhalos, pht[i].Halo, pht[i-istep].Halo, pprogen[i]);
-                    /*
-                    ///\todo now here must produce descendant list 
-                    if (opt.numsteps>1) {
-                        for (Int_t k=0;k<pht[i].numhalos;k++) {
-                            for (Int_t nprogs=0;nprogs<pprogen[i][k].NumberofProgenitors;nprogs++) {
-                                pprogendescen[i-istep][pprogen[i][k].ProgenitorList[nprogs]].haloindex.push_back(k);
-                                pprogendescen[i-istep][pprogen[i][k].ProgenitorList[nprogs]].halotemporalindex.push_back(i);
-                                pprogendescen[i-istep][pprogen[i][k].ProgenitorList[nprogs]].Merit.push_back(pprogen[i][k].Merit[nprogs]);
-                                pprogendescen[i-istep][pprogen[i][k].ProgenitorList[nprogs]].NumberofDescendants++;
-                            }
-                        }
-                    }
-                    */
                     if (opt.numsteps>1) BuildProgenitorBasedDescendantList(i, i-istep, pht[i].numhalos, pprogen[i], pprogendescen);
                 }
                 //otherwise only care about objects with no links
@@ -147,17 +134,6 @@ int main(int argc,char **argv)
                     CleanCrossMatch(pht[i].numhalos, pht[i-istep].numhalos, pht[i].Halo, pht[i-istep].Halo, pprogentemp);
                     UpdateRefProgenitors(opt.imultsteplinkcrit,pht[i].numhalos, pprogen[i], pprogentemp);
                     delete[] pprogentemp;
-                    /*
-                    if (opt.numsteps>1) {
-                        for (Int_t k=0;k<pht[i].numhalos;k++) if (pprogen[i][k].istep>1){
-                            for (Int_t nprogs=0;nprogs<pprogen[i][k].NumberofProgenitors;nprogs++) {
-                                pprogendescen[i-istep][pprogen[i][k].ProgenitorList[nprogs]].haloindex.push_back(k);
-                                pprogendescen[i-istep][pprogen[i][k].ProgenitorList[nprogs]].halotemporalindex.push_back(i);
-                                pprogendescen[i-istep][pprogen[i][k].ProgenitorList[nprogs]].Merit.push_back(pprogen[i][k].Merit[nprogs]);
-                                pprogendescen[i-istep][pprogen[i][k].ProgenitorList[nprogs]].NumberofDescendants++;
-                            }
-                        }
-                    }*/
                     BuildProgenitorBasedDescendantList(i, i-istep, pht[i].numhalos, pprogen[i], pprogendescen, istep);
 
                 }
