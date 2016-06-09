@@ -196,10 +196,6 @@ def ReadHaloMergerTree(treefilename,ibinary=0,iverbose=0):
                     for k in range(nprog):
                         tree[i]["Progen"][j][k]=np.int64(treefile.readline())
     return tree
-            
-        
-        
-    
 
 def ReadCrossCatalogList(fname,meritlim=0.1,iverbose=0):
     """
