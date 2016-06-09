@@ -327,7 +327,8 @@ struct Options
     int iseparatefiles,ibinaryout;
     ///return propery data in in comoving little h units instead of standard physical units
     int icomoveunit;
-
+    /// input is a cosmological simulation so can use box sizes, cosmological parameters, etc to set scales
+    int icosmologicalin;
     ///\name length,m,v,grav units
     //@{
     Double_t L, M, V, G;
@@ -525,6 +526,7 @@ struct Options
         iseparatefiles=0;
         ibinaryout=0;
         icomoveunit=0;
+        icosmologicalin=1;
 
         snapshotvalue=0;
 
@@ -761,6 +763,7 @@ struct PropData
         gR200c*=opt.h/opt.a;
         gR200m*=opt.h/opt.a;
         gJ=gJ*opt.h*opt.h/opt.a;
+        RV_J=RV_J*opt.h*opt.h/opt.a;
 #ifdef GASON
         M_gas*=opt.h;
         cm_gas=cm_gas*opt.h/opt.a;

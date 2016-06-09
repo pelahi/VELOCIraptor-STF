@@ -146,27 +146,37 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
         header[i].Endian();
     }
     opt.p=header[ifirstfile].BoxSize;
-    z=header[ifirstfile].redshift;
-    opt.a=1./(1.+z);
-    opt.Omega_m=header[ifirstfile].Omega0;
-    opt.Omega_Lambda=header[ifirstfile].OmegaLambda;
-    opt.h=header[ifirstfile].HubbleParam;
-    opt.Omega_cdm=opt.Omega_m-opt.Omega_b;
-    //Hubble flow
-    if (opt.comove) aadjust=1.0;
-    else aadjust=opt.a;
-    Hubble=opt.h*opt.H*sqrt((1-opt.Omega_m-opt.Omega_Lambda)*pow(aadjust,-2.0)+opt.Omega_m*pow(aadjust,-3.0)+opt.Omega_Lambda);
-    opt.rhobg=3.*Hubble*Hubble/(8.0*M_PI*opt.G)*opt.Omega_m;
-    //if opt.virlevel<0, then use virial overdensity based on Bryan and Norman 1998 virialization level is given by
-    if (opt.virlevel<0) 
-    {
-        Double_t bnx=-((1-opt.Omega_m-opt.Omega_Lambda)*pow(aadjust,-2.0)+opt.Omega_Lambda)/((1-opt.Omega_m-opt.Omega_Lambda)*pow(aadjust,-2.0)+opt.Omega_m*pow(aadjust,-3.0)+opt.Omega_Lambda);
-        opt.virlevel=(18.0*M_PI*M_PI+82.0*bnx-39*bnx*bnx)/opt.Omega_m;
+    //if input is from a cosmological box, the following cosmological parameters have meaning
+    if (opt.icosmologicalin) {
+        z=header[ifirstfile].redshift;
+        opt.a=1./(1.+z);
+        opt.Omega_m=header[ifirstfile].Omega0;
+        opt.Omega_Lambda=header[ifirstfile].OmegaLambda;
+        opt.h=header[ifirstfile].HubbleParam;
+        opt.Omega_cdm=opt.Omega_m-opt.Omega_b;
+        //Hubble flow
+        if (opt.comove) aadjust=1.0;
+        else aadjust=opt.a;
+        Hubble=opt.h*opt.H*sqrt((1-opt.Omega_m-opt.Omega_Lambda)*pow(aadjust,-2.0)+opt.Omega_m*pow(aadjust,-3.0)+opt.Omega_Lambda);
+        opt.rhobg=3.*Hubble*Hubble/(8.0*M_PI*opt.G)*opt.Omega_m;
+        //if opt.virlevel<0, then use virial overdensity based on Bryan and Norman 1998 virialization level is given by
+        if (opt.virlevel<0) 
+        {
+            Double_t bnx=-((1-opt.Omega_m-opt.Omega_Lambda)*pow(aadjust,-2.0)+opt.Omega_Lambda)/((1-opt.Omega_m-opt.Omega_Lambda)*pow(aadjust,-2.0)+opt.Omega_m*pow(aadjust,-3.0)+opt.Omega_Lambda);
+            opt.virlevel=(18.0*M_PI*M_PI+82.0*bnx-39*bnx*bnx)/opt.Omega_m;
+        }
+        //normally Hubbleflow=lvscale*Hubble but we only care about peculiar velocities
+        //ignore hubble flow
+        Hubbleflow=0.;
+        cout<<"Cosmology (h,Omega_m,Omega_cdm,Omega_b,Omega_L) = ("<< opt.h<<","<<opt.Omega_m<<","<<opt.Omega_cdm<<","<<opt.Omega_b<<","<<opt.Omega_Lambda<<")"<<endl;
+    }
+    //otherwise, really don't have the same meaning and values are based on input configuration values
+    else {
+        opt.a=1.0;
+        Hubbleflow=0.;
+        cout<<"Non-cosmological input, using h = "<< opt.h<<endl;
     }
     mscale=opt.M/opt.h;lscale=opt.L/opt.h*aadjust;lvscale=opt.L/opt.h*opt.a;
-    //normally Hubbleflow=lvscale*Hubble but we only care about peculiar velocities
-    //ignore hubble flow
-    Hubbleflow=0.;
     //for high res region find smallest mass
     Ntotal=0;
     for (int j=0;j<NGTYPE;j++)
@@ -182,12 +192,19 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     }
     cout<<"File contains "<<Ntotal<<" particles at is at time "<<opt.a<<endl;
     cout<<"Particle system contains "<<nbodies<<" particles at is at time "<<opt.a<<" in a box of size "<<opt.p<<endl;
-    cout<<"Cosmology (h,Omega_m,Omega_cdm,Omega_b,Omega_L) = ("<< opt.h<<","<<opt.Omega_m<<","<<opt.Omega_cdm<<","<<opt.Omega_b<<","<<opt.Omega_Lambda<<")"<<endl;
+    //for cosmological box
     //by default the interparticle spacing is determined using GDMTYPE
     //which is particle of type 1
-    N_DM=header[ifirstfile].npartTotal[GDMTYPE];
-    N_DM+=((long long)header[ifirstfile].npartTotalHW[GDMTYPE]<<32);
-    LN=(opt.p*lscale/pow(N_DM,1.0/3.0));
+    if (opt.icosmologicalin) {
+        N_DM=header[ifirstfile].npartTotal[GDMTYPE];
+        N_DM+=((long long)header[ifirstfile].npartTotalHW[GDMTYPE]<<32);
+        LN=(opt.p*lscale/pow(N_DM,1.0/3.0));
+    }
+    //otherwise, mean interparticle spacing 1, so input physical linking length is not scaled in any fashion
+    else {
+        LN=1.0;
+    }
+    
     //if no mass is stored then assume mass equal and stored in first nonzero mass value in header.mass
 #ifdef NOMASS
     for(k=0;k<NGTYPE;k++)
@@ -1886,7 +1903,7 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     MPI_Bcast(&LN, 1, MPI_Real_t, 0, MPI_COMM_WORLD);
 #endif
     ///if not an individual halo, assume cosmological and store scale of the highest resolution interparticle spacing to scale the physical FOF linking length 
-    if (opt.iSingleHalo==0) 
+    if (opt.iSingleHalo==0 || opt.icosmologicalin==1) 
     {
         opt.ellxscale=LN;
         opt.uinfo.eps*=LN;

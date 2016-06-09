@@ -208,6 +208,7 @@ void usage(void)
     \arg <b> \e Inclusive_halo_mass </b> 1/0 flag indicating whether inclusive masses are calculated for field objects. \ref Options.iInclusiveHalo \n
     
     \section ioconfigs I/O options
+    \arg <b> \e Cosmological_input </b> 1/0 indicating that input simulation is cosmological or not. With cosmological input, a variety of length/velocity scales are set to determine such things as the virial overdensity, linking length. \ref Options.icosmologicalin \n
     \arg <b> \e Write_group_array_file </b> 0/1 flag indicating whether write a single large tipsy style group assignment file is written. \ref Options.iwritefof \n
     \arg <b> \e Separate_output_files </b> 1/0 flag indicating whether separate files are written for field and subhalo groups. \ref Options.iseparatefiles \n
     \arg <b> \e Binary_output </b> 1/0 flag indicating whether output is binary or ascii. \ref Options.ibinaryout \n
@@ -433,10 +434,14 @@ void GetParamFile(Options &opt)
                         opt.iInclusiveHalo = atoi(vbuff);
 
                     //io related 
+                    else if (strcmp(tbuff, "Cosmological_input")==0)
+                        opt.icosmologicalin = atoi(vbuff);
                     else if (strcmp(tbuff, "Separate_output_files")==0)
                         opt.iseparatefiles = atoi(vbuff);
                     else if (strcmp(tbuff, "Binary_output")==0)
                         opt.ibinaryout = atoi(vbuff);
+                    else if (strcmp(tbuff, "Comoving_units")==0)
+                        opt.icomoveunit = atoi(vbuff);
 
                     //gadget io related to extra info for sph, stars, bhs,
                     else if (strcmp(tbuff, "NSPH_extra_blocks")==0)
