@@ -1110,8 +1110,8 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                         //but now if ibuf<opt.nsnapread, care must be taken.
                         //blocking sends that are matched by non-blocking receives
                         if(Nbuf[ibuf]==BufSize&&ibuf>=opt.nsnapread) {
-                            MPI_Send(&Nbuf[ibuf], 1, MPI_Int_t, ibuf, ibuf+NProcs, MPI_COMM_WORLD);
-                            MPI_Send(&Pbuf[ibuf*BufSize],sizeof(Particle)*Nbuf[ibuf],MPI_BYTE,ibuf,ibuf,MPI_COMM_WORLD);
+                            MPI_Ssend(&Nbuf[ibuf], 1, MPI_Int_t, ibuf, ibuf+NProcs, MPI_COMM_WORLD);
+                            MPI_Ssend(&Pbuf[ibuf*BufSize],sizeof(Particle)*Nbuf[ibuf],MPI_BYTE,ibuf,ibuf,MPI_COMM_WORLD);
                             Nbuf[ibuf]=0;
                         }
                         else if (Nbuf[ibuf]==BufSize&&ibuf<opt.nsnapread) {

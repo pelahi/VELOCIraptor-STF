@@ -90,7 +90,7 @@ void WriteCrossComp(Options &opt, ProgenitorData **p, HaloTreeData *h);
 
 #ifdef USEMPI
 ///\name  for mpi related reads
-/// see \ref io.cxx, \ref stfio.cxx for implementation
+/// see \ref io.cxx, \ref stfio.cxx, \ref mpiroutines.cxx for implementation
 //@{
 ///Reads the number of haloes in the files, wrapper routine
 Int_t ReadNumberofHalos(Options &opt, Int_t *numhalos);
@@ -106,6 +106,12 @@ HaloData *MPIReadHaloGroupCatalogDataAllocation(char* infile, Int_t &numhalos, i
 void MPIReadHaloGroupCatalogData(char* infile, Int_t &numhalos, HaloData *&Halo, int mpi_ninput=0, int ibinary=1, int ifieldhalos=1, int itypesort=ALLTYPEMATCH, int iverbose=0);
 ///load balance input data
 void MPILoadBalanceSnapshots(Options &opt);
+//@}
+
+///\name  for mpi related meshing of data
+/// see \ref mpiroutines.cxx for implementation
+//@{
+void MPIUpdateProgenitorsUsingDescendants(Options &opt, HaloTreeData *&pht, DescendantDataProgenBased **&pprogendescen, ProgenitorData **&pprogen);
 //@}
 #endif
 

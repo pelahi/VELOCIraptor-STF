@@ -377,6 +377,10 @@ struct DescendantDataProgenBased
     vector<long unsigned> halotemporalindex;
     ///store the merit value
     vector<Double_t> Merit;
+#ifdef USEMPI
+    //store which task this halo progenitor is located on
+    vector<int> MPITask;
+#endif
     DescendantDataProgenBased(){
         NumberofDescendants=0;
     }
@@ -391,6 +395,9 @@ struct DescendantDataProgenBased
             haloindex[i]=d.haloindex[i];
             halotemporalindex[i]=d.halotemporalindex[i];
             Merit[i]=d.Merit[i];
+#ifdef USEMPI
+            MPITask[i]=d.MPITask[i];
+#endif
         }
     }
     ///Determine optimal descendent using a temporally weighted merit, and set it to position 0
@@ -405,17 +412,45 @@ struct DescendantDataProgenBased
         if (imax>0) {
             long unsigned hid, htid;
             Double_t merit;
+#ifdef USEMPI
+            int mpitask;
+#endif
             merit=Merit[0];
             hid=haloindex[0];
             htid=halotemporalindex[0];
+#ifdef USEMPI
+            mpitask=MPITask[0];
+#endif
             Merit[0]=Merit[imax];
             haloindex[0]=haloindex[imax];
             halotemporalindex[0]=halotemporalindex[imax];
+#ifdef USEMPI
+            MPITask[0]=MPITask[imax];
+#endif
             Merit[imax]=merit;
             haloindex[imax]=hid;
             halotemporalindex[imax]=htid;
+#ifdef USEMPI
+            MPITask[imax]=mpitask;
+#endif
         }
     }
+#ifdef USEMPI
+    void Merge(Int_t &numdescen, long unsigned *hid,long unsigned *htid, Double_t *m, int *task) {
+        Int_t oldnumdescen=NumberofDescendants;
+        NumberofDescendants+=numdescen;
+        haloindex.resize(NumberofDescendants);
+        halotemporalindex.resize(NumberofDescendants);
+        Merit.resize(NumberofDescendants);
+        MPITask.resize(NumberofDescendants);
+        for (Int_t i=0;i<numdescen;i++) {
+            haloindex[oldnumdescen+i]=hid[i];
+            halotemporalindex[oldnumdescen+i]=htid[i];
+            Merit[oldnumdescen+i]=m[i];
+            MPITask[oldnumdescen+i]=task[i];
+        }
+    }
+#endif
 
 };
 

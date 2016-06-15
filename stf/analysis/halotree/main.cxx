@@ -164,20 +164,24 @@ int main(int argc,char **argv)
 #endif
     }
     delete[] pfofp;
-    
+
     //now if more than one snapshot is used to generate links, must clean up across multiple snapshots to ensure that an object is the progenitor of a single other object
     //this requires parsing the descendent data list produced by identifying progenitors
     if (opt.numsteps>1) {
-    for (i=opt.numsnapshots-1;i>=0;i--) {
+        //if mpi is used then must broadcast this descendant based progenitor data for snapshots that overlap so that the halos can be appropriately cleaned
 #ifdef USEMPI
-    //check if data is load making sure i is in appropriate range
-    if (i>=StartSnap && i<EndSnap) {
+        MPIUpdateProgenitorsUsingDescendants(opt, pht, pprogendescen, pprogen);
 #endif
-        CleanProgenitorsUsingDescendants(i, pht, pprogendescen, pprogen);
+        for (i=opt.numsnapshots-1;i>=0;i--) {
 #ifdef USEMPI
-    }
+        //check if data is load making sure i is in appropriate range
+        if (i>=StartSnap && i<EndSnap) {
 #endif
-    }
+            CleanProgenitorsUsingDescendants(i, pht, pprogendescen, pprogen);
+#ifdef USEMPI
+        }
+#endif
+        }
     }
 
     //Produce a reverse cross comparison or descendant tree if a full graph is requested. 

@@ -11,7 +11,8 @@
 
 /// Determine initial progenitor list based on just merit
 /// does not guarantee that progenitor list is exclusive
-ProgenitorData *CrossMatch(Options &opt, const Int_t nbodies, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData *&h2, long unsigned *&pglist, long unsigned *&noffset, long unsigned *&pfof2, int istepval, ProgenitorData *refprogen){
+ProgenitorData *CrossMatch(Options &opt, const Int_t nbodies, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData *&h2, long unsigned *&pglist, long unsigned *&noffset, long unsigned *&pfof2, int istepval, ProgenitorData *refprogen)
+{
     long int i,j;
     Int_t numshared;
     Double_t merit;
@@ -239,7 +240,8 @@ private(i,j,tid,pq,numshared,merit)
 
 ///effectively the same code as \ref CrossMatch but allows for the possibility of matching descendant/child nodes using a different merit function
 ///here the lists are different as input order is reverse of that used in \ref CrossMatch
-DescendantData *CrossMatchDescendant(Options &opt, const Int_t nbodies, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData *&h2, long unsigned *&pglist, long unsigned *&noffset, long unsigned *&pfof2, int istepval, DescendantData *refdescen){
+DescendantData *CrossMatchDescendant(Options &opt, const Int_t nbodies, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData *&h2, long unsigned *&pglist, long unsigned *&noffset, long unsigned *&pfof2, int istepval, DescendantData *refdescen)
+{
     long int i,j;
     Int_t numshared;
     Double_t merit;
@@ -458,7 +460,7 @@ private(i,j,tid,pq,numshared,merit)
     return d1;
 }
 
-//ensure cross match is exclusive
+///ensure cross match is exclusive
 void CleanCrossMatch(const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData *&h2, ProgenitorData *&p1)
 {
     Int_t i,j,k;
@@ -534,7 +536,7 @@ private(i,j,k)
     delete[] nh2nummatches;
     delete[] merit;
 }
-
+///similar to \ref CleanCrossMatch but does the same for descendants
 void CleanCrossMatchDescendant(const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData *&h2, DescendantData *&p1)
 {
     Int_t i,j,k;
@@ -610,7 +612,7 @@ private(i,j,k)
     delete[] nh2nummatches;
     delete[] merit;
 }
-
+///when linking using multiple snapshots, use to update the progenitor list based on a candidate list built using a single snapshot
 void UpdateRefProgenitors(const int ilink, const Int_t numhalos, ProgenitorData *&pref, ProgenitorData *&ptemp)
 {
     if (ilink==MSLCMISSING) {
@@ -624,6 +626,7 @@ void UpdateRefProgenitors(const int ilink, const Int_t numhalos, ProgenitorData 
         }
     }
 }
+///similar to \ref UpdateRefProgenitors but for descendants
 void UpdateRefDescendants(const int ilink, const Int_t numhalos, DescendantData *&dref, DescendantData *&dtemp)
 {
     if (ilink==MSLCMISSING) {
@@ -637,8 +640,9 @@ void UpdateRefDescendants(const int ilink, const Int_t numhalos, DescendantData 
         }
     }
 }
-
-void BuildProgenitorBasedDescendantList(Int_t itimeprogen, Int_t itimedescen, Int_t nhalos, ProgenitorData *&pprogen, DescendantDataProgenBased **&pprogendescen, int istep) {
+///Construction of descendant list using the candidate progenitor list
+void BuildProgenitorBasedDescendantList(Int_t itimeprogen, Int_t itimedescen, Int_t nhalos, ProgenitorData *&pprogen, DescendantDataProgenBased **&pprogendescen, int istep)
+{
     //if first pass then store descendants looking at all progenitors
     int did;
     if (istep==1) {
@@ -665,19 +669,34 @@ void BuildProgenitorBasedDescendantList(Int_t itimeprogen, Int_t itimedescen, In
         }
     }
 }
-
-void CleanProgenitorsUsingDescendants(Int_t i, HaloTreeData *&pht, DescendantDataProgenBased **&pprogendescen, ProgenitorData **&pprogen){
+///Cleans the progenitor list to ensure that a given object only has a single descendant using the descendant list built using progenitors. Called if linking across multiple snapshots
+void CleanProgenitorsUsingDescendants(Int_t i, HaloTreeData *&pht, DescendantDataProgenBased **&pprogendescen, ProgenitorData **&pprogen)
+{
     unsigned long itime;
     unsigned long hid;
+#ifdef USEMPI
+    int itask;
+#endif
     int itemp;
     //parse list of descendants for objects with more than one and adjust the progenitor list
     for (Int_t k=0;k<pht[i].numhalos;k++) if (pprogendescen[i][k].NumberofDescendants>1){
         //adjust the progenitor list of all descendents affected, ie: that will have the progenitor removed from the list
         //note that the optimal descendant is always placed at position 0
         pprogendescen[i][k].OptimalTemporalMerit();
+#ifdef USEMPI
+        //if mpi, it is possible that the best match is not a local halo 
+        ///\todo do I need to do anything when the best descendant is not local to mpi domain? I don't think so since only 
+        ///matters if I am changing the local list
+#endif
         for (Int_t n=1;n<pprogendescen[i][k].NumberofDescendants;n++) {
             itime=pprogendescen[i][k].halotemporalindex[n];
             hid=pprogendescen[i][k].haloindex[n];
+#ifdef USEMPI
+            //if mpi is invoked, it possible the progenitor that is supposed to have a descendant removed is not on this mpi task 
+            itask=pprogendescen[i][k].MPITask[n];
+            //only change progenitors of halos on this task
+            if (itask==ThisTask) {
+#endif
             itemp=0;
             //k+1 is halo indexing versus halo id values
             while (pprogen[itime][hid].ProgenitorList[itemp]!=k+1) {itemp++;}
@@ -687,6 +706,9 @@ void CleanProgenitorsUsingDescendants(Int_t i, HaloTreeData *&pht, DescendantDat
                 if (pprogen[itime][hid].nsharedfrac!=NULL) pprogen[itime][hid].nsharedfrac[j]=pprogen[itime][hid].nsharedfrac[j+1];
             }
             pprogen[itime][hid].NumberofProgenitors--;
+#ifdef USEMPI
+            }
+#endif
         }
     }
 }
