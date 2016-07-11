@@ -3,11 +3,3 @@
  */
 #include "allvars.h"
 
-#ifdef USEMPI
-/// \name For MPI 
-//@{
-int ThisTask,NProcs;
-int NSnap,StartSnap,EndSnap;
-//@}
-
-#endif

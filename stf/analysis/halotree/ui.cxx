@@ -132,6 +132,10 @@ void GetArgs(int argc, char *argv[], Options &opt)
 #endif
         exit(8);
     }
+    if (opt.icatalog==DCROSSCAT) {
+        if (opt.numsnapshots>2) {cerr<<"Cross catalog, yet more than two snapshots compared, reseting and only comparing two"<<endl;opt.numsnapshots=2;}
+        if (opt.numsteps>1) {cerr<<"Cross catalog, yet asking to use more than a single step when linking, reseting and only linking across one "<<endl;opt.numsteps=1;}
+    }
     //else if (opt.imapping==???) opt.mappingfunc=???;
     opt.description=(char*)"VELOCIraptor halo merger tree constructed by identifying the main progenitor with the highest value of ";
     if(opt.matchtype==NsharedN1N2)      opt.description+=(char*)"Nshared^2/Nh/Np |";

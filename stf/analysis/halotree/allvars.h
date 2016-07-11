@@ -377,12 +377,22 @@ struct DescendantDataProgenBased
     vector<long unsigned> halotemporalindex;
     ///store the merit value
     vector<Double_t> Merit;
+    //store the integer time diff to descendant
+    vector<int> deltat;
 #ifdef USEMPI
     //store which task this halo progenitor is located on
     vector<int> MPITask;
 #endif
-    DescendantDataProgenBased(){
+    DescendantDataProgenBased(int reservesize=5){
         NumberofDescendants=0;
+        //reserve some space so mimimize number of reallocations
+        haloindex.reserve(reservesize);
+        halotemporalindex.reserve(reservesize);
+        Merit.reserve(reservesize);
+        deltat.reserve(reservesize);
+#ifdef USEMPI
+        MPITask.reserve(reservesize);
+#endif
     }
     ~DescendantDataProgenBased(){
     }
@@ -391,10 +401,12 @@ struct DescendantDataProgenBased
         haloindex.resize(NumberofDescendants);
         halotemporalindex.resize(NumberofDescendants);
         Merit.resize(NumberofDescendants);
+        deltat.resize(NumberofDescendants);
         for (int i=0;i<NumberofDescendants;i++) {
             haloindex[i]=d.haloindex[i];
             halotemporalindex[i]=d.halotemporalindex[i];
             Merit[i]=d.Merit[i];
+            deltat[i]=d.deltat[i];
 #ifdef USEMPI
             MPITask[i]=d.MPITask[i];
 #endif
@@ -403,51 +415,63 @@ struct DescendantDataProgenBased
     ///Determine optimal descendent using a temporally weighted merit, and set it to position 0
     ///start with just maximum merit, ignoring when this was found
     ///otherwise use the reference time passed
+    ///the generalized merit = Merit/(deltat)
+    ///\todo might want to change the generalized merit
     void OptimalTemporalMerit(Int_t itimref=0){
         int imax=0;
-        Double_t generalizedmerit=Merit[0];
+        Double_t generalizedmerit=Merit[0]/(Double_t)deltat[0];
         for (int i=1;i<NumberofDescendants;i++) {
-            if (Merit[i]<generalizedmerit) {generalizedmerit=Merit[i];imax=i;}
+            if (Merit[i]/(Double_t)deltat[i]>generalizedmerit) {generalizedmerit=Merit[i]/(Double_t)deltat[i];imax=i;}
         }
+        //if use mpi then also possible that optimal halo found on multiple mpi tasks
+        //but the lower task will be the one that needs to have the best halo so go over the loop and 
+        //find the halo with the lowest task number of the best generalized merit
+#ifdef USEMPI
+        int imaxtask=MPITask[imax];
+        for (int i=0;i<NumberofDescendants;i++) {
+            if (Merit[i]/(Double_t)deltat[i]==generalizedmerit && MPITask[i]<imaxtask) {imax=i;}
+        }
+#endif
         if (imax>0) {
             long unsigned hid, htid;
             Double_t merit;
+            int dt;
 #ifdef USEMPI
             int mpitask;
 #endif
             merit=Merit[0];
             hid=haloindex[0];
             htid=halotemporalindex[0];
+            dt=deltat[0];
 #ifdef USEMPI
             mpitask=MPITask[0];
 #endif
             Merit[0]=Merit[imax];
             haloindex[0]=haloindex[imax];
             halotemporalindex[0]=halotemporalindex[imax];
+            deltat[0]=deltat[imax];
 #ifdef USEMPI
             MPITask[0]=MPITask[imax];
 #endif
             Merit[imax]=merit;
             haloindex[imax]=hid;
             halotemporalindex[imax]=htid;
+            deltat[imax]=dt;
 #ifdef USEMPI
             MPITask[imax]=mpitask;
 #endif
         }
     }
 #ifdef USEMPI
-    void Merge(Int_t &numdescen, long unsigned *hid,long unsigned *htid, Double_t *m, int *task) {
-        Int_t oldnumdescen=NumberofDescendants;
-        NumberofDescendants+=numdescen;
-        haloindex.resize(NumberofDescendants);
-        halotemporalindex.resize(NumberofDescendants);
-        Merit.resize(NumberofDescendants);
-        MPITask.resize(NumberofDescendants);
-        for (Int_t i=0;i<numdescen;i++) {
-            haloindex[oldnumdescen+i]=hid[i];
-            halotemporalindex[oldnumdescen+i]=htid[i];
-            Merit[oldnumdescen+i]=m[i];
-            MPITask[oldnumdescen+i]=task[i];
+    void Merge(int thistask, int &numdescen, long unsigned *hid,long unsigned *htid, Double_t *m, int *dt, int *task) {
+        for (Int_t i=0;i<numdescen;i++) if (task[i]!=thistask) 
+        {
+            haloindex.push_back(hid[i]);
+            halotemporalindex.push_back(htid[i]);
+            Merit.push_back(m[i]);
+            deltat.push_back(dt[i]);
+            MPITask.push_back(task[i]);
+            NumberofDescendants++;
         }
     }
 #endif

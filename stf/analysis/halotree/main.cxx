@@ -20,6 +20,7 @@ int main(int argc,char **argv)
     MPI_Comm_rank(MPI_COMM_WORLD,&ThisTask);
 #else
     int ThisTask=0,NProcs=1,Nlocal,Ntotal;
+    int StartSnap,EndSnap;
 #endif
 
     //store the configuration settings in the options object
@@ -39,12 +40,14 @@ int main(int argc,char **argv)
     //these are used to store temporary sets of posssible candidate progenitors/descendants when code links across multiple snaps
     ProgenitorData *pprogentemp;
     DescendantData *pdescentemp;
-    ///store the halo ids of particles in objects, with mapping of ids, makes it easy to look up the haloid of a given particle
+    //store the halo ids of particles in objects, with mapping of ids, makes it easy to look up the haloid of a given particle
     long unsigned *pfofp,*pfofd;
     long unsigned *noffset;
     long unsigned *pglist;
     long int i,j;
     long unsigned nh,nhp,nhd;
+    //flags indicating whether updates to list are necessary
+    int ilistupdated;
 
     //store the time taken by segments of the code
     double time1,time2;
@@ -52,6 +55,9 @@ int main(int argc,char **argv)
     GetArgs(argc, argv, opt);
 #ifdef USEMPI
     MPILoadBalanceSnapshots(opt);
+#else
+    StartSnap=0;
+    EndSnap=opt.numsnapshots;
 #endif
     //read particle information and allocate memory
     if (ThisTask==0) cout<<"Read Data ... "<<endl;
@@ -87,7 +93,8 @@ int main(int argc,char **argv)
 #endif
         }
     }
-    
+
+    //beginning loop over snapshots and building tree
     for (i=opt.numsnapshots-1;i>=0;i--) {
 #ifdef USEMPI
     //check if data is load making sure i is in appropriate range
@@ -109,7 +116,7 @@ int main(int argc,char **argv)
             }
 
             //if not last snapshot then can look back in time and produce links
-            if (i>0) {
+            if (i>StartSnap) {
             //loop over all possible steps
             for (Int_t istep=1;istep<=opt.numsteps;istep++) if (i-istep>=0) {
 #ifdef USEMPI
@@ -124,17 +131,20 @@ int main(int argc,char **argv)
                 //begin cross matching with previous snapshot(s)
                 //for first linking, cross match and allocate memory 
                 if (istep==1) {
-                    pprogen[i]=CrossMatch(opt, opt.NumPart, pht[i].numhalos, pht[i-istep].numhalos, pht[i].Halo, pht[i-istep].Halo, pglist, noffset, pfofp);
+                    pprogen[i]=CrossMatch(opt, opt.NumPart, pht[i].numhalos, pht[i-istep].numhalos, pht[i].Halo, pht[i-istep].Halo, pglist, noffset, pfofp, ilistupdated);
                     CleanCrossMatch(pht[i].numhalos, pht[i-istep].numhalos, pht[i].Halo, pht[i-istep].Halo, pprogen[i]);
                     if (opt.numsteps>1) BuildProgenitorBasedDescendantList(i, i-istep, pht[i].numhalos, pprogen[i], pprogendescen);
                 }
                 //otherwise only care about objects with no links
                 else {
-                    pprogentemp=CrossMatch(opt, opt.NumPart, pht[i].numhalos, pht[i-istep].numhalos, pht[i].Halo, pht[i-istep].Halo, pglist, noffset, pfofp, istep, pprogen[i]);
-                    CleanCrossMatch(pht[i].numhalos, pht[i-istep].numhalos, pht[i].Halo, pht[i-istep].Halo, pprogentemp);
-                    UpdateRefProgenitors(opt.imultsteplinkcrit,pht[i].numhalos, pprogen[i], pprogentemp);
+                    pprogentemp=CrossMatch(opt, opt.NumPart, pht[i].numhalos, pht[i-istep].numhalos, pht[i].Halo, pht[i-istep].Halo, pglist, noffset, pfofp, ilistupdated, istep, pprogen[i]);
+                    //if new candidate progenitors have been found then need to update the reference list
+                    if (ilistupdated>0) {
+                        CleanCrossMatch(pht[i].numhalos, pht[i-istep].numhalos, pht[i].Halo, pht[i-istep].Halo, pprogentemp);
+                        UpdateRefProgenitors(opt.imultsteplinkcrit,pht[i].numhalos, pprogen[i], pprogentemp);
+                        BuildProgenitorBasedDescendantList(i, i-istep, pht[i].numhalos, pprogen[i], pprogendescen, istep);
+                    }
                     delete[] pprogentemp;
-                    BuildProgenitorBasedDescendantList(i, i-istep, pht[i].numhalos, pprogen[i], pprogendescen, istep);
 
                 }
 
@@ -170,13 +180,15 @@ int main(int argc,char **argv)
     if (opt.numsteps>1) {
         //if mpi is used then must broadcast this descendant based progenitor data for snapshots that overlap so that the halos can be appropriately cleaned
 #ifdef USEMPI
-        MPIUpdateProgenitorsUsingDescendants(opt, pht, pprogendescen, pprogen);
+        if (NProcs>1) MPIUpdateProgenitorsUsingDescendants(opt, pht, pprogendescen, pprogen);
 #endif
         for (i=opt.numsnapshots-1;i>=0;i--) {
 #ifdef USEMPI
-        //check if data is load making sure i is in appropriate range
-        if (i>=StartSnap && i<EndSnap) {
+        //check if data is load making sure i is in appropriate range (note that only look above StartSnap (as first snap can't have progenitors)
+        //not that last snapshot locally has halos with no descendants so no need to clean this list
+        if (i>=StartSnap && i<EndSnap-1) {
 #endif
+            if (opt.iverbose) cout<<"Cleaning Progenitor list using descendant information for "<<i<<endl;
             CleanProgenitorsUsingDescendants(i, pht, pprogendescen, pprogen);
 #ifdef USEMPI
         }
@@ -210,7 +222,7 @@ int main(int argc,char **argv)
             }
 
 
-            if (i<opt.numsnapshots-1) {
+            if (i<=EndSnap) {
             for (Int_t istep=1;istep<=opt.numsteps;istep++) if (i+istep<=opt.numsnapshots-1) {
 #ifdef USEMPI
             if (i+istep<EndSnap) {
@@ -223,12 +235,12 @@ int main(int argc,char **argv)
                 //begin cross matching with  snapshot(s)
                 //for first linking, cross match and allocate memory 
                 if (istep==1) {
-                    pdescen[i]=CrossMatchDescendant(opt, opt.NumPart, pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pglist, noffset, pfofd);
+                    pdescen[i]=CrossMatchDescendant(opt, opt.NumPart, pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pglist, noffset, pfofd, ilistupdated);
                     CleanCrossMatchDescendant(pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pdescen[i]);
                 }
                 //otherwise only care about objects with no links
                 else {
-                    pdescentemp=CrossMatchDescendant(opt, opt.NumPart, pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pglist, noffset, pfofd,istep, pdescen[i]);
+                    pdescentemp=CrossMatchDescendant(opt, opt.NumPart, pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pglist, noffset, pfofd, ilistupdated, istep, pdescen[i]);
                     CleanCrossMatchDescendant(pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pdescen[i]);
                     UpdateRefDescendants(opt.imultsteplinkcrit,pht[i].numhalos, pdescen[i], pdescentemp);
                     delete[] pdescentemp;
@@ -261,17 +273,7 @@ int main(int argc,char **argv)
     cout<<ThisTask<<" Done"<<endl;
 
     //now adjust the halo ids as prior, halo ids simple represent read order, allowing for addressing of memory by halo id value
-    if (opt.haloidval>0) {
-        for (i=opt.numsnapshots-1;i>=0;i--) {
-#ifdef USEMPI
-        if (i>=StartSnap && i<EndSnap) {
-#endif
-            if(pht[i].numhalos>0) for (j=0;j<pht[i].numhalos;j++) pht[i].Halo[j].haloID+=opt.haloidval*(i+opt.snapshotvaloffset);
-#ifdef USEMPI
-        }
-#endif
-        }
-    }
+    UpdateHaloIDs(opt,pht);
 #ifdef USEMPI
     MPI_Barrier(MPI_COMM_WORLD);
 #endif
@@ -293,7 +295,22 @@ int main(int argc,char **argv)
     delete[] pprogen;
     //if producing graph as well
     if(opt.icatalog==DGRAPH) {for (i=0;i<opt.numsnapshots;i++) if (pdescen[i]!=NULL) delete[] pdescen[i];delete[] pdescen;}
+    //if used multiple time steps
+    if (opt.numsnapshots>1) {
+        for (i=opt.numsnapshots-1;i>=0;i--) {
 #ifdef USEMPI
+        //check if data is load making sure i is in appropriate range
+        if (i>=StartSnap && i<EndSnap) {
+#endif
+            if (pprogendescen[i]!=NULL) delete[] pprogendescen[i];
+#ifdef USEMPI
+        }
+#endif
+        }
+    }
+#ifdef USEMPI
+    delete[] mpi_startsnap;
+    delete[] mpi_endsnap;
     MPI_Barrier(MPI_COMM_WORLD);
 #endif
     delete[] pht;

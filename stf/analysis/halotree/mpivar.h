@@ -27,6 +27,7 @@ extern int ThisTask, NProcs;
 //@}
 ///number of snapshots read and proccessed by thread
 extern int NSnap,StartSnap,EndSnap;
+extern int *mpi_startsnap,*mpi_endsnap;
 
 /// \name definitions for MPI types
 //@{
@@ -43,6 +44,11 @@ extern int NSnap,StartSnap,EndSnap;
 #define MPI_Real_t MPI_DOUBLE 
 #endif
 
+//@}
+
+/// \name MPI load decomposition parameters
+//@{
+#define MPILOADBALANCE 3.0
 //@}
 
 #endif

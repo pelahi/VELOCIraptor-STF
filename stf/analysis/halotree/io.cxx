@@ -4,6 +4,8 @@
 
 #include "halomergertree.h"
 
+///\name Reading routines
+//@{
 ///Reads number of halos at each snapshot, useful for mpi decomposition
 #ifdef USEMPI
 Int_t ReadNumberofHalos(Options &opt, Int_t *numhalos)
@@ -98,7 +100,7 @@ HaloTreeData *ReadData(Options &opt)
     for(i=0; i<opt.numsnapshots; i++) Fin>>&(buf[i*1000]);
     Fin.close();
 
-#ifdef USEOPENMP
+#if (defined(USEOPENMP) && !defined(USEMPI))
 #pragma omp parallel default(shared) \
 private(i)
 {
@@ -130,7 +132,7 @@ private(i)
 #endif
 
     }
-#ifdef USEOPENMP
+#if (defined(USEOPENMP) && !defined(USEMPI))
 }
 #endif
 
@@ -143,8 +145,10 @@ private(i)
     opt.TotalNumberofHalos=tothalos;
     return HaloTree;
 }
+//@}
 
-
+///\name Write routines
+//@{
 void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
     fstream Fout;
     char fname[1000];
@@ -324,4 +328,4 @@ void WriteCrossComp(Options &opt, ProgenitorData **p, HaloTreeData *h) {
     Fout<<"END"<<endl;
     Fout.close();
 }
-
+//@}

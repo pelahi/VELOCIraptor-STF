@@ -11,7 +11,7 @@
 
 /// Determine initial progenitor list based on just merit
 /// does not guarantee that progenitor list is exclusive
-ProgenitorData *CrossMatch(Options &opt, const Int_t nbodies, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData *&h2, long unsigned *&pglist, long unsigned *&noffset, long unsigned *&pfof2, int istepval, ProgenitorData *refprogen)
+ProgenitorData *CrossMatch(Options &opt, const Int_t nbodies, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData *&h2, long unsigned *&pglist, long unsigned *&noffset, long unsigned *&pfof2, int &ilistupdated, int istepval, ProgenitorData *refprogen)
 {
     long int i,j;
     Int_t numshared;
@@ -26,6 +26,11 @@ ProgenitorData *CrossMatch(Options &opt, const Int_t nbodies, const long unsigne
     ProgenitorData *p1=new ProgenitorData[nhalos1];
     int *sharelist;
     PriorityQueue *pq;
+
+    //init that list is updated if no reference list is provided
+    if (refprogen==NULL) ilistupdated=1;
+    //otherwise assume list is not updated
+    else ilistupdated=0;
 
     //if there are halos to link
     if (nhalos2>0){
@@ -160,6 +165,10 @@ private(i,j,tid,pq,numshared,merit)
             pq->Push(j,merit);
             sharelist[tid*nhalos2+j]=0;
         }
+        //if at this point when looking for progenitors not present in the reference list
+        //can check to see if numshared>0 and if so, then reference list will have to be updated
+        ilistupdated+=(numshared>0);
+        
         p1[i].NumberofProgenitors=numshared;
         if (numshared>0) {
             p1[i].ProgenitorList=new long unsigned[numshared];
@@ -205,6 +214,7 @@ private(i,j,tid,pq,numshared,merit)
             pq->Push(j,merit);
             sharelist[j]=0;
         }
+        ilistupdated+=(numshared>0);
         p1[i].NumberofProgenitors=numshared;
         if (numshared>0) {
             p1[i].ProgenitorList=new long unsigned[numshared];
@@ -227,10 +237,10 @@ private(i,j,tid,pq,numshared,merit)
     }
     //if no halos then there are no links
     else {
-    for (i=0;i<nhalos1;i++){
-        p1[i].NumberofProgenitors=0;
-        p1[i].ProgenitorList=NULL;p1[i].Merit=NULL;
-    }
+        for (i=0;i<nhalos1;i++){
+            p1[i].NumberofProgenitors=0;
+            p1[i].ProgenitorList=NULL;p1[i].Merit=NULL;
+        }
     }
     //adjust number of steps looked back when referencing progenitors
     if (istepval>1) for (i=0;i<nhalos1;i++) p1[i].istep=istepval;
@@ -240,7 +250,7 @@ private(i,j,tid,pq,numshared,merit)
 
 ///effectively the same code as \ref CrossMatch but allows for the possibility of matching descendant/child nodes using a different merit function
 ///here the lists are different as input order is reverse of that used in \ref CrossMatch
-DescendantData *CrossMatchDescendant(Options &opt, const Int_t nbodies, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData *&h2, long unsigned *&pglist, long unsigned *&noffset, long unsigned *&pfof2, int istepval, DescendantData *refdescen)
+DescendantData *CrossMatchDescendant(Options &opt, const Int_t nbodies, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData *&h2, long unsigned *&pglist, long unsigned *&noffset, long unsigned *&pfof2, int &ilistupdated, int istepval, DescendantData *refdescen)
 {
     long int i,j;
     Int_t numshared;
@@ -256,6 +266,8 @@ DescendantData *CrossMatchDescendant(Options &opt, const Int_t nbodies, const lo
     DescendantData *d1=new DescendantData[nhalos1];
     int *sharelist;
     PriorityQueue *pq;
+    if (refdescen==NULL) ilistupdated=1;
+    else ilistupdated=0;
     if (nhalos2>0){
     if (refdescen==NULL) {
 #ifdef USEOPENMP
@@ -384,6 +396,7 @@ private(i,j,tid,pq,numshared,merit)
             pq->Push(j,merit);
             sharelist[tid*nhalos2+j]=0;
         }
+        ilistupdated+=(numshared>0);
         d1[i].NumberofDescendants=numshared;
         if (numshared>0) {
             d1[i].DescendantList=new long unsigned[numshared];
@@ -430,6 +443,7 @@ private(i,j,tid,pq,numshared,merit)
             pq->Push(j,merit);
             sharelist[j]=0;
         }
+        ilistupdated+=(numshared>0);
         d1[i].NumberofDescendants=numshared;
         if (numshared>0) {
             d1[i].DescendantList=new long unsigned[numshared];
@@ -450,10 +464,10 @@ private(i,j,tid,pq,numshared,merit)
     }
     }
     else {
-    for (i=0;i<nhalos1;i++){
-        d1[i].NumberofDescendants=0;
-        d1[i].DescendantList=NULL;d1[i].Merit=NULL;
-    }
+        for (i=0;i<nhalos1;i++){
+            d1[i].NumberofDescendants=0;
+            d1[i].DescendantList=NULL;d1[i].Merit=NULL;
+        }
     }
     //adjust number of steps looked forward when referencing descendants
     if (istepval>1) for (i=0;i<nhalos1;i++) d1[i].istep=istepval;
@@ -640,35 +654,27 @@ void UpdateRefDescendants(const int ilink, const Int_t numhalos, DescendantData 
         }
     }
 }
+
 ///Construction of descendant list using the candidate progenitor list
 void BuildProgenitorBasedDescendantList(Int_t itimeprogen, Int_t itimedescen, Int_t nhalos, ProgenitorData *&pprogen, DescendantDataProgenBased **&pprogendescen, int istep)
 {
     //if first pass then store descendants looking at all progenitors
     int did;
-    if (istep==1) {
-        for (Int_t k=0;k<nhalos;k++) {
-            for (Int_t nprogs=0;nprogs<pprogen[k].NumberofProgenitors;nprogs++) {
-                did=pprogen[k].ProgenitorList[nprogs]-1;//make sure halo descendent index set to start at 0
-                pprogendescen[itimedescen][did].haloindex.push_back(k);
-                pprogendescen[itimedescen][did].halotemporalindex.push_back(itimeprogen);
-                pprogendescen[itimedescen][did].Merit.push_back(pprogen[k].Merit[nprogs]);
-                pprogendescen[itimedescen][did].NumberofDescendants++;
-            }
-        }
-    }
-    ///otherwise, just update descendants that have progenitors that are more than one step away in time
-    else {
-        for (Int_t k=0;k<nhalos;k++) {
-            for (Int_t nprogs=0;nprogs<pprogen[k].NumberofProgenitors;nprogs++) if (pprogen[k].istep>1) {
-                did=pprogen[k].ProgenitorList[nprogs]-1;//make sure halo descendent index set to start at 0
-                pprogendescen[itimedescen][did].haloindex.push_back(k);
-                pprogendescen[itimedescen][did].halotemporalindex.push_back(itimeprogen);
-                pprogendescen[itimedescen][did].Merit.push_back(pprogen[k].Merit[nprogs]);
-                pprogendescen[itimedescen][did].NumberofDescendants++;
-            }
+    for (Int_t k=0;k<nhalos;k++) {
+        for (Int_t nprogs=0;nprogs<pprogen[k].NumberofProgenitors;nprogs++) if (pprogen[k].istep==istep) {
+            did=pprogen[k].ProgenitorList[nprogs]-1;//make sure halo descendent index set to start at 0
+            pprogendescen[itimedescen][did].haloindex.push_back(k);
+            pprogendescen[itimedescen][did].halotemporalindex.push_back(itimeprogen);
+            pprogendescen[itimedescen][did].Merit.push_back(pprogen[k].Merit[nprogs]);
+            pprogendescen[itimedescen][did].deltat.push_back(istep);
+#ifdef USEMPI
+            pprogendescen[itimedescen][did].MPITask.push_back(ThisTask);
+#endif
+            pprogendescen[itimedescen][did].NumberofDescendants++;
         }
     }
 }
+
 ///Cleans the progenitor list to ensure that a given object only has a single descendant using the descendant list built using progenitors. Called if linking across multiple snapshots
 void CleanProgenitorsUsingDescendants(Int_t i, HaloTreeData *&pht, DescendantDataProgenBased **&pprogendescen, ProgenitorData **&pprogen)
 {
@@ -713,6 +719,24 @@ void CleanProgenitorsUsingDescendants(Int_t i, HaloTreeData *&pht, DescendantDat
     }
 }
 
+//@}
+
+/// \name if halo ids need to be adjusted
+//@{
+void UpdateHaloIDs(Options &opt, HaloTreeData *&pht) {
+    Int_t i,j;
+    if (opt.haloidval>0) {
+        for (i=opt.numsnapshots-1;i>=0;i--) {
+#ifdef USEMPI
+        if (i>=StartSnap && i<EndSnap) {
+#endif
+            if(pht[i].numhalos>0) for (j=0;j<pht[i].numhalos;j++) pht[i].Halo[j].haloID+=opt.haloidval*(i+opt.snapshotvaloffset);
+#ifdef USEMPI
+        }
+#endif
+        }
+    }
+}
 //@}
 
 /// \name if particle ids need to be mapped to indices
