@@ -808,8 +808,7 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
 ///\name Final outputs such as properties and output that can be used to construct merger trees and substructure hierarchy
 //@{
 ///Writes the bulk properties of the substructures
-///\todo need to implement hdf5 output format
-///\todo need to move the header data info to the
+///\todo need to add in 500crit mass and radial output in here and in \ref allvars.h
 void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
     fstream Fout;
     char fname[1000];
@@ -1114,6 +1113,16 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].M_gas;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].M_gas_rvmax;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].M_gas_30kpc;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].M_gas_500c;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+
         for (int k=0;k<3;k++){
         for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].cm_gas[k];
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
@@ -1178,6 +1187,16 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].M_star;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].M_star_rvmax;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].M_star_30kpc;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].M_star_500c;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+
         for (int k=0;k<3;k++){
         for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].cm_star[k];
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);

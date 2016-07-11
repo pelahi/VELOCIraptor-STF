@@ -588,7 +588,7 @@ struct PropData
     ///\name physical properties regarding mass, size
     //@{
     Double_t gmass,gsize,gMvir,gRvir,gRmbp,gmaxvel,gRmaxvel,gMmaxvel,gRhalfmass;
-    Double_t gM200c,gR200c,gM200m,gR200m,gMFOF;
+    Double_t gM200c,gR200c,gM200m,gR200m,gMFOF, gM500c, gR500c;
     //@}
     ///\name physical properties for shape/mass distribution
     //@{
@@ -637,7 +637,7 @@ struct PropData
     ///number of particles
     int n_gas;
     ///mass
-    Double_t M_gas;
+    Double_t M_gas, M_gas_rvmax,M_gas_30kpc,M_gas_50kpc, M_gas_500c;
     ///pos/vel info
     Coordinate cm_gas,cmvel_gas;
     ///velocity/angular momentum info
@@ -660,7 +660,7 @@ struct PropData
     ///number of particles
     int n_star;
     ///mass
-    Double_t M_star;
+    Double_t M_star, M_star_rvmax, M_star_30kpc, M_star_50kpc, M_star_500c;
     ///pos/vel info
     Coordinate cm_star,cmvel_star;
     ///velocity/angular momentum info
@@ -693,6 +693,7 @@ struct PropData
         num=gNFOF=0;
         gmass=gsize=gRmbp=gmaxvel=gRmaxvel=gRvir=gR200m=gR200c=gRhalfmass=Efrac=Pot=T=0.;
         gMFOF=0;
+        gM500c=gR500c=0;
         gcm[0]=gcm[1]=gcm[2]=gcmvel[0]=gcmvel[1]=gcmvel[2]=0.;
         gJ[0]=gJ[1]=gJ[2]=0;
         gveldisp=Matrix(0.);
@@ -707,6 +708,7 @@ struct PropData
         RV_lambda_B=RV_lambda_P=RV_Krot=0;
         
 #ifdef GASON
+        M_gas_rvmax=M_gas_30kpc=M_gas_50kpc=0;
         n_gas=M_gas=Efrac_gas=0;
         cm_gas[0]=cm_gas[1]=cm_gas[2]=cmvel_gas[0]=cmvel_gas[1]=cmvel_gas[2]=0.;
         L_gas[0]=L_gas[1]=L_gas[2]=0;
@@ -718,6 +720,7 @@ struct PropData
         Krot_gas=T_gas=Pot_gas=0;
 #endif
 #ifdef STARON
+        M_star_rvmax=M_star_30kpc=M_star_50kpc=0;
         n_star=M_star=Efrac_star=0;
         cm_star[0]=cm_star[1]=cm_star[2]=cmvel_star[0]=cmvel_star[1]=cmvel_star[2]=0.;
         L_star[0]=L_star[1]=L_star[2]=0;
@@ -743,6 +746,8 @@ struct PropData
         gmaxvel=gmaxvel=p.gmaxvel;gRmaxvel=p.gRmaxvel;gMmaxvel=p.gMmaxvel;
         gM200c=p.gM200c;gR200c=p.gR200c;
         gM200m=p.gM200m;gR200m=p.gR200m;
+        gM500c=p.gM500c;gR500c=p.gR500c;
+        
         return *this;
     }
         
@@ -889,6 +894,12 @@ struct PropData
         Fout.write((char*)&idval,sizeof(idval));
         val=M_gas;
         Fout.write((char*)&val,sizeof(val));
+        val=M_gas_rvmax;
+        Fout.write((char*)&val,sizeof(val));
+        val=M_gas_30kpc;
+        Fout.write((char*)&val,sizeof(val));
+        val=M_gas_500c;
+        Fout.write((char*)&val,sizeof(val));
 
         for (int k=0;k<3;k++) val3[k]=cm_gas[k];
         Fout.write((char*)val3,sizeof(val)*3);
@@ -931,6 +942,12 @@ struct PropData
         idval=n_star;
         Fout.write((char*)&idval,sizeof(idval));
         val=M_star;
+        Fout.write((char*)&val,sizeof(val));
+        val=M_star_rvmax;
+        Fout.write((char*)&val,sizeof(val));
+        val=M_star_30kpc;
+        Fout.write((char*)&val,sizeof(val));
+        val=M_star_500c;
         Fout.write((char*)&val,sizeof(val));
 
         for (int k=0;k<3;k++) val3[k]=cm_star[k];
@@ -1017,6 +1034,10 @@ struct PropData
 #ifdef GASON
         Fout<<n_gas<<" ";
         Fout<<M_gas<<" ";
+        Fout<<M_gas_rvmax<<" ";
+        Fout<<M_gas_30kpc<<" ";
+        //Fout<<M_gas_50kpc<<" ";
+        Fout<<M_gas_500c<<" ";
         for (int k=0;k<3;k++) Fout<<cm_gas[k]<<" ";
         for (int k=0;k<3;k++) Fout<<cmvel_gas[k]<<" ";
         Fout<<Efrac_gas<<" ";
@@ -1037,6 +1058,10 @@ struct PropData
 #ifdef STARON
         Fout<<n_star<<" ";
         Fout<<M_star<<" ";
+        Fout<<M_star_rvmax<<" ";
+        Fout<<M_star_30kpc<<" ";
+        //Fout<<M_star_50kpc<<" ";
+        Fout<<M_star_500c<<" ";
         for (int k=0;k<3;k++) Fout<<cm_star[k]<<" ";
         for (int k=0;k<3;k++) Fout<<cmvel_star[k]<<" ";
         Fout<<Efrac_star<<" ";
@@ -1182,6 +1207,10 @@ struct PropDataHeader{
         predtypeinfo.push_back(PredType::STD_U64LE);
 #endif
         headerdatainfo.push_back("M_gas");
+        headerdatainfo.push_back("M_gas_Rvmax");
+        headerdatainfo.push_back("M_gas_30kpc");
+        //headerdatainfo.push_back("M_gas_50kpc");
+        headerdatainfo.push_back("M_gas_500c");
         headerdatainfo.push_back("Xc_gas");
         headerdatainfo.push_back("Yc_gas");
         headerdatainfo.push_back("Zc_gas");
@@ -1230,6 +1259,10 @@ struct PropDataHeader{
         predtypeinfo.push_back(PredType::STD_U64LE);
 #endif
         headerdatainfo.push_back("M_star");
+        headerdatainfo.push_back("M_star_Rvmax");
+        headerdatainfo.push_back("M_star_30kpc");
+        //headerdatainfo.push_back("M_star_50kpc");
+        headerdatainfo.push_back("M_star_500c");
         headerdatainfo.push_back("Xc_star");
         headerdatainfo.push_back("Yc_star");
         headerdatainfo.push_back("Zc_star");
