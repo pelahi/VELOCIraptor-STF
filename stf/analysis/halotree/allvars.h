@@ -198,8 +198,11 @@ struct Options
     ///for offseting the snapshot id value when writing to a file
     Int_t snapshotvaloffset;
 
-    ///for adjust halo ids by (current_snap + \ref snapshotvaloffset )* times this value
+    ///for adjusting halo ids by (current_snap + \ref snapshotvaloffset )* times this value
     long long haloidval;
+
+    //for adjusting halo ids by a simple offset
+    Int_t haloidoffset;
 
     ///to fix ids for nifty project
     int idcorrectflag;
@@ -242,10 +245,11 @@ struct Options
         outputformat=OUTASCII;
 
         iverbose=1;
-        
+
 #ifdef USEMPI
         numpermpi=0;
 #endif
+        haloidoffset=0;
     }
 };
 

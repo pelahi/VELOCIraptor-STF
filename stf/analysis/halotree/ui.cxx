@@ -10,7 +10,7 @@ void GetArgs(int argc, char *argv[], Options &opt)
 {
     int option;
     int NumArgs = 0;
-    while ((option = getopt(argc, argv, ":i:s:t:n:o:C:c:S:I:N:B:F:M:H:h:D:O:T:v:m:")) != EOF)
+    while ((option = getopt(argc, argv, ":i:s:t:n:o:C:c:S:I:N:B:F:M:H:h:D:O:T:v:m:d:")) != EOF)
     {
         switch(option)
         {
@@ -82,6 +82,10 @@ void GetArgs(int argc, char *argv[], Options &opt)
                 opt.haloidval= atol(optarg);
                 NumArgs += 2;
                 break;
+            case 'd': 
+                opt.haloidoffset= atoi(optarg);
+                NumArgs += 2;
+                break;
             case 'T': 
                 opt.itypematch = atoi(optarg);
                 NumArgs += 2;
@@ -141,14 +145,14 @@ void GetArgs(int argc, char *argv[], Options &opt)
     if(opt.matchtype==NsharedN1N2)      opt.description+=(char*)"Nshared^2/Nh/Np |";
     else if(opt.matchtype==NsharedN1)   opt.description+=(char*)"Nshared/Nh | ";
     else if(opt.matchtype==Nshared)     opt.description+=(char*)"Nshared |";
-    else if (opt.matchtype==Nsharedcombo) opt.description=(char*)" Nshared/Nh+(Nshared^2/Nh/Np) so as to weight progenitors that contribute similar amounts by how much of their mass contributes to the new object | ";
+    else if (opt.matchtype==Nsharedcombo) opt.description=(char*)"Nshared/Nh+(Nshared^2/Nh/Np) so as to weight progenitors that contribute similar amounts by how much of their mass contributes to the new object | ";
     opt.description+=(char*)"Tree built using ";
     opt.description+=static_cast<ostringstream*>( &(ostringstream() << opt.numsteps) )->str();
-    opt.description+=(char*)"temporal steps |";
+    opt.description+=(char*)" temporal steps | ";
     opt.description+=(char*)"Particle types for matching limited to ";
-    if (opt.itypematch==ALLTYPEMATCH) opt.description+=(char*)"all |";
-    else {opt.description+=(char*)"part type ";opt.description+=static_cast<ostringstream*>( &(ostringstream() << opt.itypematch) )->str();}
-    opt.description+=(char*)" |";
+    if (opt.itypematch==ALLTYPEMATCH) opt.description+=(char*)" all |";
+    else {opt.description+=(char*)" part type ";opt.description+=static_cast<ostringstream*>( &(ostringstream() << opt.itypematch) )->str();}
+    opt.description+=(char*)" | ";
 }
 
 ///Outputs the usage to stdout 
@@ -181,6 +185,7 @@ void usage(void)
     cerr<<"-F <field objects in separate file ("<<opt.ifield<<")>\n";
     cerr<<"-H <offset snapshot values by this number ("<<opt.snapshotvaloffset<<")>\n";
     cerr<<"-h <adjust Halo ID values stored in group catalog, useful for matching these values to those stored in .properties files produced by the halo finder. output is ID+(snap+snapshotvaloffset)*haloIDval ("<<opt.haloidval<<")\n";
+    cerr<<"-d <adjust Halo ID by this offset value ("<<opt.haloidoffset<<")\n";
 
     cerr<<"-D <adjust particle IDs for nIFTY cross catalogs across simulations ("<<opt.idcorrectflag<<")\n";
     cerr<<"-M <Mapping of particle ids to index ("<<opt.imapping<<" [ no maping "<<DNOMAP<<", simple mapping "<<DSIMPLEMAP<<"])\n";

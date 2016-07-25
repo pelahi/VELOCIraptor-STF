@@ -730,7 +730,7 @@ void UpdateHaloIDs(Options &opt, HaloTreeData *&pht) {
 #ifdef USEMPI
         if (i>=StartSnap && i<EndSnap) {
 #endif
-            if(pht[i].numhalos>0) for (j=0;j<pht[i].numhalos;j++) pht[i].Halo[j].haloID+=opt.haloidval*(i+opt.snapshotvaloffset);
+            if(pht[i].numhalos>0) for (j=0;j<pht[i].numhalos;j++) pht[i].Halo[j].haloID+=opt.haloidval*(i+opt.snapshotvaloffset)+opt.haloidoffset;
 #ifdef USEMPI
         }
 #endif

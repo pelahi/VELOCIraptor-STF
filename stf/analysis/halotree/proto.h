@@ -30,7 +30,8 @@ bool FileExists(const char *fname);
 
 //-- Read routines
 
-///\name Reading routines
+/// \name Reading routines
+/// see \ref io.cxx for implementation
 //@{
 ///Reads the header information
 Int_t ReadHeader(Options &opt);
@@ -39,12 +40,13 @@ HaloTreeData *ReadData(Options &opt);
 ///Reads individual halo data file
 HaloData *ReadHaloData(char *fname, Int_t &nhalos);
 ///Reads NIFTY AHF individual halo data file
-HaloData *ReadNIFTYData(char *fname, Int_t &nhalos, int idcorrectflag=0);
+HaloData *ReadNIFTYData(char *fname, Int_t &nhalos, int idcorrectflag=0, int hidoffset=1);
 ///Reads VELOCIraptor like Group Catalog Data. Can adjust so that only particles of some type are check for cross matching
 HaloData *ReadHaloGroupCatalogData(char* infile, Int_t &numhalos, int mpi_ninput=0, int ibinary=1, int ifieldhalos=1, int itypesort=ALLTYPEMATCH, int iverbose=0);
 //@}
 
-///\name routines used to read VELOCIraptor output
+/// \name routines used to read VELOCIraptor output
+/// see \ref stfio.cxx for implementation
 //@{
 ///minor interface routine associated with reading VELOCIraptor output, openfiles appropriate files
 void OpenBinaryorAsciiFiles(char *infile, int ibinary, int numfiletypes, int k, int mpi_ninput, int ifieldhalos, int itypematch, fstream &Fgroup, fstream &Fpart, fstream &Fupart, fstream &Fsgroup, fstream &Fspart, fstream &Fsupart, fstream &Fparttype, fstream &Fuparttype, fstream &Fsparttype, fstream &Fsuparttype, int iverbose=0);
@@ -79,17 +81,19 @@ inline void STFReadNumData(unsigned long &nids, unsigned long &nsids, unsigned l
 //@}
 
 
-///\name Write routines
+/// \name Write routines
+/// see \ref io.cxx for implementation
 //@{
 ///Writes the merger tree
 void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h);
+///writes a full graph
 void WriteHaloGraph(Options &opt, ProgenitorData **p, DescendantData **d, HaloTreeData *h);
 ///writes a cross comparison between two catalogs
 void WriteCrossComp(Options &opt, ProgenitorData **p, HaloTreeData *h);
 //@}
 
 #ifdef USEMPI
-///\name  for mpi related reads
+/// \name  for mpi related reads
 /// see \ref io.cxx, \ref stfio.cxx, \ref mpiroutines.cxx for implementation
 //@{
 ///Reads the number of haloes in the files, wrapper routine
@@ -146,6 +150,7 @@ void CleanProgenitorsUsingDescendants(Int_t i, HaloTreeData *&pht, DescendantDat
 //@}
 
 /// \name for mapping ids to index routines
+/// see \ref crossmatch.cxx for implementation
 //@{
 ///map particle id to index position
 void MapPIDStoIndex(Options &opt, HaloTreeData *&pht);
@@ -167,6 +172,7 @@ int CheckType(unsigned int t, int tmatch);
 //@}
 
 /// \name Extra routines
+/// see \ref crossmatch.cxx for implementation
 //@{
 
 ///build group size array

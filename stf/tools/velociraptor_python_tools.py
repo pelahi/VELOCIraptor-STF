@@ -160,7 +160,7 @@ def ReadPropertyFile(basefilename,ibinary=0,iseparatesubfiles=0,iverbose=0):
         if (ibinary==0):
             if fieldname in ["ID","hostHalo","numSubStruct","npart","n_gas","n_star"]:
                 catalog[fieldname] = int64(catalog[fieldname].round())
-            
+
     if (iverbose): print "done reading properties file ",time.clock()-start
     return catalog,numtothalos
 
@@ -222,7 +222,7 @@ def ReadHaloMergerTree(treefilename,ibinary=0,iverbose=0):
                         tree[i]["Progen"][j][k]=np.int64(treefile.readline())
     if (iverbose): print "done reading tree file ",time.clock()-start
     return tree
-            
+
 
 def ReadCrossCatalogList(fname,meritlim=0.1,iverbose=0):
     """
@@ -286,7 +286,7 @@ def BuildHierarchy(halodata,iverbose=0):
 
 def BuildTemporalHeadTail(numsnaps,tree,nhalos,halodata):
     """
-    Adds for each halo its Head and Tail and stores Roothead and RootTail to the halo 
+    Adds for each halo its Head and Tail and stores Roothead and RootTail to the halo
     properties file
     """
     for k in range(numsnaps):
@@ -343,5 +343,9 @@ def BuildTemporalHeadTail(numsnaps,tree,nhalos,halodata):
             haloid=mainprog
 
     #now that head and tails are found and root heads set, might want to set root tail
-    
-    
+
+
+def ProduceUnifiedTreeandHaloCatalog(fname,numsnaps,tree,halodata):
+    """
+    produces a unifed HDF5 formatted file containing the full catalog plus information to walk the tree
+    """

@@ -1806,19 +1806,21 @@ private(i)
 /*! 
  * Searches star and gas particles separately to see if they are associated with any dark matter particles belonging to a substructure
  * 
- * \todo assumes baryonic particles that could be associated with haloes located in MPI's thread are also on that thread.
- * Must alter so as to allow searches accross MPI domains but this is tricky considering that domains are NOT simple cells
- * However, one can just determine the extent of minimal distance of all baryonic particles in physical space and then
- * search all mpi domains based on that distance. Or determine all structures that lie on the boundary of the mpi domain, 
- * export those to other mpi domains for a search.
- * In MPI maybe more appropriate to MPI to search gas particles that might be in search radius of dm particle lying within a group
+ * Assumes baryonic particles that could be associated with haloes located in MPI's thread are also on that thread if all particles were
+ * searched initial for field objects.
+ * Otherwise, sends dark matter particles that overlap other mpi domains across to see if DM particle with which baryon particle associated with 
+ * lies on another mpi domain. 
  * 
  * \todo at the moment a gas/star particle is associated with a unique structure. If that happens to be a substructure, and this gas/star particle is not bound
  * to the substructure, it is NOT tested to see if it should be associated with the parent structure. This will have to be changed at some point. Which may mean 
  * searching for baryons at each stage of a structure search. That is one needs to search for baryons after field objects have been found, then in SubSubSearch loop.
  * This will require a rewrite of the code. OR! the criterion checked actually has information on the local potential and kinetic reference frame so that we can 
  * check on the fly whether a particle is approximately bound. This simplest choice would be to store the potential of the DM particles, assume the gas particle's potential is that of
- * its nearest dm particle and store the kinetic centre of a group to see if the particle is bound.
+ * its nearest dm particle and store the kinetic centre of a group to see if the particle is bound. 
+ * \todo if all particles were searched during FOF search, can have baryonic particles store the field group to which they are associated and if they are unbound from a substructure
+ * then they are associated with parent substructure.
+ * \todo when FOF search, currently still search baryons for association to all dm particles in groups, not just substructures. Could change it to searching only substructures but then
+ * might get too many baryons associated to substructures. 
 */
 Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, const Int_t ndark, Particle *&Part, Int_t *&pfofdark, Int_t &ngroupdark, Int_t &nhalos, int ihaloflag, int iinclusive, PropData *pdata)
 {
@@ -1847,7 +1849,7 @@ Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, const I
     cout<<ThisTask<<" search baryons "<<nparts<<" "<<ndark<<endl;
     //if searched all particles in FOF, reorder particles and also the pfof group id array
     if (opt.partsearchtype==PSTALL) {
-        cout<<" of only substructures as baryons have already been grouped in FOF search "<<endl;
+        cout<<" of only baryons in FOF structures as baryons have already been grouped in FOF search "<<endl;
         //store original pfof value
         pfofall=pfofdark;//new Int_t[nparts];
         pfofbaryons=&pfofall[ndark];
@@ -1909,13 +1911,17 @@ Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, const I
 
     //sort dark matter particles so that particles belonging to a group are first, then all other dm particles
     if (opt.iverbose) cout<<"sort particles so that tree only uses particles in groups "<<npartingroups<<endl;
-/*    if (opt.partsearchtype!=PSTALL) {
+    /*
+    //if dm particles FOF searched then only search all structures, otherwise only search substructures
+    if (opt.partsearchtype!=PSTALL) {
         for (i=0;i<ndark;i++) Part[i].SetPotential(2*(pfofdark[i]==0)+(pfofdark[i]>1));
     }
     else {
         //only search association to substructures
         for (i=0;i<ndark;i++) Part[i].SetPotential(2*(pfofdark[i]<=nhalos)+(pfofdark[i]>nhalos));        
-    }*/
+    }
+    */
+    //search all dm particles in structures
     for (i=0;i<ndark;i++) Part[i].SetPotential(2*(pfofdark[i]==0)+(pfofdark[i]>1));
     qsort(Part, ndark, sizeof(Particle), PotCompare);
     ids=new Int_t[ndark+1];
@@ -1964,7 +1970,7 @@ Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, const I
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
 private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2)
-{    
+{
     nnID=new Int_t[nsearch];
     dist2=new Double_t[nsearch];
 #pragma omp for
@@ -1985,6 +1991,9 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2)
         for (int j=0;j<nsearch;j++) {
             D2=0;
             pindex=ids[Part[nnID[j]].GetID()];
+            //determine if baryonic particle needs to be searched. Note that if all particles have been searched during FOF 
+            //then particle is checked regardless. If that is not the case, particle is searched only if its current group 
+            //is smaller than the group of the dm particle being examined. 
             if (opt.partsearchtype==PSTALL) icheck=1;
             else icheck=(numingroup[pfofbaryons[i]]<numingroup[pfofdark[pindex]]);
             if (icheck) {
@@ -2016,6 +2025,9 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2)
 #endif
     }
 #ifdef USEMPI
+    //if mpi then baryons are not necessarily local if opt.partsearchtype!=PSTALL
+    //in that case must search other mpi domains.
+    //if all particles are searched then just need to reset the particle order
     if (opt.partsearchtype!=PSTALL) {
         if (opt.iverbose) cout<<ThisTask<<" finished local search"<<endl;
         MPI_Barrier(MPI_COMM_WORLD);
@@ -2265,7 +2277,7 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2)
         delete[] uparentgid;
         delete[] stype;
     }
-    
+
 #ifdef USEMPI
     //if number of groups has changed then update
     if (opt.uinfo.unbindflag) {

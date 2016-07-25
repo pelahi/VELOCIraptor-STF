@@ -41,7 +41,7 @@ HaloData *ReadHaloData(char* infile, Int_t &numhalos)
 ///as new AHF just outputs particle id and particle type AND particle type
 ///is important as only DM particles have continuous ids, adjust read so that 
 ///though total is allocated only use particles of type 1 for zoom simulations
-HaloData *ReadNIFTYData(char* infile, Int_t &numhalos, int idcorrectflag)
+HaloData *ReadNIFTYData(char* infile, Int_t &numhalos, int idcorrectflag, int hidoffset)
 {
     HaloData *Halo;
     long unsigned i, j,nparts,haloid;
@@ -67,7 +67,7 @@ HaloData *ReadNIFTYData(char* infile, Int_t &numhalos, int idcorrectflag)
     for(i=0; i<TotalNumberofHalos; i++){
       fscanf(f, "%ld %ld",&(nparts),&(haloid));
       Halo[i].Alloc(nparts);
-      Halo[i].haloID=haloid;
+      Halo[i].haloID=haloid+hidoffset;
       ncount=0;
       for(j=0; j<Halo[i].NumberofParticles; j++){
         fscanf(f, "%ld %d",

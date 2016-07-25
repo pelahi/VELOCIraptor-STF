@@ -277,7 +277,7 @@ int main(int argc,char **argv)
 #ifdef USEMPI
     MPI_Barrier(MPI_COMM_WORLD);
 #endif
-    
+
     //now start writing the results
     if (opt.icatalog!=DCROSSCAT) {
         WriteHaloMergerTree(opt,pprogen,pht);
