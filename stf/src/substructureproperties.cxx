@@ -1759,7 +1759,21 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
             Pval->SetPosition(x,y,z);
         }
     }
-    if (opt.iverbose) cout<<"Done getting cm"<<endl;
+    //loop over groups for black hole properties
+#ifdef USEOPENMP
+#pragma omp parallel default(shared)  \
+private(i,j,k,Pval)
+{
+    #pragma omp for schedule(dynamic,1) nowait
+#endif
+    for (i=1;i<=ngroup;i++) if (numingroup[i]<omppropnum)
+    {
+    }
+#ifdef USEOPENMP
+}
+#endif
+
+        if (opt.iverbose) cout<<"Done getting properties"<<endl;
 }
 
 ///Get spatial morphology using iterative procedure
