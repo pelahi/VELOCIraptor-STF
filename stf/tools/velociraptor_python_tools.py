@@ -53,7 +53,7 @@ def ReadPropertyFile(basefilename,ibinary=0,iseparatesubfiles=0,iverbose=0):
         [filenum,numfiles]=halofile.readline().split()
         filenum=int(filenum);numfiles=int(numfiles)
         [numhalos, numtothalos]= halofile.readline().split()
-        numhalos=int(numhalos);numtothalos=int(numtothalos)
+        numhalos=np.uint64(numhalos);numtothalos=np.uint64(numtothalos)
         names = ((halofile.readline())).split()
         #remove the brackets in ascii file names 
         fieldnames= [fieldname.split("(")[0] for fieldname in names]
@@ -79,15 +79,16 @@ def ReadPropertyFile(basefilename,ibinary=0,iseparatesubfiles=0,iverbose=0):
         halofile = h5py.File(filename, 'r')
         filenum=int(halofile["File_id"][0])
         numfiles=int(halofile["Num_of_files"][0])
-        numhalos=np.int64(halofile["Num_of_groups"][0])
-        numtothalos=np.int64(halofile["Total_num_of_groups"][0])
+        numhalos=np.uint64(halofile["Num_of_groups"][0])
+        numtothalos=np.uint64(halofile["Total_num_of_groups"][0])
         fieldnames=[str(n) for n in halofile.keys()]
         #clean of header info
         fieldnames.remove("File_id")
         fieldnames.remove("Num_of_files")
         fieldnames.remove("Num_of_groups")
         fieldnames.remove("Total_num_of_groups")
-        
+        halofile.close()
+
     #allocate memory that will store the halo dictionary
     catalog = dict()
     halos=[np.zeros(numtothalos) for catvalue in fieldnames]
@@ -97,15 +98,26 @@ def ReadPropertyFile(basefilename,ibinary=0,iseparatesubfiles=0,iverbose=0):
         else: filename=basefilename+".properties"+"."+str(ifile)
         if (iverbose) : print "reading ",filename
         if (ibinary==0): 
+        #read header information
+            halofile = open(filename, 'r')
+            halofile.readline()
+            numhalos=np.uint64(halofile.readline().split()[0])
+            halofile.close()
             htemp = np.loadtxt(filename,skiprows=3).transpose()
         elif(ibinary==1):
             halofile = open(filename, 'rb')
-            halofile.seek(byteoffset);
+            np.fromfile(halofile,dtype=np.int32,count=2)
+            numhalos=np.fromfile(halofile,dtype=np.uint64,count=2)[0]
+            #halofile.seek(byteoffset);
             htemp=np.fromfile(halofile,dtype=dt).transpose()
+            halofile.close()
         elif(ibinary==2):
             #here convert the hdf information into a numpy array
+            halofile = h5py.File(filename, 'r')
+            numhalos=np.uint64(halofile["Num_of_groups"][0])
             htemp=[np.array(halofile[catvalue]) for catvalue in fieldnames]
-        numhalos=len(htemp[0])
+            halofile.close()
+        #numhalos=len(htemp[0])
         for i in range(len(fieldnames)):
             catvalue=fieldnames[i]
             halos[i][noffset:noffset+numhalos]=htemp[i]
@@ -117,15 +129,24 @@ def ReadPropertyFile(basefilename,ibinary=0,iseparatesubfiles=0,iverbose=0):
             else: filename=basefilename+".sublevels"+".properties"+"."+str(ifile)
             if (iverbose) : print "reading ",filename
             if (ibinary==0): 
+                halofile = open(filename, 'r')
+                halofile.readline()
+                numhalos=np.uint64(halofile.readline().split()[0])
+                halofile.close()
                 htemp = np.loadtxt(filename,skiprows=3).transpose()
             elif(ibinary==1):
                 halofile = open(filename, 'rb')
-                halofile.seek(byteoffset);
+                #halofile.seek(byteoffset);
+                np.fromfile(halofile,dtype=np.int32,count=2)
+                numhalos=np.fromfile(halofile,dtype=np.uint64,count=2)[0]
                 htemp=np.fromfile(halofile,dtype=dt).transpose()
+                halofile.close()
             elif(ibinary==2):
                 halofile = h5py.File(filename, 'r')
+                numhalos=np.uint64(halofile["Num_of_groups"][0])
                 htemp=[np.array(halofile[catvalue]) for catvalue in fieldnames]
-            numhalos=len(htemp[0])
+                halofile.close()
+            #numhalos=len(htemp[0])
             for i in range(len(fieldnames)):
                 catvalue=fieldnames[i]
                 halos[i][noffset:noffset+numhalos]=htemp[i]
