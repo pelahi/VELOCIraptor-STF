@@ -2,10 +2,11 @@ import sys,os,os.path,string,time,re,struct
 import math,operator
 from pylab import *
 import numpy as np
-import h5py 
+import h5py
 
 """
 
+Routines for reading velociraptor output
 Note that this code is compatible with python2. 
 For python3 please search for all print statemetns and replace them with print() style calls
 
@@ -98,7 +99,6 @@ def ReadPropertyFile(basefilename,ibinary=0,iseparatesubfiles=0,iverbose=0):
         else: filename=basefilename+".properties"+"."+str(ifile)
         if (iverbose) : print "reading ",filename
         if (ibinary==0): 
-        #read header information
             halofile = open(filename, 'r')
             halofile.readline()
             numhalos=np.uint64(halofile.readline().split()[0])
@@ -150,7 +150,7 @@ def ReadPropertyFile(basefilename,ibinary=0,iseparatesubfiles=0,iverbose=0):
             for i in range(len(fieldnames)):
                 catvalue=fieldnames[i]
                 halos[i][noffset:noffset+numhalos]=htemp[i]
-            noffset+=numhalos        
+            noffset+=numhalos
 
     #set dictionary
     for i in np.arange(fieldnames.__len__()):
@@ -188,10 +188,11 @@ def ReadHaloMergerTree(treefilename,ibinary=0,iverbose=0):
         
     """
     start = time.clock()
+    tree=[]
     if (iverbose): print "reading Tree file",treefilename,os.path.isfile(treefilename)
     if (os.path.isfile(treefilename)==False):
         print "Error, file not found"
-        return []
+        return tree
     #if ascii format
     if (ibinary==0):
         treefile = open(treefilename, 'r')
@@ -200,8 +201,8 @@ def ReadHaloMergerTree(treefilename,ibinary=0,iverbose=0):
         tothalos=int(treefile.readline())
         tree=[{"tree": [], "Num_progen": [], "Progen": []} for i in range(numsnap)]
         offset=0
-        return []
-        for i in range(numsnap):
+        totalnumprogen=0
+        for i in range(numsnap-1):
             [snapval,numhalos]=treefile.readline().strip().split('\t')
             snapval=int(snapval);numhalos=int(numhalos)
             #if really verbose
@@ -214,11 +215,14 @@ def ReadHaloMergerTree(treefilename,ibinary=0,iverbose=0):
                 hid=np.int64(hid);nprog=int(nprog)
                 tree[i]["haloID"][j]=hid
                 tree[i]["Num_progen"][j]=nprog
+                totalnumprogen+=nprog
                 if (nprog>0):
                     tree[i]["Progen"][j]=np.zeros(nprog,dtype=np.int64)
                     for k in range(nprog):
                         tree[i]["Progen"][j][k]=np.int64(treefile.readline())
+    if (iverbose): print "done reading tree file ",time.clock()-start
     return tree
+            
 
 def ReadCrossCatalogList(fname,meritlim=0.1,iverbose=0):
     """
@@ -280,4 +284,64 @@ def BuildHierarchy(halodata,iverbose=0):
     if (iverbose): print "hierarchy set in read in ",time.clock()-start
     return halohierarchy
 
+def BuildTemporalHeadTail(numsnaps,tree,nhalos,halodata):
+    """
+    Adds for each halo its Head and Tail and stores Roothead and RootTail to the halo 
+    properties file
+    """
+    for k in range(numsnaps):
+        halodata[k]['Head']=np.zeros(nhalos[k],dtype=np.int64)
+        halodata[k]['Tail']=np.zeros(nhalos[k],dtype=np.int64)
+        halodata[k]['HeadSnap']=np.zeros(nhalos[k],dtype=np.int32)
+        halodata[k]['TailSnap']=np.zeros(nhalos[k],dtype=np.int32)
+        halodata[k]['RootHead']=np.zeros(nhalos[k],dtype=np.int64)
+        halodata[k]['RootTail']=np.zeros(nhalos[k],dtype=np.int64)
+        halodata[k]['RootHeadSnap']=np.zeros(nhalos[k],dtype=np.int32)
+        halodata[k]['RootTailSnap']=np.zeros(nhalos[k],dtype=np.int32)
+        
+    for j in range(nhalos[0]):
+        #for each simulation identify the main progenitor to each halo across time
+        k=0
+        haloid=halodata[k]['ID'][j]
+        halodata[k]['Head'][j]=haloid
+        halodata[k]['HeadSnap'][j]=k
+        halodata[k]['RootHead'][j]=haloid
+        halodata[k]['RootHeadSnap'][j]=k
+        roothead,rootsnap=haloid,k
+        #now move along tree first pass to store head and tails and root heads
+        while (True):
+            wdata=np.where(tree[k]['haloID']==haloid)
+            w2data=np.where(halodata[k]['ID']==haloid)[0][0]
+            #if no more progenitors, break from search
+            if (tree[k]['Num_progen'][wdata[0][0]]==0 or len(wdata[0])==0):
+                #store for current halo its tail and root tail info (also store root tail for root head)                
+                halodata[k]['Tail'][w2data]=haloid
+                halodata[k]['TailSnap'][w2data]=k
+                halodata[k]['RootTail'][w2data]=haloid
+                halodata[k]['RootTailSnap'][w2data]=k
+                halodata[rootsnap]['RootTail'][j]=haloid
+                halodata[rootsnap]['RootTailSnap'][j]=k
+                break
+    
+            #store main progenitor
+            mainprog=tree[k]['Progen'][wdata[0][0]][0]
+            #calculate stepsize based on the halo ids 
+            stepsize=((haloid-haloid%1000000000000)-(mainprog-mainprog%1000000000000))/1000000000000
+            #store tail 
+            halodata[k]['Tail'][w2data]=mainprog
+            halodata[k]['TailSnap'][w2data]=k+stepsize
+            k+=stepsize
 
+            for progid in tree[k-stepsize]['Progen'][wdata[0][0]]:
+                wdata3=np.where(halodata[k]['ID']==progid)[0][0]
+                halodata[k]['Head'][wdata3]=haloid
+                halodata[k]['HeadSnap'][wdata3]=k-stepsize
+                halodata[k]['RootHead'][wdata3]=roothead
+                halodata[k]['RootHeadSnap'][wdata3]=rootsnap
+    
+            #then store next progenitor
+            haloid=mainprog
+
+    #now that head and tails are found and root heads set, might want to set root tail
+    
+    
