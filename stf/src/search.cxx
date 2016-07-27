@@ -1177,6 +1177,7 @@ private(i,tid,Pval,x1,D2,dval,mval,pid,pidcore)
                         pfofbg[pid]=Pcore[pidcore].GetType();
                         for (int j=1;j<nsearch;j++) {
                             D2=0;
+                            pidcore=nnID[tid][j];
                             for (int k=0;k<3;k++) {
                                 D2+=(Pval->GetPosition(k)-Pcore[pidcore].GetPosition(k))*(Pval->GetPosition(k)-Pcore[pidcore].GetPosition(k))/param[6]+(Pval->GetVelocity(k)-Pcore[pidcore].GetVelocity(k))*(Pval->GetVelocity(k)-Pcore[pidcore].GetVelocity(k))/param[7];
                             }
