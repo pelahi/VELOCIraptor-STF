@@ -1061,6 +1061,7 @@ private(i,tid)
     if(opt.iHaloCoreSearch>0&&((!opt.iSingleHalo&&sublevel==1)||(opt.iSingleHalo&&sublevel==0))) 
     {
         bgoffset=1;
+        ///\todo could calculate local dispersions in configuration and velocity space and use those to define linking
         if (opt.iverbose) cout<<ThisTask<<" beginning 6dfof core search to find multiple cores"<<endl;
         param[1]=(opt.ellxscale*opt.ellphys*opt.ellhalophysfac*opt.halocorexfac);
         param[1]=param[1]*param[1];

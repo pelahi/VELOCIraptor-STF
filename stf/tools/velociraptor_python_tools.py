@@ -469,3 +469,390 @@ def ProduceUnifiedTreeandHaloCatalog(fname,numsnaps,tree,halodata):
     """
     produces a unifed HDF5 formatted file containing the full catalog plus information to walk the tree
     """
+
+def ConvertASCIIPropertyFileToHDF(basefilename,iseparatesubfiles=0,iverbose=0):
+    """
+    Reads an ASCII file and converts it to the HDF format for VELOCIraptor properties files
+
+    """
+    inompi=True
+    if (iverbose): print "reading properties file and converting to hdf",basefilename,os.path.isfile(basefilename)
+    filename=basefilename+".properties"
+    #load header
+    if (os.path.isfile(basefilename)==True):
+        numfiles=0
+    else:
+        filename=basefilename+".properties"+".0"
+        inompi=False
+        if (os.path.isfile(filename)==False):
+            print "file not found"
+            return []
+    byteoffset=0
+    #load ascii file
+    halofile = open(filename, 'r')
+    #read header information
+    [filenum,numfiles]=halofile.readline().split()
+    filenum=int(filenum);numfiles=int(numfiles)
+    [numhalos, numtothalos]= halofile.readline().split()
+    numhalos=np.uint64(numhalos);numtothalos=np.uint64(numtothalos)
+    names = ((halofile.readline())).split()
+    #remove the brackets in ascii file names 
+    fieldnames= [fieldname.split("(")[0] for fieldname in names]
+    halofile.close()
+
+    for ifile in range(numfiles):
+        if (inompi==True): 
+            filename=basefilename+".properties"
+            hdffilename=basefilename+".hdf.properties"
+        else: 
+            filename=basefilename+".properties"+"."+str(ifile)
+            hdffilename=basefilename+".hdf.properties"+"."+str(ifile)
+        if (iverbose) : print "reading ",filename
+        halofile = open(filename, 'r')
+        hdffile=h5py.File(hdffilename,'w')
+        [filenum,numfiles]=halofile.readline().split()
+        [numhalos, numtothalos]= halofile.readline().split()
+        filenum=int(filenum);numfiles=int(numfiles)
+        numhalos=np.uint64(numhalos);numtothalos=np.uint64(numtothalos)
+        #write header info
+        hdffile.create_dataset("File_id",data=np.array([filenum]))
+        hdffile.create_dataset("Num_of_files",data=np.array([numfiles]))
+        hdffile.create_dataset("Num_of_groups",data=np.array([numhalos]));
+        hdffile.create_dataset("Total_num_of_groups",data=np.array([numtothalos]));
+        halofile.close()
+        if (numhalos>0): htemp = np.loadtxt(filename,skiprows=3).transpose()
+        else: htemp=[]
+        for ikeys in range(len(fieldnames)):
+            if (fieldnames[ikeys]=="ID"):
+                hdffile.create_dataset(fieldnames[ikeys],data=np.array(htemp[ikeys],dtype=np.uint64))
+            elif (fieldnames[ikeys]=="ID_mbp"):
+                hdffile.create_dataset(fieldnames[ikeys],data=np.array(htemp[ikeys],dtype=np.int64))
+            elif (fieldnames[ikeys]=="hostHaloID"):
+                hdffile.create_dataset(fieldnames[ikeys],data=np.array(htemp[ikeys],dtype=np.int64))
+            elif fieldnames[ikeys] in ["numSubStruct","npart","n_gas","n_star"]:
+                hdffile.create_dataset(fieldnames[ikeys],data=np.array(htemp[ikeys], dtype=np.uint64))
+            else:
+                hdffile.create_dataset(fieldnames[ikeys],data=np.array(htemp[ikeys], dtype=np.float64))
+
+        hdffile.close()
+    #if subhalos are written in separate files, then read them too
+    if (iseparatesubfiles==1):
+        for ifile in range(numfiles):
+            if (inompi==True): 
+                filename=basefilename+".sublevels"+".properties"
+                hdffilename=basefilename+".hdf"+".sublevels"+".properties"
+            else: 
+                filename=basefilename+".sublevels"+".properties"+"."+str(ifile)
+                hdffilename=basefilename+".hdf"+".sublevels"+".properties"+"."+str(ifile)
+            if (iverbose) : print "reading ",filename
+            halofile = open(filename, 'r')
+            hdffile=h5py.File(hdffilename,'w')
+            [filenum,numfiles]=halofile.readline().split()
+            [numhalos, numtothalos]= halofile.readline().split()
+            filenum=int(filenum);numfiles=int(numfiles)
+            numhalos=np.uint64(numhalos);numtothalos=np.uint64(numtothalos)
+            #write header info
+            hdffile.create_dataset("File_id",data=np.array([filenum]))
+            hdffile.create_dataset("Num_of_files",data=np.array([numfiles]))
+            hdffile.create_dataset("Num_of_groups",data=np.array([numhalos]));
+            hdffile.create_dataset("Total_num_of_groups",data=np.array([numtothalos]));
+            halofile.close()
+            if (numhalos>0): htemp = np.loadtxt(filename,skiprows=3).transpose()
+            else: htemp=[]
+            for ikeys in range(len(fieldnames)):
+                if (fieldnames[ikeys]=="ID"):
+                    hdffile.create_dataset(fieldnames[ikeys],data=np.array(htemp[ikeys],dtype=np.uint64))
+                elif (fieldnames[ikeys]=="ID_mbp"):
+                    hdffile.create_dataset(fieldnames[ikeys],data=np.array(htemp[ikeys],dtype=np.int64))
+                elif (fieldnames[ikeys]=="hostHaloID"):
+                    hdffile.create_dataset(fieldnames[ikeys],data=np.array(htemp[ikeys],dtype=np.int64))
+                elif fieldnames[ikeys] in ["numSubStruct","npart","n_gas","n_star"]:
+                    hdffile.create_dataset(fieldnames[ikeys],data=np.array(htemp[ikeys], dtype=np.uint64))
+                else:
+                    hdffile.create_dataset(fieldnames[ikeys],data=np.array(htemp[ikeys], dtype=np.float64))
+            hdffile.close()
+
+
+def ConvertASCIICatalogGroupsFileToHDF(basefilename,iseparatesubfiles=0,iverbose=0):
+    """
+    Reads an ASCII file and converts it to the HDF format for VELOCIraptor files
+
+    """
+    inompi=True
+    if (iverbose): print "reading properties file and converting to hdf",basefilename,os.path.isfile(basefilename)
+    filename=basefilename+".catalog_groups"
+    #load header
+    if (os.path.isfile(basefilename)==True):
+        numfiles=0
+    else:
+        filename=basefilename+".catalog_groups"+".0"
+        inompi=False
+        if (os.path.isfile(filename)==False):
+            print "file not found"
+            return []
+    byteoffset=0
+    #load ascii file
+    halofile = open(filename, 'r')
+    #read header information
+    [filenum,numfiles]=halofile.readline().split()
+    filenum=int(filenum);numfiles=int(numfiles)
+    [numhalos, numtothalos]= halofile.readline().split()
+    numhalos=np.uint64(numhalos);numtothalos=np.uint64(numtothalos)
+    halofile.close()
+
+    fieldnames=["Group_Size","Offset","Offset_unbound","Number_of_substructures_in_halo","Parent_halo_ID"]
+    fieldtype=[np.uint32,np.uint64,np.uint64,np.uint32,np.int64]
+
+    for ifile in range(numfiles):
+        if (inompi==True): 
+            filename=basefilename+".catalog_groups"
+            hdffilename=basefilename+".hdf.catalog_groups"
+        else: 
+            filename=basefilename+".catalog_groups"+"."+str(ifile)
+            hdffilename=basefilename+".hdf.catalog_groups"+"."+str(ifile)
+        if (iverbose) : print "reading ",filename
+        halofile = open(filename, 'r')
+        hdffile=h5py.File(hdffilename,'w')
+        [filenum,numfiles]=halofile.readline().split()
+        [numhalos, numtothalos]= halofile.readline().split()
+        filenum=int(filenum);numfiles=int(numfiles)
+        numhalos=np.uint64(numhalos);numtothalos=np.uint64(numtothalos)
+        #write header info
+        hdffile.create_dataset("File_id",data=np.array([filenum]))
+        hdffile.create_dataset("Num_of_files",data=np.array([numfiles]))
+        hdffile.create_dataset("Num_of_groups",data=np.array([numhalos]));
+        hdffile.create_dataset("Total_num_of_groups",data=np.array([numtothalos]));
+        halofile.close()
+        if (numhalos>0):
+            #will look like one dimensional array of values split into 
+            #"Group_Size"
+            #"Offset"
+            #"Offset_unbound"
+            #"Number_of_substructures_in_halo"
+            #"Parent_halo_ID"
+            #each of size numhalos
+            cattemp = np.loadtxt(filename,skiprows=2).transpose()
+            for ikeys in range(len(fieldnames)):
+                hdffile.create_dataset(fieldnames[ikeys],data=np.array(cattemp[ikeys*numhalos:(ikeys+1)*numhalos],dtype=fieldtype[ikeys]))
+        else: 
+            cattemp=[]
+            for ikeys in range(len(fieldnames)):
+                hdffile.create_dataset(fieldnames[ikeys],data=np.array([],dtype=fieldtype[ikeys]))
+        hdffile.close()
+    #if subhalos are written in separate files, then read them too
+    if (iseparatesubfiles==1):
+        for ifile in range(numfiles):
+            if (inompi==True): 
+                filename=basefilename+".sublevels"+".catalog_groups"
+                hdffilename=basefilename+".hdf"+".sublevels"+".catalog_groups"
+            else: 
+                filename=basefilename+".sublevels"+".catalog_groups"+"."+str(ifile)
+                hdffilename=basefilename+".hdf"+".sublevels"+".catalog_groups"+"."+str(ifile)
+            if (iverbose) : print "reading ",filename
+            halofile = open(filename, 'r')
+            hdffile=h5py.File(hdffilename,'w')
+            [filenum,numfiles]=halofile.readline().split()
+            [numhalos, numtothalos]= halofile.readline().split()
+            filenum=int(filenum);numfiles=int(numfiles)
+            numhalos=np.uint64(numhalos);numtothalos=np.uint64(numtothalos)
+            #write header info
+            hdffile.create_dataset("File_id",data=np.array([filenum]))
+            hdffile.create_dataset("Num_of_files",data=np.array([numfiles]))
+            hdffile.create_dataset("Num_of_groups",data=np.array([numhalos]));
+            hdffile.create_dataset("Total_num_of_groups",data=np.array([numtothalos]));
+            halofile.close()
+            if (numhalos>0):
+                cattemp = np.loadtxt(filename,skiprows=2).transpose()
+                for ikeys in range(len(fieldnames)):
+                    hdffile.create_dataset(fieldnames[ikeys],data=np.array(cattemp[ikeys*numhalos:(ikeys+1)*numhalos],dtype=fieldtype[ikeys]))
+            else: 
+                cattemp=[]
+                for ikeys in range(len(fieldnames)):
+                    hdffile.create_dataset(fieldnames[ikeys],data=np.array([],dtype=fieldtype[ikeys]))
+            hdffile.close()
+
+def ConvertASCIICatalogParticleFileToHDF(basefilename,iunbound=0,iseparatesubfiles=0,iverbose=0):
+    """
+    Reads an ASCII file and converts it to the HDF format for VELOCIraptor files
+    """
+    inompi=True
+    if (iverbose): print "reading properties file and converting to hdf",basefilename,os.path.isfile(basefilename)
+    filename=basefilename+".catalog_particles"
+    if (iunbound>0): filename+=".unbound"
+    #load header
+    if (os.path.isfile(basefilename)==True):
+        numfiles=0
+    else:
+        filename=basefilename+".catalog_particles"
+        if (iunbound>0): filename+=".unbound"
+        filename+=".0"
+        inompi=False
+        if (os.path.isfile(filename)==False):
+            print "file not found"
+            return []
+    byteoffset=0
+    #load ascii file
+    halofile = open(filename, 'r')
+    #read header information
+    [filenum,numfiles]=halofile.readline().split()
+    filenum=int(filenum);numfiles=int(numfiles)
+    [numhalos, numtothalos]= halofile.readline().split()
+    numhalos=np.uint64(numhalos);numtothalos=np.uint64(numtothalos)
+    halofile.close()
+
+    for ifile in range(numfiles):
+        if (inompi==True): 
+            filename=basefilename+".catalog_particles"
+            hdffilename=basefilename+".hdf.catalog_particles"
+            if (iunbound>0): 
+                filename+=".unbound"
+                hdffilename+=".unbound"
+        else: 
+            filename=basefilename+".catalog_particles"
+            hdffilename=basefilename+".hdf.catalog_particles"
+            if (iunbound>0): 
+                filename+=".unbound"
+                hdffilename+=".unbound"
+            filename+="."+str(ifile)
+            hdffilename+="."+str(ifile)
+        if (iverbose) : print "reading ",filename
+        halofile = open(filename, 'r')
+        hdffile=h5py.File(hdffilename,'w')
+        [filenum,numfiles]=halofile.readline().split()
+        [numhalos, numtothalos]= halofile.readline().split()
+        filenum=int(filenum);numfiles=int(numfiles)
+        numhalos=np.uint64(numhalos);numtothalos=np.uint64(numtothalos)
+        #write header info
+        hdffile.create_dataset("File_id",data=np.array([filenum]))
+        hdffile.create_dataset("Num_of_files",data=np.array([numfiles]))
+        hdffile.create_dataset("Num_of_particles_in_groups",data=np.array([numhalos]));
+        hdffile.create_dataset("Total_num_of_particles_in_all_groups",data=np.array([numtothalos]));
+        halofile.close()
+        if (numhalos>0): cattemp = np.loadtxt(filename,skiprows=2).transpose()
+        else: cattemp=[]
+        hdffile.create_dataset("Particle_IDs",data=np.array(cattemp,dtype=np.int64))
+        hdffile.close()
+    #if subhalos are written in separate files, then read them too
+    if (iseparatesubfiles==1):
+        for ifile in range(numfiles):
+            if (inompi==True): 
+                filename=basefilename+".sublevels"+".catalog_particles"
+                hdffilename=basefilename+".hdf"+".sublevels"+".catalog_particles"
+            else: 
+                filename=basefilename+".sublevels"+".catalog_particles"+"."+str(ifile)
+                hdffilename=basefilename+".hdf"+".sublevels"+".catalog_particles"+"."+str(ifile)
+            if (iverbose) : print "reading ",filename
+            halofile = open(filename, 'r')
+            hdffile=h5py.File(hdffilename,'w')
+            [filenum,numfiles]=halofile.readline().split()
+            [numhalos, numtothalos]= halofile.readline().split()
+            filenum=int(filenum);numfiles=int(numfiles)
+            numhalos=np.uint64(numhalos);numtothalos=np.uint64(numtothalos)
+            #write header info
+            hdffile.create_dataset("File_id",data=np.array([filenum]))
+            hdffile.create_dataset("Num_of_files",data=np.array([numfiles]))
+            hdffile.create_dataset("Num_of_particles_in_groups",data=np.array([numhalos]));
+            hdffile.create_dataset("Total_num_of_particles_in_all_groups",data=np.array([numtothalos]));
+            halofile.close()
+            if (numhalos>0): cattemp = np.loadtxt(filename,skiprows=2).transpose()
+            else: cattemp=[]
+            hdffile.create_dataset("Particle_IDs",data=np.array(cattemp,dtype=np.int64))
+            hdffile.close()
+
+def ConvertASCIICatalogParticleTypeFileToHDF(basefilename,iunbound=0,iseparatesubfiles=0,iverbose=0):
+    """
+    Reads an ASCII file and converts it to the HDF format for VELOCIraptor files
+    """
+    inompi=True
+    if (iverbose): print "reading properties file and converting to hdf",basefilename,os.path.isfile(basefilename)
+    filename=basefilename+".catalog_parttypes"
+    if (iunbound>0): filename+=".unbound"
+    #load header
+    if (os.path.isfile(basefilename)==True):
+        numfiles=0
+    else:
+        filename=basefilename+".catalog_parttypes"
+        if (iunbound>0): filename+=".unbound"
+        filename+=".0"
+        inompi=False
+        if (os.path.isfile(filename)==False):
+            print "file not found"
+            return []
+    byteoffset=0
+    #load ascii file
+    halofile = open(filename, 'r')
+    #read header information
+    [filenum,numfiles]=halofile.readline().split()
+    filenum=int(filenum);numfiles=int(numfiles)
+    [numhalos, numtothalos]= halofile.readline().split()
+    numhalos=np.uint64(numhalos);numtothalos=np.uint64(numtothalos)
+    halofile.close()
+
+    for ifile in range(numfiles):
+        if (inompi==True): 
+            filename=basefilename+".catalog_parttypes"
+            hdffilename=basefilename+".hdf.catalog_parttypes"
+            if (iunbound>0): 
+                filename+=".unbound"
+                hdffilename+=".unbound"
+        else: 
+            filename=basefilename+".catalog_parttypes"
+            hdffilename=basefilename+".hdf.catalog_parttypes"
+            if (iunbound>0): 
+                filename+=".unbound"
+                hdffilename+=".unbound"
+            filename+="."+str(ifile)
+            hdffilename+="."+str(ifile)
+        if (iverbose) : print "reading ",filename
+        halofile = open(filename, 'r')
+        hdffile=h5py.File(hdffilename,'w')
+        [filenum,numfiles]=halofile.readline().split()
+        [numhalos, numtothalos]= halofile.readline().split()
+        filenum=int(filenum);numfiles=int(numfiles)
+        numhalos=np.uint64(numhalos);numtothalos=np.uint64(numtothalos)
+        #write header info
+        hdffile.create_dataset("File_id",data=np.array([filenum]))
+        hdffile.create_dataset("Num_of_files",data=np.array([numfiles]))
+        hdffile.create_dataset("Num_of_particles_in_groups",data=np.array([numhalos]));
+        hdffile.create_dataset("Total_num_of_particles_in_all_groups",data=np.array([numtothalos]));
+        halofile.close()
+        if (numhalos>0): cattemp = np.loadtxt(filename,skiprows=2).transpose()
+        else: cattemp=[]
+        hdffile.create_dataset("Particle_Types",data=np.array(cattemp,dtype=np.int64))
+        hdffile.close()
+    #if subhalos are written in separate files, then read them too
+    if (iseparatesubfiles==1):
+        for ifile in range(numfiles):
+            if (inompi==True): 
+                filename=basefilename+".sublevels"+".catalog_parttypes"
+                hdffilename=basefilename+".hdf"+".sublevels"+".catalog_parttypes"
+            else: 
+                filename=basefilename+".sublevels"+".catalog_parttypes"+"."+str(ifile)
+                hdffilename=basefilename+".hdf"+".sublevels"+".catalog_parttypes"+"."+str(ifile)
+            if (iverbose) : print "reading ",filename
+            halofile = open(filename, 'r')
+            hdffile=h5py.File(hdffilename,'w')
+            [filenum,numfiles]=halofile.readline().split()
+            [numhalos, numtothalos]= halofile.readline().split()
+            filenum=int(filenum);numfiles=int(numfiles)
+            numhalos=np.uint64(numhalos);numtothalos=np.uint64(numtothalos)
+            #write header info
+            hdffile.create_dataset("File_id",data=np.array([filenum]))
+            hdffile.create_dataset("Num_of_files",data=np.array([numfiles]))
+            hdffile.create_dataset("Num_of_particles_in_groups",data=np.array([numhalos]));
+            hdffile.create_dataset("Total_num_of_particles_in_all_groups",data=np.array([numtothalos]));
+            halofile.close()
+            if (numhalos>0): cattemp = np.loadtxt(filename,skiprows=2).transpose()
+            else: cattemp=[]
+            hdffile.create_dataset("Particle_Types",data=np.array(cattemp,dtype=np.int64))
+            hdffile.close()
+
+def ConvertASCIIToHDF(basefilename,iseparatesubfiles=0,itype=0,iverbose=0):
+    ConvertASCIIPropertyFileToHDF(basefilename,iseparatesubfiles,iverbose)
+    ConvertASCIICatalogGroupsFileToHDF(basefilename,iseparatesubfiles,iverbose)
+    ConvertASCIICatalogParticleFileToHDF(basefilename,0,iseparatesubfiles,iverbose)
+    ConvertASCIICatalogParticleFileToHDF(basefilename,1,iseparatesubfiles,iverbose)
+    if (itype==1):
+        ConvertASCIICatalogParticleTypeFileToHDF(basefilename,0,iseparatesubfiles,iverbose)
+        ConvertASCIICatalogParticleTypeFileToHDF(basefilename,1,iseparatesubfiles,iverbose)
+
