@@ -416,7 +416,7 @@ def BuildTemporalHeadTail(numsnaps,tree,nhalos,halodata,HALOIDVAL=1000000000000)
                         halodata[k]['RootTailSnap'][w2data]=k
                         #only set the roots tail if it has not been set before (ie: along the main branch of root halo)
                         #if it has been set then we are walking along a secondary branch of the root halo's tree
-                        if (halodata[rootsnap]['RootTail']==0):
+                        if (halodata[rootsnap]['RootTail'][j]==0):
                             halodata[rootsnap]['RootTail'][j]=haloid
                             halodata[rootsnap]['RootTailSnap'][j]=k
                         break
