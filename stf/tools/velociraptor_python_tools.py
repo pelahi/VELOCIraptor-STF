@@ -210,7 +210,7 @@ def ReadHaloMergerTree(treefilename,ibinary=0,iverbose=0):
         numsnap=int(treefile.readline())
         descrip=treefile.readline().strip()
         tothalos=int(treefile.readline())
-        tree=[{"tree": [], "Num_progen": [], "Progen": []} for i in range(numsnap)]
+        tree=[{"haloID": [], "Num_progen": [], "Progen": []} for i in range(numsnap)]
         offset=0
         totalnumprogen=0
         for i in range(numsnap-1):
@@ -515,7 +515,7 @@ def BuildTemporalHeadTail(numsnaps,tree,nhalos,halodata,HALOIDVAL=1000000000000)
                     headid,headsnap=halodata[halosnap]['Head'][haloindex],halodata[halosnap]['HeadSnap'][haloindex]
                     headtailid,headtailsnap=halodata[headsnap]['Tail'][headindex],halodata[headsnap]['TailSnap'][headindex]
 
-def ProduceUnifiedTreeandHaloCatalog(fname,numsnaps,tree,numhalos,halodata,ibuildheadtail=0):
+def ProduceUnifiedTreeandHaloCatalog(fname,numsnaps,tree,numhalos,halodata,atime,ibuildheadtail=0):
     """
 
     produces a unifed HDF5 formatted file containing the full catalog plus information to walk the tree
@@ -536,6 +536,7 @@ def ProduceUnifiedTreeandHaloCatalog(fname,numsnaps,tree,numhalos,halodata,ibuil
         hdffile.create_dataset("Num_of_snaps",data=np.array([numsnaps],dtype=np.uint32))
         hdffile.create_dataset("Num_of_groups",data=np.array([numhalos[i]],dtype=np.uint64))
         hdffile.create_dataset("Total_num_of_groups",data=np.array([totnumhalos],dtype=np.uint64))
+        hdffile.create_dataset("a_time",data=np.array([atime[i]],dtype=np.float64))
         for key in halos[i].keys():
             hdffile.create_dataset(key,data=halo[i][key])
         hdffile.close()
@@ -549,6 +550,39 @@ def ProduceUnifiedTreeandHaloCatalog(fname,numsnaps,tree,numhalos,halodata,ibuil
             snapgrp.create_dataset(key,data=tree[i][key])
     hdffile.close()
 
+def ReadUnifiedTreeandHaloCatalog(fname):
+    """
+    Read Unified Tree and halo catalog from HDF file with base filename fname
+    """
+    hdffile=h5py.File(fname+".snap_000.hdf.data",'r')
+    numsnaps=int(hdffile["Num_of_snaps"][0])
+    #get field names
+    fieldnames=[str(n) for n in hdffile.keys()]
+    #clean of header info
+    fieldnames.remove("Snap_value")
+    fieldnames.remove("Num_of_snaps")
+    fieldnames.remove("Num_of_groups")
+    fieldnames.remove("Total_num_of_groups")
+    fieldnames.remove("a_time")
+    hdffile.close()
+    halodata=[[] for i range(numsnaps)]
+    nhalos=[0 for i range(numsnaps)]
+    atime=[0 for i range(numsnaps)]
+    tree=[[] for i range(numsnaps)]
+    for i in range(numsnaps):
+        hdffile=h5py.File(fname+".snap_%03d.hdf.data"%(numsnaps-1-i),'r')
+        atime[i]=(hdffile["a_time"])[0]
+        nhalos[i]=(hdffile["Num_of_groups"])[0]
+        for catvalue in fieldnames:
+            halodata[i][catvalue]=np.array(halofile[catvalue])
+        hdffile.close()
+    hdffile=h5py.File(fname+".tree.hdf.data",'r')
+    treefields=["haloID", "Num_progen", "Progen"]
+    for i in range(numsnaps):
+        snapgrpname="Snap_%03d/"%(numsnaps-1-i)
+        for catvalue in treefields:
+            tree[i][catvalue]=np.array(hdffile[snapgrpname+catvalue])
+    hdffile.close()
 
 """
     Conversion Tools
