@@ -13,6 +13,9 @@ For python3 please search for all print statemetns and replace them with print()
 
 """
 
+"""
+    IO Routines
+"""
 
 def ReadPropertyFile(basefilename,ibinary=0,iseparatesubfiles=0,iverbose=0):
     """
@@ -241,7 +244,7 @@ def ReadHaloPropertiesAcrossSnapshots(numsnaps,snaplistfname,inputtype):
     print "reading data"
     #if there are a large number of snapshots to read, read in parallel
     if (numsnaps>5):
-            #determine maximum number of threads
+        #determine maximum number of threads
         nthreads=min(mp.cpu_count(),numsnaps)
         nchunks=int(np.ceil(numsnaps/float(nthreads)))
         print "Using", nthreads,"threads to parse ",numsnaps," snapshots in ",nchunks,"chunks"
@@ -337,6 +340,10 @@ def ReadCrossCatalogList(fname,meritlim=0.1,iverbose=0):
     if (iverbose): print "done reading cross catalog ",time.clock()-start
     return pdata
 
+"""
+    Routines to build a hierarchy structure (both spatially and temporally)
+"""
+
 def BuildHierarchy(halodata,iverbose=0):
     """
     the halo data stored in a velociraptor .properties file should store the id of its parent halo. Here 
@@ -367,12 +374,76 @@ def BuildHierarchy(halodata,iverbose=0):
     if (iverbose): print "hierarchy set in read in ",time.clock()-start
     return halohierarchy
 
+def TraceMainProgen(istart,ihalo,numsnaps,nhalos,halodata,tree,HALOIDVAL):
+    """
+    Follows a halo along three to identify main progenitor
+    """
+    #start at this snapshot
+    k=istart
+    #see if halo does not have a tail (descendant set).
+    if (halodata[k]['Tail'][ihalo]==0):
+        #if halo has not had a tail set the branch needs to be walked along the main branch
+        haloid=halodata[k]['ID'][ihalo]
+        #only set the head if it has not been set 
+        #otherwise it should have already been set and just need to store the root head
+        if (halodata[k]['Head'][ihalo]==0):
+            halodata[k]['Head'][ihalo]=haloid
+            halodata[k]['HeadSnap'][ihalo]=k
+            halodata[k]['RootHead'][ihalo]=haloid
+            halodata[k]['RootHeadSnap'][ihalo]=k
+            roothead,rootsnap=haloid,k
+        else:
+            roothead=halodata[k]['RootHead'][ihalo]
+            rootsnap=halodata[k]['RootHeadSnap'][ihalo]
+        #now move along tree first pass to store head and tails and root heads of main branch
+        while (True):
+            wdata=np.where(tree[k]['haloID']==haloid)
+            w2data=np.where(halodata[k]['ID']==haloid)[0][0]
+            #if no more progenitors, break from search
+            if (tree[k]['Num_progen'][wdata[0][0]]==0 or len(wdata[0])==0):
+                #store for current halo its tail and root tail info (also store root tail for root head)
+                halodata[k]['Tail'][w2data]=haloid
+                halodata[k]['TailSnap'][w2data]=k
+                halodata[k]['RootTail'][w2data]=haloid
+                halodata[k]['RootTailSnap'][w2data]=k
+                #only set the roots tail if it has not been set before (ie: along the main branch of root halo)
+                #if it has been set then we are walking along a secondary branch of the root halo's tree
+                if (halodata[rootsnap]['RootTail'][ihalo]==0):
+                    halodata[rootsnap]['RootTail'][ihalo]=haloid
+                    halodata[rootsnap]['RootTailSnap'][ihalo]=k
+                break
+
+            #store main progenitor
+            mainprog=tree[k]['Progen'][wdata[0][0]][0]
+            #calculate stepsize based on the halo ids 
+            stepsize=int(((haloid-haloid%HALOIDVAL)-(mainprog-mainprog%HALOIDVAL))/HALOIDVAL)
+            #store tail 
+            halodata[k]['Tail'][w2data]=mainprog
+            halodata[k]['TailSnap'][w2data]=k+stepsize
+            k+=stepsize
+
+            for progid in tree[k-stepsize]['Progen'][wdata[0][0]]:
+                wdata3=np.where(halodata[k]['ID']==progid)[0][0]
+                halodata[k]['Head'][wdata3]=haloid
+                halodata[k]['HeadSnap'][wdata3]=k-stepsize
+                halodata[k]['RootHead'][wdata3]=roothead
+                halodata[k]['RootHeadSnap'][wdata3]=rootsnap
+
+            #then store next progenitor
+            haloid=mainprog
+
+def TraceMainProgenParallelChunk(istart,ihalochunk,numsnaps,nhalos,halodata,tree,HALOIDVAL):
+    for ihalo in ihalochunk:
+        TraceMainProgen(istart,ihalo,numsnaps,nhalos,halodata,tree,HALOIDVAL)
+
 def BuildTemporalHeadTail(numsnaps,tree,nhalos,halodata,HALOIDVAL=1000000000000):
     """
     Adds for each halo its Head and Tail and stores Roothead and RootTail to the halo
     properties file
     HALOIDVAL is used to parse the halo ids and determine the step size between descendant and progenitor
     """
+
+    print "Building the Head/Tail for each halo"
     for k in range(numsnaps):
         halodata[k]['Head']=np.zeros(nhalos[k],dtype=np.int64)
         halodata[k]['Tail']=np.zeros(nhalos[k],dtype=np.int64)
@@ -385,60 +456,39 @@ def BuildTemporalHeadTail(numsnaps,tree,nhalos,halodata,HALOIDVAL=1000000000000)
     #for each snapshot identify halos that have not had their tail set
     #for these halos, the main branch must be walked
     for istart in range(numsnaps):
+
+        #determine maximum number of threads
+        chunksize=100 #have each thread handle this many halos at once
+        nthreads=int(min(mp.cpu_count(),ceil(nhalos[istart]/float(chunksize))))
+        nchunks=int(np.ceil(nhalos[istart]/float(chunksize)/float(nthreads)))
+        print "Using", nthreads,"threads to parse ",nhalos[istart]," halos in ",nchunks,"chunks, each of size", chunksize
+        #now for each chunk run a set of proceses
+        for j in range(nchunks):
+            offset=j*nthreads*chunksize
+            #if last chunk then must adjust nthreads
+            if (j==nchunks-1):
+                nthreads=int(ceil((nhalos[istart]-offset)/float(chunksize)))
+
+            halochunk=[range(offset+k*chunksize,offset+(k+1)*chunksize) for k in range(nthreads)]
+            #adjust last chunk
+            if (j==nchunks-1):
+                halochunk[-1]=range(offset+(nthreads-1)*chunksize,nhalos[istart])
+
+            #when calling a process pass not just a work queue but the pointers to where data should be stored
+            processes=[mp.Process(target=TraceMainProgenParallelChunk,args=(istart,halochunk[k],numsnaps,nhalos,halodata,tree,HALOIDVAL)) for k in range(nthreads)]
+            count=0
+            for p in processes:
+                p.start()
+                count+=1
+            for p in processes:
+                #join thread and see if still active
+                p.join()
+        """
         for j in range(nhalos[istart]):
             #start at this snapshot
             k=istart
-            #see if halo does not have a tail (descendant set).
-            if (halodata[k]['Tail'][j]==0):
-                #if halo has not had a tail set the branch needs to be walked along the main branch
-                haloid=halodata[k]['ID'][j]
-                #only set the head if it has not been set 
-                #otherwise it should have already been set and just need to store the root head
-                if (halodata[k]['Head'][j]==0):
-                    halodata[k]['Head'][j]=haloid
-                    halodata[k]['HeadSnap'][j]=k
-                    halodata[k]['RootHead'][j]=haloid
-                    halodata[k]['RootHeadSnap'][j]=k
-                    roothead,rootsnap=haloid,k
-                else:
-                    roothead=halodata[k]['RootHead'][j]
-                    rootsnap=halodata[k]['RootHeadSnap'][j]
-                #now move along tree first pass to store head and tails and root heads of main branch
-                while (True):
-                    wdata=np.where(tree[k]['haloID']==haloid)
-                    w2data=np.where(halodata[k]['ID']==haloid)[0][0]
-                    #if no more progenitors, break from search
-                    if (tree[k]['Num_progen'][wdata[0][0]]==0 or len(wdata[0])==0):
-                        #store for current halo its tail and root tail info (also store root tail for root head)
-                        halodata[k]['Tail'][w2data]=haloid
-                        halodata[k]['TailSnap'][w2data]=k
-                        halodata[k]['RootTail'][w2data]=haloid
-                        halodata[k]['RootTailSnap'][w2data]=k
-                        #only set the roots tail if it has not been set before (ie: along the main branch of root halo)
-                        #if it has been set then we are walking along a secondary branch of the root halo's tree
-                        if (halodata[rootsnap]['RootTail'][j]==0):
-                            halodata[rootsnap]['RootTail'][j]=haloid
-                            halodata[rootsnap]['RootTailSnap'][j]=k
-                        break
-
-                    #store main progenitor
-                    mainprog=tree[k]['Progen'][wdata[0][0]][0]
-                    #calculate stepsize based on the halo ids 
-                    stepsize=((haloid-haloid%HALOIDVAL)-(mainprog-mainprog%HALOIDVAL))/HALOIDVAL
-                    #store tail 
-                    halodata[k]['Tail'][w2data]=mainprog
-                    halodata[k]['TailSnap'][w2data]=k+stepsize
-                    k+=stepsize
-
-                    for progid in tree[k-stepsize]['Progen'][wdata[0][0]]:
-                        wdata3=np.where(halodata[k]['ID']==progid)[0][0]
-                        halodata[k]['Head'][wdata3]=haloid
-                        halodata[k]['HeadSnap'][wdata3]=k-stepsize
-                        halodata[k]['RootHead'][wdata3]=roothead
-                        halodata[k]['RootHeadSnap'][wdata3]=rootsnap
-
-                    #then store next progenitor
-                    haloid=mainprog
+            TraceMainProgen(istart,j,numsnaps,nhalos,halodata,tree,HALOIDVAL)
+        """
     #now have walked all the main branches and set the root head, head and tail values
     #and can set the root tail of all halos. Start at end of the tree and move in reverse setting the root tail
     #of a halo's head so long as that halo's tail is the current halo (main branch)
@@ -465,10 +515,45 @@ def BuildTemporalHeadTail(numsnaps,tree,nhalos,halodata,HALOIDVAL=1000000000000)
                     headid,headsnap=halodata[halosnap]['Head'][haloindex],halodata[halosnap]['HeadSnap'][haloindex]
                     headtailid,headtailsnap=halodata[headsnap]['Tail'][headindex],halodata[headsnap]['TailSnap'][headindex]
 
-def ProduceUnifiedTreeandHaloCatalog(fname,numsnaps,tree,halodata):
+def ProduceUnifiedTreeandHaloCatalog(fname,numsnaps,tree,numhalos,halodata,ibuildheadtail=0):
     """
+
     produces a unifed HDF5 formatted file containing the full catalog plus information to walk the tree
+    \ref BuildTemporalHeadTail must have been called before otherwise it is called.
+    Code produces a file for each snapshot
+    The keys are the same as that contained in the halo catalog dictionary with the addition of 
+    Num_of_snaps, and similar header info contain in the VELOCIraptor hdf files, ie Num_of_groups, Total_num_of_groups
+
+    \todo don't know if I should use multiprocessing here to write files in parallel. IO might not be ideal
+
     """
+    if (ibuildheadtail==1): 
+        BuildTemporalHeadTail(numsnaps,tree,nhalos,halodata)
+    totnumhalos=sum(numhalos)
+    for i in range(numsnaps):
+        hdffile=h5py.File(fname+".snap_%03d.hdf.data"%(numsnaps-1-i),'w')
+        hdffile.create_dataset("Snap_value",data=np.array([i],dtype=np.uint32))
+        hdffile.create_dataset("Num_of_snaps",data=np.array([numsnaps],dtype=np.uint32))
+        hdffile.create_dataset("Num_of_groups",data=np.array([numhalos[i]],dtype=np.uint64))
+        hdffile.create_dataset("Total_num_of_groups",data=np.array([totnumhalos],dtype=np.uint64))
+        for key in halos[i].keys():
+            hdffile.create_dataset(key,data=halo[i][key])
+        hdffile.close()
+    hdffile=h5py.File(fname+".tree.hdf.data",'w')
+    hdffile.create_dataset("Num_of_snaps",data=np.array([numsnaps],dtype=np.uint32))
+    hdffile.create_dataset("Total_num_of_groups",data=np.array([totnumhalos],dtype=np.uint64))
+    hdffile.create_dataset("Num_of_groups",data=np.array(numhalos],dtype=np.uint64))
+    for i in range(numsnaps):
+        snapgrp=hdffile.create_group("Snap_%03d"%(numsnaps-1-i))
+        for key in tree[i].keys():
+            snapgrp.create_dataset(key,data=tree[i][key])
+    hdffile.close()
+
+
+"""
+    Conversion Tools
+"""
+
 
 def ConvertASCIIPropertyFileToHDF(basefilename,iseparatesubfiles=0,iverbose=0):
     """
@@ -571,7 +656,6 @@ def ConvertASCIIPropertyFileToHDF(basefilename,iseparatesubfiles=0,iverbose=0):
                 else:
                     hdffile.create_dataset(fieldnames[ikeys],data=np.array(htemp[ikeys], dtype=np.float64))
             hdffile.close()
-
 
 def ConvertASCIICatalogGroupsFileToHDF(basefilename,iseparatesubfiles=0,iverbose=0):
     """
