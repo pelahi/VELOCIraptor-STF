@@ -521,7 +521,7 @@ def ConvertASCIIPropertyFileToHDF(basefilename,iseparatesubfiles=0,iverbose=0):
         hdffile.create_dataset("Total_num_of_groups",data=np.array([numtothalos]));
         halofile.close()
         if (numhalos>0): htemp = np.loadtxt(filename,skiprows=3).transpose()
-        else: htemp=[]
+        else: htemp=[[]for ikeys in range(len(fieldnames))]
         for ikeys in range(len(fieldnames)):
             if (fieldnames[ikeys]=="ID"):
                 hdffile.create_dataset(fieldnames[ikeys],data=np.array(htemp[ikeys],dtype=np.uint64))
@@ -558,7 +558,7 @@ def ConvertASCIIPropertyFileToHDF(basefilename,iseparatesubfiles=0,iverbose=0):
             hdffile.create_dataset("Total_num_of_groups",data=np.array([numtothalos]));
             halofile.close()
             if (numhalos>0): htemp = np.loadtxt(filename,skiprows=3).transpose()
-            else: htemp=[]
+            else: htemp=[[]for ikeys in range(len(fieldnames))]
             for ikeys in range(len(fieldnames)):
                 if (fieldnames[ikeys]=="ID"):
                     hdffile.create_dataset(fieldnames[ikeys],data=np.array(htemp[ikeys],dtype=np.uint64))
