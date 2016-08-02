@@ -542,7 +542,7 @@ def BuildTemporalHeadTail(numsnaps,tree,nhalos,halodata,HALOIDVAL=1000000000000,
             #rootheadid,rootheadsnap=halodata[k]['RootHead'][j],halodata[k]['RootHeadSnap'][j]
             roottailid,roottailsnap=halodata[k]['RootTail'][j],halodata[k]['RootTailSnap'][j]
             headid,headsnap=halodata[k]['Head'][j],halodata[k]['HeadSnap'][j]
-            if (roottailid==halodata[k]['ID'][j] and headeid!=halodata[k]['ID'][j]):
+            if (roottailid==halodata[k]['ID'][j] and headid!=halodata[k]['ID'][j]):
                 #headindex=np.where(halodata[headsnap]['ID']==headid)[0][0]
                 headindex=int(headid%HALOIDVAL)-1
                 headtailid,headtailsnap=halodata[headsnap]['Tail'][headindex],halodata[headsnap]['TailSnap'][headindex]
@@ -558,6 +558,8 @@ def BuildTemporalHeadTail(numsnaps,tree,nhalos,halodata,HALOIDVAL=1000000000000,
                     haloindex=int(haloid%HALOIDVAL)-1
                     halosnap=headsnap
                     headid,headsnap=halodata[halosnap]['Head'][haloindex],halodata[halosnap]['HeadSnap'][haloindex]
+                    headindex=int(headid%HALOIDVAL)-1
+                    #store the tail of the next head
                     headtailid,headtailsnap=halodata[headsnap]['Tail'][headindex],halodata[headsnap]['TailSnap'][headindex]
     print "Done building", time.clock()-totstart
 
