@@ -642,6 +642,7 @@ def ReadUnifiedTreeandHaloCatalog(fname):
     #treefields=["haloID", "Num_progen", "Progen"]
     for i in range(numsnaps):
         snapgrpname="Snap_%03d/"%(numsnaps-1-i)
+        tree[i]=dict()
         for catvalue in treefields:
             """
             if (catvalue==treefields[-1]):
