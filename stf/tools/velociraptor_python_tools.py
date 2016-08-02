@@ -451,6 +451,7 @@ def BuildTemporalHeadTail(numsnaps,tree,nhalos,halodata,HALOIDVAL=1000000000000,
     properties file
     HALOIDVAL is used to parse the halo ids and determine the step size between descendant and progenitor
     """
+    print "Building Temporal catalog with head and tails"
     for k in range(numsnaps):
         halodata[k]['Head']=np.zeros(nhalos[k],dtype=np.int64)
         halodata[k]['Tail']=np.zeros(nhalos[k],dtype=np.int64)
@@ -470,6 +471,8 @@ def BuildTemporalHeadTail(numsnaps,tree,nhalos,halodata,HALOIDVAL=1000000000000,
     else: iparallel=-1 #no parallel at all
     iparallel=-1
 
+    totstart=time.clock()
+
     if (iparallel==1):
         #need to copy halodata as this will be altered
         if (iverbose>0): print "copying halo"
@@ -478,7 +481,8 @@ def BuildTemporalHeadTail(numsnaps,tree,nhalos,halodata,HALOIDVAL=1000000000000,
         if (iverbose>0): print "done",time.clock()-start
 
     for istart in range(numsnaps):
-        if (iverbose>0): print "Starting from halos at ",istart
+        if (iverbose>0): print "Starting from halos at ",istart,"with",nhalos[istart]
+        if (nhalos[istart]==0): continue
         #if the number of halos is large then run in parallel
         if (nhalos[istart]>2*chunksize and iparallel==1):
             #determine maximum number of threads
@@ -507,7 +511,7 @@ def BuildTemporalHeadTail(numsnaps,tree,nhalos,halodata,HALOIDVAL=1000000000000,
                 for p in processes:
                     #join thread and see if still active
                     p.join()
-                if (iverbose>0): print (offset+j*nthreads*chunksize)/float(nhalos[istart])," done in",time.clock()-start
+                if (iverbose>1): print (offset+j*nthreads*chunksize)/float(nhalos[istart])," done in",time.clock()-start
         #otherwise just single
         else :
             #if first time entering non parallel section copy data back from parallel manager based structure to original data structure
@@ -519,13 +523,13 @@ def BuildTemporalHeadTail(numsnaps,tree,nhalos,halodata,HALOIDVAL=1000000000000,
                 #this is principly to minimize the amount of copying between manager based parallel structures and the halo/tree catalogs
                 iparallel=0
             start=time.clock()
-            chunksize=int(0.10*nhalos[istart])
+            chunksize=max(int(0.10*nhalos[istart]),10)
             for j in range(nhalos[istart]):
                 #start at this snapshot
                 #start=time.clock()
                 TraceMainProgen(istart,j,numsnaps,nhalos,halodata,tree,HALOIDVAL)
                 if (j%chunksize==0 and j>0):
-                    if (iverbose>0): print "done", j/float(nhalos[istart]), "in", time.clock()-start
+                    if (iverbose>1): print "done", j/float(nhalos[istart]), "in", time.clock()-start
                     start=time.clock()
     if (iverbose>0): print "done with first bit"
     #now have walked all the main branches and set the root head, head and tail values
@@ -555,6 +559,7 @@ def BuildTemporalHeadTail(numsnaps,tree,nhalos,halodata,HALOIDVAL=1000000000000,
                     halosnap=headsnap
                     headid,headsnap=halodata[halosnap]['Head'][haloindex],halodata[halosnap]['HeadSnap'][haloindex]
                     headtailid,headtailsnap=halodata[headsnap]['Tail'][headindex],halodata[headsnap]['TailSnap'][headindex]
+    print "Done building", time.clock()-totstart
 
 def ProduceUnifiedTreeandHaloCatalog(fname,numsnaps,tree,numhalos,halodata,atime,ibuildheadtail=0):
     """
