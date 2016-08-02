@@ -576,7 +576,7 @@ def ProduceUnifiedTreeandHaloCatalog(fname,numsnaps,tree,numhalos,halodata,atime
 
     """
     if (ibuildheadtail==1): 
-        BuildTemporalHeadTail(numsnaps,tree,nhalos,halodata)
+        BuildTemporalHeadTail(numsnaps,tree,numhalos,halodata)
     totnumhalos=sum(numhalos)
     for i in range(numsnaps):
         hdffile=h5py.File(fname+".snap_%03d.hdf.data"%(numsnaps-1-i),'w')
@@ -585,8 +585,8 @@ def ProduceUnifiedTreeandHaloCatalog(fname,numsnaps,tree,numhalos,halodata,atime
         hdffile.create_dataset("Num_of_groups",data=np.array([numhalos[i]],dtype=np.uint64))
         hdffile.create_dataset("Total_num_of_groups",data=np.array([totnumhalos],dtype=np.uint64))
         hdffile.create_dataset("a_time",data=np.array([atime[i]],dtype=np.float64))
-        for key in halos[i].keys():
-            hdffile.create_dataset(key,data=halo[i][key])
+        for key in halodata[i].keys():
+            hdffile.create_dataset(key,data=halodata[i][key])
         hdffile.close()
     hdffile=h5py.File(fname+".tree.hdf.data",'w')
     hdffile.create_dataset("Num_of_snaps",data=np.array([numsnaps],dtype=np.uint32))
