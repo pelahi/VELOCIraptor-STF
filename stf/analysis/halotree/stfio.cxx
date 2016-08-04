@@ -616,7 +616,7 @@ Int_t MPIReadHaloGroupCatalogDataParticleNum(char* infile, int mpi_ninput, int i
                 Fgroup.read((char*)numingroup,sizeof(Int_t)*nglocal);
                 for (Int_t i=0;i<nglocal;i++) TotalNumberofParticles+=numingroup[i];
             }
-            if (ibinary==INHDF) {
+            else if (ibinary==INHDF) {
                 dataset=Fhdfgroup.openDataSet(hdfnames.group[3]);
                 dataspace=dataset.getSpace();
                 data=::operator new(sizeof(unsigned int)*(nglocal+1))
@@ -638,7 +638,7 @@ Int_t MPIReadHaloGroupCatalogDataParticleNum(char* infile, int mpi_ninput, int i
                     Fsgroup.read((char*)numingroup,sizeof(Int_t)*nsglocal);
                     for (Int_t i=0;i<nsglocal;i++) TotalNumberofParticles+=numingroup[i];
                 }
-                if (ibinary==INHDF) {
+                else if (ibinary==INHDF) {
                     dataset=Fhdfsgroup.openDataSet(hdfnames.group[3]);
                     dataspace=dataset.getSpace();
                     data=::operator new(sizeof(unsigned int)*(nglocal+1))
