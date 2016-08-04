@@ -41,6 +41,8 @@ HaloTreeData *ReadData(Options &opt);
 HaloData *ReadHaloData(char *fname, Int_t &nhalos);
 ///Reads NIFTY AHF individual halo data file
 HaloData *ReadNIFTYData(char *fname, Int_t &nhalos, int idcorrectflag=0, int hidoffset=1);
+///Reads a Void catalog file
+HaloData *ReadVoidData(char *fname, Int_t &nhalos, int idcorrectflag=0, int hidoffset=1);
 ///Reads VELOCIraptor like Group Catalog Data. Can adjust so that only particles of some type are check for cross matching
 HaloData *ReadHaloGroupCatalogData(char* infile, Int_t &numhalos, int mpi_ninput=0, int ibinary=1, int ifieldhalos=1, int itypesort=ALLTYPEMATCH, int iverbose=0);
 //@}

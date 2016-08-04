@@ -99,8 +99,8 @@ HaloData *ReadVoidData(char* infile, Int_t &numhalos, int idcorrectflag, int hid
     long long idval;
     fstream Fin;
 
-    Fin.open(infile,"r");
-    (!Fin) {
+    Fin.open(infile,ios::in);
+    if (!Fin) {
       cerr<< "could not open "<<infile<<"\nABORTING\n";
       exit(1);
     }
@@ -138,7 +138,7 @@ HaloData *ReadVoidData(char* infile, Int_t &numhalos, int idcorrectflag, int hid
     }
     Fin.clear();
     Fin.seekg(0, ios::beg);
-    for(i=0; i<TotalNumberofHalos; i++) {Halo[i].Alloc(numingroup[i]);numingroup[i]=0;
+    for(i=0; i<TotalNumberofHalos; i++) {Halo[i].Alloc(numingroup[i]);numingroup[i]=0;}
     if (Fin.good())
     {
         while(getline(Fin,str)) 
@@ -149,7 +149,7 @@ HaloData *ReadVoidData(char* infile, Int_t &numhalos, int idcorrectflag, int hid
             if (type==VOIDSTYPE) Halo[haloid-1].ParticleID[numingroup[haloid-1]++]=idval+idvaloffset;
         }
     }
-    Fin.close()
+    Fin.close();
     numhalos=TotalNumberofHalos;
     return Halo;
 }
