@@ -332,7 +332,8 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
 
 ///reads a ramses file. If cosmological simulation uses cosmology (generally assuming LCDM or small deviations from this) to estimate the mean interparticle spacing
 ///and scales physical linking length passed by this distance. Also reads header and overrides passed cosmological parameters with ones stored in header.
-///\todo still need to have receives for non-reading threads
+///\todo need to implement the multiple reading threads send/receive to each other. An example of multiple read threads is seen in \ref gadgetio.cxx. It invovles
+///having read threads read files over again and store all particles that need to be sent to other read threads, then sending this info
 void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbaryons, Int_t nbaryons)
 {
     char buf[2000],buf1[2000],buf2[2000];
@@ -593,7 +594,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
             RAMSES_fortran_read(Fpartvel[i],&vtempchunk[idim*nchunk]);
         }
         RAMSES_fortran_read(Fpartmass[i],mtempchunk);
-        RAMSES_fortran_read(Fpartmass[i],idvalchunk);
+        RAMSES_fortran_read(Fpartid[i],idvalchunk);
         for (int nn=0;nn<nchunk;nn++) {
             xtemp[0]=xtempchunk[nn];xtemp[1]=xtempchunk[nn+nchunk];xtemp[2]=xtempchunk[nn+2*nchunk];
             vtemp[0]=vtempchunk[nn];vtemp[1]=vtempchunk[nn+nchunk];vtemp[2]=vtempchunk[nn+2*nchunk];
