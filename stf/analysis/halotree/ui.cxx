@@ -179,7 +179,7 @@ void usage(void)
     cerr<<DMGASTYPEMATCH<<" is both DM and GAS particle types, ";
     cerr<<",])\n";
     cerr<<"-S <significance of cross match relative to Poisson noise ("<<opt.mlsig<<")\n";
-    cerr<<"-I <Input format ("<<opt.ioformat<<" [Sussing "<<DSUSSING<<", normal cat "<<DCATALOG<<", nIFTY "<<DNIFTY<<" ])\n";
+    cerr<<"-I <Input format ("<<opt.ioformat<<" [Sussing "<<DSUSSING<<", normal cat "<<DCATALOG<<", nIFTY "<<DNIFTY<<", Void "<<DVOID<<" ])\n";
     cerr<<"-N <if output is split between multiple files due to mpi, number of files written ("<<opt.nmpifiles<<")>\n";
     cerr<<"-B <binary or ascii format ("<<opt.ibinary<<")>\n";
     cerr<<"-F <field objects in separate file ("<<opt.ifield<<")>\n";
