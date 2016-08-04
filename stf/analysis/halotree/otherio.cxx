@@ -84,3 +84,72 @@ HaloData *ReadNIFTYData(char* infile, Int_t &numhalos, int idcorrectflag, int hi
     fprintf(stderr,"done\n");
     return Halo;
 }
+
+
+///Read void data from an idividual snapshot;
+///This format is CellID, CellType, VoidID, ParticleID
+///note that a void consists of void AND sheet particles
+HaloData *ReadVoidData(char* infile, Int_t &numhalos, int idcorrectflag, int hidoffset)
+{
+    HaloData *Halo;
+    long unsigned i, j,nparts,haloid;
+    long unsigned TotalNumberofHalos;
+    long long idvaloffset=0;
+    int ncount=0,type;
+    long long idval;
+    fstream Fin;
+
+    Fin.open(infile,"r");
+    (!Fin) {
+      cerr<< "could not open "<<infile<<"\nABORTING\n";
+      exit(1);
+    }
+    else cout<<"reading "<<infile<<endl;
+    if (idvaloffset!=0) cout<<infile<<" offseting ids by "<<idvaloffset<<endl;
+    ///read the entire file to determine the number of lines (number of particles) and 
+    ///the maximum void id
+    string str;
+    nparts=0;
+    if (Fin.good())
+    {
+        while(getline(Fin,str)) 
+        {
+            istringstream ss(str);
+            //now have string parse it 
+            ss >> type >> type>> haloid>> idval;
+            if (haloid>TotalNumberofHalos) TotalNumberofHalos=haloid;
+            nparts++;
+        }
+    }
+    Fin.clear();
+    Fin.seekg(0, ios::beg);
+    Halo = new HaloData[TotalNumberofHalos];
+    int *numingroup=new int[TotalNumberofHalos];
+    for(i=0; i<TotalNumberofHalos; i++) numingroup[i]=0;
+    if (Fin.good())
+    {
+        while(getline(Fin,str)) 
+        {
+            istringstream ss(str);
+            //now have string parse it 
+            ss >> type >> type>> haloid>> idval;
+            if (type==VOIDSTYPE) numingroup[haloid-1]++;
+        }
+    }
+    Fin.clear();
+    Fin.seekg(0, ios::beg);
+    for(i=0; i<TotalNumberofHalos; i++) {Halo[i].Alloc(numingroup[i]);numingroup[i]=0;
+    if (Fin.good())
+    {
+        while(getline(Fin,str)) 
+        {
+            istringstream ss(str);
+            //now have string parse it 
+            ss >> type >> type>> haloid>> idval;
+            if (type==VOIDSTYPE) Halo[haloid-1].ParticleID[numingroup[haloid-1]++]=idval+idvaloffset;
+        }
+    }
+    Fin.close()
+    numhalos=TotalNumberofHalos;
+    return Halo;
+}

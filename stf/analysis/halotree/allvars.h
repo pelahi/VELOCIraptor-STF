@@ -69,8 +69,8 @@ using namespace NBody;
 /// \todo will have to alter this to allow for subvois possibly even subfilaments (though I'm not certain what the hell this would be)
 //@{
 #define HALOSTYPE 10
-#define WALLSTYPE 1
-#define VOIDSTYPE 2
+#define WALLSTYPE 2
+#define VOIDSTYPE 1
 #define FILAMENTSTYPE 3
 //@}
 
@@ -90,6 +90,7 @@ using namespace NBody;
 #define DSUSSING 1
 #define DCATALOG 2
 #define DNIFTY 3
+#define DVOID 4
 //@}
 
 /// \name operation/type of catalog
