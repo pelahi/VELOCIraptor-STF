@@ -546,6 +546,8 @@ Int_t MPIReadHaloGroupCatalogDataNum(char* infile, int mpi_ninput, int ibinary, 
 }
 
 ///Read the number of particles in halos from an idividual snapshot, useful for splitting snaphots across threads in load balanced fashion
+///\todo need to update the particle number to be just read from .catalog_particles and .catalog_particles.unbound directly
+///instead of looping over files and loading arrays
 Int_t MPIReadHaloGroupCatalogDataParticleNum(char* infile, int mpi_ninput, int ibinary, int ifieldhalos, int itypematch)
 {
     
