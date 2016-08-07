@@ -618,10 +618,10 @@ Int_t MPIReadHaloGroupCatalogDataParticleNum(char* infile, int mpi_ninput, int i
             }
 #ifdef USEHDF
             else if (ibinary==INHDF) {
-                dataset=Fhdfgroup.openDataSet(hdfnames.group[3]);
+                dataset=Fhdfgroup.openDataSet(hdfnames.group[4]);
                 dataspace=dataset.getSpace();
                 data=::operator new(sizeof(unsigned int)*(nglocal+1));
-                dataset.read(data,hdfnames.groupdatatype[3],dataspace);
+                dataset.read(data,hdfnames.groupdatatype[4],dataspace);
                 for (Int_t i=0;i<nglocal;i++) TotalNumberofParticles+=((unsigned int*)data)[i];
                 ::operator delete(data);
             }
