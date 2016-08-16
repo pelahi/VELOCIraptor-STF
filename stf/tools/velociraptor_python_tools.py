@@ -38,10 +38,10 @@ def ReadPropertyFile(basefilename,ibinary=0,iseparatesubfiles=0,iverbose=0):
 
     start = time.clock()
     inompi=True
-    if (iverbose): print "reading properties file",basefilename,os.path.isfile(basefilename)
+    if (iverbose): print "reading properties file",basefilename
     filename=basefilename+".properties"
     #load header
-    if (os.path.isfile(basefilename)==True):
+    if (os.path.isfile(filename)==True):
         numfiles=0
     else:
         filename=basefilename+".properties"+".0"
@@ -51,6 +51,8 @@ def ReadPropertyFile(basefilename,ibinary=0,iseparatesubfiles=0,iverbose=0):
             return []
     byteoffset=0
     #if ascii, binary or hdf5, first get field names
+    fieldnames=[]
+    fieldtype=[]
     if (ibinary==0):
         #load ascii file
         halofile = open(filename, 'r')
@@ -62,6 +64,16 @@ def ReadPropertyFile(basefilename,ibinary=0,iseparatesubfiles=0,iverbose=0):
         names = ((halofile.readline())).split()
         #remove the brackets in ascii file names 
         fieldnames= [fieldname.split("(")[0] for fieldname in names]
+        for i in np.arange(fieldnames.__len__()):
+            if fieldname in ["ID","hostHalo","numSubStruct","npart","n_gas","n_star"]:
+                dt.append((fieldname,np.uint64))
+                fieldtype.append(np.uint64)
+            elif fieldname in ["ID_mbp"]:
+                dt.append((fieldname,np.int64))
+                fieldtype.append(np.int64)
+            else:
+                dt.append((fieldname,np.float64))
+                fieldtype.append(np.float64)
         halofile.close()
     elif (ibinary==1):
         #load binary file
@@ -69,15 +81,19 @@ def ReadPropertyFile(basefilename,ibinary=0,iseparatesubfiles=0,iverbose=0):
         [filenum,numfiles]=np.fromfile(halofile,dtype=np.int32,count=2)
         [numhalos,numtothalos]=np.fromfile(halofile,dtype=np.uint64,count=2)
         headersize=np.fromfile(halofile,dtype=np.int32,count=1)[0]
-        fieldnames=[]
         byteoffset=np.dtype(np.int32).itemsize*3+np.dtype(np.uint64).itemsize*2+4*headersize
         for i in range(headersize):
             fieldnames.append(unpack('s', halofile.read(CHARSIZE)).strip())
         for i in np.arange(fieldnames.__len__()):
             if fieldname in ["ID","hostHalo","numSubStruct","npart","n_gas","n_star"]:
                 dt.append((fieldname,np.uint64))
+                fieldtype.append(np.uint64)
+            elif fieldname in ["ID_mbp"]:
+                dt.append((fieldname,np.int64))
+                fieldtype.append(np.int64)
             else:
                 dt.append((fieldname,np.float64))
+                fieldtype.append(np.float64)
         halofile.close()
     elif (ibinary==2):
         #load hdf file
@@ -92,11 +108,11 @@ def ReadPropertyFile(basefilename,ibinary=0,iseparatesubfiles=0,iverbose=0):
         fieldnames.remove("Num_of_files")
         fieldnames.remove("Num_of_groups")
         fieldnames.remove("Total_num_of_groups")
+        fieldtype=[halofile[fieldname].dtype for fieldname in fieldnames]
         halofile.close()
 
     #allocate memory that will store the halo dictionary
-    catalog = dict()
-    halos=[np.zeros(numtothalos) for catvalue in fieldnames]
+    catalog={fieldnames[i]:np.zeros(numtothalos,dtype=fieldtype[i]) for i in range(len(fieldnames))}
     noffset=0
     for ifile in range(numfiles):
         if (inompi==True): filename=basefilename+".properties"
@@ -124,7 +140,7 @@ def ReadPropertyFile(basefilename,ibinary=0,iseparatesubfiles=0,iverbose=0):
         #numhalos=len(htemp[0])
         for i in range(len(fieldnames)):
             catvalue=fieldnames[i]
-            if (numhalos>0):halos[i][noffset:noffset+numhalos]=htemp[i]
+            if (numhalos>0): catalog[catvalue][noffset:noffset+numhalos]=htemp[i]
         noffset+=numhalos
     #if subhalos are written in separate files, then read them too
     if (iseparatesubfiles==1):
@@ -153,18 +169,17 @@ def ReadPropertyFile(basefilename,ibinary=0,iseparatesubfiles=0,iverbose=0):
             #numhalos=len(htemp[0])
             for i in range(len(fieldnames)):
                 catvalue=fieldnames[i]
-                if (numhalos>0):halos[i][noffset:noffset+numhalos]=htemp[i]
+            if (numhalos>0): catalog[catvalue][noffset:noffset+numhalos]=htemp[i]
             noffset+=numhalos
 
-    #set dictionary
+    """
     for i in np.arange(fieldnames.__len__()):
         fieldname = fieldnames[i]
-        catalog[fieldname] = halos[i]
         #only correct data format for ascii loading
         if (ibinary==0):
             if fieldname in ["ID","hostHalo","numSubStruct","npart","n_gas","n_star"]:
                 catalog[fieldname] = int64(catalog[fieldname].round())
-
+    """
     if (iverbose): print "done reading properties file ",time.clock()-start
     return catalog,numtothalos
 
@@ -403,6 +418,7 @@ def TraceMainProgen(istart,ihalo,numsnaps,nhalos,halodata,tree,HALOIDVAL):
             #wdata=np.where(tree[k]['haloID']==haloid)
             #w2data=np.where(halodata[k]['ID']==haloid)[0][0]
             wdata=w2data=int(haloid%HALOIDVAL)-1
+            halodata[k]['Num_progen'][wdata]=tree[k]['Num_progen'][wdata]
             #if no more progenitors, break from search
             #if (tree[k]['Num_progen'][wdata[0][0]]==0 or len(wdata[0])==0):
             if (tree[k]['Num_progen'][wdata]==0):
@@ -461,6 +477,7 @@ def BuildTemporalHeadTail(numsnaps,tree,nhalos,halodata,HALOIDVAL=1000000000000,
         halodata[k]['RootTail']=np.zeros(nhalos[k],dtype=np.int64)
         halodata[k]['RootHeadSnap']=np.zeros(nhalos[k],dtype=np.int32)
         halodata[k]['RootTailSnap']=np.zeros(nhalos[k],dtype=np.int32)
+        halodata[k]['Num_progen']=np.zeros(nhalos[k],dtype=np.uint32)
     #for each snapshot identify halos that have not had their tail set
     #for these halos, the main branch must be walked
     #allocate python manager to wrapper the tree and halo catalog so they can be altered in parallel
@@ -563,7 +580,232 @@ def BuildTemporalHeadTail(numsnaps,tree,nhalos,halodata,HALOIDVAL=1000000000000,
                     headtailid,headtailsnap=halodata[headsnap]['Tail'][headindex],halodata[headsnap]['TailSnap'][headindex]
     print "Done building", time.clock()-totstart
 
-def ProduceUnifiedTreeandHaloCatalog(fname,numsnaps,tree,numhalos,halodata,atime,ibuildheadtail=0):
+def IdentifyMergers(numsnaps,tree,nhalos,halodata,MERGERMLIM=0.1,RADINFAC=1.2,RADINFAC=1.5,NPARTCUT=100, HALOIDVAL=1000000000000, iverbose=1):
+    """
+    Using head/tail info in halodata dictionary identify mergers based on distance and mass ratios
+    #todo still testing 
+
+    """
+    for j in range(numsnaps):
+        #store id and snap and mass of last major merger and while we're at it, store number of major mergers
+        halodata[j]["LastMerger"]=np.zeros(numhalos[j],dtype=np.uint64)
+        halodata[j]["LastMergerRatio"]=np.ones(numhalos[j],dtype=np.float64)*-1
+        halodata[j]["LastMergerSnap"]=np.zeros(numhalos[j],dtype=np.uint32)
+        halodata[j]["LastMergerDeltaSnap"]=np.zeros(numhalos[j],dtype=np.uint32)
+        #halodata[j]["NumMergers"]=np.zeros(numhalos[j],dtype=np.uint32)
+    #built KD tree to quickly search for near neighbours
+    pos=[[]for j in range(numsnaps)]
+    pos_tree=[[]for j in range(numsnaps)]
+    start=time.clock()
+    if (iverbose): print "tree build"
+
+    for j in range(numsnaps):
+        if (numhalos[j]>0):
+            boxval=boxsize*atime[j]/hval
+            pos[j]=np.transpose(np.asarray([halodata[j]["Xc"],halodata[j]["Yc"],halodata[j]["Zc"]]))
+            pos_tree[j]=spatial.cKDTree(pos[j],boxsize=boxval)
+    if (iverbose): print "done ",time.clock()-start
+    for j in range(numsnaps):
+        #at snapshot look at all haloes that have not had a major merger set
+        #note that only care about objects with certain number of particles
+        partcutwdata=np.where(halodata[j]["npart"]>=NPARTCUT)
+        hids=np.asarray(halodata[j]["ID"][np.where(halodata[j]["LastMergerRatio"][partcutwdata]==-1)],dtype=np.uint64)
+        start=time.clock()
+
+        for hidval in hids:
+            #now for each object get the main progenitor
+            haloid=np.uint64(hidval)
+            haloindex=int(haloid%HALOIDVAL-1)
+            halosnap=j
+            originalhaloid=haloid
+            progid=halodata[halosnap]["Tail"][haloindex]
+            progsnap=halodata[halosnap]["TailSnap"][haloindex]
+            progindex=int(progid%HALOIDVAL-1)
+            numprog=tree[halosnap]["Num_progen"][haloindex]
+
+            if (numprog==0 or halodata[progsnap]["LastMergerRatio"][progindex]!=-1): continue
+            #print "starting halos ",j, hidval
+            #halo has main branch which we can wander on
+            #while object is not its own progenitor move along tree to see how many major mergers it had across its history
+            while (progid!=haloid):
+                #only examine progenitors that have not had a merger flagged yet
+                if (halodata[progsnap]["LastMergerRatio"][progindex]!=-1): 
+                    #move to next step
+                    haloid=progid
+                    haloindex=progindex
+                    halosnap=progsnap
+                    progid=halodata[halosnap]["Tail"][haloindex]
+                    progsnap=halodata[halosnap]["TailSnap"][haloindex]
+                    progindex=int(progid%HALOIDVAL-1)
+                    continue
+
+                #now for each progenitor, lets find any nearby objects within a given mass/vmax interval
+                posval=[halodata[progsnap]["Xc"][progindex],halodata[progsnap]["Yc"][progindex],halodata[progsnap]["Zc"][progindex]]
+                radval=RADINFAC*halodata[progsnap]["R_200crit"][progindex]
+                #get neighbour list within RADINFAC sorted by mass with most massive first
+                NNlist=pos_tree[progsnap].query_ball_point(posval, radval)
+                NNlist=[NNlist[ij] for ij in np.argsort(halodata[progsnap]["Mass_tot"][NNlist])[::-1]]
+                #store boxval for periodic correction
+                boxval=boxsize*atime[progsnap]/hval
+                #now if list contains some objects, lets see if the velocity vectors are moving towards each other and mass/vmax ratios are okay
+                if (len(NNlist)>0):
+                    for NN in NNlist:
+                        if (NN!=progindex):
+                            mratio=halodata[progsnap]["Mass_tot"][NN]/halodata[progsnap]["Mass_tot"][progindex]
+                            vratio=halodata[progsnap]["Vmax"][NN]/halodata[progsnap]["Vmax"][progindex]
+                            #merger ratio is for object being larger of the two involved in merger
+                            if (mratio>MERGERMLIM and mratio<1.0):
+                                posvalrel=[halodata[progsnap]["Xc"][progindex]-halodata[progsnap]["Xc"][NN],halodata[progsnap]["Yc"][progindex]-halodata[progsnap]["Yc"][NN],halodata[progsnap]["Zc"][progindex]-halodata[progsnap]["Zc"][NN]]
+                                for ij in range(3):
+                                    if posvalrel[ij]<-0.5*boxval: posvalrel[ij]+=boxval
+                                    elif posvalrel[ij]>0.5*boxval: posvalrel[ij]-=boxval
+                                velvalrel=[halodata[progsnap]["VXc"][progindex]-halodata[progsnap]["VXc"][NN],halodata[progsnap]["VYc"][progindex]-halodata[progsnap]["VYc"][NN],halodata[progsnap]["VZc"][progindex]-halodata[progsnap]["VZc"][NN]]
+                                radvelval=np.dot(posvalrel,velvalrel)/np.linalg.norm(posvalrel)
+                                if (radvelval<0):
+                                    #merger is happending
+                                    #print "merger happening ", progsnap, NN
+
+                                    #question of whether should move down the tree till merger no longer happening and define that as the start
+                                    #this could also set the length of the merger
+                                    #lets move along the tree of the infalling neighbour still it object is past the some factor of progenitor virial radius
+                                    starthaloindex=progindex
+                                    starthaloid=progid
+                                    starthalosnap=progsnap
+                                    startmergerindex=NN
+                                    startmergerid=halodata[progsnap]["ID"][NN]
+                                    startmergersnap=progsnap
+                                    mergerstartindex=starthaloindex
+                                    mergerstartid=starthaloid
+                                    mergerstartsnap=starthalosnap
+                                    while (tree[starthalosnap]["Num_progen"][starthaloindex]>0 and tree[startmergersnap]["Num_progen"][startmergerindex]>0):
+                                        posvalrel=[halodata[starthalosnap]["Xc"][starthaloindex]-halodata[startmergersnap]["Xc"][startmergerindex],halodata[starthalosnap]["Yc"][starthaloindex]-halodata[startmergersnap]["Yc"][startmergerindex],halodata[starthalosnap]["Zc"][starthaloindex]-halodata[startmergersnap]["Zc"][startmergerindex]]
+                                        boxval=boxsize*atime[starthalosnap]/hval
+                                        for ij in range(3):
+                                            if posvalrel[ij]<-0.5*boxval: posvalrel[ij]+=boxval
+                                            elif posvalrel[ij]>0.5*boxval: posvalrel[ij]-=boxval
+                                        radval=np.linalg.norm(posvalrel)/halodata[starthalosnap]["R_200crit"][starthaloindex]
+                                        mratio=halodata[startmergersnap]["Mass_tot"][startmergerindex]/halodata[starthalosnap]["Mass_tot"][starthaloindex]
+
+                                        #as moving back if halo now outside or too small, stop search and define this as start of merger
+                                        if (radval>ROUTFAC or mratio<MERGERMLIM):
+                                            mergerstartindex=starthaloindex
+                                            mergerstartid=starthaloid
+                                            mergerstartsnap=starthalosnap
+                                            break
+
+                                        #move to next progenitors
+                                        nextidval=halodata[starthalosnap]["Tail"][starthaloindex]
+                                        nextsnapval=halodata[starthalosnap]["TailSnap"][starthaloindex]
+                                        nextindexval=int(nextidval%HALOIDVAL-1)
+                                        starthaloid=nextidval
+                                        starthalosnap=nextsnapval
+                                        starthaloindex=nextindexval
+
+                                        nextidval=halodata[startmergersnap]["Tail"][startmergerindex]
+                                        nextsnapval=halodata[startmergersnap]["TailSnap"][startmergerindex]
+                                        nextindexval=int(nextidval%HALOIDVAL-1)
+                                        startmergerid=nextidval
+                                        startmergersnap=nextsnapval
+                                        startmergerindex=nextindexval
+
+                                    #store timescale of merger
+                                    deltamergertime=(mergerstartsnap-progsnap)
+                                    #set this as the merger for all halos from this point onwards till reach head or halo with non-zero merger
+                                    merginghaloindex=mergerstartindex
+                                    merginghaloid=mergerstartid
+                                    merginghalosnap=mergerstartsnap
+                                    #print "Merger found ",progsnap,mergerstartsnap, halodata[progsnap]["Mass_tot"][NN]/halodata[progsnap]["Mass_tot"][progindex], 
+                                    #print halodata[startmergersnap]["Mass_tot"][startmergerindex]/halodata[starthalosnap]["Mass_tot"][starthaloindex]
+                                    #now set merger time for all later haloes unless an new merger has happened
+                                    while (merginghaloid!=halodata[progsnap]["RootHead"][progindex] and halodata[merginghalosnap]["LastMergerRatio"][merginghaloindex]==-1):
+                                        halodata[merginghalosnap]["LastMerger"][merginghaloindex]=halodata[progsnap]["ID"][NN]
+                                        halodata[merginghalosnap]["LastMergerRatio"][merginghaloindex]=halodata[progsnap]["Mass_tot"][NN]/halodata[progsnap]["Mass_tot"][progindex]
+                                        halodata[merginghalosnap]["LastMergerSnap"][merginghaloindex]=progsnap
+                                        halodata[merginghalosnap]["LastMergerDeltaSnap"][merginghaloindex]=deltamergertime
+
+                                        mergingnextid=halodata[merginghalosnap]["Head"][merginghaloindex]
+                                        mergingnextsnap=halodata[merginghalosnap]["HeadSnap"][merginghaloindex]
+                                        mergingnextindex=int(mergingnextid%HALOIDVAL-1)
+                                        merginghaloindex=mergingnextindex
+                                        merginghaloid=mergingnextid
+                                        merginghalosnap=mergingnextsnap
+                #move to next step
+                haloid=progid
+                haloindex=progindex
+                halosnap=progsnap
+                progid=halodata[halosnap]["Tail"][haloindex]
+                progsnap=halodata[halosnap]["TailSnap"][haloindex]
+                progindex=int(progid%HALOIDVAL-1)
+                numprog=tree[halosnap]["Num_progen"][haloindex]
+        if (iverbose): print "Done snap",j,time.clock()-start
+
+def AdjustforPeriod(numsnaps,boxsize,hval,atime,halodata,icomove=0):
+    """
+    Map halo positions from 0 to box size
+    """
+    for i in range(numsnaps):
+        if (icomove):
+            boxval=boxsize/hval
+        else:
+            boxval=boxsize*atime[i]/hval
+        wdata=np.where(halodata[i]["Xc"]<0)
+        halodata[i]["Xc"][wdata]+=boxval
+        wdata=np.where(halodata[i]["Yc"]<0)
+        halodata[i]["Yc"][wdata]+=boxval
+        wdata=np.where(halodata[i]["Zc"]<0)
+        halodata[i]["Zc"][wdata]+=boxval
+
+        wdata=np.where(halodata[i]["Xc"]>boxval)
+        halodata[i]["Xc"][wdata]-=boxval
+        wdata=np.where(halodata[i]["Yc"]>boxval)
+        halodata[i]["Yc"][wdata]-=boxval
+        wdata=np.where(halodata[i]["Zc"]>boxval)
+        halodata[i]["Zc"][wdata]-=boxval
+
+def AdjustComove(itocomovefromphysnumsnaps,numsnaps,atime,halodata,igas=0,istar=0):
+    """
+    Convert distances to/from physical from/to comoving
+    """
+    for i in range(numsnaps):
+        #if converting from comoving to physical
+        if (itocomovefromphysnumsnaps==1):
+            fac=atime[i]
+        #else converting from physical to comoving
+        else:
+            fac=1.0/atime[i]
+        #convert physical distances
+        halodata[i]["Xc"]*=fac
+        halodata[i]["Yc"]*=fac
+        halodata[i]["Zc"]*=fac
+        halodata[i]["Xcmbp"]*=fac
+        halodata[i]["Ycmbp"]*=fac
+        halodata[i]["Zcmbp"]*=fac
+
+        #sizes
+        halodata[i]["Rvir"]*=fac
+        halodata[i]["R_size"]*=fac
+        halodata[i]["R_200mean"]*=fac
+        halodata[i]["R_200crit"]*=fac
+        halodata[i]["R_BN97"]*=fac
+        halodata[i]["Rmax"]*=fac
+
+
+        #if gas
+        if (igas):
+            halodata[i]["Xc_gas"]*=fac
+            halodata[i]["Yc_gas"]*=fac
+            halodata[i]["Zc_gas"]*=fac
+            halodata[i]["R_HalfMass_gas"]*=fac
+
+        #if stars
+        if (istar):
+            halodata[i]["Xc_star"]*=fac
+            halodata[i]["Yc_star"]*=fac
+            halodata[i]["Zc_star"]*=fac
+            halodata[i]["R_HalfMass_star"]*=fac
+
+
+def ProduceUnifiedTreeandHaloCatalog(fname,numsnaps,tree,numhalos,halodata,atime,ibuildheadtail=0, icombinefile=1):
     """
 
     produces a unifed HDF5 formatted file containing the full catalog plus information to walk the tree
@@ -578,16 +820,29 @@ def ProduceUnifiedTreeandHaloCatalog(fname,numsnaps,tree,numhalos,halodata,atime
     if (ibuildheadtail==1): 
         BuildTemporalHeadTail(numsnaps,tree,numhalos,halodata)
     totnumhalos=sum(numhalos)
-    for i in range(numsnaps):
-        hdffile=h5py.File(fname+".snap_%03d.hdf.data"%(numsnaps-1-i),'w')
-        hdffile.create_dataset("Snap_value",data=np.array([i],dtype=np.uint32))
-        hdffile.create_dataset("Num_of_snaps",data=np.array([numsnaps],dtype=np.uint32))
-        hdffile.create_dataset("Num_of_groups",data=np.array([numhalos[i]],dtype=np.uint64))
-        hdffile.create_dataset("Total_num_of_groups",data=np.array([totnumhalos],dtype=np.uint64))
-        hdffile.create_dataset("a_time",data=np.array([atime[i]],dtype=np.float64))
-        for key in halodata[i].keys():
-            hdffile.create_dataset(key,data=halodata[i][key])
+    if (icombinefile==1):
+        hdffile=h5py.File(fname+".snap.hdf.data",'w')
+        for i in range(numsnaps):
+            snapgrp=hdffile.create_group("Snap_%03d"%(numsnaps-1-i))
+            snapgrp.create_dataset("Snap_value",data=np.array([i],dtype=np.uint32))
+            snapgrp.create_dataset("Num_of_snaps",data=np.array([numsnaps],dtype=np.uint32))
+            snapgrp.create_dataset("Num_of_groups",data=np.array([numhalos[i]],dtype=np.uint64))
+            snapgrp.create_dataset("Total_num_of_groups",data=np.array([totnumhalos],dtype=np.uint64))
+            snapgrp.create_dataset("a_time",data=np.array([atime[i]],dtype=np.float64))
+            for key in halodata[i].keys():
+                snapgrp.create_dataset(key,data=halodata[i][key])
         hdffile.close()
+    else:
+        for i in range(numsnaps):
+            hdffile=h5py.File(fname+".snap_%03d.hdf.data"%(numsnaps-1-i),'w')
+            hdffile.create_dataset("Snap_value",data=np.array([i],dtype=np.uint32))
+            hdffile.create_dataset("Num_of_snaps",data=np.array([numsnaps],dtype=np.uint32))
+            hdffile.create_dataset("Num_of_groups",data=np.array([numhalos[i]],dtype=np.uint64))
+            hdffile.create_dataset("Total_num_of_groups",data=np.array([totnumhalos],dtype=np.uint64))
+            hdffile.create_dataset("a_time",data=np.array([atime[i]],dtype=np.float64))
+            for key in halodata[i].keys():
+                hdffile.create_dataset(key,data=halodata[i][key])
+            hdffile.close()
 
     hdffile=h5py.File(fname+".tree.hdf.data",'w')
     hdffile.create_dataset("Num_of_snaps",data=np.array([numsnaps],dtype=np.uint32))
