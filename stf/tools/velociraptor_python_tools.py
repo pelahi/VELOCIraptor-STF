@@ -25,7 +25,7 @@ For python3 please search for all print statemetns and replace them with print()
     IO Routines
 """
 
-def ReadPropertyFile(basefilename,ibinary=0,iseparatesubfiles=0,iverbose=0):
+def ReadPropertyFile(basefilename,ibinary=0,iseparatesubfiles=0,iverbose=0, desiredfields=[]):
     """
     VELOCIraptor/STF files in ascii format contain 
     a header with 
@@ -118,6 +118,10 @@ def ReadPropertyFile(basefilename,ibinary=0,iseparatesubfiles=0,iverbose=0):
         fieldnames.remove("Total_num_of_groups")
         fieldtype=[halofile[fieldname].dtype for fieldname in fieldnames]
         halofile.close()
+    #if the desiredfields argument is passed only these fieds are loaded
+    if (len(desiredfields)>0): 
+        if (iverbose):print "Loading subset of all fields in property file ", len(desiredfields), " instead of ", len(fieldnames)
+        fieldnames=desiredfields
 
     #allocate memory that will store the halo dictionary
     catalog={fieldnames[i]:np.zeros(numtothalos,dtype=fieldtype[i]) for i in range(len(fieldnames))}
@@ -191,16 +195,16 @@ def ReadPropertyFile(basefilename,ibinary=0,iseparatesubfiles=0,iverbose=0):
     if (iverbose): print "done reading properties file ",time.clock()-start
     return catalog,numtothalos
 
-def ReadPropertyFileMultiWrapper(basefilename,index,halodata,numhalos,ibinary=0,iseparatesubfiles=0,iverbose=0):
+def ReadPropertyFileMultiWrapper(basefilename,index,halodata,numhalos,ibinary=0,iseparatesubfiles=0,iverbose=0,desiredfields=[]):
     """
     Wrapper for multithreaded reading
     """
     #call read routine and store the data 
-    halodata[index],numhalos[index]=ReadPropertyFile(basefilename,ibinary,iseparatesubfiles,iverbose)
+    halodata[index],numhalos[index]=ReadPropertyFile(basefilename,ibinary,iseparatesubfiles,iverbose,desiredfields)
 
-def ReadPropertyFileMultiWrapperNamespace(index,basefilename,ns,ibinary=0,iseparatesubfiles=0,iverbose=0):
+def ReadPropertyFileMultiWrapperNamespace(index,basefilename,ns,ibinary=0,iseparatesubfiles=0,iverbose=0,desiredfields=[]):
     #call read routine and store the data 
-    ns.hdata[index],ns.ndata[index]=ReadPropertyFile(basefilename,ibinary,iseparatesubfiles,iverbose)
+    ns.hdata[index],ns.ndata[index]=ReadPropertyFile(basefilename,ibinary,iseparatesubfiles,iverbose,desiredfields)
 
 def ReadHaloMergerTree(treefilename,ibinary=0,iverbose=0):
     """
@@ -261,7 +265,7 @@ def ReadHaloMergerTree(treefilename,ibinary=0,iverbose=0):
     if (iverbose): print "done reading tree file ",time.clock()-start
     return tree
 
-def ReadHaloPropertiesAcrossSnapshots(numsnaps,snaplistfname,inputtype,iseperatefiles,iverbose=0):
+def ReadHaloPropertiesAcrossSnapshots(numsnaps,snaplistfname,inputtype,iseperatefiles,iverbose=0,desiredfields=[]):
     """
     read halo data from snapshots listed in file with snaplistfname file name 
     """
@@ -294,7 +298,7 @@ def ReadHaloPropertiesAcrossSnapshots(numsnaps,snaplistfname,inputtype,iseperate
             if (j==nchunks-1):
                 nthreads=numsnaps-offset
             #when calling a process pass manager based proxies, which then are used to copy data back
-            processes=[mp.Process(target=ReadPropertyFileMultiWrapper,args=(catfilename[offset+k],k+offset,hdata,ndata,inputtype,iseparatefiles,iverbose)) for k in range(nthreads)]
+            processes=[mp.Process(target=ReadPropertyFileMultiWrapper,args=(catfilename[offset+k],k+offset,hdata,ndata,inputtype,iseparatefiles,iverbose,desiredfields)) for k in range(nthreads)]
             #start each process
             #store the state of each thread, alive or not, and whether it has finished
             activethreads=[[True,False] for k in range(nthreads)]
@@ -334,7 +338,7 @@ def ReadHaloPropertiesAcrossSnapshots(numsnaps,snaplistfname,inputtype,iseperate
         for j in range(0,numsnaps):
             catfilename=snapnamelist.readline().strip()+".properties"
             print "reading ", catfilename
-            halodata[i][j],ngtot[i][j] = ReadPropertyFile(catfilename,inputtype,iseparatefiles,iverbose)
+            halodata[i][j],ngtot[i][j] = ReadPropertyFile(catfilename,inputtype,iseparatefiles,iverbose,desiredfields)
     print "data read in ",time.clock()-start
     return halodata,ngtot
 
@@ -795,7 +799,8 @@ def IdentifyOrbits(numsnaps,tree,numhalos,halodata,boxsize,hval,atime,NPARTCUT=1
     OrbitID
     OrbitIDsnap
     NumOrbits
-    OrbitPeriod 
+    OrbitPeriodDeltaA
+    OrbitPeriodAstart 
     ClosestApproach
     MassAtAccretion
 
@@ -829,11 +834,11 @@ def IdentifyOrbits(numsnaps,tree,numhalos,halodata,boxsize,hval,atime,NPARTCUT=1
         halodata[j]["OrbitIDSnap"]=np.zeros(numhalos[j],dtype=np.int32)
         #store the number of orbits an object went around this host 
         halodata[j]["NumOrbits"]=np.ones(numhalos[j],dtype=np.float64)*-1
-        halodata[j]["OrbitPeriod"]=np.ones(numhalos[j],dtype=np.float64)*-1
+        halodata[j]["OrbitPeriodDeltaA"]=np.ones(numhalos[j],dtype=np.float64)*-1
+        halodata[j]["OrbitPeriodAstart"]=np.ones(numhalos[j],dtype=np.float64)*-1
         halodata[j]["ClosestApproach"]=np.ones(numhalos[j],dtype=np.float64)*-1
         #store accretion mass
         halodata[j]["MassAtAccretion"]=np.ones(numhalos[j],dtype=np.float64)*-1
-
 
         #store number of inward and outward crossing, makes it easy to identify backsplash galaxies
         halodata[j]["NumInwardCrossing_R1.0"]=np.zeros(numhalos[j],dtype=np.uint32)
@@ -898,6 +903,8 @@ def IdentifyOrbitsAtSnap(snapval, tree,numhalos,halodata,boxsize,hval,atime,NPAR
 
         #determine length of main branch
         proglength=GetProgenLength(halodata,haloindex,halosnap,haloid,atime,HALOIDVAL)
+        #only keep going along halos that have existed along enough
+        if (proglength<=10): continue
 
         haloid=mainhaloid
         halosnap=mainhalosnap
@@ -1050,7 +1057,6 @@ def GetHaloRelativeMotion(haloindexval,mainhaloid,mainhalosnap,mainhaloradval,ha
     radhalo=np.sqrt(poshalo[0]*poshalo[0]+poshalo[1]*poshalo[1]+poshalo[2]*poshalo[2])
     vrhalo=(poshalo[0]*poshalo[3]+poshalo[1]*poshalo[4]+poshalo[2]*poshalo[5])/radhalo
 
-
     #now have relative positions and velocities to construct orbits look at number of times object crosses particular 
     #boundaries
     haloindex=haloindexval
@@ -1060,11 +1066,20 @@ def GetHaloRelativeMotion(haloindexval,mainhaloid,mainhalosnap,mainhaloradval,ha
 
     #look at sign of radial velocity and determine if it switches at any point
     #first look if all vr are negative (first infall)
+    astart=aend=0
     if (len(np.where(vrhalo<0)[0])<proglength):
-        #halo has at least had turn around so for all radii within 1.5 mainhaloradval lets look at number of orbits
+        #halo has at least had turn around so for all radii within 2.0 mainhaloradval lets look at number of orbits
+        astart=atimehalo[0]
         for i in range(proglength-1):
-            if (vrhalo[i]*vrhalo[i+1]<=0 and radhalo[i]<1.5*mainhaloradval): 
+            #stop when all radii are further away than 2.0 * radial scale
+            if (np.sum(radhalo[i:]>=2.0*mainhaloradval)==proglength-i):
+                if (aend==0): aend=atimehalo[i]
+                break
+            if (vrhalo[i]*vrhalo[i+1]<=0): 
                 halodata[halosnap]["NumOrbits"][haloindex]+=0.5
+            if (halodata[halosnap]["NumOrbits"][haloindex]==1):aend=atimehalo[i]
+    halodata[halosnap]["OrbitPeriodAstart"][haloindex]=astart
+    halodata[halosnap]["OrbitPeriodDeltaA"][haloindex]=astart-aend
 
     #now with orbits, the radial distance as a function of time could be fit with a sinusoid 
     #with a decaying amplitude and a trend towards smaller radii
