@@ -27,7 +27,8 @@ For python3 please search for all print statemetns and replace them with print()
 
 def ReadPropertyFile(basefilename,ibinary=0,iseparatesubfiles=0,iverbose=0, desiredfields=[]):
     """
-    VELOCIraptor/STF files in ascii format contain 
+    VELOCIraptor/STF files in various formats
+    for example ascii format contains
     a header with 
         filenumber number_of_files
         numhalos_in_file nnumhalos_in_total
@@ -35,14 +36,15 @@ def ReadPropertyFile(basefilename,ibinary=0,iseparatesubfiles=0,iverbose=0, desi
         ID(1) ID_mbp(2) hostHaloID(3) numSubStruct(4) npart(5) Mvir(6) Xc(7) Yc(8) Zc(9) Xcmbp(10) Ycmbp(11) Zcmbp(12) VXc(13) VYc(14) VZc(15) VXcmbp(16) VYcmbp(17) VZcmbp(18) Mass_tot(19) Mass_FOF(20) Mass_200mean(21) Mass_200crit(22) Mass_BN97(23) Efrac(24) Rvir(25) R_size(26) R_200mean(27) R_200crit(28) R_BN97(29) R_HalfMass(30) Rmax(31) Vmax(32) sigV(33) veldisp_xx(34) veldisp_xy(35) veldisp_xz(36) veldisp_yx(37) veldisp_yy(38) veldisp_yz(39) veldisp_zx(40) veldisp_zy(41) veldisp_zz(42) lambda_B(43) Lx(44) Ly(45) Lz(46) q(47) s(48) eig_xx(49) eig_xy(50) eig_xz(51) eig_yx(52) eig_yy(53) eig_yz(54) eig_zx(55) eig_zy(56) eig_zz(57) cNFW(58) Krot(59) Ekin(60) Epot(61) n_gas(62) M_gas(63) Xc_gas(64) Yc_gas(65) Zc_gas(66) VXc_gas(67) VYc_gas(68) VZc_gas(69) Efrac_gas(70) R_HalfMass_gas(71) veldisp_xx_gas(72) veldisp_xy_gas(73) veldisp_xz_gas(74) veldisp_yx_gas(75) veldisp_yy_gas(76) veldisp_yz_gas(77) veldisp_zx_gas(78) veldisp_zy_gas(79) veldisp_zz_gas(80) Lx_gas(81) Ly_gas(82) Lz_gas(83) q_gas(84) s_gas(85) eig_xx_gas(86) eig_xy_gas(87) eig_xz_gas(88) eig_yx_gas(89) eig_yy_gas(90) eig_yz_gas(91) eig_zx_gas(92) eig_zy_gas(93) eig_zz_gas(94) Krot_gas(95) T_gas(96) Zmet_gas(97) SFR_gas(98) n_star(99) M_star(100) Xc_star(101) Yc_star(102) Zc_star(103) VXc_star(104) VYc_star(105) VZc_star(106) Efrac_star(107) R_HalfMass_star(108) veldisp_xx_star(109) veldisp_xy_star(110) veldisp_xz_star(111) veldisp_yx_star(112) veldisp_yy_star(113) veldisp_yz_star(114) veldisp_zx_star(115) veldisp_zy_star(116) veldisp_zz_star(117) Lx_star(118) Ly_star(119) Lz_star(120) q_star(121) s_star(122) eig_xx_star(123) eig_xy_star(124) eig_xz_star(125) eig_yx_star(126) eig_yy_star(127) eig_yz_star(128) eig_zx_star(129) eig_zy_star(130) eig_zz_star(131) Krot_star(132) tage_star(133) Zmet_star(134) 
 
     then followed by data
-    
+
     Note that a file will indicate how many files the total output has been split into
 
+    Not all fields need be read in. If only want specific fields, can pass a string of desired fields like 
+    ['ID', 'Mass_FOF', 'Krot']
+    #todo still need checks to see if fields not present. 
     """
     #this variable is the size of the char array in binary formated data that stores the field names
     CHARSIZE=40
-    #define a data type that matches the binary data structure written by io.cxx of velociraptor
-    dt = []
 
     start = time.clock()
     inompi=True
@@ -58,9 +60,11 @@ def ReadPropertyFile(basefilename,ibinary=0,iseparatesubfiles=0,iverbose=0, desi
             print "file not found"
             return []
     byteoffset=0
-    #if ascii, binary or hdf5, first get field names
+    #used to store fields, their type, etc
     fieldnames=[]
     fieldtype=[]
+    fieldindex=[]
+
     if (ibinary==0):
         #load ascii file
         halofile = open(filename, 'r')
@@ -73,16 +77,32 @@ def ReadPropertyFile(basefilename,ibinary=0,iseparatesubfiles=0,iverbose=0, desi
         #remove the brackets in ascii file names 
         fieldnames= [fieldname.split("(")[0] for fieldname in names]
         for i in np.arange(fieldnames.__len__()):
+            fieldname=fieldnames[i]
             if fieldname in ["ID","hostHalo","numSubStruct","npart","n_gas","n_star"]:
-                dt.append((fieldname,np.uint64))
                 fieldtype.append(np.uint64)
             elif fieldname in ["ID_mbp"]:
-                dt.append((fieldname,np.int64))
                 fieldtype.append(np.int64)
             else:
-                dt.append((fieldname,np.float64))
                 fieldtype.append(np.float64)
         halofile.close()
+        #if desiredfields is NULL load all fields
+        #but if this is passed load only those fields
+        if (len(desiredfields)>0): 
+            lend=len(desiredfields)
+            fieldindex=np.zeros(lend,dtype=int)
+            desiredfieldtype=[[] for i in range(lend)]
+            for i in range(lend):
+                fieldindex[i]=fieldnames.index(desiredfields[i])
+                desiredfieldtype[i]=fieldtype[fieldindex[i]]
+            fieldtype=desiredfieldtype
+            fieldnames=desiredfields
+        #to store the string containing data format
+        fieldtypestring=''
+        for i in np.arange(fieldnames.__len__()):
+            if fieldtype[i]==np.uint64: fieldtypestring+='u8,'
+            elif fieldtype[i]==np.int64: fieldtypestring+='i8,'
+            elif fieldtype[i]==np.float64: fieldtypestring+='f8,'
+
     elif (ibinary==1):
         #load binary file
         halofile = open(filename, 'rb')
@@ -93,16 +113,32 @@ def ReadPropertyFile(basefilename,ibinary=0,iseparatesubfiles=0,iverbose=0, desi
         for i in range(headersize):
             fieldnames.append(unpack('s', halofile.read(CHARSIZE)).strip())
         for i in np.arange(fieldnames.__len__()):
+            fieldname=fieldnames[i]
             if fieldname in ["ID","hostHalo","numSubStruct","npart","n_gas","n_star"]:
-                dt.append((fieldname,np.uint64))
                 fieldtype.append(np.uint64)
             elif fieldname in ["ID_mbp"]:
-                dt.append((fieldname,np.int64))
                 fieldtype.append(np.int64)
             else:
-                dt.append((fieldname,np.float64))
                 fieldtype.append(np.float64)
         halofile.close()
+        #if desiredfields is NULL load all fields
+        #but if this is passed load only those fields
+        if (len(desiredfields)>0): 
+            lend=len(desiredfields)
+            fieldindex=np.zeros(lend,dtype=int)
+            desiredfieldtype=[[] for i in range(lend)]
+            for i in range(lend):
+                fieldindex[i]=fieldnames.index(desiredfields[i])
+                desiredfieldtype[i]=fieldtype[fieldindex[i]]
+            fieldtype=desiredfieldtype
+            fieldnames=desiredfields
+        #to store the string containing data format
+        fieldtypestring=''
+        for i in np.arange(fieldnames.__len__()):
+            if fieldtype[i]==np.uint64: fieldtypestring+='u8,'
+            elif fieldtype[i]==np.int64: fieldtypestring+='i8,'
+            elif fieldtype[i]==np.float64: fieldtypestring+='f8,'
+
     elif (ibinary==2):
         #load hdf file
         halofile = h5py.File(filename, 'r')
@@ -117,11 +153,12 @@ def ReadPropertyFile(basefilename,ibinary=0,iseparatesubfiles=0,iverbose=0, desi
         fieldnames.remove("Num_of_groups")
         fieldnames.remove("Total_num_of_groups")
         fieldtype=[halofile[fieldname].dtype for fieldname in fieldnames]
+        #if the desiredfields argument is passed only these fieds are loaded
+        if (len(desiredfields)>0): 
+            if (iverbose):print "Loading subset of all fields in property file ", len(desiredfields), " instead of ", len(fieldnames)
+            fieldnames=desiredfields
+            fieldtype=[halofile[fieldname].dtype for fieldname in fieldnames]
         halofile.close()
-    #if the desiredfields argument is passed only these fieds are loaded
-    if (len(desiredfields)>0): 
-        if (iverbose):print "Loading subset of all fields in property file ", len(desiredfields), " instead of ", len(fieldnames)
-        fieldnames=desiredfields
 
     #allocate memory that will store the halo dictionary
     catalog={fieldnames[i]:np.zeros(numtothalos,dtype=fieldtype[i]) for i in range(len(fieldnames))}
@@ -135,13 +172,13 @@ def ReadPropertyFile(basefilename,ibinary=0,iseparatesubfiles=0,iverbose=0, desi
             halofile.readline()
             numhalos=np.uint64(halofile.readline().split()[0])
             halofile.close()
-            if (numhalos>0):htemp = np.loadtxt(filename,skiprows=3).transpose()
+            if (numhalos>0):htemp = np.loadtxt(filename,skiprows=3, usecols=fieldindex, dtype=fieldtypestring, unpack=True)
         elif(ibinary==1):
             halofile = open(filename, 'rb')
             np.fromfile(halofile,dtype=np.int32,count=2)
             numhalos=np.fromfile(halofile,dtype=np.uint64,count=2)[0]
             #halofile.seek(byteoffset);
-            if (numhalos>0):htemp=np.fromfile(halofile,dtype=dt).transpose()
+            if (numhalos>0):htemp=np.fromfile(halofile, usecols=fieldindex, dtype=fieldtypestring, unpack=True)
             halofile.close()
         elif(ibinary==2):
             #here convert the hdf information into a numpy array
@@ -165,13 +202,13 @@ def ReadPropertyFile(basefilename,ibinary=0,iseparatesubfiles=0,iverbose=0, desi
                 halofile.readline()
                 numhalos=np.uint64(halofile.readline().split()[0])
                 halofile.close()
-                if (numhalos>0):htemp = np.loadtxt(filename,skiprows=3).transpose()
+                if (numhalos>0):htemp = np.loadtxt(filename,skiprows=3, usecols=fieldindex, dtype=fieldtypestring, unpack=True)
             elif(ibinary==1):
                 halofile = open(filename, 'rb')
                 #halofile.seek(byteoffset);
                 np.fromfile(halofile,dtype=np.int32,count=2)
                 numhalos=np.fromfile(halofile,dtype=np.uint64,count=2)[0]
-                if (numhalos>0):htemp=np.fromfile(halofile,dtype=dt).transpose()
+                if (numhalos>0):htemp=np.fromfile(halofile, usecols=fieldindex, dtype=fieldtypestring, unpack=True)
                 halofile.close()
             elif(ibinary==2):
                 halofile = h5py.File(filename, 'r')
@@ -184,14 +221,6 @@ def ReadPropertyFile(basefilename,ibinary=0,iseparatesubfiles=0,iverbose=0, desi
             if (numhalos>0): catalog[catvalue][noffset:noffset+numhalos]=htemp[i]
             noffset+=numhalos
 
-    """
-    for i in np.arange(fieldnames.__len__()):
-        fieldname = fieldnames[i]
-        #only correct data format for ascii loading
-        if (ibinary==0):
-            if fieldname in ["ID","hostHalo","numSubStruct","npart","n_gas","n_star"]:
-                catalog[fieldname] = int64(catalog[fieldname].round())
-    """
     if (iverbose): print "done reading properties file ",time.clock()-start
     return catalog,numtothalos
 
