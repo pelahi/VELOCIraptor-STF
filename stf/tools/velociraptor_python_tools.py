@@ -3,9 +3,9 @@ import math,operator
 from pylab import *
 import numpy as np
 import h5py
-import multiprocessing as mp
 from copy import deepcopy
 from sklearn.neighbors import NearestNeighbors
+import scipy.interpolate as scipyinterp
 import scipy.spatial as spatial
 import multiprocessing as mp
 
@@ -832,6 +832,7 @@ def IdentifyOrbits(numsnaps,tree,numhalos,halodata,boxsize,hval,atime,NPARTCUT=1
     OrbitPeriodAstart 
     ClosestApproach
     MassAtAccretion
+    VmaxAtAccretion
 
     and some crossing data
 
@@ -868,6 +869,7 @@ def IdentifyOrbits(numsnaps,tree,numhalos,halodata,boxsize,hval,atime,NPARTCUT=1
         halodata[j]["ClosestApproach"]=np.ones(numhalos[j],dtype=np.float64)*-1
         #store accretion mass
         halodata[j]["MassAtAccretion"]=np.ones(numhalos[j],dtype=np.float64)*-1
+        halodata[j]["VmaxAtAccretion"]=np.ones(numhalos[j],dtype=np.float64)*-1
 
         #store number of inward and outward crossing, makes it easy to identify backsplash galaxies
         halodata[j]["NumInwardCrossing_R1.0"]=np.zeros(numhalos[j],dtype=np.uint32)
@@ -1040,6 +1042,7 @@ def GetHaloRelativeMotion(haloindexval,mainhaloid,mainhalosnap,mainhaloradval,ha
 
     poshalo=np.zeros([6,proglength])
     masshalo=np.zeros(proglength)
+    vmaxhalo=np.zeros(proglength)
     atimehalo=np.zeros(proglength)
     jhalo=np.zeros([proglength,3])
     proglength=0
@@ -1064,6 +1067,7 @@ def GetHaloRelativeMotion(haloindexval,mainhaloid,mainhalosnap,mainhaloradval,ha
         poshalo[4][proglength]=halodata[halosnap]["VYc"][haloindex]*afac-refpos[4]
         poshalo[5][proglength]=halodata[halosnap]["VZc"][haloindex]*afac-refpos[5]
         masshalo[proglength]=halodata[halosnap]["Mass_tot"][haloindex]
+        vmaxhalo[proglength]=halodata[halosnap]["Vmax"][haloindex]
         atimehalo[proglength]=atime[halosnap]
         jhalo[proglength]=np.cross([poshalo[0][proglength],poshalo[1][proglength],poshalo[2][proglength]],[poshalo[3][proglength],poshalo[4][proglength],poshalo[5][proglength]])
 
@@ -1146,6 +1150,7 @@ def GetHaloRelativeMotion(haloindexval,mainhaloid,mainhalosnap,mainhaloradval,ha
         #that is defined as the accretion point
         if (min(radhalo[i:])>mainhaloradval and halodata[halosnap]["MassAtAccretion"][haloindex]==0):
             halodata[halosnap]["MassAtAccretion"][haloindex]=masshalo[i]
+            halodata[halosnap]["VmaxAtAccretion"][haloindex]=vmaxhalo[i]
 
 
 """
@@ -1285,7 +1290,7 @@ def ReadUnifiedTreeandHaloCatalog(fname, icombinedfile=1):
         hdffile=h5py.File(fname+".snap.hdf.data",'r')
         #load data sets containing number of snaps
         numsnaps=int(hdffile["Num_of_snaps"][0])
-        halodata=[[] for i in range(numsnaps)]
+        halodata=[dict() for i in range(numsnaps)]
         numhalos=[0 for i in range(numsnaps)]
         atime=[0 for i in range(numsnaps)]
         tree=[[] for i in range(numsnaps)]
@@ -1293,11 +1298,11 @@ def ReadUnifiedTreeandHaloCatalog(fname, icombinedfile=1):
         #for each snap load the appropriate group 
         start=time.clock()
         for i in range(numsnaps):
-            snapgrpname="Snap_%03d"%(numsnaps-1-i)
+            snapgrpname="Snap_%03d/"%(numsnaps-1-i)
             atime[i]=(hdffile[snapgrpname+"a_time"])[0]
             numhalos[i]=(hdffile[snapgrpname+"Num_of_groups"])[0]
             #get field names
-            fieldnames=[str(n) for n in hdffile[snapgroupname].keys()]
+            fieldnames=[str(n) for n in hdffile[snapgrpname].keys()]
             fieldnames.remove("Num_of_groups")
             fieldnames.remove("a_time")
             fieldnames.remove("Snap_value")
