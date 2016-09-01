@@ -471,6 +471,8 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
 #endif
 
 #ifndef USEMPI
+    //init counters
+    count2=bcount2=0;
     //start loding particle data
     for(i=0; i<opt.num_files; i++) {
     if(ireadfile[i])
