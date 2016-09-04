@@ -50,9 +50,18 @@ using namespace H5;
 #define NHDFDATABLOCK 10
 ///here number shared by all particle types
 #define NHDFDATABLOCKALL 4
+//Maximum dimensionality of a datablock 
+///example at most one needs a dimensionality of 13 for the tracer particles in Illustris for fluid related info
+#define HDFMAXPROPDIM 13
+
+///\name labels for HDF naming conventions 
+//@{
 
 ///\name Structures for the HDF5 interface, primarily used to store the strings of Groups and DataSets
 //@{
+#define HDFILLUSTISNAMES 0 
+#define HDFGADGETXNAMES 1
+//@}
 
 ///This structures stores the strings defining the groups of data in the hdf input. NOTE: HERE I show the strings for Illustris format
 struct HDF_Group_Names {
@@ -139,7 +148,9 @@ struct HDF_Part_Info {
     H5std_string names[HDFMAXPINFO];
     int ptype;
     int nentries;
-    HDF_Part_Info(int PTYPE) {
+    //the HDF naming convenction for the data blocks. By default assumes ILLUSTRIS nameing convention
+    //for simplicity, all particles have basic properties listed first, x,v,ids,mass in this order
+    HDF_Part_Info(int PTYPE, int hdfnametype=HDFILLUSTISNAMES) {
         ptype=PTYPE;
         int itemp=0;
         if (ptype==HDFGASTYPE) {
@@ -150,29 +161,34 @@ struct HDF_Part_Info {
         names[itemp++]=H5std_string("Density");
         names[itemp++]=H5std_string("InternalEnergy");
         names[itemp++]=H5std_string("StarFormationRate");
-        names[itemp++]=H5std_string("ElectronAbundance");
-        names[itemp++]=H5std_string("NeutralHydrogenAbundance");
-        names[itemp++]=H5std_string("Volume");
-        names[itemp++]=H5std_string("SmoothingLength");
-        names[itemp++]=H5std_string("Potential");
-        names[itemp++]=H5std_string("SubfindDensity");
-        names[itemp++]=H5std_string("SubfindHsml");
-        names[itemp++]=H5std_string("SubfindVelDisp");
-        names[itemp++]=H5std_string("GFM_AGNRadiation");
-        names[itemp++]=H5std_string("GFM_CoolingRate");
-        names[itemp++]=H5std_string("GFM_Metallicity");
-        names[itemp++]=H5std_string("GFM_WindDMVelDisp");
-        names[itemp++]=H5std_string("NumTracers");
+        //always place the metacallity at position 7 in naming array
+        if (hdfnametype==HDFILLUSTISNAMES) {
+            names[itemp++]=H5std_string("GFM_Metallicity");
+            names[itemp++]=H5std_string("ElectronAbundance");
+            names[itemp++]=H5std_string("NeutralHydrogenAbundance");
+            names[itemp++]=H5std_string("Volume");
+            names[itemp++]=H5std_string("SmoothingLength");
+            names[itemp++]=H5std_string("Potential");
+            names[itemp++]=H5std_string("SubfindDensity");
+            names[itemp++]=H5std_string("SubfindHsml");
+            names[itemp++]=H5std_string("SubfindVelDisp");
+            names[itemp++]=H5std_string("GFM_AGNRadiation");
+            names[itemp++]=H5std_string("GFM_CoolingRate");
+            names[itemp++]=H5std_string("GFM_WindDMVelDisp");
+            names[itemp++]=H5std_string("NumTracers");
+        }
         nentries=itemp;
         }
         if (ptype==HDFDMTYPE) {
         names[itemp++]=H5std_string("Coordinates");
         names[itemp++]=H5std_string("Velocities");
         names[itemp++]=H5std_string("ParticleIDs");
-        names[itemp++]=H5std_string("Potential");
-        names[itemp++]=H5std_string("SubfindDensity");
-        names[itemp++]=H5std_string("SubfindHsml");
-        names[itemp++]=H5std_string("SubfindVelDisp");
+        if (hdfnametype==HDFILLUSTISNAMES) {
+            names[itemp++]=H5std_string("Potential");
+            names[itemp++]=H5std_string("SubfindDensity");
+            names[itemp++]=H5std_string("SubfindHsml");
+            names[itemp++]=H5std_string("SubfindVelDisp");
+        }
         nentries=itemp;
         }
         if (ptype==HDFTRACERTYPE) {
@@ -186,15 +202,18 @@ struct HDF_Part_Info {
         names[itemp++]=H5std_string("Velocities");
         names[itemp++]=H5std_string("ParticleIDs");
         names[itemp++]=H5std_string("Masses");
-        names[itemp++]=H5std_string("Potential");
-        names[itemp++]=H5std_string("SubfindDensity");
-        names[itemp++]=H5std_string("SubfindHsml");
-        names[itemp++]=H5std_string("SubfindVelDisp");
-        names[itemp++]=H5std_string("GFM_InitialMass");
-        names[itemp++]=H5std_string("GFM_Metallicity");
-        names[itemp++]=H5std_string("GFM_StellarFormationTime");
-        names[itemp++]=H5std_string("GFM_StellarPhotometrics");
-        names[itemp++]=H5std_string("NumTracers");
+        //for stars assume star formation and metallicy are position 4, 5 in name array
+        if (hdfnametype==HDFILLUSTISNAMES) {
+            names[itemp++]=H5std_string("GFM_StellarFormationTime");
+            names[itemp++]=H5std_string("GFM_Metallicity");
+            names[itemp++]=H5std_string("Potential");
+            names[itemp++]=H5std_string("SubfindDensity");
+            names[itemp++]=H5std_string("SubfindHsml");
+            names[itemp++]=H5std_string("SubfindVelDisp");
+            names[itemp++]=H5std_string("GFM_InitialMass");
+            names[itemp++]=H5std_string("GFM_StellarPhotometrics");
+            names[itemp++]=H5std_string("NumTracers");
+        }
         nentries=itemp;
         }
         if (ptype==HDFBHTYPE) {
@@ -202,23 +221,25 @@ struct HDF_Part_Info {
         names[itemp++]=H5std_string("Velocities");
         names[itemp++]=H5std_string("ParticleIDs");
         names[itemp++]=H5std_string("Masses");
-        names[itemp++]=H5std_string("HostHaloMass");
-        names[itemp++]=H5std_string("Potential");
-        names[itemp++]=H5std_string("SubfindDensity");
-        names[itemp++]=H5std_string("SubfindHsml");
-        names[itemp++]=H5std_string("SubfindVelDisp");
-        names[itemp++]=H5std_string("BH_CumEgyInjection_QM");
-        names[itemp++]=H5std_string("BH_CumMassGrowth_QM");
-        names[itemp++]=H5std_string("BH_Density");
-        names[itemp++]=H5std_string("BH_Hsml");
-        names[itemp++]=H5std_string("BH_Mass");
-        names[itemp++]=H5std_string("BH_Mass_bubbles");
-        names[itemp++]=H5std_string("BH_Mass_ini");
-        names[itemp++]=H5std_string("BH_Mdot");
-        names[itemp++]=H5std_string("BH_Pressure");
-        names[itemp++]=H5std_string("BH_Progs");
-        names[itemp++]=H5std_string("BH_U");
-        names[itemp++]=H5std_string("NumTracers");
+        if (hdfnametype==HDFILLUSTISNAMES) {
+            names[itemp++]=H5std_string("HostHaloMass");
+            names[itemp++]=H5std_string("Potential");
+            names[itemp++]=H5std_string("SubfindDensity");
+            names[itemp++]=H5std_string("SubfindHsml");
+            names[itemp++]=H5std_string("SubfindVelDisp");
+            names[itemp++]=H5std_string("BH_CumEgyInjection_QM");
+            names[itemp++]=H5std_string("BH_CumMassGrowth_QM");
+            names[itemp++]=H5std_string("BH_Density");
+            names[itemp++]=H5std_string("BH_Hsml");
+            names[itemp++]=H5std_string("BH_Mass");
+            names[itemp++]=H5std_string("BH_Mass_bubbles");
+            names[itemp++]=H5std_string("BH_Mass_ini");
+            names[itemp++]=H5std_string("BH_Mdot");
+            names[itemp++]=H5std_string("BH_Pressure");
+            names[itemp++]=H5std_string("BH_Progs");
+            names[itemp++]=H5std_string("BH_U");
+            names[itemp++]=H5std_string("NumTracers");
+        }
         nentries=itemp;
         }
     }
@@ -269,6 +290,7 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype)
 
         //Open the specified file and the specified dataset in the file.
         Fhdf.openFile(buf, H5F_ACC_RDONLY);
+        cout<<"Loading HDF header info in header group: "<<hdf_gnames.Header_name<<endl;
         //get header group 
         headergroup=Fhdf.openGroup(hdf_gnames.Header_name);
 
