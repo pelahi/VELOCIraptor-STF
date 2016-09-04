@@ -1223,7 +1223,7 @@ def AdjustComove(itocomovefromphysnumsnaps,numsnaps,atime,halodata,igas=0,istar=
             halodata[i]["R_HalfMass_star"]*=fac
 
 
-def ProduceUnifiedTreeandHaloCatalog(fname,numsnaps,tree,numhalos,halodata,atime,ibuildheadtail=0, icombinefile=1):
+def ProduceUnifiedTreeandHaloCatalog(fname,numsnaps,tree,numhalos,halodata,atime,cosmodata,unitdata,ibuildheadtail=0, icombinefile=1):
     """
 
     produces a unifed HDF5 formatted file containing the full catalog plus information to walk the tree
@@ -1240,8 +1240,21 @@ def ProduceUnifiedTreeandHaloCatalog(fname,numsnaps,tree,numhalos,halodata,atime
     totnumhalos=sum(numhalos)
     if (icombinefile==1):
         hdffile=h5py.File(fname+".snap.hdf.data",'w')
-        hdffile.create_dataset("Num_of_snaps",data=np.array([numsnaps],dtype=np.uint32))
-        hdffile.create_dataset("Total_num_of_groups",data=np.array([totnumhalos],dtype=np.uint64))
+        headergrp=hdffile.create_group("Header")
+        #store useful information such as number of snapshots, halos, 
+        #cosmology (Omega_m,Omega_b,Hubble_param,Omega_Lambda, Box size)
+        #units (Physical [1/0] for physical/comoving flag, length in Mpc, km/s, solar masses, Gravity
+        #and HALOIDVAL used to traverse tree information (converting halo ids to haloindex or snapshot), Reverse_order [1/0] for last snap listed first)
+        headergrp.create_dataset("Num_of_snaps",data=np.array([numsnaps],dtype=np.uint32))
+        headergrp.create_dataset("Total_num_of_groups",data=np.array([totnumhalos],dtype=np.uint64))
+        cosmogrp=headergrp.create_group("Cosmology")
+        for key in cosmodata.keys():
+            cosmogrp.create_dataset(key,data=np.array([cosmodata[keyval]))
+        unitgrp=headergrp.create_group("Units")
+        for key in unitdata.keys():
+            unitgrp.create_dataset(key,data=np.array([unitdata[keyval]))
+        #hdffile.create_dataset("Num_of_snaps",data=np.array([numsnaps],dtype=np.uint32))
+        #hdffile.create_dataset("Total_num_of_groups",data=np.array([totnumhalos],dtype=np.uint64))
         for i in range(numsnaps):
             snapgrp=hdffile.create_group("Snap_%03d"%(numsnaps-1-i))
             snapgrp.create_dataset("Snap_value",data=np.array([i],dtype=np.uint32))
@@ -1288,12 +1301,30 @@ def ReadUnifiedTreeandHaloCatalog(fname, icombinedfile=1):
     """
     if (icombinedfile):
         hdffile=h5py.File(fname+".snap.hdf.data",'r')
+
         #load data sets containing number of snaps
-        numsnaps=int(hdffile["Num_of_snaps"][0])
+        headergrpname="Header/"        
+        numsnaps=int(hdffile[headergrpname+"Num_of_snaps"][0])
+        
+        #allocate memory
         halodata=[dict() for i in range(numsnaps)]
         numhalos=[0 for i in range(numsnaps)]
         atime=[0 for i in range(numsnaps)]
         tree=[[] for i in range(numsnaps)]
+        cosmodata=dict()
+        unitdata=dict()
+
+        #load cosmology data
+        cosmogrpname="Cosmology/"
+        fieldnames=[str(n) for n in hdffile[snapgrpname+cosmogrpname].keys()]
+        for fieldname in fieldnames:
+            cosmodata[fieldname]=hdffile[headergrpname+cosmogrpname+fieldname][0]
+
+        #load unit data
+        unitgrpname="Units/"
+        fieldnames=[str(n) for n in hdffile[snapgrpname+unitgrpname].keys()]
+        for fieldname in fieldnames:
+            unitdata[fieldname]=hdffile[headergrpname+unitgrpname+fieldname][0]
 
         #for each snap load the appropriate group 
         start=time.clock()
@@ -1356,7 +1387,7 @@ def ReadUnifiedTreeandHaloCatalog(fname, icombinedfile=1):
             """
             tree[i][catvalue]=np.array(hdffile[snapgrpname+catvalue])
     hdffile.close()
-    return atime,tree,numhalos,halodata
+    return atime,tree,numhalos,halodata,cosmodata,unitdata
 
 """
     Conversion Tools
