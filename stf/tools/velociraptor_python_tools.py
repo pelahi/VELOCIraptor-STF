@@ -2,7 +2,9 @@ import sys,os,os.path,string,time,re,struct
 import math,operator
 from pylab import *
 import numpy as np
-import h5py
+import h5py #import hdf5 interface
+import tables as pytb #import pytables
+import pandas as pd
 from copy import deepcopy
 from sklearn.neighbors import NearestNeighbors
 import scipy.interpolate as scipyinterp
@@ -1223,7 +1225,11 @@ def AdjustComove(itocomovefromphysnumsnaps,numsnaps,atime,halodata,igas=0,istar=
             halodata[i]["R_HalfMass_star"]*=fac
 
 
-def ProduceUnifiedTreeandHaloCatalog(fname,numsnaps,tree,numhalos,halodata,atime,cosmodata,unitdata,ibuildheadtail=0, icombinefile=1):
+def ProduceUnifiedTreeandHaloCatalog(fname,numsnaps,tree,numhalos,halodata,atime,
+    cosmodata={'Omega_m':1.0, 'Omega_b':0., 'Omega_Lambda':0., 'Hubble_param':1.0,'BoxSize':1.0, 'Sigma8':1.0},
+    unitdata={'UnitLength_in_Mpc':1.0, 'UnitVelocity_in_kms':1.0,'UnitMass_in_Msol':1.0, 'Flag_physical_comoving':True,'Flag_hubble_flow':False},
+    partdata={'Flag_gas':False, 'Flag_star':False, 'Flag_bh':False},
+    ibuildheadtail=0, icombinefile=1):
     """
 
     produces a unifed HDF5 formatted file containing the full catalog plus information to walk the tree
@@ -1245,21 +1251,30 @@ def ProduceUnifiedTreeandHaloCatalog(fname,numsnaps,tree,numhalos,halodata,atime
         #cosmology (Omega_m,Omega_b,Hubble_param,Omega_Lambda, Box size)
         #units (Physical [1/0] for physical/comoving flag, length in Mpc, km/s, solar masses, Gravity
         #and HALOIDVAL used to traverse tree information (converting halo ids to haloindex or snapshot), Reverse_order [1/0] for last snap listed first)
-        headergrp.create_dataset("Num_of_snaps",data=np.array([numsnaps],dtype=np.uint32))
-        headergrp.create_dataset("Total_num_of_groups",data=np.array([totnumhalos],dtype=np.uint64))
+        #set the attributes of the header
+        headergrp.attrs["Nsnaps"]=numsnaps
+        #overall description
+        #simulation box size
+        
+        #cosmological params
         cosmogrp=headergrp.create_group("Cosmology")
         for key in cosmodata.keys():
-            cosmogrp.create_dataset(key,data=np.array([cosmodata[keyval]))
+            cosmogrp.attrs[key]=cosmodata[key]
+        #unit params
         unitgrp=headergrp.create_group("Units")
         for key in unitdata.keys():
-            unitgrp.create_dataset(key,data=np.array([unitdata[keyval]))
-        #hdffile.create_dataset("Num_of_snaps",data=np.array([numsnaps],dtype=np.uint32))
-        #hdffile.create_dataset("Total_num_of_groups",data=np.array([totnumhalos],dtype=np.uint64))
+            unitgrp.attrs[key]=unitdata[keyval]
+        #particle types 
+        partgrp=headergrp.create_group("Parttypes")
+        partgrp.attrs["Flag_gas"]=descripdata["Flag_gas"]
+        partgrp.attrs["Flag_star"]=descripdata["Flag_star"]
+        partgrp.attrs["Flag_bh"]=descripdata["Flag_bh"]
+
         for i in range(numsnaps):
             snapgrp=hdffile.create_group("Snap_%03d"%(numsnaps-1-i))
-            snapgrp.create_dataset("Snap_value",data=np.array([i],dtype=np.uint32))
-            snapgrp.create_dataset("Num_of_groups",data=np.array([numhalos[i]],dtype=np.uint64))
-            snapgrp.create_dataset("a_time",data=np.array([atime[i]],dtype=np.float64))
+            snapgrp.attrs["Snap_num"]=i
+            snapgrp.["Num_of_groups"]=numhalos[i]
+            snapgrp.attrs["scalefactor"]=atime[i]
             for key in halodata[i].keys():
                 snapgrp.create_dataset(key,data=halodata[i][key])
         hdffile.close()
@@ -1293,6 +1308,224 @@ def ProduceUnifiedTreeandHaloCatalog(fname,numsnaps,tree,numhalos,halodata,atime
             """
             if (key=="Progen"): continue
             snapgrp.create_dataset(key,data=tree[i][key])
+    hdffile.close()
+
+def ProduceCombinedUnifiedTreeandHaloCatalog(fname,numsnaps,tree,numhalos,halodata,atime,
+    descripdata={'Title':'Tree and Halo catalog of sim', 'VELOCIraptor_version':1.15, 'Tree_version':1.1, 'Particle_num_threshold':20, 'Temporal_linking_length':1},
+    cosmodata={'Omega_m':1.0, 'Omega_b':0., 'Omega_Lambda':0., 'Hubble_param':1.0,'BoxSize':1.0, 'Sigma8':1.0},
+    unitdata={'UnitLength_in_Mpc':1.0, 'UnitVelocity_in_kms':1.0,'UnitMass_in_Msol':1.0, 'Flag_physical_comoving':True,'Flag_hubble_flow':False},
+    partdata={'Flag_gas':False, 'Flag_star':False, 'Flag_bh':False},
+    ibuildheadtail=0,ibuildmajormergers=0, HALOIDVAL=1000000000000):
+
+    """
+    produces a unifed HDF5 formatted file containing the full catalog plus information to walk the tree
+    \ref BuildTemporalHeadTail must have been called before otherwise it is called.
+    Code produces a file for each snapshot
+    The keys are the same as that contained in the halo catalog dictionary with the addition of 
+    Num_of_snaps, and similar header info contain in the VELOCIraptor hdf files, ie Num_of_groups, Total_num_of_groups
+
+    \todo don't know if I should use multiprocessing here to write files in parallel. IO might not be ideal
+    
+    Here the halodata is the dictionary contains the information
+
+    """
+    #define haloprop class used by pytables
+    
+    
+    if (ibuildheadtail==1): 
+        BuildTemporalHeadTail(numsnaps,tree,numhalos,halodata)
+    if (ibuildmajormergers==1): 
+        IdentifyMergers(numsnaps,tree,numhalos,halodata,boxsize,hval,atime)
+    hdffile=h5py.File(fname+".snap.hdf.data",'w')
+    headergrp=hdffile.create_group("Header")
+    #store useful information such as number of snapshots, halos, 
+    #cosmology (Omega_m,Omega_b,Hubble_param,Omega_Lambda, Box size)
+    #units (Physical [1/0] for physical/comoving flag, length in Mpc, km/s, solar masses, Gravity
+    #and HALOIDVAL used to traverse tree information (converting halo ids to haloindex or snapshot), Reverse_order [1/0] for last snap listed first)
+    #set the attributes of the header
+    headergrp.attrs["Nsnaps"]=numsnaps
+    #overall description
+    headergrp.attrs["Title"]=descripdata["Title"]
+    #simulation box size
+    headergrp.attrs["BoxSize"]=cosmodata["BoxSize"]
+    findergrp=headergrp.create_group("HaloFinder")
+    findergrp.attrs["Name"]="VELOCIraptor"
+    findergrp.attrs["Version"]=descripdata["VELOCIraptor_version"]
+    findergrp.attrs["Particle_num_threshold"]=descripdata["Particle_num_threshold"]
+    
+    treebuildergrp=headergrp.create_group("TreeBuilder")
+    treebuildergrp.attrs["Name"]="VELOCIraptor-Tree"
+    treebuildergrp.attrs["Version"]=descripdata["Tree_version"]
+    treebuildergrp.attrs["Temporal_linking_length"]=descripdata["Temporal_linking_length"]
+    
+    #cosmological params
+    cosmogrp=headergrp.create_group("Cosmology")
+    for key in cosmodata.keys():
+        if (key!='BoxSize'): cosmogrp.attrs[key]=cosmodata[key]
+    #unit params
+    unitgrp=headergrp.create_group("Units")
+    for key in unitdata.keys():
+        unitgrp.attrs[key]=unitdata[keyval]
+    #particle types 
+    partgrp=headergrp.create_group("Parttypes")
+    partgrp.attrs["Flag_gas"]=descripdata["Flag_gas"]
+    partgrp.attrs["Flag_star"]=descripdata["Flag_star"]
+    partgrp.attrs["Flag_bh"]=descripdata["Flag_bh"]
+
+    #now have finished with header
+
+    #now need to create groups for halos and then a group containing tree information
+    snapsgrp=hdffile.create_group("Snapshots")
+    #internal tree keys
+    treekeys=["RootHead", "RootHeadSnap", "Head", "HeadSnap", "Tail", "TailSnap", "RootTail", "RootTailSnap", "Num_progen"]
+
+    for i in range(numsnaps):
+        #note that I normally have information in reverse order so that might be something in the units
+        snapgrp=snapsgrp.create_group("Snap_%03d"%(numsnaps-1-i))
+        snapgrp.attrs["Snapnum"]=i
+        snapgrp.attrs["NHalos"]=numhalos[i]
+        snapgrp.attrs["scalefactor"]=atime[i]
+    #now close file and use the pytables interface so as to write the table
+    hdffile.close()
+    #now write tables using pandas interface
+    for i in range(numsnaps):
+        #lets see if we can alter the code to write a table
+        keys=halodata[i].keys()
+        #remove tree keys
+        for tkey in treekeys: keys.remove(tkey)
+        #make temp dict
+        dictval=dict()
+        for key in keys:
+            dictval[key]=halodata[k][key]
+        #make a pandas DataFrame using halo dictionary
+        df=pd.DataFrame.from_dict(dictval)
+        df.to_hdf(fname+".snap.hdf.data","Snapshots/Snap_%03d/Halos"%(numsnaps-1-i), format='table', mode='a')
+
+    #reopen with h5py interface
+    hdffile=h5py.File(fname+".snap.hdf.data",'a')
+    #then write tree information in separate group
+    treegrp=hdffile.create_group("MergerTree")
+    #Tree group should contain  
+    """
+        HaloSnapID
+        HaloSnapNum
+        HaloSnapIndex
+        ProgenitorIndex
+        ProgenitorSnapnum
+        ProgenitorID
+        DescendantIndex
+        ..
+        ..
+        RootProgenitorIndex
+        ..
+        ..
+        RootDescendantIndex
+    """
+    #to save on memory, allocate each block separately
+    #store halo information
+    tothalos=sum(numhalos)
+    tdata=np.array(tothalos,dtype=halodata[0]["ID"].dtype)
+    count=0
+    for i in range(numsnaps):
+        tdata[count:numhalos[i]+count]=halodata[i]["ID"]
+        count+=numhalos[i]
+    treegrp.create_dataset("HaloSnapID",data=tdata)        
+    tdata=np.array(tothalos,dtype=np.uint32)
+    count=0
+    for i in range(numsnaps):
+        tdata[count:numhalos[i]+count]=i
+        count+=numhalos[i]
+    treegrp.create_dataset("HaloSnapNum",data=tdata)        
+    tdata=np.array(tothalos,dtype=np.uint64)
+    count=0
+    for i in range(numsnaps):
+        tdata[count:numhalos[i]+count]=range(numhalos[i])
+        count+=numhalos[i]
+    treegrp.create_dataset("HaloSnapIndex",data=tdata)
+    #store progenitors
+    tdata=np.array(tothalos,dtype=halodata[0]["Tail"].dtype)
+    count=0
+    for i in range(numsnaps):
+        tdata[count:numhalos[i]+count]=halodata[i]["Tail"]
+        count+=numhalos[i]
+    treegrp.create_dataset("ProgenitorID",data=tdata)
+    tdata=np.array(tothalos,dtype=halodata[0]["TailSnap"].dtype)
+    count=0
+    for i in range(numsnaps):
+        tdata[count:numhalos[i]+count]=halodata[i]["TailSnap"]
+        count+=numhalos[i]
+    treegrp.create_dataset("ProgenitorSnapnum",data=tdata)
+    tdata=np.array(tothalos,dtype=np.uint64)
+    count=0
+    for i in range(numsnaps):
+        tdata[count:numhalos[i]+count]=(halodata[i]["Tail"]%HALOIDVAL-1)
+        count+=numhalos[i]
+    treegrp.create_dataset("ProgenitorIndex",data=tdata)
+    #store descendants
+    tdata=np.array(tothalos,dtype=halodata[0]["Head"].dtype)
+    count=0
+    for i in range(numsnaps):
+        tdata[count:numhalos[i]+count]=halodata[i]["Head"]
+        count+=numhalos[i]
+    treegrp.create_dataset("DescendantID",data=tdata)
+    tdata=np.array(tothalos,dtype=halodata[0]["HeadSnap"].dtype)
+    count=0
+    for i in range(numsnaps):
+        tdata[count:numhalos[i]+count]=halodata[i]["HeadSnap"]
+        count+=numhalos[i]
+    treegrp.create_dataset("DescendantSnapnum",data=tdata)
+    tdata=np.array(tothalos,dtype=np.uint64)
+    count=0
+    for i in range(numsnaps):
+        tdata[count:numhalos[i]+count]=(halodata[i]["Head"]%HALOIDVAL-1)
+        count+=numhalos[i]
+    treegrp.create_dataset("DescendantIndex",data=tdata)
+    #store progenitors
+    tdata=np.array(tothalos,dtype=halodata[0]["RootTail"].dtype)
+    count=0
+    for i in range(numsnaps):
+        tdata[count:numhalos[i]+count]=halodata[i]["RootTail"]
+        count+=numhalos[i]
+    treegrp.create_dataset("RootProgenitorID",data=tdata)
+    tdata=np.array(tothalos,dtype=halodata[0]["RootTailSnap"].dtype)
+    count=0
+    for i in range(numsnaps):
+        tdata[count:numhalos[i]+count]=halodata[i]["RootTailSnap"]
+        count+=numhalos[i]
+    treegrp.create_dataset("RootProgenitorSnapnum",data=tdata)
+    tdata=np.array(tothalos,dtype=np.uint64)
+    count=0
+    for i in range(numsnaps):
+        tdata[count:numhalos[i]+count]=(halodata[i]["RootTail"]%HALOIDVAL-1)
+        count+=numhalos[i]
+    treegrp.create_dataset("RootProgenitorIndex",data=tdata)
+    #store descendants
+    tdata=np.array(tothalos,dtype=halodata[0]["RootHead"].dtype)
+    count=0
+    for i in range(numsnaps):
+        tdata[count:numhalos[i]+count]=halodata[i]["RootHead"]
+        count+=numhalos[i]
+    treegrp.create_dataset("RootDescendantID",data=tdata)
+    tdata=np.array(tothalos,dtype=halodata[0]["RootHeadSnap"].dtype)
+    count=0
+    for i in range(numsnaps):
+        tdata[count:numhalos[i]+count]=halodata[i]["RootHeadSnap"]
+        count+=numhalos[i]
+    treegrp.create_dataset("RootDescendantSnapnum",data=tdata)
+    tdata=np.array(tothalos,dtype=np.uint64)
+    count=0
+    for i in range(numsnaps):
+        tdata[count:numhalos[i]+count]=(halodata[i]["RootHead"]%HALOIDVAL-1)
+        count+=numhalos[i]
+    treegrp.create_dataset("RootDescendantIndex",data=tdata)
+    #store number of progenitors
+    tdata=np.array(tothalos,dtype=np.uint32)
+    count=0
+    for i in range(numsnaps):
+        tdata[count:numhalos[i]+count]=halodata[i]["Num_progen"]
+        count+=numhalos[i]
+    treegrp.create_dataset("NProgen",data=tdata)
+    
     hdffile.close()
 
 def ReadUnifiedTreeandHaloCatalog(fname, icombinedfile=1):
