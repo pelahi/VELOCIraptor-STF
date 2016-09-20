@@ -1537,7 +1537,7 @@ def ReadUnifiedTreeandHaloCatalog(fname, icombinedfile=1):
 
         #load data sets containing number of snaps
         headergrpname="Header/"        
-        numsnaps=int(hdffile[headergrpname+"Num_of_snaps"][0])
+        numsnaps=hdffile[headergrpname].attrs["Num_of_snaps"]
         
         #allocate memory
         halodata=[dict() for i in range(numsnaps)]
@@ -1549,29 +1549,26 @@ def ReadUnifiedTreeandHaloCatalog(fname, icombinedfile=1):
 
         #load cosmology data
         cosmogrpname="Cosmology/"
-        fieldnames=[str(n) for n in hdffile[snapgrpname+cosmogrpname].keys()]
+        fieldnames=[str(n) for n in hdffile[snapgrpname+cosmogrpname].attrs.keys()]
         for fieldname in fieldnames:
-            cosmodata[fieldname]=hdffile[headergrpname+cosmogrpname+fieldname][0]
+            cosmodata[fieldname]=hdffile[headergrpname+cosmogrpname].attrs[fieldname]
 
         #load unit data
         unitgrpname="Units/"
-        fieldnames=[str(n) for n in hdffile[snapgrpname+unitgrpname].keys()]
+        fieldnames=[str(n) for n in hdffile[snapgrpname+unitgrpname].atrs.keys()]
         for fieldname in fieldnames:
-            unitdata[fieldname]=hdffile[headergrpname+unitgrpname+fieldname][0]
+            unitdata[fieldname]=hdffile[headergrpname+unitgrpname.attrs[fieldname]
 
         #for each snap load the appropriate group 
         start=time.clock()
         for i in range(numsnaps):
             snapgrpname="Snap_%03d/"%(numsnaps-1-i)
-            atime[i]=(hdffile[snapgrpname+"a_time"])[0]
-            numhalos[i]=(hdffile[snapgrpname+"Num_of_groups"])[0]
-            #get field names
+            isnap=hdffile[snapgrpname].attrs["Snap_num"]
+            atime[isnap]=hdffile[snapgrpname].attrs["scalefactor"]
+            numhalos[isnap]=hdffile[snapgrpname].attrs["NHalos"]
             fieldnames=[str(n) for n in hdffile[snapgrpname].keys()]
-            fieldnames.remove("Num_of_groups")
-            fieldnames.remove("a_time")
-            fieldnames.remove("Snap_value")
             for catvalue in fieldnames:
-                halodata[i][catvalue]=np.array(hdffile[snapgrpname+catvalue])
+                halodata[isnap][catvalue]=np.array(hdffile[snapgrpname+catvalue])
         hdffile.close()
         print "read halo data ",time.clock()-start
     else :
