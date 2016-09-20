@@ -1226,6 +1226,7 @@ def AdjustComove(itocomovefromphysnumsnaps,numsnaps,atime,halodata,igas=0,istar=
 
 
 def ProduceUnifiedTreeandHaloCatalog(fname,numsnaps,tree,numhalos,halodata,atime,
+    descripdata={'Title':'Tree and Halo catalog of sim', 'VELOCIraptor_version':1.15, 'Tree_version':1.1, 'Particle_num_threshold':20, 'Temporal_linking_length':1, 'Flag_gas':False, 'Flag_star':False, 'Flag_bh':False},
     cosmodata={'Omega_m':1.0, 'Omega_b':0., 'Omega_Lambda':0., 'Hubble_param':1.0,'BoxSize':1.0, 'Sigma8':1.0},
     unitdata={'UnitLength_in_Mpc':1.0, 'UnitVelocity_in_kms':1.0,'UnitMass_in_Msol':1.0, 'Flag_physical_comoving':True,'Flag_hubble_flow':False},
     partdata={'Flag_gas':False, 'Flag_star':False, 'Flag_bh':False},
@@ -1252,7 +1253,7 @@ def ProduceUnifiedTreeandHaloCatalog(fname,numsnaps,tree,numhalos,halodata,atime
         #units (Physical [1/0] for physical/comoving flag, length in Mpc, km/s, solar masses, Gravity
         #and HALOIDVAL used to traverse tree information (converting halo ids to haloindex or snapshot), Reverse_order [1/0] for last snap listed first)
         #set the attributes of the header
-        headergrp.attrs["Nsnaps"]=numsnaps
+        headergrp.attrs["NSnaps"]=numsnaps
         #overall description
         #simulation box size
         
@@ -1263,7 +1264,7 @@ def ProduceUnifiedTreeandHaloCatalog(fname,numsnaps,tree,numhalos,halodata,atime
         #unit params
         unitgrp=headergrp.create_group("Units")
         for key in unitdata.keys():
-            unitgrp.attrs[key]=unitdata[keyval]
+            unitgrp.attrs[key]=unitdata[key]
         #particle types 
         partgrp=headergrp.create_group("Parttypes")
         partgrp.attrs["Flag_gas"]=descripdata["Flag_gas"]
@@ -1273,7 +1274,7 @@ def ProduceUnifiedTreeandHaloCatalog(fname,numsnaps,tree,numhalos,halodata,atime
         for i in range(numsnaps):
             snapgrp=hdffile.create_group("Snap_%03d"%(numsnaps-1-i))
             snapgrp.attrs["Snap_num"]=i
-            snapgrp.["Num_of_groups"]=numhalos[i]
+            snapgrp.attrs["Num_of_groups"]=numhalos[i]
             snapgrp.attrs["scalefactor"]=atime[i]
             for key in halodata[i].keys():
                 snapgrp.create_dataset(key,data=halodata[i][key])
@@ -1311,7 +1312,7 @@ def ProduceUnifiedTreeandHaloCatalog(fname,numsnaps,tree,numhalos,halodata,atime
     hdffile.close()
 
 def ProduceCombinedUnifiedTreeandHaloCatalog(fname,numsnaps,tree,numhalos,halodata,atime,
-    descripdata={'Title':'Tree and Halo catalog of sim', 'VELOCIraptor_version':1.15, 'Tree_version':1.1, 'Particle_num_threshold':20, 'Temporal_linking_length':1},
+    descripdata={'Title':'Tree and Halo catalog of sim', 'VELOCIraptor_version':1.15, 'Tree_version':1.1, 'Particle_num_threshold':20, 'Temporal_linking_length':1, 'Flag_gas':False, 'Flag_star':False, 'Flag_bh':False},
     cosmodata={'Omega_m':1.0, 'Omega_b':0., 'Omega_Lambda':0., 'Hubble_param':1.0,'BoxSize':1.0, 'Sigma8':1.0},
     unitdata={'UnitLength_in_Mpc':1.0, 'UnitVelocity_in_kms':1.0,'UnitMass_in_Msol':1.0, 'Flag_physical_comoving':True,'Flag_hubble_flow':False},
     partdata={'Flag_gas':False, 'Flag_star':False, 'Flag_bh':False},
@@ -1343,7 +1344,7 @@ def ProduceCombinedUnifiedTreeandHaloCatalog(fname,numsnaps,tree,numhalos,haloda
     #units (Physical [1/0] for physical/comoving flag, length in Mpc, km/s, solar masses, Gravity
     #and HALOIDVAL used to traverse tree information (converting halo ids to haloindex or snapshot), Reverse_order [1/0] for last snap listed first)
     #set the attributes of the header
-    headergrp.attrs["Nsnaps"]=numsnaps
+    headergrp.attrs["NSnaps"]=numsnaps
     #overall description
     headergrp.attrs["Title"]=descripdata["Title"]
     #simulation box size
@@ -1365,7 +1366,7 @@ def ProduceCombinedUnifiedTreeandHaloCatalog(fname,numsnaps,tree,numhalos,haloda
     #unit params
     unitgrp=headergrp.create_group("Units")
     for key in unitdata.keys():
-        unitgrp.attrs[key]=unitdata[keyval]
+        unitgrp.attrs[key]=unitdata[key]
     #particle types 
     partgrp=headergrp.create_group("Parttypes")
     partgrp.attrs["Flag_gas"]=descripdata["Flag_gas"]
@@ -1396,7 +1397,7 @@ def ProduceCombinedUnifiedTreeandHaloCatalog(fname,numsnaps,tree,numhalos,haloda
         #make temp dict
         dictval=dict()
         for key in keys:
-            dictval[key]=halodata[k][key]
+            dictval[key]=halodata[i][key]
         #make a pandas DataFrame using halo dictionary
         df=pd.DataFrame.from_dict(dictval)
         df.to_hdf(fname+".snap.hdf.data","Snapshots/Snap_%03d/Halos"%(numsnaps-1-i), format='table', mode='a')
@@ -1424,106 +1425,106 @@ def ProduceCombinedUnifiedTreeandHaloCatalog(fname,numsnaps,tree,numhalos,haloda
     #to save on memory, allocate each block separately
     #store halo information
     tothalos=sum(numhalos)
-    tdata=np.array(tothalos,dtype=halodata[0]["ID"].dtype)
+    tdata=np.zeros(tothalos,dtype=halodata[0]["ID"].dtype)
     count=0
     for i in range(numsnaps):
-        tdata[count:numhalos[i]+count]=halodata[i]["ID"]
-        count+=numhalos[i]
+        tdata[count:int(numhalos[i])+count]=halodata[i]["ID"]
+        count+=int(numhalos[i])
     treegrp.create_dataset("HaloSnapID",data=tdata)        
-    tdata=np.array(tothalos,dtype=np.uint32)
+    tdata=np.zeros(tothalos,dtype=np.uint32)
     count=0
     for i in range(numsnaps):
-        tdata[count:numhalos[i]+count]=i
-        count+=numhalos[i]
+        tdata[count:int(numhalos[i])+count]=i
+        count+=int(numhalos[i])
     treegrp.create_dataset("HaloSnapNum",data=tdata)        
-    tdata=np.array(tothalos,dtype=np.uint64)
+    tdata=np.zeros(tothalos,dtype=np.uint64)
     count=0
     for i in range(numsnaps):
-        tdata[count:numhalos[i]+count]=range(numhalos[i])
-        count+=numhalos[i]
+        tdata[count:int(numhalos[i])+count]=range(int(numhalos[i]))
+        count+=int(numhalos[i])
     treegrp.create_dataset("HaloSnapIndex",data=tdata)
     #store progenitors
-    tdata=np.array(tothalos,dtype=halodata[0]["Tail"].dtype)
+    tdata=np.zeros(tothalos,dtype=halodata[0]["Tail"].dtype)
     count=0
     for i in range(numsnaps):
-        tdata[count:numhalos[i]+count]=halodata[i]["Tail"]
-        count+=numhalos[i]
+        tdata[count:int(numhalos[i])+count]=halodata[i]["Tail"]
+        count+=int(numhalos[i])
     treegrp.create_dataset("ProgenitorID",data=tdata)
-    tdata=np.array(tothalos,dtype=halodata[0]["TailSnap"].dtype)
+    tdata=np.zeros(tothalos,dtype=halodata[0]["TailSnap"].dtype)
     count=0
     for i in range(numsnaps):
-        tdata[count:numhalos[i]+count]=halodata[i]["TailSnap"]
-        count+=numhalos[i]
+        tdata[count:int(numhalos[i])+count]=halodata[i]["TailSnap"]
+        count+=int(numhalos[i])
     treegrp.create_dataset("ProgenitorSnapnum",data=tdata)
-    tdata=np.array(tothalos,dtype=np.uint64)
+    tdata=np.zeros(tothalos,dtype=np.uint64)
     count=0
     for i in range(numsnaps):
-        tdata[count:numhalos[i]+count]=(halodata[i]["Tail"]%HALOIDVAL-1)
-        count+=numhalos[i]
+        tdata[count:int(numhalos[i])+count]=(halodata[i]["Tail"]%HALOIDVAL-1)
+        count+=int(numhalos[i])
     treegrp.create_dataset("ProgenitorIndex",data=tdata)
     #store descendants
-    tdata=np.array(tothalos,dtype=halodata[0]["Head"].dtype)
+    tdata=np.zeros(tothalos,dtype=halodata[0]["Head"].dtype)
     count=0
     for i in range(numsnaps):
-        tdata[count:numhalos[i]+count]=halodata[i]["Head"]
-        count+=numhalos[i]
+        tdata[count:int(numhalos[i])+count]=halodata[i]["Head"]
+        count+=int(numhalos[i])
     treegrp.create_dataset("DescendantID",data=tdata)
-    tdata=np.array(tothalos,dtype=halodata[0]["HeadSnap"].dtype)
+    tdata=np.zeros(tothalos,dtype=halodata[0]["HeadSnap"].dtype)
     count=0
     for i in range(numsnaps):
-        tdata[count:numhalos[i]+count]=halodata[i]["HeadSnap"]
-        count+=numhalos[i]
+        tdata[count:int(numhalos[i])+count]=halodata[i]["HeadSnap"]
+        count+=int(numhalos[i])
     treegrp.create_dataset("DescendantSnapnum",data=tdata)
-    tdata=np.array(tothalos,dtype=np.uint64)
+    tdata=np.zeros(tothalos,dtype=np.uint64)
     count=0
     for i in range(numsnaps):
-        tdata[count:numhalos[i]+count]=(halodata[i]["Head"]%HALOIDVAL-1)
-        count+=numhalos[i]
+        tdata[count:int(numhalos[i])+count]=(halodata[i]["Head"]%HALOIDVAL-1)
+        count+=int(numhalos[i])
     treegrp.create_dataset("DescendantIndex",data=tdata)
     #store progenitors
-    tdata=np.array(tothalos,dtype=halodata[0]["RootTail"].dtype)
+    tdata=np.zeros(tothalos,dtype=halodata[0]["RootTail"].dtype)
     count=0
     for i in range(numsnaps):
-        tdata[count:numhalos[i]+count]=halodata[i]["RootTail"]
-        count+=numhalos[i]
+        tdata[count:int(numhalos[i])+count]=halodata[i]["RootTail"]
+        count+=int(numhalos[i])
     treegrp.create_dataset("RootProgenitorID",data=tdata)
-    tdata=np.array(tothalos,dtype=halodata[0]["RootTailSnap"].dtype)
+    tdata=np.zeros(tothalos,dtype=halodata[0]["RootTailSnap"].dtype)
     count=0
     for i in range(numsnaps):
-        tdata[count:numhalos[i]+count]=halodata[i]["RootTailSnap"]
-        count+=numhalos[i]
+        tdata[count:int(numhalos[i])+count]=halodata[i]["RootTailSnap"]
+        count+=int(numhalos[i])
     treegrp.create_dataset("RootProgenitorSnapnum",data=tdata)
-    tdata=np.array(tothalos,dtype=np.uint64)
+    tdata=np.zeros(tothalos,dtype=np.uint64)
     count=0
     for i in range(numsnaps):
-        tdata[count:numhalos[i]+count]=(halodata[i]["RootTail"]%HALOIDVAL-1)
-        count+=numhalos[i]
+        tdata[count:int(numhalos[i])+count]=(halodata[i]["RootTail"]%HALOIDVAL-1)
+        count+=int(numhalos[i])
     treegrp.create_dataset("RootProgenitorIndex",data=tdata)
     #store descendants
-    tdata=np.array(tothalos,dtype=halodata[0]["RootHead"].dtype)
+    tdata=np.zeros(tothalos,dtype=halodata[0]["RootHead"].dtype)
     count=0
     for i in range(numsnaps):
-        tdata[count:numhalos[i]+count]=halodata[i]["RootHead"]
-        count+=numhalos[i]
+        tdata[count:int(numhalos[i])+count]=halodata[i]["RootHead"]
+        count+=int(numhalos[i])
     treegrp.create_dataset("RootDescendantID",data=tdata)
-    tdata=np.array(tothalos,dtype=halodata[0]["RootHeadSnap"].dtype)
+    tdata=np.zeros(tothalos,dtype=halodata[0]["RootHeadSnap"].dtype)
     count=0
     for i in range(numsnaps):
-        tdata[count:numhalos[i]+count]=halodata[i]["RootHeadSnap"]
-        count+=numhalos[i]
+        tdata[count:int(numhalos[i])+count]=halodata[i]["RootHeadSnap"]
+        count+=int(numhalos[i])
     treegrp.create_dataset("RootDescendantSnapnum",data=tdata)
-    tdata=np.array(tothalos,dtype=np.uint64)
+    tdata=np.zeros(tothalos,dtype=np.uint64)
     count=0
     for i in range(numsnaps):
-        tdata[count:numhalos[i]+count]=(halodata[i]["RootHead"]%HALOIDVAL-1)
-        count+=numhalos[i]
+        tdata[count:int(numhalos[i])+count]=(halodata[i]["RootHead"]%HALOIDVAL-1)
+        count+=int(numhalos[i])
     treegrp.create_dataset("RootDescendantIndex",data=tdata)
     #store number of progenitors
-    tdata=np.array(tothalos,dtype=np.uint32)
+    tdata=np.zeros(tothalos,dtype=np.uint32)
     count=0
     for i in range(numsnaps):
-        tdata[count:numhalos[i]+count]=halodata[i]["Num_progen"]
-        count+=numhalos[i]
+        tdata[count:int(numhalos[i])+count]=halodata[i]["Num_progen"]
+        count+=int(numhalos[i])
     treegrp.create_dataset("NProgen",data=tdata)
     
     hdffile.close()
