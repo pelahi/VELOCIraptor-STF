@@ -94,7 +94,6 @@ typedef Double_t DoublePos_t;
         Double_t rho;
         ///potential
         Double_t phi;
-
         ///For hydrodynamical quantities
         //@{
         ///if gas flag is set, then particle also can have sph based quantities. if star flag is set, 
@@ -121,6 +120,24 @@ typedef Double_t DoublePos_t;
 #endif
         //@}
         
+#ifdef EXTENDEDFOFINFO
+	    ///Variables to store extra info 
+        ///used by VELOCIraptor group finding
+        //@{
+        ///file id of input file containing particle
+    	Int_t oFile;
+        ///index of particle in input file
+	    Int_t oIndex;
+        ///mpi thread id of thread which originally read particle
+	    Int_t oTask;
+        ///group id (halo, subhalo, etc)
+	    Int_t idStruct;
+        ///3DFOF envelop id
+	    Int_t idIGM;
+        ///host id 
+	    Int_t idHost;
+        //}
+#endif	
         
 
         public:
@@ -291,6 +308,28 @@ typedef Double_t DoublePos_t;
         Double_t GetEntropy() {return entropy;}
         void SetEntropy(const Double_t &Entropy) {entropy=Entropy;}
 #endif
+
+#ifdef EXTENDEDFOFINFO
+        ///Sets and Gets for ExtendedOutput variables
+        void SetOFile(const Int_t &i) {oFile = i;}
+	    Int_t GetOFile() {return oFile;}
+	
+	    void SetOIndex(const Int_t &i) {oIndex = i;}
+	    Int_t GetOIndex() {return oIndex;}
+	
+	    void SetOTask(const Int_t &i) {oTask = i;}
+	    Int_t GetOTask() {return oTask;}
+	
+	    void SetIdStruct(const Int_t &i) {idStruct = i;}
+	    Int_t GetIdStruct() {return idStruct;}
+	
+	    void SetIdIGM(const Int_t &i) {idIGM = i;}
+	    Int_t GetIdIGM() {return idIGM;}
+
+	    void SetIdHost(const Int_t &i) {idHost = i;}
+	    Int_t GetIdHost() {return idHost;}
+#endif
+
         //@}
 
         /// \name Other useful functions

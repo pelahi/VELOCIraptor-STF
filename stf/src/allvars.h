@@ -109,6 +109,8 @@ using namespace NBody;
 #define FILAMENTSTYPE 3
 #define BGTYPE 10
 #define GROUPNOPARENT -1
+#define IGMTYPE 7
+#define IGMGROUP -2
 //@}
 //@}
 
@@ -1319,13 +1321,13 @@ struct StrucLevelData
 {
     ///structure type and number in current level of hierarchy 
     Int_t stype,nsinlevel;
-    //points to the the head pfof address of the group and parent
+    ///points to the the head pfof address of the group and parent
     Particle **Phead;
     Int_t **gidhead;
-    //parent pointers point to the address of the parents gidhead and Phead
+    ///parent pointers point to the address of the parents gidhead and Phead
     Particle **Pparenthead;
     Int_t **gidparenthead;
-    //add uber parent pointer (that is pointer to field halo)
+    ///add uber parent pointer (that is pointer to field halo)
     Int_t **giduberparenthead;
     ///allowing for multiple structure types at a given level in the hierarchy
     Int_t *stypeinlevel;
@@ -1343,7 +1345,7 @@ struct StrucLevelData
         }
         else Allocate(numgroups);
     }
-    //just allocate memory
+    ///just allocate memory
     void Allocate(Int_t numgroups){
         nsinlevel=numgroups;
         Phead=new Particle*[numgroups+1];
@@ -1353,7 +1355,7 @@ struct StrucLevelData
         giduberparenthead=new Int_t*[numgroups+1];
         nextlevel=NULL;
     }
-    //initialize
+    ///initialize
     void Initialize(){
         for (Int_t i=1;i<=nsinlevel;i++) {gidhead[i]=NULL;gidparenthead[i]=NULL;giduberparenthead[i]=NULL;}
     }

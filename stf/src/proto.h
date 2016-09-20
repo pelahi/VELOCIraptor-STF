@@ -310,6 +310,8 @@ void MPINumInDomain(Options &opt);
 void MPINumInDomainTipsy(Options &opt);
 /// Determine number of local particles for gadget
 void MPINumInDomainGadget(Options &opt);
+/// Determine number of local particles for gadget
+void MPINumInDomainRAMSES(Options &opt);
 /// Determine number of local particles for HDF
 void MPINumInDomainHDF(Options &opt);
 

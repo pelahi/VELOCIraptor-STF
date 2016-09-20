@@ -155,6 +155,14 @@ namespace NBody
             zmet=p.zmet;
             sfr=p.sfr;
 #endif
+#ifdef EXTENDEDFOFINFO
+	        oFile    = p.oFile;
+	        oIndex   = p.oIndex;
+	        oTask    = p.oTask;
+	        idStruct = p.idStruct;
+	        idIGM    = p.idIGM;
+	        idHost   = p.idHost;
+#endif
         }
     }
 
@@ -188,6 +196,14 @@ namespace NBody
 #if defined (GASON) && (STARON)
             zmet=p.zmet;
             sfr=p.sfr;
+#endif
+#ifdef EXTENDEDFOFINFO
+	        oFile    = p.oFile;
+	        oIndex   = p.oIndex;
+	        oTask    = p.oTask;
+	        idStruct = p.idStruct;
+	        idIGM    = p.idIGM;
+	        idHost   = p.idHost;
 #endif
         }
       return *this;

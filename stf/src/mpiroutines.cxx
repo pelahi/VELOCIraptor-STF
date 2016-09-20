@@ -100,6 +100,7 @@ void MPINumInDomain(Options &opt)
 {
     if(opt.inputtype==IOTIPSY) MPINumInDomainTipsy(opt);
     else if (opt.inputtype==IOGADGET) MPINumInDomainGadget(opt);
+    else if (opt.inputtype==IORAMSES) MPINumInDomainRAMSES(opt);
 #ifdef USEHDF
     else if (opt.inputtype==IOHDF) MPINumInDomainHDF(opt);
 #endif
