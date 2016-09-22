@@ -1818,7 +1818,7 @@ void GetGlobalSpatialMorphology(const Int_t nbodies, Particle *p, Double_t& q, D
     }
 }
 
-///calculate the inertia tensor
+///calculate the inertia tensor and return the dispersions (weight by 1/mtot)
 void CalcITensor(const Int_t n, Particle *p, Double_t &a, Double_t &b, Double_t &c, Matrix& eigenvec, Matrix &I, int itype)
 {
     Double_t r2,det,Ixx,Iyy,Izz,Ixy,Ixz,Iyz, weight;
@@ -1826,24 +1826,26 @@ void CalcITensor(const Int_t n, Particle *p, Double_t &a, Double_t &b, Double_t 
     I=Matrix(0.);
     Int_t i;
     Ixx=Iyy=Izz=Ixy=Ixz=Iyz=0.;
+    Double_t mtot=0;
 #ifdef USEOPENMP
     if (n>=ompunbindnum) {
 #pragma omp parallel default(shared) \
 private(i,r2,weight)
 {
-#pragma omp for schedule(dynamic) nowait reduction(+:Ixx,Iyy,Izz,Ixy,Ixz,Iyz)
+#pragma omp for schedule(dynamic) nowait reduction(+:Ixx,Iyy,Izz,Ixy,Ixz,Iyz,mtot)
     for (i = 0; i < n; i++)
     {
-        if (itype==-1) weight=1.0;
-        else if (p[i].GetType()==itype) weight=1.0;
+        if (itype==-1) weight=p[i].GetMass();
+        else if (p[i].GetType()==itype) weight=p[i].GetMass();
         else weight=0.;
         r2=p[i].X()*p[i].X()+p[i].Y()*p[i].Y()+p[i].Z()*p[i].Z();
-        Ixx+=p[i].GetMass()*(r2-p[i].X()*p[i].X())*weight;
-        Iyy+=p[i].GetMass()*(r2-p[i].Y()*p[i].Y())*weight;
-        Izz+=p[i].GetMass()*(r2-p[i].Z()*p[i].Z())*weight;
-        Ixy+=p[i].GetMass()*(-p[i].X()*p[i].Y())*weight;
-        Ixz+=p[i].GetMass()*(-p[i].X()*p[i].Z())*weight;
-        Iyz+=p[i].GetMass()*(-p[i].Y()*p[i].Z())*weight;
+        Ixx+=(r2-p[i].X()*p[i].X())*weight;
+        Iyy+=(r2-p[i].Y()*p[i].Y())*weight;
+        Izz+=(r2-p[i].Z()*p[i].Z())*weight;
+        Ixy+=(-p[i].X()*p[i].Y())*weight;
+        Ixz+=(-p[i].X()*p[i].Z())*weight;
+        Iyz+=(-p[i].Y()*p[i].Z())*weight;
+        mtot+=weight;
     }
 }
     I(0,0)=Ixx;I(1,1)=Iyy;I(2,2)=Izz;
@@ -1856,26 +1858,155 @@ private(i,r2,weight)
     for (i = 0; i < n; i++)
     {
         r2=p[i].X()*p[i].X()+p[i].Y()*p[i].Y()+p[i].Z()*p[i].Z();
-        if (itype==-1) weight=1.0;
-        else if (p[i].GetType()==itype) weight=1.0;
+        if (itype==-1) weight=p[i].GetMass();
+        else if (p[i].GetType()==itype) weight=p[i].GetMass();
         else weight=0.;
         for (int j = 0; j < 3; j++)
         {
             for (int k = 0; k < 3; k++)
             {
-                I(j, k) += p[i].GetMass()*((j==k)*r2-p[i].GetPosition(j) * 
-                        p[i].GetPosition(k))*weight;
+                I(j, k) += ((j==k)*r2-p[i].GetPosition(j) *p[i].GetPosition(k))*weight;
             }
         }
+        mtot+=weight;
     }
 #ifdef USEOPENMP
     }
 #endif
-    det=I.Det();
-    for (int j = 0; j < 3; j++) for (int k = 0; k < 3; k++) I(j, k) /= det;
+    //det=I.Det();
+    //for (int j = 0; j < 3; j++) for (int k = 0; k < 3; k++) I(j, k) /= det;
+    I=I*(1.0/mtot);
     e = I.Eigenvalues();
     a=e[0];b=e[1];c=e[2];
     eigenvec=I.Eigenvectors(e);
+    I=I*mtot;
+}
+
+///calculate the position dispersion tensor
+void CalcPosSigmaTensor(const Int_t n, Particle *p, Double_t &a, Double_t &b, Double_t &c, Matrix& eigenvec, Matrix &I, int itype)
+{
+    Double_t r2,det,Ixx,Iyy,Izz,Ixy,Ixz,Iyz, weight;
+    Coordinate e;
+    I=Matrix(0.);
+    Int_t i;
+    Ixx=Iyy=Izz=Ixy=Ixz=Iyz=0.;
+    Double_t mtot=0;
+#ifdef USEOPENMP
+    if (n>=ompunbindnum) {
+#pragma omp parallel default(shared) \
+private(i,r2,weight)
+{
+#pragma omp for schedule(dynamic) nowait reduction(+:Ixx,Iyy,Izz,Ixy,Ixz,Iyz,mtot)
+    for (i = 0; i < n; i++)
+    {
+        if (itype==-1) weight=p[i].GetMass();
+        else if (p[i].GetType()==itype) weight=p[i].GetMass();
+        else weight=0.;
+        Ixx+=(p[i].X()*p[i].X())*weight;
+        Iyy+=(p[i].Y()*p[i].Y())*weight;
+        Izz+=(p[i].Z()*p[i].Z())*weight;
+        Ixy+=(p[i].X()*p[i].Y())*weight;
+        Ixz+=(p[i].X()*p[i].Z())*weight;
+        Iyz+=(p[i].Y()*p[i].Z())*weight;
+        mtot+=weight;
+    }
+}
+    I(0,0)=Ixx;I(1,1)=Iyy;I(2,2)=Izz;
+    I(0,1)=I(1,0)=Ixy;
+    I(0,2)=I(2,0)=Ixz;
+    I(1,2)=I(2,1)=Iyz;
+    }
+    else {
+#endif
+    for (i = 0; i < n; i++)
+    {
+        r2=p[i].X()*p[i].X()+p[i].Y()*p[i].Y()+p[i].Z()*p[i].Z();
+        if (itype==-1) weight=p[i].GetMass();
+        else if (p[i].GetType()==itype) weight=p[i].GetMass();
+        else weight=0.;
+        for (int j = 0; j < 3; j++)
+        {
+            for (int k = 0; k < 3; k++)
+            {
+                I(j, k) += (p[i].GetPosition(j) *p[i].GetPosition(k))*weight;
+            }
+        }
+        mtot+=weight;
+    }
+#ifdef USEOPENMP
+    }
+#endif
+    //det=I.Det();
+    //for (int j = 0; j < 3; j++) for (int k = 0; k < 3; k++) I(j, k) /= det;
+    I=I*(1.0/mtot);
+    e = I.Eigenvalues();
+    a=e[0];b=e[1];c=e[2];
+    eigenvec=I.Eigenvectors(e);
+    I=I*mtot;
+}
+
+///calculate the velocity dispersion tensor
+void CalcVelSigmaTensor(const Int_t n, Particle *p, Double_t &a, Double_t &b, Double_t &c, Matrix& eigenvec, Matrix &I, int itype)
+{
+    Double_t r2,det,Ixx,Iyy,Izz,Ixy,Ixz,Iyz, weight;
+    Coordinate e;
+    I=Matrix(0.);
+    Int_t i;
+    Ixx=Iyy=Izz=Ixy=Ixz=Iyz=0.;
+    Double_t mtot=0;
+#ifdef USEOPENMP
+    if (n>=ompunbindnum) {
+#pragma omp parallel default(shared) \
+private(i,r2,weight)
+{
+#pragma omp for schedule(dynamic) nowait reduction(+:Ixx,Iyy,Izz,Ixy,Ixz,Iyz,mtot)
+    for (i = 0; i < n; i++)
+    {
+        if (itype==-1) weight=p[i].GetMass();
+        else if (p[i].GetType()==itype) weight=p[i].GetMass();
+        else weight=0.;
+        //r2=p[i].Vx()*p[i].Vx()+p[i].Vy()*p[i].Vy()+p[i].Vz()*p[i].Vz();
+        Ixx+=(p[i].Vx()*p[i].Vx())*weight;
+        Iyy+=(p[i].Vy()*p[i].Vy())*weight;
+        Izz+=(p[i].Vz()*p[i].Vz())*weight;
+        Ixy+=(p[i].Vx()*p[i].Vy())*weight;
+        Ixz+=(p[i].Vx()*p[i].Vz())*weight;
+        Iyz+=(p[i].Vy()*p[i].Vz())*weight;
+        mtot+=weight;
+    }
+}
+    I(0,0)=Ixx;I(1,1)=Iyy;I(2,2)=Izz;
+    I(0,1)=I(1,0)=Ixy;
+    I(0,2)=I(2,0)=Ixz;
+    I(1,2)=I(2,1)=Iyz;
+    }
+    else {
+#endif
+    for (i = 0; i < n; i++)
+    {
+        r2=p[i].X()*p[i].X()+p[i].Y()*p[i].Y()+p[i].Z()*p[i].Z();
+        if (itype==-1) weight=p[i].GetMass();
+        else if (p[i].GetType()==itype) weight=p[i].GetMass();
+        else weight=0.;
+        for (int j = 0; j < 3; j++)
+        {
+            for (int k = 0; k < 3; k++)
+            {
+                I(j, k) += (p[i].GetVelocity(j) *p[i].GetVelocity(k))*weight;
+            }
+        }
+        mtot+=weight;
+    }
+#ifdef USEOPENMP
+    }
+#endif
+    //det=I.Det();
+    //for (int j = 0; j < 3; j++) for (int k = 0; k < 3; k++) I(j, k) /= det;
+    I=I*(1.0/mtot);
+    e = I.Eigenvalues();
+    a=e[0];b=e[1];c=e[2];
+    eigenvec=I.Eigenvectors(e);
+    I=I*mtot;
 }
 
 ///calculate the weighted reduced inertia tensor assuming particles are the same mass

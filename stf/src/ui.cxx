@@ -134,6 +134,7 @@ void usage(void)
 
     \subsection fofsubconfig Configuration for substructure search
     \arg <b> \e Search_for_substructure </b> By default field objects are searched for internal substructures but can disable this by setting this to 0 \n
+    \arg <b> \e Keep_FOF </b> if field 6DFOF search is done, allows to keep structures found in 3DFOF (can be interpreted as the inter halo stellar mass when only stellar search is used).\n
     \arg <b> \e FoF_search_type </b> There are several substructure FOF criteria implemented (see \ref FOFTYPES for more types and \ref fofalgo.h for implementation) \n
         - \b 1 \e standard phase-space based, well tested VELOCIraptor criterion.
 
@@ -158,8 +159,11 @@ void usage(void)
     \arg <b> \e Minimum_halo_size </b> Allows field objects (or so-called halos) to require a different minimum size (typically would be <= \ref Options.MinSize. Default is -1 which sets it to \ref Options.MinSize) \ref Options.HaloMinSize \n
     \arg <b> \e Halo_linking_length_factor </b> allows one to use different physical linking lengths between field objects and substructures.  (Typically for 3DFOF searches of dark matter haloes, set to value such that this times \ref Options.ellphys = 0.2 the interparticle spacing when examining cosmological simulations ) \ref Options.ellhalophysfac \n
     \arg <b> \e Halo_velocity_linking_length_factor </b> allows one to use different velocity linking lengths between field objects and substructures when using 6D FOF searches.  (Since in such cases the general idea is to use the local velocity dispersion to define a scale, \f$ \geq5 \f$ times this value seems to correctly scale searches) \ref Options.ellhalovelfac \n
+    \arg <b> \e Halo_6D_linking_length_factor </b> allows one to use different linking lengths between 3DFOF and 6DFOF field search. Typically values are \f$ \sim 1 \f$ \n
+    \arg <b> \e Halo_6D_vel_linking_length_factor </b> scaling applied to dispersions used in 6DFOF field search. Typical values are \f$ \gtrsim 1.25 \f$ \n
 
     \arg <b> \e Halo_core_search </b> 0/1/2 flag allows one to explicitly search for large 6D FOF cores that are indicative of a recent major merger. Since substructure is defined on the scale of the maximum cell size and major mergers typically result two or more phase-space dense regions that are \e larger than the cell size used in reasonable substructure searches, one can identify them using this search. The overall goal is to treat these objects differently than a substructure. However, if 2 is set, then smaller core is treated as substruture and all particles within the FOF envelop are assigned to the cores based on their phase-space distance to core particles \ref Options.iHaloCoreSearch \n
+    \arg <b> \e Use_adaptive_core_search </b> 0/1 flag allows one to run complex adaptive phase-space search for large 6D FOF cores and then use these linking lengths to separate mergers
     \arg <b> \e Halo_core_ellx_fac </b> scaling applied to linking length when identifying merger remnants. Typically values are \f$ \sim0.5 \f$  \ref Options.halocorexfac
     \arg <b> \e Halo_core_ellv_fac </b> scaling applied to local dispersion to define the velocity scale used to identify merger remnants. Typically values are \f$ \sim1 \f$  \ref Options.halocorevfac
     \arg <b> \e Halo_core_nellfac </b> used to determine the minimum number of particles a merger remnants is composed of, specifically \f$ N_{\rm min}= f_{\rm nell}* N_{\rm S} \f$. Typically values are \f$ \sim0.1 \f$  \ref Options.halocorenfac
@@ -211,7 +215,8 @@ void usage(void)
     \arg <b> \e Cosmological_input </b> 1/0 indicating that input simulation is cosmological or not. With cosmological input, a variety of length/velocity scales are set to determine such things as the virial overdensity, linking length. \ref Options.icosmologicalin \n
     \arg <b> \e Write_group_array_file </b> 0/1 flag indicating whether write a single large tipsy style group assignment file is written. \ref Options.iwritefof \n
     \arg <b> \e Separate_output_files </b> 1/0 flag indicating whether separate files are written for field and subhalo groups. \ref Options.iseparatefiles \n
-    \arg <b> \e Binary_output </b> 1/0 flag indicating whether output is binary or ascii. \ref Options.ibinaryout \n
+    \arg <b> \e Binary_output </b> 2/1/0 flag indicating whether output is hdf, binary or ascii. \ref Options.ibinaryout, \ref OUTHDF, \ref OUTBINARY, \ref OUTASCII \n
+    \arg <b> \e Extended_output </b> 1/0 flag indicating whether produce extended output for quick particle extraction from input catalog of particles in structures \ref Options.iextendedoutput \n
     \arg <b> \e Comoving_units </b> 1/0 flag indicating whether the properties output is in physical or comoving little h units. \ref Options.icomoveunit \n
     \arg <b> \e NSPH_extra_blocks </b> If gadget snapshot is loaded one can specific the number of extra <b> SPH </b> blocks are read/in the file. \ref Options.gnsphblocks \n
     \arg <b> \e NStar_extra_blocks </b> If gadget snapshot is loaded one can specific the number of extra <b> Star </b> blocks are read/in the file. \ref Options.gnstarblocks \n
@@ -307,10 +312,8 @@ void GetParamFile(Options &opt)
                         opt.fofbgtype = atoi(vbuff);
                     else if (strcmp(tbuff, "Search_for_substructure")==0)
                         opt.iSubSearch = atoi(vbuff);
-                    else if (strcmp(tbuff, "Cell_fraction")==0)
-                        opt.Ncellfac = atof(vbuff);
-                    else if (strcmp(tbuff, "Grid_type")==0)
-                        opt.gridtype = atoi(vbuff);
+                    else if (strcmp(tbuff, "Keep_FOF")==0)
+                        opt.iKeepFOF = atof(vbuff);
                     else if (strcmp(tbuff, "Iterative_searchflag")==0)
                         opt.iiterflag = atoi(vbuff);
                     else if (strcmp(tbuff, "Unbind_flag")==0)
@@ -319,8 +322,16 @@ void GetParamFile(Options &opt)
                         opt.iBaryonSearch = atoi(vbuff);
                     else if (strcmp(tbuff, "CMrefadjustsubsearch_flag")==0)
                         opt.icmrefadjust = atoi(vbuff);
+                    else if (strcmp(tbuff, "Halo_core_search")==0)
+                        opt.iHaloCoreSearch = atoi(vbuff);
+                    else if (strcmp(tbuff, "Use_adaptive_core_search")==0)
+                        opt.iAdaptiveCoreLinking = atof(vbuff);
 
                     //bg and fof parameters
+                    else if (strcmp(tbuff, "Cell_fraction")==0)
+                        opt.Ncellfac = atof(vbuff);
+                    else if (strcmp(tbuff, "Grid_type")==0)
+                        opt.gridtype = atoi(vbuff);
                     else if (strcmp(tbuff, "Nsearch_velocity")==0)
                         opt.Nvel = atoi(vbuff);
                     else if (strcmp(tbuff, "Nsearch_physical")==0)
@@ -345,9 +356,12 @@ void GetParamFile(Options &opt)
                         opt.ellhalophysfac = atof(vbuff);
                     else if (strcmp(tbuff, "Halo_velocity_linking_length_factor")==0)
                         opt.ellhalovelfac = atof(vbuff);
+                    //specific to 6DFOF field search
+        		    else if (strcmp(tbuff, "Halo_6D_linking_length_factor")==0)
+                        opt.ellhalo6dxfac = atof(vbuff);
+        		    else if (strcmp(tbuff, "Halo_6D_vel_linking_length_factor")==0)
+                        opt.ellhalo6dvfac = atof(vbuff);
                     //specific search for 6d fof core searches
-                    else if (strcmp(tbuff, "Halo_core_search")==0)
-                        opt.iHaloCoreSearch = atoi(vbuff);
                     else if (strcmp(tbuff, "Halo_core_ellx_fac")==0)
                         opt.halocorexfac = atof(vbuff);
                     else if (strcmp(tbuff, "Halo_core_ellv_fac")==0)
@@ -442,6 +456,8 @@ void GetParamFile(Options &opt)
                         opt.ibinaryout = atoi(vbuff);
                     else if (strcmp(tbuff, "Comoving_units")==0)
                         opt.icomoveunit = atoi(vbuff);
+                    else if (strcmp(tbuff, "Extended_output")==0)
+                        opt.iextendedoutput = atof(vbuff);
 
                     //gadget io related to extra info for sph, stars, bhs,
                     else if (strcmp(tbuff, "NSPH_extra_blocks")==0)
@@ -516,12 +532,16 @@ inline void ConfigCheck(Options &opt)
                 break;
     }
     if (opt.fofbgtype==FOF6D) cout<<"Field objects found with initial 3d FOF then use dispersion to find 6d FOFs"<<endl;
+    if (opt.fofbgtype==FOF6D && opt.iKeepFOF) cout<<"Field objects found with initial 3d FOF then use dispersion to find 6d FOFs and 3dFOF objects kept as base objects (consider them inter halo stellar mass or ICL for stellar only searches) "<<endl;
     if (opt.iSingleHalo) cout<<"Field objects NOT searched for, assuming single Halo and subsearch using mean field first step"<<endl;
     cout<<"Allowed potential to kinetic ratio when unbinding particles "<<opt.uinfo.Eratio<<endl;
     if (opt.HaloMinSize!=opt.MinSize) cout<<"Field objects (aka Halos) have different minimum required size than substructures: "<<opt.HaloMinSize<<" vs "<<opt.MinSize<<endl;
     cout<<"Units: L="<<opt.L<<", M="<<opt.M<<", V="<<opt.V<<", G="<<opt.G<<endl;
     if (opt.ibinaryout) cout<<"Binary output"<<endl;
     if (opt.iseparatefiles) cout<<"Separate files output"<<endl;
+    if (opt.iextendedoutput) cout<<"Extended output for particle extraction from input files"<<endl;
+    if (opt.iHaloCoreSearch) cout<<"Searching for 6dfof cores so as to disentangle mergers"<<endl;
+    if (opt.iHaloCoreSearch && opt.iAdaptiveCoreLinking) cout<<"With adaptive linking lengths"<<endl;
     if (opt.inputtype==IOGADGET) cout<<"Gadget file particle input "<<endl;
     else if (opt.inputtype==IOTIPSY) cout<<"Tipsy file particle input "<<endl;
     else if (opt.inputtype==IORAMSES) cout<<"RAMSES file particle input "<<endl;

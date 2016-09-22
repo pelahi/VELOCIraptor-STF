@@ -325,8 +325,12 @@ struct Options
     int num_files,snum;
     ///if parallel reading, number of files read in parallel
     int nsnapread;
-    ///for output, specify the formats, ie. many separate files, binary or ascii
-    int iseparatefiles,ibinaryout;
+    ///for output, specify the formats, ie. many separate files
+    int iseparatefiles;
+    ///for output specify the format HDF, binary or ascii \ref OUTHDF, \ref OUTBINARY, \ref OUTASCII
+    int ibinaryout;
+    ///for extended output allowing extraction of particles
+    int iextendedoutput;
     ///return propery data in in comoving little h units instead of standard physical units
     int icomoveunit;
     /// input is a cosmological simulation so can use box sizes, cosmological parameters, etc to set scales
@@ -394,6 +398,12 @@ struct Options
     //@{
     Double_t ellhalophysfac,ellhalovelfac;
     //@}
+    ///\name parameters related to 3DFOF search & subsequent 6DFOF search
+    //@{
+    Double_t ellhalo6dxfac;
+    Double_t ellhalo6dvfac;
+    int iKeepFOF;
+    //@}
     //@{
     ///\name factors used to check for halo mergers, large background substructures and store the velocity scale when searching for associated baryon substructures
     //@{
@@ -427,10 +437,11 @@ struct Options
     ///effective resolution for zoom simulations
     Int_t Neff;
 
-    ///\name extra stuff for halo merger check and identification of multiple halo core
+    ///\name extra stuff for halo merger check and identification of multiple halo core and flag for fully adaptive linking length using number density of candidate objects
     //@{
     int iHaloCoreSearch;
     Double_t halocorexfac, halocorevfac, halocorenfac;
+    int iAdaptiveCoreLinking;
     //@}
     ///for storing a snapshot value to make halo ids unique across snapshots
     long long snapshotvalue;
@@ -501,6 +512,8 @@ struct Options
         ellvel=0.5;
         ellxscale=ellvscale=1.0;
         ellhalophysfac=ellhalovelfac=1.0;
+        ellhalo6dxfac=1.0;
+        ellhalo6dvfac=1.25;
 
         iiterflag=0;
         ellfac=2.5;
@@ -517,8 +530,10 @@ struct Options
         iSingleHalo=0;
         iBoundHalos=0;
         iInclusiveHalo=0;
+        iKeepFOF=0;
 
         iHaloCoreSearch=0;
+        iAdaptiveCoreLinking=0;
         halocorexfac=0.5;
         halocorevfac=2.0;
         halocorenfac=0.1;
@@ -527,6 +542,7 @@ struct Options
         iwritefof=0;
         iseparatefiles=0;
         ibinaryout=0;
+        iextendedoutput=0;
         icomoveunit=0;
         icosmologicalin=1;
 
@@ -573,7 +589,7 @@ struct PropData
 {
     ///\name order in structure hierarchy and number of subhaloes
     //@{
-    long long haloid,hostid,directhostid;
+    long long haloid,hostid,directhostid, hostfofid;
     Int_t numsubs;
     //@}
 

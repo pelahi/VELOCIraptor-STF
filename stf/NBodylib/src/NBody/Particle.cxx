@@ -160,7 +160,7 @@ namespace NBody
 	        oIndex   = p.oIndex;
 	        oTask    = p.oTask;
 	        idStruct = p.idStruct;
-	        idIGM    = p.idIGM;
+	        idFOFHost    = p.idFOFHost;
 	        idHost   = p.idHost;
 #endif
         }
@@ -202,7 +202,7 @@ namespace NBody
 	        oIndex   = p.oIndex;
 	        oTask    = p.oTask;
 	        idStruct = p.idStruct;
-	        idIGM    = p.idIGM;
+	        idFOFHost    = p.idFOFHost;
 	        idHost   = p.idHost;
 #endif
         }

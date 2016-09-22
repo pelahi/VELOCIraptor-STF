@@ -70,6 +70,9 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata);
 //void WriteHierarchy(Options &opt, Int_t ngroups, int subflag=0);
 void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t &nhierarchy, const Int_t &nfield, Int_t *nsub, Int_t *parentgid, Int_t *stype,int subflag=0);
 
+///Write Extended Output
+void WriteExtendedOutput (Options &opt, Int_t numgroups, Int_t nbodies, PropData *pdata, Particle *p, Int_t * pfof);
+
 ///Writes ROCKSTAR like output
 //@{
 //@}
@@ -249,6 +252,10 @@ void GetBindingEnergy(Options &opt, const Int_t nbodies, Particle *&Part, Int_t 
 void GetGlobalSpatialMorphology(const Int_t nbodies, Particle *p, Double_t& q, Double_t& s, Double_t Error, Matrix& eigenvec, int imflag=0, int itype=-1, int iiterate=1);
 ///Calculate inertia tensor and eigvector
 void CalcITensor(const Int_t n, Particle *p, Double_t &a, Double_t &b, Double_t &c, Matrix& eigenvec, Matrix &I, int itype);
+///Calculate position dispersion tensor and eigvector
+void CalcPosSigmaTensor(const Int_t n, Particle *p, Double_t &a, Double_t &b, Double_t &c, Matrix& eigenvec, Matrix &I, int itype);
+///Calculate velocity dispersion tensor and eigvector
+void CalcVelSigmaTensor(const Int_t n, Particle *p, Double_t &a, Double_t &b, Double_t &c, Matrix& eigenvec, Matrix &I, int itype);
 ///Calculate the reduced weighted inertia tensor used to determine the spatial morphology 
 void CalcMTensor(Matrix& M, const Double_t q, const Double_t s, const Int_t n, Particle *p, int itype);
 ///Same as \ref CalcMTensor but include mass

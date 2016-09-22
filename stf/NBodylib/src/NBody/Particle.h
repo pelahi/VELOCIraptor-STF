@@ -133,7 +133,7 @@ typedef Double_t DoublePos_t;
         ///group id (halo, subhalo, etc)
 	    Int_t idStruct;
         ///3DFOF envelop id
-	    Int_t idIGM;
+	    Int_t idFOFHost;
         ///host id 
 	    Int_t idHost;
         //}
@@ -312,22 +312,22 @@ typedef Double_t DoublePos_t;
 #ifdef EXTENDEDFOFINFO
         ///Sets and Gets for ExtendedOutput variables
         void SetOFile(const Int_t &i) {oFile = i;}
-	    Int_t GetOFile() {return oFile;}
-	
-	    void SetOIndex(const Int_t &i) {oIndex = i;}
-	    Int_t GetOIndex() {return oIndex;}
-	
-	    void SetOTask(const Int_t &i) {oTask = i;}
-	    Int_t GetOTask() {return oTask;}
-	
-	    void SetIdStruct(const Int_t &i) {idStruct = i;}
-	    Int_t GetIdStruct() {return idStruct;}
-	
-	    void SetIdIGM(const Int_t &i) {idIGM = i;}
-	    Int_t GetIdIGM() {return idIGM;}
+        Int_t GetOFile() {return oFile;}
 
-	    void SetIdHost(const Int_t &i) {idHost = i;}
-	    Int_t GetIdHost() {return idHost;}
+        void SetOIndex(const Int_t &i) {oIndex = i;}
+        Int_t GetOIndex() {return oIndex;}
+
+        void SetOTask(const Int_t &i) {oTask = i;}
+        Int_t GetOTask() {return oTask;}
+
+        void SetIdStruct(const Int_t &i) {idStruct = i;}
+        Int_t GetIdStruct() {return idStruct;}
+
+        void SetIdHost(const Int_t &i) {idHost = i;}
+        Int_t GetIdHost() {return idHost;}
+
+        void SetIdFOFHost(const Int_t &i) {idFOFHost = i;}
+        Int_t GetIdFOFHost() {return idFOFHost;}
 #endif
 
         //@}

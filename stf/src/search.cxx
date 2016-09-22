@@ -25,7 +25,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
     Double_t vscale2,mtotregion,vx,vy,vz;
     Coordinate vmean(0,0,0);
     int maxnthreads,nthreads=1,tid;
-    Int_t *Len,*Head,*Next,*Tail, *storetype, *ids,*numingroup=NULL;
+    Int_t *Len,*Head,*Next,*Tail, *storetype, *ids,*numingroup=NULL, *noffset;
     Int_t ng,npartingroups;
     Int_t totalgroups;
 #ifndef USEMPI
@@ -227,6 +227,10 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
     //note that from on, use Nlocal, which is altered in mpi but set to nbodies in non-mpi
     if (opt.fofbgtype==FOF6D && totalgroups>0) {
     //now if 6dfof search to overcome issues with 3DFOF by searching only particles that have been previously linked by the 3dfof
+    //adjust physical linking length
+    param[1]*=opt.ellhalo6dxfac*opt.ellhalo6dxfac;
+    param[6]=param[1];
+
     //use the largest "halo" to determine an appropriate velocity scale
     cout<<"Sorting particles for 6dfof search "<<endl;
     npartingroups=0;
@@ -236,7 +240,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
 #ifdef USEOPENMP
     storetype=new Int_t[Nlocal];
     if (numingroup==NULL) numingroup=new Int_t[numgroups+1];
-    Int_t *noffset=new Int_t[numgroups+1];
+    noffset=new Int_t[numgroups+1];
     for (i=0;i<=numgroups;i++) numingroup[i]=noffset[i]=0;
     for (i=0;i<Nlocal;i++) {
         storetype[i]=Part[i].GetPID();
@@ -285,14 +289,17 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
     vscale2=mpi_vscale2;
 #endif
     //to account for fact that dispersion may not be high enough to link all outlying regions
-    vscale2*=1.25*1.25;
+    //scale by 6d velocity factor
+    vscale2*=opt.ellhalo6dvfac*opt.ellhalo6dvfac;
     //set the velocity scale
     param[2]=(vscale2);
     param[7]=param[2];
+
     minsize=opt.HaloMinSize;
     cout<<"Search "<<npartingroups<<" particles using 6DFOF"<<endl;
     cout<<"Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits, ellvel="<<sqrt(param[7])<<" Vunits."<<endl;
     fofcmp=&FOF6d;
+
 #ifdef USEOPENMP
     ///\todo seems the openmp 6dfof search is unstable but why?
     Head=new Int_t[Nlocal];Next=new Int_t[Nlocal];Tail=new Int_t[Nlocal];Len=new Int_t[Nlocal];
@@ -358,6 +365,8 @@ private(i,tid)
     delete[] ids;
     numgroups=ng;
     }
+    //end of 6dfof search
+
 #ifdef USEMPI
     if (opt.fofbgtype==FOF6D) {
     cout<<"MPI thread "<<ThisTask<<" has found "<<numgroups<<endl;
@@ -376,7 +385,7 @@ private(i,tid)
     psldata->Allocate(numgroups);
     psldata->Initialize();
     if (opt.iverbose) cout<<ThisTask<<" Now store hierarchy information "<<endl;
-    for (i=0;i<Nlocal;i++)
+    for (i=0;i<Nlocal;i++) {
         if (pfof[i]>0) {
         if (psldata->gidhead[pfof[i]]==NULL) {
             //set the group id head pointer to the address within the pfof array
@@ -390,6 +399,7 @@ private(i,tid)
             psldata->stypeinlevel[pfof[i]]=HALOSTYPE;
         }
         }
+    }
     psldata->stype=HALOSTYPE;
     if (opt.iverbose) cout<<ThisTask<<" Done storing halo substructre level data"<<endl;
     return pfof;
@@ -465,7 +475,7 @@ private(i,c,diff)
 Int_t* SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Particle *&Partsubset, Int_t &numgroups, Int_t sublevel, Int_t *pnumcores)
 {
     KDTree *tree;
-    Int_t *pfof, i,ii;
+    Int_t *pfof, i, ii;
     FOFcompfunc fofcmp;
     fstream Fout;
     char fname[200];
@@ -475,7 +485,7 @@ Int_t* SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Part
     Double_t **dist2;
     int nthreads=1,maxnthreads,tid;
     Int_t *numingroup, **pglist, *GroupTail, *Head, *Next;
-    Int_t bgoffset,*pfofbg,numgroupsbg;
+    Int_t bgoffset, *pfofbg, numgroupsbg;
     //initialize 
     if (pnumcores!=NULL) *pnumcores=0;
 #ifndef USEMPI
@@ -641,9 +651,9 @@ private(i,tid)
         igflag=new int[numgroups+1];
         ilflag=new int[numgroups+1];
         for (i=1;i<=numgroups;i++) igflag[i]=0;
-        /// NOTE for openmp, only significantly faster if nnID is 1 D array for reduction purposes
-        /// However, this means that in this MPI domain, only nthreads < 2^32 / nsubset can be used since larger numbers require 64 bit array addressing
-        /// This should not be an issue but a check is placed anyway
+        // NOTE for openmp, only significantly faster if nnID is 1 D array for reduction purposes
+        // However, this means that in this MPI domain, only nthreads < 2^32 / nsubset can be used since larger numbers require 64 bit array addressing
+        // This should not be an issue but a check is placed anyway
 #ifdef USEOPENMP
 #pragma omp parallel
         {
@@ -2314,6 +2324,7 @@ Int_t GetHierarchy(Options &opt,Int_t ngroups, Int_t *nsub, Int_t *parentgid, In
     papsldata=new StrucLevelData*[nhierarchy];
     nhierarchy=0;
     while (ppsldata!=NULL) {papsldata[nhierarchy++]=ppsldata;ppsldata=ppsldata->nextlevel;}
+    
     for (int i=nhierarchy-1;i>=1;i--){
         //store number of substructures
         for (int j=1;j<=papsldata[i]->nsinlevel;j++) {
@@ -2358,17 +2369,18 @@ private(i)
         pdata[i].haloid+=haloidoffset;
 #endif
         if (parentgid[i]!=GROUPNOPARENT) {
-        pdata[i].hostid=opt.snapshotvalue+uparentgid[i];
-        pdata[i].directhostid=opt.snapshotvalue+parentgid[i];
+            pdata[i].hostid=opt.snapshotvalue+uparentgid[i];
+            pdata[i].directhostid=opt.snapshotvalue+parentgid[i];
 #ifdef USEMPI
-        pdata[i].hostid+=haloidoffset;
-        pdata[i].directhostid+=haloidoffset;
+            pdata[i].hostid+=haloidoffset;
+            pdata[i].directhostid+=haloidoffset;
 #endif
         }
         else {
-        pdata[i].hostid=GROUPNOPARENT;
-        pdata[i].directhostid=GROUPNOPARENT;
+            pdata[i].hostid=GROUPNOPARENT;
+            pdata[i].directhostid=GROUPNOPARENT;
         }
+        pdata[i].stype=stype[i];
         pdata[i].numsubs=nsub[i];
     }
 #ifdef USEOPENMP
