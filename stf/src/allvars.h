@@ -121,7 +121,7 @@ using namespace NBody;
 //subsets made
 ///call \ref FOFStreamwithprob
 #define  FOFSTPROB 1 
-///6D FOF search
+///6D FOF search but only with outliers
 #define  FOF6DSUBSET 7
 ///like \ref FOFStreamwithprob search but search is limited to nearest physical neighbours
 #define  FOFSTPROBNN 9
@@ -137,10 +137,14 @@ using namespace NBody;
 //#define  FOFSTPROBIT 13
 #define  FOFSTPROBSCALEELLNN 14
 
-//no subsets made, just 6d , 3d and FOFStream searches
+///phase-space FOF but no subset produced
+#define  FOFSTNOSUBSET 2
+///no subsets made, just 6d (with each 6dfof search using 3d fof velocity dispersion,)
+#define  FOF6DADAPTIVE 3
+///6d fof but only use single velocity dispersion from largest 3d fof object
 #define  FOF6D 4
+///3d search
 #define  FOF3D 5
-#define  FOFSTNOSUBSET 6
 //@}
 //@}
 

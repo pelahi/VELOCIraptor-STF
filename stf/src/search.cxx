@@ -23,6 +23,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
     Double_t param[20];
     Double_t *period=NULL;
     Double_t vscale2,mtotregion,vx,vy,vz;
+    Double_t *vscale2array;
     Coordinate vmean(0,0,0);
     int maxnthreads,nthreads=1,tid;
     Int_t *Len,*Head,*Next,*Tail, *storetype, *ids,*numingroup=NULL, *noffset;
@@ -225,18 +226,22 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
 
     //have now 3dfof groups local to a MPI thread and particles are back in index order that will be used from now on
     //note that from on, use Nlocal, which is altered in mpi but set to nbodies in non-mpi
-    if (opt.fofbgtype==FOF6D && totalgroups>0) {
+    if (opt.fofbgtype<=FOF6D && totalgroups>0) {
+    
     //now if 6dfof search to overcome issues with 3DFOF by searching only particles that have been previously linked by the 3dfof
     //adjust physical linking length
     param[1]*=opt.ellhalo6dxfac*opt.ellhalo6dxfac;
     param[6]=param[1];
+    //set min size and fof criterion
+    minsize=opt.HaloMinSize;
+    if (opt.fofbgtype!=FOFSTNOSUBSET) fofcmp=&FOF6d;
+    else fofcmp=&FOFStream;
 
-    //use the largest "halo" to determine an appropriate velocity scale
-    cout<<"Sorting particles for 6dfof search "<<endl;
+    cout<<"Sorting particles for 6dfof/phase-space search "<<endl;
     npartingroups=0;
-    //sort particles so that largest group is first, then all other groups. Allows quick calculation of velocity scale of largest halo
+    //sort particles so that largest group is first, 2nd next, etc with untagged at end.
     Int_t iend=0;
-
+/*
 #ifdef USEOPENMP
     storetype=new Int_t[Nlocal];
     if (numingroup==NULL) numingroup=new Int_t[numgroups+1];
@@ -266,40 +271,99 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
     for (i=0;i<Nlocal;i++) Part[i].SetPID(storetype[Part[i].GetID()]);
     delete[] storetype;
 #endif
-
+*/
+    storetype=new Int_t[Nlocal];
+    if (numingroup==NULL) numingroup=new Int_t[numgroups+1];
+    noffset=new Int_t[numgroups+1];
+    for (i=0;i<=numgroups;i++) numingroup[i]=noffset[i]=0;
+    for (i=0;i<Nlocal;i++) {
+        storetype[i]=Part[i].GetPID();
+        Part[i].SetPID((pfof[i]==0)*Nlocal+(pfof[i]>0)*pfof[i]);
+        npartingroups+=(Int_t)(pfof[i]>0);
+        iend+=(pfof[i]==1);
+        numingroup[pfof[i]]++;
+    }
+    for (i=2;i<=numgroups;i++) noffset[i]=noffset[i-1]+numingroup[i-1];
+    qsort(Part, Nlocal, sizeof(Particle), PIDCompare);
+    for (i=0;i<Nlocal;i++) Part[i].SetPID(storetype[Part[i].GetID()]);
+    delete[] storetype;
+    //store index order
     ids=new Int_t[Nlocal];
     for (i=0;i<Nlocal;i++) ids[i]=Part[i].GetID();
-    //calculate velocity scale
-    vscale2=mtotregion=vx=vy=vz=0;
-    for (i=0;i<iend;i++) {
-        vx+=Part[i].GetVelocity(0)*Part[i].GetMass();
-        vy+=Part[i].GetVelocity(1)*Part[i].GetMass();
-        vz+=Part[i].GetVelocity(2)*Part[i].GetMass();
-        mtotregion+=Part[i].GetMass();
-    }
-    vmean[0]=vx/mtotregion;vmean[1]=vy/mtotregion;vmean[2]=vz/mtotregion;
-    for (i=0;i<iend;i++) {
-        for (int j=0;j<3;j++) vscale2+=pow(Part[i].GetVelocity(j)-vmean[j],2.0)*Part[i].GetMass();
-    }
-    if (mtotregion>0) vscale2/=mtotregion;
+    
+    //if only using single velocity scale, use the largest "halo" to determine an appropriate velocity scale
+    if (opt.fofbgtype==FOF6D) {
+        vscale2=mtotregion=vx=vy=vz=0;
+        for (i=0;i<iend;i++) {
+            vx+=Part[i].GetVelocity(0)*Part[i].GetMass();
+            vy+=Part[i].GetVelocity(1)*Part[i].GetMass();
+            vz+=Part[i].GetVelocity(2)*Part[i].GetMass();
+            mtotregion+=Part[i].GetMass();
+        }
+        vmean[0]=vx/mtotregion;vmean[1]=vy/mtotregion;vmean[2]=vz/mtotregion;
+        for (i=0;i<iend;i++) {
+            for (int j=0;j<3;j++) vscale2+=pow(Part[i].GetVelocity(j)-vmean[j],2.0)*Part[i].GetMass();
+        }
+        if (mtotregion>0) vscale2/=mtotregion;
 
 #ifdef USEMPI
-    Double_t mpi_vscale2;
-    MPI_Allreduce(&vscale2,&mpi_vscale2,1,MPI_Real_t,MPI_MAX,MPI_COMM_WORLD);
-    vscale2=mpi_vscale2;
+        Double_t mpi_vscale2;
+        MPI_Allreduce(&vscale2,&mpi_vscale2,1,MPI_Real_t,MPI_MAX,MPI_COMM_WORLD);
+        vscale2=mpi_vscale2;
 #endif
-    //to account for fact that dispersion may not be high enough to link all outlying regions
-    //scale by 6d velocity factor
-    vscale2*=opt.ellhalo6dvfac*opt.ellhalo6dvfac;
-    //set the velocity scale
-    param[2]=(vscale2);
-    param[7]=param[2];
-
-    minsize=opt.HaloMinSize;
-    cout<<"Search "<<npartingroups<<" particles using 6DFOF"<<endl;
-    cout<<"Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits, ellvel="<<sqrt(param[7])<<" Vunits."<<endl;
-    fofcmp=&FOF6d;
-
+        //to account for fact that dispersion may not be high enough to link all outlying regions
+        //scale by 6d velocity factor
+        vscale2*=opt.ellhalo6dvfac*opt.ellhalo6dvfac;
+        //set the velocity scale
+        param[2]=(vscale2);
+        param[7]=param[2];    
+        cout<<"Search "<<npartingroups<<" particles using 6DFOF with uniform velocity scale"<<endl;
+        cout<<"Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits, ellvel="<<sqrt(param[7])<<" Vunits."<<endl;
+    }
+    //otherwise each object has its own velocity scale
+    else if(opt.fofbgtype==FOF6DADAPTIVE){
+        vscale2array=new Double_t[numgroups+1];
+#ifdef USEOPENMP
+#pragma omp parallel default(shared) \
+private(i,vscale2,mtotregion,vx,vy,vz,vmean)
+{
+#pragma omp for schedule(dynamic,1) nowait
+#endif
+        for (i=1;i<numgroups;i++) {
+            vscale2=mtotregion=vx=vy=vz=0;
+            for (Int_t j=0;j<numingroup[i];j++) {
+                vx+=Part[j+noffset[i]].GetVelocity(0)*Part[i].GetMass();
+                vy+=Part[j+noffset[i]].GetVelocity(1)*Part[i].GetMass();
+                vz+=Part[j+noffset[i]].GetVelocity(2)*Part[i].GetMass();
+                mtotregion+=Part[j+noffset[i]].GetMass();
+            }
+            vmean[0]=vx/mtotregion;vmean[1]=vy/mtotregion;vmean[2]=vz/mtotregion;
+            for (Int_t j=0;j<numingroup[i];j++) {
+                for (int k=0;k<3;k++) vscale2+=pow(Part[j+noffset[i]].GetVelocity(k)-vmean[k],2.0)*Part[j+noffset[i]].GetMass();
+            }
+            vscale2array[i]=vscale2/mtotregion*opt.ellhalo6dvfac*opt.ellhalo6dvfac;;
+        }
+#ifdef USEOPENMP
+}
+#endif
+        cout<<"Search "<<npartingroups<<" particles using 6DFOF with adaptive velocity scale"<<endl;
+        cout<<"Static parameters used are : ellphys="<<sqrt(param[6])<<" Lunits"<<endl;
+    }
+    //use the phase-space stream finding parameters
+    else if (opt.fofbgtype==FOFSTNOSUBSET) {
+    }
+    //error, so write message and quit
+    else {
+#ifdef USEMPI
+#else
+#endif
+    }
+    
+    ///\todo need to generalize this to allow adaptive search. I think the easiest think is to
+    ///actually remove the split between openmp and serial so that always build lots of kd trees
+    ///for each group, thereby allowing parameters to be different
+    ///would also need to allocate a parameter array for each group
+    /*
 #ifdef USEOPENMP
     ///\todo seems the openmp 6dfof search is unstable but why?
     Head=new Int_t[Nlocal];Next=new Int_t[Nlocal];Tail=new Int_t[Nlocal];Len=new Int_t[Nlocal];
@@ -359,16 +423,89 @@ private(i,tid)
     delete[] pfoftemp;
     delete tree;
 #endif
+    */
+
+    Head=new Int_t[Nlocal];Next=new Int_t[Nlocal];Tail=new Int_t[Nlocal];Len=new Int_t[Nlocal];
+    KDTree *treeomp[nthreads];
+    Double_t *paramomp=new Double_t[nthreads*20];
+    Int_t **pfofomp;
+    Int_t *ngomp;
+    //now split search by group. If doing fixed velocity dispersion search can group together all small 
+    //3DFOF groups into a single search
+    //otherwise don't group together all small groups
+    iend=numgroups;
+    if (opt.fofbgtype==FOF6D || opt.fofbgtype==FOFSTNOSUBSET) {
+        //determine chunks to search, where groups are split down to objects that are small and can be grouped
+        for (i=1;i<=numgroups;i++) if (numingroup[i]<=ompunbindnum) {iend=i;break;}
+        numingroup[0]=0;
+        for (i=iend;i<=numgroups;i++) numingroup[0]+=numingroup[i];
+        numingroup[iend]=numingroup[0];
+    }
+    //copy the parameters appropriately to the paramsomp array which can be used by openmp
+    for (i=0;i<nthreads;i++) 
+        for (int j=0;j<20;j++) paramomp[j+i*nthreads]=param[j];
+    
+    pfofomp=new Int_t*[iend+1];
+    ngomp=new Int_t[iend+1];
+#ifdef USEOPENMP
+#pragma omp parallel default(shared) \
+private(i,tid)
+{
+#pragma omp for schedule(dynamic,1) nowait
+#endif
+    for (i=1;i<=iend;i++) {
+#ifdef USEOPENMP
+        tid=omp_get_thread_num();
+#else
+        tid=0;
+#endif
+        treeomp[tid]=new KDTree(&Part[noffset[i]],numingroup[i],opt.Bsize,treeomp[tid]->TPHYS,tree->KEPAN,100);
+        //if adaptive 6dfof, set params
+        if (opt.fofbgtype==FOF6DADAPTIVE) paramomp[2+tid*20]=paramomp[7+tid*20]=vscale2array[i];
+        pfofomp[i]=treeomp[tid]->FOFCriterion(fofcmp,&paramomp[tid*20],ngomp[i],minsize,1,0,Pnocheck,&Head[noffset[i]],&Next[noffset[i]],&Tail[noffset[i]],&Len[noffset[i]]);
+        delete treeomp[tid];
+    }
+#ifdef USEOPENMP
+}
+#endif
+    ng=0;
+    for (i=0;i<Nlocal;i++) pfof[i]=0;
+    for (i=1;i<=iend;i++) {
+        for (int j=0;j<numingroup[i];j++) {
+            pfof[ids[Part[noffset[i]+j].GetID()+noffset[i]]]=pfofomp[i][j]+(pfofomp[i][j]>0)*ng; 
+        }
+        ng+=ngomp[i];
+        delete[] pfofomp[i];
+    }
+    delete[] ngomp;
+    delete[] paramomp;
+    delete[] pfofomp;
+    delete[] noffset;
+    delete[] numingroup;
+    delete[] Head;
+    delete[] Tail;
+    delete[] Next;
+    delete[] Len;
+    if (ng>0) {
+        if (opt.iverbose) cout<<" reordering "<<ng<<" groups "<<endl;
+        numingroup=BuildNumInGroup(Nlocal, ng, pfof);
+        Int_t **pglist=BuildPGList(Nlocal, ng, numingroup, pfof);
+        ReorderGroupIDs(ng, ng, numingroup, pfof, pglist);
+        for (i=1;i<=ng;i++) delete[] pglist[i];
+        delete[] pglist;
+        delete[] numingroup;
+    }
 
     for (i=0;i<npartingroups;i++) Part[i].SetID(ids[i]);
     gsl_heapsort(Part, Nlocal, sizeof(Particle), IDCompare);
     delete[] ids;
     numgroups=ng;
     }
-    //end of 6dfof search
+    //end of extra 6dfof/phase-space search of 3D FOF envelops
 
 #ifdef USEMPI
-    if (opt.fofbgtype==FOF6D) {
+    //update number of groups if extra secondary search done
+    if (opt.fofbgtype<=FOF6D) {
     cout<<"MPI thread "<<ThisTask<<" has found "<<numgroups<<endl;
     MPI_Allgather(&numgroups, 1, MPI_Int_t, mpi_ngroups, 1, MPI_Int_t, MPI_COMM_WORLD);
     //free up memory now that only need to store pfof and global ids
