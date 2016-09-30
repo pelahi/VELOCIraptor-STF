@@ -746,7 +746,7 @@ void MapPIDStoIndex(Options &opt, HaloTreeData *&pht) {
     Int_t i,j,k;
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
-private(i,j)
+private(i,j,k)
 {
 #pragma omp for schedule(dynamic) nowait
 #endif
