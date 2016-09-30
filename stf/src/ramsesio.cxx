@@ -111,6 +111,8 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
     else if (ptype==PSTBH) {nusetypes=1;usetypes[0]=RAMSESBHTYPE;}
 
 
+    for (j = 0; j < NRAMSESTYPE; j++) ramses_header_info.npartTotal[j] = 0;
+
     //Open the specified file and the specified dataset in the file.
     //first open amr data
     sprintf(buf1,"amr_%s.out00001",fname);
@@ -295,9 +297,8 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
         Framses.seekg(dummy,ios::cur);
         Framses.read((char*)&dummy, sizeof(dummy));
         Framses.read((char*)&dummy, sizeof(dummy));
-        //?? had total but probably not correct
-        //Framses.read((char*)&ramses_header_info.npartTotal[RAMSESSTARTYPE], sizeof(int));
-        Framses.read((char*)&ramses_header_info.npart[RAMSESSTARTYPE], sizeof(int));
+        //for some reason file has total number of stars 
+        Framses.read((char*)&ramses_header_info.npartTotal[RAMSESSTARTYPE], sizeof(int));
         Framses.read((char*)&dummy, sizeof(dummy));
         Framses.read((char*)&dummy, sizeof(dummy));
         Framses.seekg(dummy,ios::cur);
@@ -306,14 +307,16 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
         Framses.seekg(dummy,ios::cur);
         Framses.read((char*)&dummy, sizeof(dummy));
         Framses.read((char*)&dummy, sizeof(dummy));
+        //but has local number of sinks 
         Framses.read((char*)&ramses_header_info.npart[RAMSESSINKTYPE], sizeof(int));
         Framses.read((char*)&dummy, sizeof(dummy));
         Framses.close();
         ramses_header_info.npartTotal[RAMSESDMTYPE]+=ramses_header_info.npart[RAMSESDMTYPE];
         ramses_header_info.npartTotal[RAMSESSTARTYPE]+=ramses_header_info.npart[RAMSESSTARTYPE];
         ramses_header_info.npartTotal[RAMSESSINKTYPE]+=ramses_header_info.npart[RAMSESSINKTYPE];
-        ramses_header_info.npartTotal[RAMSESDMTYPE]-=ramses_header_info.npart[RAMSESSTARTYPE];
-        ramses_header_info.npartTotal[RAMSESDMTYPE]-=ramses_header_info.npart[RAMSESSINKTYPE];
+        //because nlocal for part file contains 
+        //ramses_header_info.npartTotal[RAMSESDMTYPE]-=ramses_header_info.npart[RAMSESSTARTYPE];
+        //ramses_header_info.npartTotal[RAMSESDMTYPE]-=ramses_header_info.npart[RAMSESSINKTYPE];
     }
     ramses_header_info.npartTotal[RAMSESDMTYPE]-=ramses_header_info.npartTotal[RAMSESSTARTYPE];
     for(j=0, nbodies=0; j<nusetypes; j++) {
@@ -321,6 +324,7 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
         nbodies+=ramses_header_info.npartTotal[k];
         //nbodies+=((long long)(ramses_header_info.npartTotalHW[k]) << 32);
     }
+    
     for (j=0;j<NPARTTYPES;j++) opt.numpart[j]=0;
     if (ptype==PSTALL || ptype==PSTDARK) opt.numpart[DARKTYPE]=ramses_header_info.npartTotal[RAMSESDMTYPE];
     if (ptype==PSTALL || ptype==PSTGAS) opt.numpart[GASTYPE]=ramses_header_info.npartTotal[RAMSESGASTYPE];

@@ -1672,3 +1672,318 @@ Int_t ReadFOFGroupBinary(Options &opt, Int_t nbodies, Int_t *pfof, Int_t *idtoin
 }
 
 //@}
+
+
+#ifdef EXTENDEDHALOOUTPUT
+/// \name Routines that can be used to output information of a halo subvolume decomposition
+//@{
+///Writes cell quantites
+void WriteExtendedOutput (Options &opt, Int_t numgroups, Int_t nbodies, PropData *pdata, Particle *p, Int_t * pfof)
+{
+    fstream Fout;
+    char fname[1000];
+    int ngtot = 0;
+    int noffset = 0;
+
+#ifdef USEMPI
+    for (int j = 0; j < NProcs; j++) ngtot += mpi_ngroups[j];
+    for (int j = 0; j < ThisTask; j++) noffset += mpi_ngroups[j];
+#else
+    int ThisTask = 0;
+    int NProcs = 1;
+    ngtot = numgroups;
+#endif
+    cout << "numgroups  " << numgroups << endl;
+    numgroups++;
+
+    Int_t *  nfilespergroup = new Int_t   [numgroups];
+    Int_t ** filesofgroup   = new Int_t * [numgroups];
+
+    Int_t *  ntaskspergroup = new Int_t   [numgroups];
+    Int_t ** tasksofgroup   = new Int_t * [numgroups];
+
+    // First send to Task 0, Groups and number of files over which the group is distributed
+    // from original reading
+
+    // Groups id have already the offset
+    Int_t ** npartsofgroupinfile = new Int_t * [numgroups];
+    Int_t ** npartsofgroupintask = new Int_t * [numgroups];
+
+#ifdef USEMPI
+    Int_t ntosendtotask      [NProcs];
+    Int_t ntorecievefromtask [NProcs];
+    for (Int_t i = 0; i < NProcs; i++)
+    {
+        ntosendtotask[i] = 0;
+        ntorecievefromtask[i] = 0;
+    }
+#endif
+
+    // Initialize arrays
+    for (Int_t i = 0; i < numgroups; i++)
+    {
+        npartsofgroupinfile[i] = new Int_t [opt.num_files];    
+
+#ifdef USEMPI
+        npartsofgroupintask[i] = new Int_t [NProcs];    
+        ntaskspergroup[i] = 0;
+        for(Int_t j = 0; j < NProcs; j++)
+            npartsofgroupintask[i][j] = 0;
+#endif
+
+        nfilespergroup[i] = 0;
+        for(Int_t j = 0; j < opt.num_files; j++)
+            npartsofgroupinfile[i][j] = 0;
+    }
+
+    // Set IdStruct IdTopHost and fill arrays
+    for (Int_t i = 0; i < nbodies; i++)
+    {
+        if (pfof[i] == 0)
+        {
+            p[i].SetIdTopHost(0);
+            p[i].SetIdHost(0);
+            p[i].SetIdStruct(0);
+        }
+        else
+        {
+            p[i].SetIdStruct (pdata[pfof[i]].haloid);
+            if (pdata[pfof[i]].hostfofid == 0)
+                p[i].SetIdTopHost (pfof[i] + noffset);
+            else
+                p[i].SetIdTopHost (pdata[pfof[i]].hostfofid);
+            if (pdata[pfof[i]].hostid < 0)
+                p[i].SetIdHost (pfof[i] + noffset);
+            else
+                p[i].SetIdHost (pdata[pfof[i]].hostid);
+        }
+
+        npartsofgroupinfile[pfof[i]][p[i].GetOFile()]++;
+#ifdef USEMPI
+        npartsofgroupintask[pfof[i]][p[i].GetOTask()]++;
+#endif
+    }
+
+    for (Int_t i = 0; i < numgroups; i++)
+    {
+#ifdef USEMPI
+        for(Int_t j = 0; j < NProcs; j++)
+            if(npartsofgroupintask[i][j] > 0)
+                ntaskspergroup[i]++;
+#endif
+        for(Int_t j = 0; j < opt.num_files; j++)
+            if(npartsofgroupinfile[i][j] > 0)
+                nfilespergroup[i]++;
+    }
+
+    // Shorten arrays
+    for (Int_t i = 0; i < numgroups; i++)
+    {
+        Int_t k = 0;
+#ifdef USEMPI
+        tasksofgroup[i] = new Int_t [ntaskspergroup[i]];
+        for(Int_t j = 0; j < NProcs; j++)
+        {
+            if(npartsofgroupintask[i][j] > 0)
+            {
+                tasksofgroup[i][k] = j;
+                ntosendtotask[j] += npartsofgroupintask[i][j];
+                k++;
+            }
+        }
+        k = 0;
+#endif
+        filesofgroup[i] = new Int_t [nfilespergroup[i]];
+        for(Int_t j = 0; j < opt.num_files; j++)
+        {
+            if(npartsofgroupinfile[i][j] > 0)
+            {
+                filesofgroup[i][k] = j;
+                k++;
+            }
+        }
+        delete [] npartsofgroupinfile[i];
+#ifdef USEMPI
+        delete [] npartsofgroupintask[i];
+#endif
+    }
+    delete [] npartsofgroupinfile;
+#ifdef USEMPI
+    delete [] npartsofgroupintask;
+#endif
+    // Now nfilespergroup has the number of files over which the group is distributed and
+    // filesofgroup has the id of the files
+    //
+    // Write FilesOfGroup File
+    int myturn = 0;
+
+#ifdef USEMPI
+    MPI_Status status;
+    MPI_Request rqst;
+
+    if (ThisTask == 0)
+    {
+#endif
+        myturn = 1;
+        char fog [1000];
+        sprintf (fog, "%s.filesofgroup", opt.outname);      
+        Fout.open (fog, ios::out);
+        for (Int_t i = 1; i < numgroups; i++)
+        {
+            Fout << pdata[i].haloid << "  " << nfilespergroup[i] << endl;
+            for (Int_t j = 0; j < nfilespergroup[i]; j++)
+            Fout << filesofgroup[i][j] << " ";
+            Fout << endl;
+        }
+        Fout.close();
+
+#ifdef USEMPI
+        if (NProcs > 1)
+            MPI_Isend (&myturn, 1, MPI_INT, ThisTask+1, ThisTask, MPI_COMM_WORLD, &rqst);
+    }
+    else
+    {
+        MPI_Recv (&myturn, 1, MPI_INT, ThisTask-1, ThisTask-1, MPI_COMM_WORLD, &status);
+
+        ofstream fout;
+        char fog[1000];
+        sprintf (fog, "%s.filesofgroup", opt.outname);      
+        fout.open (fog, ios::app);
+        for (Int_t i = 1; i < numgroups; i++)
+        {
+            fout << pdata[i].haloid << " " << nfilespergroup[i] << endl;
+            for (Int_t j = 0; j < nfilespergroup[i]; j++)fout << filesofgroup[i][j] << " ";
+            fout << endl;
+        }
+        fout.close();
+
+        if (ThisTask != NProcs-1)
+            MPI_Isend (&myturn, 1, MPI_INT, ThisTask+1, ThisTask, MPI_COMM_WORLD, &rqst);
+    }
+
+    // Send and Particles before writing Extended Files
+    // Communicate to all other processors how many particles are going to be sent
+    ntosendtotask[ThisTask] = 0;
+    for (Int_t i = 1; i < NProcs; i++)
+    {
+        int src = (ThisTask + NProcs - i) % NProcs;
+        int dst = (ThisTask + i) % NProcs;
+        MPI_Isend (&ntosendtotask[dst], 1, MPI_INT, dst, ThisTask, MPI_COMM_WORLD, &rqst);
+        MPI_Recv (&ntorecievefromtask[src], 1, MPI_INT, src, src, MPI_COMM_WORLD, &status);      
+    }
+
+    // Declare and allocate Particle arrays for sending and receiving
+    Particle ** PartsToSend = new Particle * [NProcs];
+    Particle ** PartsToRecv = new Particle * [NProcs];
+
+    int * count = new int [NProcs];    
+    for (Int_t i = 0; i < NProcs; i++)
+    {
+        count[i] = 0;
+        PartsToSend[i] = new Particle [ntosendtotask[i]+1];
+        PartsToRecv[i] = new Particle [ntorecievefromtask[i]+1];      
+    }
+
+    // Copy Particles to send
+    for (Int_t i = 0; i < nbodies; i++)
+        if (p[i].GetOTask() != ThisTask)
+            PartsToSend[p[i].GetOTask()][count[p[i].GetOTask()]++] = Particle(p[i]);
+
+    // Send and Receive Particles
+    for (Int_t i = 1; i < NProcs; i++)
+    {
+        int src = (ThisTask + NProcs - i) % NProcs;
+        int dst = (ThisTask + i) % NProcs;
+        MPI_Isend (PartsToSend[dst], ntosendtotask[dst]*sizeof(Particle), MPI_BYTE, dst, ThisTask, MPI_COMM_WORLD, &rqst);
+        MPI_Recv (PartsToRecv[src], ntorecievefromtask[src]*sizeof(Particle), MPI_BYTE, src, src, MPI_COMM_WORLD, &status);      
+    }
+#endif
+
+    // Organize particles in files for the ExtendedOutput
+    // First determine which files ThisTask should write
+    int npartthistask = 0;
+    int npartperfile[opt.num_files];
+
+    for (Int_t i = 0; i < opt.num_files; i++)
+        npartperfile[i] = 0;
+
+    // Loop over particles to get how many go to each file
+    for (Int_t i = 0; i < nbodies; i++) if (p[i].GetOTask() == ThisTask)
+    {
+        npartthistask++;
+        npartperfile[p[i].GetOFile()]++;
+    }
+
+#ifdef USEMPI
+    for (Int_t i = 0; i < NProcs; i++)
+        for (Int_t j = 0; j < ntorecievefromtask[i]; j++)
+            if (PartsToRecv[i][j].GetOTask() == ThisTask)
+            {
+                npartthistask++;
+                npartperfile[PartsToRecv[i][j].GetOFile()]++;
+            }
+#endif
+
+    // Allocate and fill arrays of particle, halo, host, and igm ids
+    // Here I am assuming that we have n particles with indexes rangin from 0 to n-1
+    int ** Id, ** IdStruct, ** IdTopHost, ** IdHost;
+
+    Id       = new int * [opt.num_files];
+    IdStruct = new int * [opt.num_files];
+    IdTopHost    = new int * [opt.num_files];
+    IdHost   = new int * [opt.num_files];
+
+    for (Int_t i = 0; i < opt.num_files; i++) 
+    if (npartperfile[i] > 0)
+    {
+        Id[i]       = new int [npartperfile[i]];
+        IdStruct[i] = new int [npartperfile[i]];
+        IdTopHost[i]    = new int [npartperfile[i]];
+        IdHost[i]   = new int [npartperfile[i]];
+    }
+
+    for (Int_t i = 0; i < nbodies; i++)
+    {
+        if (p[i].GetOTask() == ThisTask)
+        {
+            Id       [p[i].GetOFile()][p[i].GetOIndex()] = p[i].GetPID();
+            IdStruct [p[i].GetOFile()][p[i].GetOIndex()] = p[i].GetIdStruct();
+            IdHost   [p[i].GetOFile()][p[i].GetOIndex()] = p[i].GetIdHost();
+            IdTopHost    [p[i].GetOFile()][p[i].GetOIndex()] = p[i].GetIdTopHost();
+        }
+    } 
+#ifdef USEMPI
+    for (Int_t i = 0; i < NProcs; i++)
+        for (Int_t j = 0; j < ntorecievefromtask[i]; j++)
+            if (PartsToRecv[i][j].GetOTask() == ThisTask)
+            {
+                Id       [PartsToRecv[i][j].GetOFile()][PartsToRecv[i][j].GetOIndex()] = PartsToRecv[i][j].GetPID();
+                IdStruct [PartsToRecv[i][j].GetOFile()][PartsToRecv[i][j].GetOIndex()] = PartsToRecv[i][j].GetIdStruct();
+                IdHost   [PartsToRecv[i][j].GetOFile()][PartsToRecv[i][j].GetOIndex()] = PartsToRecv[i][j].GetIdHost();
+                IdTopHost    [PartsToRecv[i][j].GetOFile()][PartsToRecv[i][j].GetOIndex()] = PartsToRecv[i][j].GetIdTopHost();
+            }
+#endif
+
+    // Write ExtendedFiles
+    for (Int_t i = 0; i < opt.num_files; i++) 
+        if (npartperfile[i] > 0)
+        {
+            sprintf (fname,"%s.extended.%d",opt.outname,i);
+            Fout.open (fname,ios::out);
+            for (Int_t j = 0; j < npartperfile[i]; j++)
+            {
+                Fout << setw(12) << Id[i][j]       << "  ";
+                Fout << setw(7)  << IdStruct[i][j] << "  ";
+                Fout << setw(7)  << IdHost[i][j]   << "  ";
+                Fout << setw(7)  << IdTopHost[i][j]    << "  ";
+                Fout << endl;
+            }
+            Fout.close();
+        }
+#ifdef USEMPI
+    MPI_Barrier (MPI_COMM_WORLD);
+#endif
+    cout << ThisTask << " Finished writing extended output" << endl;
+}
+//@}
+#endif

@@ -99,6 +99,10 @@ void ReadCellValues(Options &opt, const Int_t nbodies, const Int_t ngrid, GridCe
 // ///Reads number of cells
 //Int_t ReadCellNum(Options &opt);
 
+#ifdef EXTENDEDHALOOUTPUT
+//Write extended halo output for extraction of haloes from input files
+void WriteExtendedOutput (Options &opt, Int_t numgroups, Int_t nbodies, PropData *pdata, Particle *p, Int_t * pfof);
+#endif
 //@}
 
 /// \name Subroutines set up nonuniform grid of cells

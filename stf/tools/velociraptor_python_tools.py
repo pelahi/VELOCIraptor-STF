@@ -1182,17 +1182,20 @@ def AdjustforPeriod(numsnaps,numhalos,boxsize,hval,atime,halodata,icomove=0):
         wdata=np.where(halodata[i]["Zc"]>boxval)
         halodata[i]["Zc"][wdata]-=boxval
 
-def AdjustComove(itocomovefromphysnumsnaps,numsnaps,atime,halodata,igas=0,istar=0):
+def AdjustComove(itocomovefromphysnumsnaps,numsnaps,numhalos,atime,halodata,igas=0,istar=0):
     """
     Convert distances to/from physical from/to comoving
     """
     for i in range(numsnaps):
-        #if converting from comoving to physical
+        if (numhalos[i]==0): continue
+        #converting from physical to comoving
         if (itocomovefromphysnumsnaps==1):
-            fac=atime[i]
-        #else converting from physical to comoving
+            fac=float(1.0/atime[i])
+        #converting from comoving to physical
         else:
-            fac=1.0/atime[i]
+            fac=float(atime[i])
+        if (fac==1): continue
+
         #convert physical distances
         halodata[i]["Xc"]*=fac
         halodata[i]["Yc"]*=fac
@@ -1208,7 +1211,7 @@ def AdjustComove(itocomovefromphysnumsnaps,numsnaps,atime,halodata,igas=0,istar=
         halodata[i]["R_200crit"]*=fac
         halodata[i]["R_BN97"]*=fac
         halodata[i]["Rmax"]*=fac
-
+        halodata[i]["R_HalfMass"]*=fac
 
         #if gas
         if (igas):

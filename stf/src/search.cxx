@@ -443,7 +443,7 @@ private(i,tid)
     }
     //copy the parameters appropriately to the paramsomp array which can be used by openmp
     for (i=0;i<nthreads;i++) 
-        for (int j=0;j<20;j++) paramomp[j+i*nthreads]=param[j];
+        for (int j=0;j<20;j++) paramomp[j+i*20]=param[j];
     
     pfofomp=new Int_t*[iend+1];
     ngomp=new Int_t[iend+1];
