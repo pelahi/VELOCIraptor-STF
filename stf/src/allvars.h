@@ -109,8 +109,8 @@ using namespace NBody;
 #define FILAMENTSTYPE 3
 #define BGTYPE 10
 #define GROUPNOPARENT -1
-#define IGMTYPE 7
-#define IGMGROUP -2
+#define FOF3DTYPE 7
+#define FOF3DGROUP -2
 //@}
 //@}
 
@@ -407,6 +407,7 @@ struct Options
     Double_t ellhalo6dxfac;
     Double_t ellhalo6dvfac;
     int iKeepFOF;
+    Int_t num3dfof;
     //@}
     //@{
     ///\name factors used to check for halo mergers, large background substructures and store the velocity scale when searching for associated baryon substructures

@@ -283,9 +283,9 @@ namespace NBody
 
     //------- Begining Find NN routines
 
-    // Find the m nearest neighbours of the tt'th particle in the tree.
-    // The nearest neighbours and squared distances are stored in
-    // the arrays nn and dist2, respectively.
+    /// Find the m nearest neighbours of the tt'th particle in the tree.
+    /// The nearest neighbours and squared distances are stored in
+    /// the arrays nn and dist2, respectively.
     void KDTree::FindNearest(Int_t tt, Int_t *nn, Double_t *dist2, Int_t Nsearch)
     {
         //here if periodic and searching based on target, increase Nsearch by 1 because coord based search will find target, then remove target from list at the end
