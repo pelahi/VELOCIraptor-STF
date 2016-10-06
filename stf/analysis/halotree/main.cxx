@@ -22,6 +22,22 @@ int main(int argc,char **argv)
     int ThisTask=0,NProcs=1,Nlocal,Ntotal;
     int StartSnap,EndSnap;
 #endif
+    int nthreads;
+#ifdef USEOPENMP
+#pragma omp parallel
+    {
+    if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
+    }
+#else
+    nthreads=1;
+#endif
+
+#ifdef USEMPI
+    if (ThisTask==0) cout<<"VELOCIraptor/Tree running with MPI. Number of mpi threads: "<<NProcs<<endl;
+#endif
+#ifdef USEOPENMP
+    if (ThisTask==0) cout<<"VELOCIraptor/Tree running with OpenMP. Number of openmp threads: "<<nthreads<<endl;
+#endif
 
     //store the configuration settings in the options object
     Options opt;
