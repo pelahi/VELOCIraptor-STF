@@ -1198,21 +1198,22 @@ HaloData *ReadHaloGroupCatalogData(char* infile, Int_t &numhalos, int mpi_ninput
             if (iverbose) cout<<" and the total number of halos in all files is "<<TotalNumberofHalos<<endl;
             Halo=new HaloData[TotalNumberofHalos];
             numhalos=TotalNumberofHalos;
+            if (numhalos==0) return Halo;
         }
-
-        STFReadNumData(nids, nsids, nuids, nsuids, 
-            nidstot, nsidstot, nuidstot, nsuidstot, 
-            Fpart, Fupart, Fspart, Fsupart, 
-            Fparttype, Fuparttype, Fsparttype, Fsuparttype, 
-#ifdef USEHDF
-            Fhdfpart, Fhdfspart, Fhdfupart, Fhdfsupart, 
-            Fhdfparttype, Fhdfsparttype, Fhdfuparttype, Fhdfsuparttype, 
-            dataset, dataspace,
-#endif
-            ibinary, ifieldhalos, itypematch);
-        //now files prepped to be read for relavant data
-
+        //if no local groups no need to read anything else in this file. So only proceed if ngloca>0
         if (nglocal>0) {
+            STFReadNumData(nids, nsids, nuids, nsuids, 
+                nidstot, nsidstot, nuidstot, nsuidstot, 
+                Fpart, Fupart, Fspart, Fsupart, 
+                Fparttype, Fuparttype, Fsparttype, Fsuparttype, 
+#ifdef USEHDF
+                Fhdfpart, Fhdfspart, Fhdfupart, Fhdfsupart, 
+                Fhdfparttype, Fhdfsparttype, Fhdfuparttype, Fhdfsuparttype, 
+                dataset, dataspace,
+#endif
+                ibinary, ifieldhalos, itypematch);
+            //now files prepped to be read for relavant data
+
             numingroup=new Int_t[nglocal+1];
             offset=new Int_t[nglocal+1];
             uoffset=new Int_t[nglocal+1];
@@ -1342,9 +1343,8 @@ HaloData *ReadHaloGroupCatalogData(char* infile, Int_t &numhalos, int mpi_ninput
         }
 
         for (Int_t i=0;i<nglocal+nsglocal;i++) Halo[i+noffset].haloID=i+1+noffset;
-        if (ifieldhalos) {
-        //cout<<infile<<" has sublevels with "<<nsglocal<<" "<<nsids<<" "<<nsuids<<endl;
-        if (nsglocal>0) {
+        //if field halos and subhaloes stored in separate files, proceed only if subhaloes present in local file.
+        if (ifieldhalos && nsglocal) {
             //now read substructure data
             numingroup=new Int_t[nsglocal];
             offset=new Int_t[nsglocal];
@@ -1468,7 +1468,6 @@ HaloData *ReadHaloGroupCatalogData(char* infile, Int_t &numhalos, int mpi_ninput
             delete[] numingroupbound;
             delete[] numingroup;
             if (itypematch!=ALLTYPEMATCH) delete[] typeval;
-        }
         }
         noffset+=nglocal+nsglocal;
 
