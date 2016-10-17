@@ -26,7 +26,7 @@
         University of Western Australia \n
         Crawley, WA, Australia, 6009 \n
         pascal.elahi@uwa.edu.au, pelahi@physics.usyd.edu.au, pascaljelahi@gmail.com \n
-\version 1.13
+\version 1.14
 \section license License
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License as
@@ -65,6 +65,12 @@ the source-code documentation, a brief guide to code compilation is
 given below, and under <b>Related Pages (see link on top)</b> you can find
 a short guide to compile-time options of the code.
 
+\section relatecodes Related Codes
+
+There are several related codes that come with VELOCIraptor. These are TreeFrog (aka halotree), and OrbWeaver. These codes are designed to process a set of halo catalogs
+produced by VELOCIraptor and build temporal halo merger trees and reconstruct orbits of satellites around haloes. A description of the codes can be found at \n \n 
+- \b TreeFrog - A code designed to produce halo merger trees or cross correlate two different halo (structure) catalogues (\ref TreeFrog).
+
 \section prelim Getting started
 
     Getting started is as simple as editing the Makefile.config file (see \ref STF-makeflags)
@@ -75,14 +81,14 @@ a short guide to compile-time options of the code.
 VELOCIraptor/STF needs the following non-standard libraries for compilation:
 
 - \b GSL - the GNU scientific library. This open-source package can be
-  obtained at http://www.gnu.org/software/gsl. STF
+  obtained at http://www.gnu.org/software/gsl. VELOCIraptor
   needs this library for a few special function calls
   and for random number generation.
 
-- \b libNBody - a scientific library included with STF (\ref libNBody).
-  STF needs this library for a number of structures, classes, and methods it provides.
+- \b libNBody - a scientific library included with VELOCIraptor (\ref libNBody).
+  VELOCIraptor needs this library for a number of structures, classes, and methods it provides.
 
-STF for parallel use may need the following non-standard libraries for compilation
+VELOCIraptor for parallel use may need the following non-standard libraries for compilation
 depending on the compilation flags used:
 
 - \b MPI - the Message Passing Interface (version 1.0 or higher). Many
@@ -147,7 +153,7 @@ in the examples directory). \n \n
     \subsection configfile Preferred interface: Use a configuration file
     for details of configuration options see \ref configopt
     \arg \b \e -i < input file > \ref Options.fname \n
-    \arg \b \e -s < number of files per snapshot for gadget input, 0 for tipsy [default] > \ref Options.snapshotnum \n
+    \arg \b \e -s < number of files per snapshot for gadget input, 0 for tipsy [default] > \ref Options.num_files \n
     \arg \b \e -Z < number of files to read in parallel (when mpi is invoked) > \ref Options.nsnapread \n
     \arg \b \e -o < output base name (this can be overwritten by a configuration option in the config file. Suggestion would be to not use this option in the config file, use explicit command> \ref Options.outname \n
     \arg \b \e -C < Config file name (see \ref configopt for discussion of what is contained in this ascii parameter file) > \ref Options.pname \n
@@ -227,7 +233,7 @@ distinct gas substructures which are also metalicity outliers would require:
 
 /*! \page STF-makeflags  Makefile.config
 
-A number of features of STF are controlled with compile-time options
+A number of features of VELOCIraptor are controlled with compile-time options
 in the makefile rather than by arguments. The Makefile.config file contains 
 a list of all available compile-time options, with most of them commented out by default. 
 To activate a certain feature, the corresponding parameter should be commented in, 
