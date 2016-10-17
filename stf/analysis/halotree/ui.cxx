@@ -201,3 +201,38 @@ void usage(void)
     exit(1);
 }
 
+/*!
+    \page args Command line options
+    The following commands are accepted as command line arguments (more info can be found in \ref Options struct and \ref ui.cxx for user interface or the sample configuration file
+in the examples directory). \n \n
+
+    \section outconfig Input/Output related. 
+    See \ref io.cxx, \ref stfio.cxx, and \ref otherio.cxx for implementation of the code, \ref allvars.h for definitions
+    \arg \b \e -i < file containing filelist >
+    \arg \b \e -s < number of files/snapshots to be processed >
+    \arg \b \e -I < Input format, can be \ref DSUSSING (ascii) \ref DCATALOG (VELOCIraptor output which can be ascii, binary or hdf see -B),  \ref DNIFTY (ascii), \ref DVOID (ascii) >
+    \arg \b \e -N < 0/1 if output is split between multiple files due to mpi, number of files written, useful for reading VELOCIraptor output >
+    \arg \b \e -B < for VELOCIraptor catalogs can be \ref INASCII (ascii) \ref INBINARY (binary) or \ref INHDF (hdf5) >
+    \arg \b \e -F < 0/1 field objects in VELOCIraptor output in separate file >
+    \arg \b \e -o < output filename >
+    \arg \b \e -O < output type, whether merger tree, full graph, whether to output merit of each match >
+    \arg \b \e -c < produce cross catalog match (0 halo tree ,1 cross catalog where code acts like particle correlator, matching analogues between simulations >
+
+    \section linkingconfig Linking options
+    \arg \b \e -t < number of steps over to find links >
+    \arg \b \e -n < maximum id of particles >
+    \arg \b \e -C < cross correlation function type to identify main progenitor (see \ref Options.matchtype, which can be  \ref NsharedN1N2 standard merit function \f[ \mathcal{M}=N_{\rm sh}^2/N_1/N_2 \f], \ref Nshared >
+    \arg \b \e -T < type of particles to cross correlate (\ref opt.itypematch, which can be \ref ALLTYPEMATCH is all particle types, \ref DMTYPEMATCH is DM particle types
+    \ref GASTYPEMATCH is GAS particle types \ref STARTYPEMATCH is STAR particle types, \ref DMGASTYPEMATCH is both DM and GAS particle types >
+    \arg \b \e -S < significance of cross match relative to Poisson noise >
+
+    \section otherconfig Other options
+    \arg \b \e -H < offset snapshot values by this number >
+    \arg \b \e -h < adjust Halo ID values stored in group catalog, useful for matching these values to those stored in .properties files produced by the halo finder. output is ID+(snap+snapshotvaloffset)*haloIDval >
+    \arg \b \e -d < adjust Halo ID by this offset value >
+    \arg \b \e -D < adjust particle IDs for nIFTY cross catalogs across simulations >
+    \arg \b \e -M < Mapping of particle ids to index  (\ref opt.imapping with \ref DNOMAP no mapping of ids to indices, all others must be implemented >
+    \arg \b \e -v < verbose flag 1/0 > 
+    \arg \b \e -m < number of items per mpi thead, use for load balacing. Use 0 if no mpi used when building halo catalog >
+
+*/

@@ -7,5 +7,7 @@ stf/NBodylib/src/*/*.o
 stf/NBodylib/src/*/*.a
 stf/NBodylib/include/*
 stf/NBodylib/lib/*
+stf/analysis/halotree/doc/latex/*
+stf/analysis/halotree/doc/html/*
 *~
 

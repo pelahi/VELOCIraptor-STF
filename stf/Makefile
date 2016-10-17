@@ -37,10 +37,12 @@ ifeq "$(wildcard doc/doxy.log)" ""
 doc: doc_
 doc_:
 	cd NBodylib; make doc;
+	cd analysis; make doc;
 	cd doc; mkdir -p html; mkdir -p latex; doxygen Doxyfile > doxy.log;
 else
 doc:  doc/Doxyfile $(CFILES) $(HFILES)
 	cd NBodylib; make doc;
+	cd analysis; make doc;
 	cd doc; mkdir -p html; mkdir -p latex; doxygen Doxyfile > doxy.log;
 endif
 docc_:
@@ -54,4 +56,5 @@ ifneq "$(wildcard doc/doxy.log)" ""
 	rm -r doc/doxy.log
 endif
 	cd NBodylib; make docclean;
+	cd analysis; make docclean;
 

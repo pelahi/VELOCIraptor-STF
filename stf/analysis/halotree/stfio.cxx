@@ -1198,7 +1198,14 @@ HaloData *ReadHaloGroupCatalogData(char* infile, Int_t &numhalos, int mpi_ninput
             if (iverbose) cout<<" and the total number of halos in all files is "<<TotalNumberofHalos<<endl;
             Halo=new HaloData[TotalNumberofHalos];
             numhalos=TotalNumberofHalos;
-            if (numhalos==0) return Halo;
+            //if no haloes close file and return
+            if (numhalos==0) {
+                if (ibinary!=INHDF) CloseBinaryorAsciiFiles(Fgroup, Fpart, Fupart, Fsgroup, Fspart, Fsupart, Fparttype, Fuparttype, Fsparttype, Fsuparttype, ifieldhalos, itypematch);
+#ifdef USEHDF
+                else CloseHDFFiles(Fhdfgroup, Fhdfpart, Fhdfupart, Fhdfsgroup, Fhdfspart, Fhdfsupart, Fhdfparttype, Fhdfuparttype, Fhdfsparttype, Fhdfsuparttype, ifieldhalos, itypematch);
+#endif
+                return Halo;
+            }
         }
         //if no local groups no need to read anything else in this file. So only proceed if ngloca>0
         if (nglocal>0) {
