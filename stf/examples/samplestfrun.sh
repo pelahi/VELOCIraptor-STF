@@ -17,17 +17,18 @@ outdir=./
 #stf executable
 stfexe=./bin/stf
 #tree executable
-halomergertreeexe=./bin/halomergertree
+hmt=./bin/halomergertree
 
 echo $isnap,$fsnap,$nsnaps
 
 for ((j=$isnap; j<=$fsnap; j++)) 
 do
     jj=`printf "%03d" $j`
-	cp $paramfile $outdir/$simname.sn$jj.param; 
-	sed -i .old 's/Output=OUTNAME/Output='"$outdir"'/'"$simname"'.c'"$i"'.sn'"$jj"'/g' $outdir/$simname.sn$jj.param;
-	ifile=`printf "%s/snapshot_%03d" $indir $j`
-	$stfexe -i $ifile -s $nfiles -C $outdir/$simname.sn$jj.param > $outdir/$simname.sn$jj.log; 
+    cp $paramfile $outdir/$simname.sn$jj.param; 
+    sed -i .old 's/Output=OUTNAME/Output='"$outdir"'/'"$simname"'.c'"$i"'.sn'"$jj"'/g' $outdir/$simname.sn$jj.param;
+    sed -i .old 's/Snapshot_value=SNVALUE/Snapshot_value='"$j"'/g' $outdir/$simname.sn$jj.param;
+    ifile=`printf "%s/snapshot_%03d" $indir $j`
+    $stfexe -i $ifile -s $nfiles -C $outdir/$simname.sn$jj.param > $outdir/$simname.sn$jj.log; 
 done
 
 #largest particle ID value
@@ -38,8 +39,8 @@ echo $Neff,$Nid
 for ((j=$isnap; j<=$fsnap; j++)) 
 do
     jj=`printf "%03d" $j`
-	echo $outdir/$simname.sn$jj >>$outdir/halolist.txt
+    echo $outdir/$simname.sn$jj >>$outdir/halolist.txt
 done
-$halomergertreeexe -i $outdir/halolist.txt -s $nsnaps -n $Nid -o $outdir/$simname.tree $outdir/tree.log
+$hmt -i $outdir/halolist.txt -s $nsnaps -n $Nid -o $outdir/$simname.tree $outdir/tree.log
 
 
