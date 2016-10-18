@@ -129,7 +129,6 @@ private(i)
 
 #ifdef USEMPI
         }
-        else HaloTree[i].Halo=NULL;
 #endif
 
     }
@@ -210,6 +209,7 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
     if (ThisTask==0) {
     Fout.open(fname,ios::out | ios::app);
     ///last file has no connections
+    Fout<<0+opt.snapshotvaloffset<<"\t"<<h[0].numhalos<<endl;
     for (int j=0;j<h[0].numhalos;j++) {
         Fout<<h[0].Halo[j].haloID<<"\t"<<0<<endl;
     }
@@ -245,6 +245,7 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
         }
     }
     }
+    Fout<<0+opt.snapshotvaloffset<<"\t"<<h[0].numhalos<<endl;
     ///last file has no connections
     for (int j=0;j<h[0].numhalos;j++) {
         Fout<<h[0].Halo[j].haloID<<"\t"<<0<<endl;
