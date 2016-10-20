@@ -111,7 +111,20 @@ be stored locally on the local memory. That is the full halo (strutcure) catalog
 number of snapshots used to identify candidate links.
 
 \section uiargs Interface
-The code is passed command line arguments. More info can be found in \ref args, \ref Options struct and \ref ui.cxx 
+The code is passed command line arguments. More info can be found in \ref args, \ref Options struct and \ref ui.cxx \n
+It is important to note that the input file is meant to contain a list of files that are to be opened with the order 
+of first file earliest snapshot, last latest. Example would be \n
+\b snap_000.halo_particles \n
+\b snap_001.halo_particles \n 
+where these files are a list of particle ids (and possibly type information too) of particles in structures that you
+wish to track. The only alteration to the name is when reading in VELOCIraptor output. This output is structured
+into a specific set of files, .properties, .catalog_groups, .catalog_particles, .catalog_parttypes. In his case the file 
+list should contain a list of the base names, ex: \n
+\b snap_000.VELOCIraptor \n
+\b snap_001.VELOCIraptor \n 
+where for snap_000.VELOCIraptor, there is snap_000.VELOCIraptor.properties, snap_000.VELOCIraptor.catalog_groups, snap_000.VELOCIraptor.catalog_particles, snap_000.VELOCIraptor.catalog_particles.unbound
+(snap_000.VELOCIraptor.catalog_parttypes, snap_000.VELOCIraptor.catalog_parttypes.unbound if different particle types processed in halo catalog).
+
 
 \section linking Linking Haloes
 The code is designed to link halo (structures) in one catalog with those listed in another using the particle IDs. 

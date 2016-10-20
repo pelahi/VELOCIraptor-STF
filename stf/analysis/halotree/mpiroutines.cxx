@@ -86,8 +86,8 @@ void MPILoadBalanceSnapshots(Options &opt){
     }
     //task 0 has finished determining which snapshots a given mpi thread will process
 
-    MPI_Bcast(mpi_startsnap, NProcs, MPI_Int_t, 0, MPI_COMM_WORLD);
-    MPI_Bcast(mpi_endsnap, NProcs, MPI_Int_t, 0, MPI_COMM_WORLD);
+    MPI_Bcast(mpi_startsnap, NProcs, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(mpi_endsnap, NProcs, MPI_INT, 0, MPI_COMM_WORLD);
     StartSnap=mpi_startsnap[ThisTask];
     EndSnap=mpi_endsnap[ThisTask];
     NSnap=EndSnap-StartSnap;

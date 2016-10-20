@@ -553,9 +553,11 @@ struct VELOCIraptorFileTypeNames {
         ftypename.push_back("sublevels.catalog_parttypes");
         ftypename.push_back("sublevels.catalog_parttypes.unbound");
     }
-    void UpdateName(char *& infile, char *farray[], int k,int impi=0){
-        if (impi)   for (int i=0;i<ftypename.size();i++) sprintf(farray[i],"%s.%s.%d",infile,ftypename[i].c_str(),k);
-        else        for (int i=0;i<ftypename.size();i++) sprintf(farray[i],"%s.%s",infile,ftypename[i].c_str());
+    void UpdateName(string &infile, string farray[], int k,int impi=0){
+        std::ostringstream oss;
+        oss<<"."<<k;
+        for (int i=0;i<ftypename.size();i++) {farray[i]=infile;farray[i]+=".";farray[i]+=ftypename[i];}
+        if (impi) for (int i=0;i<ftypename.size();i++) {farray[i]+=oss.str();}
     }
 };
 

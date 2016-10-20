@@ -11,7 +11,7 @@
 Int_t ReadNumberofHalos(Options &opt, Int_t *numhalos)
 {
     fstream Fin;//file is list of halo data files
-    char buf[1000*opt.numsnapshots];
+    string *buf=new string[opt.numsnapshots];
     Int_t tothalos=0;
 
     Fin.open(opt.fname);
@@ -25,21 +25,22 @@ Int_t ReadNumberofHalos(Options &opt, Int_t *numhalos)
     }
     for(int i=0; i<opt.numsnapshots; i++) 
     {
-        Fin>>&(buf[i*1000]);
+        Fin>>buf[i];
             //if (opt.ioformat==DSUSSING) HaloTree[i].Halo=ReadHaloData(&buf[i*1000],HaloTree[i].numhalos);
             //else if (opt.ioformat==DCATALOG) 
-                numhalos[i]=MPIReadHaloGroupCatalogDataNum(&buf[i*1000],opt.nmpifiles, opt.ibinary,opt.ifield, opt.itypematch);
+                numhalos[i]=MPIReadHaloGroupCatalogDataNum(buf[i],opt.nmpifiles, opt.ibinary,opt.ifield, opt.itypematch);
             //else if (opt.ioformat==DNIFTY) HaloTree[i].Halo=ReadNIFTYData(&buf[i*1000],HaloTree[i].numhalos, opt.idcorrectflag);
             tothalos+=numhalos[i];
     }
     Fin.close();
+    delete[] buf;
     return tothalos;
 }
 
 Int_t ReadNumberofParticlesInHalos(Options &opt, Int_t *numpartinhalos)
 {
     fstream Fin;//file is list of halo data files
-    char buf[1000*opt.numsnapshots];
+    string *buf=new string[opt.numsnapshots];
     Int_t tothalos=0,totpart=0;
 
     Fin.open(opt.fname);
@@ -53,29 +54,30 @@ Int_t ReadNumberofParticlesInHalos(Options &opt, Int_t *numpartinhalos)
     }
     for(int i=0; i<opt.numsnapshots; i++) 
     {
-        Fin>>&(buf[i*1000]);
+        Fin>>buf[i];
             //if (opt.ioformat==DSUSSING) HaloTree[i].Halo=ReadHaloData(&buf[i*1000],HaloTree[i].numhalos);
             //else if (opt.ioformat==DCATALOG) 
-                //numhalos[i]=MPIReadHaloGroupCatalogDataNum(&buf[i*1000],opt.nmpifiles, opt.ibinary,opt.ifield, opt.itypematch);
-                numpartinhalos[i]=MPIReadHaloGroupCatalogDataParticleNum(&buf[i*1000],opt.nmpifiles, opt.ibinary,opt.ifield, opt.itypematch);
+            numpartinhalos[i]=MPIReadHaloGroupCatalogDataParticleNum(buf[i],opt.nmpifiles, opt.ibinary,opt.ifield, opt.itypematch);
             //else if (opt.ioformat==DNIFTY) HaloTree[i].Halo=ReadNIFTYData(&buf[i*1000],HaloTree[i].numhalos, opt.idcorrectflag);
             //tothalos+=numhalos[i];
             totpart+=numpartinhalos[i];
     }
     Fin.close();
+    delete[] buf;
     return totpart;
 }
 #endif
 
 
 ///Read data from a number of snapshot files
+///\todo need to figure out the best way to optimize the openmp reading as it can be unstable as it stands
 HaloTreeData *ReadData(Options &opt)
 {
     HaloTreeData *HaloTree;
     fstream Fin;//file is list of halo data files
     long unsigned j,nparts,haloid;
     HaloTree=new HaloTreeData[opt.numsnapshots];
-    char buf[1000*opt.numsnapshots];
+    string *buf=new string[opt.numsnapshots];
     Int_t tothalos=0;
 #ifdef USEMPI
     Int_t mpi_tothalos;
@@ -89,16 +91,33 @@ HaloTreeData *ReadData(Options &opt)
     }
 #endif
 
+#ifdef USEMPI
+    if (ThisTask==0) {
+        Fin.open(opt.fname);
+        if (!Fin.is_open()) {
+            cerr<<"file containing snapshot list can't be opened"<<endl;
+            MPI_Abort(MPI_COMM_WORLD,9);
+        }
+        Fin.close();
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+    for (int itask=0;itask<NProcs;itask++) {
+        if (ThisTask==itask) {
+            Fin.open(opt.fname);
+            for(i=0; i<opt.numsnapshots; i++) Fin>>buf[i];
+            Fin.close();
+        }
+        MPI_Barrier(MPI_COMM_WORLD);
+    }
+#else
     Fin.open(opt.fname);
     if (!Fin.is_open()) {
         cerr<<"file containing snapshot list can't be opened"<<endl;
-#ifdef USEMPI
-        MPI_Finalize();
-#endif
         exit(9);
     }
-    for(i=0; i<opt.numsnapshots; i++) Fin>>&(buf[i*1000]);
+    for(i=0; i<opt.numsnapshots; i++) Fin>>buf[i];
     Fin.close();
+#endif
 
 #if (defined(USEOPENMP) && !defined(USEMPI))
 #pragma omp parallel default(shared) \
@@ -112,10 +131,10 @@ private(i)
         //if mpi only read relavant data
         if (i>=StartSnap && i<EndSnap) {
 #endif
-            if (opt.ioformat==DSUSSING) HaloTree[i].Halo=ReadHaloData(&buf[i*1000],HaloTree[i].numhalos);
-            else if (opt.ioformat==DCATALOG) HaloTree[i].Halo=ReadHaloGroupCatalogData(&buf[i*1000],HaloTree[i].numhalos, opt.nmpifiles, opt.ibinary,opt.ifield, opt.itypematch,opt.iverbose);
-            else if (opt.ioformat==DNIFTY) HaloTree[i].Halo=ReadNIFTYData(&buf[i*1000],HaloTree[i].numhalos, opt.idcorrectflag);
-            else if (opt.ioformat==DVOID) HaloTree[i].Halo=ReadVoidData(&buf[i*1000],HaloTree[i].numhalos, opt.idcorrectflag);
+            if (opt.ioformat==DSUSSING) HaloTree[i].Halo=ReadHaloData(buf[i],HaloTree[i].numhalos);
+            else if (opt.ioformat==DCATALOG) HaloTree[i].Halo=ReadHaloGroupCatalogData(buf[i],HaloTree[i].numhalos, opt.nmpifiles, opt.ibinary,opt.ifield, opt.itypematch,opt.iverbose);
+            else if (opt.ioformat==DNIFTY) HaloTree[i].Halo=ReadNIFTYData(buf[i],HaloTree[i].numhalos, opt.idcorrectflag);
+            else if (opt.ioformat==DVOID) HaloTree[i].Halo=ReadVoidData(buf[i],HaloTree[i].numhalos, opt.idcorrectflag);
 #ifdef USEMPI
             //if mpi then there is data overlap so only add to total if no overlap
             if (ThisTask<NProcs-1 && NProcs>1) {

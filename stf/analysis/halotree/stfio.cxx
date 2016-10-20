@@ -11,23 +11,32 @@ using namespace H5;
 
 ///\name routines for opening closing the set of files produced by velociraptor 
 //@{
-void OpenBinaryorAsciiFiles(char *infile, int ibinary, int numfiletypes, int k, int mpi_ninput, int ifieldhalos, int itypematch,
+void OpenBinaryorAsciiFiles(string &infile, int ibinary, int numfiletypes, int k, int mpi_ninput, int ifieldhalos, int itypematch,
     fstream &Fgroup, fstream &Fpart, fstream &Fupart, 
     fstream &Fsgroup, fstream &Fspart, fstream &Fsupart,
     fstream &Fparttype, fstream &Fuparttype,
     fstream &Fsparttype, fstream &Fsuparttype,
     int iverbose)
 {
-    char fname1[1000],fname2[1000],fname3[1000];
-    char fname4[1000],fname5[1000],fname6[1000];
-    char fname7[1000],fname8[1000];
-    char fname9[1000],fname10[1000];
-    char *fnamearray[10];
+    string fname1,fname2,fname3;
+    string fname4,fname5,fname6;
+    string fname7,fname8;
+    string fname9,fname10;
+    string fnamearray[10];
     fstream *Farray[10];
     int itemp;
     VELOCIraptorFileTypeNames vftn;
-    fnamearray[0]=fname1;fnamearray[1]=fname2;fnamearray[2]=fname3;fnamearray[3]=fname4;fnamearray[4]=fname5;fnamearray[5]=fname6;fnamearray[6]=fname7;fnamearray[7]=fname8;fnamearray[8]=fname9;fnamearray[9]=fname10;
     vftn.UpdateName(infile,fnamearray,k,mpi_ninput);
+    fname1=fnamearray[0];
+    fname2=fnamearray[1];
+    fname3=fnamearray[2];
+    fname4=fnamearray[3];
+    fname5=fnamearray[4];
+    fname6=fnamearray[5];
+    fname7=fnamearray[6];
+    fname8=fnamearray[7];
+    fname9=fnamearray[8];
+    fname10=fnamearray[9];
 
     //set names of files
     itemp=0;
@@ -42,38 +51,38 @@ void OpenBinaryorAsciiFiles(char *infile, int ibinary, int numfiletypes, int k, 
         }
     }
     if (ibinary==INBINARY) {
-        Fgroup.open(fname1,ios::in|ios::binary);
-        Fpart.open(fname2,ios::in|ios::binary);
-        Fupart.open(fname3,ios::in|ios::binary);
+        Fgroup.open(fname1.c_str(),ios::in|ios::binary);
+        Fpart.open(fname2.c_str(),ios::in|ios::binary);
+        Fupart.open(fname3.c_str(),ios::in|ios::binary);
         if (ifieldhalos) {
-            Fsgroup.open(fname4,ios::in|ios::binary);
-            Fspart.open(fname5,ios::in|ios::binary);
-            Fsupart.open(fname6,ios::in|ios::binary);
+            Fsgroup.open(fname4.c_str(),ios::in|ios::binary);
+            Fspart.open(fname5.c_str(),ios::in|ios::binary);
+            Fsupart.open(fname6.c_str(),ios::in|ios::binary);
         }
         if (itypematch!=ALLTYPEMATCH) {
-            Fparttype.open(fname7,ios::in|ios::binary);
-            Fuparttype.open(fname8,ios::in|ios::binary);
+            Fparttype.open(fname7.c_str(),ios::in|ios::binary);
+            Fuparttype.open(fname8.c_str(),ios::in|ios::binary);
             if (ifieldhalos) {
-                Fsparttype.open(fname9,ios::in|ios::binary);
-                Fsuparttype.open(fname10,ios::in|ios::binary);
+                Fsparttype.open(fname9.c_str(),ios::in|ios::binary);
+                Fsuparttype.open(fname10.c_str(),ios::in|ios::binary);
             }
         }
     }
     else {
-        Fgroup.open(fname1,ios::in);
-        Fpart.open(fname2,ios::in);
-        Fupart.open(fname3,ios::in);
+        Fgroup.open(fname1.c_str(),ios::in);
+        Fpart.open(fname2.c_str(),ios::in);
+        Fupart.open(fname3.c_str(),ios::in);
         if (ifieldhalos) {
-            Fsgroup.open(fname4,ios::in);
-            Fspart.open(fname5,ios::in);
-            Fsupart.open(fname6,ios::in);
+            Fsgroup.open(fname4.c_str(),ios::in);
+            Fspart.open(fname5.c_str(),ios::in);
+            Fsupart.open(fname6.c_str(),ios::in);
         }
         if (itypematch!=ALLTYPEMATCH) {
-            Fparttype.open(fname7,ios::in);
-            Fuparttype.open(fname8,ios::in);
+            Fparttype.open(fname7.c_str(),ios::in);
+            Fuparttype.open(fname8.c_str(),ios::in);
             if (ifieldhalos) {
-                Fsparttype.open(fname9,ios::in);
-                Fsuparttype.open(fname10,ios::in);
+                Fsparttype.open(fname9.c_str(),ios::in);
+                Fsuparttype.open(fname10.c_str(),ios::in);
             }
         }
     }
@@ -128,23 +137,33 @@ void CloseBinaryorAsciiFiles(
 }
         
 #ifdef USEHDF
-void OpenHDFFiles(char *infile, int numfiletypes, int k, int mpi_ninput, int ifieldhalos, int itypematch,
+void OpenHDFFiles(string &infile, int numfiletypes, int k, int mpi_ninput, int ifieldhalos, int itypematch,
     H5File &Fgroup, H5File &Fpart, H5File &Fupart, 
     H5File &Fsgroup, H5File &Fspart, H5File &Fsupart,
     H5File &Fparttype, H5File &Fuparttype,
     H5File &Fsparttype, H5File &Fsuparttype,
     int iverbose)
 {
-    char fname1[1000],fname2[1000],fname3[1000];
-    char fname4[1000],fname5[1000],fname6[1000];
-    char fname7[1000],fname8[1000];
-    char fname9[1000],fname10[1000];
-    char *fnamearray[10];
+    string fname1,fname2,fname3;
+    string fname4,fname5,fname6;
+    string fname7,fname8;
+    string fname9,fname10;
+    string fnamearray[10];
     H5File *Farray[10];
     VELOCIraptorFileTypeNames vftn;
     int itemp;
-    fnamearray[0]=fname1;fnamearray[1]=fname2;fnamearray[2]=fname3;fnamearray[3]=fname4;fnamearray[4]=fname5;fnamearray[5]=fname6;fnamearray[6]=fname7;fnamearray[7]=fname8;fnamearray[8]=fname9;fnamearray[9]=fname10;
     vftn.UpdateName(infile,fnamearray,k,mpi_ninput);
+    fname1=fnamearray[0];
+    fname2=fnamearray[1];
+    fname3=fnamearray[2];
+    fname4=fnamearray[3];
+    fname5=fnamearray[4];
+    fname6=fnamearray[5];
+    fname7=fnamearray[6];
+    fname8=fnamearray[7];
+    fname9=fnamearray[8];
+    fname10=fnamearray[9];
+
     //set names of files
     itemp=0;
     fnamearray[itemp++]=fname1;fnamearray[itemp++]=fname2;fnamearray[itemp++]=fname3;
@@ -170,7 +189,7 @@ void OpenHDFFiles(char *infile, int numfiletypes, int k, int mpi_ninput, int ifi
     }
     for (int i=0;i<numfiletypes;i++) {
         try {
-            Farray[i]->openFile(fnamearray[i],H5F_ACC_RDONLY);
+            Farray[i]->openFile(fnamearray[i].c_str(),H5F_ACC_RDONLY);
         }
         catch(const H5::FileIException&) {
             cerr<<"can't open "<<fnamearray[i]<<endl;
@@ -474,7 +493,7 @@ int CheckType(unsigned int t, int tmatch){
 ///\name mpi related routines that open files for load balancing calculations
 //@{
 ///Read halo data from an idividual snapshot;
-Int_t MPIReadHaloGroupCatalogDataNum(char* infile, int mpi_ninput, int ibinary, int ifieldhalos, int itypematch)
+Int_t MPIReadHaloGroupCatalogDataNum(string &infile, int mpi_ninput, int ibinary, int ifieldhalos, int itypematch)
 {
     Int_t itemp;
     unsigned long ltemp;
@@ -548,7 +567,7 @@ Int_t MPIReadHaloGroupCatalogDataNum(char* infile, int mpi_ninput, int ibinary, 
 ///Read the number of particles in halos from an idividual snapshot, useful for splitting snaphots across threads in load balanced fashion
 ///\todo need to update the particle number to be just read from .catalog_particles and .catalog_particles.unbound directly
 ///instead of looping over files and loading arrays
-Int_t MPIReadHaloGroupCatalogDataParticleNum(char* infile, int mpi_ninput, int ibinary, int ifieldhalos, int itypematch)
+Int_t MPIReadHaloGroupCatalogDataParticleNum(string &infile, int mpi_ninput, int ibinary, int ifieldhalos, int itypematch)
 {
     
     HaloData *Halo;
@@ -670,7 +689,7 @@ Int_t MPIReadHaloGroupCatalogDataParticleNum(char* infile, int mpi_ninput, int i
 }
 
 ///Allocate memory to store halo information
-HaloData *MPIReadHaloGroupCatalogDataAllocation(char* infile, Int_t &numhalos, int mpi_ninput, int ibinary, int ifieldhalos, int itypematch)
+HaloData *MPIReadHaloGroupCatalogDataAllocation(string &infile, Int_t &numhalos, int mpi_ninput, int ibinary, int ifieldhalos, int itypematch)
 {
     HaloData *Halo;
     Int_t itemp;
@@ -789,7 +808,7 @@ HaloData *MPIReadHaloGroupCatalogDataAllocation(char* infile, Int_t &numhalos, i
 }
 
 ///Read halo data from an individual snapshot;
-void MPIReadHaloGroupCatalogData(char* infile, Int_t &numhalos, HaloData *&Halo, int mpi_ninput, int ibinary, int ifieldhalos, int itypematch, int iverbose)
+void MPIReadHaloGroupCatalogData(string &infile, Int_t &numhalos, HaloData *&Halo, int mpi_ninput, int ibinary, int ifieldhalos, int itypematch, int iverbose)
 {
     Int_t itemp;
     unsigned long ltemp;
@@ -1129,7 +1148,7 @@ void MPIReadHaloGroupCatalogData(char* infile, Int_t &numhalos, HaloData *&Halo,
 
 
 ///Read halo catalog data from an individual snapshot;
-HaloData *ReadHaloGroupCatalogData(char* infile, Int_t &numhalos, int mpi_ninput, int ibinary, int ifieldhalos, int itypematch, int iverbose)
+HaloData *ReadHaloGroupCatalogData(string &infile, Int_t &numhalos, int mpi_ninput, int ibinary, int ifieldhalos, int itypematch, int iverbose)
 {
     HaloData *Halo;
     Int_t itemp;

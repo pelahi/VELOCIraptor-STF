@@ -38,24 +38,24 @@ Int_t ReadHeader(Options &opt);
 ///Reads halo particle id data
 HaloTreeData *ReadData(Options &opt);
 ///Reads individual halo data file
-HaloData *ReadHaloData(char *fname, Int_t &nhalos);
+HaloData *ReadHaloData(string &fname, Int_t &nhalos);
 ///Reads NIFTY AHF individual halo data file
-HaloData *ReadNIFTYData(char *fname, Int_t &nhalos, int idcorrectflag=0, int hidoffset=1);
+HaloData *ReadNIFTYData(string &fname, Int_t &nhalos, int idcorrectflag=0, int hidoffset=1);
 ///Reads a Void catalog file
-HaloData *ReadVoidData(char *fname, Int_t &nhalos, int idcorrectflag=0, int hidoffset=1);
+HaloData *ReadVoidData(string &fname, Int_t &nhalos, int idcorrectflag=0, int hidoffset=1);
 ///Reads VELOCIraptor like Group Catalog Data. Can adjust so that only particles of some type are check for cross matching
-HaloData *ReadHaloGroupCatalogData(char* infile, Int_t &numhalos, int mpi_ninput=0, int ibinary=1, int ifieldhalos=1, int itypesort=ALLTYPEMATCH, int iverbose=0);
+HaloData *ReadHaloGroupCatalogData(string &infile, Int_t &numhalos, int mpi_ninput=0, int ibinary=1, int ifieldhalos=1, int itypesort=ALLTYPEMATCH, int iverbose=0);
 //@}
 
 /// \name routines used to read VELOCIraptor output
 /// see \ref stfio.cxx for implementation
 //@{
 ///minor interface routine associated with reading VELOCIraptor output, openfiles appropriate files
-void OpenBinaryorAsciiFiles(char *infile, int ibinary, int numfiletypes, int k, int mpi_ninput, int ifieldhalos, int itypematch, fstream &Fgroup, fstream &Fpart, fstream &Fupart, fstream &Fsgroup, fstream &Fspart, fstream &Fsupart, fstream &Fparttype, fstream &Fuparttype, fstream &Fsparttype, fstream &Fsuparttype, int iverbose=0);
+void OpenBinaryorAsciiFiles(string &infile, int ibinary, int numfiletypes, int k, int mpi_ninput, int ifieldhalos, int itypematch, fstream &Fgroup, fstream &Fpart, fstream &Fupart, fstream &Fsgroup, fstream &Fspart, fstream &Fsupart, fstream &Fparttype, fstream &Fuparttype, fstream &Fsparttype, fstream &Fsuparttype, int iverbose=0);
 ///minor interface for closing appropriate files
 void CloseBinaryorAsciiFiles(fstream &Fgroup, fstream &Fpart, fstream &Fupart, fstream &Fsgroup, fstream &Fspart, fstream &Fsupart, fstream &Fparttype, fstream &Fuparttype, fstream &Fsparttype, fstream &Fsuparttype, int ifieldhalos, int itypematch);
 #ifdef USEHDF
-void OpenHDFFiles(char *infile, int numfiletypes, int k, int mpi_ninput, int ifieldhalos, int itypematch, H5File &Fgroup, H5File &Fpart, H5File &Fupart, H5File &Fsgroup, H5File &Fspart, H5File &Fsupart, H5File &Fparttype, H5File &Fuparttype, H5File &Fsparttype, H5File &Fsuparttype, int iverbose=0);
+void OpenHDFFiles(string &infile, int numfiletypes, int k, int mpi_ninput, int ifieldhalos, int itypematch, H5File &Fgroup, H5File &Fpart, H5File &Fupart, H5File &Fsgroup, H5File &Fspart, H5File &Fsupart, H5File &Fparttype, H5File &Fuparttype, H5File &Fsparttype, H5File &Fsuparttype, int iverbose=0);
 void CloseHDFFiles(H5File &Fgroup, H5File &Fpart, H5File &Fupart, H5File &Fsgroup, H5File &Fspart, H5File &Fsupart, H5File &Fparttype, H5File &Fuparttype, H5File &Fsparttype, H5File &Fsuparttype, int ifieldhalos, int itypematch);
 #endif
 ///read routine to load number of files the VELOCIraptor output is split between
@@ -103,13 +103,13 @@ Int_t ReadNumberofHalos(Options &opt, Int_t *numhalos);
 ///Reads the number of particle in haloes in the files, wrapper routine
 Int_t ReadNumberofParticlesInHalos(Options &opt, Int_t *numpartinhalos);
 ///Reads Number of halos from VELOCIraptor Group catalogs
-Int_t MPIReadHaloGroupCatalogDataNum(char* infile, int mpi_ninput=0, int ibinary=1, int ifieldhalos=1, int itypesort=ALLTYPEMATCH);
+Int_t MPIReadHaloGroupCatalogDataNum(string &infile, int mpi_ninput=0, int ibinary=1, int ifieldhalos=1, int itypesort=ALLTYPEMATCH);
 ///Reads Number of particles in halos from VELOCIraptor Group catalogs
-Int_t MPIReadHaloGroupCatalogDataParticleNum(char* infile, int mpi_ninput=0, int ibinary=1, int ifieldhalos=1, int itypesort=ALLTYPEMATCH);
+Int_t MPIReadHaloGroupCatalogDataParticleNum(string &infile, int mpi_ninput=0, int ibinary=1, int ifieldhalos=1, int itypesort=ALLTYPEMATCH);
 ///Reads data to allocate memory, useful for mpi
-HaloData *MPIReadHaloGroupCatalogDataAllocation(char* infile, Int_t &numhalos, int mpi_ninput=0, int ibinary=1, int ifieldhalos=1, int itypesort=ALLTYPEMATCH);
+HaloData *MPIReadHaloGroupCatalogDataAllocation(string &infile, Int_t &numhalos, int mpi_ninput=0, int ibinary=1, int ifieldhalos=1, int itypesort=ALLTYPEMATCH);
 ///Reads VELOCIraptor like Group Catalog Data with memory already allocated for MPI version. 
-void MPIReadHaloGroupCatalogData(char* infile, Int_t &numhalos, HaloData *&Halo, int mpi_ninput=0, int ibinary=1, int ifieldhalos=1, int itypesort=ALLTYPEMATCH, int iverbose=0);
+void MPIReadHaloGroupCatalogData(string &infile, Int_t &numhalos, HaloData *&Halo, int mpi_ninput=0, int ibinary=1, int ifieldhalos=1, int itypesort=ALLTYPEMATCH, int iverbose=0);
 ///load balance input data
 void MPILoadBalanceSnapshots(Options &opt);
 //@}

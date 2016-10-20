@@ -5,16 +5,16 @@
 #include "halomergertree.h"
 
 ///Read halo data from an idividual snapshot;
-HaloData *ReadHaloData(char* infile, Int_t &numhalos)
+HaloData *ReadHaloData(string &infile, Int_t &numhalos)
 {
     HaloData *Halo;
     long unsigned i, j,nparts,haloid;
     long unsigned TotalNumberofHalos;
 
-    fprintf(stderr,"- reading %s ... ",infile);
-    FILE *f = fopen(infile,"r");
+    fprintf(stderr,"- reading %s ... ",infile.c_str());
+    FILE *f = fopen(infile.c_str(),"r");
     if(f == NULL) {
-      fprintf(stderr,"could not open %s\nABORTING\n",infile);
+      fprintf(stderr,"could not open %s\nABORTING\n",infile.c_str());
       exit(1);
     }
     fscanf(f, "%ld", &TotalNumberofHalos);
@@ -41,7 +41,7 @@ HaloData *ReadHaloData(char* infile, Int_t &numhalos)
 ///as new AHF just outputs particle id and particle type AND particle type
 ///is important as only DM particles have continuous ids, adjust read so that 
 ///though total is allocated only use particles of type 1 for zoom simulations
-HaloData *ReadNIFTYData(char* infile, Int_t &numhalos, int idcorrectflag, int hidoffset)
+HaloData *ReadNIFTYData(string &infile, Int_t &numhalos, int idcorrectflag, int hidoffset)
 {
     HaloData *Halo;
     long unsigned i, j,nparts,haloid;
@@ -50,14 +50,14 @@ HaloData *ReadNIFTYData(char* infile, Int_t &numhalos, int idcorrectflag, int hi
     int ncount=0,type;
     long long idval;
 
-    fprintf(stderr,"- reading %s ... \n",infile);
-    FILE *f = fopen(infile,"r");
+    fprintf(stderr,"- reading %s ... \n",infile.c_str());
+    FILE *f = fopen(infile.c_str(),"r");
     if(f == NULL) {
-      fprintf(stderr,"could not open %s\nABORTING\n",infile);
+      fprintf(stderr,"could not open %s\nABORTING\n",infile.c_str());
       exit(1);
     }
     if (idcorrectflag==1) {
-        if (strcmp(infile,"somefilename")==0) {
+        if (strcmp(infile.c_str(),"somefilename")==0) {
             idvaloffset+=1;//offset some value
             }
     }
@@ -89,7 +89,7 @@ HaloData *ReadNIFTYData(char* infile, Int_t &numhalos, int idcorrectflag, int hi
 ///Read void data from an idividual snapshot;
 ///This format is CellID, CellType, VoidID, ParticleID
 ///note that a void consists of void AND sheet particles
-HaloData *ReadVoidData(char* infile, Int_t &numhalos, int idcorrectflag, int hidoffset)
+HaloData *ReadVoidData(string &infile, Int_t &numhalos, int idcorrectflag, int hidoffset)
 {
     HaloData *Halo;
     long unsigned i, j,nparts,haloid;
@@ -99,7 +99,7 @@ HaloData *ReadVoidData(char* infile, Int_t &numhalos, int idcorrectflag, int hid
     long long idval;
     fstream Fin;
 
-    Fin.open(infile,ios::in);
+    Fin.open(infile.c_str(),ios::in);
     if (!Fin) {
       cerr<< "could not open "<<infile<<"\nABORTING\n";
       exit(1);
