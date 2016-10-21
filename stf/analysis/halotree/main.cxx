@@ -57,7 +57,7 @@ int main(int argc,char **argv)
     ProgenitorData *pprogentemp;
     DescendantData *pdescentemp;
     //store the halo ids of particles in objects, with mapping of ids, makes it easy to look up the haloid of a given particle
-    long unsigned *pfofp,*pfofd;
+    unsigned int *pfofp,*pfofd;
     long unsigned *noffset;
     long unsigned *pglist;
     long int i,j;
@@ -88,7 +88,7 @@ int main(int argc,char **argv)
     //check that ids are within allowed range for linking
     IDcheck(opt,pht);
     //then allocate simple array used for accessing halo ids of particles through their IDs
-    pfofp=new long unsigned[opt.MaxIDValue];
+    pfofp=new unsigned int[opt.MaxIDValue];
     for (i=0;i<opt.MaxIDValue;i++) pfofp[i]=0;
     //allocate memory associated with progenitors
     pprogen=new ProgenitorData*[opt.numsnapshots];
@@ -215,7 +215,7 @@ int main(int argc,char **argv)
     //Produce a reverse cross comparison or descendant tree if a full graph is requested. 
     if(opt.icatalog==DGRAPH) {
     pdescen=new DescendantData*[opt.numsnapshots];
-    pfofd=new long unsigned[opt.MaxIDValue];
+    pfofd=new unsigned int[opt.MaxIDValue];
     for (i=0;i<opt.MaxIDValue;i++) {pfofd[i]=0;}
     //if particle ids need to be mapped to index
     if (opt.imapping>DNOMAP) MapPIDStoIndex(opt,pht);
