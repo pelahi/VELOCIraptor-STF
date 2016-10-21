@@ -27,7 +27,7 @@ void GetArgs(int argc, char *argv[], Options &opt)
                 NumArgs += 2;
                 break;
             case 'n': 
-                opt.NumPart = atol(optarg);
+                opt.MaxIDValue = atol(optarg);
                 NumArgs += 2;
                 break;
             case 'o': 
@@ -220,7 +220,7 @@ in the examples directory). \n \n
 
     \section linkingconfig Linking options
     \arg \b \e -t < number of steps over to find links >
-    \arg \b \e -n < maximum id of particles >
+    \arg \b \e -n < maximum id of particles, used to allocate an array of this size so that ids are mapped to an index, allows quick check of what groups a particle belongs to>
     \arg \b \e -C < cross correlation function type to identify main progenitor (see \ref Options.matchtype, which can be  \ref NsharedN1N2 standard merit function \f[ \mathcal{M}=N_{\rm sh}^2/N_1/N_2 \f], \ref Nshared >
     \arg \b \e -T < type of particles to cross correlate (\ref opt.itypematch, which can be \ref ALLTYPEMATCH is all particle types, \ref DMTYPEMATCH is DM particle types
     \ref GASTYPEMATCH is GAS particle types \ref STARTYPEMATCH is STAR particle types, \ref DMGASTYPEMATCH is both DM and GAS particle types >

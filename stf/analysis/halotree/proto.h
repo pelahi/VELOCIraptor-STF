@@ -111,7 +111,11 @@ HaloData *MPIReadHaloGroupCatalogDataAllocation(string &infile, Int_t &numhalos,
 ///Reads VELOCIraptor like Group Catalog Data with memory already allocated for MPI version. 
 void MPIReadHaloGroupCatalogData(string &infile, Int_t &numhalos, HaloData *&Halo, int mpi_ninput=0, int ibinary=1, int ifieldhalos=1, int itypesort=ALLTYPEMATCH, int iverbose=0);
 ///load balance input data
-void MPILoadBalanceSnapshots(Options &opt);
+void MPILoadBalanceSnapshots(Options &);
+///as load balancing is long, read/write the load balance
+void MPIWriteLoadBalance(Options &);
+///as load balancing is long, read/write the load balance
+int MPIReadLoadBalance(Options &);
 //@}
 
 ///\name  for mpi related meshing of data
@@ -132,14 +136,14 @@ void MPIUpdateProgenitorsUsingDescendants(Options &opt, HaloTreeData *&pht, Desc
 /// the routine can also be provided a reference list and the time step of the current halo list used to identify progenitors
 /// and will only search current halo list if the reference list doesn't meet the criteria for viable progenitors
 /// which is currently whether there are any in the reference list
-ProgenitorData *CrossMatch(Options &opt, const Int_t nbodies, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData* &h2, long unsigned *&pglist, long unsigned *&noffset, long unsigned *&pfof2, int &ilistupdated, int istepval=1, ProgenitorData *refprogen=NULL);
+ProgenitorData *CrossMatch(Options &opt, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData* &h2, long unsigned *&pglist, long unsigned *&noffset, long unsigned *&pfof2, int &ilistupdated, int istepval=1, ProgenitorData *refprogen=NULL);
 ///clean cross matches of duplicate entries so that a progenitor can have ONLY ONE descendent. 
 void CleanCrossMatch(const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData *&h2, ProgenitorData *&pprogen);
 ///fill in empty links of the reference list with another progenitor list produced using same reference snapshot but different linking snapshot. 
 ///Allows for multiple steps in snapshots to be used. 
 void UpdateRefProgenitors(const int ilinkcriteria, const Int_t numhalos,ProgenitorData *&pref, ProgenitorData *&ptemp);
 ///similar to \ref CrossMatch but for descendants
-DescendantData *CrossMatchDescendant(Options &opt, const Int_t nbodies, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData* &h2, long unsigned *&pglist, long unsigned *&noffset, long unsigned *&pfof2, int &ilistupdated, int istepval=1, DescendantData *refdescen=NULL);
+DescendantData *CrossMatchDescendant(Options &opt, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData* &h2, long unsigned *&pglist, long unsigned *&noffset, long unsigned *&pfof2, int &ilistupdated, int istepval=1, DescendantData *refdescen=NULL);
 ///similar to \ref CleanCrossMatch but for descendants
 void CleanCrossMatchDescendant(const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData *&h2, DescendantData *&pdescen);
 ///similar to \ref UpdateRefProgenitors but for descendants

@@ -23,6 +23,8 @@ int *mpi_startsnap,*mpi_endsnap;
 void MPILoadBalanceSnapshots(Options &opt){
     mpi_startsnap=new int[NProcs];
     mpi_endsnap=new int[NProcs];
+
+    Double_t maxworkload=0,minworkload=1e32;
     //if there is only one mpi thread no splitting to be done.
     if (NProcs==1) {
         StartSnap=0;
@@ -30,6 +32,11 @@ void MPILoadBalanceSnapshots(Options &opt){
         NSnap=opt.numsnapshots;
         return;
     }
+
+    //see if a load balance file exists and can be used
+    int iflag;
+    iflag=MPIReadLoadBalance(opt);
+    if (iflag==1) return;
 
     ///determine the total number of haloes and ideal splitting
     if (ThisTask==0) {
@@ -66,10 +73,14 @@ void MPILoadBalanceSnapshots(Options &opt){
         //if there too many mpi threads then some tasks might be empty with no work
         if (itask!=0) {
             cerr<<"Some MPI theads have no work: number of threads with no work "<<itask+1<<" out of "<<NProcs<<" running "<<endl;
+            for (itask=0;itask<NProcs;itask++) 
+            {
+                sum=0;
+                for (int i=mpi_startsnap[itask];i<mpi_endsnap[itask];i++) sum+=numinfo[i];
+                cerr<<itask<<" will use snaps "<<mpi_startsnap[itask]<<" to "<<mpi_endsnap[itask]-1<<" with overlap of "<<opt.numsteps<<" that contains "<<sum<<" item"<<endl;
+            }
             cerr<<"Exiting, adjust to "<<NProcs-itask-1<<" number of mpi theads "<<endl;MPI_Abort(MPI_COMM_WORLD,1);
         }
-        int itaskworkload=0;
-        Double_t maxworkload=0,minworkload=1e32;
         for (itask=0;itask<NProcs;itask++) 
         {
             sum=0;
@@ -85,13 +96,82 @@ void MPILoadBalanceSnapshots(Options &opt){
         }
     }
     //task 0 has finished determining which snapshots a given mpi thread will process
-
+    //write the data into a file
+    MPIWriteLoadBalance(opt);
     MPI_Bcast(mpi_startsnap, NProcs, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Bcast(mpi_endsnap, NProcs, MPI_INT, 0, MPI_COMM_WORLD);
     StartSnap=mpi_startsnap[ThisTask];
     EndSnap=mpi_endsnap[ThisTask];
     NSnap=EndSnap-StartSnap;
 }
+
+///MPI load balancing can take quite a while (especially the particle based load balancing) so can write the load balancing for a given input and setup
+///in a file to be read later. This is useful for very large trees where one might run into memory issues arising from maximum id
+void MPIWriteLoadBalance(Options &opt){
+    char fname[1000];
+    fstream Fout;
+    if (ThisTask==0) {
+        sprintf(fname,"%s.mpiloadbalance.txt",opt.outname);
+        cout<<"Writing load balancing information to "<<fname<<endl;
+        Fout.open(fname,ios::out);
+        Fout<<NProcs<<endl;
+        Fout<<opt.numsnapshots<<endl;
+        Fout<<opt.numsteps<<endl;
+        for (int i=0;i<NProcs;i++) Fout<<mpi_startsnap[i]<<" "<<mpi_endsnap[i]<<endl;
+        Fout.close();
+    }
+}
+///MPI load balancing read from a file, checks to see if options agree
+int MPIReadLoadBalance(Options &opt){
+    char fname[1000];
+    fstream Fin;
+    int nprocs,numsnaps,numsteps;
+    int iflag=1;
+    if (ThisTask==0) {
+        sprintf(fname,"%s.mpiloadbalance.txt",opt.outname);
+        cout<<"Reading load balancing information from "<<fname<<endl;
+        Fin.open(fname,ios::in);
+        if (Fin.is_open()) {
+            Fin>>nprocs;
+            if (nprocs!=NProcs) iflag=0;
+            Fin>>numsnaps;
+            if (numsnaps!=opt.numsnapshots) iflag=0;
+            Fin>>numsteps;
+            if (numsteps!=opt.numsteps) iflag=0;
+        }
+        else {
+            iflag=-1;
+        }
+    }
+    MPI_Bcast(&iflag, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    //cleanup if file doesn't exist or has the wrong information
+    if (iflag<=0) {
+        if (ThisTask==0) {
+            if (iflag==0) {
+                cout<<"Info in"<<fname<<" does not match current setup, will load balance again"<<endl;
+                Fin.close();
+            }
+            else {
+                cout<<"Info does not exist"<<endl;
+            }
+        }
+        MPI_Barrier(MPI_COMM_WORLD);
+        return iflag;
+    }
+    //if load balancing can come from file, then process
+    if (ThisTask==0) {
+        cout<<"Processing load balancing information from "<<fname<<endl;
+        for (int i=0;i<NProcs;i++) Fin>>mpi_startsnap[i]>>mpi_endsnap[i];
+        Fin.close();
+    }
+    //broadcast information
+    MPI_Bcast(mpi_startsnap, NProcs, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(mpi_endsnap, NProcs, MPI_INT, 0, MPI_COMM_WORLD);
+    StartSnap=mpi_startsnap[ThisTask];
+    EndSnap=mpi_endsnap[ThisTask];
+    NSnap=EndSnap-StartSnap;
+}
+
 
 ///mpi routine to broadcast the progenitor based descendant list for snapshots that overlap between mpi tasks. Ensures that descendent lists is complete and 
 ///can be used to clean progenitor list

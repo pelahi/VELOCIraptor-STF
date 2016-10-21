@@ -50,7 +50,7 @@ int main(int argc,char **argv)
     //which can then be cleaned to ensure one descendent
     ///\todo eventually must clean up graph construction so that the graph is completely reversible
     DescendantDataProgenBased **pprogendescen;
-    
+
     //stoe the descendants of a given set of objects
     DescendantData **pdescen;
     //these are used to store temporary sets of posssible candidate progenitors/descendants when code links across multiple snaps
@@ -81,15 +81,15 @@ int main(int argc,char **argv)
     if (ThisTask==0) {
         cout<<"Done Loading"<<endl;
         cout<<"Found "<<opt.TotalNumberofHalos<<" halos "<<endl;
-        cout<<"Memory needed to store addressing for ids "<<sizeof(long unsigned)*opt.NumPart/1024./1024.0/1024.0<<" "<<opt.NumPart<<endl;
+        cout<<"Memory needed to store addressing for ids "<<sizeof(long unsigned)*opt.MaxIDValue/1024./1024.0/1024.0<<", maximum ID of "<<opt.MaxIDValue<<endl;
     }
     //adjust ids if particle ids need to be mapped to index
     if (opt.imapping>DNOMAP) MapPIDStoIndex(opt,pht);
     //check that ids are within allowed range for linking
     IDcheck(opt,pht);
     //then allocate simple array used for accessing halo ids of particles through their IDs
-    pfofp=new long unsigned[opt.NumPart];
-    for (i=0;i<opt.NumPart;i++) pfofp[i]=0;
+    pfofp=new long unsigned[opt.MaxIDValue];
+    for (i=0;i<opt.MaxIDValue;i++) pfofp[i]=0;
     //allocate memory associated with progenitors
     pprogen=new ProgenitorData*[opt.numsnapshots];
     //if more than a single snapshot is used to identify possible progenitors then must store the descendants information
@@ -147,13 +147,13 @@ int main(int argc,char **argv)
                 //begin cross matching with previous snapshot(s)
                 //for first linking, cross match and allocate memory 
                 if (istep==1) {
-                    pprogen[i]=CrossMatch(opt, opt.NumPart, pht[i].numhalos, pht[i-istep].numhalos, pht[i].Halo, pht[i-istep].Halo, pglist, noffset, pfofp, ilistupdated);
+                    pprogen[i]=CrossMatch(opt, pht[i].numhalos, pht[i-istep].numhalos, pht[i].Halo, pht[i-istep].Halo, pglist, noffset, pfofp, ilistupdated);
                     CleanCrossMatch(pht[i].numhalos, pht[i-istep].numhalos, pht[i].Halo, pht[i-istep].Halo, pprogen[i]);
                     if (opt.numsteps>1) BuildProgenitorBasedDescendantList(i, i-istep, pht[i].numhalos, pprogen[i], pprogendescen);
                 }
                 //otherwise only care about objects with no links
                 else {
-                    pprogentemp=CrossMatch(opt, opt.NumPart, pht[i].numhalos, pht[i-istep].numhalos, pht[i].Halo, pht[i-istep].Halo, pglist, noffset, pfofp, ilistupdated, istep, pprogen[i]);
+                    pprogentemp=CrossMatch(opt, pht[i].numhalos, pht[i-istep].numhalos, pht[i].Halo, pht[i-istep].Halo, pglist, noffset, pfofp, ilistupdated, istep, pprogen[i]);
                     //if new candidate progenitors have been found then need to update the reference list
                     if (ilistupdated>0) {
                         CleanCrossMatch(pht[i].numhalos, pht[i-istep].numhalos, pht[i].Halo, pht[i-istep].Halo, pprogentemp);
@@ -215,8 +215,8 @@ int main(int argc,char **argv)
     //Produce a reverse cross comparison or descendant tree if a full graph is requested. 
     if(opt.icatalog==DGRAPH) {
     pdescen=new DescendantData*[opt.numsnapshots];
-    pfofd=new long unsigned[opt.NumPart];
-    for (i=0;i<opt.NumPart;i++) {pfofd[i]=0;}
+    pfofd=new long unsigned[opt.MaxIDValue];
+    for (i=0;i<opt.MaxIDValue;i++) {pfofd[i]=0;}
     //if particle ids need to be mapped to index
     if (opt.imapping>DNOMAP) MapPIDStoIndex(opt,pht);
 
@@ -251,12 +251,12 @@ int main(int argc,char **argv)
                 //begin cross matching with  snapshot(s)
                 //for first linking, cross match and allocate memory 
                 if (istep==1) {
-                    pdescen[i]=CrossMatchDescendant(opt, opt.NumPart, pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pglist, noffset, pfofd, ilistupdated);
+                    pdescen[i]=CrossMatchDescendant(opt,  pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pglist, noffset, pfofd, ilistupdated);
                     CleanCrossMatchDescendant(pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pdescen[i]);
                 }
                 //otherwise only care about objects with no links
                 else {
-                    pdescentemp=CrossMatchDescendant(opt, opt.NumPart, pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pglist, noffset, pfofd, ilistupdated, istep, pdescen[i]);
+                    pdescentemp=CrossMatchDescendant(opt, pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pglist, noffset, pfofd, ilistupdated, istep, pdescen[i]);
                     CleanCrossMatchDescendant(pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pdescen[i]);
                     UpdateRefDescendants(opt.imultsteplinkcrit,pht[i].numhalos, pdescen[i], pdescentemp);
                     delete[] pdescentemp;

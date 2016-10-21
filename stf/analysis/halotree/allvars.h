@@ -161,8 +161,8 @@ struct Options
     int numsnapshots;
     ///nubmer of steps integrated over to find links (two steps needs three snapshots)
     int numsteps;
-    ///number of particles
-    long unsigned NumPart;
+    ///maximum id value, used to allocate an array of this size so that ids can be mapped to an index and thus easily accessible.
+    long unsigned MaxIDValue;
     ///total number of haloes across all snapshots    
     long unsigned TotalNumberofHalos;
 
@@ -222,7 +222,7 @@ struct Options
 
         numsnapshots=2;
         numsteps=1;
-        NumPart=512*512*512;
+        MaxIDValue=512*512*512;
         TotalNumberofHalos=0;
 
         matchtype=NsharedN1N2;
