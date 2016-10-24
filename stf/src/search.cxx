@@ -13,6 +13,10 @@
     Search full system without finding outliers first
     Here search simulation for FOF haloes (either 3d or 6d). Note for 6D search, first 3d FOF halos are found, then velocity scale is set by largest 3DFOF
     halo, and 6DFOF search is done.
+    If all particles searched but also want to treat baryons differently, then a FOF search is run linking DM particles and DM+baryons but not the other way 
+    around (no baryon+DM). That is DM particles are basis for generating links but NOT gas/star/bh particles
+    Also start of implementation to keep the 3DFOF envelopes as separate structures. 
+    \todo 3DFOF envelop kept as separate structures is NOT fully tested nor truly implemented just yet.
 */
 Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &numgroups)
 {
@@ -27,6 +31,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
     Coordinate vmean(0,0,0);
     int maxnthreads,nthreads=1,tid;
     Int_t *Len,*Head,*Next,*Tail, *storetype, *ids,*numingroup=NULL, *noffset;
+    Int_t *id_3dfof_of_6dfof;
     Int_t ng,npartingroups;
     Int_t totalgroups;
 #ifndef USEMPI
@@ -63,23 +68,19 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
     cout<<"Done"<<endl;
     cout<<"Search particles using 3DFOF in physical space"<<endl;
     cout<<"Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits (and likely "<<sqrt(param[6])/opt.ellxscale<<" in interparticle spacing"<<endl;
-    if (opt.partsearchtype==PSTALL && opt.iBaryonSearch==1) fofcmp=&FOF3dDM;
+    if (opt.partsearchtype==PSTALL && opt.iBaryonSearch==1) {fofcmp=&FOF3dDM;param[7]=DARKTYPE;}
     else fofcmp=&FOF3d;
     //if using mpi no need to locally sort just yet and might as well return the Head, Len, Next arrays
 #ifdef USEMPI
     Head=new Int_t[nbodies];Next=new Int_t[nbodies];
-    /*
     //posible alteration for all particle search 
-    if (opt.partsearchtype==PSTALL && opt.iBaryonSearch==1) pfof=tree->FOFCriterion(fofcmp,param,numgroups,minsize,0,0,Pnocheck,Head,Next);
+    if (opt.partsearchtype==PSTALL && opt.iBaryonSearch==1) pfof=tree->FOFCriterion(fofcmp,param,numgroups,minsize,0,0,FOFchecktype,Head,Next);
     else pfof=tree->FOF(sqrt(param[1]),numgroups,minsize,0,Head,Next);
-    */
-    pfof=tree->FOF(sqrt(param[1]),numgroups,minsize,0,Head,Next);
+    //pfof=tree->FOF(sqrt(param[1]),numgroups,minsize,0,Head,Next);
 #else
-    /*
-    if (opt.partsearchtype==PSTALL && opt.iBaryonSearch==1) pfof=tree->FOFCriterion(fofcmp,param,numgroups,minsize,1);
+    if (opt.partsearchtype==PSTALL && opt.iBaryonSearch==1) pfof=tree->FOFCriterion(fofcmp,param,numgroups,minsize,1,0,FOFchecktype);
     else pfof=tree->FOF(sqrt(param[1]),numgroups,minsize,1);
-    */
-    pfof=tree->FOF(sqrt(param[1]),numgroups,minsize,1);
+    //pfof=tree->FOF(sqrt(param[1]),numgroups,minsize,1);
 #endif
 
 #ifndef USEMPI
@@ -290,9 +291,9 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
     //store index order
     ids=new Int_t[Nlocal];
     for (i=0;i<Nlocal;i++) ids[i]=Part[i].GetID();
-    
+
     //if only using single velocity scale, use the largest "halo" to determine an appropriate velocity scale
-    if (opt.fofbgtype==FOF6D) {
+    if (opt.fofbgtype==FOF6D && opt.iKeepFOF==0) {
         vscale2=mtotregion=vx=vy=vz=0;
         for (i=0;i<iend;i++) {
             vx+=Part[i].GetVelocity(0)*Part[i].GetMass();
@@ -321,7 +322,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
         cout<<"Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits, ellvel="<<sqrt(param[7])<<" Vunits."<<endl;
     }
     //otherwise each object has its own velocity scale
-    else if(opt.fofbgtype==FOF6DADAPTIVE){
+    else if(opt.fofbgtype==FOF6DADAPTIVE || opt.iKeepFOF){
         vscale2array=new Double_t[numgroups+1];
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
@@ -362,7 +363,7 @@ private(i,vscale2,mtotregion,vx,vy,vz,vmean)
     ///\todo need to generalize this to allow adaptive search. I think the easiest think is to
     ///actually remove the split between openmp and serial so that always build lots of kd trees
     ///for each group, thereby allowing parameters to be different
-    ///would also need to allocate a parameter array for each group
+    ///would also need to allocate a parameter array for each thread
     /*
 #ifdef USEOPENMP
     ///\todo seems the openmp 6dfof search is unstable but why?
@@ -468,14 +469,91 @@ private(i,tid)
 #ifdef USEOPENMP
 }
 #endif
-    ng=0;
-    for (i=0;i<Nlocal;i++) pfof[i]=0;
-    for (i=1;i<=iend;i++) {
-        for (int j=0;j<numingroup[i];j++) {
-            pfof[ids[Part[noffset[i]+j].GetID()+noffset[i]]]=pfofomp[i][j]+(pfofomp[i][j]>0)*ng; 
+    //now if keeping original 3DFOF structures (useful for stellar haloes search) then store original number of 3d fof haloes 
+    if (opt.iKeepFOF) 
+    {
+        //store current number of 6dfof groups
+        for (i=1;i<=iend;i++) ng+=ngomp[i];
+        Int_t *pfof6dfof=new Int_t[Nlocal];
+        ng=0;
+        for (i=1;i<=iend;i++) {
+            for (int j=0;j<numingroup[i];j++) {
+                pfof6dfof[ids[Part[noffset[i]+j].GetID()+noffset[i]]]=pfofomp[i][j]+(pfofomp[i][j]>0)*ng;
+            }
+            ng+=ngomp[i];
+            delete[] pfofomp[i];
         }
-        ng+=ngomp[i];
-        delete[] pfofomp[i];
+
+        //now that all groups have been processed, need to adjust the number of 3DFOF groups as a 6dFOF group can span a entire 3DFOF group
+        opt.num3dfof = numgroups;
+
+        // store whether the 3dfof group remains
+        int *i3dfofleft = new int[numgroups+1];
+        //store 3dfof id of a 6dfof group
+        Int_t *id3dfof = new Int_t[ng+1];
+
+        // used to quickly access myigmid 
+        Int_t *n3dfofoffset = new Int_t[numgroups+1];
+        n3dfofoffset[0] = n3dfofoffset[1] = 0;
+        for (i=2;i<=numgroups;i++) n3dfofoffset[i] = n3dfofoffset[i-1] + ngomp[i-1];
+
+        if (opt.iverbose) cout <<ThisTask<<" Before 6dfof search had "<< numgroups <<" 3dfof groups "<<endl;
+        Int_t numin3dfof;
+        for (i=1;i<=numgroups;i++)
+        {
+            numin3dfof=0;
+            for (int j = 0; j < numingroup[i]; j++) numin3dfof += (pfof6dfof[ids[Part[noffset[i]+j].GetID()+noffset[i]]]==0);
+            if (numin3dfof==0) 
+            {
+                opt.num3dfof--;
+                i3dfofleft[i]=0;
+            }
+            else i3dfofleft[i]=1;
+        }
+        if (opt.iverbose) cout<<ThisTask<<" now have" << opt.num3dfof << endl;
+
+        // now have corrected the number of opt.num3dfof.
+        // allocate the array storing the id of the 3dfof to which the 6dfof belongs
+        id_3dfof_of_6dfof = new Int_t [opt.num3dfof + ng + 1];
+        for (i = 1; i <= opt.num3dfof; i++)  id_3dfof_of_6dfof[i]=0;
+
+        // now have corrected the number of opt.num3dfof. Adjust original pfof
+        opt.num3dfof = 0;
+        for (i=1;i<=numgroups;i++)
+        {
+            // if 3dfof remains
+            if (i3dfofleft[i] == 1)
+            {
+                opt.num3dfof++;
+                for (int j = 0; j < numingroup[i]; j++) pfof[ids[Part[noffset[i]+j].GetID()+noffset[i]]]=opt.num3dfof;
+
+                for (int j=0;j<ngomp[i];j++) id3dfof[j+n3dfofoffset[i]]=opt.num3dfof;
+            }
+            // if no igm then all groups are not associated with an 3dfof 
+            else
+                for (int j=0;j<ngomp[i];j++)  id3dfof[j+n3dfofoffset[i]]=0;
+        }
+        delete[] i3dfofleft;
+        delete[] n3dfofoffset;
+        for (i = 0; i < ng; i++) id_3dfof_of_6dfof[i + opt.num3dfof+1] = id3dfof[i];
+        delete[] id3dfof;
+        //now adjust 6dfof ids
+        for (i = 0; i < Nlocal; i++) if (pfof6dfof[i] != 0) pfof[i] = pfof6dfof[i] + opt.num3dfof;
+        //increase number of groups
+        ng+=opt.num3dfof;
+        delete[] pfof6dfof;
+    }
+    //if not keeping 3dfof just overwrite the pfof array
+    else {
+        ng=0;
+        for (i=0;i<Nlocal;i++) pfof[i]=0;
+        for (i=1;i<=iend;i++) {
+            for (int j=0;j<numingroup[i];j++) {
+                pfof[ids[Part[noffset[i]+j].GetID()+noffset[i]]]=pfofomp[i][j]+(pfofomp[i][j]>0)*ng; 
+            }
+            ng+=ngomp[i];
+            delete[] pfofomp[i];
+        }
     }
     delete[] ngomp;
     delete[] paramomp;
@@ -486,7 +564,9 @@ private(i,tid)
     delete[] Tail;
     delete[] Next;
     delete[] Len;
-    if (ng>0) {
+
+    //reorder ids in descending group size order only if not keeping FOF
+    if (ng>0 && opt.iKeepFOF==0) {
         if (opt.iverbose) cout<<" reordering "<<ng<<" groups "<<endl;
         numingroup=BuildNumInGroup(Nlocal, ng, pfof);
         Int_t **pglist=BuildPGList(Nlocal, ng, numingroup, pfof);
@@ -519,9 +599,103 @@ private(i,tid)
 
     //now that field structures have been identified, allocate enough memory for the psldata pointer,
     //allocate memory for lowest level in the substructure hierarchy, corresponding to field objects
+    if (opt.iverbose) cout<<ThisTask<<" Now store hierarchy information "<<endl;
+    //standard operation is to not keep the 3DFOF envelopes
+    if (!opt.iKeepFOF)
+    {
+        psldata->Allocate(numgroups);
+        psldata->Initialize();
+        for (i=0;i<Nlocal;i++) {
+            if (pfof[i]>0) {
+            if (psldata->gidhead[pfof[i]]==NULL) {
+                //set the group id head pointer to the address within the pfof array
+                psldata->gidhead[pfof[i]]=&pfof[i];
+                //set particle pointer to particle address
+                psldata->Phead[pfof[i]]=&Part[i];
+                //set the parent pointers to appropriate addresss such that the parent and uber parent are the same as the groups head
+                psldata->gidparenthead[pfof[i]]=&pfof[i];
+                psldata->giduberparenthead[pfof[i]]=&pfof[i];
+                //set structure type
+                psldata->stypeinlevel[pfof[i]]=HALOSTYPE;
+            }
+            }
+        }
+        psldata->stype=HALOSTYPE;
+    }
+    else
+    {
+        // initialize the 3dfof level of the hierarchy
+        psldata->Allocate(opt.num3dfof);
+        psldata->Initialize();
+        psldata->stype = FOF3DTYPE;
+
+        for (i = 0; i < Nlocal; i++)
+        {
+            if ((pfof[i] <= opt.num3dfof) && (pfof[i] > 0)) {
+            if (psldata->gidhead[pfof[i]] == NULL)
+            {
+                psldata->gidhead[pfof[i]] = &pfof[i];
+                psldata->Phead[pfof[i]] = &Part[i];
+                psldata->gidparenthead[pfof[i]] = &pfof[i];
+                psldata->giduberparenthead[pfof[i]] = &pfof[i];
+                psldata->stypeinlevel[pfof[i]] = FOF3DTYPE;
+            }
+            }
+        }
+        ng=numgroups-opt.num3dfof;
+
+        //initialize next level which stores halos
+        psldata->nextlevel = new StrucLevelData();
+        psldata->nextlevel->Phead = new Particle*[ng+1];
+        psldata->nextlevel->gidhead = new Int_t*[ng+1];
+        psldata->nextlevel->Pparenthead = new Particle*[ng+1];
+        psldata->nextlevel->gidparenthead = new Int_t*[ng+1];
+        psldata->nextlevel->giduberparenthead = new Int_t*[ng+1];
+        psldata->nextlevel->stypeinlevel = new Int_t[ng+1];
+        psldata->nextlevel->stype = HALOSTYPE;
+        psldata->nextlevel->nsinlevel = ng;
+        psldata->nextlevel->nextlevel = NULL;
+
+        for (i = 0; i <= ng; i++)
+        {
+            psldata->nextlevel->Phead[i] = NULL;
+            psldata->nextlevel->gidhead[i] = NULL;
+            psldata->nextlevel->gidparenthead[i] = NULL;
+            psldata->nextlevel->Pparenthead[i] = NULL;
+            psldata->nextlevel->giduberparenthead[i] = NULL;
+            psldata->nextlevel->stypeinlevel[i] = 0;
+        }
+
+        for (i = 0; i < Nlocal; i++)
+        {
+            if (pfof[i] > opt.num3dfof) {
+            if (psldata->nextlevel->gidhead[pfof[i]-opt.num3dfof] == NULL) 
+            {
+                psldata->nextlevel->gidhead[pfof[i]-opt.num3dfof] = &pfof[i];
+                psldata->nextlevel->Phead[pfof[i]-opt.num3dfof] = &Part[i];
+
+                ///for 6dfof groups that are contained in a 3dfof group make sure to point to head
+                if (id_3dfof_of_6dfof[pfof[i]] > 0) 
+                {
+                    psldata->nextlevel->gidparenthead[pfof[i]-opt.num3dfof] = psldata->gidhead[id_3dfof_of_6dfof[pfof[i]]];
+                    psldata->nextlevel->Pparenthead[pfof[i]-opt.num3dfof] = psldata->Phead[id_3dfof_of_6dfof[pfof[i]]];
+                    psldata->nextlevel->giduberparenthead[pfof[i]-opt.num3dfof] = psldata->gidhead[id_3dfof_of_6dfof[pfof[i]]];     
+                }
+                //if not in 3dfof then halo is its own uberparent (don't need to set particle head as NULL is fine)
+                else 
+                {
+                    psldata->nextlevel->gidparenthead[pfof[i]-opt.num3dfof] = &pfof[i];
+                    psldata->nextlevel->giduberparenthead[pfof[i]-opt.num3dfof] = &pfof[i];
+                }
+                psldata->nextlevel->stypeinlevel[pfof[i]-opt.num3dfof] = HALOSTYPE;
+            }
+            }
+        }
+    }
+
+    /*
     psldata->Allocate(numgroups);
     psldata->Initialize();
-    if (opt.iverbose) cout<<ThisTask<<" Now store hierarchy information "<<endl;
     for (i=0;i<Nlocal;i++) {
         if (pfof[i]>0) {
         if (psldata->gidhead[pfof[i]]==NULL) {
@@ -538,6 +712,7 @@ private(i,tid)
         }
     }
     psldata->stype=HALOSTYPE;
+    */
     if (opt.iverbose) cout<<ThisTask<<" Done storing halo substructre level data"<<endl;
     return pfof;
 }
@@ -1207,18 +1382,52 @@ private(i,tid)
     //for missing large substructure cores
     if(opt.iHaloCoreSearch>0&&((!opt.iSingleHalo&&sublevel==1)||(opt.iSingleHalo&&sublevel==0))) 
     {
-        bgoffset=1;
-        ///\todo could calculate local dispersions in configuration and velocity space and use those to define linking
         if (opt.iverbose) cout<<ThisTask<<" beginning 6dfof core search to find multiple cores"<<endl;
-        param[1]=(opt.ellxscale*opt.ellphys*opt.ellhalophysfac*opt.halocorexfac);
-        param[1]=param[1]*param[1];
-        param[6]=param[1];
-        //velocity linking length from average sigmav from FINE SCALE grid
-        param[7]=opt.HaloSigmaV*(opt.halocorevfac*opt.halocorevfac);
+        bgoffset=1;
+        //if adaptive core linking then need to calculate dispersion tensors in configuration and velocity space
+        if (opt.iAdaptiveCoreLinking)
+        {
+            double xscale2;
+            Double_t XX, YY, ZZ;
+            Double_t VOL;
+            Double_t nn;
+
+            //calculate inertia tensor (assumes that system is alread in CM frame
+            ///\todo should add checks to see if system is in CM frame and if it is not, move it to that frame
+            Matrix myeigvec, myI;
+            CalcPosSigmaTensor(nsubset, Partsubset, XX, YY, ZZ, myeigvec, myI, -1);
+            xscale2=sqrt(XX*XX+YY*YY+ZZ*ZZ);
+            //volume of configuration ellipsoid
+            VOL = 4/3.0 * acos(-1) * sqrt(XX*YY*ZZ);
+            //number density 
+            nn = pow(VOL/nsubset,1./3.);
+            //now adjust linking length
+            param[1] = xscale2 * nn * nn * opt.halocorexfac * opt.halocorexfac;
+            param[6] = param[1];
+            //now the same for velocity space
+            ///\todo still need to look at optimal scaling function for velocities
+            CalcVelSigmaTensor(nsubset, Partsubset, XX, YY, ZZ, myeigvec, myI, -1);
+            VOL = 4/3.0 * acos(-1) * sqrt(XX*YY*ZZ);
+            nn = pow(VOL/nsubset,1./3.);
+            param[7] = (10 * 10) * nn * nn * (opt.halocorevfac * opt.halocorevfac);
+        }
+        //not adaptive, using halo based linking lengths and halo dispersion
+        else
+        {
+            if ((opt.iKeepFOF) && (opt.ellhalo6dxfac > 0))
+                param[1] = (opt.ellxscale * opt.ellphys * opt.ellhalo6dxfac * opt.halocorexfac);
+            else
+                param[1] = (opt.ellxscale * opt.ellphys * opt.ellhalophysfac * opt.halocorexfac);
+            param[1] = param[1] * param[1];
+            param[6] = param[1];
+            //velocity linking length from average sigmav from FINE SCALE grid
+            param[7] = opt.HaloSigmaV * (opt.halocorevfac * opt.halocorevfac);
+        }
+
         minsize=nsubset*opt.halocorenfac;
         if (opt.iverbose) {
-        cout<<ThisTask<<" "<<"Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits, ellphys="<<sqrt(param[7])<<" Vunits"<<endl;
-        cout<<"with minimum size of "<<minsize<<endl;
+            cout<<ThisTask<<" "<<"Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits, ellphys="<<sqrt(param[7])<<" Vunits"<<endl;
+            cout<<"with minimum size of "<<minsize<<endl;
         }
         fofcmp=&FOF6d;
         //here search for 6dfof groups, return ordered list. Also pass function check to ignore already tagged particles

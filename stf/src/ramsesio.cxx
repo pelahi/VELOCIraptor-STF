@@ -175,7 +175,7 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
     Framses.read((char*)&dummy, sizeof(dummy));
     Framses.seekg(dummy,ios::cur);
     Framses.read((char*)&dummy, sizeof(dummy));
-    
+
     Framses.read((char*)&dummy, sizeof(dummy));
     Framses.read((char*)&ramses_header_info.BoxSize, sizeof(RAMSESFLOAT));
     Framses.read((char*)&dummy, sizeof(dummy));
@@ -190,7 +190,7 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
     Framses.read((char*)&dummy, sizeof(dummy));
     Framses.read((char*)&ramses_header_info.mass[RAMSESGASTYPE], sizeof(RAMSESFLOAT));
     Framses.read((char*)&dummy, sizeof(dummy));
-    
+
     Framses.close();
 
     //reopen to get number of amr cells might need to alter to read grid information and what cells have no so-called son cells

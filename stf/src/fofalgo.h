@@ -45,6 +45,8 @@ int FOF3dDM(Particle &a, Particle &b, Double_t *params);
 int FOFchecksub(Particle &a, Double_t *params);
 ///checks to see if particle should be ingored based on potential being below threshold value stored in param 9
 int FOFcheckbg(Particle &a, Double_t *params);
+///checks to see if particle appropriate type
+int FOFchecktype(Particle &a, Double_t *params);
 //@}
 
 #endif

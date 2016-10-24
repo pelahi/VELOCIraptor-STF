@@ -204,7 +204,7 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     else {
         LN=1.0;
     }
-    
+
     //if no mass is stored then assume mass equal and stored in first nonzero mass value in header.mass
 #ifdef NOMASS
     for(k=0;k<NGTYPE;k++)
