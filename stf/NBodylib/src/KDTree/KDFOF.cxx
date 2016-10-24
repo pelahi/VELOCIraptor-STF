@@ -157,7 +157,7 @@ namespace NBody
         for (Int_t i=0;i<numparts;i++) {
             id=bucket[i].GetID();
             if (ipcheckflag) pGroup[id]=check(bucket[i],params);
-            else pGroup[i]=0;
+            else pGroup[id]=0;
             pHead[i]=pTail[i]=i;
             pNext[i]=-1;
         }
@@ -166,6 +166,116 @@ namespace NBody
         for (Int_t i=0;i<numparts;i++){
             //if particle already member of group, ignore and go to next particle
             id=bucket[i].GetID();
+            if(pGroup[id]!=0) continue;
+            pGroup[id]=++iGroup;
+            pLen[iGroup]=1;
+            pGroupHead[iGroup]=i;
+            Fifo[iTail++]=i;
+
+            //if reach the end of particle list, set iTail to zero and wrap around
+            if(iTail==numparts) iTail=0;
+            //continue search for this group until one has wrapped around such that iHead==iTail
+            while(iHead!=iTail) {
+                iid=Fifo[iHead++];
+                if (iHead==numparts) iHead=0;
+
+                //now begin search.
+                for (int j = 0; j < 6; j++) off[j] = 0.0;
+                if (period==NULL) root->FOFSearchCriterion(0.0,cmp,params,iGroup,numparts,bucket,pGroup,pLen,pHead,pTail,pNext,pBucketFlag, Fifo,iTail,off,iid);
+                else root->FOFSearchCriterionPeriodic(0.0,cmp,params,iGroup,numparts,bucket,pGroup,pLen,pHead,pTail,pNext,pBucketFlag, Fifo,iTail,off,period,iid);
+            }
+
+            //make sure group big enough
+            if(pLen[iGroup]<minnum){
+                Int_t ii=pHead[pGroupHead[iGroup]];
+                do {
+                    pGroup[bucket[ii].GetID()]=-1;
+                } while ((ii=pNext[ii])!=-1);
+            pLen[iGroup--]=0;
+            }
+            //determine biggest group
+            else if (maxlen<pLen[iGroup]){maxlen=pLen[iGroup];maxlenid=iGroup;}
+        }
+
+        //for all groups that were too small reset id to 0
+        for (Int_t i=0;i<numparts;i++) if(pGroup[bucket[i].GetID()]==-1)pGroup[bucket[i].GetID()]=0;
+
+        //free memory for arrays that are not needed
+        delete[] Fifo;
+        delete[] pBucketFlag;
+        if (iph) delete[] pHead;
+        if (ipt) delete[] pTail;
+        if (ipn) delete[] pNext;
+
+        if (iGroup>0){
+            if (order) {
+                //generate pList array to store go through particle list and generate linked list
+                Int_t **pList, *pCount;
+                pList=new Int_t*[iGroup+1];
+                pCount=new Int_t[iGroup+1];
+                for (Int_t i=1;i<=iGroup;i++) {pList[i]=new Int_t[pLen[i]];pCount[i]=0;}
+                for (Int_t i=0;i<numparts;i++) {
+                    Int_t gid=pGroup[bucket[i].GetID()];
+                    if (gid>0) pList[gid][pCount[gid]++]=i;
+
+                }
+                //now order group indices
+                maxlenid=1;
+                PriorityQueue *pq=new PriorityQueue(iGroup);
+                for (Int_t i = 1; i <=iGroup; i++) pq->Push(i, pLen[i]);
+                maxlen=pq->TopPriority();
+                for (Int_t i = 1;i<=iGroup; i++) {
+                    Int_t groupid=pq->TopQueue();
+                    pq->Pop();
+                    for (Int_t j=0;j<pLen[groupid];j++) pGroup[bucket[pList[groupid][j]].GetID()]=i;
+                    delete[] pList[groupid];
+                }
+                delete[] pList;
+                delete[] pCount;
+                delete pq;
+            }
+            //printf("Found %d groups. Largest is %d with %d particles.\n",iGroup,maxlenid,maxlen);
+        }
+        //else printf("No groups found.\n");
+
+        if (ipl) delete[] pLen;
+        delete[] pGroupHead;
+        numgroup=iGroup;
+        return pGroup;
+    }
+
+    //FOF search with particles allowed to be basis of links set by FOFcheckfunc
+    Int_t* KDTree::FOFCriterionSetBasisForLinks(FOFcompfunc cmp, Double_t *params, Int_t &numgroup, Int_t minnum, int order, int ipcheckflag, FOFcheckfunc check, Int_t *pHead, Int_t *pNext, Int_t *pTail, Int_t *pLen)
+    {
+        Int_t *pGroup=new Int_t[numparts];
+        Int_t *pGroupHead=new Int_t[numparts];
+        Int_t *Fifo=new Int_t[numparts];
+        Int_t *pBucketFlag=new Int_t[numnodes];
+
+        int iph,ipt,ipn,ipl;
+        iph=ipt=ipn=ipl=0;
+        if (pHead==NULL)    {pHead=new Int_t[numparts];iph=1;}
+        if (pNext==NULL)    {pNext=new Int_t[numparts];ipn=1;}
+        if (pLen==NULL)     {pLen=new Int_t[numparts];ipl=1;}
+        if (pTail==NULL)    {pTail=new Int_t[numparts];ipt=1;}
+
+        Double_t off[6];
+        Int_t iGroup=0,iHead=0,iTail=0,id,iid;
+        Int_t maxlen=0,maxlenid;
+
+        //initial arrays
+        for (Int_t i=0;i<numparts;i++) {
+            id=bucket[i].GetID();
+            pGroup[id]=check(bucket[i],params);
+            pHead[i]=pTail[i]=i;
+            pNext[i]=-1;
+        }
+        for (Int_t i=0;i<numnodes;i++) pBucketFlag[i]=0;
+
+        for (Int_t i=0;i<numparts;i++){
+            //if particle already member of group, ignore and go to next particle
+            id=bucket[i].GetID();
+            if (check(bucket[i],params)==0) continue;
             if(pGroup[id]!=0) continue;
             pGroup[id]=++iGroup;
             pLen[iGroup]=1;

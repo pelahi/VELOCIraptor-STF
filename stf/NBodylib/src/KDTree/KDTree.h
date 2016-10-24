@@ -374,6 +374,8 @@ namespace NBody
                                   Double_t disfunc(Int_t , Double_t *), Int_t npc, Int_t *npca, Int_t &numgroups, Int_t minnum=8);
                                   */
         Int_t *FOFCriterion(FOFcompfunc p, Double_t *params, Int_t &numgroups, Int_t minnum=8, int order=0, int ipcheckflag=0, FOFcheckfunc check=Pnocheck, Int_t *pHead=NULL, Int_t *pNext=NULL, Int_t *pTail=NULL, Int_t *pLen=NULL);
+        ///Link partiles based on criterion and also only allow specific particlse to be used as a basis for links using FOFcheckfunc
+        Int_t* FOFCriterionSetBasisForLinks(FOFcompfunc cmp, Double_t *params, Int_t &numgroup, Int_t minnum=8, int order=0, int ipcheckflag=0, FOFcheckfunc check=Pnocheck, Int_t *pHead=NULL, Int_t *pNext=NULL, Int_t *pTail=NULL, Int_t *pLen=NULL);
         //Int_t FOFCriterionParticle(FOFcompfunc p, Int_t *pfof, Int_t target, Int_t iGroup, Double_t *params);
         Int_t FOFCriterionParticle(FOFcompfunc p, Int_t *pfof, Int_t target, Int_t iGroup, Double_t *params,Int_t *pGroupHead, Int_t *Fifo, Int_t *pHead, Int_t *pTail, Int_t *pNext, Int_t *pLen);
         /// Similar to above but only search a specific particle list for each particle given by [numparts][numberNN] array.
