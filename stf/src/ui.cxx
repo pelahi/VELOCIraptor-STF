@@ -116,7 +116,9 @@ void usage(void)
         - \b 2 \e DarkMatter particles (which are typically defined as type 1,2,3 for gadget) are searched
         - \b 3 \e Star particles (which are typically defined as type 4 for gadget) are searched  
         - \b 4 \e Gas particles (which are typically defined as type 0 for gadget) are searched 
-    \arg <b> \e GasStellar_searchflag </b> 0/1 indicating gas/stellar search done separately from DM search \ref Options.iBaryonSearch  \n
+    \arg <b> \e GasStellar_searchflag </b> 0/1/2 indicating gas/stellar search done separately from DM search \ref Options.iBaryonSearch. If 1, field search run as normal and then substructure search
+    for baryons run using baryons identified in field search. If 2, field search also altered to treat baryons differently, allowing only DM particles to be used as head links (ie link dm-dm, dm-baryon,
+        but not baryon-baryon nor baryon-dm). 0 is do nothing special for baryon particles. \n
 
     \section localdensityconfig Parameters related to local density estimator. 
     See \ref localfield.cxx, \ref bgfield.cxx & \ref localbgcomp.cxx for more details

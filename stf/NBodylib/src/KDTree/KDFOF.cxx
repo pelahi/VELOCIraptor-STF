@@ -266,7 +266,7 @@ namespace NBody
         //initial arrays
         for (Int_t i=0;i<numparts;i++) {
             id=bucket[i].GetID();
-            pGroup[id]=0
+            pGroup[id]=0;
             pHead[i]=pTail[i]=i;
             pNext[i]=-1;
         }

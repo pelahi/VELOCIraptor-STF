@@ -74,11 +74,11 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
 #ifdef USEMPI
     Head=new Int_t[nbodies];Next=new Int_t[nbodies];
     //posible alteration for all particle search 
-    if (opt.partsearchtype==PSTALL && opt.iBaryonSearch==1) pfof=tree->FOFCriterion(fofcmp,param,numgroups,minsize,0,0,FOFchecktype,Head,Next);
+    if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) pfof=tree->FOFCriterion(fofcmp,param,numgroups,minsize,0,0,FOFchecktype,Head,Next);
     else pfof=tree->FOF(sqrt(param[1]),numgroups,minsize,0,Head,Next);
     //pfof=tree->FOF(sqrt(param[1]),numgroups,minsize,0,Head,Next);
 #else
-    if (opt.partsearchtype==PSTALL && opt.iBaryonSearch==1) pfof=tree->FOFCriterion(fofcmp,param,numgroups,minsize,1,0,FOFchecktype);
+    if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) pfof=tree->FOFCriterion(fofcmp,param,numgroups,minsize,1,0,FOFchecktype);
     else pfof=tree->FOF(sqrt(param[1]),numgroups,minsize,1);
     //pfof=tree->FOF(sqrt(param[1]),numgroups,minsize,1);
 #endif
