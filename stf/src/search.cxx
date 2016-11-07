@@ -68,7 +68,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
     cout<<"Done"<<endl;
     cout<<"Search particles using 3DFOF in physical space"<<endl;
     cout<<"Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits (and likely "<<sqrt(param[6])/opt.ellxscale<<" in interparticle spacing"<<endl;
-    if (opt.partsearchtype==PSTALL && opt.iBaryonSearch==1) {fofcmp=&FOF3dDM;param[7]=DARKTYPE;}
+    if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) {fofcmp=&FOF3dDM;param[7]=DARKTYPE;}
     else fofcmp=&FOF3d;
     //if using mpi no need to locally sort just yet and might as well return the Head, Len, Next arrays
 #ifdef USEMPI
@@ -92,7 +92,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
     for (i=0;i<nbodies;i++) storetype[i]=Part[i].GetType();
     //if not searching all particle then searching for baryons associated with substructures, then set type to group value
     //so that velocity density just calculated for particles in groups (type>0)
-    if (!(opt.iBaryonSearch==1 && opt.partsearchtype==PSTALL)) for (i=0;i<nbodies;i++) Part[i].SetType(pfof[Part[i].GetID()]);
+    if (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)) for (i=0;i<nbodies;i++) Part[i].SetType(pfof[Part[i].GetID()]);
     //otherwise set type to group value for dark matter
     else {
         for (i=0;i<nbodies;i++) {
@@ -202,7 +202,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
     {
         storetype=new Int_t[Nlocal];
         for (i=0;i<Nlocal;i++) storetype[i]=Part[i].GetType();
-        if (!(opt.iBaryonSearch==1 && opt.partsearchtype==PSTALL)) for (i=0;i<Nlocal;i++) Part[i].SetType((pfof[i]>0));
+        if (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)) for (i=0;i<Nlocal;i++) Part[i].SetType((pfof[i]>0));
         //otherwise set type to group value for dark matter
         else {
             for (i=0;i<Nlocal;i++) {
@@ -1720,7 +1720,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_
     if (!opt.iSingleHalo) nhalos=ngroup;
 
     nsubsearch=ngroup;sublevel=1;ngroupidoffset=ngroupidoffsetold=0;
-    if (opt.iBaryonSearch==1 && opt.partsearchtype==PSTALL) numingroup=BuildNumInGroupTyped(nsubset, ngroup, pfof, Partsubset, DARKTYPE);
+    if (opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL) numingroup=BuildNumInGroupTyped(nsubset, ngroup, pfof, Partsubset, DARKTYPE);
     else numingroup=BuildNumInGroup(nsubset, ngroup, pfof);
     //since initially groups in order find index of smallest group that can be searched for substructure
     //for (Int_t i=1;i<=ngroup;i++) if (numingroup[i]<MINSUBSIZE) {nsubsearch=i-1;break;}
@@ -1728,7 +1728,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_
     iflag=(nsubsearch>0);
 
     if (iflag) {
-    if (opt.iBaryonSearch==1 && opt.partsearchtype==PSTALL) pglist=BuildPGListTyped(nsubset, ngroup, numingroup, pfof,Partsubset,DARKTYPE);
+    if (opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL) pglist=BuildPGListTyped(nsubset, ngroup, numingroup, pfof,Partsubset,DARKTYPE);
     else pglist=BuildPGList(nsubset, ngroup, numingroup, pfof);
     //now store group ids of (sub)structures that will be searched for (sub)substructure. 
     //since at level zero, the particle group list that is going to be used to calculate the background, outliers and searched through is simple pglist here

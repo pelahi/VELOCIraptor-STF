@@ -116,7 +116,7 @@ void usage(void)
         - \b 2 \e DarkMatter particles (which are typically defined as type 1,2,3 for gadget) are searched
         - \b 3 \e Star particles (which are typically defined as type 4 for gadget) are searched  
         - \b 4 \e Gas particles (which are typically defined as type 0 for gadget) are searched 
-    \arg <b> \e GasStellar_searchflag </b> 0/1/2 indicating gas/stellar search done separately from DM search \ref Options.iBaryonSearch. If 1, field search run as normal and then substructure search
+    \arg <b> \e Baryon_searchflag </b> 0/1/2 indicating gas/stellar search done separately from DM search \ref Options.iBaryonSearch. If 1, field search run as normal and then substructure search
     for baryons run using baryons identified in field search. If 2, field search also altered to treat baryons differently, allowing only DM particles to be used as head links (ie link dm-dm, dm-baryon,
         but not baryon-baryon nor baryon-dm). 0 is do nothing special for baryon particles. \n
 
@@ -320,7 +320,7 @@ void GetParamFile(Options &opt)
                         opt.iiterflag = atoi(vbuff);
                     else if (strcmp(tbuff, "Unbind_flag")==0)
                         opt.uinfo.unbindflag = atoi(vbuff);
-                    else if (strcmp(tbuff, "GasStellar_searchflag")==0)
+                    else if (strcmp(tbuff, "Baryon_searchflag")==0)
                         opt.iBaryonSearch = atoi(vbuff);
                     else if (strcmp(tbuff, "CMrefadjustsubsearch_flag")==0)
                         opt.icmrefadjust = atoi(vbuff);
@@ -538,6 +538,8 @@ inline void ConfigCheck(Options &opt)
     else if (opt.fofbgtype==FOF6DADAPTIVE) cout<<"Field objects found with initial 3d FOF then use adaptive dispersion to find 6d FOFs"<<endl;
     else if (opt.fofbgtype==FOFSTNOSUBSET) cout<<"Field objects found with initial 3d FOF then use phase-space stream finding algorithm"<<endl;
     if (opt.fofbgtype<=FOF6D && opt.iKeepFOF) cout<<"Field objects found with initial 3d FOF then use dispersion to find 6d FOFs and 3dFOF objects kept as base objects (consider them inter halo stellar mass or ICL for stellar only searches) "<<endl;
+    if (opt.iBaryonSearch==1) cout<<"Baryons treated separately for substructure search"<<endl;
+    else if (opt.iBaryonSearch==2) cout<<"Baryons treated separately for substructure search and also FOF field search"<<endl;
     if (opt.iSingleHalo) cout<<"Field objects NOT searched for, assuming single Halo and subsearch using mean field first step"<<endl;
     cout<<"Allowed potential to kinetic ratio when unbinding particles "<<opt.uinfo.Eratio<<endl;
     if (opt.HaloMinSize!=opt.MinSize) cout<<"Field objects (aka Halos) have different minimum required size than substructures: "<<opt.HaloMinSize<<" vs "<<opt.MinSize<<endl;

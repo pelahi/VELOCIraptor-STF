@@ -123,7 +123,7 @@ int main(int argc,char **argv)
     cout<<"Read header ... "<<endl;
     nbodies=ReadHeader(opt);
     ///\todo need to update for MPI
-    if (opt.iBaryonSearch==1) {
+    if (opt.iBaryonSearch>=1) {
         for (int i=0;i<NBARYONTYPES;i++) Ntotalbaryon[i]=Nlocalbaryon[i]=0;
         nbaryons=0;
         int pstemp=opt.partsearchtype;
@@ -157,7 +157,7 @@ int main(int argc,char **argv)
     //note that for nonmpi particle array is a contiguous block of memory regardless of whether a separate baryon search is required
 #ifndef USEMPI
     Nlocal=nbodies;
-    if (opt.iBaryonSearch==1 && opt.partsearchtype!=PSTALL) {
+    if (opt.iBaryonSearch>=1 && opt.partsearchtype!=PSTALL) {
         Part=new Particle[nbodies+nbaryons];
         Pbaryons=&Part[nbodies];
         Nlocalbaryon[0]=nbaryons;
@@ -181,7 +181,7 @@ int main(int argc,char **argv)
     cout<<ThisTask<<" There are "<<Nmemlocal<<" particles that require "<<Nmemlocal*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
     if (opt.iBaryonSearch) cout<<ThisTask<<"There are "<<Nmemlocalbaryon<<" baryon particles that require "<<Nmemlocalbaryon*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
 #endif
-    if (opt.iBaryonSearch==1 && opt.partsearchtype!=PSTALL) {
+    if (opt.iBaryonSearch>=1 && opt.partsearchtype!=PSTALL) {
 #ifdef MPIREDUCEMEM
         Pall=new Particle[Nmemlocal+Nmemlocalbaryon];
         Part=&Pall[0];
@@ -214,7 +214,7 @@ int main(int argc,char **argv)
 #ifdef USEMPI
     //if mpi and want separate baryon search then once particles are loaded into contigous block of memory and sorted according to type order, 
     //allocate memory for baryons
-    if (opt.iBaryonSearch==1 && opt.partsearchtype!=PSTALL) {
+    if (opt.iBaryonSearch>=1 && opt.partsearchtype!=PSTALL) {
 #ifdef MPIREDUCEMEM
         Part=new Particle[Nmemlocal];
         Pbaryons=new Particle[Nmemlocalbaryon];
@@ -416,7 +416,7 @@ int main(int argc,char **argv)
     CopyHierarchy(opt,pdata,ngroup,nsub,parentgid,uparentgid,stype);
 
     //if a separate baryon search has been run, now just place all particles together
-    if (opt.iBaryonSearch==1 && opt.partsearchtype!=PSTALL) {
+    if (opt.iBaryonSearch>=1 && opt.partsearchtype!=PSTALL) {
         delete[] pfof;
         pfof=&pfofall[0];
         nbodies+=nbaryons;

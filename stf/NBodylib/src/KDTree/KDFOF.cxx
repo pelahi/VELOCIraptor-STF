@@ -289,10 +289,13 @@ namespace NBody
                 iid=Fifo[iHead++];
                 if (iHead==numparts) iHead=0;
 
-                //now begin search.
-                for (int j = 0; j < 6; j++) off[j] = 0.0;
-                if (period==NULL) root->FOFSearchCriterion(0.0,cmp,params,iGroup,numparts,bucket,pGroup,pLen,pHead,pTail,pNext,pBucketFlag, Fifo,iTail,off,iid);
-                else root->FOFSearchCriterionPeriodic(0.0,cmp,params,iGroup,numparts,bucket,pGroup,pLen,pHead,pTail,pNext,pBucketFlag, Fifo,iTail,off,period,iid);
+                //check if head particle should be used as basis for links 
+                if (check(bucket[i],params)==1) {
+                    //now begin search.
+                    for (int j = 0; j < 6; j++) off[j] = 0.0;
+                    if (period==NULL) root->FOFSearchCriterion(0.0,cmp,params,iGroup,numparts,bucket,pGroup,pLen,pHead,pTail,pNext,pBucketFlag, Fifo,iTail,off,iid);
+                    else root->FOFSearchCriterionPeriodic(0.0,cmp,params,iGroup,numparts,bucket,pGroup,pLen,pHead,pTail,pNext,pBucketFlag, Fifo,iTail,off,period,iid);
+                }
             }
 
             //make sure group big enough
