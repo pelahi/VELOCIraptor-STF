@@ -74,11 +74,11 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
 #ifdef USEMPI
     Head=new Int_t[nbodies];Next=new Int_t[nbodies];
     //posible alteration for all particle search 
-    if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) pfof=tree->FOFCriterion(fofcmp,param,numgroups,minsize,0,0,FOFchecktype,Head,Next);
+    if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) pfof=tree->FOFCriterionSetBasisForLinks(fofcmp,param,numgroups,minsize,0,0,FOFchecktype,Head,Next);
     else pfof=tree->FOF(sqrt(param[1]),numgroups,minsize,0,Head,Next);
     //pfof=tree->FOF(sqrt(param[1]),numgroups,minsize,0,Head,Next);
 #else
-    if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) pfof=tree->FOFCriterion(fofcmp,param,numgroups,minsize,1,0,FOFchecktype);
+    if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) pfof=tree->FOFCriterionSetBasisForLinks(fofcmp,param,numgroups,minsize,1,0,FOFchecktype);
     else pfof=tree->FOF(sqrt(param[1]),numgroups,minsize,1);
     //pfof=tree->FOF(sqrt(param[1]),numgroups,minsize,1);
 #endif
@@ -1686,7 +1686,7 @@ private(i,tid,Pval,x1,D2,dval,mval,pid,pidcore)
     \ref MINCELLSIZE (order 100 particles). However, for objects smaller than \ref MINSUBSIZE, only can search effectively for 
     major mergers, very hard to identify substructures
 */
-void SearchSubSub(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_t *&pfof, Int_t &ngroup, Int_t &nhalos)
+void SearchSubSub(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_t *&pfof, Int_t &ngroup, Int_t &nhalos, PropData *pdata)
 {
     //now build a sublist of groups to search for substructure
     Int_t nsubsearch, oldnsubsearch,sublevel,maxsublevel,ngroupidoffset,ngroupidoffsetold,ngrid;
@@ -2040,6 +2040,8 @@ void SearchSubSub(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_
                     }
                 }
             }
+            //if inclusive halo masses calculated then also need to adjust the ordering of these properties
+            if (opt.iInclusiveHalo) ReorderInclusiveMasses(ng,nhalos,numingroup,pdata);
             //adjust halo ids
             ReorderGroupIDs(ng,nhalos, numingroup, pfof,pglist);
             nhaloidoffset=ng-nhalos;

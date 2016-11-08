@@ -275,7 +275,7 @@ namespace NBody
         for (Int_t i=0;i<numparts;i++){
             //if particle already member of group, ignore and go to next particle
             id=bucket[i].GetID();
-            if (check(bucket[i],params)==0) continue;
+            if (check(bucket[i],params)!=0) continue;
             if(pGroup[id]!=0) continue;
             pGroup[id]=++iGroup;
             pLen[iGroup]=1;
@@ -290,7 +290,7 @@ namespace NBody
                 if (iHead==numparts) iHead=0;
 
                 //check if head particle should be used as basis for links 
-                if (check(bucket[i],params)==1) {
+                if (check(bucket[iid],params)==0) {
                     //now begin search.
                     for (int j = 0; j < 6; j++) off[j] = 0.0;
                     if (period==NULL) root->FOFSearchCriterion(0.0,cmp,params,iGroup,numparts,bucket,pGroup,pLen,pHead,pTail,pNext,pBucketFlag, Fifo,iTail,off,iid);

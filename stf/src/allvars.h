@@ -770,10 +770,11 @@ struct PropData
         gM200c=p.gM200c;gR200c=p.gR200c;
         gM200m=p.gM200m;gR200m=p.gR200m;
         gM500c=p.gM500c;gR500c=p.gR500c;
-        
+        gNFOF=p.gNFOF;
+        gMFOF=p.gMFOF;
         return *this;
     }
-        
+
     ///converts the properties data into comoving little h values
     ///so masses, positions have little h values and positions are comoving
     void ConverttoComove(Options &opt){

@@ -169,7 +169,7 @@ Int_t *SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
 ///Search the outliers
 Int_t *SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Particle *&Partsubset,Int_t &numgroups, Int_t sublevel=0, Int_t *pnumcores=NULL);
 ///Search for subsubstructures 
-void SearchSubSub(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_t *&pfof, Int_t &ngroup, Int_t &nhalos);
+void SearchSubSub(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_t *&pfof, Int_t &ngroup, Int_t &nhalos, PropData *pdata=NULL);
 ///Check significance of each group
 int CheckSignificance(Options &opt, const Int_t nsubset, Particle *Partsubset, Int_t &numgroups, Int_t *numingroups, Int_t *pfof, Int_t **pglist);
 ///Search for Baryonic structures associated with dark matter structures in phase-space
@@ -249,6 +249,8 @@ void GetCMProp(Options &opt, const Int_t nbodies, Particle *&Part, Int_t ngroup,
 void GetInclusiveMasses(Options &opt, const Int_t nbodies, Particle *&Part, Int_t ngroup, Int_t *&pfof, Int_t *&numingroup, PropData *&pdata, Int_t *&noffset);
 ///simple routine to copy over mass information (useful for storing inclusive info)
 void CopyMasses(const Int_t nhalos, PropData *&pold, PropData *&pnew);
+///simple routine to reorder mass information based on number of particles when new remaining number of haloes < old halos
+void ReorderInclusiveMasses(const Int_t &nold, const Int_t &nnew, Int_t *&numingroup, PropData *pdata);
 ///Get Binding Energy
 void GetBindingEnergy(Options &opt, const Int_t nbodies, Particle *&Part, Int_t ngroup, Int_t *&pfof, Int_t *&numingroup, PropData *&pdata, Int_t *&noffset);
 

@@ -2342,6 +2342,21 @@ void CopyMasses(const Int_t nhalos, PropData *&pold, PropData *&pnew){
         pnew[i].gRhalfmass=pold[i].gRhalfmass;
     }
 }
+///reorder mass information stored in properties data
+void ReorderInclusiveMasses(const Int_t &numgroups, const Int_t &newnumgroups, Int_t *&numingroup, PropData *pdata)
+{
+    PropData *pnew=new PropData[newnumgroups];
+    PriorityQueue *pq=new PriorityQueue(newnumgroups);
+    for (Int_t i = 1; i <=numgroups; i++) if (numingroup[i]>0) pq->Push(i, numingroup[i]);
+    for (Int_t i = 1; i<=newnumgroups; i++) {
+        Int_t groupid=pq->TopQueue(),size=pq->TopPriority();pq->Pop();
+        pnew[i]=pdata[groupid];
+    }
+    delete pq;
+    for (Int_t i = 1; i<=newnumgroups; i++) pdata[i]=pnew[i];
+    delete[] pnew;
+}
+
 
 /*! 
     Calculate the potential energy and kinetic energy relative to the velocity frame stored in gcmvel. Note that typically this is the velocity of particles within 

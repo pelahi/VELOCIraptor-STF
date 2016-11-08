@@ -91,7 +91,7 @@ int main(int argc,char **argv)
     Int_t *pfofbaryons,*numingroupbaryons,**pglistbaryons;
     Int_t *pfofall;
     //to store information about the group
-    PropData *pdata,*pdatahalos;
+    PropData *pdata=NULL,*pdatahalos=NULL;
 
     //to store time and output time taken
     double time1,tottime;
@@ -122,8 +122,7 @@ int main(int argc,char **argv)
 #endif
     cout<<"Read header ... "<<endl;
     nbodies=ReadHeader(opt);
-    ///\todo need to update for MPI
-    if (opt.iBaryonSearch>=1) {
+    if (opt.iBaryonSearch>0) {
         for (int i=0;i<NBARYONTYPES;i++) Ntotalbaryon[i]=Nlocalbaryon[i]=0;
         nbaryons=0;
         int pstemp=opt.partsearchtype;
@@ -139,7 +138,7 @@ int main(int argc,char **argv)
 #ifdef USEMPI
     }
     MPI_Bcast(&nbodies,1, MPI_Int_t,0,MPI_COMM_WORLD);
-    if (opt.iBaryonSearch) MPI_Bcast(&nbaryons,1, MPI_Int_t,0,MPI_COMM_WORLD);
+    if (opt.iBaryonSearch>0) MPI_Bcast(&nbaryons,1, MPI_Int_t,0,MPI_COMM_WORLD);
     //initial estimate need for memory allocation assuming that work balance is not greatly off
 #endif
 #ifndef MPIREDUCEMEM
@@ -148,16 +147,16 @@ int main(int argc,char **argv)
 #endif
     cout<<"There are "<<nbodies<<" particles that require "<<nbodies*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
 #ifdef USEMPI
-    if (opt.iBaryonSearch && ThisTask==0) cout<<"There are "<<nbaryons<<" baryon particles that require "<<nbaryons*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
+    if (opt.iBaryonSearch>0 && ThisTask==0) cout<<"There are "<<nbaryons<<" baryon particles that require "<<nbaryons*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
 #else
-    if (opt.iBaryonSearch) cout<<"There are "<<nbaryons<<" baryon particles that require "<<nbaryons*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
+    if (opt.iBaryonSearch>0) cout<<"There are "<<nbaryons<<" baryon particles that require "<<nbaryons*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
 #endif
 #endif
 
     //note that for nonmpi particle array is a contiguous block of memory regardless of whether a separate baryon search is required
 #ifndef USEMPI
     Nlocal=nbodies;
-    if (opt.iBaryonSearch>=1 && opt.partsearchtype!=PSTALL) {
+    if (opt.iBaryonSearch>0 && opt.partsearchtype!=PSTALL) {
         Part=new Particle[nbodies+nbaryons];
         Pbaryons=&Part[nbodies];
         Nlocalbaryon[0]=nbaryons;
@@ -179,9 +178,9 @@ int main(int argc,char **argv)
     MPINumInDomain(opt);
     if (NProcs==1) {Nlocal=Nmemlocal=nbodies;NExport=NImport=1;}
     cout<<ThisTask<<" There are "<<Nmemlocal<<" particles that require "<<Nmemlocal*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
-    if (opt.iBaryonSearch) cout<<ThisTask<<"There are "<<Nmemlocalbaryon<<" baryon particles that require "<<Nmemlocalbaryon*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
+    if (opt.iBaryonSearch>0) cout<<ThisTask<<"There are "<<Nmemlocalbaryon<<" baryon particles that require "<<Nmemlocalbaryon*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
 #endif
-    if (opt.iBaryonSearch>=1 && opt.partsearchtype!=PSTALL) {
+    if (opt.iBaryonSearch>0 && opt.partsearchtype!=PSTALL) {
 #ifdef MPIREDUCEMEM
         Pall=new Particle[Nmemlocal+Nmemlocalbaryon];
         Part=&Pall[0];
@@ -214,7 +213,7 @@ int main(int argc,char **argv)
 #ifdef USEMPI
     //if mpi and want separate baryon search then once particles are loaded into contigous block of memory and sorted according to type order, 
     //allocate memory for baryons
-    if (opt.iBaryonSearch>=1 && opt.partsearchtype!=PSTALL) {
+    if (opt.iBaryonSearch>0 && opt.partsearchtype!=PSTALL) {
 #ifdef MPIREDUCEMEM
         Part=new Particle[Nmemlocal];
         Pbaryons=new Particle[Nmemlocalbaryon];
@@ -271,7 +270,7 @@ int main(int argc,char **argv)
 #endif
 
     //here adjust Efrac to Omega_cdm/Omega_m from what it was before if baryonic search is separate
-    if (opt.iBaryonSearch && opt.partsearchtype!=PSTALL) opt.uinfo.Eratio*=opt.Omega_cdm/opt.Omega_m;
+    if (opt.iBaryonSearch>0 && opt.partsearchtype!=PSTALL) opt.uinfo.Eratio*=opt.Omega_cdm/opt.Omega_m;
 
     //From here can either search entire particle array for "Halos" or if a single halo is loaded, then can just search for substructure
     if (!opt.iSingleHalo) {
@@ -372,7 +371,7 @@ int main(int argc,char **argv)
         cout<<"Searching subset"<<endl;
         time1=MyGetTime();
         //if groups have been found (and localized to single MPI thread) then proceed to search for subsubstructures
-        SearchSubSub(opt, nbodies, Part, pfof,ngroup,nhalos);
+        SearchSubSub(opt, nbodies, Part, pfof,ngroup,nhalos,pdata);
         time1=MyGetTime()-time1;
         cout<<"TIME::"<<ThisTask<<" took "<<time1<<" to search for substructures "<<Nlocal<<" with "<<nthreads<<endl;
     }
@@ -385,7 +384,7 @@ int main(int argc,char **argv)
     }
 
     //if only searching initially for dark matter groups, once found, search for associated baryonic structures if requried
-    if (opt.iBaryonSearch) {
+    if (opt.iBaryonSearch>0) {
         time1=MyGetTime();
         if (opt.partsearchtype==PSTDARK) {
             pfofall=SearchBaryons(opt, nbaryons, Pbaryons, nbodies, Part, pfof, ngroup,nhalos,opt.iseparatefiles,opt.iInclusiveHalo,pdata);
@@ -416,7 +415,7 @@ int main(int argc,char **argv)
     CopyHierarchy(opt,pdata,ngroup,nsub,parentgid,uparentgid,stype);
 
     //if a separate baryon search has been run, now just place all particles together
-    if (opt.iBaryonSearch>=1 && opt.partsearchtype!=PSTALL) {
+    if (opt.iBaryonSearch>0 && opt.partsearchtype!=PSTALL) {
         delete[] pfof;
         pfof=&pfofall[0];
         nbodies+=nbaryons;
@@ -447,7 +446,7 @@ int main(int argc,char **argv)
         WriteProperties(opt,nhalos,pdata);
         WriteGroupCatalog(opt, nhalos, numingroup, pglist, Part,ngroup-nhalos);
         //if baryons have been searched output related gas baryon catalogue
-        if (opt.iBaryonSearch || opt.partsearchtype==PSTALL){
+        if (opt.iBaryonSearch>0 || opt.partsearchtype==PSTALL){
             WriteGroupPartType(opt, nhalos, numingroup, pglist, Part);
         }
         WriteHierarchy(opt,ngroup,nhierarchy,psldata->nsinlevel,nsub,parentgid,stype);
@@ -457,7 +456,7 @@ int main(int argc,char **argv)
     else {
         WriteGroupCatalog(opt,nhalos,numingroup,NULL,Part);
         WriteHierarchy(opt,nhalos,nhierarchy,psldata->nsinlevel,nsub,parentgid,stype);
-        if (opt.iBaryonSearch || opt.partsearchtype==PSTALL){
+        if (opt.iBaryonSearch>0 || opt.partsearchtype==PSTALL){
             WriteGroupPartType(opt, nhalos, numingroup, NULL, Part);
         }
     }
@@ -479,7 +478,7 @@ int main(int argc,char **argv)
         WriteGroupCatalog(opt, ng, &numingroup[indexii], pglist, Part);
         if (opt.iseparatefiles) WriteHierarchy(opt,ngroup,nhierarchy,psldata->nsinlevel,nsub,parentgid,stype,1);
         else WriteHierarchy(opt,ngroup,nhierarchy,psldata->nsinlevel,nsub,parentgid,stype,-1);
-        if (opt.iBaryonSearch || opt.partsearchtype==PSTALL){
+        if (opt.iBaryonSearch>0 || opt.partsearchtype==PSTALL){
             WriteGroupPartType(opt, ng, &numingroup[indexii], pglist, Part);
         }
         for (Int_t i=1;i<=ng;i++) delete[] pglist[i];
@@ -490,7 +489,7 @@ int main(int argc,char **argv)
         WriteGroupCatalog(opt,ng,&numingroup[indexii],NULL,Part);
         if (opt.iseparatefiles) WriteHierarchy(opt,ngroup,nhierarchy,psldata->nsinlevel,nsub,parentgid,stype,1);
         else WriteHierarchy(opt,ngroup,nhierarchy,psldata->nsinlevel,nsub,parentgid,stype,-1);
-        if (opt.iBaryonSearch || opt.partsearchtype==PSTALL){
+        if (opt.iBaryonSearch>0 || opt.partsearchtype==PSTALL){
             WriteGroupPartType(opt, ng, &numingroup[indexii], NULL, Part);
         }
     }

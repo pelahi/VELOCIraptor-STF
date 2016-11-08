@@ -942,7 +942,6 @@ Int_t MPILinkAcross(const Int_t nbodies, KDTree *tree, Particle *&Part, Int_t *&
     Int_t *nn=new Int_t[nbodies];
     Int_t nt;
     Coordinate x;
-    ///\todo if a comparison function is not passed then use just 3d physical ball search otherwise use searchcriteriontagged
     for (i=0;i<NImport;i++) {
         for (j=0;j<3;j++) x[j]=PartDataGet[i].GetPosition(j);
         nt=tree->SearchBallPosTagged(x, rdist2, nn);
@@ -985,14 +984,13 @@ Int_t MPILinkAcross(const Int_t nbodies, KDTree *tree, Particle *&Part, Int_t *&
     }
     return links;
 }
-///link particles belonging to the same group across mpi domains
+///link particles belonging to the same group across mpi domains using comparison function
 Int_t MPILinkAcross(const Int_t nbodies, KDTree *tree, Particle *&Part, Int_t *&pfof, Int_t *&Len, Int_t *&Head, Int_t *&Next, Double_t rdist2, FOFcompfunc &cmp, Double_t *params){
     Int_t i,j,k;
     Int_t links=0;
     Int_t nbuffer[NProcs];
     Int_t *nn=new Int_t[nbodies];
     Int_t nt;
-    ///\todo if a comparison function is not passed then use just 3d physical ball search otherwise use searchcriteriontagged
     for (i=0;i<NImport;i++) {
         nt=tree->SearchCriterionTagged(PartDataGet[i], cmp, params, nn);
         for (Int_t ii=0;ii<nt;ii++) {
