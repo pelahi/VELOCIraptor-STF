@@ -42,7 +42,7 @@ ProgenitorData *CrossMatch(Options &opt, const long unsigned nhalos1, const long
 #pragma omp parallel default(shared) \
 private(i,j,tid,pq,numshared,merit)
 {
-#pragma omp for schedule(dynamic)
+#pragma omp for schedule(dynamic,10) nowait
     //if openmp declared
     for (i=0;i<nhalos1;i++){
         tid=omp_get_thread_num();
@@ -137,7 +137,7 @@ private(i,j,tid,pq,numshared,merit)
 #pragma omp parallel default(shared) \
 private(i,j,tid,pq,numshared,merit)
 {
-#pragma omp for schedule(dynamic)
+#pragma omp for schedule(dynamic,10) nowait
     for (i=0;i<nhalos1;i++){
         //if a reference progenitor list is passed, only check if no progenitor is found
         p1[i].NumberofProgenitors=0;p1[i].ProgenitorList=NULL;p1[i].Merit=NULL;
@@ -168,7 +168,7 @@ private(i,j,tid,pq,numshared,merit)
         //if at this point when looking for progenitors not present in the reference list
         //can check to see if numshared>0 and if so, then reference list will have to be updated
         ilistupdated+=(numshared>0);
-        
+
         p1[i].NumberofProgenitors=numshared;
         if (numshared>0) {
             p1[i].ProgenitorList=new long unsigned[numshared];
@@ -276,7 +276,7 @@ DescendantData *CrossMatchDescendant(Options &opt, const long unsigned nhalos1, 
 #pragma omp parallel default(shared) \
 private(i,j,tid,pq,numshared,merit)
 {
-#pragma omp for schedule(dynamic)
+#pragma omp for schedule(dynamic,10) nowait
     for (i=0;i<nhalos1;i++){
         tid=omp_get_thread_num();
         for (j=0;j<h1[i].NumberofParticles;j++){
@@ -369,7 +369,7 @@ private(i,j,tid,pq,numshared,merit)
 #pragma omp parallel default(shared) \
 private(i,j,tid,pq,numshared,merit)
 {
-#pragma omp for schedule(dynamic)
+#pragma omp for schedule(dynamic,10) nowait
     for (i=0;i<nhalos1;i++){
         d1[i].NumberofDescendants=0;d1[i].DescendantList=NULL;d1[i].Merit=NULL;
         if (refdescen[i].NumberofDescendants>0) continue;
@@ -512,7 +512,7 @@ void CleanCrossMatch(const long unsigned nhalos1, const long unsigned nhalos2, H
 #pragma omp parallel default(shared) \
 private(i,j,k)
 {
-#pragma omp for schedule(dynamic)
+#pragma omp for schedule(dynamic,10) nowait
 #endif
     for (i=0;i<nhalos1;i++){
         for(j=0;j<p1[i].NumberofProgenitors;j++) {
@@ -534,7 +534,7 @@ private(i,j,k)
 #pragma omp parallel default(shared) \
 private(i,j,k)
 {
-#pragma omp for schedule(dynamic)
+#pragma omp for schedule(dynamic,10) nowait
 #endif
     for (i=0;i<nhalos1;i++){
         for(j=0;j<p1[i].NumberofProgenitors;j++) {
@@ -588,7 +588,7 @@ void CleanCrossMatchDescendant(const long unsigned nhalos1, const long unsigned 
 #pragma omp parallel default(shared) \
 private(i,j,k)
 {
-#pragma omp for schedule(dynamic)
+#pragma omp for schedule(dynamic,10) nowait
 #endif
     for (i=0;i<nhalos1;i++){
         for(j=0;j<p1[i].NumberofDescendants;j++) {
@@ -610,7 +610,7 @@ private(i,j,k)
 #pragma omp parallel default(shared) \
 private(i,j,k)
 {
-#pragma omp for schedule(dynamic)
+#pragma omp for schedule(dynamic,10) nowait
 #endif
     for (i=0;i<nhalos1;i++){
         for(j=0;j<p1[i].NumberofDescendants;j++) {
