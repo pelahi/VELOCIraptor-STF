@@ -10,6 +10,8 @@ namespace NBody
 {
     ///\name Leaf Node Functions
     //@{
+    ///\name Non-periodic calls
+    //@{
     void LeafNode::FindNearestPos(Double_t rd, Particle *bucket, PriorityQueue *pq, Double_t* off, Int_t target, int dim)
     {
         for (Int_t i = bucket_start; i < bucket_end; i++)
@@ -480,8 +482,43 @@ namespace NBody
         }
         if (flag) BucketFlag[nid]=1;
     }
+    void LeafNode::FOFSearchCriterionSetBasisForLinks(Double_t rd, FOFcompfunc cmp, FOFcheckfunc check, Double_t *params, Int_t iGroup, Int_t nActive, Particle *bucket, Int_t *Group, Int_t *Len, Int_t *Head, Int_t *Tail, Int_t *Next, Int_t *BucketFlag, Int_t *Fifo, Int_t &iTail, Double_t* off, Int_t target)
+    {
+        //if bucket already linked and particle already part of group, do nothing.
+        if(BucketFlag[nid]&&Head[target]==Head[bucket_start])return;
+        //this flag is initialized to !=0 and if entire bucket searched and all particles already linked,
+        //then BucketFlag[nid]=1
+        int flag=Head[bucket_start];
+        for (Int_t i = bucket_start; i < bucket_end; i++)
+        {
+            if (flag!=Head[i])flag=0;
+            Int_t id=bucket[i].GetID();
+            //if already linked don't do anything
+            if (Group[id]==iGroup) continue;
+            //if tag below zero then don't do anything
+            if (Group[id]<0) continue;
+            if (cmp(bucket[target],bucket[i],params)) {
+                //also possible particle is tagged in another group and cannot be used for generating new links so this link invalid
+                //so check if particle can be used for links by using check function and if result <0 then do nothing
+                if (Group[id]!=iGroup && Group[id]>0) continue;
 
-    //Periodic
+                Group[id]=iGroup;
+                Fifo[iTail++]=i;
+                Len[iGroup]++;
+
+                Next[Tail[Head[target]]]=Head[i];
+                Tail[Head[target]]=Tail[Head[i]];
+                Head[i]=Head[target];
+                if(iTail==nActive)iTail=0;
+                flag=0;
+            }
+        }
+        if (flag) BucketFlag[nid]=1;
+    }
+    //@}
+
+    ///\name Periodic
+    //@{
     //As leaf nodes should never be head node and split nodes account for periodicity, these are the same as the non-periodic case.
     void LeafNode::FindNearestPosPeriodic(Double_t rd, Particle *bucket, PriorityQueue *pq, Double_t *off, Double_t *p, Int_t target, int dim)
     {
@@ -634,6 +671,13 @@ namespace NBody
     {
         FOFSearchCriterion(rd, cmp, params, iGroup, nActive, bucket, Group, Len, Head, Tail, Next, BucketFlag, Fifo, iTail, off, target);
     }
+
+    void LeafNode::FOFSearchCriterionSetBasisForLinksPeriodic(Double_t rd, FOFcompfunc cmp, FOFcheckfunc check, Double_t *params, Int_t iGroup, Int_t nActive, Particle *bucket, Int_t *Group, Int_t *Len, Int_t *Head, Int_t *Tail, Int_t *Next, Int_t *BucketFlag, Int_t *Fifo, Int_t &iTail, Double_t *off, Double_t *p, Int_t target)
+    {
+        FOFSearchCriterionSetBasisForLinks(rd, cmp, check, params, iGroup, nActive, bucket, Group, Len, Head, Tail, Next, BucketFlag, Fifo, iTail, off, target);
+    }
+    //@}
+    
     //@}
 
 }

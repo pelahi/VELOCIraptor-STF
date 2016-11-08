@@ -174,6 +174,10 @@ namespace NBody
         /// their IDS and Group array.
         /// Also pass a Head, Tail and Next array which are adjusted to point to the head and tail of group and Next array
         /// is used to traverse the group. BucketFlag reduces the number of buckets searched
+        /// There is FOF using Criterion and also one where Criterion is passed and another 
+        /// where criterion is passed and only certain particles can be used to generate links to other particles. This means additional checks
+        /// as particles can meet the criterion of belonging to two different groups and these groups will not be joined as the particle bridging 
+        /// the groups cannot be used to form new links.
         //@{
         /*virtual void FOFSearchBall(Double_t rd, Double_t fdist2, Int_t iGroup, Int_t nActive, Particle *bucket, Int_t *Group, Int_t *Len, Int_t *Head, Int_t *Tail, Int_t *Next, Int_t *BucketFlag, Int_t *Fifo, Int_t &iTail, Double_t* off, Int_t target) = 0;
         virtual void FOFSearchCriterion(Double_t rd, int cmp(Particle, Particle, Double_t *), Double_t *params, Int_t iGroup, Int_t nActive, Particle *bucket, Int_t *Group, Int_t *Len, Int_t *Head, Int_t *Tail, Int_t *Next, Int_t *BucketFlag, Int_t *Fifo, Int_t &iTail, Double_t* off, Int_t target) = 0;
@@ -184,10 +188,12 @@ namespace NBody
 
         virtual void FOFSearchBall(Double_t rd, Double_t fdist2, Int_t iGroup, Int_t nActive, Particle *bucket, Int_t *Group, Int_t *Len, Int_t *Head, Int_t *Tail, Int_t *Next, Int_t *BucketFlag, Int_t *Fifo, Int_t &iTail, Double_t* off, Int_t target) = 0;
         virtual void FOFSearchCriterion(Double_t rd, FOFcompfunc cmp, Double_t *params, Int_t iGroup, Int_t nActive, Particle *bucket, Int_t *Group, Int_t *Len, Int_t *Head, Int_t *Tail, Int_t *Next, Int_t *BucketFlag, Int_t *Fifo, Int_t &iTail, Double_t* off, Int_t target) = 0;
+        virtual void FOFSearchCriterionSetBasisForLinks(Double_t rd, FOFcompfunc cmp, FOFcheckfunc check, Double_t *params, Int_t iGroup, Int_t nActive, Particle *bucket, Int_t *Group, Int_t *Len, Int_t *Head, Int_t *Tail, Int_t *Next, Int_t *BucketFlag, Int_t *Fifo, Int_t &iTail, Double_t* off, Int_t target) = 0;
 
         //same as above but periodic
         virtual void FOFSearchBallPeriodic(Double_t rd, Double_t fdist2, Int_t iGroup, Int_t nActive, Particle *bucket, Int_t *Group, Int_t *Len, Int_t *Head, Int_t *Tail, Int_t *Next, Int_t *BucketFlag, Int_t *Fifo, Int_t &iTail, Double_t* off, Double_t *period, Int_t target) = 0;
         virtual void FOFSearchCriterionPeriodic(Double_t rd, FOFcompfunc cmp, Double_t *params, Int_t iGroup, Int_t nActive, Particle *bucket, Int_t *Group, Int_t *Len, Int_t *Head, Int_t *Tail, Int_t *Next, Int_t *BucketFlag, Int_t *Fifo, Int_t &iTail, Double_t* off, Double_t *period, Int_t target) = 0;
+        virtual void FOFSearchCriterionSetBasisForLinksPeriodic(Double_t rd, FOFcompfunc cmp, FOFcheckfunc check, Double_t *params, Int_t iGroup, Int_t nActive, Particle *bucket, Int_t *Group, Int_t *Len, Int_t *Head, Int_t *Tail, Int_t *Next, Int_t *BucketFlag, Int_t *Fifo, Int_t &iTail, Double_t* off, Double_t *period, Int_t target) = 0;
         //@}
     };
     
@@ -305,9 +311,11 @@ namespace NBody
         //fof searches
         void FOFSearchBall(Double_t rd, Double_t fdist2, Int_t iGroup, Int_t nActive, Particle *bucket, Int_t *Group, Int_t *Len, Int_t *Head, Int_t *Tail, Int_t *Next, Int_t *BucketFlag, Int_t *Fifo, Int_t &iTail, Double_t* off, Int_t target);
         void FOFSearchCriterion(Double_t rd, FOFcompfunc cmp, Double_t *params, Int_t iGroup, Int_t nActive, Particle *bucket, Int_t *Group, Int_t *Len, Int_t *Head, Int_t *Tail, Int_t *Next, Int_t *BucketFlag, Int_t *Fifo, Int_t &iTail, Double_t* off, Int_t target);
+        void FOFSearchCriterionSetBasisForLinks(Double_t rd, FOFcompfunc cmp, FOFcheckfunc check, Double_t *params, Int_t iGroup, Int_t nActive, Particle *bucket, Int_t *Group, Int_t *Len, Int_t *Head, Int_t *Tail, Int_t *Next, Int_t *BucketFlag, Int_t *Fifo, Int_t &iTail, Double_t* off, Int_t target);
 
         void FOFSearchBallPeriodic(Double_t rd, Double_t fdist2, Int_t iGroup, Int_t nActive, Particle *bucket, Int_t *Group, Int_t *Len, Int_t *Head, Int_t *Tail, Int_t *Next, Int_t *BucketFlag, Int_t *Fifo, Int_t &iTail, Double_t* off, Double_t *period, Int_t target);
         void FOFSearchCriterionPeriodic(Double_t rd, FOFcompfunc cmp, Double_t *params, Int_t iGroup, Int_t nActive, Particle *bucket, Int_t *Group, Int_t *Len, Int_t *Head, Int_t *Tail, Int_t *Next, Int_t *BucketFlag, Int_t *Fifo, Int_t &iTail, Double_t* off, Double_t *period, Int_t target);
+        void FOFSearchCriterionSetBasisForLinksPeriodic(Double_t rd, FOFcompfunc cmp, FOFcheckfunc check, Double_t *params, Int_t iGroup, Int_t nActive, Particle *bucket, Int_t *Group, Int_t *Len, Int_t *Head, Int_t *Tail, Int_t *Next, Int_t *BucketFlag, Int_t *Fifo, Int_t &iTail, Double_t* off, Double_t *period, Int_t target);
     };
 
 /*! 
@@ -402,9 +410,11 @@ namespace NBody
         //fof searches
         void FOFSearchBall(Double_t rd, Double_t fdist2, Int_t iGroup, Int_t nActive, Particle *bucket, Int_t *Group, Int_t *Len, Int_t *Head, Int_t *Tail, Int_t *Next, Int_t *BucketFlag, Int_t *Fifo, Int_t &iTail, Double_t* off, Int_t target);
         void FOFSearchCriterion(Double_t rd, FOFcompfunc cmp, Double_t *params, Int_t iGroup, Int_t nActive, Particle *bucket, Int_t *Group, Int_t *Len, Int_t *Head, Int_t *Tail, Int_t *Next, Int_t *BucketFlag, Int_t *Fifo, Int_t &iTail, Double_t* off, Int_t target);
+        void FOFSearchCriterionSetBasisForLinks(Double_t rd, FOFcompfunc cmp, FOFcheckfunc check, Double_t *params, Int_t iGroup, Int_t nActive, Particle *bucket, Int_t *Group, Int_t *Len, Int_t *Head, Int_t *Tail, Int_t *Next, Int_t *BucketFlag, Int_t *Fifo, Int_t &iTail, Double_t* off, Int_t target);
 
         void FOFSearchBallPeriodic(Double_t rd, Double_t fdist2, Int_t iGroup, Int_t nActive, Particle *bucket, Int_t *Group, Int_t *Len, Int_t *Head, Int_t *Tail, Int_t *Next, Int_t *BucketFlag, Int_t *Fifo, Int_t &iTail, Double_t* off, Double_t *period, Int_t target);
         void FOFSearchCriterionPeriodic(Double_t rd, FOFcompfunc cmp, Double_t *params, Int_t iGroup, Int_t nActive, Particle *bucket, Int_t *Group, Int_t *Len, Int_t *Head, Int_t *Tail, Int_t *Next, Int_t *BucketFlag, Int_t *Fifo, Int_t &iTail, Double_t* off, Double_t *period, Int_t target);
+        void FOFSearchCriterionSetBasisForLinksPeriodic(Double_t rd, FOFcompfunc cmp, FOFcheckfunc check, Double_t *params, Int_t iGroup, Int_t nActive, Particle *bucket, Int_t *Group, Int_t *Len, Int_t *Head, Int_t *Tail, Int_t *Next, Int_t *BucketFlag, Int_t *Fifo, Int_t &iTail, Double_t* off, Double_t *period, Int_t target);
     };
 
 }

@@ -293,8 +293,8 @@ namespace NBody
                 if (check(bucket[iid],params)==0) {
                     //now begin search.
                     for (int j = 0; j < 6; j++) off[j] = 0.0;
-                    if (period==NULL) root->FOFSearchCriterion(0.0,cmp,params,iGroup,numparts,bucket,pGroup,pLen,pHead,pTail,pNext,pBucketFlag, Fifo,iTail,off,iid);
-                    else root->FOFSearchCriterionPeriodic(0.0,cmp,params,iGroup,numparts,bucket,pGroup,pLen,pHead,pTail,pNext,pBucketFlag, Fifo,iTail,off,period,iid);
+                    if (period==NULL) root->FOFSearchCriterionSetBasisForLinks(0.0,cmp,check,params,iGroup,numparts,bucket,pGroup,pLen,pHead,pTail,pNext,pBucketFlag, Fifo,iTail,off,iid);
+                    else root->FOFSearchCriterionSetBasisForLinksPeriodic(0.0,cmp,check,params,iGroup,numparts,bucket,pGroup,pLen,pHead,pTail,pNext,pBucketFlag, Fifo,iTail,off,period,iid);
                 }
             }
 

@@ -10,6 +10,7 @@ namespace NBody
 {
     ///Split Node Functions
     ///\todo adjust periodic searches so that reflection is calculated faster.
+    ///Non periodic functions
     //@{
     void SplitNode::FindNearestPos(Double_t rd, Particle *bucket, PriorityQueue *pq, Double_t* off, Int_t target, int dim)
     {
@@ -720,7 +721,43 @@ namespace NBody
         }
     }
 
-    //Periodic version
+    //key here is params which tell one how to search the tree
+    void SplitNode::FOFSearchCriterionSetBasisForLinks(Double_t rd, FOFcompfunc cmp, FOFcheckfunc check, Double_t *params, Int_t iGroup, Int_t nActive, Particle *bucket, Int_t *Group, Int_t *Len, Int_t *Head, Int_t *Tail, Int_t *Next, Int_t *BucketFlag, Int_t *Fifo, Int_t &iTail, Double_t* off, Int_t target)
+    {
+        Double_t old_off = off[cut_dim];
+        Double_t new_off = bucket[target].GetPhase(cut_dim) - cut_val;
+        if (new_off < 0)
+        {
+            left->FOFSearchCriterionSetBasisForLinks(rd,cmp,check,params,iGroup,nActive,bucket,Group,Len,Head,Tail,Next,BucketFlag,Fifo,iTail,off,target);
+            if ((int)params[0]==0) rd += (-old_off*old_off + new_off*new_off)/params[1];
+            else if ((int)params[0]==1) rd += (-old_off*old_off + new_off*new_off)/params[2];
+            else if ((int)params[0]==2) rd += (-old_off*old_off + new_off*new_off)/params[(cut_dim<3)*1+(cut_dim>=3)*2];
+            if (rd < 1)
+            {
+                off[cut_dim] = new_off;
+                right->FOFSearchCriterionSetBasisForLinks(rd,cmp,check,params,iGroup,nActive,bucket,Group,Len,Head,Tail,Next,BucketFlag,Fifo,iTail,off,target);
+                off[cut_dim] = old_off;
+            }
+        }
+        else
+        {
+            right->FOFSearchCriterionSetBasisForLinks(rd,cmp,check,params,iGroup,nActive,bucket,Group,Len,Head,Tail,Next,BucketFlag,Fifo,iTail,off,target);
+            if ((int)params[0]==0) rd += (-old_off*old_off + new_off*new_off)/params[1];
+            else if ((int)params[0]==1) rd += (-old_off*old_off + new_off*new_off)/params[2];
+            else if ((int)params[0]==2) rd += (-old_off*old_off + new_off*new_off)/params[(cut_dim<3)*1+(cut_dim>=3)*2];
+            if (rd < 1)
+            {
+                off[cut_dim] = new_off;
+                left->FOFSearchCriterionSetBasisForLinks(rd,cmp,check,params,iGroup,nActive,bucket,Group,Len,Head,Tail,Next,BucketFlag,Fifo,iTail,off,target);
+                off[cut_dim] = old_off;
+            }
+        }
+    }
+    
+    //@}
+
+    ///Periodic version that generate reflections and use non periodic searches
+    //@{
     //there are several reflections to search (sum_i^ND choose(ND,i), so for 3d have 7 possible reflections)
     void SplitNode::FindNearestPosPeriodic(Double_t rd, Particle *bucket, PriorityQueue *pq, Double_t *off, Double_t *p, Int_t target, int dim)
     {
@@ -1192,5 +1229,41 @@ namespace NBody
         }
         for (int j=0;j<3;j++) bucket[target].SetPosition(j,x0[j]);
     }
+
+    void SplitNode::FOFSearchCriterionSetBasisForLinksPeriodic(Double_t rd, FOFcompfunc cmp, FOFcheckfunc check, Double_t *params, Int_t iGroup, Int_t nActive, Particle *bucket, Int_t *Group, Int_t *Len, Int_t *Head, Int_t *Tail, Int_t *Next, Int_t *BucketFlag, Int_t *Fifo, Int_t &iTail, Double_t* off, Double_t *p, Int_t target)
+    {
+        FOFSearchCriterionSetBasisForLinks(rd,cmp,check,params,iGroup,nActive,bucket,Group,Len,Head,Tail,Next,BucketFlag,Fifo,iTail,off,target);
+        Coordinate x0(bucket[target].GetPosition()),xp;
+        Double_t sval;
+        for (int k=0;k<NSPACEDIM;k++) {
+            for (int j = 0; j < NSPACEDIM; j++) off[j] = 0.0;
+            sval=PeriodicReflection1D(x0,xp,p,k);
+            for (int j=0;j<3;j++) bucket[target].SetPosition(j,xp[j]);
+            FOFSearchCriterionSetBasisForLinks(rd,cmp,check,params,iGroup,nActive,bucket,Group,Len,Head,Tail,Next,BucketFlag,Fifo,iTail,off,target);
+        }
+        if (NSPACEDIM==3) {
+            for (int j = 0; j < NSPACEDIM; j++) off[j] = 0.0;
+            sval=PeriodicReflection2D(x0,xp,p,0,1);
+            for (int j=0;j<3;j++) bucket[target].SetPosition(j,xp[j]);
+            FOFSearchCriterionSetBasisForLinks(rd,cmp,check,params,iGroup,nActive,bucket,Group,Len,Head,Tail,Next,BucketFlag,Fifo,iTail,off,target);
+            for (int j = 0; j < NSPACEDIM; j++) off[j] = 0.0;
+            sval=PeriodicReflection2D(x0,xp,p,0,2);
+            for (int j=0;j<3;j++) bucket[target].SetPosition(j,xp[j]);
+            FOFSearchCriterionSetBasisForLinks(rd,cmp,check,params,iGroup,nActive,bucket,Group,Len,Head,Tail,Next,BucketFlag,Fifo,iTail,off,target);
+            for (int j = 0; j < NSPACEDIM; j++) off[j] = 0.0;
+            sval=PeriodicReflection2D(x0,xp,p,1,2);
+            for (int j=0;j<3;j++) bucket[target].SetPosition(j,xp[j]);
+            FOFSearchCriterionSetBasisForLinks(rd,cmp,check,params,iGroup,nActive,bucket,Group,Len,Head,Tail,Next,BucketFlag,Fifo,iTail,off,target);
+        }
+        // search all axis if current max dist less than search radius
+        if (NSPACEDIM>1) {
+            for (int j = 0; j < NSPACEDIM; j++) off[j] = 0.0;
+            sval=PeriodicReflectionND(x0,xp,p,NSPACEDIM);
+            for (int j=0;j<3;j++) bucket[target].SetPosition(j,xp[j]);
+            FOFSearchCriterionSetBasisForLinks(rd,cmp,check,params,iGroup,nActive,bucket,Group,Len,Head,Tail,Next,BucketFlag,Fifo,iTail,off,target);
+        }
+        for (int j=0;j<3;j++) bucket[target].SetPosition(j,x0[j]);
+    }
+
     //@}
 }
