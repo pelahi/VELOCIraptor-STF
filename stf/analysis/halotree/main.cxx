@@ -60,7 +60,7 @@ int main(int argc,char **argv)
     unsigned int *pfofp,*pfofd;
     long unsigned *noffset;
     long unsigned *pglist;
-    long int i,j;
+    long long i,j;
     long unsigned nh,nhp,nhd;
     //flags indicating whether updates to list are necessary
     int ilistupdated;

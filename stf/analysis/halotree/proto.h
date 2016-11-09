@@ -204,6 +204,18 @@ Int_t *BuildGroupTailArray(const Int_t nbodies, const Int_t numgroups, Int_t *nu
 
 //@}
 
+/// \name Extra utility routines
+/// see \ref utilities.cxx for implementation
+//@{
+
+///Get current time in Milliseconds
+int GetMilliCount();
+///Get span in milliseconds
+int GetMillSpan(int );
+///get a time
+double MyGetTime();
+//@}
+
 #endif
 
 

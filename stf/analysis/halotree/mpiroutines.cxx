@@ -25,6 +25,8 @@ void MPILoadBalanceSnapshots(Options &opt){
     mpi_endsnap=new int[NProcs];
 
     Double_t maxworkload=0,minworkload=1e32;
+    Double_t t0=MyGetTime();
+    if (opt.iverbose==1 && ThisTask==0) cout<<"Starting load balancing"<<MyGetTime()-t0<<endl;
     //if there is only one mpi thread no splitting to be done.
     if (NProcs==1) {
         StartSnap=0;
@@ -103,6 +105,7 @@ void MPILoadBalanceSnapshots(Options &opt){
     StartSnap=mpi_startsnap[ThisTask];
     EndSnap=mpi_endsnap[ThisTask];
     NSnap=EndSnap-StartSnap;
+    if (opt.iverbose==1&&ThisTask==0) cout<<"Finished load balancing "<<MyGetTime()-t0<<endl;
 }
 
 ///MPI load balancing can take quite a while (especially the particle based load balancing) so can write the load balancing for a given input and setup

@@ -79,6 +79,8 @@ HaloTreeData *ReadData(Options &opt)
     HaloTree=new HaloTreeData[opt.numsnapshots];
     string *buf=new string[opt.numsnapshots];
     Int_t tothalos=0;
+    Double_t t0;
+    t0=MyGetTime();
 #ifdef USEMPI
     Int_t mpi_tothalos;
 #endif
@@ -109,6 +111,7 @@ HaloTreeData *ReadData(Options &opt)
         }
         MPI_Barrier(MPI_COMM_WORLD);
     }
+    if (opt.iverbose==1&&ThisTask==0) cout<<"Reading data"<<endl;
 #else
     Fin.open(opt.fname);
     if (!Fin.is_open()) {
@@ -117,6 +120,7 @@ HaloTreeData *ReadData(Options &opt)
     }
     for(i=0; i<opt.numsnapshots; i++) Fin>>buf[i];
     Fin.close();
+    if (opt.iverbose==1) cout<<"Reading data"<<endl;
 #endif
 
 #if (defined(USEOPENMP) && !defined(USEMPI))
@@ -162,6 +166,8 @@ private(i)
     if (ThisTask==0) cout<<" all tasks have "<<tothalos<<endl;
 #endif
     opt.TotalNumberofHalos=tothalos;
+    if (opt.iverbose==1) cout<<"Finished reading data "<<MyGetTime()-t0<<endl;
+
     return HaloTree;
 }
 //@}
@@ -173,6 +179,7 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
     char fname[1000];
     int istep;
     sprintf(fname,"%s",opt.outname);
+    Double_t time1=MyGetTime();
 #ifndef USEMPI
     int ThisTask=0, NProcs=1;
 #endif
@@ -272,7 +279,7 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
     Fout<<"END"<<endl;
     Fout.close();
     }
-    if (ThisTask==0) cout<<"Done writing to "<<fname<<endl;    
+    if (ThisTask==0) cout<<"Done writing to "<<fname<<" "<<MyGetTime()-time1<<endl;
 }
 
 void WriteHaloGraph(Options &opt, ProgenitorData **p, DescendantData **d, HaloTreeData *h) {

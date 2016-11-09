@@ -210,7 +210,7 @@ struct Options
 
     ///verbose output flag
     int iverbose;
-    
+
 #ifdef USEMPI
     ///number of items (halos or particles in halos) across various snapshots desired. Used for load balancing
     Int_t numpermpi;

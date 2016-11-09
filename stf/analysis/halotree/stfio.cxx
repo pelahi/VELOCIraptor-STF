@@ -107,7 +107,7 @@ void OpenBinaryorAsciiFiles(string &infile, int ibinary, int numfiletypes, int k
             exit(9);
 #endif
         }
-        else if (iverbose) cout<<"open "<<fnamearray[i]<<endl;
+        else if (iverbose>1) cout<<"open "<<fnamearray[i]<<endl;
     }
 }
 void CloseBinaryorAsciiFiles(
@@ -135,7 +135,7 @@ void CloseBinaryorAsciiFiles(
         }
     }
 }
-        
+
 #ifdef USEHDF
 void OpenHDFFiles(string &infile, int numfiletypes, int k, int mpi_ninput, int ifieldhalos, int itypematch,
     H5File &Fgroup, H5File &Fpart, H5File &Fupart, 
@@ -1211,10 +1211,9 @@ HaloData *ReadHaloGroupCatalogData(string &infile, Int_t &numhalos, int mpi_ninp
 #endif
             ibinary, ifieldhalos);
 
-        if (iverbose) cout<<infile<<" has "<<nglocal<<endl;
         //allocate memory for halos
         if (k==0) {
-            if (iverbose) cout<<" and the total number of halos in all files is "<<TotalNumberofHalos<<endl;
+            if (iverbose) cout<<"reading "<<infile<<" files "<<endl<<" Total number of halos in all files is "<<TotalNumberofHalos<<endl;
             Halo=new HaloData[TotalNumberofHalos];
             numhalos=TotalNumberofHalos;
             //if no haloes close file and return
