@@ -26,7 +26,7 @@ void MPILoadBalanceSnapshots(Options &opt){
 
     Double_t maxworkload=0,minworkload=1e32;
     Double_t t0=MyGetTime();
-    if (opt.iverbose==1 && ThisTask==0) cout<<"Starting load balancing"<<MyGetTime()-t0<<endl;
+    if (opt.iverbose==1 && ThisTask==0) cout<<"Starting load balancing"<<endl;
     //if there is only one mpi thread no splitting to be done.
     if (NProcs==1) {
         StartSnap=0;
@@ -38,7 +38,10 @@ void MPILoadBalanceSnapshots(Options &opt){
     //see if a load balance file exists and can be used
     int iflag;
     iflag=MPIReadLoadBalance(opt);
-    if (iflag==1) return;
+    if (iflag==1) {
+        if (opt.iverbose==1&&ThisTask==0) cout<<"Finished load balancing "<<MyGetTime()-t0<<endl;
+        return;
+    }
 
     ///determine the total number of haloes and ideal splitting
     if (ThisTask==0) {
@@ -173,6 +176,7 @@ int MPIReadLoadBalance(Options &opt){
     StartSnap=mpi_startsnap[ThisTask];
     EndSnap=mpi_endsnap[ThisTask];
     NSnap=EndSnap-StartSnap;
+    return iflag;
 }
 
 
