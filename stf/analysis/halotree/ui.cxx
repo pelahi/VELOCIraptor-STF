@@ -10,7 +10,7 @@ void GetArgs(int argc, char *argv[], Options &opt)
 {
     int option;
     int NumArgs = 0;
-    while ((option = getopt(argc, argv, ":i:s:t:n:o:C:c:S:I:N:B:F:M:H:h:D:O:T:v:m:d:")) != EOF)
+    while ((option = getopt(argc, argv, ":i:s:t:n:o:C:c:S:I:N:B:F:M:H:h:D:O:T:v:m:d:z:")) != EOF)
     {
         switch(option)
         {
@@ -99,6 +99,10 @@ void GetArgs(int argc, char *argv[], Options &opt)
                 opt.numpermpi = atol(optarg);
                 NumArgs += 2;
                 break;
+            case 'z': 
+                opt.ndesiredmpithreads = atoi(optarg);
+                NumArgs += 2;
+                break;
 #endif
             case '?':
                 usage();
@@ -110,9 +114,10 @@ void GetArgs(int argc, char *argv[], Options &opt)
 #endif
         cerr<<"Must provide input and output file names\n";
 #ifdef USEMPI
-        MPI_Finalize();
+            MPI_Abort(MPI_COMM_WORLD,8);
+#else
+            exit(8);
 #endif
-        exit(8);
     }
 
     if (opt.imapping==DSIMPLEMAP) opt.mappingfunc=simplemap;
@@ -122,9 +127,10 @@ void GetArgs(int argc, char *argv[], Options &opt)
 #endif
         cerr<<"Number of snapshots must be >=2\n";
 #ifdef USEMPI
-        MPI_Finalize();
+            MPI_Abort(MPI_COMM_WORLD,8);
+#else
+            exit(8);
 #endif
-        exit(8);
     }
     if (opt.numsteps<1){
 #ifdef USEMPI
@@ -132,9 +138,10 @@ void GetArgs(int argc, char *argv[], Options &opt)
 #endif
         cerr<<"Number of steps over which to produce links must be >=1\n";
 #ifdef USEMPI
-        MPI_Finalize();
+            MPI_Abort(MPI_COMM_WORLD,8);
+#else
+            exit(8);
 #endif
-        exit(8);
     }
     if (opt.icatalog==DCROSSCAT) {
         if (opt.numsnapshots>2) {cerr<<"Cross catalog, yet more than two snapshots compared, reseting and only comparing two"<<endl;opt.numsnapshots=2;}
@@ -192,7 +199,7 @@ void usage(void)
     cerr<<"-v <verbose flag 1/0 ("<<opt.iverbose<<")\n";
 #ifdef USEMPI
     cerr<<"-m <number of items per mpi thead, use for load balacing. If 0, based on input ("<<opt.numpermpi<<")\n";
-    
+    cerr<<"-z <number of mpi theads used to calculate load balacing. If >0 this used with one actual mpi thread but determines load balancing based on desired number of mpi threads. Write load balancing file and terminates. If 0 (default) normal operation \n";
 #endif
 #ifdef USEMPI
     }
@@ -234,5 +241,6 @@ in the examples directory). \n \n
     \arg \b \e -M < Mapping of particle ids to index  (\ref opt.imapping with \ref DNOMAP no mapping of ids to indices, all others must be implemented >
     \arg \b \e -v < verbose flag 1/0 > 
     \arg \b \e -m < number of items per mpi thead, use for load balacing. Use 0 if no mpi used when building halo catalog >
+    \arg \b \e -z < number of mpi theads used to calculate load balacing. If >0 this used with one actual mpi thread but determines load balancing based on desired number of mpi threads. Write load balancing file and terminates. If 0 (default) normal operation >
 
 */

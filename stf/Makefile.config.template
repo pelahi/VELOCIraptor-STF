@@ -85,8 +85,8 @@ GSPHINFO="on"
 GSTARINFO="on"
 GBHINFO="on"
 
-#for hdf input
-HDFINPUT="on"
+#for hdf input/output
+HDFENABLE="on"
 #===========================================
 
 
@@ -106,7 +106,7 @@ ifeq ($(LOCALFFTW),"on")
     FFTW_LIBS = -L$(FFTW_DIR)/lib/
     FFTW_CFLAGS =  $(FFTW_INCL) $(FFTW_LIBS)
 endif
-ifeq ($(HDFINPUT)$(LOCALHDF),"on""on")
+ifeq ($(HDFENABLE)$(LOCALHDF),"on""on")
     HDF_DIR = 
     HDF_INCL = -I$(HDF_DIR)/include/
     HDF_LIBS = -L$(HDF_DIR)/lib/
@@ -237,7 +237,7 @@ ifeq ($(GBHINFO),"on")
     C+FLAGS+= -DEXTRABHINFO
 endif
 
-ifeq ($(HDFINPUT),"on")
+ifeq ($(HDFENABLE),"on")
     C+FLAGS+= -DUSEHDF
     C+LIBS+= -lhdf5_hl_cpp -lhdf5_cpp -lhdf5_hl -lhdf5 -lz -lrt -ldl
     IFLAGS+= $(HDF_INCL)

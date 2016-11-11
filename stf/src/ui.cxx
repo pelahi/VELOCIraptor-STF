@@ -238,9 +238,10 @@ void GetParamFile(Options &opt)
     if (!FileExists(opt.pname)){
             cerr<<"Config file does not exist or can't be read, terminating"<<endl;
 #ifdef USEMPI
-            MPI_Finalize();
-#endif
+            MPI_Abort(MPI_COMM_WORLD,9);
+#else
             exit(9);
+#endif
     }
     paramfile.open(opt.pname, ios::in);
     unsigned j,k;
@@ -484,9 +485,10 @@ inline void ConfigCheck(Options &opt)
 #endif
         cerr<<"Must provide input and output file names\n";
 #ifdef USEMPI
-        MPI_Finalize();
+            MPI_Abort(MPI_COMM_WORLD,8);
+#else
+            exit(8);
 #endif
-        exit(8);
     }
     if (opt.iBaryonSearch && !(opt.partsearchtype==PSTALL || opt.partsearchtype==PSTDARK)) {
 #ifdef USEMPI
@@ -494,9 +496,10 @@ inline void ConfigCheck(Options &opt)
 #endif
         cerr<<"Conflict in config file: both gas/star/etc particle type search AND the separate baryonic (gas,star,etc) search flag are on. Check config\n";
 #ifdef USEMPI
-        MPI_Finalize();
+            MPI_Abort(MPI_COMM_WORLD,8);
+#else
+            exit(8);
 #endif
-        exit(8);
     }
     if (opt.HaloMinSize==-1) opt.HaloMinSize=opt.MinSize;
 
@@ -506,9 +509,10 @@ inline void ConfigCheck(Options &opt)
 #endif
         cerr<<"Invalid number of input files (<1) \n";
 #ifdef USEMPI
-        MPI_Finalize();
+            MPI_Abort(MPI_COMM_WORLD,8);
+#else
+            exit(8);
 #endif
-        exit(8);
     }
 
     #ifdef USEMPI

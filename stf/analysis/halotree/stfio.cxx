@@ -870,9 +870,9 @@ void MPIReadHaloGroupCatalogData(string &infile, Int_t &numhalos, HaloData *&Hal
 #endif
             ibinary, ifieldhalos);
 
-        if (iverbose) cout<<infile<<" has "<<nglocal<<endl;
         //allocate memory for halos
         if (k==0) {
+            if (iverbose) cout<<infile<<" has "<<nglocal<<endl;
             if (iverbose) cout<<" and the total number of halos in all files is "<<TotalNumberofHalos<<endl;
             numhalos=TotalNumberofHalos;
         }
@@ -1213,7 +1213,7 @@ HaloData *ReadHaloGroupCatalogData(string &infile, Int_t &numhalos, int mpi_ninp
 
         //allocate memory for halos
         if (k==0) {
-            if (iverbose) cout<<"reading "<<infile<<" files "<<endl<<" Total number of halos in all files is "<<TotalNumberofHalos<<endl;
+            if (iverbose) cout<<"reading "<<infile<<" split into "<<nmpicount<<" files "<<endl<<"Total number of halos in all files is "<<TotalNumberofHalos<<endl;
             Halo=new HaloData[TotalNumberofHalos];
             numhalos=TotalNumberofHalos;
             //if no haloes close file and return

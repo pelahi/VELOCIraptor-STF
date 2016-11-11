@@ -27,8 +27,9 @@ void MPILoadBalanceSnapshots(Options &opt){
     Double_t maxworkload=0,minworkload=1e32;
     Double_t t0=MyGetTime();
     if (opt.iverbose==1 && ThisTask==0) cout<<"Starting load balancing"<<endl;
-    //if there is only one mpi thread no splitting to be done.
-    if (NProcs==1) {
+    //if there is only one mpi thread and code not operating in load balancing mode where 
+    //user has passed the number of mpi threads expected, no splitting to be done
+    if (NProcs==1 && opt.ndesiredmpithreads==0) {
         StartSnap=0;
         EndSnap=opt.numsnapshots;
         NSnap=opt.numsnapshots;
@@ -37,6 +38,15 @@ void MPILoadBalanceSnapshots(Options &opt){
 
     //see if a load balance file exists and can be used
     int iflag;
+    //if desired threads passed and running with one mpi thread then adjust mpi arrays so that load balance calculated correctly
+    if (NProcs==1 && opt.ndesiredmpithreads>0) {
+        NProcs=opt.ndesiredmpithreads;
+        opt.ndesiredmpithreads=1;
+        delete[] mpi_startsnap;
+        delete[] mpi_endsnap;
+        mpi_startsnap=new int[NProcs];
+        mpi_endsnap=new int[NProcs];
+    }
     iflag=MPIReadLoadBalance(opt);
     if (iflag==1) {
         if (opt.iverbose==1&&ThisTask==0) cout<<"Finished load balancing "<<MyGetTime()-t0<<endl;
@@ -103,6 +113,13 @@ void MPILoadBalanceSnapshots(Options &opt){
     //task 0 has finished determining which snapshots a given mpi thread will process
     //write the data into a file
     MPIWriteLoadBalance(opt);
+    ///if code was operating under one mpi thread to determine the load balance for an expected number of threads (which was stored in opt.nummpithreads but now in NProcs)
+    //then terminate here after writing the file
+    if (opt.ndesiredmpithreads==1) {
+        cout<<"Finished load balancing and exiting"<<endl;
+        MPI_Finalize();
+        exit(0);
+    }
     MPI_Bcast(mpi_startsnap, NProcs, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Bcast(mpi_endsnap, NProcs, MPI_INT, 0, MPI_COMM_WORLD);
     StartSnap=mpi_startsnap[ThisTask];

@@ -214,6 +214,9 @@ struct Options
 #ifdef USEMPI
     ///number of items (halos or particles in halos) across various snapshots desired. Used for load balancing
     Int_t numpermpi;
+    ///number of expected mpi threads, useful for running code with a single thread to determine load balancing
+    ///which then writes the mpi load balancing file and exists
+    int ndesiredmpithreads;
 #endif
 
     Options()
@@ -244,13 +247,13 @@ struct Options
         haloidval=0;
         idcorrectflag=0;
         outputformat=OUTASCII;
+        haloidoffset=0;
 
         iverbose=1;
-
 #ifdef USEMPI
         numpermpi=0;
+        ndesiredmpithreads=0;
 #endif
-        haloidoffset=0;
     }
 };
 

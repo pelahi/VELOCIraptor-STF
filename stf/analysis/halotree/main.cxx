@@ -110,6 +110,8 @@ int main(int argc,char **argv)
         }
     }
 
+    time1=MyGetTime();
+    if (opt.iverbose) cout<<" Starting the cross matching "<<endl;
     //beginning loop over snapshots and building tree
     for (i=opt.numsnapshots-1;i>=0;i--) {
 #ifdef USEMPI
@@ -191,6 +193,7 @@ int main(int argc,char **argv)
     }
     delete[] pfofp;
 
+
     //now if more than one snapshot is used to generate links, must clean up across multiple snapshots to ensure that an object is the progenitor of a single other object
     //this requires parsing the descendent data list produced by identifying progenitors
     if (opt.numsteps>1) {
@@ -212,8 +215,12 @@ int main(int argc,char **argv)
         }
     }
 
+    if (opt.iverbose) cout<<"Finished the progenitor cross matching "<<MyGetTime()-time1<<endl;
+
     //Produce a reverse cross comparison or descendant tree if a full graph is requested. 
     if(opt.icatalog==DGRAPH) {
+    time2=MyGetTime();
+    if (opt.iverbose) cout<<"Starting descendant cross matching "<<endl;
     pdescen=new DescendantData*[opt.numsnapshots];
     pfofd=new unsigned int[opt.MaxIDValue];
     for (i=0;i<opt.MaxIDValue;i++) {pfofd[i]=0;}
@@ -285,8 +292,8 @@ int main(int argc,char **argv)
 #endif
     }
     delete[] pfofd;
+    if (opt.iverbose) cout<<"Starting descendant cross matching "<<MyGetTime()-time2<<endl;
     }
-    cout<<ThisTask<<" Done"<<endl;
 
     //now adjust the halo ids as prior, halo ids simple represent read order, allowing for addressing of memory by halo id value
     UpdateHaloIDs(opt,pht);
