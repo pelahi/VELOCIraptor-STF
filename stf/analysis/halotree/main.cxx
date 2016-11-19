@@ -123,6 +123,7 @@ int main(int argc,char **argv)
             cout<<i<<" "<<pht[i].numhalos<<" cross matching objects in standard merger tree direction (progenitors)"<<endl;
 
             //allocate offset to easily access particle ID/index list
+            /*
             noffset=new long unsigned[pht[i].numhalos];
             noffset[0]=0;
             nh=pht[i].Halo[0].NumberofParticles;
@@ -132,6 +133,9 @@ int main(int argc,char **argv)
                 for (Int_t k=0;k<pht[i].Halo[j].NumberofParticles;k++)
                     pglist[noffset[j]+k]=pht[i].Halo[j].ParticleID[k];
             }
+            */
+            noffset=NULL;
+            pglist=NULL;
 
             //if not last snapshot then can look back in time and produce links
             if (i>StartSnap) {
@@ -179,8 +183,8 @@ int main(int argc,char **argv)
             else pprogen[i]=new ProgenitorData[pht[i].numhalos];
 
             //free memory associated with accessing current haloes
-            delete[] pglist;
-            delete[] noffset;
+            //delete[] pglist;
+            //delete[] noffset;
         }
         //if no haloes/structures then cannot have an progenitors
         else {
@@ -233,7 +237,7 @@ int main(int argc,char **argv)
 #endif
         if(pht[i].numhalos>0){
             cout<<i<<" "<<pht[i].numhalos<<" cross matching objects in other direction (descendants)"<<endl;
-
+            /*
             noffset=new long unsigned[pht[i].numhalos];
             noffset[0]=0;
             nh=pht[i].Halo[0].NumberofParticles;
@@ -243,6 +247,9 @@ int main(int argc,char **argv)
                 for (Int_t k=0;k<pht[i].Halo[j].NumberofParticles;k++)
                     pglist[noffset[j]+k]=pht[i].Halo[j].ParticleID[k];
             }
+            */
+            noffset=NULL;
+            pglist=NULL;
 
 
             if (i<=EndSnap) {
@@ -280,8 +287,8 @@ int main(int argc,char **argv)
             //otherwise allocate memory but do nothing with it
             else pdescen[i]=new DescendantData[pht[i].numhalos];
 
-            delete[] pglist;
-            delete[] noffset;
+            //delete[] pglist;
+            //delete[] noffset;
         }
         else {
             pdescen[i]=NULL;

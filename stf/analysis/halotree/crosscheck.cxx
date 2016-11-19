@@ -47,7 +47,8 @@ private(i,j,tid,pq,numshared,merit)
     for (i=0;i<nhalos1;i++){
         tid=omp_get_thread_num();
         for (j=0;j<h1[i].NumberofParticles;j++){
-            if (pfof2[pglist[noffset[i]+j]]>0) sharelist[tid*nhalos2+pfof2[pglist[noffset[i]+j]]-1]+=1;
+            //if (pfof2[pglist[noffset[i]+j]]>0) sharelist[tid*nhalos2+pfof2[pglist[noffset[i]+j]]-1]+=1;
+            if (pfof2[h1[i].ParticleID[j]]>0) sharelist[tid*nhalos2+pfof2[h1[i].ParticleID[j]]-1]+=1;
         }
         numshared=0;
         //determine # of cross-correlations, but if it is not significant relative to Poisson noise, then
@@ -91,7 +92,8 @@ private(i,j,tid,pq,numshared,merit)
     for (i=0;i<nhalos2;i++)sharelist[i]=0;
     for (i=0;i<nhalos1;i++){
         for (j=0;j<h1[i].NumberofParticles;j++){
-            if (pfof2[pglist[noffset[i]+j]]>0) sharelist[pfof2[pglist[noffset[i]+j]]-1]+=1;
+            //if (pfof2[pglist[noffset[i]+j]]>0) sharelist[pfof2[pglist[noffset[i]+j]]-1]+=1;
+            if (pfof2[h1[i].ParticleID[j]]>0) sharelist[tid*nhalos2+pfof2[h1[i].ParticleID[j]]-1]+=1;
         }
         numshared=0;
         //determine # of cross-correlations, but if it is not significant relative to Poisson noise, then
@@ -145,7 +147,8 @@ private(i,j,tid,pq,numshared,merit)
 
         tid=omp_get_thread_num();
         for (j=0;j<h1[i].NumberofParticles;j++){
-            if (pfof2[pglist[noffset[i]+j]]>0) sharelist[tid*nhalos2+pfof2[pglist[noffset[i]+j]]-1]+=1;
+            //if (pfof2[pglist[noffset[i]+j]]>0) sharelist[tid*nhalos2+pfof2[pglist[noffset[i]+j]]-1]+=1;
+            if (pfof2[h1[i].ParticleID[j]]>0) sharelist[tid*nhalos2+pfof2[h1[i].ParticleID[j]]-1]+=1;
         }
         numshared=0;
         //determine # of cross-correlations, but if it is not significant relative to Poisson noise, then
@@ -194,7 +197,8 @@ private(i,j,tid,pq,numshared,merit)
         p1[i].NumberofProgenitors=0;p1[i].ProgenitorList=NULL;p1[i].Merit=NULL;
         if (refprogen[i].NumberofProgenitors>0) continue;
         for (j=0;j<h1[i].NumberofParticles;j++){
-            if (pfof2[pglist[noffset[i]+j]]>0) sharelist[pfof2[pglist[noffset[i]+j]]-1]+=1;
+            //if (pfof2[pglist[noffset[i]+j]]>0) sharelist[pfof2[pglist[noffset[i]+j]]-1]+=1;
+            if (pfof2[h1[i].ParticleID[j]]>0) sharelist[tid*nhalos2+pfof2[h1[i].ParticleID[j]]-1]+=1;
         }
         numshared=0;
         //determine # of cross-correlations, but if it is not significant relative to Poisson noise, then
@@ -280,7 +284,8 @@ private(i,j,tid,pq,numshared,merit)
     for (i=0;i<nhalos1;i++){
         tid=omp_get_thread_num();
         for (j=0;j<h1[i].NumberofParticles;j++){
-            if (pfof2[pglist[noffset[i]+j]]>0) sharelist[tid*nhalos2+pfof2[pglist[noffset[i]+j]]-1]+=1;
+            //if (pfof2[pglist[noffset[i]+j]]>0) sharelist[tid*nhalos2+pfof2[pglist[noffset[i]+j]]-1]+=1;
+            if (pfof2[h1[i].ParticleID[j]]>0) sharelist[tid*nhalos2+pfof2[h1[i].ParticleID[j]]-1]+=1;
         }
         numshared=0;
         //determine # of cross-correlations, but if it is not significant relative to Poisson noise, then
@@ -323,8 +328,8 @@ private(i,j,tid,pq,numshared,merit)
     for (i=0;i<nhalos2;i++)sharelist[i]=0;
     for (i=0;i<nhalos1;i++){
         for (j=0;j<h1[i].NumberofParticles;j++){
-            if (pfof2[pglist[noffset[i]+j]]>0) sharelist[pfof2[pglist[noffset[i]+j]]-1]+=1;
-            //if (pfof2[pglist1[i][j]]>0) sharelist[pfof2[pglist1[i][j]]-1]+=1;
+            //if (pfof2[pglist[noffset[i]+j]]>0) sharelist[pfof2[pglist[noffset[i]+j]]-1]+=1;
+            if (pfof2[h1[i].ParticleID[j]]>0) sharelist[tid*nhalos2+pfof2[h1[i].ParticleID[j]]-1]+=1;
         }
         numshared=0;
         //determine # of cross-correlations, but if it is not significant relative to Poisson noise, then
@@ -376,7 +381,8 @@ private(i,j,tid,pq,numshared,merit)
 
         tid=omp_get_thread_num();
         for (j=0;j<h1[i].NumberofParticles;j++){
-            if (pfof2[pglist[noffset[i]+j]]>0) sharelist[tid*nhalos2+pfof2[pglist[noffset[i]+j]]-1]+=1;
+            //if (pfof2[pglist[noffset[i]+j]]>0) sharelist[tid*nhalos2+pfof2[pglist[noffset[i]+j]]-1]+=1;
+            if (pfof2[h1[i].ParticleID[j]]>0) sharelist[tid*nhalos2+pfof2[h1[i].ParticleID[j]]-1]+=1;
         }
         numshared=0;
         //determine # of cross-correlations, but if it is not significant relative to Poisson noise, then
@@ -423,7 +429,8 @@ private(i,j,tid,pq,numshared,merit)
         if (refdescen[i].NumberofDescendants>0) continue;
 
         for (j=0;j<h1[i].NumberofParticles;j++){
-            if (pfof2[pglist[noffset[i]+j]]>0) sharelist[pfof2[pglist[noffset[i]+j]]-1]+=1;
+            //if (pfof2[pglist[noffset[i]+j]]>0) sharelist[pfof2[pglist[noffset[i]+j]]-1]+=1;
+            if (pfof2[h1[i].ParticleID[j]]>0) sharelist[tid*nhalos2+pfof2[h1[i].ParticleID[j]]-1]+=1;
         }
         numshared=0;
         //determine # of cross-correlations, but if it is not significant relative to Poisson noise, then
