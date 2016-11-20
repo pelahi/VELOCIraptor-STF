@@ -13,7 +13,7 @@
 /// does not guarantee that progenitor list is exclusive
 ProgenitorData *CrossMatch(Options &opt, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData *&h2, long unsigned *&pglist, long unsigned *&noffset, unsigned int*&pfof2, int &ilistupdated, int istepval, ProgenitorData *refprogen)
 {
-    long int i,j;
+    long int i,j,index;
     Int_t numshared;
     Double_t merit;
     int nthreads=1,tid;
@@ -40,33 +40,39 @@ ProgenitorData *CrossMatch(Options &opt, const long unsigned nhalos1, const long
     sharelist=new int[nhalos2*nthreads];
     for (i=0;i<nhalos2*nthreads;i++)sharelist[i]=0;
 #pragma omp parallel default(shared) \
-private(i,j,tid,pq,numshared,merit)
+private(i,j,tid,pq,numshared,merit,index)
 {
 #pragma omp for schedule(dynamic,10) nowait
     //if openmp declared
     for (i=0;i<nhalos1;i++){
         tid=omp_get_thread_num();
         for (j=0;j<h1[i].NumberofParticles;j++){
+            index=((long int)tid)*nhalos2+pfof2[h1[i].ParticleID[j]]-(long int)1;
             //if (pfof2[pglist[noffset[i]+j]]>0) sharelist[tid*nhalos2+pfof2[pglist[noffset[i]+j]]-1]+=1;
-            if (pfof2[h1[i].ParticleID[j]]>0) sharelist[tid*nhalos2+pfof2[h1[i].ParticleID[j]]-1]+=1;
+            if (pfof2[h1[i].ParticleID[j]]>0) sharelist[index]+=1;
         }
         numshared=0;
         //determine # of cross-correlations, but if it is not significant relative to Poisson noise, then
-        for (j=0;j<nhalos2;j++)
-            if(sharelist[tid*nhalos2+j]>opt.mlsig*sqrt((Double_t)h2[j].NumberofParticles)){numshared++;}
-            else sharelist[tid*nhalos2+j]=0;
+        for (j=0;j<nhalos2;j++) {
+            index=((long int)tid)*nhalos2+j;
+            if(sharelist[index]>opt.mlsig*sqrt((Double_t)h2[j].NumberofParticles)){numshared++;}
+            else sharelist[index]=0;
+        }
         pq=new PriorityQueue(numshared);
-        for (j=0;j<nhalos2;j++)if(sharelist[tid*nhalos2+j]>0){
+        for (j=0;j<nhalos2;j++) {
+            index=((long int)tid)*nhalos2+j;
+            if(sharelist[index]>0){
             if (opt.matchtype==NsharedN1N2)
-                merit=(Double_t)sharelist[tid*nhalos2+j]*(Double_t)sharelist[tid*nhalos2+j]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
+                merit=(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
             else if (opt.matchtype==NsharedN1)
-                merit=(Double_t)sharelist[tid*nhalos2+j]/(Double_t)h1[i].NumberofParticles;
+                merit=(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles;
             else if (opt.matchtype==Nshared)
-                merit=(Double_t)sharelist[tid*nhalos2+j];
+                merit=(Double_t)sharelist[index];
             else if (opt.matchtype==Nsharedcombo)
-                merit=(Double_t)sharelist[tid*nhalos2+j]/(Double_t)h1[i].NumberofParticles+(Double_t)sharelist[tid*nhalos2+j]*(Double_t)sharelist[tid*nhalos2+j]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
+                merit=(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles+(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
             pq->Push(j,merit);
-            sharelist[tid*nhalos2+j]=0;
+            sharelist[index]=0;
+            }
         }
         p1[i].NumberofProgenitors=numshared;
         if (numshared>0) {
@@ -93,7 +99,7 @@ private(i,j,tid,pq,numshared,merit)
     for (i=0;i<nhalos1;i++){
         for (j=0;j<h1[i].NumberofParticles;j++){
             //if (pfof2[pglist[noffset[i]+j]]>0) sharelist[pfof2[pglist[noffset[i]+j]]-1]+=1;
-            if (pfof2[h1[i].ParticleID[j]]>0) sharelist[tid*nhalos2+pfof2[h1[i].ParticleID[j]]-1]+=1;
+            if (pfof2[h1[i].ParticleID[j]]>0) sharelist[nhalos2+pfof2[h1[i].ParticleID[j]]-1]+=1;
         }
         numshared=0;
         //determine # of cross-correlations, but if it is not significant relative to Poisson noise, then
@@ -147,26 +153,32 @@ private(i,j,tid,pq,numshared,merit)
 
         tid=omp_get_thread_num();
         for (j=0;j<h1[i].NumberofParticles;j++){
+            index=((long int)tid)*nhalos2+pfof2[h1[i].ParticleID[j]]-(long int)1;
             //if (pfof2[pglist[noffset[i]+j]]>0) sharelist[tid*nhalos2+pfof2[pglist[noffset[i]+j]]-1]+=1;
-            if (pfof2[h1[i].ParticleID[j]]>0) sharelist[tid*nhalos2+pfof2[h1[i].ParticleID[j]]-1]+=1;
+            if (pfof2[h1[i].ParticleID[j]]>0) sharelist[index]+=1;
         }
         numshared=0;
         //determine # of cross-correlations, but if it is not significant relative to Poisson noise, then
-        for (j=0;j<nhalos2;j++)
-            if(sharelist[tid*nhalos2+j]>opt.mlsig*sqrt((Double_t)h2[j].NumberofParticles)){numshared++;}
-            else sharelist[tid*nhalos2+j]=0;
+        for (j=0;j<nhalos2;j++) {
+            index=((long int)tid)*nhalos2+j;
+            if(sharelist[index]>opt.mlsig*sqrt((Double_t)h2[j].NumberofParticles)){numshared++;}
+            else sharelist[index]=0;
+        }
         pq=new PriorityQueue(numshared);
-        for (j=0;j<nhalos2;j++)if(sharelist[tid*nhalos2+j]>0){
+        for (j=0;j<nhalos2;j++){
+            index=((long int)tid)*nhalos2+j;
+            if(sharelist[index]>0){
             if (opt.matchtype==NsharedN1N2)
-                merit=(Double_t)sharelist[tid*nhalos2+j]*(Double_t)sharelist[tid*nhalos2+j]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
+                merit=(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
             else if (opt.matchtype==NsharedN1)
-                merit=(Double_t)sharelist[tid*nhalos2+j]/(Double_t)h1[i].NumberofParticles;
+                merit=(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles;
             else if (opt.matchtype==Nshared)
-                merit=(Double_t)sharelist[tid*nhalos2+j];
+                merit=(Double_t)sharelist[index];
             else if (opt.matchtype==Nsharedcombo)
-                merit=(Double_t)sharelist[tid*nhalos2+j]/(Double_t)h1[i].NumberofParticles+(Double_t)sharelist[tid*nhalos2+j]*(Double_t)sharelist[tid*nhalos2+j]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
+                merit=(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles+(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
             pq->Push(j,merit);
-            sharelist[tid*nhalos2+j]=0;
+            sharelist[index]=0;
+            }
         }
         //if at this point when looking for progenitors not present in the reference list
         //can check to see if numshared>0 and if so, then reference list will have to be updated
@@ -198,7 +210,7 @@ private(i,j,tid,pq,numshared,merit)
         if (refprogen[i].NumberofProgenitors>0) continue;
         for (j=0;j<h1[i].NumberofParticles;j++){
             //if (pfof2[pglist[noffset[i]+j]]>0) sharelist[pfof2[pglist[noffset[i]+j]]-1]+=1;
-            if (pfof2[h1[i].ParticleID[j]]>0) sharelist[tid*nhalos2+pfof2[h1[i].ParticleID[j]]-1]+=1;
+            if (pfof2[h1[i].ParticleID[j]]>0) sharelist[nhalos2+pfof2[h1[i].ParticleID[j]]-1]+=1;
         }
         numshared=0;
         //determine # of cross-correlations, but if it is not significant relative to Poisson noise, then
@@ -329,7 +341,7 @@ private(i,j,tid,pq,numshared,merit)
     for (i=0;i<nhalos1;i++){
         for (j=0;j<h1[i].NumberofParticles;j++){
             //if (pfof2[pglist[noffset[i]+j]]>0) sharelist[pfof2[pglist[noffset[i]+j]]-1]+=1;
-            if (pfof2[h1[i].ParticleID[j]]>0) sharelist[tid*nhalos2+pfof2[h1[i].ParticleID[j]]-1]+=1;
+            if (pfof2[h1[i].ParticleID[j]]>0) sharelist[nhalos2+pfof2[h1[i].ParticleID[j]]-1]+=1;
         }
         numshared=0;
         //determine # of cross-correlations, but if it is not significant relative to Poisson noise, then
@@ -430,7 +442,7 @@ private(i,j,tid,pq,numshared,merit)
 
         for (j=0;j<h1[i].NumberofParticles;j++){
             //if (pfof2[pglist[noffset[i]+j]]>0) sharelist[pfof2[pglist[noffset[i]+j]]-1]+=1;
-            if (pfof2[h1[i].ParticleID[j]]>0) sharelist[tid*nhalos2+pfof2[h1[i].ParticleID[j]]-1]+=1;
+            if (pfof2[h1[i].ParticleID[j]]>0) sharelist[nhalos2+pfof2[h1[i].ParticleID[j]]-1]+=1;
         }
         numshared=0;
         //determine # of cross-correlations, but if it is not significant relative to Poisson noise, then
