@@ -11,7 +11,7 @@ void GetArgs(int argc, char *argv[], Options &opt)
     int option;
     int NumArgs = 0;
     int configflag=0;
-    while ((option = getopt(argc, argv, ":C:I:i:s:Z:o:G:S:B:")) != EOF)
+    while ((option = getopt(argc, argv, ":C:I:i:s:Z:o:G:S:B:t:")) != EOF)
     {
         switch(option)
         {
@@ -52,6 +52,10 @@ void GetArgs(int argc, char *argv[], Options &opt)
                 opt.gnbhblocks = atoi(optarg);
                 NumArgs += 2;
                 break;
+            case 't': 
+                opt.ramsessnapname = optarg;
+                NumArgs += 2;
+                break;
             case '?':
                 usage();
         }
@@ -88,6 +92,8 @@ void usage(void)
     cerr<<"-g <number of extra sph/gas blocks for gadget>"<<endl;
     cerr<<"-s <number of extra star blocks for gadget>"<<endl;
     cerr<<"-b <number of extra bh blocks for gadget>"<<endl;
+    cerr<<" ===== EXTRA OPTIONS REQUIRED FOR RAMSES INPUT ====== "<<endl;
+    cerr<<"-t <ramses snapnumber>"<<endl;
 
 #ifdef USEMPI
     }
@@ -210,7 +216,7 @@ void usage(void)
     \section otherconfigs Other configuration options
     \arg <b> \e Effective_Resolution </b> If running a multiple resolution cosmological zoom simulation, simple method of scaling the linking length by using the period, ie: \f$ p/N_{\rm eff} \f$ \ref Options.Neff \n
     \arg <b> \e Snapshot_value</b> If halo ids need to be offset to some starting value based on the snapshot of the output, which is useful for some halo merger tree codes, one can specific a snapshot number, and all halo ids will be listed as internal haloid + \f$ sn\times10^{12}\f$. \ref Options.snapshotvalue \n
-    \arg <b> \e Verbose </b> 1/0 flag indicating how talkative the code is. Eventually will implement 2 for several levels of how much output is given . \ref Options.iverbose \n
+    \arg <b> \e Verbose </b> 2/1/0 flag indicating how talkative the code is (2 very verbose, 1 verbose, 0 quiet). \ref Options.iverbose \n
     \arg <b> \e Inclusive_halo_mass </b> 1/0 flag indicating whether inclusive masses are calculated for field objects. \ref Options.iInclusiveHalo \n
     
     \section ioconfigs I/O options

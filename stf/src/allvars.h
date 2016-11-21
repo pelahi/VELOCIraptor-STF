@@ -322,6 +322,7 @@ struct Options
     ///\name filenames
     //@{
     char *fname,*outname,*smname,*pname,*gname;
+    char *ramsessnapname;
     //@}
     ///input format
     int inputtype;

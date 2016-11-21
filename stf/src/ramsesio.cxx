@@ -4,6 +4,8 @@
  * \todo need to check if amr file quantity ngrid_current is actually the number of cells in the file as 
  * an example fortran code I have been given seems to also use the ngridlevel array, which stores the number of cells 
  * at a given resolution level. 
+ * \todo change the mass for the dark matter particles as it should be Omega_cdm*rho_crit/Ndm^3*Lbox^3 as the mass for dm, though stored is not
+ * a meaningful value. For star particles must check what the mass unit is of the stored masses.
  */
 
 //-- RAMSES SPECIFIC IO
@@ -64,8 +66,8 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
 {
     char buf[2000],buf1[2000],buf2[2000];
     string stringbuf;
-    sprintf(buf1,"amr_%s.out00001",fname);
-    sprintf(buf2,"amr_%s.out",fname);
+    sprintf(buf1,"%s/amr_%s.out00001",fname,opt.ramsessnapname);
+    sprintf(buf2,"%s/amr_%s.out",fname,opt.ramsessnapname);
     if (FileExists(buf1)) sprintf(buf,"%s",buf1);
     else if (FileExists(buf2)) sprintf(buf,"%s",buf2);
     else {
@@ -74,8 +76,8 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
     }
     //if gas searched in some fashion then load amr/hydro data
     if (opt.partsearchtype==PSTGAS||opt.partsearchtype==PSTALL||(opt.partsearchtype==PSTDARK&&opt.iBaryonSearch)) {
-    sprintf(buf1,"hydro_%s.out00001",fname);
-    sprintf(buf2,"hydro_%s.out",fname);
+    sprintf(buf1,"%s/hydro_%s.out00001",fname,opt.ramsessnapname);
+    sprintf(buf2,"%s/hydro_%s.out",fname,opt.ramsessnapname);
     if (FileExists(buf1)) sprintf(buf,"%s",buf1);
     else if (FileExists(buf2)) sprintf(buf,"%s",buf2);
     else {
@@ -83,8 +85,8 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
         exit(9);
     }
     }
-    sprintf(buf1,"part_%s.out00001",fname);
-    sprintf(buf2,"part_%s.out",fname);
+    sprintf(buf1,"%s/part_%s.out00001",fname,opt.ramsessnapname);
+    sprintf(buf2,"%s/part_%s.out",fname,opt.ramsessnapname);
     if (FileExists(buf1)) sprintf(buf,"%s",buf1);
     else if (FileExists(buf2)) sprintf(buf,"%s",buf2);
     else {
@@ -115,8 +117,8 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
 
     //Open the specified file and the specified dataset in the file.
     //first open amr data
-    sprintf(buf1,"amr_%s.out00001",fname);
-    sprintf(buf2,"amr_%s.out",fname);
+    sprintf(buf1,"%s/amr_%s.out00001",fname,opt.ramsessnapname);
+    sprintf(buf2,"%s/amr_%s.out",fname,opt.ramsessnapname);
     if (FileExists(buf1)) sprintf(buf,"%s",buf1);
     else if (FileExists(buf2)) sprintf(buf,"%s",buf2);
     Framses.open(buf, ios::binary|ios::in);
@@ -196,8 +198,8 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
     //reopen to get number of amr cells might need to alter to read grid information and what cells have no so-called son cells
     if (opt.partsearchtype==PSTGAS||opt.partsearchtype==PSTALL||(opt.partsearchtype==PSTDARK&&opt.iBaryonSearch)) {
     for (i=0;i<ramses_header_info.num_files;i++) {
-        sprintf(buf1,"amr_%s.out%05d",fname,i+1);
-        sprintf(buf2,"amr_%s.out",fname);
+        sprintf(buf1,"%s/amr_%s.out%05d",fname,opt.ramsessnapname,i+1);
+        sprintf(buf2,"%s/amr_%s.out",fname,opt.ramsessnapname);
         if (FileExists(buf1)) sprintf(buf,"%s",buf1);
         else if (FileExists(buf2)) sprintf(buf,"%s",buf2);
         Framses.open(buf, ios::binary|ios::in);
@@ -213,8 +215,8 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
     }
 
     //now hydro header data 
-    sprintf(buf1,"hydro_%s.out00001",fname);
-    sprintf(buf2,"hydro_%s.out",fname);
+    sprintf(buf1,"%s/hydro_%s.out00001",fname,opt.ramsessnapname);
+    sprintf(buf2,"%s/hydro_%s.out",fname,opt.ramsessnapname);
     if (FileExists(buf1)) sprintf(buf,"%s",buf1);
     else if (FileExists(buf2)) sprintf(buf,"%s",buf2);
     Framses.open(buf, ios::binary|ios::in);
@@ -278,8 +280,8 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
 
     //now particle info
     for (i=0;i<ramses_header_info.num_files;i++) {
-        sprintf(buf1,"part_%s.out%05d",fname,i+1);
-        sprintf(buf2,"part_%s.out",fname);
+        sprintf(buf1,"%s/part_%s.out%05d",fname,opt.ramsessnapname,i+1);
+        sprintf(buf2,"%s/part_%s.out",fname,opt.ramsessnapname);
         if (FileExists(buf1)) sprintf(buf,"%s",buf1);
         else if (FileExists(buf2)) sprintf(buf,"%s",buf2);
         Framses.open(buf, ios::binary|ios::in);
@@ -442,7 +444,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
 #endif
 
     //first read cosmological information
-    sprintf(buf1,"info_%s.txt",opt.fname);
+    sprintf(buf1,"%s/info_%s.txt",opt.fname,opt.ramsessnapname);
     Finfo.open(buf1, ios::in);
     getline(Finfo,stringbuf);
     getline(Finfo,stringbuf);
@@ -502,7 +504,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     LN=(opt.p*lscale/pow(N_DM,1.0/3.0));
 
     //grab from the first particle file the dimensions of the arrays and also the number of cpus (should be number of files)
-    sprintf(buf1,"part_%s.out00001",opt.fname);
+    sprintf(buf1,"%s/part_%s.out00001",opt.fname,opt.ramsessnapname);
     Fpart[ifirstfile].open(buf1, ios::binary|ios::in);
     RAMSES_fortran_read(Fpart[ifirstfile],header[ifirstfile].nfiles);
     RAMSES_fortran_read(Fpart[ifirstfile],header[ifirstfile].ndim);
@@ -521,8 +523,8 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     if (ThisTask<opt.nsnapread) {
     //read particle files consists of positions,velocities, mass, id, and level (along with ages and met if some flags set)
     for (i=0;i<opt.num_files;i++) if (ireadfile[i]) {
-        sprintf(buf1,"part_%s.out%05d",opt.fname,i+1);
-        sprintf(buf2,"part_%s.out",opt.fname);
+        sprintf(buf1,"%s/part_%s.out%05d",opt.fname,opt.ramsessnapname,i+1);
+        sprintf(buf2,"%s/part_%s.out",opt.fname,opt.ramsessnapname);
         if (FileExists(buf1)) sprintf(buf,"%s",buf1);
         else if (FileExists(buf2)) sprintf(buf,"%s",buf2);
         Fpart[i].open(buf, ios::binary|ios::in);
@@ -598,6 +600,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
             RAMSES_fortran_read(Fpartvel[i],&vtempchunk[idim*nchunk]);
         }
         RAMSES_fortran_read(Fpartmass[i],mtempchunk);
+        
         RAMSES_fortran_read(Fpartid[i],idvalchunk);
         for (int nn=0;nn<nchunk;nn++) {
             xtemp[0]=xtempchunk[nn];xtemp[1]=xtempchunk[nn+nchunk];xtemp[2]=xtempchunk[nn+2*nchunk];
@@ -874,13 +877,13 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     if (opt.partsearchtype==PSTGAS||opt.partsearchtype==PSTALL||(opt.partsearchtype==PSTDARK&&opt.iBaryonSearch)) {
     if (ThisTask<opt.nsnapread) {
     for (i=0;i<opt.num_files;i++) if (ireadfile[i]) {
-        sprintf(buf1,"amr_.out%s%05d",opt.fname,i+1);
-        sprintf(buf2,"amr_.out%s",opt.fname);
+        sprintf(buf1,"%s/amr_%s.out%s%05d",opt.fname,opt.ramsessnapname,i+1);
+        sprintf(buf2,"%s/amr_%s.out%s",opt.fname,opt.ramsessnapname);
         if (FileExists(buf1)) sprintf(buf,"%s",buf1);
         else if (FileExists(buf2)) sprintf(buf,"%s",buf2);
         Famr[i].open(buf, ios::binary|ios::in);
-        sprintf(buf1,"hydro_%s.out%05d",opt.fname,i+1);
-        sprintf(buf2,"hydro_%s.out",opt.fname);
+        sprintf(buf1,"%s/hydro_%s.out%05d",opt.fname,opt.ramsessnapname,i+1);
+        sprintf(buf2,"%s/hydro_%s.out",opt.fname,opt.ramsessnapname);
         if (FileExists(buf1)) sprintf(buf,"%s",buf1);
         else if (FileExists(buf2)) sprintf(buf,"%s",buf2);
         Fhydro[i].open(buf, ios::binary|ios::in);

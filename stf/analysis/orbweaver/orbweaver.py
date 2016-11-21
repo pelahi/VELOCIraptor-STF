@@ -29,7 +29,7 @@ def GetProgenLength(halodata,haloindex,halosnap,haloid,atime,HALOIDVAL,endreftim
     """
     Get the length of a halo's progenitors
     """
-    proglen=0
+    proglen=1
     progid=halodata[halosnap]["Tail"][haloindex]
     progsnap=halodata[halosnap]["TailSnap"][haloindex]
     progindex=int(progid%HALOIDVAL-1)
@@ -103,7 +103,7 @@ def IdentifyMergers(numsnaps,tree,numhalos,halodata,boxsize,hval,atime,MERGERMLI
             #print "starting halos ",j, hidval
             #halo has main branch which we can wander on
             #while object is not its own progenitor move along tree to see how many major mergers it had across its history
-            while (progid!=haloid):
+            while (True):
                 #now for each progenitor, lets find any nearby objects within a given mass/vmax interval
                 posval=[halodata[progsnap]["Xc"][progindex],halodata[progsnap]["Yc"][progindex],halodata[progsnap]["Zc"][progindex]]
                 radval=RADINFAC*halodata[progsnap]["R_200crit"][progindex]
@@ -195,16 +195,8 @@ def IdentifyMergers(numsnaps,tree,numhalos,halodata,boxsize,hval,atime,MERGERMLI
                                         merginghaloindex=mergingnextindex
                                         merginghaloid=mergingnextid
                                         merginghalosnap=mergingnextsnap
-
-                #move to next step
-                haloid=progid
-                haloindex=progindex
-                halosnap=progsnap
-                progid=halodata[halosnap]["Tail"][haloindex]
-                progsnap=halodata[halosnap]["TailSnap"][haloindex]
-                progindex=int(progid%HALOIDVAL-1)
-                numprog=tree[halosnap]["Num_progen"][haloindex]
-                #if at end of line then move up and set last major merger to 0
+                #check if end of branch
+                #move up and set last major merger to 0
                 if (haloid==progid):
                     oldhaloid=haloid
                     currentsnap=halosnap
@@ -220,6 +212,15 @@ def IdentifyMergers(numsnaps,tree,numhalos,halodata,boxsize,hval,atime,MERGERMLI
                         currentsnap=nextsnap
                         currentid=nextid
                         currentindex=nextindex
+                    break
+                #move to next step
+                haloid=progid
+                haloindex=progindex
+                halosnap=progsnap
+                progid=halodata[halosnap]["Tail"][haloindex]
+                progsnap=halodata[halosnap]["TailSnap"][haloindex]
+                progindex=int(progid%HALOIDVAL-1)
+                numprog=tree[halosnap]["Num_progen"][haloindex]
         if (iverbose): print "Done snap",j,time.clock()-start
         return pos_tree
 
