@@ -94,9 +94,16 @@ int main(int argc,char **argv)
     pprogen=new ProgenitorData*[opt.numsnapshots];
     //if more than a single snapshot is used to identify possible progenitors then must store the descendants information
     //so the list can later on be cleaned
-    if (opt.numsnapshots==1) pprogendescen=NULL;
+    if (opt.numsteps==1) pprogendescen=NULL;
     else {
         pprogendescen=new DescendantDataProgenBased*[opt.numsnapshots];
+        //initialize all to null
+        for (i=opt.numsnapshots-1;i>=0;i--) {
+            pprogendescen[i]=NULL;
+        }
+        //save the last step
+        pprogendescen[EndSnap-1]=new DescendantDataProgenBased[pht[EndSnap-1].numhalos];
+    /*
         for (i=opt.numsnapshots-1;i>=0;i--) {
 #ifdef USEMPI
         //check if data is load making sure i is in appropriate range
@@ -108,19 +115,24 @@ int main(int argc,char **argv)
         }
 #endif
         }
+    */
     }
 
     time1=MyGetTime();
     if (opt.iverbose) cout<<" Starting the cross matching "<<endl;
     //beginning loop over snapshots and building tree
     for (i=opt.numsnapshots-1;i>=0;i--) {
-#ifdef USEMPI
     //check if data is load making sure i is in appropriate range
     if (i>=StartSnap && i<EndSnap) {
-#endif
         //if snapshot contains halos/structures then search for progenitors 
         if(pht[i].numhalos>0){
             cout<<i<<" "<<pht[i].numhalos<<" cross matching objects in standard merger tree direction (progenitors)"<<endl;
+            //if need to store DescendantDataProgenBased as multiple snapshots, allocate any unallocated pprogendescen needed to process
+            //current step if this has not already been allocated
+            if (opt.numsteps>1) {
+                for (j=1;j<=opt.numsteps;j++) if (i-j>=StartSnap) 
+                    if (pprogendescen[i-j]==NULL && pht[i-j].numhalos>0) pprogendescen[i-j]=new DescendantDataProgenBased[pht[i-j].numhalos];
+            }
 
             //allocate offset to easily access particle ID/index list
             /*
@@ -141,10 +153,8 @@ int main(int argc,char **argv)
             if (i>StartSnap) {
             //loop over all possible steps
             for (Int_t istep=1;istep<=opt.numsteps;istep++) if (i-istep>=0) {
-#ifdef USEMPI
             //when using mpi also check that data is local 
             if (i-istep-StartSnap>=0) {
-#endif
                 //set pfof progenitor data structure, used to produce links. Only produced IF snapshot not first one
                 for (j=0;j<pht[i-istep].numhalos;j++) 
                     for (Int_t k=0;k<pht[i-istep].Halo[j].NumberofParticles;k++) 
@@ -174,9 +184,7 @@ int main(int argc,char **argv)
                 for (j=0;j<pht[i-istep].numhalos;j++)
                     for (int k=0;k<pht[i-istep].Halo[j].NumberofParticles;k++) 
                         pfofp[pht[i-istep].Halo[j].ParticleID[k]]=0;
-#ifdef USEMPI
             }
-#endif
             }
             }
             //otherwise allocate memory but do nothing with it
@@ -190,10 +198,18 @@ int main(int argc,char **argv)
         else {
             pprogen[i]=NULL;
         }
-#ifdef USEMPI
+        //now if using multiple snapshots, 
+        //if enough non-overlapping (mpi wise) snapshots have been processed, one can cleanup progenitor list using the DescendantDataProgenBased data
+        //then free this data
+        //this occurs if current snapshot is at least Endsnap-opt.numsnapshots*2 or lower as then Endsnap-opt.numsnapshots have had progenitor list processed
+        if (opt.numsteps>1 && pht[i].numhalos>0 && (i<EndSnap-2*opt.numsnapshots && i>StartSnap+2*opt.numsnapshots)) {
+            if (opt.iverbose) cout<<"Cleaning Progenitor list using descendant information for "<<i<<endl;
+            CleanProgenitorsUsingDescendants(i, pht, pprogendescen, pprogen);
+            delete[] pprogendescen[i];
+            pprogendescen[i]=NULL;
+        }
     }
     else pprogen[i]=NULL;
-#endif
     }
     delete[] pfofp;
 
@@ -206,16 +222,16 @@ int main(int argc,char **argv)
         if (NProcs>1) MPIUpdateProgenitorsUsingDescendants(opt, pht, pprogendescen, pprogen);
 #endif
         for (i=opt.numsnapshots-1;i>=0;i--) {
-#ifdef USEMPI
         //check if data is load making sure i is in appropriate range (note that only look above StartSnap (as first snap can't have progenitors)
         //not that last snapshot locally has halos with no descendants so no need to clean this list
         if (i>=StartSnap && i<EndSnap-1) {
-#endif
             if (opt.iverbose) cout<<"Cleaning Progenitor list using descendant information for "<<i<<endl;
-            CleanProgenitorsUsingDescendants(i, pht, pprogendescen, pprogen);
-#ifdef USEMPI
+            if (pprogendescen[i]!=NULL) {
+                CleanProgenitorsUsingDescendants(i, pht, pprogendescen, pprogen);
+                delete[] pprogendescen[i];
+                pprogendescen[i]=NULL;
+            }
         }
-#endif
         }
     }
 
@@ -232,9 +248,7 @@ int main(int argc,char **argv)
     if (opt.imapping>DNOMAP) MapPIDStoIndex(opt,pht);
 
     for (i=opt.numsnapshots-1;i>=0;i--) {
-#ifdef USEMPI
     if (i>=StartSnap && i<EndSnap) {
-#endif
         if(pht[i].numhalos>0){
             cout<<i<<" "<<pht[i].numhalos<<" cross matching objects in other direction (descendants)"<<endl;
             /*
@@ -254,9 +268,7 @@ int main(int argc,char **argv)
 
             if (i<=EndSnap) {
             for (Int_t istep=1;istep<=opt.numsteps;istep++) if (i+istep<=opt.numsnapshots-1) {
-#ifdef USEMPI
             if (i+istep<EndSnap) {
-#endif
                 //set pfof progenitor data structure, used to produce links. Only produced IF snapshot not first one
                 for (j=0;j<pht[i+istep].numhalos;j++)
                     for (int k=0;k<pht[i+istep].Halo[j].NumberofParticles;k++) 
@@ -279,9 +291,7 @@ int main(int argc,char **argv)
                 for (j=0;j<pht[i+istep].numhalos;j++)
                     for (int k=0;k<pht[i+istep].Halo[j].NumberofParticles;k++) 
                         pfofd[pht[i+istep].Halo[j].ParticleID[k]]=0;
-#ifdef USEMPI
             }
-#endif
             }
             }
             //otherwise allocate memory but do nothing with it
@@ -293,10 +303,8 @@ int main(int argc,char **argv)
         else {
             pdescen[i]=NULL;
         }
-#ifdef USEMPI
     }
     else pdescen[i]=NULL;
-#endif
     }
     delete[] pfofd;
     if (opt.iverbose) cout<<"Starting descendant cross matching "<<MyGetTime()-time2<<endl;

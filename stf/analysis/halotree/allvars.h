@@ -382,16 +382,16 @@ struct DescendantDataProgenBased
     */
     ///store list of descendants in the form of halo index and temporal index
     vector<long unsigned> haloindex;
-    vector<long unsigned> halotemporalindex;
+    vector<int unsigned> halotemporalindex;
     ///store the merit value
-    vector<Double_t> Merit;
+    vector<float> Merit;
     //store the integer time diff to descendant
     vector<int> deltat;
 #ifdef USEMPI
     //store which task this halo progenitor is located on
     vector<int> MPITask;
 #endif
-    DescendantDataProgenBased(int reservesize=5){
+    DescendantDataProgenBased(int reservesize=4){
         NumberofDescendants=0;
         //reserve some space so mimimize number of reallocations
         haloindex.reserve(reservesize);
@@ -410,6 +410,9 @@ struct DescendantDataProgenBased
         halotemporalindex.resize(NumberofDescendants);
         Merit.resize(NumberofDescendants);
         deltat.resize(NumberofDescendants);
+#ifdef USEMPI
+        MPITask.resize(NumberofDescendants);
+#endif
         for (int i=0;i<NumberofDescendants;i++) {
             haloindex[i]=d.haloindex[i];
             halotemporalindex[i]=d.halotemporalindex[i];
@@ -471,7 +474,7 @@ struct DescendantDataProgenBased
         }
     }
 #ifdef USEMPI
-    void Merge(int thistask, int &numdescen, long unsigned *hid,long unsigned *htid, Double_t *m, int *dt, int *task) {
+    void Merge(int thistask, int &numdescen, long unsigned *hid,int unsigned *htid, float *m, int *dt, int *task) {
         for (Int_t i=0;i<numdescen;i++) if (task[i]!=thistask) 
         {
             haloindex.push_back(hid[i]);
