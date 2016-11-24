@@ -202,8 +202,15 @@ struct Options
     ///for adjusting halo ids by (current_snap + \ref snapshotvaloffset )* times this value
     long long haloidval;
 
-    //for adjusting halo ids by a simple offset
+    ///for adjusting halo ids by a simple offset
     Int_t haloidoffset;
+
+    ///to adjust the number of particles used to define a merit. Note that to be of use, particles should be in some type of order
+    ///for instance binding energy order. VELOCIraptor outputs particles in decreasing binding energy order 
+    ///so using the first particle_frac of a halo means using the most bound set of particles
+    Double_t particle_frac;
+    ///minimum number of particles used to derive merit. 
+    Int_t min_numpart;
 
     ///to fix ids for nifty project
     int idcorrectflag;
@@ -248,6 +255,9 @@ struct Options
         idcorrectflag=0;
         outputformat=OUTASCII;
         haloidoffset=0;
+
+        particle_frac=1;
+        min_numpart=20;
 
         iverbose=1;
 #ifdef USEMPI
@@ -321,9 +331,9 @@ struct ProgenitorData
     ///store list of progenitors
     long unsigned* ProgenitorList;
     ///store the merit value
-    Double_t *Merit;
+    float *Merit;
     ///store the fraction of shared particles
-    Double_t *nsharedfrac;
+    float *nsharedfrac;
     ///store number of steps back in time progenitor found
     int istep;
 
@@ -349,13 +359,13 @@ struct ProgenitorData
         }
         NumberofProgenitors=p.NumberofProgenitors;
         ProgenitorList=new long unsigned[NumberofProgenitors];
-        Merit=new Double_t[NumberofProgenitors];
+        Merit=new float[NumberofProgenitors];
         for (int i=0;i<NumberofProgenitors;i++) {
             ProgenitorList[i]=p.ProgenitorList[i];
             Merit[i]=p.Merit[i];
         }
         if (p.nsharedfrac!=NULL) {
-            nsharedfrac=new Double_t[NumberofProgenitors];
+            nsharedfrac=new float[NumberofProgenitors];
             for (int i=0;i<NumberofProgenitors;i++) nsharedfrac[i]=p.nsharedfrac[i];
         }
         istep=p.istep;

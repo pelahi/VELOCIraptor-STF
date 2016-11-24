@@ -10,7 +10,7 @@ void GetArgs(int argc, char *argv[], Options &opt)
 {
     int option;
     int NumArgs = 0;
-    while ((option = getopt(argc, argv, ":i:s:t:n:o:C:c:S:I:N:B:F:M:H:h:D:O:T:v:m:d:z:")) != EOF)
+    while ((option = getopt(argc, argv, ":i:s:t:n:f:p:o:C:c:S:I:N:B:F:M:H:h:D:O:T:v:m:d:z:")) != EOF)
     {
         switch(option)
         {
@@ -28,6 +28,14 @@ void GetArgs(int argc, char *argv[], Options &opt)
                 break;
             case 'n': 
                 opt.MaxIDValue = atol(optarg);
+                NumArgs += 2;
+                break;
+            case 'f': 
+                opt.particle_frac = atof(optarg);
+                NumArgs += 2;
+                break;
+            case 'p': 
+                opt.min_numpart = atoi(optarg);
                 NumArgs += 2;
                 break;
             case 'o': 
@@ -160,6 +168,11 @@ void GetArgs(int argc, char *argv[], Options &opt)
     if (opt.itypematch==ALLTYPEMATCH) opt.description+=(char*)" all |";
     else {opt.description+=(char*)" part type ";opt.description+=static_cast<ostringstream*>( &(ostringstream() << opt.itypematch) )->str();}
     opt.description+=(char*)" | ";
+    if (opt.particle_frac<1 && opt.particle_frac>0) {
+    opt.description+=(char*)" Weighted merit with ";opt.description+=static_cast<ostringstream*>( &(ostringstream() << opt.particle_frac) )->str();
+    opt.description+=(char*)" fraction of most bound particles with min particle num of  ";opt.description+=static_cast<ostringstream*>( &(ostringstream() << opt.min_numpart) )->str();
+    opt.description+=(char*)" | ";
+    }
 }
 
 ///Outputs the usage to stdout 
@@ -174,7 +187,9 @@ void usage(void)
     cerr<<"-i <file containing filelist>\n";
     cerr<<"-s <number of files/snapshots>\n";
     cerr<<"-t <number of steps integrated over to find links ("<<opt.numsteps<<")\n";
-    cerr<<"-n <number of particles>\n";
+    cerr<<"-n <Max ID value of particles>\n";
+    cerr<<"-f <fraction of particles to use to calculate weigted merit>\n";
+    cerr<<"-p <minimum number of particles used in weighted merit>\n";
     cerr<<"-o <output filename>\n";
     cerr<<"-O <output format>\n";
     cerr<<"-C <cross correlation function type to identify main progenitor ("<<opt.matchtype<<" ["<<NsharedN1N2<<" "<<Nshared<<"])\n";
