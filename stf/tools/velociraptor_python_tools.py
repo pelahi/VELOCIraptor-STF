@@ -1,6 +1,6 @@
 import sys,os,os.path,string,time,re,struct
 import math,operator
-from pylab import *
+#from pylab import *
 import numpy as np
 import h5py #import hdf5 interface
 import tables as pytb #import pytables
@@ -237,7 +237,7 @@ def ReadPropertyFileMultiWrapperNamespace(index,basefilename,ns,ibinary=0,isepar
     #call read routine and store the data 
     ns.hdata[index],ns.ndata[index]=ReadPropertyFile(basefilename,ibinary,iseparatesubfiles,iverbose,desiredfields)
 
-def ReadHaloMergerTree(treefilename,ibinary=0,iverbose=0):
+def ReadHaloMergerTree(treefilename,ibinary=0,merit=0,iverbose=0):
     """
     VELOCIraptor/STF merger tree in ascii format contains 
     a header with 
@@ -273,9 +273,10 @@ def ReadHaloMergerTree(treefilename,ibinary=0,iverbose=0):
         descrip=treefile.readline().strip()
         tothalos=int(treefile.readline())
         tree=[{"haloID": [], "Num_progen": [], "Progen": []} for i in range(numsnap)]
+        if(merit): [{"haloID": [], "Num_progen": [], "Progen": [], "Merit": []} for i in range(numsnap)]
         offset=0
         totalnumprogen=0
-        for i in range(numsnap-1):
+        for i in range(numsnap):
             [snapval,numhalos]=treefile.readline().strip().split('\t')
             snapval=int(snapval);numhalos=int(numhalos)
             #if really verbose
@@ -283,6 +284,7 @@ def ReadHaloMergerTree(treefilename,ibinary=0,iverbose=0):
             tree[i]["haloID"]=np.zeros(numhalos, dtype=np.int64)
             tree[i]["Num_progen"]=np.zeros(numhalos, dtype=np.int32)
             tree[i]["Progen"]=[[] for j in range(numhalos)]
+            if(merit): tree[i]["Merit"]=[[] for j in range(numhalos)]
             for j in range(numhalos):
                 [hid,nprog]=treefile.readline().strip().split('\t')
                 hid=np.int64(hid);nprog=int(nprog)
@@ -291,8 +293,15 @@ def ReadHaloMergerTree(treefilename,ibinary=0,iverbose=0):
                 totalnumprogen+=nprog
                 if (nprog>0):
                     tree[i]["Progen"][j]=np.zeros(nprog,dtype=np.int64)
+                    if(merit): tree[i]["Merit"][j]=np.zeros(nprog,dtype=np.float64)
                     for k in range(nprog):
-                        tree[i]["Progen"][j][k]=np.int64(treefile.readline())
+                        if(merit):
+                            [progen,meritval] = treefile.readline().strip().split(" ")
+                            tree[i]["Merit"][j][k]=np.float64(meritval)
+                            tree[i]["Progen"][j][k]=np.int64(progen)
+                        
+                        else:
+                            tree[i]["Progen"][j][k]=np.int64(treefile.readline())
     if (iverbose): print("done reading tree file ",time.clock()-start)
     return tree
 
@@ -313,10 +322,10 @@ def ReadHaloPropertiesAcrossSnapshots(numsnaps,snaplistfname,inputtype,iseperate
         nchunks=int(np.ceil(numsnaps/float(nthreads)))
         print("Using", nthreads,"threads to parse ",numsnaps," snapshots in ",nchunks,"chunks")
         #load file names
-        snapnamelist=open(snaplistfname[i],'r')
+        snapnamelist=open(snaplistfname,'r')
         catfilename=["" for j in range(numsnaps)]
         for j in range(numsnaps):
-            catfilename[j]=snapnamelist.readline().strip()+".properties"
+            catfilename[j]=snapnamelist.readline().strip()
         #allocate a manager
         manager = mp.Manager()
         #use manager to specify the dictionary and list that can be accessed by threads
@@ -329,7 +338,7 @@ def ReadHaloPropertiesAcrossSnapshots(numsnaps,snaplistfname,inputtype,iseperate
             if (j==nchunks-1):
                 nthreads=numsnaps-offset
             #when calling a process pass manager based proxies, which then are used to copy data back
-            processes=[mp.Process(target=ReadPropertyFileMultiWrapper,args=(catfilename[offset+k],k+offset,hdata,ndata,inputtype,iseparatefiles,iverbose,desiredfields)) for k in range(nthreads)]
+            processes=[mp.Process(target=ReadPropertyFileMultiWrapper,args=(catfilename[offset+k],k+offset,hdata,ndata,inputtype,iseperatefiles,iverbose,desiredfields)) for k in range(nthreads)]
             #start each process
             #store the state of each thread, alive or not, and whether it has finished
             activethreads=[[True,False] for k in range(nthreads)]
@@ -352,8 +361,8 @@ def ReadHaloPropertiesAcrossSnapshots(numsnaps,snaplistfname,inputtype,iseperate
                             #make deep copy of manager constructed objects that store data
                             #halodata[i][offset+count]=deepcopy(hdata[offset+count])
                             #try instead init a dictionary
-                            halodata[i][offset+count]=dict(hdata[offset+count])
-                            ngtot[i][offset+count]=ndata[offset+count]
+                            halodata[offset+count]=dict(hdata[offset+count])
+                            ngtot[offset+count]=ndata[offset+count]
                             #effectively free the data in manager dictionary
                             hdata[offset+count]=[]
                             activethreads[count][0]=False
@@ -365,12 +374,11 @@ def ReadHaloPropertiesAcrossSnapshots(numsnaps,snaplistfname,inputtype,iseperate
                 p.terminate()
 
     else:
- 
         snapnamelist=open(snaplistfname,'r')
         for j in range(0,numsnaps):
             catfilename=snapnamelist.readline().strip()
             print("reading ", catfilename)
-            halodata[j],ngtot[j] = ReadPropertyFile(catfilename,inputtype,iseperatefiles,iverbose,desiredfields)
+            halodata[j],ngtot[j] = ReadPropertyFile(catfilename,inputtype,iseparatefiles,iverbose,desiredfields)
     print("data read in ",time.clock()-start)
     return halodata,ngtot
 
@@ -464,7 +472,7 @@ def TraceMainProgen(istart,ihalo,numsnaps,numhalos,halodata,tree,HALOIDVAL):
         while (True):
             #instead of seraching array make use of the value of the id as it should be in id order
             #wdata=np.where(tree[k]['haloID']==haloid)
-            #w2data=np.where(halodata[k]['ID']==haloid)[0][0] 
+            #w2data=np.where(halodata[k]['ID']==haloid)[0][0]
             wdata=w2data=int(haloid%HALOIDVAL)-1
             halodata[k]['Num_progen'][wdata]=tree[k]['Num_progen'][wdata]
             #if no more progenitors, break from search
@@ -753,8 +761,8 @@ def ProduceUnifiedTreeandHaloCatalog(fname,numsnaps,tree,numhalos,halodata,atime
 
         for i in range(numsnaps):
             snapgrp=hdffile.create_group("Snap_%03d"%(numsnaps-1-i))
-            snapgrp.attrs["Snap_num"]=i
-            snapgrp.attrs["Num_of_groups"]=numhalos[i]
+            snapgrp.attrs["Snapnum"]=i
+            snapgrp.attrs["NHalos"]=numhalos[i]
             snapgrp.attrs["scalefactor"]=atime[i]
             for key in list(halodata[i].keys()):
                 snapgrp.create_dataset(key,data=halodata[i][key])
@@ -766,7 +774,7 @@ def ProduceUnifiedTreeandHaloCatalog(fname,numsnaps,tree,numhalos,halodata,atime
             hdffile.create_dataset("Num_of_snaps",data=np.array([numsnaps],dtype=np.uint32))
             hdffile.create_dataset("Num_of_groups",data=np.array([numhalos[i]],dtype=np.uint64))
             hdffile.create_dataset("Total_num_of_groups",data=np.array([totnumhalos],dtype=np.uint64))
-            hdffile.create_dataset("a_time",data=np.array([atime[i]],dtype=np.float64))
+            hdffile.create_dataset("scalefactor",data=np.array([atime[i]],dtype=np.float64))
             for key in list(halodata[i].keys()):
                 hdffile.create_dataset(key,data=halodata[i][key])
             hdffile.close()
@@ -1016,7 +1024,7 @@ def ReadUnifiedTreeandHaloCatalog(fname, icombinedfile=1):
 
         #load data sets containing number of snaps
         headergrpname="Header/"
-        numsnaps=hdffile[headergrpname].attrs["Nsnaps"]
+        numsnaps=hdffile[headergrpname].attrs["Num_of_snaps"]
 
         #allocate memory
         halodata=[dict() for i in range(numsnaps)]
@@ -1042,33 +1050,14 @@ def ReadUnifiedTreeandHaloCatalog(fname, icombinedfile=1):
         start=time.clock()
         for i in range(numsnaps):
             snapgrpname="Snap_%03d/"%(numsnaps-1-i)
-            isnap=hdffile[snapgrpname].attrs["Snap_num"]
+            isnap=hdffile[snapgrpname].attrs["Snapnum"]
             atime[isnap]=hdffile[snapgrpname].attrs["scalefactor"]
-            numhalos[isnap]=hdffile[snapgrpname].attrs["Num_of_groups"]
+            numhalos[isnap]=hdffile[snapgrpname].attrs["NHalos"]
             fieldnames=[str(n) for n in list(hdffile[snapgrpname].keys())]
             for catvalue in fieldnames:
                 halodata[isnap][catvalue]=np.array(hdffile[snapgrpname+catvalue])
-        print("read halo data ",time.clock()-start)
-
-        treefields=["ID","Num_progen"]
-        #do be completed for Progenitor list although information is contained in the halo catalog by searching for things with the same head 
-        #treefields=["haloID", "Num_progen", "Progen"]
-        for i in range(numsnaps):
-            snapgrpname="Snap_%03d/"%(numsnaps-1-i)
-            tree[i]=dict()
-            for catvalue in treefields:
-                """
-                if (catvalue==treefields[-1]):
-                    tree[i][catvalue]=[[]for j in range(numhalos[i])]
-                    for j in range(numhalos[i]):
-                        halogrpname=snapgrpname+"/Halo"+str(j)
-                        tree[i][catvalue]=np.array(hdffile[halogrpname+catvalue])
-                else:
-                    tree[i][catvalue]=np.array(hdffile[snapgrpname+catvalue])
-                """
-                tree[i][catvalue]=np.array(hdffile[snapgrpname+catvalue])
         hdffile.close()
-
+        print("read halo data ",time.clock()-start)
     else :
         hdffile=h5py.File(fname+".snap_000.hdf.data",'r')
         numsnaps=int(hdffile["Num_of_snaps"][0])
@@ -1077,9 +1066,9 @@ def ReadUnifiedTreeandHaloCatalog(fname, icombinedfile=1):
         #clean of header info
         fieldnames.remove("Snap_value")
         fieldnames.remove("Num_of_snaps")
-        fieldnames.remove("Num_of_groups")
+        fieldnames.remove("NHalos")
         fieldnames.remove("Total_num_of_groups")
-        fieldnames.remove("a_time")
+        fieldnames.remove("scalefactor")
         hdffile.close()
         halodata=[[] for i in range(numsnaps)]
         numhalos=[0 for i in range(numsnaps)]
@@ -1088,16 +1077,16 @@ def ReadUnifiedTreeandHaloCatalog(fname, icombinedfile=1):
         start=time.clock()
         for i in range(numsnaps):
             hdffile=h5py.File(fname+".snap_%03d.hdf.data"%(numsnaps-1-i),'r')
-            atime[i]=(hdffile["a_time"])[0]
-            numhalos[i]=(hdffile["Num_of_groups"])[0]
+            atime[i]=(hdffile["scalefactor"])[0]
+            numhalos[i]=(hdffile["NHalos"])[0]
             halodata[i]=dict()
             for catvalue in fieldnames:
                 halodata[i][catvalue]=np.array(hdffile[catvalue])
             hdffile.close()
         print("read halo data ",time.clock()-start)
-
+    if (icombinedfile==1):
         hdffile=h5py.File(fname+".tree.hdf.data",'r')
-        treefields=["ID","Num_progen"]
+        treefields=["haloID", "Num_progen"]
         #do be completed for Progenitor list although information is contained in the halo catalog by searching for things with the same head 
         #treefields=["haloID", "Num_progen", "Progen"]
         for i in range(numsnaps):
@@ -1115,7 +1104,6 @@ def ReadUnifiedTreeandHaloCatalog(fname, icombinedfile=1):
                 """
                 tree[i][catvalue]=np.array(hdffile[snapgrpname+catvalue])
         hdffile.close()
-
     return atime,tree,numhalos,halodata,cosmodata,unitdata
 
 """
@@ -1507,3 +1495,4 @@ def ConvertASCIIToHDF(basefilename,iseparatesubfiles=0,itype=0,iverbose=0):
     if (itype==1):
         ConvertASCIICatalogParticleTypeFileToHDF(basefilename,0,iseparatesubfiles,iverbose)
         ConvertASCIICatalogParticleTypeFileToHDF(basefilename,1,iseparatesubfiles,iverbose)
+
