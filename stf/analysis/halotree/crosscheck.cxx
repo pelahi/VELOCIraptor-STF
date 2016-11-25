@@ -13,7 +13,7 @@
 /// does not guarantee that progenitor list is exclusive
 ProgenitorData *CrossMatch(Options &opt, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData *&h2, long unsigned *&pglist, long unsigned *&noffset, unsigned int*&pfof2, int &ilistupdated, int istepval, ProgenitorData *refprogen)
 {
-    long int i,j,index;
+    long int i,j,k,index;
     Int_t numshared;
     Double_t merit;
     int nthreads=1,tid;
@@ -92,7 +92,8 @@ private(i,j,tid,pq,numshared,merit,index,np1,np2,pq2)
         delete pq;
         //if weighted merit function is to be calculated then use the most bound fraction of particles to construct share list
         if (opt.particle_frac<1 && opt.particle_frac>0 && numshared>0) {
-            np1=max(min((long unsigned)opt.min_numpart,h1[i].NumberofParticles),(long unsigned)(h1[i].NumberofParticles*opt.particle_frac));
+        np1=(h1[i].NumberofParticles*opt.particle_frac);            
+        if (np1>=opt.min_numpart) { 
             for (j=0;j<np1;j++){
                 index=((long int)tid)*nhalos2+pfof2[h1[i].ParticleID[j]]-(long int)1;
                 //if (pfof2[pglist[noffset[i]+j]]>0) sharelist[tid*nhalos2+pfof2[pglist[noffset[i]+j]]-1]+=1;
@@ -102,7 +103,9 @@ private(i,j,tid,pq,numshared,merit,index,np1,np2,pq2)
             //determine # of cross-correlations, but if it is not significant relative to Poisson noise, then
             for (j=0;j<nhalos2;j++) {
                 index=((long int)tid)*nhalos2+j;
-                np2=max(min((long unsigned)opt.min_numpart,h2[i].NumberofParticles),(long unsigned)(h2[i].NumberofParticles*opt.particle_frac));
+                np2=h2[j].NumberofParticles*opt.particle_frac;
+                if (h2[j].NumberofParticles<opt.min_numpart) np2=h2[j].NumberofParticles;
+                else if (np2<opt.min_numpart) np2=opt.min_numpart;
                 if(sharelist[index]>opt.mlsig*sqrt((Double_t)np2)){numshared++;}
                 else sharelist[index]=0;
             }
@@ -112,8 +115,9 @@ private(i,j,tid,pq,numshared,merit,index,np1,np2,pq2)
                 for (j=0;j<nhalos2;j++) {
                     index=((long int)tid)*nhalos2+j;
                     if(sharelist[index]>0){
-                    np1=max(min((long unsigned)opt.min_numpart,h1[i].NumberofParticles),(long unsigned)(h1[i].NumberofParticles*opt.particle_frac));
-                    np2=max(min((long unsigned)opt.min_numpart,h2[i].NumberofParticles),(long unsigned)(h2[i].NumberofParticles*opt.particle_frac));
+                    np2=h2[j].NumberofParticles*opt.particle_frac;
+                    if (h2[j].NumberofParticles<opt.min_numpart) np2=h2[j].NumberofParticles;
+                    else if (np2<opt.min_numpart) np2=opt.min_numpart;
                     if (opt.matchtype==NsharedN1N2)
                         merit=(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)np1/(Double_t)np2;
                     else if (opt.matchtype==NsharedN1)
@@ -141,6 +145,8 @@ private(i,j,tid,pq,numshared,merit,index,np1,np2,pq2)
                 }
             }
         }
+        }
+        //end of weighted merit
     }
 }
     delete[] sharelist;
@@ -188,7 +194,9 @@ private(i,j,tid,pq,numshared,merit,index,np1,np2,pq2)
         delete pq;
         //if weighted merit function is to be calculated then use the most bound fraction of particles to construct share list
         if (opt.particle_frac<1 && opt.particle_frac>0 && numshared>0) {
-            np1=max(min((long unsigned)opt.min_numpart,h1[i].NumberofParticles),(long unsigned)(h1[i].NumberofParticles*opt.particle_frac));
+        np1=(h1[i].NumberofParticles*opt.particle_frac);            
+        if (np1>=opt.min_numpart) { 
+            //np1=min(min((long unsigned)opt.min_numpart,h1[i].NumberofParticles),(long unsigned)(h1[i].NumberofParticles*opt.particle_frac));
             for (j=0;j<np1;j++){
                 index=((long int)tid)*nhalos2+pfof2[h1[i].ParticleID[j]]-(long int)1;
                 //if (pfof2[pglist[noffset[i]+j]]>0) sharelist[tid*nhalos2+pfof2[pglist[noffset[i]+j]]-1]+=1;
@@ -198,7 +206,9 @@ private(i,j,tid,pq,numshared,merit,index,np1,np2,pq2)
             //determine # of cross-correlations, but if it is not significant relative to Poisson noise, then
             for (j=0;j<nhalos2;j++) {
                 index=((long int)tid)*nhalos2+j;
-                np2=max(min((long unsigned)opt.min_numpart,h2[i].NumberofParticles),(long unsigned)(h2[i].NumberofParticles*opt.particle_frac));
+                np2=h2[j].NumberofParticles*opt.particle_frac;
+                if (h2[j].NumberofParticles<opt.min_numpart) np2=h2[j].NumberofParticles;
+                else if (np2<opt.min_numpart) np2=opt.min_numpart;
                 if(sharelist[index]>opt.mlsig*sqrt((Double_t)np2)){numshared++;}
                 else sharelist[index]=0;
             }
@@ -208,8 +218,9 @@ private(i,j,tid,pq,numshared,merit,index,np1,np2,pq2)
                 for (j=0;j<nhalos2;j++) {
                     index=((long int)tid)*nhalos2+j;
                     if(sharelist[index]>0){
-                    np1=max(min((long unsigned)opt.min_numpart,h1[i].NumberofParticles),(long unsigned)(h1[i].NumberofParticles*opt.particle_frac));
-                    np2=max(min((long unsigned)opt.min_numpart,h2[i].NumberofParticles),(long unsigned)(h2[i].NumberofParticles*opt.particle_frac));
+                    np2=h2[j].NumberofParticles*opt.particle_frac;
+                    if (h2[j].NumberofParticles<opt.min_numpart) np2=h2[j].NumberofParticles;
+                    else if (np2<opt.min_numpart) np2=opt.min_numpart;
                     if (opt.matchtype==NsharedN1N2)
                         merit=(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)np1/(Double_t)np2;
                     else if (opt.matchtype==NsharedN1)
@@ -237,23 +248,37 @@ private(i,j,tid,pq,numshared,merit,index,np1,np2,pq2)
                 }
             }
         }
+        }
+        //end of weighted merit
     }
     delete[] sharelist;
 #endif
     }
     //if a reference list is provided then only link halos with no current link
     else {
+    //check to see if haloes need to search at all
+    long unsigned num_noprogen=0;
+    for (i=0;i<nhalos1;i++){
+        p1[i].NumberofProgenitors=0;p1[i].ProgenitorList=NULL;p1[i].Merit=NULL;
+        num_noprogen+=(refprogen[i].NumberofProgenitors>0);
+    }
+    long unsigned *needprogenlist=new long unsigned[num_noprogen];
+    
+    //only allocate memory and process list if there are any haloes needing to be searched
+    if (num_noprogen>0) {
 #ifdef USEOPENMP
     sharelist=new int[nhalos2*nthreads];
     for (i=0;i<nhalos2*nthreads;i++)sharelist[i]=0;
 #pragma omp parallel default(shared) \
-private(i,j,tid,pq,numshared,merit,index,np1,np2,pq2)
+private(k,i,j,tid,pq,numshared,merit,index,np1,np2,pq2)
 {
 #pragma omp for schedule(dynamic,10) nowait
-    for (i=0;i<nhalos1;i++){
+    //for (i=0;i<nhalos1;i++){
+    for (k=0;k<num_noprogen;k++){
+        i=needprogenlist[k];
         //if a reference progenitor list is passed, only check if no progenitor is found
-        p1[i].NumberofProgenitors=0;p1[i].ProgenitorList=NULL;p1[i].Merit=NULL;
-        if (refprogen[i].NumberofProgenitors>0) continue;
+        //p1[i].NumberofProgenitors=0;p1[i].ProgenitorList=NULL;p1[i].Merit=NULL;
+        //if (refprogen[i].NumberofProgenitors>0) continue;
 
         tid=omp_get_thread_num();
         for (j=0;j<h1[i].NumberofParticles;j++){
@@ -304,7 +329,8 @@ private(i,j,tid,pq,numshared,merit,index,np1,np2,pq2)
         delete pq;
         //if weighted merit function is to be calculated then use the most bound fraction of particles to construct share list
         if (opt.particle_frac<1 && opt.particle_frac>0 && numshared>0) {
-            np1=max(min((long unsigned)opt.min_numpart,h1[i].NumberofParticles),(long unsigned)(h1[i].NumberofParticles*opt.particle_frac));
+        np1=(h1[i].NumberofParticles*opt.particle_frac);            
+        if (np1>=opt.min_numpart) { 
             for (j=0;j<np1;j++){
                 index=((long int)tid)*nhalos2+pfof2[h1[i].ParticleID[j]]-(long int)1;
                 //if (pfof2[pglist[noffset[i]+j]]>0) sharelist[tid*nhalos2+pfof2[pglist[noffset[i]+j]]-1]+=1;
@@ -314,7 +340,9 @@ private(i,j,tid,pq,numshared,merit,index,np1,np2,pq2)
             //determine # of cross-correlations, but if it is not significant relative to Poisson noise, then
             for (j=0;j<nhalos2;j++) {
                 index=((long int)tid)*nhalos2+j;
-                np2=max(min((long unsigned)opt.min_numpart,h2[i].NumberofParticles),(long unsigned)(h2[i].NumberofParticles*opt.particle_frac));
+                np2=h2[j].NumberofParticles*opt.particle_frac;
+                if (h2[j].NumberofParticles<opt.min_numpart) np2=h2[j].NumberofParticles;
+                else if (np2<opt.min_numpart) np2=opt.min_numpart;
                 if(sharelist[index]>opt.mlsig*sqrt((Double_t)np2)){numshared++;}
                 else sharelist[index]=0;
             }
@@ -324,8 +352,9 @@ private(i,j,tid,pq,numshared,merit,index,np1,np2,pq2)
                 for (j=0;j<nhalos2;j++) {
                     index=((long int)tid)*nhalos2+j;
                     if(sharelist[index]>0){
-                    np1=max(min((long unsigned)opt.min_numpart,h1[i].NumberofParticles),(long unsigned)(h1[i].NumberofParticles*opt.particle_frac));
-                    np2=max(min((long unsigned)opt.min_numpart,h2[i].NumberofParticles),(long unsigned)(h2[i].NumberofParticles*opt.particle_frac));
+                    np2=h2[j].NumberofParticles*opt.particle_frac;
+                    if (h2[j].NumberofParticles<opt.min_numpart) np2=h2[j].NumberofParticles;
+                    else if (np2<opt.min_numpart) np2=opt.min_numpart;
                     if (opt.matchtype==NsharedN1N2)
                         merit=(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)np1/(Double_t)np2;
                     else if (opt.matchtype==NsharedN1)
@@ -353,6 +382,8 @@ private(i,j,tid,pq,numshared,merit,index,np1,np2,pq2)
                 }
             }
         }
+        }
+        //end of weighted merit
     }
 }
     delete[] sharelist;
@@ -360,9 +391,11 @@ private(i,j,tid,pq,numshared,merit,index,np1,np2,pq2)
     sharelist=new int[nhalos2];
     //set max number of progenitors for a single halo
     for (i=0;i<nhalos2;i++)sharelist[i]=0;
-    for (i=0;i<nhalos1;i++){
-        p1[i].NumberofProgenitors=0;p1[i].ProgenitorList=NULL;p1[i].Merit=NULL;
-        if (refprogen[i].NumberofProgenitors>0) continue;
+//    for (i=0;i<nhalos1;i++){
+    for (k=0;k<num_noprogen;k++){
+        i=needprogenlist[k];
+        //p1[i].NumberofProgenitors=0;p1[i].ProgenitorList=NULL;p1[i].Merit=NULL;
+        //if (refprogen[i].NumberofProgenitors>0) continue;
         for (j=0;j<h1[i].NumberofParticles;j++){
             //if (pfof2[pglist[noffset[i]+j]]>0) sharelist[pfof2[pglist[noffset[i]+j]]-1]+=1;
             if (pfof2[h1[i].ParticleID[j]]>0) sharelist[nhalos2+pfof2[h1[i].ParticleID[j]]-1]+=1;
@@ -402,7 +435,8 @@ private(i,j,tid,pq,numshared,merit,index,np1,np2,pq2)
         delete pq;
         //if weighted merit function is to be calculated then use the most bound fraction of particles to construct share list
         if (opt.particle_frac<1 && opt.particle_frac>0 && numshared>0) {
-            np1=max(min((long unsigned)opt.min_numpart,h1[i].NumberofParticles),(long unsigned)(h1[i].NumberofParticles*opt.particle_frac));
+        np1=(h1[i].NumberofParticles*opt.particle_frac);            
+        if (np1>=opt.min_numpart) { 
             for (j=0;j<np1;j++){
                 index=((long int)tid)*nhalos2+pfof2[h1[i].ParticleID[j]]-(long int)1;
                 //if (pfof2[pglist[noffset[i]+j]]>0) sharelist[tid*nhalos2+pfof2[pglist[noffset[i]+j]]-1]+=1;
@@ -412,7 +446,9 @@ private(i,j,tid,pq,numshared,merit,index,np1,np2,pq2)
             //determine # of cross-correlations, but if it is not significant relative to Poisson noise, then
             for (j=0;j<nhalos2;j++) {
                 index=((long int)tid)*nhalos2+j;
-                np2=max(min((long unsigned)opt.min_numpart,h2[i].NumberofParticles),(long unsigned)h2[i].NumberofParticles*opt.particle_frac);
+                np2=h2[j].NumberofParticles*opt.particle_frac;
+                if (h2[j].NumberofParticles<opt.min_numpart) np2=h2[j].NumberofParticles;
+                else if (np2<opt.min_numpart) np2=opt.min_numpart;
                 if(sharelist[index]>opt.mlsig*sqrt((Double_t)np2)){numshared++;}
                 else sharelist[index]=0;
             }
@@ -422,8 +458,9 @@ private(i,j,tid,pq,numshared,merit,index,np1,np2,pq2)
                 for (j=0;j<nhalos2;j++) {
                     index=((long int)tid)*nhalos2+j;
                     if(sharelist[index]>0){
-                    np1=max(min((long unsigned)opt.min_numpart,h1[i].NumberofParticles),(long unsigned)(h1[i].NumberofParticles*opt.particle_frac));
-                    np2=max(min((long unsigned)opt.min_numpart,h2[i].NumberofParticles),(long unsigned)h2[i].NumberofParticles*opt.particle_frac);
+                    np2=h2[j].NumberofParticles*opt.particle_frac;
+                    if (h2[j].NumberofParticles<opt.min_numpart) np2=h2[j].NumberofParticles;
+                    else if (np2<opt.min_numpart) np2=opt.min_numpart;
                     if (opt.matchtype==NsharedN1N2)
                         merit=(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)np1/(Double_t)np2;
                     else if (opt.matchtype==NsharedN1)
@@ -451,11 +488,15 @@ private(i,j,tid,pq,numshared,merit,index,np1,np2,pq2)
                 }
             }
         }
+        }
     }
     delete[] sharelist;
 
 #endif
     }
+    //endi of if statement for progenitors more than one snap ago if any current haloes need to be searched
+    }
+    //end of progenitors more than one snap ago
     }
     //if no halos then there are no links
     else {

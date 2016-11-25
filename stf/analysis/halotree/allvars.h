@@ -383,13 +383,7 @@ struct DescendantDataProgenBased
     int stype;
     int NumberofDescendants;
     //@}
-    /*
-    long unsigned* DescendantList;
-    ///store the merit value
-    Double_t *Merit;
-    ///store the fraction of shared particles
-    Double_t *nsharedfrac;
-    */
+
     ///store list of descendants in the form of halo index and temporal index
     vector<long unsigned> haloindex;
     vector<int unsigned> halotemporalindex;
