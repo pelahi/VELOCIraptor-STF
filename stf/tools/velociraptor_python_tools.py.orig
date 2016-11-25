@@ -753,8 +753,8 @@ def ProduceUnifiedTreeandHaloCatalog(fname,numsnaps,tree,numhalos,halodata,atime
 
         for i in range(numsnaps):
             snapgrp=hdffile.create_group("Snap_%03d"%(numsnaps-1-i))
-            snapgrp.attrs["Snap_num"]=i
-            snapgrp.attrs["Num_of_groups"]=numhalos[i]
+            snapgrp.attrs["Snapnum"]=i
+            snapgrp.attrs["NHalos"]=numhalos[i]
             snapgrp.attrs["scalefactor"]=atime[i]
             for key in list(halodata[i].keys()):
                 snapgrp.create_dataset(key,data=halodata[i][key])
@@ -766,8 +766,13 @@ def ProduceUnifiedTreeandHaloCatalog(fname,numsnaps,tree,numhalos,halodata,atime
             hdffile.create_dataset("Num_of_snaps",data=np.array([numsnaps],dtype=np.uint32))
             hdffile.create_dataset("Num_of_groups",data=np.array([numhalos[i]],dtype=np.uint64))
             hdffile.create_dataset("Total_num_of_groups",data=np.array([totnumhalos],dtype=np.uint64))
+<<<<<<< HEAD
+            hdffile.create_dataset("scalefactor",data=np.array([atime[i]],dtype=np.float64))
+            for key in halodata[i].keys():
+=======
             hdffile.create_dataset("a_time",data=np.array([atime[i]],dtype=np.float64))
             for key in list(halodata[i].keys()):
+>>>>>>> 91469e9f875caa41b869b6a840795dd4b66d6c5d
                 hdffile.create_dataset(key,data=halodata[i][key])
             hdffile.close()
 
@@ -1028,13 +1033,21 @@ def ReadUnifiedTreeandHaloCatalog(fname, icombinedfile=1):
 
         #load cosmology data
         cosmogrpname="Cosmology/"
+<<<<<<< HEAD
+        fieldnames=[str(n) for n in hdffile[headergrpname+cosmogrpname].attrs.keys()]
+=======
         fieldnames=[str(n) for n in list(hdffile[headergrpname+cosmogrpname].attrs.keys())]
+>>>>>>> 91469e9f875caa41b869b6a840795dd4b66d6c5d
         for fieldname in fieldnames:
             cosmodata[fieldname]=hdffile[headergrpname+cosmogrpname].attrs[fieldname]
 
         #load unit data
         unitgrpname="Units/"
+<<<<<<< HEAD
+        fieldnames=[str(n) for n in hdffile[headergrpname+unitgrpname].attrs.keys()]
+=======
         fieldnames=[str(n) for n in list(hdffile[headergrpname+unitgrpname].attrs.keys())]
+>>>>>>> 91469e9f875caa41b869b6a840795dd4b66d6c5d
         for fieldname in fieldnames:
             unitdata[fieldname]=hdffile[headergrpname+unitgrpname].attrs[fieldname]
 
@@ -1042,7 +1055,7 @@ def ReadUnifiedTreeandHaloCatalog(fname, icombinedfile=1):
         start=time.clock()
         for i in range(numsnaps):
             snapgrpname="Snap_%03d/"%(numsnaps-1-i)
-            isnap=hdffile[snapgrpname].attrs["Snap_num"]
+            isnap=hdffile[snapgrpname].attrs["Snapnum"]
             atime[isnap]=hdffile[snapgrpname].attrs["scalefactor"]
             numhalos[isnap]=hdffile[snapgrpname].attrs["Num_of_groups"]
             fieldnames=[str(n) for n in list(hdffile[snapgrpname].keys())]
@@ -1077,9 +1090,9 @@ def ReadUnifiedTreeandHaloCatalog(fname, icombinedfile=1):
         #clean of header info
         fieldnames.remove("Snap_value")
         fieldnames.remove("Num_of_snaps")
-        fieldnames.remove("Num_of_groups")
+        fieldnames.remove("NHalos")
         fieldnames.remove("Total_num_of_groups")
-        fieldnames.remove("a_time")
+        fieldnames.remove("scalefactor")
         hdffile.close()
         halodata=[[] for i in range(numsnaps)]
         numhalos=[0 for i in range(numsnaps)]
@@ -1088,16 +1101,23 @@ def ReadUnifiedTreeandHaloCatalog(fname, icombinedfile=1):
         start=time.clock()
         for i in range(numsnaps):
             hdffile=h5py.File(fname+".snap_%03d.hdf.data"%(numsnaps-1-i),'r')
-            atime[i]=(hdffile["a_time"])[0]
-            numhalos[i]=(hdffile["Num_of_groups"])[0]
+            atime[i]=(hdffile["scalefactor"])[0]
+            numhalos[i]=(hdffile["NHalos"])[0]
             halodata[i]=dict()
             for catvalue in fieldnames:
                 halodata[i][catvalue]=np.array(hdffile[catvalue])
             hdffile.close()
+<<<<<<< HEAD
+        print "read halo data ",time.clock()-start
+    if (icombinedfile==1):
+        hdffile=h5py.File(fname+".tree.hdf.data",'r')
+        treefields=["haloID", "Num_progen"]
+=======
         print("read halo data ",time.clock()-start)
 
         hdffile=h5py.File(fname+".tree.hdf.data",'r')
         treefields=["ID","Num_progen"]
+>>>>>>> 91469e9f875caa41b869b6a840795dd4b66d6c5d
         #do be completed for Progenitor list although information is contained in the halo catalog by searching for things with the same head 
         #treefields=["haloID", "Num_progen", "Progen"]
         for i in range(numsnaps):
@@ -1115,7 +1135,10 @@ def ReadUnifiedTreeandHaloCatalog(fname, icombinedfile=1):
                 """
                 tree[i][catvalue]=np.array(hdffile[snapgrpname+catvalue])
         hdffile.close()
+<<<<<<< HEAD
+=======
 
+>>>>>>> 91469e9f875caa41b869b6a840795dd4b66d6c5d
     return atime,tree,numhalos,halodata,cosmodata,unitdata
 
 """
@@ -1507,3 +1530,4 @@ def ConvertASCIIToHDF(basefilename,iseparatesubfiles=0,itype=0,iverbose=0):
     if (itype==1):
         ConvertASCIICatalogParticleTypeFileToHDF(basefilename,0,iseparatesubfiles,iverbose)
         ConvertASCIICatalogParticleTypeFileToHDF(basefilename,1,iseparatesubfiles,iverbose)
+
