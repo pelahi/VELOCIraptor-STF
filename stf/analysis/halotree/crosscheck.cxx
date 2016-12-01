@@ -27,7 +27,8 @@ ProgenitorData *CrossMatch(Options &opt, const long unsigned nhalos1, const long
     int *sharelist;
     PriorityQueue *pq,*pq2;
     int np1,np2;
-
+    long unsigned num_noprogen;
+    long unsigned *needprogenlist;
     //init that list is updated if no reference list is provided
     if (refprogen==NULL) ilistupdated=1;
     //otherwise assume list is not updated
@@ -257,15 +258,21 @@ private(i,j,tid,pq,numshared,merit,index,np1,np2,pq2)
     //if a reference list is provided then only link halos with no current link
     else {
     //check to see if haloes need to search at all
-    long unsigned num_noprogen=0;
+    num_noprogen=0;
     for (i=0;i<nhalos1;i++){
         p1[i].NumberofProgenitors=0;p1[i].ProgenitorList=NULL;p1[i].Merit=NULL;
         num_noprogen+=(refprogen[i].NumberofProgenitors>0);
     }
-    long unsigned *needprogenlist=new long unsigned[num_noprogen];
-    
-    //only allocate memory and process list if there are any haloes needing to be searched
     if (num_noprogen>0) {
+    needprogenlist=new long unsigned[num_noprogen];
+    num_noprogen=0;
+    for (i=0;i<nhalos1;i++){
+        if (refprogen[i].NumberofProgenitors>0){
+            needprogenlist[num_noprogen++]=i;
+        }
+    }
+
+    //only allocate memory and process list if there are any haloes needing to be searched
 #ifdef USEOPENMP
     sharelist=new int[nhalos2*nthreads];
     for (i=0;i<nhalos2*nthreads;i++)sharelist[i]=0;
@@ -493,6 +500,7 @@ private(k,i,j,tid,pq,numshared,merit,index,np1,np2,pq2)
     delete[] sharelist;
 
 #endif
+    delete[] needprogenlist;
     }
     //endi of if statement for progenitors more than one snap ago if any current haloes need to be searched
     }
