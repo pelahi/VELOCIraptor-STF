@@ -261,13 +261,13 @@ private(i,j,tid,pq,numshared,merit,index,np1,np2,pq2)
     num_noprogen=0;
     for (i=0;i<nhalos1;i++){
         p1[i].NumberofProgenitors=0;p1[i].ProgenitorList=NULL;p1[i].Merit=NULL;
-        num_noprogen+=(refprogen[i].NumberofProgenitors>0);
+        num_noprogen+=(refprogen[i].NumberofProgenitors==0);
     }
     if (num_noprogen>0) {
     needprogenlist=new long unsigned[num_noprogen];
     num_noprogen=0;
     for (i=0;i<nhalos1;i++){
-        if (refprogen[i].NumberofProgenitors>0){
+        if (refprogen[i].NumberofProgenitors==0){
             needprogenlist[num_noprogen++]=i;
         }
     }
