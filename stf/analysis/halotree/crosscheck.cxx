@@ -279,7 +279,7 @@ private(i,j,tid,pq,numshared,merit,index,np1,np2,pq2)
 #pragma omp parallel default(shared) \
 private(k,i,j,tid,pq,numshared,merit,index,np1,np2,pq2)
 {
-#pragma omp for schedule(dynamic,10) nowait
+#pragma omp for schedule(dynamic,10) nowait reduction(+:ilistupdated)
     //for (i=0;i<nhalos1;i++){
     for (k=0;k<num_noprogen;k++){
         i=needprogenlist[k];
