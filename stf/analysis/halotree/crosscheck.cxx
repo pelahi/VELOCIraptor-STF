@@ -60,25 +60,25 @@ private(i,j,tid,pq,numshared,merit,index,np1,np2,pq2)
             if(sharelist[index]>opt.mlsig*sqrt((Double_t)h2[j].NumberofParticles)){numshared++;}
             else sharelist[index]=0;
         }
-        //store all viable matches
-        pq=new PriorityQueue(numshared);
-        for (j=0;j<nhalos2;j++) {
-            index=((long int)tid)*nhalos2+j;
-            if(sharelist[index]>0){
-            if (opt.matchtype==NsharedN1N2)
-                merit=(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
-            else if (opt.matchtype==NsharedN1)
-                merit=(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles;
-            else if (opt.matchtype==Nshared)
-                merit=(Double_t)sharelist[index];
-            else if (opt.matchtype==Nsharedcombo)
-                merit=(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles+(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
-            pq->Push(j,merit);
-            sharelist[index]=0;
-            }
-        }
-        p1[i].NumberofProgenitors=numshared;
         if (numshared>0) {
+            //store all viable matches
+            pq=new PriorityQueue(numshared);
+            for (j=0;j<nhalos2;j++) {
+                index=((long int)tid)*nhalos2+j;
+                if(sharelist[index]>0){
+                if (opt.matchtype==NsharedN1N2)
+                    merit=(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
+                else if (opt.matchtype==NsharedN1)
+                    merit=(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles;
+                else if (opt.matchtype==Nshared)
+                    merit=(Double_t)sharelist[index];
+                else if (opt.matchtype==Nsharedcombo)
+                    merit=(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles+(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
+                pq->Push(j,merit);
+                sharelist[index]=0;
+                }
+            }
+            p1[i].NumberofProgenitors=numshared;
             p1[i].ProgenitorList=new long unsigned[numshared];
             p1[i].Merit=new float[numshared];
             p1[i].nsharedfrac=new float[numshared];
@@ -88,12 +88,12 @@ private(i,j,tid,pq,numshared,merit,index,np1,np2,pq2)
                 p1[i].Merit[j]=pq->TopPriority();
                 pq->Pop();
             }
+            delete pq;
         }
         else {p1[i].ProgenitorList=NULL;p1[i].Merit=NULL;}
-        delete pq;
         //if weighted merit function is to be calculated then use the most bound fraction of particles to construct share list
         if (opt.particle_frac<1 && opt.particle_frac>0 && numshared>0) {
-        np1=(h1[i].NumberofParticles*opt.particle_frac);            
+        np1=(h1[i].NumberofParticles*opt.particle_frac);
         if (np1>=opt.min_numpart) { 
             for (j=0;j<np1;j++){
                 index=((long int)tid)*nhalos2+pfof2[h1[i].ParticleID[j]]-(long int)1;
@@ -166,21 +166,22 @@ private(i,j,tid,pq,numshared,merit,index,np1,np2,pq2)
         for (j=0;j<nhalos2;j++)
             if(sharelist[j]>opt.mlsig*sqrt((Double_t)h2[j].NumberofParticles)){numshared++;}
             else sharelist[j]=0;
-        pq=new PriorityQueue(numshared);
-        for (j=0;j<nhalos2;j++)if(sharelist[j]>0){
-            if (opt.matchtype==NsharedN1N2)
-                merit=(Double_t)sharelist[j]*(Double_t)sharelist[j]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
-            else if (opt.matchtype==NsharedN1)
-                merit=(Double_t)sharelist[j]/(Double_t)h1[i].NumberofParticles;
-            else if (opt.matchtype==Nshared)
-                merit=(Double_t)sharelist[j];
-            else if (opt.matchtype==Nsharedcombo)
-                merit=(Double_t)sharelist[j]/(Double_t)h1[i].NumberofParticles+(Double_t)sharelist[j]*(Double_t)sharelist[j]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
-            pq->Push(j,merit);
-            sharelist[j]=0;
-        }
-        p1[i].NumberofProgenitors=numshared;
+
         if (numshared>0) {
+            pq=new PriorityQueue(numshared);
+            for (j=0;j<nhalos2;j++)if(sharelist[j]>0){
+                if (opt.matchtype==NsharedN1N2)
+                    merit=(Double_t)sharelist[j]*(Double_t)sharelist[j]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
+                else if (opt.matchtype==NsharedN1)
+                    merit=(Double_t)sharelist[j]/(Double_t)h1[i].NumberofParticles;
+                else if (opt.matchtype==Nshared)
+                    merit=(Double_t)sharelist[j];
+                else if (opt.matchtype==Nsharedcombo)
+                    merit=(Double_t)sharelist[j]/(Double_t)h1[i].NumberofParticles+(Double_t)sharelist[j]*(Double_t)sharelist[j]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
+                pq->Push(j,merit);
+                sharelist[j]=0;
+            }
+            p1[i].NumberofProgenitors=numshared;
             p1[i].ProgenitorList=new long unsigned[numshared];
             p1[i].Merit=new float[numshared];
             p1[i].nsharedfrac=new float[numshared];
@@ -190,12 +191,12 @@ private(i,j,tid,pq,numshared,merit,index,np1,np2,pq2)
                 p1[i].Merit[j]=pq->TopPriority();
                 pq->Pop();
             }
+            delete pq;
         }
         else {p1[i].ProgenitorList=NULL;p1[i].Merit=NULL;}
-        delete pq;
         //if weighted merit function is to be calculated then use the most bound fraction of particles to construct share list
         if (opt.particle_frac<1 && opt.particle_frac>0 && numshared>0) {
-        np1=(h1[i].NumberofParticles*opt.particle_frac);            
+        np1=(h1[i].NumberofParticles*opt.particle_frac);
         if (np1>=opt.min_numpart) { 
             //np1=min(min((long unsigned)opt.min_numpart,h1[i].NumberofParticles),(long unsigned)(h1[i].NumberofParticles*opt.particle_frac));
             for (j=0;j<np1;j++){
@@ -300,28 +301,28 @@ private(k,i,j,tid,pq,numshared,merit,index,np1,np2,pq2)
             if(sharelist[index]>opt.mlsig*sqrt((Double_t)h2[j].NumberofParticles)){numshared++;}
             else sharelist[index]=0;
         }
-        pq=new PriorityQueue(numshared);
-        for (j=0;j<nhalos2;j++){
-            index=((long int)tid)*nhalos2+j;
-            if(sharelist[index]>0){
-            if (opt.matchtype==NsharedN1N2)
-                merit=(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
-            else if (opt.matchtype==NsharedN1)
-                merit=(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles;
-            else if (opt.matchtype==Nshared)
-                merit=(Double_t)sharelist[index];
-            else if (opt.matchtype==Nsharedcombo)
-                merit=(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles+(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
-            pq->Push(j,merit);
-            sharelist[index]=0;
-            }
-        }
-        //if at this point when looking for progenitors not present in the reference list
-        //can check to see if numshared>0 and if so, then reference list will have to be updated
-        ilistupdated+=(numshared>0);
-
-        p1[i].NumberofProgenitors=numshared;
         if (numshared>0) {
+            pq=new PriorityQueue(numshared);
+            for (j=0;j<nhalos2;j++){
+                index=((long int)tid)*nhalos2+j;
+                if(sharelist[index]>0){
+                if (opt.matchtype==NsharedN1N2)
+                    merit=(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
+                else if (opt.matchtype==NsharedN1)
+                    merit=(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles;
+                else if (opt.matchtype==Nshared)
+                    merit=(Double_t)sharelist[index];
+                else if (opt.matchtype==Nsharedcombo)
+                    merit=(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles+(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
+                pq->Push(j,merit);
+                sharelist[index]=0;
+                }
+            }
+            //if at this point when looking for progenitors not present in the reference list
+            //can check to see if numshared>0 and if so, then reference list will have to be updated
+            ilistupdated+=(numshared>0);
+
+            p1[i].NumberofProgenitors=numshared;
             p1[i].ProgenitorList=new long unsigned[numshared];
             p1[i].Merit=new float[numshared];
             p1[i].nsharedfrac=new float[numshared];
@@ -331,9 +332,9 @@ private(k,i,j,tid,pq,numshared,merit,index,np1,np2,pq2)
                 p1[i].Merit[j]=pq->TopPriority();
                 pq->Pop();
             }
+            delete pq;
         }
         else {p1[i].ProgenitorList=NULL;p1[i].Merit=NULL;}
-        delete pq;
         //if weighted merit function is to be calculated then use the most bound fraction of particles to construct share list
         if (opt.particle_frac<1 && opt.particle_frac>0 && numshared>0) {
         np1=(h1[i].NumberofParticles*opt.particle_frac);            
@@ -412,22 +413,22 @@ private(k,i,j,tid,pq,numshared,merit,index,np1,np2,pq2)
         for (j=0;j<nhalos2;j++)
             if(sharelist[j]>opt.mlsig*sqrt((Double_t)h2[j].NumberofParticles)){numshared++;}
             else sharelist[j]=0;
-        pq=new PriorityQueue(numshared);
-        for (j=0;j<nhalos2;j++)if(sharelist[j]>0){
-            if (opt.matchtype==NsharedN1N2)
-                merit=(Double_t)sharelist[j]*(Double_t)sharelist[j]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
-            else if (opt.matchtype==NsharedN1)
-                merit=(Double_t)sharelist[j]/(Double_t)h1[i].NumberofParticles;
-            else if (opt.matchtype==Nshared)
-                merit=(Double_t)sharelist[j];
-            else if (opt.matchtype==Nsharedcombo)
-                merit=(Double_t)sharelist[j]/(Double_t)h1[i].NumberofParticles+(Double_t)sharelist[j]*(Double_t)sharelist[j]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
-            pq->Push(j,merit);
-            sharelist[j]=0;
-        }
-        ilistupdated+=(numshared>0);
-        p1[i].NumberofProgenitors=numshared;
         if (numshared>0) {
+            pq=new PriorityQueue(numshared);
+            for (j=0;j<nhalos2;j++)if(sharelist[j]>0){
+                if (opt.matchtype==NsharedN1N2)
+                    merit=(Double_t)sharelist[j]*(Double_t)sharelist[j]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
+                else if (opt.matchtype==NsharedN1)
+                    merit=(Double_t)sharelist[j]/(Double_t)h1[i].NumberofParticles;
+                else if (opt.matchtype==Nshared)
+                    merit=(Double_t)sharelist[j];
+                else if (opt.matchtype==Nsharedcombo)
+                    merit=(Double_t)sharelist[j]/(Double_t)h1[i].NumberofParticles+(Double_t)sharelist[j]*(Double_t)sharelist[j]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
+                pq->Push(j,merit);
+                sharelist[j]=0;
+            }
+            ilistupdated+=(numshared>0);
+            p1[i].NumberofProgenitors=numshared;
             p1[i].ProgenitorList=new long unsigned[numshared];
             p1[i].Merit=new float[numshared];
             p1[i].nsharedfrac=new float[numshared];
@@ -437,9 +438,9 @@ private(k,i,j,tid,pq,numshared,merit,index,np1,np2,pq2)
                 p1[i].Merit[j]=pq->TopPriority();
                 pq->Pop();
             }
+            delete pq;
         }
         else {p1[i].ProgenitorList=NULL;p1[i].Merit=NULL;}
-        delete pq;
         //if weighted merit function is to be calculated then use the most bound fraction of particles to construct share list
         if (opt.particle_frac<1 && opt.particle_frac>0 && numshared>0) {
         np1=(h1[i].NumberofParticles*opt.particle_frac);            
