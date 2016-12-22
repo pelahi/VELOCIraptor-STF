@@ -445,9 +445,16 @@ struct Options
 
     ///\name extra stuff for halo merger check and identification of multiple halo core and flag for fully adaptive linking length using number density of candidate objects
     //@{
+    /// run halo core search for mergers
     int iHaloCoreSearch;
+    ///parameters associated with phase-space search for cores of mergers
     Double_t halocorexfac, halocorevfac, halocorenfac;
+    ///x and v space linking lengths calculated for each object
     int iAdaptiveCoreLinking;
+    ///allow for iterative halo core search
+    Double_t halocorevfaciter;
+    ///number of iterations
+    int halocorenumloops;
     //@}
     ///for storing a snapshot value to make halo ids unique across snapshots
     long long snapshotvalue;
@@ -543,6 +550,8 @@ struct Options
         halocorexfac=0.5;
         halocorevfac=2.0;
         halocorenfac=0.1;
+        halocorevfaciter=0.5;
+        halocorenumloops=1;
 
         iverbose=0;
         iwritefof=0;

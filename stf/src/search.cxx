@@ -317,7 +317,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
         vscale2*=opt.ellhalo6dvfac*opt.ellhalo6dvfac;
         //set the velocity scale
         param[2]=(vscale2);
-        param[7]=param[2];    
+        param[7]=param[2];
         cout<<"Search "<<npartingroups<<" particles using 6DFOF with uniform velocity scale"<<endl;
         cout<<"Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits, ellvel="<<sqrt(param[7])<<" Vunits."<<endl;
     }
@@ -1437,6 +1437,14 @@ private(i,tid)
         for (i=0;i<nsubset;i++) Partsubset[i].SetPotential(pfof[Partsubset[i].GetID()]);
         param[9]=0.5;
         pfofbg=tree->FOFCriterion(fofcmp,param,numgroupsbg,minsize,iorder,icheck,FOFcheckbg);
+        int numloops=0;
+        while (numgroupsbg==1 && numloops<opt.halocorenumloops) {
+            delete[] pfofbg;
+            //adjust linking lengths in velocity space by the iterative factor, ~0.5 
+            param[7]*=opt.halocorevfaciter;
+            pfofbg=tree->FOFCriterion(fofcmp,param,numgroupsbg,minsize,iorder,icheck,FOFcheckbg);
+            numloops++;
+        }
         if (numgroupsbg>=bgoffset+1) {
             if (opt.iverbose) cout<<"Number of cores: "<<numgroupsbg<<endl;
             //if cores are found, two options
