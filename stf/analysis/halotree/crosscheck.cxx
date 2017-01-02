@@ -27,7 +27,7 @@ ProgenitorData *CrossMatch(Options &opt, const long unsigned nhalos1, const long
     int *sharelist,*halolist;
     PriorityQueue *pq,*pq2;
     int np1,np2;
-    long unsigned num_noprogen;
+    long unsigned num_noprogen, ntotitems;
     long unsigned *needprogenlist;
     //init that list is updated if no reference list is provided
     if (refprogen==NULL) ilistupdated=1;
@@ -40,9 +40,10 @@ ProgenitorData *CrossMatch(Options &opt, const long unsigned nhalos1, const long
     if (refprogen==NULL) {
 #ifdef USEOPENMP
     //to store haloes that share links and the halo index of those shared haloes
-    sharelist=new int[nhalos2*nthreads];
-    halolist=new int[nhalos2*nthreads];
-    for (i=0;i<nhalos2*nthreads;i++)sharelist[i]=0;
+    ntotitems=nhalos2*(long unsigned)nthreads;
+    sharelist=new int[ntotitems];
+    halolist=new int[ntotitems];
+    for (i=0;i<ntotitems;i++)sharelist[i]=0;
 #pragma omp parallel default(shared) \
 private(i,j,k,tid,pq,numshared,merit,index,np1,np2,pq2)
 {
@@ -161,7 +162,6 @@ private(i,j,k,tid,pq,numshared,merit,index,np1,np2,pq2)
     for (i=0;i<nhalos2;i++)sharelist[i]=0;
     for (i=0;i<nhalos1;i++){
         for (j=0;j<h1[i].NumberofParticles;j++){
-            //if (pfof2[pglist[noffset[i]+j]]>0) sharelist[pfof2[pglist[noffset[i]+j]]-1]+=1;
             if (pfof2[h1[i].ParticleID[j]]>0) sharelist[pfof2[h1[i].ParticleID[j]]-1]+=1;
         }
         numshared=0;
@@ -283,9 +283,10 @@ private(i,j,k,tid,pq,numshared,merit,index,np1,np2,pq2)
 
     //only allocate memory and process list if there are any haloes needing to be searched
 #ifdef USEOPENMP
-    sharelist=new int[nhalos2*nthreads];
-    halolist=new int[nhalos2*nthreads];
-    for (i=0;i<nhalos2*nthreads;i++)sharelist[i]=0;
+    ntotitems=nhalos2*(long unsigned)nthreads;
+    sharelist=new int[ntotitems];
+    halolist=new int[ntotitems];
+    for (i=0;i<ntotitems;i++)sharelist[i]=0;
 #pragma omp parallel default(shared) \
 private(i,j,k,n,tid,pq,numshared,merit,index,np1,np2,pq2)
 {
@@ -456,7 +457,6 @@ private(i,j,k,n,tid,pq,numshared,merit,index,np1,np2,pq2)
         if (np1>=opt.min_numpart) { 
             for (j=0;j<np1;j++){
                 index=pfof2[h1[i].ParticleID[j]]-(long int)1;
-                //if (pfof2[pglist[noffset[i]+j]]>0) sharelist[tid*nhalos2+pfof2[pglist[noffset[i]+j]]-1]+=1;
                 if (pfof2[h1[i].ParticleID[j]]>0) sharelist[index]+=1;
             }
             numshared=0;
