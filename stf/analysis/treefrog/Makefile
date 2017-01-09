@@ -3,7 +3,7 @@ MAKECHECK=../../Makefile.config Makefile
 
 OBJS = $(patsubst %.cxx,%.o,$(wildcard *.cxx))
 INCL   = *.h
-EXEC = halomergertree
+EXEC = treefrog
 
 all : $(EXEC)
 
