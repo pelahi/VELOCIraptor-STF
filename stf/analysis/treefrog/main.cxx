@@ -124,6 +124,7 @@ int main(int argc,char **argv)
     for (i=opt.numsnapshots-1;i>=0;i--) {
     //check if data is load making sure i is in appropriate range
     if (i>=StartSnap && i<EndSnap) {
+        time2=MyGetTime();
         //if snapshot contains halos/structures then search for progenitors 
         if(pht[i].numhalos>0){
             cout<<i<<" "<<pht[i].numhalos<<" cross matching objects in standard merger tree direction (progenitors)"<<endl;
@@ -208,6 +209,7 @@ int main(int argc,char **argv)
             delete[] pprogendescen[i];
             pprogendescen[i]=NULL;
         }
+        if (opt.iverbose) cout<<ThisTask<<" finished Progenitor processing for snapshot "<<i<<" in "<<MyGetTime()-time2<<endl;
     }
     else pprogen[i]=NULL;
     }
@@ -234,12 +236,11 @@ int main(int argc,char **argv)
         }
         }
     }
-
-    if (opt.iverbose) cout<<"Finished the progenitor cross matching "<<MyGetTime()-time1<<endl;
+    if (opt.iverbose) cout<<"Finished the Progenitor cross matching "<<MyGetTime()-time1<<endl;
 
     //Produce a reverse cross comparison or descendant tree if a full graph is requested. 
     if(opt.icatalog==DGRAPH) {
-    time2=MyGetTime();
+    time1=MyGetTime();
     if (opt.iverbose) cout<<"Starting descendant cross matching "<<endl;
     pdescen=new DescendantData*[opt.numsnapshots];
     pfofd=new unsigned int[opt.MaxIDValue];
@@ -249,6 +250,7 @@ int main(int argc,char **argv)
 
     for (i=opt.numsnapshots-1;i>=0;i--) {
     if (i>=StartSnap && i<EndSnap) {
+        time2=MyGetTime();
         if(pht[i].numhalos>0){
             cout<<i<<" "<<pht[i].numhalos<<" cross matching objects in other direction (descendants)"<<endl;
             /*
@@ -303,11 +305,12 @@ int main(int argc,char **argv)
         else {
             pdescen[i]=NULL;
         }
+        if (opt.iverbose) cout<<ThisTask<<" finished Progenitor processing for snapshot "<<i<<" in "<<MyGetTime()-time2<<endl;
     }
     else pdescen[i]=NULL;
     }
     delete[] pfofd;
-    if (opt.iverbose) cout<<"Starting descendant cross matching "<<MyGetTime()-time2<<endl;
+    if (opt.iverbose) cout<<"Finished Descendant cross matching "<<MyGetTime()-time1<<endl;
     }
 
     //now adjust the halo ids as prior, halo ids simple represent read order, allowing for addressing of memory by halo id value
