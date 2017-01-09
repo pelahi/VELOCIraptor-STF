@@ -18,6 +18,8 @@ ProgenitorData *CrossMatch(Options &opt, const long unsigned nhalos1, const long
     Double_t merit;
     int nthreads=1,tid,chunksize;
     long unsigned offset;
+    //temp variable to store the openmp reduction value for ilistupdated
+    int newilistupdated;
 #ifdef USEOPENMP
 #pragma omp parallel 
     {
@@ -37,6 +39,7 @@ ProgenitorData *CrossMatch(Options &opt, const long unsigned nhalos1, const long
     if (refprogen==NULL) ilistupdated=1;
     //otherwise assume list is not updated
     else ilistupdated=0;
+    newilistupdated=ilistupdated;
 
     //if there are halos to link
     if (nhalos2>0){
@@ -347,7 +350,7 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2)
 #pragma omp parallel default(shared) \
 private(i,j,k,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2)
 {
-#pragma omp for schedule(dynamic,chunksize) nowait reduction(+:ilistupdated)
+#pragma omp for schedule(dynamic,chunksize) nowait reduction(+:newilistupdated)
         //for (i=0;i<nhalos1;i++){
         for (k=0;k<num_noprogen;k++){
             tid=omp_get_thread_num();
@@ -399,7 +402,7 @@ private(i,j,k,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2)
                 }
                 //if at this point when looking for progenitors not present in the reference list
                 //can check to see if numshared>0 and if so, then reference list will have to be updated
-                ilistupdated+=(numshared>0);
+                newilistupdated+=(numshared>0);
 
                 p1[i].NumberofProgenitors=numshared;
                 p1[i].ProgenitorList=new long unsigned[numshared];
@@ -529,7 +532,7 @@ private(i,j,k,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2)
                     pq->Push(j,merit);
                     sharelist[j]=0;
                 }
-                ilistupdated+=(numshared>0);
+                newilistupdated+=(numshared>0);
                 p1[i].NumberofProgenitors=numshared;
                 p1[i].ProgenitorList=new long unsigned[numshared];
                 p1[i].Merit=new float[numshared];
@@ -609,7 +612,8 @@ private(i,j,k,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2)
 #endif
         delete[] needprogenlist;
     }
-    //endi of if statement for progenitors more than one snap ago if any current haloes need to be searched
+    //end of if statement for progenitors more than one snap ago if any current haloes need to be searched
+    ilistupdated=newilistupdated;
     }
     //end of progenitors more than one snap ago
     }
