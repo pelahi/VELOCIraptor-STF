@@ -150,6 +150,11 @@ using namespace NBody;
 #define HALOIDSNVAL 1000000
 #endif
 
+/// \name OpenMP parameters for load balancing
+#ifdef USEOPENMP
+#define OMPCHUNKSIZE 100UL
+#endif
+
 /// Options structure stores useful variables that have user determined values which are altered by \ref GetArgs in \ref ui.cxx
 struct Options
 {
@@ -506,9 +511,9 @@ struct DescendantData
     ///store list of descendants
     long unsigned* DescendantList;
     ///store the merit value
-    Double_t *Merit;
+    float *Merit;
     ///store the fraction of shared particles
-    Double_t *nsharedfrac; 
+    float *nsharedfrac; 
 
     ///store number of steps back in time progenitor found
     int istep;
@@ -535,13 +540,13 @@ struct DescendantData
         }
         NumberofDescendants=d.NumberofDescendants;
         DescendantList=new long unsigned[NumberofDescendants];
-        Merit=new Double_t[NumberofDescendants];
+        Merit=new float[NumberofDescendants];
         for (int i=0;i<NumberofDescendants;i++) {
             DescendantList[i]=d.DescendantList[i];
             Merit[i]=d.Merit[i];
         }
         if (d.nsharedfrac!=NULL) {
-            nsharedfrac=new Double_t[NumberofDescendants];
+            nsharedfrac=new float[NumberofDescendants];
             for (int i=0;i<NumberofDescendants;i++) nsharedfrac[i]=d.nsharedfrac[i];
         }
         istep=d.istep;

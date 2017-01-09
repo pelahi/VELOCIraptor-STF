@@ -136,14 +136,14 @@ void MPIUpdateProgenitorsUsingDescendants(Options &opt, HaloTreeData *&pht, Desc
 /// the routine can also be provided a reference list and the time step of the current halo list used to identify progenitors
 /// and will only search current halo list if the reference list doesn't meet the criteria for viable progenitors
 /// which is currently whether there are any in the reference list
-ProgenitorData *CrossMatch(Options &opt, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData* &h2, long unsigned *&pglist, long unsigned *&noffset, unsigned int*&pfof2, int &ilistupdated, int istepval=1, ProgenitorData *refprogen=NULL);
+ProgenitorData *CrossMatch(Options &opt, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData* &h2, unsigned int*&pfof2, int &ilistupdated, int istepval=1, ProgenitorData *refprogen=NULL);
 ///clean cross matches of duplicate entries so that a progenitor can have ONLY ONE descendent. 
 void CleanCrossMatch(const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData *&h2, ProgenitorData *&pprogen);
 ///fill in empty links of the reference list with another progenitor list produced using same reference snapshot but different linking snapshot. 
 ///Allows for multiple steps in snapshots to be used. 
 void UpdateRefProgenitors(const int ilinkcriteria, const Int_t numhalos,ProgenitorData *&pref, ProgenitorData *&ptemp);
 ///similar to \ref CrossMatch but for descendants
-DescendantData *CrossMatchDescendant(Options &opt, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData* &h2, long unsigned *&pglist, long unsigned *&noffset, unsigned int*&pfof2, int &ilistupdated, int istepval=1, DescendantData *refdescen=NULL);
+DescendantData *CrossMatchDescendant(Options &opt, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData* &h2, unsigned int*&pfof2, int &ilistupdated, int istepval=1, DescendantData *refdescen=NULL);
 ///similar to \ref CleanCrossMatch but for descendants
 void CleanCrossMatchDescendant(const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData *&h2, DescendantData *&pdescen);
 ///similar to \ref UpdateRefProgenitors but for descendants
