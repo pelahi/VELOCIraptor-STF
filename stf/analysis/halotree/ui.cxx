@@ -2,7 +2,7 @@
  *  \brief user interface
  */
 
-#include "halomergertree.h"
+#include "TreeFrog.h"
 
 ///routine to get arguments from command line
 /// \todo alter interface as now need to be able to specify only smdata file (no grid, res, normalized res) and functionality to specify eps, background fof search, etc

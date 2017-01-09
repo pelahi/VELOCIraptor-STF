@@ -1,4 +1,13 @@
 ================================================================================================
+
+____   _______________.____    ________  _________ .___                      __
+\   \ /   /\_   _____/|    |   \_____  \ \_   ___ \|   |___________  _______/  |_  ___________
+ \   Y   /  |    __)_ |    |    /   |   \/    \  \/|   \_  __ \__  \ \____ \   __\/  _ \_  __ \
+  \     /   |        \|    |___/    |    \     \___|   ||  | \// __ \|  |_> >  | (  <_> )  | \/
+   \___/   /_______  /|_______ \_______  /\______  /___||__|  (____  /   __/|__|  \____/|__|
+                   \/         \/       \/        \/                \/|__|
+
+(Formerly)
   ____________________                     __
  /   _____/\__    ___/______ __ __   _____/  |_ __ _________   ____
  \_____  \   |    |  \_  __ \  |  \_/ ___\   __\  |  \_  __ \_/ __ \
@@ -18,17 +27,9 @@ ___________.__            .___
   \  \  /_______  /  |____|    \___  /     /  /
    \__\         \/                 \/     /__/                        
 
-
-____   _______________.____    ________  _________ .___                      __
-\   \ /   /\_   _____/|    |   \_____  \ \_   ___ \|   |___________  _______/  |_  ___________
- \   Y   /  |    __)_ |    |    /   |   \/    \  \/|   \_  __ \__  \ \____ \   __\/  _ \_  __ \
-  \     /   |        \|    |___/    |    \     \___|   ||  | \// __ \|  |_> >  | (  <_> )  | \/
-   \___/   /_______  /|_______ \_______  /\______  /___||__|  (____  /   __/|__|  \____/|__|
-                   \/         \/       \/        \/                \/|__|
-
 ================================================================================================
 
-    VELOCIraptor/STructure Finder
+    VELOCIraptor (formerly STructure Finder)
 
 ================================================================================================
     developed by:
@@ -72,7 +73,7 @@ ____   _______________.____    ________  _________ .___                      __
     A quick summary of flags that can be adjusted are
     mpi compilers, openmp flags, precision used (floats versus doubles, ints versus longs).
 
-    STF and all variants do not support non-Unix environments. (Mac OS X is fine; Windows is not).
+    VELOCIraptor and all variants do not support non-Unix environments. (Mac OS X is fine; Windows is not).
 
 ================================================================================================
 
@@ -124,12 +125,13 @@ ____   _______________.____    ________  _________ .___                      __
 
 ================================================================================================
 
-    Halotree: 
+    TreeFrog (Fomerly Halotree): 
     --------------------------------------------------------------------------------------------
     Tool builds a halo merger tree (and also a full graph) using a file containing the list of 
-    base file names of catalog files prodcued by VELOCIraptor.
+    base file names of catalog files prodcued by VELOCIraptor. Can also read output from other
+    structure finders like AHF.
 
-    Baryons
+    Baryons (discontinued/in need of major revision) 
     --------------------------------------------------------------------------------------------
     Tool designed to calculate numerous properties and profiles based on the input from
     VELOCIraptor catalogs.

@@ -2,7 +2,7 @@
  *  \brief this file contains routines for io
  */
 
-#include "halomergertree.h"
+#include "TreeFrog.h"
 
 ///\name Reading routines
 //@{

@@ -256,8 +256,8 @@ struct Options
         outputformat=OUTASCII;
         haloidoffset=0;
 
-        particle_frac=1;
-        min_numpart=20;
+        particle_frac=-1;
+        min_numpart=0;
 
         iverbose=1;
 #ifdef USEMPI

@@ -1,14 +1,14 @@
-/*! \file halomergertree.h
+/*! \file TreeFrog.h
  *  \brief header file for the code
  */
 
-#ifndef HALOMERGERTREE_H
-#define HALOMERGERTREE_H
+#ifndef TREEFROG_H
+#define TREEFROG_H
 
 #include "allvars.h"
 #include "proto.h"
 
-#define HALOMERGERTREE 1.2
+#define TREEFROG 1.2
 
 #ifdef USEOPENMP
 #include <omp.h>

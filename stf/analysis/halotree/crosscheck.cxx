@@ -3,7 +3,7 @@
  *  \brief this file contains routines for determining and calculating cross matches
  */
 
-#include "halomergertree.h"
+#include "TreeFrog.h"
 
 
 /// \name cross matching routines
@@ -16,12 +16,16 @@ ProgenitorData *CrossMatch(Options &opt, const long unsigned nhalos1, const long
     long int i,j,k,n,index;
     Int_t numshared;
     Double_t merit;
-    int nthreads=1,tid;
+    int nthreads=1,tid,chunksize;
+    long unsigned offset;
 #ifdef USEOPENMP
 #pragma omp parallel 
     {
     if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
     }
+    //chunksize should be small as typically halo distribution is a few very large haloes followed by many smaller ones
+    //to ensure reasonably even splitting of work, have small chunks
+    chunksize=10;
 #endif
     ProgenitorData *p1=new ProgenitorData[nhalos1];
     int *sharelist,*halolist;
@@ -45,31 +49,48 @@ ProgenitorData *CrossMatch(Options &opt, const long unsigned nhalos1, const long
     halolist=new int[ntotitems];
     for (i=0;i<ntotitems;i++)sharelist[i]=0;
 #pragma omp parallel default(shared) \
-private(i,j,k,tid,pq,numshared,merit,index,np1,np2,pq2)
+private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2)
 {
-#pragma omp for schedule(dynamic,10) nowait
+#pragma omp for schedule(dynamic,chunksize) nowait
     //if openmp declared
     for (i=0;i<nhalos1;i++){
         tid=omp_get_thread_num();
+        offset=((long int)tid)*nhalos2;
+        numshared=0;
         for (j=0;j<h1[i].NumberofParticles;j++){
-            index=((long int)tid)*nhalos2+pfof2[h1[i].ParticleID[j]]-(long int)1;
+            index=offset+pfof2[h1[i].ParticleID[j]]-(long int)1;
             if (pfof2[h1[i].ParticleID[j]]>0) sharelist[index]+=1;
+            //if first time halo has been added, update halolist and increase numshared
+            if (sharelist[index]==1) halolist[offset+numshared++]=pfof2[h1[i].ParticleID[j]]-1;
         }
+        //now proccess numshared list to remove insignificant connections
+        for (k=0;k<numshared;k++) {
+            j=halolist[offset+k];
+            index=offset+j;
+            //if sharelist not enough, then move to end and decrease numshared
+            if(sharelist[index]<opt.mlsig*sqrt((Double_t)h2[j].NumberofParticles)) {
+                halolist[offset+k]=halolist[offset+numshared-1];
+                sharelist[index]=0;
+                k--;
+                numshared--;
+            }
+        }
+        /*
         numshared=0;
         //determine # of cross-correlations, but if it is not significant relative to Poisson noise, then
         for (j=0;j<nhalos2;j++) {
-            index=((long int)tid)*nhalos2+j;
+            index=offset+j;
             if(sharelist[index]>opt.mlsig*sqrt((Double_t)h2[j].NumberofParticles)){
-                halolist[((long int)tid)*nhalos2+numshared++]=j;
+                halolist[offset+numshared++]=j;
             }
             else sharelist[index]=0;
-        }
+        }*/
         if (numshared>0) {
             //store all viable matches
             pq=new PriorityQueue(numshared);
             for (k=0;k<numshared;k++) {
-                j=halolist[((long int)tid)*nhalos2+k];
-                index=((long int)tid)*nhalos2+j;
+                j=halolist[offset+k];
+                index=offset+j;
                 if (opt.matchtype==NsharedN1N2)
                     merit=(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
                 else if (opt.matchtype==NsharedN1)
@@ -98,27 +119,43 @@ private(i,j,k,tid,pq,numshared,merit,index,np1,np2,pq2)
         if (opt.particle_frac<1 && opt.particle_frac>0 && numshared>0) {
         np1=(h1[i].NumberofParticles*opt.particle_frac);
         if (np1>=opt.min_numpart) { 
-            for (j=0;j<np1;j++){
-                index=((long int)tid)*nhalos2+pfof2[h1[i].ParticleID[j]]-(long int)1;
-                if (pfof2[h1[i].ParticleID[j]]>0) sharelist[index]+=1;
-            }
             numshared=0;
+            for (j=0;j<np1;j++){
+                index=offset+pfof2[h1[i].ParticleID[j]]-(long int)1;
+                if (pfof2[h1[i].ParticleID[j]]>0) sharelist[index]+=1;
+                if (sharelist[index]==1) halolist[offset+numshared++]=pfof2[h1[i].ParticleID[j]]-1;
+            }
+            for (k=0;k<numshared;k++) {
+                j=halolist[offset+k];
+                index=offset+j;
+                np2=h2[j].NumberofParticles*opt.particle_frac;
+                if (h2[j].NumberofParticles<opt.min_numpart) np2=h2[j].NumberofParticles;
+                else if (np2<opt.min_numpart) np2=opt.min_numpart;
+                //if sharelist not enough, then move to end and decrease numshared
+                if(sharelist[index]<opt.mlsig*sqrt((Double_t)np2)){
+                    halolist[offset+k]=halolist[offset+numshared-1];
+                    sharelist[index]=0;
+                    k--;
+                    numshared--;
+                }
+            }
+            /*
             //determine # of cross-correlations, but if it is not significant relative to Poisson noise, then
             for (j=0;j<nhalos2;j++) {
-                index=((long int)tid)*nhalos2+j;
+                index=offset+j;
                 np2=h2[j].NumberofParticles*opt.particle_frac;
                 if (h2[j].NumberofParticles<opt.min_numpart) np2=h2[j].NumberofParticles;
                 else if (np2<opt.min_numpart) np2=opt.min_numpart;
                 if(sharelist[index]>opt.mlsig*sqrt((Double_t)np2)){
-                    halolist[((long int)tid)*nhalos2+numshared++]=j;}
+                    halolist[offset+numshared++]=j;}
                 else sharelist[index]=0;
-            }
+            }*/
             if (numshared>0) {
                 //store all viable matches and old ones too
                 pq2=new PriorityQueue(numshared+p1[i].NumberofProgenitors);
                 for (k=0;k<numshared;k++) {
-                    j=halolist[((long int)tid)*nhalos2+k];
-                    index=((long int)tid)*nhalos2+j;
+                    j=halolist[offset+k];
+                    index=offset+j;
                     np2=h2[j].NumberofParticles*opt.particle_frac;
                     if (h2[j].NumberofParticles<opt.min_numpart) np2=h2[j].NumberofParticles;
                     else if (np2<opt.min_numpart) np2=opt.min_numpart;
@@ -161,9 +198,25 @@ private(i,j,k,tid,pq,numshared,merit,index,np1,np2,pq2)
     //set max number of progenitors for a single halo
     for (i=0;i<nhalos2;i++)sharelist[i]=0;
     for (i=0;i<nhalos1;i++){
+        numshared=0;
         for (j=0;j<h1[i].NumberofParticles;j++){
             if (pfof2[h1[i].ParticleID[j]]>0) sharelist[pfof2[h1[i].ParticleID[j]]-1]+=1;
+            //if first time halo has been added, update halolist and increase numshared
+            if (sharelist[pfof2[h1[i].ParticleID[j]]-1]==1) halolist[numshared++]=pfof2[h1[i].ParticleID[j]]-1;
         }
+        //now proccess numshared list to remove insignificant connections
+        for (k=0;k<numshared;k++) {
+            j=halolist[k];
+            index=j;
+            //if sharelist not enough, then move to end and decrease numshared
+            if(sharelist[index]<opt.mlsig*sqrt((Double_t)h2[j].NumberofParticles)) {
+                halolist[k]=halolist[numshared-1];
+                sharelist[index]=0;
+                k--;
+                numshared--;
+            }
+        }
+        /*
         numshared=0;
         //determine # of cross-correlations, but if it is not significant relative to Poisson noise, then
         for (j=0;j<nhalos2;j++)
@@ -171,7 +224,7 @@ private(i,j,k,tid,pq,numshared,merit,index,np1,np2,pq2)
                 halolist[numshared++]=j;
             }
             else sharelist[j]=0;
-
+        */
         if (numshared>0) {
             pq=new PriorityQueue(numshared);
             for (k=0;k<numshared;k++){
@@ -205,22 +258,26 @@ private(i,j,k,tid,pq,numshared,merit,index,np1,np2,pq2)
         np1=(h1[i].NumberofParticles*opt.particle_frac);
         if (np1>=opt.min_numpart) { 
             //np1=min(min((long unsigned)opt.min_numpart,h1[i].NumberofParticles),(long unsigned)(h1[i].NumberofParticles*opt.particle_frac));
+            numshared=0;
             for (j=0;j<np1;j++){
                 index=pfof2[h1[i].ParticleID[j]]-(long int)1;
                 //if (pfof2[pglist[noffset[i]+j]]>0) sharelist[tid*nhalos2+pfof2[pglist[noffset[i]+j]]-1]+=1;
                 if (pfof2[h1[i].ParticleID[j]]>0) sharelist[index]+=1;
+                if (sharelist[index]==1) halolist[numshared++]=index;
             }
-            numshared=0;
-            //determine # of cross-correlations, but if it is not significant relative to Poisson noise, then
-            for (j=0;j<nhalos2;j++) {
+            for (k=0;k<numshared;k++) {
+                j=halolist[k];
                 index=j;
                 np2=h2[j].NumberofParticles*opt.particle_frac;
                 if (h2[j].NumberofParticles<opt.min_numpart) np2=h2[j].NumberofParticles;
                 else if (np2<opt.min_numpart) np2=opt.min_numpart;
-                if(sharelist[index]>opt.mlsig*sqrt((Double_t)np2)){
-                    halolist[numshared++]=j;
+                //if sharelist not enough, then move to end and decrease numshared
+                if(sharelist[index]<opt.mlsig*sqrt((Double_t)np2)){
+                    halolist[k]=halolist[numshared-1];
+                    sharelist[index]=0;
+                    k--;
+                    numshared--;
                 }
-                else sharelist[index]=0;
             }
             if (numshared>0) {
                 //store all viable matches and old ones too
@@ -272,247 +329,285 @@ private(i,j,k,tid,pq,numshared,merit,index,np1,np2,pq2)
         p1[i].NumberofProgenitors=0;p1[i].ProgenitorList=NULL;p1[i].Merit=NULL;
         num_noprogen+=(refprogen[i].NumberofProgenitors==0);
     }
-    if (num_noprogen>0) {
-    needprogenlist=new long unsigned[num_noprogen];
-    num_noprogen=0;
-    for (i=0;i<nhalos1;i++){
-        if (refprogen[i].NumberofProgenitors==0){
-            needprogenlist[num_noprogen++]=i;
-        }
-    }
-
     //only allocate memory and process list if there are any haloes needing to be searched
+    if (num_noprogen>0) {
+        needprogenlist=new long unsigned[num_noprogen];
+        num_noprogen=0;
+        for (i=0;i<nhalos1;i++){
+            if (refprogen[i].NumberofProgenitors==0){
+                needprogenlist[num_noprogen++]=i;
+            }
+        }
+
 #ifdef USEOPENMP
-    ntotitems=nhalos2*(long unsigned)nthreads;
-    sharelist=new int[ntotitems];
-    halolist=new int[ntotitems];
-    for (i=0;i<ntotitems;i++)sharelist[i]=0;
+        ntotitems=nhalos2*(long unsigned)nthreads;
+        sharelist=new int[ntotitems];
+        halolist=new int[ntotitems];
+        for (i=0;i<ntotitems;i++)sharelist[i]=0;
 #pragma omp parallel default(shared) \
-private(i,j,k,n,tid,pq,numshared,merit,index,np1,np2,pq2)
+private(i,j,k,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2)
 {
-#pragma omp for schedule(dynamic,10) nowait reduction(+:ilistupdated)
-    //for (i=0;i<nhalos1;i++){
-    for (k=0;k<num_noprogen;k++){
-        i=needprogenlist[k];
-
-        tid=omp_get_thread_num();
-        for (j=0;j<h1[i].NumberofParticles;j++){
-            index=((long int)tid)*nhalos2+pfof2[h1[i].ParticleID[j]]-(long int)1;
-            if (pfof2[h1[i].ParticleID[j]]>0) sharelist[index]+=1;
-        }
-        numshared=0;
-        //determine # of cross-correlations, but if it is not significant relative to Poisson noise, then
-        for (j=0;j<nhalos2;j++) {
-            index=((long int)tid)*nhalos2+j;
-            if(sharelist[index]>opt.mlsig*sqrt((Double_t)h2[j].NumberofParticles)){
-                halolist[((long int)tid)*nhalos2+numshared++]=j;
-            }
-            else sharelist[index]=0;
-        }
-        if (numshared>0) {
-            pq=new PriorityQueue(numshared);
-            for (n=0;n<numshared;n++){
-                j=halolist[((long int)tid)*nhalos2+n];
-                index=((long int)tid)*nhalos2+j;
-                if (opt.matchtype==NsharedN1N2)
-                    merit=(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
-                else if (opt.matchtype==NsharedN1)
-                    merit=(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles;
-                else if (opt.matchtype==Nshared)
-                    merit=(Double_t)sharelist[index];
-                else if (opt.matchtype==Nsharedcombo)
-                    merit=(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles+(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
-                pq->Push(j,merit);
-                sharelist[index]=0;
-            }
-            //if at this point when looking for progenitors not present in the reference list
-            //can check to see if numshared>0 and if so, then reference list will have to be updated
-            ilistupdated+=(numshared>0);
-
-            p1[i].NumberofProgenitors=numshared;
-            p1[i].ProgenitorList=new long unsigned[numshared];
-            p1[i].Merit=new float[numshared];
-            p1[i].nsharedfrac=new float[numshared];
-            for (j=0;j<numshared;j++){
-                //p1[i].ProgenitorList[j]=h2[pq->TopQueue()].haloID;
-                p1[i].ProgenitorList[j]=pq->TopQueue();
-                p1[i].Merit[j]=pq->TopPriority();
-                pq->Pop();
-            }
-            delete pq;
-        }
-        else {p1[i].ProgenitorList=NULL;p1[i].Merit=NULL;}
-        //if weighted merit function is to be calculated then use the most bound fraction of particles to construct share list
-        if (opt.particle_frac<1 && opt.particle_frac>0 && numshared>0) {
-        np1=(h1[i].NumberofParticles*opt.particle_frac);            
-        if (np1>=opt.min_numpart) { 
-            for (j=0;j<np1;j++){
-                index=((long int)tid)*nhalos2+pfof2[h1[i].ParticleID[j]]-(long int)1;
-                //if (pfof2[pglist[noffset[i]+j]]>0) sharelist[tid*nhalos2+pfof2[pglist[noffset[i]+j]]-1]+=1;
-                if (pfof2[h1[i].ParticleID[j]]>0) sharelist[index]+=1;
-            }
+#pragma omp for schedule(dynamic,chunksize) nowait reduction(+:ilistupdated)
+        //for (i=0;i<nhalos1;i++){
+        for (k=0;k<num_noprogen;k++){
+            tid=omp_get_thread_num();
+            offset=((long int)tid)*nhalos2;
+            i=needprogenlist[k];
             numshared=0;
+            for (j=0;j<h1[i].NumberofParticles;j++){
+                index=offset+pfof2[h1[i].ParticleID[j]]-(long int)1;
+                if (pfof2[h1[i].ParticleID[j]]>0) sharelist[index]+=1;
+                //if first time halo has been added, update halolist and increase numshared
+                if (sharelist[index]==1) halolist[offset+numshared++]=pfof2[h1[i].ParticleID[j]]-1;
+            }
+            //now proccess numshared list to remove insignificant connections
+            for (n=0;n<numshared;n++) {
+                j=halolist[offset+n];
+                index=offset+j;
+                //if sharelist not enough, then move to end and decrease numshared
+                if(sharelist[index]<opt.mlsig*sqrt((Double_t)h2[j].NumberofParticles)) {
+                    halolist[offset+n]=halolist[offset+numshared-1];
+                    sharelist[index]=0;
+                    n--;
+                    numshared--;
+                }
+            }
+            /*
             //determine # of cross-correlations, but if it is not significant relative to Poisson noise, then
             for (j=0;j<nhalos2;j++) {
-                index=((long int)tid)*nhalos2+j;
-                np2=h2[j].NumberofParticles*opt.particle_frac;
-                if (h2[j].NumberofParticles<opt.min_numpart) np2=h2[j].NumberofParticles;
-                else if (np2<opt.min_numpart) np2=opt.min_numpart;
-                if(sharelist[index]>opt.mlsig*sqrt((Double_t)np2)){
-                    halolist[((long int)tid)*nhalos2+numshared++]=j;
+                index=offset+j;
+                if(sharelist[index]>opt.mlsig*sqrt((Double_t)h2[j].NumberofParticles)){
+                    halolist[offset+numshared++]=j;
                 }
                 else sharelist[index]=0;
-            }
+            }*/
             if (numshared>0) {
-                //store all viable matches and old ones too
-                pq2=new PriorityQueue(numshared+p1[i].NumberofProgenitors);
-                for (n=0;n<numshared;n++) {
-                    j=halolist[((long int)tid)*nhalos2+n];
-                    index=((long int)tid)*nhalos2+j;
-                    np2=h2[j].NumberofParticles*opt.particle_frac;
-                    if (h2[j].NumberofParticles<opt.min_numpart) np2=h2[j].NumberofParticles;
-                    else if (np2<opt.min_numpart) np2=opt.min_numpart;
+                pq=new PriorityQueue(numshared);
+                for (n=0;n<numshared;n++){
+                    j=halolist[offset+n];
+                    index=offset+j;
                     if (opt.matchtype==NsharedN1N2)
-                        merit=(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)np1/(Double_t)np2;
+                        merit=(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
                     else if (opt.matchtype==NsharedN1)
-                        merit=(Double_t)sharelist[index]/(Double_t)np1;
+                        merit=(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles;
                     else if (opt.matchtype==Nshared)
                         merit=(Double_t)sharelist[index];
                     else if (opt.matchtype==Nsharedcombo)
-                        merit=(Double_t)sharelist[index]/(Double_t)np1+(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)np1/(Double_t)np2;
-                    pq2->Push(j,merit);
+                        merit=(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles+(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
+                    pq->Push(j,merit);
                     sharelist[index]=0;
                 }
-                //really only care about adjust the best match found if any
-                for (j=0;j<p1[i].NumberofProgenitors;j++) pq2->Push(p1[i].ProgenitorList[j],p1[i].Merit[j]);
-                //if most bound particle matching is not the same as overall matching, lets rearrange match
-                if (pq2->TopQueue()!=p1[i].ProgenitorList[0]) {
-                    for (j=0;j<p1[i].NumberofProgenitors;j++) if (p1[i].ProgenitorList[j]==pq2->TopQueue()) {
-                        p1[i].ProgenitorList[j]=p1[i].ProgenitorList[0];
-                        p1[i].Merit[j]=p1[i].Merit[0];
-                        p1[i].ProgenitorList[0]=pq2->TopQueue();
-                        p1[i].Merit[0]=pq2->TopPriority();
-                        break;
+                //if at this point when looking for progenitors not present in the reference list
+                //can check to see if numshared>0 and if so, then reference list will have to be updated
+                ilistupdated+=(numshared>0);
+
+                p1[i].NumberofProgenitors=numshared;
+                p1[i].ProgenitorList=new long unsigned[numshared];
+                p1[i].Merit=new float[numshared];
+                p1[i].nsharedfrac=new float[numshared];
+                for (j=0;j<numshared;j++){
+                    //p1[i].ProgenitorList[j]=h2[pq->TopQueue()].haloID;
+                    p1[i].ProgenitorList[j]=pq->TopQueue();
+                    p1[i].Merit[j]=pq->TopPriority();
+                    pq->Pop();
+                }
+                delete pq;
+            }
+            else {p1[i].ProgenitorList=NULL;p1[i].Merit=NULL;}
+            //if weighted merit function is to be calculated then use the most bound fraction of particles to construct share list
+            if (opt.particle_frac<1 && opt.particle_frac>0 && numshared>0) {
+            np1=(h1[i].NumberofParticles*opt.particle_frac);            
+            if (np1>=opt.min_numpart) { 
+                numshared=0;
+                for (j=0;j<np1;j++){
+                    index=offset+pfof2[h1[i].ParticleID[j]]-(long int)1;
+                    //if (pfof2[pglist[noffset[i]+j]]>0) sharelist[tid*nhalos2+pfof2[pglist[noffset[i]+j]]-1]+=1;
+                    if (pfof2[h1[i].ParticleID[j]]>0) sharelist[index]+=1;
+                    if (sharelist[index]==1) halolist[offset+numshared++]=pfof2[h1[i].ParticleID[j]]-1;
+                }
+                for (n=0;n<numshared;n++) {
+                    j=halolist[offset+n];
+                    index=offset+j;
+                    np2=h2[j].NumberofParticles*opt.particle_frac;
+                    if (h2[j].NumberofParticles<opt.min_numpart) np2=h2[j].NumberofParticles;
+                    else if (np2<opt.min_numpart) np2=opt.min_numpart;
+                    //if sharelist not enough, then move to end and decrease numshared
+                    if(sharelist[index]<opt.mlsig*sqrt((Double_t)np2)){
+                        halolist[offset+n]=halolist[offset+numshared-1];
+                        sharelist[index]=0;
+                        n--;
+                        numshared--;
                     }
-                    delete pq2;
+                }
+                if (numshared>0) {
+                    //store all viable matches and old ones too
+                    pq2=new PriorityQueue(numshared+p1[i].NumberofProgenitors);
+                    for (n=0;n<numshared;n++) {
+                        j=halolist[offset+n];
+                        index=offset+j;
+                        np2=h2[j].NumberofParticles*opt.particle_frac;
+                        if (h2[j].NumberofParticles<opt.min_numpart) np2=h2[j].NumberofParticles;
+                        else if (np2<opt.min_numpart) np2=opt.min_numpart;
+                        if (opt.matchtype==NsharedN1N2)
+                            merit=(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)np1/(Double_t)np2;
+                        else if (opt.matchtype==NsharedN1)
+                            merit=(Double_t)sharelist[index]/(Double_t)np1;
+                        else if (opt.matchtype==Nshared)
+                            merit=(Double_t)sharelist[index];
+                        else if (opt.matchtype==Nsharedcombo)
+                            merit=(Double_t)sharelist[index]/(Double_t)np1+(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)np1/(Double_t)np2;
+                        pq2->Push(j,merit);
+                        sharelist[index]=0;
+                    }
+                    //really only care about adjust the best match found if any
+                    for (j=0;j<p1[i].NumberofProgenitors;j++) pq2->Push(p1[i].ProgenitorList[j],p1[i].Merit[j]);
+                    //if most bound particle matching is not the same as overall matching, lets rearrange match
+                    if (pq2->TopQueue()!=p1[i].ProgenitorList[0]) {
+                        for (j=0;j<p1[i].NumberofProgenitors;j++) if (p1[i].ProgenitorList[j]==pq2->TopQueue()) {
+                            p1[i].ProgenitorList[j]=p1[i].ProgenitorList[0];
+                            p1[i].Merit[j]=p1[i].Merit[0];
+                            p1[i].ProgenitorList[0]=pq2->TopQueue();
+                            p1[i].Merit[0]=pq2->TopPriority();
+                            break;
+                        }
+                        delete pq2;
+                    }
                 }
             }
+            }
+            //end of weighted merit
         }
-        }
-        //end of weighted merit
     }
-}
-    delete[] sharelist;
+        delete[] sharelist;
+        delete[] halolist;
 #else
-    sharelist=new int[nhalos2];
-    halolist=new int[nhalos2];
-    
-    //set max number of progenitors for a single halo
-    for (i=0;i<nhalos2;i++)sharelist[i]=0;
-//    for (i=0;i<nhalos1;i++){
-    for (k=0;k<num_noprogen;k++){
-        i=needprogenlist[k];
-        for (j=0;j<h1[i].NumberofParticles;j++){
-            if (pfof2[h1[i].ParticleID[j]]>0) sharelist[pfof2[h1[i].ParticleID[j]]-1]+=1;
-        }
-        numshared=0;
-        //determine # of cross-correlations, but if it is not significant relative to Poisson noise, then
-        for (j=0;j<nhalos2;j++)
-            if(sharelist[j]>opt.mlsig*sqrt((Double_t)h2[j].NumberofParticles)){
-                halolist[numshared++]=j;
-            }
-            else sharelist[j]=0;
-        if (numshared>0) {
-            pq=new PriorityQueue(numshared);
-            for (n=0;n<nhalos2;n++){
-                j=halolist[n];
-                if (opt.matchtype==NsharedN1N2)
-                    merit=(Double_t)sharelist[j]*(Double_t)sharelist[j]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
-                else if (opt.matchtype==NsharedN1)
-                    merit=(Double_t)sharelist[j]/(Double_t)h1[i].NumberofParticles;
-                else if (opt.matchtype==Nshared)
-                    merit=(Double_t)sharelist[j];
-                else if (opt.matchtype==Nsharedcombo)
-                    merit=(Double_t)sharelist[j]/(Double_t)h1[i].NumberofParticles+(Double_t)sharelist[j]*(Double_t)sharelist[j]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
-                pq->Push(j,merit);
-                sharelist[j]=0;
-            }
-            ilistupdated+=(numshared>0);
-            p1[i].NumberofProgenitors=numshared;
-            p1[i].ProgenitorList=new long unsigned[numshared];
-            p1[i].Merit=new float[numshared];
-            p1[i].nsharedfrac=new float[numshared];
-            for (j=0;j<numshared;j++){
-                //p1[i].ProgenitorList[j]=h2[pq->TopQueue()].haloID;
-                p1[i].ProgenitorList[j]=pq->TopQueue();
-                p1[i].Merit[j]=pq->TopPriority();
-                pq->Pop();
-            }
-            delete pq;
-        }
-        else {p1[i].ProgenitorList=NULL;p1[i].Merit=NULL;}
-        //if weighted merit function is to be calculated then use the most bound fraction of particles to construct share list
-        if (opt.particle_frac<1 && opt.particle_frac>0 && numshared>0) {
-        np1=(h1[i].NumberofParticles*opt.particle_frac);            
-        if (np1>=opt.min_numpart) { 
-            for (j=0;j<np1;j++){
-                index=pfof2[h1[i].ParticleID[j]]-(long int)1;
-                if (pfof2[h1[i].ParticleID[j]]>0) sharelist[index]+=1;
-            }
+        sharelist=new int[nhalos2];
+        halolist=new int[nhalos2];
+
+        //set max number of progenitors for a single halo
+        for (i=0;i<nhalos2;i++)sharelist[i]=0;
+        for (k=0;k<num_noprogen;k++){
+            i=needprogenlist[k];
             numshared=0;
-            //determine # of cross-correlations, but if it is not significant relative to Poisson noise, then
-            for (j=0;j<nhalos2;j++) {
+            for (j=0;j<h1[i].NumberofParticles;j++){
+                if (pfof2[h1[i].ParticleID[j]]>0) sharelist[pfof2[h1[i].ParticleID[j]]-1]+=1;
+                //if first time halo has been added, update halolist and increase numshared
+                if (sharelist[pfof2[h1[i].ParticleID[j]]-1]==1) halolist[numshared++]=pfof2[h1[i].ParticleID[j]]-1;
+            }
+            //now proccess numshared list to remove insignificant connections
+            for (n=0;n<numshared;n++) {
+                j=halolist[n];
                 index=j;
-                np2=h2[j].NumberofParticles*opt.particle_frac;
-                if (h2[j].NumberofParticles<opt.min_numpart) np2=h2[j].NumberofParticles;
-                else if (np2<opt.min_numpart) np2=opt.min_numpart;
-                if(sharelist[index]>opt.mlsig*sqrt((Double_t)np2)){
+                //if sharelist not enough, then move to end and decrease numshared
+                if(sharelist[index]<opt.mlsig*sqrt((Double_t)h2[j].NumberofParticles)) {
+                    halolist[n]=halolist[numshared-1];
+                    sharelist[index]=0;
+                    n--;
+                    numshared--;
+                }
+            }
+            /*
+            //determine # of cross-correlations, but if it is not significant relative to Poisson noise, then
+            for (j=0;j<nhalos2;j++)
+                if(sharelist[j]>opt.mlsig*sqrt((Double_t)h2[j].NumberofParticles)){
                     halolist[numshared++]=j;
                 }
-                else sharelist[index]=0;
-            }
+                else sharelist[j]=0;
+            */
             if (numshared>0) {
-                //store all viable matches and old ones too
-                pq2=new PriorityQueue(numshared+p1[i].NumberofProgenitors);
+                pq=new PriorityQueue(numshared);
+                for (n=0;n<nhalos2;n++){
+                    j=halolist[n];
+                    if (opt.matchtype==NsharedN1N2)
+                        merit=(Double_t)sharelist[j]*(Double_t)sharelist[j]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
+                    else if (opt.matchtype==NsharedN1)
+                        merit=(Double_t)sharelist[j]/(Double_t)h1[i].NumberofParticles;
+                    else if (opt.matchtype==Nshared)
+                        merit=(Double_t)sharelist[j];
+                    else if (opt.matchtype==Nsharedcombo)
+                        merit=(Double_t)sharelist[j]/(Double_t)h1[i].NumberofParticles+(Double_t)sharelist[j]*(Double_t)sharelist[j]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
+                    pq->Push(j,merit);
+                    sharelist[j]=0;
+                }
+                ilistupdated+=(numshared>0);
+                p1[i].NumberofProgenitors=numshared;
+                p1[i].ProgenitorList=new long unsigned[numshared];
+                p1[i].Merit=new float[numshared];
+                p1[i].nsharedfrac=new float[numshared];
+                for (j=0;j<numshared;j++){
+                    //p1[i].ProgenitorList[j]=h2[pq->TopQueue()].haloID;
+                    p1[i].ProgenitorList[j]=pq->TopQueue();
+                    p1[i].Merit[j]=pq->TopPriority();
+                    pq->Pop();
+                }
+                delete pq;
+            }
+            else {p1[i].ProgenitorList=NULL;p1[i].Merit=NULL;}
+            //if weighted merit function is to be calculated then use the most bound fraction of particles to construct share list
+            if (opt.particle_frac<1 && opt.particle_frac>0 && numshared>0) {
+            np1=(h1[i].NumberofParticles*opt.particle_frac);            
+            if (np1>=opt.min_numpart) {
+                numshared=0;
+                for (j=0;j<np1;j++){
+                    index=pfof2[h1[i].ParticleID[j]]-(long int)1;
+                    if (pfof2[h1[i].ParticleID[j]]>0) sharelist[index]+=1;
+                    if (sharelist[index]==1) halolist[numshared++]=index;
+                }
                 for (n=0;n<numshared;n++) {
                     j=halolist[n];
                     index=j;
                     np2=h2[j].NumberofParticles*opt.particle_frac;
                     if (h2[j].NumberofParticles<opt.min_numpart) np2=h2[j].NumberofParticles;
                     else if (np2<opt.min_numpart) np2=opt.min_numpart;
-                    if (opt.matchtype==NsharedN1N2)
-                        merit=(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)np1/(Double_t)np2;
-                    else if (opt.matchtype==NsharedN1)
-                        merit=(Double_t)sharelist[index]/(Double_t)np1;
-                    else if (opt.matchtype==Nshared)
-                        merit=(Double_t)sharelist[index];
-                    else if (opt.matchtype==Nsharedcombo)
-                        merit=(Double_t)sharelist[index]/(Double_t)np1+(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)np1/(Double_t)np2;
-                    pq2->Push(j,merit);
-                    sharelist[index]=0;
-                }
-                //really only care about adjust the best match found if any
-                for (j=0;j<p1[i].NumberofProgenitors;j++) pq2->Push(p1[i].ProgenitorList[j],p1[i].Merit[j]);
-                //if most bound particle matching is not the same as overall matching, lets rearrange match
-                if (pq2->TopQueue()!=p1[i].ProgenitorList[0]) {
-                    for (j=0;j<p1[i].NumberofProgenitors;j++) if (p1[i].ProgenitorList[j]==pq2->TopQueue()) {
-                        p1[i].ProgenitorList[j]=p1[i].ProgenitorList[0];
-                        p1[i].Merit[j]=p1[i].Merit[0];
-                        p1[i].ProgenitorList[0]=pq2->TopQueue();
-                        p1[i].Merit[0]=pq2->TopPriority();
-                        break;
+                    //if sharelist not enough, then move to end and decrease numshared
+                    if(sharelist[index]<opt.mlsig*sqrt((Double_t)np2)){
+                        halolist[n]=halolist[numshared-1];
+                        sharelist[index]=0;
+                        n--;
+                        numshared--;
                     }
-                    delete pq2;
+                }
+                if (numshared>0) {
+                    //store all viable matches and old ones too
+                    pq2=new PriorityQueue(numshared+p1[i].NumberofProgenitors);
+                    for (n=0;n<numshared;n++) {
+                        j=halolist[n];
+                        index=j;
+                        np2=h2[j].NumberofParticles*opt.particle_frac;
+                        if (h2[j].NumberofParticles<opt.min_numpart) np2=h2[j].NumberofParticles;
+                        else if (np2<opt.min_numpart) np2=opt.min_numpart;
+                        if (opt.matchtype==NsharedN1N2)
+                            merit=(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)np1/(Double_t)np2;
+                        else if (opt.matchtype==NsharedN1)
+                            merit=(Double_t)sharelist[index]/(Double_t)np1;
+                        else if (opt.matchtype==Nshared)
+                            merit=(Double_t)sharelist[index];
+                        else if (opt.matchtype==Nsharedcombo)
+                            merit=(Double_t)sharelist[index]/(Double_t)np1+(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)np1/(Double_t)np2;
+                        pq2->Push(j,merit);
+                        sharelist[index]=0;
+                    }
+                    //really only care about adjust the best match found if any
+                    for (j=0;j<p1[i].NumberofProgenitors;j++) pq2->Push(p1[i].ProgenitorList[j],p1[i].Merit[j]);
+                    //if most bound particle matching is not the same as overall matching, lets rearrange match
+                    if (pq2->TopQueue()!=p1[i].ProgenitorList[0]) {
+                        for (j=0;j<p1[i].NumberofProgenitors;j++) if (p1[i].ProgenitorList[j]==pq2->TopQueue()) {
+                            p1[i].ProgenitorList[j]=p1[i].ProgenitorList[0];
+                            p1[i].Merit[j]=p1[i].Merit[0];
+                            p1[i].ProgenitorList[0]=pq2->TopQueue();
+                            p1[i].Merit[0]=pq2->TopPriority();
+                            break;
+                        }
+                        delete pq2;
+                    }
                 }
             }
+            }
         }
-        }
-    }
-    delete[] sharelist;
-    delete[] halolist;
-
+        delete[] sharelist;
+        delete[] halolist;
 #endif
-    delete[] needprogenlist;
+        delete[] needprogenlist;
     }
     //endi of if statement for progenitors more than one snap ago if any current haloes need to be searched
     }

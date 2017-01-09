@@ -9,7 +9,7 @@
 
 //-- For MPI
 
-#include "halomergertree.h"
+#include "TreeFrog.h"
 
 /// \name For MPI 
 //@{

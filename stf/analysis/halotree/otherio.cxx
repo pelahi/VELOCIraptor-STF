@@ -2,7 +2,7 @@
  *  \brief this file contains routines for other types of particle lists
  */
 
-#include "halomergertree.h"
+#include "TreeFrog.h"
 
 ///Read halo data from an idividual snapshot;
 HaloData *ReadHaloData(string &infile, Int_t &numhalos)

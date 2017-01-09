@@ -3,7 +3,7 @@
 
 */
 
-#include "halomergertree.h"
+#include "TreeFrog.h"
 
 using namespace std;
 using namespace Math;
