@@ -19,7 +19,7 @@ void ReadTipsy(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pba
     Int_t  count,oldcount,ngas,nstar,ndark, Ntot;
     double time,aadjust,z,Hubble,mtotold;
     int temp;
-    Double_t mscale,lscale,lvscale;
+    Double_t mscale,lscale,lvscale,LN;
     Double_t posfirst[3];
     fstream Ftip;
 #ifndef USEMPI
@@ -48,6 +48,8 @@ void ReadTipsy(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pba
     if (!Ftip){cerr<<"ERROR: Unable to open " <<opt.fname<<endl;exit(8);}
     else cout<<"Reading tipsy format from "<<opt.fname<<endl;
 
+    InitEndian();
+
     //read tipsy header.
     Ftip.read((char*)&tipsyheader,sizeof(dump));
     tipsyheader.SwitchtoBigEndian();
@@ -71,6 +73,9 @@ void ReadTipsy(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pba
     Hubble=opt.h*opt.H*sqrt((1.0-opt.Omega_m-opt.Omega_Lambda)*pow(1.0+z,2.0)+opt.Omega_m*pow(1.0+z,3.0)+opt.Omega_Lambda);
     opt.rhobg=3.*Hubble*Hubble/8.0/M_PI/opt.G*opt.Omega_m;
     mscale=opt.M/opt.h;lscale=opt.L/opt.h*aadjust;lvscale=opt.L/opt.h*opt.a;
+    LN=opt.p/(Double_t)opt.Neff;
+    opt.ellxscale=LN;
+    opt.uinfo.eps*=LN;
 
     cout<<"File contains "<<Ntot<<" particles at is at time "<<opt.a<<endl;
     cout<<"There "<<ngas<<" gas, "<<ndark<<" dark, "<<nstar<<" stars."<<endl;

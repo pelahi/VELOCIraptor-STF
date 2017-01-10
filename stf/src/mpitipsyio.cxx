@@ -56,8 +56,10 @@ void MPIDomainExtentTipsy(Options &opt){
     if (!Ftip){cerr<<"ERROR: Unable to open " <<opt.fname<<endl;exit(8);}
     else cout<<"Reading tipsy format from "<<opt.fname<<endl;
 
+    InitEndian();
     //read tipsy header.
     Ftip.read((char*)&tipsyheader,sizeof(dump));
+    tipsyheader.SwitchtoBigEndian();
     Ftip.close();
     //offset stream by a double (time),  an integer (nbodies) ,integer (ndim), an integer (ngas)
     //read an integer (ndark), skip an integer (nstar), then data begins.
@@ -81,9 +83,11 @@ void MPIDomainExtentTipsy(Options &opt){
     count=0;
     Ftip.open(opt.fname, ios::in | ios::binary);
     Ftip.read((char*)&tipsyheader,sizeof(dump));
+    tipsyheader.SwitchtoBigEndian();
     for (Int_t i=0;i<ngas;i++)
     {
         Ftip.read((char*)&gas,sizeof(gas_particle));
+        gas.SwitchtoBigEndian();
         if ((opt.partsearchtype==PSTALL||opt.partsearchtype==PSTGAS)&&count==0) {
             posfirst[0]=gas.pos[0];posfirst[1]=gas.pos[1];posfirst[2]=gas.pos[2];
             count++;
@@ -94,6 +98,7 @@ void MPIDomainExtentTipsy(Options &opt){
     for (Int_t i=0;i<ndark;i++)
     {
         Ftip.read((char*)&dark,sizeof(dark_particle));
+        dark.SwitchtoBigEndian();
         if ((opt.partsearchtype==PSTALL||opt.partsearchtype==PSTDARK)&&count==0) {
             posfirst[0]=dark.pos[0];posfirst[1]=dark.pos[1];posfirst[2]=dark.pos[2];
             count++;
@@ -105,6 +110,7 @@ void MPIDomainExtentTipsy(Options &opt){
     for (Int_t i=0;i<nstar;i++)
     {
         Ftip.read((char*)&star,sizeof(star_particle));
+        star.SwitchtoBigEndian();
         if ((opt.partsearchtype==PSTALL||opt.partsearchtype==PSTSTAR)&&count==0) {
             posfirst[0]=star.pos[0];posfirst[1]=star.pos[1];posfirst[2]=star.pos[2];
             count++;
@@ -117,9 +123,11 @@ void MPIDomainExtentTipsy(Options &opt){
     //determine the dimensional extend of the system
     Ftip.open(opt.fname, ios::in | ios::binary);
     Ftip.read((char*)&tipsyheader,sizeof(dump));
+    tipsyheader.SwitchtoBigEndian();
     for (Int_t i=0;i<ngas;i++)
     {
         Ftip.read((char*)&gas,sizeof(gas_particle));
+        gas.SwitchtoBigEndian();
         if (opt.partsearchtype==PSTALL||opt.partsearchtype==PSTGAS) {
         if (opt.p>0.0)
         {
@@ -134,6 +142,7 @@ void MPIDomainExtentTipsy(Options &opt){
     for (Int_t i=0;i<ndark;i++)
     {
         Ftip.read((char*)&dark,sizeof(dark_particle));
+        dark.SwitchtoBigEndian();
         if (opt.partsearchtype==PSTALL||opt.partsearchtype==PSTDARK) {
         if (opt.p>0.0)
         {
@@ -148,6 +157,7 @@ void MPIDomainExtentTipsy(Options &opt){
     for (Int_t i=0;i<nstar;i++)
     {
         Ftip.read((char*)&star,sizeof(star_particle));
+        star.SwitchtoBigEndian();
         if (opt.partsearchtype==PSTALL||opt.partsearchtype==PSTSTAR) {
         if (opt.p>0.0)
         {
