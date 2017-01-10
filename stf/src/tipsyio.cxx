@@ -18,7 +18,7 @@ void ReadTipsy(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pba
     struct star_particle star;
     Int_t  count,oldcount,ngas,nstar,ndark, Ntot;
     double time,aadjust,z,Hubble,Hubbleflow,mtotold;
-    double MP_DM=MAXVALUE;
+    double MP_DM=MAXVALUE, MP_B=MAXVALUE;
     int temp;
     Double_t mscale,lscale,lvscale,LN=1.0;
     Double_t posfirst[3];
@@ -305,8 +305,7 @@ void ReadTipsy(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pba
 #ifdef HIGHRES
     if (opt.Neff==-1) {
         //Once smallest mass particle is found (which should correspond to highest resolution area,
-        if (opt.Omega_b==0) MP_B=0;
-        LN=pow(((MP_DM+MP_B)*opt.M)/(opt.Omega_m*3.0*opt.H*opt.h*opt.H*opt.h/(8.0*M_PI*opt.G)),1./3.)*opt.a;
+        LN=pow(((MP_DM)*opt.M)/(opt.Omega_cdm*3.0*opt.H*opt.h*opt.H*opt.h/(8.0*M_PI*opt.G)),1./3.)*opt.a;
     }
     else {
         LN=opt.p/(Double_t)opt.Neff;
