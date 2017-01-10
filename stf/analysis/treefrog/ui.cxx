@@ -10,7 +10,7 @@ void GetArgs(int argc, char *argv[], Options &opt)
 {
     int option;
     int NumArgs = 0;
-    while ((option = getopt(argc, argv, ":i:s:t:n:f:p:o:C:c:S:I:N:B:F:M:H:h:D:O:T:v:m:d:z:")) != EOF)
+    while ((option = getopt(argc, argv, ":i:s:t:n:f:p:o:C:c:S:I:N:B:F:M:H:h:D:O:T:v:m:d:z:a:")) != EOF)
     {
         switch(option)
         {
@@ -56,6 +56,10 @@ void GetArgs(int argc, char *argv[], Options &opt)
                 break;
             case 'S': 
                 opt.mlsig = atof(optarg);
+                NumArgs += 2;
+                break;
+            case 'a': 
+                opt.meritlimit = atof(optarg);
                 NumArgs += 2;
                 break;
             case 'I': 
@@ -184,16 +188,29 @@ void usage(void)
 #endif
     cerr<<"USAGE:\n";
     cerr<<"\n";
+    cerr<<" ========================= "<<endl;
     cerr<<"-i <file containing filelist>\n";
+    cerr<<"-I <Input format ("<<opt.ioformat<<" [Sussing "<<DSUSSING<<", normal velociraptor catalog "<<DCATALOG<<", nIFTY "<<DNIFTY<<", Void "<<DVOID<<" ])\n";
     cerr<<"-s <number of files/snapshots>\n";
-    cerr<<"-t <number of steps integrated over to find links ("<<opt.numsteps<<")\n";
-    cerr<<"-n <Max ID value of particles>\n";
-    cerr<<"-f <fraction of particles to use to calculate weigted merit>\n";
-    cerr<<"-p <minimum number of particles used in weighted merit>\n";
+    cerr<<"-N <if output is split between multiple files due to mpi, number of files written ("<<opt.nmpifiles<<")>\n";
+    cerr<<"-c <produce cross catalog match (0 halo tree ,1 cross catalog ,2 full graph) default ("<<opt.icatalog<<")\n";
     cerr<<"-o <output filename>\n";
     cerr<<"-O <output format>\n";
+    cerr<<" ========================= "<<endl<<endl;
+
+    cerr<<" ========================= "<<endl;
+    cerr<<" For normal catalog produced by velociraptor "<<endl;
+    cerr<<" ========================= "<<endl;
+    cerr<<"-B <input format for (binary 1, hdf 2, or ascii 0) ("<<opt.ibinary<<")>\n";
+    cerr<<"-F <field objects in separate file ("<<opt.ifield<<")>\n";
+    cerr<<" ========================= "<<endl<<endl;
+
+    cerr<<" ========================= "<<endl;
+    cerr<<" Cross matching options "<<endl;
+    cerr<<" ========================= "<<endl;
+    cerr<<"-n <Max ID value of particles [Must specify] ("<<opt.MaxIDValue<<")>\n";
+    cerr<<"-t <number of steps integrated over to find links ("<<opt.numsteps<<")\n";
     cerr<<"-C <cross correlation function type to identify main progenitor ("<<opt.matchtype<<" ["<<NsharedN1N2<<" "<<Nshared<<"])\n";
-    cerr<<"-c <produce cross catalog match (0 halo tree ,1 cross catalog ,2 full graph) default ("<<opt.icatalog<<")\n";
     cerr<<"-T <type of particles to cross correlate ("<<opt.itypematch<<" ["<<ALLTYPEMATCH<<" is all particle types, ";
     cerr<<DMTYPEMATCH<<" is DM particle types, ";
     cerr<<GASTYPEMATCH<<" is GAS particle types, ";
@@ -201,20 +218,39 @@ void usage(void)
     cerr<<DMGASTYPEMATCH<<" is both DM and GAS particle types, ";
     cerr<<",])\n";
     cerr<<"-S <significance of cross match relative to Poisson noise ("<<opt.mlsig<<")\n";
-    cerr<<"-I <Input format ("<<opt.ioformat<<" [Sussing "<<DSUSSING<<", normal cat "<<DCATALOG<<", nIFTY "<<DNIFTY<<", Void "<<DVOID<<" ])\n";
-    cerr<<"-N <if output is split between multiple files due to mpi, number of files written ("<<opt.nmpifiles<<")>\n";
-    cerr<<"-B <binary or ascii format ("<<opt.ibinary<<")>\n";
-    cerr<<"-F <field objects in separate file ("<<opt.ifield<<")>\n";
-    cerr<<"-H <offset snapshot values by this number ("<<opt.snapshotvaloffset<<")>\n";
-    cerr<<"-h <adjust Halo ID values stored in group catalog, useful for matching these values to those stored in .properties files produced by the halo finder. output is ID+(snap+snapshotvaloffset)*haloIDval ("<<opt.haloidval<<")\n";
-    cerr<<"-d <adjust Halo ID by this offset value ("<<opt.haloidoffset<<")\n";
+    cerr<<"-a <merit limit to search for new links ("<<opt.meritlimit<<")\n";
+    cerr<<"-f <fraction of particles to use to calculate weigted merit>\n";
+    cerr<<"-p <minimum number of particles used in weighted merit>\n";
+    cerr<<" ========================= "<<endl<<endl;
 
+    cerr<<" ========================= "<<endl;
+    cerr<<" ID to index mapping if required"<<endl;
+    cerr<<" ========================= "<<endl;
     cerr<<"-D <adjust particle IDs for nIFTY cross catalogs across simulations ("<<opt.idcorrectflag<<")\n";
     cerr<<"-M <Mapping of particle ids to index ("<<opt.imapping<<" [ no maping "<<DNOMAP<<", simple mapping "<<DSIMPLEMAP<<"])\n";
+    cerr<<" ========================= "<<endl<<endl;
+
+    cerr<<" ========================= "<<endl;
+    cerr<<" Ouptut options for halo ID values"<<endl;
+    cerr<<" ========================= "<<endl;
+    cerr<<"-h <adjust Halo ID values stored in group catalog, useful for matching these values to those stored in .properties files produced by the halo finder. output is ID+(snap+snapshotvaloffset)*haloIDval ("<<opt.haloidval<<")\n";
+    cerr<<"-d <adjust Halo ID by this offset value ("<<opt.haloidoffset<<")\n";
+    cerr<<"-H <offset snapshot values by this number ("<<opt.snapshotvaloffset<<")>\n";
+    cerr<<" ========================= "<<endl<<endl;
+
+    cerr<<" ========================= "<<endl;
+    cerr<<" Other options"<<endl;
+    cerr<<" ========================= "<<endl;
     cerr<<"-v <verbose flag 1/0 ("<<opt.iverbose<<")\n";
+    cerr<<" ========================= "<<endl<<endl;
+
 #ifdef USEMPI
+    cerr<<" ========================= "<<endl;
+    cerr<<" For mpi load balancing "<<endl;
+    cerr<<" ========================= "<<endl;
     cerr<<"-m <number of items per mpi thead, use for load balacing. If 0, based on input ("<<opt.numpermpi<<")\n";
     cerr<<"-z <number of mpi theads used to calculate load balacing. If >0 this used with one actual mpi thread but determines load balancing based on desired number of mpi threads. Write load balancing file and terminates. If 0 (default) normal operation \n";
+    cerr<<" ========================= "<<endl<<endl;
 #endif
 #ifdef USEMPI
     }
@@ -228,7 +264,7 @@ void usage(void)
     The following commands are accepted as command line arguments (more info can be found in \ref Options struct and \ref ui.cxx for user interface or the sample configuration file
 in the examples directory). \n \n
 
-    \section outconfig Input/Output related. 
+    \section ioconfig Input/Output related. 
     See \ref io.cxx, \ref stfio.cxx, and \ref otherio.cxx for implementation of the code, \ref allvars.h for definitions
     \arg \b \e -i < file containing filelist >
     \arg \b \e -s < number of files/snapshots to be processed >
@@ -247,14 +283,18 @@ in the examples directory). \n \n
     \arg \b \e -T < type of particles to cross correlate (\ref opt.itypematch, which can be \ref ALLTYPEMATCH is all particle types, \ref DMTYPEMATCH is DM particle types
     \ref GASTYPEMATCH is GAS particle types \ref STARTYPEMATCH is STAR particle types, \ref DMGASTYPEMATCH is both DM and GAS particle types >
     \arg \b \e -S < significance of cross match relative to Poisson noise >
+    \arg \b \e -a < merit limit below which will search for links at earlier snapshot (as if no match is found)>
 
-    \section otherconfig Other options
+    \section outputconfig Output options
     \arg \b \e -H < offset snapshot values by this number >
     \arg \b \e -h < adjust Halo ID values stored in group catalog, useful for matching these values to those stored in .properties files produced by the halo finder. output is ID+(snap+snapshotvaloffset)*haloIDval >
     \arg \b \e -d < adjust Halo ID by this offset value >
+
+    \section otherconfig Other options
     \arg \b \e -D < adjust particle IDs for nIFTY cross catalogs across simulations >
     \arg \b \e -M < Mapping of particle ids to index  (\ref opt.imapping with \ref DNOMAP no mapping of ids to indices, all others must be implemented >
     \arg \b \e -v < verbose flag 1/0 > 
+    \section mpiconfig MPI options
     \arg \b \e -m < number of items per mpi thead, use for load balacing. Use 0 if no mpi used when building halo catalog >
     \arg \b \e -z < number of mpi theads used to calculate load balacing. If >0 this used with one actual mpi thread but determines load balancing based on desired number of mpi threads. Write load balancing file and terminates. If 0 (default) normal operation >
 

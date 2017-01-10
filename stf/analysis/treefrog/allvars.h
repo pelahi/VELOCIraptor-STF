@@ -143,6 +143,12 @@ using namespace NBody;
 #define MSLCMERIT 1
 //@}
 
+/// \name parameters for the temporal merit function
+//@{
+///the index of the temporal weight in delta t ^(-alpha)
+#define ALPHADELTAT 0.333333
+//@}
+
 ///VALUE USED TO MAKE UNIQUE halo identifiers
 #ifdef LONGINT
 #define HALOIDSNVAL 1000000000000L
@@ -168,7 +174,7 @@ struct Options
     int numsteps;
     ///maximum id value, used to allocate an array of this size so that ids can be mapped to an index and thus easily accessible.
     long unsigned MaxIDValue;
-    ///total number of haloes across all snapshots    
+    ///total number of haloes across all snapshots
     long unsigned TotalNumberofHalos;
 
     /// store description of code
@@ -176,8 +182,12 @@ struct Options
 
     ///type of cross-match search
     int matchtype;
-    ///cross match merit limit significance, that is match only when quantity is above MERITLIM*some measure of noise
+    ///cross match shared particle number significance, that is match only when quantity is above mlsig*some measure of noise, here defined as 
+    ///\f \sqrt{N_2} \f
     Double_t mlsig;
+    ///cross match merit limit for deciding whether to search previous snapshot 
+    Double_t meritlimit;
+
     ///particle type cross matching subselection
     int itypematch;
     ///when using multiple links, how links should be updated, either only for those missing links, or better merit found
@@ -242,8 +252,9 @@ struct Options
 
         matchtype=NsharedN1N2;
         mlsig=0.1;
+        meritlimit=0.05;
         itypematch=ALLTYPEMATCH;
-        imultsteplinkcrit=MSLCMISSING;
+        imultsteplinkcrit=MSLCMERIT;
 
         ioformat=DCATALOG;
         icatalog=DTREE;
@@ -439,9 +450,9 @@ struct DescendantDataProgenBased
     ///\todo might want to change the generalized merit
     void OptimalTemporalMerit(Int_t itimref=0){
         int imax=0;
-        Double_t generalizedmerit=Merit[0]/(Double_t)deltat[0];
+        Double_t generalizedmerit=Merit[0]/pow((Double_t)deltat[0],ALPHADELTAT);
         for (int i=1;i<NumberofDescendants;i++) {
-            if (Merit[i]/(Double_t)deltat[i]>generalizedmerit) {generalizedmerit=Merit[i]/(Double_t)deltat[i];imax=i;}
+            if (Merit[i]/pow((Double_t)deltat[i],ALPHADELTAT)>generalizedmerit) {generalizedmerit=Merit[i]/pow((Double_t)deltat[i],ALPHADELTAT);imax=i;}
         }
         //if use mpi then also possible that optimal halo found on multiple mpi tasks
         //but the lower task will be the one that needs to have the best halo so go over the loop and 

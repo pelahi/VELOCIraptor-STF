@@ -153,8 +153,8 @@ using namespace NBody;
 /// \name for iterative subsubstructure search
 //@{
 /// this is minimum particle number size for a subsearch to proceed whereby substructure split up into CELLSPLITNUM new cells 
-#define  MINCELLSIZE 200
-#define  CELLSPLITNUM 16
+#define  MINCELLSIZE 100
+#define  CELLSPLITNUM 8
 #define  MINSUBSIZE MINCELLSIZE*CELLSPLITNUM
 #define  MAXSUBLEVEL 8
 //@}

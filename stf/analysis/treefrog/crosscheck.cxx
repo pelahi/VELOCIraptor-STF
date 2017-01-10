@@ -193,7 +193,12 @@ private(j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2)
     num_noprogen=0;
     for (i=0;i<nhalos1;i++){
         p1[i].NumberofProgenitors=0;p1[i].ProgenitorList=NULL;p1[i].Merit=NULL;
-        num_noprogen+=(refprogen[i].NumberofProgenitors==0);
+        if (refprogen[i].NumberofProgenitors==0) {
+            num_noprogen+=1;
+        }
+        else {
+            if (refprogen[i].Merit[0]<opt.meritlimit) num_noprogen+=1;
+        }
     }
     //only allocate memory and process list if there are any haloes needing to be searched
     if (num_noprogen>0) {
@@ -202,6 +207,9 @@ private(j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2)
         for (i=0;i<nhalos1;i++){
             if (refprogen[i].NumberofProgenitors==0){
                 needprogenlist[num_noprogen++]=i;
+            }
+            else {
+                if (refprogen[i].Merit[0]<opt.meritlimit) needprogenlist[num_noprogen++]=i;
             }
         }
 
@@ -541,7 +549,12 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2)
     num_nodescen=0;
     for (i=0;i<nhalos1;i++){
         d1[i].NumberofDescendants=0;d1[i].DescendantList=NULL;d1[i].Merit=NULL;
-        num_nodescen+=(refdescen[i].NumberofDescendants==0);
+        if (refdescen[i].NumberofDescendants==0) {
+            num_nodescen+=1;
+        }
+        else {
+            if (refdescen[i].Merit[0]<opt.meritlimit) num_nodescen+=1;
+        }
     }
     //only allocate memory and process list if there are any haloes needing to be searched
     if (num_nodescen>0) {
@@ -550,6 +563,9 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2)
         for (i=0;i<nhalos1;i++){
             if (refdescen[i].NumberofDescendants==0){
                 needdescenlist[num_nodescen++]=i;
+            }
+            else {
+                if (refdescen[i].Merit[0]<opt.meritlimit) needdescenlist[num_nodescen++]=i;
             }
         }
 
