@@ -50,6 +50,7 @@ void ReadTipsy(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pba
 
     //read tipsy header.
     Ftip.read((char*)&tipsyheader,sizeof(dump));
+    tipsyheader.SwitchtoBigEndian();
     Ftip.close();
     //offset stream by a double (time),  an integer (nbodies) ,integer (ndim), an integer (ngas)
     //read an integer (ndark), skip an integer (nstar), then data begins.
@@ -82,9 +83,11 @@ void ReadTipsy(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pba
         count=0;
         Ftip.open(opt.fname, ios::in | ios::binary);
         Ftip.read((char*)&tipsyheader,sizeof(dump));
+        tipsyheader.SwitchtoBigEndian();
         for (Int_t i=0;i<ngas;i++)
         {
             Ftip.read((char*)&gas,sizeof(gas_particle));
+            gas.SwitchtoBigEndian();
             if ((opt.partsearchtype==PSTALL||opt.partsearchtype==PSTGAS)&&count==0) {
                 posfirst[0]=gas.pos[0];posfirst[1]=gas.pos[1];posfirst[2]=gas.pos[2];
                 count++;
@@ -95,6 +98,7 @@ void ReadTipsy(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pba
         for (Int_t i=0;i<ndark;i++)
         {
             Ftip.read((char*)&dark,sizeof(dark_particle));
+            dark.SwitchtoBigEndian();
             if ((opt.partsearchtype==PSTALL||opt.partsearchtype==PSTDARK)&&count==0) {
                 posfirst[0]=dark.pos[0];posfirst[1]=dark.pos[1];posfirst[2]=dark.pos[2];
                 count++;
@@ -106,6 +110,7 @@ void ReadTipsy(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pba
         for (Int_t i=0;i<nstar;i++)
         {
             Ftip.read((char*)&star,sizeof(star_particle));
+            star.SwitchtoBigEndian();
             if ((opt.partsearchtype==PSTALL||opt.partsearchtype==PSTSTAR)&&count==0) {
                 posfirst[0]=star.pos[0];posfirst[1]=star.pos[1];posfirst[2]=star.pos[2];
                 count++;
@@ -119,9 +124,11 @@ void ReadTipsy(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pba
     oldcount=count=0;
     Ftip.open(opt.fname, ios::in | ios::binary);
     Ftip.read((char*)&tipsyheader,sizeof(dump));
+    tipsyheader.SwitchtoBigEndian();
     for (Int_t i=0;i<ngas;i++)
     {
         Ftip.read((char*)&gas,sizeof(gas_particle));
+        gas.SwitchtoBigEndian();
         //if particle is closer do to periodicity then alter position
         if (opt.p>0.0)
         {
@@ -169,6 +176,7 @@ void ReadTipsy(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pba
     for (Int_t i=0;i<ndark;i++)
     {
         Ftip.read((char*)&dark,sizeof(dark_particle));
+        dark.SwitchtoBigEndian();
         //if particle is closer do to periodicity then alter position
         if (opt.partsearchtype==PSTALL||opt.partsearchtype==PSTDARK) {
 #ifndef USEMPI
@@ -207,6 +215,7 @@ void ReadTipsy(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pba
     for (Int_t i=0;i<nstar;i++)
     {
         Ftip.read((char*)&star,sizeof(star_particle));
+        star.SwitchtoBigEndian();
         //if particle is closer do to periodicity then alter position
         if (opt.p>0.0)
         {

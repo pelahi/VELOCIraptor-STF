@@ -39,6 +39,7 @@ Int_t ReadHeader(Options &opt){
         if (!Ftip){cerr<<"ERROR: Unable to open " <<opt.fname<<endl;exit(8);}
         else cout<<"Reading tipsy format from "<<opt.fname<<endl;
         Ftip.read((char*)&tipsyheader,sizeof(dump));
+        tipsyheader.SwitchtoBigEndian();
         if (opt.partsearchtype==PSTALL) return tipsyheader.nbodies;
         else if (opt.partsearchtype==PSTDARK) return tipsyheader.ndark;
         else if (opt.partsearchtype==PSTGAS) return tipsyheader.nsph;
