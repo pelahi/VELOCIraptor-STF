@@ -183,7 +183,7 @@ void ReadTipsy(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pba
     {
         Ftip.read((char*)&dark,sizeof(dark_particle));
         dark.SwitchtoBigEndian();
-        if (MP_DM<dark.mass) MP_DM=dark.mass;
+        if (MP_DM>dark.mass) MP_DM=dark.mass;
         //if particle is closer do to periodicity then alter position
         if (opt.partsearchtype==PSTALL||opt.partsearchtype==PSTDARK) {
 #ifndef USEMPI
