@@ -18,6 +18,7 @@
 
 /*! 
 \mainpage  Reference documentation for TreeFrog (aka HaloMergerTree)
+\defgroup TreeFrog TreeFrog program
 \author Pascal J. Elahi \n
 \version 1.2
 \section license License
@@ -82,21 +83,21 @@ particularly with respect to optimisations, may need adjustment to the
 C++-compiler that is used.
 
 The provided makefile is compatible with GNU-make, i.e. typing \b make or
-\b gmake should then build the executable <b>halomergertree</b>. If your site
+\b gmake should then build the executable <b>treefrog</b>. If your site
 does not have GNU-make, get it, or write your own makefile.
 
 \section howtorun Running the code
 
 A typical command to start the code looks like: \n \n
 
- <b> ./halomergertree < args > </b> \n \n
+ <b> ./treefrog < args > </b> \n \n
 
 with <em>OpenMP</em>, setting the environment variable OMP_NUM_THREADS=8 will then run 
 the code with 8 threads in the openmp sections. 
 
 with MPI: \n \n
 
- <b> mpirun -np 8 ./halomergertree < args > </b> \n \n
+ <b> mpirun -np 8 ./treefrog < args > </b> \n \n
 
 This would start the code using 8 processors, assuming that the parallel
 environment uses the <em>mpirun</em> command to start MPI

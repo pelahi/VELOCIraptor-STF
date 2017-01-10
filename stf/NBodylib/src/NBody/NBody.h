@@ -3,7 +3,6 @@
 
     \namespace NBody
     \brief A namespace for user defined classes and routines useful for N-body simulations contained in libNBody
-    \defgroup libNBody NBody library
 
 */
 
@@ -28,11 +27,9 @@
 
 /*! 
 \mainpage  Reference documentation for libNBody
+\defgroup libNBody NBody library
 \author Pascal J. Elahi \n
-        Sydney Institute for Astronomy, University of Sydney \n
-        44 Rosehill Street, Redfern, NSW \n
-        2017 \n
-        pelahi@physics.usyd.edu.au \n
+        pascaljelahi@gmail.com \n
 \version 1.0
 \section license License
     This program is free software; you can redistribute it and/or
