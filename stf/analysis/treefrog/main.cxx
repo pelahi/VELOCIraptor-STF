@@ -171,8 +171,8 @@ int main(int argc,char **argv)
         //now if using multiple snapshots, 
         //if enough non-overlapping (mpi wise) snapshots have been processed, one can cleanup progenitor list using the DescendantDataProgenBased data
         //then free this data
-        //this occurs if current snapshot is at least Endsnap-opt.numsnapshots*2 or lower as then Endsnap-opt.numsnapshots have had progenitor list processed
-        if (opt.numsteps>1 && pht[i].numhalos>0 && (i<EndSnap-2*opt.numsnapshots && i>StartSnap+2*opt.numsnapshots)) {
+        //this occurs if current snapshot is at least Endsnap-opt.numsteps*2 or lower as then Endsnap-opt.numsteps have had progenitor list processed
+        if (opt.numsteps>1 && pht[i].numhalos>0 && (i<EndSnap-2*opt.numsteps && i>StartSnap+2*opt.numsteps)) {
             if (opt.iverbose) cout<<"Cleaning Progenitor list using descendant information for "<<i<<endl;
             CleanProgenitorsUsingDescendants(i, pht, pprogendescen, pprogen);
             delete[] pprogendescen[i];
