@@ -193,10 +193,12 @@ private(j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2)
     num_noprogen=0;
     for (i=0;i<nhalos1;i++){
         p1[i].NumberofProgenitors=0;p1[i].ProgenitorList=NULL;p1[i].Merit=NULL;
+        //always search objects that have no progenitors
         if (refprogen[i].NumberofProgenitors==0) {
             num_noprogen+=1;
         }
-        else {
+        //if also applying merit limit then search if does not meet merit threshold
+        if (opt.imultsteplinkcrit==MSLCMERIT && refprogen[i].NumberofProgenitors>0) { 
             if (refprogen[i].Merit[0]<opt.meritlimit) num_noprogen+=1;
         }
     }
@@ -208,7 +210,8 @@ private(j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2)
             if (refprogen[i].NumberofProgenitors==0){
                 needprogenlist[num_noprogen++]=i;
             }
-            else {
+            //if also applying merit limit then search if does not meet merit threshold
+            if (opt.imultsteplinkcrit==MSLCMERIT && refprogen[i].NumberofProgenitors>0) { 
                 if (refprogen[i].Merit[0]<opt.meritlimit) needprogenlist[num_noprogen++]=i;
             }
         }
@@ -549,10 +552,12 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2)
     num_nodescen=0;
     for (i=0;i<nhalos1;i++){
         d1[i].NumberofDescendants=0;d1[i].DescendantList=NULL;d1[i].Merit=NULL;
+        //always search objects that have no progenitors
         if (refdescen[i].NumberofDescendants==0) {
             num_nodescen+=1;
         }
-        else {
+        //if also applying merit limit then search if does not meet merit threshold
+        if (opt.imultsteplinkcrit==MSLCMERIT && refdescen[i].NumberofDescendants>0) { 
             if (refdescen[i].Merit[0]<opt.meritlimit) num_nodescen+=1;
         }
     }
@@ -564,7 +569,8 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2)
             if (refdescen[i].NumberofDescendants==0){
                 needdescenlist[num_nodescen++]=i;
             }
-            else {
+            //if also applying merit limit then search if does not meet merit threshold
+            if (opt.imultsteplinkcrit==MSLCMERIT && refdescen[i].NumberofDescendants>0) { 
                 if (refdescen[i].Merit[0]<opt.meritlimit) needdescenlist[num_nodescen++]=i;
             }
         }
@@ -735,8 +741,6 @@ void CleanCrossMatch(const long unsigned nhalos1, const long unsigned nhalos2, H
 #endif
     int *nh2index=new int[nhalos2];
     int *nh2nummatches=new int[nhalos2];
-    //int *count=new int[nhalos2];
-    //int **nh2matches=new int*[nhalos2];
     Double_t *merit=new Double_t[nhalos2];
     //store initial matches
     for (i=0;i<nhalos2;i++) {nh2index[i]=merit[i]=-1;nh2nummatches[i]=0;}//count[i]=0;}
@@ -749,12 +753,6 @@ void CleanCrossMatch(const long unsigned nhalos1, const long unsigned nhalos2, H
             }
         }
     }
-
-    //once stored adjust list ONLY for progenitors with more than 1 descendent
-    //for (i=0;i<nhalos2;i++) if (nh2nummatches[i]>=2) {
-    //    nh2matches[i]=new int[nh2nummatches[i]];
-    //}
-    //go through list and if Progenitor's best match is NOT current halo, adjust Progenitor list
 
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
@@ -811,8 +809,6 @@ void CleanCrossMatchDescendant(const long unsigned nhalos1, const long unsigned 
 #endif
     int *nh2index=new int[nhalos2];
     int *nh2nummatches=new int[nhalos2];
-    //int *count=new int[nhalos2];
-    //int **nh2matches=new int*[nhalos2];
     Double_t *merit=new Double_t[nhalos2];
     //store initial matches
     for (i=0;i<nhalos2;i++) {nh2index[i]=merit[i]=-1;nh2nummatches[i]=0;}//count[i]=0;}
@@ -825,12 +821,6 @@ void CleanCrossMatchDescendant(const long unsigned nhalos1, const long unsigned 
             }
         }
     }
-
-    //once stored adjust list ONLY for progenitors with more than 1 descendent
-    //for (i=0;i<nhalos2;i++) if (nh2nummatches[i]>=2) {
-    //    nh2matches[i]=new int[nh2nummatches[i]];
-    //}
-    //go through list and if Progenitor's best match is NOT current halo, adjust Progenitor list
 
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
@@ -883,8 +873,10 @@ void UpdateRefProgenitors(const int ilink, const Int_t numhalos, ProgenitorData 
     }
     else if (ilink==MSLCMERIT) {
         for (Int_t i=0;i<numhalos;i++) {
+            //if reference has no links but new links found, copy
             if (pref[i].NumberofProgenitors==0 && ptemp[i].NumberofProgenitors>0) pref[i]=ptemp[i];
-            else if (pref[i].NumberofProgenitors>0 && ptemp[i].NumberofProgenitors>0 && pref[i].Merit[0]<ptemp[i].Merit[0]) pref[i]=ptemp[i];
+            //if reference has no links but new links found also copy as reference did not satisfy merit limit
+            else if (pref[i].NumberofProgenitors>0 && ptemp[i].NumberofProgenitors>0) pref[i]=ptemp[i];
         }
     }
 }
@@ -898,7 +890,7 @@ void UpdateRefDescendants(const int ilink, const Int_t numhalos, DescendantData 
     else if (ilink==MSLCMERIT) {
         for (Int_t i=0;i<numhalos;i++) {
             if (dref[i].NumberofDescendants==0 && dtemp[i].NumberofDescendants>0) dref[i]=dtemp[i];
-            else if (dref[i].NumberofDescendants>0 && dtemp[i].NumberofDescendants>0 && dref[i].Merit[0]<dtemp[i].Merit[0]) dref[i]=dtemp[i];
+            else if (dref[i].NumberofDescendants>0 && dtemp[i].NumberofDescendants>0) dref[i]=dtemp[i];
         }
     }
 }

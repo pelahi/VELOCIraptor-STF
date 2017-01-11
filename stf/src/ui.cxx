@@ -122,9 +122,12 @@ void usage(void)
         - \b 2 \e DarkMatter particles (which are typically defined as type 1,2,3 for gadget) are searched
         - \b 3 \e Star particles (which are typically defined as type 4 for gadget) are searched  
         - \b 4 \e Gas particles (which are typically defined as type 0 for gadget) are searched 
-    \arg <b> \e Baryon_searchflag </b> 0/1/2 indicating gas/stellar search done separately from DM search \ref Options.iBaryonSearch. If 1, field search run as normal and then substructure search
-    for baryons run using baryons identified in field search. If 2, field search also altered to treat baryons differently, allowing only DM particles to be used as head links (ie link dm-dm, dm-baryon,
-        but not baryon-baryon nor baryon-dm). 0 is do nothing special for baryon particles. \n
+    \n
+    \arg <b> \e Baryon_searchflag </b> 0/1/2 indicating gas/stellar search done separately from DM search \ref Options.iBaryonSearch. \n
+        - \b 1 field search run as normal and then substructure search for baryons run using baryons identified in field search.
+        - \b 2 field search also altered to treat baryons differently, allowing only DM particles to be used as head links (ie link dm-dm, dm-baryon, but not baryon-baryon nor baryon-dm). 
+        - \b 0 is do nothing special for baryon particles. 
+    \n
 
     \section localdensityconfig Parameters related to local density estimator. 
     See \ref localfield.cxx, \ref bgfield.cxx & \ref localbgcomp.cxx for more details
@@ -163,7 +166,8 @@ void usage(void)
     \subsection foffieldconfig Configuration for field search
     \arg <b> \e FoF_Field_search_type </b> There are several FOF criteria implemented to search for so-called field objects (see \ref FOFTYPES for more types and \ref fofalgo.h for implementation) \ref Options.fofbgtype \n
         - \b 5 \e standard 3D FOF based algorithm 
-        - \b 4 \e standard DD FOF based algorithm <b> FOLLOWED </b> by 6D FOF search using the velocity scale defined by the largest halo on <b> ONLY </b> particles in 3DFOF groups
+        - \b 4 \e standard 3D FOF based algorithm <b> FOLLOWED </b> by 6D FOF search using the velocity scale defined by the largest halo on <b> ONLY </b> particles in 3DFOF groups
+        - \b 3 \e standard 3D FOF based algorithm <b> FOLLOWED </b> by 6D FOF search using the velocity scale for each 3DFOF group
     \arg <b> \e Minimum_halo_size </b> Allows field objects (or so-called halos) to require a different minimum size (typically would be <= \ref Options.MinSize. Default is -1 which sets it to \ref Options.MinSize) \ref Options.HaloMinSize \n
     \arg <b> \e Halo_linking_length_factor </b> allows one to use different physical linking lengths between field objects and substructures.  (Typically for 3DFOF searches of dark matter haloes, set to value such that this times \ref Options.ellphys = 0.2 the interparticle spacing when examining cosmological simulations ) \ref Options.ellhalophysfac \n
     \arg <b> \e Halo_velocity_linking_length_factor </b> allows one to use different velocity linking lengths between field objects and substructures when using 6D FOF searches.  (Since in such cases the general idea is to use the local velocity dispersion to define a scale, \f$ \geq5 \f$ times this value seems to correctly scale searches) \ref Options.ellhalovelfac \n

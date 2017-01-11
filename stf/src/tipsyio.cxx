@@ -58,7 +58,12 @@ void ReadTipsy(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pba
     //offset stream by a double (time),  an integer (nbodies) ,integer (ndim), an integer (ngas)
     //read an integer (ndark), skip an integer (nstar), then data begins.
     time=tipsyheader.time;
-    if ((opt.a-time)/opt.a>1e-2)cout<<"Note that atime provided != to time in tipsy file (a,t): "<<opt.a<<","<<time<<endl;
+    if ((opt.a-time)/opt.a>1e-2) 
+    {
+        cout<<"Note that atime provided != to time in tipsy file (a,t): "<<opt.a<<","<<time<<endl;
+        cout<<"Setting atime to that in file "<<endl;
+        opt.a=time;
+    }
     if (opt.comove) aadjust=1.0;
     else aadjust=opt.a;
     Ntot=tipsyheader.nbodies;
