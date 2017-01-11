@@ -142,8 +142,9 @@ int main(int argc,char **argv)
                     pprogentemp=CrossMatch(opt, pht[i].numhalos, pht[i-istep].numhalos, pht[i].Halo, pht[i-istep].Halo, pfofp, ilistupdated, istep, pprogen[i]);
                     //if new candidate progenitors have been found then need to update the reference list
                     if (ilistupdated>0) {
+                        //if merit limit was applied when deciding to search earlier snapshots
                         CleanCrossMatch(pht[i].numhalos, pht[i-istep].numhalos, pht[i].Halo, pht[i-istep].Halo, pprogentemp);
-                        UpdateRefProgenitors(opt.imultsteplinkcrit,pht[i].numhalos, pprogen[i], pprogentemp);
+                        UpdateRefProgenitors(opt,pht[i].numhalos, pprogen[i], pprogentemp, pprogendescen,i-istep);
                         BuildProgenitorBasedDescendantList(i, i-istep, pht[i].numhalos, pprogen[i], pprogendescen, istep);
                     }
                     delete[] pprogentemp;
@@ -241,7 +242,7 @@ int main(int argc,char **argv)
                 else {
                     pdescentemp=CrossMatchDescendant(opt, pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pfofd, ilistupdated, istep, pdescen[i]);
                     CleanCrossMatchDescendant(pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pdescen[i]);
-                    UpdateRefDescendants(opt.imultsteplinkcrit,pht[i].numhalos, pdescen[i], pdescentemp);
+                    UpdateRefDescendants(opt,pht[i].numhalos, pdescen[i], pdescentemp);
                     delete[] pdescentemp;
                 }
 

@@ -865,32 +865,45 @@ private(i,j,k)
     delete[] merit;
 }
 ///when linking using multiple snapshots, use to update the progenitor list based on a candidate list built using a single snapshot
-void UpdateRefProgenitors(const int ilink, const Int_t numhalos, ProgenitorData *&pref, ProgenitorData *&ptemp)
+///If complex updating done, then will need to update the progenitor based descendant list. 
+void UpdateRefProgenitors(Options &opt, const Int_t numhalos, ProgenitorData *&pref, ProgenitorData *&ptemp, DescendantDataProgenBased **&pprogendescen, int itimedescen)
 {
-    if (ilink==MSLCMISSING) {
+    if (opt.imultsteplinkcrit==MSLCMISSING) {
         for (Int_t i=0;i<numhalos;i++) 
             if (pref[i].NumberofProgenitors==0 && ptemp[i].NumberofProgenitors>0) pref[i]=ptemp[i];
     }
-    else if (ilink==MSLCMERIT) {
+    else if (opt.imultsteplinkcrit==MSLCMERIT) {
         for (Int_t i=0;i<numhalos;i++) {
             //if reference has no links but new links found, copy
             if (pref[i].NumberofProgenitors==0 && ptemp[i].NumberofProgenitors>0) pref[i]=ptemp[i];
             //if reference has no links but new links found also copy as reference did not satisfy merit limit
-            else if (pref[i].NumberofProgenitors>0 && ptemp[i].NumberofProgenitors>0) pref[i]=ptemp[i];
+            else if (pref[i].NumberofProgenitors>0 && ptemp[i].NumberofProgenitors>0) {
+                //but only update if new link satisfies merit limit
+                if (ptemp[i].Merit[0]>opt.meritlimit) {
+                    //first must update the progenitor based descendant list 
+                    RemoveLinksProgenitorBasedDescendantList(itimedescen, i, pref[i], pprogendescen);
+                    //then copy new links
+                    pref[i]=ptemp[i];
+                }
+            }
         }
     }
 }
+
 ///similar to \ref UpdateRefProgenitors but for descendants
-void UpdateRefDescendants(const int ilink, const Int_t numhalos, DescendantData *&dref, DescendantData *&dtemp)
+void UpdateRefDescendants(Options &opt, const Int_t numhalos, DescendantData *&dref, DescendantData *&dtemp)
 {
-    if (ilink==MSLCMISSING) {
+    if (opt.imultsteplinkcrit==MSLCMERIT) {
         for (Int_t i=0;i<numhalos;i++) 
             if (dref[i].NumberofDescendants==0 && dtemp[i].NumberofDescendants>0) dref[i]=dtemp[i];
     }
-    else if (ilink==MSLCMERIT) {
+    else if (opt.imultsteplinkcrit==MSLCMERIT) {
         for (Int_t i=0;i<numhalos;i++) {
             if (dref[i].NumberofDescendants==0 && dtemp[i].NumberofDescendants>0) dref[i]=dtemp[i];
-            else if (dref[i].NumberofDescendants>0 && dtemp[i].NumberofDescendants>0) dref[i]=dtemp[i];
+            else if (dref[i].NumberofDescendants>0 && dtemp[i].NumberofDescendants>0) 
+                if (dtemp[i].Merit[0]>opt.meritlimit) {
+                    dref[i]=dtemp[i];
+                }
         }
     }
 }
@@ -912,6 +925,27 @@ void BuildProgenitorBasedDescendantList(Int_t itimeprogen, Int_t itimedescen, In
 #endif
             pprogendescen[itimedescen][did].NumberofDescendants++;
         }
+    }
+}
+
+//removes links of an individual halo
+void RemoveLinksProgenitorBasedDescendantList(Int_t itimedescen, Int_t ihaloindex, ProgenitorData &pprogen, DescendantDataProgenBased **&pprogendescen)
+{
+    //if first pass then store descendants looking at all progenitors
+    int did,k=0;
+    for (Int_t nprogs=0;nprogs<pprogen.NumberofProgenitors;nprogs++){
+        did=pprogen.ProgenitorList[nprogs]-1;//make sure halo descendent index set to start at 0
+        //find where this link exists and then remove it. 
+        k=0;
+        while (k<pprogendescen[itimedescen][did].NumberofDescendants && pprogendescen[itimedescen][did].haloindex[k]!=ihaloindex) k++;
+        pprogendescen[itimedescen][did].haloindex.erase(pprogendescen[itimedescen][did].haloindex.begin()+k); 
+        pprogendescen[itimedescen][did].halotemporalindex.erase(pprogendescen[itimedescen][did].halotemporalindex.begin()+k);
+        pprogendescen[itimedescen][did].Merit.erase(pprogendescen[itimedescen][did].Merit.begin()+k);
+        pprogendescen[itimedescen][did].deltat.erase(pprogendescen[itimedescen][did].deltat.begin()+k);
+#ifdef USEMPI
+        pprogendescen[itimedescen][did].MPITask.erase(pprogendescen[itimedescen][did].MPITask.begin()+k);
+#endif
+        pprogendescen[itimedescen][did].NumberofDescendants--;
     }
 }
 
