@@ -866,7 +866,7 @@ private(i,j,k)
 }
 ///when linking using multiple snapshots, use to update the progenitor list based on a candidate list built using a single snapshot
 ///If complex updating done, then will need to update the progenitor based descendant list. 
-void UpdateRefProgenitors(Options &opt, const Int_t numhalos, ProgenitorData *&pref, ProgenitorData *&ptemp, DescendantDataProgenBased **&pprogendescen, int itimedescen)
+void UpdateRefProgenitors(Options &opt, const Int_t numhalos, ProgenitorData *&pref, ProgenitorData *&ptemp, DescendantDataProgenBased **&pprogendescen, Int_t itimedescen)
 {
     if (opt.imultsteplinkcrit==MSLCMISSING) {
         for (Int_t i=0;i<numhalos;i++) 

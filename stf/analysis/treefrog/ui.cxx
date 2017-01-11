@@ -10,7 +10,7 @@ void GetArgs(int argc, char *argv[], Options &opt)
 {
     int option;
     int NumArgs = 0;
-    while ((option = getopt(argc, argv, ":i:s:t:n:f:p:o:C:c:S:I:N:B:F:M:H:h:D:O:T:v:m:d:z:a:")) != EOF)
+    while ((option = getopt(argc, argv, ":i:s:t:n:f:p:o:C:c:S:I:N:B:F:M:H:h:D:O:T:v:m:d:z:a:x:")) != EOF)
     {
         switch(option)
         {
@@ -44,6 +44,10 @@ void GetArgs(int argc, char *argv[], Options &opt)
                 break;
             case 'C': 
                 opt.matchtype = atoi(optarg);
+                NumArgs += 2;
+                break;
+            case 'x': 
+                opt.imultsteplinkcrit= atoi(optarg);
                 NumArgs += 2;
                 break;
             case 'c': 
@@ -210,6 +214,10 @@ void usage(void)
     cerr<<" ========================= "<<endl;
     cerr<<"-n <Max ID value of particles [Must specify] ("<<opt.MaxIDValue<<")>\n";
     cerr<<"-t <number of steps integrated over to find links ("<<opt.numsteps<<")\n";
+    cerr<<"-x <criteria for when to keep searching for new links if multiple steps invoked ("<<opt.imultsteplinkcrit<<"). Possibilities are :";
+    cerr<<MSLCMISSING<<" Only missing ,";
+    cerr<<MSLCMERIT<<" Missing & low merit given by merit limit, ";
+    cerr<<endl;
     cerr<<"-C <cross correlation function type to identify main progenitor ("<<opt.matchtype<<" ["<<NsharedN1N2<<" "<<Nshared<<"])\n";
     cerr<<"-T <type of particles to cross correlate ("<<opt.itypematch<<" ["<<ALLTYPEMATCH<<" is all particle types, ";
     cerr<<DMTYPEMATCH<<" is DM particle types, ";
