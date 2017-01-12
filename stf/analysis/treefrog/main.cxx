@@ -144,7 +144,7 @@ int main(int argc,char **argv)
                     if (ilistupdated>0) {
                         //if merit limit was applied when deciding to search earlier snapshots
                         CleanCrossMatch(pht[i].numhalos, pht[i-istep].numhalos, pht[i].Halo, pht[i-istep].Halo, pprogentemp);
-                        UpdateRefProgenitors(opt,pht[i].numhalos, pprogen[i], pprogentemp, pprogendescen,i-istep);
+                        UpdateRefProgenitors(opt,pht[i].numhalos, pprogen[i], pprogentemp, pprogendescen,i);
                         BuildProgenitorBasedDescendantList(i, i-istep, pht[i].numhalos, pprogen[i], pprogendescen, istep);
                     }
                     delete[] pprogentemp;

@@ -866,7 +866,7 @@ private(i,j,k)
 }
 ///when linking using multiple snapshots, use to update the progenitor list based on a candidate list built using a single snapshot
 ///If complex updating done, then will need to update the progenitor based descendant list. 
-void UpdateRefProgenitors(Options &opt, const Int_t numhalos, ProgenitorData *&pref, ProgenitorData *&ptemp, DescendantDataProgenBased **&pprogendescen, Int_t itimedescen)
+void UpdateRefProgenitors(Options &opt, const Int_t numhalos, ProgenitorData *&pref, ProgenitorData *&ptemp, DescendantDataProgenBased **&pprogendescen, Int_t itime)
 {
     if (opt.imultsteplinkcrit==MSLCMISSING) {
         for (Int_t i=0;i<numhalos;i++) 
@@ -881,7 +881,7 @@ void UpdateRefProgenitors(Options &opt, const Int_t numhalos, ProgenitorData *&p
                 //but only update if new link satisfies merit limit
                 if (ptemp[i].Merit[0]>opt.meritlimit) {
                     //first must update the progenitor based descendant list 
-                    RemoveLinksProgenitorBasedDescendantList(itimedescen, i, pref[i], pprogendescen);
+                    RemoveLinksProgenitorBasedDescendantList(itime, i, pref[i], pprogendescen);
                     //then copy new links
                     pref[i]=ptemp[i];
                 }
@@ -929,15 +929,15 @@ void BuildProgenitorBasedDescendantList(Int_t itimeprogen, Int_t itimedescen, In
 }
 
 //removes links of an individual halo
-void RemoveLinksProgenitorBasedDescendantList(Int_t itimedescen, Int_t ihaloindex, ProgenitorData &pprogen, DescendantDataProgenBased **&pprogendescen)
+void RemoveLinksProgenitorBasedDescendantList(Int_t itime, Int_t ihaloindex, ProgenitorData &pprogen, DescendantDataProgenBased **&pprogendescen)
 {
     //if first pass then store descendants looking at all progenitors
-    int did,k=0;
+    Int_t itimedescen,did,k=0;
     for (Int_t nprogs=0;nprogs<pprogen.NumberofProgenitors;nprogs++){
         did=pprogen.ProgenitorList[nprogs]-1;//make sure halo descendent index set to start at 0
+        itimedescen=itime-pprogen.istep;
         //find where this link exists and then remove it. 
-        k=0;
-        while (k<pprogendescen[itimedescen][did].NumberofDescendants && pprogendescen[itimedescen][did].haloindex[k]!=ihaloindex) k++;
+        k=0; while (k<pprogendescen[itimedescen][did].NumberofDescendants && pprogendescen[itimedescen][did].haloindex[k]!=ihaloindex) k++;
         pprogendescen[itimedescen][did].haloindex.erase(pprogendescen[itimedescen][did].haloindex.begin()+k); 
         pprogendescen[itimedescen][did].halotemporalindex.erase(pprogendescen[itimedescen][did].halotemporalindex.begin()+k);
         pprogendescen[itimedescen][did].Merit.erase(pprogendescen[itimedescen][did].Merit.begin()+k);
