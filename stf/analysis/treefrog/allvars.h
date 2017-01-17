@@ -24,6 +24,7 @@
 #include <cmath>
 #include <string>
 #include <vector>
+#include <algorithm>
 #include <getopt.h>
 #include <sys/stat.h> 
 #include <sys/timeb.h> 
@@ -358,7 +359,7 @@ struct ProgenitorData
         ProgenitorList=NULL;
         Merit=NULL;
         nsharedfrac=NULL;
-        istep=1;
+        istep=0;
     }
     ~ProgenitorData(){
         if (NumberofProgenitors>0) {

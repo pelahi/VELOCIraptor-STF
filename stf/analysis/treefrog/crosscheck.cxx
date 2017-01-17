@@ -112,6 +112,7 @@ private(j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2)
                 p1[i].Merit[j]=pq->TopPriority();
                 pq->Pop();
             }
+            p1[i].istep=istepval;
             delete pq;
         }
         //if the number shared is zero, do nothing
@@ -175,6 +176,7 @@ private(j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2)
                             p1[i].Merit[0]=pq2->TopPriority();
                             break;
                         }
+                        p1[i].istep=istepval;
                         delete pq2;
                     }
                 }
@@ -283,6 +285,7 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2)
                     p1[i].Merit[j]=pq->TopPriority();
                     pq->Pop();
                 }
+                p1[i].istep=istepval;
                 delete pq;
             }
             else {p1[i].ProgenitorList=NULL;p1[i].Merit=NULL;}
@@ -341,6 +344,7 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2)
                                 p1[i].Merit[0]=pq2->TopPriority();
                                 break;
                             }
+                            p1[i].istep=istepval;
                             delete pq2;
                         }
                     }
@@ -364,8 +368,6 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2)
             p1[i].ProgenitorList=NULL;p1[i].Merit=NULL;
         }
     }
-    //adjust number of steps looked back when referencing progenitors
-    if (istepval>1) for (i=0;i<nhalos1;i++) p1[i].istep=istepval;
 
     return p1;
 }
@@ -472,6 +474,7 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2)
                 d1[i].Merit[j]=pq->TopPriority();
                 pq->Pop();
             }
+            d1[i].istep=istepval;
             delete pq;
         }
         //if the number shared is zero, do nothing
@@ -535,6 +538,7 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2)
                             d1[i].Merit[0]=pq2->TopPriority();
                             break;
                         }
+                        d1[i].istep=istepval;
                         delete pq2;
                     }
                 }
@@ -643,6 +647,7 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2)
                     pq->Pop();
                 }
                 delete pq;
+                d1[i].istep=istepval;
             }
             else {d1[i].DescendantList=NULL;d1[i].Merit=NULL;}
             //if weighted merit function is to be calculated then use the most bound fraction of particles to construct share list
@@ -723,13 +728,11 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2)
             d1[i].DescendantList=NULL;d1[i].Merit=NULL;
         }
     }
-    //adjust number of steps looked forward when referencing descendants
-    if (istepval>1) for (i=0;i<nhalos1;i++) d1[i].istep=istepval;
     return d1;
 }
 
 ///ensure cross match is exclusive
-void CleanCrossMatch(const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData *&h2, ProgenitorData *&p1)
+void CleanCrossMatch(const int istepval, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData *&h2, ProgenitorData *&p1)
 {
     Int_t i,j,k;
     int nthreads=1,tid;
@@ -744,7 +747,8 @@ void CleanCrossMatch(const long unsigned nhalos1, const long unsigned nhalos2, H
     Double_t *merit=new Double_t[nhalos2];
     //store initial matches
     for (i=0;i<nhalos2;i++) {nh2index[i]=merit[i]=-1;nh2nummatches[i]=0;}//count[i]=0;}
-    for (i=0;i<nhalos1;i++){
+    //ensure that only keep matches at the current time that is being processed and cleaned
+    for (i=0;i<nhalos1;i++) if (p1[i].istep==istepval) {
         for(j=0;j<p1[i].NumberofProgenitors;j++) {
             nh2nummatches[p1[i].ProgenitorList[j]]++;
             if(p1[i].Merit[j]>merit[p1[i].ProgenitorList[j]]){
@@ -760,7 +764,7 @@ private(i,j,k)
 {
 #pragma omp for schedule(dynamic,10) nowait
 #endif
-    for (i=0;i<nhalos1;i++){
+    for (i=0;i<nhalos1;i++) if (p1[i].istep==istepval) {
         for(j=0;j<p1[i].NumberofProgenitors;j++) {
             if (nh2nummatches[p1[i].ProgenitorList[j]]>=2&&i!=nh2index[p1[i].ProgenitorList[j]]){
                 for (k=j;k<p1[i].NumberofProgenitors-1;k++) {
@@ -782,7 +786,7 @@ private(i,j,k)
 {
 #pragma omp for schedule(dynamic,10) nowait
 #endif
-    for (i=0;i<nhalos1;i++){
+    for (i=0;i<nhalos1;i++) if (p1[i].istep==istepval){
         for(j=0;j<p1[i].NumberofProgenitors;j++) {
             //store nshared
             p1[i].nsharedfrac[j]=sqrt(p1[i].Merit[j]*((double)h2[p1[i].ProgenitorList[j]].NumberofParticles*(double)h1[i].NumberofParticles))/(double)h1[i].NumberofParticles;
@@ -797,7 +801,7 @@ private(i,j,k)
     delete[] merit;
 }
 ///similar to \ref CleanCrossMatch but does the same for descendants
-void CleanCrossMatchDescendant(const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData *&h2, DescendantData *&p1)
+void CleanCrossMatchDescendant(const int istepval, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData *&h2, DescendantData *&p1)
 {
     Int_t i,j,k;
     int nthreads=1,tid;
@@ -812,7 +816,7 @@ void CleanCrossMatchDescendant(const long unsigned nhalos1, const long unsigned 
     Double_t *merit=new Double_t[nhalos2];
     //store initial matches
     for (i=0;i<nhalos2;i++) {nh2index[i]=merit[i]=-1;nh2nummatches[i]=0;}//count[i]=0;}
-    for (i=0;i<nhalos1;i++){
+    for (i=0;i<nhalos1;i++) if (p1[i].istep==istepval){
         for(j=0;j<p1[i].NumberofDescendants;j++) {
             nh2nummatches[p1[i].DescendantList[j]]++;
             if(p1[i].Merit[j]>merit[p1[i].DescendantList[j]]){
@@ -828,7 +832,7 @@ private(i,j,k)
 {
 #pragma omp for schedule(dynamic,10) nowait
 #endif
-    for (i=0;i<nhalos1;i++){
+    for (i=0;i<nhalos1;i++) if (p1[i].istep==istepval){
         for(j=0;j<p1[i].NumberofDescendants;j++) {
             if (nh2nummatches[p1[i].DescendantList[j]]>=2&&i!=nh2index[p1[i].DescendantList[j]]){
                 for (k=j;k<p1[i].NumberofDescendants-1;k++) {
@@ -850,7 +854,7 @@ private(i,j,k)
 {
 #pragma omp for schedule(dynamic,10) nowait
 #endif
-    for (i=0;i<nhalos1;i++){
+    for (i=0;i<nhalos1;i++) if (p1[i].istep==istepval){
         for(j=0;j<p1[i].NumberofDescendants;j++) {
             //store nshared
             p1[i].nsharedfrac[j]=sqrt(p1[i].Merit[j]*((double)h2[p1[i].DescendantList[j]].NumberofParticles*(double)h1[i].NumberofParticles))/(double)h1[i].NumberofParticles;
@@ -936,7 +940,8 @@ void RemoveLinksProgenitorBasedDescendantList(Int_t itime, Int_t ihaloindex, Pro
     for (Int_t nprogs=0;nprogs<pprogen.NumberofProgenitors;nprogs++){
         did=pprogen.ProgenitorList[nprogs]-1;//make sure halo descendent index set to start at 0
         itimedescen=itime-pprogen.istep;
-        //find where this link exists and then remove it. 
+        //find where this link exists and then remove it. remove(begin,end, ihaloindex)
+        //pprogendescen[itimedescen][did].haloindex.erase(remove(pprogendescen[itimedescen][did].haloindex.begin(),pprogendescen[itimedescen][did].haloindex.end(),ihaloindex),pprogendescen[itimedescen][did].haloindex.end()); 
         k=0; while (k<pprogendescen[itimedescen][did].NumberofDescendants && pprogendescen[itimedescen][did].haloindex[k]!=ihaloindex) k++;
         pprogendescen[itimedescen][did].haloindex.erase(pprogendescen[itimedescen][did].haloindex.begin()+k); 
         pprogendescen[itimedescen][did].halotemporalindex.erase(pprogendescen[itimedescen][did].halotemporalindex.begin()+k);
