@@ -1396,21 +1396,22 @@ private(i,tid)
             ///\todo should add checks to see if system is in CM frame and if it is not, move it to that frame
             Matrix myeigvec, myI;
             CalcPosSigmaTensor(nsubset, Partsubset, XX, YY, ZZ, myeigvec, myI, -1);
-            xscale2=sqrt(XX*XX+YY*YY+ZZ*ZZ);
+            xscale2=sqrt(XX+YY+ZZ);
             //volume of configuration ellipsoid
             VOL = 4/3.0 * acos(-1) * sqrt(XX*YY*ZZ);
             //number density 
             nn = pow(VOL/nsubset,1./3.);
             //now adjust linking length
             //param[1] = xscale2 * nn * nn * opt.halocorexfac * opt.halocorexfac;
-            param[1] = XX*XX* opt.halocorexfac * opt.halocorexfac;
+            param[1] = XX*opt.halocorexfac * opt.halocorexfac;
             param[6] = param[1];
             //now the same for velocity space
             ///\todo still need to look at optimal scaling function for velocities
             CalcVelSigmaTensor(nsubset, Partsubset, XX, YY, ZZ, myeigvec, myI, -1);
             VOL = 4/3.0 * acos(-1) * sqrt(XX*YY*ZZ);
             nn = pow(VOL/nsubset,1./3.);
-            param[7] = ZZ*ZZ*(opt.halocorevfac * opt.halocorevfac);
+            param[2] = ZZ*(opt.halocorevfac * opt.halocorevfac);
+            param[7] = param[2];
         }
         //not adaptive, using halo based linking lengths and halo dispersion
         else

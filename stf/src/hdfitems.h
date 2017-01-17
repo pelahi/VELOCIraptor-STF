@@ -91,7 +91,7 @@ struct HDF_Group_Names {
         part_names[3]=TRACERpart_name;
         part_names[4]=STARpart_name;
         part_names[5]=BHpart_name;
-        
+
         names[0]=Header_name;
         names[1]=GASpart_name;
         names[2]=DMpart_name;
@@ -280,6 +280,7 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype)
     else if (ptype==PSTGAS) {nusetypes=1;usetypes[0]=0;}
     else if (ptype==PSTSTAR) {nusetypes=1;usetypes[0]=4;}
     else if (ptype==PSTBH) {nusetypes=1;usetypes[0]=5;}
+    else if (ptype==PSTNOBH) {nusetypes=3;usetypes[0]=0;usetypes[1]=1;usetypes[2]=4;}
 
     //Try block to detect exceptions raised by any of the calls inside it
     try

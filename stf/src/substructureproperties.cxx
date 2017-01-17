@@ -1894,9 +1894,9 @@ void CalcPosSigmaTensor(const Int_t n, Particle *p, Double_t &a, Double_t &b, Do
 #ifdef USEOPENMP
     if (n>=ompunbindnum) {
 #pragma omp parallel default(shared) \
-private(i,r2,weight)
+private(i,weight)
 {
-#pragma omp for schedule(dynamic) nowait reduction(+:Ixx,Iyy,Izz,Ixy,Ixz,Iyz,mtot)
+#pragma omp for schedule(dynamic) reduction(+:Ixx,Iyy,Izz,Ixy,Ixz,Iyz,mtot)
     for (i = 0; i < n; i++)
     {
         if (itype==-1) weight=p[i].GetMass();
@@ -1920,7 +1920,6 @@ private(i,r2,weight)
 #endif
     for (i = 0; i < n; i++)
     {
-        r2=p[i].X()*p[i].X()+p[i].Y()*p[i].Y()+p[i].Z()*p[i].Z();
         if (itype==-1) weight=p[i].GetMass();
         else if (p[i].GetType()==itype) weight=p[i].GetMass();
         else weight=0.;
@@ -1957,9 +1956,9 @@ void CalcVelSigmaTensor(const Int_t n, Particle *p, Double_t &a, Double_t &b, Do
 #ifdef USEOPENMP
     if (n>=ompunbindnum) {
 #pragma omp parallel default(shared) \
-private(i,r2,weight)
+private(i,weight)
 {
-#pragma omp for schedule(dynamic) nowait reduction(+:Ixx,Iyy,Izz,Ixy,Ixz,Iyz,mtot)
+#pragma omp for schedule(dynamic) reduction(+:Ixx,Iyy,Izz,Ixy,Ixz,Iyz,mtot)
     for (i = 0; i < n; i++)
     {
         if (itype==-1) weight=p[i].GetMass();
@@ -1984,7 +1983,6 @@ private(i,r2,weight)
 #endif
     for (i = 0; i < n; i++)
     {
-        r2=p[i].X()*p[i].X()+p[i].Y()*p[i].Y()+p[i].Z()*p[i].Z();
         if (itype==-1) weight=p[i].GetMass();
         else if (p[i].GetType()==itype) weight=p[i].GetMass();
         else weight=0.;

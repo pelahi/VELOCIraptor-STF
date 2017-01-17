@@ -122,6 +122,7 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
     else if (opt.partsearchtype==PSTGAS) {nusetypes=1;usetypes[0]=0;}
     else if (opt.partsearchtype==PSTSTAR) {nusetypes=1;usetypes[0]=4;}
     else if (opt.partsearchtype==PSTBH) {nusetypes=1;usetypes[0]=5;}
+    else if (opt.partsearchtype==PSTNOBH) {nusetypes=3;usetypes[0]=0;usetypes[1]=1;usetypes[2]=4;}
 
     Int_t i,j,k,n,nchunk,count,bcount,itemp,count2,bcount2;
 

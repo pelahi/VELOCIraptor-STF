@@ -913,7 +913,7 @@ def ProduceCombinedUnifiedTreeandHaloCatalog(fname,numsnaps,tree,numhalos,haloda
     for i in range(numsnaps):
         tdata[count:int(numhalos[i])+count]=i
         count+=int(numhalos[i])
-    treegrp.create_dataset("HaloSnapNum",data=tdata)        
+    treegrp.create_dataset("HaloSnapNum",data=tdata)
     tdata=np.zeros(tothalos,dtype=np.uint64)
     count=0
     for i in range(numsnaps):

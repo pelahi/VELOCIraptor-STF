@@ -89,11 +89,12 @@ using namespace NBody;
 //@{
 /// \name Specify particle type to be searched, all, dm only, separate
 //@{
-#define  PSTALL 1 
-#define  PSTDARK 2 
-#define  PSTSTAR 3 
-#define  PSTGAS 4 
-#define  PSTBH 5 
+#define  PSTALL 1
+#define  PSTDARK 2
+#define  PSTSTAR 3
+#define  PSTGAS 4
+#define  PSTBH 5
+#define  PSTNOBH 6
 //@}
 //@}
 

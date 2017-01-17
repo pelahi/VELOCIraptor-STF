@@ -606,7 +606,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
             xtemp[0]=xtempchunk[nn];xtemp[1]=xtempchunk[nn+nchunk];xtemp[2]=xtempchunk[nn+2*nchunk];
             vtemp[0]=vtempchunk[nn];vtemp[1]=vtempchunk[nn+nchunk];vtemp[2]=vtempchunk[nn+2*nchunk];
             idval=idvalchunk[nn];
-            for (int kk=0;kk<3;kk++) {xtemp[kk]=LittleFLOAT(xtemp[kk]);vtemp[kk]=LittleFLOAT(vtemp[kk]);}
+            for (int kk=0;kk<3;kk++) {xtemp[kk]=LittleRAMSESFLOAT(xtemp[kk]);vtemp[kk]=LittleRAMSESFLOAT(vtemp[kk]);}
 #ifndef NOMASS
             mtemp=mtempchunk[nn];
 #else

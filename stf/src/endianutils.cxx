@@ -35,4 +35,13 @@ double (*BigREAL) ( double f );
 double (*LittleREAL) ( double f );
 #endif
 
+
+#ifdef RAMSESSINGLEPRECISION
+float (*BigRAMSESFLOAT) ( float f );
+float (*LittleRAMSESFLOAT) ( float f );
+#else
+double (*BigRAMSESFLOAT) ( double f );
+double (*LittleRAMSESFLOAT) ( double f );
+#endif
+
 bool BigEndianSystem;
