@@ -341,6 +341,8 @@ struct Options
     int icomoveunit;
     /// input is a cosmological simulation so can use box sizes, cosmological parameters, etc to set scales
     int icosmologicalin;
+
+
     ///\name length,m,v,grav units
     //@{
     Double_t L, M, V, G;
@@ -464,7 +466,16 @@ struct Options
     //@{
     int gnsphblocks,gnstarblocks,gnbhblocks;
     //@}
-    
+
+    /// \name Extra HDF flags indicating the existence of extra baryonic/dm particle types
+    //@{
+    /// input contains black hole/sink particles
+    int iusesinkparticles;
+    /// input contains wind particles
+    int iusewindparticles;
+    /// input contains extra dark type particles
+    int iuseextradarkparticles;
+    //@}
 
     ///\name extra runtime flags
     //@{
@@ -561,6 +572,9 @@ struct Options
         iextendedoutput=0;
         icomoveunit=0;
         icosmologicalin=1;
+
+        iusesinkparticles=1;
+        iusewindparticles=0;
 
         snapshotvalue=0;
 

@@ -259,9 +259,9 @@ void GetGlobalSpatialMorphology(const Int_t nbodies, Particle *p, Double_t& q, D
 ///Calculate inertia tensor and eigvector
 void CalcITensor(const Int_t n, Particle *p, Double_t &a, Double_t &b, Double_t &c, Matrix& eigenvec, Matrix &I, int itype);
 ///Calculate position dispersion tensor and eigvector
-void CalcPosSigmaTensor(const Int_t n, Particle *p, Double_t &a, Double_t &b, Double_t &c, Matrix& eigenvec, Matrix &I, int itype);
+void CalcPosSigmaTensor(const Int_t n, Particle *p, Double_t &a, Double_t &b, Double_t &c, Matrix& eigenvec, Matrix &I, int itype=-1);
 ///Calculate velocity dispersion tensor and eigvector
-void CalcVelSigmaTensor(const Int_t n, Particle *p, Double_t &a, Double_t &b, Double_t &c, Matrix& eigenvec, Matrix &I, int itype);
+void CalcVelSigmaTensor(const Int_t n, Particle *p, Double_t &a, Double_t &b, Double_t &c, Matrix& eigenvec, Matrix &I, int itype=-1);
 ///Calculate the reduced weighted inertia tensor used to determine the spatial morphology 
 void CalcMTensor(Matrix& M, const Double_t q, const Double_t s, const Int_t n, Particle *p, int itype);
 ///Same as \ref CalcMTensor but include mass

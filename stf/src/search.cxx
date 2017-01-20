@@ -1828,27 +1828,34 @@ void SearchSubSub(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_
 }
 #endif
             }
-            opt.Ncell=opt.Ncellfac*subnumingroup[i];
-            //if ncell is such that uncertainty would be greater than 0.5% based on Poisson noise, increase ncell till above unless cell would contain >25% 
-            while (opt.Ncell<MINCELLSIZE && subnumingroup[i]/4.0>opt.Ncell) opt.Ncell*=2;
-            tree=InitializeTreeGrid(opt,subnumingroup[i],subPart);
-            ngrid=tree->GetNumLeafNodes();
-            if (opt.iverbose) cout<<ThisTask<<" Substructure "<<i<< " at sublevel "<<sublevel<<" with "<<subnumingroup[i]<<" particles split into are "<<ngrid<<" grid cells, with each node containing ~"<<subnumingroup[i]/ngrid<<" particles"<<endl;
-            grid=new GridCell[ngrid];
-            FillTreeGrid(opt, subnumingroup[i], ngrid, tree, subPart, grid);
-            gvel=GetCellVel(opt,subnumingroup[i],subPart,ngrid,grid);
-            gveldisp=GetCellVelDisp(opt,subnumingroup[i],subPart,ngrid,grid,gvel);
-            opt.HaloSigmaV=0;for (int j=0;j<ngrid;j++) opt.HaloSigmaV+=pow(gveldisp[j].Det(),1./3.);opt.HaloSigmaV/=(double)ngrid;
-            //store the maximum halo velocity scale 
-            if (opt.HaloSigmaV>opt.HaloVelDispScale) opt.HaloVelDispScale=opt.HaloSigmaV;
-            //now if object is large enough for phase-space decomposition and search, compare local field to bg field
             if (subnumingroup[i]>=MINSUBSIZE) {
+                //now if object is large enough for phase-space decomposition and search, compare local field to bg field
+                opt.Ncell=opt.Ncellfac*subnumingroup[i];
+                //if ncell is such that uncertainty would be greater than 0.5% based on Poisson noise, increase ncell till above unless cell would contain >25% 
+                while (opt.Ncell<MINCELLSIZE && subnumingroup[i]/4.0>opt.Ncell) opt.Ncell*=2;
+                tree=InitializeTreeGrid(opt,subnumingroup[i],subPart);
+                ngrid=tree->GetNumLeafNodes();
+                if (opt.iverbose) cout<<ThisTask<<" Substructure "<<i<< " at sublevel "<<sublevel<<" with "<<subnumingroup[i]<<" particles split into are "<<ngrid<<" grid cells, with each node containing ~"<<subnumingroup[i]/ngrid<<" particles"<<endl;
+                grid=new GridCell[ngrid];
+                FillTreeGrid(opt, subnumingroup[i], ngrid, tree, subPart, grid);
+                gvel=GetCellVel(opt,subnumingroup[i],subPart,ngrid,grid);
+                gveldisp=GetCellVelDisp(opt,subnumingroup[i],subPart,ngrid,grid,gvel);
+                opt.HaloSigmaV=0;for (int j=0;j<ngrid;j++) opt.HaloSigmaV+=pow(gveldisp[j].Det(),1./3.);opt.HaloSigmaV/=(double)ngrid;
+                //store the maximum halo velocity scale 
+                if (opt.HaloSigmaV>opt.HaloVelDispScale) opt.HaloVelDispScale=opt.HaloSigmaV;
 #ifdef HALOONLYDEN
                 GetVelocityDensity(opt,subnumingroup[i],subPart);
 #endif
                 GetDenVRatio(opt,subnumingroup[i],subPart,ngrid,grid,gvel,gveldisp);
                 int blah=GetOutliersValues(opt,subnumingroup[i],subPart,sublevel);
                 opt.idenvflag++;//largest field halo used to deteremine statistics of ratio
+            }
+            //otherwise only need to calculate a velocity scale for merger separation
+            else {
+                Matrix eigvec(0.),I(0.);
+                Double_t sigma2x,sigma2y,sigma2z;
+                CalcVelSigmaTensor(subnumingroup[i], subPart, sigma2x, sigma2y, sigma2z, eigvec, I);
+                opt.HaloSigmaV=pow(sigma2x*sigma2y*sigma2z,1.0/6.0);
             }
             subpfof=SearchSubset(opt,subnumingroup[i],subnumingroup[i],subPart,subngroup[i],sublevel,&numcores[i]);
             //now if subngroup>0 change the pfof ids of these particles in question and see if there are any substrucures that can be searched again.

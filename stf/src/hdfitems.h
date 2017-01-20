@@ -23,10 +23,11 @@ using namespace H5;
 //@{
 #define HDFGASTYPE 0
 #define HDFDMTYPE 1
-#define HDFEXTRATYPE 2
+#define HDFWINDTYPE 2
 #define HDFTRACERTYPE 3
 #define HDFSTARTYPE 4
 #define HDFBHTYPE 5
+#define HDFEXTRATYPE 6
 //@}
 
 ///\name number of entries in various data groups 
@@ -248,7 +249,7 @@ struct HDF_Part_Info {
 
 /// \name Get the number of particles in the hdf files
 //@{
-inline Int_t HDF_get_nbodies(char *fname, int ptype) 
+inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt) 
 {
     char buf[2000],buf1[2000],buf2[2000];
     sprintf(buf1,"%s.0.hdf5",fname);
@@ -275,12 +276,19 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype)
 
     int nusetypes,usetypes[NHDFTYPE];
 
-    if (ptype==PSTALL) {nusetypes=4;usetypes[0]=0;usetypes[1]=1;usetypes[2]=4;usetypes[3]=5;}
-    else if (ptype==PSTDARK) {nusetypes=1;usetypes[0]=1;}
-    else if (ptype==PSTGAS) {nusetypes=1;usetypes[0]=0;}
-    else if (ptype==PSTSTAR) {nusetypes=1;usetypes[0]=4;}
-    else if (ptype==PSTBH) {nusetypes=1;usetypes[0]=5;}
-    else if (ptype==PSTNOBH) {nusetypes=3;usetypes[0]=0;usetypes[1]=1;usetypes[2]=4;}
+    if (ptype==PSTALL) {
+        //lets assume there are dm/stars/gas.
+        nusetypes=3;
+        usetypes[0]=HDFGASTYPE;usetypes[1]=HDFDMTYPE;usetypes[2]=HDFSTARTYPE;
+        //now if also blackholes/sink particles increase number of types
+        if (opt.iusesinkparticles) usetypes[nusetypes++]=HDFBHTYPE;
+        if (opt.iusewindparticles) usetypes[nusetypes++]=HDFWINDTYPE;
+    }
+    else if (ptype==PSTDARK) {nusetypes=1;usetypes[0]=HDFDMTYPE;}
+    else if (ptype==PSTGAS) {nusetypes=1;usetypes[0]=HDFGASTYPE;}
+    else if (ptype==PSTSTAR) {nusetypes=1;usetypes[0]=HDFSTARTYPE;}
+    else if (ptype==PSTBH) {nusetypes=1;usetypes[0]=HDFBHTYPE;}
+    //else if (ptype==PSTNOBH) {nusetypes=3;usetypes[0]=0;usetypes[1]=1;usetypes[2]=4;}
 
     //Try block to detect exceptions raised by any of the calls inside it
     try

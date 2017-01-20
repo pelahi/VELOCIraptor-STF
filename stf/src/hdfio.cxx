@@ -117,12 +117,24 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
     ///Since Illustris contains an unused type of particles (2) and tracer particles (3) really not useful to iterate over all particle types in loops
     int nusetypes,nbusetypes;
     int usetypes[NHDFTYPE];
-    if (opt.partsearchtype==PSTALL) {nusetypes=4;usetypes[0]=0;usetypes[1]=1;usetypes[2]=4;usetypes[3]=5;}
-    else if (opt.partsearchtype==PSTDARK) {nusetypes=1;usetypes[0]=1;if (opt.iBaryonSearch) {nbusetypes=3;usetypes[1]=0;usetypes[2]=4;usetypes[3]=5;}}
-    else if (opt.partsearchtype==PSTGAS) {nusetypes=1;usetypes[0]=0;}
-    else if (opt.partsearchtype==PSTSTAR) {nusetypes=1;usetypes[0]=4;}
-    else if (opt.partsearchtype==PSTBH) {nusetypes=1;usetypes[0]=5;}
-    else if (opt.partsearchtype==PSTNOBH) {nusetypes=3;usetypes[0]=0;usetypes[1]=1;usetypes[2]=4;}
+    if (opt.partsearchtype==PSTALL) {
+        //lets assume there are dm/stars/gas.
+        nusetypes=3;
+        usetypes[0]=HDFGASTYPE;usetypes[1]=HDFDMTYPE;usetypes[2]=HDFSTARTYPE;
+        //now if also blackholes/sink particles increase number of types
+        if (opt.iusesinkparticles) usetypes[nusetypes++]=HDFBHTYPE;
+        if (opt.iusewindparticles) usetypes[nusetypes++]=HDFWINDTYPE;
+    }
+    else if (opt.partsearchtype==PSTDARK) {
+        nusetypes=1;usetypes[0]=HDFDMTYPE;
+        if (opt.iBaryonSearch) {
+            nbusetypes=2;usetypes[1]=HDFGASTYPE;usetypes[2]=HDFSTARTYPE;
+            if (opt.iusesinkparticles) usetypes[1+nbusetypes++]=HDFBHTYPE;
+        }
+    }
+    else if (opt.partsearchtype==PSTGAS) {nusetypes=1;usetypes[0]=HDFGASTYPE;}
+    else if (opt.partsearchtype==PSTSTAR) {nusetypes=1;usetypes[0]=HDFSTARTYPE;}
+    else if (opt.partsearchtype==PSTBH) {nusetypes=1;usetypes[0]=HDFBHTYPE;}
 
     Int_t i,j,k,n,nchunk,count,bcount,itemp,count2,bcount2;
 

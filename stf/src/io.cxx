@@ -54,7 +54,7 @@ Int_t ReadHeader(Options &opt){
     }
     else if (opt.inputtype==IORAMSES) return RAMSES_get_nbodies(opt.fname,opt.partsearchtype,opt);
 #ifdef USEHDF
-    else if (opt.inputtype==IOHDF) return HDF_get_nbodies(opt.fname,opt.partsearchtype);
+    else if (opt.inputtype==IOHDF) return HDF_get_nbodies(opt.fname,opt.partsearchtype,opt);
 #endif
     return 0;
 }
