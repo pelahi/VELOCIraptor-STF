@@ -990,6 +990,25 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
         if (pdata[i].n_star>=10) GetGlobalSpatialMorphology(numingroup[i], &Part[noffset[i]], pdata[i].q_star, pdata[i].s_star, 1e-2, pdata[i].eigvec_star,0,STARTYPE,0);
 #endif
 
+#ifdef BHON
+        for (j=0;j<numingroup[i];j++) {
+            Pval=&Part[j+noffset[i]];
+            if (Pval->GetType()==BHTYPE) {
+                pdata[i].n_bh++;
+                pdata[i].M_bh+=Pval->GetMass();
+            }
+        }
+#endif
+#ifdef HIGHRES
+        for (j=0;j<numingroup[i];j++) {
+            Pval=&Part[j+noffset[i]];
+            if (Pval->GetType()==DARKTYPE&&Pval->GetMass()>opt.zoomlowmassdm) {
+                pdata[i].n_interloper++;
+                pdata[i].M_interloper+=Pval->GetMass();
+            }
+        }
+#endif
+
         //morphology calcs
 #ifdef NOMASS
         GetGlobalSpatialMorphology(numingroup[i], &Part[noffset[i]], pdata[i].gq, pdata[i].gs, 1e-2, pdata[i].geigvec,0);
@@ -1742,6 +1761,25 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
 #ifdef NOMASS
         pdata[i].M_star*=opt.MassValue;
 #endif
+#endif
+
+#ifdef BHON
+        for (j=0;j<numingroup[i];j++) {
+            Pval=&Part[j+noffset[i]];
+            if (Pval->GetType()==BHTYPE) {
+                pdata[i].n_bh++;
+                pdata[i].M_bh+=Pval->GetMass();
+            }
+        }
+#endif
+#ifdef HIGHRES
+        for (j=0;j<numingroup[i];j++) {
+            Pval=&Part[j+noffset[i]];
+            if (Pval->GetType()==DARKTYPE&&Pval->GetMass()>opt.zoomlowmassdm) {
+                pdata[i].n_interloper++;
+                pdata[i].M_interloper+=Pval->GetMass();
+            }
+        }
 #endif
 
 #ifdef NOMASS

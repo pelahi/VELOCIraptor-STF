@@ -476,6 +476,12 @@ struct Options
     /// input contains extra dark type particles
     int iuseextradarkparticles;
     //@}
+    
+    /// \name Extra variables to store information useful in zoom simluations
+    //@{
+    /// store the lowest dark matter particle mass
+    Double_t zoomlowmassdm;
+    //@}
 
     ///\name extra runtime flags
     //@{
@@ -737,6 +743,16 @@ struct PropData
     //@}
 #endif
 
+#ifdef HIGHRES
+    ///\name low resolution interloper particle specific quantities
+    //@{
+    ///number of interloper low res particles
+    int n_interloper;
+    ///mass
+    Double_t M_interloper;
+    //@}
+#endif
+
     PropData(){
         num=gNFOF=0;
         gmass=gsize=gRmbp=gmaxvel=gRmaxvel=gRvir=gR200m=gR200c=gRhalfmass=Efrac=Pot=T=0.;
@@ -782,6 +798,9 @@ struct PropData
 #ifdef BHON
         n_bh=M_bh=0;
         acc_bh=0;
+#endif
+#ifdef HIGHRES
+        n_interloper=M_interloper=0;
 #endif
     }
     ///equals operator, useful if want inclusive information before substructure search
@@ -1032,8 +1051,20 @@ struct PropData
 
 #endif
 
+#ifdef BHON
+        idval=n_bh;
+        Fout.write((char*)&idval,sizeof(idval));
+        val=M_bh;
+        Fout.write((char*)&val,sizeof(val));
+#endif
+#ifdef HIGHRES
+        idval=n_interloper;
+        Fout.write((char*)&idval,sizeof(idval));
+        val=M_interloper;
+        Fout.write((char*)&val,sizeof(val));
+#endif
     }
-    
+
     ///write (append) the properties data to an already open ascii file
     void WriteAscii(fstream &Fout){
         Fout<<haloid<<" ";
@@ -1071,7 +1102,7 @@ struct PropData
         Fout<<Krot<<" ";
         Fout<<T<<" ";
         Fout<<Pot<<" ";
-        
+
         Fout<<RV_sigma_v<<" ";
         for (int k=0;k<3;k++) for (int n=0;n<3;n++) Fout<<RV_veldisp(k,n)<<" ";
         Fout<<RV_lambda_B<<" ";
@@ -1124,6 +1155,15 @@ struct PropData
         Fout<<t_star<<" ";
         Fout<<Z_star<<" ";
 #endif
+
+#ifdef BHON
+        Fout<<n_bh<<" ";
+        Fout<<M_bh<<" ";
+#endif
+#ifdef HIGHRES
+        Fout<<n_interloper<<" ";
+        Fout<<M_interloper<<" ";
+#endif
         Fout<<endl;
     }
 #ifdef USEHDF
@@ -1145,7 +1185,7 @@ struct PropDataHeader{
 #endif
     PropDataHeader(){
         int sizeval;
-        
+
         headerdatainfo.push_back("ID");
         headerdatainfo.push_back("ID_mbp");
         headerdatainfo.push_back("hostHaloID");
@@ -1217,7 +1257,7 @@ struct PropDataHeader{
         headerdatainfo.push_back("Krot");
         headerdatainfo.push_back("Ekin");
         headerdatainfo.push_back("Epot");
-        
+
         //some properties within RVmax
         headerdatainfo.push_back("RVmax_sigV");
         headerdatainfo.push_back("RVmax_veldisp_xx");
@@ -1351,7 +1391,32 @@ struct PropDataHeader{
         for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(PredType::NATIVE_DOUBLE);
 #endif
 #endif
-      
+
+#ifdef BHON
+        headerdatainfo.push_back("n_bh");
+#ifdef USEHDF
+        predtypeinfo.push_back(PredType::STD_U64LE);
+#endif
+        headerdatainfo.push_back("M_bh");
+#ifdef USEHDF
+        sizeval=predtypeinfo.size();
+        for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(PredType::NATIVE_DOUBLE);
+#endif
+#endif
+
+
+#ifdef HIGHRES
+        headerdatainfo.push_back("n_interloper");
+#ifdef USEHDF
+        predtypeinfo.push_back(PredType::STD_U64LE);
+#endif
+        headerdatainfo.push_back("M_interloper");
+#ifdef USEHDF
+        sizeval=predtypeinfo.size();
+        for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(PredType::NATIVE_DOUBLE);
+#endif
+#endif
+
     }
 };
 

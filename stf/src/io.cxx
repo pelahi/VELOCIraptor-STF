@@ -1248,6 +1248,24 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
 #endif
+#ifdef BHON
+        for (Int_t i=0;i<ngroups;i++) ((unsigned long*)data)[i]=pdata[i+1].n_bh;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].M_bh;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+#endif
+#ifdef STARON
+        for (Int_t i=0;i<ngroups;i++) ((unsigned long*)data)[i]=pdata[i+1].n_interloper;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+
+        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].M_interloper;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+#endif
         //delete memory associated with void pointer
         ::operator delete(data);
         delete[] propdataspace;
