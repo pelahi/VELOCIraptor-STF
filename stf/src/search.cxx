@@ -1382,7 +1382,7 @@ private(i,tid)
     //for missing large substructure cores
     if(opt.iHaloCoreSearch>0&&((!opt.iSingleHalo&&sublevel==1)||(opt.iSingleHalo&&sublevel==0))) 
     {
-        if (opt.iverbose) cout<<ThisTask<<" beginning 6dfof core search to find multiple cores"<<endl;
+        if (opt.iverbose==2) cout<<ThisTask<<" beginning 6dfof core search to find multiple cores"<<endl;
         bgoffset=1;
         //if adaptive core linking then need to calculate dispersion tensors in configuration and velocity space
         if (opt.iAdaptiveCoreLinking)
@@ -1427,7 +1427,7 @@ private(i,tid)
         }
 
         minsize=nsubset*opt.halocorenfac;
-        if (opt.iverbose) {
+        if (opt.iverbose==2) {
             cout<<ThisTask<<" "<<"Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits, ellphys="<<sqrt(param[7])<<" Vunits"<<endl;
             cout<<"with minimum size of "<<minsize<<endl;
         }
@@ -1447,7 +1447,7 @@ private(i,tid)
             numloops++;
         }
         if (numgroupsbg>=bgoffset+1) {
-            if (opt.iverbose) cout<<"Number of cores: "<<numgroupsbg<<endl;
+            if (opt.iverbose==2) cout<<"Number of cores: "<<numgroupsbg<<endl;
             //if cores are found, two options
             //a pnumcores pointer is passed, store the number of cores in this pointer assumes halo ids will not be reordered, making it easy to flag cores
             //if opt.iHaloCoreSearch==2 then start searching the halo to identify which particles belong to which core by linking particles to their closest
@@ -1470,7 +1470,7 @@ private(i,tid)
                         mcore[pfofbg[i]]++;
                     }
                 }
-                if (opt.iverbose) {
+                if (opt.iverbose==2) {
                     cout<<"Mass ratios of cores are "<<endl;
                     for (i=1;i<=numgroupsbg;i++)cout<<i<<" "<<mcore[i]<<" "<<mcore[i]/mcore[1]<<endl;
                 }
@@ -1491,7 +1491,7 @@ private(i,tid)
                     nnID[i]=new Int_t[nsearch];
                     dist2[i]=new Double_t[nsearch];
                 }
-                if (opt.iverbose) cout<<"Searching untagged particles to assign to cores "<<endl;
+                if (opt.iverbose==2) cout<<"Searching untagged particles to assign to cores "<<endl;
 #ifdef USEOPENMP
                 if (nsubset>ompperiodnum) {
 #pragma omp parallel default(shared) \
@@ -1568,10 +1568,10 @@ private(i,tid,Pval,x1,D2,dval,mval,pid,pidcore)
                 delete[] mcore;
             }
             for (i=0;i<nsubset;i++) if (pfofbg[i]>bgoffset) pfof[i]=oldng+(pfofbg[i]-bgoffset);
-            if (opt.iverbose) cout<<ThisTask<<": After 6dfof core search and assignment there are "<< ng<<" groups"<<endl;
+            if (opt.iverbose==2) cout<<ThisTask<<": After 6dfof core search and assignment there are "<< ng<<" groups"<<endl;
             numgroups=ng;
         }
-        else if (opt.iverbose) cout<<ThisTask<<": has found no excess cores indicating mergers"<<endl;
+        else if (opt.iverbose==2) cout<<ThisTask<<": has found no excess cores indicating mergers"<<endl;
         delete[] pfofbg;
     }
 

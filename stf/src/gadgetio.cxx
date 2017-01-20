@@ -1882,7 +1882,7 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
 #endif
     MPI_Bcast(&(Ntotal),sizeof(Ntotal),MPI_BYTE,0,MPI_COMM_WORLD);
 #ifdef HIGHRES
-    opt.zoomlowmassdm=MP_DM;
+    opt.zoomlowmassdm=MP_DM*mscale;
     MPI_Bcast(&opt.zoomlowmassdm,sizeof(opt.zoomlowmassdm),MPI_BYTE,0,MPI_COMM_WORLD);
 #endif
 #endif
