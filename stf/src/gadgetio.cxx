@@ -1865,6 +1865,9 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
 #ifdef USEMPI
     }
 #endif
+#ifdef HIGHRES
+    opt.zoomlowmassdm=MP_DM*mscale;
+#endif
 #ifdef USEMPI
     MPI_Barrier(MPI_COMM_WORLD);
     //update cosmological data and boundary in code units
@@ -1881,10 +1884,7 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     MPI_Bcast(&(opt.MassValue),sizeof(opt.MassValue),MPI_BYTE,0,MPI_COMM_WORLD);
 #endif
     MPI_Bcast(&(Ntotal),sizeof(Ntotal),MPI_BYTE,0,MPI_COMM_WORLD);
-#ifdef HIGHRES
-    opt.zoomlowmassdm=MP_DM*mscale;
     MPI_Bcast(&opt.zoomlowmassdm,sizeof(opt.zoomlowmassdm),MPI_BYTE,0,MPI_COMM_WORLD);
-#endif
 #endif
     ///If compiled with HIGHRES, the code assumes that the gadget data is a multi-resolution simulation
     ///with the lowest mass dark matter particle corresponding to the highest resolution and
@@ -1894,7 +1894,7 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     ///to calculate the mean interparticle spacing.
     ///but one can also pass opt.Neff to adjust what the code thinks is the average inter particle spacing
 #ifdef HIGHRES
-    
+
     if (opt.Neff==-1) {
         //Once smallest mass particle is found (which should correspond to highest resolution area,
         if (opt.Omega_b==0) MP_B=0;
