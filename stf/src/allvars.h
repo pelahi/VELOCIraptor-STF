@@ -451,7 +451,7 @@ struct Options
     /// run halo core search for mergers
     int iHaloCoreSearch;
     ///parameters associated with phase-space search for cores of mergers
-    Double_t halocorexfac, halocorevfac, halocorenfac;
+    Double_t halocorexfac, halocorevfac, halocorenfac, halocoresigmafac;
     ///x and v space linking lengths calculated for each object
     int iAdaptiveCoreLinking;
     ///allow for iterative halo core search
@@ -568,6 +568,7 @@ struct Options
         halocorexfac=0.5;
         halocorevfac=2.0;
         halocorenfac=0.1;
+        halocoresigmafac=3.0;
         halocorevfaciter=0.5;
         halocorenumloops=1;
 

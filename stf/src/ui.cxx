@@ -370,9 +370,9 @@ void GetParamFile(Options &opt)
                     else if (strcmp(tbuff, "Halo_velocity_linking_length_factor")==0)
                         opt.ellhalovelfac = atof(vbuff);
                     //specific to 6DFOF field search
-        		    else if (strcmp(tbuff, "Halo_6D_linking_length_factor")==0)
+                    else if (strcmp(tbuff, "Halo_6D_linking_length_factor")==0)
                         opt.ellhalo6dxfac = atof(vbuff);
-        		    else if (strcmp(tbuff, "Halo_6D_vel_linking_length_factor")==0)
+                    else if (strcmp(tbuff, "Halo_6D_vel_linking_length_factor")==0)
                         opt.ellhalo6dvfac = atof(vbuff);
                     //specific search for 6d fof core searches
                     else if (strcmp(tbuff, "Halo_core_ellx_fac")==0)
@@ -381,6 +381,12 @@ void GetParamFile(Options &opt)
                         opt.halocorevfac = atof(vbuff);
                     else if (strcmp(tbuff, "Halo_core_ncellfac")==0)
                         opt.halocorenfac = atof(vbuff);
+                    else if (strcmp(tbuff, "Halo_core_adaptive_sigma_fac")==0)
+                        opt.halocoresigmafac = atof(vbuff);
+                    else if (strcmp(tbuff, "Halo_core_num_loops")==0)
+                        opt.halocorenumloops = atof(vbuff);
+                    else if (strcmp(tbuff, "Halo_core_loop_ellv_fac")==0)
+                        opt.halocorevfaciter = atof(vbuff);
 
                     //for changing factors used in iterative search
                     else if (strcmp(tbuff, "Iterative_threshold_factor")==0)

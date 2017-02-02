@@ -19,7 +19,7 @@
 #ifdef RAMSESLONGIDS
 #define RAMSESIDTYPE int
 #else
-#define RAMSESIDTYPE int
+#define RAMSESIDTYPE  unsigned int
 #endif
 #define RAMSESINTTYPE int 
 
@@ -77,6 +77,7 @@ struct RAMSES_Header {
     int         npart[NRAMSESTYPE];
     int         npartTotal[NRAMSESTYPE];
     int         npartTotalHW[NRAMSESTYPE];
+    int         nstarTotal;
     RAMSESFLOAT mass[NRAMSESTYPE];
     double      Omegam, OmegaLambda, Omegak, Omegab, HubbleParam;
     double      aexp, time;

@@ -37,6 +37,13 @@ int RAMSES_fortran_read(fstream &F, int *i){
     F.read((char*)&dummy, sizeof(dummy));byteoffset+=sizeof(int);
     return byteoffset;
 }
+int RAMSES_fortran_read(fstream &F, unsigned int *i){
+    int dummy,byteoffset=0;
+    F.read((char*)&dummy, sizeof(dummy)); byteoffset += sizeof(int);
+    F.read((char*)i,dummy);               byteoffset += dummy;
+    F.read((char*)&dummy, sizeof(dummy)); byteoffset += sizeof(int);
+    return byteoffset;
+}
 int RAMSES_fortran_read(fstream &F, long long *i){
     int dummy,byteoffset=0;
     F.read((char*)&dummy, sizeof(dummy));byteoffset+=sizeof(int);

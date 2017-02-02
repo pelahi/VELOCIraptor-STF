@@ -41,6 +41,16 @@ using namespace H5;
 #define HDFMAXPINFO 40
 //@}
 
+///\name to access where extra baryonic properties are located in the HDF_Part_Info structure that code will use to calcualte object properties
+//@{
+#define HDFGASIMETAL 0
+
+#define HDFSTARIMETAL 40
+#define HDFSTARIAGE 41
+
+#define HDFBHIMDOT 50
+//@}
+
 ///number of luminosity bands for stars
 #define NLUMBANDS 8
 
@@ -149,6 +159,9 @@ struct HDF_Part_Info {
     H5std_string names[HDFMAXPINFO];
     int ptype;
     int nentries;
+    //store where properties are located
+    int propindex[100];
+    
     //the HDF naming convenction for the data blocks. By default assumes ILLUSTRIS nameing convention
     //for simplicity, all particles have basic properties listed first, x,v,ids,mass in this order
     HDF_Part_Info(int PTYPE, int hdfnametype=HDFILLUSTISNAMES) {
@@ -164,6 +177,7 @@ struct HDF_Part_Info {
         names[itemp++]=H5std_string("StarFormationRate");
         //always place the metacallity at position 7 in naming array
         if (hdfnametype==HDFILLUSTISNAMES) {
+            propindex[HDFGASIMETAL]=itemp;
             names[itemp++]=H5std_string("GFM_Metallicity");
             names[itemp++]=H5std_string("ElectronAbundance");
             names[itemp++]=H5std_string("NeutralHydrogenAbundance");
@@ -205,7 +219,9 @@ struct HDF_Part_Info {
         names[itemp++]=H5std_string("Masses");
         //for stars assume star formation and metallicy are position 4, 5 in name array
         if (hdfnametype==HDFILLUSTISNAMES) {
+            propindex[HDFSTARIAGE]=itemp;
             names[itemp++]=H5std_string("GFM_StellarFormationTime");
+            propindex[HDFSTARIMETAL]=itemp;
             names[itemp++]=H5std_string("GFM_Metallicity");
             names[itemp++]=H5std_string("Potential");
             names[itemp++]=H5std_string("SubfindDensity");
@@ -363,5 +379,94 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
     return nbodies;
 
 }//@}
+
+
+
+/// \name Get the number of hdf files per snapshot
+//@{
+inline Int_t HDF_get_nfiles(char *fname, int ptype) 
+{
+    char buf[2000],buf1[2000],buf2[2000];
+    sprintf(buf1,"%s.0.hdf5",fname);
+    sprintf(buf2,"%s.hdf5",fname);
+    if (FileExists(buf1)) sprintf(buf,"%s",buf1);
+    else if (FileExists(buf2)) sprintf(buf,"%s",buf2);
+    else {
+        printf("Error. Can't find snapshot!\nneither as `%s'\nnor as `%s'\n\n", buf1, buf2);
+        exit(9);
+    }
+
+    H5File Fhdf;
+    HDF_Group_Names hdf_gnames;
+    //to store the groups, data sets and their associated data spaces
+    Group headergroup;
+    Attribute headerattribs;
+    HDF_Header hdf_header_info;
+    //buffers to load data
+    int intbuff[NHDFTYPE];
+    long long longbuff[NHDFTYPE];
+    int j,k,ireaderror=0;
+    Int_t nfiles = 0;
+    IntType inttype;
+
+    //Try block to detect exceptions raised by any of the calls inside it
+    try
+    {
+        //turn off the auto-printing when failure occurs so that we can
+        //handle the errors appropriately
+        Exception::dontPrint();
+
+        //Open the specified file and the specified dataset in the file.
+        Fhdf.openFile(buf, H5F_ACC_RDONLY);
+        //get header group 
+        headergroup=Fhdf.openGroup(hdf_gnames.Header_name);
+
+        headerattribs = headergroup.openAttribute(hdf_header_info.names[hdf_header_info.INumFiles]);
+        inttype = headerattribs.getIntType();
+        if (inttype.getSize() == sizeof(int)) 
+        {
+          headerattribs.read(PredType::NATIVE_INT,&intbuff);
+          hdf_header_info.num_files = intbuff[j];
+        }
+        if (inttype.getSize() == sizeof(long long)) 
+        {
+          headerattribs.read(PredType::NATIVE_LONG,&longbuff);
+          hdf_header_info.num_files = longbuff[j];
+        }
+    }
+    catch(GroupIException error)
+    {
+        error.printError();
+    }
+    // catch failure caused by the H5File operations
+    catch( FileIException error )
+    {
+        error.printError();
+
+    }
+    // catch failure caused by the DataSet operations
+    catch( DataSetIException error )
+    {
+        error.printError();
+        ireaderror=1;
+    }
+    // catch failure caused by the DataSpace operations
+    catch( DataSpaceIException error )
+    {
+        error.printError();
+        ireaderror=1;
+    }
+    // catch failure caused by the DataSpace operations
+    catch( DataTypeIException error )
+    {
+        error.printError();
+        ireaderror=1;
+    }
+    Fhdf.close();
+
+    return nfiles = hdf_header_info.num_files;
+
+}//@}
+
 
 #endif 

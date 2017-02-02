@@ -36,25 +36,65 @@ void MPIDomainExtentHDF(Options &opt){
     double doublebuff;
     FloatType floattype;
     PredType HDFREALTYPE(PredType::NATIVE_FLOAT);
+    int ireaderror = 0;
+
     if (ThisTask==0) {
         if(opt.num_files>1) sprintf(buf,"%s.0.hdf5",opt.fname);
         else sprintf(buf,"%s.hdf5",opt.fname);
 
-        //Open the specified file and the specified dataset in the file.
-        Fhdf.openFile(buf, H5F_ACC_RDONLY);
-        headergroup=Fhdf.openGroup(hdf_gnames.Header_name);
+        //Try block to detect exceptions raised by any of the calls inside it
+        try
+        {
+            //turn off the auto-printing when failure occurs so that we can
+            //handle the errors appropriately
+            Exception::dontPrint();
 
-        //start reading attributes
-        headerattribs=headergroup.openAttribute(hdf_header_info.names[hdf_header_info.IBoxSize]);
-        headerdataspace=headerattribs.getSpace();
-        floattype=headerattribs.getFloatType();
-        if (floattype.getSize()==sizeof(float)) {
-            headerattribs.read(PredType::NATIVE_FLOAT,&floatbuff);
-            hdf_header_info.BoxSize=floatbuff;
+            //Open the specified file and the specified dataset in the file.
+            Fhdf.openFile(buf, H5F_ACC_RDONLY);
+            cout<<"Loading HDF header info in header group: "<<hdf_gnames.Header_name<<endl;
+            //get header group 
+            headergroup=Fhdf.openGroup(hdf_gnames.Header_name);
+
+            //start reading attributes
+            headerattribs=headergroup.openAttribute(hdf_header_info.names[hdf_header_info.IBoxSize]);
+            headerdataspace=headerattribs.getSpace();
+            floattype=headerattribs.getFloatType();
+            if (floattype.getSize()==sizeof(float)) {
+                headerattribs.read(PredType::NATIVE_FLOAT,&floatbuff);
+                hdf_header_info.BoxSize=floatbuff;
+            }
+            if (floattype.getSize()==sizeof(double)) {
+                headerattribs.read(PredType::NATIVE_DOUBLE,&doublebuff);
+                hdf_header_info.BoxSize=doublebuff;
+            }
         }
-        if (floattype.getSize()==sizeof(double)) {
-            headerattribs.read(PredType::NATIVE_DOUBLE,&doublebuff);
-            hdf_header_info.BoxSize=doublebuff;
+        catch(GroupIException error)
+        {
+            error.printError();
+        }
+        // catch failure caused by the H5File operations
+        catch( FileIException error )
+        {
+            error.printError();
+
+        }
+        // catch failure caused by the DataSet operations
+        catch( DataSetIException error )
+        {
+            error.printError();
+            ireaderror=1;
+        }
+        // catch failure caused by the DataSpace operations
+        catch( DataSpaceIException error )
+        {
+            error.printError();
+            ireaderror=1;
+        }
+        // catch failure caused by the DataSpace operations
+        catch( DataTypeIException error )
+        {
+            error.printError();
+            ireaderror=1;
         }
         Fhdf.close();
         for (int i=0;i<3;i++) {mpi_xlim[i][0]=0;mpi_xlim[i][1]=hdf_header_info.BoxSize;}
@@ -230,12 +270,18 @@ void MPINumInDomainHDF(Options &opt)
     int nusetypes,nbusetypes;
     int usetypes[NHDFTYPE];
     if (ThisTask==0) {
-        if (opt.partsearchtype==PSTALL) {nusetypes=4;usetypes[0]=0;usetypes[1]=1;usetypes[2]=4;usetypes[3]=5;}
-        else if (opt.partsearchtype==PSTDARK) {nusetypes=1;usetypes[0]=1;if (opt.iBaryonSearch) {nbusetypes=3;usetypes[1]=0;usetypes[2]=4;usetypes[3]=5;}}
-        else if (opt.partsearchtype==PSTGAS) {nusetypes=1;usetypes[0]=0;}
-        else if (opt.partsearchtype==PSTSTAR) {nusetypes=1;usetypes[0]=4;}
-        else if (opt.partsearchtype==PSTBH) {nusetypes=1;usetypes[0]=5;}
-
+        if (opt.partsearchtype==PSTALL) {
+            //lets assume there are dm/stars/gas.
+            nusetypes=3;
+            usetypes[0]=HDFGASTYPE;usetypes[1]=HDFDMTYPE;usetypes[2]=HDFSTARTYPE;
+            //now if also blackholes/sink particles increase number of types
+            if (opt.iusesinkparticles) usetypes[nusetypes++]=HDFBHTYPE;
+            if (opt.iusewindparticles) usetypes[nusetypes++]=HDFWINDTYPE;
+        }
+        else if (opt.partsearchtype==PSTDARK) {nusetypes=1;usetypes[0]=HDFDMTYPE;}
+        else if (opt.partsearchtype==PSTGAS) {nusetypes=1;usetypes[0]=HDFGASTYPE;}
+        else if (opt.partsearchtype==PSTSTAR) {nusetypes=1;usetypes[0]=HDFSTARTYPE;}
+        else if (opt.partsearchtype==PSTBH) {nusetypes=1;usetypes[0]=HDFBHTYPE;}
 
         Nbuf=new Int_t[NProcs];
         Nbaryonbuf=new Int_t[NProcs];

@@ -1398,19 +1398,19 @@ private(i,tid)
             CalcPosSigmaTensor(nsubset, Partsubset, XX, YY, ZZ, myeigvec, myI, -1);
             xscale2=sqrt(XX+YY+ZZ);
             //volume of configuration ellipsoid
-            VOL = 4/3.0 * acos(-1) * sqrt(XX*YY*ZZ);
+            VOL = 4/3.0 * acos(-1) * sqrt(XX*XX*XX)*pow(opt.halocoresigmafac,3.0);
             //number density 
             nn = pow(VOL/nsubset,1./3.);
             //now adjust linking length
             //param[1] = xscale2 * nn * nn * opt.halocorexfac * opt.halocorexfac;
-            param[1] = XX*opt.halocorexfac * opt.halocorexfac;
+            param[1] = nn*nn*opt.halocorexfac * opt.halocorexfac;
             param[6] = param[1];
             //now the same for velocity space
             ///\todo still need to look at optimal scaling function for velocities
             CalcVelSigmaTensor(nsubset, Partsubset, XX, YY, ZZ, myeigvec, myI, -1);
             VOL = 4/3.0 * acos(-1) * sqrt(XX*YY*ZZ);
             nn = pow(VOL/nsubset,1./3.);
-            param[2] = ZZ*(opt.halocorevfac * opt.halocorevfac);
+            param[2] = XX*(opt.halocorevfac * opt.halocorevfac);
             param[7] = param[2];
         }
         //not adaptive, using halo based linking lengths and halo dispersion
@@ -1427,6 +1427,7 @@ private(i,tid)
         }
 
         minsize=nsubset*opt.halocorenfac;
+        minsize=max(minsize,opt.MinSize);
         if (opt.iverbose==2) {
             cout<<ThisTask<<" "<<"Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits, ellphys="<<sqrt(param[7])<<" Vunits"<<endl;
             cout<<"with minimum size of "<<minsize<<endl;
@@ -1438,13 +1439,31 @@ private(i,tid)
         for (i=0;i<nsubset;i++) Partsubset[i].SetPotential(pfof[Partsubset[i].GetID()]);
         param[9]=0.5;
         pfofbg=tree->FOFCriterion(fofcmp,param,numgroupsbg,minsize,iorder,icheck,FOFcheckbg);
-        int numloops=0;
-        while (numgroupsbg==1 && numloops<opt.halocorenumloops) {
-            delete[] pfofbg;
-            //adjust linking lengths in velocity space by the iterative factor, ~0.5 
-            param[7]*=opt.halocorevfaciter;
-            pfofbg=tree->FOFCriterion(fofcmp,param,numgroupsbg,minsize,iorder,icheck,FOFcheckbg);
-            numloops++;
+        //if allow several loops then proceed to shrink dispersions of velocity
+        if (opt.halocorenumloops>1) {
+            int numloops=0;
+            Int_t oldnumgroupgsbg=numgroupsbg;
+            Int_t *pfofbgtemp=new Int_t[nsubset];
+            //loop till number of cores found drops or reach limit of iterations
+            do {
+                //store old number of groups
+                oldnumgroupgsbg=numgroupsbg;
+                //store old group ids
+                for (i=0;i<nsubset;i++) pfofbgtemp[i]=pfofbg[i];
+                //free memory
+                delete[] pfofbg;
+                //adjust linking lengths in velocity space by the iterative factor, ~0.5 
+                param[7]*=opt.halocorevfaciter;
+                //run search
+                pfofbg=tree->FOFCriterion(fofcmp,param,numgroupsbg,minsize,iorder,icheck,FOFcheckbg);
+                numloops++;
+            } while (numgroupsbg>=1 && numloops<opt.halocorenumloops && numgroupsbg<=oldnumgroupgsbg);
+            //if outside of while loop, check to see if reached maximum number of loops. If not, then copy pfofbgtemp data to pfofbg
+            if (numloops<opt.halocorenumloops) {
+                for (i=0;i<nsubset;i++) pfofbg[i]=pfofbgtemp[i];
+                numgroupsbg=oldnumgroupgsbg;
+            }
+            delete[] pfofbgtemp;
         }
         if (numgroupsbg>=bgoffset+1) {
             if (opt.iverbose==2) cout<<"Number of cores: "<<numgroupsbg<<endl;
@@ -1702,6 +1721,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_
     Int_t nsubsearch, oldnsubsearch,sublevel,maxsublevel,ngroupidoffset,ngroupidoffsetold,ngrid;
     bool iflag;
     Particle *subPart;
+    Int_t firstgroup,firstgroupoffset;
     Int_t ng,*numingroup,**pglist;
     Int_t *subpfof,*subngroup;
     Int_t *subnumingroup,**subpglist;
@@ -1734,7 +1754,14 @@ void SearchSubSub(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_
     else numingroup=BuildNumInGroup(nsubset, ngroup, pfof);
     //since initially groups in order find index of smallest group that can be searched for substructure
     //for (Int_t i=1;i<=ngroup;i++) if (numingroup[i]<MINSUBSIZE) {nsubsearch=i-1;break;}
-    for (Int_t i=1;i<=ngroup;i++) if (numingroup[i]<MINCELLSIZE) {nsubsearch=i-1;break;}
+    //for (Int_t i=1;i<=ngroup;i++) if (numingroup[i]<MINCELLSIZE) {nsubsearch=i-1;break;}
+    firstgroup=1;
+    firstgroupoffset=0;
+    if (opt.iKeepFOF) {
+        firstgroup=opt.num3dfof+1;
+        firstgroupoffset=opt.num3dfof;
+    }
+    for (Int_t i=firstgroup;i<=ngroup;i++) if (numingroup[i]<MINCELLSIZE) {nsubsearch=i-firstgroup;break;}
     iflag=(nsubsearch>0);
 
     if (iflag) {
@@ -1746,9 +1773,9 @@ void SearchSubSub(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_
     subnumingroup=new Int_t[nsubsearch+1];
     subpglist=new Int_t*[nsubsearch+1];
     for (Int_t i=1;i<=nsubsearch;i++) {
-        subnumingroup[i]=numingroup[i];
+        subnumingroup[i]=numingroup[i+firstgroupoffset];
         subpglist[i]=new Int_t[subnumingroup[i]];
-        for (Int_t j=0;j<subnumingroup[i];j++) subpglist[i][j]=pglist[i][j];
+        for (Int_t j=0;j<subnumingroup[i];j++) subpglist[i][j]=pglist[i+firstgroupoffset][j];
     }
     for (Int_t i=1;i<=ngroup;i++) delete[] pglist[i];
     delete[] pglist;
