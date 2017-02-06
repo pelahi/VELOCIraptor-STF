@@ -553,7 +553,7 @@ def ReadParticleDataFile(basefilename,ibinary=0,iseparatesubfiles=0,iparttypes=0
                 gfile = h5py.File(gfilename, 'r')
                 numhalos=np.uint64(gfile["Num_of_groups"][0])
                 numingroup=np.uint64(gfile["Group_Size"])
-                offset=np.uint64(gfile["Offset"][0])
+                offset=np.uint64(gfile["Offset"])
                 uoffset=np.uint64(gfile["Offset_unbound"])
                 gfile.close()
                 pfile = h5py.File(pfilename, 'r')
