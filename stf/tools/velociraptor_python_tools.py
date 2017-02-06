@@ -467,7 +467,7 @@ def ReadParticleDataFile(basefilename,ibinary=0,iseparatesubfiles=0,iparttypes=0
     if (iseparatefiles==1): subfilenames=["",".sublevels"]
     for ifile in range(numfiles):
         for subname in subfilenames:
-            bfname=basefilename+=subname
+            bfname=basefilename+subname
             gfilename=bfname+".catalog_groups"
             pfilename=bfname+".catalog_particles"
             upfilename=pfilename+".unbound"
