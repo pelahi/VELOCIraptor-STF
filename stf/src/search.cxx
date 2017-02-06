@@ -1148,7 +1148,7 @@ private(i,tid)
         delete[] pglist;
         delete[] numingroup;
         numgroups=ng;
-        if (opt.iverbose==2) cout<<ThisTask<<" "<<"After expanded search there are now "<< ng<<" groups"<<endl;
+        if (opt.iverbose>=2) cout<<ThisTask<<" "<<"After expanded search there are now "<< ng<<" groups"<<endl;
     }
     //once substructure groups are found, ensure all substructure groups are significant
     if (numgroups) 
@@ -1161,8 +1161,8 @@ private(i,tid)
         delete[] pglist;
         delete[] numingroup;
     }
-    if (numgroups>0) if (opt.iverbose==2) cout<<ThisTask<<": "<<numgroups<<" substructures found"<<endl;
-    else if (opt.iverbose==2) cout<<ThisTask<<": "<<"NO SUBSTRUCTURES FOUND"<<endl;
+    if (numgroups>0) if (opt.iverbose>=2) cout<<ThisTask<<": "<<numgroups<<" substructures found"<<endl;
+    else if (opt.iverbose>=2) cout<<ThisTask<<": "<<"NO SUBSTRUCTURES FOUND"<<endl;
 
     //now search particle list for large compact substructures that are considered part of the background when using smaller grids
     //if smaller substructures have been found, also search for true 6d cores for signs of similar mass mergers
@@ -1375,14 +1375,14 @@ private(i,tid)
             delete[] pfofbg;
         }
         //output results of search
-        if (numgroups>0) if (opt.iverbose==2) cout<<numgroups<<" substructures found after large grid search"<<endl;
-        else if (opt.iverbose==2) cout<<"NO SUBSTRUCTURES FOUND"<<endl;
+        if (numgroups>0) if (opt.iverbose>=2) cout<<numgroups<<" substructures found after large grid search"<<endl;
+        else if (opt.iverbose>=2) cout<<"NO SUBSTRUCTURES FOUND"<<endl;
     }
     //ONCE ALL substructures are found, search for cores of major mergers with minimum size set by cell size since grid is quite large after bg search
     //for missing large substructure cores
     if(opt.iHaloCoreSearch>0&&((!opt.iSingleHalo&&sublevel==1)||(opt.iSingleHalo&&sublevel==0))) 
     {
-        if (opt.iverbose==2) cout<<ThisTask<<" beginning 6dfof core search to find multiple cores"<<endl;
+        if (opt.iverbose>=2) cout<<ThisTask<<" beginning 6dfof core search to find multiple cores"<<endl;
         bgoffset=1;
         //if adaptive core linking then need to calculate dispersion tensors in configuration and velocity space
         if (opt.iAdaptiveCoreLinking)
@@ -1428,7 +1428,7 @@ private(i,tid)
 
         minsize=nsubset*opt.halocorenfac;
         minsize=max(minsize,opt.MinSize);
-        if (opt.iverbose==2) {
+        if (opt.iverbose>=2) {
             cout<<ThisTask<<" "<<"Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits, ellphys="<<sqrt(param[7])<<" Vunits"<<endl;
             cout<<"with minimum size of "<<minsize<<endl;
         }
@@ -1440,7 +1440,7 @@ private(i,tid)
         param[9]=0.5;
         pfofbg=tree->FOFCriterion(fofcmp,param,numgroupsbg,minsize,iorder,icheck,FOFcheckbg);
         //if allow several loops then proceed to shrink dispersions of velocity
-        if (opt.halocorenumloops>1) {
+        if (opt.halocorenumloops>1 && numgroupsbg>=1) {
             int numloops=0;
             Int_t oldnumgroupgsbg=numgroupsbg;
             Int_t *pfofbgtemp=new Int_t[nsubset];
@@ -1457,7 +1457,7 @@ private(i,tid)
                 //run search
                 pfofbg=tree->FOFCriterion(fofcmp,param,numgroupsbg,minsize,iorder,icheck,FOFcheckbg);
                 numloops++;
-            } while (numgroupsbg>=1 && numloops<opt.halocorenumloops && numgroupsbg<=oldnumgroupgsbg);
+            } while (numloops<opt.halocorenumloops && numgroupsbg>=oldnumgroupgsbg);
             //if outside of while loop, check to see if reached maximum number of loops. If not, then copy pfofbgtemp data to pfofbg
             if (numloops<opt.halocorenumloops) {
                 for (i=0;i<nsubset;i++) pfofbg[i]=pfofbgtemp[i];
@@ -1466,7 +1466,7 @@ private(i,tid)
             delete[] pfofbgtemp;
         }
         if (numgroupsbg>=bgoffset+1) {
-            if (opt.iverbose==2) cout<<"Number of cores: "<<numgroupsbg<<endl;
+            if (opt.iverbose>=2) cout<<"Number of cores: "<<numgroupsbg<<endl;
             //if cores are found, two options
             //a pnumcores pointer is passed, store the number of cores in this pointer assumes halo ids will not be reordered, making it easy to flag cores
             //if opt.iHaloCoreSearch==2 then start searching the halo to identify which particles belong to which core by linking particles to their closest
@@ -1489,7 +1489,7 @@ private(i,tid)
                         mcore[pfofbg[i]]++;
                     }
                 }
-                if (opt.iverbose==2) {
+                if (opt.iverbose>=2) {
                     cout<<"Mass ratios of cores are "<<endl;
                     for (i=1;i<=numgroupsbg;i++)cout<<i<<" "<<mcore[i]<<" "<<mcore[i]/mcore[1]<<endl;
                 }
@@ -1510,7 +1510,7 @@ private(i,tid)
                     nnID[i]=new Int_t[nsearch];
                     dist2[i]=new Double_t[nsearch];
                 }
-                if (opt.iverbose==2) cout<<"Searching untagged particles to assign to cores "<<endl;
+                if (opt.iverbose>=2) cout<<"Searching untagged particles to assign to cores "<<endl;
 #ifdef USEOPENMP
                 if (nsubset>ompperiodnum) {
 #pragma omp parallel default(shared) \
@@ -1587,10 +1587,10 @@ private(i,tid,Pval,x1,D2,dval,mval,pid,pidcore)
                 delete[] mcore;
             }
             for (i=0;i<nsubset;i++) if (pfofbg[i]>bgoffset) pfof[i]=oldng+(pfofbg[i]-bgoffset);
-            if (opt.iverbose==2) cout<<ThisTask<<": After 6dfof core search and assignment there are "<< ng<<" groups"<<endl;
+            if (opt.iverbose>=2) cout<<ThisTask<<": After 6dfof core search and assignment there are "<< ng<<" groups"<<endl;
             numgroups=ng;
         }
-        else if (opt.iverbose==2) cout<<ThisTask<<": has found no excess cores indicating mergers"<<endl;
+        else if (opt.iverbose>=2) cout<<ThisTask<<": has found no excess cores indicating mergers"<<endl;
         delete[] pfofbg;
     }
 
