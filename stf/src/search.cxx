@@ -693,6 +693,22 @@ private(i,tid)
         }
     }
 
+    //reorder ids in descending 6dfof group size order only if keeping FOF
+    if (ng>0 && opt.iKeepFOF==1 && opt.fofbgtype<=FOF6D) {
+        if (opt.iverbose) cout<<" reordering 6dfof groups "<<ng<<" groups "<<endl;
+        numingroup=BuildNumInGroup(Nlocal, ng, pfof);
+        Int_t **pglist=BuildPGList(Nlocal, ng, numingroup, pfof);
+        Int_t *value6d3d=new Int_t[ng+1];
+        Int_t maxval=0;
+        for (i=opt.num3dfof+1;i<=ng;i++) if (maxval<numingroup[i]) maxval=numingroup[i];
+        for (i=1;i<=opt.num3dfof;i++) value6d3d[i]=(opt.num3dfof-i)+maxval+1;
+        for (i=opt.num3dfof+1;i<=ng;i++) value6d3d[i]=numingroup[i];
+        ReorderGroupIDsbyValue(ng, ng, numingroup, pfof, pglist,value6d3d);
+        for (i=1;i<=ng;i++) delete[] pglist[i];
+        delete[] pglist;
+        delete[] numingroup;
+        delete[] value6d3d;
+    }
     /*
     psldata->Allocate(numgroups);
     psldata->Initialize();
