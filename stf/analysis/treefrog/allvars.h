@@ -240,6 +240,8 @@ struct Options
     ///number of expected mpi threads, useful for running code with a single thread to determine load balancing
     ///which then writes the mpi load balancing file and exists
     int ndesiredmpithreads;
+    ///whether mpi threads write in parallel
+    int iwriteparallel;
 #endif
 
     Options()
@@ -280,6 +282,7 @@ struct Options
 #ifdef USEMPI
         numpermpi=0;
         ndesiredmpithreads=0;
+        iwriteparallel=0;
 #endif
     }
 };

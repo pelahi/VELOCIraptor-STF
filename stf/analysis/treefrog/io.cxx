@@ -186,6 +186,8 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
     if (ThisTask==0) cout<<"Writing to "<<fname<<endl;
     if (NProcs>1) {
 #ifdef USEMPI
+    char fnamempi[2000];
+    if (opt.iwriteparallel==1 && ThisTask==0) cout<<"Writing files in parallel "<<endl; 
     //now if mpi then last task writes header 
     //all tasks starting from last and moves backwards till it reaches its
     //startpoint+numofsteps used to produce links
@@ -193,19 +195,21 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
     int istart,iend;
     iend=EndSnap;
     istart=StartSnap+opt.numsteps;
+    if (opt.iwriteparallel==1) sprintf(fnamempi,"%s.mpi_task-%d.isnap-%d.fsnap-%d",opt.outname,ThisTask,istart,iend);
+    else sprintf(fnamempi,"%s",fname);
     if (ThisTask==0) istart=0;
     for (int itask=NProcs-1;itask>=0;itask--) {
         if (ThisTask==itask) {
             if (ThisTask==NProcs-1) {
-                Fout.open(fname,ios::out);
+                Fout.open(fnamempi,ios::out);
                 Fout<<opt.numsnapshots<<endl;
                 Fout<<opt.description<<endl;
                 Fout<<opt.TotalNumberofHalos<<endl;
             }
             else {
-                Fout.open(fname,ios::out | ios::app);
+                Fout.open(fnamempi,ios::out | ios::app);
             }
-            if (opt.iverbose)cout<<ThisTask<<" starting to write "<<fname<<" for "<<iend<<" down to "<<istart<<flush<<endl;
+            if (opt.iverbose)cout<<ThisTask<<" starting to write "<<fnamempi<<" for "<<iend<<" down to "<<istart<<flush<<endl;
             if (opt.outputformat==0) {
             for (int i=opt.numsnapshots-1;i>0;i--) if (i>=istart && i<iend) {
                 Fout<<i+opt.snapshotvaloffset<<"\t"<<h[i].numhalos<<endl;
@@ -230,17 +234,17 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
             }
             Fout.close();
         }
-        MPI_Barrier(MPI_COMM_WORLD);
+        if (opt.iwriteparallel==0) MPI_Barrier(MPI_COMM_WORLD);
     }
     if (ThisTask==0) {
-    Fout.open(fname,ios::out | ios::app);
-    ///last file has no connections
-    Fout<<0+opt.snapshotvaloffset<<"\t"<<h[0].numhalos<<endl;
-    for (int j=0;j<h[0].numhalos;j++) {
-        Fout<<h[0].Halo[j].haloID<<"\t"<<0<<endl;
-    }
-    Fout<<"END"<<endl;
-    Fout.close();
+        Fout.open(fnamempi,ios::out | ios::app);
+        ///last file has no connections
+        Fout<<0+opt.snapshotvaloffset<<"\t"<<h[0].numhalos<<endl;
+        for (int j=0;j<h[0].numhalos;j++) {
+            Fout<<h[0].Halo[j].haloID<<"\t"<<0<<endl;
+        }
+        Fout<<"END"<<endl;
+        Fout.close();
     }
 #endif
     }

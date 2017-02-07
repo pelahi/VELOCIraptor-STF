@@ -10,7 +10,7 @@ void GetArgs(int argc, char *argv[], Options &opt)
 {
     int option;
     int NumArgs = 0;
-    while ((option = getopt(argc, argv, ":i:s:t:n:f:p:o:C:c:S:I:N:B:F:M:H:h:D:O:T:v:m:d:z:a:x:")) != EOF)
+    while ((option = getopt(argc, argv, ":i:s:t:n:f:p:o:C:c:S:I:N:B:F:M:H:h:D:O:T:v:m:d:z:Z:a:x:")) != EOF)
     {
         switch(option)
         {
@@ -117,6 +117,10 @@ void GetArgs(int argc, char *argv[], Options &opt)
                 break;
             case 'z': 
                 opt.ndesiredmpithreads = atoi(optarg);
+                NumArgs += 2;
+                break;
+            case 'Z': 
+                opt.iwriteparallel = atoi(optarg);
                 NumArgs += 2;
                 break;
 #endif
@@ -258,6 +262,7 @@ void usage(void)
     cerr<<" ========================= "<<endl;
     cerr<<"-m <number of items per mpi thead, use for load balacing. If 0, based on input ("<<opt.numpermpi<<")\n";
     cerr<<"-z <number of mpi theads used to calculate load balacing. If >0 this used with one actual mpi thread but determines load balancing based on desired number of mpi threads. Write load balancing file and terminates. If 0 (default) normal operation \n";
+    cerr<<"-Z <whether to write output in parallel (0/1). \n";
     cerr<<" ========================= "<<endl<<endl;
 #endif
 #ifdef USEMPI
@@ -305,5 +310,6 @@ in the examples directory). \n \n
     \section mpiconfig MPI options
     \arg \b \e -m < number of items per mpi thead, use for load balacing. Use 0 if no mpi used when building halo catalog >
     \arg \b \e -z < number of mpi theads used to calculate load balacing. If >0 this used with one actual mpi thread but determines load balancing based on desired number of mpi threads. Write load balancing file and terminates. If 0 (default) normal operation >
+    \arg \b \e -Z < whether to write output in parallel (0/1) >
 
 */
