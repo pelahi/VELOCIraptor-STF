@@ -181,47 +181,236 @@ void MPIDomainDecompositionRAMSES(Options &opt){
 }
 
 ///reads a gadget file to determine number of particles in each MPIDomain
-///\todo need to add codeo to read positions of particles/gas cells and send them to the appropriate mpi thead
+///\todo need to add code to read gas cell positions and send them to the appropriate mpi thead
 void MPINumInDomainRAMSES(Options &opt)
 {
     MPIDomainExtentRAMSES(opt);
-    if (NProcs>1) {
-    MPIDomainDecompositionRAMSES(opt);
-    MPIInitialDomainDecomposition();
-    Int_t i,j,k,n,m,temp,Ntot,indark,ingas,instar;
-    Int_t idval;
-    int dummy;
-    Int_t Nlocalold=Nlocal;
 
-    MPI_Status status;
-    Int_t Nlocalbuf,ibuf=0,*Nbuf, *Nbaryonbuf;
-    if (ThisTask==0) {
-        Nbuf=new Int_t[NProcs];
-        Nbaryonbuf=new Int_t[NProcs];
-        for (int j=0;j<NProcs;j++) Nbuf[j]=0;
-        for (int j=0;j<NProcs;j++) Nbaryonbuf[j]=0;
-    }
-    if (ThisTask==0) {
-    }
-    MPI_Barrier(MPI_COMM_WORLD);
-    if (ThisTask==0) {
-        Nlocal=Nbuf[ThisTask];
-        for(ibuf = 1; ibuf < NProcs; ibuf++)
-            MPI_Ssend(&Nbuf[ibuf],1,MPI_Int_t, ibuf, ibuf+NProcs, MPI_COMM_WORLD);
-    }
-    else {
-        MPI_Recv(&Nlocal, 1, MPI_Int_t, 0, ThisTask+NProcs, MPI_COMM_WORLD, &status);
-    }
-    if (opt.iBaryonSearch) {
+    if (NProcs > 1)
+    {
+        MPIDomainDecompositionRAMSES(opt);
+        MPIInitialDomainDecomposition();
+        Int_t i,j,k,n,m,temp,Ntot,indark,ingas,instar;
+        Int_t idval;
+        int   typeval;
+        Int_t Nlocalold=Nlocal;
+        RAMSESFLOAT xtemp[3], ageval;
+        Double_t mtemp;
+        MPI_Status status;
+        Int_t Nlocalbuf,ibuf=0,*Nbuf, *Nbaryonbuf;
+
+        char buf[2000],buf1[2000],buf2[2000];
+        string stringbuf,orderingstring;
+        fstream Finfo;
+        fstream *Fpart, *Fpartmass, *Fpartage;
+        fstream  Framses;
+        RAMSES_Header *header;
+        int intbuff[NRAMSESTYPE];
+        long long longbuff[NRAMSESTYPE];
+        int idim,ivar,igrid,ireaderror=0;
+        Int_t count2,bcount2;
+        int dummy,byteoffset;
+        Int_t chunksize = RAMSESCHUNKSIZE, nchunk;
+        RAMSESFLOAT *xtempchunk, *mtempchunk, *agetempchunk;
+        double dmp_mass;
+        int n_out_of_bounds,ndark,nstar,nghost;
+
+
         if (ThisTask==0) {
-            Nlocalbaryon[0]=Nbaryonbuf[ThisTask];
+            Nbuf=new Int_t[NProcs];
+            Nbaryonbuf=new Int_t[NProcs];
+            for (int j=0;j<NProcs;j++) Nbuf[j]=0;
+            for (int j=0;j<NProcs;j++) Nbaryonbuf[j]=0;
+
+            Fpart      = new fstream[opt.num_files];
+            Fpartmass  = new fstream[opt.num_files];
+            Fpartage   = new fstream[opt.num_files];
+            header     = new RAMSES_Header[opt.num_files];
+            sprintf(buf1,"%s/part_%s.out%05d",opt.fname,opt.ramsessnapname,1);
+            sprintf(buf2,"%s/part_%s.out",opt.fname,opt.ramsessnapname);
+            if (FileExists(buf1)) sprintf(buf,"%s",buf1);
+            else if (FileExists(buf2)) sprintf(buf,"%s",buf2);
+            Framses.open(buf, ios::binary|ios::in);
+            
+            //skip part file till you get to masses
+            for (j = 0; j < 14; j++)
+            {
+                Framses.read((char*)&dummy, sizeof(dummy));
+                Framses.seekg(dummy,ios::cur);
+                Framses.read((char*)&dummy, sizeof(dummy));
+            }      
+            // Read Mass 
+            Framses.read((char*)&dummy, sizeof(dummy));
+            Framses.read((char*)&dmp_mass, sizeof(double));    
+            Framses.close();
+        }
+        //broadcast the dark matter mass as this will be used to determine
+        //whether particle is dm/star/bh
+        MPI_Bcast(&dmp_mass, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+        if (ThisTask==0) {
+            for (int i = 0, count2 = 0; i < opt.num_files; i++) {
+                sprintf(buf1,"%s/part_%s.out%05d",opt.fname,opt.ramsessnapname,i+1);
+                sprintf(buf2,"%s/part_%s.out",opt.fname,opt.ramsessnapname);
+                if (FileExists(buf1)) sprintf(buf,"%s",buf1);
+                else if (FileExists(buf2)) sprintf(buf,"%s",buf2);
+                Fpart[i].open      (buf, ios::binary|ios::in);
+                Fpartmass[i].open  (buf, ios::binary|ios::in);
+                Fpartage[i].open   (buf, ios::binary|ios::in);
+
+                //skip header information in each file save for number in the file
+                //@{
+                byteoffset = 0;
+                // ncpus
+                byteoffset += RAMSES_fortran_skip(Fpart[i], 1);
+                // ndims
+                byteoffset += RAMSES_fortran_read(Fpart[i],header[i].ndim);
+                //store number of particles locally in file
+                byteoffset += RAMSES_fortran_read(Fpart[i],header[i].npartlocal);
+                // skip local seeds, nstartot, mstartot, mstarlost, nsink
+                byteoffset += RAMSES_fortran_skip(Fpart[i], 5);
+                // byteoffset now stores size of header offset for particles 
+                Fpartmass[i].seekg  (byteoffset,ios::cur);
+                Fpartage[i].seekg   (byteoffset,ios::cur);
+
+                //skip positions
+                for(idim = 0; idim < header[i].ndim; idim++)
+                {
+                      RAMSES_fortran_skip (Fpartmass[i]);
+                      RAMSES_fortran_skip (Fpartage[i]);
+                }
+                //skip velocities
+                for(idim=0;idim<header[i].ndim;idim++)
+                {
+                    RAMSES_fortran_skip(Fpartmass[i]);
+                    RAMSES_fortran_skip(Fpartage[i]);
+                }
+                //skip mass
+                RAMSES_fortran_skip(Fpartage[i]);
+                //skip ids;
+                RAMSES_fortran_skip(Fpartage[i]);
+                //skip levels
+                RAMSES_fortran_skip(Fpartage[i]);
+                //data loaded into memory in chunks
+                chunksize    = nchunk = header[i].npartlocal;
+                xtempchunk   = new RAMSESFLOAT  [3*chunksize];
+                mtempchunk   = new RAMSESFLOAT  [chunksize];
+                agetempchunk = new RAMSESFLOAT  [chunksize];
+                //now load position data, mass data, and age data
+                for(idim = 0; idim < header[i].ndim; idim++)RAMSES_fortran_read(Fpart[i], &xtempchunk[idim*nchunk]);
+                RAMSES_fortran_read(Fpartmass[i],  mtempchunk);
+                RAMSES_fortran_read(Fpartage[i],   agetempchunk);
+
+                for (int nn = 0; nn < nchunk; nn++) 
+                {
+                    //this should be a ghost star particle
+                    if ((mtempchunk[nn] != dmp_mass) && (agetempchunk[nn] == 0.0)) nghost++;
+                    else
+                    {
+                        xtemp[0] = xtempchunk[nn];
+                        xtemp[1] = xtempchunk[nn+nchunk];
+                        xtemp[2] = xtempchunk[nn+2*nchunk];
+                        mtemp = mtempchunk[nn];
+                        ageval = agetempchunk[nn];
+
+                        if (mtemp == dmp_mass)
+                        {
+                            typeval = DARKTYPE;
+                            ndark++;
+                        }
+                        else
+                        {
+                            typeval = STARTYPE;
+                            nstar++;
+                        }
+
+                        //determine processor this particle belongs on based on its spatial position
+                        ibuf = MPIGetParticlesProcessor(xtemp[0],xtemp[1],xtemp[2]);
+                        if (ibuf >= NProcs)
+                        {
+                            cerr <<" Particle is outside mpi domain, might be an issue with reading input file "<<ibuf << " "<<NProcs<<" "<<xtemp[0] << "  " << xtemp[1] << "  " << xtemp[2] << endl;
+                            MPI_Abort(MPI_COMM_WORLD,8);
+                        }
+              /// Count total number of DM particles, Baryons, etc
+              //@{ 
+              if (opt.partsearchtype == PSTALL)
+              {
+                Nbuf[ibuf]++;
+                count2++;
+              }
+              else 
+              {
+                if (opt.partsearchtype == PSTDARK) 
+                {
+                  if (typeval == DARKTYPE) 
+                  {
+                    Nbuf[ibuf]++;
+                    count2++;
+                  }
+                  else 
+                  {
+                    if (opt.iBaryonSearch) 
+                    {
+                      Nbaryonbuf[ibuf]++;
+                    }
+                  }
+                }
+                else
+                {
+                  if (opt.partsearchtype == PSTSTAR) 
+                  {
+                    if (typeval == STARTYPE) 
+                    {
+                      Nbuf[ibuf]++;
+                      count2++;
+                    }
+                  }
+                  /// NO GAS AT THIS STAGE
+//                   else
+//                   {
+//                     if (opt.partsearchtype == PSTGAS) 
+//                     {
+//                       if (k==GASTYPE) 
+//                       {
+//                         Nbuf[ibuf]++;
+//                         count2++;
+//                       }
+//                     }
+//                   }
+                }
+              }
+             //@}
+            }
+          }
+          delete[] xtempchunk;
+          delete[] mtempchunk;
+          delete[] agetempchunk;
+          
+          Fpart[i].close();
+          Fpartmass[i].close();
+          Fpartage[i].close();
+        }
+
+        }
+        MPI_Barrier(MPI_COMM_WORLD);
+        if (ThisTask==0) {
+            Nlocal=Nbuf[ThisTask];
             for(ibuf = 1; ibuf < NProcs; ibuf++)
-                MPI_Ssend(&Nbaryonbuf[ibuf],1,MPI_Int_t, ibuf, ibuf+NProcs, MPI_COMM_WORLD);
+                MPI_Ssend(&Nbuf[ibuf],1,MPI_Int_t, ibuf, ibuf+NProcs, MPI_COMM_WORLD);
         }
         else {
-            MPI_Recv(&Nlocalbaryon[0], 1, MPI_Int_t, 0, ThisTask+NProcs, MPI_COMM_WORLD, &status);
+            MPI_Recv(&Nlocal, 1, MPI_Int_t, 0, ThisTask+NProcs, MPI_COMM_WORLD, &status);
         }
-    }
+        if (opt.iBaryonSearch) {
+            if (ThisTask==0) {
+                Nlocalbaryon[0]=Nbaryonbuf[ThisTask];
+                for(ibuf = 1; ibuf < NProcs; ibuf++)
+                    MPI_Ssend(&Nbaryonbuf[ibuf],1,MPI_Int_t, ibuf, ibuf+NProcs, MPI_COMM_WORLD);
+            }
+            else {
+                MPI_Recv(&Nlocalbaryon[0], 1, MPI_Int_t, 0, ThisTask+NProcs, MPI_COMM_WORLD, &status);
+            }
+        }
 #ifdef MPIREDUCEMEM
     Nmemlocal=Nlocal*(1.0+MPIExportFac);
     if (opt.iBaryonSearch) Nmemlocalbaryon=Nlocalbaryon[0]*(1.0+MPIExportFac);

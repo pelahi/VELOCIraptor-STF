@@ -829,7 +829,7 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
     int itemp=0;
 #endif
 
-    PropDataHeader head;
+    PropDataHeader head(opt);
     
 #ifdef USEMPI
     sprintf(fname,"%s.properties.%d",opt.outname,ThisTask);
@@ -920,7 +920,7 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
     int ivalue;
     for (Int_t i=1;i<=ngroups;i++) {
         if (opt.ibinaryout==OUTBINARY) {
-            pdata[i].WriteBinary(Fout);
+            pdata[i].WriteBinary(Fout,opt);
         }
 #ifdef USEHDF
         else if (opt.ibinaryout==OUTHDF) {
@@ -930,7 +930,7 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         }
 #endif
         else if (opt.ibinaryout==OUTASCII){
-            pdata[i].WriteAscii(Fout);
+            pdata[i].WriteAscii(Fout,opt);
         }
     }
 #ifdef USEHDF
@@ -961,6 +961,11 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         for (Int_t i=0;i<ngroups;i++) ((unsigned long*)data)[i]=pdata[i+1].numsubs;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
+        if (opt.iKeepFOF==1){
+            for (Int_t i=0;i<ngroups;i++) ((unsigned long*)data)[i]=pdata[i+1].hostfofid;
+            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+            itemp++;
+        }
         for (Int_t i=0;i<ngroups;i++) ((unsigned long*)data)[i]=pdata[i+1].num;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
@@ -1879,7 +1884,12 @@ void WriteExtendedOutput (Options &opt, Int_t numgroups, Int_t nbodies, PropData
         if (ThisTask != NProcs-1)
             MPI_Isend (&myturn, 1, MPI_INT, ThisTask+1, ThisTask, MPI_COMM_WORLD, &rqst);
     }
+    delete [] filesofgroup;
+    delete [] tasksofgroup;
+    delete [] ntaskspergroup;
+    delete [] nfilespergroup;
 
+    if (opt.iverbose) cout << ThisTask << "filesofgroup written" << endl;
     // Send and Particles before writing Extended Files
     // Communicate to all other processors how many particles are going to be sent
     ntosendtotask[ThisTask] = 0;
@@ -1908,13 +1918,85 @@ void WriteExtendedOutput (Options &opt, Int_t numgroups, Int_t nbodies, PropData
         if (p[i].GetOTask() != ThisTask)
             PartsToSend[p[i].GetOTask()][count[p[i].GetOTask()]++] = Particle(p[i]);
 
+    //determine if number of particles can fit into a single send
+    int bufferFlag = 1;
+    long int  maxNumPart = LOCAL_MAX_MSGSIZE / (long int) sizeof(Particle);
+    int localMax = 0;
+    int globalMax = 0;
+    //find max local send and global send
+    for (Int_t i = 0; i < NProcs; i++) if (ntosendtotask[i] > localMax) localMax = ntosendtotask[i];
+    MPI_Allreduce (&localMax, &globalMax, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+
+    if (globalMax >= maxNumPart) bufferFlag = 1;
+
     // Send and Receive Particles
-    for (Int_t i = 1; i < NProcs; i++)
+    //if splitting sends into chunks
+    if (bufferFlag)
     {
-        int src = (ThisTask + NProcs - i) % NProcs;
-        int dst = (ThisTask + i) % NProcs;
-        MPI_Isend (PartsToSend[dst], ntosendtotask[dst]*sizeof(Particle), MPI_BYTE, dst, ThisTask, MPI_COMM_WORLD, &rqst);
-        MPI_Recv (PartsToRecv[src], ntorecievefromtask[src]*sizeof(Particle), MPI_BYTE, src, src, MPI_COMM_WORLD, &status);      
+        int numBuffersToSend [NProcs];
+        int numBuffersToRecv [NProcs];
+        int numPartInBuffer = maxNumPart;
+
+        for (int jj = 0; jj < NProcs; jj++)
+        {
+            numBuffersToSend[jj] = 0;
+            numBuffersToRecv[jj] = 0;
+            if (ntosendtotask[jj] > 0) numBuffersToSend[jj] = (ntosendtotask[jj]/numPartInBuffer) + 1;
+        }
+        //broadcast numbers sent
+        for (int i = 1; i < NProcs; i++)
+        {
+            int src = (ThisTask + NProcs - i) % NProcs;
+            int dst = (ThisTask + i) % NProcs;
+            MPI_Isend (&numBuffersToSend[dst], 1, MPI_INT, dst, 0, MPI_COMM_WORLD, &rqst);
+            MPI_Recv  (&numBuffersToRecv[src], 1, MPI_INT, src, 0, MPI_COMM_WORLD, &status);
+        }
+        MPI_Barrier (MPI_COMM_WORLD);
+     
+        //for each mpi thread send info as necessary
+        for (int i = 1; i < NProcs; i++)
+        {
+            int src = (ThisTask + NProcs - i) % NProcs;
+            int dst = (ThisTask + i) % NProcs;
+            Int_t size = numPartInBuffer;
+            int buffOffset = 0;
+            //send buffers
+            for (int jj = 0; jj < numBuffersToSend[dst]-1; jj++)
+            {
+              MPI_Isend (&size, 1, MPI_Int_t, dst, (int)(jj+1), MPI_COMM_WORLD, &rqst);
+              MPI_Isend (&PartsToSend[dst][buffOffset], sizeof(Particle)*size, MPI_BYTE,
+                         dst, (int)(10000+jj+1), MPI_COMM_WORLD, &rqst);
+            }
+            //and if anything is remaining
+            size = ntosendtotask[dst] % numPartInBuffer;
+            if (size > 0 && numBuffersToSend[dst] > 0)
+            {
+              MPI_Isend (&size, 1, MPI_Int_t, dst, (int)(numBuffersToSend[dst]), MPI_COMM_WORLD, &rqst);
+              MPI_Isend (&PartsToSend[dst][buffOffset], sizeof(Particle)*size, MPI_BYTE,
+                         dst, (int)(10000+numBuffersToSend[dst]), MPI_COMM_WORLD, &rqst);
+            }
+
+            // Receive Buffers
+            buffOffset = 0;
+            for (int jj = 0; jj < numBuffersToRecv[src]; jj++)
+            {
+              Int_t numInBuffer = 0;
+              MPI_Recv (&numInBuffer, 1, MPI_Int_t, src, (int)(jj+1), MPI_COMM_WORLD, &status);
+              MPI_Recv (&PartsToRecv[src][buffOffset], sizeof(Particle)*numInBuffer, 
+                        MPI_BYTE, src, (int)(10000+jj+1), MPI_COMM_WORLD, &status);
+              buffOffset += numInBuffer;
+            }
+        }
+    }   
+    else
+    {
+        for (Int_t i = 1; i < NProcs; i++)
+        {
+            int src = (ThisTask + NProcs - i) % NProcs;
+            int dst = (ThisTask + i) % NProcs;
+            MPI_Isend (PartsToSend[dst], ntosendtotask[dst]*sizeof(Particle), MPI_BYTE, dst, ThisTask, MPI_COMM_WORLD, &rqst);
+            MPI_Recv (PartsToRecv[src], ntorecievefromtask[src]*sizeof(Particle), MPI_BYTE, src, src, MPI_COMM_WORLD, &status);      
+        }
     }
 #endif
 

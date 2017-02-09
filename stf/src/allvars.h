@@ -856,7 +856,7 @@ struct PropData
     }
 
     ///write (append) the properties data to an already open binary file
-    void WriteBinary(fstream &Fout){
+    void WriteBinary(fstream &Fout, Options&opt){
         long long lval;
         long unsigned idval;
         unsigned int ival;
@@ -869,9 +869,13 @@ struct PropData
         Fout.write((char*)&lval,sizeof(idval));
         idval=numsubs;
         Fout.write((char*)&idval,sizeof(idval));
+        if (opt.iKeepFOF==1) {
+            idval=hostfofid;
+            Fout.write((char*)&idval,sizeof(idval));
+        }
         idval=num;
         Fout.write((char*)&idval,sizeof(idval));
-        
+
         val=gMvir;
         Fout.write((char*)&val,sizeof(val));
  
@@ -1067,11 +1071,12 @@ struct PropData
     }
 
     ///write (append) the properties data to an already open ascii file
-    void WriteAscii(fstream &Fout){
+    void WriteAscii(fstream &Fout, Options&opt){
         Fout<<haloid<<" ";
         Fout<<ibound<<" ";
         Fout<<hostid<<" ";
         Fout<<numsubs<<" ";
+        if (opt.iKeepFOF==1) Fout<<hostfofid<<" ";
         Fout<<num<<" ";
         Fout<<gMvir<<" ";
         for (int k=0;k<3;k++) Fout<<gcm[k]<<" ";
@@ -1169,7 +1174,7 @@ struct PropData
     }
 #ifdef USEHDF
     ///write (append) the properties data to an already open hdf file
-    void WriteHDF(H5File &Fhdf, DataSpace *&dataspaces, DataSet *&datasets){
+    void WriteHDF(H5File &Fhdf, DataSpace *&dataspaces, DataSet *&datasets, Options&opt){
     };
 #endif 
 };
@@ -1184,7 +1189,7 @@ struct PropDataHeader{
 #ifdef USEHDF
     vector<PredType> predtypeinfo;
 #endif
-    PropDataHeader(){
+    PropDataHeader(Options&opt){
         int sizeval;
 
         headerdatainfo.push_back("ID");
@@ -1192,6 +1197,7 @@ struct PropDataHeader{
         headerdatainfo.push_back("hostHaloID");
         headerdatainfo.push_back("numSubStruct");
         headerdatainfo.push_back("npart");
+        if (opt.iKeepFOF==1) headerdatainfo.push_back("hostFOFID");
 
         //if using hdf, store the type
 #ifdef USEHDF

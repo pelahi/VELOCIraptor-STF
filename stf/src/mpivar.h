@@ -41,7 +41,7 @@ extern Int_t Ntotalbaryon[NBARYONTYPES], Nlocalbaryon[NBARYONTYPES];
 extern Int_t Nmemlocal,Noldlocal,Nmemlocalbaryon;
 #endif
 ///buffer size (here in number of particles to send in one go)
-#define BufSize 100000
+#define BufSize 1000000
 ///size of largest MPI chunck in bytes that can be sent in one go (here set by MPI count argument, which is max int)
 #define LOCAL_MAX_MSGSIZE 2147483647L
 ///Nlocal maximum initially set to nbodies/NProc*MPProcFac, represents maximum load imbalance
@@ -173,6 +173,7 @@ extern Int_t MinNumMPI,MinNumOld;
 #define TAG_FOF_C 12
 #define TAG_FOF_D 13
 #define TAG_FOF_E 14
+#define TAG_FOF_F 15
 
 ///flag for NN particle exchange
 #define TAG_NN_A 20
@@ -183,6 +184,9 @@ extern Int_t MinNumMPI,MinNumOld;
 #define TAG_GRID_B 31
 #define TAG_GRID_C 32
 
+///flags for Extended output exchange
+#define TAG_EXTENDED_A 100
+#define TAG_EXTENDED_B 200
 //@}
 
 #endif

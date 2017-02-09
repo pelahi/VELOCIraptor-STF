@@ -72,6 +72,14 @@ int RAMSES_fortran_skip(fstream &F, int nskips){
 Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
 {
     char buf[2000],buf1[2000],buf2[2000];
+    double * dummy_age, * dummy_mass;
+    double dmp_mass;
+    double OmegaM, OmegaB;
+    int totalghost = 0;
+    int totalstars = 0;
+    int totaldm    = 0;
+    int alltotal   = 0;
+    int ghoststars = 0;
     string stringbuf;
     sprintf(buf1,"%s/amr_%s.out00001",fname,opt.ramsessnapname);
     sprintf(buf2,"%s/amr_%s.out",fname,opt.ramsessnapname);
@@ -246,45 +254,27 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
     Framses.close();
     }
 
-    //now cosmological header data and unit info
-    /*
-    sprintf(buf1,"info_%s.txt",fname);
-    Framses.open(buf1, ios::in);
-    getline(Framses,stringbuf);
-    getline(Framses,stringbuf);
-    Framses>>stringbuf>>ramses_header_info.levelmin;
-    getline(Framses,stringbuf);
-    getline(Framses,stringbuf);
-    getline(Framses,stringbuf);
-    getline(Framses,stringbuf);
-    getline(Framses,stringbuf);
-    Framses>>stringbuf>>ramses_header_info.time;
-    Framses>>stringbuf>>ramses_header_info.aexp;
-    Framses>>stringbuf>>ramses_header_info.HubbleParam;
-    Framses>>stringbuf>>ramses_header_info.Omegam;
-    Framses>>stringbuf>>ramses_header_info.OmegaLambda;
-    Framses>>stringbuf>>ramses_header_info.Omegak;
-    Framses>>stringbuf>>ramses_header_info.Omegab;
-    Framses>>stringbuf>>ramses_header_info.scale_l;
-    Framses>>stringbuf>>ramses_header_info.scale_d;
-    Framses>>stringbuf>>ramses_header_info.scale_t;
-    */
-    //fortran code has after this something to do with the order of something 
-    /*
-  read(10,*)
-  read(10,'("ordering type=",A80)'),ordering
-  read(10,*)
-  allocate(cpu_list(1:ncpu))
-  if(TRIM(ordering).eq.'hilbert')then
-     allocate(bound_key(0:ncpu))
-     allocate(cpu_read(1:ncpu))
-     cpu_read=.false.
-     do impi=1,ncpu
-        read(10,'(I8,1X,E23.15,1X,E23.15)')i,bound_key(impi-1),bound_key(impi)
-     end do
-  endif
-  */
 
+    //
+    // READ first snapshot where all particles are DM
+    // to get correct mass of DM particle
+    //
+    sprintf(buf1,"%s/part_%s.out%05d",fname,opt.ramsessnapname,1);
+    sprintf(buf2,"%s/part_%s.out",fname,opt.ramsessnapname);
+    if (FileExists(buf1)) sprintf(buf,"%s",buf1);
+    else if (FileExists(buf2)) sprintf(buf,"%s",buf2);
+    Framses.open(buf, ios::binary|ios::in);
+    for (j = 0; j < 14; j++)
+    {
+        Framses.read((char*)&dummy, sizeof(dummy));
+        Framses.seekg(dummy,ios::cur);
+        Framses.read((char*)&dummy, sizeof(dummy));
+    }      
+    // Read Mass
+    Framses.read((char*)&dummy, sizeof(dummy));
+    Framses.read((char*)&dmp_mass, sizeof(double));    
+    Framses.close();
+    cout << "DM MASS = " << dmp_mass << endl;
     //now particle info
     for (i=0;i<ramses_header_info.num_files;i++) {
         sprintf(buf1,"%s/part_%s.out%05d",fname,opt.ramsessnapname,i+1);
@@ -293,41 +283,97 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
         else if (FileExists(buf2)) sprintf(buf,"%s",buf2);
         Framses.open(buf, ios::binary|ios::in);
 
+        ramses_header_info.npart[RAMSESDMTYPE]   = 0;
+        ramses_header_info.npart[RAMSESSTARTYPE] = 0;
+        ramses_header_info.npart[RAMSESSINKTYPE] = 0;
+        //number of cpus
         Framses.read((char*)&dummy, sizeof(dummy));
         Framses.seekg(dummy,ios::cur);
         Framses.read((char*)&dummy, sizeof(dummy));
+        //number of dimensions
         Framses.read((char*)&dummy, sizeof(dummy));
         Framses.seekg(dummy,ios::cur);
         Framses.read((char*)&dummy, sizeof(dummy));
+        // Total number of LOCAL particles
         Framses.read((char*)&dummy, sizeof(dummy));
-        Framses.read((char*)&ramses_header_info.npart[RAMSESDMTYPE], sizeof(int));
+        Framses.read((char*)&ramses_header_info.npartlocal, sizeof(int));
         Framses.read((char*)&dummy, sizeof(dummy));
-        Framses.read((char*)&dummy, sizeof(dummy));
-        Framses.seekg(dummy,ios::cur);
-        Framses.read((char*)&dummy, sizeof(dummy));
-        Framses.read((char*)&dummy, sizeof(dummy));
-        //for some reason file has total number of stars 
-        Framses.read((char*)&ramses_header_info.npartTotal[RAMSESSTARTYPE], sizeof(int));
-        Framses.read((char*)&dummy, sizeof(dummy));
+        // Random seeds
         Framses.read((char*)&dummy, sizeof(dummy));
         Framses.seekg(dummy,ios::cur);
         Framses.read((char*)&dummy, sizeof(dummy));
+        // Total number of Stars over all processors
+        Framses.read((char*)&dummy, sizeof(dummy));
+        Framses.read((char*)&ramses_header_info.nstarTotal, sizeof(int));
+        Framses.read((char*)&dummy, sizeof(dummy));
+        // Total mass of stars      
         Framses.read((char*)&dummy, sizeof(dummy));
         Framses.seekg(dummy,ios::cur);
         Framses.read((char*)&dummy, sizeof(dummy));
+        // Total lost mass of stars
         Framses.read((char*)&dummy, sizeof(dummy));
-        //but has local number of sinks 
-        Framses.read((char*)&ramses_header_info.npart[RAMSESSINKTYPE], sizeof(int));
+        Framses.seekg(dummy,ios::cur);
         Framses.read((char*)&dummy, sizeof(dummy));
-        Framses.close();
+        // Number of sink particles over the whole simulation (all are included in 
+        // all processors)
+        Framses.read((char*)&dummy, sizeof(dummy));
+        Framses.read((char*)&ramses_header_info.npartTotal[RAMSESSINKTYPE], sizeof(int));
+        Framses.read((char*)&dummy, sizeof(dummy));
+
+        //to determine how many particles of each type, need to look at the mass
+        // Skip pos, vel, mass 
+        for (j = 0; j < 6; j++)
+        {
+            Framses.read((char*)&dummy, sizeof(dummy));
+            Framses.seekg(dummy,ios::cur);
+            Framses.read((char*)&dummy, sizeof(dummy));
+        }
+        //allocate memory to store masses and ages
+        dummy_mass = new double [ramses_header_info.npartlocal];
+        dummy_age  = new double [ramses_header_info.npartlocal];
+      
+        // Read Mass
+        Framses.read((char*)&dummy, sizeof(dummy));
+        Framses.read((char*)&dummy_mass[0], dummy);
+        Framses.read((char*)&dummy, sizeof(dummy));      
+      
+        // Skip Id
+        Framses.read((char*)&dummy, sizeof(dummy));
+        Framses.seekg(dummy,ios::cur);
+        Framses.read((char*)&dummy, sizeof(dummy));
+      
+        // Skip level
+        Framses.read((char*)&dummy, sizeof(dummy));
+        Framses.seekg(dummy,ios::cur);
+        Framses.read((char*)&dummy, sizeof(dummy));
+        
+        // Read Birth epoch
+        //necessary to separate ghost star particles with negative ages from real one
+        Framses.read((char*)&dummy, sizeof(dummy));
+        Framses.read((char*)&dummy_age[0], dummy);
+        Framses.read((char*)&dummy, sizeof(dummy));      
+
+
+        ghoststars = 0;
+        for (j = 0; j < ramses_header_info.npartlocal; j++)
+            if (dummy_mass[j] == dmp_mass)
+                ramses_header_info.npart[RAMSESDMTYPE]++;
+            else 
+                if (dummy_age[j] != 0.0)
+                    ramses_header_info.npart[RAMSESSTARTYPE]++;
+                else
+                ghoststars++;
+
+          delete [] dummy_age;
+          delete [] dummy_mass;
+          Framses.close();
+      
+
+        //now with information loaded, set totals
         ramses_header_info.npartTotal[RAMSESDMTYPE]+=ramses_header_info.npart[RAMSESDMTYPE];
         ramses_header_info.npartTotal[RAMSESSTARTYPE]+=ramses_header_info.npart[RAMSESSTARTYPE];
         ramses_header_info.npartTotal[RAMSESSINKTYPE]+=ramses_header_info.npart[RAMSESSINKTYPE];
-        //because nlocal for part file contains 
-        //ramses_header_info.npartTotal[RAMSESDMTYPE]-=ramses_header_info.npart[RAMSESSTARTYPE];
-        //ramses_header_info.npartTotal[RAMSESDMTYPE]-=ramses_header_info.npart[RAMSESSINKTYPE];
     }
-    ramses_header_info.npartTotal[RAMSESDMTYPE]-=ramses_header_info.npartTotal[RAMSESSTARTYPE];
     for(j=0, nbodies=0; j<nusetypes; j++) {
         k=usetypes[j];
         nbodies+=ramses_header_info.npartTotal[k];
@@ -343,10 +389,13 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
 
 }
 
-///reads a ramses file. If cosmological simulation uses cosmology (generally assuming LCDM or small deviations from this) to estimate the mean interparticle spacing
-///and scales physical linking length passed by this distance. Also reads header and overrides passed cosmological parameters with ones stored in header.
-///\todo need to implement the multiple reading threads send/receive to each other. An example of multiple read threads is seen in \ref gadgetio.cxx. It invovles
-///having read threads read files over again and store all particles that need to be sent to other read threads, then sending this info
+/// Reads a ramses file. If cosmological simulation uses cosmology (generally 
+/// assuming LCDM or small deviations from this) to estimate the mean interparticle 
+/// spacing and scales physical linking length passed by this distance. Also reads 
+/// header and overrides passed cosmological parameters with ones stored in header.
+/// 
+///\todo still need to have receives for non-reading threads
+///
 void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbaryons, Int_t nbaryons)
 {
     char buf[2000],buf1[2000],buf2[2000];
@@ -384,7 +433,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     ///number of particles local to a file are smaller
     Int_t chunksize=RAMSESCHUNKSIZE,nchunk;
     RAMSESFLOAT *xtempchunk, *vtempchunk, *mtempchunk, *sphtempchunk, *agetempchunk, *mettempchunk, *hydrotempchunk;
-    RAMSESIDTYPE *idvalchunk;
+    RAMSESIDTYPE *idvalchunk, *levelchunk;
     int *icellchunk;
 
     Famr=new fstream[opt.num_files];
@@ -412,6 +461,10 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     Nbuf=new Int_t[NProcs];
     nreadoffset=new Int_t[opt.nsnapread];
 
+    int nread;
+    int niread;
+    int nfread;
+    
     if (ThisTask<opt.nsnapread)
     {
         //to temporarily store data from gadget file
@@ -423,8 +476,9 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
         //to determine which files the thread should read
         ireadfile=new int[opt.num_files];
         for (i=0;i<opt.num_files;i++) ireadfile[i]=0;
-        int nread=opt.num_files/opt.nsnapread;
-        int niread=ThisTask*nread,nfread=(ThisTask+1)*nread;
+        nread=opt.num_files/opt.nsnapread;
+        niread=ThisTask*nread;
+        nfread=(ThisTask+1)*nread;
         if (ThisTask==opt.nsnapread-1) nfread=opt.num_files;
         for (i=niread;i<nfread;i++) ireadfile[i]=1;
         ifirstfile=niread;

@@ -430,38 +430,123 @@ void MPIBuildParticleExportList(const Int_t nbodies, Particle *&Part, Int_t *&pf
     MPI_Allgather(nsend_local, NProcs, MPI_Int_t, mpi_nsend, NProcs, MPI_Int_t, MPI_COMM_WORLD);
     NImport=0;for (j=0;j<NProcs;j++)NImport+=mpi_nsend[ThisTask+j*NProcs];
     //now send the data.
-    ///\todo In determination of particle export for FOF routines, eventually need to place a check for the communication buffer so that if exported number 
-    ///is larger than the size of the buffer, iterate over the number exported
     for (j=0;j<NProcs;j++)nimport+=mpi_nsend[ThisTask+j*NProcs];
-    if (nexport>0||nimport>0) {
-    for(j=0;j<NProcs;j++)//for(j=1;j<NProcs;j++)
+
+    //check if buffer that needs to be send is too large and must be sent in chunks
+    int bufferFlag = 1;
+    long int maxNumPart = LOCAL_MAX_MSGSIZE / (long int) sizeof(Particle);
+    for (j = 0; j < NProcs; j++)
     {
-        if (j!=ThisTask)
+        if (j != ThisTask)
         {
             sendTask = ThisTask;
-            recvTask = j;//ThisTask^j;//bitwise XOR ensures that recvTask cycles around sendTask
-            nbuffer[recvTask]=0;
-            for (int k=0;k<recvTask;k++)nbuffer[recvTask]+=mpi_nsend[ThisTask+k*NProcs];//offset on local receiving buffer
-            if(mpi_nsend[ThisTask * NProcs + recvTask] > 0 || mpi_nsend[recvTask * NProcs + ThisTask] > 0)
+            recvTask = j;
+            if (mpi_nsend[ThisTask+recvTask*NProcs] >= maxNumPart || nsend_local[recvTask] >= maxNumPart ) bufferFlag++;
+        }
+    }
+    //if buffer is too large, split sends
+    if (bufferFlag)
+    {
+        MPI_Request rqst;
+        int numBuffersToSend [NProcs];
+        int numBuffersToRecv [NProcs];
+        int numPartInBuffer = maxNumPart * 0.9;
+        int maxnbufferslocal=0,maxnbuffers;
+        for (j = 0; j < NProcs; j++)
+        {
+            numBuffersToSend[j] = 0;
+            numBuffersToRecv[j] = 0;
+            if (nsend_local[j] > 0)
+            numBuffersToSend[j] = (nsend_local[j]/numPartInBuffer) + 1;
+        }
+        for (int i = 1; i < NProcs; i++)
+        {
+            int src = (ThisTask + NProcs - i) % NProcs;
+            int dst = (ThisTask + i) % NProcs;
+            MPI_Isend (&numBuffersToSend[dst], 1, MPI_INT, dst, 0, MPI_COMM_WORLD, &rqst);
+            MPI_Recv  (&numBuffersToRecv[src], 1, MPI_INT, src, 0, MPI_COMM_WORLD, &status);
+        }
+        MPI_Barrier (MPI_COMM_WORLD);
+        //find max to be transfer, allows appropriate tagging of messages
+        for (int i=0;i<NProcs;i++) if (numBuffersToRecv[i]>maxnbufferslocal) maxnbufferslocal=numBuffersToRecv[i];
+        for (int i=0;i<NProcs;i++) if (numBuffersToSend[i]>maxnbufferslocal) maxnbufferslocal=numBuffersToSend[i];
+        MPI_Allreduce (&maxnbufferslocal, &maxnbuffers, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+
+        for (int i = 1; i < NProcs; i++)
+        {
+            int src = (ThisTask + NProcs - i) % NProcs;
+            int dst = (ThisTask + i) % NProcs;
+            Int_t size = numPartInBuffer;
+            nbuffer[src] = 0;
+            int buffOffset = 0;
+
+            for (int jj = 0; jj < src; jj++)  nbuffer[src] += mpi_nsend[ThisTask + jj*NProcs];
+
+            // Send Buffers
+            for (int jj = 0; jj < numBuffersToSend[dst]-1; jj++)
             {
-                //blocking point-to-point send and receive. Here must determine the appropriate offset point in the local export buffer 
-                //for sending data and also the local appropriate offset in the local the receive buffer for information sent from the local receiving buffer
-                //first send FOF data and then particle data
-                MPI_Sendrecv(&FoFDataIn[noffset[recvTask]],
-                    nsend_local[recvTask] * sizeof(struct fofdata_in), MPI_BYTE,
-                    recvTask, TAG_FOF_A,
-                    &FoFDataGet[nbuffer[recvTask]],
-                    mpi_nsend[ThisTask+recvTask * NProcs] * sizeof(struct fofdata_in),
-                    MPI_BYTE, recvTask, TAG_FOF_A, MPI_COMM_WORLD, &status);
-                MPI_Sendrecv(&PartDataIn[noffset[recvTask]],
-                    nsend_local[recvTask] * sizeof(Particle), MPI_BYTE,
-                    recvTask, TAG_FOF_B,
-                    &PartDataGet[nbuffer[recvTask]],
-                    mpi_nsend[ThisTask+recvTask * NProcs] * sizeof(Particle),
-                    MPI_BYTE, recvTask, TAG_FOF_B, MPI_COMM_WORLD, &status);
+                MPI_Isend (&size, 1, MPI_Int_t, dst, (int)(jj+1), MPI_COMM_WORLD, &rqst);
+                MPI_Isend (&FoFDataIn[noffset[dst] + buffOffset], sizeof(struct fofdata_in)*size,
+                            MPI_BYTE, dst, (int)(TAG_FOF_A*maxnbuffers+jj+1), MPI_COMM_WORLD, &rqst);
+                MPI_Isend (&PartDataIn[noffset[dst] + buffOffset], sizeof(Particle)*size,
+                            MPI_BYTE, dst, (int)(TAG_FOF_B*maxnbuffers*3+jj+1), MPI_COMM_WORLD, &rqst);
+                buffOffset += size;
+            }
+            size = nsend_local[dst] % numPartInBuffer;
+            if (size > 0 && numBuffersToSend[dst] > 0)
+            {
+                MPI_Isend (&size, 1, MPI_Int_t, dst, (int)(numBuffersToSend[dst]), MPI_COMM_WORLD, &rqst);
+                MPI_Isend (&FoFDataIn[noffset[dst] + buffOffset], sizeof(struct fofdata_in)*size,
+                            MPI_BYTE, dst, (int)(TAG_FOF_A*maxnbuffers+numBuffersToSend[dst]), MPI_COMM_WORLD, &rqst);
+                MPI_Isend (&PartDataIn[noffset[dst] + buffOffset], sizeof(Particle)*size,
+                            MPI_BYTE, dst, (int)(TAG_FOF_B*maxnbuffers*3+numBuffersToSend[dst]), MPI_COMM_WORLD, &rqst);
+            }
+            // Receive Buffers
+            buffOffset = 0;
+            for (int jj = 0; jj < numBuffersToRecv[src]; jj++)
+            {
+                Int_t numInBuffer = 0;
+                MPI_Recv (&numInBuffer, 1, MPI_Int_t, src, (int)(jj+1), MPI_COMM_WORLD, &status);
+                MPI_Recv (&FoFDataGet[nbuffer[src] + buffOffset], sizeof(struct fofdata_in)*numInBuffer, 
+                            MPI_BYTE, src, (int)(TAG_FOF_A*maxnbuffers+jj+1), MPI_COMM_WORLD, &status);
+                MPI_Recv (&PartDataGet[nbuffer[src] + buffOffset], sizeof(Particle)*numInBuffer, 
+                            MPI_BYTE, src, (int)(TAG_FOF_B*maxnbuffers*3+jj+1), MPI_COMM_WORLD, &status);
+                buffOffset += numInBuffer;
             }
         }
     }
+    else
+    {
+        if (nexport>0||nimport>0) {
+            for(j=0;j<NProcs;j++)//for(j=1;j<NProcs;j++)
+            {
+                if (j!=ThisTask)
+                {
+                    sendTask = ThisTask;
+                    recvTask = j;//ThisTask^j;//bitwise XOR ensures that recvTask cycles around sendTask
+                    nbuffer[recvTask]=0;
+                    for (int k=0;k<recvTask;k++)nbuffer[recvTask]+=mpi_nsend[ThisTask+k*NProcs];//offset on local receiving buffer
+                    if(mpi_nsend[ThisTask * NProcs + recvTask] > 0 || mpi_nsend[recvTask * NProcs + ThisTask] > 0)
+                    {
+                        //blocking point-to-point send and receive. Here must determine the appropriate offset point in the local export buffer 
+                        //for sending data and also the local appropriate offset in the local the receive buffer for information sent from the local receiving buffer
+                        //first send FOF data and then particle data
+                        MPI_Sendrecv(&FoFDataIn[noffset[recvTask]],
+                            nsend_local[recvTask] * sizeof(struct fofdata_in), MPI_BYTE,
+                            recvTask, TAG_FOF_A,
+                            &FoFDataGet[nbuffer[recvTask]],
+                            mpi_nsend[ThisTask+recvTask * NProcs] * sizeof(struct fofdata_in),
+                            MPI_BYTE, recvTask, TAG_FOF_A, MPI_COMM_WORLD, &status);
+                        MPI_Sendrecv(&PartDataIn[noffset[recvTask]],
+                            nsend_local[recvTask] * sizeof(Particle), MPI_BYTE,
+                            recvTask, TAG_FOF_B,
+                            &PartDataGet[nbuffer[recvTask]],
+                            mpi_nsend[ThisTask+recvTask * NProcs] * sizeof(Particle),
+                            MPI_BYTE, recvTask, TAG_FOF_B, MPI_COMM_WORLD, &status);
+                    }
+                }
+            }
+        }
     }
 }
 

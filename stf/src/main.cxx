@@ -493,6 +493,11 @@ int main(int argc,char **argv)
             WriteGroupPartType(opt, ng, &numingroup[indexii], NULL, Part);
         }
     }
+
+#ifdef EXTENDEDHALOOUTPUT
+    if (opt.iExtendedOutput) WriteExtendedOutput (opt, ngroup, nbodies, pdata, Part, pfof);
+#endif
+
     delete[] numingroup;
     delete[] pdata;
 
