@@ -600,8 +600,8 @@ private(i,tid)
     //now that field structures have been identified, allocate enough memory for the psldata pointer,
     //allocate memory for lowest level in the substructure hierarchy, corresponding to field objects
     if (opt.iverbose) cout<<ThisTask<<" Now store hierarchy information "<<endl;
-    //standard operation is to not keep the 3DFOF envelopes
-    if (!opt.iKeepFOF)
+    //standard operation is to not keep the 3DFOF envelopes once 6dfof run
+    if (!(opt.iKeepFOF && opt.fofbgtype<=FOF6D))
     {
         psldata->Allocate(numgroups);
         psldata->Initialize();
@@ -642,73 +642,76 @@ private(i,tid)
             }
             }
         }
+        //adjust ng to 6dfof number
         ng=numgroups-opt.num3dfof;
+        if (ng>0) {
 
-        //initialize next level which stores halos
-        psldata->nextlevel = new StrucLevelData();
-        psldata->nextlevel->Phead = new Particle*[ng+1];
-        psldata->nextlevel->gidhead = new Int_t*[ng+1];
-        psldata->nextlevel->Pparenthead = new Particle*[ng+1];
-        psldata->nextlevel->gidparenthead = new Int_t*[ng+1];
-        psldata->nextlevel->giduberparenthead = new Int_t*[ng+1];
-        psldata->nextlevel->stypeinlevel = new Int_t[ng+1];
-        psldata->nextlevel->stype = HALOSTYPE;
-        psldata->nextlevel->nsinlevel = ng;
-        psldata->nextlevel->nextlevel = NULL;
+            //reorder in descending 6dfof group size order only if keeping FOF
+            numingroup=BuildNumInGroup(Nlocal, numgroups, pfof);
+            Int_t **pglist=BuildPGList(Nlocal, numgroups, numingroup, pfof);
+            Int_t *value6d3d=new Int_t[numgroups+1];
+            //store size of largest 6dfof group to offset 3dfof when ordering 6d, leaving 3d order unchanged
+            Int_t maxval=0;
+            for (i=opt.num3dfof+1;i<=numgroups;i++) if (maxval<numingroup[i]) maxval=numingroup[i];
+            for (i=1;i<=opt.num3dfof;i++) value6d3d[i]=(opt.num3dfof-i)+maxval+1;
+            for (i=opt.num3dfof+1;i<=numgroups;i++) value6d3d[i]=numingroup[i];
+            //need to adjust id_3dfof_of_6dfof mapping as well when reordering groups
+            ReorderGroupIDsAndArraybyValue(numgroups, numgroups, numingroup, pfof, pglist,value6d3d,id_3dfof_of_6dfof);
+            for (i=1;i<=numgroups;i++) delete[] pglist[i];
+            delete[] pglist;
+            delete[] numingroup;
+            delete[] value6d3d;
 
-        for (i = 0; i <= ng; i++)
-        {
-            psldata->nextlevel->Phead[i] = NULL;
-            psldata->nextlevel->gidhead[i] = NULL;
-            psldata->nextlevel->gidparenthead[i] = NULL;
-            psldata->nextlevel->Pparenthead[i] = NULL;
-            psldata->nextlevel->giduberparenthead[i] = NULL;
-            psldata->nextlevel->stypeinlevel[i] = 0;
-        }
+            //initialize next level which stores halos
+            psldata->nextlevel = new StrucLevelData();
+            psldata->nextlevel->Phead = new Particle*[ng+1];
+            psldata->nextlevel->gidhead = new Int_t*[ng+1];
+            psldata->nextlevel->Pparenthead = new Particle*[ng+1];
+            psldata->nextlevel->gidparenthead = new Int_t*[ng+1];
+            psldata->nextlevel->giduberparenthead = new Int_t*[ng+1];
+            psldata->nextlevel->stypeinlevel = new Int_t[ng+1];
+            psldata->nextlevel->stype = HALOSTYPE;
+            psldata->nextlevel->nsinlevel = ng;
+            psldata->nextlevel->nextlevel = NULL;
 
-        for (i = 0; i < Nlocal; i++)
-        {
-            if (pfof[i] > opt.num3dfof) {
-            if (psldata->nextlevel->gidhead[pfof[i]-opt.num3dfof] == NULL) 
+            for (i = 0; i <= ng; i++)
             {
-                psldata->nextlevel->gidhead[pfof[i]-opt.num3dfof] = &pfof[i];
-                psldata->nextlevel->Phead[pfof[i]-opt.num3dfof] = &Part[i];
+                psldata->nextlevel->Phead[i] = NULL;
+                psldata->nextlevel->gidhead[i] = NULL;
+                psldata->nextlevel->gidparenthead[i] = NULL;
+                psldata->nextlevel->Pparenthead[i] = NULL;
+                psldata->nextlevel->giduberparenthead[i] = NULL;
+                psldata->nextlevel->stypeinlevel[i] = 0;
+            }
 
-                ///for 6dfof groups that are contained in a 3dfof group make sure to point to head
-                if (id_3dfof_of_6dfof[pfof[i]] > 0) 
+            for (i = 0; i < Nlocal; i++)
+            {
+                if (pfof[i] > opt.num3dfof) {
+                if (psldata->nextlevel->gidhead[pfof[i]-opt.num3dfof] == NULL) 
                 {
-                    psldata->nextlevel->gidparenthead[pfof[i]-opt.num3dfof] = psldata->gidhead[id_3dfof_of_6dfof[pfof[i]]];
-                    psldata->nextlevel->Pparenthead[pfof[i]-opt.num3dfof] = psldata->Phead[id_3dfof_of_6dfof[pfof[i]]];
-                    psldata->nextlevel->giduberparenthead[pfof[i]-opt.num3dfof] = psldata->gidhead[id_3dfof_of_6dfof[pfof[i]]];     
+                    psldata->nextlevel->gidhead[pfof[i]-opt.num3dfof] = &pfof[i];
+                    psldata->nextlevel->Phead[pfof[i]-opt.num3dfof] = &Part[i];
+
+                    ///for 6dfof groups that are contained in a 3dfof group make sure to point to head
+                    if (id_3dfof_of_6dfof[pfof[i]] > 0) 
+                    {
+                        psldata->nextlevel->gidparenthead[pfof[i]-opt.num3dfof] = psldata->gidhead[id_3dfof_of_6dfof[pfof[i]]];
+                        psldata->nextlevel->Pparenthead[pfof[i]-opt.num3dfof] = psldata->Phead[id_3dfof_of_6dfof[pfof[i]]];
+                        psldata->nextlevel->giduberparenthead[pfof[i]-opt.num3dfof] = psldata->gidhead[id_3dfof_of_6dfof[pfof[i]]];     
+                    }
+                    //if not in 3dfof then halo is its own uberparent (don't need to set particle head as NULL is fine)
+                    else 
+                    {
+                        psldata->nextlevel->gidparenthead[pfof[i]-opt.num3dfof] = &pfof[i];
+                        psldata->nextlevel->giduberparenthead[pfof[i]-opt.num3dfof] = &pfof[i];
+                    }
+                    psldata->nextlevel->stypeinlevel[pfof[i]-opt.num3dfof] = HALOSTYPE;
                 }
-                //if not in 3dfof then halo is its own uberparent (don't need to set particle head as NULL is fine)
-                else 
-                {
-                    psldata->nextlevel->gidparenthead[pfof[i]-opt.num3dfof] = &pfof[i];
-                    psldata->nextlevel->giduberparenthead[pfof[i]-opt.num3dfof] = &pfof[i];
                 }
-                psldata->nextlevel->stypeinlevel[pfof[i]-opt.num3dfof] = HALOSTYPE;
             }
-            }
-        }
+        }//end of ng>0 check
     }
 
-    //reorder ids in descending 6dfof group size order only if keeping FOF
-    if (ng>0 && opt.iKeepFOF==1 && opt.fofbgtype<=FOF6D) {
-        if (opt.iverbose) cout<<" reordering 6dfof groups "<<ng<<" groups "<<endl;
-        numingroup=BuildNumInGroup(Nlocal, ng, pfof);
-        Int_t **pglist=BuildPGList(Nlocal, ng, numingroup, pfof);
-        Int_t *value6d3d=new Int_t[ng+1];
-        Int_t maxval=0;
-        for (i=opt.num3dfof+1;i<=ng;i++) if (maxval<numingroup[i]) maxval=numingroup[i];
-        for (i=1;i<=opt.num3dfof;i++) value6d3d[i]=(opt.num3dfof-i)+maxval+1;
-        for (i=opt.num3dfof+1;i<=ng;i++) value6d3d[i]=numingroup[i];
-        ReorderGroupIDsbyValue(ng, ng, numingroup, pfof, pglist,value6d3d);
-        for (i=1;i<=ng;i++) delete[] pglist[i];
-        delete[] pglist;
-        delete[] numingroup;
-        delete[] value6d3d;
-    }
     /*
     psldata->Allocate(numgroups);
     psldata->Initialize();

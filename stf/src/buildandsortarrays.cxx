@@ -123,9 +123,10 @@ Int_t *BuildNoffset(const Int_t nbodies, Particle *Part, Int_t numgroups,Int_t *
 void ReorderGroupIDs(const Int_t numgroups, const Int_t newnumgroups, Int_t *numingroup, Int_t *pfof, Int_t **pglist)
 {
     PriorityQueue *pq=new PriorityQueue(newnumgroups);
+    Int_t groupid,size;
     for (Int_t i = 1; i <=numgroups; i++) if (numingroup[i]>0) pq->Push(i, numingroup[i]);
     for (Int_t i = 1; i<=newnumgroups; i++) {
-        Int_t groupid=pq->TopQueue(),size=pq->TopPriority();pq->Pop();
+        groupid=pq->TopQueue();size=pq->TopPriority();pq->Pop();
         for (Int_t j=0;j<size;j++) pfof[pglist[groupid][j]]=i;
     }
     delete pq;
@@ -133,9 +134,10 @@ void ReorderGroupIDs(const Int_t numgroups, const Int_t newnumgroups, Int_t *num
 void ReorderGroupIDs(const Int_t numgroups, const Int_t newnumgroups, Int_t *numingroup, Int_t *pfof, Int_t **pglist, Particle *Partsubset)
 {
     PriorityQueue *pq=new PriorityQueue(newnumgroups);
+    Int_t groupid,size;
     for (Int_t i = 1; i <=numgroups; i++) if (numingroup[i]>0) pq->Push(i, numingroup[i]);
     for (Int_t i = 1; i<=newnumgroups; i++) {
-        Int_t groupid=pq->TopQueue(),size=pq->TopPriority();pq->Pop();
+        groupid=pq->TopQueue();size=pq->TopPriority();pq->Pop();
         for (Int_t j=0;j<size;j++) pfof[Partsubset[pglist[groupid][j]].GetID()]=i;
     }
     delete pq;
@@ -145,22 +147,55 @@ void ReorderGroupIDs(const Int_t numgroups, const Int_t newnumgroups, Int_t *num
 void ReorderGroupIDsbyValue(const Int_t numgroups, const Int_t newnumgroups, Int_t *numingroup, Int_t *pfof, Int_t **pglist, Int_t *value)
 {
     PriorityQueue *pq=new PriorityQueue(newnumgroups);
+    Int_t groupid;
     for (Int_t i = 1; i <=numgroups; i++) if (numingroup[i]>0) pq->Push(i, value[i]);
     for (Int_t i = 1; i<=newnumgroups; i++) {
-        Int_t groupid=pq->TopQueue();pq->Pop();
+        groupid=pq->TopQueue();pq->Pop();
         for (Int_t j=0;j<numingroup[groupid];j++) pfof[pglist[groupid][j]]=i;
     }
     delete pq;
+}
+///similar to \ref ReorderGroupIDsbyValue but also reorder associated group data
+void ReorderGroupIDsAndArraybyValue(const Int_t numgroups, const Int_t newnumgroups, Int_t *numingroup, Int_t *pfof, Int_t **pglist, Int_t *value, Int_t *gdata)
+{
+    PriorityQueue *pq=new PriorityQueue(newnumgroups);
+    Int_t *gtemp=new Int_t[numgroups+1];
+    Int_t groupid;
+    for (Int_t i = 1; i <= numgroups; i++) gtemp[i]=gdata[i];
+    for (Int_t i = 1; i <= numgroups; i++) if (numingroup[i]>0) pq->Push(i, value[i]);
+    for (Int_t i = 1; i <= newnumgroups; i++) {
+        groupid=pq->TopQueue();pq->Pop();
+        for (Int_t j=0;j<numingroup[groupid];j++) pfof[pglist[groupid][j]]=i;
+        gdata[i]=gtemp[groupid];
+    }
+    delete pq;
+    delete[] gtemp;
+}
+void ReorderGroupIDsAndArraybyValue(const Int_t numgroups, const Int_t newnumgroups, Int_t *numingroup, Int_t *pfof, Int_t **pglist, Int_t *value, Double_t *gdata)
+{
+    PriorityQueue *pq=new PriorityQueue(newnumgroups);
+    Double_t *gtemp=new Double_t[numgroups+1];
+    Int_t groupid;
+    for (Int_t i = 1; i <= numgroups; i++) gtemp[i]=gdata[i];
+    for (Int_t i = 1; i <= numgroups; i++) if (numingroup[i]>0) pq->Push(i, value[i]);
+    for (Int_t i = 1; i <= newnumgroups; i++) {
+        groupid=pq->TopQueue();pq->Pop();
+        for (Int_t j=0;j<numingroup[groupid];j++) pfof[pglist[groupid][j]]=i;
+        gdata[i]=gtemp[groupid];
+    }
+    delete pq;
+    delete[] gtemp;
 }
 ///similar to \ref ReorderGroupIDsbyValue but also reorder associated property data
 void ReorderGroupIDsAndHaloDatabyValue(const Int_t numgroups, const Int_t newnumgroups, Int_t *numingroup, Int_t *pfof, Int_t **pglist, Int_t *value, PropData *pdata)
 {
     PriorityQueue *pq=new PriorityQueue(newnumgroups);
     PropData *ptemp=new PropData[numgroups+1];
+    Int_t groupid;
     for (Int_t i = 1; i <= numgroups; i++) ptemp[i]=pdata[i];
     for (Int_t i = 1; i <= numgroups; i++) if (numingroup[i]>0) pq->Push(i, value[i]);
     for (Int_t i = 1; i <= newnumgroups; i++) {
-        Int_t groupid=pq->TopQueue();pq->Pop();
+        groupid=pq->TopQueue();pq->Pop();
         for (Int_t j=0;j<numingroup[groupid];j++) pfof[pglist[groupid][j]]=i;
         pdata[i]=ptemp[groupid];
     }
