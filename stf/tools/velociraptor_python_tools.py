@@ -164,7 +164,7 @@ def ReadPropertyFile(basefilename,ibinary=0,iseparatesubfiles=0,iverbose=0, desi
 
     #allocate memory that will store the halo dictionary
     catalog={fieldnames[i]:np.zeros(numtothalos,dtype=fieldtype[i]) for i in range(len(fieldnames))}
-    noffset=0
+    noffset=np.uint64(0)
     for ifile in range(numfiles):
         if (inompi==True): filename=basefilename+".properties"
         else: filename=basefilename+".properties"+"."+str(ifile)
@@ -462,9 +462,9 @@ def ReadParticleDataFile(basefilename,ibinary=0,iseparatesubfiles=0,iparttypes=0
         particledata['Particle_Types']=[[] for i in range(numtothalos)]
 
     #now for all files
-    counter=0
+    counter=np.uint64(0)
     subfilenames=[""]
-    if (iseparatefiles==1): subfilenames=["",".sublevels"]
+    if (iseparatesubfiles==1): subfilenames=["",".sublevels"]
     for ifile in range(numfiles):
         for subname in subfilenames:
             bfname=basefilename+subname
@@ -560,6 +560,9 @@ def ReadParticleDataFile(basefilename,ibinary=0,iseparatesubfiles=0,iparttypes=0
                 upfile = h5py.File(upfilename, 'r')
                 piddata=np.int64(pfile["Particle_IDs"])
                 upiddata=np.int64(upfile["Particle_IDs"])
+                npart=len(piddata)
+                unpart=len(upiddata)
+
                 pfile.close()
                 upfile.close()
                 if (iparttypes==1):
@@ -575,8 +578,8 @@ def ReadParticleDataFile(basefilename,ibinary=0,iseparatesubfiles=0,iparttypes=0
             particledata['Npart'][counter:counter+numhalos]=numingroup
             unumingroup=np.zeros(numhalos,dtype=uint64)
             for i in range(numhalos-1):
-                unumingroup[i]=numingroup[i]-(uoffset[i+1]-uoffset[i]);
-            unumingroup[-1]=numingroup[-1]-(unpart-uoffset[-1])
+                unumingroup[i]=(uoffset[i+1]-uoffset[i]);
+            unumingroup[-1]=(unpart-uoffset[-1])
             particledata['Npart_unbound'][counter:counter+numhalos]=unumingroup
             for i in range(numhalos):
                 particledata['Particle_IDs'][i+counter]=np.zeros(numingroup[i],dtype=np.int64)

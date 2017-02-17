@@ -897,7 +897,7 @@ void UpdateRefProgenitors(Options &opt, const Int_t numhalos, ProgenitorData *&p
 ///similar to \ref UpdateRefProgenitors but for descendants
 void UpdateRefDescendants(Options &opt, const Int_t numhalos, DescendantData *&dref, DescendantData *&dtemp)
 {
-    if (opt.imultsteplinkcrit==MSLCMERIT) {
+    if (opt.imultsteplinkcrit==MSLCMISSING) {
         for (Int_t i=0;i<numhalos;i++) 
             if (dref[i].NumberofDescendants==0 && dtemp[i].NumberofDescendants>0) dref[i]=dtemp[i];
     }
@@ -942,7 +942,8 @@ void RemoveLinksProgenitorBasedDescendantList(Int_t itime, Int_t ihaloindex, Pro
         itimedescen=itime-pprogen.istep;
         //find where this link exists and then remove it. remove(begin,end, ihaloindex)
         //pprogendescen[itimedescen][did].haloindex.erase(remove(pprogendescen[itimedescen][did].haloindex.begin(),pprogendescen[itimedescen][did].haloindex.end(),ihaloindex),pprogendescen[itimedescen][did].haloindex.end()); 
-        k=0; while (k<pprogendescen[itimedescen][did].NumberofDescendants && pprogendescen[itimedescen][did].haloindex[k]!=ihaloindex) k++;
+        k=0; 
+        while (k<pprogendescen[itimedescen][did].NumberofDescendants && !(pprogendescen[itimedescen][did].haloindex[k]==ihaloindex && pprogendescen[itimedescen][did].halotemporalindex[k]==itime)) k++;
         pprogendescen[itimedescen][did].haloindex.erase(pprogendescen[itimedescen][did].haloindex.begin()+k); 
         pprogendescen[itimedescen][did].halotemporalindex.erase(pprogendescen[itimedescen][did].halotemporalindex.begin()+k);
         pprogendescen[itimedescen][did].Merit.erase(pprogendescen[itimedescen][did].Merit.begin()+k);
