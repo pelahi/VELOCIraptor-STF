@@ -817,6 +817,7 @@ Int_t* SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Part
     int nthreads=1,maxnthreads,tid;
     Int_t *numingroup, **pglist, *GroupTail, *Head, *Next;
     Int_t bgoffset, *pfofbg, numgroupsbg;
+    int maxhalocoresublevel;
     //initialize 
     if (pnumcores!=NULL) *pnumcores=0;
 #ifndef USEMPI
@@ -827,6 +828,10 @@ Int_t* SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Part
     //if using MPI on a single halo, lower minimum number
     if (opt.iSingleHalo) opt.MinSize=MinNumMPI;
 #endif
+
+    //set the maximum sublevel for halo core search. Unless star particles really should only be doing this at first sublevel
+    maxhalocoresublevel=1;
+    if (opt.partsearchtype==PSTSTAR) maxhalocoresublevel=100;
 
     int minsize=opt.MinSize;
 
@@ -1399,7 +1404,8 @@ private(i,tid)
     }
     //ONCE ALL substructures are found, search for cores of major mergers with minimum size set by cell size since grid is quite large after bg search
     //for missing large substructure cores
-    if(opt.iHaloCoreSearch>0&&((!opt.iSingleHalo&&sublevel==1)||(opt.iSingleHalo&&sublevel==0))) 
+    
+    if(opt.iHaloCoreSearch>0&&((!opt.iSingleHalo&&sublevel<=maxhalocoresublevel)||(opt.iSingleHalo&&sublevel==0))) 
     {
         if (opt.iverbose>=2) cout<<ThisTask<<" beginning 6dfof core search to find multiple cores"<<endl;
         bgoffset=1;
@@ -1445,12 +1451,22 @@ private(i,tid)
             param[7] = opt.HaloSigmaV * (opt.halocorevfac * opt.halocorevfac);
         }
 
-        minsize=nsubset*opt.halocorenfac;
-        minsize=max(minsize,opt.MinSize);
+        //set minsize of the core.
+        //for a galaxy search (ie: PSTSTAR, we set this to the min search size, 
+        //but for others, smaller (DM) substructures have already been cleaned. 
+        if (opt.partsearchtype!=PSTSTAR) {
+            minsize=nsubset*opt.halocorenfac;
+            minsize=max(minsize,opt.MinSize);
+        }
+        else {
+            minsize=opt.MinSize;
+        }
         if (opt.iverbose>=2) {
             cout<<ThisTask<<" "<<"Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits, ellphys="<<sqrt(param[7])<<" Vunits"<<endl;
             cout<<"with minimum size of "<<minsize<<endl;
         }
+
+        //start first 6d search
         fofcmp=&FOF6d;
         //here search for 6dfof groups, return ordered list. Also pass function check to ignore already tagged particles
         int iorder=1,icheck=1;
@@ -1458,32 +1474,56 @@ private(i,tid)
         for (i=0;i<nsubset;i++) Partsubset[i].SetPotential(pfof[Partsubset[i].GetID()]);
         param[9]=0.5;
         pfofbg=tree->FOFCriterion(fofcmp,param,numgroupsbg,minsize,iorder,icheck,FOFcheckbg);
-        //if allow several loops then proceed to shrink dispersions of velocity
-        if (opt.halocorenumloops>1 && numgroupsbg>=1) {
+
+        //now if searching for cores in fully adaptive fashion then process core (which will keep changing) till 
+        //no cores are found
+        if (opt.halocorenumloops>1)
+        {
+            //store the old velocity dispersion
+            Double_t halocoreveldisp = param[7];
+            //set the factor by which the minimum size is increased by 
+            Double_t halocorenumfac=0.5*log10(nsubset);
             int numloops=0;
-            Int_t oldnumgroupgsbg=numgroupsbg;
-            Int_t *pfofbgtemp=new Int_t[nsubset];
-            //loop till number of cores found drops or reach limit of iterations
+            //store the old number of groups and update the pfofbg list
+            Int_t newnumgroupgsbg=numgroupsbg;
+            Int_t *pfofbgnew=new Int_t[nsubset];
+            Int_t pid;
+            //first copy pfofbg information
+            newnumgroupgsbg=numgroupsbg;
+            for (i=0;i<nsubset;i++) pfofbgnew[i]=pfofbg[i];
+            //now keep doing this till zero new groups are found, copying over info of new groups above bgoffset as we go
             do {
-                //store old number of groups
-                oldnumgroupgsbg=numgroupsbg;
-                //store old group ids
-                for (i=0;i<nsubset;i++) pfofbgtemp[i]=pfofbg[i];
+                numloops++;
                 //free memory
                 delete[] pfofbg;
-                //adjust linking lengths in velocity space by the iterative factor, ~0.5 
-                param[7]*=opt.halocorevfaciter;
-                //run search
+                //adjust linking lengths in velocity space by the iterative factor, ~0.75  
+                param[7]*=opt.halocorevfaciter*opt.halocorevfaciter;
+                //and up the minsize
+                minsize*=halocorenumfac;
+                //we adjust the particles potentials so as to ignore already tagged particles using FOFcheckbg
+                //here since loop just iterates to search the largest core, we just set all particles with pfofbgnew[i]==1 
+                for (i=0;i<nsubset;i++) Partsubset[i].SetPotential((pfofbgnew[Partsubset[i].GetID()]!=1));
                 pfofbg=tree->FOFCriterion(fofcmp,param,numgroupsbg,minsize,iorder,icheck,FOFcheckbg);
-                numloops++;
-            } while (numloops<opt.halocorenumloops && numgroupsbg>=oldnumgroupgsbg);
-            //if outside of while loop, check to see if reached maximum number of loops. If not, then copy pfofbgtemp data to pfofbg
-            if (numloops<opt.halocorenumloops) {
-                for (i=0;i<nsubset;i++) pfofbg[i]=pfofbgtemp[i];
-                numgroupsbg=oldnumgroupgsbg;
-            }
-            delete[] pfofbgtemp;
+                //now if numgroupsbg is greater than one, need to update the pfofbgnew array
+                if (numgroupsbg>1) {
+                    for (i=0;i<nsubset;i++) {
+                        pid=Partsubset[i].GetID();
+                        //if the particle is untagged with new search, set it to be untagged
+                        if (pfofbgnew[pid]==1 && pfofbg[pid]==0) pfofbgnew[pid]=0;
+                        //if particle is tagged as new group > 1 then keep but offset id
+                        else if (pfofbg[pid]>1) pfofbgnew[pid]=pfofbg[pid]+newnumgroupgsbg;
+                    }
+                    newnumgroupgsbg+=numgroupsbg-1;
+                }
+            }while (numgroupsbg > 0 && numloops<opt.halocorenumloops && minsize*halocorenumfac<nsubset);
+            //once the loop is finished, update info
+            numgroupsbg=newnumgroupgsbg;
+            for (i=0;i<nsubset;i++) pfofbg[i]=pfofbgnew[i];
+            delete[] pfofbgnew;
+            param[7]=halocoreveldisp;
         }
+
+        //now grow the cores
         if (numgroupsbg>=bgoffset+1) {
             if (opt.iverbose>=2) cout<<"Number of cores: "<<numgroupsbg<<endl;
             //if cores are found, two options

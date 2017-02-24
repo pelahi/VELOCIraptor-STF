@@ -569,7 +569,7 @@ struct Options
         halocorevfac=2.0;
         halocorenfac=0.1;
         halocoresigmafac=3.0;
-        halocorevfaciter=0.5;
+        halocorevfaciter=0.75;
         halocorenumloops=1;
 
         iverbose=0;
