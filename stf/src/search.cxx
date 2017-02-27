@@ -1778,7 +1778,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_
 {
     //now build a sublist of groups to search for substructure
     Int_t nsubsearch, oldnsubsearch,sublevel,maxsublevel,ngroupidoffset,ngroupidoffsetold,ngrid;
-    bool iflag;
+    bool iflag,iunbindflag;
     Particle *subPart;
     Int_t firstgroup,firstgroupoffset;
     Int_t ng,*numingroup,**pglist;
@@ -1952,8 +1952,8 @@ void SearchSubSub(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_
                 subsubnumingroup[i]=BuildNumInGroup(subnumingroup[i], subngroup[i], subpfof);
                 subsubpglist[i]=BuildPGList(subnumingroup[i], subngroup[i], subsubnumingroup[i], subpfof);
                 if (opt.uinfo.unbindflag&&subngroup[i]>0) {
-                    CheckUnboundGroups(opt,subnumingroup[i],subPart,subngroup[i],subpfof,subsubnumingroup[i],subsubpglist[i]);
-                    if (subngroup[i]!=ng) {
+                    iunbindflag=CheckUnboundGroups(opt,subnumingroup[i],subPart,subngroup[i],subpfof,subsubnumingroup[i],subsubpglist[i]);
+                    if (iunbindflag) {
                         for (int j=1;j<=ng;j++) delete[] subsubpglist[i][j];
                         delete[] subsubnumingroup[i];
                         delete[] subsubpglist[i];

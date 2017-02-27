@@ -117,11 +117,14 @@ void MPIAdjustDomain(Options opt){
 
 ///given a position and a mpi thread domain information, determine which processor a particle is assigned to
 int MPIGetParticlesProcessor(Double_t x,Double_t y, Double_t z){
-    for (int j=0;j<NProcs;j++)
+    for (int j=0;j<NProcs;j++){
         if( (mpi_domain[j].bnd[0][0]<=x) && (mpi_domain[j].bnd[0][1]>x)&&
             (mpi_domain[j].bnd[1][0]<=y) && (mpi_domain[j].bnd[1][1]>y)&&
             (mpi_domain[j].bnd[2][0]<=z) && (mpi_domain[j].bnd[2][1]>z) )
             return j;
+    }
+    cerr<<ThisTask<<" has particle outside the mpi domains of every process ("<<x<<","<<y<<","<<z<<")"<<endl;
+    MPI_Abort(MPI_COMM_WORLD,9);
 }
 //@}
 
