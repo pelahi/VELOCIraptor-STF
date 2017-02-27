@@ -1485,11 +1485,11 @@ private(i,tid)
             Double_t halocorenumfac=0.5*log10(nsubset);
             int numloops=0;
             //store the old number of groups and update the pfofbg list
-            Int_t newnumgroupgsbg=numgroupsbg;
+            Int_t newnumgroupsbg=numgroupsbg;
             Int_t *pfofbgnew=new Int_t[nsubset];
             Int_t pid;
             //first copy pfofbg information
-            newnumgroupgsbg=numgroupsbg;
+            newnumgroupsbg=numgroupsbg;
             for (i=0;i<nsubset;i++) pfofbgnew[i]=pfofbg[i];
             //now keep doing this till zero new groups are found, copying over info of new groups above bgoffset as we go
             do {
@@ -1511,13 +1511,13 @@ private(i,tid)
                         //if the particle is untagged with new search, set it to be untagged
                         if (pfofbgnew[pid]==1 && pfofbg[pid]==0) pfofbgnew[pid]=0;
                         //if particle is tagged as new group > 1 then keep but offset id
-                        else if (pfofbg[pid]>1) pfofbgnew[pid]=pfofbg[pid]+newnumgroupgsbg;
+                        else if (pfofbg[pid]>1) pfofbgnew[pid]=pfofbg[pid]-1+newnumgroupsbg;
                     }
-                    newnumgroupgsbg+=numgroupsbg-1;
+                    newnumgroupsbg+=numgroupsbg-1;
                 }
             }while (numgroupsbg > 0 && numloops<opt.halocorenumloops && minsize*halocorenumfac<nsubset);
             //once the loop is finished, update info
-            numgroupsbg=newnumgroupgsbg;
+            numgroupsbg=newnumgroupsbg;
             for (i=0;i<nsubset;i++) pfofbg[i]=pfofbgnew[i];
             delete[] pfofbgnew;
             param[7]=halocoreveldisp;
@@ -2133,11 +2133,11 @@ void SearchSubSub(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_
             for (Int_t i=nhierarchy-1;i>0;i--){
                 for (int j=1;j<=papsldata[i]->nsinlevel;j++) {
                     gidval=(*papsldata[i]->gidhead[j]);
-                    if (parentgid[gidval]!=-1) {
+                    if (parentgid[gidval]!=GROUPNOPARENT) {
                         if (numingroup[parentgid[gidval]]>0) papsldata[i]->gidparenthead[j]=&pfof[pglist[parentgid[gidval]][0]];
                         else papsldata[i]->gidparenthead[j]=NULL;
                     }
-                    if (uparentgid[gidval]!=-1) {
+                    if (uparentgid[gidval]!=GROUPNOPARENT) {
                         if (numingroup[uparentgid[gidval]]>0) papsldata[i]->giduberparenthead[j]=&pfof[pglist[uparentgid[gidval]][0]];
                         else papsldata[i]->giduberparenthead[j]=NULL;
                     }
