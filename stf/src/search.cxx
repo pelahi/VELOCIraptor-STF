@@ -34,6 +34,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
     Int_t *id_3dfof_of_6dfof;
     Int_t ng,npartingroups;
     Int_t totalgroups;
+    Double_t time1,time2;
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
     Int_t Nlocal=nbodies;
@@ -57,7 +58,8 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
     //if using MPI, lower minimum number
     minsize=MinNumMPI;
 #endif
-
+    time1=MyGetTime();
+    time2=MyGetTime();
     cout<<"Begin FOF search  of entire particle data set ... "<<endl;
     KDTree *tree;
     param[0]=tree->TPHYS;
@@ -87,7 +89,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
     totalgroups=numgroups;
     //if this flag is set, calculate localfield value here for particles possibly resident in a field structure
 #ifdef STRUCDEN
-    if (numgroups>0) {
+    if (numgroups>0 && opt.iSubSearch==1) {
     storetype=new Int_t[nbodies];
     for (i=0;i<nbodies;i++) storetype[i]=Part[i].GetType();
     //if not searching all particle then searching for baryons associated with substructures, then set type to group value
@@ -119,7 +121,8 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
         delete[] numingroup;
         numingroup=NULL;
     }
-    cout<<ThisTask<<" Finished local search "<<NExport<<" "<<NImport<<endl;
+    cout<<ThisTask<<": Finished local search, nexport/nimport = "<<NExport<<" "<<NImport<<" in "<<MyGetTime()-time2<<endl;
+    time2=MyGetTime();
 
     //if using MPI must determine which local particles need to be exported to other threads and used to search
     //that threads particles. This is done by seeing if the any particles have a search radius that overlaps with 
@@ -148,13 +151,13 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
     //One must keep iterating till there are no new links. 
     //Wonder if i don't need another loop and a final check
     Int_t links_across,links_across_total;
-    cout<<ThisTask<<" Starting to linking across MPI domains"<<endl;
+    cout<<ThisTask<<": Starting to linking across MPI domains"<<endl;
     do {
         links_across=MPILinkAcross(nbodies, tree, Part, pfof, Len, Head, Next, param[1]);
         MPI_Allreduce(&links_across, &links_across_total, 1, MPI_Int_t, MPI_SUM, MPI_COMM_WORLD);
         MPIUpdateExportList(nbodies,Part,pfof,Len);
     }while(links_across_total>0);
-    cout<<ThisTask<<" done"<<endl;
+    if (ThisTask==0) cout<<ThisTask<<": finished linking across MPI domains in "<<MyGetTime()-time2<<endl;
 
     delete[] FoFDataIn;
     delete[] FoFDataGet;
@@ -194,11 +197,11 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
     if (ThisTask==0) cout<<"Total number of groups found is "<<totalgroups<<endl;
     Nlocal=newnbodies;
 #endif
-    cout<<"Done"<<endl;
+    if (ThisTask==0) cout<<ThisTask<<": finished FOF search in total time of "<<MyGetTime()-time1<<endl;
 
     //if calculating velocity density only of particles resident in field structures large enough for substructure search
 #if defined(STRUCDEN) && defined(USEMPI)
-    if (totalgroups>0)
+    if (totalgroups>0&&opt.iSubSearch==1)
     {
         storetype=new Int_t[Nlocal];
         for (i=0;i<Nlocal;i++) storetype[i]=Part[i].GetType();
@@ -228,7 +231,9 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
     //have now 3dfof groups local to a MPI thread and particles are back in index order that will be used from now on
     //note that from on, use Nlocal, which is altered in mpi but set to nbodies in non-mpi
     if (opt.fofbgtype<=FOF6D && totalgroups>0) {
-    
+    time1=MyGetTime();
+    time2=MyGetTime();
+
     //now if 6dfof search to overcome issues with 3DFOF by searching only particles that have been previously linked by the 3dfof
     //adjust physical linking length
     param[1]*=opt.ellhalo6dxfac*opt.ellhalo6dxfac;
@@ -238,41 +243,11 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
     if (opt.fofbgtype!=FOFSTNOSUBSET) fofcmp=&FOF6d;
     else fofcmp=&FOFStream;
 
-    cout<<"Sorting particles for 6dfof/phase-space search "<<endl;
+    cout<<ThisTask<<": Sorting particles for 6dfof/phase-space search "<<endl;
     npartingroups=0;
     //sort particles so that largest group is first, 2nd next, etc with untagged at end.
     Int_t iend=0;
-/*
-#ifdef USEOPENMP
-    storetype=new Int_t[Nlocal];
-    if (numingroup==NULL) numingroup=new Int_t[numgroups+1];
-    noffset=new Int_t[numgroups+1];
-    for (i=0;i<=numgroups;i++) numingroup[i]=noffset[i]=0;
-    for (i=0;i<Nlocal;i++) {
-        storetype[i]=Part[i].GetPID();
-        Part[i].SetPID((pfof[i]==0)*Nlocal+(pfof[i]>0)*pfof[i]);
-        npartingroups+=(Int_t)(pfof[i]>0);
-        iend+=(pfof[i]==1);
-        numingroup[pfof[i]]++;
-    }
-    for (i=2;i<=numgroups;i++) noffset[i]=noffset[i-1]+numingroup[i-1];
-    qsort(Part, Nlocal, sizeof(Particle), PIDCompare);
-    for (i=0;i<Nlocal;i++) Part[i].SetPID(storetype[Part[i].GetID()]);
-    delete[] storetype;
 
-#else
-    storetype=new Int_t[Nlocal];
-    for (i=0;i<Nlocal;i++) {
-        storetype[i]=Part[i].GetPID();
-        Part[i].SetPID(2*(pfof[i]==0)+(pfof[i]>1));
-        npartingroups+=(Int_t)(pfof[i]>0);
-        iend+=(pfof[i]==1);
-    }
-    qsort(Part, Nlocal, sizeof(Particle), PIDCompare);
-    for (i=0;i<Nlocal;i++) Part[i].SetPID(storetype[Part[i].GetID()]);
-    delete[] storetype;
-#endif
-*/
     storetype=new Int_t[Nlocal];
     if (numingroup==NULL) numingroup=new Int_t[numgroups+1];
     noffset=new Int_t[numgroups+1];
@@ -352,79 +327,23 @@ private(i,vscale2,mtotregion,vx,vy,vz,vmean)
     }
     //use the phase-space stream finding parameters
     else if (opt.fofbgtype==FOFSTNOSUBSET) {
+        ///\todo not implemented yet so quit and spit error message
+        if (ThisTask==0) cerr<<" THIS TYPE OF PHASE-SPACE HALO SEARCH not implemented yet, quiting. Please use halo search of 3,4, or 5 (adaptive 6d, 6d with single v scale, and 3d only)"<<endl;
+#ifdef USEMPI
+        MPI_Abort(MPI_COMM_WORLD,8);
+#else
+        exit(8);
+#endif
     }
     //error, so write message and quit
     else {
+        if (ThisTask==0) cerr<<" THIS TYPE OF PHASE-SPACE HALO SEARCH not implemented yet, quiting. Please use halo search of 3,4, or 5 (adaptive 6d, 6d with single v scale, and 3d only)"<<endl;
 #ifdef USEMPI
+        MPI_Abort(MPI_COMM_WORLD,8);
 #else
+        exit(8);
 #endif
     }
-    
-    ///\todo need to generalize this to allow adaptive search. I think the easiest think is to
-    ///actually remove the split between openmp and serial so that always build lots of kd trees
-    ///for each group, thereby allowing parameters to be different
-    ///would also need to allocate a parameter array for each thread
-    /*
-#ifdef USEOPENMP
-    ///\todo seems the openmp 6dfof search is unstable but why?
-    Head=new Int_t[Nlocal];Next=new Int_t[Nlocal];Tail=new Int_t[Nlocal];Len=new Int_t[Nlocal];
-    KDTree *treeomp[nthreads];
-    Int_t **pfofomp;
-    Int_t *ngomp;
-    //determine chunks to search
-    iend=numgroups;
-    for (i=1;i<=numgroups;i++) if (numingroup[i]<=ompunbindnum) {iend=i;break;}
-    numingroup[0]=0;
-    for (i=iend;i<=numgroups;i++) numingroup[0]+=numingroup[i];
-    numingroup[iend]=numingroup[0];
-
-    pfofomp=new Int_t*[iend+1];
-    ngomp=new Int_t[iend+1];
-#pragma omp parallel default(shared) \
-private(i,tid)
-{
-#pragma omp for schedule(dynamic,1) nowait
-    for (i=1;i<=iend;i++) {
-        tid=omp_get_thread_num();
-        treeomp[tid]=new KDTree(&Part[noffset[i]],numingroup[i],opt.Bsize,treeomp[tid]->TPHYS,tree->KEPAN,100);
-        pfofomp[i]=treeomp[tid]->FOFCriterion(fofcmp,param,ngomp[i],minsize,1,0,Pnocheck,&Head[noffset[i]],&Next[noffset[i]],&Tail[noffset[i]],&Len[noffset[i]]);
-        delete treeomp[tid];
-    }
-}
-    ng=0;
-    for (i=0;i<Nlocal;i++) pfof[i]=0;
-    for (i=1;i<=iend;i++) {
-        for (int j=0;j<numingroup[i];j++) {
-            pfof[ids[Part[noffset[i]+j].GetID()+noffset[i]]]=pfofomp[i][j]+(pfofomp[i][j]>0)*ng; 
-        }
-        ng+=ngomp[i];
-        delete[] pfofomp[i];
-    }
-    delete[] ngomp;
-    delete[] pfofomp;
-    delete[] noffset;
-    delete[] numingroup;
-    delete[] Head;
-    delete[] Tail;
-    delete[] Next;
-    delete[] Len;
-    if (ng>0) {
-        if (opt.iverbose) cout<<" reordering "<<ng<<" groups "<<endl;
-        numingroup=BuildNumInGroup(Nlocal, ng, pfof);
-        Int_t **pglist=BuildPGList(Nlocal, ng, numingroup, pfof);
-        ReorderGroupIDs(ng, ng, numingroup, pfof, pglist);
-        for (i=1;i<=ng;i++) delete[] pglist[i];
-        delete[] pglist;
-        delete[] numingroup;
-    }
-#else
-    tree=new KDTree(Part,npartingroups,opt.Bsize,tree->TPHYS,tree->KEPAN,100);
-    pfoftemp=tree->FOFCriterion(fofcmp,param,ng,minsize,1);
-    for (i=0;i<npartingroups;i++) pfof[ids[Part[i].GetID()]]=pfoftemp[Part[i].GetID()];
-    delete[] pfoftemp;
-    delete tree;
-#endif
-    */
 
     Head=new Int_t[Nlocal];Next=new Int_t[Nlocal];Tail=new Int_t[Nlocal];Len=new Int_t[Nlocal];
     KDTree *treeomp[nthreads];
@@ -445,7 +364,7 @@ private(i,tid)
     //copy the parameters appropriately to the paramsomp array which can be used by openmp
     for (i=0;i<nthreads;i++) 
         for (int j=0;j<20;j++) paramomp[j+i*20]=param[j];
-    
+
     pfofomp=new Int_t*[iend+1];
     ngomp=new Int_t[iend+1];
 #ifdef USEOPENMP
@@ -469,9 +388,11 @@ private(i,tid)
 #ifdef USEOPENMP
 }
 #endif
+
     //now if keeping original 3DFOF structures (useful for stellar haloes search) then store original number of 3d fof haloes 
     if (opt.iKeepFOF) 
     {
+        if (opt.iverbose>=2 && ThisTask==0) cout<<"Storing the 3D fof envelopes of the 6d fof structures found"<<endl;
         //store current number of 6dfof groups
         for (i=1;i<=iend;i++) ng+=ngomp[i];
         Int_t *pfof6dfof=new Int_t[Nlocal];
@@ -580,6 +501,7 @@ private(i,tid)
     gsl_heapsort(Part, Nlocal, sizeof(Particle), IDCompare);
     delete[] ids;
     numgroups=ng;
+
     }
     //end of extra 6dfof/phase-space search of 3D FOF envelops
 
@@ -594,6 +516,7 @@ private(i,tid)
         for (int j=0;j<NProcs;j++) totalgroups+=mpi_ngroups[j];
         cout<<"Total number of groups found is "<<totalgroups<<endl;
     }
+    if (ThisTask==0) cout<<ThisTask<<" finished 6d/phase-space fof search in "<<MyGetTime()-time2<<endl;
     }
 #endif
 

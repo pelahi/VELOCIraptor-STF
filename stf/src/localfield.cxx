@@ -20,6 +20,7 @@ void GetVelocityDensity(Options &opt, const Int_t nbodies, Particle *Part, KDTre
     int nthreads;
     int tid,id,pid,pid2,itreeflag=0;
     Double_t v2;
+    Double_t time1,time2;
 #ifndef USEMPI
     int ThisTask=0, NProcs=1;
 #endif
@@ -29,7 +30,8 @@ void GetVelocityDensity(Options &opt, const Int_t nbodies, Particle *Part, KDTre
         period=new Double_t[3];
         for (int j=0;j<3;j++) period[j]=opt.p;
     }
-    if (opt.iverbose) cout<<"Get local velocity density"<<endl;
+    time1=MyGetTime();
+    cout<<ThisTask<<": Get local velocity density"<<endl;
     //only build tree if necessary
     if (tree==NULL) {
         itreeflag=1;
@@ -45,7 +47,6 @@ void GetVelocityDensity(Options &opt, const Int_t nbodies, Particle *Part, KDTre
     //if calculating using only particles IN a structure, 
 #ifndef HALOONLYDEN
 #ifdef USEMPI
-    double t1=MyGetTime();
     Int_t nimport;
     Double_t *maxrdist=new Double_t[nbodies];
     Double_t *weight;
@@ -60,7 +61,8 @@ void GetVelocityDensity(Options &opt, const Int_t nbodies, Particle *Part, KDTre
             if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
     }
 #endif
-    t1=MyGetTime();
+
+    time2=MyGetTime();
     //In loop determine if particles NN search radius overlaps another mpi threads domain.
     //If not, then proceed as usually to determine velocity density.
     //If so, do not calculate local velocity density and set its velocity density to -1 as a flag
@@ -120,7 +122,8 @@ private(i,j,k,tid,id,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,pqx,pqv
 #ifdef USEOPENMP
 }
 #endif
-    if (opt.iverbose) cout<<ThisTask<<" finished local calculation in "<<MyGetTime()-t1<<endl;
+    if (opt.iverbose) cout<<ThisTask<<" finished local calculation in "<<MyGetTime()-time2<<endl;
+    time2=MyGetTime();
 
     //determines export AND import numbers
     MPIGetNNExportNum(nbodies, Part, maxrdist);
@@ -243,7 +246,7 @@ private(i,j,k,tid,pid,pid2,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,p
     delete[] PartDataGet;
     delete[] NNDataIn;
     delete[] NNDataGet;
-    if(opt.iverbose) cout<<ThisTask<<" finished other domain search "<<endl;
+    if(opt.iverbose) cout<<ThisTask<<" finished other domain search "<<MyGetTime()-time2<<endl;
 #else 
     //NO MPI invoked
 #ifndef USEOPENMP
@@ -358,7 +361,6 @@ private(i,tid)
         pqx[j]=new PriorityQueue(opt.Nsearch);
         pqv[j]=new PriorityQueue(opt.Nvel);
     }
-    double t1=MyGetTime();
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
 private(i,tid)
@@ -390,10 +392,8 @@ private(i,tid)
     delete[] pqv;
     delete[] fracdone;
     delete[] fraclim;
-    if (opt.iverbose) cout<<ThisTask<<" finished local calculation in "<<MyGetTime()-t1<<endl;
     if (itreeflag) delete tree;
 #endif
     if (period!=NULL) delete[] period;
-
-    if (opt.iverbose) cout<<ThisTask<<" Done"<<endl;
+    cout<<ThisTask<<": finished local calculation in "<<MyGetTime()-time1<<endl;
 }
