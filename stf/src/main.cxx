@@ -245,6 +245,9 @@ int main(int argc,char **argv)
 #else
     cout<<"TIME::"<<ThisTask<<" took "<<time1<<" to load "<<nbodies<<endl;
 #endif
+    
+    //write out the configuration used by velociraptor having read in the data (as input data can contain cosmological information)
+    WriteVELOCIraptorConfig(opt);
 
     //set filenames if they have been passed
 #ifdef USEMPI

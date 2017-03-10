@@ -291,8 +291,8 @@ void GetParamFile(Options &opt)
             exit(9);
         }
     }
-    sprintf(fname,"%s.cfg",opt.outname);
-    cfgfile.open(fname, ios::out);
+    //sprintf(fname,"%s.cfg",opt.outname);
+    //cfgfile.open(fname, ios::out);
     paramfile.clear();
     paramfile.seekg(0, ios::beg);
     if (paramfile.is_open())
@@ -312,7 +312,7 @@ void GetParamFile(Options &opt)
                     pbuff=strtok(buff," ");
                     if (pbuff==NULL) continue;
                     strcpy(vbuff, pbuff);
-                    cfgfile<<tbuff<<"="<<vbuff<<endl;
+                    //cfgfile<<tbuff<<"="<<vbuff<<endl;
                     //store/read local density distribution funciton values
                     if (strcmp(tbuff, "Output_den")==0){
                         opt.smname=new char[1024];
@@ -328,7 +328,7 @@ void GetParamFile(Options &opt)
                     else if (strcmp(tbuff, "Search_for_substructure")==0)
                         opt.iSubSearch = atoi(vbuff);
                     else if (strcmp(tbuff, "Keep_FOF")==0)
-                        opt.iKeepFOF = atof(vbuff);
+                        opt.iKeepFOF = atoi(vbuff);
                     else if (strcmp(tbuff, "Iterative_searchflag")==0)
                         opt.iiterflag = atoi(vbuff);
                     else if (strcmp(tbuff, "Unbind_flag")==0)
@@ -491,7 +491,7 @@ void GetParamFile(Options &opt)
             }
         }
         paramfile.close();
-        cfgfile.close();
+        //cfgfile.close();
     }
 }
 

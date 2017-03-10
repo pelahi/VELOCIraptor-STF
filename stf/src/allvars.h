@@ -593,6 +593,195 @@ struct Options
     }
 };
 
+struct ConfigInfo{
+    //list the name of the info
+    vector<string> nameinfo;
+    //vector<float> datainfo;
+    vector<string> datainfo;
+    //vector<int> datatype;
+    ConfigInfo(Options &opt){
+        int sizeval;
+        //general search operations
+        nameinfo.push_back("Particle_search_type");
+        datainfo.push_back(to_string(opt.partsearchtype));
+        nameinfo.push_back("FoF_search_type");
+        datainfo.push_back(to_string(opt.foftype));
+        nameinfo.push_back("FoF_Field_search_type");
+        datainfo.push_back(to_string(opt.fofbgtype));
+        nameinfo.push_back("Search_for_substructure");
+        datainfo.push_back(to_string(opt.iSubSearch));
+        nameinfo.push_back("Keep_FOF");
+        datainfo.push_back(to_string(opt.iKeepFOF));
+        nameinfo.push_back("Iterative_searchflag");
+        datainfo.push_back(to_string(opt.iiterflag));
+        nameinfo.push_back("Unbind_flag");
+        datainfo.push_back(to_string(opt.uinfo.unbindflag));
+        nameinfo.push_back("Baryon_searchflag");
+        datainfo.push_back(to_string(opt.iBaryonSearch));
+        nameinfo.push_back("CMrefadjustsubsearch_flag");
+        datainfo.push_back(to_string(opt.icmrefadjust));
+        nameinfo.push_back("Halo_core_search");
+        datainfo.push_back(to_string(opt.iHaloCoreSearch));
+        nameinfo.push_back("Use_adaptive_core_search");
+        datainfo.push_back(to_string(opt.iAdaptiveCoreLinking));
+
+        //local field parameters
+        nameinfo.push_back("Cell_fraction");
+        datainfo.push_back(to_string(opt.Ncellfac));
+        nameinfo.push_back("Grid_type");
+        datainfo.push_back(to_string(opt.gridtype));
+        nameinfo.push_back("Nsearch_velocity");
+        datainfo.push_back(to_string(opt.Nvel));
+        nameinfo.push_back("Nsearch_physical");
+        datainfo.push_back(to_string(opt.Nsearch));
+
+        //substructure search parameters
+        nameinfo.push_back("Outlier_threshold");
+        datainfo.push_back(to_string(opt.ellthreshold));
+        nameinfo.push_back("Significance_level");
+        datainfo.push_back(to_string(opt.siglevel));
+        nameinfo.push_back("Velocity_ratio");
+        datainfo.push_back(to_string(opt.Vratio));
+        nameinfo.push_back("Velocity_opening_angle");
+        datainfo.push_back(to_string(opt.thetaopen));
+        nameinfo.push_back("Physical_linking_length");
+        datainfo.push_back(to_string(opt.ellphys));
+        nameinfo.push_back("Velocity_linking_length");
+        datainfo.push_back(to_string(opt.ellvel));
+        nameinfo.push_back("Minimum_size");
+        datainfo.push_back(to_string(opt.MinSize));
+
+        //field object specific searches
+        nameinfo.push_back("Minimum_halo_size");
+        datainfo.push_back(to_string(opt.HaloMinSize));
+        nameinfo.push_back("Halo_linking_length_factor");
+        datainfo.push_back(to_string(opt.ellhalophysfac));
+        nameinfo.push_back("Halo_velocity_linking_length_factor");
+        datainfo.push_back(to_string(opt.ellhalovelfac));
+
+        //specific to 6DFOF field search
+        nameinfo.push_back("Halo_6D_linking_length_factor");
+        datainfo.push_back(to_string(opt.ellhalo6dxfac));
+        nameinfo.push_back("Halo_6D_vel_linking_length_factor");
+        datainfo.push_back(to_string(opt.ellhalo6dvfac));
+
+        //specific search for 6d fof core searches
+        nameinfo.push_back("Halo_core_ellx_fac");
+        datainfo.push_back(to_string(opt.halocorexfac));
+        nameinfo.push_back("Halo_core_ellv_fac");
+        datainfo.push_back(to_string(opt.halocorevfac));
+        nameinfo.push_back("Halo_core_ncellfac");
+        datainfo.push_back(to_string(opt.halocorenfac));
+        nameinfo.push_back("Halo_core_adaptive_sigma_fac");
+        datainfo.push_back(to_string(opt.halocoresigmafac));
+        nameinfo.push_back("Halo_core_num_loops");
+        datainfo.push_back(to_string(opt.halocorenumloops));
+        nameinfo.push_back("Halo_core_loop_ellv_fac");
+        datainfo.push_back(to_string(opt.halocorevfaciter));
+
+        //for changing factors used in iterative search
+        nameinfo.push_back("Iterative_threshold_factor");
+        datainfo.push_back(to_string(opt.ellfac));
+        nameinfo.push_back("Iterative_linking_length_factor");
+        datainfo.push_back(to_string(opt.ellxfac));
+        nameinfo.push_back("Iterative_Vratio_factor");
+        datainfo.push_back(to_string(opt.vfac));
+        nameinfo.push_back("Iterative_ThetaOp_factor");
+        datainfo.push_back(to_string(opt.thetafac));
+
+        //for changing effective resolution when rescaling linking lengh
+        nameinfo.push_back("Effective_resolution");
+        datainfo.push_back(to_string(opt.Neff));
+
+        //for changing effective resolution when rescaling linking lengh
+        nameinfo.push_back("Singlehalo_search");
+        datainfo.push_back(to_string(opt.iSingleHalo));
+
+        //units, cosmology
+        nameinfo.push_back("Length_unit");
+        datainfo.push_back(to_string(opt.L));
+        nameinfo.push_back("Velocity_unit");
+        datainfo.push_back(to_string(opt.V));
+        nameinfo.push_back("Mass_unit");
+        datainfo.push_back(to_string(opt.M));
+        nameinfo.push_back("Hubble_unit");
+        datainfo.push_back(to_string(opt.H));
+        nameinfo.push_back("Gravity");
+        datainfo.push_back(to_string(opt.G));
+        nameinfo.push_back("Mass_value");
+        datainfo.push_back(to_string(opt.MassValue));
+        nameinfo.push_back("Period");
+        datainfo.push_back(to_string(opt.p));
+        nameinfo.push_back("Scale_factor");
+        datainfo.push_back(to_string(opt.a));
+        nameinfo.push_back("h_val");
+        datainfo.push_back(to_string(opt.h));
+        nameinfo.push_back("Omega_m");
+        datainfo.push_back(to_string(opt.Omega_m));
+        nameinfo.push_back("Omega_Lambda");
+        datainfo.push_back(to_string(opt.Omega_Lambda));
+        nameinfo.push_back("Critical_density");
+        datainfo.push_back(to_string(opt.rhobg));
+        nameinfo.push_back("Virial_density");
+        datainfo.push_back(to_string(opt.virlevel));
+        nameinfo.push_back("Omega_cdm");
+        datainfo.push_back(to_string(opt.Omega_cdm));
+        nameinfo.push_back("Omega_b");
+        datainfo.push_back(to_string(opt.Omega_b));
+        nameinfo.push_back("w_of_DE");
+        datainfo.push_back(to_string(opt.w_de));
+
+        //unbinding
+        nameinfo.push_back("Softening_length");
+        datainfo.push_back(to_string(opt.uinfo.eps));
+        nameinfo.push_back("Allowed_kinetic_potential_ratio");
+        datainfo.push_back(to_string(opt.uinfo.Eratio));
+        nameinfo.push_back("Min_bound_mass_frac");
+        datainfo.push_back(to_string(opt.uinfo.minEfrac));
+        nameinfo.push_back("Bound_halos");
+        datainfo.push_back(to_string(opt.iBoundHalos));
+        nameinfo.push_back("Keep_background_potential");
+        datainfo.push_back(to_string(opt.uinfo.bgpot));
+        nameinfo.push_back("Kinetic_reference_frame_type"); 
+        datainfo.push_back(to_string(opt.uinfo.cmvelreftype));
+        nameinfo.push_back("Min_npot_ref");
+        datainfo.push_back(to_string(opt.uinfo.Npotref));
+        nameinfo.push_back("Frac_pot_ref");
+        datainfo.push_back(to_string(opt.uinfo.fracpotref));
+
+        //other options
+        nameinfo.push_back("Verbose");
+        datainfo.push_back(to_string(opt.iverbose));
+        nameinfo.push_back("Write_group_array_file");
+        datainfo.push_back(to_string(opt.iwritefof));
+        nameinfo.push_back("Snapshot_value");
+        datainfo.push_back(to_string(opt.snapshotvalue));
+        nameinfo.push_back("Inclusive_halo_masses");
+        datainfo.push_back(to_string(opt.iInclusiveHalo));
+
+        //io related 
+        nameinfo.push_back("Cosmological_input");
+        datainfo.push_back(to_string(opt.icosmologicalin));
+        nameinfo.push_back("Separate_output_files");
+        datainfo.push_back(to_string(opt.iseparatefiles));
+        nameinfo.push_back("Binary_output");
+        datainfo.push_back(to_string(opt.ibinaryout));
+        nameinfo.push_back("Comoving_units");
+        datainfo.push_back(to_string(opt.icomoveunit));
+        nameinfo.push_back("Extended_output");
+        datainfo.push_back(to_string(opt.iextendedoutput));
+
+        //gadget io related to extra info for sph, stars, bhs,
+        nameinfo.push_back("NSPH_extra_blocks");
+        datainfo.push_back(to_string(opt.gnsphblocks));
+        nameinfo.push_back("NStar_extra_blocks");
+        datainfo.push_back(to_string(opt.gnstarblocks));
+        nameinfo.push_back("NBH_extra_blocks");
+        datainfo.push_back(to_string(opt.gnbhblocks));
+
+    }
+};
+
 /// N-dim grid cell
 struct GridCell
 {

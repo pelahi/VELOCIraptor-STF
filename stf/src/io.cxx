@@ -1697,7 +1697,36 @@ Int_t ReadFOFGroupBinary(Options &opt, Int_t nbodies, Int_t *pfof, Int_t *idtoin
 
 //@}
 
+void WriteVELOCIraptorConfig(Options &opt){
+    fstream Fout;
+    char fname[1000];
+#ifndef USEMPI
+    int ThisTask=0;
+#endif
 
+#ifdef USEHDF
+    H5File Fhdf;
+    H5std_string datasetname;
+    DataSpace dataspace;
+    DataSet dataset;
+    hsize_t *dims;
+    int rank;
+    DataSpace *propdataspace;
+    DataSet *propdataset;
+    HDFCatalogNames hdfnames;
+    int itemp=0;
+#endif
+    if (ThisTask==0) {
+        ConfigInfo config(opt);
+        sprintf(fname,"%s.configuration",opt.outname);
+        for (Int_t i=0;i<config.nameinfo.size();i++) {
+            Fout<<config.nameinfo[i]<<" : ";
+            Fout<<config.datainfo[i]<<" ";
+            Fout<<endl;
+        }
+    }
+
+}
 #ifdef EXTENDEDHALOOUTPUT
 /// \name Routines that can be used to output information of a halo subvolume decomposition
 //@{

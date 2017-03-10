@@ -71,7 +71,10 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata);
 void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t &nhierarchy, const Int_t &nfield, Int_t *nsub, Int_t *parentgid, Int_t *stype,int subflag=0);
 
 ///Write Extended Output
-void WriteExtendedOutput (Options &opt, Int_t numgroups, Int_t nbodies, PropData *pdata, Particle *p, Int_t * pfof);
+void WriteExtendedOutput(Options &opt, Int_t numgroups, Int_t nbodies, PropData *pdata, Particle *p, Int_t * pfof);
+
+///Write the configuartion options that the code used
+void WriteVELOCIraptorConfig(Options &opt);
 
 ///Writes ROCKSTAR like output
 //@{
