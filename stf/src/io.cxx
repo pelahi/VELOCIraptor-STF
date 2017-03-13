@@ -1719,11 +1719,13 @@ void WriteVELOCIraptorConfig(Options &opt){
     if (ThisTask==0) {
         ConfigInfo config(opt);
         sprintf(fname,"%s.configuration",opt.outname);
+        Fout.open(fname,ios::out);
         for (Int_t i=0;i<config.nameinfo.size();i++) {
             Fout<<config.nameinfo[i]<<" : ";
             Fout<<config.datainfo[i]<<" ";
             Fout<<endl;
         }
+        Fout.close();
     }
 
 }

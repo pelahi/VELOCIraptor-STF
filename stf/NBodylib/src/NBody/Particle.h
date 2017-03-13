@@ -376,7 +376,7 @@ typedef Double_t DoublePos_t;
         Double_t rv= (velocity[0] * position[0] / r +
             velocity[1] * position[1] / r +
             velocity[2] * position[2] / r);
-        if (isnan(rv)) return AbsoluteVelocity();
+        if (std::isnan(rv)) return AbsoluteVelocity();
         else return rv;
         }
         /// Velocity tangential to radial direction check if returns nan
@@ -387,7 +387,7 @@ typedef Double_t DoublePos_t;
             Double_t y = position[2] * velocity[0] - position[0] * velocity[2];
             Double_t z = position[0] * velocity[1] - position[1] * velocity[0];
             Double_t cv =sqrt(x * x + y * y + z * z) / r;
-            if (isnan(cv)) return 0.0;
+            if (std::isnan(cv)) return 0.0;
             else return cv;
         }
         /// Radial velocity in cylindrical coordinates.

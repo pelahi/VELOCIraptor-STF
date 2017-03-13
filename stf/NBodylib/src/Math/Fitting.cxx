@@ -39,7 +39,7 @@ namespace Math
             }
             //check to see if getting nonsense
             for (int i=0;i<npoints;i++) {
-              if (isnan(dY(i,0))) {return -1;}
+              if (std::isnan(dY(i,0))) {return -1;}
             }
             chi2=(dY.Transpose()*(*W)*dY)(0,0);
             JT=Jacobian.Transpose();
@@ -60,7 +60,7 @@ namespace Math
             oldchi2=chi2;chi2=0;
             for (int i=0;i<npoints;i++) dY(i,0)=(y[i]-fitfunc.function(x[i],(void*)params));
             chi2=(dY.Transpose()*(*W)*dY)(0,0);
-            if (isnan(chi2)==false) {
+            if (std::isnan(chi2)==false) {
                 //if change from previous chi^2 minimum to current is below error tolorence and lambda is not large then
                 //this is effectively a minimum
                 deltachi2=(oldchi2-chi2)/chi2;
