@@ -1819,6 +1819,82 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     }
     //and then send all the data between the read threads
     if (ThisTask<opt.nsnapread) {
+    //split the communication into small buffers
+    int icycle=0;
+    //maximum send size
+    int maxchunksize=2147483648/opt.nsnapread/sizeof(Particle)/4;
+    int nsend,nrecv,nsendchunks,nrecvchunks,numsendrecv;
+    int sendoffset,recvoffset;
+    int isendrecv;
+    int cursendchunksize,currecvchunksize;
+    for (ibuf=0;ibuf< opt.nsnapread; ibuf++){
+        //if there are an even number of read tasks, then communicate such that 0 communcates with N-1, 1<->N-2, etc 
+        //and moves on to next communication 0<->N-2, 1<->N-3, etc with the communication in chunks
+        sendTask=ThisTask;
+        ///map so that 0 <->N-1, 1 <->N-2, etc to start moving to 
+        recvTask=abs(opt.nsnapread-1-ibuf-ThisTask);
+        //if have cycled passed zero, then need to adjust recvTask
+        if (icycle==1) recvTask=opt.nsnapread-recvTask;
+        //if ibuf>0 and now at recvTask=0, then next time, cycle
+        if (ibuf>0 && recvTask==0) icycle=1;
+        //if sendtask!=recvtask, and information needs to be sent, send information
+        if (sendTask!=recvTask && (mpi_nsend[ThisTask * NProcs + recvTask] > 0 || mpi_nsend[recvTask * NProcs + ThisTask] > 0)) {
+            nsend=mpi_nsend[ThisTask * NProcs + recvTask];
+            nrecv=mpi_nsend[recvTask * NProcs + ThisTask];
+            //calculate how many send/recvs are needed
+            nsendchunks=ceil((double)nsend/(double)maxchunksize);
+            nrecvchunks=ceil((double)nrecv/(double)maxchunksize);
+            numsendrecv=max(nsendchunks,nrecvchunks);
+            //initialize the offset in the particle array
+            sendoffset=0;
+            recvoffset=0;
+            isendrecv=1;
+            do 
+            {
+                //determine amount to be sent
+                cursendchunksize=min(maxchunksize,nsend-sendoffset);
+                currecvchunksize=min(maxchunksize,nrecv-recvoffset);
+                //blocking point-to-point send and receive. Here must determine the appropriate offset point in the local export buffer
+                //for sending data and also the local appropriate offset in the local the receive buffer for information sent from the local receiving buffer
+                MPI_Sendrecv(&Pbuf[nreadoffset[recvTask]+sendoffset],sizeof(Particle)*cursendchunksize, MPI_BYTE, recvTask, TAG_IO_A,
+                    &Part[Nlocal+recvoffset],sizeof(Particle)*currecvchunksize, MPI_BYTE, recvTask, TAG_IO_A, 
+                             MPI_COMM_WORLD, &status);
+                Nlocal+=currecvchunksize;
+                sendoffset+=cursendchunksize;
+                recvoffset+=currecvchunksize;
+                isendrecv++;
+            } while (isendrecv<=numsendrecv);
+        }
+        //if separate baryon search, send baryons too
+        if (opt.iBaryonSearch && opt.partsearchtype!=PSTALL) {
+            nsend=mpi_nsend_baryon[ThisTask * NProcs + recvTask];
+            nrecv=mpi_nsend_baryon[recvTask * NProcs + ThisTask];
+            //calculate how many send/recvs are needed
+            nsendchunks=ceil((double)nsend/(double)maxchunksize);
+            nrecvchunks=ceil((double)nrecv/(double)maxchunksize);
+            numsendrecv=max(nsendchunks,nrecvchunks);
+            //initialize the offset in the particle array
+            sendoffset=0;
+            recvoffset=0;
+            isendrecv=1;
+            do 
+            {
+                //determine amount to be sent
+                cursendchunksize=min(maxchunksize,nsend-sendoffset);
+                currecvchunksize=min(maxchunksize,nrecv-recvoffset);
+                //blocking point-to-point send and receive. Here must determine the appropriate offset point in the local export buffer
+                //for sending data and also the local appropriate offset in the local the receive buffer for information sent from the local receiving buffer
+                MPI_Sendrecv(&Pbuf[nreadoffset[recvTask]+mpi_nsend[ThisTask * NProcs + recvTask]+sendoffset],sizeof(Particle)*cursendchunksize, MPI_BYTE, recvTask, TAG_IO_B,
+                    &Pbaryons[Nlocalbaryon[0]+recvoffset],sizeof(Particle)*currecvchunksize, MPI_BYTE, recvTask, TAG_IO_B, 
+                             MPI_COMM_WORLD, &status);
+                Nlocal+=currecvchunksize;
+                sendoffset+=cursendchunksize;
+                recvoffset+=currecvchunksize;
+                isendrecv++;
+            } while (isendrecv<=numsendrecv);
+        }
+    }
+    /*
     for(ibuf = 0; ibuf < opt.nsnapread; ibuf++)
     {
         if (ibuf!=ThisTask)
@@ -1841,12 +1917,12 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                 Nlocalbaryon[0]+=mpi_nsend_baryon[recvTask * NProcs + ThisTask];
             }
         }
-    }
+    }*/
     if (opt.iBaryonSearch && opt.partsearchtype!=PSTALL) delete[] mpi_nsend_baryon;
     //set IDS
     for (i=0;i<Nlocal;i++) Part[i].SetID(i);
     if (opt.iBaryonSearch) for (i=0;i<Nlocalbaryon[0];i++) Pbaryons[i].SetID(i+Nlocal);
-    }
+    }//end of read tasks
 #endif
 
 #ifdef USEMPI
