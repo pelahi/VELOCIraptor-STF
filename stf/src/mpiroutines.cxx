@@ -351,6 +351,18 @@ int MPISearchForOverlap(Particle &Part, Double_t &rdist){
 }
 //@}
 
+/// \name Routines involved in reading input data
+//@{
+///Distribute the mpi processes that read the input files so as to spread the read threads evenly throughout the MPI_COMM_WORLD
+void MPIDistributeReadTasks(Options&opt, int *&ireadtask, int*&readtaskID){
+    //initialize
+    if (opt.num_files<opt.nsnapread) opt.nsnapread=opt.num_files;
+    for (int i=0;i<NProcs;i++) ireadtask[i]=-1;
+    int spacing=floor(NProcs/opt.nsnapread);
+    for (int i=0;i<opt.nsnapread;i++) {ireadtask[i*spacing]=i;readtaskID[i]=i*spacing;}
+}
+//@}
+
 /// \name Routines involved in exporting particles
 //@{ 
 /*! Determine number of particles have a spatial linking length such that linking overlaps the domain of another processor 

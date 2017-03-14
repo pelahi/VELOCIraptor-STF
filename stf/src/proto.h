@@ -322,6 +322,9 @@ int MPIGetParticlesProcessor(const Double_t,const Double_t,const Double_t);
 /// Determine number of local particles wrapper
 void MPINumInDomain(Options &opt);
 
+///determine which mpi processes read input files
+void MPIDistributeReadTasks(Options&opt, int *&ireadtask, int*&readtaskID);
+
 /// Determine number of local particles for tipsy
 void MPINumInDomainTipsy(Options &opt);
 /// Determine number of local particles for gadget
