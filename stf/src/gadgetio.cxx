@@ -30,12 +30,14 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     struct gadget_header *header;
     Double_t mscale,lscale,lvscale;
     Double_t MP_DM=MAXVALUE,LN,N_DM,MP_B=0;
-    int ifirstfile=0,*ireadfile;
+    int ifirstfile=0,*ireadfile,*ireadtask,*readtaskID;
 #ifndef USEMPI
     Int_t Ntotal;
     int ThisTask=0,NProcs=1;
     ireadfile=new int[opt.num_files];
     for (i=0;i<opt.num_files;i++) ireadfile[i]=1;
+    ireadtask=new int[NProcs];
+    ireadtask[0]=1;
 #endif
 
     //if MPI is used, Processor zero opens the file and loads the data into a particle buffer
@@ -54,7 +56,7 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     REAL *dtempchunk;
     GADGETIDTYPE *idvalchunk;
     //for parallel io
-    Int_t Nlocalbuf,ibuf=0,*Nbuf, *Nreadbuf,*nreadoffset;
+    Int_t Nlocalbuf,ibuf=0,itask,*Nbuf, *Nreadbuf,*nreadoffset;
     Int_t *Nlocalthreadbuf,Nlocaltotalbuf;
     int *irecv, sendTask,recvTask,irecvflag, *mpi_irecvflag;
     MPI_Request *mpi_request;
@@ -66,14 +68,17 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     //if (ThisTask==0) {
     Nbuf=new Int_t[NProcs];
     nreadoffset=new Int_t[opt.nsnapread];
+    ireadtask=new int[NProcs];
+    readtaskID=new int[opt.nsnapread];
+    MPIDistributeReadTasks(opt,ireadtask,readtaskID);
 
-    if (ThisTask<opt.nsnapread)
+    if (ireadtask[ThisTask]>=0)
     {
         //to temporarily store data from gadget file
         Pbuf=new Particle[BufSize*NProcs];
-        Nreadbuf=new Int_t[opt.num_files];
+        Nreadbuf=new Int_t[opt.nsnapread];
         for (int j=0;j<NProcs;j++) Nbuf[j]=0;
-        for (int j=0;j<opt.num_files;j++) Nreadbuf[j]=0;
+        for (int j=0;j<opt.nsnapread;j++) Nreadbuf[j]=0;
 
         ctempchunk=new FLOAT[3*chunksize];
         vtempchunk=new FLOAT[3*chunksize];
@@ -87,8 +92,8 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
         ireadfile=new int[opt.num_files];
         for (i=0;i<opt.num_files;i++) ireadfile[i]=0;
         int nread=opt.num_files/opt.nsnapread;
-        int niread=ThisTask*nread,nfread=(ThisTask+1)*nread;
-        if (ThisTask==opt.nsnapread-1) nfread=opt.num_files;
+        int niread=ireadtask[ThisTask]*nread,nfread=(ireadtask[ThisTask]+1)*nread;
+        if (ireadtask[ThisTask]==opt.nsnapread-1) nfread=opt.num_files;
         for (i=niread;i<nfread;i++) ireadfile[i]=1;
         ifirstfile=niread;
     }
@@ -111,7 +116,7 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     MPI_Barrier(MPI_COMM_WORLD);
 #endif
 //    if (ThisTask==0) {
-    if (ThisTask<opt.nsnapread) {
+    if (ireadtask[ThisTask]>=0) {
 #endif
     //opening file
 #define SKIP2 Fgad[i].read((char*)&dummy, sizeof(dummy));
@@ -1099,22 +1104,20 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                     else if (k==GBHTYPE) Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetType(BHTYPE);
                     else Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetType(DARKTYPE);
                     //ensure that store number of particles to be sent to the threads involved with reading snapshot files
-                    if(ibuf<opt.nsnapread&&ibuf!=ThisTask) Nreadbuf[ibuf]++;
+                    if(ireadtask[ibuf]>=0&&ibuf!=ThisTask) Nreadbuf[ireadtask[ibuf]]++;
                     Nbuf[ibuf]++;
                     if (ibuf==ThisTask) {
                         Nbuf[ibuf]--;
                         Part[Nlocal++]=Pbuf[ibuf*BufSize+Nbuf[ibuf]];
                     }
                     else {
-                        //before a simple send was done because only Task zero was reading the data
-                        //but now if ibuf<opt.nsnapread, care must be taken.
-                        //blocking sends that are matched by non-blocking receives
-                        if(Nbuf[ibuf]==BufSize&&ibuf>=opt.nsnapread) {
+                        //blocking sends that are matched by non-blocking receives that indicate whether a receive thread should particles
+                        if(Nbuf[ibuf]==BufSize&&ireadtask[ibuf]<0) {
                             MPI_Ssend(&Nbuf[ibuf], 1, MPI_Int_t, ibuf, ibuf+NProcs, MPI_COMM_WORLD);
                             MPI_Ssend(&Pbuf[ibuf*BufSize],sizeof(Particle)*Nbuf[ibuf],MPI_BYTE,ibuf,ibuf,MPI_COMM_WORLD);
                             Nbuf[ibuf]=0;
                         }
-                        else if (Nbuf[ibuf]==BufSize&&ibuf<opt.nsnapread) {
+                        else if (Nbuf[ibuf]==BufSize&&ireadtask[ibuf]>=0) {
                             Nbuf[ibuf]=0;
                         }
                     }
@@ -1130,7 +1133,7 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                             count2,DARKTYPE);
                         Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetPID(idval);
                         //ensure that store number of particles to be sent to other reading threads
-                        if(ibuf<opt.nsnapread&&ibuf!=ThisTask) Nreadbuf[ibuf]++;
+                        if(ireadtask[ibuf]>=0&&ibuf!=ThisTask) Nreadbuf[ireadtask[ibuf]]++;
                         Nbuf[ibuf]++;
                         //now determine what to do with the particle, local or must send
                         if (ibuf==ThisTask) {
@@ -1139,12 +1142,12 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                         }
                         else {
                             //if belongs to another mpi thread then see if buffer is full and send with appropriate flag
-                            if(Nbuf[ibuf]==BufSize&&ibuf>=opt.nsnapread) {
+                            if(Nbuf[ibuf]==BufSize&&ireadtask[ibuf]<0) {
                                 MPI_Ssend(&Nbuf[ibuf], 1, MPI_Int_t, ibuf, ibuf+NProcs, MPI_COMM_WORLD);
                                 MPI_Ssend(&Pbuf[ibuf*BufSize],sizeof(Particle)*Nbuf[ibuf],MPI_BYTE,ibuf,ibuf,MPI_COMM_WORLD);
                                 Nbuf[ibuf]=0;
                             }
-                            else if (Nbuf[ibuf]==BufSize&&ibuf<opt.nsnapread) {
+                            else if (Nbuf[ibuf]==BufSize&&ireadtask[ibuf]>=0) {
                                 Nbuf[ibuf]=0;
                             }
                         }
@@ -1173,7 +1176,7 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                         }
                         else if (k==GBHTYPE) Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetType(BHTYPE);
                         //ensure that store number of particles to be sent to the reading threads
-                        if(ibuf<opt.nsnapread&&ibuf!=ThisTask) Nreadbuf[ibuf]++;
+                        if(ireadtask[ibuf]>=0&&ibuf!=ThisTask) Nreadbuf[ireadtask[ibuf]]++;
                         Nbuf[ibuf]++;
                         if (ibuf==ThisTask) {
                             Nbuf[ibuf]--;
@@ -1183,12 +1186,12 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                             else if (k==GBHTYPE) Nlocalbaryon[3]++;
                         }
                         else {
-                            if(Nbuf[ibuf]==BufSize&&ibuf>=opt.nsnapread) {
+                            if(Nbuf[ibuf]==BufSize&&ireadtask[ibuf]<0) {
                                 MPI_Ssend(&Nbuf[ibuf], 1, MPI_Int_t, ibuf, ibuf+NProcs, MPI_COMM_WORLD);
                                 MPI_Ssend(&Pbuf[ibuf*BufSize],sizeof(Particle)*Nbuf[ibuf],MPI_BYTE,ibuf,ibuf,MPI_COMM_WORLD);
                                 Nbuf[ibuf]=0;
                             }
-                            else if (Nbuf[ibuf]==BufSize&&ibuf<opt.nsnapread) {
+                            else if (Nbuf[ibuf]==BufSize&&ireadtask[ibuf]>=0) {
                                 Nbuf[ibuf]=0;
                             }
                         }
@@ -1209,7 +1212,7 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                         Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetTage(startempchunk[0*nchunk+nn]);
 #endif
                         //ensure that store number of particles to be sent to the reading threads
-                        if(ibuf<opt.nsnapread&&ibuf!=ThisTask) Nreadbuf[ibuf]++;
+                        if(ireadtask[ibuf]>=0&&ibuf!=ThisTask) Nreadbuf[ireadtask[ibuf]]++;
                         Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetPID(idval);
                         Nbuf[ibuf]++;
                         if (ibuf==ThisTask) {
@@ -1217,12 +1220,12 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                             Part[Nlocal++]=Pbuf[ibuf*BufSize+Nbuf[ibuf]];
                         }
                         else {
-                            if(Nbuf[ibuf]==BufSize&&ibuf>=opt.nsnapread) {
+                            if(Nbuf[ibuf]==BufSize&&ireadtask[ibuf]<0) {
                                 MPI_Ssend(&Nbuf[ibuf], 1, MPI_Int_t, ibuf, ibuf+NProcs, MPI_COMM_WORLD);
                                 MPI_Ssend(&Pbuf[ibuf*BufSize],sizeof(Particle)*Nbuf[ibuf],MPI_BYTE,ibuf,ibuf,MPI_COMM_WORLD);
                                 Nbuf[ibuf]=0;
                             }
-                            else if (Nbuf[ibuf]==BufSize&&ibuf<opt.nsnapread) {
+                            else if (Nbuf[ibuf]==BufSize&&ireadtask[ibuf]>=0) {
                                 Nbuf[ibuf]=0;
                             }
                         }
@@ -1238,7 +1241,7 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                             vtemp[2]*opt.V*sqrt(opt.a)+Hubbleflow*ctemp[2],
                             count2,GASTYPE);
                         //ensure that store number of particles to be sent to the reading threads
-                        if(ibuf<opt.nsnapread&&ibuf!=ThisTask) Nreadbuf[ibuf]++;
+                        if(ireadtask[ibuf]>=0&&ibuf!=ThisTask) Nreadbuf[ireadtask[ibuf]]++;
                         Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetPID(idval);
 #ifdef GASON
                         Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetU(sphtempchunk[0*nchunk+nn]);
@@ -1250,12 +1253,12 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                             Part[Nlocal++]=Pbuf[ibuf*BufSize+Nbuf[ibuf]];
                         }
                         else {
-                            if(Nbuf[ibuf]==BufSize&&ibuf>=opt.nsnapread) {
+                            if(Nbuf[ibuf]==BufSize&&ireadtask[ibuf]<0) {
                                 MPI_Ssend(&Nbuf[ibuf], 1, MPI_Int_t, ibuf, ibuf+NProcs, MPI_COMM_WORLD);
                                 MPI_Ssend(&Pbuf[ibuf*BufSize],sizeof(Particle)*Nbuf[ibuf],MPI_BYTE,ibuf,ibuf,MPI_COMM_WORLD);
                                 Nbuf[ibuf]=0;
                             }
-                            else if (Nbuf[ibuf]==BufSize&&ibuf<opt.nsnapread) {
+                            else if (Nbuf[ibuf]==BufSize&&ireadtask[ibuf]>=0) {
                                 Nbuf[ibuf]=0;
                             }
                         }
@@ -1276,7 +1279,7 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
         for (int bhblocks=0;bhblocks<NUMGADGETBHBLOCKS;bhblocks++) Fgadbh[i+bhblocks].close();
     }
     //once finished reading the file if there are any particles left in the buffer broadcast them
-    for(ibuf = opt.nsnapread; ibuf < NProcs; ibuf++)
+    for(ibuf = 0; ibuf < NProcs; ibuf++) if (ireadtask[ibuf]<0)
     {
         MPI_Ssend(&Nbuf[ibuf],1,MPI_Int_t, ibuf, ibuf+NProcs, MPI_COMM_WORLD);
         if (Nbuf[ibuf]>0) {
@@ -1286,7 +1289,7 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
             MPI_Ssend(&Nbuf[ibuf],1,MPI_Int_t,ibuf,ibuf+NProcs,MPI_COMM_WORLD);
         }
     }
-    
+
 #endif
 
 #ifdef USEMPI
@@ -1296,7 +1299,7 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
         //first determine which threads are going to send information to this thread.
         for (i=0;i<opt.nsnapread;i++) if (irecv[i]) {
             mpi_irecvflag[i]=0;
-            MPI_Irecv(&Nlocalthreadbuf[i], 1, MPI_Int_t, i, ThisTask+NProcs, MPI_COMM_WORLD, &mpi_request[i]);
+            MPI_Irecv(&Nlocalthreadbuf[i], 1, MPI_Int_t, readtaskID[i], ThisTask+NProcs, MPI_COMM_WORLD, &mpi_request[i]);
         }
         Nlocaltotalbuf=0;
         //non-blocking receives for the number of particles one expects to receive
@@ -1308,11 +1311,11 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                     MPI_Test(&mpi_request[i], &mpi_irecvflag[i], &status);
                     if (mpi_irecvflag[i]) {
                         if (Nlocalthreadbuf[i]>0) {
-                            MPI_Recv(&Part[Nlocal],sizeof(Particle)*Nlocalthreadbuf[i],MPI_BYTE,i,ThisTask, MPI_COMM_WORLD,&status);
+                            MPI_Recv(&Part[Nlocal],sizeof(Particle)*Nlocalthreadbuf[i],MPI_BYTE,readtaskID[i],ThisTask, MPI_COMM_WORLD,&status);
                             Nlocal+=Nlocalthreadbuf[i];
                             Nlocaltotalbuf+=Nlocalthreadbuf[i];
                             mpi_irecvflag[i]=0;
-                            MPI_Irecv(&Nlocalthreadbuf[i], 1, MPI_Int_t, i, ThisTask+NProcs, MPI_COMM_WORLD, &mpi_request[i]);
+                            MPI_Irecv(&Nlocalthreadbuf[i], 1, MPI_Int_t, readtaskID[i], ThisTask+NProcs, MPI_COMM_WORLD, &mpi_request[i]);
                         }
                         else {
                             irecv[i]=0;
@@ -1350,13 +1353,11 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     //since Nbuf is used to determine what is going to be sent between threads in point-to-point communication
     //via an allgather, reset Nbuf
     for (i=0;i<NProcs;i++) Nbuf[i]=0;
-    if (ThisTask<opt.nsnapread) {
+    if (ireadtask[ThisTask]>=0) {
     delete[] Pbuf;
     Nlocalbuf=0;
     for (i=0;i<opt.nsnapread;i++) Nlocalbuf+=Nreadbuf[i];
-    if (Nlocalbuf>0)
-    {
-    Pbuf=new Particle[Nlocalbuf];
+    Pbuf=new Particle[Nlocalbuf+1];
     //determine offsets
     nreadoffset[0]=0;for (i=1;i<opt.nsnapread;i++)nreadoffset[i]=nreadoffset[i-1]+Nreadbuf[i-1];
 
@@ -1698,83 +1699,83 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                 if(k==GGASTYPE && dtemp<MP_B&&dtemp>0) MP_B=dtemp;
 
                 ibuf=MPIGetParticlesProcessor(ctemp[0],ctemp[1],ctemp[2]);
-                if (ibuf<opt.nsnapread&&ibuf!=ThisTask) {
+                if (ireadtask[ibuf]>=0&&ibuf!=ThisTask) {
                 if (opt.partsearchtype==PSTALL) {
-                    Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]]=Particle(dtemp*mscale,
+                    Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]]=Particle(dtemp*mscale,
                         ctemp[0]*lscale,ctemp[1]*lscale,ctemp[2]*lscale,
                         vtemp[0]*opt.V*sqrt(opt.a)+Hubbleflow*ctemp[0],
                         vtemp[1]*opt.V*sqrt(opt.a)+Hubbleflow*ctemp[1],
                         vtemp[2]*opt.V*sqrt(opt.a)+Hubbleflow*ctemp[2],
                         count2,k);
-                    Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetPID(idval);
+                    Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetPID(idval);
 #ifdef GASON
-                    if (k==GGASTYPE) Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetU(sphtempchunk[0*nchunk+nn]);
-                    if (k==GGASTYPE) Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetSPHDen(sphtempchunk[1*nchunk+nn]);
+                    if (k==GGASTYPE) Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetU(sphtempchunk[0*nchunk+nn]);
+                    if (k==GGASTYPE) Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetSPHDen(sphtempchunk[1*nchunk+nn]);
 #endif
 #ifdef STARON
-                    if (k==GSTARTYPE) Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetTage(startempchunk[0*nchunk+nn]);
+                    if (k==GSTARTYPE) Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetTage(startempchunk[0*nchunk+nn]);
 #endif
-                    if (k==GGASTYPE) Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetType(GASTYPE);
-                    else if (k==GSTARTYPE) Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetType(STARTYPE);
-                    else if (k==GBHTYPE) Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetType(BHTYPE);
-                    else Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetType(DARKTYPE);
+                    if (k==GGASTYPE) Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetType(GASTYPE);
+                    else if (k==GSTARTYPE) Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetType(STARTYPE);
+                    else if (k==GBHTYPE) Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetType(BHTYPE);
+                    else Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetType(DARKTYPE);
                     Nbuf[ibuf]++;
                     count2++;
                 }
                 else if (opt.partsearchtype==PSTDARK) {
                     if (!(k==GASTYPE||k==STARTYPE||k==GBHTYPE)) {
-                        Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]]=Particle(dtemp*mscale,
+                        Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]]=Particle(dtemp*mscale,
                             ctemp[0]*lscale,ctemp[1]*lscale,ctemp[2]*lscale,
                             vtemp[0]*opt.V*sqrt(opt.a)+Hubbleflow*ctemp[0],
                             vtemp[1]*opt.V*sqrt(opt.a)+Hubbleflow*ctemp[1],
                             vtemp[2]*opt.V*sqrt(opt.a)+Hubbleflow*ctemp[2],
                             count2,DARKTYPE);
-                        Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetPID(idval);
+                        Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetPID(idval);
                         if (k==GGASTYPE) {
 #ifdef GASON
-                            Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetU(sphtempchunk[0*nchunk+nn]);
-                            Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetSPHDen(sphtempchunk[1*nchunk+nn]);
+                            Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetU(sphtempchunk[0*nchunk+nn]);
+                            Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetSPHDen(sphtempchunk[1*nchunk+nn]);
 #endif
-                            Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetType(GASTYPE);
+                            Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetType(GASTYPE);
                         }
                         else if (k==GSTARTYPE) {
 #ifdef STARON
-                            Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetTage(startempchunk[0*nchunk+nn]);
+                            Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetTage(startempchunk[0*nchunk+nn]);
 #endif
-                            Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetType(STARTYPE);
+                            Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetType(STARTYPE);
                         }
-                        else if (k==GBHTYPE) Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetType(BHTYPE);
+                        else if (k==GBHTYPE) Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetType(BHTYPE);
                         Nbuf[ibuf]++;
                         count2++;
                     }
                 }
                 else if (opt.partsearchtype==PSTSTAR) {
                     if (k==GSTARTYPE) {
-                        Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]]=Particle(dtemp*mscale,
+                        Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]]=Particle(dtemp*mscale,
                             ctemp[0]*lscale,ctemp[1]*lscale,ctemp[2]*lscale,
                             vtemp[0]*opt.V*sqrt(opt.a)+Hubbleflow*ctemp[0],
                             vtemp[1]*opt.V*sqrt(opt.a)+Hubbleflow*ctemp[1],
                             vtemp[2]*opt.V*sqrt(opt.a)+Hubbleflow*ctemp[2],
                             count2,STARTYPE);
 #ifdef STARON
-                        Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetTage(startempchunk[0*nchunk+nn]);
+                        Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetTage(startempchunk[0*nchunk+nn]);
 #endif
-                        Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetPID(idval);
+                        Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetPID(idval);
                         Nbuf[ibuf]++;
                         count2++;
                     }
                 }
                 else if (opt.partsearchtype==PSTGAS) {
                     if (k==GGASTYPE) {
-                        Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]]=Particle(dtemp*mscale,
+                        Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]]=Particle(dtemp*mscale,
                             ctemp[0]*lscale,ctemp[1]*lscale,ctemp[2]*lscale,
                             vtemp[0]*opt.V*sqrt(opt.a)+Hubbleflow*ctemp[0],
                             vtemp[1]*opt.V*sqrt(opt.a)+Hubbleflow*ctemp[1],
                             vtemp[2]*opt.V*sqrt(opt.a)+Hubbleflow*ctemp[2],
                             count2,GASTYPE);
-                        Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetPID(idval);
+                        Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetPID(idval);
 #ifdef GASON
-                        Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetU(sphtempchunk[0*nchunk+nn]);
+                        Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetU(sphtempchunk[0*nchunk+nn]);
 #endif
                         Nbuf[ibuf]++;
                         count2++;
@@ -1794,35 +1795,41 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
         for (int bhblocks=0;bhblocks<NUMGADGETBHBLOCKS;bhblocks++) Fgadbh[i+bhblocks].close();
     }
     }
-    }
     //gather all the items that must be sent.
     MPI_Allgather(Nbuf, NProcs, MPI_Int_t, mpi_nsend, NProcs, MPI_Int_t, MPI_COMM_WORLD);
     //if separate baryon search then sort the Pbuf array so that it is separated by type 
     if (opt.iBaryonSearch && opt.partsearchtype!=PSTALL) {
-        for(ibuf = 0; ibuf < opt.nsnapread; ibuf++) if (mpi_nsend[ThisTask * NProcs + ibuf] > 0)
+        //here ibuf is the read thread number and itask is the task id of the read thread in MPI_COMM_WORLD
+        for(ibuf = 0; ibuf < opt.nsnapread; ibuf++) 
         {
-            Nbuf[ibuf]=0;
-            for (i=0;i<mpi_nsend[ThisTask * NProcs + ibuf];i++) {
-                k=Pbuf[nreadoffset[ibuf]+i].GetType();
-                if (!(k==GASTYPE||k==STARTYPE||k==BHTYPE)) Pbuf[nreadoffset[ibuf]+i].SetID(0);
-                else {
-                    if  (k==GASTYPE) Pbuf[nreadoffset[ibuf]+i].SetID(1);
-                    else if  (k==STARTYPE) Pbuf[nreadoffset[ibuf]+i].SetID(2);
-                    else if  (k==BHTYPE) Pbuf[nreadoffset[ibuf]+i].SetID(3);
-                    Nbuf[ibuf]++;
+            itask=readtaskID[ibuf];
+            if (mpi_nsend[ThisTask * NProcs + itask] > 0)
+            {
+                Nbuf[itask]=0;
+                for (i=0;i<mpi_nsend[ThisTask * NProcs + itask];i++) {
+                    k=Pbuf[nreadoffset[ibuf]+i].GetType();
+                    if (!(k==GASTYPE||k==STARTYPE||k==BHTYPE)) Pbuf[nreadoffset[ibuf]+i].SetID(0);
+                    else {
+                        if  (k==GASTYPE) Pbuf[nreadoffset[ibuf]+i].SetID(1);
+                        else if  (k==STARTYPE) Pbuf[nreadoffset[ibuf]+i].SetID(2);
+                        else if  (k==BHTYPE) Pbuf[nreadoffset[ibuf]+i].SetID(3);
+                        Nbuf[ibuf]++;
+                    }
                 }
+                qsort(&Pbuf[nreadoffset[ibuf]],mpi_nsend[ThisTask*NProcs+itask], sizeof(Particle), IDCompare);
             }
-            qsort(&Pbuf[nreadoffset[ibuf]],mpi_nsend[ThisTask*NProcs+ibuf], sizeof(Particle), IDCompare);
         }
+        //now send the baryon mpi send
         MPI_Allgather(Nbuf, NProcs, MPI_Int_t, mpi_nsend_baryon, NProcs, MPI_Int_t, MPI_COMM_WORLD);
-	    for (ibuf=0;ibuf<NProcs*NProcs;ibuf++) mpi_nsend[ibuf]-=mpi_nsend_baryon[ibuf];
+        //adjust the mpi send to the Part array by the baryon amount
+        for (ibuf=0;ibuf<NProcs*NProcs;ibuf++) mpi_nsend[ibuf]-=mpi_nsend_baryon[ibuf];
     }
     //and then send all the data between the read threads
-    if (ThisTask<opt.nsnapread) {
+    if (ireadtask[ThisTask]>=0) {
     //split the communication into small buffers
     int icycle=0;
     //maximum send size
-    int maxchunksize=2147483648/opt.nsnapread/sizeof(Particle)/4;
+    int maxchunksize=2147483648/opt.nsnapread/sizeof(Particle);
     int nsend,nrecv,nsendchunks,nrecvchunks,numsendrecv;
     int sendoffset,recvoffset;
     int isendrecv;
@@ -1830,11 +1837,16 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     for (ibuf=0;ibuf< opt.nsnapread; ibuf++){
         //if there are an even number of read tasks, then communicate such that 0 communcates with N-1, 1<->N-2, etc 
         //and moves on to next communication 0<->N-2, 1<->N-3, etc with the communication in chunks
-        sendTask=ThisTask;
+        //first base on read thread position
+        sendTask=ireadtask[ThisTask];
         ///map so that 0 <->N-1, 1 <->N-2, etc to start moving to 
-        recvTask=abs(opt.nsnapread-1-ibuf-ThisTask);
+        recvTask=abs(opt.nsnapread-1-ibuf-sendTask);
         //if have cycled passed zero, then need to adjust recvTask
         if (icycle==1) recvTask=opt.nsnapread-recvTask;
+        
+        //now adjust to the actually task ID in the MPI_COMM_WORLD
+        sendTask=ThisTask;
+        recvTask=readtaskID[recvTask];
         //if ibuf>0 and now at recvTask=0, then next time, cycle
         if (ibuf>0 && recvTask==0) icycle=1;
         //if sendtask!=recvtask, and information needs to be sent, send information
@@ -1856,8 +1868,8 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                 currecvchunksize=min(maxchunksize,nrecv-recvoffset);
                 //blocking point-to-point send and receive. Here must determine the appropriate offset point in the local export buffer
                 //for sending data and also the local appropriate offset in the local the receive buffer for information sent from the local receiving buffer
-                MPI_Sendrecv(&Pbuf[nreadoffset[recvTask]+sendoffset],sizeof(Particle)*cursendchunksize, MPI_BYTE, recvTask, TAG_IO_A,
-                    &Part[Nlocal+recvoffset],sizeof(Particle)*currecvchunksize, MPI_BYTE, recvTask, TAG_IO_A, 
+                MPI_Sendrecv(&Pbuf[nreadoffset[ireadtask[recvTask]]+sendoffset],sizeof(Particle)*cursendchunksize, MPI_BYTE, recvTask, TAG_IO_A+isendrecv,
+                    &Part[Nlocal],sizeof(Particle)*currecvchunksize, MPI_BYTE, recvTask, TAG_IO_A+isendrecv, 
                              MPI_COMM_WORLD, &status);
                 Nlocal+=currecvchunksize;
                 sendoffset+=cursendchunksize;
@@ -1884,10 +1896,10 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                 currecvchunksize=min(maxchunksize,nrecv-recvoffset);
                 //blocking point-to-point send and receive. Here must determine the appropriate offset point in the local export buffer
                 //for sending data and also the local appropriate offset in the local the receive buffer for information sent from the local receiving buffer
-                MPI_Sendrecv(&Pbuf[nreadoffset[recvTask]+mpi_nsend[ThisTask * NProcs + recvTask]+sendoffset],sizeof(Particle)*cursendchunksize, MPI_BYTE, recvTask, TAG_IO_B,
-                    &Pbaryons[Nlocalbaryon[0]+recvoffset],sizeof(Particle)*currecvchunksize, MPI_BYTE, recvTask, TAG_IO_B, 
+                MPI_Sendrecv(&Pbuf[nreadoffset[ireadtask[recvTask]]+mpi_nsend[ThisTask * NProcs + recvTask]+sendoffset],sizeof(Particle)*cursendchunksize, MPI_BYTE, recvTask, TAG_IO_B+isendrecv,
+                    &Pbaryons[Nlocalbaryon[0]],sizeof(Particle)*currecvchunksize, MPI_BYTE, recvTask, TAG_IO_B+isendrecv, 
                              MPI_COMM_WORLD, &status);
-                Nlocal+=currecvchunksize;
+                Nlocalbaryon[0]+=currecvchunksize;
                 sendoffset+=cursendchunksize;
                 recvoffset+=currecvchunksize;
                 isendrecv++;
@@ -1918,6 +1930,7 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
             }
         }
     }*/
+    delete[] Pbuf;
     if (opt.iBaryonSearch && opt.partsearchtype!=PSTALL) delete[] mpi_nsend_baryon;
     //set IDS
     for (i=0;i<Nlocal;i++) Part[i].SetID(i);
