@@ -357,8 +357,9 @@ int MPISearchForOverlap(Particle &Part, Double_t &rdist){
 void MPIDistributeReadTasks(Options&opt, int *&ireadtask, int*&readtaskID){
     //initialize
     if (opt.num_files<opt.nsnapread) opt.nsnapread=opt.num_files;
+    if (opt.nsnapread<NProcs) opt.nsnapread=NProcs;
     for (int i=0;i<NProcs;i++) ireadtask[i]=-1;
-    int spacing=floor(NProcs/opt.nsnapread);
+    int spacing=max(1,floor(NProcs/opt.nsnapread));
     for (int i=0;i<opt.nsnapread;i++) {ireadtask[i*spacing]=i;readtaskID[i]=i*spacing;}
 }
 //@}
