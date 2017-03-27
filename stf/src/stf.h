@@ -8,7 +8,7 @@
 #include "allvars.h"
 #include "proto.h"
 
-#define STFVERSION 1.14
+#define STFVERSION 1.20
 
 #endif
 

@@ -342,6 +342,13 @@ int MPISearchForOverlap(Particle &Part, Double_t &rdist);
 int MPIInDomain(Double_t xsearch[3][2], Double_t bnd[3][2]);
 //@}
 
+/// \name MPI send/recv related routines
+/// see \ref mpiroutines.cxx for implementation
+//@{
+///Send/recv particle data read from input files between the various read threads;
+void MPISendParticlesBetweenReadThreads(Options &opt, Particle *&Pbuf, Particle *&Part, Int_t *&nreadoffset, int *&ireadtask, int *&readtaskID, Particle *&Pbaryons, Int_t *&mpi_nsend_baryon);
+//@}
+
 /// \name MPI search related routines
 /// see \ref mpiroutines.cxx for implementation
 //@{

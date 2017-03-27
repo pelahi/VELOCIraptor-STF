@@ -144,12 +144,13 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
     Double_t mscale,lscale,lvscale;
     Double_t MP_DM=MAXVALUE,LN,N_DM,MP_B=0;
     int ifirstfile=0,*ireadfile,ireaderror=0;
-    
+    int *ireadtask,*readtaskID;
+
 #ifdef USEMPI
     if (ThisTask == 0)
 #endif
     opt.num_files = HDF_get_nfiles (opt.fname, opt.partsearchtype);
-    
+
 #ifndef USEMPI
     Int_t Ntotal;
     int ThisTask=0,NProcs=1;
@@ -208,22 +209,27 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
     Nbuf=new Int_t[NProcs];
     for (int j=0;j<NProcs;j++) Nbuf[j]=0;
     nreadoffset=new Int_t[opt.nsnapread];
+    ireadtask=new int[NProcs];
+    readtaskID=new int[opt.nsnapread];
+    MPIDistributeReadTasks(opt,ireadtask,readtaskID);
+
     if (ThisTask==0) cout<<"There are "<<opt.nsnapread<<" threads reading "<<opt.num_files<<" files "<<endl;
-    if (ThisTask<opt.nsnapread)
+    if (ireadtask[ThisTask]>=0)
     {
         //to temporarily store data from gadget file
         Pbuf=new Particle[BufSize*NProcs];
         Nreadbuf=new Int_t[opt.num_files];
-    	for (int j=0;j<opt.num_files;j++) Nreadbuf[j]=0;
+        for (int j=0;j<opt.num_files;j++) Nreadbuf[j]=0;
 
         //to determine which files the thread should read
         ireadfile=new int[opt.num_files];
         for (i=0;i<opt.num_files;i++) ireadfile[i]=0;
         int nread=opt.num_files/opt.nsnapread;
-        int niread=ThisTask*nread,nfread=(ThisTask+1)*nread;
-        if (ThisTask==opt.nsnapread-1) nfread=opt.num_files;
+        int niread=ireadtask[ThisTask]*nread,nfread=(ireadtask[ThisTask]+1)*nread;
+        if (ireadtask[ThisTask]==opt.nsnapread-1) nfread=opt.num_files;
         for (i=niread;i<nfread;i++) ireadfile[i]=1;
         ifirstfile=niread;
+
     }
     else {
         Nlocalthreadbuf=new Int_t[opt.nsnapread];
@@ -243,7 +249,7 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
     }
     MPI_Barrier(MPI_COMM_WORLD);
 #endif
-    if (ThisTask<opt.nsnapread) {
+    if (ireadtask[ThisTask]>=0) {
 #endif
     //read the header 
     Fhdf=new H5File[opt.num_files];
@@ -1152,7 +1158,7 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
 #else
     //for all mpi threads that are reading input data, open file load access to data structures and begin loading into either local buffer or temporary buffer to be send to 
     //non-read threads
-    if (ThisTask<opt.nsnapread) {
+    if (ireadtask[ThisTask]>=0) {
     count2=bcount2=0;
     for(i=0; i<opt.num_files; i++) {
     if(ireadfile[i])
@@ -1450,7 +1456,7 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
                         else {if (Tagedoublebuff[nn]<0) Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetType(WINDTYPE);Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetTage(Tagedoublebuff[nn]);}
                     }
 #endif
-                    if(ibuf<opt.nsnapread&&ibuf!=ThisTask) Nreadbuf[ibuf]++;
+                    if(ireadtask[ibuf]>=0&&ibuf!=ThisTask) Nreadbuf[ireadtask[ibuf]]++;
                     Nbuf[ibuf]++;
                     if (ibuf==ThisTask) {
                         Nbuf[ibuf]--;
@@ -1460,12 +1466,12 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
                         //before a simple send was done because only Task zero was reading the data
                         //but now if ibuf<opt.nsnapread, care must be taken.
                         //blocking sends that are matched by non-blocking receives
-                        if(Nbuf[ibuf]==BufSize&&ibuf>=opt.nsnapread) {
+                        if(Nbuf[ibuf]==BufSize&&ireadtask[ibuf]<0) {
                             MPI_Send(&Nbuf[ibuf], 1, MPI_Int_t, ibuf, ibuf+NProcs, MPI_COMM_WORLD);
                             MPI_Send(&Pbuf[ibuf*BufSize],sizeof(Particle)*Nbuf[ibuf],MPI_BYTE,ibuf,ibuf,MPI_COMM_WORLD);
                             Nbuf[ibuf]=0;
                         }
-                        else if (Nbuf[ibuf]==BufSize&&ibuf<opt.nsnapread) {
+                        else if (Nbuf[ibuf]==BufSize&&ireadtask[ibuf]>=0) {
                             Nbuf[ibuf]=0;
                         }
                     }
@@ -1641,7 +1647,7 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
                         else {if (Tagedoublebuff[nn]<0) Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetType(WINDTYPE);Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetTage(Tagedoublebuff[nn]);}
                     }
 #endif
-                    if(ibuf<opt.nsnapread&&ibuf!=ThisTask) Nreadbuf[ibuf]++;
+                    if(ireadtask[ibuf]>=0&&ibuf!=ThisTask) Nreadbuf[ireadtask[ibuf]]++;
                     Nbuf[ibuf]++;
                     if (ibuf==ThisTask) {
                         Nbuf[ibuf]--;
@@ -1655,12 +1661,12 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
                         //before a simple send was done because only Task zero was reading the data
                         //but now if ibuf<opt.nsnapread, care must be taken.
                         //blocking sends that are matched by non-blocking receives
-                        if(Nbuf[ibuf]==BufSize&&ibuf>=opt.nsnapread) {
+                        if(Nbuf[ibuf]==BufSize&&ireadtask[ibuf]<0) {
                             MPI_Send(&Nbuf[ibuf], 1, MPI_Int_t, ibuf, ibuf+NProcs, MPI_COMM_WORLD);
                             MPI_Send(&Pbuf[ibuf*BufSize],sizeof(Particle)*Nbuf[ibuf],MPI_BYTE,ibuf,ibuf,MPI_COMM_WORLD);
                             Nbuf[ibuf]=0;
                         }
-                        else if (Nbuf[ibuf]==BufSize&&ibuf<opt.nsnapread) {
+                        else if (Nbuf[ibuf]==BufSize&&ireadtask[ibuf]>=0) {
                             Nbuf[ibuf]=0;
                         }
                     }
@@ -1672,7 +1678,7 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
     }
     }
     //once finished reading the file if there are any particles left in the buffer broadcast them
-    for(ibuf = opt.nsnapread; ibuf < NProcs; ibuf++)
+    for(ibuf = 0; ibuf < NProcs; ibuf++) if (ireadtask[ibuf]<0)
     {
         MPI_Ssend(&Nbuf[ibuf],1,MPI_Int_t, ibuf, ibuf+NProcs, MPI_COMM_WORLD);
         if (Nbuf[ibuf]>0) {
@@ -1689,7 +1695,7 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
         //first determine which threads are going to send information to this thread.
         for (i=0;i<opt.nsnapread;i++) if (irecv[i]) {
             mpi_irecvflag[i]=0;
-            MPI_Irecv(&Nlocalthreadbuf[i], 1, MPI_Int_t, i, ThisTask+NProcs, MPI_COMM_WORLD, &mpi_request[i]);
+            MPI_Irecv(&Nlocalthreadbuf[i], 1, MPI_Int_t, readtaskID[i], ThisTask+NProcs, MPI_COMM_WORLD, &mpi_request[i]);
         }
         Nlocaltotalbuf=0;
         //non-blocking receives for the number of particles one expects to receive
@@ -1701,11 +1707,11 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
                     MPI_Test(&mpi_request[i], &mpi_irecvflag[i], &status);
                     if (mpi_irecvflag[i]) {
                         if (Nlocalthreadbuf[i]>0) {
-                            MPI_Recv(&Part[Nlocal],sizeof(Particle)*Nlocalthreadbuf[i],MPI_BYTE,i,ThisTask, MPI_COMM_WORLD,&status);
+                            MPI_Recv(&Part[Nlocal],sizeof(Particle)*Nlocalthreadbuf[i],MPI_BYTE,readtaskID[i],ThisTask, MPI_COMM_WORLD,&status);
                             Nlocal+=Nlocalthreadbuf[i];
                             Nlocaltotalbuf+=Nlocalthreadbuf[i];
                             mpi_irecvflag[i]=0;
-                            MPI_Irecv(&Nlocalthreadbuf[i], 1, MPI_Int_t, i, ThisTask+NProcs, MPI_COMM_WORLD, &mpi_request[i]);
+                            MPI_Irecv(&Nlocalthreadbuf[i], 1, MPI_Int_t, readtaskID[i], ThisTask+NProcs, MPI_COMM_WORLD, &mpi_request[i]);
                         }
                         else {
                             irecv[i]=0;
@@ -1746,7 +1752,7 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
     //since Nbuf is used to determine what is going to be sent between threads in point-to-point communication
     //via an allgather, reset Nbuf
     for (i=0;i<NProcs;i++) Nbuf[i]=0;
-    if (ThisTask<opt.nsnapread && opt.nsnapread>1) {
+    if (ireadtask[ThisTask]>=0 && opt.nsnapread>1) {
     delete[] Pbuf;
     Nlocalbuf=0;
     for (i=0;i<opt.nsnapread;i++) Nlocalbuf+=Nreadbuf[i];
@@ -1886,7 +1892,7 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
                 for (int nn=0;nn<nchunk;nn++) {
                     if (ifloat) ibuf=MPIGetParticlesProcessor(floatbuff[nn*3],floatbuff[nn*3+1],floatbuff[nn*3+2]);
                     else ibuf=MPIGetParticlesProcessor(doublebuff[nn*3],doublebuff[nn*3+1],doublebuff[nn*3+2]);
-                    if (ibuf<opt.nsnapread&&ibuf!=ThisTask) {
+                    if (ireadtask[ibuf]>=0&&ibuf!=ThisTask) {
                     //store particle info in Ptemp;
                     if (ifloat) {
                         Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetPosition(floatbuff[nn*3],floatbuff[nn*3+1],floatbuff[nn*3+2]);
@@ -2061,7 +2067,7 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
                 for (int nn=0;nn<nchunk;nn++) {
                     if (ifloat) ibuf=MPIGetParticlesProcessor(floatbuff[nn*3],floatbuff[nn*3+1],floatbuff[nn*3+2]);
                     else ibuf=MPIGetParticlesProcessor(doublebuff[nn*3],doublebuff[nn*3+1],doublebuff[nn*3+2]);
-                    if (ibuf<opt.nsnapread&&ibuf!=ThisTask) {
+                    if (ireadtask[ibuf]>=0&&ibuf!=ThisTask) {
                     //store particle info in Ptemp;
                     if (ifloat) {
                         Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetPosition(floatbuff[nn*3],floatbuff[nn*3+1],floatbuff[nn*3+2]);
@@ -2136,48 +2142,20 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
             }
             qsort(&Pbuf[nreadoffset[ibuf]],mpi_nsend[ThisTask*NProcs+ibuf], sizeof(Particle), IDCompare);
         }
-	    }
+        }
         MPI_Allgather(Nbuf, NProcs, MPI_Int_t, mpi_nsend_baryon, NProcs, MPI_Int_t, MPI_COMM_WORLD);
         for (ibuf=0;ibuf<NProcs*NProcs;ibuf++) mpi_nsend[ibuf]-=mpi_nsend_baryon[ibuf];
     }
     //and then send all the data between the read threads
-    if (ThisTask<opt.nsnapread) {
-    for(ibuf = 0; ibuf < opt.nsnapread; ibuf++)
-    {
-        if (ibuf!=ThisTask)
-        {
-            sendTask = ThisTask;
-            recvTask = ibuf;
-            if(mpi_nsend[ThisTask * NProcs + recvTask] > 0 || mpi_nsend[recvTask * NProcs + ThisTask] > 0)
-            {
-                //blocking point-to-point send and receive. Here must determine the appropriate offset point in the local export buffer
-                //for sending data and also the local appropriate offset in the local the receive buffer for information sent from the local receiving buffer
-                MPI_Sendrecv(&Pbuf[nreadoffset[recvTask]],sizeof(Particle)*mpi_nsend[ThisTask * NProcs + recvTask], MPI_BYTE, recvTask, TAG_IO_A,
-                    &Part[Nlocal],sizeof(Particle)*mpi_nsend[recvTask * NProcs + ThisTask], MPI_BYTE, recvTask, TAG_IO_A, MPI_COMM_WORLD, &status);
-                Nlocal+=mpi_nsend[recvTask * NProcs + ThisTask];
-            }
-        }
-    }
-    }
-    if (ThisTask<opt.nsnapread) {
-    if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) {
-    for(ibuf = 0; ibuf < opt.nsnapread; ibuf++)
-    {
-        if (ibuf!=ThisTask)
-        {
-            sendTask = ThisTask;
-            recvTask = ibuf;
-            //if separate baryon search, send baryons too
-                if(mpi_nsend_baryon[ThisTask * NProcs + recvTask] > 0 || mpi_nsend_baryon[recvTask * NProcs + ThisTask] > 0) 
-                MPI_Sendrecv(&Pbuf[nreadoffset[recvTask]+mpi_nsend[ThisTask * NProcs + recvTask]],sizeof(Particle)*mpi_nsend_baryon[ThisTask * NProcs + recvTask], MPI_BYTE, recvTask, TAG_IO_B,
-                    &Part[Nlocal],sizeof(Particle)*mpi_nsend_baryon[recvTask * NProcs + ThisTask], MPI_BYTE, recvTask, TAG_IO_B, MPI_COMM_WORLD, &status);
-                Nlocal+=mpi_nsend_baryon[recvTask * NProcs + ThisTask];
-                //MPI_Sendrecv(&Pbuf[nreadoffset[recvTask]+mpi_nsend[ThisTask * NProcs + recvTask]],sizeof(Particle)*mpi_nsend_baryon[ThisTask * NProcs + recvTask], MPI_BYTE, recvTask, TAG_IO_B,
-                //    &Pbaryons[Nlocalbaryon[0]],sizeof(Particle)*mpi_nsend_baryon[recvTask * NProcs + ThisTask], MPI_BYTE, recvTask, TAG_IO_B, MPI_COMM_WORLD, &status);
-                //Nlocalbaryon[0]+=mpi_nsend_baryon[recvTask * NProcs + ThisTask];
-        }
-    }
-
+    MPISendParticlesBetweenReadThreads(opt, Pbuf, Part, nreadoffset, ireadtask, readtaskID, Pbaryons, mpi_nsend_baryon);
+    if (ireadtask[ThisTask]>=0) {
+        delete[] Pbuf;
+        if (opt.iBaryonSearch && opt.partsearchtype!=PSTALL) delete[] mpi_nsend_baryon;
+        //set IDS
+        for (i=0;i<Nlocal;i++) Part[i].SetID(i);
+        if (opt.iBaryonSearch) for (i=0;i<Nlocalbaryon[0];i++) Pbaryons[i].SetID(i+Nlocal);
+    }//end of read tasks
+/*
     for (i=0;i<Nlocal;i++) {
         k=Part[i].GetType();
         if (!(k==GASTYPE||k==STARTYPE||k==BHTYPE)) Part[i].SetID(0);
@@ -2204,6 +2182,7 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
     for (i=0;i<Nlocal;i++) Part[i].SetID(i);
     if (opt.iBaryonSearch) for (i=0;i<Nlocalbaryon[0];i++) Pbaryons[i].SetID(i+Nlocal);
     }
+    */
 
 #endif
 
