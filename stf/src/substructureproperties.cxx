@@ -4,6 +4,9 @@
 
 #include "stf.h"
 
+
+///\name Routines calculating numerous properties of groups
+//@{
 /*!
     Get properties of the substructures, specifically
     \f$ m,\ (x,y,z)_{\rm cm},\ (vx,vy,vz)_{\rm cm},\ V_{\rm max},\ R_{\rm max}, \f$
@@ -1814,6 +1817,175 @@ private(i,j,k,Pval)
         if (opt.iverbose) cout<<"Done getting properties"<<endl;
 }
 
+///Get inclusive halo FOF based masses
+void GetInclusiveMasses(Options &opt, const Int_t nbodies, Particle *&Part, Int_t ngroup, Int_t *&pfof, Int_t *&numingroup, PropData *&pdata, Int_t *&noffset)
+{
+    Particle *Pval;
+    Int_t i,j,k;
+    if (opt.iverbose) cout<<"Get inclusive masses"<<endl;
+    Double_t ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside;
+    Double_t vc,rc,x,y,z,vx,vy,vz;
+    Coordinate cmold(0.),cmref;
+    Double_t change=MAXVALUE,tol=1e-2;
+    Int_t ii,icmv,numinvir,num200c,num200m;
+    Double_t virval=log(opt.virlevel*opt.rhobg);
+    Double_t m200val=log(opt.rhobg/opt.Omega_m*200.0);
+    Double_t m200mval=log(opt.rhobg*200.0);
+    Double_t m500val=log(opt.rhobg/opt.Omega_m*500.0);
+
+    for (i=1;i<=ngroup;i++) pdata[i].gNFOF=numingroup[i];
+    //for small groups loop over groups
+#ifdef USEOPENMP
+#pragma omp parallel default(shared)  \
+private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z,vc,rc,vx,vy,vz,numinvir,num200c,num200m)\
+firstprivate(virval,m200val,m200mval)
+{
+    #pragma omp for schedule(dynamic,1) nowait
+#endif
+    for (i=1;i<=ngroup;i++) if (numingroup[i]<omppropnum)
+    {
+        for (k=0;k<3;k++) pdata[i].gcm[k]=pdata[i].gcmvel[k]=0;
+        pdata[i].gmass=pdata[i].gmaxvel=0.0;
+        for (j=0;j<numingroup[i];j++) {
+            Pval=&Part[j+noffset[i]];
+            pdata[i].gmass+=(*Pval).GetMass();
+            for (k=0;k<3;k++) {
+                pdata[i].gcm[k]+=(*Pval).GetPosition(k)*(*Pval).GetMass();
+                pdata[i].gcmvel[k]+=(*Pval).GetVelocity(k)*(*Pval).GetMass();
+            }
+        }
+        for (k=0;k<3;k++){pdata[i].gcm[k]*=(1.0/pdata[i].gmass);pdata[i].gcmvel[k]*=(1.0/pdata[i].gmass);}
+        for (j=0;j<numingroup[i];j++) {
+            Pval=&Part[j+noffset[i]];
+            x = (*Pval).X() - pdata[i].gcm[0];
+            y = (*Pval).Y() - pdata[i].gcm[1];
+            z = (*Pval).Z() - pdata[i].gcm[2];
+            Pval->SetPosition(x,y,z);
+        }
+        gsl_heapsort(&Part[noffset[i]], numingroup[i], sizeof(Particle), RadCompare);
+        pdata[i].gsize=Part[noffset[i]+numingroup[i]-1].Radius();
+        pdata[i].gRhalfmass=Part[noffset[i]+(numingroup[i]/2)].Radius();
+#ifdef NOMASS
+        pdata[i].gmass*=opt.MassValue;
+#endif
+        pdata[i].gMFOF=pdata[i].gmass;
+
+        //here masses are technically exclusive but this routine is generally called before objects are separated into halo/substructures
+        EncMass=pdata[i].gmass;
+        for (j=numingroup[i]-1;j>=0;j--) {
+            Pval=&Part[j+noffset[i]];
+            rc=Pval->Radius();
+            if (pdata[i].gRvir==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>virval)
+            {pdata[i].gMvir=EncMass;pdata[i].gRvir=rc;}
+            if (pdata[i].gR200c==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m200val) 
+            {pdata[i].gM200c=EncMass;pdata[i].gR200c=rc;}
+            if (pdata[i].gR200m==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m200mval) 
+            {pdata[i].gM200m=EncMass;pdata[i].gR200m=rc;}
+            if (pdata[i].gR500c==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m500val) 
+            {pdata[i].gM500c=EncMass;pdata[i].gR500c=rc;}
+            if (pdata[i].gR200m!=0&&pdata[i].gR200c!=0&&pdata[i].gRvir!=0) break;
+#ifdef NOMASS
+            EncMass-=opt.MassValue;
+#else
+            EncMass-=Pval->GetMass();
+#endif
+        }
+        //if overdensity never drops below thresholds then masses are equal to FOF mass or total mass.
+        if (pdata[i].gRvir==0) {pdata[i].gMvir=pdata[i].gmass;pdata[i].gRvir=pdata[i].gsize;}
+        if (pdata[i].gR200c==0) {pdata[i].gM200c=pdata[i].gmass;pdata[i].gR200c=pdata[i].gsize;}
+        if (pdata[i].gR200m==0) {pdata[i].gM200m=pdata[i].gmass;pdata[i].gR200m=pdata[i].gsize;}
+        if (pdata[i].gR500c==0) {pdata[i].gM500c=pdata[i].gmass;pdata[i].gR500c=pdata[i].gsize;}
+        //reset positions
+        for (j=0;j<numingroup[i];j++) {
+            Pval=&Part[j+noffset[i]];
+            x = (*Pval).X()+pdata[i].gcm[0];
+            y = (*Pval).Y()+pdata[i].gcm[1];
+            z = (*Pval).Z()+pdata[i].gcm[2];
+            Pval->SetPosition(x,y,z);
+        }
+    }
+#ifdef USEOPENMP
+}
+#endif
+    for (i=1;i<=ngroup;i++) if (numingroup[i]>=omppropnum)
+    {
+        for (k=0;k<3;k++) pdata[i].gcm[k]=pdata[i].gcmvel[k]=0;
+        pdata[i].gmass=pdata[i].gmaxvel=0.0;
+        EncMass=cmx=cmy=cmz=0.;
+#ifdef USEOPENMP
+#pragma omp parallel default(shared)  \
+private(j,Pval)
+{
+    #pragma omp for reduction(+:EncMass,cmx,cmy,cmz)
+#endif
+        for (j=0;j<numingroup[i];j++) {
+            Pval=&Part[j+noffset[i]];
+            EncMass+=(*Pval).GetMass();
+            cmx+=(*Pval).X()*(*Pval).GetMass();
+            cmy+=(*Pval).Y()*(*Pval).GetMass();
+            cmz+=(*Pval).Z()*(*Pval).GetMass();
+        }
+#ifdef USEOPENMP
+}
+#endif
+        pdata[i].gcm[0]=cmx;pdata[i].gcm[1]=cmy;pdata[i].gcm[2]=cmz;
+        pdata[i].gmass=EncMass;
+        pdata[i].gMFOF=EncMass;
+        for (k=0;k<3;k++){pdata[i].gcm[k]*=(1.0/pdata[i].gmass);pdata[i].gcmvel[k]*=(1.0/pdata[i].gmass);}
+        pdata[i].gsize=0;
+        for (j=0;j<numingroup[i];j++) {
+            Pval=&Part[j+noffset[i]];
+            for (k=0;k<3;k++) {
+                Pval->SetPosition(k,(*Pval).GetPosition(k)-pdata[i].gcm[k]);
+            }
+        }
+        qsort(&Part[noffset[i]], numingroup[i], sizeof(Particle), RadCompare);
+        pdata[i].gsize=Part[noffset[i]+numingroup[i]-1].Radius();
+        pdata[i].gRhalfmass=Part[noffset[i]+(numingroup[i]/2)].Radius();
+#ifdef NOMASS
+        pdata[i].gmass*=opt.MassValue;
+#endif
+        pdata[i].gMFOF=pdata[i].gmass;
+        //here masses are technically exclusive but this routine is generally called before objects are separated into halo/substructures
+        EncMass=pdata[i].gmass;
+        for (j=numingroup[i]-1;j>=0;j--) {
+            Pval=&Part[j+noffset[i]];
+            rc=Pval->Radius();
+            if (pdata[i].gRvir==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>virval)
+            {pdata[i].gMvir=EncMass;pdata[i].gRvir=rc;}
+            if (pdata[i].gR200c==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m200val) 
+            {pdata[i].gM200c=EncMass;pdata[i].gR200c=rc;}
+            if (pdata[i].gR200m==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m200mval) 
+            {pdata[i].gM200m=EncMass;pdata[i].gR200m=rc;}
+            if (pdata[i].gR500c==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m500val) 
+            {pdata[i].gM500c=EncMass;pdata[i].gR500c=rc;}
+            if (pdata[i].gR200m!=0&&pdata[i].gR200c!=0&&pdata[i].gRvir!=0) break;
+#ifdef NOMASS
+            EncMass-=opt.MassValue;
+#else
+            EncMass-=Pval->GetMass();
+#endif
+        }
+        //if overdensity never drops below thresholds then masses are equal to FOF mass or total mass.
+        if (pdata[i].gRvir==0) {pdata[i].gMvir=pdata[i].gmass;pdata[i].gRvir=pdata[i].gsize;}
+        if (pdata[i].gR200c==0) {pdata[i].gM200c=pdata[i].gmass;pdata[i].gR200c=pdata[i].gsize;}
+        if (pdata[i].gR200m==0) {pdata[i].gM200m=pdata[i].gmass;pdata[i].gR200m=pdata[i].gsize;}
+        if (pdata[i].gR500c==0) {pdata[i].gM500c=pdata[i].gmass;pdata[i].gR500c=pdata[i].gsize;}
+        //reset positions
+        for (j=0;j<numingroup[i];j++) {
+            Pval=&Part[j+noffset[i]];
+            x = (*Pval).X()+pdata[i].gcm[0];
+            y = (*Pval).Y()+pdata[i].gcm[1];
+            z = (*Pval).Z()+pdata[i].gcm[2];
+            Pval->SetPosition(x,y,z);
+        }
+    }
+    if (opt.iverbose) cout<<"Done inclusive masses for field objects"<<endl;
+}
+//@}
+
+///\name Routines to calculate specific property of a set of particles
+//@{
 ///Get spatial morphology using iterative procedure
 void GetGlobalSpatialMorphology(const Int_t nbodies, Particle *p, Double_t& q, Double_t& s, Double_t Error, Matrix& eigenvec, int imflag, int itype, int iiterate)
 {
@@ -2045,6 +2217,102 @@ private(i,weight)
     I=I*mtot;
 }
 
+///calculate the phase-space dispersion tensor
+void CalcPhaseSigmaTensor(const Int_t n, Particle *p, GMatrix &eigenvalues, GMatrix& eigenvec, GMatrix &I, int itype)
+{
+    Double_t det,weight;
+    Double_t Ixx,Iyy,Izz,Ixy,Ixz,Iyz;
+    Double_t Ivxvx,Ivyvy,Ivzvz,Ivxvy,Ivxvz,Ivyvz;
+    Double_t Ixvx,Iyvx,Izvx,Ixvy,Iyvy,Izvy,Ixvz,Iyvz,Izvz;
+    GMatrix e(6,1);
+    I=GMatrix(6,6);
+    Int_t i;
+    Ixx=Iyy=Izz=Ixy=Ixz=Iyz=0.;
+    Ivxvx=Ivyvy=Ivzvz=Ivxvy=Ivxvz=Ivyvz=0.;
+    Ixvx=Iyvx=Izvx=Ixvy=Iyvy=Izvy=Ixvz=Iyvz=Izvz=0;
+    Double_t mtot=0;
+#ifdef USEOPENMP
+    if (n>=ompunbindnum) {
+#pragma omp parallel default(shared) \
+private(i,weight)
+{
+#pragma omp for schedule(dynamic) reduction(+:Ixx,Iyy,Izz,Ixy,Ixz,Iyz,Ivxvx,Ivyvy,Ivzvz,Ivxvy,Ivxvz,Ivyvz,Ixvx,Iyvx,Izvx,Ixvy,Iyvy,Izvy,Ixvz,Iyvz,Izvz,mtot)
+    for (i = 0; i < n; i++)
+    {
+        if (itype==-1) weight=p[i].GetMass();
+        else if (p[i].GetType()==itype) weight=p[i].GetMass();
+        else weight=0.;
+        Ixx+=(p[i].X()*p[i].X())*weight;
+        Iyy+=(p[i].Y()*p[i].Y())*weight;
+        Izz+=(p[i].Z()*p[i].Z())*weight;
+        Ixy+=(p[i].X()*p[i].Y())*weight;
+        Ixz+=(p[i].X()*p[i].Z())*weight;
+        Iyz+=(p[i].Y()*p[i].Z())*weight;
+        Ivxvx+=(p[i].Vx()*p[i].Vx())*weight;
+        Ivyvy+=(p[i].Vy()*p[i].Vy())*weight;
+        Ivzvz+=(p[i].Vz()*p[i].Vz())*weight;
+        Ivxvy+=(p[i].Vx()*p[i].Vy())*weight;
+        Ivxvz+=(p[i].Vx()*p[i].Vz())*weight;
+        Ivyvz+=(p[i].Vy()*p[i].Vz())*weight;
+
+        Ixvx+=(p[i].X()*p[i].Vx())*weight;
+        Iyvx+=(p[i].Y()*p[i].Vx())*weight;
+        Izvx+=(p[i].Z()*p[i].Vx())*weight;
+        Ixvy+=(p[i].X()*p[i].Vy())*weight;
+        Iyvy+=(p[i].Y()*p[i].Vy())*weight;
+        Izvy+=(p[i].Z()*p[i].Vy())*weight;
+        Ixvz+=(p[i].X()*p[i].Vz())*weight;
+        Iyvz+=(p[i].Y()*p[i].Vz())*weight;
+        Izvz+=(p[i].Z()*p[i].Vz())*weight;
+
+        mtot+=weight;
+    }
+}
+    I(0,0)=Ixx;I(1,1)=Iyy;I(2,2)=Izz;
+    I(0,1)=I(1,0)=Ixy;
+    I(0,2)=I(2,0)=Ixz;
+    I(1,2)=I(2,1)=Iyz;
+
+    I(3,3)=Ivxvx;I(4,4)=Ivyvy;I(5,5)=Ivzvz;
+    I(3,4)=I(4,3)=Ivxvy;
+    I(3,5)=I(5,3)=Ivxvz;
+    I(4,5)=I(5,4)=Ivyvz;
+
+    I(0,3)=I(3,0)=Ixvx;
+    I(1,3)=I(3,1)=Iyvx;
+    I(2,3)=I(3,2)=Izvx;
+    I(0,4)=I(4,0)=Ixvy;
+    I(1,4)=I(4,1)=Iyvy;
+    I(2,4)=I(4,2)=Izvy;
+    I(0,5)=I(5,0)=Ixvz;
+    I(1,5)=I(5,1)=Iyvz;
+    I(2,5)=I(5,2)=Izvz;
+
+    }
+    else {
+#endif
+    for (i = 0; i < n; i++)
+    {
+        if (itype==-1) weight=p[i].GetMass();
+        else if (p[i].GetType()==itype) weight=p[i].GetMass();
+        else weight=0.;
+        for (int j = 0; j < 6; j++)
+        {
+            for (int k = 0; k < 6; k++)
+            {
+                I(j, k) += (p[i].GetPhase(j) *p[i].GetPhase(k))*weight;
+            }
+        }
+        mtot+=weight;
+    }
+#ifdef USEOPENMP
+    }
+#endif
+    I=I*(1.0/mtot);
+    I.Eigenvalvec(e, eigenvec);
+    I=I*mtot;
+}
+
 ///calculate the weighted reduced inertia tensor assuming particles are the same mass
 void CalcMTensor(Matrix& M, const Double_t q, const Double_t s, const Int_t n, Particle *p, int itype)
 {
@@ -2198,172 +2466,100 @@ private(i,j,temp)
 #endif
 }
 
-///Get inclusive halo FOF based masses
-void GetInclusiveMasses(Options &opt, const Int_t nbodies, Particle *&Part, Int_t ngroup, Int_t *&pfof, Int_t *&numingroup, PropData *&pdata, Int_t *&noffset)
+///calculate the phase-space dispersion tensor
+GMatrix CalcPhaseCM(const Int_t n, Particle *p, int itype)
 {
-    Particle *Pval;
-    Int_t i,j,k;
-    if (opt.iverbose) cout<<"Get inclusive masses"<<endl;
-    Double_t ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside;
-    Double_t vc,rc,x,y,z,vx,vy,vz;
-    Coordinate cmold(0.),cmref;
-    Double_t change=MAXVALUE,tol=1e-2;
-    Int_t ii,icmv,numinvir,num200c,num200m;
-    Double_t virval=log(opt.virlevel*opt.rhobg);
-    Double_t m200val=log(opt.rhobg/opt.Omega_m*200.0);
-    Double_t m200mval=log(opt.rhobg*200.0);
-    Double_t m500val=log(opt.rhobg/opt.Omega_m*500.0);
-
-    for (i=1;i<=ngroup;i++) pdata[i].gNFOF=numingroup[i];
-    //for small groups loop over groups
+    Double_t det,weight;
+    Double_t cmx,cmy,cmz,cmvx,cmvy,cmvz;
+    GMatrix cm(6,1);
+    Int_t i;
+    cmx=cmy=cmz=cmvx=cmvy=cmvz=0;
+    Double_t mtot=0;
 #ifdef USEOPENMP
-#pragma omp parallel default(shared)  \
-private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z,vc,rc,vx,vy,vz,numinvir,num200c,num200m)\
-firstprivate(virval,m200val,m200mval)
+    if (n>=ompunbindnum) {
+#pragma omp parallel default(shared) \
+private(i,weight)
 {
-    #pragma omp for schedule(dynamic,1) nowait
-#endif
-    for (i=1;i<=ngroup;i++) if (numingroup[i]<omppropnum)
+#pragma omp for schedule(dynamic) reduction(+:cmx,cmy,cmz,cmvx,cmvy,cmvz,mtot)
+    for (i = 0; i < n; i++)
     {
-        for (k=0;k<3;k++) pdata[i].gcm[k]=pdata[i].gcmvel[k]=0;
-        pdata[i].gmass=pdata[i].gmaxvel=0.0;
-        for (j=0;j<numingroup[i];j++) {
-            Pval=&Part[j+noffset[i]];
-            pdata[i].gmass+=(*Pval).GetMass();
-            for (k=0;k<3;k++) {
-                pdata[i].gcm[k]+=(*Pval).GetPosition(k)*(*Pval).GetMass();
-                pdata[i].gcmvel[k]+=(*Pval).GetVelocity(k)*(*Pval).GetMass();
-            }
-        }
-        for (k=0;k<3;k++){pdata[i].gcm[k]*=(1.0/pdata[i].gmass);pdata[i].gcmvel[k]*=(1.0/pdata[i].gmass);}
-        for (j=0;j<numingroup[i];j++) {
-            Pval=&Part[j+noffset[i]];
-            x = (*Pval).X() - pdata[i].gcm[0];
-            y = (*Pval).Y() - pdata[i].gcm[1];
-            z = (*Pval).Z() - pdata[i].gcm[2];
-            Pval->SetPosition(x,y,z);
-        }
-        gsl_heapsort(&Part[noffset[i]], numingroup[i], sizeof(Particle), RadCompare);
-        pdata[i].gsize=Part[noffset[i]+numingroup[i]-1].Radius();
-        pdata[i].gRhalfmass=Part[noffset[i]+(numingroup[i]/2)].Radius();
-#ifdef NOMASS
-        pdata[i].gmass*=opt.MassValue;
-#endif
-        pdata[i].gMFOF=pdata[i].gmass;
+        if (itype==-1) weight=p[i].GetMass();
+        else if (p[i].GetType()==itype) weight=p[i].GetMass();
+        else weight=0.;
+        cmx+=p[i].X()*weight;
+        cmy+=p[i].Y()*weight;
+        cmz+=p[i].Z()*weight;
+        cmvx+=p[i].Vx()*weight;
+        cmvy+=p[i].Vy()*weight;
+        cmvz+=p[i].Vz()*weight;
 
-        //here masses are technically exclusive but this routine is generally called before objects are separated into halo/substructures
-        EncMass=pdata[i].gmass;
-        for (j=numingroup[i]-1;j>=0;j--) {
-            Pval=&Part[j+noffset[i]];
-            rc=Pval->Radius();
-            if (pdata[i].gRvir==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>virval)
-            {pdata[i].gMvir=EncMass;pdata[i].gRvir=rc;}
-            if (pdata[i].gR200c==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m200val) 
-            {pdata[i].gM200c=EncMass;pdata[i].gR200c=rc;}
-            if (pdata[i].gR200m==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m200mval) 
-            {pdata[i].gM200m=EncMass;pdata[i].gR200m=rc;}
-            if (pdata[i].gR500c==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m500val) 
-            {pdata[i].gM500c=EncMass;pdata[i].gR500c=rc;}
-            if (pdata[i].gR200m!=0&&pdata[i].gR200c!=0&&pdata[i].gRvir!=0) break;
-#ifdef NOMASS
-            EncMass-=opt.MassValue;
-#else
-            EncMass-=Pval->GetMass();
+        mtot+=weight;
+    }
+}
+    cm(0,0)=cmx;
+    cm(1,0)=cmy;
+    cm(2,0)=cmz;
+    cm(3,0)=cmvx;
+    cm(4,0)=cmvy;
+    cm(5,0)=cmvz;
+    }
+    else {
 #endif
-        }
-        //if overdensity never drops below thresholds then masses are equal to FOF mass or total mass.
-        if (pdata[i].gRvir==0) {pdata[i].gMvir=pdata[i].gmass;pdata[i].gRvir=pdata[i].gsize;}
-        if (pdata[i].gR200c==0) {pdata[i].gM200c=pdata[i].gmass;pdata[i].gR200c=pdata[i].gsize;}
-        if (pdata[i].gR200m==0) {pdata[i].gM200m=pdata[i].gmass;pdata[i].gR200m=pdata[i].gsize;}
-        if (pdata[i].gR500c==0) {pdata[i].gM500c=pdata[i].gmass;pdata[i].gR500c=pdata[i].gsize;}
-        //reset positions
-        for (j=0;j<numingroup[i];j++) {
-            Pval=&Part[j+noffset[i]];
-            x = (*Pval).X()+pdata[i].gcm[0];
-            y = (*Pval).Y()+pdata[i].gcm[1];
-            z = (*Pval).Z()+pdata[i].gcm[2];
-            Pval->SetPosition(x,y,z);
-        }
+    for (i = 0; i < n; i++)
+    {
+        if (itype==-1) weight=p[i].GetMass();
+        else if (p[i].GetType()==itype) weight=p[i].GetMass();
+        else weight=0.;
+        for (int j = 0; j < 6; j++) cm(j, 0) += p[i].GetPhase(j)*weight;
+        mtot+=weight;
     }
 #ifdef USEOPENMP
-}
-#endif
-    for (i=1;i<=ngroup;i++) if (numingroup[i]>=omppropnum)
-    {
-        for (k=0;k<3;k++) pdata[i].gcm[k]=pdata[i].gcmvel[k]=0;
-        pdata[i].gmass=pdata[i].gmaxvel=0.0;
-        EncMass=cmx=cmy=cmz=0.;
-#ifdef USEOPENMP
-#pragma omp parallel default(shared)  \
-private(j,Pval)
-{
-    #pragma omp for reduction(+:EncMass,cmx,cmy,cmz)
-#endif
-        for (j=0;j<numingroup[i];j++) {
-            Pval=&Part[j+noffset[i]];
-            EncMass+=(*Pval).GetMass();
-            cmx+=(*Pval).X()*(*Pval).GetMass();
-            cmy+=(*Pval).Y()*(*Pval).GetMass();
-            cmz+=(*Pval).Z()*(*Pval).GetMass();
-        }
-#ifdef USEOPENMP
-}
-#endif
-        pdata[i].gcm[0]=cmx;pdata[i].gcm[1]=cmy;pdata[i].gcm[2]=cmz;
-        pdata[i].gmass=EncMass;
-        pdata[i].gMFOF=EncMass;
-        for (k=0;k<3;k++){pdata[i].gcm[k]*=(1.0/pdata[i].gmass);pdata[i].gcmvel[k]*=(1.0/pdata[i].gmass);}
-        pdata[i].gsize=0;
-        for (j=0;j<numingroup[i];j++) {
-            Pval=&Part[j+noffset[i]];
-            for (k=0;k<3;k++) {
-                Pval->SetPosition(k,(*Pval).GetPosition(k)-pdata[i].gcm[k]);
-            }
-        }
-        qsort(&Part[noffset[i]], numingroup[i], sizeof(Particle), RadCompare);
-        pdata[i].gsize=Part[noffset[i]+numingroup[i]-1].Radius();
-        pdata[i].gRhalfmass=Part[noffset[i]+(numingroup[i]/2)].Radius();
-#ifdef NOMASS
-        pdata[i].gmass*=opt.MassValue;
-#endif
-        pdata[i].gMFOF=pdata[i].gmass;
-        //here masses are technically exclusive but this routine is generally called before objects are separated into halo/substructures
-        EncMass=pdata[i].gmass;
-        for (j=numingroup[i]-1;j>=0;j--) {
-            Pval=&Part[j+noffset[i]];
-            rc=Pval->Radius();
-            if (pdata[i].gRvir==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>virval)
-            {pdata[i].gMvir=EncMass;pdata[i].gRvir=rc;}
-            if (pdata[i].gR200c==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m200val) 
-            {pdata[i].gM200c=EncMass;pdata[i].gR200c=rc;}
-            if (pdata[i].gR200m==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m200mval) 
-            {pdata[i].gM200m=EncMass;pdata[i].gR200m=rc;}
-            if (pdata[i].gR500c==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m500val) 
-            {pdata[i].gM500c=EncMass;pdata[i].gR500c=rc;}
-            if (pdata[i].gR200m!=0&&pdata[i].gR200c!=0&&pdata[i].gRvir!=0) break;
-#ifdef NOMASS
-            EncMass-=opt.MassValue;
-#else
-            EncMass-=Pval->GetMass();
-#endif
-        }
-        //if overdensity never drops below thresholds then masses are equal to FOF mass or total mass.
-        if (pdata[i].gRvir==0) {pdata[i].gMvir=pdata[i].gmass;pdata[i].gRvir=pdata[i].gsize;}
-        if (pdata[i].gR200c==0) {pdata[i].gM200c=pdata[i].gmass;pdata[i].gR200c=pdata[i].gsize;}
-        if (pdata[i].gR200m==0) {pdata[i].gM200m=pdata[i].gmass;pdata[i].gR200m=pdata[i].gsize;}
-        if (pdata[i].gR500c==0) {pdata[i].gM500c=pdata[i].gmass;pdata[i].gR500c=pdata[i].gsize;}
-        //reset positions
-        for (j=0;j<numingroup[i];j++) {
-            Pval=&Part[j+noffset[i]];
-            x = (*Pval).X()+pdata[i].gcm[0];
-            y = (*Pval).Y()+pdata[i].gcm[1];
-            z = (*Pval).Z()+pdata[i].gcm[2];
-            Pval->SetPosition(x,y,z);
-        }
     }
-    if (opt.iverbose) cout<<"Done inclusive masses for field objects"<<endl;
+#endif
+    return cm;
 }
 
+///calculate concentration. Note that we limit concentration to 1000 or so which means VmaxVvir2<=36
+void GetConcentration(PropData &p)
+{
+
+    int status;
+    int iter = 0, max_iter = 100;
+    const gsl_root_fsolver_type *T;
+    gsl_root_fsolver *s;
+    double cval = 2.3;
+    double VmaxVvir2= p.VmaxVvir2;
+    //start point for concentration
+    double x_lo = 1.9, x_hi = 1000.0;
+    gsl_function F;
+    if (p.VmaxVvir2<=36) {
+    F.function = &mycNFW;
+    F.params = &VmaxVvir2;
+    T = gsl_root_fsolver_brent;
+    s = gsl_root_fsolver_alloc (T);
+    gsl_root_fsolver_set (s, &F, x_lo, x_hi);
+    do
+    {
+        iter++;
+        status = gsl_root_fsolver_iterate (s);
+        cval = gsl_root_fsolver_root (s);
+        x_lo = gsl_root_fsolver_x_lower (s);
+        x_hi = gsl_root_fsolver_x_upper (s);
+        status = gsl_root_test_interval (x_lo, x_hi,1.0/sqrt((double)p.num),1.0/sqrt((double)p.num));
+    }
+    while (status == GSL_CONTINUE && iter < max_iter);
+    gsl_root_fsolver_free (s);
+    p.cNFW=cval;
+    }
+    else {
+        p.cNFW=p.gR200c/p.gRmaxvel;
+    }
+}
+
+//@}
+
+///\name Routines for manipulation of property data 
+//@{
 ///copy mass information over 
 void CopyMasses(const Int_t nhalos, PropData *&pold, PropData *&pnew){
     for (Int_t i=1;i<=nhalos;i++) {
@@ -2392,8 +2588,10 @@ void ReorderInclusiveMasses(const Int_t &numgroups, const Int_t &newnumgroups, I
     for (Int_t i = 1; i<=newnumgroups; i++) pdata[i]=pnew[i];
     delete[] pnew;
 }
+//@}
 
-
+///\name Routines related to calculating energy of groups and sorting of particles 
+//@{
 /*! 
     Calculate the potential energy and kinetic energy relative to the velocity frame stored in gcmvel. Note that typically this is the velocity of particles within 
     the inner region used to determine the centre-of-mass. BUT of course, this frame is not without its flaws, as in a chaotic mergering system, one might not be able
@@ -2754,7 +2952,10 @@ private(i,j)
     cout<<"Done"<<endl;
     return pglist;
 }
+//@}
 
+///\name Routines to get hierarhcy information
+//@{
 ///Get total number of (sub)substructures in a (sub)structure
 Int_t *GetSubstrutcureNum(Int_t ngroups) 
 {
@@ -2799,43 +3000,8 @@ Int_t *GetParentID(Int_t ngroups)
     }
     return parentgid;
 }
+//@}
 
-///calculate concentration. Note that we limit concentration to 1000 or so which means VmaxVvir2<=36
-void GetConcentration(PropData &p)
-{
-
-    int status;
-    int iter = 0, max_iter = 100;
-    const gsl_root_fsolver_type *T;
-    gsl_root_fsolver *s;
-    double cval = 2.3;
-    double VmaxVvir2= p.VmaxVvir2;
-    //start point for concentration
-    double x_lo = 1.9, x_hi = 1000.0;
-    gsl_function F;
-    if (p.VmaxVvir2<=36) {
-    F.function = &mycNFW;
-    F.params = &VmaxVvir2;
-    T = gsl_root_fsolver_brent;
-    s = gsl_root_fsolver_alloc (T);
-    gsl_root_fsolver_set (s, &F, x_lo, x_hi);
-    do
-    {
-        iter++;
-        status = gsl_root_fsolver_iterate (s);
-        cval = gsl_root_fsolver_root (s);
-        x_lo = gsl_root_fsolver_x_lower (s);
-        x_hi = gsl_root_fsolver_x_upper (s);
-        status = gsl_root_test_interval (x_lo, x_hi,1.0/sqrt((double)p.num),1.0/sqrt((double)p.num));
-    }
-    while (status == GSL_CONTINUE && iter < max_iter);
-    gsl_root_fsolver_free (s);
-    p.cNFW=cval;
-    }
-    else {
-        p.cNFW=p.gR200c/p.gRmaxvel;
-    }
-}
 
 ///\name functions used to find root of concentration
 //@{

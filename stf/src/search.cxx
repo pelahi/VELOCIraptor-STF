@@ -1475,6 +1475,7 @@ private(i,tid)
                     cout<<"Mass ratios of cores are "<<endl;
                     for (i=1;i<=numgroupsbg;i++)cout<<i<<" "<<mcore[i]<<" "<<mcore[i]/mcore[1]<<endl;
                 }
+                //if number of particles in core less than number in subset then start assigning particles
                 if (nincore<nsubset) {
                 if (nsearch>nincore) nsearch=nincore;
                 if (nbucket>=nincore/8) nbucket=max(1,(int)nincore/8);
@@ -1494,11 +1495,15 @@ private(i,tid)
                 }
                 if (opt.iverbose>=2) cout<<"Searching untagged particles to assign to cores "<<endl;
 #ifdef USEOPENMP
+                //if particle number large enough to warrant parallel search
                 if (nsubset>ompperiodnum) {
 #pragma omp parallel default(shared) \
 private(i,tid,Pval,x1,D2,dval,mval,pid,pidcore)
 {
 #pragma omp for
+                //for each particle in the subset if not assigned to any group (core or substructure) then assign particle
+                //this is done using either a simple distance/sigmax+velocity distance/sigmav calculation to the nearest core particles
+                //or if a more complex routine is required then ...
                 for (i=0;i<nsubset;i++) 
                 {
                     tid=omp_get_thread_num();
@@ -1509,17 +1514,21 @@ private(i,tid,Pval,x1,D2,dval,mval,pid,pidcore)
                         tcore->FindNearestPos(x1, nnID[tid], dist2[tid],nsearch);
                         dval=0;
                         pidcore=nnID[tid][0];
+                        //calculat distance from current particle to core particle
                         for (int k=0;k<3;k++) {
                             dval+=(Pval->GetPosition(k)-Pcore[pidcore].GetPosition(k))*(Pval->GetPosition(k)-Pcore[pidcore].GetPosition(k))/param[6]+(Pval->GetVelocity(k)-Pcore[pidcore].GetVelocity(k))*(Pval->GetVelocity(k)-Pcore[pidcore].GetVelocity(k))/param[7];
                         }
+                        //get the core particle mass ratio
                         mval=mcore[Pcore[pidcore].GetType()];
                         pfofbg[pid]=Pcore[pidcore].GetType();
+                        //now initialized to first core particle, examine the rest to see if one is closer
                         for (int j=1;j<nsearch;j++) {
                             D2=0;
                             pidcore=nnID[tid][j];
                             for (int k=0;k<3;k++) {
                                 D2+=(Pval->GetPosition(k)-Pcore[pidcore].GetPosition(k))*(Pval->GetPosition(k)-Pcore[pidcore].GetPosition(k))/param[6]+(Pval->GetVelocity(k)-Pcore[pidcore].GetVelocity(k))*(Pval->GetVelocity(k)-Pcore[pidcore].GetVelocity(k))/param[7];
                             }
+                            //if distance * mass weight is smaller than current distance, reassign particle
                             if (dval>D2*mval/mcore[Pcore[pidcore].GetType()]) {dval=D2;mval=mcore[Pcore[pidcore].GetType()];pfofbg[pid]=Pcore[pidcore].GetType();}
                         }
                     }
@@ -1556,7 +1565,7 @@ private(i,tid,Pval,x1,D2,dval,mval,pid,pidcore)
 #ifdef USEOPENMP
                 }
 #endif
-
+                //clean up memory
                 delete tcore;
                 delete[] Pcore;
                 for (i=0;i<nthreads;i++) {
@@ -1676,6 +1685,213 @@ private(i,tid,Pval,x1,D2,dval,mval,pid,pidcore)
 #endif
     if (opt.iverbose) cout<<"Done"<<endl;
     return pfof;
+}
+
+void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_t *&pfof, Int_t *&pfofbg, Int_t &numgroupsbg, Double_t *&param, int nthreads){
+    //for simplicity make a new particle array storing core particles
+    Int_t nincore=0,nbucket=opt.Bsize,pid, pidcore;
+    Particle *Pcore,*Pval;
+    KDTree *tcore;
+    Coordinate x1;
+    Double_t D2,dval,mval;
+    Double_t *mcore=new Double_t[numgroupsbg+1];
+    Int_t *ncore=new Int_t[numgroupsbg+1];
+    int nsearch=opt.Nvel;
+    int tid,i;
+    Int_t **nnID;
+    Double_t **dist2;
+
+    for (i=0;i<=numgroupsbg;i++)mcore[i]=0;
+    for (i=0;i<nsubset;i++) {
+        if (pfofbg[i]>0) {
+            nincore++;
+            mcore[pfofbg[i]]++;
+            ncore[pfofbg[i]]++;
+        }
+    }
+    if (opt.iverbose>=2) {
+        cout<<"Mass ratios of cores are "<<endl;
+        for (i=1;i<=numgroupsbg;i++)cout<<i<<" "<<mcore[i]<<" "<<mcore[i]/mcore[1]<<endl;
+    }
+    //if number of particles in core less than number in subset then start assigning particles
+    if (nincore<nsubset) {
+        Int_t *noffset=new Int_t[numgroupsbg+1];
+        //if running fully adaptive core linking, then need to calculate phase-space dispersions for each core
+        //about their centres and use this to determine distances
+        if (opt.iAdaptiveCoreLinking>=2) {
+            if (opt.iverbose>=2) cout<<"Searching untagged particles to assign to cores using full phase-space metrics"<<endl;
+            //store particles
+            Pcore=new Particle[nincore];
+            nincore=0;
+            for (i=0;i<nsubset;i++) if (pfofbg[Partsubset[i].GetID()]>0) {
+                Pcore[nincore]=Partsubset[i];
+                Pcore[nincore].SetType(pfofbg[Partsubset[i].GetID()]);
+                nincore++;
+            }
+            qsort(Pcore,nincore,sizeof(Particle),TypeCompare);
+            noffset[0]=noffset[1]=0;
+            for (i=2;i<=numgroupsbg;i++) noffset[i]=noffset[i-1]+ncore[i-1];
+            //now get centre of masses and dispersions
+            vector<GMatrix> cmphase(numgroupsbg+1,GMatrix(6,1));
+            vector<GMatrix> invdisp(numgroupsbg+1,GMatrix(6,6));
+            GMatrix eigenvalues(6,1);
+            GMatrix eigenvec(6,6);
+            for (i=1;i<=numgroupsbg;i++) {
+                cmphase[i]=CalcPhaseCM(ncore[i], &Pcore[noffset[i]]);
+                for (int j=0;j<ncore[i];j++) {
+                    for (int k=0;k<6;k++) Pcore[noffset[i]+j].SetPhase(k,Pcore[noffset[i]+j].GetPhase(k)-cmphase[i](k,0));
+                }
+                CalcPhaseSigmaTensor(ncore[i], &Pcore[noffset[i]], eigenvalues, eigenvec, invdisp[i]);
+                invdisp[i]=invdisp[i].Inverse();
+            }
+#ifdef USEOPENMP
+            //if particle number large enough to warrant parallel search
+            if (nsubset>ompperiodnum) {
+#pragma omp parallel default(shared) \
+private(i,tid,Pval,D2,dval,mval,pid)
+{
+#pragma omp for
+            for (i=0;i<nsubset;i++) 
+            {
+                tid=omp_get_thread_num();
+                Pval=&Partsubset[i];
+                pid=Pval->GetID();
+                if (pfofbg[pid]==0 && pfof[pid]==0) {
+                    mval=mcore[1];dval=(cmphase[1]*invdisp[1]*cmphase[1].Transpose())(0,0);
+                    pfofbg[pid]=1;
+                    for (int j=2;j<=numgroupsbg;j++) {
+                        D2=(cmphase[j]*invdisp[j]*cmphase[j].Transpose())(0,0);
+                        if (dval>D2*mval/mcore[j]) {dval=D2;mval=mcore[j];pfofbg[pid]=j;}
+                    }
+                }
+            }
+}
+            }
+            else {
+#endif
+            for (i=0;i<nsubset;i++) 
+            {
+                tid=0;
+                Pval=&Partsubset[i];
+                pid=Pval->GetID();
+                if (pfofbg[pid]==0 && pfof[pid]==0) {
+                    mval=mcore[1];dval=(cmphase[1]*invdisp[1]*cmphase[1].Transpose())(0,0);
+                    pfofbg[pid]=1;
+                    for (int j=2;j<=numgroupsbg;j++) {
+                        D2=(cmphase[j]*invdisp[j]*cmphase[j].Transpose())(0,0);
+                        if (dval>D2*mval/mcore[j]) {dval=D2;mval=mcore[j];pfofbg[pid]=j;}
+                    }
+                }
+            }
+#ifdef USEOPENMP
+            }
+#endif
+
+        }
+        //otherwise, use simplier calculation: find nearest particles belonging to cores, calculate distances to these particles and assign untagged
+        //particle to the same group as the closest core particle
+        else {
+            if (opt.iverbose>=2) cout<<"Searching untagged particles to assign to cores using simple distance measure to nearest core particle"<<endl;
+            if (nsearch>nincore) nsearch=nincore;
+            if (nbucket>=nincore/8) nbucket=max(1,(int)nincore/8);
+            Pcore=new Particle[nincore];
+            nincore=0;
+            for (i=0;i<nsubset;i++) if (pfofbg[Partsubset[i].GetID()]>0) {
+                Pcore[nincore]=Partsubset[i];
+                Pcore[nincore].SetType(pfofbg[Partsubset[i].GetID()]);
+                nincore++;
+            }
+            tcore=new KDTree(Pcore,nincore,opt.Bsize,tcore->TPHYS);
+            nnID=new Int_t*[nthreads];
+            dist2=new Double_t*[nthreads];
+            for (i=0;i<nthreads;i++) {
+                nnID[i]=new Int_t[nsearch];
+                dist2[i]=new Double_t[nsearch];
+            }
+#ifdef USEOPENMP
+            //if particle number large enough to warrant parallel search
+            if (nsubset>ompperiodnum) {
+#pragma omp parallel default(shared) \
+private(i,tid,Pval,x1,D2,dval,mval,pid,pidcore)
+{
+#pragma omp for
+            //for each particle in the subset if not assigned to any group (core or substructure) then assign particle
+            //this is done using either a simple distance/sigmax+velocity distance/sigmav calculation to the nearest core particles
+            //or if a more complex routine is required then ...
+            for (i=0;i<nsubset;i++) 
+            {
+                tid=omp_get_thread_num();
+                Pval=&Partsubset[i];
+                pid=Pval->GetID();
+                if (pfofbg[pid]==0 && pfof[pid]==0) {
+                    x1=Coordinate(Pval->GetPosition());
+                    tcore->FindNearestPos(x1, nnID[tid], dist2[tid],nsearch);
+                    dval=0;
+                    pidcore=nnID[tid][0];
+                    //calculat distance from current particle to core particle
+                    for (int k=0;k<3;k++) {
+                        dval+=(Pval->GetPosition(k)-Pcore[pidcore].GetPosition(k))*(Pval->GetPosition(k)-Pcore[pidcore].GetPosition(k))/param[6]+(Pval->GetVelocity(k)-Pcore[pidcore].GetVelocity(k))*(Pval->GetVelocity(k)-Pcore[pidcore].GetVelocity(k))/param[7];
+                    }
+                    //get the core particle mass ratio
+                    mval=mcore[Pcore[pidcore].GetType()];
+                    pfofbg[pid]=Pcore[pidcore].GetType();
+                    //now initialized to first core particle, examine the rest to see if one is closer
+                    for (int j=1;j<nsearch;j++) {
+                        D2=0;
+                        pidcore=nnID[tid][j];
+                        for (int k=0;k<3;k++) {
+                            D2+=(Pval->GetPosition(k)-Pcore[pidcore].GetPosition(k))*(Pval->GetPosition(k)-Pcore[pidcore].GetPosition(k))/param[6]+(Pval->GetVelocity(k)-Pcore[pidcore].GetVelocity(k))*(Pval->GetVelocity(k)-Pcore[pidcore].GetVelocity(k))/param[7];
+                        }
+                        //if distance * mass weight is smaller than current distance, reassign particle
+                        if (dval>D2*mval/mcore[Pcore[pidcore].GetType()]) {dval=D2;mval=mcore[Pcore[pidcore].GetType()];pfofbg[pid]=Pcore[pidcore].GetType();}
+                    }
+                }
+            }
+}
+            }
+            else {
+#endif
+            for (i=0;i<nsubset;i++) 
+            {
+                tid=0;
+                Pval=&Partsubset[i];
+                pid=Pval->GetID();
+                if (pfofbg[pid]==0 && pfof[pid]==0) {
+                    x1=Coordinate(Pval->GetPosition());
+                    tcore->FindNearestPos(x1, nnID[tid], dist2[tid],nsearch);
+                    dval=0;
+                    pidcore=nnID[tid][0];
+                    for (int k=0;k<3;k++) {
+                        dval+=(Pval->GetPosition(k)-Pcore[pidcore].GetPosition(k))*(Pval->GetPosition(k)-Pcore[pidcore].GetPosition(k))/param[6]+(Pval->GetVelocity(k)-Pcore[pidcore].GetVelocity(k))*(Pval->GetVelocity(k)-Pcore[pidcore].GetVelocity(k))/param[7];
+                    }
+                    mval=mcore[Pcore[pidcore].GetType()];
+                    pfofbg[pid]=Pcore[pidcore].GetType();
+                    for (int j=1;j<nsearch;j++) {
+                        D2=0;
+                        pidcore=nnID[tid][j];
+                        for (int k=0;k<3;k++) {
+                            D2+=(Pval->GetPosition(k)-Pcore[pidcore].GetPosition(k))*(Pval->GetPosition(k)-Pcore[pidcore].GetPosition(k))/param[6]+(Pval->GetVelocity(k)-Pcore[pidcore].GetVelocity(k))*(Pval->GetVelocity(k)-Pcore[pidcore].GetVelocity(k))/param[7];
+                        }
+                        if (dval>D2*mval/mcore[Pcore[pidcore].GetType()]) {dval=D2;mval=mcore[Pcore[pidcore].GetType()];pfofbg[pid]=Pcore[pidcore].GetType();}
+                    }
+                }
+            }
+#ifdef USEOPENMP
+            }
+#endif
+            //clean up memory
+            delete tcore;
+            delete[] Pcore;
+            for (i=0;i<nthreads;i++) {
+                delete [] nnID[i];
+                delete [] dist2[i];
+            }
+            delete[] nnID;
+            delete[] dist2;
+        }
+        delete[] mcore;
+        delete[] ncore;
+    }
 }
 
 /*!
