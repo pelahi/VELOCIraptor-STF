@@ -1455,128 +1455,7 @@ private(i,tid)
             //tagged neighbour in phase-space.
             Int_t ng=numgroups+(numgroupsbg-bgoffset),oldng=numgroups;
             if(pnumcores!=NULL) *pnumcores=numgroupsbg;
-            if (opt.iHaloCoreSearch==2) {
-                //for simplicity make a new particle array storing core particles
-                Int_t nincore=0,nbucket=opt.Bsize,pid, pidcore;
-                Particle *Pcore,*Pval;
-                KDTree *tcore;
-                Coordinate x1;
-                Double_t D2,dval,mval;
-                Double_t *mcore=new Double_t[numgroupsbg+1];
-                for (i=0;i<=numgroupsbg;i++)mcore[i]=0;
-                int nsearch=opt.Nvel;
-                for (i=0;i<nsubset;i++) {
-                    if (pfofbg[i]>0) {
-                        nincore++;
-                        mcore[pfofbg[i]]++;
-                    }
-                }
-                if (opt.iverbose>=2) {
-                    cout<<"Mass ratios of cores are "<<endl;
-                    for (i=1;i<=numgroupsbg;i++)cout<<i<<" "<<mcore[i]<<" "<<mcore[i]/mcore[1]<<endl;
-                }
-                //if number of particles in core less than number in subset then start assigning particles
-                if (nincore<nsubset) {
-                if (nsearch>nincore) nsearch=nincore;
-                if (nbucket>=nincore/8) nbucket=max(1,(int)nincore/8);
-                Pcore=new Particle[nincore];
-                nincore=0;
-                for (i=0;i<nsubset;i++) if (pfofbg[Partsubset[i].GetID()]>0) {
-                    Pcore[nincore]=Partsubset[i];
-                    Pcore[nincore].SetType(pfofbg[Partsubset[i].GetID()]);
-                    nincore++;
-                }
-                tcore=new KDTree(Pcore,nincore,opt.Bsize,tree->TPHYS);
-                nnID=new Int_t*[nthreads];
-                dist2=new Double_t*[nthreads];
-                for (i=0;i<nthreads;i++) {
-                    nnID[i]=new Int_t[nsearch];
-                    dist2[i]=new Double_t[nsearch];
-                }
-                if (opt.iverbose>=2) cout<<"Searching untagged particles to assign to cores "<<endl;
-#ifdef USEOPENMP
-                //if particle number large enough to warrant parallel search
-                if (nsubset>ompperiodnum) {
-#pragma omp parallel default(shared) \
-private(i,tid,Pval,x1,D2,dval,mval,pid,pidcore)
-{
-#pragma omp for
-                //for each particle in the subset if not assigned to any group (core or substructure) then assign particle
-                //this is done using either a simple distance/sigmax+velocity distance/sigmav calculation to the nearest core particles
-                //or if a more complex routine is required then ...
-                for (i=0;i<nsubset;i++) 
-                {
-                    tid=omp_get_thread_num();
-                    Pval=&Partsubset[i];
-                    pid=Pval->GetID();
-                    if (pfofbg[pid]==0 && pfof[pid]==0) {
-                        x1=Coordinate(Pval->GetPosition());
-                        tcore->FindNearestPos(x1, nnID[tid], dist2[tid],nsearch);
-                        dval=0;
-                        pidcore=nnID[tid][0];
-                        //calculat distance from current particle to core particle
-                        for (int k=0;k<3;k++) {
-                            dval+=(Pval->GetPosition(k)-Pcore[pidcore].GetPosition(k))*(Pval->GetPosition(k)-Pcore[pidcore].GetPosition(k))/param[6]+(Pval->GetVelocity(k)-Pcore[pidcore].GetVelocity(k))*(Pval->GetVelocity(k)-Pcore[pidcore].GetVelocity(k))/param[7];
-                        }
-                        //get the core particle mass ratio
-                        mval=mcore[Pcore[pidcore].GetType()];
-                        pfofbg[pid]=Pcore[pidcore].GetType();
-                        //now initialized to first core particle, examine the rest to see if one is closer
-                        for (int j=1;j<nsearch;j++) {
-                            D2=0;
-                            pidcore=nnID[tid][j];
-                            for (int k=0;k<3;k++) {
-                                D2+=(Pval->GetPosition(k)-Pcore[pidcore].GetPosition(k))*(Pval->GetPosition(k)-Pcore[pidcore].GetPosition(k))/param[6]+(Pval->GetVelocity(k)-Pcore[pidcore].GetVelocity(k))*(Pval->GetVelocity(k)-Pcore[pidcore].GetVelocity(k))/param[7];
-                            }
-                            //if distance * mass weight is smaller than current distance, reassign particle
-                            if (dval>D2*mval/mcore[Pcore[pidcore].GetType()]) {dval=D2;mval=mcore[Pcore[pidcore].GetType()];pfofbg[pid]=Pcore[pidcore].GetType();}
-                        }
-                    }
-                }
-}
-                }
-                else {
-#endif
-                for (i=0;i<nsubset;i++) 
-                {
-                    tid=0;
-                    Pval=&Partsubset[i];
-                    pid=Pval->GetID();
-                    if (pfofbg[pid]==0 && pfof[pid]==0) {
-                        x1=Coordinate(Pval->GetPosition());
-                        tcore->FindNearestPos(x1, nnID[tid], dist2[tid],nsearch);
-                        dval=0;
-                        pidcore=nnID[tid][0];
-                        for (int k=0;k<3;k++) {
-                            dval+=(Pval->GetPosition(k)-Pcore[pidcore].GetPosition(k))*(Pval->GetPosition(k)-Pcore[pidcore].GetPosition(k))/param[6]+(Pval->GetVelocity(k)-Pcore[pidcore].GetVelocity(k))*(Pval->GetVelocity(k)-Pcore[pidcore].GetVelocity(k))/param[7];
-                        }
-                        mval=mcore[Pcore[pidcore].GetType()];
-                        pfofbg[pid]=Pcore[pidcore].GetType();
-                        for (int j=1;j<nsearch;j++) {
-                            D2=0;
-                            pidcore=nnID[tid][j];
-                            for (int k=0;k<3;k++) {
-                                D2+=(Pval->GetPosition(k)-Pcore[pidcore].GetPosition(k))*(Pval->GetPosition(k)-Pcore[pidcore].GetPosition(k))/param[6]+(Pval->GetVelocity(k)-Pcore[pidcore].GetVelocity(k))*(Pval->GetVelocity(k)-Pcore[pidcore].GetVelocity(k))/param[7];
-                            }
-                            if (dval>D2*mval/mcore[Pcore[pidcore].GetType()]) {dval=D2;mval=mcore[Pcore[pidcore].GetType()];pfofbg[pid]=Pcore[pidcore].GetType();}
-                        }
-                    }
-                }
-#ifdef USEOPENMP
-                }
-#endif
-                //clean up memory
-                delete tcore;
-                delete[] Pcore;
-                for (i=0;i<nthreads;i++) {
-                    delete [] nnID[i];
-                    delete [] dist2[i];
-                }
-                delete[] nnID;
-                delete[] dist2;
-                }
-                delete[] mcore;
-            }
+            if (opt.iHaloCoreSearch>=2) HaloCoreGrowth(opt, nsubset, Partsubset, pfof, pfofbg, numgroupsbg, param,nthreads);
             for (i=0;i<nsubset;i++) if (pfofbg[i]>bgoffset) pfof[i]=oldng+(pfofbg[i]-bgoffset);
             if (opt.iverbose>=2) cout<<ThisTask<<": After 6dfof core search and assignment there are "<< ng<<" groups"<<endl;
             numgroups=ng;
@@ -1687,7 +1566,8 @@ private(i,tid,Pval,x1,D2,dval,mval,pid,pidcore)
     return pfof;
 }
 
-void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_t *&pfof, Int_t *&pfofbg, Int_t &numgroupsbg, Double_t *&param, int nthreads){
+//search for unassigned background particles if cores have been found. 
+void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_t *&pfof, Int_t *&pfofbg, Int_t &numgroupsbg, Double_t param[], int nthreads){
     //for simplicity make a new particle array storing core particles
     Int_t nincore=0,nbucket=opt.Bsize,pid, pidcore;
     Particle *Pcore,*Pval;
@@ -1701,7 +1581,7 @@ void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *&Partsubset, In
     Int_t **nnID;
     Double_t **dist2;
 
-    for (i=0;i<=numgroupsbg;i++)mcore[i]=0;
+    for (i=0;i<=numgroupsbg;i++)ncore[i]=mcore[i]=0;
     for (i=0;i<nsubset;i++) {
         if (pfofbg[i]>0) {
             nincore++;
@@ -1757,10 +1637,10 @@ private(i,tid,Pval,D2,dval,mval,pid)
                 Pval=&Partsubset[i];
                 pid=Pval->GetID();
                 if (pfofbg[pid]==0 && pfof[pid]==0) {
-                    mval=mcore[1];dval=(cmphase[1]*invdisp[1]*cmphase[1].Transpose())(0,0);
+                    mval=mcore[1];dval=(cmphase[1].Transpose()*invdisp[1]*cmphase[1])(0,0);
                     pfofbg[pid]=1;
                     for (int j=2;j<=numgroupsbg;j++) {
-                        D2=(cmphase[j]*invdisp[j]*cmphase[j].Transpose())(0,0);
+                        D2=(cmphase[j].Transpose()*invdisp[j]*cmphase[j])(0,0);
                         if (dval>D2*mval/mcore[j]) {dval=D2;mval=mcore[j];pfofbg[pid]=j;}
                     }
                 }
@@ -1775,10 +1655,10 @@ private(i,tid,Pval,D2,dval,mval,pid)
                 Pval=&Partsubset[i];
                 pid=Pval->GetID();
                 if (pfofbg[pid]==0 && pfof[pid]==0) {
-                    mval=mcore[1];dval=(cmphase[1]*invdisp[1]*cmphase[1].Transpose())(0,0);
+                    mval=mcore[1];dval=(cmphase[1].Transpose()*invdisp[1]*cmphase[1])(0,0);
                     pfofbg[pid]=1;
                     for (int j=2;j<=numgroupsbg;j++) {
-                        D2=(cmphase[j]*invdisp[j]*cmphase[j].Transpose())(0,0);
+                        D2=(cmphase[j].Transpose()*invdisp[j]*cmphase[j])(0,0);
                         if (dval>D2*mval/mcore[j]) {dval=D2;mval=mcore[j];pfofbg[pid]=j;}
                     }
                 }
