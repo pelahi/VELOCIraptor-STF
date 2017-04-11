@@ -2310,7 +2310,6 @@ private(i,weight)
 #endif
     I=I*(1.0/mtot);
     I.Eigenvalvec(e, eigenvec);
-    I=I*mtot;
 }
 
 ///calculate the weighted reduced inertia tensor assuming particles are the same mass
@@ -2516,6 +2515,7 @@ private(i,weight)
 #ifdef USEOPENMP
     }
 #endif
+    cm=cm*(1.0/mtot);
     return cm;
 }
 

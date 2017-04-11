@@ -1628,6 +1628,7 @@ void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *&Partsubset, In
 #ifdef USEOPENMP
             //if particle number large enough to warrant parallel search
             if (nsubset>ompperiodnum) {
+            vector<GMatrix> dist(nthreads,GMatrix(6,1));
 #pragma omp parallel default(shared) \
 private(i,tid,Pval,D2,dval,mval,pid)
 {
@@ -1638,11 +1639,14 @@ private(i,tid,Pval,D2,dval,mval,pid)
                 Pval=&Partsubset[i];
                 pid=Pval->GetID();
                 if (pfofbg[pid]==0 && pfof[pid]==0) {
-                    mval=mcore[1];dval=(cmphase[1].Transpose()*invdisp[1]*cmphase[1])(0,0);
+                    mval=mcore[1];
+                    for (int k=0;k<6;k++) dist[tid](k,0)=Pval->GetPhase(k)-cmphase[1](k,0);
+                    dval=(dist[tid].Transpose()*invdisp[1]*dist[tid])(0,0);
                     pfofbg[pid]=1;
                     for (int j=2;j<=numgroupsbg;j++) {
-                        D2=(cmphase[j].Transpose()*invdisp[j]*cmphase[j])(0,0);
-                        if (dval>D2*mval/mcore[j]) {dval=D2;mval=mcore[j];pfofbg[pid]=j;}
+                        for (int k=0;k<6;k++) dist[tid](k,0)=Pval->GetPhase(k)-cmphase[j](k,0);
+                        D2=(dist[tid].Transpose()*invdisp[j]*dist[tid])(0,0);
+                        if (dval>D2) {dval=D2;mval=mcore[j];pfofbg[pid]=j;}
                     }
                 }
             }
@@ -1650,17 +1654,21 @@ private(i,tid,Pval,D2,dval,mval,pid)
             }
             else {
 #endif
+            GMatrix dist(6,1);
             for (i=0;i<nsubset;i++) 
             {
                 tid=0;
                 Pval=&Partsubset[i];
                 pid=Pval->GetID();
                 if (pfofbg[pid]==0 && pfof[pid]==0) {
-                    mval=mcore[1];dval=(cmphase[1].Transpose()*invdisp[1]*cmphase[1])(0,0);
+                    mval=mcore[1];
+                    for (int k=0;k<6;k++) dist(k,0)=Pval->GetPhase(k)-cmphase[1](k,0);
+                    dval=(dist.Transpose()*invdisp[1]*dist)(0,0);
                     pfofbg[pid]=1;
                     for (int j=2;j<=numgroupsbg;j++) {
-                        D2=(cmphase[j].Transpose()*invdisp[j]*cmphase[j])(0,0);
-                        if (dval>D2*mval/mcore[j]) {dval=D2;mval=mcore[j];pfofbg[pid]=j;}
+                        for (int k=0;k<6;k++) dist(k,0)=Pval->GetPhase(k)-cmphase[j](k,0);
+                        D2=(dist.Transpose()*invdisp[j]*dist)(0,0);
+                        if (dval>D2) {dval=D2;mval=mcore[j];pfofbg[pid]=j;}
                     }
                 }
             }
