@@ -147,7 +147,7 @@ using namespace NBody;
 /// \name parameters for the temporal merit function
 //@{
 ///the index of the temporal weight in delta t ^(-alpha)
-#define ALPHADELTAT 0.333333
+#define ALPHADELTAT 0.12
 //@}
 
 ///VALUE USED TO MAKE UNIQUE halo identifiers

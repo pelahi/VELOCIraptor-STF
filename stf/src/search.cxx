@@ -396,6 +396,7 @@ private(i,tid)
         //store current number of 6dfof groups
         for (i=1;i<=iend;i++) ng+=ngomp[i];
         Int_t *pfof6dfof=new Int_t[Nlocal];
+        for (i=0;i<Nlocal;i++) pfof6dfof[i]=0;
         ng=0;
         for (i=1;i<=iend;i++) {
             for (int j=0;j<numingroup[i];j++) {
@@ -1838,6 +1839,8 @@ void SearchSubSub(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_
     if (opt.iKeepFOF) {
         firstgroup=opt.num3dfof+1;
         firstgroupoffset=opt.num3dfof;
+        nsubsearch=ngroup-opt.num3dfof;
+        pcsld=pcsld->nextlevel;
     }
     for (Int_t i=firstgroup;i<=ngroup;i++) if (numingroup[i]<MINCELLSIZE) {nsubsearch=i-firstgroup;break;}
     iflag=(nsubsearch>0);
@@ -2013,11 +2016,12 @@ void SearchSubSub(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_
                 //here adjust head particle of parent structure if necessary
                 while (pfof[subpglist[i][ii]]>ngroup+ngroupidoffset-ns) ii++;
                 //store 
-                iindex=pfof[subpglist[i][ii]]-ngroupidoffsetold;
+                iindex=pfof[subpglist[i][ii]]-ngroupidoffsetold-firstgroupoffset;;
                 pcsld->gidhead[iindex]=&pfof[subpglist[i][ii]];
                 pcsld->Phead[iindex]=&Partsubset[subpglist[i][ii]];
                 //only for field haloes does the gidparenthead and giduberparenthead need to be adjusted
-                if(sublevel==1) {
+                //but only if 3DFOFs are not kept as uber parents
+                if(sublevel==1&&opt.iKeepFOF==0) {
                     pcsld->gidparenthead[iindex]=&pfof[subpglist[i][ii]];
                     pcsld->giduberparenthead[iindex]=&pfof[subpglist[i][ii]];
                 }
