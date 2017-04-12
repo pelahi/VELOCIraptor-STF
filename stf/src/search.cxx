@@ -628,6 +628,7 @@ private(i,tid)
                     {
                         psldata->nextlevel->gidparenthead[pfof[i]-opt.num3dfof] = &pfof[i];
                         psldata->nextlevel->giduberparenthead[pfof[i]-opt.num3dfof] = &pfof[i];
+                        psldata->nextlevel->Pparenthead[pfof[i]-opt.num3dfof] = &Part[i];
                     }
                     psldata->nextlevel->stypeinlevel[pfof[i]-opt.num3dfof] = HALOSTYPE;
                 }
@@ -1398,6 +1399,8 @@ private(i,tid)
         for (i=0;i<nsubset;i++) Partsubset[i].SetPotential(pfof[Partsubset[i].GetID()]);
         param[9]=0.5;
         pfofbg=tree->FOFCriterion(fofcmp,param,numgroupsbg,minsize,iorder,icheck,FOFcheckbg);
+        //store the dispersion limit factor, which depends on level of the loop at which cores are found as the disperions criterion limits how large a dispersion a core can have when measured
+        vector<Double_t> dispfac(numgroupsbg+1);
 
         //now if searching for cores in fully adaptive fashion then process core (which will keep changing) till 
         //no cores are found
@@ -1415,6 +1418,8 @@ private(i,tid)
             //first copy pfofbg information
             newnumgroupsbg=numgroupsbg;
             for (i=0;i<nsubset;i++) pfofbgnew[i]=pfofbg[i];
+            for (i=1;i<=newnumgroupsbg;i++) dispfac[i]=param[7];
+            
             //now keep doing this till zero new groups are found, copying over info of new groups above bgoffset as we go
             do {
                 numloops++;
@@ -1430,6 +1435,7 @@ private(i,tid)
                 pfofbg=tree->FOFCriterion(fofcmp,param,numgroupsbg,minsize,iorder,icheck,FOFcheckbg);
                 //now if numgroupsbg is greater than one, need to update the pfofbgnew array
                 if (numgroupsbg>1) {
+                    for (i=1;i<=numgroupsbg-1;i++) dispfac.push_back(param[7]);
                     for (i=0;i<nsubset;i++) {
                         pid=Partsubset[i].GetID();
                         //if the particle is untagged with new search, set it to be untagged
@@ -1456,9 +1462,12 @@ private(i,tid)
             //tagged neighbour in phase-space.
             Int_t ng=numgroups+(numgroupsbg-bgoffset),oldng=numgroups;
             if(pnumcores!=NULL) *pnumcores=numgroupsbg;
-            if (opt.iHaloCoreSearch>=2) HaloCoreGrowth(opt, nsubset, Partsubset, pfof, pfofbg, numgroupsbg, param,nthreads);
-            for (i=0;i<nsubset;i++) if (pfofbg[i]>bgoffset) pfof[i]=oldng+(pfofbg[i]-bgoffset);
-            if (opt.iverbose>=2) cout<<ThisTask<<": After 6dfof core search and assignment there are "<< ng<<" groups"<<endl;
+            if (opt.iHaloCoreSearch>=2) {
+        		HaloCoreGrowth(opt, nsubset, Partsubset, pfof, pfofbg, numgroupsbg, param,dispfac,nthreads);
+        		//HaloCoreGrowth(opt, nsubset, Partsubset, pfof, pfofbg, numgroupsbg, param,nthreads);
+                for (i=0;i<nsubset;i++) if (pfofbg[i]>bgoffset) pfof[i]=oldng+(pfofbg[i]-bgoffset);
+                if (opt.iverbose>=2) cout<<ThisTask<<": After 6dfof core search and assignment there are "<< ng<<" groups"<<endl;
+            }
             numgroups=ng;
         }
         else if (opt.iverbose>=2) cout<<ThisTask<<": has found no excess cores indicating mergers"<<endl;
@@ -1568,7 +1577,7 @@ private(i,tid)
 }
 
 //search for unassigned background particles if cores have been found. 
-void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_t *&pfof, Int_t *&pfofbg, Int_t &numgroupsbg, Double_t param[], int nthreads){
+void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_t *&pfof, Int_t *&pfofbg, Int_t &numgroupsbg, Double_t param[], vector<Double_t> &dispfac, int nthreads){
     //for simplicity make a new particle array storing core particles
     Int_t nincore=0,nbucket=opt.Bsize,pid, pidcore;
     Particle *Pcore,*Pval;
@@ -1583,6 +1592,13 @@ void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *&Partsubset, In
     Double_t **dist2;
 
     for (i=0;i<=numgroupsbg;i++)ncore[i]=mcore[i]=0;
+    //determine the weights for the cores dispersions factors
+    if(opt.halocorenumloops>1) {
+        for (i=1;i<=numgroupsbg;i++)dispfac[i]=dispfac[i]/param[7];
+    }
+    else {
+        for (i=1;i<=numgroupsbg;i++) dispfac[i]=1.0;
+    }
     for (i=0;i<nsubset;i++) {
         if (pfofbg[i]>0) {
             nincore++;
@@ -1623,7 +1639,7 @@ void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *&Partsubset, In
                     for (int k=0;k<6;k++) Pcore[noffset[i]+j].SetPhase(k,Pcore[noffset[i]+j].GetPhase(k)-cmphase[i](k,0));
                 }
                 CalcPhaseSigmaTensor(ncore[i], &Pcore[noffset[i]], eigenvalues, eigenvec, invdisp[i]);
-                invdisp[i]=invdisp[i].Inverse();
+                invdisp[i]=invdisp[i].Inverse()*dispfac[i];
             }
 #ifdef USEOPENMP
             //if particle number large enough to warrant parallel search
@@ -1844,11 +1860,12 @@ void SearchSubSub(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_
     //for (Int_t i=1;i<=ngroup;i++) if (numingroup[i]<MINCELLSIZE) {nsubsearch=i-1;break;}
     firstgroup=1;
     firstgroupoffset=0;
+    //if keeping fof as a leve, then don't start substructure for all 3dfof halos and move the structure level pointer upwards
     if (opt.iKeepFOF) {
         firstgroup=opt.num3dfof+1;
         firstgroupoffset=opt.num3dfof;
+        pcsld=psldata->nextlevel;
         nsubsearch=ngroup-opt.num3dfof;
-        pcsld=pcsld->nextlevel;
     }
     for (Int_t i=firstgroup;i<=ngroup;i++) if (numingroup[i]<MINCELLSIZE) {nsubsearch=i-firstgroup;break;}
     iflag=(nsubsearch>0);
@@ -2024,7 +2041,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_
                 //here adjust head particle of parent structure if necessary
                 while (pfof[subpglist[i][ii]]>ngroup+ngroupidoffset-ns) ii++;
                 //store 
-                iindex=pfof[subpglist[i][ii]]-ngroupidoffsetold-firstgroupoffset;;
+                iindex=pfof[subpglist[i][ii]]-ngroupidoffsetold-firstgroupoffset;
                 pcsld->gidhead[iindex]=&pfof[subpglist[i][ii]];
                 pcsld->Phead[iindex]=&Partsubset[subpglist[i][ii]];
                 //only for field haloes does the gidparenthead and giduberparenthead need to be adjusted
@@ -2853,14 +2870,18 @@ private(i)
         if (parentgid[i]!=GROUPNOPARENT) {
             pdata[i].hostid=opt.snapshotvalue+uparentgid[i];
             pdata[i].directhostid=opt.snapshotvalue+parentgid[i];
+            if(opt.iKeepFOF && uparentgid[i]<=opt.num3dfof) pdata[i].hostfofid=opt.snapshotvalue+uparentgid[i];
+            if(opt.iKeepFOF && uparentgid[i]>opt.num3dfof) pdata[i].hostfofid=GROUPNOPARENT;
 #ifdef USEMPI
             pdata[i].hostid+=haloidoffset;
             pdata[i].directhostid+=haloidoffset;
+            if(opt.iKeepFOF && uparentgid[i]<=opt.num3dfof) pdata[i].hostfofid+=haloidoffset;
 #endif
         }
         else {
             pdata[i].hostid=GROUPNOPARENT;
             pdata[i].directhostid=GROUPNOPARENT;
+            pdata[i].hostfofid=GROUPNOPARENT;
         }
         pdata[i].stype=stype[i];
         pdata[i].numsubs=nsub[i];

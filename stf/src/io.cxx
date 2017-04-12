@@ -961,14 +961,20 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         for (Int_t i=0;i<ngroups;i++) ((unsigned long*)data)[i]=pdata[i+1].numsubs;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((unsigned long*)data)[i]=pdata[i+1].num;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((int*)data)[i]=pdata[i+1].stype;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
         if (opt.iKeepFOF==1){
+            for (Int_t i=0;i<ngroups;i++) ((unsigned long*)data)[i]=pdata[i+1].directhostid;
+            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+            itemp++;
             for (Int_t i=0;i<ngroups;i++) ((unsigned long*)data)[i]=pdata[i+1].hostfofid;
             propdataset[itemp].write(data,head.predtypeinfo[itemp]);
             itemp++;
         }
-        for (Int_t i=0;i<ngroups;i++) ((unsigned long*)data)[i]=pdata[i+1].num;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
         
         //now halo properties that are doubles
         for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].gMvir;

@@ -1058,12 +1058,16 @@ struct PropData
         Fout.write((char*)&lval,sizeof(idval));
         idval=numsubs;
         Fout.write((char*)&idval,sizeof(idval));
+        idval=num;
+        Fout.write((char*)&idval,sizeof(idval));
+        ival=stype;
+        Fout.write((char*)&ival,sizeof(ival));
         if (opt.iKeepFOF==1) {
+            idval=directhostid;
+            Fout.write((char*)&idval,sizeof(idval));
             idval=hostfofid;
             Fout.write((char*)&idval,sizeof(idval));
         }
-        idval=num;
-        Fout.write((char*)&idval,sizeof(idval));
 
         val=gMvir;
         Fout.write((char*)&val,sizeof(val));
@@ -1265,8 +1269,12 @@ struct PropData
         Fout<<ibound<<" ";
         Fout<<hostid<<" ";
         Fout<<numsubs<<" ";
-        if (opt.iKeepFOF==1) Fout<<hostfofid<<" ";
         Fout<<num<<" ";
+        Fout<<stype<<" ";
+        if (opt.iKeepFOF==1) {
+            Fout<<directhostid<<" ";
+            Fout<<hostfofid<<" ";
+        }
         Fout<<gMvir<<" ";
         for (int k=0;k<3;k++) Fout<<gcm[k]<<" ";
         for (int k=0;k<3;k++) Fout<<gpos[k]<<" ";
@@ -1386,7 +1394,11 @@ struct PropDataHeader{
         headerdatainfo.push_back("hostHaloID");
         headerdatainfo.push_back("numSubStruct");
         headerdatainfo.push_back("npart");
-        if (opt.iKeepFOF==1) headerdatainfo.push_back("hostFOFID");
+        headerdatainfo.push_back("Structuretype");
+        if (opt.iKeepFOF==1){
+            headerdatainfo.push_back("hostDirectHaloID");
+            headerdatainfo.push_back("hostFOFID");
+        }
 
         //if using hdf, store the type
 #ifdef USEHDF
@@ -1395,6 +1407,11 @@ struct PropDataHeader{
         predtypeinfo.push_back(PredType::STD_I64LE);
         predtypeinfo.push_back(PredType::STD_U64LE);
         predtypeinfo.push_back(PredType::STD_U64LE);
+        predtypeinfo.push_back(PredType::STD_I32LE);
+        if (opt.iKeepFOF==1){
+            predtypeinfo.push_back(PredType::STD_I64LE);
+            predtypeinfo.push_back(PredType::STD_I64LE);
+        }
 #endif
 
         headerdatainfo.push_back("Mvir");

@@ -174,7 +174,7 @@ Int_t *SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Part
 ///Search for subsubstructures 
 void SearchSubSub(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_t *&pfof, Int_t &ngroup, Int_t &nhalos, PropData *pdata=NULL);
 ///Given a set of tagged core particles, assign surroundings
-void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_t *&pfof, Int_t *&pfofbg, Int_t &numgroupsbg, Double_t param[], int nthreads);
+void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_t *&pfof, Int_t *&pfofbg, Int_t &numgroupsbg, Double_t param[], vector<Double_t> &dispfac, int nthreads);
 ///Check significance of each group
 int CheckSignificance(Options &opt, const Int_t nsubset, Particle *Partsubset, Int_t &numgroups, Int_t *numingroups, Int_t *pfof, Int_t **pglist);
 ///Search for Baryonic structures associated with dark matter structures in phase-space
