@@ -19,9 +19,8 @@
 int ThisTask, NProcs;
 Int_t Ntotal, NExport, NImport, Nlocal, Nlocaltot,Ngridtotal,Ngridlocal;
 Int_t Ntotalbaryon[NBARYONTYPES], Nlocalbaryon[NBARYONTYPES]; 
-#ifdef MPIREDUCEMEM
 Int_t Nmemlocal,Noldlocal,Nmemlocalbaryon;
-#endif
+
 Double_t mpi_xlim[3][2],mpi_dxsplit[3];
 int mpi_nxsplit[3],mpi_ideltax[3];
 Double_t mpi_period;

@@ -585,8 +585,10 @@ void MPIDomainDecompositionGadget(Options &opt){
 ///reads a gadget file to determine number of particles in each MPIDomain
 void MPINumInDomainGadget(Options &opt)
 {
-    MPIDomainExtentGadget(opt);
+#define SKIP2 Fgad[i].read((char*)&dummy, sizeof(dummy));
+    InitEndian();
     if (NProcs>1) {
+    MPIDomainExtentGadget(opt);
     MPIDomainDecompositionGadget(opt);
     MPIInitialDomainDecomposition();
     Int_t i,j,k,n,m,temp,count,count2,pc,pc_new, Ntot,indark,ingas,instar;
@@ -600,116 +602,93 @@ void MPINumInDomainGadget(Options &opt)
     fstream *Fgad;
     struct gadget_header *header;
     Int_t Nlocalold=Nlocal;
+    int *ireadfile,*ireadtask,*readtaskID;
+    ireadtask=new int[NProcs];
+    readtaskID=new int[opt.nsnapread];
+    ireadfile=new int[opt.num_files];
+    MPIDistributeReadTasks(opt,ireadtask,readtaskID);
 
-    FLOAT vtemp[3];
     MPI_Status status;
     Int_t Nlocalbuf,ibuf=0,*Nbuf, *Nbaryonbuf;
-    if (ThisTask==0) {
-        Nbuf=new Int_t[NProcs];
-        Nbaryonbuf=new Int_t[NProcs];
-        for (int j=0;j<NProcs;j++) Nbuf[j]=0;
-        for (int j=0;j<NProcs;j++) Nbaryonbuf[j]=0;
-    }
-    if (ThisTask==0) {
+    Nbuf=new Int_t[NProcs];
+    Nbaryonbuf=new Int_t[NProcs];
+    for (int j=0;j<NProcs;j++) Nbuf[j]=0;
+    for (int j=0;j<NProcs;j++) Nbaryonbuf[j]=0;
+
     //opening file
-#define SKIP2 Fgad[i].read((char*)&dummy, sizeof(dummy));
-
-
     Fgad=new fstream[opt.num_files];
     header=new gadget_header[opt.num_files];
-    for(i=0; i<opt.num_files; i++)
-    {
-        if(opt.num_files>1) sprintf(buf,"%s.%d",opt.fname,i);
-        else sprintf(buf,"%s",opt.fname);
-        Fgad[i].open(buf,ios::in);
-#ifdef GADGET2FORMAT
-        SKIP2;
-        Fgad[i].read((char*)&DATA[0],sizeof(char)*4);DATA[4] = '\0';
-        SKIP2;
-        SKIP2;
-        fprintf(stderr,"reading... %s\n",DATA);
-#endif
-        Fgad[i].read((char*)&dummy, sizeof(dummy));
-        Fgad[i].read((char*)&header[i], sizeof(gadget_header));
-        Fgad[i].read((char*)&dummy, sizeof(dummy));
-        //endian indep call
-        header[i].Endian();
-
-#ifdef GADGET2FORMAT
-        Fgad[i].read((char*)&dummy, sizeof(dummy));
-        Fgad[i].read((char*)&DATA[0],sizeof(char)*4);DATA[4] = '\0';
-        Fgad[i].read((char*)&dummy, sizeof(dummy));
-        Fgad[i].read((char*)&dummy, sizeof(dummy));
-#endif
-    }
-    for(i=0,count=0,pc=0;i<opt.num_files; i++,pc=pc_new,count=count2)
-    {
-        Fgad[i].read((char*)&dummy, sizeof(dummy));
-        for(k=0,count2=count,pc_new=pc;k<6;k++)
+    if (ireadtask[ThisTask]>=0) {
+        MPISetFilesRead(opt,ireadfile,ireadtask);
+        for(i=0; i<opt.num_files; i++) if(ireadfile[i])
         {
-            for(n=0;n<header[i].npart[k];n++)
+            if(opt.num_files>1) sprintf(buf,"%s.%d",opt.fname,i);
+            else sprintf(buf,"%s",opt.fname);
+            Fgad[i].open(buf,ios::in);
+        #ifdef GADGET2FORMAT
+            SKIP2;
+            Fgad[i].read((char*)&DATA[0],sizeof(char)*4);DATA[4] = '\0';
+            SKIP2;
+            SKIP2;
+            fprintf(stderr,"reading... %s\n",DATA);
+        #endif
+            Fgad[i].read((char*)&dummy, sizeof(dummy));
+            Fgad[i].read((char*)&header[i], sizeof(gadget_header));
+            Fgad[i].read((char*)&dummy, sizeof(dummy));
+            //endian indep call
+            header[i].Endian();
+
+        #ifdef GADGET2FORMAT
+            Fgad[i].read((char*)&dummy, sizeof(dummy));
+            Fgad[i].read((char*)&DATA[0],sizeof(char)*4);DATA[4] = '\0';
+            Fgad[i].read((char*)&dummy, sizeof(dummy));
+            Fgad[i].read((char*)&dummy, sizeof(dummy));
+        #endif
+            Fgad[i].read((char*)&dummy, sizeof(dummy));
+            for(k=0;k<NGTYPE;k++)
             {
-                Fgad[i].read((char*)&ctemp[0], sizeof(FLOAT)*3);
-                ibuf=MPIGetParticlesProcessor(ctemp[0],ctemp[1],ctemp[2]);
-                if (opt.partsearchtype==PSTALL) {
-                    Nbuf[ibuf]++;
-                    count2++;
-                }
-                else if (opt.partsearchtype==PSTDARK) {
-                    if (!(k==GGASTYPE||k==GSTARTYPE||k==GBHTYPE)) {
+                for(n=0;n<header[i].npart[k];n++)
+                {
+                    Fgad[i].read((char*)&ctemp[0], sizeof(FLOAT)*3);
+                    ibuf=MPIGetParticlesProcessor(ctemp[0],ctemp[1],ctemp[2]);
+                    if (opt.partsearchtype==PSTALL) {
                         Nbuf[ibuf]++;
-                        count2++;
                     }
-                    else {
-                        if (opt.iBaryonSearch) {
-                            Nbaryonbuf[ibuf]++;
+                    else if (opt.partsearchtype==PSTDARK) {
+                        if (!(k==GGASTYPE||k==GSTARTYPE||k==GBHTYPE)) {
+                            Nbuf[ibuf]++;
+                        }
+                        else {
+                            if (opt.iBaryonSearch) {
+                                Nbaryonbuf[ibuf]++;
+                            }
+                        }
+                    }
+                    else if (opt.partsearchtype==PSTSTAR) {
+                        if (k==STARTYPE) {
+                            Nbuf[ibuf]++;
+                        }
+                    }
+                    else if (opt.partsearchtype==PSTGAS) {
+                        if (k==GASTYPE) {
+                            Nbuf[ibuf]++;
                         }
                     }
                 }
-                else if (opt.partsearchtype==PSTSTAR) {
-                    if (k==STARTYPE) {
-                        Nbuf[ibuf]++;
-                        count2++;
-                    }
-                }
-                else if (opt.partsearchtype==PSTGAS) {
-                    if (k==GASTYPE) {
-                        Nbuf[ibuf]++;
-                        count2++;
-                    }
-                }
-                pc_new++;
             }
+            Fgad[i].close();
         }
-        //more information contained in sph particles and if there is sf feed back but for the moment, ignore
-        Fgad[i].close();
     }
-    }
-    MPI_Barrier(MPI_COMM_WORLD);
-    if (ThisTask==0) {
-        Nlocal=Nbuf[ThisTask];
-        for(ibuf = 1; ibuf < NProcs; ibuf++)
-            MPI_Ssend(&Nbuf[ibuf],1,MPI_Int_t, ibuf, ibuf+NProcs, MPI_COMM_WORLD);
-    }
-    else {
-        MPI_Recv(&Nlocal, 1, MPI_Int_t, 0, ThisTask+NProcs, MPI_COMM_WORLD, &status);
-    }
+    //now having read number of particles, run all gather
+    Int_t mpi_nlocal[NProcs];
+    MPI_Allreduce(Nbuf,mpi_nlocal,NProcs,MPI_Int_t,MPI_SUM,MPI_COMM_WORLD);
+    Nlocal=mpi_nlocal[ThisTask];
     if (opt.iBaryonSearch) {
-        if (ThisTask==0) {
-            Nlocalbaryon[0]=Nbaryonbuf[ThisTask];
-            for(ibuf = 1; ibuf < NProcs; ibuf++)
-                MPI_Ssend(&Nbaryonbuf[ibuf],1,MPI_Int_t, ibuf, ibuf+NProcs, MPI_COMM_WORLD);
-        }
-        else {
-            MPI_Recv(&Nlocalbaryon[0], 1, MPI_Int_t, 0, ThisTask+NProcs, MPI_COMM_WORLD, &status);
-        }
+        MPI_Allreduce(Nbaryonbuf,mpi_nlocal,NProcs,MPI_Int_t,MPI_SUM,MPI_COMM_WORLD);
+        Nlocalbaryon[0]=mpi_nlocal[ThisTask];
     }
-#ifdef MPIREDUCEMEM
     Nmemlocal=Nlocal*(1.0+MPIExportFac);
     if (opt.iBaryonSearch) Nmemlocalbaryon=Nlocalbaryon[0]*(1.0+MPIExportFac);
-#else
-    Nlocal*=(1.0+MPIExportFac);
-#endif
     }
 }
 

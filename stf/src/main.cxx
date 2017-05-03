@@ -117,41 +117,32 @@ int main(int argc,char **argv)
     //read particle information and allocate memory
     time1=MyGetTime();
     //for MPI determine total number of particles AND the number of particles assigned to each processor
-#ifdef USEMPI
     if (ThisTask==0) {
-#endif
-    cout<<"Read header ... "<<endl;
-    nbodies=ReadHeader(opt);
-    if (opt.iBaryonSearch>0) {
-        for (int i=0;i<NBARYONTYPES;i++) Ntotalbaryon[i]=Nlocalbaryon[i]=0;
-        nbaryons=0;
-        int pstemp=opt.partsearchtype;
-        opt.partsearchtype=PSTGAS;
-        nbaryons+=ReadHeader(opt);
-        opt.partsearchtype=PSTSTAR;
-        nbaryons+=ReadHeader(opt);
-        opt.partsearchtype=PSTBH;
-        nbaryons+=ReadHeader(opt);
-        opt.partsearchtype=pstemp;
+        cout<<"Read header ... "<<endl;
+        nbodies=ReadHeader(opt);
+        if (opt.iBaryonSearch>0) {
+            for (int i=0;i<NBARYONTYPES;i++) Ntotalbaryon[i]=Nlocalbaryon[i]=0;
+            nbaryons=0;
+            int pstemp=opt.partsearchtype;
+            opt.partsearchtype=PSTGAS;
+            nbaryons+=ReadHeader(opt);
+            opt.partsearchtype=PSTSTAR;
+            nbaryons+=ReadHeader(opt);
+            opt.partsearchtype=PSTBH;
+            nbaryons+=ReadHeader(opt);
+            opt.partsearchtype=pstemp;
+        }
+        else nbaryons=0;
     }
-    else nbaryons=0;
 #ifdef USEMPI
-    }
     MPI_Bcast(&nbodies,1, MPI_Int_t,0,MPI_COMM_WORLD);
     if (opt.iBaryonSearch>0) MPI_Bcast(&nbaryons,1, MPI_Int_t,0,MPI_COMM_WORLD);
     //initial estimate need for memory allocation assuming that work balance is not greatly off
 #endif
-#ifndef MPIREDUCEMEM
-#ifdef USEMPI
-    if (ThisTask==0) 
-#endif
-    cout<<"There are "<<nbodies<<" particles that require "<<nbodies*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
-#ifdef USEMPI
-    if (opt.iBaryonSearch>0 && ThisTask==0) cout<<"There are "<<nbaryons<<" baryon particles that require "<<nbaryons*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
-#else
-    if (opt.iBaryonSearch>0) cout<<"There are "<<nbaryons<<" baryon particles that require "<<nbaryons*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
-#endif
-#endif
+    if (ThisTask==0) {
+        cout<<"There are "<<nbodies<<" particles in total that require "<<nbodies*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
+        if (opt.iBaryonSearch>0) cout<<"There are "<<nbaryons<<" baryon particles in total that require "<<nbaryons*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
+    }
 
     //note that for nonmpi particle array is a contiguous block of memory regardless of whether a separate baryon search is required
 #ifndef USEMPI
@@ -171,56 +162,51 @@ int main(int argc,char **argv)
     //for the simple reason that the local number of particles changes to ensure large fof groups are local to an mpi domain
     //however, when reading data, it is much simplier to have a contiguous block of memory, sort that memory (if necessary) 
     //and then split afterwards the dm particles and the baryons
-    Nlocal=nbodies/NProcs*MPIProcFac;
-    Nlocalbaryon[0]=nbaryons/NProcs*MPIProcFac;
-    NExport=NImport=Nlocal*MPIExportFac;
-#ifdef MPIREDUCEMEM
-    MPINumInDomain(opt);
     if (NProcs==1) {Nlocal=Nmemlocal=nbodies;NExport=NImport=1;}
-    cout<<ThisTask<<" There are "<<Nmemlocal<<" particles that require "<<Nmemlocal*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
-    if (opt.iBaryonSearch>0) cout<<ThisTask<<"There are "<<Nmemlocalbaryon<<" baryon particles that require "<<Nmemlocalbaryon*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
-#endif
-    if (opt.iBaryonSearch>0 && opt.partsearchtype!=PSTALL) {
+    else {
 #ifdef MPIREDUCEMEM
+        //if allocating reasonable amounts of memory, use MPIREDUCEMEM
+        //this determines number of particles in the mpi domains
+        MPINumInDomain(opt);
+        cout<<ThisTask<<" There are "<<Nlocal<<" particles and have allocated enough memory for "<<Nmemlocal<<" requiring "<<Nmemlocal*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
+        if (opt.iBaryonSearch>0) cout<<ThisTask<<"There are "<<Nlocalbaryon[0]<<" baryon particles and have allocated enough memory for "<<Nmemlocalbaryon<<" requiring "<<Nmemlocalbaryon*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
+#else
+        //otherwise just base on total number of particles * some factor and initialise the domains
+        MPIDomainExtent(opt);
+        MPIDomainDecomposition(opt);
+        MPIInitialDomainDecomposition();
+        Nlocal=nbodies/NProcs*MPIProcFac;
+        Nmemlocal=Nlocal;
+        Nlocalbaryon[0]=nbaryons/NProcs*MPIProcFac;
+        Nmemlocalbaryon=Nlocalbaryon[0];
+        NExport=NImport=Nlocal*MPIExportFac;
+        cout<<ThisTask<<" Have allocated enough memory for "<<Nmemlocal<<" requiring "<<Nmemlocal*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
+        if (opt.iBaryonSearch>0) cout<<" Have allocated enough memory for "<<Nmemlocalbaryon<<" baryons particles requiring "<<Nmemlocalbaryon*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
+#endif
+    }
+    if (opt.iBaryonSearch>0 && opt.partsearchtype!=PSTALL) {
         Pall=new Particle[Nmemlocal+Nmemlocalbaryon];
         Part=&Pall[0];
         Pbaryons=&Pall[Nlocal];
-#else
-
-        Pall=new Particle[Nlocal+Nlocalbaryon[0]];
-        Part=&Pall[0];
-        Pbaryons=&Pall[Nlocal];
-#endif
         nbaryons=Nlocalbaryon[0];
     }
     else {
-#ifdef MPIREDUCEMEM
         Part=new Particle[Nmemlocal];
-#else
-        Part=new Particle[Nlocal];
-#endif
         Pbaryons=NULL;
         nbaryons=0;
     }
 #endif
 
     //now read particle data
-#ifdef USEMPI
     if (ThisTask==0) 
-#endif
     cout<<"Loading ... "<<endl;
     ReadData(opt, Part, nbodies, Pbaryons, nbaryons);
 #ifdef USEMPI
     //if mpi and want separate baryon search then once particles are loaded into contigous block of memory and sorted according to type order, 
     //allocate memory for baryons
     if (opt.iBaryonSearch>0 && opt.partsearchtype!=PSTALL) {
-#ifdef MPIREDUCEMEM
         Part=new Particle[Nmemlocal];
         Pbaryons=new Particle[Nmemlocalbaryon];
-#else
-        Part=new Particle[Nlocal];
-        Pbaryons=new Particle[Nlocalbaryon[0]];
-#endif
         nbaryons=Nlocalbaryon[0];
         for (Int_t i=0;i<Nlocal;i++) Part[i]=Pall[i];
 

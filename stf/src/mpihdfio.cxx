@@ -15,7 +15,7 @@
 /*! 
     Determine the domain decomposition.\n
     Here the domains are constructured in data units
-    only ThisTask==0 should call this routine. It is tricky to get appropriate load balancing and correct number of particles per processor.\n
+    only read tasks should call this routine. It is tricky to get appropriate load balancing and correct number of particles per processor.\n
     
     I could use recursive binary splitting like kd-tree along most spread axis till have appropriate number of volumes corresponding 
     to number of processors. Or build a Peno-Hilbert space filling curve. 
@@ -211,8 +211,8 @@ void MPIDomainDecompositionHDF(Options &opt){
 ///reads HDF file to determine number of particles in each MPIDomain
 void MPINumInDomainHDF(Options &opt)
 {
-    MPIDomainExtentHDF(opt);
     if (NProcs>1) {
+    MPIDomainExtentHDF(opt);
     MPIDomainDecompositionHDF(opt);
     MPIInitialDomainDecomposition();
 
@@ -264,12 +264,22 @@ void MPINumInDomainHDF(Options &opt)
     int datarank;
     hsize_t datadim[5];
     Int_t Nlocalbuf,ibuf=0,*Nbuf, *Nbaryonbuf;
+    int *ireadfile,*ireadtask,*readtaskID;
+    ireadtask=new int[NProcs];
+    readtaskID=new int[opt.nsnapread];
+    ireadfile=new int[opt.num_files];
+    MPIDistributeReadTasks(opt,ireadtask,readtaskID);
 
-    ///array listing number of particle types used.
+    Nbuf=new Int_t[NProcs];
+    Nbaryonbuf=new Int_t[NProcs];
+    for (j=0;j<NProcs;j++) Nbuf[j]=0;
+    for (j=0;j<NProcs;j++) Nbaryonbuf[j]=0;
+
+        ///array listing number of particle types used.
     ///Since Illustris contains an unused type of particles (2) and tracer particles (3) really not useful to iterate over all particle types in loops
     int nusetypes,nbusetypes;
     int usetypes[NHDFTYPE];
-    if (ThisTask==0) {
+    if (ireadtask[ThisTask]>=0) {
         if (opt.partsearchtype==PSTALL) {
             //lets assume there are dm/stars/gas.
             nusetypes=3;
@@ -283,10 +293,6 @@ void MPINumInDomainHDF(Options &opt)
         else if (opt.partsearchtype==PSTSTAR) {nusetypes=1;usetypes[0]=HDFSTARTYPE;}
         else if (opt.partsearchtype==PSTBH) {nusetypes=1;usetypes[0]=HDFBHTYPE;}
 
-        Nbuf=new Int_t[NProcs];
-        Nbaryonbuf=new Int_t[NProcs];
-        for (j=0;j<NProcs;j++) Nbuf[j]=0;
-        for (j=0;j<NProcs;j++) Nbaryonbuf[j]=0;
         Fhdf=new H5File[opt.num_files];
         hdf_header_info=new HDF_Header[opt.num_files];
         headergroup=new Group[opt.num_files];
@@ -295,6 +301,7 @@ void MPINumInDomainHDF(Options &opt)
         partsgroup=new Group[opt.num_files*NHDFTYPE];
         partsdataset=new DataSet[opt.num_files*NHDFTYPE];
         partsdataspace=new DataSpace[opt.num_files*NHDFTYPE];
+        MPISetFilesRead(opt,ireadfile,ireadtask);
         for(i=0; i<opt.num_files; i++) {
             if(opt.num_files>1) sprintf(buf,"%s.%d.hdf5",opt.fname,i);
             else sprintf(buf,"%s.hdf5",opt.fname);
@@ -400,31 +407,16 @@ void MPINumInDomainHDF(Options &opt)
             Fhdf[i].close();
         }
     }
-    MPI_Barrier(MPI_COMM_WORLD);
-    if (ThisTask==0) {
-        Nlocal=Nbuf[ThisTask];
-        for(ibuf = 1; ibuf < NProcs; ibuf++)
-            MPI_Ssend(&Nbuf[ibuf],1,MPI_Int_t, ibuf, ibuf+NProcs, MPI_COMM_WORLD);
-    }
-    else {
-        MPI_Recv(&Nlocal, 1, MPI_Int_t, 0, ThisTask+NProcs, MPI_COMM_WORLD, &status);
-    }
+    //now having read number of particles, run all gather
+    Int_t mpi_nlocal[NProcs];
+    MPI_Allreduce(Nbuf,mpi_nlocal,NProcs,MPI_Int_t,MPI_SUM,MPI_COMM_WORLD);
+    Nlocal=mpi_nlocal[ThisTask];
     if (opt.iBaryonSearch) {
-        if (ThisTask==0) {
-            Nlocalbaryon[0]=Nbaryonbuf[ThisTask];
-            for(ibuf = 1; ibuf < NProcs; ibuf++)
-                MPI_Ssend(&Nbaryonbuf[ibuf],1,MPI_Int_t, ibuf, ibuf+NProcs, MPI_COMM_WORLD);
-        }
-        else {
-            MPI_Recv(&Nlocalbaryon[0], 1, MPI_Int_t, 0, ThisTask+NProcs, MPI_COMM_WORLD, &status);
-        }
+        MPI_Allreduce(Nbaryonbuf,mpi_nlocal,NProcs,MPI_Int_t,MPI_SUM,MPI_COMM_WORLD);
+        Nlocalbaryon[0]=mpi_nlocal[ThisTask];
     }
-#ifdef MPIREDUCEMEM
     Nmemlocal=Nlocal*(1.0+MPIExportFac);
     if (opt.iBaryonSearch) Nmemlocalbaryon=Nlocalbaryon[0]*(1.0+MPIExportFac);
-#else
-    Nlocal*=(1.0+MPIExportFac);
-#endif
     }
 }
 

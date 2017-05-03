@@ -37,9 +37,8 @@ extern int ThisTask, NProcs;
 extern Int_t Ntotal, NExport, NImport, Nlocal, Nlocaltot, Ngridtotal, Ngridlocal;
 ///array to store baryons in all, gas, star particles, BH particles, etc.
 extern Int_t Ntotalbaryon[NBARYONTYPES], Nlocalbaryon[NBARYONTYPES];
-#ifdef MPIREDUCEMEM
+///to store the amount of available memory
 extern Int_t Nmemlocal,Noldlocal,Nmemlocalbaryon;
-#endif
 ///buffer size (here in number of particles to send in one go)
 #define BufSize 1000000
 ///size of largest MPI chunck in bytes that can be sent in one go (here set by MPI count argument, which is max int)

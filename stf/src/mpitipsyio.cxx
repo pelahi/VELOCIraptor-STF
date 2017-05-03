@@ -169,14 +169,14 @@ void MPIDomainExtentTipsy(Options &opt){
         for (int j=0;j<3;j++) {if (star.pos[j]<mpi_xlim[j][0]) mpi_xlim[j][0]=star.pos[j];if (star.pos[j]>mpi_xlim[j][1]) mpi_xlim[j][1]=star.pos[j];}
         }
     }
-
-cout<<"MPI Domain Extent is :"<<endl;
-for (int k=0;k<3;k++) cout<<k<<" "<<mpi_xlim[k][0]<<" "<<mpi_xlim[k][1]<<endl;
     }
     //make sure limits have been found
     MPI_Barrier(MPI_COMM_WORLD);
 }
 
+///\todo place holder, need to implement the decomposition
+void MPIDomainDecompositionTipsy(Options &opt){
+}
 
 void MPINumInDomainTipsy(Options &opt)
 {

@@ -173,18 +173,14 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
     opt.HaloMinSize=MinNumOld;//reset minimum size
     Int_t newnbodies=MPIGroupExchange(nbodies,Part,pfof);
     //once groups are local, can free up memory
-#ifdef MPIREDUCEMEM
     if (Nmemlocal<Nlocal) {
-#endif
-    delete[] Part;
-    //store new particle data in mpi_Part1 as external variable ensures memory allocated is not deallocated when function returns
-    mpi_Part1=new Particle[newnbodies];
-    Part=mpi_Part1;
+        delete[] Part;
+        //store new particle data in mpi_Part1 as external variable ensures memory allocated is not deallocated when function returns
+        mpi_Part1=new Particle[newnbodies];
+        Part=mpi_Part1;
     //delete[] mpi_idlist;//since particles have now moved, must generate new list
     //mpi_idlist=new Int_t[newnbodies];
-#ifdef MPIREDUCEMEM
     }
-#endif
     delete[] mpi_foftask;
     delete[] pfof;
     pfof=new Int_t[newnbodies];
@@ -1537,6 +1533,7 @@ private(i,tid)
     //Now redistribute groups so that they are local to a processor (also orders the group ids according to size
     if (opt.iSingleHalo) opt.MinSize=MinNumOld;//reset minimum size
     Int_t newnbodies=MPIGroupExchange(nsubset,Partsubset,pfof);
+/*
 #ifndef MPIREDUCEMEM
     //once groups are local, can free up memory
     delete[] Partsubset;
@@ -1548,7 +1545,7 @@ private(i,tid)
     mpi_Part1=new Particle[newnbodies];
     Partsubset=mpi_Part1;
 #endif
-    
+*/    
     ///\todo Before final compilation of data, should have unbind here but must adjust unbind so it 
     ///does not call reordergroupids in it though it might be okay.
     //And compile the information and remove groups smaller than minsize
@@ -2572,9 +2569,9 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2)
 
         Int_t newnbaryons=MPIBaryonGroupExchange(nbaryons,Pbaryons,pfofbaryons);
         //once baryons are correctly associated to the appropriate mpi domain and are local (either in Pbaryons or in the \ref fofid_in structure, specifically FOFGroupData arrays) must then copy info correctly.
-#ifdef MPIREDUCEMEM
+//#ifdef MPIREDUCEMEM
         if (Nmemlocalbaryon<newnbaryons) 
-#endif
+//#endif
         {
         //note that if mpireduce is not set then all info is copied into the FOFGroupData structure and must deallocated and reallocate Pbaryon array
             delete[] Pbaryons;

@@ -184,10 +184,10 @@ void MPIDomainDecompositionRAMSES(Options &opt){
 ///\todo need to add code to read gas cell positions and send them to the appropriate mpi thead
 void MPINumInDomainRAMSES(Options &opt)
 {
-    MPIDomainExtentRAMSES(opt);
 
     if (NProcs > 1)
     {
+        MPIDomainExtentRAMSES(opt);
         MPIDomainDecompositionRAMSES(opt);
         MPIInitialDomainDecomposition();
         Int_t i,j,k,n,m,temp,Ntot,indark,ingas,instar;
@@ -214,13 +214,18 @@ void MPINumInDomainRAMSES(Options &opt)
         RAMSESFLOAT *xtempchunk, *mtempchunk, *agetempchunk;
         double dmp_mass;
         int n_out_of_bounds,ndark,nstar,nghost;
+        int *ireadfile,*ireadtask,*readtaskID;
+        ireadtask=new int[NProcs];
+        readtaskID=new int[opt.nsnapread];
+        ireadfile=new int[opt.num_files];
+        MPIDistributeReadTasks(opt,ireadtask,readtaskID);
 
+        Nbuf=new Int_t[NProcs];
+        Nbaryonbuf=new Int_t[NProcs];
+        for (int j=0;j<NProcs;j++) Nbuf[j]=0;
+        for (int j=0;j<NProcs;j++) Nbaryonbuf[j]=0;
 
-        if (ThisTask==0) {
-            Nbuf=new Int_t[NProcs];
-            Nbaryonbuf=new Int_t[NProcs];
-            for (int j=0;j<NProcs;j++) Nbuf[j]=0;
-            for (int j=0;j<NProcs;j++) Nbaryonbuf[j]=0;
+        if (ireadtask[ThisTask]>=0) {
 
             Fpart      = new fstream[opt.num_files];
             Fpartmass  = new fstream[opt.num_files];
@@ -243,12 +248,13 @@ void MPINumInDomainRAMSES(Options &opt)
             Framses.read((char*)&dummy, sizeof(dummy));
             Framses.read((char*)&dmp_mass, sizeof(double));    
             Framses.close();
+            MPISetFilesRead(opt,ireadfile,ireadtask);
         }
         //broadcast the dark matter mass as this will be used to determine
         //whether particle is dm/star/bh
         MPI_Bcast(&dmp_mass, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
-        if (ThisTask==0) {
+        if (ireadtask[ThisTask]>=0) {
             for (int i = 0, count2 = 0; i < opt.num_files; i++) {
                 sprintf(buf1,"%s/part_%s.out%05d",opt.fname,opt.ramsessnapname,i+1);
                 sprintf(buf2,"%s/part_%s.out",opt.fname,opt.ramsessnapname);
@@ -392,31 +398,16 @@ void MPINumInDomainRAMSES(Options &opt)
         }
 
         }
-        MPI_Barrier(MPI_COMM_WORLD);
-        if (ThisTask==0) {
-            Nlocal=Nbuf[ThisTask];
-            for(ibuf = 1; ibuf < NProcs; ibuf++)
-                MPI_Ssend(&Nbuf[ibuf],1,MPI_Int_t, ibuf, ibuf+NProcs, MPI_COMM_WORLD);
-        }
-        else {
-            MPI_Recv(&Nlocal, 1, MPI_Int_t, 0, ThisTask+NProcs, MPI_COMM_WORLD, &status);
-        }
+        //now having read number of particles, run all gather
+        Int_t mpi_nlocal[NProcs];
+        MPI_Allreduce(Nbuf,mpi_nlocal,NProcs,MPI_Int_t,MPI_SUM,MPI_COMM_WORLD);
+        Nlocal=mpi_nlocal[ThisTask];
         if (opt.iBaryonSearch) {
-            if (ThisTask==0) {
-                Nlocalbaryon[0]=Nbaryonbuf[ThisTask];
-                for(ibuf = 1; ibuf < NProcs; ibuf++)
-                    MPI_Ssend(&Nbaryonbuf[ibuf],1,MPI_Int_t, ibuf, ibuf+NProcs, MPI_COMM_WORLD);
-            }
-            else {
-                MPI_Recv(&Nlocalbaryon[0], 1, MPI_Int_t, 0, ThisTask+NProcs, MPI_COMM_WORLD, &status);
-            }
+            MPI_Allreduce(Nbaryonbuf,mpi_nlocal,NProcs,MPI_Int_t,MPI_SUM,MPI_COMM_WORLD);
+            Nlocalbaryon[0]=mpi_nlocal[ThisTask];
         }
-#ifdef MPIREDUCEMEM
     Nmemlocal=Nlocal*(1.0+MPIExportFac);
     if (opt.iBaryonSearch) Nmemlocalbaryon=Nlocalbaryon[0]*(1.0+MPIExportFac);
-#else
-    Nlocal*=(1.0+MPIExportFac);
-#endif
     }
 }
 

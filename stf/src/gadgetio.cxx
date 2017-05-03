@@ -87,15 +87,8 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
         sphtempchunk=new FLOAT[NUMGADGETSPHBLOCKS*chunksize];
         startempchunk=new FLOAT[NUMGADGETSTARBLOCKS*chunksize];
         bhtempchunk=new FLOAT[NUMGADGETBHBLOCKS*chunksize];
-
-        //to determine which files the thread should read
         ireadfile=new int[opt.num_files];
-        for (i=0;i<opt.num_files;i++) ireadfile[i]=0;
-        int nread=opt.num_files/opt.nsnapread;
-        int niread=ireadtask[ThisTask]*nread,nfread=(ireadtask[ThisTask]+1)*nread;
-        if (ireadtask[ThisTask]==opt.nsnapread-1) nfread=opt.num_files;
-        for (i=niread;i<nfread;i++) ireadfile[i]=1;
-        ifirstfile=niread;
+        ifirstfile=MPISetFilesRead(opt,ireadfile,ireadtask);
     }
     else {
         Nlocalthreadbuf=new Int_t[opt.nsnapread];
@@ -107,14 +100,7 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     Nlocal=0;
     if (opt.iBaryonSearch) Nlocalbaryon[0]=0;
 
-#ifndef MPIREDUCEMEM
-    MPIDomainExtentGadget(opt);
-    if (NProcs>1) {
-    MPIDomainDecompositionGadget(opt);
-    MPIInitialDomainDecomposition();
-    }
-    MPI_Barrier(MPI_COMM_WORLD);
-#endif
+
     if (ireadtask[ThisTask]>=0) {
 #endif
     //opening file
@@ -1328,12 +1314,12 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
         if (opt.iBaryonSearch && opt.partsearchtype!=PSTALL) {
             for (i=0;i<Nlocal;i++) {
                 k=Part[i].GetType();
-                if (!(k==GGASTYPE||k==GSTARTYPE||k==GBHTYPE)) Part[i].SetID(0);
+                if (!(k==GASTYPE||k==STARTYPE||k==BHTYPE)) Part[i].SetID(0);
                 else {
                     Nlocalbaryon[0]++;
-                    if  (k==GGASTYPE) {Part[i].SetID(1);Nlocalbaryon[1]++;}
-                    else if  (k==GSTARTYPE) {Part[i].SetID(2);Nlocalbaryon[2]++;}
-                    else if  (k==GBHTYPE) {Part[i].SetID(3);Nlocalbaryon[3]++;}
+                    if  (k==GASTYPE) {Part[i].SetID(1);Nlocalbaryon[1]++;}
+                    else if  (k==STARTYPE) {Part[i].SetID(2);Nlocalbaryon[2]++;}
+                    else if  (k==BHTYPE) {Part[i].SetID(3);Nlocalbaryon[3]++;}
                 }
             }
             //sorted so that dark matter particles first, baryons after
@@ -1343,7 +1329,7 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
             for (i=0;i<Nlocal;i++) Part[i].SetID(i);
             for (i=0;i<Nlocalbaryon[0];i++) Part[i+Nlocal].SetID(i+Nlocal);
             //finally, need to move baryons forward by the Export Factor * Nlocal as need that extra buffer to copy data two and from mpi threads
-            for (i=Nlocalbaryon[0]-1;i>=0;i--) Part[i+(Int_t)(Nlocal*MPIExportFac)]=Part[i+Nlocal];
+//            for (i=Nlocalbaryon[0]-1;i>=0;i--) Part[i+(Int_t)(Nlocal*MPIExportFac)]=Part[i+Nlocal];
         }
     }
     //finally need to send info between read threads once all threads reading data have broadcasted the data appropriately to all other threads

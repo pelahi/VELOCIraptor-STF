@@ -424,6 +424,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     int lmin=1000000,lmax=0;
 
     int ifirstfile=0,*ireadfile,ibuf=0;
+    int *ireadtask,*readtaskID;
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
     ireadfile=new int[opt.num_files];
@@ -460,12 +461,15 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
 
     Nbuf=new Int_t[NProcs];
     nreadoffset=new Int_t[opt.nsnapread];
+    ireadtask=new int[NProcs];
+    readtaskID=new int[opt.nsnapread];
+    MPIDistributeReadTasks(opt,ireadtask,readtaskID);
 
     int nread;
     int niread;
     int nfread;
     
-    if (ThisTask<opt.nsnapread)
+    if (ireadtask[ThisTask]>=0)
     {
         //to temporarily store data from gadget file
         Pbuf=new Particle[BufSize*NProcs];
@@ -475,13 +479,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
 
         //to determine which files the thread should read
         ireadfile=new int[opt.num_files];
-        for (i=0;i<opt.num_files;i++) ireadfile[i]=0;
-        nread=opt.num_files/opt.nsnapread;
-        niread=ThisTask*nread;
-        nfread=(ThisTask+1)*nread;
-        if (ThisTask==opt.nsnapread-1) nfread=opt.num_files;
-        for (i=niread;i<nfread;i++) ireadfile[i]=1;
-        ifirstfile=niread;
+        ifirstfile=MPISetFilesRead(opt,ireadfile,ireadtask);
     }
     else {
         Nlocalthreadbuf=new Int_t[opt.nsnapread];
@@ -493,15 +491,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     Nlocal=0;
     if (opt.iBaryonSearch) Nlocalbaryon[0]=0;
 
-#ifndef MPIREDUCEMEM
-    MPIDomainExtentRAMSES(opt);
-    if (NProcs>1) {
-    MPIDomainDecompositionRAMSES(opt);
-    MPIInitialDomainDecomposition();
-    }
-    MPI_Barrier(MPI_COMM_WORLD);
-#endif
-    if (ThisTask<opt.nsnapread) {
+    if (ireadtask[ThisTask]>=0) {
 #endif
 
     //first read cosmological information
@@ -581,7 +571,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     //if not only gas being searched open particle data
     count2=bcount2=0;
     if (opt.partsearchtype!=PSTGAS) {
-    if (ThisTask<opt.nsnapread) {
+    if (ireadtask[ThisTask]>=0) {
     //read particle files consists of positions,velocities, mass, id, and level (along with ages and met if some flags set)
     for (i=0;i<opt.num_files;i++) if (ireadfile[i]) {
         sprintf(buf1,"%s/part_%s.out%05d",opt.fname,opt.ramsessnapname,i+1);
@@ -875,13 +865,12 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
 #endif
     }
 #ifdef USEMPI
-    //if not reading information than waiting to receive information
     else {
         //for all threads not reading snapshots, simply receive particles as necessary from all threads involved with reading the data
         //first determine which threads are going to send information to this thread.
         for (i=0;i<opt.nsnapread;i++) if (irecv[i]) {
             mpi_irecvflag[i]=0;
-            MPI_Irecv(&Nlocalthreadbuf[i], 1, MPI_Int_t, i, ThisTask+NProcs, MPI_COMM_WORLD, &mpi_request[i]);
+            MPI_Irecv(&Nlocalthreadbuf[i], 1, MPI_Int_t, readtaskID[i], ThisTask+NProcs, MPI_COMM_WORLD, &mpi_request[i]);
         }
         Nlocaltotalbuf=0;
         //non-blocking receives for the number of particles one expects to receive
@@ -893,11 +882,11 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                     MPI_Test(&mpi_request[i], &mpi_irecvflag[i], &status);
                     if (mpi_irecvflag[i]) {
                         if (Nlocalthreadbuf[i]>0) {
-                            MPI_Recv(&Part[Nlocal],sizeof(Particle)*Nlocalthreadbuf[i],MPI_BYTE,i,ThisTask, MPI_COMM_WORLD,&status);
+                            MPI_Recv(&Part[Nlocal],sizeof(Particle)*Nlocalthreadbuf[i],MPI_BYTE,readtaskID[i],ThisTask, MPI_COMM_WORLD,&status);
                             Nlocal+=Nlocalthreadbuf[i];
                             Nlocaltotalbuf+=Nlocalthreadbuf[i];
                             mpi_irecvflag[i]=0;
-                            MPI_Irecv(&Nlocalthreadbuf[i], 1, MPI_Int_t, i, ThisTask+NProcs, MPI_COMM_WORLD, &mpi_request[i]);
+                            MPI_Irecv(&Nlocalthreadbuf[i], 1, MPI_Int_t, readtaskID[i], ThisTask+NProcs, MPI_COMM_WORLD, &mpi_request[i]);
                         }
                         else {
                             irecv[i]=0;
@@ -908,7 +897,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
             for (i=0;i<opt.nsnapread;i++) irecvflag+=irecv[i];
         } while(irecvflag>0);
         //now that data is local, must adjust data iff a separate baryon search is required. 
-        if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) {
+        if (opt.iBaryonSearch && opt.partsearchtype!=PSTALL) {
             for (i=0;i<Nlocal;i++) {
                 k=Part[i].GetType();
                 if (!(k==GASTYPE||k==STARTYPE||k==BHTYPE)) Part[i].SetID(0);
@@ -926,9 +915,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
             for (i=0;i<Nlocal;i++) Part[i].SetID(i);
             for (i=0;i<Nlocalbaryon[0];i++) Part[i+Nlocal].SetID(i+Nlocal);
             //finally, need to move baryons forward by the Export Factor * Nlocal as need that extra buffer to copy data two and from mpi threads
-//#ifndef MPIREDUCE
 //            for (i=Nlocalbaryon[0]-1;i>=0;i--) Part[i+(Int_t)(Nlocal*MPIExportFac)]=Part[i+Nlocal];
-//#endif
         }
     }
 #endif
@@ -936,7 +923,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
 
     //if gas searched in some fashion then load amr/hydro data
     if (opt.partsearchtype==PSTGAS||opt.partsearchtype==PSTALL||(opt.partsearchtype==PSTDARK&&opt.iBaryonSearch)) {
-    if (ThisTask<opt.nsnapread) {
+    if (ireadtask[ThisTask]>=0) {
     for (i=0;i<opt.num_files;i++) if (ireadfile[i]) {
         sprintf(buf1,"%s/amr_%s.out%s%05d",opt.fname,opt.ramsessnapname,i+1);
         sprintf(buf2,"%s/amr_%s.out%s",opt.fname,opt.ramsessnapname);
@@ -1203,7 +1190,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
         //first determine which threads are going to send information to this thread.
         for (i=0;i<opt.nsnapread;i++) if (irecv[i]) {
             mpi_irecvflag[i]=0;
-            MPI_Irecv(&Nlocalthreadbuf[i], 1, MPI_Int_t, i, ThisTask+NProcs, MPI_COMM_WORLD, &mpi_request[i]);
+            MPI_Irecv(&Nlocalthreadbuf[i], 1, MPI_Int_t, readtaskID[i], ThisTask+NProcs, MPI_COMM_WORLD, &mpi_request[i]);
         }
         Nlocaltotalbuf=0;
         //non-blocking receives for the number of particles one expects to receive
@@ -1215,11 +1202,11 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                     MPI_Test(&mpi_request[i], &mpi_irecvflag[i], &status);
                     if (mpi_irecvflag[i]) {
                         if (Nlocalthreadbuf[i]>0) {
-                            MPI_Recv(&Part[Nlocal],sizeof(Particle)*Nlocalthreadbuf[i],MPI_BYTE,i,ThisTask, MPI_COMM_WORLD,&status);
+                            MPI_Recv(&Part[Nlocal],sizeof(Particle)*Nlocalthreadbuf[i],MPI_BYTE,readtaskID[i],ThisTask, MPI_COMM_WORLD,&status);
                             Nlocal+=Nlocalthreadbuf[i];
                             Nlocaltotalbuf+=Nlocalthreadbuf[i];
                             mpi_irecvflag[i]=0;
-                            MPI_Irecv(&Nlocalthreadbuf[i], 1, MPI_Int_t, i, ThisTask+NProcs, MPI_COMM_WORLD, &mpi_request[i]);
+                            MPI_Irecv(&Nlocalthreadbuf[i], 1, MPI_Int_t, readtaskID[i], ThisTask+NProcs, MPI_COMM_WORLD, &mpi_request[i]);
                         }
                         else {
                             irecv[i]=0;
@@ -1230,7 +1217,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
             for (i=0;i<opt.nsnapread;i++) irecvflag+=irecv[i];
         } while(irecvflag>0);
         //now that data is local, must adjust data iff a separate baryon search is required. 
-        if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) {
+        if (opt.iBaryonSearch && opt.partsearchtype!=PSTALL) {
             for (i=0;i<Nlocal;i++) {
                 k=Part[i].GetType();
                 if (!(k==GASTYPE||k==STARTYPE||k==BHTYPE)) Part[i].SetID(0);
@@ -1247,10 +1234,6 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
             //index type separated
             for (i=0;i<Nlocal;i++) Part[i].SetID(i);
             for (i=0;i<Nlocalbaryon[0];i++) Part[i+Nlocal].SetID(i+Nlocal);
-            //finally, need to move baryons forward by the Export Factor * Nlocal as need that extra buffer to copy data two and from mpi threads
-//#ifndef MPIREDUCE
-//            for (i=Nlocalbaryon[0]-1;i>=0;i--) Part[i+(Int_t)(Nlocal*MPIExportFac)]=Part[i+Nlocal];
-//#endif
         }
     }
 #endif

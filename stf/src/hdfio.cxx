@@ -223,13 +223,7 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
 
         //to determine which files the thread should read
         ireadfile=new int[opt.num_files];
-        for (i=0;i<opt.num_files;i++) ireadfile[i]=0;
-        int nread=opt.num_files/opt.nsnapread;
-        int niread=ireadtask[ThisTask]*nread,nfread=(ireadtask[ThisTask]+1)*nread;
-        if (ireadtask[ThisTask]==opt.nsnapread-1) nfread=opt.num_files;
-        for (i=niread;i<nfread;i++) ireadfile[i]=1;
-        ifirstfile=niread;
-
+        ifirstfile=MPISetFilesRead(opt,ireadfile,ireadtask);
     }
     else {
         Nlocalthreadbuf=new Int_t[opt.nsnapread];
@@ -241,14 +235,6 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
     Nlocal=0;
     if (opt.iBaryonSearch) Nlocalbaryon[0]=0;
 
-#ifndef MPIREDUCEMEM
-    MPIDomainExtentHDF(opt);
-    if (NProcs>1) {
-    MPIDomainDecompositionHDF(opt);
-    MPIInitialDomainDecomposition();
-    }
-    MPI_Barrier(MPI_COMM_WORLD);
-#endif
     if (ireadtask[ThisTask]>=0) {
 #endif
     //read the header 
@@ -1739,10 +1725,6 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
             //index type separated
             for (i=0;i<Nlocal;i++) Part[i].SetID(i);
             for (i=0;i<Nlocalbaryon[0];i++) Part[i+Nlocal].SetID(i+Nlocal);
-            //finally, need to move baryons forward by the Export Factor * Nlocal as need that extra buffer to copy data two and from mpi threads
-//#ifndef MPIREDUCE
-//            for (i=Nlocalbaryon[0]-1;i>=0;i--) Part[i+(Int_t)(Nlocal*MPIExportFac)]=Part[i+Nlocal];
-//#endif
         }
     }
 

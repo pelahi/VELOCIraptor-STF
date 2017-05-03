@@ -98,11 +98,37 @@ void MPIInitialDomainDecomposition(){
 
 void MPINumInDomain(Options &opt)
 {
+    //when reading number in domain, use all available threads to read all available files
+    //first set number of read threads to either total number of mpi process or files, which ever is smaller
+    //store old number of read threads
+    int nsnapread=opt.nsnapread;
+    opt.nsnapread=min(NProcs,opt.num_files);
     if(opt.inputtype==IOTIPSY) MPINumInDomainTipsy(opt);
     else if (opt.inputtype==IOGADGET) MPINumInDomainGadget(opt);
     else if (opt.inputtype==IORAMSES) MPINumInDomainRAMSES(opt);
 #ifdef USEHDF
     else if (opt.inputtype==IOHDF) MPINumInDomainHDF(opt);
+#endif
+    opt.nsnapread=nsnapread;
+}
+
+void MPIDomainExtent(Options &opt)
+{
+    if(opt.inputtype==IOTIPSY) MPIDomainExtentTipsy(opt);
+    else if (opt.inputtype==IOGADGET) MPIDomainExtentGadget(opt);
+    else if (opt.inputtype==IORAMSES) MPIDomainExtentRAMSES(opt);
+#ifdef USEHDF
+    else if (opt.inputtype==IOHDF) MPIDomainExtentHDF(opt);
+#endif
+}
+
+void MPIDomainDecomposition(Options &opt)
+{
+    if(opt.inputtype==IOTIPSY) MPIDomainDecompositionTipsy(opt);
+    else if (opt.inputtype==IOGADGET) MPIDomainDecompositionGadget(opt);
+    else if (opt.inputtype==IORAMSES) MPIDomainDecompositionRAMSES(opt);
+#ifdef USEHDF
+    else if (opt.inputtype==IOHDF) MPIDomainDecompositionHDF(opt);
 #endif
 }
 
@@ -117,6 +143,7 @@ void MPIAdjustDomain(Options opt){
 
 ///given a position and a mpi thread domain information, determine which processor a particle is assigned to
 int MPIGetParticlesProcessor(Double_t x,Double_t y, Double_t z){
+    if (NProcs==1) return 0;
     for (int j=0;j<NProcs;j++){
         if( (mpi_domain[j].bnd[0][0]<=x) && (mpi_domain[j].bnd[0][1]>=x)&&
             (mpi_domain[j].bnd[1][0]<=y) && (mpi_domain[j].bnd[1][1]>=y)&&
@@ -133,6 +160,7 @@ int MPIGetParticlesProcessor(Double_t x,Double_t y, Double_t z){
 ///search if some region is in the local mpi domain
 int MPIInDomain(Double_t xsearch[3][2], Double_t bnd[3][2]){
     Double_t xsearchp[3][2];
+    if (NProcs==1) return 1;
     if (!((bnd[0][1] < xsearch[0][0]) || (bnd[0][0] > xsearch[0][1]) ||
         (bnd[1][1] < xsearch[1][0]) || (bnd[1][0] > xsearch[1][1]) ||
         (bnd[2][1] < xsearch[2][0]) || (bnd[2][0] > xsearch[2][1])))
@@ -361,6 +389,17 @@ void MPIDistributeReadTasks(Options&opt, int *&ireadtask, int*&readtaskID){
     for (int i=0;i<NProcs;i++) ireadtask[i]=-1;
     int spacing=max(1,(int)floor(NProcs/opt.nsnapread));
     for (int i=0;i<opt.nsnapread;i++) {ireadtask[i*spacing]=i;readtaskID[i]=i*spacing;}
+}
+
+int MPISetFilesRead(Options&opt, int *&ireadfile, int *&ireadtask){
+    //to determine which files the thread should read
+    ireadfile=new int[opt.num_files];
+    for (int i=0;i<opt.num_files;i++) ireadfile[i]=0;
+    int nread=opt.num_files/opt.nsnapread;
+    int niread=ireadtask[ThisTask]*nread,nfread=(ireadtask[ThisTask]+1)*nread;
+    if (ireadtask[ThisTask]==opt.nsnapread-1) nfread=opt.num_files;
+    for (int i=niread;i<nfread;i++) ireadfile[i]=1;
+    return niread;
 }
 //@}
 
@@ -1251,7 +1290,6 @@ Int_t MPIGroupExchange(const Int_t nbodies, Particle *&Part, Int_t *&pfof){
     if (nexport >0) FoFGroupDataExport=new fofid_in[nexport];
     else FoFGroupDataExport=new fofid_in[1];
 
-#ifdef MPIREDUCEMEM
     Int_t *storeval=new Int_t[nbodies];
     //if trying to reduce memory allocation,  if nlocal < than the memory allocated adjust local list so that all particles to be exported are near the end. 
     //and allocate the appropriate memory for pfof and mpi_idlist. otherwise, need to actually copy the particle data into FoFGroupDataLocal and proceed
@@ -1299,23 +1337,17 @@ Int_t MPIGroupExchange(const Int_t nbodies, Particle *&Part, Int_t *&pfof){
         for (i=nn;i<nbodies;i++) Part[i].SetID(i);
     }
     delete[] storeval;
-#endif
     //determine offsets in arrays so that data contiguous with regards to processors for broadcasting
     //offset on transmitter end
     noffset_export[0]=0;
     for (j=1;j<NProcs;j++) noffset_export[j]=noffset_export[j-1]+mpi_nsend[(j-1)+ThisTask*NProcs];
     //offset on receiver end
     for (j=0;j<NProcs;j++) {
-#ifdef MPIREDUCEMEM
         if (nlocal<Nmemlocal) noffset_import[j]=0;
         else noffset_import[j]=nbodies-nexport;
-#else
-        noffset_import[j]=nbodies-nexport;
-#endif
         if (j!=ThisTask) for (int k=0;k<j;k++)noffset_import[j]+=mpi_nsend[ThisTask+k*NProcs];
     }
     for (j=0;j<NProcs;j++) nbuffer[j]=0;
-#ifdef MPIREDUCEMEM
     for (i=nbodies-nexport;i<nbodies;i++) {
         //now set particle ID to global index value,
         //note that particle PID contains global particle ID value
@@ -1330,28 +1362,6 @@ Int_t MPIGroupExchange(const Int_t nbodies, Particle *&Part, Int_t *&pfof){
         }
         nbuffer[task]++;
     }
-#else
-    FoFGroupDataLocal=new fofid_in[nlocal];
-    for (i=0;i<nbodies;i++) {
-        //if particle belongs to group that should belong on a different mpi thread, store for broadcasting
-
-        task=mpi_foftask[i];
-        if (task!=ThisTask) {
-            FoFGroupDataExport[noffset_export[task]+nbuffer[task]].p=Part[i];
-            FoFGroupDataExport[noffset_export[task]+nbuffer[task]].Index = i;
-            FoFGroupDataExport[noffset_export[task]+nbuffer[task]].Task = task;
-            FoFGroupDataExport[noffset_export[task]+nbuffer[task]].iGroup = pfof[i];
-        }
-        //otherwise, store locally
-        else {
-            FoFGroupDataLocal[nbuffer[task]].p=Part[i];
-            FoFGroupDataLocal[nbuffer[task]].Index = i;
-            FoFGroupDataLocal[nbuffer[task]].Task = ThisTask;
-            FoFGroupDataLocal[nbuffer[task]].iGroup = pfof[i];
-        }
-        nbuffer[task]++;
-    }
-#endif
     //now send the data.
     ///\todo In determination of particle export for FOF routines, eventually need to place a check for the communication buffer so that if exported number 
     ///is larger than the size of the buffer, iterate over the number exported
@@ -1371,13 +1381,6 @@ Int_t MPIGroupExchange(const Int_t nbodies, Particle *&Part, Int_t *&pfof){
                     &FoFGroupDataLocal[noffset_import[recvTask]],
                     mpi_nsend[ThisTask+recvTask * NProcs] * sizeof(struct fofid_in),
                     MPI_BYTE, recvTask, TAG_FOF_C, MPI_COMM_WORLD, &status);
-/*                MPI_Sendrecv(&FoFGroupDataExport[noffset_export[recvTask]],
-                    mpi_nsend[recvTask+ThisTask*NProcs] * sizeof(struct fofid_in), MPI_BYTE,
-                    recvTask, TAG_FOF_C,
-                    &FoFGroupDataLocal[noffset_import[recvTask]],
-                    mpi_nsend[ThisTask+recvTask * NProcs] * sizeof(struct fofid_in),
-                    MPI_BYTE, recvTask, TAG_FOF_C, MPI_COMM_WORLD, &status);
-                    */
             }
         }
     }
@@ -1415,7 +1418,6 @@ Int_t MPIBaryonGroupExchange(const Int_t nbodies, Particle *&Part, Int_t *&pfof)
     if (nexport >0) FoFGroupDataExport=new fofid_in[nexport];
     else FoFGroupDataExport=new fofid_in[1];
 
-#ifdef MPIREDUCEMEM
     Nmemlocalbaryon=Nlocalbaryon[0];
     for (i=0;i<nbodies;i++) Part[i].SetID(i);
     Int_t *storeval=new Int_t[nbodies];
@@ -1461,23 +1463,17 @@ Int_t MPIBaryonGroupExchange(const Int_t nbodies, Particle *&Part, Int_t *&pfof)
         for (i=nn;i<nbodies;i++) Part[i].SetID(i);
     }
     delete[] storeval;
-#endif
     //determine offsets in arrays so that data contiguous with regards to processors for broadcasting
     //offset on transmitter end
     noffset_export[0]=0;
     for (j=1;j<NProcs;j++) noffset_export[j]=noffset_export[j-1]+mpi_nsend[(j-1)+ThisTask*NProcs];
     //offset on receiver end
     for (j=0;j<NProcs;j++) {
-#ifdef MPIREDUCEMEM
         if (nlocal<Nlocalbaryon[0]) noffset_import[j]=0;
         else noffset_import[j]=nbodies-nexport;
-#else
-        noffset_import[j]=nbodies-nexport;
-#endif
         if (j!=ThisTask) for (int k=0;k<j;k++)noffset_import[j]+=mpi_nsend[ThisTask+k*NProcs];
     }
     for (j=0;j<NProcs;j++) nbuffer[j]=0;
-#ifdef MPIREDUCEMEM
     for (i=nbodies-nexport;i<nbodies;i++) {
         //if particle belongs to group that should belong on a different mpi thread, store for broadcasting
         task=mpi_foftask[i];
@@ -1489,30 +1485,6 @@ Int_t MPIBaryonGroupExchange(const Int_t nbodies, Particle *&Part, Int_t *&pfof)
         }
         nbuffer[task]++;
     }
-#else
-    FoFGroupDataLocal=new fofid_in[nlocal];
-    for (i=0;i<nbodies;i++) {
-        //now set particle ID to global index value,
-        //note that particle PID contains global particle ID value
-        //if particle belongs to group that should belong on a different mpi thread, store for broadcasting
-
-        task=mpi_foftask[i];
-        if (task!=ThisTask) {
-            FoFGroupDataExport[noffset_export[task]+nbuffer[task]].p=Part[i];
-            FoFGroupDataExport[noffset_export[task]+nbuffer[task]].Index = i;
-            FoFGroupDataExport[noffset_export[task]+nbuffer[task]].Task = task;
-            FoFGroupDataExport[noffset_export[task]+nbuffer[task]].iGroup = pfof[i];
-        }
-        //otherwise, store locally
-        else {
-            FoFGroupDataLocal[nbuffer[task]].p=Part[i];
-            FoFGroupDataLocal[nbuffer[task]].Index = i;
-            FoFGroupDataLocal[nbuffer[task]].Task = ThisTask;
-            FoFGroupDataLocal[nbuffer[task]].iGroup = pfof[i];
-        }
-        nbuffer[task]++;
-    }
-#endif
     //now send the data.
     ///\todo In determination of particle export for FOF routines, eventually need to place a check for the communication buffer so that if exported number 
     ///is larger than the size of the buffer, iterate over the number exported
@@ -1546,7 +1518,6 @@ Int_t MPICompileGroups(const Int_t nbodies, Particle *&Part, Int_t *&pfof, Int_t
     ngroups=0;
     //if minimizing memory load when using mpi (by adding extra routines to determine memory required) 
     //first check to see if local memory is enough to contained expected number of particles
-#ifdef MPIREDUCEMEM
     //if local mem is enough, copy data from the FoFGroupDataLocal 
     if(Nmemlocal>nbodies) {
         for (i=Noldlocal;i<nbodies;i++) {
@@ -1590,46 +1561,43 @@ Int_t MPICompileGroups(const Int_t nbodies, Particle *&Part, Int_t *&pfof, Int_t
         //for (i=0;i<nbodies;i++) mpi_idlist[i]=Part[i].GetPID();
     }
     else {
-#endif
-    //sort local list
-    qsort(FoFGroupDataLocal, nbodies, sizeof(struct fofid_in), fof_id_cmp);
-    //determine the # of groups, their size and the current group ID
-    for (i=0,start=0;i<nbodies;i++) {
-        if (FoFGroupDataLocal[i].iGroup!=FoFGroupDataLocal[start].iGroup) {
-            if ((i-start)<minsize){
-                for (Int_t j=start;j<i;j++) FoFGroupDataLocal[j].iGroup=0;
+        //sort local list
+        qsort(FoFGroupDataLocal, nbodies, sizeof(struct fofid_in), fof_id_cmp);
+        //determine the # of groups, their size and the current group ID
+        for (i=0,start=0;i<nbodies;i++) {
+            if (FoFGroupDataLocal[i].iGroup!=FoFGroupDataLocal[start].iGroup) {
+                if ((i-start)<minsize){
+                    for (Int_t j=start;j<i;j++) FoFGroupDataLocal[j].iGroup=0;
+                }
+                else ngroups++;
+                start=i;
             }
-            else ngroups++;
-            start=i;
+            if (FoFGroupDataLocal[i].iGroup==0) break;
         }
-        if (FoFGroupDataLocal[i].iGroup==0) break;
-    }
-    //now sort again which will put particles group then id order, and determine size of groups and their current group id;
-    qsort(FoFGroupDataLocal, nbodies, sizeof(struct fofid_in), fof_id_cmp);
-    numingroup=new Int_t[ngroups+1];
-    plist=new Int_t*[ngroups+1];
-    ngroups=1;//offset as group zero is untagged
-    for (i=0,start=0;i<nbodies;i++) {
-        if (FoFGroupDataLocal[i].iGroup!=FoFGroupDataLocal[start].iGroup) {
-            numingroup[ngroups]=i-start;
-            plist[ngroups]=new Int_t[numingroup[ngroups]];
-            for (Int_t j=start,count=0;j<i;j++) plist[ngroups][count++]=j;
-            ngroups++;
-            start=i;
+        //now sort again which will put particles group then id order, and determine size of groups and their current group id;
+        qsort(FoFGroupDataLocal, nbodies, sizeof(struct fofid_in), fof_id_cmp);
+        numingroup=new Int_t[ngroups+1];
+        plist=new Int_t*[ngroups+1];
+        ngroups=1;//offset as group zero is untagged
+        for (i=0,start=0;i<nbodies;i++) {
+            if (FoFGroupDataLocal[i].iGroup!=FoFGroupDataLocal[start].iGroup) {
+                numingroup[ngroups]=i-start;
+                plist[ngroups]=new Int_t[numingroup[ngroups]];
+                for (Int_t j=start,count=0;j<i;j++) plist[ngroups][count++]=j;
+                ngroups++;
+                start=i;
+            }
+            if (FoFGroupDataLocal[i].iGroup==0) break;
         }
-        if (FoFGroupDataLocal[i].iGroup==0) break;
+        ngroups--;
+        for (i=0;i<nbodies;i++) pfof[i]=FoFGroupDataLocal[i].iGroup;
+        //and store the particles global ids
+        for (i=0;i<nbodies;i++) {
+            Part[i]=FoFGroupDataLocal[i].p;
+            Part[i].SetID(i);
+            //mpi_idlist[i]=FoFGroupDataLocal[i].p.GetPID();
+        }
     }
-    ngroups--;
-    for (i=0;i<nbodies;i++) pfof[i]=FoFGroupDataLocal[i].iGroup;
-    //and store the particles global ids
-    for (i=0;i<nbodies;i++) {
-        Part[i]=FoFGroupDataLocal[i].p;
-        Part[i].SetID(i);
-        //mpi_idlist[i]=FoFGroupDataLocal[i].p.GetPID();
-    }
-#ifdef MPIREDUCEMEM
-    }
-#endif
     //reorder groups ids according to size
     ReorderGroupIDs(ngroups,ngroups,numingroup,pfof,plist);
     for (i=1;i<=ngroups;i++) delete[] plist[i];
@@ -1650,7 +1618,6 @@ Int_t MPIBaryonCompileGroups(const Int_t nbodies, Particle *&Part, Int_t *&pfof,
 
     //if minimizing memory load when using mpi (by adding extra routines to determine memory required) 
     //first check to see if local memory is enough to contained expected number of particles
-#ifdef MPIREDUCEMEM
     //if local mem is enough, copy data from the FoFGroupDataLocal 
     if(Nmemlocalbaryon>nbodies) {
         for (i=Noldlocal;i<nbodies;i++) {
@@ -1690,45 +1657,42 @@ Int_t MPIBaryonCompileGroups(const Int_t nbodies, Particle *&Part, Int_t *&pfof,
         ngroups--;
     }
     else {
-#endif
-    //sort local list
-    qsort(FoFGroupDataLocal, nbodies, sizeof(struct fofid_in), fof_id_cmp);
-    //determine the # of groups, their size and the current group ID
-    for (i=0,start=0;i<nbodies;i++) {
-        if (FoFGroupDataLocal[i].iGroup!=FoFGroupDataLocal[start].iGroup) {
-            if ((i-start)<minsize){
-                for (Int_t j=start;j<i;j++) FoFGroupDataLocal[j].iGroup=0;
+        //sort local list
+        qsort(FoFGroupDataLocal, nbodies, sizeof(struct fofid_in), fof_id_cmp);
+        //determine the # of groups, their size and the current group ID
+        for (i=0,start=0;i<nbodies;i++) {
+            if (FoFGroupDataLocal[i].iGroup!=FoFGroupDataLocal[start].iGroup) {
+                if ((i-start)<minsize){
+                    for (Int_t j=start;j<i;j++) FoFGroupDataLocal[j].iGroup=0;
+                }
+                else ngroups++;
+                start=i;
             }
-            else ngroups++;
-            start=i;
+            if (FoFGroupDataLocal[i].iGroup==0) break;
         }
-        if (FoFGroupDataLocal[i].iGroup==0) break;
-    }
-    //now sort again which will put particles group then id order, and determine size of groups and their current group id;
-    qsort(FoFGroupDataLocal, nbodies, sizeof(struct fofid_in), fof_id_cmp);
-    numingroup=new Int_t[ngroups+1];
-    plist=new Int_t*[ngroups+1];
-    ngroups=1;//offset as group zero is untagged
-    for (i=0,start=0;i<nbodies;i++) {
-        if (FoFGroupDataLocal[i].iGroup!=FoFGroupDataLocal[start].iGroup) {
-            numingroup[ngroups]=i-start;
-            plist[ngroups]=new Int_t[numingroup[ngroups]];
-            for (Int_t j=start,count=0;j<i;j++) plist[ngroups][count++]=j;
-            ngroups++;
-            start=i;
+        //now sort again which will put particles group then id order, and determine size of groups and their current group id;
+        qsort(FoFGroupDataLocal, nbodies, sizeof(struct fofid_in), fof_id_cmp);
+        numingroup=new Int_t[ngroups+1];
+        plist=new Int_t*[ngroups+1];
+        ngroups=1;//offset as group zero is untagged
+        for (i=0,start=0;i<nbodies;i++) {
+            if (FoFGroupDataLocal[i].iGroup!=FoFGroupDataLocal[start].iGroup) {
+                numingroup[ngroups]=i-start;
+                plist[ngroups]=new Int_t[numingroup[ngroups]];
+                for (Int_t j=start,count=0;j<i;j++) plist[ngroups][count++]=j;
+                ngroups++;
+                start=i;
+            }
+            if (FoFGroupDataLocal[i].iGroup==0) break;
         }
-        if (FoFGroupDataLocal[i].iGroup==0) break;
+        ngroups--;
+        for (i=0;i<nbodies;i++) pfof[i]=FoFGroupDataLocal[i].iGroup;
+        //and store the particles global ids
+        for (i=0;i<nbodies;i++) {
+            Part[i]=FoFGroupDataLocal[i].p;
+            Part[i].SetID(i);
+        }
     }
-    ngroups--;
-    for (i=0;i<nbodies;i++) pfof[i]=FoFGroupDataLocal[i].iGroup;
-    //and store the particles global ids
-    for (i=0;i<nbodies;i++) {
-        Part[i]=FoFGroupDataLocal[i].p;
-        Part[i].SetID(i);
-    }
-#ifdef MPIREDUCEMEM
-    }
-#endif
     //reorder groups ids according to size if required.
     if (iorder) ReorderGroupIDs(ngroups,ngroups,numingroup,pfof,plist);
     for (i=1;i<=ngroups;i++) if (numingroup[i]>0) delete[] plist[i];
@@ -1840,7 +1804,6 @@ Int_t MPIBaryonExchange(const Int_t nbaryons, Particle *Pbaryons, Int_t *pfofbar
     //and allocate the appropriate memory for pfofbaryons and mpi_idlist. otherwise, need to actually copy the particle data into FoFGroupDataLocal and proceed
     //as normal, storing info, send info, delete particle array, allocate a new array large enough to store info and copy over info
     ///\todo eventually I should replace arrays with vectors so that the size can change, removing the need to free and allocate
-#ifdef MPIREDUCEMEM
     Int_t *storeval=new Int_t[nbaryons];
     if (nlocal<Nmemlocal) {
         Noldlocal=nbaryons-nexport;
@@ -1880,25 +1843,17 @@ Int_t MPIBaryonExchange(const Int_t nbaryons, Particle *Pbaryons, Int_t *pfofbar
         for (i=nn;i<nbaryons;i++) Pbaryons[i].SetID(i);
     }
     delete[] storeval;
-#else
-    FoFGroupDataLocal=new fofid_in[nlocal];
-#endif
 
     //determine offsets in arrays so that data contiguous with regards to processors for broadcasting
     //offset on transmitter end
     noffset_export[0]=0;
     for (j=1;j<NProcs;j++) noffset_export[j]=noffset_export[j-1]+mpi_nsend[(j-1)+ThisTask*NProcs];
     for (j=0;j<NProcs;j++) {
-#ifdef MPIREDUCEMEM
         if (nlocal<Nmemlocal) noffset_import[j]=0;
         else noffset_import[j]=nbaryons-nexport;
-#else
-        noffset_import[j]=nbaryons-nexport;
-#endif
         if (j!=ThisTask) for (int k=0;k<j;k++)noffset_import[j]+=mpi_nsend[ThisTask+k*NProcs];
     }
     for (j=0;j<NProcs;j++) nbuffer[j]=0;
-#ifdef MPIREDUCEMEM
     for (i=nbaryons-nexport;i<nbaryons;i++) {
         //if particle belongs to group that should belong on a different mpi thread, store for broadcasting
         task=mpi_foftask[i];
@@ -1910,30 +1865,6 @@ Int_t MPIBaryonExchange(const Int_t nbaryons, Particle *Pbaryons, Int_t *pfofbar
         }
         nbuffer[task]++;
     }
-#else
-    for (i=0;i<nbaryons;i++) {
-        //now set particle ID to global index value,
-        //note that particle PID contains global particle ID value
-        Pbaryons[i].SetID(mpi_indexlist[i]);
-        //if particle belongs to group that should belong on a different mpi thread, store for broadcasting
-
-        task=mpi_foftask[i];
-        if (task!=ThisTask) {
-            FoFGroupDataExport[noffset_export[task]+nbuffer[task]].p=Pbaryons[i];
-            FoFGroupDataExport[noffset_export[task]+nbuffer[task]].Index = i;
-            FoFGroupDataExport[noffset_export[task]+nbuffer[task]].Task = task;
-            FoFGroupDataExport[noffset_export[task]+nbuffer[task]].iGroup = pfofbaryons[i];
-        }
-        //otherwise, store locally
-        else {
-            FoFGroupDataLocal[nbuffer[task]].p=Pbaryons[i];
-            FoFGroupDataLocal[nbuffer[task]].Index = i;
-            FoFGroupDataLocal[nbuffer[task]].Task = ThisTask;
-            FoFGroupDataLocal[nbuffer[task]].iGroup = pfofbaryons[i];
-        }
-        nbuffer[task]++;
-    }
-#endif
     //now send the data.
     ///\todo In determination of particle export for FOF routines, eventually need to place a check for the communication buffer so that if exported number 
     ///is larger than the size of the buffer, iterate over the number exported

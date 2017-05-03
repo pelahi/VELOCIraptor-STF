@@ -210,7 +210,6 @@ inline Int_t MergeGroups(Options &opt, Particle *Partsubset, Int_t numgroups, In
 ///used to merge groups for for halo merger check
 inline Int_t MergeHaloGroups(Options &opt, Particle *Partsubset, Int_t numgroups, Int_t *pfof, Int_t *numingroup, Int_t *oldnumingroup, Int_t **pglist, Int_t *numgrouplinksIndex, Int_t ***intergroupgidIndex, Int_t ***newintergroupIndex, Int_t *intergrouplinksIndex, Int_t *Head, Int_t *Next, Int_t *GroupTail, int *igflag, Int_t *nnID, Int_t &newlinks, Int_t *newlinksIndex);
 //@}
-
 /// \name For unbinding
 /// see \ref unbind.cxx for implementation
 //@{
@@ -303,8 +302,15 @@ Int_t *GetParentID(Int_t ngroups);
 
 ///Domain decomposition of system
 void MPIInitialDomainDecomposition();
+///Domain extent
+void MPIDomainExtent(Options &opt);
+///domain decomposition
+void MPIDomainDecomposition(Options &opt);
+
 ///Determine Domain Extent for tipsy input
 void MPIDomainExtentTipsy(Options &opt);
+///Determine Domain for tipsy input
+void MPIDomainDecompositionTipsy(Options &opt);
 
 ///Determine Domain Extent for Gadget input
 void MPIDomainExtentGadget(Options &opt);
@@ -330,6 +336,8 @@ void MPINumInDomain(Options &opt);
 
 ///determine which mpi processes read input files
 void MPIDistributeReadTasks(Options&opt, int *&ireadtask, int*&readtaskID);
+///set which file a given task will read
+int MPISetFilesRead(Options&opt, int *&ireadfile, int *&ireadtask);
 
 /// Determine number of local particles for tipsy
 void MPINumInDomainTipsy(Options &opt);
