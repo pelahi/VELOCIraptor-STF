@@ -18,6 +18,7 @@ ProgenitorData *CrossMatch(Options &opt, const long unsigned nhalos1, const long
     Double_t merit;
     int nthreads=1,tid,chunksize;
     long unsigned offset;
+    long long hid;
     //temp variable to store the openmp reduction value for ilistupdated
     int newilistupdated;
 #ifdef USEOPENMP
@@ -53,7 +54,7 @@ ProgenitorData *CrossMatch(Options &opt, const long unsigned nhalos1, const long
 #ifdef USEOPENMP
 #pragma omp parallel for schedule(dynamic,chunksize) \
 default(shared) \
-private(j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2)
+private(j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
 #endif
     for (i=0;i<nhalos1;i++){
 #ifdef USEOPENMP
@@ -67,10 +68,14 @@ private(j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2)
         //go through halos particle list to see if these particles belong to another halo
         //at a different time/in a different catalog
         for (j=0;j<h1[i].NumberofParticles;j++){
-            index=offset+pfof2[h1[i].ParticleID[j]]-(long int)1;
-            if (pfof2[h1[i].ParticleID[j]]>0) sharelist[index]+=1;
+            hid=pfof2[h1[i].ParticleID[j]];
+            //correction if use core weighted particles as well. 
+            if (opt.particle_frac<1 && opt.particle_frac>0 && hid>nhalos2) hid-=nhalos2;
+            //store the index in the share and halolist arrays
+            index=offset+hid-(long int)1;
+            if (hid>0) sharelist[index]+=1;
             //if first time halo has been added, update halolist and increase numshared
-            if (sharelist[index]==1) halolist[offset+numshared++]=pfof2[h1[i].ParticleID[j]]-1;
+            if (sharelist[index]==1) halolist[offset+numshared++]=hid-1;
         }
         //now proccess numshared list to remove insignificant connections
         for (k=0;k<numshared;k++) {
@@ -127,9 +132,11 @@ private(j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2)
             if (np1>=opt.min_numpart) { 
                 numshared=0;
                 for (j=0;j<np1;j++){
-                    index=offset+pfof2[h1[i].ParticleID[j]]-(long int)1;
-                    if (pfof2[h1[i].ParticleID[j]]>0) sharelist[index]+=1;
-                    if (sharelist[index]==1) halolist[offset+numshared++]=pfof2[h1[i].ParticleID[j]]-1;
+                    //only use particles that belong to the core of another group, that is the hid is > nhalos2
+                    hid=pfof2[h1[i].ParticleID[j]]-nhalos2;
+                    index=offset+hid-(long int)1;
+                    if (hid>0) sharelist[index]+=1;
+                    if (sharelist[index]==1) halolist[offset+numshared++]=hid-1;
                 }
                 for (k=0;k<numshared;k++) {
                     j=halolist[offset+k];
@@ -226,7 +233,7 @@ private(j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2)
 #ifdef USEOPENMP
 #pragma omp parallel for schedule(dynamic,chunksize) reduction(+:newilistupdated) \
 default(shared) \
-private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2)
+private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
 #endif
         for (k=0;k<num_noprogen;k++){
 #ifdef USEOPENMP
@@ -238,10 +245,13 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2)
             i=needprogenlist[k];
             numshared=0;
             for (j=0;j<h1[i].NumberofParticles;j++){
-                index=offset+pfof2[h1[i].ParticleID[j]]-(long int)1;
-                if (pfof2[h1[i].ParticleID[j]]>0) sharelist[index]+=1;
+                hid=pfof2[h1[i].ParticleID[j]];
+                //correction if use core weighted particles as well. 
+                if (opt.particle_frac<1 && opt.particle_frac>0 && hid>nhalos2) hid-=nhalos2;
+                index=offset+hid-(long int)1;
+                if (hid>0) sharelist[index]+=1;
                 //if first time halo has been added, update halolist and increase numshared
-                if (sharelist[index]==1) halolist[offset+numshared++]=pfof2[h1[i].ParticleID[j]]-1;
+                if (sharelist[index]==1) halolist[offset+numshared++]=hid-1;
             }
             //now proccess numshared list to remove insignificant connections
             for (n=0;n<numshared;n++) {
@@ -295,9 +305,11 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2)
                 if (np1>=opt.min_numpart) { 
                     numshared=0;
                     for (j=0;j<np1;j++){
-                        index=offset+pfof2[h1[i].ParticleID[j]]-(long int)1;
-                        if (pfof2[h1[i].ParticleID[j]]>0) sharelist[index]+=1;
-                        if (sharelist[index]==1) halolist[offset+numshared++]=pfof2[h1[i].ParticleID[j]]-1;
+                        //only use particles that belong to the core of another group, that is the hid is > nhalos2
+                        hid=pfof2[h1[i].ParticleID[j]]-nhalos2;
+                        index=offset+hid-(long int)1;
+                        if (hid>0) sharelist[index]+=1;
+                        if (sharelist[index]==1) halolist[offset+numshared++]=hid-1;
                     }
                     for (n=0;n<numshared;n++) {
                         j=halolist[offset+n];
@@ -382,6 +394,7 @@ DescendantData *CrossMatchDescendant(Options &opt, const long unsigned nhalos1, 
     Double_t start,end;
     int nthreads=1,tid;
     long unsigned offset;
+    long long hid;
     //temp variable to store the openmp reduction value for ilistupdated
     int newilistupdated;
     int chunksize;
@@ -415,7 +428,7 @@ DescendantData *CrossMatchDescendant(Options &opt, const long unsigned nhalos1, 
 #ifdef USEOPENMP
 #pragma omp parallel for schedule(dynamic,chunksize) \
 default(shared) \
-private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2)
+private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
 #endif
     for (i=0;i<nhalos1;i++){
 #ifdef USEOPENMP
@@ -429,10 +442,13 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2)
         //go through halos particle list to see if these particles belong to another halo
         //at a different time/in a different catalog
         for (j=0;j<h1[i].NumberofParticles;j++){
-            index=offset+pfof2[h1[i].ParticleID[j]]-(long int)1;
-            if (pfof2[h1[i].ParticleID[j]]>0) sharelist[index]+=1;
+            hid=pfof2[h1[i].ParticleID[j]];
+            //correction if use core weighted particles as well. 
+            if (opt.particle_frac<1 && opt.particle_frac>0 && hid>nhalos2) hid-=nhalos2;
+            index=offset+hid-(long int)1;
+            if (hid>0) sharelist[index]+=1;
             //if first time halo has been added, update halolist and increase numshared
-            if (sharelist[index]==1) halolist[offset+numshared++]=pfof2[h1[i].ParticleID[j]]-1;
+            if (sharelist[index]==1) halolist[offset+numshared++]=hid-1;
         }
         //now proccess numshared list to remove insignificant connections
         for (k=0;k<numshared;k++) {
@@ -489,9 +505,10 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2)
             if (np1>=opt.min_numpart) { 
                 numshared=0;
                 for (j=0;j<np1;j++){
-                    index=offset+pfof2[h1[i].ParticleID[j]]-(long int)1;
-                    if (pfof2[h1[i].ParticleID[j]]>0) sharelist[index]+=1;
-                    if (sharelist[index]==1) halolist[offset+numshared++]=pfof2[h1[i].ParticleID[j]]-1;
+                    hid=pfof2[h1[i].ParticleID[j]]-nhalos2;
+                    index=offset+hid-(long int)1;
+                    if (hid>0) sharelist[index]+=1;
+                    if (sharelist[index]==1) halolist[offset+numshared++]=hid-1;
                 }
                 for (k=0;k<numshared;k++) {
                     j=halolist[offset+k];
@@ -587,7 +604,7 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2)
 #ifdef USEOPENMP
 #pragma omp parallel for schedule(dynamic,chunksize) reduction(+:newilistupdated) \
 default(shared) \
-private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2)
+private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
 #endif
         for (k=0;k<num_nodescen;k++){
 #ifdef USEOPENMP
@@ -599,10 +616,13 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2)
             i=needdescenlist[k];
             numshared=0;
             for (j=0;j<h1[i].NumberofParticles;j++){
-                index=offset+pfof2[h1[i].ParticleID[j]]-(long int)1;
-                if (pfof2[h1[i].ParticleID[j]]>0) sharelist[index]+=1;
+                hid=pfof2[h1[i].ParticleID[j]];
+                //correction if use core weighted particles as well. 
+                if (opt.particle_frac<1 && opt.particle_frac>0 && hid>nhalos2) hid-=nhalos2;
+                index=offset+hid-(long int)1;
+                if (hid>0) sharelist[index]+=1;
                 //if first time halo has been added, update halolist and increase numshared
-                if (sharelist[index]==1) halolist[offset+numshared++]=pfof2[h1[i].ParticleID[j]]-1;
+                if (sharelist[index]==1) halolist[offset+numshared++]=hid-1;
             }
             //now proccess numshared list to remove insignificant connections
             for (n=0;n<numshared;n++) {
@@ -656,9 +676,10 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2)
                 if (np1>=opt.min_numpart) { 
                     numshared=0;
                     for (j=0;j<np1;j++){
-                        index=offset+pfof2[h1[i].ParticleID[j]]-(long int)1;
-                        if (pfof2[h1[i].ParticleID[j]]>0) sharelist[index]+=1;
-                        if (sharelist[index]==1) halolist[offset+numshared++]=pfof2[h1[i].ParticleID[j]]-1;
+                        hid=pfof2[h1[i].ParticleID[j]]-nhalos2;
+                        index=offset+hid-(long int)1;
+                        if (hid>0) sharelist[index]+=1;
+                        if (sharelist[index]==1) halolist[offset+numshared++]=hid-1;
                     }
                     for (n=0;n<numshared;n++) {
                         j=halolist[offset+n];

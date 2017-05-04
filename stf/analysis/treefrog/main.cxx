@@ -60,6 +60,7 @@ int main(int argc,char **argv)
     unsigned int *pfofp,*pfofd;
     long long i,j;
     long unsigned nh,nhp,nhd;
+    Int_t newnp;
     //flags indicating whether updates to list are necessary
     int ilistupdated;
 
@@ -129,6 +130,15 @@ int main(int argc,char **argv)
                 for (j=0;j<pht[i-istep].numhalos;j++) 
                     for (Int_t k=0;k<pht[i-istep].Halo[j].NumberofParticles;k++) 
                         pfofp[pht[i-istep].Halo[j].ParticleID[k]]=j+1;
+                //now if also doing core weighting then update the halo id associated with the particle so that 
+                //it is its current halo core ID + total number of halos
+                if (opt.particle_frac<1 && opt.particle_frac>0) {
+                    for (j=0;j<pht[i-istep].numhalos;j++) {
+                        newnp=max((Int_t)(pht[i-istep].Halo[j].NumberofParticles*opt.particle_frac),opt.min_numpart);
+                        for (Int_t k=0;k<newnp;k++) 
+                            pfofp[pht[i-istep].Halo[j].ParticleID[k]]+=pht[i-istep].numhalos;
+                    }
+                }
 
                 //begin cross matching with previous snapshot(s)
                 //for first linking, cross match and allocate memory 
@@ -231,6 +241,15 @@ int main(int argc,char **argv)
                 for (j=0;j<pht[i+istep].numhalos;j++)
                     for (int k=0;k<pht[i+istep].Halo[j].NumberofParticles;k++) 
                         pfofd[pht[i+istep].Halo[j].ParticleID[k]]=j+1;
+                //now if also doing core weighting then update the halo id associated with the particle so that 
+                //it is its current halo core ID + total number of halos
+                if (opt.particle_frac<1 && opt.particle_frac>0) {
+                    for (j=0;j<pht[i+istep].numhalos;j++) {
+                        newnp=max((Int_t)(pht[i+istep].Halo[j].NumberofParticles*opt.particle_frac),opt.min_numpart);
+                        for (Int_t k=0;k<newnp;k++) 
+                            pfofp[pht[i+istep].Halo[j].ParticleID[k]]+=pht[i+istep].numhalos;
+                    }
+                }
 
                 //begin cross matching with  snapshot(s)
                 //for first linking, cross match and allocate memory 
