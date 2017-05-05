@@ -1726,11 +1726,15 @@ void WriteVELOCIraptorConfig(Options &opt){
         ConfigInfo config(opt);
         sprintf(fname,"%s.configuration",opt.outname);
         Fout.open(fname,ios::out);
+#ifdef OLDCCOMPILER
         for (Int_t i=0;i<config.nameinfo.size();i++) {
             Fout<<config.nameinfo[i]<<" : ";
             Fout<<config.datainfo[i]<<" ";
             Fout<<endl;
         }
+#else
+        Fout<<"C compiler is too old and config file output relies on std 11 implentation to write info. UPDATE YOUR COMPILER "<<endl;
+#endif
         Fout.close();
     }
 

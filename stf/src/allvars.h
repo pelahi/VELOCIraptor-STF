@@ -601,6 +601,8 @@ struct ConfigInfo{
     //vector<int> datatype;
     ConfigInfo(Options &opt){
         int sizeval;
+        //if compiler is super old and does not have at least std 11 implementation to_string does not exist
+#ifndef OLDCCOMPILER
         //general search operations
         nameinfo.push_back("Particle_search_type");
         datainfo.push_back(to_string(opt.partsearchtype));
@@ -778,7 +780,7 @@ struct ConfigInfo{
         datainfo.push_back(to_string(opt.gnstarblocks));
         nameinfo.push_back("NBH_extra_blocks");
         datainfo.push_back(to_string(opt.gnbhblocks));
-
+#endif
     }
 };
 
