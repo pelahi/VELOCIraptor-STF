@@ -80,12 +80,25 @@ int main(int argc,char **argv)
     if (ThisTask==0) {
         cout<<"Done Loading"<<endl;
         cout<<"Found "<<opt.TotalNumberofHalos<<" halos "<<endl;
-        cout<<"Memory needed to store addressing for ids "<<sizeof(long unsigned)*opt.MaxIDValue/1024./1024.0/1024.0<<", maximum ID of "<<opt.MaxIDValue<<endl;
     }
-    //adjust ids if particle ids need to be mapped to index
-    if (opt.imapping>DNOMAP) MapPIDStoIndex(opt,pht);
-    //check that ids are within allowed range for linking
-    IDcheck(opt,pht);
+    if (opt.MaxIDValue==-1) {
+        if (ThisTask==0) cout<<"Generating unique memory efficent mapping for particle IDS to index"<<endl;
+        set<long long> idset=ConstructMemoryEfficientPIDStoIndexMap(opt, pht);
+        MapPIDStoIndex(opt,pht, idset);
+        opt.imapping=DNOMAP;
+        if (ThisTask==0) {
+            cout<<"Memory needed to store addressing for ids "<<sizeof(long unsigned)*opt.MaxIDValue/1024./1024.0/1024.0<<", maximum ID of "<<opt.MaxIDValue<<endl;
+        }
+    }
+    else {
+        if (ThisTask==0) {
+            cout<<"Memory needed to store addressing for ids "<<sizeof(long unsigned)*opt.MaxIDValue/1024./1024.0/1024.0<<", maximum ID of "<<opt.MaxIDValue<<endl;
+        }
+        //adjust ids if particle ids need to be mapped to index
+        if (opt.imapping>DNOMAP) MapPIDStoIndex(opt,pht);
+        //check that ids are within allowed range for linking
+        IDcheck(opt,pht);
+    }
     //then allocate simple array used for accessing halo ids of particles through their IDs
     pfofp=new unsigned int[opt.MaxIDValue];
     for (i=0;i<opt.MaxIDValue;i++) pfofp[i]=0;

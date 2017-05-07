@@ -158,10 +158,16 @@ void CleanProgenitorsUsingDescendants(Int_t i, HaloTreeData *&pht, DescendantDat
 //@}
 
 /// \name for mapping ids to index routines
-/// see \ref crossmatch.cxx for implementation
+/// see \ref idroutines.cxx for implementation
 //@{
+///generate a map for particle ids to index and store it in the set, which can be searched to 
+///relate pid to index
+set<long long> ConstructMemoryEfficientPIDStoIndexMap(Options &opt, HaloTreeData *&pht);
+///map particle id to index position
+void MapPIDStoIndex(Options &opt, HaloTreeData *&pht, set<long long> &);
 ///map particle id to index position
 void MapPIDStoIndex(Options &opt, HaloTreeData *&pht);
+
 ///make sure particle ids are acceptable values for generating links
 void IDcheck(Options &opt,HaloTreeData *&pht);
 
