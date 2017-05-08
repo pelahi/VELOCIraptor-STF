@@ -45,26 +45,29 @@ set<long long> ConstructMemoryEfficientPIDStoIndexMap(Options &opt, HaloTreeData
         if (i>StartSnap) noffset[i]=noffset[i-1]+numparts[i-1];
     }
     
-    vector<long long> idvec(totnumparts);
-    index=0;
+    //place ids in a set so have unique ordered set of ids
+    set<long long> idset;
+    //index=0;
     for (i=0;i<opt.numsnapshots;i++) 
         for (j=0;j<pht[i].numhalos;j++) 
-            for (k=0;k<pht[i].Halo[j].NumberofParticles;k++) idvec[index++]=pht[i].Halo[j].ParticleID[k];
+            for (k=0;k<pht[i].Halo[j].NumberofParticles;k++) idset.insert(pht[i].Halo[j].ParticleID[k]);
+//            for (k=0;k<pht[i].Halo[j].NumberofParticles;k++) idvec[index++]=pht[i].Halo[j].ParticleID[k];
     //now make unique set
-    set<long long> idset(idvec.begin(), idvec.end());
+    //set<long long> idset(idvec.begin(), idvec.end());
 #ifdef USEMPI
-    //store uniqe set of ids into vector 
-    idvec=vector<long long>(idset.begin(), idset.end()); 
 
     //now if using mpi then must broadcast the sets that a final unique set can be made
     //this is done each task sending information to its neighbouring task, the lower task 
-    //number then building a set of unique ids from the combined vectors 
-    //till all is based to task 0 and a unique set of ids are generated across all snapshots and mpi domains
-    
-    //determine number of mpi loops to do. Note that the cascade is such that task NProcs-1 talks to NProcs-2
-    //Nprocs-3 talks to NProcs-4, etc so need NProcs/2 communications
-    
-    long long *idarray;
+    //number then building a set of unique ids in the receving task. 
+    //once a task has sent information, it nolonger needs to send info
+    //all the receiving tasks in the previous round make up the new set of sending and receiving tasks. 
+    //keep going till all info cascaded to task 0 and a unique set of ids are generated across all snapshots and mpi domains
+
+    //store uniqe set of ids into vector to send info
+    vector<long long> idvec;
+    idvec=vector<long long>(idset.begin(), idset.end()); 
+
+    //long long *idarray;
     //int nmpiloops=(int)(floor(exp(log((Double_t)NProcs)-log(2.0))))
     int nrecvtasks,nsendtasks;
     MPI_Status status;
@@ -80,39 +83,41 @@ set<long long> ConstructMemoryEfficientPIDStoIndexMap(Options &opt, HaloTreeData
     for (i=NProcs-2;i>=0;i-=2) {recvtask[i]=i+1;recvset.push_back(i);}
     //if odd number of tasks, then need to explicity add 0 to the recv task set
     if (NProcs%2==1) recvset.push_back(0);
-    
-    //note that in the above, if NProcs is odd, ThisTask==0 will do nothing the first round
-    
+
+    //keep sending till number of sending tasks == NProcs-1 and task 0 has all the info
     do {
         //if process no longer sending or receiving do nothing in this round
         if (!(sendtask[ThisTask]==-1 && recvtask[ThisTask]==-1)) {
             //if a send task
             if (sendtask[ThisTask]>=0 && recvtask[ThisTask]==-1) {
-                commsize=idvec.size();
-                idarray=new long long[commsize];
-                for (j=0;j<commsize;j++) idarray[j]=idvec[j];
+                commsize=idset.size();
+                //idarray=new long long[commsize];
+                //for (j=0;j<commsize;j++) idarray[j]=idvec[j];
+                idvec=vector<long long>(idset.begin(), idset.end()); 
                 //send size
                 MPI_Send(&commsize,1, MPI_Int_t, sendtask[ThisTask], i*NProcs+sendtask[ThisTask], MPI_COMM_WORLD);
                 //send info
-                MPI_Send(idarray,commsize, MPI_LONG, sendtask[ThisTask], NProcs*NProcs+i*NProcs+sendtask[ThisTask], MPI_COMM_WORLD);
-                delete[] idarray;
+                MPI_Send(idvec.data(),commsize, MPI_LONG, sendtask[ThisTask], NProcs*NProcs+i*NProcs+sendtask[ThisTask], MPI_COMM_WORLD);
+                //delete[] idarray;
             }
             //if a recvtask
             if (recvtask[ThisTask]>=0 && sendtask[ThisTask]==-1) {
                 //recv size
                 MPI_Recv(&commsize,1, MPI_Int_t, recvtask[ThisTask], i*NProcs+sendtask[ThisTask], MPI_COMM_WORLD,&status);
-                idarray=new long long[commsize];
+                //idarray=new long long[commsize];
+                idvec.reserve(commsize); 
                 //recv info
-                MPI_Recv(idarray,commsize, MPI_LONG, recvtask[ThisTask], NProcs*NProcs+i*NProcs+sendtask[ThisTask], MPI_COMM_WORLD,&status);
+                MPI_Recv(idvec.data(),commsize, MPI_LONG, recvtask[ThisTask], NProcs*NProcs+i*NProcs+sendtask[ThisTask], MPI_COMM_WORLD,&status);
+                //MPI_Recv(idarray,commsize, MPI_LONG, recvtask[ThisTask], NProcs*NProcs+i*NProcs+sendtask[ThisTask], MPI_COMM_WORLD,&status);
                 //now generate unique set
-                oldsize=idvec.size();
-                idvec.resize(oldsize+commsize);
-                for (j=0;j<commsize;j++)idvec[j+oldsize]=idarray[j];
-                delete[] idarray;
+                //oldsize=idvec.size();
+                //idvec.resize(oldsize+commsize);
+                //for (j=0;j<commsize;j++)idvec[j+oldsize]=idarray[j];
+                //delete[] idarray;
                 //make updated set
-                idset=set<long long>(idvec.begin(), idvec.end());
+                idset.insert(idvec.begin(), idvec.end());
                 //store uniqe set of ids into vector 
-                idvec=vector<long long>(idset.begin(), idset.end()); 
+                //idvec=vector<long long>(idset.begin(), idset.end()); 
             }
         }
         //update the send receive taks for the next time around
@@ -127,8 +132,6 @@ set<long long> ConstructMemoryEfficientPIDStoIndexMap(Options &opt, HaloTreeData
         //only tasks that were receiving before are part of the new send/recv set
         for (j=0;j<nrecvtasks-1;j+=2) sendtask[recvset[j]]=recvset[j+1];
         for (j=1;j<nrecvtasks;j+=2) recvtask[recvset[j]]=recvset[j-1];
-        //for (j=0;j<nsendtasks;j++) sendset.pop();
-        //for (j=0;j<nrecvtasks;j++) recvset.pop();
         sendset.clear();
         recvset.clear();
         for (j=NProcs-1;j>=0;j--) if (sendtask[j]>=0) sendset.push_back(j);
@@ -136,19 +139,23 @@ set<long long> ConstructMemoryEfficientPIDStoIndexMap(Options &opt, HaloTreeData
         //if current set of communicating tasks set by the old recv task set is odd must explicity include 0 
         if (nrecvtasks%2==1)recvset.push_back(0);
     } while(numhavesent<NProcs-1);
-    
+
     //now broadcast from root to all processors
     commsize=idvec.size();
     MPI_Bcast(&commsize,1, MPI_Int_t, 0, MPI_COMM_WORLD);
-    idarray=new long long[commsize];
-    if (ThisTask==0) for (i=0;i<commsize;i++) idarray[i]=idvec[i];
-    MPI_Bcast(idarray,commsize, MPI_LONG, 0, MPI_COMM_WORLD);
-    if (ThisTask!=0) {
+    idvec.reserve(commsize); 
+    MPI_Bcast(idvec.data(),commsize, MPI_LONG, 0, MPI_COMM_WORLD);
+
+    //idarray=new long long[commsize];
+    //if (ThisTask==0) for (i=0;i<commsize;i++) idarray[i]=idvec[i];
+    //MPI_Bcast(idarray,commsize, MPI_LONG, 0, MPI_COMM_WORLD);
+    /*if (ThisTask!=0) {
         idvec.resize(commsize);
         for (i=0;i<commsize;i++) idvec[i]=idarray[i];
     }
-    delete idarray;
-    idset=set<long long>(idvec.begin(), idvec.end());
+    delete idarray;*/
+    //from this vector generate the set 
+    if (ThisTask!=0) idset=set<long long>(idvec.begin(), idvec.end());
 #endif
     opt.MaxIDValue=idset.size();
     return idset;
