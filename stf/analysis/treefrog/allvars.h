@@ -25,6 +25,8 @@
 #include <string>
 #include <vector>
 #include <set>
+#include <unordered_set>
+#include <map>
 #include <algorithm>
 #include <getopt.h>
 #include <sys/stat.h> 
@@ -106,6 +108,7 @@ using namespace NBody;
 //@{
 #define DNOMAP 0
 #define DSIMPLEMAP 1
+#define DMEMEFFICIENTMAP -1
 //@}
 
 

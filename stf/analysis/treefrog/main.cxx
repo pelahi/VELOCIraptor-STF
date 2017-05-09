@@ -81,11 +81,11 @@ int main(int argc,char **argv)
         cout<<"Done Loading"<<endl;
         cout<<"Found "<<opt.TotalNumberofHalos<<" halos "<<endl;
     }
-    if (opt.MaxIDValue==-1) {
+    if (opt.imapping==DMEMEFFICIENTMAP) {
         if (ThisTask==0) cout<<"Generating unique memory efficent mapping for particle IDS to index"<<endl;
-        set<long long> idset=ConstructMemoryEfficientPIDStoIndexMap(opt, pht);
-        MapPIDStoIndex(opt,pht, idset);
-        opt.imapping=DNOMAP;
+        map<long long, long long> idmap=ConstructMemoryEfficientPIDStoIndexMap(opt, pht);
+        MapPIDStoIndex(opt,pht, idmap);
+        idmap.clear();
         if (ThisTask==0) {
             cout<<"Memory needed to store addressing for ids "<<sizeof(long unsigned)*opt.MaxIDValue/1024./1024.0/1024.0<<", maximum ID of "<<opt.MaxIDValue<<endl;
         }
@@ -325,7 +325,7 @@ int main(int argc,char **argv)
     //if producing graph as well
     if(opt.icatalog==DGRAPH) {for (i=0;i<opt.numsnapshots;i++) if (pdescen[i]!=NULL) delete[] pdescen[i];delete[] pdescen;}
     //if used multiple time steps
-    if (opt.numsnapshots>1) {
+    if (opt.numsteps>1) {
         for (i=opt.numsnapshots-1;i>=0;i--) {
 #ifdef USEMPI
         //check if data is load making sure i is in appropriate range

@@ -238,7 +238,7 @@ void usage(void)
     cerr<<" ID to index mapping if required"<<endl;
     cerr<<" ========================= "<<endl;
     cerr<<"-D <adjust particle IDs for nIFTY cross catalogs across simulations ("<<opt.idcorrectflag<<")\n";
-    cerr<<"-M <Mapping of particle ids to index ("<<opt.imapping<<" [ no maping "<<DNOMAP<<", simple mapping "<<DSIMPLEMAP<<"])\n";
+    cerr<<"-M <Mapping of particle ids to index ("<<opt.imapping<<" [ no maping "<<DNOMAP<<", simple mapping "<<DSIMPLEMAP<<", computational expensive but memory efficient adaptive map "<<DMEMEFFICIENTMAP<<"])\n";
     cerr<<" ========================= "<<endl<<endl;
 
     cerr<<" ========================= "<<endl;

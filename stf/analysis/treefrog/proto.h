@@ -162,9 +162,9 @@ void CleanProgenitorsUsingDescendants(Int_t i, HaloTreeData *&pht, DescendantDat
 //@{
 ///generate a map for particle ids to index and store it in the set, which can be searched to 
 ///relate pid to index
-set<long long> ConstructMemoryEfficientPIDStoIndexMap(Options &opt, HaloTreeData *&pht);
+map<long long, long long> ConstructMemoryEfficientPIDStoIndexMap(Options &opt, HaloTreeData *&pht);
 ///map particle id to index position
-void MapPIDStoIndex(Options &opt, HaloTreeData *&pht, set<long long> &);
+void MapPIDStoIndex(Options &opt, HaloTreeData *&pht, map<long long, long long> &);
 ///map particle id to index position
 void MapPIDStoIndex(Options &opt, HaloTreeData *&pht);
 

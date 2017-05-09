@@ -73,9 +73,11 @@ private(j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
             if (opt.particle_frac<1 && opt.particle_frac>0 && hid>nhalos2) hid-=nhalos2;
             //store the index in the share and halolist arrays
             index=offset+hid-(long int)1;
-            if (hid>0) sharelist[index]+=1;
-            //if first time halo has been added, update halolist and increase numshared
-            if (sharelist[index]==1) halolist[offset+numshared++]=hid-1;
+            if (hid>0) {
+                sharelist[index]+=1;
+                //if first time halo has been added, update halolist and increase numshared
+                if (sharelist[index]==1) halolist[offset+numshared++]=hid-1;
+            }
         }
         //now proccess numshared list to remove insignificant connections
         for (k=0;k<numshared;k++) {
@@ -135,8 +137,10 @@ private(j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                     //only use particles that belong to the core of another group, that is the hid is > nhalos2
                     hid=pfof2[h1[i].ParticleID[j]]-nhalos2;
                     index=offset+hid-(long int)1;
-                    if (hid>0) sharelist[index]+=1;
-                    if (sharelist[index]==1) halolist[offset+numshared++]=hid-1;
+                    if (hid>0) {
+                        sharelist[index]+=1;
+                        if (sharelist[index]==1) halolist[offset+numshared++]=hid-1;
+                    }
                 }
                 for (k=0;k<numshared;k++) {
                     j=halolist[offset+k];
@@ -249,9 +253,11 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                 //correction if use core weighted particles as well. 
                 if (opt.particle_frac<1 && opt.particle_frac>0 && hid>nhalos2) hid-=nhalos2;
                 index=offset+hid-(long int)1;
-                if (hid>0) sharelist[index]+=1;
-                //if first time halo has been added, update halolist and increase numshared
-                if (sharelist[index]==1) halolist[offset+numshared++]=hid-1;
+                if (hid>0) {
+                    sharelist[index]+=1;
+                    //if first time halo has been added, update halolist and increase numshared
+                    if (sharelist[index]==1) halolist[offset+numshared++]=hid-1;
+                }
             }
             //now proccess numshared list to remove insignificant connections
             for (n=0;n<numshared;n++) {
@@ -308,8 +314,10 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                         //only use particles that belong to the core of another group, that is the hid is > nhalos2
                         hid=pfof2[h1[i].ParticleID[j]]-nhalos2;
                         index=offset+hid-(long int)1;
-                        if (hid>0) sharelist[index]+=1;
-                        if (sharelist[index]==1) halolist[offset+numshared++]=hid-1;
+                        if (hid>0) {
+                            sharelist[index]+=1;
+                            if (sharelist[index]==1) halolist[offset+numshared++]=hid-1;
+                        }
                     }
                     for (n=0;n<numshared;n++) {
                         j=halolist[offset+n];
@@ -446,9 +454,11 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
             //correction if use core weighted particles as well. 
             if (opt.particle_frac<1 && opt.particle_frac>0 && hid>nhalos2) hid-=nhalos2;
             index=offset+hid-(long int)1;
-            if (hid>0) sharelist[index]+=1;
-            //if first time halo has been added, update halolist and increase numshared
-            if (sharelist[index]==1) halolist[offset+numshared++]=hid-1;
+            if (hid>0) {
+                sharelist[index]+=1;
+                //if first time halo has been added, update halolist and increase numshared
+                if (sharelist[index]==1) halolist[offset+numshared++]=hid-1;
+            }
         }
         //now proccess numshared list to remove insignificant connections
         for (k=0;k<numshared;k++) {
@@ -507,8 +517,10 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                 for (j=0;j<np1;j++){
                     hid=pfof2[h1[i].ParticleID[j]]-nhalos2;
                     index=offset+hid-(long int)1;
-                    if (hid>0) sharelist[index]+=1;
-                    if (sharelist[index]==1) halolist[offset+numshared++]=hid-1;
+                    if (hid>0){
+                        sharelist[index]+=1;
+                        if (sharelist[index]==1) halolist[offset+numshared++]=hid-1;
+                    }
                 }
                 for (k=0;k<numshared;k++) {
                     j=halolist[offset+k];
@@ -620,9 +632,11 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                 //correction if use core weighted particles as well. 
                 if (opt.particle_frac<1 && opt.particle_frac>0 && hid>nhalos2) hid-=nhalos2;
                 index=offset+hid-(long int)1;
-                if (hid>0) sharelist[index]+=1;
-                //if first time halo has been added, update halolist and increase numshared
-                if (sharelist[index]==1) halolist[offset+numshared++]=hid-1;
+                if (hid>0) {
+                    sharelist[index]+=1;
+                    //if first time halo has been added, update halolist and increase numshared
+                    if (sharelist[index]==1) halolist[offset+numshared++]=hid-1;
+                }
             }
             //now proccess numshared list to remove insignificant connections
             for (n=0;n<numshared;n++) {
@@ -678,8 +692,10 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                     for (j=0;j<np1;j++){
                         hid=pfof2[h1[i].ParticleID[j]]-nhalos2;
                         index=offset+hid-(long int)1;
-                        if (hid>0) sharelist[index]+=1;
-                        if (sharelist[index]==1) halolist[offset+numshared++]=hid-1;
+                        if (hid>0) {
+                            sharelist[index]+=1;
+                            if (sharelist[index]==1) halolist[offset+numshared++]=hid-1;
+                        }
                     }
                     for (n=0;n<numshared;n++) {
                         j=halolist[offset+n];
