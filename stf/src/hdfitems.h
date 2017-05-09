@@ -403,9 +403,9 @@ inline Int_t HDF_get_nfiles(char *fname, int ptype)
     Attribute headerattribs;
     HDF_Header hdf_header_info;
     //buffers to load data
-    int intbuff[NHDFTYPE];
-    long long longbuff[NHDFTYPE];
-    int j,k,ireaderror=0;
+    int intbuff;
+    long long longbuff;
+    int ireaderror=0;
     Int_t nfiles = 0;
     IntType inttype;
 
@@ -426,12 +426,12 @@ inline Int_t HDF_get_nfiles(char *fname, int ptype)
         if (inttype.getSize() == sizeof(int)) 
         {
           headerattribs.read(PredType::NATIVE_INT,&intbuff);
-          hdf_header_info.num_files = intbuff[j];
+          hdf_header_info.num_files = intbuff;
         }
         if (inttype.getSize() == sizeof(long long)) 
         {
           headerattribs.read(PredType::NATIVE_LONG,&longbuff);
-          hdf_header_info.num_files = longbuff[j];
+          hdf_header_info.num_files = longbuff;
         }
     }
     catch(GroupIException error)
