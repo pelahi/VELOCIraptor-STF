@@ -84,7 +84,7 @@ map<long long, long long> ConstructMemoryEfficientPIDStoIndexMap(Options &opt, H
             //if a send task
             if (sendtask[ThisTask]>=0 && recvtask[ThisTask]==-1) {
                 commsize=idset.size();
-                idvec=new long long[commsize];
+                idarray=new long long[commsize];
                 j=0; for (auto idval: idset) idarray[j++]=idval;
                 //send size
                 MPI_Send(&commsize,1, MPI_Int_t, sendtask[ThisTask], numloops*NProcs*NProcs+ThisTask, MPI_COMM_WORLD);
