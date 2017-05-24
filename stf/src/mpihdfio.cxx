@@ -275,7 +275,7 @@ void MPINumInDomainHDF(Options &opt)
     for (j=0;j<NProcs;j++) Nbuf[j]=0;
     for (j=0;j<NProcs;j++) Nbaryonbuf[j]=0;
 
-        ///array listing number of particle types used.
+    ///array listing number of particle types used.
     ///Since Illustris contains an unused type of particles (2) and tracer particles (3) really not useful to iterate over all particle types in loops
     int nusetypes,nbusetypes;
     int usetypes[NHDFTYPE];
@@ -303,9 +303,11 @@ void MPINumInDomainHDF(Options &opt)
         partsdataspace=new DataSpace[opt.num_files*NHDFTYPE];
         MPISetFilesRead(opt,ireadfile,ireadtask);
         for(i=0; i<opt.num_files; i++) {
+	  if(ireadfile[i]) {
             if(opt.num_files>1) sprintf(buf,"%s.%d.hdf5",opt.fname,i);
             else sprintf(buf,"%s.hdf5",opt.fname);
             //Open the specified file and the specified dataset in the file.
+	    cout << "Task " << ThisTask << " counting particles in file " << buf << "\n";
             Fhdf[i].openFile(buf, H5F_ACC_RDONLY);
             headergroup[i]=Fhdf[i].openGroup(hdf_gnames.Header_name);
             //get number in file
@@ -405,7 +407,8 @@ void MPINumInDomainHDF(Options &opt)
                 }
             }
             Fhdf[i].close();
-        }
+	  }
+	}
     }
     //now having read number of particles, run all gather
     Int_t mpi_nlocal[NProcs];
