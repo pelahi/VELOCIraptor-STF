@@ -118,8 +118,8 @@ struct HDF_Header {
 
     double      BoxSize;
     int         npart[NHDFTYPE];
-    int         npartTotal[NHDFTYPE];
-    int         npartTotalHW[NHDFTYPE];
+    unsigned int npartTotal[NHDFTYPE];
+    unsigned int npartTotalHW[NHDFTYPE];
     double      mass[NHDFTYPE];
     double      Omega0, OmegaLambda, HubbleParam;
     double      redshift, time;
@@ -285,10 +285,9 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
     HDF_Header hdf_header_info;
     //buffers to load data
     int intbuff[NHDFTYPE];
-    long long longbuff[NHDFTYPE];
+    unsigned int uintbuff[NHDFTYPE];
     int j,k,ireaderror=0;
     Int_t nbodies=0;
-    IntType inttype;
 
     int nusetypes,usetypes[NHDFTYPE];
 
@@ -320,26 +319,12 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
         headergroup=Fhdf.openGroup(hdf_gnames.Header_name);
 
         headerattribs=headergroup.openAttribute(hdf_header_info.names[hdf_header_info.INumTot]);
-        inttype=headerattribs.getIntType();
-        if (inttype.getSize()==sizeof(int)) {
-            headerattribs.read(PredType::NATIVE_INT,&intbuff);
-            for (j=0;j<NHDFTYPE;j++) hdf_header_info.npartTotal[j]=intbuff[j];
-        }
-        if (inttype.getSize()==sizeof(long long)) {
-            headerattribs.read(PredType::NATIVE_LONG,&longbuff);
-            for (j=0;j<NHDFTYPE;j++) hdf_header_info.npartTotal[j]=longbuff[j];
-        }
+	headerattribs.read(PredType::NATIVE_UINT,&uintbuff);
+	for (j=0;j<NHDFTYPE;j++) hdf_header_info.npartTotal[j]=uintbuff[j];
 
         headerattribs=headergroup.openAttribute(hdf_header_info.names[hdf_header_info.INumTotHW]);
-        inttype=headerattribs.getIntType();
-        if (inttype.getSize()==sizeof(int)) {
-            headerattribs.read(PredType::NATIVE_INT,&intbuff);
-            for (j=0;j<NHDFTYPE;j++) hdf_header_info.npartTotalHW[j]=intbuff[j];
-        }
-        if (inttype.getSize()==sizeof(long long)) {
-            headerattribs.read(PredType::NATIVE_LONG,&longbuff);
-            for (j=0;j<NHDFTYPE;j++) hdf_header_info.npartTotalHW[j]=longbuff[j];
-        }
+	headerattribs.read(PredType::NATIVE_UINT,&uintbuff);
+	for (j=0;j<NHDFTYPE;j++) hdf_header_info.npartTotalHW[j]=uintbuff[j];
     }
     catch(GroupIException error)
     {
