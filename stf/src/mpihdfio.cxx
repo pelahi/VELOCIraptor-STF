@@ -307,7 +307,6 @@ void MPINumInDomainHDF(Options &opt)
             if(opt.num_files>1) sprintf(buf,"%s.%d.hdf5",opt.fname,i);
             else sprintf(buf,"%s.hdf5",opt.fname);
             //Open the specified file and the specified dataset in the file.
-	    cout << "Task " << ThisTask << " counting particles in file " << buf << "\n";
             Fhdf[i].openFile(buf, H5F_ACC_RDONLY);
             headergroup[i]=Fhdf[i].openGroup(hdf_gnames.Header_name);
             //get number in file
