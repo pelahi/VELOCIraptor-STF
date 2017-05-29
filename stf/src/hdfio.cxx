@@ -1677,55 +1677,7 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
     }
     //if not reading information than waiting to receive information
     else {
-        //for all threads not reading snapshots, simply receive particles as necessary from all threads involved with reading the data
-        //first determine which threads are going to send information to this thread.
-        for (i=0;i<opt.nsnapread;i++) if (irecv[i]) {
-            mpi_irecvflag[i]=0;
-            MPI_Irecv(&Nlocalthreadbuf[i], 1, MPI_Int_t, readtaskID[i], ThisTask+NProcs, MPI_COMM_WORLD, &mpi_request[i]);
-        }
-        Nlocaltotalbuf=0;
-        //non-blocking receives for the number of particles one expects to receive
-        do {
-            irecvflag=0;
-            for (i=0;i<opt.nsnapread;i++) if (irecv[i]) {
-                if (mpi_irecvflag[i]==0) {
-                    //test if a request has been sent for a Recv call by one of the read threads
-                    MPI_Test(&mpi_request[i], &mpi_irecvflag[i], &status);
-                    if (mpi_irecvflag[i]) {
-                        if (Nlocalthreadbuf[i]>0) {
-                            MPI_Recv(&Part[Nlocal],sizeof(Particle)*Nlocalthreadbuf[i],MPI_BYTE,readtaskID[i],ThisTask, MPI_COMM_WORLD,&status);
-                            Nlocal+=Nlocalthreadbuf[i];
-                            Nlocaltotalbuf+=Nlocalthreadbuf[i];
-                            mpi_irecvflag[i]=0;
-                            MPI_Irecv(&Nlocalthreadbuf[i], 1, MPI_Int_t, readtaskID[i], ThisTask+NProcs, MPI_COMM_WORLD, &mpi_request[i]);
-                        }
-                        else {
-                            irecv[i]=0;
-                        }
-                    }
-                }
-            }
-            for (i=0;i<opt.nsnapread;i++) irecvflag+=irecv[i];
-        } while(irecvflag>0);
-        //now that data is local, must adjust data iff a separate baryon search is required. 
-        if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) {
-            for (i=0;i<Nlocal;i++) {
-                k=Part[i].GetType();
-                if (!(k==GASTYPE||k==STARTYPE||k==BHTYPE)) Part[i].SetID(0);
-                else {
-                    Nlocalbaryon[0]++;
-                    if  (k==GASTYPE) {Part[i].SetID(1);Nlocalbaryon[1]++;}
-                    else if  (k==STARTYPE) {Part[i].SetID(2);Nlocalbaryon[2]++;}
-                    else if  (k==BHTYPE) {Part[i].SetID(3);Nlocalbaryon[3]++;}
-                }
-            }
-            //sorted so that dark matter particles first, baryons after
-            qsort(Part,Nlocal, sizeof(Particle), IDCompare);
-            Nlocal-=Nlocalbaryon[0];
-            //index type separated
-            for (i=0;i<Nlocal;i++) Part[i].SetID(i);
-            for (i=0;i<Nlocalbaryon[0];i++) Part[i+Nlocal].SetID(i+Nlocal);
-        }
+        MPIReceiveParticlesFromReadThreads(opt,Pbuf,Part,readtaskID, irecv, mpi_irecvflag, Nlocalthreadbuf, mpi_request,Pbaryons);
     }
 
     //finally need to send info between read threads once all threads reading data have broadcasted the data appropriately to all other threads

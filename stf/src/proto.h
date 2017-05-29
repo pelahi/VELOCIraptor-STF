@@ -46,8 +46,10 @@ void ReadTipsy(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pba
 ///Read HDF format
 void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbaryons, Int_t nbaryons=0);
 #endif
-///Read gadget file
+///Read ramses file
 void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbaryons, Int_t nbaryons=0);
+///Read Nchilada file
+void ReadNchilada(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbaryons, Int_t nbaryons=0);
 
 ///Read local velocity density
 void ReadLocalVelocityDensity(Options &opt, const Int_t nbodies, Particle * Part);
@@ -317,9 +319,9 @@ void MPIDomainExtentGadget(Options &opt);
 ///Determine Domain for Gadget input
 void MPIDomainDecompositionGadget(Options &opt);
 
-///Determine Domain Extent for HDF input
+///Determine Domain Extent for Ramses input
 void MPIDomainExtentRAMSES(Options &opt);
-///Determine Domain for Gadget input
+///Determine Domain for Ramses input
 void MPIDomainDecompositionRAMSES(Options &opt);
 
 #ifdef USEHDF
@@ -328,6 +330,11 @@ void MPIDomainExtentHDF(Options &opt);
 ///Determine Domain for Gadget input
 void MPIDomainDecompositionHDF(Options &opt);
 #endif
+
+///Determine Domain Extent for Nchilada input
+void MPIDomainExtentNchilada(Options &opt);
+///Determine Domain for Gadget input
+void MPIDomainDecompositionNchilada(Options &opt);
 
 ///determine what processor a particle is sent to based on domain decomposition
 int MPIGetParticlesProcessor(const Double_t,const Double_t,const Double_t);
@@ -343,10 +350,14 @@ int MPISetFilesRead(Options&opt, int *&ireadfile, int *&ireadtask);
 void MPINumInDomainTipsy(Options &opt);
 /// Determine number of local particles for gadget
 void MPINumInDomainGadget(Options &opt);
-/// Determine number of local particles for gadget
+/// Determine number of local particles for ramses
 void MPINumInDomainRAMSES(Options &opt);
+#ifdef USEHDF
 /// Determine number of local particles for HDF
 void MPINumInDomainHDF(Options &opt);
+#endif
+/// Determine number of local particles for Nchilada
+void MPINumInDomainNchilada(Options &opt);
 
 ///adjust the domain boundaries to code units
 void MPIAdjustDomain(Options opt);
@@ -359,6 +370,8 @@ int MPIInDomain(Double_t xsearch[3][2], Double_t bnd[3][2]);
 /// \name MPI send/recv related routines
 /// see \ref mpiroutines.cxx for implementation
 //@{
+///recv particle data from read threads
+void MPIReceiveParticlesFromReadThreads(Options &opt, Particle *&Pbuf, Particle *&Part, int *&readtaskID, int *&irecv, int *&mpi_irecvflag, Int_t *&Nlocalthreadbuf, MPI_Request *&mpi_request, Particle *&Pbaryons);
 ///Send/recv particle data read from input files between the various read threads;
 void MPISendParticlesBetweenReadThreads(Options &opt, Particle *&Pbuf, Particle *&Part, Int_t *&nreadoffset, int *&ireadtask, int *&readtaskID, Particle *&Pbaryons, Int_t *&mpi_nsend_baryon);
 //@}

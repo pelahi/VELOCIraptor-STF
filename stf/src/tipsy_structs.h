@@ -4,8 +4,8 @@
 #define TIPSY_STRUCTS_H
 
 #include "endianutils.h"
-
-struct dark_particle {
+///dark matter particles
+struct tipsy_dark_particle {
     float mass;
     float pos[3];
     float vel[3];
@@ -20,8 +20,8 @@ struct dark_particle {
     }
 } ;
 
-
-struct star_particle {
+///star/black hole particles (bh typically have -1*tform stored in tform)
+struct tipsy_star_particle {
     float mass;
     float pos[3];
     float vel[3];
@@ -39,7 +39,8 @@ struct star_particle {
     }
 } ;
 
-struct gas_particle {
+///gas particle
+struct tipsy_gas_particle {
     float mass;
     float pos[3];
     float vel[3];
@@ -48,6 +49,7 @@ struct gas_particle {
     float eps;
     float metals;
     float phi;
+    float hsmooth;
     void SwitchtoBigEndian(void){
         mass=BigFloat(mass);
         rho=BigFloat(rho);
@@ -55,11 +57,13 @@ struct gas_particle {
         eps=BigFloat(eps);
         phi=BigFloat(phi);
         metals=BigFloat(metals);
+        hsmooth=BigFloat(hsmooth);
         for (int i=0;i<3;i++) {pos[i]=BigFloat(pos[i]);vel[i]=BigFloat(vel[i]);}
     }
 } ;
 
-struct dump {
+///tipsy header structure
+struct tipsy_dump {
     double time;
     int nbodies;
     int ndim;
@@ -79,7 +83,8 @@ struct dump {
     
 } ;
 
-struct simple_particle {
+//and simple particle 
+struct tipsy_simple_particle {
     float mass;
     float pos[3];
     float vel[3];

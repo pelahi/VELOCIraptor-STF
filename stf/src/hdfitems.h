@@ -466,7 +466,8 @@ inline Int_t HDF_get_nfiles(char *fname, int ptype)
 
     return nfiles = hdf_header_info.num_files;
 
-}//@}
+}
+//@}
 
 
 #endif 

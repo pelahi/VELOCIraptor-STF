@@ -186,10 +186,12 @@ using namespace NBody;
 //@{
 /// \name defining types of input
 //@{
+#define  NUMINPUTS 5
 #define  IOGADGET 1
 #define  IOHDF 2
 #define  IOTIPSY 3
 #define  IORAMSES 4
+#define  IONCHILADA 5
 //@}
 //@}
 
