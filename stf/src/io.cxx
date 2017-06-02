@@ -13,6 +13,7 @@
 #include "hdfitems.h"
 #endif
 #include "ramsesitems.h"
+#include "nchiladaitems.h"
 
 ///Checks if file exits by attempting to get the file attributes
 ///If success file obviously exists.
@@ -34,11 +35,11 @@ bool FileExists(const char *fname) {
 Int_t ReadHeader(Options &opt){
     InitEndian();
     if (opt.inputtype==IOTIPSY) {
-        struct dump tipsyheader;
+        struct tipsy_dump tipsyheader;
         fstream Ftip(opt.fname, ios::in | ios::binary);
         if (!Ftip){cerr<<"ERROR: Unable to open " <<opt.fname<<endl;exit(8);}
         else cout<<"Reading tipsy format from "<<opt.fname<<endl;
-        Ftip.read((char*)&tipsyheader,sizeof(dump));
+        Ftip.read((char*)&tipsyheader,sizeof(tipsy_dump));
         tipsyheader.SwitchtoBigEndian();
         if (opt.partsearchtype==PSTALL) return tipsyheader.nbodies;
         else if (opt.partsearchtype==PSTDARK) return tipsyheader.ndark;
@@ -56,6 +57,7 @@ Int_t ReadHeader(Options &opt){
 #ifdef USEHDF
     else if (opt.inputtype==IOHDF) return HDF_get_nbodies(opt.fname,opt.partsearchtype,opt);
 #endif
+    else if (opt.inputtype==IONCHILADA) return Nchilada_get_nbodies(opt.fname,opt.partsearchtype,opt);
     return 0;
 }
 
@@ -70,6 +72,7 @@ void ReadData(Options &opt, Particle *&Part, const Int_t nbodies, Particle *&Pba
 #ifdef USEHDF
     else if (opt.inputtype==IOHDF) ReadHDF(opt,Part,nbodies, Pbaryons, nbaryons);
 #endif
+    else if (opt.inputtype==IONCHILADA) ReadNchilada(opt,Part,nbodies, Pbaryons, nbaryons);
 
 #ifdef USEMPI
     MPIAdjustDomain(opt);

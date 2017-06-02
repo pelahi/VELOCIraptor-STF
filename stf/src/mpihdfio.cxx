@@ -1,5 +1,5 @@
-/*! \file mpigadgetio.cxx
- *  \brief this file contains routines used with MPI compilation and gadget io and domain construction. 
+/*! \file mpihdfio.cxx
+ *  \brief this file contains routines used with MPI compilation and HDF io and domain construction. 
  */
 
 #if defined(USEMPI) && defined(USEHDF)

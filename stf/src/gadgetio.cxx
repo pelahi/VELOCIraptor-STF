@@ -1280,57 +1280,7 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
 #ifdef USEMPI
     }
     else {
-        //for all threads not reading snapshots, simply receive particles as necessary from all threads involved with reading the data
-        //first determine which threads are going to send information to this thread.
-        for (i=0;i<opt.nsnapread;i++) if (irecv[i]) {
-            mpi_irecvflag[i]=0;
-            MPI_Irecv(&Nlocalthreadbuf[i], 1, MPI_Int_t, readtaskID[i], ThisTask+NProcs, MPI_COMM_WORLD, &mpi_request[i]);
-        }
-        Nlocaltotalbuf=0;
-        //non-blocking receives for the number of particles one expects to receive
-        do {
-            irecvflag=0;
-            for (i=0;i<opt.nsnapread;i++) if (irecv[i]) {
-                if (mpi_irecvflag[i]==0) {
-                    //test if a request has been sent for a Recv call by one of the read threads
-                    MPI_Test(&mpi_request[i], &mpi_irecvflag[i], &status);
-                    if (mpi_irecvflag[i]) {
-                        if (Nlocalthreadbuf[i]>0) {
-                            MPI_Recv(&Part[Nlocal],sizeof(Particle)*Nlocalthreadbuf[i],MPI_BYTE,readtaskID[i],ThisTask, MPI_COMM_WORLD,&status);
-                            Nlocal+=Nlocalthreadbuf[i];
-                            Nlocaltotalbuf+=Nlocalthreadbuf[i];
-                            mpi_irecvflag[i]=0;
-                            MPI_Irecv(&Nlocalthreadbuf[i], 1, MPI_Int_t, readtaskID[i], ThisTask+NProcs, MPI_COMM_WORLD, &mpi_request[i]);
-                        }
-                        else {
-                            irecv[i]=0;
-                        }
-                    }
-                }
-            }
-            for (i=0;i<opt.nsnapread;i++) irecvflag+=irecv[i];
-        } while(irecvflag>0);
-        //now that data is local, must adjust data iff a separate baryon search is required. 
-        if (opt.iBaryonSearch && opt.partsearchtype!=PSTALL) {
-            for (i=0;i<Nlocal;i++) {
-                k=Part[i].GetType();
-                if (!(k==GASTYPE||k==STARTYPE||k==BHTYPE)) Part[i].SetID(0);
-                else {
-                    Nlocalbaryon[0]++;
-                    if  (k==GASTYPE) {Part[i].SetID(1);Nlocalbaryon[1]++;}
-                    else if  (k==STARTYPE) {Part[i].SetID(2);Nlocalbaryon[2]++;}
-                    else if  (k==BHTYPE) {Part[i].SetID(3);Nlocalbaryon[3]++;}
-                }
-            }
-            //sorted so that dark matter particles first, baryons after
-            qsort(Part,Nlocal, sizeof(Particle), IDCompare);
-            Nlocal-=Nlocalbaryon[0];
-            //index type separated
-            for (i=0;i<Nlocal;i++) Part[i].SetID(i);
-            for (i=0;i<Nlocalbaryon[0];i++) Part[i+Nlocal].SetID(i+Nlocal);
-            //finally, need to move baryons forward by the Export Factor * Nlocal as need that extra buffer to copy data two and from mpi threads
-//            for (i=Nlocalbaryon[0]-1;i>=0;i--) Part[i+(Int_t)(Nlocal*MPIExportFac)]=Part[i+Nlocal];
-        }
+        MPIReceiveParticlesFromReadThreads(opt,Pbuf,Part,readtaskID, irecv, mpi_irecvflag, Nlocalthreadbuf, mpi_request,Pbaryons);
     }
     //finally need to send info between read threads once all threads reading data have broadcasted the data appropriately to all other threads
     //must deallocate Pbuf, reallocate it for the local Nreadbuf amount and read the files again. This ensures little memory overhead and files are only read twice
