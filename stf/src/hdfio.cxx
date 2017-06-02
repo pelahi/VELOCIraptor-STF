@@ -206,6 +206,8 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
     float *Tagefloatbuff=new float[HDFCHUNKSIZE];
     double *Tagedoublebuff=new double[HDFCHUNKSIZE];
 
+    Pbuf = NULL; /* Keep Pbuf NULL or allocated so we can check its status later */
+
     Nbuf=new Int_t[NProcs];
     for (int j=0;j<NProcs;j++) Nbuf[j]=0;
     nreadoffset=new Int_t[opt.nsnapread];
@@ -1693,7 +1695,10 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
     //via an allgather, reset Nbuf
     for (i=0;i<NProcs;i++) Nbuf[i]=0;
     if (ireadtask[ThisTask]>=0 && opt.nsnapread>1) {
-    delete[] Pbuf;
+      if(Pbuf) {
+	delete[] Pbuf;
+	Pbuf = NULL;
+      }
     Nlocalbuf=0;
     for (i=0;i<opt.nsnapread;i++) Nlocalbuf+=Nreadbuf[i];
     if (Nlocalbuf>0)
@@ -2097,7 +2102,10 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
     //and then send all the data between the read threads
     MPISendParticlesBetweenReadThreads(opt, Pbuf, Part, nreadoffset, ireadtask, readtaskID, Pbaryons, mpi_nsend_baryon);
     if (ireadtask[ThisTask]>=0) {
-        delete[] Pbuf;
+        if(Pbuf) {
+	  delete[] Pbuf;
+	  Pbuf = NULL;
+	}
         if (opt.iBaryonSearch && opt.partsearchtype!=PSTALL) delete[] mpi_nsend_baryon;
         //set IDS
         for (i=0;i<Nlocal;i++) Part[i].SetID(i);
