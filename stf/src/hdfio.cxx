@@ -100,6 +100,7 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
     //buffers to load data
     int *intbuff=new int[chunksize];
     long long *longbuff=new long long[chunksize];
+    unsigned int *uintbuff=new unsigned int[chunksize];
     float *floatbuff=new float[chunksize*3];
     double *doublebuff=new double[chunksize*3];
     void *integerbuff,*realbuff;
@@ -359,27 +360,13 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
 
             headerattribs[i]=headergroup[i].openAttribute(hdf_header_info[i].names[hdf_header_info[i].INumTot]);
             headerdataspace[i]=headerattribs[i].getSpace();
-            inttype=headerattribs[i].getIntType();
-            if (inttype.getSize()==sizeof(int)) {
-                headerattribs[i].read(PredType::NATIVE_INT,&intbuff[0]);
-                for (k=0;k<NHDFTYPE;k++) hdf_header_info[i].npartTotal[k]=intbuff[k];
-            }
-            if (inttype.getSize()==sizeof(long long)) {
-                headerattribs[i].read(PredType::NATIVE_LONG,&longbuff[0]);
-                for (k=0;k<NHDFTYPE;k++) hdf_header_info[i].npartTotal[k]=longbuff[k];
-            }
+	    headerattribs[i].read(PredType::NATIVE_UINT,&uintbuff[0]);
+	    for (k=0;k<NHDFTYPE;k++) hdf_header_info[i].npartTotal[k]=uintbuff[k];
 
             headerattribs[i]=headergroup[i].openAttribute(hdf_header_info[i].names[hdf_header_info[i].INumTotHW]);
             headerdataspace[i]=headerattribs[i].getSpace();
-            inttype=headerattribs[i].getIntType();
-            if (inttype.getSize()==sizeof(int)) {
-                headerattribs[i].read(PredType::NATIVE_INT,&intbuff[0]);
-                for (k=0;k<NHDFTYPE;k++) hdf_header_info[i].npartTotalHW[k]=intbuff[k];
-            }
-            if (inttype.getSize()==sizeof(long long)) {
-                headerattribs[i].read(PredType::NATIVE_LONG,&longbuff[0]);
-                for (k=0;k<NHDFTYPE;k++) hdf_header_info[i].npartTotalHW[k]=longbuff[k];
-            }
+	    headerattribs[i].read(PredType::NATIVE_UINT,&uintbuff[0]);
+	    for (k=0;k<NHDFTYPE;k++) hdf_header_info[i].npartTotalHW[k]=uintbuff[k];
 
             headerattribs[i]=headergroup[i].openAttribute(hdf_header_info[i].names[hdf_header_info[i].IOmega0]);
             headerdataspace[i]=headerattribs[i].getSpace();
@@ -517,8 +504,8 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
         Ntotal+=((long long)hdf_header_info[ifirstfile].npartTotalHW[j]<<32);
     }
     if (ThisTask==0) {
-    cout<<"File contains "<<Ntotal<<" particles at is at time "<<opt.a<<endl;
-    cout<<"Particle system contains "<<nbodies<<" particles at is at time "<<opt.a<<" in a box of size "<<opt.p<<endl;
+    cout<<"File contains "<<Ntotal<<" particles and is at time "<<opt.a<<endl;
+    cout<<"Particle system contains "<<nbodies<<" particles and is at time "<<opt.a<<" in a box of size "<<opt.p<<endl;
     cout<<"Cosmology (h,Omega_m,Omega_cdm,Omega_b,Omega_L) = ("<< opt.h<<","<<opt.Omega_m<<","<<opt.Omega_cdm<<","<<opt.Omega_b<<","<<opt.Omega_Lambda<<")"<<endl;
     }
     //by default the interparticle spacing is determined using GDMTYPE
