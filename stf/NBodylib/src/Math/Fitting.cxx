@@ -9,7 +9,7 @@ namespace Math
 {
     ///\todo must alter so doesn't hang that often but I have no idea what could be taking so long, what hangs 
     Double_t FitNonLinLS(const math_function fitfunc, const math_function *difffuncs, const int nparams, Double_t *params, GMatrix &covar, 
-                         const int npoints, const Double_t x[], const Double_t y[], GMatrix *W, Double_t error, Double_t cl, int *fixparam, int binned, int maxiit)
+                         const int npoints, const Double_t x[], const Double_t y[], GMatrix *W, Double_t error, Double_t cl, int *fixparam, int binned, int maxiit, int iestimateerror)
     {
         int iit=0,iflag,npar=0;
         int parlist[nparams];//store list of all unfixed parameters
@@ -92,30 +92,32 @@ namespace Math
         //if iterations have not converged print warning
         if (iit>maxiit) return -1;
         oldchi2=chi2;
-        for (int i=0;i<npoints;i++)
-            for (int j=0;j<npar;j++) Jacobian(i,j)=difffuncs[parlist[j]].function(x[i],(void*)params);
-        JT=Jacobian.Transpose();
-        a=JT*(*W)*Jacobian;
-        b=JT*(*W)*dY;
-        ainv=a.InversewithPivot();
-        dP=ainv*b;
-        for (int j=0;j<npar;j++) params[parlist[j]]+=dP(j,0);
-        for (int i=0;i<npoints;i++) dY(i,0)=(y[i]-fitfunc.function(x[i],(void*)params));
-        chi2=(dY.Transpose()*(*W)*dY)(0,0);
-        if (chi2>oldchi2) {
-            for (int j=0;j<npar;j++) params[parlist[j]]-=dP(j,0);
-            chi2=oldchi2;
-        }
-        else {
+        if (iestimateerror==1) {
             for (int i=0;i<npoints;i++)
                 for (int j=0;j<npar;j++) Jacobian(i,j)=difffuncs[parlist[j]].function(x[i],(void*)params);
             JT=Jacobian.Transpose();
             a=JT*(*W)*Jacobian;
-            covar=a.InversewithPivot();
+            b=JT*(*W)*dY;
+            ainv=a.InversewithPivot();
+            dP=ainv*b;
+            for (int j=0;j<npar;j++) params[parlist[j]]+=dP(j,0);
+            for (int i=0;i<npoints;i++) dY(i,0)=(y[i]-fitfunc.function(x[i],(void*)params));
+            chi2=(dY.Transpose()*(*W)*dY)(0,0);
+            if (chi2>oldchi2) {
+                for (int j=0;j<npar;j++) params[parlist[j]]-=dP(j,0);
+                chi2=oldchi2;
+            }
+            else {
+                for (int i=0;i<npoints;i++)
+                    for (int j=0;j<npar;j++) Jacobian(i,j)=difffuncs[parlist[j]].function(x[i],(void*)params);
+                JT=Jacobian.Transpose();
+                a=JT*(*W)*Jacobian;
+                covar=a.InversewithPivot();
+            }
+            ///NOTE COVARIANCE ESTIMATOR STILL NOT WORKING!!!
+            //also determine deltachi2 required for desired cl level which depends on dof
+            deltachi2=gsl_cdf_chisq_Pinv(cl,dof);
         }
-        ///NOTE COVARIANCE ESTIMATOR STILL NOT WORKING!!!
-        //also determine deltachi2 required for desired cl level which depends on dof
-        deltachi2=gsl_cdf_chisq_Pinv(cl,dof);
         //now alter covariance matrix to account for cl level
         //this has yet to be implemented but simply a matter of using deltachi2=dP*(covar^-1)*dP. Knowing this, can alter the values in the covarianc matrix to account for this change.
         return chi2;
