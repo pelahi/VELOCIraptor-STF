@@ -19,11 +19,11 @@ inline UInt_t MapPIDStoIndex(Options &opt, GADGETIDTYPE i){return i;}
 Int_t ReadHeader(Options &opt){
     InitEndian();
     if (opt.nfiles<1) {
-        struct dump tipsyheader;
+        struct tipsy_dump tipsyheader;
         fstream Ftip(opt.fname, ios::in | ios::binary);
         if (!Ftip){cerr<<"ERROR: Unable to open " <<opt.fname<<endl;exit(8);}
         else cout<<"Reading tipsy format from "<<opt.fname<<endl;
-        Ftip.read((char*)&tipsyheader,sizeof(dump));
+        Ftip.read((char*)&tipsyheader,sizeof(tipsy_dump));
         return tipsyheader.nbodies;
     }
     else {

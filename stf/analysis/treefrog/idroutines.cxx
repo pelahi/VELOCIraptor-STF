@@ -135,6 +135,7 @@ map<long long, long long> ConstructMemoryEfficientPIDStoIndexMap(Options &opt, H
 #endif
     opt.MaxIDValue=idvec.size();
     for (i=0;i<opt.MaxIDValue;i++) idmap.insert(pair<long long, long long>(idvec[i],(long long)i));
+    time2=MyGetTime()-time2;
     if (opt.iverbose && ThisTask==0) cout<<ThisTask<<" finished getting GLOBAL unique ids of "<<idvec.size()<<" in "<<time2<<endl;
     return idmap;
 }

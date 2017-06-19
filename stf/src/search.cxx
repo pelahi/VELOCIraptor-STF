@@ -1827,6 +1827,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_
     Int_t *subnumingroup,**subpglist;
     Int_t **subsubnumingroup, ***subsubpglist;
     Int_t *numcores;
+    Int_t *subpfofold;
     Coordinate *gvel;
     Matrix *gveldisp;
     KDTree *tree;
@@ -1892,9 +1893,11 @@ void SearchSubSub(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_
         subsubpglist=new Int_t**[nsubsearch+1];
         subngroup=new Int_t[nsubsearch+1];
         numcores=new Int_t[nsubsearch+1];
+        subpfofold=new Int_t[nsubsearch+1];
         ns=0;
         //here loop over all sublevel groups that need to be searched for substructure
         for (Int_t i=1;i<=oldnsubsearch;i++) {
+            subpfofold[i]=pfof[subpglist[i][0]];
             subPart=new Particle[subnumingroup[i]];
             for (Int_t j=0;j<subnumingroup[i];j++) subPart[j]=Partsubset[subpglist[i][j]];
             //now if low statistics, then possible that very central regions of subhalo will be higher due to cell size used and Nv search
@@ -2030,32 +2033,74 @@ void SearchSubSub(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_
             pcsld->nextlevel->stypeinlevel=new Int_t[ns+1];
             pcsld->nextlevel->stype=HALOSTYPE+10*sublevel;
             pcsld->nextlevel->nsinlevel=ns;
-            /// \todo need to adjust addressing here as i is not in the same order as
-            /// the index of pcsld arrays
             Int_t nscount=1;
             for (Int_t i=1;i<=oldnsubsearch;i++) {
                 Int_t ii=0,iindex;
-                //here adjust head particle of parent structure if necessary
-                while (pfof[subpglist[i][ii]]>ngroup+ngroupidoffset-ns) ii++;
-                //store 
-                iindex=pfof[subpglist[i][ii]]-ngroupidoffsetold-firstgroupoffset;
-                pcsld->gidhead[iindex]=&pfof[subpglist[i][ii]];
-                pcsld->Phead[iindex]=&Partsubset[subpglist[i][ii]];
-                //only for field haloes does the gidparenthead and giduberparenthead need to be adjusted
-                //but only if 3DFOFs are not kept as uber parents
-                if(sublevel==1&&opt.iKeepFOF==0) {
-                    pcsld->gidparenthead[iindex]=&pfof[subpglist[i][ii]];
-                    pcsld->giduberparenthead[iindex]=&pfof[subpglist[i][ii]];
+                Int_t *gidparentheadval,*giduberparentheadval;
+                Particle *Pparentheadval;
+                //here adjust head particle of parent structure if necessary. Search for first instance where
+                //the pfof value of the particles originally associated with the parent structure have a value
+                //less than the expected values for substructures
+                while (pfof[subpglist[i][ii]]>ngroup+ngroupidoffset-ns && ii<subnumingroup[i]) ii++;
+                //if a (sub)structure has been fully decomposed into (sub)substructures then possible no particles
+                //remaining with a halo id, this must be handled
+                if (pfof[subpglist[i][ii]]>ngroup+ngroupidoffset-ns) {
+                    //in the case that no particles remain part of the parent (sub)structure
+                    //then remove the (sub)structure from the current structure level, add the new structures to the next structure level
+                    //first find index of (sub)structure
+                    Particle *Pval=&Partsubset[subpglist[i][0]];
+                    iindex=0;
+                    while (pcsld->Phead[iindex++]!=Pval);
+                    //store the parent/uber parent info if not a field halo
+                    if(sublevel=1&&opt.iKeepFOF==0) {
+                        Pparentheadval=NULL;
+                        gidparentheadval=NULL;
+                        giduberparentheadval=NULL;
+                    }
+                    else {
+                        Pparentheadval=pcsld->Phead[iindex];
+                        gidparentheadval=pcsld->gidhead[iindex];
+                        giduberparentheadval=pcsld->giduberparenthead[iindex];
+                    }
+                    //now copy information 
+                    for (Int_t jj=iindex;jj<pcsld->nsinlevel;jj++) {
+                        pcsld->Phead[jj]=pcsld->Phead[jj+1];
+                        pcsld->gidhead[jj]=pcsld->gidhead[jj+1];
+                        pcsld->Pparenthead[jj]=pcsld->Pparenthead[jj+1];
+                        pcsld->gidparenthead[jj]=pcsld->gidparenthead[jj+1];
+                        pcsld->giduberparenthead[jj]=pcsld->giduberparenthead[jj+1];
+                        pcsld->stypeinlevel[jj]=pcsld->stypeinlevel[jj+1];
+                    }
+                    //decrease number of structures in level, adjust ids, offsets, etc
+                    for (Int_t jj=0;jj<nsubset;jj++) if (pfof[jj]>subpfofold[i]) pfof[jj]--;
+                    pcsld->nsinlevel--;
+                    ngroupidoffsetold--;
+                }
+                else {
+                    //otherwise, just a matter of updating some pointers
+                    //store index in the structure list to access the parent (sub)structure
+                    iindex=pfof[subpglist[i][ii]]-ngroupidoffsetold-firstgroupoffset;
+                    pcsld->gidhead[iindex]=&pfof[subpglist[i][ii]];
+                    pcsld->Phead[iindex]=&Partsubset[subpglist[i][ii]];
+                    //only for field haloes does the gidparenthead and giduberparenthead need to be adjusted
+                    //but only if 3DFOFs are not kept as uber parents
+                    if(sublevel==1&&opt.iKeepFOF==0) {
+                        pcsld->gidparenthead[iindex]=&pfof[subpglist[i][ii]];
+                        pcsld->giduberparenthead[iindex]=&pfof[subpglist[i][ii]];
+                    }
+                    Pparentheadval=&Partsubset[subpglist[i][ii]];
+                    gidparentheadval=pcsld->gidhead[iindex];
+                    giduberparentheadval=pcsld->giduberparenthead[iindex];
                 }
                 for (Int_t j=1;j<=subngroup[i];j++) {
                     //need to restructure pointers so that they point to what the parent halo
                     //points to and point to the head of the structure
                     //this is after viable structures have been identfied
-                    pcsld->nextlevel->Pparenthead[nscount]=&Partsubset[subpglist[i][ii]];
-                    pcsld->nextlevel->gidparenthead[nscount]=&pfof[subpglist[i][ii]];
                     pcsld->nextlevel->Phead[nscount]=&Partsubset[subsubpglist[i][j][0]];
                     pcsld->nextlevel->gidhead[nscount]=&pfof[subsubpglist[i][j][0]];
-                    pcsld->nextlevel->giduberparenthead[nscount]=pcsld->giduberparenthead[i];
+                    pcsld->nextlevel->Pparenthead[nscount]=Pparentheadval;
+                    pcsld->nextlevel->gidparenthead[nscount]=gidparentheadval;
+                    pcsld->nextlevel->giduberparenthead[nscount]=giduberparentheadval;
                     //if multiple core region then set the appropriate structure level
                     if (j>=(subngroup[i]-numcores[i])+1) pcsld->nextlevel->stypeinlevel[nscount]=HALOSTYPE+10*(sublevel-1)+HALOCORESTYPE;
                     else pcsld->nextlevel->stypeinlevel[nscount]=HALOSTYPE+10*sublevel;
@@ -2091,6 +2136,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_
             nsubsearch--;
         }
         else iflag=false;
+        //free memory
         for (Int_t i=1;i<=oldnsubsearch;i++) {
             if (subngroup[i]>0) {
                 for (Int_t j=1;j<=subngroup[i];j++) delete[] subsubpglist[i][j];
@@ -2102,6 +2148,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_
         delete[] subsubpglist;
         delete[] subngroup;
         delete[] numcores;
+        delete[] subpfofold;
         if (opt.iverbose) cout<<ThisTask<<"Finished storing next level of substructures to be searched for subsubstructure"<<endl;
     }
 
