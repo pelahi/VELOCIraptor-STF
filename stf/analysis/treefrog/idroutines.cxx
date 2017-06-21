@@ -132,11 +132,15 @@ map<long long, long long> ConstructMemoryEfficientPIDStoIndexMap(Options &opt, H
     MPI_Bcast(&commsize,1, MPI_Int_t, 0, MPI_COMM_WORLD);
     if (ThisTask!=0) idvec=vector<long long>(commsize);
     MPI_Bcast(idvec.data(),commsize, MPI_LONG, 0, MPI_COMM_WORLD);
+#else
+    idvec=vector<long long>(idset.begin(), idset.end());
 #endif
     opt.MaxIDValue=idvec.size();
     for (i=0;i<opt.MaxIDValue;i++) idmap.insert(pair<long long, long long>(idvec[i],(long long)i));
     time2=MyGetTime()-time2;
+#ifdef USEMPI
     if (opt.iverbose && ThisTask==0) cout<<ThisTask<<" finished getting GLOBAL unique ids of "<<idvec.size()<<" in "<<time2<<endl;
+#endif
     return idmap;
 }
 
