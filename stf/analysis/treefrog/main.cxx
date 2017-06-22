@@ -149,7 +149,7 @@ int main(int argc,char **argv)
                     for (j=0;j<pht[i-istep].numhalos;j++) {
                         newnp=max((Int_t)(pht[i-istep].Halo[j].NumberofParticles*opt.particle_frac),opt.min_numpart);
                         for (Int_t k=0;k<newnp;k++) 
-                            pfofp[pht[i-istep].Halo[j].ParticleID[k]]+=pht[i-istep].numhalos;
+                            pfofp[pht[i-istep].Halo[j].ParticleID[k]]=j+1+pht[i-istep].numhalos;
                     }
                 }
 
@@ -260,7 +260,7 @@ int main(int argc,char **argv)
                     for (j=0;j<pht[i+istep].numhalos;j++) {
                         newnp=max((Int_t)(pht[i+istep].Halo[j].NumberofParticles*opt.particle_frac),opt.min_numpart);
                         for (Int_t k=0;k<newnp;k++) 
-                            pfofp[pht[i+istep].Halo[j].ParticleID[k]]+=pht[i+istep].numhalos;
+                            pfofp[pht[i+istep].Halo[j].ParticleID[k]]=j+1+pht[i+istep].numhalos;
                     }
                 }
 
