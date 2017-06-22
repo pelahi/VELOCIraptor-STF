@@ -13,6 +13,8 @@
 #include <Precision.h>
 #include <Coordinate.h>
 #include <Matrix.h>
+#include <gsl/gsl_blas.h>
+#include <gsl/gsl_linagl.h>
 
 using namespace std;
 namespace Math
@@ -429,24 +431,6 @@ class GMatrix
                     A[p_k + j] /= A[p_k + k];
                 }
             }
-        //old pointer code
-/*        Double_t *p_k, *p_row, *p_col;
-        for (j=0;j<row;j++) for (k=0;k<col;k++) A[j*col+k]=matrix[j*col+k];
-        for (k = 0, p_k = A; k < row; p_k += row, k++) {
-            for (i = k, p_row = p_k; i < row; p_row += row, i++) {
-                for (p = 0, p_col = A; p < k; p_col += row, p++)
-                    *(p_row + k) -= *(p_row + p) * *(p_col + k);
-            }
-            if ( *(p_k + k) == 0.0 ) {
-                printf("Singular matrix, returning zero matrix\n");
-                return GMatrix(row,col);
-            }
-            for (j = k+1; j < row; j++) {
-                for (p = 0, p_col = A; p < k; p_col += row,  p++)
-                    *(p_k + j) -= *(p_k + p) * *(p_col + j);
-                *(p_k + j) /= *(p_k + k);
-            }
-        }*/
             return GMatrix(row,col,A);
         }
     }

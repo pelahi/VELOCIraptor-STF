@@ -570,7 +570,7 @@ struct Options
         halocorexfac=0.5;
         halocorevfac=2.0;
         halocorenfac=0.1;
-        halocoresigmafac=3.0;
+        halocoresigmafac=2.0;
         halocorevfaciter=0.75;
         halocorenumloops=1;
 
@@ -855,7 +855,7 @@ struct PropData
     ///physical properties for dynamical state
     Double_t Efrac,Pot,T;
     ///physical properties for angular momentum
-    Coordinate gJ;
+    Coordinate gJ, gJ200m, gJ200c;
     ///Keep track of position of least unbound particle and most bound particle pid
     Int_t iunbound,ibound;
     ///Type of structure
@@ -954,6 +954,8 @@ struct PropData
         gM500c=gR500c=0;
         gcm[0]=gcm[1]=gcm[2]=gcmvel[0]=gcmvel[1]=gcmvel[2]=0.;
         gJ[0]=gJ[1]=gJ[2]=0;
+        gJ200m[0]=gJ200m[1]=gJ200m[2]=0;
+        gJ200c[0]=gJ200c[1]=gJ200c[2]=0;
         gveldisp=Matrix(0.);
         gq=gs=1.0;
         Krot=0.;
@@ -1030,6 +1032,8 @@ struct PropData
         gR200c*=opt.h/opt.a;
         gR200m*=opt.h/opt.a;
         gJ=gJ*opt.h*opt.h/opt.a;
+        gJ200m=gJ200m*opt.h*opt.h/opt.a;
+        gJ200c=gJ200c*opt.h*opt.h/opt.a;
         RV_J=RV_J*opt.h*opt.h/opt.a;
 #ifdef GASON
         M_gas*=opt.h;

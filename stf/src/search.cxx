@@ -1415,7 +1415,7 @@ private(i,tid)
             newnumgroupsbg=numgroupsbg;
             for (i=0;i<nsubset;i++) pfofbgnew[i]=pfofbg[i];
             for (i=1;i<=newnumgroupsbg;i++) dispfac[i]=param[7];
-            
+
             //now keep doing this till zero new groups are found, copying over info of new groups above bgoffset as we go
             do {
                 numloops++;
@@ -1459,8 +1459,7 @@ private(i,tid)
             Int_t ng=numgroups+(numgroupsbg-bgoffset),oldng=numgroups;
             if(pnumcores!=NULL) *pnumcores=numgroupsbg;
             if (opt.iHaloCoreSearch>=2) {
-        		HaloCoreGrowth(opt, nsubset, Partsubset, pfof, pfofbg, numgroupsbg, param,dispfac,nthreads);
-        		//HaloCoreGrowth(opt, nsubset, Partsubset, pfof, pfofbg, numgroupsbg, param,nthreads);
+                HaloCoreGrowth(opt, nsubset, Partsubset, pfof, pfofbg, numgroupsbg, param,dispfac,nthreads);
                 for (i=0;i<nsubset;i++) if (pfofbg[i]>bgoffset) pfof[i]=oldng+(pfofbg[i]-bgoffset);
                 if (opt.iverbose>=2) cout<<ThisTask<<": After 6dfof core search and assignment there are "<< ng<<" groups"<<endl;
             }
@@ -1583,6 +1582,7 @@ void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *&Partsubset, In
     Double_t D2,dval,mval;
     Double_t *mcore=new Double_t[numgroupsbg+1];
     Int_t *ncore=new Int_t[numgroupsbg+1];
+    Int_t newnumgroupsbg=0,*newcore=new Int_t[numgroupsbg+1];
     int nsearch=opt.Nvel;
     int tid,i;
     Int_t **nnID;
@@ -1636,6 +1636,8 @@ void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *&Partsubset, In
                     for (int k=0;k<6;k++) Pcore[noffset[i]+j].SetPhase(k,Pcore[noffset[i]+j].GetPhase(k)-cmphase[i](k,0));
                 }
                 CalcPhaseSigmaTensor(ncore[i], &Pcore[noffset[i]], eigenvalues, eigenvec, invdisp[i]);
+                ///\todo must be issue with either phase-space tensor or number of particles assigned as
+                ///it is possible to get haloes of size 0
                 invdisp[i]=invdisp[i].Inverse()*dispfac[i];
             }
 #ifdef USEOPENMP
@@ -1688,7 +1690,6 @@ private(i,tid,Pval,D2,dval,mval,pid)
 #ifdef USEOPENMP
             }
 #endif
-
         }
         //otherwise, use simplier calculation: find nearest particles belonging to cores, calculate distances to these particles and assign untagged
         //particle to the same group as the closest core particle
@@ -1710,6 +1711,7 @@ private(i,tid,Pval,D2,dval,mval,pid)
                 nnID[i]=new Int_t[nsearch];
                 dist2[i]=new Double_t[nsearch];
             }
+            for (i=1;i<=numgroupsbg;i++) ncore[i]=0;
 #ifdef USEOPENMP
             //if particle number large enough to warrant parallel search
             if (nsubset>ompperiodnum) {
@@ -1791,8 +1793,23 @@ private(i,tid,Pval,x1,D2,dval,mval,pid,pidcore)
             delete[] nnID;
             delete[] dist2;
         }
+        //now that particles assigned to cores, remove if core too small
+        for (i=1;i<=numgroupsbg;i++) ncore[i]=0;
+        for (i=0;i<nsubset;i++)ncore[pfofbg[i]]++;
+        for (i=1;i<=numgroupsbg;i++) {
+            if (ncore[i]>=opt.MinSize) newcore[i]=++newnumgroupsbg;
+            else newcore[i]=0;
+        }
+        if (newnumgroupsbg!=numgroupsbg) {
+            for (i=0;i<nsubset;i++) {
+                pid=Partsubset[i].GetID();
+                if (pfofbg[pid]>0) pfofbg[pid]=newcore[pfofbg[pid]];
+            }
+            numgroupsbg=newnumgroupsbg;
+        }
         delete[] mcore;
         delete[] ncore;
+        delete[] newcore;
     }
 }
 

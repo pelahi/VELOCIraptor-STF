@@ -178,14 +178,14 @@ void usage(void)
     \arg <b> \e Use_adaptive_core_search </b> 0/1/2 flag allows one to run complex adaptive phase-space search for large 6D FOF cores and then use these linking lengths to separate mergers. 0 is off, 1, is adaptive with simple dispersions, and 2 is full phase-space dispersions tensors. 
     \arg <b> \e Halo_core_ellx_fac </b> scaling applied to linking length when identifying merger remnants. Typically values are \f$ \sim0.5 \f$  \ref Options.halocorexfac
     \arg <b> \e Halo_core_ellv_fac </b> scaling applied to local dispersion to define the velocity scale used to identify merger remnants. Typically values are \f$ \sim1 \f$  \ref Options.halocorevfac
-    \arg <b> \e Halo_core_ncellfac </b> used to determine the minimum number of particles a merger remnants is composed of, specifically \f$ N_{\rm min}= f_{\rm ncell}* N_{\rm S} \f$. Typically values are     \arg <b> \e Halo_core_adaptive_sigma_fac </b> used when running fully adaptive core search, specifies the width of the physical linking length in configuration space dispersion (think of this as how many sigma to include). Typically values are \f$ \sim3 \f$. This has been tested on hydrodynamnical simulations to separate galaxy mergers. \ref Options.halocoresigmafac
+    \arg <b> \e Halo_core_ncellfac </b> used to determine the minimum number of particles a merger remnants is composed of, specifically \f$ N_{\rm min}= f_{\rm ncell}* N_{\rm S} \f$. Typically values are     \arg <b> \e Halo_core_adaptive_sigma_fac </b> used when running fully adaptive core search, specifies the width of the physical linking length in configuration space dispersion (think of this as how many sigma to include). Typically values are \f$ \sim2 \f$. This has been tested on hydrodynamnical simulations to separate galaxy mergers. \ref Options.halocoresigmafac
     \arg <b> \e Halo_core_num_loops</b> allows the core search to iterate, shrinking the velocity linking length to used till the number of cores identified decreases or this limit is reached. Allows apative search with larger linking length to be robust.  Typically values are \f$ \sim5 \f$ with loops only running often twice. \ref Options.halocorenumloops.
     \arg <b> \e Halo_core_loop_ellv_fac</b> Factor by which velocity linking length is decreased when running loops for core search.  Typically values are \f$ \sim0.75 \f$. \ref Options.halocorevfaciter
 
-                    \subsection fofotherconfig Other modifiers for search
+    \subsection fofotherconfig Other modifiers for search
     \arg <b> \e Singlehalo_search_search </b> 0/1 flag indicates that no field search is going to be run and the entire volume will be treated as a background region. Useful if searching for substructures in non-cosmological simulations. But can also be co-opted for other searches using different outlier criteria and FOF algorithms. \ref Options.iSingleHalo \n
     \arg <b> \e CM_refadjustflag </b> 0/1 flag indicates that one moves to the CM frame of the structure to search for substructures. 
-    
+
     \section unbindconfig Unbinding Parameters
     See \ref unbinding and \ref unbind.cxx for more details
 

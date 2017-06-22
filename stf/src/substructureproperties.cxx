@@ -564,6 +564,8 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
             vy = (*Pval).Vy()-pdata[i].gcmvel[1];
             vz = (*Pval).Vz()-pdata[i].gcmvel[2];
             pdata[i].gJ=pdata[i].gJ+Coordinate(Pval->GetPosition()).Cross(Coordinate(vx,vy,vz))*Pval->GetMass();
+            if (rc<pdata[i].gR200m) pdata[i].gJ200m=pdata[i].gJ200m+Coordinate(Pval->GetPosition()).Cross(Coordinate(vx,vy,vz))*Pval->GetMass();
+            if (rc<pdata[i].gR200c) pdata[i].gJ200c=pdata[i].gJ200c+Coordinate(Pval->GetPosition()).Cross(Coordinate(vx,vy,vz))*Pval->GetMass();
             Ekin+=Pval->GetMass()*(vx*vx+vy*vy+vz*vz);
             pdata[i].gveldisp(0,0)+=vx*vx*Pval->GetMass();
             pdata[i].gveldisp(1,1)+=vy*vy*Pval->GetMass();
@@ -1178,17 +1180,20 @@ private(j,Pval,x,y,z)
         pdata[i].gsize=Part[noffset[i]+numingroup[i]-1].Radius();
         EncMass=0;
         Double_t Jx,Jy,Jz,sxx,sxy,sxz,syy,syz,szz;
+        Double_t Jx200m,Jy200m,Jz200m;
+        Double_t Jx200c,Jy200c,Jz200c;
         Coordinate J;
         Ekin=Jx=Jy=Jz=sxx=sxy=sxz=syy=syz=szz=Krot=0.;
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
-private(j,Pval,x,y,z,vx,vy,vz,J,mval)
+private(j,Pval,rc,x,y,z,vx,vy,vz,J,mval)
 {
     #pragma omp for reduction(+:Jx,Jy,Jz,sxx,sxy,sxz,syy,syz,szz,Ekin)
 #endif
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
             mval=Pval->GetMass();
+            rc=(*Pval).Radius();
 #ifdef NOMASS
             mval*=opt.MassValue;
 #endif 
@@ -1197,6 +1202,8 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval)
             vz = (*Pval).Vz()-pdata[i].gcmvel[2];
             J=Coordinate(Pval->GetPosition()).Cross(Coordinate(vx,vy,vz))*mval;
             Jx+=J[0];Jy+=J[1];Jz+=J[2];
+            if (rc<pdata[i].gR200m) Jx200m+=J[0];Jy200m+=J[1];Jz200m+=J[2];
+            if (rc<pdata[i].gR200c) Jx200c+=J[0];Jy200c+=J[1];Jz200c+=J[2];
             sxx+=vx*vx*mval;
             syy+=vy*vy*mval;
             szz+=vz*vz*mval;
@@ -1212,6 +1219,12 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval)
         pdata[i].gJ[0]=Jx;
         pdata[i].gJ[1]=Jy;
         pdata[i].gJ[2]=Jz;
+        pdata[i].gJ200m[0]=Jx200m;
+        pdata[i].gJ200m[1]=Jy200m;
+        pdata[i].gJ200m[2]=Jz200m;
+        pdata[i].gJ200c[0]=Jx200c;
+        pdata[i].gJ200c[1]=Jy200c;
+        pdata[i].gJ200c[2]=Jz200c;
         pdata[i].gveldisp(0,0)=sxx;
         pdata[i].gveldisp(1,1)=syy;
         pdata[i].gveldisp(2,2)=szz;
