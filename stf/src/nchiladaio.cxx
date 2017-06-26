@@ -6,6 +6,7 @@
 
 #include "stf.h"
 #include "nchiladaitems.h"
+#ifdef USEXDR
 
 ///\name XDR read routines, assist in reading nchilada data
 //@{
@@ -23,7 +24,7 @@ int xdr_header(XDR *pxdrs,struct tipsy_dump *ph)
 }
 
 int xdr_gas(XDR *pxdrs,struct tipsy_gas_particle *ph)
-{ 
+{
     int i;
     if (!xdr_float(pxdrs,&ph->mass)) return 0;
     for(i=0; i<NCHILADAMAXDIM; i++) if (!xdr_float(pxdrs,&ph->pos[i])) return 0;
@@ -94,7 +95,7 @@ int xdr_type(XDR *pxdrs, void *data, int type, int num)
     double *pdTmp;
     double dTmp;
     int j;
-    
+
     switch (type) {
         case int8:
             pachTmp = ((char *)data);
@@ -195,7 +196,7 @@ void *readFieldData(FILE *&infile, nchilada_dump &fh, unsigned int dim, u_int64_
     }
 
     void* data = readField(fh, &xdrs, numParticles, startParticle);
-    
+
     if(data == 0) {
         //throw XDRException("Had problems reading in the field");
         message="Had problems reading in the field";
@@ -214,7 +215,7 @@ void *readFieldData(FILE *&infile, nchilada_dump &fh, unsigned int dim, u_int64_
 void *readFieldData(const string filename, nchilada_dump &fh, unsigned int dim, u_int64_t numParticles, u_int64_t startParticle)
 {
     FILE* infile;
-    string message; 
+    string message;
     infile=fopen(filename.c_str(), "rb");
     if(!infile) {
         message="Couldn't open field file: ";
@@ -233,8 +234,8 @@ void *readFieldData(const string filename, nchilada_dump &fh, unsigned int dim, 
 }
 
 /// Returns total number of particles in a given file
-/// @param filename data file of interest. Criticially returns 0 if this file cannot be read 
-/// interpreted as no particles 
+/// @param filename data file of interest. Criticially returns 0 if this file cannot be read
+/// interpreted as no particles
 Int_t ncGetCount(string filename)
 {
     FILE* infile = fopen(filename.c_str(), "rb");
@@ -272,7 +273,7 @@ Int_t ncGetCount(string filename)
 //@}
 
 ///get the number of particles of the desired type
-Int_t Nchilada_get_nbodies(char *fname, int ptype, Options &opt) 
+Int_t Nchilada_get_nbodies(char *fname, int ptype, Options &opt)
 {
     Int_t j,nbodies,ndark,nsph,nstar;
     string filename(fname);
@@ -315,8 +316,8 @@ Int_t Nchilada_get_nbodies(char *fname, int ptype, Options &opt)
     return nbodies;
 }
 
-///reads an nchilada formatted file. 
-void ReadNchilada(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbaryons, Int_t nbaryons) 
+///reads an nchilada formatted file.
+void ReadNchilada(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbaryons, Int_t nbaryons)
 {
     Int_t i,j,k,n,nchunk;
     u_int64_t numParticles=nbodies,startParticle=0;
@@ -335,7 +336,7 @@ void ReadNchilada(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&
     int nusetypes,nbusetypes;
     int usetypes[NNCHILADATYPE];
     Nchilada_Part_Names nchilada_part_name;
-    
+
     //common attributes
     /*
     fstream fpos[NNCHILADATYPE],fvel[NNCHILADATYPE],fmass[NNCHILADATYPE];
@@ -452,8 +453,8 @@ void ReadNchilada(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&
     }
     Nlocal=0;
     if (opt.iBaryonSearch) Nlocalbaryon[0]=0;
-    
-    //now begin reading 
+
+    //now begin reading
     if (ireadtask[ThisTask]>=0) {
 #endif
     //now for each file lets open up the fstream file pointers
@@ -494,7 +495,7 @@ void ReadNchilada(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&
     }
 #endif
     //will need to think how best to read stuff in chunks
-    
+
     for (j=0;j<nusetypes;j++) {
         k=usetypes[j];
         posdata=readFieldData(fpos[j],fhpos, 3, numParticles,startParticle);
@@ -567,12 +568,12 @@ void ReadNchilada(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&
             }
 #ifdef GASON
             if (k==NCHILADAGASTYPE) {
-                if (fhgasu.code==float32) Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetU(gasufloatbuff[i]); 
+                if (fhgasu.code==float32) Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetU(gasufloatbuff[i]);
                 else Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetU(gasudoublebuff[i]);
 #ifdef STARON
-                if (fhgassfr.code==float32) Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetSFR(gassfrfloatbuff[i]); 
+                if (fhgassfr.code==float32) Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetSFR(gassfrfloatbuff[i]);
                 else Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetSFR(gassfrdoublebuff[i]);
-                if (fhgasz.code==float32) Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetZmet(gaszfloatbuff[i]); 
+                if (fhgasz.code==float32) Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetZmet(gaszfloatbuff[i]);
                 else Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetZmet(gaszdoublebuff[i]);
 #endif
             }
@@ -584,7 +585,7 @@ void ReadNchilada(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&
 #ifdef BHON
                 if (tageval<0) tageval*=-1;
 #endif
-                if (fhstarz.code==float32) Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetZmet(starzfloatbuff[i]); 
+                if (fhstarz.code==float32) Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetZmet(starzfloatbuff[i]);
                 else Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetZmet(starzdoublebuff[i]);
                 Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetTage(tageval);
             }
@@ -637,12 +638,12 @@ void ReadNchilada(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&
             }
 #ifdef GASON
             if (k==NCHILADAGASTYPE) {
-                if (fhgasu.code==float32) Part[i].SetU(gasufloatbuff[i]); 
+                if (fhgasu.code==float32) Part[i].SetU(gasufloatbuff[i]);
                 else Part[i].SetU(gasudoublebuff[i]);
 #ifdef STARON
-                if (fhgassfr.code==float32) Part[i].SetSFR(gassfrfloatbuff[i]); 
+                if (fhgassfr.code==float32) Part[i].SetSFR(gassfrfloatbuff[i]);
                 else Part[i].SetSFR(gassfrdoublebuff[i]);
-                if (fhgasz.code==float32) Part[i].SetZmet(gaszfloatbuff[i]); 
+                if (fhgasz.code==float32) Part[i].SetZmet(gaszfloatbuff[i]);
                 else Part[i].SetZmet(gaszdoublebuff[i]);
 #endif
             }
@@ -654,7 +655,7 @@ void ReadNchilada(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&
 #ifdef BHON
                 if (tageval<0) tageval*=-1;
 #endif
-                if (fhstarz.code==float32) Part[i].SetZmet(starzfloatbuff[i]); 
+                if (fhstarz.code==float32) Part[i].SetZmet(starzfloatbuff[i]);
                 else Part[i].SetZmet(starzdoublebuff[i]);
                 Part[i].SetTage(tageval);
             }
@@ -686,11 +687,11 @@ void ReadNchilada(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&
 #endif
 
 #ifdef USEMPI
-    }//end of read task section 
+    }//end of read task section
     else {
         MPIReceiveParticlesFromReadThreads(opt,Pbuf,Part,readtaskID, irecv, mpi_irecvflag, Nlocalthreadbuf, mpi_request,Pbaryons);
     }
-    
+
     for (i=0;i<NProcs;i++) Nbuf[i]=0;
     if (ireadtask[ThisTask]>=0 && opt.nsnapread>1) {
         delete[] Pbuf;
@@ -710,7 +711,7 @@ void ReadNchilada(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&
         }
         //gather all the items that must be sent.
         MPI_Allgather(Nbuf, NProcs, MPI_Int_t, mpi_nsend, NProcs, MPI_Int_t, MPI_COMM_WORLD);
-        //if separate baryon search then sort the Pbuf array so that it is separated by type 
+        //if separate baryon search then sort the Pbuf array so that it is separated by type
         if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) {
             if (ThisTask<opt.nsnapread) {
             for(ibuf = 0; ibuf < opt.nsnapread; ibuf++) if (mpi_nsend[ThisTask * NProcs + ibuf] > 0)
@@ -742,7 +743,7 @@ void ReadNchilada(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&
             if (opt.iBaryonSearch) for (i=0;i<Nlocalbaryon[0];i++) Pbaryons[i].SetID(i+Nlocal);
         }//end of read tasks
     }
-#endif 
+#endif
 
     ///if gas found and Omega_b not set correctly (ie: ==0), assumes that
     ///lowest mass gas particle found corresponds to Omega_b
@@ -796,8 +797,8 @@ void ReadNchilada(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&
 #ifdef USEMPI
     MPI_Bcast(&LN, 1, MPI_Real_t, 0, MPI_COMM_WORLD);
 #endif
-    ///if not an individual halo, assume cosmological and store scale of the highest resolution interparticle spacing to scale the physical FOF linking length 
-    if (opt.iSingleHalo==0) 
+    ///if not an individual halo, assume cosmological and store scale of the highest resolution interparticle spacing to scale the physical FOF linking length
+    if (opt.iSingleHalo==0)
     {
         opt.ellxscale=LN;
         opt.uinfo.eps*=LN;
@@ -828,4 +829,4 @@ void ReadNchilada(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&
 #endif
 
 }
-
+#endif

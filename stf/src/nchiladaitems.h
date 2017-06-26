@@ -1,16 +1,18 @@
 /*! \file nchiladaitems.h
  *  \brief this file contains definitions and routines for reading Nchilada used by Changa nbody code
- * 
+ *
  * Nchilada format is structure in such a fashion that each particle type has its own
  * directory which then contains a file for every property of that particle type
  * ex: outdir/dark/pos is the file that stores the positions of dark matter particles
- * 
- * Some of this code is based off of NBodyShop utiliy package, (like xdr_template.h) 
- * and ChanGa N-body code, which uses this data format  
+ *
+ * Some of this code is based off of NBodyShop utiliy package, (like xdr_template.h)
+ * and ChanGa N-body code, which uses this data format
  */
 
 #ifndef NCHILADA_STRUCTS_H
 #define NCHILADA_STRUCTS_H
+
+#ifdef USEXDR
 
 #include <dirent.h>
 #include <errno.h>
@@ -66,16 +68,16 @@ enum NCDataTypeCode {
 
 ///\name XDR read routines, assist in reading tipsy-nchilada data
 //@{
-///read the tipsy header, and if it fails returns 0 
+///read the tipsy header, and if it fails returns 0
 int xdr_header(XDR *pxdrs,struct tipsy_dump *ph);
 
-///read the gas particle, and if it fails returns 0 
+///read the gas particle, and if it fails returns 0
 int xdr_gas(XDR *pxdrs,struct tipsy_gas_particle *ph);
 
-///read the dark particle, and if it fails returns 0 
+///read the dark particle, and if it fails returns 0
 int xdr_dark(XDR *pxdrs,struct tipsy_dark_particle *ph);
 
-///read the star particle, and if it fails returns 0 
+///read the star particle, and if it fails returns 0
 int xdr_star(XDR *pxdrs,struct tipsy_star_particle *ph);
 
 ///reads nchilada header, and if fails returns 0
@@ -147,7 +149,7 @@ template <typename T> inline T* readField(XDR* xdrs, const u_int64_t N, const u_
         delete[] data;
         return 0;
     }
-    if(data[N] == data[N + 1]) { 
+    if(data[N] == data[N + 1]) {
         //if all elements are the same, just copy the value into the array
         for(u_int64_t i = 0; i < N; ++i)
             data[i] = data[N];
@@ -155,10 +157,10 @@ template <typename T> inline T* readField(XDR* xdrs, const u_int64_t N, const u_
     else {
         ///\todo correct the offseting need for very large arrays
         /*
-        ///add the offset from the nchilada header 
+        ///add the offset from the nchilada header
         off_t offset = sizeof(struct nchilada_dump)
             + (startParticle + 2) * TypeHandling::Type2Dimensions<T>::dimensions * mySizeof(TypeHandling::Type2Code<T>::code);
-// XXX NASTY kludge to get around 4 byte limit of xdr functions 
+// XXX NASTY kludge to get around 4 byte limit of xdr functions
 #define __BILLION 1000000000
         fseek((FILE *)xdrs->x_private, 0, 0);
         while(offset > __BILLION) {
@@ -196,7 +198,7 @@ template <typename T> inline T* readField3D(XDR* xdrs, const u_int64_t N, const 
             delete[] data;
             return 0;
         }
-        if(data[N+ioffset] == data[N + 1+ioffset]) { 
+        if(data[N+ioffset] == data[N + 1+ioffset]) {
             //if all elements are the same, just copy the value into the array
             for(u_int64_t i = 0; i < N; ++i)
                 data[i+ioffset] = data[N+ioffset];
@@ -205,7 +207,7 @@ template <typename T> inline T* readField3D(XDR* xdrs, const u_int64_t N, const 
             /*
             off_t offset = FieldHeader::sizeBytes
                 + (startParticle + 2) * TypeHandling::Type2Dimensions<T>::dimensions * mySizeof(TypeHandling::Type2Code<T>::code);
-// XXX NASTY kludge to get around 4 byte limit of xdr functions 
+// XXX NASTY kludge to get around 4 byte limit of xdr functions
 #define __BILLION 1000000000
             fseek((FILE *)xdrs->x_private, 0, 0);
             while(offset > __BILLION) {
@@ -278,14 +280,14 @@ inline void* readField(const struct nchilada_dump& fh, XDR* xdrs, u_int64_t numP
 void *readFieldData(FILE *&infile, nchilada_dump &fh, unsigned int dim, u_int64_t numParticles, u_int64_t startParticle);
 void *readFieldData(const string filename, nchilada_dump &fh, unsigned int dim, u_int64_t numParticles, u_int64_t startParticle);
 
-/*!\name XDRException handler class 
- * 
+/*!\name XDRException handler class
+ *
  */
 //@{
 /*
 class XDRException : public std::exception {
   public:
-    ~XDRException() throw() { }; 
+    ~XDRException() throw() { };
     XDRException();
     XDRException(const std::string & desc);
     virtual std::string getText() const throw();
@@ -296,7 +298,7 @@ class XDRException : public std::exception {
 
 class XDRReadError : public XDRException {
   public:
-    ~XDRReadError() throw() { }; 
+    ~XDRReadError() throw() { };
     XDRReadError(std::string s, int64_t w);
     std::string getText() const throw();
  private:
@@ -345,7 +347,7 @@ inline std::string XDRReadError::getText() const throw() {
 /*
 class FieldHeader {
 public:
-    
+
     static const unsigned int sizeBytes = 28;
 
     static const int MagicNumber = 1062053;
@@ -355,11 +357,11 @@ public:
     u_int64_t numParticles;
     unsigned int dimensions; //1 for scalar, 3 for vector
     TypeHandling::DataTypeCode code;
-    
+
     FieldHeader() : magic(MagicNumber) { }
-    
+
     FieldHeader(const TypeHandling::TypedArray& arr) : magic(MagicNumber), numParticles(arr.length), dimensions(arr.ndim), code(arr.code) { }
-    
+
     /// Output operator, used for formatted display
     friend std::ostream& operator<< (std::ostream& os, const FieldHeader& h) {
         return os << "Time: " << h.time
@@ -382,7 +384,7 @@ inline bool_t xdr_template(XDR* xdrs, FieldHeader* h) {
 
 ///This structures stores the strings defining the names of the data
 struct Nchilada_Part_Names {
-    //define the strings associated with the types of structures contained in the nchilada file. 
+    //define the strings associated with the types of structures contained in the nchilada file.
     string Header_name;
     string GASpart_name;
     string DMpart_name;
@@ -416,5 +418,6 @@ struct Nchilada_Part_Names {
 Int_t ncGetCount(string filename);
 Int_t Nchilada_get_nbodies(char *fname, int ptype, Options &opt);
 //@}
+#endif
 
 #endif

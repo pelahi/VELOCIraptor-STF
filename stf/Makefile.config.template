@@ -87,33 +87,36 @@ GBHINFO="on"
 
 #for hdf input/output
 HDFENABLE="on"
+
+#for XDF (nchilada) input
+XDRENABLE="on"
 #===========================================
 
 #===========================================
 #Compiler problems
 #===========================================
 #if really old compiler will probably have to update system but also pass this flag
-CCOMPILERTOOOLD="on"
+#CCOMPILERTOOOLD="on"
 
 
 #===========================================
 #alter if necessary to point to local libraries
 #===========================================
 ifeq ($(LOCALGSL),"on")
-    GSL_DIR = 
+    GSL_DIR =
     GSL_INCL = -I$(GSL_DIR)/include/
     GSL_LIBS = -L$(GSL_DIR)/lib/
-    GSL_CONFIG = 
+    GSL_CONFIG =
     GSL_CFLAGS = $(GSL_INCL) $(GSL_LIBS)
 endif
 ifeq ($(LOCALFFTW),"on")
-    FFTW_DIR =  
+    FFTW_DIR =
     FFTW_INCL = -I$(FFTW_DIR)/include/
     FFTW_LIBS = -L$(FFTW_DIR)/lib/
     FFTW_CFLAGS =  $(FFTW_INCL) $(FFTW_LIBS)
 endif
 ifeq ($(HDFENABLE)$(LOCALHDF),"on""on")
-    HDF_DIR = 
+    HDF_DIR =
     HDF_INCL = -I$(HDF_DIR)/include/
     HDF_LIBS = -L$(HDF_DIR)/lib/
 endif
@@ -188,7 +191,7 @@ ifeq ($(NOMASS),"on")
     COMPILEFLAGS+= -DNOMASS
 endif
 ifeq ($(SINGLEPARTICLEPRECISION),"on")
-    COMPILEFLAGS+= -DLOWPRECISIONPOS 
+    COMPILEFLAGS+= -DLOWPRECISIONPOS
 endif
 
 C+FLAGS = $(PARALLEL) $(COMPILEFLAGS)
@@ -255,6 +258,14 @@ ifeq ($(HDFENABLE),"on")
     IFLAGS+= $(HDF_INCL)
     LFLAGS+= $(HDF_LIBS)
 endif
+
+ifeq ($(XDRENABLE),"on")
+    C+FLAGS+= -DUSEXDR
+    C+LIBS+= -lz -lrt -ldl
+    IFLAGS+= $(HDF_INCL)
+    LFLAGS+= $(HDF_LIBS)
+endif
+
 #===========================================
 
 
@@ -319,7 +330,7 @@ LFLAGS += -L$(NBODYLIBDIR) $(GSL_LIBS) $(MPI_LINK_FLAGS)
 C+LIBS += -lm -lAnalysis -lKD -lNBody -lMath -lgsl -lgslcblas
 NBODYIFLAGS = -I$(NBODYSRCDIR)/Math/ -I$(NBODYSRCDIR)/NBody/ -I$(NBODYSRCDIR)/Analysis/ -I$(NBODYSRCDIR)/Cosmology/ -I$(NBODYSRCDIR)/InitCond/ -I$(NBODYSRCDIR)/KDTree $(GSL_CFLAGS) #-I$(BOOST_INCL) -I$(MPI_INCL)
 
-NBODYPARALLEL = 
+NBODYPARALLEL =
 NBODYC+FLAGS = $(NBODYPARALLEL) $(COMPILEFLAGS) -c
 LIBCHECK=$(NBODYDIR)/*
 #===========================================
@@ -329,4 +340,3 @@ LIBCHECK=$(NBODYDIR)/*
 #===========================================
 EXEC = $(EXECBASENAME)$(HYDRONAME)$(ZOOMNAME)
 #===========================================
-

@@ -13,11 +13,13 @@
 #include "hdfitems.h"
 #endif
 #include "ramsesitems.h"
+#ifdef USERPC
 #include "nchiladaitems.h"
+#endif
 
 ///Checks if file exits by attempting to get the file attributes
 ///If success file obviously exists.
-///If failure may mean that we don't have permission to access the folder which contains this file or doesn't exist. 
+///If failure may mean that we don't have permission to access the folder which contains this file or doesn't exist.
 ///If we need to do that level of checking, lookup return values of stat which will give you more details on why stat failed.
 bool FileExists(const char *fname) {
   struct stat stFileInfo;
@@ -57,7 +59,9 @@ Int_t ReadHeader(Options &opt){
 #ifdef USEHDF
     else if (opt.inputtype==IOHDF) return HDF_get_nbodies(opt.fname,opt.partsearchtype,opt);
 #endif
+#ifdef USEXDR
     else if (opt.inputtype==IONCHILADA) return Nchilada_get_nbodies(opt.fname,opt.partsearchtype,opt);
+#endif
     return 0;
 }
 
@@ -72,8 +76,9 @@ void ReadData(Options &opt, Particle *&Part, const Int_t nbodies, Particle *&Pba
 #ifdef USEHDF
     else if (opt.inputtype==IOHDF) ReadHDF(opt,Part,nbodies, Pbaryons, nbaryons);
 #endif
+#ifdef USEXDR
     else if (opt.inputtype==IONCHILADA) ReadNchilada(opt,Part,nbodies, Pbaryons, nbaryons);
-
+#endif
 #ifdef USEMPI
     MPIAdjustDomain(opt);
 #endif
@@ -122,7 +127,7 @@ void ReadLocalVelocityDensity(Options &opt, const Int_t nbodies, Particle * Part
 
 //@}
 
-/// \name Write STF data files for intermediate steps 
+/// \name Write STF data files for intermediate steps
 //@{
 
 ///Writes local velocity density of each particle to a file
@@ -228,7 +233,7 @@ void WritePGListIndex(Options &opt, const Int_t ngroups, const Int_t ng, Int_t *
 #else
         Fout<<i<<" "<<numingroup[i]<<" ";
 #endif
-        for (Int_t j=0;j<numingroup[i];j++) 
+        for (Int_t j=0;j<numingroup[i];j++)
 #ifdef USEMPI
             //Fout<<mpi_indexlist[pglist[i][j]]<<" ";
             Fout<<pglist[i][j]<<" ";
@@ -268,7 +273,7 @@ void WritePGList(Options &opt, const Int_t ngroups, const Int_t ng, Int_t *numin
 #else
         Fout<<i<<" "<<numingroup[i]<<" ";
 #endif
-        for (Int_t j=0;j<numingroup[i];j++) 
+        for (Int_t j=0;j<numingroup[i];j++)
 #ifdef USEMPI
             //Fout<<mpi_idlist[pglist[i][j]]<<" ";
             Fout<<ids[pglist[i][j]]<<" ";
@@ -316,11 +321,11 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     if (opt.ibinaryout==OUTBINARY) Fout.open(fname,ios::out|ios::binary);
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
-        //create file 
+        //create file
         Fhdf=H5File(fname,H5F_ACC_TRUNC);
         //Fhdf.H5Fcreate(fname,H5F_ACC_TRUNC,H5P_DEFAULT,H5P_DEFAULT);
     }
-#endif    
+#endif
     else Fout.open(fname,ios::out);
     ng=ngroups;
 
@@ -354,7 +359,7 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
         dataset = Fhdf.createDataSet(hdfnames.group[itemp], hdfnames.groupdatatype[itemp], dataspace);
         dataset.write(&NProcs,hdfnames.groupdatatype[itemp]);
         itemp++;
-        
+
         //datasetname=H5std_string("Num_of_groups");
         dataspace=DataSpace(rank,dims);
         dataset = Fhdf.createDataSet(hdfnames.group[itemp], hdfnames.groupdatatype[itemp], dataspace);
@@ -398,7 +403,7 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     //Write offsets for bound and unbound particles
     offset=new Int_t[ngroups+1];
     offset[1]=0;
-    //note before had offsets at numingroup but to account for unbound particles use value of pglist at numingroup 
+    //note before had offsets at numingroup but to account for unbound particles use value of pglist at numingroup
     for (Int_t i=2;i<=ngroups;i++) offset[i]=offset[i-1]+pglist[i-1][numingroup[i-1]];
 
     if (opt.ibinaryout==OUTBINARY) Fout.write((char*)&offset[1],sizeof(Int_t)*ngroups);
@@ -522,7 +527,7 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
         dataset = Fhdf3.createDataSet(hdfnames.part[itemp], hdfnames.partdatatype[itemp], dataspace);
         dataset.write(&NProcs,hdfnames.partdatatype[itemp]);
         itemp++;
-        
+
         //datasetname=H5std_string("Num_of_particles_in_groups");
         dataspace=DataSpace(rank,dims);
         dataset = Fhdf.createDataSet(hdfnames.part[itemp], hdfnames.partdatatype[itemp], dataspace);
@@ -553,8 +558,8 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     if (nids>0) {
         idval=new Int_t[nids];
         nids=0;
-        for (Int_t i=1;i<=ngroups;i++) 
-            for (Int_t j=0;j<pglist[i][numingroup[i]];j++) 
+        for (Int_t i=1;i<=ngroups;i++)
+            for (Int_t j=0;j<pglist[i][numingroup[i]];j++)
                 idval[nids++]=Part[pglist[i][j]].GetPID();
         if (opt.ibinaryout==OUTBINARY) Fout.write((char*)idval,sizeof(Int_t)*nids);
 #ifdef USEHDF
@@ -583,8 +588,8 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     if (nuids>0) {
         idval=new Int_t[nuids];
         nuids=0;
-        for (Int_t i=1;i<=ngroups;i++) 
-            for (Int_t j=pglist[i][numingroup[i]];j<numingroup[i];j++) 
+        for (Int_t i=1;i<=ngroups;i++)
+            for (Int_t j=pglist[i][numingroup[i]];j<numingroup[i];j++)
                 idval[nuids++]=Part[pglist[i][j]].GetPID();
         if (opt.ibinaryout==OUTBINARY) Fout3.write((char*)idval,sizeof(Int_t)*nuids);
 #ifdef USEHDF
@@ -655,12 +660,12 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
     }
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
-        //create file 
+        //create file
         Fhdf=H5File(fname,H5F_ACC_TRUNC);
         //Fhdf.H5Fcreate(fname,H5F_ACC_TRUNC,H5P_DEFAULT,H5P_DEFAULT);
         Fhdf2=H5File(fname2,H5F_ACC_TRUNC);
     }
-#endif    
+#endif
     else {
         Fout.open(fname,ios::out);
         Fout2.open(fname2,ios::out);
@@ -714,7 +719,7 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
         dataset = Fhdf2.createDataSet(hdfnames.types[itemp], hdfnames.typesdatatype[itemp], dataspace);
         dataset.write(&NProcs,hdfnames.typesdatatype[itemp]);
         itemp++;
-        
+
         //datasetname=H5std_string("Num_of_particles_in_groups");
         dataspace=DataSpace(rank,dims);
         dataset = Fhdf.createDataSet(hdfnames.types[itemp], hdfnames.typesdatatype[itemp], dataspace);
@@ -744,8 +749,8 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
     if (nids>0) {
         typeval=new int[nids];
         nids=0;
-        for (Int_t i=1;i<=ngroups;i++) 
-            for (Int_t j=0;j<pglist[i][numingroup[i]];j++) 
+        for (Int_t i=1;i<=ngroups;i++)
+            for (Int_t j=0;j<pglist[i][numingroup[i]];j++)
                 typeval[nids++]=Part[pglist[i][j]].GetType();
         if (opt.ibinaryout==OUTBINARY) Fout.write((char*)typeval,sizeof(int)*nids);
 #ifdef USEHDF
@@ -774,8 +779,8 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
     if (nuids>0) {
         typeval=new int[nuids];
         nuids=0;
-        for (Int_t i=1;i<=ngroups;i++) 
-            for (Int_t j=pglist[i][numingroup[i]];j<numingroup[i];j++) 
+        for (Int_t i=1;i<=ngroups;i++)
+            for (Int_t j=pglist[i][numingroup[i]];j<numingroup[i];j++)
                 typeval[nuids++]=Part[pglist[i][j]].GetType();
         if (opt.ibinaryout==OUTBINARY) Fout2.write((char*)typeval,sizeof(int)*nuids);
 #ifdef USEHDF
@@ -833,7 +838,7 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
 #endif
 
     PropDataHeader head(opt);
-    
+
 #ifdef USEMPI
     sprintf(fname,"%s.properties.%d",opt.outname,ThisTask);
     for (int j=0;j<NProcs;j++) ngtot+=mpi_ngroups[j];
@@ -880,7 +885,7 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         dataset = Fhdf.createDataSet(hdfnames.group[itemp], hdfnames.groupdatatype[itemp], dataspace);
         dataset.write(&NProcs,hdfnames.groupdatatype[itemp]);
         itemp++;
-        
+
         //datasetname=H5std_string("Num_of_groups");
         dataspace=DataSpace(rank,dims);
         dataset = Fhdf.createDataSet(hdfnames.group[itemp], hdfnames.groupdatatype[itemp], dataspace);
@@ -915,7 +920,7 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
     }
     //if need to convert from physical back to comoving
     if (opt.icomoveunit) for (Int_t i=1;i<=ngroups;i++) pdata[i].ConverttoComove(opt);
-    
+
     long long idbound;
     //for ensuring downgrade of precision as subfind uses floats when storing values save for Mvir (??why??)
     float value,ctemp[3],mtemp[9];
@@ -978,7 +983,7 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
             propdataset[itemp].write(data,head.predtypeinfo[itemp]);
             itemp++;
         }
-        
+
         //now halo properties that are doubles
         for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].gMvir;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
@@ -1003,7 +1008,7 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
         }
-        
+
         for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].gmass;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
@@ -1323,7 +1328,7 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
     if (opt.ibinaryout==OUTBINARY) Fout.open(fname,ios::out|ios::binary|ios::app);
 #ifdef USEHDF
     if (opt.ibinaryout==OUTHDF) {
-        Fhdf=H5File(fname,H5F_ACC_RDWR);       
+        Fhdf=H5File(fname,H5F_ACC_RDWR);
     }
 #endif
     else Fout.open(fname,ios::out|ios::app);
@@ -1462,7 +1467,7 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
         dataset = Fhdf.createDataSet(hdfnames.hierarchy[itemp], hdfnames.hierarchydatatype[itemp], dataspace);
         dataset.write(&NProcs,hdfnames.hierarchydatatype[itemp]);
         itemp++;
-        
+
         dataspace=DataSpace(rank,dims);
         dataset = Fhdf.createDataSet(hdfnames.hierarchy[itemp], hdfnames.hierarchydatatype[itemp], dataspace);
         dataset.write(&ng,hdfnames.hierarchydatatype[itemp]);
@@ -1651,7 +1656,7 @@ Int_t ReadPFOF(Options &opt, Int_t nbodies, Int_t *pfof){
     return ngroup;
 }
 
-//load binary group fof catalogue 
+//load binary group fof catalogue
 Int_t ReadFOFGroupBinary(Options &opt, Int_t nbodies, Int_t *pfof, Int_t *idtoindex, Int_t minid, Particle *p)
 {//old groupcat format
   char buf[1024];
@@ -1790,10 +1795,10 @@ void WriteExtendedOutput (Options &opt, Int_t numgroups, Int_t nbodies, PropData
     // Initialize arrays
     for (Int_t i = 0; i < numgroups; i++)
     {
-        npartsofgroupinfile[i] = new Int_t [opt.num_files];    
+        npartsofgroupinfile[i] = new Int_t [opt.num_files];
 
 #ifdef USEMPI
-        npartsofgroupintask[i] = new Int_t [NProcs];    
+        npartsofgroupintask[i] = new Int_t [NProcs];
         ntaskspergroup[i] = 0;
         for(Int_t j = 0; j < NProcs; j++)
             npartsofgroupintask[i][j] = 0;
@@ -1894,7 +1899,7 @@ void WriteExtendedOutput (Options &opt, Int_t numgroups, Int_t nbodies, PropData
 #endif
         myturn = 1;
         char fog [1000];
-        sprintf (fog, "%s.filesofgroup", opt.outname);      
+        sprintf (fog, "%s.filesofgroup", opt.outname);
         Fout.open (fog, ios::out);
         for (Int_t i = 1; i < numgroups; i++)
         {
@@ -1915,7 +1920,7 @@ void WriteExtendedOutput (Options &opt, Int_t numgroups, Int_t nbodies, PropData
 
         ofstream fout;
         char fog[1000];
-        sprintf (fog, "%s.filesofgroup", opt.outname);      
+        sprintf (fog, "%s.filesofgroup", opt.outname);
         fout.open (fog, ios::app);
         for (Int_t i = 1; i < numgroups; i++)
         {
@@ -1942,19 +1947,19 @@ void WriteExtendedOutput (Options &opt, Int_t numgroups, Int_t nbodies, PropData
         int src = (ThisTask + NProcs - i) % NProcs;
         int dst = (ThisTask + i) % NProcs;
         MPI_Isend (&ntosendtotask[dst], 1, MPI_INT, dst, ThisTask, MPI_COMM_WORLD, &rqst);
-        MPI_Recv (&ntorecievefromtask[src], 1, MPI_INT, src, src, MPI_COMM_WORLD, &status);      
+        MPI_Recv (&ntorecievefromtask[src], 1, MPI_INT, src, src, MPI_COMM_WORLD, &status);
     }
 
     // Declare and allocate Particle arrays for sending and receiving
     Particle ** PartsToSend = new Particle * [NProcs];
     Particle ** PartsToRecv = new Particle * [NProcs];
 
-    int * count = new int [NProcs];    
+    int * count = new int [NProcs];
     for (Int_t i = 0; i < NProcs; i++)
     {
         count[i] = 0;
         PartsToSend[i] = new Particle [ntosendtotask[i]+1];
-        PartsToRecv[i] = new Particle [ntorecievefromtask[i]+1];      
+        PartsToRecv[i] = new Particle [ntorecievefromtask[i]+1];
     }
 
     // Copy Particles to send
@@ -1996,7 +2001,7 @@ void WriteExtendedOutput (Options &opt, Int_t numgroups, Int_t nbodies, PropData
             MPI_Recv  (&numBuffersToRecv[src], 1, MPI_INT, src, 0, MPI_COMM_WORLD, &status);
         }
         MPI_Barrier (MPI_COMM_WORLD);
-     
+
         //for each mpi thread send info as necessary
         for (int i = 1; i < NProcs; i++)
         {
@@ -2026,12 +2031,12 @@ void WriteExtendedOutput (Options &opt, Int_t numgroups, Int_t nbodies, PropData
             {
               Int_t numInBuffer = 0;
               MPI_Recv (&numInBuffer, 1, MPI_Int_t, src, (int)(jj+1), MPI_COMM_WORLD, &status);
-              MPI_Recv (&PartsToRecv[src][buffOffset], sizeof(Particle)*numInBuffer, 
+              MPI_Recv (&PartsToRecv[src][buffOffset], sizeof(Particle)*numInBuffer,
                         MPI_BYTE, src, (int)(10000+jj+1), MPI_COMM_WORLD, &status);
               buffOffset += numInBuffer;
             }
         }
-    }   
+    }
     else
     {
         for (Int_t i = 1; i < NProcs; i++)
@@ -2039,7 +2044,7 @@ void WriteExtendedOutput (Options &opt, Int_t numgroups, Int_t nbodies, PropData
             int src = (ThisTask + NProcs - i) % NProcs;
             int dst = (ThisTask + i) % NProcs;
             MPI_Isend (PartsToSend[dst], ntosendtotask[dst]*sizeof(Particle), MPI_BYTE, dst, ThisTask, MPI_COMM_WORLD, &rqst);
-            MPI_Recv (PartsToRecv[src], ntorecievefromtask[src]*sizeof(Particle), MPI_BYTE, src, src, MPI_COMM_WORLD, &status);      
+            MPI_Recv (PartsToRecv[src], ntorecievefromtask[src]*sizeof(Particle), MPI_BYTE, src, src, MPI_COMM_WORLD, &status);
         }
     }
 #endif
@@ -2078,7 +2083,7 @@ void WriteExtendedOutput (Options &opt, Int_t numgroups, Int_t nbodies, PropData
     IdTopHost    = new int * [opt.num_files];
     IdHost   = new int * [opt.num_files];
 
-    for (Int_t i = 0; i < opt.num_files; i++) 
+    for (Int_t i = 0; i < opt.num_files; i++)
     if (npartperfile[i] > 0)
     {
         Id[i]       = new int [npartperfile[i]];
@@ -2096,7 +2101,7 @@ void WriteExtendedOutput (Options &opt, Int_t numgroups, Int_t nbodies, PropData
             IdHost   [p[i].GetOFile()][p[i].GetOIndex()] = p[i].GetIdHost();
             IdTopHost    [p[i].GetOFile()][p[i].GetOIndex()] = p[i].GetIdTopHost();
         }
-    } 
+    }
 #ifdef USEMPI
     for (Int_t i = 0; i < NProcs; i++)
         for (Int_t j = 0; j < ntorecievefromtask[i]; j++)
@@ -2110,7 +2115,7 @@ void WriteExtendedOutput (Options &opt, Int_t numgroups, Int_t nbodies, PropData
 #endif
 
     // Write ExtendedFiles
-    for (Int_t i = 0; i < opt.num_files; i++) 
+    for (Int_t i = 0; i < opt.num_files; i++)
         if (npartperfile[i] > 0)
         {
             sprintf (fname,"%s.extended.%d",opt.outname,i);
