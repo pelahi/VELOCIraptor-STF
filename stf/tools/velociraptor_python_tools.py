@@ -496,11 +496,13 @@ def ReadParticleDataFile(basefilename,ibinary=0,iseparatesubfiles=0,iparttypes=0
                 pfile=open(pfilename, 'r')
                 pfile.readline()
                 [npart,foo]= pfile.readline().split()
+                npart=np.uint64(npart)
                 pfile.close()
                 piddata=np.loadtxt(pfilename,skiprows=2,dtype=np.int64)
                 upfile= open(upfilename, 'r')
                 upfile.readline()
                 [unpart,foo]= upfile.readline().split()
+                unpart=np.uint64(unpart)
                 upfile.close()
                 upiddata=np.loadtxt(upfilename,skiprows=2,dtype=np.int64)
                 if (iparttypes==1):
@@ -580,13 +582,13 @@ def ReadParticleDataFile(basefilename,ibinary=0,iseparatesubfiles=0,iparttypes=0
             unumingroup[-1]=(unpart-uoffset[-1])
             particledata['Npart_unbound'][counter:counter+numhalos]=unumingroup
             for i in range(numhalos):
-                particledata['Particle_IDs'][i+counter]=np.zeros(numingroup[i],dtype=np.int64)
-                particledata['Particle_IDs'][i+counter][:numingroup[i]-unumingroup[i]]=piddata[offset[i]:offset[i]+numingroup[i]-unumingroup[i]]
-                particledata['Particle_IDs'][i+counter][numingroup[i]-unumingroup[i]:numingroup[i]]=upiddata[uoffset[i]:uoffset[i]+unumingroup[i]]
+                particledata['Particle_IDs'][int(i+counter)]=np.zeros(numingroup[i],dtype=np.int64)
+                particledata['Particle_IDs'][int(i+counter)][:int(numingroup[i]-unumingroup[i])]=piddata[offset[i]:offset[i]+numingroup[i]-unumingroup[i]]
+                particledata['Particle_IDs'][int(i+counter)][int(numingroup[i]-unumingroup[i]):numingroup[i]]=upiddata[uoffset[i]:uoffset[i]+unumingroup[i]]
                 if (iparttypes==1):
-                    particledata['Particle_Types'][i+counter]=np.zeros(numingroup[i],dtype=np.int64)
-                    particledata['Particle_Types'][i+counter][:numingroup[i]-unumingroup[i]]=tdata[offset[i]:offset[i]+numingroup[i]-unumingroup[i]]
-                    particledata['Particle_Types'][i+counter][numingroup[i]-unumingroup[i]:numingroup[i]]=utdata[uoffset[i]:uoffset[i]+unumingroup[i]]
+                    particledata['Particle_Types'][int(i+counter)]=np.zeros(numingroup[i],dtype=np.int64)
+                    particledata['Particle_Types'][int(i+counter)][:int(numingroup[i]-unumingroup[i])]=tdata[offset[i]:offset[i]+numingroup[i]-unumingroup[i]]
+                    particledata['Particle_Types'][int(i+counter)][int(numingroup[i]-unumingroup[i]):numingroup[i]]=utdata[uoffset[i]:uoffset[i]+unumingroup[i]]
             counter+=numhalos
 
     return particledata
