@@ -415,6 +415,8 @@ struct DescendantDataProgenBased
     vector<float> Merit;
     //store the integer time diff to descendant
     vector<int> deltat;
+    //store descendant type, primary or not primary
+    vector<int> descentype;
 #ifdef USEMPI
     //store which task this halo progenitor is located on
     vector<int> MPITask;
@@ -426,6 +428,7 @@ struct DescendantDataProgenBased
         halotemporalindex.reserve(reservesize);
         Merit.reserve(reservesize);
         deltat.reserve(reservesize);
+        descentype.reserve(reservesize);
 #ifdef USEMPI
         MPITask.reserve(reservesize);
 #endif
@@ -455,13 +458,20 @@ struct DescendantDataProgenBased
     ///start with just maximum merit, ignoring when this was found
     ///otherwise use the reference time passed
     ///the generalized merit = Merit/(deltat)
-    ///\todo might want to change the generalized merit
+    ///also, optimal descendents should be close to being a primary descendant, having a lower descentype value 
     void OptimalTemporalMerit(Int_t itimref=0){
         int imax=0;
         Double_t generalizedmerit=Merit[0]/pow((Double_t)deltat[0],ALPHADELTAT);
+        int curdescentype=descentype[0];
+        long unsigned optimalhaloindex;
+        int unsigned optimalhalotemporalindex;
         for (int i=1;i<NumberofDescendants;i++) {
-            if (Merit[i]/pow((Double_t)deltat[i],ALPHADELTAT)>generalizedmerit) {generalizedmerit=Merit[i]/pow((Double_t)deltat[i],ALPHADELTAT);imax=i;}
+            if (Merit[i]/pow((Double_t)deltat[i],ALPHADELTAT)>generalizedmerit && descentype[i]<=curdescentype) {
+                generalizedmerit=Merit[i]/pow((Double_t)deltat[i],ALPHADELTAT);curdescentype=descentype[i];imax=i;
+            }
         }
+        optimalhaloindex=haloindex[imax];
+        optimalhalotemporalindex=halotemporalindex[imax];
         //if use mpi then also possible that optimal halo found on multiple mpi tasks
         //but the lower task will be the one that needs to have the best halo so go over the loop and 
         //find the halo with the lowest task number of the best generalized merit
@@ -475,6 +485,7 @@ struct DescendantDataProgenBased
             long unsigned hid, htid;
             Double_t merit;
             int dt;
+            int dtype;
 #ifdef USEMPI
             int mpitask;
 #endif
@@ -482,6 +493,7 @@ struct DescendantDataProgenBased
             hid=haloindex[0];
             htid=halotemporalindex[0];
             dt=deltat[0];
+            dtype=descentype[0];
 #ifdef USEMPI
             mpitask=MPITask[0];
 #endif
@@ -489,6 +501,7 @@ struct DescendantDataProgenBased
             haloindex[0]=haloindex[imax];
             halotemporalindex[0]=halotemporalindex[imax];
             deltat[0]=deltat[imax];
+            descentype[0]=descentype[imax];
 #ifdef USEMPI
             MPITask[0]=MPITask[imax];
 #endif
@@ -496,19 +509,21 @@ struct DescendantDataProgenBased
             haloindex[imax]=hid;
             halotemporalindex[imax]=htid;
             deltat[imax]=dt;
+            descentype[imax]=dtype;
 #ifdef USEMPI
             MPITask[imax]=mpitask;
 #endif
         }
     }
 #ifdef USEMPI
-    void Merge(int thistask, int &numdescen, long unsigned *hid,int unsigned *htid, float *m, int *dt, int *task) {
+    void Merge(int thistask, int &numdescen, long unsigned *hid,int unsigned *htid, float *m, int *dt, int *dtype, int *task) {
         for (Int_t i=0;i<numdescen;i++) if (task[i]!=thistask) 
         {
             haloindex.push_back(hid[i]);
             halotemporalindex.push_back(htid[i]);
             Merit.push_back(m[i]);
             deltat.push_back(dt[i]);
+            descentype.push_back(dtype[i]);
             MPITask.push_back(task[i]);
             NumberofDescendants++;
         }

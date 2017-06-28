@@ -961,6 +961,7 @@ void BuildProgenitorBasedDescendantList(Int_t itimeprogen, Int_t itimedescen, In
             pprogendescen[itimedescen][did].halotemporalindex.push_back(itimeprogen);
             pprogendescen[itimedescen][did].Merit.push_back(pprogen[k].Merit[nprogs]);
             pprogendescen[itimedescen][did].deltat.push_back(istep);
+            pprogendescen[itimedescen][did].descentype.push_back(nprogs);
 #ifdef USEMPI
             pprogendescen[itimedescen][did].MPITask.push_back(ThisTask);
 #endif
@@ -985,6 +986,7 @@ void RemoveLinksProgenitorBasedDescendantList(Int_t itime, Int_t ihaloindex, Pro
         pprogendescen[itimedescen][did].halotemporalindex.erase(pprogendescen[itimedescen][did].halotemporalindex.begin()+k);
         pprogendescen[itimedescen][did].Merit.erase(pprogendescen[itimedescen][did].Merit.begin()+k);
         pprogendescen[itimedescen][did].deltat.erase(pprogendescen[itimedescen][did].deltat.begin()+k);
+        pprogendescen[itimedescen][did].descentype.erase(pprogendescen[itimedescen][did].descentype.begin()+k);
 #ifdef USEMPI
         pprogendescen[itimedescen][did].MPITask.erase(pprogendescen[itimedescen][did].MPITask.begin()+k);
 #endif
