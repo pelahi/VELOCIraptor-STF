@@ -466,7 +466,8 @@ struct DescendantDataProgenBased
         long unsigned optimalhaloindex;
         int unsigned optimalhalotemporalindex;
         for (int i=1;i<NumberofDescendants;i++) {
-            if (Merit[i]/pow((Double_t)deltat[i],ALPHADELTAT)>generalizedmerit && descentype[i]<=curdescentype) {
+            if (Merit[i]/pow((Double_t)deltat[i],ALPHADELTAT)>generalizedmerit || 
+                (descentype[i]<=curdescentype && Merit[i]/pow((Double_t)deltat[i],ALPHADELTAT)>=generalizedmerit*0.5)) {
                 generalizedmerit=Merit[i]/pow((Double_t)deltat[i],ALPHADELTAT);curdescentype=descentype[i];imax=i;
             }
         }
