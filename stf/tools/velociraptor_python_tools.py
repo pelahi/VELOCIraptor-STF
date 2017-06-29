@@ -817,10 +817,203 @@ def BuildTemporalHeadTail(numsnaps,tree,numhalos,halodata,HALOIDVAL=100000000000
                     headtailid,headtailsnap=halodata[headsnap]['Tail'][headindex],halodata[headsnap]['TailSnap'][headindex]
     print("Done building", time.clock()-totstart)
 
+def GetProgenLength(halodata,haloindex,halosnap,haloid,atime,HALOIDVAL,endreftime=-1):
+    """
+    Get the length of a halo's progenitors
+    """
+    proglen=0
+    progid=halodata[halosnap]["Tail"][haloindex]
+    progsnap=halodata[halosnap]["TailSnap"][haloindex]
+    progindex=int(progid%HALOIDVAL-1)
+    while (progid!=haloid):
+        proglen+=1
+        haloid=progid
+        halosnap=progsnap
+        haloindex=progindex
+        progid=halodata[halosnap]["Tail"][haloindex]
+        progsnap=halodata[halosnap]["TailSnap"][haloindex]
+        progindex=int(progid%HALOIDVAL-1)
+        if (atime[halosnap]<endreftime):break
+    return proglen
+
+def IdentifyMergers(numsnaps,tree,numhalos,halodata,boxsize,hval,atime,MERGERMLIM=0.1,RADINFAC=1.2,RADOUTFAC=1.5,NPARTCUT=100, HALOIDVAL=1000000000000, iverbose=1,pos_tree=[]):
+    """
+    Using head/tail info in halodata dictionary identify mergers based on distance and mass ratios
+    #todo still testing 
+
+    """
+    for j in range(numsnaps):
+        #store id and snap and mass of last major merger and while we're at it, store number of major mergers
+        halodata[j]["LastMerger"]=np.ones(numhalos[j],dtype=np.int64)*-1
+        halodata[j]["LastMergerRatio"]=np.ones(numhalos[j],dtype=np.float64)*-1
+        halodata[j]["LastMergerSnap"]=np.zeros(numhalos[j],dtype=np.uint32)
+        halodata[j]["LastMergerDeltaSnap"]=np.zeros(numhalos[j],dtype=np.uint32)
+        #halodata[j]["NumMergers"]=np.zeros(numhalos[j],dtype=np.uint32)
+    #built KD tree to quickly search for near neighbours
+    if (len(pos_tree)==0):
+        pos=[[]for j in range(numsnaps)]
+        pos_tree=[[]for j in range(numsnaps)]
+        start=time.clock()
+        if (iverbose): print "tree build"
+        for j in range(numsnaps):
+            if (numhalos[j]>0):
+                boxval=boxsize*atime[j]/hval
+                pos[j]=np.transpose(np.asarray([halodata[j]["Xc"],halodata[j]["Yc"],halodata[j]["Zc"]]))
+                pos_tree[j]=spatial.cKDTree(pos[j],boxsize=boxval)
+        if (iverbose): print "done ",time.clock()-start
+    #else assume tree has been passed
+    for j in range(numsnaps):
+        if (numhalos[j]==0): continue
+        #at snapshot look at all haloes that have not had a major merger set
+        #note that only care about objects with certain number of particles
+        partcutwdata=np.where(halodata[j]["npart"]>=NPARTCUT)
+        mergercut=np.where(halodata[j]["LastMergerRatio"][partcutwdata]<0)
+        hids=np.asarray(halodata[j]["ID"][partcutwdata][mergercut],dtype=np.uint64)
+        start=time.clock()
+        if (iverbose):print "Processing ", len(hids)
+        if (len(hids)==0):continue
+
+        for hidval in hids:
+            #now for each object get the main progenitor
+            haloid=np.uint64(hidval)
+            haloindex=int(haloid%HALOIDVAL-1)
+            halosnap=j
+            originalhaloid=haloid
+            progid=halodata[halosnap]["Tail"][haloindex]
+            progsnap=halodata[halosnap]["TailSnap"][haloindex]
+            progindex=int(progid%HALOIDVAL-1)
+            numprog=tree[halosnap]["Num_progen"][haloindex]
+            #if object has no progenitor set LastMergerRatio to 0 and LastMerger to 0
+            if (numprog==0): 
+                halodata[halosnap]["LastMerger"][haloindex]=0
+                halodata[halosnap]["LastMergerRatio"][haloindex]=0
+                continue
+            #print "starting halos ",j, hidval
+            #halo has main branch which we can wander on
+            #while object is not its own progenitor move along tree to see how many major mergers it had across its history
+            while (True):
+                #now for each progenitor, lets find any nearby objects within a given mass/vmax interval
+                posval=[halodata[progsnap]["Xc"][progindex],halodata[progsnap]["Yc"][progindex],halodata[progsnap]["Zc"][progindex]]
+                radval=RADINFAC*halodata[progsnap]["R_200crit"][progindex]
+                #get neighbour list within RADINFAC sorted by mass with most massive first
+                NNlist=pos_tree[progsnap].query_ball_point(posval, radval)
+                NNlist=[NNlist[ij] for ij in np.argsort(halodata[progsnap]["Mass_tot"][NNlist])[::-1]]
+                #store boxval for periodic correction
+                boxval=boxsize*atime[progsnap]/hval
+                #now if list contains some objects, lets see if the velocity vectors are moving towards each other and mass/vmax ratios are okay
+                if (len(NNlist)>0):
+                    for NN in NNlist:
+                        if (NN!=progindex):
+                            mratio=halodata[progsnap]["Mass_tot"][NN]/halodata[progsnap]["Mass_tot"][progindex]
+                            vratio=halodata[progsnap]["Vmax"][NN]/halodata[progsnap]["Vmax"][progindex]
+                            #merger ratio is for object being larger of the two involved in merger
+                            if (mratio>MERGERMLIM and mratio<1.0):
+                                posvalrel=[halodata[progsnap]["Xc"][progindex]-halodata[progsnap]["Xc"][NN],halodata[progsnap]["Yc"][progindex]-halodata[progsnap]["Yc"][NN],halodata[progsnap]["Zc"][progindex]-halodata[progsnap]["Zc"][NN]]
+                                for ij in range(3):
+                                    if posvalrel[ij]<-0.5*boxval: posvalrel[ij]+=boxval
+                                    elif posvalrel[ij]>0.5*boxval: posvalrel[ij]-=boxval
+                                velvalrel=[halodata[progsnap]["VXc"][progindex]-halodata[progsnap]["VXc"][NN],halodata[progsnap]["VYc"][progindex]-halodata[progsnap]["VYc"][NN],halodata[progsnap]["VZc"][progindex]-halodata[progsnap]["VZc"][NN]]
+                                radvelval=np.dot(posvalrel,velvalrel)/np.linalg.norm(posvalrel)
+                                if (radvelval<0):
+                                    #merger is happending
+                                    #print "merger happening ", progsnap, NN
+
+                                    #question of whether should move down the tree till merger no longer happening and define that as the start
+                                    #this could also set the length of the merger
+                                    #lets move along the tree of the infalling neighbour still it object is past the some factor of progenitor virial radius
+                                    starthaloindex=progindex
+                                    starthaloid=progid
+                                    starthalosnap=progsnap
+                                    startmergerindex=NN
+                                    startmergerid=halodata[progsnap]["ID"][NN]
+                                    startmergersnap=progsnap
+                                    mergerstartindex=starthaloindex
+                                    mergerstartid=starthaloid
+                                    mergerstartsnap=starthalosnap
+                                    while (tree[starthalosnap]["Num_progen"][starthaloindex]>0 and tree[startmergersnap]["Num_progen"][startmergerindex]>0):
+                                        posvalrel=[halodata[starthalosnap]["Xc"][starthaloindex]-halodata[startmergersnap]["Xc"][startmergerindex],halodata[starthalosnap]["Yc"][starthaloindex]-halodata[startmergersnap]["Yc"][startmergerindex],halodata[starthalosnap]["Zc"][starthaloindex]-halodata[startmergersnap]["Zc"][startmergerindex]]
+                                        boxval=boxsize*atime[starthalosnap]/hval
+                                        for ij in range(3):
+                                            if posvalrel[ij]<-0.5*boxval: posvalrel[ij]+=boxval
+                                            elif posvalrel[ij]>0.5*boxval: posvalrel[ij]-=boxval
+                                        radval=np.linalg.norm(posvalrel)/halodata[starthalosnap]["R_200crit"][starthaloindex]
+                                        mratio=halodata[startmergersnap]["Mass_tot"][startmergerindex]/halodata[starthalosnap]["Mass_tot"][starthaloindex]
+
+                                        #as moving back if halo now outside or too small, stop search and define this as start of merger
+                                        if (radval>RADOUTFAC or mratio<MERGERMLIM):
+                                            mergerstartindex=starthaloindex
+                                            mergerstartid=starthaloid
+                                            mergerstartsnap=starthalosnap
+                                            break
+
+                                        #move to next progenitors
+                                        nextidval=halodata[starthalosnap]["Tail"][starthaloindex]
+                                        nextsnapval=halodata[starthalosnap]["TailSnap"][starthaloindex]
+                                        nextindexval=int(nextidval%HALOIDVAL-1)
+                                        starthaloid=nextidval
+                                        starthalosnap=nextsnapval
+                                        starthaloindex=nextindexval
+
+                                        nextidval=halodata[startmergersnap]["Tail"][startmergerindex]
+                                        nextsnapval=halodata[startmergersnap]["TailSnap"][startmergerindex]
+                                        nextindexval=int(nextidval%HALOIDVAL-1)
+                                        startmergerid=nextidval
+                                        startmergersnap=nextsnapval
+                                        startmergerindex=nextindexval
+                                    #store timescale of merger
+                                    deltamergertime=(mergerstartsnap-progsnap)
+                                    #set this as the merger for all halos from this point onwards till reach head or halo with non-zero merger
+                                    merginghaloindex=mergerstartindex
+                                    merginghaloid=mergerstartid
+                                    merginghalosnap=mergerstartsnap
+                                    oldmerginghaloid=merginghaloid
+                                    #print "Merger found ",progsnap,mergerstartsnap, halodata[progsnap]["Mass_tot"][NN]/halodata[progsnap]["Mass_tot"][progindex], 
+                                    #print halodata[startmergersnap]["Mass_tot"][startmergerindex]/halodata[starthalosnap]["Mass_tot"][starthaloindex]
+                                    #now set merger time for all later haloes unless an new merger has happened
+                                    while (oldmerginghaloid!=halodata[progsnap]["RootHead"][progindex] and halodata[merginghalosnap]["LastMergerRatio"][merginghaloindex]<0):
+                                        halodata[merginghalosnap]["LastMerger"][merginghaloindex]=halodata[progsnap]["ID"][NN]
+                                        halodata[merginghalosnap]["LastMergerRatio"][merginghaloindex]=halodata[progsnap]["Mass_tot"][NN]/halodata[progsnap]["Mass_tot"][progindex]
+                                        halodata[merginghalosnap]["LastMergerSnap"][merginghaloindex]=progsnap
+                                        halodata[merginghalosnap]["LastMergerDeltaSnap"][merginghaloindex]=deltamergertime
+
+                                        oldmerginghaloid=merginghaloid
+                                        mergingnextid=halodata[merginghalosnap]["Head"][merginghaloindex]
+                                        mergingnextsnap=halodata[merginghalosnap]["HeadSnap"][merginghaloindex]
+                                        mergingnextindex=int(mergingnextid%HALOIDVAL-1)
+                                        merginghaloindex=mergingnextindex
+                                        merginghaloid=mergingnextid
+                                        merginghalosnap=mergingnextsnap
+
+                #move to next step
+                if (haloid==progid):
+                    oldhaloid=haloid
+                    currentsnap=halosnap
+                    currentindex=haloindex
+                    currentid=haloid
+                    while (oldhaloid!=halodata[progsnap]["RootHead"][progindex] and halodata[currentsnap]["LastMergerRatio"][currentindex]<0):
+                        halodata[currentsnap]["LastMerger"][currentindex]=0
+                        halodata[currentsnap]["LastMergerRatio"][currentindex]=0
+                        nextid=halodata[currentsnap]["Head"][currentindex]
+                        nextsnap=halodata[currentsnap]["HeadSnap"][currentindex]
+                        nextindex=int(nextid%HALOIDVAL-1)
+                        oldhaloid=currentid
+                        currentsnap=nextsnap
+                        currentid=nextid
+                        currentindex=nextindex
+                    break
+                haloid=progid
+                haloindex=progindex
+                halosnap=progsnap
+                progid=halodata[halosnap]["Tail"][haloindex]
+                progsnap=halodata[halosnap]["TailSnap"][haloindex]
+                progindex=int(progid%HALOIDVAL-1)
+                numprog=tree[halosnap]["Num_progen"][haloindex]
+                #if at end of line then move up and set last major merger to 0
+        if (iverbose): print "Done snap",j,time.clock()-start
+
 """
 Adjust halo catalog for period, comoving coords, etc
 """
-
 def AdjustforPeriod(numsnaps,numhalos,boxsize,hval,atime,halodata,icomove=0):
     """
     Map halo positions from 0 to box size
@@ -1241,7 +1434,7 @@ def ReadUnifiedTreeandHaloCatalog(fname, icombinedfile=1):
         print("read halo data ",time.clock()-start)
     else :
         hdffile=h5py.File(fname+".snap_000.hdf.data",'r')
-        numsnaps=int(hdffile["Num_of_snaps"][0])
+        numsnaps=int(hdffile["NSnaps"][0])
         #get field names
         fieldnames=[str(n) for n in hdffile.keys()]
         #clean of header info
