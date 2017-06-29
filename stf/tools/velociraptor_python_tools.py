@@ -1398,7 +1398,7 @@ def ReadUnifiedTreeandHaloCatalog(fname, icombinedfile=1):
 
         #load data sets containing number of snaps
         headergrpname="Header/"
-        numsnaps=hdffile[headergrpname].attrs["Num_of_snaps"]
+        numsnaps=hdffile[headergrpname].attrs["NSnaps"]
 
         #allocate memory
         halodata=[dict() for i in range(numsnaps)]
@@ -1439,7 +1439,7 @@ def ReadUnifiedTreeandHaloCatalog(fname, icombinedfile=1):
         fieldnames=[str(n) for n in hdffile.keys()]
         #clean of header info
         fieldnames.remove("Snap_value")
-        fieldnames.remove("Num_of_snaps")
+        fieldnames.remove("NSnaps")
         fieldnames.remove("NHalos")
         fieldnames.remove("Total_num_of_groups")
         fieldnames.remove("scalefactor")
