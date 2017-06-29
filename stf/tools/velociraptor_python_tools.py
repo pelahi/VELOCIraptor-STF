@@ -821,7 +821,7 @@ def GetProgenLength(halodata,haloindex,halosnap,haloid,atime,HALOIDVAL,endreftim
     """
     Get the length of a halo's progenitors
     """
-    proglen=0
+    proglen=1
     progid=halodata[halosnap]["Tail"][haloindex]
     progsnap=halodata[halosnap]["TailSnap"][haloindex]
     progindex=int(progid%HALOIDVAL-1)
