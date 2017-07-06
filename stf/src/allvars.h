@@ -602,6 +602,7 @@ struct Options
 
         inputbufsize=100000;
 
+        mpiparticletotbufsize=-1;
         mpiparticlebufsize=-1;
 
         lengthtokpc=1.0;
