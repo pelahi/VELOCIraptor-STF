@@ -352,6 +352,7 @@ struct Options
     ///\name length,m,v,grav conversion units
     //@{
     Double_t L, M, V, G;
+    Double_t lengthtokpc, velocitytokms, masstosolarmass;
     //@}
     ///period (comove)
     Double_t p;
@@ -359,6 +360,8 @@ struct Options
     //@{
     Double_t a,H,h, Omega_m, Omega_b, Omega_cdm, Omega_Lambda, w_de, rhobg, virlevel;
     int comove;
+    /// to store the internal code unit to kpc and the distance^2 of 30 kpc, and 50 kpc
+    Double_t lengthtokpc30pow2, lengthtokpc50pow2;
     //@}
 
     ///to store number of each particle types so that if only searching one particle type, assumes order of gas, dark (halo, disk,bulge), star, special or sink for pfof tipsy style output
@@ -600,6 +603,14 @@ struct Options
         inputbufsize=100000;
 
         mpiparticlebufsize=-1;
+
+        lengthtokpc=1.0;
+        velocitytokms=1.0;
+        masstosolarmass=1.0;
+
+        lengthtokpc30pow2=30.0*30.0;
+        lengthtokpc30pow2=50.0*50.0;
+
     }
 };
 
@@ -610,7 +621,6 @@ struct ConfigInfo{
     vector<string> datainfo;
     //vector<int> datatype;
     ConfigInfo(Options &opt){
-        int sizeval;
         //if compiler is super old and does not have at least std 11 implementation to_string does not exist
 #ifndef OLDCCOMPILER
         //general search operations
@@ -722,6 +732,13 @@ struct ConfigInfo{
         datainfo.push_back(to_string(opt.G));
         nameinfo.push_back("Mass_value");
         datainfo.push_back(to_string(opt.MassValue));
+        nameinfo.push_back("Length_unit_to_kpc");
+        datainfo.push_back(to_string(opt.lengthtokpc));
+        nameinfo.push_back("Velocity_to_kms");
+        datainfo.push_back(to_string(opt.velocitytokms));
+        nameinfo.push_back("Mass_to_solarmass");
+        datainfo.push_back(to_string(opt.masstosolarmass));
+
         nameinfo.push_back("Period");
         datainfo.push_back(to_string(opt.p));
         nameinfo.push_back("Scale_factor");
@@ -804,10 +821,8 @@ struct SimInfo{
     vector<string> datainfo;
 
     SimInfo(Options &opt){
-        int sizeval;
         //if compiler is super old and does not have at least std 11 implementation to_string does not exist
 #ifndef OLDCCOMPILER
-        //general search operations
         nameinfo.push_back("Cosmological_Sim");
         datainfo.push_back(to_string(opt.icosmologicalin));
         if (opt.icosmologicalin) {
@@ -851,6 +866,30 @@ struct SimInfo{
         datainfo.push_back(to_string(opt.MassValue));
 #endif
 
+#endif
+    }
+};
+
+
+struct UnitInfo{
+    //list the name of the info
+    vector<string> nameinfo;
+    vector<string> datainfo;
+
+    UnitInfo(Options &opt){
+        //if compiler is super old and does not have at least std 11 implementation to_string does not exist
+#ifndef OLDCCOMPILER
+        nameinfo.push_back("Cosmological_Sim");
+        datainfo.push_back(to_string(opt.icosmologicalin));
+        nameinfo.push_back("Comoving_or_Physical");
+        datainfo.push_back(to_string(opt.icomoveunit));
+        //units
+        nameinfo.push_back("Length_unit_to_kpc");
+        datainfo.push_back(to_string(opt.lengthtokpc));
+        nameinfo.push_back("Velocity_unit_to_kms");
+        datainfo.push_back(to_string(opt.velocitytokms));
+        nameinfo.push_back("Mass_unit_to_solarmass");
+        datainfo.push_back(to_string(opt.masstosolarmass));
 #endif
     }
 };
@@ -1106,18 +1145,30 @@ struct PropData
         RV_J=RV_J*opt.h*opt.h/opt.a;
 #ifdef GASON
         M_gas*=opt.h;
+        M_gas_rvmax*=opt.h;
+        M_gas_30kpc*=opt.h;
+        M_gas_50kpc*=opt.h;
+        M_gas_500c*=opt.h;
+
         cm_gas=cm_gas*opt.h/opt.a;
         Rhalfmass_gas*=opt.h/opt.a;
         L_gas=L_gas*opt.h*opt.h/opt.a;
 #endif
 #ifdef STARON
         M_star*=opt.h;
+        M_star_rvmax*=opt.h;
+        M_star_30kpc*=opt.h;
+        M_star_50kpc*=opt.h;
+        M_star_500c*=opt.h;
         cm_star=cm_star*opt.h/opt.a;
         Rhalfmass_star*=opt.h/opt.a;
         L_star=L_star*opt.h*opt.h/opt.a;
 #endif
 #ifdef BHON
         M_bh*=opt.h;
+#endif
+#ifdef HIGHRES
+        M_interloper*=opt.h;
 #endif
     }
 
@@ -1768,6 +1819,11 @@ extern StrucLevelData *psldata;
 ///hdf structure to store the names of datasets in catalog output
 struct HDFCatalogNames {
     ///store names of catalog group files
+    vector<H5std_string> prop;
+    //store the data type
+    vector<PredType> propdatatype;
+
+    ///store names of catalog group files
     vector<H5std_string> group;
     //store the data type
     vector<PredType> groupdatatype;
@@ -1788,6 +1844,27 @@ struct HDFCatalogNames {
     vector<PredType> hierarchydatatype;
 
     HDFCatalogNames(){
+        prop.push_back("File_id");
+        prop.push_back("Num_of_files");
+        prop.push_back("Num_of_props");
+        prop.push_back("Total_num_of_props");
+        prop.push_back("Cosmological_Sim");
+        prop.push_back("Comoving_or_Physical");
+        prop.push_back("Period");
+        prop.push_back("Length_unit_to_kpc");
+        prop.push_back("Velocity_to_kms");
+        prop.push_back("Mass_unit_to_solarmass");
+        propdatatype.push_back(PredType::STD_I32LE);
+        propdatatype.push_back(PredType::STD_I32LE);
+        propdatatype.push_back(PredType::STD_U64LE);
+        propdatatype.push_back(PredType::STD_U64LE);
+        propdatatype.push_back(PredType::STD_U32LE);
+        propdatatype.push_back(PredType::STD_U32LE);
+        propdatatype.push_back(PredType::NATIVE_FLOAT);
+        propdatatype.push_back(PredType::NATIVE_FLOAT);
+        propdatatype.push_back(PredType::NATIVE_FLOAT);
+        propdatatype.push_back(PredType::NATIVE_FLOAT);
+
         group.push_back("File_id");
         group.push_back("Num_of_files");
         group.push_back("Num_of_groups");

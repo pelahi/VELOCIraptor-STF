@@ -77,9 +77,10 @@ void WriteExtendedOutput(Options &opt, Int_t numgroups, Int_t nbodies, PropData 
 
 ///Write the configuartion options that the code used
 void WriteVELOCIraptorConfig(Options &opt);
-
 ///Write the simulation info (which could use input files to overwrite passed configuration options)
 void WriteSimulationInfo(Options &opt);
+///Write the unit info
+void WriteUnitInfo(Options &opt);
 
 ///Writes ROCKSTAR like output
 //@{

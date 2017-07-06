@@ -412,6 +412,9 @@ int main(int argc,char **argv)
         Nlocal=nbodies;
     }
 
+    WriteSimulationInfo(opt);
+    WriteUnitInfo(opt);
+
     //output results
     if(opt.iwritefof) {
 #ifdef USEMPI

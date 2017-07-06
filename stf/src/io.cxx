@@ -824,6 +824,12 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
     char buf[40];
     long unsigned ngtot=0, noffset=0, ng=ngroups;
 
+    //if need to convert from physical back to comoving
+    if (opt.icomoveunit) {
+        opt.p*=opt.h/opt.a;
+        for (Int_t i=1;i<=ngroups;i++) pdata[i].ConverttoComove(opt);
+    }
+
 #ifdef USEHDF
     H5File Fhdf;
     H5std_string datasetname;
@@ -872,30 +878,56 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         dims=new hsize_t[1];
         dims[0]=1;
         rank=1;
-        //since header info is the same as the group catalog files, write to hdf file using same interface
         itemp=0;
         //datasetname=H5std_string("File_id");
         dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(hdfnames.group[itemp], hdfnames.groupdatatype[itemp], dataspace);
-        dataset.write(&ThisTask,hdfnames.groupdatatype[itemp]);
+        dataset = Fhdf.createDataSet(hdfnames.prop[itemp], hdfnames.propdatatype[itemp], dataspace);
+        dataset.write(&ThisTask,hdfnames.propdatatype[itemp]);
         itemp++;
 
         //datasetname=H5std_string("Num_of_files");
         dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(hdfnames.group[itemp], hdfnames.groupdatatype[itemp], dataspace);
-        dataset.write(&NProcs,hdfnames.groupdatatype[itemp]);
+        dataset = Fhdf.createDataSet(hdfnames.prop[itemp], hdfnames.propdatatype[itemp], dataspace);
+        dataset.write(&NProcs,hdfnames.propdatatype[itemp]);
         itemp++;
 
         //datasetname=H5std_string("Num_of_groups");
         dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(hdfnames.group[itemp], hdfnames.groupdatatype[itemp], dataspace);
-        dataset.write(&ng,hdfnames.groupdatatype[itemp]);
+        dataset = Fhdf.createDataSet(hdfnames.prop[itemp], hdfnames.propdatatype[itemp], dataspace);
+        dataset.write(&ng,hdfnames.propdatatype[itemp]);
         itemp++;
 
         //datasetname=H5std_string("Total_num_of_groups");
         dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(hdfnames.group[itemp], hdfnames.groupdatatype[itemp], dataspace);
-        dataset.write(&ngtot,hdfnames.groupdatatype[itemp]);
+        dataset = Fhdf.createDataSet(hdfnames.prop[itemp], hdfnames.propdatatype[itemp], dataspace);
+        dataset.write(&ngtot,hdfnames.propdatatype[itemp]);
+        itemp++;
+
+        //add unit/simulation information
+        dataspace=DataSpace(rank,dims);
+        dataset = Fhdf.createDataSet(hdfnames.prop[itemp], hdfnames.propdatatype[itemp], dataspace);
+        dataset.write(&opt.icosmologicalin,hdfnames.propdatatype[itemp]);
+        itemp++;
+        dataspace=DataSpace(rank,dims);
+        dataset = Fhdf.createDataSet(hdfnames.prop[itemp], hdfnames.propdatatype[itemp], dataspace);
+        dataset.write(&opt.icomoveunit,hdfnames.propdatatype[itemp]);
+        itemp++;
+        dataspace=DataSpace(rank,dims);
+        dataset = Fhdf.createDataSet(hdfnames.prop[itemp], hdfnames.propdatatype[itemp], dataspace);
+        dataset.write(&opt.p,hdfnames.propdatatype[itemp]);
+        itemp++;
+        dataspace=DataSpace(rank,dims);
+        dataset = Fhdf.createDataSet(hdfnames.prop[itemp], hdfnames.propdatatype[itemp], dataspace);
+        dataset.write(&opt.lengthtokpc,hdfnames.propdatatype[itemp]);
+        itemp++;
+        dataspace=DataSpace(rank,dims);
+        dataset = Fhdf.createDataSet(hdfnames.prop[itemp], hdfnames.propdatatype[itemp], dataspace);
+        dataset.write(&opt.velocitytokms,hdfnames.propdatatype[itemp]);
+        itemp++;
+        dataspace=DataSpace(rank,dims);
+        dataset = Fhdf.createDataSet(hdfnames.prop[itemp], hdfnames.propdatatype[itemp], dataspace);
+        dataset.write(&opt.masstosolarmass,hdfnames.propdatatype[itemp]);
+        itemp++;
 
         //load data spaces
         propdataspace=new DataSpace[head.headerdatainfo.size()];
@@ -918,8 +950,6 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         for (Int_t i=0;i<head.headerdatainfo.size();i++) Fout<<head.headerdatainfo[i]<<"("<<i+1<<") ";Fout<<endl;
         Fout<<setprecision(10);
     }
-    //if need to convert from physical back to comoving
-    if (opt.icomoveunit) for (Int_t i=1;i<=ngroups;i++) pdata[i].ConverttoComove(opt);
 
     long long idbound;
     //for ensuring downgrade of precision as subfind uses floats when storing values save for Mvir (??why??)
@@ -1777,6 +1807,43 @@ void WriteSimulationInfo(Options &opt){
         for (Int_t i=0;i<siminfo.nameinfo.size();i++) {
             Fout<<siminfo.nameinfo[i]<<" : ";
             Fout<<siminfo.datainfo[i]<<" ";
+            Fout<<endl;
+        }
+#else
+        Fout<<"C compiler is too old and config file output relies on std 11 implentation to write info. UPDATE YOUR COMPILER "<<endl;
+#endif
+        Fout.close();
+    }
+
+}
+
+void WriteUnitInfo(Options &opt){
+    fstream Fout;
+    char fname[1000];
+#ifndef USEMPI
+    int ThisTask=0;
+#endif
+
+#ifdef USEHDF
+    H5File Fhdf;
+    H5std_string datasetname;
+    DataSpace dataspace;
+    DataSet dataset;
+    hsize_t *dims;
+    int rank;
+    DataSpace *propdataspace;
+    DataSet *propdataset;
+    HDFCatalogNames hdfnames;
+    int itemp=0;
+#endif
+    if (ThisTask==0) {
+        UnitInfo unitinfo(opt);
+        sprintf(fname,"%s.units",opt.outname);
+        Fout.open(fname,ios::out);
+#ifdef OLDCCOMPILER
+        for (Int_t i=0;i<unitinfo.nameinfo.size();i++) {
+            Fout<<unitinfo.nameinfo[i]<<" : ";
+            Fout<<unitinfo.datainfo[i]<<" ";
             Fout<<endl;
         }
 #else

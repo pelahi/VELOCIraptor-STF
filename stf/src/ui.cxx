@@ -206,6 +206,9 @@ void usage(void)
     \arg <b> \e Gravity </b> change the gravity unit. should be set such that \f$ v^2=GM/r \f$.   \ref Options.G \n
     \arg <b> \e Hubble_unit </b> change the value of Hubble expansion (from normal 100 km/s/Mpc to units used, that is velocity unit/length unit) \ref Options.G \n
     \arg <b> \e Mass_value </b> if not mass is stored using the option \b NOMASS (see \ref STF-makeflags) then this is the mass of the particles \ref Options.MassValue \n
+    \arg <b> \e Length_unit_to_kpc</b> specify the desired return unit in kpc \ref Options.lengthtokpc \n
+    \arg <b> \e Velocity_unit_to_kms</b> specify the desired return unit in kms \ref Options.velocitytokms \n
+    \arg <b> \e Mass_unit_to_solarmass</b> specify the desired return unit in solar masses \ref Options.masstosolarmass \n
 
     \subsection cosmologyconfig Cosmology
     \arg <b> \e Period </b> if not defined in the input data one can pass the period in the input units of the data. This is not always necessary, for instance the gadget snapshot format has this in the header.  \ref Options.p \n
@@ -442,7 +445,15 @@ void GetParamFile(Options &opt)
                         opt.Omega_b= atof(vbuff);
                     else if (strcmp(tbuff, "w_of_DE")==0)
                         opt.w_de= atof(vbuff);
-
+                    //so units can be specified to convert to kpc, km/s, solar mass
+                    //not necessarily the code units data is reported but the
+                    //translation of these code units to these units
+                    else if (strcmp(tbuff, "Length_unit_to_kpc")==0)
+                        opt.lengthtokpc = atof(vbuff);
+                    else if (strcmp(tbuff, "Velocity_to_kms")==0)
+                        opt.velocitytokms = atof(vbuff);
+                    else if (strcmp(tbuff, "Mass_to_solarmass")==0)
+                        opt.masstosolarmass = atof(vbuff);
                     //unbinding
                     else if (strcmp(tbuff, "Softening_length")==0)
                         opt.uinfo.eps = atof(vbuff);
