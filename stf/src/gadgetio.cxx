@@ -50,7 +50,8 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     FLOAT vtemp[3];
     MPI_Status status;
     Particle *Pbuf;
-    Int_t chunksize=GADGETCHUNKSIZE,nchunk;
+    Int_t chunksize=opt.inputbufsize,nchunk;
+    Int_t BufSize=opt.mpiparticlebufsize;
     FLOAT *ctempchunk, *vtempchunk, *sphtempchunk;
     FLOAT *startempchunk, *bhtempchunk;
     REAL *dtempchunk;
@@ -150,7 +151,7 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
         Hubble=opt.h*opt.H*sqrt((1-opt.Omega_m-opt.Omega_Lambda)*pow(aadjust,-2.0)+opt.Omega_m*pow(aadjust,-3.0)+opt.Omega_Lambda);
         opt.rhobg=3.*Hubble*Hubble/(8.0*M_PI*opt.G)*opt.Omega_m;
         //if opt.virlevel<0, then use virial overdensity based on Bryan and Norman 1998 virialization level is given by
-        if (opt.virlevel<0) 
+        if (opt.virlevel<0)
         {
             Double_t bnx=-((1-opt.Omega_m-opt.Omega_Lambda)*pow(aadjust,-2.0)+opt.Omega_Lambda)/((1-opt.Omega_m-opt.Omega_Lambda)*pow(aadjust,-2.0)+opt.Omega_m*pow(aadjust,-3.0)+opt.Omega_Lambda);
             opt.virlevel=(18.0*M_PI*M_PI+82.0*bnx-39*bnx*bnx)/opt.Omega_m;
@@ -1036,7 +1037,7 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
 #ifndef NOMASS
                 if(header[i].mass[k]==0) Fgadmass[i].read((char*)dtempchunk, sizeof(REAL)*nchunk);
 #endif
-                //once a block of data is in memory, start parsing it. 
+                //once a block of data is in memory, start parsing it.
                 for (int nn=0;nn<nchunk;nn++) {
                 ctemp[0]=ctempchunk[0+3*nn];ctemp[1]=ctempchunk[1+3*nn];ctemp[2]=ctempchunk[2+3*nn];
                 vtemp[0]=vtempchunk[0+3*nn];vtemp[1]=vtempchunk[1+3*nn];vtemp[2]=vtempchunk[2+3*nn];
@@ -1067,7 +1068,7 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                 //now depending on the type of particle and the type of search,
                 //load the particle into a particle buffer. If the particle belongs on local thread, then just copy it over
                 //to the Part array (or Pbaryons array if the iBaryonSearch is set). Otherwise, keep adding to the Pbuf array
-                //till the array is full and then send messages. 
+                //till the array is full and then send messages.
                 if (opt.partsearchtype==PSTALL) {
                     Pbuf[ibuf*BufSize+Nbuf[ibuf]]=Particle(dtemp*mscale,
                         ctemp[0]*lscale,ctemp[1]*lscale,ctemp[2]*lscale,
@@ -1547,8 +1548,8 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
         }
 #endif
 
-        //move to black holes 
-        
+        //move to black holes
+
 #ifdef GADGET2FORMAT
         Fgad[i].read((char*)&dummy, sizeof(dummy));
         Fgad[i].read((char*)&DATA[0],sizeof(char)*4);DATA[4] = '\0';
@@ -1732,10 +1733,10 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     }
     //gather all the items that must be sent.
     MPI_Allgather(Nbuf, NProcs, MPI_Int_t, mpi_nsend, NProcs, MPI_Int_t, MPI_COMM_WORLD);
-    //if separate baryon search then sort the Pbuf array so that it is separated by type 
+    //if separate baryon search then sort the Pbuf array so that it is separated by type
     if (opt.iBaryonSearch && opt.partsearchtype!=PSTALL) {
         //here ibuf is the read thread number and itask is the task id of the read thread in MPI_COMM_WORLD
-        for(ibuf = 0; ibuf < opt.nsnapread; ibuf++) 
+        for(ibuf = 0; ibuf < opt.nsnapread; ibuf++)
         {
             itask=readtaskID[ibuf];
             if (mpi_nsend[ThisTask * NProcs + itask] > 0)
@@ -1828,8 +1829,8 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
 #ifdef USEMPI
     MPI_Bcast(&LN, 1, MPI_Real_t, 0, MPI_COMM_WORLD);
 #endif
-    ///if not an individual halo, assume cosmological and store scale of the highest resolution interparticle spacing to scale the physical FOF linking length 
-    if (opt.iSingleHalo==0 || opt.icosmologicalin==1) 
+    ///if not an individual halo, assume cosmological and store scale of the highest resolution interparticle spacing to scale the physical FOF linking length
+    if (opt.iSingleHalo==0 || opt.icosmologicalin==1)
     {
         opt.ellxscale=LN;
         opt.uinfo.eps*=LN;

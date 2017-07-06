@@ -13,7 +13,7 @@
 #include <cmath>
 #include <string>
 #include <getopt.h>
-#include <sys/stat.h> 
+#include <sys/stat.h>
 
 #include <mpi.h>
 
@@ -39,8 +39,8 @@ extern Int_t Ntotal, NExport, NImport, Nlocal, Nlocaltot, Ngridtotal, Ngridlocal
 extern Int_t Ntotalbaryon[NBARYONTYPES], Nlocalbaryon[NBARYONTYPES];
 ///to store the amount of available memory
 extern Int_t Nmemlocal,Noldlocal,Nmemlocalbaryon;
-///buffer size (here in number of particles to send in one go)
-#define BufSize 1000000
+///default buffer size (here in number of particles to send in one go)
+#define MPIPartBufSize 100000
 ///size of largest MPI chunck in bytes that can be sent in one go (here set by MPI count argument, which is max int)
 #define LOCAL_MAX_MSGSIZE 2147483647L
 ///Nlocal maximum initially set to nbodies/NProc*MPProcFac, represents maximum load imbalance
@@ -102,7 +102,7 @@ extern Particle *PartDataIn, *PartDataGet;
 ///Particle arrays that allow allocation of memory need when deallocating local particle arrays that then need to be reassigned
 extern Particle *mpi_Part1,*mpi_Part2;
 
-///structure facilitates passing ids across threads so that determine number of groups and reorder group 
+///structure facilitates passing ids across threads so that determine number of groups and reorder group
 ///ids so that reflects group size
 extern struct fofid_in {
     Particle p;
@@ -146,15 +146,15 @@ extern Int_t MinNumMPI,MinNumOld;
 //@{
 #ifdef LONGINT
 #define MPI_Int_t MPI_LONG_LONG_INT
-#define MPI_UInt_t MPI_UNSIGNED_LONG_LONG 
+#define MPI_UInt_t MPI_UNSIGNED_LONG_LONG
 #else
-#define MPI_Int_t MPI_INT 
+#define MPI_Int_t MPI_INT
 #define MPI_UInt_t MPI_UNSIGNED
 #endif
 #ifdef SINGLEPRECISION
-#define MPI_Real_t MPI_FLOAT 
+#define MPI_Real_t MPI_FLOAT
 #else
-#define MPI_Real_t MPI_DOUBLE 
+#define MPI_Real_t MPI_DOUBLE
 #endif
 
 //@}

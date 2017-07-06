@@ -13,7 +13,7 @@
 #include "hdfitems.h"
 #endif
 #include "ramsesitems.h"
-#ifdef USERPC
+#ifdef USEXDR
 #include "nchiladaitems.h"
 #endif
 
@@ -1711,6 +1711,8 @@ Int_t ReadFOFGroupBinary(Options &opt, Int_t nbodies, Int_t *pfof, Int_t *idtoin
 
 //@}
 
+///\name Write configuration/simulation info
+//@{
 void WriteVELOCIraptorConfig(Options &opt){
     fstream Fout;
     char fname[1000];
@@ -1747,6 +1749,45 @@ void WriteVELOCIraptorConfig(Options &opt){
     }
 
 }
+
+void WriteSimulationInfo(Options &opt){
+    fstream Fout;
+    char fname[1000];
+#ifndef USEMPI
+    int ThisTask=0;
+#endif
+
+#ifdef USEHDF
+    H5File Fhdf;
+    H5std_string datasetname;
+    DataSpace dataspace;
+    DataSet dataset;
+    hsize_t *dims;
+    int rank;
+    DataSpace *propdataspace;
+    DataSet *propdataset;
+    HDFCatalogNames hdfnames;
+    int itemp=0;
+#endif
+    if (ThisTask==0) {
+        SimInfo siminfo(opt);
+        sprintf(fname,"%s.siminfo",opt.outname);
+        Fout.open(fname,ios::out);
+#ifdef OLDCCOMPILER
+        for (Int_t i=0;i<siminfo.nameinfo.size();i++) {
+            Fout<<siminfo.nameinfo[i]<<" : ";
+            Fout<<siminfo.datainfo[i]<<" ";
+            Fout<<endl;
+        }
+#else
+        Fout<<"C compiler is too old and config file output relies on std 11 implentation to write info. UPDATE YOUR COMPILER "<<endl;
+#endif
+        Fout.close();
+    }
+
+}
+//@}
+
 #ifdef EXTENDEDHALOOUTPUT
 /// \name Routines that can be used to output information of a halo subvolume decomposition
 //@{

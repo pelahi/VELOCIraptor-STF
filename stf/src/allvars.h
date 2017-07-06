@@ -25,7 +25,7 @@
 #include <string>
 #include <vector>
 #include <getopt.h>
-#include <sys/stat.h> 
+#include <sys/stat.h>
 #include <sys/timeb.h>
 
 #include <gsl/gsl_heapsort.h>
@@ -85,7 +85,7 @@ using namespace NBody;
 //@}
 //@}
 
-/// \defgroup SEARCHTYPES 
+/// \defgroup SEARCHTYPES
 //@{
 /// \name Specify particle type to be searched, all, dm only, separate
 //@{
@@ -121,7 +121,7 @@ using namespace NBody;
 //@{
 //subsets made
 ///call \ref FOFStreamwithprob
-#define  FOFSTPROB 1 
+#define  FOFSTPROB 1
 ///6D FOF search but only with outliers
 #define  FOF6DSUBSET 7
 ///like \ref FOFStreamwithprob search but search is limited to nearest physical neighbours
@@ -153,7 +153,7 @@ using namespace NBody;
 //@{
 /// \name for iterative subsubstructure search
 //@{
-/// this is minimum particle number size for a subsearch to proceed whereby substructure split up into CELLSPLITNUM new cells 
+/// this is minimum particle number size for a subsearch to proceed whereby substructure split up into CELLSPLITNUM new cells
 #define  MINCELLSIZE 100
 #define  CELLSPLITNUM 8
 #define  MINSUBSIZE MINCELLSIZE*CELLSPLITNUM
@@ -163,7 +163,7 @@ using namespace NBody;
 
 ///\defgroup GRIDTYPES
 //@{
-/// \name Type of Grid structures 
+/// \name Type of Grid structures
 //@{
 #define  PHYSENGRID 1
 #define  PHASEENGRID 2
@@ -234,7 +234,7 @@ using namespace NBody;
 
 //@}
 
-/// \defgroup OMPLIMS 
+/// \defgroup OMPLIMS
 //@{
 ///\name For determining whether loop contains enough for openm to be worthwhile.
 //@{
@@ -264,7 +264,7 @@ using namespace NBody;
 
 
 /// Structure stores unbinding information
-struct UnbindInfo 
+struct UnbindInfo
 {
     ///\name flag whether unbind groups, keep bg potential when unbinding, type of unbinding and reference frame
     //@{
@@ -272,7 +272,7 @@ struct UnbindInfo
     //@}
     ///fraction of potential energy that kinetic energy is allowed to be and consider particle bound
     Double_t Eratio;
-    ///minimum bound mass fraction 
+    ///minimum bound mass fraction
     Double_t minEfrac;
     ///when to recalculate kinetic energies if cmvel has changed enough
     Double_t cmdelta;
@@ -343,9 +343,13 @@ struct Options
     int icomoveunit;
     /// input is a cosmological simulation so can use box sizes, cosmological parameters, etc to set scales
     int icosmologicalin;
+    /// input buffer size when reading data
+    int inputbufsize;
+    /// mpi paritcle buffer size when sending input particle information
+    int mpiparticletotbufsize,mpiparticlebufsize;
 
 
-    ///\name length,m,v,grav units
+    ///\name length,m,v,grav conversion units
     //@{
     Double_t L, M, V, G;
     //@}
@@ -464,7 +468,7 @@ struct Options
     ///for storing a snapshot value to make halo ids unique across snapshots
     long long snapshotvalue;
 
-    ///\name for reading gadget info with lots of extra sph, star and bh blocks 
+    ///\name for reading gadget info with lots of extra sph, star and bh blocks
     //@{
     int gnsphblocks,gnstarblocks,gnbhblocks;
     //@}
@@ -478,7 +482,7 @@ struct Options
     /// input contains extra dark type particles
     int iuseextradarkparticles;
     //@}
-    
+
     /// \name Extra variables to store information useful in zoom simluations
     //@{
     /// store the lowest dark matter particle mass
@@ -592,6 +596,10 @@ struct Options
         gnbhblocks=2;
 
         iScaleLengths=0;
+
+        inputbufsize=100000;
+
+        mpiparticlebufsize=-1;
     }
 };
 
@@ -746,7 +754,7 @@ struct ConfigInfo{
         datainfo.push_back(to_string(opt.iBoundHalos));
         nameinfo.push_back("Keep_background_potential");
         datainfo.push_back(to_string(opt.uinfo.bgpot));
-        nameinfo.push_back("Kinetic_reference_frame_type"); 
+        nameinfo.push_back("Kinetic_reference_frame_type");
         datainfo.push_back(to_string(opt.uinfo.cmvelreftype));
         nameinfo.push_back("Min_npot_ref");
         datainfo.push_back(to_string(opt.uinfo.Npotref));
@@ -763,9 +771,13 @@ struct ConfigInfo{
         nameinfo.push_back("Inclusive_halo_masses");
         datainfo.push_back(to_string(opt.iInclusiveHalo));
 
-        //io related 
+        //io related
         nameinfo.push_back("Cosmological_input");
         datainfo.push_back(to_string(opt.icosmologicalin));
+        nameinfo.push_back("Input_chunk_size");
+        datainfo.push_back(to_string(opt.inputbufsize));
+        nameinfo.push_back("MPI_particle_total_buf_size");
+        datainfo.push_back(to_string(opt.mpiparticletotbufsize));
         nameinfo.push_back("Separate_output_files");
         datainfo.push_back(to_string(opt.iseparatefiles));
         nameinfo.push_back("Binary_output");
@@ -782,6 +794,63 @@ struct ConfigInfo{
         datainfo.push_back(to_string(opt.gnstarblocks));
         nameinfo.push_back("NBH_extra_blocks");
         datainfo.push_back(to_string(opt.gnbhblocks));
+#endif
+    }
+};
+
+struct SimInfo{
+    //list the name of the info
+    vector<string> nameinfo;
+    vector<string> datainfo;
+
+    SimInfo(Options &opt){
+        int sizeval;
+        //if compiler is super old and does not have at least std 11 implementation to_string does not exist
+#ifndef OLDCCOMPILER
+        //general search operations
+        nameinfo.push_back("Cosmological_Sim");
+        datainfo.push_back(to_string(opt.icosmologicalin));
+        if (opt.icosmologicalin) {
+            nameinfo.push_back("ScaleFactor");
+            datainfo.push_back(to_string(opt.a));
+            nameinfo.push_back("h_val");
+            datainfo.push_back(to_string(opt.h));
+            nameinfo.push_back("Omega_m");
+            datainfo.push_back(to_string(opt.Omega_m));
+            nameinfo.push_back("Omega_Lambda");
+            datainfo.push_back(to_string(opt.Omega_Lambda));
+            nameinfo.push_back("Omega_cdm");
+            datainfo.push_back(to_string(opt.Omega_cdm));
+            nameinfo.push_back("Omega_b");
+            datainfo.push_back(to_string(opt.Omega_b));
+            nameinfo.push_back("w_of_DE");
+            datainfo.push_back(to_string(opt.w_de));
+            nameinfo.push_back("Period");
+            datainfo.push_back(to_string(opt.p));
+            nameinfo.push_back("Hubble_unit");
+            datainfo.push_back(to_string(opt.H));
+        }
+        else{
+            nameinfo.push_back("Time");
+            datainfo.push_back(to_string(opt.a));
+            nameinfo.push_back("Period");
+            datainfo.push_back(to_string(opt.p));
+        }
+
+        //units
+        nameinfo.push_back("Length_unit");
+        datainfo.push_back(to_string(opt.L));
+        nameinfo.push_back("Velocity_unit");
+        datainfo.push_back(to_string(opt.V));
+        nameinfo.push_back("Mass_unit");
+        datainfo.push_back(to_string(opt.M));
+        nameinfo.push_back("Gravity");
+        datainfo.push_back(to_string(opt.G));
+#ifdef NOMASS
+        nameinfo.push_back("Mass_value");
+        datainfo.push_back(to_string(opt.MassValue));
+#endif
+
 #endif
     }
 };
@@ -901,7 +970,7 @@ struct PropData
     Double_t Efrac_gas,Pot_gas,T_gas;
     //@}
 #endif
-    
+
 #ifdef STARON
     ///\name star specific quantities
     //@{
@@ -959,14 +1028,14 @@ struct PropData
         gveldisp=Matrix(0.);
         gq=gs=1.0;
         Krot=0.;
-        
+
         RV_sigma_v=0;
         RV_q=RV_s=1.;
         RV_J[0]=RV_J[1]=RV_J[2]=0;
         RV_veldisp=Matrix(0.);
         RV_eigvec=Matrix(0.);
         RV_lambda_B=RV_lambda_P=RV_Krot=0;
-        
+
 #ifdef GASON
         M_gas_rvmax=M_gas_30kpc=M_gas_50kpc=0;
         n_gas=M_gas=Efrac_gas=0;
@@ -1079,7 +1148,7 @@ struct PropData
 
         val=gMvir;
         Fout.write((char*)&val,sizeof(val));
- 
+
         for (int k=0;k<3;k++) val3[k]=gcm[k];
         Fout.write((char*)val3,sizeof(val)*3);
         for (int k=0;k<3;k++) val3[k]=gpos[k];
@@ -1381,10 +1450,10 @@ struct PropData
     ///write (append) the properties data to an already open hdf file
     void WriteHDF(H5File &Fhdf, DataSpace *&dataspaces, DataSet *&datasets, Options&opt){
     };
-#endif 
+#endif
 };
 
-/*! Structures stores header info of the data writen by the \ref PropData data structure, 
+/*! Structures stores header info of the data writen by the \ref PropData data structure,
     specifically the \ref PropData::WriteBinary, \ref PropData::WriteAscii, \ref PropData::WriteHDF routines
     Must ensure that these routines are all altered together so that the io makes sense.
 */
@@ -1505,7 +1574,7 @@ struct PropDataHeader{
         headerdatainfo.push_back("RVmax_eig_zx");
         headerdatainfo.push_back("RVmax_eig_zy");
         headerdatainfo.push_back("RVmax_eig_zz");
-        
+
 #ifdef USEHDF
         sizeval=predtypeinfo.size();
         for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(PredType::NATIVE_DOUBLE);
@@ -1652,7 +1721,7 @@ struct PropDataHeader{
 */
 struct StrucLevelData
 {
-    ///structure type and number in current level of hierarchy 
+    ///structure type and number in current level of hierarchy
     Int_t stype,nsinlevel;
     ///points to the the head pfof address of the group and parent
     Particle **Phead;
@@ -1702,12 +1771,12 @@ struct HDFCatalogNames {
     vector<H5std_string> group;
     //store the data type
     vector<PredType> groupdatatype;
-    
+
     ///store the names of catalog particle files
     vector<H5std_string> part;
     //store the data type
     vector<PredType> partdatatype;
-    
+
     ///store the names of catalog particle files
     vector<H5std_string> types;
     //store the data type
@@ -1756,7 +1825,7 @@ struct HDFCatalogNames {
         typesdatatype.push_back(PredType::STD_U64LE);
         typesdatatype.push_back(PredType::STD_U16LE);
 
-        
+
         hierarchy.push_back("File_id");
         hierarchy.push_back("Num_of_files");
         hierarchy.push_back("Num_of_groups");

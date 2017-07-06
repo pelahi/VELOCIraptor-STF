@@ -1,6 +1,6 @@
 /*! \file hdfitems.h
  *  \brief this file contains definitions and routines for reading HDF5 files
- * 
+ *
  *   NOTE: the routines are based on reading Illustris HDF outputs
  */
 
@@ -14,7 +14,7 @@ using namespace H5;
 ///\name ILLUSTRIS specific constants
 //@{
 ///convert illustris metallicty to ratio to solar
-#define ILLUSTRISZMET 1.0/0.0127 
+#define ILLUSTRISZMET 1.0/0.0127
 //@}
 
 ///number of particle types
@@ -30,7 +30,7 @@ using namespace H5;
 #define HDFEXTRATYPE 6
 //@}
 
-///\name number of entries in various data groups 
+///\name number of entries in various data groups
 //@{
 #define HDFHEADNINFO 11
 #define HDFGASNINFO 20
@@ -61,23 +61,23 @@ using namespace H5;
 #define NHDFDATABLOCK 10
 ///here number shared by all particle types
 #define NHDFDATABLOCKALL 4
-//Maximum dimensionality of a datablock 
+//Maximum dimensionality of a datablock
 ///example at most one needs a dimensionality of 13 for the tracer particles in Illustris for fluid related info
 #define HDFMAXPROPDIM 13
 
-///\name labels for HDF naming conventions 
+///\name labels for HDF naming conventions
 //@{
 
 ///\name Structures for the HDF5 interface, primarily used to store the strings of Groups and DataSets
 //@{
-#define HDFILLUSTISNAMES 0 
+#define HDFILLUSTISNAMES 0
 #define HDFGADGETXNAMES  1
 #define HDFEAGLENAMES    2
 //@}
 
 ///This structures stores the strings defining the groups of data in the hdf input. NOTE: HERE I show the strings for Illustris format
 struct HDF_Group_Names {
-    //define the strings associated with the types of structures contained in the hdf file. 
+    //define the strings associated with the types of structures contained in the hdf file.
     H5std_string Header_name;
     H5std_string GASpart_name;
     H5std_string DMpart_name;
@@ -162,7 +162,7 @@ struct HDF_Part_Info {
     int nentries;
     //store where properties are located
     int propindex[100];
-    
+
     //the HDF naming convenction for the data blocks. By default assumes ILLUSTRIS nameing convention
     //for simplicity, all particles have basic properties listed first, x,v,ids,mass in this order
     HDF_Part_Info(int PTYPE, int hdfnametype=HDFEAGLENAMES) {
@@ -278,7 +278,7 @@ struct HDF_Part_Info {
 
 /// \name Get the number of particles in the hdf files
 //@{
-inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt) 
+inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
 {
     char buf[2000],buf1[2000],buf2[2000];
     sprintf(buf1,"%s.0.hdf5",fname);
@@ -328,7 +328,7 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
         //Open the specified file and the specified dataset in the file.
         Fhdf.openFile(buf, H5F_ACC_RDONLY);
         cout<<"Loading HDF header info in header group: "<<hdf_gnames.Header_name<<endl;
-        //get header group 
+        //get header group
         headergroup=Fhdf.openGroup(hdf_gnames.Header_name);
 
         headerattribs=headergroup.openAttribute(hdf_header_info.names[hdf_header_info.INumTot]);
@@ -382,7 +382,7 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
 
 /// \name Get the number of hdf files per snapshot
 //@{
-inline Int_t HDF_get_nfiles(char *fname, int ptype) 
+inline Int_t HDF_get_nfiles(char *fname, int ptype)
 {
     char buf[2000],buf1[2000],buf2[2000];
     sprintf(buf1,"%s.0.hdf5",fname);
@@ -416,17 +416,17 @@ inline Int_t HDF_get_nfiles(char *fname, int ptype)
 
         //Open the specified file and the specified dataset in the file.
         Fhdf.openFile(buf, H5F_ACC_RDONLY);
-        //get header group 
+        //get header group
         headergroup=Fhdf.openGroup(hdf_gnames.Header_name);
 
         headerattribs = headergroup.openAttribute(hdf_header_info.names[hdf_header_info.INumFiles]);
         inttype = headerattribs.getIntType();
-        if (inttype.getSize() == sizeof(int)) 
+        if (inttype.getSize() == sizeof(int))
         {
           headerattribs.read(PredType::NATIVE_INT,&intbuff);
           hdf_header_info.num_files = intbuff;
         }
-        if (inttype.getSize() == sizeof(long long)) 
+        if (inttype.getSize() == sizeof(long long))
         {
           headerattribs.read(PredType::NATIVE_LONG,&longbuff);
           hdf_header_info.num_files = longbuff;
@@ -468,4 +468,4 @@ inline Int_t HDF_get_nfiles(char *fname, int ptype)
 //@}
 
 
-#endif 
+#endif

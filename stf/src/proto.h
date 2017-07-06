@@ -1,6 +1,6 @@
 /*! \file proto.h
  *  \brief this file contains all function prototypes of the code
- 
+
  \section TOC Function Type Table of contents
  */
 
@@ -62,7 +62,7 @@ void WriteFOF(Options &opt, const Int_t nbodies, Int_t *pfof);
 ///Writes a pg list file (first in effective index order of input file(s), second is particle ids
 void WritePGListIndex(Options &opt, const Int_t ngroups, const Int_t ng, Int_t *numingroup, Int_t **pglist);
 void WritePGList(Options &opt, const Int_t ngroups, const Int_t ng, Int_t *numingroup, Int_t **pglist, Int_t *ids);
-///Write catalog information (number of groups, number in groups, number of particles in groups, particle pids) 
+///Write catalog information (number of groups, number in groups, number of particles in groups, particle pids)
 void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int_t **pglist, Particle *Part, Int_t nadditional=0);
 ///Write catalog information related to particle types relevant if different particle types are included in the grouping algorithm
 void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, Int_t **pglist, Particle *Part);
@@ -78,13 +78,16 @@ void WriteExtendedOutput(Options &opt, Int_t numgroups, Int_t nbodies, PropData 
 ///Write the configuartion options that the code used
 void WriteVELOCIraptorConfig(Options &opt);
 
+///Write the simulation info (which could use input files to overwrite passed configuration options)
+void WriteSimulationInfo(Options &opt);
+
 ///Writes ROCKSTAR like output
 //@{
 //@}
 
 ///Writes AHF like output
 //@{
-///writes   
+///writes
 void WritePGListIndex(Options &opt, const Int_t ngroups, const Int_t ng, Int_t *numingroup, Int_t **pglist);
 ///Writes the bulk properties of the substructures
 void WriteAHFProperties(Options &opt, const Int_t ngroups, PropData *pdata);
@@ -158,14 +161,14 @@ Int_t GetOutliersValues(Options &opt, const Int_t nbodies, Particle *Part, int s
 
     The search routines build a kd-tree and then search the tree to find particles that meet the fof criterion. \n
 
-    If \b MPI is used then a tree is build for the local particle set and these particles are searched. Then 
+    If \b MPI is used then a tree is build for the local particle set and these particles are searched. Then
     \arg Once that is done, the node structure of each thread (with node upper most boundaries) is broadcast to all other processors
     so that a local thread can determine if a local particle can be linked to particles on the other threads.
     \arg This mpi_node structure is used to create a export list of the local particles that need to be broadcast to another thread \e j
-    \arg After creating an export list of particles, these particles are sent and received by and to the appropriate threads. 
-    \arg Now the local thread searches it local particle set using the export particle positions to see if any links can be found. 
+    \arg After creating an export list of particles, these particles are sent and received by and to the appropriate threads.
+    \arg Now the local thread searches it local particle set using the export particle positions to see if any links can be found.
     \n
-    All these above steps must be repeated till no new links are found. 
+    All these above steps must be repeated till no new links are found.
 */
 //@{
 
@@ -173,7 +176,7 @@ Int_t GetOutliersValues(Options &opt, const Int_t nbodies, Particle *Part, int s
 Int_t *SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &numgroups);
 ///Search the outliers
 Int_t *SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Particle *&Partsubset,Int_t &numgroups, Int_t sublevel=0, Int_t *pnumcores=NULL);
-///Search for subsubstructures 
+///Search for subsubstructures
 void SearchSubSub(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_t *&pfof, Int_t &ngroup, Int_t &nhalos, PropData *pdata=NULL);
 ///Given a set of tagged core particles, assign surroundings
 void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_t *&pfof, Int_t *&pfofbg, Int_t &numgroupsbg, Double_t param[], vector<Double_t> &dispfac, int nthreads);
@@ -196,7 +199,7 @@ void AdjustStructureForPeriod(Options &opt, const Int_t nbodies, Particle *Part,
 inline Double_t GetVelDisp(Particle *Part, Int_t numgroups, Int_t *numingroup, Int_t **pglist);
 ///Create array for each group listing all previously unlinked particles that should now be linked.
 inline void DetermineNewLinks(Int_t nsubset, Particle *Partsubset, Int_t *pfof, Int_t numgroups, Int_t &newlinks, Int_t *newlinksIndex, Int_t *numgrouplinksIndex, Int_t *nnID, Int_t ***newIndex);
-///Create array for each group listing all possibly intergroup links 
+///Create array for each group listing all possibly intergroup links
 inline void DetermineGroupLinks(Int_t nsubset, Particle *Partsubset, Int_t *pfof, Int_t numgroups, Int_t &newlinks, Int_t *newlinksIndex, Int_t *numgrouplinksIndex, Int_t *nnID, Int_t ***newIndex);
 ///once Group links are found, reduce the data so that one can determine for each group, number of other groups linked, their gids and the number of that group linked
 ///these are stored in numgrouplinksIndex, intergroupgidIndex, & newintergroupIndex
@@ -226,7 +229,7 @@ int CheckUnboundGroups(Options opt, const Int_t nbodies, Particle *&Part, Int_t 
 ///check if group self-bound
 int Unbind(Options &opt, Particle **gPartList, Int_t &numgroups, Int_t *numingroup, Int_t *pfof, Int_t **pglist, int ireorder=1);
 int Unbind(Options &opt, Particle *&Part, Int_t &numgroups, Int_t *&numingroup, Int_t *&noffset, Int_t *&pfof);
-///calculate the potential of an array of particles 
+///calculate the potential of an array of particles
 void Potential(Options &opt, Int_t nbodies, Particle *Part, Double_t *potV);
 void Potential(Options &opt, Int_t nbodies, Particle *Part);
 //@}
@@ -270,7 +273,7 @@ void CalcPosSigmaTensor(const Int_t n, Particle *p, Double_t &a, Double_t &b, Do
 void CalcVelSigmaTensor(const Int_t n, Particle *p, Double_t &a, Double_t &b, Double_t &c, Matrix& eigenvec, Matrix &I, int itype=-1);
 ///Calculate phase-space dispersion tensor and eigvector
 void CalcPhaseSigmaTensor(const Int_t n, Particle *p, GMatrix &eigenvalues, GMatrix& eigenvec, GMatrix &I, int itype=-1);
-///Calculate the reduced weighted inertia tensor used to determine the spatial morphology 
+///Calculate the reduced weighted inertia tensor used to determine the spatial morphology
 void CalcMTensor(Matrix& M, const Double_t q, const Double_t s, const Int_t n, Particle *p, int itype);
 ///Same as \ref CalcMTensor but include mass
 void CalcMTensorWithMass(Matrix& M, const Double_t q, const Double_t s, const Int_t n, Particle *p, int itype);
@@ -392,7 +395,7 @@ void MPIBuildParticleExportList(const Int_t nbodies, Particle *&Part, Int_t *&pf
 Int_t MPILinkAcross(const Int_t nbodies, KDTree *tree, Particle *&Part, Int_t *&pfof, Int_t *&Len, Int_t *&Head, Int_t *&Next, Double_t rdist2);
 ///Link groups across MPI threads using criterion
 Int_t MPILinkAcross(const Int_t nbodies, KDTree *tree, Particle *&Part, Int_t *&pfof, Int_t *&Len, Int_t *&Head, Int_t *&Next, Double_t rdist2, FOFcompfunc &cmp, Double_t *params);
-///update export list after after linking across 
+///update export list after after linking across
 void MPIUpdateExportList(const Int_t nbodies, Particle *&Part, Int_t *&pfof, Int_t *&Len);
 ///localize groups to a single mpi thread
 Int_t MPIGroupExchange(const Int_t nbodies, Particle *&Part, Int_t *&pfof);
@@ -403,17 +406,17 @@ Int_t MPIBaryonGroupExchange(const Int_t nbodies, Particle *&Part, Int_t *&pfof)
 ///similar to \ref MPICompileGroups but optimised for separate baryon search, assumes only looking at baryons
 Int_t MPIBaryonCompileGroups(const Int_t nbodies, Particle *&Part, Int_t *&pfof, Int_t minsize, int iorder=1);
 ///localize baryons particle members of groups to a single mpi thread
-///Collect FOF from all 
+///Collect FOF from all
 void MPICollectFOF(const Int_t nbodies, Int_t *&pfof);
 ///comparison function to order particles for export
 int fof_export_cmp(const void *a, const void *b);
 ///comparison function to order particles for export and fof group localization.
 int fof_id_cmp(const void *a, const void *b);
-///similar to \ref MPIBuildParticleExportList but specific interface for baryon search 
+///similar to \ref MPIBuildParticleExportList but specific interface for baryon search
 void MPIBuildParticleExportBaryonSearchList(const Int_t nbodies, Particle *&Part, Int_t *&pfof, Int_t *ids, Int_t *numingroup, Double_t rdist);
 ///search local baryons with exported particle list.
 Int_t MPISearchBaryons(const Int_t nbaryons, Particle *&Pbaryons, Int_t *&pfofbaryons, Int_t *numingroup, Double_t *localdist, Int_t nsearch, Double_t *param, Double_t *period);
-///localize the baryons to the mpi thread on which their associated DM group exists. 
+///localize the baryons to the mpi thread on which their associated DM group exists.
 Int_t MPIBaryonExchange(const Int_t nbaryons, Particle *&Pbaryons, Int_t *&pfofbaryons);
 //@}
 
@@ -462,21 +465,21 @@ Particle *BuildPart(Int_t numingroup, Int_t *pglist, Particle* Part);
 Int_t *BuildHeadArray(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t **pglist);
 ///build the Next array which points to the next particle in the group
 Int_t *BuildNextArray(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t **pglist);
-///build the Len array which stores the length of the group a particle belongs to 
+///build the Len array which stores the length of the group a particle belongs to
 Int_t *BuildLenArray(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t **pglist);
 ///build the GroupTail array which stores the Tail of a group
 Int_t *BuildGroupTailArray(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t **pglist);
 ///sort particles according to the group value (or technically any integer array) unique to each group and return an array of offsets to access the particle array via their group
-Int_t *BuildNoffset(const Int_t nbodies, Particle *Part, Int_t numgroups,Int_t *numingroup, Int_t *sortval, Int_t ioffset=0); 
+Int_t *BuildNoffset(const Int_t nbodies, Particle *Part, Int_t numgroups,Int_t *numingroup, Int_t *sortval, Int_t ioffset=0);
 ///reorder groups from largest to smallest
 void ReorderGroupIDs(const Int_t numgroups, const Int_t newnumgroups, Int_t *numingroup, Int_t *pfof, Int_t **pglist);
 ///reorder groups from largest to smallest not assuming particles are in id order
 void ReorderGroupIDs(const Int_t numgroups, const Int_t newnumgroups, Int_t *numingroup, Int_t *pfof, Int_t **pglist, Particle *P);
 ///reorder groups by value
 void ReorderGroupIDsbyValue(const Int_t numgroups, const Int_t newnumgroups, Int_t *numingroup, Int_t *pfof, Int_t **pglist, Int_t *value);
-///reorder groups and associated integer group data by value 
+///reorder groups and associated integer group data by value
 void ReorderGroupIDsAndArraybyValue(const Int_t numgroups, const Int_t newnumgroups, Int_t *numingroup, Int_t *pfof, Int_t **pglist, Int_t *value, Int_t *gdata);
-///reorder groups and associated double group data by value 
+///reorder groups and associated double group data by value
 void ReorderGroupIDsAndArraybyValue(const Int_t numgroups, const Int_t newnumgroups, Int_t *numingroup, Int_t *pfof, Int_t **pglist, Int_t *value, Double_t *gdata);
 ///reorder groups and the associated property data by value
 void ReorderGroupIDsAndHaloDatabyValue(const Int_t numgroups, const Int_t newnumgroups, Int_t *numingroup, Int_t *pfof, Int_t **pglist, Int_t *value, PropData *pdata);
@@ -497,4 +500,3 @@ double MyGetTime();
 //@}
 
 #endif
-

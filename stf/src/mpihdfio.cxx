@@ -1,5 +1,5 @@
 /*! \file mpihdfio.cxx
- *  \brief this file contains routines used with MPI compilation and HDF io and domain construction. 
+ *  \brief this file contains routines used with MPI compilation and HDF io and domain construction.
  */
 
 #if defined(USEMPI) && defined(USEHDF)
@@ -12,13 +12,13 @@
 /// \name HDF Domain decomposition
 //@{
 
-/*! 
+/*!
     Determine the domain decomposition.\n
     Here the domains are constructured in data units
     only read tasks should call this routine. It is tricky to get appropriate load balancing and correct number of particles per processor.\n
-    
-    I could use recursive binary splitting like kd-tree along most spread axis till have appropriate number of volumes corresponding 
-    to number of processors. Or build a Peno-Hilbert space filling curve. 
+
+    I could use recursive binary splitting like kd-tree along most spread axis till have appropriate number of volumes corresponding
+    to number of processors. Or build a Peno-Hilbert space filling curve.
 
     BUT for identifying particles on another mpi domain, simple enough to split volume into rectangular cells.
 */
@@ -52,7 +52,7 @@ void MPIDomainExtentHDF(Options &opt){
             //Open the specified file and the specified dataset in the file.
             Fhdf.openFile(buf, H5F_ACC_RDONLY);
             cout<<"Loading HDF header info in header group: "<<hdf_gnames.Header_name<<endl;
-            //get header group 
+            //get header group
             headergroup=Fhdf.openGroup(hdf_gnames.Header_name);
 
             //start reading attributes
@@ -172,7 +172,7 @@ void MPIDomainDecompositionHDF(Options &opt){
         if(i<mpi_nxsplit[ix]-1) {
         for (j=0;j<mpi_nxsplit[iy];j++) {
             for (k=0;k<mpi_nxsplit[iz];k++) {
-                //define upper limit 
+                //define upper limit
                 mpitasknum=i+j*mpi_nxsplit[ix]+k*(mpi_nxsplit[ix]*mpi_nxsplit[iy]);
                 mpi_domain[mpitasknum].bnd[ix][1]=bndval[0];
                 //define lower limit
@@ -182,7 +182,7 @@ void MPIDomainDecompositionHDF(Options &opt){
         }
         }
         //now for secondary splitting
-        if (mpi_nxsplit[iy]>1) 
+        if (mpi_nxsplit[iy]>1)
         for (j=0;j<mpi_nxsplit[iy];j++) {
             bndval[1]=(mpi_xlim[iy][1]-mpi_xlim[iy][0])*(Double_t)(j+1)/(Double_t)mpi_nxsplit[iy];
             if(j<mpi_nxsplit[iy]-1) {
@@ -246,16 +246,17 @@ void MPINumInDomainHDF(Options &opt)
     DataSet *partsdataset;
     DataSpace *partsdataspace;
     DataSpace chunkspace;
+    int chunksize=opt.inputbufsize;
     //buffers to load data
     int *intbuff=new int[NHDFTYPE];
     long long *longbuff=new long long[NHDFTYPE];
-    float *floatbuff=new float[HDFCHUNKSIZE*3];
-    double *doublebuff=new double[HDFCHUNKSIZE*3];
+    float *floatbuff=new float[chunksize*3];
+    double *doublebuff=new double[chunksize*3];
     void *realbuff;
     //arrays to store number of items to read and offsets when selecting hyperslabs
     //at most one needs a dimensionality of 13 for the tracer particles in Illustris
     hsize_t filespacecount[13],filespaceoffset[13];
-    //to determine types 
+    //to determine types
     IntType inttype;
     FloatType floattype;
     PredType HDFREALTYPE(PredType::NATIVE_FLOAT);
@@ -322,20 +323,20 @@ void MPINumInDomainHDF(Options &opt)
                 for (k=0;k<NHDFTYPE;k++) hdf_header_info[i].npart[k]=longbuff[k];
             }
 
-            //open particle group structures 
+            //open particle group structures
             for (j=0;j<nusetypes;j++) {k=usetypes[j]; partsgroup[i*NHDFTYPE+k]=Fhdf[i].openGroup(hdf_gnames.part_names[k]);}
             if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) for (j=1;j<=nbusetypes;j++) {k=usetypes[j];partsgroup[i*NHDFTYPE+k]=Fhdf[i].openGroup(hdf_gnames.part_names[k]);}
 
             //get positions
             for (j=0;j<nusetypes;j++) {
-                k=usetypes[j]; 
+                k=usetypes[j];
                 partsdataset[i*NHDFTYPE+k]=partsgroup[i*NHDFTYPE+k].openDataSet(hdf_parts[k]->names[0]);
                 partsdataspace[i*NHDFTYPE+k]=partsdataset[i*NHDFTYPE+k].getSpace();
                 //assuming all particles use the same float type for shared property structures
                 floattype=partsdataset[i*NHDFTYPE+k].getFloatType();
             }
             if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) for (j=1;j<=nbusetypes;j++) {
-                k=usetypes[j]; 
+                k=usetypes[j];
                 partsdataset[i*NHDFTYPE+k]=partsgroup[i*NHDFTYPE+k].openDataSet(hdf_parts[k]->names[0]);
                 partsdataspace[i*NHDFTYPE+k]=partsdataset[i*NHDFTYPE+k].getSpace();
             }
@@ -344,11 +345,11 @@ void MPINumInDomainHDF(Options &opt)
             for (j=0;j<nusetypes;j++) {
                 k=usetypes[j];
                 //data loaded into memory in chunks
-                if (hdf_header_info[i].npart[k]<HDFCHUNKSIZE)nchunk=hdf_header_info[i].npart[k];
-                else nchunk=HDFCHUNKSIZE;
+                if (hdf_header_info[i].npart[k]<chunksize)nchunk=hdf_header_info[i].npart[k];
+                else nchunk=chunksize;
                 for(n=0;n<hdf_header_info[i].npart[k];n+=nchunk)
                 {
-                    if (hdf_header_info[i].npart[k]-n<HDFCHUNKSIZE&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
+                    if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
                     //setup hyperslab so that it is loaded into the buffer
                     datarank=1;
                     datadim[0]=nchunk*3;
@@ -376,11 +377,11 @@ void MPINumInDomainHDF(Options &opt)
                 for (j=1;j<=nbusetypes;j++) {
                     k=usetypes[j];
                     //data loaded into memory in chunks
-                    if (hdf_header_info[i].npart[k]<HDFCHUNKSIZE)nchunk=hdf_header_info[i].npart[k];
-                    else nchunk=HDFCHUNKSIZE;
+                    if (hdf_header_info[i].npart[k]<chunksize)nchunk=hdf_header_info[i].npart[k];
+                    else nchunk=chunksize;
                     for(n=0;n<hdf_header_info[i].npart[k];n+=nchunk)
                     {
-                        if (hdf_header_info[i].npart[k]-n<HDFCHUNKSIZE&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
+                        if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
                         //setup hyperslab so that it is loaded into the buffer
                         datarank=1;
                         datadim[0]=nchunk*3;
