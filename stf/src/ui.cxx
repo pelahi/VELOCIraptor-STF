@@ -485,11 +485,11 @@ void GetParamFile(Options &opt)
                     //input related
                     else if (strcmp(tbuff, "Cosmological_input")==0)
                         opt.icosmologicalin = atoi(vbuff);
-                    //input read related 
+                    //input read related
                     else if (strcmp(tbuff, "Input_chunk_size")==0)
-                        opt.inputbufsize = atoi(vbuff);
+                        opt.inputbufsize = atol(vbuff);
                     else if (strcmp(tbuff, "MPI_particle_total_buf_size")==0)
-                        opt.mpiparticletotbufsize = atoi(vbuff);
+                        opt.mpiparticletotbufsize = atol(vbuff);
 
                     //output related
                     else if (strcmp(tbuff, "Separate_output_files")==0)
@@ -601,7 +601,7 @@ inline void ConfigCheck(Options &opt)
     }
 
 #ifdef USEMPI
-    if (opt.mpiparticletotbufsize<sizeof(Particle)*NProcs && opt.mpiparticletotbufsize!=-1){
+    if (opt.mpiparticletotbufsize<(long int)(sizeof(Particle)*NProcs) && opt.mpiparticletotbufsize!=-1){
         if (ThisTask==0) {
             cerr<<"Invalid particle buffer send size, mininmum size given paritcle byte size ";
             cerr<<sizeof(Particle)<<" and have "<<NProcs<<" mpi processes is "<<sizeof(Particle)*NProcs<<endl;
@@ -609,7 +609,7 @@ inline void ConfigCheck(Options &opt)
         MPI_Abort(MPI_COMM_WORLD,8);
     }
     //if total buffer size is -1 then calculate individual buffer size based on default mpi size
-    if (opt.mpiparticletotbufsize==-1) {
+    else if (opt.mpiparticletotbufsize==-1) {
         opt.mpiparticletotbufsize=MPIPartBufSize*NProcs*sizeof(Particle);
         opt.mpiparticlebufsize=MPIPartBufSize;
     }
