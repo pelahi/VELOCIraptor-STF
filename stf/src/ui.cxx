@@ -485,6 +485,7 @@ void GetParamFile(Options &opt)
                     //input related
                     else if (strcmp(tbuff, "Cosmological_input")==0)
                         opt.icosmologicalin = atoi(vbuff);
+                    //input read related 
                     else if (strcmp(tbuff, "Input_chunk_size")==0)
                         opt.inputbufsize = atoi(vbuff);
                     else if (strcmp(tbuff, "MPI_particle_total_buf_size")==0)
