@@ -565,6 +565,40 @@ inline void ConfigCheck(Options &opt)
 #endif
     }
 
+    if (opt.lengthtokpc<=0){
+#ifdef USEMPI
+    if (ThisTask==0)
+#endif
+        cerr<<"Invalid unit conversion, length unit to kpc is <=0 or was not set. Update config file\n";
+#ifdef USEMPI
+            MPI_Abort(MPI_COMM_WORLD,8);
+#else
+            exit(8);
+#endif
+    }
+    if (opt.velocitytokms<=0){
+#ifdef USEMPI
+    if (ThisTask==0)
+#endif
+        cerr<<"Invalid unit conversion, velocity unit to km/s is <=0 or was not set. Update config file\n";
+#ifdef USEMPI
+            MPI_Abort(MPI_COMM_WORLD,8);
+#else
+            exit(8);
+#endif
+    }
+    if (opt.masstosolarmass<=0){
+#ifdef USEMPI
+    if (ThisTask==0)
+#endif
+        cerr<<"Invalid unit conversion, mass unit to solar mass is <=0 or was not set. Update config file\n";
+#ifdef USEMPI
+            MPI_Abort(MPI_COMM_WORLD,8);
+#else
+            exit(8);
+#endif
+    }
+
 #ifdef USEMPI
     if (opt.mpiparticletotbufsize<sizeof(Particle)*NProcs && opt.mpiparticletotbufsize!=-1){
         if (ThisTask==0) {

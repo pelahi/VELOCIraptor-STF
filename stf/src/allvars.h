@@ -605,9 +605,9 @@ struct Options
         mpiparticletotbufsize=-1;
         mpiparticlebufsize=-1;
 
-        lengthtokpc=1.0;
-        velocitytokms=1.0;
-        masstosolarmass=1.0;
+        lengthtokpc=-1.0;
+        velocitytokms=-1.0;
+        masstosolarmass=-1.0;
 
         lengthtokpc30pow2=30.0*30.0;
         lengthtokpc30pow2=50.0*50.0;
@@ -1847,8 +1847,8 @@ struct HDFCatalogNames {
     HDFCatalogNames(){
         prop.push_back("File_id");
         prop.push_back("Num_of_files");
-        prop.push_back("Num_of_props");
-        prop.push_back("Total_num_of_props");
+        prop.push_back("Num_of_groups");
+        prop.push_back("Total_num_of_groups");
         prop.push_back("Cosmological_Sim");
         prop.push_back("Comoving_or_Physical");
         prop.push_back("Period");

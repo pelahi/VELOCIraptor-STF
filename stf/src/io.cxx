@@ -835,6 +835,8 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
     H5std_string datasetname;
     DataSpace dataspace;
     DataSet dataset;
+    DataSpace attrspace;
+    Attribute attr;
     hsize_t *dims;
     int rank;
     DataSpace *propdataspace;
@@ -903,7 +905,32 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         dataset.write(&ngtot,hdfnames.propdatatype[itemp]);
         itemp++;
 
-        //add unit/simulation information
+        //add unit/simulation information as attributes
+        attrspace=DataSpace(H5S_SCALAR);
+        attr=Fhdf.createAttribute(hdfnames.prop[itemp], hdfnames.propdatatype[itemp], attrspace);
+        attr.write(hdfnames.propdatatype[itemp],&opt.icosmologicalin);
+        itemp++;
+        attrspace=DataSpace(H5S_SCALAR);
+        attr=Fhdf.createAttribute(hdfnames.prop[itemp], hdfnames.propdatatype[itemp], attrspace);
+        attr.write(hdfnames.propdatatype[itemp],&opt.icomoveunit);
+        itemp++;
+        attrspace=DataSpace(H5S_SCALAR);
+        attr=Fhdf.createAttribute(hdfnames.prop[itemp], hdfnames.propdatatype[itemp], attrspace);
+        attr.write(hdfnames.propdatatype[itemp],&opt.p);
+        itemp++;
+        attrspace=DataSpace(H5S_SCALAR);
+        attr=Fhdf.createAttribute(hdfnames.prop[itemp], hdfnames.propdatatype[itemp], attrspace);
+        attr.write(hdfnames.propdatatype[itemp],&opt.lengthtokpc);
+        itemp++;
+        attrspace=DataSpace(H5S_SCALAR);
+        attr=Fhdf.createAttribute(hdfnames.prop[itemp], hdfnames.propdatatype[itemp], attrspace);
+        attr.write(hdfnames.propdatatype[itemp],&opt.velocitytokms);
+        itemp++;
+        attrspace=DataSpace(H5S_SCALAR);
+        attr=Fhdf.createAttribute(hdfnames.prop[itemp], hdfnames.propdatatype[itemp], attrspace);
+        attr.write(hdfnames.propdatatype[itemp],&opt.masstosolarmass);
+        itemp++;
+        /*
         dataspace=DataSpace(rank,dims);
         dataset = Fhdf.createDataSet(hdfnames.prop[itemp], hdfnames.propdatatype[itemp], dataspace);
         dataset.write(&opt.icosmologicalin,hdfnames.propdatatype[itemp]);
@@ -928,6 +955,7 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         dataset = Fhdf.createDataSet(hdfnames.prop[itemp], hdfnames.propdatatype[itemp], dataspace);
         dataset.write(&opt.masstosolarmass,hdfnames.propdatatype[itemp]);
         itemp++;
+        */
 
         //load data spaces
         propdataspace=new DataSpace[head.headerdatainfo.size()];
