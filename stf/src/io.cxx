@@ -846,6 +846,7 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
     DataSet dataset;
     DataSpace attrspace;
     Attribute attr;
+    float attrvalue;
     hsize_t *dims;
     int rank;
     DataSpace *propdataspace;
@@ -923,21 +924,25 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         attr=Fhdf.createAttribute(hdfnames.prop[itemp], hdfnames.propdatatype[itemp], attrspace);
         attr.write(hdfnames.propdatatype[itemp],&opt.icomoveunit);
         itemp++;
+        attrvalue=opt.p;
         attrspace=DataSpace(H5S_SCALAR);
         attr=Fhdf.createAttribute(hdfnames.prop[itemp], hdfnames.propdatatype[itemp], attrspace);
-        attr.write(hdfnames.propdatatype[itemp],&opt.p);
+        attr.write(hdfnames.propdatatype[itemp],&attrvalue);
         itemp++;
+        attrvalue=opt.lengthtokpc;
         attrspace=DataSpace(H5S_SCALAR);
         attr=Fhdf.createAttribute(hdfnames.prop[itemp], hdfnames.propdatatype[itemp], attrspace);
-        attr.write(hdfnames.propdatatype[itemp],&opt.lengthtokpc);
+        attr.write(hdfnames.propdatatype[itemp],&attrvalue);
         itemp++;
+        attrvalue=opt.velocitytokms;
         attrspace=DataSpace(H5S_SCALAR);
         attr=Fhdf.createAttribute(hdfnames.prop[itemp], hdfnames.propdatatype[itemp], attrspace);
-        attr.write(hdfnames.propdatatype[itemp],&opt.velocitytokms);
+        attr.write(hdfnames.propdatatype[itemp],&attrvalue);
         itemp++;
+        attrvalue=opt.masstosolarmass;
         attrspace=DataSpace(H5S_SCALAR);
         attr=Fhdf.createAttribute(hdfnames.prop[itemp], hdfnames.propdatatype[itemp], attrspace);
-        attr.write(hdfnames.propdatatype[itemp],&opt.masstosolarmass);
+        attr.write(hdfnames.propdatatype[itemp],&attrvalue);
         itemp++;
         /*
         dataspace=DataSpace(rank,dims);
