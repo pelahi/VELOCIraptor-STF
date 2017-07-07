@@ -344,9 +344,9 @@ struct Options
     /// input is a cosmological simulation so can use box sizes, cosmological parameters, etc to set scales
     int icosmologicalin;
     /// input buffer size when reading data
-    int inputbufsize;
+    long int inputbufsize;
     /// mpi paritcle buffer size when sending input particle information
-    int mpiparticletotbufsize,mpiparticlebufsize;
+    long int mpiparticletotbufsize,mpiparticlebufsize;
 
 
     ///\name length,m,v,grav conversion units

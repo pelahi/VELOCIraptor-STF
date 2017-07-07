@@ -75,7 +75,7 @@ void ReadData(Options &opt, Particle *&Part, const Int_t nbodies, Particle *&Pba
         cout<<"Each MPI read thread, of which there are "<<opt.nsnapread<<", will allocate ";
         cout<<opt.mpiparticlebufsize*NProcs*sizeof(Particle)/1024.0/1024.0/1024.0<<" of memory to store particle data"<<endl;
         cout<<"Sending information to non-read threads in chunks of "<<opt.mpiparticlebufsize<<" particles "<<endl;
-        cout<<"This requires approximately "<<Ntotal/NProcs/opt.mpiparticlebufsize<<" receives"<<endl;
+        cout<<"This requires approximately "<<(int)(Nlocal/(double)opt.mpiparticlebufsize)<<" receives"<<endl;
     }
 #endif
 
