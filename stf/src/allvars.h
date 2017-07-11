@@ -347,6 +347,9 @@ struct Options
     long int inputbufsize;
     /// mpi paritcle buffer size when sending input particle information
     long int mpiparticletotbufsize,mpiparticlebufsize;
+    /// mpi factor by which to multiple the memory allocated, ie: buffer region
+    /// to reduce likelihood of having to expand/allocate new memory
+    Double_t mpipartfac;
 
 
     ///\name length,m,v,grav conversion units
@@ -612,6 +615,7 @@ struct Options
         lengthtokpc30pow2=30.0*30.0;
         lengthtokpc30pow2=50.0*50.0;
 
+        mpipartfac=0.1;
     }
 };
 
@@ -812,6 +816,10 @@ struct ConfigInfo{
         datainfo.push_back(to_string(opt.gnstarblocks));
         nameinfo.push_back("NBH_extra_blocks");
         datainfo.push_back(to_string(opt.gnbhblocks));
+
+        //mpi related configuration
+        nameinfo.push_back("MPI_part_allocation_fac");
+        datainfo.push_back(to_string(opt.mpiparticletotbufsize));
 #endif
     }
 };

@@ -175,8 +175,6 @@ void MPINumInDomainNchilada(Options &opt)
         MPI_Allreduce(Nbaryonbuf,mpi_nlocal,NProcs,MPI_Int_t,MPI_SUM,MPI_COMM_WORLD);
         Nlocalbaryon[0]=mpi_nlocal[ThisTask];
     }
-    Nmemlocal=Nlocal*(1.0+MPIExportFac);
-    if (opt.iBaryonSearch) Nmemlocalbaryon=Nlocalbaryon[0]*(1.0+MPIExportFac);
     }
 }
 

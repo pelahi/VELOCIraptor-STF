@@ -184,6 +184,8 @@ int main(int argc,char **argv)
         if (opt.iBaryonSearch>0) cout<<" Have allocated enough memory for "<<Nmemlocalbaryon<<" baryons particles requiring "<<Nmemlocalbaryon*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
 #endif
     }
+
+    cout<<ThisTask<<" will also require additional memory for FOF algorithms and substructure search. Largest mem needed for preliminary FOF search. Rough estimate is "<<Nlocal*(sizeof(Int_t)*8)/1024./1024./1024.<<"GB of memory"<<endl;
     if (opt.iBaryonSearch>0 && opt.partsearchtype!=PSTALL) {
         Pall=new Particle[Nmemlocal+Nmemlocalbaryon];
         Part=&Pall[0];

@@ -242,6 +242,10 @@ void usage(void)
     \arg <b> \e NStar_extra_blocks </b> If gadget snapshot is loaded one can specific the number of extra <b> Star </b> blocks are read/in the file. \ref Options.gnstarblocks \n
     \arg <b> \e NBH_extra_blocks </b> If gadget snapshot is loaded one can specific the number of extra <b> Black hole </b> blocks are read/in the file. \ref Options.gnbhblocks \n
 
+    \section mpiconfigs MPI specific options
+    \arg <b> \e MPI_particle_allocation_fac </b> Memory allocated in mpi mode to store particles is (1+factor)* the memory need for the initial mpi decomposition.
+    This factor should be >0 and is mean to allow a little room for particles to be exchanged between mpi threads withouth having to require new memory allocations and copying
+    of data. \ref Options.mpipartfac \n
 
     */
 
@@ -490,6 +494,9 @@ void GetParamFile(Options &opt)
                         opt.inputbufsize = atol(vbuff);
                     else if (strcmp(tbuff, "MPI_particle_total_buf_size")==0)
                         opt.mpiparticletotbufsize = atol(vbuff);
+                    //mpi memory related
+                    else if (strcmp(tbuff, "MPI_part_allocation_fac")==0)
+                        opt.mpipartfac = atof(vbuff);
 
                     //output related
                     else if (strcmp(tbuff, "Separate_output_files")==0)
@@ -603,7 +610,7 @@ inline void ConfigCheck(Options &opt)
 #ifdef USEMPI
     if (opt.mpiparticletotbufsize<(long int)(sizeof(Particle)*NProcs) && opt.mpiparticletotbufsize!=-1){
         if (ThisTask==0) {
-            cerr<<"Invalid particle buffer send size, mininmum size given paritcle byte size ";
+            cerr<<"Invalid input particle buffer send size, mininmum input buffer size given paritcle byte size ";
             cerr<<sizeof(Particle)<<" and have "<<NProcs<<" mpi processes is "<<sizeof(Particle)*NProcs<<endl;
         }
         MPI_Abort(MPI_COMM_WORLD,8);
@@ -616,9 +623,20 @@ inline void ConfigCheck(Options &opt)
     else {
         opt.mpiparticlebufsize=opt.mpiparticletotbufsize/NProcs/sizeof(Particle);
     }
+    if (opt.mpipartfac<0){
+        if (ThisTask==0) {
+            cerr<<"Invalid MPI particle allocation factor, must be >0."<<endl;
+        }
+        MPI_Abort(MPI_COMM_WORLD,8);
+    }
+    else if (opt.mpipartfac>1){
+        if (ThisTask==0) {
+            cerr<<"WARNING: MPI Particle allocation factor is high (>1)."<<endl;
+        }
+    }
 #endif
 
-    #ifdef USEMPI
+#ifdef USEMPI
     if (ThisTask==0) {
 #endif
     cout<<"CONFIG INFO SUMMARY -------------------------- "<<endl;
