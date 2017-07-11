@@ -1,6 +1,6 @@
 /*! \file KDFOF.cxx
  *  \brief This file contains subroutines involving FOF routines
- 
+
     \todo must make periodic
 */
 
@@ -9,35 +9,31 @@
 namespace NBody
 {
 
-    Int_t* KDTree::FOF(Double_t fdist, Int_t &numgroup, Int_t minnum, int order, Int_t *pHead, Int_t *pNext, Int_t *pTail, Int_t *pLen)
+    Int_t* KDTree::FOF(Double_t fdist, Int_t &numgroup, Int_t minnum, int order, Int_tree_t *pHead, Int_tree_t *pNext, Int_tree_t *pTail, Int_tree_t *pLen)
     {
         Double_t fdist2=fdist*fdist, off[3];
         //array containing particles group id
         Int_t *pGroup=new Int_t[numparts];
         //array containing head particle of Group
-        Int_t *pGroupHead=new Int_t[numparts];
-        //First-in First-out pointer, used to point to the next particle of 
+        Int_tree_t *pGroupHead=new Int_tree_t[numparts];
+        //First-in First-out pointer, used to point to the next particle of
         //interest in the group to be examined.
-        Int_t *Fifo=new Int_t[numparts];
+        Int_tree_t *Fifo=new Int_tree_t[numparts];
+        //array used to flag if bucket already searched.
+        short *pBucketFlag=new short[numnodes];
+        //flags for memory management
+        bool iph,ipt,ipn,ipl;
+
         //arrays used in determining group id.
         //pHead contains the index of the particle at head of the particles group
         //pTail contains tail of the particles group and Next the next in the list
         //and pLen is indexed by group and is length of group.
-        /*
-        Int_t *pHead=new Int_t[numparts];
-        Int_t *pTail=new Int_t[numparts];
-        Int_t *pNext=new Int_t[numparts];
-        Int_t *pLen=new Int_t[numparts];
-        */
         //flags to see if mem allocated
-        int iph,ipt,ipn,ipl;
-        iph=ipt=ipn=ipl=0;
-        if (pHead==NULL)    {pHead=new Int_t[numparts];iph=1;}
-        if (pNext==NULL)    {pNext=new Int_t[numparts];ipn=1;}
-        if (pLen==NULL)     {pLen=new Int_t[numparts];ipl=1;}
-        if (pTail==NULL)    {pTail=new Int_t[numparts];ipt=1;}
-        //array used to flag if bucket already searched.
-        Int_t *pBucketFlag=new Int_t[numnodes];
+        iph=ipt=ipn=ipl=false;
+        if (pHead==NULL)    {pHead=new Int_tree_t[numparts];iph=true;}
+        if (pNext==NULL)    {pNext=new Int_tree_t[numparts];ipn=true;}
+        if (pLen==NULL)     {pLen=new Int_tree_t[numparts];ipl=true;}
+        if (pTail==NULL)    {pTail=new Int_tree_t[numparts];ipt=true;}
 
         Int_t iGroup=0,iHead=0,iTail=0,id,iid;
         Int_t maxlen=0,maxlenid;
@@ -67,7 +63,7 @@ namespace NBody
                 //if reached the head of Index list, go back to zero
                 if (iHead==numparts) iHead=0;
 
-                //now begin Ball search. This node routine finds all particles 
+                //now begin Ball search. This node routine finds all particles
                 //within a distance fdist2, marks all particles using their IDS and pGroup array
                 //adjusts the Fifo array, iTail and pLen.
                 //first set offset to zero when beginning node search
@@ -135,19 +131,19 @@ namespace NBody
 
     //algorithm same as above with different comparison funciton
     //For example cmp function for FOF search see FOFFunc.h
-    Int_t* KDTree::FOFCriterion(FOFcompfunc cmp, Double_t *params, Int_t &numgroup, Int_t minnum, int order, int ipcheckflag, FOFcheckfunc check, Int_t *pHead, Int_t *pNext, Int_t *pTail, Int_t *pLen)
+    Int_t* KDTree::FOFCriterion(FOFcompfunc cmp, Double_t *params, Int_t &numgroup, Int_t minnum, int order, int ipcheckflag, FOFcheckfunc check, Int_tree_t *pHead, Int_tree_t *pNext, Int_tree_t *pTail, Int_tree_t *pLen)
     {
         Int_t *pGroup=new Int_t[numparts];
-        Int_t *pGroupHead=new Int_t[numparts];
-        Int_t *Fifo=new Int_t[numparts];
-        Int_t *pBucketFlag=new Int_t[numnodes];
+        Int_tree_t *pGroupHead=new Int_tree_t[numparts];
+        Int_tree_t *Fifo=new Int_tree_t[numparts];
+        short *pBucketFlag=new short[numnodes];
 
-        int iph,ipt,ipn,ipl;
-        iph=ipt=ipn=ipl=0;
-        if (pHead==NULL)    {pHead=new Int_t[numparts];iph=1;}
-        if (pNext==NULL)    {pNext=new Int_t[numparts];ipn=1;}
-        if (pLen==NULL)     {pLen=new Int_t[numparts];ipl=1;}
-        if (pTail==NULL)    {pTail=new Int_t[numparts];ipt=1;}
+        bool iph,ipt,ipn,ipl;
+        iph=ipt=ipn=ipl=false;
+        if (pHead==NULL)    {pHead=new Int_tree_t[numparts];iph=true;}
+        if (pNext==NULL)    {pNext=new Int_tree_t[numparts];ipn=true;}
+        if (pLen==NULL)     {pLen=new Int_tree_t[numparts];ipl=true;}
+        if (pTail==NULL)    {pTail=new Int_tree_t[numparts];ipt=true;}
 
         Double_t off[6];
         Int_t iGroup=0,iHead=0,iTail=0,id,iid;
@@ -245,19 +241,19 @@ namespace NBody
     }
 
     //FOF search with particles allowed to be basis of links set by FOFcheckfunc
-    Int_t* KDTree::FOFCriterionSetBasisForLinks(FOFcompfunc cmp, Double_t *params, Int_t &numgroup, Int_t minnum, int order, int ipcheckflag, FOFcheckfunc check, Int_t *pHead, Int_t *pNext, Int_t *pTail, Int_t *pLen)
+    Int_t* KDTree::FOFCriterionSetBasisForLinks(FOFcompfunc cmp, Double_t *params, Int_t &numgroup, Int_t minnum, int order, int ipcheckflag, FOFcheckfunc check, Int_tree_t *pHead, Int_tree_t *pNext, Int_tree_t *pTail, Int_tree_t *pLen)
     {
         Int_t *pGroup=new Int_t[numparts];
-        Int_t *pGroupHead=new Int_t[numparts];
-        Int_t *Fifo=new Int_t[numparts];
-        Int_t *pBucketFlag=new Int_t[numnodes];
+        Int_tree_t *pGroupHead=new Int_tree_t[numparts];
+        Int_tree_t *Fifo=new Int_tree_t[numparts];
+        short *pBucketFlag=new short[numnodes];
 
-        int iph,ipt,ipn,ipl;
-        iph=ipt=ipn=ipl=0;
-        if (pHead==NULL)    {pHead=new Int_t[numparts];iph=1;}
-        if (pNext==NULL)    {pNext=new Int_t[numparts];ipn=1;}
-        if (pLen==NULL)     {pLen=new Int_t[numparts];ipl=1;}
-        if (pTail==NULL)    {pTail=new Int_t[numparts];ipt=1;}
+        bool iph,ipt,ipn,ipl;
+        iph=ipt=ipn=ipl=false;
+        if (pHead==NULL)    {pHead=new Int_tree_t[numparts];iph=true;}
+        if (pNext==NULL)    {pNext=new Int_tree_t[numparts];ipn=true;}
+        if (pLen==NULL)     {pLen=new Int_tree_t[numparts];ipl=true;}
+        if (pTail==NULL)    {pTail=new Int_tree_t[numparts];ipt=true;}
 
         Double_t off[6];
         Int_t iGroup=0,iHead=0,iTail=0,id,iid;
@@ -289,7 +285,7 @@ namespace NBody
                 iid=Fifo[iHead++];
                 if (iHead==numparts) iHead=0;
 
-                //check if head particle should be used as basis for links 
+                //check if head particle should be used as basis for links
                 if (check(bucket[iid],params)==0) {
                     //now begin search.
                     for (int j = 0; j < 6; j++) off[j] = 0.0;
@@ -395,7 +391,7 @@ namespace NBody
                 if (iHead==numparts) iHead=0;
 
                 //now begin search.
-                //look at near neighbours that meet criteria. 
+                //look at near neighbours that meet criteria.
                 for (Int_t j = 0; j < numNN; j++)
                 {
                     iid=bucket[nnID[target][j]].GetID();
@@ -447,15 +443,15 @@ namespace NBody
         delete[] pHead;
         delete[] pTail;
         delete[] pNext;
-        
+
         //generate pList array to store go through particle list and generate linked list
         pList=new Int_t*[iGroup+1];
         pCount=new Int_t[iGroup+1];
         for (Int_t i=1;i<=iGroup;i++) if (pLen[i]>0) {pList[i]=new Int_t[pLen[i]];pCount[i]=0;}
         for (Int_t i=0;i<numparts;i++) {
             Int_t gid=pGroup[bucket[i].GetID()];
-            if (gid>0) 
-                if(pLen[gid]>0) 
+            if (gid>0)
+                if(pLen[gid]>0)
                     pList[gid][pCount[gid]++]=i;
         }
         //now determine largest group, number of groups that are above minimum number
@@ -470,7 +466,7 @@ namespace NBody
                 iGroup--;
             }
         }
-        //now order groups 
+        //now order groups
         if (iGroup) {
             pq=new PriorityQueue(iGroup);
             for (Int_t i = 1; i <=numgroup; i++) if (pLen[i]>0) pq->Push(i, pLen[i]);
@@ -494,7 +490,7 @@ namespace NBody
         return pGroup;
     }
 
-    Int_t *KDTree::FOFNNDistCriterion(FOFcompfunc cmp, Double_t *params, Int_t numNN, Int_t **nnID, Double_t **dist2, 
+    Int_t *KDTree::FOFNNDistCriterion(FOFcompfunc cmp, Double_t *params, Int_t numNN, Int_t **nnID, Double_t **dist2,
                                       Double_t distfunc(Int_t , Double_t *), Int_t npc, Int_t *npca, Int_t &numgroup, Int_t minnum)
     {
         //declare useful fof arrays
@@ -535,7 +531,7 @@ namespace NBody
                 if (iHead==numparts) iHead=0;
 
                 //now begin search.
-                //look at near neighbours that meet criteria. 
+                //look at near neighbours that meet criteria.
                 double newdist=distfunc(numNN,dist2[target]);
                 for (Int_t k=0;k<npc;k++) params[npca[k]]=newdist;
                 for (Int_t j = 0; j < numNN; j++)
@@ -593,8 +589,8 @@ namespace NBody
         for (Int_t i=1;i<=iGroup;i++) if (pLen[i]>0) {pList[i]=new Int_t[pLen[i]];pCount[i]=0;}
         for (Int_t i=0;i<numparts;i++) {
             Int_t gid=pGroup[bucket[i].GetID()];
-            if (gid>0) 
-                if(pLen[gid]>0) 
+            if (gid>0)
+                if(pLen[gid]>0)
                     pList[gid][pCount[gid]++]=i;
         }
         //now determine largest group, number of groups that are above minimum number
@@ -609,7 +605,7 @@ namespace NBody
                 iGroup--;
             }
         }
-        //now order groups 
+        //now order groups
         if (iGroup) {
             pq=new PriorityQueue(iGroup);
             for (Int_t i = 1; i <=numgroup; i++) if (pLen[i]>0) pq->Push(i, pLen[i]);
@@ -657,16 +653,16 @@ namespace NBody
             pHead[i]=pTail[i]=i;
             pNext[i]=-1;
         }
-        
+
         ///???
 
     }*/
 
     //algorithm same as above but start at specific target particle
-    Int_t KDTree::FOFCriterionParticle(FOFcompfunc cmp, Int_t *pfof, Int_t target, Int_t iGroup, Double_t *params, Int_t *pGroupHead, Int_t *Fifo, Int_t *pHead, Int_t *pTail, Int_t *pNext, Int_t *pLen)
+    Int_t KDTree::FOFCriterionParticle(FOFcompfunc cmp, Int_t *pfof, Int_t target, Int_t iGroup, Double_t *params, Int_tree_t *pGroupHead, Int_tree_t *Fifo, Int_tree_t *pHead, Int_tree_t *pTail, Int_tree_t *pNext, Int_tree_t *pLen)
     {
         Int_t *pGroup=pfof;
-        Int_t *pBucketFlag=new Int_t[numnodes];
+        short *pBucketFlag=new short[numnodes];
 
         Int_t nsize;
         Double_t off[6];

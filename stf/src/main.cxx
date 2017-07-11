@@ -345,8 +345,7 @@ int main(int argc,char **argv)
         ///\todo Communication Buffer size determination and allocation. For example, eventually need something like FoFDataIn = (struct fofdata_in *) CommBuffer;
         ///At the moment just using NExport
         NExport=Nlocal*MPIExportFac;
-        mpi_foftask=new Int_t[Nlocal];
-        MPISetTaskID(nbodies);
+        mpi_foftask=MPISetTaskID(nbodies);
 
         //Now when MPI invoked this returns pfof after local linking and linking across and also reorders groups
         //according to size and localizes the particles belong to the same group to the same mpi thread.
