@@ -120,13 +120,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
         delete[] numingroup;
         numingroup=NULL;
     }
-    cout<<ThisTask<<": Finished local search, nexport/nimport = "<<NExport<<" "<<NImport<<" in "<<MyGetTime()-time2<<endl;
     time2=MyGetTime();
-
-    //if using MPI must determine which local particles need to be exported to other threads and used to search
-    //that threads particles. This is done by seeing if the any particles have a search radius that overlaps with
-    //the boundaries of another threads domain. Then once have exported particles must search local particles
-    //relative to these exported particles. Iterate over search till no new links are found.
 
     //Also must ensure that group ids do not overlap between mpi threads so adjust group ids
     MPI_Allgather(&numgroups, 1, MPI_Int_t, mpi_ngroups, 1, MPI_Int_t, MPI_COMM_WORLD);
@@ -136,11 +130,17 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
 #ifdef MPIREDUCEMEM
     MPIGetExportNum(nbodies, Part, sqrt(param[1]));
 #endif
-
+    //allocate memory to store info
+    cout<<ThisTask<<": Finished local search, nexport/nimport = "<<NExport<<" "<<NImport<<" in "<<MyGetTime()-time2<<endl;
     PartDataIn = new Particle[NExport];
     PartDataGet = new Particle[NImport];
     FoFDataIn = new fofdata_in[NExport];
     FoFDataGet = new fofdata_in[NImport];
+    //if using MPI must determine which local particles need to be exported to other threads and used to search
+    //that threads particles. This is done by seeing if the any particles have a search radius that overlaps with
+    //the boundaries of another threads domain. Then once have exported particles must search local particles
+    //relative to these exported particles. Iterate over search till no new links are found.
+
     //I have adjusted FOF data structure to have local group length and also seperated the export particles from export fof data
     //the reason is that will have to update fof data in iterative section but don't need to update particle information.
     MPIBuildParticleExportList(nbodies, Part, pfof, Len, sqrt(param[1]));
