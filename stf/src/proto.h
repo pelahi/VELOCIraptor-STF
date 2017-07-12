@@ -199,22 +199,33 @@ void AdjustStructureForPeriod(Options &opt, const Int_t nbodies, Particle *Part,
 ///for halo mergers check, get mean velocity dispersion
 inline Double_t GetVelDisp(Particle *Part, Int_t numgroups, Int_t *numingroup, Int_t **pglist);
 ///Create array for each group listing all previously unlinked particles that should now be linked.
-inline void DetermineNewLinks(Int_t nsubset, Particle *Partsubset, Int_t *pfof, Int_t numgroups, Int_t &newlinks, Int_t *newlinksIndex, Int_t *numgrouplinksIndex, Int_t *nnID, Int_t ***newIndex);
+inline void DetermineNewLinks(Int_t nsubset, Particle *Partsubset, Int_t *pfof, Int_t numgroups, Int_t &newlinks,
+    Int_t *newlinksIndex, Int_t *numgrouplinksIndex, Int_t *nnID, Int_t ***newIndex);
 ///Create array for each group listing all possibly intergroup links
-inline void DetermineGroupLinks(Int_t nsubset, Particle *Partsubset, Int_t *pfof, Int_t numgroups, Int_t &newlinks, Int_t *newlinksIndex, Int_t *numgrouplinksIndex, Int_t *nnID, Int_t ***newIndex);
+inline void DetermineGroupLinks(Int_t nsubset, Particle *Partsubset, Int_t *pfof, Int_t numgroups, Int_t &newlinks,
+    Int_t *newlinksIndex, Int_t *numgrouplinksIndex, Int_t *nnID, Int_t ***newIndex);
 ///once Group links are found, reduce the data so that one can determine for each group, number of other groups linked, their gids and the number of that group linked
 ///these are stored in numgrouplinksIndex, intergroupgidIndex, & newintergroupIndex
-inline void DetermineGroupMergerConnections(Particle *Partsubset, Int_t numgroups, Int_t *pfof, int *ilflag, Int_t *numgrouplinksIndex, Int_t *intergrouplinksIndex, Int_t *nnID, Int_t ***newIndex, Int_t ***newintergroupIndex, Int_t ***intergroupgidIndex);
+inline void DetermineGroupMergerConnections(Particle *Partsubset, Int_t numgroups, Int_t *pfof, int *ilflag,
+    Int_t *numgrouplinksIndex, Int_t *intergrouplinksIndex, Int_t *nnID, Int_t ***newIndex, Int_t ***newintergroupIndex, Int_t ***intergroupgidIndex);
 ///used to search particle list using tree to tag particles based on a comparison function (here distance information is used)
-inline void SearchForNewLinks(Int_t nsubset, KDTree *tree, Particle *Partsubset, Int_t *pfof, FOFcompfunc &fofcmp, Double_t *param, Int_t newlinks, Int_t *newlinksIndex, Int_t **nnID, Double_t **dist2, int nthreads);
+inline void SearchForNewLinks(Int_t nsubset, KDTree *tree, Particle *Partsubset, Int_t *pfof, FOFcompfunc &fofcmp, Double_t *param,
+    Int_t newlinks, Int_t *newlinksIndex, Int_t **nnID, Double_t **dist2, int nthreads);
 ///used to search particle list using tree to tag particles based on a comparison function (here distance information is NOT used)
-inline void SearchForNewLinks(Int_t nsubset, KDTree *tree, Particle *Partsubset, Int_t *pfof, FOFcompfunc &fofcmp, Double_t *param, Int_t newlinks, Int_t *newlinksIndex, Int_t **nnID, int nthreads);
+inline void SearchForNewLinks(Int_t nsubset, KDTree *tree, Particle *Partsubset, Int_t *pfof, FOFcompfunc &fofcmp, Double_t *param,
+    Int_t newlinks, Int_t *newlinksIndex, Int_t **nnID, int nthreads);
 ///used to link new tag particles1
-inline void LinkUntagged(Particle *Partsubset, Int_t numgroups, Int_t *pfof, Int_t *numingroup, Int_t **pglist, Int_t newlinks, Int_t *numgrouplinksIndex, Int_t **newIndex, Int_t *Head, Int_t *Next, Int_t *GroupTail, Int_t *nnID);
+inline void LinkUntagged(Particle *Partsubset, Int_t numgroups, Int_t *pfof, Int_t *numingroup, Int_t **pglist,
+    Int_t newlinks, Int_t *numgrouplinksIndex, Int_t **newIndex,
+    Int_tree_t *Head, Int_tree_t *Next, Int_tree_t *GroupTail, Int_t *nnID);
 ///used to merge candidate substructure groups for iterative search
-inline Int_t MergeGroups(Options &opt, Particle *Partsubset, Int_t numgroups, Int_t *pfof, Int_t *numingroup, Int_t *oldnumingroup, Int_t **pglist, Int_t *numgrouplinksIndex, Int_t ***intergroupgidIndex, Int_t ***newintergroupIndex, Int_t *intergrouplinksIndex, Int_t *Head, Int_t *Next, Int_t *GroupTail, int *igflag, Int_t *nnID, Int_t &newlinks, Int_t *newlinksIndex);
-///used to merge groups for for halo merger check
-inline Int_t MergeHaloGroups(Options &opt, Particle *Partsubset, Int_t numgroups, Int_t *pfof, Int_t *numingroup, Int_t *oldnumingroup, Int_t **pglist, Int_t *numgrouplinksIndex, Int_t ***intergroupgidIndex, Int_t ***newintergroupIndex, Int_t *intergrouplinksIndex, Int_t *Head, Int_t *Next, Int_t *GroupTail, int *igflag, Int_t *nnID, Int_t &newlinks, Int_t *newlinksIndex);
+inline Int_t MergeGroups(Options &opt, Particle *Partsubset, Int_t numgroups, Int_t *pfof, Int_t *numingroup, Int_t *oldnumingroup,
+    Int_t **pglist, Int_t *numgrouplinksIndex, Int_t ***intergroupgidIndex, Int_t ***newintergroupIndex, Int_t *intergrouplinksIndex,
+    Int_tree_t *Head, Int_tree_t *Next, Int_tree_t *GroupTail, int *igflag, Int_t *nnID, Int_t &newlinks, Int_t *newlinksIndex);
+///used to merge groups for halo merger check
+inline Int_t MergeHaloGroups(Options &opt, Particle *Partsubset, Int_t numgroups, Int_t *pfof, Int_t *numingroup, Int_t *oldnumingroup,
+    Int_t **pglist, Int_t *numgrouplinksIndex, Int_t ***intergroupgidIndex, Int_t ***newintergroupIndex, Int_t *intergrouplinksIndex,
+    Int_tree_t *Head, Int_tree_t *Next, Int_tree_t *GroupTail, int *igflag, Int_t *nnID, Int_t &newlinks, Int_t *newlinksIndex);
 //@}
 /// \name For unbinding
 /// see \ref unbind.cxx for implementation
@@ -385,19 +396,19 @@ void MPISendParticlesBetweenReadThreads(Options &opt, Particle *&Pbuf, Particle 
 //@{
 
 ///Set the mpi task ID of a particle to the local mpi thread or task number.
-void MPISetTaskID(const Int_t nbodies);
+short_mpi_t *MPISetTaskID(const Int_t nbodies);
 /// Adjust local group ids so that mpi threads are all offset from one another unless a particle belongs to group zero (ie: completely unlinked)
 void MPIAdjustLocalGroupIDs(const Int_t nbodies, Int_t *pfof);
 ///Determine number of particles that need to be exported to another mpi thread from local mpi thread based on rdist
 void MPIGetExportNum(const Int_t nbodies, Particle *&Part, Double_t rdist);
 ///Determine and send particles that need to be exported to another mpi thread from local mpi thread based on rdist
-void MPIBuildParticleExportList(const Int_t nbodies, Particle *&Part, Int_t *&pfof, Int_t *&Len, Double_t rdist);
+void MPIBuildParticleExportList(const Int_t nbodies, Particle *&Part, Int_t *&pfof, Int_tree_t *&Len, Double_t rdist);
 ///Link groups across MPI threads using a physical search
-Int_t MPILinkAcross(const Int_t nbodies, KDTree *tree, Particle *&Part, Int_t *&pfof, Int_t *&Len, Int_t *&Head, Int_t *&Next, Double_t rdist2);
+Int_t MPILinkAcross(const Int_t nbodies, KDTree *tree, Particle *&Part, Int_t *&pfof, Int_tree_t *&Len, Int_tree_t *&Head, Int_tree_t *&Next, Double_t rdist2);
 ///Link groups across MPI threads using criterion
-Int_t MPILinkAcross(const Int_t nbodies, KDTree *tree, Particle *&Part, Int_t *&pfof, Int_t *&Len, Int_t *&Head, Int_t *&Next, Double_t rdist2, FOFcompfunc &cmp, Double_t *params);
+Int_t MPILinkAcross(const Int_t nbodies, KDTree *tree, Particle *&Part, Int_t *&pfof, Int_tree_t *&Len, Int_tree_t *&Head, Int_tree_t *&Next, Double_t rdist2, FOFcompfunc &cmp, Double_t *params);
 ///update export list after after linking across
-void MPIUpdateExportList(const Int_t nbodies, Particle *&Part, Int_t *&pfof, Int_t *&Len);
+void MPIUpdateExportList(const Int_t nbodies, Particle *&Part, Int_t *&pfof, Int_tree_t *&Len);
 ///localize groups to a single mpi thread
 Int_t MPIGroupExchange(const Int_t nbodies, Particle *&Part, Int_t *&pfof);
 ///Determine the local number of groups and their sizes (groups must be local to an mpi thread)
@@ -463,13 +474,13 @@ Particle **BuildPartList(const Int_t numgroups, Int_t *numingroup, Int_t **pglis
 ///build a particle list subset using array of indices
 Particle *BuildPart(Int_t numingroup, Int_t *pglist, Particle* Part);
 ///build the Head array which points to the head of the group a particle belongs to
-Int_t *BuildHeadArray(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t **pglist);
+Int_tree_t *BuildHeadArray(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t **pglist);
 ///build the Next array which points to the next particle in the group
-Int_t *BuildNextArray(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t **pglist);
+Int_tree_t *BuildNextArray(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t **pglist);
 ///build the Len array which stores the length of the group a particle belongs to
-Int_t *BuildLenArray(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t **pglist);
+Int_tree_t *BuildLenArray(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t **pglist);
 ///build the GroupTail array which stores the Tail of a group
-Int_t *BuildGroupTailArray(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t **pglist);
+Int_tree_t *BuildGroupTailArray(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t **pglist);
 ///sort particles according to the group value (or technically any integer array) unique to each group and return an array of offsets to access the particle array via their group
 Int_t *BuildNoffset(const Int_t nbodies, Particle *Part, Int_t numgroups,Int_t *numingroup, Int_t *sortval, Int_t ioffset=0);
 ///reorder groups from largest to smallest

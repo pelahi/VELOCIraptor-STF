@@ -47,9 +47,15 @@ extern Int_t Nmemlocal,Noldlocal,Nmemlocalbaryon;
 #define MPIProcFac 1.25
 ///maximum export factor used to allocate temporary export particle arrays, thus in any given step (except io) where
 ///particles are sent from one MPI thread to another, assume at most this factor of particle will need to be sent
-#define MPIExportFac 0.25
+#define MPIExportFac 0.1
 #define MAXNNEXPORT 32
 
+///define a type to store the maxium number of mpi tasks
+#ifdef HUGEMPI
+typedef int short_mpi_t;
+#else
+typedef short short_mpi_t;
+#endif
 
 extern Double_t mpi_xlim[3][2],mpi_dxsplit[3];
 extern int mpi_nxsplit[3], mpi_ideltax[3];
@@ -74,7 +80,7 @@ extern Int_t *mpi_idlist;
 ///\todo must implement this array to be used in output produced by \ref WritePGListIndex. This index based output can be useful.
 extern Int_t *mpi_indexlist;
 ///local array that stores the thread to which a particle's fof group belongs
-extern Int_t *mpi_foftask;
+extern short_mpi_t *mpi_foftask;
 ///array that stores number of groups, need for properly setting Ids and broadcasting data
 extern Int_t *mpi_ngroups;
 ///array that is used by task zero to collect the group ids of every particle so that it can be written to a file.
@@ -91,7 +97,7 @@ extern struct fofdata_in
     //Particle Part();
     //FLOAT Hsml;
     Int_t iGroup;
-    Int_t iGroupTask;
+    short_mpi_t iGroupTask;
     Int_t iLen;
     Int_t Index;
     Int_t Task;

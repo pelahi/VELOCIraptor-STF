@@ -591,7 +591,7 @@ void MPIGetExportNum(const Int_t nbodies, Particle *&Part, Double_t rdist){
 /*! Determine which particles have a spatial linking length such that linking overlaps the domain of another processor store the necessary information to send that data
     and then send that information
 */
-void MPIBuildParticleExportList(const Int_t nbodies, Particle *&Part, Int_t *&pfof, Int_t *&Len, Double_t rdist){
+void MPIBuildParticleExportList(const Int_t nbodies, Particle *&Part, Int_t *&pfof, Int_tree_t *&Len, Double_t rdist){
     Int_t i, j,nthreads,nexport=0,nimport=0;
     Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
     Double_t xsearch[3][2];
@@ -1133,8 +1133,10 @@ void MPIBuildParticleExportBaryonSearchList(const Int_t nbodies, Particle *&Part
 /// \name FOF related mpi routines
 //@{
 ///Set fof task id of particle
-void MPISetTaskID(const Int_t nbodies){
-    for (Int_t i=0;i<nbodies;i++) mpi_foftask[i]=ThisTask;
+short_mpi_t* MPISetTaskID(const Int_t nbodies){
+    short_mpi_t *foftask=new short_mpi_t[nbodies];
+    for (Int_t i=0;i<nbodies;i++) foftask[i]=ThisTask;
+    return foftask;
 }
 
 ///Offset pfof array based so that local group numbers do not overlap
@@ -1172,7 +1174,7 @@ void MPIAdjustLocalGroupIDs(const Int_t nbodies, Int_t *pfof){
 /*! Determine which particles have a spatial linking length such that linking overlaps the domain of another processor store the necessary information to send that data
     and then send that information
 */
-void MPIUpdateExportList(const Int_t nbodies, Particle *&Part, Int_t *&pfof, Int_t *&Len){
+void MPIUpdateExportList(const Int_t nbodies, Particle *&Part, Int_t *&pfof, Int_tree_t *&Len){
     Int_t i, j,nthreads,nexport;
     Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
     Int_t sendTask,recvTask;
@@ -1215,7 +1217,7 @@ void MPIUpdateExportList(const Int_t nbodies, Particle *&Part, Int_t *&pfof, Int
     the number of links found between the local particles and all other exported particles from all other mpi domains.
     \todo need to update lengths if strucden flag used to limit particles for which real velocity density calculated
 */
-Int_t MPILinkAcross(const Int_t nbodies, KDTree *tree, Particle *&Part, Int_t *&pfof, Int_t *&Len, Int_t *&Head, Int_t *&Next, Double_t rdist2){
+Int_t MPILinkAcross(const Int_t nbodies, KDTree *tree, Particle *&Part, Int_t *&pfof, Int_tree_t *&Len, Int_tree_t *&Head, Int_tree_t *&Next, Double_t rdist2){
     Int_t i,j,k;
     Int_t links=0;
     Int_t nbuffer[NProcs];
@@ -1265,7 +1267,7 @@ Int_t MPILinkAcross(const Int_t nbodies, KDTree *tree, Particle *&Part, Int_t *&
     return links;
 }
 ///link particles belonging to the same group across mpi domains using comparison function
-Int_t MPILinkAcross(const Int_t nbodies, KDTree *tree, Particle *&Part, Int_t *&pfof, Int_t *&Len, Int_t *&Head, Int_t *&Next, Double_t rdist2, FOFcompfunc &cmp, Double_t *params){
+Int_t MPILinkAcross(const Int_t nbodies, KDTree *tree, Particle *&Part, Int_t *&pfof, Int_tree_t *&Len, Int_tree_t *&Head, Int_tree_t *&Next, Double_t rdist2, FOFcompfunc &cmp, Double_t *params){
     Int_t i,j,k;
     Int_t links=0;
     Int_t nbuffer[NProcs];
