@@ -24,6 +24,8 @@ OMP="on"
 LOCALGSL="on"
 LOCALFFTW="on"
 LOCALHDF="on"
+LOCALADIOS="on"
+LOCALXDR="on"
 #===========================================
 
 #===========================================
@@ -106,6 +108,10 @@ HDFENABLE="on"
 
 #for XDF (nchilada) input
 XDRENABLE="on"
+
+#for adios output
+ADIOSENABLE="on"
+
 #===========================================
 
 #===========================================
@@ -135,6 +141,16 @@ ifeq ($(HDFENABLE)$(LOCALHDF),"on""on")
     HDF_DIR =
     HDF_INCL = -I$(HDF_DIR)/include/
     HDF_LIBS = -L$(HDF_DIR)/lib/
+endif
+ifeq ($(XDRENABLE)$(LOCALXDR),"on""on")
+    XDR_DIR =
+    XDR_INCL = -I$(XDR_DIR)/include/
+    XDR_LIBS = -L$(XDR_DIR)/lib/
+endif
+ifeq ($(ADIOSENABLE)$(LOCALADIOS),"on""on")
+    ADIOS_DIR =
+    ADIOS_INCL = -I$(ADIOS_DIR)/include/
+    ADIOS_LIBS = -L$(ADIOS_DIR)/lib/
 endif
 #===========================================
 
@@ -279,6 +295,13 @@ ifeq ($(HDFENABLE),"on")
     C+LIBS+= -lhdf5_hl_cpp -lhdf5_cpp -lhdf5_hl -lhdf5 -lz -lrt -ldl
     IFLAGS+= $(HDF_INCL)
     LFLAGS+= $(HDF_LIBS)
+endif
+
+ifeq ($(ADIOSENABLE),"on")
+    C+FLAGS+= -DUSEADIOS
+    C+LIBS+= $(shell $(ADIOS_DIR)/bin/adios_config -c -f)
+    IFLAGS+= $(shell $(ADIOS_DIR)/bin/adios_config -c -f)
+    LFLAGS+= $(shell $(ADIOS_DIR)/bin/adios_config -l -f)
 endif
 
 ifeq ($(XDRENABLE),"on")

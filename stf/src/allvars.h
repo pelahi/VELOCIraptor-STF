@@ -1530,14 +1530,20 @@ struct PropDataHeader{
     vector<PredType> predtypeinfo;
 #endif
 #ifdef USEADIOS
-vector<ADIOS_DATATYPES> adiospredtypeinfo;
+    vector<ADIOS_DATATYPES> adiospredtypeinfo;
 #endif
     PropDataHeader(Options&opt){
         int sizeval;
+#ifdef USEHDF
         vector<PredType> desiredproprealtype;
-        //PredType desiredreal;
         if (sizeof(Double_t)==sizeof(double)) desiredproprealtype.push_back(PredType::NATIVE_DOUBLE);
         else desiredproprealtype.push_back(PredType::NATIVE_FLOAT);
+#endif
+#ifdef USEADIOS
+        vector<ADIOS_DATATYPES> desiredadiosproprealtype;
+        if (sizeof(Double_t)==sizeof(double)) desiredadiosproprealtype.push_back(ADIOS_DATATYPES::adios_double);
+        else desiredadiosproprealtype.push_back(ADIOS_DATATYPES::adios_real);
+#endif
 
         headerdatainfo.push_back("ID");
         headerdatainfo.push_back("ID_mbp");
@@ -1561,6 +1567,18 @@ vector<ADIOS_DATATYPES> adiospredtypeinfo;
         if (opt.iKeepFOF==1){
             predtypeinfo.push_back(PredType::STD_I64LE);
             predtypeinfo.push_back(PredType::STD_I64LE);
+        }
+#endif
+#ifdef USEADIOS
+        adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+        adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_long);
+        adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_long);
+        adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+        adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+        adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_integer);
+        if (opt.iKeepFOF==1){
+            adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_long);
+            adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_long);
         }
 #endif
 
@@ -1652,11 +1670,18 @@ vector<ADIOS_DATATYPES> adiospredtypeinfo;
         sizeval=predtypeinfo.size();
         for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
 #endif
+#ifdef USEADIOS
+        sizeval=adiospredtypeinfo.size();
+        for (int i=sizeval;i<headerdatainfo.size();i++) adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
+#endif
 
 #ifdef GASON
         headerdatainfo.push_back("n_gas");
 #ifdef USEHDF
         predtypeinfo.push_back(PredType::STD_U64LE);
+#endif
+#ifdef USEADIOS
+        adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
 #endif
         headerdatainfo.push_back("M_gas");
         headerdatainfo.push_back("M_gas_Rvmax");
@@ -1704,11 +1729,19 @@ vector<ADIOS_DATATYPES> adiospredtypeinfo;
         sizeval=predtypeinfo.size();
         for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
 #endif
+#ifdef USEADIOS
+        sizeval=adiospredtypeinfo.size();
+        for (int i=sizeval;i<headerdatainfo.size();i++) adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
 #endif
+#endif
+
 #ifdef STARON
         headerdatainfo.push_back("n_star");
 #ifdef USEHDF
         predtypeinfo.push_back(PredType::STD_U64LE);
+#endif
+#ifdef USEADIOS
+        adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
 #endif
         headerdatainfo.push_back("M_star");
         headerdatainfo.push_back("M_star_Rvmax");
@@ -1753,6 +1786,10 @@ vector<ADIOS_DATATYPES> adiospredtypeinfo;
         sizeval=predtypeinfo.size();
         for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
 #endif
+#ifdef USEADIOS
+        sizeval=adiospredtypeinfo.size();
+        for (int i=sizeval;i<headerdatainfo.size();i++) adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
+#endif
 #endif
 
 #ifdef BHON
@@ -1760,10 +1797,17 @@ vector<ADIOS_DATATYPES> adiospredtypeinfo;
 #ifdef USEHDF
         predtypeinfo.push_back(PredType::STD_U64LE);
 #endif
+#ifdef USEADIOS
+        adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+#endif
         headerdatainfo.push_back("M_bh");
 #ifdef USEHDF
         sizeval=predtypeinfo.size();
         for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
+#endif
+#ifdef USEADIOS
+        sizeval=adiospredtypeinfo.size();
+        for (int i=sizeval;i<headerdatainfo.size();i++) adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
 #endif
 #endif
 
@@ -1773,10 +1817,17 @@ vector<ADIOS_DATATYPES> adiospredtypeinfo;
 #ifdef USEHDF
         predtypeinfo.push_back(PredType::STD_U64LE);
 #endif
+#ifdef USEADIOS
+        adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+#endif
         headerdatainfo.push_back("M_interloper");
 #ifdef USEHDF
         sizeval=predtypeinfo.size();
         for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
+#endif
+#ifdef USEADIOS
+        sizeval=adiospredtypeinfo.size();
+        for (int i=sizeval;i<headerdatainfo.size();i++) adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
 #endif
 #endif
 
@@ -1837,35 +1888,56 @@ struct StrucLevelData
 };
 extern StrucLevelData *psldata;
 
-#ifdef USEHDF
-///hdf structure to store the names of datasets in catalog output
-struct HDFCatalogNames {
+#if defined(USEHDF)||defined(USEADIOS)
+///store the names of datasets in catalog output
+struct DataGroupNames {
     ///store names of catalog group files
-    vector<H5std_string> prop;
+    vector<string> prop;
+#ifdef USEHDF
     //store the data type
     vector<PredType> propdatatype;
+#endif
+#ifdef USEADIOS
+    vector<ADIOS_DATATYPES> adiospropdatatype;
+#endif
 
     ///store names of catalog group files
-    vector<H5std_string> group;
-    //store the data type
+    vector<string> group;
+#ifdef USEHDF
     vector<PredType> groupdatatype;
+#endif
+#ifdef USEADIOS
+    vector<ADIOS_DATATYPES> adiosgroupdatatype;
+#endif
 
     ///store the names of catalog particle files
-    vector<H5std_string> part;
-    //store the data type
+    vector<string> part;
+#ifdef USEHDF
     vector<PredType> partdatatype;
+#endif
+#ifdef USEADIOS
+    vector<ADIOS_DATATYPES> adiospartdatatype;
+#endif
 
     ///store the names of catalog particle files
-    vector<H5std_string> types;
-    //store the data type
+    vector<string> types;
+#ifdef USEHDF
     vector<PredType> typesdatatype;
+#endif
+#ifdef USEADIOS
+    vector<ADIOS_DATATYPES> adiostypesdatatype;
+#endif
 
     ///store the names of catalog particle files
-    vector<H5std_string> hierarchy;
-    //store the data type
+    vector<string> hierarchy;
+#ifdef USEHDF
     vector<PredType> hierarchydatatype;
+#endif
+#ifdef USEADIOS
+    vector<ADIOS_DATATYPES> adioshierarchydatatype;
+#endif
 
-    HDFCatalogNames(){
+    DataGroupNames(){
         prop.push_back("File_id");
         prop.push_back("Num_of_files");
         prop.push_back("Num_of_groups");
@@ -1876,6 +1948,7 @@ struct HDFCatalogNames {
         prop.push_back("Length_unit_to_kpc");
         prop.push_back("Velocity_to_kms");
         prop.push_back("Mass_unit_to_solarmass");
+#ifdef USEHDF
         propdatatype.push_back(PredType::STD_I32LE);
         propdatatype.push_back(PredType::STD_I32LE);
         propdatatype.push_back(PredType::STD_U64LE);
@@ -1886,6 +1959,19 @@ struct HDFCatalogNames {
         propdatatype.push_back(PredType::NATIVE_FLOAT);
         propdatatype.push_back(PredType::NATIVE_FLOAT);
         propdatatype.push_back(PredType::NATIVE_FLOAT);
+#endif
+#ifdef USEADIOS
+        adiospropdatatype.push_back(ADIOS_DATATYPES::adios_integer);
+        adiospropdatatype.push_back(ADIOS_DATATYPES::adios_integer);
+        adiospropdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+        adiospropdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+        adiospropdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_integer);
+        adiospropdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_integer);
+        adiospropdatatype.push_back(ADIOS_DATATYPES::adios_real);
+        adiospropdatatype.push_back(ADIOS_DATATYPES::adios_real);
+        adiospropdatatype.push_back(ADIOS_DATATYPES::adios_real);
+        adiospropdatatype.push_back(ADIOS_DATATYPES::adios_real);
+#endif
 
         group.push_back("File_id");
         group.push_back("Num_of_files");
@@ -1894,6 +1980,7 @@ struct HDFCatalogNames {
         group.push_back("Group_Size");
         group.push_back("Offset");
         group.push_back("Offset_unbound");
+#ifdef USEHDF
         groupdatatype.push_back(PredType::STD_I32LE);
         groupdatatype.push_back(PredType::STD_I32LE);
         groupdatatype.push_back(PredType::STD_U64LE);
@@ -1901,29 +1988,56 @@ struct HDFCatalogNames {
         groupdatatype.push_back(PredType::STD_U32LE);
         groupdatatype.push_back(PredType::STD_U64LE);
         groupdatatype.push_back(PredType::STD_U64LE);
+#endif
+#ifdef USEADIOS
+        adiosgroupdatatype.push_back(ADIOS_DATATYPES::adios_integer);
+        adiosgroupdatatype.push_back(ADIOS_DATATYPES::adios_integer);
+        adiosgroupdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+        adiosgroupdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+        adiosgroupdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_integer);
+        adiosgroupdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+        adiosgroupdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+#endif
 
         part.push_back("File_id");
         part.push_back("Num_of_files");
         part.push_back("Num_of_particles_in_groups");
         part.push_back("Total_num_of_particles_in_all_groups");
         part.push_back("Particle_IDs");
+#ifdef USEHDF
         partdatatype.push_back(PredType::STD_I32LE);
         partdatatype.push_back(PredType::STD_I32LE);
         partdatatype.push_back(PredType::STD_U64LE);
         partdatatype.push_back(PredType::STD_U64LE);
         partdatatype.push_back(PredType::STD_I64LE);
+#endif
+#ifdef USEADIOS
+        adiospartdatatype.push_back(ADIOS_DATATYPES::adios_integer);
+        adiospartdatatype.push_back(ADIOS_DATATYPES::adios_integer);
+        adiospartdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+        adiospartdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+        adiospartdatatype.push_back(ADIOS_DATATYPES::adios_long);
+#endif
 
         types.push_back("File_id");
         types.push_back("Num_of_files");
         types.push_back("Num_of_particles_in_groups");
         types.push_back("Total_num_of_particles_in_all_groups");
         types.push_back("Particle_types");
+#ifdef USEHDF
         typesdatatype.push_back(PredType::STD_I32LE);
         typesdatatype.push_back(PredType::STD_I32LE);
         typesdatatype.push_back(PredType::STD_U64LE);
         typesdatatype.push_back(PredType::STD_U64LE);
         typesdatatype.push_back(PredType::STD_U16LE);
-
+#endif
+#ifdef USEADIOS
+        adiostypesdatatype.push_back(ADIOS_DATATYPES::adios_integer);
+        adiostypesdatatype.push_back(ADIOS_DATATYPES::adios_integer);
+        adiostypesdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+        adiostypesdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+        adiostypesdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_short);
+#endif
 
         hierarchy.push_back("File_id");
         hierarchy.push_back("Num_of_files");
@@ -1931,12 +2045,22 @@ struct HDFCatalogNames {
         hierarchy.push_back("Total_num_of_groups");
         hierarchy.push_back("Number_of_substructures_in_halo");
         hierarchy.push_back("Parent_halo_ID");
+#ifdef USEHDF
         hierarchydatatype.push_back(PredType::STD_I32LE);
         hierarchydatatype.push_back(PredType::STD_I32LE);
         hierarchydatatype.push_back(PredType::STD_U64LE);
         hierarchydatatype.push_back(PredType::STD_U64LE);
         hierarchydatatype.push_back(PredType::STD_U32LE);
         hierarchydatatype.push_back(PredType::STD_I64LE);
+#endif
+#ifdef USEADIOS
+        adioshierarchydatatype.push_back(ADIOS_DATATYPES::adios_integer);
+        adioshierarchydatatype.push_back(ADIOS_DATATYPES::adios_integer);
+        adioshierarchydatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+        adioshierarchydatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+        adioshierarchydatatype.push_back(ADIOS_DATATYPES::adios_unsigned_integer);
+        adioshierarchydatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+#endif
     }
 };
 #endif
