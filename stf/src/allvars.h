@@ -62,6 +62,11 @@ using namespace H5;
 #endif
 #endif
 
+///if using ADIOS API
+#ifdef USEADIOS
+#include "adios.h"
+#endif
+
 using namespace std;
 using namespace Math;
 using namespace NBody;
@@ -203,6 +208,7 @@ using namespace NBody;
 #define OUTASCII 0
 #define OUTBINARY 1
 #define OUTHDF 2
+#define OUTADIOS 3
 //@}
 //@}
 /// \name For Unbinding
@@ -1523,8 +1529,15 @@ struct PropDataHeader{
 #ifdef USEHDF
     vector<PredType> predtypeinfo;
 #endif
+#ifdef USEADIOS
+vector<ADIOS_DATATYPES> adiospredtypeinfo;
+#endif
     PropDataHeader(Options&opt){
         int sizeval;
+        vector<PredType> desiredproprealtype;
+        //PredType desiredreal;
+        if (sizeof(Double_t)==sizeof(double)) desiredproprealtype.push_back(PredType::NATIVE_DOUBLE);
+        else desiredproprealtype.push_back(PredType::NATIVE_FLOAT);
 
         headerdatainfo.push_back("ID");
         headerdatainfo.push_back("ID_mbp");
@@ -1637,7 +1650,7 @@ struct PropDataHeader{
 
 #ifdef USEHDF
         sizeval=predtypeinfo.size();
-        for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(PredType::NATIVE_DOUBLE);
+        for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
 #endif
 
 #ifdef GASON
@@ -1689,7 +1702,7 @@ struct PropDataHeader{
 #endif
 #ifdef USEHDF
         sizeval=predtypeinfo.size();
-        for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(PredType::NATIVE_DOUBLE);
+        for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
 #endif
 #endif
 #ifdef STARON
@@ -1738,7 +1751,7 @@ struct PropDataHeader{
         headerdatainfo.push_back("Zmet_star");
 #ifdef USEHDF
         sizeval=predtypeinfo.size();
-        for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(PredType::NATIVE_DOUBLE);
+        for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
 #endif
 #endif
 
@@ -1750,7 +1763,7 @@ struct PropDataHeader{
         headerdatainfo.push_back("M_bh");
 #ifdef USEHDF
         sizeval=predtypeinfo.size();
-        for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(PredType::NATIVE_DOUBLE);
+        for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
 #endif
 #endif
 
@@ -1763,7 +1776,7 @@ struct PropDataHeader{
         headerdatainfo.push_back("M_interloper");
 #ifdef USEHDF
         sizeval=predtypeinfo.size();
-        for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(PredType::NATIVE_DOUBLE);
+        for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
 #endif
 #endif
 

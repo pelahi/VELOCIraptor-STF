@@ -13,112 +13,112 @@ void GetArgs(int argc, char *argv[], Options &opt)
     {
         switch(option)
         {
-            case 'i': 
+            case 'i':
                 opt.fname = optarg;
                 NumArgs += 2;
                 break;
-            case 's': 
+            case 's':
                 opt.numsnapshots = atoi(optarg);
                 NumArgs += 2;
                 break;
-            case 't': 
+            case 't':
                 opt.numsteps = atoi(optarg);
                 NumArgs += 2;
                 break;
-            case 'n': 
+            case 'n':
                 opt.MaxIDValue = atol(optarg);
                 NumArgs += 2;
                 break;
-            case 'f': 
+            case 'f':
                 opt.particle_frac = atof(optarg);
                 NumArgs += 2;
                 break;
-            case 'p': 
+            case 'p':
                 opt.min_numpart = atoi(optarg);
                 NumArgs += 2;
                 break;
-            case 'o': 
+            case 'o':
                 opt.outname = optarg;
                 NumArgs += 2;
                 break;
-            case 'C': 
+            case 'C':
                 opt.matchtype = atoi(optarg);
                 NumArgs += 2;
                 break;
-            case 'x': 
+            case 'x':
                 opt.imultsteplinkcrit= atoi(optarg);
                 NumArgs += 2;
                 break;
-            case 'c': 
+            case 'c':
                 opt.icatalog = atoi(optarg);
                 NumArgs += 2;
                 break;
-            case 'D': 
+            case 'D':
                 opt.idcorrectflag = atoi(optarg);
                 NumArgs += 2;
                 break;
-            case 'S': 
+            case 'S':
                 opt.mlsig = atof(optarg);
                 NumArgs += 2;
                 break;
-            case 'a': 
+            case 'a':
                 opt.meritlimit = atof(optarg);
                 NumArgs += 2;
                 break;
-            case 'I': 
+            case 'I':
                 opt.ioformat = atoi(optarg);
                 NumArgs += 2;
                 break;
-            case 'O': 
+            case 'O':
                 opt.outputformat = atoi(optarg);
                 NumArgs += 2;
                 break;
-            case 'N': 
+            case 'N':
                 opt.nmpifiles = atoi(optarg);
                 NumArgs += 2;
                 break;
-            case 'B': 
+            case 'B':
                 opt.ibinary = atoi(optarg);
                 NumArgs += 2;
                 break;
-            case 'F': 
+            case 'F':
                 opt.ifield = atoi(optarg);
                 NumArgs += 2;
                 break;
-            case 'M': 
+            case 'M':
                 opt.imapping = atoi(optarg);
                 NumArgs += 2;
                 break;
-            case 'H': 
+            case 'H':
                 opt.snapshotvaloffset = atoi(optarg);
                 NumArgs += 2;
                 break;
-            case 'h': 
+            case 'h':
                 opt.haloidval= atol(optarg);
                 NumArgs += 2;
                 break;
-            case 'd': 
+            case 'd':
                 opt.haloidoffset= atoi(optarg);
                 NumArgs += 2;
                 break;
-            case 'T': 
+            case 'T':
                 opt.itypematch = atoi(optarg);
                 NumArgs += 2;
                 break;
-            case 'v': 
+            case 'v':
                 opt.iverbose = atoi(optarg);
                 NumArgs += 2;
                 break;
 #ifdef USEMPI
-            case 'm': 
+            case 'm':
                 opt.numpermpi = atol(optarg);
                 NumArgs += 2;
                 break;
-            case 'z': 
+            case 'z':
                 opt.ndesiredmpithreads = atoi(optarg);
                 NumArgs += 2;
                 break;
-            case 'Z': 
+            case 'Z':
                 opt.iwriteparallel = atoi(optarg);
                 NumArgs += 2;
                 break;
@@ -186,7 +186,7 @@ void GetArgs(int argc, char *argv[], Options &opt)
     }
 }
 
-///Outputs the usage to stdout 
+///Outputs the usage to stdout
 void usage(void)
 {
     Options opt;
@@ -276,7 +276,7 @@ void usage(void)
     The following commands are accepted as command line arguments (more info can be found in \ref Options struct and \ref ui.cxx for user interface or the sample configuration file
 in the examples directory). \n \n
 
-    \section ioconfig Input/Output related. 
+    \section ioconfig Input/Output related.
     See \ref io.cxx, \ref stfio.cxx, and \ref otherio.cxx for implementation of the code, \ref allvars.h for definitions
     \arg \b \e -i < file containing filelist >
     \arg \b \e -s < number of files/snapshots to be processed >
@@ -305,7 +305,7 @@ in the examples directory). \n \n
     \section otherconfig Other options
     \arg \b \e -D < adjust particle IDs for nIFTY cross catalogs across simulations >
     \arg \b \e -M < Mapping of particle ids to index  (\ref opt.imapping with \ref DNOMAP no mapping of ids to indices, all others must be implemented >
-    \arg \b \e -v < verbose flag 1/0 > 
+    \arg \b \e -v < verbose flag 1/0 >
     \section mpiconfig MPI options
     \arg \b \e -m < number of items per mpi thead, use for load balacing. Use 0 if no mpi used when building halo catalog >
     \arg \b \e -z < number of mpi theads used to calculate load balacing. If >0 this used with one actual mpi thread but determines load balancing based on desired number of mpi threads. Write load balancing file and terminates. If 0 (default) normal operation >

@@ -29,8 +29,8 @@
 #include <map>
 #include <algorithm>
 #include <getopt.h>
-#include <sys/stat.h> 
-#include <sys/timeb.h> 
+#include <sys/stat.h>
+#include <sys/timeb.h>
 
 ///\name Include for NBodyFramework library.
 //@{
@@ -57,9 +57,15 @@
 #include "mpivar.h"
 #endif
 
+///if using HDF API
 #ifdef USEHDF
 #include "H5Cpp.h"
 using namespace H5;
+#endif
+
+///if using ADIOS API
+#ifdef USEADIOS
+#include "adios.h"
 #endif
 
 using namespace std;
@@ -83,7 +89,7 @@ using namespace NBody;
 
 //subsets made
 ///call \ref NsharedN1N2
-#define NsharedN1N2 1 
+#define NsharedN1N2 1
 #define NsharedN1 2
 #define Nshared 3
 #define Nsharedcombo 4
@@ -128,7 +134,7 @@ using namespace NBody;
 //@{
 #define INBINARY 1
 #define INHDF 2
-#define INASCII 0 
+#define INASCII 0
 //@}
 
 /// \name output formats
@@ -187,10 +193,10 @@ struct Options
 
     ///type of cross-match search
     int matchtype;
-    ///cross match shared particle number significance, that is match only when quantity is above mlsig*some measure of noise, here defined as 
+    ///cross match shared particle number significance, that is match only when quantity is above mlsig*some measure of noise, here defined as
     ///\f \sqrt{N_2} \f
     Double_t mlsig;
-    ///cross match merit limit for deciding whether to search previous snapshot 
+    ///cross match merit limit for deciding whether to search previous snapshot
     Double_t meritlimit;
 
     ///particle type cross matching subselection
@@ -204,13 +210,12 @@ struct Options
     ///output format
     int outputformat;
 
-
     ///\name io format flags for basic format, whether data split into multiple files, binary, and field objects separate
     //@{
     int ioformat,nmpifiles,ibinary,ifield;
     //@}
 
-    //for mapping particle ids to index 
+    //for mapping particle ids to index
     //@{
     int imapping;
     void(*mappingfunc)(long unsigned int &);
@@ -226,10 +231,10 @@ struct Options
     Int_t haloidoffset;
 
     ///to adjust the number of particles used to define a merit. Note that to be of use, particles should be in some type of order
-    ///for instance binding energy order. VELOCIraptor outputs particles in decreasing binding energy order 
+    ///for instance binding energy order. VELOCIraptor outputs particles in decreasing binding energy order
     ///so using the first particle_frac of a halo means using the most bound set of particles
     Double_t particle_frac;
-    ///minimum number of particles used to derive merit. 
+    ///minimum number of particles used to derive merit.
     Int_t min_numpart;
 
     ///to fix ids for nifty project
@@ -279,8 +284,8 @@ struct Options
         outputformat=OUTASCII;
         haloidoffset=0;
 
-        particle_frac=-1;
-        min_numpart=0;
+        particle_frac=0.2;
+        min_numpart=20;
 
         iverbose=1;
 #ifdef USEMPI
@@ -291,7 +296,7 @@ struct Options
     }
 };
 
-/*! 
+/*!
     Halo data structure
 */
 struct HaloData{
@@ -342,7 +347,7 @@ struct HaloTreeData{
     }
 };
 
-/*! 
+/*!
     Structure used to keep track of a structure's progenitor/parent structure using temporal/spatial information
 */
 struct ProgenitorData
@@ -458,7 +463,7 @@ struct DescendantDataProgenBased
     ///start with just maximum merit, ignoring when this was found
     ///otherwise use the reference time passed
     ///the generalized merit = Merit/(deltat)
-    ///also, optimal descendents should be close to being a primary descendant, having a lower descentype value 
+    ///also, optimal descendents should be close to being a primary descendant, having a lower descentype value
     void OptimalTemporalMerit(Int_t itimref=0){
         int imax=0;
         Double_t generalizedmerit=Merit[0]/pow((Double_t)deltat[0],ALPHADELTAT);
@@ -466,15 +471,15 @@ struct DescendantDataProgenBased
         long unsigned optimalhaloindex;
         int unsigned optimalhalotemporalindex;
         for (int i=1;i<NumberofDescendants;i++) {
-            if (Merit[i]/pow((Double_t)deltat[i],ALPHADELTAT)>generalizedmerit || 
-                (descentype[i]<=curdescentype && Merit[i]/pow((Double_t)deltat[i],ALPHADELTAT)>=generalizedmerit*0.5)) {
+            if (Merit[i]/pow((Double_t)deltat[i],ALPHADELTAT)>generalizedmerit ||
+                (descentype[i]<curdescentype && Merit[i]/pow((Double_t)deltat[i],ALPHADELTAT)>=generalizedmerit*0.5)) {
                 generalizedmerit=Merit[i]/pow((Double_t)deltat[i],ALPHADELTAT);curdescentype=descentype[i];imax=i;
             }
         }
         optimalhaloindex=haloindex[imax];
         optimalhalotemporalindex=halotemporalindex[imax];
         //if use mpi then also possible that optimal halo found on multiple mpi tasks
-        //but the lower task will be the one that needs to have the best halo so go over the loop and 
+        //but the lower task will be the one that needs to have the best halo so go over the loop and
         //find the halo with the lowest task number of the best generalized merit
 #ifdef USEMPI
         int imaxtask=MPITask[imax];
@@ -518,7 +523,7 @@ struct DescendantDataProgenBased
     }
 #ifdef USEMPI
     void Merge(int thistask, int &numdescen, long unsigned *hid,int unsigned *htid, float *m, int *dt, int *dtype, int *task) {
-        for (Int_t i=0;i<numdescen;i++) if (task[i]!=thistask) 
+        for (Int_t i=0;i<numdescen;i++) if (task[i]!=thistask)
         {
             haloindex.push_back(hid[i]);
             halotemporalindex.push_back(htid[i]);
@@ -548,7 +553,7 @@ struct DescendantData
     ///store the merit value
     float *Merit;
     ///store the fraction of shared particles
-    float *nsharedfrac; 
+    float *nsharedfrac;
 
     ///store number of steps back in time progenitor found
     int istep;
@@ -618,12 +623,12 @@ struct HDFCatalogNames {
     vector<H5std_string> group;
     //store the data type
     vector<PredType> groupdatatype;
-    
+
     ///store the names of catalog particle files
     vector<H5std_string> part;
     //store the data type
     vector<PredType> partdatatype;
-    
+
     ///store the names of catalog particle files
     vector<H5std_string> types;
     //store the data type
@@ -672,7 +677,7 @@ struct HDFCatalogNames {
         typesdatatype.push_back(PredType::STD_U64LE);
         typesdatatype.push_back(PredType::STD_U16LE);
 
-        
+
         hierarchy.push_back("File_id");
         hierarchy.push_back("Num_of_files");
         hierarchy.push_back("Num_of_groups");
@@ -690,4 +695,3 @@ struct HDFCatalogNames {
 #endif
 
 #endif
-
