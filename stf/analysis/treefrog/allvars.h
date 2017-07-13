@@ -173,7 +173,11 @@ using namespace NBody;
 #endif
 
 #ifdef LONGIDS
+typedef long long IDTYPE;
+#elif defined(LONGUIDS)
 typedef long unsigned IDTYPE;
+#elif defined(INTIDS)
+typedef int IDTYPE;
 #else
 typedef int unsigned IDTYPE;
 #endif

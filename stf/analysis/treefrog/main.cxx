@@ -81,13 +81,20 @@ int main(int argc,char **argv)
         cout<<"Done Loading"<<endl;
         cout<<"Found "<<opt.TotalNumberofHalos<<" halos "<<endl;
     }
+    if (opt.iverbose) {
+        Int_t sum=0;
+        for (i=StartSnap;i<EndSnap;i++)
+            for (j=0;j<pht[i].numhalos;j++) sum+=pht[i].Halo[j].NumberofParticles;
+        cout<<ThisTask<<" has allocated at least "<<sum*sizeof(IDTYPE)/1024./1024./1024.<<"GB of memory to store particle ids"<<endl;
+    }
+
     if (opt.imapping==DMEMEFFICIENTMAP) {
         if (ThisTask==0) cout<<"Generating unique memory efficent mapping for particle IDS to index"<<endl;
         map<IDTYPE, IDTYPE> idmap=ConstructMemoryEfficientPIDStoIndexMap(opt, pht);
         MapPIDStoIndex(opt,pht, idmap);
         idmap.clear();
         if (ThisTask==0) {
-            cout<<"Memory needed to store addressing for ids "<<sizeof(unsigned int)*opt.MaxIDValue/1024./1024.0/1024.0<<", maximum ID of "<<opt.MaxIDValue<<endl;
+            cout<<"Memory needed to store addressing for ids "<<sizeof(IDTYPE)*opt.MaxIDValue/1024./1024.0/1024.0<<", maximum ID of "<<opt.MaxIDValue<<endl;
         }
     }
     else {

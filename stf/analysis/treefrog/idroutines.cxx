@@ -25,7 +25,7 @@ void UpdateHaloIDs(Options &opt, HaloTreeData *&pht) {
 /// \name if particle ids need to be mapped to indices
 //@{
 ///builds a map by identifying the ids of particles in structure across snapshots
-///which is memory efficient as only needs array size of maximum number of particles in structures 
+///which is memory efficient as only needs array size of maximum number of particles in structures
 map<IDTYPE, IDTYPE> ConstructMemoryEfficientPIDStoIndexMap(Options &opt, HaloTreeData *&pht) {
     Int_t i,j,k;
     Int_t index,indexoffset,offsetsnap;
@@ -38,7 +38,6 @@ map<IDTYPE, IDTYPE> ConstructMemoryEfficientPIDStoIndexMap(Options &opt, HaloTre
     else offsetsnap=opt.numsteps;
 
     if (ThisTask==0) cout<<"Mapping PIDS to index "<<endl;
-MPI_Barrier(MPI_COMM_WORLD);
     //place ids in a set so have unique ordered set of ids
     unordered_set<IDTYPE> idset;
     vector<IDTYPE> idvec;
@@ -46,24 +45,18 @@ MPI_Barrier(MPI_COMM_WORLD);
     //index=0;
     time1=MyGetTime();
     time2=MyGetTime();
-cout<<ThisTask<<" has allocated vectors and maps for generating unique id map "<<endl;
-Int_t sum=0;
-    for (i=StartSnap;i<EndSnap;i++) 
-        for (j=0;j<pht[i].numhalos;j++) sum+=pht[i].Halo[j].NumberofParticles;
-cout<<ThisTask<<" has allocated at least "<<sum*sizeof(IDTYPE)/1024./1024./1024.<<"GB of memory to store particle ids"<<endl;
-MPI_Barrier(MPI_COMM_WORLD);
     for (i=StartSnap+offsetsnap;i<EndSnap;i++) 
-        for (j=0;j<pht[i].numhalos;j++) 
+        for (j=0;j<pht[i].numhalos;j++)
             for (k=0;k<pht[i].Halo[j].NumberofParticles;k++) idset.insert(pht[i].Halo[j].ParticleID[k]);
     time1=MyGetTime()-time1;
     if (opt.iverbose) cout<<ThisTask<<" finished getting unique ids of "<<idset.size()<<" in "<<time1<<endl;
 #ifdef USEMPI
 
     //now if using mpi then must broadcast the sets that a final unique set can be made
-    //this is done each task sending information to its neighbouring task, the lower task 
-    //number then building a set of unique ids in the receving task. 
+    //this is done each task sending information to its neighbouring task, the lower task
+    //number then building a set of unique ids in the receving task.
     //once a task has sent information, it nolonger needs to send info
-    //all the receiving tasks in the previous round make up the new set of sending and receiving tasks. 
+    //all the receiving tasks in the previous round make up the new set of sending and receiving tasks.
     //keep going till all info cascaded to task 0 and a unique set of ids are generated across all snapshots and mpi domains
 
     //used to transmit info
@@ -112,7 +105,7 @@ MPI_Barrier(MPI_COMM_WORLD);
             }
         }
         //update the send receive taks for the next time around
-        //all tasks that were send tasks now must not be included. 
+        //all tasks that were send tasks now must not be included.
         MPI_Barrier(MPI_COMM_WORLD);
         nsendtasks=sendset.size();
         numhavesent+=nsendtasks;
@@ -127,7 +120,7 @@ MPI_Barrier(MPI_COMM_WORLD);
         recvset.clear();
         for (j=NProcs-1;j>=0;j--) if (sendtask[j]>=0) sendset.push_back(j);
         for (j=NProcs-1;j>=0;j--) if (recvtask[j]>=0) recvset.push_back(j);
-        //if current set of communicating tasks set by the old recv task set is odd must explicity include 0 
+        //if current set of communicating tasks set by the old recv task set is odd must explicity include 0
         if (nrecvtasks%2==1)recvset.push_back(0);
         numloops++;
     } while(numhavesent<NProcs-1);
@@ -198,8 +191,8 @@ private(i,j,k)
 #ifdef USEMPI
     if (i>=StartSnap && i<EndSnap) {
 #endif
-        for (j=0;j<pht[i].numhalos;j++) 
-            for (k=0;k<pht[i].Halo[j].NumberofParticles;k++) 
+        for (j=0;j<pht[i].numhalos;j++)
+            for (k=0;k<pht[i].Halo[j].NumberofParticles;k++)
                 opt.mappingfunc(pht[i].Halo[j].ParticleID[k]);
 #ifdef USEMPI
     }
@@ -226,7 +219,7 @@ void IDcheck(Options &opt, HaloTreeData *&pht){
 #endif
         ierrorflag=0;
         for (Int_t j=0;j<pht[i].numhalos;j++) {
-            for (Int_t k=0;k<pht[i].Halo[j].NumberofParticles;k++) 
+            for (Int_t k=0;k<pht[i].Halo[j].NumberofParticles;k++)
                 if (pht[i].Halo[j].ParticleID[k]<0||pht[i].Halo[j].ParticleID[k]>opt.MaxIDValue) {
                     cout<<ThisTask<<" snapshot "<<i<<" particle id out of range "<<pht[i].Halo[j].ParticleID[k]<<" not in [0,"<<opt.MaxIDValue<<")"<<endl;
                     ierrorflag=1;
@@ -245,7 +238,7 @@ void IDcheck(Options &opt, HaloTreeData *&pht){
 #endif
     if (ierrorsumflag>0) {
 #ifdef USEMPI
-        if (ThisTask==0) 
+        if (ThisTask==0)
 #endif
         cout<<"Error in particle ids, outside of range. Exiting"<<endl;
 #ifdef USEMPI
