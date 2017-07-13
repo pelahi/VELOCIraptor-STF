@@ -305,6 +305,8 @@ double mycNFW_fdf(double c, void *params, double*y,double *dy);
 
 ///used to sort a pglist based on substructure binding energy
 Int_t **SortAccordingtoBindingEnergy(Options &opt, const Int_t nbodies, Particle *&Part, Int_t ngroup, Int_t *&pfof, Int_t *numingroup, PropData *pdata, Int_t ioffset=0);
+///used to calculate properties and ignores keeping particle order, assumes particle PID information meaningless
+void CalculateHaloProperties(Options &opt, const Int_t nbodies, Particle *&Part, Int_t ngroup, Int_t *&pfof, Int_t *numingroup, PropData *pdata);
 ///Get number of substructures in a given structure
 Int_t *GetSubstructureNum(Int_t ngroups);
 ///Get parent structure id of substructures

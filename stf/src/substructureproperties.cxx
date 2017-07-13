@@ -2882,7 +2882,6 @@ private(j,v2,Ti)
 /*!
     Sort particles according to their binding energy and return a double pointer of Int_t s.
     This code first sorts particles according to their (local mpi) group id and calculates center of mass and binding energy.
-
 */
 Int_t **SortAccordingtoBindingEnergy(Options &opt, const Int_t nbodies, Particle *&Part, Int_t ngroup, Int_t *&pfof, Int_t *numingroup, PropData *pdata, Int_t ioffset)
 {
@@ -2964,6 +2963,38 @@ private(i,j)
     }
     cout<<"Done"<<endl;
     return pglist;
+}
+/*
+   Calculate Halo properties only, assumes that information in particle PIDs is meaningless, useful when don't care about particle tracking
+   and just want halo catalogs (like when analysing results from runs like PICOLA (or say 2LPT runs))
+*/
+void CalculateHaloProperties(Options &opt, const Int_t nbodies, Particle *&Part, Int_t ngroup, Int_t *&pfof, Int_t *numingroup, PropData *pdata)
+{
+#ifndef USEMPI
+    int ThisTask=0;
+#endif
+    Int_t i,j,k;
+    Int_t *noffset=new Int_t[ngroup+1];
+
+    //sort the particle data according to their group id so that one can then sort particle data
+    //of a group however one sees fit.
+    for (i=0;i<nbodies;i++) {
+        if (pfof[Part[i].GetID()]>0) Part[i].SetPID(pfof[Part[i].GetID()]);
+        else Part[i].SetPID(nbodies+1);//here move all particles not in groups to the back of the particle array
+    }
+    qsort(Part, nbodies, sizeof(Particle), PIDCompare);
+
+    noffset[0]=noffset[1]=0;
+    for (i=2;i<=ngroup;i++) noffset[i]=noffset[i-1]+numingroup[i-1];
+
+    // for small groups interate over groups using openmp threads
+    // for large groups interate over particles
+    for (i=1;i<=ngroup;i++) pdata[i].num=numingroup[i];
+    cout<<ThisTask<<" Calculate properties"<<endl;
+    GetCMProp(opt, nbodies, Part, ngroup, pfof, numingroup, pdata, noffset);
+    GetBindingEnergy(opt, nbodies, Part, ngroup, pfof, numingroup, pdata, noffset);
+    for (i=1;i<=ngroup;i++) pdata[i].ibound=Part[noffset[i]].GetPID();
+    delete[] noffset;
 }
 //@}
 

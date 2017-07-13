@@ -345,6 +345,9 @@ struct Options
     int ibinaryout;
     ///for extended output allowing extraction of particles
     int iextendedoutput;
+    ///disable particle id related output like fof.grp or catalog_group data. Useful if just want halo properties
+    ///and not interested in tracking. Code writes halo properties catalog and exits.
+    int inoidoutput;
     ///return propery data in in comoving little h units instead of standard physical units
     int icomoveunit;
     /// input is a cosmological simulation so can use box sizes, cosmological parameters, etc to set scales
@@ -356,6 +359,7 @@ struct Options
     /// mpi factor by which to multiple the memory allocated, ie: buffer region
     /// to reduce likelihood of having to expand/allocate new memory
     Double_t mpipartfac;
+
 
 
     ///\name length,m,v,grav conversion units
@@ -595,6 +599,7 @@ struct Options
         iseparatefiles=0;
         ibinaryout=0;
         iextendedoutput=0;
+        inoidoutput=0;
         icomoveunit=0;
         icosmologicalin=1;
 

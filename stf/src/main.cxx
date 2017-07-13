@@ -416,6 +416,20 @@ int main(int argc,char **argv)
     WriteUnitInfo(opt);
 
     //output results
+    //if want to ignore any information regard particles themselves as particle PIDS are meaningless
+    //which might be useful for runs where not interested in tracking just halo catalogues (save for
+    //approximate methods like PICOLA. Here it writes desired output and exits
+    if(opt.inoidoutput){
+        numingroup=BuildNumInGroup(Nlocal, ngroup, pfof);
+        CalculateHaloProperties(opt,Nlocal,Part,ngroup,pfof,numingroup,pdata);
+        WriteProperties(opt,nhalos,pdata);
+        delete[] numingroup;
+        delete[] pdata;
+        delete[] Part;
+        exit(0);
+    }
+
+    //if want a simple tipsy still array listing particles group ids in input order
     if(opt.iwritefof) {
 #ifdef USEMPI
         if (ThisTask==0) {
@@ -429,7 +443,6 @@ int main(int argc,char **argv)
         WriteFOF(opt,nbodies,pfof);
 #endif
     }
-
     numingroup=BuildNumInGroup(Nlocal, ngroup, pfof);
 
     //if separate files explicitly save halos, associated baryons, and subhalos separately
@@ -493,6 +506,7 @@ int main(int argc,char **argv)
 
     delete[] numingroup;
     delete[] pdata;
+    delete[] Part;
 
     tottime=MyGetTime()-tottime;
     cout<<"TIME::"<<ThisTask<<" took "<<tottime<<" in all"<<endl;
