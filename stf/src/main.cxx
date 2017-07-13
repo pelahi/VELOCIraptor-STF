@@ -426,7 +426,10 @@ int main(int argc,char **argv)
         delete[] numingroup;
         delete[] pdata;
         delete[] Part;
-        exit(0);
+#ifdef USEMPI
+        MPI_Finalize();
+#endif 
+        return 0;
     }
 
     //if want a simple tipsy still array listing particles group ids in input order
