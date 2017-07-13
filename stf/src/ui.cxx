@@ -15,44 +15,44 @@ void GetArgs(int argc, char *argv[], Options &opt)
     {
         switch(option)
         {
-            case 'C': 
+            case 'C':
                 opt.pname = optarg;
                 configflag=1;
                 NumArgs += 2;
                 break;
-            case 'I': 
+            case 'I':
                 opt.inputtype = atoi(optarg);
                 NumArgs += 2;
                 break;
-            case 'i': 
+            case 'i':
                 opt.fname = optarg;
                 NumArgs += 2;
                 break;
-            case 's': 
+            case 's':
                 opt.num_files = atoi(optarg);
                 NumArgs += 2;
                 break;
-            case 'Z': 
+            case 'Z':
                 opt.nsnapread = atoi(optarg);
                 NumArgs += 2;
                 break;
-            case 'o': 
+            case 'o':
                 opt.outname = optarg;
                 NumArgs += 2;
                 break;
-            case 'G': 
+            case 'G':
                 opt.gnsphblocks = atoi(optarg);
                 NumArgs += 2;
                 break;
-            case 'S': 
+            case 'S':
                 opt.gnstarblocks = atoi(optarg);
                 NumArgs += 2;
                 break;
-            case 'B': 
+            case 'B':
                 opt.gnbhblocks = atoi(optarg);
                 NumArgs += 2;
                 break;
-            case 't': 
+            case 't':
                 opt.ramsessnapname = optarg;
                 NumArgs += 2;
                 break;
@@ -73,7 +73,7 @@ void GetArgs(int argc, char *argv[], Options &opt)
     ConfigCheck(opt);
 }
 
-///Outputs the usage to stdout 
+///Outputs the usage to stdout
 void usage(void)
 {
     Options opt;
@@ -102,42 +102,42 @@ void usage(void)
     exit(1);
 }
 
-/*! 
+/*!
     \page configopt  Configuration options
 
-    An example configuration file can be found the examples directory within the code directory. Only the keywords listed here will be used, all other words/characters are ignored. Note that if misspell a keyword it will not be used. One can check the options that the code has passed by examining the associated \ref Options.outname cfg file, <em>foo</em>.cfg, which will list all the configuration options passed to the code. Since this file is always written <b><em>DO NOT</em></b> name your configuration file <em>foo</em>.cfg. 
+    An example configuration file can be found the examples directory within the code directory. Only the keywords listed here will be used, all other words/characters are ignored. Note that if misspell a keyword it will not be used. One can check the options that the code has passed by examining the associated \ref Options.outname cfg file, <em>foo</em>.cfg, which will list all the configuration options passed to the code. Since this file is always written <b><em>DO NOT</em></b> name your configuration file <em>foo</em>.cfg.
 
     There are numerous key words that can be passed to change the values stored in \ref Options. Here we list them
-    \section outconfig Output related. 
+    \section outconfig Output related.
     See \ref outputs for types of output (and \ref io.cxx for implementation of the code)
 
     \arg <b> \e Output_den </b> A filename for storing the intermediate step of calculating local densities. This is particularly useful if the code is not compiled with \b STRUCDEN & \b HALOONLYDEN (see \ref STF-makeflags). \ref Options.smname \n
     \arg <b> \e Output </b> Output base name. Overrides the name passed with the command line argument <b> \e -o </b>. Only implemented for completeness. \ref Options.outname \n
     \arg <b> \e Write_group_array_file </b> When producing output also produce a file which lists for every particle the group they belong to. Can be used with \b tipsy format or to tag every particle. \ref Options.iwritefof
 
-    \section searchconfig Parameters related to search type. 
-    See \ref io.cxx (and related ios like \ref gadgetio.cxx), \ref search.cxx, \ref fofalgo.h for extra details 
+    \section searchconfig Parameters related to search type.
+    See \ref io.cxx (and related ios like \ref gadgetio.cxx), \ref search.cxx, \ref fofalgo.h for extra details
     \arg <b> \e Particle_search_type </b> A integer describing what types of particles are searched \ref Options.partsearchtype. (See \ref SEARCHTYPES) > \n
         - \b 1 \e all particles are searched
         - \b 2 \e DarkMatter particles (which are typically defined as type 1,2,3 for gadget) are searched
-        - \b 3 \e Star particles (which are typically defined as type 4 for gadget) are searched  
-        - \b 4 \e Gas particles (which are typically defined as type 0 for gadget) are searched 
+        - \b 3 \e Star particles (which are typically defined as type 4 for gadget) are searched
+        - \b 4 \e Gas particles (which are typically defined as type 0 for gadget) are searched
     \n
     \arg <b> \e Baryon_searchflag </b> 0/1/2 indicating gas/stellar search done separately from DM search \ref Options.iBaryonSearch. \n
         - \b 1 field search run as normal and then substructure search for baryons run using baryons identified in field search.
-        - \b 2 field search also altered to treat baryons differently, allowing only DM particles to be used as head links (ie link dm-dm, dm-baryon, but not baryon-baryon nor baryon-dm). 
-        - \b 0 is do nothing special for baryon particles. 
+        - \b 2 field search also altered to treat baryons differently, allowing only DM particles to be used as head links (ie link dm-dm, dm-baryon, but not baryon-baryon nor baryon-dm).
+        - \b 0 is do nothing special for baryon particles.
     \n
 
-    \section localdensityconfig Parameters related to local density estimator. 
+    \section localdensityconfig Parameters related to local density estimator.
     See \ref localfield.cxx, \ref bgfield.cxx & \ref localbgcomp.cxx for more details
 
     \arg <b> \e Nsearch_velocity </b> number of velocity neighbours used to calculate velocity density, adjust \ref Options.Nvel (default is 32) \n
     \arg <b> \e Nsearch_physical </b> number of physical neighbours searched for Nv to calculate velocity density  \ref Options.Nsearch (default is 512) \n
     \arg <b> \e Cell_fraction </b> fraction of a halo contained in a subvolume used to characterize the background  \ref Options.Ncellfac \n
     \arg <b> \e Grid_type </b> integer describing type of grid used to decompose volume for substructure search  \ref Options.gridtype (see \ref GRIDTYPES) \n
-        - \b 1 \e standard physical shannon entropy, balanced KD tree volume decomposition into cells 
-        - \b 2 \e phase phase-space shannon entropy, balanced KD tree volume decomposition into cells 
+        - \b 1 \e standard physical shannon entropy, balanced KD tree volume decomposition into cells
+        - \b 2 \e phase phase-space shannon entropy, balanced KD tree volume decomposition into cells
         - \b 3 \e simple simple physical balanced KD tree decomposition of volume into cells
 
     \section fofconfig Parameters related to FOF search
@@ -165,7 +165,7 @@ void usage(void)
 
     \subsection foffieldconfig Configuration for field search
     \arg <b> \e FoF_Field_search_type </b> There are several FOF criteria implemented to search for so-called field objects (see \ref FOFTYPES for more types and \ref fofalgo.h for implementation) \ref Options.fofbgtype \n
-        - \b 5 \e standard 3D FOF based algorithm 
+        - \b 5 \e standard 3D FOF based algorithm
         - \b 4 \e standard 3D FOF based algorithm <b> FOLLOWED </b> by 6D FOF search using the velocity scale defined by the largest halo on <b> ONLY </b> particles in 3DFOF groups
         - \b 3 \e standard 3D FOF based algorithm <b> FOLLOWED </b> by 6D FOF search using the velocity scale for each 3DFOF group
     \arg <b> \e Minimum_halo_size </b> Allows field objects (or so-called halos) to require a different minimum size (typically would be <= \ref Options.MinSize. Default is -1 which sets it to \ref Options.MinSize) \ref Options.HaloMinSize \n
@@ -175,7 +175,7 @@ void usage(void)
     \arg <b> \e Halo_6D_vel_linking_length_factor </b> scaling applied to dispersions used in 6DFOF field search. Typical values are \f$ \gtrsim 1.25 \f$ \n
 
     \arg <b> \e Halo_core_search </b> 0/1/2 flag allows one to explicitly search for large 6D FOF cores that are indicative of a recent major merger. Since substructure is defined on the scale of the maximum cell size and major mergers typically result two or more phase-space dense regions that are \e larger than the cell size used in reasonable substructure searches, one can identify them using this search. The overall goal is to treat these objects differently than a substructure. However, if 2 is set, then smaller core is treated as substruture and all particles within the FOF envelop are assigned to the cores based on their phase-space distance to core particles \ref Options.iHaloCoreSearch \n
-    \arg <b> \e Use_adaptive_core_search </b> 0/1/2 flag allows one to run complex adaptive phase-space search for large 6D FOF cores and then use these linking lengths to separate mergers. 0 is off, 1, is adaptive with simple dispersions, and 2 is full phase-space dispersions tensors. 
+    \arg <b> \e Use_adaptive_core_search </b> 0/1/2 flag allows one to run complex adaptive phase-space search for large 6D FOF cores and then use these linking lengths to separate mergers. 0 is off, 1, is adaptive with simple dispersions, and 2 is full phase-space dispersions tensors.
     \arg <b> \e Halo_core_ellx_fac </b> scaling applied to linking length when identifying merger remnants. Typically values are \f$ \sim0.5 \f$  \ref Options.halocorexfac
     \arg <b> \e Halo_core_ellv_fac </b> scaling applied to local dispersion to define the velocity scale used to identify merger remnants. Typically values are \f$ \sim1 \f$  \ref Options.halocorevfac
     \arg <b> \e Halo_core_ncellfac </b> used to determine the minimum number of particles a merger remnants is composed of, specifically \f$ N_{\rm min}= f_{\rm ncell}* N_{\rm S} \f$. Typically values are     \arg <b> \e Halo_core_adaptive_sigma_fac </b> used when running fully adaptive core search, specifies the width of the physical linking length in configuration space dispersion (think of this as how many sigma to include). Typically values are \f$ \sim2 \f$. This has been tested on hydrodynamnical simulations to separate galaxy mergers. \ref Options.halocoresigmafac
@@ -184,7 +184,7 @@ void usage(void)
 
     \subsection fofotherconfig Other modifiers for search
     \arg <b> \e Singlehalo_search_search </b> 0/1 flag indicates that no field search is going to be run and the entire volume will be treated as a background region. Useful if searching for substructures in non-cosmological simulations. But can also be co-opted for other searches using different outlier criteria and FOF algorithms. \ref Options.iSingleHalo \n
-    \arg <b> \e CM_refadjustflag </b> 0/1 flag indicates that one moves to the CM frame of the structure to search for substructures. 
+    \arg <b> \e CM_refadjustflag </b> 0/1 flag indicates that one moves to the CM frame of the structure to search for substructures.
 
     \section unbindconfig Unbinding Parameters
     See \ref unbinding and \ref unbind.cxx for more details
@@ -206,7 +206,10 @@ void usage(void)
     \arg <b> \e Gravity </b> change the gravity unit. should be set such that \f$ v^2=GM/r \f$.   \ref Options.G \n
     \arg <b> \e Hubble_unit </b> change the value of Hubble expansion (from normal 100 km/s/Mpc to units used, that is velocity unit/length unit) \ref Options.G \n
     \arg <b> \e Mass_value </b> if not mass is stored using the option \b NOMASS (see \ref STF-makeflags) then this is the mass of the particles \ref Options.MassValue \n
-    
+    \arg <b> \e Length_unit_to_kpc</b> specify the desired return unit in kpc \ref Options.lengthtokpc \n
+    \arg <b> \e Velocity_unit_to_kms</b> specify the desired return unit in kms \ref Options.velocitytokms \n
+    \arg <b> \e Mass_unit_to_solarmass</b> specify the desired return unit in solar masses \ref Options.masstosolarmass \n
+
     \subsection cosmologyconfig Cosmology
     \arg <b> \e Period </b> if not defined in the input data one can pass the period in the input units of the data. This is not always necessary, for instance the gadget snapshot format has this in the header.  \ref Options.p \n
     \arg <b> \e Scale_factor </b> scale factor time if not defined in the input data. This is not always necessary, for instance the gadget snapshot format has this in the header.  \ref Options.a \n
@@ -224,9 +227,12 @@ void usage(void)
     \arg <b> \e Snapshot_value</b> If halo ids need to be offset to some starting value based on the snapshot of the output, which is useful for some halo merger tree codes, one can specific a snapshot number, and all halo ids will be listed as internal haloid + \f$ sn\times10^{12}\f$. \ref Options.snapshotvalue \n
     \arg <b> \e Verbose </b> 2/1/0 flag indicating how talkative the code is (2 very verbose, 1 verbose, 0 quiet). \ref Options.iverbose \n
     \arg <b> \e Inclusive_halo_mass </b> 1/0 flag indicating whether inclusive masses are calculated for field objects. \ref Options.iInclusiveHalo \n
-    
+
     \section ioconfigs I/O options
     \arg <b> \e Cosmological_input </b> 1/0 indicating that input simulation is cosmological or not. With cosmological input, a variety of length/velocity scales are set to determine such things as the virial overdensity, linking length. \ref Options.icosmologicalin \n
+    \arg <b> \e Input_chunk_size </b> Amount of information to read from input file in one go (100000). \ref Options.inputbufsize \n
+    \arg <b> \e MPI_particle_total_buf_size </b> Total memory size in bytes used to store particles in temporary buffer such that
+    particles are sent to non-reading mpi processes in one communication round in chunks of size buffer_size/NProcs/sizeof(Particle). \ref Options.mpiparticlebufsize \n
     \arg <b> \e Write_group_array_file </b> 0/1 flag indicating whether write a single large tipsy style group assignment file is written. \ref Options.iwritefof \n
     \arg <b> \e Separate_output_files </b> 1/0 flag indicating whether separate files are written for field and subhalo groups. \ref Options.iseparatefiles \n
     \arg <b> \e Binary_output </b> 2/1/0 flag indicating whether output is hdf, binary or ascii. \ref Options.ibinaryout, \ref OUTHDF, \ref OUTBINARY, \ref OUTASCII \n
@@ -236,11 +242,15 @@ void usage(void)
     \arg <b> \e NStar_extra_blocks </b> If gadget snapshot is loaded one can specific the number of extra <b> Star </b> blocks are read/in the file. \ref Options.gnstarblocks \n
     \arg <b> \e NBH_extra_blocks </b> If gadget snapshot is loaded one can specific the number of extra <b> Black hole </b> blocks are read/in the file. \ref Options.gnbhblocks \n
 
+    \section mpiconfigs MPI specific options
+    \arg <b> \e MPI_particle_allocation_fac </b> Memory allocated in mpi mode to store particles is (1+factor)* the memory need for the initial mpi decomposition.
+    This factor should be >0 and is mean to allow a little room for particles to be exchanged between mpi threads withouth having to require new memory allocations and copying
+    of data. \ref Options.mpipartfac \n
 
     */
 
 ///Read parameters from a parameter file. For list of currently implemented options see \ref configopt
-///\todo still more parameters that can be adjusted 
+///\todo still more parameters that can be adjusted
 void GetParamFile(Options &opt)
 {
     string line,sep="=";
@@ -257,7 +267,7 @@ void GetParamFile(Options &opt)
     }
     paramfile.open(opt.pname, ios::in);
     unsigned j,k;
-    //first find output name, determine the number of valid entries in 
+    //first find output name, determine the number of valid entries in
     if (paramfile.is_open())
     {
         while (paramfile.good()){
@@ -439,7 +449,15 @@ void GetParamFile(Options &opt)
                         opt.Omega_b= atof(vbuff);
                     else if (strcmp(tbuff, "w_of_DE")==0)
                         opt.w_de= atof(vbuff);
-
+                    //so units can be specified to convert to kpc, km/s, solar mass
+                    //not necessarily the code units data is reported but the
+                    //translation of these code units to these units
+                    else if (strcmp(tbuff, "Length_unit_to_kpc")==0)
+                        opt.lengthtokpc = atof(vbuff);
+                    else if (strcmp(tbuff, "Velocity_to_kms")==0)
+                        opt.velocitytokms = atof(vbuff);
+                    else if (strcmp(tbuff, "Mass_to_solarmass")==0)
+                        opt.masstosolarmass = atof(vbuff);
                     //unbinding
                     else if (strcmp(tbuff, "Softening_length")==0)
                         opt.uinfo.eps = atof(vbuff);
@@ -451,7 +469,7 @@ void GetParamFile(Options &opt)
                         opt.iBoundHalos = atoi(vbuff);
                     else if (strcmp(tbuff, "Keep_background_potential")==0)
                         opt.uinfo.bgpot = atoi(vbuff);
-                    else if (strcmp(tbuff, "Kinetic_reference_frame_type")==0) 
+                    else if (strcmp(tbuff, "Kinetic_reference_frame_type")==0)
                         opt.uinfo.cmvelreftype = atoi(vbuff);
                     else if (strcmp(tbuff, "Min_npot_ref")==0)
                         opt.uinfo.Npotref = atoi(vbuff);
@@ -468,9 +486,19 @@ void GetParamFile(Options &opt)
                     else if (strcmp(tbuff, "Inclusive_halo_masses")==0)
                         opt.iInclusiveHalo = atoi(vbuff);
 
-                    //io related 
+                    //input related
                     else if (strcmp(tbuff, "Cosmological_input")==0)
                         opt.icosmologicalin = atoi(vbuff);
+                    //input read related
+                    else if (strcmp(tbuff, "Input_chunk_size")==0)
+                        opt.inputbufsize = atol(vbuff);
+                    else if (strcmp(tbuff, "MPI_particle_total_buf_size")==0)
+                        opt.mpiparticletotbufsize = atol(vbuff);
+                    //mpi memory related
+                    else if (strcmp(tbuff, "MPI_part_allocation_fac")==0)
+                        opt.mpipartfac = atof(vbuff);
+
+                    //output related
                     else if (strcmp(tbuff, "Separate_output_files")==0)
                         opt.iseparatefiles = atoi(vbuff);
                     else if (strcmp(tbuff, "Binary_output")==0)
@@ -533,25 +561,100 @@ inline void ConfigCheck(Options &opt)
 #endif
     }
 
-    #ifdef USEMPI
+    if (opt.inputbufsize<1){
+#ifdef USEMPI
+    if (ThisTask==0)
+#endif
+        cerr<<"Invalid read buf size (<1)\n";
+#ifdef USEMPI
+            MPI_Abort(MPI_COMM_WORLD,8);
+#else
+            exit(8);
+#endif
+    }
+
+    if (opt.lengthtokpc<=0){
+#ifdef USEMPI
+    if (ThisTask==0)
+#endif
+        cerr<<"Invalid unit conversion, length unit to kpc is <=0 or was not set. Update config file\n";
+#ifdef USEMPI
+            MPI_Abort(MPI_COMM_WORLD,8);
+#else
+            exit(8);
+#endif
+    }
+    if (opt.velocitytokms<=0){
+#ifdef USEMPI
+    if (ThisTask==0)
+#endif
+        cerr<<"Invalid unit conversion, velocity unit to km/s is <=0 or was not set. Update config file\n";
+#ifdef USEMPI
+            MPI_Abort(MPI_COMM_WORLD,8);
+#else
+            exit(8);
+#endif
+    }
+    if (opt.masstosolarmass<=0){
+#ifdef USEMPI
+    if (ThisTask==0)
+#endif
+        cerr<<"Invalid unit conversion, mass unit to solar mass is <=0 or was not set. Update config file\n";
+#ifdef USEMPI
+            MPI_Abort(MPI_COMM_WORLD,8);
+#else
+            exit(8);
+#endif
+    }
+
+#ifdef USEMPI
+    if (opt.mpiparticletotbufsize<(long int)(sizeof(Particle)*NProcs) && opt.mpiparticletotbufsize!=-1){
+        if (ThisTask==0) {
+            cerr<<"Invalid input particle buffer send size, mininmum input buffer size given paritcle byte size ";
+            cerr<<sizeof(Particle)<<" and have "<<NProcs<<" mpi processes is "<<sizeof(Particle)*NProcs<<endl;
+        }
+        MPI_Abort(MPI_COMM_WORLD,8);
+    }
+    //if total buffer size is -1 then calculate individual buffer size based on default mpi size
+    else if (opt.mpiparticletotbufsize==-1) {
+        opt.mpiparticletotbufsize=MPIPartBufSize*NProcs*sizeof(Particle);
+        opt.mpiparticlebufsize=MPIPartBufSize;
+    }
+    else {
+        opt.mpiparticlebufsize=opt.mpiparticletotbufsize/NProcs/sizeof(Particle);
+    }
+    if (opt.mpipartfac<0){
+        if (ThisTask==0) {
+            cerr<<"Invalid MPI particle allocation factor, must be >0."<<endl;
+        }
+        MPI_Abort(MPI_COMM_WORLD,8);
+    }
+    else if (opt.mpipartfac>1){
+        if (ThisTask==0) {
+            cerr<<"WARNING: MPI Particle allocation factor is high (>1)."<<endl;
+        }
+    }
+#endif
+
+#ifdef USEMPI
     if (ThisTask==0) {
 #endif
     cout<<"CONFIG INFO SUMMARY -------------------------- "<<endl;
     switch(opt.partsearchtype)
     {
-            case PSTALL: 
+            case PSTALL:
                 cout<<"Searching all particles regardless of type"<<endl;
                 break;
-            case PSTDARK: 
+            case PSTDARK:
                 cout<<"Searching dark matter particles "<<endl;
                 break;
-            case PSTGAS: 
+            case PSTGAS:
                 cout<<"Searching gas particles "<<endl;
                 break;
-            case PSTSTAR: 
+            case PSTSTAR:
                 cout<<"Searching star particles"<<endl;
                 break;
-            case PSTBH: 
+            case PSTBH:
                 cout<<"Searching BH particles?! Really? Are there enough?"<<endl;
                 break;
     }
@@ -577,7 +680,12 @@ inline void ConfigCheck(Options &opt)
 #ifdef USEHDF
     else if (opt.inputtype==IOHDF) cout<<"HDF file particle input "<<endl;
 #endif
+#ifdef USEXDR
     else if (opt.inputtype==IONCHILADA) cout<<"NCHILADA file particle input "<<endl;
+#endif
+#ifdef USEMPI
+    cout<<"MPI input communication requires allocation of temporary particle buffer of size "<<opt.mpiparticletotbufsize/1024./1024./1024.<<" GB."<<endl;
+#endif
     cout<<" -------------------------- "<<endl;
 #ifdef USEMPI
     }

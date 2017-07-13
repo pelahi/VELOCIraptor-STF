@@ -13,7 +13,7 @@
     and possibly other quantities. The centre of mass quantities are interated to the innermost opt.pinfo.cmfrac percent
     The code assumes that the structures are local to the MPI domain
 
-    Note that this routine will be deprecated but has been left as an example of what properties are typically of interest and 
+    Note that this routine will be deprecated but has been left as an example of what properties are typically of interest and
     how these quantities are calculated.
 
 */
@@ -44,7 +44,7 @@ void GetProperties(Options &opt, const Int_t nbodies, Particle *&Part, Int_t ngr
     if (pglist==NULL) {pglist=BuildPGList(nbodies, ngroup, numingroup, pfof);ipflag=1;}
 
     //calculation is split between small and large groups for omp purposes
-    
+
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
 private(i)
@@ -146,14 +146,14 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
             for (k=0;k<3;k++) pdata[i].gcmvel[k] /= EncMass;
         }
         //then we sort by radius. Note that though qsort is more efficient, it does consume memory
-        //whereas gsl_heapsort does not. Therefore despite the fact that heapsorts are not stable we use it here to 
+        //whereas gsl_heapsort does not. Therefore despite the fact that heapsorts are not stable we use it here to
         //mimize memory allocation within an omp loop
 #ifdef USEOPENMP
         gsl_heapsort(&Part[noffset[i]], numingroup[i], sizeof(Particle), RadCompare);
 #else
         qsort(&Part[noffset[i]], numingroup[i], sizeof(Particle), RadCompare);
 #endif
-        //then determine enclose mass based properties like vmax. 
+        //then determine enclose mass based properties like vmax.
         pdata[i].gmaxvel=0.;
         EncMass=0;
         for (j=0;j<numingroup[i];j++) {
@@ -345,7 +345,7 @@ private(i,j,k)
 }
 #endif
     for (i=1;i<=ngroup;i++) if (numingroup[i]>=ompunbindnum) {
-        //here a monopole kd tree calculation of potential 
+        //here a monopole kd tree calculation of potential
         Potential(opt,numingroup[i],&Part[noffset[i]]);
         Double_t v2,Ti;
         Double_t Tval,Potval,Efracval;
@@ -382,11 +382,11 @@ private(j,v2,Ti)
     cout<<"Done"<<endl;
 }
 
-/*! 
-    The routine is used to calculate CM and related morphologial properties of groups. It assumes that particles have been 
+/*!
+    The routine is used to calculate CM and related morphologial properties of groups. It assumes that particles have been
     arranged in group order and the indexing offsets between groups is given by noffset
 
-    The overall structure of the code is a bit lenghty simply to break up calculations appropriately for OMP style parallization. 
+    The overall structure of the code is a bit lengthy simply to break up calculations appropriately for OMP style parallization.
     For small groups it is more efficient to parallize across groups, whereas for large groups containing many particles, we loop over the particles
     to sum quantities.
 
@@ -518,7 +518,7 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
 #ifdef NOMASS
         pdata[i].gmass*=opt.MassValue;
 #endif
-        if (pdata[i].gMFOF==0 && pdata[i].hostid==-1) pdata[i].gMFOF=pdata[i].gmass; 
+        if (pdata[i].gMFOF==0 && pdata[i].hostid==-1) pdata[i].gMFOF=pdata[i].gmass;
         //sort by radius (here use gsl_heapsort as no need to allocate more memory
         gsl_heapsort(&Part[noffset[i]], numingroup[i], sizeof(Particle), RadCompare);
 
@@ -530,11 +530,11 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
             rc=Pval->Radius();
             if (pdata[i].gRvir==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>virval)
             {pdata[i].gMvir=EncMass;pdata[i].gRvir=rc;}
-            if (pdata[i].gR200c==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m200val) 
+            if (pdata[i].gR200c==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m200val)
             {pdata[i].gM200c=EncMass;pdata[i].gR200c=rc;}
-            if (pdata[i].gR200m==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m200mval) 
+            if (pdata[i].gR200m==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m200mval)
             {pdata[i].gM200m=EncMass;pdata[i].gR200m=rc;}
-            if (pdata[i].gR500c==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m500val) 
+            if (pdata[i].gR500c==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m500val)
             {pdata[i].gM500c=EncMass;pdata[i].gR500c=rc;}
 #ifdef NOMASS
             EncMass-=opt.MassValue;
@@ -592,7 +592,7 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
         Ekin*=opt.MassValue;
 #endif
         pdata[i].glambda_B=pdata[i].gJ.Length()/(pdata[i].gM200c*sqrt(2.0*opt.G*pdata[i].gM200c*pdata[i].gR200c));
-        
+
         //calculate the rotational energy about the angular momentum axis
         //this is defined as the specific angular momentum about the angular momentum
         //axis (see sales et al 2010)
@@ -657,7 +657,7 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
 #ifdef NOMASS
         pdata[i].RV_Krot*=opt.MassValue;
 #endif
-        
+
         //calculate the concentration based on prada 2012 where [(Vmax)/(GM/R)]^2-(0.216*c)/f(c)=0,
         //where f(c)=ln(1+c)-c/(1+c) and M is some "virial" mass and associated radius
         if (pdata[i].gR200c==0) pdata[i].VmaxVvir2=(pdata[i].gmaxvel*pdata[i].gmaxvel)/(opt.G*pdata[i].gmass/pdata[i].gsize);
@@ -753,7 +753,7 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
                 Ninside=0;
                 for (j=0;j<numingroup[i];j++) {
                 Pval=&Part[j+noffset[i]];
-                if (Pval->GetType()==GASTYPE) 
+                if (Pval->GetType()==GASTYPE)
                 {
                     x = (*Pval).X() - cmold[0];
                     y = (*Pval).Y() - cmold[1];
@@ -779,7 +779,7 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
             cmx=cmy=cmz=EncMass=0.;
             for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
-            if (Pval->GetType()==GASTYPE) 
+            if (Pval->GetType()==GASTYPE)
             {
                 x = (*Pval).X() - pdata[i].cm_gas[0];
                 y = (*Pval).Y() - pdata[i].cm_gas[1];
@@ -805,8 +805,8 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
                 z = (*Pval).Z()-pdata[i].cm_gas[2];
                 r2=x*x+y*y+z*z;
                 if (r2<=pdata[i].gRmaxvel*pdata[i].gRmaxvel) pdata[i].M_gas_rvmax+=Pval->GetMass();
-                if (r2<=30.0*30.0) pdata[i].M_gas_30kpc+=Pval->GetMass();
-                if (r2<=50.0*50.0) pdata[i].M_gas_50kpc+=Pval->GetMass();
+                if (r2<=opt.lengthtokpc30pow2) pdata[i].M_gas_30kpc+=Pval->GetMass();
+                if (r2<=opt.lengthtokpc50pow2) pdata[i].M_gas_50kpc+=Pval->GetMass();
                 if (r2<=pdata[i].gR500c*pdata[i].gR500c) pdata[i].M_gas_500c+=Pval->GetMass();
             }
         }
@@ -825,7 +825,7 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
             vz = (*Pval).Vz()-pdata[i].gcmvel[2]-pdata[i].cmvel_gas[2];
             mval=Pval->GetMass();
             EncMass+=mval;
-            if (EncMass>0.5*pdata[i].M_gas && pdata[i].Rhalfmass_gas==0) pdata[i].Rhalfmass_gas=sqrt(x*x+y*y+z*z); 
+            if (EncMass>0.5*pdata[i].M_gas && pdata[i].Rhalfmass_gas==0) pdata[i].Rhalfmass_gas=sqrt(x*x+y*y+z*z);
             jval=Coordinate(x,y,z).Cross(Coordinate(vx,vy,vz));
             jzval=(jval*pdata[i].L_gas)/pdata[i].L_gas.Length();
             zdist=(Coordinate(x,y,z)*pdata[i].L_gas)/pdata[i].L_gas.Length();
@@ -908,7 +908,7 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
                 Ninside=0;
                 for (j=0;j<numingroup[i];j++) {
                 Pval=&Part[j+noffset[i]];
-                if (Pval->GetType()==STARTYPE) 
+                if (Pval->GetType()==STARTYPE)
                 {
                     x = (*Pval).X() - cmold[0];
                     y = (*Pval).Y() - cmold[1];
@@ -934,7 +934,7 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
             cmx=cmy=cmz=EncMass=0.;
             for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
-            if (Pval->GetType()==STARTYPE) 
+            if (Pval->GetType()==STARTYPE)
             {
                 x = (*Pval).X() - pdata[i].cm_star[0];
                 y = (*Pval).Y() - pdata[i].cm_star[1];
@@ -959,8 +959,8 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
                 z = (*Pval).Z()-pdata[i].cm_star[2];
                 r2=x*x+y*y+z*z;
                 if (r2<=pdata[i].gRmaxvel*pdata[i].gRmaxvel) pdata[i].M_star_rvmax+=Pval->GetMass();
-                if (r2<=30.0*30.0) pdata[i].M_star_30kpc+=Pval->GetMass();
-                if (r2<=50.0*50.0) pdata[i].M_star_50kpc+=Pval->GetMass();
+                if (r2<=opt.lengthtokpc30pow2) pdata[i].M_star_30kpc+=Pval->GetMass();
+                if (r2<=opt.lengthtokpc50pow2) pdata[i].M_star_50kpc+=Pval->GetMass();
                 if (r2<=pdata[i].gR500c*pdata[i].gR500c) pdata[i].M_star_500c+=Pval->GetMass();
             }
         }
@@ -1023,8 +1023,8 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
         GetGlobalSpatialMorphology(numingroup[i], &Part[noffset[i]], pdata[i].gq, pdata[i].gs, 1e-2, pdata[i].geigvec,1);
         if (RV_num>=10) GetGlobalSpatialMorphology(RV_num, &Part[noffset[i]], pdata[i].RV_q, pdata[i].RV_s, 1e-2, pdata[i].RV_eigvec,1);
 #endif
-        
-        //reset particle positions 
+
+        //reset particle positions
         for (j=0;j<numingroup[i];j++) {
             x = (*Pval).X()+pdata[i].gcm[0];
             y = (*Pval).Y()+pdata[i].gcm[1];
@@ -1149,7 +1149,7 @@ private(j,Pval,x,y,z)
 #ifdef NOMASS
         pdata[i].gmass*=opt.MassValue;
 #endif
-        if (pdata[i].gMFOF==0 && pdata[i].hostid==-1) pdata[i].gMFOF=pdata[i].gmass; 
+        if (pdata[i].gMFOF==0 && pdata[i].hostid==-1) pdata[i].gMFOF=pdata[i].gmass;
         qsort(&Part[noffset[i]], numingroup[i], sizeof(Particle), RadCompare);
 
         //determine overdensity mass and radii. AGAIN REMEMBER THAT THESE ARE NOT MEANINGFUL FOR TIDAL DEBRIS
@@ -1160,11 +1160,11 @@ private(j,Pval,x,y,z)
             rc=Pval->Radius();
             if (pdata[i].gRvir==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>virval)
             {pdata[i].gMvir=EncMass;pdata[i].gRvir=rc;}
-            if (pdata[i].gR200c==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m200val) 
+            if (pdata[i].gR200c==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m200val)
             {pdata[i].gM200c=EncMass;pdata[i].gR200c=rc;}
-            if (pdata[i].gR200m==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m200mval) 
+            if (pdata[i].gR200m==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m200mval)
             {pdata[i].gM200m=EncMass;pdata[i].gR200m=rc;}
-            if (pdata[i].gR500c==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m500val) 
+            if (pdata[i].gR500c==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m500val)
             {pdata[i].gM500c=EncMass;pdata[i].gR500c=rc;}
 #ifdef NOMASS
             EncMass-=Pval->GetMass()*opt.MassValue;
@@ -1196,7 +1196,7 @@ private(j,Pval,rc,x,y,z,vx,vy,vz,J,mval)
             rc=(*Pval).Radius();
 #ifdef NOMASS
             mval*=opt.MassValue;
-#endif 
+#endif
             vx = (*Pval).Vx()-pdata[i].gcmvel[0];
             vy = (*Pval).Vy()-pdata[i].gcmvel[1];
             vz = (*Pval).Vz()-pdata[i].gcmvel[2];
@@ -1275,7 +1275,7 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
 #ifdef NOMASS
         pdata[i].gMmaxvel*=opt.MassValue;
 #endif
-        
+
         //now that we have radius of maximum circular velocity, lets calculate properties internal to this radius
         Ekin=Jx=Jy=Jz=sxx=sxy=sxz=syy=syz=szz=Krot=0.;
 #ifdef USEOPENMP
@@ -1289,7 +1289,7 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval)
             mval=Pval->GetMass();
 #ifdef NOMASS
             mval*=opt.MassValue;
-#endif 
+#endif
             vx = (*Pval).Vx()-pdata[i].gcmvel[0];
             vy = (*Pval).Vy()-pdata[i].gcmvel[1];
             vz = (*Pval).Vz()-pdata[i].gcmvel[2];
@@ -1466,7 +1466,7 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval)
                 Ninside=0;
                 for (j=0;j<numingroup[i];j++) {
                 Pval=&Part[j+noffset[i]];
-                if (Pval->GetType()==GASTYPE) 
+                if (Pval->GetType()==GASTYPE)
                 {
                     x = (*Pval).X() - cmold[0];
                     y = (*Pval).Y() - cmold[1];
@@ -1492,7 +1492,7 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval)
             cmx=cmy=cmz=EncMass=0.;
             for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
-            if (Pval->GetType()==GASTYPE) 
+            if (Pval->GetType()==GASTYPE)
             {
                 x = (*Pval).X() - pdata[i].cm_gas[0];
                 y = (*Pval).Y() - pdata[i].cm_gas[1];
@@ -1518,8 +1518,8 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval)
                 z = (*Pval).Z()-pdata[i].cm_gas[2];
                 r2=x*x+y*y+z*z;
                 if (r2<=pdata[i].gRmaxvel*pdata[i].gRmaxvel) pdata[i].M_gas_rvmax+=Pval->GetMass();
-                if (r2<=30.0*30.0) pdata[i].M_gas_30kpc+=Pval->GetMass();
-                if (r2<=50.0*50.0) pdata[i].M_gas_50kpc+=Pval->GetMass();
+                if (r2<=opt.lengthtokpc30pow2) pdata[i].M_gas_30kpc+=Pval->GetMass();
+                if (r2<=opt.lengthtokpc50pow2) pdata[i].M_gas_50kpc+=Pval->GetMass();
                 if (r2<=pdata[i].gR500c*pdata[i].gR500c) pdata[i].M_gas_500c+=Pval->GetMass();
             }
         }
@@ -1672,7 +1672,7 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval)
                 Ninside=0;
                 for (j=0;j<numingroup[i];j++) {
                 Pval=&Part[j+noffset[i]];
-                if (Pval->GetType()==STARTYPE) 
+                if (Pval->GetType()==STARTYPE)
                 {
                     x = (*Pval).X() - cmold[0];
                     y = (*Pval).Y() - cmold[1];
@@ -1698,7 +1698,7 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval)
             cmx=cmy=cmz=EncMass=0.;
             for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
-            if (Pval->GetType()==STARTYPE) 
+            if (Pval->GetType()==STARTYPE)
             {
                 x = (*Pval).X() - pdata[i].cm_star[0];
                 y = (*Pval).Y() - pdata[i].cm_star[1];
@@ -1724,8 +1724,8 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval)
                 z = (*Pval).Z()-pdata[i].cm_star[2];
                 r2=x*x+y*y+z*z;
                 if (r2<=pdata[i].gRmaxvel*pdata[i].gRmaxvel) pdata[i].M_star_rvmax+=Pval->GetMass();
-                if (r2<=30.0*30.0) pdata[i].M_star_30kpc+=Pval->GetMass();
-                if (r2<=50.0*50.0) pdata[i].M_star_50kpc+=Pval->GetMass();
+                if (r2<=opt.lengthtokpc30pow2) pdata[i].M_star_30kpc+=Pval->GetMass();
+                if (r2<=opt.lengthtokpc50pow2) pdata[i].M_star_50kpc+=Pval->GetMass();
                 if (r2<=pdata[i].gR500c*pdata[i].gR500c) pdata[i].M_star_500c+=Pval->GetMass();
             }
         }
@@ -1890,11 +1890,11 @@ firstprivate(virval,m200val,m200mval)
             rc=Pval->Radius();
             if (pdata[i].gRvir==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>virval)
             {pdata[i].gMvir=EncMass;pdata[i].gRvir=rc;}
-            if (pdata[i].gR200c==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m200val) 
+            if (pdata[i].gR200c==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m200val)
             {pdata[i].gM200c=EncMass;pdata[i].gR200c=rc;}
-            if (pdata[i].gR200m==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m200mval) 
+            if (pdata[i].gR200m==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m200mval)
             {pdata[i].gM200m=EncMass;pdata[i].gR200m=rc;}
-            if (pdata[i].gR500c==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m500val) 
+            if (pdata[i].gR500c==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m500val)
             {pdata[i].gM500c=EncMass;pdata[i].gR500c=rc;}
             if (pdata[i].gR200m!=0&&pdata[i].gR200c!=0&&pdata[i].gRvir!=0) break;
 #ifdef NOMASS
@@ -1966,11 +1966,11 @@ private(j,Pval)
             rc=Pval->Radius();
             if (pdata[i].gRvir==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>virval)
             {pdata[i].gMvir=EncMass;pdata[i].gRvir=rc;}
-            if (pdata[i].gR200c==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m200val) 
+            if (pdata[i].gR200c==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m200val)
             {pdata[i].gM200c=EncMass;pdata[i].gR200c=rc;}
-            if (pdata[i].gR200m==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m200mval) 
+            if (pdata[i].gR200m==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m200mval)
             {pdata[i].gM200m=EncMass;pdata[i].gR200m=rc;}
-            if (pdata[i].gR500c==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m500val) 
+            if (pdata[i].gR500c==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m500val)
             {pdata[i].gM500c=EncMass;pdata[i].gR500c=rc;}
             if (pdata[i].gR200m!=0&&pdata[i].gR200c!=0&&pdata[i].gRvir!=0) break;
 #ifdef NOMASS
@@ -2380,7 +2380,7 @@ private(i,a2,weight)
 #endif
 }
 
-///calculate the weighted reduced inertia tensor 
+///calculate the weighted reduced inertia tensor
 void CalcMTensorWithMass(Matrix& M, const Double_t q, const Double_t s, const Int_t n, Particle *p, int itype)
 {
     Int_t i;
@@ -2435,7 +2435,7 @@ private(i,a2,weight)
 #endif
 }
 
-///rotate particles 
+///rotate particles
 void RotParticles(const Int_t n, Particle *p, Matrix &R)
 {
     Int_t i;
@@ -2460,7 +2460,7 @@ private(i,j,temp)
     }
 }
     }
-    else { 
+    else {
 #endif
     for (i=0; i<n; i++)
     {
@@ -2571,9 +2571,9 @@ void GetConcentration(PropData &p)
 
 //@}
 
-///\name Routines for manipulation of property data 
+///\name Routines for manipulation of property data
 //@{
-///copy mass information over 
+///copy mass information over
 void CopyMasses(const Int_t nhalos, PropData *&pold, PropData *&pnew){
     for (Int_t i=1;i<=nhalos;i++) {
         pnew[i].gNFOF=pold[i].gNFOF;
@@ -2603,21 +2603,21 @@ void ReorderInclusiveMasses(const Int_t &numgroups, const Int_t &newnumgroups, I
 }
 //@}
 
-///\name Routines related to calculating energy of groups and sorting of particles 
+///\name Routines related to calculating energy of groups and sorting of particles
 //@{
-/*! 
-    Calculate the potential energy and kinetic energy relative to the velocity frame stored in gcmvel. Note that typically this is the velocity of particles within 
+/*!
+    Calculate the potential energy and kinetic energy relative to the velocity frame stored in gcmvel. Note that typically this is the velocity of particles within
     the inner region used to determine the centre-of-mass. BUT of course, this frame is not without its flaws, as in a chaotic mergering system, one might not be able
-    to disentangle structures and the centre-of-mass need not be located at the "centre" or dense point of any of the merging structures. 
+    to disentangle structures and the centre-of-mass need not be located at the "centre" or dense point of any of the merging structures.
     Once the energy is calculated, the total energy is stored in potential, that way it is easy to sort particles according to their binding energy.
 
-    The overall structure of the code is a bit lenghty simple to break up calculations appropriately for OMP style parallization. 
+    The overall structure of the code is a bit lengthy simple to break up calculations appropriately for OMP style parallization.
     For small groups it is more efficient to parallize across groups, whereas for large groups containing many particles, we loop over the particles
     to sum quantities.
 
     \todo might alter binding energy to use the velocity around the particle at the deepest point in the potential.
  */
-void GetBindingEnergy(Options &opt, const Int_t nbodies, Particle *&Part, Int_t ngroup, Int_t *&pfof, Int_t *&numingroup, PropData *&pdata, Int_t *&noffset) 
+void GetBindingEnergy(Options &opt, const Int_t nbodies, Particle *&Part, Int_t ngroup, Int_t *&pfof, Int_t *&numingroup, PropData *&pdata, Int_t *&noffset)
 {
 #ifndef USEMPI
     int ThisTask=0;
@@ -2629,7 +2629,7 @@ void GetBindingEnergy(Options &opt, const Int_t nbodies, Particle *&Part, Int_t 
     Particle *Pval;
     Int_t i,j,k;
     //store eps2 for plummer softening to cut down number of floating point operations
-    //Note could use more complicated b-spline but at least here since not evolving dynamics, plummer potential not an issue. 
+    //Note could use more complicated b-spline but at least here since not evolving dynamics, plummer potential not an issue.
     Double_t eps2=opt.uinfo.eps*opt.uinfo.eps;
 
     //useful variables to store temporary results
@@ -2645,7 +2645,7 @@ void GetBindingEnergy(Options &opt, const Int_t nbodies, Particle *&Part, Int_t 
     //also if wish to use the deepest potential as a reference, then used to store original order
     Int_t *storepid;
 
-    //small groups with PP calculations of potential. 
+    //small groups with PP calculations of potential.
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
 private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin)
@@ -2880,7 +2880,7 @@ private(j,v2,Ti)
 
 
 /*!
-    Sort particles according to their binding energy and return a double pointer of Int_t s. 
+    Sort particles according to their binding energy and return a double pointer of Int_t s.
     This code first sorts particles according to their (local mpi) group id and calculates center of mass and binding energy.
 
 */
@@ -2970,7 +2970,7 @@ private(i,j)
 ///\name Routines to get hierarhcy information
 //@{
 ///Get total number of (sub)substructures in a (sub)structure
-Int_t *GetSubstrutcureNum(Int_t ngroups) 
+Int_t *GetSubstrutcureNum(Int_t ngroups)
 {
     Int_t nhierarchy=1;
     StrucLevelData *ppsldata,**papsldata;
@@ -2997,7 +2997,7 @@ Int_t *GetParentID(Int_t ngroups)
 {
     //initialize number of levels
     Int_t nhierarchy=1;
-    //store start point of hierarchy pointer 
+    //store start point of hierarchy pointer
     StrucLevelData *ppsldata,**papsldata;
     Int_t *parentgid=new Int_t[ngroups+1];
     ppsldata=psldata;

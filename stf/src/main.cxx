@@ -7,7 +7,7 @@
     outputs the group ids (in two different fashions see \ref io.cxx) and can also analyze the structures
     (see \ref substructureproperties.cxx and \ref io.cxx).
 
-    \todo remove array mpi_idlist and mpi_indexlist as these arrays are unnecessary 
+    \todo remove array mpi_idlist and mpi_indexlist as these arrays are unnecessary
     \todo alter unbinding/sortbybindingenergy calls since seems a waste of cpu cycles
 */
 
@@ -31,10 +31,10 @@ int main(int argc,char **argv)
     MPI_Init(&argc,&argv);
 #endif
 
-    //find out how big the SPMD world is 
-    MPI_Comm_size(MPI_COMM_WORLD,&NProcs); 
-    //and this processes' rank is 
-    MPI_Comm_rank(MPI_COMM_WORLD,&ThisTask); 
+    //find out how big the SPMD world is
+    MPI_Comm_size(MPI_COMM_WORLD,&NProcs);
+    //and this processes' rank is
+    MPI_Comm_rank(MPI_COMM_WORLD,&ThisTask);
 #ifdef USEOPENMP
     // Check the threading support level
     if (provided < required)
@@ -75,15 +75,15 @@ int main(int argc,char **argv)
     cout.precision(10);
 
     //variables
-    //number of particles, (also number of baryons if use dm+baryon search) 
+    //number of particles, (also number of baryons if use dm+baryon search)
     //to store (point to) particle data
-    Int_t nbodies,nbaryons,ndark; 
+    Int_t nbodies,nbaryons,ndark;
     Particle *Pall,*Part,*Pbaryons;
     KDTree *tree;
 
     //number in subset, number of grids used if iSingleHalo==0;
     Int_t nsubset, ngrid;
-    //number of groups, temp num groups, and number of halos 
+    //number of groups, temp num groups, and number of halos
     Int_t ngroup, ng, nhalos;
 
     //to store group value (pfof), and also arrays to parse particles
@@ -160,7 +160,7 @@ int main(int argc,char **argv)
 #else
     //for mpi however, it is not possible to have a simple contiguous block of memory IFF a separate baryon search is required.
     //for the simple reason that the local number of particles changes to ensure large fof groups are local to an mpi domain
-    //however, when reading data, it is much simplier to have a contiguous block of memory, sort that memory (if necessary) 
+    //however, when reading data, it is much simplier to have a contiguous block of memory, sort that memory (if necessary)
     //and then split afterwards the dm particles and the baryons
     if (NProcs==1) {Nlocal=Nmemlocal=nbodies;NExport=NImport=1;}
     else {
@@ -184,6 +184,7 @@ int main(int argc,char **argv)
         if (opt.iBaryonSearch>0) cout<<" Have allocated enough memory for "<<Nmemlocalbaryon<<" baryons particles requiring "<<Nmemlocalbaryon*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
 #endif
     }
+    cout<<ThisTask<<" will also require additional memory for FOF algorithms and substructure search. Largest mem needed for preliminary FOF search. Rough estimate is "<<Nlocal*(sizeof(Int_tree_t)*8)/1024./1024./1024.<<"GB of memory"<<endl;
     if (opt.iBaryonSearch>0 && opt.partsearchtype!=PSTALL) {
         Pall=new Particle[Nmemlocal+Nmemlocalbaryon];
         Part=&Pall[0];
@@ -198,11 +199,11 @@ int main(int argc,char **argv)
 #endif
 
     //now read particle data
-    if (ThisTask==0) 
+    if (ThisTask==0)
     cout<<"Loading ... "<<endl;
     ReadData(opt, Part, nbodies, Pbaryons, nbaryons);
 #ifdef USEMPI
-    //if mpi and want separate baryon search then once particles are loaded into contigous block of memory and sorted according to type order, 
+    //if mpi and want separate baryon search then once particles are loaded into contigous block of memory and sorted according to type order,
     //allocate memory for baryons
     if (opt.iBaryonSearch>0 && opt.partsearchtype!=PSTALL) {
         Part=new Particle[Nmemlocal];
@@ -216,7 +217,7 @@ int main(int argc,char **argv)
 #endif
 
 #ifdef USEMPI
-    if (ThisTask==0) 
+    if (ThisTask==0)
 #endif
     cout<<"Done Loading"<<endl;
     time1=MyGetTime()-time1;
@@ -231,7 +232,7 @@ int main(int argc,char **argv)
 #else
     cout<<"TIME::"<<ThisTask<<" took "<<time1<<" to load "<<nbodies<<endl;
 #endif
-    
+
     //write out the configuration used by velociraptor having read in the data (as input data can contain cosmological information)
     WriteVELOCIraptorConfig(opt);
 
@@ -242,7 +243,7 @@ int main(int argc,char **argv)
     if (opt.smname!=NULL) sprintf(fname4,"%s",opt.smname);
 #endif
 
-    //read local velocity data or calculate it 
+    //read local velocity data or calculate it
     //(and if STRUCDEN flag or HALOONLYDEN is set then only calculate the velocity density function for objects within a structure
     //as found by SearchFullSet)
 #if defined (STRUCDEN) || defined (HALOONLYDEN)
@@ -287,7 +288,7 @@ int main(int argc,char **argv)
         MPI_Barrier(MPI_COMM_WORLD);
 #endif
         //if compiled to determine inclusive halo masses, then for simplicity, I assume halo id order NOT rearranged!
-        //this is not necessarily true if baryons are searched for separately. 
+        //this is not necessarily true if baryons are searched for separately.
         if (opt.iInclusiveHalo) {
             pdatahalos=new PropData[nhalos+1];
             Int_t *numinhalos=BuildNumInGroup(nbodies, nhalos, pfof);
@@ -323,7 +324,7 @@ int main(int argc,char **argv)
         gveldisp=GetCellVelDisp(opt,nbodies,Part,ngrid,grid,gvel);
         opt.HaloSigmaV=0;for (int j=0;j<ngrid;j++) opt.HaloSigmaV+=pow(gveldisp[j].Det(),1./3.);opt.HaloSigmaV/=(double)ngrid;
 
-        //now that have the grid cell volume quantities and local volume density 
+        //now that have the grid cell volume quantities and local volume density
         //can determine the logarithmic ratio between the particle velocity density and that predicted by the background velocity distribution
         GetDenVRatio(opt,nbodies,Part,ngrid,grid,gvel,gveldisp);
         //WriteDenVRatio(opt,nbodies,Part);
@@ -345,10 +346,9 @@ int main(int argc,char **argv)
         ///\todo Communication Buffer size determination and allocation. For example, eventually need something like FoFDataIn = (struct fofdata_in *) CommBuffer;
         ///At the moment just using NExport
         NExport=Nlocal*MPIExportFac;
-        mpi_foftask=new Int_t[Nlocal];
-        MPISetTaskID(nbodies);
+        mpi_foftask=MPISetTaskID(nbodies);
 
-        //Now when MPI invoked this returns pfof after local linking and linking across and also reorders groups 
+        //Now when MPI invoked this returns pfof after local linking and linking across and also reorders groups
         //according to size and localizes the particles belong to the same group to the same mpi thread.
         //after this is called Nlocal is adjusted to the local subset where groups are localized to a given mpi thread.
         pfof=SearchSubset(opt,Nlocal,Nlocal,Part,ngroup);
@@ -411,6 +411,9 @@ int main(int argc,char **argv)
         nbodies+=nbaryons;
         Nlocal=nbodies;
     }
+
+    WriteSimulationInfo(opt);
+    WriteUnitInfo(opt);
 
     //output results
     if(opt.iwritefof) {
@@ -500,4 +503,3 @@ int main(int argc,char **argv)
 
     return 0;
 }
-

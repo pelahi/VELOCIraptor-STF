@@ -13,7 +13,7 @@
 #include <cmath>
 #include <string>
 #include <getopt.h>
-#include <sys/stat.h> 
+#include <sys/stat.h>
 
 #include <mpi.h>
 
@@ -39,17 +39,23 @@ extern Int_t Ntotal, NExport, NImport, Nlocal, Nlocaltot, Ngridtotal, Ngridlocal
 extern Int_t Ntotalbaryon[NBARYONTYPES], Nlocalbaryon[NBARYONTYPES];
 ///to store the amount of available memory
 extern Int_t Nmemlocal,Noldlocal,Nmemlocalbaryon;
-///buffer size (here in number of particles to send in one go)
-#define BufSize 1000000
+///default buffer size (here in number of particles to send in one go)
+#define MPIPartBufSize 100000
 ///size of largest MPI chunck in bytes that can be sent in one go (here set by MPI count argument, which is max int)
 #define LOCAL_MAX_MSGSIZE 2147483647L
 ///Nlocal maximum initially set to nbodies/NProc*MPProcFac, represents maximum load imbalance
 #define MPIProcFac 1.25
 ///maximum export factor used to allocate temporary export particle arrays, thus in any given step (except io) where
 ///particles are sent from one MPI thread to another, assume at most this factor of particle will need to be sent
-#define MPIExportFac 0.25
+#define MPIExportFac 0.1
 #define MAXNNEXPORT 32
 
+///define a type to store the maxium number of mpi tasks
+#ifdef HUGEMPI
+typedef int short_mpi_t;
+#else
+typedef short short_mpi_t;
+#endif
 
 extern Double_t mpi_xlim[3][2],mpi_dxsplit[3];
 extern int mpi_nxsplit[3], mpi_ideltax[3];
@@ -74,7 +80,7 @@ extern Int_t *mpi_idlist;
 ///\todo must implement this array to be used in output produced by \ref WritePGListIndex. This index based output can be useful.
 extern Int_t *mpi_indexlist;
 ///local array that stores the thread to which a particle's fof group belongs
-extern Int_t *mpi_foftask;
+extern short_mpi_t *mpi_foftask;
 ///array that stores number of groups, need for properly setting Ids and broadcasting data
 extern Int_t *mpi_ngroups;
 ///array that is used by task zero to collect the group ids of every particle so that it can be written to a file.
@@ -91,7 +97,7 @@ extern struct fofdata_in
     //Particle Part();
     //FLOAT Hsml;
     Int_t iGroup;
-    Int_t iGroupTask;
+    short_mpi_t iGroupTask;
     Int_t iLen;
     Int_t Index;
     Int_t Task;
@@ -102,7 +108,7 @@ extern Particle *PartDataIn, *PartDataGet;
 ///Particle arrays that allow allocation of memory need when deallocating local particle arrays that then need to be reassigned
 extern Particle *mpi_Part1,*mpi_Part2;
 
-///structure facilitates passing ids across threads so that determine number of groups and reorder group 
+///structure facilitates passing ids across threads so that determine number of groups and reorder group
 ///ids so that reflects group size
 extern struct fofid_in {
     Particle p;
@@ -146,15 +152,15 @@ extern Int_t MinNumMPI,MinNumOld;
 //@{
 #ifdef LONGINT
 #define MPI_Int_t MPI_LONG_LONG_INT
-#define MPI_UInt_t MPI_UNSIGNED_LONG_LONG 
+#define MPI_UInt_t MPI_UNSIGNED_LONG_LONG
 #else
-#define MPI_Int_t MPI_INT 
+#define MPI_Int_t MPI_INT
 #define MPI_UInt_t MPI_UNSIGNED
 #endif
 #ifdef SINGLEPRECISION
-#define MPI_Real_t MPI_FLOAT 
+#define MPI_Real_t MPI_FLOAT
 #else
-#define MPI_Real_t MPI_DOUBLE 
+#define MPI_Real_t MPI_DOUBLE
 #endif
 
 //@}

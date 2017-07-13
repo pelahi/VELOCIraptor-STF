@@ -403,6 +403,7 @@ void ReadNchilada(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&
     int mpi_ireaderror;
 
     //for parallel io
+    Int_t BufSize=opt.mpiparticlebufsize;
     Int_t Nlocalbuf,ibuf=0,*Nbuf, *Nreadbuf,*nreadoffset;
     Int_t *Nlocalthreadbuf,Nlocaltotalbuf;
     int *irecv, sendTask,recvTask,irecvflag, *mpi_irecvflag;

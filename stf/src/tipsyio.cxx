@@ -32,6 +32,7 @@ void ReadTipsy(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pba
 #ifdef USEMPI
     MPI_Status status;
     Particle *Pbuf;
+    Int_t BufSize=opt.mpiparticlebufsize;
     Pbuf=new Particle[BufSize*NProcs];
     if (ThisTask==0) Pbuf=new Particle[BufSize*NProcs];
     Int_t Nlocalbuf,ibuf=0,*Nbuf;
@@ -58,7 +59,7 @@ void ReadTipsy(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pba
     //offset stream by a double (time),  an integer (nbodies) ,integer (ndim), an integer (ngas)
     //read an integer (ndark), skip an integer (nstar), then data begins.
     time=tipsyheader.time;
-    if ((opt.a-time)/opt.a>1e-2) 
+    if ((opt.a-time)/opt.a>1e-2)
     {
         cout<<"Note that atime provided != to time in tipsy file (a,t): "<<opt.a<<","<<time<<endl;
         cout<<"Setting atime to that in file "<<endl;
@@ -306,7 +307,7 @@ void ReadTipsy(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pba
     //}
 #endif
 
-    //calculate the interparticle spacing 
+    //calculate the interparticle spacing
 #ifdef HIGHRES
     if (opt.Neff==-1) {
         //Once smallest mass particle is found (which should correspond to highest resolution area,
@@ -321,4 +322,3 @@ void ReadTipsy(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pba
     opt.uinfo.eps*=LN;
 
 }
-

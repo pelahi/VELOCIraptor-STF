@@ -1,9 +1,9 @@
 /*! \file ramsesio.cxx
  *  \brief this file contains routines for ramses snapshot file io
- * 
- * \todo need to check if amr file quantity ngrid_current is actually the number of cells in the file as 
- * an example fortran code I have been given seems to also use the ngridlevel array, which stores the number of cells 
- * at a given resolution level. 
+ *
+ * \todo need to check if amr file quantity ngrid_current is actually the number of cells in the file as
+ * an example fortran code I have been given seems to also use the ngridlevel array, which stores the number of cells
+ * at a given resolution level.
  * \todo change the mass for the dark matter particles as it should be Omega_cdm*rho_crit/Ndm^3*Lbox^3 as the mass for dm, though stored is not
  * a meaningful value. For star particles must check what the mass unit is of the stored masses.
  */
@@ -137,8 +137,8 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
     if (FileExists(buf1)) sprintf(buf,"%s",buf1);
     else if (FileExists(buf2)) sprintf(buf,"%s",buf2);
     Framses.open(buf, ios::binary|ios::in);
-    //read header info 
-    //this is based on a ramsestotipsy fortran code that does not detail everything in the header block but at least its informative. The example has 
+    //read header info
+    //this is based on a ramsestotipsy fortran code that does not detail everything in the header block but at least its informative. The example has
     /*
     read(10)ncpu
     read(10)ndim
@@ -229,7 +229,7 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
         ramses_header_info.npartTotal[RAMSESGASTYPE]+=ramses_header_info.npart[RAMSESGASTYPE];
     }
 
-    //now hydro header data 
+    //now hydro header data
     sprintf(buf1,"%s/hydro_%s.out00001",fname,opt.ramsessnapname);
     sprintf(buf2,"%s/hydro_%s.out",fname,opt.ramsessnapname);
     if (FileExists(buf1)) sprintf(buf,"%s",buf1);
@@ -269,10 +269,10 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
         Framses.read((char*)&dummy, sizeof(dummy));
         Framses.seekg(dummy,ios::cur);
         Framses.read((char*)&dummy, sizeof(dummy));
-    }      
+    }
     // Read Mass
     Framses.read((char*)&dummy, sizeof(dummy));
-    Framses.read((char*)&dmp_mass, sizeof(double));    
+    Framses.read((char*)&dmp_mass, sizeof(double));
     Framses.close();
     cout << "DM MASS = " << dmp_mass << endl;
     //now particle info
@@ -306,7 +306,7 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
         Framses.read((char*)&dummy, sizeof(dummy));
         Framses.read((char*)&ramses_header_info.nstarTotal, sizeof(int));
         Framses.read((char*)&dummy, sizeof(dummy));
-        // Total mass of stars      
+        // Total mass of stars
         Framses.read((char*)&dummy, sizeof(dummy));
         Framses.seekg(dummy,ios::cur);
         Framses.read((char*)&dummy, sizeof(dummy));
@@ -314,14 +314,14 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
         Framses.read((char*)&dummy, sizeof(dummy));
         Framses.seekg(dummy,ios::cur);
         Framses.read((char*)&dummy, sizeof(dummy));
-        // Number of sink particles over the whole simulation (all are included in 
+        // Number of sink particles over the whole simulation (all are included in
         // all processors)
         Framses.read((char*)&dummy, sizeof(dummy));
         Framses.read((char*)&ramses_header_info.npartTotal[RAMSESSINKTYPE], sizeof(int));
         Framses.read((char*)&dummy, sizeof(dummy));
 
         //to determine how many particles of each type, need to look at the mass
-        // Skip pos, vel, mass 
+        // Skip pos, vel, mass
         for (j = 0; j < 6; j++)
         {
             Framses.read((char*)&dummy, sizeof(dummy));
@@ -331,34 +331,34 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
         //allocate memory to store masses and ages
         dummy_mass = new double [ramses_header_info.npartlocal];
         dummy_age  = new double [ramses_header_info.npartlocal];
-      
+
         // Read Mass
         Framses.read((char*)&dummy, sizeof(dummy));
         Framses.read((char*)&dummy_mass[0], dummy);
-        Framses.read((char*)&dummy, sizeof(dummy));      
-      
+        Framses.read((char*)&dummy, sizeof(dummy));
+
         // Skip Id
         Framses.read((char*)&dummy, sizeof(dummy));
         Framses.seekg(dummy,ios::cur);
         Framses.read((char*)&dummy, sizeof(dummy));
-      
+
         // Skip level
         Framses.read((char*)&dummy, sizeof(dummy));
         Framses.seekg(dummy,ios::cur);
         Framses.read((char*)&dummy, sizeof(dummy));
-        
+
         // Read Birth epoch
         //necessary to separate ghost star particles with negative ages from real one
         Framses.read((char*)&dummy, sizeof(dummy));
         Framses.read((char*)&dummy_age[0], dummy);
-        Framses.read((char*)&dummy, sizeof(dummy));      
+        Framses.read((char*)&dummy, sizeof(dummy));
 
 
         ghoststars = 0;
         for (j = 0; j < ramses_header_info.npartlocal; j++)
             if (dummy_mass[j] == dmp_mass)
                 ramses_header_info.npart[RAMSESDMTYPE]++;
-            else 
+            else
                 if (dummy_age[j] != 0.0)
                     ramses_header_info.npart[RAMSESSTARTYPE]++;
                 else
@@ -367,7 +367,7 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
           delete [] dummy_age;
           delete [] dummy_mass;
           Framses.close();
-      
+
 
         //now with information loaded, set totals
         ramses_header_info.npartTotal[RAMSESDMTYPE]+=ramses_header_info.npart[RAMSESDMTYPE];
@@ -379,7 +379,7 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
         nbodies+=ramses_header_info.npartTotal[k];
         //nbodies+=((long long)(ramses_header_info.npartTotalHW[k]) << 32);
     }
-    
+
     for (j=0;j<NPARTTYPES;j++) opt.numpart[j]=0;
     if (ptype==PSTALL || ptype==PSTDARK) opt.numpart[DARKTYPE]=ramses_header_info.npartTotal[RAMSESDMTYPE];
     if (ptype==PSTALL || ptype==PSTGAS) opt.numpart[GASTYPE]=ramses_header_info.npartTotal[RAMSESGASTYPE];
@@ -389,11 +389,11 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
 
 }
 
-/// Reads a ramses file. If cosmological simulation uses cosmology (generally 
-/// assuming LCDM or small deviations from this) to estimate the mean interparticle 
-/// spacing and scales physical linking length passed by this distance. Also reads 
+/// Reads a ramses file. If cosmological simulation uses cosmology (generally
+/// assuming LCDM or small deviations from this) to estimate the mean interparticle
+/// spacing and scales physical linking length passed by this distance. Also reads
 /// header and overrides passed cosmological parameters with ones stored in header.
-/// 
+///
 ///\todo still need to have receives for non-reading threads
 ///
 void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbaryons, Int_t nbaryons)
@@ -430,7 +430,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     ireadfile=new int[opt.num_files];
     for (i=0;i<opt.num_files;i++) ireadfile[i]=1;
 #endif
-    ///\todo because of the stupid fortran format, easier if chunksize is BIG so that 
+    ///\todo because of the stupid fortran format, easier if chunksize is BIG so that
     ///number of particles local to a file are smaller
     Int_t chunksize=RAMSESCHUNKSIZE,nchunk;
     RAMSESFLOAT *xtempchunk, *vtempchunk, *mtempchunk, *sphtempchunk, *agetempchunk, *mettempchunk, *hydrotempchunk;
@@ -452,6 +452,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     MPI_Status status;
     Particle *Pbuf;
     //for parallel io
+    Int_t BufSize=opt.mpiparticlebufsize;
     Int_t Nlocalbuf,*Nbuf, *Nreadbuf,*nreadoffset;
     Int_t *Nlocalthreadbuf,Nlocaltotalbuf;
     int *irecv, sendTask,recvTask,irecvflag, *mpi_irecvflag;
@@ -468,7 +469,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     int nread;
     int niread;
     int nfread;
-    
+
     if (ireadtask[ThisTask]>=0)
     {
         //to temporarily store data from gadget file
@@ -536,7 +537,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     Hubble=opt.h*opt.H*sqrt((1-opt.Omega_m-opt.Omega_Lambda)*pow(aadjust,-2.0)+opt.Omega_m*pow(aadjust,-3.0)+opt.Omega_Lambda);
     opt.rhobg=3.*Hubble*Hubble/(8.0*M_PI*opt.G)*opt.Omega_m;
     //if opt.virlevel<0, then use virial overdensity based on Bryan and Norman 1998 virialization level is given by
-    if (opt.virlevel<0) 
+    if (opt.virlevel<0)
     {
         Double_t bnx=-((1-opt.Omega_m-opt.Omega_Lambda)*pow(aadjust,-2.0)+opt.Omega_Lambda)/((1-opt.Omega_m-opt.Omega_Lambda)*pow(aadjust,-2.0)+opt.Omega_m*pow(aadjust,-3.0)+opt.Omega_Lambda);
         opt.virlevel=(18.0*M_PI*M_PI+82.0*bnx-39*bnx*bnx)/opt.Omega_m;
@@ -559,14 +560,14 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     Fpart[ifirstfile].open(buf1, ios::binary|ios::in);
     RAMSES_fortran_read(Fpart[ifirstfile],header[ifirstfile].nfiles);
     RAMSES_fortran_read(Fpart[ifirstfile],header[ifirstfile].ndim);
-    //adjust the number of files 
+    //adjust the number of files
     opt.num_files=header[ifirstfile].nfiles;
     Fpart[ifirstfile].close();
 #ifdef USEMPI
     //now read tasks prepped and can read files to send information
     }
-#endif 
-    
+#endif
+
 
     //if not only gas being searched open particle data
     count2=bcount2=0;
@@ -595,7 +596,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
         byteoffset+=RAMSES_fortran_read(Fpart[i],header[i].npartlocal);
         byteoffset+=RAMSES_fortran_skip(Fpart[i],5);
 
-        //byteoffset now stores size of header offset for particles 
+        //byteoffset now stores size of header offset for particles
         Fpartvel[i].seekg(byteoffset,ios::cur);
         Fpartmass[i].seekg(byteoffset,ios::cur);
         Fpartid[i].seekg(byteoffset,ios::cur);
@@ -651,7 +652,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
             RAMSES_fortran_read(Fpartvel[i],&vtempchunk[idim*nchunk]);
         }
         RAMSES_fortran_read(Fpartmass[i],mtempchunk);
-        
+
         RAMSES_fortran_read(Fpartid[i],idvalchunk);
         for (int nn=0;nn<nchunk;nn++) {
             xtemp[0]=xtempchunk[nn];xtemp[1]=xtempchunk[nn+nchunk];xtemp[2]=xtempchunk[nn+2*nchunk];
@@ -921,7 +922,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
         ngridfile=new int[(1+header[i].nboundary)*header[i].nlevelmax];
         RAMSES_fortran_read(Famr[i],ngridlevel);
         for (j=0;j<header[i].nlevelmax;j++) ngridfile[j]=ngridlevel[j];
-        //skip some more 
+        //skip some more
         RAMSES_fortran_skip(Famr[i]);
         //if nboundary>0 then need two skip twice then read ngridbound
         if(header[i].nboundary>0) {
@@ -932,9 +933,9 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
             RAMSES_fortran_read(Famr[i],ngridbound);
             for (j=0;j<header[i].nlevelmax;j++) ngridfile[header[i].nlevelmax+j]=ngridbound[j];
         }
-        //skip some more 
+        //skip some more
         RAMSES_fortran_skip(Famr[i],2);
-        //if odering list in info is bisection need to skip more 
+        //if odering list in info is bisection need to skip more
         if (orderingstring==string("bisection")) RAMSES_fortran_skip(Famr[i],5);
         else RAMSES_fortran_skip(Famr[i],4);
 
@@ -946,7 +947,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                     xtempchunk=new RAMSESFLOAT[3*chunksize];
                     //store son value in icell
                     icellchunk=new int[header[i].twotondim*chunksize];
-                    //skip grid index, next index and prev index. 
+                    //skip grid index, next index and prev index.
                     RAMSES_fortran_skip(Famr[i],3);
                     //now read grid centre
                     for (idim=0;idim<header[i].ndim;idim++) {
@@ -994,7 +995,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                                         vpos[1]=hydrotempchunk[idim*chunksize*header[i].nvarh+2*chunksize+igrid];
                                         vpos[2]=hydrotempchunk[idim*chunksize*header[i].nvarh+3*chunksize+igrid];
                                         mtemp=dx*dx*dx*hydrotempchunk[idim*chunksize*header[i].nvarh+0*chunksize+igrid];
-                                        //the self energy P/rho is given by 
+                                        //the self energy P/rho is given by
                                         utemp=hydrotempchunk[idim*chunksize*header[i].nvarh+4*chunksize+igrid]/hydrotempchunk[idim*chunksize*header[i].nvarh+0*chunksize+igrid]/(header[i].gamma_index-1.0);
                                         rhotemp=hydrotempchunk[idim*chunksize*header[i].nvarh+0*chunksize+igrid]*rhoscale;
                                         Ztemp=hydrotempchunk[idim*chunksize*header[i].nvarh+5*chunksize+igrid];

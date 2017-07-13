@@ -25,7 +25,7 @@
 #include <string>
 #include <vector>
 #include <getopt.h>
-#include <sys/stat.h> 
+#include <sys/stat.h>
 #include <sys/timeb.h>
 
 #include <gsl/gsl_heapsort.h>
@@ -62,6 +62,11 @@ using namespace H5;
 #endif
 #endif
 
+///if using ADIOS API
+#ifdef USEADIOS
+#include "adios.h"
+#endif
+
 using namespace std;
 using namespace Math;
 using namespace NBody;
@@ -85,7 +90,7 @@ using namespace NBody;
 //@}
 //@}
 
-/// \defgroup SEARCHTYPES 
+/// \defgroup SEARCHTYPES
 //@{
 /// \name Specify particle type to be searched, all, dm only, separate
 //@{
@@ -121,7 +126,7 @@ using namespace NBody;
 //@{
 //subsets made
 ///call \ref FOFStreamwithprob
-#define  FOFSTPROB 1 
+#define  FOFSTPROB 1
 ///6D FOF search but only with outliers
 #define  FOF6DSUBSET 7
 ///like \ref FOFStreamwithprob search but search is limited to nearest physical neighbours
@@ -153,7 +158,7 @@ using namespace NBody;
 //@{
 /// \name for iterative subsubstructure search
 //@{
-/// this is minimum particle number size for a subsearch to proceed whereby substructure split up into CELLSPLITNUM new cells 
+/// this is minimum particle number size for a subsearch to proceed whereby substructure split up into CELLSPLITNUM new cells
 #define  MINCELLSIZE 100
 #define  CELLSPLITNUM 8
 #define  MINSUBSIZE MINCELLSIZE*CELLSPLITNUM
@@ -163,7 +168,7 @@ using namespace NBody;
 
 ///\defgroup GRIDTYPES
 //@{
-/// \name Type of Grid structures 
+/// \name Type of Grid structures
 //@{
 #define  PHYSENGRID 1
 #define  PHASEENGRID 2
@@ -203,6 +208,7 @@ using namespace NBody;
 #define OUTASCII 0
 #define OUTBINARY 1
 #define OUTHDF 2
+#define OUTADIOS 3
 //@}
 //@}
 /// \name For Unbinding
@@ -234,7 +240,7 @@ using namespace NBody;
 
 //@}
 
-/// \defgroup OMPLIMS 
+/// \defgroup OMPLIMS
 //@{
 ///\name For determining whether loop contains enough for openm to be worthwhile.
 //@{
@@ -264,7 +270,7 @@ using namespace NBody;
 
 
 /// Structure stores unbinding information
-struct UnbindInfo 
+struct UnbindInfo
 {
     ///\name flag whether unbind groups, keep bg potential when unbinding, type of unbinding and reference frame
     //@{
@@ -272,7 +278,7 @@ struct UnbindInfo
     //@}
     ///fraction of potential energy that kinetic energy is allowed to be and consider particle bound
     Double_t Eratio;
-    ///minimum bound mass fraction 
+    ///minimum bound mass fraction
     Double_t minEfrac;
     ///when to recalculate kinetic energies if cmvel has changed enough
     Double_t cmdelta;
@@ -343,11 +349,19 @@ struct Options
     int icomoveunit;
     /// input is a cosmological simulation so can use box sizes, cosmological parameters, etc to set scales
     int icosmologicalin;
+    /// input buffer size when reading data
+    long int inputbufsize;
+    /// mpi paritcle buffer size when sending input particle information
+    long int mpiparticletotbufsize,mpiparticlebufsize;
+    /// mpi factor by which to multiple the memory allocated, ie: buffer region
+    /// to reduce likelihood of having to expand/allocate new memory
+    Double_t mpipartfac;
 
 
-    ///\name length,m,v,grav units
+    ///\name length,m,v,grav conversion units
     //@{
     Double_t L, M, V, G;
+    Double_t lengthtokpc, velocitytokms, masstosolarmass;
     //@}
     ///period (comove)
     Double_t p;
@@ -355,6 +369,8 @@ struct Options
     //@{
     Double_t a,H,h, Omega_m, Omega_b, Omega_cdm, Omega_Lambda, w_de, rhobg, virlevel;
     int comove;
+    /// to store the internal code unit to kpc and the distance^2 of 30 kpc, and 50 kpc
+    Double_t lengthtokpc30pow2, lengthtokpc50pow2;
     //@}
 
     ///to store number of each particle types so that if only searching one particle type, assumes order of gas, dark (halo, disk,bulge), star, special or sink for pfof tipsy style output
@@ -464,7 +480,7 @@ struct Options
     ///for storing a snapshot value to make halo ids unique across snapshots
     long long snapshotvalue;
 
-    ///\name for reading gadget info with lots of extra sph, star and bh blocks 
+    ///\name for reading gadget info with lots of extra sph, star and bh blocks
     //@{
     int gnsphblocks,gnstarblocks,gnbhblocks;
     //@}
@@ -478,7 +494,7 @@ struct Options
     /// input contains extra dark type particles
     int iuseextradarkparticles;
     //@}
-    
+
     /// \name Extra variables to store information useful in zoom simluations
     //@{
     /// store the lowest dark matter particle mass
@@ -592,6 +608,20 @@ struct Options
         gnbhblocks=2;
 
         iScaleLengths=0;
+
+        inputbufsize=100000;
+
+        mpiparticletotbufsize=-1;
+        mpiparticlebufsize=-1;
+
+        lengthtokpc=-1.0;
+        velocitytokms=-1.0;
+        masstosolarmass=-1.0;
+
+        lengthtokpc30pow2=30.0*30.0;
+        lengthtokpc30pow2=50.0*50.0;
+
+        mpipartfac=0.1;
     }
 };
 
@@ -602,7 +632,6 @@ struct ConfigInfo{
     vector<string> datainfo;
     //vector<int> datatype;
     ConfigInfo(Options &opt){
-        int sizeval;
         //if compiler is super old and does not have at least std 11 implementation to_string does not exist
 #ifndef OLDCCOMPILER
         //general search operations
@@ -714,6 +743,13 @@ struct ConfigInfo{
         datainfo.push_back(to_string(opt.G));
         nameinfo.push_back("Mass_value");
         datainfo.push_back(to_string(opt.MassValue));
+        nameinfo.push_back("Length_unit_to_kpc");
+        datainfo.push_back(to_string(opt.lengthtokpc));
+        nameinfo.push_back("Velocity_to_kms");
+        datainfo.push_back(to_string(opt.velocitytokms));
+        nameinfo.push_back("Mass_to_solarmass");
+        datainfo.push_back(to_string(opt.masstosolarmass));
+
         nameinfo.push_back("Period");
         datainfo.push_back(to_string(opt.p));
         nameinfo.push_back("Scale_factor");
@@ -746,7 +782,7 @@ struct ConfigInfo{
         datainfo.push_back(to_string(opt.iBoundHalos));
         nameinfo.push_back("Keep_background_potential");
         datainfo.push_back(to_string(opt.uinfo.bgpot));
-        nameinfo.push_back("Kinetic_reference_frame_type"); 
+        nameinfo.push_back("Kinetic_reference_frame_type");
         datainfo.push_back(to_string(opt.uinfo.cmvelreftype));
         nameinfo.push_back("Min_npot_ref");
         datainfo.push_back(to_string(opt.uinfo.Npotref));
@@ -763,9 +799,13 @@ struct ConfigInfo{
         nameinfo.push_back("Inclusive_halo_masses");
         datainfo.push_back(to_string(opt.iInclusiveHalo));
 
-        //io related 
+        //io related
         nameinfo.push_back("Cosmological_input");
         datainfo.push_back(to_string(opt.icosmologicalin));
+        nameinfo.push_back("Input_chunk_size");
+        datainfo.push_back(to_string(opt.inputbufsize));
+        nameinfo.push_back("MPI_particle_total_buf_size");
+        datainfo.push_back(to_string(opt.mpiparticletotbufsize));
         nameinfo.push_back("Separate_output_files");
         datainfo.push_back(to_string(opt.iseparatefiles));
         nameinfo.push_back("Binary_output");
@@ -782,6 +822,89 @@ struct ConfigInfo{
         datainfo.push_back(to_string(opt.gnstarblocks));
         nameinfo.push_back("NBH_extra_blocks");
         datainfo.push_back(to_string(opt.gnbhblocks));
+
+        //mpi related configuration
+        nameinfo.push_back("MPI_part_allocation_fac");
+        datainfo.push_back(to_string(opt.mpiparticletotbufsize));
+#endif
+    }
+};
+
+struct SimInfo{
+    //list the name of the info
+    vector<string> nameinfo;
+    vector<string> datainfo;
+
+    SimInfo(Options &opt){
+        //if compiler is super old and does not have at least std 11 implementation to_string does not exist
+#ifndef OLDCCOMPILER
+        nameinfo.push_back("Cosmological_Sim");
+        datainfo.push_back(to_string(opt.icosmologicalin));
+        if (opt.icosmologicalin) {
+            nameinfo.push_back("ScaleFactor");
+            datainfo.push_back(to_string(opt.a));
+            nameinfo.push_back("h_val");
+            datainfo.push_back(to_string(opt.h));
+            nameinfo.push_back("Omega_m");
+            datainfo.push_back(to_string(opt.Omega_m));
+            nameinfo.push_back("Omega_Lambda");
+            datainfo.push_back(to_string(opt.Omega_Lambda));
+            nameinfo.push_back("Omega_cdm");
+            datainfo.push_back(to_string(opt.Omega_cdm));
+            nameinfo.push_back("Omega_b");
+            datainfo.push_back(to_string(opt.Omega_b));
+            nameinfo.push_back("w_of_DE");
+            datainfo.push_back(to_string(opt.w_de));
+            nameinfo.push_back("Period");
+            datainfo.push_back(to_string(opt.p));
+            nameinfo.push_back("Hubble_unit");
+            datainfo.push_back(to_string(opt.H));
+        }
+        else{
+            nameinfo.push_back("Time");
+            datainfo.push_back(to_string(opt.a));
+            nameinfo.push_back("Period");
+            datainfo.push_back(to_string(opt.p));
+        }
+
+        //units
+        nameinfo.push_back("Length_unit");
+        datainfo.push_back(to_string(opt.L));
+        nameinfo.push_back("Velocity_unit");
+        datainfo.push_back(to_string(opt.V));
+        nameinfo.push_back("Mass_unit");
+        datainfo.push_back(to_string(opt.M));
+        nameinfo.push_back("Gravity");
+        datainfo.push_back(to_string(opt.G));
+#ifdef NOMASS
+        nameinfo.push_back("Mass_value");
+        datainfo.push_back(to_string(opt.MassValue));
+#endif
+
+#endif
+    }
+};
+
+
+struct UnitInfo{
+    //list the name of the info
+    vector<string> nameinfo;
+    vector<string> datainfo;
+
+    UnitInfo(Options &opt){
+        //if compiler is super old and does not have at least std 11 implementation to_string does not exist
+#ifndef OLDCCOMPILER
+        nameinfo.push_back("Cosmological_Sim");
+        datainfo.push_back(to_string(opt.icosmologicalin));
+        nameinfo.push_back("Comoving_or_Physical");
+        datainfo.push_back(to_string(opt.icomoveunit));
+        //units
+        nameinfo.push_back("Length_unit_to_kpc");
+        datainfo.push_back(to_string(opt.lengthtokpc));
+        nameinfo.push_back("Velocity_unit_to_kms");
+        datainfo.push_back(to_string(opt.velocitytokms));
+        nameinfo.push_back("Mass_unit_to_solarmass");
+        datainfo.push_back(to_string(opt.masstosolarmass));
 #endif
     }
 };
@@ -901,7 +1024,7 @@ struct PropData
     Double_t Efrac_gas,Pot_gas,T_gas;
     //@}
 #endif
-    
+
 #ifdef STARON
     ///\name star specific quantities
     //@{
@@ -959,14 +1082,14 @@ struct PropData
         gveldisp=Matrix(0.);
         gq=gs=1.0;
         Krot=0.;
-        
+
         RV_sigma_v=0;
         RV_q=RV_s=1.;
         RV_J[0]=RV_J[1]=RV_J[2]=0;
         RV_veldisp=Matrix(0.);
         RV_eigvec=Matrix(0.);
         RV_lambda_B=RV_lambda_P=RV_Krot=0;
-        
+
 #ifdef GASON
         M_gas_rvmax=M_gas_30kpc=M_gas_50kpc=0;
         n_gas=M_gas=Efrac_gas=0;
@@ -1037,18 +1160,30 @@ struct PropData
         RV_J=RV_J*opt.h*opt.h/opt.a;
 #ifdef GASON
         M_gas*=opt.h;
+        M_gas_rvmax*=opt.h;
+        M_gas_30kpc*=opt.h;
+        M_gas_50kpc*=opt.h;
+        M_gas_500c*=opt.h;
+
         cm_gas=cm_gas*opt.h/opt.a;
         Rhalfmass_gas*=opt.h/opt.a;
         L_gas=L_gas*opt.h*opt.h/opt.a;
 #endif
 #ifdef STARON
         M_star*=opt.h;
+        M_star_rvmax*=opt.h;
+        M_star_30kpc*=opt.h;
+        M_star_50kpc*=opt.h;
+        M_star_500c*=opt.h;
         cm_star=cm_star*opt.h/opt.a;
         Rhalfmass_star*=opt.h/opt.a;
         L_star=L_star*opt.h*opt.h/opt.a;
 #endif
 #ifdef BHON
         M_bh*=opt.h;
+#endif
+#ifdef HIGHRES
+        M_interloper*=opt.h;
 #endif
     }
 
@@ -1079,7 +1214,7 @@ struct PropData
 
         val=gMvir;
         Fout.write((char*)&val,sizeof(val));
- 
+
         for (int k=0;k<3;k++) val3[k]=gcm[k];
         Fout.write((char*)val3,sizeof(val)*3);
         for (int k=0;k<3;k++) val3[k]=gpos[k];
@@ -1381,10 +1516,10 @@ struct PropData
     ///write (append) the properties data to an already open hdf file
     void WriteHDF(H5File &Fhdf, DataSpace *&dataspaces, DataSet *&datasets, Options&opt){
     };
-#endif 
+#endif
 };
 
-/*! Structures stores header info of the data writen by the \ref PropData data structure, 
+/*! Structures stores header info of the data writen by the \ref PropData data structure,
     specifically the \ref PropData::WriteBinary, \ref PropData::WriteAscii, \ref PropData::WriteHDF routines
     Must ensure that these routines are all altered together so that the io makes sense.
 */
@@ -1394,8 +1529,21 @@ struct PropDataHeader{
 #ifdef USEHDF
     vector<PredType> predtypeinfo;
 #endif
+#ifdef USEADIOS
+    vector<ADIOS_DATATYPES> adiospredtypeinfo;
+#endif
     PropDataHeader(Options&opt){
         int sizeval;
+#ifdef USEHDF
+        vector<PredType> desiredproprealtype;
+        if (sizeof(Double_t)==sizeof(double)) desiredproprealtype.push_back(PredType::NATIVE_DOUBLE);
+        else desiredproprealtype.push_back(PredType::NATIVE_FLOAT);
+#endif
+#ifdef USEADIOS
+        vector<ADIOS_DATATYPES> desiredadiosproprealtype;
+        if (sizeof(Double_t)==sizeof(double)) desiredadiosproprealtype.push_back(ADIOS_DATATYPES::adios_double);
+        else desiredadiosproprealtype.push_back(ADIOS_DATATYPES::adios_real);
+#endif
 
         headerdatainfo.push_back("ID");
         headerdatainfo.push_back("ID_mbp");
@@ -1419,6 +1567,18 @@ struct PropDataHeader{
         if (opt.iKeepFOF==1){
             predtypeinfo.push_back(PredType::STD_I64LE);
             predtypeinfo.push_back(PredType::STD_I64LE);
+        }
+#endif
+#ifdef USEADIOS
+        adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+        adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_long);
+        adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_long);
+        adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+        adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+        adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_integer);
+        if (opt.iKeepFOF==1){
+            adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_long);
+            adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_long);
         }
 #endif
 
@@ -1505,16 +1665,23 @@ struct PropDataHeader{
         headerdatainfo.push_back("RVmax_eig_zx");
         headerdatainfo.push_back("RVmax_eig_zy");
         headerdatainfo.push_back("RVmax_eig_zz");
-        
+
 #ifdef USEHDF
         sizeval=predtypeinfo.size();
-        for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(PredType::NATIVE_DOUBLE);
+        for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
+#endif
+#ifdef USEADIOS
+        sizeval=adiospredtypeinfo.size();
+        for (int i=sizeval;i<headerdatainfo.size();i++) adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
 #endif
 
 #ifdef GASON
         headerdatainfo.push_back("n_gas");
 #ifdef USEHDF
         predtypeinfo.push_back(PredType::STD_U64LE);
+#endif
+#ifdef USEADIOS
+        adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
 #endif
         headerdatainfo.push_back("M_gas");
         headerdatainfo.push_back("M_gas_Rvmax");
@@ -1560,13 +1727,21 @@ struct PropDataHeader{
 #endif
 #ifdef USEHDF
         sizeval=predtypeinfo.size();
-        for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(PredType::NATIVE_DOUBLE);
+        for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
+#endif
+#ifdef USEADIOS
+        sizeval=adiospredtypeinfo.size();
+        for (int i=sizeval;i<headerdatainfo.size();i++) adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
 #endif
 #endif
+
 #ifdef STARON
         headerdatainfo.push_back("n_star");
 #ifdef USEHDF
         predtypeinfo.push_back(PredType::STD_U64LE);
+#endif
+#ifdef USEADIOS
+        adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
 #endif
         headerdatainfo.push_back("M_star");
         headerdatainfo.push_back("M_star_Rvmax");
@@ -1609,7 +1784,11 @@ struct PropDataHeader{
         headerdatainfo.push_back("Zmet_star");
 #ifdef USEHDF
         sizeval=predtypeinfo.size();
-        for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(PredType::NATIVE_DOUBLE);
+        for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
+#endif
+#ifdef USEADIOS
+        sizeval=adiospredtypeinfo.size();
+        for (int i=sizeval;i<headerdatainfo.size();i++) adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
 #endif
 #endif
 
@@ -1618,10 +1797,17 @@ struct PropDataHeader{
 #ifdef USEHDF
         predtypeinfo.push_back(PredType::STD_U64LE);
 #endif
+#ifdef USEADIOS
+        adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+#endif
         headerdatainfo.push_back("M_bh");
 #ifdef USEHDF
         sizeval=predtypeinfo.size();
-        for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(PredType::NATIVE_DOUBLE);
+        for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
+#endif
+#ifdef USEADIOS
+        sizeval=adiospredtypeinfo.size();
+        for (int i=sizeval;i<headerdatainfo.size();i++) adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
 #endif
 #endif
 
@@ -1631,10 +1817,17 @@ struct PropDataHeader{
 #ifdef USEHDF
         predtypeinfo.push_back(PredType::STD_U64LE);
 #endif
+#ifdef USEADIOS
+        adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+#endif
         headerdatainfo.push_back("M_interloper");
 #ifdef USEHDF
         sizeval=predtypeinfo.size();
-        for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(PredType::NATIVE_DOUBLE);
+        for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
+#endif
+#ifdef USEADIOS
+        sizeval=adiospredtypeinfo.size();
+        for (int i=sizeval;i<headerdatainfo.size();i++) adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
 #endif
 #endif
 
@@ -1652,7 +1845,7 @@ struct PropDataHeader{
 */
 struct StrucLevelData
 {
-    ///structure type and number in current level of hierarchy 
+    ///structure type and number in current level of hierarchy
     Int_t stype,nsinlevel;
     ///points to the the head pfof address of the group and parent
     Particle **Phead;
@@ -1695,30 +1888,91 @@ struct StrucLevelData
 };
 extern StrucLevelData *psldata;
 
-#ifdef USEHDF
-///hdf structure to store the names of datasets in catalog output
-struct HDFCatalogNames {
+#if defined(USEHDF)||defined(USEADIOS)
+///store the names of datasets in catalog output
+struct DataGroupNames {
     ///store names of catalog group files
-    vector<H5std_string> group;
+    vector<string> prop;
+#ifdef USEHDF
     //store the data type
+    vector<PredType> propdatatype;
+#endif
+#ifdef USEADIOS
+    vector<ADIOS_DATATYPES> adiospropdatatype;
+#endif
+
+    ///store names of catalog group files
+    vector<string> group;
+#ifdef USEHDF
     vector<PredType> groupdatatype;
-    
+#endif
+#ifdef USEADIOS
+    vector<ADIOS_DATATYPES> adiosgroupdatatype;
+#endif
+
     ///store the names of catalog particle files
-    vector<H5std_string> part;
-    //store the data type
+    vector<string> part;
+#ifdef USEHDF
     vector<PredType> partdatatype;
-    
+#endif
+#ifdef USEADIOS
+    vector<ADIOS_DATATYPES> adiospartdatatype;
+#endif
+
     ///store the names of catalog particle files
-    vector<H5std_string> types;
-    //store the data type
+    vector<string> types;
+#ifdef USEHDF
     vector<PredType> typesdatatype;
+#endif
+#ifdef USEADIOS
+    vector<ADIOS_DATATYPES> adiostypesdatatype;
+#endif
 
     ///store the names of catalog particle files
-    vector<H5std_string> hierarchy;
-    //store the data type
+    vector<string> hierarchy;
+#ifdef USEHDF
     vector<PredType> hierarchydatatype;
+#endif
+#ifdef USEADIOS
+    vector<ADIOS_DATATYPES> adioshierarchydatatype;
+#endif
 
-    HDFCatalogNames(){
+    DataGroupNames(){
+        prop.push_back("File_id");
+        prop.push_back("Num_of_files");
+        prop.push_back("Num_of_groups");
+        prop.push_back("Total_num_of_groups");
+        prop.push_back("Cosmological_Sim");
+        prop.push_back("Comoving_or_Physical");
+        prop.push_back("Period");
+        prop.push_back("Length_unit_to_kpc");
+        prop.push_back("Velocity_to_kms");
+        prop.push_back("Mass_unit_to_solarmass");
+#ifdef USEHDF
+        propdatatype.push_back(PredType::STD_I32LE);
+        propdatatype.push_back(PredType::STD_I32LE);
+        propdatatype.push_back(PredType::STD_U64LE);
+        propdatatype.push_back(PredType::STD_U64LE);
+        propdatatype.push_back(PredType::STD_U32LE);
+        propdatatype.push_back(PredType::STD_U32LE);
+        propdatatype.push_back(PredType::NATIVE_FLOAT);
+        propdatatype.push_back(PredType::NATIVE_FLOAT);
+        propdatatype.push_back(PredType::NATIVE_FLOAT);
+        propdatatype.push_back(PredType::NATIVE_FLOAT);
+#endif
+#ifdef USEADIOS
+        adiospropdatatype.push_back(ADIOS_DATATYPES::adios_integer);
+        adiospropdatatype.push_back(ADIOS_DATATYPES::adios_integer);
+        adiospropdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+        adiospropdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+        adiospropdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_integer);
+        adiospropdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_integer);
+        adiospropdatatype.push_back(ADIOS_DATATYPES::adios_real);
+        adiospropdatatype.push_back(ADIOS_DATATYPES::adios_real);
+        adiospropdatatype.push_back(ADIOS_DATATYPES::adios_real);
+        adiospropdatatype.push_back(ADIOS_DATATYPES::adios_real);
+#endif
+
         group.push_back("File_id");
         group.push_back("Num_of_files");
         group.push_back("Num_of_groups");
@@ -1726,6 +1980,7 @@ struct HDFCatalogNames {
         group.push_back("Group_Size");
         group.push_back("Offset");
         group.push_back("Offset_unbound");
+#ifdef USEHDF
         groupdatatype.push_back(PredType::STD_I32LE);
         groupdatatype.push_back(PredType::STD_I32LE);
         groupdatatype.push_back(PredType::STD_U64LE);
@@ -1733,42 +1988,79 @@ struct HDFCatalogNames {
         groupdatatype.push_back(PredType::STD_U32LE);
         groupdatatype.push_back(PredType::STD_U64LE);
         groupdatatype.push_back(PredType::STD_U64LE);
+#endif
+#ifdef USEADIOS
+        adiosgroupdatatype.push_back(ADIOS_DATATYPES::adios_integer);
+        adiosgroupdatatype.push_back(ADIOS_DATATYPES::adios_integer);
+        adiosgroupdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+        adiosgroupdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+        adiosgroupdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_integer);
+        adiosgroupdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+        adiosgroupdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+#endif
 
         part.push_back("File_id");
         part.push_back("Num_of_files");
         part.push_back("Num_of_particles_in_groups");
         part.push_back("Total_num_of_particles_in_all_groups");
         part.push_back("Particle_IDs");
+#ifdef USEHDF
         partdatatype.push_back(PredType::STD_I32LE);
         partdatatype.push_back(PredType::STD_I32LE);
         partdatatype.push_back(PredType::STD_U64LE);
         partdatatype.push_back(PredType::STD_U64LE);
         partdatatype.push_back(PredType::STD_I64LE);
+#endif
+#ifdef USEADIOS
+        adiospartdatatype.push_back(ADIOS_DATATYPES::adios_integer);
+        adiospartdatatype.push_back(ADIOS_DATATYPES::adios_integer);
+        adiospartdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+        adiospartdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+        adiospartdatatype.push_back(ADIOS_DATATYPES::adios_long);
+#endif
 
         types.push_back("File_id");
         types.push_back("Num_of_files");
         types.push_back("Num_of_particles_in_groups");
         types.push_back("Total_num_of_particles_in_all_groups");
         types.push_back("Particle_types");
+#ifdef USEHDF
         typesdatatype.push_back(PredType::STD_I32LE);
         typesdatatype.push_back(PredType::STD_I32LE);
         typesdatatype.push_back(PredType::STD_U64LE);
         typesdatatype.push_back(PredType::STD_U64LE);
         typesdatatype.push_back(PredType::STD_U16LE);
+#endif
+#ifdef USEADIOS
+        adiostypesdatatype.push_back(ADIOS_DATATYPES::adios_integer);
+        adiostypesdatatype.push_back(ADIOS_DATATYPES::adios_integer);
+        adiostypesdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+        adiostypesdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+        adiostypesdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_short);
+#endif
 
-        
         hierarchy.push_back("File_id");
         hierarchy.push_back("Num_of_files");
         hierarchy.push_back("Num_of_groups");
         hierarchy.push_back("Total_num_of_groups");
         hierarchy.push_back("Number_of_substructures_in_halo");
         hierarchy.push_back("Parent_halo_ID");
+#ifdef USEHDF
         hierarchydatatype.push_back(PredType::STD_I32LE);
         hierarchydatatype.push_back(PredType::STD_I32LE);
         hierarchydatatype.push_back(PredType::STD_U64LE);
         hierarchydatatype.push_back(PredType::STD_U64LE);
         hierarchydatatype.push_back(PredType::STD_U32LE);
         hierarchydatatype.push_back(PredType::STD_I64LE);
+#endif
+#ifdef USEADIOS
+        adioshierarchydatatype.push_back(ADIOS_DATATYPES::adios_integer);
+        adioshierarchydatatype.push_back(ADIOS_DATATYPES::adios_integer);
+        adioshierarchydatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+        adioshierarchydatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+        adioshierarchydatatype.push_back(ADIOS_DATATYPES::adios_unsigned_integer);
+        adioshierarchydatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+#endif
     }
 };
 #endif

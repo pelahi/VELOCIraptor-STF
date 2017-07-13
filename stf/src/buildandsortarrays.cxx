@@ -54,32 +54,32 @@ Int_t **BuildPGList(const Int_t nbodies, const Int_t numgroups, Int_t *numingrou
     return pglist;
 }
 ///build the Head array which points to the head of the group a particle belongs to
-Int_t *BuildHeadArray(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t **pglist){
-    Int_t *Head=new Int_t[nbodies];
+Int_tree_t *BuildHeadArray(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t **pglist){
+    Int_tree_t *Head=new Int_tree_t[nbodies];
     for (Int_t i=0;i<nbodies;i++) Head[i]=i;
     for (Int_t i=1;i<=numgroups;i++)
         for (Int_t j=1;j<numingroup[i];j++) Head[pglist[i][j]]=Head[pglist[i][0]];
     return Head;
 }
 ///build the Next array which points to the next particle in the group
-Int_t *BuildNextArray(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t **pglist){
-    Int_t *Next=new Int_t[nbodies];
+Int_tree_t *BuildNextArray(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t **pglist){
+    Int_tree_t *Next=new Int_tree_t[nbodies];
     for (Int_t i=0;i<nbodies;i++) Next[i]=-1;
     for (Int_t i=1;i<=numgroups;i++)
         for (Int_t j=0;j<numingroup[i]-1;j++) Next[pglist[i][j]]=pglist[i][j+1];
     return Next;
 }
-///build the Len array which stores the length of the group a particle belongs to 
-Int_t *BuildLenArray(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t **pglist){
-    Int_t *Len=new Int_t[nbodies];
+///build the Len array which stores the length of the group a particle belongs to
+Int_tree_t *BuildLenArray(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t **pglist){
+    Int_tree_t *Len=new Int_tree_t[nbodies];
     for (Int_t i=0;i<nbodies;i++) Len[i]=0;
     for (Int_t i=1;i<=numgroups;i++)
         for (Int_t j=0;j<numingroup[i];j++) Len[pglist[i][j]]=numingroup[i];
     return Len;
 }
 ///build the GroupTail array which stores the Tail of a group
-Int_t *BuildGroupTailArray(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t **pglist){
-    Int_t *GTail=new Int_t[numgroups+1];
+Int_tree_t *BuildGroupTailArray(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t **pglist){
+    Int_tree_t *GTail=new Int_tree_t[numgroups+1];
     for (Int_t i=1;i<=numgroups;i++)
         GTail[i]=pglist[i][numingroup[i]-1];
     return GTail;
@@ -100,7 +100,7 @@ Particle *BuildPart(Int_t numingroup, Int_t *pglist, Particle* Part){
     return gPart;
 }
 
-///sort particles according to some quantity which is stored in particle type and build an array for a sorted particle list 
+///sort particles according to some quantity which is stored in particle type and build an array for a sorted particle list
 ///remember this reorders the particle array!
 Int_t *BuildNoffset(const Int_t nbodies, Particle *Part, Int_t numgroups,Int_t *numingroup, Int_t *sortval, Int_t ioffset) {
     Int_t *noffset=new Int_t[numgroups+1];
@@ -118,7 +118,7 @@ Int_t *BuildNoffset(const Int_t nbodies, Particle *Part, Int_t numgroups,Int_t *
 }
 
 ///reorder groups from largest to smallest
-///\todo must alter so that after pfof is reorderd, so is numingroup array and pglist so that do not have to reconstruct this list 
+///\todo must alter so that after pfof is reorderd, so is numingroup array and pglist so that do not have to reconstruct this list
 ///after reordering if numgroups==newnumgroups (ie, list has not shrunk)
 void ReorderGroupIDs(const Int_t numgroups, const Int_t newnumgroups, Int_t *numingroup, Int_t *pfof, Int_t **pglist)
 {
