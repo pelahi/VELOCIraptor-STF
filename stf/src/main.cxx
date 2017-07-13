@@ -422,13 +422,13 @@ int main(int argc,char **argv)
     if(opt.inoidoutput){
         numingroup=BuildNumInGroup(Nlocal, ngroup, pfof);
         CalculateHaloProperties(opt,Nlocal,Part,ngroup,pfof,numingroup,pdata);
-        WriteProperties(opt,nhalos,pdata);
+        WriteProperties(opt,ngroup,pdata);
         delete[] numingroup;
         delete[] pdata;
         delete[] Part;
 #ifdef USEMPI
         MPI_Finalize();
-#endif 
+#endif
         return 0;
     }
 
