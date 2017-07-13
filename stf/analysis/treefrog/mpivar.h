@@ -44,6 +44,12 @@ extern int *mpi_startsnap,*mpi_endsnap;
 #define MPI_Real_t MPI_DOUBLE 
 #endif
 
+#ifdef LONGIDS
+#define MPI_Id_type MPI_UNSIGNED_LONG_LONG
+#else
+#define MPI_Id_type MPI_UNSIGNED
+#endif
+
 //@}
 
 /// \name MPI load decomposition parameters

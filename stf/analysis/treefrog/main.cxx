@@ -83,16 +83,16 @@ int main(int argc,char **argv)
     }
     if (opt.imapping==DMEMEFFICIENTMAP) {
         if (ThisTask==0) cout<<"Generating unique memory efficent mapping for particle IDS to index"<<endl;
-        map<long long, long long> idmap=ConstructMemoryEfficientPIDStoIndexMap(opt, pht);
+        map<IDTYPE, IDTYPE> idmap=ConstructMemoryEfficientPIDStoIndexMap(opt, pht);
         MapPIDStoIndex(opt,pht, idmap);
         idmap.clear();
         if (ThisTask==0) {
-            cout<<"Memory needed to store addressing for ids "<<sizeof(long unsigned)*opt.MaxIDValue/1024./1024.0/1024.0<<", maximum ID of "<<opt.MaxIDValue<<endl;
+            cout<<"Memory needed to store addressing for ids "<<sizeof(unsigned int)*opt.MaxIDValue/1024./1024.0/1024.0<<", maximum ID of "<<opt.MaxIDValue<<endl;
         }
     }
     else {
         if (ThisTask==0) {
-            cout<<"Memory needed to store addressing for ids "<<sizeof(long unsigned)*opt.MaxIDValue/1024./1024.0/1024.0<<", maximum ID of "<<opt.MaxIDValue<<endl;
+            cout<<"Memory needed to store addressing for ids "<<sizeof(unsigned int)*opt.MaxIDValue/1024./1024.0/1024.0<<", maximum ID of "<<opt.MaxIDValue<<endl;
         }
         //adjust ids if particle ids need to be mapped to index
         if (opt.imapping>DNOMAP) MapPIDStoIndex(opt,pht);
@@ -102,6 +102,10 @@ int main(int argc,char **argv)
     //then allocate simple array used for accessing halo ids of particles through their IDs
     pfofp=new unsigned int[opt.MaxIDValue];
     for (i=0;i<opt.MaxIDValue;i++) pfofp[i]=0;
+MPI_Barrier(MPI_COMM_WORLD);
+cout<<ThisTask<<" allocated pfofp "<<endl;
+MPI_Barrier(MPI_COMM_WORLD);
+
     //allocate memory associated with progenitors
     pprogen=new ProgenitorData*[opt.numsnapshots];
     //if more than a single snapshot is used to identify possible progenitors then must store the descendants information

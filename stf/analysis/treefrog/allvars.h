@@ -166,6 +166,12 @@ using namespace NBody;
 #define OMPCHUNKSIZE 100UL
 #endif
 
+#ifdef LONGIDS
+typedef long unsigned IDTYPE;
+#else
+typedef int unsigned IDTYPE;
+#endif
+
 /// Options structure stores useful variables that have user determined values which are altered by \ref GetArgs in \ref ui.cxx
 struct Options
 {
@@ -213,7 +219,7 @@ struct Options
     //for mapping particle ids to index 
     //@{
     int imapping;
-    void(*mappingfunc)(long unsigned int &);
+    void(*mappingfunc)(IDTYPE &);
     //@}
 
     ///for offseting the snapshot id value when writing to a file
@@ -297,13 +303,13 @@ struct Options
 struct HaloData{
     long unsigned haloID;
     long unsigned NumberofParticles;
-    long unsigned *ParticleID;
+    IDTYPE *ParticleID;
     //Coordinate         *X;
     //Coordinate         *V;
     HaloData(long unsigned np=0){
         NumberofParticles=np;
         if (NumberofParticles>0) {
-            ParticleID=new long unsigned[NumberofParticles];
+            ParticleID=new IDTYPE[NumberofParticles];
             //X=new Coordinate[NumberofParticles];
             //V=new Coordinate[NumberofParticles];
         }
@@ -316,7 +322,7 @@ struct HaloData{
         }
         NumberofParticles=nhalos;
         if (NumberofParticles>0) {
-            ParticleID=new long unsigned[NumberofParticles];
+            ParticleID=new IDTYPE[NumberofParticles];
             //X=new Coordinate[NumberofParticles];
             //V=new Coordinate[NumberofParticles];
         }
