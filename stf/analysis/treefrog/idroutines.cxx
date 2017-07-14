@@ -45,7 +45,11 @@ map<IDTYPE, IDTYPE> ConstructMemoryEfficientPIDStoIndexMap(Options &opt, HaloTre
     //index=0;
     time1=MyGetTime();
     time2=MyGetTime();
-    for (i=StartSnap+offsetsnap;i<EndSnap;i++) 
+    Int_t reservesize=0;
+    for (j=0;j<pht[EndSnap-1].numhalos;j++) reservesize+=pht[EndSnap-1].Halo[j].NumberofParticles;
+    idset.reserve(reservesize);
+    cout<<ThisTask<<" initial reserve of memory for construction of id map is "<<reservesize*sizeof(IDTYPE)/1024./1024./1024.<<"GB"<<endl;
+    for (i=StartSnap+offsetsnap;i<EndSnap;i++)
         for (j=0;j<pht[i].numhalos;j++)
             for (k=0;k<pht[i].Halo[j].NumberofParticles;k++) idset.insert(pht[i].Halo[j].ParticleID[k]);
     time1=MyGetTime()-time1;
