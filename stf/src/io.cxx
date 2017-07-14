@@ -14,7 +14,10 @@
 #endif
 #include "ramsesitems.h"
 #ifdef USEXDR
+#endif
 #include "nchiladaitems.h"
+#ifdef USEADIOS
+#include "adios.h"
 #endif
 
 ///Checks if file exits by attempting to get the file attributes
@@ -314,6 +317,14 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     hsize_t rank;
     int itemp=0;
 #endif
+#ifdef USEADIOS
+    int adios_err;
+    uint64_t adios_groupsize , adios_totalsize ;
+    int64_t adios_file_handle,adios_file_handle3;
+    int64_t adios_grp_handle, adios_grp_handle3;
+    int64_t adios_var_handle;
+    int64_t adios_attr_handle;
+#endif
 #if defined(USEHDF)||defined(USEADIOS)
     DataGroupNames datagroupnames;
 #endif
@@ -331,10 +342,16 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     cout<<"saving group catalog to "<<fname<<endl;
     if (opt.ibinaryout==OUTBINARY) Fout.open(fname,ios::out|ios::binary);
 #ifdef USEHDF
-    else if (opt.ibinaryout==OUTHDF) {
         //create file
+        else if (opt.ibinaryout==OUTHDF) {
         Fhdf=H5File(fname,H5F_ACC_TRUNC);
         //Fhdf.H5Fcreate(fname,H5F_ACC_TRUNC,H5P_DEFAULT,H5P_DEFAULT);
+    }
+#endif
+#ifdef USEADIOS
+    else if (opt.ibinaryout==OUTADIOS) {
+        //open an adios file
+        adios_err=adios_open(&adios_file_handle, "VELOCIraptor_catalog_groups", fname, "w", MPI_COMM_WORLD);
     }
 #endif
     else Fout.open(fname,ios::out);
@@ -385,6 +402,24 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
         delete[] dims;
     }
 #endif
+#ifdef USEADIOS
+    else if (opt.ibinaryout==OUTADIOS) {
+        //declare the attributes in a header group, assiging the group handle, setting the name, no time step indicator, and a flag saying yes to all statistics
+        adios_err=adios_declare_group(&adios_grp_handle,"Header", "" , adios_stat_full);
+        //select simple mpi method
+        adios_select_method (adios_grp_handle, "MPI", "", "");
+        //define some attributes
+        adios_err=adios_define_attribute(adios_grp_handle,datagroupnames.group[itemp].c_str(),"",datagroupnames.adiosgroupdatatype[itemp],to_string(ThisTask).c_str(),"");
+        itemp++;
+        adios_err=adios_define_attribute(adios_grp_handle,datagroupnames.group[itemp].c_str(),"",datagroupnames.adiosgroupdatatype[itemp],to_string(NProcs).c_str(),"");
+        itemp++;
+        adios_err=adios_define_attribute(adios_grp_handle,datagroupnames.group[itemp].c_str(),"",datagroupnames.adiosgroupdatatype[itemp],to_string(ng).c_str(),"");
+        itemp++;
+        adios_err=adios_define_attribute(adios_grp_handle,datagroupnames.group[itemp].c_str(),"",datagroupnames.adiosgroupdatatype[itemp],to_string(ngtot).c_str(),"");
+        itemp++;
+        ///\todo don't actually know if I should use adios attribute or var to store simple single values
+    }
+#endif
     else{
         Fout<<ThisTask<<" "<<NProcs<<endl;
         Fout<<ng<<" "<<ngtot<<endl;
@@ -406,6 +441,36 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
         itemp++;
         delete[] data;
         delete[] dims;
+    }
+#endif
+#ifdef USEADIOS
+    else if (opt.ibinaryout==OUTADIOS) {
+        //declare a new group
+        //declare the attributes in a header group, assiging the group handle, setting the name, no time step indicator, and a flag saying yes to all statistics
+        adios_err=adios_declare_group(&adios_grp_handle,"Catalog_Data", "" , adios_stat_full);
+        //select simple mpi method
+        adios_select_method (adios_grp_handle, "MPI", "", "");
+        //now stage variables (data)
+        //if want to define dimensions can either create a variable that stores the dimensions or store the value as a string.
+        //store local dim
+        adios_err=adios_define_var(adios_grp_handle,"ng","", adios_unsigned_long,0,0,0);
+        //store global dim
+        adios_err=adios_define_var(adios_grp_handle,"ngtot","", adios_unsigned_long,0,0,0);
+        //store mpi offset
+        adios_err=adios_define_var(adios_grp_handle,"ngmpioffset","", adios_unsigned_long,0,0,0);
+        //then define the group actually storing the data. Might be useful to define an offset variable as well for quick access when reading
+        //offset would be the last field in the code below
+        adios_err=adios_define_var(adios_grp_handle,datagroupnames.group[itemp].c_str(),"",datagroupnames.adiosgroupdatatype[itemp],"ng","ngtot","ngmpioffset");
+        adios_err=adios_write(adios_file_handle,"ng",&ng);
+        adios_err=adios_write(adios_file_handle,"ngtot",&ngtot);
+        Int_t mpioffset=0;
+        for (Int_t itask=0;itask<ThisTask;itask++)mpioffset+=mpi_ngroups[itask];
+        adios_err=adios_write(adios_file_handle,"ngmpioffset",&mpioffset);
+        unsigned int *data=new unsigned int[ng];
+        for (Int_t i=1;i<=ng;i++) data[i-1]=numingroup[i];
+        adios_err=adios_write(adios_file_handle,datagroupnames.group[itemp].c_str(),data);
+        delete[] data;
+        itemp++;
     }
 #endif
     else for (Int_t i=1;i<=ngroups;i++) Fout<<numingroup[i]<<endl;
@@ -434,6 +499,17 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
         delete[] dims;
     }
 #endif
+#ifdef USEADIOS
+    else if (opt.ibinaryout==OUTADIOS) {
+        //don't delcare new group, just add data
+        adios_err=adios_define_var(adios_grp_handle,datagroupnames.group[itemp].c_str(),"",datagroupnames.adiosgroupdatatype[itemp],"ng","ngtot","ngmpioffset");
+        unsigned long *data=new unsigned long[ng];
+        for (Int_t i=1;i<=ng;i++) data[i-1]=offset[i];
+        adios_err=adios_write(adios_file_handle,datagroupnames.group[itemp].c_str(),data);
+        delete[] data;
+        itemp++;
+    }
+#endif
     else for (Int_t i=1;i<=ngroups;i++) Fout<<offset[i]<<endl;
 
     //position of unbound particle
@@ -455,12 +531,26 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
         delete[] dims;
     }
 #endif
+#ifdef USEADIOS
+    else if (opt.ibinaryout==OUTADIOS) {
+        //don't delcare new group, just add data
+        adios_err=adios_define_var(adios_grp_handle,datagroupnames.group[itemp].c_str(),"",datagroupnames.adiosgroupdatatype[itemp],"ng","ngtot","ngmpioffset");
+        unsigned long *data=new unsigned long[ng];
+        for (Int_t i=1;i<=ng;i++) data[i-1]=offset[i];
+        adios_err=adios_write(adios_file_handle,datagroupnames.group[itemp].c_str(),data);
+        delete[] data;
+        itemp++;
+    }
+#endif
     else for (Int_t i=1;i<=ngroups;i++) Fout<<offset[i]<<endl;
 
     delete[] offset;
-    if (opt.ibinaryout!=OUTHDF) Fout.close();
+    if (opt.ibinaryout==OUTASCII || opt.ibinaryout==OUTBINARY) Fout.close();
 #ifdef USEHDF
-    else Fhdf.close();
+    else if (opt.ibinaryout==OUTHDF) Fhdf.close();
+#endif
+#ifdef USEADIOS
+    else if (opt.ibinaryout==OUTADIOS) adios_err=adios_close(adios_file_handle);
 #endif
 
     //now write pid files
@@ -481,6 +571,12 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     else if (opt.ibinaryout==OUTHDF) {
         Fhdf=H5File(fname,H5F_ACC_TRUNC);
         Fhdf3=H5File(fname3,H5F_ACC_TRUNC);
+    }
+#endif
+#ifdef USEADIOS
+    else if (opt.ibinaryout==OUTADIOS) {
+        adios_err=adios_open(&adios_file_handle, "VELOCIraptor_catalog_particles", fname, "w", MPI_COMM_WORLD);
+        adios_err=adios_open(&adios_file_handle3, "VELOCIraptor_catalog_particles.unbound", fname3, "w", MPI_COMM_WORLD);
     }
 #endif
     else {
@@ -557,6 +653,28 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
         delete[] dims;
     }
 #endif
+#ifdef USEADIOS
+    else if (opt.ibinaryout==OUTADIOS) {
+        //declare the attributes in a header group, assiging the group handle, setting the name, no time step indicator, and a flag saying yes to all statistics
+        adios_err=adios_declare_group(&adios_grp_handle,"Header", "" , adios_stat_full);
+        //select simple mpi method
+        adios_select_method (adios_grp_handle, "MPI", "", "");
+        //define some attributes
+        adios_err=adios_define_attribute(adios_grp_handle,datagroupnames.group[itemp].c_str(),"",datagroupnames.adiosgroupdatatype[itemp],to_string(ThisTask).c_str(),"");
+        adios_err=adios_define_attribute(adios_grp_handle3,datagroupnames.group[itemp].c_str(),"",datagroupnames.adiosgroupdatatype[itemp],to_string(ThisTask).c_str(),"");
+        itemp++;
+        adios_err=adios_define_attribute(adios_grp_handle,datagroupnames.group[itemp].c_str(),"",datagroupnames.adiosgroupdatatype[itemp],to_string(NProcs).c_str(),"");
+        adios_err=adios_define_attribute(adios_grp_handle3,datagroupnames.group[itemp].c_str(),"",datagroupnames.adiosgroupdatatype[itemp],to_string(NProcs).c_str(),"");
+        itemp++;
+        adios_err=adios_define_attribute(adios_grp_handle,datagroupnames.group[itemp].c_str(),"",datagroupnames.adiosgroupdatatype[itemp],to_string(nids).c_str(),"");
+        adios_err=adios_define_attribute(adios_grp_handle3,datagroupnames.group[itemp].c_str(),"",datagroupnames.adiosgroupdatatype[itemp],to_string(nuids).c_str(),"");
+        itemp++;
+        adios_err=adios_define_attribute(adios_grp_handle,datagroupnames.group[itemp].c_str(),"",datagroupnames.adiosgroupdatatype[itemp],to_string(nidstot).c_str(),"");
+        adios_err=adios_define_attribute(adios_grp_handle3,datagroupnames.group[itemp].c_str(),"",datagroupnames.adiosgroupdatatype[itemp],to_string(nuidstot).c_str(),"");
+        itemp++;
+        ///\todo don't actually know if I should use adios attribute or var to store simple single values
+    }
+#endif
     else {
         Fout<<ThisTask<<" "<<NProcs<<endl;
         Fout<<nids<<" "<<nidstot<<endl;
@@ -588,12 +706,37 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
             delete[] dims;
         }
 #endif
+#ifdef USEADIOS
+        else if (opt.ibinaryout==OUTADIOS) {
+            adios_err=adios_declare_group(&adios_grp_handle,"Catalog_Data", "" , adios_stat_full);
+            adios_select_method (adios_grp_handle, "MPI", "", "");
+            //store local dim
+            adios_err=adios_define_var(adios_grp_handle,"nids","", adios_unsigned_long,0,0,0);
+            //store global dim
+            adios_err=adios_define_var(adios_grp_handle,"nidstot","", adios_unsigned_long,0,0,0);
+            //store mpi offset
+            adios_err=adios_define_var(adios_grp_handle,"nidsmpioffset","", adios_unsigned_long,0,0,0);
+            adios_err=adios_define_var(adios_grp_handle,datagroupnames.group[itemp].c_str(),"",datagroupnames.adiosgroupdatatype[itemp],"nids","nidstot","nidsmpioffset");
+            adios_err=adios_write(adios_file_handle,"nids",&nids);
+            adios_err=adios_write(adios_file_handle,"nidstot",&nidstot);
+            Int_t mpioffset=0;
+            //for (Int_t itask=0;itask<ThisTask;itask++)mpioffset+=mpi_ngroups[itask];
+            adios_err=adios_write(adios_file_handle,"nidsmpioffset",&mpioffset);
+            long long *data=new long long[nids];
+            for (Int_t i=0;i<nids;i++) data[i-1]=idval[i];
+            adios_err=adios_write(adios_file_handle,datagroupnames.group[itemp].c_str(),data);
+            delete[] data;
+        }
+#endif
         else for (Int_t i=0;i<nids;i++) Fout<<idval[i]<<endl;
         delete[] idval;
     }
-    if (opt.ibinaryout!=OUTHDF) Fout.close();
+    if (opt.ibinaryout==OUTASCII || opt.ibinaryout==OUTBINARY) Fout.close();
 #ifdef USEHDF
-    else Fhdf.close();
+    if (opt.ibinaryout==OUTHDF) Fhdf.close();
+#endif
+#ifdef USEADIOS
+    else if (opt.ibinaryout==OUTADIOS) adios_err=adios_close(adios_file_handle);
 #endif
 
     if (nuids>0) {
@@ -618,12 +761,38 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
             delete[] dims;
         }
 #endif
+#ifdef USEADIOS
+        else if (opt.ibinaryout==OUTADIOS) {
+            adios_err=adios_declare_group(&adios_grp_handle3,"Catalog_Data", "" , adios_stat_full);
+            adios_select_method (adios_grp_handle3, "MPI", "", "");
+            //store local dim
+            adios_err=adios_define_var(adios_grp_handle3,"nuids","", adios_unsigned_long,0,0,0);
+            //store global dim
+            adios_err=adios_define_var(adios_grp_handle3,"nuidstot","", adios_unsigned_long,0,0,0);
+            //store mpi offset
+            adios_err=adios_define_var(adios_grp_handle3,"nuidsmpioffset","", adios_unsigned_long,0,0,0);
+            adios_err=adios_define_var(adios_grp_handle3,datagroupnames.group[itemp].c_str(),"",datagroupnames.adiosgroupdatatype[itemp],"nuids","nuidstot","nuidsmpioffset");
+            adios_err=adios_write(adios_file_handle3,"nuids",&nuids);
+            adios_err=adios_write(adios_file_handle3,"nuidstot",&nuidstot);
+            Int_t mpioffset=0;
+            //for (Int_t itask=0;itask<ThisTask;itask++)mpioffset+=mpi_ngroups[itask];
+            adios_err=adios_write(adios_file_handle3,"nidsmpioffset",&mpioffset);
+            long long *data=new long long[nuids];
+            for (Int_t i=0;i<nuids;i++) data[i-1]=idval[i];
+            adios_err=adios_write(adios_file_handle3,datagroupnames.group[itemp].c_str(),data);
+            delete[] data;
+        }
+#endif
         else for (Int_t i=0;i<nuids;i++) Fout3<<idval[i]<<endl;
         delete[] idval;
     }
-    if (opt.ibinaryout!=OUTHDF) Fout3.close();
+
+    if (opt.ibinaryout==OUTASCII || opt.ibinaryout==OUTBINARY) Fout3.close();
 #ifdef USEHDF
-    else Fhdf3.close();
+    if (opt.ibinaryout==OUTHDF) Fhdf3.close();
+#endif
+#ifdef USEADIOS
+    else if (opt.ibinaryout==OUTADIOS) adios_err=adios_close(adios_file_handle3);
 #endif
 
 #ifdef USEMPI

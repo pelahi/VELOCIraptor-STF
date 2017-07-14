@@ -74,6 +74,15 @@ int main(int argc,char **argv)
     GetArgs(argc, argv, opt);
     cout.precision(10);
 
+#ifdef USEMPI
+#ifdef USEADIOS
+    //init adios
+    adios_init_noxml(MPI_COMM_WORLD);
+    //specify the buffer size (use the tot particle buffer size in bytes and convert to MB)
+    adios_set_max_buffer_size(opt.mpiparticletotbufsize/1024/1024);
+#endif
+#endif
+
     //variables
     //number of particles, (also number of baryons if use dm+baryon search)
     //to store (point to) particle data
@@ -427,6 +436,9 @@ int main(int argc,char **argv)
         delete[] pdata;
         delete[] Part;
 #ifdef USEMPI
+#ifdef USEADIOS
+        adios_finalize(ThisTask);
+#endif
         MPI_Finalize();
 #endif
         return 0;
@@ -515,6 +527,9 @@ int main(int argc,char **argv)
     cout<<"TIME::"<<ThisTask<<" took "<<tottime<<" in all"<<endl;
 
 #ifdef USEMPI
+#ifdef USEADIOS
+    adios_finalize(ThisTask);
+#endif
     MPI_Finalize();
 #endif
 

@@ -299,9 +299,9 @@ endif
 
 ifeq ($(ADIOSENABLE),"on")
     C+FLAGS+= -DUSEADIOS
-    C+LIBS+= $(shell $(ADIOS_DIR)/bin/adios_config -c -f)
-    IFLAGS+= $(shell $(ADIOS_DIR)/bin/adios_config -c -f)
-    LFLAGS+= $(shell $(ADIOS_DIR)/bin/adios_config -l -f)
+    C+LIBS+= $(shell $(ADIOS_DIR)/bin/adios_config -c)
+    IFLAGS+= $(shell $(ADIOS_DIR)/bin/adios_config -c)
+    LFLAGS+= $(shell $(ADIOS_DIR)/bin/adios_config -l)
 endif
 
 ifeq ($(XDRENABLE),"on")
