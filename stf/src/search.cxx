@@ -378,19 +378,18 @@ private(i,tid,xscaling,vscaling)
 #else
         tid=0;
 #endif
-        /*
         //if adaptive 6dfof, set params
         if (opt.fofbgtype==FOF6DADAPTIVE) paramomp[2+tid*20]=paramomp[7+tid*20]=vscale2array[i];
+        /*
         treeomp[tid]=new KDTree(&Part[noffset[i]],numingroup[i],opt.Bsize,treeomp[tid]->TPHYS,tree->KEPAN,100);
         pfofomp[i]=treeomp[tid]->FOFCriterion(fofcmp,&paramomp[tid*20],ngomp[i],minsize,1,0,Pnocheck,&Head[noffset[i]],&Next[noffset[i]],&Tail[noffset[i]],&Len[noffset[i]]);
         */
         //scale particle positions
-        if (opt.fofbgtype==FOF6DADAPTIVE) paramomp[2+tid*20]=paramomp[7+tid*20]=vscale2array[i];
         xscaling=1.0/sqrt(paramomp[1+tid*20]);vscaling=1.0/sqrt(paramomp[2+tid*20]);
         for (Int_t j=0;j<numingroup[i];j++) {
             Part[noffset[i]+j].ScalePhase(xscaling,vscaling);
         }
-        xscaling=sqrt(paramomp[1+tid*20]);vscaling=sqrt(paramomp[2+tid*20]);
+        xscaling=1.0/xscaling;vscaling=1.0/vscaling;
         treeomp[tid]=new KDTree(&Part[noffset[i]],numingroup[i],opt.Bsize,treeomp[tid]->TPHS,tree->KEPAN,100);
         pfofomp[i]=treeomp[tid]->FOF(1.0,ngomp[i],minsize,1,&Head[noffset[i]],&Next[noffset[i]],&Tail[noffset[i]],&Len[noffset[i]]);
         for (Int_t j=0;j<numingroup[i];j++) {
