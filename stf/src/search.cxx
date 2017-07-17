@@ -300,7 +300,7 @@ private(i,vscale2,mtotregion,vx,vy,vz,vmean)
 {
 #pragma omp for schedule(dynamic,1) nowait
 #endif
-        for (i=1;i<numgroups;i++) {
+        for (i=1;i<=numgroups;i++) {
             vscale2=mtotregion=vx=vy=vz=0;
             for (Int_t j=0;j<numingroup[i];j++) {
                 vx+=Part[j+noffset[i]].GetVelocity(0)*Part[i].GetMass();
