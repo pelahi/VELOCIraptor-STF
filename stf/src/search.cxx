@@ -300,7 +300,7 @@ private(i,vscale2,mtotregion,vx,vy,vz,vmean)
 {
 #pragma omp for schedule(dynamic,1) nowait
 #endif
-        for (i=1;i<numgroups;i++) {
+        for (i=1;i<=numgroups;i++) {
             vscale2=mtotregion=vx=vy=vz=0;
             for (Int_t j=0;j<numingroup[i];j++) {
                 vx+=Part[j+noffset[i]].GetVelocity(0)*Part[i].GetMass();
@@ -365,9 +365,10 @@ private(i,vscale2,mtotregion,vx,vy,vz,vmean)
     ///6d phase tree and simple FOF ball search
     pfofomp=new Int_t*[iend+1];
     ngomp=new Int_t[iend+1];
+    Double_t xscaling, vscaling;
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
-private(i,tid)
+private(i,tid,xscaling,vscaling)
 {
 #pragma omp for schedule(dynamic,1) nowait
 #endif
@@ -384,15 +385,16 @@ private(i,tid)
         pfofomp[i]=treeomp[tid]->FOFCriterion(fofcmp,&paramomp[tid*20],ngomp[i],minsize,1,0,Pnocheck,&Head[noffset[i]],&Next[noffset[i]],&Tail[noffset[i]],&Len[noffset[i]]);
         */
         //scale particle positions
+        if (opt.fofbgtype==FOF6DADAPTIVE) paramomp[2+tid*20]=paramomp[7+tid*20]=vscale2array[i];
+        xscaling=1.0/sqrt(paramomp[1+tid*20]);vscaling=1.0/sqrt(paramomp[2+tid*20]);
         for (Int_t j=0;j<numingroup[i];j++) {
-            for (int k=0;k<3;k++) Part[noffset[i]+j].SetPosition(k,Part[noffset[i]+j].GetPosition(k)/paramomp[1+tid*20]);
-            for (int k=0;k<3;k++) Part[noffset[i]+j].SetVelocity(k,Part[noffset[i]+j].GetVelocity(k)/paramomp[2+tid*20]);
+            Part[noffset[i]+j].ScalePhase(xscaling,vscaling);
         }
+        xscaling=sqrt(paramomp[1+tid*20]);vscaling=sqrt(paramomp[2+tid*20]);
         treeomp[tid]=new KDTree(&Part[noffset[i]],numingroup[i],opt.Bsize,treeomp[tid]->TPHS,tree->KEPAN,100);
         pfofomp[i]=treeomp[tid]->FOF(1.0,ngomp[i],minsize,1,&Head[noffset[i]],&Next[noffset[i]],&Tail[noffset[i]],&Len[noffset[i]]);
         for (Int_t j=0;j<numingroup[i];j++) {
-            for (int k=0;k<3;k++) Part[noffset[i]+j].SetPosition(k,Part[noffset[i]+j].GetPosition(k)*paramomp[1+tid*20]);
-            for (int k=0;k<3;k++) Part[noffset[i]+j].SetVelocity(k,Part[noffset[i]+j].GetVelocity(k)*paramomp[2+tid*20]);
+            Part[noffset[i]+j].ScalePhase(xscaling,vscaling);
         }
         delete treeomp[tid];
     }

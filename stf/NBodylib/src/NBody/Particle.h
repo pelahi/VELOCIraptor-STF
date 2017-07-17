@@ -32,7 +32,7 @@ namespace NBody
 
 
 /// \name Particle Memory Flags
-/// \brief These are define flags that alter the memory allocation of particles 
+/// \brief These are define flags that alter the memory allocation of particles
 //@{
 ///use long ints to store particle ids
 ///if NOMASS is defined, don't actually store a mass
@@ -47,16 +47,16 @@ typedef Double_t DoublePos_t;
 #endif
 //@}
 
-/*! 
+/*!
     \class NBody::Particle
     \brief A simple n-body particle class.
-    
-    The class is for a simple n-body particle with mass, position, velocity, id, type and density information. 
-    Note that here particles can be compiled to store mass or assume all particles have the same mass given by a 
+
+    The class is for a simple n-body particle with mass, position, velocity, id, type and density information.
+    Note that here particles can be compiled to store mass or assume all particles have the same mass given by a
     MASSVAL definition in \ref Particle.h by defining the flag NOMASS. Particles can also be compiled to have long ids
     stored using an unsigned int or unsigned long it.
 */
-    class Particle 
+    class Particle
     {
         protected:
         ///mass
@@ -84,7 +84,7 @@ typedef Double_t DoublePos_t;
 #endif
 #ifdef LONGIDS
         UInt_t id;
-#else 
+#else
         Int_t id;
 #endif
         //int gid;
@@ -96,7 +96,7 @@ typedef Double_t DoublePos_t;
         Double_t phi;
         ///For hydrodynamical quantities
         //@{
-        ///if gas flag is set, then particle also can have sph based quantities. if star flag is set, 
+        ///if gas flag is set, then particle also can have sph based quantities. if star flag is set,
         ///then particle also can have star properties such as age and metallicity
 #ifdef GASON
         ///self energy
@@ -119,9 +119,9 @@ typedef Double_t DoublePos_t;
         DoublePos_t entropy;
 #endif
         //@}
-        
+
 #ifdef EXTENDEDFOFINFO
-	    ///Variables to store extra info 
+	    ///Variables to store extra info
         ///used by VELOCIraptor group finding
         //@{
         ///file id of input file containing particle
@@ -134,11 +134,11 @@ typedef Double_t DoublePos_t;
 	    Int_t idStruct;
         ///3DFOF envelop id
 	    Int_t idFOFHost;
-        ///host id 
+        ///host id
 	    Int_t idHost;
         //}
-#endif	
-        
+#endif
+
 
         public:
 
@@ -164,14 +164,14 @@ typedef Double_t DoublePos_t;
                 (velocity[0]==p.velocity[0])&&(velocity[1]==p.velocity[1])&&(velocity[2]==p.velocity[2])&&
                 (id==p.id)&&(type==p.type)&&(rho==p.rho)&&(phi==p.phi)&&
                 (pid==p.pid));
-            
+
 #ifndef NOMASS
             ival*=((mass==p.mass));
 #endif
 #ifdef GASON
             ival*=((u==p.u)&&(sphden==p.sphden));
 #endif
-#ifdef STARON 
+#ifdef STARON
             ival*=((tage==p.tage));
 #endif
 #if defined(GASON) && defined(STARON)
@@ -191,7 +191,7 @@ typedef Double_t DoublePos_t;
         // e.g., cin >> part;
         //friend istream &operator >> (istream &ins, Particle &p);
         //@}
-        
+
         /// \name IO methods
         //@{
         //// Read a particle from an stream in binary format
@@ -304,7 +304,7 @@ typedef Double_t DoublePos_t;
         void SetSFR(const Double_t &SFR){sfr=SFR;}
 #endif
 
-#if defined(GASON) && (GASEXTRA) 
+#if defined(GASON) && (GASEXTRA)
         Double_t GetEntropy() {return entropy;}
         void SetEntropy(const Double_t &Entropy) {entropy=Entropy;}
 #endif
@@ -334,6 +334,12 @@ typedef Double_t DoublePos_t;
 
         /// \name Other useful functions
         //@{
+        ///scale positions by a quantity
+        void ScalePositions(Double_t &x){position[0]*=x;position[1]*=x;position[2]*=x;}
+        ///scale positions by a quantity
+        void ScaleVelocity(Double_t &x){velocity[0]*=x;velocity[1]*=x;velocity[2]*=x;}
+        ///scale positions/velocity by a quantity
+        void ScalePhase(Double_t &x, Double_t &v){position[0]*=x;position[1]*=x;position[2]*=x;velocity[0]*=v;velocity[1]*=v;velocity[2]*=v;}
         /// Radius of particle
         Double_t Radius() const {return sqrt(position[0]*position[0]+position[1]*position[1]+position[2]*position[2]);}
         ///Radius squared
@@ -354,7 +360,7 @@ typedef Double_t DoublePos_t;
             return -atan2(position[1], -position[0])+1.0*M_PI;
             else if (position[1]<0&&position[0]<0)
             return atan2(-position[1], -position[0])+1.0*M_PI;
-            else 
+            else
             return -atan2(-position[1], position[0])+2.0*M_PI;
         }
         /// Cylindrical radius (with symmetry axis along z)
@@ -369,7 +375,7 @@ typedef Double_t DoublePos_t;
             velocity[1] * velocity[1] +
             velocity[2] * velocity[2]);
         }
-        /// Velocity along radial direction, check if returns nan then 
+        /// Velocity along radial direction, check if returns nan then
         Double_t RadialVelocity() const
         {
         Double_t r = Radius();
@@ -436,10 +442,10 @@ typedef Double_t DoublePos_t;
     */
 
 
-/*! 
+/*!
     \class NBody::GasParticle
     \brief An sph gas particle
-    
+
     The class is a subclass of \ref NBody::Particle and has several extra quantities commonly need or used in hydro simulations
     These are temperature, log of entropy, pressure, electron or ionization fraction, atomic hydrogen, metallicity, star foramtion rate, internal energy. \n
     This class is in a state of flux as more properties could be added.
@@ -453,7 +459,7 @@ typedef Double_t DoublePos_t;
         Double_t temp, lgS, P, Ne, Nh0, metal, sfr, U;
         //@}
         public:
-            
+
         /// \name Constructors & Destructors
         //@{
         GasParticle(Double_t Mass = 0, Double_t x = 0, Double_t y = 0, Double_t z = 0,
@@ -463,7 +469,7 @@ typedef Double_t DoublePos_t;
                     Double_t Temp=0, Double_t Ui=0, Double_t Pi=0, Double_t NE=0,Double_t NH0=0,Double_t Zi=0, Double_t SFR=0,Double_t LGS=0);
         GasParticle(const GasParticle &p);
         //@}
-        
+
         /// \name Overloaded operators
         //@{
         GasParticle &operator=(const GasParticle &part);
@@ -513,10 +519,10 @@ typedef Double_t DoublePos_t;
 
     };
 
-/*! 
+/*!
     \class NBody::StarParticle
     \brief An sph star particle
-    
+
     The class is a subclass of \ref NBody::Particle and has several extra quantities commonly need or used in hydro simulations
     These are formation time and metallicity. \n
     This class is in a state of flux as more properties could be added.
@@ -524,13 +530,13 @@ typedef Double_t DoublePos_t;
 */
     class StarParticle : public Particle
     {
-        private: 
+        private:
 
         ///formation time
         Double_t tform;
         ///metallicity
         Double_t metal;
-        
+
         public:
         /// \name Constructors & Destructors
         //@{
@@ -539,7 +545,7 @@ typedef Double_t DoublePos_t;
         StarParticle(Double_t Mass, Double_t *NewPos, Double_t *NewVel, Int_t ID=0, int type=0, Double_t Rho=0, Double_t Phi=0, Double_t TF=0, Double_t Zi=0);
         StarParticle(const StarParticle &p);
         //@}
-        
+
         /// \name Overloaded operators
         //@{
         StarParticle &operator=(const StarParticle &part);
