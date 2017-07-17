@@ -52,6 +52,7 @@ namespace NBody
 
         UInt_tree_t bucket_start;
         UInt_tree_t bucket_end;
+        unsigned short numdim;
         public:
         virtual ~Node() {};
 
@@ -216,7 +217,7 @@ namespace NBody
         Node *left;
         Node *right;
         public:
-        SplitNode(Int_t id, int d, Double_t p, Int_t Count, Double_t bnd[6][2], Int_t new_bucket_start, Int_t new_bucket_end, Node *initial_left = NULL,
+        SplitNode(Int_t id, int d, Double_t p, Int_t Count, Double_t bnd[6][2], Int_t new_bucket_start, Int_t new_bucket_end, unsigned short ndim, Node *initial_left = NULL,
                   Node *initial_right = NULL)
         {
             nid=id;
@@ -227,7 +228,8 @@ namespace NBody
             bucket_end = new_bucket_end;
             left = initial_left;
             right = initial_right;
-            for (int j=0;j<6;j++) {xbnd[j][0]=bnd[j][0];xbnd[j][1]=bnd[j][1];}
+            numdim=ndim;
+            for (int j=0;j<numdim;j++) {xbnd[j][0]=bnd[j][0];xbnd[j][1]=bnd[j][1];}
         }
         ~SplitNode() { delete left; delete right; }
 
@@ -332,13 +334,14 @@ namespace NBody
     {
         private:
         public:
-        LeafNode(Int_t id, Int_t new_bucket_start, Int_t new_bucket_end, Double_t bnd[6][2])
+        LeafNode(Int_t id, Int_t new_bucket_start, Int_t new_bucket_end, Double_t bnd[6][2], unsigned short ndim)
         {
             nid=id;
             bucket_start = new_bucket_start;
             bucket_end = new_bucket_end;
             count=bucket_end-bucket_start;
-            for (int j=0;j<6;j++) {xbnd[j][0]=bnd[j][0];xbnd[j][1]=bnd[j][1];}
+            numdim=ndim;
+            for (int j=0;j<numdim;j++) {xbnd[j][0]=bnd[j][0];xbnd[j][1]=bnd[j][1];}
         }
         ~LeafNode() { }
 
