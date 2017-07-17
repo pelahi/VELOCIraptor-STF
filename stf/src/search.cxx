@@ -360,6 +360,9 @@ private(i,vscale2,mtotregion,vx,vy,vz,vmean)
     for (i=0;i<nthreads;i++)
         for (int j=0;j<20;j++) paramomp[j+i*20]=param[j];
 
+    ///\todo need to improve kdtree 6dfof construction to make use of scaling dimensions and running in 6d.
+    ///before ran FOF criterion on physical tree but try scaling particles according to linking lengths, run
+    ///6d phase tree and simple FOF ball search
     pfofomp=new Int_t*[iend+1];
     ngomp=new Int_t[iend+1];
 #ifdef USEOPENMP
@@ -374,10 +377,23 @@ private(i,tid)
 #else
         tid=0;
 #endif
-        treeomp[tid]=new KDTree(&Part[noffset[i]],numingroup[i],opt.Bsize,treeomp[tid]->TPHYS,tree->KEPAN,100);
+        /*
         //if adaptive 6dfof, set params
         if (opt.fofbgtype==FOF6DADAPTIVE) paramomp[2+tid*20]=paramomp[7+tid*20]=vscale2array[i];
+        treeomp[tid]=new KDTree(&Part[noffset[i]],numingroup[i],opt.Bsize,treeomp[tid]->TPHYS,tree->KEPAN,100);
         pfofomp[i]=treeomp[tid]->FOFCriterion(fofcmp,&paramomp[tid*20],ngomp[i],minsize,1,0,Pnocheck,&Head[noffset[i]],&Next[noffset[i]],&Tail[noffset[i]],&Len[noffset[i]]);
+        */
+        //scale particle positions
+        for (Int_t j=0;j<numingroup[i];j++) {
+            for (int k=0;k<3;k++) Part[noffset[i]+j].SetPosition(k,Part[noffset[i]+j].GetPosition(k)/paramomp[1+tid*20]);
+            for (int k=0;k<3;k++) Part[noffset[i]+j].SetVelocity(k,Part[noffset[i]+j].GetVelocity(k)/paramomp[2+tid*20]);
+        }
+        treeomp[tid]=new KDTree(&Part[noffset[i]],numingroup[i],opt.Bsize,treeomp[tid]->TPHS,tree->KEPAN,100);
+        pfofomp[i]=treeomp[tid]->FOF(1.0,ngomp[i],minsize,1,&Head[noffset[i]],&Next[noffset[i]],&Tail[noffset[i]],&Len[noffset[i]]);
+        for (Int_t j=0;j<numingroup[i];j++) {
+            for (int k=0;k<3;k++) Part[noffset[i]+j].SetPosition(k,Part[noffset[i]+j].GetPosition(k)*paramomp[1+tid*20]);
+            for (int k=0;k<3;k++) Part[noffset[i]+j].SetVelocity(k,Part[noffset[i]+j].GetVelocity(k)*paramomp[2+tid*20]);
+        }
         delete treeomp[tid];
     }
 #ifdef USEOPENMP
