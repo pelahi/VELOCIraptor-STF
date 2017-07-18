@@ -1988,7 +1988,7 @@ void WriteVELOCIraptorConfig(Options &opt){
         ConfigInfo config(opt);
         sprintf(fname,"%s.configuration",opt.outname);
         Fout.open(fname,ios::out);
-#ifdef OLDCCOMPILER
+#ifndef OLDCCOMPILER
         for (Int_t i=0;i<config.nameinfo.size();i++) {
             Fout<<config.nameinfo[i]<<" : ";
             Fout<<config.datainfo[i]<<" ";
@@ -2027,7 +2027,7 @@ void WriteSimulationInfo(Options &opt){
         SimInfo siminfo(opt);
         sprintf(fname,"%s.siminfo",opt.outname);
         Fout.open(fname,ios::out);
-#ifdef OLDCCOMPILER
+#ifndef OLDCCOMPILER
         for (Int_t i=0;i<siminfo.nameinfo.size();i++) {
             Fout<<siminfo.nameinfo[i]<<" : ";
             Fout<<siminfo.datainfo[i]<<" ";
@@ -2067,7 +2067,7 @@ void WriteUnitInfo(Options &opt){
         UnitInfo unitinfo(opt);
         sprintf(fname,"%s.units",opt.outname);
         Fout.open(fname,ios::out);
-#ifdef OLDCCOMPILER
+#ifndef OLDCCOMPILER
         for (Int_t i=0;i<unitinfo.nameinfo.size();i++) {
             Fout<<unitinfo.nameinfo[i]<<" : ";
             Fout<<unitinfo.datainfo[i]<<" ";
