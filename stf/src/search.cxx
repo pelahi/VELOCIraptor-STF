@@ -1629,7 +1629,7 @@ void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *&Partsubset, In
         Int_t *noffset=new Int_t[numgroupsbg+1];
         //if running fully adaptive core linking, then need to calculate phase-space dispersions for each core
         //about their centres and use this to determine distances
-        if (opt.iAdaptiveCoreLinking>=2) {
+        if (opt.iPhaseCoreGrowth) {
             if (opt.iverbose>=2) cout<<"Searching untagged particles to assign to cores using full phase-space metrics"<<endl;
             //store particles
             Pcore=new Particle[nincore];
