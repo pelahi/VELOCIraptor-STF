@@ -1,5 +1,11 @@
 include ../../Makefile.config
-all: Math_ NBody_ KDTree_ Analysis_ Cosmology_ InitCond_
+all:
+	make Math_
+	make NBody_
+	make KDTree_
+	make Analysis_
+	make Cosmology_
+	make InitCond_
 
 clean: Mathc_ NBodyc_ KDTreec_ Analysisc_ Cosmologyc_ InitCondc_ libandincc_
 
@@ -32,4 +38,3 @@ Analysisc_:
 libandincc_:
 	rm -f $(NBODYINCLUDEDIR)/*.h
 	rm -f $(NBODYLIBDIR)/*.a
-
