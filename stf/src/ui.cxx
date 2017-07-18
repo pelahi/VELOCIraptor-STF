@@ -175,7 +175,8 @@ void usage(void)
     \arg <b> \e Halo_6D_vel_linking_length_factor </b> scaling applied to dispersions used in 6DFOF field search. Typical values are \f$ \gtrsim 1.25 \f$ \n
 
     \arg <b> \e Halo_core_search </b> 0/1/2 flag allows one to explicitly search for large 6D FOF cores that are indicative of a recent major merger. Since substructure is defined on the scale of the maximum cell size and major mergers typically result two or more phase-space dense regions that are \e larger than the cell size used in reasonable substructure searches, one can identify them using this search. The overall goal is to treat these objects differently than a substructure. However, if 2 is set, then smaller core is treated as substruture and all particles within the FOF envelop are assigned to the cores based on their phase-space distance to core particles \ref Options.iHaloCoreSearch \n
-    \arg <b> \e Use_adaptive_core_search </b> 0/1/2 flag allows one to run complex adaptive phase-space search for large 6D FOF cores and then use these linking lengths to separate mergers. 0 is off, 1, is adaptive with simple dispersions, and 2 is full phase-space dispersions tensors.
+    \arg <b> \e Use_adaptive_core_search </b> 0/1 flag allows one to run complex adaptive phase-space search for large 6D FOF cores and then use these linking lengths to separate mergers. 0 is simple high density dispersively cold cores with v scale adaptive, 1 is adaptive with simple dispersions in both x and v.
+    \arg <b> \e Use_phase_tensor_core_growth </b> 0/1 flag allows one to run complex phase-space growth of merger remnants (6D FOF cores found). 0 is assignment with simple x and v dispersion to nearest core particle, 1 is phase-space tensor distance assignemnt to CM of core.
     \arg <b> \e Halo_core_ellx_fac </b> scaling applied to linking length when identifying merger remnants. Typically values are \f$ \sim0.5 \f$  \ref Options.halocorexfac
     \arg <b> \e Halo_core_ellv_fac </b> scaling applied to local dispersion to define the velocity scale used to identify merger remnants. Typically values are \f$ \sim1 \f$  \ref Options.halocorevfac
     \arg <b> \e Halo_core_ncellfac </b> used to determine the minimum number of particles a merger remnants is composed of, specifically \f$ N_{\rm min}= f_{\rm ncell}* N_{\rm S} \f$. Typically values are     \arg <b> \e Halo_core_adaptive_sigma_fac </b> used when running fully adaptive core search, specifies the width of the physical linking length in configuration space dispersion (think of this as how many sigma to include). Typically values are \f$ \sim2 \f$. This has been tested on hydrodynamnical simulations to separate galaxy mergers. \ref Options.halocoresigmafac
@@ -351,6 +352,8 @@ void GetParamFile(Options &opt)
                         opt.iHaloCoreSearch = atoi(vbuff);
                     else if (strcmp(tbuff, "Use_adaptive_core_search")==0)
                         opt.iAdaptiveCoreLinking = atof(vbuff);
+                    else if (strcmp(tbuff, "Use_phase_tensor_core_growth")==0)
+                        opt.iPhaseCoreGrowth = atof(vbuff);
 
                     //bg and fof parameters
                     else if (strcmp(tbuff, "Cell_fraction")==0)
@@ -674,6 +677,7 @@ inline void ConfigCheck(Options &opt)
     if (opt.iextendedoutput) cout<<"Extended output for particle extraction from input files"<<endl;
     if (opt.iHaloCoreSearch) cout<<"Searching for 6dfof cores so as to disentangle mergers"<<endl;
     if (opt.iHaloCoreSearch && opt.iAdaptiveCoreLinking) cout<<"With adaptive linking lengths"<<endl;
+    if (opt.iHaloCoreSearch && opt.iPhaseCoreGrowth) cout<<"With with phase-space tensor core assignment"<<endl;
     if (opt.inputtype==IOGADGET) cout<<"Gadget file particle input "<<endl;
     else if (opt.inputtype==IOTIPSY) cout<<"Tipsy file particle input "<<endl;
     else if (opt.inputtype==IORAMSES) cout<<"RAMSES file particle input "<<endl;

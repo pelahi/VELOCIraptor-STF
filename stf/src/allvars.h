@@ -476,6 +476,8 @@ struct Options
     Double_t halocorexfac, halocorevfac, halocorenfac, halocoresigmafac;
     ///x and v space linking lengths calculated for each object
     int iAdaptiveCoreLinking;
+    ///use phase-space tensor core assignment
+    int iPhaseCoreGrowth;
     ///allow for iterative halo core search
     Double_t halocorevfaciter;
     ///number of iterations
@@ -587,6 +589,7 @@ struct Options
 
         iHaloCoreSearch=0;
         iAdaptiveCoreLinking=0;
+        iPhaseCoreGrowth=1;
         halocorexfac=0.5;
         halocorevfac=2.0;
         halocorenfac=0.1;
@@ -662,6 +665,8 @@ struct ConfigInfo{
         datainfo.push_back(to_string(opt.iHaloCoreSearch));
         nameinfo.push_back("Use_adaptive_core_search");
         datainfo.push_back(to_string(opt.iAdaptiveCoreLinking));
+        nameinfo.push_back("Use_phase_tensor_core_growth");
+        datainfo.push_back(to_string(opt.iPhaseCoreGrowth));
 
         //local field parameters
         nameinfo.push_back("Cell_fraction");

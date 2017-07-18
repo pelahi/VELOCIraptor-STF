@@ -360,11 +360,15 @@ private(i,vscale2,mtotregion,vx,vy,vz,vmean)
     for (i=0;i<nthreads;i++)
         for (int j=0;j<20;j++) paramomp[j+i*20]=param[j];
 
+    ///\todo need to improve kdtree 6dfof construction to make use of scaling dimensions and running in 6d.
+    ///before ran FOF criterion on physical tree but try scaling particles according to linking lengths, run
+    ///6d phase tree and simple FOF ball search
     pfofomp=new Int_t*[iend+1];
     ngomp=new Int_t[iend+1];
+    Double_t xscaling, vscaling;
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
-private(i,tid)
+private(i,tid,xscaling,vscaling)
 {
 #pragma omp for schedule(dynamic,1) nowait
 #endif
@@ -374,10 +378,23 @@ private(i,tid)
 #else
         tid=0;
 #endif
-        treeomp[tid]=new KDTree(&Part[noffset[i]],numingroup[i],opt.Bsize,treeomp[tid]->TPHYS,tree->KEPAN,100);
         //if adaptive 6dfof, set params
         if (opt.fofbgtype==FOF6DADAPTIVE) paramomp[2+tid*20]=paramomp[7+tid*20]=vscale2array[i];
+        /*
+        treeomp[tid]=new KDTree(&Part[noffset[i]],numingroup[i],opt.Bsize,treeomp[tid]->TPHYS,tree->KEPAN,100);
         pfofomp[i]=treeomp[tid]->FOFCriterion(fofcmp,&paramomp[tid*20],ngomp[i],minsize,1,0,Pnocheck,&Head[noffset[i]],&Next[noffset[i]],&Tail[noffset[i]],&Len[noffset[i]]);
+        */
+        //scale particle positions
+        xscaling=1.0/sqrt(paramomp[1+tid*20]);vscaling=1.0/sqrt(paramomp[2+tid*20]);
+        for (Int_t j=0;j<numingroup[i];j++) {
+            Part[noffset[i]+j].ScalePhase(xscaling,vscaling);
+        }
+        xscaling=1.0/xscaling;vscaling=1.0/vscaling;
+        treeomp[tid]=new KDTree(&Part[noffset[i]],numingroup[i],opt.Bsize,treeomp[tid]->TPHS,tree->KEPAN,100);
+        pfofomp[i]=treeomp[tid]->FOF(1.0,ngomp[i],minsize,1,&Head[noffset[i]],&Next[noffset[i]],&Tail[noffset[i]],&Len[noffset[i]]);
+        for (Int_t j=0;j<numingroup[i];j++) {
+            Part[noffset[i]+j].ScalePhase(xscaling,vscaling);
+        }
         delete treeomp[tid];
     }
 #ifdef USEOPENMP
@@ -1612,7 +1629,7 @@ void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *&Partsubset, In
         Int_t *noffset=new Int_t[numgroupsbg+1];
         //if running fully adaptive core linking, then need to calculate phase-space dispersions for each core
         //about their centres and use this to determine distances
-        if (opt.iAdaptiveCoreLinking>=2) {
+        if (opt.iPhaseCoreGrowth) {
             if (opt.iverbose>=2) cout<<"Searching untagged particles to assign to cores using full phase-space metrics"<<endl;
             //store particles
             Pcore=new Particle[nincore];

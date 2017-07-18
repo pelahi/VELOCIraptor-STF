@@ -633,7 +633,7 @@ namespace NBody
         {
             numleafnodes++;numnodes++;
             for (int j=0;j<ND;j++) (this->*bmfunc)(j, start, end, bnd[j]);
-            return new LeafNode(numnodes-1,start, end,  bnd);
+            return new LeafNode(numnodes-1,start, end,  bnd, ND);
         }
         else
         {
@@ -713,7 +713,7 @@ namespace NBody
 
             splitvalue= (this->*medianfunc)(splitdim, k, start, end,true);
 
-            return new SplitNode(numnodes-1, splitdim, splitvalue, size, bnd, start, end, BuildNodes(start, k+1),BuildNodes(k+1, end));
+            return new SplitNode(numnodes-1, splitdim, splitvalue, size, bnd, start, end, ND, BuildNodes(start, k+1),BuildNodes(k+1, end));
         }
     }
 

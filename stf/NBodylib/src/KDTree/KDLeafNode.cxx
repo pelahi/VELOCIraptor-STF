@@ -409,14 +409,15 @@ namespace NBody
         //then BucketFlag[nid]=1
         int flag=Head[bucket_start];
         Double_t maxr0=0.,maxr1=0.;
-        for (int j=0;j<3;j++){
-            maxr0+=(bucket[target].GetPosition(j)-xbnd[j][0])*(bucket[target].GetPosition(j)-xbnd[j][0]);
-            maxr1+=(bucket[target].GetPosition(j)-xbnd[j][1])*(bucket[target].GetPosition(j)-xbnd[j][1]);
+        for (int j=0;j<numdim;j++){
+            maxr0+=(bucket[target].GetPhase(j)-xbnd[j][0])*(bucket[target].GetPhase(j)-xbnd[j][0]);
+            maxr1+=(bucket[target].GetPhase(j)-xbnd[j][1])*(bucket[target].GetPhase(j)-xbnd[j][1]);
         }
         //first check to see if entire node lies wihtin search distance
         if (maxr0<fdist2&&maxr1<fdist2){
+            Int_t id;
             for (Int_t i = bucket_start; i < bucket_end; i++){
-                Int_t id=bucket[i].GetID();
+                id=bucket[i].GetID();
                 if (Group[id]) continue;
                 Group[id]=iGroup;
                 Fifo[iTail++]=i;
@@ -431,12 +432,15 @@ namespace NBody
         }
         //otherwise check each particle individually
         else {
+            Int_t id;
+            Double_t dist2;
             for (Int_t i = bucket_start; i < bucket_end; i++)
             {
                 if (flag!=Head[i])flag=0;
-                Int_t id=bucket[i].GetID();
+                id=bucket[i].GetID();
                 if (Group[id]) continue;
-                Double_t dist2 = DistanceSqd(bucket[target].GetPosition(),bucket[i].GetPosition());
+                dist2 = DistanceSqd(bucket[target].GetPosition(),bucket[i].GetPosition());
+                if (numdim==6) dist2+=DistanceSqd(bucket[target].GetVelocity(),bucket[i].GetVelocity());
                 if (dist2 < fdist2) {
                     Group[id]=iGroup;
                     Fifo[iTail++]=i;
