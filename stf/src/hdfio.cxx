@@ -199,15 +199,20 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
     double *veldoublebuff=new double[chunksize*3];
     float *massfloatbuff=new float[chunksize];
     double *massdoublebuff=new double[chunksize];
+#ifdef GASON
     float *ufloatbuff=new float[chunksize];
     double *udoublebuff=new double[chunksize];
+#endif
+#if defined(GASON)&&defined(STARON)
     float *Zfloatbuff=new float[chunksize];
     double *Zdoublebuff=new double[chunksize];
     float *SFRfloatbuff=new float[chunksize];
     double *SFRdoublebuff=new double[chunksize];
+#endif
+#ifdef STARON
     float *Tagefloatbuff=new float[chunksize];
     double *Tagedoublebuff=new double[chunksize];
-
+#endif
     Pbuf = NULL; /* Keep Pbuf NULL or allocated so we can check its status later */
 
     Nbuf=new Int_t[NProcs];
@@ -1697,10 +1702,10 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
     //via an allgather, reset Nbuf
     for (i=0;i<NProcs;i++) Nbuf[i]=0;
     if (ireadtask[ThisTask]>=0 && opt.nsnapread>1) {
-      if(Pbuf) {
-	delete[] Pbuf;
-	Pbuf = NULL;
-      }
+    if(Pbuf) {
+        delete[] Pbuf;
+        Pbuf = NULL;
+    }
     Nlocalbuf=0;
     for (i=0;i<opt.nsnapread;i++) Nlocalbuf+=Nreadbuf[i];
     if (Nlocalbuf>0)

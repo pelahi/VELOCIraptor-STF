@@ -85,9 +85,15 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
         vtempchunk=new FLOAT[3*chunksize];
         dtempchunk=new REAL[chunksize];
         idvalchunk=new GADGETIDTYPE[chunksize];
+#ifdef GASON
         sphtempchunk=new FLOAT[NUMGADGETSPHBLOCKS*chunksize];
+#endif
+#ifdef STARON
         startempchunk=new FLOAT[NUMGADGETSTARBLOCKS*chunksize];
+#endif
+#ifdef BHON
         bhtempchunk=new FLOAT[NUMGADGETBHBLOCKS*chunksize];
+#endif
         ireadfile=new int[opt.num_files];
         ifirstfile=MPISetFilesRead(opt,ireadfile,ireadtask);
     }
@@ -1028,12 +1034,16 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                 Fgad[i].read((char*)ctempchunk, sizeof(FLOAT)*3*nchunk);
                 Fgadvel[i].read((char*)vtempchunk, sizeof(FLOAT)*3*nchunk);
                 Fgadid[i].read((char*)idvalchunk, sizeof(idval)*nchunk);
+#ifdef GASON
                 for (int sphblocks=0;sphblocks<NUMGADGETSPHBLOCKS;sphblocks++){
                     Fgadsph[i+sphblocks].read((char*)&sphtempchunk[sphblocks*nchunk], sizeof(FLOAT)*nchunk);
                 }
+#endif
+#ifdef STARON
                 for (int starblocks=0;starblocks<NUMGADGETSTARBLOCKS;starblocks++){
                     Fgadstar[i+starblocks].read((char*)&startempchunk[starblocks*nchunk], sizeof(FLOAT)*nchunk);
                 }
+#endif
 #ifndef NOMASS
                 if(header[i].mass[k]==0) Fgadmass[i].read((char*)dtempchunk, sizeof(REAL)*nchunk);
 #endif
@@ -1043,8 +1053,13 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                 vtemp[0]=vtempchunk[0+3*nn];vtemp[1]=vtempchunk[1+3*nn];vtemp[2]=vtempchunk[2+3*nn];
                 idval=idvalchunk[nn];
                 for (int kk=0;kk<3;kk++) {ctemp[kk]=LittleFLOAT(ctemp[kk]);vtemp[kk]=LittleFLOAT(vtemp[kk]);}
+#ifdef GASON
                 for (int sphblocks=0;sphblocks<NUMGADGETSPHBLOCKS;sphblocks++)sphtempchunk[sphblocks*nchunk+nn]=LittleFLOAT(sphtempchunk[sphblocks*nchunk+nn]);
+#endif
+#ifdef STARON
                 for (int starblocks=0;starblocks<NUMGADGETSTARBLOCKS;starblocks++)startempchunk[starblocks*nchunk+nn]=LittleFLOAT(startempchunk[starblocks*nchunk+nn]);
+#endif
+
 #ifdef GADGETLONGID
                 idval=LittleLongInt(idval);
 #else
@@ -1289,7 +1304,11 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     //since Nbuf is used to determine what is going to be sent between threads in point-to-point communication
     //via an allgather, reset Nbuf
     for (i=0;i<NProcs;i++) Nbuf[i]=0;
-    if (ireadtask[ThisTask]>=0) {
+    if (opt.nsnapread==1 && ireadtask[ThisTask]>=0){
+        delete[] Pbuf;
+        delete[] Nbuf;
+    }
+    else if (ireadtask[ThisTask]>=0) {
     delete[] Pbuf;
     Nlocalbuf=0;
     for (i=0;i<opt.nsnapread;i++) Nlocalbuf+=Nreadbuf[i];
@@ -1604,18 +1623,27 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
 #ifndef NOMASS
                 if(header[i].mass[k]==0) Fgadmass[i].read((char*)dtempchunk, sizeof(REAL)*nchunk);
 #endif
+#ifdef GASON
                 for (int sphblocks=0;sphblocks<NUMGADGETSPHBLOCKS;sphblocks++){
                     Fgadsph[i+sphblocks].read((char*)&sphtempchunk[sphblocks*nchunk], sizeof(FLOAT)*nchunk);
                 }
+#endif
+#ifdef STARON
                 for (int starblocks=0;starblocks<NUMGADGETSTARBLOCKS;starblocks++){
                     Fgadstar[i+starblocks].read((char*)&startempchunk[starblocks*nchunk], sizeof(FLOAT)*nchunk);
                 }
+#endif
                 for (int nn=0;nn<nchunk;nn++) {
                 ctemp[0]=ctempchunk[0+3*nn];ctemp[1]=ctempchunk[1+3*nn];ctemp[2]=ctempchunk[2+3*nn];
                 vtemp[0]=vtempchunk[0+3*nn];vtemp[1]=vtempchunk[1+3*nn];vtemp[2]=vtempchunk[2+3*nn];
                 idval=idvalchunk[nn];
                 for (int kk=0;kk<3;kk++) {ctemp[kk]=LittleFLOAT(ctemp[kk]);vtemp[kk]=LittleFLOAT(vtemp[kk]);}
+#ifdef GASON
                 for (int sphblocks=0;sphblocks<NUMGADGETSPHBLOCKS;sphblocks++)sphtempchunk[sphblocks*nchunk+nn]=LittleFLOAT(sphtempchunk[sphblocks*nchunk+nn]);
+#endif
+#ifdef STARON
+                for (int starblocks=0;starblocks<NUMGADGETSTARBLOCKS;starblocks++)startempchunk[starblocks*nchunk+nn]=LittleFLOAT(startempchunk[starblocks*nchunk+nn]);
+#endif
 #ifdef GADGETLONGID
                 idval=LittleLongInt(idval);
 #else
@@ -1731,6 +1759,9 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
         for (int bhblocks=0;bhblocks<NUMGADGETBHBLOCKS;bhblocks++) Fgadbh[i+bhblocks].close();
     }
     }
+    //finished read threads final pass of reading information
+    //if there is more than one single read thread then must send some info
+    if (opt.nsnapread>1) {
     //gather all the items that must be sent.
     MPI_Allgather(Nbuf, NProcs, MPI_Int_t, mpi_nsend, NProcs, MPI_Int_t, MPI_COMM_WORLD);
     //if separate baryon search then sort the Pbuf array so that it is separated by type
@@ -1768,7 +1799,8 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
         //set IDS
         for (i=0;i<Nlocal;i++) Part[i].SetID(i);
         if (opt.iBaryonSearch) for (i=0;i<Nlocalbaryon[0];i++) Pbaryons[i].SetID(i+Nlocal);
-    }//end of read tasks
+    } //end of read tasks
+    } //end of more than one read task
 #endif
 
 #ifdef USEMPI
