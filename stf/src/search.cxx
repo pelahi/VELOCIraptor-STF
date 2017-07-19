@@ -90,6 +90,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
     //if this flag is set, calculate localfield value here for particles possibly resident in a field structure
 #ifdef STRUCDEN
     if (numgroups>0 && opt.iSubSearch==1) {
+    numingroup=BuildNumInGroup(nbodies, numgroups, pfof);
     storetype=new short[nbodies];
     for (i=0;i<nbodies;i++) storetype[i]=Part[i].GetType();
     //if not searching all particle then searching for baryons associated with substructures, then set type to group value
@@ -98,13 +99,14 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
     //otherwise set type to group value for dark matter
     else {
         for (i=0;i<nbodies;i++) {
-            if (Part[i].GetType()==DARKTYPE) Part[i].SetType(pfof[Part[i].GetID()]);
+            if (Part[i].GetType()==DARKTYPE) Part[i].SetType(numingroup[pfof[Part[i].GetID()]]>=MINSUBSIZE);
             else Part[i].SetType(-1);
         }
     }
     GetVelocityDensity(opt, nbodies, Part,tree);
     for (i=0;i<nbodies;i++) Part[i].SetType(storetype[i]);
     delete[] storetype;
+    delete[] numingorup;
     }
 #endif
     delete tree;
@@ -199,8 +201,9 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
     if (totalgroups>0&&opt.iSubSearch==1)
     {
         storetype=new Int_t[Nlocal];
+        numingroup=BuildNumInGroup(Nlocal, numgroups, pfof);
         for (i=0;i<Nlocal;i++) storetype[i]=Part[i].GetType();
-        if (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)) for (i=0;i<Nlocal;i++) Part[i].SetType((pfof[i]>0));
+        if (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)) for (i=0;i<Nlocal;i++) Part[i].SetType((numingroup[pfof[i]]>=MINSUBSIZE));
         //otherwise set type to group value for dark matter
         else {
             for (i=0;i<Nlocal;i++) {
@@ -213,6 +216,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
         delete tree;
         for (i=0;i<Nlocal;i++) Part[i].SetType(storetype[i]);
         delete[] storetype;
+        delete[] numingroup;
     }
 #endif
 
