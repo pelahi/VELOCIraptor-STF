@@ -22,7 +22,7 @@ ProgenitorData *CrossMatch(Options &opt, const long unsigned nhalos1, const long
     //temp variable to store the openmp reduction value for ilistupdated
     int newilistupdated;
 #ifdef USEOPENMP
-#pragma omp parallel 
+#pragma omp parallel
     {
     if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
     }
@@ -69,7 +69,7 @@ private(j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
         //at a different time/in a different catalog
         for (j=0;j<h1[i].NumberofParticles;j++){
             hid=pfof2[h1[i].ParticleID[j]];
-            //correction if use core weighted particles as well. 
+            //correction if use core weighted particles as well.
             if (opt.particle_frac<1 && opt.particle_frac>0 && hid>nhalos2) hid-=nhalos2;
             //store the index in the share and halolist arrays
             index=offset+hid-(long int)1;
@@ -98,13 +98,13 @@ private(j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
             for (k=0;k<numshared;k++) {
                 j=halolist[offset+k];
                 index=offset+j;
-                if (opt.matchtype==NsharedN1N2)
+                if (opt.imerittype==NsharedN1N2)
                     merit=(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
-                else if (opt.matchtype==NsharedN1)
+                else if (opt.imerittype==NsharedN1)
                     merit=(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles;
-                else if (opt.matchtype==Nshared)
+                else if (opt.imerittype==Nshared)
                     merit=(Double_t)sharelist[index];
-                else if (opt.matchtype==Nsharedcombo)
+                else if (opt.imerittype==Nsharedcombo)
                     merit=(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles+(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
                 pq->Push(j,merit);
                 sharelist[index]=0;
@@ -127,11 +127,11 @@ private(j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
 
         //if weighted merit function is to be calculated then use the most bound fraction of particles to construct share list
         if (opt.particle_frac<1 && opt.particle_frac>0 && numshared>0) {
-            //calculate number of particles 
+            //calculate number of particles
             np1=(h1[i].NumberofParticles*opt.particle_frac);
-            //if halo has enough particle for meaningful most bound particles check, proceed to find merits. Similar to normal merit 
+            //if halo has enough particle for meaningful most bound particles check, proceed to find merits. Similar to normal merit
             //calculations but have now np2 for calculating merits
-            if (np1>=opt.min_numpart) { 
+            if (np1>=opt.min_numpart) {
                 numshared=0;
                 for (j=0;j<np1;j++){
                     //only use particles that belong to the core of another group, that is the hid is > nhalos2
@@ -165,13 +165,13 @@ private(j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                         np2=h2[j].NumberofParticles*opt.particle_frac;
                         if (h2[j].NumberofParticles<opt.min_numpart) np2=h2[j].NumberofParticles;
                         else if (np2<opt.min_numpart) np2=opt.min_numpart;
-                        if (opt.matchtype==NsharedN1N2)
+                        if (opt.imerittype==NsharedN1N2)
                             merit=(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)np1/(Double_t)np2;
-                        else if (opt.matchtype==NsharedN1)
+                        else if (opt.imerittype==NsharedN1)
                             merit=(Double_t)sharelist[index]/(Double_t)np1;
-                        else if (opt.matchtype==Nshared)
+                        else if (opt.imerittype==Nshared)
                             merit=(Double_t)sharelist[index];
-                        else if (opt.matchtype==Nsharedcombo)
+                        else if (opt.imerittype==Nsharedcombo)
                             merit=(Double_t)sharelist[index]/(Double_t)np1+(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)np1/(Double_t)np2;
                         pq2->Push(j,merit);
                         sharelist[index]=0;
@@ -195,7 +195,7 @@ private(j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
             }
             //end of halo has enough particles for weighted (bound fraction) merit adjustment
         }
-        //end of weighted (based on most bound particles) merit 
+        //end of weighted (based on most bound particles) merit
     }
     delete[] sharelist;
     delete[] halolist;
@@ -211,7 +211,7 @@ private(j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
             num_noprogen+=1;
         }
         //if also applying merit limit then search if does not meet merit threshold
-        if (opt.imultsteplinkcrit==MSLCMERIT && refprogen[i].NumberofProgenitors>0) { 
+        if (opt.imultsteplinkcrit==MSLCMERIT && refprogen[i].NumberofProgenitors>0) {
             if (refprogen[i].Merit[0]<opt.meritlimit) num_noprogen+=1;
         }
     }
@@ -224,7 +224,7 @@ private(j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                 needprogenlist[num_noprogen++]=i;
             }
             //if also applying merit limit then search if does not meet merit threshold
-            if (opt.imultsteplinkcrit==MSLCMERIT && refprogen[i].NumberofProgenitors>0) { 
+            if (opt.imultsteplinkcrit==MSLCMERIT && refprogen[i].NumberofProgenitors>0) {
                 if (refprogen[i].Merit[0]<opt.meritlimit) needprogenlist[num_noprogen++]=i;
             }
         }
@@ -250,7 +250,7 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
             numshared=0;
             for (j=0;j<h1[i].NumberofParticles;j++){
                 hid=pfof2[h1[i].ParticleID[j]];
-                //correction if use core weighted particles as well. 
+                //correction if use core weighted particles as well.
                 if (opt.particle_frac<1 && opt.particle_frac>0 && hid>nhalos2) hid-=nhalos2;
                 index=offset+hid-(long int)1;
                 if (hid>0) {
@@ -276,13 +276,13 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                 for (n=0;n<numshared;n++){
                     j=halolist[offset+n];
                     index=offset+j;
-                    if (opt.matchtype==NsharedN1N2)
+                    if (opt.imerittype==NsharedN1N2)
                         merit=(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
-                    else if (opt.matchtype==NsharedN1)
+                    else if (opt.imerittype==NsharedN1)
                         merit=(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles;
-                    else if (opt.matchtype==Nshared)
+                    else if (opt.imerittype==Nshared)
                         merit=(Double_t)sharelist[index];
-                    else if (opt.matchtype==Nsharedcombo)
+                    else if (opt.imerittype==Nsharedcombo)
                         merit=(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles+(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
                     pq->Push(j,merit);
                     sharelist[index]=0;
@@ -308,7 +308,7 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
             //if weighted merit function is to be calculated then use the most bound fraction of particles to construct share list
             if (opt.particle_frac<1 && opt.particle_frac>0 && numshared>0) {
                 np1=(h1[i].NumberofParticles*opt.particle_frac);
-                if (np1>=opt.min_numpart) { 
+                if (np1>=opt.min_numpart) {
                     numshared=0;
                     for (j=0;j<np1;j++){
                         //only use particles that belong to the core of another group, that is the hid is > nhalos2
@@ -342,13 +342,13 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                             np2=h2[j].NumberofParticles*opt.particle_frac;
                             if (h2[j].NumberofParticles<opt.min_numpart) np2=h2[j].NumberofParticles;
                             else if (np2<opt.min_numpart) np2=opt.min_numpart;
-                            if (opt.matchtype==NsharedN1N2)
+                            if (opt.imerittype==NsharedN1N2)
                                 merit=(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)np1/(Double_t)np2;
-                            else if (opt.matchtype==NsharedN1)
+                            else if (opt.imerittype==NsharedN1)
                                 merit=(Double_t)sharelist[index]/(Double_t)np1;
-                            else if (opt.matchtype==Nshared)
+                            else if (opt.imerittype==Nshared)
                                 merit=(Double_t)sharelist[index];
-                            else if (opt.matchtype==Nsharedcombo)
+                            else if (opt.imerittype==Nsharedcombo)
                                 merit=(Double_t)sharelist[index]/(Double_t)np1+(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)np1/(Double_t)np2;
                             pq2->Push(j,merit);
                             sharelist[index]=0;
@@ -407,7 +407,7 @@ DescendantData *CrossMatchDescendant(Options &opt, const long unsigned nhalos1, 
     int newilistupdated;
     int chunksize;
 #ifdef USEOPENMP
-#pragma omp parallel 
+#pragma omp parallel
     {
     if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
     }
@@ -451,7 +451,7 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
         //at a different time/in a different catalog
         for (j=0;j<h1[i].NumberofParticles;j++){
             hid=pfof2[h1[i].ParticleID[j]];
-            //correction if use core weighted particles as well. 
+            //correction if use core weighted particles as well.
             if (opt.particle_frac<1 && opt.particle_frac>0 && hid>nhalos2) hid-=nhalos2;
             index=offset+hid-(long int)1;
             if (hid>0) {
@@ -479,13 +479,13 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
             for (k=0;k<numshared;k++) {
                 j=halolist[offset+k];
                 index=offset+j;
-                if (opt.matchtype==NsharedN1N2)
+                if (opt.imerittype==NsharedN1N2)
                     merit=(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
-                else if (opt.matchtype==NsharedN1)
+                else if (opt.imerittype==NsharedN1)
                     merit=(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles;
-                else if (opt.matchtype==Nshared)
+                else if (opt.imerittype==Nshared)
                     merit=(Double_t)sharelist[index];
-                else if (opt.matchtype==Nsharedcombo)
+                else if (opt.imerittype==Nsharedcombo)
                     merit=(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles+(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
                 pq->Push(j,merit);
                 sharelist[index]=0;
@@ -508,11 +508,11 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
 
         //if weighted merit function is to be calculated then use the most bound fraction of particles to construct share list
         if (opt.particle_frac<1 && opt.particle_frac>0 && numshared>0) {
-            //calculate number of particles 
+            //calculate number of particles
             np1=(h1[i].NumberofParticles*opt.particle_frac);
-            //if halo has enough particle for meaningful most bound particles check, proceed to find merits. Similar to normal merit 
+            //if halo has enough particle for meaningful most bound particles check, proceed to find merits. Similar to normal merit
             //calculations but have now np2 for calculating merits
-            if (np1>=opt.min_numpart) { 
+            if (np1>=opt.min_numpart) {
                 numshared=0;
                 for (j=0;j<np1;j++){
                     hid=pfof2[h1[i].ParticleID[j]]-nhalos2;
@@ -545,13 +545,13 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                         np2=h2[j].NumberofParticles*opt.particle_frac;
                         if (h2[j].NumberofParticles<opt.min_numpart) np2=h2[j].NumberofParticles;
                         else if (np2<opt.min_numpart) np2=opt.min_numpart;
-                        if (opt.matchtype==NsharedN1N2)
+                        if (opt.imerittype==NsharedN1N2)
                             merit=(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)np1/(Double_t)np2;
-                        else if (opt.matchtype==NsharedN1)
+                        else if (opt.imerittype==NsharedN1)
                             merit=(Double_t)sharelist[index]/(Double_t)np1;
-                        else if (opt.matchtype==Nshared)
+                        else if (opt.imerittype==Nshared)
                             merit=(Double_t)sharelist[index];
-                        else if (opt.matchtype==Nsharedcombo)
+                        else if (opt.imerittype==Nsharedcombo)
                             merit=(Double_t)sharelist[index]/(Double_t)np1+(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)np1/(Double_t)np2;
                         pq2->Push(j,merit);
                         sharelist[index]=0;
@@ -575,7 +575,7 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
             }
             //end of halo has enough particles for weighted (bound fraction) merit adjustment
         }
-        //end of weighted (based on most bound particles) merit 
+        //end of weighted (based on most bound particles) merit
     }
         delete[] sharelist;
         delete[] halolist;
@@ -590,7 +590,7 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
             num_nodescen+=1;
         }
         //if also applying merit limit then search if does not meet merit threshold
-        if (opt.imultsteplinkcrit==MSLCMERIT && refdescen[i].NumberofDescendants>0) { 
+        if (opt.imultsteplinkcrit==MSLCMERIT && refdescen[i].NumberofDescendants>0) {
             if (refdescen[i].Merit[0]<opt.meritlimit) num_nodescen+=1;
         }
     }
@@ -603,7 +603,7 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                 needdescenlist[num_nodescen++]=i;
             }
             //if also applying merit limit then search if does not meet merit threshold
-            if (opt.imultsteplinkcrit==MSLCMERIT && refdescen[i].NumberofDescendants>0) { 
+            if (opt.imultsteplinkcrit==MSLCMERIT && refdescen[i].NumberofDescendants>0) {
                 if (refdescen[i].Merit[0]<opt.meritlimit) needdescenlist[num_nodescen++]=i;
             }
         }
@@ -629,7 +629,7 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
             numshared=0;
             for (j=0;j<h1[i].NumberofParticles;j++){
                 hid=pfof2[h1[i].ParticleID[j]];
-                //correction if use core weighted particles as well. 
+                //correction if use core weighted particles as well.
                 if (opt.particle_frac<1 && opt.particle_frac>0 && hid>nhalos2) hid-=nhalos2;
                 index=offset+hid-(long int)1;
                 if (hid>0) {
@@ -655,13 +655,13 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                 for (n=0;n<numshared;n++){
                     j=halolist[offset+n];
                     index=offset+j;
-                    if (opt.matchtype==NsharedN1N2)
+                    if (opt.imerittype==NsharedN1N2)
                         merit=(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
-                    else if (opt.matchtype==NsharedN1)
+                    else if (opt.imerittype==NsharedN1)
                         merit=(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles;
-                    else if (opt.matchtype==Nshared)
+                    else if (opt.imerittype==Nshared)
                         merit=(Double_t)sharelist[index];
-                    else if (opt.matchtype==Nsharedcombo)
+                    else if (opt.imerittype==Nsharedcombo)
                         merit=(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles+(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
                     pq->Push(j,merit);
                     sharelist[index]=0;
@@ -687,7 +687,7 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
             //if weighted merit function is to be calculated then use the most bound fraction of particles to construct share list
             if (opt.particle_frac<1 && opt.particle_frac>0 && numshared>0) {
                 np1=(h1[i].NumberofParticles*opt.particle_frac);
-                if (np1>=opt.min_numpart) { 
+                if (np1>=opt.min_numpart) {
                     numshared=0;
                     for (j=0;j<np1;j++){
                         hid=pfof2[h1[i].ParticleID[j]]-nhalos2;
@@ -720,13 +720,13 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                             np2=h2[j].NumberofParticles*opt.particle_frac;
                             if (h2[j].NumberofParticles<opt.min_numpart) np2=h2[j].NumberofParticles;
                             else if (np2<opt.min_numpart) np2=opt.min_numpart;
-                            if (opt.matchtype==NsharedN1N2)
+                            if (opt.imerittype==NsharedN1N2)
                                 merit=(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)np1/(Double_t)np2;
-                            else if (opt.matchtype==NsharedN1)
+                            else if (opt.imerittype==NsharedN1)
                                 merit=(Double_t)sharelist[index]/(Double_t)np1;
-                            else if (opt.matchtype==Nshared)
+                            else if (opt.imerittype==Nshared)
                                 merit=(Double_t)sharelist[index];
-                            else if (opt.matchtype==Nsharedcombo)
+                            else if (opt.imerittype==Nsharedcombo)
                                 merit=(Double_t)sharelist[index]/(Double_t)np1+(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)np1/(Double_t)np2;
                             pq2->Push(j,merit);
                             sharelist[index]=0;
@@ -774,7 +774,7 @@ void CleanCrossMatch(const int istepval, const long unsigned nhalos1, const long
     Int_t i,j,k;
     int nthreads=1,tid;
 #ifdef USEOPENMP
-#pragma omp parallel 
+#pragma omp parallel
     {
     if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
     }
@@ -843,7 +843,7 @@ void CleanCrossMatchDescendant(const int istepval, const long unsigned nhalos1, 
     Int_t i,j,k;
     int nthreads=1,tid;
 #ifdef USEOPENMP
-#pragma omp parallel 
+#pragma omp parallel
     {
     if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
     }
@@ -906,11 +906,11 @@ private(i,j,k)
     delete[] merit;
 }
 ///when linking using multiple snapshots, use to update the progenitor list based on a candidate list built using a single snapshot
-///If complex updating done, then will need to update the progenitor based descendant list. 
+///If complex updating done, then will need to update the progenitor based descendant list.
 void UpdateRefProgenitors(Options &opt, const Int_t numhalos, ProgenitorData *&pref, ProgenitorData *&ptemp, DescendantDataProgenBased **&pprogendescen, Int_t itime)
 {
     if (opt.imultsteplinkcrit==MSLCMISSING) {
-        for (Int_t i=0;i<numhalos;i++) 
+        for (Int_t i=0;i<numhalos;i++)
             if (pref[i].NumberofProgenitors==0 && ptemp[i].NumberofProgenitors>0) pref[i]=ptemp[i];
     }
     else if (opt.imultsteplinkcrit==MSLCMERIT) {
@@ -921,7 +921,7 @@ void UpdateRefProgenitors(Options &opt, const Int_t numhalos, ProgenitorData *&p
             else if (pref[i].NumberofProgenitors>0 && ptemp[i].NumberofProgenitors>0) {
                 //but only update if new link satisfies merit limit
                 if (ptemp[i].Merit[0]>opt.meritlimit) {
-                    //first must update the progenitor based descendant list 
+                    //first must update the progenitor based descendant list
                     RemoveLinksProgenitorBasedDescendantList(itime, i, pref[i], pprogendescen);
                     //then copy new links
                     pref[i]=ptemp[i];
@@ -935,13 +935,13 @@ void UpdateRefProgenitors(Options &opt, const Int_t numhalos, ProgenitorData *&p
 void UpdateRefDescendants(Options &opt, const Int_t numhalos, DescendantData *&dref, DescendantData *&dtemp)
 {
     if (opt.imultsteplinkcrit==MSLCMISSING) {
-        for (Int_t i=0;i<numhalos;i++) 
+        for (Int_t i=0;i<numhalos;i++)
             if (dref[i].NumberofDescendants==0 && dtemp[i].NumberofDescendants>0) dref[i]=dtemp[i];
     }
     else if (opt.imultsteplinkcrit==MSLCMERIT) {
         for (Int_t i=0;i<numhalos;i++) {
             if (dref[i].NumberofDescendants==0 && dtemp[i].NumberofDescendants>0) dref[i]=dtemp[i];
-            else if (dref[i].NumberofDescendants>0 && dtemp[i].NumberofDescendants>0) 
+            else if (dref[i].NumberofDescendants>0 && dtemp[i].NumberofDescendants>0)
                 if (dtemp[i].Merit[0]>opt.meritlimit) {
                     dref[i]=dtemp[i];
                 }
@@ -979,10 +979,10 @@ void RemoveLinksProgenitorBasedDescendantList(Int_t itime, Int_t ihaloindex, Pro
         did=pprogen.ProgenitorList[nprogs]-1;//make sure halo descendent index set to start at 0
         itimedescen=itime-pprogen.istep;
         //find where this link exists and then remove it. remove(begin,end, ihaloindex)
-        //pprogendescen[itimedescen][did].haloindex.erase(remove(pprogendescen[itimedescen][did].haloindex.begin(),pprogendescen[itimedescen][did].haloindex.end(),ihaloindex),pprogendescen[itimedescen][did].haloindex.end()); 
-        k=0; 
+        //pprogendescen[itimedescen][did].haloindex.erase(remove(pprogendescen[itimedescen][did].haloindex.begin(),pprogendescen[itimedescen][did].haloindex.end(),ihaloindex),pprogendescen[itimedescen][did].haloindex.end());
+        k=0;
         while (k<pprogendescen[itimedescen][did].NumberofDescendants && !(pprogendescen[itimedescen][did].haloindex[k]==ihaloindex && pprogendescen[itimedescen][did].halotemporalindex[k]==itime)) k++;
-        pprogendescen[itimedescen][did].haloindex.erase(pprogendescen[itimedescen][did].haloindex.begin()+k); 
+        pprogendescen[itimedescen][did].haloindex.erase(pprogendescen[itimedescen][did].haloindex.begin()+k);
         pprogendescen[itimedescen][did].halotemporalindex.erase(pprogendescen[itimedescen][did].halotemporalindex.begin()+k);
         pprogendescen[itimedescen][did].Merit.erase(pprogendescen[itimedescen][did].Merit.begin()+k);
         pprogendescen[itimedescen][did].deltat.erase(pprogendescen[itimedescen][did].deltat.begin()+k);
@@ -1009,15 +1009,15 @@ void CleanProgenitorsUsingDescendants(Int_t i, HaloTreeData *&pht, DescendantDat
         //note that the optimal descendant is always placed at position 0
         pprogendescen[i][k].OptimalTemporalMerit();
 #ifdef USEMPI
-        //if mpi, it is possible that the best match is not a local halo 
-        ///\todo do I need to do anything when the best descendant is not local to mpi domain? I don't think so since only 
+        //if mpi, it is possible that the best match is not a local halo
+        ///\todo do I need to do anything when the best descendant is not local to mpi domain? I don't think so since only
         ///matters if I am changing the local list
 #endif
         for (Int_t n=1;n<pprogendescen[i][k].NumberofDescendants;n++) {
             itime=pprogendescen[i][k].halotemporalindex[n];
             hid=pprogendescen[i][k].haloindex[n];
 #ifdef USEMPI
-            //if mpi is invoked, it possible the progenitor that is supposed to have a descendant removed is not on this mpi task 
+            //if mpi is invoked, it possible the progenitor that is supposed to have a descendant removed is not on this mpi task
             itask=pprogendescen[i][k].MPITask[n];
             //only change progenitors of halos on this task
             if (itask==ThisTask) {
@@ -1036,6 +1036,55 @@ void CleanProgenitorsUsingDescendants(Int_t i, HaloTreeData *&pht, DescendantDat
 #endif
         }
     }
+}
+
+///similar to construction of descendant list using the candidate progenitor list, but here working in reverse direction
+void BuildDescendantBasedProgenitorList(Int_t itimedescen, Int_t itimeprogen, Int_t nhalos, DescendantData *&pdescen, ProgenitorDataDescenBased **&pdescenprogen, int istep)
+{
+    //if first pass then store progenitors looking at all descendants
+    int did;
+    for (Int_t k=0;k<nhalos;k++) {
+        for (Int_t ndescen=0;ndescen<pdescen[k].NumberofDescendants;ndescen++) if (pdescen[k].istep==istep) {
+            did=pdescen[k].DescendantList[ndescen]-1;//make sure halo progenitor index set to start at 0
+            pdescenprogen[itimeprogen][did].haloindex.push_back(k);
+            pdescenprogen[itimeprogen][did].halotemporalindex.push_back(itimedescen);
+            pdescenprogen[itimeprogen][did].Merit.push_back(pdescen[k].Merit[ndescen]);
+            pdescenprogen[itimeprogen][did].deltat.push_back(istep);
+            pdescenprogen[itimeprogen][did].progentype.push_back(ndescen);
+#ifdef USEMPI
+            pdescenprogen[itimeprogen][did].MPITask.push_back(ThisTask);
+#endif
+            pdescenprogen[itimeprogen][did].NumberofProgenitors++;
+        }
+    }
+}
+
+//removes links of an individual halo
+void RemoveLinksDescendantBasedProgenitorList(Int_t itime, Int_t ihaloindex, DescendantData &pdescen, ProgenitorDataDescenBased **&pdescenprogen)
+{
+    //if first pass then store progenitors looking at all descendants
+    Int_t itimeprogen,did,k=0;
+    for (Int_t ndescen=0;ndescen<pdescen.NumberofDescendants;ndescen++){
+        did=pdescen.DescendantList[ndescen]-1;//make sure halo descendent index set to start at 0
+        itimeprogen=itime-pdescen.istep;
+        //find where this link exists and then remove it.
+        k=0;
+        while (k<pdescenprogen[itimeprogen][did].NumberofProgenitors && !(pdescenprogen[itimeprogen][did].haloindex[k]==ihaloindex && pdescenprogen[itimeprogen][did].halotemporalindex[k]==itime)) k++;
+        pdescenprogen[itimeprogen][did].haloindex.erase(pdescenprogen[itimeprogen][did].haloindex.begin()+k);
+        pdescenprogen[itimeprogen][did].halotemporalindex.erase(pdescenprogen[itimeprogen][did].halotemporalindex.begin()+k);
+        pdescenprogen[itimeprogen][did].Merit.erase(pdescenprogen[itimeprogen][did].Merit.begin()+k);
+        pdescenprogen[itimeprogen][did].deltat.erase(pdescenprogen[itimeprogen][did].deltat.begin()+k);
+        pdescenprogen[itimeprogen][did].progentype.erase(pdescenprogen[itimeprogen][did].progentype.begin()+k);
+#ifdef USEMPI
+        pdescenprogen[itimeprogen][did].MPITask.erase(pdescenprogen[itimeprogen][did].MPITask.begin()+k);
+#endif
+        pdescenprogen[itimeprogen][did].NumberofProgenitors--;
+    }
+}
+
+///\todo how should I clean up the descendant list using progenitors?
+void CleanDescendantsUsingProgenitors(Int_t i, HaloTreeData *&pht, ProgenitorDataDescenBased **&pdescenprogen, DescendantData **&pdecen)
+{
 }
 
 //@}
@@ -1075,7 +1124,7 @@ Int_t *BuildNextArray(const Int_t nbodies, const Int_t numgroups, Int_t *numingr
         for (Int_t j=0;j<numingroup[i]-1;j++) Next[pglist[i][j]]=pglist[i][j+1];
     return Next;
 }
-///build the Len array which stores the length of the group a particle belongs to 
+///build the Len array which stores the length of the group a particle belongs to
 Int_t *BuildLenArray(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t **pglist){
     Int_t *Len=new Int_t[nbodies];
     for (Int_t i=0;i<nbodies;i++) Len[i]=0;

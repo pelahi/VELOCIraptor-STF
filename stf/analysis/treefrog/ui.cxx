@@ -9,7 +9,7 @@ void GetArgs(int argc, char *argv[], Options &opt)
 {
     int option;
     int NumArgs = 0;
-    while ((option = getopt(argc, argv, ":i:s:t:n:f:p:o:C:c:S:I:N:B:F:M:H:h:D:O:T:v:m:d:z:Z:a:x:")) != EOF)
+    while ((option = getopt(argc, argv, ":i:s:t:n:f:p:o:C:c:S:I:N:B:F:M:H:h:D:O:T:v:m:d:z:Z:a:x:w:")) != EOF)
     {
         switch(option)
         {
@@ -41,8 +41,12 @@ void GetArgs(int argc, char *argv[], Options &opt)
                 opt.outname = optarg;
                 NumArgs += 2;
                 break;
+            case 'w':
+                opt.isearchdirection = atoi(optarg);
+                NumArgs += 2;
+                break;
             case 'C':
-                opt.matchtype = atoi(optarg);
+                opt.imerittype = atoi(optarg);
                 NumArgs += 2;
                 break;
             case 'x':
@@ -168,10 +172,13 @@ void GetArgs(int argc, char *argv[], Options &opt)
     }
     //else if (opt.imapping==???) opt.mappingfunc=???;
     opt.description=(char*)"VELOCIraptor halo merger tree constructed by identifying the main progenitor with the highest value of ";
-    if(opt.matchtype==NsharedN1N2)      opt.description+=(char*)"Nshared^2/Nh/Np |";
-    else if(opt.matchtype==NsharedN1)   opt.description+=(char*)"Nshared/Nh | ";
-    else if(opt.matchtype==Nshared)     opt.description+=(char*)"Nshared |";
-    else if (opt.matchtype==Nsharedcombo) opt.description=(char*)"Nshared/Nh+(Nshared^2/Nh/Np) so as to weight progenitors that contribute similar amounts by how much of their mass contributes to the new object | ";
+    if(opt.isearchdirection==SEARCHPROGEN)      opt.description+=(char*)"searching for progenitors, moving backwards in time |";
+    else if(opt.isearchdirection==SEARCHDESCEN)      opt.description+=(char*)"searching for descendants, moving forwards in time |";
+    else if(opt.isearchdirection==SEARCHALL)      opt.description+=(char*)"searching both forward and backwards |";
+    if(opt.imerittype==NsharedN1N2)      opt.description+=(char*)"Nshared^2/Nh/Np |";
+    else if(opt.imerittype==NsharedN1)   opt.description+=(char*)"Nshared/Nh | ";
+    else if(opt.imerittype==Nshared)     opt.description+=(char*)"Nshared |";
+    else if (opt.imerittype==Nsharedcombo) opt.description=(char*)"Nshared/Nh+(Nshared^2/Nh/Np) so as to weight progenitors that contribute similar amounts by how much of their mass contributes to the new object | ";
     opt.description+=(char*)"Tree built using ";
     opt.description+=static_cast<ostringstream*>( &(ostringstream() << opt.numsteps) )->str();
     opt.description+=(char*)" temporal steps | ";
@@ -221,7 +228,7 @@ void usage(void)
     cerr<<MSLCMISSING<<" Only missing ,";
     cerr<<MSLCMERIT<<" Missing & low merit given by merit limit, ";
     cerr<<endl;
-    cerr<<"-C <cross correlation function type to identify main progenitor ("<<opt.matchtype<<" ["<<NsharedN1N2<<" "<<Nshared<<"])\n";
+    cerr<<"-C <cross correlation function type to identify main progenitor ("<<opt.imerittype<<" ["<<NsharedN1N2<<" "<<Nshared<<"])\n";
     cerr<<"-T <type of particles to cross correlate ("<<opt.itypematch<<" ["<<ALLTYPEMATCH<<" is all particle types, ";
     cerr<<DMTYPEMATCH<<" is DM particle types, ";
     cerr<<GASTYPEMATCH<<" is GAS particle types, ";
@@ -291,7 +298,7 @@ in the examples directory). \n \n
     \section linkingconfig Linking options
     \arg \b \e -t < number of steps over to find links >
     \arg \b \e -n < maximum id of particles, used to allocate an array of this size so that ids are mapped to an index, allows quick check of what groups a particle belongs to>
-    \arg \b \e -C < cross correlation function type to identify main progenitor (see \ref Options.matchtype, which can be  \ref NsharedN1N2 standard merit function \f[ \mathcal{M}=N_{\rm sh}^2/N_1/N_2 \f], \ref Nshared >
+    \arg \b \e -C < cross correlation function type to identify main progenitor (see \ref Options.imerittype, which can be  \ref NsharedN1N2 standard merit function \f[ \mathcal{M}=N_{\rm sh}^2/N_1/N_2 \f], \ref Nshared >
     \arg \b \e -T < type of particles to cross correlate (\ref opt.itypematch, which can be \ref ALLTYPEMATCH is all particle types, \ref DMTYPEMATCH is DM particle types
     \ref GASTYPEMATCH is GAS particle types \ref STARTYPEMATCH is STAR particle types, \ref DMGASTYPEMATCH is both DM and GAS particle types >
     \arg \b \e -S < significance of cross match relative to Poisson noise >

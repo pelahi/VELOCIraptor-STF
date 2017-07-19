@@ -110,6 +110,16 @@ using namespace NBody;
 #define DGRAPH 2
 //@}
 
+/// \name defining direction of search when constructing a tree
+//@{
+///standard progenitor search
+#define SEARCHPROGEN 0
+///standard descendant search
+#define SEARCHDESCEN 1
+///search both ways
+#define SEARCHALL -1
+//@}
+
 /// \name Mapping functions
 //@{
 #define DNOMAP 0
@@ -201,8 +211,10 @@ struct Options
     /// store description of code
     string description;
 
-    ///type of cross-match search
-    int matchtype;
+    ///type of search, going back in time (progenitor searching) or going forward in time (descendant searching) or both
+    int isearchdirection;
+    ///type of merit
+    int imerittype;
     ///cross match shared particle number significance, that is match only when quantity is above mlsig*some measure of noise, here defined as
     ///\f \sqrt{N_2} \f
     Double_t mlsig;
@@ -272,7 +284,8 @@ struct Options
         MaxIDValue=512*512*512;
         TotalNumberofHalos=0;
 
-        matchtype=NsharedN1N2;
+        isearchdirection=SEARCHPROGEN;
+        imerittype=NsharedN1N2;
         mlsig=0.1;
         meritlimit=0.05;
         itypematch=ALLTYPEMATCH;
@@ -413,6 +426,61 @@ struct ProgenitorData
 };
 
 /*!
+    Structure used to keep track of a structure's descendant/child structure using temporal/spatial information
+*/
+struct DescendantData
+{
+    ///structure type and number of links (descendants)
+    //@{
+    int stype;
+    int NumberofDescendants;
+    //@}
+    ///store list of descendants
+    long unsigned* DescendantList;
+    ///store the merit value
+    float *Merit;
+    ///store the fraction of shared particles
+    float *nsharedfrac;
+
+    ///store number of steps back in time progenitor found
+    int istep;
+
+    DescendantData(){
+        NumberofDescendants=0;
+        DescendantList=NULL;
+        Merit=NULL;
+        nsharedfrac=NULL;
+        istep=1;
+    }
+    ~DescendantData(){
+        if (NumberofDescendants>0) {
+            delete[] DescendantList;
+            delete[] Merit;
+            if (nsharedfrac!=NULL) delete[] nsharedfrac;
+        }
+    }
+    DescendantData &operator=(const DescendantData &d){
+        if (NumberofDescendants>0) {
+            delete[] DescendantList;
+            delete[] Merit;
+            if (nsharedfrac!=NULL) delete[] nsharedfrac;
+        }
+        NumberofDescendants=d.NumberofDescendants;
+        DescendantList=new long unsigned[NumberofDescendants];
+        Merit=new float[NumberofDescendants];
+        for (int i=0;i<NumberofDescendants;i++) {
+            DescendantList[i]=d.DescendantList[i];
+            Merit[i]=d.Merit[i];
+        }
+        if (d.nsharedfrac!=NULL) {
+            nsharedfrac=new float[NumberofDescendants];
+            for (int i=0;i<NumberofDescendants;i++) nsharedfrac[i]=d.nsharedfrac[i];
+        }
+        istep=d.istep;
+    }
+};
+
+/*!
     Structure used to keep track of a structure's candidate descendants based on the progenitor construction
 */
 struct DescendantDataProgenBased
@@ -464,6 +532,7 @@ struct DescendantDataProgenBased
             halotemporalindex[i]=d.halotemporalindex[i];
             Merit[i]=d.Merit[i];
             deltat[i]=d.deltat[i];
+            descentype[i]=d.descentype[i];
 #ifdef USEMPI
             MPITask[i]=d.MPITask[i];
 #endif
@@ -481,8 +550,8 @@ struct DescendantDataProgenBased
         long unsigned optimalhaloindex;
         int unsigned optimalhalotemporalindex;
         for (int i=1;i<NumberofDescendants;i++) {
-            if (Merit[i]/pow((Double_t)deltat[i],ALPHADELTAT)>generalizedmerit ||
-                (descentype[i]<curdescentype && Merit[i]/pow((Double_t)deltat[i],ALPHADELTAT)>=generalizedmerit*0.5)) {
+            // ||(descentype[i]<curdescentype && Merit[i]/pow((Double_t)deltat[i],ALPHADELTAT)>=generalizedmerit*0.5)) {
+            if (Merit[i]/pow((Double_t)deltat[i],ALPHADELTAT)>generalizedmerit) {
                 generalizedmerit=Merit[i]/pow((Double_t)deltat[i],ALPHADELTAT);curdescentype=descentype[i];imax=i;
             }
         }
@@ -549,59 +618,142 @@ struct DescendantDataProgenBased
 };
 
 /*!
-    Structure used to keep track of a structure's descendant/child structure using temporal/spatial information
+    Structure used to keep track of a structure's candidate preogenitors based on the descendant construction
 */
-struct DescendantData
+struct ProgenitorDataDescenBased
 {
-    ///structure type and number of links (descendants)
+    ///structure type and number of links (progenitors)
     //@{
     int stype;
-    int NumberofDescendants;
+    int NumberofProgenitors;
     //@}
-    ///store list of descendants
-    long unsigned* DescendantList;
+
+    ///store list of progenitors in the form of halo index and temporal index
+    vector<long unsigned> haloindex;
+    vector<int unsigned> halotemporalindex;
     ///store the merit value
-    float *Merit;
-    ///store the fraction of shared particles
-    float *nsharedfrac;
-
-    ///store number of steps back in time progenitor found
-    int istep;
-
-    DescendantData(){
-        NumberofDescendants=0;
-        DescendantList=NULL;
-        Merit=NULL;
-        nsharedfrac=NULL;
-        istep=1;
+    vector<float> Merit;
+    //store the integer time diff to progenitor
+    vector<int> deltat;
+    //store progenitor type, primary or not primary
+    vector<int> progentype;
+#ifdef USEMPI
+    //store which task this halo progenitor is located on
+    vector<int> MPITask;
+#endif
+    ProgenitorDataDescenBased(int reservesize=4){
+        NumberofProgenitors=0;
+        //reserve some space so mimimize number of reallocations
+        haloindex.reserve(reservesize);
+        halotemporalindex.reserve(reservesize);
+        Merit.reserve(reservesize);
+        deltat.reserve(reservesize);
+        progentype.reserve(reservesize);
+#ifdef USEMPI
+        MPITask.reserve(reservesize);
+#endif
     }
-    ~DescendantData(){
-        if (NumberofDescendants>0) {
-            delete[] DescendantList;
-            delete[] Merit;
-            if (nsharedfrac!=NULL) delete[] nsharedfrac;
-        }
+    ~ProgenitorDataDescenBased(){
     }
-    DescendantData &operator=(const DescendantData &d){
-        if (NumberofDescendants>0) {
-            delete[] DescendantList;
-            delete[] Merit;
-            if (nsharedfrac!=NULL) delete[] nsharedfrac;
-        }
-        NumberofDescendants=d.NumberofDescendants;
-        DescendantList=new long unsigned[NumberofDescendants];
-        Merit=new float[NumberofDescendants];
-        for (int i=0;i<NumberofDescendants;i++) {
-            DescendantList[i]=d.DescendantList[i];
+    ProgenitorDataDescenBased &operator=(const ProgenitorDataDescenBased &d){
+        NumberofProgenitors=d.NumberofProgenitors;
+        haloindex.resize(NumberofProgenitors);
+        halotemporalindex.resize(NumberofProgenitors);
+        Merit.resize(NumberofProgenitors);
+        deltat.resize(NumberofProgenitors);
+#ifdef USEMPI
+        MPITask.resize(NumberofProgenitors);
+#endif
+        for (int i=0;i<NumberofProgenitors;i++) {
+            haloindex[i]=d.haloindex[i];
+            halotemporalindex[i]=d.halotemporalindex[i];
             Merit[i]=d.Merit[i];
+            deltat[i]=d.deltat[i];
+            progentype[i]=d.progentype[i];
+#ifdef USEMPI
+            MPITask[i]=d.MPITask[i];
+#endif
         }
-        if (d.nsharedfrac!=NULL) {
-            nsharedfrac=new float[NumberofDescendants];
-            for (int i=0;i<NumberofDescendants;i++) nsharedfrac[i]=d.nsharedfrac[i];
-        }
-        istep=d.istep;
     }
+    ///Determine optimal descendent using a temporally weighted merit, and set it to position 0
+    ///start with just maximum merit, ignoring when this was found
+    ///otherwise use the reference time passed
+    ///the generalized merit = Merit/(deltat)
+    ///also, optimal descendents should be close to being a primary progenitor, having a lower descentype value
+    void OptimalTemporalMerit(Int_t itimref=0){
+        int imax=0;
+        Double_t generalizedmerit=Merit[0]/pow((Double_t)deltat[0],ALPHADELTAT);
+        int curprogentype=progentype[0];
+        long unsigned optimalhaloindex;
+        int unsigned optimalhalotemporalindex;
+        for (int i=1;i<NumberofProgenitors;i++) {
+            //|| (progentype[i]<curprogentype && Merit[i]/pow((Double_t)deltat[i],ALPHADELTAT)>=generalizedmerit*0.5)
+            if (Merit[i]/pow((Double_t)deltat[i],ALPHADELTAT)>generalizedmerit) {
+                generalizedmerit=Merit[i]/pow((Double_t)deltat[i],ALPHADELTAT);curprogentype=progentype[i];imax=i;
+            }
+        }
+        optimalhaloindex=haloindex[imax];
+        optimalhalotemporalindex=halotemporalindex[imax];
+        //if use mpi then also possible that optimal halo found on multiple mpi tasks
+        //but the lower task will be the one that needs to have the best halo so go over the loop and
+        //find the halo with the lowest task number of the best generalized merit
+#ifdef USEMPI
+        int imaxtask=MPITask[imax];
+        for (int i=0;i<NumberofProgenitors;i++) {
+            if (Merit[i]/(Double_t)deltat[i]==generalizedmerit && MPITask[i]<imaxtask) {imax=i;}
+        }
+#endif
+        if (imax>0) {
+            long unsigned hid, htid;
+            Double_t merit;
+            int dt;
+            int dtype;
+#ifdef USEMPI
+            int mpitask;
+#endif
+            merit=Merit[0];
+            hid=haloindex[0];
+            htid=halotemporalindex[0];
+            dt=deltat[0];
+            dtype=progentype[0];
+#ifdef USEMPI
+            mpitask=MPITask[0];
+#endif
+            Merit[0]=Merit[imax];
+            haloindex[0]=haloindex[imax];
+            halotemporalindex[0]=halotemporalindex[imax];
+            deltat[0]=deltat[imax];
+            progentype[0]=progentype[imax];
+#ifdef USEMPI
+            MPITask[0]=MPITask[imax];
+#endif
+            Merit[imax]=merit;
+            haloindex[imax]=hid;
+            halotemporalindex[imax]=htid;
+            deltat[imax]=dt;
+            progentype[imax]=dtype;
+#ifdef USEMPI
+            MPITask[imax]=mpitask;
+#endif
+        }
+    }
+#ifdef USEMPI
+    void Merge(int thistask, int &numprogen, long unsigned *hid,int unsigned *htid, float *m, int *dt, int *dtype, int *task) {
+        for (Int_t i=0;i<numprogen;i++) if (task[i]!=thistask)
+        {
+            haloindex.push_back(hid[i]);
+            halotemporalindex.push_back(htid[i]);
+            Merit.push_back(m[i]);
+            deltat.push_back(dt[i]);
+            progentype.push_back(dtype[i]);
+            MPITask.push_back(task[i]);
+            NumberofProgenitors++;
+        }
+    }
+#endif
+
 };
+
 
 ///struct to store the file type names produced by velociraptor
 struct VELOCIraptorFileTypeNames {

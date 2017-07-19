@@ -109,9 +109,6 @@ int main(int argc,char **argv)
     //then allocate simple array used for accessing halo ids of particles through their IDs
     pfofp=new unsigned int[opt.MaxIDValue];
     for (i=0;i<opt.MaxIDValue;i++) pfofp[i]=0;
-MPI_Barrier(MPI_COMM_WORLD);
-cout<<ThisTask<<" allocated pfofp "<<endl;
-MPI_Barrier(MPI_COMM_WORLD);
 
     //allocate memory associated with progenitors
     pprogen=new ProgenitorData*[opt.numsnapshots];
