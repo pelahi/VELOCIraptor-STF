@@ -236,7 +236,8 @@ void usage(void)
     particles are sent to non-reading mpi processes in one communication round in chunks of size buffer_size/NProcs/sizeof(Particle). \ref Options.mpiparticlebufsize \n
     \arg <b> \e Write_group_array_file </b> 0/1 flag indicating whether write a single large tipsy style group assignment file is written. \ref Options.iwritefof \n
     \arg <b> \e Separate_output_files </b> 1/0 flag indicating whether separate files are written for field and subhalo groups. \ref Options.iseparatefiles \n
-    \arg <b> \e Binary_output </b> 2/1/0 flag indicating whether output is hdf, binary or ascii. \ref Options.ibinaryout, \ref OUTHDF, \ref OUTBINARY, \ref OUTASCII \n
+    \arg <b> \e Binary_output </b> 3/2/1/0 flag indicating whether output is hdf, binary or ascii. \ref Options.ibinaryout, \ref OUTADIOS, \ref OUTHDF, \ref OUTBINARY, \ref OUTASCII \n
+    \arg <b> \e Extensive_halo_properties_output </b> 1/0 flag indicating whether to calculate/output even more halo properties. \ref Options.iextrahalooutput \n
     \arg <b> \e Extended_output </b> 1/0 flag indicating whether produce extended output for quick particle extraction from input catalog of particles in structures \ref Options.iextendedoutput \n
     \arg <b> \e Comoving_units </b> 1/0 flag indicating whether the properties output is in physical or comoving little h units. \ref Options.icomoveunit \n
     \arg <b> \e NSPH_extra_blocks </b> If gadget snapshot is loaded one can specific the number of extra <b> SPH </b> blocks are read/in the file. \ref Options.gnsphblocks \n
@@ -508,6 +509,8 @@ void GetParamFile(Options &opt)
                         opt.ibinaryout = atoi(vbuff);
                     else if (strcmp(tbuff, "Comoving_units")==0)
                         opt.icomoveunit = atoi(vbuff);
+                    else if (strcmp(tbuff, "Extensive_halo_properties_output")==0)
+                        opt.iextrahalooutput = atof(vbuff);
                     else if (strcmp(tbuff, "Extended_output")==0)
                         opt.iextendedoutput = atof(vbuff);
 

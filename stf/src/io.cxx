@@ -1104,6 +1104,11 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         attr=Fhdf.createAttribute(datagroupnames.prop[itemp], datagroupnames.propdatatype[itemp], attrspace);
         attr.write(datagroupnames.propdatatype[itemp],&attrvalue);
         itemp++;
+        attrvalue=opt.a;
+        attrspace=DataSpace(H5S_SCALAR);
+        attr=Fhdf.createAttribute(datagroupnames.prop[itemp], datagroupnames.propdatatype[itemp], attrspace);
+        attr.write(datagroupnames.propdatatype[itemp],&attrvalue);
+        itemp++;
         attrvalue=opt.lengthtokpc;
         attrspace=DataSpace(H5S_SCALAR);
         attr=Fhdf.createAttribute(datagroupnames.prop[itemp], datagroupnames.propdatatype[itemp], attrspace);

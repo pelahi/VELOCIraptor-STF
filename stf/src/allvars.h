@@ -345,6 +345,8 @@ struct Options
     int ibinaryout;
     ///for extended output allowing extraction of particles
     int iextendedoutput;
+    /// output extra fields in halo properties
+    int iextrahalooutput;
     ///disable particle id related output like fof.grp or catalog_group data. Useful if just want halo properties
     ///and not interested in tracking. Code writes halo properties catalog and exits.
     int inoidoutput;
@@ -601,6 +603,7 @@ struct Options
         iwritefof=0;
         iseparatefiles=0;
         ibinaryout=0;
+        iextrahalooutput=0;
         iextendedoutput=0;
         inoidoutput=0;
         icomoveunit=0;
@@ -1840,6 +1843,10 @@ struct PropDataHeader{
         for (int i=sizeval;i<headerdatainfo.size();i++) adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
 #endif
 #endif
+        //additional information about a halo
+        if (opt.iextrahalooutput) {
+
+        }
 
     }
 };
@@ -1955,6 +1962,7 @@ struct DataGroupNames {
         prop.push_back("Cosmological_Sim");
         prop.push_back("Comoving_or_Physical");
         prop.push_back("Period");
+        prop.push_back("Time");
         prop.push_back("Length_unit_to_kpc");
         prop.push_back("Velocity_to_kms");
         prop.push_back("Mass_unit_to_solarmass");
@@ -1969,6 +1977,7 @@ struct DataGroupNames {
         propdatatype.push_back(PredType::NATIVE_FLOAT);
         propdatatype.push_back(PredType::NATIVE_FLOAT);
         propdatatype.push_back(PredType::NATIVE_FLOAT);
+        propdatatype.push_back(PredType::NATIVE_FLOAT);
 #endif
 #ifdef USEADIOS
         adiospropdatatype.push_back(ADIOS_DATATYPES::adios_integer);
@@ -1977,6 +1986,7 @@ struct DataGroupNames {
         adiospropdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
         adiospropdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_integer);
         adiospropdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_integer);
+        adiospropdatatype.push_back(ADIOS_DATATYPES::adios_real);
         adiospropdatatype.push_back(ADIOS_DATATYPES::adios_real);
         adiospropdatatype.push_back(ADIOS_DATATYPES::adios_real);
         adiospropdatatype.push_back(ADIOS_DATATYPES::adios_real);
