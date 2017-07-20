@@ -152,6 +152,16 @@ using namespace NBody;
 #define MSLCMISSING 0
 ///higher merit
 #define MSLCMERIT 1
+///higher merit and primary progenitor
+#define MSLCMERITPRIMARYPROGEN 2
+//@}
+
+/// \name defining types of optimal temporal merit criteria
+//@{
+/// simple temporal merit
+#define GENERALIZEDMERITTIME 0
+/// temporal merit and also as close to the primary progenitor as possible
+#define GENERALIZEDMERITTIMEPROGEN 1
 //@}
 
 /// \name parameters for the temporal merit function
@@ -201,8 +211,8 @@ struct Options
     /// store description of code
     string description;
 
-    ///type of cross-match search
-    int matchtype;
+    ///type of merit function
+    int imerittype;
     ///cross match shared particle number significance, that is match only when quantity is above mlsig*some measure of noise, here defined as
     ///\f \sqrt{N_2} \f
     Double_t mlsig;
@@ -213,6 +223,8 @@ struct Options
     int itypematch;
     ///when using multiple links, how links should be updated, either only for those missing links, or better merit found
     int imultsteplinkcrit;
+    ///set the optimal temporal merit
+    int iopttemporalmerittype;
 
     ///flag for whether default merger tree produced, a simple cross comparsion between two catalogs is run or a full graph is constructed
     int icatalog;
@@ -272,11 +284,12 @@ struct Options
         MaxIDValue=512*512*512;
         TotalNumberofHalos=0;
 
-        matchtype=NsharedN1N2;
+        imerittype=NsharedN1N2;
         mlsig=0.1;
         meritlimit=0.05;
         itypematch=ALLTYPEMATCH;
         imultsteplinkcrit=MSLCMERIT;
+        iopttemporalmerittype=GENERALIZEDMERITTIMEPROGEN;
 
         ioformat=DCATALOG;
         icatalog=DTREE;
@@ -474,27 +487,33 @@ struct DescendantDataProgenBased
     ///otherwise use the reference time passed
     ///the generalized merit = Merit/(deltat)
     ///also, optimal descendents should be close to being a primary descendant, having a lower descentype value
-    void OptimalTemporalMerit(Int_t itimref=0){
+    void OptimalTemporalMerit(int iopttemporalmerittype=GENERALIZEDMERITTIME, Int_t itimeref=0){
         int imax=0;
-        Double_t generalizedmerit=Merit[0]/pow((Double_t)deltat[0],ALPHADELTAT);
+        Double_t generalizedmerit=Merit[0]/pow((Double_t)deltat[0],ALPHADELTAT), newgenmerit;
         int curdescentype=descentype[0];
         long unsigned optimalhaloindex;
         int unsigned optimalhalotemporalindex;
+
         for (int i=1;i<NumberofDescendants;i++) {
-            if (Merit[i]/pow((Double_t)deltat[i],ALPHADELTAT)>generalizedmerit ||
-                (descentype[i]<curdescentype && Merit[i]/pow((Double_t)deltat[i],ALPHADELTAT)>=generalizedmerit*0.5)) {
-                generalizedmerit=Merit[i]/pow((Double_t)deltat[i],ALPHADELTAT);curdescentype=descentype[i];imax=i;
+            newgenmerit=Merit[i]/pow((Double_t)deltat[i],ALPHADELTAT);
+            //if just optimising generalized temporal merit
+            if (iopttemporalmerittype==GENERALIZEDMERITTIME && newgenmerit>generalizedmerit) {
+                generalizedmerit=newgenmerit;curdescentype=descentype[i];imax=i;
+            }
+            //if optimising for best merit and best merit ranking (that is how close the object is to being the primary progenitor)
+            else if (iopttemporalmerittype==GENERALIZEDMERITTIMEPROGEN && ((descentype[i]<curdescentype && newgenmerit>=generalizedmerit*0.25)||(newgenmerit>generalizedmerit))) {
+                generalizedmerit=newgenmerit;curdescentype=descentype[i];imax=i;
             }
         }
         optimalhaloindex=haloindex[imax];
         optimalhalotemporalindex=halotemporalindex[imax];
         //if use mpi then also possible that optimal halo found on multiple mpi tasks
         //but the lower task will be the one that needs to have the best halo so go over the loop and
-        //find the halo with the lowest task number of the best generalized merit
+        //find the halo with the lowest task number of the match
 #ifdef USEMPI
         int imaxtask=MPITask[imax];
         for (int i=0;i<NumberofDescendants;i++) {
-            if (Merit[i]/(Double_t)deltat[i]==generalizedmerit && MPITask[i]<imaxtask) {imax=i;}
+            if (optimalhalotemporalindex==halotemporalindex[i] && optimalhaloindex==haloindex[i] && MPITask[i]<imaxtask) {imax=i;}
         }
 #endif
         if (imax>0) {

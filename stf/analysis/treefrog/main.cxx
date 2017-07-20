@@ -109,9 +109,6 @@ int main(int argc,char **argv)
     //then allocate simple array used for accessing halo ids of particles through their IDs
     pfofp=new unsigned int[opt.MaxIDValue];
     for (i=0;i<opt.MaxIDValue;i++) pfofp[i]=0;
-MPI_Barrier(MPI_COMM_WORLD);
-cout<<ThisTask<<" allocated pfofp "<<endl;
-MPI_Barrier(MPI_COMM_WORLD);
 
     //allocate memory associated with progenitors
     pprogen=new ProgenitorData*[opt.numsnapshots];
@@ -211,7 +208,7 @@ MPI_Barrier(MPI_COMM_WORLD);
         //this occurs if current snapshot is at least Endsnap-opt.numsteps*2 or lower as then Endsnap-opt.numsteps have had progenitor list processed
         if (opt.numsteps>1 && pht[i].numhalos>0 && (i<EndSnap-2*opt.numsteps && i>StartSnap+2*opt.numsteps)) {
             if (opt.iverbose) cout<<"Cleaning Progenitor list using descendant information for "<<i<<endl;
-            CleanProgenitorsUsingDescendants(i, pht, pprogendescen, pprogen);
+            CleanProgenitorsUsingDescendants(i, pht, pprogendescen, pprogen, opt.iopttemporalmerittype);
             delete[] pprogendescen[i];
             pprogendescen[i]=NULL;
         }
@@ -235,7 +232,7 @@ MPI_Barrier(MPI_COMM_WORLD);
         if (i>=StartSnap && i<EndSnap-1) {
             if (opt.iverbose) cout<<"Cleaning Progenitor list using descendant information for "<<i<<endl;
             if (pprogendescen[i]!=NULL) {
-                CleanProgenitorsUsingDescendants(i, pht, pprogendescen, pprogen);
+                CleanProgenitorsUsingDescendants(i, pht, pprogendescen, pprogen, opt.iopttemporalmerittype);
                 delete[] pprogendescen[i];
                 pprogendescen[i]=NULL;
             }
