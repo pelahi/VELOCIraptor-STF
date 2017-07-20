@@ -1332,9 +1332,10 @@ SKIP_FUNCTION_MACROS   = YES
 # If a tag file is not located in the directory in which doxygen
 # is run, you must also specify the path to the tagfile here.
 
-TAGFILES    = ../analysis/treefrog/doc/TreeFrog.tag=$(PWD)/../analysis/treefrog/doc/html/ \
-            ../NBodylib/doc/libNBody.tag=$(PWD)/../NBodylib/doc/html/
+#TAGFILES    = ../analysis/treefrog/doc/TreeFrog.tag=$(PWD)/../analysis/treefrog/doc/html/ \
+#            ../NBodylib/doc/libNBody.tag=$(PWD)/../NBodylib/doc/html/
 
+TAGFILES    = ../NBodylib/doc/libNBody.tag=$(PWD)/../NBodylib/doc/html/
 # When a file name is specified after GENERATE_TAGFILE, doxygen will create
 # a tag file that is based on the input files it reads.
 

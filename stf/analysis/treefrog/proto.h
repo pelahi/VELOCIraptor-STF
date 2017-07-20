@@ -128,7 +128,7 @@ void MPIUpdateProgenitorsUsingDescendants(Options &opt, HaloTreeData *&pht, Desc
 //@}
 
 /// \name Subroutines calculates merits between
-/// see \ref crossmatch.cxx for implementation
+/// see \ref crosscheck.cxx for implementation
 //@{
 
 /// determine the cross matches of halos in h1 in "progenitor list" h2
@@ -186,7 +186,7 @@ int CheckType(unsigned int t, int tmatch);
 //@}
 
 /// \name Extra routines
-/// see \ref crossmatch.cxx for implementation
+/// see \ref crosscheck.cxx for implementation
 //@{
 
 ///build group size array

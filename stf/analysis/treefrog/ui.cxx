@@ -311,7 +311,7 @@ in the examples directory). \n \n
 
     \section otherconfig Other options
     \arg \b \e -D < adjust particle IDs for nIFTY cross catalogs across simulations >
-    \arg \b \e -M < Mapping of particle ids to index  (\ref opt.imapping with \ref DNOMAP no mapping of ids to indices, all others must be implemented >
+    \arg \b \e -M < Mapping of particle ids to index  (\ref opt.imapping with \ref DNOMAP no mapping of ids to indices, \ref DMEMEFFICIENTMAP produces a unique ID to index mapping, needs more memory while building the map>
     \arg \b \e -v < verbose flag 1/0 >
     \section mpiconfig MPI options
     \arg \b \e -m < number of items per mpi thead, use for load balacing. Use 0 if no mpi used when building halo catalog >

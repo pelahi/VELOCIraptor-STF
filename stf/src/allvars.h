@@ -1903,7 +1903,6 @@ struct StrucLevelData
         for (Int_t i=1;i<=nsinlevel;i++) {gidhead[i]=NULL;gidparenthead[i]=NULL;giduberparenthead[i]=NULL;}
     }
 };
-extern StrucLevelData *psldata;
 
 #if defined(USEHDF)||defined(USEADIOS)
 ///store the names of datasets in catalog output
@@ -2091,5 +2090,7 @@ struct DataGroupNames {
 ///Includes external global variables used for MPI version of code
 #include "mpivar.h"
 #endif
+
+extern StrucLevelData *psldata;
 
 #endif

@@ -214,7 +214,7 @@ struct Options
     ///type of merit function
     int imerittype;
     ///cross match shared particle number significance, that is match only when quantity is above mlsig*some measure of noise, here defined as
-    ///\f \sqrt{N_2} \f
+    ///\$f N_2^{1/2} \$f
     Double_t mlsig;
     ///cross match merit limit for deciding whether to search previous snapshot
     Double_t meritlimit;

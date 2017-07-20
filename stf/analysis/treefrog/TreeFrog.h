@@ -18,7 +18,6 @@
 
 /*!
 \mainpage  Reference documentation for TreeFrog (aka HaloMergerTree)
-\defgroup TreeFrog TreeFrog program
 \author Pascal J. Elahi \n
 \version 1.2
 \section license License
