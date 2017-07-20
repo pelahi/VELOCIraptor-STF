@@ -8,7 +8,7 @@
 #include "allvars.h"
 #include "proto.h"
 
-#define STFVERSION 1.20
+#define STFVERSION 1.30
 
 #endif
 
@@ -19,7 +19,7 @@
    ----------------------------------------------------------------------
 */
 
-/*! 
+/*!
 \mainpage  Reference documentation for VELOCIraptor (aka STF)
 \author Pascal J. Elahi \n
         ICRAR \n
@@ -41,20 +41,20 @@ http://www.gnu.org/copyleft/gpl.html
 
 \section Description Description
 
-VELOCIraptor/STF is a massively parallel code for finding substructure in halos from N-body simulations. 
-It was designed to identify tidal debris, an impossible task for most other structures finders since most are designed to find overdensities in configuration space. 
-Tidal debris is 
+VELOCIraptor/STF is a massively parallel code for finding substructure in halos from N-body simulations.
+It was designed to identify tidal debris, an impossible task for most other structures finders since most are designed to find overdensities in configuration space.
+Tidal debris is
 
 This program reads a N-body output such as a tipsy/gadget file and finds (sub)structures. \n
 It is primarily designed to use the VELOCIraptor/STF algorithm (which generates an outlier subset) but can also
 use the 3DFOF and 6DFOF algorithm (effectively finds regions of high physical or phase-space density).\n
 The program can be altered to read different formats by altering \ref proto.h, \ref io.cxx, specifically \ref ReadData
-and providing the appropriate io.cxx file like \ref gadgetio.cxx. The overall flow of the program is outlined in \ref main.cxx 
+and providing the appropriate io.cxx file like \ref gadgetio.cxx. The overall flow of the program is outlined in \ref main.cxx
 and a brief description of the searches available is in \ref searching
 
 A full account of the numerical algorithms employed by the code is given
 in the code paper, <a href="http://adsabs.harvard.edu/abs/2011MNRAS.418..320E">Elahi et al. (2011)</a>
-and detailed instructions for usage of the code are given in the included code documentation. 
+and detailed instructions for usage of the code are given in the included code documentation.
 For a discussion of tidal debris in cosmological simulations and a comparison of the few codes capable in principle
 of identifying physically diffuse tidal debris see <a href="http://adsabs.harvard.edu/abs/2013MNRAS.433.1537E">Elahi et al. (2013)</a>.
 
@@ -68,16 +68,16 @@ a short guide to compile-time options of the code.
 \section relatecodes Related Codes
 
 There are several related codes that come with VELOCIraptor. These are \b TreeFrog (formerly halomergertree), and \b OrbWeaver (in development). These codes are designed to process a set of halo catalogs
-produced by VELOCIraptor and build temporal halo merger trees and reconstruct orbits of satellites around haloes. A description of the codes can be found at \n 
+produced by VELOCIraptor and build temporal halo merger trees and reconstruct orbits of satellites around haloes. A description of the codes can be found at \n
 - \b TreeFrog - A code designed to produce halo merger trees or cross correlate two different halo (structure) catalogues (\ref TreeFrog).
 - \b OrbWeaver - A code designed to produce halo merger trees or cross correlate two different halo (structure) catalogues (\ref OrbWeaver).
 
 \section prelim Getting started
 
     Getting started is as simple as editing the Makefile.config file (see \ref STF-makeflags)
-    typing make and then running the code (see \ref howtorun). 
+    typing make and then running the code (see \ref howtorun).
 
-\section install Compilation 
+\section install Compilation
 
 VELOCIraptor/STF needs the following non-standard libraries for compilation:
 
@@ -104,10 +104,10 @@ depending on the compilation flags used:
 
 One could in principle alter the code to use high precision libraries
 
-- \b QD - for higher precision (like double-double and quad-quad). 
+- \b QD - for higher precision (like double-double and quad-quad).
   (http://crd.lbl.gov/~dhbailey/mpdist/)
 
-- \b ARPREC - also for arbitrarily high precision. 
+- \b ARPREC - also for arbitrarily high precision.
   (http://crd.lbl.gov/~dhbailey/mpdist/)
 
 Note that if any of the above libraries is not installed in standard
@@ -126,8 +126,8 @@ A typical command to start the code looks like: \n \n
 
  <b> ./stf < args > </b> \n \n
 
-with <em>OpenMP</em>, setting the environment variable OMP_NUM_THREADS=8 will then run 
-the code with 8 threads in the openmp sections. 
+with <em>OpenMP</em>, setting the environment variable OMP_NUM_THREADS=8 will then run
+the code with 8 threads in the openmp sections.
 
 with MPI: \n \n
 
@@ -139,7 +139,7 @@ applications. Depending on the operating system, other commands may be
 required for this task, e.g. <em>poe</em> on IBM/AIX machines. Note that
 the code can in principle be started using an arbitrary number of
 processors, but the communication algorithms will be most efficient for
-powers of 2. 
+powers of 2.
 
 Note that at the moment, mpirun assumes that a single structure can fit onto the shared
 memory local to the mpi thread. If larger haloes are to be analyzed, it is suggested that
@@ -177,17 +177,17 @@ candidate substructures they are merged. The iterative parameters indicating how
 are increased by are listed in \ref Options
 
 \section unbinding Unbinding when searching for tidal debris
-As the algorithm is designed to identify dynamically distinct but not necessarily self-bound structures residing in a background 
-(that is roughly in equilibrium), the code allows the user to specific the ratio between kinetic and potential energy of particles 
-AND whether particles are removed from the background potential when unbinding. Typically codes of this nature, i.e. (sub)halo finders, 
-<b><em>REQUIRE</em></b> and unbinding step to function properly. This is <b>not</b> the case here. Tests show that requiring the ratio 
-|Epot|/Ekin >0.2 does not throw up too many suprious objects. One can be even more relaxed (and use <em>slightly</em> cpu resources) if 
+As the algorithm is designed to identify dynamically distinct but not necessarily self-bound structures residing in a background
+(that is roughly in equilibrium), the code allows the user to specific the ratio between kinetic and potential energy of particles
+AND whether particles are removed from the background potential when unbinding. Typically codes of this nature, i.e. (sub)halo finders,
+<b><em>REQUIRE</em></b> and unbinding step to function properly. This is <b>not</b> the case here. Tests show that requiring the ratio
+|Epot|/Ekin >0.2 does not throw up too many suprious objects. One can be even more relaxed (and use <em>slightly</em> cpu resources) if
 one does not require particles that do not meet the energy criterion to be ignored when estimating the potential. The idea would be for
-extended tidal debris with a very small loosely unbound core, the sea of tidal debris particles contributes negligibly to the potential 
-and so updating this is not cost effective. 
+extended tidal debris with a very small loosely unbound core, the sea of tidal debris particles contributes negligibly to the potential
+and so updating this is not cost effective.
 
-But for the default user interested in only completely self-bound objects, a kinetic ratio of 1.0 and ignore the bacground potential are 
-the options to use. 
+But for the default user interested in only completely self-bound objects, a kinetic ratio of 1.0 and ignore the bacground potential are
+the options to use.
 
 \section outputs Outputs
 
@@ -198,8 +198,8 @@ the options to use.
     format is collected from all MPI threads and is only ascii. The pglist format will be written
     in parallel, one for each thread, such that one has pglist.threadID. This format can be ascii
     or binary. This format contains several outputs, the catalog_group file, the catalog_particles file
-    and the catalog_particles.unbound file. 
-    
+    and the catalog_particles.unbound file.
+
     \subsection prop Structure properties
     The code can produce a ascii/binary file outname.prop containing the properties of the structures analyzed.
 
@@ -209,7 +209,7 @@ the options to use.
     and all direct substructures (number and substructure ids). This can be in ascii and binary
     formats and is written to outname.hierarchy.
 
-    \subsection mergertrees Merger trees produced by \ref TreeFrog 
+    \subsection mergertrees Merger trees produced by \ref TreeFrog
     The Treetree code located within the analysis directory. It is a particle correlator that can build a halo merger tree linking across
     multiple snapshots to identify optimal progenitors.
 
@@ -229,16 +229,16 @@ distinct gas substructures which are also metalicity outliers would require:
     <b><em>AND the local metalicity distribution</em></b>.
     \arg One would need to alter \ref localbgcomp.cxx to compare the predicted bg to the actual
     local value for each quantity independently. (Here one might assume that the metalicity distribution is lognormal.
-    \arg Finally, one would need to alter the search criterion used in \ref search.cxx (and \ref fofalgo.h). 
+    \arg Finally, one would need to alter the search criterion used in \ref search.cxx (and \ref fofalgo.h).
 
 */
 
 /*! \page STF-makeflags  Makefile.config
 
 A number of features of VELOCIraptor are controlled with compile-time options
-in the makefile rather than by arguments. The Makefile.config file contains 
-a list of all available compile-time options, with most of them commented out by default. 
-To activate a certain feature, the corresponding parameter should be commented in, 
+in the makefile rather than by arguments. The Makefile.config file contains
+a list of all available compile-time options, with most of them commented out by default.
+To activate a certain feature, the corresponding parameter should be commented in,
 and given the desired value, where appropriate. Below, a brief guide to these options is
 included.
 
@@ -253,10 +253,10 @@ by <b>make</b>.
 
 \n
 \section secmake1 Basic operation mode of code
-- \b SCALING \n Set this if you want to scale the physical and velocity 
+- \b SCALING \n Set this if you want to scale the physical and velocity
   linking lengths by bulk values of the halo to be searched. Only valid if a single halo is passed
 - \b STRUCDEN \n Set this if you want to calculate the velocity density function used to find (sub)structures \e ONLY for particles resident in structure
-- \b HALOONLYDEN \n Set this if you want to calculate the velocity density function used to find (sub)structures \e ONLY for particles resident in structure \em USING 
+- \b HALOONLYDEN \n Set this if you want to calculate the velocity density function used to find (sub)structures \e ONLY for particles resident in structure \em USING
 \em ONLY \em PARTICLES in the parent structure. \b STRUCDEN is overridden by \b HALOONLYDEN (technically these are incompatible with each other as HALOONLYDEN is faster but is biased and the number of particles for which the local distribution function density is calculated for is even more incomplete).
 - \b NOMASS \n Set in \ref NBody::Particle contained in file \ref Particle.h reduces memory allocation
 - \b MASSVAL \n Set in \ref NBody::Particle contained in file \ref Particle.h is the value returned by \ref NBody::Particle.GetMass
@@ -266,28 +266,28 @@ by <b>make</b>.
 
 \n
 \section secmake2 Parallel and computational flags
-Note that for practical reasons, the combination of OpenMP/MPI only works on correctly setup environments where one can explicitly state how many MPI threads to start on a given node. Otherwise, many systems will fill up a node with mpi threads and do so till all asked for mpi threads are active. Consequently, the openmp threads spawned by the MPI threads will compete with the MPI threads on the same node and the other OpenMP threads started by other MPI threads. 
+Note that for practical reasons, the combination of OpenMP/MPI only works on correctly setup environments where one can explicitly state how many MPI threads to start on a given node. Otherwise, many systems will fill up a node with mpi threads and do so till all asked for mpi threads are active. Consequently, the openmp threads spawned by the MPI threads will compete with the MPI threads on the same node and the other OpenMP threads started by other MPI threads.
 - \b USEOPENMP \n Code is compiled with openmp
 - \b USEMPI \n Code is compiled with mpi. must also set the appropriate compiler
-- \b SINGLEPRECISION, \b QUADPRECISION \n Code is compiled with double (normal), single and quad precision. must also compile 
+- \b SINGLEPRECISION, \b QUADPRECISION \n Code is compiled with double (normal), single and quad precision. must also compile
   \ref libNBody contained in "NBodylib" with the same precision
-- \b MPIREDUCEMEM \n If this flag is set, then the amount of memory allocated for MPI routines is reduced and one does not have to worry as much about the 
+- \b MPIREDUCEMEM \n If this flag is set, then the amount of memory allocated for MPI routines is reduced and one does not have to worry as much about the
 MPI factors \ref MPIProcFac & \ref MPIExportFac defined in \ref mpivar.h
 
 \n
 \section secmake3 Output options
-- \b OUTPUTFIELDHALOSINCLUSIVE \n Similar to \b OUTPUTFIELDHALOS but here the data is inclusive, that is file list and associated properties produced for halos including any 
+- \b OUTPUTFIELDHALOSINCLUSIVE \n Similar to \b OUTPUTFIELDHALOS but here the data is inclusive, that is file list and associated properties produced for halos including any
     substructures present.
 - \b PGLISTOUTPUT \n If this is set, the particle catalogue is a particle group list format.
 
 \n
-\section secmake4 Things for special behaviour 
+\section secmake4 Things for special behaviour
 - \b TWODIMS \n Projection search, not yet implemented
 
 \n
 \section secmake4 IO flags when reading gadget or other formats
 - \b GLONGID \n Gadget stores 64 long ids
-- \b GDPOS \n Gadget stores double precision x,v 
+- \b GDPOS \n Gadget stores double precision x,v
 - \b GSMASS \n Gadget stores single precision mass
 - \b GSHEAD \n Gadget has version 2 headers between each block of data
 

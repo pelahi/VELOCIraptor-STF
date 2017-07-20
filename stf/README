@@ -25,7 +25,7 @@ ___________.__            .___
   /  /   \_____  \   |    |    |    __)    \  \
  (  (    /        \  |    |    |     \      )  )
   \  \  /_______  /  |____|    \___  /     /  /
-   \__\         \/                 \/     /__/                        
+   \__\         \/                 \/     /__/
 
 ================================================================================================
 
@@ -36,6 +36,9 @@ ___________.__            .___
 ================================================================================================
 
     Pascal Jahan Elahi (continuously)
+    Additional contributors:
+    Rhys Poulton
+    Rodrigo Canas
 
 ================================================================================================
 
@@ -65,11 +68,11 @@ ___________.__            .___
 
 ================================================================================================
 
-    If you use the GNU C compiler version 4.0 or above type "make" at the command prompt.
+    If you use the GNU C compiler version 5.0 or above type "make" at the command prompt.
     For extra documentation, type make doc, which will produce html and latex documents using
     Doxygen. This will be located in doc/html/index.html and doc/latex/refman.tex
     This will contain extra information on what configuration options can be changed in the
-    Makefile.config file.
+    Makefile.config file (cp Makefile.config.template and edit).
     A quick summary of flags that can be adjusted are
     mpi compilers, openmp flags, precision used (floats versus doubles, ints versus longs).
 
@@ -94,20 +97,36 @@ ___________.__            .___
 
     Outputs:
 
-    i) Structure list
-    The code will produce a list of structure ids (two different formats) and a file listing
-    the properites of all structures found. These outputs are outname.fof.grp
-    and outname.sublevels.fof.grp (or pglist instead of fof.grp) which will list only haloes
-    (or level one hierarchy objects) and all structures found respectively. Note that the fof.grp
-    format is collected from all MPI threads and is only ascii. The pglist format will be written
-    in parallel, one for each thread, such that one has pglist.threadID. This format can be ascii
-    or binary.
+    The code will produce several files related to the configuration options (.configuration)
+    input data (.siminfo), units information based on the input and the configuration options (.units)
+    and several files containing information about the structures identified. These files can be split
+    into separate files containing field objects (halos) and internal structures (subhalos) if desired
+    (set by configuration option). The files can be in several formats
+    (ascii, binary [not recommended], HDF, ADIOS [in works, alpha]).
+    These files are
 
-    ii) Field Structure / Substructure relationships
-    The code will produce a list of the number of levels found in the hierarchy and
-    then for each object, the id, its parent id (which is -1 if it is a field structure)
-    and all direct substructures (number and substruture ids). This can be in ascii and binary
-    formats and is written to outname.hierarchy. 
+    i) Properties File (.properties)
+    Contains a variety of properties calculate for each structure identified and also contains
+    some information regarding the relationship of this object to others (if object is a substructure,
+    what is its hostHaloID).
+
+    ii) Catalog_ files (.catalog_groups, .catalog_particles, .catalog_parttypes)
+    Contains particle information to extract read particles from an input file or for tracking (ie: producing halo merger trees).
+    The catalog_groups contains the sizes of groups and the offsets to read the associated .catalog_particles (.catalog_particles.unbound)
+    .catalog_parttypes (.catalog_parttypes.unbound) which just listed the IDS and Types of particles belonging to groups.
+    For examples of how to read this information, see the python tools included. When combined with raw particle data can
+    be used for extra processing (such as calculating properties/profiles not calculated by default by VELOCIraptor).
+    These files are also necessary if one wishes to construct "halo merger trees" or cross match haloes between catalogues.
+    TreeFrog, an associated MPI+OpenMP tool, has inbuilt readers for VELOCIraptor output.
+
+    iii) Field Structure / Substructure relationships (.hierarchy)
+    Contains the substructure hierarchy information, such as the hostID (which is -1 if it is a field structure)
+    an objects ID, number of direct substructures.
+
+    The code can also output a simple list which is particle id ordered that simply has the (sub)halo of a paritcle
+    (and is zero if particle doesn't belong to a list.) These outputs are outname.fof.grp. Note that the fof.grp
+    format is collected from all MPI threads and is only ascii output.
+
 
 ================================================================================================
 
@@ -119,19 +138,44 @@ ___________.__            .___
     several implemented io routines are in the src directory. The routine needs to load all
     the appropriate date into a Particle array.
 
+    Currently VELOCIraptor can read Gadget (1,2), HDF, RAMSES, TIPSY, and Nchilada (alpha)
+
 ================================================================================================
 
     Associated analysis:
 
 ================================================================================================
 
-    TreeFrog (Fomerly Halotree): 
+    TreeFrog (Fomerly Halotree):
     --------------------------------------------------------------------------------------------
-    Tool builds a halo merger tree (and also a full graph) using a file containing the list of 
-    base file names of catalog files prodcued by VELOCIraptor. Can also read output from other
-    structure finders like AHF.
+    This is a MPI+OpenMP code that reads in particle IDs information between various structure
+    catalogues and cross matches catalogues assuming that particle IDs are unique and constant
+    across snapshots. Though it is built as a cross correlator (in that it can match particles
+    across several different catalogues), its principle use is as halo merger tree builder. The
+    code produces links between objects found at different snapshots (or catalogues) and uses
+    several possible functions to evaluate the merit of a link between one object at a given
+    snapshot (or in a given catalogue) to another object in a previous snapshot
+    (or different catalogue). It can also produce a full graph.
 
-    Baryons (discontinued/in need of major revision) 
+    This code naturally reads VELOCIraptor output and is optimised for it but can also read output
+    from other structure finders like AHF.
+
+    Running the code is
+    mpirun -np numberofmpi ./bin/treefrog -i filelist.txt -o outname -s numberofsnapsorcatalogues
+
+    The code also has many other command line arguments. Simply pass -?
+
+    Note that building a tree can be quite memory intensive for large simulations with lots of snapshots.
+    In mpi mode, the snapshots are split so as to approximately have the same number of particles in
+    structures per mpi process (load balance the memory footprint). This means that some mpi threads will
+    process significantly more snapshots than others (consider early times where few particles belong
+    to groups compared to late times where lots of structure has formed.) In that case it may be useful
+    to play with the load balancing when running in mpi. This can be done using a single mpi thread and
+    specifying the desired number of mpithreads and the desired number of particles per mpi thread.
+    mpirun -np 1 ./bin/treefrog -i filelist.txt -o outname -s numberofsnapsorcatalogues -z nummpi -n numpermpi
+    This will produce a file containing the load balance (ie: what files a mpi process should read).
+
+    Baryons (discontinued/in need of major revision)
     --------------------------------------------------------------------------------------------
     Tool designed to calculate numerous properties and profiles based on the input from
     VELOCIraptor catalogs.
@@ -144,4 +188,3 @@ ___________.__            .___
 
     Contains some example of reading routines for velociraptor output. For example will show
     how a routine will read the output of velociraptor.
-

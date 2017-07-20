@@ -8,7 +8,7 @@
 #include "allvars.h"
 #include "proto.h"
 
-#define TREEFROG 1.2
+#define TREEFROG 1.20
 
 #ifdef USEOPENMP
 #include <omp.h>
@@ -16,7 +16,7 @@
 
 #endif
 
-/*! 
+/*!
 \mainpage  Reference documentation for TreeFrog (aka HaloMergerTree)
 \defgroup TreeFrog TreeFrog program
 \author Pascal J. Elahi \n
@@ -36,22 +36,22 @@ http://www.gnu.org/copyleft/gpl.html
 
 \section Description Description
 
-Tree-Frog is a massively parallel code for building a halo (or in fact any structure from voids to filaments) temporal merger tree. 
+Tree-Frog is a massively parallel code for building a halo (or in fact any structure from voids to filaments) temporal merger tree.
 
-This program reads as input a file containing a list of files containing particle lists produced by structure finders. These files can 
+This program reads as input a file containing a list of files containing particle lists produced by structure finders. These files can
 be in several formats but critically list for each structure the particles associated with it and their IDs. These IDs are assumed to be
-temporally constant and unique, allowig them to be used to trace structures across time. 
+temporally constant and unique, allowig them to be used to trace structures across time.
 The program can be altered to read different formats by altering \ref proto.h, \ref allvars.h, \ref ui.cxx and \ref io.cxx, specifically \ref ReadData
-and providing the appropriate interface in \ref otherio.cxx. By default it is optimised to read output from VELOCIraptor. 
+and providing the appropriate interface in \ref otherio.cxx. By default it is optimised to read output from VELOCIraptor.
 The overall flow of the program is outlined in \ref main.cxx and a brief description of the types of linking available is in \ref linking
 
 A full account of the numerical algorithms employed by the code is given in the halo tree comparison paper, <a href="http://adsabs.harvard.edu/abs/2013MNRAS.436..150S">Srisawat et al. (2013)</a>
 
 \section prelim Getting started
 
-    Getting started is as simple as compiling VELOCIraptor.  
+    Getting started is as simple as compiling VELOCIraptor.
 
-\section install Compilation 
+\section install Compilation
 
 Like VELOCIraptor, TreeFrog needs the following non-standard libraries for compilation:
 
@@ -92,8 +92,8 @@ A typical command to start the code looks like: \n \n
 
  <b> ./treefrog < args > </b> \n \n
 
-with <em>OpenMP</em>, setting the environment variable OMP_NUM_THREADS=8 will then run 
-the code with 8 threads in the openmp sections. 
+with <em>OpenMP</em>, setting the environment variable OMP_NUM_THREADS=8 will then run
+the code with 8 threads in the openmp sections.
 
 with MPI: \n \n
 
@@ -108,48 +108,48 @@ processors, however one should be careful given the memory that is required to r
 OpenMP threads.
 
 Note that at the moment, mpirun assumes that all the past snapshots need to generate temporal links for a given current snapshot can
-be stored locally on the local memory. That is the full halo (strutcure) catalog for N+1 snapshots is processed, where N is the 
+be stored locally on the local memory. That is the full halo (strutcure) catalog for N+1 snapshots is processed, where N is the
 number of snapshots used to identify candidate links.
 
 \section uiargs Interface
 The code is passed command line arguments. More info can be found in \ref args, \ref Options struct and \ref ui.cxx \n
-It is important to note that the input file is meant to contain a list of files that are to be opened with the order 
+It is important to note that the input file is meant to contain a list of files that are to be opened with the order
 of first file earliest snapshot, last latest. Example would be \n
 \b snap_000.halo_particles \n
-\b snap_001.halo_particles \n 
+\b snap_001.halo_particles \n
 where these files are a list of particle ids (and possibly type information too) of particles in structures that you
 wish to track. The only alteration to the name is when reading in VELOCIraptor output. This output is structured
-into a specific set of files, .properties, .catalog_groups, .catalog_particles, .catalog_parttypes. In his case the file 
+into a specific set of files, .properties, .catalog_groups, .catalog_particles, .catalog_parttypes. In his case the file
 list should contain a list of the base names, ex: \n
 \b snap_000.VELOCIraptor \n
-\b snap_001.VELOCIraptor \n 
+\b snap_001.VELOCIraptor \n
 where for snap_000.VELOCIraptor, there is snap_000.VELOCIraptor.properties, snap_000.VELOCIraptor.catalog_groups, snap_000.VELOCIraptor.catalog_particles, snap_000.VELOCIraptor.catalog_particles.unbound
 (snap_000.VELOCIraptor.catalog_parttypes, snap_000.VELOCIraptor.catalog_parttypes.unbound if different particle types processed in halo catalog).
 
 
 \section linking Linking Haloes
-The code is designed to link halo (structures) in one catalog with those listed in another using the particle IDs. 
-Technically the code is a particle correlator which calculates for every halo in one catalog, 
-a merit of how good a match each halo in another catalog is via a merit function. The standard function is 
+The code is designed to link halo (structures) in one catalog with those listed in another using the particle IDs.
+Technically the code is a particle correlator which calculates for every halo in one catalog,
+a merit of how good a match each halo in another catalog is via a merit function. The standard function is
 
 
-\section outputs Outputs 
+\section outputs Outputs
 
     \subsection mergertree Merger Tree
     The code will produce an output that contains a simple header with
     \b - number of snapshots (catalogs) processed
     \b - a description of the code opertaion
     \b - total number of haloes in all catalogs
-    This is followed by info for each snapshot processed. 
+    This is followed by info for each snapshot processed.
     \b - snapshot_value number_of_haloes_in_snapshot
     \b - halo tree data
-    This tree data lists for each halo 
-    \b - haloID N 
+    This tree data lists for each halo
+    \b - haloID N
     \b - IdofProgenitor_0
 
     \b - IdofProgenitor_N
-    where N is the Number_of_progenitors. 
-    additonal information such as the merit value for each progenitor may also be listed. 
+    where N is the Number_of_progenitors.
+    additonal information such as the merit value for each progenitor may also be listed.
 
     (see \ref io.cxx)
 */
