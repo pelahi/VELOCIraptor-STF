@@ -380,23 +380,40 @@ int main(int argc,char **argv)
     else WriteCrossComp(opt,pprogen,pht);
 
     //free up memory
-    for (i=0;i<opt.numsnapshots;i++) if (pprogen[i]!=NULL) delete[] pprogen[i];
-    delete[] pprogen;
-    //if producing graph as well
-    if(opt.icatalog==DGRAPH) {for (i=0;i<opt.numsnapshots;i++) if (pdescen[i]!=NULL) delete[] pdescen[i];delete[] pdescen;}
-    //if used multiple time steps
-    if (opt.numsteps>1) {
-        for (i=opt.numsnapshots-1;i>=0;i--) {
-#ifdef USEMPI
-        //check if data is load making sure i is in appropriate range
-        if (i>=StartSnap && i<EndSnap) {
-#endif
-            if (pprogendescen[i]!=NULL) delete[] pprogendescen[i];
-#ifdef USEMPI
-        }
-#endif
+    if (opt.isearchdirection!=SEARCHDESCEN) {
+        for (i=0;i<opt.numsnapshots;i++) if (pprogen[i]!=NULL) delete[] pprogen[i];
+        delete[] pprogen;
+        //if used multiple time steps
+        if (opt.numsteps>1) {
+            for (i=opt.numsnapshots-1;i>=0;i--) {
+    #ifdef USEMPI
+            //check if data is load making sure i is in appropriate range
+            if (i>=StartSnap && i<EndSnap) {
+    #endif
+                if (pprogendescen[i]!=NULL) delete[] pprogendescen[i];
+    #ifdef USEMPI
+            }
+    #endif
+            }
         }
     }
+    if (opt.isearchdirection!=SEARCHPROGEN) {
+        for (i=0;i<opt.numsnapshots;i++) if (pdescen[i]!=NULL) delete[] pdescen[i];delete[] pdescen;
+        //if used multiple time steps
+        if (opt.numsteps>1) {
+            for (i=0;i<opt.numsnapshots;i++) {
+    #ifdef USEMPI
+            //check if data is load making sure i is in appropriate range
+            if (i>=StartSnap && i<EndSnap) {
+    #endif
+                if (pdescenprogen[i]!=NULL) delete[] pdescenprogen[i];
+    #ifdef USEMPI
+            }
+    #endif
+            }
+        }
+    }
+
 #ifdef USEMPI
     delete[] mpi_startsnap;
     delete[] mpi_endsnap;
