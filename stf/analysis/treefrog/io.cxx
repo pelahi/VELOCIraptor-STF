@@ -403,6 +403,128 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
     if (ThisTask==0) cout<<"Done writing to "<<fname<<" "<<MyGetTime()-time1<<endl;
 }
 
+/// same as \ref WriteHaloMergerTree  but going reverse direction using DescendantData
+void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
+    fstream Fout;
+    char fname[1000];
+    char fnamempi[2000];
+    int istep;
+    sprintf(fname,"%s",opt.outname);
+    Double_t time1=MyGetTime();
+#ifndef USEMPI
+    int ThisTask=0, NProcs=1;
+    int StartSnap=0,EndSnap=opt.numsnapshots;
+#endif
+#ifdef USEHDF
+    H5File Fhdf;
+    H5std_string datasetname;
+    DataSpace dataspace;
+    DataSet dataset;
+    Attribute attr;
+    DataSpace attrspace;
+    hsize_t *dims;
+    int rank;
+    DataSpace *propdataspace;
+    DataSet *propdataset;
+    HDFCatalogNames hdfnames;
+    int itemp=0;
+#endif
+    int istart,iend;
+
+    if (ThisTask==0) cout<<"Writing to "<<fname<<endl;
+    if (opt.outputformat==OUTASCII)
+    {
+        //if mpi then can have a single aggregate file or each thread write their own
+        if (NProcs>1) {
+#ifdef USEMPI
+        if (opt.iwriteparallel==1 && ThisTask==0) cout<<"Writing files in parallel "<<endl;
+        //now if mpi then last task writes header
+        //all tasks starting from last and moves backwards till it reaches its
+        //startpoint+numofsteps used to produce links
+        //save first task which goes all the way to its StartSnap
+        iend=EndSnap;
+        istart=StartSnap+opt.numsteps;
+        if (opt.iwriteparallel==1) sprintf(fnamempi,"%s.mpi_task-%d.isnap-%d.fsnap-%d",opt.outname,ThisTask,istart,iend);
+        else sprintf(fnamempi,"%s",fname);
+        if (ThisTask==0) istart=0;
+        for (int itask=NProcs-1;itask>=0;itask--) {
+            if (ThisTask==itask) {
+                if (ThisTask==0) {
+                    Fout.open(fnamempi,ios::out);
+                    Fout<<opt.numsnapshots<<endl;
+                    Fout<<opt.description<<endl;
+                    Fout<<opt.TotalNumberofHalos<<endl;
+                }
+                else {
+                    Fout.open(fnamempi,ios::out | ios::app);
+                }
+                if (opt.iverbose)cout<<ThisTask<<" starting to write "<<fnamempi<<" for "<<iend<<" down to "<<istart<<flush<<endl;
+                if (opt.outputformat==0) {
+                for (int i=0;i<opt.numsnapshots;i++) if (i>=istart && i<iend) {
+                    Fout<<i+opt.snapshotvaloffset<<"\t"<<h[i].numhalos<<endl;
+                    for (int j=0;j<h[i].numhalos;j++) {
+                        Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofDescendants<<endl;
+                        for (int k=0;k<p[i][j].NumberofDescendants;k++) {
+                            Fout<<h[i-p[i][j].istep].Halo[p[i][j].DescendantList[k]-1].haloID<<endl;
+                        }
+                    }
+                }
+                }
+                else {
+                for (int i=0;i<opt.numsnapshots;i++) if (i>=istart && i<iend) {
+                    Fout<<i+opt.snapshotvaloffset<<"\t"<<h[i].numhalos<<endl;
+                    for (int j=0;j<h[i].numhalos;j++) {
+                        Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofDescendants<<endl;
+                        for (int k=0;k<p[i][j].NumberofDescendants;k++) {
+                            Fout<<h[i-p[i][j].istep].Halo[p[i][j].DescendantList[k]-1].haloID<<" "<<p[i][j].Merit[k]<<endl;
+                        }
+                    }
+                }
+                }
+                Fout.close();
+            }
+            if (opt.iwriteparallel==0) MPI_Barrier(MPI_COMM_WORLD);
+        }
+#endif
+        }
+        //if not mpi (ie: NProcs==1)
+        else{
+            Fout.open(fname,ios::out);
+            Fout<<opt.numsnapshots<<endl;
+            Fout<<opt.description<<endl;
+            Fout<<opt.TotalNumberofHalos<<endl;
+            if (opt.outputformat==0) {
+            for (int i=0;i<opt.numsnapshots;i++) {
+                Fout<<i+opt.snapshotvaloffset<<"\t"<<h[i].numhalos<<endl;
+                for (int j=0;j<h[i].numhalos;j++) {
+                    Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofDescendants<<endl;
+                    for (int k=0;k<p[i][j].NumberofDescendants;k++) {
+                        Fout<<h[i-p[i][j].istep].Halo[p[i][j].DescendantList[k]-1].haloID<<endl;
+                    }
+                }
+            }
+            }
+            else {
+            for (int i=0;i<opt.numsnapshots;i++) {
+                Fout<<i+opt.snapshotvaloffset<<"\t"<<h[i].numhalos<<endl;
+                for (int j=0;j<h[i].numhalos;j++) {
+                    Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofDescendants<<endl;
+                    for (int k=0;k<p[i][j].NumberofDescendants;k++) {
+                        Fout<<h[i-p[i][j].istep].Halo[p[i][j].DescendantList[k]-1].haloID<<" "<<p[i][j].Merit[k]<<endl;
+                    }
+                }
+            }
+            }
+            Fout.close();
+        }
+    }
+    //end of ascii output
+#ifdef USEHDF
+    else if (opt.outputformat==OUTHDF)
+#endif
+    if (ThisTask==0) cout<<"Done writing to "<<fname<<" "<<MyGetTime()-time1<<endl;
+}
+
 void WriteHaloGraph(Options &opt, ProgenitorData **p, DescendantData **d, HaloTreeData *h) {
     fstream Fout;
     char fname[1000];

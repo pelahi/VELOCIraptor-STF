@@ -88,6 +88,8 @@ inline void STFReadNumData(unsigned long &nids, unsigned long &nsids, unsigned l
 //@{
 ///Writes the merger tree
 void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h);
+///writes descendant halo merger tree
+void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h);
 ///writes a full graph
 void WriteHaloGraph(Options &opt, ProgenitorData **p, DescendantData **d, HaloTreeData *h);
 ///writes a cross comparison between two catalogs

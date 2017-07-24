@@ -13,6 +13,7 @@ void GetArgs(int argc, char *argv[], Options &opt)
     {
         switch(option)
         {
+            ///input related options such as input name, number of snaps to process, input format, outputformat
             case 'i':
                 opt.fname = optarg;
                 NumArgs += 2;
@@ -21,6 +22,32 @@ void GetArgs(int argc, char *argv[], Options &opt)
                 opt.numsnapshots = atoi(optarg);
                 NumArgs += 2;
                 break;
+            case 'I':
+                opt.ioformat = atoi(optarg);
+                NumArgs += 2;
+                break;
+            case 'N':
+                opt.nmpifiles = atoi(optarg);
+                NumArgs += 2;
+                break;
+            case 'B':
+                opt.ibinary = atoi(optarg);
+                NumArgs += 2;
+                break;
+            case 'F':
+                opt.ifield = atoi(optarg);
+                NumArgs += 2;
+                break;
+            case 'o':
+                opt.outname = optarg;
+                NumArgs += 2;
+                break;
+            case 'O':
+                opt.outputformat = atoi(optarg);
+                NumArgs += 2;
+                break;
+
+
             case 't':
                 opt.numsteps = atoi(optarg);
                 NumArgs += 2;
@@ -35,10 +62,6 @@ void GetArgs(int argc, char *argv[], Options &opt)
                 break;
             case 'p':
                 opt.min_numpart = atoi(optarg);
-                NumArgs += 2;
-                break;
-            case 'o':
-                opt.outname = optarg;
                 NumArgs += 2;
                 break;
             case 'C':
@@ -67,26 +90,6 @@ void GetArgs(int argc, char *argv[], Options &opt)
                 break;
             case 'a':
                 opt.meritlimit = atof(optarg);
-                NumArgs += 2;
-                break;
-            case 'I':
-                opt.ioformat = atoi(optarg);
-                NumArgs += 2;
-                break;
-            case 'O':
-                opt.outputformat = atoi(optarg);
-                NumArgs += 2;
-                break;
-            case 'N':
-                opt.nmpifiles = atoi(optarg);
-                NumArgs += 2;
-                break;
-            case 'B':
-                opt.ibinary = atoi(optarg);
-                NumArgs += 2;
-                break;
-            case 'F':
-                opt.ifield = atoi(optarg);
                 NumArgs += 2;
                 break;
             case 'M':
@@ -131,66 +134,19 @@ void GetArgs(int argc, char *argv[], Options &opt)
                 usage();
         }
     }
-    if (opt.fname==NULL||opt.outname==NULL){
-#ifdef USEMPI
-    if (ThisTask==0)
-#endif
-        cerr<<"Must provide input and output file names\n";
-#ifdef USEMPI
-            MPI_Abort(MPI_COMM_WORLD,8);
-#else
-            exit(8);
-#endif
+    /*
+    if(configflag){
+        cout<<"Reading config file"<<endl;
+        GetParamFile(opt);
     }
-
-    if (opt.imapping==DSIMPLEMAP) opt.mappingfunc=simplemap;
-    if (opt.numsnapshots<2){
-#ifdef USEMPI
-    if (ThisTask==0)
-#endif
-        cerr<<"Number of snapshots must be >=2\n";
-#ifdef USEMPI
-            MPI_Abort(MPI_COMM_WORLD,8);
-#else
-            exit(8);
-#endif
+    else {
+        cout<<"NO CONFIG FILE PASSED! Using default values"<<endl;
     }
-    if (opt.numsteps<1){
+    */
 #ifdef USEMPI
-    if (ThisTask==0)
+    MPI_Barrier(MPI_COMM_WORLD);
 #endif
-        cerr<<"Number of steps over which to produce links must be >=1\n";
-#ifdef USEMPI
-            MPI_Abort(MPI_COMM_WORLD,8);
-#else
-            exit(8);
-#endif
-    }
-    if (opt.icatalog==DCROSSCAT) {
-        if (opt.numsnapshots>2) {cerr<<"Cross catalog, yet more than two snapshots compared, reseting and only comparing two"<<endl;opt.numsnapshots=2;}
-        if (opt.numsteps>1) {cerr<<"Cross catalog, yet asking to use more than a single step when linking, reseting and only linking across one "<<endl;opt.numsteps=1;}
-    }
-    //else if (opt.imapping==???) opt.mappingfunc=???;
-    opt.description=(char*)"VELOCIraptor halo merger tree constructed by identifying the main progenitor with the highest value of ";
-    if(opt.imerittype==NsharedN1N2)      opt.description+=(char*)"Nshared^2/Nh/Np |";
-    else if(opt.imerittype==NsharedN1)   opt.description+=(char*)"Nshared/Nh | ";
-    else if(opt.imerittype==Nshared)     opt.description+=(char*)"Nshared |";
-    else if (opt.imerittype==Nsharedcombo) opt.description=(char*)"Nshared/Nh+(Nshared^2/Nh/Np) so as to weight progenitors that contribute similar amounts by how much of their mass contributes to the new object | ";
-    opt.description=(char*)"Optimal temporal merits are set by  ";
-    if(opt.iopttemporalmerittype==GENERALIZEDMERITTIME)  opt.description+=(char*)"a generalized temporal merit taking into account average time evolution |";
-    else if(opt.iopttemporalmerittype==GENERALIZEDMERITTIMEPROGEN)  opt.description+=(char*)"a generalized temporal merit taking into account average time evolution and maximise the ranking of the progenitor so that links always point to primary progen/descen |";
-    opt.description+=(char*)"Tree built using ";
-    opt.description+=static_cast<ostringstream*>( &(ostringstream() << opt.numsteps) )->str();
-    opt.description+=(char*)" temporal steps | ";
-    opt.description+=(char*)"Particle types for matching limited to ";
-    if (opt.itypematch==ALLTYPEMATCH) opt.description+=(char*)" all |";
-    else {opt.description+=(char*)" part type ";opt.description+=static_cast<ostringstream*>( &(ostringstream() << opt.itypematch) )->str();}
-    opt.description+=(char*)" | ";
-    if (opt.particle_frac<1 && opt.particle_frac>0) {
-    opt.description+=(char*)" Weighted merit with ";opt.description+=static_cast<ostringstream*>( &(ostringstream() << opt.particle_frac) )->str();
-    opt.description+=(char*)" fraction of most bound particles with min particle num of  ";opt.description+=static_cast<ostringstream*>( &(ostringstream() << opt.min_numpart) )->str();
-    opt.description+=(char*)" | ";
-    }
+    ConfigCheck(opt);
 }
 
 ///Outputs the usage to stdout
@@ -276,6 +232,71 @@ void usage(void)
     MPI_Finalize();
 #endif
     exit(1);
+}
+
+//check to see if config options are acceptable.
+inline void ConfigCheck(Options &opt)
+{
+    if (opt.fname==NULL||opt.outname==NULL){
+#ifdef USEMPI
+    if (ThisTask==0)
+#endif
+        cerr<<"Must provide input and output file names\n";
+#ifdef USEMPI
+            MPI_Abort(MPI_COMM_WORLD,8);
+#else
+            exit(8);
+#endif
+    }
+
+    if (opt.imapping==DSIMPLEMAP) opt.mappingfunc=simplemap;
+    if (opt.numsnapshots<2){
+#ifdef USEMPI
+    if (ThisTask==0)
+#endif
+        cerr<<"Number of snapshots must be >=2\n";
+#ifdef USEMPI
+            MPI_Abort(MPI_COMM_WORLD,8);
+#else
+            exit(8);
+#endif
+    }
+    if (opt.numsteps<1){
+#ifdef USEMPI
+    if (ThisTask==0)
+#endif
+        cerr<<"Number of steps over which to produce links must be >=1\n";
+#ifdef USEMPI
+            MPI_Abort(MPI_COMM_WORLD,8);
+#else
+            exit(8);
+#endif
+    }
+    if (opt.icatalog==DCROSSCAT) {
+        if (opt.numsnapshots>2) {cerr<<"Cross catalog, yet more than two snapshots compared, reseting and only comparing two"<<endl;opt.numsnapshots=2;}
+        if (opt.numsteps>1) {cerr<<"Cross catalog, yet asking to use more than a single step when linking, reseting and only linking across one "<<endl;opt.numsteps=1;}
+    }
+    //else if (opt.imapping==???) opt.mappingfunc=???;
+    opt.description=(char*)"VELOCIraptor halo merger tree constructed by identifying the main progenitor with the highest value of ";
+    if(opt.imerittype==NsharedN1N2)      opt.description+=(char*)"Nshared^2/Nh/Np |";
+    else if(opt.imerittype==NsharedN1)   opt.description+=(char*)"Nshared/Nh | ";
+    else if(opt.imerittype==Nshared)     opt.description+=(char*)"Nshared |";
+    else if (opt.imerittype==Nsharedcombo) opt.description=(char*)"Nshared/Nh+(Nshared^2/Nh/Np) so as to weight progenitors that contribute similar amounts by how much of their mass contributes to the new object | ";
+    opt.description=(char*)"Optimal temporal merits are set by  ";
+    if(opt.iopttemporalmerittype==GENERALIZEDMERITTIME)  opt.description+=(char*)"a generalized temporal merit taking into account average time evolution |";
+    else if(opt.iopttemporalmerittype==GENERALIZEDMERITTIMEPROGEN)  opt.description+=(char*)"a generalized temporal merit taking into account average time evolution and maximise the ranking of the progenitor so that links always point to primary progen/descen |";
+    opt.description+=(char*)"Tree built using ";
+    opt.description+=static_cast<ostringstream*>( &(ostringstream() << opt.numsteps) )->str();
+    opt.description+=(char*)" temporal steps | ";
+    opt.description+=(char*)"Particle types for matching limited to ";
+    if (opt.itypematch==ALLTYPEMATCH) opt.description+=(char*)" all |";
+    else {opt.description+=(char*)" part type ";opt.description+=static_cast<ostringstream*>( &(ostringstream() << opt.itypematch) )->str();}
+    opt.description+=(char*)" | ";
+    if (opt.particle_frac<1 && opt.particle_frac>0) {
+    opt.description+=(char*)" Weighted merit with ";opt.description+=static_cast<ostringstream*>( &(ostringstream() << opt.particle_frac) )->str();
+    opt.description+=(char*)" fraction of most bound particles with min particle num of  ";opt.description+=static_cast<ostringstream*>( &(ostringstream() << opt.min_numpart) )->str();
+    opt.description+=(char*)" | ";
+    }
 }
 
 /*!

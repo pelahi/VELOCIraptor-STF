@@ -108,6 +108,7 @@ using namespace NBody;
 #define DTREE 0
 #define DCROSSCAT 1
 #define DGRAPH 2
+#define DDESCENDANT 3
 //@}
 
 /// \name Mapping functions
@@ -197,7 +198,7 @@ struct Options
 {
     ///\name filenames
     //@{
-    char *fname,*outname;
+    char *fname,*outname, *configname;
     //@}
     ///number of snapshots
     int numsnapshots;
