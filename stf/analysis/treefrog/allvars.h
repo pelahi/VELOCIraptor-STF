@@ -551,6 +551,7 @@ struct DescendantDataProgenBased
         haloindex.resize(NumberofDescendants);
         halotemporalindex.resize(NumberofDescendants);
         Merit.resize(NumberofDescendants);
+        descentype.reserve(NumberofDescendants);
         deltat.resize(NumberofDescendants);
 #ifdef USEMPI
         MPITask.resize(NumberofDescendants);
@@ -694,6 +695,7 @@ struct ProgenitorDataDescenBased
         haloindex.resize(NumberofProgenitors);
         halotemporalindex.resize(NumberofProgenitors);
         Merit.resize(NumberofProgenitors);
+        progentype.reserve(NumberofProgenitors);
         deltat.resize(NumberofProgenitors);
 #ifdef USEMPI
         MPITask.resize(NumberofProgenitors);

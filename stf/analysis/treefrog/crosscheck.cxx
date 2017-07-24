@@ -996,10 +996,14 @@ void UpdateRefDescendants(Options &opt, const Int_t numhalos, DescendantData *&d
     else if (opt.imultsteplinkcrit==MSLCMERIT) {
         for (Int_t i=0;i<numhalos;i++) {
             if (dref[i].NumberofDescendants==0 && dtemp[i].NumberofDescendants>0) dref[i]=dtemp[i];
-            else if (dref[i].NumberofDescendants>0 && dtemp[i].NumberofDescendants>0)
+            else if (dref[i].NumberofDescendants>0 && dtemp[i].NumberofDescendants>0) {
                 if (dtemp[i].Merit[0]>opt.meritlimit) {
+                    //first must update the progenitor based descendant list
+                    //RemoveLinksProgenitorBasedDescendantList(itime, i, pref[i], pprogendescen);
+                    //then copy new links
                     dref[i]=dtemp[i];
                 }
+            }
         }
     }
 }
