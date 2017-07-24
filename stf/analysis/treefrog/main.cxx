@@ -290,15 +290,14 @@ int main(int argc,char **argv)
                     //for first linking, cross match and allocate memory
                     if (istep==1) {
                         pdescen[i]=CrossMatchDescendant(opt,  pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pfofd, ilistupdated);
-                        //if producing a graph then clean up descendant list to that the descendant of an object only has one descendant
-                        if (opt.icatalog==DGRAPH) CleanCrossMatchDescendant(istep, pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pdescen[i]);
+                        CleanCrossMatchDescendant(istep, pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pdescen[i]);
                         if (opt.numsteps>1) BuildDescendantBasedProgenitorList(i, i+istep, pht[i].numhalos, pdescen[i], pdescenprogen);
                     }
                     //otherwise only care about objects with no links
                     else {
                         pdescentemp=CrossMatchDescendant(opt, pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pfofd, ilistupdated, istep, pdescen[i]);
                         if (ilistupdated>0) {
-                            if (opt.icatalog==DGRAPH) CleanCrossMatchDescendant(istep, pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pdescen[i]);
+                            CleanCrossMatchDescendant(istep, pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pdescen[i]);
                             UpdateRefDescendants(opt,pht[i].numhalos, pdescen[i], pdescentemp);
                             BuildDescendantBasedProgenitorList(i, i+istep, pht[i].numhalos, pdescen[i], pdescenprogen, istep);
                         }

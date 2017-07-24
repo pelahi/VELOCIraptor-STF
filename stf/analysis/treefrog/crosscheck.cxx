@@ -11,7 +11,7 @@
 
 /// Determine initial progenitor list based on just merit
 /// does not guarantee that progenitor list is exclusive
-/// \todo still need to clean up core matching section. 
+/// \todo still need to clean up core matching section.
 ProgenitorData *CrossMatch(Options &opt, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData *&h2, unsigned int*&pfof2, int &ilistupdated, int istepval, ProgenitorData *refprogen)
 {
     long int i,j,k,n,index;
@@ -879,7 +879,7 @@ private(i,j,k)
     for (i=0;i<nhalos1;i++) if (p1[i].istep==istepval){
         for(j=0;j<p1[i].NumberofProgenitors;j++) {
             //store nshared
-            p1[i].nsharedfrac[j]=sqrt(p1[i].Merit[j]*((double)h2[p1[i].ProgenitorList[j]].NumberofParticles*(double)h1[i].NumberofParticles))/(double)h1[i].NumberofParticles;
+            //p1[i].nsharedfrac[j]=sqrt(p1[i].Merit[j]*((double)h2[p1[i].ProgenitorList[j]].NumberofParticles*(double)h1[i].NumberofParticles))/(double)h1[i].NumberofParticles;
             p1[i].ProgenitorList[j]=h2[p1[i].ProgenitorList[j]].haloID;
         }
     }
@@ -890,11 +890,12 @@ private(i,j,k)
     delete[] nh2nummatches;
     delete[] merit;
 }
-///similar to \ref CleanCrossMatch but does the same for descendants
+///adjust descendant list to store halo ids not halo indices but does not prune the list descendant list
 void CleanCrossMatchDescendant(const int istepval, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData *&h2, DescendantData *&p1)
 {
     Int_t i,j,k;
     int nthreads=1,tid;
+    /*
 #ifdef USEOPENMP
 #pragma omp parallel
     {
@@ -936,6 +937,7 @@ private(i,j,k)
 #ifdef USEOPENMP
 }
 #endif
+    */
 
     //adjust data to store haloIDS
 #ifdef USEOPENMP
@@ -947,7 +949,7 @@ private(i,j,k)
     for (i=0;i<nhalos1;i++) if (p1[i].istep==istepval){
         for(j=0;j<p1[i].NumberofDescendants;j++) {
             //store nshared
-            p1[i].nsharedfrac[j]=sqrt(p1[i].Merit[j]*((double)h2[p1[i].DescendantList[j]].NumberofParticles*(double)h1[i].NumberofParticles))/(double)h1[i].NumberofParticles;
+            //p1[i].nsharedfrac[j]=sqrt(p1[i].Merit[j]*((double)h2[p1[i].DescendantList[j]].NumberofParticles*(double)h1[i].NumberofParticles))/(double)h1[i].NumberofParticles;
             p1[i].DescendantList[j]=h2[p1[i].DescendantList[j]].haloID;
         }
     }

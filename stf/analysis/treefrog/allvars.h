@@ -470,7 +470,7 @@ struct DescendantData
     ///store the fraction of shared particles
     float *nsharedfrac;
 
-    ///store number of steps back in time progenitor found
+    ///store number of steps forward in time descedant found
     int istep;
 
     DescendantData(){
@@ -478,7 +478,7 @@ struct DescendantData
         DescendantList=NULL;
         Merit=NULL;
         nsharedfrac=NULL;
-        istep=1;
+        istep=0;
     }
     ~DescendantData(){
         if (NumberofDescendants>0) {
