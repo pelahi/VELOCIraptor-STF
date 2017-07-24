@@ -442,11 +442,12 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
         //all tasks starting from last and moves backwards till it reaches its
         //startpoint+numofsteps used to produce links
         //save first task which goes all the way to its StartSnap
-        iend=EndSnap;
-        istart=StartSnap+opt.numsteps;
+        iend=EndSnap-opt.numsteps;
+        istart=StartSnap;
         if (opt.iwriteparallel==1) sprintf(fnamempi,"%s.mpi_task-%d.isnap-%d.fsnap-%d",opt.outname,ThisTask,istart,iend);
         else sprintf(fnamempi,"%s",fname);
         if (ThisTask==0) istart=0;
+        if (ThisTask==NProcs-1) iend=opt.numsnapshots;
         for (int itask=NProcs-1;itask>=0;itask--) {
             if (ThisTask==itask) {
                 if (ThisTask==0) {
@@ -460,7 +461,7 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
                 }
                 if (opt.iverbose)cout<<ThisTask<<" starting to write "<<fnamempi<<" for "<<iend<<" down to "<<istart<<flush<<endl;
                 if (opt.outputformat==0) {
-                for (int i=0;i<opt.numsnapshots;i++) if (i>=istart && i<iend) {
+                for (int i=0;i<opt.numsnapshots-1;i++) if (i>=istart && i<iend) {
                     Fout<<i+opt.snapshotvaloffset<<"\t"<<h[i].numhalos<<endl;
                     for (int j=0;j<h[i].numhalos;j++) {
                         Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofDescendants<<endl;
@@ -471,7 +472,7 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
                 }
                 }
                 else {
-                for (int i=0;i<opt.numsnapshots;i++) if (i>=istart && i<iend) {
+                for (int i=0;i<opt.numsnapshots-1;i++) if (i>=istart && i<iend) {
                     Fout<<i+opt.snapshotvaloffset<<"\t"<<h[i].numhalos<<endl;
                     for (int j=0;j<h[i].numhalos;j++) {
                         Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofDescendants<<endl;
@@ -485,6 +486,16 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
             }
             if (opt.iwriteparallel==0) MPI_Barrier(MPI_COMM_WORLD);
         }
+        if (ThisTask==NProcs-1) {
+            Fout.open(fnamempi,ios::out | ios::app);
+            ///last file has no connections
+            Fout<<opt.numsnapshots-1+opt.snapshotvaloffset<<"\t"<<h[opt.numsnapshots-1].numhalos<<endl;
+            for (int j=0;j<h[opt.numsnapshots-1].numhalos;j++) {
+                Fout<<h[opt.numsnapshots-1].Halo[j].haloID<<"\t"<<0<<endl;
+            }
+            Fout<<"END"<<endl;
+            Fout.close();
+        }
 #endif
         }
         //if not mpi (ie: NProcs==1)
@@ -494,7 +505,7 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
             Fout<<opt.description<<endl;
             Fout<<opt.TotalNumberofHalos<<endl;
             if (opt.outputformat==0) {
-            for (int i=0;i<opt.numsnapshots;i++) {
+            for (int i=0;i<opt.numsnapshots-1;i++) {
                 Fout<<i+opt.snapshotvaloffset<<"\t"<<h[i].numhalos<<endl;
                 for (int j=0;j<h[i].numhalos;j++) {
                     Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofDescendants<<endl;
@@ -505,7 +516,7 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
             }
             }
             else {
-            for (int i=0;i<opt.numsnapshots;i++) {
+            for (int i=0;i<opt.numsnapshots-1;i++) {
                 Fout<<i+opt.snapshotvaloffset<<"\t"<<h[i].numhalos<<endl;
                 for (int j=0;j<h[i].numhalos;j++) {
                     Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofDescendants<<endl;
@@ -515,6 +526,12 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
                 }
             }
             }
+            Fout<<opt.numsnapshots-1+opt.snapshotvaloffset<<"\t"<<h[opt.numsnapshots-1].numhalos<<endl;
+            ///last file has no connections
+            for (int j=0;j<h[opt.numsnapshots-1].numhalos;j++) {
+                Fout<<h[opt.numsnapshots-1].Halo[j].haloID<<"\t"<<0<<endl;
+            }
+            Fout<<"END"<<endl;
             Fout.close();
         }
     }
