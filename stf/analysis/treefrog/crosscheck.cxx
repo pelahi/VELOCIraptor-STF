@@ -956,9 +956,9 @@ private(i,j,k)
 #ifdef USEOPENMP
 }
 #endif
-    delete[] nh2index;
-    delete[] nh2nummatches;
-    delete[] merit;
+    //delete[] nh2index;
+    //delete[] nh2nummatches;
+    //delete[] merit;
 }
 ///when linking using multiple snapshots, use to update the progenitor list based on a candidate list built using a single snapshot
 ///If complex updating done, then will need to update the progenitor based descendant list.
