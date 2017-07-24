@@ -1042,6 +1042,55 @@ void CleanProgenitorsUsingDescendants(Int_t i, HaloTreeData *&pht, DescendantDat
     }
 }
 
+///similar to construction of descendant list using the candidate progenitor list, but here working in reverse direction
+void BuildDescendantBasedProgenitorList(Int_t itimedescen, Int_t itimeprogen, Int_t nhalos, DescendantData *&pdescen, ProgenitorDataDescenBased **&pdescenprogen, int istep)
+{
+    //if first pass then store progenitors looking at all descendants
+    int did;
+    for (Int_t k=0;k<nhalos;k++) {
+        for (Int_t ndescen=0;ndescen<pdescen[k].NumberofDescendants;ndescen++) if (pdescen[k].istep==istep) {
+            did=pdescen[k].DescendantList[ndescen]-1;//make sure halo progenitor index set to start at 0
+            pdescenprogen[itimeprogen][did].haloindex.push_back(k);
+            pdescenprogen[itimeprogen][did].halotemporalindex.push_back(itimedescen);
+            pdescenprogen[itimeprogen][did].Merit.push_back(pdescen[k].Merit[ndescen]);
+            pdescenprogen[itimeprogen][did].deltat.push_back(istep);
+            pdescenprogen[itimeprogen][did].progentype.push_back(ndescen);
+#ifdef USEMPI
+            pdescenprogen[itimeprogen][did].MPITask.push_back(ThisTask);
+#endif
+            pdescenprogen[itimeprogen][did].NumberofProgenitors++;
+        }
+    }
+}
+
+//removes links of an individual halo
+void RemoveLinksDescendantBasedProgenitorList(Int_t itime, Int_t ihaloindex, DescendantData &pdescen, ProgenitorDataDescenBased **&pdescenprogen)
+{
+    //if first pass then store progenitors looking at all descendants
+    Int_t itimeprogen,did,k=0;
+    for (Int_t ndescen=0;ndescen<pdescen.NumberofDescendants;ndescen++){
+        did=pdescen.DescendantList[ndescen]-1;//make sure halo descendent index set to start at 0
+        itimeprogen=itime-pdescen.istep;
+        //find where this link exists and then remove it.
+        k=0;
+        while (k<pdescenprogen[itimeprogen][did].NumberofProgenitors && !(pdescenprogen[itimeprogen][did].haloindex[k]==ihaloindex && pdescenprogen[itimeprogen][did].halotemporalindex[k]==itime)) k++;
+        pdescenprogen[itimeprogen][did].haloindex.erase(pdescenprogen[itimeprogen][did].haloindex.begin()+k);
+        pdescenprogen[itimeprogen][did].halotemporalindex.erase(pdescenprogen[itimeprogen][did].halotemporalindex.begin()+k);
+        pdescenprogen[itimeprogen][did].Merit.erase(pdescenprogen[itimeprogen][did].Merit.begin()+k);
+        pdescenprogen[itimeprogen][did].deltat.erase(pdescenprogen[itimeprogen][did].deltat.begin()+k);
+        pdescenprogen[itimeprogen][did].progentype.erase(pdescenprogen[itimeprogen][did].progentype.begin()+k);
+#ifdef USEMPI
+        pdescenprogen[itimeprogen][did].MPITask.erase(pdescenprogen[itimeprogen][did].MPITask.begin()+k);
+#endif
+        pdescenprogen[itimeprogen][did].NumberofProgenitors--;
+    }
+}
+
+///\todo how should I clean up the descendant list using progenitors?
+void CleanDescendantsUsingProgenitors(Int_t i, HaloTreeData *&pht, ProgenitorDataDescenBased **&pdescenprogen, DescendantData **&pdecen)
+{
+}
+
 //@}
 
 

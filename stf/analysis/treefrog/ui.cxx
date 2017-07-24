@@ -64,6 +64,10 @@ void GetArgs(int argc, char *argv[], Options &opt)
                 opt.min_numpart = atoi(optarg);
                 NumArgs += 2;
                 break;
+            case 'w':
+                NumArgs += 2;
+                opt.isearchdirection = atoi(optarg);
+                break;
             case 'C':
                 opt.imerittype = atoi(optarg);
                 NumArgs += 2;
