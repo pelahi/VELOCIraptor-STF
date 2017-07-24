@@ -466,7 +466,8 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
                     for (int j=0;j<h[i].numhalos;j++) {
                         Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofDescendants<<endl;
                         for (int k=0;k<p[i][j].NumberofDescendants;k++) {
-                            Fout<<h[i+p[i][j].istep].Halo[p[i][j].DescendantList[k]-1].haloID<<endl;
+                            //Fout<<h[i+p[i][j].istep].Halo[p[i][j].DescendantList[k]-1].haloID<<endl;
+                            Fout<<p[i][j].DescendantList[k]<<" "<<p[i][j].istep<<" "<<h[i+p[i][j].istep].Halo[p[i][j].DescendantList[k]-1].haloID<<endl;
                         }
                     }
                 }

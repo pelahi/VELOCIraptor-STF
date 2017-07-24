@@ -327,7 +327,7 @@ int main(int argc,char **argv)
                 delete[] pdescenprogen[i];
                 pdescenprogen[i]=NULL;
             }
-            if (opt.iverbose) cout<<ThisTask<<" finished Progenitor processing for snapshot "<<i<<" in "<<MyGetTime()-time2<<endl;
+            if (opt.iverbose) cout<<ThisTask<<" finished descendant processing for snapshot "<<i<<" in "<<MyGetTime()-time2<<endl;
         }
         else pdescen[i]=NULL;
         }
