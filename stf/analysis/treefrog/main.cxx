@@ -282,7 +282,7 @@ int main(int argc,char **argv)
                             newnp=max((Int_t)(pht[i+istep].Halo[j].NumberofParticles*opt.particle_frac),opt.min_numpart);
                             newnp=min(pht[i+istep].Halo[j].NumberofParticles,newnp);
                             for (Int_t k=0;k<newnp;k++)
-                                pfofp[pht[i+istep].Halo[j].ParticleID[k]]=j+1+pht[i+istep].numhalos;
+                                pfofd[pht[i+istep].Halo[j].ParticleID[k]]=j+1+pht[i+istep].numhalos;
                         }
                     }
 
