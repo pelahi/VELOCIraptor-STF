@@ -55,7 +55,7 @@ int main(int argc,char **argv)
     DescendantData **pdescen;
     //if multiple snapshots are used in constructing the descendant list, must store the possible set of progenitors
     //which can then be cleaned to ensure one progenitor
-    //ProgenitorDataDescenBased **pdescenprogen;
+    ProgenitorDataDescenBased **pdescenprogen;
     //these are used to store temporary sets of posssible candidate progenitors/descendants when code links across multiple snaps
     ProgenitorData *pprogentemp;
     DescendantData *pdescentemp;
@@ -111,7 +111,7 @@ int main(int argc,char **argv)
     }
 
 
-    if(opt.icatalog!=DDESCENDANT) {
+    if(opt.isearchdirection!=SEARCHDESCEN) {
         //then allocate simple array used for accessing halo ids of particles through their IDs
         pfofp=new unsigned int[opt.MaxIDValue];
         for (i=0;i<opt.MaxIDValue;i++) pfofp[i]=0;
@@ -199,10 +199,6 @@ int main(int argc,char **argv)
                 }
                 //otherwise allocate memory but do nothing with it
                 else pprogen[i]=new ProgenitorData[pht[i].numhalos];
-
-                //free memory associated with accessing current haloes
-                //delete[] pglist;
-                //delete[] noffset;
             }
             //if no haloes/structures then cannot have an progenitors
             else {
@@ -249,12 +245,22 @@ int main(int argc,char **argv)
     //end of identify progenitors
 
     //Produce a reverse cross comparison or descendant tree if a full graph is requested.
-    if(opt.icatalog==DGRAPH || opt.icatalog==DDESCENDANT) {
+    if(opt.isearchdirection!=SEARCHPROGEN) {
         time1=MyGetTime();
         if (opt.iverbose) cout<<"Starting descendant cross matching "<<endl;
         pdescen=new DescendantData*[opt.numsnapshots];
         pfofd=new unsigned int[opt.MaxIDValue];
         for (i=0;i<opt.MaxIDValue;i++) {pfofd[i]=0;}
+        if (opt.numsteps==1) pdescenprogen=NULL;
+        else {
+            pdescenprogen=new ProgenitorDataDescenBased*[opt.numsnapshots];
+            //initialize all to null
+            for (i=0;i<opt.numsnapshots-1;i++) {
+                pdescenprogen[i]=NULL;
+            }
+            //save the first step
+            pdescenprogen[StartSnap]=new ProgenitorDataDescenBased[pht[StartSnap].numhalos];
+        }
 
         for (i=opt.numsnapshots-1;i>=0;i--) {
         if (i>=StartSnap && i<EndSnap) {
@@ -284,13 +290,18 @@ int main(int argc,char **argv)
                     //for first linking, cross match and allocate memory
                     if (istep==1) {
                         pdescen[i]=CrossMatchDescendant(opt,  pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pfofd, ilistupdated);
-                        CleanCrossMatchDescendant(istep, pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pdescen[i]);
+                        //if producing a graph then clean up descendant list to that the descendant of an object only has one descendant
+                        if (opt.icatalog==DGRAPH) CleanCrossMatchDescendant(istep, pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pdescen[i]);
+                        if (opt.numsteps>1) BuildDescendantBasedProgenitorList(i, i+istep, pht[i].numhalos, pdescen[i], pdescenprogen);
                     }
                     //otherwise only care about objects with no links
                     else {
                         pdescentemp=CrossMatchDescendant(opt, pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pfofd, ilistupdated, istep, pdescen[i]);
-                        CleanCrossMatchDescendant(istep, pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pdescen[i]);
-                        UpdateRefDescendants(opt,pht[i].numhalos, pdescen[i], pdescentemp);
+                        if (ilistupdated>0) {
+                            if (opt.icatalog==DGRAPH) CleanCrossMatchDescendant(istep, pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pdescen[i]);
+                            UpdateRefDescendants(opt,pht[i].numhalos, pdescen[i], pdescentemp);
+                            BuildDescendantBasedProgenitorList(i, i+istep, pht[i].numhalos, pdescen[i], pdescenprogen, istep);
+                        }
                         delete[] pdescentemp;
                     }
 
@@ -302,19 +313,45 @@ int main(int argc,char **argv)
                 }
                 //otherwise allocate memory but do nothing with it
                 else pdescen[i]=new DescendantData[pht[i].numhalos];
-
-                //delete[] pglist;
-                //delete[] noffset;
             }
             else {
                 pdescen[i]=NULL;
+            }
+            //now if using multiple snapshots,
+            //if enough non-overlapping (mpi wise) snapshots have been processed, one can cleanup progenitor list using the DescendantDataProgenBased data
+            //then free this data
+            //this occurs if current snapshot is at least Endsnap-opt.numsteps*2 or lower as then Endsnap-opt.numsteps have had progenitor list processed
+            if (opt.numsteps>1 && pht[i].numhalos>0 && (i<EndSnap-2*opt.numsteps && i>StartSnap+2*opt.numsteps)) {
+                if (opt.iverbose) cout<<"Cleaning descendant list using progenitor information for "<<i<<endl;
+                CleanDescendantsUsingProgenitors(i, pht, pdescenprogen, pdescen, opt.iopttemporalmerittype);
+                delete[] pdescenprogen[i];
+                pdescenprogen[i]=NULL;
             }
             if (opt.iverbose) cout<<ThisTask<<" finished Progenitor processing for snapshot "<<i<<" in "<<MyGetTime()-time2<<endl;
         }
         else pdescen[i]=NULL;
         }
         delete[] pfofd;
+
+        if (opt.numsteps>1) {
+    #ifdef USEMPI
+            if (NProcs>1) MPIUpdateDescendantUsingProgenitors(opt, pht, pdescenprogen, pdescen);
+    #endif
+            for (i=0;i<opt.numsnapshots;i++) {
+            //check if data is load making sure i is in appropriate range (note that only look above StartSnap (as first snap can't have progenitors)
+            //not that last snapshot locally has halos with no descendants so no need to clean this list
+            if (i>=StartSnap && i<EndSnap-1) {
+                if (opt.iverbose) cout<<"Cleaning Progenitor list using descendant information for "<<i<<endl;
+                if (pdescenprogen[i]!=NULL) {
+                    CleanDescendantsUsingProgenitors(i, pht, pdescenprogen, pdescen, opt.iopttemporalmerittype);
+                    delete[] pdescenprogen[i];
+                    pprogendescen[i]=NULL;
+                }
+            }
+            }
+        }
         if (opt.iverbose) cout<<"Finished Descendant cross matching "<<MyGetTime()-time1<<endl;
+
     }
 
     //now adjust the halo ids as prior, halo ids simple represent read order, allowing for addressing of memory by halo id value
@@ -325,17 +362,19 @@ int main(int argc,char **argv)
 
     //now start writing the results
     if (opt.icatalog!=DCROSSCAT) {
-        if (opt.icatalog!=DDESCENDANT) {
-            WriteHaloMergerTree(opt,pprogen,pht);
-            if (opt.icatalog==DGRAPH) {
-                char fname[1000];
-                sprintf(fname,"%s.graph",opt.outname);
-                sprintf(opt.outname,"%s",fname);
-                WriteHaloGraph(opt,pprogen,pdescen,pht);
-            }
+        //if searched in the appropriate direction then produce the corresponding output
+        //now that if searching all, also write the output
+        if (opt.icatalog!=DGRAPH) {
+            if (opt.isearchdirection==SEARCHPROGEN) WriteHaloMergerTree(opt,pprogen,pht);
+            if (opt.isearchdirection==SEARCHDESCEN) WriteHaloMergerTree(opt,pdescen,pht);
         }
         else {
+            WriteHaloMergerTree(opt,pprogen,pht);
             WriteHaloMergerTree(opt,pdescen,pht);
+            char fname[1000];
+            sprintf(fname,"%s.graph",opt.outname);
+            sprintf(opt.outname,"%s",fname);
+            WriteHaloGraph(opt,pprogen,pdescen,pht);
         }
     }
     else WriteCrossComp(opt,pprogen,pht);

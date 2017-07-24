@@ -11,6 +11,7 @@
 
 /// Determine initial progenitor list based on just merit
 /// does not guarantee that progenitor list is exclusive
+/// \todo still need to clean up core matching section. 
 ProgenitorData *CrossMatch(Options &opt, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData *&h2, unsigned int*&pfof2, int &ilistupdated, int istepval, ProgenitorData *refprogen)
 {
     long int i,j,k,n,index;
@@ -67,7 +68,13 @@ private(j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
         numshared=0;
         //go through halos particle list to see if these particles belong to another halo
         //at a different time/in a different catalog
-        for (j=0;j<h1[i].NumberofParticles;j++){
+        np1=h1[i].NumberofParticles;
+        if (opt.icorematchtype==PARTLISTCORE && opt.particle_frac<1 && opt.particle_frac>0) {
+            np1*=opt.particle_frac;
+            if (np1<opt.min_numpart) np1=opt.min_numpart;
+            if (np1>h1[i].NumberofParticles) np1=h1[i].NumberofParticles;
+        }
+        for (j=0;j<np1;j++){
             hid=pfof2[h1[i].ParticleID[j]];
             //correction if use core weighted particles as well.
             if (opt.particle_frac<1 && opt.particle_frac>0 && hid>nhalos2) hid-=nhalos2;
@@ -98,14 +105,20 @@ private(j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
             for (k=0;k<numshared;k++) {
                 j=halolist[offset+k];
                 index=offset+j;
+                np2=h2[j].NumberofParticles;
+                if (opt.icorematchtype==PARTLISTCORE && opt.particle_frac<1 && opt.particle_frac>0) {
+                    np2*=opt.particle_frac;
+                    if (np2<opt.min_numpart) np2=opt.min_numpart;
+                    if (np2>h2[j].NumberofParticles) np2=h2[j].NumberofParticles;
+                }
                 if (opt.imerittype==NsharedN1N2)
-                    merit=(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
+                    merit=(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)np1/(Double_t)np2;
                 else if (opt.imerittype==NsharedN1)
-                    merit=(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles;
+                    merit=(Double_t)sharelist[index]/(Double_t)np1;
                 else if (opt.imerittype==Nshared)
                     merit=(Double_t)sharelist[index];
                 else if (opt.imerittype==Nsharedcombo)
-                    merit=(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles+(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
+                    merit=(Double_t)sharelist[index]/(Double_t)np1+(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)np1/(Double_t)np2;
                 pq->Push(j,merit);
                 sharelist[index]=0;
             }
@@ -252,7 +265,13 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
 #endif
             i=needprogenlist[k];
             numshared=0;
-            for (j=0;j<h1[i].NumberofParticles;j++){
+            np1=h1[i].NumberofParticles;
+            if (opt.icorematchtype==PARTLISTCORE && opt.particle_frac<1 && opt.particle_frac>0) {
+                np1*=opt.particle_frac;
+                if (np1<opt.min_numpart) np1=opt.min_numpart;
+                if (np1>h1[i].NumberofParticles) np1=h1[i].NumberofParticles;
+            }
+            for (j=0;j<np1;j++){
                 hid=pfof2[h1[i].ParticleID[j]];
                 //correction if use core weighted particles as well.
                 if (opt.particle_frac<1 && opt.particle_frac>0 && hid>nhalos2) hid-=nhalos2;
@@ -280,14 +299,20 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                 for (n=0;n<numshared;n++){
                     j=halolist[offset+n];
                     index=offset+j;
+                    np2=h2[j].NumberofParticles;
+                    if (opt.icorematchtype==PARTLISTCORE && opt.particle_frac<1 && opt.particle_frac>0) {
+                        np2*=opt.particle_frac;
+                        if (np2<opt.min_numpart) np2=opt.min_numpart;
+                        if (np2>h2[j].NumberofParticles) np2=h2[j].NumberofParticles;
+                    }
                     if (opt.imerittype==NsharedN1N2)
-                        merit=(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
+                        merit=(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)np1/(Double_t)np2;
                     else if (opt.imerittype==NsharedN1)
-                        merit=(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles;
+                        merit=(Double_t)sharelist[index]/(Double_t)np1;
                     else if (opt.imerittype==Nshared)
                         merit=(Double_t)sharelist[index];
                     else if (opt.imerittype==Nsharedcombo)
-                        merit=(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles+(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
+                        merit=(Double_t)sharelist[index]/(Double_t)np1+(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)np1/(Double_t)np2;
                     pq->Push(j,merit);
                     sharelist[index]=0;
                 }
@@ -453,7 +478,13 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
         numshared=0;
         //go through halos particle list to see if these particles belong to another halo
         //at a different time/in a different catalog
-        for (j=0;j<h1[i].NumberofParticles;j++){
+        np1=h1[i].NumberofParticles;
+        if (opt.icorematchtype==PARTLISTCORE && opt.particle_frac<1 && opt.particle_frac>0) {
+            np1*=opt.particle_frac;
+            if (np1<opt.min_numpart) np1=opt.min_numpart;
+            if (np1>h1[i].NumberofParticles) np1=h1[i].NumberofParticles;
+        }
+        for (j=0;j<np1;j++){
             hid=pfof2[h1[i].ParticleID[j]];
             //correction if use core weighted particles as well.
             if (opt.particle_frac<1 && opt.particle_frac>0 && hid>nhalos2) hid-=nhalos2;
@@ -483,14 +514,20 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
             for (k=0;k<numshared;k++) {
                 j=halolist[offset+k];
                 index=offset+j;
+                np1=h1[i].NumberofParticles;
+                if (opt.icorematchtype==PARTLISTCORE && opt.particle_frac<1 && opt.particle_frac>0) {
+                    np2*=opt.particle_frac;
+                    if (np2<opt.min_numpart) np2=opt.min_numpart;
+                    if (np2>h2[j].NumberofParticles) np2=h2[j].NumberofParticles;
+                }
                 if (opt.imerittype==NsharedN1N2)
-                    merit=(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
+                    merit=(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)np1/(Double_t)np2;
                 else if (opt.imerittype==NsharedN1)
-                    merit=(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles;
+                    merit=(Double_t)sharelist[index]/(Double_t)np1;
                 else if (opt.imerittype==Nshared)
                     merit=(Double_t)sharelist[index];
                 else if (opt.imerittype==Nsharedcombo)
-                    merit=(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles+(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
+                    merit=(Double_t)sharelist[index]/(Double_t)np1+(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)np1/(Double_t)np2;
                 pq->Push(j,merit);
                 sharelist[index]=0;
             }
@@ -631,7 +668,13 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
 #endif
             i=needdescenlist[k];
             numshared=0;
-            for (j=0;j<h1[i].NumberofParticles;j++){
+            np1=h1[i].NumberofParticles;
+            if (opt.icorematchtype==PARTLISTCORE && opt.particle_frac<1 && opt.particle_frac>0) {
+                np1*=opt.particle_frac;
+                if (np1<opt.min_numpart) np1=opt.min_numpart;
+                if (np1>h1[i].NumberofParticles) np1=h1[i].NumberofParticles;
+            }
+            for (j=0;j<np1;j++){
                 hid=pfof2[h1[i].ParticleID[j]];
                 //correction if use core weighted particles as well.
                 if (opt.particle_frac<1 && opt.particle_frac>0 && hid>nhalos2) hid-=nhalos2;
@@ -659,14 +702,20 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                 for (n=0;n<numshared;n++){
                     j=halolist[offset+n];
                     index=offset+j;
+                    np2=h2[j].NumberofParticles;
+                    if (opt.icorematchtype==PARTLISTCORE && opt.particle_frac<1 && opt.particle_frac>0) {
+                        np2*=opt.particle_frac;
+                        if (np2<opt.min_numpart) np2=opt.min_numpart;
+                        if (np2>h2[j].NumberofParticles) np2=h2[j].NumberofParticles;
+                    }
                     if (opt.imerittype==NsharedN1N2)
-                        merit=(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
+                        merit=(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)np1/(Double_t)np2;
                     else if (opt.imerittype==NsharedN1)
-                        merit=(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles;
+                        merit=(Double_t)sharelist[index]/(Double_t)np1;
                     else if (opt.imerittype==Nshared)
                         merit=(Double_t)sharelist[index];
                     else if (opt.imerittype==Nsharedcombo)
-                        merit=(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles+(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)h1[i].NumberofParticles/(Double_t)h2[j].NumberofParticles;
+                        merit=(Double_t)sharelist[index]/(Double_t)np1+(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)np1/(Double_t)np2;
                     pq->Push(j,merit);
                     sharelist[index]=0;
                 }
@@ -1087,7 +1136,7 @@ void RemoveLinksDescendantBasedProgenitorList(Int_t itime, Int_t ihaloindex, Des
 }
 
 ///\todo how should I clean up the descendant list using progenitors?
-void CleanDescendantsUsingProgenitors(Int_t i, HaloTreeData *&pht, ProgenitorDataDescenBased **&pdescenprogen, DescendantData **&pdecen)
+void CleanDescendantsUsingProgenitors(Int_t i, HaloTreeData *&pht, ProgenitorDataDescenBased **&pdescenprogen, DescendantData **&pdecen, int iopttemporalmerittype)
 {
 }
 

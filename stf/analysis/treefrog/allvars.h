@@ -121,6 +121,16 @@ using namespace NBody;
 #define SEARCHALL -1
 //@}
 
+/// \name defining the type of core particle list matching
+//@{
+///standard search
+#define PARTLISTNOCORE 0
+///limit search to core
+#define PARTLISTCORE 1
+///limit search to core in both searched particles and matched particles
+#define PARTLISTCORECORE 2
+//@}
+
 /// \name Mapping functions
 //@{
 #define DNOMAP 0
@@ -265,6 +275,9 @@ struct Options
     ///for adjusting halo ids by a simple offset
     Int_t haloidoffset;
 
+    ///whether to use core particles only or not, 0 is use all particles to identify matches, PARTLISTCORE is only core particles defined by particle fraction, and PARTLISTCORECORE only match
+    ///core particles to other core particles
+    int icorematchtype;
     ///to adjust the number of particles used to define a merit. Note that to be of use, particles should be in some type of order
     ///for instance binding energy order. VELOCIraptor outputs particles in decreasing binding energy order
     ///so using the first particle_frac of a halo means using the most bound set of particles
@@ -321,6 +334,7 @@ struct Options
         outputformat=OUTASCII;
         haloidoffset=0;
 
+        icorematchtype=PARTLISTNOCORE;
         particle_frac=0.2;
         min_numpart=20;
 
@@ -700,16 +714,21 @@ struct ProgenitorDataDescenBased
     ///otherwise use the reference time passed
     ///the generalized merit = Merit/(deltat)
     ///also, optimal descendents should be close to being a primary progenitor, having a lower descentype value
-    void OptimalTemporalMerit(Int_t itimref=0){
+    void OptimalTemporalMerit(int iopttemporalmerittype=GENERALIZEDMERITTIME, Int_t itimeref=0){
         int imax=0;
-        Double_t generalizedmerit=Merit[0]/pow((Double_t)deltat[0],ALPHADELTAT);
+        Double_t generalizedmerit=Merit[0]/pow((Double_t)deltat[0],ALPHADELTAT), newgenmerit;
         int curprogentype=progentype[0];
         long unsigned optimalhaloindex;
         int unsigned optimalhalotemporalindex;
         for (int i=1;i<NumberofProgenitors;i++) {
-            //|| (progentype[i]<curprogentype && Merit[i]/pow((Double_t)deltat[i],ALPHADELTAT)>=generalizedmerit*0.5)
-            if (Merit[i]/pow((Double_t)deltat[i],ALPHADELTAT)>generalizedmerit) {
-                generalizedmerit=Merit[i]/pow((Double_t)deltat[i],ALPHADELTAT);curprogentype=progentype[i];imax=i;
+            newgenmerit=Merit[i]/pow((Double_t)deltat[i],ALPHADELTAT);
+            //if just optimising generalized temporal merit
+            if (iopttemporalmerittype==GENERALIZEDMERITTIME && newgenmerit>generalizedmerit) {
+                generalizedmerit=newgenmerit;curprogentype=progentype[i];imax=i;
+            }
+            //if optimising for best merit and best merit ranking (that is how close the object is to being the primary progenitor)
+            else if (iopttemporalmerittype==GENERALIZEDMERITTIMEPROGEN && ((progentype[i]<curprogentype && newgenmerit>=generalizedmerit*0.25)||(newgenmerit>generalizedmerit))) {
+                generalizedmerit=newgenmerit;curprogentype=progentype[i];imax=i;
             }
         }
         optimalhaloindex=haloindex[imax];
@@ -720,7 +739,7 @@ struct ProgenitorDataDescenBased
 #ifdef USEMPI
         int imaxtask=MPITask[imax];
         for (int i=0;i<NumberofProgenitors;i++) {
-            if (Merit[i]/(Double_t)deltat[i]==generalizedmerit && MPITask[i]<imaxtask) {imax=i;}
+            if (optimalhalotemporalindex==halotemporalindex[i] && optimalhaloindex==haloindex[i] && MPITask[i]<imaxtask) {imax=i;}
         }
 #endif
         if (imax>0) {

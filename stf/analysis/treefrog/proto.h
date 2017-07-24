@@ -124,6 +124,7 @@ int MPIReadLoadBalance(Options &);
 /// see \ref mpiroutines.cxx for implementation
 //@{
 void MPIUpdateProgenitorsUsingDescendants(Options &opt, HaloTreeData *&pht, DescendantDataProgenBased **&pprogendescen, ProgenitorData **&pprogen);
+void MPIUpdateDescendantUsingProgenitors(Options &opt, HaloTreeData *&pht, ProgenitorDataDescenBased **&pdescenprogen, DescendantData **&pdescen);
 //@}
 #endif
 
@@ -158,11 +159,11 @@ void RemoveLinksProgenitorBasedDescendantList(Int_t itimedescen, Int_t ihaloinde
 void CleanProgenitorsUsingDescendants(Int_t i, HaloTreeData *&pht, DescendantDataProgenBased **&pprogendescen, ProgenitorData **&pprogen, int iopttemporalmerittype);
 
 ///builds the possible set of progenitors using candidate descendants, similar to \ref BuildProgenitorBasedDescendantList
-void BuildDescendantBasedProgenitorList(Int_t itimedescen, Int_t itimeprogen, Int_t nhalos, DescendantData *&pdecen, ProgenitorDataDescenBased **&pdescenprogen, int istep);
+void BuildDescendantBasedProgenitorList(Int_t itimedescen, Int_t itimeprogen, Int_t nhalos, DescendantData *&pdecen, ProgenitorDataDescenBased **&pdescenprogen, int istep=1);
 ///removes progenitor links of individual halo
 void RemoveLinksDescendantBasedProgenitorList(Int_t itime, Int_t ihaloindex, DescendantData &pdescen, ProgenitorDataDescenBased **&pdescenprogen);
 ///Cleans up descendant list using candidate progenitor list build using descedant search. Still not implemented as need to think about how to implemented it
-void CleanDescendantsUsingProgenitors(Int_t i, HaloTreeData *&pht, ProgenitorDataDescenBased **&pdescenprogen, DescendantData **&pdecen);
+void CleanDescendantsUsingProgenitors(Int_t i, HaloTreeData *&pht, ProgenitorDataDescenBased **&pdescenprogen, DescendantData **&pdecen, int iopttemporalmerittype);
 //@}
 
 /// \name for mapping ids to index routines
