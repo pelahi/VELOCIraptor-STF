@@ -262,7 +262,7 @@ int main(int argc,char **argv)
             pdescenprogen[StartSnap]=new ProgenitorDataDescenBased[pht[StartSnap].numhalos];
         }
 
-        for (i=0;i<opt.numsnapshots;i--) {
+        for (i=0;i<opt.numsnapshots;i++) {
         if (i>=StartSnap && i<EndSnap) {
             time2=MyGetTime();
             if(pht[i].numhalos>0){
