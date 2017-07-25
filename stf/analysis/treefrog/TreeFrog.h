@@ -35,24 +35,24 @@ http://www.gnu.org/copyleft/gpl.html
 
 \section Description Description
 
-Tree-Frog is a massively parallel code for building a halo (or in fact any structure from voids to filaments) temporal merger tree.
+TreeFrog is a massively parallel code for building a halo (or in fact any structure from voids to filaments) temporal merger tree.
 
 This program reads as input a file containing a list of files containing particle lists produced by structure finders. These files can
 be in several formats but critically list for each structure the particles associated with it and their IDs. These IDs are assumed to be
 temporally constant and unique, allowig them to be used to trace structures across time.
 The program can be altered to read different formats by altering \ref proto.h, \ref allvars.h, \ref ui.cxx and \ref io.cxx, specifically \ref ReadData
-and providing the appropriate interface in \ref otherio.cxx. By default it is optimised to read output from VELOCIraptor.
+and providing the appropriate interface in \ref otherio.cxx. By default it is optimised to read output from <a href="../../../../doc/html/index.html">VELOCIraptor</a>
 The overall flow of the program is outlined in \ref main.cxx and a brief description of the types of linking available is in \ref linking
 
 A full account of the numerical algorithms employed by the code is given in the halo tree comparison paper, <a href="http://adsabs.harvard.edu/abs/2013MNRAS.436..150S">Srisawat et al. (2013)</a>
 
 \section prelim Getting started
 
-    Getting started is as simple as compiling VELOCIraptor.
+    Getting started is as simple as compiling <a href="../../../../doc/html/index.html">VELOCIraptor</a>.
 
 \section install Compilation
 
-Like VELOCIraptor, TreeFrog needs the following non-standard libraries for compilation:
+Like <a href="../../../../doc/html/index.html">VELOCIraptor</a>, TreeFrog needs the following non-standard libraries for compilation:
 
 - \b libNBody - a scientific library included with STF (\ref libNBody).
   STF needs this library for a number of structures, classes, and methods it provides.
@@ -117,7 +117,7 @@ of first file earliest snapshot, last latest. Example would be \n
 \b snap_000.halo_particles \n
 \b snap_001.halo_particles \n
 where these files are a list of particle ids (and possibly type information too) of particles in structures that you
-wish to track. The only alteration to the name is when reading in VELOCIraptor output. This output is structured
+wish to track. The only alteration to the name is when reading in <a href="../../../../doc/html/index.html">VELOCIraptor</a> output. This output is structured
 into a specific set of files, .properties, .catalog_groups, .catalog_particles, .catalog_parttypes. In his case the file
 list should contain a list of the base names, ex: \n
 \b snap_000.VELOCIraptor \n

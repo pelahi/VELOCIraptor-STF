@@ -69,7 +69,7 @@ a short guide to compile-time options of the code.
 
 There are several related codes that come with VELOCIraptor. These are \b TreeFrog (formerly halomergertree), and \b OrbWeaver (in development). These codes are designed to process a set of halo catalogs
 produced by VELOCIraptor and build temporal halo merger trees and reconstruct orbits of satellites around haloes. A description of the codes can be found at \n
-- \b TreeFrog - A code designed to produce halo merger trees or cross correlate two different halo (structure) catalogues (\ref TreeFrog).
+- \b TreeFrog - A code designed to produce halo merger trees or cross correlate two different halo (structure) catalogues (<a href="../../analysis/treefrog/doc/html/index.html">TreeFrog</a>).
 - \b OrbWeaver - A code designed to produce halo merger trees or cross correlate two different halo (structure) catalogues (\ref OrbWeaver).
 
 \section prelim Getting started
@@ -236,8 +236,8 @@ the options to use.
     (and is zero if particle doesn't belong to a list.) These outputs are outname.fof.grp. Note that the fof.grp
     format is collected from all MPI threads and is only ASCII output.
 
-    \subsection mergertrees Merger trees produced by \ref TreeFrog
-    The Treetree code located within the analysis directory. It is a particle correlator that can build a halo merger tree linking across
+    \subsection mergertrees Merger trees produced by TreeFrog
+    The <a href="../../analysis/treefrog/doc/html/index.html">TreeFrog</a> code located within the analysis directory. It is a particle correlator that can build a halo merger tree linking across
     multiple snapshots to identify optimal progenitors.
 
     \subsection baryonic_analysis Analysing baryons
