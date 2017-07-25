@@ -291,7 +291,10 @@ int main(int argc,char **argv)
                     if (istep==1) {
                         pdescen[i]=CrossMatchDescendant(opt,  pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pfofd, ilistupdated);
                         CleanCrossMatchDescendant(istep, pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pdescen[i]);
-                        if (opt.numsteps>1) BuildDescendantBasedProgenitorList(i, i+istep, pht[i].numhalos, pdescen[i], pdescenprogen);
+                        if (opt.numsteps>1) {
+                            BuildDescendantBasedProgenitorList(i, i+istep, pht[i].numhalos, pdescen[i], pdescenprogen);
+                            UpdateDescendantUsingDescendantBasedProgenitorList(i+istep, pht[i+istep].numhalos, pdescen[i], pdescenprogen, istep);
+                        }
                     }
                     //otherwise only care about objects with no links
                     else {

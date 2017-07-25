@@ -160,6 +160,8 @@ void CleanProgenitorsUsingDescendants(Int_t i, HaloTreeData *&pht, DescendantDat
 
 ///builds the possible set of progenitors using candidate descendants, similar to \ref BuildProgenitorBasedDescendantList
 void BuildDescendantBasedProgenitorList(Int_t itimedescen, Int_t itimeprogen, Int_t nhalos, DescendantData *&pdecen, ProgenitorDataDescenBased **&pdescenprogen, int istep=1);
+///updates descendants data structure so that an object knows what type of progenitor it is to its descendants
+void UpdateDescendantUsingDescendantBasedProgenitorList(Int_t itimeprogen, Int_t nhalos, DescendantData *&pdescen, ProgenitorDataDescenBased **&pdescenprogen, int istep);
 ///removes progenitor links of individual halo
 void RemoveLinksDescendantBasedProgenitorList(Int_t itime, Int_t ihaloindex, DescendantData &pdescen, ProgenitorDataDescenBased **&pdescenprogen);
 ///Cleans up descendant list using candidate progenitor list build using descedant search. Still not implemented as need to think about how to implemented it
@@ -192,33 +194,6 @@ void UpdateHaloIDs(Options &opt, HaloTreeData *&pht);
 //@{
 ///map particle id to index position
 int CheckType(unsigned int t, int tmatch);
-//@}
-
-/// \name Extra routines
-/// see \ref crosscheck.cxx for implementation
-//@{
-
-///build group size array
-Int_t *BuildNumInGroup(const Int_t nbodies, const Int_t numgroups, Int_t *pfof);
-///build array such that array is pglist[group][]={particle list}
-Int_t **BuildPGList(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t *pfof);
-///build the group particle index list (doesn't assume particles are in ID order and stores index of particle)
-Int_t **BuildPGList(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t *pfof, Particle *Part);
-///build pglist but doesn't assume particles are in ID order
-Int_t **BuildPGList(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t *pfof, Int_t *ids);
-///build the group particle arrays need for unbinding procedure
-Particle **BuildPartList(const Int_t numgroups, Int_t *numingroup, Int_t **pglist, Particle* Part);
-///build a particle list subset using array of indices
-Particle *BuildPart(Int_t numingroup, Int_t *pglist, Particle* Part);
-///build the Head array which points to the head of the group a particle belongs to
-Int_t *BuildHeadArray(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t **pglist);
-///build the Next array which points to the next particle in the group
-Int_t *BuildNextArray(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t **pglist);
-///build the Len array which stores the length of the group a particle belongs to
-Int_t *BuildLenArray(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t **pglist);
-///build the GroupTail array which stores the Tail of a group
-Int_t *BuildGroupTailArray(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t **pglist);
-
 //@}
 
 /// \name Extra utility routines

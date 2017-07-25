@@ -553,7 +553,8 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
             d1[i].NumberofDescendants=numshared;
             d1[i].DescendantList=new long unsigned[numshared];
             d1[i].Merit=new float[numshared];
-            d1[i].nsharedfrac=new float[numshared];
+            if (opt.numsteps>1) d1[i].dtoptype=new unsigned short[numshared];
+            //d1[i].nsharedfrac=new float[numshared];
             for (j=0;j<numshared;j++){
                 //d1[i].DescendantList[j]=h2[pq->TopQueue()].haloID;
                 d1[i].DescendantList[j]=pq->TopQueue();
@@ -745,7 +746,8 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                 d1[i].NumberofDescendants=numshared;
                 d1[i].DescendantList=new long unsigned[numshared];
                 d1[i].Merit=new float[numshared];
-                d1[i].nsharedfrac=new float[numshared];
+                if (opt.numsteps>1) d1[i].dtoptype=new unsigned short[numshared];
+                //d1[i].nsharedfrac=new float[numshared];
                 for (j=0;j<numshared;j++){
                     //d1[i].DescendantList[j]=h2[pq->TopQueue()].haloID;
                     d1[i].DescendantList[j]=pq->TopQueue();
@@ -839,6 +841,10 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
     }
     return d1;
 }
+//@}
+
+///\name Cleaning cross matches routines
+//@{
 
 ///ensure cross match is exclusive
 void CleanCrossMatch(const int istepval, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData *&h2, ProgenitorData *&p1)
@@ -909,7 +915,8 @@ private(i,j,k)
     delete[] nh2nummatches;
     delete[] merit;
 }
-///adjust descendant list to store halo ids not halo indices but does not prune the list descendant list
+///adjust descendant list to store halo ids not halo indices but does not prune the list descendant list.
+///\todo really should update to flag/remove all except the truly principle descendant
 void CleanCrossMatchDescendant(const int istepval, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData *&h2, DescendantData *&p1)
 {
     Int_t i,j,k;
@@ -979,6 +986,11 @@ private(i,j,k)
     //delete[] nh2nummatches;
     //delete[] merit;
 }
+
+//@}
+
+///\name Multistep linking routines for progenitor based searches
+//@{
 ///when linking using multiple snapshots, use to update the progenitor list based on a candidate list built using a single snapshot
 ///If complex updating done, then will need to update the progenitor based descendant list.
 void UpdateRefProgenitors(Options &opt, const Int_t numhalos, ProgenitorData *&pref, ProgenitorData *&ptemp, DescendantDataProgenBased **&pprogendescen, Int_t itime)
@@ -1005,41 +1017,19 @@ void UpdateRefProgenitors(Options &opt, const Int_t numhalos, ProgenitorData *&p
     }
 }
 
-///similar to \ref UpdateRefProgenitors but for descendants
-///\todo need to update how links are removed
-void UpdateRefDescendants(Options &opt, const Int_t numhalos, DescendantData *&dref, DescendantData *&dtemp, ProgenitorDataDescenBased **&pdescenprogen, Int_t itime)
-{
-    if (opt.imultsteplinkcrit==MSLCMISSING) {
-        for (Int_t i=0;i<numhalos;i++)
-            if (dref[i].NumberofDescendants==0 && dtemp[i].NumberofDescendants>0) dref[i]=dtemp[i];
-    }
-    else if (opt.imultsteplinkcrit==MSLCPRIMARYPROGEN) {
-        for (Int_t i=0;i<numhalos;i++) {
-            if (dref[i].NumberofDescendants==0 && dtemp[i].NumberofDescendants>0) dref[i]=dtemp[i];
-            else if (dref[i].NumberofDescendants>0 && dtemp[i].NumberofDescendants>0) {
-                if (dtemp[i].Merit[0]>opt.meritlimit) {
-                    //RemoveLinksDescendantBasedProgenitorList(itime, i, pref[i], pdescenprogen);
-                    //then copy new links
-                    dref[i]=dtemp[i];
-                }
-            }
-        }
-    }
-}
-
 ///Construction of descendant list using the candidate progenitor list
 void BuildProgenitorBasedDescendantList(Int_t itimeprogen, Int_t itimedescen, Int_t nhalos, ProgenitorData *&pprogen, DescendantDataProgenBased **&pprogendescen, int istep)
 {
     //if first pass then store descendants looking at all progenitors
     int did;
     for (Int_t k=0;k<nhalos;k++) {
-        for (Int_t nprogs=0;nprogs<pprogen[k].NumberofProgenitors;nprogs++) if (pprogen[k].istep==istep) {
-            did=pprogen[k].ProgenitorList[nprogs]-1;//make sure halo descendent index set to start at 0
+        for (Int_t iprogen=0;iprogen<pprogen[k].NumberofProgenitors;iprogen++) if (pprogen[k].istep==istep) {
+            did=pprogen[k].ProgenitorList[iprogen]-1;//make sure halo descendent index set to start at 0
             pprogendescen[itimedescen][did].haloindex.push_back(k);
             pprogendescen[itimedescen][did].halotemporalindex.push_back(itimeprogen);
-            pprogendescen[itimedescen][did].Merit.push_back(pprogen[k].Merit[nprogs]);
+            pprogendescen[itimedescen][did].Merit.push_back(pprogen[k].Merit[iprogen]);
             pprogendescen[itimedescen][did].deltat.push_back(istep);
-            pprogendescen[itimedescen][did].descentype.push_back(nprogs);
+            pprogendescen[itimedescen][did].descentype.push_back(iprogen);
 #ifdef USEMPI
             pprogendescen[itimedescen][did].MPITask.push_back(ThisTask);
 #endif
@@ -1053,8 +1043,8 @@ void RemoveLinksProgenitorBasedDescendantList(Int_t itime, Int_t ihaloindex, Pro
 {
     //if first pass then store descendants looking at all progenitors
     Int_t itimedescen,did,k=0;
-    for (Int_t nprogs=0;nprogs<pprogen.NumberofProgenitors;nprogs++){
-        did=pprogen.ProgenitorList[nprogs]-1;//make sure halo descendent index set to start at 0
+    for (Int_t iprogen=0;iprogen<pprogen.NumberofProgenitors;iprogen++){
+        did=pprogen.ProgenitorList[iprogen]-1;//make sure halo descendent index set to start at 0
         itimedescen=itime-pprogen.istep;
         //find where this link exists and then remove it. remove(begin,end, ihaloindex)
         //pprogendescen[itimedescen][did].haloindex.erase(remove(pprogendescen[itimedescen][did].haloindex.begin(),pprogendescen[itimedescen][did].haloindex.end(),ihaloindex),pprogendescen[itimedescen][did].haloindex.end());
@@ -1116,23 +1106,84 @@ void CleanProgenitorsUsingDescendants(Int_t i, HaloTreeData *&pht, DescendantDat
     }
 }
 
+//@}
+
+///\name Multistep linking routines for descendant based searches
+//@{
+///similar to \ref UpdateRefProgenitors but for descendants
+///\todo need to update how links are removed
+void UpdateRefDescendants(Options &opt, const Int_t numhalos, DescendantData *&dref, DescendantData *&dtemp, ProgenitorDataDescenBased **&pdescenprogen, Int_t itime)
+{
+    if (opt.imultsteplinkcrit==MSLCMISSING) {
+        for (Int_t i=0;i<numhalos;i++)
+            if (dref[i].NumberofDescendants==0 && dtemp[i].NumberofDescendants>0) dref[i]=dtemp[i];
+    }
+    else if (opt.imultsteplinkcrit==MSLCPRIMARYPROGEN) {
+        for (Int_t i=0;i<numhalos;i++) {
+            if (dref[i].NumberofDescendants==0 && dtemp[i].NumberofDescendants>0) dref[i]=dtemp[i];
+            else if (dref[i].NumberofDescendants>0 && dtemp[i].NumberofDescendants>0) {
+                if (dtemp[i].dtoptype[0]<dref[i].dtoptype[0]) {
+                    RemoveLinksDescendantBasedProgenitorList(itime, i, dref[i], pdescenprogen);
+                    //then copy new links
+                    dref[i]=dtemp[i];
+                }
+            }
+        }
+    }
+}
+
 ///similar to construction of descendant list using the candidate progenitor list, but here working in reverse direction
+///since objects can have many progenitors but an object should really have only one descendant, the ranking stored in progentype
+///is useful for flagging objects which might have complex histories.
 void BuildDescendantBasedProgenitorList(Int_t itimedescen, Int_t itimeprogen, Int_t nhalos, DescendantData *&pdescen, ProgenitorDataDescenBased **&pdescenprogen, int istep)
 {
     //if first pass then store progenitors looking at all descendants
     int did;
     for (Int_t k=0;k<nhalos;k++) {
-        for (Int_t ndescen=0;ndescen<pdescen[k].NumberofDescendants;ndescen++) if (pdescen[k].istep==istep) {
-            did=pdescen[k].DescendantList[ndescen]-1;//make sure halo progenitor index set to start at 0
+        for (Int_t idescen=0;idescen<pdescen[k].NumberofDescendants;idescen++) if (pdescen[k].istep==istep) {
+            did=pdescen[k].DescendantList[idescen]-1;//make sure halo progenitor index set to start at 0
             pdescenprogen[itimeprogen][did].haloindex.push_back(k);
             pdescenprogen[itimeprogen][did].halotemporalindex.push_back(itimedescen);
-            pdescenprogen[itimeprogen][did].Merit.push_back(pdescen[k].Merit[ndescen]);
+            pdescenprogen[itimeprogen][did].Merit.push_back(pdescen[k].Merit[idescen]);
             pdescenprogen[itimeprogen][did].deltat.push_back(istep);
-            pdescenprogen[itimeprogen][did].progentype.push_back(ndescen);
+            pdescenprogen[itimeprogen][did].progentype.push_back(idescen);
 #ifdef USEMPI
             pdescenprogen[itimeprogen][did].MPITask.push_back(ThisTask);
 #endif
             pdescenprogen[itimeprogen][did].NumberofProgenitors++;
+        }
+    }
+}
+
+///for descedants unless special operation desired, rank the descendant information stored in dtoptype based on the descedant looking backward.
+///so if an object had two or more progenitors, the descendant knows its ranking as a progenitor
+void UpdateDescendantUsingDescendantBasedProgenitorList(Int_t itimeprogen, Int_t nhalos,
+    DescendantData *&pdescen, ProgenitorDataDescenBased **&pdescenprogen, int istep)
+{
+    PriorityQueue *pq;
+    Int_t nattime;
+    Int_t progindex,descenindex,descenprogenindex;
+    for (Int_t k=0;k<nhalos;k++) if (pdescenprogen[itimeprogen][k].NumberofProgenitors>1)
+    {
+        //for each halo descandant rank its progenior haloes based on the merit at a given time
+        nattime=0;
+        for (auto iprogen=0;iprogen<pdescenprogen[itimeprogen][k].NumberofProgenitors;iprogen++) nattime+=(pdescenprogen[itimeprogen][k].deltat[iprogen]==istep);
+        if (nattime<=1) continue;
+        //fill the priority queue so that the best merit are first
+        pq=new PriorityQueue(nattime);
+        for (auto iprogen=0;iprogen<pdescenprogen[itimeprogen][k].NumberofProgenitors;iprogen++) if (pdescenprogen[itimeprogen][k].deltat[iprogen]==istep)
+        {
+            pq->Push(iprogen,1.0/pdescenprogen[itimeprogen][k].Merit[iprogen]);
+        }
+        nattime=0;
+        for (auto iprogen=0;iprogen<nattime;iprogen++)
+        {
+            progindex=pq->TopQueue();
+            descenindex=pdescenprogen[itimeprogen][k].haloindex[progindex];
+            descenprogenindex=pdescenprogen[itimeprogen][k].progentype[progindex];
+            pdescen[descenindex].dtoptype[descenprogenindex]=nattime;
+            nattime++;
+            pq->Pop();
         }
     }
 }
@@ -1142,8 +1193,8 @@ void RemoveLinksDescendantBasedProgenitorList(Int_t itime, Int_t ihaloindex, Des
 {
     //if first pass then store progenitors looking at all descendants
     Int_t itimeprogen,did,k=0;
-    for (Int_t ndescen=0;ndescen<pdescen.NumberofDescendants;ndescen++){
-        did=pdescen.DescendantList[ndescen]-1;//make sure halo descendent index set to start at 0
+    for (Int_t idescen=0;idescen<pdescen.NumberofDescendants;idescen++){
+        did=pdescen.DescendantList[idescen]-1;//make sure halo descendent index set to start at 0
         itimeprogen=itime-pdescen.istep;
         //find where this link exists and then remove it.
         k=0;
@@ -1167,54 +1218,4 @@ void CleanDescendantsUsingProgenitors(Int_t i, HaloTreeData *&pht, ProgenitorDat
 
 //@}
 
-
-    /// \name Simple group id based array building
-//@{
-
-///build group size array
-Int_t *BuildNumInGroup(const Int_t nbodies, const Int_t numgroups, Int_t *pfof){
-    Int_t *numingroup=new Int_t[numgroups+1];
-    for (Int_t i=0;i<=numgroups;i++) numingroup[i]=0;
-    for (Int_t i=0;i<nbodies;i++) if (pfof[i]>0) numingroup[pfof[i]]++;
-    return numingroup;
-}
-///build the group particle index list (assumes particles are in file Index order)
-Int_t **BuildPGList(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t *pfof){
-    Int_t **pglist=new Int_t*[numgroups+1];
-    for (Int_t i=1;i<=numgroups;i++) {pglist[i]=new Int_t[numingroup[i]];numingroup[i]=0;}
-    //for (Int_t i=0;i<nbodies;i++) if (ids[i]!=-1) {pglist[pfof[ids[i]]][numingroup[pfof[ids[i]]]++]=ids[i];}
-    for (Int_t i=0;i<nbodies;i++) if (pfof[i]>0) pglist[pfof[i]][numingroup[pfof[i]]++]=i;
-    return pglist;
-}
-///build the Head array which points to the head of the group a particle belongs to
-Int_t *BuildHeadArray(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t **pglist){
-    Int_t *Head=new Int_t[nbodies];
-    for (Int_t i=0;i<nbodies;i++) Head[i]=i;
-    for (Int_t i=1;i<=numgroups;i++)
-        for (Int_t j=1;j<numingroup[i];j++) Head[pglist[i][j]]=Head[pglist[i][0]];
-    return Head;
-}
-///build the Next array which points to the next particle in the group
-Int_t *BuildNextArray(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t **pglist){
-    Int_t *Next=new Int_t[nbodies];
-    for (Int_t i=0;i<nbodies;i++) Next[i]=-1;
-    for (Int_t i=1;i<=numgroups;i++)
-        for (Int_t j=0;j<numingroup[i]-1;j++) Next[pglist[i][j]]=pglist[i][j+1];
-    return Next;
-}
-///build the Len array which stores the length of the group a particle belongs to
-Int_t *BuildLenArray(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t **pglist){
-    Int_t *Len=new Int_t[nbodies];
-    for (Int_t i=0;i<nbodies;i++) Len[i]=0;
-    for (Int_t i=1;i<=numgroups;i++)
-        for (Int_t j=0;j<numingroup[i];j++) Len[pglist[i][j]]=numingroup[i];
-    return Len;
-}
-///build the GroupTail array which stores the Tail of a group
-Int_t *BuildGroupTailArray(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t **pglist){
-    Int_t *GTail=new Int_t[numgroups+1];
-    for (Int_t i=1;i<=numgroups;i++)
-        GTail[i]=pglist[i][numingroup[i]-1];
-    return GTail;
-}
 //@}
