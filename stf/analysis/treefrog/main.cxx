@@ -298,7 +298,7 @@ int main(int argc,char **argv)
                         pdescentemp=CrossMatchDescendant(opt, pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pfofd, ilistupdated, istep, pdescen[i]);
                         if (ilistupdated>0) {
                             CleanCrossMatchDescendant(istep, pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pdescen[i]);
-                            UpdateRefDescendants(opt,pht[i].numhalos, pdescen[i], pdescentemp);
+                            UpdateRefDescendants(opt,pht[i].numhalos, pdescen[i], pdescentemp, pdescenprogen,i);
                             BuildDescendantBasedProgenitorList(i, i+istep, pht[i].numhalos, pdescen[i], pdescenprogen, istep);
                         }
                         delete[] pdescentemp;

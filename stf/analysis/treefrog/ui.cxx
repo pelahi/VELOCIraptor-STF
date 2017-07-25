@@ -47,7 +47,7 @@ void GetArgs(int argc, char *argv[], Options &opt)
                 NumArgs += 2;
                 break;
 
-
+            //configuration of operation of tree
             case 't':
                 opt.numsteps = atoi(optarg);
                 NumArgs += 2;
@@ -297,8 +297,8 @@ inline void ConfigCheck(Options &opt)
     else {opt.description+=(char*)" part type ";opt.description+=static_cast<ostringstream*>( &(ostringstream() << opt.itypematch) )->str();}
     opt.description+=(char*)" | ";
     if (opt.particle_frac<1 && opt.particle_frac>0) {
-    opt.description+=(char*)" Weighted merit with ";opt.description+=static_cast<ostringstream*>( &(ostringstream() << opt.particle_frac) )->str();
-    opt.description+=(char*)" fraction of most bound particles with min particle num of  ";opt.description+=static_cast<ostringstream*>( &(ostringstream() << opt.min_numpart) )->str();
+    opt.description+=(char*)" Fractions of paritcles from which merit calculated with ";opt.description+=static_cast<ostringstream*>( &(ostringstream() << opt.particle_frac) )->str();
+    opt.description+=(char*)" with lower particle number limit of ";opt.description+=static_cast<ostringstream*>( &(ostringstream() << opt.min_numpart) )->str();
     opt.description+=(char*)" | ";
     }
 }
@@ -314,7 +314,7 @@ in the examples directory). \n \n
     \arg \b \e -s < number of files/snapshots to be processed >
     \arg \b \e -I < Input format, can be \ref DSUSSING (ascii) \ref DCATALOG (VELOCIraptor output which can be ascii, binary or hdf see -B),  \ref DNIFTY (ascii), \ref DVOID (ascii) >
     \arg \b \e -N < 0/1 if output is split between multiple files due to mpi, number of files written, useful for reading VELOCIraptor output >
-    \arg \b \e -B < for VELOCIraptor catalogs can be \ref INASCII (ascii) \ref INBINARY (binary) or \ref INHDF (hdf5) >
+    \arg \b \e -B < for VELOCIraptor catalogs can be \ref INASCII (ascii) \ref INBINARY (binary) or \ref INHDF (hdf5) or \ref INADIOS (adios) >
     \arg \b \e -F < 0/1 field objects in VELOCIraptor output in separate file >
     \arg \b \e -o < output filename >
     \arg \b \e -O < output type, whether merger tree, full graph, whether to output merit of each match >
@@ -328,6 +328,9 @@ in the examples directory). \n \n
     \ref GASTYPEMATCH is GAS particle types \ref STARTYPEMATCH is STAR particle types, \ref DMGASTYPEMATCH is both DM and GAS particle types >
     \arg \b \e -S < significance of cross match relative to Poisson noise >
     \arg \b \e -a < merit limit below which will search for links at earlier snapshot (as if no match is found)>
+    \arg \b \e -f < fraction of particles to use to calculate merit, assumes that particles are sorted in some meaningful order in the input files. For example, VELOCIraptor sorts particles by binding energy
+    so particle 0 is more bound than the last particle associated with the object. These particles would be represented of the dynamically coldest most dense core of the object.
+    \arg \b \e -p <minimum number of particles used when fractions of particles are invoked>;
 
     \section outputconfig Output options
     \arg \b \e -H < offset snapshot values by this number >
@@ -338,6 +341,7 @@ in the examples directory). \n \n
     \arg \b \e -D < adjust particle IDs for nIFTY cross catalogs across simulations >
     \arg \b \e -M < Mapping of particle ids to index  (\ref opt.imapping with \ref DNOMAP no mapping of ids to indices, \ref DMEMEFFICIENTMAP produces a unique ID to index mapping, needs more memory while building the map>
     \arg \b \e -v < verbose flag 1/0 >
+
     \section mpiconfig MPI options
     \arg \b \e -m < number of items per mpi thead, use for load balacing. Use 0 if no mpi used when building halo catalog >
     \arg \b \e -z < number of mpi theads used to calculate load balacing. If >0 this used with one actual mpi thread but determines load balancing based on desired number of mpi threads. Write load balancing file and terminates. If 0 (default) normal operation >

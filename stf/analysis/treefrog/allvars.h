@@ -127,8 +127,10 @@ using namespace NBody;
 #define PARTLISTNOCORE 0
 ///limit search to core
 #define PARTLISTCORE 1
-///limit search to core in both searched particles and matched particles
+///limit search to core in both searched particles and matched particles to identify best match after finding all matches
 #define PARTLISTCORECORE 2
+///limit search to core in both searched particles and matched particles ONLY
+#define PARTLISTCORECOREONLY 3
 //@}
 
 /// \name Mapping functions
@@ -155,6 +157,7 @@ using namespace NBody;
 //@{
 #define INBINARY 1
 #define INHDF 2
+#define INADIOS 3
 #define INASCII 0
 //@}
 
@@ -175,6 +178,8 @@ using namespace NBody;
 #define MSLCMERIT 1
 ///higher merit and primary progenitor
 #define MSLCMERITPRIMARYPROGEN 2
+///higher primary progenitor
+#define MSLCPRIMARYPROGEN 3
 //@}
 
 /// \name defining types of optimal temporal merit criteria
@@ -469,6 +474,8 @@ struct DescendantData
     float *Merit;
     ///store the fraction of shared particles
     float *nsharedfrac;
+    ///store type of descendant progenitor relation, that is whether object is the primary progenitor of its descendant or not
+    unsigned short *dtoptype;
 
     ///store number of steps forward in time descedant found
     int istep;
@@ -478,12 +485,14 @@ struct DescendantData
         DescendantList=NULL;
         Merit=NULL;
         nsharedfrac=NULL;
+        dtoptype=NULL;
         istep=0;
     }
     ~DescendantData(){
         if (NumberofDescendants>0) {
             delete[] DescendantList;
             delete[] Merit;
+            if (dtoptype!=NULL) delete[] dtoptype;
             if (nsharedfrac!=NULL) delete[] nsharedfrac;
         }
     }
@@ -491,6 +500,7 @@ struct DescendantData
         if (NumberofDescendants>0) {
             delete[] DescendantList;
             delete[] Merit;
+            if (dtoptype!=NULL) delete[] dtoptype;
             if (nsharedfrac!=NULL) delete[] nsharedfrac;
         }
         NumberofDescendants=d.NumberofDescendants;
@@ -499,6 +509,10 @@ struct DescendantData
         for (int i=0;i<NumberofDescendants;i++) {
             DescendantList[i]=d.DescendantList[i];
             Merit[i]=d.Merit[i];
+        }
+        if (d.dtoptype!=NULL) {
+            dtoptype=new unsigned short[NumberofDescendants];
+            for (int i=0;i<NumberofDescendants;i++) dtoptype[i]=d.dtoptype[i];
         }
         if (d.nsharedfrac!=NULL) {
             nsharedfrac=new float[NumberofDescendants];

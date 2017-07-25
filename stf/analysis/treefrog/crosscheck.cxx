@@ -9,9 +9,25 @@
 /// \name cross matching routines
 //@{
 
-/// Determine initial progenitor list based on just merit
-/// does not guarantee that progenitor list is exclusive
-/// \todo still need to clean up core matching section.
+/*! Determine initial progenitor list based on just merit
+  does not guarantee that progenitor list is exclusive.
+  The code allows for several types of merit functions and also several
+  different ways of using the particle list to calcualte merits.
+  By default, all particles belonging to an object are used to find any and all
+  matches (if any particle belongs to any object in another catalogue/snapshot)
+  This is the default operation (\ref Options.icorematchtype == \ref PARTLISTNOCORE)
+  but if particles are arranged in the input catalogue in a meaningful fashion (such
+  is the case for VELOCIraptor where particles are arranged in decreasing binding energy)
+  then you can use CORE particles set by using fractions of particles and min number
+  of particles (\ref Options.particle_frac & \ref Options.min_numpart) combined with
+  \ref PARTLISTCORE or \ref PARTLISTCORECORE or \ref PARTLISTCORECOREONLY. If \ref PARTLISTCORE is set, then
+  the code uses the core particles to find any and all matches of any of the particles
+  belonging to other objects in another catalogue/snapshot. If \re PARTLISTCORECORE
+  then matches first done using all particles then for core particle lists in both
+  catalogues/snapshots to update the best match. \ref PARTLISTCORECOREONLY only matches cores.
+  \todo still need to clean up core matching section and implement \ref PARTLISTCORECOREONLY
+*/
+
 ProgenitorData *CrossMatch(Options &opt, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData *&h2, unsigned int*&pfof2, int &ilistupdated, int istepval, ProgenitorData *refprogen)
 {
     long int i,j,k,n,index;
@@ -69,6 +85,9 @@ private(j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
         //go through halos particle list to see if these particles belong to another halo
         //at a different time/in a different catalog
         np1=h1[i].NumberofParticles;
+        //if doing core to all matching as set by icorematchtype==PARTLISTCORE
+        //then adjust number of particles searched. This does require particles
+        //to be meaningfully sorted.
         if (opt.icorematchtype==PARTLISTCORE && opt.particle_frac<1 && opt.particle_frac>0) {
             np1*=opt.particle_frac;
             if (np1<opt.min_numpart) np1=opt.min_numpart;
@@ -86,7 +105,7 @@ private(j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                 if (sharelist[index]==1) halolist[offset+numshared++]=hid-1;
             }
         }
-        //now proccess numshared list to remove insignificant connections
+        //now proccess numshared list to remove truly insignificant connections
         for (k=0;k<numshared;k++) {
             j=halolist[offset+k];
             index=offset+j;
@@ -106,6 +125,7 @@ private(j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                 j=halolist[offset+k];
                 index=offset+j;
                 np2=h2[j].NumberofParticles;
+                //adjust the expecte number of matches if only expecting to match core particles
                 if (opt.icorematchtype==PARTLISTCORE && opt.particle_frac<1 && opt.particle_frac>0) {
                     np2*=opt.particle_frac;
                     if (np2<opt.min_numpart) np2=opt.min_numpart;
@@ -138,8 +158,8 @@ private(j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
         //if the number shared is zero, do nothing
         else {p1[i].ProgenitorList=NULL;p1[i].Merit=NULL;}
 
-        //if weighted merit function is to be calculated then use the most bound fraction of particles to construct share list
-        if (opt.particle_frac<1 && opt.particle_frac>0 && numshared>0) {
+        //if matching core to core
+        if (opt.icorematchtype==PARTLISTCORECORE && opt.particle_frac<1 && opt.particle_frac>0 && numshared>0) {
             //calculate number of particles
             np1=(h1[i].NumberofParticles*opt.particle_frac);
             //if halo has enough particle for meaningful most bound particles check, proceed to find merits. Similar to normal merit
@@ -334,8 +354,7 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                 delete pq;
             }
             else {p1[i].ProgenitorList=NULL;p1[i].Merit=NULL;}
-            //if weighted merit function is to be calculated then use the most bound fraction of particles to construct share list
-            if (opt.particle_frac<1 && opt.particle_frac>0 && numshared>0) {
+            if (opt.icorematchtype==PARTLISTCORECORE && opt.particle_frac<1 && opt.particle_frac>0 && numshared>0) {
                 np1=(h1[i].NumberofParticles*opt.particle_frac);
                 if (np1>=opt.min_numpart) {
                     numshared=0;
@@ -548,7 +567,7 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
         else {d1[i].DescendantList=NULL;d1[i].Merit=NULL;}
 
         //if weighted merit function is to be calculated then use the most bound fraction of particles to construct share list
-        if (opt.particle_frac<1 && opt.particle_frac>0 && numshared>0) {
+        if (opt.icorematchtype==PARTLISTCORECORE && opt.particle_frac<1 && opt.particle_frac>0 && numshared>0) {
             //calculate number of particles
             np1=(h1[i].NumberofParticles*opt.particle_frac);
             //if halo has enough particle for meaningful most bound particles check, proceed to find merits. Similar to normal merit
@@ -631,8 +650,8 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
             num_nodescen+=1;
         }
         //if also applying merit limit then search if does not meet merit threshold
-        if (opt.imultsteplinkcrit==MSLCMERIT && refdescen[i].NumberofDescendants>0) {
-            if (refdescen[i].Merit[0]<opt.meritlimit) num_nodescen+=1;
+        if (opt.imultsteplinkcrit==MSLCPRIMARYPROGEN && refdescen[i].NumberofDescendants>0) {
+            if (refdescen[i].dtoptype[i]!=0) num_nodescen+=1;
         }
     }
     //only allocate memory and process list if there are any haloes needing to be searched
@@ -644,8 +663,8 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                 needdescenlist[num_nodescen++]=i;
             }
             //if also applying merit limit then search if does not meet merit threshold
-            if (opt.imultsteplinkcrit==MSLCMERIT && refdescen[i].NumberofDescendants>0) {
-                if (refdescen[i].Merit[0]<opt.meritlimit) needdescenlist[num_nodescen++]=i;
+            if (opt.imultsteplinkcrit==MSLCPRIMARYPROGEN && refdescen[i].NumberofDescendants>0) {
+                if (refdescen[i].dtoptype[i]!=0) needdescenlist[num_nodescen++]=i;
             }
         }
 
@@ -738,7 +757,7 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
             }
             else {d1[i].DescendantList=NULL;d1[i].Merit=NULL;}
             //if weighted merit function is to be calculated then use the most bound fraction of particles to construct share list
-            if (opt.particle_frac<1 && opt.particle_frac>0 && numshared>0) {
+            if (opt.icorematchtype==PARTLISTCORECORE && opt.particle_frac<1 && opt.particle_frac>0 && numshared>0) {
                 np1=(h1[i].NumberofParticles*opt.particle_frac);
                 if (np1>=opt.min_numpart) {
                     numshared=0;
@@ -987,19 +1006,19 @@ void UpdateRefProgenitors(Options &opt, const Int_t numhalos, ProgenitorData *&p
 }
 
 ///similar to \ref UpdateRefProgenitors but for descendants
-void UpdateRefDescendants(Options &opt, const Int_t numhalos, DescendantData *&dref, DescendantData *&dtemp)
+///\todo need to update how links are removed
+void UpdateRefDescendants(Options &opt, const Int_t numhalos, DescendantData *&dref, DescendantData *&dtemp, ProgenitorDataDescenBased **&pdescenprogen, Int_t itime)
 {
     if (opt.imultsteplinkcrit==MSLCMISSING) {
         for (Int_t i=0;i<numhalos;i++)
             if (dref[i].NumberofDescendants==0 && dtemp[i].NumberofDescendants>0) dref[i]=dtemp[i];
     }
-    else if (opt.imultsteplinkcrit==MSLCMERIT) {
+    else if (opt.imultsteplinkcrit==MSLCPRIMARYPROGEN) {
         for (Int_t i=0;i<numhalos;i++) {
             if (dref[i].NumberofDescendants==0 && dtemp[i].NumberofDescendants>0) dref[i]=dtemp[i];
             else if (dref[i].NumberofDescendants>0 && dtemp[i].NumberofDescendants>0) {
                 if (dtemp[i].Merit[0]>opt.meritlimit) {
-                    //first must update the progenitor based descendant list
-                    //RemoveLinksProgenitorBasedDescendantList(itime, i, pref[i], pprogendescen);
+                    //RemoveLinksDescendantBasedProgenitorList(itime, i, pref[i], pdescenprogen);
                     //then copy new links
                     dref[i]=dtemp[i];
                 }

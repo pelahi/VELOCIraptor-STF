@@ -150,7 +150,7 @@ DescendantData *CrossMatchDescendant(Options &opt, const long unsigned nhalos1, 
 ///similar to \ref CleanCrossMatch but for descendants
 void CleanCrossMatchDescendant(const int istepval, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData *&h2, DescendantData *&pdescen);
 ///similar to \ref UpdateRefProgenitors but for descendants
-void UpdateRefDescendants(Options &opt, const Int_t numhalos,DescendantData *&pref, DescendantData *&ptemp);
+void UpdateRefDescendants(Options &opt, const Int_t numhalos,DescendantData *&pref, DescendantData *&ptemp, ProgenitorDataDescenBased **&pdescenprogen, Int_t itime);
 ///builds the possible set of descendents using candidate progenitors
 void BuildProgenitorBasedDescendantList(Int_t itimeprogen, Int_t itimedescen, Int_t nhalos, ProgenitorData *&pprogen, DescendantDataProgenBased **&pprogendescen, int istep=1);
 /// removes descendant links of individual halo
