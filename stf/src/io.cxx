@@ -1201,7 +1201,6 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         unsigned int *uiarray;
         long long *larray;
         unsigned long *ularray;
-        double *darray;
         //void pointer to hold data
         void *data;
         //allocate enough memory to store largest data type
@@ -1237,142 +1236,142 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         }
 
         //now halo properties that are doubles
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].gMvir;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gMvir;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
         for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].gcm[k];
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-        }
-        for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].gpos[k];
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gcm[k];
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
         }
         for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].gcmvel[k];
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gpos[k];
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
         }
         for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].gvel[k];
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gcmvel[k];
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        }
+        for (int k=0;k<3;k++){
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gvel[k];
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
         }
 
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].gmass;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gmass;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].gMFOF;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gMFOF;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].gM200m;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gM200m;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].gM200c;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gM200c;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].gMvir;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gMvir;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].Efrac;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].gRvir;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].gsize;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].gR200m;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].gR200c;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].gRvir;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].gRhalfmass;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].gRmaxvel;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Efrac;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
 
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].gmaxvel;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gRvir;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].gsigma_v;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gsize;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gR200m;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gR200c;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gRvir;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gRhalfmass;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gRmaxvel;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gmaxvel;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gsigma_v;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
         for (int k=0;k<3;k++) for (int n=0;n<3;n++) {
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].gveldisp(k,n);
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gveldisp(k,n);
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
         }
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].glambda_B;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].glambda_B;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
         for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].gJ[k];
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gJ[k];
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
         }
 
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].gq;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gq;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].gs;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gs;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
         for (int k=0;k<3;k++) for (int n=0;n<3;n++) {
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].geigvec(k,n);
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].geigvec(k,n);
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
         }
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].cNFW;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].cNFW;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
 
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].Krot;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Krot;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].T;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].T;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].Pot;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Pot;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
 
 
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].RV_sigma_v;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].RV_sigma_v;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
         for (int k=0;k<3;k++) for (int n=0;n<3;n++) {
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].RV_veldisp(k,n);
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].RV_veldisp(k,n);
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
         }
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].RV_lambda_B;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].RV_lambda_B;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
         for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].RV_J[k];
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].RV_J[k];
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
         }
 
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].RV_q;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].RV_q;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].RV_s;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].RV_s;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
         for (int k=0;k<3;k++) for (int n=0;n<3;n++) {
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].RV_eigvec(k,n);
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].RV_eigvec(k,n);
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
         }
@@ -1382,70 +1381,70 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
 
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].M_gas;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_gas;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].M_gas_rvmax;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_gas_rvmax;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].M_gas_30kpc;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_gas_30kpc;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].M_gas_500c;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_gas_500c;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
 
         for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].cm_gas[k];
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].cm_gas[k];
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
         }
         for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].cmvel_gas[k];
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].cmvel_gas[k];
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
         }
 
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].Efrac_gas;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Efrac_gas;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].Rhalfmass_gas;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Rhalfmass_gas;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
         for (int k=0;k<3;k++) for (int n=0;n<3;n++) {
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].veldisp_gas(k,n);
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].veldisp_gas(k,n);
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
         }
         for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].L_gas[k];
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_gas[k];
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
         }
 
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].q_gas;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].q_gas;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].s_gas;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].s_gas;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
         for (int k=0;k<3;k++) for (int n=0;n<3;n++) {
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].eigvec_gas(k,n);
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].eigvec_gas(k,n);
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
         }
 
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].Krot_gas;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Krot_gas;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].Temp_gas;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Temp_gas;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
 #ifdef STARON
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].Z_gas;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Z_gas;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].SFR_gas;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SFR_gas;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
 #endif
@@ -1456,66 +1455,66 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
 
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].M_star;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_star;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].M_star_rvmax;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_star_rvmax;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].M_star_30kpc;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_star_30kpc;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].M_star_500c;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_star_500c;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
 
         for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].cm_star[k];
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].cm_star[k];
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
         }
         for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].cmvel_star[k];
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].cmvel_star[k];
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
         }
 
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].Efrac_star;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Efrac_star;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].Rhalfmass_star;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Rhalfmass_star;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
         for (int k=0;k<3;k++) for (int n=0;n<3;n++) {
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].veldisp_star(k,n);
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].veldisp_star(k,n);
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
         }
         for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].L_star[k];
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_star[k];
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
         }
 
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].q_star;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].q_star;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].s_star;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].s_star;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
         for (int k=0;k<3;k++) for (int n=0;n<3;n++) {
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].eigvec_star(k,n);
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].eigvec_star(k,n);
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
         }
 
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].Krot_star;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Krot_star;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].t_star;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].t_star;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].Z_star;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Z_star;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
 #endif
@@ -1524,7 +1523,7 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
 
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].M_bh;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_bh;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
 #endif
@@ -1533,7 +1532,7 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
 
-        for (Int_t i=0;i<ngroups;i++) ((double*)data)[i]=pdata[i+1].M_interloper;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_interloper;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
 #endif
