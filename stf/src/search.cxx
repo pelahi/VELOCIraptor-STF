@@ -91,7 +91,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
 #ifdef STRUCDEN
     if (numgroups>0 && opt.iSubSearch==1) {
     numingroup=BuildNumInGroup(nbodies, numgroups, pfof);
-    storetype=new short[nbodies];
+    storetype=new Int_t[nbodies];
     for (i=0;i<nbodies;i++) storetype[i]=Part[i].GetType();
     //if not searching all particle then searching for baryons associated with substructures, then set type to group value
     //so that velocity density just calculated for particles in groups (type>0)
@@ -106,7 +106,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
     GetVelocityDensity(opt, nbodies, Part,tree);
     for (i=0;i<nbodies;i++) Part[i].SetType(storetype[i]);
     delete[] storetype;
-    delete[] numingorup;
+    delete[] numingroup;
     }
 #endif
     delete tree;
