@@ -266,7 +266,7 @@ int main(int argc,char **argv)
         if (i>=StartSnap && i<EndSnap-1) {
             time2=MyGetTime();
             if(pht[i].numhalos>0){
-                cout<<i<<" "<<pht[i].numhalos<<" cross matching objects in other direction (descendants)"<<endl;
+                cout<<i<<" "<<pht[i].numhalos<<" cross matching objects in descendant direction"<<endl;
                 if (opt.numsteps>1) {
                     for (j=1;j<=opt.numsteps;j++) if (i+j<EndSnap)
                         if (pdescenprogen[i+j]==NULL && pht[i+j].numhalos>0) pdescenprogen[i+j]=new ProgenitorDataDescenBased[pht[i+j].numhalos];
@@ -348,13 +348,12 @@ int main(int argc,char **argv)
                 if (pdescenprogen[i]!=NULL) {
                     CleanDescendantsUsingProgenitors(i, pht, pdescenprogen, pdescen, opt.iopttemporalmerittype);
                     delete[] pdescenprogen[i];
-                    pprogendescen[i]=NULL;
+                    pdescenprogen[i]=NULL;
                 }
             }
             }
         }
         if (opt.iverbose) cout<<"Finished Descendant cross matching "<<MyGetTime()-time1<<endl;
-
     }
 
     //now adjust the halo ids as prior, halo ids simple represent read order, allowing for addressing of memory by halo id value

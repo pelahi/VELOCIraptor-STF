@@ -447,8 +447,8 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
         if (opt.iwriteparallel==1) sprintf(fnamempi,"%s.mpi_task-%d.isnap-%d.fsnap-%d",opt.outname,ThisTask,istart,iend);
         else sprintf(fnamempi,"%s",fname);
         if (ThisTask==0) istart=0;
-        if (ThisTask==NProcs-1) iend=opt.numsnapshots;
-        for (int itask=NProcs-1;itask>=0;itask--) {
+        if (ThisTask==NProcs-1) iend=opt.numsnapshots-1;
+        for (int itask=0;i<NProcs;itask++) {
             if (ThisTask==itask) {
                 if (ThisTask==0) {
                     Fout.open(fnamempi,ios::out);
