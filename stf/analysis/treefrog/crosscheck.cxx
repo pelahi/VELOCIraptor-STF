@@ -533,7 +533,7 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
             for (k=0;k<numshared;k++) {
                 j=halolist[offset+k];
                 index=offset+j;
-                np1=h1[i].NumberofParticles;
+                np2=h2[j].NumberofParticles;
                 if (opt.icorematchtype==PARTLISTCORE && opt.particle_frac<1 && opt.particle_frac>0) {
                     np2*=opt.particle_frac;
                     if (np2<opt.min_numpart) np2=opt.min_numpart;
@@ -1124,7 +1124,7 @@ void UpdateRefDescendants(Options &opt, const Int_t numhalos, DescendantData *&d
         for (Int_t i=0;i<numhalos;i++) {
             if (dref[i].NumberofDescendants==0 && dtemp[i].NumberofDescendants>0) dref[i]=dtemp[i];
             else if (dref[i].NumberofDescendants>0 && dtemp[i].NumberofDescendants>0) {
-                if (dtemp[i].dtoptype[0]<dref[i].dtoptype[0]) {
+                if (dtemp[i].dtoptype[0]<dref[i].dtoptype[0] || ()) {
                     RemoveLinksDescendantBasedProgenitorList(itime, i, dref[i], pdescenprogen);
                     //then copy new links
                     dref[i]=dtemp[i];
