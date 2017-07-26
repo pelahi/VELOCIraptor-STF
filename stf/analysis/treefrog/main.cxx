@@ -255,20 +255,23 @@ int main(int argc,char **argv)
         else {
             pdescenprogen=new ProgenitorDataDescenBased*[opt.numsnapshots];
             //initialize all to null
-            for (i=0;i<opt.numsnapshots-1;i++) {
+            for (i=0;i<opt.numsnapshots;i++) {
                 pdescenprogen[i]=NULL;
             }
             //save the first step
-            pdescenprogen[StartSnap]=new ProgenitorDataDescenBased[pht[StartSnap].numhalos];
+            if (pht[StartSnap].numhalos>0) pdescenprogen[StartSnap]=new ProgenitorDataDescenBased[pht[StartSnap].numhalos];
         }
 
         for (i=0;i<opt.numsnapshots;i++) {
-        if (i>=StartSnap && i<EndSnap) {
+        if (i>=StartSnap && i<EndSnap-1) {
             time2=MyGetTime();
             if(pht[i].numhalos>0){
                 cout<<i<<" "<<pht[i].numhalos<<" cross matching objects in other direction (descendants)"<<endl;
-
-                if (i<=EndSnap) {
+                if (opt.numsteps>1) {
+                    for (j=1;j<=opt.numsteps;j++) if (i+j<EndSnap)
+                        if (pdescenprogen[i+j]==NULL && pht[i+j].numhalos>0) pdescenprogen[i+j]=new ProgenitorDataDescenBased[pht[i+j].numhalos];
+                }
+                if (i<EndSnap) {
                 for (Int_t istep=1;istep<=opt.numsteps;istep++) if (i+istep<=opt.numsnapshots-1) {
                 if (i+istep<EndSnap) {
                     //set pfof progenitor data structure, used to produce links. Only produced IF snapshot not first one
@@ -291,10 +294,8 @@ int main(int argc,char **argv)
                     if (istep==1) {
                         pdescen[i]=CrossMatchDescendant(opt,  pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pfofd, ilistupdated);
                         CleanCrossMatchDescendant(istep, pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pdescen[i]);
-                        if (opt.numsteps>1) {
-                            BuildDescendantBasedProgenitorList(i, i+istep, pht[i].numhalos, pdescen[i], pdescenprogen);
-                            UpdateDescendantUsingDescendantBasedProgenitorList(i+istep, pht[i+istep].numhalos, pdescen[i], pdescenprogen, istep);
-                        }
+                        BuildDescendantBasedProgenitorList(i, i+istep, pht[i].numhalos, pdescen[i], pdescenprogen);
+                        UpdateDescendantUsingDescendantBasedProgenitorList(i+istep, pht[i+istep].numhalos, pdescen[i], pdescenprogen, istep);
                     }
                     //otherwise only care about objects with no links
                     else {

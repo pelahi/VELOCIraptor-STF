@@ -553,12 +553,13 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
             d1[i].NumberofDescendants=numshared;
             d1[i].DescendantList=new long unsigned[numshared];
             d1[i].Merit=new float[numshared];
-            if (opt.numsteps>1) d1[i].dtoptype=new unsigned short[numshared];
+            d1[i].dtoptype=new unsigned short[numshared];
             //d1[i].nsharedfrac=new float[numshared];
             for (j=0;j<numshared;j++){
                 //d1[i].DescendantList[j]=h2[pq->TopQueue()].haloID;
                 d1[i].DescendantList[j]=pq->TopQueue();
                 d1[i].Merit[j]=pq->TopPriority();
+                d1[i].dtoptype[j]=0;
                 pq->Pop();
             }
             d1[i].istep=istepval;
@@ -746,12 +747,13 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                 d1[i].NumberofDescendants=numshared;
                 d1[i].DescendantList=new long unsigned[numshared];
                 d1[i].Merit=new float[numshared];
-                if (opt.numsteps>1) d1[i].dtoptype=new unsigned short[numshared];
+                d1[i].dtoptype=new unsigned short[numshared];
                 //d1[i].nsharedfrac=new float[numshared];
                 for (j=0;j<numshared;j++){
                     //d1[i].DescendantList[j]=h2[pq->TopQueue()].haloID;
                     d1[i].DescendantList[j]=pq->TopQueue();
                     d1[i].Merit[j]=pq->TopPriority();
+                    d1[i].dtoptype[j]=0;
                     pq->Pop();
                 }
                 delete pq;
@@ -1173,10 +1175,10 @@ void UpdateDescendantUsingDescendantBasedProgenitorList(Int_t itimeprogen, Int_t
         pq=new PriorityQueue(nattime);
         for (auto iprogen=0;iprogen<pdescenprogen[itimeprogen][k].NumberofProgenitors;iprogen++) if (pdescenprogen[itimeprogen][k].deltat[iprogen]==istep)
         {
-            pq->Push(iprogen,1.0/pdescenprogen[itimeprogen][k].Merit[iprogen]);
+            pq->Push(iprogen,pdescenprogen[itimeprogen][k].Merit[iprogen]);
         }
         nattime=0;
-        for (auto iprogen=0;iprogen<nattime;iprogen++)
+        while(pq->Size()>0)
         {
             progindex=pq->TopQueue();
             descenindex=pdescenprogen[itimeprogen][k].haloindex[progindex];
