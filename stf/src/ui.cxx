@@ -105,15 +105,19 @@ void usage(void)
 /*!
     \page configopt  Configuration options
 
-    An example configuration file can be found the examples directory within the code directory. Only the keywords listed here will be used, all other words/characters are ignored. Note that if misspell a keyword it will not be used. One can check the options that the code has passed by examining the associated \ref Options.outname cfg file, <em>foo</em>.cfg, which will list all the configuration options passed to the code. Since this file is always written <b><em>DO NOT</em></b> name your configuration file <em>foo</em>.cfg.
+    An example configuration file can be found the examples directory (see for instance <a href="../../examples/sample.cfg">sample</a>). within the repository.
+    Only the keywords listed here will be used, all other words/characters are ignored.
+    Note that if misspell a keyword it will not be used. One can check the options used by examining <b><em>foo</em>.configuration</b>,
+    where <em>foo</em> is your base output filename \ref Options.outname. This file lists all the options. Since this file is
+    always written <b><em>DO NOT</em></b> name your input configuration file <b><em>foo</em>.configuration</b>.
 
     There are numerous key words that can be passed to change the values stored in \ref Options. Here we list them
     \section outconfig Output related.
     See \ref outputs for types of output (and \ref io.cxx for implementation of the code)
 
-    \arg <b> \e Output_den </b> A filename for storing the intermediate step of calculating local densities. This is particularly useful if the code is not compiled with \b STRUCDEN & \b HALOONLYDEN (see \ref STF-makeflags). \ref Options.smname \n
     \arg <b> \e Output </b> Output base name. Overrides the name passed with the command line argument <b> \e -o </b>. Only implemented for completeness. \ref Options.outname \n
     \arg <b> \e Write_group_array_file </b> When producing output also produce a file which lists for every particle the group they belong to. Can be used with \b tipsy format or to tag every particle. \ref Options.iwritefof
+    \arg <b> \e Output_den </b> A filename for storing the intermediate step of calculating local densities. This is particularly useful if the code is not compiled with \b STRUCDEN & \b HALOONLYDEN (see \ref STF-makeflags). \ref Options.smname \n
 
     \section searchconfig Parameters related to search type.
     See \ref io.cxx (and related ios like \ref gadgetio.cxx), \ref search.cxx, \ref fofalgo.h for extra details
@@ -132,8 +136,8 @@ void usage(void)
     \section localdensityconfig Parameters related to local density estimator.
     See \ref localfield.cxx, \ref bgfield.cxx & \ref localbgcomp.cxx for more details
 
-    \arg <b> \e Nsearch_velocity </b> number of velocity neighbours used to calculate velocity density, adjust \ref Options.Nvel (default is 32) \n
-    \arg <b> \e Nsearch_physical </b> number of physical neighbours searched for Nv to calculate velocity density  \ref Options.Nsearch (default is 512) \n
+    \arg <b> \e Nsearch_velocity </b> number of velocity neighbours used to calculate velocity density, adjust \ref Options.Nvel (suggested value is 32) \n
+    \arg <b> \e Nsearch_physical </b> number of physical neighbours searched for Nv to calculate velocity density  \ref Options.Nsearch (suggested value is 256) \n
     \arg <b> \e Cell_fraction </b> fraction of a halo contained in a subvolume used to characterize the background  \ref Options.Ncellfac \n
     \arg <b> \e Grid_type </b> integer describing type of grid used to decompose volume for substructure search  \ref Options.gridtype (see \ref GRIDTYPES) \n
         - \b 1 \e standard physical shannon entropy, balanced KD tree volume decomposition into cells
@@ -172,7 +176,7 @@ void usage(void)
     \arg <b> \e Halo_linking_length_factor </b> allows one to use different physical linking lengths between field objects and substructures.  (Typically for 3DFOF searches of dark matter haloes, set to value such that this times \ref Options.ellphys = 0.2 the interparticle spacing when examining cosmological simulations ) \ref Options.ellhalophysfac \n
     \arg <b> \e Halo_velocity_linking_length_factor </b> allows one to use different velocity linking lengths between field objects and substructures when using 6D FOF searches.  (Since in such cases the general idea is to use the local velocity dispersion to define a scale, \f$ \geq5 \f$ times this value seems to correctly scale searches) \ref Options.ellhalovelfac \n
     \arg <b> \e Halo_6D_linking_length_factor </b> allows one to use different linking lengths between 3DFOF and 6DFOF field search. Typically values are \f$ \sim 1 \f$ \n
-    \arg <b> \e Halo_6D_vel_linking_length_factor </b> scaling applied to dispersions used in 6DFOF field search. Typical values are \f$ \gtrsim 1.25 \f$ \n
+    \arg <b> \e Halo_6D_vel_linking_length_factor </b> scaling applied to dispersions used in 6DFOF field search. Typical values are \f$ \geq 1.25 \f$ \n
 
     \arg <b> \e Halo_core_search </b> 0/1/2 flag allows one to explicitly search for large 6D FOF cores that are indicative of a recent major merger. Since substructure is defined on the scale of the maximum cell size and major mergers typically result two or more phase-space dense regions that are \e larger than the cell size used in reasonable substructure searches, one can identify them using this search. The overall goal is to treat these objects differently than a substructure. However, if 2 is set, then smaller core is treated as substruture and all particles within the FOF envelop are assigned to the cores based on their phase-space distance to core particles \ref Options.iHaloCoreSearch \n
     \arg <b> \e Use_adaptive_core_search </b> 0/1 flag allows one to run complex adaptive phase-space search for large 6D FOF cores and then use these linking lengths to separate mergers. 0 is simple high density dispersively cold cores with v scale adaptive, 1 is adaptive with simple dispersions in both x and v.
@@ -191,7 +195,7 @@ void usage(void)
     See \ref unbinding and \ref unbind.cxx for more details
 
     \arg <b> \e Unbind_flag  </b> whether or not substructures should be passed through an unbinding routine. \ref Options.uinfo & \ref UnbindInfo.unbindflag \n
-    \arg <b> \e Allowed_kinetic_potential_ratio  </b> ratio of kinetic to potential energy at which a particle is still considered bound, ie: particle is still bound if \f$ \alpha T+W<0 \f$, so \f$ \alpha=1 \f$ would be standard unbinding and \f$ \alpha<1 \f$ allows one to identify unbound tidal debris. Given that <b> VELOCIraptor </b> was designed to identify tidal streams, it makes little sense to have this set to 1 unless explicitly required. Note that the code still separates particles into bound and unbound. Typical values of \f$ \alpha\gtrsim0.2 \f$ seems to minimize the number of false positives in tidal debris while still identifying completely unbound tidal debris. \ref Options.uinfo & \ref UnbindInfo.Eratio \n
+    \arg <b> \e Allowed_kinetic_potential_ratio  </b> ratio of kinetic to potential energy at which a particle is still considered bound, ie: particle is still bound if \f$ \alpha T+W<0 \f$, so \f$ \alpha=1 \f$ would be standard unbinding and \f$ \alpha<1 \f$ allows one to identify unbound tidal debris. Given that <b> VELOCIraptor </b> was designed to identify tidal streams, it makes little sense to have this set to 1 unless explicitly required. Note that the code still separates particles into bound and unbound. Typical values of \f$ \alpha\geq 0.2 \f$ seems to minimize the number of false positives in tidal debris while still identifying completely unbound tidal debris. \ref Options.uinfo & \ref UnbindInfo.Eratio \n
     \arg <b> \e Min_bound_mass_frac </b> Designed to demand a substructure still have a minimum amount of self-bound mass. \ref Options.uinfo & \ref UnbindInfo.minEfrac \n
     \arg <b> \e Bound_halos </b> 0/1 flag to make sure field objects such as haloes are self bound after substructures have been identified and extracted from the halo. This can have interesting consequences as it is possible that a multiple merger will appear as a single FOF halo, however all with all the cores removed, the FOF halo is actually an unbound structure. \ref Options.iBoundHalos \n
     \arg <b> \e Keep_background_potential </b> 1/0 flag When determining whether a structure is self-bound, the approach taken is to treat the candidate structure in isolation. Then determine the velocity reference frame to determine the kinetic energy of each particle and remove them. However, it is possible one wishes to keep the background particles when determining the potential, that is once one starts unbinding, don't treat the candidate structure in isolation but in a background sea. When finding tidal debris, it is useful to keep the background. \ref Options.uinfo & \ref UnbindInfo.bgpot \n
@@ -232,8 +236,6 @@ void usage(void)
     \section ioconfigs I/O options
     \arg <b> \e Cosmological_input </b> 1/0 indicating that input simulation is cosmological or not. With cosmological input, a variety of length/velocity scales are set to determine such things as the virial overdensity, linking length. \ref Options.icosmologicalin \n
     \arg <b> \e Input_chunk_size </b> Amount of information to read from input file in one go (100000). \ref Options.inputbufsize \n
-    \arg <b> \e MPI_particle_total_buf_size </b> Total memory size in bytes used to store particles in temporary buffer such that
-    particles are sent to non-reading mpi processes in one communication round in chunks of size buffer_size/NProcs/sizeof(Particle). \ref Options.mpiparticlebufsize \n
     \arg <b> \e Write_group_array_file </b> 0/1 flag indicating whether write a single large tipsy style group assignment file is written. \ref Options.iwritefof \n
     \arg <b> \e Separate_output_files </b> 1/0 flag indicating whether separate files are written for field and subhalo groups. \ref Options.iseparatefiles \n
     \arg <b> \e Binary_output </b> 3/2/1/0 flag indicating whether output is hdf, binary or ascii. \ref Options.ibinaryout, \ref OUTADIOS, \ref OUTHDF, \ref OUTBINARY, \ref OUTASCII \n
@@ -248,6 +250,10 @@ void usage(void)
     \arg <b> \e MPI_particle_allocation_fac </b> Memory allocated in mpi mode to store particles is (1+factor)* the memory need for the initial mpi decomposition.
     This factor should be >0 and is mean to allow a little room for particles to be exchanged between mpi threads withouth having to require new memory allocations and copying
     of data. \ref Options.mpipartfac \n
+    \arg <b> \e MPI_particle_total_buf_size </b> Total memory size in bytes used to store particles in temporary buffer such that
+    particles are sent to non-reading mpi processes in one communication round in chunks of size buffer_size/NProcs/sizeof(Particle). \ref Options.mpiparticlebufsize \n
+
+
 
     */
 
