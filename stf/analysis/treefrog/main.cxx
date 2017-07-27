@@ -56,6 +56,7 @@ int main(int argc,char **argv)
     //if multiple snapshots are used in constructing the descendant list, must store the possible set of progenitors
     //which can then be cleaned to ensure one progenitor
     ProgenitorDataDescenBased **pdescenprogen;
+    ProgenitorDataDescenBased *pdescenprogentemp;
     //these are used to store temporary sets of posssible candidate progenitors/descendants when code links across multiple snaps
     ProgenitorData *pprogentemp;
     DescendantData *pdescentemp;
@@ -289,19 +290,29 @@ int main(int argc,char **argv)
                     //begin cross matching with  snapshot(s)
                     //for first linking, cross match and allocate memory
                     if (istep==1) {
+                        //identify candidate descendants
                         pdescen[i]=CrossMatchDescendant(opt,  pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pfofd, ilistupdated);
+                        //clean up the information stored in this list
                         CleanCrossMatchDescendant(istep, pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pdescen[i]);
-                        BuildDescendantBasedProgenitorList(i, i+istep, pht[i].numhalos, pdescen[i], pdescenprogen);
-                        UpdateDescendantUsingDescendantBasedProgenitorList(i+istep, pht[i+istep].numhalos, pdescen[i], pdescenprogen, istep);
+                        //build a temporally local descendant based progenitor data
+                        BuildDescendantBasedProgenitorList(i+istep, pht[i].numhalos, pdescen[i], pdescenprogen[i+istep]);
+                        //and then rank the progenitors at time i of descedants found at time i+istep based on their merit. Ranking is necessary to determine main/secondary branches
+                        UpdateDescendantUsingDescendantBasedProgenitorList(pht[i+istep].numhalos, pdescen[i], pdescenprogen[i+istep], istep);
                     }
-                    //otherwise only care about objects with no links
+                    //if more than a single step is used to find descendants then we first search i+istep but only for those haloes that are deemed to have
+                    //less than ideal descendants.
                     else {
                         pdescentemp=CrossMatchDescendant(opt, pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pfofd, ilistupdated, istep, pdescen[i]);
+                        //if some new descendants are found then need to clean-up and merge information
                         if (ilistupdated>0) {
-                            CleanCrossMatchDescendant(istep, pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pdescen[i]);
-                            BuildDescendantBasedProgenitorList(i, i+istep, pht[i].numhalos, pdescentemp, pdescenprogen, istep);
-                            UpdateDescendantUsingDescendantBasedProgenitorList(i+istep, pht[i+istep].numhalos, pdescentemp, pdescenprogen, istep);
-                            UpdateRefDescendants(opt,pht[i].numhalos, pdescen[i], pdescentemp, pdescenprogen,i);
+                            CleanCrossMatchDescendant(istep, pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pdescentemp);
+                            //to rank progenitors of descendants at this time, need to allocate a ProgenitorDataDescenBased list
+                            pdescenprogentemp=new ProgenitorDataDescenBased[pht[i+istep].numhalos];
+                            BuildDescendantBasedProgenitorList(i+istep, pht[i].numhalos, pdescentemp, pdescenprogentemp, istep);
+                            UpdateDescendantUsingDescendantBasedProgenitorList(pht[i+istep].numhalos, pdescentemp, pdescenprogentemp, istep);
+                            //having ranked the progenitors based on their descendants looking backwards, we can now update the descendant list appropriately
+                            UpdateRefDescendants(opt,pht[i].numhalos, pdescen[i], pdescentemp, pdescenprogen, i);
+                            delete[] pdescenprogentemp;
                         }
                         delete[] pdescentemp;
                     }

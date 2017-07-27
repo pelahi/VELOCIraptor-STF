@@ -145,12 +145,6 @@ void CleanCrossMatch(const int istepval, const long unsigned nhalos1, const long
 ///fill in empty links of the reference list with another progenitor list produced using same reference snapshot but different linking snapshot.
 ///Allows for multiple steps in snapshots to be used.
 void UpdateRefProgenitors(Options &opt, const Int_t numhalos,ProgenitorData *&pref, ProgenitorData *&ptemp, DescendantDataProgenBased **&pprogendescen, Int_t itime);
-///similar to \ref CrossMatch but for descendants
-DescendantData *CrossMatchDescendant(Options &opt, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData* &h2, unsigned int*&pfof2, int &ilistupdated, int istepval=1, DescendantData *refdescen=NULL);
-///similar to \ref CleanCrossMatch but for descendants
-void CleanCrossMatchDescendant(const int istepval, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData *&h2, DescendantData *&pdescen);
-///similar to \ref UpdateRefProgenitors but for descendants
-void UpdateRefDescendants(Options &opt, const Int_t numhalos,DescendantData *&pref, DescendantData *&ptemp, ProgenitorDataDescenBased **&pdescenprogen, Int_t itime);
 ///builds the possible set of descendents using candidate progenitors
 void BuildProgenitorBasedDescendantList(Int_t itimeprogen, Int_t itimedescen, Int_t nhalos, ProgenitorData *&pprogen, DescendantDataProgenBased **&pprogendescen, int istep=1);
 /// removes descendant links of individual halo
@@ -158,14 +152,27 @@ void RemoveLinksProgenitorBasedDescendantList(Int_t itimedescen, Int_t ihaloinde
 ///Cleans up progenitor list using candidate descendent list build using progenitor search. Ensures objects ony have a single descendant
 void CleanProgenitorsUsingDescendants(Int_t i, HaloTreeData *&pht, DescendantDataProgenBased **&pprogendescen, ProgenitorData **&pprogen, int iopttemporalmerittype);
 
-///builds the possible set of progenitors using candidate descendants, similar to \ref BuildProgenitorBasedDescendantList
-void BuildDescendantBasedProgenitorList(Int_t itimedescen, Int_t itimeprogen, Int_t nhalos, DescendantData *&pdecen, ProgenitorDataDescenBased **&pdescenprogen, int istep=1);
-///updates descendants data structure so that an object knows what type of progenitor it is to its descendants
-void UpdateDescendantUsingDescendantBasedProgenitorList(Int_t itimeprogen, Int_t nhalos, DescendantData *&pdescen, ProgenitorDataDescenBased **&pdescenprogen, int istep);
-///removes progenitor links of individual halo
+///similar to \ref CrossMatch but for descendants
+DescendantData *CrossMatchDescendant(Options &opt, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData* &h2, unsigned int*&pfof2, int &ilistupdated, int istepval=1, DescendantData *refdescen=NULL);
+///similar to \ref CleanCrossMatch but for descendants
+void CleanCrossMatchDescendant(const int istepval, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData *&h2, DescendantData *&pdescen);
+
+///builds the possible set of progenitors using candidate descendants, similar to \ref BuildProgenitorBasedDescendantList.
+void BuildDescendantBasedProgenitorList(Int_t itimedescen, Int_t nhalos, DescendantData *&pdecen, ProgenitorDataDescenBased *&pdescenprogen, int istep=1);
+///updates descendants data structure so that an object knows what type of progenitor it is to its descendants. Specifically this finds all progenitors of
+///a halo looking back a time istep and ranks their descendant to progenitor match based on their merit (a temporally local ranking)
+void UpdateDescendantUsingDescendantBasedProgenitorList(Int_t nhalos, DescendantData *&pdescen, ProgenitorDataDescenBased *&pdescenprogen, int istep);
+/// Updates the descandant data structure with new information and removes/updates old links
+void UpdateRefDescendants(Options &opt, const Int_t numhalos,DescendantData *&pref, DescendantData *&ptemp, ProgenitorDataDescenBased **&pdescenprogen, Int_t itime);
+///removes progenitor links of individual halo stored in the \ref ProgenitorDataDescenBased structure.
 void RemoveLinksDescendantBasedProgenitorList(Int_t itime, Int_t ihaloindex, DescendantData &pdescen, ProgenitorDataDescenBased **&pdescenprogen);
-///Cleans up descendant list using candidate progenitor list build using descedant search. Still not implemented as need to think about how to implemented it
+///Adds progenitor links of individual halo stored in the \ref ProgenitorDataDescenBased structure.
+void AddLinksDescendantBasedProgenitorList(Int_t itime, Int_t ihaloindex, DescendantData &pdescen, ProgenitorDataDescenBased **&pdescenprogen);
+
+///Cleans up descendant list by ranking progenitors of a halo using a general temporal merit.
 void CleanDescendantsUsingProgenitors(Int_t i, HaloTreeData *&pht, ProgenitorDataDescenBased **&pdescenprogen, DescendantData **&pdecen, int iopttemporalmerittype);
+
+
 //@}
 
 /// \name for mapping ids to index routines

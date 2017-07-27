@@ -448,7 +448,7 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
         else sprintf(fnamempi,"%s",fname);
         if (ThisTask==0) istart=0;
         if (ThisTask==NProcs-1) iend=opt.numsnapshots-1;
-        for (int itask=0;i<NProcs;itask++) {
+        for (int itask=0;itask<NProcs;itask++) {
             if (ThisTask==itask) {
                 if (ThisTask==0) {
                     Fout.open(fnamempi,ios::out);
@@ -471,7 +471,6 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
                             Fout<<endl;
                         }
                     }
-                }
                 }
                 Fout.close();
             }
@@ -503,9 +502,9 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
                         Fout<<h[i+p[i][j].istep].Halo[p[i][j].DescendantList[k]-1].haloID<<" ";
                         Fout<<p[i][j].dtoptype[k]<<" ";
                         Fout<<p[i][j].Merit[k]<<" ";
+                        Fout<<endl;
                     }
                 }
-            }
             }
             Fout<<opt.numsnapshots-1+opt.snapshotvaloffset<<"\t"<<h[opt.numsnapshots-1].numhalos<<endl;
             ///last file has no connections
