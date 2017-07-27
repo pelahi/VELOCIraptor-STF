@@ -1240,6 +1240,10 @@ void AddLinksDescendantBasedProgenitorList(Int_t itime, Int_t ihaloindex, Descen
 ///Update all progenitors of a descandant based on their temporally generalized merit.
 void CleanDescendantsUsingProgenitors(Int_t itimeprogen, HaloTreeData *&pht, ProgenitorDataDescenBased **&pdescenprogen, DescendantData **&pdescen, int iopttemporalmerittype)
 {
+    //if first snapshot can't have any progenitors
+    if (itimeprogen==0) return;
+    //if no halos before can't have any progenitors
+    if (pht[itimeprogen-1].numhalos==0) return;
     PriorityQueue *pq;
     Int_t progindex,descenindex,descentemporalindex,descenprogenindex;
     Double_t generalizedmerit;
@@ -1252,6 +1256,7 @@ void CleanDescendantsUsingProgenitors(Int_t itimeprogen, HaloTreeData *&pht, Pro
             generalizedmerit=pdescenprogen[itimeprogen][k].Merit[iprogen]/pow((Double_t)pdescenprogen[itimeprogen][k].deltat[iprogen],ALPHADELTAT);
             pq->Push(iprogen,generalizedmerit);
         }
+        rank=0;
         while(pq->Size()>0)
         {
             progindex=pq->TopQueue();

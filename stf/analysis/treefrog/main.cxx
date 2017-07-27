@@ -265,10 +265,8 @@ int main(int argc,char **argv)
             time2=MyGetTime();
             if(pht[i].numhalos>0){
                 cout<<i<<" "<<pht[i].numhalos<<" cross matching objects in descendant direction"<<endl;
-                if (opt.numsteps>1) {
-                    for (j=1;j<=opt.numsteps;j++) if (i+j<EndSnap)
-                        if (pdescenprogen[i+j]==NULL && pht[i+j].numhalos>0) pdescenprogen[i+j]=new ProgenitorDataDescenBased[pht[i+j].numhalos];
-                }
+                for (j=1;j<=opt.numsteps;j++) if (i+j<EndSnap)
+                    if (pdescenprogen[i+j]==NULL && pht[i+j].numhalos>0) pdescenprogen[i+j]=new ProgenitorDataDescenBased[pht[i+j].numhalos];
                 if (i<EndSnap) {
                 for (Int_t istep=1;istep<=opt.numsteps;istep++) if (i+istep<=opt.numsnapshots-1) {
                 if (i+istep<EndSnap) {
@@ -295,7 +293,7 @@ int main(int argc,char **argv)
                         //clean up the information stored in this list
                         CleanCrossMatchDescendant(istep, pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pdescen[i]);
                         //build a temporally local descendant based progenitor data
-                        BuildDescendantBasedProgenitorList(i+istep, pht[i].numhalos, pdescen[i], pdescenprogen[i+istep]);
+                        BuildDescendantBasedProgenitorList(i, pht[i].numhalos, pdescen[i], pdescenprogen[i+istep]);
                         //and then rank the progenitors at time i of descedants found at time i+istep based on their merit. Ranking is necessary to determine main/secondary branches
                         UpdateDescendantUsingDescendantBasedProgenitorList(pht[i+istep].numhalos, pdescen[i], pdescenprogen[i+istep], istep);
                     }
@@ -308,7 +306,7 @@ int main(int argc,char **argv)
                             CleanCrossMatchDescendant(istep, pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pdescentemp);
                             //to rank progenitors of descendants at this time, need to allocate a ProgenitorDataDescenBased list
                             pdescenprogentemp=new ProgenitorDataDescenBased[pht[i+istep].numhalos];
-                            BuildDescendantBasedProgenitorList(i+istep, pht[i].numhalos, pdescentemp, pdescenprogentemp, istep);
+                            BuildDescendantBasedProgenitorList(i, pht[i].numhalos, pdescentemp, pdescenprogentemp, istep);
                             UpdateDescendantUsingDescendantBasedProgenitorList(pht[i+istep].numhalos, pdescentemp, pdescenprogentemp, istep);
                             //having ranked the progenitors based on their descendants looking backwards, we can now update the descendant list appropriately
                             UpdateRefDescendants(opt,pht[i].numhalos, pdescen[i], pdescentemp, pdescenprogen, i);
