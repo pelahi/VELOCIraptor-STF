@@ -251,16 +251,13 @@ int main(int argc,char **argv)
         pdescen=new DescendantData*[opt.numsnapshots];
         pfofd=new unsigned int[opt.MaxIDValue];
         for (i=0;i<opt.MaxIDValue;i++) {pfofd[i]=0;}
-        if (opt.numsteps==1) pdescenprogen=NULL;
-        else {
-            pdescenprogen=new ProgenitorDataDescenBased*[opt.numsnapshots];
-            //initialize all to null
-            for (i=0;i<opt.numsnapshots;i++) {
-                pdescenprogen[i]=NULL;
-            }
-            //save the first step
-            if (pht[StartSnap].numhalos>0) pdescenprogen[StartSnap]=new ProgenitorDataDescenBased[pht[StartSnap].numhalos];
+        pdescenprogen=new ProgenitorDataDescenBased*[opt.numsnapshots];
+        //initialize all to null
+        for (i=0;i<opt.numsnapshots;i++) {
+            pdescenprogen[i]=NULL;
         }
+        //save the first step
+        if (pht[StartSnap].numhalos>0) pdescenprogen[StartSnap]=new ProgenitorDataDescenBased[pht[StartSnap].numhalos];
 
         for (i=0;i<opt.numsnapshots;i++) {
         if (i>=StartSnap && i<EndSnap-1) {
@@ -302,8 +299,9 @@ int main(int argc,char **argv)
                         pdescentemp=CrossMatchDescendant(opt, pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pfofd, ilistupdated, istep, pdescen[i]);
                         if (ilistupdated>0) {
                             CleanCrossMatchDescendant(istep, pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pdescen[i]);
+                            BuildDescendantBasedProgenitorList(i, i+istep, pht[i].numhalos, pdescentemp, pdescenprogen, istep);
+                            UpdateDescendantUsingDescendantBasedProgenitorList(i+istep, pht[i+istep].numhalos, pdescentemp, pdescenprogen, istep);
                             UpdateRefDescendants(opt,pht[i].numhalos, pdescen[i], pdescentemp, pdescenprogen,i);
-                            BuildDescendantBasedProgenitorList(i, i+istep, pht[i].numhalos, pdescen[i], pdescenprogen, istep);
                         }
                         delete[] pdescentemp;
                     }

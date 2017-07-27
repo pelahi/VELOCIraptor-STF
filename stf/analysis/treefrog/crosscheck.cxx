@@ -653,7 +653,7 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
         }
         //if also applying merit limit then search if does not meet merit threshold
         if (opt.imultsteplinkcrit==MSLCPRIMARYPROGEN && refdescen[i].NumberofDescendants>0) {
-            if (refdescen[i].dtoptype[i]!=0) num_nodescen+=1;
+            if (refdescen[i].dtoptype[0]!=0) num_nodescen+=1;
         }
     }
     //only allocate memory and process list if there are any haloes needing to be searched
@@ -666,7 +666,7 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
             }
             //if also applying merit limit then search if does not meet merit threshold
             if (opt.imultsteplinkcrit==MSLCPRIMARYPROGEN && refdescen[i].NumberofDescendants>0) {
-                if (refdescen[i].dtoptype[i]!=0) needdescenlist[num_nodescen++]=i;
+                if (refdescen[i].dtoptype[0]!=0) needdescenlist[num_nodescen++]=i;
             }
         }
 
@@ -1197,7 +1197,7 @@ void RemoveLinksDescendantBasedProgenitorList(Int_t itime, Int_t ihaloindex, Des
     Int_t itimeprogen,did,k=0;
     for (Int_t idescen=0;idescen<pdescen.NumberofDescendants;idescen++){
         did=pdescen.DescendantList[idescen]-1;//make sure halo descendent index set to start at 0
-        itimeprogen=itime-pdescen.istep;
+        itimeprogen=itime+pdescen.istep;
         //find where this link exists and then remove it.
         k=0;
         while (k<pdescenprogen[itimeprogen][did].NumberofProgenitors && !(pdescenprogen[itimeprogen][did].haloindex[k]==ihaloindex && pdescenprogen[itimeprogen][did].halotemporalindex[k]==itime)) k++;
@@ -1214,8 +1214,45 @@ void RemoveLinksDescendantBasedProgenitorList(Int_t itime, Int_t ihaloindex, Des
 }
 
 ///\todo how should I clean up the descendant list using progenitors?
-void CleanDescendantsUsingProgenitors(Int_t i, HaloTreeData *&pht, ProgenitorDataDescenBased **&pdescenprogen, DescendantData **&pdecen, int iopttemporalmerittype)
+void CleanDescendantsUsingProgenitors(Int_t i, HaloTreeData *&pht, ProgenitorDataDescenBased **&pdescenprogen, DescendantData **&pdescen, int iopttemporalmerittype)
 {
+    unsigned long itime;
+    unsigned long hid;
+#ifdef USEMPI
+    int itask;
+#endif
+    int itemp;
+    //parse list of descendants for objects with more than one and adjust the progenitor list
+    for (Int_t k=0;k<pht[i].numhalos;k++) if (pdescenprogen[i][k].NumberofProgenitors>1){
+        //adjust the progenitor list of all descendents affected, ie: that will have the progenitor removed from the list
+        pdescenprogen[i][k].OptimalTemporalMerit(iopttemporalmerittype);
+#ifdef USEMPI
+        //if mpi, it is possible that the best match is not a local halo
+#endif
+        for (Int_t n=1;n<pdescenprogen[i][k].NumberofProgenitors;n++) {
+            itime=pdescenprogen[i][k].halotemporalindex[n];
+            hid=pdescenprogen[i][k].haloindex[n];
+#ifdef USEMPI
+            //if mpi is invoked, it possible the progenitor that is supposed to have a descendant removed is not on this mpi task
+            itask=pdescenprogen[i][k].MPITask[n];
+            //only change progenitors of halos on this task
+            if (itask==ThisTask) {
+#endif
+            itemp=0;
+            //k+1 is halo indexing versus halo id values
+            while (pdescen[itime][hid].DescendantList[itemp]!=k+1) {itemp++;}
+            for (Int_t j=itemp;j<pdescen[itime][hid].NumberofDescendants-1;j++) {
+                pdescen[itime][hid].DescendantList[j]=pdescen[itime][hid].DescendantList[j+1];
+                pdescen[itime][hid].Merit[j]=pdescen[itime][hid].Merit[j+1];
+                pdescen[itime][hid].dtoptype[j]=pdescen[itime][hid].dtoptype[j+1];
+                if (pdescen[itime][hid].nsharedfrac!=NULL) pdescen[itime][hid].nsharedfrac[j]=pdescen[itime][hid].nsharedfrac[j+1];
+            }
+            pdescen[itime][hid].NumberofDescendants--;
+#ifdef USEMPI
+            }
+#endif
+        }
+    }
 }
 
 //@}
