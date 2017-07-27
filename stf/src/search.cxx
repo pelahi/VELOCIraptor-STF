@@ -106,7 +106,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
     GetVelocityDensity(opt, nbodies, Part,tree);
     for (i=0;i<nbodies;i++) Part[i].SetType(storetype[i]);
     delete[] storetype;
-    delete[] numingroup;
+    if (opt.fofbgtype>FOF6D) delete[] numingroup;
     }
 #endif
     delete tree;

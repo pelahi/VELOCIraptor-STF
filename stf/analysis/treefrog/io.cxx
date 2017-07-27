@@ -316,7 +316,10 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
         sprintf(fname,"%s",fname);
 #endif
         //write header information
-        if ((opt.iwriteparallel==0 && ThisTask==0) || (opt.iwriteparallel==1)) {
+#ifdef USEMPI
+        if ((opt.iwriteparallel==0 && ThisTask==0) || (opt.iwriteparallel==1))
+#endif
+        {
             Fhdf=H5File(fname,H5F_ACC_TRUNC);
             attrspace=DataSpace(H5S_SCALAR);
             attr=Fhdf.createAttribute("Number_of_snapshots", PredType::STD_U32LE, attrspace);
