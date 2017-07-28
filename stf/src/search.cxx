@@ -521,6 +521,25 @@ private(i,tid,xscaling,vscaling)
     }
     //end of extra 6dfof/phase-space search of 3D FOF envelops
 
+    //now if not search for substructure but want bound halos need to check binding
+    if (opt.iSubSearch==0 && opt.iBoundHalos==1) {
+        CheckUnboundGroups(opt,Nlocal,Part,numgroups,pfof);
+#ifdef USEMPI
+        if (ThisTask==0) cout<<ThisTask<<" After unnbinding halos"<<endl;
+        //update number of groups if extra secondary search done
+        if (opt.fofbgtype>FOF6D) {
+            cout<<"MPI thread "<<ThisTask<<" has found "<<numgroups<<endl;
+            MPI_Allgather(&numgroups, 1, MPI_Int_t, mpi_ngroups, 1, MPI_Int_t, MPI_COMM_WORLD);
+            //free up memory now that only need to store pfof and global ids
+            if (ThisTask==0) {
+                int totalgroups=0;
+                for (int j=0;j<NProcs;j++) totalgroups+=mpi_ngroups[j];
+                cout<<"Total number of groups found is "<<totalgroups<<endl;
+            }
+        }
+#endif
+    }
+
 #ifdef USEMPI
     //update number of groups if extra secondary search done
     if (opt.fofbgtype<=FOF6D) {
