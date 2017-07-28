@@ -289,6 +289,8 @@ struct Options
     Double_t particle_frac;
     ///minimum number of particles used to derive merit.
     Int_t min_numpart;
+    ///maximum number of particles used to derive merit. If -1, no maximum
+    Int_t max_numpart;
 
     ///to fix ids for nifty project
     int idcorrectflag;
@@ -342,6 +344,7 @@ struct Options
         icorematchtype=PARTLISTNOCORE;
         particle_frac=0.2;
         min_numpart=20;
+        max_numpart=-1;
 
         iverbose=1;
 #ifdef USEMPI
