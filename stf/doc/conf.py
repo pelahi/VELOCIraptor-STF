@@ -33,12 +33,17 @@ if read_the_docs_build:
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ['sphinx.ext.autodoc',
+extensions = ['breathe', 'sphinx.ext.autodoc',
     'sphinx.ext.todo',
     'sphinx.ext.coverage',
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
     'sphinx.ext.githubpages']
+
+breathe_projects = {
+    'VELOCIraptor': 'xml'
+}
+breathe_default_project = 'VELOCIraptor'
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
