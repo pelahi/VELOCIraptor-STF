@@ -22,7 +22,7 @@ import os, sys, subprocess
 # Run doxygen if we're in RTD to generate the XML documentation from C++
 read_the_docs_build = os.environ.get('READTHEDOCS', None) == 'True'
 if read_the_docs_build:
-    subprocess.call('cd ../doxygen; doxygen', shell=True)
+    subprocess.call('cd ./; doxygen', shell=True)
 
 # -- General configuration ------------------------------------------------
 
