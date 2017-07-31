@@ -654,7 +654,7 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
         //if also applying merit limit then search if does not meet merit threshold
         if (opt.imultsteplinkcrit==MSLCPRIMARYPROGEN && refdescen[i].NumberofDescendants>0) {
             if (refdescen[i].dtoptype[0]!=0) num_nodescen+=1;
-            else if (refdescen[i].Merit[0]!=opt.meritlimit) num_nodescen+=1;
+            else if (refdescen[i].Merit[0]<opt.meritlimit) num_nodescen+=1;
         }
     }
     //only allocate memory and process list if there are any haloes needing to be searched
@@ -668,7 +668,7 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
             //if also applying merit limit then search if does not meet merit threshold
             if (opt.imultsteplinkcrit==MSLCPRIMARYPROGEN && refdescen[i].NumberofDescendants>0) {
                 if (refdescen[i].dtoptype[0]!=0) needdescenlist[num_nodescen++]=i;
-                else if (refdescen[i].Merit[0]!=opt.meritlimit) needdescenlist[num_nodescen++]=i;
+                else if (refdescen[i].Merit[0]<opt.meritlimit) needdescenlist[num_nodescen++]=i;
             }
         }
 
