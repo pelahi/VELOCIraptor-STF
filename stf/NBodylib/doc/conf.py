@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
-# VELOCIraptor documentation build configuration file, created by
-# sphinx-quickstart on Mon Jul 31 10:13:40 2017.
+# libNBody documentation build configuration file, created by
+# sphinx-quickstart on Mon Jul 31 11:20:59 2017.
 #
 # This file is execfile()d with the current directory set to its
 # containing dir.
@@ -16,9 +16,11 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-import os, sys, subprocess
+# import os
+# import sys
 # sys.path.insert(0, os.path.abspath('.'))
 
+import os, sys, subprocess
 # Run doxygen if we're in RTD to generate the XML documentation from C++
 read_the_docs_build = os.environ.get('READTHEDOCS', None) == 'True'
 if read_the_docs_build:
@@ -34,16 +36,16 @@ if read_the_docs_build:
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = ['breathe', 'sphinx.ext.autodoc',
+    'sphinx.ext.doctest',
+    'sphinx.ext.intersphinx',
     'sphinx.ext.todo',
     'sphinx.ext.coverage',
     'sphinx.ext.mathjax',
-    'sphinx.ext.viewcode',
-    'sphinx.ext.githubpages']
-
+    'sphinx.ext.viewcode']
 breathe_projects = {
-    'VELOCIraptor': 'xml'
+    'libNBody': 'xml'
 }
-breathe_default_project = 'VELOCIraptor'
+breathe_default_project = 'libNBody'
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -58,9 +60,9 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'VELOCIraptor'
-copyright = u'2017, Pascal Jahan Elahi, Rhys Poulton, Rodrigo Canas'
-author = u'Pascal Jahan Elahi, Rhys Poulton, Rodrigo Canas'
+project = u'libNBody'
+copyright = u'2017, Pascal Jahan Elahi'
+author = u'Pascal Jahan Elahi'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -112,7 +114,7 @@ html_static_path = ['_static']
 # -- Options for HTMLHelp output ------------------------------------------
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'VELOCIraptordoc'
+htmlhelp_basename = 'libNBodydoc'
 
 
 # -- Options for LaTeX output ---------------------------------------------
@@ -139,8 +141,8 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'VELOCIraptor.tex', u'VELOCIraptor Documentation',
-     u'Pascal Jahan Elahi, Rhys Poulton, Rodrigo Canas', 'manual'),
+    (master_doc, 'libNBody.tex', u'libNBody Documentation',
+     u'Pascal Jahan Elahi', 'manual'),
 ]
 
 
@@ -149,7 +151,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'velociraptor', u'VELOCIraptor Documentation',
+    (master_doc, 'libnbody', u'libNBody Documentation',
      [author], 1)
 ]
 
@@ -160,7 +162,13 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'VELOCIraptor', u'VELOCIraptor Documentation',
-     author, 'VELOCIraptor', 'One line description of project.',
+    (master_doc, 'libNBody', u'libNBody Documentation',
+     author, 'libNBody', 'One line description of project.',
      'Miscellaneous'),
 ]
+
+
+
+
+# Example configuration for intersphinx: refer to the Python standard library.
+intersphinx_mapping = {'https://docs.python.org/': None}
