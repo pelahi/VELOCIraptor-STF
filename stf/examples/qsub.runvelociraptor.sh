@@ -33,17 +33,17 @@ mkdir ${outputdir}
 
 for ((i=$isnap;i<=$fsnap;i++))
 do
-	ii=`printf %03d $i`
-	file=${snapbasename}_${ii};
-	velconfig=${outputdir}/velociraptor.${ii}.config
-	cp ${velociraptorbaseconfig} ${velconfig}
-	sed -i 's/SNVALUE/'"$i"'/g' ${velconfig}
-	qsubconfig=${outputdir}/qsub.velociraptor.${ii}.sh
+    ii=`printf %03d $i`
+    file=${snapbasename}_${ii};
+    velconfig=${outputdir}/velociraptor.${ii}.config
+    cp ${velociraptorbaseconfig} ${velconfig}
+    sed -i 's/SNVALUE/'"$i"'/g' ${velconfig}
+    qsubconfig=${outputdir}/qsub.velociraptor.${ii}.sh
     cp ${qsubbaseconfig} ${qsubconfig}
-	sed -i 's/JOBNAME/vel-'"${ii}"'/g' ${qsubconfig}
-	echo "cd ${outputdir}" >> ${qsubconfig}
+    sed -i 's/JOBNAME/vel-'"${ii}"'/g' ${qsubconfig}
+    echo "cd ${outputdir}" >> ${qsubconfig}
     #add the command to run to the qsub script
     echo "mpirun -np ${nmpi} ${velociraptor} -i ${inputdir}/${file} -s ${numfiles} -C ${velconfig} -o ${outputdir}/${file}.VELOCIraptor > ${outputdir}/${file}.VELOCIraptor.log" >> ${qsubconfig}
-	qsub ${qsubconfig}
+    qsub ${qsubconfig}
 done
 

@@ -34,7 +34,7 @@ namespace Math
         must be done. The resulting distribution of parameters can then be fit itself using a function if necessary.
     */
     Double_t FitNonLinLS(const math_function fitfunc, const math_function *difffuncs, const int nparams, Double_t *params, GMatrix &covar,
-                         const int npoints, const Double_t x[], const Double_t y[], GMatrix *Weight=NULL, Double_t error=1e-3, Double_t cl=0.95, int *fixparam=NULL, int binned=1, int maxiterations=1000);
+                         const int npoints, const Double_t x[], const Double_t y[], GMatrix *Weight=NULL, Double_t error=1e-3, Double_t cl=0.95, int *fixparam=NULL, int binned=1, int maxiterations=1000, int iestimateerror=0);
 
 
     /*! \brief Given n points of data, determine optimal bin size and return binned data and bin centers. 

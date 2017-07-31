@@ -13,13 +13,15 @@
 #include <Precision.h>
 #include <Coordinate.h>
 #include <Matrix.h>
+#include <gsl/gsl_blas.h>
+#include <gsl/gsl_linalg.h>
 
 using namespace std;
 namespace Math
 {
 
-/*! \class Math::GMatrix 
-    \brief General n x m matrix 
+/*! \class Math::GMatrix
+    \brief General n x m matrix
     General matrix class that eventually should replace \ref Math::Matrix class.
     will have to adjust error checks for this class and adjust inverse
     and make most calls inline to increase speed.
@@ -110,7 +112,7 @@ class GMatrix
         if (row>0&&col>0) delete[] matrix;
     }
     //@}
-    
+
     /// \name Get & Set functions
     //@{
     ///get row dimensions
@@ -120,11 +122,11 @@ class GMatrix
     ///get rank
     int Rank()const {return min(row,col);}
     //@}
-    
+
     /// \name Overloaded Operators
     //@{
     /// How to access a matrix element: M(i, j)
-    Double_t& operator () (int i, int j) { 
+    Double_t& operator () (int i, int j) {
         //if (j<col&&i<row)
         return matrix[j + col * i];
         //else {printf("Error, (i,j)=(%d, %d) exceed matrix dimesions of %d %d \n", i,j,row,col); return 0;}
@@ -135,7 +137,7 @@ class GMatrix
         return matrix[j + col * i];
         //else {printf("Error, (i,j)=(%d, %d) exceed matrix dimesions of %d %d \n", i,j,row,col); return 0;}
     }
- 
+
     /// Matrix addition
     GMatrix operator + (const GMatrix& m)
     {
@@ -168,7 +170,7 @@ class GMatrix
         }
     }
 
-    /// Multiply by a scalar: a * M   
+    /// Multiply by a scalar: a * M
     friend GMatrix operator * (Double_t a, const GMatrix& m);
 
     /// Multiply by a scalar: M * a
@@ -213,10 +215,10 @@ class GMatrix
         return *this;
     }
     //@}
-    
+
     /// \name Mathematical Operations
     //@{
-    
+
     /// Trace the matrix.
     Double_t Trace() const
     {
@@ -226,7 +228,7 @@ class GMatrix
     }
 
     /// return the Transpose of the matrix.
-    GMatrix Transpose() const 
+    GMatrix Transpose() const
     {
         Double_t data[col*row];
         for (int i = 0; i < col; i++)
@@ -255,7 +257,7 @@ class GMatrix
         return D;
     }
     /// Return Pivot matrix P of A, where P*A=B, such that B(i,i)!=0
-    GMatrix Pivot() const 
+    GMatrix Pivot() const
     {
         Double_t a[row*col];
         GMatrix P(row,col);
@@ -310,7 +312,7 @@ class GMatrix
     }
 
     /// return a SubMatrix of the matrix from row ra to  row rb and col ca to cb
-    GMatrix SubMatrix(int ra, int rb, int ca, int cb) const 
+    GMatrix SubMatrix(int ra, int rb, int ca, int cb) const
     {
         int r=(rb-ra+1), c=(cb-ca+1);
         Double_t data[r*c];
@@ -321,7 +323,7 @@ class GMatrix
     }
 
     /// return a submatrix ignore column r, c
-    GMatrix ExtractMatrix(int r, int c) const 
+    GMatrix ExtractMatrix(int r, int c) const
     {
         Double_t data[(row-1)*(col-1)];
         int tempi=0;
@@ -332,7 +334,7 @@ class GMatrix
     }
 
     /// Check if matrix square symmetric
-    int isSymmetric() const 
+    int isSymmetric() const
     {
         if (row!=col) return 0;
         for (int i=0;i<row;i++)
@@ -379,9 +381,9 @@ class GMatrix
     }
 
     /*! \brief Lower-Upper decompistion
-    
-        LU decomposition of matrix stored in such a fashion that 
-        matrix return is (for 3x3): 
+
+        LU decomposition of matrix stored in such a fashion that
+        matrix return is (for 3x3):
         \f[
         \left(\begin{array}{ccc}
             L11 & U12 &U13\\
@@ -390,19 +392,19 @@ class GMatrix
         \end{array}\right)
         \f]
         L is lower triangular matrix, U is upper unit triangular matrix. \n
-        Crout's algorithm is used to determine the L and U matrices. System of equations to solve are : \n 
-        \f[ 
+        Crout's algorithm is used to determine the L and U matrices. System of equations to solve are : \n
+        \f[
         \begin{array}{lcl}
             i<j : & l_{i1}*u_{1j}+l_{i2}*u_{2j}+...+l_{ii}*u_{ij}&=a_{ij} \\
             i=j : & l_{i1}*u_{1j}+l_{i2}*u_{2j}+...+l_{ii}*u_{jj}&=a_{ij} \\
-            i>j : & l_{i1}*u_{1j}+l_{i2}*u_{2j}+...+l_{ij}*u_{ij}&=a_{ij} 
+            i>j : & l_{i1}*u_{1j}+l_{i2}*u_{2j}+...+l_{ij}*u_{ij}&=a_{ij}
             \end{array}
         \f]
-        with condition that \f$ l_{ii}=1 \f$. \n 
-        If matrix singular and no decomposition, print error and return zero matrix. 
-        Here matrix is singular if diagonal element is zero. \n  
+        with condition that \f$ l_{ii}=1 \f$. \n
+        If matrix singular and no decomposition, print error and return zero matrix.
+        Here matrix is singular if diagonal element is zero. \n
         Must alter this to pivot method so that subroutine reorder matrix if necessary and diagonals
-        can be zero. 
+        can be zero.
     */
     GMatrix LUDecomp() const
     {
@@ -429,34 +431,16 @@ class GMatrix
                     A[p_k + j] /= A[p_k + k];
                 }
             }
-        //old pointer code
-/*        Double_t *p_k, *p_row, *p_col;
-        for (j=0;j<row;j++) for (k=0;k<col;k++) A[j*col+k]=matrix[j*col+k];
-        for (k = 0, p_k = A; k < row; p_k += row, k++) {
-            for (i = k, p_row = p_k; i < row; p_row += row, i++) {
-                for (p = 0, p_col = A; p < k; p_col += row, p++)
-                    *(p_row + k) -= *(p_row + p) * *(p_col + k);
-            }
-            if ( *(p_k + k) == 0.0 ) {
-                printf("Singular matrix, returning zero matrix\n");
-                return GMatrix(row,col);
-            }
-            for (j = k+1; j < row; j++) {
-                for (p = 0, p_col = A; p < k; p_col += row,  p++)
-                    *(p_k + j) -= *(p_k + p) * *(p_col + j);
-                *(p_k + j) /= *(p_k + k);
-            }
-        }*/
             return GMatrix(row,col,A);
         }
     }
-    /*! \brief Calculate the Inverse of the lower triangular matrix 
-    
-        This routine calculates the inverse of the lower triangular matrix L.  
+    /*! \brief Calculate the Inverse of the lower triangular matrix
+
+        This routine calculates the inverse of the lower triangular matrix L.
         The superdiagonal part of the matrix is not addressed.
-        The algorithm follows: \n 
-        Let M be the inverse of L, then \f$ L M = I \f$, \n 
-        \f$ M[i][i] = 1.0 / L[i][i] \f$ for i = 0, ..., row-1, and \n 
+        The algorithm follows: \n
+        Let M be the inverse of L, then \f$ L M = I \f$, \n
+        \f$ M[i][i] = 1.0 / L[i][i] \f$ for i = 0, ..., row-1, and \n
         \f$ M[i][j] = -[(L[i][j] M[j][j] + ... + L[i][i-1] M[i-1][j])] / L[i][i], \f$
         for i = 1, ..., row-1, j = 0, ..., i - 1.
     */
@@ -483,12 +467,12 @@ class GMatrix
         }
         return GMatrix(row,row,L);
     }
-    /*! \brief Calculate the Inverse of the lower triangular matrix 
-    
+    /*! \brief Calculate the Inverse of the lower triangular matrix
+
         This routine calculates the inverse of the unit upper triangular matrix U.
         The subdiagonal part of the matrix is not addressed.
-        The diagonal is assumed to consist of 1's and is not addressed. 
-        The algorithm follows: \n 
+        The diagonal is assumed to consist of 1's and is not addressed.
+        The algorithm follows: \n
         Let M be the inverse of U, then \f$ U M = I \f$, \n
         \f$ M[i][j] = -( U[i][i+1] M[i+1][j] + ... + U[i][j] M[j][j] ), \f$
         for i = row-2, ... , 0,  j = row-1, ..., i+1.
@@ -505,7 +489,7 @@ class GMatrix
         for (i = row - 2, p_i = 0 + row * (row - 2); i >=0; p_i -= row, i-- ) {
             for (j = row - 1; j > i; j--) {
                 U[p_i + j] = -U[p_i + j];
-                for (k = i + 1, p_k = p_i + row; k < j; p_k += row, k++ ) 
+                for (k = i + 1, p_k = p_i + row; k < j; p_k += row, k++ )
                     U[p_i + j] -= U[p_i + k] * U[p_k + j];
             }
         }
@@ -541,7 +525,7 @@ class GMatrix
         }
     }
 
-    /// Inverse of matrix using a pivot (needed in case diagonals are zero) 
+    /// Inverse of matrix using a pivot (needed in case diagonals are zero)
     GMatrix InversewithPivot() const
     {
         if (row!=col) {
@@ -600,7 +584,7 @@ class GMatrix
                         m(ip,iq)=0.0;
                     else if (thres<temp1*5.0) {
                         temp2=eigen[iq]-eigen[ip];
-                        //find the solution to t^2+2*t*theta-1=0 
+                        //find the solution to t^2+2*t*theta-1=0
                         //where theta=(cos^2-sin^2)/(2*s*c)=(m(iq,iq)-m(ip,ip))/(2*m(ip,iq))
                         //note that nr has ad hoc check if theta^2 would overflow the computer
                         /*if ((sqrt(temp2*temp2)+temp1) == sqrt(temp2*temp2)) t=(m(ip,iq))/temp2;
@@ -676,7 +660,7 @@ class GMatrix
                         m(ip,iq)=0.0;
                     else if (thres<temp1*5.0) {
                         temp2=eigen[iq]-eigen[ip];
-                        //find the solution to t^2+2*t*theta-1=0 
+                        //find the solution to t^2+2*t*theta-1=0
                         //where theta=(cos^2-sin^2)/(2*s*c)=(m(iq,iq)-m(ip,ip))/(2*m(ip,iq))
                         //note that nr has ad hoc check if theta^2 would overflow the computer
                         /*if ((sqrt(temp2*temp2)+temp1) == sqrt(temp2*temp2)) t=(m(ip,iq))/temp2;
@@ -726,7 +710,7 @@ class GMatrix
     }
 
     /*! \brief Calculate eigenvalues of matrix of rank N. Stored as a GMatrix, e1, e2 ...eN.
-    
+
         The user must know what to expect from this function, whether real eigenvalues
         or complex ones.
         Have to implement the Francis QR algorithm or use successive Jacobi transformations
@@ -753,7 +737,7 @@ class GMatrix
     // properly on symmetric matrices -- i.e., all real eigenvalues.
     //GMatrix Eigenvectors(const Coordinate& e) const;
 
-    /// Calculate eigenvalues \e and eigenvector of matrix of rank N. Stored as a GMatrix, e1, e2 ...eN.  
+    /// Calculate eigenvalues \e and eigenvector of matrix of rank N. Stored as a GMatrix, e1, e2 ...eN.
     void Eigenvalvec(GMatrix &eigenval, GMatrix &eigenvector, Double_t tol=1e-2) const
     {
         if (isSymmetric()==0||isZero()==1) {

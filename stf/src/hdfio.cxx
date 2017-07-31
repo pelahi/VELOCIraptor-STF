@@ -65,8 +65,8 @@ extern "C" herr_t file_info(hid_t loc_id, const char *name, const H5L_info_t *li
     return 0;
 }
 
-///reads an hdf5 formatted file. 
-void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbaryons, Int_t nbaryons) 
+///reads an hdf5 formatted file.
+void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbaryons, Int_t nbaryons)
 {
     //structure stores the names of the groups in the hdf input
     char buf[2000];
@@ -96,20 +96,21 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
     DataSet *partsdataset;
     DataSpace *partsdataspace;
     DataSpace chunkspace;
+    int chunksize=opt.inputbufsize;
     //buffers to load data
-    int *intbuff=new int[HDFCHUNKSIZE];
-    long long *longbuff=new long long[HDFCHUNKSIZE];
-    float *floatbuff=new float[HDFCHUNKSIZE*3];
-    double *doublebuff=new double[HDFCHUNKSIZE*3];
+    int *intbuff=new int[chunksize];
+    long long *longbuff=new long long[chunksize];
+    float *floatbuff=new float[chunksize*3];
+    double *doublebuff=new double[chunksize*3];
     void *integerbuff,*realbuff;
     //arrays to store number of items to read and offsets when selecting hyperslabs
     hsize_t filespacecount[HDFMAXPROPDIM],filespaceoffset[HDFMAXPROPDIM];
-    //to determine types 
+    //to determine types
     IntType inttype;
     FloatType floattype;
     PredType HDFREALTYPE(PredType::NATIVE_FLOAT);
     PredType HDFINTEGERTYPE(PredType::NATIVE_LONG);
-    int ifloat,iint;
+    int ifloat,ifloat_pos, iint;
     int datarank;
     hsize_t datadim[5];
 
@@ -117,11 +118,24 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
     ///Since Illustris contains an unused type of particles (2) and tracer particles (3) really not useful to iterate over all particle types in loops
     int nusetypes,nbusetypes;
     int usetypes[NHDFTYPE];
-    if (opt.partsearchtype==PSTALL) {nusetypes=4;usetypes[0]=0;usetypes[1]=1;usetypes[2]=4;usetypes[3]=5;}
-    else if (opt.partsearchtype==PSTDARK) {nusetypes=1;usetypes[0]=1;if (opt.iBaryonSearch) {nbusetypes=3;usetypes[1]=0;usetypes[2]=4;usetypes[3]=5;}}
-    else if (opt.partsearchtype==PSTGAS) {nusetypes=1;usetypes[0]=0;}
-    else if (opt.partsearchtype==PSTSTAR) {nusetypes=1;usetypes[0]=4;}
-    else if (opt.partsearchtype==PSTBH) {nusetypes=1;usetypes[0]=5;}
+    if (opt.partsearchtype==PSTALL) {
+        //lets assume there are dm/stars/gas.
+        nusetypes=3;
+        usetypes[0]=HDFGASTYPE;usetypes[1]=HDFDMTYPE;usetypes[2]=HDFSTARTYPE;
+        //now if also blackholes/sink particles increase number of types
+        if (opt.iusesinkparticles) usetypes[nusetypes++]=HDFBHTYPE;
+        if (opt.iusewindparticles) usetypes[nusetypes++]=HDFWINDTYPE;
+    }
+    else if (opt.partsearchtype==PSTDARK) {
+        nusetypes=1;usetypes[0]=HDFDMTYPE;
+        if (opt.iBaryonSearch) {
+            nbusetypes=2;usetypes[1]=HDFGASTYPE;usetypes[2]=HDFSTARTYPE;
+            if (opt.iusesinkparticles) usetypes[1+nbusetypes++]=HDFBHTYPE;
+        }
+    }
+    else if (opt.partsearchtype==PSTGAS) {nusetypes=1;usetypes[0]=HDFGASTYPE;}
+    else if (opt.partsearchtype==PSTSTAR) {nusetypes=1;usetypes[0]=HDFSTARTYPE;}
+    else if (opt.partsearchtype==PSTBH) {nusetypes=1;usetypes[0]=HDFBHTYPE;}
 
     Int_t i,j,k,n,nchunk,count,bcount,itemp,count2,bcount2;
 
@@ -131,11 +145,20 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
     Double_t mscale,lscale,lvscale;
     Double_t MP_DM=MAXVALUE,LN,N_DM,MP_B=0;
     int ifirstfile=0,*ireadfile,ireaderror=0;
+    int *ireadtask,*readtaskID;
+
+#ifdef USEMPI
+    if (ThisTask == 0)
+#endif
+    opt.num_files = HDF_get_nfiles (opt.fname, opt.partsearchtype);
+
 #ifndef USEMPI
     Int_t Ntotal;
     int ThisTask=0,NProcs=1;
     ireadfile=new int[opt.num_files];
     for (i=0;i<opt.num_files;i++) ireadfile[i]=1;
+#else
+    MPI_Bcast(&(opt.num_files), sizeof(opt.num_files), MPI_BYTE, 0, MPI_COMM_WORLD);
 #endif
 
     //if verbose spit out the types of particles that are going to be searched for
@@ -159,6 +182,7 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
     int mpi_ireaderror;
 
     //for parallel io
+    Int_t BufSize=opt.mpiparticlebufsize;
     Int_t Nlocalbuf,ibuf=0,*Nbuf, *Nreadbuf,*nreadoffset;
     Int_t *Nlocalthreadbuf,Nlocaltotalbuf;
     int *irecv, sendTask,recvTask,irecvflag, *mpi_irecvflag;
@@ -171,38 +195,44 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
     DataSpace *chunkspaceall;
 
     //extra blocks to store info
-    float *velfloatbuff=new float[HDFCHUNKSIZE*3];
-    double *veldoublebuff=new double[HDFCHUNKSIZE*3];
-    float *massfloatbuff=new float[HDFCHUNKSIZE];
-    double *massdoublebuff=new double[HDFCHUNKSIZE];
-    float *ufloatbuff=new float[HDFCHUNKSIZE];
-    double *udoublebuff=new double[HDFCHUNKSIZE];
-    float *Zfloatbuff=new float[HDFCHUNKSIZE];
-    double *Zdoublebuff=new double[HDFCHUNKSIZE];
-    float *SFRfloatbuff=new float[HDFCHUNKSIZE];
-    double *SFRdoublebuff=new double[HDFCHUNKSIZE];
-    float *Tagefloatbuff=new float[HDFCHUNKSIZE];
-    double *Tagedoublebuff=new double[HDFCHUNKSIZE];
+    float *velfloatbuff=new float[chunksize*3];
+    double *veldoublebuff=new double[chunksize*3];
+    float *massfloatbuff=new float[chunksize];
+    double *massdoublebuff=new double[chunksize];
+#ifdef GASON
+    float *ufloatbuff=new float[chunksize];
+    double *udoublebuff=new double[chunksize];
+#endif
+#if defined(GASON)&&defined(STARON)
+    float *Zfloatbuff=new float[chunksize];
+    double *Zdoublebuff=new double[chunksize];
+    float *SFRfloatbuff=new float[chunksize];
+    double *SFRdoublebuff=new double[chunksize];
+#endif
+#ifdef STARON
+    float *Tagefloatbuff=new float[chunksize];
+    double *Tagedoublebuff=new double[chunksize];
+#endif
+    Pbuf = NULL; /* Keep Pbuf NULL or allocated so we can check its status later */
 
     Nbuf=new Int_t[NProcs];
     for (int j=0;j<NProcs;j++) Nbuf[j]=0;
     nreadoffset=new Int_t[opt.nsnapread];
+    ireadtask=new int[NProcs];
+    readtaskID=new int[opt.nsnapread];
+    MPIDistributeReadTasks(opt,ireadtask,readtaskID);
+
     if (ThisTask==0) cout<<"There are "<<opt.nsnapread<<" threads reading "<<opt.num_files<<" files "<<endl;
-    if (ThisTask<opt.nsnapread)
+    if (ireadtask[ThisTask]>=0)
     {
         //to temporarily store data from gadget file
         Pbuf=new Particle[BufSize*NProcs];
         Nreadbuf=new Int_t[opt.num_files];
-    	for (int j=0;j<opt.num_files;j++) Nreadbuf[j]=0;
+        for (int j=0;j<opt.num_files;j++) Nreadbuf[j]=0;
 
         //to determine which files the thread should read
         ireadfile=new int[opt.num_files];
-        for (i=0;i<opt.num_files;i++) ireadfile[i]=0;
-        int nread=opt.num_files/opt.nsnapread;
-        int niread=ThisTask*nread,nfread=(ThisTask+1)*nread;
-        if (ThisTask==opt.nsnapread-1) nfread=opt.num_files;
-        for (i=niread;i<nfread;i++) ireadfile[i]=1;
-        ifirstfile=niread;
+        ifirstfile=MPISetFilesRead(opt,ireadfile,ireadtask);
     }
     else {
         Nlocalthreadbuf=new Int_t[opt.nsnapread];
@@ -214,17 +244,9 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
     Nlocal=0;
     if (opt.iBaryonSearch) Nlocalbaryon[0]=0;
 
-#ifndef MPIREDUCEMEM
-    MPIDomainExtentHDF(opt);
-    if (NProcs>1) {
-    MPIDomainDecompositionHDF(opt);
-    MPIInitialDomainDecomposition();
-    }
-    MPI_Barrier(MPI_COMM_WORLD);
+    if (ireadtask[ThisTask]>=0) {
 #endif
-    if (ThisTask<opt.nsnapread) {
-#endif
-    //read the header 
+    //read the header
     Fhdf=new H5File[opt.num_files];
     hdf_header_info=new HDF_Header[opt.num_files];
     headergroup=new Group[opt.num_files];
@@ -240,7 +262,7 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
     for(i=0; i<opt.num_files; i++) {
     if(ireadfile[i])
     {
-        if(opt.num_files>1) sprintf(buf,"%s.%d.hdf5",opt.fname,i);
+        if(opt.num_files>1) sprintf(buf,"%s.%d.hdf5",opt.fname,(int)i);
         else sprintf(buf,"%s.hdf5",opt.fname);
         //Try block to detect exceptions raised by any of the calls inside it
         try
@@ -439,7 +461,7 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
     Hubble=opt.h*opt.H*sqrt((1-opt.Omega_m-opt.Omega_Lambda)*pow(aadjust,-2.0)+opt.Omega_m*pow(aadjust,-3.0)+opt.Omega_Lambda);
     opt.rhobg=3.*Hubble*Hubble/(8.0*M_PI*opt.G)*opt.Omega_m;
     //if opt.virlevel<0, then use virial overdensity based on Bryan and Norman 1998 virialization level is given by
-    if (opt.virlevel<0) 
+    if (opt.virlevel<0)
     {
         Double_t bnx=-((1-opt.Omega_m-opt.Omega_Lambda)*pow(aadjust,-2.0)+opt.Omega_Lambda)/((1-opt.Omega_m-opt.Omega_Lambda)*pow(aadjust,-2.0)+opt.Omega_m*pow(aadjust,-3.0)+opt.Omega_Lambda);
         opt.virlevel=(18.0*M_PI*M_PI+82.0*bnx-39*bnx*bnx)/opt.Omega_m;
@@ -492,9 +514,9 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
         cout<<ThisTask<<" is reading file "<<i<<endl;
         ///\todo should be more rigorous with try/catch stuff
 
-        //open particle group structures 
+        //open particle group structures
         for (j=0;j<nusetypes;j++) {
-            k=usetypes[j]; 
+            k=usetypes[j];
             if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<endl;
             partsgroup[i*NHDFTYPE+k]=Fhdf[i].openGroup(hdf_gnames.part_names[k]);
         }
@@ -506,7 +528,7 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
         itemp=0;
         //get positions
         for (j=0;j<nusetypes;j++) {
-            k=usetypes[j]; 
+            k=usetypes[j];
             if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<hdf_parts[k]->names[itemp]<<endl;
             partsdataset[i*NHDFTYPE+k]=partsgroup[i*NHDFTYPE+k].openDataSet(hdf_parts[k]->names[itemp]);
             partsdataspace[i*NHDFTYPE+k]=partsdataset[i*NHDFTYPE+k].getSpace();
@@ -514,7 +536,7 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
             floattype=partsdataset[i*NHDFTYPE+k].getFloatType();
         }
         if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) for (j=1;j<=nbusetypes;j++) {
-            k=usetypes[j]; 
+            k=usetypes[j];
             partsdataset[i*NHDFTYPE+k]=partsgroup[i*NHDFTYPE+k].openDataSet(hdf_parts[k]->names[itemp]);
             partsdataspace[i*NHDFTYPE+k]=partsdataset[i*NHDFTYPE+k].getSpace();
         }
@@ -525,11 +547,11 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
         for (j=0;j<nusetypes;j++) {
             k=usetypes[j];
             //data loaded into memory in chunks
-            if (hdf_header_info[i].npart[k]<HDFCHUNKSIZE)nchunk=hdf_header_info[i].npart[k];
-            else nchunk=HDFCHUNKSIZE;
+            if (hdf_header_info[i].npart[k]<chunksize)nchunk=hdf_header_info[i].npart[k];
+            else nchunk=chunksize;
             for(n=0;n<hdf_header_info[i].npart[k];n+=nchunk)
             {
-                if (hdf_header_info[i].npart[k]-n<HDFCHUNKSIZE&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
+                if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
                 //setup hyperslab so that it is loaded into the buffer
                 datarank=1;
                 datadim[0]=nchunk*3;
@@ -547,11 +569,11 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
         for (j=1;j<=nbusetypes;j++) {
             k=usetypes[j];
             //data loaded into memory in chunks
-            if (hdf_header_info[i].npart[k]<HDFCHUNKSIZE)nchunk=hdf_header_info[i].npart[k];
-            else nchunk=HDFCHUNKSIZE;
+            if (hdf_header_info[i].npart[k]<chunksize)nchunk=hdf_header_info[i].npart[k];
+            else nchunk=chunksize;
             for(n=0;n<hdf_header_info[i].npart[k];n+=nchunk)
             {
-                if (hdf_header_info[i].npart[k]-n<HDFCHUNKSIZE&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
+                if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
                 //setup hyperslab so that it is loaded into the buffer
                 datarank=1;
                 datadim[0]=nchunk*3;
@@ -569,7 +591,7 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
         //get velocities
         itemp++;
         for (j=0;j<nusetypes;j++) {
-            k=usetypes[j]; 
+            k=usetypes[j];
             if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<hdf_parts[k]->names[itemp]<<endl;
             partsdataset[i*NHDFTYPE+k]=partsgroup[i*NHDFTYPE+k].openDataSet(hdf_parts[k]->names[itemp]);
             partsdataspace[i*NHDFTYPE+k]=partsdataset[i*NHDFTYPE+k].getSpace();
@@ -577,7 +599,7 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
             floattype=partsdataset[i*NHDFTYPE+k].getFloatType();
         }
         if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) for (j=1;j<=nbusetypes;j++) {
-            k=usetypes[j]; 
+            k=usetypes[j];
             partsdataset[i*NHDFTYPE+k]=partsgroup[i*NHDFTYPE+k].openDataSet(hdf_parts[k]->names[itemp]);
             partsdataspace[i*NHDFTYPE+k]=partsdataset[i*NHDFTYPE+k].getSpace();
         }
@@ -588,11 +610,11 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
         for (j=0;j<nusetypes;j++) {
             k=usetypes[j];
             //data loaded into memory in chunks
-            if (hdf_header_info[i].npart[k]<HDFCHUNKSIZE)nchunk=hdf_header_info[i].npart[k];
-            else nchunk=HDFCHUNKSIZE;
+            if (hdf_header_info[i].npart[k]<chunksize)nchunk=hdf_header_info[i].npart[k];
+            else nchunk=chunksize;
             for(n=0;n<hdf_header_info[i].npart[k];n+=nchunk)
             {
-                if (hdf_header_info[i].npart[k]-n<HDFCHUNKSIZE&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
+                if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
                 //setup hyperslab so that it is loaded into the buffer
                 datarank=1;
                 datadim[0]=nchunk*3;
@@ -610,11 +632,11 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
         for (j=1;j<=nbusetypes;j++) {
             k=usetypes[j];
             //data loaded into memory in chunks
-            if (hdf_header_info[i].npart[k]<HDFCHUNKSIZE)nchunk=hdf_header_info[i].npart[k];
-            else nchunk=HDFCHUNKSIZE;
+            if (hdf_header_info[i].npart[k]<chunksize)nchunk=hdf_header_info[i].npart[k];
+            else nchunk=chunksize;
             for(n=0;n<hdf_header_info[i].npart[k];n+=nchunk)
             {
-                if (hdf_header_info[i].npart[k]-n<HDFCHUNKSIZE&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
+                if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
                 //setup hyperslab so that it is loaded into the buffer
                 datarank=1;
                 datadim[0]=nchunk*3;
@@ -632,7 +654,7 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
         //get ids
         itemp++;
         for (j=0;j<nusetypes;j++) {
-            k=usetypes[j]; 
+            k=usetypes[j];
             if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<hdf_parts[k]->names[itemp]<<endl;
             partsdataset[i*NHDFTYPE+k]=partsgroup[i*NHDFTYPE+k].openDataSet(hdf_parts[k]->names[itemp]);
             partsdataspace[i*NHDFTYPE+k]=partsdataset[i*NHDFTYPE+k].getSpace();
@@ -640,7 +662,7 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
             inttype=partsdataset[i*NHDFTYPE+k].getIntType();
         }
         if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) for (j=1;j<=nbusetypes;j++) {
-            k=usetypes[j]; 
+            k=usetypes[j];
             partsdataset[i*NHDFTYPE+k]=partsgroup[i*NHDFTYPE+k].openDataSet(hdf_parts[k]->names[itemp]);
             partsdataspace[i*NHDFTYPE+k]=partsdataset[i*NHDFTYPE+k].getSpace();
         }
@@ -651,11 +673,11 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
         for (j=0;j<nusetypes;j++) {
             k=usetypes[j];
             //data loaded into memory in chunks
-            if (hdf_header_info[i].npart[k]<HDFCHUNKSIZE)nchunk=hdf_header_info[i].npart[k];
-            else nchunk=HDFCHUNKSIZE;
+            if (hdf_header_info[i].npart[k]<chunksize)nchunk=hdf_header_info[i].npart[k];
+            else nchunk=chunksize;
             for(n=0;n<hdf_header_info[i].npart[k];n+=nchunk)
             {
-                if (hdf_header_info[i].npart[k]-n<HDFCHUNKSIZE&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
+                if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
                 //setup hyperslab so that it is loaded into the buffer
                 datarank=1;
                 datadim[0]=nchunk;
@@ -681,11 +703,11 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
         for (j=1;j<=nbusetypes;j++) {
             k=usetypes[j];
             //data loaded into memory in chunks
-            if (hdf_header_info[i].npart[k]<HDFCHUNKSIZE)nchunk=hdf_header_info[i].npart[k];
-            else nchunk=HDFCHUNKSIZE;
+            if (hdf_header_info[i].npart[k]<chunksize)nchunk=hdf_header_info[i].npart[k];
+            else nchunk=chunksize;
             for(n=0;n<hdf_header_info[i].npart[k];n+=nchunk)
             {
-                if (hdf_header_info[i].npart[k]-n<HDFCHUNKSIZE&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
+                if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
                 datarank=1;
                 datadim[0]=nchunk;
                 chunkspace=DataSpace(datarank,datadim);
@@ -710,7 +732,7 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
         //get masses, note that DM do not contain a mass field
         itemp++;
         for (j=0;j<nusetypes;j++) {
-            k=usetypes[j]; 
+            k=usetypes[j];
             if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<hdf_parts[k]->names[itemp]<<endl;
             if (hdf_header_info[i].mass[k]==0){
                 partsdataset[i*NHDFTYPE+k]=partsgroup[i*NHDFTYPE+k].openDataSet(hdf_parts[k]->names[itemp]);
@@ -719,7 +741,7 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
             }
         }
         if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) for (j=1;j<=nbusetypes;j++) {
-            k=usetypes[j]; 
+            k=usetypes[j];
             if (hdf_header_info[i].mass[k]==0){
             partsdataset[i*NHDFTYPE+k]=partsgroup[i*NHDFTYPE+k].openDataSet(hdf_parts[k]->names[itemp]);
             partsdataspace[i*NHDFTYPE+k]=partsdataset[i*NHDFTYPE+k].getSpace();
@@ -731,14 +753,14 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
         count=count2;
         bcount=bcount2;
         for (j=0;j<nusetypes;j++) {
-            k=usetypes[j]; 
+            k=usetypes[j];
             if (hdf_header_info[i].mass[k]==0) {
             //data loaded into memory in chunks
-            if (hdf_header_info[i].npart[k]<HDFCHUNKSIZE)nchunk=hdf_header_info[i].npart[k];
-            else nchunk=HDFCHUNKSIZE;
+            if (hdf_header_info[i].npart[k]<chunksize)nchunk=hdf_header_info[i].npart[k];
+            else nchunk=chunksize;
             for(n=0;n<hdf_header_info[i].npart[k];n+=nchunk)
             {
-                if (hdf_header_info[i].npart[k]-n<HDFCHUNKSIZE&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
+                if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
                 //setup hyperslab so that it is loaded into the buffer
                 datarank=1;
                 datadim[0]=nchunk;
@@ -758,14 +780,14 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
         }
         if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) {
         for (j=1;j<=nbusetypes;j++) {
-            k=usetypes[j]; 
+            k=usetypes[j];
             if (hdf_header_info[i].mass[k]==0) {
             //data loaded into memory in chunks
-            if (hdf_header_info[i].npart[k]<HDFCHUNKSIZE)nchunk=hdf_header_info[i].npart[k];
-            else nchunk=HDFCHUNKSIZE;
+            if (hdf_header_info[i].npart[k]<chunksize)nchunk=hdf_header_info[i].npart[k];
+            else nchunk=chunksize;
             for(n=0;n<hdf_header_info[i].npart[k];n+=nchunk)
             {
-                if (hdf_header_info[i].npart[k]-n<HDFCHUNKSIZE&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
+                if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
                 //setup hyperslab so that it is loaded into the buffer
                 datarank=1;
                 datadim[0]=nchunk;
@@ -790,7 +812,7 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
 #ifdef GASON
         //first gas internal energy
         for (j=0;j<nusetypes;j++) {
-            k=usetypes[j]; 
+            k=usetypes[j];
             if (k==HDFGASTYPE){
                 if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<hdf_parts[k]->names[5]<<endl;
                 partsdataset[i*NHDFTYPE+k]=partsgroup[i*NHDFTYPE+k].openDataSet(hdf_parts[k]->names[5]);
@@ -799,7 +821,7 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
             }
         }
         if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) for (j=1;j<=nbusetypes;j++) {
-            k=usetypes[j]; 
+            k=usetypes[j];
             if (k==HDFGASTYPE){
                 partsdataset[i*NHDFTYPE+k]=partsgroup[i*NHDFTYPE+k].openDataSet(hdf_parts[k]->names[5]);
                 partsdataspace[i*NHDFTYPE+k]=partsdataset[i*NHDFTYPE+k].getSpace();
@@ -809,14 +831,14 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
         count=count2;
         bcount=bcount2;
         for (j=0;j<nusetypes;j++) {
-            k=usetypes[j]; 
+            k=usetypes[j];
             if (k==HDFGASTYPE) {
             //data loaded into memory in chunks
-            if (hdf_header_info[i].npart[k]<HDFCHUNKSIZE)nchunk=hdf_header_info[i].npart[k];
-            else nchunk=HDFCHUNKSIZE;
+            if (hdf_header_info[i].npart[k]<chunksize)nchunk=hdf_header_info[i].npart[k];
+            else nchunk=chunksize;
             for(n=0;n<hdf_header_info[i].npart[k];n+=nchunk)
             {
-                if (hdf_header_info[i].npart[k]-n<HDFCHUNKSIZE&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
+                if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
                 //setup hyperslab so that it is loaded into the buffer
                 datarank=1;
                 datadim[0]=nchunk;
@@ -836,14 +858,14 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
         }
         if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) {
         for (j=1;j<=nbusetypes;j++) {
-            k=usetypes[j]; 
+            k=usetypes[j];
             if (k==HDFGASTYPE) {
             //data loaded into memory in chunks
-            if (hdf_header_info[i].npart[k]<HDFCHUNKSIZE)nchunk=hdf_header_info[i].npart[k];
-            else nchunk=HDFCHUNKSIZE;
+            if (hdf_header_info[i].npart[k]<chunksize)nchunk=hdf_header_info[i].npart[k];
+            else nchunk=chunksize;
             for(n=0;n<hdf_header_info[i].npart[k];n+=nchunk)
             {
-                if (hdf_header_info[i].npart[k]-n<HDFCHUNKSIZE&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
+                if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
                 //setup hyperslab so that it is loaded into the buffer
                 datarank=1;
                 datadim[0]=nchunk;
@@ -865,7 +887,7 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
 #ifdef STARON
         //if star forming get star formation rate
         for (j=0;j<nusetypes;j++) {
-            k=usetypes[j]; 
+            k=usetypes[j];
             if (k==HDFGASTYPE){
                 if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<hdf_parts[k]->names[6]<<endl;
                 partsdataset[i*NHDFTYPE+k]=partsgroup[i*NHDFTYPE+k].openDataSet(hdf_parts[k]->names[6]);
@@ -874,7 +896,7 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
             }
         }
         if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) for (j=1;j<=nbusetypes;j++) {
-            k=usetypes[j]; 
+            k=usetypes[j];
             if (k==HDFGASTYPE){
                 partsdataset[i*NHDFTYPE+k]=partsgroup[i*NHDFTYPE+k].openDataSet(hdf_parts[k]->names[6]);
                 partsdataspace[i*NHDFTYPE+k]=partsdataset[i*NHDFTYPE+k].getSpace();
@@ -884,14 +906,14 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
         count=count2;
         bcount=bcount2;
         for (j=0;j<nusetypes;j++) {
-            k=usetypes[j]; 
+            k=usetypes[j];
             if (k==HDFGASTYPE) {
             //data loaded into memory in chunks
-            if (hdf_header_info[i].npart[k]<HDFCHUNKSIZE)nchunk=hdf_header_info[i].npart[k];
-            else nchunk=HDFCHUNKSIZE;
+            if (hdf_header_info[i].npart[k]<chunksize)nchunk=hdf_header_info[i].npart[k];
+            else nchunk=chunksize;
             for(n=0;n<hdf_header_info[i].npart[k];n+=nchunk)
             {
-                if (hdf_header_info[i].npart[k]-n<HDFCHUNKSIZE&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
+                if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
                 //setup hyperslab so that it is loaded into the buffer
                 datarank=1;
                 datadim[0]=nchunk;
@@ -911,14 +933,14 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
         }
         if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) {
         for (j=1;j<=nbusetypes;j++) {
-            k=usetypes[j]; 
+            k=usetypes[j];
             if (k==HDFGASTYPE) {
             //data loaded into memory in chunks
-            if (hdf_header_info[i].npart[k]<HDFCHUNKSIZE)nchunk=hdf_header_info[i].npart[k];
-            else nchunk=HDFCHUNKSIZE;
+            if (hdf_header_info[i].npart[k]<chunksize)nchunk=hdf_header_info[i].npart[k];
+            else nchunk=chunksize;
             for(n=0;n<hdf_header_info[i].npart[k];n+=nchunk)
             {
-                if (hdf_header_info[i].npart[k]-n<HDFCHUNKSIZE&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
+                if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
                 //setup hyperslab so that it is loaded into the buffer
                 datarank=1;
                 datadim[0]=nchunk;
@@ -939,29 +961,29 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
         }
         //then metallicity
         for (j=0;j<nusetypes;j++) {
-            k=usetypes[j]; 
+            k=usetypes[j];
             if (k==HDFGASTYPE){
-                if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<hdf_parts[k]->names[7]<<endl;
-                partsdataset[i*NHDFTYPE+k]=partsgroup[i*NHDFTYPE+k].openDataSet(hdf_parts[k]->names[7]);
+                if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<hdf_parts[k]->names[hdf_parts[k]->propindex[HDFGASIMETAL]]<<endl;
+                partsdataset[i*NHDFTYPE+k]=partsgroup[i*NHDFTYPE+k].openDataSet(hdf_parts[k]->names[hdf_parts[k]->propindex[HDFGASIMETAL]]);
                 partsdataspace[i*NHDFTYPE+k]=partsdataset[i*NHDFTYPE+k].getSpace();
                 floattype=partsdataset[i*NHDFTYPE+k].getFloatType();
             }
             if (k==HDFSTARTYPE){
-                if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<hdf_parts[k]->names[5]<<endl;
-                partsdataset[i*NHDFTYPE+k]=partsgroup[i*NHDFTYPE+k].openDataSet(hdf_parts[k]->names[5]);
+                if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<hdf_parts[k]->names[hdf_parts[k]->propindex[HDFSTARIMETAL]]<<endl;
+                partsdataset[i*NHDFTYPE+k]=partsgroup[i*NHDFTYPE+k].openDataSet(hdf_parts[k]->names[hdf_parts[k]->propindex[HDFSTARIMETAL]]);
                 partsdataspace[i*NHDFTYPE+k]=partsdataset[i*NHDFTYPE+k].getSpace();
                 floattype=partsdataset[i*NHDFTYPE+k].getFloatType();
             }
         }
         if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) for (j=1;j<=nbusetypes;j++) {
-            k=usetypes[j]; 
+            k=usetypes[j];
             if (k==HDFGASTYPE){
-                partsdataset[i*NHDFTYPE+k]=partsgroup[i*NHDFTYPE+k].openDataSet(hdf_parts[k]->names[7]);
+                partsdataset[i*NHDFTYPE+k]=partsgroup[i*NHDFTYPE+k].openDataSet(hdf_parts[k]->names[hdf_parts[k]->propindex[HDFGASIMETAL]]);
                 partsdataspace[i*NHDFTYPE+k]=partsdataset[i*NHDFTYPE+k].getSpace();
                 floattype=partsdataset[i*NHDFTYPE+k].getFloatType();
             }
             if (k==HDFSTARTYPE){
-                partsdataset[i*NHDFTYPE+k]=partsgroup[i*NHDFTYPE+k].openDataSet(hdf_parts[k]->names[5]);
+                partsdataset[i*NHDFTYPE+k]=partsgroup[i*NHDFTYPE+k].openDataSet(hdf_parts[k]->names[hdf_parts[k]->propindex[HDFSTARIMETAL]]);
                 partsdataspace[i*NHDFTYPE+k]=partsdataset[i*NHDFTYPE+k].getSpace();
                 floattype=partsdataset[i*NHDFTYPE+k].getFloatType();
             }
@@ -969,14 +991,14 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
         count=count2;
         bcount=bcount2;
         for (j=0;j<nusetypes;j++) {
-            k=usetypes[j]; 
+            k=usetypes[j];
             if (k==HDFGASTYPE||k==HDFSTARTYPE) {
             //data loaded into memory in chunks
-            if (hdf_header_info[i].npart[k]<HDFCHUNKSIZE)nchunk=hdf_header_info[i].npart[k];
-            else nchunk=HDFCHUNKSIZE;
+            if (hdf_header_info[i].npart[k]<chunksize)nchunk=hdf_header_info[i].npart[k];
+            else nchunk=chunksize;
             for(n=0;n<hdf_header_info[i].npart[k];n+=nchunk)
             {
-                if (hdf_header_info[i].npart[k]-n<HDFCHUNKSIZE&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
+                if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
                 //setup hyperslab so that it is loaded into the buffer
                 datarank=1;
                 datadim[0]=nchunk;
@@ -996,14 +1018,14 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
         }
         if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) {
         for (j=1;j<=nbusetypes;j++) {
-            k=usetypes[j]; 
+            k=usetypes[j];
             if (k==HDFGASTYPE||k==HDFSTARTYPE) {
             //data loaded into memory in chunks
-            if (hdf_header_info[i].npart[k]<HDFCHUNKSIZE)nchunk=hdf_header_info[i].npart[k];
-            else nchunk=HDFCHUNKSIZE;
+            if (hdf_header_info[i].npart[k]<chunksize)nchunk=hdf_header_info[i].npart[k];
+            else nchunk=chunksize;
             for(n=0;n<hdf_header_info[i].npart[k];n+=nchunk)
             {
-                if (hdf_header_info[i].npart[k]-n<HDFCHUNKSIZE&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
+                if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
                 //setup hyperslab so that it is loaded into the buffer
                 datarank=1;
                 datadim[0]=nchunk;
@@ -1024,18 +1046,18 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
         }
         //then get star formation time, must also adjust so that if tage<0 this is a wind particle in Illustris so change particle type
         for (j=0;j<nusetypes;j++) {
-            k=usetypes[j]; 
+            k=usetypes[j];
             if (k==HDFSTARTYPE){
-                if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<hdf_parts[k]->names[4]<<endl;
-                partsdataset[i*NHDFTYPE+k]=partsgroup[i*NHDFTYPE+k].openDataSet(hdf_parts[k]->names[4]);
+                if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<hdf_parts[k]->names[hdf_parts[k]->propindex[HDFSTARIAGE]]<<endl;
+                partsdataset[i*NHDFTYPE+k]=partsgroup[i*NHDFTYPE+k].openDataSet(hdf_parts[k]->names[hdf_parts[k]->propindex[HDFSTARIAGE]]);
                 partsdataspace[i*NHDFTYPE+k]=partsdataset[i*NHDFTYPE+k].getSpace();
                 floattype=partsdataset[i*NHDFTYPE+k].getFloatType();
             }
         }
         if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) for (j=1;j<=nbusetypes;j++) {
-            k=usetypes[j]; 
+            k=usetypes[j];
             if (k==HDFSTARTYPE){
-                partsdataset[i*NHDFTYPE+k]=partsgroup[i*NHDFTYPE+k].openDataSet(hdf_parts[k]->names[4]);
+                partsdataset[i*NHDFTYPE+k]=partsgroup[i*NHDFTYPE+k].openDataSet(hdf_parts[k]->names[hdf_parts[k]->propindex[HDFSTARIAGE]]);
                 partsdataspace[i*NHDFTYPE+k]=partsdataset[i*NHDFTYPE+k].getSpace();
                 floattype=partsdataset[i*NHDFTYPE+k].getFloatType();
             }
@@ -1043,14 +1065,14 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
         count=count2;
         bcount=bcount2;
         for (j=0;j<nusetypes;j++) {
-            k=usetypes[j]; 
+            k=usetypes[j];
             if (k==HDFSTARTYPE) {
             //data loaded into memory in chunks
-            if (hdf_header_info[i].npart[k]<HDFCHUNKSIZE)nchunk=hdf_header_info[i].npart[k];
-            else nchunk=HDFCHUNKSIZE;
+            if (hdf_header_info[i].npart[k]<chunksize)nchunk=hdf_header_info[i].npart[k];
+            else nchunk=chunksize;
             for(n=0;n<hdf_header_info[i].npart[k];n+=nchunk)
             {
-                if (hdf_header_info[i].npart[k]-n<HDFCHUNKSIZE&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
+                if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
                 //setup hyperslab so that it is loaded into the buffer
                 datarank=1;
                 datadim[0]=nchunk;
@@ -1070,14 +1092,14 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
         }
         if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) {
         for (j=1;j<=nbusetypes;j++) {
-            k=usetypes[j]; 
+            k=usetypes[j];
             if (k==HDFGASTYPE||k==HDFSTARTYPE) {
             //data loaded into memory in chunks
-            if (hdf_header_info[i].npart[k]<HDFCHUNKSIZE)nchunk=hdf_header_info[i].npart[k];
-            else nchunk=HDFCHUNKSIZE;
+            if (hdf_header_info[i].npart[k]<chunksize)nchunk=hdf_header_info[i].npart[k];
+            else nchunk=chunksize;
             for(n=0;n<hdf_header_info[i].npart[k];n+=nchunk)
             {
-                if (hdf_header_info[i].npart[k]-n<HDFCHUNKSIZE&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
+                if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
                 //setup hyperslab so that it is loaded into the buffer
                 datarank=1;
                 datadim[0]=nchunk;
@@ -1129,21 +1151,21 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
     }
 
 #else
-    //for all mpi threads that are reading input data, open file load access to data structures and begin loading into either local buffer or temporary buffer to be send to 
+    //for all mpi threads that are reading input data, open file load access to data structures and begin loading into either local buffer or temporary buffer to be send to
     //non-read threads
-    if (ThisTask<opt.nsnapread) {
+    if (ireadtask[ThisTask]>=0) {
     count2=bcount2=0;
     for(i=0; i<opt.num_files; i++) {
     if(ireadfile[i])
     {
         cout<<ThisTask<<" is reading file "<<i<<endl;
         ///\todo should be more rigorous with try/catch stuff
-        //open particle group structures 
+        //open particle group structures
         for (j=0;j<nusetypes;j++) {k=usetypes[j]; partsgroup[i*NHDFTYPE+k]=Fhdf[i].openGroup(hdf_gnames.part_names[k]);}
         if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) for (j=1;j<=nbusetypes;j++) {k=usetypes[j];partsgroup[i*NHDFTYPE+k]=Fhdf[i].openGroup(hdf_gnames.part_names[k]);}
         //open data structures that exist for all data blocks
         for (itemp=0;itemp<NHDFDATABLOCKALL;itemp++) {
-            //for everything but mass no header check needed. 
+            //for everything but mass no header check needed.
             if (itemp!=3) {
                 for (j=0;j<nusetypes;j++) {
                     k=usetypes[j];
@@ -1152,14 +1174,14 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
                     partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].getSpace();
                 }
                 if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) for (j=1;j<=nbusetypes;j++) {
-                    k=usetypes[j]; 
+                    k=usetypes[j];
                     partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=partsgroup[i*NHDFTYPE+k].openDataSet(hdf_parts[k]->names[itemp]);
                     partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].getSpace();
                 }
             }
             else {
                 for (j=0;j<nusetypes;j++) {
-                    k=usetypes[j]; 
+                    k=usetypes[j];
                     if (hdf_header_info[i].mass[k]==0){
                         if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<hdf_parts[k]->names[itemp]<<endl;
                         partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=partsgroup[i*NHDFTYPE+k].openDataSet(hdf_parts[k]->names[itemp]);
@@ -1167,20 +1189,20 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
                     }
                 }
                 if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) for (j=1;j<=nbusetypes;j++) {
-                    k=usetypes[j]; 
+                    k=usetypes[j];
                     partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=partsgroup[i*NHDFTYPE+k].openDataSet(hdf_parts[k]->names[itemp]);
                     partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].getSpace();
                 }
             }
         }
-        //now for extra data blocks 
+        //now for extra data blocks
         //and if not just searching DM, load other parameters
         if (!(opt.partsearchtype==PSTDARK && opt.iBaryonSearch==0)) {
             itemp=4;
 #ifdef GASON
             //first gas internal energy
             for (j=0;j<nusetypes;j++) {
-                k=usetypes[j]; 
+                k=usetypes[j];
                 if (k==HDFGASTYPE){
                     if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<hdf_parts[k]->names[5]<<endl;
                     partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=partsgroup[i*NHDFTYPE+k].openDataSet(hdf_parts[k]->names[5]);
@@ -1188,7 +1210,7 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
                 }
             }
             if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) for (j=1;j<=nbusetypes;j++) {
-                k=usetypes[j]; 
+                k=usetypes[j];
                 if (k==HDFGASTYPE){
                     partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=partsgroup[i*NHDFTYPE+k].openDataSet(hdf_parts[k]->names[5]);
                     partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].getSpace();
@@ -1198,7 +1220,7 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
             //if star forming get star formation rate
             itemp++;
             for (j=0;j<nusetypes;j++) {
-                k=usetypes[j]; 
+                k=usetypes[j];
                 if (k==HDFGASTYPE){
                     if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<hdf_parts[k]->names[6]<<endl;
                     partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=partsgroup[i*NHDFTYPE+k].openDataSet(hdf_parts[k]->names[6]);
@@ -1206,7 +1228,7 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
                 }
             }
             if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) for (j=1;j<=nbusetypes;j++) {
-                k=usetypes[j]; 
+                k=usetypes[j];
                 if (k==HDFGASTYPE){
                     partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=partsgroup[i*NHDFTYPE+k].openDataSet(hdf_parts[k]->names[6]);
                     partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].getSpace();
@@ -1215,43 +1237,43 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
             //then metallicity
             itemp++;
             for (j=0;j<nusetypes;j++) {
-                k=usetypes[j]; 
+                k=usetypes[j];
                 if (k==HDFGASTYPE){
-                    if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<hdf_parts[k]->names[7]<<endl;
-                    partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=partsgroup[i*NHDFTYPE+k].openDataSet(hdf_parts[k]->names[7]);
+                    if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<hdf_parts[k]->names[hdf_parts[k]->propindex[HDFGASIMETAL]]<<endl;
+                    partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=partsgroup[i*NHDFTYPE+k].openDataSet(hdf_parts[k]->names[hdf_parts[k]->propindex[HDFGASIMETAL]]);
                     partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].getSpace();
                 }
                 if (k==HDFSTARTYPE){
-                    if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<hdf_parts[k]->names[5]<<endl;
-                    partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=partsgroup[i*NHDFTYPE+k].openDataSet(hdf_parts[k]->names[5]);
+                    if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<hdf_parts[k]->names[hdf_parts[k]->propindex[HDFSTARIMETAL]]<<endl;
+                    partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=partsgroup[i*NHDFTYPE+k].openDataSet(hdf_parts[k]->names[hdf_parts[k]->propindex[HDFSTARIMETAL]]);
                     partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].getSpace();
                 }
             }
             if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) for (j=1;j<=nbusetypes;j++) {
-                k=usetypes[j]; 
+                k=usetypes[j];
                 if (k==HDFGASTYPE){
-                    partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=partsgroup[i*NHDFTYPE+k].openDataSet(hdf_parts[k]->names[7]);
+                    partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=partsgroup[i*NHDFTYPE+k].openDataSet(hdf_parts[k]->names[hdf_parts[k]->propindex[HDFGASIMETAL]]);
                     partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].getSpace();
                 }
                 if (k==HDFSTARTYPE){
-                    partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=partsgroup[i*NHDFTYPE+k].openDataSet(hdf_parts[k]->names[5]);
+                    partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=partsgroup[i*NHDFTYPE+k].openDataSet(hdf_parts[k]->names[hdf_parts[k]->propindex[HDFSTARIMETAL]]);
                     partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].getSpace();
                 }
             }
             //then get star formation time, must also adjust so that if tage<0 this is a wind particle in Illustris so change particle type
             itemp++;
             for (j=0;j<nusetypes;j++) {
-                k=usetypes[j]; 
+                k=usetypes[j];
                 if (k==HDFSTARTYPE){
-                    if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<hdf_parts[k]->names[4]<<endl;
-                    partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=partsgroup[i*NHDFTYPE+k].openDataSet(hdf_parts[k]->names[4]);
+                    if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<hdf_parts[k]->names[hdf_parts[k]->propindex[HDFSTARIAGE]]<<endl;
+                    partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=partsgroup[i*NHDFTYPE+k].openDataSet(hdf_parts[k]->names[hdf_parts[k]->propindex[HDFSTARIAGE]]);
                     partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].getSpace();
                 }
             }
             if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) for (j=1;j<=nbusetypes;j++) {
-                k=usetypes[j]; 
+                k=usetypes[j];
                 if (k==HDFSTARTYPE){
-                    partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=partsgroup[i*NHDFTYPE+k].openDataSet(hdf_parts[k]->names[4]);
+                    partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=partsgroup[i*NHDFTYPE+k].openDataSet(hdf_parts[k]->names[hdf_parts[k]->propindex[HDFSTARIAGE]]);
                     partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].getSpace();
                 }
             }
@@ -1263,11 +1285,11 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
         for (j=0;j<nusetypes;j++) {
             k=usetypes[j];
             //data loaded into memory in chunks
-            if (hdf_header_info[i].npart[k]<HDFCHUNKSIZE)nchunk=hdf_header_info[i].npart[k];
-            else nchunk=HDFCHUNKSIZE;
+            if (hdf_header_info[i].npart[k]<chunksize)nchunk=hdf_header_info[i].npart[k];
+            else nchunk=chunksize;
             for(n=0;n<hdf_header_info[i].npart[k];n+=nchunk)
             {
-                if (hdf_header_info[i].npart[k]-n<HDFCHUNKSIZE&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
+                if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
                 //setup hyperslab so that it is loaded into the buffer
                 //load positions
                 itemp=0;
@@ -1279,8 +1301,8 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
                 filespaceoffset[0]=n;filespaceoffset[1]=0;
                 //set type
                 floattype=partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].getFloatType();
-                if (floattype.getSize()==sizeof(float)) {HDFREALTYPE=PredType::NATIVE_FLOAT;realbuff=floatbuff;ifloat=1;}
-                else {HDFREALTYPE=PredType::NATIVE_DOUBLE ;realbuff=doublebuff;ifloat=0;}
+                if (floattype.getSize()==sizeof(float)) {HDFREALTYPE=PredType::NATIVE_FLOAT;realbuff=floatbuff;ifloat_pos=1;}
+                else {HDFREALTYPE=PredType::NATIVE_DOUBLE ;realbuff=doublebuff;ifloat_pos=0;}
                 //read hyperslab into local buffer
                 partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].selectHyperslab(H5S_SELECT_SET, filespacecount, filespaceoffset);
                 partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].read(realbuff,HDFREALTYPE,chunkspace,partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
@@ -1330,11 +1352,13 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
                 chunkspace=DataSpace(datarank,datadim);
                 filespacecount[0]=nchunk;filespacecount[1]=1;
                 filespaceoffset[0]=n;filespaceoffset[1]=0;
-                floattype=partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].getFloatType();
-                if (floattype.getSize()==sizeof(float)) {HDFREALTYPE=PredType::NATIVE_FLOAT;realbuff=ufloatbuff;ifloat=1;}
-                else {HDFREALTYPE=PredType::NATIVE_DOUBLE;realbuff=udoublebuff;ifloat=0;}
-                partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].selectHyperslab(H5S_SELECT_SET, filespacecount, filespaceoffset);
-                partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].read(realbuff,HDFREALTYPE,chunkspace,partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
+                if (k == HDFGASTYPE) {
+                    floattype=partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].getFloatType();
+                    if (floattype.getSize()==sizeof(float)) {HDFREALTYPE=PredType::NATIVE_FLOAT;realbuff=ufloatbuff;ifloat=1;}
+                    else {HDFREALTYPE=PredType::NATIVE_DOUBLE;realbuff=udoublebuff;ifloat=0;}
+                    partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].selectHyperslab(H5S_SELECT_SET, filespacecount, filespaceoffset);
+                    partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].read(realbuff,HDFREALTYPE,chunkspace,partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
+                }
 #ifdef STARON
                 //star formation rate
                 itemp++;
@@ -1343,11 +1367,14 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
                 chunkspace=DataSpace(datarank,datadim);
                 filespacecount[0]=nchunk;filespacecount[1]=1;
                 filespaceoffset[0]=n;filespaceoffset[1]=0;
-                floattype=partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].getFloatType();
-                if (floattype.getSize()==sizeof(float)) {HDFREALTYPE=PredType::NATIVE_FLOAT;realbuff=SFRfloatbuff;ifloat=1;}
-                else {HDFREALTYPE=PredType::NATIVE_DOUBLE;realbuff=SFRdoublebuff;ifloat=0;}
-                partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].selectHyperslab(H5S_SELECT_SET, filespacecount, filespaceoffset);
-                partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].read(realbuff,HDFREALTYPE,chunkspace,partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
+                if (k == HDFGASTYPE) {
+                    floattype=partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].getFloatType();
+                    if (floattype.getSize()==sizeof(float)) {HDFREALTYPE=PredType::NATIVE_FLOAT;realbuff=SFRfloatbuff;ifloat=1;}
+                    else {HDFREALTYPE=PredType::NATIVE_DOUBLE;realbuff=SFRdoublebuff;ifloat=0;}
+                    partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].selectHyperslab(H5S_SELECT_SET, filespacecount, filespaceoffset);
+                    partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].read(realbuff,HDFREALTYPE,chunkspace,partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
+                }
+
                 //metallicity
                 itemp++;
                 datarank=1;
@@ -1355,11 +1382,14 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
                 chunkspace=DataSpace(datarank,datadim);
                 filespacecount[0]=nchunk;filespacecount[1]=1;
                 filespaceoffset[0]=n;filespaceoffset[1]=0;
-                floattype=partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].getFloatType();
-                if (floattype.getSize()==sizeof(float)) {HDFREALTYPE=PredType::NATIVE_FLOAT;realbuff=Zfloatbuff;ifloat=1;}
-                else {HDFREALTYPE=PredType::NATIVE_DOUBLE;realbuff=Zdoublebuff;ifloat=0;}
-                partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].selectHyperslab(H5S_SELECT_SET, filespacecount, filespaceoffset);
-                partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].read(realbuff,HDFREALTYPE,chunkspace,partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
+                if (k == HDFGASTYPE || k == HDFSTARTYPE) {
+                    floattype=partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].getFloatType();
+                    if (floattype.getSize()==sizeof(float)) {HDFREALTYPE=PredType::NATIVE_FLOAT;realbuff=Zfloatbuff;ifloat=1;}
+                    else {HDFREALTYPE=PredType::NATIVE_DOUBLE;realbuff=Zdoublebuff;ifloat=0;}
+                    partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].selectHyperslab(H5S_SELECT_SET, filespacecount, filespaceoffset);
+                    partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].read(realbuff,HDFREALTYPE,chunkspace,partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
+                }
+
                 //stellar age
                 itemp++;
                 datarank=1;
@@ -1367,26 +1397,30 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
                 chunkspace=DataSpace(datarank,datadim);
                 filespacecount[0]=nchunk;filespacecount[1]=1;
                 filespaceoffset[0]=n;filespaceoffset[1]=0;
-                floattype=partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].getFloatType();
-                if (floattype.getSize()==sizeof(float)) {HDFREALTYPE=PredType::NATIVE_FLOAT;realbuff=Tagefloatbuff;ifloat=1;}
-                else {HDFREALTYPE=PredType::NATIVE_DOUBLE;realbuff=Tagedoublebuff;ifloat=0;}
-                partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].selectHyperslab(H5S_SELECT_SET, filespacecount, filespaceoffset);
-                partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].read(realbuff,HDFREALTYPE,chunkspace,partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
+                if (k == HDFSTARTYPE) {
+                    floattype=partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].getFloatType();
+                    if (floattype.getSize()==sizeof(float)) {HDFREALTYPE=PredType::NATIVE_FLOAT;realbuff=Tagefloatbuff;ifloat=1;}
+                    else {HDFREALTYPE=PredType::NATIVE_DOUBLE;realbuff=Tagedoublebuff;ifloat=0;}
+                    partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].selectHyperslab(H5S_SELECT_SET, filespacecount, filespaceoffset);
+                    partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].read(realbuff,HDFREALTYPE,chunkspace,partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
+                }
 #endif
 #endif
 
                 for (int nn=0;nn<nchunk;nn++) {
-                    if (ifloat) ibuf=MPIGetParticlesProcessor(floatbuff[nn*3],floatbuff[nn*3+1],floatbuff[nn*3+2]);
+		  if (ifloat_pos) ibuf=MPIGetParticlesProcessor(floatbuff[nn*3],floatbuff[nn*3+1],floatbuff[nn*3+2]);
                     else ibuf=MPIGetParticlesProcessor(doublebuff[nn*3],doublebuff[nn*3+1],doublebuff[nn*3+2]);
                     //store particle info in Ptemp;
+		    if (ifloat_pos)
+		      Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetPosition(floatbuff[nn*3],floatbuff[nn*3+1],floatbuff[nn*3+2]);
+		    else
+		      Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetPosition(doublebuff[nn*3],doublebuff[nn*3+1],doublebuff[nn*3+2]);
                     if (ifloat) {
-                        Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetPosition(floatbuff[nn*3],floatbuff[nn*3+1],floatbuff[nn*3+2]);
                         Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetVelocity(velfloatbuff[nn*3],velfloatbuff[nn*3+1],velfloatbuff[nn*3+2]);
                         if (hdf_header_info[i].mass[k]==0)Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetMass(massfloatbuff[nn]);
                         else Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetMass(hdf_header_info[i].mass[k]);
                     }
                     else {
-                        Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetPosition(doublebuff[nn*3],doublebuff[nn*3+1],doublebuff[nn*3+2]);
                         Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetVelocity(veldoublebuff[nn*3],veldoublebuff[nn*3+1],veldoublebuff[nn*3+2]);
                         if (hdf_header_info[i].mass[k]==0)Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetMass(massdoublebuff[nn]);
                         else Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetMass(hdf_header_info[i].mass[k]);
@@ -1400,12 +1434,12 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
                     else if (k==HDFBHTYPE) Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetType(BHTYPE);
 #ifdef GASON
                     if (k==HDFGASTYPE) {
-                        if (ifloat) Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetU(ufloatbuff[nn]); 
+                        if (ifloat) Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetU(ufloatbuff[nn]);
                         else Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetU(udoublebuff[nn]);
 #ifdef STARON
-                        if (ifloat) Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetSFR(SFRfloatbuff[nn]); 
+                        if (ifloat) Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetSFR(SFRfloatbuff[nn]);
                         else Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetSFR(SFRdoublebuff[nn]);
-                        if (ifloat) Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetZmet(Zfloatbuff[nn]); 
+                        if (ifloat) Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetZmet(Zfloatbuff[nn]);
                         else Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetZmet(Zdoublebuff[nn]);
 #endif
 
@@ -1413,13 +1447,13 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
 #endif
 #ifdef STARON
                     if (k==HDFSTARTYPE) {
-                        if (ifloat) Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetZmet(Zfloatbuff[nn]); 
+                        if (ifloat) Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetZmet(Zfloatbuff[nn]);
                         else Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetZmet(Zdoublebuff[nn]);
                         if (ifloat) {if (Tagefloatbuff[nn]<0) Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetType(WINDTYPE); Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetTage(Tagefloatbuff[nn]);}
                         else {if (Tagedoublebuff[nn]<0) Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetType(WINDTYPE);Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetTage(Tagedoublebuff[nn]);}
                     }
 #endif
-                    if(ibuf<opt.nsnapread&&ibuf!=ThisTask) Nreadbuf[ibuf]++;
+                    if(ireadtask[ibuf]>=0&&ibuf!=ThisTask) Nreadbuf[ireadtask[ibuf]]++;
                     Nbuf[ibuf]++;
                     if (ibuf==ThisTask) {
                         Nbuf[ibuf]--;
@@ -1429,12 +1463,12 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
                         //before a simple send was done because only Task zero was reading the data
                         //but now if ibuf<opt.nsnapread, care must be taken.
                         //blocking sends that are matched by non-blocking receives
-                        if(Nbuf[ibuf]==BufSize&&ibuf>=opt.nsnapread) {
+                        if(Nbuf[ibuf]==BufSize&&ireadtask[ibuf]<0) {
                             MPI_Send(&Nbuf[ibuf], 1, MPI_Int_t, ibuf, ibuf+NProcs, MPI_COMM_WORLD);
                             MPI_Send(&Pbuf[ibuf*BufSize],sizeof(Particle)*Nbuf[ibuf],MPI_BYTE,ibuf,ibuf,MPI_COMM_WORLD);
                             Nbuf[ibuf]=0;
                         }
-                        else if (Nbuf[ibuf]==BufSize&&ibuf<opt.nsnapread) {
+                        else if (Nbuf[ibuf]==BufSize&&ireadtask[ibuf]>=0) {
                             Nbuf[ibuf]=0;
                         }
                     }
@@ -1444,11 +1478,11 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
         if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) {
         for (j=1;j<=nbusetypes;j++) {
             k=usetypes[j];
-            if (hdf_header_info[i].npart[k]<HDFCHUNKSIZE)nchunk=hdf_header_info[i].npart[k];
-            else nchunk=HDFCHUNKSIZE;
+            if (hdf_header_info[i].npart[k]<chunksize)nchunk=hdf_header_info[i].npart[k];
+            else nchunk=chunksize;
             for(n=0;n<hdf_header_info[i].npart[k];n+=nchunk)
             {
-                if (hdf_header_info[i].npart[k]-n<HDFCHUNKSIZE&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
+                if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
                 //setup hyperslab so that it is loaded into the buffer
                 //load positions
                 itemp=0;
@@ -1460,8 +1494,8 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
                 filespaceoffset[0]=n;filespaceoffset[1]=0;
                 //set type
                 floattype=partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].getFloatType();
-                if (floattype.getSize()==sizeof(float)) {HDFREALTYPE=PredType::NATIVE_FLOAT;realbuff=floatbuff;ifloat=1;}
-                else {HDFREALTYPE=PredType::NATIVE_DOUBLE ;realbuff=doublebuff;ifloat=0;}
+                if (floattype.getSize()==sizeof(float)) {HDFREALTYPE=PredType::NATIVE_FLOAT;realbuff=floatbuff;ifloat_pos=1;}
+                else {HDFREALTYPE=PredType::NATIVE_DOUBLE ;realbuff=doublebuff;ifloat_pos=0;}
                 //read hyperslab into local buffer
                 partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].selectHyperslab(H5S_SELECT_SET, filespacecount, filespaceoffset);
                 partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].read(realbuff,HDFREALTYPE,chunkspace,partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
@@ -1511,11 +1545,13 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
                 chunkspace=DataSpace(datarank,datadim);
                 filespacecount[0]=nchunk;filespacecount[1]=1;
                 filespaceoffset[0]=n;filespaceoffset[1]=0;
-                floattype=partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].getFloatType();
-                if (floattype.getSize()==sizeof(float)) {HDFREALTYPE=PredType::NATIVE_FLOAT;realbuff=ufloatbuff;ifloat=1;}
-                else {HDFREALTYPE=PredType::NATIVE_DOUBLE;realbuff=udoublebuff;ifloat=0;}
-                partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].selectHyperslab(H5S_SELECT_SET, filespacecount, filespaceoffset);
-                partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].read(realbuff,HDFREALTYPE,chunkspace,partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
+                if (k==HDFGASTYPE) {
+                    floattype=partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].getFloatType();
+                    if (floattype.getSize()==sizeof(float)) {HDFREALTYPE=PredType::NATIVE_FLOAT;realbuff=ufloatbuff;ifloat=1;}
+                    else {HDFREALTYPE=PredType::NATIVE_DOUBLE;realbuff=udoublebuff;ifloat=0;}
+                    partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].selectHyperslab(H5S_SELECT_SET, filespacecount, filespaceoffset);
+                    partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].read(realbuff,HDFREALTYPE,chunkspace,partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
+                }
 #ifdef STARON
                 //star formation rate
                 itemp++;
@@ -1524,11 +1560,14 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
                 chunkspace=DataSpace(datarank,datadim);
                 filespacecount[0]=nchunk;filespacecount[1]=1;
                 filespaceoffset[0]=n;filespaceoffset[1]=0;
-                floattype=partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].getFloatType();
-                if (floattype.getSize()==sizeof(float)) {HDFREALTYPE=PredType::NATIVE_FLOAT;realbuff=SFRfloatbuff;ifloat=1;}
-                else {HDFREALTYPE=PredType::NATIVE_DOUBLE;realbuff=SFRdoublebuff;ifloat=0;}
-                partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].selectHyperslab(H5S_SELECT_SET, filespacecount, filespaceoffset);
-                partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].read(realbuff,HDFREALTYPE,chunkspace,partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
+                if (k==HDFGASTYPE) {
+                    floattype=partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].getFloatType();
+                    if (floattype.getSize()==sizeof(float)) {HDFREALTYPE=PredType::NATIVE_FLOAT;realbuff=SFRfloatbuff;ifloat=1;}
+                    else {HDFREALTYPE=PredType::NATIVE_DOUBLE;realbuff=SFRdoublebuff;ifloat=0;}
+                    partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].selectHyperslab(H5S_SELECT_SET, filespacecount, filespaceoffset);
+                    partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].read(realbuff,HDFREALTYPE,chunkspace,partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
+                }
+
                 //metallicity
                 itemp++;
                 datarank=1;
@@ -1536,11 +1575,14 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
                 chunkspace=DataSpace(datarank,datadim);
                 filespacecount[0]=nchunk;filespacecount[1]=1;
                 filespaceoffset[0]=n;filespaceoffset[1]=0;
-                floattype=partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].getFloatType();
-                if (floattype.getSize()==sizeof(float)) {HDFREALTYPE=PredType::NATIVE_FLOAT;realbuff=Zfloatbuff;ifloat=1;}
-                else {HDFREALTYPE=PredType::NATIVE_DOUBLE;realbuff=Zdoublebuff;ifloat=0;}
-                partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].selectHyperslab(H5S_SELECT_SET, filespacecount, filespaceoffset);
-                partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].read(realbuff,HDFREALTYPE,chunkspace,partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
+                if (k==HDFGASTYPE || k==HDFSTARTYPE) {
+                    floattype=partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].getFloatType();
+                    if (floattype.getSize()==sizeof(float)) {HDFREALTYPE=PredType::NATIVE_FLOAT;realbuff=Zfloatbuff;ifloat=1;}
+                    else {HDFREALTYPE=PredType::NATIVE_DOUBLE;realbuff=Zdoublebuff;ifloat=0;}
+                    partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].selectHyperslab(H5S_SELECT_SET, filespacecount, filespaceoffset);
+                    partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].read(realbuff,HDFREALTYPE,chunkspace,partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
+                }
+
                 //stellar age
                 itemp++;
                 datarank=1;
@@ -1548,26 +1590,32 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
                 chunkspace=DataSpace(datarank,datadim);
                 filespacecount[0]=nchunk;filespacecount[1]=1;
                 filespaceoffset[0]=n;filespaceoffset[1]=0;
-                floattype=partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].getFloatType();
-                if (floattype.getSize()==sizeof(float)) {HDFREALTYPE=PredType::NATIVE_FLOAT;realbuff=Tagefloatbuff;ifloat=1;}
-                else {HDFREALTYPE=PredType::NATIVE_DOUBLE;realbuff=Tagedoublebuff;ifloat=0;}
-                partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].selectHyperslab(H5S_SELECT_SET, filespacecount, filespaceoffset);
-                partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].read(realbuff,HDFREALTYPE,chunkspace,partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
+                if (k==HDFSTARTYPE) {
+                    floattype=partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].getFloatType();
+                    if (floattype.getSize()==sizeof(float)) {HDFREALTYPE=PredType::NATIVE_FLOAT;realbuff=Tagefloatbuff;ifloat=1;}
+                    else {HDFREALTYPE=PredType::NATIVE_DOUBLE;realbuff=Tagedoublebuff;ifloat=0;}
+                    partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].selectHyperslab(H5S_SELECT_SET, filespacecount, filespaceoffset);
+                    partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].read(realbuff,HDFREALTYPE,chunkspace,partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
+                }
 #endif
 #endif
 
                 for (int nn=0;nn<nchunk;nn++) {
-                    if (ifloat) ibuf=MPIGetParticlesProcessor(floatbuff[nn*3],floatbuff[nn*3+1],floatbuff[nn*3+2]);
+                    if (ifloat_pos) ibuf=MPIGetParticlesProcessor(floatbuff[nn*3],floatbuff[nn*3+1],floatbuff[nn*3+2]);
                     else ibuf=MPIGetParticlesProcessor(doublebuff[nn*3],doublebuff[nn*3+1],doublebuff[nn*3+2]);
                     //store particle info in Ptemp;
+		    if(ifloat_pos) {
+		        Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetPosition(floatbuff[nn*3],floatbuff[nn*3+1],floatbuff[nn*3+2]);
+		    }
+		    else {
+		        Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetPosition(doublebuff[nn*3],doublebuff[nn*3+1],doublebuff[nn*3+2]);
+		    }
                     if (ifloat) {
-                        Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetPosition(floatbuff[nn*3],floatbuff[nn*3+1],floatbuff[nn*3+2]);
                         Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetVelocity(velfloatbuff[nn*3],velfloatbuff[nn*3+1],velfloatbuff[nn*3+2]);
                         if (hdf_header_info[i].mass[k]==0)Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetMass(massfloatbuff[nn]);
                         else Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetMass(hdf_header_info[i].mass[k]);
                     }
                     else {
-                        Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetPosition(doublebuff[nn*3],doublebuff[nn*3+1],doublebuff[nn*3+2]);
                         Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetVelocity(veldoublebuff[nn*3],veldoublebuff[nn*3+1],veldoublebuff[nn*3+2]);
                         if (hdf_header_info[i].mass[k]==0)Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetMass(massdoublebuff[nn]);
                         else Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetMass(hdf_header_info[i].mass[k]);
@@ -1581,12 +1629,12 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
                     else if (k==HDFBHTYPE) Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetType(BHTYPE);
 #ifdef GASON
                     if (k==HDFGASTYPE) {
-                        if (ifloat) Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetU(ufloatbuff[nn]); 
+                        if (ifloat) Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetU(ufloatbuff[nn]);
                         else Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetU(udoublebuff[nn]);
 #ifdef STARON
-                        if (ifloat) Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetSFR(SFRfloatbuff[nn]); 
+                        if (ifloat) Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetSFR(SFRfloatbuff[nn]);
                         else Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetSFR(SFRdoublebuff[nn]);
-                        if (ifloat) Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetZmet(Zfloatbuff[nn]); 
+                        if (ifloat) Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetZmet(Zfloatbuff[nn]);
                         else Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetZmet(Zdoublebuff[nn]);
 #endif
 
@@ -1594,13 +1642,13 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
 #endif
 #ifdef STARON
                     if (k==HDFSTARTYPE) {
-                        if (ifloat) Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetZmet(Zfloatbuff[nn]); 
+                        if (ifloat) Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetZmet(Zfloatbuff[nn]);
                         else Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetZmet(Zdoublebuff[nn]);
                         if (ifloat) {if (Tagefloatbuff[nn]<0) Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetType(WINDTYPE); Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetTage(Tagefloatbuff[nn]);}
                         else {if (Tagedoublebuff[nn]<0) Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetType(WINDTYPE);Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetTage(Tagedoublebuff[nn]);}
                     }
 #endif
-                    if(ibuf<opt.nsnapread&&ibuf!=ThisTask) Nreadbuf[ibuf]++;
+                    if(ireadtask[ibuf]>=0&&ibuf!=ThisTask) Nreadbuf[ireadtask[ibuf]]++;
                     Nbuf[ibuf]++;
                     if (ibuf==ThisTask) {
                         Nbuf[ibuf]--;
@@ -1614,12 +1662,12 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
                         //before a simple send was done because only Task zero was reading the data
                         //but now if ibuf<opt.nsnapread, care must be taken.
                         //blocking sends that are matched by non-blocking receives
-                        if(Nbuf[ibuf]==BufSize&&ibuf>=opt.nsnapread) {
+                        if(Nbuf[ibuf]==BufSize&&ireadtask[ibuf]<0) {
                             MPI_Send(&Nbuf[ibuf], 1, MPI_Int_t, ibuf, ibuf+NProcs, MPI_COMM_WORLD);
                             MPI_Send(&Pbuf[ibuf*BufSize],sizeof(Particle)*Nbuf[ibuf],MPI_BYTE,ibuf,ibuf,MPI_COMM_WORLD);
                             Nbuf[ibuf]=0;
                         }
-                        else if (Nbuf[ibuf]==BufSize&&ibuf<opt.nsnapread) {
+                        else if (Nbuf[ibuf]==BufSize&&ireadtask[ibuf]>=0) {
                             Nbuf[ibuf]=0;
                         }
                     }
@@ -1631,7 +1679,7 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
     }
     }
     //once finished reading the file if there are any particles left in the buffer broadcast them
-    for(ibuf = opt.nsnapread; ibuf < NProcs; ibuf++)
+    for(ibuf = 0; ibuf < NProcs; ibuf++) if (ireadtask[ibuf]<0)
     {
         MPI_Ssend(&Nbuf[ibuf],1,MPI_Int_t, ibuf, ibuf+NProcs, MPI_COMM_WORLD);
         if (Nbuf[ibuf]>0) {
@@ -1644,59 +1692,7 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
     }
     //if not reading information than waiting to receive information
     else {
-        //for all threads not reading snapshots, simply receive particles as necessary from all threads involved with reading the data
-        //first determine which threads are going to send information to this thread.
-        for (i=0;i<opt.nsnapread;i++) if (irecv[i]) {
-            mpi_irecvflag[i]=0;
-            MPI_Irecv(&Nlocalthreadbuf[i], 1, MPI_Int_t, i, ThisTask+NProcs, MPI_COMM_WORLD, &mpi_request[i]);
-        }
-        Nlocaltotalbuf=0;
-        //non-blocking receives for the number of particles one expects to receive
-        do {
-            irecvflag=0;
-            for (i=0;i<opt.nsnapread;i++) if (irecv[i]) {
-                if (mpi_irecvflag[i]==0) {
-                    //test if a request has been sent for a Recv call by one of the read threads
-                    MPI_Test(&mpi_request[i], &mpi_irecvflag[i], &status);
-                    if (mpi_irecvflag[i]) {
-                        if (Nlocalthreadbuf[i]>0) {
-                            MPI_Recv(&Part[Nlocal],sizeof(Particle)*Nlocalthreadbuf[i],MPI_BYTE,i,ThisTask, MPI_COMM_WORLD,&status);
-                            Nlocal+=Nlocalthreadbuf[i];
-                            Nlocaltotalbuf+=Nlocalthreadbuf[i];
-                            mpi_irecvflag[i]=0;
-                            MPI_Irecv(&Nlocalthreadbuf[i], 1, MPI_Int_t, i, ThisTask+NProcs, MPI_COMM_WORLD, &mpi_request[i]);
-                        }
-                        else {
-                            irecv[i]=0;
-                        }
-                    }
-                }
-            }
-            for (i=0;i<opt.nsnapread;i++) irecvflag+=irecv[i];
-        } while(irecvflag>0);
-        //now that data is local, must adjust data iff a separate baryon search is required. 
-        if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) {
-            for (i=0;i<Nlocal;i++) {
-                k=Part[i].GetType();
-                if (!(k==GASTYPE||k==STARTYPE||k==BHTYPE)) Part[i].SetID(0);
-                else {
-                    Nlocalbaryon[0]++;
-                    if  (k==GASTYPE) {Part[i].SetID(1);Nlocalbaryon[1]++;}
-                    else if  (k==STARTYPE) {Part[i].SetID(2);Nlocalbaryon[2]++;}
-                    else if  (k==BHTYPE) {Part[i].SetID(3);Nlocalbaryon[3]++;}
-                }
-            }
-            //sorted so that dark matter particles first, baryons after
-            qsort(Part,Nlocal, sizeof(Particle), IDCompare);
-            Nlocal-=Nlocalbaryon[0];
-            //index type separated
-            for (i=0;i<Nlocal;i++) Part[i].SetID(i);
-            for (i=0;i<Nlocalbaryon[0];i++) Part[i+Nlocal].SetID(i+Nlocal);
-            //finally, need to move baryons forward by the Export Factor * Nlocal as need that extra buffer to copy data two and from mpi threads
-//#ifndef MPIREDUCE
-//            for (i=Nlocalbaryon[0]-1;i>=0;i--) Part[i+(Int_t)(Nlocal*MPIExportFac)]=Part[i+Nlocal];
-//#endif
-        }
+        MPIReceiveParticlesFromReadThreads(opt,Pbuf,Part,readtaskID, irecv, mpi_irecvflag, Nlocalthreadbuf, mpi_request,Pbaryons);
     }
 
     //finally need to send info between read threads once all threads reading data have broadcasted the data appropriately to all other threads
@@ -1705,8 +1701,11 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
     //since Nbuf is used to determine what is going to be sent between threads in point-to-point communication
     //via an allgather, reset Nbuf
     for (i=0;i<NProcs;i++) Nbuf[i]=0;
-    if (ThisTask<opt.nsnapread && opt.nsnapread>1) {
-    delete[] Pbuf;
+    if (ireadtask[ThisTask]>=0 && opt.nsnapread>1) {
+    if(Pbuf) {
+        delete[] Pbuf;
+        Pbuf = NULL;
+    }
     Nlocalbuf=0;
     for (i=0;i<opt.nsnapread;i++) Nlocalbuf+=Nreadbuf[i];
     if (Nlocalbuf>0)
@@ -1720,11 +1719,11 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
         for (j=0;j<nusetypes;j++) {
             k=usetypes[j];
             //data loaded into memory in chunks
-            if (hdf_header_info[i].npart[k]<HDFCHUNKSIZE)nchunk=hdf_header_info[i].npart[k];
-            else nchunk=HDFCHUNKSIZE;
+            if (hdf_header_info[i].npart[k]<chunksize)nchunk=hdf_header_info[i].npart[k];
+            else nchunk=chunksize;
             for(n=0;n<hdf_header_info[i].npart[k];n+=nchunk)
             {
-                if (hdf_header_info[i].npart[k]-n<HDFCHUNKSIZE&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
+                if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
                 //setup hyperslab so that it is loaded into the buffer
                 //load positions
                 itemp=0;
@@ -1736,8 +1735,8 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
                 filespaceoffset[0]=n;filespaceoffset[1]=0;
                 //set type
                 floattype=partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].getFloatType();
-                if (floattype.getSize()==sizeof(float)) {HDFREALTYPE=PredType::NATIVE_FLOAT;realbuff=floatbuff;ifloat=1;}
-                else {HDFREALTYPE=PredType::NATIVE_DOUBLE ;realbuff=doublebuff;ifloat=0;}
+                if (floattype.getSize()==sizeof(float)) {HDFREALTYPE=PredType::NATIVE_FLOAT;realbuff=floatbuff;ifloat_pos=1;}
+                else {HDFREALTYPE=PredType::NATIVE_DOUBLE ;realbuff=doublebuff;ifloat_pos=0;}
                 //read hyperslab into local buffer
                 partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].selectHyperslab(H5S_SELECT_SET, filespacecount, filespaceoffset);
                 partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].read(realbuff,HDFREALTYPE,chunkspace,partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
@@ -1788,11 +1787,13 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
                 chunkspace=DataSpace(datarank,datadim);
                 filespacecount[0]=nchunk;filespacecount[1]=1;
                 filespaceoffset[0]=n;filespaceoffset[1]=0;
-                floattype=partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].getFloatType();
-                if (floattype.getSize()==sizeof(float)) {HDFREALTYPE=PredType::NATIVE_FLOAT;realbuff=ufloatbuff;ifloat=1;}
-                else {HDFREALTYPE=PredType::NATIVE_DOUBLE;realbuff=udoublebuff;ifloat=0;}
-                partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].selectHyperslab(H5S_SELECT_SET, filespacecount, filespaceoffset);
-                partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].read(realbuff,HDFREALTYPE,chunkspace,partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
+                if (k==HDFGASTYPE) {
+                    floattype=partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].getFloatType();
+                    if (floattype.getSize()==sizeof(float)) {HDFREALTYPE=PredType::NATIVE_FLOAT;realbuff=ufloatbuff;ifloat=1;}
+                    else {HDFREALTYPE=PredType::NATIVE_DOUBLE;realbuff=udoublebuff;ifloat=0;}
+                    partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].selectHyperslab(H5S_SELECT_SET, filespacecount, filespaceoffset);
+                    partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].read(realbuff,HDFREALTYPE,chunkspace,partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
+                }
 #ifdef STARON
                 //star formation rate
                 itemp++;
@@ -1801,11 +1802,14 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
                 chunkspace=DataSpace(datarank,datadim);
                 filespacecount[0]=nchunk;filespacecount[1]=1;
                 filespaceoffset[0]=n;filespaceoffset[1]=0;
-                floattype=partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].getFloatType();
-                if (floattype.getSize()==sizeof(float)) {HDFREALTYPE=PredType::NATIVE_FLOAT;realbuff=SFRfloatbuff;ifloat=1;}
-                else {HDFREALTYPE=PredType::NATIVE_DOUBLE;realbuff=SFRdoublebuff;ifloat=0;}
-                partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].selectHyperslab(H5S_SELECT_SET, filespacecount, filespaceoffset);
-                partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].read(realbuff,HDFREALTYPE,chunkspace,partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
+                if (k==HDFGASTYPE) {
+                    floattype=partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].getFloatType();
+                    if (floattype.getSize()==sizeof(float)) {HDFREALTYPE=PredType::NATIVE_FLOAT;realbuff=SFRfloatbuff;ifloat=1;}
+                    else {HDFREALTYPE=PredType::NATIVE_DOUBLE;realbuff=SFRdoublebuff;ifloat=0;}
+                    partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].selectHyperslab(H5S_SELECT_SET, filespacecount, filespaceoffset);
+                    partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].read(realbuff,HDFREALTYPE,chunkspace,partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
+                }
+
                 //metallicity
                 itemp++;
                 datarank=1;
@@ -1813,11 +1817,14 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
                 chunkspace=DataSpace(datarank,datadim);
                 filespacecount[0]=nchunk;filespacecount[1]=1;
                 filespaceoffset[0]=n;filespaceoffset[1]=0;
-                floattype=partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].getFloatType();
-                if (floattype.getSize()==sizeof(float)) {HDFREALTYPE=PredType::NATIVE_FLOAT;realbuff=Zfloatbuff;ifloat=1;}
-                else {HDFREALTYPE=PredType::NATIVE_DOUBLE;realbuff=Zdoublebuff;ifloat=0;}
-                partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].selectHyperslab(H5S_SELECT_SET, filespacecount, filespaceoffset);
-                partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].read(realbuff,HDFREALTYPE,chunkspace,partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
+                if (k==HDFGASTYPE || k==HDFSTARTYPE) {
+                    floattype=partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].getFloatType();
+                    if (floattype.getSize()==sizeof(float)) {HDFREALTYPE=PredType::NATIVE_FLOAT;realbuff=Zfloatbuff;ifloat=1;}
+                    else {HDFREALTYPE=PredType::NATIVE_DOUBLE;realbuff=Zdoublebuff;ifloat=0;}
+                    partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].selectHyperslab(H5S_SELECT_SET, filespacecount, filespaceoffset);
+                    partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].read(realbuff,HDFREALTYPE,chunkspace,partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
+                }
+
                 //stellar age
                 itemp++;
                 datarank=1;
@@ -1825,56 +1832,62 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
                 chunkspace=DataSpace(datarank,datadim);
                 filespacecount[0]=nchunk;filespacecount[1]=1;
                 filespaceoffset[0]=n;filespaceoffset[1]=0;
-                floattype=partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].getFloatType();
-                if (floattype.getSize()==sizeof(float)) {HDFREALTYPE=PredType::NATIVE_FLOAT;realbuff=Tagefloatbuff;ifloat=1;}
-                else {HDFREALTYPE=PredType::NATIVE_DOUBLE;realbuff=Tagedoublebuff;ifloat=0;}
-                partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].selectHyperslab(H5S_SELECT_SET, filespacecount, filespaceoffset);
-                partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].read(realbuff,HDFREALTYPE,chunkspace,partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
+                if (k==HDFSTARTYPE) {
+                    floattype=partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].getFloatType();
+                    if (floattype.getSize()==sizeof(float)) {HDFREALTYPE=PredType::NATIVE_FLOAT;realbuff=Tagefloatbuff;ifloat=1;}
+                    else {HDFREALTYPE=PredType::NATIVE_DOUBLE;realbuff=Tagedoublebuff;ifloat=0;}
+                    partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].selectHyperslab(H5S_SELECT_SET, filespacecount, filespaceoffset);
+                    partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].read(realbuff,HDFREALTYPE,chunkspace,partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
+                }
 #endif
 #endif
                 for (int nn=0;nn<nchunk;nn++) {
-                    if (ifloat) ibuf=MPIGetParticlesProcessor(floatbuff[nn*3],floatbuff[nn*3+1],floatbuff[nn*3+2]);
+                    if (ifloat_pos) ibuf=MPIGetParticlesProcessor(floatbuff[nn*3],floatbuff[nn*3+1],floatbuff[nn*3+2]);
                     else ibuf=MPIGetParticlesProcessor(doublebuff[nn*3],doublebuff[nn*3+1],doublebuff[nn*3+2]);
-                    if (ibuf<opt.nsnapread&&ibuf!=ThisTask) {
+                    if (ireadtask[ibuf]>=0&&ibuf!=ThisTask) {
                     //store particle info in Ptemp;
+		    if (ifloat_pos) {
+                        Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetPosition(floatbuff[nn*3],floatbuff[nn*3+1],floatbuff[nn*3+2]);
+		    }
+		    else {
+                        Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetPosition(doublebuff[nn*3],doublebuff[nn*3+1],doublebuff[nn*3+2]);
+		    }
                     if (ifloat) {
-                        Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetPosition(floatbuff[nn*3],floatbuff[nn*3+1],floatbuff[nn*3+2]);
-                        Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetVelocity(velfloatbuff[nn*3],velfloatbuff[nn*3+1],velfloatbuff[nn*3+2]);
-                        if (hdf_header_info[i].mass[k]==0)Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetMass(massfloatbuff[nn]);
-                        else Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetMass(hdf_header_info[i].mass[k]);
+                        Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetVelocity(velfloatbuff[nn*3],velfloatbuff[nn*3+1],velfloatbuff[nn*3+2]);
+                        if (hdf_header_info[i].mass[k]==0)Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetMass(massfloatbuff[nn]);
+                        else Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetMass(hdf_header_info[i].mass[k]);
                     }
                     else {
-                        Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetPosition(doublebuff[nn*3],doublebuff[nn*3+1],doublebuff[nn*3+2]);
-                        Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetVelocity(veldoublebuff[nn*3],veldoublebuff[nn*3+1],veldoublebuff[nn*3+2]);
-                        if (hdf_header_info[i].mass[k]==0)Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetMass(massdoublebuff[nn]);
-                        else Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetMass(hdf_header_info[i].mass[k]);
+                        Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetVelocity(veldoublebuff[nn*3],veldoublebuff[nn*3+1],veldoublebuff[nn*3+2]);
+                        if (hdf_header_info[i].mass[k]==0)Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetMass(massdoublebuff[nn]);
+                        else Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetMass(hdf_header_info[i].mass[k]);
                     }
-                    if (iint) Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetPID(intbuff[nn]);
-                    else Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetPID(longbuff[nn]);
-                    Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetID(nn);
-                    if (k==HDFGASTYPE) Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetType(GASTYPE);
-                    else if (k==HDFDMTYPE) Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetType(DARKTYPE);
-                    else if (k==HDFSTARTYPE) Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetType(STARTYPE);
-                    else if (k==HDFBHTYPE) Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetType(BHTYPE);
+                    if (iint) Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetPID(intbuff[nn]);
+                    else Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetPID(longbuff[nn]);
+                    Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetID(nn);
+                    if (k==HDFGASTYPE) Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetType(GASTYPE);
+                    else if (k==HDFDMTYPE) Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetType(DARKTYPE);
+                    else if (k==HDFSTARTYPE) Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetType(STARTYPE);
+                    else if (k==HDFBHTYPE) Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetType(BHTYPE);
 #ifdef GASON
                     if (k==HDFGASTYPE) {
-                        if (ifloat) Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetU(ufloatbuff[nn]); 
-                        else Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetU(udoublebuff[nn]);
+                        if (ifloat) Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetU(ufloatbuff[nn]);
+                        else Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetU(udoublebuff[nn]);
 #ifdef STARON
-                        if (ifloat) Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetSFR(SFRfloatbuff[nn]); 
-                        else Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetSFR(SFRdoublebuff[nn]);
-                        if (ifloat) Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetZmet(Zfloatbuff[nn]); 
-                        else Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetZmet(Zdoublebuff[nn]);
+                        if (ifloat) Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetSFR(SFRfloatbuff[nn]);
+                        else Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetSFR(SFRdoublebuff[nn]);
+                        if (ifloat) Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetZmet(Zfloatbuff[nn]);
+                        else Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetZmet(Zdoublebuff[nn]);
 #endif
 
                     }
 #endif
 #ifdef STARON
                     if (k==HDFSTARTYPE) {
-                        if (ifloat) Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetZmet(Zfloatbuff[nn]); 
-                        else Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetZmet(Zdoublebuff[nn]);
-                        if (ifloat) {if (Tagefloatbuff[nn]<0) Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetType(WINDTYPE); Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetTage(Tagefloatbuff[nn]);}
-                        else {if (Tagedoublebuff[nn]<0) Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetType(WINDTYPE); Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetTage(Tagedoublebuff[nn]);}
+                        if (ifloat) Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetZmet(Zfloatbuff[nn]);
+                        else Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetZmet(Zdoublebuff[nn]);
+                        if (ifloat) {if (Tagefloatbuff[nn]<0) Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetType(WINDTYPE); Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetTage(Tagefloatbuff[nn]);}
+                        else {if (Tagedoublebuff[nn]<0) Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetType(WINDTYPE); Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetTage(Tagedoublebuff[nn]);}
                     }
 #endif
                     Nbuf[ibuf]++;
@@ -1885,11 +1898,11 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
         if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) {
         for (j=1;j<=nbusetypes;j++) {
             k=usetypes[j];
-            if (hdf_header_info[i].npart[k]<HDFCHUNKSIZE)nchunk=hdf_header_info[i].npart[k];
-            else nchunk=HDFCHUNKSIZE;
+            if (hdf_header_info[i].npart[k]<chunksize)nchunk=hdf_header_info[i].npart[k];
+            else nchunk=chunksize;
             for(n=0;n<hdf_header_info[i].npart[k];n+=nchunk)
             {
-                if (hdf_header_info[i].npart[k]-n<HDFCHUNKSIZE&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
+                if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
                 //setup hyperslab so that it is loaded into the buffer
                 //load positions
                 itemp=0;
@@ -1901,8 +1914,8 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
                 filespaceoffset[0]=n;filespaceoffset[1]=0;
                 //set type
                 floattype=partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].getFloatType();
-                if (floattype.getSize()==sizeof(float)) {HDFREALTYPE=PredType::NATIVE_FLOAT;realbuff=floatbuff;ifloat=1;}
-                else {HDFREALTYPE=PredType::NATIVE_DOUBLE ;realbuff=doublebuff;ifloat=0;}
+                if (floattype.getSize()==sizeof(float)) {HDFREALTYPE=PredType::NATIVE_FLOAT;realbuff=floatbuff;ifloat_pos=1;}
+                else {HDFREALTYPE=PredType::NATIVE_DOUBLE ;realbuff=doublebuff;ifloat_pos=0;}
                 //read hyperslab into local buffer
                 partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].selectHyperslab(H5S_SELECT_SET, filespacecount, filespaceoffset);
                 partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].read(realbuff,HDFREALTYPE,chunkspace,partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
@@ -1952,11 +1965,13 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
                 chunkspace=DataSpace(datarank,datadim);
                 filespacecount[0]=nchunk;filespacecount[1]=1;
                 filespaceoffset[0]=n;filespaceoffset[1]=0;
-                floattype=partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].getFloatType();
-                if (floattype.getSize()==sizeof(float)) {HDFREALTYPE=PredType::NATIVE_FLOAT;realbuff=ufloatbuff;ifloat=1;}
-                else {HDFREALTYPE=PredType::NATIVE_DOUBLE;realbuff=udoublebuff;ifloat=0;}
-                partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].selectHyperslab(H5S_SELECT_SET, filespacecount, filespaceoffset);
-                partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].read(realbuff,HDFREALTYPE,chunkspace,partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
+                if (k==HDFGASTYPE) {
+                    floattype=partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].getFloatType();
+                    if (floattype.getSize()==sizeof(float)) {HDFREALTYPE=PredType::NATIVE_FLOAT;realbuff=ufloatbuff;ifloat=1;}
+                    else {HDFREALTYPE=PredType::NATIVE_DOUBLE;realbuff=udoublebuff;ifloat=0;}
+                    partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].selectHyperslab(H5S_SELECT_SET, filespacecount, filespaceoffset);
+                    partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].read(realbuff,HDFREALTYPE,chunkspace,partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
+                }
 #ifdef STARON
                 //star formation rate
                 itemp++;
@@ -1965,11 +1980,14 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
                 chunkspace=DataSpace(datarank,datadim);
                 filespacecount[0]=nchunk;filespacecount[1]=1;
                 filespaceoffset[0]=n;filespaceoffset[1]=0;
-                floattype=partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].getFloatType();
-                if (floattype.getSize()==sizeof(float)) {HDFREALTYPE=PredType::NATIVE_FLOAT;realbuff=SFRfloatbuff;ifloat=1;}
-                else {HDFREALTYPE=PredType::NATIVE_DOUBLE;realbuff=SFRdoublebuff;ifloat=0;}
-                partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].selectHyperslab(H5S_SELECT_SET, filespacecount, filespaceoffset);
-                partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].read(realbuff,HDFREALTYPE,chunkspace,partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
+                if (k==HDFGASTYPE) {
+                    floattype=partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].getFloatType();
+                    if (floattype.getSize()==sizeof(float)) {HDFREALTYPE=PredType::NATIVE_FLOAT;realbuff=SFRfloatbuff;ifloat=1;}
+                    else {HDFREALTYPE=PredType::NATIVE_DOUBLE;realbuff=SFRdoublebuff;ifloat=0;}
+                    partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].selectHyperslab(H5S_SELECT_SET, filespacecount, filespaceoffset);
+                    partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].read(realbuff,HDFREALTYPE,chunkspace,partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
+                }
+
                 //metallicity
                 itemp++;
                 datarank=1;
@@ -1977,11 +1995,14 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
                 chunkspace=DataSpace(datarank,datadim);
                 filespacecount[0]=nchunk;filespacecount[1]=1;
                 filespaceoffset[0]=n;filespaceoffset[1]=0;
-                floattype=partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].getFloatType();
-                if (floattype.getSize()==sizeof(float)) {HDFREALTYPE=PredType::NATIVE_FLOAT;realbuff=Zfloatbuff;ifloat=1;}
-                else {HDFREALTYPE=PredType::NATIVE_DOUBLE;realbuff=Zdoublebuff;ifloat=0;}
-                partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].selectHyperslab(H5S_SELECT_SET, filespacecount, filespaceoffset);
-                partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].read(realbuff,HDFREALTYPE,chunkspace,partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
+                if (k==HDFGASTYPE || k==HDFSTARTYPE) {
+                    floattype=partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].getFloatType();
+                    if (floattype.getSize()==sizeof(float)) {HDFREALTYPE=PredType::NATIVE_FLOAT;realbuff=Zfloatbuff;ifloat=1;}
+                    else {HDFREALTYPE=PredType::NATIVE_DOUBLE;realbuff=Zdoublebuff;ifloat=0;}
+                    partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].selectHyperslab(H5S_SELECT_SET, filespacecount, filespaceoffset);
+                    partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].read(realbuff,HDFREALTYPE,chunkspace,partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
+                }
+
                 //stellar age
                 itemp++;
                 datarank=1;
@@ -1989,57 +2010,63 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
                 chunkspace=DataSpace(datarank,datadim);
                 filespacecount[0]=nchunk;filespacecount[1]=1;
                 filespaceoffset[0]=n;filespaceoffset[1]=0;
-                floattype=partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].getFloatType();
-                if (floattype.getSize()==sizeof(float)) {HDFREALTYPE=PredType::NATIVE_FLOAT;realbuff=Tagefloatbuff;ifloat=1;}
-                else {HDFREALTYPE=PredType::NATIVE_DOUBLE;realbuff=Tagedoublebuff;ifloat=0;}
-                partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].selectHyperslab(H5S_SELECT_SET, filespacecount, filespaceoffset);
-                partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].read(realbuff,HDFREALTYPE,chunkspace,partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
+                if (k==HDFSTARTYPE) {
+                    floattype=partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].getFloatType();
+                    if (floattype.getSize()==sizeof(float)) {HDFREALTYPE=PredType::NATIVE_FLOAT;realbuff=Tagefloatbuff;ifloat=1;}
+                    else {HDFREALTYPE=PredType::NATIVE_DOUBLE;realbuff=Tagedoublebuff;ifloat=0;}
+                    partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].selectHyperslab(H5S_SELECT_SET, filespacecount, filespaceoffset);
+                    partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].read(realbuff,HDFREALTYPE,chunkspace,partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
+                }
 #endif
 #endif
 
                 for (int nn=0;nn<nchunk;nn++) {
-                    if (ifloat) ibuf=MPIGetParticlesProcessor(floatbuff[nn*3],floatbuff[nn*3+1],floatbuff[nn*3+2]);
+                    if (ifloat_pos) ibuf=MPIGetParticlesProcessor(floatbuff[nn*3],floatbuff[nn*3+1],floatbuff[nn*3+2]);
                     else ibuf=MPIGetParticlesProcessor(doublebuff[nn*3],doublebuff[nn*3+1],doublebuff[nn*3+2]);
-                    if (ibuf<opt.nsnapread&&ibuf!=ThisTask) {
+                    if (ireadtask[ibuf]>=0&&ibuf!=ThisTask) {
                     //store particle info in Ptemp;
+		    if (ifloat_pos) {
+		      Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetPosition(floatbuff[nn*3],floatbuff[nn*3+1],floatbuff[nn*3+2]);
+		    }
+		    else {
+		      Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetPosition(doublebuff[nn*3],doublebuff[nn*3+1],doublebuff[nn*3+2]);
+		    }
                     if (ifloat) {
-                        Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetPosition(floatbuff[nn*3],floatbuff[nn*3+1],floatbuff[nn*3+2]);
-                        Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetVelocity(velfloatbuff[nn*3],velfloatbuff[nn*3+1],velfloatbuff[nn*3+2]);
-                        if (hdf_header_info[i].mass[k]==0)Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetMass(massfloatbuff[nn]);
-                        else Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetMass(hdf_header_info[i].mass[k]);
+                        Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetVelocity(velfloatbuff[nn*3],velfloatbuff[nn*3+1],velfloatbuff[nn*3+2]);
+                        if (hdf_header_info[i].mass[k]==0)Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetMass(massfloatbuff[nn]);
+                        else Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetMass(hdf_header_info[i].mass[k]);
                     }
                     else {
-                        Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetPosition(doublebuff[nn*3],doublebuff[nn*3+1],doublebuff[nn*3+2]);
-                        Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetVelocity(veldoublebuff[nn*3],veldoublebuff[nn*3+1],veldoublebuff[nn*3+2]);
-                        if (hdf_header_info[i].mass[k]==0)Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetMass(massdoublebuff[nn]);
-                        else Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetMass(hdf_header_info[i].mass[k]);
+                        Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetVelocity(veldoublebuff[nn*3],veldoublebuff[nn*3+1],veldoublebuff[nn*3+2]);
+                        if (hdf_header_info[i].mass[k]==0)Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetMass(massdoublebuff[nn]);
+                        else Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetMass(hdf_header_info[i].mass[k]);
                     }
-                    if (iint) Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetPID(intbuff[nn]);
-                    else Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetPID(longbuff[nn]);
-                    Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetID(nn);
-                    if (k==HDFGASTYPE) Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetType(GASTYPE);
-                    else if (k==HDFDMTYPE) Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetType(DARKTYPE);
-                    else if (k==HDFSTARTYPE) Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetType(STARTYPE);
-                    else if (k==HDFBHTYPE) Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetType(BHTYPE);
+                    if (iint) Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetPID(intbuff[nn]);
+                    else Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetPID(longbuff[nn]);
+                    Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetID(nn);
+                    if (k==HDFGASTYPE) Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetType(GASTYPE);
+                    else if (k==HDFDMTYPE) Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetType(DARKTYPE);
+                    else if (k==HDFSTARTYPE) Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetType(STARTYPE);
+                    else if (k==HDFBHTYPE) Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetType(BHTYPE);
 #ifdef GASON
                     if (k==HDFGASTYPE) {
-                        if (ifloat) Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetU(ufloatbuff[nn]); 
-                        else Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetU(udoublebuff[nn]);
+                        if (ifloat) Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetU(ufloatbuff[nn]);
+                        else Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetU(udoublebuff[nn]);
 #ifdef STARON
-                        if (ifloat) Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetSFR(SFRfloatbuff[nn]); 
-                        else Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetSFR(SFRdoublebuff[nn]);
-                        if (ifloat) Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetZmet(Zfloatbuff[nn]); 
-                        else Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetZmet(Zdoublebuff[nn]);
+                        if (ifloat) Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetSFR(SFRfloatbuff[nn]);
+                        else Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetSFR(SFRdoublebuff[nn]);
+                        if (ifloat) Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetZmet(Zfloatbuff[nn]);
+                        else Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetZmet(Zdoublebuff[nn]);
 #endif
 
                     }
 #endif
 #ifdef STARON
                     if (k==HDFSTARTYPE) {
-                        if (ifloat) Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetZmet(Zfloatbuff[nn]); 
-                        else Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetZmet(Zdoublebuff[nn]);
-                        if (ifloat) {if (Tagefloatbuff[nn]<0) Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetType(WINDTYPE); Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetTage(Tagefloatbuff[nn]);}
-                        else {if (Tagedoublebuff[nn]<0) Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetType(WINDTYPE); Pbuf[nreadoffset[ibuf]+Nbuf[ibuf]].SetTage(Tagedoublebuff[nn]);}
+                        if (ifloat) Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetZmet(Zfloatbuff[nn]);
+                        else Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetZmet(Zdoublebuff[nn]);
+                        if (ifloat) {if (Tagefloatbuff[nn]<0) Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetType(WINDTYPE); Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetTage(Tagefloatbuff[nn]);}
+                        else {if (Tagedoublebuff[nn]<0) Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetType(WINDTYPE); Pbuf[nreadoffset[ireadtask[ibuf]]+Nbuf[ibuf]].SetTage(Tagedoublebuff[nn]);}
                     }
 #endif
                     Nbuf[ibuf]++;
@@ -2057,66 +2084,41 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
 
     //gather all the items that must be sent.
     MPI_Allgather(Nbuf, NProcs, MPI_Int_t, mpi_nsend, NProcs, MPI_Int_t, MPI_COMM_WORLD);
-    //if separate baryon search then sort the Pbuf array so that it is separated by type 
+    //if separate baryon search then sort the Pbuf array so that it is separated by type
     if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) {
         if (ThisTask<opt.nsnapread) {
         for(ibuf = 0; ibuf < opt.nsnapread; ibuf++) if (mpi_nsend[ThisTask * NProcs + ibuf] > 0)
         {
             Nbuf[ibuf]=0;
             for (i=0;i<mpi_nsend[ThisTask * NProcs + ibuf];i++) {
-                k=Pbuf[nreadoffset[ibuf]+i].GetType();
-                if (!(k==GASTYPE||k==STARTYPE||k==BHTYPE)) Pbuf[nreadoffset[ibuf]+i].SetID(0);
+                k=Pbuf[nreadoffset[ireadtask[ibuf]]+i].GetType();
+                if (!(k==GASTYPE||k==STARTYPE||k==BHTYPE)) Pbuf[nreadoffset[ireadtask[ibuf]]+i].SetID(0);
                 else {
-                    if  (k==GASTYPE) Pbuf[nreadoffset[ibuf]+i].SetID(1);
-                    else if  (k==STARTYPE) Pbuf[nreadoffset[ibuf]+i].SetID(2);
-                    else if  (k==BHTYPE) Pbuf[nreadoffset[ibuf]+i].SetID(3);
+                    if  (k==GASTYPE) Pbuf[nreadoffset[ireadtask[ibuf]]+i].SetID(1);
+                    else if  (k==STARTYPE) Pbuf[nreadoffset[ireadtask[ibuf]]+i].SetID(2);
+                    else if  (k==BHTYPE) Pbuf[nreadoffset[ireadtask[ibuf]]+i].SetID(3);
                     Nbuf[ibuf]++;
                 }
             }
-            qsort(&Pbuf[nreadoffset[ibuf]],mpi_nsend[ThisTask*NProcs+ibuf], sizeof(Particle), IDCompare);
+            qsort(&Pbuf[nreadoffset[ireadtask[ibuf]]],mpi_nsend[ThisTask*NProcs+ibuf], sizeof(Particle), IDCompare);
         }
-	    }
+        }
         MPI_Allgather(Nbuf, NProcs, MPI_Int_t, mpi_nsend_baryon, NProcs, MPI_Int_t, MPI_COMM_WORLD);
         for (ibuf=0;ibuf<NProcs*NProcs;ibuf++) mpi_nsend[ibuf]-=mpi_nsend_baryon[ibuf];
     }
     //and then send all the data between the read threads
-    if (ThisTask<opt.nsnapread) {
-    for(ibuf = 0; ibuf < opt.nsnapread; ibuf++)
-    {
-        if (ibuf!=ThisTask)
-        {
-            sendTask = ThisTask;
-            recvTask = ibuf;
-            if(mpi_nsend[ThisTask * NProcs + recvTask] > 0 || mpi_nsend[recvTask * NProcs + ThisTask] > 0)
-            {
-                //blocking point-to-point send and receive. Here must determine the appropriate offset point in the local export buffer
-                //for sending data and also the local appropriate offset in the local the receive buffer for information sent from the local receiving buffer
-                MPI_Sendrecv(&Pbuf[nreadoffset[recvTask]],sizeof(Particle)*mpi_nsend[ThisTask * NProcs + recvTask], MPI_BYTE, recvTask, TAG_IO_A,
-                    &Part[Nlocal],sizeof(Particle)*mpi_nsend[recvTask * NProcs + ThisTask], MPI_BYTE, recvTask, TAG_IO_A, MPI_COMM_WORLD, &status);
-                Nlocal+=mpi_nsend[recvTask * NProcs + ThisTask];
-            }
-        }
-    }
-    }
-    if (ThisTask<opt.nsnapread) {
-    if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) {
-    for(ibuf = 0; ibuf < opt.nsnapread; ibuf++)
-    {
-        if (ibuf!=ThisTask)
-        {
-            sendTask = ThisTask;
-            recvTask = ibuf;
-            //if separate baryon search, send baryons too
-                if(mpi_nsend_baryon[ThisTask * NProcs + recvTask] > 0 || mpi_nsend_baryon[recvTask * NProcs + ThisTask] > 0) 
-                MPI_Sendrecv(&Pbuf[nreadoffset[recvTask]+mpi_nsend[ThisTask * NProcs + recvTask]],sizeof(Particle)*mpi_nsend_baryon[ThisTask * NProcs + recvTask], MPI_BYTE, recvTask, TAG_IO_B,
-                    &Part[Nlocal],sizeof(Particle)*mpi_nsend_baryon[recvTask * NProcs + ThisTask], MPI_BYTE, recvTask, TAG_IO_B, MPI_COMM_WORLD, &status);
-                Nlocal+=mpi_nsend_baryon[recvTask * NProcs + ThisTask];
-                //MPI_Sendrecv(&Pbuf[nreadoffset[recvTask]+mpi_nsend[ThisTask * NProcs + recvTask]],sizeof(Particle)*mpi_nsend_baryon[ThisTask * NProcs + recvTask], MPI_BYTE, recvTask, TAG_IO_B,
-                //    &Pbaryons[Nlocalbaryon[0]],sizeof(Particle)*mpi_nsend_baryon[recvTask * NProcs + ThisTask], MPI_BYTE, recvTask, TAG_IO_B, MPI_COMM_WORLD, &status);
-                //Nlocalbaryon[0]+=mpi_nsend_baryon[recvTask * NProcs + ThisTask];
-        }
-    }
-
+    MPISendParticlesBetweenReadThreads(opt, Pbuf, Part, nreadoffset, ireadtask, readtaskID, Pbaryons, mpi_nsend_baryon);
+    if (ireadtask[ThisTask]>=0) {
+        if(Pbuf) {
+	  delete[] Pbuf;
+	  Pbuf = NULL;
+	}
+        if (opt.iBaryonSearch && opt.partsearchtype!=PSTALL) delete[] mpi_nsend_baryon;
+        //set IDS
+        for (i=0;i<Nlocal;i++) Part[i].SetID(i);
+        if (opt.iBaryonSearch) for (i=0;i<Nlocalbaryon[0];i++) Pbaryons[i].SetID(i+Nlocal);
+    }//end of read tasks
+/*
     for (i=0;i<Nlocal;i++) {
         k=Part[i].GetType();
         if (!(k==GASTYPE||k==STARTYPE||k==BHTYPE)) Part[i].SetID(0);
@@ -2143,6 +2145,7 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
     for (i=0;i<Nlocal;i++) Part[i].SetID(i);
     if (opt.iBaryonSearch) for (i=0;i<Nlocalbaryon[0];i++) Pbaryons[i].SetID(i+Nlocal);
     }
+    */
 
 #endif
 
@@ -2205,8 +2208,8 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
 #ifdef USEMPI
     MPI_Bcast(&LN, 1, MPI_Real_t, 0, MPI_COMM_WORLD);
 #endif
-    ///if not an individual halo, assume cosmological and store scale of the highest resolution interparticle spacing to scale the physical FOF linking length 
-    if (opt.iSingleHalo==0) 
+    ///if not an individual halo, assume cosmological and store scale of the highest resolution interparticle spacing to scale the physical FOF linking length
+    if (opt.iSingleHalo==0)
     {
         opt.ellxscale=LN;
         opt.uinfo.eps*=LN;

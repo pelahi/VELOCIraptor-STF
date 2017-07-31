@@ -1,6 +1,6 @@
 /*! \file hdfitems.h
  *  \brief this file contains definitions and routines for reading HDF5 files
- * 
+ *
  *   NOTE: the routines are based on reading Illustris HDF outputs
  */
 
@@ -14,7 +14,7 @@ using namespace H5;
 ///\name ILLUSTRIS specific constants
 //@{
 ///convert illustris metallicty to ratio to solar
-#define ILLUSTRISZMET 1.0/0.0127 
+#define ILLUSTRISZMET 1.0/0.0127
 //@}
 
 ///number of particle types
@@ -23,13 +23,14 @@ using namespace H5;
 //@{
 #define HDFGASTYPE 0
 #define HDFDMTYPE 1
-#define HDFEXTRATYPE 2
+#define HDFWINDTYPE 2
 #define HDFTRACERTYPE 3
 #define HDFSTARTYPE 4
 #define HDFBHTYPE 5
+#define HDFEXTRATYPE 6
 //@}
 
-///\name number of entries in various data groups 
+///\name number of entries in various data groups
 //@{
 #define HDFHEADNINFO 11
 #define HDFGASNINFO 20
@@ -38,6 +39,16 @@ using namespace H5;
 #define HDFSTARNINFO 13
 #define HDFBHNINFO 21
 #define HDFMAXPINFO 40
+//@}
+
+///\name to access where extra baryonic properties are located in the HDF_Part_Info structure that code will use to calcualte object properties
+//@{
+#define HDFGASIMETAL 0
+
+#define HDFSTARIMETAL 40
+#define HDFSTARIAGE 41
+
+#define HDFBHIMDOT 50
 //@}
 
 ///number of luminosity bands for stars
@@ -50,22 +61,23 @@ using namespace H5;
 #define NHDFDATABLOCK 10
 ///here number shared by all particle types
 #define NHDFDATABLOCKALL 4
-//Maximum dimensionality of a datablock 
+//Maximum dimensionality of a datablock
 ///example at most one needs a dimensionality of 13 for the tracer particles in Illustris for fluid related info
 #define HDFMAXPROPDIM 13
 
-///\name labels for HDF naming conventions 
+///\name labels for HDF naming conventions
 //@{
 
 ///\name Structures for the HDF5 interface, primarily used to store the strings of Groups and DataSets
 //@{
-#define HDFILLUSTISNAMES 0 
-#define HDFGADGETXNAMES 1
+#define HDFILLUSTISNAMES 0
+#define HDFGADGETXNAMES  1
+#define HDFEAGLENAMES    2
 //@}
 
 ///This structures stores the strings defining the groups of data in the hdf input. NOTE: HERE I show the strings for Illustris format
 struct HDF_Group_Names {
-    //define the strings associated with the types of structures contained in the hdf file. 
+    //define the strings associated with the types of structures contained in the hdf file.
     H5std_string Header_name;
     H5std_string GASpart_name;
     H5std_string DMpart_name;
@@ -91,7 +103,7 @@ struct HDF_Group_Names {
         part_names[3]=TRACERpart_name;
         part_names[4]=STARpart_name;
         part_names[5]=BHpart_name;
-        
+
         names[0]=Header_name;
         names[1]=GASpart_name;
         names[2]=DMpart_name;
@@ -107,8 +119,8 @@ struct HDF_Header {
 
     double      BoxSize;
     int         npart[NHDFTYPE];
-    int         npartTotal[NHDFTYPE];
-    int         npartTotalHW[NHDFTYPE];
+    unsigned int npartTotal[NHDFTYPE];
+    unsigned int npartTotalHW[NHDFTYPE];
     double      mass[NHDFTYPE];
     double      Omega0, OmegaLambda, HubbleParam;
     double      redshift, time;
@@ -148,14 +160,20 @@ struct HDF_Part_Info {
     H5std_string names[HDFMAXPINFO];
     int ptype;
     int nentries;
+    //store where properties are located
+    int propindex[100];
+
     //the HDF naming convenction for the data blocks. By default assumes ILLUSTRIS nameing convention
     //for simplicity, all particles have basic properties listed first, x,v,ids,mass in this order
-    HDF_Part_Info(int PTYPE, int hdfnametype=HDFILLUSTISNAMES) {
+    HDF_Part_Info(int PTYPE, int hdfnametype=HDFEAGLENAMES) {
         ptype=PTYPE;
         int itemp=0;
         if (ptype==HDFGASTYPE) {
         names[itemp++]=H5std_string("Coordinates");
-        names[itemp++]=H5std_string("Velocities");
+	if(hdfnametype!=HDFEAGLENAMES)
+	  names[itemp++]=H5std_string("Velocities");
+	else
+	  names[itemp++]=H5std_string("Velocity");
         names[itemp++]=H5std_string("ParticleIDs");
         names[itemp++]=H5std_string("Masses");
         names[itemp++]=H5std_string("Density");
@@ -163,6 +181,7 @@ struct HDF_Part_Info {
         names[itemp++]=H5std_string("StarFormationRate");
         //always place the metacallity at position 7 in naming array
         if (hdfnametype==HDFILLUSTISNAMES) {
+            propindex[HDFGASIMETAL]=itemp;
             names[itemp++]=H5std_string("GFM_Metallicity");
             names[itemp++]=H5std_string("ElectronAbundance");
             names[itemp++]=H5std_string("NeutralHydrogenAbundance");
@@ -181,7 +200,10 @@ struct HDF_Part_Info {
         }
         if (ptype==HDFDMTYPE) {
         names[itemp++]=H5std_string("Coordinates");
-        names[itemp++]=H5std_string("Velocities");
+	if(hdfnametype!=HDFEAGLENAMES)
+	  names[itemp++]=H5std_string("Velocities");
+	else
+	  names[itemp++]=H5std_string("Velocity");
         names[itemp++]=H5std_string("ParticleIDs");
         if (hdfnametype==HDFILLUSTISNAMES) {
             names[itemp++]=H5std_string("Potential");
@@ -199,12 +221,17 @@ struct HDF_Part_Info {
         }
         if (ptype==HDFSTARTYPE) {
         names[itemp++]=H5std_string("Coordinates");
-        names[itemp++]=H5std_string("Velocities");
+	if(hdfnametype!=HDFEAGLENAMES)
+	  names[itemp++]=H5std_string("Velocities");
+	else
+	  names[itemp++]=H5std_string("Velocity");
         names[itemp++]=H5std_string("ParticleIDs");
         names[itemp++]=H5std_string("Masses");
         //for stars assume star formation and metallicy are position 4, 5 in name array
         if (hdfnametype==HDFILLUSTISNAMES) {
+            propindex[HDFSTARIAGE]=itemp;
             names[itemp++]=H5std_string("GFM_StellarFormationTime");
+            propindex[HDFSTARIMETAL]=itemp;
             names[itemp++]=H5std_string("GFM_Metallicity");
             names[itemp++]=H5std_string("Potential");
             names[itemp++]=H5std_string("SubfindDensity");
@@ -218,7 +245,10 @@ struct HDF_Part_Info {
         }
         if (ptype==HDFBHTYPE) {
         names[itemp++]=H5std_string("Coordinates");
-        names[itemp++]=H5std_string("Velocities");
+	if(hdfnametype!=HDFEAGLENAMES)
+	  names[itemp++]=H5std_string("Velocities");
+	else
+	  names[itemp++]=H5std_string("Velocity");
         names[itemp++]=H5std_string("ParticleIDs");
         names[itemp++]=H5std_string("Masses");
         if (hdfnametype==HDFILLUSTISNAMES) {
@@ -248,7 +278,7 @@ struct HDF_Part_Info {
 
 /// \name Get the number of particles in the hdf files
 //@{
-inline Int_t HDF_get_nbodies(char *fname, int ptype) 
+inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
 {
     char buf[2000],buf1[2000],buf2[2000];
     sprintf(buf1,"%s.0.hdf5",fname);
@@ -268,18 +298,25 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype)
     HDF_Header hdf_header_info;
     //buffers to load data
     int intbuff[NHDFTYPE];
-    long long longbuff[NHDFTYPE];
+    unsigned int uintbuff[NHDFTYPE];
     int j,k,ireaderror=0;
     Int_t nbodies=0;
-    IntType inttype;
 
     int nusetypes,usetypes[NHDFTYPE];
 
-    if (ptype==PSTALL) {nusetypes=4;usetypes[0]=0;usetypes[1]=1;usetypes[2]=4;usetypes[3]=5;}
-    else if (ptype==PSTDARK) {nusetypes=1;usetypes[0]=1;}
-    else if (ptype==PSTGAS) {nusetypes=1;usetypes[0]=0;}
-    else if (ptype==PSTSTAR) {nusetypes=1;usetypes[0]=4;}
-    else if (ptype==PSTBH) {nusetypes=1;usetypes[0]=5;}
+    if (ptype==PSTALL) {
+        //lets assume there are dm/stars/gas.
+        nusetypes=3;
+        usetypes[0]=HDFGASTYPE;usetypes[1]=HDFDMTYPE;usetypes[2]=HDFSTARTYPE;
+        //now if also blackholes/sink particles increase number of types
+        if (opt.iusesinkparticles) usetypes[nusetypes++]=HDFBHTYPE;
+        if (opt.iusewindparticles) usetypes[nusetypes++]=HDFWINDTYPE;
+    }
+    else if (ptype==PSTDARK) {nusetypes=1;usetypes[0]=HDFDMTYPE;}
+    else if (ptype==PSTGAS) {nusetypes=1;usetypes[0]=HDFGASTYPE;}
+    else if (ptype==PSTSTAR) {nusetypes=1;usetypes[0]=HDFSTARTYPE;}
+    else if (ptype==PSTBH) {nusetypes=1;usetypes[0]=HDFBHTYPE;}
+    //else if (ptype==PSTNOBH) {nusetypes=3;usetypes[0]=0;usetypes[1]=1;usetypes[2]=4;}
 
     //Try block to detect exceptions raised by any of the calls inside it
     try
@@ -291,30 +328,16 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype)
         //Open the specified file and the specified dataset in the file.
         Fhdf.openFile(buf, H5F_ACC_RDONLY);
         cout<<"Loading HDF header info in header group: "<<hdf_gnames.Header_name<<endl;
-        //get header group 
+        //get header group
         headergroup=Fhdf.openGroup(hdf_gnames.Header_name);
 
         headerattribs=headergroup.openAttribute(hdf_header_info.names[hdf_header_info.INumTot]);
-        inttype=headerattribs.getIntType();
-        if (inttype.getSize()==sizeof(int)) {
-            headerattribs.read(PredType::NATIVE_INT,&intbuff);
-            for (j=0;j<NHDFTYPE;j++) hdf_header_info.npartTotal[j]=intbuff[j];
-        }
-        if (inttype.getSize()==sizeof(long long)) {
-            headerattribs.read(PredType::NATIVE_LONG,&longbuff);
-            for (j=0;j<NHDFTYPE;j++) hdf_header_info.npartTotal[j]=longbuff[j];
-        }
+	headerattribs.read(PredType::NATIVE_UINT,&uintbuff);
+	for (j=0;j<NHDFTYPE;j++) hdf_header_info.npartTotal[j]=uintbuff[j];
 
         headerattribs=headergroup.openAttribute(hdf_header_info.names[hdf_header_info.INumTotHW]);
-        inttype=headerattribs.getIntType();
-        if (inttype.getSize()==sizeof(int)) {
-            headerattribs.read(PredType::NATIVE_INT,&intbuff);
-            for (j=0;j<NHDFTYPE;j++) hdf_header_info.npartTotalHW[j]=intbuff[j];
-        }
-        if (inttype.getSize()==sizeof(long long)) {
-            headerattribs.read(PredType::NATIVE_LONG,&longbuff);
-            for (j=0;j<NHDFTYPE;j++) hdf_header_info.npartTotalHW[j]=longbuff[j];
-        }
+	headerattribs.read(PredType::NATIVE_UINT,&uintbuff);
+	for (j=0;j<NHDFTYPE;j++) hdf_header_info.npartTotalHW[j]=uintbuff[j];
     }
     catch(GroupIException error)
     {
@@ -355,4 +378,94 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype)
 
 }//@}
 
-#endif 
+
+
+/// \name Get the number of hdf files per snapshot
+//@{
+inline Int_t HDF_get_nfiles(char *fname, int ptype)
+{
+    char buf[2000],buf1[2000],buf2[2000];
+    sprintf(buf1,"%s.0.hdf5",fname);
+    sprintf(buf2,"%s.hdf5",fname);
+    if (FileExists(buf1)) sprintf(buf,"%s",buf1);
+    else if (FileExists(buf2)) sprintf(buf,"%s",buf2);
+    else {
+        printf("Error. Can't find snapshot!\nneither as `%s'\nnor as `%s'\n\n", buf1, buf2);
+        exit(9);
+    }
+
+    H5File Fhdf;
+    HDF_Group_Names hdf_gnames;
+    //to store the groups, data sets and their associated data spaces
+    Group headergroup;
+    Attribute headerattribs;
+    HDF_Header hdf_header_info;
+    //buffers to load data
+    int intbuff;
+    long long longbuff;
+    int ireaderror=0;
+    Int_t nfiles = 0;
+    IntType inttype;
+
+    //Try block to detect exceptions raised by any of the calls inside it
+    try
+    {
+        //turn off the auto-printing when failure occurs so that we can
+        //handle the errors appropriately
+        Exception::dontPrint();
+
+        //Open the specified file and the specified dataset in the file.
+        Fhdf.openFile(buf, H5F_ACC_RDONLY);
+        //get header group
+        headergroup=Fhdf.openGroup(hdf_gnames.Header_name);
+
+        headerattribs = headergroup.openAttribute(hdf_header_info.names[hdf_header_info.INumFiles]);
+        inttype = headerattribs.getIntType();
+        if (inttype.getSize() == sizeof(int))
+        {
+          headerattribs.read(PredType::NATIVE_INT,&intbuff);
+          hdf_header_info.num_files = intbuff;
+        }
+        if (inttype.getSize() == sizeof(long long))
+        {
+          headerattribs.read(PredType::NATIVE_LONG,&longbuff);
+          hdf_header_info.num_files = longbuff;
+        }
+    }
+    catch(GroupIException error)
+    {
+        error.printError();
+    }
+    // catch failure caused by the H5File operations
+    catch( FileIException error )
+    {
+        error.printError();
+
+    }
+    // catch failure caused by the DataSet operations
+    catch( DataSetIException error )
+    {
+        error.printError();
+        ireaderror=1;
+    }
+    // catch failure caused by the DataSpace operations
+    catch( DataSpaceIException error )
+    {
+        error.printError();
+        ireaderror=1;
+    }
+    // catch failure caused by the DataSpace operations
+    catch( DataTypeIException error )
+    {
+        error.printError();
+        ireaderror=1;
+    }
+    Fhdf.close();
+
+    return nfiles = hdf_header_info.num_files;
+
+}
+//@}
+
+
+#endif

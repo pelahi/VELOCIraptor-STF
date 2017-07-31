@@ -5,6 +5,7 @@
 isnap=0
 fsnap=100
 nsnaps=`echo $isnap" "$fsnap|awk '{print $2-$1+1}'`
+#number of input files
 nfiles=1
 #base config parameter file to be used
 paramfile=stf.base.param
@@ -14,10 +15,12 @@ simname=lcdm
 indir=./
 #output dir
 outdir=./
+#code directory
+codedir=./
 #stf executable
-stfexe=./bin/stf
+stfexe=${codedir}/bin/stf
 #tree executable
-hmt=./bin/halomergertree
+treefrogexe=${codedir}/bin/treefrog
 
 echo $isnap,$fsnap,$nsnaps
 
@@ -31,16 +34,29 @@ do
     $stfexe -i $ifile -s $nfiles -C $outdir/$simname.sn$jj.param > $outdir/$simname.sn$jj.log; 
 done
 
+#treefrog commands 
+
 #largest particle ID value
 Neff=1024
 Nid=`echo $Neff | awk '{print $1^3.0}'`
-echo $Neff,$Nid
-#rm $outdir/halolist.txt
+#number of steps used when linking
+numsteps=4
+siglimit=0.1
+#to make sure halo ids temporally unique, use this value times snapshot, 
+halotemporalidval=10000000000
+#specify format, 0 ascii, 1 binary, 2 hdf5
+ibinary=0
+#specify no separate field and subhalo files
+ifield=0
+#number of input velociraptor files (set by number of mpi threads) per snapshot
+numfiles=1
+
+rm $outdir/halolist.txt
 for ((j=$isnap; j<=$fsnap; j++)) 
 do
     jj=`printf "%03d" $j`
-    echo $outdir/$simname.sn$jj >>$outdir/halolist.txt
+    echo $outdir/$simname.sn$jj >> $outdir/halolist.txt
 done
-$hmt -i $outdir/halolist.txt -s $nsnaps -n $Nid -o $outdir/$simname.tree $outdir/tree.log
+$treefrogexe -i $outdir/halolist.txt -s $nsnaps -N $numfiles -n $Nid -t $numsteps -h $halotemporalidval -B $ibinary -F $ifield -o $outdir/$simname.tree $outdir/tree.log
 
 

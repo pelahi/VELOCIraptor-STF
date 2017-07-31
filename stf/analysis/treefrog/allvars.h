@@ -24,9 +24,13 @@
 #include <cmath>
 #include <string>
 #include <vector>
+#include <set>
+#include <unordered_set>
+#include <map>
+#include <algorithm>
 #include <getopt.h>
-#include <sys/stat.h> 
-#include <sys/timeb.h> 
+#include <sys/stat.h>
+#include <sys/timeb.h>
 
 ///\name Include for NBodyFramework library.
 //@{
@@ -53,9 +57,15 @@
 #include "mpivar.h"
 #endif
 
+///if using HDF API
 #ifdef USEHDF
 #include "H5Cpp.h"
 using namespace H5;
+#endif
+
+///if using ADIOS API
+#ifdef USEADIOS
+#include "adios.h"
 #endif
 
 using namespace std;
@@ -79,7 +89,7 @@ using namespace NBody;
 
 //subsets made
 ///call \ref NsharedN1N2
-#define NsharedN1N2 1 
+#define NsharedN1N2 1
 #define NsharedN1 2
 #define Nshared 3
 #define Nsharedcombo 4
@@ -104,6 +114,7 @@ using namespace NBody;
 //@{
 #define DNOMAP 0
 #define DSIMPLEMAP 1
+#define DMEMEFFICIENTMAP -1
 //@}
 
 
@@ -123,7 +134,7 @@ using namespace NBody;
 //@{
 #define INBINARY 1
 #define INHDF 2
-#define INASCII 0 
+#define INASCII 0
 //@}
 
 /// \name output formats
@@ -141,6 +152,22 @@ using namespace NBody;
 #define MSLCMISSING 0
 ///higher merit
 #define MSLCMERIT 1
+///higher merit and primary progenitor
+#define MSLCMERITPRIMARYPROGEN 2
+//@}
+
+/// \name defining types of optimal temporal merit criteria
+//@{
+/// simple temporal merit
+#define GENERALIZEDMERITTIME 0
+/// temporal merit and also as close to the primary progenitor as possible
+#define GENERALIZEDMERITTIMEPROGEN 1
+//@}
+
+/// \name parameters for the temporal merit function
+//@{
+///the index of the temporal weight in delta t ^(-alpha)
+#define ALPHADELTAT 0.12
 //@}
 
 ///VALUE USED TO MAKE UNIQUE halo identifiers
@@ -148,6 +175,21 @@ using namespace NBody;
 #define HALOIDSNVAL 1000000000000L
 #else
 #define HALOIDSNVAL 1000000
+#endif
+
+/// \name OpenMP parameters for load balancing
+#ifdef USEOPENMP
+#define OMPCHUNKSIZE 100UL
+#endif
+
+#ifdef LONGIDS
+typedef long long IDTYPE;
+#elif defined(LONGUIDS)
+typedef long unsigned IDTYPE;
+#elif defined(INTIDS)
+typedef int IDTYPE;
+#else
+typedef int unsigned IDTYPE;
 #endif
 
 /// Options structure stores useful variables that have user determined values which are altered by \ref GetArgs in \ref ui.cxx
@@ -163,20 +205,26 @@ struct Options
     int numsteps;
     ///maximum id value, used to allocate an array of this size so that ids can be mapped to an index and thus easily accessible.
     long unsigned MaxIDValue;
-    ///total number of haloes across all snapshots    
+    ///total number of haloes across all snapshots
     long unsigned TotalNumberofHalos;
 
     /// store description of code
     string description;
 
-    ///type of cross-match search
-    int matchtype;
-    ///cross match merit limit significance, that is match only when quantity is above MERITLIM*some measure of noise
+    ///type of merit function
+    int imerittype;
+    ///cross match shared particle number significance, that is match only when quantity is above mlsig*some measure of noise, here defined as
+    ///\$f N_2^{1/2} \$f
     Double_t mlsig;
+    ///cross match merit limit for deciding whether to search previous snapshot
+    Double_t meritlimit;
+
     ///particle type cross matching subselection
     int itypematch;
     ///when using multiple links, how links should be updated, either only for those missing links, or better merit found
     int imultsteplinkcrit;
+    ///set the optimal temporal merit
+    int iopttemporalmerittype;
 
     ///flag for whether default merger tree produced, a simple cross comparsion between two catalogs is run or a full graph is constructed
     int icatalog;
@@ -184,16 +232,15 @@ struct Options
     ///output format
     int outputformat;
 
-
     ///\name io format flags for basic format, whether data split into multiple files, binary, and field objects separate
     //@{
     int ioformat,nmpifiles,ibinary,ifield;
     //@}
 
-    //for mapping particle ids to index 
+    //for mapping particle ids to index
     //@{
     int imapping;
-    void(*mappingfunc)(long unsigned int &);
+    void(*mappingfunc)(IDTYPE &);
     //@}
 
     ///for offseting the snapshot id value when writing to a file
@@ -206,10 +253,10 @@ struct Options
     Int_t haloidoffset;
 
     ///to adjust the number of particles used to define a merit. Note that to be of use, particles should be in some type of order
-    ///for instance binding energy order. VELOCIraptor outputs particles in decreasing binding energy order 
+    ///for instance binding energy order. VELOCIraptor outputs particles in decreasing binding energy order
     ///so using the first particle_frac of a halo means using the most bound set of particles
     Double_t particle_frac;
-    ///minimum number of particles used to derive merit. 
+    ///minimum number of particles used to derive merit.
     Int_t min_numpart;
 
     ///to fix ids for nifty project
@@ -224,6 +271,8 @@ struct Options
     ///number of expected mpi threads, useful for running code with a single thread to determine load balancing
     ///which then writes the mpi load balancing file and exists
     int ndesiredmpithreads;
+    ///whether mpi threads write in parallel
+    int iwriteparallel;
 #endif
 
     Options()
@@ -235,10 +284,12 @@ struct Options
         MaxIDValue=512*512*512;
         TotalNumberofHalos=0;
 
-        matchtype=NsharedN1N2;
+        imerittype=NsharedN1N2;
         mlsig=0.1;
+        meritlimit=0.05;
         itypematch=ALLTYPEMATCH;
-        imultsteplinkcrit=MSLCMISSING;
+        imultsteplinkcrit=MSLCMERIT;
+        iopttemporalmerittype=GENERALIZEDMERITTIMEPROGEN;
 
         ioformat=DCATALOG;
         icatalog=DTREE;
@@ -256,30 +307,31 @@ struct Options
         outputformat=OUTASCII;
         haloidoffset=0;
 
-        particle_frac=1;
+        particle_frac=0.2;
         min_numpart=20;
 
         iverbose=1;
 #ifdef USEMPI
         numpermpi=0;
         ndesiredmpithreads=0;
+        iwriteparallel=0;
 #endif
     }
 };
 
-/*! 
+/*!
     Halo data structure
 */
 struct HaloData{
     long unsigned haloID;
     long unsigned NumberofParticles;
-    long unsigned *ParticleID;
+    IDTYPE *ParticleID;
     //Coordinate         *X;
     //Coordinate         *V;
     HaloData(long unsigned np=0){
         NumberofParticles=np;
         if (NumberofParticles>0) {
-            ParticleID=new long unsigned[NumberofParticles];
+            ParticleID=new IDTYPE[NumberofParticles];
             //X=new Coordinate[NumberofParticles];
             //V=new Coordinate[NumberofParticles];
         }
@@ -292,7 +344,7 @@ struct HaloData{
         }
         NumberofParticles=nhalos;
         if (NumberofParticles>0) {
-            ParticleID=new long unsigned[NumberofParticles];
+            ParticleID=new IDTYPE[NumberofParticles];
             //X=new Coordinate[NumberofParticles];
             //V=new Coordinate[NumberofParticles];
         }
@@ -318,7 +370,7 @@ struct HaloTreeData{
     }
 };
 
-/*! 
+/*!
     Structure used to keep track of a structure's progenitor/parent structure using temporal/spatial information
 */
 struct ProgenitorData
@@ -342,7 +394,7 @@ struct ProgenitorData
         ProgenitorList=NULL;
         Merit=NULL;
         nsharedfrac=NULL;
-        istep=1;
+        istep=0;
     }
     ~ProgenitorData(){
         if (NumberofProgenitors>0) {
@@ -391,6 +443,8 @@ struct DescendantDataProgenBased
     vector<float> Merit;
     //store the integer time diff to descendant
     vector<int> deltat;
+    //store descendant type, primary or not primary
+    vector<int> descentype;
 #ifdef USEMPI
     //store which task this halo progenitor is located on
     vector<int> MPITask;
@@ -402,6 +456,7 @@ struct DescendantDataProgenBased
         halotemporalindex.reserve(reservesize);
         Merit.reserve(reservesize);
         deltat.reserve(reservesize);
+        descentype.reserve(reservesize);
 #ifdef USEMPI
         MPITask.reserve(reservesize);
 #endif
@@ -431,26 +486,41 @@ struct DescendantDataProgenBased
     ///start with just maximum merit, ignoring when this was found
     ///otherwise use the reference time passed
     ///the generalized merit = Merit/(deltat)
-    ///\todo might want to change the generalized merit
-    void OptimalTemporalMerit(Int_t itimref=0){
+    ///also, optimal descendents should be close to being a primary descendant, having a lower descentype value
+    void OptimalTemporalMerit(int iopttemporalmerittype=GENERALIZEDMERITTIME, Int_t itimeref=0){
         int imax=0;
-        Double_t generalizedmerit=Merit[0]/(Double_t)deltat[0];
+        Double_t generalizedmerit=Merit[0]/pow((Double_t)deltat[0],ALPHADELTAT), newgenmerit;
+        int curdescentype=descentype[0];
+        long unsigned optimalhaloindex;
+        int unsigned optimalhalotemporalindex;
+
         for (int i=1;i<NumberofDescendants;i++) {
-            if (Merit[i]/(Double_t)deltat[i]>generalizedmerit) {generalizedmerit=Merit[i]/(Double_t)deltat[i];imax=i;}
+            newgenmerit=Merit[i]/pow((Double_t)deltat[i],ALPHADELTAT);
+            //if just optimising generalized temporal merit
+            if (iopttemporalmerittype==GENERALIZEDMERITTIME && newgenmerit>generalizedmerit) {
+                generalizedmerit=newgenmerit;curdescentype=descentype[i];imax=i;
+            }
+            //if optimising for best merit and best merit ranking (that is how close the object is to being the primary progenitor)
+            else if (iopttemporalmerittype==GENERALIZEDMERITTIMEPROGEN && ((descentype[i]<curdescentype && newgenmerit>=generalizedmerit*0.25)||(newgenmerit>generalizedmerit))) {
+                generalizedmerit=newgenmerit;curdescentype=descentype[i];imax=i;
+            }
         }
+        optimalhaloindex=haloindex[imax];
+        optimalhalotemporalindex=halotemporalindex[imax];
         //if use mpi then also possible that optimal halo found on multiple mpi tasks
-        //but the lower task will be the one that needs to have the best halo so go over the loop and 
-        //find the halo with the lowest task number of the best generalized merit
+        //but the lower task will be the one that needs to have the best halo so go over the loop and
+        //find the halo with the lowest task number of the match
 #ifdef USEMPI
         int imaxtask=MPITask[imax];
         for (int i=0;i<NumberofDescendants;i++) {
-            if (Merit[i]/(Double_t)deltat[i]==generalizedmerit && MPITask[i]<imaxtask) {imax=i;}
+            if (optimalhalotemporalindex==halotemporalindex[i] && optimalhaloindex==haloindex[i] && MPITask[i]<imaxtask) {imax=i;}
         }
 #endif
         if (imax>0) {
             long unsigned hid, htid;
             Double_t merit;
             int dt;
+            int dtype;
 #ifdef USEMPI
             int mpitask;
 #endif
@@ -458,6 +528,7 @@ struct DescendantDataProgenBased
             hid=haloindex[0];
             htid=halotemporalindex[0];
             dt=deltat[0];
+            dtype=descentype[0];
 #ifdef USEMPI
             mpitask=MPITask[0];
 #endif
@@ -465,6 +536,7 @@ struct DescendantDataProgenBased
             haloindex[0]=haloindex[imax];
             halotemporalindex[0]=halotemporalindex[imax];
             deltat[0]=deltat[imax];
+            descentype[0]=descentype[imax];
 #ifdef USEMPI
             MPITask[0]=MPITask[imax];
 #endif
@@ -472,19 +544,21 @@ struct DescendantDataProgenBased
             haloindex[imax]=hid;
             halotemporalindex[imax]=htid;
             deltat[imax]=dt;
+            descentype[imax]=dtype;
 #ifdef USEMPI
             MPITask[imax]=mpitask;
 #endif
         }
     }
 #ifdef USEMPI
-    void Merge(int thistask, int &numdescen, long unsigned *hid,int unsigned *htid, float *m, int *dt, int *task) {
-        for (Int_t i=0;i<numdescen;i++) if (task[i]!=thistask) 
+    void Merge(int thistask, int &numdescen, long unsigned *hid,int unsigned *htid, float *m, int *dt, int *dtype, int *task) {
+        for (Int_t i=0;i<numdescen;i++) if (task[i]!=thistask)
         {
             haloindex.push_back(hid[i]);
             halotemporalindex.push_back(htid[i]);
             Merit.push_back(m[i]);
             deltat.push_back(dt[i]);
+            descentype.push_back(dtype[i]);
             MPITask.push_back(task[i]);
             NumberofDescendants++;
         }
@@ -506,9 +580,9 @@ struct DescendantData
     ///store list of descendants
     long unsigned* DescendantList;
     ///store the merit value
-    Double_t *Merit;
+    float *Merit;
     ///store the fraction of shared particles
-    Double_t *nsharedfrac; 
+    float *nsharedfrac;
 
     ///store number of steps back in time progenitor found
     int istep;
@@ -535,13 +609,13 @@ struct DescendantData
         }
         NumberofDescendants=d.NumberofDescendants;
         DescendantList=new long unsigned[NumberofDescendants];
-        Merit=new Double_t[NumberofDescendants];
+        Merit=new float[NumberofDescendants];
         for (int i=0;i<NumberofDescendants;i++) {
             DescendantList[i]=d.DescendantList[i];
             Merit[i]=d.Merit[i];
         }
         if (d.nsharedfrac!=NULL) {
-            nsharedfrac=new Double_t[NumberofDescendants];
+            nsharedfrac=new float[NumberofDescendants];
             for (int i=0;i<NumberofDescendants;i++) nsharedfrac[i]=d.nsharedfrac[i];
         }
         istep=d.istep;
@@ -578,12 +652,12 @@ struct HDFCatalogNames {
     vector<H5std_string> group;
     //store the data type
     vector<PredType> groupdatatype;
-    
+
     ///store the names of catalog particle files
     vector<H5std_string> part;
     //store the data type
     vector<PredType> partdatatype;
-    
+
     ///store the names of catalog particle files
     vector<H5std_string> types;
     //store the data type
@@ -632,7 +706,7 @@ struct HDFCatalogNames {
         typesdatatype.push_back(PredType::STD_U64LE);
         typesdatatype.push_back(PredType::STD_U16LE);
 
-        
+
         hierarchy.push_back("File_id");
         hierarchy.push_back("Num_of_files");
         hierarchy.push_back("Num_of_groups");
@@ -650,4 +724,3 @@ struct HDFCatalogNames {
 #endif
 
 #endif
-

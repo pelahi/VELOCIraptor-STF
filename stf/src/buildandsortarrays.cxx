@@ -54,32 +54,32 @@ Int_t **BuildPGList(const Int_t nbodies, const Int_t numgroups, Int_t *numingrou
     return pglist;
 }
 ///build the Head array which points to the head of the group a particle belongs to
-Int_t *BuildHeadArray(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t **pglist){
-    Int_t *Head=new Int_t[nbodies];
+Int_tree_t *BuildHeadArray(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t **pglist){
+    Int_tree_t *Head=new Int_tree_t[nbodies];
     for (Int_t i=0;i<nbodies;i++) Head[i]=i;
     for (Int_t i=1;i<=numgroups;i++)
         for (Int_t j=1;j<numingroup[i];j++) Head[pglist[i][j]]=Head[pglist[i][0]];
     return Head;
 }
 ///build the Next array which points to the next particle in the group
-Int_t *BuildNextArray(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t **pglist){
-    Int_t *Next=new Int_t[nbodies];
+Int_tree_t *BuildNextArray(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t **pglist){
+    Int_tree_t *Next=new Int_tree_t[nbodies];
     for (Int_t i=0;i<nbodies;i++) Next[i]=-1;
     for (Int_t i=1;i<=numgroups;i++)
         for (Int_t j=0;j<numingroup[i]-1;j++) Next[pglist[i][j]]=pglist[i][j+1];
     return Next;
 }
-///build the Len array which stores the length of the group a particle belongs to 
-Int_t *BuildLenArray(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t **pglist){
-    Int_t *Len=new Int_t[nbodies];
+///build the Len array which stores the length of the group a particle belongs to
+Int_tree_t *BuildLenArray(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t **pglist){
+    Int_tree_t *Len=new Int_tree_t[nbodies];
     for (Int_t i=0;i<nbodies;i++) Len[i]=0;
     for (Int_t i=1;i<=numgroups;i++)
         for (Int_t j=0;j<numingroup[i];j++) Len[pglist[i][j]]=numingroup[i];
     return Len;
 }
 ///build the GroupTail array which stores the Tail of a group
-Int_t *BuildGroupTailArray(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t **pglist){
-    Int_t *GTail=new Int_t[numgroups+1];
+Int_tree_t *BuildGroupTailArray(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t **pglist){
+    Int_tree_t *GTail=new Int_tree_t[numgroups+1];
     for (Int_t i=1;i<=numgroups;i++)
         GTail[i]=pglist[i][numingroup[i]-1];
     return GTail;
@@ -100,7 +100,7 @@ Particle *BuildPart(Int_t numingroup, Int_t *pglist, Particle* Part){
     return gPart;
 }
 
-///sort particles according to some quantity which is stored in particle type and build an array for a sorted particle list 
+///sort particles according to some quantity which is stored in particle type and build an array for a sorted particle list
 ///remember this reorders the particle array!
 Int_t *BuildNoffset(const Int_t nbodies, Particle *Part, Int_t numgroups,Int_t *numingroup, Int_t *sortval, Int_t ioffset) {
     Int_t *noffset=new Int_t[numgroups+1];
@@ -118,14 +118,15 @@ Int_t *BuildNoffset(const Int_t nbodies, Particle *Part, Int_t numgroups,Int_t *
 }
 
 ///reorder groups from largest to smallest
-///\todo must alter so that after pfof is reorderd, so is numingroup array and pglist so that do not have to reconstruct this list 
+///\todo must alter so that after pfof is reorderd, so is numingroup array and pglist so that do not have to reconstruct this list
 ///after reordering if numgroups==newnumgroups (ie, list has not shrunk)
 void ReorderGroupIDs(const Int_t numgroups, const Int_t newnumgroups, Int_t *numingroup, Int_t *pfof, Int_t **pglist)
 {
     PriorityQueue *pq=new PriorityQueue(newnumgroups);
+    Int_t groupid,size;
     for (Int_t i = 1; i <=numgroups; i++) if (numingroup[i]>0) pq->Push(i, numingroup[i]);
     for (Int_t i = 1; i<=newnumgroups; i++) {
-        Int_t groupid=pq->TopQueue(),size=pq->TopPriority();pq->Pop();
+        groupid=pq->TopQueue();size=pq->TopPriority();pq->Pop();
         for (Int_t j=0;j<size;j++) pfof[pglist[groupid][j]]=i;
     }
     delete pq;
@@ -133,9 +134,10 @@ void ReorderGroupIDs(const Int_t numgroups, const Int_t newnumgroups, Int_t *num
 void ReorderGroupIDs(const Int_t numgroups, const Int_t newnumgroups, Int_t *numingroup, Int_t *pfof, Int_t **pglist, Particle *Partsubset)
 {
     PriorityQueue *pq=new PriorityQueue(newnumgroups);
+    Int_t groupid,size;
     for (Int_t i = 1; i <=numgroups; i++) if (numingroup[i]>0) pq->Push(i, numingroup[i]);
     for (Int_t i = 1; i<=newnumgroups; i++) {
-        Int_t groupid=pq->TopQueue(),size=pq->TopPriority();pq->Pop();
+        groupid=pq->TopQueue();size=pq->TopPriority();pq->Pop();
         for (Int_t j=0;j<size;j++) pfof[Partsubset[pglist[groupid][j]].GetID()]=i;
     }
     delete pq;
@@ -145,22 +147,55 @@ void ReorderGroupIDs(const Int_t numgroups, const Int_t newnumgroups, Int_t *num
 void ReorderGroupIDsbyValue(const Int_t numgroups, const Int_t newnumgroups, Int_t *numingroup, Int_t *pfof, Int_t **pglist, Int_t *value)
 {
     PriorityQueue *pq=new PriorityQueue(newnumgroups);
+    Int_t groupid;
     for (Int_t i = 1; i <=numgroups; i++) if (numingroup[i]>0) pq->Push(i, value[i]);
     for (Int_t i = 1; i<=newnumgroups; i++) {
-        Int_t groupid=pq->TopQueue();pq->Pop();
+        groupid=pq->TopQueue();pq->Pop();
         for (Int_t j=0;j<numingroup[groupid];j++) pfof[pglist[groupid][j]]=i;
     }
     delete pq;
+}
+///similar to \ref ReorderGroupIDsbyValue but also reorder associated group data
+void ReorderGroupIDsAndArraybyValue(const Int_t numgroups, const Int_t newnumgroups, Int_t *numingroup, Int_t *pfof, Int_t **pglist, Int_t *value, Int_t *gdata)
+{
+    PriorityQueue *pq=new PriorityQueue(newnumgroups);
+    Int_t *gtemp=new Int_t[numgroups+1];
+    Int_t groupid;
+    for (Int_t i = 1; i <= numgroups; i++) gtemp[i]=gdata[i];
+    for (Int_t i = 1; i <= numgroups; i++) if (numingroup[i]>0) pq->Push(i, value[i]);
+    for (Int_t i = 1; i <= newnumgroups; i++) {
+        groupid=pq->TopQueue();pq->Pop();
+        for (Int_t j=0;j<numingroup[groupid];j++) pfof[pglist[groupid][j]]=i;
+        gdata[i]=gtemp[groupid];
+    }
+    delete pq;
+    delete[] gtemp;
+}
+void ReorderGroupIDsAndArraybyValue(const Int_t numgroups, const Int_t newnumgroups, Int_t *numingroup, Int_t *pfof, Int_t **pglist, Int_t *value, Double_t *gdata)
+{
+    PriorityQueue *pq=new PriorityQueue(newnumgroups);
+    Double_t *gtemp=new Double_t[numgroups+1];
+    Int_t groupid;
+    for (Int_t i = 1; i <= numgroups; i++) gtemp[i]=gdata[i];
+    for (Int_t i = 1; i <= numgroups; i++) if (numingroup[i]>0) pq->Push(i, value[i]);
+    for (Int_t i = 1; i <= newnumgroups; i++) {
+        groupid=pq->TopQueue();pq->Pop();
+        for (Int_t j=0;j<numingroup[groupid];j++) pfof[pglist[groupid][j]]=i;
+        gdata[i]=gtemp[groupid];
+    }
+    delete pq;
+    delete[] gtemp;
 }
 ///similar to \ref ReorderGroupIDsbyValue but also reorder associated property data
 void ReorderGroupIDsAndHaloDatabyValue(const Int_t numgroups, const Int_t newnumgroups, Int_t *numingroup, Int_t *pfof, Int_t **pglist, Int_t *value, PropData *pdata)
 {
     PriorityQueue *pq=new PriorityQueue(newnumgroups);
     PropData *ptemp=new PropData[numgroups+1];
+    Int_t groupid;
     for (Int_t i = 1; i <= numgroups; i++) ptemp[i]=pdata[i];
     for (Int_t i = 1; i <= numgroups; i++) if (numingroup[i]>0) pq->Push(i, value[i]);
     for (Int_t i = 1; i <= newnumgroups; i++) {
-        Int_t groupid=pq->TopQueue();pq->Pop();
+        groupid=pq->TopQueue();pq->Pop();
         for (Int_t j=0;j<numingroup[groupid];j++) pfof[pglist[groupid][j]]=i;
         pdata[i]=ptemp[groupid];
     }

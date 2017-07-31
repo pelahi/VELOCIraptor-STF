@@ -1,6 +1,6 @@
 /*! \file KDTree.cxx
  *  \brief This file contains subroutines involving tree construction
- 
+
     NOTE: when possible, openmp parallelism implemented otherwise have MPI or simple serial code
     NOTE: openmp reductions are not implemented for min, max searches as not part of OpenMP API yet.
     and realistically, because one would have to implement a critical stop to check global minimum
@@ -10,7 +10,7 @@
     I could also generate a array of size numthreads and then find min/max in that thread
     Must implement check that size of array worthwhile running in parallel
     \todo I can also reduce tree build time related to select the median point. A simple heuristic to avoid coding a complex linear-time median-finding algorithm, or using an O(n log n) sort of all n points, is to use sort to find the median of a fixed number of randomly selected points to serve as the splitting plane. In practice, this technique often results in nicely balanced trees.
-    
+
 */
 
 #include <KDTree.h>
@@ -20,7 +20,7 @@ namespace NBody
 
     // -- Inline functions that get called often when building the tree.
 
-    /// \name Find most spread dimension 
+    /// \name Find most spread dimension
     //@{
     inline Double_t KDTree::SpreadestPos(int j, Int_t start, Int_t end, Double_t *bnd)
     {
@@ -43,7 +43,7 @@ namespace NBody
         }
         else {
         int nthreads;
-    #pragma omp parallel 
+    #pragma omp parallel
     {
         if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
     }
@@ -93,7 +93,7 @@ namespace NBody
         }
         else {
         int nthreads;
-    #pragma omp parallel 
+    #pragma omp parallel
     {
         if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
     }
@@ -143,7 +143,7 @@ namespace NBody
         }
         else {
         int nthreads;
-    #pragma omp parallel 
+    #pragma omp parallel
     {
         if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
     }
@@ -199,7 +199,7 @@ namespace NBody
         }
         else {
         int nthreads;
-    #pragma omp parallel 
+    #pragma omp parallel
     {
         if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
     }
@@ -253,7 +253,7 @@ namespace NBody
         }
         else {
         int nthreads;
-    #pragma omp parallel 
+    #pragma omp parallel
     {
         if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
     }
@@ -307,7 +307,7 @@ namespace NBody
         }
         else {
         int nthreads;
-    #pragma omp parallel 
+    #pragma omp parallel
     {
         if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
     }
@@ -400,7 +400,7 @@ namespace NBody
 /*
     //code that applies a correction to the boundary of a node, ibnd is initial boundary range estimate,
     //xbnd is the current parent nodes estimate
-    //at the moment the code is not setup to correct for underestimation in outer and inner parts 
+    //at the moment the code is not setup to correct for underestimation in outer and inner parts
     //(I'm not exactly sure how this corrects this, must check Enbid paper)
     inline void BoundaryCor(int j, Int_t count, Int_t dim, Int_t numparts, Double_t *ibnd, Double_t *xbnd){
         //factors in the correction (taken from Enbind where don't assume cubic cells)
@@ -425,7 +425,7 @@ namespace NBody
     }
 */
      /// \name Calculate the entropy in a given dimension. This can be used as a node splitting criterion
-     /// This calculates Shannon Entropy, where the region is split into nbins=pow(N,1/3) (N is number of particles) where minimum nbins=1, 
+     /// This calculates Shannon Entropy, where the region is split into nbins=pow(N,1/3) (N is number of particles) where minimum nbins=1,
      /// and can be used instead of most spread dimension
      //@{
     inline Double_t KDTree::EntropyPos(int j, Int_t start, Int_t end, Double_t low, Double_t up, Double_t nbins, Double_t *nientropy)
@@ -621,10 +621,10 @@ namespace NBody
 
     //-- Private functions used to build tree
 
-    /// Recursively build the nodes of the tree.  This works by first finding the dimension under 
+    /// Recursively build the nodes of the tree.  This works by first finding the dimension under
     /// which the data has the most spread, and then splitting the data about the median
-    /// in that dimension.  BuildNodes() is then called on each half. Once the size of the data is 
-    /// small enough, a leaf node is formed. 
+    /// in that dimension.  BuildNodes() is then called on each half. Once the size of the data is
+    /// small enough, a leaf node is formed.
     Node *KDTree::BuildNodes(Int_t start, Int_t end)
     {
         Double_t bnd[6][2];
@@ -633,7 +633,7 @@ namespace NBody
         {
             numleafnodes++;numnodes++;
             for (int j=0;j<ND;j++) (this->*bmfunc)(j, start, end, bnd[j]);
-            return new LeafNode(numnodes-1,start, end,  bnd);
+            return new LeafNode(numnodes-1,start, end,  bnd, ND);
         }
         else
         {
@@ -686,7 +686,7 @@ namespace NBody
 
             splitdim=0; maxspread=spreada[0]; minentropy=entropya[0];maxsig=vara[0];
             //splitdim=0; maxspread=0.0; minentropy=1.0;enflag=0;
-            //for since entropy can only be used in cases where the subspace is not sparse or does not have lattice structure must check 
+            //for since entropy can only be used in cases where the subspace is not sparse or does not have lattice structure must check
             //the question is how? At the moment, I do not check for this, though the idea would be only check dimensions that meet the criteria
             //and if non of them meet it, then enflag still zero and perhaps, use most spread dimension
             for (j = 1; j < ND; j++)
@@ -713,7 +713,7 @@ namespace NBody
 
             splitvalue= (this->*medianfunc)(splitdim, k, start, end,true);
 
-            return new SplitNode(numnodes-1, splitdim, splitvalue, size, bnd, start, end, BuildNodes(start, k+1),BuildNodes(k+1, end));
+            return new SplitNode(numnodes-1, splitdim, splitvalue, size, bnd, start, end, ND, BuildNodes(start, k+1),BuildNodes(k+1, end));
         }
     }
 
@@ -724,7 +724,7 @@ namespace NBody
         if (treetype==TPHYS||treetype==TPROJ)
             for(Int_t i=0; i<numparts; i++)
                 for(int j=0;j<ND;j++) xmean[j]+=bucket[i].GetPosition(j);
-        else if (treetype==TVEL)  
+        else if (treetype==TVEL)
             for(Int_t i=0; i<numparts; i++)
                 for(int j=0;j<ND;j++) xmean[j]+=bucket[i].GetVelocity(j);
         else if (treetype==TPHS||treetype==TMETRIC)
@@ -736,22 +736,22 @@ namespace NBody
         if (treetype==TPHYS||treetype==TPROJ)
             for(Int_t i=0; i<numparts; i++)
                 for(int j=0;j<ND;j++) xvar[j]+=(bucket[i].GetPosition(j)-xmean[j])*(bucket[i].GetPosition(j)-xmean[j]);
-        else if (treetype==TVEL)  
+        else if (treetype==TVEL)
             for(Int_t i=0; i<numparts; i++)
                 for(int j=0;j<ND;j++) xvar[j]+=(bucket[i].GetVelocity(j)-xmean[j])*(bucket[i].GetVelocity(j)-xmean[j]);
         else if (treetype==TPHS||treetype==TMETRIC)
             for(Int_t i=0; i<numparts; i++)
-                for(int j=0;j<ND;j++) xvar[j]+=(bucket[i].GetPhase(j)-xmean[j])*(bucket[i].GetPhase(j)-xmean[j]); 
+                for(int j=0;j<ND;j++) xvar[j]+=(bucket[i].GetPhase(j)-xmean[j])*(bucket[i].GetPhase(j)-xmean[j]);
 
         for(int j=0;j<ND;j++){xvar[j]=sqrt(xvar[j]/(Double_t)numparts);ixvar[j]=1./xvar[j];}
         if (treetype==TPHYS||treetype==TPROJ)
-            for (Int_t i=0;i<numparts;i++) 
+            for (Int_t i=0;i<numparts;i++)
     	        for (int j=0;j<ND;j++) bucket[i].SetPosition(j,bucket[i].GetPosition(j)*ixvar[j]);
-        else if (treetype==TVEL)  
-            for (Int_t i=0;i<numparts;i++) 
+        else if (treetype==TVEL)
+            for (Int_t i=0;i<numparts;i++)
     	        for (int j=0;j<ND;j++) bucket[i].SetVelocity(j,bucket[i].GetVelocity(j)*ixvar[j]);
         else if (treetype==TPHS||treetype==TMETRIC)
-            for (Int_t i=0;i<numparts;i++) 
+            for (Int_t i=0;i<numparts;i++)
     	        for (int j=0;j<ND;j++) bucket[i].SetPhase(j,bucket[i].GetPhase(j)*ixvar[j]);
     }
 
@@ -767,7 +767,7 @@ namespace NBody
             root=NULL; return 0;
         }
         else {
-        if (treetype==TPHYS) 
+        if (treetype==TPHYS)
         {
             bmfunc=&NBody::KDTree::BoundaryandMeanPos;
             dispfunc=&NBody::KDTree::DispersionPos;
@@ -842,7 +842,7 @@ namespace NBody
     }
 
     //-- End of private functions used to build the tree
-    
+
     //-- Public constructors
 
     KDTree::KDTree(Particle *p, Int_t nparts, Int_t bucket_size, int ttype, int smfunctype, int smres, int criterion, int aniso, int scale, Double_t *Period, Double_t **m)
@@ -858,7 +858,7 @@ namespace NBody
         anisotropic=aniso;
         scalespace = scale;
         metric = m;
-        if (Period!=NULL) 
+        if (Period!=NULL)
         {
             period=new Double_t[3];
             for (int k=0;k<3;k++) period[k]=Period[k];
@@ -878,7 +878,7 @@ namespace NBody
         }
     }
 
-    KDTree::KDTree(System &s, Int_t bucket_size, int ttype, int smfunctype, int smres, int criterion, int aniso, int scale, Double_t **m) 
+    KDTree::KDTree(System &s, Int_t bucket_size, int ttype, int smfunctype, int smres, int criterion, int aniso, int scale, Double_t **m)
     {
 //        KDTree(s.Parts(),s.GetNumParts(),bucket_size,ttype,smfunctype,smres,ecalc,aniso,scale,s.GetPeriod().GetCoord(),m);
 
@@ -919,7 +919,7 @@ namespace NBody
             if (period!=NULL) delete[] period;
             qsort(bucket, numparts, sizeof(Particle), IDCompare);
             if (scalespace) {
-            for (Int_t i=0;i<numparts;i++) 
+            for (Int_t i=0;i<numparts;i++)
                 for (int j=0;j<3;j++) {
                     bucket[i].SetPosition(j,bucket[i].GetPosition(j)*xvar[j]);
                     bucket[i].SetVelocity(j,bucket[i].GetVelocity(j)*xvar[j+3]);

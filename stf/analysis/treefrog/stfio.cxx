@@ -2,7 +2,7 @@
  *  \brief this file contains routines for reading stf style group catalog data
  */
 
-#include "halomergertree.h"
+#include "TreeFrog.h"
 
 #ifdef USEHDF
 #include "H5Cpp.h"
@@ -569,7 +569,7 @@ Int_t MPIReadHaloGroupCatalogDataNum(string &infile, int mpi_ninput, int ibinary
 ///instead of looping over files and loading arrays
 Int_t MPIReadHaloGroupCatalogDataParticleNum(string &infile, int mpi_ninput, int ibinary, int ifieldhalos, int itypematch)
 {
-    
+
     HaloData *Halo;
     Int_t itemp;
     unsigned long ltemp;

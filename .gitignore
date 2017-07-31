@@ -9,5 +9,6 @@ stf/NBodylib/include/*
 stf/NBodylib/lib/*
 stf/analysis/halotree/doc/latex/*
 stf/analysis/halotree/doc/html/*
+stf/Makefile.config
 *~
 

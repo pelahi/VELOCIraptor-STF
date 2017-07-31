@@ -185,6 +185,14 @@ extern double (*BigREAL) ( double f );
 extern double (*LittleREAL) ( double f );
 #endif
 
+#ifdef RAMSESSINGLEPRECISION
+extern float (*BigRAMSESFLOAT) ( float f );
+extern float (*LittleRAMSESFLOAT) ( float f );
+#else
+extern double (*BigRAMSESFLOAT) ( double f );
+extern double (*LittleRAMSESFLOAT) ( double f );
+#endif
+
 
 //In order to initialize all of these function pointers,
 //we'll need a function to detect the endian and set them.
@@ -237,7 +245,16 @@ inline void InitEndian( void )
     BigREAL= DoubleSwap;
     LittleREAL = DoubleNoSwap;
 #endif
-  }
+
+#ifdef RAMSESSINGLEPRECISION
+    BigRAMSESFLOAT= FloatSwap;
+    LittleRAMSESFLOAT = FloatNoSwap;
+#else
+    BigRAMSESFLOAT= DoubleSwap;
+    LittleRAMSESFLOAT = DoubleNoSwap;
+#endif
+      
+    }
   else
   {
     //big endian
@@ -273,6 +290,13 @@ inline void InitEndian( void )
 #else
     BigREAL= DoubleNoSwap;
     LittleREAL = DoubleSwap;
+#endif
+#ifdef RAMSESSINGLEPRECISION
+    BigRAMSESFLOAT= FloatNoSwap;
+    LittleRAMSESFLOAT = FloatSwap;
+#else
+    BigRAMSESFLOAT= DoubleNoSwap;
+    LittleRAMSESFLOAT = DoubleSwap;
 #endif
   }
 }

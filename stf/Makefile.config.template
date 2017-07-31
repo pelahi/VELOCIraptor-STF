@@ -24,12 +24,16 @@ OMP="on"
 LOCALGSL="on"
 LOCALFFTW="on"
 LOCALHDF="on"
+LOCALADIOS="on"
+LOCALXDR="on"
 #===========================================
 
 #===========================================
 #Adjust precision
 #===========================================
+#all calculations/properties stored as floats
 SINGLEPRECISION="on"
+#all integers are long ints. Enable this if dealing with more than MAXINT total number of particles
 LONGINT="on"
 #===========================================
 
@@ -49,10 +53,24 @@ USESTARS="on"
 USEBH="on"
 #stars and gas
 USEBARYONS="on"
-#also use cosmic ray quantities
+#also use cosmic ray quantities, currently nothing enabled
 USECOSMICRAYS="on"
 #activate everytyhing
 USEHYDRO="on"
+#===========================================
+
+#===========================================
+#Adjust the precision/memory footprint of the KDTree
+#===========================================
+#if tree is going to be built on > MAXINT particles then enable
+#LARGEKDTREE="on"
+#===========================================
+
+#===========================================
+#Adjust MPI domain size
+#===========================================
+#if mpi domain is going to contain more than maxshort number of mpi processes then enable
+#LARGEMPIDOMAIN="on"
 #===========================================
 
 #===========================================
@@ -61,15 +79,15 @@ USEHYDRO="on"
 #only calculate local density distribution for particles residing in field objects (but using all particles to estimate quantity)
 STRUCTUREDEN="on"
 #or just use particles inside field objects, reducing cpu cycles but will bias estimates for particle in outer region of field structures, overrides STRUCTUREDEN
-HALODEN="on"
+#HALODEN="on"
 #flag useful for zoom simulations with a high resolution region
-ZOOMSIM="on"
+#ZOOMSIM="on"
 #===========================================
 
 #===========================================
 #for debugging
 #===========================================
-DEBUG="on"
+#DEBUG="on"
 #===========================================
 
 #===========================================
@@ -87,29 +105,52 @@ GBHINFO="on"
 
 #for hdf input/output
 HDFENABLE="on"
+
+#for XDF (nchilada) input
+XDRENABLE="on"
+
+#for adios output
+ADIOSENABLE="on"
+
 #===========================================
+
+#===========================================
+#Compiler problems
+#===========================================
+#if really old compiler will probably have to update system but also pass this flag
+#CCOMPILERTOOOLD="on"
 
 
 #===========================================
 #alter if necessary to point to local libraries
 #===========================================
 ifeq ($(LOCALGSL),"on")
-    GSL_DIR = 
+    GSL_DIR =
     GSL_INCL = -I$(GSL_DIR)/include/
     GSL_LIBS = -L$(GSL_DIR)/lib/
-    GSL_CONFIG = 
+    GSL_CONFIG =
     GSL_CFLAGS = $(GSL_INCL) $(GSL_LIBS)
 endif
 ifeq ($(LOCALFFTW),"on")
-    FFTW_DIR =  
+    FFTW_DIR =
     FFTW_INCL = -I$(FFTW_DIR)/include/
     FFTW_LIBS = -L$(FFTW_DIR)/lib/
     FFTW_CFLAGS =  $(FFTW_INCL) $(FFTW_LIBS)
 endif
 ifeq ($(HDFENABLE)$(LOCALHDF),"on""on")
-    HDF_DIR = 
+    HDF_DIR =
     HDF_INCL = -I$(HDF_DIR)/include/
     HDF_LIBS = -L$(HDF_DIR)/lib/
+endif
+ifeq ($(XDRENABLE)$(LOCALXDR),"on""on")
+    XDR_DIR =
+    XDR_INCL = -I$(XDR_DIR)/include/
+    XDR_LIBS = -L$(XDR_DIR)/lib/
+endif
+ifeq ($(ADIOSENABLE)$(LOCALADIOS),"on""on")
+    ADIOS_DIR =
+    ADIOS_INCL = -I$(ADIOS_DIR)/include/
+    ADIOS_LIBS = -L$(ADIOS_DIR)/lib/
 endif
 #===========================================
 
@@ -118,15 +159,15 @@ endif
 #===========================================
 ifeq ($(SYSTEM),"intel-standard")
     C+ = icc -Kc++
-    COMPILEFLAGS = -O2
+    COMPILEFLAGS = -O2 -std=c++14
 endif
 ifeq ($(SYSTEM),"gcc-standard")
     C+ = g++
-    COMPILEFLAGS = -O2
+    COMPILEFLAGS = -O2 -std=c++14
 endif
 ifeq ($(SYSTEM),"cray")
     C+ = CC
-    COMPILEFLAGS = -O2
+    COMPILEFLAGS = -O2 -std=c++14
 endif
 
 #===========================================
@@ -182,7 +223,13 @@ ifeq ($(NOMASS),"on")
     COMPILEFLAGS+= -DNOMASS
 endif
 ifeq ($(SINGLEPARTICLEPRECISION),"on")
-    COMPILEFLAGS+= -DLOWPRECISIONPOS 
+    COMPILEFLAGS+= -DLOWPRECISIONPOS
+endif
+ifeq ($(LARGEKDTREE),"on")
+    COMPILEFLAGS+= -DLARGETREE
+endif
+ifeq ($(LARGEMPIDOMAIN),"on")
+    COMPILEFLAGS+= -DHUGEMPI
 endif
 
 C+FLAGS = $(PARALLEL) $(COMPILEFLAGS)
@@ -208,6 +255,12 @@ endif
 #===========================================
 ifeq ($(DEBUG),"on")
     C+FLAGS+= -g
+endif
+#===========================================
+
+#===========================================
+ifeq ($(CCOMPILERTOOOLD),"on")
+    C+FLAGS+= -DOLDCCOMPILER
 endif
 #===========================================
 
@@ -243,6 +296,21 @@ ifeq ($(HDFENABLE),"on")
     IFLAGS+= $(HDF_INCL)
     LFLAGS+= $(HDF_LIBS)
 endif
+
+ifeq ($(ADIOSENABLE),"on")
+    C+FLAGS+= -DUSEADIOS
+    C+LIBS+= $(shell $(ADIOS_DIR)/bin/adios_config -c)
+    IFLAGS+= $(shell $(ADIOS_DIR)/bin/adios_config -c)
+    LFLAGS+= $(shell $(ADIOS_DIR)/bin/adios_config -l)
+endif
+
+ifeq ($(XDRENABLE),"on")
+    C+FLAGS+= -DUSEXDR
+    C+LIBS+= -lz -lrt -ldl
+    IFLAGS+= $(HDF_INCL)
+    LFLAGS+= $(HDF_LIBS)
+endif
+
 #===========================================
 
 
@@ -307,7 +375,7 @@ LFLAGS += -L$(NBODYLIBDIR) $(GSL_LIBS) $(MPI_LINK_FLAGS)
 C+LIBS += -lm -lAnalysis -lKD -lNBody -lMath -lgsl -lgslcblas
 NBODYIFLAGS = -I$(NBODYSRCDIR)/Math/ -I$(NBODYSRCDIR)/NBody/ -I$(NBODYSRCDIR)/Analysis/ -I$(NBODYSRCDIR)/Cosmology/ -I$(NBODYSRCDIR)/InitCond/ -I$(NBODYSRCDIR)/KDTree $(GSL_CFLAGS) #-I$(BOOST_INCL) -I$(MPI_INCL)
 
-NBODYPARALLEL = 
+NBODYPARALLEL =
 NBODYC+FLAGS = $(NBODYPARALLEL) $(COMPILEFLAGS) -c
 LIBCHECK=$(NBODYDIR)/*
 #===========================================
@@ -317,4 +385,3 @@ LIBCHECK=$(NBODYDIR)/*
 #===========================================
 EXEC = $(EXECBASENAME)$(HYDRONAME)$(ZOOMNAME)
 #===========================================
-

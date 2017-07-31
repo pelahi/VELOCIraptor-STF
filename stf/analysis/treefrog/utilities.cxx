@@ -2,7 +2,7 @@
  *  \brief this file contains an assortment of utilities 
  */
 
-#include "halomergertree.h"
+#include "TreeFrog.h"
 
 /// Time functions
 //@{

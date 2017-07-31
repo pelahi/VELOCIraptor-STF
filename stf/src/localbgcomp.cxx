@@ -438,10 +438,10 @@ private(i,tid)
     for (int i=0;i<nfits;i++) {
         chi2=FitNonLinLS(fitfunc, difffuncs, nparams, params, covar, nbins, xbin, rbin, &W,  1e-2, 0.95, fixp[i],1,20);
         int ifitfail=0;
-        for (int j=0;j<nparams;j++) ifitfail+=isnan(params[j]);
+        for (int j=0;j<nparams;j++) ifitfail+=std::isnan(params[j]);
         ifitfail+=(params[2]<=0);
         ifitfail+=(params[3]<=0);
-        if (chi2<oldchi2&&chi2!=-1&&isnan(chi2)==0&&ifitfail==0) {
+        if (chi2<oldchi2&&chi2!=-1&&std::isnan(chi2)==0&&ifitfail==0) {
             meanr=params[1];sdlow=sqrt(params[2]*params[3]);sdhigh=sqrt(params[2]);
             nfix=0;for (int j=0;j<nparams;j++) nfix+=(fixp[i][j]==1);
             oldchi2=chi2;

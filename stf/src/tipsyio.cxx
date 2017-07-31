@@ -12,14 +12,15 @@
 ///reads a tipsy file
 void ReadTipsy(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbaryons, Int_t nbaryons)
 {
-    struct dump tipsyheader;
-    struct gas_particle gas;
-    struct dark_particle dark;
-    struct star_particle star;
+    struct tipsy_dump tipsyheader;
+    struct tipsy_gas_particle gas;
+    struct tipsy_dark_particle dark;
+    struct tipsy_star_particle star;
     Int_t  count,oldcount,ngas,nstar,ndark, Ntot;
-    double time,aadjust,z,Hubble,mtotold;
+    double time,aadjust,z,Hubble,Hubbleflow,mtotold;
+    double MP_DM=MAXVALUE, MP_B=MAXVALUE;
     int temp;
-    Double_t mscale,lscale,lvscale;
+    Double_t mscale,lscale,lvscale,LN=1.0;
     Double_t posfirst[3];
     fstream Ftip;
 #ifndef USEMPI
@@ -31,6 +32,7 @@ void ReadTipsy(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pba
 #ifdef USEMPI
     MPI_Status status;
     Particle *Pbuf;
+    Int_t BufSize=opt.mpiparticlebufsize;
     Pbuf=new Particle[BufSize*NProcs];
     if (ThisTask==0) Pbuf=new Particle[BufSize*NProcs];
     Int_t Nlocalbuf,ibuf=0,*Nbuf;
@@ -48,13 +50,21 @@ void ReadTipsy(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pba
     if (!Ftip){cerr<<"ERROR: Unable to open " <<opt.fname<<endl;exit(8);}
     else cout<<"Reading tipsy format from "<<opt.fname<<endl;
 
+    InitEndian();
+
     //read tipsy header.
-    Ftip.read((char*)&tipsyheader,sizeof(dump));
+    Ftip.read((char*)&tipsyheader,sizeof(tipsy_dump));
+    tipsyheader.SwitchtoBigEndian();
     Ftip.close();
     //offset stream by a double (time),  an integer (nbodies) ,integer (ndim), an integer (ngas)
     //read an integer (ndark), skip an integer (nstar), then data begins.
     time=tipsyheader.time;
-    if ((opt.a-time)/opt.a>1e-2)cout<<"Note that atime provided != to time in tipsy file (a,t): "<<opt.a<<","<<time<<endl;
+    if ((opt.a-time)/opt.a>1e-2)
+    {
+        cout<<"Note that atime provided != to time in tipsy file (a,t): "<<opt.a<<","<<time<<endl;
+        cout<<"Setting atime to that in file "<<endl;
+        opt.a=time;
+    }
     if (opt.comove) aadjust=1.0;
     else aadjust=opt.a;
     Ntot=tipsyheader.nbodies;
@@ -69,7 +79,10 @@ void ReadTipsy(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pba
     z=1./opt.a-1.;
     Hubble=opt.h*opt.H*sqrt((1.0-opt.Omega_m-opt.Omega_Lambda)*pow(1.0+z,2.0)+opt.Omega_m*pow(1.0+z,3.0)+opt.Omega_Lambda);
     opt.rhobg=3.*Hubble*Hubble/8.0/M_PI/opt.G*opt.Omega_m;
-    mscale=opt.M/opt.h;lscale=opt.L/opt.h*aadjust;lvscale=opt.L/opt.h*opt.a;
+    mscale=opt.M;lscale=opt.L*aadjust;lvscale=opt.L*opt.a;
+    //normally Hubbleflow=lvscale*Hubble but we only care about peculiar velocities
+    //ignore hubble flow
+    Hubbleflow=0.;
 
     cout<<"File contains "<<Ntot<<" particles at is at time "<<opt.a<<endl;
     cout<<"There "<<ngas<<" gas, "<<ndark<<" dark, "<<nstar<<" stars."<<endl;
@@ -81,10 +94,12 @@ void ReadTipsy(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pba
     if (opt.p>0) {
         count=0;
         Ftip.open(opt.fname, ios::in | ios::binary);
-        Ftip.read((char*)&tipsyheader,sizeof(dump));
+        Ftip.read((char*)&tipsyheader,sizeof(tipsy_dump));
+        tipsyheader.SwitchtoBigEndian();
         for (Int_t i=0;i<ngas;i++)
         {
-            Ftip.read((char*)&gas,sizeof(gas_particle));
+            Ftip.read((char*)&gas,sizeof(tipsy_gas_particle));
+            gas.SwitchtoBigEndian();
             if ((opt.partsearchtype==PSTALL||opt.partsearchtype==PSTGAS)&&count==0) {
                 posfirst[0]=gas.pos[0];posfirst[1]=gas.pos[1];posfirst[2]=gas.pos[2];
                 count++;
@@ -94,7 +109,8 @@ void ReadTipsy(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pba
         if (count==0) {
         for (Int_t i=0;i<ndark;i++)
         {
-            Ftip.read((char*)&dark,sizeof(dark_particle));
+            Ftip.read((char*)&dark,sizeof(tipsy_dark_particle));
+            dark.SwitchtoBigEndian();
             if ((opt.partsearchtype==PSTALL||opt.partsearchtype==PSTDARK)&&count==0) {
                 posfirst[0]=dark.pos[0];posfirst[1]=dark.pos[1];posfirst[2]=dark.pos[2];
                 count++;
@@ -105,7 +121,8 @@ void ReadTipsy(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pba
         if (count==0) {
         for (Int_t i=0;i<nstar;i++)
         {
-            Ftip.read((char*)&star,sizeof(star_particle));
+            Ftip.read((char*)&star,sizeof(tipsy_star_particle));
+            star.SwitchtoBigEndian();
             if ((opt.partsearchtype==PSTALL||opt.partsearchtype==PSTSTAR)&&count==0) {
                 posfirst[0]=star.pos[0];posfirst[1]=star.pos[1];posfirst[2]=star.pos[2];
                 count++;
@@ -118,10 +135,12 @@ void ReadTipsy(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pba
 
     oldcount=count=0;
     Ftip.open(opt.fname, ios::in | ios::binary);
-    Ftip.read((char*)&tipsyheader,sizeof(dump));
+    Ftip.read((char*)&tipsyheader,sizeof(tipsy_dump));
+    tipsyheader.SwitchtoBigEndian();
     for (Int_t i=0;i<ngas;i++)
     {
-        Ftip.read((char*)&gas,sizeof(gas_particle));
+        Ftip.read((char*)&gas,sizeof(tipsy_gas_particle));
+        gas.SwitchtoBigEndian();
         //if particle is closer do to periodicity then alter position
         if (opt.p>0.0)
         {
@@ -134,9 +153,9 @@ void ReadTipsy(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pba
 #ifndef USEMPI
             Part[count]=Particle(gas.mass*mscale,
                 gas.pos[0]*lscale,gas.pos[1]*lscale,gas.pos[2]*lscale,
-                gas.vel[0]*opt.V+Hubble*gas.pos[0]*lvscale,
-                gas.vel[1]*opt.V+Hubble*gas.pos[1]*lvscale,
-                gas.vel[2]*opt.V+Hubble*gas.pos[2]*lvscale,
+                gas.vel[0]*opt.V+Hubbleflow*gas.pos[0],
+                gas.vel[1]*opt.V+Hubbleflow*gas.pos[1],
+                gas.vel[2]*opt.V+Hubbleflow*gas.pos[2],
                 count,GASTYPE);
 #else
             //if using MPI, determine ibuf, store particle in particle buffer and if buffer full, broadcast data
@@ -144,9 +163,9 @@ void ReadTipsy(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pba
             ibuf=MPIGetParticlesProcessor(gas.pos[0],gas.pos[1],gas.pos[2]);
             Pbuf[ibuf*BufSize+Nbuf[ibuf]]=Particle(gas.mass*mscale,
                 gas.pos[0]*lscale,gas.pos[1]*lscale,gas.pos[2]*lscale,
-                gas.vel[0]*opt.V+Hubble*gas.pos[0]*lvscale,
-                gas.vel[1]*opt.V+Hubble*gas.pos[1]*lvscale,
-                gas.vel[2]*opt.V+Hubble*gas.pos[2]*lvscale,
+                gas.vel[0]*opt.V+Hubbleflow*gas.pos[0],
+                gas.vel[1]*opt.V+Hubbleflow*gas.pos[1],
+                gas.vel[2]*opt.V+Hubbleflow*gas.pos[2],
                 count,GASTYPE);
             Nbuf[ibuf]++;
             if(ibuf==0){
@@ -168,23 +187,25 @@ void ReadTipsy(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pba
     oldcount=count;
     for (Int_t i=0;i<ndark;i++)
     {
-        Ftip.read((char*)&dark,sizeof(dark_particle));
+        Ftip.read((char*)&dark,sizeof(tipsy_dark_particle));
+        dark.SwitchtoBigEndian();
+        if (MP_DM>dark.mass) MP_DM=dark.mass;
         //if particle is closer do to periodicity then alter position
         if (opt.partsearchtype==PSTALL||opt.partsearchtype==PSTDARK) {
 #ifndef USEMPI
         Part[count]=Particle(dark.mass*mscale,
             dark.pos[0]*lscale,dark.pos[1]*lscale,dark.pos[2]*lscale,
-            dark.vel[0]*opt.V+Hubble*dark.pos[0]*lvscale,
-            dark.vel[1]*opt.V+Hubble*dark.pos[1]*lvscale,
-            dark.vel[2]*opt.V+Hubble*dark.pos[2]*lvscale,
+            dark.vel[0]*opt.V+Hubbleflow*dark.pos[0],
+            dark.vel[1]*opt.V+Hubbleflow*dark.pos[1],
+            dark.vel[2]*opt.V+Hubbleflow*dark.pos[2],
             count,DARKTYPE);
 #else
             ibuf=MPIGetParticlesProcessor(dark.pos[0],dark.pos[1],dark.pos[2]);
             Pbuf[ibuf*BufSize+Nbuf[ibuf]]=Particle(dark.mass*mscale,
                 dark.pos[0]*lscale,dark.pos[1]*lscale,dark.pos[2]*lscale,
-                dark.vel[0]*opt.V+Hubble*dark.pos[0]*lvscale,
-                dark.vel[1]*opt.V+Hubble*dark.pos[1]*lvscale,
-                dark.vel[2]*opt.V+Hubble*dark.pos[2]*lvscale,
+                dark.vel[0]*opt.V+Hubbleflow*dark.pos[0],
+                dark.vel[1]*opt.V+Hubbleflow*dark.pos[1],
+                dark.vel[2]*opt.V+Hubbleflow*dark.pos[2],
                 count,DARKTYPE);
             Nbuf[ibuf]++;
             if(ibuf==0){
@@ -206,7 +227,8 @@ void ReadTipsy(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pba
     oldcount=count;
     for (Int_t i=0;i<nstar;i++)
     {
-        Ftip.read((char*)&star,sizeof(star_particle));
+        Ftip.read((char*)&star,sizeof(tipsy_star_particle));
+        star.SwitchtoBigEndian();
         //if particle is closer do to periodicity then alter position
         if (opt.p>0.0)
         {
@@ -219,17 +241,17 @@ void ReadTipsy(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pba
 #ifndef USEMPI
         Part[count]=Particle(star.mass*mscale,
             star.pos[0]*lscale,star.pos[1]*lscale,star.pos[2]*lscale,
-            star.vel[0]*opt.V+Hubble*star.pos[0]*lvscale,
-            star.vel[1]*opt.V+Hubble*star.pos[1]*lvscale,
-            star.vel[2]*opt.V+Hubble*star.pos[2]*lvscale,
+            star.vel[0]*opt.V+Hubbleflow*star.pos[0],
+            star.vel[1]*opt.V+Hubbleflow*star.pos[1],
+            star.vel[2]*opt.V+Hubbleflow*star.pos[2],
             count,STARTYPE);
 #else
             ibuf=MPIGetParticlesProcessor(star.pos[0],star.pos[1],star.pos[2]);
             Pbuf[ibuf*BufSize+Nbuf[ibuf]]=Particle(star.mass*mscale,
                 star.pos[0]*lscale,star.pos[1]*lscale,star.pos[2]*lscale,
-                star.vel[0]*opt.V+Hubble*star.pos[0]*lvscale,
-                star.vel[1]*opt.V+Hubble*star.pos[1]*lvscale,
-                star.vel[2]*opt.V+Hubble*star.pos[2]*lvscale,
+                star.vel[0]*opt.V+Hubbleflow*star.pos[0],
+                star.vel[1]*opt.V+Hubbleflow*star.pos[1],
+                star.vel[2]*opt.V+Hubbleflow*star.pos[2],
                 count,STARTYPE);
             Nbuf[ibuf]++;
             if(ibuf==0){
@@ -284,5 +306,19 @@ void ReadTipsy(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pba
         //MPI_Bcast(&cmvel,sizeof(Coordinate),MPI_BYTE,0,MPI_COMM_WORLD);
     //}
 #endif
-}
 
+    //calculate the interparticle spacing
+#ifdef HIGHRES
+    if (opt.Neff==-1) {
+        //Once smallest mass particle is found (which should correspond to highest resolution area,
+        LN=pow(((MP_DM)*opt.M)/(opt.Omega_cdm*3.0*opt.H*opt.h*opt.H*opt.h/(8.0*M_PI*opt.G)),1./3.)*opt.a;
+    }
+    else {
+        LN=opt.p/(Double_t)opt.Neff;
+    }
+#endif
+    //adjust physical scales by the inferred interparticle spacing
+    opt.ellxscale=LN;
+    opt.uinfo.eps*=LN;
+
+}

@@ -3,7 +3,7 @@
 
 */
 
-#include "halomergertree.h"
+#include "TreeFrog.h"
 
 using namespace std;
 using namespace Math;
@@ -46,7 +46,7 @@ int main(int argc,char **argv)
     HaloTreeData *pht;
     //store the progenitors of a given set of objects
     ProgenitorData **pprogen;
-    //if multiple snapshots are used in constructing the progenitor list, must store the possible set of descendents 
+    //if multiple snapshots are used in constructing the progenitor list, must store the possible set of descendents
     //which can then be cleaned to ensure one descendent
     ///\todo eventually must clean up graph construction so that the graph is completely reversible
     DescendantDataProgenBased **pprogendescen;
@@ -58,10 +58,9 @@ int main(int argc,char **argv)
     DescendantData *pdescentemp;
     //store the halo ids of particles in objects, with mapping of ids, makes it easy to look up the haloid of a given particle
     unsigned int *pfofp,*pfofd;
-    long unsigned *noffset;
-    long unsigned *pglist;
     long long i,j;
     long unsigned nh,nhp,nhd;
+    long unsigned newnp;
     //flags indicating whether updates to list are necessary
     int ilistupdated;
 
@@ -81,15 +80,36 @@ int main(int argc,char **argv)
     if (ThisTask==0) {
         cout<<"Done Loading"<<endl;
         cout<<"Found "<<opt.TotalNumberofHalos<<" halos "<<endl;
-        cout<<"Memory needed to store addressing for ids "<<sizeof(long unsigned)*opt.MaxIDValue/1024./1024.0/1024.0<<", maximum ID of "<<opt.MaxIDValue<<endl;
     }
-    //adjust ids if particle ids need to be mapped to index
-    if (opt.imapping>DNOMAP) MapPIDStoIndex(opt,pht);
-    //check that ids are within allowed range for linking
-    IDcheck(opt,pht);
+    if (opt.iverbose) {
+        Int_t sum=0;
+        for (i=StartSnap;i<EndSnap;i++)
+            for (j=0;j<pht[i].numhalos;j++) sum+=pht[i].Halo[j].NumberofParticles;
+        cout<<ThisTask<<" has allocated at least "<<sum*sizeof(IDTYPE)/1024./1024./1024.<<"GB of memory to store particle ids"<<endl;
+    }
+
+    if (opt.imapping==DMEMEFFICIENTMAP) {
+        if (ThisTask==0) cout<<"Generating unique memory efficent mapping for particle IDS to index"<<endl;
+        map<IDTYPE, IDTYPE> idmap=ConstructMemoryEfficientPIDStoIndexMap(opt, pht);
+        MapPIDStoIndex(opt,pht, idmap);
+        idmap.clear();
+        if (ThisTask==0) {
+            cout<<"Memory needed to store addressing for ids "<<sizeof(IDTYPE)*opt.MaxIDValue/1024./1024.0/1024.0<<", maximum ID of "<<opt.MaxIDValue<<endl;
+        }
+    }
+    else {
+        if (ThisTask==0) {
+            cout<<"Memory needed to store addressing for ids "<<sizeof(unsigned int)*opt.MaxIDValue/1024./1024.0/1024.0<<", maximum ID of "<<opt.MaxIDValue<<endl;
+        }
+        //adjust ids if particle ids need to be mapped to index
+        if (opt.imapping>DNOMAP) MapPIDStoIndex(opt,pht);
+        //check that ids are within allowed range for linking
+        IDcheck(opt,pht);
+    }
     //then allocate simple array used for accessing halo ids of particles through their IDs
     pfofp=new unsigned int[opt.MaxIDValue];
     for (i=0;i<opt.MaxIDValue;i++) pfofp[i]=0;
+
     //allocate memory associated with progenitors
     pprogen=new ProgenitorData*[opt.numsnapshots];
     //if more than a single snapshot is used to identify possible progenitors then must store the descendants information
@@ -103,19 +123,6 @@ int main(int argc,char **argv)
         }
         //save the last step
         pprogendescen[EndSnap-1]=new DescendantDataProgenBased[pht[EndSnap-1].numhalos];
-    /*
-        for (i=opt.numsnapshots-1;i>=0;i--) {
-#ifdef USEMPI
-        //check if data is load making sure i is in appropriate range
-        if (i>=StartSnap && i<EndSnap) {
-#endif
-            if (pht[i].numhalos>0) pprogendescen[i]=new DescendantDataProgenBased[pht[i].numhalos];
-            else pprogendescen[i]=NULL;
-#ifdef USEMPI
-        }
-#endif
-        }
-    */
     }
 
     time1=MyGetTime();
@@ -124,65 +131,62 @@ int main(int argc,char **argv)
     for (i=opt.numsnapshots-1;i>=0;i--) {
     //check if data is load making sure i is in appropriate range
     if (i>=StartSnap && i<EndSnap) {
-        //if snapshot contains halos/structures then search for progenitors 
+        time2=MyGetTime();
+        //if snapshot contains halos/structures then search for progenitors
         if(pht[i].numhalos>0){
             cout<<i<<" "<<pht[i].numhalos<<" cross matching objects in standard merger tree direction (progenitors)"<<endl;
             //if need to store DescendantDataProgenBased as multiple snapshots, allocate any unallocated pprogendescen needed to process
             //current step if this has not already been allocated
             if (opt.numsteps>1) {
-                for (j=1;j<=opt.numsteps;j++) if (i-j>=StartSnap) 
+                for (j=1;j<=opt.numsteps;j++) if (i-j>=StartSnap)
                     if (pprogendescen[i-j]==NULL && pht[i-j].numhalos>0) pprogendescen[i-j]=new DescendantDataProgenBased[pht[i-j].numhalos];
             }
-
-            //allocate offset to easily access particle ID/index list
-            /*
-            noffset=new long unsigned[pht[i].numhalos];
-            noffset[0]=0;
-            nh=pht[i].Halo[0].NumberofParticles;
-            for (j=1;j<pht[i].numhalos;j++){nh+=pht[i].Halo[j].NumberofParticles;noffset[j]=noffset[j-1]+pht[i].Halo[j-1].NumberofParticles;}
-            pglist=new long unsigned[nh];
-            for (j=0;j<pht[i].numhalos;j++){
-                for (Int_t k=0;k<pht[i].Halo[j].NumberofParticles;k++)
-                    pglist[noffset[j]+k]=pht[i].Halo[j].ParticleID[k];
-            }
-            */
-            noffset=NULL;
-            pglist=NULL;
-
             //if not last snapshot then can look back in time and produce links
             if (i>StartSnap) {
             //loop over all possible steps
             for (Int_t istep=1;istep<=opt.numsteps;istep++) if (i-istep>=0) {
-            //when using mpi also check that data is local 
+            //when using mpi also check that data is local
             if (i-istep-StartSnap>=0) {
                 //set pfof progenitor data structure, used to produce links. Only produced IF snapshot not first one
-                for (j=0;j<pht[i-istep].numhalos;j++) 
-                    for (Int_t k=0;k<pht[i-istep].Halo[j].NumberofParticles;k++) 
+                for (j=0;j<pht[i-istep].numhalos;j++)
+                    for (Int_t k=0;k<pht[i-istep].Halo[j].NumberofParticles;k++)
                         pfofp[pht[i-istep].Halo[j].ParticleID[k]]=j+1;
+                //now if also doing core weighting then update the halo id associated with the particle so that
+                //it is its current halo core ID + total number of halos
+                if (opt.particle_frac<1 && opt.particle_frac>0) {
+                    for (j=0;j<pht[i-istep].numhalos;j++) {
+                        newnp=max((Int_t)(pht[i-istep].Halo[j].NumberofParticles*opt.particle_frac),opt.min_numpart);
+                        //if halo is smaller than the min numpart adjust again.
+                        newnp=min(pht[i-istep].Halo[j].NumberofParticles,newnp);
+                        for (Int_t k=0;k<newnp;k++)
+                            pfofp[pht[i-istep].Halo[j].ParticleID[k]]=j+1+pht[i-istep].numhalos;
+                    }
+                }
 
                 //begin cross matching with previous snapshot(s)
-                //for first linking, cross match and allocate memory 
+                //for first linking, cross match and allocate memory
                 if (istep==1) {
-                    pprogen[i]=CrossMatch(opt, pht[i].numhalos, pht[i-istep].numhalos, pht[i].Halo, pht[i-istep].Halo, pglist, noffset, pfofp, ilistupdated);
-                    CleanCrossMatch(pht[i].numhalos, pht[i-istep].numhalos, pht[i].Halo, pht[i-istep].Halo, pprogen[i]);
+                    pprogen[i]=CrossMatch(opt, pht[i].numhalos, pht[i-istep].numhalos, pht[i].Halo, pht[i-istep].Halo, pfofp, ilistupdated);
+                    CleanCrossMatch(istep, pht[i].numhalos, pht[i-istep].numhalos, pht[i].Halo, pht[i-istep].Halo, pprogen[i]);
                     if (opt.numsteps>1) BuildProgenitorBasedDescendantList(i, i-istep, pht[i].numhalos, pprogen[i], pprogendescen);
                 }
                 //otherwise only care about objects with no links
                 else {
-                    pprogentemp=CrossMatch(opt, pht[i].numhalos, pht[i-istep].numhalos, pht[i].Halo, pht[i-istep].Halo, pglist, noffset, pfofp, ilistupdated, istep, pprogen[i]);
+                    pprogentemp=CrossMatch(opt, pht[i].numhalos, pht[i-istep].numhalos, pht[i].Halo, pht[i-istep].Halo, pfofp, ilistupdated, istep, pprogen[i]);
                     //if new candidate progenitors have been found then need to update the reference list
                     if (ilistupdated>0) {
-                        CleanCrossMatch(pht[i].numhalos, pht[i-istep].numhalos, pht[i].Halo, pht[i-istep].Halo, pprogentemp);
-                        UpdateRefProgenitors(opt.imultsteplinkcrit,pht[i].numhalos, pprogen[i], pprogentemp);
+                        //if merit limit was applied when deciding to search earlier snapshots
+                        CleanCrossMatch(istep, pht[i].numhalos, pht[i-istep].numhalos, pht[i].Halo, pht[i-istep].Halo, pprogentemp);
+                        UpdateRefProgenitors(opt,pht[i].numhalos, pprogen[i], pprogentemp, pprogendescen,i);
                         BuildProgenitorBasedDescendantList(i, i-istep, pht[i].numhalos, pprogen[i], pprogendescen, istep);
                     }
                     delete[] pprogentemp;
 
                 }
 
-                //reset pfof2 values 
+                //reset pfof2 values
                 for (j=0;j<pht[i-istep].numhalos;j++)
-                    for (int k=0;k<pht[i-istep].Halo[j].NumberofParticles;k++) 
+                    for (int k=0;k<pht[i-istep].Halo[j].NumberofParticles;k++)
                         pfofp[pht[i-istep].Halo[j].ParticleID[k]]=0;
             }
             }
@@ -198,16 +202,17 @@ int main(int argc,char **argv)
         else {
             pprogen[i]=NULL;
         }
-        //now if using multiple snapshots, 
+        //now if using multiple snapshots,
         //if enough non-overlapping (mpi wise) snapshots have been processed, one can cleanup progenitor list using the DescendantDataProgenBased data
         //then free this data
-        //this occurs if current snapshot is at least Endsnap-opt.numsnapshots*2 or lower as then Endsnap-opt.numsnapshots have had progenitor list processed
-        if (opt.numsteps>1 && pht[i].numhalos>0 && (i<EndSnap-2*opt.numsnapshots && i>StartSnap+2*opt.numsnapshots)) {
+        //this occurs if current snapshot is at least Endsnap-opt.numsteps*2 or lower as then Endsnap-opt.numsteps have had progenitor list processed
+        if (opt.numsteps>1 && pht[i].numhalos>0 && (i<EndSnap-2*opt.numsteps && i>StartSnap+2*opt.numsteps)) {
             if (opt.iverbose) cout<<"Cleaning Progenitor list using descendant information for "<<i<<endl;
-            CleanProgenitorsUsingDescendants(i, pht, pprogendescen, pprogen);
+            CleanProgenitorsUsingDescendants(i, pht, pprogendescen, pprogen, opt.iopttemporalmerittype);
             delete[] pprogendescen[i];
             pprogendescen[i]=NULL;
         }
+        if (opt.iverbose) cout<<ThisTask<<" finished Progenitor processing for snapshot "<<i<<" in "<<MyGetTime()-time2<<endl;
     }
     else pprogen[i]=NULL;
     }
@@ -227,19 +232,18 @@ int main(int argc,char **argv)
         if (i>=StartSnap && i<EndSnap-1) {
             if (opt.iverbose) cout<<"Cleaning Progenitor list using descendant information for "<<i<<endl;
             if (pprogendescen[i]!=NULL) {
-                CleanProgenitorsUsingDescendants(i, pht, pprogendescen, pprogen);
+                CleanProgenitorsUsingDescendants(i, pht, pprogendescen, pprogen, opt.iopttemporalmerittype);
                 delete[] pprogendescen[i];
                 pprogendescen[i]=NULL;
             }
         }
         }
     }
+    if (opt.iverbose) cout<<"Finished the Progenitor cross matching "<<MyGetTime()-time1<<endl;
 
-    if (opt.iverbose) cout<<"Finished the progenitor cross matching "<<MyGetTime()-time1<<endl;
-
-    //Produce a reverse cross comparison or descendant tree if a full graph is requested. 
+    //Produce a reverse cross comparison or descendant tree if a full graph is requested.
     if(opt.icatalog==DGRAPH) {
-    time2=MyGetTime();
+    time1=MyGetTime();
     if (opt.iverbose) cout<<"Starting descendant cross matching "<<endl;
     pdescen=new DescendantData*[opt.numsnapshots];
     pfofd=new unsigned int[opt.MaxIDValue];
@@ -249,47 +253,44 @@ int main(int argc,char **argv)
 
     for (i=opt.numsnapshots-1;i>=0;i--) {
     if (i>=StartSnap && i<EndSnap) {
+        time2=MyGetTime();
         if(pht[i].numhalos>0){
             cout<<i<<" "<<pht[i].numhalos<<" cross matching objects in other direction (descendants)"<<endl;
-            /*
-            noffset=new long unsigned[pht[i].numhalos];
-            noffset[0]=0;
-            nh=pht[i].Halo[0].NumberofParticles;
-            for (j=1;j<pht[i].numhalos;j++){nh+=pht[i].Halo[j].NumberofParticles;noffset[j]=noffset[j-1]+pht[i].Halo[j-1].NumberofParticles;}
-            pglist=new long unsigned[nh];
-            for (j=0;j<pht[i].numhalos;j++){
-                for (Int_t k=0;k<pht[i].Halo[j].NumberofParticles;k++)
-                    pglist[noffset[j]+k]=pht[i].Halo[j].ParticleID[k];
-            }
-            */
-            noffset=NULL;
-            pglist=NULL;
-
 
             if (i<=EndSnap) {
             for (Int_t istep=1;istep<=opt.numsteps;istep++) if (i+istep<=opt.numsnapshots-1) {
             if (i+istep<EndSnap) {
                 //set pfof progenitor data structure, used to produce links. Only produced IF snapshot not first one
                 for (j=0;j<pht[i+istep].numhalos;j++)
-                    for (int k=0;k<pht[i+istep].Halo[j].NumberofParticles;k++) 
+                    for (int k=0;k<pht[i+istep].Halo[j].NumberofParticles;k++)
                         pfofd[pht[i+istep].Halo[j].ParticleID[k]]=j+1;
+                //now if also doing core weighting then update the halo id associated with the particle so that
+                //it is its current halo core ID + total number of halos
+                if (opt.particle_frac<1 && opt.particle_frac>0) {
+                    for (j=0;j<pht[i+istep].numhalos;j++) {
+                        newnp=max((Int_t)(pht[i+istep].Halo[j].NumberofParticles*opt.particle_frac),opt.min_numpart);
+                        newnp=min(pht[i+istep].Halo[j].NumberofParticles,newnp);
+                        for (Int_t k=0;k<newnp;k++)
+                            pfofp[pht[i+istep].Halo[j].ParticleID[k]]=j+1+pht[i+istep].numhalos;
+                    }
+                }
 
                 //begin cross matching with  snapshot(s)
-                //for first linking, cross match and allocate memory 
+                //for first linking, cross match and allocate memory
                 if (istep==1) {
-                    pdescen[i]=CrossMatchDescendant(opt,  pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pglist, noffset, pfofd, ilistupdated);
-                    CleanCrossMatchDescendant(pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pdescen[i]);
+                    pdescen[i]=CrossMatchDescendant(opt,  pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pfofd, ilistupdated);
+                    CleanCrossMatchDescendant(istep, pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pdescen[i]);
                 }
                 //otherwise only care about objects with no links
                 else {
-                    pdescentemp=CrossMatchDescendant(opt, pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pglist, noffset, pfofd, ilistupdated, istep, pdescen[i]);
-                    CleanCrossMatchDescendant(pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pdescen[i]);
-                    UpdateRefDescendants(opt.imultsteplinkcrit,pht[i].numhalos, pdescen[i], pdescentemp);
+                    pdescentemp=CrossMatchDescendant(opt, pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pfofd, ilistupdated, istep, pdescen[i]);
+                    CleanCrossMatchDescendant(istep, pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pdescen[i]);
+                    UpdateRefDescendants(opt,pht[i].numhalos, pdescen[i], pdescentemp);
                     delete[] pdescentemp;
                 }
 
                 for (j=0;j<pht[i+istep].numhalos;j++)
-                    for (int k=0;k<pht[i+istep].Halo[j].NumberofParticles;k++) 
+                    for (int k=0;k<pht[i+istep].Halo[j].NumberofParticles;k++)
                         pfofd[pht[i+istep].Halo[j].ParticleID[k]]=0;
             }
             }
@@ -303,11 +304,12 @@ int main(int argc,char **argv)
         else {
             pdescen[i]=NULL;
         }
+        if (opt.iverbose) cout<<ThisTask<<" finished Progenitor processing for snapshot "<<i<<" in "<<MyGetTime()-time2<<endl;
     }
     else pdescen[i]=NULL;
     }
     delete[] pfofd;
-    if (opt.iverbose) cout<<"Starting descendant cross matching "<<MyGetTime()-time2<<endl;
+    if (opt.iverbose) cout<<"Finished Descendant cross matching "<<MyGetTime()-time1<<endl;
     }
 
     //now adjust the halo ids as prior, halo ids simple represent read order, allowing for addressing of memory by halo id value
@@ -334,7 +336,7 @@ int main(int argc,char **argv)
     //if producing graph as well
     if(opt.icatalog==DGRAPH) {for (i=0;i<opt.numsnapshots;i++) if (pdescen[i]!=NULL) delete[] pdescen[i];delete[] pdescen;}
     //if used multiple time steps
-    if (opt.numsnapshots>1) {
+    if (opt.numsteps>1) {
         for (i=opt.numsnapshots-1;i>=0;i--) {
 #ifdef USEMPI
         //check if data is load making sure i is in appropriate range
