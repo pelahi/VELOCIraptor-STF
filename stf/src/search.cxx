@@ -91,11 +91,11 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
 #ifdef STRUCDEN
     if (numgroups>0 && opt.iSubSearch==1) {
     numingroup=BuildNumInGroup(nbodies, numgroups, pfof);
-    storetype=new short[nbodies];
+    storetype=new Int_t[nbodies];
     for (i=0;i<nbodies;i++) storetype[i]=Part[i].GetType();
     //if not searching all particle then searching for baryons associated with substructures, then set type to group value
     //so that velocity density just calculated for particles in groups (type>0)
-    if (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)) for (i=0;i<nbodies;i++) Part[i].SetType(pfof[Part[i].GetID()]);
+    if (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)) for (i=0;i<nbodies;i++) Part[i].SetType(numingroup[pfof[Part[i].GetID()]]>=MINSUBSIZE);
     //otherwise set type to group value for dark matter
     else {
         for (i=0;i<nbodies;i++) {
@@ -106,7 +106,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
     GetVelocityDensity(opt, nbodies, Part,tree);
     for (i=0;i<nbodies;i++) Part[i].SetType(storetype[i]);
     delete[] storetype;
-    delete[] numingorup;
+    if (opt.fofbgtype>FOF6D) delete[] numingroup;
     }
 #endif
     delete tree;
@@ -207,7 +207,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
         //otherwise set type to group value for dark matter
         else {
             for (i=0;i<Nlocal;i++) {
-                if (Part[i].GetType()==DARKTYPE) Part[i].SetType(pfof[i]);
+                if (Part[i].GetType()==DARKTYPE) Part[i].SetType(numingroup[pfof[Part[i].GetID()]]>=MINSUBSIZE);
                 else Part[i].SetType(-1);
             }
         }
@@ -216,7 +216,6 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
         delete tree;
         for (i=0;i<Nlocal;i++) Part[i].SetType(storetype[i]);
         delete[] storetype;
-        delete[] numingroup;
     }
 #endif
 
@@ -521,6 +520,25 @@ private(i,tid,xscaling,vscaling)
 
     }
     //end of extra 6dfof/phase-space search of 3D FOF envelops
+
+    //now if not search for substructure but want bound halos need to check binding
+    if (opt.iSubSearch==0 && opt.iBoundHalos==1) {
+        CheckUnboundGroups(opt,Nlocal,Part,numgroups,pfof);
+#ifdef USEMPI
+        if (ThisTask==0) cout<<ThisTask<<" After unnbinding halos"<<endl;
+        //update number of groups if extra secondary search done
+        if (opt.fofbgtype>FOF6D) {
+            cout<<"MPI thread "<<ThisTask<<" has found "<<numgroups<<endl;
+            MPI_Allgather(&numgroups, 1, MPI_Int_t, mpi_ngroups, 1, MPI_Int_t, MPI_COMM_WORLD);
+            //free up memory now that only need to store pfof and global ids
+            if (ThisTask==0) {
+                int totalgroups=0;
+                for (int j=0;j<NProcs;j++) totalgroups+=mpi_ngroups[j];
+                cout<<"Total number of groups found is "<<totalgroups<<endl;
+            }
+        }
+#endif
+    }
 
 #ifdef USEMPI
     //update number of groups if extra secondary search done
