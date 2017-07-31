@@ -2108,7 +2108,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_
                     iindex=0;
                     while (pcsld->Phead[iindex++]!=Pval);
                     //store the parent/uber parent info if not a field halo
-                    if(sublevel=1&&opt.iKeepFOF==0) {
+                    if(sublevel==1&&opt.iKeepFOF==0) {
                         Pparentheadval=NULL;
                         gidparentheadval=NULL;
                         giduberparentheadval=NULL;

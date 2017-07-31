@@ -2588,9 +2588,9 @@ void CopyMasses(const Int_t nhalos, PropData *&pold, PropData *&pnew){
     }
 }
 ///reorder mass information stored in properties data
-void ReorderInclusiveMasses(const Int_t &numgroups, const Int_t &newnumgroups, Int_t *&numingroup, PropData *pdata)
+void ReorderInclusiveMasses(const Int_t &numgroups, const Int_t &newnumgroups, Int_t *&numingroup, PropData *&pdata)
 {
-    PropData *pnew=new PropData[newnumgroups];
+    PropData *pnew=new PropData[newnumgroups+1];
     PriorityQueue *pq=new PriorityQueue(newnumgroups);
     for (Int_t i = 1; i <=numgroups; i++) if (numingroup[i]>0) pq->Push(i, numingroup[i]);
     for (Int_t i = 1; i<=newnumgroups; i++) {
