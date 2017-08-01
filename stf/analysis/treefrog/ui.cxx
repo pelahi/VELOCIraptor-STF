@@ -4,12 +4,81 @@
 
 #include "TreeFrog.h"
 
+///Read parameters from a parameter file. For list of currently implemented options see \ref configopt
+///\todo still more parameters that can be adjusted
+void GetParamFile(Options &opt)
+{
+    string line,sep="=";
+    string tag,val;
+    char buff[1024],*pbuff,tbuff[1024],vbuff[1024],fname[1024];
+    fstream paramfile,cfgfile;
+    if (!FileExists(opt.configname)){
+            cerr<<"Config file does not exist or can't be read, terminating"<<endl;
+#ifdef USEMPI
+            MPI_Abort(MPI_COMM_WORLD,9);
+#else
+            exit(9);
+#endif
+    }
+    paramfile.open(opt.configname, ios::in);
+    unsigned j,k;
+    if (paramfile.is_open())
+    {
+        while (paramfile.good()){
+            getline(paramfile,line);
+            //if line is not commented out or empty
+            if (line[0]!='#'&&line.length()!=0) {
+                if (j=line.find(sep)){
+                    //clean up string
+                    tag=line.substr(0,j);
+                    strcpy(buff, tag.c_str());
+                    pbuff=strtok(buff," ");
+                    strcpy(tbuff, pbuff);
+                    val=line.substr(j+1,line.length()-(j+1));
+                    strcpy(buff, val.c_str());
+                    pbuff=strtok(buff," ");
+                    if (pbuff==NULL) continue;
+                    strcpy(vbuff, pbuff);
+                    //config search type
+                    if (strcmp(tbuff, "Tree_direction")==0)
+                        opt.isearchdirection = atoi(vbuff);
+                    else if (strcmp(tbuff, "Merit_type")==0)
+                        opt.imerittype = atoi(vbuff);
+                    else if (strcmp(tbuff, "Tree_direction")==0)
+                        opt.isearchdirection = atoi(vbuff);
+                    else if (strcmp(tbuff, "Multistep_criterion")==0)
+                        opt.imultsteplinkcrit = atoi(vbuff);
+                    else if (strcmp(tbuff, "Optimal_temporal_merit_criterion")==0)
+                        opt.iopttemporalmerittype = atoi(vbuff);
+                    else if (strcmp(tbuff, "Particle_type_criterion")==0)
+                        opt.itypematch = atoi(vbuff);
+
+                    //config search parameters
+                    else if (strcmp(tbuff, "Shared_particle_signal_to_noise_limit")==0)
+                        opt.mlsig = atof(vbuff);
+                    else if (strcmp(tbuff, "Number_of_linking_steps")==0)
+                        opt.numsteps = atoi(vbuff);
+                    else if (strcmp(tbuff, "Merit_limit_continuing_search")==0)
+                        opt.meritlimit = atof(vbuff);
+                    else if (strcmp(tbuff, "Particle_core_fraction")==0)
+                        opt.particle_frac = atof(vbuff);
+                    else if (strcmp(tbuff, "Particle_core_min_num")==0)
+                        opt.min_numpart = atoi(vbuff);
+                    else if (strcmp(tbuff, "Particle_core_max_num")==0)
+                        opt.max_numpart = atoi(vbuff);
+                }
+            }
+        }
+        paramfile.close();
+    }
+}
+
 ///routine to get arguments from command line
 void GetArgs(int argc, char *argv[], Options &opt)
 {
     int option;
     int NumArgs = 0;
-    while ((option = getopt(argc, argv, ":i:s:t:n:f:p:o:C:c:S:I:N:B:F:M:H:h:D:O:T:v:m:d:z:Z:a:x:u:w:")) != EOF)
+    while ((option = getopt(argc, argv, ":i:s:I:N:B:F:o:O:T:D:M:X:U:C:l:m:n:t:f:p:b:a:h:H:g:v:y:z:Z:")) != EOF)
     {
         switch(option)
         {
@@ -47,13 +116,49 @@ void GetArgs(int argc, char *argv[], Options &opt)
                 NumArgs += 2;
                 break;
 
-            //configuration of operation of tree
-            case 't':
-                opt.numsteps = atoi(optarg);
+            //general operations
+            case 'T':
+                opt.itypematch = atoi(optarg);
+                NumArgs += 2;
+                break;
+            case 'D':
+                NumArgs += 2;
+                opt.isearchdirection = atoi(optarg);
+                break;
+            case 'M':
+                opt.imerittype = atoi(optarg);
+                NumArgs += 2;
+                break;
+            case 'X':
+                opt.imultsteplinkcrit= atoi(optarg);
+                NumArgs += 2;
+                break;
+            case 'U':
+                opt.iopttemporalmerittype= atoi(optarg);
+                NumArgs += 2;
+                break;
+            case 'C':
+                opt.icatalog = atoi(optarg);
+                NumArgs += 2;
+                break;
+
+            //id index mapping
+            case 'l':
+                opt.idcorrectflag = atoi(optarg);
+                NumArgs += 2;
+                break;
+            case 'm':
+                opt.imapping = atoi(optarg);
                 NumArgs += 2;
                 break;
             case 'n':
                 opt.MaxIDValue = atol(optarg);
+                NumArgs += 2;
+                break;
+
+            //configuration of operation of tree
+            case 't':
+                opt.numsteps = atoi(optarg);
                 NumArgs += 2;
                 break;
             case 'f':
@@ -64,31 +169,7 @@ void GetArgs(int argc, char *argv[], Options &opt)
                 opt.min_numpart = atoi(optarg);
                 NumArgs += 2;
                 break;
-            case 'w':
-                NumArgs += 2;
-                opt.isearchdirection = atoi(optarg);
-                break;
-            case 'C':
-                opt.imerittype = atoi(optarg);
-                NumArgs += 2;
-                break;
-            case 'x':
-                opt.imultsteplinkcrit= atoi(optarg);
-                NumArgs += 2;
-                break;
-            case 'u':
-                opt.iopttemporalmerittype= atoi(optarg);
-                NumArgs += 2;
-                break;
-            case 'c':
-                opt.icatalog = atoi(optarg);
-                NumArgs += 2;
-                break;
-            case 'D':
-                opt.idcorrectflag = atoi(optarg);
-                NumArgs += 2;
-                break;
-            case 'S':
+            case 'b':
                 opt.mlsig = atof(optarg);
                 NumArgs += 2;
                 break;
@@ -96,10 +177,8 @@ void GetArgs(int argc, char *argv[], Options &opt)
                 opt.meritlimit = atof(optarg);
                 NumArgs += 2;
                 break;
-            case 'M':
-                opt.imapping = atoi(optarg);
-                NumArgs += 2;
-                break;
+
+            //offsets
             case 'H':
                 opt.snapshotvaloffset = atoi(optarg);
                 NumArgs += 2;
@@ -108,20 +187,18 @@ void GetArgs(int argc, char *argv[], Options &opt)
                 opt.haloidval= atol(optarg);
                 NumArgs += 2;
                 break;
-            case 'd':
+            case 'g':
                 opt.haloidoffset= atoi(optarg);
                 NumArgs += 2;
                 break;
-            case 'T':
-                opt.itypematch = atoi(optarg);
-                NumArgs += 2;
-                break;
+            //other options
             case 'v':
                 opt.iverbose = atoi(optarg);
                 NumArgs += 2;
                 break;
 #ifdef USEMPI
-            case 'm':
+            //mpi related
+            case 'y':
                 opt.numpermpi = atol(optarg);
                 NumArgs += 2;
                 break;
@@ -180,30 +257,37 @@ void usage(void)
     cerr<<" ========================= "<<endl<<endl;
 
     cerr<<" ========================= "<<endl;
-    cerr<<" Cross matching options "<<endl;
+    cerr<<" General tree construction options "<<endl;
     cerr<<" ========================= "<<endl;
-    cerr<<"-n <Max ID value of particles [Must specify] ("<<opt.MaxIDValue<<")>\n";
-    cerr<<"-t <number of steps integrated over to find links ("<<opt.numsteps<<")\n";
-    cerr<<"-x <criteria for when to keep searching for new links if multiple steps invoked ("<<opt.imultsteplinkcrit<<"). Possibilities are :";
-    cerr<<MSLCMISSING<<" Only missing ,";
-    cerr<<MSLCMERIT<<" Missing & low merit given by merit limit, ";
-    cerr<<endl;
-    cerr<<"-C <cross correlation function type to identify main progenitor ("<<opt.imerittype<<" ["<<NsharedN1N2<<" "<<Nshared<<"])\n";
+    cerr<<"-D <Direction of tree, progenitor ("<<SEARCHPROGEN<<") or descendant ("<<SEARCHDESCEN<<") or both ("<<SEARCHALL<<") with default (" <<opt.isearchdirection<<")\n";
     cerr<<"-T <type of particles to cross correlate ("<<opt.itypematch<<" ["<<ALLTYPEMATCH<<" is all particle types, ";
     cerr<<DMTYPEMATCH<<" is DM particle types, ";
     cerr<<GASTYPEMATCH<<" is GAS particle types, ";
     cerr<<STARTYPEMATCH<<" is STAR particle types, ";
     cerr<<DMGASTYPEMATCH<<" is both DM and GAS particle types, ";
     cerr<<",])\n";
-    cerr<<"-S <significance of cross match relative to Poisson noise ("<<opt.mlsig<<")\n";
+    cerr<<"-M <cross correlation function type to identify main progenitor ("<<opt.imerittype<<" ["<<NsharedN1N2<<" "<<Nshared<<"])\n";
+    cerr<<"-X <criteria for when to keep searching for new links if multiple steps invoked ("<<opt.imultsteplinkcrit<<"). Possibilities are :";
+    cerr<<MSLCMISSING<<" Only missing ,";
+    cerr<<MSLCMERIT<<" Missing & low merit given by merit limit, ";
+    cerr<<endl;
+    cerr<<"-U <generalized temporal merit ("<<opt.iopttemporalmerittype<<").";
+    cerr<<endl;
+
+    cerr<<" ========================= "<<endl;
+    cerr<<" Cross matching options "<<endl;
+    cerr<<" ========================= "<<endl;
+    cerr<<"-t <number of steps integrated over to find links ("<<opt.numsteps<<")\n";
+    cerr<<"-b <significance of cross match relative to Poisson noise ("<<opt.mlsig<<")\n";
     cerr<<"-a <merit limit to search for new links ("<<opt.meritlimit<<")\n";
     cerr<<"-f <fraction of particles to use to calculate weigted merit>\n";
     cerr<<"-p <minimum number of particles used in weighted merit>\n";
     cerr<<" ========================= "<<endl<<endl;
 
     cerr<<" ========================= "<<endl;
-    cerr<<" ID to index mapping if required"<<endl;
+    cerr<<" ID related options "<<endl;
     cerr<<" ========================= "<<endl;
+    cerr<<"-n <Max ID value of particles [Must specify] ("<<opt.MaxIDValue<<")>\n";
     cerr<<"-D <adjust particle IDs for nIFTY cross catalogs across simulations ("<<opt.idcorrectflag<<")\n";
     cerr<<"-M <Mapping of particle ids to index ("<<opt.imapping<<" [ no maping "<<DNOMAP<<", simple mapping "<<DSIMPLEMAP<<", computational expensive but memory efficient adaptive map "<<DMEMEFFICIENTMAP<<"])\n";
     cerr<<" ========================= "<<endl<<endl;
@@ -226,7 +310,7 @@ void usage(void)
     cerr<<" ========================= "<<endl;
     cerr<<" For mpi load balancing "<<endl;
     cerr<<" ========================= "<<endl;
-    cerr<<"-m <number of items per mpi thead, use for load balacing. If 0, based on input ("<<opt.numpermpi<<")\n";
+    cerr<<"-y <number of items per mpi thead, use for load balacing. If 0, based on input ("<<opt.numpermpi<<")\n";
     cerr<<"-z <number of mpi theads used to calculate load balacing. If >0 this used with one actual mpi thread but determines load balancing based on desired number of mpi threads. Write load balancing file and terminates. If 0 (default) normal operation \n";
     cerr<<"-Z <whether to write output in parallel (0/1). \n";
     cerr<<" ========================= "<<endl<<endl;
@@ -276,6 +360,23 @@ inline void ConfigCheck(Options &opt)
             exit(8);
 #endif
     }
+    if (opt.idefaultvalues) {
+        cout<<"Note that code currently overrides input parameters "<<endl;
+        if(opt.isearchdirection==SEARCHDESCEN) {
+            opt.icorematchtype=PARTLISTCORE;
+            opt.min_numpart=20;
+            opt.particle_frac=0.1;
+            opt.meritlimit=0.1;
+            opt.imerittype=NsharedN1N2;
+        }
+        else if (opt.isearchdirection==SEARCHPROGEN) {
+            opt.icorematchtype=PARTLISTCORE;
+            opt.min_numpart=20;
+            opt.particle_frac=0.1;
+            opt.meritlimit=0.1;
+            opt.imerittype=NsharedN1N2;
+        }
+    }
     if (opt.icatalog==DCROSSCAT) {
         if (opt.numsnapshots>2) {cerr<<"Cross catalog, yet more than two snapshots compared, reseting and only comparing two"<<endl;opt.numsnapshots=2;}
         if (opt.numsteps>1) {cerr<<"Cross catalog, yet asking to use more than a single step when linking, reseting and only linking across one "<<endl;opt.numsteps=1;}
@@ -301,6 +402,8 @@ inline void ConfigCheck(Options &opt)
     opt.description+=(char*)" with lower particle number limit of ";opt.description+=static_cast<ostringstream*>( &(ostringstream() << opt.min_numpart) )->str();
     opt.description+=(char*)" | ";
     }
+
+
 }
 
 /*!

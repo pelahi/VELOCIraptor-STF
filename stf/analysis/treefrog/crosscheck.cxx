@@ -498,7 +498,7 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
         //go through halos particle list to see if these particles belong to another halo
         //at a different time/in a different catalog
         np1=h1[i].NumberofParticles;
-        if (opt.icorematchtype==PARTLISTCORE && opt.particle_frac<1 && opt.particle_frac>0) {
+        if (opt.icorematchtype>=PARTLISTCORE && opt.particle_frac<1 && opt.particle_frac>0) {
             np1*=opt.particle_frac;
             if (np1<opt.min_numpart) np1=opt.min_numpart;
             if (np1>h1[i].NumberofParticles) np1=h1[i].NumberofParticles;
@@ -514,31 +514,15 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                 if (sharelist[index]==1) halolist[offset+numshared++]=hid-1;
             }
         }
-        //now proccess numshared list to remove insignificant connections
-        for (k=0;k<numshared;k++) {
-            j=halolist[offset+k];
-            index=offset+j;
-            //if sharelist not enough, then move to end and decrease numshared
-            if(sharelist[index]<opt.mlsig*sqrt((Double_t)h2[j].NumberofParticles)) {
-                halolist[offset+k]=halolist[offset+numshared-1];
-                sharelist[index]=0;
-                k--;
-                numshared--;
-            }
-        }
         //now calculate merits and sort according to best merit.
         if (numshared>0) {
-            //store all viable matches
+            //store all viable matches. Merits are calculated here using full number of particles
+            np1=h1[i].NumberofParticles;
             pq=new PriorityQueue(numshared);
             for (k=0;k<numshared;k++) {
                 j=halolist[offset+k];
                 index=offset+j;
                 np2=h2[j].NumberofParticles;
-                if (opt.icorematchtype==PARTLISTCORE && opt.particle_frac<1 && opt.particle_frac>0) {
-                    np2*=opt.particle_frac;
-                    if (np2<opt.min_numpart) np2=opt.min_numpart;
-                    if (np2>h2[j].NumberofParticles) np2=h2[j].NumberofParticles;
-                }
                 if (opt.imerittype==NsharedN1N2)
                     merit=(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)np1/(Double_t)np2;
                 else if (opt.imerittype==NsharedN1)
@@ -550,16 +534,17 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                 pq->Push(j,merit);
                 sharelist[index]=0;
             }
+            ///\todo we only keep the first descendant but possible we might want multiple descendants
+            numshared=1;
             d1[i].NumberofDescendants=numshared;
             d1[i].DescendantList=new long unsigned[numshared];
             d1[i].Merit=new float[numshared];
             d1[i].dtoptype=new unsigned short[numshared];
             //d1[i].nsharedfrac=new float[numshared];
             for (j=0;j<numshared;j++){
-                //d1[i].DescendantList[j]=h2[pq->TopQueue()].haloID;
                 d1[i].DescendantList[j]=pq->TopQueue();
                 d1[i].Merit[j]=pq->TopPriority();
-                d1[i].dtoptype[j]=0;
+                d1[i].dtoptype[j]=1;
                 pq->Pop();
             }
             d1[i].istep=istepval;
@@ -569,9 +554,11 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
         else {d1[i].DescendantList=NULL;d1[i].Merit=NULL;}
 
         //if weighted merit function is to be calculated then use the most bound fraction of particles to construct share list
-        if (opt.icorematchtype==PARTLISTCORECORE && opt.particle_frac<1 && opt.particle_frac>0 && numshared>0) {
+        if (opt.icorematchtype!=PARTLISTNOCORE && opt.particle_frac<1 && opt.particle_frac>0 && numshared>0) {
             //calculate number of particles
             np1=(h1[i].NumberofParticles*opt.particle_frac);
+            if (h1[i].NumberofParticles<opt.min_numpart) np1=h2[j].NumberofParticles;
+            else if (np1<opt.min_numpart) np1=opt.min_numpart;
             //if halo has enough particle for meaningful most bound particles check, proceed to find merits. Similar to normal merit
             //calculations but have now np2 for calculating merits
             if (np1>=opt.min_numpart) {
@@ -584,23 +571,9 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                         if (sharelist[index]==1) halolist[offset+numshared++]=hid-1;
                     }
                 }
-                for (k=0;k<numshared;k++) {
-                    j=halolist[offset+k];
-                    index=offset+j;
-                    np2=h2[j].NumberofParticles*opt.particle_frac;
-                    if (h2[j].NumberofParticles<opt.min_numpart) np2=h2[j].NumberofParticles;
-                    else if (np2<opt.min_numpart) np2=opt.min_numpart;
-                    //if sharelist not enough, then move to end and decrease numshared
-                    if(sharelist[index]<opt.mlsig*sqrt((Double_t)np2)){
-                        halolist[offset+k]=halolist[offset+numshared-1];
-                        sharelist[index]=0;
-                        k--;
-                        numshared--;
-                    }
-                }
                 if (numshared>0) {
                     //store all viable matches and old ones too
-                    pq2=new PriorityQueue(numshared+d1[i].NumberofDescendants);
+                    pq2=new PriorityQueue(numshared);
                     for (k=0;k<numshared;k++) {
                         j=halolist[offset+k];
                         index=offset+j;
@@ -618,20 +591,14 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                         pq2->Push(j,merit);
                         sharelist[index]=0;
                     }
-                    //really only care about adjust the best match found if any
-                    for (j=0;j<d1[i].NumberofDescendants;j++) pq2->Push(d1[i].DescendantList[j],d1[i].Merit[j]);
-                    //if most bound particle matching is not the same as overall matching, lets rearrange match
-                    if (pq2->TopQueue()!=d1[i].DescendantList[0]) {
-                        for (j=0;j<d1[i].NumberofDescendants;j++) if (d1[i].DescendantList[j]==pq2->TopQueue()) {
-                            d1[i].DescendantList[j]=d1[i].DescendantList[0];
-                            d1[i].Merit[j]=d1[i].Merit[0];
-                            d1[i].DescendantList[0]=pq2->TopQueue();
-                            d1[i].Merit[0]=pq2->TopPriority();
-                            break;
-                        }
-                        d1[i].istep=istepval;
-                        delete pq2;
+                    numshared=1;
+                    for (j=0;j<numshared;j++){
+                        d1[i].DescendantList[j]=pq2->TopQueue();
+                        d1[i].Merit[j]=pq2->TopPriority();
+                        d1[i].dtoptype[j]=1;
+                        pq2->Pop();
                     }
+                    delete pq2;
                 }
                 //end of numshared>0 check
             }
@@ -692,7 +659,7 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
             i=needdescenlist[k];
             numshared=0;
             np1=h1[i].NumberofParticles;
-            if (opt.icorematchtype==PARTLISTCORE && opt.particle_frac<1 && opt.particle_frac>0) {
+            if (opt.icorematchtype>=PARTLISTCORE && opt.particle_frac<1 && opt.particle_frac>0) {
                 np1*=opt.particle_frac;
                 if (np1<opt.min_numpart) np1=opt.min_numpart;
                 if (np1>h1[i].NumberofParticles) np1=h1[i].NumberofParticles;
@@ -708,19 +675,8 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                     if (sharelist[index]==1) halolist[offset+numshared++]=hid-1;
                 }
             }
-            //now proccess numshared list to remove insignificant connections
-            for (n=0;n<numshared;n++) {
-                j=halolist[offset+n];
-                index=offset+j;
-                //if sharelist not enough, then move to end and decrease numshared
-                if(sharelist[index]<opt.mlsig*sqrt((Double_t)h2[j].NumberofParticles)) {
-                    halolist[offset+n]=halolist[offset+numshared-1];
-                    sharelist[index]=0;
-                    n--;
-                    numshared--;
-                }
-            }
             if (numshared>0) {
+                np1=h1[i].NumberofParticles;
                 pq=new PriorityQueue(numshared);
                 for (n=0;n<numshared;n++){
                     j=halolist[offset+n];
@@ -745,7 +701,7 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                 //if at this point when looking for progenitors not present in the reference list
                 //can check to see if numshared>0 and if so, then reference list will have to be updated
                 newilistupdated+=(numshared>0);
-
+                numshared=1;
                 d1[i].NumberofDescendants=numshared;
                 d1[i].DescendantList=new long unsigned[numshared];
                 d1[i].Merit=new float[numshared];
@@ -755,7 +711,7 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                     //d1[i].DescendantList[j]=h2[pq->TopQueue()].haloID;
                     d1[i].DescendantList[j]=pq->TopQueue();
                     d1[i].Merit[j]=pq->TopPriority();
-                    d1[i].dtoptype[j]=0;
+                    d1[i].dtoptype[j]=1;
                     pq->Pop();
                 }
                 delete pq;
@@ -763,66 +719,47 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
             }
             else {d1[i].DescendantList=NULL;d1[i].Merit=NULL;}
             //if weighted merit function is to be calculated then use the most bound fraction of particles to construct share list
-            if (opt.icorematchtype==PARTLISTCORECORE && opt.particle_frac<1 && opt.particle_frac>0 && numshared>0) {
+            if (opt.icorematchtype!=PARTLISTNOCORE && opt.particle_frac<1 && opt.particle_frac>0 && numshared>0) {
                 np1=(h1[i].NumberofParticles*opt.particle_frac);
-                if (np1>=opt.min_numpart) {
-                    numshared=0;
-                    for (j=0;j<np1;j++){
-                        hid=pfof2[h1[i].ParticleID[j]]-nhalos2;
-                        index=offset+hid-(long int)1;
-                        if (hid>0) {
-                            sharelist[index]+=1;
-                            if (sharelist[index]==1) halolist[offset+numshared++]=hid-1;
-                        }
+                if (np1<opt.min_numpart) np1=opt.min_numpart;
+                if (np1>h1[i].NumberofParticles) np1=h1[i].NumberofParticles;
+                numshared=0;
+                for (j=0;j<np1;j++){
+                    hid=pfof2[h1[i].ParticleID[j]]-nhalos2;
+                    index=offset+hid-(long int)1;
+                    if (hid>0) {
+                        sharelist[index]+=1;
+                        if (sharelist[index]==1) halolist[offset+numshared++]=hid-1;
                     }
+                }
+                if (numshared>0) {
+                    //store all viable matches and old ones too
+                    pq2=new PriorityQueue(numshared);
                     for (n=0;n<numshared;n++) {
                         j=halolist[offset+n];
                         index=offset+j;
                         np2=h2[j].NumberofParticles*opt.particle_frac;
                         if (h2[j].NumberofParticles<opt.min_numpart) np2=h2[j].NumberofParticles;
                         else if (np2<opt.min_numpart) np2=opt.min_numpart;
-                        //if sharelist not enough, then move to end and decrease numshared
-                        if(sharelist[index]<opt.mlsig*sqrt((Double_t)np2)){
-                            halolist[offset+n]=halolist[offset+numshared-1];
-                            sharelist[index]=0;
-                            n--;
-                            numshared--;
-                        }
+                        if (opt.imerittype==NsharedN1N2)
+                            merit=(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)np1/(Double_t)np2;
+                        else if (opt.imerittype==NsharedN1)
+                            merit=(Double_t)sharelist[index]/(Double_t)np1;
+                        else if (opt.imerittype==Nshared)
+                            merit=(Double_t)sharelist[index];
+                        else if (opt.imerittype==Nsharedcombo)
+                            merit=(Double_t)sharelist[index]/(Double_t)np1+(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)np1/(Double_t)np2;
+                        pq2->Push(j,merit);
+                        sharelist[index]=0;
                     }
-                    if (numshared>0) {
-                        //store all viable matches and old ones too
-                        pq2=new PriorityQueue(numshared+d1[i].NumberofDescendants);
-                        for (n=0;n<numshared;n++) {
-                            j=halolist[offset+n];
-                            index=offset+j;
-                            np2=h2[j].NumberofParticles*opt.particle_frac;
-                            if (h2[j].NumberofParticles<opt.min_numpart) np2=h2[j].NumberofParticles;
-                            else if (np2<opt.min_numpart) np2=opt.min_numpart;
-                            if (opt.imerittype==NsharedN1N2)
-                                merit=(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)np1/(Double_t)np2;
-                            else if (opt.imerittype==NsharedN1)
-                                merit=(Double_t)sharelist[index]/(Double_t)np1;
-                            else if (opt.imerittype==Nshared)
-                                merit=(Double_t)sharelist[index];
-                            else if (opt.imerittype==Nsharedcombo)
-                                merit=(Double_t)sharelist[index]/(Double_t)np1+(Double_t)sharelist[index]*(Double_t)sharelist[index]/(Double_t)np1/(Double_t)np2;
-                            pq2->Push(j,merit);
-                            sharelist[index]=0;
-                        }
-                        //really only care about adjust the best match found if any
-                        for (j=0;j<d1[i].NumberofDescendants;j++) pq2->Push(d1[i].DescendantList[j],d1[i].Merit[j]);
-                        //if most bound particle matching is not the same as overall matching, lets rearrange match
-                        if (pq2->TopQueue()!=d1[i].DescendantList[0]) {
-                            for (j=0;j<d1[i].NumberofDescendants;j++) if (d1[i].DescendantList[j]==pq2->TopQueue()) {
-                                d1[i].DescendantList[j]=d1[i].DescendantList[0];
-                                d1[i].Merit[j]=d1[i].Merit[0];
-                                d1[i].DescendantList[0]=pq2->TopQueue();
-                                d1[i].Merit[0]=pq2->TopPriority();
-                                break;
-                            }
-                            delete pq2;
-                        }
+                    numshared=1;
+                    for (j=0;j<numshared;j++){
+                        d1[i].DescendantList[j]=pq2->TopQueue();
+                        d1[i].Merit[j]=pq2->TopPriority();
+                        d1[i].dtoptype[j]=1;
+                        pq2->Pop();
                     }
+                    delete pq2;
                 }
             }
             //end of weighted merit

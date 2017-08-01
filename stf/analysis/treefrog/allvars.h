@@ -297,6 +297,8 @@ struct Options
 
     ///verbose output flag
     int iverbose;
+    ///use default optimized values, ignore some input values
+    int idefaultvalues;
 
 #ifdef USEMPI
     ///number of items (halos or particles in halos) across various snapshots desired. Used for load balancing
@@ -347,6 +349,7 @@ struct Options
         max_numpart=-1;
 
         iverbose=1;
+        idefaultvalues=1;
 #ifdef USEMPI
         numpermpi=0;
         ndesiredmpithreads=0;

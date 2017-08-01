@@ -350,7 +350,7 @@ int main(int argc,char **argv)
             for (i=0;i<opt.numsnapshots;i++) {
             //check if data is load making sure i is in appropriate range (note that only look above StartSnap (as first snap can't have progenitors)
             //not that last snapshot locally has halos with no descendants so no need to clean this list
-            if (i>=StartSnap && i<EndSnap-1) {
+            if (i>=StartSnap && i<EndSnap) {
                 if (opt.iverbose) cout<<"Cleaning Progenitor list using descendant information for "<<i<<endl;
                 if (pdescenprogen[i]!=NULL) {
                     CleanDescendantsUsingProgenitors(i, pht, pdescenprogen, pdescen, opt.iopttemporalmerittype);

@@ -18,7 +18,7 @@
 void usage(void);
 void GetArgs(const int argc, char *argv[], Options &opt);
 inline void ConfigCheck(Options &opt);
-
+void GetParamFile(Options &opt);
 //@}
 
 /// \name IO routines
