@@ -595,7 +595,7 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                     for (j=0;j<numshared;j++){
                         d1[i].DescendantList[j]=pq2->TopQueue();
                         d1[i].Merit[j]=pq2->TopPriority();
-                        d1[i].dtoptype[j]=1;
+                        d1[i].dtoptype[j]=0;
                         pq2->Pop();
                     }
                     delete pq2;
@@ -756,7 +756,7 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                     for (j=0;j<numshared;j++){
                         d1[i].DescendantList[j]=pq2->TopQueue();
                         d1[i].Merit[j]=pq2->TopPriority();
-                        d1[i].dtoptype[j]=1;
+                        d1[i].dtoptype[j]=0;
                         pq2->Pop();
                     }
                     delete pq2;
