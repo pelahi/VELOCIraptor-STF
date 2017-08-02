@@ -885,15 +885,12 @@ def BuildTemporalHeadTail(numsnaps,tree,numhalos,halodata,HALOIDVAL=100000000000
 def TraceMainDescendant(istart,ihalo,numsnaps,numhalos,halodata,tree,HALOIDVAL,ireverseorder=False):
     """
     Follows a halo along descendant tree to root tails
-    still need to clear up reverse ordering if necessary
+    if reverse order than late times start at 0 and as one moves up in index
+    one moves backwards in time
     """
+
     #start at this snapshot
-    k=istart
-    halosnap=k
-    #if want to access haloes in reverse order then instead of using k or halo snap,
-    #must reverse it with numsnaps-istart
-    if (ireverseorder):
-        halosnap=numsnaps-istart
+    halosnap=istart
     
     #see if halo does not have a Head set
     if (halodata[halosnap]['Head'][ihalo]==0):
@@ -914,9 +911,9 @@ def TraceMainDescendant(istart,ihalo,numsnaps,numhalos,halodata,tree,HALOIDVAL,i
             rootindex=int(roottail%HALOIDVAL)-1
         #now move along tree first pass to store head and tails and root tails of main branch
         while (True):
-            #instead of seraching array make use of the value of the id as it should be in id order
+            #ids contain index information
             haloindex=int(haloid%HALOIDVAL)-1
-            halodata[halosnap]['Num_descen'][haloindex]=tree[k]['Num_descen'][haloindex]
+            halodata[halosnap]['Num_descen'][haloindex]=tree[halosnap]['Num_descen'][haloindex]
             #if no more descendants, break from search
             if (halodata[halosnap]['Num_descen'][haloindex]==0):
                 #store for current halo its tail and root tail info (also store root tail for root head)
@@ -932,22 +929,21 @@ def TraceMainDescendant(istart,ihalo,numsnaps,numhalos,halodata,tree,HALOIDVAL,i
                     halodata[rootsnap]['RootHeadSnap'][rootindex]=rootheadsnap
                 break
             #now store the rank of the of the descandant. 
-            descenrank=tree[k]['Rank'][haloindex][0]
+            descenrank=tree[halosnap]['Rank'][haloindex][0]
             halodata[halosnap]['HeadRank'][haloindex]=descenrank
             #as we are only moving along main branches stop if object is rank is not 0
             if (descenrank==0):
                 break
             #otherwise, get the descendant
             #store main progenitor
-            maindescen=tree[k]['Descen'][haloindex][0]
+            maindescen=tree[halosnap]['Descen'][haloindex][0]
             maindescenindex=int(maindescen%HALOIDVAL)-1
-            #calculate stepsize in time based on the halo ids
             maindescensnap=int(((maindescen-maindescen%HALOIDVAL))/HALOIDVAL)
+            #if reverse order, then higher snap values correspond to lower index
             if (ireverseorder):
-                maindescensnap=numsnaps-maindescensnap
-            stepsize=halosnap-maindescensnap
-
-            k+=stepsize
+                maindescensnap=numsnaps-1-maindescensnap
+            #calculate stepsize in time based on the halo ids
+            stepsize=maindescensnap-halosnap
 
             #store descendant
             halodata[halosnap]['Head'][haloindex]=maindescen
@@ -955,11 +951,10 @@ def TraceMainDescendant(istart,ihalo,numsnaps,numhalos,halodata,tree,HALOIDVAL,i
 
             #and update the root tails of the object
             halodata[maindescensnap]['Tail'][maindescenindex]=haloid
-            halodata[maindescensnap]['TailSnap'][maindescenindex]=k
+            halodata[maindescensnap]['TailSnap'][maindescenindex]=halosnap
             halodata[maindescensnap]['RootTail'][maindescenindex]=roottail
             halodata[maindescensnap]['RootTailSnap'][maindescenindex]=rootsnap
             halodata[maindescensnap]['Num_progen'][maindescenindex]=1
-            k=maindescensnap
 
             #then move to the next descendant
             haloid=maindescen
@@ -1000,6 +995,11 @@ def BuildTemporalHeadTailDescendant(numsnaps,tree,numhalos,halodata,HALOIDVAL=10
 
     totstart=time.clock()
 
+    if (ireverseorder):
+        snaplist=range(numsnaps-1,-1,-1)
+    else:
+        snaplist=range(numsnaps)
+
     if (iparallel==1):
         #need to copy halodata as this will be altered
         if (iverbose>0): print("copying halo")
@@ -1007,7 +1007,7 @@ def BuildTemporalHeadTailDescendant(numsnaps,tree,numhalos,halodata,HALOIDVAL=10
         mphalodata=manager.list([manager.dict(halodata[k]) for k in range(numsnaps)])
         if (iverbose>0): print("done",time.clock()-start)
 
-    for istart in range(numsnaps):
+    for istart in snaplist:
         if (iverbose>0): print("Starting from halos at ",istart,"with",numhalos[istart])
         if (numhalos[istart]==0): continue
         #if the number of halos is large then run in parallel
@@ -1029,7 +1029,7 @@ def BuildTemporalHeadTailDescendant(numsnaps,tree,numhalos,halodata,HALOIDVAL=10
                 if (j==nchunks-1):
                     halochunk[-1]=range(offset+(nthreads-1)*chunksize,numhalos[istart])
                 #when calling a process pass not just a work queue but the pointers to where data should be stored
-                processes=[mp.Process(target=TraceMainDescendantParallelChunk,args=(istart,halochunk[k],numsnaps,numhalos,mphalodata,tree,HALOIDVAL)) for k in range(nthreads)]
+                processes=[mp.Process(target=TraceMainDescendantParallelChunk,args=(istart,halochunk[k],numsnaps,numhalos,mphalodata,tree,HALOIDVAL,ireverseorder)) for k in range(nthreads)]
                 count=0
                 for p in processes:
                     print(count+offset,k,min(halochunk[count]),max(halochunk[count]))
@@ -1054,7 +1054,7 @@ def BuildTemporalHeadTailDescendant(numsnaps,tree,numhalos,halodata,HALOIDVAL=10
             for j in range(numhalos[istart]):
                 #start at this snapshot
                 #start=time.clock()
-                TraceMainDescendant(istart,j,numsnaps,numhalos,halodata,tree,HALOIDVAL)
+                TraceMainDescendant(istart,j,numsnaps,numhalos,halodata,tree,HALOIDVAL,ireverseorder)
                 if (j%chunksize==0 and j>0):
                     if (iverbose>1): print("done", j/float(numhalos[istart]), "in", time.clock()-start)
                     start=time.clock()
