@@ -41,14 +41,17 @@ doc: doc_
 doc_:
 	cd NBodylib; make doc;
 	cd analysis; make doc;
-	cd doc; mkdir -p html; mkdir -p latex; doxygen Doxyfile > doxy.log;
+	cd doc; mkdir -p html; mkdir -p latex; mkdir -p xml; doxygen Doxyfile > doxy.log;
 else
 doc:  doc/Doxyfile $(CFILES) $(HFILES)
 	cd NBodylib; make doc;
 	cd analysis; make doc;
-	cd doc; mkdir -p html; mkdir -p latex; doxygen Doxyfile > doxy.log;
+	cd doc; mkdir -p html; mkdir -p latex; mkdir -p xml; doxygen Doxyfile > doxy.log;
 endif
 docc_:
+ifneq "$(wildcard doc/xml)" ""
+	rm -r doc/xml/
+endif
 ifneq "$(wildcard doc/html)" ""
 	rm -r doc/html/
 endif
