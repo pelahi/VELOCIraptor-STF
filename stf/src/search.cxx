@@ -522,7 +522,7 @@ private(i,tid,xscaling,vscaling)
     //end of extra 6dfof/phase-space search of 3D FOF envelops
 
     //now if not search for substructure but want bound halos need to check binding
-    if (opt.iSubSearch==0 && opt.iBoundHalos==1) {
+    if (opt.iBoundHalos>=1) {
         CheckUnboundGroups(opt,Nlocal,Part,numgroups,pfof);
 #ifdef USEMPI
         if (ThisTask==0) cout<<ThisTask<<" After unnbinding halos"<<endl;
@@ -2212,9 +2212,9 @@ void SearchSubSub(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_
     cout<<ThisTask<<"Done searching substructure to "<<sublevel-1<<" sublevels "<<endl;
     }
     else delete[] numingroup;
-    //if not an idividual halo and want bound haloes (and not searching for baryons afterwards)
+    //if not an idividual halo and want bound haloes after substructure search (and not searching for baryons afterwards)
     //unbind halo population
-    if (!opt.iSingleHalo&&opt.iBoundHalos&&!opt.iBaryonSearch) {
+    if (!opt.iSingleHalo&&opt.iBoundHalos>1&&!opt.iBaryonSearch) {
         //begin by storing information of the current hierarchy
         Int_t nhaloidoffset=0,nhierarchy,gidval;
         Int_t *nsub,*parentgid,*uparentgid,*stype;
