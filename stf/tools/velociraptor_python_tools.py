@@ -332,7 +332,7 @@ def ReadHaloMergerTreeDescendant(treefilename,ireverseorder=True,ibinary=0,iverb
         tree=[{"haloID": [], "Num_descen": [], "Descen": [], "Rank": []} for i in range(numsnap)]
         offset=0
         totalnumdescen=0
-        for i in range(numsnap-1):
+        for i in range(numsnap):
             ii=i
             if (ireverseorder): ii=numsnap-1-i
             [snapval,numhalos]=treefile.readline().strip().split('\t')
@@ -363,7 +363,7 @@ def ReadHaloPropertiesAcrossSnapshots(numsnaps,snaplistfname,inputtype,iseperate
     """
     read halo data from snapshots listed in file with snaplistfname file name
     """
-    halodata=[[] for j in range(numsnaps)]
+    halodata=[dict() for j in range(numsnaps)]
     ngtot=[0 for j in range(numsnaps)]
     start=time.clock()
     print("reading data")
@@ -933,7 +933,7 @@ def TraceMainDescendant(istart,ihalo,numsnaps,numhalos,halodata,tree,HALOIDVAL,i
             descenrank=tree[halosnap]['Rank'][haloindex][0]
             halodata[halosnap]['HeadRank'][haloindex]=descenrank
             #as we are only moving along main branches stop if object is rank is not 0
-            if (descenrank==0):
+            if (descenrank>0):
                 break
             #otherwise, get the descendant
             #store main progenitor
@@ -948,7 +948,7 @@ def TraceMainDescendant(istart,ihalo,numsnaps,numhalos,halodata,tree,HALOIDVAL,i
 
             #store descendant
             halodata[halosnap]['Head'][haloindex]=maindescen
-            halodata[halosnap]['HeadSnap'][haloinde]=maindescensnap
+            halodata[halosnap]['HeadSnap'][haloindex]=maindescensnap
 
             #and update the root tails of the object
             halodata[maindescensnap]['Tail'][maindescenindex]=haloid
@@ -961,9 +961,9 @@ def TraceMainDescendant(istart,ihalo,numsnaps,numhalos,halodata,tree,HALOIDVAL,i
             haloid=maindescen
             halosnap=maindescensnap
 
-def TraceMainDescendantParallelChunk(istart,ihalochunk,numsnaps,numhalos,halodata,tree,HALOIDVAL):
+def TraceMainDescendantParallelChunk(istart,ihalochunk,numsnaps,numhalos,halodata,tree,HALOIDVAL,ireverseorder):
     for ihalo in ihalochunk:
-        TraceMainDescendant(istart,ihalo,numsnaps,numhalos,halodata,tree,HALOIDVAL)
+        TraceMainDescendant(istart,ihalo,numsnaps,numhalos,halodata,tree,HALOIDVAL,ireverseorder)
 
 def BuildTemporalHeadTailDescendant(numsnaps,tree,numhalos,halodata,HALOIDVAL=1000000000000, ireverseorder=False, iverbose=1):
     """
@@ -1083,7 +1083,10 @@ def BuildTemporalHeadTailDescendant(numsnaps,tree,numhalos,halodata,HALOIDVAL=10
             #now set the head of these objects
             maindescen=tree[halosnap]['Descen'][haloindex][0]
             maindescenindex=int(maindescen%HALOIDVAL)-1
-            maindescensnap=int((maindescen-maindescen%HALOIDVAL)/HALOIDVAL)
+            if (ireverseorder):
+                maindescensnap=numsnasp-1-int((maindescen-maindescen%HALOIDVAL)/HALOIDVAL)
+            else:
+                maindescensnap=int((maindescen-maindescen%HALOIDVAL)/HALOIDVAL)
             #increase the number of progenitors of this descendant
             halodata[halosnap]['Head'][haloindex]=maindescen
             halodata[halosnap]['HeadSnap'][haloindex]=maindescensnap
