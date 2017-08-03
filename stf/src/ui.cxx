@@ -185,7 +185,9 @@ void usage(void)
     \arg <b> \e Halo_core_ellv_fac </b> scaling applied to local dispersion to define the velocity scale used to identify merger remnants. Typically values are \f$ \sim1 \f$  \ref Options.halocorevfac
     \arg <b> \e Halo_core_ncellfac </b> used to determine the minimum number of particles a merger remnants is composed of, specifically \f$ N_{\rm min}= f_{\rm ncell}* N_{\rm S} \f$. Typically values are     \arg <b> \e Halo_core_adaptive_sigma_fac </b> used when running fully adaptive core search, specifies the width of the physical linking length in configuration space dispersion (think of this as how many sigma to include). Typically values are \f$ \sim2 \f$. This has been tested on hydrodynamnical simulations to separate galaxy mergers. \ref Options.halocoresigmafac
     \arg <b> \e Halo_core_num_loops</b> allows the core search to iterate, shrinking the velocity linking length to used till the number of cores identified decreases or this limit is reached. Allows apative search with larger linking length to be robust.  Typically values are \f$ \sim5 \f$ with loops only running often twice. \ref Options.halocorenumloops.
+    \arg <b> \e Halo_core_loop_ellx_fac</b> Factor by which configuration linking length is decreased when running loops for core search.  Typically values are \f$ \sim0.75 \f$. \ref Options.halocorexfaciter
     \arg <b> \e Halo_core_loop_ellv_fac</b> Factor by which velocity linking length is decreased when running loops for core search.  Typically values are \f$ \sim0.75 \f$. \ref Options.halocorevfaciter
+    \arg <b> \e Halo_core_loop_elln_fac</b> Factor by which min group size is changed when running loops for core search.  Typically values are \f$ \sim0.25 \f$. \ref Options.halocorenumfaciter
 
     \subsection fofotherconfig Other modifiers for search
     \arg <b> \e Singlehalo_search_search </b> 0/1 flag indicates that no field search is going to be run and the entire volume will be treated as a background region. Useful if searching for substructures in non-cosmological simulations. But can also be co-opted for other searches using different outlier criteria and FOF algorithms. \ref Options.iSingleHalo \n
@@ -407,8 +409,12 @@ void GetParamFile(Options &opt)
                         opt.halocoresigmafac = atof(vbuff);
                     else if (strcmp(tbuff, "Halo_core_num_loops")==0)
                         opt.halocorenumloops = atof(vbuff);
+                    else if (strcmp(tbuff, "Halo_core_loop_ellx_fac")==0)
+                        opt.halocorexfaciter = atof(vbuff);
                     else if (strcmp(tbuff, "Halo_core_loop_ellv_fac")==0)
                         opt.halocorevfaciter = atof(vbuff);
+                    else if (strcmp(tbuff, "Halo_core_loop_elln_fac")==0)
+                        opt.halocorenumfaciter = atof(vbuff);
 
                     //for changing factors used in iterative search
                     else if (strcmp(tbuff, "Iterative_threshold_factor")==0)

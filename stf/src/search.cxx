@@ -1460,10 +1460,13 @@ private(i,tid)
                 numloops++;
                 //free memory
                 delete[] pfofbg;
-                //adjust linking lengths in velocity space by the iterative factor, ~0.75
-                param[7]*=opt.halocorevfaciter*opt.halocorevfaciter;
-                //and up the minsize
-                minsize*=halocorenumfac;
+                param[1]*=opt.halocorexfaciter*opt.halocorexfaciter;
+                param[6]=param[1];
+               	//adjust linking lengths in velocity space by the iterative factor, ~0.75
+                param[2]*=opt.halocorevfaciter*opt.halocorevfaciter;
+                param[7]=param[2];
+               	//and alter the minsize
+                minsize*=opt.halocorenumfaciter;
                 //we adjust the particles potentials so as to ignore already tagged particles using FOFcheckbg
                 //here since loop just iterates to search the largest core, we just set all particles with pfofbgnew[i]==1
                 for (i=0;i<nsubset;i++) Partsubset[i].SetPotential((pfofbgnew[Partsubset[i].GetID()]!=1));

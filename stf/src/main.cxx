@@ -244,6 +244,8 @@ int main(int argc,char **argv)
 
     //write out the configuration used by velociraptor having read in the data (as input data can contain cosmological information)
     WriteVELOCIraptorConfig(opt);
+    WriteSimulationInfo(opt);
+    WriteUnitInfo(opt);
 
     //set filenames if they have been passed
 #ifdef USEMPI
@@ -370,11 +372,10 @@ int main(int argc,char **argv)
         cout<<"Searching subset"<<endl;
         time1=MyGetTime();
         //if groups have been found (and localized to single MPI thread) then proceed to search for subsubstructures
-        SearchSubSub(opt, nbodies, Part, pfof,ngroup,nhalos,pdata);
+        SearchSubSub(opt, nbodies, Part, pfof,ngroup,nhalos,pdatahalos);
         time1=MyGetTime()-time1;
         cout<<"TIME::"<<ThisTask<<" took "<<time1<<" to search for substructures "<<Nlocal<<" with "<<nthreads<<endl;
     }
-
     pdata=new PropData[ngroup+1];
     //if inclusive halo mass required
     if (opt.iInclusiveHalo && ngroup>0) {
@@ -420,9 +421,6 @@ int main(int argc,char **argv)
         nbodies+=nbaryons;
         Nlocal=nbodies;
     }
-
-    WriteSimulationInfo(opt);
-    WriteUnitInfo(opt);
 
     //output results
     //if want to ignore any information regard particles themselves as particle PIDS are meaningless
