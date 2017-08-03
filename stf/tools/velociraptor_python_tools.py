@@ -839,7 +839,7 @@ def GetProgenLength(halodata,haloindex,halosnap,haloid,atime,HALOIDVAL,endreftim
 def IdentifyMergers(numsnaps,tree,numhalos,halodata,boxsize,hval,atime,MERGERMLIM=0.1,RADINFAC=1.2,RADOUTFAC=1.5,NPARTCUT=100, HALOIDVAL=1000000000000, iverbose=1,pos_tree=[]):
     """
     Using head/tail info in halodata dictionary identify mergers based on distance and mass ratios
-    #todo still testing 
+    #todo still testing
 
     """
     for j in range(numsnaps):
@@ -884,7 +884,7 @@ def IdentifyMergers(numsnaps,tree,numhalos,halodata,boxsize,hval,atime,MERGERMLI
             progindex=int(progid%HALOIDVAL-1)
             numprog=tree[halosnap]["Num_progen"][haloindex]
             #if object has no progenitor set LastMergerRatio to 0 and LastMerger to 0
-            if (numprog==0): 
+            if (numprog==0):
                 halodata[halosnap]["LastMerger"][haloindex]=0
                 halodata[halosnap]["LastMergerRatio"][haloindex]=0
                 continue
@@ -967,7 +967,7 @@ def IdentifyMergers(numsnaps,tree,numhalos,halodata,boxsize,hval,atime,MERGERMLI
                                     merginghaloid=mergerstartid
                                     merginghalosnap=mergerstartsnap
                                     oldmerginghaloid=merginghaloid
-                                    #print "Merger found ",progsnap,mergerstartsnap, halodata[progsnap]["Mass_tot"][NN]/halodata[progsnap]["Mass_tot"][progindex], 
+                                    #print "Merger found ",progsnap,mergerstartsnap, halodata[progsnap]["Mass_tot"][NN]/halodata[progsnap]["Mass_tot"][progindex],
                                     #print halodata[startmergersnap]["Mass_tot"][startmergerindex]/halodata[starthalosnap]["Mass_tot"][starthaloindex]
                                     #now set merger time for all later haloes unless an new merger has happened
                                     while (oldmerginghaloid!=halodata[progsnap]["RootHead"][progindex] and halodata[merginghalosnap]["LastMergerRatio"][merginghaloindex]<0):
@@ -1154,9 +1154,9 @@ def ProduceUnifiedTreeandHaloCatalog(fname,numsnaps,tree,numhalos,halodata,atime
             hdffile.close()
 
     hdffile=h5py.File(fname+".tree.hdf.data",'w')
-    hdffile.create_dataset("Num_of_snaps",data=np.array([numsnaps],dtype=np.uint32))
+    hdffile.create_dataset("NSnaps",data=np.array([numsnaps],dtype=np.uint32))
     hdffile.create_dataset("Total_num_of_groups",data=np.array([totnumhalos],dtype=np.uint64))
-    hdffile.create_dataset("Num_of_groups",data=np.array([numhalos],dtype=np.uint64))
+    hdffile.create_dataset("NHalos",data=np.array([numhalos],dtype=np.uint64))
     for i in range(numsnaps):
         snapgrp=hdffile.create_group("Snap_%03d"%(numsnaps-1-i))
         for key in tree[i].keys():
