@@ -40,32 +40,48 @@ void GetParamFile(Options &opt)
                     if (pbuff==NULL) continue;
                     strcpy(vbuff, pbuff);
                     //config search type
-                    if (strcmp(tbuff, "Tree_direction")==0)
+                    if (strcmp(tbuff, "Tree_direction")==0) {
                         opt.isearchdirection = atoi(vbuff);
-                    else if (strcmp(tbuff, "Merit_type")==0)
-                        opt.imerittype = atoi(vbuff);
-                    else if (strcmp(tbuff, "Tree_direction")==0)
-                        opt.isearchdirection = atoi(vbuff);
-                    else if (strcmp(tbuff, "Multistep_criterion")==0)
-                        opt.imultsteplinkcrit = atoi(vbuff);
-                    else if (strcmp(tbuff, "Optimal_temporal_merit_criterion")==0)
-                        opt.iopttemporalmerittype = atoi(vbuff);
-                    else if (strcmp(tbuff, "Particle_type_criterion")==0)
+                    }
+                    else if (strcmp(tbuff, "Particle_type_criterion")==0) {
                         opt.itypematch = atoi(vbuff);
+                    }
+                    else if (strcmp(tbuff, "Merit_type")==0) {
+                        opt.imerittype = atoi(vbuff);
+                        opt.idefaultvalues = 0;
+                    }
+                    else if (strcmp(tbuff, "Multistep_criterion")==0) {
+                        opt.imultsteplinkcrit = atoi(vbuff);
+                        opt.idefaultvalues = 0;
+                    }
+                    else if (strcmp(tbuff, "Optimal_temporal_merit_criterion")==0) {
+                        opt.iopttemporalmerittype = atoi(vbuff);
+                        opt.idefaultvalues = 0;
+                    }
 
                     //config search parameters
-                    else if (strcmp(tbuff, "Shared_particle_signal_to_noise_limit")==0)
-                        opt.mlsig = atof(vbuff);
                     else if (strcmp(tbuff, "Number_of_linking_steps")==0)
                         opt.numsteps = atoi(vbuff);
-                    else if (strcmp(tbuff, "Merit_limit_continuing_search")==0)
+                    else if (strcmp(tbuff, "Shared_particle_signal_to_noise_limit")==0) {
+                        opt.mlsig = atof(vbuff);
+                        opt.idefaultvalues = 0;
+                    }
+                    else if (strcmp(tbuff, "Merit_limit_continuing_search")==0) {
                         opt.meritlimit = atof(vbuff);
-                    else if (strcmp(tbuff, "Particle_core_fraction")==0)
+                        opt.idefaultvalues = 0;
+                    }
+                    else if (strcmp(tbuff, "Particle_core_fraction")==0) {
                         opt.particle_frac = atof(vbuff);
-                    else if (strcmp(tbuff, "Particle_core_min_num")==0)
+                        opt.idefaultvalues = 0;
+                    }
+                    else if (strcmp(tbuff, "Particle_core_min_num")==0) {
                         opt.min_numpart = atoi(vbuff);
-                    else if (strcmp(tbuff, "Particle_core_max_num")==0)
+                        opt.idefaultvalues = 0;
+                    }
+                    else if (strcmp(tbuff, "Particle_core_max_num")==0){
                         opt.max_numpart = atoi(vbuff);
+                        opt.idefaultvalues = 0;
+                    }
                 }
             }
         }
@@ -125,20 +141,26 @@ void GetArgs(int argc, char *argv[], Options &opt)
                 NumArgs += 2;
                 opt.isearchdirection = atoi(optarg);
                 break;
+            case 'C':
+                opt.icatalog = atoi(optarg);
+                opt.idefaultvalues = 0;
+                NumArgs += 2;
+                break;
+
+            //cross matching options
             case 'M':
                 opt.imerittype = atoi(optarg);
+                opt.idefaultvalues = 0;
                 NumArgs += 2;
                 break;
             case 'X':
                 opt.imultsteplinkcrit= atoi(optarg);
+                opt.idefaultvalues = 0;
                 NumArgs += 2;
                 break;
             case 'U':
                 opt.iopttemporalmerittype= atoi(optarg);
-                NumArgs += 2;
-                break;
-            case 'C':
-                opt.icatalog = atoi(optarg);
+                opt.idefaultvalues = 0;
                 NumArgs += 2;
                 break;
 
@@ -163,22 +185,26 @@ void GetArgs(int argc, char *argv[], Options &opt)
                 break;
             case 'f':
                 opt.particle_frac = atof(optarg);
+                opt.idefaultvalues = 0;
                 NumArgs += 2;
                 break;
             case 'p':
                 opt.min_numpart = atoi(optarg);
+                opt.idefaultvalues = 0;
                 NumArgs += 2;
                 break;
             case 'b':
                 opt.mlsig = atof(optarg);
+                opt.idefaultvalues = 0;
                 NumArgs += 2;
                 break;
             case 'a':
                 opt.meritlimit = atof(optarg);
+                opt.idefaultvalues = 0;
                 NumArgs += 2;
                 break;
 
-            //offsets
+            //output offsets
             case 'H':
                 opt.snapshotvaloffset = atoi(optarg);
                 NumArgs += 2;
@@ -287,7 +313,7 @@ void usage(void)
     cerr<<" ========================= "<<endl;
     cerr<<" ID related options "<<endl;
     cerr<<" ========================= "<<endl;
-    cerr<<"-n <Max ID value of particles [Must specify] ("<<opt.MaxIDValue<<")>\n";
+    cerr<<"-n <Max ID value of particles [Must specify if not mapping ids to index] ("<<opt.MaxIDValue<<")>\n";
     cerr<<"-D <adjust particle IDs for nIFTY cross catalogs across simulations ("<<opt.idcorrectflag<<")\n";
     cerr<<"-M <Mapping of particle ids to index ("<<opt.imapping<<" [ no maping "<<DNOMAP<<", simple mapping "<<DSIMPLEMAP<<", computational expensive but memory efficient adaptive map "<<DMEMEFFICIENTMAP<<"])\n";
     cerr<<" ========================= "<<endl<<endl;
@@ -361,20 +387,33 @@ inline void ConfigCheck(Options &opt)
 #endif
     }
     if (opt.idefaultvalues) {
-        cout<<"Note that code currently overrides input parameters "<<endl;
-        if(opt.isearchdirection==SEARCHDESCEN) {
-            opt.icorematchtype=PARTLISTCORE;
-            opt.min_numpart=20;
-            opt.particle_frac=0.1;
-            opt.meritlimit=0.1;
-            opt.imerittype=NsharedN1N2;
+        cout<<"Parameters specifying special matching criteria not passed by user, using default values"<<endl;
+        if (opt.icatalog==DCROSSCAT){
+            if(opt.isearchdirection==SEARCHALL) {
+                opt.icorematchtype=PARTLISTNOCORE;
+                opt.min_numpart=20;
+                opt.particle_frac=0;
+                opt.meritlimit=0;
+                opt.imerittype=NsharedN1N2;
+            }
         }
-        else if (opt.isearchdirection==SEARCHPROGEN) {
-            opt.icorematchtype=PARTLISTCORE;
-            opt.min_numpart=20;
-            opt.particle_frac=0.1;
-            opt.meritlimit=0.1;
-            opt.imerittype=NsharedN1N2;
+        else {
+            if(opt.isearchdirection==SEARCHDESCEN) {
+                opt.icorematchtype=PARTLISTCORE;
+                opt.min_numpart=20;
+                opt.particle_frac=0.1;
+                opt.meritlimit=0.1;
+                opt.imerittype=NsharedN1N2;
+                opt.iopttemporalmerittype=GENERALIZEDMERITTIMEPROGEN;
+            }
+            else if (opt.isearchdirection==SEARCHPROGEN) {
+                opt.icorematchtype=PARTLISTCORE;
+                opt.min_numpart=20;
+                opt.particle_frac=0.1;
+                opt.meritlimit=0.1;
+                opt.imerittype=NsharedN1N2;
+                opt.iopttemporalmerittype=GENERALIZEDMERITTIME;
+            }
         }
     }
     if (opt.icatalog==DCROSSCAT) {
@@ -398,9 +437,9 @@ inline void ConfigCheck(Options &opt)
     else {opt.description+=(char*)" part type ";opt.description+=static_cast<ostringstream*>( &(ostringstream() << opt.itypematch) )->str();}
     opt.description+=(char*)" | ";
     if (opt.particle_frac<1 && opt.particle_frac>0) {
-    opt.description+=(char*)" Fractions of paritcles from which merit calculated with ";opt.description+=static_cast<ostringstream*>( &(ostringstream() << opt.particle_frac) )->str();
-    opt.description+=(char*)" with lower particle number limit of ";opt.description+=static_cast<ostringstream*>( &(ostringstream() << opt.min_numpart) )->str();
-    opt.description+=(char*)" | ";
+        opt.description+=(char*)" Fractions of paritcles from which merit calculated with ";opt.description+=static_cast<ostringstream*>( &(ostringstream() << opt.particle_frac) )->str();
+        opt.description+=(char*)" with lower particle number limit of ";opt.description+=static_cast<ostringstream*>( &(ostringstream() << opt.min_numpart) )->str();
+        opt.description+=(char*)" | ";
     }
 
 
