@@ -480,10 +480,14 @@ struct Options
     int iAdaptiveCoreLinking;
     ///use phase-space tensor core assignment
     int iPhaseCoreGrowth;
-    ///allow for iterative halo core search
-    Double_t halocorevfaciter;
     ///number of iterations
     int halocorenumloops;
+    ///factor by which one multiples the configuration space dispersion when looping for cores
+    Double_t halocorexfaciter;
+    ///factor by which one multiples the velocity space dispersion when looping for cores
+    Double_t halocorevfaciter;
+    ///factor by which one multiples the min num when looping for cores
+    Double_t halocorenumfaciter;
     //@}
     ///for storing a snapshot value to make halo ids unique across snapshots
     long long snapshotvalue;
@@ -596,8 +600,10 @@ struct Options
         halocorevfac=2.0;
         halocorenfac=0.1;
         halocoresigmafac=2.0;
-        halocorevfaciter=0.75;
         halocorenumloops=1;
+        halocorexfaciter=0.75;
+        halocorevfaciter=0.75;
+        halocorenumfaciter=0.25;
 
         iverbose=0;
         iwritefof=0;
