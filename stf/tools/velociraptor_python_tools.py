@@ -334,7 +334,7 @@ def ReadHaloMergerTreeDescendant(treefilename,ireverseorder=True,ibinary=0,iverb
         totalnumdescen=0
         for i in range(numsnap-1):
             ii=i
-            if (ireverseorder): ii=numsnap-i
+            if (ireverseorder): ii=numsnap-1-i
             [snapval,numhalos]=treefile.readline().strip().split('\t')
             snapval=int(snapval);numhalos=int(numhalos)
             #if really verbose
@@ -342,6 +342,7 @@ def ReadHaloMergerTreeDescendant(treefilename,ireverseorder=True,ibinary=0,iverb
             tree[ii]["haloID"]=np.zeros(numhalos, dtype=np.int64)
             tree[ii]["Num_descen"]=np.zeros(numhalos, dtype=np.int32)
             tree[ii]["Descen"]=[[] for j in range(numhalos)]
+            tree[ii]["Rank"]=[[] for j in range(numhalos)]
             for j in range(numhalos):
                 [hid,ndescen]=treefile.readline().strip().split('\t')
                 hid=np.int64(hid);ndescen=int(ndescen)
@@ -891,7 +892,7 @@ def TraceMainDescendant(istart,ihalo,numsnaps,numhalos,halodata,tree,HALOIDVAL,i
 
     #start at this snapshot
     halosnap=istart
-    
+
     #see if halo does not have a Head set
     if (halodata[halosnap]['Head'][ihalo]==0):
         #if halo has not had a Head set the branch needs to be walked along the main branch
@@ -922,13 +923,13 @@ def TraceMainDescendant(istart,ihalo,numsnaps,numhalos,halodata,tree,HALOIDVAL,i
                 halodata[halosnap]['RootHead'][haloindex]=haloid
                 halodata[halosnap]['RootHeadSnap'][haloindex]=halosnap
                 rootheadid,rootheadsnap,rootheadindex=haloid,halosnap,haloindex
-                #only set the roots head of the root tail 
+                #only set the roots head of the root tail
                 #if it has not been set before (ie: along the main branch of root halo)
                 if (halodata[rootsnap]['RootHead'][rootindex]==0):
                     halodata[rootsnap]['RootHead'][rootindex]=rootheadid
                     halodata[rootsnap]['RootHeadSnap'][rootindex]=rootheadsnap
                 break
-            #now store the rank of the of the descandant. 
+            #now store the rank of the of the descandant.
             descenrank=tree[halosnap]['Rank'][haloindex][0]
             halodata[halosnap]['HeadRank'][haloindex]=descenrank
             #as we are only moving along main branches stop if object is rank is not 0
