@@ -294,6 +294,70 @@ def ReadHaloMergerTree(treefilename,ibinary=0,iverbose=0):
     if (iverbose): print("done reading tree file ",time.clock()-start)
     return tree
 
+def ReadHaloMergerTreeDescendant(treefilename,ireverseorder=True,ibinary=0,iverbose=0):
+    """
+    VELOCIraptor/STF descendant based merger tree in ascii format contains
+    a header with
+        number_of_snapshots
+        a description of how the tree was built
+        total number of halos across all snapshots
+
+    then followed by data
+    for each snapshot
+        snapshotvalue numhalos
+        haloid_1 numprogen_1
+        progenid_1
+        progenid_2
+        ...
+        progenid_numprogen_1
+        haloid_2 numprogen_2
+        .
+        .
+        .
+    one can also have an output format that has an additional field for each progenitor, the meritvalue
+
+    """
+    start = time.clock()
+    tree=[]
+    if (iverbose): print("reading Tree file",treefilename,os.path.isfile(treefilename))
+    if (os.path.isfile(treefilename)==False):
+        print("Error, file not found")
+        return tree
+    #if ascii format
+    if (ibinary==0):
+        treefile = open(treefilename, 'r')
+        numsnap=int(treefile.readline())
+        descrip=treefile.readline().strip()
+        tothalos=int(treefile.readline())
+        tree=[{"haloID": [], "Num_descen": [], "Descen": [], "Rank": []} for i in range(numsnap)]
+        offset=0
+        totalnumdescen=0
+        for i in range(numsnap-1):
+            ii=i
+            if (ireverseorder): ii=numsnap-i
+            [snapval,numhalos]=treefile.readline().strip().split('\t')
+            snapval=int(snapval);numhalos=int(numhalos)
+            #if really verbose
+            if (iverbose==2): print(snapval,numhalos)
+            tree[ii]["haloID"]=np.zeros(numhalos, dtype=np.int64)
+            tree[ii]["Num_descen"]=np.zeros(numhalos, dtype=np.int32)
+            tree[ii]["Descen"]=[[] for j in range(numhalos)]
+            for j in range(numhalos):
+                [hid,ndescen]=treefile.readline().strip().split('\t')
+                hid=np.int64(hid);ndescen=int(ndescen)
+                tree[ii]["haloID"][j]=hid
+                tree[ii]["Num_descen"][j]=ndescen
+                totalnumdescen+=ndescen
+                if (ndescen>0):
+                    tree[ii]["Descen"][j]=np.zeros(ndescen,dtype=np.int64)
+                    tree[ii]["Rank"][j]=np.zeros(ndescen,dtype=np.uint32)
+                    for k in range(ndescen):
+                        data=treefile.readline().strip().split(' ')
+                        tree[ii]["Descen"][j][k]=np.int64(data[0])
+                        tree[ii]["Rank"][j][k]=np.uint32(data[1])
+    if (iverbose): print("done reading tree file ",time.clock()-start)
+    return tree
+
 def ReadHaloPropertiesAcrossSnapshots(numsnaps,snaplistfname,inputtype,iseperatefiles,iverbose=0,desiredfields=[]):
     """
     read halo data from snapshots listed in file with snaplistfname file name
@@ -815,6 +879,226 @@ def BuildTemporalHeadTail(numsnaps,tree,numhalos,halodata,HALOIDVAL=100000000000
                     headindex=int(headid%HALOIDVAL)-1
                     #store the tail of the next head
                     headtailid,headtailsnap=halodata[headsnap]['Tail'][headindex],halodata[headsnap]['TailSnap'][headindex]
+    print("Done building", time.clock()-totstart)
+
+
+def TraceMainDescendant(istart,ihalo,numsnaps,numhalos,halodata,tree,HALOIDVAL,ireverseorder=False):
+    """
+    Follows a halo along descendant tree to root tails
+    if reverse order than late times start at 0 and as one moves up in index
+    one moves backwards in time
+    """
+
+    #start at this snapshot
+    halosnap=istart
+    
+    #see if halo does not have a Head set
+    if (halodata[halosnap]['Head'][ihalo]==0):
+        #if halo has not had a Head set the branch needs to be walked along the main branch
+        haloid=halodata[halosnap]['ID'][ihalo]
+        #only set the Root Tail if it has not been set. Here if halo has not had
+        #tail set, then must be the the first progenitor
+        #otherwise it should have already been set and just need to store the root tail
+        if (halodata[halosnap]['Head'][ihalo]==0):
+            halodata[halosnap]['Tail'][ihalo]=haloid
+            halodata[halosnap]['TailSnap'][ihalo]=halosnap
+            halodata[halosnap]['RootTail'][ihalo]=haloid
+            halodata[halosnap]['RootTailSnap'][ihalo]=halosnap
+            roottail,rootsnap,rootindex=haloid,halosnap,ihalo
+        else:
+            roottail=halodata[halosnap]['RootTail'][ihalo]
+            rootsnap=halodata[halosnap]['RootTailSnap'][ihalo]
+            rootindex=int(roottail%HALOIDVAL)-1
+        #now move along tree first pass to store head and tails and root tails of main branch
+        while (True):
+            #ids contain index information
+            haloindex=int(haloid%HALOIDVAL)-1
+            halodata[halosnap]['Num_descen'][haloindex]=tree[halosnap]['Num_descen'][haloindex]
+            #if no more descendants, break from search
+            if (halodata[halosnap]['Num_descen'][haloindex]==0):
+                #store for current halo its tail and root tail info (also store root tail for root head)
+                halodata[halosnap]['Head'][haloindex]=haloid
+                halodata[halosnap]['HeadSnap'][haloindex]=halosnap
+                halodata[halosnap]['RootHead'][haloindex]=haloid
+                halodata[halosnap]['RootHeadSnap'][haloindex]=halosnap
+                rootheadid,rootheadsnap,rootheadindex=haloid,halosnap,haloindex
+                #only set the roots head of the root tail 
+                #if it has not been set before (ie: along the main branch of root halo)
+                if (halodata[rootsnap]['RootHead'][rootindex]==0):
+                    halodata[rootsnap]['RootHead'][rootindex]=rootheadid
+                    halodata[rootsnap]['RootHeadSnap'][rootindex]=rootheadsnap
+                break
+            #now store the rank of the of the descandant. 
+            descenrank=tree[halosnap]['Rank'][haloindex][0]
+            halodata[halosnap]['HeadRank'][haloindex]=descenrank
+            #as we are only moving along main branches stop if object is rank is not 0
+            if (descenrank==0):
+                break
+            #otherwise, get the descendant
+            #store main progenitor
+            maindescen=tree[halosnap]['Descen'][haloindex][0]
+            maindescenindex=int(maindescen%HALOIDVAL)-1
+            maindescensnap=int(((maindescen-maindescen%HALOIDVAL))/HALOIDVAL)
+            #if reverse order, then higher snap values correspond to lower index
+            if (ireverseorder):
+                maindescensnap=numsnaps-1-maindescensnap
+            #calculate stepsize in time based on the halo ids
+            stepsize=maindescensnap-halosnap
+
+            #store descendant
+            halodata[halosnap]['Head'][haloindex]=maindescen
+            halodata[halosnap]['HeadSnap'][haloinde]=maindescensnap
+
+            #and update the root tails of the object
+            halodata[maindescensnap]['Tail'][maindescenindex]=haloid
+            halodata[maindescensnap]['TailSnap'][maindescenindex]=halosnap
+            halodata[maindescensnap]['RootTail'][maindescenindex]=roottail
+            halodata[maindescensnap]['RootTailSnap'][maindescenindex]=rootsnap
+            halodata[maindescensnap]['Num_progen'][maindescenindex]=1
+
+            #then move to the next descendant
+            haloid=maindescen
+            halosnap=maindescensnap
+
+def TraceMainDescendantParallelChunk(istart,ihalochunk,numsnaps,numhalos,halodata,tree,HALOIDVAL):
+    for ihalo in ihalochunk:
+        TraceMainDescendant(istart,ihalo,numsnaps,numhalos,halodata,tree,HALOIDVAL)
+
+def BuildTemporalHeadTailDescendant(numsnaps,tree,numhalos,halodata,HALOIDVAL=1000000000000, ireverseorder=False, iverbose=1):
+    """
+    Adds for each halo its Head and Tail and stores Roothead and RootTail to the halo
+    properties file
+    HALOIDVAL is used to parse the halo ids and determine the step size between descendant and progenitor
+    """
+    print("Building Temporal catalog with head and tails using a descendant tree")
+    for k in range(numsnaps):
+        halodata[k]['Head']=np.zeros(numhalos[k],dtype=np.int64)
+        halodata[k]['Tail']=np.zeros(numhalos[k],dtype=np.int64)
+        halodata[k]['HeadSnap']=np.zeros(numhalos[k],dtype=np.int32)
+        halodata[k]['TailSnap']=np.zeros(numhalos[k],dtype=np.int32)
+        halodata[k]['RootHead']=np.zeros(numhalos[k],dtype=np.int64)
+        halodata[k]['RootTail']=np.zeros(numhalos[k],dtype=np.int64)
+        halodata[k]['RootHeadSnap']=np.zeros(numhalos[k],dtype=np.int32)
+        halodata[k]['RootTailSnap']=np.zeros(numhalos[k],dtype=np.int32)
+        halodata[k]['HeadRank']=np.zeros(numhalos[k],dtype=np.int64)
+        halodata[k]['Num_descen']=np.zeros(numhalos[k],dtype=np.uint32)
+        halodata[k]['Num_progen']=np.zeros(numhalos[k],dtype=np.uint32)
+    #for each snapshot identify halos that have not had their tail set
+    #for these halos, the main branch must be walked
+    #allocate python manager to wrapper the tree and halo catalog so they can be altered in parallel
+    manager=mp.Manager()
+    chunksize=5000000 #have each thread handle this many halos at once
+    #init to that at this point snapshots should be run in parallel
+    if (numhalos[0]>2*chunksize): iparallel=1
+    else: iparallel=-1 #no parallel at all
+    iparallel=-1
+
+    totstart=time.clock()
+
+    if (ireverseorder):
+        snaplist=range(numsnaps-1,-1,-1)
+    else:
+        snaplist=range(numsnaps)
+
+    if (iparallel==1):
+        #need to copy halodata as this will be altered
+        if (iverbose>0): print("copying halo")
+        start=time.clock()
+        mphalodata=manager.list([manager.dict(halodata[k]) for k in range(numsnaps)])
+        if (iverbose>0): print("done",time.clock()-start)
+
+    for istart in snaplist:
+        if (iverbose>0): print("Starting from halos at ",istart,"with",numhalos[istart])
+        if (numhalos[istart]==0): continue
+        #if the number of halos is large then run in parallel
+        if (numhalos[istart]>2*chunksize and iparallel==1):
+            #determine maximum number of threads
+            nthreads=int(min(mp.cpu_count(),ceil(numhalos[istart]/float(chunksize))))
+            nchunks=int(np.ceil(numhalos[istart]/float(chunksize)/float(nthreads)))
+            if (iverbose>0): print("Using", nthreads,"threads to parse ",numhalos[istart]," halos in ",nchunks,"chunks, each of size", chunksize)
+            #now for each chunk run a set of proceses
+            for j in range(nchunks):
+                start=time.clock()
+                offset=j*nthreads*chunksize
+                #if last chunk then must adjust nthreads
+                if (j==nchunks-1):
+                    nthreads=int(ceil((numhalos[istart]-offset)/float(chunksize)))
+
+                halochunk=[range(offset+k*chunksize,offset+(k+1)*chunksize) for k in range(nthreads)]
+                #adjust last chunk
+                if (j==nchunks-1):
+                    halochunk[-1]=range(offset+(nthreads-1)*chunksize,numhalos[istart])
+                #when calling a process pass not just a work queue but the pointers to where data should be stored
+                processes=[mp.Process(target=TraceMainDescendantParallelChunk,args=(istart,halochunk[k],numsnaps,numhalos,mphalodata,tree,HALOIDVAL,ireverseorder)) for k in range(nthreads)]
+                count=0
+                for p in processes:
+                    print(count+offset,k,min(halochunk[count]),max(halochunk[count]))
+                    p.start()
+                    count+=1
+                for p in processes:
+                    #join thread and see if still active
+                    p.join()
+                if (iverbose>1): print((offset+j*nthreads*chunksize)/float(numhalos[istart])," done in",time.clock()-start)
+        #otherwise just single
+        else :
+            #if first time entering non parallel section copy data back from parallel manager based structure to original data structure
+            #as parallel structures have been updated
+            if (iparallel==1):
+                #tree=[dict(mptree[k]) for k in range(numsnaps)]
+                halodata=[dict(mphalodata[k]) for k in range(numsnaps)]
+                #set the iparallel flag to 0 so that all subsequent snapshots (which should have fewer objects) not run in parallel
+                #this is principly to minimize the amount of copying between manager based parallel structures and the halo/tree catalogs
+                iparallel=0
+            start=time.clock()
+            chunksize=max(int(0.10*numhalos[istart]),10)
+            for j in range(numhalos[istart]):
+                #start at this snapshot
+                #start=time.clock()
+                TraceMainDescendant(istart,j,numsnaps,numhalos,halodata,tree,HALOIDVAL,ireverseorder)
+                if (j%chunksize==0 and j>0):
+                    if (iverbose>1): print("done", j/float(numhalos[istart]), "in", time.clock()-start)
+                    start=time.clock()
+    if (iverbose>0): print("done with first bit, setting the main branches walking forward in time")
+    #now have walked all the main branches and set the root tail, head and tail values
+    #in case halo data is with late times at beginning need to process items in reverse
+    if (ireverseorder):
+        snaplist=range(numsnaps)
+    else:
+        snaplist=range(numsnaps-1,-1,-1)
+
+    for istart in snaplist:
+        #identify all haloes which are not primary progenitors of their descendants, having a descendant rank >0
+        wdata=np.where(halodata[istart]['HeadRank']>0)
+        #sort this list based on descendant ranking
+        sortedranking=np.argsort(halodata[istart]['HeadRank'][wdata])
+        nrankedhalos=len(wdata[0])
+        rankedhalos=halodata[istart]['ID'][wdata[0][sortedranking]]
+        #for each of these haloes, set the head and use the root head information and root snap and set all the information
+        #long its branch
+        for ihalo in rankedhalos:
+            haloid=ihalo
+            haloindex=int(haloid%HALOIDVAL)-1
+            halosnap=istart
+            #now set the head of these objects
+            maindescen=tree[halosnap]['Descen'][haloindex][0]
+            maindescenindex=int(maindescen%HALOIDVAL)-1
+            maindescensnap=int((maindescen-maindescen%HALOIDVAL)/HALOIDVAL)
+            #increase the number of progenitors of this descendant
+            halodata[halosnap]['Head'][haloindex]=maindescen
+            halodata[halosnap]['HeadSnap'][haloindex]=maindescensnap
+            halodata[maindescensnap]['Num_progen'][maindescenindex]+=1
+            #store the root head
+            roothead=halodata[maindescensnap]['RootHead'][maindescenindex]
+            rootsnap=halodata[maindescensnap]['RootHeadSnap'][maindescenindex]
+            #now set the root head for all the progenitors of this object
+            while (True):
+                halodata[halosnap]['RootHead'][haloindex]=roothead
+                halodata[halosnap]['RootHeadSnap'][haloindex]=rootsnap
+                if (haloid==halodata[halosnap]['Tail'][haloindex]):
+                    break
+                haloid=halodata[halosnap]['Tail'][haloindex]
+                halosnap=halodata[halosnap]['TailSnap'][haloindex]
+                haloindex=int(haloid%HALOIDVAL)-1
     print("Done building", time.clock()-totstart)
 
 def GetProgenLength(halodata,haloindex,halosnap,haloid,atime,HALOIDVAL,endreftime=-1):
