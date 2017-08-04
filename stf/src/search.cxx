@@ -1439,6 +1439,7 @@ private(i,tid)
         vector<Double_t> dispfac(numgroupsbg+1);
         //now if searching for cores in fully adaptive fashion then process core (which will keep changing) till
         //no cores are found
+        for (i=1;i<=numgroupsbg;i++) dispfac[i]=1.0;
         if (opt.halocorenumloops>1)
         {
             //store the old velocity dispersion
@@ -1452,9 +1453,12 @@ private(i,tid)
             //first copy pfofbg information
             newnumgroupsbg=numgroupsbg;
             for (i=0;i<nsubset;i++) pfofbgnew[i]=pfofbg[i];
-            for (i=1;i<=newnumgroupsbg;i++) dispfac[i]=param[7];
+            //for (i=1;i<=newnumgroupsbg;i++) dispfac[i]=param[7];
 
             //now keep doing this till zero new groups are found, copying over info of new groups above bgoffset as we go
+            //store how much the dispersion will change given the allowed fof envelop;
+            Double_t dispval=opt.halocorevfaciter*opt.halocorevfaciter*opt.halocorexfaciter*opt.halocorexfaciter;
+            Double_t dispvaltot=1.0;
             do {
                 numloops++;
                 //free memory
@@ -1466,13 +1470,17 @@ private(i,tid)
                 param[7]=param[2];
                	//and alter the minsize
                 minsize*=opt.halocorenumfaciter;
+                if (minsize<opt.MinSize) minsize=opt.MinSize;
+                dispvaltot*=dispval;
                 //we adjust the particles potentials so as to ignore already tagged particles using FOFcheckbg
                 //here since loop just iterates to search the largest core, we just set all particles with pfofbgnew[i]==1
-                for (i=0;i<nsubset;i++) Partsubset[i].SetPotential((pfofbgnew[Partsubset[i].GetID()]>1)+(pfof[Partsubset[i].GetID()]>0));
+                for (i=0;i<nsubset;i++) Partsubset[i].SetPotential((pfofbgnew[Partsubset[i].GetID()]!=1)+(pfof[Partsubset[i].GetID()]>0));
                 pfofbg=tree->FOFCriterion(fofcmp,param,numgroupsbg,minsize,iorder,icheck,FOFcheckbg);
                 //now if numgroupsbg is greater than one, need to update the pfofbgnew array
                 if (numgroupsbg>1) {
-                    for (i=1;i<=numgroupsbg-1;i++) dispfac.push_back(param[7]);
+                    //for (i=1;i<=numgroupsbg-1;i++) dispfac.push_back(param[7]);
+                    dispfac[1]=dispvaltot;
+                    for (i=2;i<=numgroupsbg;i++) dispfac.push_back(dispvaltot);
                     for (i=0;i<nsubset;i++) {
                         pid=Partsubset[i].GetID();
                         //if the particle is untagged with new search, set it to be untagged
@@ -1481,6 +1489,7 @@ private(i,tid)
                         else if (pfofbg[pid]>1) pfofbgnew[pid]=pfofbg[pid]-1+newnumgroupsbg;
                     }
                     newnumgroupsbg+=numgroupsbg-1;
+
                 }
             }while (numgroupsbg > 0 && numloops<opt.halocorenumloops && minsize*opt.halocorenumfaciter<nsubset);
             //once the loop is finished, update info
@@ -1630,15 +1639,10 @@ void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *&Partsubset, In
     int tid,i;
     Int_t **nnID;
     Double_t **dist2;
+    PriorityQueue *pq;
 
     for (i=0;i<=numgroupsbg;i++)ncore[i]=mcore[i]=0;
     //determine the weights for the cores dispersions factors
-    if(opt.halocorenumloops>1) {
-        for (i=1;i<=numgroupsbg;i++)dispfac[i]=dispfac[i]/param[7];
-    }
-    else {
-        for (i=1;i<=numgroupsbg;i++) dispfac[i]=1.0;
-    }
     for (i=0;i<nsubset;i++) {
         if (pfofbg[i]>0) {
             nincore++;
@@ -1648,7 +1652,7 @@ void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *&Partsubset, In
     }
     if (opt.iverbose>=2) {
         cout<<"Mass ratios of cores are "<<endl;
-        for (i=1;i<=numgroupsbg;i++)cout<<i<<" "<<mcore[i]<<" "<<mcore[i]/mcore[1]<<endl;
+        for (i=1;i<=numgroupsbg;i++)cout<<i<<" "<<mcore[i]<<" "<<mcore[i]/mcore[1]<<" "<<ncore[i]<<" "<<dispfac[i]<<endl;
     }
     //if number of particles in core less than number in subset then start assigning particles
     if (nincore<nsubset) {
@@ -1839,17 +1843,20 @@ private(i,tid,Pval,x1,D2,dval,mval,pid,pidcore)
         //now that particles assigned to cores, remove if core too small
         for (i=1;i<=numgroupsbg;i++) ncore[i]=0;
         for (i=0;i<nsubset;i++)ncore[pfofbg[i]]++;
-        for (i=1;i<=numgroupsbg;i++) {
-            if (ncore[i]>=opt.MinSize) newcore[i]=++newnumgroupsbg;
-            else newcore[i]=0;
+        pq=new PriorityQueue(numgroupsbg);
+        for (i=1;i<=numgroupsbg;i++){
+            if (ncore[i]<opt.MinSize) ncore[i]=0;
+            pq->Push(i,(Double_t)ncore[i]);
         }
-        if (newnumgroupsbg!=numgroupsbg) {
-            for (i=0;i<nsubset;i++) {
-                pid=Partsubset[i].GetID();
-                if (pfofbg[pid]>0) pfofbg[pid]=newcore[pfofbg[pid]];
-            }
-            numgroupsbg=newnumgroupsbg;
+        for (i=1;i<=numgroupsbg;i++){
+            if (pq->TopPriority()>=opt.MinSize) newcore[pq->TopQueue()]=++newnumgroupsbg;
+            pq->Pop();
         }
+        for (i=0;i<nsubset;i++) {
+            pid=Partsubset[i].GetID();
+            if (pfofbg[pid]>0 && ncore[pfofbg[pid]]>0) pfofbg[pid]=newcore[pfofbg[pid]];
+        }
+        numgroupsbg=newnumgroupsbg;
         delete[] mcore;
         delete[] ncore;
         delete[] newcore;
@@ -1886,7 +1893,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_
     Int_t *subpfof,*subngroup;
     Int_t *subnumingroup,**subpglist;
     Int_t **subsubnumingroup, ***subsubpglist;
-    Int_t *numcores;
+    Int_t *numcores,*coreflag;
     Int_t *subpfofold;
     Coordinate *gvel;
     Matrix *gveldisp;
@@ -2033,8 +2040,13 @@ void SearchSubSub(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_
                 FillTreeGrid(opt, subnumingroup[i], ngrid, tree, subPart, grid);
                 gvel=GetCellVel(opt,subnumingroup[i],subPart,ngrid,grid);
                 gveldisp=GetCellVelDisp(opt,subnumingroup[i],subPart,ngrid,grid,gvel);
-                opt.HaloSigmaV=0;for (int j=0;j<ngrid;j++) opt.HaloSigmaV+=pow(gveldisp[j].Det(),1./3.);opt.HaloSigmaV/=(double)ngrid;
+                /*opt.HaloSigmaV=0;for (int j=0;j<ngrid;j++) opt.HaloSigmaV+=pow(gveldisp[j].Det(),1./3.);opt.HaloSigmaV/=(double)ngrid;
                 //store the maximum halo velocity scale
+                if (opt.HaloSigmaV>opt.HaloVelDispScale) opt.HaloVelDispScale=opt.HaloSigmaV;*/
+                Matrix eigvec(0.),I(0.);
+                Double_t sigma2x,sigma2y,sigma2z;
+                CalcVelSigmaTensor(subnumingroup[i], subPart, sigma2x, sigma2y, sigma2z, eigvec, I);
+                opt.HaloSigmaV=pow(sigma2x*sigma2y*sigma2z,1.0/3.0);
                 if (opt.HaloSigmaV>opt.HaloVelDispScale) opt.HaloVelDispScale=opt.HaloSigmaV;
 #ifdef HALOONLYDEN
                 GetVelocityDensity(opt,subnumingroup[i],subPart);
@@ -2059,7 +2071,13 @@ void SearchSubSub(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_
                 subsubnumingroup[i]=BuildNumInGroup(subnumingroup[i], subngroup[i], subpfof);
                 subsubpglist[i]=BuildPGList(subnumingroup[i], subngroup[i], subsubnumingroup[i], subpfof);
                 if (opt.uinfo.unbindflag&&subngroup[i]>0) {
-                    iunbindflag=CheckUnboundGroups(opt,subnumingroup[i],subPart,subngroup[i],subpfof,subsubnumingroup[i],subsubpglist[i]);
+                    //if also keeping track of cores then must allocate coreflag
+                    if (numcores[i]>0 && opt.iHaloCoreSearch>=1) {
+                        coreflag=new Int_t[ng+1];
+                        for (int icore=1;icore<=ng;icore++) coreflag[icore]=1+(icore>ng-numcores[i]);
+                    }
+                    else {coreflag=NULL;}
+                    iunbindflag=CheckUnboundGroups(opt,subnumingroup[i],subPart,subngroup[i],subpfof,subsubnumingroup[i],subsubpglist[i],1, coreflag);
                     if (iunbindflag) {
                         for (int j=1;j<=ng;j++) delete[] subsubpglist[i][j];
                         delete[] subsubnumingroup[i];
@@ -2067,6 +2085,12 @@ void SearchSubSub(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_
                         if (subngroup[i]>0) {
                             subsubnumingroup[i]=BuildNumInGroup(subnumingroup[i], subngroup[i], subpfof);
                             subsubpglist[i]=BuildPGList(subnumingroup[i], subngroup[i], subsubnumingroup[i], subpfof);
+                        }
+                        //if need to update number of cores,
+                        if (numcores[i]>0 && opt.iHaloCoreSearch>=1) {
+                            numcores[i]=0;
+                            for (int icore=1;icore<=subngroup[i];icore++)numcores[i]+=(coreflag[icore]==2);
+                            delete[] coreflag;
                         }
                     }
                 }

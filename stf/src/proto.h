@@ -236,7 +236,7 @@ void GetNodeList(Node *np, Int_t &ncell, Node **nodelist, const Int_t bsize);
 inline void MarkCell(Node *np, Int_t *marktreecell, Int_t *markleafcell, Int_t &ntreecell, Int_t &nleafcell, const Int_t bsize, Double_t *cR2max, Coordinate *cm, Double_t *cmtot, Coordinate xpos, Double_t eps2);
 
 ///Interface for unbinding proceedure
-int CheckUnboundGroups(Options opt, const Int_t nbodies, Particle *&Part, Int_t &ngroup, Int_t *&pfof, Int_t *numingroup=NULL, Int_t **pglist=NULL,int ireorder=1);
+int CheckUnboundGroups(Options opt, const Int_t nbodies, Particle *&Part, Int_t &ngroup, Int_t *&pfof, Int_t *numingroup=NULL, Int_t **pglist=NULL,int ireorder=1, Int_t *groupflag=NULL);
 ///check if group self-bound
 int Unbind(Options &opt, Particle **gPartList, Int_t &numgroups, Int_t *numingroup, Int_t *pfof, Int_t **pglist, int ireorder=1);
 int Unbind(Options &opt, Particle *&Part, Int_t &numgroups, Int_t *&numingroup, Int_t *&noffset, Int_t *&pfof);
