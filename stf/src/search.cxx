@@ -1408,7 +1408,8 @@ private(i,tid)
             param[1] = param[1] * param[1];
             param[6] = param[1];
             //velocity linking length from average sigmav from FINE SCALE grid
-            param[7] = opt.HaloSigmaV * (opt.halocorevfac * opt.halocorevfac);
+            param[2] = opt.HaloSigmaV * (opt.halocorevfac * opt.halocorevfac);
+            param[7] = param[2];
         }
 
         //set minsize of the core.
@@ -1436,7 +1437,6 @@ private(i,tid)
         pfofbg=tree->FOFCriterion(fofcmp,param,numgroupsbg,minsize,iorder,icheck,FOFcheckbg);
         //store the dispersion limit factor, which depends on level of the loop at which cores are found as the disperions criterion limits how large a dispersion a core can have when measured
         vector<Double_t> dispfac(numgroupsbg+1);
-
         //now if searching for cores in fully adaptive fashion then process core (which will keep changing) till
         //no cores are found
         if (opt.halocorenumloops>1)
@@ -1444,7 +1444,6 @@ private(i,tid)
             //store the old velocity dispersion
             Double_t halocoreveldisp = param[7];
             //set the factor by which the minimum size is increased by
-            Double_t halocorenumfac=0.5*log10(nsubset);
             int numloops=0;
             //store the old number of groups and update the pfofbg list
             Int_t newnumgroupsbg=numgroupsbg;
@@ -1469,7 +1468,7 @@ private(i,tid)
                 minsize*=opt.halocorenumfaciter;
                 //we adjust the particles potentials so as to ignore already tagged particles using FOFcheckbg
                 //here since loop just iterates to search the largest core, we just set all particles with pfofbgnew[i]==1
-                for (i=0;i<nsubset;i++) Partsubset[i].SetPotential((pfofbgnew[Partsubset[i].GetID()]!=1));
+                for (i=0;i<nsubset;i++) Partsubset[i].SetPotential((pfofbgnew[Partsubset[i].GetID()]>1)+(pfof[Partsubset[i].GetID()]>0));
                 pfofbg=tree->FOFCriterion(fofcmp,param,numgroupsbg,minsize,iorder,icheck,FOFcheckbg);
                 //now if numgroupsbg is greater than one, need to update the pfofbgnew array
                 if (numgroupsbg>1) {
@@ -1483,7 +1482,7 @@ private(i,tid)
                     }
                     newnumgroupsbg+=numgroupsbg-1;
                 }
-            }while (numgroupsbg > 0 && numloops<opt.halocorenumloops && minsize*halocorenumfac<nsubset);
+            }while (numgroupsbg > 0 && numloops<opt.halocorenumloops && minsize*opt.halocorenumfaciter<nsubset);
             //once the loop is finished, update info
             numgroupsbg=newnumgroupsbg;
             for (i=0;i<nsubset;i++) pfofbg[i]=pfofbgnew[i];
@@ -1507,7 +1506,9 @@ private(i,tid)
             }
             numgroups=ng;
         }
-        else if (opt.iverbose>=2) cout<<ThisTask<<": has found no excess cores indicating mergers"<<endl;
+        else {
+            if (opt.iverbose>=2) cout<<ThisTask<<": has found no excess cores indicating mergers"<<endl;
+        }
         delete[] pfofbg;
     }
 
