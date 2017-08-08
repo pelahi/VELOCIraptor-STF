@@ -407,7 +407,7 @@ inline void ConfigCheck(Options &opt)
                 opt.iopttemporalmerittype=GENERALIZEDMERITTIMEPROGEN;
             }
             else if (opt.isearchdirection==SEARCHPROGEN) {
-                opt.icorematchtype=PARTLISTCORE;
+                opt.icorematchtype=PARTLISTCORECORE;
                 opt.min_numpart=20;
                 opt.particle_frac=0.1;
                 opt.meritlimit=0.1;

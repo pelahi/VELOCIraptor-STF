@@ -110,7 +110,7 @@ private(j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
             j=halolist[offset+k];
             index=offset+j;
             //if sharelist not enough, then move to end and decrease numshared
-            if(sharelist[index]<opt.mlsig*sqrt((Double_t)h2[j].NumberofParticles)) {
+            if(sharelist[index]<opt.mlsig*sqrt((Double_t)np1)) {
                 halolist[offset+k]=halolist[offset+numshared-1];
                 sharelist[index]=0;
                 k--;
@@ -178,11 +178,8 @@ private(j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                 for (k=0;k<numshared;k++) {
                     j=halolist[offset+k];
                     index=offset+j;
-                    np2=h2[j].NumberofParticles*opt.particle_frac;
-                    if (h2[j].NumberofParticles<opt.min_numpart) np2=h2[j].NumberofParticles;
-                    else if (np2<opt.min_numpart) np2=opt.min_numpart;
                     //if sharelist not enough, then move to end and decrease numshared
-                    if(sharelist[index]<opt.mlsig*sqrt((Double_t)np2)){
+                    if(sharelist[index]<opt.mlsig*sqrt((Double_t)np1)){
                         halolist[offset+k]=halolist[offset+numshared-1];
                         sharelist[index]=0;
                         k--;
@@ -307,7 +304,7 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                 j=halolist[offset+n];
                 index=offset+j;
                 //if sharelist not enough, then move to end and decrease numshared
-                if(sharelist[index]<opt.mlsig*sqrt((Double_t)h2[j].NumberofParticles)) {
+                if(sharelist[index]<opt.mlsig*sqrt((Double_t)np1)) {
                     halolist[offset+n]=halolist[offset+numshared-1];
                     sharelist[index]=0;
                     n--;
@@ -370,11 +367,8 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                     for (n=0;n<numshared;n++) {
                         j=halolist[offset+n];
                         index=offset+j;
-                        np2=h2[j].NumberofParticles*opt.particle_frac;
-                        if (h2[j].NumberofParticles<opt.min_numpart) np2=h2[j].NumberofParticles;
-                        else if (np2<opt.min_numpart) np2=opt.min_numpart;
                         //if sharelist not enough, then move to end and decrease numshared
-                        if(sharelist[index]<opt.mlsig*sqrt((Double_t)np2)){
+                        if(sharelist[index]<opt.mlsig*sqrt((Double_t)np1)){
                             halolist[offset+n]=halolist[offset+numshared-1];
                             sharelist[index]=0;
                             n--;
