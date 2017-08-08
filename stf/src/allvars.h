@@ -488,6 +488,8 @@ struct Options
     Double_t halocorevfaciter;
     ///factor by which one multiples the min num when looping for cores
     Double_t halocorenumfaciter;
+    ///factor by which a core must be seperated from main core in phase-space in sigma units
+    Double_t halocorephasedistsig;
     //@}
     ///for storing a snapshot value to make halo ids unique across snapshots
     long long snapshotvalue;
@@ -600,10 +602,11 @@ struct Options
         halocorevfac=2.0;
         halocorenfac=0.1;
         halocoresigmafac=2.0;
-        halocorenumloops=1;
+        halocorenumloops=3;
         halocorexfaciter=0.75;
         halocorevfaciter=0.75;
-        halocorenumfaciter=0.25;
+        halocorenumfaciter=1.0;
+        halocorephasedistsig=2.0;
 
         iverbose=0;
         iwritefof=0;
@@ -728,8 +731,15 @@ struct ConfigInfo{
         datainfo.push_back(to_string(opt.halocoresigmafac));
         nameinfo.push_back("Halo_core_num_loops");
         datainfo.push_back(to_string(opt.halocorenumloops));
+        nameinfo.push_back("Halo_core_loop_ellx_fac");
+        datainfo.push_back(to_string(opt.halocorexfaciter));
         nameinfo.push_back("Halo_core_loop_ellv_fac");
         datainfo.push_back(to_string(opt.halocorevfaciter));
+        nameinfo.push_back("Halo_core_loop_elln_fac");
+        datainfo.push_back(to_string(opt.halocorenumfaciter));
+        nameinfo.push_back("Halo_core_phase_significance");
+        datainfo.push_back(to_string(opt.halocorephasedistsig));
+
 
         //for changing factors used in iterative search
         nameinfo.push_back("Iterative_threshold_factor");

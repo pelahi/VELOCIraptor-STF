@@ -415,6 +415,8 @@ void GetParamFile(Options &opt)
                         opt.halocorevfaciter = atof(vbuff);
                     else if (strcmp(tbuff, "Halo_core_loop_elln_fac")==0)
                         opt.halocorenumfaciter = atof(vbuff);
+                    else if (strcmp(tbuff, "Halo_core_phase_significance")==0)
+                        opt.halocorephasedistsig = atof(vbuff);
 
                     //for changing factors used in iterative search
                     else if (strcmp(tbuff, "Iterative_threshold_factor")==0)

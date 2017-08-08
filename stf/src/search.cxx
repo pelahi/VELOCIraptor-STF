@@ -1510,7 +1510,7 @@ private(i,tid)
             if(pnumcores!=NULL) *pnumcores=numgroupsbg;
             if (opt.iHaloCoreSearch>=2) {
                 HaloCoreGrowth(opt, nsubset, Partsubset, pfof, pfofbg, numgroupsbg, param,dispfac,nthreads);
-                for (i=0;i<nsubset;i++) if (pfofbg[i]>bgoffset) pfof[i]=oldng+(pfofbg[i]-bgoffset);
+                if (numgroupsbg>=bgoffset+1) for (i=0;i<nsubset;i++) if (pfofbg[i]>bgoffset) pfof[i]=oldng+(pfofbg[i]-bgoffset);
                 if (opt.iverbose>=2) cout<<ThisTask<<": After 6dfof core search and assignment there are "<< ng<<" groups"<<endl;
             }
             numgroups=ng;
@@ -1650,6 +1650,7 @@ void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *&Partsubset, In
             ncore[pfofbg[i]]++;
         }
     }
+
     if (opt.iverbose>=2) {
         cout<<"Mass ratios of cores are "<<endl;
         for (i=1;i<=numgroupsbg;i++)cout<<i<<" "<<mcore[i]<<" "<<mcore[i]/mcore[1]<<" "<<ncore[i]<<" "<<dispfac[i]<<endl;
@@ -1687,6 +1688,23 @@ void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *&Partsubset, In
                 ///it is possible to get haloes of size 0
                 invdisp[i]=invdisp[i].Inverse()*dispfac[i];
             }
+            //once phase-space centers and dispersions are calculated, check to see
+            //if distance is significant. Here idea is get distance in dispersion of
+            //candidate core and this must be by ND*halocoredistsig, where ND is number of dimensions, ie. 6
+            //if core is not significant set its mcore to 0
+            GMatrix coredist(6,1);
+            Int_t nactive=0;
+            for (i=2;i<=numgroupsbg;i++) {
+                for (int k=0;k<6;k++) coredist(k,0)=(cmphase[i](k,0)-cmphase[1](k,0));
+                D2=(coredist.Transpose()*invdisp[i]*coredist)(0,0);
+                if (D2<opt.halocorephasedistsig*opt.halocorephasedistsig*6.0) mcore[i]=0;
+                else nactive++;
+            }
+            //if there are no active cores then return nothing
+            if (nactive==0) {
+                numgroupsbg=0;
+                return;
+            }
 #ifdef USEOPENMP
             //if particle number large enough to warrant parallel search
             if (nsubset>ompperiodnum) {
@@ -1705,7 +1723,7 @@ private(i,tid,Pval,D2,dval,mval,pid)
                     for (int k=0;k<6;k++) dist[tid](k,0)=Pval->GetPhase(k)-cmphase[1](k,0);
                     dval=(dist[tid].Transpose()*invdisp[1]*dist[tid])(0,0);
                     pfofbg[pid]=1;
-                    for (int j=2;j<=numgroupsbg;j++) {
+                    for (int j=2;j<=numgroupsbg;j++) if (mcore[j]>0){
                         for (int k=0;k<6;k++) dist[tid](k,0)=Pval->GetPhase(k)-cmphase[j](k,0);
                         D2=(dist[tid].Transpose()*invdisp[j]*dist[tid])(0,0);
                         if (dval>D2) {dval=D2;mval=mcore[j];pfofbg[pid]=j;}
@@ -1842,7 +1860,10 @@ private(i,tid,Pval,x1,D2,dval,mval,pid,pidcore)
         }
         //now that particles assigned to cores, remove if core too small
         for (i=1;i<=numgroupsbg;i++) ncore[i]=0;
-        for (i=0;i<nsubset;i++)ncore[pfofbg[i]]++;
+        for (i=0;i<nsubset;i++) {
+            if (pfofbg[i]>0 && mcore[pfofbg[i]]==0) pfofbg[i]=0;
+            ncore[pfofbg[i]]++;
+        }
         pq=new PriorityQueue(numgroupsbg);
         for (i=1;i<=numgroupsbg;i++){
             if (ncore[i]<opt.MinSize) ncore[i]=0;
