@@ -1190,7 +1190,7 @@ private(i,tid)
             //velocity linking length from average sigmav from grid
             param[7]=opt.HaloSigmaV;
             param[8]=cos(opt.thetaopen*M_PI);
-            param[9]=opt.ellthreshold*opt.ellfac*0.8;//since this is the background, threshold is upper limit
+            param[9]=opt.ellthreshold*opt.ellfac;
             if (opt.iverbose) {
             cout<<ThisTask<<" "<<"FOF6D uses ellphys and ellvel."<<endl;
             cout<<ThisTask<<" "<<"Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits, ellvel="<<sqrt(param[7])<<" Vunits."<<endl;
