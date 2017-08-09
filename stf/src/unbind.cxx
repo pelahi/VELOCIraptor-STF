@@ -100,9 +100,18 @@ int CheckUnboundGroups(Options opt, const Int_t nbodies, Particle *&Part, Int_t 
     for (Int_t i=0;i<nbodies;i++) if (pfof[i]>0) pglist[pfof[i]][numingroup[pfof[i]]++]=i;
     if (ireorder==1 && iflag&&ngroup>0) {
         if (groupflag!=NULL) {
-            for (Int_t i=0;i<=ng;i++) if (numingroup[i]==0) groupflag[i]=0;
+            //allocate memory to store the group value which is a combination of the groupflag value and numingroup
+            Double_t *groupvalue=new Double_t[ng+1];
+            for (Int_t i=0;i<=ng;i++) {
+                if (numingroup[i]==0) {groupvalue[i]=groupflag[i]=0;}
+                else {
+                    if (groupflag[i]==1) groupvalue[i]=numingroup[i];
+                    else groupvalue[i]=1.0/(Double_t)numingroup[i];
+                }
+            }
             //and reorder it if reordering group ids
-            if (ireorder) ReorderGroupIDsAndArraybyValue(ng,ngroup,numingroup,pfof,pglist,numigroup,groupflag);
+            if (ireorder) ReorderGroupIDsAndArraybyValue(ng,ngroup,numingroup,pfof,pglist,groupvalue,groupflag);
+            delete[] groupvalue;
         }
         else ReorderGroupIDs(ng,ngroup,numingroup,pfof,pglist);
     }
@@ -114,9 +123,18 @@ int CheckUnboundGroups(Options opt, const Int_t nbodies, Particle *&Part, Int_t 
     //if keeping track of a flag, set flag to 0 if group no longer present
     if (ireorder==1 && iflag&&ngroup>0) {
         if (groupflag!=NULL) {
-            for (Int_t i=0;i<=ng;i++) if (numingroup[i]==0) groupflag[i]=0;
+            //allocate memory to store the group value which is a combination of the groupflag value and numingroup
+            Double_t *groupvalue=new Double_t[ng+1];
+            for (Int_t i=0;i<=ng;i++) {
+                if (numingroup[i]==0) {groupvalue[i]=groupflag[i]=0;}
+                else {
+                    if (groupflag[i]==1) groupvalue[i]=numingroup[i];
+                    else groupvalue[i]=1.0/(Double_t)numingroup[i];
+                }
+            }
             //and reorder it if reordering group ids
-            if (ireorder) ReorderGroupIDsAndArraybyValue(ng,ngroup,numingroup,pfof,pglist,numingroup,groupflag);
+            if (ireorder) ReorderGroupIDsAndArraybyValue(ng,ngroup,numingroup,pfof,pglist,groupvalue,groupflag);
+            delete[] groupvalue;
         }
         else ReorderGroupIDs(ng,ngroup,numingroup,pfof,pglist);
     }

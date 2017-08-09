@@ -186,6 +186,36 @@ void ReorderGroupIDsAndArraybyValue(const Int_t numgroups, const Int_t newnumgro
     delete pq;
     delete[] gtemp;
 }
+void ReorderGroupIDsAndArraybyValue(const Int_t numgroups, const Int_t newnumgroups, Int_t *numingroup, Int_t *pfof, Int_t **pglist, Double_t *value, Int_t *gdata)
+{
+    PriorityQueue *pq=new PriorityQueue(newnumgroups);
+    Double_t *gtemp=new Double_t[numgroups+1];
+    Int_t groupid;
+    for (Int_t i = 1; i <= numgroups; i++) gtemp[i]=gdata[i];
+    for (Int_t i = 1; i <= numgroups; i++) if (numingroup[i]>0) pq->Push(i, value[i]);
+    for (Int_t i = 1; i <= newnumgroups; i++) {
+        groupid=pq->TopQueue();pq->Pop();
+        for (Int_t j=0;j<numingroup[groupid];j++) pfof[pglist[groupid][j]]=i;
+        gdata[i]=gtemp[groupid];
+    }
+    delete pq;
+    delete[] gtemp;
+}
+void ReorderGroupIDsAndArraybyValue(const Int_t numgroups, const Int_t newnumgroups, Int_t *numingroup, Int_t *pfof, Int_t **pglist, Double_t *value, Double_t *gdata)
+{
+    PriorityQueue *pq=new PriorityQueue(newnumgroups);
+    Double_t *gtemp=new Double_t[numgroups+1];
+    Int_t groupid;
+    for (Int_t i = 1; i <= numgroups; i++) gtemp[i]=gdata[i];
+    for (Int_t i = 1; i <= numgroups; i++) if (numingroup[i]>0) pq->Push(i, value[i]);
+    for (Int_t i = 1; i <= newnumgroups; i++) {
+        groupid=pq->TopQueue();pq->Pop();
+        for (Int_t j=0;j<numingroup[groupid];j++) pfof[pglist[groupid][j]]=i;
+        gdata[i]=gtemp[groupid];
+    }
+    delete pq;
+    delete[] gtemp;
+}
 ///similar to \ref ReorderGroupIDsbyValue but also reorder associated property data
 void ReorderGroupIDsAndHaloDatabyValue(const Int_t numgroups, const Int_t newnumgroups, Int_t *numingroup, Int_t *pfof, Int_t **pglist, Int_t *value, PropData *pdata)
 {
