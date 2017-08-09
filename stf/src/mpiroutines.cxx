@@ -42,57 +42,121 @@
 ///determine the initial domains, ie: bisection distance mpi_dxsplit, which is used to determien what processor a particle is assigned to
 ///here the domains are constructured in data units
 void MPIInitialDomainDecomposition(){
-    int temp,Nsplit=log((float)NProcs)/log(2.0);
-    Double_t posfirst[3],deltax[3];
-    int isplit;
+    Int_t i,j,k,n,m,temp,count,count2,pc,pc_new, Ntot;
+    int Nsplit,isplit;
+    Int_t nbins1d,nbins3d, ibin[3];
+    Double_t a;
+    int b;
 
     if (ThisTask==0) {
-    /*
-    //expand limits by a small amount
-    for (int j=0;j<3;j++) {
-        Double_t dx=0.001*(mpi_xlim[j][1]-mpi_xlim[j][0]);
-        mpi_xlim[j][0]-=dx;mpi_xlim[j][1]+=dx;
-    }
-    for (int j=0;j<3;j++) deltax[j]=(mpi_xlim[j][1]-mpi_xlim[j][0]);
-    //determine order of spliting
-    PriorityQueue *pq=new PriorityQueue(3);
-    for (int j=0;j<3;j++) pq->Push(j,deltax[j]);
-    for (int j=0;j<3;j++) {mpi_ideltax[j]=pq->TopQueue();pq->Pop();}
-    delete pq;
+        //initial number of splittings.
+        Nsplit=log((float)NProcs)/log(2.0);
+        //first split need not be simply having the dimension but determine
+        //number of splits to have log(Nprocs)=log(a+2)+log(2^b), where a and b are integers
+        //first solve for a
+        a=log((float)NProcs)/log(2.0)-floor(log((float)NProcs)/log(2.0));
+        //if not zero then need to adjust splitting
+        if (abs(a)>1e-6) {
+           	b=1;
+            a=pow(2.0,log((float)NProcs)/log(2.0)-(floor(log((float)NProcs)/log(2.0))-b))-2;
+           	//iterate till have an integer number
+            while (abs(a-(int)a)/a>1e-6){
+               	b++;
+                a=pow(2.0,log((float)NProcs)/log(2.0)-(floor(log((float)NProcs)/log(2.0))-b))-2;
+            }
+           	Nsplit-=(b-1);
+        }
+        mpi_ideltax[0]=0;mpi_ideltax[1]=1;mpi_ideltax[2]=2;
+        isplit=0;
+        for (j=0;j<3;j++) mpi_nxsplit[j]=0;
+        for (j=0;j<Nsplit;j++) {
+            mpi_nxsplit[mpi_ideltax[isplit++]]++;
+            if (isplit==3) isplit=0;
+        }
+        for (j=0;j<3;j++) mpi_nxsplit[j]=pow(2.0,mpi_nxsplit[j]);
+        //and adjust first dimension
+        if (a>0) mpi_nxsplit[0]=mpi_nxsplit[0]/2*(2+(int)a);
 
-    //now split halo along orthogonal axes
-    //first determine number of bisections along each axis, where bisection point is just mid point in dimension, not mid point in particle number
-    isplit=0;
-    for (int j=0;j<3;j++) mpi_nxsplit[j]=0;
-    for (int l=0;l<Nsplit;l++) {
-        mpi_nxsplit[mpi_ideltax[isplit++]]++;
-        if (isplit==3) isplit=0;
-    }
-    for (int j=0;j<3;j++) mpi_nxsplit[j]=pow(2.0,mpi_nxsplit[j]);
-    for (int j=0;j<3;j++) mpi_dxsplit[mpi_ideltax[j]]=deltax[mpi_ideltax[j]]/mpi_nxsplit[mpi_ideltax[j]];
-
-    //set boundaries spatial boundaries of a given threads domain
-    for (int k=0;k<mpi_nxsplit[mpi_ideltax[2]];k++) {
-        for (int j=0;j<mpi_nxsplit[mpi_ideltax[1]];j++) {
-            for (int i=0;i<mpi_nxsplit[mpi_ideltax[0]];i++) {
-                int ix=mpi_ideltax[0],iy=mpi_ideltax[1],iz=mpi_ideltax[2];
-                int mpitasknum=i+j*mpi_nxsplit[ix]+k*(mpi_nxsplit[ix]*mpi_nxsplit[iy]);
-                mpi_domain[mpitasknum].bnd[ix][0]=mpi_xlim[ix][0]+i*mpi_dxsplit[ix];mpi_domain[mpitasknum].bnd[ix][1]=mpi_domain[mpitasknum].bnd[ix][0]+mpi_dxsplit[ix];
-                mpi_domain[mpitasknum].bnd[iy][0]=mpi_xlim[iy][0]+j*mpi_dxsplit[iy];mpi_domain[mpitasknum].bnd[iy][1]=mpi_domain[mpitasknum].bnd[iy][0]+mpi_dxsplit[iy];
-                mpi_domain[mpitasknum].bnd[iz][0]=mpi_xlim[iz][0]+k*mpi_dxsplit[iz];mpi_domain[mpitasknum].bnd[iz][1]=mpi_domain[mpitasknum].bnd[iz][0]+mpi_dxsplit[iz];
+        //for all the cells along the boundary of axis with the third split axis (smallest variance)
+        //set the domain limits to the sims limits
+        int ix=mpi_ideltax[0],iy=mpi_ideltax[1],iz=mpi_ideltax[2];
+        int mpitasknum;
+        for (j=0;j<mpi_nxsplit[iy];j++) {
+            for (i=0;i<mpi_nxsplit[ix];i++) {
+                mpitasknum=i+j*mpi_nxsplit[ix]+0*(mpi_nxsplit[ix]*mpi_nxsplit[iy]);
+                mpi_domain[mpitasknum].bnd[iz][0]=mpi_xlim[iz][0];
+                mpitasknum=i+j*mpi_nxsplit[ix]+(mpi_nxsplit[iz]-1)*(mpi_nxsplit[ix]*mpi_nxsplit[iy]);
+                mpi_domain[mpitasknum].bnd[iz][1]=mpi_xlim[iz][1];
             }
         }
-    }
-    */
-    cout<<"MPI Domains are: "<<endl;
-    for (int j=0;j<NProcs;j++) {
-        cout<<"ThisTask= "<<j<<" :: ";
-        cout.precision(10);for (int k=0;k<3;k++) cout<<k<<" "<<mpi_domain[j].bnd[k][0]<<" "<<mpi_domain[j].bnd[k][1]<<" | ";cout<<endl;
-    }
+        //here for domains along second axis
+        for (k=0;k<mpi_nxsplit[iz];k++) {
+            for (i=0;i<mpi_nxsplit[ix];i++) {
+                mpitasknum=i+0*mpi_nxsplit[ix]+k*(mpi_nxsplit[ix]*mpi_nxsplit[iy]);
+                mpi_domain[mpitasknum].bnd[iy][0]=mpi_xlim[iy][0];
+                mpitasknum=i+(mpi_nxsplit[iy]-1)*mpi_nxsplit[ix]+k*(mpi_nxsplit[ix]*mpi_nxsplit[iy]);
+                mpi_domain[mpitasknum].bnd[iy][1]=mpi_xlim[iy][1];
+            }
+        }
+        //finally along axis with largest variance
+        for (k=0;k<mpi_nxsplit[iz];k++) {
+            for (j=0;j<mpi_nxsplit[iy];j++) {
+                mpitasknum=0+j*mpi_nxsplit[ix]+k*(mpi_nxsplit[ix]*mpi_nxsplit[iy]);
+                mpi_domain[mpitasknum].bnd[ix][0]=mpi_xlim[ix][0];
+                mpitasknum=(mpi_nxsplit[ix]-1)+j*mpi_nxsplit[ix]+k*(mpi_nxsplit[ix]*mpi_nxsplit[iy]);
+                mpi_domain[mpitasknum].bnd[ix][1]=mpi_xlim[ix][1];
+            }
+        }
+        //here use the three different histograms to define the boundary
+        int start[3],end[3];
+        Double_t bndval[3],binsum[3],lastbin;
+        start[0]=start[1]=start[2]=0;
+        for (i=0;i<mpi_nxsplit[ix];i++) {
+            bndval[0]=(mpi_xlim[ix][1]-mpi_xlim[ix][0])*(Double_t)(i+1)/(Double_t)mpi_nxsplit[ix];
+            if(i<mpi_nxsplit[ix]-1) {
+            for (j=0;j<mpi_nxsplit[iy];j++) {
+                for (k=0;k<mpi_nxsplit[iz];k++) {
+                    //define upper limit
+                    mpitasknum=i+j*mpi_nxsplit[ix]+k*(mpi_nxsplit[ix]*mpi_nxsplit[iy]);
+                    mpi_domain[mpitasknum].bnd[ix][1]=bndval[0];
+                    //define lower limit
+                    mpitasknum=(i+1)+j*mpi_nxsplit[ix]+k*(mpi_nxsplit[ix]*mpi_nxsplit[iy]);
+                    mpi_domain[mpitasknum].bnd[ix][0]=bndval[0];
+                }
+            }
+            }
+            //now for secondary splitting
+            if (mpi_nxsplit[iy]>1)
+            for (j=0;j<mpi_nxsplit[iy];j++) {
+                bndval[1]=(mpi_xlim[iy][1]-mpi_xlim[iy][0])*(Double_t)(j+1)/(Double_t)mpi_nxsplit[iy];
+                if(j<mpi_nxsplit[iy]-1) {
+                for (k=0;k<mpi_nxsplit[iz];k++) {
+                    mpitasknum=i+j*mpi_nxsplit[ix]+k*(mpi_nxsplit[ix]*mpi_nxsplit[iy]);
+                    mpi_domain[mpitasknum].bnd[iy][1]=bndval[1];
+                    mpitasknum=i+(j+1)*mpi_nxsplit[ix]+k*(mpi_nxsplit[ix]*mpi_nxsplit[iy]);
+                    mpi_domain[mpitasknum].bnd[iy][0]=bndval[1];
+                }
+                }
+                if (mpi_nxsplit[iz]>1)
+                for (k=0;k<mpi_nxsplit[iz];k++) {
+                    bndval[2]=(mpi_xlim[iz][1]-mpi_xlim[iz][0])*(Double_t)(k+1)/(Double_t)mpi_nxsplit[iz];
+                    if (k<mpi_nxsplit[iz]-1){
+                    mpitasknum=i+j*mpi_nxsplit[ix]+k*(mpi_nxsplit[ix]*mpi_nxsplit[iy]);
+                    mpi_domain[mpitasknum].bnd[iz][1]=bndval[2];
+                    mpitasknum=i+j*mpi_nxsplit[ix]+(k+1)*(mpi_nxsplit[ix]*mpi_nxsplit[iy]);
+                    mpi_domain[mpitasknum].bnd[iz][0]=bndval[2];
+                    }
+                }
+            }
+        }
+        cout<<"Initial MPI Domains are: "<<endl;
+        for (int j=0;j<NProcs;j++) {
+            cout<<"ThisTask= "<<j<<" :: ";
+            cout.precision(10);for (int k=0;k<3;k++) cout<<k<<" "<<mpi_domain[j].bnd[k][0]<<" "<<mpi_domain[j].bnd[k][1]<<" | ";cout<<endl;
+        }
     }
     //broadcast data
     MPI_Bcast(mpi_domain, NProcs*sizeof(MPI_Domain), MPI_BYTE, 0, MPI_COMM_WORLD);
-
 }
 
 
@@ -128,6 +192,7 @@ void MPIDomainExtent(Options &opt)
 
 void MPIDomainDecomposition(Options &opt)
 {
+    MPIInitialDomainDecomposition();
     if(opt.inputtype==IOTIPSY) MPIDomainDecompositionTipsy(opt);
     else if (opt.inputtype==IOGADGET) MPIDomainDecompositionGadget(opt);
     else if (opt.inputtype==IORAMSES) MPIDomainDecompositionRAMSES(opt);
