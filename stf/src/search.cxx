@@ -1365,7 +1365,8 @@ private(i,tid)
     //ONCE ALL substructures are found, search for cores of major mergers with minimum size set by cell size since grid is quite large after bg search
     //for missing large substructure cores
 
-    if(opt.iHaloCoreSearch>0&&((!opt.iSingleHalo&&sublevel<=maxhalocoresublevel)||(opt.iSingleHalo&&sublevel==0)))
+    //if(opt.iHaloCoreSearch>0&&((!opt.iSingleHalo&&sublevel<=maxhalocoresublevel)||(opt.iSingleHalo&&sublevel==0)))
+    if(opt.iHaloCoreSearch>0)
     {
         if (opt.iverbose>=2) cout<<ThisTask<<" beginning 6dfof core search to find multiple cores"<<endl;
         bgoffset=1;
@@ -1473,8 +1474,8 @@ private(i,tid)
                 if (minsize<opt.MinSize) minsize=opt.MinSize;
                 dispvaltot*=dispval;
                 //we adjust the particles potentials so as to ignore already tagged particles using FOFcheckbg
-                //here since loop just iterates to search the largest core, we just set all particles with pfofbgnew[i]==1
-                for (i=0;i<nsubset;i++) Partsubset[i].SetPotential((pfofbgnew[Partsubset[i].GetID()]!=1)+(pfof[Partsubset[i].GetID()]>0));
+                //here since loop just iterates to search the largest core, we just set all previously tagged particles not belonging to main core as 1
+                for (i=0;i<nsubset;i++) Partsubset[i].SetPotential((pfofbgnew[Partsubset[i].GetID()]>1)+(pfof[Partsubset[i].GetID()]>0));
                 pfofbg=tree->FOFCriterion(fofcmp,param,numgroupsbg,minsize,iorder,icheck,FOFcheckbg);
                 //now if numgroupsbg is greater than one, need to update the pfofbgnew array
                 if (numgroupsbg>1) {
@@ -1745,7 +1746,7 @@ private(i,tid,Pval,D2,dval,mval,pid)
                     for (int k=0;k<6;k++) dist(k,0)=Pval->GetPhase(k)-cmphase[1](k,0);
                     dval=(dist.Transpose()*invdisp[1]*dist)(0,0);
                     pfofbg[pid]=1;
-                    for (int j=2;j<=numgroupsbg;j++) {
+                    for (int j=2;j<=numgroupsbg;j++) if (mcore[j]>0){
                         for (int k=0;k<6;k++) dist(k,0)=Pval->GetPhase(k)-cmphase[j](k,0);
                         D2=(dist.Transpose()*invdisp[j]*dist)(0,0);
                         if (dval>D2) {dval=D2;mval=mcore[j];pfofbg[pid]=j;}
