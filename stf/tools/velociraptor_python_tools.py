@@ -273,7 +273,7 @@ def ReadHaloMergerTree(treefilename,ibinary=0,iverbose=0):
         tree=[{"haloID": [], "Num_progen": [], "Progen": []} for i in range(numsnap)]
         offset=0
         totalnumprogen=0
-        for i in range(numsnap-1):
+        for i in range(numsnap):
             [snapval,numhalos]=treefile.readline().strip().split('\t')
             snapval=int(snapval);numhalos=int(numhalos)
             #if really verbose
