@@ -2233,11 +2233,15 @@ private(i,weight)
 ///calculate the phase-space dispersion tensor
 void CalcPhaseSigmaTensor(const Int_t n, Particle *p, GMatrix &eigenvalues, GMatrix& eigenvec, GMatrix &I, int itype)
 {
+    CalcPhaseSigmaTensor(n, p,  I, itype);
+    I.Eigenvalvec(eigenvalues, eigenvec);
+}
+
+void CalcPhaseSigmaTensor(const Int_t n, Particle *p, GMatrix &I, int itype) {
     Double_t det,weight;
     Double_t Ixx,Iyy,Izz,Ixy,Ixz,Iyz;
     Double_t Ivxvx,Ivyvy,Ivzvz,Ivxvy,Ivxvz,Ivyvz;
     Double_t Ixvx,Iyvx,Izvx,Ixvy,Iyvy,Izvy,Ixvz,Iyvz,Izvz;
-    GMatrix e(6,1);
     I=GMatrix(6,6);
     Int_t i;
     Ixx=Iyy=Izz=Ixy=Ixz=Iyz=0.;
@@ -2322,7 +2326,6 @@ private(i,weight)
     }
 #endif
     I=I*(1.0/mtot);
-    I.Eigenvalvec(e, eigenvec);
 }
 
 ///calculate the weighted reduced inertia tensor assuming particles are the same mass
