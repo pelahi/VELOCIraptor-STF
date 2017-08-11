@@ -74,7 +74,7 @@ void GetArgs(int argc, char *argv[], Options &opt)
                 NumArgs += 2;
                 break;
             case 'O':
-                opt.outputformat = atoi(optarg);
+                opt.outdataformat = atoi(optarg);
                 NumArgs += 2;
                 break;
             case 'N':
@@ -209,7 +209,7 @@ void usage(void)
     cerr<<"-N <if output is split between multiple files due to mpi, number of files written ("<<opt.nmpifiles<<")>\n";
     cerr<<"-c <produce cross catalog match (0 halo tree ,1 cross catalog ,2 full graph) default ("<<opt.icatalog<<")\n";
     cerr<<"-o <output filename>\n";
-    cerr<<"-O <output format>\n";
+    cerr<<"-O <data written (0 is normal, 1 includes merits)>\n";
     cerr<<" ========================= "<<endl<<endl;
 
     cerr<<" ========================= "<<endl;

@@ -231,6 +231,8 @@ struct Options
 
     ///output format
     int outputformat;
+    ///format of data written
+    int outdataformat;
 
     ///\name io format flags for basic format, whether data split into multiple files, binary, and field objects separate
     //@{
@@ -305,6 +307,7 @@ struct Options
         haloidval=0;
         idcorrectflag=0;
         outputformat=OUTASCII;
+        outdataformat=0;
         haloidoffset=0;
 
         particle_frac=0.2;

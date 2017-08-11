@@ -229,7 +229,7 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
                     Fout.open(fnamempi,ios::out | ios::app);
                 }
                 if (opt.iverbose)cout<<ThisTask<<" starting to write "<<fnamempi<<" for "<<iend<<" down to "<<istart<<flush<<endl;
-                if (opt.outputformat==0) {
+                if (opt.outdataformat==0) {
                 for (int i=opt.numsnapshots-1;i>0;i--) if (i>=istart && i<iend) {
                     Fout<<i+opt.snapshotvaloffset<<"\t"<<h[i].numhalos<<endl;
                     for (int j=0;j<h[i].numhalos;j++) {
@@ -273,7 +273,7 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
             Fout<<opt.numsnapshots<<endl;
             Fout<<opt.description<<endl;
             Fout<<opt.TotalNumberofHalos<<endl;
-            if (opt.outputformat==0) {
+            if (opt.outdataformat==0) {
             for (int i=opt.numsnapshots-1;i>0;i--) {
                 Fout<<i+opt.snapshotvaloffset<<"\t"<<h[i].numhalos<<endl;
                 for (int j=0;j<h[i].numhalos;j++) {
@@ -415,7 +415,7 @@ void WriteHaloGraph(Options &opt, ProgenitorData **p, DescendantData **d, HaloTr
     Fout<<opt.numsnapshots<<endl;
     Fout<<opt.description<<endl;
     Fout<<opt.TotalNumberofHalos<<endl;
-    if (opt.outputformat==0) {
+    if (opt.outdataformat==0) {
     for (int i=opt.numsnapshots-1;i>=0;i--) {
         Fout<<i+opt.snapshotvaloffset<<"\t"<<h[i].numhalos<<endl;
         for (int j=0;j<h[i].numhalos;j++) {
@@ -455,7 +455,7 @@ void WriteCrossComp(Options &opt, ProgenitorData **p, HaloTreeData *h) {
     Fout.open(fname,ios::out);
     Fout<<opt.description<<endl;
     Fout<<opt.TotalNumberofHalos<<endl;
-    if (opt.outputformat==0) {
+    if (opt.outdataformat==0) {
     for (int i=opt.numsnapshots-1;i>0;i--) {
         Fout<<i<<"\t"<<h[i].numhalos<<endl;
         for (int j=0;j<h[i].numhalos;j++) {
@@ -466,7 +466,7 @@ void WriteCrossComp(Options &opt, ProgenitorData **p, HaloTreeData *h) {
         }
     }
     }
-    else if (opt.outputformat==1) {
+    else if (opt.outdataformat==1) {
     for (int i=opt.numsnapshots-1;i>0;i--) {
         Fout<<i<<"\t"<<h[i].numhalos<<endl;
         for (int j=0;j<h[i].numhalos;j++) {
