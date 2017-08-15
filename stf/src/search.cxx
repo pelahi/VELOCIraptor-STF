@@ -790,7 +790,7 @@ Int_t* SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Part
 #endif
 
     //set the maximum sublevel for halo core search. Unless star particles really should only be doing this at first sublevel
-    maxhalocoresublevel=1;
+    maxhalocoresublevel=opt.maxnlevelcoresearch;
     if (opt.partsearchtype==PSTSTAR) maxhalocoresublevel=100;
 
     int minsize=opt.MinSize;
@@ -1162,7 +1162,7 @@ private(i,tid)
         GridCell *grid;
         Double_t nf, ncl=opt.Ncell;
         //adjust ncellfac locally
-        nf=(opt.Ncellfac*8.0,0.1);
+        nf=(opt.Ncellfac*8.0,MAXCELLFRACTION);
         opt.Ncell=nf*nsubset;
 
         //ONLY calculate grid quantities if substructures have been found
@@ -1188,7 +1188,7 @@ private(i,tid)
             param[1]=(opt.ellxscale*opt.ellxscale)*(opt.ellphys*opt.ellphys)*(opt.ellxfac*opt.ellxfac);
             param[6]=param[1];
             //velocity linking length from average sigmav from grid
-            param[7]=opt.HaloSigmaV;
+            param[7]=opt.HaloLocalSigmaV;
             param[8]=cos(opt.thetaopen*M_PI);
             param[9]=opt.ellthreshold*opt.ellfac;
             if (opt.iverbose) {
@@ -1365,8 +1365,7 @@ private(i,tid)
     //ONCE ALL substructures are found, search for cores of major mergers with minimum size set by cell size since grid is quite large after bg search
     //for missing large substructure cores
 
-    //if(opt.iHaloCoreSearch>0&&((!opt.iSingleHalo&&sublevel<=maxhalocoresublevel)||(opt.iSingleHalo&&sublevel==0)))
-    if(opt.iHaloCoreSearch>0)
+    if(opt.iHaloCoreSearch>0&&((!opt.iSingleHalo&&sublevel<=maxhalocoresublevel)||(opt.iSingleHalo&&sublevel==0)))
     {
         if (opt.iverbose>=2) cout<<ThisTask<<" beginning 6dfof core search to find multiple cores"<<endl;
         bgoffset=1;
@@ -1406,6 +1405,8 @@ private(i,tid)
                 param[1] = (opt.ellxscale * opt.ellphys * opt.ellhalo6dxfac * opt.halocorexfac);
             else
                 param[1] = (opt.ellxscale * opt.ellphys * opt.ellhalophysfac * opt.halocorexfac);
+            //if at a sublevel then start at a higher density threshold
+            param[1] *= pow(opt.halocorexfac,sublevel-1);
             param[1] = param[1] * param[1];
             param[6] = param[1];
             //velocity linking length from average sigmav from FINE SCALE grid
@@ -1509,25 +1510,28 @@ private(i,tid)
             param[7]=halocoreveldisp;
         }
 
-        //now grow the cores
         if (numgroupsbg>=bgoffset+1) {
             if (opt.iverbose>=2) cout<<"Number of cores: "<<numgroupsbg<<endl;
             //if cores are found, two options
             //a pnumcores pointer is passed, store the number of cores in this pointer assumes halo ids will not be reordered, making it easy to flag cores
             //if opt.iHaloCoreSearch==2 then start searching the halo to identify which particles belong to which core by linking particles to their closest
             //tagged neighbour in phase-space.
-            Int_t ng=numgroups+(numgroupsbg-bgoffset),oldng=numgroups;
+            //Int_t ng=numgroups+(numgroupsbg-bgoffset),oldng=numgroups;
             if(pnumcores!=NULL) *pnumcores=numgroupsbg;
             if (opt.iHaloCoreSearch>=2) {
                 HaloCoreGrowth(opt, nsubset, Partsubset, pfof, pfofbg, numgroupsbg, param,dispfac,numactiveloops,corelevel,nthreads);
-                if (numgroupsbg>=bgoffset+1) for (i=0;i<nsubset;i++) if (pfofbg[i]>bgoffset) pfof[i]=oldng+(pfofbg[i]-bgoffset);
-                if (opt.iverbose>=2) cout<<ThisTask<<": After 6dfof core search and assignment there are "<< ng<<" groups"<<endl;
+                if(pnumcores!=NULL) *pnumcores=numgroupsbg;
+                if (numgroupsbg>=bgoffset+1) {
+                    for (i=0;i<nsubset;i++) if (pfofbg[i]>bgoffset) pfof[i]=numgroups+(pfofbg[i]-bgoffset);
+                    numgroups+=numgroupsbg-bgoffset;
+                }
+                if (opt.iverbose>=2) cout<<ThisTask<<": After 6dfof core search and assignment there are "<<numgroups<<" groups"<<endl;
             }
-            numgroups=ng;
         }
         else {
             if (opt.iverbose>=2) cout<<ThisTask<<": has found no excess cores indicating mergers"<<endl;
         }
+
         delete[] pfofbg;
     }
 
@@ -1648,11 +1652,11 @@ void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *&Partsubset, In
     Int_t *ncore=new Int_t[numgroupsbg+1];
     Int_t newnumgroupsbg=0,*newcore=new Int_t[numgroupsbg+1];
     int nsearch=opt.Nvel;
+    int mincoresize;
     int tid,i;
     Int_t **nnID;
     Double_t **dist2;
     PriorityQueue *pq;
-    Double_t *blahcoredist=new Double_t [numgroupsbg+1];
     Int_t nactivepart=nsubset;
 
     for (i=0;i<=numgroupsbg;i++)ncore[i]=mcore[i]=0;
@@ -1719,6 +1723,8 @@ void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *&Partsubset, In
 
             //if there are no active cores then return nothing
             if (nactive==0) {
+                delete[] mcore;
+                delete[] ncore;
                 numgroupsbg=0;
                 return;
             }
@@ -1919,25 +1925,43 @@ private(i,tid,Pval,x1,D2,dval,mval,pid,pidcore)
             delete[] dist2;
         }
         //now that particles assigned to cores, remove if core too small
+
+        if (opt.partsearchtype!=PSTSTAR) mincoresize=max((Int_t)(nsubset*MAXCELLFRACTION/2.0),opt.MinSize);
+        else mincoresize=opt.MinSize;
+
         for (i=1;i<=numgroupsbg;i++) ncore[i]=0;
         for (i=0;i<nsubset;i++) {
             if (pfofbg[i]>0 && mcore[pfofbg[i]]==0) pfofbg[i]=0;
             ncore[pfofbg[i]]++;
         }
         pq=new PriorityQueue(numgroupsbg);
+        newnumgroupsbg=0;
         for (i=1;i<=numgroupsbg;i++){
-            if (ncore[i]<opt.MinSize) ncore[i]=0;
+            if (ncore[i]<mincoresize) ncore[i]=0;
+            else newnumgroupsbg++;
             pq->Push(i,(Double_t)ncore[i]);
         }
+        
+        if (newnumgroupsbg<=1) {
+            numgroupsbg=0;
+            delete pq;
+            delete[] mcore;
+            delete[] ncore;
+            delete[] newcore;
+            return;
+        }
+        newnumgroupsbg=0;
         for (i=1;i<=numgroupsbg;i++){
-            if (pq->TopPriority()>=opt.MinSize) newcore[pq->TopQueue()]=++newnumgroupsbg;
+            if (pq->TopPriority()>=mincoresize) newcore[pq->TopQueue()]=++newnumgroupsbg;
             pq->Pop();
         }
         for (i=0;i<nsubset;i++) {
             pid=Partsubset[i].GetID();
             if (pfofbg[pid]>0 && ncore[pfofbg[pid]]>0) pfofbg[pid]=newcore[pfofbg[pid]];
+            else if  (pfofbg[pid]>0 && ncore[pfofbg[pid]]==0) pfofbg[pid]=0;
         }
         numgroupsbg=newnumgroupsbg;
+        delete pq;
         delete[] mcore;
         delete[] ncore;
         delete[] newcore;
@@ -2121,9 +2145,8 @@ void SearchSubSub(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_
                 FillTreeGrid(opt, subnumingroup[i], ngrid, tree, subPart, grid);
                 gvel=GetCellVel(opt,subnumingroup[i],subPart,ngrid,grid);
                 gveldisp=GetCellVelDisp(opt,subnumingroup[i],subPart,ngrid,grid,gvel);
-                /*opt.HaloSigmaV=0;for (int j=0;j<ngrid;j++) opt.HaloSigmaV+=pow(gveldisp[j].Det(),1./3.);opt.HaloSigmaV/=(double)ngrid;
-                //store the maximum halo velocity scale
-                if (opt.HaloSigmaV>opt.HaloVelDispScale) opt.HaloVelDispScale=opt.HaloSigmaV;*/
+                opt.HaloLocalSigmaV=0;for (int j=0;j<ngrid;j++) opt.HaloLocalSigmaV+=pow(gveldisp[j].Det(),1./3.);opt.HaloLocalSigmaV/=(double)ngrid;
+
                 Matrix eigvec(0.),I(0.);
                 Double_t sigma2x,sigma2y,sigma2z;
                 CalcVelSigmaTensor(subnumingroup[i], subPart, sigma2x, sigma2y, sigma2z, eigvec, I);
@@ -2133,7 +2156,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_
                 GetVelocityDensity(opt,subnumingroup[i],subPart);
 #endif
                 GetDenVRatio(opt,subnumingroup[i],subPart,ngrid,grid,gvel,gveldisp);
-                int blah=GetOutliersValues(opt,subnumingroup[i],subPart,sublevel);
+                GetOutliersValues(opt,subnumingroup[i],subPart,sublevel);
                 opt.idenvflag++;//largest field halo used to deteremine statistics of ratio
             }
             //otherwise only need to calculate a velocity scale for merger separation
@@ -2141,7 +2164,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_
                 Matrix eigvec(0.),I(0.);
                 Double_t sigma2x,sigma2y,sigma2z;
                 CalcVelSigmaTensor(subnumingroup[i], subPart, sigma2x, sigma2y, sigma2z, eigvec, I);
-                opt.HaloSigmaV=pow(sigma2x*sigma2y*sigma2z,1.0/3.0);
+                opt.HaloLocalSigmaV=opt.HaloSigmaV=pow(sigma2x*sigma2y*sigma2z,1.0/3.0);
             }
             subpfof=SearchSubset(opt,subnumingroup[i],subnumingroup[i],subPart,subngroup[i],sublevel,&numcores[i]);
             //now if subngroup>0 change the pfof ids of these particles in question and see if there are any substrucures that can be searched again.

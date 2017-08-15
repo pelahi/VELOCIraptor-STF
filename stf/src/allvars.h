@@ -163,6 +163,8 @@ using namespace NBody;
 #define  CELLSPLITNUM 8
 #define  MINSUBSIZE MINCELLSIZE*CELLSPLITNUM
 #define  MAXSUBLEVEL 8
+/// maximum fraction a cell can take of a halo
+#define  MAXCELLFRACTION 0.1
 //@}
 //@}
 
@@ -440,7 +442,7 @@ struct Options
     //@{
     ///\name factors used to check for halo mergers, large background substructures and store the velocity scale when searching for associated baryon substructures
     //@{
-    Double_t HaloMergerSize,HaloMergerRatio,HaloSigmaV,HaloVelDispScale;
+    Double_t HaloMergerSize,HaloMergerRatio,HaloSigmaV,HaloVelDispScale,HaloLocalSigmaV;
     Double_t fmergebg;
     //@}
     ///flag indicating a single halo is passed or must run search for FOF haloes
@@ -474,6 +476,8 @@ struct Options
     //@{
     /// run halo core search for mergers
     int iHaloCoreSearch;
+    ///maximum sublevel at which we search for phase-space cores
+    int maxnlevelcoresearch;
     ///parameters associated with phase-space search for cores of mergers
     Double_t halocorexfac, halocorevfac, halocorenfac, halocoresigmafac;
     ///x and v space linking lengths calculated for each object
@@ -598,6 +602,7 @@ struct Options
         iHaloCoreSearch=0;
         iAdaptiveCoreLinking=0;
         iPhaseCoreGrowth=1;
+        maxnlevelcoresearch=5;
         halocorexfac=0.5;
         halocorevfac=2.0;
         halocorenfac=0.1;
