@@ -1925,10 +1925,8 @@ private(i,tid,Pval,x1,D2,dval,mval,pid,pidcore)
             delete[] dist2;
         }
         //now that particles assigned to cores, remove if core too small
-
-        if (opt.partsearchtype!=PSTSTAR) mincoresize=max((Int_t)(nsubset*MAXCELLFRACTION/2.0),opt.MinSize);
+        if (opt.partsearchtype!=PSTSTAR) mincoresize=max((Int_t)(nsubset*MAXCELLFRACTION/2.0),(Int_t)opt.MinSize);
         else mincoresize=opt.MinSize;
-
         for (i=1;i<=numgroupsbg;i++) ncore[i]=0;
         for (i=0;i<nsubset;i++) {
             if (pfofbg[i]>0 && mcore[pfofbg[i]]==0) pfofbg[i]=0;
@@ -1941,7 +1939,7 @@ private(i,tid,Pval,x1,D2,dval,mval,pid,pidcore)
             else newnumgroupsbg++;
             pq->Push(i,(Double_t)ncore[i]);
         }
-        
+        //if no large enough cores are left, then halt
         if (newnumgroupsbg<=1) {
             numgroupsbg=0;
             delete pq;
