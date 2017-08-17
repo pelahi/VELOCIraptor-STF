@@ -45,7 +45,7 @@ void MPIDomainExtentRAMSES(Options &opt){
     RAMSES_Header ramses_header_info;
     string stringbuf;
     if (ThisTask==0) {
-    sprintf(buf,"info_%s.txt",opt.fname);
+    sprintf(buf,"%s/info_%s.txt",opt.fname,opt.ramsessnapname);
     Framses.open(buf, ios::in);
     getline(Framses,stringbuf);
     getline(Framses,stringbuf);

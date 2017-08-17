@@ -275,7 +275,7 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
     // Compute Mass of DM particles in RAMSES code units
     //
     fstream Finfo;
-    sprintf(buf1,"%s/info_%s.txt", opt.ramsessnapname, fname);
+    sprintf(buf1,"%s/info_%s.txt", fname,opt.ramsessnapname);
     Finfo.open(buf1, ios::in);
     getline(Finfo,stringbuf);
     getline(Finfo,stringbuf);
