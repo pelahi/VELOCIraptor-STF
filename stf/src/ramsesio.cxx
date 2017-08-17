@@ -645,7 +645,6 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
 #ifdef USEMPI
     }
     MPI_Bcast (&dmp_mass, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-    MPI_Barrier (MPI_COMM_WORLD);
 #endif
     //if not only gas being searched open particle data
     count2=bcount2=0;
@@ -814,7 +813,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                         MPI_Send(&Pbuf[ibuf*BufSize],sizeof(Particle)*Nbuf[ibuf],MPI_BYTE,ibuf,ibuf,MPI_COMM_WORLD);
                         Nbuf[ibuf]=0;
                     }
-                    else if (Nbuf[ibuf]==BufSize&&ibuf<opt.nsnapread) {
+                    else if (Nbuf[ibuf]==BufSize&&ireadtask[ibuf]>=0) {
                         Nbuf[ibuf]=0;
                     }
                 }
