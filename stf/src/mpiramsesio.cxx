@@ -130,8 +130,15 @@ void MPINumInDomainRAMSES(Options &opt)
         int dummy,byteoffset;
         Int_t chunksize = opt.inputbufsize, nchunk;
         RAMSESFLOAT *xtempchunk, *mtempchunk, *agetempchunk;
-        double dmp_mass;
-        int n_out_of_bounds,ndark,nstar,nghost;
+        Fpart      = new fstream[opt.num_files];
+        Fpartmass  = new fstream[opt.num_files];
+        Fpartage   = new fstream[opt.num_files];
+        header     = new RAMSES_Header[opt.num_files];
+        double dmp_mass,OmegaM, OmegaB;
+        int n_out_of_bounds = 0;
+        int ndark  = 0;
+        int nstar  = 0;
+        int nghost = 0;
         int *ireadfile,*ireadtask,*readtaskID;
         ireadtask=new int[NProcs];
         readtaskID=new int[opt.nsnapread];
@@ -143,33 +150,33 @@ void MPINumInDomainRAMSES(Options &opt)
         for (int j=0;j<NProcs;j++) Nbuf[j]=0;
         for (int j=0;j<NProcs;j++) Nbaryonbuf[j]=0;
 
-        if (ireadtask[ThisTask]>=0) {
-
-            Fpart      = new fstream[opt.num_files];
-            Fpartmass  = new fstream[opt.num_files];
-            Fpartage   = new fstream[opt.num_files];
-            header     = new RAMSES_Header[opt.num_files];
-            sprintf(buf1,"%s/part_%s.out%05d",opt.fname,opt.ramsessnapname,1);
-            sprintf(buf2,"%s/part_%s.out",opt.fname,opt.ramsessnapname);
-            if (FileExists(buf1)) sprintf(buf,"%s",buf1);
-            else if (FileExists(buf2)) sprintf(buf,"%s",buf2);
-            Framses.open(buf, ios::binary|ios::in);
-
-            //skip part file till you get to masses
-            for (j = 0; j < 14; j++)
-            {
-                Framses.read((char*)&dummy, sizeof(dummy));
-                Framses.seekg(dummy,ios::cur);
-                Framses.read((char*)&dummy, sizeof(dummy));
-            }
-            // Read Mass
-            Framses.read((char*)&dummy, sizeof(dummy));
-            Framses.read((char*)&dmp_mass, sizeof(double));
-            Framses.close();
-            MPISetFilesRead(opt,ireadfile,ireadtask);
+        if (ThisTask == 0) 
+        {
+          //
+          // Compute Mass of DM particles in RAMSES code units
+          //    
+          fstream Finfo;
+          sprintf(buf1,"%s/info_%s.txt", opt.ramsessnapname, opt.fname);
+          Finfo.open(buf1, ios::in);
+          getline(Finfo,stringbuf);
+          getline(Finfo,stringbuf);
+          getline(Finfo,stringbuf);
+          getline(Finfo,stringbuf);
+          getline(Finfo,stringbuf);
+          getline(Finfo,stringbuf);
+          getline(Finfo,stringbuf);
+          getline(Finfo,stringbuf);
+          getline(Finfo,stringbuf);
+          getline(Finfo,stringbuf);
+          getline(Finfo,stringbuf);
+          Finfo>>stringbuf>>stringbuf>>OmegaM;
+          getline(Finfo,stringbuf);
+          getline(Finfo,stringbuf);
+          getline(Finfo,stringbuf);
+          Finfo>>stringbuf>>stringbuf>>OmegaB;
+          Finfo.close();
+          dmp_mass = 1.0 / (opt.Neff*opt.Neff*opt.Neff) * (OmegaM - OmegaB) / OmegaM;
         }
-        //broadcast the dark matter mass as this will be used to determine
-        //whether particle is dm/star/bh
         MPI_Bcast(&dmp_mass, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
         if (ireadtask[ThisTask]>=0) {
@@ -181,7 +188,6 @@ void MPINumInDomainRAMSES(Options &opt)
                 Fpart[i].open      (buf, ios::binary|ios::in);
                 Fpartmass[i].open  (buf, ios::binary|ios::in);
                 Fpartage[i].open   (buf, ios::binary|ios::in);
-
                 //skip header information in each file save for number in the file
                 //@{
                 byteoffset = 0;
@@ -228,7 +234,7 @@ void MPINumInDomainRAMSES(Options &opt)
                 for (int nn = 0; nn < nchunk; nn++)
                 {
                     //this should be a ghost star particle
-                    if ((mtempchunk[nn] != dmp_mass) && (agetempchunk[nn] == 0.0)) nghost++;
+                    if (fabs((mtempchunk[nn]-dmp_mass)/dmp_mass) > 1e-5 && (agetempchunk[nn] == 0.0)) nghost++;
                     else
                     {
                         xtemp[0] = xtempchunk[nn];
@@ -250,70 +256,55 @@ void MPINumInDomainRAMSES(Options &opt)
 
                         //determine processor this particle belongs on based on its spatial position
                         ibuf = MPIGetParticlesProcessor(xtemp[0],xtemp[1],xtemp[2]);
-                        if (ibuf >= NProcs)
+                        /// Count total number of DM particles, Baryons, etc
+                        //@{
+                        if (opt.partsearchtype == PSTALL)
                         {
-                            cerr <<" Particle is outside mpi domain, might be an issue with reading input file "<<ibuf << " "<<NProcs<<" "<<xtemp[0] << "  " << xtemp[1] << "  " << xtemp[2] << endl;
-                            MPI_Abort(MPI_COMM_WORLD,8);
+                        Nbuf[ibuf]++;
+                        count2++;
                         }
-              /// Count total number of DM particles, Baryons, etc
-              //@{
-              if (opt.partsearchtype == PSTALL)
-              {
-                Nbuf[ibuf]++;
-                count2++;
-              }
-              else
-              {
-                if (opt.partsearchtype == PSTDARK)
-                {
-                  if (typeval == DARKTYPE)
-                  {
-                    Nbuf[ibuf]++;
-                    count2++;
-                  }
-                  else
-                  {
-                    if (opt.iBaryonSearch)
-                    {
-                      Nbaryonbuf[ibuf]++;
-                    }
-                  }
+                        else
+                        {
+                            if (opt.partsearchtype == PSTDARK)
+                            {
+                                if (typeval == DARKTYPE)
+                                {
+                                    Nbuf[ibuf]++;
+                                    count2++;
+                                }
+                                else
+                                {
+                                    if (opt.iBaryonSearch)
+                                    {
+                                        Nbaryonbuf[ibuf]++;
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                if (opt.partsearchtype == PSTSTAR)
+                                {
+                                    if (typeval == STARTYPE)
+                                    {
+                                        Nbuf[ibuf]++;
+                                        count2++;
+                                    }
+                                }
+                            }
+                        }
+                 //@}
                 }
-                else
-                {
-                  if (opt.partsearchtype == PSTSTAR)
-                  {
-                    if (typeval == STARTYPE)
-                    {
-                      Nbuf[ibuf]++;
-                      count2++;
-                    }
-                  }
-                  /// NO GAS AT THIS STAGE
-//                   else
-//                   {
-//                     if (opt.partsearchtype == PSTGAS)
-//                     {
-//                       if (k==GASTYPE)
-//                       {
-//                         Nbuf[ibuf]++;
-//                         count2++;
-//                       }
-//                     }
-//                   }
-                }
-              }
-             //@}
             }
-          }
-          delete[] xtempchunk;
-          delete[] mtempchunk;
-          delete[] agetempchunk;
+            delete[] xtempchunk;
+            delete[] mtempchunk;
+            delete[] agetempchunk;
 
-          Fpart[i].close();
-          Fpartmass[i].close();
-          Fpartage[i].close();
+            Fpart[i].close();
+            Fpartmass[i].close();
+            Fpartage[i].close();
         }
+
+        // now process gas if necessary
 
         }
         //now having read number of particles, run all gather

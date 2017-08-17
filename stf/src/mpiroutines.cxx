@@ -621,6 +621,91 @@ void MPISendParticlesBetweenReadThreads(Options &opt, Particle *&Pbuf, Particle 
     }
 }
 
+void MPISendParticlesBetweenReadThreads(Options &opt, vector<Particle> *&Pbuf, Particle *&Part, int *&ireadtask, int *&readtaskID, Particle *&Pbaryons, MPI_Comm &mpi_comm_read, Int_t *&mpi_nsend_readthread, Int_t *&mpi_nsend_readthread_baryon)
+{
+    if (ireadtask[ThisTask]>=0) {
+        //split the communication into small buffers
+        int icycle=0,ibuf;
+        //maximum send size
+        int maxchunksize=2147483648/opt.nsnapread/sizeof(Particle);
+        int nsend,nrecv,nsendchunks,nrecvchunks,numsendrecv;
+        int sendTask,recvTask;
+        int sendoffset,recvoffset;
+        int isendrecv;
+        int cursendchunksize,currecvchunksize;
+        MPI_Status status;
+        for (ibuf=0;ibuf< opt.nsnapread; ibuf++){
+            //if there are an even number of read tasks, then communicate such that 0 communcates with N-1, 1<->N-2, etc
+            //and moves on to next communication 0<->N-2, 1<->N-3, etc with the communication in chunks
+            //first base on read thread position
+            sendTask=ireadtask[ThisTask];
+            ///map so that 0 <->N-1, 1 <->N-2, etc to start moving to
+            recvTask=abs(opt.nsnapread-1-ibuf-sendTask);
+            //if have cycled passed zero, then need to adjust recvTask
+            if (icycle==1) recvTask=opt.nsnapread-recvTask;
+
+            //if ibuf>0 and now at recvTask=0, then next time, cycle
+            if (ibuf>0 && recvTask==0) icycle=1;
+            //if sendtask!=recvtask, and information needs to be sent, send information
+            if (sendTask!=recvTask && (mpi_nsend_readthread[sendTask * opt.nsnapread + recvTask] > 0 || mpi_nsend_readthread[recvTask * opt.nsnapread + sendTask] > 0)) {
+                nsend=mpi_nsend_readthread[sendTask * opt.nsnapread + recvTask];
+                nrecv=mpi_nsend_readthread[recvTask * opt.nsnapread + sendTask];
+                //calculate how many send/recvs are needed
+                nsendchunks=ceil((double)nsend/(double)maxchunksize);
+                nrecvchunks=ceil((double)nrecv/(double)maxchunksize);
+                numsendrecv=max(nsendchunks,nrecvchunks);
+                //initialize the offset in the particle array
+                sendoffset=0;
+                recvoffset=0;
+                isendrecv=1;
+                do
+                {
+                    //determine amount to be sent
+                    cursendchunksize=min(maxchunksize,nsend-sendoffset);
+                    currecvchunksize=min(maxchunksize,nrecv-recvoffset);
+                    //blocking point-to-point send and receive. Here must determine the appropriate offset point in the local export buffer
+                    //for sending data and also the local appropriate offset in the local the receive buffer for information sent from the local receiving buffer
+                    MPI_Sendrecv(&Pbuf[ireadtask[recvTask]][sendoffset],sizeof(Particle)*cursendchunksize, MPI_BYTE, recvTask, TAG_IO_A+isendrecv,
+                        &Part[Nlocal],sizeof(Particle)*currecvchunksize, MPI_BYTE, recvTask, TAG_IO_A+isendrecv,
+                                mpi_comm_read, &status);
+                    Nlocal+=currecvchunksize;
+                    sendoffset+=cursendchunksize;
+                    recvoffset+=currecvchunksize;
+                    isendrecv++;
+                } while (isendrecv<=numsendrecv);
+            }
+            //if separate baryon search, send baryons too
+            if (opt.iBaryonSearch && opt.partsearchtype!=PSTALL) {
+                nsend=mpi_nsend_readthread_baryon[sendTask * opt.nsnapread + recvTask];
+                nrecv=mpi_nsend_readthread_baryon[recvTask * opt.nsnapread + sendTask];
+                //calculate how many send/recvs are needed
+                nsendchunks=ceil((double)nsend/(double)maxchunksize);
+                nrecvchunks=ceil((double)nrecv/(double)maxchunksize);
+                numsendrecv=max(nsendchunks,nrecvchunks);
+                //initialize the offset in the particle array
+                sendoffset=0;
+                recvoffset=0;
+                isendrecv=1;
+                do
+                {
+                    //determine amount to be sent
+                    cursendchunksize=min(maxchunksize,nsend-sendoffset);
+                    currecvchunksize=min(maxchunksize,nrecv-recvoffset);
+                    //blocking point-to-point send and receive. Here must determine the appropriate offset point in the local export buffer
+                    //for sending data and also the local appropriate offset in the local the receive buffer for information sent from the local receiving buffer
+                    MPI_Sendrecv(&Pbuf[ireadtask[recvTask]][mpi_nsend[ThisTask * NProcs + recvTask]+sendoffset],sizeof(Particle)*cursendchunksize, MPI_BYTE, recvTask, TAG_IO_B+isendrecv,
+                        &Pbaryons[Nlocalbaryon[0]],sizeof(Particle)*currecvchunksize, MPI_BYTE, recvTask, TAG_IO_B+isendrecv,
+                                mpi_comm_read, &status);
+                    Nlocalbaryon[0]+=currecvchunksize;
+                    sendoffset+=cursendchunksize;
+                    recvoffset+=currecvchunksize;
+                    isendrecv++;
+                } while (isendrecv<=numsendrecv);
+            }
+        }
+    }
+}
+
 void MPIGetExportNum(const Int_t nbodies, Particle *&Part, Double_t rdist){
     Int_t i, j,nthreads,nexport=0,nimport=0;
     Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];

@@ -393,6 +393,8 @@ int MPIInDomain(Double_t xsearch[3][2], Double_t bnd[3][2]);
 void MPIReceiveParticlesFromReadThreads(Options &opt, Particle *&Pbuf, Particle *&Part, int *&readtaskID, int *&irecv, int *&mpi_irecvflag, Int_t *&Nlocalthreadbuf, MPI_Request *&mpi_request, Particle *&Pbaryons);
 ///Send/recv particle data read from input files between the various read threads;
 void MPISendParticlesBetweenReadThreads(Options &opt, Particle *&Pbuf, Particle *&Part, Int_t *&nreadoffset, int *&ireadtask, int *&readtaskID, Particle *&Pbaryons, Int_t *&mpi_nsend_baryon);
+///Send/recv particle data stored in vector using the read thread communication domain
+void MPISendParticlesBetweenReadThreads(Options &opt, vector<Particle> *&Pbuf, Particle *&Part, int *&ireadtask, int *&readtaskID, Particle *&Pbaryons, MPI_Comm &mpi_read_comm, Int_t *&mpi_nsend_readthread, Int_t *&mpi_nsend_readthread_baryon);
 //@}
 
 /// \name MPI search related routines

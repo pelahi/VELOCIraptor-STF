@@ -4,8 +4,7 @@
  * \todo need to check if amr file quantity ngrid_current is actually the number of cells in the file as
  * an example fortran code I have been given seems to also use the ngridlevel array, which stores the number of cells
  * at a given resolution level.
- * \todo change the mass for the dark matter particles as it should be Omega_cdm*rho_crit/Ndm^3*Lbox^3 as the mass for dm, though stored is not
- * a meaningful value. For star particles must check what the mass unit is of the stored masses.
+ * \todo need to add in ability for multiple read threads and sends between read threads
  *
  *
  * Edited by:    Rodrigo Ca\~nas
@@ -462,7 +461,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     int lmin=1000000,lmax=0;
     double dmp_mass;
 
-    int ifirstfile=0,*ireadfile,ibuf=0;
+    int ifirstfile=0,*ireadfile,ibuf=0, ibufindex;
     int *ireadtask,*readtaskID;
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
@@ -492,7 +491,9 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
 
 #ifdef USEMPI
     MPI_Status status;
+    MPI_Comm mpi_comm_read;
     Particle *Pbuf;
+    vector<Particle> *Preadbuf;
     //for parallel io
     Int_t BufSize=opt.mpiparticlebufsize;
     Int_t Nlocalbuf,*Nbuf, *Nreadbuf,*nreadoffset;
@@ -500,26 +501,32 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     int *irecv, sendTask,recvTask,irecvflag, *mpi_irecvflag;
     MPI_Request *mpi_request;
     Int_t *mpi_nsend_baryon;
+    Int_t *mpi_nsend_readthread;
+    Int_t *mpi_nsend_readthread_baryon;
     if (opt.iBaryonSearch) mpi_nsend_baryon=new Int_t[NProcs*NProcs];
+    if (opt.nsnapread>1) {
+        mpi_nsend_readthread=new Int_t[opt.nsnapread*opt.nsnapread];
+        if (opt.iBaryonSearch) mpi_nsend_readthread_baryon=new Int_t[opt.nsnapread*opt.nsnapread];
+    }
 
     Nbuf=new Int_t[NProcs];
     nreadoffset=new Int_t[opt.nsnapread];
     ireadtask=new int[NProcs];
     readtaskID=new int[opt.nsnapread];
     MPIDistributeReadTasks(opt,ireadtask,readtaskID);
-
-    int nread;
-    int niread;
-    int nfread;
+    MPI_Comm_split(MPI_COMM_WORLD, (ireadtask[ThisTask]>=0), ThisTask, &mpi_comm_read);
 
     if (ireadtask[ThisTask]>=0)
     {
-        //to temporarily store data from gadget file
+        //to temporarily store data
         Pbuf=new Particle[BufSize*NProcs];
         Nreadbuf=new Int_t[opt.num_files];
         for (int j=0;j<NProcs;j++) Nbuf[j]=0;
-        for (int j=0;j<opt.num_files;j++) Nreadbuf[j]=0;
-
+        for (int j=0;j<opt.nsnapread;j++) Nreadbuf[j]=0;
+        if (opt.nsnapread>1){
+            Preadbuf=new vector<Particle>[opt.nsnapread];
+            for (int j=0;j<opt.nsnapread;j++) Preadbuf[j].reserve(BufSize);
+        }
         //to determine which files the thread should read
         ireadfile=new int[opt.num_files];
         ifirstfile=MPISetFilesRead(opt,ireadfile,ireadtask);
@@ -740,7 +747,8 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
         RAMSES_fortran_read(Fpartmet[i],   mettempchunk);
 
         RAMSES_fortran_read(Fpartid[i],idvalchunk);
-        for (int nn=0;nn<nchunk;nn++) {
+        for (int nn=0;nn<nchunk;nn++)
+        {
             if (fabs((mtempchunk[nn]-dmp_mass)/dmp_mass) > 1e-5 && (agetempchunk[nn] == 0.0))
             {
               //  GHOST PARTIRCLE!!!
@@ -776,24 +784,25 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
             //determine processor this particle belongs on based on its spatial position
             ibuf=MPIGetParticlesProcessor(xtemp[0],xtemp[1],xtemp[2]);
 #endif
-
+            ibufindex=ibuf*BufSize+Nbuf[ibuf];
+            //
             if (opt.partsearchtype==PSTALL) {
 #ifdef USEMPI
-                Pbuf[ibuf*BufSize+Nbuf[ibuf]]=Particle(mtemp*mscale,
+                Pbuf[ibufindex]=Particle(mtemp*mscale,
                     xtemp[0]*lscale,xtemp[1]*lscale,xtemp[2]*lscale,
                     vtemp[0]*opt.V+Hubbleflow*xtemp[0],
                     vtemp[1]*opt.V+Hubbleflow*xtemp[1],
                     vtemp[2]*opt.V+Hubbleflow*xtemp[2],
                     count2,typeval);
-                Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetPID(idval);
+                Pbuf[ibufindex].SetPID(idval);
 #ifdef EXTENDEDFOFINFO
                 if (opt.iextendedoutput)
                 {
-                  Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetOFile(i);
-                  Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetOTask(ThisTask);
-                  Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetOIndex(nn);
-                  Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetPfof6d(0);
-                  Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetPfof6dCore(0);
+                  Pbuf[ibufindex].SetOFile(i);
+                  Pbuf[ibufindex].SetOTask(ThisTask);
+                  Pbuf[ibufindex].SetOIndex(nn);
+                  Pbuf[ibufindex].SetPfof6d(0);
+                  Pbuf[ibufindex].SetPfof6dCore(0);
                 }
 #endif
                 //assume that first sphblock is internal energy
@@ -802,7 +811,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                 Nbuf[ibuf]++;
                 if (ibuf==ThisTask) {
                     Nbuf[ibuf]--;
-                    Part[Nlocal++]=Pbuf[ibuf*BufSize+Nbuf[ibuf]];
+                    Part[Nlocal++]=Pbuf[ibufindex];
                 }
                 else {
                     //before a simple send was done because only Task zero was reading the data
@@ -841,21 +850,21 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
             else if (opt.partsearchtype==PSTDARK) {
                 if (!(typeval==STARTYPE||typeval==BHTYPE)) {
 #ifdef USEMPI
-                    Pbuf[ibuf*BufSize+Nbuf[ibuf]]=Particle(mtemp*mscale,
+                    Pbuf[ibufindex]=Particle(mtemp*mscale,
                         xtemp[0]*lscale,xtemp[1]*lscale,xtemp[2]*lscale,
                         vtemp[0]*opt.V+Hubbleflow*xtemp[0],
                         vtemp[1]*opt.V+Hubbleflow*xtemp[1],
                         vtemp[2]*opt.V+Hubbleflow*xtemp[2],
                         count2,DARKTYPE);
-                    Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetPID(idval);
+                    Pbuf[ibufindex].SetPID(idval);
 #ifdef EXTENDEDFOFINFO
                     if (opt.iextendedoutput)
                     {
-                      Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetOFile(i);
-                      Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetOTask(ThisTask);
-                      Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetOIndex(nn);
-                      Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetPfof6d(0);
-                      Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetPfof6dCore(0);
+                      Pbuf[ibufindex].SetOFile(i);
+                      Pbuf[ibufindex].SetOTask(ThisTask);
+                      Pbuf[ibufindex].SetOIndex(nn);
+                      Pbuf[ibufindex].SetPfof6d(0);
+                      Pbuf[ibufindex].SetPfof6dCore(0);
                     }
 #endif
                     //ensure that store number of particles to be sent to other reading threads
@@ -864,7 +873,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                     //now determine what to do with the particle, local or must send
                     if (ibuf==ThisTask) {
                         Nbuf[ibuf]--;
-                        Part[Nlocal++]=Pbuf[ibuf*BufSize+Nbuf[ibuf]];
+                        Part[Nlocal++]=Pbuf[ibufindex];
                     }
                     else {
                         //if belongs to another mpi thread then see if buffer is full and send with appropriate flag
@@ -874,6 +883,10 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                             Nbuf[ibuf]=0;
                         }
                         else if (Nbuf[ibuf]==BufSize&&ireadtask[ibuf]>=0) {
+                            if (ibuf!=ThisTask) {
+                                if (Nreadbuf[ibuf]==Preadbuf[ireadtask[ibuf]].size()) Preadbuf[ireadtask[ibuf]].resize(Preadbuf[ireadtask[ibuf]].size()+BufSize);
+                                Preadbuf[ireadtask[ibuf]][Nreadbuf[ibuf]]=Pbuf[ibufindex];
+                            }
                             Nbuf[ibuf]=0;
                         }
                     }
@@ -900,31 +913,31 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                 }
                 else if (opt.iBaryonSearch) {
 #ifdef USEMPI
-                    Pbuf[ibuf*BufSize+Nbuf[ibuf]]=Particle(mtemp*mscale,
+                    Pbuf[ibufindex]=Particle(mtemp*mscale,
                         xtemp[0]*lscale,xtemp[1]*lscale,xtemp[2]*lscale,
                         vtemp[0]*opt.V+Hubbleflow*xtemp[0],
                         vtemp[1]*opt.V+Hubbleflow*xtemp[1],
                         vtemp[2]*opt.V+Hubbleflow*xtemp[2],
                         count2);
-                    Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetPID(idval);
+                    Pbuf[ibufindex].SetPID(idval);
 #ifdef EXTENDEDFOFINFO
                     if (opt.iextendedoutput)
                     {
-                      Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetOFile(i);
-                      Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetOTask(ThisTask);
-                      Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetOIndex(nn);
-                      Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetPfof6d(0);
-                      Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetPfof6dCore(0);
+                      Pbuf[ibufindex].SetOFile(i);
+                      Pbuf[ibufindex].SetOTask(ThisTask);
+                      Pbuf[ibufindex].SetOIndex(nn);
+                      Pbuf[ibufindex].SetPfof6d(0);
+                      Pbuf[ibufindex].SetPfof6dCore(0);
                     }
 #endif
-                    if (typeval==STARTYPE) Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetType(STARTYPE);
-                    else if (typeval==BHTYPE) Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetType(BHTYPE);
+                    if (typeval==STARTYPE) Pbuf[ibufindex].SetType(STARTYPE);
+                    else if (typeval==BHTYPE) Pbuf[ibufindex].SetType(BHTYPE);
                     //ensure that store number of particles to be sent to the reading threads
                     if(ireadtask[ibuf]>=0&&ibuf!=ThisTask) Nreadbuf[ibuf]++;
                     Nbuf[ibuf]++;
                     if (ibuf==ThisTask) {
                         Nbuf[ibuf]--;
-                        Pbaryons[Nlocalbaryon[0]++]=Pbuf[ibuf*BufSize+Nbuf[ibuf]];
+                        Pbaryons[Nlocalbaryon[0]++]=Pbuf[ibufindex];
                         if (k==RAMSESSTARTYPE) Nlocalbaryon[2]++;
                         else if (k==RAMSESSINKTYPE) Nlocalbaryon[3]++;
                     }
@@ -935,6 +948,10 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                             Nbuf[ibuf]=0;
                         }
                         else if (Nbuf[ibuf]==BufSize&&ireadtask[ibuf]>=0) {
+                            if (ibuf!=ThisTask) {
+                                if (Nreadbuf[ibuf]==Preadbuf[ireadtask[ibuf]].size()) Preadbuf[ireadtask[ibuf]].resize(Preadbuf[ireadtask[ibuf]].size()+BufSize);
+                                Preadbuf[ireadtask[ibuf]][Nreadbuf[ibuf]]=Pbuf[ibufindex];
+                            }
                             Nbuf[ibuf]=0;
                         }
                     }
@@ -965,7 +982,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
 #ifdef USEMPI
                     //if using MPI, determine proccessor and place in ibuf, store particle in particle buffer and if buffer full, broadcast data
                     //unless ibuf is 0, then just store locally
-                    Pbuf[ibuf*BufSize+Nbuf[ibuf]]=Particle(mtemp*mscale,
+                    Pbuf[ibufindex]=Particle(mtemp*mscale,
                         xtemp[0]*lscale,xtemp[1]*lscale,xtemp[2]*lscale,
                         vtemp[0]*opt.V+Hubbleflow*xtemp[0],
                         vtemp[1]*opt.V+Hubbleflow*xtemp[1],
@@ -973,21 +990,21 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                         count2,STARTYPE);
                     //ensure that store number of particles to be sent to the reading threads
                     if(ireadtask[ibuf]>=0&&ibuf!=ThisTask) Nreadbuf[ibuf]++;
-                    Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetPID(idval);
+                    Pbuf[ibufindex].SetPID(idval);
 #ifdef EXTENDEDFOFINFO
                     if (opt.iextendedoutput)
                     {
-                      Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetOFile(i);
-                      Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetOTask(ThisTask);
-                      Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetOIndex(nn);
-                      Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetPfof6d(0);
-                      Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetPfof6dCore(0);
+                      Pbuf[ibufindex].SetOFile(i);
+                      Pbuf[ibufindex].SetOTask(ThisTask);
+                      Pbuf[ibufindex].SetOIndex(nn);
+                      Pbuf[ibufindex].SetPfof6d(0);
+                      Pbuf[ibufindex].SetPfof6dCore(0);
                     }
 #endif
                     Nbuf[ibuf]++;
                     if (ibuf==ThisTask) {
                         Nbuf[ibuf]--;
-                        Part[Nlocal++]=Pbuf[ibuf*BufSize+Nbuf[ibuf]];
+                        Part[Nlocal++]=Pbuf[ibufindex];
                     }
                     else {
                         if(Nbuf[ibuf]==BufSize&&ireadtask[ibuf]<0) {
@@ -996,6 +1013,10 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                             Nbuf[ibuf]=0;
                         }
                         else if (Nbuf[ibuf]==BufSize&&ireadtask[ibuf]>=0) {
+                            if (ibuf!=ThisTask) {
+                                if (Nreadbuf[ibuf]==Preadbuf[ireadtask[ibuf]].size()) Preadbuf[ireadtask[ibuf]].resize(Preadbuf[ireadtask[ibuf]].size()+BufSize);
+                                Preadbuf[ireadtask[ibuf]][Nreadbuf[ibuf]]=Pbuf[ibufindex];
+                            }
                             Nbuf[ibuf]=0;
                         }
                     }
@@ -1037,6 +1058,13 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
         Fpartlevel[i].close();
         Fpartage[i].close();
         Fpartmet[i].close();
+#ifdef USEMPI
+        //send information between read threads
+        if (opt.nsnapread>1){
+            MPI_Allgather(Nreadbuf, opt.nsnapread, MPI_Int_t, mpi_nsend_readthread, opt.nsnapread, MPI_Int_t, mpi_comm_read);
+            MPISendParticlesBetweenReadThreads(opt, Preadbuf, Part, ireadtask, readtaskID, Pbaryons, mpi_comm_read, mpi_nsend_readthread, mpi_nsend_readthread_baryon);
+        }
+#endif
     }//end of loop over file
 #ifdef USEMPI
     //once finished reading the file if there are any particles left in the buffer broadcast them
@@ -1177,6 +1205,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                                         //determine processor this particle belongs on based on its spatial position
                                         ibuf=MPIGetParticlesProcessor(xpos[0],xpos[1],xpos[2]);
 #endif
+                                        ibufindex=ibuf*BufSize+Nbuf[ibuf];
 
                                         vpos[0]=hydrotempchunk[idim*chunksize*header[i].nvarh+1*chunksize+igrid];
                                         vpos[1]=hydrotempchunk[idim*chunksize*header[i].nvarh+2*chunksize+igrid];
@@ -1188,18 +1217,18 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                                         Ztemp=hydrotempchunk[idim*chunksize*header[i].nvarh+5*chunksize+igrid];
                                         if (opt.partsearchtype==PSTALL) {
 #ifdef USEMPI
-                                            Pbuf[ibuf*BufSize+Nbuf[ibuf]]=Particle(mtemp*mscale,
+                                            Pbuf[ibufindex]=Particle(mtemp*mscale,
                                                 xpos[0]*lscale,xpos[1]*lscale,xpos[2]*lscale,
                                                 vpos[0]*opt.V+Hubbleflow*xpos[0],
                                                 vpos[1]*opt.V+Hubbleflow*xpos[1],
                                                 vpos[2]*opt.V+Hubbleflow*xpos[2],
                                                 count2,GASTYPE);
-                                            Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetPID(idval);
+                                            Pbuf[ibufindex].SetPID(idval);
 #ifdef GASON
-                                            Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetU(utemp);
-                                            Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetSPHDen(rhotemp);
+                                            Pbuf[ibufindex].SetU(utemp);
+                                            Pbuf[ibufindex].SetSPHDen(rhotemp);
 #ifdef STARON
-                                            Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetZmet(Ztemp);
+                                            Pbuf[ibufindex].SetZmet(Ztemp);
 #endif
 #endif
                                             //ensure that store number of particles to be sent to the threads involved with reading snapshot files
@@ -1207,7 +1236,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                                             Nbuf[ibuf]++;
                                             if (ibuf==ThisTask) {
                                                 Nbuf[ibuf]--;
-                                                Part[Nlocal++]=Pbuf[ibuf*BufSize+Nbuf[ibuf]];
+                                                Part[Nlocal++]=Pbuf[ibufindex];
                                             }
                                             else {
                                                 //before a simple send was done because only Task zero was reading the data
@@ -1219,6 +1248,10 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                                                     Nbuf[ibuf]=0;
                                                 }
                                                 else if (Nbuf[ibuf]==BufSize&&ireadtask[ibuf]>=0) {
+                                                    if (ibuf!=ThisTask) {
+                                                        if (Nreadbuf[ibuf]==Preadbuf[ireadtask[ibuf]].size()) Preadbuf[ireadtask[ibuf]].resize(Preadbuf[ireadtask[ibuf]].size()+BufSize);
+                                                        Preadbuf[ireadtask[ibuf]][Nreadbuf[ibuf]]=Pbuf[ibufindex];
+                                                    }
                                                     Nbuf[ibuf]=0;
                                                 }
                                             }
@@ -1243,18 +1276,18 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                                         }
                                         else if (opt.partsearchtype==PSTDARK&&opt.iBaryonSearch) {
 #ifdef USEMPI
-                                            Pbuf[ibuf*BufSize+Nbuf[ibuf]]=Particle(mtemp*mscale,
+                                            Pbuf[ibufindex]=Particle(mtemp*mscale,
                                                 xpos[0]*lscale,xpos[1]*lscale,xpos[2]*lscale,
                                                 vpos[0]*opt.V+Hubbleflow*xpos[0],
                                                 vpos[1]*opt.V+Hubbleflow*xpos[1],
                                                 vpos[2]*opt.V+Hubbleflow*xpos[2],
                                                 count2,GASTYPE);
-                                            Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetPID(idval);
+                                            Pbuf[ibufindex].SetPID(idval);
 #ifdef GASON
-                                            Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetU(utemp);
-                                            Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetSPHDen(rhotemp);
+                                            Pbuf[ibufindex].SetU(utemp);
+                                            Pbuf[ibufindex].SetSPHDen(rhotemp);
 #ifdef STARON
-                                            Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetZmet(Ztemp);
+                                            Pbuf[ibufindex].SetZmet(Ztemp);
 #endif
 #endif
                                         //ensure that store number of particles to be sent to the reading threads
@@ -1262,7 +1295,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                                         Nbuf[ibuf]++;
                                         if (ibuf==ThisTask) {
                                             Nbuf[ibuf]--;
-                                            Pbaryons[Nlocalbaryon[0]++]=Pbuf[ibuf*BufSize+Nbuf[ibuf]];
+                                            Pbaryons[Nlocalbaryon[0]++]=Pbuf[ibufindex];
                                             Nlocalbaryon[1]++;
                                         }
                                         else {
@@ -1272,6 +1305,10 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                                                 Nbuf[ibuf]=0;
                                             }
                                             else if (Nbuf[ibuf]==BufSize&&ireadtask[ibuf]>=0) {
+                                                if (ibuf!=ThisTask) {
+                                                    if (Nreadbuf[ibuf]==Preadbuf[ireadtask[ibuf]].size()) Preadbuf[ireadtask[ibuf]].resize(Preadbuf[ireadtask[ibuf]].size()+BufSize);
+                                                    Preadbuf[ireadtask[ibuf]][Nreadbuf[ibuf]]=Pbuf[ibufindex];
+                                                }
                                                 Nbuf[ibuf]=0;
                                             }
                                         }
@@ -1306,6 +1343,14 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                 }
             }
         }
+        Famr[i].close();
+        #ifdef USEMPI
+                //send information between read threads
+                if (opt.nsnapread>1){
+                    MPI_Allgather(Nreadbuf, opt.nsnapread, MPI_Int_t, mpi_nsend_readthread, opt.nsnapread, MPI_Int_t, mpi_comm_read);
+                    MPISendParticlesBetweenReadThreads(opt, Preadbuf, Part, ireadtask, readtaskID, Pbaryons, mpi_comm_read, mpi_nsend_readthread, mpi_nsend_readthread_baryon);
+                }
+        #endif
     }
 #ifdef USEMPI
     //once finished reading the file if there are any particles left in the buffer broadcast them
@@ -1328,8 +1373,21 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     }
 #endif
     }//end of check if gas loaded
-
 //#ifdef USEMPI
 //    }
 //#endif
+    //a bit of clean up
+#ifdef USEMPI
+    if (opt.iBaryonSearch) delete[] mpi_nsend_baryon;
+    if (opt.nsnapread>1) {
+        delete[] mpi_nsend_readthread;
+        if (opt.iBaryonSearch) delete[] mpi_nsend_readthread_baryon;
+        delete[] Preadbuf;
+    }
+    delete[] Nreadbuf;
+    delete[] Nbuf;
+    delete[] Pbuf;
+    delete[] ireadfile;
+    delete[] readtaskID;
+#endif
 }
