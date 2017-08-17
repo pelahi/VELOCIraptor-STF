@@ -6,6 +6,14 @@
  * at a given resolution level.
  * \todo change the mass for the dark matter particles as it should be Omega_cdm*rho_crit/Ndm^3*Lbox^3 as the mass for dm, though stored is not
  * a meaningful value. For star particles must check what the mass unit is of the stored masses.
+ *
+ *
+ * Edited by:    Rodrigo Ca\~nas
+ *               rodrigo.canas@icrar.org
+ *
+ * Last edited:  7 - Jun - 2017
+ *
+ *
  */
 
 //-- RAMSES SPECIFIC IO
@@ -161,29 +169,36 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
     read(10)msph
     close(10)
     */
+
+    // Number of files
     Framses.read((char*)&dummy, sizeof(dummy));
     Framses.read((char*)&ramses_header_info.num_files, sizeof(int));
     Framses.read((char*)&dummy, sizeof(dummy));
     opt.num_files=ramses_header_info.num_files;
 
+    // Number of dimensions
     Framses.read((char*)&dummy, sizeof(dummy));
     Framses.read((char*)&ramses_header_info.ndim, sizeof(int));
     Framses.read((char*)&dummy, sizeof(dummy));
 
+    //
     Framses.read((char*)&dummy, sizeof(dummy));
     Framses.read((char*)&ramses_header_info.nx, sizeof(int));
     Framses.read((char*)&ramses_header_info.ny, sizeof(int));
     Framses.read((char*)&ramses_header_info.nz, sizeof(int));
     Framses.read((char*)&dummy, sizeof(dummy));
 
+    // Maximum refinement level
     Framses.read((char*)&dummy, sizeof(dummy));
     Framses.read((char*)&ramses_header_info.nlevelmax, sizeof(int));
     Framses.read((char*)&dummy, sizeof(dummy));
 
+    //
     Framses.read((char*)&dummy, sizeof(dummy));
     Framses.read((char*)&ramses_header_info.ngridmax, sizeof(int));
     Framses.read((char*)&dummy, sizeof(dummy));
 
+    //
     Framses.read((char*)&dummy, sizeof(dummy));
     Framses.read((char*)&ramses_header_info.nboundary, sizeof(int));
     Framses.read((char*)&dummy, sizeof(dummy));
@@ -193,6 +208,7 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
     Framses.seekg(dummy,ios::cur);
     Framses.read((char*)&dummy, sizeof(dummy));
 
+    // Boxsize
     Framses.read((char*)&dummy, sizeof(dummy));
     Framses.read((char*)&ramses_header_info.BoxSize, sizeof(RAMSESFLOAT));
     Framses.read((char*)&dummy, sizeof(dummy));
@@ -256,27 +272,37 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
 
 
     //
-    // READ first snapshot where all particles are DM
-    // to get correct mass of DM particle
+    // Compute Mass of DM particles in RAMSES code units
     //
-    sprintf(buf1,"%s/part_%s.out%05d",fname,opt.ramsessnapname,1);
-    sprintf(buf2,"%s/part_%s.out",fname,opt.ramsessnapname);
-    if (FileExists(buf1)) sprintf(buf,"%s",buf1);
-    else if (FileExists(buf2)) sprintf(buf,"%s",buf2);
-    Framses.open(buf, ios::binary|ios::in);
-    for (j = 0; j < 14; j++)
-    {
-        Framses.read((char*)&dummy, sizeof(dummy));
-        Framses.seekg(dummy,ios::cur);
-        Framses.read((char*)&dummy, sizeof(dummy));
-    }
-    // Read Mass
-    Framses.read((char*)&dummy, sizeof(dummy));
-    Framses.read((char*)&dmp_mass, sizeof(double));
-    Framses.close();
-    cout << "DM MASS = " << dmp_mass << endl;
+    fstream Finfo;
+    sprintf(buf1,"%s/info_%s.txt", opt.ramsessnapname, fname);
+    Finfo.open(buf1, ios::in);
+    getline(Finfo,stringbuf);
+    getline(Finfo,stringbuf);
+    getline(Finfo,stringbuf);
+    getline(Finfo,stringbuf);
+    getline(Finfo,stringbuf);
+    getline(Finfo,stringbuf);
+    getline(Finfo,stringbuf);
+    getline(Finfo,stringbuf);
+    getline(Finfo,stringbuf);
+    getline(Finfo,stringbuf);
+    getline(Finfo,stringbuf);
+    Finfo>>stringbuf>>stringbuf>>OmegaM;
+    getline(Finfo,stringbuf);
+    getline(Finfo,stringbuf);
+    getline(Finfo,stringbuf);
+    Finfo>>stringbuf>>stringbuf>>OmegaB;
+    Finfo.close();
+    dmp_mass = 1.0 / (opt.Neff*opt.Neff*opt.Neff) * (OmegaM - OmegaB) / OmegaM;
+    opt.Omega_m=OmegaM;
+    opt.Omega_b=OmegaB;
+    opt.Omega_Lambda=1.0-opt.Omega_m;
+    opt.Omega_cdm=opt.Omega_m-opt.Omega_b;
+
     //now particle info
-    for (i=0;i<ramses_header_info.num_files;i++) {
+    for (i=0;i<ramses_header_info.num_files;i++)
+    {
         sprintf(buf1,"%s/part_%s.out%05d",fname,opt.ramsessnapname,i+1);
         sprintf(buf2,"%s/part_%s.out",fname,opt.ramsessnapname);
         if (FileExists(buf1)) sprintf(buf,"%s",buf1);
@@ -286,34 +312,42 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
         ramses_header_info.npart[RAMSESDMTYPE]   = 0;
         ramses_header_info.npart[RAMSESSTARTYPE] = 0;
         ramses_header_info.npart[RAMSESSINKTYPE] = 0;
+
         //number of cpus
         Framses.read((char*)&dummy, sizeof(dummy));
         Framses.seekg(dummy,ios::cur);
         Framses.read((char*)&dummy, sizeof(dummy));
+
         //number of dimensions
         Framses.read((char*)&dummy, sizeof(dummy));
         Framses.seekg(dummy,ios::cur);
         Framses.read((char*)&dummy, sizeof(dummy));
+
         // Total number of LOCAL particles
         Framses.read((char*)&dummy, sizeof(dummy));
         Framses.read((char*)&ramses_header_info.npartlocal, sizeof(int));
         Framses.read((char*)&dummy, sizeof(dummy));
+
         // Random seeds
         Framses.read((char*)&dummy, sizeof(dummy));
         Framses.seekg(dummy,ios::cur);
         Framses.read((char*)&dummy, sizeof(dummy));
+
         // Total number of Stars over all processors
         Framses.read((char*)&dummy, sizeof(dummy));
         Framses.read((char*)&ramses_header_info.nstarTotal, sizeof(int));
         Framses.read((char*)&dummy, sizeof(dummy));
+
         // Total mass of stars
         Framses.read((char*)&dummy, sizeof(dummy));
         Framses.seekg(dummy,ios::cur);
         Framses.read((char*)&dummy, sizeof(dummy));
+
         // Total lost mass of stars
         Framses.read((char*)&dummy, sizeof(dummy));
         Framses.seekg(dummy,ios::cur);
         Framses.read((char*)&dummy, sizeof(dummy));
+
         // Number of sink particles over the whole simulation (all are included in
         // all processors)
         Framses.read((char*)&dummy, sizeof(dummy));
@@ -353,21 +387,25 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
         Framses.read((char*)&dummy_age[0], dummy);
         Framses.read((char*)&dummy, sizeof(dummy));
 
-
         ghoststars = 0;
         for (j = 0; j < ramses_header_info.npartlocal; j++)
-            if (dummy_mass[j] == dmp_mass)
+        {
+            if (fabs((dummy_mass[j]-dmp_mass)/dmp_mass) < 1e-5)
                 ramses_header_info.npart[RAMSESDMTYPE]++;
             else
                 if (dummy_age[j] != 0.0)
                     ramses_header_info.npart[RAMSESSTARTYPE]++;
                 else
                 ghoststars++;
+        }
+        delete [] dummy_age;
+        delete [] dummy_mass;
+        Framses.close();
 
-          delete [] dummy_age;
-          delete [] dummy_mass;
-          Framses.close();
-
+        totalghost += ghoststars;
+        totalstars += ramses_header_info.npart[RAMSESSTARTYPE];
+        totaldm    += ramses_header_info.npart[RAMSESDMTYPE];
+        alltotal   += ramses_header_info.npartlocal;
 
         //now with information loaded, set totals
         ramses_header_info.npartTotal[RAMSESDMTYPE]+=ramses_header_info.npart[RAMSESDMTYPE];
@@ -422,6 +460,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     RAMSESFLOAT ageval,metval;
     int *ngridlevel,*ngridbound,*ngridfile;
     int lmin=1000000,lmax=0;
+    double dmp_mass;
 
     int ifirstfile=0,*ireadfile,ibuf=0;
     int *ireadtask,*readtaskID;
@@ -429,6 +468,9 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     int ThisTask=0,NProcs=1;
     ireadfile=new int[opt.num_files];
     for (i=0;i<opt.num_files;i++) ireadfile[i]=1;
+#else
+    MPI_Bcast (&(opt.num_files), sizeof(opt.num_files), MPI_BYTE, 0, MPI_COMM_WORLD);
+    MPI_Barrier (MPI_COMM_WORLD);
 #endif
     ///\todo because of the stupid fortran format, easier if chunksize is BIG so that
     ///number of particles local to a file are smaller
@@ -437,16 +479,16 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     RAMSESIDTYPE *idvalchunk, *levelchunk;
     int *icellchunk;
 
-    Famr=new fstream[opt.num_files];
-    Fhydro=new fstream[opt.num_files];
-    Fpart=new fstream[opt.num_files];
-    Fpartvel=new fstream[opt.num_files];
-    Fpartmass=new fstream[opt.num_files];
-    Fpartid=new fstream[opt.num_files];
-    Fpartlevel=new fstream[opt.num_files];
-    Fpartage=new fstream[opt.num_files];
-    Fpartmet=new fstream[opt.num_files];
-    header=new RAMSES_Header[opt.num_files];
+    Famr       = new fstream[opt.num_files];
+    Fhydro     = new fstream[opt.num_files];
+    Fpart      = new fstream[opt.num_files];
+    Fpartvel   = new fstream[opt.num_files];
+    Fpartmass  = new fstream[opt.num_files];
+    Fpartid    = new fstream[opt.num_files];
+    Fpartlevel = new fstream[opt.num_files];
+    Fpartage   = new fstream[opt.num_files];
+    Fpartmet   = new fstream[opt.num_files];
+    header     = new RAMSES_Header[opt.num_files];
 
 #ifdef USEMPI
     MPI_Status status;
@@ -517,6 +559,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     Finfo>>stringbuf>>stringbuf>>header[ifirstfile].scale_l;
     Finfo>>stringbuf>>stringbuf>>header[ifirstfile].scale_d;
     Finfo>>stringbuf>>stringbuf>>header[ifirstfile].scale_t;
+
     //convert boxsize to comoving mpc
     header[ifirstfile].BoxSize*=header[ifirstfile].scale_l/3.08e24/header[ifirstfile].aexp;
     getline(Finfo,stringbuf);
@@ -524,13 +567,18 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     getline(Finfo,stringbuf);
     Finfo.close();
 
-    opt.p=header[ifirstfile].BoxSize;
-    opt.a=exp(header[ifirstfile].aexp);
-    opt.Omega_m=header[ifirstfile].Omegam;
-    opt.Omega_Lambda=header[ifirstfile].OmegaLambda;
-    opt.Omega_b=header[ifirstfile].Omegab;
-    opt.h=header[ifirstfile].HubbleParam;
-    opt.Omega_cdm=opt.Omega_m-opt.Omega_b;
+    // Convert to physical kpc
+    header[ifirstfile].BoxSize *= 1000.0*header[ifirstfile].aexp;
+    // BOX IS NOW PHYSICAL
+
+    opt.p            = header[ifirstfile].BoxSize;
+    opt.a            = header[ifirstfile].aexp;
+    opt.Omega_m      = header[ifirstfile].Omegam;
+    opt.Omega_Lambda = header[ifirstfile].OmegaLambda;
+    opt.Omega_b      = header[ifirstfile].Omegab;
+    opt.h            = header[ifirstfile].HubbleParam/100.0;
+    opt.Omega_cdm    = opt.Omega_m-opt.Omega_b;
+
     //Hubble flow
     if (opt.comove) aadjust=1.0;
     else aadjust=opt.a;
@@ -543,17 +591,38 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
         opt.virlevel=(18.0*M_PI*M_PI+82.0*bnx-39*bnx*bnx)/opt.Omega_m;
     }
     //adjust length scale so that convert from 0 to 1 (box units) to Mpc comoving
-    opt.L*=header[ifirstfile].scale_l/3.08e24/header[ifirstfile].aexp;
+    //opt.L*=header[ifirstfile].scale_l/3.08e24/header[ifirstfile].aexp;
+    //
+    opt.L= opt.p*opt.h/opt.a;
     //adjust velocity scale to that ramses is converted to km/s from which you can convert again;
-    opt.V*=header[ifirstfile].scale_l/header[ifirstfile].scale_t*1e-5;
-    mscale=opt.M/opt.h;lscale=opt.L/opt.h*aadjust;lvscale=opt.L/opt.h*opt.a;rhoscale=mscale/(lscale*lscale*lscale);
+    opt.V = header[ifirstfile].scale_l/header[ifirstfile].scale_t*1e-5;
+
+    //convert mass from code units to Solar Masses
+    mscale   = header[ifirstfile].scale_d * (header[ifirstfile].scale_l * header[ifirstfile].scale_l * header[ifirstfile].scale_l) / 1.988e+33;
+
+    //convert length from code units to kpc
+    lscale   = header[ifirstfile].scale_l/3.08e21;
+
+    //convert velocity from code units to km/s
+    lvscale  = header[ifirstfile].scale_l/header[ifirstfile].scale_t*1e-5;
+
+    //convert density to Msun/kpc^3
+    rhoscale = mscale/(lscale*lscale*lscale);
+
     //ignore hubble flow
     Hubbleflow=0.;
+
     //for (int j=0;j<NPARTTYPES;j++) nbodies+=opt.numpart[j];
     cout<<"Particle system contains "<<nbodies<<" particles (of interest) at is at time "<<opt.a<<" in a box of size "<<opt.p<<endl;
     cout<<"Cosmology (h,Omega_m,Omega_cdm,Omega_b,Omega_L) = ("<< opt.h<<","<<opt.Omega_m<<","<<opt.Omega_cdm<<","<<opt.Omega_b<<","<<opt.Omega_Lambda<<")"<<endl;
-    N_DM=opt.numpart[DARKTYPE];
-    LN=(opt.p*lscale/pow(N_DM,1.0/3.0));
+
+    //number of DM particles
+    //NOTE: this assumes a uniform box resolution. However this is not used in the rest of this function
+    N_DM = opt.Neff*opt.Neff*opt.Neff;
+
+    //interparticle spacing (assuming a uniform resolution box)
+    LN   = (lscale/(double)opt.Neff);
+    opt.ellxscale = LN;
 
     //grab from the first particle file the dimensions of the arrays and also the number of cpus (should be number of files)
     sprintf(buf1,"%s/part_%s.out00001",opt.fname,opt.ramsessnapname);
@@ -568,7 +637,16 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     }
 #endif
 
-
+#ifdef USEMPI
+    if (ireadtask[ThisTask]>=0)
+    {
+#endif
+      dmp_mass = 1.0 / (opt.Neff*opt.Neff*opt.Neff) * opt.Omega_cdm / opt.Omega_m;
+#ifdef USEMPI
+    }
+    MPI_Bcast (&dmp_mass, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Barrier (MPI_COMM_WORLD);
+#endif
     //if not only gas being searched open particle data
     count2=bcount2=0;
     if (opt.partsearchtype!=PSTGAS) {
@@ -590,10 +668,13 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
         //skip header information in each file save for number in the file
         //@{
         byteoffset=0;
+        // ncpus
         byteoffset+=RAMSES_fortran_skip(Fpart[i]);
+        // ndims
         byteoffset+=RAMSES_fortran_skip(Fpart[i]);
-        //store number of particles locally in file
+        // store number of particles locally in file
         byteoffset+=RAMSES_fortran_read(Fpart[i],header[i].npartlocal);
+        // skip local seeds, nstartot, mstartot, mstarlost, nsink
         byteoffset+=RAMSES_fortran_skip(Fpart[i],5);
 
         //byteoffset now stores size of header offset for particles
@@ -639,34 +720,59 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
         //@}
 
         //data loaded into memory in chunks
-        chunksize=nchunk=header[i].npartlocal;
-        xtempchunk=new RAMSESFLOAT[3*chunksize];
-        vtempchunk=new RAMSESFLOAT[3*chunksize];
-        mtempchunk=new RAMSESFLOAT[chunksize];
-        idvalchunk=new RAMSESIDTYPE[chunksize];
-        agetempchunk=new RAMSESFLOAT[chunksize];
-        mettempchunk=new RAMSESFLOAT[chunksize];
+        chunksize    = nchunk = header[i].npartlocal;
+        xtempchunk   = new RAMSESFLOAT  [3*chunksize];
+        vtempchunk   = new RAMSESFLOAT  [3*chunksize];
+        mtempchunk   = new RAMSESFLOAT  [chunksize];
+        idvalchunk   = new RAMSESIDTYPE [chunksize];
+        levelchunk   = new RAMSESIDTYPE [chunksize];
+        agetempchunk = new RAMSESFLOAT  [chunksize];
+        mettempchunk = new RAMSESFLOAT  [chunksize];
+
         for(idim=0;idim<header[ifirstfile].ndim;idim++)
         {
             RAMSES_fortran_read(Fpart[i],&xtempchunk[idim*nchunk]);
             RAMSES_fortran_read(Fpartvel[i],&vtempchunk[idim*nchunk]);
         }
-        RAMSES_fortran_read(Fpartmass[i],mtempchunk);
+        RAMSES_fortran_read(Fpartmass[i],  mtempchunk);
+        RAMSES_fortran_read(Fpartid[i],    idvalchunk);
+        RAMSES_fortran_read(Fpartlevel[i], levelchunk);
+        RAMSES_fortran_read(Fpartage[i],   agetempchunk);
+        RAMSES_fortran_read(Fpartmet[i],   mettempchunk);
 
         RAMSES_fortran_read(Fpartid[i],idvalchunk);
         for (int nn=0;nn<nchunk;nn++) {
-            xtemp[0]=xtempchunk[nn];xtemp[1]=xtempchunk[nn+nchunk];xtemp[2]=xtempchunk[nn+2*nchunk];
-            vtemp[0]=vtempchunk[nn];vtemp[1]=vtempchunk[nn+nchunk];vtemp[2]=vtempchunk[nn+2*nchunk];
-            idval=idvalchunk[nn];
-            for (int kk=0;kk<3;kk++) {xtemp[kk]=LittleRAMSESFLOAT(xtemp[kk]);vtemp[kk]=LittleRAMSESFLOAT(vtemp[kk]);}
+            if (fabs((mtempchunk[nn]-dmp_mass)/dmp_mass) > 1e-5 && (agetempchunk[nn] == 0.0))
+            {
+              //  GHOST PARTIRCLE!!!
+            }
+            else
+            {
+                xtemp[0] = xtempchunk[nn];
+                xtemp[1] = xtempchunk[nn+nchunk];
+                xtemp[2] = xtempchunk[nn+2*nchunk];
+
+                vtemp[0] = vtempchunk[nn];
+                vtemp[1] = vtempchunk[nn+nchunk];
+                vtemp[2] = vtempchunk[nn+2*nchunk];
+
+                idval = idvalchunk[nn];
+
+                ///Need to check this for correct 'endianness'
+//             for (int kk=0;kk<3;kk++) {xtemp[kk]=LittleRAMSESFLOAT(xtemp[kk]);vtemp[kk]=LittleRAMSESFLOAT(vtemp[kk]);}
 #ifndef NOMASS
             mtemp=mtempchunk[nn];
 #else
             mtemp=1.0;
 #endif
+            ageval = agetempchunk[nn];
+            if (fabs((mtemp-dmp_mass)/dmp_mass) < 1e-5) typeval = DARKTYPE;
+            else typeval = STARTYPE;
+/*
             if (ageval==0 && idval>0) typeval=DARKTYPE;
             else if (idval>0) typeval=STARTYPE;
             else typeval=BHTYPE;
+*/
 #ifdef USEMPI
             //determine processor this particle belongs on based on its spatial position
             ibuf=MPIGetParticlesProcessor(xtemp[0],xtemp[1],xtemp[2]);
@@ -681,9 +787,19 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                     vtemp[2]*opt.V+Hubbleflow*xtemp[2],
                     count2,typeval);
                 Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetPID(idval);
+#ifdef EXTENDEDFOFINFO
+                if (opt.iextendedoutput)
+                {
+                  Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetOFile(i);
+                  Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetOTask(ThisTask);
+                  Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetOIndex(nn);
+                  Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetPfof6d(0);
+                  Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetPfof6dCore(0);
+                }
+#endif
                 //assume that first sphblock is internal energy
                 //ensure that store number of particles to be sent to the threads involved with reading snapshot files
-                if(ibuf<opt.nsnapread&&ibuf!=ThisTask) Nreadbuf[ibuf]++;
+                if(ireadtask[ibuf]>=0&&ibuf!=ThisTask) Nreadbuf[ibuf]++;
                 Nbuf[ibuf]++;
                 if (ibuf==ThisTask) {
                     Nbuf[ibuf]--;
@@ -693,7 +809,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                     //before a simple send was done because only Task zero was reading the data
                     //but now if ibuf<opt.nsnapread, care must be taken.
                     //blocking sends that are matched by non-blocking receives
-                    if(Nbuf[ibuf]==BufSize&&ibuf>=opt.nsnapread) {
+                    if(Nbuf[ibuf]==BufSize&&ireadtask[ibuf]<0) {
                         MPI_Send(&Nbuf[ibuf], 1, MPI_Int_t, ibuf, ibuf+NProcs, MPI_COMM_WORLD);
                         MPI_Send(&Pbuf[ibuf*BufSize],sizeof(Particle)*Nbuf[ibuf],MPI_BYTE,ibuf,ibuf,MPI_COMM_WORLD);
                         Nbuf[ibuf]=0;
@@ -710,6 +826,16 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                     vtemp[2]*opt.V+Hubbleflow*xtemp[2],
                     count2,typeval);
                 Part[count2].SetPID(idval);
+#ifdef EXTENDEDFOFINFO
+                if (opt.iextendedoutput)
+                {
+                  Part[count2].SetOFile(i);
+                  Part[count2].SetOTask(ThisTask);
+                  Part[count2].SetOIndex(nn);
+                  Part[count2].SetPfof6d(0);
+                  Part[count2].SetPfof6dCore(0);
+                }
+#endif
 #endif
                 count2++;
             }
@@ -723,8 +849,18 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                         vtemp[2]*opt.V+Hubbleflow*xtemp[2],
                         count2,DARKTYPE);
                     Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetPID(idval);
+#ifdef EXTENDEDFOFINFO
+                    if (opt.iextendedoutput)
+                    {
+                      Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetOFile(i);
+                      Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetOTask(ThisTask);
+                      Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetOIndex(nn);
+                      Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetPfof6d(0);
+                      Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetPfof6dCore(0);
+                    }
+#endif
                     //ensure that store number of particles to be sent to other reading threads
-                    if(ibuf<opt.nsnapread&&ibuf!=ThisTask) Nreadbuf[ibuf]++;
+                    if(ireadtask[ibuf]>=0&&ibuf!=ThisTask) Nreadbuf[ibuf]++;
                     Nbuf[ibuf]++;
                     //now determine what to do with the particle, local or must send
                     if (ibuf==ThisTask) {
@@ -733,12 +869,12 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                     }
                     else {
                         //if belongs to another mpi thread then see if buffer is full and send with appropriate flag
-                        if(Nbuf[ibuf]==BufSize&&ibuf>=opt.nsnapread) {
+                        if(Nbuf[ibuf]==BufSize&&ireadtask[ibuf]<0) {
                             MPI_Ssend(&Nbuf[ibuf], 1, MPI_Int_t, ibuf, ibuf+NProcs, MPI_COMM_WORLD);
                             MPI_Ssend(&Pbuf[ibuf*BufSize],sizeof(Particle)*Nbuf[ibuf],MPI_BYTE,ibuf,ibuf,MPI_COMM_WORLD);
                             Nbuf[ibuf]=0;
                         }
-                        else if (Nbuf[ibuf]==BufSize&&ibuf<opt.nsnapread) {
+                        else if (Nbuf[ibuf]==BufSize&&ireadtask[ibuf]>=0) {
                             Nbuf[ibuf]=0;
                         }
                     }
@@ -750,6 +886,16 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                         vtemp[2]*opt.V+Hubbleflow*xtemp[2],
                         count2,typeval);
                     Part[count2].SetPID(idval);
+#ifdef EXTENDEDFOFINFO
+                    if (opt.iextendedoutput)
+                    {
+                      Part[count2].SetOFile(i);
+                      Part[count2].SetOTask(ThisTask);
+                      Part[count2].SetOIndex(nn);
+                      Part[count2].SetPfof6d(0);
+                      Part[count2].SetPfof6dCore(0);
+                    }
+#endif
 #endif
                     count2++;
                 }
@@ -762,10 +908,20 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                         vtemp[2]*opt.V+Hubbleflow*xtemp[2],
                         count2);
                     Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetPID(idval);
+#ifdef EXTENDEDFOFINFO
+                    if (opt.iextendedoutput)
+                    {
+                      Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetOFile(i);
+                      Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetOTask(ThisTask);
+                      Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetOIndex(nn);
+                      Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetPfof6d(0);
+                      Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetPfof6dCore(0);
+                    }
+#endif
                     if (typeval==STARTYPE) Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetType(STARTYPE);
                     else if (typeval==BHTYPE) Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetType(BHTYPE);
                     //ensure that store number of particles to be sent to the reading threads
-                    if(ibuf<opt.nsnapread&&ibuf!=ThisTask) Nreadbuf[ibuf]++;
+                    if(ireadtask[ibuf]>=0&&ibuf!=ThisTask) Nreadbuf[ibuf]++;
                     Nbuf[ibuf]++;
                     if (ibuf==ThisTask) {
                         Nbuf[ibuf]--;
@@ -774,12 +930,12 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                         else if (k==RAMSESSINKTYPE) Nlocalbaryon[3]++;
                     }
                     else {
-                        if(Nbuf[ibuf]==BufSize&&ibuf>=opt.nsnapread) {
+                        if(Nbuf[ibuf]==BufSize&&ireadtask[ibuf]<0) {
                             MPI_Ssend(&Nbuf[ibuf], 1, MPI_Int_t, ibuf, ibuf+NProcs, MPI_COMM_WORLD);
                             MPI_Ssend(&Pbuf[ibuf*BufSize],sizeof(Particle)*Nbuf[ibuf],MPI_BYTE,ibuf,ibuf,MPI_COMM_WORLD);
                             Nbuf[ibuf]=0;
                         }
-                        else if (Nbuf[ibuf]==BufSize&&ibuf<opt.nsnapread) {
+                        else if (Nbuf[ibuf]==BufSize&&ireadtask[ibuf]>=0) {
                             Nbuf[ibuf]=0;
                         }
                     }
@@ -791,6 +947,16 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                         vtemp[2]*opt.V+Hubbleflow*xtemp[2],
                         count2,typeval);
                     Pbaryons[bcount2].SetPID(idval);
+#ifdef EXTENDEDFOFINFO
+                    if (opt.iextendedoutput)
+                    {
+                      Part[bcount2].SetOFile(i);
+                      Part[bcount2].SetOTask(ThisTask);
+                      Part[bcount2].SetOIndex(nn);
+                      Part[count2].SetPfof6d(0);
+                      Part[count2].SetPfof6dCore(0);
+                    }
+#endif
 #endif
                     bcount2++;
                 }
@@ -807,20 +973,30 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                         vtemp[2]*opt.V+Hubbleflow*xtemp[2],
                         count2,STARTYPE);
                     //ensure that store number of particles to be sent to the reading threads
-                    if(ibuf<opt.nsnapread&&ibuf!=ThisTask) Nreadbuf[ibuf]++;
+                    if(ireadtask[ibuf]>=0&&ibuf!=ThisTask) Nreadbuf[ibuf]++;
                     Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetPID(idval);
+#ifdef EXTENDEDFOFINFO
+                    if (opt.iextendedoutput)
+                    {
+                      Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetOFile(i);
+                      Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetOTask(ThisTask);
+                      Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetOIndex(nn);
+                      Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetPfof6d(0);
+                      Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetPfof6dCore(0);
+                    }
+#endif
                     Nbuf[ibuf]++;
                     if (ibuf==ThisTask) {
                         Nbuf[ibuf]--;
                         Part[Nlocal++]=Pbuf[ibuf*BufSize+Nbuf[ibuf]];
                     }
                     else {
-                        if(Nbuf[ibuf]==BufSize&&ibuf>=opt.nsnapread) {
+                        if(Nbuf[ibuf]==BufSize&&ireadtask[ibuf]<0) {
                             MPI_Ssend(&Nbuf[ibuf], 1, MPI_Int_t, ibuf, ibuf+NProcs, MPI_COMM_WORLD);
                             MPI_Ssend(&Pbuf[ibuf*BufSize],sizeof(Particle)*Nbuf[ibuf],MPI_BYTE,ibuf,ibuf,MPI_COMM_WORLD);
                             Nbuf[ibuf]=0;
                         }
-                        else if (Nbuf[ibuf]==BufSize&&ibuf<opt.nsnapread) {
+                        else if (Nbuf[ibuf]==BufSize&&ireadtask[ibuf]>=0) {
                             Nbuf[ibuf]=0;
                         }
                     }
@@ -832,16 +1008,28 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                     vtemp[2]*opt.V+Hubbleflow*xtemp[2],
                     count2,typeval);
                 Part[count2].SetPID(idval);
+#ifdef EXTENDEDFOFINFO
+                  if (opt.iextendedoutput)
+                  {
+                    Part[count2].SetOFile(i);
+                    Part[count2].SetOTask(ThisTask);
+                    Part[count2].SetOIndex(nn);
+                    Part[count2].SetPfof6d(0);
+                    Part[count2].SetPfof6dCore(0);
+	              }
+#endif
 #endif
                     count2++;
                 }
             }
-        }
+        }//end of ghost particle check
+        }//end of loop over chunk
         delete[] xtempchunk;
         delete[] vtempchunk;
         delete[] mtempchunk;
         delete[] idvalchunk;
         delete[] agetempchunk;
+        delete[] levelchunk;
         delete[] mettempchunk;
         Fpart[i].close();
         Fpartvel[i].close();
@@ -850,7 +1038,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
         Fpartlevel[i].close();
         Fpartage[i].close();
         Fpartmet[i].close();
-    }
+    }//end of loop over file
 #ifdef USEMPI
     //once finished reading the file if there are any particles left in the buffer broadcast them
     for(ibuf = opt.nsnapread; ibuf < NProcs; ibuf++)
@@ -1016,7 +1204,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
 #endif
 #endif
                                             //ensure that store number of particles to be sent to the threads involved with reading snapshot files
-                                            if(ibuf<opt.nsnapread&&ibuf!=ThisTask) Nreadbuf[ibuf]++;
+                                            if(ireadtask[ibuf]>=0&&ibuf!=ThisTask) Nreadbuf[ibuf]++;
                                             Nbuf[ibuf]++;
                                             if (ibuf==ThisTask) {
                                                 Nbuf[ibuf]--;
@@ -1026,12 +1214,12 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                                                 //before a simple send was done because only Task zero was reading the data
                                                 //but now if ibuf<opt.nsnapread, care must be taken.
                                                 //blocking sends that are matched by non-blocking receives
-                                                if(Nbuf[ibuf]==BufSize&&ibuf>=opt.nsnapread) {
+                                                if(Nbuf[ibuf]==BufSize&&ireadtask[ibuf]<0) {
                                                     MPI_Send(&Nbuf[ibuf], 1, MPI_Int_t, ibuf, ibuf+NProcs, MPI_COMM_WORLD);
                                                     MPI_Send(&Pbuf[ibuf*BufSize],sizeof(Particle)*Nbuf[ibuf],MPI_BYTE,ibuf,ibuf,MPI_COMM_WORLD);
                                                     Nbuf[ibuf]=0;
                                                 }
-                                                else if (Nbuf[ibuf]==BufSize&&ibuf<opt.nsnapread) {
+                                                else if (Nbuf[ibuf]==BufSize&&ireadtask[ibuf]>=0) {
                                                     Nbuf[ibuf]=0;
                                                 }
                                             }
@@ -1071,7 +1259,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
 #endif
 #endif
                                         //ensure that store number of particles to be sent to the reading threads
-                                        if(ibuf<opt.nsnapread&&ibuf!=ThisTask) Nreadbuf[ibuf]++;
+                                        if(ireadtask[ibuf]>=0&&ibuf!=ThisTask) Nreadbuf[ibuf]++;
                                         Nbuf[ibuf]++;
                                         if (ibuf==ThisTask) {
                                             Nbuf[ibuf]--;
@@ -1079,12 +1267,12 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                                             Nlocalbaryon[1]++;
                                         }
                                         else {
-                                            if(Nbuf[ibuf]==BufSize&&ibuf>=opt.nsnapread) {
+                                            if(Nbuf[ibuf]==BufSize&&ireadtask[ibuf]<0) {
                                                 MPI_Ssend(&Nbuf[ibuf], 1, MPI_Int_t, ibuf, ibuf+NProcs, MPI_COMM_WORLD);
                                                 MPI_Ssend(&Pbuf[ibuf*BufSize],sizeof(Particle)*Nbuf[ibuf],MPI_BYTE,ibuf,ibuf,MPI_COMM_WORLD);
                                                 Nbuf[ibuf]=0;
                                             }
-                                            else if (Nbuf[ibuf]==BufSize&&ibuf<opt.nsnapread) {
+                                            else if (Nbuf[ibuf]==BufSize&&ireadtask[ibuf]>=0) {
                                                 Nbuf[ibuf]=0;
                                             }
                                         }

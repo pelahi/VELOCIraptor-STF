@@ -1516,7 +1516,6 @@ private(i,tid)
             //a pnumcores pointer is passed, store the number of cores in this pointer assumes halo ids will not be reordered, making it easy to flag cores
             //if opt.iHaloCoreSearch==2 then start searching the halo to identify which particles belong to which core by linking particles to their closest
             //tagged neighbour in phase-space.
-            //Int_t ng=numgroups+(numgroupsbg-bgoffset),oldng=numgroups;
             if(pnumcores!=NULL) *pnumcores=numgroupsbg;
             if (opt.iHaloCoreSearch>=2) {
                 HaloCoreGrowth(opt, nsubset, Partsubset, pfof, pfofbg, numgroupsbg, param,dispfac,numactiveloops,corelevel,nthreads);
