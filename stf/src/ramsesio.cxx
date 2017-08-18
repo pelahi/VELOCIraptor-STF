@@ -1070,7 +1070,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     }//end of loop over file
 #ifdef USEMPI
     //once finished reading the file if there are any particles left in the buffer broadcast them
-    for(ibuf = opt.nsnapread; ibuf < NProcs; ibuf++)
+    for(ibuf = 0; ibuf < NProcs; ibuf++) if (ireadtask[ibuf]<0)
     {
         MPI_Ssend(&Nbuf[ibuf],1,MPI_Int_t, ibuf, ibuf+NProcs, MPI_COMM_WORLD);
         if (Nbuf[ibuf]>0) {
