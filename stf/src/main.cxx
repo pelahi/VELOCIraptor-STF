@@ -390,7 +390,8 @@ int main(int argc,char **argv)
             pfofbaryons=&pfofall[nbodies];
         }
         //if FOF search overall particle types then running sub search over just dm and need to associate baryons to just dm particles must determine number of baryons, sort list, run search, etc
-        else {
+        //but only need to run search if substructure has been searched
+        else if (opt.iSubSearch==1){
             nbaryons=0;
             ndark=0;
             for (Int_t i=0;i<nbodies;i++) {
