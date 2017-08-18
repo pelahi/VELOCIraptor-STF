@@ -658,7 +658,8 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     if (opt.partsearchtype!=PSTGAS) {
     if (ireadtask[ThisTask]>=0) {
     //read particle files consists of positions,velocities, mass, id, and level (along with ages and met if some flags set)
-    for (i=0;i<opt.num_files;i++) if (ireadfile[i]) {
+    for (i=0;i<opt.num_files;i++) {
+    if (ireadfile[i]) {
         sprintf(buf1,"%s/part_%s.out%05d",opt.fname,opt.ramsessnapname,i+1);
         sprintf(buf2,"%s/part_%s.out",opt.fname,opt.ramsessnapname);
         if (FileExists(buf1)) sprintf(buf,"%s",buf1);
@@ -1058,6 +1059,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
         Fpartlevel[i].close();
         Fpartage[i].close();
         Fpartmet[i].close();
+    }//end of whether reading a file
 #ifdef USEMPI
         //send information between read threads
         if (opt.nsnapread>1){
@@ -1378,16 +1380,20 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
 //#endif
     //a bit of clean up
 #ifdef USEMPI
+    MPI_Comm_free(&mpi_comm_read);
     if (opt.iBaryonSearch) delete[] mpi_nsend_baryon;
     if (opt.nsnapread>1) {
         delete[] mpi_nsend_readthread;
         if (opt.iBaryonSearch) delete[] mpi_nsend_readthread_baryon;
-        delete[] Preadbuf;
+        if (ireadtask[ThisTask]>=0) delete[] Preadbuf;
     }
-    delete[] Nreadbuf;
     delete[] Nbuf;
-    delete[] Pbuf;
-    delete[] ireadfile;
+    if (ireadtask[ThisTask]>=0) {
+        delete[] Nreadbuf;
+        delete[] Pbuf;
+        delete[] ireadfile;
+    }
+    delete[] ireadtask;
     delete[] readtaskID;
 #endif
 }

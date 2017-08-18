@@ -144,19 +144,20 @@ void MPINumInDomainRAMSES(Options &opt)
         readtaskID=new int[opt.nsnapread];
         ireadfile=new int[opt.num_files];
         MPIDistributeReadTasks(opt,ireadtask,readtaskID);
+        MPISetFilesRead(opt,ireadfile,ireadtask);
 
         Nbuf=new Int_t[NProcs];
         Nbaryonbuf=new Int_t[NProcs];
         for (int j=0;j<NProcs;j++) Nbuf[j]=0;
         for (int j=0;j<NProcs;j++) Nbaryonbuf[j]=0;
 
-        if (ThisTask == 0) 
+        if (ThisTask == 0)
         {
           //
           // Compute Mass of DM particles in RAMSES code units
-          //    
+          //
           fstream Finfo;
-          sprintf(buf1,"%s/info_%s.txt", opt.ramsessnapname, opt.fname);
+          sprintf(buf1,"%s/info_%s.txt", opt.fname, opt.ramsessnapname);
           Finfo.open(buf1, ios::in);
           getline(Finfo,stringbuf);
           getline(Finfo,stringbuf);
@@ -180,7 +181,7 @@ void MPINumInDomainRAMSES(Options &opt)
         MPI_Bcast(&dmp_mass, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
         if (ireadtask[ThisTask]>=0) {
-            for (int i = 0, count2 = 0; i < opt.num_files; i++) {
+            for (int i = 0, count2 = 0; i < opt.num_files; i++) if (ireadfile[i]){
                 sprintf(buf1,"%s/part_%s.out%05d",opt.fname,opt.ramsessnapname,i+1);
                 sprintf(buf2,"%s/part_%s.out",opt.fname,opt.ramsessnapname);
                 if (FileExists(buf1)) sprintf(buf,"%s",buf1);
@@ -243,7 +244,7 @@ void MPINumInDomainRAMSES(Options &opt)
                         mtemp = mtempchunk[nn];
                         ageval = agetempchunk[nn];
 
-                        if (mtemp == dmp_mass)
+                        if (fabs(mtemp-dmp_mass)/dmp_mass<1e-5)
                         {
                             typeval = DARKTYPE;
                             ndark++;
