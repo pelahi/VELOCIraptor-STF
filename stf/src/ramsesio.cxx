@@ -570,10 +570,8 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     Finfo>>stringbuf>>stringbuf>>header[ifirstfile].scale_d;
     Finfo>>stringbuf>>stringbuf>>header[ifirstfile].scale_t;
 
-    //convert boxsize to comoving mpc/h
-    header[ifirstfile].BoxSize*=header[ifirstfile].scale_l/3.08e24/header[ifirstfile].aexp*header[ifirstfile].HubbleParam;
-    // Convert to comoving kpc little h
-    header[ifirstfile].BoxSize *= 1000.0;
+    //convert boxsize to comoving kpc/h
+    header[ifirstfile].BoxSize*=header[ifirstfile].scale_l/3.086e21/header[ifirstfile].aexp*header[ifirstfile].HubbleParam/100.0;
     getline(Finfo,stringbuf);
     Finfo>>stringbuf>>orderingstring;
     getline(Finfo,stringbuf);
@@ -586,6 +584,12 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     opt.Omega_b      = header[ifirstfile].Omegab;
     opt.h            = header[ifirstfile].HubbleParam/100.0;
     opt.Omega_cdm    = opt.Omega_m-opt.Omega_b;
+    //set hubble unit to km/s/kpc
+    opt.H = 0.1;
+    //set Gravity to value for kpc (km/s)^2 / solar mass
+    opt.G = 4.30211349e-6;
+    //and for now fix the units
+    opt.lengthtokpc=opt.velocitytokms=opt.masstosolarmass=1.0;
 
     //Hubble flow
     if (opt.comove) aadjust=1.0;
