@@ -165,6 +165,11 @@ void MPINumInDomain(Options &opt)
     //when reading number in domain, use all available threads to read all available files
     //first set number of read threads to either total number of mpi process or files, which ever is smaller
     //store old number of read threads
+    if (NProcs==1) {
+    Nlocal=Ntotal;
+    Nmemlocal=Nlocal;
+    return;
+    }
     int nsnapread=opt.nsnapread;
     opt.nsnapread=min(NProcs,opt.num_files);
     if(opt.inputtype==IOTIPSY) MPINumInDomainTipsy(opt);
@@ -693,7 +698,7 @@ void MPISendParticlesBetweenReadThreads(Options &opt, vector<Particle> *&Preadbu
                     currecvchunksize=min(maxchunksize,nrecv-recvoffset);
                     //blocking point-to-point send and receive. Here must determine the appropriate offset point in the local export buffer
                     //for sending data and also the local appropriate offset in the local the receive buffer for information sent from the local receiving buffer
-                    MPI_Sendrecv(&Preadbuf[recvTask][mpi_nsend[ThisTask * NProcs + recvTask]+sendoffset],sizeof(Particle)*cursendchunksize, MPI_BYTE, recvTask, TAG_IO_B+isendrecv,
+                    MPI_Sendrecv(&Preadbuf[recvTask][mpi_nsend_readthread[sendTask * opt.nsnapread + recvTask]+sendoffset],sizeof(Particle)*cursendchunksize, MPI_BYTE, recvTask, TAG_IO_B+isendrecv,
                         &Pbaryons[Nlocalbaryon[0]],sizeof(Particle)*currecvchunksize, MPI_BYTE, recvTask, TAG_IO_B+isendrecv,
                                 mpi_comm_read, &status);
                     Nlocalbaryon[0]+=currecvchunksize;

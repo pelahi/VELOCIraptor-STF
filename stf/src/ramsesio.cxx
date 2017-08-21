@@ -276,17 +276,17 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
     fstream Finfo;
     sprintf(buf1,"%s/info_%s.txt", fname,opt.ramsessnapname);
     Finfo.open(buf1, ios::in);
-    getline(Finfo,stringbuf);
-    getline(Finfo,stringbuf);
-    getline(Finfo,stringbuf);
-    getline(Finfo,stringbuf);
-    getline(Finfo,stringbuf);
-    getline(Finfo,stringbuf);
-    getline(Finfo,stringbuf);
-    getline(Finfo,stringbuf);
-    getline(Finfo,stringbuf);
-    getline(Finfo,stringbuf);
-    getline(Finfo,stringbuf);
+    Finfo>>stringbuf>>stringbuf>>opt.num_files;
+    getline(Finfo,stringbuf);//ndim
+    getline(Finfo,stringbuf);//lmin
+    getline(Finfo,stringbuf);//lmax
+    getline(Finfo,stringbuf);//ngridmax
+    getline(Finfo,stringbuf);//nstep
+    getline(Finfo,stringbuf);//blank
+    getline(Finfo,stringbuf);//box
+    getline(Finfo,stringbuf);//time
+    getline(Finfo,stringbuf);//a
+    getline(Finfo,stringbuf);//hubble
     Finfo>>stringbuf>>stringbuf>>OmegaM;
     getline(Finfo,stringbuf);
     getline(Finfo,stringbuf);
@@ -294,10 +294,6 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
     Finfo>>stringbuf>>stringbuf>>OmegaB;
     Finfo.close();
     dmp_mass = 1.0 / (opt.Neff*opt.Neff*opt.Neff) * (OmegaM - OmegaB) / OmegaM;
-    opt.Omega_m=OmegaM;
-    opt.Omega_b=OmegaB;
-    opt.Omega_Lambda=1.0-opt.Omega_m;
-    opt.Omega_cdm=opt.Omega_m-opt.Omega_b;
 
     //now particle info
     for (i=0;i<ramses_header_info.num_files;i++)
@@ -832,7 +828,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                     }
                     else if (ireadtask[ibuf]>=0) {
                         if (ibuf!=ThisTask) {
-                            if (Nreadbuf[ireadtask[ibuf]]==Preadbuf[ireadtask[ibuf]].max_size()) Preadbuf[ireadtask[ibuf]].resize(Preadbuf[ireadtask[ibuf]].size()+BufSize);
+                            if (Nreadbuf[ireadtask[ibuf]]==Preadbuf[ireadtask[ibuf]].capacity()) Preadbuf[ireadtask[ibuf]].reserve(Preadbuf[ireadtask[ibuf]].capacity()+BufSize);
                             Preadbuf[ireadtask[ibuf]][Nreadbuf[ireadtask[ibuf]]]=Pbuf[ibufindex];
                             Nreadbuf[ireadtask[ibuf]]++;
                         }
@@ -895,7 +891,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                         }
                         else if (ireadtask[ibuf]>=0) {
                             if (ibuf!=ThisTask) {
-                                if (Nreadbuf[ireadtask[ibuf]]==Preadbuf[ireadtask[ibuf]].max_size()) Preadbuf[ireadtask[ibuf]].resize(Preadbuf[ireadtask[ibuf]].size()+BufSize);
+                                if (Nreadbuf[ireadtask[ibuf]]==Preadbuf[ireadtask[ibuf]].capacity()) Preadbuf[ireadtask[ibuf]].reserve(Preadbuf[ireadtask[ibuf]].capacity()+BufSize);
                                 Preadbuf[ireadtask[ibuf]][Nreadbuf[ireadtask[ibuf]]]=Pbuf[ibufindex];
                                 Nreadbuf[ireadtask[ibuf]]++;
                             }
@@ -960,7 +956,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                         }
                         else if (ireadtask[ibuf]>=0) {
                             if (ibuf!=ThisTask) {
-                                if (Nreadbuf[ireadtask[ibuf]]==Preadbuf[ireadtask[ibuf]].max_size()) Preadbuf[ireadtask[ibuf]].resize(Preadbuf[ireadtask[ibuf]].size()+BufSize);
+                                if (Nreadbuf[ireadtask[ibuf]]==Preadbuf[ireadtask[ibuf]].capacity()) Preadbuf[ireadtask[ibuf]].reserve(Preadbuf[ireadtask[ibuf]].capacity()+BufSize);
                                 Preadbuf[ireadtask[ibuf]][Nreadbuf[ireadtask[ibuf]]]=Pbuf[ibufindex];
                                 Nreadbuf[ireadtask[ibuf]]++;
                             }
@@ -1025,7 +1021,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                         }
                         else if (ireadtask[ibuf]>=0) {
                             if (ibuf!=ThisTask) {
-                                if (Nreadbuf[ireadtask[ibuf]]==Preadbuf[ireadtask[ibuf]].max_size()) Preadbuf[ireadtask[ibuf]].resize(Preadbuf[ireadtask[ibuf]].size()+BufSize);
+                                if (Nreadbuf[ireadtask[ibuf]]==Preadbuf[ireadtask[ibuf]].capacity()) Preadbuf[ireadtask[ibuf]].reserve(Preadbuf[ireadtask[ibuf]].capacity()+BufSize);
                                 Preadbuf[ireadtask[ibuf]][Nreadbuf[ireadtask[ibuf]]]=Pbuf[ibufindex];
                                 Nreadbuf[ireadtask[ibuf]]++;
                             }
@@ -1265,7 +1261,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                                                 }
                                                 else if (ireadtask[ibuf]>=0) {
                                                     if (ibuf!=ThisTask) {
-                                                        if (Nreadbuf[ireadtask[ibuf]]==Preadbuf[ireadtask[ibuf]].max_size()) Preadbuf[ireadtask[ibuf]].resize(Preadbuf[ireadtask[ibuf]].size()+BufSize);
+                                                        if (Nreadbuf[ireadtask[ibuf]]==Preadbuf[ireadtask[ibuf]].capacity()) Preadbuf[ireadtask[ibuf]].reserve(Preadbuf[ireadtask[ibuf]].capacity()+BufSize);
                                                         Preadbuf[ireadtask[ibuf]][Nreadbuf[ireadtask[ibuf]]]=Pbuf[ibufindex];
                                                         Nreadbuf[ireadtask[ibuf]]++;
                                                     }
@@ -1321,7 +1317,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                                             }
                                             else if (ireadtask[ibuf]>=0) {
                                                 if (ibuf!=ThisTask) {
-                                                    if (Nreadbuf[ireadtask[ibuf]]==Preadbuf[ireadtask[ibuf]].max_size()) Preadbuf[ireadtask[ibuf]].resize(Preadbuf[ireadtask[ibuf]].size()+BufSize);
+                                                    if (Nreadbuf[ireadtask[ibuf]]==Preadbuf[ireadtask[ibuf]].capacity()) Preadbuf[ireadtask[ibuf]].reserve(Preadbuf[ireadtask[ibuf]].capacity()+BufSize);
                                                     Preadbuf[ireadtask[ibuf]][Nreadbuf[ireadtask[ibuf]]]=Pbuf[ibufindex];
                                                     Nreadbuf[ireadtask[ibuf]]++;
                                                 }
