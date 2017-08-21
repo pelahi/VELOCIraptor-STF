@@ -788,8 +788,8 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
 #ifdef USEMPI
             //determine processor this particle belongs on based on its spatial position
             ibuf=MPIGetParticlesProcessor(xtemp[0],xtemp[1],xtemp[2]);
-#endif
             ibufindex=ibuf*BufSize+Nbuf[ibuf];
+#endif
             //
             if (opt.partsearchtype==PSTALL) {
 #ifdef USEMPI
@@ -1090,8 +1090,8 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     }
     MPI_Allgather(Nreadbuf, opt.nsnapread, MPI_Int_t, mpi_nsend_readthread, opt.nsnapread, MPI_Int_t, mpi_comm_read);
     MPISendParticlesBetweenReadThreads(opt, Preadbuf, Part, ireadtask, readtaskID, Pbaryons, mpi_comm_read, mpi_nsend_readthread, mpi_nsend_readthread_baryon);
+    }//end of ireadtask[ibuf]>0
 #endif
-    }
 #ifdef USEMPI
     else {
         MPIReceiveParticlesFromReadThreads(opt,Pbuf,Part,readtaskID, irecv, mpi_irecvflag, Nlocalthreadbuf, mpi_request,Pbaryons);
@@ -1101,8 +1101,10 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
 
     //if gas searched in some fashion then load amr/hydro data
     if (opt.partsearchtype==PSTGAS||opt.partsearchtype==PSTALL||(opt.partsearchtype==PSTDARK&&opt.iBaryonSearch)) {
+#ifdef USEMPI
     if (ireadtask[ThisTask]>=0) {
     inreadsend=0;
+#endif
     for (i=0;i<opt.num_files;i++) if (ireadfile[i]) {
         sprintf(buf1,"%s/amr_%s.out%s%05d",opt.fname,opt.ramsessnapname,i+1);
         sprintf(buf2,"%s/amr_%s.out%s",opt.fname,opt.ramsessnapname);
@@ -1217,8 +1219,8 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
 #ifdef USEMPI
                                         //determine processor this particle belongs on based on its spatial position
                                         ibuf=MPIGetParticlesProcessor(xpos[0],xpos[1],xpos[2]);
-#endif
                                         ibufindex=ibuf*BufSize+Nbuf[ibuf];
+#endif
 
                                         vpos[0]=hydrotempchunk[idim*chunksize*header[i].nvarh+1*chunksize+igrid];
                                         vpos[1]=hydrotempchunk[idim*chunksize*header[i].nvarh+2*chunksize+igrid];
@@ -1363,8 +1365,8 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
             inreadsend++;
             for(ibuf = 0; ibuf < opt.nsnapread; ibuf++) Nreadbuf[ibuf]=0;
         }
-#endif
     }
+#endif
 #ifdef USEMPI
     //once finished reading the file if there are any particles left in the buffer broadcast them
     for(ibuf = 0; ibuf < NProcs; ibuf++) if (ireadtask[ibuf]<0)
