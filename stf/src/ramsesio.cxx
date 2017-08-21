@@ -1088,8 +1088,10 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
             MPI_Ssend(&Nbuf[ibuf],1,MPI_Int_t,ibuf,ibuf+NProcs,MPI_COMM_WORLD);
         }
     }
+    if (opt.nsnapread>1){
     MPI_Allgather(Nreadbuf, opt.nsnapread, MPI_Int_t, mpi_nsend_readthread, opt.nsnapread, MPI_Int_t, mpi_comm_read);
     MPISendParticlesBetweenReadThreads(opt, Preadbuf, Part, ireadtask, readtaskID, Pbaryons, mpi_comm_read, mpi_nsend_readthread, mpi_nsend_readthread_baryon);
+    }
     }//end of ireadtask[ibuf]>0
 #endif
 #ifdef USEMPI
@@ -1365,8 +1367,8 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
             inreadsend++;
             for(ibuf = 0; ibuf < opt.nsnapread; ibuf++) Nreadbuf[ibuf]=0;
         }
-    }
 #endif
+    }
 #ifdef USEMPI
     //once finished reading the file if there are any particles left in the buffer broadcast them
     for(ibuf = 0; ibuf < NProcs; ibuf++) if (ireadtask[ibuf]<0)
@@ -1379,10 +1381,12 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
             MPI_Ssend(&Nbuf[ibuf],1,MPI_Int_t,ibuf,ibuf+NProcs,MPI_COMM_WORLD);
         }
     }
+    if (opt.nsnapread>1){
     MPI_Allgather(Nreadbuf, opt.nsnapread, MPI_Int_t, mpi_nsend_readthread, opt.nsnapread, MPI_Int_t, mpi_comm_read);
     MPISendParticlesBetweenReadThreads(opt, Preadbuf, Part, ireadtask, readtaskID, Pbaryons, mpi_comm_read, mpi_nsend_readthread, mpi_nsend_readthread_baryon);
-#endif
+    }
     }//end of reading task
+#endif
 #ifdef USEMPI
     //if not reading information than waiting to receive information
     else {
