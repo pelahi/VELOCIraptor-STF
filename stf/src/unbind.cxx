@@ -502,7 +502,7 @@ private(j,k,v2,Ti,unbindcheck)
         }
         //check if bound;
         if (opt.uinfo.unbindtype==USYSANDPART)
-            if((totT+totV[i]>0.)&&(maxE>0)&&(numingroup[i]>=opt.MinSize)) unbindcheck=true;
+            if((Efrac<opt.uinfo.minEfrac)&&(maxE>0)&&(numingroup[i]>=opt.MinSize)) unbindcheck=true;
             else unbindcheck=false;
         else if (opt.uinfo.unbindtype==UPART)
             if ((maxE>0)&&(numingroup[i]>=opt.MinSize))unbindcheck=true;
@@ -630,7 +630,7 @@ private(j,k,v2,Ti,unbindcheck)
             }
 
             if (opt.uinfo.unbindtype==USYSANDPART)
-                if((totT+totV[i]>0.)&&(maxE>0)&&(numingroup[i]>=opt.MinSize)) unbindcheck=true;
+                if((Efrac<opt.uinfo.minEfrac)&&(maxE>0)&&(numingroup[i]>=opt.MinSize)) unbindcheck=true;
                 else unbindcheck=false;
             else if (opt.uinfo.unbindtype==UPART)
                 if ((maxE>0)&&(numingroup[i]>=opt.MinSize))unbindcheck=true;
@@ -699,7 +699,7 @@ private(i,j,k,maxE,pq,pqsize,nEplus,nEplusid,Eplusflag,totT,v2,Ti,unbindcheck,Ef
         }
         //check if bound;
         if (opt.uinfo.unbindtype==USYSANDPART)
-            if((totT+totV[i]>0.)&&(maxE>0)&&(numingroup[i]>=opt.MinSize)) unbindcheck=true;
+            if((Efrac<opt.uinfo.minEfrac)&&(maxE>0)&&(numingroup[i]>=opt.MinSize)) unbindcheck=true;
             else unbindcheck=false;
         else if (opt.uinfo.unbindtype==UPART)
             if ((maxE>0)&&(numingroup[i]>=opt.MinSize))unbindcheck=true;
@@ -794,7 +794,7 @@ private(i,j,k,maxE,pq,pqsize,nEplus,nEplusid,Eplusflag,totT,v2,Ti,unbindcheck,Ef
             }
 
             if (opt.uinfo.unbindtype==USYSANDPART)
-                if((totT+totV[i]>0.)&&(maxE>0)&&(numingroup[i]>=opt.MinSize)) unbindcheck=true;
+                if((Efrac<opt.uinfo.minEfrac)&&(maxE>0)&&(numingroup[i]>=opt.MinSize)) unbindcheck=true;
                 else unbindcheck=false;
             else if (opt.uinfo.unbindtype==UPART)
                 if ((maxE>0)&&(numingroup[i]>=opt.MinSize))unbindcheck=true;
@@ -1166,7 +1166,7 @@ private(j,k,v2,Ti,unbindcheck)
         }
         //check if bound;
         if (opt.uinfo.unbindtype==USYSANDPART)
-            if((totT+totV[i]>0.)&&(maxE>0)&&(numingroup[i]>=opt.MinSize)) unbindcheck=true;
+            if((Efrac<opt.uinfo.minEfrac)&&(maxE>0)&&(numingroup[i]>=opt.MinSize)) unbindcheck=true;
             else unbindcheck=false;
         else if (opt.uinfo.unbindtype==UPART)
             if ((maxE>0)&&(numingroup[i]>=opt.MinSize))unbindcheck=true;
@@ -1291,7 +1291,7 @@ private(j,k,v2,Ti,unbindcheck)
             }
 
             if (opt.uinfo.unbindtype==USYSANDPART)
-                if((totT+totV[i]>0.)&&(maxE>0)&&(numingroup[i]>=opt.MinSize)) unbindcheck=true;
+                if((Efrac<opt.uinfo.minEfrac)&&(maxE>0)&&(numingroup[i]>=opt.MinSize)) unbindcheck=true;
                 else unbindcheck=false;
             else if (opt.uinfo.unbindtype==UPART)
                 if ((maxE>0)&&(numingroup[i]>=opt.MinSize))unbindcheck=true;
@@ -1357,7 +1357,7 @@ private(i,j,k,maxE,pq,pqsize,nEplus,nEplusid,Eplusflag,totT,v2,Ti,unbindcheck,Ef
         }
         //check if bound;
         if (opt.uinfo.unbindtype==USYSANDPART)
-            if((totT+totV[i]>0.)&&(maxE>0)&&(numingroup[i]>=opt.MinSize)) unbindcheck=true;
+            if((Efrac<opt.uinfo.minEfrac)&&(maxE>0)&&(numingroup[i]>=opt.MinSize)) unbindcheck=true;
             else unbindcheck=false;
         else if (opt.uinfo.unbindtype==UPART)
             if ((maxE>0)&&(numingroup[i]>=opt.MinSize))unbindcheck=true;
@@ -1450,7 +1450,7 @@ private(i,j,k,maxE,pq,pqsize,nEplus,nEplusid,Eplusflag,totT,v2,Ti,unbindcheck,Ef
             }
 
             if (opt.uinfo.unbindtype==USYSANDPART)
-                if((totT+totV[i]>0.)&&(maxE>0)&&(numingroup[i]>=opt.MinSize)) unbindcheck=true;
+                if((Efrac<opt.uinfo.minEfrac)&&(maxE>0)&&(numingroup[i]>=opt.MinSize)) unbindcheck=true;
                 else unbindcheck=false;
             else if (opt.uinfo.unbindtype==UPART)
                 if ((maxE>0)&&(numingroup[i]>=opt.MinSize))unbindcheck=true;
