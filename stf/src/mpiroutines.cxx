@@ -621,7 +621,7 @@ void MPISendParticlesBetweenReadThreads(Options &opt, Particle *&Pbuf, Particle 
     }
 }
 
-void MPISendParticlesBetweenReadThreads(Options &opt, vector<Particle> *&Pbuf, Particle *&Part, int *&ireadtask, int *&readtaskID, Particle *&Pbaryons, MPI_Comm &mpi_comm_read, Int_t *&mpi_nsend_readthread, Int_t *&mpi_nsend_readthread_baryon)
+void MPISendParticlesBetweenReadThreads(Options &opt, vector<Particle> *&Preadbuf, Particle *&Part, int *&ireadtask, int *&readtaskID, Particle *&Pbaryons, MPI_Comm &mpi_comm_read, Int_t *&mpi_nsend_readthread, Int_t *&mpi_nsend_readthread_baryon)
 {
     if (ireadtask[ThisTask]>=0) {
         //split the communication into small buffers
@@ -665,7 +665,7 @@ void MPISendParticlesBetweenReadThreads(Options &opt, vector<Particle> *&Pbuf, P
                     currecvchunksize=min(maxchunksize,nrecv-recvoffset);
                     //blocking point-to-point send and receive. Here must determine the appropriate offset point in the local export buffer
                     //for sending data and also the local appropriate offset in the local the receive buffer for information sent from the local receiving buffer
-                    MPI_Sendrecv(&Pbuf[ireadtask[recvTask]][sendoffset],sizeof(Particle)*cursendchunksize, MPI_BYTE, recvTask, TAG_IO_A+isendrecv,
+                    MPI_Sendrecv(&Preadbuf[recvTask][sendoffset],sizeof(Particle)*cursendchunksize, MPI_BYTE, recvTask, TAG_IO_A+isendrecv,
                         &Part[Nlocal],sizeof(Particle)*currecvchunksize, MPI_BYTE, recvTask, TAG_IO_A+isendrecv,
                                 mpi_comm_read, &status);
                     Nlocal+=currecvchunksize;
@@ -693,7 +693,7 @@ void MPISendParticlesBetweenReadThreads(Options &opt, vector<Particle> *&Pbuf, P
                     currecvchunksize=min(maxchunksize,nrecv-recvoffset);
                     //blocking point-to-point send and receive. Here must determine the appropriate offset point in the local export buffer
                     //for sending data and also the local appropriate offset in the local the receive buffer for information sent from the local receiving buffer
-                    MPI_Sendrecv(&Pbuf[ireadtask[recvTask]][mpi_nsend[ThisTask * NProcs + recvTask]+sendoffset],sizeof(Particle)*cursendchunksize, MPI_BYTE, recvTask, TAG_IO_B+isendrecv,
+                    MPI_Sendrecv(&Preadbuf[recvTask][mpi_nsend[ThisTask * NProcs + recvTask]+sendoffset],sizeof(Particle)*cursendchunksize, MPI_BYTE, recvTask, TAG_IO_B+isendrecv,
                         &Pbaryons[Nlocalbaryon[0]],sizeof(Particle)*currecvchunksize, MPI_BYTE, recvTask, TAG_IO_B+isendrecv,
                                 mpi_comm_read, &status);
                     Nlocalbaryon[0]+=currecvchunksize;

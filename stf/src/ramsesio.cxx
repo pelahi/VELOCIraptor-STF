@@ -500,6 +500,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     Int_t *Nlocalthreadbuf,Nlocaltotalbuf;
     int *irecv, sendTask,recvTask,irecvflag, *mpi_irecvflag;
     MPI_Request *mpi_request;
+    Int_t inreadsend,totreadsend;
     Int_t *mpi_nsend_baryon;
     Int_t *mpi_nsend_readthread;
     Int_t *mpi_nsend_readthread_baryon;
@@ -515,12 +516,11 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     readtaskID=new int[opt.nsnapread];
     MPIDistributeReadTasks(opt,ireadtask,readtaskID);
     MPI_Comm_split(MPI_COMM_WORLD, (ireadtask[ThisTask]>=0), ThisTask, &mpi_comm_read);
-
     if (ireadtask[ThisTask]>=0)
     {
         //to temporarily store data
         Pbuf=new Particle[BufSize*NProcs];
-        Nreadbuf=new Int_t[opt.num_files];
+        Nreadbuf=new Int_t[opt.nsnapread];
         for (int j=0;j<NProcs;j++) Nbuf[j]=0;
         for (int j=0;j<opt.nsnapread;j++) Nreadbuf[j]=0;
         if (opt.nsnapread>1){
@@ -530,6 +530,9 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
         //to determine which files the thread should read
         ireadfile=new int[opt.num_files];
         ifirstfile=MPISetFilesRead(opt,ireadfile,ireadtask);
+        inreadsend=0;
+        for (int j=0;j<opt.num_files;j++) inreadsend+=ireadfile[j];
+        MPI_Allreduce(&inreadsend,&totreadsend,1,MPI_Int_t,MPI_MIN,mpi_comm_read);
     }
     else {
         Nlocalthreadbuf=new Int_t[opt.nsnapread];
@@ -567,16 +570,14 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     Finfo>>stringbuf>>stringbuf>>header[ifirstfile].scale_d;
     Finfo>>stringbuf>>stringbuf>>header[ifirstfile].scale_t;
 
-    //convert boxsize to comoving mpc
-    header[ifirstfile].BoxSize*=header[ifirstfile].scale_l/3.08e24/header[ifirstfile].aexp;
+    //convert boxsize to comoving mpc/h
+    header[ifirstfile].BoxSize*=header[ifirstfile].scale_l/3.08e24/header[ifirstfile].aexp*header[ifirstfile].HubbleParam;
+    // Convert to comoving kpc little h
+    header[ifirstfile].BoxSize *= 1000.0;
     getline(Finfo,stringbuf);
     Finfo>>stringbuf>>orderingstring;
     getline(Finfo,stringbuf);
     Finfo.close();
-
-    // Convert to physical kpc
-    header[ifirstfile].BoxSize *= 1000.0*header[ifirstfile].aexp;
-    // BOX IS NOW PHYSICAL
 
     opt.p            = header[ifirstfile].BoxSize;
     opt.a            = header[ifirstfile].aexp;
@@ -597,18 +598,18 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
         Double_t bnx=-((1-opt.Omega_m-opt.Omega_Lambda)*pow(aadjust,-2.0)+opt.Omega_Lambda)/((1-opt.Omega_m-opt.Omega_Lambda)*pow(aadjust,-2.0)+opt.Omega_m*pow(aadjust,-3.0)+opt.Omega_Lambda);
         opt.virlevel=(18.0*M_PI*M_PI+82.0*bnx-39*bnx*bnx)/opt.Omega_m;
     }
-    //adjust length scale so that convert from 0 to 1 (box units) to Mpc comoving
-    //opt.L*=header[ifirstfile].scale_l/3.08e24/header[ifirstfile].aexp;
-    //
-    opt.L= opt.p*opt.h/opt.a;
+    //adjust length scale so that convert from 0 to 1 (box units) to kpc comoving
+    //to scale mpi domains correctly need to store in opt.L the box size in comoving little h value
+    //opt.L= opt.p*opt.h/opt.a;
+    opt.L = header[ifirstfile].BoxSize;
     //adjust velocity scale to that ramses is converted to km/s from which you can convert again;
     opt.V = header[ifirstfile].scale_l/header[ifirstfile].scale_t*1e-5;
 
     //convert mass from code units to Solar Masses
     mscale   = header[ifirstfile].scale_d * (header[ifirstfile].scale_l * header[ifirstfile].scale_l * header[ifirstfile].scale_l) / 1.988e+33;
 
-    //convert length from code units to kpc
-    lscale   = header[ifirstfile].scale_l/3.08e21;
+    //convert length from code units to kpc (this lscale includes the physical box size)
+    lscale   = header[ifirstfile].scale_l/3.086e21;
 
     //convert velocity from code units to km/s
     lvscale  = header[ifirstfile].scale_l/header[ifirstfile].scale_t*1e-5;
@@ -656,7 +657,10 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     //if not only gas being searched open particle data
     count2=bcount2=0;
     if (opt.partsearchtype!=PSTGAS) {
+#ifdef USEMPI
     if (ireadtask[ThisTask]>=0) {
+        inreadsend=0;
+#endif
     //read particle files consists of positions,velocities, mass, id, and level (along with ages and met if some flags set)
     for (i=0;i<opt.num_files;i++) {
     if (ireadfile[i]) {
@@ -808,7 +812,6 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
 #endif
                 //assume that first sphblock is internal energy
                 //ensure that store number of particles to be sent to the threads involved with reading snapshot files
-                if(ireadtask[ibuf]>=0&&ibuf!=ThisTask) Nreadbuf[ibuf]++;
                 Nbuf[ibuf]++;
                 if (ibuf==ThisTask) {
                     Nbuf[ibuf]--;
@@ -823,8 +826,12 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                         MPI_Send(&Pbuf[ibuf*BufSize],sizeof(Particle)*Nbuf[ibuf],MPI_BYTE,ibuf,ibuf,MPI_COMM_WORLD);
                         Nbuf[ibuf]=0;
                     }
-                    else if (Nbuf[ibuf]==BufSize&&ireadtask[ibuf]>=0) {
-                        Nbuf[ibuf]=0;
+                    else if (ireadtask[ibuf]>=0) {
+                        if (ibuf!=ThisTask) {
+                            if (Nreadbuf[ireadtask[ibuf]]==Preadbuf[ireadtask[ibuf]].max_size()) Preadbuf[ireadtask[ibuf]].resize(Preadbuf[ireadtask[ibuf]].size()+BufSize);
+                            Preadbuf[ireadtask[ibuf]][Nreadbuf[ireadtask[ibuf]]]=Pbuf[ibufindex];
+                            Nreadbuf[ireadtask[ibuf]]++;
+                        }
                     }
                 }
 #else
@@ -869,7 +876,6 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                     }
 #endif
                     //ensure that store number of particles to be sent to other reading threads
-                    if(ireadtask[ibuf]>=0&&ibuf!=ThisTask) Nreadbuf[ibuf]++;
                     Nbuf[ibuf]++;
                     //now determine what to do with the particle, local or must send
                     if (ibuf==ThisTask) {
@@ -883,12 +889,12 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                             MPI_Ssend(&Pbuf[ibuf*BufSize],sizeof(Particle)*Nbuf[ibuf],MPI_BYTE,ibuf,ibuf,MPI_COMM_WORLD);
                             Nbuf[ibuf]=0;
                         }
-                        else if (Nbuf[ibuf]==BufSize&&ireadtask[ibuf]>=0) {
+                        else if (ireadtask[ibuf]>=0) {
                             if (ibuf!=ThisTask) {
-                                if (Nreadbuf[ibuf]==Preadbuf[ireadtask[ibuf]].size()) Preadbuf[ireadtask[ibuf]].resize(Preadbuf[ireadtask[ibuf]].size()+BufSize);
-                                Preadbuf[ireadtask[ibuf]][Nreadbuf[ibuf]]=Pbuf[ibufindex];
+                                if (Nreadbuf[ireadtask[ibuf]]==Preadbuf[ireadtask[ibuf]].max_size()) Preadbuf[ireadtask[ibuf]].resize(Preadbuf[ireadtask[ibuf]].size()+BufSize);
+                                Preadbuf[ireadtask[ibuf]][Nreadbuf[ireadtask[ibuf]]]=Pbuf[ibufindex];
+                                Nreadbuf[ireadtask[ibuf]]++;
                             }
-                            Nbuf[ibuf]=0;
                         }
                     }
 #else
@@ -948,12 +954,12 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                             MPI_Ssend(&Pbuf[ibuf*BufSize],sizeof(Particle)*Nbuf[ibuf],MPI_BYTE,ibuf,ibuf,MPI_COMM_WORLD);
                             Nbuf[ibuf]=0;
                         }
-                        else if (Nbuf[ibuf]==BufSize&&ireadtask[ibuf]>=0) {
+                        else if (ireadtask[ibuf]>=0) {
                             if (ibuf!=ThisTask) {
-                                if (Nreadbuf[ibuf]==Preadbuf[ireadtask[ibuf]].size()) Preadbuf[ireadtask[ibuf]].resize(Preadbuf[ireadtask[ibuf]].size()+BufSize);
-                                Preadbuf[ireadtask[ibuf]][Nreadbuf[ibuf]]=Pbuf[ibufindex];
+                                if (Nreadbuf[ireadtask[ibuf]]==Preadbuf[ireadtask[ibuf]].max_size()) Preadbuf[ireadtask[ibuf]].resize(Preadbuf[ireadtask[ibuf]].size()+BufSize);
+                                Preadbuf[ireadtask[ibuf]][Nreadbuf[ireadtask[ibuf]]]=Pbuf[ibufindex];
+                                Nreadbuf[ireadtask[ibuf]]++;
                             }
-                            Nbuf[ibuf]=0;
                         }
                     }
 #else
@@ -1013,12 +1019,12 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                             MPI_Ssend(&Pbuf[ibuf*BufSize],sizeof(Particle)*Nbuf[ibuf],MPI_BYTE,ibuf,ibuf,MPI_COMM_WORLD);
                             Nbuf[ibuf]=0;
                         }
-                        else if (Nbuf[ibuf]==BufSize&&ireadtask[ibuf]>=0) {
+                        else if (ireadtask[ibuf]>=0) {
                             if (ibuf!=ThisTask) {
-                                if (Nreadbuf[ibuf]==Preadbuf[ireadtask[ibuf]].size()) Preadbuf[ireadtask[ibuf]].resize(Preadbuf[ireadtask[ibuf]].size()+BufSize);
-                                Preadbuf[ireadtask[ibuf]][Nreadbuf[ibuf]]=Pbuf[ibufindex];
+                                if (Nreadbuf[ireadtask[ibuf]]==Preadbuf[ireadtask[ibuf]].max_size()) Preadbuf[ireadtask[ibuf]].resize(Preadbuf[ireadtask[ibuf]].size()+BufSize);
+                                Preadbuf[ireadtask[ibuf]][Nreadbuf[ireadtask[ibuf]]]=Pbuf[ibufindex];
+                                Nreadbuf[ireadtask[ibuf]]++;
                             }
-                            Nbuf[ibuf]=0;
                         }
                     }
 #else
@@ -1059,14 +1065,16 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
         Fpartlevel[i].close();
         Fpartage[i].close();
         Fpartmet[i].close();
-    }//end of whether reading a file
 #ifdef USEMPI
         //send information between read threads
-        if (opt.nsnapread>1){
+        if (opt.nsnapread>1 && inreadsend<totreadsend){
             MPI_Allgather(Nreadbuf, opt.nsnapread, MPI_Int_t, mpi_nsend_readthread, opt.nsnapread, MPI_Int_t, mpi_comm_read);
             MPISendParticlesBetweenReadThreads(opt, Preadbuf, Part, ireadtask, readtaskID, Pbaryons, mpi_comm_read, mpi_nsend_readthread, mpi_nsend_readthread_baryon);
+            inreadsend++;
+            for(ibuf = 0; ibuf < opt.nsnapread; ibuf++) Nreadbuf[ibuf]=0;
         }
 #endif
+    }//end of whether reading a file
     }//end of loop over file
 #ifdef USEMPI
     //once finished reading the file if there are any particles left in the buffer broadcast them
@@ -1080,6 +1088,8 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
             MPI_Ssend(&Nbuf[ibuf],1,MPI_Int_t,ibuf,ibuf+NProcs,MPI_COMM_WORLD);
         }
     }
+    MPI_Allgather(Nreadbuf, opt.nsnapread, MPI_Int_t, mpi_nsend_readthread, opt.nsnapread, MPI_Int_t, mpi_comm_read);
+    MPISendParticlesBetweenReadThreads(opt, Preadbuf, Part, ireadtask, readtaskID, Pbaryons, mpi_comm_read, mpi_nsend_readthread, mpi_nsend_readthread_baryon);
 #endif
     }
 #ifdef USEMPI
@@ -1092,6 +1102,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     //if gas searched in some fashion then load amr/hydro data
     if (opt.partsearchtype==PSTGAS||opt.partsearchtype==PSTALL||(opt.partsearchtype==PSTDARK&&opt.iBaryonSearch)) {
     if (ireadtask[ThisTask]>=0) {
+    inreadsend=0;
     for (i=0;i<opt.num_files;i++) if (ireadfile[i]) {
         sprintf(buf1,"%s/amr_%s.out%s%05d",opt.fname,opt.ramsessnapname,i+1);
         sprintf(buf2,"%s/amr_%s.out%s",opt.fname,opt.ramsessnapname);
@@ -1234,7 +1245,6 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
 #endif
 #endif
                                             //ensure that store number of particles to be sent to the threads involved with reading snapshot files
-                                            if(ireadtask[ibuf]>=0&&ibuf!=ThisTask) Nreadbuf[ibuf]++;
                                             Nbuf[ibuf]++;
                                             if (ibuf==ThisTask) {
                                                 Nbuf[ibuf]--;
@@ -1249,12 +1259,12 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                                                     MPI_Send(&Pbuf[ibuf*BufSize],sizeof(Particle)*Nbuf[ibuf],MPI_BYTE,ibuf,ibuf,MPI_COMM_WORLD);
                                                     Nbuf[ibuf]=0;
                                                 }
-                                                else if (Nbuf[ibuf]==BufSize&&ireadtask[ibuf]>=0) {
+                                                else if (ireadtask[ibuf]>=0) {
                                                     if (ibuf!=ThisTask) {
-                                                        if (Nreadbuf[ibuf]==Preadbuf[ireadtask[ibuf]].size()) Preadbuf[ireadtask[ibuf]].resize(Preadbuf[ireadtask[ibuf]].size()+BufSize);
-                                                        Preadbuf[ireadtask[ibuf]][Nreadbuf[ibuf]]=Pbuf[ibufindex];
+                                                        if (Nreadbuf[ireadtask[ibuf]]==Preadbuf[ireadtask[ibuf]].max_size()) Preadbuf[ireadtask[ibuf]].resize(Preadbuf[ireadtask[ibuf]].size()+BufSize);
+                                                        Preadbuf[ireadtask[ibuf]][Nreadbuf[ireadtask[ibuf]]]=Pbuf[ibufindex];
+                                                        Nreadbuf[ireadtask[ibuf]]++;
                                                     }
-                                                    Nbuf[ibuf]=0;
                                                 }
                                             }
 #else
@@ -1293,7 +1303,6 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
 #endif
 #endif
                                         //ensure that store number of particles to be sent to the reading threads
-                                        if(ireadtask[ibuf]>=0&&ibuf!=ThisTask) Nreadbuf[ibuf]++;
                                         Nbuf[ibuf]++;
                                         if (ibuf==ThisTask) {
                                             Nbuf[ibuf]--;
@@ -1306,12 +1315,12 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                                                 MPI_Ssend(&Pbuf[ibuf*BufSize],sizeof(Particle)*Nbuf[ibuf],MPI_BYTE,ibuf,ibuf,MPI_COMM_WORLD);
                                                 Nbuf[ibuf]=0;
                                             }
-                                            else if (Nbuf[ibuf]==BufSize&&ireadtask[ibuf]>=0) {
+                                            else if (ireadtask[ibuf]>=0) {
                                                 if (ibuf!=ThisTask) {
-                                                    if (Nreadbuf[ibuf]==Preadbuf[ireadtask[ibuf]].size()) Preadbuf[ireadtask[ibuf]].resize(Preadbuf[ireadtask[ibuf]].size()+BufSize);
-                                                    Preadbuf[ireadtask[ibuf]][Nreadbuf[ibuf]]=Pbuf[ibufindex];
+                                                    if (Nreadbuf[ireadtask[ibuf]]==Preadbuf[ireadtask[ibuf]].max_size()) Preadbuf[ireadtask[ibuf]].resize(Preadbuf[ireadtask[ibuf]].size()+BufSize);
+                                                    Preadbuf[ireadtask[ibuf]][Nreadbuf[ireadtask[ibuf]]]=Pbuf[ibufindex];
+                                                    Nreadbuf[ireadtask[ibuf]]++;
                                                 }
-                                                Nbuf[ibuf]=0;
                                             }
                                         }
 #else
@@ -1346,17 +1355,19 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
             }
         }
         Famr[i].close();
-        #ifdef USEMPI
-                //send information between read threads
-                if (opt.nsnapread>1){
-                    MPI_Allgather(Nreadbuf, opt.nsnapread, MPI_Int_t, mpi_nsend_readthread, opt.nsnapread, MPI_Int_t, mpi_comm_read);
-                    MPISendParticlesBetweenReadThreads(opt, Preadbuf, Part, ireadtask, readtaskID, Pbaryons, mpi_comm_read, mpi_nsend_readthread, mpi_nsend_readthread_baryon);
-                }
-        #endif
+#ifdef USEMPI
+        //send information between read threads
+        if (opt.nsnapread>1 && inreadsend<totreadsend){
+            MPI_Allgather(Nreadbuf, opt.nsnapread, MPI_Int_t, mpi_nsend_readthread, opt.nsnapread, MPI_Int_t, mpi_comm_read);
+            MPISendParticlesBetweenReadThreads(opt, Preadbuf, Part, ireadtask, readtaskID, Pbaryons, mpi_comm_read, mpi_nsend_readthread, mpi_nsend_readthread_baryon);
+            inreadsend++;
+            for(ibuf = 0; ibuf < opt.nsnapread; ibuf++) Nreadbuf[ibuf]=0;
+        }
+#endif
     }
 #ifdef USEMPI
     //once finished reading the file if there are any particles left in the buffer broadcast them
-    for(ibuf = opt.nsnapread; ibuf < NProcs; ibuf++)
+    for(ibuf = 0; ibuf < NProcs; ibuf++) if (ireadtask[ibuf]<0)
     {
         MPI_Ssend(&Nbuf[ibuf],1,MPI_Int_t, ibuf, ibuf+NProcs, MPI_COMM_WORLD);
         if (Nbuf[ibuf]>0) {
@@ -1366,6 +1377,8 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
             MPI_Ssend(&Nbuf[ibuf],1,MPI_Int_t,ibuf,ibuf+NProcs,MPI_COMM_WORLD);
         }
     }
+    MPI_Allgather(Nreadbuf, opt.nsnapread, MPI_Int_t, mpi_nsend_readthread, opt.nsnapread, MPI_Int_t, mpi_comm_read);
+    MPISendParticlesBetweenReadThreads(opt, Preadbuf, Part, ireadtask, readtaskID, Pbaryons, mpi_comm_read, mpi_nsend_readthread, mpi_nsend_readthread_baryon);
 #endif
     }//end of reading task
 #ifdef USEMPI
@@ -1378,6 +1391,36 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
 //#ifdef USEMPI
 //    }
 //#endif
+
+    //update info
+    opt.p*=opt.a/opt.h;
+#ifdef HIGHRES
+    opt.zoomlowmassdm=MP_DM*mscale;
+#endif
+#ifdef USEMPI
+    MPI_Barrier(MPI_COMM_WORLD);
+    //update cosmological data and boundary in code units
+    MPI_Bcast(&(opt.p),sizeof(opt.p),MPI_BYTE,0,MPI_COMM_WORLD);
+    MPI_Bcast(&(opt.a),sizeof(opt.a),MPI_BYTE,0,MPI_COMM_WORLD);
+    MPI_Bcast(&(opt.Omega_cdm),sizeof(opt.Omega_cdm),MPI_BYTE,0,MPI_COMM_WORLD);
+    MPI_Bcast(&(opt.Omega_b),sizeof(opt.Omega_b),MPI_BYTE,0,MPI_COMM_WORLD);
+    MPI_Bcast(&(opt.Omega_m),sizeof(opt.Omega_m),MPI_BYTE,0,MPI_COMM_WORLD);
+    MPI_Bcast(&(opt.Omega_Lambda),sizeof(opt.Omega_Lambda),MPI_BYTE,0,MPI_COMM_WORLD);
+    MPI_Bcast(&(opt.h),sizeof(opt.h),MPI_BYTE,0,MPI_COMM_WORLD);
+    MPI_Bcast(&(opt.rhobg),sizeof(opt.rhobg),MPI_BYTE,0,MPI_COMM_WORLD);
+    MPI_Bcast(&(opt.virlevel),sizeof(opt.virlevel),MPI_BYTE,0,MPI_COMM_WORLD);
+    MPI_Bcast(&(opt.ellxscale),sizeof(opt.ellxscale),MPI_BYTE,0,MPI_COMM_WORLD);
+    MPI_Bcast(&(opt.L),sizeof(opt.L),MPI_BYTE,0,MPI_COMM_WORLD);
+    MPI_Bcast(&(opt.V),sizeof(opt.V),MPI_BYTE,0,MPI_COMM_WORLD);
+    MPI_Bcast(&(opt.M),sizeof(opt.M),MPI_BYTE,0,MPI_COMM_WORLD);
+    MPI_Bcast(&(opt.G),sizeof(opt.G),MPI_BYTE,0,MPI_COMM_WORLD);
+#ifdef NOMASS
+    MPI_Bcast(&(opt.MassValue),sizeof(opt.MassValue),MPI_BYTE,0,MPI_COMM_WORLD);
+#endif
+    MPI_Bcast(&(Ntotal),sizeof(Ntotal),MPI_BYTE,0,MPI_COMM_WORLD);
+    MPI_Bcast(&opt.zoomlowmassdm,sizeof(opt.zoomlowmassdm),MPI_BYTE,0,MPI_COMM_WORLD);
+#endif
+
     //a bit of clean up
 #ifdef USEMPI
     MPI_Comm_free(&mpi_comm_read);
