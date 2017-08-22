@@ -197,13 +197,22 @@ void usage(void)
     See \ref unbinding and \ref unbind.cxx for more details
 
     \arg <b> \e Unbind_flag  </b> whether or not substructures should be passed through an unbinding routine. \ref Options.uinfo & \ref UnbindInfo.unbindflag \n
-    \arg <b> \e Allowed_kinetic_potential_ratio  </b> ratio of kinetic to potential energy at which a particle is still considered bound, ie: particle is still bound if \f$ \alpha T+W<0 \f$, so \f$ \alpha=1 \f$ would be standard unbinding and \f$ \alpha<1 \f$ allows one to identify unbound tidal debris. Given that <b> VELOCIraptor </b> was designed to identify tidal streams, it makes little sense to have this set to 1 unless explicitly required. Note that the code still separates particles into bound and unbound. Typical values of \f$ \alpha\geq 0.2 \f$ seems to minimize the number of false positives in tidal debris while still identifying completely unbound tidal debris. \ref Options.uinfo & \ref UnbindInfo.Eratio \n
+    \arg <b> \e Allowed_kinetic_potential_ratio  </b> ratio of kinetic to potential energy at which a particle is still considered bound, ie: particle is still bound
+    if \f$ \alpha T+W<0 \f$, so \f$ \alpha=1 \f$ would be standard unbinding and \f$ \alpha<1 \f$ allows one to identify unbound tidal debris.
+    Given that <b> VELOCIraptor </b> was designed to identify tidal streams, it makes little sense to have this set to 1 unless explicitly required.
+    Note that the code still separates particles into bound and unbound. Typical values of \f$ \alpha\geq 0.2 \f$ seems to minimize the number of false positives
+    in tidal debris while still identifying completely unbound tidal debris. \ref Options.uinfo & \ref UnbindInfo.Eratio \n
     \arg <b> \e Min_bound_mass_frac </b> Designed to demand a substructure still have a minimum amount of self-bound mass. \ref Options.uinfo & \ref UnbindInfo.minEfrac \n
-    \arg <b> \e Bound_halos </b> 0/1 flag to make sure field objects such as haloes are self bound after substructures have been identified and extracted from the halo. This can have interesting consequences as it is possible that a multiple merger will appear as a single FOF halo, however all with all the cores removed, the FOF halo is actually an unbound structure. \ref Options.iBoundHalos \n
+    \arg <b> \e Bound_halos </b> 0/1/2 flag to make sure field objects such as haloes are self bound before (use 1) and also after (use 2) substructures have been identified
+    and extracted from the halo. Demanding boundness after substructure search can have interesting consequences as it is possible that a multiple merger will appear as
+    a single FOF halo, however all with all the cores removed, the FOF halo is actually an unbound structure. \ref Options.iBoundHalos \n
     \arg <b> \e Keep_background_potential </b> 1/0 flag When determining whether a structure is self-bound, the approach taken is to treat the candidate structure in isolation. Then determine the velocity reference frame to determine the kinetic energy of each particle and remove them. However, it is possible one wishes to keep the background particles when determining the potential, that is once one starts unbinding, don't treat the candidate structure in isolation but in a background sea. When finding tidal debris, it is useful to keep the background. \ref Options.uinfo & \ref UnbindInfo.bgpot \n
-    \arg <b> \e Kinetic_reference_frame_type </b> specify kinetic frame when determining whether particle is bound. Default is to use the centre-of-mass velocity frame (0) but can also use region around minimum of the potential (1). \ref Options.uinfo & \ref UnbindInfo.cmvelreftype \n
+    \arg <b> \e Kinetic_reference_frame_type </b> specify kinetic frame when determining whether particle is bound.
+    Default is to use the centre-of-mass velocity frame (0) but can also use region around minimum of the potential (1). \ref Options.uinfo & \ref UnbindInfo.cmvelreftype \n
     \arg <b> \e Min_npot_ref </b> Set the minimum number of particles used to calculate the velocity of the minimum of the potential (10). \ref Options.uinfo & \ref UnbindInfo.Npotref \n
     \arg <b> \e Frac_pot_ref </b> Set the fraction of particles used to calculate the velocity of the minimum of the potential (0.1). \ref Options.uinfo & \ref UnbindInfo.fracpotref \n
+    \arg <b> \e Unbinding_type </b> Set the unbinding criteria, either just remove particles deemeed "unbound", that is those with \f$ \alpha T+W>0\f$, choosing \ref UPART. Or with \ref USYSANDPART
+    removes "unbound" particles till system also has a true bound fraction > \ref UnbindInfo.minEfrac.
 
     \section cosmoconfig Units & Cosmology
     \subsection unitconfig Units
@@ -493,6 +502,8 @@ void GetParamFile(Options &opt)
                         opt.uinfo.Npotref = atoi(vbuff);
                     else if (strcmp(tbuff, "Frac_pot_ref")==0)
                         opt.uinfo.fracpotref = atof(vbuff);
+                    else if (strcmp(tbuff, "Unbinding_type")==0)
+                        opt.uinfo.unbindtype = atof(vbuff);
 
                     //other options
                     else if (strcmp(tbuff, "Verbose")==0)

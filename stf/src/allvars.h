@@ -822,6 +822,8 @@ struct ConfigInfo{
         datainfo.push_back(to_string(opt.uinfo.Npotref));
         nameinfo.push_back("Frac_pot_ref");
         datainfo.push_back(to_string(opt.uinfo.fracpotref));
+        nameinfo.push_back("Unbinding_type");
+        datainfo.push_back(to_string(opt.uinfo.unbindtype));
 
         //other options
         nameinfo.push_back("Verbose");

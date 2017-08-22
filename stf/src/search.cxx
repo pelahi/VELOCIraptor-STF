@@ -1181,6 +1181,8 @@ private(i,tid)
         tree=new KDTree(Partsubset,nsubset,opt.Bsize,tree->TPHYS);
 
         //now begin fof6d search for large background objects that are missed using smaller grid cells ONLY IF substructures have been found
+        //this search can identify merger excited radial shells so for the moment, disabled
+        /*
         if (numgroups>0) {
             bgoffset=0;
             minsize=ncl*0.2;
@@ -1362,9 +1364,9 @@ private(i,tid)
         if (numgroups>0) if (opt.iverbose>=2) cout<<numgroups<<" substructures found after large grid search"<<endl;
         else if (opt.iverbose>=2) cout<<"NO SUBSTRUCTURES FOUND"<<endl;
     }
+    */
     //ONCE ALL substructures are found, search for cores of major mergers with minimum size set by cell size since grid is quite large after bg search
     //for missing large substructure cores
-
     if(opt.iHaloCoreSearch>0&&((!opt.iSingleHalo&&sublevel<=maxhalocoresublevel)||(opt.iSingleHalo&&sublevel==0)))
     {
         if (opt.iverbose>=2) cout<<ThisTask<<" beginning 6dfof core search to find multiple cores"<<endl;
