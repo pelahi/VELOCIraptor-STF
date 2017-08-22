@@ -1359,12 +1359,12 @@ private(i,tid)
             }
             else if (opt.iverbose) cout<<ThisTask<<" "<<"No large background substructure groups found"<<endl;
             delete[] pfofbg;
-        }
+        }*/
         //output results of search
         if (numgroups>0) if (opt.iverbose>=2) cout<<numgroups<<" substructures found after large grid search"<<endl;
         else if (opt.iverbose>=2) cout<<"NO SUBSTRUCTURES FOUND"<<endl;
     }
-    */
+
     //ONCE ALL substructures are found, search for cores of major mergers with minimum size set by cell size since grid is quite large after bg search
     //for missing large substructure cores
     if(opt.iHaloCoreSearch>0&&((!opt.iSingleHalo&&sublevel<=maxhalocoresublevel)||(opt.iSingleHalo&&sublevel==0)))
