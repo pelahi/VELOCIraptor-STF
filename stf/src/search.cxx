@@ -2561,6 +2561,7 @@ private(i)
  * then they are associated with parent substructure.
  * \todo when FOF search, currently still search baryons for association to all dm particles in groups, not just substructures. Could change it to searching only substructures but then
  * might get too many baryons associated to substructures.
+ * \todo might use full phase-space tensor association.
 */
 Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, const Int_t ndark, Particle *&Part, Int_t *&pfofdark, Int_t &ngroupdark, Int_t &nhalos, int ihaloflag, int iinclusive, PropData *pdata)
 {
@@ -2637,6 +2638,7 @@ Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, const I
 #ifndef USEMPI
     if (ngroupdark==0) return pfofall;
 #endif
+    //build a particle list containing only dark matter particles
     numingroup=BuildNumInGroup(ndark, ngroupdark, pfofdark);
 
     //determine total number of particles in groups and set search appropriately
@@ -2651,16 +2653,7 @@ Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, const I
 
     //sort dark matter particles so that particles belonging to a group are first, then all other dm particles
     if (opt.iverbose) cout<<"sort particles so that tree only uses particles in groups "<<npartingroups<<endl;
-    /*
-    //if dm particles FOF searched then only search all structures, otherwise only search substructures
-    if (opt.partsearchtype!=PSTALL) {
-        for (i=0;i<ndark;i++) Part[i].SetPotential(2*(pfofdark[i]==0)+(pfofdark[i]>1));
-    }
-    else {
-        //only search association to substructures
-        for (i=0;i<ndark;i++) Part[i].SetPotential(2*(pfofdark[i]<=nhalos)+(pfofdark[i]>nhalos));
-    }
-    */
+
     //search all dm particles in structures
     for (i=0;i<ndark;i++) Part[i].SetPotential(2*(pfofdark[i]==0)+(pfofdark[i]>1));
     qsort(Part, ndark, sizeof(Particle), PotCompare);
@@ -2722,6 +2715,7 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2)
 #else
         tid=0;
 #endif
+        //if all particles have been searched for field objects then ignore baryons not associated with a group
         if (opt.partsearchtype==PSTALL && pfofbaryons[i]==0) continue;
         p1=Pbaryons[i];
         x1=Coordinate(p1.GetPosition());
@@ -2734,7 +2728,9 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2)
             //determine if baryonic particle needs to be searched. Note that if all particles have been searched during FOF
             //then particle is checked regardless. If that is not the case, particle is searched only if its current group
             //is smaller than the group of the dm particle being examined.
-            if (opt.partsearchtype==PSTALL) icheck=1;
+            //But do not allow baryons to switch between fof structures
+            //if (opt.partsearchtype==PSTALL) icheck=1;
+            if (opt.partsearchtype==PSTALL) icheck=(pfofdark[pindex]>nhalos);
             else icheck=(numingroup[pfofbaryons[i]]<numingroup[pfofdark[pindex]]);
             if (icheck) {
                 if (fofcmp(p1,Part[nnID[j]],param)) {
@@ -2888,7 +2884,7 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2)
     //if unbinding go back and redo full unbinding after including baryons
     //note that here if all particles are searched, the particle array has been reorderd from the input order
     //to dark matter first followed by baryons as has the pfofall array
-    if (opt.uinfo.unbindflag&&ngroupdark>0) {
+    if (ngroupdark>0) {
         if (opt.iverbose) cout<<ThisTask<<" starting unbind of dm+baryons"<<endl;
         //build new arrays based on pfofall.
         Int_t *ningall,**pglistall;
@@ -2935,7 +2931,7 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2)
         uparentgid=new Int_t[ngroupdark+1];
         stype=new Int_t[ngroupdark+1];
         GetHierarchy(opt,ngroupdark,nsub,parentgid,uparentgid,stype);
-        if (CheckUnboundGroups(opt,nparts, Part, ngroupdark, pfofall,ningall,pglistall,0)) {
+        if (CheckUnboundGroups(opt,nparts, Part, ngroupdark, pfofall, ningall,pglistall,0)) {
             //must rebuild pglistall
             for (i=1;i<=ng;i++) delete[] pglistall[i];
             delete[] pglistall;

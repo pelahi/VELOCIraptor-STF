@@ -181,7 +181,6 @@ int Unbind(Options &opt, Particle **gPart, Int_t &numgroups, Int_t *numingroup, 
     int *Eplusflag;
     bool unbindcheck;
     Coordinate *cmvel;
-
     //for tree code potential calculation
     KDTree *tree;
     Int_t ncell,ntreecell,nleafcell;
@@ -442,6 +441,7 @@ private(i,j,k,npot,menc,potmin,ipotmin,potpos,storeval)
 #endif
     }
 
+
     //now go through groups and begin unbinding by finding least bound particle
     //again for small groups multithread over groups
     //larger groups thread over particles in a group
@@ -510,7 +510,7 @@ private(j,k,v2,Ti,unbindcheck)
 
         while(unbindcheck)
         {
-            iunbindflag=1;
+            iunbindflag+=1;
             //first correct for removal of all least bound particle
             double temp=1.0/gmass[i], temp2=0.;
             if (opt.uinfo.cmvelreftype==CMVELREF) {
@@ -643,18 +643,20 @@ private(j,k,v2,Ti,unbindcheck)
             for (j=0;j<numingroup[i];j++) pfof[pglist[i][j]]=0;
             numingroup[i]=0;
             Efrac=0;
+            iunbindflag++;
         }
         delete[] nEplusid;
         delete[] Eplusflag;
     }
+
     //now for small groups loop over groups
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
 private(i,j,k,maxE,pq,pqsize,nEplus,nEplusid,Eplusflag,totT,v2,Ti,unbindcheck,Efrac)
 {
-    #pragma omp for schedule(dynamic) nowait
+    #pragma omp for schedule(dynamic) nowait reduction(+:iunbindflag)
 #endif
-    for (i=1;i<=numgroups;i++) if (numingroup[i]<=ompunbindnum)
+    for (i=1;i<=numgroups;i++) if (numingroup[i]<=ompunbindnum && numingroup[i]>0)
     {
         totT=0;
         maxE=-MAXVALUE;
@@ -706,7 +708,7 @@ private(i,j,k,maxE,pq,pqsize,nEplus,nEplusid,Eplusflag,totT,v2,Ti,unbindcheck,Ef
             else unbindcheck=false;
         while(unbindcheck)
         {
-            iunbindflag=1;
+            iunbindflag++;
             //first correct for removal of all least bound particle
             double temp=1.0/gmass[i], temp2=0.;
             if (opt.uinfo.cmvelreftype==CMVELREF) {
@@ -804,6 +806,7 @@ private(i,j,k,maxE,pq,pqsize,nEplus,nEplusid,Eplusflag,totT,v2,Ti,unbindcheck,Ef
         }
         //if group too small remove entirely
         if (numingroup[i]<opt.MinSize) {
+            iunbindflag++;
             for (j=0;j<numingroup[i];j++) pfof[pglist[i][j]]=0;
             numingroup[i]=0;
             Efrac=0;
@@ -1173,7 +1176,7 @@ private(j,k,v2,Ti,unbindcheck)
             else unbindcheck=false;
         while(unbindcheck)
         {
-            iunbindflag=1;
+            iunbindflag++;
             //first correct for removal of all least bound particle
             double temp=1.0/gmass[i], temp2=0.;
             if (opt.uinfo.cmvelreftype==CMVELREF) {
@@ -1301,6 +1304,7 @@ private(j,k,v2,Ti,unbindcheck)
         }
         //if group too small remove entirely
         if (numingroup[i]<opt.MinSize) {
+            iunbindflag++;
             for (j=0;j<numingroup[i];j++) pfof[gPart[noffset[i]+j].GetPID()]=0;
             numingroup[i]=0;
         }
@@ -1312,7 +1316,7 @@ private(j,k,v2,Ti,unbindcheck)
 #pragma omp parallel default(shared)  \
 private(i,j,k,maxE,pq,pqsize,nEplus,nEplusid,Eplusflag,totT,v2,Ti,unbindcheck,Efrac,Ptemp)
 {
-    #pragma omp for schedule(dynamic) nowait
+    #pragma omp for schedule(dynamic) nowait reduction(+:iunbindflag)
 #endif
     for (i=1;i<=numgroups;i++) if (numingroup[i]<=ompunbindnum)
     {
@@ -1364,7 +1368,7 @@ private(i,j,k,maxE,pq,pqsize,nEplus,nEplusid,Eplusflag,totT,v2,Ti,unbindcheck,Ef
             else unbindcheck=false;
         while(unbindcheck)
         {
-            iunbindflag=1;
+            iunbindflag++;
             //first correct for removal of all least bound particle
             double temp=1.0/gmass[i], temp2=0.;
             if (opt.uinfo.cmvelreftype==CMVELREF) {
@@ -1460,6 +1464,7 @@ private(i,j,k,maxE,pq,pqsize,nEplus,nEplusid,Eplusflag,totT,v2,Ti,unbindcheck,Ef
         }
         //if group too small remove entirely
         if (numingroup[i]<opt.MinSize) {
+            iunbindflag++;
             for (j=0;j<numingroup[i];j++) pfof[gPart[noffset[i]+j].GetPID()]=0;
             numingroup[i]=0;
         }
