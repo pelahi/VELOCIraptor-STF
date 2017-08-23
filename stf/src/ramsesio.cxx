@@ -546,14 +546,14 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     //first read cosmological information
     sprintf(buf1,"%s/info_%s.txt",opt.fname,opt.ramsessnapname);
     Finfo.open(buf1, ios::in);
-    getline(Finfo,stringbuf);
-    getline(Finfo,stringbuf);
+    getline(Finfo,stringbuf);//nfiles
+    getline(Finfo,stringbuf);//ndim
     Finfo>>stringbuf>>stringbuf>>header[ifirstfile].levelmin;
-    getline(Finfo,stringbuf);
-    getline(Finfo,stringbuf);
-    getline(Finfo,stringbuf);
-    getline(Finfo,stringbuf);
-    getline(Finfo,stringbuf);
+    getline(Finfo,stringbuf);//lmax
+    getline(Finfo,stringbuf);//ngridmax
+    getline(Finfo,stringbuf);//nstep
+    getline(Finfo,stringbuf);//blank
+
     Finfo>>stringbuf>>stringbuf>>header[ifirstfile].BoxSize;
     Finfo>>stringbuf>>stringbuf>>header[ifirstfile].time;
     Finfo>>stringbuf>>stringbuf>>header[ifirstfile].aexp;
@@ -828,7 +828,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                     }
                     else if (ireadtask[ibuf]>=0) {
                         if (ibuf!=ThisTask) {
-                            if (Nreadbuf[ireadtask[ibuf]]==Preadbuf[ireadtask[ibuf]].capacity()) Preadbuf[ireadtask[ibuf]].reserve(Preadbuf[ireadtask[ibuf]].capacity()+BufSize);
+                            if (Nreadbuf[ireadtask[ibuf]]==Preadbuf[ireadtask[ibuf]].size()) Preadbuf[ireadtask[ibuf]].resize(Preadbuf[ireadtask[ibuf]].size()+BufSize);
                             Preadbuf[ireadtask[ibuf]][Nreadbuf[ireadtask[ibuf]]]=Pbuf[ibufindex];
                             Nreadbuf[ireadtask[ibuf]]++;
                         }
@@ -891,7 +891,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                         }
                         else if (ireadtask[ibuf]>=0) {
                             if (ibuf!=ThisTask) {
-                                if (Nreadbuf[ireadtask[ibuf]]==Preadbuf[ireadtask[ibuf]].capacity()) Preadbuf[ireadtask[ibuf]].reserve(Preadbuf[ireadtask[ibuf]].capacity()+BufSize);
+                                if (Nreadbuf[ireadtask[ibuf]]==Preadbuf[ireadtask[ibuf]].size()) Preadbuf[ireadtask[ibuf]].resize(Preadbuf[ireadtask[ibuf]].size()+BufSize);
                                 Preadbuf[ireadtask[ibuf]][Nreadbuf[ireadtask[ibuf]]]=Pbuf[ibufindex];
                                 Nreadbuf[ireadtask[ibuf]]++;
                             }
@@ -956,7 +956,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                         }
                         else if (ireadtask[ibuf]>=0) {
                             if (ibuf!=ThisTask) {
-                                if (Nreadbuf[ireadtask[ibuf]]==Preadbuf[ireadtask[ibuf]].capacity()) Preadbuf[ireadtask[ibuf]].reserve(Preadbuf[ireadtask[ibuf]].capacity()+BufSize);
+                                if (Nreadbuf[ireadtask[ibuf]]==Preadbuf[ireadtask[ibuf]].size()) Preadbuf[ireadtask[ibuf]].resize(Preadbuf[ireadtask[ibuf]].size()+BufSize);
                                 Preadbuf[ireadtask[ibuf]][Nreadbuf[ireadtask[ibuf]]]=Pbuf[ibufindex];
                                 Nreadbuf[ireadtask[ibuf]]++;
                             }
@@ -1021,7 +1021,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                         }
                         else if (ireadtask[ibuf]>=0) {
                             if (ibuf!=ThisTask) {
-                                if (Nreadbuf[ireadtask[ibuf]]==Preadbuf[ireadtask[ibuf]].capacity()) Preadbuf[ireadtask[ibuf]].reserve(Preadbuf[ireadtask[ibuf]].capacity()+BufSize);
+                                if (Nreadbuf[ireadtask[ibuf]]==Preadbuf[ireadtask[ibuf]].size()) Preadbuf[ireadtask[ibuf]].resize(Preadbuf[ireadtask[ibuf]].size()+BufSize);
                                 Preadbuf[ireadtask[ibuf]][Nreadbuf[ireadtask[ibuf]]]=Pbuf[ibufindex];
                                 Nreadbuf[ireadtask[ibuf]]++;
                             }
@@ -1066,6 +1066,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
         Fpartage[i].close();
         Fpartmet[i].close();
 #ifdef USEMPI
+
         //send information between read threads
         if (opt.nsnapread>1 && inreadsend<totreadsend){
             MPI_Allgather(Nreadbuf, opt.nsnapread, MPI_Int_t, mpi_nsend_readthread, opt.nsnapread, MPI_Int_t, mpi_comm_read);
@@ -1265,7 +1266,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                                                 }
                                                 else if (ireadtask[ibuf]>=0) {
                                                     if (ibuf!=ThisTask) {
-                                                        if (Nreadbuf[ireadtask[ibuf]]==Preadbuf[ireadtask[ibuf]].capacity()) Preadbuf[ireadtask[ibuf]].reserve(Preadbuf[ireadtask[ibuf]].capacity()+BufSize);
+                                                        if (Nreadbuf[ireadtask[ibuf]]==Preadbuf[ireadtask[ibuf]].size()) Preadbuf[ireadtask[ibuf]].resize(Preadbuf[ireadtask[ibuf]].size()+BufSize);
                                                         Preadbuf[ireadtask[ibuf]][Nreadbuf[ireadtask[ibuf]]]=Pbuf[ibufindex];
                                                         Nreadbuf[ireadtask[ibuf]]++;
                                                     }
@@ -1321,7 +1322,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                                             }
                                             else if (ireadtask[ibuf]>=0) {
                                                 if (ibuf!=ThisTask) {
-                                                    if (Nreadbuf[ireadtask[ibuf]]==Preadbuf[ireadtask[ibuf]].capacity()) Preadbuf[ireadtask[ibuf]].reserve(Preadbuf[ireadtask[ibuf]].capacity()+BufSize);
+                                                    if (Nreadbuf[ireadtask[ibuf]]==Preadbuf[ireadtask[ibuf]].size()) Preadbuf[ireadtask[ibuf]].resize(Preadbuf[ireadtask[ibuf]].size()+BufSize);
                                                     Preadbuf[ireadtask[ibuf]][Nreadbuf[ireadtask[ibuf]]]=Pbuf[ibufindex];
                                                     Nreadbuf[ireadtask[ibuf]]++;
                                                 }
@@ -1361,7 +1362,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
         Famr[i].close();
 #ifdef USEMPI
         //send information between read threads
-        if (opt.nsnapread>1 && inreadsend<totreadsend){
+        if (opt.nsnapread>1){
             MPI_Allgather(Nreadbuf, opt.nsnapread, MPI_Int_t, mpi_nsend_readthread, opt.nsnapread, MPI_Int_t, mpi_comm_read);
             MPISendParticlesBetweenReadThreads(opt, Preadbuf, Part, ireadtask, readtaskID, Pbaryons, mpi_comm_read, mpi_nsend_readthread, mpi_nsend_readthread_baryon);
             inreadsend++;
@@ -1394,15 +1395,13 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     }
 #endif
     }//end of check if gas loaded
-//#ifdef USEMPI
-//    }
-//#endif
 
     //update info
     opt.p*=opt.a/opt.h;
 #ifdef HIGHRES
     opt.zoomlowmassdm=MP_DM*mscale;
 #endif
+
 #ifdef USEMPI
     MPI_Barrier(MPI_COMM_WORLD);
     //update cosmological data and boundary in code units

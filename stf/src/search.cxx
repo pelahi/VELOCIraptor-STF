@@ -2877,7 +2877,7 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
     //if unbinding go back and redo full unbinding after including baryons
     //note that here if all particles are searched, the particle array has been reorderd from the input order
     //to dark matter first followed by baryons as has the pfofall array
-    if (ngroupdark>0||opt.uinfo.unbindflag) {
+    if (opt.uinfo.unbindflag&&ngroupdark>0) {
         if (opt.iverbose) cout<<ThisTask<<" starting unbind of dm+baryons"<<endl;
         //build new arrays based on pfofall.
         Int_t *ningall,**pglistall;

@@ -136,8 +136,8 @@ void MPINumInDomainRAMSES(Options &opt)
         Fpart      = new fstream[opt.num_files];
         Fpartmass  = new fstream[opt.num_files];
         Fpartage   = new fstream[opt.num_files];
-        Famr      = new fstream[opt.num_files];
-        Fhydro      = new fstream[opt.num_files];
+        Famr       = new fstream[opt.num_files];
+        Fhydro     = new fstream[opt.num_files];
         header     = new RAMSES_Header[opt.num_files];
         double dmp_mass,OmegaM, OmegaB;
         int n_out_of_bounds = 0;
@@ -164,17 +164,17 @@ void MPINumInDomainRAMSES(Options &opt)
           fstream Finfo;
           sprintf(buf1,"%s/info_%s.txt", opt.fname, opt.ramsessnapname);
           Finfo.open(buf1, ios::in);
-          getline(Finfo,stringbuf);
-          getline(Finfo,stringbuf);
-          getline(Finfo,stringbuf);
-          getline(Finfo,stringbuf);
-          getline(Finfo,stringbuf);
-          getline(Finfo,stringbuf);
-          getline(Finfo,stringbuf);
-          getline(Finfo,stringbuf);
-          getline(Finfo,stringbuf);
-          getline(Finfo,stringbuf);
-          getline(Finfo,stringbuf);
+          getline(Finfo,stringbuf);//nfiles
+          getline(Finfo,stringbuf);//ndim
+          getline(Finfo,stringbuf);//lmin
+          getline(Finfo,stringbuf);//lmax
+          getline(Finfo,stringbuf);//ngridmax
+          getline(Finfo,stringbuf);//ncoarse
+          getline(Finfo,stringbuf);//blank
+          getline(Finfo,stringbuf);//boxsize
+          getline(Finfo,stringbuf);//time
+          getline(Finfo,stringbuf);//a
+          getline(Finfo,stringbuf);//hubble
           Finfo>>stringbuf>>stringbuf>>OmegaM;
           getline(Finfo,stringbuf);
           getline(Finfo,stringbuf);
