@@ -2553,23 +2553,14 @@ private(i)
  * Otherwise, sends dark matter particles that overlap other mpi domains across to see if DM particle with which baryon particle associated with
  * lies on another mpi domain.
  *
- * \todo at the moment a gas/star particle is associated with a unique structure. If that happens to be a substructure, and this gas/star particle is not bound
- * to the substructure, it is NOT tested to see if it should be associated with the parent structure. This will have to be changed at some point. Which may mean
- * searching for baryons at each stage of a structure search. That is one needs to search for baryons after field objects have been found, then in SubSubSearch loop.
- * This will require a rewrite of the code. OR! the criterion checked actually has information on the local potential and kinetic reference frame so that we can
- * check on the fly whether a particle is approximately bound. This simplest choice would be to store the potential of the DM particles, assume the gas particle's potential is that of
- * its nearest dm particle and store the kinetic centre of a group to see if the particle is bound.
- * \todo if all particles were searched during FOF search, can have baryonic particles store the field group to which they are associated and if they are unbound from a substructure
- * then they are associated with parent substructure.
- * \todo when FOF search, currently still search baryons for association to all dm particles in groups, not just substructures. Could change it to searching only substructures but then
- * might get too many baryons associated to substructures.
  * \todo might use full phase-space tensor association.
 */
 Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, const Int_t ndark, Particle *&Part, Int_t *&pfofdark, Int_t &ngroupdark, Int_t &nhalos, int ihaloflag, int iinclusive, PropData *pdata)
 {
     KDTree *tree;
     Double_t *period;
-    Int_t *pfofbaryons, *pfofall, i,pindex,npartingroups,ng,nghalos,nhalosold=nhalos;
+    Int_t *pfofbaryons, *pfofall, *pfofold;
+    Int_t i,pindex,npartingroups,ng,nghalos,nhalosold=nhalos, baryonfofold;
     Int_t *ids, *storeval,*storeval2;
     Double_t D2,dval,rval;
     Coordinate x1;
@@ -2704,7 +2695,7 @@ Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, const I
     if (opt.iverbose) cout<<"Searching ..."<<endl;
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
-private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2)
+private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
 {
     nnID=new Int_t[nsearch];
     dist2=new Double_t[nsearch];
@@ -2722,6 +2713,7 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2)
         p1=Pbaryons[i];
         x1=Coordinate(p1.GetPosition());
         rval=dval=MAXVALUE;
+        baryonfofold=pfofbaryons[i];
         tree->FindNearestPos(x1, nnID, dist2,nsearch);
         if (dist2[0]<param[6]) {
         for (int j=0;j<nsearch;j++) {
@@ -2731,8 +2723,7 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2)
             //then particle is checked regardless. If that is not the case, particle is searched only if its current group
             //is smaller than the group of the dm particle being examined.
             //But do not allow baryons to switch between fof structures
-            //if (opt.partsearchtype==PSTALL) icheck=1;
-            if (opt.partsearchtype==PSTALL) icheck=(pfofdark[pindex]>nhalos);
+            if (opt.partsearchtype==PSTALL) icheck=((pfofdark[pindex]>nhalos)||(pfofdark[pindex]==baryonfofold));
             else icheck=(numingroup[pfofbaryons[i]]<numingroup[pfofdark[pindex]]);
             if (icheck) {
                 if (fofcmp(p1,Part[nnID[j]],param)) {
@@ -2886,7 +2877,7 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2)
     //if unbinding go back and redo full unbinding after including baryons
     //note that here if all particles are searched, the particle array has been reorderd from the input order
     //to dark matter first followed by baryons as has the pfofall array
-    if (ngroupdark>0) {
+    if (ngroupdark>0||opt.uinfo.unbindflag) {
         if (opt.iverbose) cout<<ThisTask<<" starting unbind of dm+baryons"<<endl;
         //build new arrays based on pfofall.
         Int_t *ningall,**pglistall;
@@ -2933,7 +2924,19 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2)
         uparentgid=new Int_t[ngroupdark+1];
         stype=new Int_t[ngroupdark+1];
         GetHierarchy(opt,ngroupdark,nsub,parentgid,uparentgid,stype);
+        //store the old pfof values of all so that in case particle unbound from a
+        //substructure they are reassigned to the uber parent halo
+        pfofold=new Int_t[nparts];
+        for (i=0;i<nparts;i++) pfofold[i]=pfofall[i];
         if (CheckUnboundGroups(opt,nparts, Part, ngroupdark, pfofall, ningall,pglistall,0)) {
+            //now if pfofall is zero but was a substructure reassign back to uber parent
+            for (i=0;i<nparts;i++)
+            {
+                if (pfofall[Part[i].GetID()]==0 && pfofold[Part[i].GetID()]<nhalos && pfofold[Part[i].GetID()]>=1) {
+                    pfofall[Part[i].GetID()]=uparentgid[pfofold[Part[i].GetID()]];
+                    ningall[uparentgid[pfofold[Part[i].GetID()]]]++;
+                }
+            }
             //must rebuild pglistall
             for (i=1;i<=ng;i++) delete[] pglistall[i];
             delete[] pglistall;
@@ -3010,6 +3013,7 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2)
             delete[] pglistall;
 
         }
+        delete[] pfofold;
         delete[] nsub;
         delete[] parentgid;
         delete[] uparentgid;
