@@ -2933,7 +2933,6 @@ private(i,j)
         pdata[i].iunbound=numingroup[i];
         if (numingroup[i]>0)
             for (j=0;j<numingroup[i];j++) if(Part[noffset[i]+j].GetPotential()>0) {pdata[i].iunbound=j;break;}
-	    else pdata[i].iunbound=0;
         Double_t x,y,z,r2;
         for (j=1;j<numingroup[i];j++) {
             x=Part[noffset[i]+j].X()-Part[noffset[i]].X();
