@@ -1084,7 +1084,7 @@ def BuildTemporalHeadTailDescendant(numsnaps,tree,numhalos,halodata,HALOIDVAL=10
             maindescen=tree[halosnap]['Descen'][haloindex][0]
             maindescenindex=int(maindescen%HALOIDVAL)-1
             if (ireverseorder):
-                maindescensnap=numsnasp-1-int((maindescen-maindescen%HALOIDVAL)/HALOIDVAL)
+                maindescensnap=numsnaps-1-int((maindescen-maindescen%HALOIDVAL)/HALOIDVAL)
             else:
                 maindescensnap=int((maindescen-maindescen%HALOIDVAL)/HALOIDVAL)
             #increase the number of progenitors of this descendant
