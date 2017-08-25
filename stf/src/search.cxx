@@ -2030,9 +2030,10 @@ void SearchSubSub(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_
     firstgroup=1;
     firstgroupoffset=0;
     //if keeping fof as a leve, then don't start substructure for all 3dfof halos and move the structure level pointer upwards
+    ///\todo check offsets of firstgroup and old
     if (opt.iKeepFOF) {
         firstgroup=opt.num3dfof+1;
-        firstgroupoffset=opt.num3dfof;
+        ngroupidoffsetold=opt.num3dfof;
         pcsld=psldata->nextlevel;
         nsubsearch=ngroup-opt.num3dfof;
     }

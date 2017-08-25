@@ -227,6 +227,30 @@ int MPIGetParticlesProcessor(Double_t x,Double_t y, Double_t z){
     cerr<<ThisTask<<" has particle outside the mpi domains of every process ("<<x<<","<<y<<","<<z<<")"<<endl;
     MPI_Abort(MPI_COMM_WORLD,9);
 }
+
+//adds a particle read from an input file to the appropriate buffers
+void MPIAddParticletoAppropriateBuffer(const int &ibuf, Int_t ibufindex, int *&ireadtask, const Int_t &BufSize, Int_t *&Nbuf, Particle *&Pbuf, Int_t &numpart, Particle *&Part, Int_t *&Nreadbuf, vector<Particle>*&Preadbuf){
+    if (ibuf==ThisTask) {
+        Nbuf[ibuf]--;
+        Part[numpart++]=Pbuf[ibufindex];
+    }
+    else {
+        if(Nbuf[ibuf]==BufSize&&ireadtask[ibuf]<0) {
+            MPI_Send(&Nbuf[ibuf], 1, MPI_Int_t, ibuf, ibuf+NProcs, MPI_COMM_WORLD);
+            MPI_Send(&Pbuf[ibuf*BufSize],sizeof(Particle)*Nbuf[ibuf],MPI_BYTE,ibuf,ibuf,MPI_COMM_WORLD);
+            Nbuf[ibuf]=0;
+        }
+        else if (ireadtask[ibuf]>=0) {
+            if (ibuf!=ThisTask) {
+                if (Nreadbuf[ireadtask[ibuf]]==Preadbuf[ireadtask[ibuf]].size()) Preadbuf[ireadtask[ibuf]].resize(Preadbuf[ireadtask[ibuf]].size()+BufSize);
+                Preadbuf[ireadtask[ibuf]][Nreadbuf[ireadtask[ibuf]]]=Pbuf[ibufindex];
+                Nreadbuf[ireadtask[ibuf]]++;
+                Nbuf[ibuf]=0;
+            }
+        }
+    }
+}
+
 //@}
 
 /// \name routines which check to see if some search region overlaps with local mpi domain

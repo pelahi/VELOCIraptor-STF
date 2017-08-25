@@ -386,9 +386,11 @@ int MPISearchForOverlap(Particle &Part, Double_t &rdist);
 int MPIInDomain(Double_t xsearch[3][2], Double_t bnd[3][2]);
 //@}
 
-/// \name MPI send/recv related routines
+/// \name MPI send/recv related routines when reading input data
 /// see \ref mpiroutines.cxx for implementation
 //@{
+///adds particles to appropriate send buffers and initiates sends if necessary.
+void MPIAddParticletoAppropriateBuffer(const int &ibuf, Int_t ibufindex, int *&ireadtask, const Int_t &Bufsize, Int_t *&Nbuf, Particle *&Pbuf, Int_t &numpart, Particle *&Part, Int_t *&Nreadbuf, vector<Particle>*&Preadbuf);
 ///recv particle data from read threads
 void MPIReceiveParticlesFromReadThreads(Options &opt, Particle *&Pbuf, Particle *&Part, int *&readtaskID, int *&irecv, int *&mpi_irecvflag, Int_t *&Nlocalthreadbuf, MPI_Request *&mpi_request, Particle *&Pbaryons);
 ///Send/recv particle data read from input files between the various read threads;

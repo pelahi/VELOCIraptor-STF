@@ -426,9 +426,6 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
 /// assuming LCDM or small deviations from this) to estimate the mean interparticle
 /// spacing and scales physical linking length passed by this distance. Also reads
 /// header and overrides passed cosmological parameters with ones stored in header.
-///
-///\todo still need to have receives for non-reading threads
-///
 void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbaryons, Int_t nbaryons)
 {
     char buf[2000],buf1[2000],buf2[2000];
@@ -457,7 +454,8 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     int lmin=1000000,lmax=0;
     double dmp_mass;
 
-    int ifirstfile=0,*ireadfile,ibuf=0, ibufindex;
+    int ifirstfile=0,*ireadfile,ibuf=0;
+    Int_t ibufindex;
     int *ireadtask,*readtaskID;
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
@@ -810,31 +808,8 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                   Pbuf[ibufindex].SetPfof6dCore(0);
                 }
 #endif
-                //assume that first sphblock is internal energy
-                //ensure that store number of particles to be sent to the threads involved with reading snapshot files
                 Nbuf[ibuf]++;
-                if (ibuf==ThisTask) {
-                    Nbuf[ibuf]--;
-                    Part[Nlocal++]=Pbuf[ibufindex];
-                }
-                else {
-                    //before a simple send was done because only Task zero was reading the data
-                    //but now if ibuf<opt.nsnapread, care must be taken.
-                    //blocking sends that are matched by non-blocking receives
-                    if(Nbuf[ibuf]==BufSize&&ireadtask[ibuf]<0) {
-                        MPI_Send(&Nbuf[ibuf], 1, MPI_Int_t, ibuf, ibuf+NProcs, MPI_COMM_WORLD);
-                        MPI_Send(&Pbuf[ibuf*BufSize],sizeof(Particle)*Nbuf[ibuf],MPI_BYTE,ibuf,ibuf,MPI_COMM_WORLD);
-                        Nbuf[ibuf]=0;
-                    }
-                    else if (ireadtask[ibuf]>=0) {
-                        if (ibuf!=ThisTask) {
-                            if (Nreadbuf[ireadtask[ibuf]]==Preadbuf[ireadtask[ibuf]].size()) Preadbuf[ireadtask[ibuf]].resize(Preadbuf[ireadtask[ibuf]].size()+BufSize);
-                            Preadbuf[ireadtask[ibuf]][Nreadbuf[ireadtask[ibuf]]]=Pbuf[ibufindex];
-                            Nreadbuf[ireadtask[ibuf]]++;
-                            Nbuf[ibuf]=0;
-                        }
-                    }
-                }
+                MPIAddParticletoAppropriateBuffer(ibuf, ibufindex, ireadtask, BufSize, Nbuf, Pbuf, Nlocal, Part, Nreadbuf, Preadbuf);
 #else
                 Part[count2]=Particle(mtemp*mscale,
                     xtemp[0]*lscale,xtemp[1]*lscale,xtemp[2]*lscale,
@@ -878,27 +853,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
 #endif
                     //ensure that store number of particles to be sent to other reading threads
                     Nbuf[ibuf]++;
-                    //now determine what to do with the particle, local or must send
-                    if (ibuf==ThisTask) {
-                        Nbuf[ibuf]--;
-                        Part[Nlocal++]=Pbuf[ibufindex];
-                    }
-                    else {
-                        //if belongs to another mpi thread then see if buffer is full and send with appropriate flag
-                        if(Nbuf[ibuf]==BufSize&&ireadtask[ibuf]<0) {
-                            MPI_Ssend(&Nbuf[ibuf], 1, MPI_Int_t, ibuf, ibuf+NProcs, MPI_COMM_WORLD);
-                            MPI_Ssend(&Pbuf[ibuf*BufSize],sizeof(Particle)*Nbuf[ibuf],MPI_BYTE,ibuf,ibuf,MPI_COMM_WORLD);
-                            Nbuf[ibuf]=0;
-                        }
-                        else if (ireadtask[ibuf]>=0) {
-                            if (ibuf!=ThisTask) {
-                                if (Nreadbuf[ireadtask[ibuf]]==Preadbuf[ireadtask[ibuf]].size()) Preadbuf[ireadtask[ibuf]].resize(Preadbuf[ireadtask[ibuf]].size()+BufSize);
-                                Preadbuf[ireadtask[ibuf]][Nreadbuf[ireadtask[ibuf]]]=Pbuf[ibufindex];
-                                Nreadbuf[ireadtask[ibuf]]++;
-                                Nbuf[ibuf]=0;
-                            }
-                        }
-                    }
+                    MPIAddParticletoAppropriateBuffer(ibuf, ibufindex, ireadtask, BufSize, Nbuf, Pbuf, Nlocal, Part, Nreadbuf, Preadbuf);
 #else
                     Part[count2]=Particle(mtemp*mscale,
                         xtemp[0]*lscale,xtemp[1]*lscale,xtemp[2]*lscale,
@@ -944,26 +899,10 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                     //ensure that store number of particles to be sent to the reading threads
                     Nbuf[ibuf]++;
                     if (ibuf==ThisTask) {
-                        Nbuf[ibuf]--;
-                        Pbaryons[Nlocalbaryon[0]++]=Pbuf[ibufindex];
                         if (k==RAMSESSTARTYPE) Nlocalbaryon[2]++;
                         else if (k==RAMSESSINKTYPE) Nlocalbaryon[3]++;
                     }
-                    else {
-                        if(Nbuf[ibuf]==BufSize&&ireadtask[ibuf]<0) {
-                            MPI_Ssend(&Nbuf[ibuf], 1, MPI_Int_t, ibuf, ibuf+NProcs, MPI_COMM_WORLD);
-                            MPI_Ssend(&Pbuf[ibuf*BufSize],sizeof(Particle)*Nbuf[ibuf],MPI_BYTE,ibuf,ibuf,MPI_COMM_WORLD);
-                            Nbuf[ibuf]=0;
-                        }
-                        else if (ireadtask[ibuf]>=0) {
-                            if (ibuf!=ThisTask) {
-                                if (Nreadbuf[ireadtask[ibuf]]==Preadbuf[ireadtask[ibuf]].size()) Preadbuf[ireadtask[ibuf]].resize(Preadbuf[ireadtask[ibuf]].size()+BufSize);
-                                Preadbuf[ireadtask[ibuf]][Nreadbuf[ireadtask[ibuf]]]=Pbuf[ibufindex];
-                                Nreadbuf[ireadtask[ibuf]]++;
-                                Nbuf[ibuf]=0;
-                            }
-                        }
-                    }
+                    MPIAddParticletoAppropriateBuffer(ibuf, ibufindex, ireadtask, BufSize, Nbuf, Pbuf, Nlocalbaryon[0], Pbaryons, Nreadbuf, Preadbuf);
 #else
                     Pbaryons[bcount2]=Particle(mtemp*mscale,
                         xtemp[0]*lscale,xtemp[1]*lscale,xtemp[2]*lscale,
@@ -1010,25 +949,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                     }
 #endif
                     Nbuf[ibuf]++;
-                    if (ibuf==ThisTask) {
-                        Nbuf[ibuf]--;
-                        Part[Nlocal++]=Pbuf[ibufindex];
-                    }
-                    else {
-                        if(Nbuf[ibuf]==BufSize&&ireadtask[ibuf]<0) {
-                            MPI_Ssend(&Nbuf[ibuf], 1, MPI_Int_t, ibuf, ibuf+NProcs, MPI_COMM_WORLD);
-                            MPI_Ssend(&Pbuf[ibuf*BufSize],sizeof(Particle)*Nbuf[ibuf],MPI_BYTE,ibuf,ibuf,MPI_COMM_WORLD);
-                            Nbuf[ibuf]=0;
-                        }
-                        else if (ireadtask[ibuf]>=0) {
-                            if (ibuf!=ThisTask) {
-                                if (Nreadbuf[ireadtask[ibuf]]==Preadbuf[ireadtask[ibuf]].size()) Preadbuf[ireadtask[ibuf]].resize(Preadbuf[ireadtask[ibuf]].size()+BufSize);
-                                Preadbuf[ireadtask[ibuf]][Nreadbuf[ireadtask[ibuf]]]=Pbuf[ibufindex];
-                                Nreadbuf[ireadtask[ibuf]]++;
-                                Nbuf[ibuf]=0;
-                            }
-                        }
-                    }
+                    MPIAddParticletoAppropriateBuffer(ibuf, ibufindex, ireadtask, BufSize, Nbuf, Pbuf, Nlocal, Part, Nreadbuf, Preadbuf);
 #else
                 Part[count2]=Particle(mtemp*mscale,
                     xtemp[0]*lscale,xtemp[1]*lscale,xtemp[2]*lscale,
@@ -1253,28 +1174,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
 #endif
                                             //ensure that store number of particles to be sent to the threads involved with reading snapshot files
                                             Nbuf[ibuf]++;
-                                            if (ibuf==ThisTask) {
-                                                Nbuf[ibuf]--;
-                                                Part[Nlocal++]=Pbuf[ibufindex];
-                                            }
-                                            else {
-                                                //before a simple send was done because only Task zero was reading the data
-                                                //but now if ibuf<opt.nsnapread, care must be taken.
-                                                //blocking sends that are matched by non-blocking receives
-                                                if(Nbuf[ibuf]==BufSize&&ireadtask[ibuf]<0) {
-                                                    MPI_Send(&Nbuf[ibuf], 1, MPI_Int_t, ibuf, ibuf+NProcs, MPI_COMM_WORLD);
-                                                    MPI_Send(&Pbuf[ibuf*BufSize],sizeof(Particle)*Nbuf[ibuf],MPI_BYTE,ibuf,ibuf,MPI_COMM_WORLD);
-                                                    Nbuf[ibuf]=0;
-                                                }
-                                                else if (ireadtask[ibuf]>=0) {
-                                                    if (ibuf!=ThisTask) {
-                                                        if (Nreadbuf[ireadtask[ibuf]]==Preadbuf[ireadtask[ibuf]].size()) Preadbuf[ireadtask[ibuf]].resize(Preadbuf[ireadtask[ibuf]].size()+BufSize);
-                                                        Preadbuf[ireadtask[ibuf]][Nreadbuf[ireadtask[ibuf]]]=Pbuf[ibufindex];
-                                                        Nreadbuf[ireadtask[ibuf]]++;
-                                                        Nbuf[ibuf]=0;
-                                                    }
-                                                }
-                                            }
+                                            MPIAddParticletoAppropriateBuffer(ibuf, ibufindex, ireadtask, BufSize, Nbuf, Pbuf, Nlocal, Part, Nreadbuf, Preadbuf);
 #else
                                             Part[count2]=Particle(mtemp*mscale,
                                                 xpos[0]*lscale,xpos[1]*lscale,xpos[2]*lscale,
@@ -1310,28 +1210,11 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                                             Pbuf[ibufindex].SetZmet(Ztemp);
 #endif
 #endif
-                                        //ensure that store number of particles to be sent to the reading threads
-                                        Nbuf[ibuf]++;
-                                        if (ibuf==ThisTask) {
-                                            Nbuf[ibuf]--;
-                                            Pbaryons[Nlocalbaryon[0]++]=Pbuf[ibufindex];
-                                            Nlocalbaryon[1]++;
-                                        }
-                                        else {
-                                            if(Nbuf[ibuf]==BufSize&&ireadtask[ibuf]<0) {
-                                                MPI_Ssend(&Nbuf[ibuf], 1, MPI_Int_t, ibuf, ibuf+NProcs, MPI_COMM_WORLD);
-                                                MPI_Ssend(&Pbuf[ibuf*BufSize],sizeof(Particle)*Nbuf[ibuf],MPI_BYTE,ibuf,ibuf,MPI_COMM_WORLD);
-                                                Nbuf[ibuf]=0;
+                                            //ensure that store number of particles to be sent to the reading threads
+                                            if (ibuf==ThisTask) {
+                                                Nlocalbaryon[1]++;
                                             }
-                                            else if (ireadtask[ibuf]>=0) {
-                                                if (ibuf!=ThisTask) {
-                                                    if (Nreadbuf[ireadtask[ibuf]]==Preadbuf[ireadtask[ibuf]].size()) Preadbuf[ireadtask[ibuf]].resize(Preadbuf[ireadtask[ibuf]].size()+BufSize);
-                                                    Preadbuf[ireadtask[ibuf]][Nreadbuf[ireadtask[ibuf]]]=Pbuf[ibufindex];
-                                                    Nreadbuf[ireadtask[ibuf]]++;
-                                                    Nbuf[ibuf]=0;
-                                                }
-                                            }
-                                        }
+                                            MPIAddParticletoAppropriateBuffer(ibuf, ibufindex, ireadtask, BufSize, Nbuf, Pbuf, Nlocalbaryon[0], Pbaryons, Nreadbuf, Preadbuf);
 #else
                                             Pbaryons[bcount2]=Particle(mtemp*mscale,
                                                 xpos[0]*lscale,xpos[1]*lscale,xpos[2]*lscale,
