@@ -1322,4 +1322,22 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
         opt.ellxscale=LN;
         opt.uinfo.eps*=LN;
     }
+    //a bit of clean up
+#ifdef USEMPI
+    MPI_Comm_free(&mpi_comm_read);
+    if (opt.iBaryonSearch) delete[] mpi_nsend_baryon;
+    if (opt.nsnapread>1) {
+        delete[] mpi_nsend_readthread;
+        if (opt.iBaryonSearch) delete[] mpi_nsend_readthread_baryon;
+        if (ireadtask[ThisTask]>=0) delete[] Preadbuf;
+    }
+    delete[] Nbuf;
+    if (ireadtask[ThisTask]>=0) {
+        delete[] Nreadbuf;
+        delete[] Pbuf;
+        delete[] ireadfile;
+    }
+    delete[] ireadtask;
+    delete[] readtaskID;
+#endif
 }
