@@ -1276,7 +1276,7 @@ void RerankDescendants(Options &opt, HaloTreeData *&pht, DescendantData **&pdesc
     Double_t maxmerit;
     unsigned long descen;
     for (int i=0;i<opt.numsnapshots;i++) {
-        if (i>=StartSnap && i<EndSnap) {
+        if (i>=StartSnap && i<EndSnap-1) {
             for (Int_t j=0;j<pht[i].numhalos;j++){
                 if (pdescen[i][j].NumberofDescendants>1) {
                     //find the lowest dtop value with highest merit and place it first in the list of descendants
