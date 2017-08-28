@@ -539,7 +539,7 @@ void WriteHaloGraph(Options &opt, ProgenitorData **p, DescendantData **d, HaloTr
             Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofProgenitors<<"\t"<<d[i][j].NumberofDescendants<<endl;
             for (int k=0;k<p[i][j].NumberofProgenitors;k++) {
                 Fout<<h[i-p[i][j].istep].Halo[p[i][j].ProgenitorList[k]-1].haloID<<" ";
-                if (opt.outputformat>=1) {
+                if (opt.outdataformat>=1) {
                     Fout<<p[i][j].Merit[k]<<" ";
                 }
                 Fout<<endl;
