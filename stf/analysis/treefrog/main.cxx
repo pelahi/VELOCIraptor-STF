@@ -361,6 +361,8 @@ int main(int argc,char **argv)
             }
         }
         if (opt.iverbose) cout<<"Finished Descendant cross matching "<<MyGetTime()-time1<<endl;
+        //finally rerank the descendant list based on the ranking stored in the desecndant to progenitor value and then merit.
+        RerankDescendants(opt,pht,pdescen);
     }
 
     //now adjust the halo ids as prior, halo ids simple represent read order, allowing for addressing of memory by halo id value

@@ -548,8 +548,6 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                 pq->Push(j,merit);
                 sharelist[index]=0;
             }
-            ///\todo we only keep the first descendant but possible we might want multiple descendants
-            numshared=1;
             d1[i].NumberofDescendants=numshared;
             d1[i].DescendantList=new long unsigned[numshared];
             d1[i].Merit=new float[numshared];
@@ -605,7 +603,33 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                         pq2->Push(j,merit);
                         sharelist[index]=0;
                     }
-                    numshared=1;
+                    //update the list, first start with merits
+                    for (j=0;j<numshared;j++){
+                        for (int k=0;k<d1[i].NumberofDescendants;k++) if (d1[i].DescendantList[k]==pq2->TopQueue())
+                        {
+                            d1[i].Merit[k]=pq2->TopPriority();
+                            d1[i].dtoptype[k]=0;
+                            break;
+                        }
+                        pq2->Pop();
+                    }
+                    delete pq2;
+                    //now redo order based on updated merit
+                    pq2=new PriorityQueue(d1[i].NumberofDescendants);
+                    pq=new PriorityQueue(d1[i].NumberofDescendants);
+                    for (j=0;j<d1[i].NumberofDescendants;j++) {
+                        pq->Push(d1[i].dtoptype[j],d1[i].Merit[j]);
+                        pq2->Push(d1[i].DescendantList[j],d1[i].Merit[j]);
+                    }
+                    for (j=0;j<d1[i].NumberofDescendants;j++) {
+                        d1[i].DescendantList[j]=pq2->TopQueue();
+                        d1[i].Merit[j]=pq2->TopPriority();
+                        d1[i].dtoptype[j]=pq->TopQueue();
+                        pq2->Pop();
+                        pq->Pop();
+                    }
+                    delete pq;delete pq2;
+                    /*
                     for (j=0;j<numshared;j++){
                         d1[i].DescendantList[j]=pq2->TopQueue();
                         d1[i].Merit[j]=pq2->TopPriority();
@@ -613,6 +637,7 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                         pq2->Pop();
                     }
                     delete pq2;
+                    */
                 }
                 //end of numshared>0 check
             }
@@ -715,7 +740,6 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                 //if at this point when looking for progenitors not present in the reference list
                 //can check to see if numshared>0 and if so, then reference list will have to be updated
                 newilistupdated+=(numshared>0);
-                numshared=1;
                 d1[i].NumberofDescendants=numshared;
                 d1[i].DescendantList=new long unsigned[numshared];
                 d1[i].Merit=new float[numshared];
@@ -766,14 +790,32 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                         pq2->Push(j,merit);
                         sharelist[index]=0;
                     }
-                    numshared=1;
+                    //update the list, first start with merits
                     for (j=0;j<numshared;j++){
-                        d1[i].DescendantList[j]=pq2->TopQueue();
-                        d1[i].Merit[j]=pq2->TopPriority();
-                        d1[i].dtoptype[j]=0;
+                        for (int k=0;k<d1[i].NumberofDescendants;k++) if (d1[i].DescendantList[k]==pq2->TopQueue())
+                        {
+                            d1[i].Merit[k]=pq2->TopPriority();
+                            d1[i].dtoptype[k]=0;
+                            break;
+                        }
                         pq2->Pop();
                     }
                     delete pq2;
+                    //now redo order based on updated merit
+                    pq2=new PriorityQueue(d1[i].NumberofDescendants);
+                    pq=new PriorityQueue(d1[i].NumberofDescendants);
+                    for (j=0;j<d1[i].NumberofDescendants;j++) {
+                        pq->Push(d1[i].dtoptype[j],d1[i].Merit[j]);
+                        pq2->Push(d1[i].DescendantList[j],d1[i].Merit[j]);
+                    }
+                    for (j=0;j<d1[i].NumberofDescendants;j++) {
+                        d1[i].DescendantList[j]=pq2->TopQueue();
+                        d1[i].Merit[j]=pq2->TopPriority();
+                        d1[i].dtoptype[j]=pq->TopQueue();
+                        pq2->Pop();
+                        pq->Pop();
+                    }
+                    delete pq;delete pq2;
                 }
             }
             //end of weighted merit
@@ -1222,5 +1264,50 @@ void CleanDescendantsUsingProgenitors(Int_t itimeprogen, HaloTreeData *&pht, Pro
 }
 
 //@}
+///Descendant based cleanup routines
+//@{
+///reranks the data stored in the descendant based on the descendant to progenitor ranking and then the merit.
+void RerankDescendants(Options &opt, HaloTreeData *&pht, DescendantData **&pdescen){
+#ifndef USEMPI
+    int StartSnap=0,EndSnap=opt.numsnapshots;
+#endif
+    PriorityQueue *pq;
+    int mindtop,index;
+    Double_t maxmerit;
+    unsigned long descen;
+    for (int i=0;i<opt.numsnapshots;i++) {
+        if (i>=StartSnap && i<EndSnap) {
+            for (Int_t j=0;j<pht[i].numhalos;j++){
+                if (pdescen[i][j].NumberofDescendants>1) {
+                    //find the lowest dtop value with highest merit and place it first in the list of descendants
+                    mindtop=pdescen[i][j].dtoptype[0];
+                    maxmerit=pdescen[i][j].Merit[0];
+                    descen=pdescen[i][j].DescendantList[0];
+                    index=0;
+                    //if a zero rank is first, no need to do anything
+                    if (mindtop==0) continue;
+                    for (int k=1;k<pdescen[i][j].NumberofDescendants;k++) {
+                        if (pdescen[i][j].dtoptype[k]<mindtop || (pdescen[i][j].dtoptype[k]==mindtop&&pdescen[i][j].Merit[k]>maxmerit)) {
+                            mindtop=pdescen[i][j].dtoptype[k];
+                            maxmerit=pdescen[i][j].Merit[k];
+                            descen=pdescen[i][j].DescendantList[k];
+                            index=k;
+                        }
+                    }
+                    //swap data
+                    if (index!=0) {
+                        pdescen[i][j].DescendantList[index]=pdescen[i][j].DescendantList[0];
+                        pdescen[i][j].Merit[index]=pdescen[i][j].Merit[0];
+                        pdescen[i][j].dtoptype[index]=pdescen[i][j].dtoptype[0];
+                        pdescen[i][j].DescendantList[0]=descen;
+                        pdescen[i][j].Merit[0]=maxmerit;
+                        pdescen[i][j].dtoptype[0]=mindtop;
+                    }
+                }
+            }
+        }
+    }
 
+}
+//@}
 //@}

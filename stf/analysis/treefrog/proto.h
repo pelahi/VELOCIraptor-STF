@@ -172,7 +172,8 @@ void AddLinksDescendantBasedProgenitorList(Int_t itime, Int_t ihaloindex, Descen
 ///Cleans up descendant list by ranking progenitors of a halo using a general temporal merit.
 void CleanDescendantsUsingProgenitors(Int_t i, HaloTreeData *&pht, ProgenitorDataDescenBased **&pdescenprogen, DescendantData **&pdecen, int iopttemporalmerittype);
 
-
+///Reranks descendants based on descendant to progenitor ranking and then merit.
+void RerankDescendants(Options &opt, HaloTreeData *&pht, DescendantData **&pdescen);
 //@}
 
 /// \name for mapping ids to index routines
