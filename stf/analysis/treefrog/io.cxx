@@ -248,7 +248,7 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
                         Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofProgenitors<<endl;
                         for (int k=0;k<p[i][j].NumberofProgenitors;k++) {
                             Fout<<h[i-p[i][j].istep].Halo[p[i][j].ProgenitorList[k]-1].haloID<<" ";
-                            if (opt.outputformat>=1) {
+                            if (opt.outdataformat>=1) {
                                 Fout<<p[i][j].Merit[k]<<" ";
                             }
                             Fout<<endl;
@@ -283,7 +283,7 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
                     Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofProgenitors<<endl;
                     for (int k=0;k<p[i][j].NumberofProgenitors;k++) {
                         Fout<<h[i-p[i][j].istep].Halo[p[i][j].ProgenitorList[k]-1].haloID<<" ";
-                        if (opt.outputformat>=1) {
+                        if (opt.outdataformat>=1) {
                             Fout<<p[i][j].Merit[k]<<" ";
                         }
                         Fout<<endl;
@@ -462,7 +462,7 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
                         for (int k=0;k<p[i][j].NumberofDescendants;k++) {
                             Fout<<h[i+p[i][j].istep].Halo[p[i][j].DescendantList[k]-1].haloID<<" ";
                             Fout<<p[i][j].dtoptype[k]<<" ";
-                            if (opt.outputformat>=1) {
+                            if (opt.outdataformat>=1) {
                                 Fout<<p[i][j].Merit[k]<<" ";
                             }
                             Fout<<endl;
@@ -498,7 +498,7 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
                     for (int k=0;k<p[i][j].NumberofDescendants;k++) {
                         Fout<<h[i+p[i][j].istep].Halo[p[i][j].DescendantList[k]-1].haloID<<" ";
                         Fout<<p[i][j].dtoptype[k]<<" ";
-                        if (opt.outputformat>=1) {
+                        if (opt.outdataformat>=1) {
                             Fout<<p[i][j].Merit[k]<<" ";
                         }
                         Fout<<endl;
@@ -517,6 +517,9 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
     //end of ascii output
 #ifdef USEHDF
     else if (opt.outputformat==OUTHDF)
+    {
+
+    }
 #endif
     if (ThisTask==0) cout<<"Done writing to "<<fname<<" "<<MyGetTime()-time1<<endl;
 }
@@ -544,7 +547,7 @@ void WriteHaloGraph(Options &opt, ProgenitorData **p, DescendantData **d, HaloTr
             for (int k=0;k<d[i][j].NumberofDescendants;k++) {
                 Fout<<h[i+d[i][j].istep].Halo[d[i][j].DescendantList[k]-1].haloID<<" ";
                 Fout<<d[i][j].dtoptype[k]<<" ";
-                if (opt.outputformat>=1) {
+                if (opt.outdataformat>=1) {
                     Fout<<d[i][j].Merit[k]<<" ";
                 }
                 Fout<<endl;

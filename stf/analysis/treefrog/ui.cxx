@@ -94,7 +94,7 @@ void GetArgs(int argc, char *argv[], Options &opt)
 {
     int option;
     int NumArgs = 0;
-    while ((option = getopt(argc, argv, ":i:s:I:N:B:F:o:O:T:D:M:X:U:C:l:m:n:t:f:p:b:a:h:H:g:v:y:z:Z:")) != EOF)
+    while ((option = getopt(argc, argv, ":i:s:I:N:B:F:o:O:d:T:D:M:X:U:C:l:m:n:t:f:p:b:a:h:H:g:v:y:z:Z:")) != EOF)
     {
         switch(option)
         {
@@ -129,6 +129,10 @@ void GetArgs(int argc, char *argv[], Options &opt)
                 break;
             case 'O':
                 opt.outputformat = atoi(optarg);
+                NumArgs += 2;
+                break;
+            case 'd':
+                opt.outdataformat = atoi(optarg);
                 NumArgs += 2;
                 break;
 
@@ -272,7 +276,8 @@ void usage(void)
     cerr<<"-N <if output is split between multiple files due to mpi, number of files written ("<<opt.nmpifiles<<")>\n";
     cerr<<"-c <produce cross catalog match (0 halo tree ,1 cross catalog ,2 full graph) default ("<<opt.icatalog<<")\n";
     cerr<<"-o <output filename>\n";
-    cerr<<"-O <output format>\n";
+    cerr<<"-O <output format, ASCII, HDF5 ("<<OUTASCII<<","<<" "<<OUTHDF<<"), with default "<<opt.outputformat<<">\n";
+    cerr<<"-d <output data, 0 for minimal, 1 for outputing merits as well, with default "<<opt.outdataformat<<">\n";
     cerr<<" ========================= "<<endl<<endl;
 
     cerr<<" ========================= "<<endl;
@@ -420,6 +425,12 @@ inline void ConfigCheck(Options &opt)
         if (opt.numsnapshots>2) {cerr<<"Cross catalog, yet more than two snapshots compared, reseting and only comparing two"<<endl;opt.numsnapshots=2;}
         if (opt.numsteps>1) {cerr<<"Cross catalog, yet asking to use more than a single step when linking, reseting and only linking across one "<<endl;opt.numsteps=1;}
     }
+    if (opt.outputformat<OUTASCII && opt.outputformat>OUTHDF){
+        cerr<<"Output format not valid, defaulting to ascii"<<endl; opt.outputformat=OUTASCII;
+    }
+    if (opt.outdataformat<0){
+        cerr<<"Output data requested not valid, defaulting to minimal output"<<endl; opt.outdataformat=0;
+    }
     //else if (opt.imapping==???) opt.mappingfunc=???;
     opt.description=(char*)"VELOCIraptor halo merger tree constructed by identifying the main progenitor with the highest value of ";
     if(opt.imerittype==NsharedN1N2)      opt.description+=(char*)"Nshared^2/Nh/Np |";
@@ -459,7 +470,8 @@ in the examples directory). \n \n
     \arg \b \e -B < for VELOCIraptor catalogs can be \ref INASCII (ascii) \ref INBINARY (binary) or \ref INHDF (hdf5) or \ref INADIOS (adios) >
     \arg \b \e -F < 0/1 field objects in VELOCIraptor output in separate file >
     \arg \b \e -o < output filename >
-    \arg \b \e -O < output type, whether merger tree, full graph, whether to output merit of each match >
+    \arg \b \e -O < output type, whether ASCII, HDF5, etc >
+    \arg \b \e -d < output data format, what is included. Minimal data is 0, if merits desired, 1>  >
     \arg \b \e -c < produce cross catalog match (0 halo tree ,1 cross catalog where code acts like particle correlator, matching analogues between simulations >
 
     \section linkingconfig Linking options

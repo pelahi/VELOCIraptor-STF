@@ -164,10 +164,8 @@ using namespace NBody;
 /// \name output formats
 //@{
 #define OUTASCII 0
-#define OUTASCIIMERIT 1
-#define OUTBINARY 2
-#define OUTBINARYMERIT 3
-#define OUTHDF 5
+#define OUTBINARY 1
+#define OUTHDF 2
 //@}
 
 /// \name defining types of multisnapshot linking done
@@ -259,6 +257,8 @@ struct Options
 
     ///output format
     int outputformat;
+    ///format of data written
+    int outdataformat;
 
     ///\name io format flags for basic format, whether data split into multiple files, binary, and field objects separate
     //@{
