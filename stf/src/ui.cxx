@@ -503,7 +503,7 @@ void GetParamFile(Options &opt)
                     else if (strcmp(tbuff, "Frac_pot_ref")==0)
                         opt.uinfo.fracpotref = atof(vbuff);
                     else if (strcmp(tbuff, "Unbinding_type")==0)
-                        opt.uinfo.unbindtype = atof(vbuff);
+                        opt.uinfo.unbindtype = atoi(vbuff);
 
                     //other options
                     else if (strcmp(tbuff, "Verbose")==0)
