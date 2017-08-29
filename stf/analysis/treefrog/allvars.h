@@ -108,6 +108,29 @@ using namespace NBody;
 #define DTREE 0
 #define DCROSSCAT 1
 #define DGRAPH 2
+#define DDESCENDANT 3
+//@}
+
+/// \name defining direction of search when constructing a tree
+//@{
+///standard progenitor search
+#define SEARCHPROGEN 0
+///standard descendant search
+#define SEARCHDESCEN 1
+///search both ways
+#define SEARCHALL -1
+//@}
+
+/// \name defining the type of core particle list matching
+//@{
+///standard search
+#define PARTLISTNOCORE 0
+///limit search to core
+#define PARTLISTCORE 1
+///limit search to core in both searched particles and matched particles to identify best match after finding all matches
+#define PARTLISTCORECORE 2
+///limit search to core in both searched particles and matched particles ONLY
+#define PARTLISTCORECOREONLY 3
 //@}
 
 /// \name Mapping functions
@@ -134,16 +157,15 @@ using namespace NBody;
 //@{
 #define INBINARY 1
 #define INHDF 2
+#define INADIOS 3
 #define INASCII 0
 //@}
 
 /// \name output formats
 //@{
 #define OUTASCII 0
-#define OUTASCIIMERIT 1
-#define OUTBINARY 2
-#define OUTBINARYMERIT 3
-#define OUTHDF 5
+#define OUTBINARY 1
+#define OUTHDF 2
 //@}
 
 /// \name defining types of multisnapshot linking done
@@ -154,6 +176,8 @@ using namespace NBody;
 #define MSLCMERIT 1
 ///higher merit and primary progenitor
 #define MSLCMERITPRIMARYPROGEN 2
+///higher primary progenitor
+#define MSLCPRIMARYPROGEN 3
 //@}
 
 /// \name defining types of optimal temporal merit criteria
@@ -197,7 +221,7 @@ struct Options
 {
     ///\name filenames
     //@{
-    char *fname,*outname;
+    char *fname,*outname, *configname;
     //@}
     ///number of snapshots
     int numsnapshots;
@@ -211,7 +235,9 @@ struct Options
     /// store description of code
     string description;
 
-    ///type of merit function
+    ///type of search, going back in time (progenitor searching) or going forward in time (descendant searching) or both
+    int isearchdirection;
+    ///type of merit
     int imerittype;
     ///cross match shared particle number significance, that is match only when quantity is above mlsig*some measure of noise, here defined as
     ///\$f N_2^{1/2} \$f
@@ -254,18 +280,25 @@ struct Options
     ///for adjusting halo ids by a simple offset
     Int_t haloidoffset;
 
+    ///whether to use core particles only or not, 0 is use all particles to identify matches, PARTLISTCORE is only core particles defined by particle fraction, and PARTLISTCORECORE only match
+    ///core particles to other core particles
+    int icorematchtype;
     ///to adjust the number of particles used to define a merit. Note that to be of use, particles should be in some type of order
     ///for instance binding energy order. VELOCIraptor outputs particles in decreasing binding energy order
     ///so using the first particle_frac of a halo means using the most bound set of particles
     Double_t particle_frac;
     ///minimum number of particles used to derive merit.
     Int_t min_numpart;
+    ///maximum number of particles used to derive merit. If -1, no maximum
+    Int_t max_numpart;
 
     ///to fix ids for nifty project
     int idcorrectflag;
 
     ///verbose output flag
     int iverbose;
+    ///use default optimized values, ignore some input values
+    int idefaultvalues;
 
 #ifdef USEMPI
     ///number of items (halos or particles in halos) across various snapshots desired. Used for load balancing
@@ -286,6 +319,7 @@ struct Options
         MaxIDValue=512*512*512;
         TotalNumberofHalos=0;
 
+        isearchdirection=SEARCHPROGEN;
         imerittype=NsharedN1N2;
         mlsig=0.1;
         meritlimit=0.05;
@@ -310,10 +344,13 @@ struct Options
         outdataformat=0;
         haloidoffset=0;
 
+        icorematchtype=PARTLISTNOCORE;
         particle_frac=0.2;
         min_numpart=20;
+        max_numpart=-1;
 
         iverbose=1;
+        idefaultvalues=1;
 #ifdef USEMPI
         numpermpi=0;
         ndesiredmpithreads=0;
@@ -429,6 +466,70 @@ struct ProgenitorData
 };
 
 /*!
+    Structure used to keep track of a structure's descendant/child structure using temporal/spatial information
+*/
+struct DescendantData
+{
+    ///structure type and number of links (descendants)
+    //@{
+    int stype;
+    int NumberofDescendants;
+    //@}
+    ///store list of descendants
+    long unsigned* DescendantList;
+    ///store the merit value
+    float *Merit;
+    ///store the fraction of shared particles
+    float *nsharedfrac;
+    ///store type of descendant progenitor relation, that is whether object is the primary progenitor of its descendant or not
+    unsigned short *dtoptype;
+
+    ///store number of steps forward in time descedant found
+    int istep;
+
+    DescendantData(){
+        NumberofDescendants=0;
+        DescendantList=NULL;
+        Merit=NULL;
+        nsharedfrac=NULL;
+        dtoptype=NULL;
+        istep=0;
+    }
+    ~DescendantData(){
+        if (NumberofDescendants>0) {
+            delete[] DescendantList;
+            delete[] Merit;
+            if (dtoptype!=NULL) delete[] dtoptype;
+            if (nsharedfrac!=NULL) delete[] nsharedfrac;
+        }
+    }
+    DescendantData &operator=(const DescendantData &d){
+        if (NumberofDescendants>0) {
+            delete[] DescendantList;
+            delete[] Merit;
+            if (dtoptype!=NULL) delete[] dtoptype;
+            if (nsharedfrac!=NULL) delete[] nsharedfrac;
+        }
+        NumberofDescendants=d.NumberofDescendants;
+        DescendantList=new long unsigned[NumberofDescendants];
+        Merit=new float[NumberofDescendants];
+        for (int i=0;i<NumberofDescendants;i++) {
+            DescendantList[i]=d.DescendantList[i];
+            Merit[i]=d.Merit[i];
+        }
+        if (d.dtoptype!=NULL) {
+            dtoptype=new unsigned short[NumberofDescendants];
+            for (int i=0;i<NumberofDescendants;i++) dtoptype[i]=d.dtoptype[i];
+        }
+        if (d.nsharedfrac!=NULL) {
+            nsharedfrac=new float[NumberofDescendants];
+            for (int i=0;i<NumberofDescendants;i++) nsharedfrac[i]=d.nsharedfrac[i];
+        }
+        istep=d.istep;
+    }
+};
+
+/*!
     Structure used to keep track of a structure's candidate descendants based on the progenitor construction
 */
 struct DescendantDataProgenBased
@@ -449,8 +550,14 @@ struct DescendantDataProgenBased
     //store descendant type, primary or not primary
     vector<int> descentype;
 #ifdef USEMPI
+    //store local number of mpi items
+    int nlocal;
     //store which task this halo progenitor is located on
     vector<int> MPITask;
+    //if using mpi, need to keep track of items removed that
+    //stuff can be properly mergered
+    vector<long unsigned> removalhaloindex;
+    vector<int unsigned> removalhalotemporalindex;
 #endif
     DescendantDataProgenBased(int reservesize=4){
         NumberofDescendants=0;
@@ -462,6 +569,8 @@ struct DescendantDataProgenBased
         descentype.reserve(reservesize);
 #ifdef USEMPI
         MPITask.reserve(reservesize);
+        removalhaloindex.reserve(reservesize);
+        removalhalotemporalindex.reserve(reservesize);
 #endif
     }
     ~DescendantDataProgenBased(){
@@ -471,19 +580,29 @@ struct DescendantDataProgenBased
         haloindex.resize(NumberofDescendants);
         halotemporalindex.resize(NumberofDescendants);
         Merit.resize(NumberofDescendants);
+        descentype.reserve(NumberofDescendants);
         deltat.resize(NumberofDescendants);
 #ifdef USEMPI
         MPITask.resize(NumberofDescendants);
+        removalhaloindex.reserve(d.removalhaloindex.size());
+        removalhalotemporalindex.reserve(d.removalhaloindex.size());
 #endif
         for (int i=0;i<NumberofDescendants;i++) {
             haloindex[i]=d.haloindex[i];
             halotemporalindex[i]=d.halotemporalindex[i];
             Merit[i]=d.Merit[i];
             deltat[i]=d.deltat[i];
+            descentype[i]=d.descentype[i];
 #ifdef USEMPI
             MPITask[i]=d.MPITask[i];
 #endif
         }
+#ifdef USEMPI
+        for (int i=0;i<d.removalhaloindex.size();i++) {
+            removalhaloindex[i]=d.removalhaloindex[i];
+            removalhalotemporalindex[i]=d.removalhalotemporalindex[i];
+        }
+#endif
     }
     ///Determine optimal descendent using a temporally weighted merit, and set it to position 0
     ///start with just maximum merit, ignoring when this was found
@@ -557,6 +676,11 @@ struct DescendantDataProgenBased
     void Merge(int thistask, int &numdescen, long unsigned *hid,int unsigned *htid, float *m, int *dt, int *dtype, int *task) {
         for (Int_t i=0;i<numdescen;i++) if (task[i]!=thistask)
         {
+            //first check to see if halo already present
+            int k=0;
+            while (k<NumberofDescendants && !(haloindex[k]==hid[i] && halotemporalindex[k]==htid[i])) k++;
+            //if entry not found do nothing
+            if (k<NumberofDescendants) continue;
             haloindex.push_back(hid[i]);
             halotemporalindex.push_back(htid[i]);
             Merit.push_back(m[i]);
@@ -566,64 +690,209 @@ struct DescendantDataProgenBased
             NumberofDescendants++;
         }
     }
+    //remove entries from the list
+    void Removal(int &nremove, long unsigned *hid,int unsigned *htid) {
+        for (Int_t i=0;i<nremove;i++)
+        {
+            //find entry
+            int k=0;
+            while (k<NumberofDescendants && !(haloindex[k]==hid[i] && halotemporalindex[k]==htid[i])) k++;
+            //if entry not found do nothing
+            if (k==NumberofDescendants) continue;
+            haloindex.erase(haloindex.begin()+k);
+            halotemporalindex.erase(halotemporalindex.begin()+k);
+            Merit.erase(Merit.begin()+k);
+            deltat.erase(deltat.begin()+k);
+            descentype.erase(descentype.begin()+k);
+            MPITask.erase(MPITask.begin()+k);
+            NumberofDescendants--;
+        }
+    }
 #endif
 
 };
 
 /*!
-    Structure used to keep track of a structure's descendant/child structure using temporal/spatial information
+    Structure used to keep track of a structure's candidate preogenitors based on the descendant construction
 */
-struct DescendantData
+struct ProgenitorDataDescenBased
 {
-    ///structure type and number of links (descendants)
+    ///structure type and number of links (progenitors)
     //@{
     int stype;
-    int NumberofDescendants;
+    int NumberofProgenitors;
     //@}
-    ///store list of descendants
-    long unsigned* DescendantList;
+
+    ///store list of progenitors in the form of halo index and temporal index
+    vector<long unsigned> haloindex;
+    vector<int unsigned> halotemporalindex;
     ///store the merit value
-    float *Merit;
-    ///store the fraction of shared particles
-    float *nsharedfrac;
-
-    ///store number of steps back in time progenitor found
-    int istep;
-
-    DescendantData(){
-        NumberofDescendants=0;
-        DescendantList=NULL;
-        Merit=NULL;
-        nsharedfrac=NULL;
-        istep=1;
+    vector<float> Merit;
+    //store the integer time diff to progenitor
+    vector<int> deltat;
+    //store progenitor type, primary or not primary
+    vector<int> progentype;
+#ifdef USEMPI
+    //store local number of mpi items
+    int nlocal;
+    //store which task this halo progenitor is located on
+    vector<int> MPITask;
+    //store items removed
+    vector<long unsigned> removalhaloindex;
+    vector<int unsigned> removalhalotemporalindex;
+#endif
+    ProgenitorDataDescenBased(int reservesize=4){
+        NumberofProgenitors=0;
+        //reserve some space so mimimize number of reallocations
+        haloindex.reserve(reservesize);
+        halotemporalindex.reserve(reservesize);
+        Merit.reserve(reservesize);
+        deltat.reserve(reservesize);
+        progentype.reserve(reservesize);
+#ifdef USEMPI
+        MPITask.reserve(reservesize);
+        removalhaloindex.reserve(reservesize);
+        removalhalotemporalindex.reserve(reservesize);
+#endif
     }
-    ~DescendantData(){
-        if (NumberofDescendants>0) {
-            delete[] DescendantList;
-            delete[] Merit;
-            if (nsharedfrac!=NULL) delete[] nsharedfrac;
-        }
+    ~ProgenitorDataDescenBased(){
     }
-    DescendantData &operator=(const DescendantData &d){
-        if (NumberofDescendants>0) {
-            delete[] DescendantList;
-            delete[] Merit;
-            if (nsharedfrac!=NULL) delete[] nsharedfrac;
-        }
-        NumberofDescendants=d.NumberofDescendants;
-        DescendantList=new long unsigned[NumberofDescendants];
-        Merit=new float[NumberofDescendants];
-        for (int i=0;i<NumberofDescendants;i++) {
-            DescendantList[i]=d.DescendantList[i];
+    ProgenitorDataDescenBased &operator=(const ProgenitorDataDescenBased &d){
+        NumberofProgenitors=d.NumberofProgenitors;
+        haloindex.resize(NumberofProgenitors);
+        halotemporalindex.resize(NumberofProgenitors);
+        Merit.resize(NumberofProgenitors);
+        progentype.reserve(NumberofProgenitors);
+        deltat.resize(NumberofProgenitors);
+#ifdef USEMPI
+        MPITask.resize(NumberofProgenitors);
+        removalhaloindex.reserve(d.removalhaloindex.size());
+        removalhalotemporalindex.reserve(d.removalhaloindex.size());
+#endif
+        for (int i=0;i<NumberofProgenitors;i++) {
+            haloindex[i]=d.haloindex[i];
+            halotemporalindex[i]=d.halotemporalindex[i];
             Merit[i]=d.Merit[i];
+            deltat[i]=d.deltat[i];
+            progentype[i]=d.progentype[i];
+#ifdef USEMPI
+            MPITask[i]=d.MPITask[i];
+#endif
         }
-        if (d.nsharedfrac!=NULL) {
-            nsharedfrac=new float[NumberofDescendants];
-            for (int i=0;i<NumberofDescendants;i++) nsharedfrac[i]=d.nsharedfrac[i];
+#ifdef USEMPI
+        for (int i=0;i<d.removalhaloindex.size();i++) {
+            removalhaloindex[i]=d.removalhaloindex[i];
+            removalhalotemporalindex[i]=d.removalhalotemporalindex[i];
         }
-        istep=d.istep;
+#endif
     }
+    ///Determine optimal descendent using a temporally weighted merit, and set it to position 0
+    ///start with just maximum merit, ignoring when this was found
+    ///otherwise use the reference time passed
+    ///the generalized merit = Merit/(deltat)
+    ///also, optimal descendents should be close to being a primary progenitor, having a lower descentype value
+    void OptimalTemporalMerit(int iopttemporalmerittype=GENERALIZEDMERITTIME, Int_t itimeref=0){
+        int imax=0;
+        Double_t generalizedmerit=Merit[0]/pow((Double_t)deltat[0],ALPHADELTAT), newgenmerit;
+        int curprogentype=progentype[0];
+        long unsigned optimalhaloindex;
+        int unsigned optimalhalotemporalindex;
+        for (int i=1;i<NumberofProgenitors;i++) {
+            newgenmerit=Merit[i]/pow((Double_t)deltat[i],ALPHADELTAT);
+            //if just optimising generalized temporal merit
+            if (iopttemporalmerittype==GENERALIZEDMERITTIME && newgenmerit>generalizedmerit) {
+                generalizedmerit=newgenmerit;curprogentype=progentype[i];imax=i;
+            }
+            //if optimising for best merit and best merit ranking (that is how close the object is to being the primary progenitor)
+            else if (iopttemporalmerittype==GENERALIZEDMERITTIMEPROGEN && ((progentype[i]<curprogentype && newgenmerit>=generalizedmerit*0.25)||(newgenmerit>generalizedmerit))) {
+                generalizedmerit=newgenmerit;curprogentype=progentype[i];imax=i;
+            }
+        }
+        optimalhaloindex=haloindex[imax];
+        optimalhalotemporalindex=halotemporalindex[imax];
+        //if use mpi then also possible that optimal halo found on multiple mpi tasks
+        //but the lower task will be the one that needs to have the best halo so go over the loop and
+        //find the halo with the lowest task number of the best generalized merit
+#ifdef USEMPI
+        int imaxtask=MPITask[imax];
+        for (int i=0;i<NumberofProgenitors;i++) {
+            if (optimalhalotemporalindex==halotemporalindex[i] && optimalhaloindex==haloindex[i] && MPITask[i]<imaxtask) {imax=i;}
+        }
+#endif
+        if (imax>0) {
+            long unsigned hid, htid;
+            Double_t merit;
+            int dt;
+            int dtype;
+#ifdef USEMPI
+            int mpitask;
+#endif
+            merit=Merit[0];
+            hid=haloindex[0];
+            htid=halotemporalindex[0];
+            dt=deltat[0];
+            dtype=progentype[0];
+#ifdef USEMPI
+            mpitask=MPITask[0];
+#endif
+            Merit[0]=Merit[imax];
+            haloindex[0]=haloindex[imax];
+            halotemporalindex[0]=halotemporalindex[imax];
+            deltat[0]=deltat[imax];
+            progentype[0]=progentype[imax];
+#ifdef USEMPI
+            MPITask[0]=MPITask[imax];
+#endif
+            Merit[imax]=merit;
+            haloindex[imax]=hid;
+            halotemporalindex[imax]=htid;
+            deltat[imax]=dt;
+            progentype[imax]=dtype;
+#ifdef USEMPI
+            MPITask[imax]=mpitask;
+#endif
+        }
+    }
+#ifdef USEMPI
+    void Merge(int thistask, int &numprogen, long unsigned *hid,int unsigned *htid, float *m, int *dt, int *dtype, int *task) {
+        for (Int_t i=0;i<numprogen;i++) if (task[i]!=thistask)
+        {
+            //first check to see if halo already present
+            int k=0;
+            while (k<NumberofProgenitors && !(haloindex[k]==hid[i] && halotemporalindex[k]==htid[i])) k++;
+            //if entry not found do nothing
+            if (k<NumberofProgenitors) continue;
+            haloindex.push_back(hid[i]);
+            halotemporalindex.push_back(htid[i]);
+            Merit.push_back(m[i]);
+            deltat.push_back(dt[i]);
+            progentype.push_back(dtype[i]);
+            MPITask.push_back(task[i]);
+            NumberofProgenitors++;
+        }
+    }
+    //remove entries from the list
+    void Removal(int &nremove, long unsigned *hid,int unsigned *htid) {
+        for (Int_t i=0;i<nremove;i++)
+        {
+            //find entry
+            int k=0;
+            while (k<NumberofProgenitors && !(haloindex[k]==hid[i] && halotemporalindex[k]==htid[i])) k++;
+            //if entry not found do nothing
+            if (k==NumberofProgenitors) continue;
+            haloindex.erase(haloindex.begin()+k);
+            halotemporalindex.erase(halotemporalindex.begin()+k);
+            Merit.erase(Merit.begin()+k);
+            deltat.erase(deltat.begin()+k);
+            progentype.erase(progentype.begin()+k);
+            MPITask.erase(MPITask.begin()+k);
+            NumberofProgenitors--;
+        }
+    }
+#endif
+
 };
+
 
 ///struct to store the file type names produced by velociraptor
 struct VELOCIraptorFileTypeNames {
