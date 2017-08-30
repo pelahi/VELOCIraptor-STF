@@ -290,12 +290,14 @@ int main(int argc,char **argv)
                     if (istep==1) {
                         //identify candidate descendants
                         pdescen[i]=CrossMatchDescendant(opt,  pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pfofd, ilistupdated);
-                        //clean up the information stored in this list
-                        CleanCrossMatchDescendant(istep, pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pdescen[i]);
+                        //update the halo ids
+                        UpdateDescendantIndexing(istep, pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pdescen[i]);
                         //build a temporally local descendant based progenitor data
                         BuildDescendantBasedProgenitorList(i, pht[i].numhalos, pdescen[i], pdescenprogen[i+istep]);
                         //and then rank the progenitors at time i of descedants found at time i+istep based on their merit. Ranking is necessary to determine main/secondary branches
                         UpdateDescendantUsingDescendantBasedProgenitorList(pht[i+istep].numhalos, pdescen[i], pdescenprogen[i+istep], istep);
+                        //clean up the information stored in this list, adjusing rankings as necessary
+                        CleanCrossMatchDescendant(i, istep, pht, pdescenprogen, pdescen);
                     }
                     //if more than a single step is used to find descendants then we first search i+istep but only for those haloes that are deemed to have
                     //less than ideal descendants.
@@ -303,13 +305,16 @@ int main(int argc,char **argv)
                         pdescentemp=CrossMatchDescendant(opt, pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pfofd, ilistupdated, istep, pdescen[i]);
                         //if some new descendants are found then need to clean-up and merge information
                         if (ilistupdated>0) {
-                            CleanCrossMatchDescendant(istep, pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pdescentemp);
+                            //update the halo ids
+                            UpdateDescendantIndexing(istep, pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pdescentemp);
                             //to rank progenitors of descendants at this time, need to allocate a ProgenitorDataDescenBased list
                             pdescenprogentemp=new ProgenitorDataDescenBased[pht[i+istep].numhalos];
                             BuildDescendantBasedProgenitorList(i, pht[i].numhalos, pdescentemp, pdescenprogentemp, istep);
                             UpdateDescendantUsingDescendantBasedProgenitorList(pht[i+istep].numhalos, pdescentemp, pdescenprogentemp, istep);
                             //having ranked the progenitors based on their descendants looking backwards, we can now update the descendant list appropriately
                             UpdateRefDescendants(opt,pht[i].numhalos, pdescen[i], pdescentemp, pdescenprogen, i);
+                            //clean up the information stored in this list, adjusing rankings as necessary
+                            CleanCrossMatchDescendant(i, istep, pht, pdescenprogen, pdescen);
                             delete[] pdescenprogentemp;
                         }
                         delete[] pdescentemp;
@@ -331,6 +336,7 @@ int main(int argc,char **argv)
             //if enough non-overlapping (mpi wise) snapshots have been processed, one can cleanup progenitor list using the DescendantDataProgenBased data
             //then free this data
             //this occurs if current snapshot is at least Endsnap-opt.numsteps*2 or lower as then Endsnap-opt.numsteps have had progenitor list processed
+            //clean up the information stored in this list, adjusing rankings as necessary
             if (opt.numsteps>1 && pht[i].numhalos>0 && (i<EndSnap-2*opt.numsteps && i>StartSnap+2*opt.numsteps)) {
                 if (opt.iverbose) cout<<"Cleaning descendant list using progenitor information for "<<i<<endl;
                 CleanDescendantsUsingProgenitors(i, pht, pdescenprogen, pdescen, opt.iopttemporalmerittype);

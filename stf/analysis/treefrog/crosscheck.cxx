@@ -911,56 +911,13 @@ private(i,j,k)
     delete[] nh2nummatches;
     delete[] merit;
 }
+
+
 ///adjust descendant list to store halo ids not halo indices but does not prune the list descendant list.
-///\todo really should update to flag/remove all except the truly principle descendant
-void CleanCrossMatchDescendant(const int istepval, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData *&h2, DescendantData *&p1)
+void UpdateDescendantIndexing(const int istepval, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData *&h2, DescendantData *&p1)
 {
     Int_t i,j,k;
     int nthreads=1,tid;
-    /*
-#ifdef USEOPENMP
-#pragma omp parallel
-    {
-    if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
-    }
-#endif
-    int *nh2index=new int[nhalos2];
-    int *nh2nummatches=new int[nhalos2];
-    Double_t *merit=new Double_t[nhalos2];
-    //store initial matches
-    for (i=0;i<nhalos2;i++) {nh2index[i]=merit[i]=-1;nh2nummatches[i]=0;}//count[i]=0;}
-    for (i=0;i<nhalos1;i++) if (p1[i].istep==istepval){
-        for(j=0;j<p1[i].NumberofDescendants;j++) {
-            nh2nummatches[p1[i].DescendantList[j]]++;
-            if(p1[i].Merit[j]>merit[p1[i].DescendantList[j]]){
-                merit[p1[i].DescendantList[j]]=p1[i].Merit[j];
-                nh2index[p1[i].DescendantList[j]]=i;
-            }
-        }
-    }
-
-#ifdef USEOPENMP
-#pragma omp parallel default(shared) \
-private(i,j,k)
-{
-#pragma omp for schedule(dynamic,10) nowait
-#endif
-    for (i=0;i<nhalos1;i++) if (p1[i].istep==istepval){
-        for(j=0;j<p1[i].NumberofDescendants;j++) {
-            if (nh2nummatches[p1[i].DescendantList[j]]>=2&&i!=nh2index[p1[i].DescendantList[j]]){
-                for (k=j;k<p1[i].NumberofDescendants-1;k++) {
-                    p1[i].DescendantList[k]=p1[i].DescendantList[k+1];
-                    p1[i].Merit[k]=p1[i].Merit[k+1];
-                }
-                j--;p1[i].NumberofDescendants--;
-            }
-        }
-    }
-#ifdef USEOPENMP
-}
-#endif
-    */
-
     //adjust data to store haloIDS
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
@@ -970,17 +927,67 @@ private(i,j,k)
 #endif
     for (i=0;i<nhalos1;i++) if (p1[i].istep==istepval){
         for(j=0;j<p1[i].NumberofDescendants;j++) {
-            //store nshared
-            //p1[i].nsharedfrac[j]=sqrt(p1[i].Merit[j]*((double)h2[p1[i].DescendantList[j]].NumberofParticles*(double)h1[i].NumberofParticles))/(double)h1[i].NumberofParticles;
             p1[i].DescendantList[j]=h2[p1[i].DescendantList[j]].haloID;
         }
     }
 #ifdef USEOPENMP
 }
 #endif
-    //delete[] nh2index;
-    //delete[] nh2nummatches;
-    //delete[] merit;
+}
+
+///now prune descendant list
+void CleanCrossMatchDescendant(Int_t itime, int istep, HaloTreeData *&pht, ProgenitorDataDescenBased **&pdescenprogen, DescendantData **&pdescen)
+{
+    Int_t i,j,k;
+    int nthreads=1,tid;
+    int irank;
+    int nfirstrank;
+    int itimedescen, itimeprogen;
+    unsigned long did;
+    Int_t progindex,descenindex,descentemporalindex,descenprogenindex;
+    PriorityQueue *pq;
+    unsigned short rank;
+    Double_t generalizedmerit;
+    int numcurprogen;
+
+    //the idea here is to adjust rankings of descendant to progenitor or remove a connection completely
+    //if an object has two our more descendants of rank 0
+    int foo=0;
+    for (Int_t k=0;k<pht[itime].numhalos;k++) if (pdescen[itime][k].NumberofDescendants>1)
+    {
+        //find first number of rank 0 descendants
+        irank=-1;
+        nfirstrank=0;
+        for (auto idescen=0;idescen<pdescen[itime][k].NumberofDescendants;idescen++)
+        {
+            if (pdescen[itime][k].dtoptype[idescen]==0) {
+                if (irank==-1) irank=idescen;
+                nfirstrank++;
+            }
+        }
+        if (nfirstrank<=1) continue;
+        //if there is a rank zero and there is more than one first rank then need to update the other progenitors
+        for (auto idescen=irank+1;idescen<pdescen[itime][k].NumberofDescendants;idescen++) {
+            if (pdescen[itime][k].dtoptype[idescen]==0) {
+                itimedescen=itime+pdescen[itime][k].istep;
+                did=pdescen[itime][k].DescendantList[idescen]-1;
+                //now update all the progenitor rankings associated with this descendant, swapping the rankings
+                //search for object that has dtop rank of 1.
+                if (pdescenprogen[itimedescen][did].NumberofProgenitors<=1) continue;
+                for (auto iprogen=0;iprogen<pdescenprogen[itimedescen][did].NumberofProgenitors;iprogen++) {
+                    descenindex=pdescenprogen[itimedescen][did].haloindex[iprogen];
+                    descentemporalindex=pdescenprogen[itimedescen][did].halotemporalindex[iprogen];
+                    descenprogenindex=pdescenprogen[itimedescen][did].progentype[iprogen];
+                    if (pdescen[descentemporalindex][descenindex].dtoptype[descenprogenindex]==1)
+                    {
+                        pdescen[descentemporalindex][descenindex].dtoptype[descenprogenindex]=0;
+                        break;
+                    }
+                }
+                pdescen[itime][k].dtoptype[idescen]=1;
+            }
+        }
+    }
 }
 
 //@}
@@ -1206,7 +1213,6 @@ void RemoveLinksDescendantBasedProgenitorList(Int_t itime, Int_t ihaloindex, Des
         //for mpi communication need to store if anything is removed
         pdescenprogen[itimeprogen][did].removalhaloindex.push_back(pdescenprogen[itimeprogen][did].haloindex[k]);
         pdescenprogen[itimeprogen][did].removalhalotemporalindex.push_back(pdescenprogen[itimeprogen][did].halotemporalindex[k]);
-        cout<<"have pushed back "<<pdescenprogen[itimeprogen][did].removalhaloindex.size()<<endl;
 #endif
         pdescenprogen[itimeprogen][did].haloindex.erase(pdescenprogen[itimeprogen][did].haloindex.begin()+k);
         pdescenprogen[itimeprogen][did].halotemporalindex.erase(pdescenprogen[itimeprogen][did].halotemporalindex.begin()+k);
@@ -1250,14 +1256,29 @@ void CleanDescendantsUsingProgenitors(Int_t itimeprogen, HaloTreeData *&pht, Pro
     PriorityQueue *pq;
     Int_t progindex,descenindex,descentemporalindex,descenprogenindex;
     Double_t generalizedmerit;
-    unsigned short rank;
+    unsigned short rank, maxrank;
     for (Int_t k=0;k<pht[itimeprogen].numhalos;k++) if (pdescenprogen[itimeprogen][k].NumberofProgenitors>1)
     {
         pq=new PriorityQueue(pdescenprogen[itimeprogen][k].NumberofProgenitors);
+        maxrank=0;
+        for (auto iprogen=0;iprogen<pdescenprogen[itimeprogen][k].NumberofProgenitors;iprogen++) {
+            descenindex=pdescenprogen[itimeprogen][k].haloindex[iprogen];
+            descentemporalindex=pdescenprogen[itimeprogen][k].halotemporalindex[iprogen];
+            descenprogenindex=pdescenprogen[itimeprogen][k].progentype[iprogen];
+            rank=pdescen[descentemporalindex][descenindex].dtoptype[descenprogenindex];
+            if (maxrank<rank) maxrank=rank;
+        }
         for (auto iprogen=0;iprogen<pdescenprogen[itimeprogen][k].NumberofProgenitors;iprogen++)
         {
+            //rank accoring to initial ranking and generalized merit.
+            descenindex=pdescenprogen[itimeprogen][k].haloindex[iprogen];
+            descentemporalindex=pdescenprogen[itimeprogen][k].halotemporalindex[iprogen];
+            descenprogenindex=pdescenprogen[itimeprogen][k].progentype[iprogen];
+            rank=pdescen[descentemporalindex][descenindex].dtoptype[descenprogenindex];
             generalizedmerit=pdescenprogen[itimeprogen][k].Merit[iprogen]/pow((Double_t)pdescenprogen[itimeprogen][k].deltat[iprogen],ALPHADELTAT);
-            pq->Push(iprogen,generalizedmerit);
+            //by using maxrank-rank+generalizedmerit, will have values staggared according to initial time specific rankings
+            //pq->Push(iprogen,generalizedmerit);
+            pq->Push(iprogen,maxrank-rank+generalizedmerit);
         }
         rank=0;
         while(pq->Size()>0)
