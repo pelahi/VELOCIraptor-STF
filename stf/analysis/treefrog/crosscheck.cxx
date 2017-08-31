@@ -656,8 +656,11 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
         if (refdescen[i].NumberofDescendants==0) {
             num_nodescen+=1;
         }
-        //if also applying merit limit then search if does not meet merit threshold
+        //if also applying merit limit then search if does not meet merit threshold or not ideal progenitor
         if (opt.imultsteplinkcrit==MSLCPRIMARYPROGEN && refdescen[i].NumberofDescendants>0) {
+            if (refdescen[i].dtoptype[0]!=0) num_nodescen+=1;
+        }
+        else if (opt.imultsteplinkcrit==MSLCMERITPRIMARYPROGEN && refdescen[i].NumberofDescendants>0) {
             if (refdescen[i].dtoptype[0]!=0) num_nodescen+=1;
             else if (refdescen[i].Merit[0]<opt.meritlimit) num_nodescen+=1;
         }
@@ -670,8 +673,10 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
             if (refdescen[i].NumberofDescendants==0){
                 needdescenlist[num_nodescen++]=i;
             }
-            //if also applying merit limit then search if does not meet merit threshold
             if (opt.imultsteplinkcrit==MSLCPRIMARYPROGEN && refdescen[i].NumberofDescendants>0) {
+                if (refdescen[i].dtoptype[0]!=0) needdescenlist[num_nodescen++]=i;
+            }
+            else if (opt.imultsteplinkcrit==MSLCMERITPRIMARYPROGEN && refdescen[i].NumberofDescendants>0) {
                 if (refdescen[i].dtoptype[0]!=0) needdescenlist[num_nodescen++]=i;
                 else if (refdescen[i].Merit[0]<opt.meritlimit) needdescenlist[num_nodescen++]=i;
             }

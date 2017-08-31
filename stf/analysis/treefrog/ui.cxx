@@ -270,10 +270,11 @@ void usage(void)
     cerr<<"USAGE:\n";
     cerr<<"\n";
     cerr<<" ========================= "<<endl;
+    cerr<<" Basic input/output commands "<<endl;
+    cerr<<" ========================= "<<endl;
     cerr<<"-i <file containing filelist>\n";
     cerr<<"-I <Input format ("<<opt.ioformat<<" [Sussing "<<DSUSSING<<", normal velociraptor catalog "<<DCATALOG<<", nIFTY "<<DNIFTY<<", Void "<<DVOID<<" ])\n";
     cerr<<"-s <number of files/snapshots>\n";
-    cerr<<"-N <if output is split between multiple files due to mpi, number of files written ("<<opt.nmpifiles<<")>\n";
     cerr<<"-c <produce cross catalog match (0 halo tree ,1 cross catalog ,2 full graph) default ("<<opt.icatalog<<")\n";
     cerr<<"-o <output filename>\n";
     cerr<<"-O <output format, ASCII, HDF5 ("<<OUTASCII<<","<<" "<<OUTHDF<<"), with default "<<opt.outputformat<<">\n";
@@ -281,29 +282,38 @@ void usage(void)
     cerr<<" ========================= "<<endl<<endl;
 
     cerr<<" ========================= "<<endl;
-    cerr<<" For normal catalog produced by velociraptor "<<endl;
+    cerr<<" input modifiers for normal catalog produced by velociraptor "<<endl;
     cerr<<" ========================= "<<endl;
     cerr<<"-B <input format for (binary 1, hdf 2, or ascii 0) ("<<opt.ibinary<<")>\n";
     cerr<<"-F <field objects in separate file ("<<opt.ifield<<")>\n";
+    cerr<<"-N <if output is split between multiple files due to mpi, number of files written ("<<opt.nmpifiles<<")>\n";
     cerr<<" ========================= "<<endl<<endl;
 
     cerr<<" ========================= "<<endl;
     cerr<<" General tree construction options "<<endl;
     cerr<<" ========================= "<<endl;
-    cerr<<"-D <Direction of tree, progenitor ("<<SEARCHPROGEN<<") or descendant ("<<SEARCHDESCEN<<") or both ("<<SEARCHALL<<") with default (" <<opt.isearchdirection<<")\n";
-    cerr<<"-T <type of particles to cross correlate ("<<opt.itypematch<<" ["<<ALLTYPEMATCH<<" is all particle types, ";
-    cerr<<DMTYPEMATCH<<" is DM particle types, ";
-    cerr<<GASTYPEMATCH<<" is GAS particle types, ";
-    cerr<<STARTYPEMATCH<<" is STAR particle types, ";
-    cerr<<DMGASTYPEMATCH<<" is both DM and GAS particle types, ";
-    cerr<<",])\n";
-    cerr<<"-M <cross correlation function type to identify main progenitor ("<<opt.imerittype<<" ["<<NsharedN1N2<<" "<<Nshared<<"])\n";
-    cerr<<"-X <criteria for when to keep searching for new links if multiple steps invoked ("<<opt.imultsteplinkcrit<<"). Possibilities are :";
-    cerr<<MSLCMISSING<<" Only missing ,";
-    cerr<<MSLCMERIT<<" Missing & low merit given by merit limit, ";
+    cerr<<"-D <Direction of tree. Default (" <<opt.isearchdirection<<") Possibilities are : \n";
+    cerr<<'\t'<<SEARCHPROGEN<<" progenitor, \n";
+    cerr<<'\t'<<SEARCHDESCEN<<" descendant, \n";
+    cerr<<'\t'<<SEARCHALL<<" both directions \n";
+    cerr<<"-T <type of particles to cross correlate. Default ("<<opt.itypematch<<"). Possibilities are :\n";
+    cerr<<'\t'<<ALLTYPEMATCH<<" is all particle types, \n";
+    cerr<<'\t'<<DMTYPEMATCH<<" is DM particle types, \n";
+    cerr<<'\t'<<GASTYPEMATCH<<" is GAS particle types, \n";
+    cerr<<'\t'<<STARTYPEMATCH<<" is STAR particle types, \n";
+    cerr<<'\t'<<DMGASTYPEMATCH<<" is both DM and GAS particle types, \n";
+    cerr<<"-M <cross correlation function type to identify main progenitor/descendant/link. Default ("<<opt.imerittype<<"). Possibilities are :\n";
+    cerr<<'\t'<<NsharedN1N2<<" standard merit of Nshared^2/N1/N2, \n";
+    cerr<<'\t'<<NsharedN1<<" fraction merit of Nshared/N1, \n";
+    cerr<<"-X <criteria for when to keep searching for new links if multiple steps invoked ("<<opt.imultsteplinkcrit<<"). Possibilities are :\n";
+    cerr<<'\t'<<MSLCMISSING<<" Only missing ,\n";
+    cerr<<'\t'<<MSLCMERIT<<" Missing & low merit given by merit limit, \n";
+    cerr<<'\t'<<MSLCPRIMARYPROGEN<<" Missing & or low ranking descendant when constructing descendant tree, \n";
+    cerr<<'\t'<<MSLCMERITPRIMARYPROGEN<<" Missing & low merit & or low ranking descendant when constructing descendant tree, \n";
     cerr<<endl;
     cerr<<"-U <generalized temporal merit ("<<opt.iopttemporalmerittype<<").";
     cerr<<endl;
+    cerr<<" ========================= "<<endl<<endl;
 
     cerr<<" ========================= "<<endl;
     cerr<<" Cross matching options "<<endl;
@@ -409,6 +419,7 @@ inline void ConfigCheck(Options &opt)
                 opt.particle_frac=0.1;
                 opt.meritlimit=0.1;
                 opt.imerittype=NsharedN1N2;
+                opt.imultsteplinkcrit=MSLCPRIMARYPROGEN;
                 opt.iopttemporalmerittype=GENERALIZEDMERITTIMEPROGEN;
             }
             else if (opt.isearchdirection==SEARCHPROGEN) {
@@ -417,6 +428,7 @@ inline void ConfigCheck(Options &opt)
                 opt.particle_frac=0.1;
                 opt.meritlimit=0.1;
                 opt.imerittype=NsharedN1N2;
+                opt.imultsteplinkcrit=MSLCMERIT;
                 opt.iopttemporalmerittype=GENERALIZEDMERITTIME;
             }
         }
@@ -431,22 +443,33 @@ inline void ConfigCheck(Options &opt)
     if (opt.outdataformat<0){
         cerr<<"Output data requested not valid, defaulting to minimal output"<<endl; opt.outdataformat=0;
     }
-    //else if (opt.imapping==???) opt.mappingfunc=???;
-    opt.description=(char*)"VELOCIraptor halo merger tree constructed by identifying the main progenitor with the highest value of ";
+
+    //now set description
+    opt.description=(char*)"TreeFrog Tree constructed by identifying the link with the highest value of ";
     if(opt.imerittype==NsharedN1N2)      opt.description+=(char*)"Nshared^2/Nh/Np |";
     else if(opt.imerittype==NsharedN1)   opt.description+=(char*)"Nshared/Nh | ";
     else if(opt.imerittype==Nshared)     opt.description+=(char*)"Nshared |";
     else if (opt.imerittype==Nsharedcombo) opt.description=(char*)"Nshared/Nh+(Nshared^2/Nh/Np) so as to weight progenitors that contribute similar amounts by how much of their mass contributes to the new object | ";
+
     opt.description=(char*)"Optimal temporal merits are set by  ";
     if(opt.iopttemporalmerittype==GENERALIZEDMERITTIME)  opt.description+=(char*)"a generalized temporal merit taking into account average time evolution |";
     else if(opt.iopttemporalmerittype==GENERALIZEDMERITTIMEPROGEN)  opt.description+=(char*)"a generalized temporal merit taking into account average time evolution and maximise the ranking of the progenitor so that links always point to primary progen/descen |";
+
+    opt.description=(char*)"Multistep criterion to keep searching   ";
+    if(opt.imultsteplinkcrit==MSLCMISSING)  opt.description+=(char*)" only if missing a link |";
+    else if(opt.imultsteplinkcrit==MSLCMERIT)  opt.description+=(char*)" if missing a link or only link low merit |";
+    else if(opt.imultsteplinkcrit==MSLCPRIMARYPROGEN)  opt.description+=(char*)" if missing a link or if link is secondary progenitor when constructing descendant tree |";
+    else if(opt.imultsteplinkcrit==MSLCMERITPRIMARYPROGEN)  opt.description+=(char*)" if missing a link, low merit or if link is secondary progenitor when constructing descendant tree |";
+
     opt.description+=(char*)"Tree built using ";
     opt.description+=static_cast<ostringstream*>( &(ostringstream() << opt.numsteps) )->str();
     opt.description+=(char*)" temporal steps | ";
+
     opt.description+=(char*)"Particle types for matching limited to ";
     if (opt.itypematch==ALLTYPEMATCH) opt.description+=(char*)" all |";
     else {opt.description+=(char*)" part type ";opt.description+=static_cast<ostringstream*>( &(ostringstream() << opt.itypematch) )->str();}
     opt.description+=(char*)" | ";
+
     if (opt.particle_frac<1 && opt.particle_frac>0) {
         opt.description+=(char*)" Fractions of paritcles from which merit calculated with ";opt.description+=static_cast<ostringstream*>( &(ostringstream() << opt.particle_frac) )->str();
         opt.description+=(char*)" with lower particle number limit of ";opt.description+=static_cast<ostringstream*>( &(ostringstream() << opt.min_numpart) )->str();

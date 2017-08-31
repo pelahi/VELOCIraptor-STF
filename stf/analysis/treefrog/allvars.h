@@ -174,10 +174,10 @@ using namespace NBody;
 #define MSLCMISSING 0
 ///higher merit
 #define MSLCMERIT 1
-///higher merit and primary progenitor
-#define MSLCMERITPRIMARYPROGEN 2
 ///higher primary progenitor
-#define MSLCPRIMARYPROGEN 3
+#define MSLCPRIMARYPROGEN 2
+///higher merit and primary progenitor
+#define MSLCMERITPRIMARYPROGEN 3
 //@}
 
 /// \name defining types of optimal temporal merit criteria
