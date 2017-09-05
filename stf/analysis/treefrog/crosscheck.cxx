@@ -1128,12 +1128,35 @@ void CleanProgenitorsUsingDescendants(Int_t i, HaloTreeData *&pht, DescendantDat
 void UpdateRefDescendants(Options &opt, const Int_t numhalos, DescendantData *&dref, DescendantData *&dtemp, ProgenitorDataDescenBased **&pdescenprogen, Int_t itime)
 {
     if (opt.imultsteplinkcrit==MSLCMISSING) {
-        for (Int_t i=0;i<numhalos;i++)
-            if (dref[i].NumberofDescendants==0 && dtemp[i].NumberofDescendants>0) dref[i]=dtemp[i];
+        for (Int_t i=0;i<numhalos;i++) {
+            if (dref[i].NumberofDescendants==0 && dtemp[i].NumberofDescendants>0) {
+                dref[i]=dtemp[i];
+                AddLinksDescendantBasedProgenitorList(itime, i, dref[i], pdescenprogen);
+            }
+        }
     }
     else if (opt.imultsteplinkcrit==MSLCPRIMARYPROGEN) {
         for (Int_t i=0;i<numhalos;i++) {
-            if (dref[i].NumberofDescendants==0 && dtemp[i].NumberofDescendants>0) dref[i]=dtemp[i];
+            if (dref[i].NumberofDescendants==0 && dtemp[i].NumberofDescendants>0) {
+                dref[i]=dtemp[i];
+                AddLinksDescendantBasedProgenitorList(itime, i, dref[i], pdescenprogen);
+            }
+            else if (dref[i].NumberofDescendants>0 && dtemp[i].NumberofDescendants>0) {
+                if (dtemp[i].dtoptype[0]<dref[i].dtoptype[0]) {
+                    RemoveLinksDescendantBasedProgenitorList(itime, i, dref[i], pdescenprogen);
+                    //then copy new links
+                    dref[i]=dtemp[i];
+                    AddLinksDescendantBasedProgenitorList(itime, i, dref[i], pdescenprogen);
+                }
+            }
+        }
+    }
+    else if (opt.imultsteplinkcrit==MSLCMERITPRIMARYPROGEN) {
+        for (Int_t i=0;i<numhalos;i++) {
+            if (dref[i].NumberofDescendants==0 && dtemp[i].NumberofDescendants>0) {
+                dref[i]=dtemp[i];
+                AddLinksDescendantBasedProgenitorList(itime, i, dref[i], pdescenprogen);
+            }
             else if (dref[i].NumberofDescendants>0 && dtemp[i].NumberofDescendants>0) {
                 if (dtemp[i].dtoptype[0]<dref[i].dtoptype[0] || (dref[i].dtoptype[0]>0 && dtemp[i].dtoptype[0]==dref[i].dtoptype[0] && dtemp[i].Merit[0]>dref[i].Merit[0])) {
                     RemoveLinksDescendantBasedProgenitorList(itime, i, dref[i], pdescenprogen);
