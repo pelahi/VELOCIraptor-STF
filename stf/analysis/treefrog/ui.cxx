@@ -94,7 +94,7 @@ void GetArgs(int argc, char *argv[], Options &opt)
 {
     int option;
     int NumArgs = 0;
-    while ((option = getopt(argc, argv, ":i:s:I:N:B:F:o:O:d:T:D:M:X:U:C:l:m:n:t:f:p:b:a:h:H:g:v:y:z:Z:")) != EOF)
+    while ((option = getopt(argc, argv, ":i:s:I:N:B:F:o:O:d:T:D:M:X:E:U:C:l:m:n:t:f:p:b:a:h:H:g:v:y:z:Z:")) != EOF)
     {
         switch(option)
         {
@@ -159,6 +159,11 @@ void GetArgs(int argc, char *argv[], Options &opt)
                 break;
             case 'X':
                 opt.imultsteplinkcrit= atoi(optarg);
+                opt.idefaultvalues = 0;
+                NumArgs += 2;
+                break;
+            case 'E':
+                opt.icorematchtype= atoi(optarg);
                 opt.idefaultvalues = 0;
                 NumArgs += 2;
                 break;
@@ -310,6 +315,12 @@ void usage(void)
     cerr<<'\t'<<MSLCMERIT<<" Missing & low merit given by merit limit, \n";
     cerr<<'\t'<<MSLCPRIMARYPROGEN<<" Missing & or low ranking descendant when constructing descendant tree, \n";
     cerr<<'\t'<<MSLCMERITPRIMARYPROGEN<<" Missing & low merit & or low ranking descendant when constructing descendant tree, \n";
+    cerr<<endl;
+    cerr<<"-E <core matching criteria when searching  ("<<opt.icorematchtype<<"). Possibilities are :\n";
+    cerr<<'\t'<<PARTLISTNOCORE<<" no core matching refinement ,\n";
+    cerr<<'\t'<<PARTLISTCORE<<" for descendant tree, identify initial links using core of current halo and all particles with biased Nsh^2/N1/N2 merit of other haloes followed by core-core with unbiased Nsh^2/N1/N2 merit.";
+    cerr<<" For progenitor tree, does core to all with unbiased Nsh^2/N1/N2 merit. \n";
+    cerr<<'\t'<<PARTLISTCORECORE<<" for descendant and progenitor trees, does normal all to all particle match followed by a core-to-core match with unbiased merits.\n";
     cerr<<endl;
     cerr<<"-U <generalized temporal merit ("<<opt.iopttemporalmerittype<<").";
     cerr<<endl;

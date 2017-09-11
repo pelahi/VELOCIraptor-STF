@@ -245,11 +245,18 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
                 for (int i=opt.numsnapshots-1;i>0;i--) if (i>=istart && i<iend) {
                     Fout<<i+opt.snapshotvaloffset<<"\t"<<h[i].numhalos<<endl;
                     for (int j=0;j<h[i].numhalos;j++) {
-                        Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofProgenitors<<endl;
+                        Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofProgenitors;
+                        if (opt.outdataformat>=2) {
+                            Fout<<"\t"<<h[i].Halo[j].NumberofParticles;
+                        }
+                        Fout<<endl;
                         for (int k=0;k<p[i][j].NumberofProgenitors;k++) {
                             Fout<<h[i-p[i][j].istep].Halo[p[i][j].ProgenitorList[k]-1].haloID<<" ";
                             if (opt.outdataformat>=1) {
                                 Fout<<p[i][j].Merit[k]<<" ";
+                            }
+                            if (opt.outdataformat>=2) {
+                                Fout<<h[i-p[i][j].istep].Halo[p[i][j].ProgenitorList[k]-1].NumberofParticles<<" ";
                             }
                             Fout<<endl;
                         }
@@ -264,7 +271,11 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
             ///last file has no connections
             Fout<<0+opt.snapshotvaloffset<<"\t"<<h[0].numhalos<<endl;
             for (int j=0;j<h[0].numhalos;j++) {
-                Fout<<h[0].Halo[j].haloID<<"\t"<<0<<endl;
+                Fout<<h[0].Halo[j].haloID<<"\t"<<0;
+                if (opt.outdataformat>=2) {
+                    Fout<<"\t"<<h[0].Halo[j].NumberofParticles;
+                }
+                Fout<<endl;
             }
             Fout<<"END"<<endl;
             Fout.close();
@@ -280,11 +291,18 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
             for (int i=opt.numsnapshots-1;i>0;i--) {
                 Fout<<i+opt.snapshotvaloffset<<"\t"<<h[i].numhalos<<endl;
                 for (int j=0;j<h[i].numhalos;j++) {
-                    Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofProgenitors<<endl;
+                    Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofProgenitors;
+                    if (opt.outdataformat>=2) {
+                        Fout<<"\t"<<h[i].Halo[j].NumberofParticles;
+                    }
+                    Fout<<endl;
                     for (int k=0;k<p[i][j].NumberofProgenitors;k++) {
                         Fout<<h[i-p[i][j].istep].Halo[p[i][j].ProgenitorList[k]-1].haloID<<" ";
                         if (opt.outdataformat>=1) {
                             Fout<<p[i][j].Merit[k]<<" ";
+                        }
+                        if (opt.outdataformat>=2) {
+                            Fout<<h[i-p[i][j].istep].Halo[p[i][j].ProgenitorList[k]-1].NumberofParticles<<" ";
                         }
                         Fout<<endl;
                     }
@@ -293,7 +311,11 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
             Fout<<0+opt.snapshotvaloffset<<"\t"<<h[0].numhalos<<endl;
             ///last file has no connections
             for (int j=0;j<h[0].numhalos;j++) {
-                Fout<<h[0].Halo[j].haloID<<"\t"<<0<<endl;
+                Fout<<h[0].Halo[j].haloID<<"\t"<<0;
+                if (opt.outdataformat>=2) {
+                    Fout<<"\t"<<h[0].Halo[j].NumberofParticles;
+                }
+                Fout<<endl;
             }
             Fout<<"END"<<endl;
             Fout.close();
@@ -461,12 +483,19 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
                 for (int i=0;i<opt.numsnapshots-1;i++) if (i>=istart && i<iend) {
                     Fout<<i+opt.snapshotvaloffset<<"\t"<<h[i].numhalos<<endl;
                     for (int j=0;j<h[i].numhalos;j++) {
-                        Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofDescendants<<endl;
+                        Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofDescendants;
+                        if (opt.outdataformat>=2) {
+                            Fout<<"\t"<<h[i].Halo[j].NumberofParticles;
+                        }
+                        Fout<<endl;
                         for (int k=0;k<p[i][j].NumberofDescendants;k++) {
                             Fout<<h[i+p[i][j].istep].Halo[p[i][j].DescendantList[k]-1].haloID<<" ";
                             Fout<<p[i][j].dtoptype[k]<<" ";
                             if (opt.outdataformat>=1) {
                                 Fout<<p[i][j].Merit[k]<<" ";
+                            }
+                            if (opt.outdataformat>=2) {
+                                Fout<<h[i+p[i][j].istep].Halo[p[i][j].DescendantList[k]-1].NumberofParticles<<" ";
                             }
                             Fout<<endl;
                         }
@@ -481,7 +510,11 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
             ///last file has no connections
             Fout<<opt.numsnapshots-1+opt.snapshotvaloffset<<"\t"<<h[opt.numsnapshots-1].numhalos<<endl;
             for (int j=0;j<h[opt.numsnapshots-1].numhalos;j++) {
-                Fout<<h[opt.numsnapshots-1].Halo[j].haloID<<"\t"<<0<<endl;
+                Fout<<h[opt.numsnapshots-1].Halo[j].haloID<<"\t"<<0;
+                if (opt.outdataformat>=2) {
+                    Fout<<"\t"<<h[opt.numsnapshots-1].Halo[j].NumberofParticles;
+                }
+                Fout<<endl;
             }
             Fout<<"END"<<endl;
             Fout.close();
@@ -497,12 +530,19 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
             for (int i=0;i<opt.numsnapshots-1;i++) {
                 Fout<<i+opt.snapshotvaloffset<<"\t"<<h[i].numhalos<<endl;
                 for (int j=0;j<h[i].numhalos;j++) {
-                    Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofDescendants<<endl;
+                    Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofDescendants;
+                    if (opt.outdataformat>=2) {
+                        Fout<<"\t"<<h[i].Halo[j].NumberofParticles;
+                    }
+                    Fout<<endl;
                     for (int k=0;k<p[i][j].NumberofDescendants;k++) {
                         Fout<<h[i+p[i][j].istep].Halo[p[i][j].DescendantList[k]-1].haloID<<" ";
                         Fout<<p[i][j].dtoptype[k]<<" ";
                         if (opt.outdataformat>=1) {
                             Fout<<p[i][j].Merit[k]<<" ";
+                        }
+                        if (opt.outdataformat>=2) {
+                            Fout<<h[i+p[i][j].istep].Halo[p[i][j].DescendantList[k]-1].NumberofParticles<<" ";
                         }
                         Fout<<endl;
                     }
@@ -511,7 +551,11 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
             Fout<<opt.numsnapshots-1+opt.snapshotvaloffset<<"\t"<<h[opt.numsnapshots-1].numhalos<<endl;
             ///last file has no connections
             for (int j=0;j<h[opt.numsnapshots-1].numhalos;j++) {
-                Fout<<h[opt.numsnapshots-1].Halo[j].haloID<<"\t"<<0<<endl;
+                Fout<<h[opt.numsnapshots-1].Halo[j].haloID<<"\t"<<0;
+                if (opt.outdataformat>=2) {
+                    Fout<<"\t"<<h[opt.numsnapshots-1].Halo[j].NumberofParticles;
+                }
+                Fout<<endl;
             }
             Fout<<"END"<<endl;
             Fout.close();
@@ -539,14 +583,21 @@ void WriteHaloGraph(Options &opt, ProgenitorData **p, DescendantData **d, HaloTr
     for (int i=opt.numsnapshots-1;i>=0;i--) {
         Fout<<i+opt.snapshotvaloffset<<"\t"<<h[i].numhalos<<endl;
         for (int j=0;j<h[i].numhalos;j++) {
-            if (i==opt.numsnapshots-1) Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofProgenitors<<"\t"<<0<<endl;
-            else if (i==0)Fout<<h[i].Halo[j].haloID<<"\t"<<0<<"\t"<<d[i][j].NumberofDescendants<<endl;
-            else Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofProgenitors<<"\t"<<d[i][j].NumberofDescendants<<endl;
+            if (i==opt.numsnapshots-1) Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofProgenitors<<"\t"<<0;
+            else if (i==0)Fout<<h[i].Halo[j].haloID<<"\t"<<0<<"\t"<<d[i][j].NumberofDescendants;
+            else Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofProgenitors<<"\t"<<d[i][j].NumberofDescendants;
+            if (opt.outdataformat>=2) {
+                Fout<<"\t"<<h[i].Halo[j].NumberofParticles;
+            }
+            Fout<<endl;
             if (i>0) {
                 for (int k=0;k<p[i][j].NumberofProgenitors;k++) {
                     Fout<<h[i-p[i][j].istep].Halo[p[i][j].ProgenitorList[k]-1].haloID<<" ";
                     if (opt.outdataformat>=1) {
                         Fout<<p[i][j].Merit[k]<<" ";
+                    }
+                    if (opt.outdataformat>=2) {
+                        Fout<<h[i-p[i][j].istep].Halo[p[i][j].ProgenitorList[k]-1].NumberofParticles<<" ";
                     }
                     Fout<<endl;
                 }
@@ -557,6 +608,9 @@ void WriteHaloGraph(Options &opt, ProgenitorData **p, DescendantData **d, HaloTr
                     Fout<<d[i][j].dtoptype[k]<<" ";
                     if (opt.outdataformat>=1) {
                         Fout<<d[i][j].Merit[k]<<" ";
+                    }
+                    if (opt.outdataformat>=2) {
+                        Fout<<h[i+d[i][j].istep].Halo[d[i][j].DescendantList[k]-1].NumberofParticles<<" ";
                     }
                     Fout<<endl;
                 }
