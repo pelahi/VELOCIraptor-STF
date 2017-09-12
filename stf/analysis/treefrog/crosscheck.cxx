@@ -117,7 +117,7 @@ private(j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                 if (np2<opt.min_numpart) np2=opt.min_numpart;
                 if (np2>h2[j].NumberofParticles) np2=h2[j].NumberofParticles;
             }
-            if(sharelist[index]<opt.mlsig*sqrt((Double_t)np2)) {
+            if(sharelist[index]<opt.mlsig*sqrt((Double_t)np2) && sharelist[index]<opt.mlsig*sqrt((Double_t)np1)) {
                 halolist[offset+k]=halolist[offset+numshared-1];
                 sharelist[index]=0;
                 k--;
@@ -188,7 +188,7 @@ private(j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                     if (h2[j].NumberofParticles<opt.min_numpart) np2=h2[j].NumberofParticles;
                     else if (np2<opt.min_numpart) np2=opt.min_numpart;
                     //if sharelist not enough, then move to end and decrease numshared
-                    if(sharelist[index]<opt.mlsig*sqrt((Double_t)np2)){
+                    if(sharelist[index]<opt.mlsig*sqrt((Double_t)np2) && sharelist[index]<opt.mlsig*sqrt((Double_t)np1)){
                         halolist[offset+k]=halolist[offset+numshared-1];
                         sharelist[index]=0;
                         k--;
@@ -320,7 +320,7 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                     if (np2<opt.min_numpart) np2=opt.min_numpart;
                     if (np2>h2[j].NumberofParticles) np2=h2[j].NumberofParticles;
                 }
-                if(sharelist[index]<opt.mlsig*sqrt((Double_t)np2)) {
+                if(sharelist[index]<opt.mlsig*sqrt((Double_t)np2) && sharelist[index]<opt.mlsig*sqrt((Double_t)np1)) {
                     halolist[offset+n]=halolist[offset+numshared-1];
                     sharelist[index]=0;
                     n--;
@@ -387,7 +387,7 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                         np2=h2[j].NumberofParticles*opt.particle_frac;
                         if (h2[j].NumberofParticles<opt.min_numpart) np2=h2[j].NumberofParticles;
                         else if (np2<opt.min_numpart) np2=opt.min_numpart;
-                        if(sharelist[index]<opt.mlsig*sqrt((Double_t)np2)){
+                        if(sharelist[index]<opt.mlsig*sqrt((Double_t)np2) && sharelist[index]<opt.mlsig*sqrt((Double_t)np1)){
                             halolist[offset+n]=halolist[offset+numshared-1];
                             sharelist[index]=0;
                             n--;
@@ -467,6 +467,7 @@ DescendantData *CrossMatchDescendant(Options &opt, const long unsigned nhalos1, 
     //temp variable to store the openmp reduction value for ilistupdated
     int newilistupdated;
     int chunksize;
+    int initdtopval;
 #ifdef USEOPENMP
 #pragma omp parallel
     {
@@ -485,6 +486,10 @@ DescendantData *CrossMatchDescendant(Options &opt, const long unsigned nhalos1, 
     if (refdescen==NULL) ilistupdated=1;
     else ilistupdated=0;
     newilistupdated=ilistupdated;
+
+    //if a core-core matching follows core-all matching then mark core-all matches
+    //as worse initial rank of 1, otherwise use zero
+    initdtopval=(opt.icorematchtype!=PARTLISTNOCORE && opt.particle_frac<1 && opt.particle_frac>0);
 
     if (nhalos2>0){
 
@@ -527,6 +532,25 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                 if (sharelist[index]==1) halolist[offset+numshared++]=hid-1;
             }
         }
+        //now proccess numshared list to remove insignificant connections
+        for (n=0;n<numshared;n++) {
+            j=halolist[offset+n];
+            index=offset+j;
+            //if sharelist not enough, then move to end and decrease numshared
+            np2=h2[j].NumberofParticles;
+            //adjust the expecte number of matches if only expecting to match core particles
+            if (opt.icorematchtype==PARTLISTCORE && opt.particle_frac<1 && opt.particle_frac>0) {
+                np2*=opt.particle_frac;
+                if (np2<opt.min_numpart) np2=opt.min_numpart;
+                if (np2>h2[j].NumberofParticles) np2=h2[j].NumberofParticles;
+            }
+            if(sharelist[index]<opt.mlsig*sqrt((Double_t)np2) && sharelist[index]<opt.mlsig*sqrt((Double_t)np1)) {
+                halolist[offset+n]=halolist[offset+numshared-1];
+                sharelist[index]=0;
+                n--;
+                numshared--;
+            }
+        }
         //now calculate merits and sort according to best merit.
         if (numshared>0) {
             //store all viable matches. Merits are calculated here using full number of particles
@@ -555,7 +579,7 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
             for (j=0;j<numshared;j++){
                 d1[i].DescendantList[j]=pq->TopQueue();
                 d1[i].Merit[j]=pq->TopPriority();
-                d1[i].dtoptype[j]=1;
+                d1[i].dtoptype[j]=initdtopval;
                 pq->Pop();
             }
             d1[i].istep=istepval;
@@ -580,6 +604,25 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                     if (hid>0){
                         sharelist[index]+=1;
                         if (sharelist[index]==1) halolist[offset+numshared++]=hid-1;
+                    }
+                }
+                //now proccess numshared list to remove insignificant connections
+                for (n=0;n<numshared;n++) {
+                    j=halolist[offset+n];
+                    index=offset+j;
+                    //if sharelist not enough, then move to end and decrease numshared
+                    np2=h2[j].NumberofParticles;
+                    //adjust the expecte number of matches if only expecting to match core particles
+                    if (opt.icorematchtype==PARTLISTCORE && opt.particle_frac<1 && opt.particle_frac>0) {
+                        np2*=opt.particle_frac;
+                        if (np2<opt.min_numpart) np2=opt.min_numpart;
+                        if (np2>h2[j].NumberofParticles) np2=h2[j].NumberofParticles;
+                    }
+                    if(sharelist[index]<opt.mlsig*sqrt((Double_t)np2) && sharelist[index]<opt.mlsig*sqrt((Double_t)np1)) {
+                        halolist[offset+n]=halolist[offset+numshared-1];
+                        sharelist[index]=0;
+                        n--;
+                        numshared--;
                     }
                 }
                 if (numshared>0) {
@@ -628,15 +671,6 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                         pq->Pop();
                     }
                     delete pq;delete pq2;
-                    /*
-                    for (j=0;j<numshared;j++){
-                        d1[i].DescendantList[j]=pq2->TopQueue();
-                        d1[i].Merit[j]=pq2->TopPriority();
-                        d1[i].dtoptype[j]=0;
-                        pq2->Pop();
-                    }
-                    delete pq2;
-                    */
                 }
                 //end of numshared>0 check
             }
@@ -718,6 +752,25 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                     if (sharelist[index]==1) halolist[offset+numshared++]=hid-1;
                 }
             }
+            //now proccess numshared list to remove insignificant connections
+            for (n=0;n<numshared;n++) {
+                j=halolist[offset+n];
+                index=offset+j;
+                //if sharelist not enough, then move to end and decrease numshared
+                np2=h2[j].NumberofParticles;
+                //adjust the expecte number of matches if only expecting to match core particles
+                if (opt.icorematchtype==PARTLISTCORE && opt.particle_frac<1 && opt.particle_frac>0) {
+                    np2*=opt.particle_frac;
+                    if (np2<opt.min_numpart) np2=opt.min_numpart;
+                    if (np2>h2[j].NumberofParticles) np2=h2[j].NumberofParticles;
+                }
+                if(sharelist[index]<opt.mlsig*sqrt((Double_t)np2) && sharelist[index]<opt.mlsig*sqrt((Double_t)np1)) {
+                    halolist[offset+n]=halolist[offset+numshared-1];
+                    sharelist[index]=0;
+                    n--;
+                    numshared--;
+                }
+            }
             if (numshared>0) {
                 np1=h1[i].NumberofParticles;
                 pq=new PriorityQueue(numshared);
@@ -772,6 +825,25 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                     if (hid>0) {
                         sharelist[index]+=1;
                         if (sharelist[index]==1) halolist[offset+numshared++]=hid-1;
+                    }
+                }
+                //now proccess numshared list to remove insignificant connections
+                for (n=0;n<numshared;n++) {
+                    j=halolist[offset+n];
+                    index=offset+j;
+                    //if sharelist not enough, then move to end and decrease numshared
+                    np2=h2[j].NumberofParticles;
+                    //adjust the expecte number of matches if only expecting to match core particles
+                    if (opt.icorematchtype==PARTLISTCORE && opt.particle_frac<1 && opt.particle_frac>0) {
+                        np2*=opt.particle_frac;
+                        if (np2<opt.min_numpart) np2=opt.min_numpart;
+                        if (np2>h2[j].NumberofParticles) np2=h2[j].NumberofParticles;
+                    }
+                    if(sharelist[index]<opt.mlsig*sqrt((Double_t)np2) && sharelist[index]<opt.mlsig*sqrt((Double_t)np1)) {
+                        halolist[offset+n]=halolist[offset+numshared-1];
+                        sharelist[index]=0;
+                        n--;
+                        numshared--;
                     }
                 }
                 if (numshared>0) {
@@ -982,14 +1054,26 @@ void CleanCrossMatchDescendant(Int_t itime, int istep, HaloTreeData *&pht, Proge
                 for (auto iprogen=0;iprogen<pdescenprogen[itimedescen][did].NumberofProgenitors;iprogen++) {
                     descenindex=pdescenprogen[itimedescen][did].haloindex[iprogen];
                     descentemporalindex=pdescenprogen[itimedescen][did].halotemporalindex[iprogen];
-                    descenprogenindex=pdescenprogen[itimedescen][did].progentype[iprogen];
+                    descenprogenindex=pdescenprogen[itimedescen][did].progenindex[iprogen];
+                    //found the object whose rank needs to be changed.
                     if (pdescen[descentemporalindex][descenindex].dtoptype[descenprogenindex]==1)
                     {
+                        pdescenprogen[itimedescen][did].dtoptype[iprogen]=0;
                         pdescen[descentemporalindex][descenindex].dtoptype[descenprogenindex]=0;
                         break;
                     }
                 }
                 pdescen[itime][k].dtoptype[idescen]=1;
+                for (auto iprogen=0;iprogen<pdescenprogen[itimedescen][did].NumberofProgenitors;iprogen++) {
+                    descenindex=pdescenprogen[itimedescen][did].haloindex[iprogen];
+                    descentemporalindex=pdescenprogen[itimedescen][did].halotemporalindex[iprogen];
+                    descenprogenindex=pdescenprogen[itimedescen][did].progenindex[iprogen];
+                    //found object in ProgenitorDataDescenBased that must be changed
+                    if (descenindex==k && descentemporalindex==itime) {
+                        pdescenprogen[itimedescen][did].dtoptype[iprogen]=1;
+                        break;
+                    }
+                }
             }
         }
     }
@@ -1142,7 +1226,7 @@ void UpdateRefDescendants(Options &opt, const Int_t numhalos, DescendantData *&d
                 AddLinksDescendantBasedProgenitorList(itime, i, dref[i], pdescenprogen);
             }
             else if (dref[i].NumberofDescendants>0 && dtemp[i].NumberofDescendants>0) {
-                if (dtemp[i].dtoptype[0]<dref[i].dtoptype[0]) {
+                if (dtemp[i].dtoptype[0]==0 && dref[i].dtoptype[0]!=0) {
                     RemoveLinksDescendantBasedProgenitorList(itime, i, dref[i], pdescenprogen);
                     //then copy new links
                     dref[i]=dtemp[i];
@@ -1158,7 +1242,7 @@ void UpdateRefDescendants(Options &opt, const Int_t numhalos, DescendantData *&d
                 AddLinksDescendantBasedProgenitorList(itime, i, dref[i], pdescenprogen);
             }
             else if (dref[i].NumberofDescendants>0 && dtemp[i].NumberofDescendants>0) {
-                if (dtemp[i].dtoptype[0]<dref[i].dtoptype[0] || (dref[i].dtoptype[0]>0 && dtemp[i].dtoptype[0]==dref[i].dtoptype[0] && dtemp[i].Merit[0]>dref[i].Merit[0])) {
+                if ((dtemp[i].dtoptype[0]==0 && dref[i].dtoptype[0]!=0) ||  (dtemp[i].dtoptype[0]<=dref[i].dtoptype[0] && dtemp[i].Merit[0]>dref[i].Merit[0])) {
                     RemoveLinksDescendantBasedProgenitorList(itime, i, dref[i], pdescenprogen);
                     //then copy new links
                     dref[i]=dtemp[i];
@@ -1170,7 +1254,7 @@ void UpdateRefDescendants(Options &opt, const Int_t numhalos, DescendantData *&d
 }
 
 ///similar to construction of descendant list using the candidate progenitor list, but here working in reverse direction
-///since objects can have many progenitors but an object should really have only one descendant, the ranking stored in progentype
+///since objects can have many progenitors but an object should really have only one descendant, the ranking stored in progenindex
 ///is useful for flagging objects which might have complex histories.
 void BuildDescendantBasedProgenitorList(Int_t itimedescen, Int_t nhalos, DescendantData *&pdescen, ProgenitorDataDescenBased *&pdescenprogen, int istep)
 {
@@ -1183,7 +1267,8 @@ void BuildDescendantBasedProgenitorList(Int_t itimedescen, Int_t nhalos, Descend
             pdescenprogen[did].halotemporalindex.push_back(itimedescen);
             pdescenprogen[did].Merit.push_back(pdescen[k].Merit[idescen]);
             pdescenprogen[did].deltat.push_back(istep);
-            pdescenprogen[did].progentype.push_back(idescen);
+            pdescenprogen[did].progenindex.push_back(idescen);
+            pdescenprogen[did].dtoptype.push_back(pdescen[k].dtoptype[idescen]);
 #ifdef USEMPI
             pdescenprogen[did].MPITask.push_back(ThisTask);
 #endif
@@ -1195,10 +1280,10 @@ void BuildDescendantBasedProgenitorList(Int_t itimedescen, Int_t nhalos, Descend
 ///for descedants unless special operation desired, rank the descendant information stored in dtoptype based on the descedant looking backward.
 ///so if an object had two or more progenitors, the descendant knows its ranking as a progenitor
 void UpdateDescendantUsingDescendantBasedProgenitorList(Int_t nhalos,
-    DescendantData *&pdescen, ProgenitorDataDescenBased *&pdescenprogen, int istep)
+    DescendantData *&pdescen, ProgenitorDataDescenBased *&pdescenprogen, int istep, Double_t meritlimit)
 {
     PriorityQueue *pq;
-    Int_t nattime;
+    Int_t nattime,rank;
     Int_t progindex,descenindex,descenprogenindex;
     for (Int_t k=0;k<nhalos;k++) if (pdescenprogen[k].NumberofProgenitors>1)
     {
@@ -1212,14 +1297,16 @@ void UpdateDescendantUsingDescendantBasedProgenitorList(Int_t nhalos,
         {
             pq->Push(iprogen,pdescenprogen[k].Merit[iprogen]);
         }
-        nattime=0;
+        //if the merit is poor then ranking starts at 1, otherwise, have a valid zero rank descendant/progenitor
+        rank=(pq->TopPriority()<meritlimit);
         while(pq->Size()>0)
         {
             progindex=pq->TopQueue();
             descenindex=pdescenprogen[k].haloindex[progindex];
-            descenprogenindex=pdescenprogen[k].progentype[progindex];
-            pdescen[descenindex].dtoptype[descenprogenindex]=nattime;
-            nattime++;
+            descenprogenindex=pdescenprogen[k].progenindex[progindex];
+            pdescenprogen[k].dtoptype[progindex]=rank;
+            pdescen[descenindex].dtoptype[descenprogenindex]=rank;
+            rank++;
             pq->Pop();
         }
         delete pq;
@@ -1246,7 +1333,8 @@ void RemoveLinksDescendantBasedProgenitorList(Int_t itime, Int_t ihaloindex, Des
         pdescenprogen[itimeprogen][did].halotemporalindex.erase(pdescenprogen[itimeprogen][did].halotemporalindex.begin()+k);
         pdescenprogen[itimeprogen][did].Merit.erase(pdescenprogen[itimeprogen][did].Merit.begin()+k);
         pdescenprogen[itimeprogen][did].deltat.erase(pdescenprogen[itimeprogen][did].deltat.begin()+k);
-        pdescenprogen[itimeprogen][did].progentype.erase(pdescenprogen[itimeprogen][did].progentype.begin()+k);
+        pdescenprogen[itimeprogen][did].progenindex.erase(pdescenprogen[itimeprogen][did].progenindex.begin()+k);
+        pdescenprogen[itimeprogen][did].dtoptype.erase(pdescenprogen[itimeprogen][did].dtoptype.begin()+k);
 #ifdef USEMPI
         pdescenprogen[itimeprogen][did].MPITask.erase(pdescenprogen[itimeprogen][did].MPITask.begin()+k);
 #endif
@@ -1266,7 +1354,8 @@ void AddLinksDescendantBasedProgenitorList(Int_t itime, Int_t ihaloindex, Descen
         pdescenprogen[itimeprogen][did].halotemporalindex.push_back(itime);
         pdescenprogen[itimeprogen][did].Merit.push_back(pdescen.Merit[idescen]);
         pdescenprogen[itimeprogen][did].deltat.push_back(pdescen.istep);
-        pdescenprogen[itimeprogen][did].progentype.push_back(idescen);
+        pdescenprogen[itimeprogen][did].progenindex.push_back(idescen);
+        pdescenprogen[itimeprogen][did].dtoptype.push_back(pdescen.dtoptype[idescen]);
 #ifdef USEMPI
         pdescenprogen[itimeprogen][did].MPITask.push_back(ThisTask);
 #endif
@@ -1288,34 +1377,51 @@ void CleanDescendantsUsingProgenitors(Int_t itimeprogen, HaloTreeData *&pht, Pro
     for (Int_t k=0;k<pht[itimeprogen].numhalos;k++) if (pdescenprogen[itimeprogen][k].NumberofProgenitors>1)
     {
         pq=new PriorityQueue(pdescenprogen[itimeprogen][k].NumberofProgenitors);
+        /*
         maxrank=0;
         for (auto iprogen=0;iprogen<pdescenprogen[itimeprogen][k].NumberofProgenitors;iprogen++) {
+            /*
             descenindex=pdescenprogen[itimeprogen][k].haloindex[iprogen];
             descentemporalindex=pdescenprogen[itimeprogen][k].halotemporalindex[iprogen];
-            descenprogenindex=pdescenprogen[itimeprogen][k].progentype[iprogen];
+            descenprogenindex=pdescenprogen[itimeprogen][k].progenindex[iprogen];
             rank=pdescen[descentemporalindex][descenindex].dtoptype[descenprogenindex];
+            * /
+            rank=pdescenprogen[itimeprogen][k].dtoptype[iprogen];
             if (maxrank<rank) maxrank=rank;
         }
+        */
         for (auto iprogen=0;iprogen<pdescenprogen[itimeprogen][k].NumberofProgenitors;iprogen++)
         {
             //rank accoring to initial ranking and generalized merit.
+/*
             descenindex=pdescenprogen[itimeprogen][k].haloindex[iprogen];
             descentemporalindex=pdescenprogen[itimeprogen][k].halotemporalindex[iprogen];
-            descenprogenindex=pdescenprogen[itimeprogen][k].progentype[iprogen];
+            descenprogenindex=pdescenprogen[itimeprogen][k].progenindex[iprogen];
             rank=pdescen[descentemporalindex][descenindex].dtoptype[descenprogenindex];
+*/
+            rank=pdescenprogen[itimeprogen][k].dtoptype[iprogen];
             generalizedmerit=pdescenprogen[itimeprogen][k].Merit[iprogen]/pow((Double_t)pdescenprogen[itimeprogen][k].deltat[iprogen],ALPHADELTAT);
+            //the generalized merit takes rank into account
+            generalizedmerit/=(rank+1.0);
+            pq->Push(iprogen,generalizedmerit);
             //by using maxrank-rank+generalizedmerit, will have values staggared according to initial time specific rankings
-            //pq->Push(iprogen,generalizedmerit);
-            pq->Push(iprogen,maxrank-rank+generalizedmerit);
+            //pq->Push(iprogen,maxrank-rank+generalizedmerit);
         }
         rank=0;
         while(pq->Size()>0)
         {
             progindex=pq->TopQueue();
+#ifdef USEMPI
+            if (pdescenprogen[itimeprogen][k].MPITask[progindex]==ThisTask){
+#endif
             descenindex=pdescenprogen[itimeprogen][k].haloindex[progindex];
             descentemporalindex=pdescenprogen[itimeprogen][k].halotemporalindex[progindex];
-            descenprogenindex=pdescenprogen[itimeprogen][k].progentype[progindex];
-            pdescen[descentemporalindex][descenindex].dtoptype[descenprogenindex]=rank++;
+            descenprogenindex=pdescenprogen[itimeprogen][k].progenindex[progindex];
+            pdescen[descentemporalindex][descenindex].dtoptype[descenprogenindex]=rank;
+#ifdef USEMPI
+            }
+#endif
+            rank++;
             pq->Pop();
         }
         delete pq;
@@ -1331,37 +1437,36 @@ void RerankDescendants(Options &opt, HaloTreeData *&pht, DescendantData **&pdesc
     int StartSnap=0,EndSnap=opt.numsnapshots;
 #endif
     PriorityQueue *pq;
-    int mindtop,index;
-    Double_t maxmerit;
+    int mindtop,index,rank;
+    Double_t maxmerit,generalizedmerit;
     unsigned long descen;
+    DescendantData dtemp;
     for (int i=0;i<opt.numsnapshots;i++) {
         if (i>=StartSnap && i<EndSnap-1) {
             for (Int_t j=0;j<pht[i].numhalos;j++){
                 if (pdescen[i][j].NumberofDescendants>1) {
-                    //find the lowest dtop value with highest merit and place it first in the list of descendants
-                    mindtop=pdescen[i][j].dtoptype[0];
-                    maxmerit=pdescen[i][j].Merit[0];
-                    descen=pdescen[i][j].DescendantList[0];
-                    index=0;
-                    //if a zero rank is first, no need to do anything
-                    if (mindtop==0) continue;
-                    for (int k=1;k<pdescen[i][j].NumberofDescendants;k++) {
-                        if (pdescen[i][j].dtoptype[k]<mindtop || (pdescen[i][j].dtoptype[k]==mindtop&&pdescen[i][j].Merit[k]>maxmerit)) {
-                            mindtop=pdescen[i][j].dtoptype[k];
-                            maxmerit=pdescen[i][j].Merit[k];
-                            descen=pdescen[i][j].DescendantList[k];
-                            index=k;
-                        }
+                    pq=new PriorityQueue(pdescen[i][j].NumberofDescendants);
+                    dtemp=pdescen[i][j];
+                    //sort descendant list according to merit and rank
+                    for (auto k=0;k<pdescen[i][j].NumberofDescendants;k++)
+                    {
+                        //rank accoring to initial ranking and generalized merit.
+                        rank=pdescen[i][j].dtoptype[k];
+                        generalizedmerit=pdescen[i][j].Merit[k];
+                        generalizedmerit/=(rank+1.0);
+                        pq->Push(k,generalizedmerit);
                     }
-                    //swap data
-                    if (index!=0) {
-                        pdescen[i][j].DescendantList[index]=pdescen[i][j].DescendantList[0];
-                        pdescen[i][j].Merit[index]=pdescen[i][j].Merit[0];
-                        pdescen[i][j].dtoptype[index]=pdescen[i][j].dtoptype[0];
-                        pdescen[i][j].DescendantList[0]=descen;
-                        pdescen[i][j].Merit[0]=maxmerit;
-                        pdescen[i][j].dtoptype[0]=mindtop;
+                    rank=0;
+                    while(pq->Size()>0)
+                    {
+                        index=pq->TopQueue();
+                        pdescen[i][j].DescendantList[rank]=dtemp.DescendantList[index];
+                        pdescen[i][j].Merit[rank]=dtemp.Merit[index];
+                        pdescen[i][j].dtoptype[rank]=dtemp.dtoptype[index];
+                        rank++;
+                        pq->Pop();
                     }
+                    delete pq;
                 }
             }
         }

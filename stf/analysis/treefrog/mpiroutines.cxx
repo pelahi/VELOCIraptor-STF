@@ -457,11 +457,13 @@ void MPIUpdateDescendantUsingProgenitors(Options &opt, HaloTreeData *&pht, Proge
     nsendup=nsenddown=0;
     for (int itask=0;itask<NProcs;itask++) sendupnumstep[itask]=senddownnumstep[itask]=0;
     for (int itask=ThisTask+1;itask<NProcs;itask++) if (mpi_startsnap[itask]<EndSnap) {nsendup++;sendupnumstep[itask]=EndSnap-1-mpi_startsnap[itask];}
-    for (int itask=ThisTask-1;itask>=0;itask--) if (mpi_endsnap[itask]>StartSnap) {nsenddown++;senddownnumstep[itask]=mpi_endsnap[itask]-StartSnap;}
+    for (int itask=ThisTask-1;itask>=0;itask--) if (mpi_endsnap[itask]>StartSnap) {nsenddown++;senddownnumstep[itask]=mpi_endsnap[itask]-1-StartSnap;}
     MPI_Allgather(&nsendup, 1, MPI_INT, mpi_nsendup, 1, MPI_INT, MPI_COMM_WORLD);
     MPI_Allgather(&nsenddown, 1, MPI_INT, mpi_nsenddown, 1, MPI_INT, MPI_COMM_WORLD);
     MPI_Allgather(sendupnumstep, NProcs, MPI_INT, mpi_sendupnumstep, NProcs, MPI_INT, MPI_COMM_WORLD);
     MPI_Allgather(senddownnumstep, NProcs, MPI_INT, mpi_senddownnumstep, NProcs, MPI_INT, MPI_COMM_WORLD);
+
+cout<<ThisTask<<" "<<nsendup<<" "<<nsenddown<<" with start/eend"<<StartSnap<<" "<<EndSnap<<endl;
     //set the number of items that are local before mpi passes
     for (isnap=StartSnap;isnap<EndSnap;isnap++) {
         for (Int_t j=0;j<pht[isnap].numhalos;j++) {
@@ -475,7 +477,7 @@ void MPIUpdateDescendantUsingProgenitors(Options &opt, HaloTreeData *&pht, Proge
     ///plus there are issues with the buffer with this type of send style. Might need to be more clever
     for (int itask=NProcs-1;itask>0;itask--) {
         for (int jtask=1;jtask<=mpi_nsenddown[itask];jtask++) {
-            for (int i=0;i<mpi_senddownnumstep[itask*NProcs+itask-jtask];i++) {
+            for (int i=1;i<=mpi_senddownnumstep[itask*NProcs+itask-jtask];i++) {
                 //sending information
                 if (itask==ThisTask) {
                     recvtask=ThisTask-jtask;
@@ -494,24 +496,24 @@ void MPIUpdateDescendantUsingProgenitors(Options &opt, HaloTreeData *&pht, Proge
     }
     MPI_Barrier(MPI_COMM_WORLD);
     for (int itask=0;itask<NProcs-1;itask++) {
-    for (int jtask=1;jtask<=mpi_nsendup[itask];jtask++) {
-    for (int i=1;i<=mpi_sendupnumstep[itask*NProcs+itask+jtask];i++) {
-        //sending information
-        if (itask==ThisTask) {
-            recvtask=ThisTask+jtask;
-            isnap=EndSnap-i;
-            MPISendDescendantsUsingProgenitors(recvtask, isnap, pht, pdescenprogen, pdescen);
-        }
-        //receiving information
-        else if (itask==ThisTask-jtask) {
-            sendtask=itask;
-            isnap=mpi_endsnap[itask]-i;
-            MPIRecvDescendantsUsingProgenitors(sendtask, isnap, pht, pdescenprogen, pdescen);
+        for (int jtask=1;jtask<=mpi_nsendup[itask];jtask++) {
+            for (int i=1;i<=mpi_sendupnumstep[itask*NProcs+itask+jtask];i++) {
+                //sending information
+                if (itask==ThisTask) {
+                    recvtask=ThisTask+jtask;
+                    isnap=EndSnap-i;
+                    MPISendDescendantsUsingProgenitors(recvtask, isnap, pht, pdescenprogen, pdescen);
+                }
+                //receiving information
+                else if (itask==ThisTask-jtask) {
+                    sendtask=itask;
+                    isnap=mpi_endsnap[itask]-i;
+                    MPIRecvDescendantsUsingProgenitors(sendtask, isnap, pht, pdescenprogen, pdescen);
 
+                }
+            }
+            MPI_Barrier(MPI_COMM_WORLD);
         }
-    }
-    MPI_Barrier(MPI_COMM_WORLD);
-    }
     }
     if (opt.iverbose>0 && ThisTask==0) cout<<"Done"<<endl;
 }
@@ -527,7 +529,8 @@ void MPISendDescendantsUsingProgenitors(int recvtask, int isnap,HaloTreeData *&p
     int unsigned *tothalotemporalindex;
     float *totmerit;
     int *totdeltat;
-    int *totprogentype;
+    int *totprogenindex;
+    int *totdtop;
     int *totMPITask;
     Int_t removaltotitems;
     int *nremoval;
@@ -543,14 +546,15 @@ void MPISendDescendantsUsingProgenitors(int recvtask, int isnap,HaloTreeData *&p
     }
     MPI_Send(&totitems,1, MPI_Int_t, recvtask, isnap*NProcs*NProcs+ThisTask+NProcs, MPI_COMM_WORLD);
     MPI_Send(&removaltotitems,1, MPI_Int_t, recvtask, isnap*NProcs*NProcs*NProcs+ThisTask+NProcs, MPI_COMM_WORLD);
-    if (totitems>0) {
+    if (totitems>0||removaltotitems) {
         numdescen=new int[pht[isnap].numhalos];
         noffset=new long unsigned[pht[isnap].numhalos];
         tothaloindex=new long unsigned[totitems];
         tothalotemporalindex=new int unsigned[totitems];
         totmerit=new float[totitems];
         totdeltat=new int[totitems];
-        totprogentype=new int[totitems];
+        totprogenindex=new int[totitems];
+        totdtop=new int[totitems];
         totMPITask=new int[totitems];
 
         nremoval=new int[pht[isnap].numhalos];
@@ -559,16 +563,19 @@ void MPISendDescendantsUsingProgenitors(int recvtask, int isnap,HaloTreeData *&p
         removaltothalotemporalindex=new int unsigned[removaltotitems];
 
         totitems=0;
+        removaltotitems=0;
         for (Int_t j=0;j<pht[isnap].numhalos;j++) {
             //numdescen[j]=pdescenprogen[isnap][j].NumberofProgenitors;
             numdescen[j]=pdescenprogen[isnap][j].nlocal;
             noffset[j]=totitems;
+            removalnoffset[j]=removaltotitems;
             for (Int_t k=0;k<numdescen[j];k++) if (pdescenprogen[isnap][j].MPITask[k]==ThisTask) {
                 tothaloindex[noffset[j]+k]=pdescenprogen[isnap][j].haloindex[k];
                 tothalotemporalindex[noffset[j]+k]=pdescenprogen[isnap][j].halotemporalindex[k];
                 totmerit[noffset[j]+k]=pdescenprogen[isnap][j].Merit[k];
                 totdeltat[noffset[j]+k]=pdescenprogen[isnap][j].deltat[k];
-                totprogentype[noffset[j]+k]=pdescenprogen[isnap][j].progentype[k];
+                totprogenindex[noffset[j]+k]=pdescenprogen[isnap][j].progenindex[k];
+                totdtop[noffset[j]+k]=pdescenprogen[isnap][j].dtoptype[k];
                 totMPITask[noffset[j]+k]=pdescenprogen[isnap][j].MPITask[k];
             }
             totitems+=pdescenprogen[isnap][j].nlocal;
@@ -588,8 +595,9 @@ void MPISendDescendantsUsingProgenitors(int recvtask, int isnap,HaloTreeData *&p
         MPI_Send(&tothalotemporalindex[0],totitems, MPI_INT, recvtask, isnap*NProcs*NProcs+ThisTask+5*NProcs, MPI_COMM_WORLD);
         MPI_Send(&totmerit[0],totitems, MPI_FLOAT, recvtask, isnap*NProcs*NProcs+ThisTask+6*NProcs, MPI_COMM_WORLD);
         MPI_Send(&totdeltat[0],totitems, MPI_INT, recvtask, isnap*NProcs*NProcs+ThisTask+7*NProcs, MPI_COMM_WORLD);
-        MPI_Send(&totprogentype[0],totitems, MPI_INT, recvtask, isnap*NProcs*NProcs+ThisTask+8*NProcs, MPI_COMM_WORLD);
-        MPI_Send(&totMPITask[0],totitems, MPI_INT, recvtask, isnap*NProcs*NProcs+ThisTask+9*NProcs, MPI_COMM_WORLD);
+        MPI_Send(&totprogenindex[0],totitems, MPI_INT, recvtask, isnap*NProcs*NProcs+ThisTask+8*NProcs, MPI_COMM_WORLD);
+        MPI_Send(&totdtop[0],totitems, MPI_INT, recvtask, isnap*NProcs*NProcs+ThisTask+9*NProcs, MPI_COMM_WORLD);
+        MPI_Send(&totMPITask[0],totitems, MPI_INT, recvtask, isnap*NProcs*NProcs+ThisTask+10*NProcs, MPI_COMM_WORLD);
 
         MPI_Send(&nremoval[0],pht[isnap].numhalos, MPI_INT, recvtask, isnap*NProcs*NProcs*NProcs+ThisTask+2*NProcs, MPI_COMM_WORLD);
         MPI_Send(&removalnoffset[0],pht[isnap].numhalos, MPI_LONG, recvtask, isnap*NProcs*NProcs*NProcs+ThisTask+3*NProcs, MPI_COMM_WORLD);
@@ -602,7 +610,8 @@ void MPISendDescendantsUsingProgenitors(int recvtask, int isnap,HaloTreeData *&p
         delete[] tothalotemporalindex;
         delete[] totmerit;
         delete[] totdeltat;
-        delete[] totprogentype;
+        delete[] totprogenindex;
+        delete[] totdtop;
         delete[] totMPITask;
 
         delete[] nremoval;
@@ -624,7 +633,8 @@ void MPIRecvDescendantsUsingProgenitors(int sendtask, int isnap, HaloTreeData *&
     int unsigned *tothalotemporalindex;
     float *totmerit;
     int *totdeltat;
-    int *totprogentype;
+    int *totprogenindex;
+    int *totdtop;
     int *totMPITask;
     Int_t removaltotitems;
     int *nremoval;
@@ -634,7 +644,7 @@ void MPIRecvDescendantsUsingProgenitors(int sendtask, int isnap, HaloTreeData *&
     //store the number of items, allocate memory and then receive
     MPI_Recv(&totitems,1, MPI_Int_t, sendtask, isnap*NProcs*NProcs+sendtask+NProcs, MPI_COMM_WORLD,&status);
     MPI_Recv(&removaltotitems,1, MPI_Int_t, sendtask, isnap*NProcs*NProcs*NProcs+sendtask+NProcs, MPI_COMM_WORLD,&status);
-    if (totitems>0) {
+    if (totitems>0||removaltotitems>0) {
 
         numdescen=new int[pht[isnap].numhalos];
         noffset=new long unsigned[pht[isnap].numhalos];
@@ -642,7 +652,8 @@ void MPIRecvDescendantsUsingProgenitors(int sendtask, int isnap, HaloTreeData *&
         tothalotemporalindex=new int unsigned[totitems];
         totmerit=new float[totitems];
         totdeltat=new int[totitems];
-        totprogentype=new int[totitems];
+        totprogenindex=new int[totitems];
+        totdtop=new int[totitems];
         totMPITask=new int[totitems];
 
         nremoval=new int[pht[isnap].numhalos];
@@ -656,9 +667,9 @@ void MPIRecvDescendantsUsingProgenitors(int sendtask, int isnap, HaloTreeData *&
         MPI_Recv(&tothalotemporalindex[0],totitems, MPI_INT, sendtask, isnap*NProcs*NProcs+sendtask+5*NProcs, MPI_COMM_WORLD,&status);
         MPI_Recv(&totmerit[0],totitems, MPI_FLOAT, sendtask, isnap*NProcs*NProcs+sendtask+6*NProcs, MPI_COMM_WORLD,&status);
         MPI_Recv(&totdeltat[0],totitems, MPI_INT, sendtask, isnap*NProcs*NProcs+sendtask+7*NProcs, MPI_COMM_WORLD,&status);
-        MPI_Recv(&totprogentype[0],totitems, MPI_INT, sendtask, isnap*NProcs*NProcs+sendtask+8*NProcs, MPI_COMM_WORLD,&status);
-        MPI_Recv(&totMPITask[0],totitems, MPI_INT, sendtask, isnap*NProcs*NProcs+sendtask+9*NProcs, MPI_COMM_WORLD,&status);
-
+        MPI_Recv(&totprogenindex[0],totitems, MPI_INT, sendtask, isnap*NProcs*NProcs+sendtask+8*NProcs, MPI_COMM_WORLD,&status);
+        MPI_Recv(&totdtop[0],totitems, MPI_INT, sendtask, isnap*NProcs*NProcs+sendtask+9*NProcs, MPI_COMM_WORLD,&status);
+        MPI_Recv(&totMPITask[0],totitems, MPI_INT, sendtask, isnap*NProcs*NProcs+sendtask+10*NProcs, MPI_COMM_WORLD,&status);
         MPI_Recv(&nremoval[0],pht[isnap].numhalos, MPI_INT, sendtask, isnap*NProcs*NProcs*NProcs+sendtask+2*NProcs, MPI_COMM_WORLD,&status);
         MPI_Recv(&removalnoffset[0],pht[isnap].numhalos, MPI_LONG, sendtask, isnap*NProcs*NProcs*NProcs+sendtask+3*NProcs, MPI_COMM_WORLD,&status);
         MPI_Recv(&removaltothaloindex[0],removaltotitems, MPI_LONG, sendtask, isnap*NProcs*NProcs*NProcs+sendtask+4*NProcs, MPI_COMM_WORLD,&status);
@@ -666,16 +677,18 @@ void MPIRecvDescendantsUsingProgenitors(int sendtask, int isnap, HaloTreeData *&
 
         //then merge the mpi data together
         for (Int_t j=0;j<pht[isnap].numhalos;j++)
-            pdescenprogen[isnap][j].Merge(ThisTask,numdescen[j],&tothaloindex[noffset[j]],&tothalotemporalindex[noffset[j]],&totmerit[noffset[j]],&totdeltat[noffset[j]],&totprogentype[noffset[j]],&totMPITask[noffset[j]]);
+            pdescenprogen[isnap][j].Merge(ThisTask,numdescen[j],&tothaloindex[noffset[j]],&tothalotemporalindex[noffset[j]],&totmerit[noffset[j]],&totdeltat[noffset[j]],&totprogenindex[noffset[j]],&totdtop[noffset[j]],&totMPITask[noffset[j]]);
         for (Int_t j=0;j<pht[isnap].numhalos;j++)
             pdescenprogen[isnap][j].Removal(nremoval[j],&removaltothaloindex[removalnoffset[j]],&removaltothalotemporalindex[removalnoffset[j]]);
+
         delete[] numdescen;
         delete[] noffset;
         delete[] tothaloindex;
         delete[] tothalotemporalindex;
         delete[] totmerit;
         delete[] totdeltat;
-        delete[] totprogentype;
+        delete[] totprogenindex;
+        delete[] totdtop;
         delete[] totMPITask;
 
         delete[] nremoval;

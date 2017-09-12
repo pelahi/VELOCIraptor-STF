@@ -730,8 +730,10 @@ struct ProgenitorDataDescenBased
     vector<float> Merit;
     //store the integer time diff to progenitor
     vector<int> deltat;
-    //store progenitor type, primary or not primary
-    vector<int> progentype;
+    //store index in progenitor's descedant based list
+    vector<int> progenindex;
+    //store descendant to progenitor ranking (dtoptype)
+    vector<int> dtoptype;
 #ifdef USEMPI
     //store local number of mpi items
     int nlocal;
@@ -748,7 +750,8 @@ struct ProgenitorDataDescenBased
         halotemporalindex.reserve(reservesize);
         Merit.reserve(reservesize);
         deltat.reserve(reservesize);
-        progentype.reserve(reservesize);
+        progenindex.reserve(reservesize);
+        dtoptype.reserve(reservesize);
 #ifdef USEMPI
         MPITask.reserve(reservesize);
         removalhaloindex.reserve(reservesize);
@@ -762,8 +765,9 @@ struct ProgenitorDataDescenBased
         haloindex.resize(NumberofProgenitors);
         halotemporalindex.resize(NumberofProgenitors);
         Merit.resize(NumberofProgenitors);
-        progentype.reserve(NumberofProgenitors);
+        progenindex.reserve(NumberofProgenitors);
         deltat.resize(NumberofProgenitors);
+        dtoptype.reserve(NumberofProgenitors);
 #ifdef USEMPI
         MPITask.resize(NumberofProgenitors);
         removalhaloindex.reserve(d.removalhaloindex.size());
@@ -774,7 +778,8 @@ struct ProgenitorDataDescenBased
             halotemporalindex[i]=d.halotemporalindex[i];
             Merit[i]=d.Merit[i];
             deltat[i]=d.deltat[i];
-            progentype[i]=d.progentype[i];
+            progenindex[i]=d.progenindex[i];
+            dtoptype[i]=d.dtoptype[i];
 #ifdef USEMPI
             MPITask[i]=d.MPITask[i];
 #endif
@@ -794,18 +799,18 @@ struct ProgenitorDataDescenBased
     void OptimalTemporalMerit(int iopttemporalmerittype=GENERALIZEDMERITTIME, Int_t itimeref=0){
         int imax=0;
         Double_t generalizedmerit=Merit[0]/pow((Double_t)deltat[0],ALPHADELTAT), newgenmerit;
-        int curprogentype=progentype[0];
+        int curprogenindex=progenindex[0];
         long unsigned optimalhaloindex;
         int unsigned optimalhalotemporalindex;
         for (int i=1;i<NumberofProgenitors;i++) {
             newgenmerit=Merit[i]/pow((Double_t)deltat[i],ALPHADELTAT);
             //if just optimising generalized temporal merit
             if (iopttemporalmerittype==GENERALIZEDMERITTIME && newgenmerit>generalizedmerit) {
-                generalizedmerit=newgenmerit;curprogentype=progentype[i];imax=i;
+                generalizedmerit=newgenmerit;curprogenindex=progenindex[i];imax=i;
             }
             //if optimising for best merit and best merit ranking (that is how close the object is to being the primary progenitor)
-            else if (iopttemporalmerittype==GENERALIZEDMERITTIMEPROGEN && ((progentype[i]<curprogentype && newgenmerit>=generalizedmerit*0.25)||(newgenmerit>generalizedmerit))) {
-                generalizedmerit=newgenmerit;curprogentype=progentype[i];imax=i;
+            else if (iopttemporalmerittype==GENERALIZEDMERITTIMEPROGEN && ((progenindex[i]<curprogenindex && newgenmerit>=generalizedmerit*0.25)||(newgenmerit>generalizedmerit))) {
+                generalizedmerit=newgenmerit;curprogenindex=progenindex[i];imax=i;
             }
         }
         optimalhaloindex=haloindex[imax];
@@ -823,7 +828,8 @@ struct ProgenitorDataDescenBased
             long unsigned hid, htid;
             Double_t merit;
             int dt;
-            int dtype;
+            int pindex;
+            int dtoptypeval;
 #ifdef USEMPI
             int mpitask;
 #endif
@@ -831,7 +837,8 @@ struct ProgenitorDataDescenBased
             hid=haloindex[0];
             htid=halotemporalindex[0];
             dt=deltat[0];
-            dtype=progentype[0];
+            pindex=progenindex[0];
+            dtoptypeval=dtoptype[0];
 #ifdef USEMPI
             mpitask=MPITask[0];
 #endif
@@ -839,7 +846,7 @@ struct ProgenitorDataDescenBased
             haloindex[0]=haloindex[imax];
             halotemporalindex[0]=halotemporalindex[imax];
             deltat[0]=deltat[imax];
-            progentype[0]=progentype[imax];
+            progenindex[0]=progenindex[imax];
 #ifdef USEMPI
             MPITask[0]=MPITask[imax];
 #endif
@@ -847,14 +854,15 @@ struct ProgenitorDataDescenBased
             haloindex[imax]=hid;
             halotemporalindex[imax]=htid;
             deltat[imax]=dt;
-            progentype[imax]=dtype;
+            progenindex[imax]=pindex;
+            dtoptype[imax]=dtoptypeval;
 #ifdef USEMPI
             MPITask[imax]=mpitask;
 #endif
         }
     }
 #ifdef USEMPI
-    void Merge(int thistask, int &numprogen, long unsigned *hid,int unsigned *htid, float *m, int *dt, int *dtype, int *task) {
+    void Merge(int thistask, int &numprogen, long unsigned *hid,int unsigned *htid, float *m, int *dt, int *pindex, int* dtop, int *task) {
         for (Int_t i=0;i<numprogen;i++) if (task[i]!=thistask)
         {
             //first check to see if halo already present
@@ -866,7 +874,8 @@ struct ProgenitorDataDescenBased
             halotemporalindex.push_back(htid[i]);
             Merit.push_back(m[i]);
             deltat.push_back(dt[i]);
-            progentype.push_back(dtype[i]);
+            progenindex.push_back(pindex[i]);
+            dtoptype.push_back(dtop[i]);
             MPITask.push_back(task[i]);
             NumberofProgenitors++;
         }
@@ -884,7 +893,8 @@ struct ProgenitorDataDescenBased
             halotemporalindex.erase(halotemporalindex.begin()+k);
             Merit.erase(Merit.begin()+k);
             deltat.erase(deltat.begin()+k);
-            progentype.erase(progentype.begin()+k);
+            progenindex.erase(progenindex.begin()+k);
+            dtoptype.erase(dtoptype.begin()+k);
             MPITask.erase(MPITask.begin()+k);
             NumberofProgenitors--;
         }

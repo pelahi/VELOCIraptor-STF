@@ -295,7 +295,7 @@ int main(int argc,char **argv)
                         //build a temporally local descendant based progenitor data
                         BuildDescendantBasedProgenitorList(i, pht[i].numhalos, pdescen[i], pdescenprogen[i+istep]);
                         //and then rank the progenitors at time i of descedants found at time i+istep based on their merit. Ranking is necessary to determine main/secondary branches
-                        UpdateDescendantUsingDescendantBasedProgenitorList(pht[i+istep].numhalos, pdescen[i], pdescenprogen[i+istep], istep);
+                        UpdateDescendantUsingDescendantBasedProgenitorList(pht[i+istep].numhalos, pdescen[i], pdescenprogen[i+istep], istep, opt.meritlimit);
                         //clean up the information stored in this list, adjusing rankings as necessary
                         CleanCrossMatchDescendant(i, istep, pht, pdescenprogen, pdescen);
                     }
@@ -310,7 +310,7 @@ int main(int argc,char **argv)
                             //to rank progenitors of descendants at this time, need to allocate a ProgenitorDataDescenBased list
                             pdescenprogentemp=new ProgenitorDataDescenBased[pht[i+istep].numhalos];
                             BuildDescendantBasedProgenitorList(i, pht[i].numhalos, pdescentemp, pdescenprogentemp, istep);
-                            UpdateDescendantUsingDescendantBasedProgenitorList(pht[i+istep].numhalos, pdescentemp, pdescenprogentemp, istep);
+                            UpdateDescendantUsingDescendantBasedProgenitorList(pht[i+istep].numhalos, pdescentemp, pdescenprogentemp, istep, opt.meritlimit);
                             //having ranked the progenitors based on their descendants looking backwards, we can now update the descendant list appropriately
                             UpdateRefDescendants(opt,pht[i].numhalos, pdescen[i], pdescentemp, pdescenprogen, i);
                             //clean up the information stored in this list, adjusing rankings as necessary
