@@ -1012,8 +1012,12 @@ private(i,j,k)
 #endif
 }
 
-///now prune descendant list
-void CleanCrossMatchDescendant(Int_t itime, int istep, HaloTreeData *&pht, ProgenitorDataDescenBased **&pdescenprogen, DescendantData **&pdescen)
+///now adjust the rankings of the progenitor descendant matches. Here the logic is applied so that if
+///objects are considered the best match for multiple descendants, the rank is adjusted and the
+///ranks of the progenitors of these secondary descendants are set to 0
+///also then searches for any objects that have more than one possible descendant but none are rank 0.
+///these are checked to see if a zero rank descendant can be identified.
+void CleanCrossMatchDescendant(Int_t itime, HaloTreeData *&pht, ProgenitorDataDescenBased **&pdescenprogen, DescendantData **&pdescen)
 {
     Int_t i,j,k;
     int nthreads=1,tid;
@@ -1029,7 +1033,6 @@ void CleanCrossMatchDescendant(Int_t itime, int istep, HaloTreeData *&pht, Proge
 
     //the idea here is to adjust rankings of descendant to progenitor or remove a connection completely
     //if an object has two our more descendants of rank 0
-    int foo=0;
     for (Int_t k=0;k<pht[itime].numhalos;k++) if (pdescen[itime][k].NumberofDescendants>1)
     {
         //find first number of rank 0 descendants
@@ -1050,7 +1053,20 @@ void CleanCrossMatchDescendant(Int_t itime, int istep, HaloTreeData *&pht, Proge
                 did=pdescen[itime][k].DescendantList[idescen]-1;
                 //now update all the progenitor rankings associated with this descendant, swapping the rankings
                 //search for object that has dtop rank of 1.
-                if (pdescenprogen[itimedescen][did].NumberofProgenitors<=1) continue;
+                if (pdescenprogen[itimedescen][did].NumberofProgenitors<=1) {
+                    pdescen[itime][k].dtoptype[idescen]=1;
+                    for (auto iprogen=0;iprogen<pdescenprogen[itimedescen][did].NumberofProgenitors;iprogen++) {
+                        descenindex=pdescenprogen[itimedescen][did].haloindex[iprogen];
+                        descentemporalindex=pdescenprogen[itimedescen][did].halotemporalindex[iprogen];
+                        descenprogenindex=pdescenprogen[itimedescen][did].progenindex[iprogen];
+                        //found object in ProgenitorDataDescenBased that must be changed
+                        if (descenindex==k && descentemporalindex==itime) {
+                            pdescenprogen[itimedescen][did].dtoptype[iprogen]=1;
+                            break;
+                        }
+                    }
+                    continue;
+                }
                 for (auto iprogen=0;iprogen<pdescenprogen[itimedescen][did].NumberofProgenitors;iprogen++) {
                     descenindex=pdescenprogen[itimedescen][did].haloindex[iprogen];
                     descentemporalindex=pdescenprogen[itimedescen][did].halotemporalindex[iprogen];
@@ -1059,7 +1075,7 @@ void CleanCrossMatchDescendant(Int_t itime, int istep, HaloTreeData *&pht, Proge
                     if (pdescen[descentemporalindex][descenindex].dtoptype[descenprogenindex]==1)
                     {
                         pdescenprogen[itimedescen][did].dtoptype[iprogen]=0;
-                        pdescen[descentemporalindex][descenindex].dtoptype[descenprogenindex]=0;
+                        if (pdescenprogen[itimedescen][did].MPITask[iprogen]==ThisTask) pdescen[descentemporalindex][descenindex].dtoptype[descenprogenindex]=0;
                         break;
                     }
                 }
@@ -1402,7 +1418,8 @@ void CleanDescendantsUsingProgenitors(Int_t itimeprogen, HaloTreeData *&pht, Pro
             rank=pdescenprogen[itimeprogen][k].dtoptype[iprogen];
             generalizedmerit=pdescenprogen[itimeprogen][k].Merit[iprogen]/pow((Double_t)pdescenprogen[itimeprogen][k].deltat[iprogen],ALPHADELTAT);
             //the generalized merit takes rank into account
-            generalizedmerit/=(rank+1.0);
+            //generalizedmerit/=(rank+1.0);
+            generalizedmerit/=pow(4.0,rank);
             pq->Push(iprogen,generalizedmerit);
             //by using maxrank-rank+generalizedmerit, will have values staggared according to initial time specific rankings
             //pq->Push(iprogen,maxrank-rank+generalizedmerit);
@@ -1417,7 +1434,7 @@ void CleanDescendantsUsingProgenitors(Int_t itimeprogen, HaloTreeData *&pht, Pro
             descenindex=pdescenprogen[itimeprogen][k].haloindex[progindex];
             descentemporalindex=pdescenprogen[itimeprogen][k].halotemporalindex[progindex];
             descenprogenindex=pdescenprogen[itimeprogen][k].progenindex[progindex];
-            pdescen[descentemporalindex][descenindex].dtoptype[descenprogenindex]=rank;
+            //pdescen[descentemporalindex][descenindex].dtoptype[descenprogenindex]=rank;
 #ifdef USEMPI
             }
 #endif

@@ -376,13 +376,13 @@ struct HaloData{
             //V=new Coordinate[NumberofParticles];
         }
     }
-    void Alloc(long unsigned nhalos=0){
+    void Alloc(long unsigned np=0){
         if (NumberofParticles>0){
             delete[] ParticleID;
             //delete[] X;
             //delete[] V;
         }
-        NumberofParticles=nhalos;
+        NumberofParticles=np;
         if (NumberofParticles>0) {
             ParticleID=new IDTYPE[NumberofParticles];
             //X=new Coordinate[NumberofParticles];

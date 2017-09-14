@@ -169,7 +169,7 @@ DescendantData *CrossMatchDescendant(Options &opt, const long unsigned nhalos1, 
 ///updates the haloids stored in the descendant list
 void UpdateDescendantIndexing(const int istepval, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData *&h2, DescendantData *&p1);
 ///prunes the descendant list
-void CleanCrossMatchDescendant(Int_t itime, int istep, HaloTreeData *&pht, ProgenitorDataDescenBased **&pdescenprogen, DescendantData **&pdescen);
+void CleanCrossMatchDescendant(Int_t itime, HaloTreeData *&pht, ProgenitorDataDescenBased **&pdescenprogen, DescendantData **&pdescen);
 
 ///builds the possible set of progenitors using candidate descendants, similar to \ref BuildProgenitorBasedDescendantList.
 void BuildDescendantBasedProgenitorList(Int_t itimedescen, Int_t nhalos, DescendantData *&pdecen, ProgenitorDataDescenBased *&pdescenprogen, int istep=1);
