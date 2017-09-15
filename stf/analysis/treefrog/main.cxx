@@ -366,15 +366,13 @@ int main(int argc,char **argv)
                     if (opt.iverbose) cout<<"Cleaning Progenitor list using descendant information for "<<i<<endl;
                     if (pdescenprogen[i]!=NULL) {
                         CleanDescendantsUsingProgenitors(i, pht, pdescenprogen, pdescen, opt.iopttemporalmerittype);
-                        //delete[] pdescenprogen[i];
-                        //pdescenprogen[i]=NULL;
                     }
                 }
             }
             //final clean given updated rankings
             for (i=0;i<opt.numsnapshots-1;i++) {
                 if (i>=StartSnap && i<EndSnap) {
-                    if (opt.iverbose) cout<<"Cleaning 2 2 Progenitor list using descendant information for "<<i<<endl;
+                    if (opt.iverbose) cout<<"Cleaning Progenitor list second pass "<<i<<endl;
                     CleanCrossMatchDescendant(i, pht, pdescenprogen, pdescen);
                 }
             }

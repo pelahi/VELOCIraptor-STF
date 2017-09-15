@@ -1434,7 +1434,8 @@ void CleanDescendantsUsingProgenitors(Int_t itimeprogen, HaloTreeData *&pht, Pro
             descenindex=pdescenprogen[itimeprogen][k].haloindex[progindex];
             descentemporalindex=pdescenprogen[itimeprogen][k].halotemporalindex[progindex];
             descenprogenindex=pdescenprogen[itimeprogen][k].progenindex[progindex];
-            //pdescen[descentemporalindex][descenindex].dtoptype[descenprogenindex]=rank;
+            pdescenprogen[itimeprogen][k].dtoptype[progindex]=rank;
+            pdescen[descentemporalindex][descenindex].dtoptype[descenprogenindex]=rank;
 #ifdef USEMPI
             }
 #endif
