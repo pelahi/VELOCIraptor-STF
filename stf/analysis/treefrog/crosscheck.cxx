@@ -1224,9 +1224,12 @@ void CleanProgenitorsUsingDescendants(Int_t i, HaloTreeData *&pht, DescendantDat
 ///\name Multistep linking routines for descendant based searches
 //@{
 ///similar to \ref UpdateRefProgenitors but for descendants
-///\todo need to update how links are removed
 void UpdateRefDescendants(Options &opt, const Int_t numhalos, DescendantData *&dref, DescendantData *&dtemp, ProgenitorDataDescenBased **&pdescenprogen, Int_t itime)
 {
+    int iprogen,idescen;
+    int itimeprogen,itimedescen;
+    int iflag;
+    //only add new descendant if reference has no descendant
     if (opt.imultsteplinkcrit==MSLCMISSING) {
         for (Int_t i=0;i<numhalos;i++) {
             if (dref[i].NumberofDescendants==0 && dtemp[i].NumberofDescendants>0) {
@@ -1235,6 +1238,9 @@ void UpdateRefDescendants(Options &opt, const Int_t numhalos, DescendantData *&d
             }
         }
     }
+    //also add if newly identified descendant link is 0 (primary) and previous was not.
+    //note that due to links ony being ranked at a given time, also need to check
+    //that descendant does not have a 0 rank progenitor already. 
     else if (opt.imultsteplinkcrit==MSLCPRIMARYPROGEN) {
         for (Int_t i=0;i<numhalos;i++) {
             if (dref[i].NumberofDescendants==0 && dtemp[i].NumberofDescendants>0) {
@@ -1243,8 +1249,17 @@ void UpdateRefDescendants(Options &opt, const Int_t numhalos, DescendantData *&d
             }
             else if (dref[i].NumberofDescendants>0 && dtemp[i].NumberofDescendants>0) {
                 if (dtemp[i].dtoptype[0]==0 && dref[i].dtoptype[0]!=0) {
+                    //examine identified progenitor and see if it already has a 0 rank link
+                    idescen=dtemp[i].DescendantList[0]-1;
+                    itimedescen=dtemp[i].istep+itime;
+                    iflag=0;
+                    for (auto j=0;j<pdescenprogen[itimedescen][idescen].NumberofProgenitors;j++) {
+                        if (pdescenprogen[itimedescen][idescen].dtoptype[j]==0) iflag=1; 
+                    }
+                    if (iflag==1) continue;
+                    //otherwise, either object had no progenitors or a secondary rank progenitor
+                    //in that case, update by removing old links and adding new ones
                     RemoveLinksDescendantBasedProgenitorList(itime, i, dref[i], pdescenprogen);
-                    //then copy new links
                     dref[i]=dtemp[i];
                     AddLinksDescendantBasedProgenitorList(itime, i, dref[i], pdescenprogen);
                 }
@@ -1258,9 +1273,21 @@ void UpdateRefDescendants(Options &opt, const Int_t numhalos, DescendantData *&d
                 AddLinksDescendantBasedProgenitorList(itime, i, dref[i], pdescenprogen);
             }
             else if (dref[i].NumberofDescendants>0 && dtemp[i].NumberofDescendants>0) {
-                if ((dtemp[i].dtoptype[0]==0 && dref[i].dtoptype[0]!=0) ||  (dtemp[i].dtoptype[0]<=dref[i].dtoptype[0] && dtemp[i].Merit[0]>dref[i].Merit[0])) {
+                if (dtemp[i].dtoptype[0]==0 && dref[i].dtoptype[0]!=0) {
+                    //examine identified progenitor and see if it already has a 0 rank link
+                    idescen=dtemp[i].DescendantList[0]-1;
+                    itimedescen=dtemp[i].istep+itime;
+                    iflag=0;
+                    for (auto j=0;j<pdescenprogen[itimedescen][idescen].NumberofProgenitors;j++) {
+                        if (pdescenprogen[itimedescen][idescen].dtoptype[j]==0) iflag=1; 
+                    }
+                    if (iflag==1) continue;
                     RemoveLinksDescendantBasedProgenitorList(itime, i, dref[i], pdescenprogen);
-                    //then copy new links
+                    dref[i]=dtemp[i];
+                    AddLinksDescendantBasedProgenitorList(itime, i, dref[i], pdescenprogen);
+                }
+                else if (dtemp[i].dtoptype[0]<=dref[i].dtoptype[0] && dtemp[i].Merit[0]>dref[i].Merit[0]) {
+                    RemoveLinksDescendantBasedProgenitorList(itime, i, dref[i], pdescenprogen);
                     dref[i]=dtemp[i];
                     AddLinksDescendantBasedProgenitorList(itime, i, dref[i], pdescenprogen);
                 }
