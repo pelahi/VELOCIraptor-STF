@@ -160,7 +160,7 @@ int main(int argc,char **argv)
                             pfofp[pht[i-istep].Halo[j].ParticleID[k]]=j+1;
                     //now if also doing core weighting then update the halo id associated with the particle so that
                     //it is its current halo core ID + total number of halos
-                    if (opt.particle_frac<1 && opt.particle_frac>0) {
+                    if (opt.icorematchtype!=PARTLISTNOCORE && opt.particle_frac<1 && opt.particle_frac>0) {
                         for (j=0;j<pht[i-istep].numhalos;j++) {
                             newnp=max((Int_t)(pht[i-istep].Halo[j].NumberofParticles*opt.particle_frac),opt.min_numpart);
                             //if halo is smaller than the min numpart adjust again.
@@ -278,7 +278,7 @@ int main(int argc,char **argv)
                             pfofd[pht[i+istep].Halo[j].ParticleID[k]]=j+1;
                     //now if also doing core weighting then update the halo id associated with the particle so that
                     //it is its current halo core ID + total number of halos
-                    if (opt.particle_frac<1 && opt.particle_frac>0) {
+                    if (opt.icorematchtype!=PARTLISTNOCORE && opt.particle_frac<1 && opt.particle_frac>0) {
                         for (j=0;j<pht[i+istep].numhalos;j++) {
                             newnp=max((Int_t)(pht[i+istep].Halo[j].NumberofParticles*opt.particle_frac),opt.min_numpart);
                             newnp=min(pht[i+istep].Halo[j].NumberofParticles,newnp);
@@ -386,7 +386,9 @@ int main(int argc,char **argv)
         }
         if (opt.iverbose) cout<<"Finished Descendant cross matching "<<MyGetTime()-time1<<endl;
         //finally rerank the descendant list based on the ranking stored in the desecndant to progenitor value and then merit.
+        time1=MyGetTime();
         RerankDescendants(opt,pht,pdescen);
+        if (opt.iverbose) cout<<"Finished reranking "<<MyGetTime()-time1<<endl;
     }
     //now adjust the halo ids as prior, halo ids simple represent read order, allowing for addressing of memory by halo id value
     UpdateHaloIDs(opt,pht);

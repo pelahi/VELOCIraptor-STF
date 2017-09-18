@@ -806,7 +806,7 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                     //d1[i].DescendantList[j]=h2[pq->TopQueue()].haloID;
                     d1[i].DescendantList[j]=pq->TopQueue();
                     d1[i].Merit[j]=pq->TopPriority();
-                    d1[i].dtoptype[j]=1;
+                    d1[i].dtoptype[j]=initdtopval;
                     pq->Pop();
                 }
                 delete pq;
