@@ -456,17 +456,22 @@ inline void ConfigCheck(Options &opt)
     }
 
     //now set description
+    opt.description=(char*)"Produce tree in direction of  ";
+    if(opt.isearchdirection==SEARCHPROGEN)      opt.description+=(char*)"progenitors |";
+    else if(opt.isearchdirection==SEARCHDESCEN)      opt.description+=(char*)"descendants |";
+    else if(opt.isearchdirection==SEARCHALL)      opt.description+=(char*)"both forward (descendant) and backward (progenitor) |";
+
     opt.description=(char*)"TreeFrog Tree constructed by identifying the link with the highest value of ";
     if(opt.imerittype==NsharedN1N2)      opt.description+=(char*)"Nshared^2/Nh/Np |";
     else if(opt.imerittype==NsharedN1)   opt.description+=(char*)"Nshared/Nh | ";
     else if(opt.imerittype==Nshared)     opt.description+=(char*)"Nshared |";
     else if (opt.imerittype==Nsharedcombo) opt.description=(char*)"Nshared/Nh+(Nshared^2/Nh/Np) so as to weight progenitors that contribute similar amounts by how much of their mass contributes to the new object | ";
 
-    opt.description=(char*)"Optimal temporal merits are set by  ";
+    opt.description=(char*)"Optimal temporal merits are set by ";
     if(opt.iopttemporalmerittype==GENERALIZEDMERITTIME)  opt.description+=(char*)"a generalized temporal merit taking into account average time evolution |";
     else if(opt.iopttemporalmerittype==GENERALIZEDMERITTIMEPROGEN)  opt.description+=(char*)"a generalized temporal merit taking into account average time evolution and maximise the ranking of the progenitor so that links always point to primary progen/descen |";
 
-    opt.description=(char*)"Multistep criterion to keep searching   ";
+    opt.description=(char*)"Multistep criterion to keep searching ";
     if(opt.imultsteplinkcrit==MSLCMISSING)  opt.description+=(char*)" only if missing a link |";
     else if(opt.imultsteplinkcrit==MSLCMERIT)  opt.description+=(char*)" if missing a link or only link low merit |";
     else if(opt.imultsteplinkcrit==MSLCPRIMARYPROGEN)  opt.description+=(char*)" if missing a link or if link is secondary progenitor when constructing descendant tree |";
@@ -487,7 +492,11 @@ inline void ConfigCheck(Options &opt)
         opt.description+=(char*)" | ";
     }
 
+    opt.description+=(char*)"Merit threshold is  ";
+    opt.description+=static_cast<ostringstream*>( &(ostringstream() << opt.meritlimit) )->str();
+    opt.description+=(char*)" | ";
 
+    cout<<"TreeFrog running with "<<endl<<"---------"<<endl<<opt.description<<endl<<"---------"<<endl<<endl;
 }
 
 /*!
