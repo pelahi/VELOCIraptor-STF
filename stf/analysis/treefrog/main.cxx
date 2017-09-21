@@ -216,6 +216,8 @@ int main(int argc,char **argv)
                 delete[] pprogendescen[i];
                 pprogendescen[i]=NULL;
             }
+            //free up memory if not needed
+            if (opt.isearchdirection!=SEARCHALL) for (j=0;j<pht[i].numhalos;j++) {delete[] pht[i].Halo[j].ParticleID;pht[i].Halo[j].ParticleID=NULL;}
             if (opt.iverbose) cout<<ThisTask<<" finished Progenitor processing for snapshot "<<i<<" in "<<MyGetTime()-time2<<endl;
         }
         else pprogen[i]=NULL;
@@ -242,8 +244,6 @@ int main(int argc,char **argv)
             }
             }
         }
-        //free up memory if not needed
-        if (opt.isearchdirection!=SEARCHALL) for (j=0;j<pht[i].numhalos;j++) pht[i].Halo[j].Alloc(0);
         if (opt.iverbose) cout<<ThisTask<<" Finished the Progenitor cross matching "<<MyGetTime()-time1<<endl;
     }
     //end of identify progenitors
@@ -348,7 +348,7 @@ int main(int argc,char **argv)
             }
             */
             //to free up some memory, no need to keep particle ids
-            if (opt.isearchdirection!=SEARCHALL) for (j=0;j<pht[i].numhalos;j++) pht[i].Halo[j].Alloc();
+            if (opt.isearchdirection!=SEARCHALL) for (j=0;j<pht[i].numhalos;j++) {delete[] pht[i].Halo[j].ParticleID; pht[i].Halo[j].ParticleID=NULL;}
             if (opt.iverbose) cout<<ThisTask<<" finished descendant processing for snapshot "<<i<<" in "<<MyGetTime()-time2<<endl;
         }
         else pdescen[i]=NULL;

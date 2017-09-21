@@ -244,6 +244,8 @@ struct Options
     Double_t mlsig;
     ///cross match merit limit for deciding whether to search previous snapshot
     Double_t meritlimit;
+    ///tolerance when comparing merits between two viable connections
+    Double_t merittol;
 
     ///particle type cross matching subselection
     int itypematch;
@@ -348,6 +350,7 @@ struct Options
         particle_frac=0.2;
         min_numpart=20;
         max_numpart=-1;
+        merittol=0.5;
 
         iverbose=1;
         idefaultvalues=1;
@@ -370,6 +373,7 @@ struct HaloData{
     //Coordinate         *V;
     HaloData(long unsigned np=0){
         NumberofParticles=np;
+        ParticleID=NULL;
         if (NumberofParticles>0) {
             ParticleID=new IDTYPE[NumberofParticles];
             //X=new Coordinate[NumberofParticles];
@@ -377,8 +381,10 @@ struct HaloData{
         }
     }
     void Alloc(long unsigned np=0){
-        if (NumberofParticles>0){
+        //if (NumberofParticles>0){
+        if (ParticleID!=NULL){
             delete[] ParticleID;
+            ParticleID=NULL;
             //delete[] X;
             //delete[] V;
         }
@@ -390,7 +396,8 @@ struct HaloData{
         }
     }
     ~HaloData(){
-        if (NumberofParticles>0){
+        //if (NumberofParticles>0){
+        if (ParticleID!=NULL){
             delete[] ParticleID;
             //delete[] X;
             //delete[] V;

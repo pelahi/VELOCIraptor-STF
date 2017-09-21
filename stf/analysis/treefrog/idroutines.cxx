@@ -39,19 +39,22 @@ map<IDTYPE, IDTYPE> ConstructMemoryEfficientPIDStoIndexMap(Options &opt, HaloTre
 
     if (ThisTask==0) cout<<"Mapping PIDS to index "<<endl;
     //place ids in a set so have unique ordered set of ids
-    unordered_set<IDTYPE> idset;
     vector<IDTYPE> idvec;
+    unordered_set<IDTYPE> idset;
     map<IDTYPE, IDTYPE> idmap;
-    //index=0;
     time1=MyGetTime();
     time2=MyGetTime();
     Int_t reservesize=0;
     for (j=0;j<pht[EndSnap-1].numhalos;j++) reservesize+=pht[EndSnap-1].Halo[j].NumberofParticles;
     idset.reserve(reservesize);
     cout<<ThisTask<<" initial reserve of memory for construction of id map is "<<reservesize*sizeof(IDTYPE)/1024./1024./1024.<<"GB"<<endl;
-    for (i=StartSnap+offsetsnap;i<EndSnap;i++)
-        for (j=0;j<pht[i].numhalos;j++)
+    for (i=StartSnap+offsetsnap;i<EndSnap;i++) {
+        for (j=0;j<pht[i].numhalos;j++) {
             for (k=0;k<pht[i].Halo[j].NumberofParticles;k++) idset.insert(pht[i].Halo[j].ParticleID[k]);
+        }
+        cout<<"Finished inserting "<<i<<endl;
+
+    }
     time1=MyGetTime()-time1;
     if (opt.iverbose) cout<<ThisTask<<" finished getting unique ids of "<<idset.size()<<" in "<<time1<<endl;
 #ifdef USEMPI
@@ -86,10 +89,15 @@ map<IDTYPE, IDTYPE> ConstructMemoryEfficientPIDStoIndexMap(Options &opt, HaloTre
         //if process no longer sending or receiving do nothing in this round
         if (!(sendtask[ThisTask]==-1 && recvtask[ThisTask]==-1)) {
             //if a send task
+            //send stuff in blocks to minimize memory footprint and send size
             if (sendtask[ThisTask]>=0 && recvtask[ThisTask]==-1) {
                 commsize=idset.size();
                 idarray=new IDTYPE[commsize];
-                j=0; for (auto idval: idset) idarray[j++]=idval;
+                //j=0; for (auto idval: idset) idarray[j++]=idval;
+                j=0; for (auto it=idset.begin(); it!=idset.end();) {
+                    idarray[j++]=*it;
+                    it=idset.erase(it);
+                }
                 //send size
                 MPI_Send(&commsize,1, MPI_Int_t, sendtask[ThisTask], numloops*NProcs*NProcs+ThisTask, MPI_COMM_WORLD);
                 //send info
@@ -132,20 +140,39 @@ map<IDTYPE, IDTYPE> ConstructMemoryEfficientPIDStoIndexMap(Options &opt, HaloTre
     //now broadcast from root to all processors
     if (ThisTask==0) {
         commsize=idset.size();
-        idvec=vector<IDTYPE>(idset.begin(), idset.end());
+        //idvec=vector<IDTYPE>(idset.begin(), idset.end());
+        idvec=vector<IDTYPE>(commsize);
+        j=0; for (auto it=idset.begin(); it!=idset.end();) {
+            idvec[j++]=*it;
+            it=idset.erase(it);
+        }
     }
     MPI_Bcast(&commsize,1, MPI_Int_t, 0, MPI_COMM_WORLD);
     if (ThisTask!=0) idvec=vector<IDTYPE>(commsize);
     MPI_Bcast(idvec.data(),commsize, MPI_Id_type, 0, MPI_COMM_WORLD);
 #else
-    idvec=vector<IDTYPE>(idset.begin(), idset.end());
+    idvec=vector<IDTYPE>(commsize);
+    j=0; for (auto it=idset.begin(); it!=idset.end();) {
+        idvec[j++]=*it;
+        it=idset.erase(it);
+    }
 #endif
     opt.MaxIDValue=idvec.size();
-    for (i=0;i<opt.MaxIDValue;i++) idmap.insert(pair<IDTYPE, IDTYPE>(idvec[i],(IDTYPE)i));
+    time1=MyGetTime();
+    ///\todo for reducing memory footprint at the cost of speed could use iterator and
+    ///delete entries from vector as they are added to the map
+    /*
+    for (auto it=idvec.begin(); it!=idvec.end();) {
+        idmap.insert(pair<IDTYPE, IDTYPE>(*it,(IDTYPE)i));
+        it=idvec.erase(it);
+    }*/
+    for (i=0; i<opt.MaxIDValue;i++) idmap.insert(pair<IDTYPE, IDTYPE>(idvec[i],(IDTYPE)i));
+    time1=MyGetTime()-time1;
     time2=MyGetTime()-time2;
-#ifdef USEMPI
-    if (opt.iverbose && ThisTask==0) cout<<ThisTask<<" finished getting GLOBAL unique ids of "<<idvec.size()<<" in "<<time2<<endl;
-#endif
+    if (opt.iverbose) {
+        cout<<ThisTask<<" constructed map in "<<time1<<endl;
+        cout<<ThisTask<<" finished getting GLOBAL unique ids of "<<idvec.size()<<" in "<<time2<<endl;
+    }
     return idmap;
 }
 
