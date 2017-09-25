@@ -240,6 +240,7 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
     ireadtask=new int[NProcs];
     readtaskID=new int[opt.nsnapread];
     MPIDistributeReadTasks(opt,ireadtask,readtaskID);
+    MPI_Comm_split(MPI_COMM_WORLD, (ireadtask[ThisTask]>=0), ThisTask, &mpi_comm_read);
 
     if (ThisTask==0) cout<<"There are "<<opt.nsnapread<<" threads reading "<<opt.num_files<<" files "<<endl;
     if (ireadtask[ThisTask]>=0)
