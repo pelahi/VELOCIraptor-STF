@@ -249,7 +249,10 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
         Pbuf=new Particle[BufSize*NProcs];
         Nreadbuf=new Int_t[opt.num_files];
         for (int j=0;j<opt.num_files;j++) Nreadbuf[j]=0;
-
+        if (opt.nsnapread>1){
+	  Preadbuf=new vector<Particle>[opt.nsnapread];
+	  for (int j=0;j<opt.nsnapread;j++) Preadbuf[j].reserve(BufSize);
+        }
         //to determine which files the thread should read
         ireadfile=new int[opt.num_files];
         ifirstfile=MPISetFilesRead(opt,ireadfile,ireadtask);
