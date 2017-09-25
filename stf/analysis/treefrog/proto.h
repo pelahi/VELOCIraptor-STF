@@ -185,6 +185,8 @@ void AddLinksDescendantBasedProgenitorList(Int_t itime, Int_t ihaloindex, Descen
 
 ///Cleans up descendant list by ranking progenitors of a halo using a general temporal merit.
 void CleanDescendantsUsingProgenitors(Int_t i, HaloTreeData *&pht, ProgenitorDataDescenBased **&pdescenprogen, DescendantData **&pdecen, int iopttemporalmerittype);
+///clean the descendant list to adjust descedant rankings to minimize number of objects with no primary progenitors
+void CleanDescendantsForMissingProgenitors(Int_t itime, HaloTreeData *&pht, ProgenitorDataDescenBased **&pdescenprogen, DescendantData **&pdescen, Double_t merittol);
 
 ///Reranks descendants based on descendant to progenitor ranking and then merit.
 void RerankDescendants(Options &opt, HaloTreeData *&pht, DescendantData **&pdescen);

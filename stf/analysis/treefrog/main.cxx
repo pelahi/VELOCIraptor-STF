@@ -366,6 +366,7 @@ int main(int argc,char **argv)
                     if (opt.iverbose) cout<<"Cleaning Progenitor list using descendant information for "<<i<<endl;
                     if (pdescenprogen[i]!=NULL) {
                         CleanDescendantsUsingProgenitors(i, pht, pdescenprogen, pdescen, opt.iopttemporalmerittype);
+                        CleanDescendantsForMissingProgenitors(i, pht, pdescenprogen, pdescen, opt.meritlimit);
                     }
                 }
             }
