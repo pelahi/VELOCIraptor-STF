@@ -256,6 +256,10 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
         //to determine which files the thread should read
         ireadfile=new int[opt.num_files];
         ifirstfile=MPISetFilesRead(opt,ireadfile,ireadtask);
+        inreadsend=0;
+        for (int j=0;j<opt.num_files;j++) inreadsend+=ireadfile[j];
+        MPI_Allreduce(&inreadsend,&totreadsend,1,MPI_Int_t,MPI_MIN,mpi_comm_read);
+
     }
     else {
         Nlocalthreadbuf=new Int_t[opt.nsnapread];
