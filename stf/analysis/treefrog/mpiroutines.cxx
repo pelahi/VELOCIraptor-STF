@@ -70,6 +70,8 @@ void MPILoadBalanceSnapshots(Options &opt){
         Int_t sum=0, itask=NProcs-1, inumsteps=-1;
         mpi_endsnap[itask]=opt.numsnapshots;
         cout<<" Total number of items is "<<totpart<<" and should have "<<opt.numpermpi<<" per mpi"<<endl;
+        //split the information such that each mpi domain has at least
+        //opt.numsteps+1 locally.
         for (int i=opt.numsnapshots-1;i>=0;i--) {
             sum+=numinfo[i];
             inumsteps++;
@@ -442,7 +444,7 @@ void MPIRecvProgenitorsUsingDescendants(int sendtask, int isnap, HaloTreeData *&
 
 ///mpi routine to broadcast the descendant based progenitor list for snapshots that overlap between mpi tasks. Ensures that descendent lists is complete and
 ///can be used to clean descedant list
-void MPIUpdateDescendantUsingProgenitors(Options &opt, HaloTreeData *&pht, ProgenitorDataDescenBased **&pdescenprogen, DescendantData **&pdescen)
+void MPIUpdateDescendantUsingProgenitors(Options &opt, HaloTreeData *&pht, ProgenitorDataDescenBased **&pdescenprogen)
 {
     if (opt.iverbose>0 && ThisTask==0) cout<<"Updating descendant based progenitor list across MPI threads"<<endl;
     ///broadcast overlaping snapshots
@@ -463,7 +465,6 @@ void MPIUpdateDescendantUsingProgenitors(Options &opt, HaloTreeData *&pht, Proge
     MPI_Allgather(sendupnumstep, NProcs, MPI_INT, mpi_sendupnumstep, NProcs, MPI_INT, MPI_COMM_WORLD);
     MPI_Allgather(senddownnumstep, NProcs, MPI_INT, mpi_senddownnumstep, NProcs, MPI_INT, MPI_COMM_WORLD);
 
-cout<<ThisTask<<" "<<nsendup<<" "<<nsenddown<<" with start/eend"<<StartSnap<<" "<<EndSnap<<endl;
     //set the number of items that are local before mpi passes
     for (isnap=StartSnap;isnap<EndSnap;isnap++) {
         for (Int_t j=0;j<pht[isnap].numhalos;j++) {
@@ -482,13 +483,13 @@ cout<<ThisTask<<" "<<nsendup<<" "<<nsenddown<<" with start/eend"<<StartSnap<<" "
                 if (itask==ThisTask) {
                     recvtask=ThisTask-jtask;
                     isnap=StartSnap+i;
-                    MPISendDescendantsUsingProgenitors(recvtask, isnap, pht, pdescenprogen, pdescen);
+                    MPISendDescendantsUsingProgenitors(recvtask, isnap, pht, pdescenprogen);
                 }
                 //receiving information
                 else if (itask==ThisTask+jtask) {
                     sendtask=itask;
                     isnap=mpi_startsnap[itask]+i;
-                    MPIRecvDescendantsUsingProgenitors(sendtask, isnap, pht, pdescenprogen, pdescen);
+                    MPIRecvDescendantsUsingProgenitors(sendtask, isnap, pht, pdescenprogen);
                 }
             }
             MPI_Barrier(MPI_COMM_WORLD);
@@ -502,13 +503,13 @@ cout<<ThisTask<<" "<<nsendup<<" "<<nsenddown<<" with start/eend"<<StartSnap<<" "
                 if (itask==ThisTask) {
                     recvtask=ThisTask+jtask;
                     isnap=EndSnap-i;
-                    MPISendDescendantsUsingProgenitors(recvtask, isnap, pht, pdescenprogen, pdescen);
+                    MPISendDescendantsUsingProgenitors(recvtask, isnap, pht, pdescenprogen);
                 }
                 //receiving information
                 else if (itask==ThisTask-jtask) {
                     sendtask=itask;
                     isnap=mpi_endsnap[itask]-i;
-                    MPIRecvDescendantsUsingProgenitors(sendtask, isnap, pht, pdescenprogen, pdescen);
+                    MPIRecvDescendantsUsingProgenitors(sendtask, isnap, pht, pdescenprogen);
 
                 }
             }
@@ -518,7 +519,7 @@ cout<<ThisTask<<" "<<nsendup<<" "<<nsenddown<<" with start/eend"<<StartSnap<<" "
     if (opt.iverbose>0 && ThisTask==0) cout<<"Done"<<endl;
 }
 
-void MPISendDescendantsUsingProgenitors(int recvtask, int isnap,HaloTreeData *&pht, ProgenitorDataDescenBased **&pdescenprogen, DescendantData **&pdescen)
+void MPISendDescendantsUsingProgenitors(int recvtask, int isnap,HaloTreeData *&pht, ProgenitorDataDescenBased **&pdescenprogen)//, DescendantData **&pdescen)
 {
     ///data structures used to store the data that is parsed using an offset pointer
     MPI_Status status;
@@ -622,7 +623,7 @@ void MPISendDescendantsUsingProgenitors(int recvtask, int isnap,HaloTreeData *&p
 }
 
 
-void MPIRecvDescendantsUsingProgenitors(int sendtask, int isnap, HaloTreeData *&pht, ProgenitorDataDescenBased **&pdescenprogen, DescendantData **&pdescen)
+void MPIRecvDescendantsUsingProgenitors(int sendtask, int isnap, HaloTreeData *&pht, ProgenitorDataDescenBased **&pdescenprogen)//, DescendantData **&pdescen)
 {
     MPI_Status status;
     ///data structures used to store the data that is parsed using an offset pointer
@@ -695,6 +696,157 @@ void MPIRecvDescendantsUsingProgenitors(int sendtask, int isnap, HaloTreeData *&
         delete[] removalnoffset;
         delete[] removaltothaloindex;
         delete[] removaltothalotemporalindex;
+    }
+}
+
+
+void MPIUpdateDescendants(Options &opt, HaloTreeData *&pht, DescendantData **&pdescen)
+{
+    if (opt.iverbose>0 && ThisTask==0) cout<<"Updating descendant data across MPI threads"<<endl;
+    ///broadcast overlaping snapshots
+    int sendtask,recvtask, isnap;
+    MPI_Status status;
+    int nsendup,nsenddown;
+    int mpi_nsendup[NProcs], mpi_nsenddown[NProcs];
+    int sendupnumstep[NProcs], senddownnumstep[NProcs];
+    int mpi_sendupnumstep[NProcs*NProcs], mpi_senddownnumstep[NProcs*NProcs];
+
+    //first determine snapshot overlap for sending upwards
+    nsendup=nsenddown=0;
+    for (int itask=0;itask<NProcs;itask++) sendupnumstep[itask]=senddownnumstep[itask]=0;
+    for (int itask=ThisTask+1;itask<NProcs;itask++) if (mpi_startsnap[itask]<EndSnap) {nsendup++;sendupnumstep[itask]=max((int)0,(int)(mpi_startsnap[itask]-opt.numsteps+1));}
+    //for (int itask=ThisTask-1;itask>=0;itask--) if (mpi_endsnap[itask]>StartSnap) {nsenddown++;senddownnumstep[itask]=opt.numsteps;}
+    MPI_Allgather(&nsendup, 1, MPI_INT, mpi_nsendup, 1, MPI_INT, MPI_COMM_WORLD);
+    //MPI_Allgather(&nsenddown, 1, MPI_INT, mpi_nsenddown, 1, MPI_INT, MPI_COMM_WORLD);
+    MPI_Allgather(sendupnumstep, NProcs, MPI_INT, mpi_sendupnumstep, NProcs, MPI_INT, MPI_COMM_WORLD);
+    //MPI_Allgather(senddownnumstep, NProcs, MPI_INT, mpi_senddownnumstep, NProcs, MPI_INT, MPI_COMM_WORLD);
+cout<<ThisTask<<" "<<nsendup<<" "<<sendupnumstep[ThisTask+1]<<endl;
+    //now send up to higher mpi processes the descendant information
+    for (int itask=0;itask<NProcs-1;itask++) {
+        for (int jtask=1;jtask<=mpi_nsendup[itask];jtask++) {
+            for (int i=1;i<=mpi_sendupnumstep[itask*NProcs+itask+jtask];i++) {
+                //sending information
+                if (itask==ThisTask) {
+                    recvtask=ThisTask+jtask;
+                    isnap=mpi_startsnap[jtask]-i;
+                    MPISendDescendants(recvtask, isnap, pht, pdescen);
+                }
+                //receiving information
+                else if (itask==ThisTask-jtask) {
+                    sendtask=itask;
+                    isnap=StartSnap-i;
+                    MPIRecvDescendants(sendtask, isnap, pht, pdescen);
+
+                }
+            }
+            MPI_Barrier(MPI_COMM_WORLD);
+        }
+    }
+
+    if (opt.iverbose>0 && ThisTask==0) cout<<"Done"<<endl;
+}
+
+void MPISendDescendants(int recvtask, int isnap,HaloTreeData *&pht, DescendantData **&pdescen)
+{
+    ///data structures used to store the data that is parsed using an offset pointer
+    MPI_Status status;
+    Int_t totitems;
+    int *numdescen;
+    long unsigned *noffset;
+    long unsigned *tothaloindex;
+    float *totmerit;
+    int *totdeltat;
+    unsigned short *totdtop;
+
+    totitems=0;
+    for (Int_t j=0;j<pht[isnap].numhalos;j++) {
+        totitems+=pdescen[isnap][j].NumberofDescendants;
+    }
+cout<<ThisTask<<" sending descendant info "<<isnap<<" "<<totitems<<endl;
+    MPI_Send(&pht[isnap].numhalos,1, MPI_Int_t, recvtask, isnap*NProcs*NProcs+ThisTask, MPI_COMM_WORLD);
+    MPI_Send(&totitems,1, MPI_Int_t, recvtask, isnap*NProcs*NProcs+ThisTask+NProcs, MPI_COMM_WORLD);
+    if (totitems>0) {
+        numdescen=new int[pht[isnap].numhalos];
+        noffset=new long unsigned[pht[isnap].numhalos];
+        tothaloindex=new long unsigned[totitems];
+        totmerit=new float[totitems];
+        totdeltat=new int[pht[isnap].numhalos];
+        totdtop=new unsigned short[totitems];
+
+        totitems=0;
+        for (Int_t j=0;j<pht[isnap].numhalos;j++) {
+            numdescen[j]=pdescen[isnap][j].NumberofDescendants;
+            noffset[j]=totitems;
+            totdeltat[j]=pdescen[isnap][j].istep;
+            for (Int_t k=0;k<numdescen[j];k++) {
+                tothaloindex[noffset[j]+k]=pdescen[isnap][j].DescendantList[k];
+                totmerit[noffset[j]+k]=pdescen[isnap][j].Merit[k];
+                totdtop[noffset[j]+k]=pdescen[isnap][j].dtoptype[k];
+            }
+            totitems+=pdescen[isnap][j].NumberofDescendants;
+        }
+
+        //then send number of halos, total number of items and then the offset data so that the combined data can be parsed
+        MPI_Send(&numdescen[0],pht[isnap].numhalos, MPI_INT, recvtask, isnap*NProcs*NProcs+ThisTask+2*NProcs, MPI_COMM_WORLD);
+        MPI_Send(&noffset[0],pht[isnap].numhalos, MPI_LONG, recvtask, isnap*NProcs*NProcs+ThisTask+3*NProcs, MPI_COMM_WORLD);
+        MPI_Send(&tothaloindex[0],totitems, MPI_LONG, recvtask, isnap*NProcs*NProcs+ThisTask+4*NProcs, MPI_COMM_WORLD);
+        MPI_Send(&totmerit[0],totitems, MPI_FLOAT, recvtask, isnap*NProcs*NProcs+ThisTask+5*NProcs, MPI_COMM_WORLD);
+        MPI_Send(&totdtop[0],totitems, MPI_SHORT, recvtask, isnap*NProcs*NProcs+ThisTask+6*NProcs, MPI_COMM_WORLD);
+        MPI_Send(&totdeltat[0],pht[isnap].numhalos, MPI_INT, recvtask, isnap*NProcs*NProcs+ThisTask+7*NProcs, MPI_COMM_WORLD);
+
+        delete[] numdescen;
+        delete[] noffset;
+        delete[] tothaloindex;
+        delete[] totmerit;
+        delete[] totdeltat;
+        delete[] totdtop;
+    }
+}
+
+
+void MPIRecvDescendants(int sendtask, int isnap, HaloTreeData *&pht, DescendantData **&pdescen)
+{
+    MPI_Status status;
+    ///data structures used to store the data that is parsed using an offset pointer
+    Int_t totitems;
+    int *numdescen;
+    long unsigned *noffset;
+    long unsigned *tothaloindex;
+    float *totmerit;
+    int *totdeltat;
+    unsigned short *totdtop;
+    //store the number of items, allocate memory and then receive
+    MPI_Recv(&pht[isnap].numhalos,1, MPI_Int_t, sendtask, isnap*NProcs*NProcs+sendtask, MPI_COMM_WORLD,&status);
+    MPI_Recv(&totitems,1, MPI_Int_t, sendtask, isnap*NProcs*NProcs+sendtask+NProcs, MPI_COMM_WORLD,&status);
+    pdescen[isnap]=new DescendantData[pht[isnap].numhalos];
+cout<<ThisTask<<" receving descendant info "<<isnap<<" "<<totitems<<" "<<pht[isnap].numhalos<<endl;
+    if (totitems>0) {
+
+        numdescen=new int[pht[isnap].numhalos];
+        noffset=new long unsigned[pht[isnap].numhalos];
+        tothaloindex=new long unsigned[totitems];
+        totmerit=new float[totitems];
+        totdtop=new unsigned short[totitems];
+        totdeltat=new int[pht[isnap].numhalos];
+        MPI_Recv(&numdescen[0],pht[isnap].numhalos, MPI_INT, sendtask, isnap*NProcs*NProcs+sendtask+2*NProcs, MPI_COMM_WORLD,&status);
+        MPI_Recv(&noffset[0],pht[isnap].numhalos, MPI_LONG, sendtask, isnap*NProcs*NProcs+sendtask+3*NProcs, MPI_COMM_WORLD,&status);
+        MPI_Recv(&tothaloindex[0],totitems, MPI_LONG, sendtask, isnap*NProcs*NProcs+sendtask+4*NProcs, MPI_COMM_WORLD,&status);
+        MPI_Recv(&totmerit[0],totitems, MPI_FLOAT, sendtask, isnap*NProcs*NProcs+sendtask+5*NProcs, MPI_COMM_WORLD,&status);
+        MPI_Recv(&totdtop[0],totitems, MPI_SHORT, sendtask, isnap*NProcs*NProcs+sendtask+6*NProcs, MPI_COMM_WORLD,&status);
+        MPI_Recv(&totdeltat[0],pht[isnap].numhalos, MPI_INT, sendtask, isnap*NProcs*NProcs+sendtask+7*NProcs, MPI_COMM_WORLD,&status);
+
+        //copy data
+        for (Int_t j=0;j<pht[isnap].numhalos;j++) if (numdescen[j]>0) {
+            pdescen[isnap][j].Set(numdescen[j],&tothaloindex[noffset[j]],&totmerit[noffset[j]],&totdtop[noffset[j]],totdeltat[j]);
+        }
+
+        delete[] numdescen;
+        delete[] noffset;
+        delete[] tothaloindex;
+        delete[] totmerit;
+        delete[] totdeltat;
+        delete[] totdtop;
+
     }
 }
 

@@ -94,7 +94,7 @@ void GetArgs(int argc, char *argv[], Options &opt)
 {
     int option;
     int NumArgs = 0;
-    while ((option = getopt(argc, argv, ":i:s:I:N:B:F:o:O:d:T:D:M:X:E:U:C:l:m:n:t:f:p:b:a:h:H:g:v:y:z:Z:")) != EOF)
+    while ((option = getopt(argc, argv, ":i:s:I:N:B:F:o:O:d:T:D:M:X:E:U:C:l:m:n:t:f:p:b:a:j:h:H:g:v:y:z:Z:")) != EOF)
     {
         switch(option)
         {
@@ -209,6 +209,11 @@ void GetArgs(int argc, char *argv[], Options &opt)
                 break;
             case 'a':
                 opt.meritlimit = atof(optarg);
+                opt.idefaultvalues = 0;
+                NumArgs += 2;
+                break;
+            case 'j':
+                opt.meritratiolimit = atof(optarg);
                 opt.idefaultvalues = 0;
                 NumArgs += 2;
                 break;
@@ -332,6 +337,7 @@ void usage(void)
     cerr<<"-t <number of steps integrated over to find links ("<<opt.numsteps<<")\n";
     cerr<<"-b <significance of cross match relative to Poisson noise ("<<opt.mlsig<<")\n";
     cerr<<"-a <merit limit to search for new links ("<<opt.meritlimit<<")\n";
+    cerr<<"-j <merit ratio limit when comparing links in descendant tree construction ("<<opt.meritratiolimit<<")\n";
     cerr<<"-f <fraction of particles to use to calculate weigted merit>\n";
     cerr<<"-p <minimum number of particles used in weighted merit>\n";
     cerr<<" ========================= "<<endl<<endl;

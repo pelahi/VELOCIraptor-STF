@@ -123,10 +123,12 @@ int MPIReadLoadBalance(Options &);
 ///\name  for mpi related meshing of data
 /// see \ref mpiroutines.cxx for implementation
 //@{
-///update progenitor information across mpi domain
+///update descendant based progenitor information across mpi domain
 void MPIUpdateProgenitorsUsingDescendants(Options &opt, HaloTreeData *&pht, DescendantDataProgenBased **&pprogendescen, ProgenitorData **&pprogen);
+///update progenitor based descendant information across mpi domain
+void MPIUpdateDescendantUsingProgenitors(Options &opt, HaloTreeData *&pht, ProgenitorDataDescenBased **&pdescenprogen);
 ///update descendant information across mpi domain
-void MPIUpdateDescendantUsingProgenitors(Options &opt, HaloTreeData *&pht, ProgenitorDataDescenBased **&pdescenprogen, DescendantData **&pdescen);
+void MPIUpdateDescendants(Options &opt, HaloTreeData *&pht, DescendantData **&pdescen);
 
 ///helper routines to send information
 void MPISendProgenitorsUsingDescendants(int recvtask, int isnap, HaloTreeData *&pht, DescendantDataProgenBased **&pprogendescen, ProgenitorData **&pprogen);
@@ -134,9 +136,15 @@ void MPISendProgenitorsUsingDescendants(int recvtask, int isnap, HaloTreeData *&
 void MPIRecvProgenitorsUsingDescendants(int sendtask, int isnap, HaloTreeData *&pht, DescendantDataProgenBased **&pprogendescen, ProgenitorData **&pprogen);
 
 ///helper routines to send information
-void MPISendDescendantsUsingProgenitors(int recvtask, int isnap,HaloTreeData *&pht, ProgenitorDataDescenBased **&pdescenprogen, DescendantData **&pdescen);
+void MPISendDescendantsUsingProgenitors(int recvtask, int isnap,HaloTreeData *&pht, ProgenitorDataDescenBased **&pdescenprogen);
 ///helper routines to recv and process information
-void MPIRecvDescendantsUsingProgenitors(int sendtask, int isnap,HaloTreeData *&pht, ProgenitorDataDescenBased **&pdescenprogen, DescendantData **&pdescen);
+void MPIRecvDescendantsUsingProgenitors(int sendtask, int isnap,HaloTreeData *&pht, ProgenitorDataDescenBased **&pdescenprogen);
+
+
+///helper routines to send information
+void MPISendDescendants(int recvtask, int isnap,HaloTreeData *&pht, DescendantData **&pdescen);
+///helper routines to recv and process information
+void MPIRecvDescendants(int sendtask, int isnap,HaloTreeData *&pht, DescendantData **&pdescen);
 //@}
 #endif
 
@@ -169,7 +177,7 @@ DescendantData *CrossMatchDescendant(Options &opt, const long unsigned nhalos1, 
 ///updates the haloids stored in the descendant list
 void UpdateDescendantIndexing(const int istepval, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData *&h2, DescendantData *&p1);
 ///prunes the descendant list
-void CleanCrossMatchDescendant(Int_t itime, HaloTreeData *&pht, ProgenitorDataDescenBased **&pdescenprogen, DescendantData **&pdescen);
+void CleanCrossMatchDescendant(Int_t itime, HaloTreeData *&pht, ProgenitorDataDescenBased **&pdescenprogen, DescendantData **&pdescen, int iverbose=0);
 
 ///builds the possible set of progenitors using candidate descendants, similar to \ref BuildProgenitorBasedDescendantList.
 void BuildDescendantBasedProgenitorList(Int_t itimedescen, Int_t nhalos, DescendantData *&pdecen, ProgenitorDataDescenBased *&pdescenprogen, int istep=1);
@@ -183,10 +191,10 @@ void RemoveLinksDescendantBasedProgenitorList(Int_t itime, Int_t ihaloindex, Des
 ///Adds progenitor links of individual halo stored in the \ref ProgenitorDataDescenBased structure.
 void AddLinksDescendantBasedProgenitorList(Int_t itime, Int_t ihaloindex, DescendantData &pdescen, ProgenitorDataDescenBased **&pdescenprogen);
 
-///Cleans up descendant list by ranking progenitors of a halo using a general temporal merit.
-void CleanDescendantsUsingProgenitors(Int_t i, HaloTreeData *&pht, ProgenitorDataDescenBased **&pdescenprogen, DescendantData **&pdecen, int iopttemporalmerittype);
+///Rank the progenitors in the descendant tree using the descendants and a general temporal merit.
+void RankDescendantProgenitors(Int_t i, HaloTreeData *&pht, ProgenitorDataDescenBased **&pdescenprogen, DescendantData **&pdecen, int iopttemporalmerittype);
 ///clean the descendant list to adjust descedant rankings to minimize number of objects with no primary progenitors
-void CleanDescendantsForMissingProgenitors(Int_t itime, HaloTreeData *&pht, ProgenitorDataDescenBased **&pdescenprogen, DescendantData **&pdescen, Double_t merittol);
+void CleanDescendantsForMissingProgenitors(Int_t itime, HaloTreeData *&pht, ProgenitorDataDescenBased **&pdescenprogen, DescendantData **&pdescen, Double_t merittol, Double_t meritlimit, int iverbose=0);
 
 ///Reranks descendants based on descendant to progenitor ranking and then merit.
 void RerankDescendants(Options &opt, HaloTreeData *&pht, DescendantData **&pdescen);
