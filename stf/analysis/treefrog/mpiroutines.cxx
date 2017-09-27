@@ -458,13 +458,15 @@ void MPIUpdateDescendantUsingProgenitors(Options &opt, HaloTreeData *&pht, Proge
     //first determine snapshot overlap
     nsendup=nsenddown=0;
     for (int itask=0;itask<NProcs;itask++) sendupnumstep[itask]=senddownnumstep[itask]=0;
-    for (int itask=ThisTask+1;itask<NProcs;itask++) if (mpi_startsnap[itask]<EndSnap) {nsendup++;sendupnumstep[itask]=EndSnap-1-mpi_startsnap[itask];}
+    for (int itask=ThisTask+1;itask<NProcs;itask++) if (mpi_startsnap[itask]<EndSnap) {nsendup++;sendupnumstep[itask]=EndSnap-1-mpi_startsnap[itask]-opt.numsteps+1;}
     for (int itask=ThisTask-1;itask>=0;itask--) if (mpi_endsnap[itask]>StartSnap) {nsenddown++;senddownnumstep[itask]=mpi_endsnap[itask]-1-StartSnap;}
     MPI_Allgather(&nsendup, 1, MPI_INT, mpi_nsendup, 1, MPI_INT, MPI_COMM_WORLD);
     MPI_Allgather(&nsenddown, 1, MPI_INT, mpi_nsenddown, 1, MPI_INT, MPI_COMM_WORLD);
     MPI_Allgather(sendupnumstep, NProcs, MPI_INT, mpi_sendupnumstep, NProcs, MPI_INT, MPI_COMM_WORLD);
     MPI_Allgather(senddownnumstep, NProcs, MPI_INT, mpi_senddownnumstep, NProcs, MPI_INT, MPI_COMM_WORLD);
 
+if (ThisTask+1<NProcs) cout<<ThisTask<<" up descenprogen   "<<nsendup<<" "<<sendupnumstep[ThisTask+1]<<endl;
+if (ThisTask-1>=0) cout<<ThisTask<<" down descenprogen "<<nsenddown<<" "<<senddownnumstep[ThisTask-1]<<endl;
     //set the number of items that are local before mpi passes
     for (isnap=StartSnap;isnap<EndSnap;isnap++) {
         for (Int_t j=0;j<pht[isnap].numhalos;j++) {
@@ -714,13 +716,15 @@ void MPIUpdateDescendants(Options &opt, HaloTreeData *&pht, DescendantData **&pd
     //first determine snapshot overlap for sending upwards
     nsendup=nsenddown=0;
     for (int itask=0;itask<NProcs;itask++) sendupnumstep[itask]=senddownnumstep[itask]=0;
-    for (int itask=ThisTask+1;itask<NProcs;itask++) if (mpi_startsnap[itask]<EndSnap) {nsendup++;sendupnumstep[itask]=max((int)0,(int)(mpi_startsnap[itask]-opt.numsteps+1));}
+    for (int itask=ThisTask+1;itask<NProcs;itask++) if (mpi_startsnap[itask]<EndSnap) {nsendup++;sendupnumstep[itask]=EndSnap-mpi_startsnap[itask];}
     //for (int itask=ThisTask-1;itask>=0;itask--) if (mpi_endsnap[itask]>StartSnap) {nsenddown++;senddownnumstep[itask]=opt.numsteps;}
     MPI_Allgather(&nsendup, 1, MPI_INT, mpi_nsendup, 1, MPI_INT, MPI_COMM_WORLD);
     //MPI_Allgather(&nsenddown, 1, MPI_INT, mpi_nsenddown, 1, MPI_INT, MPI_COMM_WORLD);
     MPI_Allgather(sendupnumstep, NProcs, MPI_INT, mpi_sendupnumstep, NProcs, MPI_INT, MPI_COMM_WORLD);
     //MPI_Allgather(senddownnumstep, NProcs, MPI_INT, mpi_senddownnumstep, NProcs, MPI_INT, MPI_COMM_WORLD);
-cout<<ThisTask<<" "<<nsendup<<" "<<sendupnumstep[ThisTask+1]<<endl;
+
+    if (ThisTask+1<NProcs) cout<<ThisTask<<" up descenprogen   "<<nsendup<<" "<<sendupnumstep[ThisTask+1]<<endl;
+
     //now send up to higher mpi processes the descendant information
     for (int itask=0;itask<NProcs-1;itask++) {
         for (int jtask=1;jtask<=mpi_nsendup[itask];jtask++) {
@@ -728,13 +732,13 @@ cout<<ThisTask<<" "<<nsendup<<" "<<sendupnumstep[ThisTask+1]<<endl;
                 //sending information
                 if (itask==ThisTask) {
                     recvtask=ThisTask+jtask;
-                    isnap=mpi_startsnap[jtask]-i;
+                    isnap=EndSnap-opt.numsteps-i;
                     MPISendDescendants(recvtask, isnap, pht, pdescen);
                 }
                 //receiving information
                 else if (itask==ThisTask-jtask) {
                     sendtask=itask;
-                    isnap=StartSnap-i;
+                    isnap=mpi_endsnap[itask]-opt.numsteps-i;
                     MPIRecvDescendants(sendtask, isnap, pht, pdescen);
 
                 }

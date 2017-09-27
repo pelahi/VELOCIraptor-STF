@@ -299,7 +299,7 @@ int main(int argc,char **argv)
                         //and then rank the progenitors at time i of descedants found at time i+istep based on their merit. Ranking is necessary to determine main/secondary branches
                         UpdateDescendantUsingDescendantBasedProgenitorList(pht[i+istep].numhalos, pdescen[i], pdescenprogen[i+istep], istep, opt.meritlimit);
                         //clean up the information stored in this list, adjusing rankings as necessary
-                        CleanCrossMatchDescendant(i, pht, pdescenprogen, pdescen);
+                        //CleanCrossMatchDescendant(i, pht, pdescenprogen, pdescen);
                     }
                     //if more than a single step is used to find descendants then we first search i+istep but only for those haloes that are deemed to have
                     //less than ideal descendants.
@@ -316,7 +316,7 @@ int main(int argc,char **argv)
                             //having ranked the progenitors based on their descendants looking backwards, we can now update the descendant list appropriately
                             UpdateRefDescendants(opt,pht[i].numhalos, pdescen[i], pdescentemp, pdescenprogen, i);
                             //clean up the information stored in this list, adjusing rankings as necessary
-                            CleanCrossMatchDescendant(i, pht, pdescenprogen, pdescen);
+                            //CleanCrossMatchDescendant(i, pht, pdescenprogen, pdescen);
                             delete[] pdescenprogentemp;
                         }
                         delete[] pdescentemp;
@@ -386,6 +386,8 @@ MPI_Barrier(MPI_COMM_WORLD);
         }
         MPI_Barrier(MPI_COMM_WORLD);
         //then clean descendant tree for any objects with no primary ranked progenitors
+for (int itask=0;itask<NProcs;itask++) {
+if (itask==ThisTask) {
         for (i=0;i<opt.numsnapshots;i++) {
             if (i>=StartSnap+1 && i<EndSnap) {
                 if (opt.iverbose) cout<<ThisTask<<" Cleaning descendant tree for missing progenitors "<<i<<endl;
@@ -394,8 +396,9 @@ MPI_Barrier(MPI_COMM_WORLD);
                 }
             }
         }
+}
         MPI_Barrier(MPI_COMM_WORLD);
-
+}
         //free some memory
         for (i=0;i<opt.numsnapshots;i++) {
             if (i>=StartSnap && i<EndSnap)

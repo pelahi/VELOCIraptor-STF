@@ -1147,6 +1147,8 @@ if (descentemporalindex<StartSnap) cout<<ThisTask<<" now looking at progenitor n
         itimedescenprog=pdescen[descentemporalindex][descenindex].istep+descentemporalindex;
         if (pdescenprogen[itimedescenprog][descenprogindex].NumberofProgenitors<=1) continue;
 
+if (descentemporalindex<StartSnap) cout<<ThisTask<<" this points to "<<descenprogindex<<" "<<itimedescenprog<<endl;
+
         //now have best rank, lets check merits
         meritprime=pdescen[descentemporalindex][descenindex].Merit[descenprogenprimeindex];
         //if merit is not within some factor then stop
@@ -1159,6 +1161,15 @@ if (descentemporalindex<StartSnap) cout<<ThisTask<<" now looking at progenitor n
                 break;
             }
         }
+cout<<ThisTask<<" now looking at "<<descentemporalindex<<" "<<StartSnap<<" | "<<itime<<" "<<k<<" : "<<pdescen[descentemporalindex]<<" ] "<<descenindex<<" "<<pht[descentemporalindex].numhalos<<" ff "<<pdescenprogen[itime][k].MPITask[index]<<endl;
+cout<<ThisTask<<" this points to "<<descenprogindex<<" "<<itimedescenprog<<endl;
+        for (auto iprogen=0;iprogen<pdescenprogen[itimedescenprog][descenprogindex].NumberofProgenitors;iprogen++) {
+                int descenindex3=pdescenprogen[itimedescenprog][descenprogindex].haloindex[iprogen];
+                int descentemporalindex3=pdescenprogen[itimedescenprog][descenprogindex].halotemporalindex[iprogen];
+                int descenprogenindex3=pdescenprogen[itimedescenprog][descenprogindex].progenindex[iprogen];
+cout<<"with progenitors "<<iprogen<<" "<<descenindex3<<" "<<descentemporalindex3<<" "<<descenprogenindex3<<" "<<pdescenprogen[itimedescenprog][descenprogindex].Merit[iprogen]<<endl;
+        }
+
         //find the index of the other possible progenitor
         for (auto iprogen=0;iprogen<pdescenprogen[itimedescenprog][descenprogindex].NumberofProgenitors;iprogen++) {
             if (pdescenprogen[itimedescenprog][descenprogindex].dtoptype[iprogen]==1) {
@@ -1169,8 +1180,18 @@ if (descentemporalindex<StartSnap) cout<<ThisTask<<" now looking at progenitor n
                 break;
             }
         }
+
 if (descentemporalindex2<StartSnap) {
 cout<<ThisTask<<" now looking at progenitor normally outside bounds "<<descentemporalindex<<" "<<StartSnap<<" | "<<itime<<" "<<k<<" : "<<pdescen[descentemporalindex]<<" ] "<<descenindex<<" "<<pht[descentemporalindex].numhalos<<" ff "<<pdescenprogen[itime][k].MPITask[index]<<endl;
+cout<<ThisTask<<" this points to "<<descenprogindex<<" "<<itimedescenprog<<endl;
+/*
+        for (auto iprogen=0;iprogen<pdescenprogen[itimedescenprog][descenprogindex].NumberofProgenitors;iprogen++) {
+                int descenindex3=pdescenprogen[itimedescenprog][descenprogindex].haloindex[iprogen];
+                int descentemporalindex3=pdescenprogen[itimedescenprog][descenprogindex].halotemporalindex[iprogen];
+                int descenprogenindex3=pdescenprogen[itimedescenprog][descenprogindex].progenindex[iprogen];
+cout<<"with progenitors "<<iprogen<<" "<<descenindex3<<" "<<descentemporalindex3<<" "<<descenprogenindex3<<endl;
+        }
+*/
 cout<<ThisTask<<" now looking at progenitor 2 normally outside bounds "<<descentemporalindex2<<" "<<StartSnap<<" | "<<itime<<" "<<k<<" : "<<pdescen[descentemporalindex2]<<" ] "<<descenindex2<<endl;
 }
 
