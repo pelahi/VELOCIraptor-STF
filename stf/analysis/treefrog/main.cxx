@@ -334,19 +334,6 @@ int main(int argc,char **argv)
             else {
                 pdescen[i]=NULL;
             }
-            /*
-            //now if using multiple snapshots,
-            //if enough non-overlapping (mpi wise) snapshots have been processed, one can cleanup progenitor list using the DescendantDataProgenBased data
-            //then free this data
-            //this occurs if current snapshot is at least Endsnap-opt.numsteps*2 or lower as then Endsnap-opt.numsteps have had progenitor list processed
-            //clean up the information stored in this list, adjusing rankings as necessary
-            if (opt.numsteps>1 && pht[i].numhalos>0 && (i<EndSnap-2*opt.numsteps && i>StartSnap+2*opt.numsteps)) {
-                if (opt.iverbose) cout<<"Cleaning descendant list using progenitor information for "<<i<<endl;
-                CleanDescendantsUsingProgenitors(i, pht, pdescenprogen, pdescen, opt.iopttemporalmerittype);
-                //delete[] pdescenprogen[i];
-                //pdescenprogen[i]=NULL;
-            }
-            */
             //to free up some memory, no need to keep particle ids
             if (opt.isearchdirection!=SEARCHALL) for (j=0;j<pht[i].numhalos;j++) {delete[] pht[i].Halo[j].ParticleID; pht[i].Halo[j].ParticleID=NULL;}
             if (opt.iverbose) cout<<ThisTask<<" finished descendant processing for snapshot "<<i<<" in "<<MyGetTime()-time2<<endl;
@@ -364,7 +351,6 @@ int main(int argc,char **argv)
 
         }
 #endif
-MPI_Barrier(MPI_COMM_WORLD);
         //first we rank the progenitors in the descendant tree using the descedants
         for (i=0;i<opt.numsnapshots;i++) {
             //check if data is load making sure i is in appropriate range (note that only look above StartSnap (as first snap can't have progenitors)
@@ -376,29 +362,22 @@ MPI_Barrier(MPI_COMM_WORLD);
                 }
             }
         }
-        MPI_Barrier(MPI_COMM_WORLD);
         //clean the descendant tree of progenitors with multiple primary ranked descendants
         for (i=0;i<opt.numsnapshots-1;i++) {
             if (i>=StartSnap && i<EndSnap-1) {
                 if (opt.iverbose) cout<<ThisTask<<" Cleaning descendant tree of progenitors that are considered primary progenitors of multiple descendants "<<i<<endl;
-                CleanCrossMatchDescendant(i, pht, pdescenprogen, pdescen,2);
+                CleanCrossMatchDescendant(i, pht, pdescenprogen, pdescen,opt.iverbose);
             }
         }
-        MPI_Barrier(MPI_COMM_WORLD);
         //then clean descendant tree for any objects with no primary ranked progenitors
-for (int itask=0;itask<NProcs;itask++) {
-if (itask==ThisTask) {
         for (i=0;i<opt.numsnapshots;i++) {
             if (i>=StartSnap+1 && i<EndSnap) {
                 if (opt.iverbose) cout<<ThisTask<<" Cleaning descendant tree for missing progenitors "<<i<<endl;
                 if (pdescenprogen[i]!=NULL) {
-                    CleanDescendantsForMissingProgenitors(i, pht, pdescenprogen, pdescen, opt.meritratiolimit, opt.meritlimit,2);
+                    CleanDescendantsForMissingProgenitors(i, pht, pdescenprogen, pdescen, opt.meritratiolimit, opt.meritlimit,opt.iverbose);
                 }
             }
         }
-}
-        MPI_Barrier(MPI_COMM_WORLD);
-}
         //free some memory
         for (i=0;i<opt.numsnapshots;i++) {
             if (i>=StartSnap && i<EndSnap)
@@ -407,7 +386,6 @@ if (itask==ThisTask) {
                 pdescenprogen[i]=NULL;
             }
         }
-
         if (opt.iverbose) cout<<"Finished Descendant cross matching "<<MyGetTime()-time1<<endl;
         //finally rerank the descendant list based on the ranking stored in the desecndant to progenitor value and then merit.
         time1=MyGetTime();

@@ -1128,7 +1128,6 @@ void CleanDescendantsForMissingProgenitors(Int_t itime, HaloTreeData *&pht, Prog
         descenindex=pdescenprogen[itime][k].haloindex[index];
         descentemporalindex=pdescenprogen[itime][k].halotemporalindex[index];
         descenprogenindex=pdescenprogen[itime][k].progenindex[index];
-if (descentemporalindex<StartSnap) cout<<ThisTask<<" now looking at progenitor normally outside bounds "<<descentemporalindex<<" "<<StartSnap<<" | "<<itime<<" "<<k<<" : "<<pdescen[descentemporalindex]<<" ] "<<descenindex<<" "<<pht[descentemporalindex].numhalos<<" ff "<<pdescenprogen[itime][k].MPITask[index]<<endl;
         if (pdescen[descentemporalindex][descenindex].NumberofDescendants<=1) continue;
 
         //search the other progenitor's descendants for a zero rank progenitor
@@ -1147,8 +1146,6 @@ if (descentemporalindex<StartSnap) cout<<ThisTask<<" now looking at progenitor n
         itimedescenprog=pdescen[descentemporalindex][descenindex].istep+descentemporalindex;
         if (pdescenprogen[itimedescenprog][descenprogindex].NumberofProgenitors<=1) continue;
 
-if (descentemporalindex<StartSnap) cout<<ThisTask<<" this points to "<<descenprogindex<<" "<<itimedescenprog<<endl;
-
         //now have best rank, lets check merits
         meritprime=pdescen[descentemporalindex][descenindex].Merit[descenprogenprimeindex];
         //if merit is not within some factor then stop
@@ -1161,13 +1158,10 @@ if (descentemporalindex<StartSnap) cout<<ThisTask<<" this points to "<<descenpro
                 break;
             }
         }
-cout<<ThisTask<<" now looking at "<<descentemporalindex<<" "<<StartSnap<<" | "<<itime<<" "<<k<<" : "<<pdescen[descentemporalindex]<<" ] "<<descenindex<<" "<<pht[descentemporalindex].numhalos<<" ff "<<pdescenprogen[itime][k].MPITask[index]<<endl;
-cout<<ThisTask<<" this points to "<<descenprogindex<<" "<<itimedescenprog<<endl;
         for (auto iprogen=0;iprogen<pdescenprogen[itimedescenprog][descenprogindex].NumberofProgenitors;iprogen++) {
                 int descenindex3=pdescenprogen[itimedescenprog][descenprogindex].haloindex[iprogen];
                 int descentemporalindex3=pdescenprogen[itimedescenprog][descenprogindex].halotemporalindex[iprogen];
                 int descenprogenindex3=pdescenprogen[itimedescenprog][descenprogindex].progenindex[iprogen];
-cout<<"with progenitors "<<iprogen<<" "<<descenindex3<<" "<<descentemporalindex3<<" "<<descenprogenindex3<<" "<<pdescenprogen[itimedescenprog][descenprogindex].Merit[iprogen]<<endl;
         }
 
         //find the index of the other possible progenitor
@@ -1181,31 +1175,11 @@ cout<<"with progenitors "<<iprogen<<" "<<descenindex3<<" "<<descentemporalindex3
             }
         }
 
-if (descentemporalindex2<StartSnap) {
-cout<<ThisTask<<" now looking at progenitor normally outside bounds "<<descentemporalindex<<" "<<StartSnap<<" | "<<itime<<" "<<k<<" : "<<pdescen[descentemporalindex]<<" ] "<<descenindex<<" "<<pht[descentemporalindex].numhalos<<" ff "<<pdescenprogen[itime][k].MPITask[index]<<endl;
-cout<<ThisTask<<" this points to "<<descenprogindex<<" "<<itimedescenprog<<endl;
-/*
-        for (auto iprogen=0;iprogen<pdescenprogen[itimedescenprog][descenprogindex].NumberofProgenitors;iprogen++) {
-                int descenindex3=pdescenprogen[itimedescenprog][descenprogindex].haloindex[iprogen];
-                int descentemporalindex3=pdescenprogen[itimedescenprog][descenprogindex].halotemporalindex[iprogen];
-                int descenprogenindex3=pdescenprogen[itimedescenprog][descenprogindex].progenindex[iprogen];
-cout<<"with progenitors "<<iprogen<<" "<<descenindex3<<" "<<descentemporalindex3<<" "<<descenprogenindex3<<endl;
-        }
-*/
-cout<<ThisTask<<" now looking at progenitor 2 normally outside bounds "<<descentemporalindex2<<" "<<StartSnap<<" | "<<itime<<" "<<k<<" : "<<pdescen[descentemporalindex2]<<" ] "<<descenindex2<<endl;
-}
-
         merit2=pdescen[descentemporalindex2][descenindex2].Merit[descenprogenindex2];
-if (descentemporalindex2<StartSnap) cout<<ThisTask<<" and have moved beyond it 2 !"<<endl;
         //also check other merit to see if swap is allowed
         if (merit2<meritlimit) continue;
         if (merit2/meritprime>meritratiolimit || meritprime/merit2>meritratiolimit) continue;
 
-        //cout<<"SWAPPING !!!! "<<endl;
-        //cout<<"original rank 1 :"<<descentemporalindex<<" "<<descenindex<<" "<<descenprogenindex<<" "<<merit1<<endl;
-        //cout<<"other rank 1    :"<<descentemporalindex2<<" "<<descenindex2<<" "<<descenprogenindex2<<" "<<merit2<<endl;
-        //cout<<"original rank 0 :"<<descentemporalindex<<" "<<descenindex<<" "<<descenprogenprimeindex<<" "<<meritprime<<endl;
-        //now swap stuff
         //first the rank 1 progenitor of the secondary descendant now becomes the main progenitor
         pdescen[descentemporalindex2][descenindex2].dtoptype[descenprogenindex2]=0;
         pdescenprogen[itimedescenprog][descenprogindex].dtoptype[index2]=0;
