@@ -151,7 +151,7 @@ map<IDTYPE, IDTYPE> ConstructMemoryEfficientPIDStoIndexMap(Options &opt, HaloTre
     if (ThisTask!=0) idvec=vector<IDTYPE>(commsize);
     MPI_Bcast(idvec.data(),commsize, MPI_Id_type, 0, MPI_COMM_WORLD);
 #else
-    idvec=vector<IDTYPE>(commsize);
+    idvec=vector<IDTYPE>(idset.size());
     j=0; for (auto it=idset.begin(); it!=idset.end();) {
         idvec[j++]=*it;
         it=idset.erase(it);
