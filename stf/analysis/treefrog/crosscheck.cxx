@@ -1076,9 +1076,13 @@ void CleanCrossMatchDescendant(Int_t itime, HaloTreeData *&pht, ProgenitorDataDe
                     if (!(descenindex==k && descentemporalindex==itime) && pdescenprogen[itimedescen][did].dtoptype[iprogen]==1)
                     {
                         pdescenprogen[itimedescen][did].dtoptype[iprogen]=0;
+#ifdef USEMPI
                         if (pdescenprogen[itimedescen][did].MPITask[iprogen]==ThisTask) {
+#endif
                             pdescen[descentemporalindex][descenindex].dtoptype[descenprogenindex]=0;
+#ifdef USEMPI
                         }
+#endif
                         break;
                     }
                 }
