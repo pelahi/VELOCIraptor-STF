@@ -905,7 +905,7 @@ def TraceMainDescendant(istart,ihalo,numsnaps,numhalos,halodata,tree,HALOIDVAL,i
         #only set the Root Tail if it has not been set. Here if halo has not had
         #tail set, then must be the the first progenitor
         #otherwise it should have already been set and just need to store the root tail
-        if (halodata[halosnap]['Head'][ihalo]==0):
+        if (halodata[halosnap]['Tail'][ihalo]==0):
             halodata[halosnap]['Tail'][ihalo]=haloid
             halodata[halosnap]['TailSnap'][ihalo]=halosnap
             halodata[halosnap]['RootTail'][ihalo]=haloid
@@ -931,8 +931,19 @@ def TraceMainDescendant(istart,ihalo,numsnaps,numhalos,halodata,tree,HALOIDVAL,i
                 #only set the roots head of the root tail
                 #if it has not been set before (ie: along the main branch of root halo)
                 if (halodata[rootsnap]['RootHead'][rootindex]==0):
-                    halodata[rootsnap]['RootHead'][rootindex]=rootheadid
-                    halodata[rootsnap]['RootHeadSnap'][rootindex]=rootheadsnap
+                    halosnap,haloindex,haloid=rootsnap,rootindex,roottail
+                    #set the root head of the main branch
+                    while(True):
+                        halodata[halosnap]['RootHead'][haloindex]=rootheadid
+                       	halodata[halosnap]['RootHeadSnap'][haloindex]=rootheadsnap
+                        descen=halodata[halosnap]['Head'][haloindex]
+                        descenindex=int(descen%HALOIDVAL)-1
+                        descensnap=int(((descen-descen%HALOIDVAL))/HALOIDVAL)
+                       	if (ireverseorder):
+                            descensnap=numsnaps-1-descensnap
+                        if (haloid==descen):
+                            break
+                        halosnap,haloindex,haloid=descensnap,descenindex,descen
                 break
             #now store the rank of the of the descandant.
             descenrank=tree[halosnap]['Rank'][haloindex][0]
@@ -2039,8 +2050,7 @@ def ReadUnifiedTreeandHaloCatalog(fname, desiredfields=[], icombinedfile=1,iverb
 
         #load data sets containing number of snaps
         headergrpname="Header/"
-        #numsnaps=hdffile[headergrpname].attrs["NSnaps"]
-        numsnaps=hdffile[headergrpname].attrs["Nsnaps"]
+        numsnaps=hdffile[headergrpname].attrs["NSnaps"]
 
         #allocate memory
         halodata=[dict() for i in range(numsnaps)]
@@ -2068,11 +2078,9 @@ def ReadUnifiedTreeandHaloCatalog(fname, desiredfields=[], icombinedfile=1,iverb
             snapgrpname="Snap_%03d/"%(numsnaps-1-i)
             if (iverbose==1):
                 print("Reading ",snapgrpname)
-            #isnap=hdffile[snapgrpname].attrs["Snapnum"]
-            isnap=hdffile[snapgrpname].attrs["Snap_num"]
+            isnap=hdffile[snapgrpname].attrs["Snapnum"]
             atime[isnap]=hdffile[snapgrpname].attrs["scalefactor"]
-            #numhalos[isnap]=hdffile[snapgrpname].attrs["NHalos"]
-            numhalos[isnap]=hdffile[snapgrpname].attrs["Num_of_groups"]
+            numhalos[isnap]=hdffile[snapgrpname].attrs["NHalos"]
             if (len(desiredfields)>0):
                 fieldnames=desiredfields
             else:
@@ -2087,7 +2095,7 @@ def ReadUnifiedTreeandHaloCatalog(fname, desiredfields=[], icombinedfile=1,iverb
         #get field names
         fieldnames=[str(n) for n in hdffile.keys()]
         #clean of header info
-        fieldnames.remove("Snap_value")
+        fieldnames.remove("Snapnum")
         fieldnames.remove("NSnaps")
         fieldnames.remove("NHalos")
         fieldnames.remove("TotalNHalos")
