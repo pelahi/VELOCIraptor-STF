@@ -244,6 +244,8 @@ struct Options
     Double_t mlsig;
     ///cross match merit limit for deciding whether to search previous snapshot
     Double_t meritlimit;
+    ///allowed merit ratio  when comparing merits between two viable connections
+    Double_t meritratiolimit;
 
     ///particle type cross matching subselection
     int itypematch;
@@ -348,6 +350,7 @@ struct Options
         particle_frac=0.2;
         min_numpart=20;
         max_numpart=-1;
+        meritratiolimit=4.0;
 
         iverbose=1;
         idefaultvalues=1;
@@ -370,6 +373,7 @@ struct HaloData{
     //Coordinate         *V;
     HaloData(long unsigned np=0){
         NumberofParticles=np;
+        ParticleID=NULL;
         if (NumberofParticles>0) {
             ParticleID=new IDTYPE[NumberofParticles];
             //X=new Coordinate[NumberofParticles];
@@ -377,8 +381,10 @@ struct HaloData{
         }
     }
     void Alloc(long unsigned np=0){
-        if (NumberofParticles>0){
+        //if (NumberofParticles>0){
+        if (ParticleID!=NULL){
             delete[] ParticleID;
+            ParticleID=NULL;
             //delete[] X;
             //delete[] V;
         }
@@ -390,7 +396,8 @@ struct HaloData{
         }
     }
     ~HaloData(){
-        if (NumberofParticles>0){
+        //if (NumberofParticles>0){
+        if (ParticleID!=NULL){
             delete[] ParticleID;
             //delete[] X;
             //delete[] V;
@@ -495,6 +502,22 @@ struct DescendantData
         dtoptype=NULL;
         istep=0;
     }
+    DescendantData(int &nd, long unsigned *dl, float *m, unsigned short *dtop, int &step, float *ns=NULL){
+        NumberofDescendants=nd;
+        DescendantList=new long unsigned[NumberofDescendants];
+        Merit=new float[NumberofDescendants];
+        for (int i=0;i<NumberofDescendants;i++) {
+            DescendantList[i]=dl[i];
+            Merit[i]=m[i];
+        }
+        dtoptype=new unsigned short[NumberofDescendants];
+        for (int i=0;i<NumberofDescendants;i++) dtoptype[i]=dtop[i];
+        istep=step;
+        if (ns!=NULL) {
+            nsharedfrac=new float[NumberofDescendants];
+            for (int i=0;i<NumberofDescendants;i++) nsharedfrac[i]=ns[i];
+        }
+    }
     ~DescendantData(){
         if (NumberofDescendants>0) {
             delete[] DescendantList;
@@ -503,6 +526,29 @@ struct DescendantData
             if (nsharedfrac!=NULL) delete[] nsharedfrac;
         }
     }
+    void Set(int &nd, long unsigned *dl, float *m, unsigned short *dtop, int &step, float *ns=NULL){
+        if (NumberofDescendants>0) {
+            delete[] DescendantList;
+            delete[] Merit;
+            if (dtoptype!=NULL) delete[] dtoptype;
+            if (nsharedfrac!=NULL) delete[] nsharedfrac;
+        }
+        NumberofDescendants=nd;
+        DescendantList=new long unsigned[NumberofDescendants];
+        Merit=new float[NumberofDescendants];
+        for (int i=0;i<NumberofDescendants;i++) {
+            DescendantList[i]=dl[i];
+            Merit[i]=m[i];
+        }
+        dtoptype=new unsigned short[NumberofDescendants];
+        for (int i=0;i<NumberofDescendants;i++) dtoptype[i]=dtop[i];
+        istep=step;
+        if (ns!=NULL) {
+            nsharedfrac=new float[NumberofDescendants];
+            for (int i=0;i<NumberofDescendants;i++) nsharedfrac[i]=ns[i];
+        }
+    }
+
     DescendantData &operator=(const DescendantData &d){
         if (NumberofDescendants>0) {
             delete[] DescendantList;
@@ -527,6 +573,7 @@ struct DescendantData
         }
         istep=d.istep;
     }
+
 };
 
 /*!

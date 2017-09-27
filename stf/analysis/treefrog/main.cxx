@@ -216,6 +216,8 @@ int main(int argc,char **argv)
                 delete[] pprogendescen[i];
                 pprogendescen[i]=NULL;
             }
+            //free up memory if not needed
+            if (opt.isearchdirection!=SEARCHALL) for (j=0;j<pht[i].numhalos;j++) {delete[] pht[i].Halo[j].ParticleID;pht[i].Halo[j].ParticleID=NULL;}
             if (opt.iverbose) cout<<ThisTask<<" finished Progenitor processing for snapshot "<<i<<" in "<<MyGetTime()-time2<<endl;
         }
         else pprogen[i]=NULL;
@@ -242,8 +244,6 @@ int main(int argc,char **argv)
             }
             }
         }
-        //free up memory if not needed
-        if (opt.isearchdirection!=SEARCHALL) for (j=0;j<pht[i].numhalos;j++) pht[i].Halo[j].Alloc(0);
         if (opt.iverbose) cout<<ThisTask<<" Finished the Progenitor cross matching "<<MyGetTime()-time1<<endl;
     }
     //end of identify progenitors
@@ -299,7 +299,7 @@ int main(int argc,char **argv)
                         //and then rank the progenitors at time i of descedants found at time i+istep based on their merit. Ranking is necessary to determine main/secondary branches
                         UpdateDescendantUsingDescendantBasedProgenitorList(pht[i+istep].numhalos, pdescen[i], pdescenprogen[i+istep], istep, opt.meritlimit);
                         //clean up the information stored in this list, adjusing rankings as necessary
-                        CleanCrossMatchDescendant(i, pht, pdescenprogen, pdescen);
+                        //CleanCrossMatchDescendant(i, pht, pdescenprogen, pdescen);
                     }
                     //if more than a single step is used to find descendants then we first search i+istep but only for those haloes that are deemed to have
                     //less than ideal descendants.
@@ -316,7 +316,7 @@ int main(int argc,char **argv)
                             //having ranked the progenitors based on their descendants looking backwards, we can now update the descendant list appropriately
                             UpdateRefDescendants(opt,pht[i].numhalos, pdescen[i], pdescentemp, pdescenprogen, i);
                             //clean up the information stored in this list, adjusing rankings as necessary
-                            CleanCrossMatchDescendant(i, pht, pdescenprogen, pdescen);
+                            //CleanCrossMatchDescendant(i, pht, pdescenprogen, pdescen);
                             delete[] pdescenprogentemp;
                         }
                         delete[] pdescentemp;
@@ -334,54 +334,56 @@ int main(int argc,char **argv)
             else {
                 pdescen[i]=NULL;
             }
-            /*
-            //now if using multiple snapshots,
-            //if enough non-overlapping (mpi wise) snapshots have been processed, one can cleanup progenitor list using the DescendantDataProgenBased data
-            //then free this data
-            //this occurs if current snapshot is at least Endsnap-opt.numsteps*2 or lower as then Endsnap-opt.numsteps have had progenitor list processed
-            //clean up the information stored in this list, adjusing rankings as necessary
-            if (opt.numsteps>1 && pht[i].numhalos>0 && (i<EndSnap-2*opt.numsteps && i>StartSnap+2*opt.numsteps)) {
-                if (opt.iverbose) cout<<"Cleaning descendant list using progenitor information for "<<i<<endl;
-                CleanDescendantsUsingProgenitors(i, pht, pdescenprogen, pdescen, opt.iopttemporalmerittype);
-                //delete[] pdescenprogen[i];
-                //pdescenprogen[i]=NULL;
-            }
-            */
             //to free up some memory, no need to keep particle ids
-            if (opt.isearchdirection!=SEARCHALL) for (j=0;j<pht[i].numhalos;j++) pht[i].Halo[j].Alloc();
+            if (opt.isearchdirection!=SEARCHALL) for (j=0;j<pht[i].numhalos;j++) {delete[] pht[i].Halo[j].ParticleID; pht[i].Halo[j].ParticleID=NULL;}
             if (opt.iverbose) cout<<ThisTask<<" finished descendant processing for snapshot "<<i<<" in "<<MyGetTime()-time2<<endl;
         }
         else pdescen[i]=NULL;
         }
         delete[] pfofd;
 
-        if (opt.numsteps>1) {
+        //after first pass (and localized to mpi domains) start final cleaning of descendant tree.
 #ifdef USEMPI
-            if (NProcs>1) MPIUpdateDescendantUsingProgenitors(opt, pht, pdescenprogen, pdescen);
+        //note that for full cleanning the simpliest mpi overlap ???
+        if (NProcs>1) {
+            MPIUpdateDescendantUsingProgenitors(opt, pht, pdescenprogen);
+            if (opt.numsteps>1) MPIUpdateDescendants(opt, pht, pdescen);
+
+        }
 #endif
-            for (i=0;i<opt.numsnapshots;i++) {
-                //check if data is load making sure i is in appropriate range (note that only look above StartSnap (as first snap can't have progenitors)
-                //not that last snapshot locally has halos with no descendants so no need to clean this list
-                if (i>=StartSnap && i<EndSnap) {
-                    if (opt.iverbose) cout<<"Cleaning Progenitor list using descendant information for "<<i<<endl;
-                    if (pdescenprogen[i]!=NULL) {
-                        CleanDescendantsUsingProgenitors(i, pht, pdescenprogen, pdescen, opt.iopttemporalmerittype);
-                    }
+        //first we rank the progenitors in the descendant tree using the descedants
+        for (i=0;i<opt.numsnapshots;i++) {
+            //check if data is load making sure i is in appropriate range (note that only look above StartSnap (as first snap can't have progenitors)
+            //not that last snapshot locally has halos with no descendants so no need to clean this list
+            if (i>=StartSnap && i<EndSnap) {
+                if (opt.iverbose) cout<<ThisTask<<" Rank progenitors in descendant tree using descendants "<<i<<endl;
+                if (pdescenprogen[i]!=NULL) {
+                    RankDescendantProgenitors(i, pht, pdescenprogen, pdescen, opt.iopttemporalmerittype);
                 }
             }
-            //final clean given updated rankings
-            for (i=0;i<opt.numsnapshots-1;i++) {
-                if (i>=StartSnap && i<EndSnap) {
-                    if (opt.iverbose) cout<<"Cleaning Progenitor list second pass "<<i<<endl;
-                    CleanCrossMatchDescendant(i, pht, pdescenprogen, pdescen);
+        }
+        //clean the descendant tree of progenitors with multiple primary ranked descendants
+        for (i=0;i<opt.numsnapshots-1;i++) {
+            if (i>=StartSnap && i<EndSnap-1) {
+                if (opt.iverbose) cout<<ThisTask<<" Cleaning descendant tree of progenitors that are considered primary progenitors of multiple descendants "<<i<<endl;
+                CleanCrossMatchDescendant(i, pht, pdescenprogen, pdescen,opt.iverbose);
+            }
+        }
+        //then clean descendant tree for any objects with no primary ranked progenitors
+        for (i=0;i<opt.numsnapshots;i++) {
+            if (i>=StartSnap+1 && i<EndSnap) {
+                if (opt.iverbose) cout<<ThisTask<<" Cleaning descendant tree for missing progenitors "<<i<<endl;
+                if (pdescenprogen[i]!=NULL) {
+                    CleanDescendantsForMissingProgenitors(i, pht, pdescenprogen, pdescen, opt.meritratiolimit, opt.meritlimit,opt.iverbose);
                 }
             }
-            for (i=0;i<opt.numsnapshots;i++) {
-                if (i>=StartSnap && i<EndSnap)
-                {
-                    delete[] pdescenprogen[i];
-                    pdescenprogen[i]=NULL;
-                }
+        }
+        //free some memory
+        for (i=0;i<opt.numsnapshots;i++) {
+            if (i>=StartSnap && i<EndSnap)
+            {
+                delete[] pdescenprogen[i];
+                pdescenprogen[i]=NULL;
             }
         }
         if (opt.iverbose) cout<<"Finished Descendant cross matching "<<MyGetTime()-time1<<endl;
