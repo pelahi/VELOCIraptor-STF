@@ -2573,8 +2573,8 @@ Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, const I
     FOFcompfunc fofcmp;
     Double_t param[20];
     int nsearch=opt.Nvel;
-    Int_t *nnID,*numingroup;
-    Double_t *dist2, *localdist;
+    Int_t *nnID=NULL,*numingroup;
+    Double_t *dist2=NULL, *localdist;
     int nthreads=1,maxnthreads,tid;
     int minsize;
     Int_t nparts=ndark+nbaryons;
@@ -2589,7 +2589,11 @@ Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, const I
     if (opt.partsearchtype==PSTALL) {
         cout<<" of only baryons in FOF structures as baryons have already been grouped in FOF search "<<endl;
         //store original pfof value
-        pfofall=pfofdark;//new Int_t[nparts];
+        pfofall=pfofdark;
+#ifndef USEMPI
+        //if no objects are found then stop (or if no substructures found as baryons won't change association)
+        if (ngroupdark==0 || ngroupdark==nhalos) return pfofall;
+#endif
         pfofbaryons=&pfofall[ndark];
         storeval=new Int_t[nparts];
         storeval2=new Int_t[nparts];
@@ -2621,6 +2625,7 @@ Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, const I
         for (i=0;i<ndark;i++) pfofall[i]=pfofdark[i];
         pfofbaryons=&pfofall[ndark];
         for (i=0;i<nbaryons;i++) pfofbaryons[i]=0;
+        if (ngroupdark==0) return pfofall;
     }
 #else
     //if using mpi but all particle FOF search, then everything is localized
@@ -2632,16 +2637,13 @@ Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, const I
     }
 #endif
 
-#ifndef USEMPI
-    if (ngroupdark==0) return pfofall;
-#endif
     //build a particle list containing only dark matter particles
     numingroup=BuildNumInGroup(ndark, ngroupdark, pfofdark);
 
     //determine total number of particles in groups and set search appropriately
     npartingroups=0;
     for (i=1;i<=ngroupdark;i++) npartingroups+=numingroup[i];
-    if (npartingroups<=2*opt.MinSize) nsearch=npartingroups;
+    if (npartingroups<=2*opt.MinSize) nsearch=npartingroups-1;
     else nsearch=2*opt.MinSize;
     if (opt.p>0) {
         period=new Double_t[3];
@@ -2704,6 +2706,9 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
     nnID=new Int_t[nsearch];
     dist2=new Double_t[nsearch];
 #pragma omp for
+#else
+    nnID=new Int_t[nsearch];
+    dist2=new Double_t[nsearch];
 #endif
     for (i=0;i<nbaryons;i++)
     {
@@ -2712,6 +2717,7 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
 #else
         tid=0;
 #endif
+
         //if all particles have been searched for field objects then ignore baryons not associated with a group
         if (opt.partsearchtype==PSTALL && pfofbaryons[i]==0) continue;
         p1=Pbaryons[i];
@@ -2757,6 +2763,7 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
 }
 #endif
     }
+
 #ifdef USEMPI
     //if mpi then baryons are not necessarily local if opt.partsearchtype!=PSTALL
     //in that case must search other mpi domains.
