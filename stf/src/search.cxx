@@ -93,6 +93,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
     numingroup=BuildNumInGroup(nbodies, numgroups, pfof);
     storetype=new Int_t[nbodies];
     for (i=0;i<nbodies;i++) storetype[i]=Part[i].GetType();
+    Int_t numinstrucs=0;
     //if not searching all particle then searching for baryons associated with substructures, then set type to group value
     //so that velocity density just calculated for particles in groups (type>0)
     if (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)) for (i=0;i<nbodies;i++) Part[i].SetType(numingroup[pfof[Part[i].GetID()]]>=MINSUBSIZE);
@@ -103,7 +104,9 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
             else Part[i].SetType(-1);
         }
     }
-    GetVelocityDensity(opt, nbodies, Part,tree);
+    for (i=0;i<nbodies;i++) if (Part[i].GetType()>0) numinstrucs++;
+    if (opt.iverbose) cout<<"Number of particles in large subhalo searchable structures "<<numinstrucs<<endl;
+    if (numinstrucs>0) GetVelocityDensity(opt, nbodies, Part,tree);
     for (i=0;i<nbodies;i++) Part[i].SetType(storetype[i]);
     delete[] storetype;
     if (opt.fofbgtype>FOF6D) delete[] numingroup;

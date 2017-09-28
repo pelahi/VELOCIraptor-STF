@@ -29,7 +29,7 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     fstream *Fgad;
     struct gadget_header *header;
     Double_t mscale,lscale,lvscale;
-    Double_t MP_DM=MAXVALUE,LN,N_DM,MP_B=0;
+    Double_t MP_DM=MAXVALUE,LN,N_DM,MP_B=MAXVALUE;
     int ifirstfile=0,*ireadfile,*ireadtask,*readtaskID;
 #ifndef USEMPI
     Int_t Ntotal;
@@ -354,7 +354,12 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                 if (opt.partsearchtype==PSTALL) {
                     Part[count2].SetPID(idval);
                     Part[count2].SetID(count2);
+#ifdef HIGHRES
+                    if (!(k==GGASTYPE || k==GSTARTYPE || k==GBHTYPE)) Part[count2].SetType(DARKTYPE);
+                    else Part[count2].SetType(k);
+#else
                     Part[count2].SetType(k);
+#endif
                     count2++;
                 }
                 else if (opt.partsearchtype==PSTDARK) {
@@ -1264,7 +1269,7 @@ void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     ///if gas found and Omega_b not set correctly (ie: ==0), assumes that
     ///lowest mass gas particle found corresponds to Omega_b
     ///Note that if there is mass evolution this WILL NOT WORK!
-    if (opt.Omega_b==0 && MP_B==MAXVALUE){
+    if (opt.Omega_b==0 && MP_B<MAXVALUE){
         opt.Omega_b=MP_B/(MP_DM+MP_B)*opt.Omega_m;
         opt.Omega_cdm=opt.Omega_m-opt.Omega_b;
     }
