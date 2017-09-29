@@ -3019,7 +3019,7 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
             else ReorderGroupIDsbyValue(ng, ngroupdark, ningall, pfofall, pglistall, numingroup);
             if (opt.iverbose) cout<<ThisTask<<" Done"<<endl;
             delete[] numingroup;
-            delete[] ningall;
+            //delete[] ningall;
             for (i=1;i<=ng;i++) delete[] pglistall[i];
             delete[] pglistall;
 
