@@ -313,8 +313,8 @@ void usage(void)
     cerr<<'\t'<<STARTYPEMATCH<<" is STAR particle types, \n";
     cerr<<'\t'<<DMGASTYPEMATCH<<" is both DM and GAS particle types, \n";
     cerr<<"-M <cross correlation function type to identify main progenitor/descendant/link. Default ("<<opt.imerittype<<"). Possibilities are :\n";
-    cerr<<'\t'<<NsharedN1N2<<" standard merit of Nshared^2/N1/N2, \n";
-    cerr<<'\t'<<NsharedN1<<" fraction merit of Nshared/N1, \n";
+    cerr<<'\t'<<MERITNsharedN1N2<<" standard merit of Nshared^2/N1/N2, \n";
+    cerr<<'\t'<<MERITNsharedN1<<" fraction merit of Nshared/N1, \n";
     cerr<<"-X <criteria for when to keep searching for new links if multiple steps invoked ("<<opt.imultsteplinkcrit<<"). Possibilities are :\n";
     cerr<<'\t'<<MSLCMISSING<<" Only missing ,\n";
     cerr<<'\t'<<MSLCMERIT<<" Missing & low merit given by merit limit, \n";
@@ -426,7 +426,7 @@ inline void ConfigCheck(Options &opt)
                 opt.min_numpart=20;
                 opt.particle_frac=0;
                 opt.meritlimit=0;
-                opt.imerittype=NsharedN1N2;
+                opt.imerittype=MERITNsharedN1N2;
             }
         }
         else {
@@ -435,7 +435,7 @@ inline void ConfigCheck(Options &opt)
                 opt.min_numpart=20;
                 opt.particle_frac=0.1;
                 opt.meritlimit=0.1;
-                opt.imerittype=NsharedN1N2;
+                opt.imerittype=MERITNsharedN1N2;
                 opt.imultsteplinkcrit=MSLCPRIMARYPROGEN;
                 opt.iopttemporalmerittype=GENERALIZEDMERITTIMEPROGEN;
             }
@@ -444,7 +444,7 @@ inline void ConfigCheck(Options &opt)
                 opt.min_numpart=20;
                 opt.particle_frac=0.1;
                 opt.meritlimit=0.1;
-                opt.imerittype=NsharedN1N2;
+                opt.imerittype=MERITNsharedN1N2;
                 opt.imultsteplinkcrit=MSLCMERIT;
                 opt.iopttemporalmerittype=GENERALIZEDMERITTIME;
             }
@@ -468,10 +468,10 @@ inline void ConfigCheck(Options &opt)
     else if(opt.isearchdirection==SEARCHALL)      opt.description+=(char*)"both forward (descendant) and backward (progenitor) |";
 
     opt.description=(char*)"TreeFrog Tree constructed by identifying the link with the highest value of ";
-    if(opt.imerittype==NsharedN1N2)      opt.description+=(char*)"Nshared^2/Nh/Np |";
-    else if(opt.imerittype==NsharedN1)   opt.description+=(char*)"Nshared/Nh | ";
-    else if(opt.imerittype==Nshared)     opt.description+=(char*)"Nshared |";
-    else if (opt.imerittype==Nsharedcombo) opt.description=(char*)"Nshared/Nh+(Nshared^2/Nh/Np) so as to weight progenitors that contribute similar amounts by how much of their mass contributes to the new object | ";
+    if(opt.imerittype==MERITNsharedN1N2)      opt.description+=(char*)"Nshared^2/Nh/Np |";
+    else if(opt.imerittype==MERITNsharedN1)   opt.description+=(char*)"Nshared/Nh | ";
+    else if(opt.imerittype==MERITNshared)     opt.description+=(char*)"Nshared |";
+    else if (opt.imerittype==MERITNsharedcombo) opt.description=(char*)"Nshared/Nh+(Nshared^2/Nh/Np) so as to weight progenitors that contribute similar amounts by how much of their mass contributes to the new object | ";
 
     opt.description=(char*)"Optimal temporal merits are set by ";
     if(opt.iopttemporalmerittype==GENERALIZEDMERITTIME)  opt.description+=(char*)"a generalized temporal merit taking into account average time evolution |";

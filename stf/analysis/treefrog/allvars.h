@@ -89,10 +89,11 @@ using namespace NBody;
 
 //subsets made
 ///call \ref NsharedN1N2
-#define NsharedN1N2 1
-#define NsharedN1 2
-#define Nshared 3
-#define Nsharedcombo 4
+#define MERITNsharedN1N2 1
+#define MERITNsharedN1 2
+#define MERITNshared 3
+#define MERITNsharedcombo 4
+#define MERITRankWeighted 5
 //@}
 
 /// \name Input format
@@ -322,7 +323,7 @@ struct Options
         TotalNumberofHalos=0;
 
         isearchdirection=SEARCHPROGEN;
-        imerittype=NsharedN1N2;
+        imerittype=MERITNsharedN1N2;
         mlsig=0.1;
         meritlimit=0.05;
         itypematch=ALLTYPEMATCH;

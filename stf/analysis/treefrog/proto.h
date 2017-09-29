@@ -154,6 +154,9 @@ void MPIRecvDescendants(int sendtask, int isnap,HaloTreeData *&pht, DescendantDa
 /// see \ref crosscheck.cxx for implementation
 //@{
 
+///Calculate merit between a match
+Double_t CalculateMerit(Options &opt, UInt_t n1, UInt_t n2, HaloData &h1, HaloData &h2, UInt_t hindex=0,UInt_t *sharepartlist=NULL);
+
 /// determine the cross matches of halos in h1 in "progenitor list" h2
 /// the routine also stores whether the progenitor list has been updated through the ilistupdated variable.
 /// the routine can also be provided a reference list and the time step of the current halo list used to identify progenitors
@@ -198,6 +201,8 @@ void CleanDescendantsForMissingProgenitors(Int_t itime, HaloTreeData *&pht, Prog
 
 ///Reranks descendants based on descendant to progenitor ranking and then merit.
 void RerankDescendants(Options &opt, HaloTreeData *&pht, DescendantData **&pdescen);
+
+
 //@}
 
 /// \name for mapping ids to index routines
