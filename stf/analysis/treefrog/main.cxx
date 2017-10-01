@@ -62,6 +62,7 @@ int main(int argc,char **argv)
     DescendantData *pdescentemp;
     //store the halo ids of particles in objects, with mapping of ids, makes it easy to look up the haloid of a given particle
     unsigned int *pfofp,*pfofd;
+    int *ibuildrankflag;
     long long i,j;
     long unsigned nh,nhp,nhd;
     long unsigned newnp;
@@ -113,7 +114,10 @@ int main(int argc,char **argv)
     //if also want rankings then need to store id to rank for every halo
     //this requires more memory
     //if (opt.imerittype==MERITRankWeightedBoth) MakeHaloIDtoRankMap(opt, pht);
-                        
+    if (opt.imerittype==MERITRankWeightedBoth) {
+        ibuildrankflag=new int[opt.numsnapshots];
+        for (i=opt.numsnapshots-1;i>=0;i--) ibuildrankflag[i]=0;
+    }
 
 
     if(opt.isearchdirection!=SEARCHDESCEN) {
@@ -279,6 +283,10 @@ int main(int argc,char **argv)
                 for (j=1;j<=opt.numsteps;j++) if (i+j<EndSnap)
                     if (pdescenprogen[i+j]==NULL && pht[i+j].numhalos>0) pdescenprogen[i+j]=new ProgenitorDataDescenBased[pht[i+j].numhalos];
                 if (i<EndSnap) {
+                if (opt.imerittype==MERITRankWeightedBoth) {
+                    for (Int_t istep=0;istep<=opt.numsteps;istep++) 
+                        if (ibuildrankflag[i+istep]==0) MakeHaloIDtoRankMapForSnap(opt, pht[i+istep]);
+                }
                 for (Int_t istep=1;istep<=opt.numsteps;istep++) if (i+istep<=opt.numsnapshots-1) {
                 if (i+istep<EndSnap) {
                     //set pfof progenitor data structure, used to produce links. Only produced IF snapshot not first one
@@ -287,7 +295,6 @@ int main(int argc,char **argv)
                             pfofd[pht[i+istep].Halo[j].ParticleID[k]]=j+1;
                         }
                     }
-                    if (opt.imerittype==MERITRankWeightedBoth) MakeHaloIDtoRankMapForSnap(opt, pht[i+istep]);
                     //now if also doing core weighting then update the halo id associated with the particle so that
                     //it is its current halo core ID + total number of halos
                     if (opt.icorematchtype!=PARTLISTNOCORE && opt.particle_frac<1 && opt.particle_frac>0) {
@@ -339,7 +346,6 @@ int main(int argc,char **argv)
                             pfofd[pht[i+istep].Halo[j].ParticleID[k]]=0;
                         }
                     }
-                    if (opt.imerittype==MERITRankWeightedBoth) pht[i+istep].Halo[j].idtorankmap.clear();
                 }
                 }
                 }
@@ -352,7 +358,7 @@ int main(int argc,char **argv)
             //to free up some memory, no need to keep particle ids
             if (opt.isearchdirection!=SEARCHALL) for (j=0;j<pht[i].numhalos;j++) {
                 delete[] pht[i].Halo[j].ParticleID;pht[i].Halo[j].ParticleID=NULL;
-                //if (opt.imerittype==MERITRankWeightedBoth) pht[i].Halo[j].idtorankmap.clear();
+                if (opt.imerittype==MERITRankWeightedBoth) pht[i].Halo[j].idtorankmap.clear();
             }
             if (opt.iverbose) cout<<ThisTask<<" finished descendant processing for snapshot "<<i<<" in "<<MyGetTime()-time2<<endl;
         }
