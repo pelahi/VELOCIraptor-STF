@@ -155,7 +155,7 @@ void MPIRecvDescendants(int sendtask, int isnap,HaloTreeData *&pht, DescendantDa
 //@{
 
 ///Calculate merit between a match
-Double_t CalculateMerit(Options &opt, UInt_t n1, UInt_t n2, HaloData &h1, HaloData &h2, UInt_t hindex=0,UInt_t *sharepartlist=NULL);
+Double_t CalculateMerit(Options &opt, UInt_t n1, UInt_t n2, HaloData &h1, HaloData &h2, UInt_t hindex=0,UInt_t *sharepartlist=NULL, Double_t *ranking2=NULL);
 
 /// determine the cross matches of halos in h1 in "progenitor list" h2
 /// the routine also stores whether the progenitor list has been updated through the ilistupdated variable.
@@ -218,12 +218,15 @@ void MapPIDStoIndex(Options &opt, HaloTreeData *&pht);
 
 ///make sure particle ids are acceptable values for generating links
 void IDcheck(Options &opt,HaloTreeData *&pht);
-
+///simple mapping function
 void simplemap(IDTYPE &i);
 
-//adjust the mappable halo ids by adding a temporally unique value to each id
-//useful to ensure that ids between VELOCIraptor and the tree match
+///adjust the mappable halo ids by adding a temporally unique value to each id
+///useful to ensure that ids between VELOCIraptor and the tree match
 void UpdateHaloIDs(Options &opt, HaloTreeData *&pht);
+
+///if ranking information is needed for merit calculations then produce particle id to halo ranking map
+void MakeHaloIDtoRankMap(Options &opt, HaloTreeData *&pht);
 
 //@}
 

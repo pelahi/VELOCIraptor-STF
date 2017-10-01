@@ -94,6 +94,7 @@ using namespace NBody;
 #define MERITNshared 3
 #define MERITNsharedcombo 4
 #define MERITRankWeighted 5
+#define MERITRankWeightedBoth 6
 //@}
 
 /// \name Input format
@@ -372,6 +373,7 @@ struct HaloData{
     IDTYPE *ParticleID;
     //Coordinate         *X;
     //Coordinate         *V;
+    map<IDTYPE, Int_t> idtorankmap;
     HaloData(long unsigned np=0){
         NumberofParticles=np;
         ParticleID=NULL;

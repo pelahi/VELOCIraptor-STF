@@ -10,7 +10,7 @@
 //@{
 
 ///Calculate the merit between two haloes that have been matched
-Double_t CalculateMerit(Options &opt, UInt_t n1, UInt_t n2, UInt_t nsh, HaloData &h1, HaloData &h2, UInt_t hindex=0,UInt_t *sharepartlist=NULL)
+Double_t CalculateMerit(Options &opt, UInt_t n1, UInt_t n2, UInt_t nsh, HaloData &h1, HaloData &h2, UInt_t hindex=0,UInt_t *sharepartlist=NULL, Double_t *ranking2=NULL)
 {
     Double_t merit;
     Double_t ranksum,norm;
@@ -30,6 +30,21 @@ Double_t CalculateMerit(Options &opt, UInt_t n1, UInt_t n2, UInt_t nsh, HaloData
         //normalize to the optimal value for nsh=n2, all particles in the descendant
         norm=0.5772156649+log((Double_t)max(n1,n2));
         merit=ranksum/norm;
+        //and multiple this to standard Nsh^2/N1/N2 merit to correct for small objects 
+        //being lost in bigger object and being deemed main progenitor 
+        merit*=(Double_t)nsh*(Double_t)nsh/(Double_t)n1/(Double_t)n2;
+        merit=sqrt(merit);
+    }
+    else if (opt.imerittype==MERITRankWeightedBoth) {
+        //like above but ranking both ways, that is merit is combination of rankings in a and b
+        ranksum=0;
+        for (auto i=0;i<n1;i++) if (sharepartlist[i]==hindex) ranksum+=1.0/(i+1.0);
+        //normalize to the optimal value for nsh=n2, all particles in the descendant
+        norm=0.5772156649+log((Double_t)n1);
+        merit=ranksum/norm;
+        ranksum=ranking2[hindex-1];
+        norm=0.5772156649+log((Double_t)n2);
+        merit*=ranksum/norm;
     }
     return merit;
 }
@@ -476,13 +491,15 @@ DescendantData *CrossMatchDescendant(Options &opt, const long unsigned nhalos1, 
 #endif
     DescendantData *d1=new DescendantData[nhalos1];
     UInt_t *sharelist, *halolist, *sharepartlist=NULL;
+    Double_t *ranking2;
     PriorityQueue *pq,*pq2;
-    UInt_t np1,np2;
+    UInt_t np1,np2,nbiggest;
     long unsigned num_nodescen, ntotitems;
     long unsigned *needdescenlist;
     if (refdescen==NULL) ilistupdated=1;
     else ilistupdated=0;
     newilistupdated=ilistupdated;
+    ntotitems=nhalos2*(long unsigned)nthreads;
 
     //if a core-core matching follows core-all matching then mark core-all matches
     //as worse initial rank of 1, otherwise use zero
@@ -491,14 +508,14 @@ DescendantData *CrossMatchDescendant(Options &opt, const long unsigned nhalos1, 
     if (nhalos2>0){
 
     //if need to store ranking of shared particles, just identify largest halo and allocate mem to store that object
-    if (opt.imerittype==MERITRankWeighted) {
-        int nbiggest=h1[0].NumberofParticles;
+    if (opt.imerittype==MERITRankWeighted||opt.imerittype==MERITRankWeightedBoth) {
+        nbiggest=h1[0].NumberofParticles;
         for (i=1;i<nhalos1;i++) if (nbiggest<h1[i].NumberofParticles) nbiggest=h1[i].NumberofParticles;
-        sharepartlist=new UInt_t[nbiggest];
+        sharepartlist=new UInt_t[nbiggest*(long unsigned)nthreads];
     }
+    if (opt.imerittype==MERITRankWeightedBoth) ranking2=new Double_t[ntotitems];
 
     if (refdescen==NULL) {
-    ntotitems=nhalos2*(long unsigned)nthreads;
     sharelist=new UInt_t[ntotitems];
     halolist=new UInt_t[ntotitems];
     //to store haloes that share links and the halo index of those shared haloes
@@ -506,7 +523,7 @@ DescendantData *CrossMatchDescendant(Options &opt, const long unsigned nhalos1, 
 #ifdef USEOPENMP
 #pragma omp parallel for schedule(dynamic,chunksize) \
 default(shared) \
-private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid,sharepartlist)
+private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
 #endif
     for (i=0;i<nhalos1;i++){
 #ifdef USEOPENMP
@@ -520,14 +537,14 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid,sharepartlist)
         //go through halos particle list to see if these particles belong to another halo
         //at a different time/in a different catalog
         np1=h1[i].NumberofParticles;
-        if (opt.imerittype==MERITRankWeighted) sharepartlist=new UInt_t[np1];
         if (opt.icorematchtype>=PARTLISTCORE && opt.particle_frac<1 && opt.particle_frac>0) {
             np1*=opt.particle_frac;
             if (np1<opt.min_numpart) np1=opt.min_numpart;
             if (np1>h1[i].NumberofParticles) np1=h1[i].NumberofParticles;
         }
         //initialize the shared particle list if desired
-        if (opt.imerittype==MERITRankWeighted) for (j=0;j<np1;j++) sharepartlist[j]=0;
+        if (opt.imerittype==MERITRankWeighted||opt.imerittype==MERITRankWeightedBoth) for (j=0;j<np1;j++) sharepartlist[j]=0;
+        if (opt.imerittype==MERITRankWeightedBoth) for (j=0;j<nhalos2;j++) ranking2[j+offset]=0;
         //loop over particles
         for (j=0;j<np1;j++){
             hid=pfof2[h1[i].ParticleID[j]];
@@ -539,7 +556,9 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid,sharepartlist)
                 //if first time halo has been added, update halolist and increase numshared
                 if (sharelist[index]==1) halolist[offset+numshared++]=hid-1;
                 //if storing the ranking of shared particles
-                if (opt.imerittype==MERITRankWeighted) sharepartlist[j]=hid;
+                if (opt.imerittype==MERITRankWeighted||opt.imerittype==MERITRankWeightedBoth) sharepartlist[j+offset]=hid;
+                //if need ranking the other way, calculate that as well
+                if (opt.imerittype==MERITRankWeightedBoth) ranking2[hid-1+offset]+=1.0/(1.0+h2[hid-1].idtorankmap[h1[i].ParticleID[j]]);
             }
         }
         //now proccess numshared list to remove insignificant connections
@@ -564,10 +583,14 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid,sharepartlist)
                 j=halolist[offset+k];
                 index=offset+j;
                 np2=h2[j].NumberofParticles;
-                merit=CalculateMerit(opt,np1,np2,sharelist[index],h1[i],h2[j],j+1,sharepartlist);
+                //for openmp compatability, have several if statements
+                if (opt.imerittype==MERITRankWeighted) merit=CalculateMerit(opt,np1,np2,sharelist[index],h1[i],h2[j],j+1,&sharepartlist[offset]);
+                else if (opt.imerittype==MERITRankWeightedBoth) merit=CalculateMerit(opt,np1,np2,sharelist[index],h1[i],h2[j],j+1,&sharepartlist[offset],&ranking2[offset]);
+                else merit=CalculateMerit(opt,np1,np2,sharelist[index],h1[i],h2[j],j+1);
                 pq->Push(j,merit);
                 sharelist[index]=0;
             }
+            newilistupdated=(numshared>0);
             d1[i].NumberofDescendants=numshared;
             d1[i].DescendantList=new long unsigned[numshared];
             d1[i].Merit=new float[numshared];
@@ -591,8 +614,8 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid,sharepartlist)
             np1=(h1[i].NumberofParticles*opt.particle_frac);
             if (h1[i].NumberofParticles<opt.min_numpart) np1=h2[j].NumberofParticles;
             else if (np1<opt.min_numpart) np1=opt.min_numpart;
-
-            if (opt.imerittype==MERITRankWeighted) for (j=0;j<np1;j++) sharepartlist[j]=0;
+            if (opt.imerittype==MERITRankWeighted||opt.imerittype==MERITRankWeightedBoth) for (j=0;j<np1;j++) sharepartlist[j]=0;
+            if (opt.imerittype==MERITRankWeightedBoth) for (j=0;j<nhalos2;j++) ranking2[j+offset]=0;
             //if halo has enough particle for meaningful most bound particles check, proceed to find merits. Similar to normal merit
             //calculations but have now np2 for calculating merits
             if (np1>=opt.min_numpart) {
@@ -603,7 +626,9 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid,sharepartlist)
                     if (hid>0){
                         sharelist[index]+=1;
                         if (sharelist[index]==1) halolist[offset+numshared++]=hid-1;
-                        if (opt.imerittype==MERITRankWeighted) sharepartlist[j]=hid;
+                        if (opt.imerittype==MERITRankWeighted||opt.imerittype==MERITRankWeightedBoth) sharepartlist[j+offset]=hid;
+                        //if need ranking the other way, calculate that as well
+                        if (opt.imerittype==MERITRankWeightedBoth) ranking2[hid-1+offset]+=1.0/(1.0+h2[hid-1].idtorankmap[h1[i].ParticleID[j]]);
                     }
                 }
                 //now proccess numshared list to remove insignificant connections
@@ -630,7 +655,9 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid,sharepartlist)
                         np2=h2[j].NumberofParticles*opt.particle_frac;
                         if (np2<opt.min_numpart) np2=opt.min_numpart;
                         if (np2>h2[j].NumberofParticles) np2=h2[j].NumberofParticles;
-                        merit=CalculateMerit(opt,np1,np2,sharelist[index],h1[i],h2[j],j+1,sharepartlist);
+                        if (opt.imerittype==MERITRankWeighted) merit=CalculateMerit(opt,np1,np2,sharelist[index],h1[i],h2[j],j+1,&sharepartlist[offset]);
+                        else if (opt.imerittype==MERITRankWeightedBoth) merit=CalculateMerit(opt,np1,np2,sharelist[index],h1[i],h2[j],j+1,&sharepartlist[offset],&ranking2[offset]);
+                        else merit=CalculateMerit(opt,np1,np2,sharelist[index],h1[i],h2[j],j+1);
                         pq2->Push(j,merit);
                         sharelist[index]=0;
                     }
@@ -705,7 +732,6 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid,sharepartlist)
             }
         }
 
-        ntotitems=nhalos2*(long unsigned)nthreads;
         sharelist=new UInt_t[ntotitems];
         halolist=new UInt_t[ntotitems];
         for (i=0;i<ntotitems;i++)sharelist[i]=0;
@@ -730,7 +756,8 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                 if (np1<opt.min_numpart) np1=opt.min_numpart;
                 if (np1>h1[i].NumberofParticles) np1=h1[i].NumberofParticles;
             }
-            if (opt.imerittype==MERITRankWeighted) for (j=0;j<np1;j++) sharepartlist[j]=0;
+            if (opt.imerittype==MERITRankWeighted||opt.imerittype==MERITRankWeightedBoth) for (j=0;j<np1;j++) sharepartlist[j]=0;
+            if (opt.imerittype==MERITRankWeightedBoth) for (j=0;j<nhalos2;j++) ranking2[j+offset]=0;
             for (j=0;j<np1;j++){
                 hid=pfof2[h1[i].ParticleID[j]];
                 //correction if use core weighted particles as well.
@@ -740,7 +767,9 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                     sharelist[index]+=1;
                     //if first time halo has been added, update halolist and increase numshared
                     if (sharelist[index]==1) halolist[offset+numshared++]=hid-1;
-                    if (opt.imerittype==MERITRankWeighted) sharepartlist[j]=hid;
+                    if (opt.imerittype==MERITRankWeighted||opt.imerittype==MERITRankWeightedBoth) sharepartlist[j+offset]=hid;
+                    //if need ranking the other way, calculate that as well
+                    if (opt.imerittype==MERITRankWeightedBoth) ranking2[hid-1+offset]+=1.0/(1.0+h2[hid-1].idtorankmap[h1[i].ParticleID[j]]);
                 }
             }
             //now proccess numshared list to remove insignificant connections
@@ -763,7 +792,9 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                     j=halolist[offset+n];
                     index=offset+j;
                     np2=h2[j].NumberofParticles;
-                    merit=CalculateMerit(opt,np1,np2,sharelist[index],h1[i],h2[j],j+1,sharepartlist);
+                    if (opt.imerittype==MERITRankWeighted) merit=CalculateMerit(opt,np1,np2,sharelist[index],h1[i],h2[j],j+1,&sharepartlist[offset]);
+                    else if (opt.imerittype==MERITRankWeightedBoth) merit=CalculateMerit(opt,np1,np2,sharelist[index],h1[i],h2[j],j+1,&sharepartlist[offset],&ranking2[offset]);
+                    else merit=CalculateMerit(opt,np1,np2,sharelist[index],h1[i],h2[j],j+1);
                     pq->Push(j,merit);
                     sharelist[index]=0;
                 }
@@ -791,7 +822,8 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                 np1=(h1[i].NumberofParticles*opt.particle_frac);
                 if (np1<opt.min_numpart) np1=opt.min_numpart;
                 if (np1>h1[i].NumberofParticles) np1=h1[i].NumberofParticles;
-                if (opt.imerittype==MERITRankWeighted) for (j=0;j<np1;j++) sharepartlist[j]=0;
+                if (opt.imerittype==MERITRankWeighted||opt.imerittype==MERITRankWeightedBoth) for (j=0;j<np1;j++) sharepartlist[j]=0;
+                if (opt.imerittype==MERITRankWeightedBoth) for (j=0;j<nhalos2;j++) ranking2[j+offset]=0;
                 numshared=0;
                 for (j=0;j<np1;j++){
                     hid=pfof2[h1[i].ParticleID[j]]-nhalos2;
@@ -799,7 +831,8 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                     if (hid>0) {
                         sharelist[index]+=1;
                         if (sharelist[index]==1) halolist[offset+numshared++]=hid-1;
-                        if (opt.imerittype==MERITRankWeighted) sharepartlist[j]=hid;
+                        if (opt.imerittype==MERITRankWeighted||opt.imerittype==MERITRankWeightedBoth) sharepartlist[j+offset]=hid;
+                        if (opt.imerittype==MERITRankWeightedBoth) ranking2[hid-1+offset]+=1.0/(1.0+h2[hid-1].idtorankmap[h1[i].ParticleID[j]]);
                     }
                 }
                 //now proccess numshared list to remove insignificant connections
@@ -826,7 +859,9 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
                         np2=h2[j].NumberofParticles*opt.particle_frac;
                         if (np2<opt.min_numpart) np2=opt.min_numpart;
                         if (np2>h2[j].NumberofParticles) np2=h2[j].NumberofParticles;
-                        merit=CalculateMerit(opt,np1,np2,sharelist[index],h1[i],h2[j],j+1,sharepartlist);
+                        if (opt.imerittype==MERITRankWeighted) merit=CalculateMerit(opt,np1,np2,sharelist[index],h1[i],h2[j],j+1,&sharepartlist[offset]);
+                        else if (opt.imerittype==MERITRankWeightedBoth) merit=CalculateMerit(opt,np1,np2,sharelist[index],h1[i],h2[j],j+1,&sharepartlist[offset],&ranking2[offset]);
+                        else merit=CalculateMerit(opt,np1,np2,sharelist[index],h1[i],h2[j],j+1);
                         pq2->Push(j,merit);
                         sharelist[index]=0;
                     }
@@ -868,7 +903,8 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
     ilistupdated=newilistupdated;
     }
     //end of progenitors more than one snap ago
-    if (opt.imerittype==MERITRankWeighted) delete[] sharepartlist;
+    if (opt.imerittype==MERITRankWeighted||opt.imerittype==MERITRankWeightedBoth) delete[] sharepartlist;
+    
     }
     //end of more than zero halos to produce links to
     else {
@@ -879,6 +915,191 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
     }
     return d1;
 }
+/*
+int CrossMatchDescendantIndividual(Options &opt, Int_t i, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData *&h2, unsigned int *&pfof2, int istepval)
+{
+    long int i,j,k,n,index;
+    Int_t numshared;
+    Double_t merit;
+    long long hid;
+    //temp variable to store the openmp reduction value for ilistupdated
+    int newilistupdated;
+    int chunksize;
+    int initdtopval;
+    PriorityQueue *pq,*pq2;
+    UInt_t np1,np2,nbiggest;
+    long unsigned num_nodescen, ntotitems;
+    long unsigned *needdescenlist;
+    if (refdescen==NULL) ilistupdated=1;
+    else ilistupdated=0;
+    newilistupdated=ilistupdated;
+    ntotitems=nhalos2*(long unsigned)nthreads;
+
+    numshared=0;
+    //go through halos particle list to see if these particles belong to another halo
+    //at a different time/in a different catalog
+    np1=h1[i].NumberofParticles;
+    if (opt.icorematchtype>=PARTLISTCORE && opt.particle_frac<1 && opt.particle_frac>0) {
+        np1*=opt.particle_frac;
+        if (np1<opt.min_numpart) np1=opt.min_numpart;
+        if (np1>h1[i].NumberofParticles) np1=h1[i].NumberofParticles;
+    }
+    //initialize the shared particle list if desired
+    if (opt.imerittype==MERITRankWeighted||opt.imerittype==MERITRankWeightedBoth) for (j=0;j<np1;j++) sharepartlist[j]=0;
+    if (opt.imerittype==MERITRankWeightedBoth) for (j=0;j<nhalos2;j++) ranking2[j+offset]=0;
+    //loop over particles
+    for (j=0;j<np1;j++){
+        hid=pfof2[h1[i].ParticleID[j]];
+        //correction if use core weighted particles as well.
+        if (opt.particle_frac<1 && opt.particle_frac>0 && hid>nhalos2) hid-=nhalos2;
+        index=offset+hid-(long int)1;
+        if (hid>0) {
+            sharelist[index]+=1;
+            //if first time halo has been added, update halolist and increase numshared
+            if (sharelist[index]==1) halolist[offset+numshared++]=hid-1;
+            //if storing the ranking of shared particles
+            if (opt.imerittype==MERITRankWeighted||opt.imerittype==MERITRankWeightedBoth) sharepartlist[j+offset]=hid;
+            //if need ranking the other way, calculate that as well
+            if (opt.imerittype==MERITRankWeightedBoth) {
+                for (int ii=0;ii<h2[hid-1].NumberofParticles;ii++) if (h1[i].ParticleID[j]==h2[hid-1].ParticleID[ii]) {
+                    ranking2[hid-1+offset]+=1.0/(1.0+ii);
+                    break;
+                }
+            }
+        }
+    }
+    //now proccess numshared list to remove insignificant connections
+    for (n=0;n<numshared;n++) {
+        j=halolist[offset+n];
+        index=offset+j;
+        //if sharelist not enough, then move to end and decrease numshared
+        np2=h2[j].NumberofParticles;
+        if(sharelist[index]<opt.mlsig*sqrt((Double_t)np2) && sharelist[index]<opt.mlsig*sqrt((Double_t)np1)) {
+            halolist[offset+n]=halolist[offset+numshared-1];
+            sharelist[index]=0;
+            n--;
+            numshared--;
+        }
+    }
+    //now calculate merits and sort according to best merit.
+    if (numshared>0) {
+        ////store all viable matches. Merits are calculated here using full number of particles
+        //np1=h1[i].NumberofParticles;
+        pq=new PriorityQueue(numshared);
+        for (k=0;k<numshared;k++) {
+            j=halolist[offset+k];
+            index=offset+j;
+            np2=h2[j].NumberofParticles;
+            //for openmp compatability, have several if statements
+            if (opt.imerittype==MERITRankWeighted) merit=CalculateMerit(opt,np1,np2,sharelist[index],h1[i],h2[j],j+1,sharepartlist[offset]);
+            else if (opt.imerittype==MERITRankWeightedBoth) merit=CalculateMerit(opt,np1,np2,sharelist[index],h1[i],h2[j],j+1,sharepartlist[offset],ranking2[offset]);
+            else merit=CalculateMerit(opt,np1,np2,sharelist[index],h1[i],h2[j],j+1);
+            pq->Push(j,merit);
+            sharelist[index]=0;
+        }
+        newilistupdated=(numshared>0);
+        d1[i].NumberofDescendants=numshared;
+        d1[i].DescendantList=new long unsigned[numshared];
+        d1[i].Merit=new float[numshared];
+        d1[i].dtoptype=new unsigned short[numshared];
+        //d1[i].nsharedfrac=new float[numshared];
+        for (j=0;j<numshared;j++){
+            d1[i].DescendantList[j]=pq->TopQueue();
+            d1[i].Merit[j]=pq->TopPriority();
+            d1[i].dtoptype[j]=initdtopval;
+            pq->Pop();
+        }
+        d1[i].istep=istepval;
+        delete pq;
+    }
+    //if the number shared is zero, do nothing
+    else {d1[i].DescendantList=NULL;d1[i].Merit=NULL;}
+
+    //if weighted merit function is to be calculated then use the most bound fraction of particles to construct share list
+    if (opt.icorematchtype!=PARTLISTNOCORE && opt.particle_frac<1 && opt.particle_frac>0 && numshared>0) {
+        //calculate number of particles
+        np1=(h1[i].NumberofParticles*opt.particle_frac);
+        if (h1[i].NumberofParticles<opt.min_numpart) np1=h2[j].NumberofParticles;
+        else if (np1<opt.min_numpart) np1=opt.min_numpart;
+        if (opt.imerittype==MERITRankWeighted||opt.imerittype==MERITRankWeightedBoth) for (j=0;j<np1;j++) sharepartlist[j]=0;
+        if (opt.imerittype==MERITRankWeightedBoth) for (j=0;j<nhalos2;j++) ranking2[j+offset]=0;
+        //if halo has enough particle for meaningful most bound particles check, proceed to find merits. Similar to normal merit
+        //calculations but have now np2 for calculating merits
+        if (np1>=opt.min_numpart) {
+            numshared=0;
+            for (j=0;j<np1;j++){
+                hid=pfof2[h1[i].ParticleID[j]]-nhalos2;
+                index=offset+hid-(long int)1;
+                if (hid>0){
+                    sharelist[index]+=1;
+                    if (sharelist[index]==1) halolist[offset+numshared++]=hid-1;
+                    if (opt.imerittype==MERITRankWeighted) sharepartlist[j]=hid;
+                }
+            }
+            //now proccess numshared list to remove insignificant connections
+            for (n=0;n<numshared;n++) {
+                j=halolist[offset+n];
+                index=offset+j;
+                //if sharelist not enough, then move to end and decrease numshared
+                np2=h2[j].NumberofParticles*opt.particle_frac;
+                if (np2<opt.min_numpart) np2=opt.min_numpart;
+                if (np2>h2[j].NumberofParticles) np2=h2[j].NumberofParticles;
+                if(sharelist[index]<opt.mlsig*sqrt((Double_t)np2) && sharelist[index]<opt.mlsig*sqrt((Double_t)np1)) {
+                    halolist[offset+n]=halolist[offset+numshared-1];
+                    sharelist[index]=0;
+                    n--;
+                    numshared--;
+                }
+            }
+            if (numshared>0) {
+                //store all viable matches and old ones too
+                pq2=new PriorityQueue(numshared);
+                for (k=0;k<numshared;k++) {
+                    j=halolist[offset+k];
+                    index=offset+j;
+                    np2=h2[j].NumberofParticles*opt.particle_frac;
+                    if (np2<opt.min_numpart) np2=opt.min_numpart;
+                    if (np2>h2[j].NumberofParticles) np2=h2[j].NumberofParticles;
+                    if (opt.imerittype==MERITRankWeighted) merit=CalculateMerit(opt,np1,np2,sharelist[index],h1[i],h2[j],j+1,sharepartlist[offset]);
+                    else if (opt.imerittype==MERITRankWeightedBoth) merit=CalculateMerit(opt,np1,np2,sharelist[index],h1[i],h2[j],j+1,sharepartlist[offset],ranking2[offset]);
+                    else merit=CalculateMerit(opt,np1,np2,sharelist[index],h1[i],h2[j],j+1);
+                    pq2->Push(j,merit);
+                    sharelist[index]=0;
+                }
+                //update the list, first start with merits
+                for (j=0;j<numshared;j++){
+                    for (int k=0;k<d1[i].NumberofDescendants;k++) if (d1[i].DescendantList[k]==pq2->TopQueue())
+                    {
+                        d1[i].Merit[k]=pq2->TopPriority();
+                        d1[i].dtoptype[k]=0;
+                        break;
+                    }
+                    pq2->Pop();
+                }
+                delete pq2;
+                //now redo order based on updated merit
+                pq2=new PriorityQueue(d1[i].NumberofDescendants);
+                pq=new PriorityQueue(d1[i].NumberofDescendants);
+                for (j=0;j<d1[i].NumberofDescendants;j++) {
+                    pq->Push(d1[i].dtoptype[j],d1[i].Merit[j]);
+                    pq2->Push(d1[i].DescendantList[j],d1[i].Merit[j]);
+                }
+                for (j=0;j<d1[i].NumberofDescendants;j++) {
+                    d1[i].DescendantList[j]=pq2->TopQueue();
+                    d1[i].Merit[j]=pq2->TopPriority();
+                    d1[i].dtoptype[j]=pq->TopQueue();
+                    pq2->Pop();
+                    pq->Pop();
+                }
+                delete pq;delete pq2;
+            }
+            //end of numshared>0 check
+        }
+        //end of halo has enough particles for weighted (bound fraction) merit adjustment
+    }
+    //end of weighted (based on most bound particles) merit
+}
+*/
 //@}
 
 ///\name Cleaning cross matches routines

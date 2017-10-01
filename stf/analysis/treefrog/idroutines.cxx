@@ -4,6 +4,7 @@
 
 #include "TreeFrog.h"
 
+
 /// \name if halo ids need to be adjusted
 //@{
 void UpdateHaloIDs(Options &opt, HaloTreeData *&pht) {
@@ -21,6 +22,26 @@ void UpdateHaloIDs(Options &opt, HaloTreeData *&pht) {
     }
 }
 //@}
+
+///Store particle ID to ranking in halo
+void MakeHaloIDtoRankMap(Options &opt, HaloTreeData *&pht) 
+{
+    Int_t i,j,k;
+#ifndef USEMPI
+    int ThisTask=0,NProcs=1,NSnap=opt.numsnapshots,StartSnap=0,EndSnap=opt.numsnapshots;
+#endif
+    for (i=opt.numsnapshots-1;i>=0;i--) {
+        if (i>=StartSnap && i<EndSnap) {
+            for (j=0;j<pht[i].numhalos;j++) {
+                for (k=0;k<pht[i].Halo[j].NumberofParticles;k++) {
+                    pht[i].Halo[j].idtorankmap.insert(pair<IDTYPE, Int_t>(pht[i].Halo[j].ParticleID[k],k));
+                }
+            }
+        }
+    }
+}
+        
+
 
 /// \name if particle ids need to be mapped to indices
 //@{
@@ -238,7 +259,7 @@ void simplemap(IDTYPE &i) {}
 
 //@}
 
-//check to see if ID data compatible with accessing index array allocated
+///check to see if ID data compatible with accessing index array allocated
 void IDcheck(Options &opt, HaloTreeData *&pht){
     int ierrorflag=0,ierrorsumflag=0;
 #ifndef USEMPI
