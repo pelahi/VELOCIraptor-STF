@@ -467,19 +467,19 @@ inline void ConfigCheck(Options &opt)
     else if(opt.isearchdirection==SEARCHDESCEN)      opt.description+=(char*)"descendants |";
     else if(opt.isearchdirection==SEARCHALL)      opt.description+=(char*)"both forward (descendant) and backward (progenitor) |";
 
-    opt.description=(char*)"TreeFrog Tree constructed by identifying the link with the highest value of ";
+    opt.description+=(char*)"TreeFrog Tree constructed by identifying the link with the highest value of ";
     if(opt.imerittype==MERITNsharedN1N2)      opt.description+=(char*)"Nshared^2/Nh/Np |";
     else if(opt.imerittype==MERITNsharedN1)   opt.description+=(char*)"Nshared/Nh | ";
     else if(opt.imerittype==MERITNshared)     opt.description+=(char*)"Nshared |";
-    else if (opt.imerittype==MERITNsharedcombo) opt.description=(char*)"Nshared/Nh+(Nshared^2/Nh/Np) so as to weight progenitors that contribute similar amounts by how much of their mass contributes to the new object | ";
-    else if (opt.imerittype==MERITRankWeighted) opt.description=(char*)"(Nshared^2/Nh/Np)*M_rank(p->h) where M_rank is from Poole+2017 | ";
-    else if (opt.imerittype==MERITRankWeightedBoth) opt.description=(char*)"M_rank(p->h)*M_rank(h->p) where M_rank is from Poole+2017 and here merit is calculated both ways based on ranking in each halo | ";
+    else if (opt.imerittype==MERITNsharedcombo) opt.description+=(char*)"Nshared/Nh+(Nshared^2/Nh/Np) so as to weight progenitors that contribute similar amounts by how much of their mass contributes to the new object | ";
+    else if (opt.imerittype==MERITRankWeighted) opt.description+=(char*)"(Nshared^2/Nh/Np)*M_rank(p->h) where M_rank is from Poole+2017 | ";
+    else if (opt.imerittype==MERITRankWeightedBoth) opt.description+=(char*)"M_rank(p->h)*M_rank(h->p) where M_rank is from Poole+2017 and here merit is calculated both ways based on ranking in each halo | ";
 
-    opt.description=(char*)"Optimal temporal merits are set by ";
+    opt.description+=(char*)"Optimal temporal merits are set by ";
     if(opt.iopttemporalmerittype==GENERALIZEDMERITTIME)  opt.description+=(char*)"a generalized temporal merit taking into account average time evolution |";
     else if(opt.iopttemporalmerittype==GENERALIZEDMERITTIMEPROGEN)  opt.description+=(char*)"a generalized temporal merit taking into account average time evolution and maximise the ranking of the progenitor so that links always point to primary progen/descen |";
 
-    opt.description=(char*)"Multistep criterion to keep searching ";
+    opt.description+=(char*)"Multistep criterion to keep searching ";
     if(opt.imultsteplinkcrit==MSLCMISSING)  opt.description+=(char*)" only if missing a link |";
     else if(opt.imultsteplinkcrit==MSLCMERIT)  opt.description+=(char*)" if missing a link or only link low merit |";
     else if(opt.imultsteplinkcrit==MSLCPRIMARYPROGEN)  opt.description+=(char*)" if missing a link or if link is secondary progenitor when constructing descendant tree |";

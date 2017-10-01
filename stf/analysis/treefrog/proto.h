@@ -227,6 +227,8 @@ void UpdateHaloIDs(Options &opt, HaloTreeData *&pht);
 
 ///if ranking information is needed for merit calculations then produce particle id to halo ranking map
 void MakeHaloIDtoRankMap(Options &opt, HaloTreeData *&pht);
+///if ranking information is needed for merit calculations then produce particle id to halo ranking map
+void MakeHaloIDtoRankMapForSnap(Options &opt, HaloTreeData &pht);
 
 //@}
 

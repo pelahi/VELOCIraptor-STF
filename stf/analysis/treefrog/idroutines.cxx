@@ -40,6 +40,16 @@ void MakeHaloIDtoRankMap(Options &opt, HaloTreeData *&pht)
         }
     }
 }
+///Store particle ID to ranking in halo
+void MakeHaloIDtoRankMapForSnap(Options &opt, HaloTreeData &pht) 
+{
+    Int_t j,k;
+    for (j=0;j<pht.numhalos;j++) {
+        for (k=0;k<pht.Halo[j].NumberofParticles;k++) {
+            pht.Halo[j].idtorankmap.insert(pair<IDTYPE, Int_t>(pht.Halo[j].ParticleID[k],k));
+        }
+    }
+}
         
 
 
