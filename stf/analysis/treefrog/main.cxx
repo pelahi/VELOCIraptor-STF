@@ -284,8 +284,12 @@ int main(int argc,char **argv)
                     if (pdescenprogen[i+j]==NULL && pht[i+j].numhalos>0) pdescenprogen[i+j]=new ProgenitorDataDescenBased[pht[i+j].numhalos];
                 if (i<EndSnap) {
                 if (opt.imerittype==MERITRankWeightedBoth) {
-                    for (Int_t istep=0;istep<=opt.numsteps;istep++) 
-                        if (ibuildrankflag[i+istep]==0) MakeHaloIDtoRankMapForSnap(opt, pht[i+istep]);
+                    for (Int_t istep=0;istep<=opt.numsteps;istep++) {
+                        if (ibuildrankflag[i+istep]==0) {
+                            MakeHaloIDtoRankMapForSnap(opt, pht[i+istep]);
+                            ibuildrankflag[i+istep]=1;
+                        }
+                    }
                 }
                 for (Int_t istep=1;istep<=opt.numsteps;istep++) if (i+istep<=opt.numsnapshots-1) {
                 if (i+istep<EndSnap) {
@@ -360,6 +364,7 @@ int main(int argc,char **argv)
                 delete[] pht[i].Halo[j].ParticleID;pht[i].Halo[j].ParticleID=NULL;
                 if (opt.imerittype==MERITRankWeightedBoth) pht[i].Halo[j].idtorankmap.clear();
             }
+            if (opt.imerittype==MERITRankWeightedBoth) ibuildrankflag[i]=0;
             if (opt.iverbose) cout<<ThisTask<<" finished descendant processing for snapshot "<<i<<" in "<<MyGetTime()-time2<<endl;
         }
         else pdescen[i]=NULL;
