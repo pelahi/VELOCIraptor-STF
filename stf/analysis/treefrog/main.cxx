@@ -284,7 +284,7 @@ int main(int argc,char **argv)
                     if (pdescenprogen[i+j]==NULL && pht[i+j].numhalos>0) pdescenprogen[i+j]=new ProgenitorDataDescenBased[pht[i+j].numhalos];
                 if (i<EndSnap) {
                 if (opt.imerittype==MERITRankWeightedBoth) {
-                    for (Int_t istep=0;istep<=opt.numsteps;istep++) {
+                    for (Int_t istep=1;istep<=opt.numsteps;istep++) {
                         if (ibuildrankflag[i+istep]==0) {
                             MakeHaloIDtoRankMapForSnap(opt, pht[i+istep]);
                             ibuildrankflag[i+istep]=1;
@@ -360,9 +360,12 @@ int main(int argc,char **argv)
                 pdescen[i]=NULL;
             }
             //to free up some memory, no need to keep particle ids
-            if (opt.isearchdirection!=SEARCHALL) for (j=0;j<pht[i].numhalos;j++) {
+            for (j=0;j<pht[i].numhalos;j++) {
                 delete[] pht[i].Halo[j].ParticleID;pht[i].Halo[j].ParticleID=NULL;
-                if (opt.imerittype==MERITRankWeightedBoth) pht[i].Halo[j].idtorankmap.clear();
+            }
+            //nor ranking data if built
+            if (opt.imerittype==MERITRankWeightedBoth) {
+                if (ibuildrankflag[i]) for (j=0;j<pht[i].numhalos;j++) pht[i].Halo[j].idtorankmap.clear();
             }
             if (opt.imerittype==MERITRankWeightedBoth) ibuildrankflag[i]=0;
             if (opt.iverbose) cout<<ThisTask<<" finished descendant processing for snapshot "<<i<<" in "<<MyGetTime()-time2<<endl;

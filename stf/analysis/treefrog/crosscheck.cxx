@@ -28,12 +28,11 @@ Double_t CalculateMerit(Options &opt, UInt_t n1, UInt_t n2, UInt_t nsh, HaloData
         ranksum=0;
         for (auto i=0;i<n1;i++) if (sharepartlist[i]==hindex) ranksum+=1.0/(i+1.0);
         //normalize to the optimal value for nsh=n2, all particles in the descendant
-        norm=0.5772156649+log((Double_t)max(n1,n2));
+        norm=0.5772156649+log((Double_t)n2);
         merit=ranksum/norm;
-        //and multiple this to standard Nsh^2/N1/N2 merit to correct for small objects 
-        //being lost in bigger object and being deemed main progenitor 
+        //and multiply this to standard Nsh^2/N1/N2 merit to correct for small objects
+        //being lost in bigger object and being deemed main progenitor
         merit*=(Double_t)nsh*(Double_t)nsh/(Double_t)n1/(Double_t)n2;
-        merit=sqrt(merit);
     }
     else if (opt.imerittype==MERITRankWeightedBoth) {
         //like above but ranking both ways, that is merit is combination of rankings in a and b
@@ -904,7 +903,7 @@ private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
     }
     //end of progenitors more than one snap ago
     if (opt.imerittype==MERITRankWeighted||opt.imerittype==MERITRankWeightedBoth) delete[] sharepartlist;
-    
+
     }
     //end of more than zero halos to produce links to
     else {
