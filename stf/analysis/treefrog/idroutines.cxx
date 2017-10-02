@@ -23,36 +23,6 @@ void UpdateHaloIDs(Options &opt, HaloTreeData *&pht) {
 }
 //@}
 
-///Store particle ID to ranking in halo
-void MakeHaloIDtoRankMap(Options &opt, HaloTreeData *&pht) 
-{
-    Int_t i,j,k;
-#ifndef USEMPI
-    int ThisTask=0,NProcs=1,NSnap=opt.numsnapshots,StartSnap=0,EndSnap=opt.numsnapshots;
-#endif
-    for (i=opt.numsnapshots-1;i>=0;i--) {
-        if (i>=StartSnap && i<EndSnap) {
-            for (j=0;j<pht[i].numhalos;j++) {
-                for (k=0;k<pht[i].Halo[j].NumberofParticles;k++) {
-                    pht[i].Halo[j].idtorankmap.insert(pair<IDTYPE, Int_t>(pht[i].Halo[j].ParticleID[k],k));
-                }
-            }
-        }
-    }
-}
-///Store particle ID to ranking in halo
-void MakeHaloIDtoRankMapForSnap(Options &opt, HaloTreeData &pht) 
-{
-    Int_t j,k;
-    for (j=0;j<pht.numhalos;j++) {
-        for (k=0;k<pht.Halo[j].NumberofParticles;k++) {
-            pht.Halo[j].idtorankmap.insert(pair<IDTYPE, Int_t>(pht.Halo[j].ParticleID[k],k));
-        }
-    }
-}
-        
-
-
 /// \name if particle ids need to be mapped to indices
 //@{
 ///builds a map by identifying the ids of particles in structure across snapshots
@@ -207,34 +177,35 @@ map<IDTYPE, IDTYPE> ConstructMemoryEfficientPIDStoIndexMap(Options &opt, HaloTre
     return idmap;
 }
 
+
 void MapPIDStoIndex(Options &opt, HaloTreeData *&pht, map<IDTYPE, IDTYPE> &idmap) {
 #ifndef USEMPI
     int ThisTask=0;
 #endif
     Int_t i,j,k;
     if (ThisTask==0) cout<<"Mapping PIDS to index "<<endl;
-#ifdef USEOPENMP
-#pragma omp parallel default(shared) \
-private(i,j,k)
-{
-#pragma omp for schedule(dynamic) nowait
-#endif
     for (i=0;i<opt.numsnapshots;i++) {
 #ifdef USEMPI
     if (i>=StartSnap && i<EndSnap) {
+#endif
+#ifdef USEOPENMP
+#pragma omp parallel default(shared) \
+private(j,k)
+{
+#pragma omp for schedule(dynamic) nowait
 #endif
         for (j=0;j<pht[i].numhalos;j++) {
             for (k=0;k<pht[i].Halo[j].NumberofParticles;k++){
                 pht[i].Halo[j].ParticleID[k]=idmap[pht[i].Halo[j].ParticleID[k]];
             }
         }
+#ifdef USEOPENMP
+}
+#endif
 #ifdef USEMPI
     }
 #endif
     }
-#ifdef USEOPENMP
-}
-#endif
 }
 
 void MapPIDStoIndex(Options &opt, HaloTreeData *&pht) {

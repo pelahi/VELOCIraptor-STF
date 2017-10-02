@@ -642,3 +642,96 @@ void WriteCrossComp(Options &opt, ProgenitorData **p, HaloTreeData *h) {
     Fout.close();
 }
 //@}
+
+///\name write associated information of treefrog run
+//@{
+///if a memory efficient particle id to index map was produced save the file
+void SavePIDStoIndexMap(Options &opt,map<IDTYPE, IDTYPE>&idmap)
+{
+    char fname[1000];
+    fstream Fout;
+    IDTYPE *keys,*indices;
+    Int_t i;
+    size_t idsize,mapsize;
+#ifndef USEMPI
+    int ThisTask=0;
+#endif
+    if (ThisTask==0)
+    {
+        sprintf(fname,"%s.pidtoindexmap.dat",opt.outname);
+        Fout.open(fname,ios::out|ios::binary);
+        cout<<"Writing unique memory efficent mapping for particle IDS to index to "<<fname<<endl;
+        //write header information
+        Fout.write((char*)&opt.numsnapshots,sizeof(int));
+        Fout.write((char*)&opt.TotalNumberofHalos,sizeof(long unsigned));
+        idsize=sizeof(IDTYPE);
+        Fout.write((char*)&idsize,sizeof(size_t));
+        mapsize=idmap.size();
+        Fout.write((char*)&mapsize,sizeof(size_t));
+        keys=new IDTYPE[mapsize];
+        indices=new IDTYPE[mapsize];
+        i=0;
+        for (auto it: idmap) {
+            keys[i]=it.first;
+            indices[i]=it.second;
+            i++;
+        }
+        Fout.write((char*)keys,sizeof(IDTYPE)*mapsize);
+        Fout.write((char*)indices,sizeof(IDTYPE)*mapsize);
+        Fout.close();
+        delete[] keys;
+        delete[] indices;
+    }
+}
+///if a memory efficient particle id to index map file exists read it
+int ReadPIDStoIndexMap(Options &opt,map<IDTYPE, IDTYPE>&idmap)
+{
+    char fname[1000];
+    fstream Fout;
+    IDTYPE *keys,*indices;
+    Int_t i;
+    size_t idsize,mapsize;
+    int numsnap;
+    long unsigned tothalo;
+    int iflag=0;
+    double time1;
+#ifndef USEMPI
+    int ThisTask=0;
+#endif
+    if (ThisTask==0) {
+        sprintf(fname,"%s.pidtoindexmap.dat",opt.outname);
+        Fout.open(fname,ios::in|ios::binary);
+        cout<<"Attempting to read unique memory efficent mapping for particle IDS to index to "<<fname<<endl;
+        //write header information
+        Fout.read((char*)&numsnap,sizeof(int));
+        Fout.read((char*)&tothalo,sizeof(long unsigned));
+        Fout.read((char*)&idsize,sizeof(size_t));
+        //if all is well then keep reading
+        if (opt.numsnapshots==numsnap && opt.TotalNumberofHalos && idsize==sizeof(IDTYPE)) {
+            iflag=1;
+            cout<<"Reading information"<<endl;
+            Fout.read((char*)&mapsize,sizeof(size_t));
+            keys=new IDTYPE[mapsize];
+            indices=new IDTYPE[mapsize];
+            Fout.read((char*)keys,sizeof(IDTYPE)*mapsize);
+            Fout.read((char*)indices,sizeof(IDTYPE)*mapsize);
+        }
+        Fout.close();
+    }
+#ifdef USEMPI
+    MPI_Bcast(&iflag, 1, MPI_INT, 0, MPI_COMM_WORLD);
+#endif
+    if (iflag==0) {
+        if (ThisTask==0) cout<<"Unable to read data, must generate map "<<endl;
+        return iflag;
+    }
+#ifdef USEMPI
+    //communicate information
+#endif
+    if (ThisTask==0) cout<<"And producing internal map "<<endl;
+    time1=MyGetTime();
+    for (i=0;i<mapsize;i++) idmap.insert(pair<IDTYPE, IDTYPE>(keys[i],indices[i]));
+    if (ThisTask==0) cout<<"Took "<<MyGetTime()-time1<<endl;
+    return iflag;
+}
+//@}

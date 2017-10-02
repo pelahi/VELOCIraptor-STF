@@ -163,6 +163,21 @@ Double_t CalculateMerit(Options &opt, UInt_t n1, UInt_t n2, HaloData &h1, HaloDa
 /// and will only search current halo list if the reference list doesn't meet the criteria for viable progenitors
 /// which is currently whether there are any in the reference list
 ProgenitorData *CrossMatch(Options &opt, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData* &h2, unsigned int*&pfof2, int &ilistupdated, int istepval=1, ProgenitorData *refprogen=NULL);
+///get Progenitor match for individual object, return if match found
+int CrossMatchProgenitorIndividual(Options &opt, Int_t i,
+    const long unsigned nhalos1, const long unsigned nhalos2,
+    HaloData *&h1, HaloData *&h2,
+    unsigned int *&pfof2,
+    int istepval,
+    ProgenitorData *&p1,
+    unsigned int *&sharelist,
+    unsigned int *&halolist,
+    long unsigned offset
+    //unsigned int *&sharepartlist,
+    //unsigned int *&pranking2,
+    //Double_t *&rankingsum
+);
+
 ///clean cross matches of duplicate entries so that a progenitor can have ONLY ONE descendent.
 void CleanCrossMatch(const int istepval, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData *&h2, ProgenitorData *&pprogen);
 ///fill in empty links of the reference list with another progenitor list produced using same reference snapshot but different linking snapshot.
@@ -176,7 +191,22 @@ void RemoveLinksProgenitorBasedDescendantList(Int_t itimedescen, Int_t ihaloinde
 void CleanProgenitorsUsingDescendants(Int_t i, HaloTreeData *&pht, DescendantDataProgenBased **&pprogendescen, ProgenitorData **&pprogen, int iopttemporalmerittype);
 
 ///similar to \ref CrossMatch but for descendants
-DescendantData *CrossMatchDescendant(Options &opt, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData* &h2, unsigned int*&pfof2, int &ilistupdated, int istepval=1, DescendantData *refdescen=NULL);
+DescendantData *CrossMatchDescendant(Options &opt, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData* &h2, unsigned int*&pfof2, int &ilistupdated, int istepval=1, unsigned int *ranking2=0, DescendantData *refdescen=NULL);
+///get descendant match for individual object, return if match found
+int CrossMatchDescendantIndividual(Options &opt, Int_t i,
+    const long unsigned nhalos1, const long unsigned nhalos2,
+    HaloData *&h1, HaloData *&h2,
+    unsigned int *&pfof2,
+    int istepval, int initdtopval,
+    DescendantData *&d1,
+    unsigned int *&sharelist,
+    unsigned int *&halolist,
+    long unsigned offset,
+    unsigned int *&sharepartlist,
+    unsigned int *&pranking2,
+    Double_t *&rankingsum
+);
+
 ///updates the haloids stored in the descendant list
 void UpdateDescendantIndexing(const int istepval, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData *&h2, DescendantData *&p1);
 ///prunes the descendant list
@@ -211,6 +241,11 @@ void RerankDescendants(Options &opt, HaloTreeData *&pht, DescendantData **&pdesc
 ///generate a map for particle ids to index and store it in the set, which can be searched to
 ///relate pid to index
 map<IDTYPE, IDTYPE> ConstructMemoryEfficientPIDStoIndexMap(Options &opt, HaloTreeData *&pht);
+///save the particle id to index map
+void SavePIDStoIndexMap(Options &,map<IDTYPE, IDTYPE>&);
+///read the particle id to index map from file
+int ReadPIDStoIndexMap(Options &, map<IDTYPE, IDTYPE>&);
+
 ///map particle id to index position
 void MapPIDStoIndex(Options &opt, HaloTreeData *&pht, map<IDTYPE, IDTYPE> &);
 ///map particle id to index position
@@ -224,11 +259,6 @@ void simplemap(IDTYPE &i);
 ///adjust the mappable halo ids by adding a temporally unique value to each id
 ///useful to ensure that ids between VELOCIraptor and the tree match
 void UpdateHaloIDs(Options &opt, HaloTreeData *&pht);
-
-///if ranking information is needed for merit calculations then produce particle id to halo ranking map
-void MakeHaloIDtoRankMap(Options &opt, HaloTreeData *&pht);
-///if ranking information is needed for merit calculations then produce particle id to halo ranking map
-void MakeHaloIDtoRankMapForSnap(Options &opt, HaloTreeData &pht);
 
 //@}
 

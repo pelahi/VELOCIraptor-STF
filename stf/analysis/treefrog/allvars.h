@@ -373,7 +373,6 @@ struct HaloData{
     IDTYPE *ParticleID;
     //Coordinate         *X;
     //Coordinate         *V;
-    map<IDTYPE, Int_t> idtorankmap;
     HaloData(long unsigned np=0){
         NumberofParticles=np;
         ParticleID=NULL;
