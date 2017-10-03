@@ -25,6 +25,24 @@ void UpdateHaloIDs(Options &opt, HaloTreeData *&pht) {
 
 /// \name if particle ids need to be mapped to indices
 //@{
+
+///see if map already exists and read it. otherwise generate it and alter data
+void MemoryEfficientMap(Options &opt,HaloTreeData *&pht)
+{
+#ifndef USEMPI
+    int ThisTask=0;
+#endif
+    map<IDTYPE, IDTYPE> idmap;
+    //try reading information and if it does not suceed then produce map
+    if (ReadPIDStoIndexMap(opt,idmap)==0) {
+        if (ThisTask==0) cout<<"Generating unique memory efficent mapping for particle IDS to index"<<endl;
+        idmap=ConstructMemoryEfficientPIDStoIndexMap(opt, pht);
+        SavePIDStoIndexMap(opt,idmap);
+    }
+    MapPIDStoIndex(opt,pht, idmap);
+    idmap.clear();
+}
+
 ///builds a map by identifying the ids of particles in structure across snapshots
 ///which is memory efficient as only needs array size of maximum number of particles in structures
 map<IDTYPE, IDTYPE> ConstructMemoryEfficientPIDStoIndexMap(Options &opt, HaloTreeData *&pht) {
@@ -54,7 +72,6 @@ map<IDTYPE, IDTYPE> ConstructMemoryEfficientPIDStoIndexMap(Options &opt, HaloTre
             for (k=0;k<pht[i].Halo[j].NumberofParticles;k++) idset.insert(pht[i].Halo[j].ParticleID[k]);
         }
         cout<<"Finished inserting "<<i<<endl;
-
     }
     time1=MyGetTime()-time1;
     if (opt.iverbose) cout<<ThisTask<<" finished getting unique ids of "<<idset.size()<<" in "<<time1<<endl;
@@ -162,8 +179,7 @@ map<IDTYPE, IDTYPE> ConstructMemoryEfficientPIDStoIndexMap(Options &opt, HaloTre
     time1=MyGetTime();
     ///\todo for reducing memory footprint at the cost of speed could use iterator and
     ///delete entries from vector as they are added to the map
-    /*
-    for (auto it=idvec.begin(); it!=idvec.end();) {
+    /*for (auto it=idvec.begin(); it!=idvec.end();) {
         idmap.insert(pair<IDTYPE, IDTYPE>(*it,(IDTYPE)i));
         it=idvec.erase(it);
     }*/
@@ -172,7 +188,7 @@ map<IDTYPE, IDTYPE> ConstructMemoryEfficientPIDStoIndexMap(Options &opt, HaloTre
     time2=MyGetTime()-time2;
     if (opt.iverbose) {
         cout<<ThisTask<<" constructed map in "<<time1<<endl;
-        cout<<ThisTask<<" finished getting GLOBAL unique ids of "<<idvec.size()<<" in "<<time2<<endl;
+        cout<<ThisTask<<" finished getting GLOBAL unique ids of "<<opt.MaxIDValue<<" in "<<time2<<endl;
     }
     return idmap;
 }
@@ -180,37 +196,7 @@ map<IDTYPE, IDTYPE> ConstructMemoryEfficientPIDStoIndexMap(Options &opt, HaloTre
 
 void MapPIDStoIndex(Options &opt, HaloTreeData *&pht, map<IDTYPE, IDTYPE> &idmap) {
 #ifndef USEMPI
-    int ThisTask=0;
-#endif
-    Int_t i,j,k;
-    if (ThisTask==0) cout<<"Mapping PIDS to index "<<endl;
-    for (i=0;i<opt.numsnapshots;i++) {
-#ifdef USEMPI
-    if (i>=StartSnap && i<EndSnap) {
-#endif
-#ifdef USEOPENMP
-#pragma omp parallel default(shared) \
-private(j,k)
-{
-#pragma omp for schedule(dynamic) nowait
-#endif
-        for (j=0;j<pht[i].numhalos;j++) {
-            for (k=0;k<pht[i].Halo[j].NumberofParticles;k++){
-                pht[i].Halo[j].ParticleID[k]=idmap[pht[i].Halo[j].ParticleID[k]];
-            }
-        }
-#ifdef USEOPENMP
-}
-#endif
-#ifdef USEMPI
-    }
-#endif
-    }
-}
-
-void MapPIDStoIndex(Options &opt, HaloTreeData *&pht) {
-#ifndef USEMPI
-    int ThisTask=0;
+        int ThisTask=0,StartSnap=0,EndSnap=opt.numsnapshots;
 #endif
     Int_t i,j,k;
     if (ThisTask==0) cout<<"Mapping PIDS to index "<<endl;
@@ -220,16 +206,34 @@ private(i,j,k)
 {
 #pragma omp for schedule(dynamic) nowait
 #endif
-    for (i=0;i<opt.numsnapshots;i++) {
-#ifdef USEMPI
-    if (i>=StartSnap && i<EndSnap) {
+    for (i=StartSnap;i<EndSnap;i++) {
+        for (j=0;j<pht[i].numhalos;j++) {
+            for (k=0;k<pht[i].Halo[j].NumberofParticles;k++){
+                pht[i].Halo[j].ParticleID[k]=idmap[pht[i].Halo[j].ParticleID[k]];
+            }
+        }
+    }
+#ifdef USEOPENMP
+}
 #endif
+}
+
+void MapPIDStoIndex(Options &opt, HaloTreeData *&pht) {
+#ifndef USEMPI
+    int ThisTask=0,StartSnap=0,EndSnap=opt.numsnapshots;
+#endif
+    Int_t i,j,k;
+    if (ThisTask==0) cout<<"Mapping PIDS to index "<<endl;
+#ifdef USEOPENMP
+#pragma omp parallel default(shared) \
+private(i,j,k)
+{
+#pragma omp for schedule(dynamic) nowait
+#endif
+    for (i=StartSnap;i<EndSnap;i++) {
         for (j=0;j<pht[i].numhalos;j++)
             for (k=0;k<pht[i].Halo[j].NumberofParticles;k++)
                 opt.mappingfunc(pht[i].Halo[j].ParticleID[k]);
-#ifdef USEMPI
-    }
-#endif
     }
 #ifdef USEOPENMP
 }

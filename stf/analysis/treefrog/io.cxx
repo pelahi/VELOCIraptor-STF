@@ -727,11 +727,35 @@ int ReadPIDStoIndexMap(Options &opt,map<IDTYPE, IDTYPE>&idmap)
     }
 #ifdef USEMPI
     //communicate information
+    MPI_Bcast(&mapsize, sizeof(size_t), MPI_BYTE, 0, MPI_COMM_WORLD);
+    opt.MaxIDValue=mapsize;
+    if (ThisTask==0) cout<<"Map will have "<<opt.MaxIDValue<<" elements and need roughly "<<opt.MaxIDValue*(sizeof(IDTYPE)*2+3*4)/1024./1024./1024.<<"GB of mem "<<endl;
+    if (ThisTask!=0) {
+        keys=new IDTYPE[mapsize];
+        indices=new IDTYPE[mapsize];
+    }
+    //and send information in chunks
+    unsigned long chunksize=floor(2147483648/((Double_t)NProcs*sizeof(IDTYPE)));
+    unsigned int nchunks=ceil(mapsize/(Double_t)chunksize);
+    if (chunksize>mapsize) {
+        chunksize=mapsize;
+        nchunks=1;
+    }
+    unsigned long offset=0;
+    for (auto ichunk=0;ichunk<nchunks;ichunk++)
+    {
+        MPI_Bcast(&keys[offset], sizeof(IDTYPE)*chunksize, MPI_BYTE, 0, MPI_COMM_WORLD);
+        MPI_Bcast(&indices[offset], sizeof(IDTYPE)*chunksize, MPI_BYTE, 0, MPI_COMM_WORLD);
+        offset+=chunksize;
+        chunksize=min(chunksize,mapsize-offset);
+    }
 #endif
     if (ThisTask==0) cout<<"And producing internal map "<<endl;
     time1=MyGetTime();
     for (i=0;i<mapsize;i++) idmap.insert(pair<IDTYPE, IDTYPE>(keys[i],indices[i]));
     if (ThisTask==0) cout<<"Took "<<MyGetTime()-time1<<endl;
+    delete[] keys;
+    delete[] indices;
     return iflag;
 }
 //@}

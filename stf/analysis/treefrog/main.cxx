@@ -94,17 +94,9 @@ int main(int argc,char **argv)
         cout<<ThisTask<<" has allocated at least "<<sum*sizeof(IDTYPE)/1024./1024./1024.<<"GB of memory to store particle ids"<<endl;
     }
 
+    //computationally expensive but memory efficient mapping of data
     if (opt.imapping==DMEMEFFICIENTMAP) {
-        //see if map already exists and read it. otherwise generate it
-        map<IDTYPE, IDTYPE> idmap;
-        //try reading information and if it does not suceed then produce map
-        if (ReadPIDStoIndexMap(opt,idmap)==0) {
-            if (ThisTask==0) cout<<"Generating unique memory efficent mapping for particle IDS to index"<<endl;
-            idmap=ConstructMemoryEfficientPIDStoIndexMap(opt, pht);
-            SavePIDStoIndexMap(opt,idmap);
-        }
-        MapPIDStoIndex(opt,pht, idmap);
-        idmap.clear();
+        MemoryEfficientMap(opt,pht);
     }
     else {
         //adjust ids if particle ids need to be mapped to index
@@ -113,10 +105,9 @@ int main(int argc,char **argv)
         IDcheck(opt,pht);
     }
     if (ThisTask==0) {
-        cout<<"Memory needed to store addressing for ids "<<sizeof(IDTYPE)*opt.MaxIDValue/1024./1024.0/1024.0<<", maximum ID of "<<opt.MaxIDValue<<endl;
-        if (opt.imerittype==MERITRankWeightedBoth) cout<<" and also need similar amount of memory to store ranking information needed by merit"<<endl;
+        cout<<"Memory needed to store addressing for ids "<<sizeof(IDTYPE)*opt.MaxIDValue/1024./1024.0/1024.0<<"GB, maximum ID of "<<opt.MaxIDValue<<endl;
+        if (opt.imerittype==MERITRankWeightedBoth) cout<<" And also need similar amount of memory to store ranking information needed by merit"<<endl;
     }
-
     if(opt.isearchdirection!=SEARCHDESCEN) {
         //then allocate simple array used for accessing halo ids of particles through their IDs
         pfofp=new unsigned int[opt.MaxIDValue];

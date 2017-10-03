@@ -201,7 +201,7 @@ int CrossMatchDescendantIndividual(Options &opt, Int_t i,
     DescendantData *&d1,
     unsigned int *&sharelist,
     unsigned int *&halolist,
-    long unsigned offset,
+    long unsigned offset, long unsigned offset2, 
     unsigned int *&sharepartlist,
     unsigned int *&pranking2,
     Double_t *&rankingsum
@@ -238,6 +238,8 @@ void RerankDescendants(Options &opt, HaloTreeData *&pht, DescendantData **&pdesc
 /// \name for mapping ids to index routines
 /// see \ref idroutines.cxx for implementation
 //@{
+///wrapper routine that adjusts data to use memory efficient maps
+void MemoryEfficientMap(Options &opt,HaloTreeData *&pht);
 ///generate a map for particle ids to index and store it in the set, which can be searched to
 ///relate pid to index
 map<IDTYPE, IDTYPE> ConstructMemoryEfficientPIDStoIndexMap(Options &opt, HaloTreeData *&pht);

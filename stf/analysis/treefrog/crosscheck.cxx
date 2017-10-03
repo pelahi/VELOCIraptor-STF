@@ -33,6 +33,7 @@ Double_t CalculateMerit(Options &opt, UInt_t n1, UInt_t n2, UInt_t nsh, HaloData
         //and multiply this to standard Nsh^2/N1/N2 merit to correct for small objects
         //being lost in bigger object and being deemed main progenitor
         merit*=(Double_t)nsh*(Double_t)nsh/(Double_t)n1/(Double_t)n2;
+        merit=sqrt(merit);
     }
     else if (opt.imerittype==MERITRankWeightedBoth) {
         //like above but ranking both ways, that is merit is combination of rankings in a and b
@@ -46,6 +47,8 @@ Double_t CalculateMerit(Options &opt, UInt_t n1, UInt_t n2, UInt_t nsh, HaloData
         rankingsum[hindex-1]=0;
         norm=0.5772156649+log((Double_t)n2);
         merit*=ranksum/norm;
+        merit*=(Double_t)nsh*(Double_t)nsh/(Double_t)n1/(Double_t)n2;
+        merit=sqrt(merit);
     }
     return merit;
 }
@@ -71,12 +74,9 @@ Double_t CalculateMerit(Options &opt, UInt_t n1, UInt_t n2, UInt_t nsh, HaloData
 
 ProgenitorData *CrossMatch(Options &opt, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData *&h2, unsigned int*&pfof2, int &ilistupdated, int istepval, ProgenitorData *refprogen)
 {
-    long int i,j,k,n,index;
-    Int_t numshared;
-    Double_t merit;
+    long int i,j,k,n;
     int nthreads=1,tid,chunksize;
     long unsigned offset;
-    long long hid;
     //temp variable to store the openmp reduction value for ilistupdated
     int newilistupdated;
 #ifdef USEOPENMP
@@ -90,8 +90,6 @@ ProgenitorData *CrossMatch(Options &opt, const long unsigned nhalos1, const long
 #endif
     ProgenitorData *p1=new ProgenitorData[nhalos1];
     UInt_t *sharelist,*halolist;
-    PriorityQueue *pq,*pq2;
-    UInt_t np1,np2;
     long unsigned num_noprogen, ntotitems;
     long unsigned *needprogenlist;
     //init that list is updated if no reference list is provided
@@ -112,7 +110,7 @@ ProgenitorData *CrossMatch(Options &opt, const long unsigned nhalos1, const long
 #ifdef USEOPENMP
 #pragma omp parallel for schedule(dynamic,chunksize) \
 default(shared) \
-private(j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
+private(j,k,tid,offset)
 #endif
     for (i=0;i<nhalos1;i++){
 #ifdef USEOPENMP
@@ -168,7 +166,7 @@ private(j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
 #ifdef USEOPENMP
 #pragma omp parallel for schedule(dynamic,chunksize) reduction(+:newilistupdated) \
 default(shared) \
-private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
+private(i,j,n,tid,offset)
 #endif
         for (k=0;k<num_noprogen;k++){
 #ifdef USEOPENMP
@@ -369,13 +367,9 @@ DescendantData *CrossMatchDescendant(Options &opt, const long unsigned nhalos1, 
     HaloData *&h1, HaloData *&h2, unsigned int *&pfof2, int &ilistupdated, int istepval, unsigned int *pranking2,
     DescendantData *refdescen)
 {
-    long int i,j,k,n,index;
-    Int_t numshared;
-    Double_t merit;
-    Double_t start,end;
+    long int i,j,k,n;
     int nthreads=1,tid;
-    long unsigned offset;
-    long long hid;
+    long unsigned offset, offset2;
     //temp variable to store the openmp reduction value for ilistupdated
     int newilistupdated;
     int chunksize;
@@ -392,8 +386,7 @@ DescendantData *CrossMatchDescendant(Options &opt, const long unsigned nhalos1, 
     DescendantData *d1=new DescendantData[nhalos1];
     UInt_t *sharelist, *halolist, *sharepartlist=NULL;
     Double_t *rankingsum=NULL;
-    PriorityQueue *pq,*pq2;
-    UInt_t np1,np2,nbiggest;
+    UInt_t nbiggest;
     long unsigned num_nodescen, ntotitems;
     long unsigned *needdescenlist;
     if (refdescen==NULL) ilistupdated=1;
@@ -426,18 +419,20 @@ DescendantData *CrossMatchDescendant(Options &opt, const long unsigned nhalos1, 
 #ifdef USEOPENMP
 #pragma omp parallel for schedule(dynamic,chunksize) \
 default(shared) \
-private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
+private(i,tid,offset,offset2)
 #endif
     for (i=0;i<nhalos1;i++){
 #ifdef USEOPENMP
         //initialize variables
         tid=omp_get_thread_num();
         offset=((long int)tid)*nhalos2;
+        offset2=((long int)tid)*nbiggest;
 #else
         offset=0;
+        offset2=0;
 #endif
         CrossMatchDescendantIndividual(opt, i, nhalos1, nhalos2, h1, h2, pfof2, istepval, initdtopval, d1,
-            sharelist, halolist, offset, sharepartlist, pranking2, rankingsum);
+            sharelist, halolist, offset, offset2, sharepartlist, pranking2, rankingsum);
     }
         delete[] sharelist;
         delete[] halolist;
@@ -484,18 +479,20 @@ private(i,j,k,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
 #ifdef USEOPENMP
 #pragma omp parallel for schedule(dynamic,chunksize) reduction(+:newilistupdated) \
 default(shared) \
-private(i,j,n,tid,pq,numshared,merit,index,offset,np1,np2,pq2,hid)
+private(i,j,n,tid,offset,offset2)
 #endif
         for (k=0;k<num_nodescen;k++){
 #ifdef USEOPENMP
             tid=omp_get_thread_num();
             offset=((long int)tid)*nhalos2;
+            offset2=((long int)tid)*nbiggest;
 #else
             offset=0;
+            offset2=0;
 #endif
             i=needdescenlist[k];
             newilistupdated+=CrossMatchDescendantIndividual(opt, i, nhalos1, nhalos2, h1, h2, pfof2, istepval, initdtopval, d1,
-                sharelist, halolist, offset, sharepartlist, pranking2, rankingsum);
+                sharelist, halolist, offset, offset2, sharepartlist, pranking2, rankingsum);
         }
         delete[] sharelist;
         delete[] halolist;
@@ -528,7 +525,7 @@ int CrossMatchDescendantIndividual(Options &opt, Int_t i,
     DescendantData *&d1,
     unsigned int *&sharelist,
     unsigned int *&halolist,
-    long unsigned offset,
+    long unsigned offset, long unsigned offset2,
     unsigned int *&sharepartlist,
     unsigned int *&pranking2,
     Double_t *&rankingsum
@@ -540,7 +537,6 @@ int CrossMatchDescendantIndividual(Options &opt, Int_t i,
     long long hid;
     PriorityQueue *pq,*pq2;
     UInt_t np1,np2;
-
     numshared=0;
     //go through halos particle list to see if these particles belong to another halo
     //at a different time/in a different catalog
@@ -551,7 +547,7 @@ int CrossMatchDescendantIndividual(Options &opt, Int_t i,
         if (np1>h1[i].NumberofParticles) np1=h1[i].NumberofParticles;
     }
     //initialize the shared particle list if desired
-    if (opt.imerittype==MERITRankWeighted||opt.imerittype==MERITRankWeightedBoth) for (j=0;j<np1;j++) sharepartlist[j]=0;
+    if (opt.imerittype==MERITRankWeighted||opt.imerittype==MERITRankWeightedBoth) for (j=0;j<np1;j++) sharepartlist[j+offset2]=0;
     //loop over particles
     for (j=0;j<np1;j++){
         hid=pfof2[h1[i].ParticleID[j]];
@@ -563,7 +559,7 @@ int CrossMatchDescendantIndividual(Options &opt, Int_t i,
             //if first time halo has been added, update halolist and increase numshared
             if (sharelist[index]==1) halolist[offset+numshared++]=hid-1;
             //if storing the ranking of shared particles
-            if (opt.imerittype==MERITRankWeighted||opt.imerittype==MERITRankWeightedBoth) sharepartlist[j+offset]=hid;
+            if (opt.imerittype==MERITRankWeighted||opt.imerittype==MERITRankWeightedBoth) sharepartlist[j+offset2]=hid;
             //if need ranking the other way, calculate that as well
             if (opt.imerittype==MERITRankWeightedBoth) rankingsum[hid-1+offset]+=1.0/(1.0+pranking2[h1[i].ParticleID[j]]);
         }
@@ -592,8 +588,8 @@ int CrossMatchDescendantIndividual(Options &opt, Int_t i,
             index=offset+j;
             np2=h2[j].NumberofParticles;
             //for openmp compatability, have several if statements
-            if (opt.imerittype==MERITRankWeighted) merit=CalculateMerit(opt,np1,np2,sharelist[index],h1[i],h2[j],j+1,&sharepartlist[offset]);
-            else if (opt.imerittype==MERITRankWeightedBoth) merit=CalculateMerit(opt,np1,np2,sharelist[index],h1[i],h2[j],j+1,&sharepartlist[offset],&rankingsum[offset]);
+            if (opt.imerittype==MERITRankWeighted) merit=CalculateMerit(opt,np1,np2,sharelist[index],h1[i],h2[j],j+1,&sharepartlist[offset2]);
+            else if (opt.imerittype==MERITRankWeightedBoth) merit=CalculateMerit(opt,np1,np2,sharelist[index],h1[i],h2[j],j+1,&sharepartlist[offset2],&rankingsum[offset]);
             else merit=CalculateMerit(opt,np1,np2,sharelist[index],h1[i],h2[j],j+1);
             pq->Push(j,merit);
             sharelist[index]=0;
