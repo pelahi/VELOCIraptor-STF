@@ -62,6 +62,8 @@ int main(int argc,char **argv)
     DescendantData *pdescentemp;
     //store the halo ids of particles in objects, with mapping of ids, makes it easy to look up the haloid of a given particle
     unsigned int *pfofp,*pfofd;
+    unsigned int *prank=NULL;
+    //int *ibuildrankflag;
     long long i,j;
     long unsigned nh,nhp,nhd;
     long unsigned newnp;
@@ -92,30 +94,28 @@ int main(int argc,char **argv)
         cout<<ThisTask<<" has allocated at least "<<sum*sizeof(IDTYPE)/1024./1024./1024.<<"GB of memory to store particle ids"<<endl;
     }
 
+    //computationally expensive but memory efficient mapping of data
     if (opt.imapping==DMEMEFFICIENTMAP) {
-        if (ThisTask==0) cout<<"Generating unique memory efficent mapping for particle IDS to index"<<endl;
-        map<IDTYPE, IDTYPE> idmap=ConstructMemoryEfficientPIDStoIndexMap(opt, pht);
-        MapPIDStoIndex(opt,pht, idmap);
-        idmap.clear();
-        if (ThisTask==0) {
-            cout<<"Memory needed to store addressing for ids "<<sizeof(IDTYPE)*opt.MaxIDValue/1024./1024.0/1024.0<<", maximum ID of "<<opt.MaxIDValue<<endl;
-        }
+        MemoryEfficientMap(opt,pht);
     }
     else {
-        if (ThisTask==0) {
-            cout<<"Memory needed to store addressing for ids "<<sizeof(unsigned int)*opt.MaxIDValue/1024./1024.0/1024.0<<", maximum ID of "<<opt.MaxIDValue<<endl;
-        }
         //adjust ids if particle ids need to be mapped to index
         if (opt.imapping>DNOMAP) MapPIDStoIndex(opt,pht);
         //check that ids are within allowed range for linking
         IDcheck(opt,pht);
     }
-
-
+    if (ThisTask==0) {
+        cout<<"Memory needed to store addressing for ids "<<sizeof(IDTYPE)*opt.MaxIDValue/1024./1024.0/1024.0<<"GB, maximum ID of "<<opt.MaxIDValue<<endl;
+        if (opt.imerittype==MERITRankWeightedBoth) cout<<" And also need similar amount of memory to store ranking information needed by merit"<<endl;
+    }
     if(opt.isearchdirection!=SEARCHDESCEN) {
         //then allocate simple array used for accessing halo ids of particles through their IDs
         pfofp=new unsigned int[opt.MaxIDValue];
         for (i=0;i<opt.MaxIDValue;i++) pfofp[i]=0;
+        if (opt.imerittype==MERITRankWeightedBoth) {
+            prank=new unsigned int[opt.MaxIDValue];
+            for (i=0;i<opt.MaxIDValue;i++) prank[i]=0;
+        }
 
         //allocate memory associated with progenitors
         pprogen=new ProgenitorData*[opt.numsnapshots];
@@ -155,9 +155,11 @@ int main(int argc,char **argv)
                 //when using mpi also check that data is local
                 if (i-istep-StartSnap>=0) {
                     //set pfof progenitor data structure, used to produce links. Only produced IF snapshot not first one
-                    for (j=0;j<pht[i-istep].numhalos;j++)
-                        for (Int_t k=0;k<pht[i-istep].Halo[j].NumberofParticles;k++)
+                    for (j=0;j<pht[i-istep].numhalos;j++) {
+                        for (Int_t k=0;k<pht[i-istep].Halo[j].NumberofParticles;k++) {
                             pfofp[pht[i-istep].Halo[j].ParticleID[k]]=j+1;
+                        }
+                    }
                     //now if also doing core weighting then update the halo id associated with the particle so that
                     //it is its current halo core ID + total number of halos
                     if (opt.icorematchtype!=PARTLISTNOCORE && opt.particle_frac<1 && opt.particle_frac>0) {
@@ -217,12 +219,15 @@ int main(int argc,char **argv)
                 pprogendescen[i]=NULL;
             }
             //free up memory if not needed
-            if (opt.isearchdirection!=SEARCHALL) for (j=0;j<pht[i].numhalos;j++) {delete[] pht[i].Halo[j].ParticleID;pht[i].Halo[j].ParticleID=NULL;}
+            if (opt.isearchdirection!=SEARCHALL) for (j=0;j<pht[i].numhalos;j++) {
+                delete[] pht[i].Halo[j].ParticleID;pht[i].Halo[j].ParticleID=NULL;
+            }
             if (opt.iverbose) cout<<ThisTask<<" finished Progenitor processing for snapshot "<<i<<" in "<<MyGetTime()-time2<<endl;
         }
         else pprogen[i]=NULL;
         }
         delete[] pfofp;
+        if (opt.imerittype==MERITRankWeightedBoth) delete[] prank;
 
         //now if more than one snapshot is used to generate links, must clean up across multiple snapshots to ensure that an object is the progenitor of a single other object
         //this requires parsing the descendent data list produced by identifying progenitors
@@ -253,7 +258,13 @@ int main(int argc,char **argv)
         if (opt.iverbose) cout<<"Starting descendant cross matching "<<endl;
         pdescen=new DescendantData*[opt.numsnapshots];
         pfofd=new unsigned int[opt.MaxIDValue];
-        for (i=0;i<opt.MaxIDValue;i++) {pfofd[i]=0;}
+        for (i=0;i<opt.MaxIDValue;i++) pfofd[i]=0;
+        if (opt.imerittype==MERITRankWeightedBoth) {
+            prank=new unsigned int[opt.MaxIDValue];
+            for (i=0;i<opt.MaxIDValue;i++) prank[i]=0;
+        }
+
+        //to store descendant based progenitor information
         pdescenprogen=new ProgenitorDataDescenBased*[opt.numsnapshots];
         //initialize all to null
         for (i=0;i<opt.numsnapshots;i++) {
@@ -273,9 +284,18 @@ int main(int argc,char **argv)
                 for (Int_t istep=1;istep<=opt.numsteps;istep++) if (i+istep<=opt.numsnapshots-1) {
                 if (i+istep<EndSnap) {
                     //set pfof progenitor data structure, used to produce links. Only produced IF snapshot not first one
-                    for (j=0;j<pht[i+istep].numhalos;j++)
-                        for (int k=0;k<pht[i+istep].Halo[j].NumberofParticles;k++)
+                    for (j=0;j<pht[i+istep].numhalos;j++) {
+                        for (int k=0;k<pht[i+istep].Halo[j].NumberofParticles;k++) {
                             pfofd[pht[i+istep].Halo[j].ParticleID[k]]=j+1;
+                        }
+                    }
+                    if (opt.imerittype==MERITRankWeightedBoth) {
+                        for (j=0;j<pht[i+istep].numhalos;j++) {
+                            for (int k=0;k<pht[i+istep].Halo[j].NumberofParticles;k++) {
+                                prank[pht[i+istep].Halo[j].ParticleID[k]]=k+1;
+                            }
+                        }
+                    }
                     //now if also doing core weighting then update the halo id associated with the particle so that
                     //it is its current halo core ID + total number of halos
                     if (opt.icorematchtype!=PARTLISTNOCORE && opt.particle_frac<1 && opt.particle_frac>0) {
@@ -291,7 +311,7 @@ int main(int argc,char **argv)
                     //for first linking, cross match and allocate memory
                     if (istep==1) {
                         //identify candidate descendants
-                        pdescen[i]=CrossMatchDescendant(opt,  pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pfofd, ilistupdated);
+                        pdescen[i]=CrossMatchDescendant(opt,  pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pfofd, ilistupdated, istep, prank);
                         //update the halo ids
                         UpdateDescendantIndexing(istep, pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pdescen[i]);
                         //build a temporally local descendant based progenitor data
@@ -304,7 +324,7 @@ int main(int argc,char **argv)
                     //if more than a single step is used to find descendants then we first search i+istep but only for those haloes that are deemed to have
                     //less than ideal descendants.
                     else {
-                        pdescentemp=CrossMatchDescendant(opt, pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pfofd, ilistupdated, istep, pdescen[i]);
+                        pdescentemp=CrossMatchDescendant(opt, pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pfofd, ilistupdated, istep, prank, pdescen[i]);
                         //if some new descendants are found then need to clean-up and merge information
                         if (ilistupdated>0) {
                             //update the halo ids
@@ -322,9 +342,11 @@ int main(int argc,char **argv)
                         delete[] pdescentemp;
                     }
 
-                    for (j=0;j<pht[i+istep].numhalos;j++)
-                        for (int k=0;k<pht[i+istep].Halo[j].NumberofParticles;k++)
+                    for (j=0;j<pht[i+istep].numhalos;j++) {
+                        for (int k=0;k<pht[i+istep].Halo[j].NumberofParticles;k++) {
                             pfofd[pht[i+istep].Halo[j].ParticleID[k]]=0;
+                        }
+                    }
                 }
                 }
                 }
@@ -335,12 +357,15 @@ int main(int argc,char **argv)
                 pdescen[i]=NULL;
             }
             //to free up some memory, no need to keep particle ids
-            if (opt.isearchdirection!=SEARCHALL) for (j=0;j<pht[i].numhalos;j++) {delete[] pht[i].Halo[j].ParticleID; pht[i].Halo[j].ParticleID=NULL;}
+            for (j=0;j<pht[i].numhalos;j++) {
+                delete[] pht[i].Halo[j].ParticleID;pht[i].Halo[j].ParticleID=NULL;
+            }
             if (opt.iverbose) cout<<ThisTask<<" finished descendant processing for snapshot "<<i<<" in "<<MyGetTime()-time2<<endl;
         }
         else pdescen[i]=NULL;
         }
         delete[] pfofd;
+        if (opt.imerittype==MERITRankWeightedBoth) delete[] prank;
 
         //after first pass (and localized to mpi domains) start final cleaning of descendant tree.
 #ifdef USEMPI

@@ -170,10 +170,8 @@ struct HDF_Part_Info {
         int itemp=0;
         if (ptype==HDFGASTYPE) {
         names[itemp++]=H5std_string("Coordinates");
-	if(hdfnametype!=HDFEAGLENAMES)
-	  names[itemp++]=H5std_string("Velocities");
-	else
-	  names[itemp++]=H5std_string("Velocity");
+        if(hdfnametype!=HDFEAGLENAMES) names[itemp++]=H5std_string("Velocities");
+        else names[itemp++]=H5std_string("Velocity");
         names[itemp++]=H5std_string("ParticleIDs");
         names[itemp++]=H5std_string("Masses");
         names[itemp++]=H5std_string("Density");
@@ -200,10 +198,8 @@ struct HDF_Part_Info {
         }
         if (ptype==HDFDMTYPE) {
         names[itemp++]=H5std_string("Coordinates");
-	if(hdfnametype!=HDFEAGLENAMES)
-	  names[itemp++]=H5std_string("Velocities");
-	else
-	  names[itemp++]=H5std_string("Velocity");
+        if(hdfnametype!=HDFEAGLENAMES) names[itemp++]=H5std_string("Velocities");
+        else names[itemp++]=H5std_string("Velocity");
         names[itemp++]=H5std_string("ParticleIDs");
         if (hdfnametype==HDFILLUSTISNAMES) {
             names[itemp++]=H5std_string("Potential");
@@ -221,10 +217,8 @@ struct HDF_Part_Info {
         }
         if (ptype==HDFSTARTYPE) {
         names[itemp++]=H5std_string("Coordinates");
-	if(hdfnametype!=HDFEAGLENAMES)
-	  names[itemp++]=H5std_string("Velocities");
-	else
-	  names[itemp++]=H5std_string("Velocity");
+        if(hdfnametype!=HDFEAGLENAMES) names[itemp++]=H5std_string("Velocities");
+        else names[itemp++]=H5std_string("Velocity");
         names[itemp++]=H5std_string("ParticleIDs");
         names[itemp++]=H5std_string("Masses");
         //for stars assume star formation and metallicy are position 4, 5 in name array
@@ -245,10 +239,8 @@ struct HDF_Part_Info {
         }
         if (ptype==HDFBHTYPE) {
         names[itemp++]=H5std_string("Coordinates");
-	if(hdfnametype!=HDFEAGLENAMES)
-	  names[itemp++]=H5std_string("Velocities");
-	else
-	  names[itemp++]=H5std_string("Velocity");
+        if(hdfnametype!=HDFEAGLENAMES) names[itemp++]=H5std_string("Velocities");
+        else names[itemp++]=H5std_string("Velocity");
         names[itemp++]=H5std_string("ParticleIDs");
         names[itemp++]=H5std_string("Masses");
         if (hdfnametype==HDFILLUSTISNAMES) {
@@ -332,12 +324,12 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
         headergroup=Fhdf.openGroup(hdf_gnames.Header_name);
 
         headerattribs=headergroup.openAttribute(hdf_header_info.names[hdf_header_info.INumTot]);
-	headerattribs.read(PredType::NATIVE_UINT,&uintbuff);
-	for (j=0;j<NHDFTYPE;j++) hdf_header_info.npartTotal[j]=uintbuff[j];
+        headerattribs.read(PredType::NATIVE_UINT,&uintbuff);
+        for (j=0;j<NHDFTYPE;j++) hdf_header_info.npartTotal[j]=uintbuff[j];
 
         headerattribs=headergroup.openAttribute(hdf_header_info.names[hdf_header_info.INumTotHW]);
-	headerattribs.read(PredType::NATIVE_UINT,&uintbuff);
-	for (j=0;j<NHDFTYPE;j++) hdf_header_info.npartTotalHW[j]=uintbuff[j];
+        headerattribs.read(PredType::NATIVE_UINT,&uintbuff);
+        for (j=0;j<NHDFTYPE;j++) hdf_header_info.npartTotalHW[j]=uintbuff[j];
     }
     catch(GroupIException error)
     {

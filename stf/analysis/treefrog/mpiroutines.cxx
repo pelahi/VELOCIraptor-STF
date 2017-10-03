@@ -723,8 +723,6 @@ void MPIUpdateDescendants(Options &opt, HaloTreeData *&pht, DescendantData **&pd
     MPI_Allgather(sendupnumstep, NProcs, MPI_INT, mpi_sendupnumstep, NProcs, MPI_INT, MPI_COMM_WORLD);
     //MPI_Allgather(senddownnumstep, NProcs, MPI_INT, mpi_senddownnumstep, NProcs, MPI_INT, MPI_COMM_WORLD);
 
-    if (ThisTask+1<NProcs) cout<<ThisTask<<" up descenprogen   "<<nsendup<<" "<<sendupnumstep[ThisTask+1]<<endl;
-
     //now send up to higher mpi processes the descendant information
     for (int itask=0;itask<NProcs-1;itask++) {
         for (int jtask=1;jtask<=mpi_nsendup[itask];jtask++) {
@@ -766,7 +764,6 @@ void MPISendDescendants(int recvtask, int isnap,HaloTreeData *&pht, DescendantDa
     for (Int_t j=0;j<pht[isnap].numhalos;j++) {
         totitems+=pdescen[isnap][j].NumberofDescendants;
     }
-cout<<ThisTask<<" sending descendant info "<<isnap<<" "<<totitems<<endl;
     MPI_Send(&pht[isnap].numhalos,1, MPI_Int_t, recvtask, isnap*NProcs*NProcs+ThisTask, MPI_COMM_WORLD);
     MPI_Send(&totitems,1, MPI_Int_t, recvtask, isnap*NProcs*NProcs+ThisTask+NProcs, MPI_COMM_WORLD);
     if (totitems>0) {
@@ -823,7 +820,6 @@ void MPIRecvDescendants(int sendtask, int isnap, HaloTreeData *&pht, DescendantD
     MPI_Recv(&pht[isnap].numhalos,1, MPI_Int_t, sendtask, isnap*NProcs*NProcs+sendtask, MPI_COMM_WORLD,&status);
     MPI_Recv(&totitems,1, MPI_Int_t, sendtask, isnap*NProcs*NProcs+sendtask+NProcs, MPI_COMM_WORLD,&status);
     pdescen[isnap]=new DescendantData[pht[isnap].numhalos];
-cout<<ThisTask<<" receving descendant info "<<isnap<<" "<<totitems<<" "<<pht[isnap].numhalos<<endl;
     if (totitems>0) {
 
         numdescen=new int[pht[isnap].numhalos];
