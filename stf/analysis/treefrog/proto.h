@@ -201,7 +201,7 @@ int CrossMatchDescendantIndividual(Options &opt, Int_t i,
     DescendantData *&d1,
     unsigned int *&sharelist,
     unsigned int *&halolist,
-    long unsigned offset, long unsigned offset2, 
+    long unsigned offset, long unsigned offset2,
     unsigned int *&sharepartlist,
     unsigned int *&pranking2,
     Double_t *&rankingsum
@@ -210,7 +210,7 @@ int CrossMatchDescendantIndividual(Options &opt, Int_t i,
 ///updates the haloids stored in the descendant list
 void UpdateDescendantIndexing(const int istepval, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData *&h2, DescendantData *&p1);
 ///prunes the descendant list
-void CleanCrossMatchDescendant(Int_t itime, HaloTreeData *&pht, ProgenitorDataDescenBased **&pdescenprogen, DescendantData **&pdescen, int iverbose=0);
+void CleanCrossMatchDescendant(Options &opt, Int_t itime, HaloTreeData *&pht, ProgenitorDataDescenBased **&pdescenprogen, DescendantData **&pdescen);
 
 ///builds the possible set of progenitors using candidate descendants, similar to \ref BuildProgenitorBasedDescendantList.
 void BuildDescendantBasedProgenitorList(Int_t itimedescen, Int_t nhalos, DescendantData *&pdecen, ProgenitorDataDescenBased *&pdescenprogen, int istep=1);
@@ -227,7 +227,7 @@ void AddLinksDescendantBasedProgenitorList(Int_t itime, Int_t ihaloindex, Descen
 ///Rank the progenitors in the descendant tree using the descendants and a general temporal merit.
 void RankDescendantProgenitors(Int_t i, HaloTreeData *&pht, ProgenitorDataDescenBased **&pdescenprogen, DescendantData **&pdecen, int iopttemporalmerittype);
 ///clean the descendant list to adjust descedant rankings to minimize number of objects with no primary progenitors
-void CleanDescendantsForMissingProgenitors(Int_t itime, HaloTreeData *&pht, ProgenitorDataDescenBased **&pdescenprogen, DescendantData **&pdescen, Double_t merittol, Double_t meritlimit, int iverbose=0);
+void CleanDescendantsForMissingProgenitors(Options &opt, Int_t itime, HaloTreeData *&pht, ProgenitorDataDescenBased **&pdescenprogen, DescendantData **&pdescen);
 
 ///Reranks descendants based on descendant to progenitor ranking and then merit.
 void RerankDescendants(Options &opt, HaloTreeData *&pht, DescendantData **&pdescen);

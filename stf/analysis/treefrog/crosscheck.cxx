@@ -801,83 +801,115 @@ private(i,j,k)
 ///ranks of the progenitors of these secondary descendants are set to 0
 ///also then searches for any objects that have more than one possible descendant but none are rank 0.
 ///these are checked to see if a zero rank descendant can be identified.
-void CleanCrossMatchDescendant(Int_t itime, HaloTreeData *&pht, ProgenitorDataDescenBased **&pdescenprogen, DescendantData **&pdescen, int iverbose)
+void CleanCrossMatchDescendant(Options &opt, Int_t itime, HaloTreeData *&pht, ProgenitorDataDescenBased **&pdescenprogen, DescendantData **&pdescen)
 {
     Int_t i,j,k;
     int nthreads=1,tid;
-    int irank;
-    int nfirstrank;
+    int iflag;
     int itimedescen, itimeprogen;
     unsigned long did;
     Int_t progindex,descenindex,descentemporalindex,descenprogenindex;
     PriorityQueue *pq;
     unsigned short rank;
-    Double_t generalizedmerit;
+    Double_t generalizedmerit, meritratio;
     int numcurprogen;
     int numcorrected=0;
+    vector<Double_t> meritvec;
+    vector<int> descenindexvec;
+    vector<int> descenindexvec2;
 
     //the idea here is to adjust rankings of descendant to progenitor or remove a connection completely
     //if an object has two our more descendants of rank 0
     for (Int_t k=0;k<pht[itime].numhalos;k++) if (pdescen[itime][k].NumberofDescendants>1)
     {
+        //if object has very low merit, ignore
+        if (pdescen[itime][k].Merit[0]<opt.meritlimit) continue;
         //find first number of rank 0 descendants
-        irank=-1;
-        nfirstrank=0;
         for (auto idescen=0;idescen<pdescen[itime][k].NumberofDescendants;idescen++)
         {
-            if (pdescen[itime][k].dtoptype[idescen]==0) {
-                if (irank==-1) irank=idescen;
-                nfirstrank++;
+            if (pdescen[itime][k].dtoptype[idescen]==0 && pdescen[itime][k].Merit[idescen]>opt.meritlimit) {
+                descenindexvec.push_back(idescen);
             }
         }
-        if (nfirstrank<=1) continue;
-        //if there is a rank zero and there is more than one first rank then need to update the other progenitors
-        for (auto idescen=irank+1;idescen<pdescen[itime][k].NumberofDescendants;idescen++) {
-            if (pdescen[itime][k].dtoptype[idescen]==0) {
-                itimedescen=itime+pdescen[itime][k].istep;
-                did=pdescen[itime][k].DescendantList[idescen]-1;
-                //now update all the progenitor rankings associated with this descendant, swapping the rankings for any
-                //descendants that have more than one progenitor
-                if (pdescenprogen[itimedescen][did].NumberofProgenitors<=1) continue;
-                //adjust the rank of this descendant
-                pdescen[itime][k].dtoptype[idescen]=1;
-                for (auto iprogen=0;iprogen<pdescenprogen[itimedescen][did].NumberofProgenitors;iprogen++) {
-                    descenindex=pdescenprogen[itimedescen][did].haloindex[iprogen];
-                    descentemporalindex=pdescenprogen[itimedescen][did].halotemporalindex[iprogen];
-                    descenprogenindex=pdescenprogen[itimedescen][did].progenindex[iprogen];
-                    //found object in ProgenitorDataDescenBased that must be changed
-                    if (descenindex==k && descentemporalindex==itime) {
-                        pdescenprogen[itimedescen][did].dtoptype[iprogen]=1;
-                        break;
-                    }
-                }
-                //now having fixed the progenitors of descendant under adjustment, need to adjust other secondary rank progenitors
-                for (auto iprogen=0;iprogen<pdescenprogen[itimedescen][did].NumberofProgenitors;iprogen++) {
-                    descenindex=pdescenprogen[itimedescen][did].haloindex[iprogen];
-                    descentemporalindex=pdescenprogen[itimedescen][did].halotemporalindex[iprogen];
-                    descenprogenindex=pdescenprogen[itimedescen][did].progenindex[iprogen];
-                    //found the object whose rank needs to be changed.
-                    if (!(descenindex==k && descentemporalindex==itime) && pdescenprogen[itimedescen][did].dtoptype[iprogen]==1)
-                    {
+        if (descenindexvec.size()<=1) {
+            descenindexvec.clear();
+            continue;
+        }
+        //now search all other objects to see if they have descendants that link to other progenitors
+        //if an object has multiple descendants of similar rank, may want to flag it as poor, reset ranks
+        descenindexvec2.push_back(descenindexvec[0]);
+        meritvec.push_back(pdescen[itime][k].Merit[descenindexvec[0]]);
+        for (auto idescen=1;idescen<descenindexvec.size();idescen++) {
+            itimedescen=itime+pdescen[itime][k].istep;
+            did=pdescen[itime][k].DescendantList[descenindexvec[idescen]]-1;
+            //if object does not have another useful progenitor do nothing other than note this object
+            iflag=0;
+            for (auto iprogen=0;iprogen<pdescenprogen[itimedescen][did].NumberofProgenitors;iprogen++) iflag+=(pdescenprogen[itimedescen][did].Merit[iprogen]>opt.meritlimit);
+            if (iflag<=1) {
+                descenindexvec2.push_back(descenindexvec[idescen]);
+                meritvec.push_back(pdescen[itime][k].Merit[descenindexvec[idescen]]);
+                continue;
+            }
+            //otherwise see if the ranking can be swapped.
+            //check other possible progenitors of this descendant, compare the merits
+            iflag=0;
+            for (auto iprogen=0;iprogen<pdescenprogen[itimedescen][did].NumberofProgenitors;iprogen++) {
+                descenindex=pdescenprogen[itimedescen][did].haloindex[iprogen];
+                descentemporalindex=pdescenprogen[itimedescen][did].halotemporalindex[iprogen];
+                descenprogenindex=pdescenprogen[itimedescen][did].progenindex[iprogen];
+                //found the object whose rank can be changed. if merit is reasonable, change ranking
+                if (!(descenindex==k && descentemporalindex==itime) && pdescenprogen[itimedescen][did].dtoptype[iprogen]==1)
+                {
+                    meritratio=pdescenprogen[itimedescen][did].Merit[iprogen]/pdescen[itime][k].Merit[descenindexvec[idescen]];
+                    if (meritratio<opt.meritratiolimit && 1.0/meritratio<opt.meritratiolimit) {
+                        iflag=1;
                         pdescenprogen[itimedescen][did].dtoptype[iprogen]=0;
 #ifdef USEMPI
-                        if (pdescenprogen[itimedescen][did].MPITask[iprogen]==ThisTask) {
+                        if (pdescenprogen[itimedescen][did].MPITask[iprogen]==ThisTask)
 #endif
-                            pdescen[descentemporalindex][descenindex].dtoptype[descenprogenindex]=0;
-#ifdef USEMPI
-                        }
-#endif
-                        break;
+                        pdescen[descentemporalindex][descenindex].dtoptype[descenprogenindex]=0;
                     }
+                    break;
                 }
+            }
+            if (iflag==0) continue;
+            //now if adjusted secondary rank progenitors, fix the progenitors of descendant under scrutiny
+            //adjust the rank of this descendant
+            pdescen[itime][k].dtoptype[descenindexvec[idescen]]=1;
+            //find where this information is stored in its descendant and adjust it as well.
+            for (auto iprogen=0;iprogen<pdescenprogen[itimedescen][did].NumberofProgenitors;iprogen++) {
+                descenindex=pdescenprogen[itimedescen][did].haloindex[iprogen];
+                descentemporalindex=pdescenprogen[itimedescen][did].halotemporalindex[iprogen];
+                descenprogenindex=pdescenprogen[itimedescen][did].progenindex[iprogen];
+                //found object in ProgenitorDataDescenBased that must be changed
+                if (descenindex==k && descentemporalindex==itime) {
+                    pdescenprogen[itimedescen][did].dtoptype[iprogen]=1;
+                    break;
+                }
+            }
+            numcorrected++;
+        }
+        descenindexvec.clear();
+        //now if there are remaining other zero rank objects, check to see if in this list
+        //merits are similar enough to warrent flagging this objects as having poor matches
+        if (descenindexvec2.size()<=1) {
+            descenindexvec2.clear();
+            meritvec.clear();
+            continue;
+        }
+        if (meritvec[0]/meritvec[1]<opt.meritratioambiguitylimit) {
+            for (auto idescen=0;idescen<descenindexvec2.size();idescen++) {
+                pdescen[itime][k].dtoptype[descenindexvec[idescen]]=1;
                 numcorrected++;
             }
         }
+        descenindexvec2.clear();
+        meritvec.clear();
     }
-    if (iverbose>=2) cout<<"Number of corrected haloes "<<numcorrected<<endl;
+    if (opt.iverbose>=2) cout<<"Number of corrected haloes "<<numcorrected<<endl;
 }
 
-void CleanDescendantsForMissingProgenitors(Int_t itime, HaloTreeData *&pht, ProgenitorDataDescenBased **&pdescenprogen, DescendantData **&pdescen, Double_t meritratiolimit, Double_t meritlimit, int iverbose)
+void CleanDescendantsForMissingProgenitors(Options &opt, Int_t itime, HaloTreeData *&pht, ProgenitorDataDescenBased **&pdescenprogen, DescendantData **&pdescen)
 {
     Int_t i,j,k;
     int nthreads=1,tid;
@@ -910,7 +942,7 @@ void CleanDescendantsForMissingProgenitors(Int_t itime, HaloTreeData *&pht, Prog
         //now have halo of interest, see if its lowest (best) rank progenitor has more than one descendant
         merit1=pdescenprogen[itime][k].Merit[index];
         //check to see if merit is viable enough to warrant adjusting rankings
-        if (merit1<meritlimit) continue;
+        if (merit1<opt.meritlimit) continue;
 
         //get the progenitor and see if it has other descendants
         descenindex=pdescenprogen[itime][k].haloindex[index];
@@ -937,7 +969,7 @@ void CleanDescendantsForMissingProgenitors(Int_t itime, HaloTreeData *&pht, Prog
         //now have best rank, lets check merits
         meritprime=pdescen[descentemporalindex][descenindex].Merit[descenprogenprimeindex];
         //if merit is not within some factor then stop
-        if (merit1/meritprime>meritratiolimit || meritprime/merit1>meritratiolimit) continue;
+        if (merit1/meritprime>opt.meritratiolimit || meritprime/merit1>opt.meritratiolimit) continue;
 
         //find where progenitor is in the progenitor  list
         for (auto iprogen=0;iprogen<pdescenprogen[itimedescenprog][descenprogindex].NumberofProgenitors;iprogen++) {
@@ -965,8 +997,8 @@ void CleanDescendantsForMissingProgenitors(Int_t itime, HaloTreeData *&pht, Prog
 
         merit2=pdescen[descentemporalindex2][descenindex2].Merit[descenprogenindex2];
         //also check other merit to see if swap is allowed
-        if (merit2<meritlimit) continue;
-        if (merit2/meritprime>meritratiolimit || meritprime/merit2>meritratiolimit) continue;
+        if (merit2<opt.meritlimit) continue;
+        if (merit2/meritprime>opt.meritratiolimit || meritprime/merit2>opt.meritratiolimit) continue;
 
         //first the rank 1 progenitor of the secondary descendant now becomes the main progenitor
         pdescen[descentemporalindex2][descenindex2].dtoptype[descenprogenindex2]=0;
@@ -979,7 +1011,7 @@ void CleanDescendantsForMissingProgenitors(Int_t itime, HaloTreeData *&pht, Prog
         pdescenprogen[itime][k].dtoptype[index]=0;
         numcorrected++;
     }
-    if (iverbose>=2) cout<<"Number of corrected haloes that did not have primary progenitors "<<numcorrected<<" with all possibilities being "<<numall<<endl;
+    if (opt.iverbose>=2) cout<<"Number of corrected haloes that did not have primary progenitors "<<numcorrected<<" with all possibilities being "<<numall<<endl;
 }
 //@}
 
@@ -1214,6 +1246,8 @@ void UpdateDescendantUsingDescendantBasedProgenitorList(Int_t nhalos,
     PriorityQueue *pq;
     Int_t nattime,rank;
     Int_t progindex,descenindex,descenprogenindex;
+    vector<int> progindexvec;
+    vector<Double_t> meritvec;
     for (Int_t k=0;k<nhalos;k++) if (pdescenprogen[k].NumberofProgenitors>1)
     {
         //for each halo descandant rank its progenior haloes based on the merit at a given time
@@ -1226,6 +1260,36 @@ void UpdateDescendantUsingDescendantBasedProgenitorList(Int_t nhalos,
         {
             pq->Push(iprogen,pdescenprogen[k].Merit[iprogen]);
         }
+        /*
+        //fill vector in order
+        while(pq->Size()>0)
+        {
+            progindexvec.push_back(pq->TopQueue());
+            meritvec.push_back(pq->TopPriority());
+            pq->Pop();
+        }
+        delete pq;
+        //if the merit is poor then ranking starts at 1, otherwise, have a valid zero rank descendant/progenitor
+        //also if second best merit is viable and almost equivalent to best merit
+        //then also not ideal progenitor found
+        //if not then no progenitor is ideal and increase rank value by 1
+        rank=0;
+        if (meritvec[0]<meritlimit) rank=1;
+        else if (nattime>1) {
+            if (meritvec[1]/meritvec[0]>0.75) rank=1;
+        }
+        for (auto iprogen=0;iprogen<progindexvec.size();iprogen++)
+        {
+            progindex=progindexvec[iprogen];
+            descenindex=pdescenprogen[k].haloindex[progindex];
+            descenprogenindex=pdescenprogen[k].progenindex[progindex];
+            pdescenprogen[k].dtoptype[progindex]=rank;
+            pdescen[descenindex].dtoptype[descenprogenindex]=rank;
+            rank++;
+        }
+        progindexvec.clear();
+        meritvec.clear();
+        */
         //if the merit is poor then ranking starts at 1, otherwise, have a valid zero rank descendant/progenitor
         rank=(pq->TopPriority()<meritlimit);
         while(pq->Size()>0)

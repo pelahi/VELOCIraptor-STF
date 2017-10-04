@@ -246,8 +246,10 @@ struct Options
     Double_t mlsig;
     ///cross match merit limit for deciding whether to search previous snapshot
     Double_t meritlimit;
-    ///allowed merit ratio  when comparing merits between two viable connections
+    ///allowed merit ratio when comparing merits between two viable connections for swapping
     Double_t meritratiolimit;
+    ///merit ratio when deciding that have significant ambiguity no ideal descendant/progenitor found
+    Double_t meritratioambiguitylimit;
 
     ///particle type cross matching subselection
     int itypematch;
@@ -353,6 +355,7 @@ struct Options
         min_numpart=20;
         max_numpart=-1;
         meritratiolimit=4.0;
+        meritratioambiguitylimit=1.5;
 
         iverbose=1;
         idefaultvalues=1;
