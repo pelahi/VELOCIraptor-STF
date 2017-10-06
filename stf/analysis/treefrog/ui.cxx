@@ -383,10 +383,11 @@ void usage(void)
 //check to see if config options are acceptable.
 inline void ConfigCheck(Options &opt)
 {
-    if (opt.fname==NULL||opt.outname==NULL){
-#ifdef USEMPI
-    if (ThisTask==0)
+#ifndef USEMPI
+    int ThisTask=0;
 #endif
+    if (opt.fname==NULL||opt.outname==NULL){
+    if (ThisTask==0)
         cerr<<"Must provide input and output file names\n";
 #ifdef USEMPI
             MPI_Abort(MPI_COMM_WORLD,8);
@@ -397,9 +398,7 @@ inline void ConfigCheck(Options &opt)
 
     if (opt.imapping==DSIMPLEMAP) opt.mappingfunc=simplemap;
     if (opt.numsnapshots<2){
-#ifdef USEMPI
     if (ThisTask==0)
-#endif
         cerr<<"Number of snapshots must be >=2\n";
 #ifdef USEMPI
             MPI_Abort(MPI_COMM_WORLD,8);
@@ -408,9 +407,7 @@ inline void ConfigCheck(Options &opt)
 #endif
     }
     if (opt.numsteps<1){
-#ifdef USEMPI
     if (ThisTask==0)
-#endif
         cerr<<"Number of steps over which to produce links must be >=1\n";
 #ifdef USEMPI
             MPI_Abort(MPI_COMM_WORLD,8);
@@ -504,7 +501,7 @@ inline void ConfigCheck(Options &opt)
     opt.description+=static_cast<ostringstream*>( &(ostringstream() << opt.meritlimit) )->str();
     opt.description+=(char*)" | ";
 
-    cout<<"TreeFrog running with "<<endl<<"---------"<<endl<<opt.description<<endl<<"---------"<<endl<<endl;
+    if (ThisTask==0) cout<<"TreeFrog running with "<<endl<<"---------"<<endl<<opt.description<<endl<<"---------"<<endl<<endl;
 }
 
 /*!

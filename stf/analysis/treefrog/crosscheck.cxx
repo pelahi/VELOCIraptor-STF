@@ -552,7 +552,7 @@ int CrossMatchDescendantIndividual(Options &opt, Int_t i,
     for (j=0;j<np1;j++){
         hid=pfof2[h1[i].ParticleID[j]];
         //correction if use core weighted particles as well.
-        if (opt.particle_frac<1 && opt.particle_frac>0 && hid>nhalos2) hid-=nhalos2;
+        if (opt.icorematchtype!=PARTLISTNOCORE &&  opt.particle_frac<1 && opt.particle_frac>0 && hid>nhalos2) hid-=nhalos2;
         index=offset+hid-(long int)1;
         if (hid>0) {
             sharelist[index]+=1;
@@ -628,7 +628,7 @@ int CrossMatchDescendantIndividual(Options &opt, Int_t i,
                 if (hid>0){
                     sharelist[index]+=1;
                     if (sharelist[index]==1) halolist[offset+numshared++]=hid-1;
-                    if (opt.imerittype==MERITRankWeighted||opt.imerittype==MERITRankWeightedBoth) sharepartlist[j+offset]=hid;
+                    if (opt.imerittype==MERITRankWeighted||opt.imerittype==MERITRankWeightedBoth) sharepartlist[j+offset2]=hid;
                     //if need ranking the other way, calculate that as well
                     if (opt.imerittype==MERITRankWeightedBoth) rankingsum[hid-1+offset]+=1.0/(1.0+pranking2[h1[i].ParticleID[j]]);
                 }
@@ -658,8 +658,8 @@ int CrossMatchDescendantIndividual(Options &opt, Int_t i,
                     np2=h2[j].NumberofParticles*opt.particle_frac;
                     if (np2<opt.min_numpart) np2=opt.min_numpart;
                     if (np2>h2[j].NumberofParticles) np2=h2[j].NumberofParticles;
-                    if (opt.imerittype==MERITRankWeighted) merit=CalculateMerit(opt,np1,np2,sharelist[index],h1[i],h2[j],j+1,&sharepartlist[offset]);
-                    else if (opt.imerittype==MERITRankWeightedBoth) merit=CalculateMerit(opt,np1,np2,sharelist[index],h1[i],h2[j],j+1,&sharepartlist[offset],&rankingsum[offset]);
+                    if (opt.imerittype==MERITRankWeighted) merit=CalculateMerit(opt,np1,np2,sharelist[index],h1[i],h2[j],j+1,&sharepartlist[offset2]);
+                    else if (opt.imerittype==MERITRankWeightedBoth) merit=CalculateMerit(opt,np1,np2,sharelist[index],h1[i],h2[j],j+1,&sharepartlist[offset2],&rankingsum[offset]);
                     else merit=CalculateMerit(opt,np1,np2,sharelist[index],h1[i],h2[j],j+1);
                     pq2->Push(j,merit);
                     sharelist[index]=0;
@@ -842,6 +842,20 @@ void CleanCrossMatchDescendant(Options &opt, Int_t itime, HaloTreeData *&pht, Pr
         for (auto idescen=1;idescen<descenindexvec.size();idescen++) {
             itimedescen=itime+pdescen[itime][k].istep;
             did=pdescen[itime][k].DescendantList[descenindexvec[idescen]]-1;
+            //adjust the rank of this descendant
+            pdescen[itime][k].dtoptype[descenindexvec[idescen]]=1;
+            //find where this information is stored in its descendant and adjust it as well.
+            for (auto iprogen=0;iprogen<pdescenprogen[itimedescen][did].NumberofProgenitors;iprogen++) {
+                descenindex=pdescenprogen[itimedescen][did].haloindex[iprogen];
+                descentemporalindex=pdescenprogen[itimedescen][did].halotemporalindex[iprogen];
+                descenprogenindex=pdescenprogen[itimedescen][did].progenindex[iprogen];
+                //found object in ProgenitorDataDescenBased that must be changed
+                if (descenindex==k && descentemporalindex==itime) {
+                    pdescenprogen[itimedescen][did].dtoptype[iprogen]=1;
+                    break;
+                }
+            }
+
             //if object does not have another useful progenitor do nothing other than note this object
             iflag=0;
             for (auto iprogen=0;iprogen<pdescenprogen[itimedescen][did].NumberofProgenitors;iprogen++) iflag+=(pdescenprogen[itimedescen][did].Merit[iprogen]>opt.meritlimit);
@@ -873,6 +887,7 @@ void CleanCrossMatchDescendant(Options &opt, Int_t itime, HaloTreeData *&pht, Pr
                 }
             }
             if (iflag==0) continue;
+            /*
             //now if adjusted secondary rank progenitors, fix the progenitors of descendant under scrutiny
             //adjust the rank of this descendant
             pdescen[itime][k].dtoptype[descenindexvec[idescen]]=1;
@@ -886,22 +901,24 @@ void CleanCrossMatchDescendant(Options &opt, Int_t itime, HaloTreeData *&pht, Pr
                     pdescenprogen[itimedescen][did].dtoptype[iprogen]=1;
                     break;
                 }
-            }
+            }*/
             numcorrected++;
         }
         descenindexvec.clear();
         //now if there are remaining other zero rank objects, check to see if in this list
-        //merits are similar enough to warrent flagging this objects as having poor matches
+        //merits are similar enough to warrent flagging this primary object under scrutiny as having an ambiguous match
         if (descenindexvec2.size()<=1) {
             descenindexvec2.clear();
             meritvec.clear();
             continue;
         }
         if (meritvec[0]/meritvec[1]<opt.meritratioambiguitylimit) {
-            for (auto idescen=0;idescen<descenindexvec2.size();idescen++) {
+            pdescen[itime][k].dtoptype[descenindexvec[0]]=1;
+            numcorrected++;
+            /*for (auto idescen=0;idescen<descenindexvec2.size();idescen++) {
                 pdescen[itime][k].dtoptype[descenindexvec[idescen]]=1;
                 numcorrected++;
-            }
+            }*/
         }
         descenindexvec2.clear();
         meritvec.clear();
@@ -1431,40 +1448,46 @@ void RerankDescendants(Options &opt, HaloTreeData *&pht, DescendantData **&pdesc
 #ifndef USEMPI
     int StartSnap=0,EndSnap=opt.numsnapshots;
 #endif
-    PriorityQueue *pq;
     int mindtop,index,rank;
     Double_t maxmerit,generalizedmerit;
     unsigned long descen;
-    DescendantData dtemp;
+    vector<pair<Double_t,unsigned long>> merit;
+    vector<int> dtop;
+    vector<unsigned long> dindex;
     for (auto i=StartSnap;i<EndSnap-1;i++) {
         for (Int_t j=0;j<pht[i].numhalos;j++){
             if (pdescen[i][j].NumberofDescendants>1) {
-                pq=new PriorityQueue(pdescen[i][j].NumberofDescendants);
-                dtemp=pdescen[i][j];
-                //sort descendant list according to merit and rank
                 for (auto k=0;k<pdescen[i][j].NumberofDescendants;k++)
                 {
                     //rank accoring to initial ranking and generalized merit.
                     rank=pdescen[i][j].dtoptype[k];
                     generalizedmerit=pdescen[i][j].Merit[k];
                     generalizedmerit/=(rank+1.0);
-                    pq->Push(k,generalizedmerit);
+                    for (auto k=0;k<pdescen[i][j].NumberofDescendants;k++)
+                    {
+                     	//rank accoring to initial ranking and generalized merit.
+                        rank=pdescen[i][j].dtoptype[k];
+                        generalizedmerit=pdescen[i][j].Merit[k];
+                        generalizedmerit/=(rank+1.0);
+                        //for ascending order merit, store 1/merit
+                        merit.push_back(make_pair(1.0/generalizedmerit,k));
+                        dtop.push_back(pdescen[i][j].dtoptype[k]);
+                        dindex.push_back(pdescen[i][j].DescendantList[k]);
+                    }
+                    sort(merit.begin(),merit.end());
+                    for (auto k=0;k<pdescen[i][j].NumberofDescendants;k++) {
+                        index=merit[k].second;
+                      	pdescen[i][j].Merit[k]=1.0/merit[k].first;
+                        pdescen[i][j].DescendantList[k]=dindex[index];
+                        pdescen[i][j].dtoptype[k]=dtop[index];
+                    }
+                    merit.clear();
+                    dtop.clear();
+                    dindex.clear();
                 }
-                rank=0;
-                while(pq->Size()>0)
-                {
-                    index=pq->TopQueue();
-                    pdescen[i][j].DescendantList[rank]=dtemp.DescendantList[index];
-                    pdescen[i][j].Merit[rank]=dtemp.Merit[index];
-                    pdescen[i][j].dtoptype[rank]=dtemp.dtoptype[index];
-                    rank++;
-                    pq->Pop();
-                }
-                delete pq;
             }
         }
     }
-
 }
 //@}
 //@}
