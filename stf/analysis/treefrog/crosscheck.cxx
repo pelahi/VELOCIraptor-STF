@@ -1436,33 +1436,31 @@ void RerankDescendants(Options &opt, HaloTreeData *&pht, DescendantData **&pdesc
     Double_t maxmerit,generalizedmerit;
     unsigned long descen;
     DescendantData dtemp;
-    for (int i=0;i<opt.numsnapshots;i++) {
-        if (i>=StartSnap && i<EndSnap-1) {
-            for (Int_t j=0;j<pht[i].numhalos;j++){
-                if (pdescen[i][j].NumberofDescendants>1) {
-                    pq=new PriorityQueue(pdescen[i][j].NumberofDescendants);
-                    dtemp=pdescen[i][j];
-                    //sort descendant list according to merit and rank
-                    for (auto k=0;k<pdescen[i][j].NumberofDescendants;k++)
-                    {
-                        //rank accoring to initial ranking and generalized merit.
-                        rank=pdescen[i][j].dtoptype[k];
-                        generalizedmerit=pdescen[i][j].Merit[k];
-                        generalizedmerit/=(rank+1.0);
-                        pq->Push(k,generalizedmerit);
-                    }
-                    rank=0;
-                    while(pq->Size()>0)
-                    {
-                        index=pq->TopQueue();
-                        pdescen[i][j].DescendantList[rank]=dtemp.DescendantList[index];
-                        pdescen[i][j].Merit[rank]=dtemp.Merit[index];
-                        pdescen[i][j].dtoptype[rank]=dtemp.dtoptype[index];
-                        rank++;
-                        pq->Pop();
-                    }
-                    delete pq;
+    for (auto i=StartSnap;i<EndSnap-1;i++) {
+        for (Int_t j=0;j<pht[i].numhalos;j++){
+            if (pdescen[i][j].NumberofDescendants>1) {
+                pq=new PriorityQueue(pdescen[i][j].NumberofDescendants);
+                dtemp=pdescen[i][j];
+                //sort descendant list according to merit and rank
+                for (auto k=0;k<pdescen[i][j].NumberofDescendants;k++)
+                {
+                    //rank accoring to initial ranking and generalized merit.
+                    rank=pdescen[i][j].dtoptype[k];
+                    generalizedmerit=pdescen[i][j].Merit[k];
+                    generalizedmerit/=(rank+1.0);
+                    pq->Push(k,generalizedmerit);
                 }
+                rank=0;
+                while(pq->Size()>0)
+                {
+                    index=pq->TopQueue();
+                    pdescen[i][j].DescendantList[rank]=dtemp.DescendantList[index];
+                    pdescen[i][j].Merit[rank]=dtemp.Merit[index];
+                    pdescen[i][j].dtoptype[rank]=dtemp.dtoptype[index];
+                    rank++;
+                    pq->Pop();
+                }
+                delete pq;
             }
         }
     }

@@ -465,14 +465,13 @@ void MPIUpdateDescendantUsingProgenitors(Options &opt, HaloTreeData *&pht, Proge
     MPI_Allgather(sendupnumstep, NProcs, MPI_INT, mpi_sendupnumstep, NProcs, MPI_INT, MPI_COMM_WORLD);
     MPI_Allgather(senddownnumstep, NProcs, MPI_INT, mpi_senddownnumstep, NProcs, MPI_INT, MPI_COMM_WORLD);
 
-if (ThisTask+1<NProcs) cout<<ThisTask<<" up descenprogen   "<<nsendup<<" "<<sendupnumstep[ThisTask+1]<<endl;
-if (ThisTask-1>=0) cout<<ThisTask<<" down descenprogen "<<nsenddown<<" "<<senddownnumstep[ThisTask-1]<<endl;
     //set the number of items that are local before mpi passes
-    for (isnap=StartSnap;isnap<EndSnap;isnap++) {
-        for (Int_t j=0;j<pht[isnap].numhalos;j++) {
+    for (isnap=StartSnap+1;isnap<EndSnap;isnap++) {
+        for (Int_t j=0;j<pht[isnap].numhalos;j++) if (pdescenprogen[isnap]!=NULL) {
             pdescenprogen[isnap][j].nlocal=pdescenprogen[isnap][j].NumberofProgenitors;
         }
     }
+
     //then send information from task itask to itask+1, itask+2 ... for all snapshots that have overlapping times
     //note that as the DescendantDataProgenBased contains vectors, have to send size then each element which itself contains arrays
     //ideally we could use boost to specify the mpi data format but for now lets just generate arrays containing all the data that can then be parsed
@@ -679,9 +678,9 @@ void MPIRecvDescendantsUsingProgenitors(int sendtask, int isnap, HaloTreeData *&
         MPI_Recv(&removaltothalotemporalindex[0],removaltotitems, MPI_INT, sendtask, isnap*NProcs*NProcs*NProcs+sendtask+5*NProcs, MPI_COMM_WORLD,&status);
 
         //then merge the mpi data together
-        for (Int_t j=0;j<pht[isnap].numhalos;j++)
+        if (totitems>0) for (Int_t j=0;j<pht[isnap].numhalos;j++)
             pdescenprogen[isnap][j].Merge(ThisTask,numdescen[j],&tothaloindex[noffset[j]],&tothalotemporalindex[noffset[j]],&totmerit[noffset[j]],&totdeltat[noffset[j]],&totprogenindex[noffset[j]],&totdtop[noffset[j]],&totMPITask[noffset[j]]);
-        for (Int_t j=0;j<pht[isnap].numhalos;j++)
+        if (removaltotitems>0) for (Int_t j=0;j<pht[isnap].numhalos;j++)
             pdescenprogen[isnap][j].Removal(nremoval[j],&removaltothaloindex[removalnoffset[j]],&removaltothalotemporalindex[removalnoffset[j]]);
 
         delete[] numdescen;
