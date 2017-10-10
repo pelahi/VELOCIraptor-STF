@@ -653,8 +653,10 @@ void SavePIDStoIndexMap(Options &opt,map<IDTYPE, IDTYPE>&idmap)
     IDTYPE *keys,*indices;
     Int_t i;
     size_t idsize,mapsize;
+    unsigned long chunksize,offset,oldchunksize;
+    unsigned int nchunks;
 #ifndef USEMPI
-    int ThisTask=0;
+    int ThisTask=0, NProcs=1;
 #endif
     if (ThisTask==0)
     {
@@ -668,94 +670,131 @@ void SavePIDStoIndexMap(Options &opt,map<IDTYPE, IDTYPE>&idmap)
         Fout.write((char*)&idsize,sizeof(size_t));
         mapsize=idmap.size();
         Fout.write((char*)&mapsize,sizeof(size_t));
-        keys=new IDTYPE[mapsize];
-        indices=new IDTYPE[mapsize];
+        chunksize=10000;
+        nchunks=ceil(mapsize/(Double_t)chunksize);
+        if (chunksize>mapsize) {
+            chunksize=mapsize;
+            nchunks=1;
+        }
+        oldchunksize=chunksize;
+        keys=new IDTYPE[chunksize];
+        offset=0;
         i=0;
         for (auto it: idmap) {
-            keys[i]=it.first;
-            indices[i]=it.second;
-            i++;
+            keys[i++]=it.first;
+            if (i==chunksize) {
+                i=0;
+                Fout.write((char*)keys,sizeof(IDTYPE)*chunksize);
+                offset+=chunksize;
+                chunksize=min(chunksize,mapsize-offset);
+            }
         }
-        Fout.write((char*)keys,sizeof(IDTYPE)*mapsize);
-        Fout.write((char*)indices,sizeof(IDTYPE)*mapsize);
-        Fout.close();
         delete[] keys;
+        chunksize=oldchunksize;
+        indices=new IDTYPE[chunksize];
+        offset=0;
+        i=0;
+        for (auto it: idmap) {
+            indices[i++]=it.second;
+            if (i==chunksize) {
+                i=0;
+                Fout.write((char*)indices,sizeof(IDTYPE)*chunksize);
+                offset+=chunksize;
+                chunksize=min(chunksize,mapsize-offset);
+            }
+        }
         delete[] indices;
+        Fout.close();
     }
 }
 ///if a memory efficient particle id to index map file exists read it
 int ReadPIDStoIndexMap(Options &opt,map<IDTYPE, IDTYPE>&idmap)
 {
     char fname[1000];
-    fstream Fout;
+    fstream Fin, Fin2;
     IDTYPE *keys,*indices;
     Int_t i;
     size_t idsize,mapsize;
+    unsigned long chunksize,offset;
+    unsigned int nchunks;
     int numsnap;
     long unsigned tothalo;
     int iflag=0;
     double time1;
 #ifndef USEMPI
-    int ThisTask=0;
+    int ThisTask=0, NProcs=1;
 #endif
     if (ThisTask==0) {
         sprintf(fname,"%s.pidtoindexmap.dat",opt.outname);
-        Fout.open(fname,ios::in|ios::binary);
+        Fin.open(fname,ios::in|ios::binary);
+        //used to get to desired offset in file to read indices
+        Fin2.open(fname,ios::in|ios::binary);
         cout<<"Attempting to read unique memory efficent mapping for particle IDS to index to "<<fname<<endl;
         //write header information
-        Fout.read((char*)&numsnap,sizeof(int));
-        Fout.read((char*)&tothalo,sizeof(long unsigned));
-        Fout.read((char*)&idsize,sizeof(size_t));
+        Fin.read((char*)&numsnap,sizeof(int));
+        Fin.read((char*)&tothalo,sizeof(long unsigned));
+        Fin.read((char*)&idsize,sizeof(size_t));
         //if all is well then keep reading
         if (opt.numsnapshots==numsnap && opt.TotalNumberofHalos && idsize==sizeof(IDTYPE)) {
             iflag=1;
-            cout<<"Reading information"<<endl;
-            Fout.read((char*)&mapsize,sizeof(size_t));
-            keys=new IDTYPE[mapsize];
-            indices=new IDTYPE[mapsize];
-            Fout.read((char*)keys,sizeof(IDTYPE)*mapsize);
-            Fout.read((char*)indices,sizeof(IDTYPE)*mapsize);
         }
-        Fout.close();
     }
 #ifdef USEMPI
     MPI_Bcast(&iflag, 1, MPI_INT, 0, MPI_COMM_WORLD);
 #endif
     if (iflag==0) {
         if (ThisTask==0) cout<<"Unable to read data, must generate map "<<endl;
+        Fin.close();
+        Fin2.close();
         return iflag;
     }
-#ifdef USEMPI
+    time1=MyGetTime();
+    idmap.clear();
+    if (ThisTask==0) {
+        cout<<"Reading information"<<endl;
+        Fin.read((char*)&mapsize,sizeof(size_t));
+    }
     //communicate information
+#ifdef USEMPI
     MPI_Bcast(&mapsize, sizeof(size_t), MPI_BYTE, 0, MPI_COMM_WORLD);
+#endif
     opt.MaxIDValue=mapsize;
-    if (ThisTask==0) cout<<"Map will have "<<opt.MaxIDValue<<" elements and need roughly "<<opt.MaxIDValue*(sizeof(IDTYPE)*2+3*4)/1024./1024./1024.<<"GB of mem "<<endl;
-    if (ThisTask!=0) {
-        keys=new IDTYPE[mapsize];
-        indices=new IDTYPE[mapsize];
+    if (ThisTask==0) {
+        cout<<"Map will have "<<opt.MaxIDValue<<" elements and need roughly "<<opt.MaxIDValue*(sizeof(IDTYPE)*2+3*4)/1024./1024./1024.<<"GB of mem "<<endl;
+        //offset to start of indices
+        Fin2.seekg(mapsize*sizeof(IDTYPE)+sizeof(int)+sizeof(long unsigned)+sizeof(size_t)+sizeof(size_t));
     }
     //and send information in chunks
-    unsigned long chunksize=floor(2147483648/((Double_t)NProcs*sizeof(IDTYPE)));
-    unsigned int nchunks=ceil(mapsize/(Double_t)chunksize);
+    //chunksize=floor(2147483648/((Double_t)NProcs*sizeof(IDTYPE)));
+    chunksize=10000;
+    nchunks=ceil(mapsize/(Double_t)chunksize);
     if (chunksize>mapsize) {
         chunksize=mapsize;
         nchunks=1;
     }
-    unsigned long offset=0;
+    keys=new IDTYPE[chunksize];
+    indices=new IDTYPE[chunksize];
+    offset=0;
     for (auto ichunk=0;ichunk<nchunks;ichunk++)
     {
-        MPI_Bcast(&keys[offset], sizeof(IDTYPE)*chunksize, MPI_BYTE, 0, MPI_COMM_WORLD);
-        MPI_Bcast(&indices[offset], sizeof(IDTYPE)*chunksize, MPI_BYTE, 0, MPI_COMM_WORLD);
+        if (ThisTask==0) {
+            Fin.read((char*)keys,sizeof(IDTYPE)*chunksize);
+            Fin2.read((char*)indices,sizeof(IDTYPE)*chunksize);
+        }
+#ifdef USEMPI
+        if (NProcs>1) {
+        MPI_Bcast(keys, sizeof(IDTYPE)*chunksize, MPI_BYTE, 0, MPI_COMM_WORLD);
+        MPI_Bcast(indices, sizeof(IDTYPE)*chunksize, MPI_BYTE, 0, MPI_COMM_WORLD);
+        }
+#endif
+        for (i=0;i<chunksize;i++) idmap.insert(pair<IDTYPE, IDTYPE>(keys[i],indices[i]));
         offset+=chunksize;
         chunksize=min(chunksize,mapsize-offset);
     }
-#endif
-    if (ThisTask==0) cout<<"And producing internal map "<<endl;
-    time1=MyGetTime();
-    for (i=0;i<mapsize;i++) idmap.insert(pair<IDTYPE, IDTYPE>(keys[i],indices[i]));
+    if (ThisTask==0) {Fin.close(); Fin2.close();}
     if (ThisTask==0) cout<<"Took "<<MyGetTime()-time1<<endl;
-    delete[] keys;
     delete[] indices;
+    delete[] keys;
     return iflag;
 }
 //@}

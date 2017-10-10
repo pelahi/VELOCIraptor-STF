@@ -251,6 +251,9 @@ struct Options
     ///merit ratio when deciding that have significant ambiguity no ideal descendant/progenitor found
     Double_t meritratioambiguitylimit;
 
+    //if particle ids are exclusive to a structure
+    int iexclusiveids;
+
     ///particle type cross matching subselection
     int itypematch;
     ///when using multiple links, how links should be updated, either only for those missing links, or better merit found
@@ -324,6 +327,7 @@ struct Options
         numsteps=1;
         MaxIDValue=512*512*512;
         TotalNumberofHalos=0;
+        iexclusiveids=1;
 
         isearchdirection=SEARCHPROGEN;
         imerittype=MERITNsharedN1N2;

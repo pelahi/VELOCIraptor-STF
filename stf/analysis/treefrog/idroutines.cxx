@@ -39,6 +39,7 @@ void MemoryEfficientMap(Options &opt,HaloTreeData *&pht)
         idmap=ConstructMemoryEfficientPIDStoIndexMap(opt, pht);
         SavePIDStoIndexMap(opt,idmap);
     }
+    cout<<" this is what the map contains "<<idmap.size()<<" "<<idmap.begin()->first<<" "<<idmap.begin()->second<<endl;
     MapPIDStoIndex(opt,pht, idmap);
     idmap.clear();
 }
@@ -59,22 +60,69 @@ map<IDTYPE, IDTYPE> ConstructMemoryEfficientPIDStoIndexMap(Options &opt, HaloTre
     if (ThisTask==0) cout<<"Mapping PIDS to index "<<endl;
     //place ids in a set so have unique ordered set of ids
     vector<IDTYPE> idvec;
-    unordered_set<IDTYPE> idset;
+    vector<IDTYPE> idtempvec;
     map<IDTYPE, IDTYPE> idmap;
+    unordered_set<IDTYPE> idset;
     time1=MyGetTime();
     time2=MyGetTime();
     Int_t reservesize=0;
     for (j=0;j<pht[EndSnap-1].numhalos;j++) reservesize+=pht[EndSnap-1].Halo[j].NumberofParticles;
-    idset.reserve(reservesize);
-    cout<<ThisTask<<" initial reserve of memory for construction of id map is "<<reservesize*sizeof(IDTYPE)/1024./1024./1024.<<"GB"<<endl;
-    for (i=StartSnap+offsetsnap;i<EndSnap;i++) {
-        for (j=0;j<pht[i].numhalos;j++) {
-            for (k=0;k<pht[i].Halo[j].NumberofParticles;k++) idset.insert(pht[i].Halo[j].ParticleID[k]);
+    if (opt.iexclusiveids) {
+        idvec.reserve(reservesize);
+        cout<<ThisTask<<" initial reserve of memory for construction of id map is "<<reservesize*sizeof(IDTYPE)/1024./1024./1024.<<"GB"<<endl;
+    }
+    else {
+        idset.reserve(reservesize);
+        idvec.reserve(reservesize);
+        cout<<ThisTask<<" Non exclusive ids, must generate memory heavy set, initial reserve of memory for construction of id map is "<<reservesize*(sizeof(IDTYPE)+32)/1024./1024./1024.<<"GB"<<endl;
+    }
+    for (i=EndSnap-1;i>=StartSnap+offsetsnap;i--) {
+        idtempvec.clear();
+        //initialize vector assuming uniqueness of particle ids! Otherwise need to use set's and these are VERY memory heavy relative to the vector
+        //otherwise, need to insert into a set for the first round and then generate a vector from this
+        //set that ensures uniqueness, which is then sorted
+        if (i==EndSnap-1) {
+            if (opt.iexclusiveids) {
+                for (j=0;j<pht[i].numhalos;j++) {
+                    for (k=0;k<pht[i].Halo[j].NumberofParticles;k++) idvec.push_back(pht[i].Halo[j].ParticleID[k]);
+                }
+                sort(idvec.begin(),idvec.end());
+            }
+            else {
+                for (j=0;j<pht[i].numhalos;j++) {
+                    for (k=0;k<pht[i].Halo[j].NumberofParticles;k++) idset.insert(pht[i].Halo[j].ParticleID[k]);
+                }
+            }
+        }
+        //once done and have sorted vector, generate new vector containing any additional new IDs
+        else {
+            if (opt.iexclusiveids) {
+                for (j=0;j<pht[i].numhalos;j++) {
+                    for (k=0;k<pht[i].Halo[j].NumberofParticles;k++) {
+                        if (!(binary_search(idvec.begin(), idvec.end(), pht[i].Halo[j].ParticleID[k]))) {
+                            idtempvec.push_back(pht[i].Halo[j].ParticleID[k]);
+                        }
+                    }
+                }
+                //append and then resort
+                idvec.insert(idvec.end(), idtempvec.begin(), idtempvec.end());
+                sort(idvec.begin(),idvec.end());
+            }
+            else {
+                for (j=0;j<pht[i].numhalos;j++) {
+                    for (k=0;k<pht[i].Halo[j].NumberofParticles;k++) idset.insert(pht[i].Halo[j].ParticleID[k]);
+                }
+            }
         }
         cout<<"Finished inserting "<<i<<endl;
     }
+    if (opt.iexclusiveids==0) {
+        for (auto setval: idset) idvec.push_back(setval);
+        sort(idvec.begin(),idvec.end());
+        idset.clear();
+    }
     time1=MyGetTime()-time1;
-    if (opt.iverbose) cout<<ThisTask<<" finished getting unique ids of "<<idset.size()<<" in "<<time1<<endl;
+    if (opt.iverbose) cout<<ThisTask<<" finished getting unique ids of "<<idvec.size()<<" in "<<time1<<endl;
 #ifdef USEMPI
 
     //now if using mpi then must broadcast the sets that a final unique set can be made
@@ -109,19 +157,11 @@ map<IDTYPE, IDTYPE> ConstructMemoryEfficientPIDStoIndexMap(Options &opt, HaloTre
             //if a send task
             //send stuff in blocks to minimize memory footprint and send size
             if (sendtask[ThisTask]>=0 && recvtask[ThisTask]==-1) {
-                commsize=idset.size();
-                idarray=new IDTYPE[commsize];
-                //j=0; for (auto idval: idset) idarray[j++]=idval;
-                j=0; for (auto it=idset.begin(); it!=idset.end();) {
-                    idarray[j++]=*it;
-                    it=idset.erase(it);
-                }
+                commsize=idvec.size();
                 //send size
                 MPI_Send(&commsize,1, MPI_Int_t, sendtask[ThisTask], numloops*NProcs*NProcs+ThisTask, MPI_COMM_WORLD);
                 //send info
-                //MPI_Send(idset.data,commsize, MPI_Id_type, sendtask[ThisTask], numloops*NProcs*NProcs+NProcs+ThisTask, MPI_COMM_WORLD);
-                MPI_Send(idarray,commsize, MPI_Id_type, sendtask[ThisTask], numloops*NProcs*NProcs+NProcs+ThisTask, MPI_COMM_WORLD);
-                delete[] idarray;
+                MPI_Send(idvec.data(),commsize, MPI_Id_type, sendtask[ThisTask], numloops*NProcs*NProcs+NProcs+ThisTask, MPI_COMM_WORLD);
             }
             //if a recvtask
             if (recvtask[ThisTask]>=0 && sendtask[ThisTask]==-1) {
@@ -130,7 +170,14 @@ map<IDTYPE, IDTYPE> ConstructMemoryEfficientPIDStoIndexMap(Options &opt, HaloTre
                 idarray=new IDTYPE[commsize];
                 //recv info
                 MPI_Recv(idarray,commsize, MPI_Id_type, recvtask[ThisTask], numloops*NProcs*NProcs+NProcs+recvtask[ThisTask], MPI_COMM_WORLD,&status);
-                for (i=0;i<commsize;i++) idset.insert(idarray[i]);
+                idtempvec.clear();
+                for (i=0;i<commsize;i++) {
+                    if (!(binary_search(idvec.begin(), idvec.end(), idarray[i]))) {
+                        idtempvec.push_back(idarray[i]);
+                    }
+                }
+                idvec.insert(idvec.end(), idtempvec.begin(), idtempvec.end());
+                sort(idvec.begin(),idvec.end());
                 delete[] idarray;
             }
         }
@@ -157,32 +204,14 @@ map<IDTYPE, IDTYPE> ConstructMemoryEfficientPIDStoIndexMap(Options &opt, HaloTre
 
     //now broadcast from root to all processors
     if (ThisTask==0) {
-        commsize=idset.size();
-        //idvec=vector<IDTYPE>(idset.begin(), idset.end());
-        idvec=vector<IDTYPE>(commsize);
-        j=0; for (auto it=idset.begin(); it!=idset.end();) {
-            idvec[j++]=*it;
-            it=idset.erase(it);
-        }
+        commsize=idvec.size();
     }
     MPI_Bcast(&commsize,1, MPI_Int_t, 0, MPI_COMM_WORLD);
     if (ThisTask!=0) idvec=vector<IDTYPE>(commsize);
     MPI_Bcast(idvec.data(),commsize, MPI_Id_type, 0, MPI_COMM_WORLD);
-#else
-    idvec=vector<IDTYPE>(idset.size());
-    j=0; for (auto it=idset.begin(); it!=idset.end();) {
-        idvec[j++]=*it;
-        it=idset.erase(it);
-    }
 #endif
     opt.MaxIDValue=idvec.size();
     time1=MyGetTime();
-    ///\todo for reducing memory footprint at the cost of speed could use iterator and
-    ///delete entries from vector as they are added to the map
-    /*for (auto it=idvec.begin(); it!=idvec.end();) {
-        idmap.insert(pair<IDTYPE, IDTYPE>(*it,(IDTYPE)i));
-        it=idvec.erase(it);
-    }*/
     for (i=0; i<opt.MaxIDValue;i++) idmap.insert(pair<IDTYPE, IDTYPE>(idvec[i],(IDTYPE)i));
     time1=MyGetTime()-time1;
     time2=MyGetTime()-time2;
