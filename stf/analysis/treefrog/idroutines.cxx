@@ -50,6 +50,8 @@ map<IDTYPE, IDTYPE> ConstructMemoryEfficientPIDStoIndexMap(Options &opt, HaloTre
     Int_t i,j,k;
     Int_t index,indexoffset,offsetsnap;
     double time1,time2;
+    unsigned long chunksize,offset;
+    unsigned int nchunks;
 #ifndef USEMPI
     int ThisTask=0,NProcs=1,NSnap=opt.numsnapshots,StartSnap=0,EndSnap=opt.numsnapshots;
 #endif
@@ -160,13 +162,54 @@ map<IDTYPE, IDTYPE> ConstructMemoryEfficientPIDStoIndexMap(Options &opt, HaloTre
                 commsize=idvec.size();
                 //send size
                 MPI_Send(&commsize,1, MPI_Int_t, sendtask[ThisTask], numloops*NProcs*NProcs+ThisTask, MPI_COMM_WORLD);
-                //send info
-                MPI_Send(idvec.data(),commsize, MPI_Id_type, sendtask[ThisTask], numloops*NProcs*NProcs+NProcs+ThisTask, MPI_COMM_WORLD);
+                //send info in loops to minimize memory footprint
+                chunksize=2147483648/10.0/(Double_t)sizeof(IDTYPE);
+                nchunks=ceil(commsize/(Double_t)chunksize);
+                if (chunksize>commsize) {
+                    chunksize=commsize;
+                    nchunks=1;
+                }
+                if (opt.iverbose) cout<<ThisTask<<" sending IDs to "<<sendtask[ThisTask]<<" "<<commsize<<" elements in "<<nchunks<<" at "<<numloops<<endl;
+                offset=0;
+                idarray=new IDTYPE[chunksize];
+                for (auto ichunk=0;ichunk<nchunks;ichunk++)
+                {
+                    for (i=0;i<chunksize;i++) idarray[i]=idvec[offset+i];
+                    MPI_Send(idarray,chunksize, MPI_Id_type, sendtask[ThisTask], numloops*NProcs*NProcs+NProcs+ThisTask+ichunk*NProcs*NProcs+NProcs*NProcs, MPI_COMM_WORLD);
+                    offset+=chunksize;
+                    chunksize=min(chunksize,commsize-offset);
+                }
+                delete[] idarray;
+                //MPI_Send(idvec.data(),commsize, MPI_Id_type, sendtask[ThisTask], numloops*NProcs*NProcs+NProcs+ThisTask, MPI_COMM_WORLD);
             }
             //if a recvtask
             if (recvtask[ThisTask]>=0 && sendtask[ThisTask]==-1) {
                 //recv size
                 MPI_Recv(&commsize,1, MPI_Int_t, recvtask[ThisTask], numloops*NProcs*NProcs+recvtask[ThisTask], MPI_COMM_WORLD,&status);
+                chunksize=2147483648/10.0/(Double_t)sizeof(IDTYPE);
+                nchunks=ceil(commsize/(Double_t)chunksize);
+                if (chunksize>commsize) {
+                    chunksize=commsize;
+                    nchunks=1;
+                }
+                idarray=new IDTYPE[chunksize];
+                for (auto ichunk=0;ichunk<nchunks;ichunk++)
+                {
+                    MPI_Recv(idarray,chunksize, MPI_Id_type, recvtask[ThisTask], numloops*NProcs*NProcs+NProcs+recvtask[ThisTask]+ichunk*NProcs*NProcs+NProcs*NProcs, MPI_COMM_WORLD,&status);
+                    idtempvec.clear();
+                    for (i=0;i<chunksize;i++) {
+                        if (!(binary_search(idvec.begin(), idvec.end(), idarray[i]))) {
+                            idtempvec.push_back(idarray[i]);
+                        }
+                    }
+                    idvec.insert(idvec.end(), idtempvec.begin(), idtempvec.end());
+                    sort(idvec.begin(),idvec.end());
+                    idtempvec.clear();
+                    offset+=chunksize;
+                    chunksize=min(chunksize,commsize-offset);
+                }
+                delete[] idarray;
+                /*
                 idarray=new IDTYPE[commsize];
                 //recv info
                 MPI_Recv(idarray,commsize, MPI_Id_type, recvtask[ThisTask], numloops*NProcs*NProcs+NProcs+recvtask[ThisTask], MPI_COMM_WORLD,&status);
@@ -179,6 +222,7 @@ map<IDTYPE, IDTYPE> ConstructMemoryEfficientPIDStoIndexMap(Options &opt, HaloTre
                 idvec.insert(idvec.end(), idtempvec.begin(), idtempvec.end());
                 sort(idvec.begin(),idvec.end());
                 delete[] idarray;
+                */
             }
         }
         //update the send receive taks for the next time around
