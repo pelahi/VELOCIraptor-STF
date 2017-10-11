@@ -52,6 +52,7 @@ map<IDTYPE, IDTYPE> ConstructMemoryEfficientPIDStoIndexMap(Options &opt, HaloTre
     double time1,time2;
     unsigned long chunksize,offset;
     unsigned int nchunks;
+    bool iflag;
 #ifndef USEMPI
     int ThisTask=0,NProcs=1,NSnap=opt.numsnapshots,StartSnap=0,EndSnap=opt.numsnapshots;
 #endif
@@ -141,7 +142,7 @@ map<IDTYPE, IDTYPE> ConstructMemoryEfficientPIDStoIndexMap(Options &opt, HaloTre
     MPI_Status status;
     int sendtask[NProcs],recvtask[NProcs], numhavesent=0;
     vector<int> sendset,recvset;
-    Int_t commsize,oldsize;
+    unsigned long commsize,oldsize;
 
     //for each task determine whether sending/receiving and to/from who
     //initialise the send/recv
@@ -161,7 +162,7 @@ map<IDTYPE, IDTYPE> ConstructMemoryEfficientPIDStoIndexMap(Options &opt, HaloTre
             if (sendtask[ThisTask]>=0 && recvtask[ThisTask]==-1) {
                 commsize=idvec.size();
                 //send size
-                MPI_Send(&commsize,1, MPI_Int_t, sendtask[ThisTask], numloops*NProcs*NProcs+ThisTask, MPI_COMM_WORLD);
+                MPI_Send(&commsize,1, MPI_UNSIGNED_LONG_LONG, sendtask[ThisTask], numloops*NProcs*NProcs+ThisTask, MPI_COMM_WORLD);
                 //send info in loops to minimize memory footprint
                 chunksize=2147483648/10.0/(Double_t)sizeof(IDTYPE);
                 nchunks=ceil(commsize/(Double_t)chunksize);
@@ -179,13 +180,14 @@ map<IDTYPE, IDTYPE> ConstructMemoryEfficientPIDStoIndexMap(Options &opt, HaloTre
                     offset+=chunksize;
                     chunksize=min(chunksize,commsize-offset);
                 }
+                if (opt.iverbose) cout<<ThisTask<<" finished sending IDs to "<<sendtask[ThisTask]<<" "<<commsize<<" elements in "<<nchunks<<" at "<<numloops<<endl;
                 delete[] idarray;
                 //MPI_Send(idvec.data(),commsize, MPI_Id_type, sendtask[ThisTask], numloops*NProcs*NProcs+NProcs+ThisTask, MPI_COMM_WORLD);
             }
             //if a recvtask
             if (recvtask[ThisTask]>=0 && sendtask[ThisTask]==-1) {
                 //recv size
-                MPI_Recv(&commsize,1, MPI_Int_t, recvtask[ThisTask], numloops*NProcs*NProcs+recvtask[ThisTask], MPI_COMM_WORLD,&status);
+                MPI_Recv(&commsize,1, MPI_UNSIGNED_LONG_LONG, recvtask[ThisTask], numloops*NProcs*NProcs+recvtask[ThisTask], MPI_COMM_WORLD,&status);
                 chunksize=2147483648/10.0/(Double_t)sizeof(IDTYPE);
                 nchunks=ceil(commsize/(Double_t)chunksize);
                 if (chunksize>commsize) {
@@ -193,21 +195,28 @@ map<IDTYPE, IDTYPE> ConstructMemoryEfficientPIDStoIndexMap(Options &opt, HaloTre
                     nchunks=1;
                 }
                 idarray=new IDTYPE[chunksize];
+                offset=0;
+                if (opt.iverbose) cout<<ThisTask<<" receiving IDs to "<<recvtask[ThisTask]<<" "<<commsize<<" elements in "<<nchunks<<" at "<<numloops<<endl;
                 for (auto ichunk=0;ichunk<nchunks;ichunk++)
                 {
                     MPI_Recv(idarray,chunksize, MPI_Id_type, recvtask[ThisTask], numloops*NProcs*NProcs+NProcs+recvtask[ThisTask]+ichunk*NProcs*NProcs+NProcs*NProcs, MPI_COMM_WORLD,&status);
                     idtempvec.clear();
+                    iflag=false;
                     for (i=0;i<chunksize;i++) {
                         if (!(binary_search(idvec.begin(), idvec.end(), idarray[i]))) {
                             idtempvec.push_back(idarray[i]);
+                            iflag=true;
                         }
                     }
-                    idvec.insert(idvec.end(), idtempvec.begin(), idtempvec.end());
-                    sort(idvec.begin(),idvec.end());
+                    if (iflag) {
+                        idvec.insert(idvec.end(), idtempvec.begin(), idtempvec.end());
+                        sort(idvec.begin(),idvec.end());
+                    }
                     idtempvec.clear();
                     offset+=chunksize;
                     chunksize=min(chunksize,commsize-offset);
                 }
+                if (opt.iverbose) cout<<ThisTask<<" finished receiving IDs to "<<recvtask[ThisTask]<<" "<<commsize<<" elements in "<<nchunks<<" at "<<numloops<<endl;
                 delete[] idarray;
                 /*
                 idarray=new IDTYPE[commsize];
