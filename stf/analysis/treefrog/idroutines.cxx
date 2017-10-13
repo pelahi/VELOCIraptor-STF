@@ -261,7 +261,27 @@ map<IDTYPE, IDTYPE> ConstructMemoryEfficientPIDStoIndexMap(Options &opt, HaloTre
     }
     MPI_Bcast(&commsize,1, MPI_Int_t, 0, MPI_COMM_WORLD);
     if (ThisTask!=0) idvec=vector<IDTYPE>(commsize);
-    MPI_Bcast(idvec.data(),commsize, MPI_Id_type, 0, MPI_COMM_WORLD);
+    //now broadcast from root to all processors
+    if (ThisTask==0) {
+        commsize=idvec.size();
+        if (opt.iverbose) cout<<ThisTask<<" now will send information containing "<<commsize<<" ids that need "<<sizeof(IDTYPE)*commsize/1024./1024./1024.<<"GB"<<endl;
+    }
+    chunksize=2147483648/10.0/(Double_t)sizeof(IDTYPE);
+    nchunks=ceil(commsize/(Double_t)chunksize);
+    if (chunksize>commsize) {
+        chunksize=commsize;
+        nchunks=1;
+    }
+    offset=0;
+    idarray=new IDTYPE[chunksize];
+    for (auto ichunk=0;ichunk<nchunks;ichunk++)
+    {
+        if (ThisTask==0) for (i=0;i<chunksize;i++) idarray[i]=idvec[offset+i];
+        MPI_Bcast(idarray,chunksize, MPI_Id_type, 0, MPI_COMM_WORLD);
+        if (ThisTask!=0) for (i=0;i<chunksize;i++) idvec[offset+i]=idarray[i];
+        offset+=chunksize;
+        chunksize=min(chunksize,commsize-offset);
+    }
 #endif
     opt.MaxIDValue=idvec.size();
     time1=MyGetTime();
