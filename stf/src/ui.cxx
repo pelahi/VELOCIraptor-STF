@@ -253,9 +253,18 @@ void usage(void)
     \arg <b> \e Extensive_halo_properties_output </b> 1/0 flag indicating whether to calculate/output even more halo properties. \ref Options.iextrahalooutput \n
     \arg <b> \e Extended_output </b> 1/0 flag indicating whether produce extended output for quick particle extraction from input catalog of particles in structures \ref Options.iextendedoutput \n
     \arg <b> \e Comoving_units </b> 1/0 flag indicating whether the properties output is in physical or comoving little h units. \ref Options.icomoveunit \n
+    
+    \section inputflags input flags related to varies input formats
     \arg <b> \e NSPH_extra_blocks </b> If gadget snapshot is loaded one can specific the number of extra <b> SPH </b> blocks are read/in the file. \ref Options.gnsphblocks \n
     \arg <b> \e NStar_extra_blocks </b> If gadget snapshot is loaded one can specific the number of extra <b> Star </b> blocks are read/in the file. \ref Options.gnstarblocks \n
     \arg <b> \e NBH_extra_blocks </b> If gadget snapshot is loaded one can specific the number of extra <b> Black hole </b> blocks are read/in the file. \ref Options.gnbhblocks \n
+    
+    \arg <b> \e HDF_name_convention </b> HDF dataset naming convection. See \ref hdfitems.h for what naming conventions are available and what names exist. Currently have \ref HDFNUMNAMETYPES. \ref Options.ihdfnameconvention \n
+    \arg <b> \e Input_includes_star_particle </b> If star particle specific information is in the input file. \ref Options.iusestarparticles \n
+    \arg <b> \e Input_includes_bh_particle </b> If bh/sink particle specific information is in the input file. \ref Options.iusesinkparticles \n
+    \arg <b> \e Input_includes_wind_particle </b> If wind particle specific information is in the input file. \ref Options.iusewindparticles \n
+    \arg <b> \e Input_includes_tracer_particle </b> If tracer particle specific information is in the input file. \ref Options.iusetracerparticles \n
+    \arg <b> \e Input_includes_star_particle </b> If star particle specific information is in the input file. \ref Options.iusestarparticles \n
 
     \section mpiconfigs MPI specific options
     \arg <b> \e MPI_particle_allocation_fac </b> Memory allocated in mpi mode to store particles is (1+factor)* the memory need for the initial mpi decomposition.
@@ -546,6 +555,22 @@ void GetParamFile(Options &opt)
                         opt.gnstarblocks = atoi(vbuff);
                     else if (strcmp(tbuff, "NBH_extra_blocks")==0)
                         opt.gnbhblocks = atoi(vbuff);
+
+
+                    //input related to info for stars, bhs, winds/tracers, etc
+                    else if (strcmp(tbuff, "HDF_name_convention")==0)
+                        opt.ihdfnameconvention = atoi(vbuff);
+                    else if (strcmp(tbuff, "Input_includes_star_particle")==0)
+                        opt.iusestarparticles = atoi(vbuff);
+                    else if (strcmp(tbuff, "Input_includes_bh_particle")==0)
+                        opt.iusesinkparticles = atoi(vbuff);
+                    else if (strcmp(tbuff, "Input_includes_wind_particle")==0)
+                        opt.iusewindparticles = atoi(vbuff);
+                    else if (strcmp(tbuff, "Input_includes_tracer_particle")==0)
+                        opt.iusetracerparticles = atoi(vbuff);
+                    else if (strcmp(tbuff, "Input_includes_extradm_particle")==0)
+                        opt.iusestarparticles = atoi(vbuff);
+                    
                 }
             }
         }

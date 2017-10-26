@@ -118,24 +118,30 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
     ///Since Illustris contains an unused type of particles (2) and tracer particles (3) really not useful to iterate over all particle types in loops
     int nusetypes,nbusetypes;
     int usetypes[NHDFTYPE];
-    if (opt.partsearchtype==PSTALL) {
-        //lets assume there are dm/stars/gas.
-        nusetypes=3;
-        usetypes[0]=HDFGASTYPE;usetypes[1]=HDFDMTYPE;usetypes[2]=HDFSTARTYPE;
-        //now if also blackholes/sink particles increase number of types
+    if (ptype==PSTALL) {
+        nusetypes=0;
+        //assume existance of dark matter and gas
+        usetypes[nusetypes++]=HDFGASTYPE;usetypes[nusetypes++]=HDFDMTYPE;
+        if (opt.iuseextradarkparticles) usetypes[nusetypes++]=HDFDM1TYPE;usetypes[nusetypes++]=HDFDM2TYPE;
+        if (opt.iusestarparticles) usetypes[nusetypes++]=HDFSTARTYPE;
         if (opt.iusesinkparticles) usetypes[nusetypes++]=HDFBHTYPE;
         if (opt.iusewindparticles) usetypes[nusetypes++]=HDFWINDTYPE;
     }
     else if (opt.partsearchtype==PSTDARK) {
         nusetypes=1;usetypes[0]=HDFDMTYPE;
+        if (opt.iuseextradarkparticles) usetypes[nusetypes++]=HDFDM1TYPE;usetypes[nusetypes++]=HDFDM2TYPE;
         if (opt.iBaryonSearch) {
-            nbusetypes=2;usetypes[1]=HDFGASTYPE;usetypes[2]=HDFSTARTYPE;
-            if (opt.iusesinkparticles) usetypes[1+nbusetypes++]=HDFBHTYPE;
+            nbusetypes=1;usetypes[nusetypes+nbusetypes++]=HDFGASTYPE;
+            if (opt.iusestarparticles) usetypes[nusetypes+nbusetypes++]=HDFSTARTYPE;
+            if (opt.iusesinkparticles) usetypes[nusetypes+nbusetypes++]=HDFBHTYPE;
         }
     }
     else if (opt.partsearchtype==PSTGAS) {nusetypes=1;usetypes[0]=HDFGASTYPE;}
     else if (opt.partsearchtype==PSTSTAR) {nusetypes=1;usetypes[0]=HDFSTARTYPE;}
-    else if (opt.partsearchtype==PSTBH) {nusetypes=1;usetypes[0]=HDFBHTYPE;}
+    else if (opt.partsearchtype==PSTBH) {
+        nusetypes=1;usetypes[0]=HDFBHTYPE;
+        if (opt.iuseextradarkparticles) usetypes[nusetypes++]=HDFDM1TYPE;usetypes[nusetypes++]=HDFDM2TYPE;
+    }
 
     Int_t i,j,k,n,nchunk,count,bcount,itemp,count2,bcount2;
 

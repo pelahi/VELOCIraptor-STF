@@ -505,10 +505,16 @@ struct Options
 
     /// \name Extra HDF flags indicating the existence of extra baryonic/dm particle types
     //@{
+    /// input naming convention
+    int ihdfnameconvention;
+    /// input contains star particles
+    int iusestarparticles;
     /// input contains black hole/sink particles
     int iusesinkparticles;
     /// input contains wind particles
     int iusewindparticles;
+    /// input contains tracer particles
+    int iusetracerparticles;
     /// input contains extra dark type particles
     int iuseextradarkparticles;
     //@}
@@ -623,8 +629,15 @@ struct Options
         icomoveunit=0;
         icosmologicalin=1;
 
+        iusestarparticles=1;
         iusesinkparticles=1;
         iusewindparticles=0;
+        iusetracerparticles=0;
+#ifdef HIGHRES
+        iuseextradarkparticles=1;
+#else 
+        iuseextradarkparticles=0;
+#endif
 
         snapshotvalue=0;
 
@@ -647,6 +660,9 @@ struct Options
         lengthtokpc30pow2=50.0*50.0;
 
         mpipartfac=0.1;
+#if USEHDF
+        ihdfnameconvention=0;
+#endif
     }
 };
 
