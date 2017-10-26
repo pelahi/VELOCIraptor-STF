@@ -118,7 +118,7 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
     ///Since Illustris contains an unused type of particles (2) and tracer particles (3) really not useful to iterate over all particle types in loops
     int nusetypes,nbusetypes;
     int usetypes[NHDFTYPE];
-    if (ptype==PSTALL) {
+    if (opt.partsearchtype==PSTALL) {
         nusetypes=0;
         //assume existance of dark matter and gas
         usetypes[nusetypes++]=HDFGASTYPE;usetypes[nusetypes++]=HDFDMTYPE;
