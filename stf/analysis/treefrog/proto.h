@@ -101,13 +101,13 @@ void WriteCrossComp(Options &opt, ProgenitorData **p, HaloTreeData *h);
 /// see \ref io.cxx, \ref stfio.cxx, \ref mpiroutines.cxx for implementation
 //@{
 ///Reads the number of haloes in the files, wrapper routine
-Int_t ReadNumberofHalos(Options &opt, Int_t *numhalos);
+unsigned long ReadNumberofHalos(Options &opt, unsigned long *numhalos);
 ///Reads the number of particle in haloes in the files, wrapper routine
-Int_t ReadNumberofParticlesInHalos(Options &opt, Int_t *numpartinhalos);
+unsigned long ReadNumberofParticlesInHalos(Options &opt, unsigned long *numpartinhalos);
 ///Reads Number of halos from VELOCIraptor Group catalogs
-Int_t MPIReadHaloGroupCatalogDataNum(string &infile, int mpi_ninput=0, int ibinary=1, int ifieldhalos=1, int itypesort=ALLTYPEMATCH);
+unsigned long MPIReadHaloGroupCatalogDataNum(string &infile, int mpi_ninput=0, int ibinary=1, int ifieldhalos=1, int itypesort=ALLTYPEMATCH);
 ///Reads Number of particles in halos from VELOCIraptor Group catalogs
-Int_t MPIReadHaloGroupCatalogDataParticleNum(string &infile, int mpi_ninput=0, int ibinary=1, int ifieldhalos=1, int itypesort=ALLTYPEMATCH);
+unsigned long MPIReadHaloGroupCatalogDataParticleNum(string &infile, int mpi_ninput=0, int ibinary=1, int ifieldhalos=1, int itypesort=ALLTYPEMATCH);
 ///Reads data to allocate memory, useful for mpi
 HaloData *MPIReadHaloGroupCatalogDataAllocation(string &infile, Int_t &numhalos, int mpi_ninput=0, int ibinary=1, int ifieldhalos=1, int itypesort=ALLTYPEMATCH);
 ///Reads VELOCIraptor like Group Catalog Data with memory already allocated for MPI version.

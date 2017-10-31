@@ -57,17 +57,19 @@ void MPILoadBalanceSnapshots(Options &opt){
     if (ThisTask==0) {
         //there are two ways to load balance the data, halos or particles in haloes
         //load balancing via particles is the defaul option but could compile with halo load balancing
-        Int_t *numinfo=new Int_t[opt.numsnapshots];
+        unsigned long *numinfo=new unsigned long[opt.numsnapshots];
+        unsigned long totpart;
 #ifdef MPIHALOBALANCE
         cout<<"Halo based splitting"<<endl;
-        Int_t totpart=ReadNumberofHalos(opt,numinfo);
+        totpart=ReadNumberofHalos(opt,numinfo);
 #else
         cout<<"Particle in halos based splitting"<<endl;
-        Int_t totpart=ReadNumberofParticlesInHalos(opt,numinfo);
+        totpart=ReadNumberofParticlesInHalos(opt,numinfo);
 #endif
         //now number of particles per mpi thread
         if (opt.numpermpi==0) opt.numpermpi=totpart/NProcs;
-        Int_t sum=0, itask=NProcs-1, inumsteps=-1;
+        unsigned long sum=0;
+        int itask=NProcs-1, inumsteps=-1;
         mpi_endsnap[itask]=opt.numsnapshots;
         cout<<" Total number of items is "<<totpart<<" and should have "<<opt.numpermpi<<" per mpi"<<endl;
         //split the information such that each mpi domain has at least

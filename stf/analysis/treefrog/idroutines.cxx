@@ -39,7 +39,6 @@ void MemoryEfficientMap(Options &opt,HaloTreeData *&pht)
         idmap=ConstructMemoryEfficientPIDStoIndexMap(opt, pht);
         SavePIDStoIndexMap(opt,idmap);
     }
-    cout<<" this is what the map contains "<<idmap.size()<<" "<<idmap.begin()->first<<" "<<idmap.begin()->second<<endl;
     MapPIDStoIndex(opt,pht, idmap);
     idmap.clear();
 }
@@ -218,20 +217,6 @@ map<IDTYPE, IDTYPE> ConstructMemoryEfficientPIDStoIndexMap(Options &opt, HaloTre
                 }
                 if (opt.iverbose) cout<<ThisTask<<" finished receiving IDs to "<<recvtask[ThisTask]<<" "<<commsize<<" elements in "<<nchunks<<" at "<<numloops<<endl;
                 delete[] idarray;
-                /*
-                idarray=new IDTYPE[commsize];
-                //recv info
-                MPI_Recv(idarray,commsize, MPI_Id_type, recvtask[ThisTask], numloops*NProcs*NProcs+NProcs+recvtask[ThisTask], MPI_COMM_WORLD,&status);
-                idtempvec.clear();
-                for (i=0;i<commsize;i++) {
-                    if (!(binary_search(idvec.begin(), idvec.end(), idarray[i]))) {
-                        idtempvec.push_back(idarray[i]);
-                    }
-                }
-                idvec.insert(idvec.end(), idtempvec.begin(), idtempvec.end());
-                sort(idvec.begin(),idvec.end());
-                delete[] idarray;
-                */
             }
         }
         //update the send receive taks for the next time around
@@ -256,37 +241,45 @@ map<IDTYPE, IDTYPE> ConstructMemoryEfficientPIDStoIndexMap(Options &opt, HaloTre
     } while(numhavesent<NProcs-1);
 
     //now broadcast from root to all processors
-    if (ThisTask==0) {
-        commsize=idvec.size();
-    }
+    if (ThisTask==0) commsize=idvec.size();
     MPI_Bcast(&commsize,1, MPI_Int_t, 0, MPI_COMM_WORLD);
-    if (ThisTask!=0) idvec=vector<IDTYPE>(commsize);
+    opt.MaxIDValue=commsize;
     //now broadcast from root to all processors
     if (ThisTask==0) {
-        commsize=idvec.size();
-        if (opt.iverbose) cout<<ThisTask<<" now will send information containing "<<commsize<<" ids that need "<<sizeof(IDTYPE)*commsize/1024./1024./1024.<<"GB"<<endl;
+        if (opt.iverbose) {
+            cout<<ThisTask<<" now will send information containing "<<commsize<<" ids that need "<<sizeof(IDTYPE)*commsize/1024./1024./1024.<<"GB"<<endl;
+            cout<<ThisTask<<" map will need "<<(4+2*sizeof(IDTYPE))*commsize/1024./1024./1024.<<"GB"<<endl;
+        }
     }
-    chunksize=2147483648/10.0/(Double_t)sizeof(IDTYPE);
+    chunksize=2147483648/10.0/(Double_t)(sizeof(IDTYPE)*NProcs);
     nchunks=ceil(commsize/(Double_t)chunksize);
     if (chunksize>commsize) {
         chunksize=commsize;
         nchunks=1;
     }
+    time1=MyGetTime();
     offset=0;
     idarray=new IDTYPE[chunksize];
+    int vecsize;
+    if (ThisTask==0) vecsize=idvec.size();
+    IDTYPE idval=0;
     for (auto ichunk=0;ichunk<nchunks;ichunk++)
     {
-        if (ThisTask==0) for (i=0;i<chunksize;i++) idarray[i]=idvec[offset+i];
+        if (ThisTask==0) for (i=chunksize-1;i>=0;i--) idarray[i]=idvec[vecsize-1-i];
         MPI_Bcast(idarray,chunksize, MPI_Id_type, 0, MPI_COMM_WORLD);
-        if (ThisTask!=0) for (i=0;i<chunksize;i++) idvec[offset+i]=idarray[i];
+        for (i=chunksize-1;i>=0;i--) idmap.insert(pair<IDTYPE, IDTYPE>(idarray[i],(IDTYPE)(commsize-1-i-offset)));
+        if (ThisTask==0) {idvec.resize(vecsize-chunksize);idvec.shrink_to_fit();vecsize=idvec.size();}
         offset+=chunksize;
         chunksize=min(chunksize,commsize-offset);
     }
-#endif
+    time1=MyGetTime()-time1;
+    delete[] idarray;
+#else
     opt.MaxIDValue=idvec.size();
     time1=MyGetTime();
     for (i=0; i<opt.MaxIDValue;i++) idmap.insert(pair<IDTYPE, IDTYPE>(idvec[i],(IDTYPE)i));
     time1=MyGetTime()-time1;
+#endif
     time2=MyGetTime()-time2;
     if (opt.iverbose) {
         cout<<ThisTask<<" constructed map in "<<time1<<endl;

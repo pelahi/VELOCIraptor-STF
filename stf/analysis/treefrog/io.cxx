@@ -21,11 +21,11 @@ bool FileExists(const char *fname) {
 //@{
 ///Reads number of halos at each snapshot, useful for mpi decomposition
 #ifdef USEMPI
-Int_t ReadNumberofHalos(Options &opt, Int_t *numhalos)
+unsigned long ReadNumberofHalos(Options &opt, unsigned long *numhalos)
 {
     fstream Fin;//file is list of halo data files
     string *buf=new string[opt.numsnapshots];
-    Int_t tothalos=0;
+    unsigned long tothalos=0;
 
     Fin.open(opt.fname);
     if (!Fin.is_open()) {
@@ -50,11 +50,11 @@ Int_t ReadNumberofHalos(Options &opt, Int_t *numhalos)
     return tothalos;
 }
 
-Int_t ReadNumberofParticlesInHalos(Options &opt, Int_t *numpartinhalos)
+unsigned long ReadNumberofParticlesInHalos(Options &opt, unsigned long *numpartinhalos)
 {
     fstream Fin;//file is list of halo data files
     string *buf=new string[opt.numsnapshots];
-    Int_t tothalos=0,totpart=0;
+    unsigned long tothalos=0,totpart=0;
 
     Fin.open(opt.fname);
     if (!Fin.is_open()) {
@@ -765,8 +765,7 @@ int ReadPIDStoIndexMap(Options &opt,map<IDTYPE, IDTYPE>&idmap)
         Fin2.seekg(mapsize*sizeof(IDTYPE)+sizeof(int)+sizeof(long unsigned)+sizeof(size_t)+sizeof(size_t));
     }
     //and send information in chunks
-    //chunksize=floor(2147483648/((Double_t)NProcs*sizeof(IDTYPE)));
-    chunksize=10000;
+    chunksize=floor(2147483648/((Double_t)NProcs*sizeof(IDTYPE)));
     nchunks=ceil(mapsize/(Double_t)chunksize);
     if (chunksize>mapsize) {
         chunksize=mapsize;
