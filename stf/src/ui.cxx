@@ -569,7 +569,7 @@ void GetParamFile(Options &opt)
                     else if (strcmp(tbuff, "Input_includes_tracer_particle")==0)
                         opt.iusetracerparticles = atoi(vbuff);
                     else if (strcmp(tbuff, "Input_includes_extradm_particle")==0)
-                        opt.iusestarparticles = atoi(vbuff);
+                        opt.iuseextradarkparticles = atoi(vbuff);
                     
                 }
             }
