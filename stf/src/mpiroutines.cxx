@@ -45,27 +45,22 @@ void MPIInitialDomainDecomposition(){
     Int_t i,j,k,n,m,temp,count,count2,pc,pc_new, Ntot;
     int Nsplit,isplit;
     Int_t nbins1d,nbins3d, ibin[3];
-    Double_t a;
-    int b;
+    Double_t diffsplit;
+    int b,a;
 
     if (ThisTask==0) {
-        //initial number of splittings.
-        Nsplit=log((float)NProcs)/log(2.0);
         //first split need not be simply having the dimension but determine
-        //number of splits to have log(Nprocs)=log(a+2)+log(2^b), where a and b are integers
-        //first solve for a
-        a=log((float)NProcs)/log(2.0)-floor(log((float)NProcs)/log(2.0));
-        //if not zero then need to adjust splitting
-        if (abs(a)>1e-6) {
-           	b=1;
-            a=pow(2.0,log((float)NProcs)/log(2.0)-(floor(log((float)NProcs)/log(2.0))-b))-2;
-           	//iterate till have an integer number
-            while (abs(a-(int)a)/a>1e-6){
-               	b++;
-                a=pow(2.0,log((float)NProcs)/log(2.0)-(floor(log((float)NProcs)/log(2.0))-b))-2;
-            }
-           	Nsplit-=(b-1);
+        //number of splits to have Nprocs=a*2^b, where a and b are integers
+        //initial integers
+        b=floor(log((float)NProcs)/log(2.0))-1;
+        a=floor(NProcs/pow(2,b));
+        diffsplit=(double)NProcs/(double)a/(double)pow(2,b);
+        while (diffsplit!=1) {
+            b--;
+            a=floor(NProcs/pow(2,b));
+            diffsplit=(double)NProcs/(double)a/(double)pow(2,b);
         }
+        Nsplit=b+1;
         mpi_ideltax[0]=0;mpi_ideltax[1]=1;mpi_ideltax[2]=2;
         isplit=0;
         for (j=0;j<3;j++) mpi_nxsplit[j]=0;
@@ -75,7 +70,7 @@ void MPIInitialDomainDecomposition(){
         }
         for (j=0;j<3;j++) mpi_nxsplit[j]=pow(2.0,mpi_nxsplit[j]);
         //and adjust first dimension
-        if (a>0) mpi_nxsplit[0]=mpi_nxsplit[0]/2*(2+(int)a);
+        mpi_nxsplit[0]=mpi_nxsplit[0]/2*a;
 
         //for all the cells along the boundary of axis with the third split axis (smallest variance)
         //set the domain limits to the sims limits
