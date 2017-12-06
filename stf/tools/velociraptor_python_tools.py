@@ -47,7 +47,7 @@ def ReadPropertyFile(basefilename,ibinary=0,iseparatesubfiles=0,iverbose=0, desi
 
     Not all fields need be read in. If only want specific fields, can pass a string of desired fields like
     ['ID', 'Mass_FOF', 'Krot']
-    #todo still need checks to see if fields not present.
+    #todo still need checks to see if fields not present and if so, not to include them or handle the error
     """
     #this variable is the size of the char array in binary formated data that stores the field names
     CHARSIZE=40
@@ -672,7 +672,7 @@ def BuildHierarchy(halodata,iverbose=0):
     """
     the halo data stored in a velociraptor .properties file should store the id of its parent halo. Here
     this catalog is used to produce a hierarchy to quickly access the relevant subhaloes of a parent halo.
-    We could
+    #todo this should be deprecated as Hierarchy information is typically already contained in halo information
     """
     halohierarchy=[]
     start=time.clock()
@@ -698,9 +698,9 @@ def BuildHierarchy(halodata,iverbose=0):
     if (iverbose): print("hierarchy set in read in ",time.clock()-start)
     return halohierarchy
 
-def TraceMainProgen(istart,ihalo,numsnaps,numhalos,halodata,tree,HALOIDVAL):
+def TraceMainProgen(istart,ihalo,numsnaps,numhalos,halodata,tree,TEMPORALHALOIDVAL):
     """
-    Follows a halo along three to identify main progenitor
+    Follows a halo along tree to identify main progenitor
     """
     #start at this snapshot
     k=istart
@@ -719,13 +719,13 @@ def TraceMainProgen(istart,ihalo,numsnaps,numhalos,halodata,tree,HALOIDVAL):
         else:
             roothead=halodata[k]['RootHead'][ihalo]
             rootsnap=halodata[k]['RootHeadSnap'][ihalo]
-            rootindex=int(roothead%HALOIDVAL)-1
+            rootindex=int(roothead%TEMPORALHALOIDVAL)-1
         #now move along tree first pass to store head and tails and root heads of main branch
         while (True):
             #instead of seraching array make use of the value of the id as it should be in id order
             #wdata=np.where(tree[k]['haloID']==haloid)
             #w2data=np.where(halodata[k]['ID']==haloid)[0][0]
-            wdata=w2data=int(haloid%HALOIDVAL)-1
+            wdata=w2data=int(haloid%TEMPORALHALOIDVAL)-1
             halodata[k]['Num_progen'][wdata]=tree[k]['Num_progen'][wdata]
             #if no more progenitors, break from search
             #if (tree[k]['Num_progen'][wdata[0][0]]==0 or len(wdata[0])==0):
@@ -746,7 +746,7 @@ def TraceMainProgen(istart,ihalo,numsnaps,numhalos,halodata,tree,HALOIDVAL):
             #mainprog=tree[k]['Progen'][wdata[0][0]][0]
             mainprog=tree[k]['Progen'][wdata][0]
             #calculate stepsize based on the halo ids
-            stepsize=int(((haloid-haloid%HALOIDVAL)-(mainprog-mainprog%HALOIDVAL))/HALOIDVAL)
+            stepsize=int(((haloid-haloid%TEMPORALHALOIDVAL)-(mainprog-mainprog%TEMPORALHALOIDVAL))/TEMPORALHALOIDVAL)
             #store tail
             halodata[k]['Tail'][w2data]=mainprog
             halodata[k]['TailSnap'][w2data]=k+stepsize
@@ -756,7 +756,7 @@ def TraceMainProgen(istart,ihalo,numsnaps,numhalos,halodata,tree,HALOIDVAL):
             #for progid in tree[k-stepsize]['Progen'][wdata[0][0]]:
             #    wdata3=np.where(halodata[k]['ID']==progid)[0][0]
             for progid in tree[k-stepsize]['Progen'][wdata]:
-                wdata3=int(progid%HALOIDVAL)-1
+                wdata3=int(progid%TEMPORALHALOIDVAL)-1
                 halodata[k]['Head'][wdata3]=haloid
                 halodata[k]['HeadSnap'][wdata3]=k-stepsize
                 halodata[k]['RootHead'][wdata3]=roothead
@@ -765,15 +765,18 @@ def TraceMainProgen(istart,ihalo,numsnaps,numhalos,halodata,tree,HALOIDVAL):
             #then store next progenitor
             haloid=mainprog
 
-def TraceMainProgenParallelChunk(istart,ihalochunk,numsnaps,numhalos,halodata,tree,HALOIDVAL):
+def TraceMainProgenParallelChunk(istart,ihalochunk,numsnaps,numhalos,halodata,tree,TEMPORALHALOIDVAL):
+    """
+    Wrapper to allow for parallelisation
+    """
     for ihalo in ihalochunk:
-        TraceMainProgen(istart,ihalo,numsnaps,numhalos,halodata,tree,HALOIDVAL)
+        TraceMainProgen(istart,ihalo,numsnaps,numhalos,halodata,tree,TEMPORALHALOIDVAL)
 
-def BuildTemporalHeadTail(numsnaps,tree,numhalos,halodata,HALOIDVAL=1000000000000, iverbose=1):
+def BuildTemporalHeadTail(numsnaps,tree,numhalos,halodata,TEMPORALHALOIDVAL=1000000000000, iverbose=1):
     """
     Adds for each halo its Head and Tail and stores Roothead and RootTail to the halo
     properties file
-    HALOIDVAL is used to parse the halo ids and determine the step size between descendant and progenitor
+    TEMPORALHALOIDVAL is used to parse the halo ids and determine the step size between descendant and progenitor
     """
     print("Building Temporal catalog with head and tails")
     for k in range(numsnaps):
@@ -827,7 +830,7 @@ def BuildTemporalHeadTail(numsnaps,tree,numhalos,halodata,HALOIDVAL=100000000000
                 if (j==nchunks-1):
                     halochunk[-1]=range(offset+(nthreads-1)*chunksize,numhalos[istart])
                 #when calling a process pass not just a work queue but the pointers to where data should be stored
-                processes=[mp.Process(target=TraceMainProgenParallelChunk,args=(istart,halochunk[k],numsnaps,numhalos,mphalodata,tree,HALOIDVAL)) for k in range(nthreads)]
+                processes=[mp.Process(target=TraceMainProgenParallelChunk,args=(istart,halochunk[k],numsnaps,numhalos,mphalodata,tree,TEMPORALHALOIDVAL)) for k in range(nthreads)]
                 count=0
                 for p in processes:
                     print(count+offset,k,min(halochunk[count]),max(halochunk[count]))
@@ -852,7 +855,7 @@ def BuildTemporalHeadTail(numsnaps,tree,numhalos,halodata,HALOIDVAL=100000000000
             for j in range(numhalos[istart]):
                 #start at this snapshot
                 #start=time.clock()
-                TraceMainProgen(istart,j,numsnaps,numhalos,halodata,tree,HALOIDVAL)
+                TraceMainProgen(istart,j,numsnaps,numhalos,halodata,tree,TEMPORALHALOIDVAL)
                 if (j%chunksize==0 and j>0):
                     if (iverbose>1): print("done", j/float(numhalos[istart]), "in", time.clock()-start)
                     start=time.clock()
@@ -869,7 +872,7 @@ def BuildTemporalHeadTail(numsnaps,tree,numhalos,halodata,HALOIDVAL=100000000000
             headid,headsnap=halodata[k]['Head'][j],halodata[k]['HeadSnap'][j]
             if (roottailid==halodata[k]['ID'][j] and headid!=halodata[k]['ID'][j]):
                 #headindex=np.where(halodata[headsnap]['ID']==headid)[0][0]
-                headindex=int(headid%HALOIDVAL)-1
+                headindex=int(headid%TEMPORALHALOIDVAL)-1
                 headtailid,headtailsnap=halodata[headsnap]['Tail'][headindex],halodata[headsnap]['TailSnap'][headindex]
                 haloid=halodata[k]['ID'][j]
                 #only proceed in setting root tails of a head who's tail is the same as halo (main branch) till we reach a halo who is its own head
@@ -880,16 +883,16 @@ def BuildTemporalHeadTail(numsnaps,tree,numhalos,halodata,HALOIDVAL=100000000000
                     #move to next head
                     haloid=halodata[headsnap]['ID'][headindex]
                     #haloindex=np.where(halodata[headsnap]['ID']==haloid)[0][0]
-                    haloindex=int(haloid%HALOIDVAL)-1
+                    haloindex=int(haloid%TEMPORALHALOIDVAL)-1
                     halosnap=headsnap
                     headid,headsnap=halodata[halosnap]['Head'][haloindex],halodata[halosnap]['HeadSnap'][haloindex]
-                    headindex=int(headid%HALOIDVAL)-1
+                    headindex=int(headid%TEMPORALHALOIDVAL)-1
                     #store the tail of the next head
                     headtailid,headtailsnap=halodata[headsnap]['Tail'][headindex],halodata[headsnap]['TailSnap'][headindex]
     print("Done building", time.clock()-totstart)
 
 
-def TraceMainDescendant(istart,ihalo,numsnaps,numhalos,halodata,tree,HALOIDVAL,ireverseorder=False):
+def TraceMainDescendant(istart,ihalo,numsnaps,numhalos,halodata,tree,TEMPORALHALOIDVAL,ireverseorder=False):
     """
     Follows a halo along descendant tree to root tails
     if reverse order than late times start at 0 and as one moves up in index
@@ -915,11 +918,11 @@ def TraceMainDescendant(istart,ihalo,numsnaps,numhalos,halodata,tree,HALOIDVAL,i
         else:
             roottail=halodata[halosnap]['RootTail'][ihalo]
             rootsnap=halodata[halosnap]['RootTailSnap'][ihalo]
-            rootindex=int(roottail%HALOIDVAL)-1
+            rootindex=int(roottail%TEMPORALHALOIDVAL)-1
         #now move along tree first pass to store head and tails and root tails of main branch
         while (True):
             #ids contain index information
-            haloindex=int(haloid%HALOIDVAL)-1
+            haloindex=int(haloid%TEMPORALHALOIDVAL)-1
             halodata[halosnap]['Num_descen'][haloindex]=tree[halosnap]['Num_descen'][haloindex]
             #if no more descendants, break from search
             if (halodata[halosnap]['Num_descen'][haloindex]==0):
@@ -938,8 +941,8 @@ def TraceMainDescendant(istart,ihalo,numsnaps,numhalos,halodata,tree,HALOIDVAL,i
                         halodata[halosnap]['RootHead'][haloindex]=rootheadid
                        	halodata[halosnap]['RootHeadSnap'][haloindex]=rootheadsnap
                         descen=halodata[halosnap]['Head'][haloindex]
-                        descenindex=int(descen%HALOIDVAL)-1
-                        descensnap=int(((descen-descen%HALOIDVAL))/HALOIDVAL)
+                        descenindex=int(descen%TEMPORALHALOIDVAL)-1
+                        descensnap=int(((descen-descen%TEMPORALHALOIDVAL))/TEMPORALHALOIDVAL)
                        	if (ireverseorder):
                             descensnap=numsnaps-1-descensnap
                         if (haloid==descen):
@@ -955,8 +958,8 @@ def TraceMainDescendant(istart,ihalo,numsnaps,numhalos,halodata,tree,HALOIDVAL,i
             #otherwise, get the descendant
             #store main progenitor
             maindescen=tree[halosnap]['Descen'][haloindex][0]
-            maindescenindex=int(maindescen%HALOIDVAL)-1
-            maindescensnap=int(((maindescen-maindescen%HALOIDVAL))/HALOIDVAL)
+            maindescenindex=int(maindescen%TEMPORALHALOIDVAL)-1
+            maindescensnap=int(((maindescen-maindescen%TEMPORALHALOIDVAL))/TEMPORALHALOIDVAL)
             #if reverse order, then higher snap values correspond to lower index
             if (ireverseorder):
                 maindescensnap=numsnaps-1-maindescensnap
@@ -978,15 +981,15 @@ def TraceMainDescendant(istart,ihalo,numsnaps,numhalos,halodata,tree,HALOIDVAL,i
             haloid=maindescen
             halosnap=maindescensnap
 
-def TraceMainDescendantParallelChunk(istart,ihalochunk,numsnaps,numhalos,halodata,tree,HALOIDVAL,ireverseorder):
+def TraceMainDescendantParallelChunk(istart,ihalochunk,numsnaps,numhalos,halodata,tree,TEMPORALHALOIDVAL,ireverseorder):
     for ihalo in ihalochunk:
-        TraceMainDescendant(istart,ihalo,numsnaps,numhalos,halodata,tree,HALOIDVAL,ireverseorder)
+        TraceMainDescendant(istart,ihalo,numsnaps,numhalos,halodata,tree,TEMPORALHALOIDVAL,ireverseorder)
 
-def BuildTemporalHeadTailDescendant(numsnaps,tree,numhalos,halodata,HALOIDVAL=1000000000000, ireverseorder=False, iverbose=1):
+def BuildTemporalHeadTailDescendant(numsnaps,tree,numhalos,halodata,TEMPORALHALOIDVAL=1000000000000, ireverseorder=False, iverbose=1):
     """
     Adds for each halo its Head and Tail and stores Roothead and RootTail to the halo
     properties file
-    HALOIDVAL is used to parse the halo ids and determine the step size between descendant and progenitor
+    TEMPORALHALOIDVAL is used to parse the halo ids and determine the step size between descendant and progenitor
     """
     print("Building Temporal catalog with head and tails using a descendant tree")
     for k in range(numsnaps):
@@ -1047,7 +1050,7 @@ def BuildTemporalHeadTailDescendant(numsnaps,tree,numhalos,halodata,HALOIDVAL=10
                 if (j==nchunks-1):
                     halochunk[-1]=range(offset+(nthreads-1)*chunksize,numhalos[istart])
                 #when calling a process pass not just a work queue but the pointers to where data should be stored
-                processes=[mp.Process(target=TraceMainDescendantParallelChunk,args=(istart,halochunk[k],numsnaps,numhalos,mphalodata,tree,HALOIDVAL,ireverseorder)) for k in range(nthreads)]
+                processes=[mp.Process(target=TraceMainDescendantParallelChunk,args=(istart,halochunk[k],numsnaps,numhalos,mphalodata,tree,TEMPORALHALOIDVAL,ireverseorder)) for k in range(nthreads)]
                 count=0
                 for p in processes:
                     print(count+offset,k,min(halochunk[count]),max(halochunk[count]))
@@ -1072,7 +1075,7 @@ def BuildTemporalHeadTailDescendant(numsnaps,tree,numhalos,halodata,HALOIDVAL=10
             for j in range(numhalos[istart]):
                 #start at this snapshot
                 #start=time.clock()
-                TraceMainDescendant(istart,j,numsnaps,numhalos,halodata,tree,HALOIDVAL,ireverseorder)
+                TraceMainDescendant(istart,j,numsnaps,numhalos,halodata,tree,TEMPORALHALOIDVAL,ireverseorder)
                 if (j%chunksize==0 and j>0):
                     if (iverbose>1): print("done", j/float(numhalos[istart]), "in", time.clock()-start)
                     start=time.clock()
@@ -1095,15 +1098,15 @@ def BuildTemporalHeadTailDescendant(numsnaps,tree,numhalos,halodata,HALOIDVAL=10
         #long its branch
         for ihalo in rankedhalos:
             haloid=ihalo
-            haloindex=int(haloid%HALOIDVAL)-1
+            haloindex=int(haloid%TEMPORALHALOIDVAL)-1
             halosnap=istart
             #now set the head of these objects
             maindescen=tree[halosnap]['Descen'][haloindex][0]
-            maindescenindex=int(maindescen%HALOIDVAL)-1
+            maindescenindex=int(maindescen%TEMPORALHALOIDVAL)-1
             if (ireverseorder):
-                maindescensnap=numsnaps-1-int((maindescen-maindescen%HALOIDVAL)/HALOIDVAL)
+                maindescensnap=numsnaps-1-int((maindescen-maindescen%TEMPORALHALOIDVAL)/TEMPORALHALOIDVAL)
             else:
-                maindescensnap=int((maindescen-maindescen%HALOIDVAL)/HALOIDVAL)
+                maindescensnap=int((maindescen-maindescen%TEMPORALHALOIDVAL)/TEMPORALHALOIDVAL)
             #increase the number of progenitors of this descendant
             halodata[halosnap]['Head'][haloindex]=maindescen
             halodata[halosnap]['HeadSnap'][haloindex]=maindescensnap
@@ -1119,29 +1122,29 @@ def BuildTemporalHeadTailDescendant(numsnaps,tree,numhalos,halodata,HALOIDVAL=10
                     break
                 haloid=halodata[halosnap]['Tail'][haloindex]
                 halosnap=halodata[halosnap]['TailSnap'][haloindex]
-                haloindex=int(haloid%HALOIDVAL)-1
+                haloindex=int(haloid%TEMPORALHALOIDVAL)-1
     print("Done building", time.clock()-totstart)
 
-def GetProgenLength(halodata,haloindex,halosnap,haloid,atime,HALOIDVAL,endreftime=-1):
+def GetProgenLength(halodata,haloindex,halosnap,haloid,atime,TEMPORALHALOIDVAL,endreftime=-1):
     """
     Get the length of a halo's progenitors
     """
     proglen=1
     progid=halodata[halosnap]["Tail"][haloindex]
     progsnap=halodata[halosnap]["TailSnap"][haloindex]
-    progindex=int(progid%HALOIDVAL-1)
+    progindex=int(progid%TEMPORALHALOIDVAL-1)
     while (progid!=haloid):
+        if (atime[progsnap]<=endreftime):break
         proglen+=1
         haloid=progid
         halosnap=progsnap
         haloindex=progindex
         progid=halodata[halosnap]["Tail"][haloindex]
         progsnap=halodata[halosnap]["TailSnap"][haloindex]
-        progindex=int(progid%HALOIDVAL-1)
-        if (atime[halosnap]<endreftime):break
+        progindex=int(progid%TEMPORALHALOIDVAL-1)
     return proglen
 
-def IdentifyMergers(numsnaps,tree,numhalos,halodata,boxsize,hval,atime,MERGERMLIM=0.1,RADINFAC=1.2,RADOUTFAC=1.5,NPARTCUT=100, HALOIDVAL=1000000000000, iverbose=1,pos_tree=[]):
+def IdentifyMergers(numsnaps,tree,numhalos,halodata,boxsize,hval,atime,MERGERMLIM=0.1,RADINFAC=1.2,RADOUTFAC=1.5,NPARTCUT=100, TEMPORALHALOIDVAL=1000000000000, iverbose=1,pos_tree=[]):
     """
     Using head/tail info in halodata dictionary identify mergers based on distance and mass ratios
     #todo still testing
@@ -1181,12 +1184,12 @@ def IdentifyMergers(numsnaps,tree,numhalos,halodata,boxsize,hval,atime,MERGERMLI
         for hidval in hids:
             #now for each object get the main progenitor
             haloid=np.uint64(hidval)
-            haloindex=int(haloid%HALOIDVAL-1)
+            haloindex=int(haloid%TEMPORALHALOIDVAL-1)
             halosnap=j
             originalhaloid=haloid
             progid=halodata[halosnap]["Tail"][haloindex]
             progsnap=halodata[halosnap]["TailSnap"][haloindex]
-            progindex=int(progid%HALOIDVAL-1)
+            progindex=int(progid%TEMPORALHALOIDVAL-1)
             numprog=tree[halosnap]["Num_progen"][haloindex]
             #if object has no progenitor set LastMergerRatio to 0 and LastMerger to 0
             if (numprog==0):
@@ -1254,14 +1257,14 @@ def IdentifyMergers(numsnaps,tree,numhalos,halodata,boxsize,hval,atime,MERGERMLI
                                         #move to next progenitors
                                         nextidval=halodata[starthalosnap]["Tail"][starthaloindex]
                                         nextsnapval=halodata[starthalosnap]["TailSnap"][starthaloindex]
-                                        nextindexval=int(nextidval%HALOIDVAL-1)
+                                        nextindexval=int(nextidval%TEMPORALHALOIDVAL-1)
                                         starthaloid=nextidval
                                         starthalosnap=nextsnapval
                                         starthaloindex=nextindexval
 
                                         nextidval=halodata[startmergersnap]["Tail"][startmergerindex]
                                         nextsnapval=halodata[startmergersnap]["TailSnap"][startmergerindex]
-                                        nextindexval=int(nextidval%HALOIDVAL-1)
+                                        nextindexval=int(nextidval%TEMPORALHALOIDVAL-1)
                                         startmergerid=nextidval
                                         startmergersnap=nextsnapval
                                         startmergerindex=nextindexval
@@ -1284,7 +1287,7 @@ def IdentifyMergers(numsnaps,tree,numhalos,halodata,boxsize,hval,atime,MERGERMLI
                                         oldmerginghaloid=merginghaloid
                                         mergingnextid=halodata[merginghalosnap]["Head"][merginghaloindex]
                                         mergingnextsnap=halodata[merginghalosnap]["HeadSnap"][merginghaloindex]
-                                        mergingnextindex=int(mergingnextid%HALOIDVAL-1)
+                                        mergingnextindex=int(mergingnextid%TEMPORALHALOIDVAL-1)
                                         merginghaloindex=mergingnextindex
                                         merginghaloid=mergingnextid
                                         merginghalosnap=mergingnextsnap
@@ -1300,7 +1303,7 @@ def IdentifyMergers(numsnaps,tree,numhalos,halodata,boxsize,hval,atime,MERGERMLI
                         halodata[currentsnap]["LastMergerRatio"][currentindex]=0
                         nextid=halodata[currentsnap]["Head"][currentindex]
                         nextsnap=halodata[currentsnap]["HeadSnap"][currentindex]
-                        nextindex=int(nextid%HALOIDVAL-1)
+                        nextindex=int(nextid%TEMPORALHALOIDVAL-1)
                         oldhaloid=currentid
                         currentsnap=nextsnap
                         currentid=nextid
@@ -1311,7 +1314,7 @@ def IdentifyMergers(numsnaps,tree,numhalos,halodata,boxsize,hval,atime,MERGERMLI
                 halosnap=progsnap
                 progid=halodata[halosnap]["Tail"][haloindex]
                 progsnap=halodata[halosnap]["TailSnap"][haloindex]
-                progindex=int(progid%HALOIDVAL-1)
+                progindex=int(progid%TEMPORALHALOIDVAL-1)
                 numprog=tree[halosnap]["Num_progen"][haloindex]
                 #if at end of line then move up and set last major merger to 0
         if (iverbose): print "Done snap",j,time.clock()-start
@@ -1339,7 +1342,7 @@ def generate_sublinks(numhalos,halodata):
         else:
             halodata['NextSubhalo'][ihalo]=haloid
 
-def GenerateSubhaloLinks(numsnaps,numhalos,halodata,HALOIDVAL=1000000000000, iverbose=0, iparallel=0):
+def GenerateSubhaloLinks(numsnaps,numhalos,halodata,TEMPORALHALOIDVAL=1000000000000, iverbose=0, iparallel=0):
     """
     This code generates a quick way of moving across a halo's subhalo list
 
@@ -1376,7 +1379,7 @@ def GenerateSubhaloLinks(numsnaps,numhalos,halodata,HALOIDVAL=1000000000000, ive
             if (iverbose): print("Done snap",j,time.clock()-start2)
     print("Done subhalolinks ",time.clock()-start)
 
-def GenerateProgenitorLinks(numsnaps,numhalos,halodata,nsnapsearch=4,HALOIDVAL=1000000000000, iverbose=1):
+def GenerateProgenitorLinks(numsnaps,numhalos,halodata,nsnapsearch=4,TEMPORALHALOIDVAL=1000000000000, iverbose=1):
     """
     This code generates a quick way of moving across a halo's progenitor list storing a the next/previous progenitor
 
@@ -1407,283 +1410,194 @@ def GenerateProgenitorLinks(numsnaps,numhalos,halodata,nsnapsearch=4,HALOIDVAL=1
             if (len(currenttails)==0):
                 continue
             haloid=currenttails[0]
-            haloindex=int(haloid%HALOIDVAL-1)
-            halosnap=numsnaps-1-(haloid-int(haloid%HALOIDVAL))/HALOIDVAL
+            haloindex=int(haloid%TEMPORALHALOIDVAL-1)
+            halosnap=numsnaps-1-(haloid-int(haloid%TEMPORALHALOIDVAL))/TEMPORALHALOIDVAL
             halodata[halosnap]['PreviousProgenitor'][haloindex]=haloid
             for itail in range(len(currenttails)-1):
                 haloid=currenttails[itail]
-                haloindex=int(haloid%HALOIDVAL-1)
-                halosnap=numsnaps-1-(haloid-int(haloid%HALOIDVAL))/HALOIDVAL
-                haloindex=int(currenttails[itail]%HALOIDVAL-1)
+                haloindex=int(haloid%TEMPORALHALOIDVAL-1)
+                halosnap=numsnaps-1-(haloid-int(haloid%TEMPORALHALOIDVAL))/TEMPORALHALOIDVAL
+                haloindex=int(currenttails[itail]%TEMPORALHALOIDVAL-1)
                 nexthaloid=currenttails[itail+1]
-                nexthaloindex=int(nexthaloid%HALOIDVAL-1)
-                nexthalosnap=numsnaps-1-(nexthaloid-int(nexthaloid%HALOIDVAL))/HALOIDVAL
+                nexthaloindex=int(nexthaloid%TEMPORALHALOIDVAL-1)
+                nexthalosnap=numsnaps-1-(nexthaloid-int(nexthaloid%TEMPORALHALOIDVAL))/TEMPORALHALOIDVAL
                 halodata[halosnap]['NextProgenitor'][haloindex]=nexthaloid
                 halodata[nexthalosnap]['PreviousProgenitor'][nexthaloindex]=haloid
             haloid=currenttails[-1]
-            haloindex=int(haloid%HALOIDVAL-1)
-            halosnap=numsnaps-1-(haloid-int(haloid%HALOIDVAL))/HALOIDVAL
+            haloindex=int(haloid%TEMPORALHALOIDVAL-1)
+            halosnap=numsnaps-1-(haloid-int(haloid%TEMPORALHALOIDVAL))/TEMPORALHALOIDVAL
             halodata[halosnap]['NextProgenitor'][haloindex]=haloid
         if (iverbose): print "Done snap",j,time.clock()-start2
     print("Done progenitor links ",time.clock()-start)
 
-def findroottailsofbranch(rootheadid,istart,numsnaps,halodata,
-    otherhosthalos,
-    HALOIDVAL, iverbose,
-    iflagaddotherhosts=False,
-    ):
+def SetForestID(numsnaps,halodata,rootheadid,ForestID,AllRootHead,
+    TEMPORALHALOIDVAL = 1000000000000,searchSnapLim = 5, ireversesnaporder=True):
     """
-    Routine identifies all progenitors of a particular roothead, from istart and onwards
-    and also stores any hosts of these progenitors that are themselves not progenitors of halo in
-    question
+    Sets the forest id of halos using a roothead as a start point.
+    Given an initial root head and end snapshot,
+    First append the roothead to the AllRootHead list.
+    search all previous snapshots for any haloes that share the same roothead.
+    Also at each snapshot, find all subhaloes of all haloes sharing the same
+    root head
+    if the roothead of a subhalo is not present in the AllRootHead list
+    then recursively call SetForestID with this subhalo's root head as start point
+    if a subhalo's current host is not within the tree defined by rootheadid
+    then recursively call SetForestID with this host's root head as start point
+
+    Parameters
+    ----------
+    numsnaps : numpy.int32
+        the number of snapshots
+    halodata : dict
+        the halodata dictionary structure which must contain the halo merger tree based keys (Head, RootHead), etc.
+    rootheadid : numpy.int64
+        the rootheadid of the tree that will be explored and have its forestID set
+    AllRootHead : list
+        a list that stores the current set of rootheadid values that have been searched
+
+    Optional Parameters
+    -------------------
+    TEMPORALHALOIDVAL : numpy.int64
+        Temporal ID value that makes Halo IDs temporally unique, adding a snapshot num* this value.
+        Allows one to quickly parse a Halo ID to determine the snapshot it exists at and its index.
+    searchSnapLim : numpy.int32
+        Maximum number of snapshots to keep searching if no new halos are identified as beloning to
+        a rootheadid's tree, moving backwards in time
+    ireversesnaporder : bool
+        Whether dictionary data has late times starting at 0 (True, default) or at end of dictionary (False)
+
+    Returns
+    -------
+    AllRootHead : list
+        Updated list
+    halodata : dict
+        Updated halo data
+
     """
-    roottails=deque()
-    for k in range(istart,numsnaps):
-        w=np.where(halodata[k]["RootHead"]==rootheadid)
-        if (len(w[0])==0): continue
-        roottails.extend(np.nditer(np.int64(halodata[k]["RootTail"][w])))
-        #find out if any of these objects have host halos that are not a progenitor
-        #of the primary halo in question
-        whosts=np.where((halodata[k]["hostHaloID"][w]!=-1))
-        if (len(whosts[0])>0):
-            hostsindices=np.unique(halodata[k]["hostHaloID"][w][whosts])%HALOIDVAL-1
-            whosts2=np.where((halodata[k]['RootHead'][hostsindices]!=rootheadid)*(halodata[k]["ForestID"][hostsindices]==-1))
-            if (len(whosts2[0])>0):
-                otherhosthalos.extend(np.nditer(np.int64(halodata[k]["RootHead"][hostsindices][whosts2])))
-    roottails=(np.unique(np.array(roottails)))
-    numprogs=len(roottails)
-    if (iverbose>=2): print("At halo ",rootheadid,"with ",numprogs)
-    return numprogs,roottails
 
-def findsubhalosofbranch(haloindex,halosnap,haloid,
-    rootheadid,roottailid,
-    halodata,
-    otherhosthalos,
-    HALOIDVAL, iverbose,
-    iflagaddotherhosts=False,
-    ):
-    """
-    Routine identifies all subhalos across cosmic time that are subhalos of branch
-    and that are not progenitors
-    """
-    subroottails=deque()
-    subprogenroottails=deque()
-    numsubs=numsubprogen=0
-    #store progenitor and start moving along main halo identifying all subhalos
-    progid=halodata[halosnap]["Tail"][haloindex]
-    progsnap=halodata[halosnap]["TailSnap"][haloindex]
-    progindex=int(progid%HALOIDVAL-1)
-    while (True):
-        #if the object is a halo, then look for subhalos
-        if (halodata[halosnap]["hostHaloID"][haloindex]==-1):
-            #identify all objects that have a host id of the current haloid of interest
-            #that are also not a progenitor of the halo of interest
-            #and store their root tails
-            w=np.where((halodata[halosnap]["hostHaloID"]==haloid)*(halodata[halosnap]["RootHead"]!=rootheadid)*(halodata[halosnap]["ForestID"]==-1))
-            if (len(w[0])>0):
-                subroottails.extend(np.nditer(np.int64(halodata[halosnap]["RootTail"][w])))
-        #otherwise need to store the host and all its subhalos
-        else:
-            newhostid=halodata[halosnap]["hostHaloID"][haloindex]
-            newhostindex=int(newhostid%HALOIDVAL-1)
-            #if the host is itself not a progenitor, store it.
-            if (halodata[halosnap]["RootHead"][newhostindex]!=rootheadid and halodata[halosnap]["ForestID"][newhostindex]==-1):
-                if (iflagaddotherhosts): subroottails.extend(np.nditer(np.int64(np.array([halodata[halosnap]["RootTail"][newhostindex]]))))
-                otherhosthalos.extend(np.nditer(np.int64(np.array([halodata[halosnap]["RootHead"][newhostindex]]))))
-            if (iflagaddotherhosts):
-                #find all subhalos of this new host and store it.
-                w=np.where((halodata[halosnap]["hostHaloID"]==newhostid)*(halodata[halosnap]["RootHead"]!=rootheadid)*(halodata[halosnap]["ForestID"]==-1))
-                if (len(w[0])>0): subroottails.extend(np.nditer(np.int64(halodata[halosnap]["RootTail"][w])))
-        #move along in time
-        if (progid==haloid): break
-        haloid=progid
-        halosnap=progsnap
-        haloindex=progindex
-        progid=halodata[halosnap]["Tail"][haloindex]
-        progsnap=halodata[halosnap]["TailSnap"][haloindex]
-        progindex=int(progid%HALOIDVAL-1)
-    #unique subhalos that are not progenitors of main halo
-    subroottails=(np.unique(np.array(subroottails)))
-    numsubs=len(subroottails)
-    if (iverbose>=2): print("At halo ",rootheadid,"with subhalos ",numsubs)
-    #once these subhalos (and also any other hosts) have been identified,
-    #get all progenitors of these objects, while at the same time storing any unmakred hosts they may reside in
-    if (numsubs>0):
-        for iroottail in subroottails:
-            #get head of this subhalo
-            haloid=iroottail
-            haloindex=int(haloid%HALOIDVAL-1)
-            halosnap=numsnaps-1-(haloid-int(haloid%HALOIDVAL))/HALOIDVAL
-            subroothead=halodata[halosnap]['RootHead'][haloindex]
-            subrootheadsnap=numsnaps-1-(subroothead-int(subroothead%HALOIDVAL))/HALOIDVAL
-            hostid=halodata[halosnap]['hostHaloID'][haloindex]
-            hostindex=int(hostid%HALOIDVAL-1)
-            for k in range(subrootheadsnap,numsnaps):
-                #identitfy any progenitors that belong to it that are not the primary branch
-                w=np.where((halodata[k]["RootHead"]==subroothead)*(halodata[k]["RootTail"]!=iroottail)*(halodata[k]["ForestID"]==-1))
-                if (len(w[0])==0): continue
-                subprogenroottails.extend(np.nditer(np.int64(halodata[k]["RootTail"][w])))
-                #then also at possible hosts of these progenitors that are not progenitors of primary roothead nor subhalo root head,
-                whosts=np.where((halodata[k]["hostHaloID"][w]!=-1))
-                if (len(whosts[0])>0):
-                    hostsindices=np.unique(halodata[k]["hostHaloID"][w][whosts])%HALOIDVAL-1
-                    whosts2=np.where((halodata[k]['RootHead'][hostsindices]!=rootheadid)*(halodata[k]["ForestID"][hostsindices]==-1)*(halodata[k]['RootHead'][hostsindices]!=subroothead))
-                    if (len(whosts2[0])>0):
-                        otherhosthalos.extend(np.nditer(np.int64(halodata[k]["RootHead"][hostsindices][whosts2])))
 
-        subprogenroottails=(np.unique(np.array(subprogenroottails)))
-        numsubprogen=len(subprogenroottails)
-        if (iverbose>=2): print("At halo ",rootheadid,"with subhalos progenitors extra ",numsubprogen)
-        #combine list of subhaloes and all their progenitors
-        if (numsubprogen>0):
-            subroottails=np.unique(np.concatenate([subroottails,subprogenroottails]))
-    numsubs+=numsubprogen
-    return numsubs,subroottails
+    if (ireversesnaporder): endSnap = numsnaps-int(rootheadid/TEMPORALHALOIDVAL)-1
+    else : endSnap = int(rootheadid/TEMPORALHALOIDVAL)
+    rootheadindex=int(rootheadid%TEMPORALHALOIDVAL-1)
 
-def findsubhalosofbranches(roottails,
-    rootheadid,roottailid,
-    halodata,
-    otherhosthalos,
-    HALOIDVAL, iverbose,
-    iflagignorehost=True,
-    iflagaddotherhosts=False,
-    othertails=[]):
-    """
-    Routine identifies all subhalos across cosmic time that are subhalos of branches
-    and that are not progenitors of a particular branch
-    """
-    subroottails=deque()
-    subprogenroottails=deque()
-    numsubs=numsubprogen=0
+    AllRootHead.append(rootheadid)
 
-    for iroottail in roottails:
-        #ignore primary halo
-        if (iroottail==roottailid and iflagignorehost): continue
-        haloid=iroottail
-        haloindex=int(haloid%HALOIDVAL-1)
-        halosnap=numsnaps-1-(haloid-int(haloid%HALOIDVAL))/HALOIDVAL
-        descenid=halodata[halosnap]['Head'][haloindex]
-        descenindex=int(descenid%HALOIDVAL-1)
-        descensnap=numsnaps-1-(descenid-int(descenid%HALOIDVAL))/HALOIDVAL
-        while(True):
-            #see if any of the progenitors are a host of substructure
-            #and that these subhaloes do not end up as progenitors of main host
-            if (halodata[halosnap]["hostHaloID"][haloindex]==-1):
-                w=np.where((halodata[halosnap]["hostHaloID"]==haloid)*(halodata[halosnap]["RootHead"]!=rootheadid)*(halodata[halosnap]["ForestID"]==-1))
-                if (len(w[0])>0): subroottails.extend(np.nditer(np.int64(halodata[halosnap]["RootTail"][w])))
-            #if progenitor is a subhalo itself, check its host
-            else:
-                newhostid=halodata[halosnap]["hostHaloID"][haloindex]
-                newhostindex=int(newhostid%HALOIDVAL-1)
-                #if the host is itself not a progenitor, store it.
-                if (halodata[halosnap]["RootHead"][newhostindex]!=rootheadid and halodata[halosnap]["ForestID"][newhostindex]==-1):
-                    if (iflagaddotherhosts): subroottails.extend(np.nditer(np.int64(np.array([halodata[halosnap]["RootTail"][newhostindex]]))))
-                    otherhosthalos.extend(np.nditer(np.int64(np.array([halodata[halosnap]["RootHead"][newhostindex]]))))
-                if (iflagaddotherhosts):
-                    #find all subhalos of this new host and store it.
-                    w=np.where((halodata[halosnap]["hostHaloID"]==newhostid)*(halodata[halosnap]["RootHead"]!=rootheadid)*(halodata[halosnap]["ForestID"]==-1))
-                    if (len(w[0])>0): subroottails.extend(np.nditer(np.int64(halodata[halosnap]["RootTail"][w])))
-            #stop when head does not point back to tail, ie: not primary descendant reached end of halo's tree
-            if (halodata[descensnap]['Tail'][descenindex]!=haloid  or haloid==descenid): break
-            haloid=descenid
-            haloindex=descenindex
-            halosnap=descensnap
-            descenid=halodata[halosnap]['Head'][haloindex]
-            descenindex=int(descenid%HALOIDVAL-1)
-            descensnap=numsnaps-1-(descenid-int(descenid%HALOIDVAL))/HALOIDVAL
-    #unique subhalos
-    subroottails=np.unique(np.array(subroottails))
-    #if another set of tails passed, only keep new ones
-    if (len(othertails)>0): subroottails=np.setdiff1d(subroottails,othertails)
-    numsubs=len(subroottails)
-    if (iverbose>=2): print("At halo ",rootheadid,"with subhalos of branches in root tails ",numsubs)
+    #set the forest level of this searcheed
+    #if this object is a host at final snap then set the forest level to 0
+    #otherwise set the ForestLevel to 1
+    ForestLevel=1*(halodata[endSnap]["hostHaloID"][rootheadindex]!=-1)
 
-    #and with these subroottails, identify all progenitors of all these subhalos
-    if (numsubs>0):
-        for iroottail in subroottails:
-            #get head of this subhalo
-            haloid=iroottail
-            haloindex=int(haloid%HALOIDVAL-1)
-            halosnap=numsnaps-1-(haloid-int(haloid%HALOIDVAL))/HALOIDVAL
-            subroothead=halodata[halosnap]['RootHead'][haloindex]
-            subrootheadsnap=numsnaps-1-(subroothead-int(subroothead%HALOIDVAL))/HALOIDVAL
-            for k in range(subrootheadsnap,numsnaps):
-                w=np.where((halodata[k]["RootHead"]==subroothead)*(halodata[k]["RootTail"]!=iroottail)*(halodata[k]["ForestID"]==-1))
-                if (len(w[0])==0): continue
-                subprogenroottails.extend(np.nditer(np.int64(halodata[k]["RootTail"][w])))
-                #then also at possible hosts of these progenitors that are not progenitors of primary roothead nor subhalo root head,
-                whosts=np.where((halodata[k]["hostHaloID"][w]!=-1))
-                if (len(whosts[0])>0):
-                    hostsindices=np.unique(halodata[k]["hostHaloID"][w][whosts])%HALOIDVAL-1
-                    whosts2=np.where((halodata[k]['RootHead'][hostsindices]!=rootheadid)*(halodata[k]["ForestID"][hostsindices]==-1)*(halodata[k]['RootHead'][hostsindices]!=subroothead))
-                    if (len(whosts2[0])>0):
-                        otherhosthalos.extend(np.nditer(np.int64(halodata[k]["RootHead"][hostsindices][whosts2])))
-        subprogenroottails=(np.unique(np.array(subprogenroottails)))
-        numsubprogen=len(subprogenroottails)
-    if (iverbose>=2): print("At halo ",rootheadid,"with subhalos secondary progenitors of ",numsubprogen)
-    #combine list of subhaloes and all their progenitors
-    if (numsubprogen>0): subroottails=np.unique(np.concatenate([subroottails,subprogenroottails]))
-    numsubs+=numsubprogen
-    return numsubs,subroottails
+    #Indicator for amount of snapshots searcheed
+    iSearchSnap = 0
 
-def assignforestidandlevel(forestidval,forestlevelval,roottails,halodata,HALOIDVAL, iverbose):
-    for iroottail in roottails:
-        haloid=iroottail
-        haloindex=int(haloid%HALOIDVAL-1)
-        halosnap=numsnaps-1-(haloid-int(haloid%HALOIDVAL))/HALOIDVAL
-        descenid=halodata[halosnap]['Head'][haloindex]
-        descenindex=int(descenid%HALOIDVAL-1)
-        descensnap=numsnaps-1-(descenid-int(descenid%HALOIDVAL))/HALOIDVAL
-        while(True):
-            halodata[halosnap]['ForestID'][haloindex]=forestidval
-            halodata[halosnap]['ForestLevel'][haloindex]=forestlevelval
-            #stop when head does not point back to tail, ie: not primary descendant
-            if (halodata[descensnap]['Tail'][descenindex]!=haloid or haloid==descenid): break
-            haloid=descenid
-            haloindex=descenindex
-            halosnap=descensnap
-            descenid=halodata[halosnap]['Head'][haloindex]
-            descenindex=int(descenid%HALOIDVAL-1)
-            descensnap=numsnaps-1-(descenid-int(descenid%HALOIDVAL))/HALOIDVAL
-    if (iverbose>=2):  print("Done forest level",forestlevelval)
+    #set the direction of how the data will be processed
+    if (ireversesnaporder): snaplist=np.arange(endSnap,numsnaps,dtype=np.int32)
+    else : snaplist=np.arange(endsnap,-1,-1)
+    for snap in snaplist:
+    	#Find which halos at this snapshot point to the RootDescedant
+    	sel = np.where(halodata[snap]["RootHead"]==rootheadid)[0]
 
-def GenerateForest(numsnaps,numhalos,halodata,cosmo,atime,interactiontime=2,HALOIDVAL=1000000000000, iverbose=1 ,pos_tree=[]):
+    	#keep track of how many snapshots there have been where there is nothing in the tree
+    	if(sel.size==0):
+    		iSearchSnap+=1
+    		if(iSearchSnap==searchSnapLim): break
+        else: iSearchSnap = 0
+
+    	# Set all the halos within this tree within this snapshot to this forest ID
+    	halodata[snap]["ForestID"][sel] = ForestID
+        halodata[snap]["ForestLevel"][sel] = ForestLevel
+
+    	#Lets find which halos are subhalos of the halos within the tree defined by
+        #halos with the same rootheadid
+    	subHaloIndxs = np.where(np.in1d(halodata[snap]["hostHaloID"],halodata[snap]["ID"][sel]))[0]
+    	#Lets loop over all the subhalos within this selection, which contains
+        #all subhalos of any host halos within the tree defined by rootheadid
+    	for subHaloIndx in subHaloIndxs:
+    		#See if this tree has already been set
+    		if(halodata[snap]["RootHead"][subHaloIndx] not in AllRootHead):
+    			#Lets walk the subhalo's tree setting the forest ID
+    			AllRootHead,halodata = SetForestID(numsnaps,halodata,halodata[snap]["RootHead"][subHaloIndx],ForestID,AllRootHead)
+
+    	#Extract the hosts of all subhalos in this selection that are not already in the tree defined by rootheadid
+    	treeSubhaloSel = (halodata[snap]["hostHaloID"][sel]!=-1) & (np.invert(np.in1d(halodata[snap]["hostHaloID"][sel],halodata[snap]["ID"][sel])))
+    	#Get the index of these hosts that lie outside the tree
+    	hostIndxs = np.unique(halodata[snap]["hostHaloID"][sel][treeSubhaloSel]%TEMPORALHALOIDVAL-1).astype(int)
+    	#Loop over all the index for the host halos
+    	for hostIndx in hostIndxs:
+    		#See if this tree has already been set
+    		if(halodata[snap]["RootHead"][hostIndx] not in AllRootHead):
+    			#Lets walk the hosts tree setting the forrest ID
+    			AllRootHead,halodata = SetForestID(numsnaps,halodata,halodata[snap]["RootHead"][hostIndx],ForestID,AllRootHead)
+
+    return AllRootHead,halodata
+
+def GenerateForest(numsnaps,numhalos,halodata,cosmo,atime,
+    TEMPORALHALOIDVAL=1000000000000, iverbose=1, interactiontime=2, ispatialintflag=False, pos_tree=[]):
     """
     This code traces all root heads back in time identifying all interacting haloes and bundles them together into the same forest id
     The idea is to have in the halodata dictionary an associated unique forest id for all related (sub)haloes. The code also allows
     for some cleaning of the forest, specifically if a (sub)halo is only interacting for some small fraction of time, then it is not
     assigned to the forest. This can limit the size of a forest, which could otherwise become the entire halo catalog.
 
-    The code is passed
-    - the number of snapshots,
-    - an array of the number of haloes per snapshot,
-    - the halodata dictionary structure which must contain the halo merger tree based keys, Head, RootHead, etc, and mass, phase-space positions of haloes,
-    and other desired properties
-    - the cosmo dictionary which has cosmological information such as box size, hval,
-    - an array of scale factors
+    Parameters
+    ----------
+    numsnaps : numpy.int32
+        the number of snapshots
+    numhalos : array
+        array of the number of haloes per snapshot.
+    halodata : dict
+        the halodata dictionary structure which must contain the halo merger tree based keys (Head, RootHead), etc.
+    cosmo : dict
+        dictionary which has cosmological information such as box size, hval, Omega_m
+    atime : array
+        an array of scale factors
+
+    Optional Parameters
+    -------------------
+    TEMPORALHALOIDVAL : numpy.int64
+        Temporal ID value that makes Halo IDs temporally unique, adding a snapshot num* this value.
+        Allows one to quickly parse a Halo ID to determine the snapshot it exists at and its index.
+    iverbose : int
+        verbosity of function (0, minimal, 1, verbose, 2 chatterbox)
+    interactiontime : int
+        Optional functionality not implemented yet. Allows forest to be split if connections do not span
+        more than this number of snapshots
+    ispatialintflag : bool
+        Flag indicating whether spatial information should be used to join forests.
+    pos_tree : scikit.spatial.cKDTree
+        Optional functionality not implemented yet. Allows forests to be joined if haloes
+        are spatially close.
+
+    Returns
+    -------
+    ForestSize : numpy.array
+        Update the halodata dictionary with ForestID information and also returns the size of
+        the forests
 
     """
+
+    #initialize the dictionaries
     for j in range(numsnaps):
         #store id and snap and mass of last major merger and while we're at it, store number of major mergers
         halodata[j]["ForestID"]=np.ones(numhalos[j],dtype=np.int64)*-1
         halodata[j]["ForestLevel"]=np.ones(numhalos[j],dtype=np.int32)*-1
     #built KD tree to quickly search for near neighbours. only build if not passed.
-    boxsize=cosmo['BoxSize']
-    hval=cosmo['Hubble_param']
-    start=time.clock()
-    """
-    if (len(pos_tree)==0):
-        pos=[[]for j in range(numsnaps)]
-        pos_tree=[[]for j in range(numsnaps)]
+    if (ispatialintflag):
         start=time.clock()
-        if (iverbose): print "KD tree build"
-        for j in range(numsnaps):
-            if (numhalos[j]>0):
-                boxval=boxsize*atime[j]/hval
-                pos[j]=np.transpose(np.asarray([halodata[j]["Xc"],halodata[j]["Yc"],halodata[j]["Zc"]]))
-                pos_tree[j]=spatial.cKDTree(pos[j],boxsize=boxval)
-        if (iverbose): print "done ",time.clock()-start
-    """
+        boxsize=cosmo['BoxSize']
+        hval=cosmo['Hubble_param']
+        if (len(pos_tree)==0):
+            pos=[[]for j in range(numsnaps)]
+            pos_tree=[[]for j in range(numsnaps)]
+            start=time.clock()
+            if (iverbose): print "KD tree build"
+            for j in range(numsnaps):
+                if (numhalos[j]>0):
+                    boxval=boxsize*atime[j]/hval
+                    pos[j]=np.transpose(np.asarray([halodata[j]["Xc"],halodata[j]["Yc"],halodata[j]["Zc"]]))
+                    pos_tree[j]=spatial.cKDTree(pos[j],boxsize=boxval)
+            if (iverbose): print "done ",time.clock()-start
+
     #now start marching backwards in time from root heads
     #identifying all subhaloes that have every been subhaloes for long enough
     #and all progenitors and group them together into the same forest id
@@ -1701,203 +1615,14 @@ def GenerateForest(numsnaps,numhalos,halodata,cosmo,atime,interactiontime=2,HALO
             #result of walking the subhalo branches of a different root head
             #then move on to the next object
             if (halodata[j]['ForestID'][iroothead]!=-1): continue
-            #initialize numbers to zero
-            numprogs=numsubs=numsubprogen=numsubsecond=numsubsecondprogen=numsubsubs=numsubsubprogen=0
-            #store the main root head of interest and root tail of interest
-            rootheadid=halodata[j]['RootHead'][iroothead]
-            roottailid=halodata[j]['RootTail'][iroothead]
-
-            #to store other host halos that this halo has interacted with
-            otherhosthalos=deque()
-            numotherhosts=0
-
-            #first mark all progenitors with the current forest id
-            #start by getting all the unique root tails of the root head
-            numprogs,roottails=findroottailsofbranch(rootheadid,j,numsnaps,halodata,otherhosthalos,HALOIDVAL,iverbose)
-
-            #now identify all subhalos over the lifetime of this halo
-            numsubs,subroottails=findsubhalosofbranch(iroothead,j,rootheadid, rootheadid,roottailid,halodata, otherhosthalos, HALOIDVAL, iverbose)
-
-            #identify all subhalos of progenitors over lifetime of halo
-            numsubsecond,subsecondroottails=findsubhalosofbranches(roottails,rootheadid,roottailid,halodata,otherhosthalos, HALOIDVAL, iverbose,True,False,subroottails)
-
-            #and grab all subhalos of all subalos that are never subhalos nor progenitors of main halo
-            if (numsubs>0 and numsubsecond>0): newsubroottails=np.concatenate([subroottails,subsecondroottails])
-            elif (numsubs>0 and numsubsecond==0): newsubroottails=subroottails
-            elif (numsubs==0 and numsubsecond>0): newsubroottails=subsecondroottails
-            else: newsubroottails=[]
-            numsubsubs,subsubroottails=findsubhalosofbranches(subroottails,rootheadid,roottailid,halodata, otherhosthalos, HALOIDVAL, iverbose,True,False, newsubroottails)
-
-            #now with roottails, walk all of them and set their forest id.
-            #first start with the progenitors
-            forestlevelval=0
-            assignforestidandlevel(forestidval,forestlevelval,roottails,halodata,HALOIDVAL,iverbose)
-            #then move to the subhalos
-            forestlevelval+=1
-            if (numsubs>0): assignforestidandlevel(forestidval,forestlevelval,subroottails,halodata,HALOIDVAL,iverbose)
-            #then move to the subhalos of progentiors that were never subhaloes of primary halo
-            forestlevelval+=1
-            if (numsubsecond>0): assignforestidandlevel(forestidval,forestlevelval,subsecondroottails,halodata,HALOIDVAL,iverbose)
-            #then move to the subhalos of subhalos that were never subhaloes of primary halo
-            forestlevelval+=1
-            if (numsubsubs>0): assignforestidandlevel(forestidval,forestlevelval,subsubroottails,halodata,HALOIDVAL,iverbose)
-
-            #if other hosts are identified as interacting with this halo, then process those too
-            #get unique haloes, store
-            allhosthalos=np.array([rootheadid])
-            otherhosthalos=np.unique(np.array(otherhosthalos))
-            numotherhosts=len(otherhosthalos)
-            allhosthalos=np.concatenate([allhosthalos,otherhosthalos])
-            while(numotherhosts):
-                if (iverbose>=2): print("Other host halos are ",numotherhosts)
-                newotherhosthalos=deque()
-                for iother in otherhosthalos:
-                    haloid=iother
-                    haloindex=int(haloid%HALOIDVAL-1)
-                    halosnap=numsnaps-1-(haloid-int(haloid%HALOIDVAL))/HALOIDVAL
-                    rootheadid=halodata[halosnap]['RootHead'][haloindex]
-                    roottailid=halodata[halosnap]['RootTail'][haloindex]
-
-                    numprogs,roottails=findroottailsofbranch(haloid,halosnap,numsnaps,halodata,newotherhosthalos,HALOIDVAL,iverbose)
-                    numsubs,subroottails=findsubhalosofbranch(haloindex,halosnap,rootheadid,rootheadid,roottailid,halodata,newotherhosthalos, HALOIDVAL, iverbose)
-                    numsubsecond,subsecondroottails=findsubhalosofbranches(roottails,rootheadid,roottailid,halodata,newotherhosthalos, HALOIDVAL, iverbose,True,False,subroottails)
-                    if (numsubs>0 and numsubsecond>0): newsubroottails=np.concatenate([subroottails,subsecondroottails])
-                    elif (numsubs>0 and numsubsecond==0): newsubroottails=subroottails
-                    elif (numsubs==0 and numsubsecond>0): newsubroottails=subsecondroottails
-                    else: newsubroottails=[]
-                    numsubsubs,subsubroottails=findsubhalosofbranches(subroottails,rootheadid,roottailid,halodata,newotherhosthalos, HALOIDVAL, iverbose,True,False,newsubroottails)
-
-                    forestlevelval=0
-                    assignforestidandlevel(forestidval,forestlevelval,roottails,halodata,HALOIDVAL,iverbose)
-                    forestlevelval+=1
-                    if (numsubs>0): assignforestidandlevel(forestidval,forestlevelval,subroottails,halodata,HALOIDVAL,iverbose)
-                    forestlevelval+=1
-                    if (numsubsecond>0): assignforestidandlevel(forestidval,forestlevelval,subsecondroottails,halodata,HALOIDVAL,iverbose)
-                    forestlevelval+=1
-                    if (numsubsubs>0): assignforestidandlevel(forestidval,forestlevelval,subsubroottails,halodata,HALOIDVAL,iverbose)
-                #get unique new hosts
-                otherhosthalos=np.setdiff1d(np.unique(np.array(newotherhosthalos)),allhosthalos)
-                numotherhosts=len(otherhosthalos)
-                allhosthalos=np.concatenate([allhosthalos,otherhosthalos])
-
+            AllRootHead = []
+            #begin recursively searching and setting the forest using the the roothead
+            AllRootHead,halodata = SetForestID(numsnaps,halodata,halodata[j]["RootHead"][iroothead],forestidval,AllRootHead)
             #update forest id
             forestidval+=1
         if (iverbose): print("Done snap",j,time.clock()-start2)
 
-    #sanity check to see if any haloes that aren't root heads have different forests
-    blahflag=0
-    for j in range(numsnaps):
-        missingforest=np.where((halodata[j]['ForestID']==-1)*(halodata[j]['RootHead']!=halodata[j]['ID']))[0]
-        nummissing=len(missingforest)
-        print("Processing",j,nummissing)
-        for ihost in range(nummissing):
-            headid=halodata[j]['RootHead'][missingforest[ihost]]
-            headindex=int(headid%HALOIDVAL-1)
-            headsnap=numsnaps-1-(headid-int(headid%HALOIDVAL))/HALOIDVAL
-            headforest=halodata[headsnap]['ForestID'][headindex]
-            headforestlevel=halodata[headsnap]['ForestLevel'][headindex]
-            tailid=halodata[headsnap]['RootTail'][headindex]
-            #print("halo outside forest!",halodata[j]['ID'][missingforest[ihost]],halodata[j]['ForestID'][missingforest[ihost]],halodata[j]['RootTail'][missingforest[ihost]],headid,headforest,tailid)
-            if (halodata[j]['RootTail'][missingforest[ihost]]==tailid):
-                #print("FFFF weird, have same tail!")
-                haloid=tailid
-                haloindex=int(haloid%HALOIDVAL-1)
-                halosnap=numsnaps-1-(haloid-int(haloid%HALOIDVAL))/HALOIDVAL
-                descenid=halodata[halosnap]['Head'][haloindex]
-                descenindex=int(descenid%HALOIDVAL-1)
-                descensnap=numsnaps-1-(descenid-int(descenid%HALOIDVAL))/HALOIDVAL
-                while(True):
-                    hostid=halodata[halosnap]['hostHaloID'][haloindex]
-                    hostforestid=-2
-                    if (hostid!=-1): hostforestid=halodata[halosnap]['ForestID'][int(hostid%HALOIDVAL-1)]
-                    #print("moving from ",haloid,"to", descenid, " with forest ", halodata[halosnap]['ForestID'][haloindex],hostid,hostforestid)
-                    #stop when head does not point back to tail, ie: not primary descendant
-                    if (halodata[descensnap]['Tail'][descenindex]!=haloid or haloid==descenid):
-                        #print("breaking loop !")
-                        break
-                    #if (halodata[halosnap]['ForestID'][haloindex]==-1):
-                    #    halodata[halosnap]['ForestID'][haloindex]=headforest
-                    #    halodata[halosnap]['ForestLevel'][haloindex]=headforestlevel
-                    haloid=descenid
-                    haloindex=descenindex
-                    halosnap=descensnap
-                    descenid=halodata[halosnap]['Head'][haloindex]
-                    descenindex=int(descenid%HALOIDVAL-1)
-                    descensnap=numsnaps-1-(descenid-int(descenid%HALOIDVAL))/HALOIDVAL
-            else:
-                print("possibly WEIRDER not same tail")
-                haloid=halodata[j]['ID'][missingforest[ihost]]
-                haloindex=int(haloid%HALOIDVAL-1)
-                halosnap=int(numsnaps-1-(haloid-int(haloid%HALOIDVAL))/HALOIDVAL)
-                print("have ",haloid, halodata[halosnap]['hostHaloID'][haloindex],halodata[halosnap]['RootTail'][haloindex], " and root head ",headid,halodata[headsnap]['hostHaloID'][headindex], tailid)
-                haloid=halodata[halosnap]['RootTail'][haloindex]
-                haloindex=int(haloid%HALOIDVAL-1)
-                halosnap=numsnaps-1-(haloid-int(haloid%HALOIDVAL))/HALOIDVAL
-                descenid=halodata[halosnap]['Head'][haloindex]
-                descenindex=int(descenid%HALOIDVAL-1)
-                descensnap=numsnaps-1-(descenid-int(descenid%HALOIDVAL))/HALOIDVAL
-                while(True):
-                    hostid=halodata[halosnap]['hostHaloID'][haloindex]
-                    hostforestid=-2
-                    if (hostid!=-1): hostforestid=halodata[halosnap]['ForestID'][int(hostid%HALOIDVAL-1)]
-                    print("moving from ",haloid," to", descenid, " with head ", halodata[halosnap]['RootHead'][haloindex], " with forest ", halodata[halosnap]['ForestID'][haloindex],hostid,hostforestid,headforest)
-                    #stop when head does not point back to tail, ie: not primary descendant
-                    if (halodata[halosnap]['ForestID'][haloindex]==-1):
-                        halodata[halosnap]['ForestID'][haloindex]=headforest
-                        halodata[halosnap]['ForestLevel'][haloindex]=headforestlevel
-                    if (halodata[descensnap]['Tail'][descenindex]!=haloid or haloid==descenid):
-                        #print("breaking loop !")
-                        break
-                    #if (halodata[halosnap]['ForestID'][haloindex]==-1):
-                    #    halodata[halosnap]['ForestID'][haloindex]=headforest
-                    #    halodata[halosnap]['ForestLevel'][haloindex]=headforestlevel
-                    haloid=descenid
-                    haloindex=descenindex
-                    halosnap=descensnap
-                    descenid=halodata[halosnap]['Head'][haloindex]
-                    descenindex=int(descenid%HALOIDVAL-1)
-                    descensnap=numsnaps-1-(descenid-int(descenid%HALOIDVAL))/HALOIDVAL
-
-
-    JoinForest=[[] for i in range(forestidval)]
-    for j in range(numsnaps):
-        subs=np.where(halodata[j]['hostHaloID']!=-1)
-        hosts=np.unique(halodata[j]['hostHaloID'][subs])
-        hostsindices=hosts%HALOIDVAL-1
-        hostforests=halodata[j]['ForestID'][hostsindices]
-        hostsize=halodata[j]['ForestID'][hostsindices]
-        numhosts=len(hosts)
-        print("Processing",j,numhosts)
-        nummismatch=0
-        for ihost in range(numhosts):
-            subforests=halodata[j]['ForestID'][subs][np.where(halodata[j]['hostHaloID'][subs]==hosts[ihost])]
-            if (np.all(subforests!=hostforests[ihost])):
-                nummismatch+=1
-                minforest=min(min(subforests[np.where(subforests!=hostforests[ihost])]),hostforests[ihost])
-                JoinForest[minforest-1].append(subforests[np.where(subforests!=hostforests[ihost])])
-                #print("halo/subhalo Forest mistmach!",len(subforests),hostforests[ihost],subforests[np.where(subforests!=hostforests[ihost])])
-        print("Have ",nummismatch)
-    for i in range(forestidval):
-        if (len(JoinForest[i])>0):
-            JoinForest[i]=np.unique(np.concatenate(JoinForest[i]))
-    #think of how to combine everything in the JoinForest
-    for i in range(forestidval-1,-1,-1):
-        if (len(JoinForest[i])>0):
-            ???
-
-
-    for i in range(forestidval-1,-1,-1):
-        if (len(JoinForest[i])>0):
-            #merge these forests together
-            for j in range(numsnaps):
-                for iforst in JoinForest[i]:
-                    halodata[j]['ForestID'][np.where(halodata[j]['ForestID']==JoinForest[i])]=i+1
-
     #get the size of each forest
-    forestidval=0
-    for j in range(numsnaps):
-        if (numhalos[j]==0): continue
-        forestidval=max(max(halodata[j]['ForestID']),forestidval)
     ForestSize=np.zeros(forestidval,dtype=int64)
     for j in range(numsnaps):
         if (numhalos[j]==0): continue
@@ -1915,16 +1640,17 @@ def GenerateForest(numsnaps,numhalos,halodata,cosmo,atime,interactiontime=2,HALO
         missingforest=np.where((halodata[j]['ForestID']==-1))
         rootheads=np.where((halodata[j]['ID']==halodata[j]['RootHead'])*(halodata[j]['ForestID']==-1))
         subrootheads=np.where((halodata[j]['ForestID']==-1)*(halodata[j]['hostHaloID']!=-1))
-        #if (iverbose): print("At snapshot",j," still have ",len(missingforest[0]), " with no forest id ! Of which ",len(rootheads[0])," are root heads", len(subrootheads[0]),"are subhalos")
-        if (iverbose and len(missingforest[0])>0): print("At snapshot",j," still have ",len(missingforest[0]), " with no forest id ! Of which ",len(rootheads[0])," are root heads", len(subrootheads[0]),"are subhalos")
+        if (iverbose): print("At snapshot",j," still have ",halodata[j]['ForestID'].size,len(missingforest[0]), " with no forest id ! Of which ",len(rootheads[0])," are root heads", len(subrootheads[0]),"are subhalos")
+        #if (iverbose and len(missingforest[0])>0): print("At snapshot",j," still have ",len(missingforest[0]), " with no forest id ! Of which ",len(rootheads[0])," are root heads", len(subrootheads[0]),"are subhalos")
         if (len(subrootheads[0])>0):
             for isub in subrootheads[0]:
                 hostid=halodata[j]['hostHaloID'][isub]
-                hostindex=int(hostid%HALOIDVAL-1)
+                hostindex=int(hostid%TEMPORALHALOIDVAL-1)
                 halodata[j]['ForestID'][isub]=halodata[j]['ForestID'][hostindex]
                 halodata[j]['ForestLevel'][isub]=halodata[j]['ForestLevel'][hostindex]+1
     #then return this
     print("Done generating forest",time.clock()-start)
+    return ForestSize
 
 """
 Adjust halo catalog for period, comoving coords, etc
@@ -2028,7 +1754,7 @@ def ProduceUnifiedTreeandHaloCatalog(fname,numsnaps,tree,numhalos,halodata,atime
         #store useful information such as number of snapshots, halos,
         #cosmology (Omega_m,Omega_b,Hubble_param,Omega_Lambda, Box size)
         #units (Physical [1/0] for physical/comoving flag, length in Mpc, km/s, solar masses, Gravity
-        #and HALOIDVAL used to traverse tree information (converting halo ids to haloindex or snapshot), Reverse_order [1/0] for last snap listed first)
+        #and TEMPORALHALOIDVAL used to traverse tree information (converting halo ids to haloindex or snapshot), Reverse_order [1/0] for last snap listed first)
         #set the attributes of the header
         headergrp.attrs["NSnaps"]=numsnaps
         #overall description
@@ -2093,16 +1819,16 @@ def ProduceCombinedUnifiedTreeandHaloCatalog(fname,numsnaps,tree,numhalos,haloda
     cosmodata={'Omega_m':1.0, 'Omega_b':0., 'Omega_Lambda':0., 'Hubble_param':1.0,'BoxSize':1.0, 'Sigma8':1.0},
     unitdata={'UnitLength_in_Mpc':1.0, 'UnitVelocity_in_kms':1.0,'UnitMass_in_Msol':1.0, 'Flag_physical_comoving':True,'Flag_hubble_flow':False},
     partdata={'Flag_gas':False, 'Flag_star':False, 'Flag_bh':False},
-    ibuildheadtail=0,ibuildmajormergers=0, HALOIDVAL=1000000000000):
+    ibuildheadtail=0,ibuildmajormergers=0, TEMPORALHALOIDVAL=1000000000000):
 
     """
     produces a unifed HDF5 formatted file containing the full catalog plus information to walk the tree
-    \ref BuildTemporalHeadTail must have been called before otherwise it is called.
+    #ref BuildTemporalHeadTail must have been called before otherwise it is called.
     Code produces a file for each snapshot
     The keys are the same as that contained in the halo catalog dictionary with the addition of
     Num_of_snaps, and similar header info contain in the VELOCIraptor hdf files, ie Num_of_groups, Total_num_of_groups
 
-    \todo don't know if I should use multiprocessing here to write files in parallel. IO might not be ideal
+    #todo don't know if I should use multiprocessing here to write files in parallel. IO might not be ideal
 
     Here the halodata is the dictionary contains the information
 
@@ -2117,7 +1843,7 @@ def ProduceCombinedUnifiedTreeandHaloCatalog(fname,numsnaps,tree,numhalos,haloda
     #store useful information such as number of snapshots, halos,
     #cosmology (Omega_m,Omega_b,Hubble_param,Omega_Lambda, Box size)
     #units (Physical [1/0] for physical/comoving flag, length in Mpc, km/s, solar masses, Gravity
-    #and HALOIDVAL used to traverse tree information (converting halo ids to haloindex or snapshot), Reverse_order [1/0] for last snap listed first)
+    #and TEMPORALHALOIDVAL used to traverse tree information (converting halo ids to haloindex or snapshot), Reverse_order [1/0] for last snap listed first)
     #set the attributes of the header
     headergrp.attrs["NSnaps"]=numsnaps
     #overall description
@@ -2234,7 +1960,7 @@ def ProduceCombinedUnifiedTreeandHaloCatalog(fname,numsnaps,tree,numhalos,haloda
     tdata=np.zeros(tothalos,dtype=np.uint64)
     count=0
     for i in range(numsnaps):
-        tdata[count:int(numhalos[i])+count]=(halodata[i]["Tail"]%HALOIDVAL-1)
+        tdata[count:int(numhalos[i])+count]=(halodata[i]["Tail"]%TEMPORALHALOIDVAL-1)
         count+=int(numhalos[i])
     treegrp.create_dataset("ProgenitorIndex",data=tdata)
     #store descendants
@@ -2253,7 +1979,7 @@ def ProduceCombinedUnifiedTreeandHaloCatalog(fname,numsnaps,tree,numhalos,haloda
     tdata=np.zeros(tothalos,dtype=np.uint64)
     count=0
     for i in range(numsnaps):
-        tdata[count:int(numhalos[i])+count]=(halodata[i]["Head"]%HALOIDVAL-1)
+        tdata[count:int(numhalos[i])+count]=(halodata[i]["Head"]%TEMPORALHALOIDVAL-1)
         count+=int(numhalos[i])
     treegrp.create_dataset("DescendantIndex",data=tdata)
     #store progenitors
@@ -2272,7 +1998,7 @@ def ProduceCombinedUnifiedTreeandHaloCatalog(fname,numsnaps,tree,numhalos,haloda
     tdata=np.zeros(tothalos,dtype=np.uint64)
     count=0
     for i in range(numsnaps):
-        tdata[count:int(numhalos[i])+count]=(halodata[i]["RootTail"]%HALOIDVAL-1)
+        tdata[count:int(numhalos[i])+count]=(halodata[i]["RootTail"]%TEMPORALHALOIDVAL-1)
         count+=int(numhalos[i])
     treegrp.create_dataset("RootProgenitorIndex",data=tdata)
     #store descendants
@@ -2291,7 +2017,7 @@ def ProduceCombinedUnifiedTreeandHaloCatalog(fname,numsnaps,tree,numhalos,haloda
     tdata=np.zeros(tothalos,dtype=np.uint64)
     count=0
     for i in range(numsnaps):
-        tdata[count:int(numhalos[i])+count]=(halodata[i]["RootHead"]%HALOIDVAL-1)
+        tdata[count:int(numhalos[i])+count]=(halodata[i]["RootHead"]%TEMPORALHALOIDVAL-1)
         count+=int(numhalos[i])
     treegrp.create_dataset("RootDescendantIndex",data=tdata)
     #store number of progenitors
@@ -2306,7 +2032,13 @@ def ProduceCombinedUnifiedTreeandHaloCatalog(fname,numsnaps,tree,numhalos,haloda
 
 def ReadUnifiedTreeandHaloCatalog(fname, desiredfields=[], icombinedfile=1,iverbose=1):
     """
-    Read Unified Tree and halo catalog from HDF file with base filename fname
+    Read Unified Tree and halo catalog from HDF file with base filename fname.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
     """
     if (icombinedfile):
         hdffile=h5py.File(fname+".snap.hdf.data",'r')
@@ -2405,6 +2137,71 @@ def ReadUnifiedTreeandHaloCatalog(fname, desiredfields=[], icombinedfile=1,iverb
                 tree[i][catvalue]=np.array(hdffile[snapgrpname+catvalue])
         hdffile.close()
     return atime,tree,numhalos,halodata,cosmodata,unitdata
+
+def ProduceHDFTree(fname,numsnaps,tree,numhalos,halodata,atime,
+    descripdata={'Title':'Tree catalogue', 'VELOCIraptor_version':1.3, 'Tree_version':1.1, 'Particle_num_threshold':20, 'Temporal_linking_length':1, 'Flag_gas':False, 'Flag_star':False, 'Flag_bh':False}
+    ):
+    """
+    Produces a HDF5 formatted file containing Reduced Tree information,
+    ie; RootHead, Head, HeadSnap, Tail, RootTail, etc.
+
+    Parameters
+    ----------
+    fname : string
+        filename of the hdf file to be written
+    numsnaps : int
+        the number of snapshots
+    tree : dict
+        the tree data
+    numhalos : array
+        array of number of halos per snapshot
+    halodata : dict
+        the halo data dictionary
+    atime : array
+        array of scalefactors/times of the snaphots
+    discrptdata : dict
+        stores a description of how the tree catalogue was produced
+
+    Returns
+    -------
+    void :
+        Only writes an hdf file. Nothing is returned.
+    """
+    hdffile=h5py.File(fname,'w')
+    headergrp=hdffile.create_group("Header")
+    #store useful information such as number of snapshots, halos,
+    #cosmology (Omega_m,Omega_b,Hubble_param,Omega_Lambda, Box size)
+    #units (Physical [1/0] for physical/comoving flag, length in Mpc, km/s, solar masses, Gravity
+    #and TEMPORALHALOIDVAL used to traverse tree information (converting halo ids to haloindex or snapshot), Reverse_order [1/0] for last snap listed first)
+    #set the attributes of the header
+    headergrp.attrs["NSnaps"]=numsnaps
+    #overall description
+    headergrp.attrs["Title"]=descripdata["Title"]
+    findergrp=headergrp.create_group("HaloFinder")
+    findergrp.attrs["Name"]="VELOCIraptor"
+    findergrp.attrs["Version"]=descripdata["VELOCIraptor_version"]
+    findergrp.attrs["Particle_num_threshold"]=descripdata["Particle_num_threshold"]
+
+    treebuildergrp=headergrp.create_group("TreeBuilder")
+    treebuildergrp.attrs["Name"]="VELOCIraptor-Tree"
+    treebuildergrp.attrs["Version"]=descripdata["Tree_version"]
+    treebuildergrp.attrs["Temporal_linking_length"]=descripdata["Temporal_linking_length"]
+
+    #now need to create groups for halos and then a group containing tree information
+    snapsgrp=hdffile.create_group("Snapshots")
+    #internal tree keys
+    halokeys=["RootHead", "RootHeadSnap", "Head", "HeadSnap", "Tail", "TailSnap", "RootTail", "RootTailSnap", "ID", "Num_progen"]
+
+    for i in range(numsnaps):
+        #note that I normally have information in reverse order so that might be something in the units
+        snapgrp=snapsgrp.create_group("Snap_%03d"%i)
+        snapgrp.attrs["Snapnum"]=i
+        snapgrp.attrs["NHalos"]=numhalos[i]
+        snapgrp.attrs["scalefactor"]=atime[i]
+        for key in halokeys:
+            snapgrp.create_dataset(key,data=halodata[i][key])
+    hdffile.close()
+
 
 """
     Conversion Tools
