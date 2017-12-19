@@ -73,11 +73,11 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
     HDF_Group_Names hdf_gnames;
     //structures store names in groups
     HDF_Header *hdf_header_info;
-    HDF_Part_Info hdf_gas_info(HDFGASTYPE);
-    HDF_Part_Info hdf_dm_info(HDFDMTYPE);
-    HDF_Part_Info hdf_tracer_info(HDFTRACERTYPE);
-    HDF_Part_Info hdf_star_info(HDFSTARTYPE);
-    HDF_Part_Info hdf_bh_info(HDFBHTYPE);
+    HDF_Part_Info hdf_gas_info(HDFGASTYPE,opt.ihdfnameconvention);
+    HDF_Part_Info hdf_dm_info(HDFDMTYPE,opt.ihdfnameconvention);
+    HDF_Part_Info hdf_tracer_info(HDFTRACERTYPE,opt.ihdfnameconvention);
+    HDF_Part_Info hdf_star_info(HDFSTARTYPE,opt.ihdfnameconvention);
+    HDF_Part_Info hdf_bh_info(HDFBHTYPE,opt.ihdfnameconvention);
 
     HDF_Part_Info *hdf_parts[NHDFTYPE];
     hdf_parts[0]=&hdf_gas_info;
