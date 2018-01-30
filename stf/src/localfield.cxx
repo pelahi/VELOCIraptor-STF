@@ -44,7 +44,7 @@ void GetVelocityDensity(Options &opt, const Int_t nbodies, Particle *Part, KDTre
         cout<<ThisTask<<" "<<"Get velocity density using a subset of nearby physical or phase-space neighbours"<<endl;
     }
     //if using mpi run NN search store largest distance for each particle so that export list can be built.
-    //if calculating using only particles IN a structure, 
+    //if calculating using only particles IN a structure,
 #ifndef HALOONLYDEN
 #ifdef USEMPI
     Int_t nimport;
@@ -56,7 +56,7 @@ void GetVelocityDensity(Options &opt, const Int_t nbodies, Particle *Part, KDTre
 #ifndef USEOPENMP
     nthreads=1;
 #else
-#pragma omp parallel 
+#pragma omp parallel
     {
             if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
     }
@@ -87,7 +87,7 @@ private(i,j,k,tid,id,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,pqx,pqv
         if (!(opt.iBaryonSearch==1 && opt.partsearchtype==PSTALL)) tree->FindNearest(i,nnids,nnr2,opt.Nsearch);
         //otherwise distinction must be made so that only base calculation on dark matter particles
         else tree->FindNearestCriterion(i,FOFPositivetypes,NULL,nnids,nnr2,opt.Nsearch);
-#else 
+#else
         tree->FindNearest(i,nnids,nnr2,opt.Nsearch);
 #endif
         //once NN set is found, store maxrdist and see if particle's search radius overlaps with another mpi domain
@@ -139,7 +139,7 @@ private(i,j,k,tid,id,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,pqx,pqv
     nimport=MPIBuildParticleNNImportList(nbodies, tree, Part,(!(opt.iBaryonSearch==1 && opt.partsearchtype==PSTALL)));
     int nimportsearch=opt.Nsearch;
     if (nimportsearch>nimport) nimportsearch=nimport;
-    if (opt.iverbose) cout<<ThisTask<<" Searching particles in other domains"<<endl;
+    if (opt.iverbose) cout<<ThisTask<<" Searching particles in other domains "<<nimport<<endl;
     //now with imported particle list and local particle list can run proper NN search
     //first build neighbouring tree
     KDTree *treeneighbours=NULL;
@@ -187,7 +187,7 @@ private(i,j,k,tid,pid,pid2,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,p
                 }
             }
             //now search the export particle list and fill appropriately
-            if (nimport>0) { 
+            if (nimport>0) {
                 /*if (!(opt.iBaryonSearch==1 && opt.partsearchtype==PSTALL)) {
                     Coordinate x(Part[i].GetPosition());
                     treeneighbours->FindNearestPos(x,nnidsneighbours,nnr2neighbours,nimportsearch);
@@ -247,12 +247,18 @@ private(i,j,k,tid,pid,pid2,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,p
     delete[] NNDataIn;
     delete[] NNDataGet;
     if(opt.iverbose) cout<<ThisTask<<" finished other domain search "<<MyGetTime()-time2<<endl;
-#else 
+#else
     //NO MPI invoked
 #ifndef USEOPENMP
-    tree->CalcVelDensity(opt.Nvel,opt.Nsearch);
+    for (i=0;i<nbodies;i++) {
+#ifdef STRUCDEN
+        if (Part[i].GetType()>0) {
+#endif
+            Part[i].SetDensity(tree->CalcVelDensityParticle(i,opt.Nvel,opt.Nsearch));
+        }
+    }
 #else
-#pragma omp parallel 
+#pragma omp parallel
     {
             if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
     }
@@ -336,7 +342,7 @@ private(i,tid)
     //start halo only density calculations, where particles are localized to single mpi domain
     nthreads=1;
 #ifdef USEOPENMP
-#pragma omp parallel 
+#pragma omp parallel
     {
             if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
     }
@@ -395,5 +401,5 @@ private(i,tid)
     if (itreeflag) delete tree;
 #endif
     if (period!=NULL) delete[] period;
-    cout<<ThisTask<<": finished local calculation in "<<MyGetTime()-time1<<endl;
+    cout<<ThisTask<<": finished calculation in "<<MyGetTime()-time1<<endl;
 }

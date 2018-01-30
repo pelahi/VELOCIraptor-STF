@@ -44,6 +44,7 @@ breathe_projects = {
     'VELOCIraptor': 'xml'
 }
 breathe_default_project = 'VELOCIraptor'
+breathe_domain_by_extension = {"h" : "cxx"}
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

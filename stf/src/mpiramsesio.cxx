@@ -45,7 +45,7 @@ void MPIDomainExtentRAMSES(Options &opt){
     RAMSES_Header ramses_header_info;
     string stringbuf;
     if (ThisTask==0) {
-    sprintf(buf,"info_%s.txt",opt.fname);
+    sprintf(buf,"%s/info_%s.txt",opt.fname,opt.ramsessnapname);
     Framses.open(buf, ios::in);
     getline(Framses,stringbuf);
     getline(Framses,stringbuf);
@@ -95,88 +95,6 @@ void MPIDomainDecompositionRAMSES(Options &opt){
     int Nsplit,isplit;
 
     if (ThisTask==0) {
-    //determine the number of splits in each dimension
-    Nsplit=log((float)NProcs)/log(2.0);
-    mpi_ideltax[0]=0;mpi_ideltax[1]=1;mpi_ideltax[2]=2;
-    isplit=0;
-    for (j=0;j<3;j++) mpi_nxsplit[j]=0;
-    for (j=0;j<Nsplit;j++) {
-        mpi_nxsplit[mpi_ideltax[isplit++]]++;
-        if (isplit==3) isplit=0;
-    }
-    for (j=0;j<3;j++) mpi_nxsplit[j]=pow(2.0,mpi_nxsplit[j]);
-    //for all the cells along the boundary of axis with the third split axis (smallest variance)
-    //set the domain limits to the sims limits
-    int ix=mpi_ideltax[0],iy=mpi_ideltax[1],iz=mpi_ideltax[2];
-    int mpitasknum;
-    for (j=0;j<mpi_nxsplit[iy];j++) {
-        for (i=0;i<mpi_nxsplit[ix];i++) {
-            mpitasknum=i+j*mpi_nxsplit[ix]+0*(mpi_nxsplit[ix]*mpi_nxsplit[iy]);
-            mpi_domain[mpitasknum].bnd[iz][0]=mpi_xlim[iz][0];
-            mpitasknum=i+j*mpi_nxsplit[ix]+(mpi_nxsplit[iz]-1)*(mpi_nxsplit[ix]*mpi_nxsplit[iy]);
-            mpi_domain[mpitasknum].bnd[iz][1]=mpi_xlim[iz][1];
-        }
-    }
-    //here for domains along second axis
-    for (k=0;k<mpi_nxsplit[iz];k++) {
-        for (i=0;i<mpi_nxsplit[ix];i++) {
-            mpitasknum=i+0*mpi_nxsplit[ix]+k*(mpi_nxsplit[ix]*mpi_nxsplit[iy]);
-            mpi_domain[mpitasknum].bnd[iy][0]=mpi_xlim[iy][0];
-            mpitasknum=i+(mpi_nxsplit[iy]-1)*mpi_nxsplit[ix]+k*(mpi_nxsplit[ix]*mpi_nxsplit[iy]);
-            mpi_domain[mpitasknum].bnd[iy][1]=mpi_xlim[iy][1];
-        }
-    }
-    //finally along axis with largest variance
-    for (k=0;k<mpi_nxsplit[iz];k++) {
-        for (j=0;j<mpi_nxsplit[iy];j++) {
-            mpitasknum=0+j*mpi_nxsplit[ix]+k*(mpi_nxsplit[ix]*mpi_nxsplit[iy]);
-            mpi_domain[mpitasknum].bnd[ix][0]=mpi_xlim[ix][0];
-            mpitasknum=(mpi_nxsplit[ix]-1)+j*mpi_nxsplit[ix]+k*(mpi_nxsplit[ix]*mpi_nxsplit[iy]);
-            mpi_domain[mpitasknum].bnd[ix][1]=mpi_xlim[ix][1];
-        }
-    }
-    //here use the three different histograms to define the boundary
-    int start[3],end[3];
-    Double_t bndval[3],binsum[3],lastbin;
-    start[0]=start[1]=start[2]=0;
-    for (i=0;i<mpi_nxsplit[ix];i++) {
-        bndval[0]=(mpi_xlim[ix][1]-mpi_xlim[ix][0])*(Double_t)(i+1)/(Double_t)mpi_nxsplit[ix];
-        if(i<mpi_nxsplit[ix]-1) {
-        for (j=0;j<mpi_nxsplit[iy];j++) {
-            for (k=0;k<mpi_nxsplit[iz];k++) {
-                //define upper limit
-                mpitasknum=i+j*mpi_nxsplit[ix]+k*(mpi_nxsplit[ix]*mpi_nxsplit[iy]);
-                mpi_domain[mpitasknum].bnd[ix][1]=bndval[0];
-                //define lower limit
-                mpitasknum=(i+1)+j*mpi_nxsplit[ix]+k*(mpi_nxsplit[ix]*mpi_nxsplit[iy]);
-                mpi_domain[mpitasknum].bnd[ix][0]=bndval[0];
-            }
-        }
-        }
-        //now for secondary splitting
-        if (mpi_nxsplit[iy]>1)
-        for (j=0;j<mpi_nxsplit[iy];j++) {
-            bndval[1]=(mpi_xlim[iy][1]-mpi_xlim[iy][0])*(Double_t)(j+1)/(Double_t)mpi_nxsplit[iy];
-            if(j<mpi_nxsplit[iy]-1) {
-            for (k=0;k<mpi_nxsplit[iz];k++) {
-                mpitasknum=i+j*mpi_nxsplit[ix]+k*(mpi_nxsplit[ix]*mpi_nxsplit[iy]);
-                mpi_domain[mpitasknum].bnd[iy][1]=bndval[1];
-                mpitasknum=i+(j+1)*mpi_nxsplit[ix]+k*(mpi_nxsplit[ix]*mpi_nxsplit[iy]);
-                mpi_domain[mpitasknum].bnd[iy][0]=bndval[1];
-            }
-            }
-            if (mpi_nxsplit[iz]>1)
-            for (k=0;k<mpi_nxsplit[iz];k++) {
-                bndval[2]=(mpi_xlim[iz][1]-mpi_xlim[iz][0])*(Double_t)(k+1)/(Double_t)mpi_nxsplit[iz];
-                if (k<mpi_nxsplit[iz]-1){
-                mpitasknum=i+j*mpi_nxsplit[ix]+k*(mpi_nxsplit[ix]*mpi_nxsplit[iy]);
-                mpi_domain[mpitasknum].bnd[iz][1]=bndval[2];
-                mpitasknum=i+j*mpi_nxsplit[ix]+(k+1)*(mpi_nxsplit[ix]*mpi_nxsplit[iy]);
-                mpi_domain[mpitasknum].bnd[iz][0]=bndval[2];
-                }
-            }
-        }
-    }
     }
 }
 
@@ -188,9 +106,10 @@ void MPINumInDomainRAMSES(Options &opt)
     if (NProcs > 1)
     {
         MPIDomainExtentRAMSES(opt);
-        MPIDomainDecompositionRAMSES(opt);
         MPIInitialDomainDecomposition();
+        MPIDomainDecompositionRAMSES(opt);
         Int_t i,j,k,n,m,temp,Ntot,indark,ingas,instar;
+        int idim,ivar,igrid;
         Int_t idval;
         int   typeval;
         Int_t Nlocalold=Nlocal;
@@ -198,205 +117,325 @@ void MPINumInDomainRAMSES(Options &opt)
         Double_t mtemp;
         MPI_Status status;
         Int_t Nlocalbuf,ibuf=0,*Nbuf, *Nbaryonbuf;
+        int *ngridlevel,*ngridbound,*ngridfile;
+        int lmin=1000000,lmax=0;
 
         char buf[2000],buf1[2000],buf2[2000];
         string stringbuf,orderingstring;
         fstream Finfo;
-        fstream *Fpart, *Fpartmass, *Fpartage;
+        fstream *Fpart, *Fpartmass, *Fpartage, *Famr, *Fhydro;
         fstream  Framses;
         RAMSES_Header *header;
         int intbuff[NRAMSESTYPE];
         long long longbuff[NRAMSESTYPE];
-        int idim,ivar,igrid,ireaderror=0;
         Int_t count2,bcount2;
         int dummy,byteoffset;
         Int_t chunksize = opt.inputbufsize, nchunk;
         RAMSESFLOAT *xtempchunk, *mtempchunk, *agetempchunk;
-        double dmp_mass;
-        int n_out_of_bounds,ndark,nstar,nghost;
+        int *icellchunk;
+        Fpart      = new fstream[opt.num_files];
+        Fpartmass  = new fstream[opt.num_files];
+        Fpartage   = new fstream[opt.num_files];
+        Famr       = new fstream[opt.num_files];
+        Fhydro     = new fstream[opt.num_files];
+        header     = new RAMSES_Header[opt.num_files];
+        double dmp_mass,OmegaM, OmegaB;
+        int n_out_of_bounds = 0;
+        int ndark  = 0;
+        int nstar  = 0;
+        int nghost = 0;
         int *ireadfile,*ireadtask,*readtaskID;
         ireadtask=new int[NProcs];
         readtaskID=new int[opt.nsnapread];
         ireadfile=new int[opt.num_files];
         MPIDistributeReadTasks(opt,ireadtask,readtaskID);
+        MPISetFilesRead(opt,ireadfile,ireadtask);
 
         Nbuf=new Int_t[NProcs];
         Nbaryonbuf=new Int_t[NProcs];
         for (int j=0;j<NProcs;j++) Nbuf[j]=0;
         for (int j=0;j<NProcs;j++) Nbaryonbuf[j]=0;
 
-        if (ireadtask[ThisTask]>=0) {
-
-            Fpart      = new fstream[opt.num_files];
-            Fpartmass  = new fstream[opt.num_files];
-            Fpartage   = new fstream[opt.num_files];
-            header     = new RAMSES_Header[opt.num_files];
-            sprintf(buf1,"%s/part_%s.out%05d",opt.fname,opt.ramsessnapname,1);
-            sprintf(buf2,"%s/part_%s.out",opt.fname,opt.ramsessnapname);
-            if (FileExists(buf1)) sprintf(buf,"%s",buf1);
-            else if (FileExists(buf2)) sprintf(buf,"%s",buf2);
-            Framses.open(buf, ios::binary|ios::in);
-
-            //skip part file till you get to masses
-            for (j = 0; j < 14; j++)
-            {
-                Framses.read((char*)&dummy, sizeof(dummy));
-                Framses.seekg(dummy,ios::cur);
-                Framses.read((char*)&dummy, sizeof(dummy));
-            }
-            // Read Mass
-            Framses.read((char*)&dummy, sizeof(dummy));
-            Framses.read((char*)&dmp_mass, sizeof(double));
-            Framses.close();
-            MPISetFilesRead(opt,ireadfile,ireadtask);
+        if (ThisTask == 0)
+        {
+          //
+          // Compute Mass of DM particles in RAMSES code units
+          //
+          fstream Finfo;
+          sprintf(buf1,"%s/info_%s.txt", opt.fname, opt.ramsessnapname);
+          Finfo.open(buf1, ios::in);
+          getline(Finfo,stringbuf);//nfiles
+          getline(Finfo,stringbuf);//ndim
+          getline(Finfo,stringbuf);//lmin
+          getline(Finfo,stringbuf);//lmax
+          getline(Finfo,stringbuf);//ngridmax
+          getline(Finfo,stringbuf);//ncoarse
+          getline(Finfo,stringbuf);//blank
+          getline(Finfo,stringbuf);//boxsize
+          getline(Finfo,stringbuf);//time
+          getline(Finfo,stringbuf);//a
+          getline(Finfo,stringbuf);//hubble
+          Finfo>>stringbuf>>stringbuf>>OmegaM;
+          getline(Finfo,stringbuf);
+          getline(Finfo,stringbuf);
+          getline(Finfo,stringbuf);
+          Finfo>>stringbuf>>stringbuf>>OmegaB;
+          Finfo.close();
+          dmp_mass = 1.0 / (opt.Neff*opt.Neff*opt.Neff) * (OmegaM - OmegaB) / OmegaM;
         }
-        //broadcast the dark matter mass as this will be used to determine
-        //whether particle is dm/star/bh
         MPI_Bcast(&dmp_mass, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
         if (ireadtask[ThisTask]>=0) {
-            for (int i = 0, count2 = 0; i < opt.num_files; i++) {
-                sprintf(buf1,"%s/part_%s.out%05d",opt.fname,opt.ramsessnapname,i+1);
-                sprintf(buf2,"%s/part_%s.out",opt.fname,opt.ramsessnapname);
-                if (FileExists(buf1)) sprintf(buf,"%s",buf1);
-                else if (FileExists(buf2)) sprintf(buf,"%s",buf2);
-                Fpart[i].open      (buf, ios::binary|ios::in);
-                Fpartmass[i].open  (buf, ios::binary|ios::in);
-                Fpartage[i].open   (buf, ios::binary|ios::in);
+            if (opt.partsearchtype!=PSTGAS) {
+                for (int i = 0, count2 = 0; i < opt.num_files; i++) if (ireadfile[i]){
+                    sprintf(buf1,"%s/part_%s.out%05d",opt.fname,opt.ramsessnapname,i+1);
+                    sprintf(buf2,"%s/part_%s.out",opt.fname,opt.ramsessnapname);
+                    if (FileExists(buf1)) sprintf(buf,"%s",buf1);
+                    else if (FileExists(buf2)) sprintf(buf,"%s",buf2);
+                    Fpart[i].open      (buf, ios::binary|ios::in);
+                    Fpartmass[i].open  (buf, ios::binary|ios::in);
+                    Fpartage[i].open   (buf, ios::binary|ios::in);
+                    //skip header information in each file save for number in the file
+                    //@{
+                    byteoffset = 0;
+                    // ncpus
+                    byteoffset += RAMSES_fortran_skip(Fpart[i], 1);
+                    // ndims
+                    byteoffset += RAMSES_fortran_read(Fpart[i],header[i].ndim);
+                    //store number of particles locally in file
+                    byteoffset += RAMSES_fortran_read(Fpart[i],header[i].npartlocal);
+                    // skip local seeds, nstartot, mstartot, mstarlost, nsink
+                    byteoffset += RAMSES_fortran_skip(Fpart[i], 5);
+                    // byteoffset now stores size of header offset for particles
+                    Fpartmass[i].seekg  (byteoffset,ios::cur);
+                    Fpartage[i].seekg   (byteoffset,ios::cur);
 
-                //skip header information in each file save for number in the file
-                //@{
-                byteoffset = 0;
-                // ncpus
-                byteoffset += RAMSES_fortran_skip(Fpart[i], 1);
-                // ndims
-                byteoffset += RAMSES_fortran_read(Fpart[i],header[i].ndim);
-                //store number of particles locally in file
-                byteoffset += RAMSES_fortran_read(Fpart[i],header[i].npartlocal);
-                // skip local seeds, nstartot, mstartot, mstarlost, nsink
-                byteoffset += RAMSES_fortran_skip(Fpart[i], 5);
-                // byteoffset now stores size of header offset for particles
-                Fpartmass[i].seekg  (byteoffset,ios::cur);
-                Fpartage[i].seekg   (byteoffset,ios::cur);
-
-                //skip positions
-                for(idim = 0; idim < header[i].ndim; idim++)
-                {
-                      RAMSES_fortran_skip (Fpartmass[i]);
-                      RAMSES_fortran_skip (Fpartage[i]);
-                }
-                //skip velocities
-                for(idim=0;idim<header[i].ndim;idim++)
-                {
-                    RAMSES_fortran_skip(Fpartmass[i]);
-                    RAMSES_fortran_skip(Fpartage[i]);
-                }
-                //skip mass
-                RAMSES_fortran_skip(Fpartage[i]);
-                //skip ids;
-                RAMSES_fortran_skip(Fpartage[i]);
-                //skip levels
-                RAMSES_fortran_skip(Fpartage[i]);
-                //data loaded into memory in chunks
-                chunksize    = nchunk = header[i].npartlocal;
-                xtempchunk   = new RAMSESFLOAT  [3*chunksize];
-                mtempchunk   = new RAMSESFLOAT  [chunksize];
-                agetempchunk = new RAMSESFLOAT  [chunksize];
-                //now load position data, mass data, and age data
-                for(idim = 0; idim < header[i].ndim; idim++)RAMSES_fortran_read(Fpart[i], &xtempchunk[idim*nchunk]);
-                RAMSES_fortran_read(Fpartmass[i],  mtempchunk);
-                RAMSES_fortran_read(Fpartage[i],   agetempchunk);
-
-                for (int nn = 0; nn < nchunk; nn++)
-                {
-                    //this should be a ghost star particle
-                    if ((mtempchunk[nn] != dmp_mass) && (agetempchunk[nn] == 0.0)) nghost++;
-                    else
+                    //skip positions
+                    for(idim = 0; idim < header[i].ndim; idim++)
                     {
-                        xtemp[0] = xtempchunk[nn];
-                        xtemp[1] = xtempchunk[nn+nchunk];
-                        xtemp[2] = xtempchunk[nn+2*nchunk];
-                        mtemp = mtempchunk[nn];
-                        ageval = agetempchunk[nn];
+                          RAMSES_fortran_skip (Fpartmass[i]);
+                          RAMSES_fortran_skip (Fpartage[i]);
+                    }
+                    //skip velocities
+                    for(idim=0;idim<header[i].ndim;idim++)
+                    {
+                        RAMSES_fortran_skip(Fpartmass[i]);
+                        RAMSES_fortran_skip(Fpartage[i]);
+                    }
+                    //skip mass
+                    RAMSES_fortran_skip(Fpartage[i]);
+                    //skip ids;
+                    RAMSES_fortran_skip(Fpartage[i]);
+                    //skip levels
+                    RAMSES_fortran_skip(Fpartage[i]);
+                    //data loaded into memory in chunks
+                    chunksize    = nchunk = header[i].npartlocal;
+                    xtempchunk   = new RAMSESFLOAT  [3*chunksize];
+                    mtempchunk   = new RAMSESFLOAT  [chunksize];
+                    agetempchunk = new RAMSESFLOAT  [chunksize];
+                    //now load position data, mass data, and age data
+                    for(idim = 0; idim < header[i].ndim; idim++)RAMSES_fortran_read(Fpart[i], &xtempchunk[idim*nchunk]);
+                    RAMSES_fortran_read(Fpartmass[i],  mtempchunk);
+                    RAMSES_fortran_read(Fpartage[i],   agetempchunk);
 
-                        if (mtemp == dmp_mass)
-                        {
-                            typeval = DARKTYPE;
-                            ndark++;
-                        }
+                    for (int nn = 0; nn < nchunk; nn++)
+                    {
+                        //this should be a ghost star particle
+                        if (fabs((mtempchunk[nn]-dmp_mass)/dmp_mass) > 1e-5 && (agetempchunk[nn] == 0.0)) nghost++;
                         else
                         {
-                            typeval = STARTYPE;
-                            nstar++;
-                        }
+                            xtemp[0] = xtempchunk[nn];
+                            xtemp[1] = xtempchunk[nn+nchunk];
+                            xtemp[2] = xtempchunk[nn+2*nchunk];
+                            mtemp = mtempchunk[nn];
+                            ageval = agetempchunk[nn];
 
-                        //determine processor this particle belongs on based on its spatial position
-                        ibuf = MPIGetParticlesProcessor(xtemp[0],xtemp[1],xtemp[2]);
-                        if (ibuf >= NProcs)
-                        {
-                            cerr <<" Particle is outside mpi domain, might be an issue with reading input file "<<ibuf << " "<<NProcs<<" "<<xtemp[0] << "  " << xtemp[1] << "  " << xtemp[2] << endl;
-                            MPI_Abort(MPI_COMM_WORLD,8);
+                            if (fabs(mtemp-dmp_mass)/dmp_mass<1e-5)
+                            {
+                                typeval = DARKTYPE;
+                                ndark++;
+                            }
+                            else
+                            {
+                                typeval = STARTYPE;
+                                nstar++;
+                            }
+
+                            //determine processor this particle belongs on based on its spatial position
+                            ibuf = MPIGetParticlesProcessor(xtemp[0],xtemp[1],xtemp[2]);
+                            /// Count total number of DM particles, Baryons, etc
+                            //@{
+                            if (opt.partsearchtype == PSTALL)
+                            {
+                            Nbuf[ibuf]++;
+                            count2++;
+                            }
+                            else
+                            {
+                                if (opt.partsearchtype == PSTDARK)
+                                {
+                                    if (typeval == DARKTYPE)
+                                    {
+                                        Nbuf[ibuf]++;
+                                        count2++;
+                                    }
+                                    else
+                                    {
+                                        if (opt.iBaryonSearch)
+                                        {
+                                            Nbaryonbuf[ibuf]++;
+                                        }
+                                    }
+                                }
+                                else
+                                {
+                                    if (opt.partsearchtype == PSTSTAR)
+                                    {
+                                        if (typeval == STARTYPE)
+                                        {
+                                            Nbuf[ibuf]++;
+                                            count2++;
+                                        }
+                                    }
+                                }
+                            }
                         }
-              /// Count total number of DM particles, Baryons, etc
-              //@{
-              if (opt.partsearchtype == PSTALL)
-              {
-                Nbuf[ibuf]++;
-                count2++;
-              }
-              else
-              {
-                if (opt.partsearchtype == PSTDARK)
-                {
-                  if (typeval == DARKTYPE)
-                  {
-                    Nbuf[ibuf]++;
-                    count2++;
-                  }
-                  else
-                  {
-                    if (opt.iBaryonSearch)
-                    {
-                      Nbaryonbuf[ibuf]++;
                     }
-                  }
+                    delete[] xtempchunk;
+                    delete[] mtempchunk;
+                    delete[] agetempchunk;
+
+                    Fpart[i].close();
+                    Fpartmass[i].close();
+                    Fpartage[i].close();
                 }
-                else
-                {
-                  if (opt.partsearchtype == PSTSTAR)
-                  {
-                    if (typeval == STARTYPE)
-                    {
-                      Nbuf[ibuf]++;
-                      count2++;
-                    }
-                  }
-                  /// NO GAS AT THIS STAGE
-//                   else
-//                   {
-//                     if (opt.partsearchtype == PSTGAS)
-//                     {
-//                       if (k==GASTYPE)
-//                       {
-//                         Nbuf[ibuf]++;
-//                         count2++;
-//                       }
-//                     }
-//                   }
-                }
-              }
-             //@}
             }
-          }
-          delete[] xtempchunk;
-          delete[] mtempchunk;
-          delete[] agetempchunk;
 
-          Fpart[i].close();
-          Fpartmass[i].close();
-          Fpartage[i].close();
-        }
+            // now process gas if necessary
+            if (opt.partsearchtype==PSTGAS || opt.partsearchtype==PSTALL) {
+                for (i=0;i<opt.num_files;i++) if (ireadfile[i]) {
+                    sprintf(buf1,"%s/amr_%s.out%s%05d",opt.fname,opt.ramsessnapname,i+1);
+                    sprintf(buf2,"%s/amr_%s.out%s",opt.fname,opt.ramsessnapname);
+                    if (FileExists(buf1)) sprintf(buf,"%s",buf1);
+                    else if (FileExists(buf2)) sprintf(buf,"%s",buf2);
+                    Famr[i].open(buf, ios::binary|ios::in);
+                    sprintf(buf1,"%s/hydro_%s.out%05d",opt.fname,opt.ramsessnapname,i+1);
+                    sprintf(buf2,"%s/hydro_%s.out",opt.fname,opt.ramsessnapname);
+                    if (FileExists(buf1)) sprintf(buf,"%s",buf1);
+                    else if (FileExists(buf2)) sprintf(buf,"%s",buf2);
+                    Fhydro[i].open(buf, ios::binary|ios::in);
+                    //read some of the amr header till get to number of cells in current file
+                    //@{
+                    byteoffset=0;
+                    byteoffset+=RAMSES_fortran_read(Famr[i],header[i].ndim);
+                    header[i].twotondim=pow(2,header[i].ndim);
+                    Famr[i].read((char*)&dummy, sizeof(dummy));
+                    Famr[i].read((char*)&header[i].nx, sizeof(int));
+                    Famr[i].read((char*)&header[i].ny, sizeof(int));
+                    Famr[i].read((char*)&header[i].nz, sizeof(int));
+                    Famr[i].read((char*)&dummy, sizeof(dummy));
+                    byteoffset+=RAMSES_fortran_read(Famr[i],header[i].nlevelmax);
+                    byteoffset+=RAMSES_fortran_read(Famr[i],header[i].ngridmax);
+                    byteoffset+=RAMSES_fortran_read(Famr[i],header[i].nboundary);
+                    byteoffset+=RAMSES_fortran_read(Famr[i],header[i].npart[RAMSESGASTYPE]);
 
+                    //then skip the rest
+                    for (j=0;j<14;j++) RAMSES_fortran_skip(Famr[i]);
+                    if (lmin>header[i].nlevelmax) lmin=header[i].nlevelmax;
+                    if (lmax<header[i].nlevelmax) lmax=header[i].nlevelmax;
+                    //@}
+                    //read header info from hydro files
+                    //@{
+                    RAMSES_fortran_skip(Fhydro[i]);
+                    RAMSES_fortran_read(Fhydro[i],header[i].nvarh);
+                    RAMSES_fortran_skip(Fhydro[i]);
+                    RAMSES_fortran_skip(Fhydro[i]);
+                    RAMSES_fortran_skip(Fhydro[i]);
+                    RAMSES_fortran_read(Fhydro[i],header[i].gamma_index);
+                    //@}
+
+                    //then apparently read ngridlevels, which appears to be an array storing the number of grids at a given level
+                    ngridlevel=new int[header[i].nlevelmax];
+                    ngridfile=new int[(1+header[i].nboundary)*header[i].nlevelmax];
+                    RAMSES_fortran_read(Famr[i],ngridlevel);
+                    for (j=0;j<header[i].nlevelmax;j++) ngridfile[j]=ngridlevel[j];
+                    //skip some more
+                    RAMSES_fortran_skip(Famr[i]);
+                    //if nboundary>0 then need two skip twice then read ngridbound
+                    if(header[i].nboundary>0) {
+                        ngridbound=new int[header[i].nboundary*header[i].nlevelmax];
+                        RAMSES_fortran_skip(Famr[i]);
+                        RAMSES_fortran_skip(Famr[i]);
+                        //ngridbound is an array of some sort but I don't see what it is used for
+                        RAMSES_fortran_read(Famr[i],ngridbound);
+                        for (j=0;j<header[i].nlevelmax;j++) ngridfile[header[i].nlevelmax+j]=ngridbound[j];
+                    }
+                    //skip some more
+                    RAMSES_fortran_skip(Famr[i],2);
+                    //if odering list in info is bisection need to skip more
+                    if (orderingstring==string("bisection")) RAMSES_fortran_skip(Famr[i],5);
+                    else RAMSES_fortran_skip(Famr[i],4);
+
+                    for (k=0;k<header[i].nboundary+1;k++) {
+                        for (j=0;j<header[i].nlevelmax;j++) {
+                            //first read amr for positions
+                            chunksize=nchunk=ngridfile[k*header[i].nlevelmax+j];
+                            if (chunksize>0) {
+                                xtempchunk=new RAMSESFLOAT[3*chunksize];
+                                //store son value in icell
+                                icellchunk=new int[header[i].twotondim*chunksize];
+                                //skip grid index, next index and prev index.
+                                RAMSES_fortran_skip(Famr[i],3);
+                                //now read grid centre
+                                for (idim=0;idim<header[i].ndim;idim++) {
+                                    RAMSES_fortran_read(Famr[i],&xtempchunk[idim*chunksize]);
+                                }
+                                //skip father index, then neighbours index
+                                RAMSES_fortran_skip(Famr[i],1+2*header[i].ndim);
+                                //read son index to determine if a cell in a specific grid is at the highest resolution and needs to be represented by a particle
+                                for (idim=0;idim<header[i].twotondim;idim++) {
+                                    RAMSES_fortran_read(Famr[i],&icellchunk[idim*chunksize]);
+                                }
+                                //skip cpu map and refinement map (2^ndim*2)
+                                RAMSES_fortran_skip(Famr[i],2*header[i].twotondim);
+                            }
+                            RAMSES_fortran_skip(Fhydro[i]);
+                            //then read hydro for other variables (first is density, then velocity, then pressure, then metallicity )
+                            if (chunksize>0) {
+                                //first read velocities (for 2 cells per number of dimensions (ie: cell corners?))
+                                for (idim=0;idim<header[i].twotondim;idim++) {
+                                    for (ivar=0;ivar<header[i].nvarh;ivar++) {
+                                        for (igrid=0;igrid<chunksize;igrid++) {
+                                            //once we have looped over all the hydro data then can start actually storing it into the particle structures
+                                            if (ivar==header[i].nvarh-1) {
+                                                //if cell has no internal cells or at maximum level produce a particle
+                                                if (icellchunk[idim*chunksize+igrid]==0 || j==header[i].nlevelmax-1) {
+                                                    //first suggestion is to add some jitter to the particle positions
+                                                    double dx = pow(0.5, j);
+                                                    int ix, iy, iz;
+                                                    //below assumes three dimensions with 8 corners (? maybe cells) per grid
+                                                    iz = idim/4;
+                                                    iy = (idim - (4*iz))/2;
+                                                    ix = idim - (2*iy) - (4*iz);
+                                                    // Calculate absolute coordinates + jitter, and generate particle
+                                                    xtemp[0] = ((((float)rand()/(float)RAND_MAX) * header[i].BoxSize * dx) +(header[i].BoxSize * (xtempchunk[igrid] + (double(ix)-0.5) * dx )) - (header[i].BoxSize*dx/2.0)) ;
+                                                    xtemp[1] = ((((float)rand()/(float)RAND_MAX) * header[i].BoxSize * dx) +(header[i].BoxSize * (xtempchunk[igrid+1*chunksize] + (double(iy)-0.5) * dx )) - (header[i].BoxSize*dx/2.0)) ;
+                                                    xtemp[2] = ((((float)rand()/(float)RAND_MAX) * header[i].BoxSize * dx) +(header[i].BoxSize * (xtempchunk[igrid+2*chunksize] + (double(iz)-0.5) * dx )) - (header[i].BoxSize*dx/2.0)) ;
+                                                    //determine processor this particle belongs on based on its spatial position
+                                                    ibuf=MPIGetParticlesProcessor(xtemp[0],xtemp[1],xtemp[2]);
+                                                    Nbuf[ibuf]++;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                delete[] xtempchunk;
+                            }
+                        }
+                    }
+                    Famr[i].close();
+                }
+            }
         }
         //now having read number of particles, run all gather
         Int_t mpi_nlocal[NProcs];

@@ -185,7 +185,9 @@ void usage(void)
     \arg <b> \e Halo_core_ellv_fac </b> scaling applied to local dispersion to define the velocity scale used to identify merger remnants. Typically values are \f$ \sim1 \f$  \ref Options.halocorevfac
     \arg <b> \e Halo_core_ncellfac </b> used to determine the minimum number of particles a merger remnants is composed of, specifically \f$ N_{\rm min}= f_{\rm ncell}* N_{\rm S} \f$. Typically values are     \arg <b> \e Halo_core_adaptive_sigma_fac </b> used when running fully adaptive core search, specifies the width of the physical linking length in configuration space dispersion (think of this as how many sigma to include). Typically values are \f$ \sim2 \f$. This has been tested on hydrodynamnical simulations to separate galaxy mergers. \ref Options.halocoresigmafac
     \arg <b> \e Halo_core_num_loops</b> allows the core search to iterate, shrinking the velocity linking length to used till the number of cores identified decreases or this limit is reached. Allows apative search with larger linking length to be robust.  Typically values are \f$ \sim5 \f$ with loops only running often twice. \ref Options.halocorenumloops.
+    \arg <b> \e Halo_core_loop_ellx_fac</b> Factor by which configuration linking length is decreased when running loops for core search.  Typically values are \f$ \sim0.75 \f$. \ref Options.halocorexfaciter
     \arg <b> \e Halo_core_loop_ellv_fac</b> Factor by which velocity linking length is decreased when running loops for core search.  Typically values are \f$ \sim0.75 \f$. \ref Options.halocorevfaciter
+    \arg <b> \e Halo_core_loop_elln_fac</b> Factor by which min group size is changed when running loops for core search.  Typically values are \f$ \sim0.25 \f$. \ref Options.halocorenumfaciter
 
     \subsection fofotherconfig Other modifiers for search
     \arg <b> \e Singlehalo_search_search </b> 0/1 flag indicates that no field search is going to be run and the entire volume will be treated as a background region. Useful if searching for substructures in non-cosmological simulations. But can also be co-opted for other searches using different outlier criteria and FOF algorithms. \ref Options.iSingleHalo \n
@@ -195,13 +197,22 @@ void usage(void)
     See \ref unbinding and \ref unbind.cxx for more details
 
     \arg <b> \e Unbind_flag  </b> whether or not substructures should be passed through an unbinding routine. \ref Options.uinfo & \ref UnbindInfo.unbindflag \n
-    \arg <b> \e Allowed_kinetic_potential_ratio  </b> ratio of kinetic to potential energy at which a particle is still considered bound, ie: particle is still bound if \f$ \alpha T+W<0 \f$, so \f$ \alpha=1 \f$ would be standard unbinding and \f$ \alpha<1 \f$ allows one to identify unbound tidal debris. Given that <b> VELOCIraptor </b> was designed to identify tidal streams, it makes little sense to have this set to 1 unless explicitly required. Note that the code still separates particles into bound and unbound. Typical values of \f$ \alpha\geq 0.2 \f$ seems to minimize the number of false positives in tidal debris while still identifying completely unbound tidal debris. \ref Options.uinfo & \ref UnbindInfo.Eratio \n
+    \arg <b> \e Allowed_kinetic_potential_ratio  </b> ratio of kinetic to potential energy at which a particle is still considered bound, ie: particle is still bound
+    if \f$ \alpha T+W<0 \f$, so \f$ \alpha=1 \f$ would be standard unbinding and \f$ \alpha<1 \f$ allows one to identify unbound tidal debris.
+    Given that <b> VELOCIraptor </b> was designed to identify tidal streams, it makes little sense to have this set to 1 unless explicitly required.
+    Note that the code still separates particles into bound and unbound. Typical values of \f$ \alpha\geq 0.2 \f$ seems to minimize the number of false positives
+    in tidal debris while still identifying completely unbound tidal debris. \ref Options.uinfo & \ref UnbindInfo.Eratio \n
     \arg <b> \e Min_bound_mass_frac </b> Designed to demand a substructure still have a minimum amount of self-bound mass. \ref Options.uinfo & \ref UnbindInfo.minEfrac \n
-    \arg <b> \e Bound_halos </b> 0/1 flag to make sure field objects such as haloes are self bound after substructures have been identified and extracted from the halo. This can have interesting consequences as it is possible that a multiple merger will appear as a single FOF halo, however all with all the cores removed, the FOF halo is actually an unbound structure. \ref Options.iBoundHalos \n
+    \arg <b> \e Bound_halos </b> 0/1/2 flag to make sure field objects such as haloes are self bound before (use 1) and also after (use 2) substructures have been identified
+    and extracted from the halo. Demanding boundness after substructure search can have interesting consequences as it is possible that a multiple merger will appear as
+    a single FOF halo, however all with all the cores removed, the FOF halo is actually an unbound structure. \ref Options.iBoundHalos \n
     \arg <b> \e Keep_background_potential </b> 1/0 flag When determining whether a structure is self-bound, the approach taken is to treat the candidate structure in isolation. Then determine the velocity reference frame to determine the kinetic energy of each particle and remove them. However, it is possible one wishes to keep the background particles when determining the potential, that is once one starts unbinding, don't treat the candidate structure in isolation but in a background sea. When finding tidal debris, it is useful to keep the background. \ref Options.uinfo & \ref UnbindInfo.bgpot \n
-    \arg <b> \e Kinetic_reference_frame_type </b> specify kinetic frame when determining whether particle is bound. Default is to use the centre-of-mass velocity frame (0) but can also use region around minimum of the potential (1). \ref Options.uinfo & \ref UnbindInfo.cmvelreftype \n
+    \arg <b> \e Kinetic_reference_frame_type </b> specify kinetic frame when determining whether particle is bound.
+    Default is to use the centre-of-mass velocity frame (0) but can also use region around minimum of the potential (1). \ref Options.uinfo & \ref UnbindInfo.cmvelreftype \n
     \arg <b> \e Min_npot_ref </b> Set the minimum number of particles used to calculate the velocity of the minimum of the potential (10). \ref Options.uinfo & \ref UnbindInfo.Npotref \n
     \arg <b> \e Frac_pot_ref </b> Set the fraction of particles used to calculate the velocity of the minimum of the potential (0.1). \ref Options.uinfo & \ref UnbindInfo.fracpotref \n
+    \arg <b> \e Unbinding_type </b> Set the unbinding criteria, either just remove particles deemeed "unbound", that is those with \f$ \alpha T+W>0\f$, choosing \ref UPART. Or with \ref USYSANDPART
+    removes "unbound" particles till system also has a true bound fraction > \ref UnbindInfo.minEfrac.
 
     \section cosmoconfig Units & Cosmology
     \subsection unitconfig Units
@@ -242,9 +253,18 @@ void usage(void)
     \arg <b> \e Extensive_halo_properties_output </b> 1/0 flag indicating whether to calculate/output even more halo properties. \ref Options.iextrahalooutput \n
     \arg <b> \e Extended_output </b> 1/0 flag indicating whether produce extended output for quick particle extraction from input catalog of particles in structures \ref Options.iextendedoutput \n
     \arg <b> \e Comoving_units </b> 1/0 flag indicating whether the properties output is in physical or comoving little h units. \ref Options.icomoveunit \n
+    
+    \section inputflags input flags related to varies input formats
     \arg <b> \e NSPH_extra_blocks </b> If gadget snapshot is loaded one can specific the number of extra <b> SPH </b> blocks are read/in the file. \ref Options.gnsphblocks \n
     \arg <b> \e NStar_extra_blocks </b> If gadget snapshot is loaded one can specific the number of extra <b> Star </b> blocks are read/in the file. \ref Options.gnstarblocks \n
     \arg <b> \e NBH_extra_blocks </b> If gadget snapshot is loaded one can specific the number of extra <b> Black hole </b> blocks are read/in the file. \ref Options.gnbhblocks \n
+    
+    \arg <b> \e HDF_name_convention </b> HDF dataset naming convection. See \ref hdfitems.h for what naming conventions are available and what names exist. Currently have \ref HDFNUMNAMETYPES. \ref Options.ihdfnameconvention \n
+    \arg <b> \e Input_includes_star_particle </b> If star particle specific information is in the input file. \ref Options.iusestarparticles \n
+    \arg <b> \e Input_includes_bh_particle </b> If bh/sink particle specific information is in the input file. \ref Options.iusesinkparticles \n
+    \arg <b> \e Input_includes_wind_particle </b> If wind particle specific information is in the input file. \ref Options.iusewindparticles \n
+    \arg <b> \e Input_includes_tracer_particle </b> If tracer particle specific information is in the input file. \ref Options.iusetracerparticles \n
+    \arg <b> \e Input_includes_star_particle </b> If star particle specific information is in the input file. \ref Options.iusestarparticles \n
 
     \section mpiconfigs MPI specific options
     \arg <b> \e MPI_particle_allocation_fac </b> Memory allocated in mpi mode to store particles is (1+factor)* the memory need for the initial mpi decomposition.
@@ -407,8 +427,14 @@ void GetParamFile(Options &opt)
                         opt.halocoresigmafac = atof(vbuff);
                     else if (strcmp(tbuff, "Halo_core_num_loops")==0)
                         opt.halocorenumloops = atof(vbuff);
+                    else if (strcmp(tbuff, "Halo_core_loop_ellx_fac")==0)
+                        opt.halocorexfaciter = atof(vbuff);
                     else if (strcmp(tbuff, "Halo_core_loop_ellv_fac")==0)
                         opt.halocorevfaciter = atof(vbuff);
+                    else if (strcmp(tbuff, "Halo_core_loop_elln_fac")==0)
+                        opt.halocorenumfaciter = atof(vbuff);
+                    else if (strcmp(tbuff, "Halo_core_phase_significance")==0)
+                        opt.halocorephasedistsig = atof(vbuff);
 
                     //for changing factors used in iterative search
                     else if (strcmp(tbuff, "Iterative_threshold_factor")==0)
@@ -485,6 +511,8 @@ void GetParamFile(Options &opt)
                         opt.uinfo.Npotref = atoi(vbuff);
                     else if (strcmp(tbuff, "Frac_pot_ref")==0)
                         opt.uinfo.fracpotref = atof(vbuff);
+                    else if (strcmp(tbuff, "Unbinding_type")==0)
+                        opt.uinfo.unbindtype = atoi(vbuff);
 
                     //other options
                     else if (strcmp(tbuff, "Verbose")==0)
@@ -527,6 +555,22 @@ void GetParamFile(Options &opt)
                         opt.gnstarblocks = atoi(vbuff);
                     else if (strcmp(tbuff, "NBH_extra_blocks")==0)
                         opt.gnbhblocks = atoi(vbuff);
+
+
+                    //input related to info for stars, bhs, winds/tracers, etc
+                    else if (strcmp(tbuff, "HDF_name_convention")==0)
+                        opt.ihdfnameconvention = atoi(vbuff);
+                    else if (strcmp(tbuff, "Input_includes_star_particle")==0)
+                        opt.iusestarparticles = atoi(vbuff);
+                    else if (strcmp(tbuff, "Input_includes_bh_particle")==0)
+                        opt.iusesinkparticles = atoi(vbuff);
+                    else if (strcmp(tbuff, "Input_includes_wind_particle")==0)
+                        opt.iusewindparticles = atoi(vbuff);
+                    else if (strcmp(tbuff, "Input_includes_tracer_particle")==0)
+                        opt.iusetracerparticles = atoi(vbuff);
+                    else if (strcmp(tbuff, "Input_includes_extradm_particle")==0)
+                        opt.iuseextradarkparticles = atoi(vbuff);
+                    
                 }
             }
         }

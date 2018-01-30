@@ -123,88 +123,6 @@ void MPIDomainDecompositionHDF(Options &opt){
     int Nsplit,isplit;
 
     if (ThisTask==0) {
-    //determine the number of splits in each dimension
-    Nsplit=log((float)NProcs)/log(2.0);
-    mpi_ideltax[0]=0;mpi_ideltax[1]=1;mpi_ideltax[2]=2;
-    isplit=0;
-    for (j=0;j<3;j++) mpi_nxsplit[j]=0;
-    for (j=0;j<Nsplit;j++) {
-        mpi_nxsplit[mpi_ideltax[isplit++]]++;
-        if (isplit==3) isplit=0;
-    }
-    for (j=0;j<3;j++) mpi_nxsplit[j]=pow(2.0,mpi_nxsplit[j]);
-    //for all the cells along the boundary of axis with the third split axis (smallest variance if I actually tried load balancing with a KD-Tree)
-    //set the domain limits to the sims limits
-    int ix=mpi_ideltax[0],iy=mpi_ideltax[1],iz=mpi_ideltax[2];
-    int mpitasknum;
-    for (j=0;j<mpi_nxsplit[iy];j++) {
-        for (i=0;i<mpi_nxsplit[ix];i++) {
-            mpitasknum=i+j*mpi_nxsplit[ix]+0*(mpi_nxsplit[ix]*mpi_nxsplit[iy]);
-            mpi_domain[mpitasknum].bnd[iz][0]=mpi_xlim[iz][0];
-            mpitasknum=i+j*mpi_nxsplit[ix]+(mpi_nxsplit[iz]-1)*(mpi_nxsplit[ix]*mpi_nxsplit[iy]);
-            mpi_domain[mpitasknum].bnd[iz][1]=mpi_xlim[iz][1];
-        }
-    }
-    //here for domains along second axis
-    for (k=0;k<mpi_nxsplit[iz];k++) {
-        for (i=0;i<mpi_nxsplit[ix];i++) {
-            mpitasknum=i+0*mpi_nxsplit[ix]+k*(mpi_nxsplit[ix]*mpi_nxsplit[iy]);
-            mpi_domain[mpitasknum].bnd[iy][0]=mpi_xlim[iy][0];
-            mpitasknum=i+(mpi_nxsplit[iy]-1)*mpi_nxsplit[ix]+k*(mpi_nxsplit[ix]*mpi_nxsplit[iy]);
-            mpi_domain[mpitasknum].bnd[iy][1]=mpi_xlim[iy][1];
-        }
-    }
-    //finally along axis with largest variance
-    for (k=0;k<mpi_nxsplit[iz];k++) {
-        for (j=0;j<mpi_nxsplit[iy];j++) {
-            mpitasknum=0+j*mpi_nxsplit[ix]+k*(mpi_nxsplit[ix]*mpi_nxsplit[iy]);
-            mpi_domain[mpitasknum].bnd[ix][0]=mpi_xlim[ix][0];
-            mpitasknum=(mpi_nxsplit[ix]-1)+j*mpi_nxsplit[ix]+k*(mpi_nxsplit[ix]*mpi_nxsplit[iy]);
-            mpi_domain[mpitasknum].bnd[ix][1]=mpi_xlim[ix][1];
-        }
-    }
-    //here use the three different histograms to define the boundary
-    int start[3],end[3];
-    Double_t bndval[3],binsum[3],lastbin;
-    start[0]=start[1]=start[2]=0;
-    for (i=0;i<mpi_nxsplit[ix];i++) {
-        bndval[0]=(mpi_xlim[ix][1]-mpi_xlim[ix][0])*(Double_t)(i+1)/(Double_t)mpi_nxsplit[ix];
-        if(i<mpi_nxsplit[ix]-1) {
-        for (j=0;j<mpi_nxsplit[iy];j++) {
-            for (k=0;k<mpi_nxsplit[iz];k++) {
-                //define upper limit
-                mpitasknum=i+j*mpi_nxsplit[ix]+k*(mpi_nxsplit[ix]*mpi_nxsplit[iy]);
-                mpi_domain[mpitasknum].bnd[ix][1]=bndval[0];
-                //define lower limit
-                mpitasknum=(i+1)+j*mpi_nxsplit[ix]+k*(mpi_nxsplit[ix]*mpi_nxsplit[iy]);
-                mpi_domain[mpitasknum].bnd[ix][0]=bndval[0];
-            }
-        }
-        }
-        //now for secondary splitting
-        if (mpi_nxsplit[iy]>1)
-        for (j=0;j<mpi_nxsplit[iy];j++) {
-            bndval[1]=(mpi_xlim[iy][1]-mpi_xlim[iy][0])*(Double_t)(j+1)/(Double_t)mpi_nxsplit[iy];
-            if(j<mpi_nxsplit[iy]-1) {
-            for (k=0;k<mpi_nxsplit[iz];k++) {
-                mpitasknum=i+j*mpi_nxsplit[ix]+k*(mpi_nxsplit[ix]*mpi_nxsplit[iy]);
-                mpi_domain[mpitasknum].bnd[iy][1]=bndval[1];
-                mpitasknum=i+(j+1)*mpi_nxsplit[ix]+k*(mpi_nxsplit[ix]*mpi_nxsplit[iy]);
-                mpi_domain[mpitasknum].bnd[iy][0]=bndval[1];
-            }
-            }
-            if (mpi_nxsplit[iz]>1)
-            for (k=0;k<mpi_nxsplit[iz];k++) {
-                bndval[2]=(mpi_xlim[iz][1]-mpi_xlim[iz][0])*(Double_t)(k+1)/(Double_t)mpi_nxsplit[iz];
-                if (k<mpi_nxsplit[iz]-1){
-                mpitasknum=i+j*mpi_nxsplit[ix]+k*(mpi_nxsplit[ix]*mpi_nxsplit[iy]);
-                mpi_domain[mpitasknum].bnd[iz][1]=bndval[2];
-                mpitasknum=i+j*mpi_nxsplit[ix]+(k+1)*(mpi_nxsplit[ix]*mpi_nxsplit[iy]);
-                mpi_domain[mpitasknum].bnd[iz][0]=bndval[2];
-                }
-            }
-        }
-    }
     }
 }
 
@@ -213,8 +131,8 @@ void MPINumInDomainHDF(Options &opt)
 {
     if (NProcs>1) {
     MPIDomainExtentHDF(opt);
-    MPIDomainDecompositionHDF(opt);
     MPIInitialDomainDecomposition();
+    MPIDomainDecompositionHDF(opt);
 
     Int_t i,j,k,n,nchunk;
     char buf[2000];

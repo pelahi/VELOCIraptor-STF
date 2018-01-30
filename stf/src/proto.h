@@ -179,7 +179,8 @@ Int_t *SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Part
 ///Search for subsubstructures
 void SearchSubSub(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_t *&pfof, Int_t &ngroup, Int_t &nhalos, PropData *pdata=NULL);
 ///Given a set of tagged core particles, assign surroundings
-void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_t *&pfof, Int_t *&pfofbg, Int_t &numgroupsbg, Double_t param[], vector<Double_t> &dispfac, int nthreads);
+void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_t *&pfof, Int_t *&pfofbg, Int_t &numgroupsbg, Double_t param[], vector<Double_t> &dispfac,
+    int numactiveloops, vector<int> &corelevel, int nthreads);
 ///Check significance of each group
 int CheckSignificance(Options &opt, const Int_t nsubset, Particle *Partsubset, Int_t &numgroups, Int_t *numingroups, Int_t *pfof, Int_t **pglist);
 ///Search for Baryonic structures associated with dark matter structures in phase-space
@@ -236,7 +237,7 @@ void GetNodeList(Node *np, Int_t &ncell, Node **nodelist, const Int_t bsize);
 inline void MarkCell(Node *np, Int_t *marktreecell, Int_t *markleafcell, Int_t &ntreecell, Int_t &nleafcell, const Int_t bsize, Double_t *cR2max, Coordinate *cm, Double_t *cmtot, Coordinate xpos, Double_t eps2);
 
 ///Interface for unbinding proceedure
-int CheckUnboundGroups(Options opt, const Int_t nbodies, Particle *&Part, Int_t &ngroup, Int_t *&pfof, Int_t *numingroup=NULL, Int_t **pglist=NULL,int ireorder=1);
+int CheckUnboundGroups(Options opt, const Int_t nbodies, Particle *&Part, Int_t &ngroup, Int_t *&pfof, Int_t *numingroup=NULL, Int_t **pglist=NULL,int ireorder=1, Int_t *groupflag=NULL);
 ///check if group self-bound
 int Unbind(Options &opt, Particle **gPartList, Int_t &numgroups, Int_t *numingroup, Int_t *pfof, Int_t **pglist, int ireorder=1);
 int Unbind(Options &opt, Particle *&Part, Int_t &numgroups, Int_t *&numingroup, Int_t *&noffset, Int_t *&pfof);
@@ -270,7 +271,7 @@ void GetInclusiveMasses(Options &opt, const Int_t nbodies, Particle *&Part, Int_
 ///simple routine to copy over mass information (useful for storing inclusive info)
 void CopyMasses(const Int_t nhalos, PropData *&pold, PropData *&pnew);
 ///simple routine to reorder mass information based on number of particles when new remaining number of haloes < old halos
-void ReorderInclusiveMasses(const Int_t &nold, const Int_t &nnew, Int_t *&numingroup, PropData *pdata);
+void ReorderInclusiveMasses(const Int_t &nold, const Int_t &nnew, Int_t *&numingroup, PropData *&pdata);
 ///Get Binding Energy
 void GetBindingEnergy(Options &opt, const Int_t nbodies, Particle *&Part, Int_t ngroup, Int_t *&pfof, Int_t *&numingroup, PropData *&pdata, Int_t *&noffset);
 
@@ -284,6 +285,8 @@ void CalcPosSigmaTensor(const Int_t n, Particle *p, Double_t &a, Double_t &b, Do
 void CalcVelSigmaTensor(const Int_t n, Particle *p, Double_t &a, Double_t &b, Double_t &c, Matrix& eigenvec, Matrix &I, int itype=-1);
 ///Calculate phase-space dispersion tensor and eigvector
 void CalcPhaseSigmaTensor(const Int_t n, Particle *p, GMatrix &eigenvalues, GMatrix& eigenvec, GMatrix &I, int itype=-1);
+///Calculate phase-space dispersion tensor
+void CalcPhaseSigmaTensor(const Int_t n, Particle *p, GMatrix &I, int itype=-1);
 ///Calculate the reduced weighted inertia tensor used to determine the spatial morphology
 void CalcMTensor(Matrix& M, const Double_t q, const Double_t s, const Int_t n, Particle *p, int itype);
 ///Same as \ref CalcMTensor but include mass
@@ -383,13 +386,17 @@ int MPISearchForOverlap(Particle &Part, Double_t &rdist);
 int MPIInDomain(Double_t xsearch[3][2], Double_t bnd[3][2]);
 //@}
 
-/// \name MPI send/recv related routines
+/// \name MPI send/recv related routines when reading input data
 /// see \ref mpiroutines.cxx for implementation
 //@{
+///adds particles to appropriate send buffers and initiates sends if necessary.
+void MPIAddParticletoAppropriateBuffer(const int &ibuf, Int_t ibufindex, int *&ireadtask, const Int_t &Bufsize, Int_t *&Nbuf, Particle *&Pbuf, Int_t &numpart, Particle *&Part, Int_t *&Nreadbuf, vector<Particle>*&Preadbuf);
 ///recv particle data from read threads
 void MPIReceiveParticlesFromReadThreads(Options &opt, Particle *&Pbuf, Particle *&Part, int *&readtaskID, int *&irecv, int *&mpi_irecvflag, Int_t *&Nlocalthreadbuf, MPI_Request *&mpi_request, Particle *&Pbaryons);
 ///Send/recv particle data read from input files between the various read threads;
 void MPISendParticlesBetweenReadThreads(Options &opt, Particle *&Pbuf, Particle *&Part, Int_t *&nreadoffset, int *&ireadtask, int *&readtaskID, Particle *&Pbaryons, Int_t *&mpi_nsend_baryon);
+///Send/recv particle data stored in vector using the read thread communication domain
+void MPISendParticlesBetweenReadThreads(Options &opt, vector<Particle> *&Pbuf, Particle *&Part, int *&ireadtask, int *&readtaskID, Particle *&Pbaryons, MPI_Comm &mpi_read_comm, Int_t *&mpi_nsend_readthread, Int_t *&mpi_nsend_readthread_baryon);
 //@}
 
 /// \name MPI search related routines
@@ -494,6 +501,10 @@ void ReorderGroupIDsbyValue(const Int_t numgroups, const Int_t newnumgroups, Int
 void ReorderGroupIDsAndArraybyValue(const Int_t numgroups, const Int_t newnumgroups, Int_t *numingroup, Int_t *pfof, Int_t **pglist, Int_t *value, Int_t *gdata);
 ///reorder groups and associated double group data by value
 void ReorderGroupIDsAndArraybyValue(const Int_t numgroups, const Int_t newnumgroups, Int_t *numingroup, Int_t *pfof, Int_t **pglist, Int_t *value, Double_t *gdata);
+///reorder groups and associated integer group data by value
+void ReorderGroupIDsAndArraybyValue(const Int_t numgroups, const Int_t newnumgroups, Int_t *numingroup, Int_t *pfof, Int_t **pglist, Double_t *value, Int_t *gdata);
+///reorder groups and associated double group data by value
+void ReorderGroupIDsAndArraybyValue(const Int_t numgroups, const Int_t newnumgroups, Int_t *numingroup, Int_t *pfof, Int_t **pglist, Double_t *value, Double_t *gdata);
 ///reorder groups and the associated property data by value
 void ReorderGroupIDsAndHaloDatabyValue(const Int_t numgroups, const Int_t newnumgroups, Int_t *numingroup, Int_t *pfof, Int_t **pglist, Int_t *value, PropData *pdata);
 //@}

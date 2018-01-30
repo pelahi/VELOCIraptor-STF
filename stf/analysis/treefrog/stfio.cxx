@@ -493,7 +493,7 @@ int CheckType(unsigned int t, int tmatch){
 ///\name mpi related routines that open files for load balancing calculations
 //@{
 ///Read halo data from an idividual snapshot;
-Int_t MPIReadHaloGroupCatalogDataNum(string &infile, int mpi_ninput, int ibinary, int ifieldhalos, int itypematch)
+unsigned long MPIReadHaloGroupCatalogDataNum(string &infile, int mpi_ninput, int ibinary, int ifieldhalos, int itypematch)
 {
     Int_t itemp;
     unsigned long ltemp;
@@ -567,7 +567,7 @@ Int_t MPIReadHaloGroupCatalogDataNum(string &infile, int mpi_ninput, int ibinary
 ///Read the number of particles in halos from an idividual snapshot, useful for splitting snaphots across threads in load balanced fashion
 ///\todo need to update the particle number to be just read from .catalog_particles and .catalog_particles.unbound directly
 ///instead of looping over files and loading arrays
-Int_t MPIReadHaloGroupCatalogDataParticleNum(string &infile, int mpi_ninput, int ibinary, int ifieldhalos, int itypematch)
+unsigned long MPIReadHaloGroupCatalogDataParticleNum(string &infile, int mpi_ninput, int ibinary, int ifieldhalos, int itypematch)
 {
 
     HaloData *Halo;

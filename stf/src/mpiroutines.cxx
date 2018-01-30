@@ -42,57 +42,116 @@
 ///determine the initial domains, ie: bisection distance mpi_dxsplit, which is used to determien what processor a particle is assigned to
 ///here the domains are constructured in data units
 void MPIInitialDomainDecomposition(){
-    int temp,Nsplit=log((float)NProcs)/log(2.0);
-    Double_t posfirst[3],deltax[3];
-    int isplit;
+    Int_t i,j,k,n,m,temp,count,count2,pc,pc_new, Ntot;
+    int Nsplit,isplit;
+    Int_t nbins1d,nbins3d, ibin[3];
+    Double_t diffsplit;
+    int b,a;
 
     if (ThisTask==0) {
-    /*
-    //expand limits by a small amount
-    for (int j=0;j<3;j++) {
-        Double_t dx=0.001*(mpi_xlim[j][1]-mpi_xlim[j][0]);
-        mpi_xlim[j][0]-=dx;mpi_xlim[j][1]+=dx;
-    }
-    for (int j=0;j<3;j++) deltax[j]=(mpi_xlim[j][1]-mpi_xlim[j][0]);
-    //determine order of spliting
-    PriorityQueue *pq=new PriorityQueue(3);
-    for (int j=0;j<3;j++) pq->Push(j,deltax[j]);
-    for (int j=0;j<3;j++) {mpi_ideltax[j]=pq->TopQueue();pq->Pop();}
-    delete pq;
+        //first split need not be simply having the dimension but determine
+        //number of splits to have Nprocs=a*2^b, where a and b are integers
+        //initial integers
+        b=floor(log((float)NProcs)/log(2.0))-1;
+        a=floor(NProcs/pow(2,b));
+        diffsplit=(double)NProcs/(double)a/(double)pow(2,b);
+        while (diffsplit!=1) {
+            b--;
+            a=floor(NProcs/pow(2,b));
+            diffsplit=(double)NProcs/(double)a/(double)pow(2,b);
+        }
+        Nsplit=b+1;
+        mpi_ideltax[0]=0;mpi_ideltax[1]=1;mpi_ideltax[2]=2;
+        isplit=0;
+        for (j=0;j<3;j++) mpi_nxsplit[j]=0;
+        for (j=0;j<Nsplit;j++) {
+            mpi_nxsplit[mpi_ideltax[isplit++]]++;
+            if (isplit==3) isplit=0;
+        }
+        for (j=0;j<3;j++) mpi_nxsplit[j]=pow(2.0,mpi_nxsplit[j]);
+        //and adjust first dimension
+        mpi_nxsplit[0]=mpi_nxsplit[0]/2*a;
 
-    //now split halo along orthogonal axes
-    //first determine number of bisections along each axis, where bisection point is just mid point in dimension, not mid point in particle number
-    isplit=0;
-    for (int j=0;j<3;j++) mpi_nxsplit[j]=0;
-    for (int l=0;l<Nsplit;l++) {
-        mpi_nxsplit[mpi_ideltax[isplit++]]++;
-        if (isplit==3) isplit=0;
-    }
-    for (int j=0;j<3;j++) mpi_nxsplit[j]=pow(2.0,mpi_nxsplit[j]);
-    for (int j=0;j<3;j++) mpi_dxsplit[mpi_ideltax[j]]=deltax[mpi_ideltax[j]]/mpi_nxsplit[mpi_ideltax[j]];
-
-    //set boundaries spatial boundaries of a given threads domain
-    for (int k=0;k<mpi_nxsplit[mpi_ideltax[2]];k++) {
-        for (int j=0;j<mpi_nxsplit[mpi_ideltax[1]];j++) {
-            for (int i=0;i<mpi_nxsplit[mpi_ideltax[0]];i++) {
-                int ix=mpi_ideltax[0],iy=mpi_ideltax[1],iz=mpi_ideltax[2];
-                int mpitasknum=i+j*mpi_nxsplit[ix]+k*(mpi_nxsplit[ix]*mpi_nxsplit[iy]);
-                mpi_domain[mpitasknum].bnd[ix][0]=mpi_xlim[ix][0]+i*mpi_dxsplit[ix];mpi_domain[mpitasknum].bnd[ix][1]=mpi_domain[mpitasknum].bnd[ix][0]+mpi_dxsplit[ix];
-                mpi_domain[mpitasknum].bnd[iy][0]=mpi_xlim[iy][0]+j*mpi_dxsplit[iy];mpi_domain[mpitasknum].bnd[iy][1]=mpi_domain[mpitasknum].bnd[iy][0]+mpi_dxsplit[iy];
-                mpi_domain[mpitasknum].bnd[iz][0]=mpi_xlim[iz][0]+k*mpi_dxsplit[iz];mpi_domain[mpitasknum].bnd[iz][1]=mpi_domain[mpitasknum].bnd[iz][0]+mpi_dxsplit[iz];
+        //for all the cells along the boundary of axis with the third split axis (smallest variance)
+        //set the domain limits to the sims limits
+        int ix=mpi_ideltax[0],iy=mpi_ideltax[1],iz=mpi_ideltax[2];
+        int mpitasknum;
+        for (j=0;j<mpi_nxsplit[iy];j++) {
+            for (i=0;i<mpi_nxsplit[ix];i++) {
+                mpitasknum=i+j*mpi_nxsplit[ix]+0*(mpi_nxsplit[ix]*mpi_nxsplit[iy]);
+                mpi_domain[mpitasknum].bnd[iz][0]=mpi_xlim[iz][0];
+                mpitasknum=i+j*mpi_nxsplit[ix]+(mpi_nxsplit[iz]-1)*(mpi_nxsplit[ix]*mpi_nxsplit[iy]);
+                mpi_domain[mpitasknum].bnd[iz][1]=mpi_xlim[iz][1];
             }
         }
-    }
-    */
-    cout<<"MPI Domains are: "<<endl;
-    for (int j=0;j<NProcs;j++) {
-        cout<<"ThisTask= "<<j<<" :: ";
-        cout.precision(10);for (int k=0;k<3;k++) cout<<k<<" "<<mpi_domain[j].bnd[k][0]<<" "<<mpi_domain[j].bnd[k][1]<<" | ";cout<<endl;
-    }
+        //here for domains along second axis
+        for (k=0;k<mpi_nxsplit[iz];k++) {
+            for (i=0;i<mpi_nxsplit[ix];i++) {
+                mpitasknum=i+0*mpi_nxsplit[ix]+k*(mpi_nxsplit[ix]*mpi_nxsplit[iy]);
+                mpi_domain[mpitasknum].bnd[iy][0]=mpi_xlim[iy][0];
+                mpitasknum=i+(mpi_nxsplit[iy]-1)*mpi_nxsplit[ix]+k*(mpi_nxsplit[ix]*mpi_nxsplit[iy]);
+                mpi_domain[mpitasknum].bnd[iy][1]=mpi_xlim[iy][1];
+            }
+        }
+        //finally along axis with largest variance
+        for (k=0;k<mpi_nxsplit[iz];k++) {
+            for (j=0;j<mpi_nxsplit[iy];j++) {
+                mpitasknum=0+j*mpi_nxsplit[ix]+k*(mpi_nxsplit[ix]*mpi_nxsplit[iy]);
+                mpi_domain[mpitasknum].bnd[ix][0]=mpi_xlim[ix][0];
+                mpitasknum=(mpi_nxsplit[ix]-1)+j*mpi_nxsplit[ix]+k*(mpi_nxsplit[ix]*mpi_nxsplit[iy]);
+                mpi_domain[mpitasknum].bnd[ix][1]=mpi_xlim[ix][1];
+            }
+        }
+        //here use the three different histograms to define the boundary
+        int start[3],end[3];
+        Double_t bndval[3],binsum[3],lastbin;
+        start[0]=start[1]=start[2]=0;
+        for (i=0;i<mpi_nxsplit[ix];i++) {
+            bndval[0]=(mpi_xlim[ix][1]-mpi_xlim[ix][0])*(Double_t)(i+1)/(Double_t)mpi_nxsplit[ix];
+            if(i<mpi_nxsplit[ix]-1) {
+            for (j=0;j<mpi_nxsplit[iy];j++) {
+                for (k=0;k<mpi_nxsplit[iz];k++) {
+                    //define upper limit
+                    mpitasknum=i+j*mpi_nxsplit[ix]+k*(mpi_nxsplit[ix]*mpi_nxsplit[iy]);
+                    mpi_domain[mpitasknum].bnd[ix][1]=bndval[0];
+                    //define lower limit
+                    mpitasknum=(i+1)+j*mpi_nxsplit[ix]+k*(mpi_nxsplit[ix]*mpi_nxsplit[iy]);
+                    mpi_domain[mpitasknum].bnd[ix][0]=bndval[0];
+                }
+            }
+            }
+            //now for secondary splitting
+            if (mpi_nxsplit[iy]>1)
+            for (j=0;j<mpi_nxsplit[iy];j++) {
+                bndval[1]=(mpi_xlim[iy][1]-mpi_xlim[iy][0])*(Double_t)(j+1)/(Double_t)mpi_nxsplit[iy];
+                if(j<mpi_nxsplit[iy]-1) {
+                for (k=0;k<mpi_nxsplit[iz];k++) {
+                    mpitasknum=i+j*mpi_nxsplit[ix]+k*(mpi_nxsplit[ix]*mpi_nxsplit[iy]);
+                    mpi_domain[mpitasknum].bnd[iy][1]=bndval[1];
+                    mpitasknum=i+(j+1)*mpi_nxsplit[ix]+k*(mpi_nxsplit[ix]*mpi_nxsplit[iy]);
+                    mpi_domain[mpitasknum].bnd[iy][0]=bndval[1];
+                }
+                }
+                if (mpi_nxsplit[iz]>1)
+                for (k=0;k<mpi_nxsplit[iz];k++) {
+                    bndval[2]=(mpi_xlim[iz][1]-mpi_xlim[iz][0])*(Double_t)(k+1)/(Double_t)mpi_nxsplit[iz];
+                    if (k<mpi_nxsplit[iz]-1){
+                    mpitasknum=i+j*mpi_nxsplit[ix]+k*(mpi_nxsplit[ix]*mpi_nxsplit[iy]);
+                    mpi_domain[mpitasknum].bnd[iz][1]=bndval[2];
+                    mpitasknum=i+j*mpi_nxsplit[ix]+(k+1)*(mpi_nxsplit[ix]*mpi_nxsplit[iy]);
+                    mpi_domain[mpitasknum].bnd[iz][0]=bndval[2];
+                    }
+                }
+            }
+        }
+        cout<<"Initial MPI Domains are: "<<endl;
+        for (int j=0;j<NProcs;j++) {
+            cout<<"ThisTask= "<<j<<" :: ";
+            cout.precision(10);for (int k=0;k<3;k++) cout<<k<<" "<<mpi_domain[j].bnd[k][0]<<" "<<mpi_domain[j].bnd[k][1]<<" | ";cout<<endl;
+        }
     }
     //broadcast data
     MPI_Bcast(mpi_domain, NProcs*sizeof(MPI_Domain), MPI_BYTE, 0, MPI_COMM_WORLD);
-
 }
 
 
@@ -101,6 +160,11 @@ void MPINumInDomain(Options &opt)
     //when reading number in domain, use all available threads to read all available files
     //first set number of read threads to either total number of mpi process or files, which ever is smaller
     //store old number of read threads
+    if (NProcs==1) {
+    Nlocal=Ntotal;
+    Nmemlocal=Nlocal;
+    return;
+    }
     int nsnapread=opt.nsnapread;
     opt.nsnapread=min(NProcs,opt.num_files);
     if(opt.inputtype==IOTIPSY) MPINumInDomainTipsy(opt);
@@ -128,6 +192,7 @@ void MPIDomainExtent(Options &opt)
 
 void MPIDomainDecomposition(Options &opt)
 {
+    MPIInitialDomainDecomposition();
     if(opt.inputtype==IOTIPSY) MPIDomainDecompositionTipsy(opt);
     else if (opt.inputtype==IOGADGET) MPIDomainDecompositionGadget(opt);
     else if (opt.inputtype==IORAMSES) MPIDomainDecompositionRAMSES(opt);
@@ -157,6 +222,30 @@ int MPIGetParticlesProcessor(Double_t x,Double_t y, Double_t z){
     cerr<<ThisTask<<" has particle outside the mpi domains of every process ("<<x<<","<<y<<","<<z<<")"<<endl;
     MPI_Abort(MPI_COMM_WORLD,9);
 }
+
+//adds a particle read from an input file to the appropriate buffers
+void MPIAddParticletoAppropriateBuffer(const int &ibuf, Int_t ibufindex, int *&ireadtask, const Int_t &BufSize, Int_t *&Nbuf, Particle *&Pbuf, Int_t &numpart, Particle *&Part, Int_t *&Nreadbuf, vector<Particle>*&Preadbuf){
+    if (ibuf==ThisTask) {
+        Nbuf[ibuf]--;
+        Part[numpart++]=Pbuf[ibufindex];
+    }
+    else {
+        if(Nbuf[ibuf]==BufSize&&ireadtask[ibuf]<0) {
+            MPI_Send(&Nbuf[ibuf], 1, MPI_Int_t, ibuf, ibuf+NProcs, MPI_COMM_WORLD);
+            MPI_Send(&Pbuf[ibuf*BufSize],sizeof(Particle)*Nbuf[ibuf],MPI_BYTE,ibuf,ibuf,MPI_COMM_WORLD);
+            Nbuf[ibuf]=0;
+        }
+        else if (ireadtask[ibuf]>=0) {
+            if (ibuf!=ThisTask) {
+                if (Nreadbuf[ireadtask[ibuf]]==Preadbuf[ireadtask[ibuf]].size()) Preadbuf[ireadtask[ibuf]].resize(Preadbuf[ireadtask[ibuf]].size()+BufSize);
+                Preadbuf[ireadtask[ibuf]][Nreadbuf[ireadtask[ibuf]]]=Pbuf[ibufindex];
+                Nreadbuf[ireadtask[ibuf]]++;
+                Nbuf[ibuf]=0;
+            }
+        }
+    }
+}
+
 //@}
 
 /// \name routines which check to see if some search region overlaps with local mpi domain
@@ -546,6 +635,91 @@ void MPISendParticlesBetweenReadThreads(Options &opt, Particle *&Pbuf, Particle 
                     MPI_Sendrecv(&Pbuf[nreadoffset[ireadtask[recvTask]]+mpi_nsend[ThisTask * NProcs + recvTask]+sendoffset],sizeof(Particle)*cursendchunksize, MPI_BYTE, recvTask, TAG_IO_B+isendrecv,
                         &Pbaryons[Nlocalbaryon[0]],sizeof(Particle)*currecvchunksize, MPI_BYTE, recvTask, TAG_IO_B+isendrecv,
                                 MPI_COMM_WORLD, &status);
+                    Nlocalbaryon[0]+=currecvchunksize;
+                    sendoffset+=cursendchunksize;
+                    recvoffset+=currecvchunksize;
+                    isendrecv++;
+                } while (isendrecv<=numsendrecv);
+            }
+        }
+    }
+}
+
+void MPISendParticlesBetweenReadThreads(Options &opt, vector<Particle> *&Preadbuf, Particle *&Part, int *&ireadtask, int *&readtaskID, Particle *&Pbaryons, MPI_Comm &mpi_comm_read, Int_t *&mpi_nsend_readthread, Int_t *&mpi_nsend_readthread_baryon)
+{
+    if (ireadtask[ThisTask]>=0) {
+        //split the communication into small buffers
+        int icycle=0,ibuf;
+        //maximum send size
+        int maxchunksize=2147483648/opt.nsnapread/sizeof(Particle);
+        int nsend,nrecv,nsendchunks,nrecvchunks,numsendrecv;
+        int sendTask,recvTask;
+        int sendoffset,recvoffset;
+        int isendrecv;
+        int cursendchunksize,currecvchunksize;
+        MPI_Status status;
+        for (ibuf=0;ibuf< opt.nsnapread; ibuf++){
+            //if there are an even number of read tasks, then communicate such that 0 communcates with N-1, 1<->N-2, etc
+            //and moves on to next communication 0<->N-2, 1<->N-3, etc with the communication in chunks
+            //first base on read thread position
+            sendTask=ireadtask[ThisTask];
+            ///map so that 0 <->N-1, 1 <->N-2, etc to start moving to
+            recvTask=abs(opt.nsnapread-1-ibuf-sendTask);
+            //if have cycled passed zero, then need to adjust recvTask
+            if (icycle==1) recvTask=opt.nsnapread-recvTask;
+
+            //if ibuf>0 and now at recvTask=0, then next time, cycle
+            if (ibuf>0 && recvTask==0) icycle=1;
+            //if sendtask!=recvtask, and information needs to be sent, send information
+            if (sendTask!=recvTask && (mpi_nsend_readthread[sendTask * opt.nsnapread + recvTask] > 0 || mpi_nsend_readthread[recvTask * opt.nsnapread + sendTask] > 0)) {
+                nsend=mpi_nsend_readthread[sendTask * opt.nsnapread + recvTask];
+                nrecv=mpi_nsend_readthread[recvTask * opt.nsnapread + sendTask];
+                //calculate how many send/recvs are needed
+                nsendchunks=ceil((double)nsend/(double)maxchunksize);
+                nrecvchunks=ceil((double)nrecv/(double)maxchunksize);
+                numsendrecv=max(nsendchunks,nrecvchunks);
+                //initialize the offset in the particle array
+                sendoffset=0;
+                recvoffset=0;
+                isendrecv=1;
+                do
+                {
+                    //determine amount to be sent
+                    cursendchunksize=min(maxchunksize,nsend-sendoffset);
+                    currecvchunksize=min(maxchunksize,nrecv-recvoffset);
+                    //blocking point-to-point send and receive. Here must determine the appropriate offset point in the local export buffer
+                    //for sending data and also the local appropriate offset in the local the receive buffer for information sent from the local receiving buffer
+                    MPI_Sendrecv(&Preadbuf[recvTask][sendoffset],sizeof(Particle)*cursendchunksize, MPI_BYTE, recvTask, TAG_IO_A+isendrecv,
+                        &Part[Nlocal],sizeof(Particle)*currecvchunksize, MPI_BYTE, recvTask, TAG_IO_A+isendrecv,
+                                mpi_comm_read, &status);
+                    Nlocal+=currecvchunksize;
+                    sendoffset+=cursendchunksize;
+                    recvoffset+=currecvchunksize;
+                    isendrecv++;
+                } while (isendrecv<=numsendrecv);
+            }
+            //if separate baryon search, send baryons too
+            if (opt.iBaryonSearch && opt.partsearchtype!=PSTALL) {
+                nsend=mpi_nsend_readthread_baryon[sendTask * opt.nsnapread + recvTask];
+                nrecv=mpi_nsend_readthread_baryon[recvTask * opt.nsnapread + sendTask];
+                //calculate how many send/recvs are needed
+                nsendchunks=ceil((double)nsend/(double)maxchunksize);
+                nrecvchunks=ceil((double)nrecv/(double)maxchunksize);
+                numsendrecv=max(nsendchunks,nrecvchunks);
+                //initialize the offset in the particle array
+                sendoffset=0;
+                recvoffset=0;
+                isendrecv=1;
+                do
+                {
+                    //determine amount to be sent
+                    cursendchunksize=min(maxchunksize,nsend-sendoffset);
+                    currecvchunksize=min(maxchunksize,nrecv-recvoffset);
+                    //blocking point-to-point send and receive. Here must determine the appropriate offset point in the local export buffer
+                    //for sending data and also the local appropriate offset in the local the receive buffer for information sent from the local receiving buffer
+                    MPI_Sendrecv(&Preadbuf[recvTask][mpi_nsend_readthread[sendTask * opt.nsnapread + recvTask]+sendoffset],sizeof(Particle)*cursendchunksize, MPI_BYTE, recvTask, TAG_IO_B+isendrecv,
+                        &Pbaryons[Nlocalbaryon[0]],sizeof(Particle)*currecvchunksize, MPI_BYTE, recvTask, TAG_IO_B+isendrecv,
+                                mpi_comm_read, &status);
                     Nlocalbaryon[0]+=currecvchunksize;
                     sendoffset+=cursendchunksize;
                     recvoffset+=currecvchunksize;

@@ -163,6 +163,8 @@ using namespace NBody;
 #define  CELLSPLITNUM 8
 #define  MINSUBSIZE MINCELLSIZE*CELLSPLITNUM
 #define  MAXSUBLEVEL 8
+/// maximum fraction a cell can take of a halo
+#define  MAXCELLFRACTION 0.1
 //@}
 //@}
 
@@ -440,7 +442,7 @@ struct Options
     //@{
     ///\name factors used to check for halo mergers, large background substructures and store the velocity scale when searching for associated baryon substructures
     //@{
-    Double_t HaloMergerSize,HaloMergerRatio,HaloSigmaV,HaloVelDispScale;
+    Double_t HaloMergerSize,HaloMergerRatio,HaloSigmaV,HaloVelDispScale,HaloLocalSigmaV;
     Double_t fmergebg;
     //@}
     ///flag indicating a single halo is passed or must run search for FOF haloes
@@ -474,16 +476,24 @@ struct Options
     //@{
     /// run halo core search for mergers
     int iHaloCoreSearch;
+    ///maximum sublevel at which we search for phase-space cores
+    int maxnlevelcoresearch;
     ///parameters associated with phase-space search for cores of mergers
     Double_t halocorexfac, halocorevfac, halocorenfac, halocoresigmafac;
     ///x and v space linking lengths calculated for each object
     int iAdaptiveCoreLinking;
     ///use phase-space tensor core assignment
     int iPhaseCoreGrowth;
-    ///allow for iterative halo core search
-    Double_t halocorevfaciter;
     ///number of iterations
     int halocorenumloops;
+    ///factor by which one multiples the configuration space dispersion when looping for cores
+    Double_t halocorexfaciter;
+    ///factor by which one multiples the velocity space dispersion when looping for cores
+    Double_t halocorevfaciter;
+    ///factor by which one multiples the min num when looping for cores
+    Double_t halocorenumfaciter;
+    ///factor by which a core must be seperated from main core in phase-space in sigma units
+    Double_t halocorephasedistsig;
     //@}
     ///for storing a snapshot value to make halo ids unique across snapshots
     long long snapshotvalue;
@@ -495,10 +505,16 @@ struct Options
 
     /// \name Extra HDF flags indicating the existence of extra baryonic/dm particle types
     //@{
+    /// input naming convention
+    int ihdfnameconvention;
+    /// input contains star particles
+    int iusestarparticles;
     /// input contains black hole/sink particles
     int iusesinkparticles;
     /// input contains wind particles
     int iusewindparticles;
+    /// input contains tracer particles
+    int iusetracerparticles;
     /// input contains extra dark type particles
     int iuseextradarkparticles;
     //@}
@@ -592,12 +608,16 @@ struct Options
         iHaloCoreSearch=0;
         iAdaptiveCoreLinking=0;
         iPhaseCoreGrowth=1;
+        maxnlevelcoresearch=5;
         halocorexfac=0.5;
         halocorevfac=2.0;
         halocorenfac=0.1;
         halocoresigmafac=2.0;
+        halocorenumloops=3;
+        halocorexfaciter=0.75;
         halocorevfaciter=0.75;
-        halocorenumloops=1;
+        halocorenumfaciter=1.0;
+        halocorephasedistsig=2.0;
 
         iverbose=0;
         iwritefof=0;
@@ -609,8 +629,15 @@ struct Options
         icomoveunit=0;
         icosmologicalin=1;
 
+        iusestarparticles=1;
         iusesinkparticles=1;
         iusewindparticles=0;
+        iusetracerparticles=0;
+#ifdef HIGHRES
+        iuseextradarkparticles=1;
+#else 
+        iuseextradarkparticles=0;
+#endif
 
         snapshotvalue=0;
 
@@ -633,6 +660,9 @@ struct Options
         lengthtokpc30pow2=50.0*50.0;
 
         mpipartfac=0.1;
+#if USEHDF
+        ihdfnameconvention=0;
+#endif
     }
 };
 
@@ -722,8 +752,15 @@ struct ConfigInfo{
         datainfo.push_back(to_string(opt.halocoresigmafac));
         nameinfo.push_back("Halo_core_num_loops");
         datainfo.push_back(to_string(opt.halocorenumloops));
+        nameinfo.push_back("Halo_core_loop_ellx_fac");
+        datainfo.push_back(to_string(opt.halocorexfaciter));
         nameinfo.push_back("Halo_core_loop_ellv_fac");
         datainfo.push_back(to_string(opt.halocorevfaciter));
+        nameinfo.push_back("Halo_core_loop_elln_fac");
+        datainfo.push_back(to_string(opt.halocorenumfaciter));
+        nameinfo.push_back("Halo_core_phase_significance");
+        datainfo.push_back(to_string(opt.halocorephasedistsig));
+
 
         //for changing factors used in iterative search
         nameinfo.push_back("Iterative_threshold_factor");
@@ -801,6 +838,8 @@ struct ConfigInfo{
         datainfo.push_back(to_string(opt.uinfo.Npotref));
         nameinfo.push_back("Frac_pot_ref");
         datainfo.push_back(to_string(opt.uinfo.fracpotref));
+        nameinfo.push_back("Unbinding_type");
+        datainfo.push_back(to_string(opt.uinfo.unbindtype));
 
         //other options
         nameinfo.push_back("Verbose");

@@ -4,15 +4,28 @@
 
 #include "TreeFrog.h"
 
+///Checks if file exits by attempting to get the file attributes
+///If success file obviously exists.
+///If failure may mean that we don't have permission to access the folder which contains this file or doesn't exist.
+///If we need to do that level of checking, lookup return values of stat which will give you more details on why stat failed.
+bool FileExists(const char *fname) {
+  struct stat stFileInfo;
+  bool blnReturn;
+  int intStat;
+  intStat = stat(fname,&stFileInfo);
+  if(intStat == 0) return  true;
+  else return false;
+}
+
 ///\name Reading routines
 //@{
 ///Reads number of halos at each snapshot, useful for mpi decomposition
 #ifdef USEMPI
-Int_t ReadNumberofHalos(Options &opt, Int_t *numhalos)
+unsigned long ReadNumberofHalos(Options &opt, unsigned long *numhalos)
 {
     fstream Fin;//file is list of halo data files
     string *buf=new string[opt.numsnapshots];
-    Int_t tothalos=0;
+    unsigned long tothalos=0;
 
     Fin.open(opt.fname);
     if (!Fin.is_open()) {
@@ -37,11 +50,11 @@ Int_t ReadNumberofHalos(Options &opt, Int_t *numhalos)
     return tothalos;
 }
 
-Int_t ReadNumberofParticlesInHalos(Options &opt, Int_t *numpartinhalos)
+unsigned long ReadNumberofParticlesInHalos(Options &opt, unsigned long *numpartinhalos)
 {
     fstream Fin;//file is list of halo data files
     string *buf=new string[opt.numsnapshots];
-    Int_t tothalos=0,totpart=0;
+    unsigned long tothalos=0,totpart=0;
 
     Fin.open(opt.fname);
     if (!Fin.is_open()) {
@@ -229,27 +242,25 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
                     Fout.open(fnamempi,ios::out | ios::app);
                 }
                 if (opt.iverbose)cout<<ThisTask<<" starting to write "<<fnamempi<<" for "<<iend<<" down to "<<istart<<flush<<endl;
-                if (opt.outputformat==0) {
                 for (int i=opt.numsnapshots-1;i>0;i--) if (i>=istart && i<iend) {
                     Fout<<i+opt.snapshotvaloffset<<"\t"<<h[i].numhalos<<endl;
                     for (int j=0;j<h[i].numhalos;j++) {
-                        Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofProgenitors<<endl;
+                        Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofProgenitors;
+                        if (opt.outdataformat>=2) {
+                            Fout<<"\t"<<h[i].Halo[j].NumberofParticles;
+                        }
+                        Fout<<endl;
                         for (int k=0;k<p[i][j].NumberofProgenitors;k++) {
-                            Fout<<h[i-p[i][j].istep].Halo[p[i][j].ProgenitorList[k]-1].haloID<<endl;
+                            Fout<<h[i-p[i][j].istep].Halo[p[i][j].ProgenitorList[k]-1].haloID<<" ";
+                            if (opt.outdataformat>=1) {
+                                Fout<<p[i][j].Merit[k]<<" ";
+                            }
+                            if (opt.outdataformat>=2) {
+                                Fout<<h[i-p[i][j].istep].Halo[p[i][j].ProgenitorList[k]-1].NumberofParticles<<" ";
+                            }
+                            Fout<<endl;
                         }
                     }
-                }
-                }
-                else {
-                for (int i=opt.numsnapshots-1;i>0;i--) if (i>=istart && i<iend) {
-                    Fout<<i+opt.snapshotvaloffset<<"\t"<<h[i].numhalos<<endl;
-                    for (int j=0;j<h[i].numhalos;j++) {
-                        Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofProgenitors<<endl;
-                        for (int k=0;k<p[i][j].NumberofProgenitors;k++) {
-                            Fout<<h[i-p[i][j].istep].Halo[p[i][j].ProgenitorList[k]-1].haloID<<" "<<p[i][j].Merit[k]<<endl;
-                        }
-                    }
-                }
                 }
                 Fout.close();
             }
@@ -260,7 +271,11 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
             ///last file has no connections
             Fout<<0+opt.snapshotvaloffset<<"\t"<<h[0].numhalos<<endl;
             for (int j=0;j<h[0].numhalos;j++) {
-                Fout<<h[0].Halo[j].haloID<<"\t"<<0<<endl;
+                Fout<<h[0].Halo[j].haloID<<"\t"<<0;
+                if (opt.outdataformat>=2) {
+                    Fout<<"\t"<<h[0].Halo[j].NumberofParticles;
+                }
+                Fout<<endl;
             }
             Fout<<"END"<<endl;
             Fout.close();
@@ -273,32 +288,34 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
             Fout<<opt.numsnapshots<<endl;
             Fout<<opt.description<<endl;
             Fout<<opt.TotalNumberofHalos<<endl;
-            if (opt.outputformat==0) {
             for (int i=opt.numsnapshots-1;i>0;i--) {
                 Fout<<i+opt.snapshotvaloffset<<"\t"<<h[i].numhalos<<endl;
                 for (int j=0;j<h[i].numhalos;j++) {
-                    Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofProgenitors<<endl;
+                    Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofProgenitors;
+                    if (opt.outdataformat>=2) {
+                        Fout<<"\t"<<h[i].Halo[j].NumberofParticles;
+                    }
+                    Fout<<endl;
                     for (int k=0;k<p[i][j].NumberofProgenitors;k++) {
-                        Fout<<h[i-p[i][j].istep].Halo[p[i][j].ProgenitorList[k]-1].haloID<<endl;
+                        Fout<<h[i-p[i][j].istep].Halo[p[i][j].ProgenitorList[k]-1].haloID<<" ";
+                        if (opt.outdataformat>=1) {
+                            Fout<<p[i][j].Merit[k]<<" ";
+                        }
+                        if (opt.outdataformat>=2) {
+                            Fout<<h[i-p[i][j].istep].Halo[p[i][j].ProgenitorList[k]-1].NumberofParticles<<" ";
+                        }
+                        Fout<<endl;
                     }
                 }
-            }
-            }
-            else {
-            for (int i=opt.numsnapshots-1;i>0;i--) {
-                Fout<<i+opt.snapshotvaloffset<<"\t"<<h[i].numhalos<<endl;
-                for (int j=0;j<h[i].numhalos;j++) {
-                    Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofProgenitors<<endl;
-                    for (int k=0;k<p[i][j].NumberofProgenitors;k++) {
-                        Fout<<h[i-p[i][j].istep].Halo[p[i][j].ProgenitorList[k]-1].haloID<<" "<<p[i][j].Merit[k]<<endl;
-                    }
-                }
-            }
             }
             Fout<<0+opt.snapshotvaloffset<<"\t"<<h[0].numhalos<<endl;
             ///last file has no connections
             for (int j=0;j<h[0].numhalos;j++) {
-                Fout<<h[0].Halo[j].haloID<<"\t"<<0<<endl;
+                Fout<<h[0].Halo[j].haloID<<"\t"<<0;
+                if (opt.outdataformat>=2) {
+                    Fout<<"\t"<<h[0].Halo[j].NumberofParticles;
+                }
+                Fout<<endl;
             }
             Fout<<"END"<<endl;
             Fout.close();
@@ -406,6 +423,154 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
     if (ThisTask==0) cout<<"Done writing to "<<fname<<" "<<MyGetTime()-time1<<endl;
 }
 
+/// same as \ref WriteHaloMergerTree  but going reverse direction using DescendantData
+void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
+    fstream Fout;
+    char fname[1000];
+    char fnamempi[2000];
+    int istep;
+    sprintf(fname,"%s",opt.outname);
+    Double_t time1=MyGetTime();
+#ifndef USEMPI
+    int ThisTask=0, NProcs=1;
+    int StartSnap=0,EndSnap=opt.numsnapshots;
+#endif
+#ifdef USEHDF
+    H5File Fhdf;
+    H5std_string datasetname;
+    DataSpace dataspace;
+    DataSet dataset;
+    Attribute attr;
+    DataSpace attrspace;
+    hsize_t *dims;
+    int rank;
+    DataSpace *propdataspace;
+    DataSet *propdataset;
+    HDFCatalogNames hdfnames;
+    int itemp=0;
+#endif
+    int istart,iend;
+
+    if (ThisTask==0) cout<<"Writing descedant based halo merger tree to "<<fname<<endl;
+    if (opt.outputformat==OUTASCII)
+    {
+        //if mpi then can have a single aggregate file or each thread write their own
+        if (NProcs>1) {
+#ifdef USEMPI
+        if (opt.iwriteparallel==1 && ThisTask==0) cout<<"Writing files in parallel "<<endl;
+        //now if mpi then last task writes header
+        //all tasks starting from last and moves backwards till it reaches its
+        //startpoint+numofsteps used to produce links
+        //save first task which goes all the way to its StartSnap
+        iend=EndSnap-opt.numsteps;
+        istart=StartSnap;
+        if (opt.iwriteparallel==1) sprintf(fnamempi,"%s.mpi_task-%d.isnap-%d.fsnap-%d",opt.outname,ThisTask,istart,iend);
+        else sprintf(fnamempi,"%s",fname);
+        if (ThisTask==0) istart=0;
+        if (ThisTask==NProcs-1) iend=opt.numsnapshots-1;
+        for (int itask=0;itask<NProcs;itask++) {
+            if (ThisTask==itask) {
+                if (ThisTask==0) {
+                    Fout.open(fnamempi,ios::out);
+                    Fout<<opt.numsnapshots<<endl;
+                    Fout<<opt.description<<endl;
+                    Fout<<opt.TotalNumberofHalos<<endl;
+                }
+                else {
+                    Fout.open(fnamempi,ios::out | ios::app);
+                }
+                if (opt.iverbose)cout<<ThisTask<<" starting to write "<<fnamempi<<" for "<<iend<<" down to "<<istart<<flush<<endl;
+                for (int i=0;i<opt.numsnapshots-1;i++) if (i>=istart && i<iend) {
+                    Fout<<i+opt.snapshotvaloffset<<"\t"<<h[i].numhalos<<endl;
+                    for (int j=0;j<h[i].numhalos;j++) {
+                        Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofDescendants;
+                        if (opt.outdataformat>=2) {
+                            Fout<<"\t"<<h[i].Halo[j].NumberofParticles;
+                        }
+                        Fout<<endl;
+                        for (int k=0;k<p[i][j].NumberofDescendants;k++) {
+                            Fout<<h[i+p[i][j].istep].Halo[p[i][j].DescendantList[k]-1].haloID<<" ";
+                            Fout<<p[i][j].dtoptype[k]<<" ";
+                            if (opt.outdataformat>=1) {
+                                Fout<<p[i][j].Merit[k]<<" ";
+                            }
+                            if (opt.outdataformat>=2) {
+                                Fout<<h[i+p[i][j].istep].Halo[p[i][j].DescendantList[k]-1].NumberofParticles<<" ";
+                            }
+                            Fout<<endl;
+                        }
+                    }
+                }
+                Fout.close();
+            }
+            if (opt.iwriteparallel==0) MPI_Barrier(MPI_COMM_WORLD);
+        }
+        if (ThisTask==NProcs-1) {
+            Fout.open(fnamempi,ios::out | ios::app);
+            ///last file has no connections
+            Fout<<opt.numsnapshots-1+opt.snapshotvaloffset<<"\t"<<h[opt.numsnapshots-1].numhalos<<endl;
+            for (int j=0;j<h[opt.numsnapshots-1].numhalos;j++) {
+                Fout<<h[opt.numsnapshots-1].Halo[j].haloID<<"\t"<<0;
+                if (opt.outdataformat>=2) {
+                    Fout<<"\t"<<h[opt.numsnapshots-1].Halo[j].NumberofParticles;
+                }
+                Fout<<endl;
+            }
+            Fout<<"END"<<endl;
+            Fout.close();
+        }
+#endif
+        }
+        //if not mpi (ie: NProcs==1)
+        else{
+            Fout.open(fname,ios::out);
+            Fout<<opt.numsnapshots<<endl;
+            Fout<<opt.description<<endl;
+            Fout<<opt.TotalNumberofHalos<<endl;
+            for (int i=0;i<opt.numsnapshots-1;i++) {
+                Fout<<i+opt.snapshotvaloffset<<"\t"<<h[i].numhalos<<endl;
+                for (int j=0;j<h[i].numhalos;j++) {
+                    Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofDescendants;
+                    if (opt.outdataformat>=2) {
+                        Fout<<"\t"<<h[i].Halo[j].NumberofParticles;
+                    }
+                    Fout<<endl;
+                    for (int k=0;k<p[i][j].NumberofDescendants;k++) {
+                        Fout<<h[i+p[i][j].istep].Halo[p[i][j].DescendantList[k]-1].haloID<<" ";
+                        Fout<<p[i][j].dtoptype[k]<<" ";
+                        if (opt.outdataformat>=1) {
+                            Fout<<p[i][j].Merit[k]<<" ";
+                        }
+                        if (opt.outdataformat>=2) {
+                            Fout<<h[i+p[i][j].istep].Halo[p[i][j].DescendantList[k]-1].NumberofParticles<<" ";
+                        }
+                        Fout<<endl;
+                    }
+                }
+            }
+            Fout<<opt.numsnapshots-1+opt.snapshotvaloffset<<"\t"<<h[opt.numsnapshots-1].numhalos<<endl;
+            ///last file has no connections
+            for (int j=0;j<h[opt.numsnapshots-1].numhalos;j++) {
+                Fout<<h[opt.numsnapshots-1].Halo[j].haloID<<"\t"<<0;
+                if (opt.outdataformat>=2) {
+                    Fout<<"\t"<<h[opt.numsnapshots-1].Halo[j].NumberofParticles;
+                }
+                Fout<<endl;
+            }
+            Fout<<"END"<<endl;
+            Fout.close();
+        }
+    }
+    //end of ascii output
+#ifdef USEHDF
+    else if (opt.outputformat==OUTHDF)
+    {
+
+    }
+#endif
+    if (ThisTask==0) cout<<"Done writing to "<<fname<<" "<<MyGetTime()-time1<<endl;
+}
+
 void WriteHaloGraph(Options &opt, ProgenitorData **p, DescendantData **d, HaloTreeData *h) {
     fstream Fout;
     char fname[1000];
@@ -415,33 +580,42 @@ void WriteHaloGraph(Options &opt, ProgenitorData **p, DescendantData **d, HaloTr
     Fout<<opt.numsnapshots<<endl;
     Fout<<opt.description<<endl;
     Fout<<opt.TotalNumberofHalos<<endl;
-    if (opt.outputformat==0) {
     for (int i=opt.numsnapshots-1;i>=0;i--) {
         Fout<<i+opt.snapshotvaloffset<<"\t"<<h[i].numhalos<<endl;
         for (int j=0;j<h[i].numhalos;j++) {
-            Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofProgenitors<<"\t"<<d[i][j].NumberofDescendants<<endl;
-            for (int k=0;k<p[i][j].NumberofProgenitors;k++) {
-                Fout<<h[i-p[i][j].istep].Halo[p[i][j].ProgenitorList[k]-1].haloID<<endl;
+            if (i==opt.numsnapshots-1) Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofProgenitors<<"\t"<<0;
+            else if (i==0)Fout<<h[i].Halo[j].haloID<<"\t"<<0<<"\t"<<d[i][j].NumberofDescendants;
+            else Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofProgenitors<<"\t"<<d[i][j].NumberofDescendants;
+            if (opt.outdataformat>=2) {
+                Fout<<"\t"<<h[i].Halo[j].NumberofParticles;
             }
-            for (int k=0;k<d[i][j].NumberofDescendants;k++) {
-                Fout<<h[i+d[i][j].istep].Halo[d[i][j].DescendantList[k]-1].haloID<<endl;
+            Fout<<endl;
+            if (i>0) {
+                for (int k=0;k<p[i][j].NumberofProgenitors;k++) {
+                    Fout<<h[i-p[i][j].istep].Halo[p[i][j].ProgenitorList[k]-1].haloID<<" ";
+                    if (opt.outdataformat>=1) {
+                        Fout<<p[i][j].Merit[k]<<" ";
+                    }
+                    if (opt.outdataformat>=2) {
+                        Fout<<h[i-p[i][j].istep].Halo[p[i][j].ProgenitorList[k]-1].NumberofParticles<<" ";
+                    }
+                    Fout<<endl;
+                }
+            }
+            if (i<opt.numsnapshots-1) {
+                for (int k=0;k<d[i][j].NumberofDescendants;k++) {
+                    Fout<<h[i+d[i][j].istep].Halo[d[i][j].DescendantList[k]-1].haloID<<" ";
+                    Fout<<d[i][j].dtoptype[k]<<" ";
+                    if (opt.outdataformat>=1) {
+                        Fout<<d[i][j].Merit[k]<<" ";
+                    }
+                    if (opt.outdataformat>=2) {
+                        Fout<<h[i+d[i][j].istep].Halo[d[i][j].DescendantList[k]-1].NumberofParticles<<" ";
+                    }
+                    Fout<<endl;
+                }
             }
         }
-    }
-    }
-    else {
-    for (int i=opt.numsnapshots-1;i>=0;i--) {
-        Fout<<i+opt.snapshotvaloffset<<"\t"<<h[i].numhalos<<endl;
-        for (int j=0;j<h[i].numhalos;j++) {
-            Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofProgenitors<<"\t"<<d[i][j].NumberofDescendants<<endl;
-            for (int k=0;k<p[i][j].NumberofProgenitors;k++) {
-                Fout<<h[i-p[i][j].istep].Halo[p[i][j].ProgenitorList[k]-1].haloID<<" "<<p[i][j].Merit[k]<<endl;
-            }
-            for (int k=0;k<d[i][j].NumberofDescendants;k++) {
-                Fout<<h[i+d[i][j].istep].Halo[d[i][j].DescendantList[k]-1].haloID<<" "<<d[i][j].Merit[k]<<endl;
-            }
-        }
-    }
     }
     Fout<<"END"<<endl;
     Fout.close();
@@ -455,7 +629,6 @@ void WriteCrossComp(Options &opt, ProgenitorData **p, HaloTreeData *h) {
     Fout.open(fname,ios::out);
     Fout<<opt.description<<endl;
     Fout<<opt.TotalNumberofHalos<<endl;
-    if (opt.outputformat==0) {
     for (int i=opt.numsnapshots-1;i>0;i--) {
         Fout<<i<<"\t"<<h[i].numhalos<<endl;
         for (int j=0;j<h[i].numhalos;j++) {
@@ -465,19 +638,162 @@ void WriteCrossComp(Options &opt, ProgenitorData **p, HaloTreeData *h) {
             }
         }
     }
-    }
-    else if (opt.outputformat==1) {
-    for (int i=opt.numsnapshots-1;i>0;i--) {
-        Fout<<i<<"\t"<<h[i].numhalos<<endl;
-        for (int j=0;j<h[i].numhalos;j++) {
-            Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofProgenitors<<endl;
-            for (int k=0;k<p[i][j].NumberofProgenitors;k++) {
-                Fout<<h[i-1].Halo[p[i][j].ProgenitorList[k]-1].haloID<<" "<<p[i][j].Merit[k]<<" "<<p[i][j].nsharedfrac[k]<<" ";
-            }
-        }
-    }
-    }
     Fout<<"END"<<endl;
     Fout.close();
+}
+//@}
+
+///\name write associated information of treefrog run
+//@{
+///if a memory efficient particle id to index map was produced save the file
+void SavePIDStoIndexMap(Options &opt,map<IDTYPE, IDTYPE>&idmap)
+{
+    char fname[1000];
+    fstream Fout;
+    IDTYPE *keys,*indices;
+    Int_t i;
+    size_t idsize,mapsize;
+    unsigned long chunksize,offset,oldchunksize;
+    unsigned int nchunks;
+#ifndef USEMPI
+    int ThisTask=0, NProcs=1;
+#endif
+    if (ThisTask==0)
+    {
+        sprintf(fname,"%s.pidtoindexmap.dat",opt.outname);
+        Fout.open(fname,ios::out|ios::binary);
+        cout<<"Writing unique memory efficent mapping for particle IDS to index to "<<fname<<endl;
+        //write header information
+        Fout.write((char*)&opt.numsnapshots,sizeof(int));
+        Fout.write((char*)&opt.TotalNumberofHalos,sizeof(long unsigned));
+        idsize=sizeof(IDTYPE);
+        Fout.write((char*)&idsize,sizeof(size_t));
+        mapsize=idmap.size();
+        Fout.write((char*)&mapsize,sizeof(size_t));
+        chunksize=10000;
+        nchunks=ceil(mapsize/(Double_t)chunksize);
+        if (chunksize>mapsize) {
+            chunksize=mapsize;
+            nchunks=1;
+        }
+        oldchunksize=chunksize;
+        keys=new IDTYPE[chunksize];
+        offset=0;
+        i=0;
+        for (auto it: idmap) {
+            keys[i++]=it.first;
+            if (i==chunksize) {
+                i=0;
+                Fout.write((char*)keys,sizeof(IDTYPE)*chunksize);
+                offset+=chunksize;
+                chunksize=min(chunksize,mapsize-offset);
+            }
+        }
+        delete[] keys;
+        chunksize=oldchunksize;
+        indices=new IDTYPE[chunksize];
+        offset=0;
+        i=0;
+        for (auto it: idmap) {
+            indices[i++]=it.second;
+            if (i==chunksize) {
+                i=0;
+                Fout.write((char*)indices,sizeof(IDTYPE)*chunksize);
+                offset+=chunksize;
+                chunksize=min(chunksize,mapsize-offset);
+            }
+        }
+        delete[] indices;
+        Fout.close();
+    }
+}
+///if a memory efficient particle id to index map file exists read it
+int ReadPIDStoIndexMap(Options &opt,map<IDTYPE, IDTYPE>&idmap)
+{
+    char fname[1000];
+    fstream Fin, Fin2;
+    IDTYPE *keys,*indices;
+    Int_t i;
+    size_t idsize,mapsize;
+    unsigned long chunksize,offset;
+    unsigned int nchunks;
+    int numsnap;
+    long unsigned tothalo;
+    int iflag=0;
+    double time1;
+#ifndef USEMPI
+    int ThisTask=0, NProcs=1;
+#endif
+    if (ThisTask==0) {
+        sprintf(fname,"%s.pidtoindexmap.dat",opt.outname);
+        Fin.open(fname,ios::in|ios::binary);
+        //used to get to desired offset in file to read indices
+        Fin2.open(fname,ios::in|ios::binary);
+        cout<<"Attempting to read unique memory efficent mapping for particle IDS to index to "<<fname<<endl;
+        //write header information
+        Fin.read((char*)&numsnap,sizeof(int));
+        Fin.read((char*)&tothalo,sizeof(long unsigned));
+        Fin.read((char*)&idsize,sizeof(size_t));
+        //if all is well then keep reading
+        if (opt.numsnapshots==numsnap && opt.TotalNumberofHalos && idsize==sizeof(IDTYPE)) {
+            iflag=1;
+        }
+    }
+#ifdef USEMPI
+    MPI_Bcast(&iflag, 1, MPI_INT, 0, MPI_COMM_WORLD);
+#endif
+    if (iflag==0) {
+        if (ThisTask==0) cout<<"Unable to read data, must generate map "<<endl;
+        Fin.close();
+        Fin2.close();
+        return iflag;
+    }
+    time1=MyGetTime();
+    idmap.clear();
+    if (ThisTask==0) {
+        cout<<"Reading information"<<endl;
+        Fin.read((char*)&mapsize,sizeof(size_t));
+    }
+    //communicate information
+#ifdef USEMPI
+    MPI_Bcast(&mapsize, sizeof(size_t), MPI_BYTE, 0, MPI_COMM_WORLD);
+#endif
+    opt.MaxIDValue=mapsize;
+    if (ThisTask==0) {
+        cout<<"Map will have "<<opt.MaxIDValue<<" elements and need roughly "<<opt.MaxIDValue*(sizeof(IDTYPE)*2+3*4)/1024./1024./1024.<<"GB of mem "<<endl;
+        //offset to start of indices
+        Fin2.seekg(mapsize*sizeof(IDTYPE)+sizeof(int)+sizeof(long unsigned)+sizeof(size_t)+sizeof(size_t));
+    }
+    //and send information in chunks
+    chunksize=floor(2147483648/((Double_t)NProcs*sizeof(IDTYPE)));
+    nchunks=ceil(mapsize/(Double_t)chunksize);
+    if (chunksize>mapsize) {
+        chunksize=mapsize;
+        nchunks=1;
+    }
+    keys=new IDTYPE[chunksize];
+    indices=new IDTYPE[chunksize];
+    offset=0;
+    for (auto ichunk=0;ichunk<nchunks;ichunk++)
+    {
+        if (ThisTask==0) {
+            Fin.read((char*)keys,sizeof(IDTYPE)*chunksize);
+            Fin2.read((char*)indices,sizeof(IDTYPE)*chunksize);
+        }
+#ifdef USEMPI
+        if (NProcs>1) {
+        MPI_Bcast(keys, sizeof(IDTYPE)*chunksize, MPI_BYTE, 0, MPI_COMM_WORLD);
+        MPI_Bcast(indices, sizeof(IDTYPE)*chunksize, MPI_BYTE, 0, MPI_COMM_WORLD);
+        }
+#endif
+        for (i=0;i<chunksize;i++) idmap.insert(pair<IDTYPE, IDTYPE>(keys[i],indices[i]));
+        offset+=chunksize;
+        chunksize=min(chunksize,mapsize-offset);
+    }
+    if (ThisTask==0) {Fin.close(); Fin2.close();}
+    if (ThisTask==0) cout<<"Took "<<MyGetTime()-time1<<endl;
+    delete[] indices;
+    delete[] keys;
+    return iflag;
 }
 //@}

@@ -183,7 +183,6 @@ int main(int argc,char **argv)
         //otherwise just base on total number of particles * some factor and initialise the domains
         MPIDomainExtent(opt);
         MPIDomainDecomposition(opt);
-        MPIInitialDomainDecomposition();
         Nlocal=nbodies/NProcs*MPIProcFac;
         Nmemlocal=Nlocal;
         Nlocalbaryon[0]=nbaryons/NProcs*MPIProcFac;
@@ -244,6 +243,8 @@ int main(int argc,char **argv)
 
     //write out the configuration used by velociraptor having read in the data (as input data can contain cosmological information)
     WriteVELOCIraptorConfig(opt);
+    WriteSimulationInfo(opt);
+    WriteUnitInfo(opt);
 
     //set filenames if they have been passed
 #ifdef USEMPI
@@ -370,11 +371,10 @@ int main(int argc,char **argv)
         cout<<"Searching subset"<<endl;
         time1=MyGetTime();
         //if groups have been found (and localized to single MPI thread) then proceed to search for subsubstructures
-        SearchSubSub(opt, nbodies, Part, pfof,ngroup,nhalos,pdata);
+        SearchSubSub(opt, nbodies, Part, pfof,ngroup,nhalos,pdatahalos);
         time1=MyGetTime()-time1;
         cout<<"TIME::"<<ThisTask<<" took "<<time1<<" to search for substructures "<<Nlocal<<" with "<<nthreads<<endl;
     }
-
     pdata=new PropData[ngroup+1];
     //if inclusive halo mass required
     if (opt.iInclusiveHalo && ngroup>0) {
@@ -390,7 +390,8 @@ int main(int argc,char **argv)
             pfofbaryons=&pfofall[nbodies];
         }
         //if FOF search overall particle types then running sub search over just dm and need to associate baryons to just dm particles must determine number of baryons, sort list, run search, etc
-        else {
+        //but only need to run search if substructure has been searched
+        else if (opt.iSubSearch==1){
             nbaryons=0;
             ndark=0;
             for (Int_t i=0;i<nbodies;i++) {
@@ -398,7 +399,7 @@ int main(int argc,char **argv)
                 else nbaryons++;
             }
             Pbaryons=NULL;
-            pfofall=SearchBaryons(opt, nbaryons, Pbaryons, ndark, Part, pfof, ngroup,nhalos,opt.iseparatefiles,opt.iInclusiveHalo,pdata);
+            SearchBaryons(opt, nbaryons, Pbaryons, ndark, Part, pfof, ngroup,nhalos,opt.iseparatefiles,opt.iInclusiveHalo,pdata);
         }
         time1=MyGetTime()-time1;
         cout<<"TIME::"<<ThisTask<<" took "<<time1<<" to search baryons  with "<<nthreads<<endl;
@@ -420,9 +421,6 @@ int main(int argc,char **argv)
         nbodies+=nbaryons;
         Nlocal=nbodies;
     }
-
-    WriteSimulationInfo(opt);
-    WriteUnitInfo(opt);
 
     //output results
     //if want to ignore any information regard particles themselves as particle PIDS are meaningless

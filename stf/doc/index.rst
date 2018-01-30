@@ -11,6 +11,10 @@ Welcome to VELOCIraptor's documentation!
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
+   getting.rst
+   usage.rst
+   input.rst
+   output.rst
 
 
 

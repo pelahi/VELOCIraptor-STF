@@ -2233,11 +2233,15 @@ private(i,weight)
 ///calculate the phase-space dispersion tensor
 void CalcPhaseSigmaTensor(const Int_t n, Particle *p, GMatrix &eigenvalues, GMatrix& eigenvec, GMatrix &I, int itype)
 {
+    CalcPhaseSigmaTensor(n, p,  I, itype);
+    I.Eigenvalvec(eigenvalues, eigenvec);
+}
+
+void CalcPhaseSigmaTensor(const Int_t n, Particle *p, GMatrix &I, int itype) {
     Double_t det,weight;
     Double_t Ixx,Iyy,Izz,Ixy,Ixz,Iyz;
     Double_t Ivxvx,Ivyvy,Ivzvz,Ivxvy,Ivxvz,Ivyvz;
     Double_t Ixvx,Iyvx,Izvx,Ixvy,Iyvy,Izvy,Ixvz,Iyvz,Izvz;
-    GMatrix e(6,1);
     I=GMatrix(6,6);
     Int_t i;
     Ixx=Iyy=Izz=Ixy=Ixz=Iyz=0.;
@@ -2322,7 +2326,6 @@ private(i,weight)
     }
 #endif
     I=I*(1.0/mtot);
-    I.Eigenvalvec(e, eigenvec);
 }
 
 ///calculate the weighted reduced inertia tensor assuming particles are the same mass
@@ -2588,9 +2591,9 @@ void CopyMasses(const Int_t nhalos, PropData *&pold, PropData *&pnew){
     }
 }
 ///reorder mass information stored in properties data
-void ReorderInclusiveMasses(const Int_t &numgroups, const Int_t &newnumgroups, Int_t *&numingroup, PropData *pdata)
+void ReorderInclusiveMasses(const Int_t &numgroups, const Int_t &newnumgroups, Int_t *&numingroup, PropData *&pdata)
 {
-    PropData *pnew=new PropData[newnumgroups];
+    PropData *pnew=new PropData[newnumgroups+1];
     PriorityQueue *pq=new PriorityQueue(newnumgroups);
     for (Int_t i = 1; i <=numgroups; i++) if (numingroup[i]>0) pq->Push(i, numingroup[i]);
     for (Int_t i = 1; i<=newnumgroups; i++) {
@@ -2930,7 +2933,6 @@ private(i,j)
         pdata[i].iunbound=numingroup[i];
         if (numingroup[i]>0)
             for (j=0;j<numingroup[i];j++) if(Part[noffset[i]+j].GetPotential()>0) {pdata[i].iunbound=j;break;}
-	    else pdata[i].iunbound=0;
         Double_t x,y,z,r2;
         for (j=1;j<numingroup[i];j++) {
             x=Part[noffset[i]+j].X()-Part[noffset[i]].X();

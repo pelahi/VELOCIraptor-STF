@@ -8,11 +8,11 @@ EXEC = treefrog
 all : $(EXEC)
 
 $(EXEC) : $(OBJS)
-	$(C+) -o $(EXEC) $(C+FLAGS) $(OBJS) $(LFLAGS) $(C+LIBS)  
+	$(C+) -o $(EXEC) $(C+FLAGS) $(OBJS) $(LFLAGS) $(C+LIBS)
 	cp $(EXEC) $(STFBINDIR)
 
-%.o: %.cxx $(INCL) $(MAKECHECK) $(LIBCHECK) 
-	$(C+) $(C+FLAGS) $(IFLAGS) -c -o $@ $< 
+%.o: %.cxx $(INCL) $(MAKECHECK) $(LIBCHECK)
+	$(C+) $(C+FLAGS) $(IFLAGS) -c -o $@ $<
 
 .PHONY : clean
 
@@ -22,13 +22,16 @@ clean :
 ifeq "$(wildcard doc/doxy.log)" ""
 doc: doc_
 doc_:
-	cd doc; mkdir -p html; mkdir -p latex; doxygen Doxyfile > doxy.log;
+	cd doc; mkdir -p html; mkdir -p latex; mkdir -p xml; doxygen Doxyfile > doxy.log;
 else
 doc:  doc/Doxyfile $(CFILES) $(HFILES)
-	cd doc; mkdir -p html; mkdir -p latex; doxygen Doxyfile > doxy.log;
+	cd doc; mkdir -p html; mkdir -p latex; mkdir -p xml; doxygen Doxyfile > doxy.log;
 endif
 docclean: docc_
 docc_:
+ifneq "$(wildcard doc/xml)" ""
+	rm -r doc/xml/
+endif
 ifneq "$(wildcard doc/html)" ""
 	rm -r doc/html/
 endif
