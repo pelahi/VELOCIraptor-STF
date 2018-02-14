@@ -58,6 +58,42 @@ namespace NBody
         else if (aa < bb) return -1;
         else return 0;
     }
+    bool PIDCompareVec(const Particle&a, const Particle &b)
+    {
+        Int_t aa = a.GetPID();
+        Int_t bb = b.GetPID();
+        return (aa > bb);
+    }
+    bool IDCompareVec(const Particle&a, const Particle &b)
+    {
+        Int_t aa = a.GetID();
+        Int_t bb = b.GetID();
+        return (aa > bb);
+    }
+    bool RadCompareVec(const Particle&a, const Particle &b)
+    {
+        Double_t aa = a.Radius();
+        Double_t bb = b.Radius();
+        return (aa > bb);
+    }
+    bool TypeCompareVec(const Particle&a, const Particle &b)
+    {
+        int aa = a.GetType();
+        int bb = b.GetType();
+        return (aa > bb);
+    }
+    bool DenCompareVec(const Particle&a, const Particle &b)
+    {
+        Double_t aa = a.GetDensity();
+        Double_t bb = b.GetDensity();
+        return (aa > bb);
+    }
+    bool PotCompareVec(const Particle&a, const Particle &b)
+    {
+        Double_t aa = a.GetPotential();
+        Double_t bb = b.GetPotential();
+        return (aa > bb);
+    }
     /*-----------------------
         Particle functions
       -----------------------*/
@@ -322,7 +358,7 @@ namespace NBody
 
 
     // Copy constructor
-    GasParticle::GasParticle(const GasParticle &p) : Particle::Particle((Particle)p) 
+    GasParticle::GasParticle(const GasParticle &p) : Particle::Particle((Particle)p)
     {
         if (this!=&p) {
 #ifndef NOMASS
@@ -378,7 +414,7 @@ namespace NBody
         return *this;
     }
 
-    
+
     StarParticle::StarParticle(Double_t Mass, Double_t x, Double_t y, Double_t z,
                         Double_t vx, Double_t vy, Double_t vz, Int_t ID, int Type, Double_t Rho, Double_t Phi, Double_t TF, Double_t Zi): Particle::Particle(Mass,x,y,z,vx,vy,vz,ID,Type,Rho,Phi)
     {
@@ -394,7 +430,7 @@ namespace NBody
 
 
     // Copy constructor
-    StarParticle::StarParticle(const StarParticle &p) 
+    StarParticle::StarParticle(const StarParticle &p)
     {
         if (this!=&p) {
 #ifndef NOMASS

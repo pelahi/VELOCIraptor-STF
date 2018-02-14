@@ -18,7 +18,7 @@
     Also start of implementation to keep the 3DFOF envelopes as separate structures.
     \todo 3DFOF envelop kept as separate structures is NOT fully tested nor truly implemented just yet.
 */
-Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &numgroups)
+Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, Int_t &numgroups)
 {
     Int_t i, *pfof,*pfoftemp, minsize;
     FOFcompfunc fofcmp;
@@ -68,7 +68,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
     param[1]=(opt.ellxscale*opt.ellxscale)*(opt.ellphys*opt.ellphys)*(opt.ellhalophysfac*opt.ellhalophysfac);
     param[6]=param[1];
     cout<<"First build tree ... "<<endl;
-    tree=new KDTree(Part,nbodies,opt.Bsize,tree->TPHYS,tree->KEPAN,1000,0,0,0,period);
+    tree=new KDTree(Part.data(),nbodies,opt.Bsize,tree->TPHYS,tree->KEPAN,1000,0,0,0,period);
     cout<<"Done"<<endl;
     cout<<"Search particles using 3DFOF in physical space"<<endl;
     cout<<"Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits (and likely "<<sqrt(param[6])/opt.ellxscale<<" in interparticle spacing"<<endl;
@@ -178,10 +178,11 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
     Int_t newnbodies=MPIGroupExchange(nbodies,Part,pfof);
     //once groups are local, can free up memory
     if (Nmemlocal<Nlocal) {
-        delete[] Part;
+        //delete[] Part;
         //store new particle data in mpi_Part1 as external variable ensures memory allocated is not deallocated when function returns
-        mpi_Part1=new Particle[newnbodies];
-        Part=mpi_Part1;
+        //mpi_Part1=new Particle[newnbodies];
+        //Part=mpi_Part1;
+        Part.resize(Nlocal);
     //delete[] mpi_idlist;//since particles have now moved, must generate new list
     //mpi_idlist=new Int_t[newnbodies];
     }
@@ -214,7 +215,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
                 else Part[i].SetType(-1);
             }
         }
-        tree=new KDTree(Part,Nlocal,opt.Bsize,tree->TPHYS,tree->KEPAN,100,0,0,0,period);
+        tree=new KDTree(Part.data(),Nlocal,opt.Bsize,tree->TPHYS,tree->KEPAN,100,0,0,0,period);
         GetVelocityDensity(opt, Nlocal, Part,tree);
         delete tree;
         for (i=0;i<Nlocal;i++) Part[i].SetType(storetype[i]);
@@ -261,7 +262,8 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
         numingroup[pfof[i]]++;
     }
     for (i=2;i<=numgroups;i++) noffset[i]=noffset[i-1]+numingroup[i-1];
-    qsort(Part, Nlocal, sizeof(Particle), PIDCompare);
+    //qsort(Part, Nlocal, sizeof(Particle), PIDCompare);
+    sort(Part.begin(),Part.end(),PIDCompareVec);
     for (i=0;i<Nlocal;i++) Part[i].SetPID(storetype[Part[i].GetID()]);
     delete[] storetype;
     //store index order
@@ -396,7 +398,7 @@ private(i,tid,xscaling,vscaling)
             Part[noffset[i]+j].ScalePhase(xscaling,vscaling);
         }
         xscaling=1.0/xscaling;vscaling=1.0/vscaling;
-        treeomp[tid]=new KDTree(&Part[noffset[i]],numingroup[i],opt.Bsize,treeomp[tid]->TPHS,tree->KEPAN,100);
+        treeomp[tid]=new KDTree(&Part.data()[noffset[i]],numingroup[i],opt.Bsize,treeomp[tid]->TPHS,tree->KEPAN,100);
         pfofomp[i]=treeomp[tid]->FOF(1.0,ngomp[i],minsize,1,&Head[noffset[i]],&Next[noffset[i]],&Tail[noffset[i]],&Len[noffset[i]]);
         for (Int_t j=0;j<numingroup[i];j++) {
             Part[noffset[i]+j].ScalePhase(xscaling,vscaling);
@@ -517,7 +519,8 @@ private(i,tid,xscaling,vscaling)
     }
 
     for (i=0;i<npartingroups;i++) Part[i].SetID(ids[i]);
-    gsl_heapsort(Part, Nlocal, sizeof(Particle), IDCompare);
+    //gsl_heapsort(Part, Nlocal, sizeof(Particle), IDCompare);
+    sort(Part.begin(), Part.end(), IDCompareVec);
     delete[] ids;
     numgroups=ng;
 
@@ -698,7 +701,7 @@ private(i,tid,xscaling,vscaling)
     return pfof;
 }
 
-void AdjustStructureForPeriod(Options &opt, const Int_t nbodies, Particle *Part, Int_t numgroups, Int_t *pfof)
+void AdjustStructureForPeriod(Options &opt, const Int_t nbodies, vector<Particle> &Part, Int_t numgroups, Int_t *pfof)
 {
     Int_t i,j;
     Int_t *numingroup, **pglist;
@@ -765,7 +768,7 @@ private(i,c,diff)
     how the search should be localized. It should definitely be localized prior to CheckSignificance and the search window across mpi domains should use the larger
     physical search window used by the iterative search if that has been called.
  */
-Int_t* SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Particle *&Partsubset, Int_t &numgroups, Int_t sublevel, Int_t *pnumcores)
+Int_t* SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, vector<Particle> &Partsubset, Int_t &numgroups, Int_t sublevel, Int_t *pnumcores)
 {
     KDTree *tree;
     Int_t *pfof, i, ii;

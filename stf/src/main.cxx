@@ -97,9 +97,11 @@ int main(int argc,char **argv)
     Int_t ngroup, ng, nhalos;
 
     //to store group value (pfof), and also arrays to parse particles
-    Int_t *pfof,*numingroup,**pglist;
-    Int_t *pfofbaryons,*numingroupbaryons,**pglistbaryons;
-    Int_t *pfofall;
+    vector<Int_t> pfof;
+    Int_t *numingroup,**pglist;
+    vector<Int_t> pfofbaryons;
+    Int_t *numingroupbaryons,**pglistbaryons;
+    //Int_t *pfofall;
     //to store information about the group
     PropData *pdata=NULL,*pdatahalos=NULL;
 
@@ -159,7 +161,7 @@ int main(int argc,char **argv)
     Nlocal=nbodies;
     if (opt.iBaryonSearch>0 && opt.partsearchtype!=PSTALL) {
         Part.resize(nbodies+nbaryons);
-        Pbaryons=&(Part.data[nbodies]);
+        Pbaryons=&(Part.data()[nbodies]);
         Nlocalbaryon[0]=nbaryons;
     }
     else {
@@ -196,11 +198,11 @@ int main(int argc,char **argv)
     cout<<ThisTask<<" will also require additional memory for FOF algorithms and substructure search. Largest mem needed for preliminary FOF search. Rough estimate is "<<Nlocal*(sizeof(Int_tree_t)*8)/1024./1024./1024.<<"GB of memory"<<endl;
     if (opt.iBaryonSearch>0 && opt.partsearchtype!=PSTALL) {
         Part.resize(Nmemlocal+Nmemlocalbaryon);
-        Pbaryons=&Part.data[Nlocal];
+        Pbaryons=&(Part.data()[Nlocal]);
         nbaryons=Nlocalbaryon[0];
     }
     else {
-        Part=new Particle[Nmemlocal];
+        Part.resize(Nmemlocal);
         Pbaryons=NULL;
         nbaryons=0;
     }
@@ -305,7 +307,8 @@ int main(int argc,char **argv)
             for (Int_t i=0;i<nbodies;i++) {sortvalhalos[i]=pfof[i]*(pfof[i]>0)+nbodies*(pfof[i]==0);originalID[i]=Part[i].GetID();Part[i].SetID(i);}
             Int_t *noffsethalos=BuildNoffset(nbodies, Part, nhalos, numinhalos, sortvalhalos);
             GetInclusiveMasses(opt, nbodies, Part, nhalos, pfof, numinhalos, pdatahalos, noffsethalos);
-            qsort(Part,nbodies,sizeof(Particle),IDCompare);
+            //qsort(Part,nbodies,sizeof(Particle),IDCompare);
+            sort(Part.begin(), Part.end(), IDCompare);
             delete[] numinhalos;
             delete[] sortvalhalos;
             delete[] noffsethalos;

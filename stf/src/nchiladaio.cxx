@@ -317,7 +317,7 @@ Int_t Nchilada_get_nbodies(char *fname, int ptype, Options &opt)
 }
 
 ///reads an nchilada formatted file.
-void ReadNchilada(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbaryons, Int_t nbaryons)
+void ReadNchilada(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle *&Pbaryons, Int_t nbaryons)
 {
     Int_t i,j,k,n,nchunk;
     u_int64_t numParticles=nbodies,startParticle=0;

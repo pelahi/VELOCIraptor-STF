@@ -11,7 +11,7 @@
 
 ///reads a gadget file. If cosmological simulation uses cosmology (generally assuming LCDM or small deviations from this) to estimate the mean interparticle spacing
 ///and scales physical linking length passed by this distance. Also reads header and over rides passed cosmological parameters with ones stored in header.
-void ReadGadget(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbaryons, Int_t nbaryons)
+void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle *&Pbaryons, Int_t nbaryons)
 {
     //counters
     Int_t i,j,k,n,m,temp,count,countsph,countstar,countbh,count2,bcount,bcount2,pc,pc_new, Ntot,indark,ingas,instar,Ntotfile;

@@ -14,7 +14,7 @@
     \todo velocity density function is NOT mass weighted. Might want to alter this.
     \todo there is a seg fault memory error when searching for NN in large sims using \em SINGLEPRECISION flag. I don't know why.
 */
-void GetVelocityDensity(Options &opt, const Int_t nbodies, Particle *Part, KDTree *tree)
+void GetVelocityDensity(Options &opt, const Int_t nbodies, vector<Particle> &Part, KDTree *tree)
 {
     Int_t i,j,k;
     int nthreads;

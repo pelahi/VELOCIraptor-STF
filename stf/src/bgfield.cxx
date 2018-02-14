@@ -10,15 +10,15 @@
 //@{
 
 ///Decompose Halo/system using KDTree
-/*! 
-    Serial Decomposition of halo/system local (to processor if mpi is invoked). 
+/*!
+    Serial Decomposition of halo/system local (to processor if mpi is invoked).
     The binary kd-tree decomposition using anything other than a tree in configuration space constructed
     using the shannon entropy criteron is allowed but is not \e \b advised.
     Building a physical tree with shannon entropy ensures that regions have uniform M(R)/r or more specifically uniform inter particle spacing
     \todo need to alter pglist array. Much smoother if use particles themselves to find nearest cells
     Instead of storing pglist which is memory intensive (nbodies*ncells) just calculate it when needed.
 */
-KDTree* InitializeTreeGrid(Options &opt, const Int_t nbodies, Particle *Part){
+KDTree* InitializeTreeGrid(Options &opt, const Int_t nbodies, vector<Particle> Part){
     //First rotate into eigenvector frame.
 #ifdef SCALING
     Double_t q=1,s=1;
@@ -26,9 +26,9 @@ KDTree* InitializeTreeGrid(Options &opt, const Int_t nbodies, Particle *Part){
     Matrix eigvec(0.);
     Int_t i;
     cout<<"Get Global Morphology\n";
-    GetGlobalMorphologyWithMass(nbodies,Part, q, s, 1e-3, eigvec);
+    GetGlobalMorphologyWithMass(nbodies,Part.data(), q, s, 1e-3, eigvec);
     //GetGlobalMorphologyWithMass(nbodies, Part, q, s, 1e-3);
-    //and rotate velocities to new frame 
+    //and rotate velocities to new frame
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
 private(i,vel)
@@ -48,24 +48,23 @@ private(i,vel)
     cout<<"Done."<<endl;
 #endif
 
-    //then build tree  
+    //then build tree
     KDTree *tree;
     if (opt.iverbose) cout<<"Grid system using leaf nodes with maximum size of "<<opt.Ncell<<endl;
     if (opt.gridtype==PHYSGRID) {
         if (opt.iverbose) cout<<"Building Physical Tree using simple spatial extend as splitting criterion"<<endl;
-        //tree=new KDTree(*S,opt.Ncell,tree->TPHYS);
-        tree=new KDTree(Part,nbodies,opt.Ncell,tree->TPHYS);
+        tree=new KDTree(Part.data(),nbodies,opt.Ncell,tree->TPHYS);
     }
     else if (opt.gridtype==PHYSENGRID) {
         if (opt.iverbose) cout<<"Building physical Tree using minimum shannon entropy as splitting criterion"<<endl;
         //tree=new KDTree(*S,opt.Ncell,tree->TPHYS,tree->KEPAN,100,1);
-        tree=new KDTree(Part,nbodies,opt.Ncell,tree->TPHYS,tree->KEPAN,100,1);
+        tree=new KDTree(Part.data(),nbodies,opt.Ncell,tree->TPHYS,tree->KEPAN,100,1);
     }
     else if (opt.gridtype==PHASEENGRID) {
         if (opt.iverbose) cout<<"Building Phase-space Tree using minimum shannon entropy as splitting criterion"<<endl;
         //tree=new KDTree(*S,opt.Ncell,tree->TPHS,tree->KEPAN,100,1,1);//if phase tree, use entropy criterion with anisotropic kernel
         //if phase tree, use entropy criterion with anisotropic kernel
-        tree=new KDTree(Part,nbodies,opt.Ncell,tree->TPHS,tree->KEPAN,100,1,1);
+        tree=new KDTree(Part.data(),nbodies,opt.Ncell,tree->TPHS,tree->KEPAN,100,1,1);
     }
     return tree;
 }
@@ -96,7 +95,7 @@ void FillTreeGrid(Options &opt, const Int_t nbodies, const Int_t ngrid, KDTree *
         Int_t end=((LeafNode*)np)->GetEnd();
         //this while loop ensures that if there is a particle out of place, one still proceeds to move through
         //the tree appropriately.
-        while (!(ncount>=start&&ncount<end)) 
+        while (!(ncount>=start&&ncount<end))
         {
             ncount++;
             np=(tree->FindLeafNode((Int_t)ncount));
@@ -119,7 +118,7 @@ void FillTreeGrid(Options &opt, const Int_t nbodies, const Int_t ngrid, KDTree *
         for (Int_t k=start,l=0;k<end;k++,l++){
             Int_t id=Part[k].GetID();
             grid[gridcount].nindex[l]=id;
-            for (int j=0;j<ND;j++) 
+            for (int j=0;j<ND;j++)
                 grid[gridcount].xm[j]+=Part[k].GetPosition(j)*Part[k].GetMass();
             mtot+=Part[k].GetMass();
         }

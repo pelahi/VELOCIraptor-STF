@@ -66,7 +66,7 @@ extern "C" herr_t file_info(hid_t loc_id, const char *name, const H5L_info_t *li
 }
 
 ///reads an hdf5 formatted file.
-void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbaryons, Int_t nbaryons)
+void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle *&Pbaryons, Int_t nbaryons)
 {
     //structure stores the names of the groups in the hdf input
     char buf[2000];

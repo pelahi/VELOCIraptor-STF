@@ -426,7 +426,7 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
 /// assuming LCDM or small deviations from this) to estimate the mean interparticle
 /// spacing and scales physical linking length passed by this distance. Also reads
 /// header and overrides passed cosmological parameters with ones stored in header.
-void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbaryons, Int_t nbaryons)
+void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Particle *&Pbaryons, Int_t nbaryons)
 {
     char buf[2000],buf1[2000],buf2[2000];
     string stringbuf,orderingstring;
