@@ -87,7 +87,8 @@ int main(int argc,char **argv)
     //number of particles, (also number of baryons if use dm+baryon search)
     //to store (point to) particle data
     Int_t nbodies,nbaryons,ndark;
-    Particle *Pall,*Part,*Pbaryons;
+    vector<Particle> Pall,Part;
+    Particle *Pbaryons;
     KDTree *tree;
 
     //number in subset, number of grids used if iSingleHalo==0;
@@ -157,12 +158,12 @@ int main(int argc,char **argv)
 #ifndef USEMPI
     Nlocal=nbodies;
     if (opt.iBaryonSearch>0 && opt.partsearchtype!=PSTALL) {
-        Part=new Particle[nbodies+nbaryons];
-        Pbaryons=&Part[nbodies];
+        Part.resize(nbodies+nbaryons);
+        Pbaryons=&(Part.data[nbodies]);
         Nlocalbaryon[0]=nbaryons;
     }
     else {
-        Part=new Particle[nbodies];
+        Part.resize(nbodies);
         Pbaryons=NULL;
         nbaryons=0;
     }
@@ -194,9 +195,8 @@ int main(int argc,char **argv)
     }
     cout<<ThisTask<<" will also require additional memory for FOF algorithms and substructure search. Largest mem needed for preliminary FOF search. Rough estimate is "<<Nlocal*(sizeof(Int_tree_t)*8)/1024./1024./1024.<<"GB of memory"<<endl;
     if (opt.iBaryonSearch>0 && opt.partsearchtype!=PSTALL) {
-        Pall=new Particle[Nmemlocal+Nmemlocalbaryon];
-        Part=&Pall[0];
-        Pbaryons=&Pall[Nlocal];
+        Part.resize(Nmemlocal+Nmemlocalbaryon);
+        Pbaryons=&Part.data[Nlocal];
         nbaryons=Nlocalbaryon[0];
     }
     else {
@@ -214,13 +214,11 @@ int main(int argc,char **argv)
     //if mpi and want separate baryon search then once particles are loaded into contigous block of memory and sorted according to type order,
     //allocate memory for baryons
     if (opt.iBaryonSearch>0 && opt.partsearchtype!=PSTALL) {
-        Part=new Particle[Nmemlocal];
         Pbaryons=new Particle[Nmemlocalbaryon];
         nbaryons=Nlocalbaryon[0];
-        for (Int_t i=0;i<Nlocal;i++) Part[i]=Pall[i];
 
-        for (Int_t i=0;i<Nlocalbaryon[0];i++) Pbaryons[i]=Pall[i+Nlocal];
-        delete[] Pall;
+        for (Int_t i=0;i<Nlocalbaryon[0];i++) Pbaryons[i]=Part[i+Nlocal];
+        Part.resize(Nlocal);
     }
 #endif
 
