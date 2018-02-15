@@ -52,9 +52,9 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
 void ReadNchilada(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle *&Pbaryons, Int_t nbaryons=0);
 
 ///Read local velocity density
-void ReadLocalVelocityDensity(Options &opt, const Int_t nbodies, vector<Particle> &Part);
+void ReadLocalVelocityDensity(Options &opt, const Int_t nbodies, Particle * Part);
 ///Writes local velocity density of each particle to a file
-void WriteLocalVelocityDensity(Options &opt, const Int_t nbodies, vector<Particle> &Part);
+void WriteLocalVelocityDensity(Options &opt, const Int_t nbodies, Particle * Part);
 
 
 ///Writes a tipsy formatted fof.grpfile
@@ -62,9 +62,9 @@ void WriteFOF(Options &opt, const Int_t nbodies, Int_t *pfof);
 ///Writes a pg list file (first in effective index order of input file(s), second is particle ids
 void WritePGList(Options &opt, const Int_t ngroups, const Int_t ng, Int_t *numingroup, Int_t **pglist, Int_t *ids);
 ///Write catalog information (number of groups, number in groups, number of particles in groups, particle pids)
-void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int_t **pglist, vector<Particle> &Part, Int_t nadditional=0);
+void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int_t **pglist, Particle *Part, Int_t nadditional=0);
 ///Write catalog information related to particle types relevant if different particle types are included in the grouping algorithm
-void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, Int_t **pglist, vector<Particle> &Part);
+void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, Int_t **pglist, Particle *Part);
 ///Writes the bulk properties of the substructures
 void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata);
 ///Writes the structure hierarchy
@@ -72,7 +72,7 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata);
 void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t &nhierarchy, const Int_t &nfield, Int_t *nsub, Int_t *parentgid, Int_t *stype,int subflag=0);
 
 ///Write Extended Output
-void WriteExtendedOutput(Options &opt, Int_t numgroups, Int_t nbodies, PropData *pdata, vector<Particle> &p, Int_t * pfof);
+void WriteExtendedOutput(Options &opt, Int_t numgroups, Int_t nbodies, PropData *pdata, Particle *p, Int_t * pfof);
 
 ///Write the configuartion options that the code used
 void WriteVELOCIraptorConfig(Options &opt);
@@ -97,7 +97,7 @@ void WriteAHFProperties(Options &opt, const Int_t ngroups, PropData *pdata);
 ///identify substructures
 //@{
 Int_t ReadPFOF(Options &opt, Int_t nbodies, Int_t *pfof);
-Int_t ReadFOFGroupBinary(Options &opt, Int_t nbodies, Int_t *pfof, Int_t *idtoindex, Int_t minid, vector<Particle> &p);
+Int_t ReadFOFGroupBinary(Options &opt, Int_t nbodies, Int_t *pfof, Int_t *idtoindex, Int_t minid, Particle *p);
 //@}
 
 ///Reads properties of a subvolume
@@ -109,7 +109,7 @@ void ReadCellValues(Options &opt, const Int_t nbodies, const Int_t ngrid, GridCe
 
 #ifdef EXTENDEDHALOOUTPUT
 //Write extended halo output for extraction of haloes from input files
-void WriteExtendedOutput (Options &opt, Int_t numgroups, Int_t nbodies, PropData *pdata, vector<Particle> &p, Int_t * pfof);
+void WriteExtendedOutput (Options &opt, Int_t numgroups, Int_t nbodies, PropData *pdata, Particle *p, Int_t * pfof);
 #endif
 //@}
 
@@ -118,9 +118,9 @@ void WriteExtendedOutput (Options &opt, Int_t numgroups, Int_t nbodies, PropData
 //@{
 
 ///Set up non-uniform grid structure using kd-tree
-KDTree* InitializeTreeGrid(Options &opt, const Int_t nbodies, vector<Particle> &Part);
+KDTree* InitializeTreeGrid(Options &opt, const Int_t nbodies, Particle *Part);
 ///Fill cells of grid from tree
-void FillTreeGrid(Options &opt, const Int_t nbodies, const Int_t ngrid, KDTree *&tree, vector<Particle> &Part, GridCell* &grid);
+void FillTreeGrid(Options &opt, const Int_t nbodies, const Int_t ngrid, KDTree *&tree, Particle *Part, GridCell* &grid);
 
 //@}
 
@@ -129,9 +129,9 @@ void FillTreeGrid(Options &opt, const Int_t nbodies, const Int_t ngrid, KDTree *
 //@{
 
 ///Calculate CM vel of cell
-Coordinate *GetCellVel(Options &opt, const Int_t nbodies, vector<Particle> &Part, Int_t ngrid, GridCell *grid);
+Coordinate *GetCellVel(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngrid, GridCell *grid);
 ///Calculate velocity dispersion tensor of cell
-Matrix *GetCellVelDisp(Options &opt, const Int_t nbodies, vector<Particle> &Part, Int_t ngrid, GridCell *grid, Coordinate *gvel);
+Matrix *GetCellVelDisp(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngrid, GridCell *grid, Coordinate *gvel);
 //@}
 
 /// \name Subroutines to calculate local velocity density
@@ -139,7 +139,7 @@ Matrix *GetCellVelDisp(Options &opt, const Int_t nbodies, vector<Particle> &Part
 //@{
 
 ///Calculate local velocity density
-void GetVelocityDensity(Options &opt, const Int_t nbodies, vector<Particle> &Part, KDTree *tree=NULL);
+void GetVelocityDensity(Options &opt, const Int_t nbodies, Particle *Part, KDTree *tree=NULL);
 
 //@}
 
@@ -148,11 +148,11 @@ void GetVelocityDensity(Options &opt, const Int_t nbodies, vector<Particle> &Par
 //@{
 
 ///Calculate logarithmic contrast between local velocity density and background velocity density
-void GetDenVRatio(Options &opt, const Int_t nbodies, vector<Particle> &Part, Int_t ngrid, GridCell *grid, Coordinate *gvel, Matrix *gveldisp);
+void GetDenVRatio(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngrid, GridCell *grid, Coordinate *gvel, Matrix *gveldisp);
 ///Characterize the ratio distribution to estimate intrinsic scatter in this estimator
-void DetermineDenVRatioDistribution(Options &opt,const Int_t nbodies, vector<Particle> &Part, Double_t &meanr,Double_t &sdlow,Double_t &sdhigh, int subleve=0);
+void DetermineDenVRatioDistribution(Options &opt,const Int_t nbodies, Particle *Part, Double_t &meanr,Double_t &sdlow,Double_t &sdhigh, int subleve=0);
 ///Calculate normalized residual
-Int_t GetOutliersValues(Options &opt, const Int_t nbodies, vector<Particle> &Part, int sublevel=0);
+Int_t GetOutliersValues(Options &opt, const Int_t nbodies, Particle *Part, int sublevel=0);
 
 //@}
 
@@ -175,22 +175,22 @@ Int_t GetOutliersValues(Options &opt, const Int_t nbodies, vector<Particle> &Par
 ///Search full system without finding outliers first
 Int_t *SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, Int_t &numgroups);
 ///Search the outliers
-Int_t *SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, vector<Particle> &Partsubset,Int_t &numgroups, Int_t sublevel=0, Int_t *pnumcores=NULL);
+Int_t *SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Particle *Partsubset, Int_t &numgroups, Int_t sublevel=0, Int_t *pnumcores=NULL);
 ///Search for subsubstructures
 void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubset, Int_t *&pfof, Int_t &ngroup, Int_t &nhalos, PropData *pdata=NULL);
 ///Given a set of tagged core particles, assign surroundings
-void HaloCoreGrowth(Options &opt, const Int_t nsubset, vector<Particle> &Partsubset, Int_t *&pfof, Int_t *&pfofbg, Int_t &numgroupsbg, Double_t param[], vector<Double_t> &dispfac,
+void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *Partsubset, Int_t *&pfof, Int_t *&pfofbg, Int_t &numgroupsbg, Double_t param[], vector<Double_t> &dispfac,
     int numactiveloops, vector<int> &corelevel, int nthreads);
 ///Check significance of each group
-int CheckSignificance(Options &opt, const Int_t nsubset, vector<Particle> &Partsubset, Int_t &numgroups, Int_t *numingroups, Int_t *pfof, Int_t **pglist);
+int CheckSignificance(Options &opt, const Int_t nsubset, Particle *Partsubset, Int_t &numgroups, Int_t *numingroups, Int_t *pfof, Int_t **pglist);
 ///Search for Baryonic structures associated with dark matter structures in phase-space
 Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, const Int_t ndark, vector<Particle> &Partsubset, Int_t *&pfofdark, Int_t &ngroupdark, Int_t &nhalos, int ihaloflag=0, int iinclusive=0, PropData *phalos=NULL);
 ///Get the hierarchy of structures found
-Int_t GetHierarchy(Options &opt,Int_t ngroups, Int_t *nsub, Int_t *parentgid, Int_t *uparentgid, Int_t *stype);
+Int_t GetHierarchy(Options &opt, Int_t ngroups, Int_t *nsub, Int_t *parentgid, Int_t *uparentgid, Int_t *stype);
 ///Copy hierarchy to PropData structure
 void CopyHierarchy(Options &opt, PropData *pdata,Int_t ngroups, Int_t *nsub, Int_t *parentgid, Int_t *uparentgid, Int_t *stype);
 ///Adjust Structure search for period such that all substructure searches no longer have to run periodic searches
-void AdjustStructureForPeriod(Options &opt, const Int_t nbodies, vector<Particle> &Part, Int_t numgroups, Int_t *pfof);
+void AdjustStructureForPeriod(Options &opt, const Int_t nbodies, Particle *Part, Int_t numgroups, Int_t *pfof);
 //@}
 
 /// \name Extra routines used in iterative search
@@ -237,13 +237,13 @@ void GetNodeList(Node *np, Int_t &ncell, Node **nodelist, const Int_t bsize);
 inline void MarkCell(Node *np, Int_t *marktreecell, Int_t *markleafcell, Int_t &ntreecell, Int_t &nleafcell, const Int_t bsize, Double_t *cR2max, Coordinate *cm, Double_t *cmtot, Coordinate xpos, Double_t eps2);
 
 ///Interface for unbinding proceedure
-int CheckUnboundGroups(Options opt, const Int_t nbodies, vector<Particle> &Part, Int_t &ngroup, Int_t *&pfof, Int_t *numingroup=NULL, Int_t **pglist=NULL,int ireorder=1, Int_t *groupflag=NULL);
+int CheckUnboundGroups(Options opt, const Int_t nbodies, Particle *Part, Int_t &ngroup, Int_t *&pfof, Int_t *numingroup=NULL, Int_t **pglist=NULL,int ireorder=1, Int_t *groupflag=NULL);
 ///check if group self-bound
 int Unbind(Options &opt, Particle **gPartList, Int_t &numgroups, Int_t *numingroup, Int_t *pfof, Int_t **pglist, int ireorder=1);
-int Unbind(Options &opt, vector<Particle> &Part, Int_t &numgroups, Int_t *&numingroup, Int_t *&noffset, Int_t *&pfof);
+int Unbind(Options &opt, Particle *Part, Int_t &numgroups, Int_t *&numingroup, Int_t *&noffset, Int_t *&pfof);
 ///calculate the potential of an array of particles
-void Potential(Options &opt, Int_t nbodies, vector<Particle> &Part, Double_t *potV);
-void Potential(Options &opt, Int_t nbodies, vector<Particle> &Part);
+void Potential(Options &opt, Int_t nbodies, Particle *Part, Double_t *potV);
+void Potential(Options &opt, Int_t nbodies, Particle *Part);
 //@}
 
 /// \name Routines to determine bulk quantities of halo and adjust halo
@@ -251,11 +251,11 @@ void Potential(Options &opt, Int_t nbodies, vector<Particle> &Part);
 //@{
 
 ///Scales Linking lengths
-void ScaleLinkingLengths(Options &opt,const Int_t nbodies, vector<Particle> &Part,Coordinate &cm,Coordinate &cmvel,Double_t Mtot);
+void ScaleLinkingLengths(Options &opt,const Int_t nbodies, Particle *Part,Coordinate &cm,Coordinate &cmvel,Double_t Mtot);
 ///Adjust to cm of halo
-void AdjusttoCM(const Int_t nbodies, vector<Particle> &Part, Coordinate &cm, Coordinate &cmvel, const Double_t Mtot, Double_t *rlim, Double_t &MaxVcirc, Double_t tol=1e-2);
+void AdjusttoCM(const Int_t nbodies, Particle *Part, Coordinate &cm, Coordinate &cmvel, const Double_t Mtot, Double_t *rlim, Double_t &MaxVcirc, Double_t tol=1e-2);
 ///Calculate virial radius and related quantities
-void GetVirialQuantities(const Int_t nbodies, vector<Particle> &Part, const Double_t mtot, Double_t *rlim, const Double_t rhoc, const Double_t virlevel, Double_t &Rvir, Double_t &Mvir, Int_t nenc, Double_t *Menc, Double_t *Renc);
+void GetVirialQuantities(const Int_t nbodies, Particle *Part, const Double_t mtot, Double_t *rlim, const Double_t rhoc, const Double_t virlevel, Double_t &Rvir, Double_t &Mvir, Int_t nenc, Double_t *Menc, Double_t *Renc);
 
 //@}
 
@@ -275,7 +275,7 @@ void ReorderInclusiveMasses(const Int_t &nold, const Int_t &nnew, Int_t *&numing
 ///Get Binding Energy
 void GetBindingEnergy(Options &opt, const Int_t nbodies, vector<Particle> &Part, Int_t ngroup, Int_t *&pfof, Int_t *&numingroup, PropData *&pdata, Int_t *&noffset);
 
-///Get Morphology properties
+///Get Morphology properties (since this is for a particular system just use pointer interface)
 void GetGlobalSpatialMorphology(const Int_t nbodies, Particle *p, Double_t& q, Double_t& s, Double_t Error, Matrix& eigenvec, int imflag=0, int itype=-1, int iiterate=1);
 ///Calculate inertia tensor and eigvector
 void CalcITensor(const Int_t n, Particle *p, Double_t &a, Double_t &b, Double_t &c, Matrix& eigenvec, Matrix &I, int itype);
@@ -390,13 +390,13 @@ int MPIInDomain(Double_t xsearch[3][2], Double_t bnd[3][2]);
 /// see \ref mpiroutines.cxx for implementation
 //@{
 ///adds particles to appropriate send buffers and initiates sends if necessary.
-void MPIAddParticletoAppropriateBuffer(const int &ibuf, Int_t ibufindex, int *&ireadtask, const Int_t &Bufsize, Int_t *&Nbuf, Particle *&Pbuf, Int_t &numpart, vector<Particle> &Part, Int_t *&Nreadbuf, vector<Particle>*&Preadbuf);
+void MPIAddParticletoAppropriateBuffer(const int &ibuf, Int_t ibufindex, int *&ireadtask, const Int_t &Bufsize, Int_t *&Nbuf, Particle *&Pbuf, Int_t &numpart, Particle *Part, Int_t *&Nreadbuf, vector<Particle>*&Preadbuf);
 ///recv particle data from read threads
-void MPIReceiveParticlesFromReadThreads(Options &opt, Particle *&Pbuf, vector<Particle> &Part, int *&readtaskID, int *&irecv, int *&mpi_irecvflag, Int_t *&Nlocalthreadbuf, MPI_Request *&mpi_request, Particle *&Pbaryons);
+void MPIReceiveParticlesFromReadThreads(Options &opt, Particle *&Pbuf, Particle *Part, int *&readtaskID, int *&irecv, int *&mpi_irecvflag, Int_t *&Nlocalthreadbuf, MPI_Request *&mpi_request, Particle *&Pbaryons);
 ///Send/recv particle data read from input files between the various read threads;
-void MPISendParticlesBetweenReadThreads(Options &opt, Particle *&Pbuf, vector<Particle> &Part, Int_t *&nreadoffset, int *&ireadtask, int *&readtaskID, Particle *&Pbaryons, Int_t *&mpi_nsend_baryon);
+void MPISendParticlesBetweenReadThreads(Options &opt, Particle *&Pbuf, Particle *Part, Int_t *&nreadoffset, int *&ireadtask, int *&readtaskID, Particle *&Pbaryons, Int_t *&mpi_nsend_baryon);
 ///Send/recv particle data stored in vector using the read thread communication domain
-void MPISendParticlesBetweenReadThreads(Options &opt, Particle *&Pbuf, vector<Particle> &Part, int *&ireadtask, int *&readtaskID, Particle *&Pbaryons, MPI_Comm &mpi_read_comm, Int_t *&mpi_nsend_readthread, Int_t *&mpi_nsend_readthread_baryon);
+void MPISendParticlesBetweenReadThreads(Options &opt, vector<Particle> *&Pbuf, Particle *Part, int *&ireadtask, int *&readtaskID, Particle *&Pbaryons, MPI_Comm &mpi_read_comm, Int_t *&mpi_nsend_readthread, Int_t *&mpi_nsend_readthread_baryon);
 //@}
 
 /// \name MPI search related routines
@@ -408,23 +408,23 @@ short_mpi_t *MPISetTaskID(const Int_t nbodies);
 /// Adjust local group ids so that mpi threads are all offset from one another unless a particle belongs to group zero (ie: completely unlinked)
 void MPIAdjustLocalGroupIDs(const Int_t nbodies, Int_t *pfof);
 ///Determine number of particles that need to be exported to another mpi thread from local mpi thread based on rdist
-void MPIGetExportNum(const Int_t nbodies, vector<Particle> &Part, Double_t rdist);
+void MPIGetExportNum(const Int_t nbodies, Particle *Part, Double_t rdist);
 ///Determine and send particles that need to be exported to another mpi thread from local mpi thread based on rdist
-void MPIBuildParticleExportList(const Int_t nbodies, vector<Particle> &Part, Int_t *&pfof, Int_tree_t *&Len, Double_t rdist);
+void MPIBuildParticleExportList(const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_tree_t *&Len, Double_t rdist);
 ///Link groups across MPI threads using a physical search
-Int_t MPILinkAcross(const Int_t nbodies, KDTree *tree, vector<Particle> &Part, Int_t *&pfof, Int_tree_t *&Len, Int_tree_t *&Head, Int_tree_t *&Next, Double_t rdist2);
+Int_t MPILinkAcross(const Int_t nbodies, KDTree *tree, Particle *Part, Int_t *&pfof, Int_tree_t *&Len, Int_tree_t *&Head, Int_tree_t *&Next, Double_t rdist2);
 ///Link groups across MPI threads using criterion
-Int_t MPILinkAcross(const Int_t nbodies, KDTree *tree, vector<Particle> &Part, Int_t *&pfof, Int_tree_t *&Len, Int_tree_t *&Head, Int_tree_t *&Next, Double_t rdist2, FOFcompfunc &cmp, Double_t *params);
+Int_t MPILinkAcross(const Int_t nbodies, KDTree *tree, Particle *Part, Int_t *&pfof, Int_tree_t *&Len, Int_tree_t *&Head, Int_tree_t *&Next, Double_t rdist2, FOFcompfunc &cmp, Double_t *params);
 ///update export list after after linking across
-void MPIUpdateExportList(const Int_t nbodies, vector<Particle> &Part, Int_t *&pfof, Int_tree_t *&Len);
+void MPIUpdateExportList(const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_tree_t *&Len);
 ///localize groups to a single mpi thread
-Int_t MPIGroupExchange(const Int_t nbodies, vector<Particle> &Part, Int_t *&pfof);
+Int_t MPIGroupExchange(const Int_t nbodies, Particle *Part, Int_t *&pfof);
 ///Determine the local number of groups and their sizes (groups must be local to an mpi thread)
-Int_t MPICompileGroups(const Int_t nbodies, vector<Particle> &Part, Int_t *&pfof, Int_t minsize);
+Int_t MPICompileGroups(const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_t minsize);
 ///similar to \ref MPIGroupExchange but optimised for separate baryon search, assumes only looking at baryons
-Int_t MPIBaryonGroupExchange(const Int_t nbodies, vector<Particle> &Part, Int_t *&pfof);
+Int_t MPIBaryonGroupExchange(const Int_t nbodies, Particle *Part, Int_t *&pfof);
 ///similar to \ref MPICompileGroups but optimised for separate baryon search, assumes only looking at baryons
-Int_t MPIBaryonCompileGroups(const Int_t nbodies, vector<Particle> &Part, Int_t *&pfof, Int_t minsize, int iorder=1);
+Int_t MPIBaryonCompileGroups(const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_t minsize, int iorder=1);
 ///localize baryons particle members of groups to a single mpi thread
 ///Collect FOF from all
 void MPICollectFOF(const Int_t nbodies, Int_t *&pfof);
@@ -433,11 +433,11 @@ int fof_export_cmp(const void *a, const void *b);
 ///comparison function to order particles for export and fof group localization.
 int fof_id_cmp(const void *a, const void *b);
 ///similar to \ref MPIBuildParticleExportList but specific interface for baryon search
-void MPIBuildParticleExportBaryonSearchList(const Int_t nbodies, vector<Particle> &Part, Int_t *&pfof, Int_t *ids, Int_t *numingroup, Double_t rdist);
+void MPIBuildParticleExportBaryonSearchList(const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_t *ids, Int_t *numingroup, Double_t rdist);
 ///search local baryons with exported particle list.
-Int_t MPISearchBaryons(const Int_t nbaryons, Particle *&Pbaryons, Int_t *&pfofbaryons, Int_t *numingroup, Double_t *localdist, Int_t nsearch, Double_t *param, Double_t *period);
+Int_t MPISearchBaryons(const Int_t nbaryons, Particle *Pbaryons, Int_t *&pfofbaryons, Int_t *numingroup, Double_t *localdist, Int_t nsearch, Double_t *param, Double_t *period);
 ///localize the baryons to the mpi thread on which their associated DM group exists.
-Int_t MPIBaryonExchange(const Int_t nbaryons, Particle *&Pbaryons, Int_t *&pfofbaryons);
+Int_t MPIBaryonExchange(const Int_t nbaryons, Particle *Pbaryons, Int_t *&pfofbaryons);
 //@}
 
 /// \name MPI NN determination related routines

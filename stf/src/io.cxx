@@ -70,7 +70,7 @@ Int_t ReadHeader(Options &opt){
 
 ///Reads particle data
 ///To add a new interface simply alter this to include the appropriate user written call
-void ReadData(Options &opt, Particle *&Part, const Int_t nbodies, Particle *&Pbaryons, Int_t nbaryons)
+void ReadData(Options &opt, vector<Particle> &Part, const Int_t nbodies, Particle *&Pbaryons, Int_t nbaryons)
 {
     InitEndian();
 #ifdef USEMPI

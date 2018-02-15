@@ -690,7 +690,7 @@ void ReadNchilada(Options &opt, vector<Particle> &Part, const Int_t nbodies,Part
 #ifdef USEMPI
     }//end of read task section
     else {
-        MPIReceiveParticlesFromReadThreads(opt,Pbuf,Part,readtaskID, irecv, mpi_irecvflag, Nlocalthreadbuf, mpi_request,Pbaryons);
+        MPIReceiveParticlesFromReadThreads(opt,Pbuf,Part.data(),readtaskID, irecv, mpi_irecvflag, Nlocalthreadbuf, mpi_request,Pbaryons);
     }
 
     for (i=0;i<NProcs;i++) Nbuf[i]=0;
@@ -735,7 +735,7 @@ void ReadNchilada(Options &opt, vector<Particle> &Part, const Int_t nbodies,Part
             for (ibuf=0;ibuf<NProcs*NProcs;ibuf++) mpi_nsend[ibuf]-=mpi_nsend_baryon[ibuf];
         }
         //and then send all the data between the read threads
-        MPISendParticlesBetweenReadThreads(opt, Pbuf, Part, nreadoffset, ireadtask, readtaskID, Pbaryons, mpi_nsend_baryon);
+        MPISendParticlesBetweenReadThreads(opt, Pbuf, Part.data(), nreadoffset, ireadtask, readtaskID, Pbaryons, mpi_nsend_baryon);
         if (ireadtask[ThisTask]>=0) {
             delete[] Pbuf;
             if (opt.iBaryonSearch && opt.partsearchtype!=PSTALL) delete[] mpi_nsend_baryon;
