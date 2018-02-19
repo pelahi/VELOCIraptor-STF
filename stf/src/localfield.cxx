@@ -14,7 +14,7 @@
     \todo velocity density function is NOT mass weighted. Might want to alter this.
     \todo there is a seg fault memory error when searching for NN in large sims using \em SINGLEPRECISION flag. I don't know why.
 */
-void GetVelocityDensity(Options &opt, const Int_t nbodies, vector<Particle> &Part, KDTree *tree)
+void GetVelocityDensity(Options &opt, const Int_t nbodies, Particle *Part, KDTree *tree)
 {
     Int_t i,j,k;
     int nthreads;
@@ -36,7 +36,7 @@ void GetVelocityDensity(Options &opt, const Int_t nbodies, vector<Particle> &Par
     if (tree==NULL) {
         itreeflag=1;
         if (opt.iverbose) cout<<"Building Tree in (x) space to get local velocity density"<<endl;
-        tree=new KDTree(Part.data(),nbodies,opt.Bsize,tree->TPHYS,tree->KEPAN,1000,0,0,0,period);
+        tree=new KDTree(Part,nbodies,opt.Bsize,tree->TPHYS,tree->KEPAN,1000,0,0,0,period);
     }
     if (opt.iverbose) {
         cout<<ThisTask<<" "<<"Using the following parameters to calculate velocity density using sph kernel: ";
@@ -126,17 +126,17 @@ private(i,j,k,tid,id,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,pqx,pqv
     time2=MyGetTime();
 
     //determines export AND import numbers
-    MPIGetNNExportNum(nbodies, Part.data(), maxrdist);
+    MPIGetNNExportNum(nbodies, Part, maxrdist);
     NNDataIn = new nndata_in[NExport];
     NNDataGet = new nndata_in[NImport];
     //build the exported particle list using NNData structures
-    MPIBuildParticleNNExportList(nbodies, Part.data(), maxrdist);
-    MPIGetNNImportNum(nbodies, tree, Part.data());
+    MPIBuildParticleNNExportList(nbodies, Part, maxrdist);
+    MPIGetNNImportNum(nbodies, tree, Part);
     PartDataIn = new Particle[NExport];
     PartDataGet = new Particle[NImport];
     MPI_Barrier(MPI_COMM_WORLD);
     //run search on exported particles and determine which local particles need to be exported back (or imported)
-    nimport=MPIBuildParticleNNImportList(nbodies, tree, Part.data(), (!(opt.iBaryonSearch==1 && opt.partsearchtype==PSTALL)));
+    nimport=MPIBuildParticleNNImportList(nbodies, tree, Part, (!(opt.iBaryonSearch==1 && opt.partsearchtype==PSTALL)));
     int nimportsearch=opt.Nsearch;
     if (nimportsearch>nimport) nimportsearch=nimport;
     if (opt.iverbose) cout<<ThisTask<<" Searching particles in other domains "<<nimport<<endl;

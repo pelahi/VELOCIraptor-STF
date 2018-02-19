@@ -224,7 +224,7 @@ int MPIGetParticlesProcessor(Double_t x,Double_t y, Double_t z){
 }
 
 //adds a particle read from an input file to the appropriate buffers
-void MPIAddParticletoAppropriateBuffer(const int &ibuf, Int_t ibufindex, int *&ireadtask, const Int_t &BufSize, Int_t *&Nbuf, Particle *&Pbuf, Int_t &numpart, vector<Particle> &Part, Int_t *&Nreadbuf, vector<Particle>*&Preadbuf){
+void MPIAddParticletoAppropriateBuffer(const int &ibuf, Int_t ibufindex, int *&ireadtask, const Int_t &BufSize, Int_t *&Nbuf, Particle *&Pbuf, Int_t &numpart, Particle *Part, Int_t *&Nreadbuf, vector<Particle>*&Preadbuf){
     if (ibuf==ThisTask) {
         Nbuf[ibuf]--;
         Part[numpart++]=Pbuf[ibufindex];
@@ -499,7 +499,7 @@ int MPISetFilesRead(Options&opt, int *&ireadfile, int *&ireadtask){
 /// \name Routines involved in exporting particles
 //@{
 ///for all threads not reading snapshots, simply receive particles as necessary from all threads involved with reading the data
-void MPIReceiveParticlesFromReadThreads(Options &opt, Particle *&Pbuf, vector<Particle> &Part, int *&readtaskID, int *&irecv, int *&mpi_irecvflag, Int_t *&Nlocalthreadbuf, MPI_Request *&mpi_request, Particle *&Pbaryons)
+void MPIReceiveParticlesFromReadThreads(Options &opt, Particle *&Pbuf, Particle *Part, int *&readtaskID, int *&irecv, int *&mpi_irecvflag, Int_t *&Nlocalthreadbuf, MPI_Request *&mpi_request, Particle *&Pbaryons)
 {
     int irecvflag;
     Int_t i,j,k,Nlocaltotalbuf;
@@ -520,7 +520,7 @@ void MPIReceiveParticlesFromReadThreads(Options &opt, Particle *&Pbuf, vector<Pa
                 MPI_Test(&mpi_request[i], &mpi_irecvflag[i], &status);
                 if (mpi_irecvflag[i]) {
                     if (Nlocalthreadbuf[i]>0) {
-                        MPI_Recv(&Part.data()[Nlocal],sizeof(Particle)*Nlocalthreadbuf[i],MPI_BYTE,readtaskID[i],ThisTask, MPI_COMM_WORLD,&status);
+                        MPI_Recv(&Part[Nlocal],sizeof(Particle)*Nlocalthreadbuf[i],MPI_BYTE,readtaskID[i],ThisTask, MPI_COMM_WORLD,&status);
                         Nlocal+=Nlocalthreadbuf[i];
                         Nlocaltotalbuf+=Nlocalthreadbuf[i];
                         mpi_irecvflag[i]=0;
@@ -547,8 +547,8 @@ void MPIReceiveParticlesFromReadThreads(Options &opt, Particle *&Pbuf, vector<Pa
             }
         }
         //sorted so that dark matter particles first, baryons after
-        //qsort(Part,Nlocal, sizeof(Particle), IDCompare);
-        sort(Part.begin(),Part.end(), IDCompareVec);
+        qsort(Part,Nlocal, sizeof(Particle), IDCompare);
+        //sort(Part.begin(),Part.end(), IDCompareVec);
         Nlocal-=Nlocalbaryon[0];
         //index type separated
         for (i=0;i<Nlocal;i++) Part[i].SetID(i);
@@ -558,7 +558,7 @@ void MPIReceiveParticlesFromReadThreads(Options &opt, Particle *&Pbuf, vector<Pa
 
 /*! Final send between read threads of input particle data
 */
-void MPISendParticlesBetweenReadThreads(Options &opt, Particle *&Pbuf, vector<Particle> &Part, Int_t *&nreadoffset, int *&ireadtask, int *&readtaskID, Particle *&Pbaryons, Int_t *&mpi_nsend_baryon)
+void MPISendParticlesBetweenReadThreads(Options &opt, Particle *&Pbuf, Particle *Part, Int_t *&nreadoffset, int *&ireadtask, int *&readtaskID, Particle *&Pbaryons, Int_t *&mpi_nsend_baryon)
 {
     if (ireadtask[ThisTask]>=0) {
         //split the communication into small buffers
@@ -606,7 +606,7 @@ void MPISendParticlesBetweenReadThreads(Options &opt, Particle *&Pbuf, vector<Pa
                     //blocking point-to-point send and receive. Here must determine the appropriate offset point in the local export buffer
                     //for sending data and also the local appropriate offset in the local the receive buffer for information sent from the local receiving buffer
                     MPI_Sendrecv(&Pbuf[nreadoffset[ireadtask[recvTask]]+sendoffset],sizeof(Particle)*cursendchunksize, MPI_BYTE, recvTask, TAG_IO_A+isendrecv,
-                        &Part.data()[Nlocal],sizeof(Particle)*currecvchunksize, MPI_BYTE, recvTask, TAG_IO_A+isendrecv,
+                        &Part[Nlocal],sizeof(Particle)*currecvchunksize, MPI_BYTE, recvTask, TAG_IO_A+isendrecv,
                                 MPI_COMM_WORLD, &status);
                     Nlocal+=currecvchunksize;
                     sendoffset+=cursendchunksize;
@@ -646,7 +646,7 @@ void MPISendParticlesBetweenReadThreads(Options &opt, Particle *&Pbuf, vector<Pa
     }
 }
 
-void MPISendParticlesBetweenReadThreads(Options &opt, vector<Particle> *&Preadbuf, vector<Particle> &Part, int *&ireadtask, int *&readtaskID, Particle *&Pbaryons, MPI_Comm &mpi_comm_read, Int_t *&mpi_nsend_readthread, Int_t *&mpi_nsend_readthread_baryon)
+void MPISendParticlesBetweenReadThreads(Options &opt, vector<Particle> *&Preadbuf, Particle *Part, int *&ireadtask, int *&readtaskID, Particle *&Pbaryons, MPI_Comm &mpi_comm_read, Int_t *&mpi_nsend_readthread, Int_t *&mpi_nsend_readthread_baryon)
 {
     if (ireadtask[ThisTask]>=0) {
         //split the communication into small buffers
@@ -691,7 +691,7 @@ void MPISendParticlesBetweenReadThreads(Options &opt, vector<Particle> *&Preadbu
                     //blocking point-to-point send and receive. Here must determine the appropriate offset point in the local export buffer
                     //for sending data and also the local appropriate offset in the local the receive buffer for information sent from the local receiving buffer
                     MPI_Sendrecv(&Preadbuf[recvTask][sendoffset],sizeof(Particle)*cursendchunksize, MPI_BYTE, recvTask, TAG_IO_A+isendrecv,
-                        &(Part.data()[Nlocal]),sizeof(Particle)*currecvchunksize, MPI_BYTE, recvTask, TAG_IO_A+isendrecv,
+                        &(Part[Nlocal]),sizeof(Particle)*currecvchunksize, MPI_BYTE, recvTask, TAG_IO_A+isendrecv,
                                 mpi_comm_read, &status);
                     Nlocal+=currecvchunksize;
                     sendoffset+=cursendchunksize;
@@ -731,7 +731,7 @@ void MPISendParticlesBetweenReadThreads(Options &opt, vector<Particle> *&Preadbu
     }
 }
 
-void MPIGetExportNum(const Int_t nbodies, vector<Particle> &Part, Double_t rdist){
+void MPIGetExportNum(const Int_t nbodies, Particle *Part, Double_t rdist){
     Int_t i, j,nthreads,nexport=0,nimport=0;
     Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
     Double_t xsearch[3][2];
@@ -766,7 +766,7 @@ void MPIGetExportNum(const Int_t nbodies, vector<Particle> &Part, Double_t rdist
 /*! Determine which particles have a spatial linking length such that linking overlaps the domain of another processor store the necessary information to send that data
     and then send that information
 */
-void MPIBuildParticleExportList(const Int_t nbodies, vector<Particle> &Part, Int_t *&pfof, Int_tree_t *&Len, Double_t rdist){
+void MPIBuildParticleExportList(const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_tree_t *&Len, Double_t rdist){
     Int_t i, j,nthreads,nexport=0,nimport=0;
     Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
     Double_t xsearch[3][2];
@@ -931,7 +931,7 @@ void MPIBuildParticleExportList(const Int_t nbodies, vector<Particle> &Part, Int
 
 /*! like \ref MPIGetExportNum but number based on NN search, useful for reducing memory costs at the expense of cpu cycles
 */
-void MPIGetNNExportNum(const Int_t nbodies, vector<Particle> &Part, Double_t *rdist){
+void MPIGetNNExportNum(const Int_t nbodies, Particle *Part, Double_t *rdist){
     Int_t i, j,nthreads,nexport=0,nimport=0;
     Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
     Double_t xsearch[3][2];
@@ -975,7 +975,7 @@ void MPIGetNNExportNum(const Int_t nbodies, vector<Particle> &Part, Double_t *rd
 
 /*! like \ref MPIBuildParticleExportList but each particle has a different distance stored in rdist used to find nearest neighbours
 */
-void MPIBuildParticleNNExportList(const Int_t nbodies, vector<Particle> &Part, Double_t *rdist){
+void MPIBuildParticleNNExportList(const Int_t nbodies, Particle *Part, Double_t *rdist){
     Int_t i, j,nthreads,nexport=0,nimport=0;
     Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
     Double_t xsearch[3][2];
@@ -1060,7 +1060,7 @@ void MPIBuildParticleNNExportList(const Int_t nbodies, vector<Particle> &Part, D
 /*! Mirror to \ref MPIGetNNExportNum, use exported particles, run ball search to find number of all local particles that need to be
     imported back to exported particle's thread so that a proper NN search can be made.
 */
-void MPIGetNNImportNum(const Int_t nbodies, KDTree *tree, vector<Particle> &Part){
+void MPIGetNNImportNum(const Int_t nbodies, KDTree *tree, Particle *Part){
     Int_t i, j,nthreads,nexport=0,ncount;
     Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
     Int_t oldnsend[NProcs*NProcs];
@@ -1112,7 +1112,7 @@ void MPIGetNNImportNum(const Int_t nbodies, KDTree *tree, vector<Particle> &Part
 /*! Mirror to \ref MPIBuildParticleNNExportList, use exported particles, run ball search to find all local particles that need to be
     imported back to exported particle's thread so that a proper NN search can be made.
 */
-Int_t MPIBuildParticleNNImportList(const Int_t nbodies, KDTree *tree, vector<Particle> &Part, int iallflag){
+Int_t MPIBuildParticleNNImportList(const Int_t nbodies, KDTree *tree, Particle *Part, int iallflag){
     Int_t i, j,nthreads,nexport=0,ncount;
     Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
     Double_t xsearch[3][2];
@@ -1225,7 +1225,7 @@ private(i)
 /*! Similar to \ref MPIBuildParticleExportList, however this is for associated baryon search where particles have been moved from original
     mpi domains and their group id accessed through the id array and their stored id and length in numingroup
 */
-void MPIBuildParticleExportBaryonSearchList(const Int_t nbodies, vector<Particle> &Part, Int_t *&pfof, Int_t *ids, Int_t *numingroup, Double_t rdist){
+void MPIBuildParticleExportBaryonSearchList(const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_t *ids, Int_t *numingroup, Double_t rdist){
     Int_t i, j,nthreads,nexport=0,nimport=0;
     Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
     Double_t xsearch[3][2];
@@ -1349,7 +1349,7 @@ void MPIAdjustLocalGroupIDs(const Int_t nbodies, Int_t *pfof){
 /*! Determine which particles have a spatial linking length such that linking overlaps the domain of another processor store the necessary information to send that data
     and then send that information
 */
-void MPIUpdateExportList(const Int_t nbodies, vector<Particle> &Part, Int_t *&pfof, Int_tree_t *&Len){
+void MPIUpdateExportList(const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_tree_t *&Len){
     Int_t i, j,nthreads,nexport;
     Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
     Int_t sendTask,recvTask;
@@ -1392,7 +1392,7 @@ void MPIUpdateExportList(const Int_t nbodies, vector<Particle> &Part, Int_t *&pf
     the number of links found between the local particles and all other exported particles from all other mpi domains.
     \todo need to update lengths if strucden flag used to limit particles for which real velocity density calculated
 */
-Int_t MPILinkAcross(const Int_t nbodies, KDTree *tree, vector<Particle> &Part, Int_t *&pfof, Int_tree_t *&Len, Int_tree_t *&Head, Int_tree_t *&Next, Double_t rdist2){
+Int_t MPILinkAcross(const Int_t nbodies, KDTree *&tree, Particle *Part, Int_t *&pfof, Int_tree_t *&Len, Int_tree_t *&Head, Int_tree_t *&Next, Double_t rdist2){
     Int_t i,j,k;
     Int_t links=0;
     Int_t nbuffer[NProcs];
@@ -1442,7 +1442,7 @@ Int_t MPILinkAcross(const Int_t nbodies, KDTree *tree, vector<Particle> &Part, I
     return links;
 }
 ///link particles belonging to the same group across mpi domains using comparison function
-Int_t MPILinkAcross(const Int_t nbodies, KDTree *tree, vector<Particle> &Part, Int_t *&pfof, Int_tree_t *&Len, Int_tree_t *&Head, Int_tree_t *&Next, Double_t rdist2, FOFcompfunc &cmp, Double_t *params){
+Int_t MPILinkAcross(const Int_t nbodies, KDTree *&tree, Particle *Part, Int_t *&pfof, Int_tree_t *&Len, Int_tree_t *&Head, Int_tree_t *&Next, Double_t rdist2, FOFcompfunc &cmp, Double_t *params){
     Int_t i,j,k;
     Int_t links=0;
     Int_t nbuffer[NProcs];
@@ -1492,7 +1492,7 @@ Int_t MPILinkAcross(const Int_t nbodies, KDTree *tree, vector<Particle> &Part, I
     the maximum group size and reoder the group ids according to descending group size.
     return the new local number of particles
 */
-Int_t MPIGroupExchange(const Int_t nbodies, vector<Particle> &Part, Int_t *&pfof){
+Int_t MPIGroupExchange(const Int_t nbodies, Particle *Part, Int_t *&pfof){
     Int_t i, j,nthreads,nexport,nimport,nlocal,n;
     Int_t nsend_local[NProcs],noffset_import[NProcs],noffset_export[NProcs],nbuffer[NProcs];
     Int_t sendTask,recvTask;
@@ -1527,6 +1527,7 @@ Int_t MPIGroupExchange(const Int_t nbodies, vector<Particle> &Part, Int_t *&pfof
     ///\todo adjust sort type to make sure type information is kept.
 
     ///???????
+    ///\todo might be able to remove secionts involving nlocal>Nmemlocal
     if (nlocal<Nmemlocal) {
         Noldlocal=nbodies-nexport;
         //for (i=0;i<nbodies;i++) Part[i].SetID(i);
@@ -1622,7 +1623,7 @@ Int_t MPIGroupExchange(const Int_t nbodies, vector<Particle> &Part, Int_t *&pfof
 /*!
     The baryon equivalent of \ref MPIGroupExchange. Here assume baryons are searched afterwards
 */
-Int_t MPIBaryonGroupExchange(const Int_t nbodies, Particle *&Part, Int_t *&pfof){
+Int_t MPIBaryonGroupExchange(const Int_t nbodies, Particle *Part, Int_t *&pfof){
     Int_t i, j,nthreads,nexport,nimport,nlocal,n;
     Int_t nsend_local[NProcs],noffset_import[NProcs],noffset_export[NProcs],nbuffer[NProcs];
     Int_t sendTask,recvTask;
@@ -1743,7 +1744,7 @@ Int_t MPIBaryonGroupExchange(const Int_t nbodies, Particle *&Part, Int_t *&pfof)
 }
 
 ///Determine the local number of groups and their sizes (groups must be local to an mpi thread)
-Int_t MPICompileGroups(const Int_t nbodies, Particle *&Part, Int_t *&pfof, Int_t minsize){
+Int_t MPICompileGroups(const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_t minsize){
     Int_t i,j,start,ngroups;
     Int_t *numingroup,*groupid,**plist;
     ngroups=0;
@@ -1842,7 +1843,7 @@ Int_t MPICompileGroups(const Int_t nbodies, Particle *&Part, Int_t *&pfof, Int_t
 }
 
 ///Similar to \ref MPICompileGroups but optimised for separate baryon search
-Int_t MPIBaryonCompileGroups(const Int_t nbodies, Particle *&Part, Int_t *&pfof, Int_t minsize, int iorder){
+Int_t MPIBaryonCompileGroups(const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_t minsize, int iorder){
     Int_t i,j,start,ngroups;
     Int_t *numingroup,*groupid,**plist;
     ngroups=0;

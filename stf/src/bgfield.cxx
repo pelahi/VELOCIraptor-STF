@@ -18,7 +18,7 @@
     \todo need to alter pglist array. Much smoother if use particles themselves to find nearest cells
     Instead of storing pglist which is memory intensive (nbodies*ncells) just calculate it when needed.
 */
-KDTree* InitializeTreeGrid(Options &opt, const Int_t nbodies, vector<Particle> Part){
+KDTree* InitializeTreeGrid(Options &opt, const Int_t nbodies, Particle *Part){
     //First rotate into eigenvector frame.
 #ifdef SCALING
     Double_t q=1,s=1;
@@ -26,7 +26,7 @@ KDTree* InitializeTreeGrid(Options &opt, const Int_t nbodies, vector<Particle> P
     Matrix eigvec(0.);
     Int_t i;
     cout<<"Get Global Morphology\n";
-    GetGlobalMorphologyWithMass(nbodies,Part.data(), q, s, 1e-3, eigvec);
+    GetGlobalMorphologyWithMass(nbodies,Part, q, s, 1e-3, eigvec);
     //GetGlobalMorphologyWithMass(nbodies, Part, q, s, 1e-3);
     //and rotate velocities to new frame
 #ifdef USEOPENMP
@@ -53,24 +53,24 @@ private(i,vel)
     if (opt.iverbose) cout<<"Grid system using leaf nodes with maximum size of "<<opt.Ncell<<endl;
     if (opt.gridtype==PHYSGRID) {
         if (opt.iverbose) cout<<"Building Physical Tree using simple spatial extend as splitting criterion"<<endl;
-        tree=new KDTree(Part.data(),nbodies,opt.Ncell,tree->TPHYS);
+        tree=new KDTree(Part,nbodies,opt.Ncell,tree->TPHYS);
     }
     else if (opt.gridtype==PHYSENGRID) {
         if (opt.iverbose) cout<<"Building physical Tree using minimum shannon entropy as splitting criterion"<<endl;
         //tree=new KDTree(*S,opt.Ncell,tree->TPHYS,tree->KEPAN,100,1);
-        tree=new KDTree(Part.data(),nbodies,opt.Ncell,tree->TPHYS,tree->KEPAN,100,1);
+        tree=new KDTree(Part,nbodies,opt.Ncell,tree->TPHYS,tree->KEPAN,100,1);
     }
     else if (opt.gridtype==PHASEENGRID) {
         if (opt.iverbose) cout<<"Building Phase-space Tree using minimum shannon entropy as splitting criterion"<<endl;
         //tree=new KDTree(*S,opt.Ncell,tree->TPHS,tree->KEPAN,100,1,1);//if phase tree, use entropy criterion with anisotropic kernel
         //if phase tree, use entropy criterion with anisotropic kernel
-        tree=new KDTree(Part.data(),nbodies,opt.Ncell,tree->TPHS,tree->KEPAN,100,1,1);
+        tree=new KDTree(Part,nbodies,opt.Ncell,tree->TPHS,tree->KEPAN,100,1,1);
     }
     return tree;
 }
 
 ///Fills the GridCell struct using KD-Tree initialized by \ref InitializeTreeGrid
-void FillTreeGrid(Options &opt, const Int_t nbodies, const Int_t ngrid, KDTree *&tree, Particle *&Part, GridCell* &grid)
+void FillTreeGrid(Options &opt, const Int_t nbodies, const Int_t ngrid, KDTree *&tree, Particle *Part, GridCell* &grid)
 //void FillTreeGrid(Options &opt, const Int_t nbodies, const Int_t ngrid, KDTree *tree, Particle *Part, GridCell* grid, PartCellNum *pglist)
 {
     Int_t  i;

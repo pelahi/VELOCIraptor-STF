@@ -17,7 +17,7 @@
     how these quantities are calculated.
 
 */
-void GetProperties(Options &opt, const Int_t nbodies, Particle *&Part, Int_t ngroup, Int_t *&pfof, Int_t *numingroup, Int_t **pglist)
+void GetProperties(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&pfof, Int_t *numingroup, Int_t **pglist)
 {
     PropData *pdata=new PropData[ngroup+1];
     Particle *Pval, *gPart;
@@ -391,7 +391,7 @@ private(j,v2,Ti)
     to sum quantities.
 
  */
-void GetCMProp(Options &opt, const Int_t nbodies, Particle *&Part, Int_t ngroup, Int_t *&pfof, Int_t *&numingroup, PropData *&pdata, Int_t *&noffset)
+void GetCMProp(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&pfof, Int_t *&numingroup, PropData *&pdata, Int_t *&noffset)
 {
     Particle *Pval;
     Int_t i,j,k;
@@ -1831,7 +1831,7 @@ private(i,j,k,Pval)
 }
 
 ///Get inclusive halo FOF based masses
-void GetInclusiveMasses(Options &opt, const Int_t nbodies, Particle *&Part, Int_t ngroup, Int_t *&pfof, Int_t *&numingroup, PropData *&pdata, Int_t *&noffset)
+void GetInclusiveMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&pfof, Int_t *&numingroup, PropData *&pdata, Int_t *&noffset)
 {
     Particle *Pval;
     Int_t i,j,k;
@@ -2620,7 +2620,7 @@ void ReorderInclusiveMasses(const Int_t &numgroups, const Int_t &newnumgroups, I
 
     \todo might alter binding energy to use the velocity around the particle at the deepest point in the potential.
  */
-void GetBindingEnergy(Options &opt, const Int_t nbodies, Particle *&Part, Int_t ngroup, Int_t *&pfof, Int_t *&numingroup, PropData *&pdata, Int_t *&noffset)
+void GetBindingEnergy(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&pfof, Int_t *&numingroup, PropData *&pdata, Int_t *&noffset)
 {
 #ifndef USEMPI
     int ThisTask=0;
@@ -2886,7 +2886,7 @@ private(j,v2,Ti)
     Sort particles according to their binding energy and return a double pointer of Int_t s.
     This code first sorts particles according to their (local mpi) group id and calculates center of mass and binding energy.
 */
-Int_t **SortAccordingtoBindingEnergy(Options &opt, const Int_t nbodies, Particle *&Part, Int_t ngroup, Int_t *&pfof, Int_t *numingroup, PropData *pdata, Int_t ioffset)
+Int_t **SortAccordingtoBindingEnergy(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&pfof, Int_t *numingroup, PropData *pdata, Int_t ioffset)
 {
 #ifndef USEMPI
     int ThisTask=0;
@@ -2905,6 +2905,7 @@ Int_t **SortAccordingtoBindingEnergy(Options &opt, const Int_t nbodies, Particle
         else Part[i].SetPID(nbodies+1);//here move all particles not in groups to the back of the particle array
     }
     qsort(Part, nbodies, sizeof(Particle), PIDCompare);
+    //sort(Part.begin(),Part.end(), PIDCompareVec);
     for (i=0;i<nbodies;i++) Part[i].SetPID(storepid[Part[i].GetID()]);
     delete[] storepid;
 
@@ -2962,6 +2963,7 @@ private(i,j)
     if (opt.iseparatefiles) {
     cout<<"Reset particles to original order"<<endl;
     qsort(Part, nbodies, sizeof(Particle), IDCompare);
+    //sort(Part.begin(), Part.end(), IDCompareVec);
     }
     cout<<"Done"<<endl;
     return pglist;
@@ -2970,7 +2972,7 @@ private(i,j)
    Calculate Halo properties only, assumes that information in particle PIDs is meaningless, useful when don't care about particle tracking
    and just want halo catalogs (like when analysing results from runs like PICOLA (or say 2LPT runs))
 */
-void CalculateHaloProperties(Options &opt, const Int_t nbodies, Particle *&Part, Int_t ngroup, Int_t *&pfof, Int_t *numingroup, PropData *pdata)
+void CalculateHaloProperties(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&pfof, Int_t *numingroup, PropData *pdata)
 {
 #ifndef USEMPI
     int ThisTask=0;

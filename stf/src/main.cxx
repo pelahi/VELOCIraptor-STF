@@ -306,7 +306,7 @@ int main(int argc,char **argv)
             Int_t *originalID=new Int_t[nbodies];
             for (Int_t i=0;i<nbodies;i++) {sortvalhalos[i]=pfof[i]*(pfof[i]>0)+nbodies*(pfof[i]==0);originalID[i]=Part[i].GetID();Part[i].SetID(i);}
             Int_t *noffsethalos=BuildNoffset(nbodies, Part.data(), nhalos, numinhalos, sortvalhalos);
-            GetInclusiveMasses(opt, nbodies, Part, nhalos, pfof, numinhalos, pdatahalos, noffsethalos);
+            GetInclusiveMasses(opt, nbodies, Part.data(), nhalos, pfof, numinhalos, pdatahalos, noffsethalos);
             //qsort(Part,nbodies,sizeof(Particle),IDCompare);
             sort(Part.begin(), Part.end(), IDCompareVec);
             delete[] numinhalos;
@@ -429,7 +429,7 @@ int main(int argc,char **argv)
     //approximate methods like PICOLA. Here it writes desired output and exits
     if(opt.inoidoutput){
         numingroup=BuildNumInGroup(Nlocal, ngroup, pfof);
-        CalculateHaloProperties(opt,Nlocal,Part,ngroup,pfof,numingroup,pdata);
+        CalculateHaloProperties(opt,Nlocal,Part.data(),ngroup,pfof,numingroup,pdata);
         WriteProperties(opt,ngroup,pdata);
         delete[] numingroup;
         delete[] pdata;
@@ -462,7 +462,7 @@ int main(int argc,char **argv)
     //if separate files explicitly save halos, associated baryons, and subhalos separately
     if (opt.iseparatefiles) {
     if (nhalos>0) {
-        pglist=SortAccordingtoBindingEnergy(opt,Nlocal,Part,nhalos,pfof,numingroup,pdata);//alters pglist so most bound particles first
+        pglist=SortAccordingtoBindingEnergy(opt,Nlocal,Part.data(),nhalos,pfof,numingroup,pdata);//alters pglist so most bound particles first
         WriteProperties(opt,nhalos,pdata);
         WriteGroupCatalog(opt, nhalos, numingroup, pglist, Part,ngroup-nhalos);
         //if baryons have been searched output related gas baryon catalogue
@@ -493,7 +493,7 @@ int main(int argc,char **argv)
     }
 
     if (ng>0) {
-        pglist=SortAccordingtoBindingEnergy(opt,nbodies,Part,ng,pfof,&numingroup[indexii],&pdata[indexii],indexii);//alters pglist so most bound particles first
+        pglist=SortAccordingtoBindingEnergy(opt,nbodies,Part.data(),ng,pfof,&numingroup[indexii],&pdata[indexii],indexii);//alters pglist so most bound particles first
         WriteProperties(opt,ng,&pdata[indexii]);
         WriteGroupCatalog(opt, ng, &numingroup[indexii], pglist, Part);
         if (opt.iseparatefiles) WriteHierarchy(opt,ngroup,nhierarchy,psldata->nsinlevel,nsub,parentgid,stype,1);
