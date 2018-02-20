@@ -1118,7 +1118,11 @@ Int_t MPIBuildParticleNNImportList(const Int_t nbodies, KDTree *tree, Particle *
     Int_t *nn=new Int_t[nbodies];
     Double_t *nnr2=new Double_t[nbodies];
     nthreads=1;
-    Int_t sendTask,recvTask;
+    int sendTask,recvTask;
+    int maxchunksize=2147483648/NProcs/sizeof(Particle);
+    int nsend,nrecv,nsendchunks,nrecvchunks,numsendrecv;
+    int sendoffset,recvoffset;
+    int cursendchunksize,currecvchunksize;
     MPI_Status status;
 #ifdef USEOPENMP
 #pragma omp parallel
@@ -1192,9 +1196,50 @@ private(i)
     //and then gather the number of particles to be sent from mpi thread m to mpi thread n in the mpi_nsend[NProcs*NProcs] array via [n+m*NProcs]
     MPI_Allgather(nsend_local, NProcs, MPI_Int_t, mpi_nsend, NProcs, MPI_Int_t, MPI_COMM_WORLD);
     //now send the data.
-    ///\todo In determination of particle export, eventually need to place a check for the communication buffer so that if exported number
-    ///is larger than the size of the buffer, iterate over the number exported
-    //if (nexport>0) {
+    for(j=0;j<NProcs;j++)
+    {
+        if (j!=ThisTask)
+        {
+            sendTask = ThisTask;
+            recvTask = j;
+            nbuffer[recvTask]=0;
+            for (int k=0;k<recvTask;k++)nbuffer[recvTask]+=mpi_nsend[ThisTask+k*NProcs];//offset on local receiving buffer
+
+            if(mpi_nsend[ThisTask * NProcs + recvTask] > 0 || mpi_nsend[recvTask * NProcs + ThisTask] > 0)
+            {
+                //send info in loops to minimize memory footprint
+                cursendchunksize=currecvchunksize=maxchunksize;
+                nsendchunks=ceil(mpi_nsend[recvTask+ThisTask*NProcs]/(Double_t)maxchunksize);
+                nrecvchunks=ceil(mpi_nsend[ThisTask+recvTask*NProcs]/(Double_t)maxchunksize);
+                if (cursendchunksize>mpi_nsend[recvTask+ThisTask*NProcs]) {
+                    nsendchunks=1;
+                    cursendchunksize=mpi_nsend[recvTask+ThisTask*NProcs];
+                }
+                if (currecvchunksize>mpi_nsend[ThisTask+recvTask*NProcs]) {
+                    nrecvchunks=1;
+                    currecvchunksize=mpi_nsend[ThisTask+recvTask*NProcs];
+                }
+                numsendrecv=max(nsendchunks,nrecvchunks);
+                sendoffset=recvoffset=0;
+                for (auto ichunk=0;ichunk<numsendrecv;ichunk++)
+                {
+                    //blocking point-to-point send and receive. Here must determine the appropriate offset point in the local export buffer
+                    //for sending data and also the local appropriate offset in the local the receive buffer for information sent from the local receiving buffer
+                    MPI_Sendrecv(&PartDataIn[noffset[recvTask]+sendoffset],
+                        cursendchunksize * sizeof(Particle), MPI_BYTE,
+                        recvTask, TAG_NN_B+ichunk,
+                        &PartDataGet[nbuffer[recvTask]+recvoffset],
+                        currecvchunksize * sizeof(Particle),
+                        MPI_BYTE, recvTask, TAG_NN_B+ichunk, MPI_COMM_WORLD, &status);
+                    sendoffset+=cursendchunksize;
+                    recvoffset+=currecvchunksize;
+                    if (cursendchunksize>mpi_nsend[recvTask+ThisTask * NProcs]-sendoffset)cursendchunksize=mpi_nsend[recvTask+ThisTask * NProcs]-sendoffset;
+                    if (currecvchunksize>mpi_nsend[ThisTask+recvTask * NProcs]-sendoffset)currecvchunksize=mpi_nsend[ThisTask+recvTask * NProcs]-recvoffset;
+                }
+            }
+        }
+    }
+    /*
     for(j=0;j<NProcs;j++)//for(j=1;j<NProcs;j++)
     {
         if (j!=ThisTask)
@@ -1216,7 +1261,7 @@ private(i)
             }
         }
     }
-    //}
+    */
     ncount=0;for (int k=0;k<NProcs;k++)ncount+=mpi_nsend[ThisTask+k*NProcs];
     return ncount;
 }
@@ -1228,7 +1273,11 @@ void MPIBuildParticleExportBaryonSearchList(const Int_t nbodies, Particle *&Part
     Int_t i, j,nthreads,nexport=0,nimport=0;
     Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
     Double_t xsearch[3][2];
-    Int_t sendTask,recvTask;
+    int sendTask,recvTask;
+    int maxchunksize=2147483648/NProcs/sizeof(fofdata_in);
+    int nsend,nrecv,nsendchunks,nrecvchunks,numsendrecv;
+    int sendoffset,recvoffset;
+    int cursendchunksize,currecvchunksize;
     MPI_Status status;
 
     ///\todo would like to add openmp to this code. In particular, loop over nbodies but issue is nexport.
@@ -1271,6 +1320,56 @@ void MPIBuildParticleExportBaryonSearchList(const Int_t nbodies, Particle *&Part
     ///is larger than the size of the buffer, iterate over the number exported
     for (j=0;j<NProcs;j++)nimport+=mpi_nsend[ThisTask+j*NProcs];
     if (nexport>0||nimport>0) {
+        for(j=0;j<NProcs;j++)
+        {
+            if (j!=ThisTask)
+            {
+                sendTask = ThisTask;
+                recvTask = j;
+                nbuffer[recvTask]=0;
+                for (int k=0;k<recvTask;k++)nbuffer[recvTask]+=mpi_nsend[ThisTask+k*NProcs];//offset on local receiving buffer
+
+                if(mpi_nsend[ThisTask * NProcs + recvTask] > 0 || mpi_nsend[recvTask * NProcs + ThisTask] > 0)
+                {
+                    //send info in loops to minimize memory footprint
+                    cursendchunksize=currecvchunksize=maxchunksize;
+                    nsendchunks=ceil(mpi_nsend[recvTask+ThisTask*NProcs]/(Double_t)maxchunksize);
+                    nrecvchunks=ceil(mpi_nsend[ThisTask+recvTask*NProcs]/(Double_t)maxchunksize);
+                    if (cursendchunksize>mpi_nsend[recvTask+ThisTask*NProcs]) {
+                        nsendchunks=1;
+                        cursendchunksize=mpi_nsend[recvTask+ThisTask*NProcs];
+                    }
+                    if (currecvchunksize>mpi_nsend[ThisTask+recvTask*NProcs]) {
+                        nrecvchunks=1;
+                        currecvchunksize=mpi_nsend[ThisTask+recvTask*NProcs];
+                    }
+                    numsendrecv=max(nsendchunks,nrecvchunks);
+                    sendoffset=recvoffset=0;
+                    for (auto ichunk=0;ichunk<numsendrecv;ichunk++)
+                    {
+                        //blocking point-to-point send and receive. Here must determine the appropriate offset point in the local export buffer
+                        //for sending data and also the local appropriate offset in the local the receive buffer for information sent from the local receiving buffer
+                        MPI_Sendrecv(&FoFDataIn[noffset[recvTask]+sendoffset],
+                            cursendchunksize * sizeof(struct fofdata_in), MPI_BYTE,
+                            recvTask, TAG_FOF_A+ichunk,
+                            &FoFDataGet[nbuffer[recvTask]+recvoffset],
+                            currecvchunksize * sizeof(struct fofdata_in),
+                            MPI_BYTE, recvTask, TAG_FOF_A+ichunk, MPI_COMM_WORLD, &status);
+                        MPI_Sendrecv(&PartDataIn[noffset[recvTask]+sendoffset],
+                            cursendchunksize * sizeof(Particle), MPI_BYTE,
+                            recvTask, TAG_FOF_B+ichunk,
+                            &PartDataGet[nbuffer[recvTask]+recvoffset],
+                            currecvchunksize * sizeof(Particle),
+                            MPI_BYTE, recvTask, TAG_FOF_B+ichunk, MPI_COMM_WORLD, &status);
+                        sendoffset+=cursendchunksize;
+                        recvoffset+=currecvchunksize;
+                        if (cursendchunksize>mpi_nsend[recvTask+ThisTask * NProcs]-sendoffset)cursendchunksize=mpi_nsend[recvTask+ThisTask * NProcs]-sendoffset;
+                        if (currecvchunksize>mpi_nsend[ThisTask+recvTask * NProcs]-sendoffset)currecvchunksize=mpi_nsend[ThisTask+recvTask * NProcs]-recvoffset;
+                    }
+                }
+            }
+        }
+    /*
     for(j=0;j<NProcs;j++)//for(j=1;j<NProcs;j++)
     {
         if (j!=ThisTask)
@@ -1299,6 +1398,7 @@ void MPIBuildParticleExportBaryonSearchList(const Int_t nbodies, Particle *&Part
             }
         }
     }
+    */
     }
 }
 
@@ -1351,7 +1451,11 @@ void MPIAdjustLocalGroupIDs(const Int_t nbodies, Int_t *pfof){
 void MPIUpdateExportList(const Int_t nbodies, Particle *&Part, Int_t *&pfof, Int_tree_t *&Len){
     Int_t i, j,nthreads,nexport;
     Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
-    Int_t sendTask,recvTask;
+    int sendTask,recvTask;
+    int maxchunksize=2147483648/NProcs/sizeof(fofdata_in);
+    int nsend,nrecv,nsendchunks,nrecvchunks,numsendrecv;
+    int sendoffset,recvoffset;
+    int cursendchunksize,currecvchunksize;
     MPI_Status status;
 
     nexport=0;
@@ -1362,6 +1466,51 @@ void MPIUpdateExportList(const Int_t nbodies, Particle *&Part, Int_t *&pfof, Int
         FoFDataIn[i].iGroupTask=mpi_foftask[Part[FoFDataIn[i].Index].GetID()];
         FoFDataIn[i].iLen=Len[FoFDataIn[i].Index];
     }
+    for(j=0;j<NProcs;j++)
+    {
+        if (j!=ThisTask)
+        {
+            sendTask = ThisTask;
+            recvTask = j;
+            nbuffer[recvTask]=0;
+            for (int k=0;k<recvTask;k++)nbuffer[recvTask]+=mpi_nsend[ThisTask+k*NProcs];//offset on local receiving buffer
+
+            if(mpi_nsend[ThisTask * NProcs + recvTask] > 0 || mpi_nsend[recvTask * NProcs + ThisTask] > 0)
+            {
+                //send info in loops to minimize memory footprint
+                cursendchunksize=currecvchunksize=maxchunksize;
+                nsendchunks=ceil(mpi_nsend[recvTask+ThisTask*NProcs]/(Double_t)maxchunksize);
+                nrecvchunks=ceil(mpi_nsend[ThisTask+recvTask*NProcs]/(Double_t)maxchunksize);
+                if (cursendchunksize>mpi_nsend[recvTask+ThisTask*NProcs]) {
+                    nsendchunks=1;
+                    cursendchunksize=mpi_nsend[recvTask+ThisTask*NProcs];
+                }
+                if (currecvchunksize>mpi_nsend[ThisTask+recvTask*NProcs]) {
+                    nrecvchunks=1;
+                    currecvchunksize=mpi_nsend[ThisTask+recvTask*NProcs];
+                }
+                numsendrecv=max(nsendchunks,nrecvchunks);
+                sendoffset=recvoffset=0;
+                for (auto ichunk=0;ichunk<numsendrecv;ichunk++)
+                {
+                    //blocking point-to-point send and receive. Here must determine the appropriate offset point in the local export buffer
+                    //for sending data and also the local appropriate offset in the local the receive buffer for information sent from the local receiving buffer
+                    MPI_Sendrecv(&FoFDataIn[noffset[recvTask]+sendoffset],
+                        cursendchunksize * sizeof(struct fofdata_in), MPI_BYTE,
+                        recvTask, TAG_FOF_A+ichunk,
+                        &FoFDataGet[nbuffer[recvTask]+recvoffset],
+                        currecvchunksize * sizeof(struct fofdata_in),
+                        MPI_BYTE, recvTask, TAG_FOF_A+ichunk, MPI_COMM_WORLD, &status);
+                    sendoffset+=cursendchunksize;
+                    recvoffset+=currecvchunksize;
+                    if (cursendchunksize>mpi_nsend[recvTask+ThisTask * NProcs]-sendoffset)cursendchunksize=mpi_nsend[recvTask+ThisTask * NProcs]-sendoffset;
+                    if (currecvchunksize>mpi_nsend[ThisTask+recvTask * NProcs]-sendoffset)currecvchunksize=mpi_nsend[ThisTask+recvTask * NProcs]-recvoffset;
+                }
+            }
+        }
+    }
+
+    /*
     for(j=0;j<NProcs;j++)//for(j=1;j<NProcs;j++)
     {
         if (j!=ThisTask)
@@ -1383,6 +1532,7 @@ void MPIUpdateExportList(const Int_t nbodies, Particle *&Part, Int_t *&pfof, Int
             }
         }
     }
+    */
 }
 
 /*! This routine searches the local particle list using the positions of the exported particles to see if any local particles
@@ -1494,8 +1644,13 @@ Int_t MPILinkAcross(const Int_t nbodies, KDTree *tree, Particle *&Part, Int_t *&
 Int_t MPIGroupExchange(const Int_t nbodies, Particle *&Part, Int_t *&pfof){
     Int_t i, j,nthreads,nexport,nimport,nlocal,n;
     Int_t nsend_local[NProcs],noffset_import[NProcs],noffset_export[NProcs],nbuffer[NProcs];
-    Int_t sendTask,recvTask;
+    int sendTask,recvTask;
+    int maxchunksize=2147483648/NProcs/sizeof(fofid_in);
+    int nsend,nrecv,nsendchunks,nrecvchunks,numsendrecv;
+    int sendoffset,recvoffset;
+    int cursendchunksize,currecvchunksize;
     MPI_Status status;
+
     int task;
     FoFGroupDataExport=NULL;
     FoFGroupDataLocal=NULL;
@@ -1593,22 +1748,46 @@ Int_t MPIGroupExchange(const Int_t nbodies, Particle *&Part, Int_t *&pfof){
     //now send the data.
     ///\todo In determination of particle export for FOF routines, eventually need to place a check for the communication buffer so that if exported number
     ///is larger than the size of the buffer, iterate over the number exported
+    ///\todo ideally need to implement MPI Type defs and serialization using boost
+    //unsigned int chunksize,chunksize_send,chunksize_recv,nchunks,nchunks_send,nchunks_recv;
+    //unsigned long offset_send,offset_recv;
     for(j=0;j<NProcs;j++)
     {
         if (j!=ThisTask)
         {
             sendTask = ThisTask;
             recvTask = j;
+
             if(mpi_nsend[ThisTask * NProcs + recvTask] > 0 || mpi_nsend[recvTask * NProcs + ThisTask] > 0)
             {
-                //blocking send and receive from the appropriate offset point in the local export buffer
-                //to the appropriate in the receive buffer
-                MPI_Sendrecv(&FoFGroupDataExport[noffset_export[recvTask]],
-                    mpi_nsend[recvTask+ThisTask*NProcs] * sizeof(struct fofid_in), MPI_BYTE,
-                    recvTask, TAG_FOF_C,
-                    &FoFGroupDataLocal[noffset_import[recvTask]],
-                    mpi_nsend[ThisTask+recvTask * NProcs] * sizeof(struct fofid_in),
-                    MPI_BYTE, recvTask, TAG_FOF_C, MPI_COMM_WORLD, &status);
+                //send info in loops to minimize memory footprint
+                cursendchunksize=currecvchunksize=maxchunksize;
+                nsendchunks=ceil(mpi_nsend[recvTask+ThisTask*NProcs]/(Double_t)maxchunksize);
+                nrecvchunks=ceil(mpi_nsend[ThisTask+recvTask*NProcs]/(Double_t)maxchunksize);
+                if (cursendchunksize>mpi_nsend[recvTask+ThisTask*NProcs]) {
+                    nsendchunks=1;
+                    cursendchunksize=mpi_nsend[recvTask+ThisTask*NProcs];
+                }
+                if (currecvchunksize>mpi_nsend[ThisTask+recvTask*NProcs]) {
+                    nrecvchunks=1;
+                    currecvchunksize=mpi_nsend[ThisTask+recvTask*NProcs];
+                }
+                numsendrecv=max(nsendchunks,nrecvchunks);
+                sendoffset=recvoffset=0;
+                cout<<ThisTask<<" sending to "<<recvTask<<" in "<<numsendrecv<<" "<<nsendchunks<<" "<<nrecvchunks<<endl;
+                for (auto ichunk=0;ichunk<numsendrecv;ichunk++)
+                {
+                    MPI_Sendrecv(&FoFGroupDataExport[noffset_export[recvTask]+sendoffset],
+                        cursendchunksize * sizeof(struct fofid_in), MPI_BYTE,
+                        recvTask, TAG_FOF_C+ichunk,
+                        &FoFGroupDataLocal[noffset_import[recvTask]+recvoffset],
+                        currecvchunksize * sizeof(struct fofid_in),
+                        MPI_BYTE, recvTask, TAG_FOF_C+ichunk, MPI_COMM_WORLD, &status);
+                    sendoffset+=cursendchunksize;
+                    recvoffset+=currecvchunksize;
+                    if (cursendchunksize>mpi_nsend[recvTask+ThisTask * NProcs]-sendoffset)cursendchunksize=mpi_nsend[recvTask+ThisTask * NProcs]-sendoffset;
+                    if (currecvchunksize>mpi_nsend[ThisTask+recvTask * NProcs]-sendoffset)currecvchunksize=mpi_nsend[ThisTask+recvTask * NProcs]-recvoffset;
+                }
             }
         }
     }
@@ -1622,7 +1801,11 @@ Int_t MPIGroupExchange(const Int_t nbodies, Particle *&Part, Int_t *&pfof){
 Int_t MPIBaryonGroupExchange(const Int_t nbodies, Particle *&Part, Int_t *&pfof){
     Int_t i, j,nthreads,nexport,nimport,nlocal,n;
     Int_t nsend_local[NProcs],noffset_import[NProcs],noffset_export[NProcs],nbuffer[NProcs];
-    Int_t sendTask,recvTask;
+    int sendTask,recvTask;
+    int maxchunksize=2147483648/NProcs/sizeof(fofid_in);
+    int nsend,nrecv,nsendchunks,nrecvchunks,numsendrecv;
+    int sendoffset,recvoffset;
+    int cursendchunksize,currecvchunksize;
     MPI_Status status;
     int task;
     FoFGroupDataExport=NULL;
@@ -1714,24 +1897,42 @@ Int_t MPIBaryonGroupExchange(const Int_t nbodies, Particle *&Part, Int_t *&pfof)
         nbuffer[task]++;
     }
     //now send the data.
-    ///\todo In determination of particle export for FOF routines, eventually need to place a check for the communication buffer so that if exported number
-    ///is larger than the size of the buffer, iterate over the number exported
     for(j=0;j<NProcs;j++)
     {
         if (j!=ThisTask)
         {
             sendTask = ThisTask;
             recvTask = j;
+
             if(mpi_nsend[ThisTask * NProcs + recvTask] > 0 || mpi_nsend[recvTask * NProcs + ThisTask] > 0)
             {
-                //blocking send and receive from the appropriate offset point in the local export buffer
-                //to the appropriate in the receive buffer
-                MPI_Sendrecv(&FoFGroupDataExport[noffset_export[recvTask]],
-                    mpi_nsend[recvTask+ThisTask*NProcs] * sizeof(struct fofid_in), MPI_BYTE,
-                    recvTask, TAG_FOF_C,
-                    &FoFGroupDataLocal[noffset_import[recvTask]],
-                    mpi_nsend[ThisTask+recvTask * NProcs] * sizeof(struct fofid_in),
-                    MPI_BYTE, recvTask, TAG_FOF_C, MPI_COMM_WORLD, &status);
+                //send info in loops to minimize memory footprint
+                cursendchunksize=currecvchunksize=maxchunksize;
+                nsendchunks=ceil(mpi_nsend[recvTask+ThisTask*NProcs]/(Double_t)maxchunksize);
+                nrecvchunks=ceil(mpi_nsend[ThisTask+recvTask*NProcs]/(Double_t)maxchunksize);
+                if (cursendchunksize>mpi_nsend[recvTask+ThisTask*NProcs]) {
+                    nsendchunks=1;
+                    cursendchunksize=mpi_nsend[recvTask+ThisTask*NProcs];
+                }
+                if (currecvchunksize>mpi_nsend[ThisTask+recvTask*NProcs]) {
+                    nrecvchunks=1;
+                    currecvchunksize=mpi_nsend[ThisTask+recvTask*NProcs];
+                }
+                numsendrecv=max(nsendchunks,nrecvchunks);
+                sendoffset=recvoffset=0;
+                for (auto ichunk=0;ichunk<numsendrecv;ichunk++)
+                {
+                    MPI_Sendrecv(&FoFGroupDataExport[noffset_export[recvTask]+sendoffset],
+                        cursendchunksize * sizeof(struct fofid_in), MPI_BYTE,
+                        recvTask, TAG_FOF_C+ichunk,
+                        &FoFGroupDataLocal[noffset_import[recvTask]+recvoffset],
+                        currecvchunksize * sizeof(struct fofid_in),
+                        MPI_BYTE, recvTask, TAG_FOF_C+ichunk, MPI_COMM_WORLD, &status);
+                    sendoffset+=cursendchunksize;
+                    recvoffset+=currecvchunksize;
+                    if (cursendchunksize>mpi_nsend[recvTask+ThisTask * NProcs]-sendoffset)cursendchunksize=mpi_nsend[recvTask+ThisTask * NProcs]-sendoffset;
+                    if (currecvchunksize>mpi_nsend[ThisTask+recvTask * NProcs]-sendoffset)currecvchunksize=mpi_nsend[ThisTask+recvTask * NProcs]-recvoffset;
+                }
             }
         }
     }
@@ -2000,7 +2201,11 @@ private(i,j,k,tid,p1,pindex,x1,D2,dval,rval,nnID,dist2)
 Int_t MPIBaryonExchange(const Int_t nbaryons, Particle *Pbaryons, Int_t *pfofbaryons){
     Int_t i, j,nthreads,nexport,nimport,nlocal,n;
     Int_t nsend_local[NProcs],noffset_import[NProcs],noffset_export[NProcs],nbuffer[NProcs];
-    Int_t sendTask,recvTask;
+    int sendTask,recvTask;
+    int maxchunksize=2147483648/NProcs/sizeof(fofid_in);
+    int nsend,nrecv,nsendchunks,nrecvchunks,numsendrecv;
+    int sendoffset,recvoffset;
+    int cursendchunksize,currecvchunksize;
     MPI_Status status;
     int task;
     //initial containers to send info across threads
@@ -2094,28 +2299,45 @@ Int_t MPIBaryonExchange(const Int_t nbaryons, Particle *Pbaryons, Int_t *pfofbar
         nbuffer[task]++;
     }
     //now send the data.
-    ///\todo In determination of particle export for FOF routines, eventually need to place a check for the communication buffer so that if exported number
-    ///is larger than the size of the buffer, iterate over the number exported
     for(j=0;j<NProcs;j++)
     {
         if (j!=ThisTask)
         {
             sendTask = ThisTask;
             recvTask = j;
+
             if(mpi_nsend[ThisTask * NProcs + recvTask] > 0 || mpi_nsend[recvTask * NProcs + ThisTask] > 0)
             {
-                //blocking send and receive from the appropriate offset point in the local export buffer
-                //to the appropriate in the receive buffer
-                MPI_Sendrecv(&FoFGroupDataExport[noffset_export[recvTask]],
-                    mpi_nsend[recvTask+ThisTask*NProcs] * sizeof(struct fofid_in), MPI_BYTE,
-                    recvTask, TAG_FOF_C,
-                    &FoFGroupDataLocal[noffset_import[recvTask]],
-                    mpi_nsend[ThisTask+recvTask * NProcs] * sizeof(struct fofid_in),
-                    MPI_BYTE, recvTask, TAG_FOF_C, MPI_COMM_WORLD, &status);
+                //send info in loops to minimize memory footprint
+                cursendchunksize=currecvchunksize=maxchunksize;
+                nsendchunks=ceil(mpi_nsend[recvTask+ThisTask*NProcs]/(Double_t)maxchunksize);
+                nrecvchunks=ceil(mpi_nsend[ThisTask+recvTask*NProcs]/(Double_t)maxchunksize);
+                if (cursendchunksize>mpi_nsend[recvTask+ThisTask*NProcs]) {
+                    nsendchunks=1;
+                    cursendchunksize=mpi_nsend[recvTask+ThisTask*NProcs];
+                }
+                if (currecvchunksize>mpi_nsend[ThisTask+recvTask*NProcs]) {
+                    nrecvchunks=1;
+                    currecvchunksize=mpi_nsend[ThisTask+recvTask*NProcs];
+                }
+                numsendrecv=max(nsendchunks,nrecvchunks);
+                sendoffset=recvoffset=0;
+                for (auto ichunk=0;ichunk<numsendrecv;ichunk++)
+                {
+                    MPI_Sendrecv(&FoFGroupDataExport[noffset_export[recvTask]+sendoffset],
+                        cursendchunksize * sizeof(struct fofid_in), MPI_BYTE,
+                        recvTask, TAG_FOF_C+ichunk,
+                        &FoFGroupDataLocal[noffset_import[recvTask]+recvoffset],
+                        currecvchunksize * sizeof(struct fofid_in),
+                        MPI_BYTE, recvTask, TAG_FOF_C+ichunk, MPI_COMM_WORLD, &status);
+                    sendoffset+=cursendchunksize;
+                    recvoffset+=currecvchunksize;
+                    if (cursendchunksize>mpi_nsend[recvTask+ThisTask * NProcs]-sendoffset)cursendchunksize=mpi_nsend[recvTask+ThisTask * NProcs]-sendoffset;
+                    if (currecvchunksize>mpi_nsend[ThisTask+recvTask * NProcs]-sendoffset)currecvchunksize=mpi_nsend[ThisTask+recvTask * NProcs]-recvoffset;
+                }
             }
         }
     }
-
     Nlocalbaryon[0]=nlocal;
     return nlocal;
 }
