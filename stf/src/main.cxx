@@ -289,6 +289,7 @@ int main(int argc,char **argv)
         //according to size and localizes the particles belong to the same group to the same mpi thread.
         //after this is called Nlocal is adjusted to the local subset where groups are localized to a given mpi thread.
         time1=MyGetTime();
+
         pfof=SearchFullSet(opt,Nlocal,Part,ngroup);
         time1=MyGetTime()-time1;
         cout<<"TIME::"<<ThisTask<<" took "<<time1<<" to search "<<Nlocal<<" with "<<nthreads<<endl;
@@ -307,8 +308,8 @@ int main(int argc,char **argv)
             for (Int_t i=0;i<nbodies;i++) {sortvalhalos[i]=pfof[i]*(pfof[i]>0)+nbodies*(pfof[i]==0);originalID[i]=Part[i].GetID();Part[i].SetID(i);}
             Int_t *noffsethalos=BuildNoffset(nbodies, Part.data(), nhalos, numinhalos, sortvalhalos);
             GetInclusiveMasses(opt, nbodies, Part.data(), nhalos, pfof, numinhalos, pdatahalos, noffsethalos);
-            //qsort(Part,nbodies,sizeof(Particle),IDCompare);
-            sort(Part.begin(), Part.end(), IDCompareVec);
+            qsort(Part.data(),nbodies,sizeof(Particle),IDCompare);
+            //sort(Part.begin(), Part.end(), IDCompareVec);
             delete[] numinhalos;
             delete[] sortvalhalos;
             delete[] noffsethalos;

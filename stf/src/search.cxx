@@ -37,6 +37,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     Int_t ng,npartingroups;
     Int_t totalgroups;
     Double_t time1,time2;
+    KDTree *tree;
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
     Int_t Nlocal=nbodies;
@@ -60,10 +61,10 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     //if using MPI, lower minimum number
     minsize=MinNumMPI;
 #endif
+
     time1=MyGetTime();
     time2=MyGetTime();
     cout<<"Begin FOF search  of entire particle data set ... "<<endl;
-    KDTree *tree;
     param[0]=tree->TPHYS;
     param[1]=(opt.ellxscale*opt.ellxscale)*(opt.ellphys*opt.ellphys)*(opt.ellhalophysfac*opt.ellhalophysfac);
     param[6]=param[1];
@@ -130,13 +131,13 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     //Also must ensure that group ids do not overlap between mpi threads so adjust group ids
     MPI_Allgather(&numgroups, 1, MPI_Int_t, mpi_ngroups, 1, MPI_Int_t, MPI_COMM_WORLD);
     MPIAdjustLocalGroupIDs(nbodies, pfof);
-
     //then determine export particles, declare arrays used to export data
 #ifdef MPIREDUCEMEM
     MPIGetExportNum(nbodies, Part.data(), sqrt(param[1]));
 #endif
     //allocate memory to store info
     cout<<ThisTask<<": Finished local search, nexport/nimport = "<<NExport<<" "<<NImport<<" in "<<MyGetTime()-time2<<endl;
+
     PartDataIn = new Particle[NExport];
     PartDataGet = new Particle[NImport];
     FoFDataIn = new fofdata_in[NExport];
@@ -178,10 +179,6 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     Int_t newnbodies=MPIGroupExchange(nbodies,Part.data(),pfof);
     //once groups are local, can free up memory
     if (Nmemlocal<Nlocal) {
-        //delete[] Part;
-        //store new particle data in mpi_Part1 as external variable ensures memory allocated is not deallocated when function returns
-        //mpi_Part1=new Particle[newnbodies];
-        //Part=mpi_Part1;
         Part.resize(Nlocal);
         Nmemlocal=Nlocal;
     }
@@ -190,6 +187,8 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     pfof=new Int_t[newnbodies];
     //And compile the information and remove groups smaller than minsize
     numgroups=MPICompileGroups(newnbodies,Part.data(),pfof,opt.HaloMinSize);
+    //and free up some memory if vector doesn't need to be as big
+    if (Nmemlocal>Nlocal) Part.resize(Nlocal);
     cout<<"MPI thread "<<ThisTask<<" has found "<<numgroups<<endl;
     //free up memory now that only need to store pfof and global ids
     totalgroups=0;
@@ -214,6 +213,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
                 else Part[i].SetType(-1);
             }
         }
+        cout<<ThisTask<<" Going to build tree "<<endl;
         tree=new KDTree(Part.data(),Nlocal,opt.Bsize,tree->TPHYS,tree->KEPAN,100,0,0,0,period);
         GetVelocityDensity(opt, Nlocal, Part.data(),tree);
         delete tree;
@@ -261,8 +261,8 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         numingroup[pfof[i]]++;
     }
     for (i=2;i<=numgroups;i++) noffset[i]=noffset[i-1]+numingroup[i-1];
-    //qsort(Part, Nlocal, sizeof(Particle), PIDCompare);
-    sort(Part.begin(),Part.end(),PIDCompareVec);
+    qsort(Part.data(), Nlocal, sizeof(Particle), PIDCompare);
+    //sort(Part.begin(),Part.end(),PIDCompareVec);
     for (i=0;i<Nlocal;i++) Part[i].SetPID(storetype[Part[i].GetID()]);
     delete[] storetype;
     //store index order
@@ -397,12 +397,12 @@ private(i,tid,xscaling,vscaling)
             Part[noffset[i]+j].ScalePhase(xscaling,vscaling);
         }
         xscaling=1.0/xscaling;vscaling=1.0/vscaling;
-        treeomp[tid]=new KDTree(&Part.data()[noffset[i]],numingroup[i],opt.Bsize,treeomp[tid]->TPHS,tree->KEPAN,100);
+        treeomp[tid]=new KDTree(&(Part.data()[noffset[i]]),numingroup[i],opt.Bsize,treeomp[tid]->TPHS,tree->KEPAN,100);
         pfofomp[i]=treeomp[tid]->FOF(1.0,ngomp[i],minsize,1,&Head[noffset[i]],&Next[noffset[i]],&Tail[noffset[i]],&Len[noffset[i]]);
+        delete treeomp[tid];
         for (Int_t j=0;j<numingroup[i];j++) {
             Part[noffset[i]+j].ScalePhase(xscaling,vscaling);
         }
-        delete treeomp[tid];
     }
 #ifdef USEOPENMP
 }
@@ -518,8 +518,8 @@ private(i,tid,xscaling,vscaling)
     }
 
     for (i=0;i<npartingroups;i++) Part[i].SetID(ids[i]);
-    //gsl_heapsort(Part, Nlocal, sizeof(Particle), IDCompare);
-    sort(Part.begin(), Part.end(), IDCompareVec);
+    gsl_heapsort(Part.data(), Nlocal, sizeof(Particle), IDCompare);
+    //sort(Part.begin(), Part.end(), IDCompareVec);
     delete[] ids;
     numgroups=ng;
 
@@ -676,26 +676,6 @@ private(i,tid,xscaling,vscaling)
         }//end of ng>0 check
     }
 
-    /*
-    psldata->Allocate(numgroups);
-    psldata->Initialize();
-    for (i=0;i<Nlocal;i++) {
-        if (pfof[i]>0) {
-        if (psldata->gidhead[pfof[i]]==NULL) {
-            //set the group id head pointer to the address within the pfof array
-            psldata->gidhead[pfof[i]]=&pfof[i];
-            //set particle pointer to particle address
-            psldata->Phead[pfof[i]]=&Part[i];
-            //set the parent pointers to appropriate addresss such that the parent and uber parent are the same as the groups head
-            psldata->gidparenthead[pfof[i]]=&pfof[i];
-            psldata->giduberparenthead[pfof[i]]=&pfof[i];
-            //set structure type
-            psldata->stypeinlevel[pfof[i]]=HALOSTYPE;
-        }
-        }
-    }
-    psldata->stype=HALOSTYPE;
-    */
     if (opt.iverbose) cout<<ThisTask<<" Done storing halo substructre level data"<<endl;
     return pfof;
 }
@@ -2605,8 +2585,8 @@ Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, const I
             storeval2[i]=Part[i].GetPID();
             Part[i].SetPID(pfofdark[i]);
         }
-        //qsort(Part,nparts,sizeof(Particle),TypeCompare);
-        sort(Part.begin(),Part.end(),TypeCompareVec);
+        qsort(Part.data(),nparts,sizeof(Particle),TypeCompare);
+        //sort(Part.begin(),Part.end(),TypeCompareVec);
         Pbaryons=&Part[ndark];
         for (i=0;i<nparts;i++) {
             //store id order after type sort
@@ -2659,8 +2639,8 @@ Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, const I
 
     //search all dm particles in structures
     for (i=0;i<ndark;i++) Part[i].SetPotential(2*(pfofdark[i]==0)+(pfofdark[i]>1));
-    //qsort(Part, ndark, sizeof(Particle), PotCompare);
-    sort(Part.begin(),Part.begin()+ndark,PotCompareVec);
+    qsort(Part.data(), ndark, sizeof(Particle), PotCompare);
+    //sort(Part.begin(),Part.begin()+ndark,PotCompareVec);
     ids=new Int_t[ndark+1];
     //store the original order of the dark matter particles
     for (i=0;i<ndark;i++) ids[i]=Part[i].GetID();
@@ -2796,8 +2776,8 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
         //reset order
         delete tree;
         for (i=0;i<ndark;i++) Part[i].SetID(ids[i]);
-        //qsort(Part, ndark, sizeof(Particle), IDCompare);
-        sort(Part.begin(), Part.begin()+ndark, IDCompareVec);
+        qsort(Part.data(), ndark, sizeof(Particle), IDCompare);
+        //sort(Part.begin(), Part.begin()+ndark, IDCompareVec);
         delete[] ids;
 
         //reorder local particle array and delete memory associated with Head arrays, only need to keep Particles, pfof and some id and idexing information
@@ -2857,12 +2837,12 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
         //reset order
         if (npartingroups>0) delete tree;
         for (i=0;i<ndark;i++) Part[i].SetID(ids[i]);
-        //qsort(Part, ndark, sizeof(Particle), IDCompare);
-        sort(Part.begin(), Part.end(), IDCompareVec);
+        qsort(Part.data(), ndark, sizeof(Particle), IDCompare);
+        //sort(Part.begin(), Part.end(), IDCompareVec);
         delete[] ids;
         for (i=0;i<nparts;i++) {Part[i].SetPID(pfofall[Part[i].GetID()]);Part[i].SetID(storeval[i]);}
-        //qsort(Part, nparts, sizeof(Particle), IDCompare);
-        sort(Part.begin(), Part.end(), IDCompareVec);
+        qsort(Part.data(), nparts, sizeof(Particle), IDCompare);
+        //sort(Part.begin(), Part.end(), IDCompareVec);
         for (i=0;i<nparts;i++) {
             pfofall[i]=Part[i].GetPID();Part[i].SetPID(storeval2[i]);
             if (Part[i].GetType()==-1)Part[i].SetType(DARKTYPE);
@@ -2878,12 +2858,12 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
         //reset order
         if (npartingroups>0) delete tree;
         for (i=0;i<ndark;i++) Part[i].SetID(ids[i]);
-        //qsort(Part, ndark, sizeof(Particle), IDCompare);
-        sort(Part.begin(), Part.begin()+ndark, IDCompareVec);
+        qsort(Part.data(), ndark, sizeof(Particle), IDCompare);
+        //sort(Part.begin(), Part.begin()+ndark, IDCompareVec);
         delete[] ids;
         for (i=0;i<nparts;i++) {Part[i].SetPID(pfofall[Part[i].GetID()]);Part[i].SetID(storeval[i]);}
-        //qsort(Part, nparts, sizeof(Particle), IDCompare);
-        sort(Part.begin(), Part.end(), IDCompareVec);
+        qsort(Part.data(), nparts, sizeof(Particle), IDCompare);
+        //sort(Part.begin(), Part.end(), IDCompareVec);
         for (i=0;i<nparts;i++) {
             pfofall[i]=Part[i].GetPID();Part[i].SetPID(storeval2[i]);
             if (Part[i].GetType()==-1)Part[i].SetType(DARKTYPE);
@@ -2894,8 +2874,8 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
     else {
         delete tree;
         for (i=0;i<ndark;i++) Part[i].SetID(ids[i]);
-        //qsort(Part, ndark, sizeof(Particle), IDCompare);
-        sort(Part.begin(), Part.begin()+ndark, IDCompareVec);
+        qsort(Part.data(), ndark, sizeof(Particle), IDCompare);
+        //sort(Part.begin(), Part.begin()+ndark, IDCompareVec);
         delete[] ids;
         for (i=0;i<nbaryons;i++) Pbaryons[i].SetID(i+ndark);
     }

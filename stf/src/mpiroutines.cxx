@@ -1520,70 +1520,38 @@ Int_t MPIGroupExchange(const Int_t nbodies, Particle *Part, Int_t *&pfof){
     else FoFGroupDataExport=new fofid_in[1];
 
     Int_t *storeval=new Int_t[nbodies];
-    //if trying to reduce memory allocation,  if nlocal < than the memory allocated adjust local list so that all particles to be exported are near the end.
-    //and allocate the appropriate memory for pfof and mpi_idlist. otherwise, need to actually copy the particle data into FoFGroupDataLocal and proceed
-    //as normal, storing info, send info, delete particle array, allocate a new array large enough to store info and copy over info
-    ///\todo eventually I should replace arrays with vectors so that the size can change, removing the need to free and allocate
-    ///\todo adjust sort type to make sure type information is kept.
-
-    ///???????
-    ///\todo might be able to remove secionts involving nlocal>Nmemlocal
-    if (nlocal<Nmemlocal) {
-        Noldlocal=nbodies-nexport;
-        //for (i=0;i<nbodies;i++) Part[i].SetID(i);
-        for (i=0;i<nbodies;i++) storeval[i]=Part[i].GetType();
-        for (i=0;i<nbodies;i++) Part[i].SetType((mpi_foftask[i]!=ThisTask));
-        qsort(Part,nbodies,sizeof(Particle),TypeCompare);
-        for (i=0;i<nbodies;i++) Part[i].SetType(storeval[Part[i].GetID()]);
-        //now use array to rearrange data
-        for (i=0;i<nbodies;i++) storeval[i]=mpi_foftask[Part[i].GetID()];
-        for (i=0;i<nbodies;i++) mpi_foftask[i]=storeval[i];
-        for (i=0;i<nbodies;i++) storeval[i]=pfof[Part[i].GetID()];
-        for (i=0;i<nbodies;i++) pfof[i]=storeval[i];
-        for (i=0;i<nbodies;i++) Part[i].SetID(i);
-        //for sorting purposes to place untagged particles at the end. Was done by setting type
-        //now via storeval and ids
-        for (i=0;i<nbodies;i++) storeval[i]=-pfof[Part[i].GetID()];
-        for (i=0;i<nbodies;i++) Part[i].SetID(storeval[i]);
-        if (nimport>0) FoFGroupDataLocal=new fofid_in[nimport];
-    }
-    //otherwise use FoFGroupDataLocal to store all the necessary data
-    else {
-        FoFGroupDataLocal=new fofid_in[nlocal];
-        for (i=0;i<nbodies;i++) storeval[i]=Part[i].GetType();
-        for (i=0;i<nbodies;i++) Part[i].SetType((mpi_foftask[i]!=ThisTask));
-        qsort(Part,nbodies,sizeof(Particle),TypeCompare);
-        for (i=0;i<nbodies;i++) Part[i].SetType(storeval[Part[i].GetID()]);
-        Int_t nn=nbodies-nexport;
-        for (i=0;i<nn;i++) {
-            FoFGroupDataLocal[i].p=Part[i];
-            FoFGroupDataLocal[i].Index = i;
-            FoFGroupDataLocal[i].Task = ThisTask;
-            FoFGroupDataLocal[i].iGroup = pfof[Part[i].GetID()];
-        }
-        //once sorted, copy info back into index order using storempival (was before via type)
-        for (i=nn;i<nbodies;i++) storeval[i]=mpi_foftask[Part[i].GetID()];
-        for (i=nn;i<nbodies;i++) mpi_foftask[i]=storeval[i];
-        for (i=nn;i<nbodies;i++) storeval[i]=pfof[Part[i].GetID()];
-        for (i=nn;i<nbodies;i++) pfof[i]=storeval[i];
-        for (i=nn;i<nbodies;i++) Part[i].SetID(i);
-    }
+    Noldlocal=nbodies-nexport;
+    //for (i=0;i<nbodies;i++) Part[i].SetID(i);
+    //store type in temporary array, then use type to store what task particle belongs to and sort values
+    for (i=0;i<nbodies;i++) storeval[i]=Part[i].GetType();
+    for (i=0;i<nbodies;i++) Part[i].SetType((mpi_foftask[i]!=ThisTask));
+    qsort(Part,nbodies,sizeof(Particle),TypeCompare);
+    //sort(Part.begin(),Part.begin()+nbodies,TypeCompareVec);
+    for (i=0;i<nbodies;i++) Part[i].SetType(storeval[Part[i].GetID()]);
+    //now use array to rearrange data
+    for (i=0;i<nbodies;i++) storeval[i]=mpi_foftask[Part[i].GetID()];
+    for (i=0;i<nbodies;i++) mpi_foftask[i]=storeval[i];
+    for (i=0;i<nbodies;i++) storeval[i]=pfof[Part[i].GetID()];
+    for (i=0;i<nbodies;i++) pfof[i]=storeval[i];
+    for (i=0;i<nbodies;i++) Part[i].SetID(i);
+    //for sorting purposes to place untagged particles at the end. Was done by setting type
+    //now via storeval and ids
+    for (i=0;i<nbodies;i++) storeval[i]=-pfof[Part[i].GetID()];
+    for (i=0;i<nbodies;i++) Part[i].SetID(storeval[i]);
+    if (nimport>0) FoFGroupDataLocal=new fofid_in[nimport];
     delete[] storeval;
+
     //determine offsets in arrays so that data contiguous with regards to processors for broadcasting
     //offset on transmitter end
     noffset_export[0]=0;
     for (j=1;j<NProcs;j++) noffset_export[j]=noffset_export[j-1]+mpi_nsend[(j-1)+ThisTask*NProcs];
     //offset on receiver end
     for (j=0;j<NProcs;j++) {
-        if (nlocal<Nmemlocal) noffset_import[j]=0;
-        else noffset_import[j]=nbodies-nexport;
+        noffset_import[j]=0;
         if (j!=ThisTask) for (int k=0;k<j;k++)noffset_import[j]+=mpi_nsend[ThisTask+k*NProcs];
     }
     for (j=0;j<NProcs;j++) nbuffer[j]=0;
     for (i=nbodies-nexport;i<nbodies;i++) {
-        //now set particle ID to global index value,
-        //note that particle PID contains global particle ID value
-        //Part[i].SetID(mpi_indexlist[i]);
         //if particle belongs to group that should belong on a different mpi thread, store for broadcasting
         task=mpi_foftask[i];
         if (task!=ThisTask) {
@@ -1748,88 +1716,43 @@ Int_t MPICompileGroups(const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_t 
     Int_t i,j,start,ngroups;
     Int_t *numingroup,*groupid,**plist;
     ngroups=0;
-    //if minimizing memory load when using mpi (by adding extra routines to determine memory required)
-    //first check to see if local memory is enough to contained expected number of particles
-    //if local mem is enough, copy data from the FoFGroupDataLocal
-    if(Nmemlocal>nbodies) {
-        for (i=Noldlocal;i<nbodies;i++) {
-            Part[i]=FoFGroupDataLocal[i-Noldlocal].p;
-            //note that before used type to sort particles
-            //Part[i].SetID(i);
-            //Part[i].SetType(-FoFGroupDataLocal[i-Noldlocal].iGroup);
-            //now use id
-            Part[i].SetID(-FoFGroupDataLocal[i-Noldlocal].iGroup);
-        }
-        //used to use ID store store group id info
-        qsort(Part,nbodies,sizeof(Particle),IDCompare);
-        //determine the # of groups, their size and the current group ID
-        for (i=0,start=0;i<nbodies;i++) {
-            if (Part[i].GetID()!=Part[start].GetID()) {
-                //if group is too small set type to zero, which currently is used to store the group id
-                if ((i-start)<minsize) for (Int_t j=start;j<i;j++) Part[j].SetID(0);
-                else ngroups++;
-                start=i;
-            }
-            if (Part[i].GetID()==0) break;
-        }
-        //again resort to move untagged particles to the end.
-        qsort(Part,nbodies,sizeof(Particle),IDCompare);
-        //now adjust pfof and ids.
-        for (i=0;i<nbodies;i++) {pfof[i]=-Part[i].GetID();Part[i].SetID(i);}
-        numingroup=new Int_t[ngroups+1];
-        plist=new Int_t*[ngroups+1];
-        ngroups=1;//offset as group zero is untagged
-        for (i=0,start=0;i<nbodies;i++) {
-            if (pfof[i]!=pfof[start]) {
-                numingroup[ngroups]=i-start;
-                plist[ngroups]=new Int_t[numingroup[ngroups]];
-                for (Int_t j=start,count=0;j<i;j++) plist[ngroups][count++]=j;
-                ngroups++;
-                start=i;
-            }
-            if (pfof[i]==0) break;
-        }
-        ngroups--;
-        //for (i=0;i<nbodies;i++) mpi_idlist[i]=Part[i].GetPID();
+    for (i=Noldlocal;i<nbodies;i++) {
+        Part[i]=FoFGroupDataLocal[i-Noldlocal].p;
+        //note that before used type to sort particles
+        //now use id
+        Part[i].SetID(-FoFGroupDataLocal[i-Noldlocal].iGroup);
     }
-    else {
-        //sort local list
-        qsort(FoFGroupDataLocal, nbodies, sizeof(struct fofid_in), fof_id_cmp);
-        //determine the # of groups, their size and the current group ID
-        for (i=0,start=0;i<nbodies;i++) {
-            if (FoFGroupDataLocal[i].iGroup!=FoFGroupDataLocal[start].iGroup) {
-                if ((i-start)<minsize){
-                    for (Int_t j=start;j<i;j++) FoFGroupDataLocal[j].iGroup=0;
-                }
-                else ngroups++;
-                start=i;
-            }
-            if (FoFGroupDataLocal[i].iGroup==0) break;
+    //used to use ID store store group id info
+    qsort(Part,nbodies,sizeof(Particle),IDCompare);
+    //determine the # of groups, their size and the current group ID
+    for (i=0,start=0;i<nbodies;i++) {
+        if (Part[i].GetID()!=Part[start].GetID()) {
+            //if group is too small set type to zero, which currently is used to store the group id
+            if ((i-start)<minsize) for (Int_t j=start;j<i;j++) Part[j].SetID(0);
+            else ngroups++;
+            start=i;
         }
-        //now sort again which will put particles group then id order, and determine size of groups and their current group id;
-        qsort(FoFGroupDataLocal, nbodies, sizeof(struct fofid_in), fof_id_cmp);
-        numingroup=new Int_t[ngroups+1];
-        plist=new Int_t*[ngroups+1];
-        ngroups=1;//offset as group zero is untagged
-        for (i=0,start=0;i<nbodies;i++) {
-            if (FoFGroupDataLocal[i].iGroup!=FoFGroupDataLocal[start].iGroup) {
-                numingroup[ngroups]=i-start;
-                plist[ngroups]=new Int_t[numingroup[ngroups]];
-                for (Int_t j=start,count=0;j<i;j++) plist[ngroups][count++]=j;
-                ngroups++;
-                start=i;
-            }
-            if (FoFGroupDataLocal[i].iGroup==0) break;
-        }
-        ngroups--;
-        for (i=0;i<nbodies;i++) pfof[i]=FoFGroupDataLocal[i].iGroup;
-        //and store the particles global ids
-        for (i=0;i<nbodies;i++) {
-            Part[i]=FoFGroupDataLocal[i].p;
-            Part[i].SetID(i);
-            //mpi_idlist[i]=FoFGroupDataLocal[i].p.GetPID();
-        }
+        if (Part[i].GetID()==0) break;
     }
+    //again resort to move untagged particles to the end.
+    qsort(Part,nbodies,sizeof(Particle),IDCompare);
+    //now adjust pfof and ids.
+    for (i=0;i<nbodies;i++) {pfof[i]=-Part[i].GetID();Part[i].SetID(i);}
+    numingroup=new Int_t[ngroups+1];
+    plist=new Int_t*[ngroups+1];
+    ngroups=1;//offset as group zero is untagged
+    for (i=0,start=0;i<nbodies;i++) {
+        if (pfof[i]!=pfof[start]) {
+            numingroup[ngroups]=i-start;
+            plist[ngroups]=new Int_t[numingroup[ngroups]];
+            for (Int_t j=start,count=0;j<i;j++) plist[ngroups][count++]=j;
+            ngroups++;
+            start=i;
+        }
+        if (pfof[i]==0) break;
+    }
+    ngroups--;
+
     //reorder groups ids according to size
     ReorderGroupIDs(ngroups,ngroups,numingroup,pfof,plist);
     for (i=1;i<=ngroups;i++) delete[] plist[i];
@@ -1843,6 +1766,7 @@ Int_t MPICompileGroups(const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_t 
 }
 
 ///Similar to \ref MPICompileGroups but optimised for separate baryon search
+///\todo need to update to reflect vector implementation
 Int_t MPIBaryonCompileGroups(const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_t minsize, int iorder){
     Int_t i,j,start,ngroups;
     Int_t *numingroup,*groupid,**plist;
