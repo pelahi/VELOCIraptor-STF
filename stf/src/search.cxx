@@ -177,7 +177,8 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     //Now redistribute groups so that they are local to a processor (also orders the group ids according to size
     opt.HaloMinSize=MinNumOld;//reset minimum size
     Int_t newnbodies=MPIGroupExchange(nbodies,Part.data(),pfof);
-    //once groups are local, can free up memory
+    //once groups are local, can free up memory. Might need to increase size
+    //of vector
     if (Nmemlocal<Nlocal) {
         Part.resize(Nlocal);
         Nmemlocal=Nlocal;
@@ -188,7 +189,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     //And compile the information and remove groups smaller than minsize
     numgroups=MPICompileGroups(newnbodies,Part.data(),pfof,opt.HaloMinSize);
     //and free up some memory if vector doesn't need to be as big
-    if (Nmemlocal>Nlocal) Part.resize(Nlocal);
+    if (Nmemlocal>Nlocal) {Part.resize(Nlocal);Nmemlocal=Nlocal;}
     cout<<"MPI thread "<<ThisTask<<" has found "<<numgroups<<endl;
     //free up memory now that only need to store pfof and global ids
     totalgroups=0;
