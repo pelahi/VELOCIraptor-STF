@@ -166,6 +166,25 @@ namespace NBody
         }
     }
 
+    // SWIFT interface constructor. Copies particle properties from SWIFT particle.
+    Particle::Particle(const struct gpart *p)
+    {
+#ifndef NOMASS
+      mass = p->mass;
+#endif
+      position[0] = p->x[0];
+      position[1] = p->x[1];
+      position[2] = p->x[2];
+      velocity[0] = p->v_full[0];
+      velocity[1] = p->v_full[1];
+      velocity[2] = p->v_full[2];
+      //id=p.id;
+      type=p->type;
+      //rho=p.rho;
+      phi=p->potential;
+      pid=p->id_or_neg_offset;
+    }
+
     //    OPERATORS
     //assignment operator only carried out if not same object
     Particle& Particle::operator=(const Particle &p)

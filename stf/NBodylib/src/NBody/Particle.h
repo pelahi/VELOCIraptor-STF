@@ -13,7 +13,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <NBodyMath.h>
-
+#include <SwiftParticle.h>
 
 #ifdef USEBOOSTMPI
 #include <boost/mpi.hpp>
@@ -27,6 +27,8 @@
 
 using namespace std;
 using namespace Math;
+using namespace Swift;
+
 namespace NBody
 {
 
@@ -148,6 +150,7 @@ typedef Double_t DoublePos_t;
                 Double_t vx = 0, Double_t vy = 0, Double_t vz = 0, Int_t ID=0, int type=0, Double_t Rho=0, Double_t Phi=0, Int_t PID=0);
         Particle(Double_t Mass, Double_t *NewPos, Double_t *NewVel, Int_t ID=0, int type=0, Double_t Rho=0, Double_t Phi=0, Int_t PID=0);
         Particle(const Particle &p);
+        Particle(const struct gpart *p);
         Particle(std::istream &F);
         //No dynamic allocation, thus destructor not needed.
         ~Particle(){};
