@@ -4,10 +4,10 @@ MAKECHECK=../Makefile.config Makefile
 OBJS = $(patsubst %.cxx,%.o,$(wildcard *.cxx))
 OBJS_LIB = $(filter-out main.o,$(OBJS))
 INCL = *.h
-LIB = stflib.a
+LIB = libstf.a
 
 all : $(EXEC)
-stflib : $(LIB)
+libstf : $(LIB)
 
 $(EXEC) : $(OBJS)
 	$(C+) -o $(EXEC) $(C+FLAGS) $(OBJS) $(LFLAGS) $(C+LIBS)  

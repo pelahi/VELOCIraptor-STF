@@ -13,7 +13,7 @@ analysisclean: analysisc_
 binclean: binc_
 docclean: docc_
 allclean: stfc_ binc_ analysisc_ NBodylibc_ docc_
-stflib: NBodylib_ stflib_
+libstf: NBodylib_ libstf_
 
 CFILES = $(wildcard src/*.cxx)
 HFILES = $(wildcard src/*.h)
@@ -37,10 +37,10 @@ analysis_ : Makefile.config
 analysisc_ :
 	cd analysis; make clean
 
-stflib_:
+libstf_:
 	mkdir -p $(STFLIBDIR)
 	mkdir -p $(STFINCLUDEDIR)
-	cd src; make stflib
+	cd src; make libstf
 
 ifeq "$(wildcard doc/doxy.log)" ""
 doc: doc_
