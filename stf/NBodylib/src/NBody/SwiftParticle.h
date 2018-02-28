@@ -6,6 +6,9 @@
 #ifndef SWIFT_PARTICLE_H
 #define SWIFT_PARTICLE_H
 
+#define SWIFT_STRUCT_ALIGNMENT 32 
+#define SWIFT_STRUCT_ALIGN __attribute__((aligned(SWIFT_STRUCT_ALIGNMENT)))
+
 namespace Swift
 {
 
