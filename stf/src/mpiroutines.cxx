@@ -1240,29 +1240,6 @@ private(i)
             }
         }
     }
-    /*
-    for(j=0;j<NProcs;j++)//for(j=1;j<NProcs;j++)
-    {
-        if (j!=ThisTask)
-        {
-            sendTask = ThisTask;
-            recvTask = j;//ThisTask^j;
-            nbuffer[recvTask]=0;
-            for (int k=0;k<recvTask;k++)nbuffer[recvTask]+=mpi_nsend[ThisTask+k*NProcs];//offset on local receiving buffer
-            if(mpi_nsend[ThisTask * NProcs + recvTask] > 0 || mpi_nsend[recvTask * NProcs + ThisTask] > 0)
-            {
-                //blocking point-to-point send and receive. Here must determine the appropriate offset point in the local export buffer
-                //for sending data and also the local appropriate offset in the local the receive buffer for information sent from the local receiving buffer
-                MPI_Sendrecv(&PartDataIn[noffset[recvTask]],
-                    nsend_local[recvTask] * sizeof(Particle), MPI_BYTE,
-                    recvTask, TAG_NN_B,
-                    &PartDataGet[nbuffer[recvTask]],
-                    mpi_nsend[ThisTask+recvTask * NProcs] * sizeof(Particle),
-                    MPI_BYTE, recvTask, TAG_NN_B, MPI_COMM_WORLD, &status);
-            }
-        }
-    }
-    */
     ncount=0;for (int k=0;k<NProcs;k++)ncount+=mpi_nsend[ThisTask+k*NProcs];
     return ncount;
 }
@@ -1370,36 +1347,6 @@ void MPIBuildParticleExportBaryonSearchList(const Int_t nbodies, Particle *Part,
                 }
             }
         }
-    /*
-    for(j=0;j<NProcs;j++)//for(j=1;j<NProcs;j++)
-    {
-        if (j!=ThisTask)
-        {
-            sendTask = ThisTask;
-            recvTask = j;//ThisTask^j;//bitwise XOR ensures that recvTask cycles around sendTask
-            nbuffer[recvTask]=0;
-            for (int k=0;k<recvTask;k++)nbuffer[recvTask]+=mpi_nsend[ThisTask+k*NProcs];//offset on local receiving buffer
-            if(mpi_nsend[ThisTask * NProcs + recvTask] > 0 || mpi_nsend[recvTask * NProcs + ThisTask] > 0)
-            {
-                //blocking point-to-point send and receive. Here must determine the appropriate offset point in the local export buffer
-                //for sending data and also the local appropriate offset in the local the receive buffer for information sent from the local receiving buffer
-                //first send FOF data and then particle data
-                MPI_Sendrecv(&FoFDataIn[noffset[recvTask]],
-                    nsend_local[recvTask] * sizeof(struct fofdata_in), MPI_BYTE,
-                    recvTask, TAG_FOF_A,
-                    &FoFDataGet[nbuffer[recvTask]],
-                    mpi_nsend[ThisTask+recvTask * NProcs] * sizeof(struct fofdata_in),
-                    MPI_BYTE, recvTask, TAG_FOF_A, MPI_COMM_WORLD, &status);
-                MPI_Sendrecv(&PartDataIn[noffset[recvTask]],
-                    nsend_local[recvTask] * sizeof(Particle), MPI_BYTE,
-                    recvTask, TAG_FOF_B,
-                    &PartDataGet[nbuffer[recvTask]],
-                    mpi_nsend[ThisTask+recvTask * NProcs] * sizeof(Particle),
-                    MPI_BYTE, recvTask, TAG_FOF_B, MPI_COMM_WORLD, &status);
-            }
-        }
-    }
-    */
     }
 }
 
@@ -1510,30 +1457,6 @@ void MPIUpdateExportList(const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_
             }
         }
     }
-
-    /*
-    for(j=0;j<NProcs;j++)//for(j=1;j<NProcs;j++)
-    {
-        if (j!=ThisTask)
-        {
-            sendTask = ThisTask;
-            recvTask = j;//ThisTask^j;//bitwise XOR ensures that recvTask cycles around sendTask
-            nbuffer[recvTask]=0;
-            for (int k=0;k<recvTask;k++)nbuffer[recvTask]+=mpi_nsend[ThisTask+k*NProcs];//offset on local receiving buffer
-            if(mpi_nsend[ThisTask * NProcs + recvTask] > 0 || mpi_nsend[recvTask * NProcs + ThisTask] > 0)
-            {
-                //blocking point-to-point send and receive. Here must determine the appropriate offset point in the local export buffer
-                //for sending data and also the local appropriate offset in the local the receive buffer for information sent from the local receiving buffer
-                MPI_Sendrecv(&FoFDataIn[noffset[recvTask]],
-                    nsend_local[recvTask] * sizeof(struct fofdata_in), MPI_BYTE,
-                    recvTask, TAG_FOF_A,
-                    &FoFDataGet[nbuffer[recvTask]],
-                    mpi_nsend[ThisTask+recvTask * NProcs] * sizeof(struct fofdata_in),
-                    MPI_BYTE, recvTask, TAG_FOF_A, MPI_COMM_WORLD, &status);
-            }
-        }
-    }
-    */
 }
 
 /*! This routine searches the local particle list using the positions of the exported particles to see if any local particles
