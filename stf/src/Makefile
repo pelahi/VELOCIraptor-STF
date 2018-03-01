@@ -14,8 +14,16 @@ $(EXEC) : $(OBJS)
 	cp $(EXEC) $(STFBINDIR)
 
 $(LIB): $(INCL) $(OBJS_LIB)
+	ar -x $(NBODYLIBDIR)/libAnalysis.a
+	ar -x $(NBODYLIBDIR)/libCosmology.a
+	ar -x $(NBODYLIBDIR)/libInitCond.a
+	ar -x $(NBODYLIBDIR)/libKD.a
+	ar -x $(NBODYLIBDIR)/libMath.a
 	ar -x $(NBODYLIBDIR)/libNBody.a
-	ar r $(LIB) *.o
+	ar -x $(GSL_DIR)/lib/libgsl.a
+	ar -x $(HDF_DIR)/lib/libhdf5.a
+	ar -x $(HDF_DIR)/lib/libhdf5_cpp.a
+	ar rcs $(LIB) *.o
 	cp $(LIB) $(STFLIBDIR)
 	cp $(INCL) $(STFINCLUDEDIR)
 
