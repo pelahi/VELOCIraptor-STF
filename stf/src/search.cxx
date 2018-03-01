@@ -6,6 +6,17 @@
 
 #include "stf.h"
 
+//extern "C" void InvokeVelociraptor(const int num_gravity_parts, const int num_hydro_parts, struct gpart *gravity_parts, struct part *hydro_parts, double mpi_domain [3][2]);
+extern "C" void InvokeVelociraptor();
+
+void InvokeVelociraptor()
+{
+    Particle a;
+    a.SetID(666);
+    cout<<"Running VELOCIraptor "<< endl;
+    cout<<"VELOCIraptor finished!"<<endl;
+}
+
 /// \name Searches full system
 //@{
 
