@@ -12,61 +12,71 @@
 namespace Swift
 {
 
-  /* Gravity particle. */
-  struct gpart {
+    /* The different types of particles a #gpart can link to.
+       Note we use the historical values from Gadget for these fields. */
+    enum part_type {
+        swift_type_gas = 0,
+        swift_type_dark_matter = 1,
+        swift_type_star = 4,
+        swift_type_black_hole = 5,
+        swift_type_count
+    };
 
-    /* Particle ID. If negative, it is the negative offset of the #part with
-       which this gpart is linked. */
-    long long id_or_neg_offset;
+    /* Gravity particle. */
+    struct gpart {
 
-    /* Particle position. */
-    double x[3];
+        /* Particle ID. If negative, it is the negative offset of the #part with
+           which this gpart is linked. */
+        long long id_or_neg_offset;
 
-    /* Offset between current position and position at last tree rebuild. */
-    float x_diff[3];
+        /* Particle position. */
+        double x[3];
 
-    /* Particle velocity. */
-    float v_full[3];
+        /* Offset between current position and position at last tree rebuild. */
+        float x_diff[3];
 
-    /* Particle acceleration. */
-    float a_grav[3];
+        /* Particle velocity. */
+        float v_full[3];
 
-    /* Particle mass. */
-    float mass;
+        /* Particle acceleration. */
+        float a_grav[3];
 
-    /* Gravitational potential */
-    float potential;
+        /* Particle mass. */
+        float mass;
 
-    /* Softening length */
-    float epsilon;
+        /* Gravitational potential */
+        float potential;
 
-    /* Time-step length */
-    //timebin_t time_bin;
+        /* Softening length */
+        float epsilon;
 
-    /* Type of the #gpart (DM, gas, star, ...) */
-    enum part_type type;
+        /* Time-step length */
+        //timebin_t time_bin;
 
-//#ifdef SWIFT_DEBUG_CHECKS
-//
-//    /* Numer of gparts this gpart interacted with */
-//    long long num_interacted;
-//
-//    /* Time of the last drift */
-//    integertime_t ti_drift;
-//
-//    /* Time of the last kick */
-//    integertime_t ti_kick;
-//
-//#endif
-//
-//#ifdef SWIFT_GRAVITY_FORCE_CHECKS
-//
-//    /* Brute-force particle acceleration. */
-//    double a_grav_exact[3];
-//
-//#endif
+        /* Type of the #gpart (DM, gas, star, ...) */
+        enum part_type type;
 
-  } SWIFT_STRUCT_ALIGN;
+        //#ifdef SWIFT_DEBUG_CHECKS
+        //
+        //    /* Numer of gparts this gpart interacted with */
+        //    long long num_interacted;
+        //
+        //    /* Time of the last drift */
+        //    integertime_t ti_drift;
+        //
+        //    /* Time of the last kick */
+        //    integertime_t ti_kick;
+        //
+        //#endif
+        //
+        //#ifdef SWIFT_GRAVITY_FORCE_CHECKS
+        //
+        //    /* Brute-force particle acceleration. */
+        //    double a_grav_exact[3];
+        //
+        //#endif
+
+    } SWIFT_STRUCT_ALIGN;
 
 }
 
