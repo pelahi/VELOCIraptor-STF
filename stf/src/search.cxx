@@ -6,56 +6,6 @@
 
 #include "stf.h"
 
-//extern "C" void InvokeVelociraptor(const int num_gravity_parts, const int num_hydro_parts, struct gpart *gravity_parts, struct part *hydro_parts, double mpi_domain [3][2]);
-extern "C" void InitVelociraptor();
-extern "C" void InvokeVelociraptor(const int num_gravity_parts, struct gpart *gravity_parts);
-
-Options stfOpt;
-
-void InitVelociraptor()
-{
-    
-    cout<<"Initialising VELOCIraptor..."<< endl;
-    
-    stfOpt.pname = "stf_input.cfg"; 
-    stfOpt.outname = "stf_output.txt"; 
-    
-    cout<<"Reading VELOCIraptor config file..."<< endl;
-    GetParamFile(stfOpt);
-
-    cout<<"Finished initialising VELOCIraptor"<<endl;
-}
-
-void InvokeVelociraptor(const int num_gravity_parts, struct gpart *gravity_parts) {
-
-    Particle *parts;
-    parts=new Particle[num_gravity_parts];
-
-    cout<<"Copying particle data..."<< endl;
-    for(int i=0; i<num_gravity_parts; i++) {
-        parts[i] = Particle(&gravity_parts[i]);
-    
-        //cout<<"Particle " << i << " ID: " << parts[i].GetPID() << ", gpart ID: " << gravity_parts[i].id_or_neg_offset << endl;
-
-    }
-    cout<<"Finished copying particle data."<< endl;
-    
-#ifdef USEMPI
-    //find out how big the SPMD world is
-    MPI_Comm_size(MPI_COMM_WORLD,&NProcs);
-    mpi_domain=new MPI_Domain[NProcs];
-#endif
-
-    Int_t *pfof, ngroup;
-            
-    pfof=SearchFullSet(stfOpt,num_gravity_parts,parts,ngroup);
-
-    cout<<"Finished searching for haloes, no. of groups: " << ngroup << ". Freeing particle data."<< endl;
-
-    delete[] parts;
-    
-    cout<<"VELOCIraptor returning."<< endl;
-}
 
 /// \name Searches full system
 //@{

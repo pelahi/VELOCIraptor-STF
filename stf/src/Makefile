@@ -10,7 +10,7 @@ all : $(EXEC)
 libstf : $(LIB)
 
 $(EXEC) : $(OBJS)
-	$(C+) -o $(EXEC) $(C+FLAGS) $(OBJS) $(LFLAGS) $(C+LIBS)  
+	$(C+) -o $(EXEC) $(C+FLAGS) $(OBJS) $(LFLAGS) $(C+LIBS)
 	cp $(EXEC) $(STFBINDIR)
 
 $(LIB): $(INCL) $(OBJS_LIB)
@@ -26,9 +26,10 @@ $(LIB): $(INCL) $(OBJS_LIB)
 	ar rcs $(LIB) *.o
 	cp $(LIB) $(STFLIBDIR)
 	cp $(INCL) $(STFINCLUDEDIR)
+	rm *.o
 
-%.o: %.cxx $(INCL) $(MAKECHECK) $(LIBCHECK) 
-	$(C+) $(C+FLAGS) $(IFLAGS) -c -o $@ $< 
+%.o: %.cxx $(INCL) $(MAKECHECK) $(LIBCHECK)
+	$(C+) $(C+FLAGS) $(IFLAGS) -c -o $@ $<
 
 .PHONY : clean
 
