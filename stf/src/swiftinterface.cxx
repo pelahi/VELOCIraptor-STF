@@ -110,7 +110,7 @@ void InvokeVelociraptor(const int num_gravity_parts, struct gpart *gravity_parts
     Nmemlocal*=(1+libvelociraptorOpt.mpipartfac);
     parts=new Particle[Nmemlocal];
     cout<<"Copying particle data..."<< endl;
-    for(auto i=0; i<num_gravity_parts; i++) {
+    for(auto i=0; i<Nlocal; i++) {
         parts[i] = Particle(gravity_parts[i], libvelociraptorOpt.L, libvelociraptorOpt.V, libvelociraptorOpt.M, libvelociraptorOpt.icosmologicalin,libvelociraptorOpt.a,libvelociraptorOpt.h);
     }
     cout<<"Finished copying particle data."<< endl;
@@ -119,10 +119,23 @@ void InvokeVelociraptor(const int num_gravity_parts, struct gpart *gravity_parts
 #endif
     Nlocal=num_gravity_parts;
     cout<<"TIME::"<<ThisTask<<" took "<<time1<<" to load "<<Nlocal<<" of "<<Ntotal<<endl;
-    cout<<ThisTask<<" There are "<<Nlocal<<" particles and have allocated enough memory for "<<Nlocal<<" requiring "<<Nlocal*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
+    cout<<ThisTask<<" There are "<<Nlocal<<" particles and have allocated enough memory for "<<Nmemlocal<<" requiring "<<Nmemlocal*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
     //if (libvelociraptorOpt.iBaryonSearch>0) cout<<ThisTask<<"There are "<<Nlocalbaryon[0]<<" baryon particles and have allocated enough memory for "<<Nmemlocalbaryon<<" requiring "<<Nmemlocalbaryon*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
     cout<<ThisTask<<" will also require additional memory for FOF algorithms and substructure search. Largest mem needed for preliminary FOF search. Rough estimate is "<<Nlocal*(sizeof(Int_tree_t)*8)/1024./1024./1024.<<"GB of memory"<<endl;
-
+    Coordinate minc,maxc,avec;
+    for (auto j=0;j<3;j++) {maxc[j]=0;minc[j]=libvelociraptorOpt.p;avec[j]=0;}
+    for(auto i=0; i<Nlocal; i++) {
+        for (auto j=0;j<3;j++) {
+            if (parts[i].GetPosition(j)>maxc[j]) maxc[j]=parts[i].GetPosition(j);
+            if (parts[i].GetPosition(j)<minc[j]) minc[j]=parts[i].GetPosition(j);
+            avec[j]+=parts[i].GetPosition(j);
+        }
+    }
+    avec=avec*(1.0/(double)Nlocal);
+    cout<<"Stats of positions (min,ave,max)"<<endl;
+    for (auto j=0;j<3;j++) {
+        cout<<j<<" : "<<minc[j]<<", "<<avec[j]<<", "<<maxc[j]<<endl;
+    }
     time1=MyGetTime();
     pfof=SearchFullSet(libvelociraptorOpt,Nlocal,parts,ngroup);
     time1=MyGetTime()-time1;
