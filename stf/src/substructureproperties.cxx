@@ -2675,6 +2675,12 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin)
 #ifdef USEOPENMP
 }
 #endif
+    }//end of if calculate potential
+#ifdef SWIFTINTERFACE
+    else {
+        for (i=1;i<=ngroup;i++) if (numingroup[i]<ompunbindnum) for (j=0;j<numingroup[i];j++) Part[j+noffset[i]].SetPotential(Part[j+noffset[i]].GetGravityPotential());
+    }
+#endif
 
         //once potential is calculated, iff using velocity around deepest potential well NOT cm
     if (opt.uinfo.cmvelreftype==POTREF) {
@@ -2717,14 +2723,6 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin)
 }
 #endif
     }
-
-    }//end of if calculate potential
-    #ifdef SWIFTINTERFACE
-    else {
-        for (i=1;i<=ngroup;i++) for (j=0;j<numingroup[i];j++) Part[j+noffset[i]].SetPotential(Part[j+noffset[i]].GetGravityPotential());
-
-    }
-    #endif
 
     //then calculate binding energy and store in potential
 #ifdef USEOPENMP
@@ -2773,6 +2771,7 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid)
 }
 #endif
 
+    if (opt.uinfo.icalculatepotential) {
     //loop for large groups with tree calculation
     for (i=1;i<=ngroup;i++) if (numingroup[i]>=ompunbindnum) {
         storepid=new Int_t[numingroup[i]];
@@ -2788,6 +2787,12 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid)
         }
         delete[] storepid;
     }
+    }//end of if calculate potential
+    #ifdef SWIFTINTERFACE
+        else {
+            for (i=1;i<=ngroup;i++) if (numingroup[i]>=ompunbindnum) for (j=0;j<numingroup[i];j++) Part[j+noffset[i]].SetPotential(Part[j+noffset[i]].GetGravityPotential());
+        }
+    #endif
 
     //if using POTREF, most computations involve sorts, so parallize over groups
     if (opt.uinfo.cmvelreftype==POTREF) {
