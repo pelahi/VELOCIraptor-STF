@@ -45,6 +45,19 @@ typedef float DoublePos_t;
 #else
 typedef Double_t DoublePos_t;
 #endif
+///define ID (index) type, whether signed or unsigned Int_t
+#ifdef PARTICLEUIDS
+typedef UInt_t PARTIDTYPE;
+#else
+typedef Int_t PARTIDTYPE;
+#endif
+
+///define permenant (particle) ID type, whether signed or unsigned Int_t
+#ifdef PARTICLEUPIDS
+typedef UInt_t PARTPIDTYPE;
+#else
+typedef Int_t PARTPIDTYPE;
+#endif
 //@}
 
 /*!
@@ -77,16 +90,8 @@ typedef Double_t DoublePos_t;
         ///\name identifiers
         //@{
         //extra particle identifier, useful as it is not changed by KDTree
-#ifdef LONGPIDS
-        UInt_t pid;
-#else
-        Int_t pid;
-#endif
-#ifdef LONGIDS
-        UInt_t id;
-#else
-        Int_t id;
-#endif
+        PARTPIDTYPE pid;
+        PARTIDTYPE id;
         //int gid;
         int type;
         //@}
@@ -145,8 +150,8 @@ typedef Double_t DoublePos_t;
         /// \name Constructors & Destructors
         //@{
         Particle(Double_t Mass = 0, Double_t x = 0, Double_t y = 0, Double_t z = 0,
-                Double_t vx = 0, Double_t vy = 0, Double_t vz = 0, Int_t ID=0, int type=0, Double_t Rho=0, Double_t Phi=0, Int_t PID=0);
-        Particle(Double_t Mass, Double_t *NewPos, Double_t *NewVel, Int_t ID=0, int type=0, Double_t Rho=0, Double_t Phi=0, Int_t PID=0);
+                Double_t vx = 0, Double_t vy = 0, Double_t vz = 0, PARTIDTYPE ID=0, int type=0, Double_t Rho=0, Double_t Phi=0, PARTPIDTYPE PID=0);
+        Particle(Double_t Mass, Double_t *NewPos, Double_t *NewVel, PARTIDTYPE ID=0, int type=0, Double_t Rho=0, Double_t Phi=0, PARTPIDTYPE PID=0);
         Particle(const Particle &p);
         Particle(std::istream &F);
         //No dynamic allocation, thus destructor not needed.
@@ -265,20 +270,10 @@ typedef Double_t DoublePos_t;
             else velocity[i-3]=x;
         }
 
-#ifdef LONGPIDS
-        UInt_t GetPID() {return pid;}
-        void SetPID(const UInt_t &i){pid=i;}
-#else
-        Int_t GetPID() {return pid;}
-        void SetPID(const Int_t &i){pid=i;}
-#endif
-#ifdef LONGIDS
-        UInt_t GetID() {return id;}
-        void SetID(const UInt_t &i){id=i;}
-#else
-        Int_t GetID() {return id;}
-        void SetID(Int_t i){id=i;}
-#endif
+        PARTPIDTYPE GetPID() {return pid;}
+        void SetPID(const PARTPIDTYPE &i){pid=i;}
+        PARTIDTYPE GetID() {return id;}
+        void SetID(const PARTIDTYPE &i){id=i;}
         int GetType() {return type;}
         void SetType(int i){type=i;}
         Double_t GetDensity() {return rho;}
@@ -463,9 +458,9 @@ typedef Double_t DoublePos_t;
         /// \name Constructors & Destructors
         //@{
         GasParticle(Double_t Mass = 0, Double_t x = 0, Double_t y = 0, Double_t z = 0,
-                Double_t vx = 0, Double_t vy = 0, Double_t vz = 0, Int_t ID=0, int type=0, Double_t Rho=0, Double_t Phi=0,
+                Double_t vx = 0, Double_t vy = 0, Double_t vz = 0, PARTIDTYPE ID=0, int type=0, Double_t Rho=0, Double_t Phi=0,
                 Double_t Temp=0, Double_t Ui=0, Double_t Pi=0, Double_t NE=0,Double_t NH0=0,Double_t Zi=0, Double_t SFR=0,Double_t LGS=0);
-        GasParticle(Double_t Mass, Double_t *NewPos, Double_t *NewVel, Int_t ID=0, int type=0, Double_t Rho=0, Double_t Phi=0,
+        GasParticle(Double_t Mass, Double_t *NewPos, Double_t *NewVel, PARTIDTYPE ID=0, int type=0, Double_t Rho=0, Double_t Phi=0,
                     Double_t Temp=0, Double_t Ui=0, Double_t Pi=0, Double_t NE=0,Double_t NH0=0,Double_t Zi=0, Double_t SFR=0,Double_t LGS=0);
         GasParticle(const GasParticle &p);
         //@}
@@ -541,8 +536,8 @@ typedef Double_t DoublePos_t;
         /// \name Constructors & Destructors
         //@{
         StarParticle(Double_t Mass = 0, Double_t x = 0, Double_t y = 0, Double_t z = 0,
-                Double_t vx = 0, Double_t vy = 0, Double_t vz = 0, Int_t ID=0, int type=0, Double_t Rho=0, Double_t Phi=0, Double_t TF=0, Double_t Zi=0);
-        StarParticle(Double_t Mass, Double_t *NewPos, Double_t *NewVel, Int_t ID=0, int type=0, Double_t Rho=0, Double_t Phi=0, Double_t TF=0, Double_t Zi=0);
+                Double_t vx = 0, Double_t vy = 0, Double_t vz = 0, PARTIDTYPE ID=0, int type=0, Double_t Rho=0, Double_t Phi=0, Double_t TF=0, Double_t Zi=0);
+        StarParticle(Double_t Mass, Double_t *NewPos, Double_t *NewVel, PARTIDTYPE ID=0, int type=0, Double_t Rho=0, Double_t Phi=0, Double_t TF=0, Double_t Zi=0);
         StarParticle(const StarParticle &p);
         //@}
 

@@ -44,6 +44,11 @@ LONGINT="on"
 NOMASS="on"
 #use single precision to store positions,velocities, and possibly other internal properties
 SINGLEPARTICLEPRECISION="on"
+#use unsigned ints (size deteremined by whether using long int or not) to store permanent 'particle' ids
+#UNSIGNEDPARTICLEPIDS="on"
+#use unsigned ints (size deteremined by whether using long int or not) to store ids (index value). Note that velociraptor
+#uses negative index values for sorting purposes so ONLY ENABLE if library to be used with other codes
+#UNSIGNEDPARTICLEIDS="on"
 #for hydro simulations on can turn on several extra data structures in the Particle class, used when compiling the NBody library
 #activate gas
 USEGAS="on"
@@ -225,6 +230,12 @@ endif
 ifeq ($(SINGLEPARTICLEPRECISION),"on")
     COMPILEFLAGS+= -DLOWPRECISIONPOS
 endif
+ifeq ($(UNSIGNEDPARTICLEPIDS),"on")
+    COMPILEFLAGS+= -DPARTICLEUPIDS
+endif
+ifeq ($(UNSIGNEDPARTICLEIDS),"on")
+    COMPILEFLAGS+= -DPARTICLEUIDS
+endif
 ifeq ($(LARGEKDTREE),"on")
     COMPILEFLAGS+= -DLARGETREE
 endif
@@ -357,6 +368,7 @@ COMPILEFLAGS+= $(HYDROFLAGS)
 #===========================================
 STFDIR = $(shell pwd | awk -F 'stf' '{$$2="";print $$1}')stf/
 STFBINDIR = $(STFDIR)/bin/
+STFLIBDIR = $(STFDIR)/lib/
 STFINCLUDEDIR = $(STFDIR)/include/
 DOCDIR = $(STFDIR)/doc/
 EXECBASENAME = stf

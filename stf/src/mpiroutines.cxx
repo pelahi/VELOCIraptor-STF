@@ -1774,7 +1774,6 @@ Int_t MPIGroupExchange(const Int_t nbodies, Particle *&Part, Int_t *&pfof){
                 }
                 numsendrecv=max(nsendchunks,nrecvchunks);
                 sendoffset=recvoffset=0;
-                cout<<ThisTask<<" sending to "<<recvTask<<" in "<<numsendrecv<<" "<<nsendchunks<<" "<<nrecvchunks<<endl;
                 for (auto ichunk=0;ichunk<numsendrecv;ichunk++)
                 {
                     MPI_Sendrecv(&FoFGroupDataExport[noffset_export[recvTask]+sendoffset],
