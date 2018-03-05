@@ -137,6 +137,16 @@ void InvokeVelociraptor(const int num_gravity_parts, struct gpart *gravity_parts
     for (auto j=0;j<3;j++) {
         cout<<j<<" : "<<minc[j]<<", "<<avec[j]<<", "<<maxc[j]<<endl;
     }
+    Double_t minphi,maxphi,avephi;
+    minphi=1e16;maxphi=-1e16;avephi=0;
+    for(auto i=0; i<Nlocal; i++) {
+        if (parts[i].GetGravityPotential()>maxphi) maxphi=parts[i].GetGravityPotential();
+        if (parts[i].GetGravityPotential()<minphi) minphi=parts[i].GetGravityPotential();
+        avec+=parts[i].GetGravityPotential();
+    }
+    avephi=avephi*(1.0/(double)Nlocal);
+    cout<<"Stats of potential "<<minphi<<" "<<maxphi<<" "<<avephi<<endl;
+
     time1=MyGetTime();
     pfof=SearchFullSet(libvelociraptorOpt,Nlocal,parts,ngroup);
     time1=MyGetTime()-time1;
