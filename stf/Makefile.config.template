@@ -161,15 +161,15 @@ endif
 #===========================================
 ifeq ($(SYSTEM),"intel-standard")
     C+ = icc -Kc++
-    COMPILEFLAGS = -O2 -std=c++14
+    COMPILEFLAGS = -O3 -std=c++17 -fPIC
 endif
 ifeq ($(SYSTEM),"gcc-standard")
     C+ = g++
-    COMPILEFLAGS = -O2 -std=c++14
+    COMPILEFLAGS = -O3 -std=c++17 -fPIC
 endif
 ifeq ($(SYSTEM),"cray")
     C+ = CC
-    COMPILEFLAGS = -O2 -std=c++14
+    COMPILEFLAGS = -O3 -std=c++17 -fPIC
 endif
 
 #===========================================

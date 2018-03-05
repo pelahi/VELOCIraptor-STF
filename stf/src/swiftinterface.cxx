@@ -53,9 +53,11 @@ void InitVelociraptor(char* configname, char* outputname, cosmoinfo c, unitinfo 
     libvelociraptorOpt.p=s.period;
     libvelociraptorOpt.zoomlowmassdm=s.zoomhigresolutionmass;
     libvelociraptorOpt.icosmologicalin=s.icosmologicalsim;
+    libvelociraptorOpt.ellxscale=s.interparticlespacing;
+    libvelociraptorOpt.uinfo.eps*=libvelociraptorOpt.ellxscale;
     if (libvelociraptorOpt.icosmologicalin) {
-        libvelociraptorOpt.ellxscale=s.interparticlespacing;
-        libvelociraptorOpt.uinfo.eps*=libvelociraptorOpt.ellxscale;
+        libvelociraptorOpt.ellxscale*=libvelociraptorOpt.a;
+        libvelociraptorOpt.uinfo.eps*=libvelociraptorOpt.a;
         double Hubble=libvelociraptorOpt.h*libvelociraptorOpt.H*sqrt((1-libvelociraptorOpt.Omega_m-libvelociraptorOpt.Omega_Lambda)*pow(libvelociraptorOpt.a,-2.0)+libvelociraptorOpt.Omega_m*pow(libvelociraptorOpt.a,-3.0)+libvelociraptorOpt.Omega_Lambda);
         libvelociraptorOpt.rhobg=3.*Hubble*Hubble/(8.0*M_PI*libvelociraptorOpt.G)*libvelociraptorOpt.Omega_m;
     }
