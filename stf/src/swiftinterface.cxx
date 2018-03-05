@@ -72,6 +72,7 @@ void InitVelociraptor(char* configname, char* outputname, cosmoinfo c, unitinfo 
     }
     libvelociraptorOpt.uinfo.icalculatepotential=false;
     cout<<"Finished initialising VELOCIraptor"<<endl;
+    if (libvelociraptorOpt.HaloMinSize==-1) libvelociraptorOpt.HaloMinSize=libvelociraptorOpt.MinSize;
 
     //write velociraptor info
     WriteVELOCIraptorConfig(libvelociraptorOpt);
