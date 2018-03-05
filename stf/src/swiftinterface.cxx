@@ -9,6 +9,13 @@ Options libvelociraptorOpt;
 void InitVelociraptor(char* configname, char* outputname, cosmoinfo c, unitinfo u, siminfo s)
 {
 
+#ifdef USEMPI
+    //find out how big the SPMD world is
+    MPI_Comm_size(MPI_COMM_WORLD,&NProcs);
+    mpi_domain=new MPI_Domain[NProcs];
+    //and this processes' rank is
+    MPI_Comm_rank(MPI_COMM_WORLD,&ThisTask);
+#endif
     cout<<"Initialising VELOCIraptor..."<< endl;
 
     libvelociraptorOpt.pname = configname;
@@ -17,13 +24,14 @@ void InitVelociraptor(char* configname, char* outputname, cosmoinfo c, unitinfo 
     cout<<"Reading VELOCIraptor config file..."<< endl;
     GetParamFile(libvelociraptorOpt);
     cout<<"Setting cosmology, units, sim stuff "<<endl;
-    ///set units
-    libvelociraptorOpt.lengthtokpc=u.lengthtokpc;
-    libvelociraptorOpt.velocitytokms=u.velocitytokms;
-    libvelociraptorOpt.masstosolarmass=u.masstosolarmass;
-    libvelociraptorOpt.L=1.0;
-    libvelociraptorOpt.M=1.0;
-    libvelociraptorOpt.V=1.0;
+    ///set units, here idea is to convert internal units so that have kpc, km/s, solar mass
+    libvelociraptorOpt.lengthtokpc=1.0;
+    libvelociraptorOpt.velocitytokms=1.0;
+    libvelociraptorOpt.masstosolarmass=1.0;
+    libvelociraptorOpt.L=u.lengthtokpc;
+    libvelociraptorOpt.M=u.masstosolarmass;
+    libvelociraptorOpt.V=u.velocitytokms;
+    ///these should be in units of kpc, km/s, and solar mass
     libvelociraptorOpt.G=u.gravity;
     libvelociraptorOpt.H=u.hubbleunit;
     ///set cosmology
@@ -60,36 +68,119 @@ void InitVelociraptor(char* configname, char* outputname, cosmoinfo c, unitinfo 
         libvelociraptorOpt.ellxscale*=libvelociraptorOpt.a;
         libvelociraptorOpt.uinfo.eps*=libvelociraptorOpt.a;
     }
+    libvelociraptorOpt.uinfo.icalculatepotential=false;
     cout<<"Finished initialising VELOCIraptor"<<endl;
+
+    //write velociraptor info
+    WriteVELOCIraptorConfig(libvelociraptorOpt);
+    WriteSimulationInfo(libvelociraptorOpt);
+    WriteUnitInfo(libvelociraptorOpt);
+
 }
 
 void InvokeVelociraptor(const int num_gravity_parts, struct gpart *gravity_parts) {
-
-    Particle *parts;
-    parts=new Particle[num_gravity_parts];
-
-    cout<<"Copying particle data..."<< endl;
-    for(int i=0; i<num_gravity_parts; i++) {
-        parts[i] = Particle(&gravity_parts[i]);
-
-        //cout<<"Particle " << i << " ID: " << parts[i].GetPID() << ", gpart ID: " << gravity_parts[i].id_or_neg_offset << endl;
-
-    }
-    cout<<"Finished copying particle data."<< endl;
-
-#ifdef USEMPI
-    //find out how big the SPMD world is
-    MPI_Comm_size(MPI_COMM_WORLD,&NProcs);
-    mpi_domain=new MPI_Domain[NProcs];
+#ifndef USEMPI
+    int ThisTask=0;
+    int NProcs=1;
+    int Nlocal, Ntotal, Nmemlocal;
+#endif
+    int nthreads;
+#ifdef USEOPENMP
+#pragma omp parallel
+{
+    if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
+}
+#else
+    nthreads=1;
 #endif
 
-    Int_t *pfof, ngroup;
+    Particle *parts;
+    Int_t *pfof,*numingroup,**pglist;
+    Int_t ngroup, nhalos;
+    //Int_t nbodies,nbaryons,ndark;
+    //KDTree *tree;
+    //to store information about the group
+    PropData *pdata=NULL,*pdatahalos=NULL;
+    double time1,time2;
 
-    pfof=SearchFullSet(libvelociraptorOpt,num_gravity_parts,parts,ngroup);
 
-    cout<<"Finished searching for haloes, no. of groups: " << ngroup << ". Freeing particle data."<< endl;
+    Nlocal=Nmemlocal=num_gravity_parts;
+    Nmemlocal*=(1+libvelociraptorOpt.mpipartfac);
+    parts=new Particle[Nmemlocal];
+    cout<<"Copying particle data..."<< endl;
+    for(auto i=0; i<num_gravity_parts; i++) {
+        parts[i] = Particle(gravity_parts[i], libvelociraptorOpt.L, libvelociraptorOpt.V, libvelociraptorOpt.M, libvelociraptorOpt.icosmologicalin,libvelociraptorOpt.a,libvelociraptorOpt.h);
+    }
+    cout<<"Finished copying particle data."<< endl;
+#ifdef USEMPI
+    MPI_Allreduce(&num_gravity_parts, &Ntotal, 1, MPI_Int_t, MPI_SUM, MPI_COMM_WORLD);
+#endif
+    Nlocal=num_gravity_parts;
+    cout<<"TIME::"<<ThisTask<<" took "<<time1<<" to load "<<Nlocal<<" of "<<Ntotal<<endl;
+    cout<<ThisTask<<" There are "<<Nlocal<<" particles and have allocated enough memory for "<<Nlocal<<" requiring "<<Nlocal*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
+    //if (libvelociraptorOpt.iBaryonSearch>0) cout<<ThisTask<<"There are "<<Nlocalbaryon[0]<<" baryon particles and have allocated enough memory for "<<Nmemlocalbaryon<<" requiring "<<Nmemlocalbaryon*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
+    cout<<ThisTask<<" will also require additional memory for FOF algorithms and substructure search. Largest mem needed for preliminary FOF search. Rough estimate is "<<Nlocal*(sizeof(Int_tree_t)*8)/1024./1024./1024.<<"GB of memory"<<endl;
+
+    time1=MyGetTime();
+    pfof=SearchFullSet(libvelociraptorOpt,Nlocal,parts,ngroup);
+    time1=MyGetTime()-time1;
+    cout<<"TIME::"<<ThisTask<<" took "<<time1<<" to search "<<Nlocal<<" with "<<nthreads<<endl;
+    nhalos=ngroup;
+    //if caculating inclusive halo masses, then for simplicity, I assume halo id order NOT rearranged!
+    //this is not necessarily true if baryons are searched for separately.
+    if (libvelociraptorOpt.iInclusiveHalo) {
+        pdatahalos=new PropData[nhalos+1];
+        Int_t *numinhalos=BuildNumInGroup(Nlocal, nhalos, pfof);
+        Int_t *sortvalhalos=new Int_t[Nlocal];
+        Int_t *originalID=new Int_t[Nlocal];
+        for (Int_t i=0;i<Nlocal;i++) {sortvalhalos[i]=pfof[i]*(pfof[i]>0)+Nlocal*(pfof[i]==0);originalID[i]=parts[i].GetID();parts[i].SetID(i);}
+        Int_t *noffsethalos=BuildNoffset(Nlocal, parts, nhalos, numinhalos, sortvalhalos);
+        GetInclusiveMasses(libvelociraptorOpt, Nlocal, parts, nhalos, pfof, numinhalos, pdatahalos, noffsethalos);
+        qsort(parts,Nlocal,sizeof(Particle),IDCompare);
+        delete[] numinhalos;
+        delete[] sortvalhalos;
+        delete[] noffsethalos;
+        for (Int_t i=0;i<Nlocal;i++) parts[i].SetID(originalID[i]);
+        delete[] originalID;
+    }
+
+    //now search for substructure
+    if (libvelociraptorOpt.iSubSearch) {
+        cout<<"Searching subset"<<endl;
+        time1=MyGetTime();
+        //if groups have been found (and localized to single MPI thread) then proceed to search for subsubstructures
+        SearchSubSub(libvelociraptorOpt, Nlocal, parts, pfof,ngroup,nhalos,pdatahalos);
+        time1=MyGetTime()-time1;
+        cout<<"TIME::"<<ThisTask<<" took "<<time1<<" to search for substructures "<<Nlocal<<" with "<<nthreads<<endl;
+    }
+    pdata=new PropData[ngroup+1];
+    //if inclusive halo mass required
+    if (libvelociraptorOpt.iInclusiveHalo && ngroup>0) {
+        CopyMasses(nhalos,pdatahalos,pdata);
+        delete[] pdatahalos;
+    }
+    //need to add baryon interface
+
+    //get mpi local hierarchy
+    Int_t *nsub,*parentgid, *uparentgid,*stype;
+    nsub=new Int_t[ngroup+1];
+    parentgid=new Int_t[ngroup+1];
+    uparentgid=new Int_t[ngroup+1];
+    stype=new Int_t[ngroup+1];
+    Int_t nhierarchy=GetHierarchy(libvelociraptorOpt,ngroup,nsub,parentgid,uparentgid,stype);
+    CopyHierarchy(libvelociraptorOpt,pdata,ngroup,nsub,parentgid,uparentgid,stype);
+
+    //calculate data and output
+    numingroup=BuildNumInGroup(Nlocal, ngroup, pfof);
+    pglist=SortAccordingtoBindingEnergy(libvelociraptorOpt,Nlocal,parts,ngroup,pfof,numingroup,pdata);//alters pglist so most bound particles first
+    WriteProperties(libvelociraptorOpt,ngroup,pdata);
+    WriteGroupCatalog(libvelociraptorOpt, ngroup, numingroup, pglist, parts);
+    for (Int_t i=1;i<=ngroup;i++) delete[] pglist[i];
+    delete[] pglist;
 
     delete[] parts;
+
+
 
     cout<<"VELOCIraptor returning."<< endl;
 }

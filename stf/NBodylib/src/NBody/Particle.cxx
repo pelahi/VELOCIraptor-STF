@@ -144,6 +144,9 @@ namespace NBody
             rho=p.rho;
             phi=p.phi;
             pid=p.pid;
+#ifdef SWIFTINTERFACE
+            gravityphi=p.gravityphi;
+#endif
 #ifdef GASON
             u=p.u;
             sphden=p.sphden;
@@ -167,22 +170,32 @@ namespace NBody
     }
 
     // SWIFT interface constructor. Copies particle properties from SWIFT particle.
-    Particle::Particle(const struct gpart *p)
+    Particle::Particle(const struct gpart &p, double lscale, double vscale, double mscale, bool icosmological, double a, double h)
     {
 #ifndef NOMASS
-      mass = p->mass;
+      mass = p.mass;
 #endif
-      position[0] = p->x[0];
-      position[1] = p->x[1];
-      position[2] = p->x[2];
-      velocity[0] = p->v_full[0];
-      velocity[1] = p->v_full[1];
-      velocity[2] = p->v_full[2];
+      position[0] = p.x[0];
+      position[1] = p.x[1];
+      position[2] = p.x[2];
+      velocity[0] = p.v_full[0];
+      velocity[1] = p.v_full[1];
+      velocity[2] = p.v_full[2];
+      if (icosmological) {
+          lscale*=a;
+          vscale*=sqrt(a);
+      }
+      mass*=mscale;
+      for (auto i=0;i<3;i++) velocity[i]*=vscale;
+      for (auto i=0;i<3;i++) position[i]*=lscale;
       //id=p.id;
-      type=p->type;
+      type=p.type;
       //rho=p.rho;
-      phi=p->potential;
-      pid=p->id_or_neg_offset;
+#ifdef SWIFTINTERFACE
+        ///\todo does this need to be converted for cosmology as well ? and unit conversion
+      gravityphi=p.potential;
+#endif
+      pid=p.id_or_neg_offset;
     }
 
     //    OPERATORS
@@ -205,6 +218,9 @@ namespace NBody
             rho=p.rho;
             phi=p.phi;
             pid=p.pid;
+#ifdef SWIFTINTERFACE
+            gravityphi=p.gravityphi;
+#endif
 #ifdef GASON
             u=p.u;
             sphden=p.sphden;
@@ -341,7 +357,7 @@ namespace NBody
 
 
     // Copy constructor
-    GasParticle::GasParticle(const GasParticle &p) : Particle::Particle((Particle)p) 
+    GasParticle::GasParticle(const GasParticle &p) : Particle::Particle((Particle)p)
     {
         if (this!=&p) {
 #ifndef NOMASS
@@ -397,7 +413,7 @@ namespace NBody
         return *this;
     }
 
-    
+
     StarParticle::StarParticle(Double_t Mass, Double_t x, Double_t y, Double_t z,
                         Double_t vx, Double_t vy, Double_t vz, Int_t ID, int Type, Double_t Rho, Double_t Phi, Double_t TF, Double_t Zi): Particle::Particle(Mass,x,y,z,vx,vy,vz,ID,Type,Rho,Phi)
     {
@@ -413,7 +429,7 @@ namespace NBody
 
 
     // Copy constructor
-    StarParticle::StarParticle(const StarParticle &p) 
+    StarParticle::StarParticle(const StarParticle &p)
     {
         if (this!=&p) {
 #ifndef NOMASS

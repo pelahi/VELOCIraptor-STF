@@ -199,15 +199,28 @@ int Unbind(Options &opt, Particle **gPart, Int_t &numgroups, Int_t *numingroup, 
     int ThisTask=0,NProcs=1;
 #endif
 
+    //note that it is possible that called as a library, velociraptor
+    //does not need to calculate potentials itself
+    //in that case do not calculate potentials but instead
+    //copy relevant information
     cmvel   =new Coordinate[numgroups+1];
     gmass   =new Double_t[numgroups+1];
     totV    =new Double_t[numgroups+1];
     for (i=1;i<=numgroups;i++) {
         cmvel[i]=Coordinate(0.);
         gmass[i]=totV[i]=0.;
-        for (j=0;j<numingroup[i];j++) gPart[i][j].SetPotential(0);
+        if (opt.uinfo.icalculatepotential) {
+            for (j=0;j<numingroup[i];j++) gPart[i][j].SetPotential(0);
+        }
+        #ifdef SWIFTINTERFACE
+        else {
+            for (j=0;j<numingroup[i];j++) gPart[i][j].SetPotential(gPart[i][j].GetGravityPotential());
+        }
+        #endif
     }
 
+    //if calculate potential
+    if (opt.uinfo.icalculatepotential) {
     //for parallel environment store maximum number of threads
     nthreads=1;
 #ifdef USEOPENMP
@@ -248,6 +261,7 @@ private(i,j,k,n,r2,poti)
 #ifdef USEOPENMP
 }
 #endif
+
     //reset number of threads to maximum number
 #ifdef USEOPENMP
 #pragma omp master
@@ -376,6 +390,8 @@ private(j,k,l,n,ntreecell,nleafcell,r2,poti)
             for (j=0;j<nthreads;j++) {delete[] marktreecell[j];delete[] markleafcell[j];delete[] r2val[j];}
         }
     }
+
+    }//end of check whether we calculate potential
 
     //Now set the kinetic reference frame
     //if using standard frame, then using CMVEL of the entire structure
@@ -917,9 +933,18 @@ int Unbind(Options &opt, Particle *&gPart, Int_t &numgroups, Int_t *&numingroup,
     for (i=1;i<=numgroups;i++) {
         cmvel[i]=Coordinate(0.);
         gmass[i]=totV[i]=0.;
-        for (j=0;j<numingroup[i];j++) gPart[noffset[i]+j].SetPotential(0);
+        if (opt.uinfo.icalculatepotential) {
+            for (j=0;j<numingroup[i];j++) gPart[noffset[i]+j].SetPotential(0);
+        }
+        #ifdef SWIFTINTERFACE
+        else {
+            for (j=0;j<numingroup[i];j++) gPart[noffset[i]+j].SetPotential(gPart[noffset[i]+j].GetGravityPotential());
+        }
+        #endif
     }
 
+    //if calculate potential
+    if (opt.uinfo.icalculatepotential) {
     //for parallel environment store maximum number of threads
     nthreads=1;
 #ifdef USEOPENMP
@@ -1088,6 +1113,7 @@ private(j,k,l,n,ntreecell,nleafcell,r2,poti)
             for (j=0;j<nthreads;j++) {delete[] marktreecell[j];delete[] markleafcell[j];delete[] r2val[j];}
         }
     }
+    }//end of if calculate potential
 
     //Now set the kinetic reference frame
     //if using standard frame, then using CMVEL of the entire structure

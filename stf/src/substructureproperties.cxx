@@ -2647,7 +2647,7 @@ void GetBindingEnergy(Options &opt, const Int_t nbodies, Particle *&Part, Int_t 
     //finished it puts the particles back into the input order. Therefore store id values in PID  value (which can be over written)
     //also if wish to use the deepest potential as a reference, then used to store original order
     Int_t *storepid;
-
+    if (opt.uinfo.icalculatepotential) {
     //small groups with PP calculations of potential.
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
@@ -2717,6 +2717,14 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin)
 }
 #endif
     }
+
+    }//end of if calculate potential
+    #ifdef SWIFTINTERFACE
+    else {
+        for (i=1;i<=ngroup;i++) for (j=0;j<numingroup[i];j++) Part[j+noffset[i]].SetPotential(Part[j+noffset[i]].GetGravityPotential());
+
+    }
+    #endif
 
     //then calculate binding energy and store in potential
 #ifdef USEOPENMP

@@ -278,6 +278,8 @@ struct UnbindInfo
     //@{
     int unbindflag,bgpot,unbindtype,cmvelreftype;
     //@}
+    ///boolean as to whether code calculate potentials or potentials are externally provided
+    bool icalculatepotential;
     ///fraction of potential energy that kinetic energy is allowed to be and consider particle bound
     Double_t Eratio;
     ///minimum bound mass fraction
@@ -298,6 +300,7 @@ struct UnbindInfo
     Double_t eps;
     //@}
     UnbindInfo(){
+        icalculatepotential=true;
         unbindflag=0;
         bgpot=1;
         unbindtype=UPART;
@@ -635,7 +638,7 @@ struct Options
         iusetracerparticles=0;
 #ifdef HIGHRES
         iuseextradarkparticles=1;
-#else 
+#else
         iuseextradarkparticles=0;
 #endif
 

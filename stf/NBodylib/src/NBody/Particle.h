@@ -96,6 +96,9 @@ typedef Double_t DoublePos_t;
         Double_t rho;
         ///potential
         Double_t phi;
+#ifdef SWIFTINTERFACE
+        Double_t gravityphi;
+#endif
         ///For hydrodynamical quantities
         //@{
         ///if gas flag is set, then particle also can have sph based quantities. if star flag is set,
@@ -150,7 +153,7 @@ typedef Double_t DoublePos_t;
                 Double_t vx = 0, Double_t vy = 0, Double_t vz = 0, Int_t ID=0, int type=0, Double_t Rho=0, Double_t Phi=0, Int_t PID=0);
         Particle(Double_t Mass, Double_t *NewPos, Double_t *NewVel, Int_t ID=0, int type=0, Double_t Rho=0, Double_t Phi=0, Int_t PID=0);
         Particle(const Particle &p);
-        Particle(const struct gpart *p);
+        Particle(const struct gpart &p,  double lscale, double vscale, double mscale, bool icosmological=true, double scalefactor=1.0, double littleh=1.0);
         Particle(std::istream &F);
         //No dynamic allocation, thus destructor not needed.
         ~Particle(){};
@@ -288,6 +291,10 @@ typedef Double_t DoublePos_t;
         void SetDensity(const Double_t &Rho){rho=Rho;}
         Double_t GetPotential() {return phi;}
         void SetPotential(const Double_t &Phi){phi=Phi;}
+#ifdef SWIFTINTERFACE
+        Double_t GetGravityPotential() {return gravityphi;}
+        void SetGravityPotential(const Double_t &Phi){gravityphi=Phi;}
+#endif
 #ifdef GASON
         Double_t GetU() {return u;}
         void SetU(const Double_t &U){u=U;}

@@ -82,6 +82,8 @@ STRUCTUREDEN="on"
 #HALODEN="on"
 #flag useful for zoom simulations with a high resolution region
 #ZOOMSIM="on"
+#if compiling for swift only, useful to set
+SWIFTINTERFACE="on"
 #===========================================
 
 #===========================================
@@ -231,7 +233,9 @@ endif
 ifeq ($(LARGEMPIDOMAIN),"on")
     COMPILEFLAGS+= -DHUGEMPI
 endif
-
+ifeq ($(SWIFTINTERFACE),"on")
+    COMPILEFLAGS+= -DSWIFTINTERFACE
+endif
 C+FLAGS = $(PARALLEL) $(COMPILEFLAGS)
 #===========================================
 
