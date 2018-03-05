@@ -79,6 +79,14 @@ USEHYDRO="on"
 #===========================================
 
 #===========================================
+#Adjust TreeFrog ID type, useful for minimzing memory footprint
+#===========================================
+#if mpi domain is going to contain more than maxshort number of mpi processes then enable
+#TREEFROGLONGIDS="on"
+#TREEFROGUNSIGNEDIDS="on"
+#===========================================
+
+#===========================================
 #Adjust the operation of the code
 #===========================================
 #only calculate local density distribution for particles residing in field objects (but using all particles to estimate quantity)
@@ -242,6 +250,18 @@ endif
 ifeq ($(LARGEMPIDOMAIN),"on")
     COMPILEFLAGS+= -DHUGEMPI
 endif
+ifeq ($(TREEFROGLONGIDS),"on")
+ifeq ($(TREEFROGUNSIGNEDIDS),"on")
+    COMPILEFLAGS+= -DTREEFROGLONGUIDS
+else
+    COMPILEFLAGS+= -DTREEFROGLONGIDS
+endif
+else
+ifneq ($(TREEFROGUNSIGNEDIDS),"on")
+    COMPILEFLAGS+= -DTREEFROGINTIDS
+endif
+endif
+
 
 C+FLAGS = $(PARALLEL) $(COMPILEFLAGS)
 #===========================================
