@@ -70,7 +70,7 @@ Int_t ReadHeader(Options &opt){
 
 ///Reads particle data
 ///To add a new interface simply alter this to include the appropriate user written call
-void ReadData(Options &opt, Particle *&Part, const Int_t nbodies, Particle *&Pbaryons, Int_t nbaryons)
+void ReadData(Options &opt, vector<Particle> &Part, const Int_t nbodies, Particle *&Pbaryons, Int_t nbaryons)
 {
     InitEndian();
 #ifdef USEMPI
@@ -102,7 +102,7 @@ void ReadData(Options &opt, Particle *&Part, const Int_t nbodies, Particle *&Pba
 //@{
 
 ///Read local velocity density
-void ReadLocalVelocityDensity(Options &opt, const Int_t nbodies, Particle * Part){
+void ReadLocalVelocityDensity(Options &opt, const Int_t nbodies, vector<Particle> &Part){
     Int_t tempi;
     Double_t tempd;
     fstream Fin;
@@ -143,7 +143,7 @@ void ReadLocalVelocityDensity(Options &opt, const Int_t nbodies, Particle * Part
 //@{
 
 ///Writes local velocity density of each particle to a file
-void WriteLocalVelocityDensity(Options &opt, const Int_t nbodies, Particle * Part){
+void WriteLocalVelocityDensity(Options &opt, const Int_t nbodies, vector<Particle> &Part){
     fstream Fout;
     char fname[1000];
 #ifdef USEMPI
@@ -301,7 +301,7 @@ void WritePGList(Options &opt, const Int_t ngroups, const Int_t ng, Int_t *numin
     Fout.close();
 }
 
-void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int_t **pglist, Particle *Part, Int_t nadditional){
+void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int_t **pglist, vector<Particle> &Part, Int_t nadditional){
     fstream Fout,Fout2,Fout3;
     char fname[500];
     char fname2[500];
@@ -796,7 +796,7 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
 }
 
 ///if particles are separately searched (i.e. \ref Options.iBaryonSearch is set) then produce list of particle types
-void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, Int_t **pglist, Particle *Part){
+void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, Int_t **pglist, vector<Particle> &Part){
     fstream Fout,Fout2;
     char fname[2000];
     char fname2[2000];

@@ -426,7 +426,7 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
 /// assuming LCDM or small deviations from this) to estimate the mean interparticle
 /// spacing and scales physical linking length passed by this distance. Also reads
 /// header and overrides passed cosmological parameters with ones stored in header.
-void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbaryons, Int_t nbaryons)
+void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Particle *&Pbaryons, Int_t nbaryons)
 {
     char buf[2000],buf1[2000],buf2[2000];
     string stringbuf,orderingstring;
@@ -809,7 +809,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                 }
 #endif
                 Nbuf[ibuf]++;
-                MPIAddParticletoAppropriateBuffer(ibuf, ibufindex, ireadtask, BufSize, Nbuf, Pbuf, Nlocal, Part, Nreadbuf, Preadbuf);
+                MPIAddParticletoAppropriateBuffer(ibuf, ibufindex, ireadtask, BufSize, Nbuf, Pbuf, Nlocal, Part.data(), Nreadbuf, Preadbuf);
 #else
                 Part[count2]=Particle(mtemp*mscale,
                     xtemp[0]*lscale,xtemp[1]*lscale,xtemp[2]*lscale,
@@ -853,7 +853,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
 #endif
                     //ensure that store number of particles to be sent to other reading threads
                     Nbuf[ibuf]++;
-                    MPIAddParticletoAppropriateBuffer(ibuf, ibufindex, ireadtask, BufSize, Nbuf, Pbuf, Nlocal, Part, Nreadbuf, Preadbuf);
+                    MPIAddParticletoAppropriateBuffer(ibuf, ibufindex, ireadtask, BufSize, Nbuf, Pbuf, Nlocal, Part.data(), Nreadbuf, Preadbuf);
 #else
                     Part[count2]=Particle(mtemp*mscale,
                         xtemp[0]*lscale,xtemp[1]*lscale,xtemp[2]*lscale,
@@ -949,7 +949,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
                     }
 #endif
                     Nbuf[ibuf]++;
-                    MPIAddParticletoAppropriateBuffer(ibuf, ibufindex, ireadtask, BufSize, Nbuf, Pbuf, Nlocal, Part, Nreadbuf, Preadbuf);
+                    MPIAddParticletoAppropriateBuffer(ibuf, ibufindex, ireadtask, BufSize, Nbuf, Pbuf, Nlocal, Part.data(), Nreadbuf, Preadbuf);
 #else
                 Part[count2]=Particle(mtemp*mscale,
                     xtemp[0]*lscale,xtemp[1]*lscale,xtemp[2]*lscale,
@@ -993,7 +993,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
         //send information between read threads
         if (opt.nsnapread>1&&inreadsend<totreadsend){
             MPI_Allgather(Nreadbuf, opt.nsnapread, MPI_Int_t, mpi_nsend_readthread, opt.nsnapread, MPI_Int_t, mpi_comm_read);
-            MPISendParticlesBetweenReadThreads(opt, Preadbuf, Part, ireadtask, readtaskID, Pbaryons, mpi_comm_read, mpi_nsend_readthread, mpi_nsend_readthread_baryon);
+            MPISendParticlesBetweenReadThreads(opt, Preadbuf, Part.data(), ireadtask, readtaskID, Pbaryons, mpi_comm_read, mpi_nsend_readthread, mpi_nsend_readthread_baryon);
             inreadsend++;
             for(ibuf = 0; ibuf < opt.nsnapread; ibuf++) Nreadbuf[ibuf]=0;
         }
@@ -1014,13 +1014,13 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     }
     if (opt.nsnapread>1){
         MPI_Allgather(Nreadbuf, opt.nsnapread, MPI_Int_t, mpi_nsend_readthread, opt.nsnapread, MPI_Int_t, mpi_comm_read);
-        MPISendParticlesBetweenReadThreads(opt, Preadbuf, Part, ireadtask, readtaskID, Pbaryons, mpi_comm_read, mpi_nsend_readthread, mpi_nsend_readthread_baryon);
+        MPISendParticlesBetweenReadThreads(opt, Preadbuf, Part.data(), ireadtask, readtaskID, Pbaryons, mpi_comm_read, mpi_nsend_readthread, mpi_nsend_readthread_baryon);
     }
     }//end of ireadtask[ibuf]>0
 #endif
 #ifdef USEMPI
     else {
-        MPIReceiveParticlesFromReadThreads(opt,Pbuf,Part,readtaskID, irecv, mpi_irecvflag, Nlocalthreadbuf, mpi_request,Pbaryons);
+        MPIReceiveParticlesFromReadThreads(opt,Pbuf,Part.data(),readtaskID, irecv, mpi_irecvflag, Nlocalthreadbuf, mpi_request,Pbaryons);
     }
 #endif
     }
@@ -1174,7 +1174,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
 #endif
                                             //ensure that store number of particles to be sent to the threads involved with reading snapshot files
                                             Nbuf[ibuf]++;
-                                            MPIAddParticletoAppropriateBuffer(ibuf, ibufindex, ireadtask, BufSize, Nbuf, Pbuf, Nlocal, Part, Nreadbuf, Preadbuf);
+                                            MPIAddParticletoAppropriateBuffer(ibuf, ibufindex, ireadtask, BufSize, Nbuf, Pbuf, Nlocal, Part.data(), Nreadbuf, Preadbuf);
 #else
                                             Part[count2]=Particle(mtemp*mscale,
                                                 xpos[0]*lscale,xpos[1]*lscale,xpos[2]*lscale,
@@ -1251,7 +1251,7 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
         //send information between read threads
         if (opt.nsnapread>1&&inreadsend<totreadsend){
             MPI_Allgather(Nreadbuf, opt.nsnapread, MPI_Int_t, mpi_nsend_readthread, opt.nsnapread, MPI_Int_t, mpi_comm_read);
-            MPISendParticlesBetweenReadThreads(opt, Preadbuf, Part, ireadtask, readtaskID, Pbaryons, mpi_comm_read, mpi_nsend_readthread, mpi_nsend_readthread_baryon);
+            MPISendParticlesBetweenReadThreads(opt, Preadbuf, Part.data(), ireadtask, readtaskID, Pbaryons, mpi_comm_read, mpi_nsend_readthread, mpi_nsend_readthread_baryon);
             inreadsend++;
             for(ibuf = 0; ibuf < opt.nsnapread; ibuf++) Nreadbuf[ibuf]=0;
         }
@@ -1271,14 +1271,14 @@ void ReadRamses(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pb
     }
     if (opt.nsnapread>1){
         MPI_Allgather(Nreadbuf, opt.nsnapread, MPI_Int_t, mpi_nsend_readthread, opt.nsnapread, MPI_Int_t, mpi_comm_read);
-        MPISendParticlesBetweenReadThreads(opt, Preadbuf, Part, ireadtask, readtaskID, Pbaryons, mpi_comm_read, mpi_nsend_readthread, mpi_nsend_readthread_baryon);
+        MPISendParticlesBetweenReadThreads(opt, Preadbuf, Part.data(), ireadtask, readtaskID, Pbaryons, mpi_comm_read, mpi_nsend_readthread, mpi_nsend_readthread_baryon);
     }
     }//end of reading task
 #endif
 #ifdef USEMPI
     //if not reading information than waiting to receive information
     else {
-        MPIReceiveParticlesFromReadThreads(opt,Pbuf,Part,readtaskID, irecv, mpi_irecvflag, Nlocalthreadbuf, mpi_request,Pbaryons);
+        MPIReceiveParticlesFromReadThreads(opt,Pbuf,Part.data(),readtaskID, irecv, mpi_irecvflag, Nlocalthreadbuf, mpi_request,Pbaryons);
     }
 #endif
     }//end of check if gas loaded

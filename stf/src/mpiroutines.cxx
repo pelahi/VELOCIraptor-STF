@@ -224,7 +224,7 @@ int MPIGetParticlesProcessor(Double_t x,Double_t y, Double_t z){
 }
 
 //adds a particle read from an input file to the appropriate buffers
-void MPIAddParticletoAppropriateBuffer(const int &ibuf, Int_t ibufindex, int *&ireadtask, const Int_t &BufSize, Int_t *&Nbuf, Particle *&Pbuf, Int_t &numpart, Particle *&Part, Int_t *&Nreadbuf, vector<Particle>*&Preadbuf){
+void MPIAddParticletoAppropriateBuffer(const int &ibuf, Int_t ibufindex, int *&ireadtask, const Int_t &BufSize, Int_t *&Nbuf, Particle *&Pbuf, Int_t &numpart, Particle *Part, Int_t *&Nreadbuf, vector<Particle>*&Preadbuf){
     if (ibuf==ThisTask) {
         Nbuf[ibuf]--;
         Part[numpart++]=Pbuf[ibufindex];
@@ -499,7 +499,7 @@ int MPISetFilesRead(Options&opt, int *&ireadfile, int *&ireadtask){
 /// \name Routines involved in exporting particles
 //@{
 ///for all threads not reading snapshots, simply receive particles as necessary from all threads involved with reading the data
-void MPIReceiveParticlesFromReadThreads(Options &opt, Particle *&Pbuf, Particle *&Part, int *&readtaskID, int *&irecv, int *&mpi_irecvflag, Int_t *&Nlocalthreadbuf, MPI_Request *&mpi_request, Particle *&Pbaryons)
+void MPIReceiveParticlesFromReadThreads(Options &opt, Particle *&Pbuf, Particle *Part, int *&readtaskID, int *&irecv, int *&mpi_irecvflag, Int_t *&Nlocalthreadbuf, MPI_Request *&mpi_request, Particle *&Pbaryons)
 {
     int irecvflag;
     Int_t i,j,k,Nlocaltotalbuf;
@@ -548,6 +548,7 @@ void MPIReceiveParticlesFromReadThreads(Options &opt, Particle *&Pbuf, Particle 
         }
         //sorted so that dark matter particles first, baryons after
         qsort(Part,Nlocal, sizeof(Particle), IDCompare);
+        //sort(Part.begin(),Part.end(), IDCompareVec);
         Nlocal-=Nlocalbaryon[0];
         //index type separated
         for (i=0;i<Nlocal;i++) Part[i].SetID(i);
@@ -557,7 +558,7 @@ void MPIReceiveParticlesFromReadThreads(Options &opt, Particle *&Pbuf, Particle 
 
 /*! Final send between read threads of input particle data
 */
-void MPISendParticlesBetweenReadThreads(Options &opt, Particle *&Pbuf, Particle *&Part, Int_t *&nreadoffset, int *&ireadtask, int *&readtaskID, Particle *&Pbaryons, Int_t *&mpi_nsend_baryon)
+void MPISendParticlesBetweenReadThreads(Options &opt, Particle *&Pbuf, Particle *Part, Int_t *&nreadoffset, int *&ireadtask, int *&readtaskID, Particle *&Pbaryons, Int_t *&mpi_nsend_baryon)
 {
     if (ireadtask[ThisTask]>=0) {
         //split the communication into small buffers
@@ -645,7 +646,7 @@ void MPISendParticlesBetweenReadThreads(Options &opt, Particle *&Pbuf, Particle 
     }
 }
 
-void MPISendParticlesBetweenReadThreads(Options &opt, vector<Particle> *&Preadbuf, Particle *&Part, int *&ireadtask, int *&readtaskID, Particle *&Pbaryons, MPI_Comm &mpi_comm_read, Int_t *&mpi_nsend_readthread, Int_t *&mpi_nsend_readthread_baryon)
+void MPISendParticlesBetweenReadThreads(Options &opt, vector<Particle> *&Preadbuf, Particle *Part, int *&ireadtask, int *&readtaskID, Particle *&Pbaryons, MPI_Comm &mpi_comm_read, Int_t *&mpi_nsend_readthread, Int_t *&mpi_nsend_readthread_baryon)
 {
     if (ireadtask[ThisTask]>=0) {
         //split the communication into small buffers
@@ -690,7 +691,7 @@ void MPISendParticlesBetweenReadThreads(Options &opt, vector<Particle> *&Preadbu
                     //blocking point-to-point send and receive. Here must determine the appropriate offset point in the local export buffer
                     //for sending data and also the local appropriate offset in the local the receive buffer for information sent from the local receiving buffer
                     MPI_Sendrecv(&Preadbuf[recvTask][sendoffset],sizeof(Particle)*cursendchunksize, MPI_BYTE, recvTask, TAG_IO_A+isendrecv,
-                        &Part[Nlocal],sizeof(Particle)*currecvchunksize, MPI_BYTE, recvTask, TAG_IO_A+isendrecv,
+                        &(Part[Nlocal]),sizeof(Particle)*currecvchunksize, MPI_BYTE, recvTask, TAG_IO_A+isendrecv,
                                 mpi_comm_read, &status);
                     Nlocal+=currecvchunksize;
                     sendoffset+=cursendchunksize;
@@ -730,7 +731,7 @@ void MPISendParticlesBetweenReadThreads(Options &opt, vector<Particle> *&Preadbu
     }
 }
 
-void MPIGetExportNum(const Int_t nbodies, Particle *&Part, Double_t rdist){
+void MPIGetExportNum(const Int_t nbodies, Particle *Part, Double_t rdist){
     Int_t i, j,nthreads,nexport=0,nimport=0;
     Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
     Double_t xsearch[3][2];
@@ -765,7 +766,7 @@ void MPIGetExportNum(const Int_t nbodies, Particle *&Part, Double_t rdist){
 /*! Determine which particles have a spatial linking length such that linking overlaps the domain of another processor store the necessary information to send that data
     and then send that information
 */
-void MPIBuildParticleExportList(const Int_t nbodies, Particle *&Part, Int_t *&pfof, Int_tree_t *&Len, Double_t rdist){
+void MPIBuildParticleExportList(const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_tree_t *&Len, Double_t rdist){
     Int_t i, j,nthreads,nexport=0,nimport=0;
     Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
     Double_t xsearch[3][2];
@@ -978,9 +979,13 @@ void MPIBuildParticleNNExportList(const Int_t nbodies, Particle *Part, Double_t 
     Int_t i, j,nthreads,nexport=0,nimport=0;
     Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
     Double_t xsearch[3][2];
-    Int_t sendTask,recvTask;
     MPI_Status status;
     int indomain;
+    int sendTask,recvTask;
+    int maxchunksize=2147483648/NProcs/sizeof(nndata_in);
+    int nsend,nrecv,nsendchunks,nrecvchunks,numsendrecv;
+    int sendoffset,recvoffset;
+    int cursendchunksize,currecvchunksize;
 
     ///\todo would like to add openmp to this code. In particular, loop over nbodies but issue is nexport.
     ///This would either require making a FoFDataIn[nthreads][NExport] structure so that each omp thread
@@ -1041,14 +1046,35 @@ void MPIBuildParticleNNExportList(const Int_t nbodies, Particle *Part, Double_t 
             for (int k=0;k<recvTask;k++)nbuffer[recvTask]+=mpi_nsend[ThisTask+k*NProcs];//offset on local receiving buffer
             if(mpi_nsend[ThisTask * NProcs + recvTask] > 0 || mpi_nsend[recvTask * NProcs + ThisTask] > 0)
             {
-                //blocking point-to-point send and receive. Here must determine the appropriate offset point in the local export buffer
-                //for sending data and also the local appropriate offset in the local the receive buffer for information sent from the local receiving buffer
-                MPI_Sendrecv(&NNDataIn[noffset[recvTask]],
-                    nsend_local[recvTask] * sizeof(struct nndata_in), MPI_BYTE,
-                    recvTask, TAG_NN_A,
-                    &NNDataGet[nbuffer[recvTask]],
-                    mpi_nsend[ThisTask+recvTask * NProcs] * sizeof(struct nndata_in),
-                    MPI_BYTE, recvTask, TAG_NN_A, MPI_COMM_WORLD, &status);
+                //send info in loops to minimize memory footprint
+                cursendchunksize=currecvchunksize=maxchunksize;
+                nsendchunks=ceil(mpi_nsend[recvTask+ThisTask*NProcs]/(Double_t)maxchunksize);
+                nrecvchunks=ceil(mpi_nsend[ThisTask+recvTask*NProcs]/(Double_t)maxchunksize);
+                if (cursendchunksize>mpi_nsend[recvTask+ThisTask*NProcs]) {
+                    nsendchunks=1;
+                    cursendchunksize=mpi_nsend[recvTask+ThisTask*NProcs];
+                }
+                if (currecvchunksize>mpi_nsend[ThisTask+recvTask*NProcs]) {
+                    nrecvchunks=1;
+                    currecvchunksize=mpi_nsend[ThisTask+recvTask*NProcs];
+                }
+                numsendrecv=max(nsendchunks,nrecvchunks);
+                sendoffset=recvoffset=0;
+                for (auto ichunk=0;ichunk<numsendrecv;ichunk++)
+                {
+                    //blocking point-to-point send and receive. Here must determine the appropriate offset point in the local export buffer
+                    //for sending data and also the local appropriate offset in the local the receive buffer for information sent from the local receiving buffer
+                    MPI_Sendrecv(&NNDataIn[noffset[recvTask]+sendoffset],
+                        cursendchunksize * sizeof(struct nndata_in), MPI_BYTE,
+                        recvTask, TAG_NN_A+ichunk,
+                        &NNDataGet[nbuffer[recvTask]+recvoffset],
+                        currecvchunksize * sizeof(struct nndata_in),
+                        MPI_BYTE, recvTask, TAG_NN_A+ichunk, MPI_COMM_WORLD, &status);
+                    sendoffset+=cursendchunksize;
+                    recvoffset+=currecvchunksize;
+                    if (cursendchunksize>mpi_nsend[recvTask+ThisTask * NProcs]-sendoffset)cursendchunksize=mpi_nsend[recvTask+ThisTask * NProcs]-sendoffset;
+                    if (currecvchunksize>mpi_nsend[ThisTask+recvTask * NProcs]-sendoffset)currecvchunksize=mpi_nsend[ThisTask+recvTask * NProcs]-recvoffset;
+                }
             }
         }
     }
@@ -1239,29 +1265,6 @@ private(i)
             }
         }
     }
-    /*
-    for(j=0;j<NProcs;j++)//for(j=1;j<NProcs;j++)
-    {
-        if (j!=ThisTask)
-        {
-            sendTask = ThisTask;
-            recvTask = j;//ThisTask^j;
-            nbuffer[recvTask]=0;
-            for (int k=0;k<recvTask;k++)nbuffer[recvTask]+=mpi_nsend[ThisTask+k*NProcs];//offset on local receiving buffer
-            if(mpi_nsend[ThisTask * NProcs + recvTask] > 0 || mpi_nsend[recvTask * NProcs + ThisTask] > 0)
-            {
-                //blocking point-to-point send and receive. Here must determine the appropriate offset point in the local export buffer
-                //for sending data and also the local appropriate offset in the local the receive buffer for information sent from the local receiving buffer
-                MPI_Sendrecv(&PartDataIn[noffset[recvTask]],
-                    nsend_local[recvTask] * sizeof(Particle), MPI_BYTE,
-                    recvTask, TAG_NN_B,
-                    &PartDataGet[nbuffer[recvTask]],
-                    mpi_nsend[ThisTask+recvTask * NProcs] * sizeof(Particle),
-                    MPI_BYTE, recvTask, TAG_NN_B, MPI_COMM_WORLD, &status);
-            }
-        }
-    }
-    */
     ncount=0;for (int k=0;k<NProcs;k++)ncount+=mpi_nsend[ThisTask+k*NProcs];
     return ncount;
 }
@@ -1269,7 +1272,7 @@ private(i)
 /*! Similar to \ref MPIBuildParticleExportList, however this is for associated baryon search where particles have been moved from original
     mpi domains and their group id accessed through the id array and their stored id and length in numingroup
 */
-void MPIBuildParticleExportBaryonSearchList(const Int_t nbodies, Particle *&Part, Int_t *&pfof, Int_t *ids, Int_t *numingroup, Double_t rdist){
+void MPIBuildParticleExportBaryonSearchList(const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_t *ids, Int_t *numingroup, Double_t rdist){
     Int_t i, j,nthreads,nexport=0,nimport=0;
     Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
     Double_t xsearch[3][2];
@@ -1369,36 +1372,6 @@ void MPIBuildParticleExportBaryonSearchList(const Int_t nbodies, Particle *&Part
                 }
             }
         }
-    /*
-    for(j=0;j<NProcs;j++)//for(j=1;j<NProcs;j++)
-    {
-        if (j!=ThisTask)
-        {
-            sendTask = ThisTask;
-            recvTask = j;//ThisTask^j;//bitwise XOR ensures that recvTask cycles around sendTask
-            nbuffer[recvTask]=0;
-            for (int k=0;k<recvTask;k++)nbuffer[recvTask]+=mpi_nsend[ThisTask+k*NProcs];//offset on local receiving buffer
-            if(mpi_nsend[ThisTask * NProcs + recvTask] > 0 || mpi_nsend[recvTask * NProcs + ThisTask] > 0)
-            {
-                //blocking point-to-point send and receive. Here must determine the appropriate offset point in the local export buffer
-                //for sending data and also the local appropriate offset in the local the receive buffer for information sent from the local receiving buffer
-                //first send FOF data and then particle data
-                MPI_Sendrecv(&FoFDataIn[noffset[recvTask]],
-                    nsend_local[recvTask] * sizeof(struct fofdata_in), MPI_BYTE,
-                    recvTask, TAG_FOF_A,
-                    &FoFDataGet[nbuffer[recvTask]],
-                    mpi_nsend[ThisTask+recvTask * NProcs] * sizeof(struct fofdata_in),
-                    MPI_BYTE, recvTask, TAG_FOF_A, MPI_COMM_WORLD, &status);
-                MPI_Sendrecv(&PartDataIn[noffset[recvTask]],
-                    nsend_local[recvTask] * sizeof(Particle), MPI_BYTE,
-                    recvTask, TAG_FOF_B,
-                    &PartDataGet[nbuffer[recvTask]],
-                    mpi_nsend[ThisTask+recvTask * NProcs] * sizeof(Particle),
-                    MPI_BYTE, recvTask, TAG_FOF_B, MPI_COMM_WORLD, &status);
-            }
-        }
-    }
-    */
     }
 }
 
@@ -1448,7 +1421,7 @@ void MPIAdjustLocalGroupIDs(const Int_t nbodies, Int_t *pfof){
 /*! Determine which particles have a spatial linking length such that linking overlaps the domain of another processor store the necessary information to send that data
     and then send that information
 */
-void MPIUpdateExportList(const Int_t nbodies, Particle *&Part, Int_t *&pfof, Int_tree_t *&Len){
+void MPIUpdateExportList(const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_tree_t *&Len){
     Int_t i, j,nthreads,nexport;
     Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
     int sendTask,recvTask;
@@ -1509,30 +1482,6 @@ void MPIUpdateExportList(const Int_t nbodies, Particle *&Part, Int_t *&pfof, Int
             }
         }
     }
-
-    /*
-    for(j=0;j<NProcs;j++)//for(j=1;j<NProcs;j++)
-    {
-        if (j!=ThisTask)
-        {
-            sendTask = ThisTask;
-            recvTask = j;//ThisTask^j;//bitwise XOR ensures that recvTask cycles around sendTask
-            nbuffer[recvTask]=0;
-            for (int k=0;k<recvTask;k++)nbuffer[recvTask]+=mpi_nsend[ThisTask+k*NProcs];//offset on local receiving buffer
-            if(mpi_nsend[ThisTask * NProcs + recvTask] > 0 || mpi_nsend[recvTask * NProcs + ThisTask] > 0)
-            {
-                //blocking point-to-point send and receive. Here must determine the appropriate offset point in the local export buffer
-                //for sending data and also the local appropriate offset in the local the receive buffer for information sent from the local receiving buffer
-                MPI_Sendrecv(&FoFDataIn[noffset[recvTask]],
-                    nsend_local[recvTask] * sizeof(struct fofdata_in), MPI_BYTE,
-                    recvTask, TAG_FOF_A,
-                    &FoFDataGet[nbuffer[recvTask]],
-                    mpi_nsend[ThisTask+recvTask * NProcs] * sizeof(struct fofdata_in),
-                    MPI_BYTE, recvTask, TAG_FOF_A, MPI_COMM_WORLD, &status);
-            }
-        }
-    }
-    */
 }
 
 /*! This routine searches the local particle list using the positions of the exported particles to see if any local particles
@@ -1541,7 +1490,7 @@ void MPIUpdateExportList(const Int_t nbodies, Particle *&Part, Int_t *&pfof, Int
     the number of links found between the local particles and all other exported particles from all other mpi domains.
     \todo need to update lengths if strucden flag used to limit particles for which real velocity density calculated
 */
-Int_t MPILinkAcross(const Int_t nbodies, KDTree *tree, Particle *&Part, Int_t *&pfof, Int_tree_t *&Len, Int_tree_t *&Head, Int_tree_t *&Next, Double_t rdist2){
+Int_t MPILinkAcross(const Int_t nbodies, KDTree *&tree, Particle *Part, Int_t *&pfof, Int_tree_t *&Len, Int_tree_t *&Head, Int_tree_t *&Next, Double_t rdist2){
     Int_t i,j,k;
     Int_t links=0;
     Int_t nbuffer[NProcs];
@@ -1591,7 +1540,7 @@ Int_t MPILinkAcross(const Int_t nbodies, KDTree *tree, Particle *&Part, Int_t *&
     return links;
 }
 ///link particles belonging to the same group across mpi domains using comparison function
-Int_t MPILinkAcross(const Int_t nbodies, KDTree *tree, Particle *&Part, Int_t *&pfof, Int_tree_t *&Len, Int_tree_t *&Head, Int_tree_t *&Next, Double_t rdist2, FOFcompfunc &cmp, Double_t *params){
+Int_t MPILinkAcross(const Int_t nbodies, KDTree *&tree, Particle *Part, Int_t *&pfof, Int_tree_t *&Len, Int_tree_t *&Head, Int_tree_t *&Next, Double_t rdist2, FOFcompfunc &cmp, Double_t *params){
     Int_t i,j,k;
     Int_t links=0;
     Int_t nbuffer[NProcs];
@@ -1641,7 +1590,7 @@ Int_t MPILinkAcross(const Int_t nbodies, KDTree *tree, Particle *&Part, Int_t *&
     the maximum group size and reoder the group ids according to descending group size.
     return the new local number of particles
 */
-Int_t MPIGroupExchange(const Int_t nbodies, Particle *&Part, Int_t *&pfof){
+Int_t MPIGroupExchange(const Int_t nbodies, Particle *Part, Int_t *&pfof){
     Int_t i, j,nthreads,nexport,nimport,nlocal,n;
     Int_t nsend_local[NProcs],noffset_import[NProcs],noffset_export[NProcs],nbuffer[NProcs];
     int sendTask,recvTask;
@@ -1674,67 +1623,38 @@ Int_t MPIGroupExchange(const Int_t nbodies, Particle *&Part, Int_t *&pfof){
     else FoFGroupDataExport=new fofid_in[1];
 
     Int_t *storeval=new Int_t[nbodies];
-    //if trying to reduce memory allocation,  if nlocal < than the memory allocated adjust local list so that all particles to be exported are near the end.
-    //and allocate the appropriate memory for pfof and mpi_idlist. otherwise, need to actually copy the particle data into FoFGroupDataLocal and proceed
-    //as normal, storing info, send info, delete particle array, allocate a new array large enough to store info and copy over info
-    ///\todo eventually I should replace arrays with vectors so that the size can change, removing the need to free and allocate
-    ///\todo adjust sort type to make sure type information is kept.
-    if (nlocal<Nmemlocal) {
-        Noldlocal=nbodies-nexport;
-        //for (i=0;i<nbodies;i++) Part[i].SetID(i);
-        for (i=0;i<nbodies;i++) storeval[i]=Part[i].GetType();
-        for (i=0;i<nbodies;i++) Part[i].SetType((mpi_foftask[i]!=ThisTask));
-        qsort(Part,nbodies,sizeof(Particle),TypeCompare);
-        for (i=0;i<nbodies;i++) Part[i].SetType(storeval[Part[i].GetID()]);
-        //now use array to rearrange data
-        for (i=0;i<nbodies;i++) storeval[i]=mpi_foftask[Part[i].GetID()];
-        for (i=0;i<nbodies;i++) mpi_foftask[i]=storeval[i];
-        for (i=0;i<nbodies;i++) storeval[i]=pfof[Part[i].GetID()];
-        for (i=0;i<nbodies;i++) pfof[i]=storeval[i];
-        for (i=0;i<nbodies;i++) Part[i].SetID(i);
-        //for sorting purposes to place untagged particles at the end. Was done by setting type
-        //now via storeval and ids
-        for (i=0;i<nbodies;i++) storeval[i]=-pfof[Part[i].GetID()];
-        for (i=0;i<nbodies;i++) Part[i].SetID(storeval[i]);
-        if (nimport>0) FoFGroupDataLocal=new fofid_in[nimport];
-    }
-    //otherwise use FoFGroupDataLocal to store all the necessary data
-    else {
-        FoFGroupDataLocal=new fofid_in[nlocal];
-        for (i=0;i<nbodies;i++) storeval[i]=Part[i].GetType();
-        for (i=0;i<nbodies;i++) Part[i].SetType((mpi_foftask[i]!=ThisTask));
-        qsort(Part,nbodies,sizeof(Particle),TypeCompare);
-        for (i=0;i<nbodies;i++) Part[i].SetType(storeval[Part[i].GetID()]);
-        Int_t nn=nbodies-nexport;
-        for (i=0;i<nn;i++) {
-            FoFGroupDataLocal[i].p=Part[i];
-            FoFGroupDataLocal[i].Index = i;
-            FoFGroupDataLocal[i].Task = ThisTask;
-            FoFGroupDataLocal[i].iGroup = pfof[Part[i].GetID()];
-        }
-        //once sorted, copy info back into index order using storempival (was before via type)
-        for (i=nn;i<nbodies;i++) storeval[i]=mpi_foftask[Part[i].GetID()];
-        for (i=nn;i<nbodies;i++) mpi_foftask[i]=storeval[i];
-        for (i=nn;i<nbodies;i++) storeval[i]=pfof[Part[i].GetID()];
-        for (i=nn;i<nbodies;i++) pfof[i]=storeval[i];
-        for (i=nn;i<nbodies;i++) Part[i].SetID(i);
-    }
+    Noldlocal=nbodies-nexport;
+    //for (i=0;i<nbodies;i++) Part[i].SetID(i);
+    //store type in temporary array, then use type to store what task particle belongs to and sort values
+    for (i=0;i<nbodies;i++) storeval[i]=Part[i].GetType();
+    for (i=0;i<nbodies;i++) Part[i].SetType((mpi_foftask[i]!=ThisTask));
+    qsort(Part,nbodies,sizeof(Particle),TypeCompare);
+    //sort(Part.begin(),Part.begin()+nbodies,TypeCompareVec);
+    for (i=0;i<nbodies;i++) Part[i].SetType(storeval[Part[i].GetID()]);
+    //now use array to rearrange data
+    for (i=0;i<nbodies;i++) storeval[i]=mpi_foftask[Part[i].GetID()];
+    for (i=0;i<nbodies;i++) mpi_foftask[i]=storeval[i];
+    for (i=0;i<nbodies;i++) storeval[i]=pfof[Part[i].GetID()];
+    for (i=0;i<nbodies;i++) pfof[i]=storeval[i];
+    for (i=0;i<nbodies;i++) Part[i].SetID(i);
+    //for sorting purposes to place untagged particles at the end. Was done by setting type
+    //now via storeval and ids
+    for (i=0;i<nbodies;i++) storeval[i]=-pfof[Part[i].GetID()];
+    for (i=0;i<nbodies;i++) Part[i].SetID(storeval[i]);
+    if (nimport>0) FoFGroupDataLocal=new fofid_in[nimport];
     delete[] storeval;
+
     //determine offsets in arrays so that data contiguous with regards to processors for broadcasting
     //offset on transmitter end
     noffset_export[0]=0;
     for (j=1;j<NProcs;j++) noffset_export[j]=noffset_export[j-1]+mpi_nsend[(j-1)+ThisTask*NProcs];
     //offset on receiver end
     for (j=0;j<NProcs;j++) {
-        if (nlocal<Nmemlocal) noffset_import[j]=0;
-        else noffset_import[j]=nbodies-nexport;
+        noffset_import[j]=0;
         if (j!=ThisTask) for (int k=0;k<j;k++)noffset_import[j]+=mpi_nsend[ThisTask+k*NProcs];
     }
     for (j=0;j<NProcs;j++) nbuffer[j]=0;
     for (i=nbodies-nexport;i<nbodies;i++) {
-        //now set particle ID to global index value,
-        //note that particle PID contains global particle ID value
-        //Part[i].SetID(mpi_indexlist[i]);
         //if particle belongs to group that should belong on a different mpi thread, store for broadcasting
         task=mpi_foftask[i];
         if (task!=ThisTask) {
@@ -1797,7 +1717,7 @@ Int_t MPIGroupExchange(const Int_t nbodies, Particle *&Part, Int_t *&pfof){
 /*!
     The baryon equivalent of \ref MPIGroupExchange. Here assume baryons are searched afterwards
 */
-Int_t MPIBaryonGroupExchange(const Int_t nbodies, Particle *&Part, Int_t *&pfof){
+Int_t MPIBaryonGroupExchange(const Int_t nbodies, Particle *Part, Int_t *&pfof){
     Int_t i, j,nthreads,nexport,nimport,nlocal,n;
     Int_t nsend_local[NProcs],noffset_import[NProcs],noffset_export[NProcs],nbuffer[NProcs];
     int sendTask,recvTask;
@@ -1940,92 +1860,47 @@ Int_t MPIBaryonGroupExchange(const Int_t nbodies, Particle *&Part, Int_t *&pfof)
 }
 
 ///Determine the local number of groups and their sizes (groups must be local to an mpi thread)
-Int_t MPICompileGroups(const Int_t nbodies, Particle *&Part, Int_t *&pfof, Int_t minsize){
+Int_t MPICompileGroups(const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_t minsize){
     Int_t i,j,start,ngroups;
     Int_t *numingroup,*groupid,**plist;
     ngroups=0;
-    //if minimizing memory load when using mpi (by adding extra routines to determine memory required)
-    //first check to see if local memory is enough to contained expected number of particles
-    //if local mem is enough, copy data from the FoFGroupDataLocal
-    if(Nmemlocal>nbodies) {
-        for (i=Noldlocal;i<nbodies;i++) {
-            Part[i]=FoFGroupDataLocal[i-Noldlocal].p;
-            //note that before used type to sort particles
-            //Part[i].SetID(i);
-            //Part[i].SetType(-FoFGroupDataLocal[i-Noldlocal].iGroup);
-            //now use id
-            Part[i].SetID(-FoFGroupDataLocal[i-Noldlocal].iGroup);
-        }
-        //used to use ID store store group id info
-        qsort(Part,nbodies,sizeof(Particle),IDCompare);
-        //determine the # of groups, their size and the current group ID
-        for (i=0,start=0;i<nbodies;i++) {
-            if (Part[i].GetID()!=Part[start].GetID()) {
-                //if group is too small set type to zero, which currently is used to store the group id
-                if ((i-start)<minsize) for (Int_t j=start;j<i;j++) Part[j].SetID(0);
-                else ngroups++;
-                start=i;
-            }
-            if (Part[i].GetID()==0) break;
-        }
-        //again resort to move untagged particles to the end.
-        qsort(Part,nbodies,sizeof(Particle),IDCompare);
-        //now adjust pfof and ids.
-        for (i=0;i<nbodies;i++) {pfof[i]=-Part[i].GetID();Part[i].SetID(i);}
-        numingroup=new Int_t[ngroups+1];
-        plist=new Int_t*[ngroups+1];
-        ngroups=1;//offset as group zero is untagged
-        for (i=0,start=0;i<nbodies;i++) {
-            if (pfof[i]!=pfof[start]) {
-                numingroup[ngroups]=i-start;
-                plist[ngroups]=new Int_t[numingroup[ngroups]];
-                for (Int_t j=start,count=0;j<i;j++) plist[ngroups][count++]=j;
-                ngroups++;
-                start=i;
-            }
-            if (pfof[i]==0) break;
-        }
-        ngroups--;
-        //for (i=0;i<nbodies;i++) mpi_idlist[i]=Part[i].GetPID();
+    for (i=Noldlocal;i<nbodies;i++) {
+        Part[i]=FoFGroupDataLocal[i-Noldlocal].p;
+        //note that before used type to sort particles
+        //now use id
+        Part[i].SetID(-FoFGroupDataLocal[i-Noldlocal].iGroup);
     }
-    else {
-        //sort local list
-        qsort(FoFGroupDataLocal, nbodies, sizeof(struct fofid_in), fof_id_cmp);
-        //determine the # of groups, their size and the current group ID
-        for (i=0,start=0;i<nbodies;i++) {
-            if (FoFGroupDataLocal[i].iGroup!=FoFGroupDataLocal[start].iGroup) {
-                if ((i-start)<minsize){
-                    for (Int_t j=start;j<i;j++) FoFGroupDataLocal[j].iGroup=0;
-                }
-                else ngroups++;
-                start=i;
-            }
-            if (FoFGroupDataLocal[i].iGroup==0) break;
+    //used to use ID store store group id info
+    qsort(Part,nbodies,sizeof(Particle),IDCompare);
+    //determine the # of groups, their size and the current group ID
+    for (i=0,start=0;i<nbodies;i++) {
+        if (Part[i].GetID()!=Part[start].GetID()) {
+            //if group is too small set type to zero, which currently is used to store the group id
+            if ((i-start)<minsize) for (Int_t j=start;j<i;j++) Part[j].SetID(0);
+            else ngroups++;
+            start=i;
         }
-        //now sort again which will put particles group then id order, and determine size of groups and their current group id;
-        qsort(FoFGroupDataLocal, nbodies, sizeof(struct fofid_in), fof_id_cmp);
-        numingroup=new Int_t[ngroups+1];
-        plist=new Int_t*[ngroups+1];
-        ngroups=1;//offset as group zero is untagged
-        for (i=0,start=0;i<nbodies;i++) {
-            if (FoFGroupDataLocal[i].iGroup!=FoFGroupDataLocal[start].iGroup) {
-                numingroup[ngroups]=i-start;
-                plist[ngroups]=new Int_t[numingroup[ngroups]];
-                for (Int_t j=start,count=0;j<i;j++) plist[ngroups][count++]=j;
-                ngroups++;
-                start=i;
-            }
-            if (FoFGroupDataLocal[i].iGroup==0) break;
-        }
-        ngroups--;
-        for (i=0;i<nbodies;i++) pfof[i]=FoFGroupDataLocal[i].iGroup;
-        //and store the particles global ids
-        for (i=0;i<nbodies;i++) {
-            Part[i]=FoFGroupDataLocal[i].p;
-            Part[i].SetID(i);
-            //mpi_idlist[i]=FoFGroupDataLocal[i].p.GetPID();
-        }
+        if (Part[i].GetID()==0) break;
     }
+    //again resort to move untagged particles to the end.
+    qsort(Part,nbodies,sizeof(Particle),IDCompare);
+    //now adjust pfof and ids.
+    for (i=0;i<nbodies;i++) {pfof[i]=-Part[i].GetID();Part[i].SetID(i);}
+    numingroup=new Int_t[ngroups+1];
+    plist=new Int_t*[ngroups+1];
+    ngroups=1;//offset as group zero is untagged
+    for (i=0,start=0;i<nbodies;i++) {
+        if (pfof[i]!=pfof[start]) {
+            numingroup[ngroups]=i-start;
+            plist[ngroups]=new Int_t[numingroup[ngroups]];
+            for (Int_t j=start,count=0;j<i;j++) plist[ngroups][count++]=j;
+            ngroups++;
+            start=i;
+        }
+        if (pfof[i]==0) break;
+    }
+    ngroups--;
+
     //reorder groups ids according to size
     ReorderGroupIDs(ngroups,ngroups,numingroup,pfof,plist);
     for (i=1;i<=ngroups;i++) delete[] plist[i];
@@ -2039,7 +1914,8 @@ Int_t MPICompileGroups(const Int_t nbodies, Particle *&Part, Int_t *&pfof, Int_t
 }
 
 ///Similar to \ref MPICompileGroups but optimised for separate baryon search
-Int_t MPIBaryonCompileGroups(const Int_t nbodies, Particle *&Part, Int_t *&pfof, Int_t minsize, int iorder){
+///\todo need to update to reflect vector implementation
+Int_t MPIBaryonCompileGroups(const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_t minsize, int iorder){
     Int_t i,j,start,ngroups;
     Int_t *numingroup,*groupid,**plist;
     ngroups=0;

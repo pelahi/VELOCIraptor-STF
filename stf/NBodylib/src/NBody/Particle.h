@@ -260,7 +260,7 @@ typedef Int_t PARTPIDTYPE;
         velocity[1] = vy;
         velocity[2] = vz;
         }
-        Double_t GetPhase(const int &i){
+        Double_t GetPhase(const int &i) const {
             if (i<3) return position[i];
             else return velocity[i-3];
         }
@@ -276,53 +276,53 @@ typedef Int_t PARTPIDTYPE;
         void SetID(const PARTIDTYPE &i){id=i;}
         int GetType() {return type;}
         void SetType(int i){type=i;}
-        Double_t GetDensity() {return rho;}
+        Double_t GetDensity() const {return rho;}
         void SetDensity(const Double_t &Rho){rho=Rho;}
-        Double_t GetPotential() {return phi;}
+        Double_t GetPotential() const {return phi;}
         void SetPotential(const Double_t &Phi){phi=Phi;}
 #ifdef GASON
-        Double_t GetU() {return u;}
+        Double_t GetU() const {return u;}
         void SetU(const Double_t &U){u=U;}
-        Double_t GetSPHDen() {return sphden;}
+        Double_t GetSPHDen() const {return sphden;}
         void SetSPHDen(const Double_t &SPHden){sphden=SPHden;}
         ///\todo having temperature and entropy functions are not trivial
         ///because need to include eos of gas, metallicity, units, etc.
 #endif
 #ifdef STARON
-        Double_t GetTage() {return tage;}
+        Double_t GetTage() const {return tage;}
         void SetTage(const Double_t &Tage){tage=Tage;}
 #endif
 #if defined (GASON) && (STARON)
-        Double_t GetZmet() {return zmet;}
+        Double_t GetZmet() const {return zmet;}
         void SetZmet(const Double_t &Zmet){zmet=Zmet;}
-        Double_t GetSFR() {return sfr;}
+        Double_t GetSFR() const {return sfr;}
         void SetSFR(const Double_t &SFR){sfr=SFR;}
 #endif
 
 #if defined(GASON) && (GASEXTRA)
-        Double_t GetEntropy() {return entropy;}
+        Double_t GetEntropy() const {return entropy;}
         void SetEntropy(const Double_t &Entropy) {entropy=Entropy;}
 #endif
 
 #ifdef EXTENDEDFOFINFO
         ///Sets and Gets for ExtendedOutput variables
         void SetOFile(const Int_t &i) {oFile = i;}
-        Int_t GetOFile() {return oFile;}
+        Int_t GetOFile() const {return oFile;}
 
         void SetOIndex(const Int_t &i) {oIndex = i;}
-        Int_t GetOIndex() {return oIndex;}
+        Int_t GetOIndex() const {return oIndex;}
 
         void SetOTask(const Int_t &i) {oTask = i;}
-        Int_t GetOTask() {return oTask;}
+        Int_t GetOTask() const {return oTask;}
 
         void SetIdStruct(const Int_t &i) {idStruct = i;}
-        Int_t GetIdStruct() {return idStruct;}
+        Int_t GetIdStruct() const {return idStruct;}
 
         void SetIdHost(const Int_t &i) {idHost = i;}
-        Int_t GetIdHost() {return idHost;}
+        Int_t GetIdHost() const {return idHost;}
 
         void SetIdFOFHost(const Int_t &i) {idFOFHost = i;}
-        Int_t GetIdFOFHost() {return idFOFHost;}
+        Int_t GetIdFOFHost() const {return idFOFHost;}
 #endif
 
         //@}
@@ -587,6 +587,17 @@ typedef Int_t PARTPIDTYPE;
     int TypeCompare (const void *a, const void *b);
     ///sort in ascending particle potential
     int PotCompare (const void *a, const void *b);
+
+    ///sort in ascending particle pid for std::sort vector inferface
+    bool PIDCompareVec (const Particle &a, const Particle &b);
+    ///sort in ascending particle id
+    bool IDCompareVec (const Particle &a, const Particle &b);
+    ///sort in ascending particle radius
+    bool RadCompareVec (const Particle &a, const Particle &b);
+    ///sort in ascending particle type
+    bool TypeCompareVec (const Particle &a, const Particle &b);
+    ///sort in ascending particle potential
+    bool PotCompareVec (const Particle &a, const Particle &b);
     //@}
 }
 

@@ -24,6 +24,7 @@
 #include <cmath>
 #include <string>
 #include <vector>
+#include <algorithm>
 #include <getopt.h>
 #include <sys/stat.h>
 #include <sys/timeb.h>
@@ -635,7 +636,7 @@ struct Options
         iusetracerparticles=0;
 #ifdef HIGHRES
         iuseextradarkparticles=1;
-#else 
+#else
         iuseextradarkparticles=0;
 #endif
 

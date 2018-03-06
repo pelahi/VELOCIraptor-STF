@@ -52,7 +52,7 @@ inline void MarkCell(Node *np, Int_t *marktreecell, Int_t *markleafcell, Int_t &
     This arrays may have been constructed prior to the unbinding call and so can be passed to the routine
     if this is called it uses Particle array then deletes it.
 */
-int CheckUnboundGroups(Options opt, const Int_t nbodies, Particle *&Part, Int_t &ngroup, Int_t *&pfof, Int_t *numingroup, Int_t **pglist, int ireorder, Int_t *groupflag){
+int CheckUnboundGroups(Options opt, const Int_t nbodies, Particle *Part, Int_t &ngroup, Int_t *&pfof, Int_t *numingroup, Int_t **pglist, int ireorder, Int_t *groupflag){
     bool ningflag=false, pglistflag=false;
     int iflag;
     Int_t ng=ngroup;
