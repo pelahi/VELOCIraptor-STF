@@ -979,9 +979,13 @@ void MPIBuildParticleNNExportList(const Int_t nbodies, Particle *Part, Double_t 
     Int_t i, j,nthreads,nexport=0,nimport=0;
     Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
     Double_t xsearch[3][2];
-    Int_t sendTask,recvTask;
     MPI_Status status;
     int indomain;
+    int sendTask,recvTask;
+    int maxchunksize=2147483648/NProcs/sizeof(nndata_in);
+    int nsend,nrecv,nsendchunks,nrecvchunks,numsendrecv;
+    int sendoffset,recvoffset;
+    int cursendchunksize,currecvchunksize;
 
     ///\todo would like to add openmp to this code. In particular, loop over nbodies but issue is nexport.
     ///This would either require making a FoFDataIn[nthreads][NExport] structure so that each omp thread
@@ -1042,14 +1046,35 @@ void MPIBuildParticleNNExportList(const Int_t nbodies, Particle *Part, Double_t 
             for (int k=0;k<recvTask;k++)nbuffer[recvTask]+=mpi_nsend[ThisTask+k*NProcs];//offset on local receiving buffer
             if(mpi_nsend[ThisTask * NProcs + recvTask] > 0 || mpi_nsend[recvTask * NProcs + ThisTask] > 0)
             {
-                //blocking point-to-point send and receive. Here must determine the appropriate offset point in the local export buffer
-                //for sending data and also the local appropriate offset in the local the receive buffer for information sent from the local receiving buffer
-                MPI_Sendrecv(&NNDataIn[noffset[recvTask]],
-                    nsend_local[recvTask] * sizeof(struct nndata_in), MPI_BYTE,
-                    recvTask, TAG_NN_A,
-                    &NNDataGet[nbuffer[recvTask]],
-                    mpi_nsend[ThisTask+recvTask * NProcs] * sizeof(struct nndata_in),
-                    MPI_BYTE, recvTask, TAG_NN_A, MPI_COMM_WORLD, &status);
+                //send info in loops to minimize memory footprint
+                cursendchunksize=currecvchunksize=maxchunksize;
+                nsendchunks=ceil(mpi_nsend[recvTask+ThisTask*NProcs]/(Double_t)maxchunksize);
+                nrecvchunks=ceil(mpi_nsend[ThisTask+recvTask*NProcs]/(Double_t)maxchunksize);
+                if (cursendchunksize>mpi_nsend[recvTask+ThisTask*NProcs]) {
+                    nsendchunks=1;
+                    cursendchunksize=mpi_nsend[recvTask+ThisTask*NProcs];
+                }
+                if (currecvchunksize>mpi_nsend[ThisTask+recvTask*NProcs]) {
+                    nrecvchunks=1;
+                    currecvchunksize=mpi_nsend[ThisTask+recvTask*NProcs];
+                }
+                numsendrecv=max(nsendchunks,nrecvchunks);
+                sendoffset=recvoffset=0;
+                for (auto ichunk=0;ichunk<numsendrecv;ichunk++)
+                {
+                    //blocking point-to-point send and receive. Here must determine the appropriate offset point in the local export buffer
+                    //for sending data and also the local appropriate offset in the local the receive buffer for information sent from the local receiving buffer
+                    MPI_Sendrecv(&NNDataIn[noffset[recvTask]+sendoffset],
+                        cursendchunksize * sizeof(struct nndata_in), MPI_BYTE,
+                        recvTask, TAG_NN_A+ichunk,
+                        &NNDataGet[nbuffer[recvTask]+recvoffset],
+                        currecvchunksize * sizeof(struct nndata_in),
+                        MPI_BYTE, recvTask, TAG_NN_A+ichunk, MPI_COMM_WORLD, &status);
+                    sendoffset+=cursendchunksize;
+                    recvoffset+=currecvchunksize;
+                    if (cursendchunksize>mpi_nsend[recvTask+ThisTask * NProcs]-sendoffset)cursendchunksize=mpi_nsend[recvTask+ThisTask * NProcs]-sendoffset;
+                    if (currecvchunksize>mpi_nsend[ThisTask+recvTask * NProcs]-sendoffset)currecvchunksize=mpi_nsend[ThisTask+recvTask * NProcs]-recvoffset;
+                }
             }
         }
     }
