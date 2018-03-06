@@ -2,6 +2,9 @@ stf/doc/latex/*
 stf/doc/html/*
 stf/bin/*
 stf/src/*.o
+stf/include/*
+stf/lib/*
+.tags
 stf/analysis/*/*.o
 stf/NBodylib/src/*/*.o
 stf/NBodylib/src/*/*.a
@@ -11,4 +14,3 @@ stf/analysis/halotree/doc/latex/*
 stf/analysis/halotree/doc/html/*
 stf/Makefile.config
 *~
-
