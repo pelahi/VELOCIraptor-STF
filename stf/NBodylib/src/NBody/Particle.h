@@ -270,11 +270,11 @@ typedef Int_t PARTPIDTYPE;
             else velocity[i-3]=x;
         }
 
-        PARTPIDTYPE GetPID() {return pid;}
+        PARTPIDTYPE GetPID() const {return pid;}
         void SetPID(const PARTPIDTYPE &i){pid=i;}
-        PARTIDTYPE GetID() {return id;}
+        PARTIDTYPE GetID() const {return id;}
         void SetID(const PARTIDTYPE &i){id=i;}
-        int GetType() {return type;}
+        int GetType() const {return type;}
         void SetType(int i){type=i;}
         Double_t GetDensity() const {return rho;}
         void SetDensity(const Double_t &Rho){rho=Rho;}
