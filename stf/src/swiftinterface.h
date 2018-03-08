@@ -45,9 +45,31 @@ namespace Swift {
     struct unitinfo {
         double lengthtokpc,velocitytokms,masstosolarmass,gravity,hubbleunit;
     };
+
+    /* Structure to hold the location of a top-level cell. */
+    struct cell_loc {
+                                                                      
+        /* Coordinates x,y,z */
+        double loc[3];
+
+    } SWIFT_STRUCT_ALIGN;
+
     //store simulation info
     struct siminfo {
-        double period, zoomhigresolutionmass, interparticlespacing;
+        double period, zoomhigresolutionmass, interparticlespacing, spacedimension[3];
+        
+        /* Number of top-level cells. */
+        int numcells;
+
+        /* Locations of top-level cells. */
+        struct cell_loc cellloc;
+
+        /*! Top-level cell width. */
+        double cellwidth[3];
+        
+        /*! Inverse of the top-level cell width. */
+        double icellwidth[3];
+
         int icosmologicalsim;
     };
 }
@@ -60,7 +82,7 @@ using namespace Swift;
 ///initialize velociraptor
 extern "C" void InitVelociraptor(char* configname, char* outputname, Swift::cosmoinfo, Swift::unitinfo, Swift::siminfo);
 ///actually run velociraptor
-extern "C" void InvokeVelociraptor(const int num_gravity_parts, struct gpart *gravity_parts);
+extern "C" void InvokeVelociraptor(const int num_gravity_parts, struct gpart *gravity_parts, const int *cell_node_ids);
 //@}
 
 
