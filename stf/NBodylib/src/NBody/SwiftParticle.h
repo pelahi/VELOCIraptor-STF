@@ -20,7 +20,7 @@ namespace Swift
         swift_type_star = 4,
         swift_type_black_hole = 5,
         swift_type_count
-    };
+    } __attribute__((packed));
 
     /* Gravity particle. */
     struct gpart {
