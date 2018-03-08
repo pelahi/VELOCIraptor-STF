@@ -70,7 +70,7 @@ void InitVelociraptor(char* configname, char* outputname, cosmoinfo c, unitinfo 
         libvelociraptorOpt.ellxscale*=libvelociraptorOpt.a;
         libvelociraptorOpt.uinfo.eps*=libvelociraptorOpt.a;
     }
-    libvelociraptorOpt.uinfo.icalculatepotential=false;
+    libvelociraptorOpt.uinfo.icalculatepotential=true;
     cout<<"Finished initialising VELOCIraptor"<<endl;
     if (libvelociraptorOpt.HaloMinSize==-1) libvelociraptorOpt.HaloMinSize=libvelociraptorOpt.MinSize;
 
@@ -113,6 +113,7 @@ void InvokeVelociraptor(const int num_gravity_parts, struct gpart *gravity_parts
     cout<<"Copying particle data..."<< endl;
     for(auto i=0; i<Nlocal; i++) {
         parts[i] = Particle(gravity_parts[i], libvelociraptorOpt.L, libvelociraptorOpt.V, libvelociraptorOpt.M, libvelociraptorOpt.icosmologicalin,libvelociraptorOpt.a,libvelociraptorOpt.h);
+        parts[i].SetType(DARKTYPE);
     }
     cout<<"Finished copying particle data."<< endl;
 #ifdef USEMPI
