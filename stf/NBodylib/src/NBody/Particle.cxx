@@ -10,6 +10,17 @@ using namespace Math;
 
 namespace NBody
 {
+    int swift_map_type(enum part_type type) {
+        int vel_type = (int)swift_type_dark_matter;
+
+        if(type & swift_type_gas) vel_type = (int)swift_type_gas;
+        else if(type & swift_type_dark_matter) vel_type = (int)swift_type_dark_matter;
+        else if(type & swift_type_star) vel_type = (int)swift_type_star;
+        else if(type & swift_type_black_hole) vel_type = (int)swift_type_black_hole;
+        
+        return vel_type;
+    }
+
     int PIDCompare (const void *a, const void *b)
     {
         Int_t aa = ((Particle*)a)->GetPID();
@@ -189,7 +200,8 @@ namespace NBody
       for (auto i=0;i<3;i++) velocity[i]*=vscale;
       for (auto i=0;i<3;i++) position[i]*=lscale;
       //id=p.id;
-      type=p.type;
+      //type=swift_map_type(p.type);
+      type=1;
       //rho=p.rho;
 #ifdef SWIFTINTERFACE
         ///\todo does this need to be converted for cosmology as well ? and unit conversion
