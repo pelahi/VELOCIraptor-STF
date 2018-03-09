@@ -62,7 +62,7 @@ namespace Swift {
         int numcells;
 
         /* Locations of top-level cells. */
-        struct cell_loc cellloc;
+        struct cell_loc *cellloc;
 
         /*! Top-level cell width. */
         double cellwidth[3];
