@@ -428,7 +428,7 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
             datasetname=H5std_string("Progenitors");
             dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
             for(Int_t j=0;j<h[i].numhalos;j++)
-                for (Int_t k=0;k<p[i][j].NumberofProgenitors;j++)
+                for (Int_t k=0;k<p[i][j].NumberofProgenitors;k++)
                     data4[itemp++] = h[i+p[i][j].istep].Halo[p[i][j].ProgenitorList[k]-1].haloID;
 
             dataset.write(data4,PredType::STD_U64LE);
@@ -444,7 +444,7 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
                 datasetname=H5std_string("Merits");
                 dataset = Fhdf.createDataSet(datasetname,PredType::NATIVE_FLOAT,dataspace);
                 for(Int_t j=0;j<h[i].numhalos;j++)
-                    for (Int_t k=0;k<p[i][j].NumberofProgenitors;j++)
+                    for (Int_t k=0;k<p[i][j].NumberofProgenitors;k++)
                         data5[itemp++] = p[i][j].Merit[k];
                 dataset.write(data5,PredType::NATIVE_FLOAT);
 
@@ -459,7 +459,7 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
                 datasetname=H5std_string("ProgenNpart");
                 dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
                 for(Int_t j=0;j<h[i].numhalos;j++)
-                    for (Int_t k=0;k<p[i][j].NumberofProgenitors;j++)
+                    for (Int_t k=0;k<p[i][j].NumberofProgenitors;k++)
                         data6[itemp++] = h[i+p[i][j].istep].Halo[p[i][j].ProgenitorList[k]-1].NumberofParticles;
                 dataset.write(data6,PredType::STD_U64LE);
 
@@ -469,7 +469,6 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
             Fhdf.close();
 
         
-
             cout<<ThisTask<<" Done writing to "<<fname<<" "<<MyGetTime()-time1<<endl;
 
         }
@@ -798,7 +797,7 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
             datasetname=H5std_string("Descendants");
             dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
             for(Int_t j=0;j<h[i].numhalos;j++)
-                for (Int_t k=0;k<p[i][j].NumberofDescendants;j++)
+                for (Int_t k=0;k<p[i][j].NumberofDescendants;k++)
                     data4[itemp++] = h[i+p[i][j].istep].Halo[p[i][j].DescendantList[k]-1].haloID;
 
             dataset.write(data4,PredType::STD_U64LE);
@@ -814,7 +813,7 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
             datasetname=H5std_string("Ranks");
             dataset = Fhdf.createDataSet(datasetname,PredType::STD_I32LE,dataspace);
             for(Int_t j=0;j<h[i].numhalos;j++)
-                for (Int_t k=0;k<p[i][j].NumberofDescendants;j++)
+                for (Int_t k=0;k<p[i][j].NumberofDescendants;k++)
                     data5[itemp++] = p[i][j].dtoptype[k];
 
 
@@ -830,7 +829,7 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
                 datasetname=H5std_string("Merits");
                 dataset = Fhdf.createDataSet(datasetname,PredType::NATIVE_FLOAT,dataspace);
                 for(Int_t j=0;j<h[i].numhalos;j++)
-                    for (Int_t k=0;k<p[i][j].NumberofDescendants;j++)
+                    for (Int_t k=0;k<p[i][j].NumberofDescendants;k++)
                         data6[itemp++] = p[i][j].Merit[k];
                 dataset.write(data6,PredType::NATIVE_FLOAT);
 
@@ -845,7 +844,7 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
                 datasetname=H5std_string("DescNpart");
                 dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
                 for(Int_t j=0;j<h[i].numhalos;j++)
-                    for (Int_t k=0;k<p[i][j].NumberofDescendants;j++)
+                    for (Int_t k=0;k<p[i][j].NumberofDescendants;k++)
                         data7[itemp++] = h[i+p[i][j].istep].Halo[p[i][j].DescendantList[k]-1].NumberofParticles;
                 dataset.write(data7,PredType::STD_U64LE);
 
