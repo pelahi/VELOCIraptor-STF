@@ -1,3 +1,6 @@
+#Make backwards compatible with python 2
+from __future__ import print_function
+
 import sys,os,os.path,string,time,re,struct
 import math,operator
 from pylab import *
@@ -296,13 +299,14 @@ def ReadHaloMergerTree(numsnaps,treefilename,ibinary=0,iverbose=0):
 					tree[i]["Progen"][j]=np.zeros(nprog,dtype=np.int64)
 					for k in range(nprog):
 						tree[i]["Progen"][j][k]=np.int64(treefile.readline())
+						
 	elif(ibinary==2):
 
 		tree=[{"haloID": [], "Num_progen": [], "Progen": []} for i in range(numsnaps)]
 		snaptreelist=open(treefilename,'r')
 		for snap in range(numsnaps):
 			snaptreename = snaptreelist.readline().strip()+".tree.hdf5"
-			print("Reading",snaptreename)
+			if (iverbose): print("Reading",snaptreename)
 			treedata = h5py.File(snaptreename,"r")
 
 			tree[snap]["haloID"] = np.array(treedata["ID"])
@@ -310,7 +314,7 @@ def ReadHaloMergerTree(numsnaps,treefilename,ibinary=0,iverbose=0):
 
 			#See if the dataset exits
 			if("Progenitors" in treedata.keys()):
-				
+
 				#Find the indices to split the array
 				split = np.zeros(len(tree[snap]["Num_progen"]),dtype=int)
 				for i,numdesc in enumerate(tree[snap]["Num_progen"]):
@@ -392,7 +396,7 @@ def ReadHaloMergerTreeDescendant(numsnaps,treefilename,ireverseorder=True,ibinar
 		snaptreelist=open(treefilename,'r')
 		for snap in range(numsnaps):
 			snaptreename = snaptreelist.readline().strip()+".tree"
-			print("Reading",snaptreename)
+			if (iverbose): print("Reading",snaptreename)
 			treedata = h5py.File(snaptreename,"r")
 
 			tree[snap]["haloID"] = np.array(treedata["ID"])
@@ -431,10 +435,10 @@ def ReadHaloPropertiesAcrossSnapshots(numsnaps,snaplistfname,inputtype,iseperate
 		nchunks=int(np.ceil(numsnaps/float(nthreads)))
 		print("Using", nthreads,"threads to parse ",numsnaps," snapshots in ",nchunks,"chunks")
 		#load file names
-		snapnamelist=open(snaplistfname[i],'r')
+		snapnamelist=open(snaplistfname,'r')
 		catfilename=["" for j in range(numsnaps)]
 		for j in range(numsnaps):
-			catfilename[j]=snapnamelist.readline().strip()+".properties"
+			catfilename[j]=snapnamelist.readline().strip()
 		#allocate a manager
 		manager = mp.Manager()
 		#use manager to specify the dictionary and list that can be accessed by threads
@@ -447,7 +451,7 @@ def ReadHaloPropertiesAcrossSnapshots(numsnaps,snaplistfname,inputtype,iseperate
 			if (j==nchunks-1):
 				nthreads=numsnaps-offset
 			#when calling a process pass manager based proxies, which then are used to copy data back
-			processes=[mp.Process(target=ReadPropertyFileMultiWrapper,args=(catfilename[offset+k],k+offset,hdata,ndata,inputtype,iseparatefiles,iverbose,desiredfields)) for k in range(nthreads)]
+			processes=[mp.Process(target=ReadPropertyFileMultiWrapper,args=(catfilename[offset+k],k+offset,hdata,ndata,inputtype,iseperatefiles,iverbose,desiredfields)) for k in range(nthreads)]
 			#start each process
 			#store the state of each thread, alive or not, and whether it has finished
 			activethreads=[[True,False] for k in range(nthreads)]
@@ -470,8 +474,8 @@ def ReadHaloPropertiesAcrossSnapshots(numsnaps,snaplistfname,inputtype,iseperate
 							#make deep copy of manager constructed objects that store data
 							#halodata[i][offset+count]=deepcopy(hdata[offset+count])
 							#try instead init a dictionary
-							halodata[i][offset+count]=dict(hdata[offset+count])
-							ngtot[i][offset+count]=ndata[offset+count]
+							halodata[offset+count]=dict(hdata[offset+count])
+							ngtot[offset+count]=ndata[offset+count]
 							#effectively free the data in manager dictionary
 							hdata[offset+count]=[]
 							activethreads[count][0]=False
@@ -483,11 +487,11 @@ def ReadHaloPropertiesAcrossSnapshots(numsnaps,snaplistfname,inputtype,iseperate
 				p.terminate()
 
 	else:
-		snapnamelist=open(snaplistfname[i],'r')
+		snapnamelist=open(snaplistfname,'r')
 		for j in range(0,numsnaps):
-			catfilename=snapnamelist.readline().strip()+".properties"
+			catfilename=snapnamelist.readline().strip()
 			print("reading ", catfilename)
-			halodata[i][j],ngtot[i][j] = ReadPropertyFile(catfilename,inputtype,iseparatefiles,iverbose,desiredfields)
+			halodata[j],ngtot[j] = ReadPropertyFile(catfilename,inputtype,iseperatefiles,iverbose,desiredfields)
 	print("data read in ",time.clock()-start)
 	return halodata,ngtot
 
