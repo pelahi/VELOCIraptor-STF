@@ -36,10 +36,10 @@ using namespace NBody;
 ///size of largest MPI chunck in bytes that can be sent in one go (here set by MPI count argument, which is max int)
 #define LOCAL_MAX_MSGSIZE 2147483647L
 ///Nlocal maximum initially set to nbodies/NProc*MPProcFac, represents maximum load imbalance
-#define MPIProcFac 1.25
+#define MPIProcFac 1.0
 ///maximum export factor used to allocate temporary export particle arrays, thus in any given step (except io) where
 ///particles are sent from one MPI thread to another, assume at most this factor of particle will need to be sent
-#define MPIExportFac 0.1
+#define MPIExportFac 0
 #define MAXNNEXPORT 32
 
 ///define a type to store the maxium number of mpi tasks

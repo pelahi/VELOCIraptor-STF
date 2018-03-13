@@ -45,6 +45,19 @@ typedef float DoublePos_t;
 #else
 typedef Double_t DoublePos_t;
 #endif
+///define ID (index) type, whether signed or unsigned Int_t
+#ifdef PARTICLEUIDS
+typedef UInt_t PARTIDTYPE;
+#else
+typedef Int_t PARTIDTYPE;
+#endif
+
+///define permenant (particle) ID type, whether signed or unsigned Int_t
+#ifdef PARTICLEUPIDS
+typedef UInt_t PARTPIDTYPE;
+#else
+typedef Int_t PARTPIDTYPE;
+#endif
 //@}
 
 /*!
@@ -77,16 +90,8 @@ typedef Double_t DoublePos_t;
         ///\name identifiers
         //@{
         //extra particle identifier, useful as it is not changed by KDTree
-#ifdef LONGPIDS
-        UInt_t pid;
-#else
-        Int_t pid;
-#endif
-#ifdef LONGIDS
-        UInt_t id;
-#else
-        Int_t id;
-#endif
+        PARTPIDTYPE pid;
+        PARTIDTYPE id;
         //int gid;
         int type;
         //@}
@@ -145,8 +150,8 @@ typedef Double_t DoublePos_t;
         /// \name Constructors & Destructors
         //@{
         Particle(Double_t Mass = 0, Double_t x = 0, Double_t y = 0, Double_t z = 0,
-                Double_t vx = 0, Double_t vy = 0, Double_t vz = 0, Int_t ID=0, int type=0, Double_t Rho=0, Double_t Phi=0, Int_t PID=0);
-        Particle(Double_t Mass, Double_t *NewPos, Double_t *NewVel, Int_t ID=0, int type=0, Double_t Rho=0, Double_t Phi=0, Int_t PID=0);
+                Double_t vx = 0, Double_t vy = 0, Double_t vz = 0, PARTIDTYPE ID=0, int type=0, Double_t Rho=0, Double_t Phi=0, PARTPIDTYPE PID=0);
+        Particle(Double_t Mass, Double_t *NewPos, Double_t *NewVel, PARTIDTYPE ID=0, int type=0, Double_t Rho=0, Double_t Phi=0, PARTPIDTYPE PID=0);
         Particle(const Particle &p);
         Particle(std::istream &F);
         //No dynamic allocation, thus destructor not needed.
@@ -255,7 +260,7 @@ typedef Double_t DoublePos_t;
         velocity[1] = vy;
         velocity[2] = vz;
         }
-        Double_t GetPhase(const int &i){
+        Double_t GetPhase(const int &i) const {
             if (i<3) return position[i];
             else return velocity[i-3];
         }
@@ -265,69 +270,59 @@ typedef Double_t DoublePos_t;
             else velocity[i-3]=x;
         }
 
-#ifdef LONGPIDS
-        UInt_t GetPID() {return pid;}
-        void SetPID(const UInt_t &i){pid=i;}
-#else
-        Int_t GetPID() {return pid;}
-        void SetPID(const Int_t &i){pid=i;}
-#endif
-#ifdef LONGIDS
-        UInt_t GetID() {return id;}
-        void SetID(const UInt_t &i){id=i;}
-#else
-        Int_t GetID() {return id;}
-        void SetID(Int_t i){id=i;}
-#endif
-        int GetType() {return type;}
+        PARTPIDTYPE GetPID() const {return pid;}
+        void SetPID(const PARTPIDTYPE &i){pid=i;}
+        PARTIDTYPE GetID() const {return id;}
+        void SetID(const PARTIDTYPE &i){id=i;}
+        int GetType() const {return type;}
         void SetType(int i){type=i;}
-        Double_t GetDensity() {return rho;}
+        Double_t GetDensity() const {return rho;}
         void SetDensity(const Double_t &Rho){rho=Rho;}
-        Double_t GetPotential() {return phi;}
+        Double_t GetPotential() const {return phi;}
         void SetPotential(const Double_t &Phi){phi=Phi;}
 #ifdef GASON
-        Double_t GetU() {return u;}
+        Double_t GetU() const {return u;}
         void SetU(const Double_t &U){u=U;}
-        Double_t GetSPHDen() {return sphden;}
+        Double_t GetSPHDen() const {return sphden;}
         void SetSPHDen(const Double_t &SPHden){sphden=SPHden;}
         ///\todo having temperature and entropy functions are not trivial
         ///because need to include eos of gas, metallicity, units, etc.
 #endif
 #ifdef STARON
-        Double_t GetTage() {return tage;}
+        Double_t GetTage() const {return tage;}
         void SetTage(const Double_t &Tage){tage=Tage;}
 #endif
 #if defined (GASON) && (STARON)
-        Double_t GetZmet() {return zmet;}
+        Double_t GetZmet() const {return zmet;}
         void SetZmet(const Double_t &Zmet){zmet=Zmet;}
-        Double_t GetSFR() {return sfr;}
+        Double_t GetSFR() const {return sfr;}
         void SetSFR(const Double_t &SFR){sfr=SFR;}
 #endif
 
 #if defined(GASON) && (GASEXTRA)
-        Double_t GetEntropy() {return entropy;}
+        Double_t GetEntropy() const {return entropy;}
         void SetEntropy(const Double_t &Entropy) {entropy=Entropy;}
 #endif
 
 #ifdef EXTENDEDFOFINFO
         ///Sets and Gets for ExtendedOutput variables
         void SetOFile(const Int_t &i) {oFile = i;}
-        Int_t GetOFile() {return oFile;}
+        Int_t GetOFile() const {return oFile;}
 
         void SetOIndex(const Int_t &i) {oIndex = i;}
-        Int_t GetOIndex() {return oIndex;}
+        Int_t GetOIndex() const {return oIndex;}
 
         void SetOTask(const Int_t &i) {oTask = i;}
-        Int_t GetOTask() {return oTask;}
+        Int_t GetOTask() const {return oTask;}
 
         void SetIdStruct(const Int_t &i) {idStruct = i;}
-        Int_t GetIdStruct() {return idStruct;}
+        Int_t GetIdStruct() const {return idStruct;}
 
         void SetIdHost(const Int_t &i) {idHost = i;}
-        Int_t GetIdHost() {return idHost;}
+        Int_t GetIdHost() const {return idHost;}
 
         void SetIdFOFHost(const Int_t &i) {idFOFHost = i;}
-        Int_t GetIdFOFHost() {return idFOFHost;}
+        Int_t GetIdFOFHost() const {return idFOFHost;}
 #endif
 
         //@}
@@ -463,9 +458,9 @@ typedef Double_t DoublePos_t;
         /// \name Constructors & Destructors
         //@{
         GasParticle(Double_t Mass = 0, Double_t x = 0, Double_t y = 0, Double_t z = 0,
-                Double_t vx = 0, Double_t vy = 0, Double_t vz = 0, Int_t ID=0, int type=0, Double_t Rho=0, Double_t Phi=0,
+                Double_t vx = 0, Double_t vy = 0, Double_t vz = 0, PARTIDTYPE ID=0, int type=0, Double_t Rho=0, Double_t Phi=0,
                 Double_t Temp=0, Double_t Ui=0, Double_t Pi=0, Double_t NE=0,Double_t NH0=0,Double_t Zi=0, Double_t SFR=0,Double_t LGS=0);
-        GasParticle(Double_t Mass, Double_t *NewPos, Double_t *NewVel, Int_t ID=0, int type=0, Double_t Rho=0, Double_t Phi=0,
+        GasParticle(Double_t Mass, Double_t *NewPos, Double_t *NewVel, PARTIDTYPE ID=0, int type=0, Double_t Rho=0, Double_t Phi=0,
                     Double_t Temp=0, Double_t Ui=0, Double_t Pi=0, Double_t NE=0,Double_t NH0=0,Double_t Zi=0, Double_t SFR=0,Double_t LGS=0);
         GasParticle(const GasParticle &p);
         //@}
@@ -541,8 +536,8 @@ typedef Double_t DoublePos_t;
         /// \name Constructors & Destructors
         //@{
         StarParticle(Double_t Mass = 0, Double_t x = 0, Double_t y = 0, Double_t z = 0,
-                Double_t vx = 0, Double_t vy = 0, Double_t vz = 0, Int_t ID=0, int type=0, Double_t Rho=0, Double_t Phi=0, Double_t TF=0, Double_t Zi=0);
-        StarParticle(Double_t Mass, Double_t *NewPos, Double_t *NewVel, Int_t ID=0, int type=0, Double_t Rho=0, Double_t Phi=0, Double_t TF=0, Double_t Zi=0);
+                Double_t vx = 0, Double_t vy = 0, Double_t vz = 0, PARTIDTYPE ID=0, int type=0, Double_t Rho=0, Double_t Phi=0, Double_t TF=0, Double_t Zi=0);
+        StarParticle(Double_t Mass, Double_t *NewPos, Double_t *NewVel, PARTIDTYPE ID=0, int type=0, Double_t Rho=0, Double_t Phi=0, Double_t TF=0, Double_t Zi=0);
         StarParticle(const StarParticle &p);
         //@}
 
@@ -592,6 +587,17 @@ typedef Double_t DoublePos_t;
     int TypeCompare (const void *a, const void *b);
     ///sort in ascending particle potential
     int PotCompare (const void *a, const void *b);
+
+    ///sort in ascending particle pid for std::sort vector inferface
+    bool PIDCompareVec (const Particle &a, const Particle &b);
+    ///sort in ascending particle id
+    bool IDCompareVec (const Particle &a, const Particle &b);
+    ///sort in ascending particle radius
+    bool RadCompareVec (const Particle &a, const Particle &b);
+    ///sort in ascending particle type
+    bool TypeCompareVec (const Particle &a, const Particle &b);
+    ///sort in ascending particle potential
+    bool PotCompareVec (const Particle &a, const Particle &b);
     //@}
 }
 

@@ -39,7 +39,7 @@
     once have that initial splitting just load data then start shifting data around.
 */
 void MPIDomainExtentGadget(Options &opt){
-#define SKIP2 Fgad[i].read((char*)&dummy, sizeof(dummy));
+    #define SKIP2 Fgad[i].read((char*)&dummy, sizeof(dummy));
     Int_t i,j,k,n,m,temp,count,count2,pc,pc_new, Ntot;
     int dummy;
     FLOAT ctemp[3];
@@ -130,7 +130,7 @@ void MPIDomainExtentGadget(Options &opt){
 
 ///to update the decomposition based on gadget information
 void MPIDomainDecompositionGadget(Options &opt){
-#define SKIP2 Fgad[i].read((char*)&dummy, sizeof(dummy));
+    #define SKIP2 Fgad[i].read((char*)&dummy, sizeof(dummy));
     Int_t i,j,k,n,m,temp,count,count2,pc,pc_new, Ntot;
     int Nsplit,isplit;
     Int_t nbins1d,nbins3d, ibin[3];
@@ -505,7 +505,7 @@ void MPIDomainDecompositionGadget(Options &opt){
 ///reads a gadget file to determine number of particles in each MPIDomain
 void MPINumInDomainGadget(Options &opt)
 {
-#define SKIP2 Fgad[i].read((char*)&dummy, sizeof(dummy));
+    #define SKIP2 Fgad[i].read((char*)&dummy, sizeof(dummy));
     InitEndian();
     if (NProcs>1) {
     MPIDomainExtentGadget(opt);

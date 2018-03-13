@@ -208,11 +208,11 @@ using namespace NBody;
 #define OMPCHUNKSIZE 100UL
 #endif
 
-#ifdef LONGIDS
+#ifdef TREEFROGLONGIDS
 typedef long long IDTYPE;
-#elif defined(LONGUIDS)
+#elif defined(TREEFROGLONGUIDS)
 typedef long unsigned IDTYPE;
-#elif defined(INTIDS)
+#elif defined(TREEFROGINTIDS)
 typedef int IDTYPE;
 #else
 typedef int unsigned IDTYPE;
