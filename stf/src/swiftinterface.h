@@ -47,12 +47,12 @@ namespace Swift {
     };
 
     /* Structure to hold the location of a top-level cell. */
-    struct cell_loc {
-                                                                      
-        /* Coordinates x,y,z */
-        double loc[3];
+    //struct cell_loc {
+    //                                                                  
+    //    /* Coordinates x,y,z */
+    //    double loc[3];
 
-    } SWIFT_STRUCT_ALIGN;
+    //} SWIFT_STRUCT_ALIGN;
 
     //store simulation info
     struct siminfo {
@@ -60,15 +60,21 @@ namespace Swift {
         
         /* Number of top-level cells. */
         int numcells;
+        
+        /* Number of top-level cells in each dimension. */
+        int numcellsperdim;
 
         /* Locations of top-level cells. */
-        struct cell_loc *cellloc;
+        cell_loc *cellloc;
 
         /*! Top-level cell width. */
         double cellwidth[3];
         
         /*! Inverse of the top-level cell width. */
         double icellwidth[3];
+        
+        /*! Holds the node ID of each top-level cell. */
+        int *cellnodeids;
 
         int icosmologicalsim;
     };

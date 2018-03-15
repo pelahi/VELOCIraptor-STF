@@ -13,8 +13,13 @@ void InitVelociraptor(char* configname, char* outputname, cosmoinfo c, unitinfo 
     //find out how big the SPMD world is
     MPI_Comm_size(MPI_COMM_WORLD,&NProcs);
     mpi_domain=new MPI_Domain[NProcs];
+    mpi_nlocal=new Int_t[NProcs];
+    mpi_nsend=new Int_t[NProcs*NProcs];
+    mpi_ngroups=new Int_t[NProcs];
     //and this processes' rank is
     MPI_Comm_rank(MPI_COMM_WORLD,&ThisTask);
+    //store MinSize as when using mpi prior to stitching use min of 2;
+    MinNumMPI=2;
 #endif
     cout<<"Initialising VELOCIraptor..."<< endl;
 
@@ -71,8 +76,30 @@ void InitVelociraptor(char* configname, char* outputname, cosmoinfo c, unitinfo 
         libvelociraptorOpt.uinfo.eps*=libvelociraptorOpt.a;
     }
     libvelociraptorOpt.uinfo.icalculatepotential=true;
+
+    // Set mesh information.
+    libvelociraptorOpt.spacedimension[0] = s.spacedimension[0];
+    libvelociraptorOpt.spacedimension[1] = s.spacedimension[1];
+    libvelociraptorOpt.spacedimension[2] = s.spacedimension[2];
+    libvelociraptorOpt.cellwidth[0] = s.cellwidth[0];
+    libvelociraptorOpt.cellwidth[1] = s.cellwidth[1];
+    libvelociraptorOpt.cellwidth[2] = s.cellwidth[2];
+    libvelociraptorOpt.icellwidth[0] = s.icellwidth[0];
+    libvelociraptorOpt.icellwidth[1] = s.icellwidth[1];
+    libvelociraptorOpt.icellwidth[2] = s.icellwidth[2];
+    libvelociraptorOpt.numcells = s.numcells;
+    libvelociraptorOpt.numcellsperdim = cbrt(s.numcells);
+    libvelociraptorOpt.cellloc = s.cellloc;
+
     cout<<"Finished initialising VELOCIraptor"<<endl;
     if (libvelociraptorOpt.HaloMinSize==-1) libvelociraptorOpt.HaloMinSize=libvelociraptorOpt.MinSize;
+
+#ifdef USEMPI
+    //if single halo, use minsize to initialize the old minimum number
+    //else use the halominsize since if mpi and not single halo, halos localized to mpi domain for substructure search
+    if (libvelociraptorOpt.iSingleHalo) MinNumOld=libvelociraptorOpt.MinSize;
+    else MinNumOld=libvelociraptorOpt.HaloMinSize;
+#endif
 
     //write velociraptor info
     WriteVELOCIraptorConfig(libvelociraptorOpt);
@@ -104,26 +131,34 @@ void InvokeVelociraptor(const int num_gravity_parts, struct gpart *gravity_parts
     //KDTree *tree;
     //to store information about the group
     PropData *pdata=NULL,*pdatahalos=NULL;
-    double time1,time2;
+    double time1;
 
-
+    /// Set pointer to cell node IDs
+    libvelociraptorOpt.cellnodeids = cell_node_ids;
+    
     Nlocal=Nmemlocal=num_gravity_parts;
-    Nmemlocal*=(1+libvelociraptorOpt.mpipartfac);
+    Nmemlocal*=(1+libvelociraptorOpt.mpipartfac); /* JSW: Not set in parameter file. */
     parts=new Particle[Nmemlocal];
     cout<<"Copying particle data..."<< endl;
+    time1=MyGetTime();
     for(auto i=0; i<Nlocal; i++) {
         parts[i] = Particle(gravity_parts[i], libvelociraptorOpt.L, libvelociraptorOpt.V, libvelociraptorOpt.M, libvelociraptorOpt.icosmologicalin,libvelociraptorOpt.a,libvelociraptorOpt.h);
         parts[i].SetType(DARKTYPE);
     }
+    time1=MyGetTime()-time1;
     cout<<"Finished copying particle data."<< endl;
 #ifdef USEMPI
     MPI_Allreduce(&num_gravity_parts, &Ntotal, 1, MPI_Int_t, MPI_SUM, MPI_COMM_WORLD);
 #endif
-    Nlocal=num_gravity_parts;
-    cout<<"TIME::"<<ThisTask<<" took "<<time1<<" to load "<<Nlocal<<" of "<<Ntotal<<endl;
+    Nlocal=num_gravity_parts; /* JSW: Already set previously to same value. */
+    cout<<"TIME::"<<ThisTask<<" took "<<time1<<" to copy "<<Nlocal<<" particles from SWIFT to a local format. Out of "<<Ntotal<<endl;
     cout<<ThisTask<<" There are "<<Nlocal<<" particles and have allocated enough memory for "<<Nmemlocal<<" requiring "<<Nmemlocal*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
     //if (libvelociraptorOpt.iBaryonSearch>0) cout<<ThisTask<<"There are "<<Nlocalbaryon[0]<<" baryon particles and have allocated enough memory for "<<Nmemlocalbaryon<<" requiring "<<Nmemlocalbaryon*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
     cout<<ThisTask<<" will also require additional memory for FOF algorithms and substructure search. Largest mem needed for preliminary FOF search. Rough estimate is "<<Nlocal*(sizeof(Int_tree_t)*8)/1024./1024./1024.<<"GB of memory"<<endl;
+    
+    //
+    // Calculate some statistics: min, max, avg positions and particle potentials.
+    //
     Coordinate minc,maxc,avec;
     for (auto j=0;j<3;j++) {maxc[j]=0;minc[j]=libvelociraptorOpt.p;avec[j]=0;}
     for(auto i=0; i<Nlocal; i++) {
@@ -148,6 +183,9 @@ void InvokeVelociraptor(const int num_gravity_parts, struct gpart *gravity_parts
     avephi=avephi*(1.0/(double)Nlocal);
     cout<<"Stats of potential "<<minphi<<" "<<maxphi<<" "<<avephi<<endl;
 
+    //
+    // Perform FOF search.
+    //
     time1=MyGetTime();
     pfof=SearchFullSet(libvelociraptorOpt,Nlocal,parts,ngroup);
     time1=MyGetTime()-time1;
@@ -171,7 +209,9 @@ void InvokeVelociraptor(const int num_gravity_parts, struct gpart *gravity_parts
         delete[] originalID;
     }
 
-    //now search for substructure
+    //
+    // Substructure search.
+    //
     if (libvelociraptorOpt.iSubSearch) {
         cout<<"Searching subset"<<endl;
         time1=MyGetTime();
@@ -204,10 +244,7 @@ void InvokeVelociraptor(const int num_gravity_parts, struct gpart *gravity_parts
     WriteGroupCatalog(libvelociraptorOpt, ngroup, numingroup, pglist, parts);
     for (Int_t i=1;i<=ngroup;i++) delete[] pglist[i];
     delete[] pglist;
-
     delete[] parts;
-
-
 
     cout<<"VELOCIraptor returning."<< endl;
 }

@@ -67,6 +67,9 @@ using namespace H5;
 #include "adios.h"
 #endif
 
+//#include "swiftinterface.h"
+//
+//using namespace Swift;
 using namespace std;
 using namespace Math;
 using namespace NBody;
@@ -330,6 +333,14 @@ struct PropInfo
     }
 };
 
+/* Structure to hold the location of a top-level cell. */
+struct cell_loc {
+
+    /* Coordinates x,y,z */
+    double loc[3];
+
+};
+
 /// Options structure stores useful variables that have user determined values which are altered by \ref GetArgs in \ref ui.cxx
 struct Options
 {
@@ -532,6 +543,30 @@ struct Options
     //@{
     ///scale lengths. Useful if searching single halo system and which to automatically scale linking lengths
     int iScaleLengths;
+
+    // Swift simulation information
+    //Swift::siminfo swiftsiminfo;
+
+    double spacedimension[3];
+        
+    /* Number of top-level cells. */
+    int numcells;
+
+    /* Number of top-level cells in each dimension. */
+    int numcellsperdim;
+
+    /* Locations of top-level cells. */
+    cell_loc *cellloc;
+
+    /*! Top-level cell width. */
+    double cellwidth[3];
+
+    /*! Inverse of the top-level cell width. */
+    double icellwidth[3];
+
+    /*! Holds the node ID of each top-level cell. */
+    const int *cellnodeids;
+
     //@}
     Options()
     {
