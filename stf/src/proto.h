@@ -409,6 +409,8 @@ short_mpi_t *MPISetTaskID(const Int_t nbodies);
 void MPIAdjustLocalGroupIDs(const Int_t nbodies, Int_t *pfof);
 ///Determine number of particles that need to be exported to another mpi thread from local mpi thread based on rdist
 void MPIGetExportNum(const Int_t nbodies, Particle *&Part, Double_t rdist);
+///Determine number of particles that need to be exported to another mpi thread from local mpi thread based on rdist using the SWIFT mesh
+void MPIGetExportNumUsingMesh(const Int_t nbodies, Particle *&Part, Double_t rdist, Options &opt);
 ///Determine and send particles that need to be exported to another mpi thread from local mpi thread based on rdist
 void MPIBuildParticleExportList(const Int_t nbodies, Particle *&Part, Int_t *&pfof, Int_tree_t *&Len, Double_t rdist);
 ///Link groups across MPI threads using a physical search

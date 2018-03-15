@@ -11,6 +11,10 @@
 
 #include "stf.h"
 
+#include "swiftinterface.h"
+
+using namespace Swift;
+
 /// \name Domain decomposition routines and io routines to place particles correctly in local mpi data space
 //@{
 
@@ -755,6 +759,71 @@ void MPIGetExportNum(const Int_t nbodies, Particle *&Part, Double_t rdist){
                 }
             }
         }
+    }
+    NExport=nexport;//*(1.0+MPIExportFac);
+    MPI_Allgather(nsend_local, NProcs, MPI_Int_t, mpi_nsend, NProcs, MPI_Int_t, MPI_COMM_WORLD);
+    NImport=0;
+    for (j=0;j<NProcs;j++)NImport+=mpi_nsend[ThisTask+j*NProcs];
+}
+
+void MPIGetExportNumUsingMesh(const Int_t nbodies, Particle *&Part, Double_t rdist, Options &opt){
+    Int_t i, j,nthreads,nexport=0,nimport=0;
+    Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
+    Double_t xsearch[3][2];
+    Int_t sendTask,recvTask;
+    MPI_Status status;
+    //siminfo *s = &opt.swiftsiminfo;
+    //Options *s = &opt;
+
+    ///\todo would like to add openmp to this code. In particular, loop over nbodies but issue is nexport.
+    ///This would either require making a FoFDataIn[nthreads][NExport] structure so that each omp thread
+    ///can only access the appropriate memory and adjust nsend_local.\n
+    ///\em Or outer loop is over threads, inner loop over nbodies and just have a idlist of size Nlocal that tags particles
+    ///which must be exported. Then its a much quicker follow up loop (no if statement) that stores the data
+    for (j=0;j<NProcs;j++) nsend_local[j]=0;
+
+    cout<<"Finding number of particles to export to other MPI domains..."<<endl;
+
+    /// Get some constants
+    const double dim_x = opt.spacedimension[0];
+    const double dim_y = opt.spacedimension[1];
+    const double dim_z = opt.spacedimension[2];
+    const int cdim[3] = {opt.numcellsperdim, opt.numcellsperdim, opt.numcellsperdim};
+    const double ih_x = opt.icellwidth[0];
+    const double ih_y = opt.icellwidth[1];
+    const double ih_z = opt.icellwidth[2];
+
+    for (i=0;i<nbodies;i++) {
+        
+        /// Put it back into the simulation volume.
+        /// TODO: check if this is needed.
+        const double pos_x = box_wrap(Part[i].GetPosition(0), 0.0, dim_x);
+        const double pos_y = box_wrap(Part[i].GetPosition(1), 0.0, dim_y);
+        const double pos_z = box_wrap(Part[i].GetPosition(2), 0.0, dim_z);
+
+        /// Get the particle's cell index
+        const int index =
+            cell_getid(cdim, pos_x * ih_x, pos_y * ih_y, pos_z * ih_z);
+
+        for (int k=0;k<3;k++) {xsearch[k][0]=Part[i].GetPosition(k)-rdist;xsearch[k][1]=Part[i].GetPosition(k)+rdist;}
+        
+        /// Loop over all top-level cells
+        for (int j=0; j<opt.numcells; j++) {
+
+            /// Only check if particles have overlap with neighbouring cells that are on another MPI domain
+            if(opt.cellnodeids[j] != ThisTask) {
+                Double_t bnd[3][2];
+                for(int k=0; k<3; k++) bnd[k][0] = opt.cellloc[j].loc[k];
+                for(int k=0; k<3; k++) bnd[k][1] = bnd[k][0] + opt.cellwidth[k];
+                
+                //determine if search region is not outside of this processors domain
+                if(MPIInDomain(xsearch,bnd))
+                {
+                    nexport++;
+                    nsend_local[opt.cellnodeids[j]]++;
+                }
+            }
+        } 
     }
     NExport=nexport;//*(1.0+MPIExportFac);
     MPI_Allgather(nsend_local, NProcs, MPI_Int_t, mpi_nsend, NProcs, MPI_Int_t, MPI_COMM_WORLD);

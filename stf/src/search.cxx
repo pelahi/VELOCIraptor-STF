@@ -6,6 +6,7 @@
 
 #include "stf.h"
 
+#include "swiftinterface.h"
 
 /// \name Searches full system
 //@{
@@ -134,7 +135,8 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
 
     //then determine export particles, declare arrays used to export data
 #ifdef MPIREDUCEMEM
-    MPIGetExportNum(nbodies, Part, sqrt(param[1]));
+    //MPIGetExportNum(nbodies, Part, sqrt(param[1]));
+    MPIGetExportNumUsingMesh(nbodies, Part, sqrt(param[1]), libvelociraptorOpt);
 #endif
     //allocate memory to store info
     cout<<ThisTask<<": Finished local search, nexport/nimport = "<<NExport<<" "<<NImport<<" in "<<MyGetTime()-time2<<endl;
@@ -1568,7 +1570,8 @@ private(i,tid)
 
     //then determine export particles, declare arrays used to export data
 #ifdef MPIREDUCEMEM
-    MPIGetExportNum(nbodies, Partsubset, sqrt(param[1]));
+    //MPIGetExportNum(nbodies, Partsubset, sqrt(param[1]));
+    MPIGetExportNumUsingMesh(nbodies, Partsubset, sqrt(param[1]), libvelociraptorOpt);
 #endif
     //then determine export particles, declare arrays used to export data
     PartDataIn = new Particle[NExport];
@@ -2773,7 +2776,8 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
         if (opt.iverbose) cout<<ThisTask<<" finished local search"<<endl;
         MPI_Barrier(MPI_COMM_WORLD);
         //determine all tagged dark matter particles that have search areas that overlap another mpi domain
-        MPIGetExportNum(npartingroups, Part, sqrt(param[1]));
+        //MPIGetExportNum(npartingroups, Part, sqrt(param[1]));
+        MPIGetExportNumUsingMesh(npartingroups, Part, sqrt(param[1]), libvelociraptorOpt);
         //to store local mpi task
         mpi_foftask=MPISetTaskID(nbaryons);
         //then determine export particles, declare arrays used to export data
