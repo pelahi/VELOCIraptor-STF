@@ -313,7 +313,8 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     H5std_string datasetname;
     DataSpace dataspace;
     DataSet dataset;
-    hsize_t *dims;
+    DSetCreatPropList hdfdatasetproplist;
+    hsize_t *dims,*chunk_dims;
     hsize_t rank;
     int itemp=0;
 #endif
@@ -430,17 +431,23 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
         dims=new hsize_t[1];
+        chunk_dims=new hsize_t[1];
         dims[0]=ng;
         rank=1;
-        //datasetname=H5std_string("Group_size");
+        // Modify dataset creation property to enable chunking
+        chunk_dims[0]=min((unsigned long)20,ng);
+        hdfdatasetproplist.setChunk(rank, chunk_dims);
+        // Set ZLIB (DEFLATE) Compression using level 6.
+        hdfdatasetproplist.setDeflate(6);
         dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.group[itemp], datagroupnames.groupdatatype[itemp], dataspace);
+        dataset = Fhdf.createDataSet(datagroupnames.group[itemp], datagroupnames.groupdatatype[itemp], dataspace, hdfdatasetproplist);
         unsigned int *data=new unsigned int[ng];
         for (Int_t i=1;i<=ng;i++) data[i-1]=numingroup[i];
         dataset.write(data,datagroupnames.groupdatatype[itemp]);
         itemp++;
         delete[] data;
         delete[] dims;
+        delete[] chunk_dims;
     }
 #endif
 #ifdef USEADIOS
@@ -486,17 +493,23 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
         dims=new hsize_t[1];
+        chunk_dims=new hsize_t[1];
         dims[0]=ng;
         rank=1;
-        //datasetname=H5std_string("Offset");
+        // Modify dataset creation property to enable chunking
+        chunk_dims[0]=min((unsigned long)20,ng);
+        hdfdatasetproplist.setChunk(rank, chunk_dims);
+        // Set ZLIB (DEFLATE) Compression using level 6.
+        hdfdatasetproplist.setDeflate(6);
         dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.group[itemp], datagroupnames.groupdatatype[itemp], dataspace);
+        dataset = Fhdf.createDataSet(datagroupnames.group[itemp], datagroupnames.groupdatatype[itemp], dataspace,hdfdatasetproplist);
         unsigned long *data=new unsigned long[ng];
         for (Int_t i=1;i<=ng;i++) data[i-1]=offset[i];
         dataset.write(data,datagroupnames.groupdatatype[itemp]);
         itemp++;
         delete[] data;
         delete[] dims;
+        delete[] chunk_dims;
     }
 #endif
 #ifdef USEADIOS
@@ -518,17 +531,23 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
         dims=new hsize_t[1];
+        chunk_dims=new hsize_t[1];
         dims[0]=ng;
         rank=1;
-        //datasetname=H5std_string("Offset_unbound");
+        // Modify dataset creation property to enable chunking
+        chunk_dims[0]=min((unsigned long)20,ng);
+        hdfdatasetproplist.setChunk(rank, chunk_dims);
+        // Set ZLIB (DEFLATE) Compression using level 6.
+        hdfdatasetproplist.setDeflate(6);
         dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.group[itemp], datagroupnames.groupdatatype[itemp], dataspace);
+        dataset = Fhdf.createDataSet(datagroupnames.group[itemp], datagroupnames.groupdatatype[itemp], dataspace, hdfdatasetproplist);
         unsigned long *data=new unsigned long[ng];
         for (Int_t i=1;i<=ng;i++) data[i-1]=offset[i];
         dataset.write(data,datagroupnames.groupdatatype[itemp]);
         itemp++;
         delete[] data;
         delete[] dims;
+        delete[] chunk_dims;
     }
 #endif
 #ifdef USEADIOS
@@ -689,16 +708,23 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
 #ifdef USEHDF
         else if (opt.ibinaryout==OUTHDF) {
             dims=new hsize_t[1];
+            chunk_dims=new hsize_t[1];
             dims[0]=nids;
             rank=1;
-            //datasetname=H5std_string("Particle_IDs");
+
+            // Modify dataset creation property to enable chunking
+            chunk_dims[0]=min((unsigned long)20,nids);
+            hdfdatasetproplist.setChunk(rank, chunk_dims);
+            // Set ZLIB (DEFLATE) Compression using level 6.
+            hdfdatasetproplist.setDeflate(6);
             dataspace=DataSpace(rank,dims);
-            dataset = Fhdf.createDataSet(datagroupnames.part[itemp], datagroupnames.partdatatype[itemp], dataspace);
+            dataset = Fhdf.createDataSet(datagroupnames.part[itemp], datagroupnames.partdatatype[itemp], dataspace, hdfdatasetproplist);
             long long *data=new long long[nids];
             for (Int_t i=0;i<nids;i++) data[i]=idval[i];
             dataset.write(data,datagroupnames.partdatatype[itemp]);
             delete[] data;
             delete[] dims;
+            delete[] chunk_dims;
         }
 #endif
 #ifdef USEADIOS
@@ -744,16 +770,22 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
 #ifdef USEHDF
         else if (opt.ibinaryout==OUTHDF) {
             dims=new hsize_t[1];
+            chunk_dims=new hsize_t[1];
             dims[0]=nuids;
             rank=1;
-            //datasetname=H5std_string("Particle_IDs");
+            // Modify dataset creation property to enable chunking
+            chunk_dims[0]=min((unsigned long)20,nuids);
+            hdfdatasetproplist.setChunk(rank, chunk_dims);
+            // Set ZLIB (DEFLATE) Compression using level 6.
+            hdfdatasetproplist.setDeflate(6);
             dataspace=DataSpace(rank,dims);
-            dataset = Fhdf3.createDataSet(datagroupnames.part[itemp], datagroupnames.partdatatype[itemp], dataspace);
+            dataset = Fhdf3.createDataSet(datagroupnames.part[itemp], datagroupnames.partdatatype[itemp], dataspace,hdfdatasetproplist);
             long long *data=new long long[nuids];
             for (Int_t i=0;i<nuids;i++) data[i]=idval[i];
             dataset.write(data,datagroupnames.partdatatype[itemp]);
             delete[] data;
             delete[] dims;
+            delete[] chunk_dims;
         }
 #endif
 #ifdef USEADIOS
@@ -809,7 +841,8 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
     H5std_string datasetname;
     DataSpace dataspace;
     DataSet dataset;
-    hsize_t *dims;
+    DSetCreatPropList hdfdatasetproplist;
+    hsize_t *dims,*chunk_dims;
     hsize_t rank;
     int itemp;
 #endif
@@ -881,6 +914,7 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
         dims[0]=1;
         rank=1;
         itemp=0;
+
         //datasetname=H5std_string("File_id");
         dataspace=DataSpace(rank,dims);
         dataset = Fhdf.createDataSet(datagroupnames.types[itemp], datagroupnames.typesdatatype[itemp], dataspace);
@@ -933,16 +967,24 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
 #ifdef USEHDF
         else if (opt.ibinaryout==OUTHDF) {
             dims=new hsize_t[1];
+            chunk_dims=new hsize_t[1];
             dims[0]=nids;
             rank=1;
+            // Modify dataset creation property to enable chunking
+            chunk_dims[0]=min((Int_t)20,nids);
+            hdfdatasetproplist.setChunk(rank, chunk_dims);
+            // Set ZLIB (DEFLATE) Compression using level 6.
+            hdfdatasetproplist.setDeflate(6);
+
             //datasetname=H5std_string("Particle_types");
             dataspace=DataSpace(rank,dims);
-            dataset = Fhdf.createDataSet(datagroupnames.types[itemp], datagroupnames.typesdatatype[itemp], dataspace);
+            dataset = Fhdf.createDataSet(datagroupnames.types[itemp], datagroupnames.typesdatatype[itemp], dataspace, hdfdatasetproplist);
             unsigned short *data=new unsigned short[nids];
             for (Int_t i=0;i<nids;i++) data[i]=typeval[i];
             dataset.write(data,datagroupnames.typesdatatype[itemp]);
             delete[] data;
             delete[] dims;
+            delete[] chunk_dims;
         }
 #endif
         else for (Int_t i=0;i<nids;i++) Fout<<typeval[i]<<endl;
@@ -963,11 +1005,19 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
 #ifdef USEHDF
         else if (opt.ibinaryout==OUTHDF) {
             dims=new hsize_t[1];
+            chunk_dims=new hsize_t[1];
             dims[0]=nuids;
             rank=1;
+
+            // Modify dataset creation property to enable chunking
+            chunk_dims[0]=min((Int_t)20,nuids);
+            hdfdatasetproplist.setChunk(rank, chunk_dims);
+            // Set ZLIB (DEFLATE) Compression using level 6.
+            hdfdatasetproplist.setDeflate(6);
+
             datasetname=H5std_string("Particle_types");
             dataspace=DataSpace(rank,dims);
-            dataset = Fhdf2.createDataSet(datagroupnames.types[itemp], datagroupnames.typesdatatype[itemp], dataspace);
+            dataset = Fhdf2.createDataSet(datagroupnames.types[itemp], datagroupnames.typesdatatype[itemp], dataspace,hdfdatasetproplist);
             unsigned short *data=new unsigned short[nuids];
             for (Int_t i=0;i<nuids;i++) data[i]=typeval[i];
             dataset.write(data,datagroupnames.typesdatatype[itemp]);
@@ -1015,10 +1065,12 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
     DataSpace attrspace;
     Attribute attr;
     float attrvalue;
-    hsize_t *dims;
+    hsize_t *dims, *chunk_dims;
+
     int rank;
     DataSpace *propdataspace;
     DataSet *propdataset;
+    DSetCreatPropList  *hdfdatasetproplist;
     int itemp=0;
 #endif
 #if defined(USEHDF)||defined(USEADIOS)
@@ -1150,12 +1202,20 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         propdataspace=new DataSpace[head.headerdatainfo.size()];
         propdataset=new DataSet[head.headerdatainfo.size()];
         dims[0]=ng;
+        //size of chunks in compression
+        chunk_dims=new hsize_t[1];
+        chunk_dims[0]=min((unsigned long)20,ng);
         rank=1;
+        // Modify dataset creation property to enable chunking
+    	hdfdatasetproplist = new  DSetCreatPropList;
+    	hdfdatasetproplist->setChunk(rank, chunk_dims);
+    	// Set ZLIB (DEFLATE) Compression using level 6.
+    	hdfdatasetproplist->setDeflate(6);
         dataspace=DataSpace(rank,dims);
         for (Int_t i=0;i<head.headerdatainfo.size();i++) {
             datasetname=H5std_string(head.headerdatainfo[i]);
             propdataspace[i]=DataSpace(rank,dims);
-            propdataset[i] = Fhdf.createDataSet(datasetname, head.predtypeinfo[i], propdataspace[i]);
+            propdataset[i] = Fhdf.createDataSet(datasetname, head.predtypeinfo[i], propdataspace[i],*hdfdatasetproplist);
         }
         delete[] dims;
     }
@@ -1557,7 +1617,8 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
     H5std_string datasetname;
     DataSpace dataspace;
     DataSet dataset;
-    hsize_t *dims;
+    DSetCreatPropList hdfdatasetproplist;
+    hsize_t *dims, *chunk_dims;
     int rank;
     int itemp=0;
 #endif
@@ -1596,6 +1657,7 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
         else if (opt.ibinaryout==OUTHDF) {
             dims=new hsize_t[1];
             dims[0]=nfield;
+
             rank=1;
             itemp=4;
             //datasetname=H5std_string("Number_of_substructures_in_halo");
