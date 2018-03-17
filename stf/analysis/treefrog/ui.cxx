@@ -287,6 +287,8 @@ void usage(void)
     cerr<<"-s <number of files/snapshots>\n";
     cerr<<"-C <produce cross catalog match (0 halo tree ,1 cross catalog ,2 full graph) default ("<<opt.icatalog<<")\n";
     cerr<<"-o <output filename>\n";
+    cerr<<"-c <produce cross catalog match (0 halo tree ,1 cross catalog ,2 full graph) default ("<<opt.icatalog<<")\n";
+    cerr<<"-o <output filename if format is ASCII or folder if format is HDF5>\n";
     cerr<<"-O <output format, ASCII, HDF5 ("<<OUTASCII<<","<<" "<<OUTHDF<<"), with default "<<opt.outputformat<<">\n";
     cerr<<"-d <output data, 0 for minimal, 1 for outputing merits as well, with default "<<opt.outdataformat<<">\n";
     cerr<<" ========================= "<<endl<<endl;
