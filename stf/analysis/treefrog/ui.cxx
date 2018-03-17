@@ -285,7 +285,7 @@ void usage(void)
     cerr<<"-i <file containing filelist>\n";
     cerr<<"-I <Input format ("<<opt.ioformat<<" [Sussing "<<DSUSSING<<", normal velociraptor catalog "<<DCATALOG<<", nIFTY "<<DNIFTY<<", Void "<<DVOID<<" ])\n";
     cerr<<"-s <number of files/snapshots>\n";
-    cerr<<"-c <produce cross catalog match (0 halo tree ,1 cross catalog ,2 full graph) default ("<<opt.icatalog<<")\n";
+    cerr<<"-C <produce cross catalog match (0 halo tree ,1 cross catalog ,2 full graph) default ("<<opt.icatalog<<")\n";
     cerr<<"-o <output filename>\n";
     cerr<<"-O <output format, ASCII, HDF5 ("<<OUTASCII<<","<<" "<<OUTHDF<<"), with default "<<opt.outputformat<<">\n";
     cerr<<"-d <output data, 0 for minimal, 1 for outputing merits as well, with default "<<opt.outdataformat<<">\n";
