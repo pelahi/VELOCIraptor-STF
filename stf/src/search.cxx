@@ -90,7 +90,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     totalgroups=numgroups;
     //if this flag is set, calculate localfield value here for particles possibly resident in a field structure
 #ifdef STRUCDEN
-    if (numgroups>0 && opt.iSubSearch==1) {
+    if (numgroups>0 && (opt.iSubSearch==1&&opt.foftype!=FOF6DCORE)) {
     numingroup=BuildNumInGroup(nbodies, numgroups, pfof);
     storetype=new Int_t[nbodies];
     for (i=0;i<nbodies;i++) storetype[i]=Part[i].GetType();
@@ -201,7 +201,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
 
     //if calculating velocity density only of particles resident in field structures large enough for substructure search
 #if defined(STRUCDEN) && defined(USEMPI)
-    if (totalgroups>0&&opt.iSubSearch==1)
+    if (totalgroups>0&&(opt.iSubSearch==1&&opt.foftype!=FOF6DCORE))
     {
         storetype=new Int_t[Nlocal];
         numingroup=BuildNumInGroup(Nlocal, numgroups, pfof);
@@ -794,7 +794,10 @@ Int_t* SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Part
     param[2]=(opt.ellvscale*opt.ellvscale)*(opt.ellvel*opt.ellvel);
     param[6]=(opt.ellxscale*opt.ellxscale)*(opt.ellphys*opt.ellphys);
     param[7]=(opt.Vratio);
-    if (opt.foftype==FOF6DSUBSET) param[7]=(opt.ellvscale*opt.ellvscale)*(opt.ellvel*opt.ellvel);
+    if (opt.foftype==FOF6DSUBSET) {
+        param[2] = opt.HaloSigmaV*(opt.halocorevfac * opt.halocorevfac);
+        param[7] = param[2];
+    }
     param[8]=cos(opt.thetaopen*M_PI);
     param[9]=opt.ellthreshold;
     //if iterating slightly increase constraints and decrease minimum number
@@ -853,10 +856,20 @@ Int_t* SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Part
         }
         fofcmp=&FOFStreamwithprobNNNODIST;
     }
+    else if (opt.foftype==FOF6DCORE) {
+        if (opt.iverbose) {
+        cout<<"FOF6DCORE which identifies phase-space dense regions and assigns particles, ie core identification and growth\n";
+        }
+        //just build tree and initialize the pfof array
+        tree=new KDTree(Partsubset,nsubset,opt.Bsize,tree->TPHYS);
+        numgroups=0;
+        pfof=new Int_t[nsubset];
+        for (i=0;i<nsubset;i++) pfof[i]=0;
+    }
     //@}
     //now actually search for dynamically distinct substructures
     //@{
-    if (!(opt.foftype==FOFSTPROBNN||opt.foftype==FOFSTPROBNNLX||opt.foftype==FOFSTPROBNNNODIST)) {
+    if (!(opt.foftype==FOFSTPROBNN||opt.foftype==FOFSTPROBNNLX||opt.foftype==FOFSTPROBNNNODIST||opt.foftype==FOF6DCORE)) {
         if (opt.iverbose) cout<<"Building tree ... "<<endl;
         tree=new KDTree(Partsubset,nsubset,opt.Bsize,tree->TPHYS);
         param[0]=tree->GetTreeType();
@@ -913,7 +926,7 @@ private(i,tid)
 
     //iteration to search region around streams using lower thresholds
     //determine number of groups
-    if (opt.iiterflag&&numgroups>0) {
+    if (opt.iiterflag&&numgroups>0 && opt.foftype!=FOF6DCORE) {
         Int_t ng=numgroups;
         int mergers;
         int *igflag,*ilflag;
@@ -962,6 +975,8 @@ private(i,tid)
         param[7]=(opt.Vratio);
         param[8]=cos(opt.thetaopen*M_PI);
         param[9]=opt.ellthreshold*opt.ellfac;
+        //if (opt.foftype==FOF6DSUBSET) param[7]/=opt.vfac*opt.vfac;
+
         fofcmp=&FOFStreamwithprobIterative;
         if (opt.iverbose) {
         cout<<ThisTask<<" "<<"Begin expanded search for groups near cell size"<<endl;
@@ -1139,6 +1154,7 @@ private(i,tid)
     //if (nsubset>opt.HaloMergerSize&&((!opt.iSingleHalo&&sublevel==1)||(opt.iSingleHalo&&sublevel==0)))
     if (nsubset>=MINSUBSIZE)
     {
+
         //first have to delete tree used in search so that particles are in original particle order
         //then construct a new grid with much larger cells so that new bg velocity dispersion can be estimated
         delete tree;
@@ -1168,7 +1184,7 @@ private(i,tid)
 
         //now begin fof6d search for large background objects that are missed using smaller grid cells ONLY IF substructures have been found
         //this search can identify merger excited radial shells so for the moment, disabled
-        /*
+        
         if (numgroups>0) {
             bgoffset=0;
             minsize=ncl*0.2;
@@ -1345,7 +1361,7 @@ private(i,tid)
             }
             else if (opt.iverbose) cout<<ThisTask<<" "<<"No large background substructure groups found"<<endl;
             delete[] pfofbg;
-        }*/
+        }
         //output results of search
         if (numgroups>0) if (opt.iverbose>=2) cout<<numgroups<<" substructures found after large grid search"<<endl;
         else if (opt.iverbose>=2) cout<<"NO SUBSTRUCTURES FOUND"<<endl;
@@ -1353,7 +1369,7 @@ private(i,tid)
 
     //ONCE ALL substructures are found, search for cores of major mergers with minimum size set by cell size since grid is quite large after bg search
     //for missing large substructure cores
-    if(opt.iHaloCoreSearch>0&&((!opt.iSingleHalo&&sublevel<=maxhalocoresublevel)||(opt.iSingleHalo&&sublevel==0)))
+    if((opt.iHaloCoreSearch>0&&((!opt.iSingleHalo&&sublevel<=maxhalocoresublevel)||(opt.iSingleHalo&&sublevel==0)))||opt.foftype==FOF6DCORE)
     {
         if (opt.iverbose>=2) cout<<ThisTask<<" beginning 6dfof core search to find multiple cores"<<endl;
         bgoffset=1;
@@ -1409,7 +1425,7 @@ private(i,tid)
             minsize=nsubset*opt.halocorenfac;
             minsize=max(minsize,opt.MinSize);
         }
-        else {
+        else if (opt.foftype==FOF6DCORE || opt.partsearchtype==PSTSTAR){
             minsize=opt.MinSize;
         }
         if (opt.iverbose>=2) {
@@ -1913,7 +1929,7 @@ private(i,tid,Pval,x1,D2,dval,mval,pid,pidcore)
             delete[] dist2;
         }
         //now that particles assigned to cores, remove if core too small
-        if (opt.partsearchtype!=PSTSTAR) mincoresize=max((Int_t)(nsubset*MAXCELLFRACTION/2.0),(Int_t)opt.MinSize);
+        if (opt.partsearchtype!=PSTSTAR&&opt.foftype!=FOF6DCORE) mincoresize=max((Int_t)(nsubset*opt.halocorenfac),(Int_t)opt.MinSize);//max((Int_t)(nsubset*MAXCELLFRACTION/2.0),(Int_t)opt.MinSize);
         else mincoresize=opt.MinSize;
         for (i=1;i<=numgroupsbg;i++) ncore[i]=0;
         for (i=0;i<nsubset;i++) {
@@ -2120,7 +2136,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
 }
 #endif
             }
-            if (subnumingroup[i]>=MINSUBSIZE) {
+            if (subnumingroup[i]>=MINSUBSIZE&&opt.foftype!=FOF6DCORE) {
                 //now if object is large enough for phase-space decomposition and search, compare local field to bg field
                 opt.Ncell=opt.Ncellfac*subnumingroup[i];
                 //if ncell is such that uncertainty would be greater than 0.5% based on Poisson noise, increase ncell till above unless cell would contain >25%

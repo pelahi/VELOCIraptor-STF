@@ -143,6 +143,8 @@ using namespace NBody;
 #define  FOFSTPROBSCALEELL 13
 //#define  FOFSTPROBIT 13
 #define  FOFSTPROBSCALEELLNN 14
+//solely phase-space tensor core growth substructure search 
+#define  FOF6DCORE 6
 
 ///phase-space FOF but no subset produced
 #define  FOFSTNOSUBSET 2
