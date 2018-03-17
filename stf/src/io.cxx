@@ -1656,18 +1656,23 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
 #ifdef USEHDF
         else if (opt.ibinaryout==OUTHDF) {
             dims=new hsize_t[1];
+            chunk_dims=new hsize_t[1];
             dims[0]=nfield;
+            chunk_dims[0]=min((Int_t)20,nfield);
 
             rank=1;
             itemp=4;
+        	hdfdatasetproplist.setChunk(rank, chunk_dims);
+        	hdfdatasetproplist.setDeflate(6);
             //datasetname=H5std_string("Number_of_substructures_in_halo");
             dataspace=DataSpace(rank,dims);
-            dataset = Fhdf.createDataSet(datagroupnames.hierarchy[itemp], datagroupnames.hierarchydatatype[itemp], dataspace);
+            dataset = Fhdf.createDataSet(datagroupnames.hierarchy[itemp], datagroupnames.hierarchydatatype[itemp], dataspace,hdfdatasetproplist);
             unsigned int *data=new unsigned int[nfield];
             for (Int_t i=1;i<=nfield;i++) data[i-1]=nsub[i];
             dataset.write(data,datagroupnames.hierarchydatatype[itemp]);
             delete[] data;
             delete[] dims;
+            delete[] chunk_dims;
         }
 #endif
         else for (Int_t i=1;i<=nfield;i++)Fout<<nsub[i]<<endl;
@@ -1680,25 +1685,30 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
 #ifdef USEHDF
         else if (opt.ibinaryout==OUTHDF) {
             dims=new hsize_t[1];
+            chunk_dims=new hsize_t[1];
             dims[0]=ngroups-nfield;
+            chunk_dims[0]=min((Int_t)20,ngroups-nfield);
             rank=1;
             itemp=4;
-            //datasetname=H5std_string("Number_of_substructures_in_subhalo");
+            hdfdatasetproplist.setChunk(rank, chunk_dims);
+        	hdfdatasetproplist.setDeflate(6);
             dataspace=DataSpace(rank,dims);
-            dataset = Fhdf.createDataSet(datagroupnames.hierarchy[itemp], datagroupnames.hierarchydatatype[itemp], dataspace);
+            dataset = Fhdf.createDataSet(datagroupnames.hierarchy[itemp], datagroupnames.hierarchydatatype[itemp], dataspace, hdfdatasetproplist);
             unsigned int *data=new unsigned int[ngroups-nfield];
             for (Int_t i=nfield+1;i<=ngroups;i++) data[i-nfield-1]=nsub[i];
             dataset.write(data,datagroupnames.hierarchydatatype[itemp]);
             delete[] data;
             itemp++;
-            //datasetname=H5std_string("Parent_halo_ID");
+            hdfdatasetproplist.setChunk(rank, chunk_dims);
+        	hdfdatasetproplist.setDeflate(6);
             dataspace=DataSpace(rank,dims);
-            dataset = Fhdf.createDataSet(datagroupnames.hierarchy[itemp], datagroupnames.hierarchydatatype[itemp], dataspace);
+            dataset = Fhdf.createDataSet(datagroupnames.hierarchy[itemp], datagroupnames.hierarchydatatype[itemp], dataspace, hdfdatasetproplist);
             long long *data2=new long long[ngroups-nfield];
             for (Int_t i=nfield+1;i<=ngroups;i++) data2[i-nfield-1]=parentgid[i];
             dataset.write(data2,datagroupnames.hierarchydatatype[itemp]);
             delete[] data2;
             delete[] dims;
+            delete[] chunk_dims;
         }
 #endif
         else {
@@ -1715,23 +1725,28 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
 #ifdef USEHDF
         else if (opt.ibinaryout==OUTHDF) {
             dims=new hsize_t[1];
+            chunk_dims=new hsize_t[1];
             dims[0]=ngroups;
+            chunk_dims[0]=min((Int_t)20,ngroups);
             rank=1;
             itemp=4;
+            hdfdatasetproplist.setChunk(rank, chunk_dims);
+        	hdfdatasetproplist.setDeflate(6);
             dataspace=DataSpace(rank,dims);
-            dataset = Fhdf.createDataSet(datagroupnames.hierarchy[itemp], datagroupnames.hierarchydatatype[itemp], dataspace);
+            dataset = Fhdf.createDataSet(datagroupnames.hierarchy[itemp], datagroupnames.hierarchydatatype[itemp], dataspace, hdfdatasetproplist);
             unsigned int *data=new unsigned int[ngroups];
             for (Int_t i=1;i<=ngroups;i++) data[i-1]=nsub[i];
             dataset.write(data,datagroupnames.hierarchydatatype[itemp]);
             delete[] data;
             itemp++;
             dataspace=DataSpace(rank,dims);
-            dataset = Fhdf.createDataSet(datagroupnames.hierarchy[itemp], datagroupnames.hierarchydatatype[itemp], dataspace);
+            dataset = Fhdf.createDataSet(datagroupnames.hierarchy[itemp], datagroupnames.hierarchydatatype[itemp], dataspace, hdfdatasetproplist);
             long long *data2=new long long[ngroups];
             for (Int_t i=1;i<=ngroups;i++) data2[i-1]=parentgid[i];
             dataset.write(data2,datagroupnames.hierarchydatatype[itemp]);
             delete[] data2;
             delete[] dims;
+            delete[] chunk_dims;
         }
 #endif
         else {
@@ -1804,22 +1819,27 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
 #ifdef USEHDF
         else if (opt.ibinaryout==OUTHDF) {
             dims=new hsize_t[1];
+            chunk_dims=new hsize_t[1];
             dims[0]=nfield;
+            chunk_dims[0]=min((Int_t)20,nfield);
             rank=1;
+            hdfdatasetproplist.setChunk(rank, chunk_dims);
+            hdfdatasetproplist.setDeflate(6);
             dataspace=DataSpace(rank,dims);
-            dataset = Fhdf.createDataSet(datagroupnames.hierarchy[itemp], datagroupnames.hierarchydatatype[itemp], dataspace);
+            dataset = Fhdf.createDataSet(datagroupnames.hierarchy[itemp], datagroupnames.hierarchydatatype[itemp], dataspace, hdfdatasetproplist);
             unsigned int *data=new unsigned int[nfield];
             for (Int_t i=1;i<=nfield;i++) data[i-1]=nsub[i];
             dataset.write(data,datagroupnames.hierarchydatatype[itemp]);
             delete[] data;
             itemp++;
             dataspace=DataSpace(rank,dims);
-            dataset = Fhdf.createDataSet(datagroupnames.hierarchy[itemp], datagroupnames.hierarchydatatype[itemp], dataspace);
+            dataset = Fhdf.createDataSet(datagroupnames.hierarchy[itemp], datagroupnames.hierarchydatatype[itemp], dataspace, hdfdatasetproplist);
             long long *data2=new long long[nfield];
             for (Int_t i=1;i<=nfield;i++) data2[i-1]=parentgid[i];
             dataset.write(data2,datagroupnames.hierarchydatatype[itemp]);
             delete[] data2;
             delete[] dims;
+            delete[] chunk_dims;
         }
 #endif
         else for (Int_t i=1;i<=nfield;i++)Fout<<parentgid[i]<<" "<<nsub[i]<<endl;
@@ -1832,22 +1852,27 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
 #ifdef USEHDF
         else if (opt.ibinaryout==OUTHDF) {
             dims=new hsize_t[1];
+            chunk_dims=new hsize_t[1];
             dims[0]=ngroups-nfield;
+            chunk_dims[0]=min((Int_t)20,ngroups-nfield);
             rank=1;
+            hdfdatasetproplist.setChunk(rank, chunk_dims);
+            hdfdatasetproplist.setDeflate(6);
             dataspace=DataSpace(rank,dims);
-            dataset = Fhdf.createDataSet(datagroupnames.hierarchy[itemp], datagroupnames.hierarchydatatype[itemp], dataspace);
+            dataset = Fhdf.createDataSet(datagroupnames.hierarchy[itemp], datagroupnames.hierarchydatatype[itemp], dataspace, hdfdatasetproplist);
             unsigned int *data=new unsigned int[ngroups-nfield];
             for (Int_t i=nfield+1;i<=ngroups;i++) data[i-nfield-1]=nsub[i];
             dataset.write(data,datagroupnames.hierarchydatatype[itemp]);
             delete[] data;
             itemp++;
             dataspace=DataSpace(rank,dims);
-            dataset = Fhdf.createDataSet(datagroupnames.hierarchy[itemp], datagroupnames.hierarchydatatype[itemp], dataspace);
+            dataset = Fhdf.createDataSet(datagroupnames.hierarchy[itemp], datagroupnames.hierarchydatatype[itemp], dataspace, hdfdatasetproplist);
             long long *data2=new long long[ngroups-nfield];
             for (Int_t i=nfield+1;i<=ngroups;i++) data2[i-nfield-1]=parentgid[i];
             dataset.write(data2,datagroupnames.hierarchydatatype[itemp]);
             delete[] data2;
             delete[] dims;
+            delete[] chunk_dims;
         }
 #endif
         else for (Int_t i=nfield+1;i<=ngroups;i++)Fout<<parentgid[i]<<" "<<nsub[i]<<endl;
@@ -1861,22 +1886,27 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
 #ifdef USEHDF
         else if (opt.ibinaryout==OUTHDF) {
             dims=new hsize_t[1];
+            chunk_dims=new hsize_t[1];
             dims[0]=ngroups;
+            chunk_dims[0]=min((Int_t)20,ngroups);
             rank=1;
+            hdfdatasetproplist.setChunk(rank, chunk_dims);
+            hdfdatasetproplist.setDeflate(6);
             dataspace=DataSpace(rank,dims);
-            dataset = Fhdf.createDataSet(datagroupnames.hierarchy[itemp], datagroupnames.hierarchydatatype[itemp], dataspace);
+            dataset = Fhdf.createDataSet(datagroupnames.hierarchy[itemp], datagroupnames.hierarchydatatype[itemp], dataspace, hdfdatasetproplist);
             unsigned int *data=new unsigned int[ngroups];
             for (Int_t i=1;i<=ngroups;i++) data[i-1]=nsub[i];
             dataset.write(data,datagroupnames.hierarchydatatype[itemp]);
             delete[] data;
             itemp++;
             dataspace=DataSpace(rank,dims);
-            dataset = Fhdf.createDataSet(datagroupnames.hierarchy[itemp], datagroupnames.hierarchydatatype[itemp], dataspace);
+            dataset = Fhdf.createDataSet(datagroupnames.hierarchy[itemp], datagroupnames.hierarchydatatype[itemp], dataspace, hdfdatasetproplist);
             long long *data2=new long long[ngroups];
             for (Int_t i=1;i<=ngroups;i++) data2[i-1]=parentgid[i];
             dataset.write(data2,datagroupnames.hierarchydatatype[itemp]);
             delete[] data2;
             delete[] dims;
+            delete[] chunk_dims;
         }
 #endif
         else {
