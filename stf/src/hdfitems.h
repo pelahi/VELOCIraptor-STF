@@ -73,13 +73,16 @@ using namespace H5;
 
 ///\name Structures for the HDF5 interface, primarily used to store the strings of Groups and DataSets
 //@{
-#define HDFNUMNAMETYPES  4 
+#define HDFNUMNAMETYPES  4
 
 #define HDFILLUSTISNAMES 0
 #define HDFGADGETXNAMES  1
 #define HDFEAGLENAMES    2
 #define HDFGIZMONAMES    3
 //@}
+
+///size of chunks in hdf files for Compression
+#define HDFOUTPUTCHUNKSIZE 8192
 
 ///This structures stores the strings defining the groups of data in the hdf input. NOTE: HERE I show the strings for Illustris format
 struct HDF_Group_Names {
