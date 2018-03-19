@@ -20,7 +20,7 @@ void InitVelociraptor(char* configname, char* outputname, cosmoinfo c, unitinfo 
     MPI_Comm_rank(MPI_COMM_WORLD,&ThisTask);
     //store MinSize as when using mpi prior to stitching use min of 2;
     MinNumMPI=2;
-    mpi_period = 0;
+
 #endif
     cout<<"Initialising VELOCIraptor..."<< endl;
 
@@ -100,6 +100,7 @@ void InitVelociraptor(char* configname, char* outputname, cosmoinfo c, unitinfo 
     //else use the halominsize since if mpi and not single halo, halos localized to mpi domain for substructure search
     if (libvelociraptorOpt.iSingleHalo) MinNumOld=libvelociraptorOpt.MinSize;
     else MinNumOld=libvelociraptorOpt.HaloMinSize;
+    mpi_period = libvelociraptorOpt.p;
 #endif
 
     //write velociraptor info
