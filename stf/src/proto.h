@@ -410,11 +410,11 @@ void MPIAdjustLocalGroupIDs(const Int_t nbodies, Int_t *pfof);
 ///Determine number of particles that need to be exported to another mpi thread from local mpi thread based on rdist
 void MPIGetExportNum(const Int_t nbodies, Particle *&Part, Double_t rdist);
 ///Determine number of particles that need to be exported to another mpi thread from local mpi thread based on rdist using the SWIFT mesh
-void MPIGetExportNumUsingMesh(const Int_t nbodies, Particle *&Part, Double_t rdist, Options &opt);
+void MPIGetExportNumUsingMesh(Options &opt, const Int_t nbodies, Particle *&Part, Double_t rdist);
 ///Determine and send particles that need to be exported to another mpi thread from local mpi thread based on rdist
 void MPIBuildParticleExportList(const Int_t nbodies, Particle *&Part, Int_t *&pfof, Int_tree_t *&Len, Double_t rdist);
 ///Determine and send particles that need to be exported to another mpi thread from local mpi thread based on rdist using the SWIFT mesh
-void MPIBuildParticleExportListUsingMesh(const Int_t nbodies, Particle *&Part, Int_t *&pfof, Int_tree_t *&Len, Double_t rdist, Options &opt);
+void MPIBuildParticleExportListUsingMesh(Options &opt, const Int_t nbodies, Particle *&Part, Int_t *&pfof, Int_tree_t *&Len, Double_t rdist);
 ///Link groups across MPI threads using a physical search
 Int_t MPILinkAcross(const Int_t nbodies, KDTree *tree, Particle *&Part, Int_t *&pfof, Int_tree_t *&Len, Int_tree_t *&Head, Int_tree_t *&Next, Double_t rdist2);
 ///Link groups across MPI threads using criterion

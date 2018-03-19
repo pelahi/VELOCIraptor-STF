@@ -136,7 +136,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
     //then determine export particles, declare arrays used to export data
 #ifdef MPIREDUCEMEM
     //MPIGetExportNum(nbodies, Part, sqrt(param[1]));
-    MPIGetExportNumUsingMesh(nbodies, Part, sqrt(param[1]), libvelociraptorOpt);
+    MPIGetExportNumUsingMesh(libvelociraptorOpt, nbodies, Part, sqrt(param[1]));
 
 #endif
     //allocate memory to store info
@@ -153,7 +153,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
     //I have adjusted FOF data structure to have local group length and also seperated the export particles from export fof data
     //the reason is that will have to update fof data in iterative section but don't need to update particle information.
     //MPIBuildParticleExportList(nbodies, Part, pfof, Len, sqrt(param[1]));
-    MPIBuildParticleExportListUsingMesh(nbodies, Part, pfof, Len, sqrt(param[1]), libvelociraptorOpt);
+    MPIBuildParticleExportListUsingMesh(libvelociraptorOpt, nbodies, Part, pfof, Len, sqrt(param[1]));
     MPI_Barrier(MPI_COMM_WORLD);
     //Now that have FoFDataGet (the exported particles) must search local volume using said particles
     //This is done by finding all particles in the search volume and then checking if those particles meet the FoF criterion
@@ -1573,7 +1573,7 @@ private(i,tid)
     //then determine export particles, declare arrays used to export data
 #ifdef MPIREDUCEMEM
     //MPIGetExportNum(nbodies, Partsubset, sqrt(param[1]));
-    MPIGetExportNumUsingMesh(nbodies, Partsubset, sqrt(param[1]), libvelociraptorOpt);
+    MPIGetExportNumUsingMesh(libvelociraptorOpt, nbodies, Partsubset, sqrt(param[1]));
 #endif
     //then determine export particles, declare arrays used to export data
     PartDataIn = new Particle[NExport];
@@ -1583,7 +1583,7 @@ private(i,tid)
     //I have adjusted FOF data structure to have local group length and also seperated the export particles from export fof data
     //the reason is that will have to update fof data in iterative section but don't need to update particle information.
     //MPIBuildParticleExportList(nsubset, Partsubset, pfof, Len, sqrt(param[1]));
-    MPIBuildParticleExportListUsingMesh(nsubset, Partsubset, pfof, Len, sqrt(param[1]), libvelociraptorOpt);
+    MPIBuildParticleExportListUsingMesh(libvelociraptorOpt, nsubset, Partsubset, pfof, Len, sqrt(param[1]));
     //Now that have FoFDataGet (the exported particles) must search local volume using said particles
     //This is done by finding all particles in the search volume and then checking if those particles meet the FoF criterion
     //One must keep iterating till there are no new links.
@@ -2780,7 +2780,7 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
         MPI_Barrier(MPI_COMM_WORLD);
         //determine all tagged dark matter particles that have search areas that overlap another mpi domain
         //MPIGetExportNum(npartingroups, Part, sqrt(param[1]));
-        MPIGetExportNumUsingMesh(npartingroups, Part, sqrt(param[1]), libvelociraptorOpt);
+        MPIGetExportNumUsingMesh(libvelociraptorOpt, npartingroups, Part, sqrt(param[1]));
         //to store local mpi task
         mpi_foftask=MPISetTaskID(nbaryons);
         //then determine export particles, declare arrays used to export data
