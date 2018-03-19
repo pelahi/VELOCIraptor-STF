@@ -121,6 +121,11 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
     mpi_foftask=MPISetTaskID(Nlocal);
 
     Len=new Int_tree_t[nbodies];
+    if (opt.iverbose>=2) {
+        Int_t sum=0;
+        for (i=0;i<nbodies;i++) sum+=(pfof[i]>0);
+        cout<<ThisTask<<" has found locally "<<numgroups<<" with lower min size of "<<minsize<<", with  "<<sum<<" particles in all groups"<<endl;
+    }
     if (numgroups) {
         numingroup=BuildNumInGroup(nbodies, numgroups, pfof);
         for (i=0;i<nbodies;i++) Len[i]=numingroup[pfof[Part[i].GetID()]];
@@ -168,6 +173,9 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
     cout<<ThisTask<<": Starting to linking across MPI domains"<<endl;
     do {
         links_across=MPILinkAcross(nbodies, tree, Part, pfof, Len, Head, Next, param[1]);
+        if (opt.iverbose==2) {
+            cout<<ThisTask<<" has found "<<links_across<<" links to particles on other mpi domains "<<endl;
+        }
         MPI_Allreduce(&links_across, &links_across_total, 1, MPI_Int_t, MPI_SUM, MPI_COMM_WORLD);
         MPIUpdateExportList(nbodies,Part,pfof,Len);
     }while(links_across_total>0);
@@ -207,6 +215,11 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
     if (ThisTask==0) cout<<"Total number of groups found is "<<totalgroups<<endl;
     Nlocal=newnbodies;
 #endif
+    if (opt.iverbose>=2) {
+        Int_t sum=0;
+        for (i=0;i<nbodies;i++) sum+=(pfof[i]>0);
+        cout<<ThisTask<<" has found after full search "<<numgroups<<" with lower min size of "<<minsize<<", with  "<<sum<<" particles in all groups"<<endl;
+    }
     if (ThisTask==0) cout<<ThisTask<<": finished FOF search in total time of "<<MyGetTime()-time1<<endl;
 
     //if calculating velocity density only of particles resident in field structures large enough for substructure search
