@@ -1237,6 +1237,7 @@ void MPIBuildParticleExportListUsingMesh(Options &opt, const Int_t nbodies, Part
     const double ih_y = opt.icellwidth[1];
     const double ih_z = opt.icellwidth[2];
 
+    cout<<ThisTask<<" now building exported particle list for FOF search "<<endl;
     for (i=0;i<nbodies;i++) {
 
         /// Put it back into the simulation volume.
@@ -1262,6 +1263,39 @@ void MPIBuildParticleExportListUsingMesh(Options &opt, const Int_t nbodies, Part
                 //determine if search region is not outside of this processors domain
                 if(MPIInDomain(xsearch,bnd))
                 {
+                    if (opt.iverbose==2) {
+                        string blah;
+                        blah=static_cast<ostringstream*>( &(ostringstream() << ThisTask) )->str();
+                        blah+=" has found a particle for export \n";
+                        blah+=" Position is (";
+                        blah+=static_cast<ostringstream*>( &(ostringstream() << Part[i].X()) )->str();
+                        blah+=", ";
+                        blah+=static_cast<ostringstream*>( &(ostringstream() << Part[i].Y()) )->str();
+                        blah+=", ";
+                        blah+=static_cast<ostringstream*>( &(ostringstream() << Part[i].Z()) )->str();
+                        blah+=") with PID of ";
+                        blah+=static_cast<ostringstream*>( &(ostringstream() << Part[i].GetPID()) )->str();
+                        blah+='\n';
+                        blah+="will be send to task ";
+                        blah+=static_cast<ostringstream*>( &(ostringstream() << opt.cellnodeids[j]) )->str();
+                        blah+=" cell  ";
+                        blah+=static_cast<ostringstream*>( &(ostringstream() << j) )->str();
+                        blah+=" with extent ([";
+                        blah+=static_cast<ostringstream*>( &(ostringstream() << bnd[0][0]) )->str();
+                        blah+=", ";
+                        blah+=static_cast<ostringstream*>( &(ostringstream() << bnd[0][1]) )->str();
+                        blah+="], [";
+                        blah+=static_cast<ostringstream*>( &(ostringstream() << bnd[1][0]) )->str();
+                        blah+=", ";
+                        blah+=static_cast<ostringstream*>( &(ostringstream() << bnd[1][1]) )->str();
+                        blah+="], [";
+                        blah+=static_cast<ostringstream*>( &(ostringstream() << bnd[2][0]) )->str();
+                        blah+=", ";
+                        blah+=static_cast<ostringstream*>( &(ostringstream() << bnd[2][1]) )->str();
+                        blah+="])";
+                        blah+='\n';
+                        cout<<blah;
+                    }
                     //FoFDataIn[nexport].Part=Part[i];
                     FoFDataIn[nexport].Index = i;
                     FoFDataIn[nexport].Task = j;
