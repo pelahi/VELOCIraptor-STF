@@ -474,6 +474,219 @@ int MPISearchForOverlap(Particle &Part, Double_t &rdist){
     }
     return numoverlap;
 }
+
+///\todo clean up memory allocation in these functions, no need to keep allocating xsearch,xsearchp,numoverlap,etc
+/// Determine if a particle needs to be exported to another mpi domain based on a physical search radius
+int MPISearchForOverlapUsingMesh(Options &opt, Particle &Part, Double_t &rdist){
+    Double_t xsearch[3][2];
+    Double_t xsearchp[7][3][2];//used to store periodic reflections
+    int numoverlap=0,numreflecs=0,ireflec[3],numreflecchoice=0;
+    int indomain;
+    int j,k;
+
+    for (k=0;k<3;k++) {xsearch[k][0]=Part.GetPosition(k)-rdist;xsearch[k][1]=Part.GetPosition(k)+rdist;}
+    //for (j=0;j<NProcs;j++) {
+    //    if (j!=ThisTask) {
+    //        //determine if search region is not outside of this processors domain
+    //        if(!((mpi_domain[j].bnd[0][1] < xsearch[0][0]) || (mpi_domain[j].bnd[0][0] > xsearch[0][1]) ||
+    //            (mpi_domain[j].bnd[1][1] < xsearch[1][0]) || (mpi_domain[j].bnd[1][0] > xsearch[1][1]) ||
+    //            (mpi_domain[j].bnd[2][1] < xsearch[2][0]) || (mpi_domain[j].bnd[2][0] > xsearch[2][1])))
+    //            numoverlap++;
+    //    }
+    //}
+    /// Loop over all top-level cells
+    for (int j=0; j<opt.numcells; j++) {
+
+        /// Only check if particles have overlap with neighbouring cells that are on another MPI domain
+        if(opt.cellnodeids[j] != ThisTask) {
+            Double_t bnd[3][2];
+            for(int k=0; k<3; k++) bnd[k][0] = opt.cellloc[j].loc[k];
+            for(int k=0; k<3; k++) bnd[k][1] = bnd[k][0] + opt.cellwidth[k];
+
+            //determine if search region is not outside of this processors domain
+            if(!((bnd[0][1] < xsearch[0][0]) || (bnd[0][0] > xsearch[0][1]) ||
+                (bnd[1][1] < xsearch[1][0]) || (bnd[1][0] > xsearch[1][1]) ||
+                (bnd[2][1] < xsearch[2][0]) || (bnd[2][0] > xsearch[2][1])))
+                numoverlap++;
+
+        }
+    }
+    if (mpi_period!=0) {
+        for (k=0;k<3;k++) if (xsearch[k][0]<0||xsearch[k][1]>mpi_period) ireflec[numreflecs++]=k;
+        if (numreflecs==1)numreflecchoice=1;
+        else if (numreflecs==2) numreflecchoice=3;
+        else if (numreflecs==3) numreflecchoice=7;
+        for (j=0;j<numreflecchoice;j++) for (k=0;k<3;k++) {xsearchp[j][k][0]=xsearch[k][0];xsearchp[j][k][1]=xsearch[k][1];}
+        if (numreflecs==1) {
+            if (xsearch[ireflec[0]][0]<0) {
+                    xsearchp[0][ireflec[0]][0]=xsearch[ireflec[0]][0]+mpi_period;
+                    xsearchp[0][ireflec[0]][1]=xsearch[ireflec[0]][1]+mpi_period;
+            }
+            else if (xsearch[ireflec[0]][1]>mpi_period) {
+                    xsearchp[0][ireflec[0]][0]=xsearch[ireflec[0]][0]-mpi_period;
+                    xsearchp[0][ireflec[0]][1]=xsearch[ireflec[0]][1]-mpi_period;
+            }
+        }
+        else if (numreflecs==2) {
+            k=0;j=0;
+            if (xsearch[ireflec[k]][0]<0) {
+                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]+mpi_period;
+                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]+mpi_period;
+            }
+            else if (xsearch[ireflec[k]][1]>mpi_period) {
+                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]-mpi_period;
+                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]-mpi_period;
+            }
+            k++;j++;
+            if (xsearch[ireflec[k]][0]<0) {
+                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]+mpi_period;
+                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]+mpi_period;
+            }
+            else if (xsearch[ireflec[k]][1]>mpi_period) {
+                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]-mpi_period;
+                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]-mpi_period;
+            }
+            j++;k=0;
+            if (xsearch[ireflec[k]][0]<0) {
+                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]+mpi_period;
+                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]+mpi_period;
+            }
+            else if (xsearch[ireflec[k]][1]>mpi_period) {
+                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]-mpi_period;
+                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]-mpi_period;
+            }
+            k++;
+            if (xsearch[ireflec[k]][0]<0) {
+                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]+mpi_period;
+                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]+mpi_period;
+            }
+            else if (xsearch[ireflec[k]][1]>mpi_period) {
+                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]-mpi_period;
+                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]-mpi_period;
+            }
+        }
+        else if (numreflecs==3) {
+            j=0;k=0;
+            if (xsearch[ireflec[k]][0]<0) {
+                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]+mpi_period;
+                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]+mpi_period;
+            }
+            else if (xsearch[ireflec[k]][1]>mpi_period) {
+                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]-mpi_period;
+                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]-mpi_period;
+            }
+            j++;k++;
+            if (xsearch[ireflec[k]][0]<0) {
+                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]+mpi_period;
+                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]+mpi_period;
+            }
+            else if (xsearch[ireflec[k]][1]>mpi_period) {
+                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]-mpi_period;
+                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]-mpi_period;
+            }
+            j++;k++;
+            if (xsearch[ireflec[k]][0]<0) {
+                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]+mpi_period;
+                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]+mpi_period;
+            }
+            else if (xsearch[ireflec[k]][1]>mpi_period) {
+                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]-mpi_period;
+                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]-mpi_period;
+            }
+            j++;k=0;
+            if (xsearch[ireflec[k]][0]<0) {
+                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]+mpi_period;
+                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]+mpi_period;
+            }
+            else if (xsearch[ireflec[k]][1]>mpi_period) {
+                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]-mpi_period;
+                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]-mpi_period;
+            }
+            k=1;
+            if (xsearch[ireflec[k]][0]<0) {
+                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]+mpi_period;
+                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]+mpi_period;
+            }
+            else if (xsearch[ireflec[k]][1]>mpi_period) {
+                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]-mpi_period;
+                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]-mpi_period;
+            }
+            j++;k=0;
+            if (xsearch[ireflec[k]][0]<0) {
+                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]+mpi_period;
+                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]+mpi_period;
+            }
+            else if (xsearch[ireflec[k]][1]>mpi_period) {
+                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]-mpi_period;
+                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]-mpi_period;
+            }
+            k=2;
+            if (xsearch[ireflec[k]][0]<0) {
+                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]+mpi_period;
+                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]+mpi_period;
+            }
+            else if (xsearch[ireflec[k]][1]>mpi_period) {
+                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]-mpi_period;
+                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]-mpi_period;
+            }
+            j++;k=1;
+            if (xsearch[ireflec[k]][0]<0) {
+                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]+mpi_period;
+                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]+mpi_period;
+            }
+            else if (xsearch[ireflec[k]][1]>mpi_period) {
+                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]-mpi_period;
+                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]-mpi_period;
+            }
+            k=2;
+            if (xsearch[ireflec[k]][0]<0) {
+                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]+mpi_period;
+                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]+mpi_period;
+            }
+            else if (xsearch[ireflec[k]][1]>mpi_period) {
+                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]-mpi_period;
+                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]-mpi_period;
+            }
+            j++;k=0;
+            if (xsearch[ireflec[k]][0]<0) {
+                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]+mpi_period;
+                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]+mpi_period;
+            }
+            else if (xsearch[ireflec[k]][1]>mpi_period) {
+                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]-mpi_period;
+                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]-mpi_period;
+            }
+            k++;
+            if (xsearch[ireflec[k]][0]<0) {
+                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]+mpi_period;
+                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]+mpi_period;
+            }
+            else if (xsearch[ireflec[k]][1]>mpi_period) {
+                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]-mpi_period;
+                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]-mpi_period;
+            }
+            k++;
+            if (xsearch[ireflec[k]][0]<0) {
+                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]+mpi_period;
+                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]+mpi_period;
+            }
+            else if (xsearch[ireflec[k]][1]>mpi_period) {
+                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]-mpi_period;
+                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]-mpi_period;
+            }
+        }
+
+    for (j=0;j<NProcs;j++) for (k=0;k<numreflecchoice;k++){
+        if (j!=ThisTask) {
+            if(!((mpi_domain[j].bnd[0][1] < xsearchp[k][0][0]) || (mpi_domain[j].bnd[0][0] > xsearchp[k][0][1]) ||
+            (mpi_domain[j].bnd[1][1] < xsearchp[k][1][0]) || (mpi_domain[j].bnd[1][0] > xsearchp[k][1][1]) ||
+            (mpi_domain[j].bnd[2][1] < xsearchp[k][2][0]) || (mpi_domain[j].bnd[2][0] > xsearchp[k][2][1])))
+            numoverlap++;
+        }
+    }
+    }
+    return numoverlap;
+}
 //@}
 
 /// \name Routines involved in reading input data
@@ -1236,6 +1449,57 @@ void MPIGetNNExportNum(const Int_t nbodies, Particle *Part, Double_t *rdist){
     NExport=nexport;
 }
 
+/*! like \ref MPIGetExportNum but number based on NN search, useful for reducing memory costs at the expense of cpu cycles
+*/
+void MPIGetNNExportNumUsingMesh(Options &opt, const Int_t nbodies, Particle *Part, Double_t *rdist){
+    Int_t i, j,nthreads,nexport=0,nimport=0;
+    Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
+    Double_t xsearch[3][2];
+    Int_t sendTask,recvTask;
+    MPI_Status status;
+    int indomain;
+
+    ///\todo would like to add openmp to this code. In particular, loop over nbodies but issue is nexport.
+    ///This would either require making a FoFDataIn[nthreads][NExport] structure so that each omp thread
+    ///can only access the appropriate memory and adjust nsend_local.\n
+    ///\em Or outer loop is over threads, inner loop over nbodies and just have a idlist of size Nlocal that tags particles
+    ///which must be exported. Then its a much quicker follow up loop (no if statement) that stores the data
+    for (j=0;j<NProcs;j++) nsend_local[j]=0;
+    for (i=0;i<nbodies;i++)
+    {
+#ifdef STRUCDEN
+    if (Part[i].GetType()>0)
+    {
+#endif
+        for (int k=0;k<3;k++) {xsearch[k][0]=Part[i].GetPosition(k)-rdist[i];xsearch[k][1]=Part[i].GetPosition(k)+rdist[i];}
+        /// Loop over all top-level cells
+        for (int j=0; j<opt.numcells; j++) {
+
+            /// Only check if particles have overlap with neighbouring cells that are on another MPI domain
+            if(opt.cellnodeids[j] != ThisTask) {
+                Double_t bnd[3][2];
+                for(int k=0; k<3; k++) bnd[k][0] = opt.cellloc[j].loc[k];
+                for(int k=0; k<3; k++) bnd[k][1] = bnd[k][0] + opt.cellwidth[k];
+
+                //determine if search region is not outside of this processors domain
+                if(MPIInDomain(xsearch,bnd))
+                {
+                    nexport++;
+                    nsend_local[opt.cellnodeids[j]]++;
+                }
+            }
+        }
+#ifdef STRUCDEN
+    }
+#endif
+    }
+    //and then gather the number of particles to be sent from mpi thread m to mpi thread n in the mpi_nsend[NProcs*NProcs] array via [n+m*NProcs]
+    MPI_Allgather(nsend_local, NProcs, MPI_Int_t, mpi_nsend, NProcs, MPI_Int_t, MPI_COMM_WORLD);
+    NImport=0;
+    for (j=0;j<NProcs;j++)NImport+=mpi_nsend[ThisTask+j*NProcs];
+    NExport=nexport;
+}
+
 /*! like \ref MPIBuildParticleExportList but each particle has a different distance stored in rdist used to find nearest neighbours
 */
 void MPIBuildParticleNNExportList(const Int_t nbodies, Particle *Part, Double_t *rdist){
@@ -1366,7 +1630,7 @@ void MPIBuildParticleNNExportListUsingMesh(Options &opt, const Int_t nbodies, Pa
                         NNDataIn[nexport].Vel[k]=Part[i].GetVelocity(k);
                     }
                     nexport++;
-                    nsend_local[j]++;
+                    nsend_local[opt.cellnodeids[j]]++;
                 }
             }
         }

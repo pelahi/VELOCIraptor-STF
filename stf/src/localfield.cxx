@@ -5,6 +5,7 @@
 //--  Local Velocity density routines
 
 #include "stf.h"
+#include "swiftinterface.h"
 
 /*! Calculates the local velocity density function for each particle using a kernel technique
     There are two approaches to getting this local quantity \n
@@ -92,7 +93,7 @@ private(i,j,k,tid,id,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,pqx,pqv
 #endif
         //once NN set is found, store maxrdist and see if particle's search radius overlaps with another mpi domain
         maxrdist[i]=sqrt(nnr2[opt.Nsearch-1]);
-        if (MPISearchForOverlap(Part[i],maxrdist[i])==0) {
+        if (MPISearchForOverlapUsingMesh(libvelociraptorOpt,Part[i],maxrdist[i])==0) {
             for (j=0;j<opt.Nvel;j++) {
                 pqv->Push(-1, MAXVALUE);
                 weight[j]=1.0;
@@ -126,11 +127,11 @@ private(i,j,k,tid,id,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,pqx,pqv
     time2=MyGetTime();
 
     //determines export AND import numbers
-    MPIGetNNExportNum(nbodies, Part, maxrdist);
+    MPIGetNNExportNumUsingMesh(libvelociraptorOpt, nbodies, Part, maxrdist);
     NNDataIn = new nndata_in[NExport];
     NNDataGet = new nndata_in[NImport];
     //build the exported particle list using NNData structures
-    MPIBuildParticleNNExportList(nbodies, Part, maxrdist);
+    MPIBuildParticleNNExportListUsingMesh(libvelociraptorOpt, nbodies, Part, maxrdist);
     MPIGetNNImportNum(nbodies, tree, Part);
     PartDataIn = new Particle[NExport];
     PartDataGet = new Particle[NImport];

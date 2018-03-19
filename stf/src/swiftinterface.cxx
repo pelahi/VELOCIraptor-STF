@@ -12,7 +12,7 @@ void InitVelociraptor(char* configname, char* outputname, cosmoinfo c, unitinfo 
 #ifdef USEMPI
     //find out how big the SPMD world is
     MPI_Comm_size(MPI_COMM_WORLD,&NProcs);
-    mpi_domain=new MPI_Domain[NProcs];
+    //mpi_domain=new MPI_Domain[NProcs];
     mpi_nlocal=new Int_t[NProcs];
     mpi_nsend=new Int_t[NProcs*NProcs];
     mpi_ngroups=new Int_t[NProcs];
@@ -20,6 +20,7 @@ void InitVelociraptor(char* configname, char* outputname, cosmoinfo c, unitinfo 
     MPI_Comm_rank(MPI_COMM_WORLD,&ThisTask);
     //store MinSize as when using mpi prior to stitching use min of 2;
     MinNumMPI=2;
+    mpi_period = 0;
 #endif
     cout<<"Initialising VELOCIraptor..."<< endl;
 
