@@ -485,15 +485,6 @@ int MPISearchForOverlapUsingMesh(Options &opt, Particle &Part, Double_t &rdist){
     int j,k;
 
     for (k=0;k<3;k++) {xsearch[k][0]=Part.GetPosition(k)-rdist;xsearch[k][1]=Part.GetPosition(k)+rdist;}
-    //for (j=0;j<NProcs;j++) {
-    //    if (j!=ThisTask) {
-    //        //determine if search region is not outside of this processors domain
-    //        if(!((mpi_domain[j].bnd[0][1] < xsearch[0][0]) || (mpi_domain[j].bnd[0][0] > xsearch[0][1]) ||
-    //            (mpi_domain[j].bnd[1][1] < xsearch[1][0]) || (mpi_domain[j].bnd[1][0] > xsearch[1][1]) ||
-    //            (mpi_domain[j].bnd[2][1] < xsearch[2][0]) || (mpi_domain[j].bnd[2][0] > xsearch[2][1])))
-    //            numoverlap++;
-    //    }
-    //}
     /// Loop over all top-level cells
     for (int j=0; j<opt.numcells; j++) {
 
@@ -676,14 +667,23 @@ int MPISearchForOverlapUsingMesh(Options &opt, Particle &Part, Double_t &rdist){
             }
         }
 
-    for (j=0;j<NProcs;j++) for (k=0;k<numreflecchoice;k++){
-        if (j!=ThisTask) {
-            if(!((mpi_domain[j].bnd[0][1] < xsearchp[k][0][0]) || (mpi_domain[j].bnd[0][0] > xsearchp[k][0][1]) ||
-            (mpi_domain[j].bnd[1][1] < xsearchp[k][1][0]) || (mpi_domain[j].bnd[1][0] > xsearchp[k][1][1]) ||
-            (mpi_domain[j].bnd[2][1] < xsearchp[k][2][0]) || (mpi_domain[j].bnd[2][0] > xsearchp[k][2][1])))
-            numoverlap++;
+        for (int j=0; j<opt.numcells; j++) {
+
+            /// Only check if particles have overlap with neighbouring cells that are on another MPI domain
+            if(opt.cellnodeids[j] != ThisTask) {
+                Double_t bnd[3][2];
+                for(int k=0; k<3; k++) bnd[k][0] = opt.cellloc[j].loc[k];
+                for(int k=0; k<3; k++) bnd[k][1] = bnd[k][0] + opt.cellwidth[k];
+
+                for (k=0;k<numreflecchoice;k++)
+                //determine if search region is not outside of this processors domain
+                if(!((bnd[0][1] < xsearchp[k][0][0]) || (bnd[0][0] > xsearchp[k][0][1]) ||
+                    (bnd[1][1] < xsearchp[k][1][0]) || (bnd[1][0] > xsearchp[k][1][1]) ||
+                    (bnd[2][1] < xsearchp[k][2][0]) || (bnd[2][0] > xsearchp[k][2][1])))
+                    numoverlap++;
+
+            }
         }
-    }
     }
     return numoverlap;
 }
@@ -1018,7 +1018,7 @@ void MPIGetExportNumUsingMesh(Options &opt, const Int_t nbodies, Particle *&Part
         ///\todo current index of cell unused so do we need to find it?
         const int index =
             cell_getid(cdim, pos_x * ih_x, pos_y * ih_y, pos_z * ih_z);
-        
+
         // JSW TODO: replace with pos_x, pos_y, pos_z
         for (int k=0;k<3;k++) {xsearch[k][0]=Part[i].GetPosition(k)-rdist;xsearch[k][1]=Part[i].GetPosition(k)+rdist;}
 
@@ -1258,7 +1258,7 @@ void MPIBuildParticleExportListUsingMesh(Options &opt, const Int_t nbodies, Part
                 Double_t bnd[3][2];
                 for(int k=0; k<3; k++) bnd[k][0] = opt.cellloc[j].loc[k];
                 for(int k=0; k<3; k++) bnd[k][1] = bnd[k][0] + opt.cellwidth[k];
-                
+
                 //determine if search region is not outside of this processors domain
                 if(MPIInDomain(xsearch,bnd))
                 {
