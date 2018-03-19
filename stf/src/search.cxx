@@ -137,6 +137,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
 #ifdef MPIREDUCEMEM
     //MPIGetExportNum(nbodies, Part, sqrt(param[1]));
     MPIGetExportNumUsingMesh(nbodies, Part, sqrt(param[1]), libvelociraptorOpt);
+
 #endif
     //allocate memory to store info
     cout<<ThisTask<<": Finished local search, nexport/nimport = "<<NExport<<" "<<NImport<<" in "<<MyGetTime()-time2<<endl;
@@ -151,7 +152,8 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
 
     //I have adjusted FOF data structure to have local group length and also seperated the export particles from export fof data
     //the reason is that will have to update fof data in iterative section but don't need to update particle information.
-    MPIBuildParticleExportList(nbodies, Part, pfof, Len, sqrt(param[1]));
+    //MPIBuildParticleExportList(nbodies, Part, pfof, Len, sqrt(param[1]));
+    MPIBuildParticleExportListUsingMesh(nbodies, Part, pfof, Len, sqrt(param[1]), libvelociraptorOpt);
     MPI_Barrier(MPI_COMM_WORLD);
     //Now that have FoFDataGet (the exported particles) must search local volume using said particles
     //This is done by finding all particles in the search volume and then checking if those particles meet the FoF criterion
@@ -1580,7 +1582,8 @@ private(i,tid)
     FoFDataGet = new fofdata_in[NExport];
     //I have adjusted FOF data structure to have local group length and also seperated the export particles from export fof data
     //the reason is that will have to update fof data in iterative section but don't need to update particle information.
-    MPIBuildParticleExportList(nsubset, Partsubset, pfof, Len, sqrt(param[1]));
+    //MPIBuildParticleExportList(nsubset, Partsubset, pfof, Len, sqrt(param[1]));
+    MPIBuildParticleExportListUsingMesh(nsubset, Partsubset, pfof, Len, sqrt(param[1]), libvelociraptorOpt);
     //Now that have FoFDataGet (the exported particles) must search local volume using said particles
     //This is done by finding all particles in the search volume and then checking if those particles meet the FoF criterion
     //One must keep iterating till there are no new links.

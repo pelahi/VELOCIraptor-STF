@@ -796,7 +796,7 @@ void MPIGetExportNumUsingMesh(const Int_t nbodies, Particle *&Part, Double_t rdi
     for (i=0;i<nbodies;i++) {
         
         /// Put it back into the simulation volume.
-        /// TODO: check if this is needed.
+        /// JSW TODO: check if this is needed.
         const double pos_x = box_wrap(Part[i].GetPosition(0), 0.0, dim_x);
         const double pos_y = box_wrap(Part[i].GetPosition(1), 0.0, dim_y);
         const double pos_z = box_wrap(Part[i].GetPosition(2), 0.0, dim_z);
@@ -804,7 +804,8 @@ void MPIGetExportNumUsingMesh(const Int_t nbodies, Particle *&Part, Double_t rdi
         /// Get the particle's cell index
         const int index =
             cell_getid(cdim, pos_x * ih_x, pos_y * ih_y, pos_z * ih_z);
-
+        
+        // JSW TODO: replace with pos_x, pos_y, pos_z
         for (int k=0;k<3;k++) {xsearch[k][0]=Part[i].GetPosition(k)-rdist;xsearch[k][1]=Part[i].GetPosition(k)+rdist;}
         
         /// Loop over all top-level cells
@@ -862,6 +863,197 @@ void MPIBuildParticleExportList(const Int_t nbodies, Particle *&Part, Int_t *&pf
                     FoFDataIn[nexport].iLen = Len[i];
                     nexport++;
                     nsend_local[j]++;
+                }
+            }
+        }
+    }
+    if (nexport>0) {
+    //sort the export data such that all particles to be passed to thread j are together in ascending thread number
+    qsort(FoFDataIn, nexport, sizeof(struct fofdata_in), fof_export_cmp);
+    for (i=0;i<nexport;i++) PartDataIn[i] = Part[FoFDataIn[i].Index];
+    }
+    //then store the offset in the export particle data for the jth Task in order to send data.
+    for(j = 1, noffset[0] = 0; j < NProcs; j++) noffset[j]=noffset[j-1] + nsend_local[j-1];
+    //and then gather the number of particles to be sent from mpi thread m to mpi thread n in the mpi_nsend[NProcs*NProcs] array via [n+m*NProcs]
+    MPI_Allgather(nsend_local, NProcs, MPI_Int_t, mpi_nsend, NProcs, MPI_Int_t, MPI_COMM_WORLD);
+    NImport=0;for (j=0;j<NProcs;j++)NImport+=mpi_nsend[ThisTask+j*NProcs];
+    //now send the data.
+    for (j=0;j<NProcs;j++)nimport+=mpi_nsend[ThisTask+j*NProcs];
+
+    //check if buffer that needs to be send is too large and must be sent in chunks
+    int bufferFlag = 1;
+    long int maxNumPart = LOCAL_MAX_MSGSIZE / (long int) sizeof(Particle);
+    for (j = 0; j < NProcs; j++)
+    {
+        if (j != ThisTask)
+        {
+            sendTask = ThisTask;
+            recvTask = j;
+            if (mpi_nsend[ThisTask+recvTask*NProcs] >= maxNumPart || nsend_local[recvTask] >= maxNumPart ) bufferFlag++;
+        }
+    }
+    //if buffer is too large, split sends
+    if (bufferFlag)
+    {
+        MPI_Request rqst;
+        int numBuffersToSend [NProcs];
+        int numBuffersToRecv [NProcs];
+        int numPartInBuffer = maxNumPart * 0.9;
+        int maxnbufferslocal=0,maxnbuffers;
+        for (j = 0; j < NProcs; j++)
+        {
+            numBuffersToSend[j] = 0;
+            numBuffersToRecv[j] = 0;
+            if (nsend_local[j] > 0)
+            numBuffersToSend[j] = (nsend_local[j]/numPartInBuffer) + 1;
+        }
+        for (int i = 1; i < NProcs; i++)
+        {
+            int src = (ThisTask + NProcs - i) % NProcs;
+            int dst = (ThisTask + i) % NProcs;
+            MPI_Isend (&numBuffersToSend[dst], 1, MPI_INT, dst, 0, MPI_COMM_WORLD, &rqst);
+            MPI_Recv  (&numBuffersToRecv[src], 1, MPI_INT, src, 0, MPI_COMM_WORLD, &status);
+        }
+        MPI_Barrier (MPI_COMM_WORLD);
+        //find max to be transfer, allows appropriate tagging of messages
+        for (int i=0;i<NProcs;i++) if (numBuffersToRecv[i]>maxnbufferslocal) maxnbufferslocal=numBuffersToRecv[i];
+        for (int i=0;i<NProcs;i++) if (numBuffersToSend[i]>maxnbufferslocal) maxnbufferslocal=numBuffersToSend[i];
+        MPI_Allreduce (&maxnbufferslocal, &maxnbuffers, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+
+        for (int i = 1; i < NProcs; i++)
+        {
+            int src = (ThisTask + NProcs - i) % NProcs;
+            int dst = (ThisTask + i) % NProcs;
+            Int_t size = numPartInBuffer;
+            nbuffer[src] = 0;
+            int buffOffset = 0;
+
+            for (int jj = 0; jj < src; jj++)  nbuffer[src] += mpi_nsend[ThisTask + jj*NProcs];
+
+            // Send Buffers
+            for (int jj = 0; jj < numBuffersToSend[dst]-1; jj++)
+            {
+                MPI_Isend (&size, 1, MPI_Int_t, dst, (int)(jj+1), MPI_COMM_WORLD, &rqst);
+                MPI_Isend (&FoFDataIn[noffset[dst] + buffOffset], sizeof(struct fofdata_in)*size,
+                            MPI_BYTE, dst, (int)(TAG_FOF_A*maxnbuffers+jj+1), MPI_COMM_WORLD, &rqst);
+                MPI_Isend (&PartDataIn[noffset[dst] + buffOffset], sizeof(Particle)*size,
+                            MPI_BYTE, dst, (int)(TAG_FOF_B*maxnbuffers*3+jj+1), MPI_COMM_WORLD, &rqst);
+                buffOffset += size;
+            }
+            size = nsend_local[dst] % numPartInBuffer;
+            if (size > 0 && numBuffersToSend[dst] > 0)
+            {
+                MPI_Isend (&size, 1, MPI_Int_t, dst, (int)(numBuffersToSend[dst]), MPI_COMM_WORLD, &rqst);
+                MPI_Isend (&FoFDataIn[noffset[dst] + buffOffset], sizeof(struct fofdata_in)*size,
+                            MPI_BYTE, dst, (int)(TAG_FOF_A*maxnbuffers+numBuffersToSend[dst]), MPI_COMM_WORLD, &rqst);
+                MPI_Isend (&PartDataIn[noffset[dst] + buffOffset], sizeof(Particle)*size,
+                            MPI_BYTE, dst, (int)(TAG_FOF_B*maxnbuffers*3+numBuffersToSend[dst]), MPI_COMM_WORLD, &rqst);
+            }
+            // Receive Buffers
+            buffOffset = 0;
+            for (int jj = 0; jj < numBuffersToRecv[src]; jj++)
+            {
+                Int_t numInBuffer = 0;
+                MPI_Recv (&numInBuffer, 1, MPI_Int_t, src, (int)(jj+1), MPI_COMM_WORLD, &status);
+                MPI_Recv (&FoFDataGet[nbuffer[src] + buffOffset], sizeof(struct fofdata_in)*numInBuffer,
+                            MPI_BYTE, src, (int)(TAG_FOF_A*maxnbuffers+jj+1), MPI_COMM_WORLD, &status);
+                MPI_Recv (&PartDataGet[nbuffer[src] + buffOffset], sizeof(Particle)*numInBuffer,
+                            MPI_BYTE, src, (int)(TAG_FOF_B*maxnbuffers*3+jj+1), MPI_COMM_WORLD, &status);
+                buffOffset += numInBuffer;
+            }
+        }
+    }
+    else
+    {
+        if (nexport>0||nimport>0) {
+            for(j=0;j<NProcs;j++)//for(j=1;j<NProcs;j++)
+            {
+                if (j!=ThisTask)
+                {
+                    sendTask = ThisTask;
+                    recvTask = j;//ThisTask^j;//bitwise XOR ensures that recvTask cycles around sendTask
+                    nbuffer[recvTask]=0;
+                    for (int k=0;k<recvTask;k++)nbuffer[recvTask]+=mpi_nsend[ThisTask+k*NProcs];//offset on local receiving buffer
+                    if(mpi_nsend[ThisTask * NProcs + recvTask] > 0 || mpi_nsend[recvTask * NProcs + ThisTask] > 0)
+                    {
+                        //blocking point-to-point send and receive. Here must determine the appropriate offset point in the local export buffer
+                        //for sending data and also the local appropriate offset in the local the receive buffer for information sent from the local receiving buffer
+                        //first send FOF data and then particle data
+                        MPI_Sendrecv(&FoFDataIn[noffset[recvTask]],
+                            nsend_local[recvTask] * sizeof(struct fofdata_in), MPI_BYTE,
+                            recvTask, TAG_FOF_A,
+                            &FoFDataGet[nbuffer[recvTask]],
+                            mpi_nsend[ThisTask+recvTask * NProcs] * sizeof(struct fofdata_in),
+                            MPI_BYTE, recvTask, TAG_FOF_A, MPI_COMM_WORLD, &status);
+                        MPI_Sendrecv(&PartDataIn[noffset[recvTask]],
+                            nsend_local[recvTask] * sizeof(Particle), MPI_BYTE,
+                            recvTask, TAG_FOF_B,
+                            &PartDataGet[nbuffer[recvTask]],
+                            mpi_nsend[ThisTask+recvTask * NProcs] * sizeof(Particle),
+                            MPI_BYTE, recvTask, TAG_FOF_B, MPI_COMM_WORLD, &status);
+                    }
+                }
+            }
+        }
+    }
+}
+
+void MPIBuildParticleExportListUsingMesh(const Int_t nbodies, Particle *&Part, Int_t *&pfof, Int_tree_t *&Len, Double_t rdist, Options &opt){
+    Int_t i, j,nthreads,nexport=0,nimport=0;
+    Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
+    Double_t xsearch[3][2];
+    Int_t sendTask,recvTask;
+    MPI_Status status;
+
+    ///\todo would like to add openmp to this code. In particular, loop over nbodies but issue is nexport.
+    ///This would either require making a FoFDataIn[nthreads][NExport] structure so that each omp thread
+    ///can only access the appropriate memory and adjust nsend_local.\n
+    ///\em Or outer loop is over threads, inner loop over nbodies and just have a idlist of size Nlocal that tags particles
+    ///which must be exported. Then its a much quicker follow up loop (no if statement) that stores the data
+    for (j=0;j<NProcs;j++) nsend_local[j]=0;
+
+    /// Get some constants
+    const double dim_x = opt.spacedimension[0];
+    const double dim_y = opt.spacedimension[1];
+    const double dim_z = opt.spacedimension[2];
+    const int cdim[3] = {opt.numcellsperdim, opt.numcellsperdim, opt.numcellsperdim};
+    const double ih_x = opt.icellwidth[0];
+    const double ih_y = opt.icellwidth[1];
+    const double ih_z = opt.icellwidth[2];
+
+    for (i=0;i<nbodies;i++) {
+
+        /// Put it back into the simulation volume.
+        /// JSW TODO: check if this is needed.
+        const double pos_x = box_wrap(Part[i].GetPosition(0), 0.0, dim_x);
+        const double pos_y = box_wrap(Part[i].GetPosition(1), 0.0, dim_y);
+        const double pos_z = box_wrap(Part[i].GetPosition(2), 0.0, dim_z);
+
+        /// Get the particle's cell index
+        const int index =
+            cell_getid(cdim, pos_x * ih_x, pos_y * ih_y, pos_z * ih_z);
+
+        for (int k=0;k<3;k++) {xsearch[k][0]=Part[i].GetPosition(k)-rdist;xsearch[k][1]=Part[i].GetPosition(k)+rdist;}
+        /// Loop over all top-level cells
+        for (int j=0; j<opt.numcells; j++) {
+
+            /// Only check if particles have overlap with neighbouring cells that are on another MPI domain
+            if(opt.cellnodeids[j] != ThisTask) {
+                Double_t bnd[3][2];
+                for(int k=0; k<3; k++) bnd[k][0] = opt.cellloc[j].loc[k];
+                for(int k=0; k<3; k++) bnd[k][1] = bnd[k][0] + opt.cellwidth[k];
+                
+                //determine if search region is not outside of this processors domain
+                if(MPIInDomain(xsearch,bnd))
+                {
+                    //FoFDataIn[nexport].Part=Part[i];
+                    FoFDataIn[nexport].Index = i;
+                    FoFDataIn[nexport].Task = j;
+                    FoFDataIn[nexport].iGroup = pfof[Part[i].GetID()];//set group id
+                    FoFDataIn[nexport].iGroupTask = ThisTask;//and the task of the group
+                    FoFDataIn[nexport].iLen = Len[i];
+                    nexport++;
+                    nsend_local[opt.cellnodeids[j]]++;
                 }
             }
         }
