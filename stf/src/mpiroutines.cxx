@@ -766,7 +766,7 @@ void MPIGetExportNum(const Int_t nbodies, Particle *&Part, Double_t rdist){
     for (j=0;j<NProcs;j++)NImport+=mpi_nsend[ThisTask+j*NProcs];
 }
 
-void MPIGetExportNumUsingMesh(const Int_t nbodies, Particle *&Part, Double_t rdist, Options &opt){
+void MPIGetExportNumUsingMesh(Options &opt, const Int_t nbodies, Particle *&Part, Double_t rdist){
     Int_t i, j,nthreads,nexport=0,nimport=0;
     Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
     Double_t xsearch[3][2];
