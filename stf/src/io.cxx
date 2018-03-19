@@ -435,7 +435,7 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
         dims[0]=ng;
         rank=1;
         // Modify dataset creation property to enable chunking
-        chunk_dims[0]=min((unsigned long)20,ng);
+        chunk_dims[0]=min((unsigned long)HDFOUTPUTCHUNKSIZE,ng);
         hdfdatasetproplist.setChunk(rank, chunk_dims);
         // Set ZLIB (DEFLATE) Compression using level 6.
         hdfdatasetproplist.setDeflate(6);
@@ -497,7 +497,7 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
         dims[0]=ng;
         rank=1;
         // Modify dataset creation property to enable chunking
-        chunk_dims[0]=min((unsigned long)20,ng);
+        chunk_dims[0]=min((unsigned long)HDFOUTPUTCHUNKSIZE,ng);
         hdfdatasetproplist.setChunk(rank, chunk_dims);
         // Set ZLIB (DEFLATE) Compression using level 6.
         hdfdatasetproplist.setDeflate(6);
@@ -535,7 +535,7 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
         dims[0]=ng;
         rank=1;
         // Modify dataset creation property to enable chunking
-        chunk_dims[0]=min((unsigned long)20,ng);
+        chunk_dims[0]=min((unsigned long)HDFOUTPUTCHUNKSIZE,ng);
         hdfdatasetproplist.setChunk(rank, chunk_dims);
         // Set ZLIB (DEFLATE) Compression using level 6.
         hdfdatasetproplist.setDeflate(6);
@@ -713,7 +713,7 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
             rank=1;
 
             // Modify dataset creation property to enable chunking
-            chunk_dims[0]=min((unsigned long)20,nids);
+            chunk_dims[0]=min((unsigned long)HDFOUTPUTCHUNKSIZE,nids);
             hdfdatasetproplist.setChunk(rank, chunk_dims);
             // Set ZLIB (DEFLATE) Compression using level 6.
             hdfdatasetproplist.setDeflate(6);
@@ -774,7 +774,7 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
             dims[0]=nuids;
             rank=1;
             // Modify dataset creation property to enable chunking
-            chunk_dims[0]=min((unsigned long)20,nuids);
+            chunk_dims[0]=min((unsigned long)HDFOUTPUTCHUNKSIZE,nuids);
             hdfdatasetproplist.setChunk(rank, chunk_dims);
             // Set ZLIB (DEFLATE) Compression using level 6.
             hdfdatasetproplist.setDeflate(6);
@@ -971,7 +971,7 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
             dims[0]=nids;
             rank=1;
             // Modify dataset creation property to enable chunking
-            chunk_dims[0]=min((Int_t)20,nids);
+            chunk_dims[0]=min((Int_t)HDFOUTPUTCHUNKSIZE,nids);
             hdfdatasetproplist.setChunk(rank, chunk_dims);
             // Set ZLIB (DEFLATE) Compression using level 6.
             hdfdatasetproplist.setDeflate(6);
@@ -1010,7 +1010,7 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
             rank=1;
 
             // Modify dataset creation property to enable chunking
-            chunk_dims[0]=min((Int_t)20,nuids);
+            chunk_dims[0]=min((Int_t)HDFOUTPUTCHUNKSIZE,nuids);
             hdfdatasetproplist.setChunk(rank, chunk_dims);
             // Set ZLIB (DEFLATE) Compression using level 6.
             hdfdatasetproplist.setDeflate(6);
@@ -1204,7 +1204,7 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         dims[0]=ng;
         //size of chunks in compression
         chunk_dims=new hsize_t[1];
-        chunk_dims[0]=min((unsigned long)20,ng);
+        chunk_dims[0]=min((unsigned long)HDFOUTPUTCHUNKSIZE,ng);
         rank=1;
         // Modify dataset creation property to enable chunking
     	hdfdatasetproplist = new  DSetCreatPropList;
@@ -1658,7 +1658,7 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
             dims=new hsize_t[1];
             chunk_dims=new hsize_t[1];
             dims[0]=nfield;
-            chunk_dims[0]=min((Int_t)20,nfield);
+            chunk_dims[0]=min((Int_t)HDFOUTPUTCHUNKSIZE,nfield);
 
             rank=1;
             itemp=4;
@@ -1687,7 +1687,7 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
             dims=new hsize_t[1];
             chunk_dims=new hsize_t[1];
             dims[0]=ngroups-nfield;
-            chunk_dims[0]=min((Int_t)20,ngroups-nfield);
+            chunk_dims[0]=min((Int_t)HDFOUTPUTCHUNKSIZE,ngroups-nfield);
             rank=1;
             itemp=4;
             hdfdatasetproplist.setChunk(rank, chunk_dims);
@@ -1727,7 +1727,7 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
             dims=new hsize_t[1];
             chunk_dims=new hsize_t[1];
             dims[0]=ngroups;
-            chunk_dims[0]=min((Int_t)20,ngroups);
+            chunk_dims[0]=min((Int_t)HDFOUTPUTCHUNKSIZE,ngroups);
             rank=1;
             itemp=4;
             hdfdatasetproplist.setChunk(rank, chunk_dims);
@@ -1821,7 +1821,7 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
             dims=new hsize_t[1];
             chunk_dims=new hsize_t[1];
             dims[0]=nfield;
-            chunk_dims[0]=min((Int_t)20,nfield);
+            chunk_dims[0]=min((Int_t)HDFOUTPUTCHUNKSIZE,nfield);
             rank=1;
             hdfdatasetproplist.setChunk(rank, chunk_dims);
             hdfdatasetproplist.setDeflate(6);
@@ -1854,7 +1854,7 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
             dims=new hsize_t[1];
             chunk_dims=new hsize_t[1];
             dims[0]=ngroups-nfield;
-            chunk_dims[0]=min((Int_t)20,ngroups-nfield);
+            chunk_dims[0]=min((Int_t)HDFOUTPUTCHUNKSIZE,ngroups-nfield);
             rank=1;
             hdfdatasetproplist.setChunk(rank, chunk_dims);
             hdfdatasetproplist.setDeflate(6);
@@ -1888,7 +1888,7 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
             dims=new hsize_t[1];
             chunk_dims=new hsize_t[1];
             dims[0]=ngroups;
-            chunk_dims[0]=min((Int_t)20,ngroups);
+            chunk_dims[0]=min((Int_t)HDFOUTPUTCHUNKSIZE,ngroups);
             rank=1;
             hdfdatasetproplist.setChunk(rank, chunk_dims);
             hdfdatasetproplist.setDeflate(6);
