@@ -360,14 +360,15 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
 
             headerattribs[i]=headergroup[i].openAttribute(hdf_header_info[i].names[hdf_header_info[i].INumTot]);
             headerdataspace[i]=headerattribs[i].getSpace();
-	    headerattribs[i].read(PredType::NATIVE_UINT,&uintbuff[0]);
-	    for (k=0;k<NHDFTYPE;k++) hdf_header_info[i].npartTotal[k]=uintbuff[k];
+    	    headerattribs[i].read(PredType::NATIVE_UINT,&uintbuff[0]);
+    	    for (k=0;k<NHDFTYPE;k++) hdf_header_info[i].npartTotal[k]=uintbuff[k];
 
             headerattribs[i]=headergroup[i].openAttribute(hdf_header_info[i].names[hdf_header_info[i].INumTotHW]);
             headerdataspace[i]=headerattribs[i].getSpace();
-	    headerattribs[i].read(PredType::NATIVE_UINT,&uintbuff[0]);
-	    for (k=0;k<NHDFTYPE;k++) hdf_header_info[i].npartTotalHW[k]=uintbuff[k];
+    	    headerattribs[i].read(PredType::NATIVE_UINT,&uintbuff[0]);
+    	    for (k=0;k<NHDFTYPE;k++) hdf_header_info[i].npartTotalHW[k]=uintbuff[k];
 
+            if (opt.ihdfnameconvention != HDFSWIFTEAGLENAMES ) {
             headerattribs[i]=headergroup[i].openAttribute(hdf_header_info[i].names[hdf_header_info[i].IOmega0]);
             headerdataspace[i]=headerattribs[i].getSpace();
             floattype=headerattribs[i].getFloatType();
@@ -404,6 +405,8 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
                 hdf_header_info[i].redshift=doublebuff[0];
             }
 
+            }
+
             headerattribs[i]=headergroup[i].openAttribute(hdf_header_info[i].names[hdf_header_info[i].ITime]);
             headerdataspace[i]=headerattribs[i].getSpace();
             floattype=headerattribs[i].getFloatType();
@@ -416,6 +419,7 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
                 hdf_header_info[i].time=doublebuff[0];
             }
 
+            if (opt.ihdfnameconvention != HDFSWIFTEAGLENAMES ) {
             headerattribs[i]=headergroup[i].openAttribute(hdf_header_info[i].names[hdf_header_info[i].IHubbleParam]);
             headerdataspace[i]=headerattribs[i].getSpace();
             floattype=headerattribs[i].getFloatType();
@@ -426,6 +430,7 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
             if (floattype.getSize()==sizeof(double)) {
                 headerattribs[i].read(PredType::NATIVE_DOUBLE,&doublebuff[0]);
                 hdf_header_info[i].HubbleParam=doublebuff[0];
+            }
             }
 
             headerattribs[i]=headergroup[i].openAttribute(hdf_header_info[i].names[hdf_header_info[i].INumFiles]);
@@ -1759,8 +1764,8 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
 #ifdef USEMPI
     MPI_Bcast(&LN, 1, MPI_Real_t, 0, MPI_COMM_WORLD);
 #endif
-    ///if not an individual halo, assume cosmological and store scale of the highest resolution interparticle spacing to scale the physical FOF linking length
-    if (opt.iSingleHalo==0)
+    ///if not an individual halo and cosmological and store scale of the highest resolution interparticle spacing to scale the physical FOF linking length
+    if (opt.iSingleHalo==0 && opt.icosmologicalin==1)
     {
         opt.ellxscale=LN;
         opt.uinfo.eps*=LN;
