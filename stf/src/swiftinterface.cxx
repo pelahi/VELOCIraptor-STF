@@ -142,6 +142,11 @@ void InvokeVelociraptor(const int num_gravity_parts, struct gpart *gravity_parts
 
     Nlocal=Nmemlocal=num_gravity_parts;
     Nmemlocal*=(1+libvelociraptorOpt.mpipartfac); /* JSW: Not set in parameter file. */
+#ifdef USEMPI
+    MPI_Allreduce(&num_gravity_parts, &Ntotal, 1, MPI_Int_t, MPI_SUM, MPI_COMM_WORLD);
+#else
+    Ntotal=Nlocal;
+#endif
 
     //get spatial statistics from gparts
     for (auto j=0;j<3;j++) {maxc[j]=0;minc[j]=libvelociraptorOpt.p;avec[j]=0;sumave[j]=sumsigma[j]=0;}
@@ -200,9 +205,6 @@ void InvokeVelociraptor(const int num_gravity_parts, struct gpart *gravity_parts
     }
     time1=MyGetTime()-time1;
     cout<<"Finished copying particle data."<< endl;
-#ifdef USEMPI
-    MPI_Allreduce(&num_gravity_parts, &Ntotal, 1, MPI_Int_t, MPI_SUM, MPI_COMM_WORLD);
-#endif
     Nlocal=num_gravity_parts; /* JSW: Already set previously to same value. */
     cout<<"TIME::"<<ThisTask<<" took "<<time1<<" to copy "<<Nlocal<<" particles from SWIFT to a local format. Out of "<<Ntotal<<endl;
     cout<<ThisTask<<" There are "<<Nlocal<<" particles and have allocated enough memory for "<<Nmemlocal<<" requiring "<<Nmemlocal*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
