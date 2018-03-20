@@ -136,6 +136,13 @@ void InvokeVelociraptor(const int num_gravity_parts, struct gpart *gravity_parts
     double time1;
     Coordinate minc,maxc,avec,sumave,sumsigma,totave,totsigma,totmin,totmax;
 
+
+    /// Set pointer to cell node IDs
+    libvelociraptorOpt.cellnodeids = cell_node_ids;
+
+    Nlocal=Nmemlocal=num_gravity_parts;
+    Nmemlocal*=(1+libvelociraptorOpt.mpipartfac); /* JSW: Not set in parameter file. */
+
     //get spatial statistics from gparts
     for (auto j=0;j<3;j++) {maxc[j]=0;minc[j]=libvelociraptorOpt.p;avec[j]=0;sumave[j]=sumsigma[j]=0;}
     for(auto i=0; i<Nlocal; i++) {
@@ -148,7 +155,7 @@ void InvokeVelociraptor(const int num_gravity_parts, struct gpart *gravity_parts
         }
     }
     avec=avec*(1.0/(double)Nlocal);
-    cout<<"Local MPI domain Stats of positions (min,ave,max)"<<endl;
+    cout<<"Local gravity_parts based MPI domain Stats of positions (min,ave,max)"<<endl;
     for (auto j=0;j<3;j++) {
         cout<<j<<" : "<<minc[j]<<", "<<avec[j]<<", "<<maxc[j]<<endl;
     }
@@ -175,7 +182,7 @@ void InvokeVelociraptor(const int num_gravity_parts, struct gpart *gravity_parts
 #endif
     if (ThisTask==0) {
         cout.precision(10);
-        cout<<"Global stats of positions (min,ave,sigma,max)"<<endl;
+        cout<<"Global gravity_parts stats of positions (min,ave,sigma,max)"<<endl;
         for (auto j=0;j<3;j++) {
             cout<<j<<" : "<<totmin[j]<<", "<<totave[j]/(double)Ntotal<<", "<<totsigma[j]/(double)Ntotal<<", "<<totmax[j]<<endl;
         }
@@ -184,11 +191,6 @@ void InvokeVelociraptor(const int num_gravity_parts, struct gpart *gravity_parts
         MPI_Barrier(MPI_COMM_WORLD);
     #endif
 
-    /// Set pointer to cell node IDs
-    libvelociraptorOpt.cellnodeids = cell_node_ids;
-
-    Nlocal=Nmemlocal=num_gravity_parts;
-    Nmemlocal*=(1+libvelociraptorOpt.mpipartfac); /* JSW: Not set in parameter file. */
     parts=new Particle[Nmemlocal];
     cout<<"Copying particle data..."<< endl;
     time1=MyGetTime();
