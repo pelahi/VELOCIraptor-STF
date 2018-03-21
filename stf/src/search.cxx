@@ -72,8 +72,9 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
     cout<<"First build tree ... "<<endl;
     tree=new KDTree(Part,nbodies,opt.Bsize,tree->TPHYS,tree->KEPAN,1000,0,0,0,period);
     cout<<"Done"<<endl;
-    cout<<"Search particles using 3DFOF in physical space"<<endl;
-    cout<<"Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits (and likely "<<sqrt(param[6])/opt.ellxscale<<" in interparticle spacing"<<endl;
+    cout.precision(20);
+    cout<<ThisTask<<" Search particles using 3DFOF in physical space"<<endl;
+    cout<<ThisTask<<" Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits (ell^2="<<param[6]<<" and likely "<<sqrt(param[6])/opt.ellxscale<<" in interparticle spacing"<<endl;
     if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) {fofcmp=&FOF3dDM;param[7]=DARKTYPE;}
     else fofcmp=&FOF3d;
     //if using mpi no need to locally sort just yet and might as well return the Head, Len, Next arrays
@@ -173,7 +174,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
     cout<<ThisTask<<": Starting to linking across MPI domains"<<endl;
     do {
         links_across=MPILinkAcross(nbodies, tree, Part, pfof, Len, Head, Next, param[1]);
-        if (opt.iverbose==2) {
+        if (opt.iverbose>=2) {
             cout<<ThisTask<<" has found "<<links_across<<" links to particles on other mpi domains "<<endl;
         }
         MPI_Allreduce(&links_across, &links_across_total, 1, MPI_Int_t, MPI_SUM, MPI_COMM_WORLD);
