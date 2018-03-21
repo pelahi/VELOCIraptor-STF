@@ -5,6 +5,8 @@
 
 #include "swiftinterface.h"
 
+#ifdef SWIFTINTERFACE
+
 Options libvelociraptorOpt;
 void InitVelociraptor(char* configname, char* outputname, cosmoinfo c, unitinfo u, siminfo s)
 {
@@ -135,7 +137,6 @@ void InvokeVelociraptor(const int num_gravity_parts, struct gpart *gravity_parts
     PropData *pdata=NULL,*pdatahalos=NULL;
     double time1;
     Coordinate minc,maxc,avec,sumave,sumsigma,totave,totsigma,totmin,totmax;
-
 
     /// Set pointer to cell node IDs
     libvelociraptorOpt.cellnodeids = cell_node_ids;
@@ -334,3 +335,5 @@ void InvokeVelociraptor(const int num_gravity_parts, struct gpart *gravity_parts
 
     cout<<"VELOCIraptor returning."<< endl;
 }
+
+#endif
