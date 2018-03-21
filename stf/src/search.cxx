@@ -75,6 +75,17 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
     cout.precision(20);
     cout<<ThisTask<<" Search particles using 3DFOF in physical space"<<endl;
     cout<<ThisTask<<" Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits (ell^2="<<param[6]<<" and likely "<<sqrt(param[6])/opt.ellxscale<<" in interparticle spacing"<<endl;
+
+    double ellmpi[NProcs];
+    MPI_Allgather(&param[6],1, MPI_DOUBLE,&ellmpi[0], 1, MPI_DOUBLE, MPI_COMM_WORLD);
+    if (ThisTask==0) {
+        cout<<" are linking lengths the same ?"<<endl;
+        for (auto itask=1;itask<NProcs;itask++) if (ellmpi[0]!=ellmpi[itask]) {
+            cout<<"ERROR! :"<<itask<<" has different scale than 0 "<<ellmpi[itask]<<" vs "<<ellmpi[0]<<endl;
+        }
+        MPI_Abort(MPI_COMM_WORLD,10);
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
     if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) {fofcmp=&FOF3dDM;param[7]=DARKTYPE;}
     else fofcmp=&FOF3d;
     //if using mpi no need to locally sort just yet and might as well return the Head, Len, Next arrays
