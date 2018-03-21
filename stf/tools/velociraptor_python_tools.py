@@ -1,4 +1,4 @@
-#Make backwards compatible with python 2
+#Make backwards compatible with python 2, ignored in python 3
 from __future__ import print_function
 
 import sys,os,os.path,string,time,re,struct
@@ -302,24 +302,20 @@ def ReadHaloMergerTree(numsnaps,treefilename,ibinary=0,iverbose=0):
 						tree[i]["Progen"][j][k]=np.int64(treefile.readline())
 
 	elif(ibinary==2):
-
 		tree=[{"haloID": [], "Num_progen": [], "Progen": []} for i in range(numsnaps)]
 		snaptreelist=open(treefilename,'r')
 		for snap in range(numsnaps):
-			snaptreename = snaptreelist.readline().strip()+".tree.hdf5"
+			snaptreename = snaptreelist.readline().strip()+".tree"
 			if (iverbose): print("Reading",snaptreename)
 			treedata = h5py.File(snaptreename,"r")
-
 			tree[snap]["haloID"] = np.array(treedata["ID"])
 			tree[snap]["Num_progen"] = np.array(treedata["NumProgen"])
 
 			#See if the dataset exits
-			if("Progenitors" in treedata.keys()):
+			if("ProgenOffsets" in treedata.keys()):
 
 				#Find the indices to split the array
-				split = np.zeros(len(tree[snap]["Num_progen"]),dtype=int)
-				for i,numdesc in enumerate(tree[snap]["Num_progen"]):
-					split[i] = split[i-1] + numdesc
+				split = np.array(treedata["ProgenOffsets"])
 
 				#Read in the progenitors, splitting them as reading them in
 				tree[snap]["Progen"] = np.split(treedata["Progenitors"][:],split)
@@ -392,30 +388,27 @@ def ReadHaloMergerTreeDescendant(numsnaps,treefilename,ireverseorder=True,ibinar
 						tree[ii]["Rank"][j][k]=np.uint32(data[1])
 
 	elif(ibinary==2):
-
 		tree=[{"haloID": [], "Num_descen": [], "Descen": [], "Rank": []} for i in range(numsnaps)]
 		snaptreelist=open(treefilename,'r')
 		for snap in range(numsnaps):
 			snaptreename = snaptreelist.readline().strip()+".tree"
 			if (iverbose): print("Reading",snaptreename)
 			treedata = h5py.File(snaptreename,"r")
-
 			tree[snap]["haloID"] = np.array(treedata["ID"])
 			tree[snap]["Num_descen"] = np.array(treedata["NumDesc"])
 
 			#See if the dataset exits
-			if("Descendants" in treedata.keys()):
+			if("DescOffsets" in treedata.keys()):
 
 				#Find the indices to split the array
-				split = np.zeros(len(tree[snap]["Num_descen"]),dtype=int)
-				for i,numdesc in enumerate(tree[snap]["Num_descen"]):
-					split[i] = split[i-1] + numdesc
+				split = np.array(treedata["DescOffsets"])
 
 				# Read in the data splitting it up as reading it in
 				tree[snap]["Descen"] = np.split(treedata["Descendants"][:],split)
 				tree[snap]["Rank"] = np.split(treedata["Ranks"][:],split)
  
 		snaptreelist.close()
+		
 	if (iverbose): print("done reading tree file ",time.clock()-start)
 	return tree
 
