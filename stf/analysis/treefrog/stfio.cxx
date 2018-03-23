@@ -9,21 +9,23 @@
 using namespace H5;
 #endif
 
-///\name routines for opening closing the set of files produced by velociraptor 
+///\name routines for opening closing the set of files produced by velociraptor
 //@{
 void OpenBinaryorAsciiFiles(string &infile, int ibinary, int numfiletypes, int k, int mpi_ninput, int ifieldhalos, int itypematch,
-    fstream &Fgroup, fstream &Fpart, fstream &Fupart, 
+    fstream &Fgroup, fstream &Fpart, fstream &Fupart,
     fstream &Fsgroup, fstream &Fspart, fstream &Fsupart,
     fstream &Fparttype, fstream &Fuparttype,
     fstream &Fsparttype, fstream &Fsuparttype,
+    fstream &Fhaloinfo, fstream &Fshaloinfo,
     int iverbose)
 {
     string fname1,fname2,fname3;
     string fname4,fname5,fname6;
     string fname7,fname8;
     string fname9,fname10;
-    string fnamearray[10];
-    fstream *Farray[10];
+    string fname11,fname12;
+    string fnamearray[12];
+    fstream *Farray[12];
     int itemp;
     VELOCIraptorFileTypeNames vftn;
     vftn.UpdateName(infile,fnamearray,k,mpi_ninput);
@@ -37,6 +39,8 @@ void OpenBinaryorAsciiFiles(string &infile, int ibinary, int numfiletypes, int k
     fname8=fnamearray[7];
     fname9=fnamearray[8];
     fname10=fnamearray[9];
+    fname11=fnamearray[10];
+    fname12=fnamearray[11];
 
     //set names of files
     itemp=0;
@@ -44,12 +48,13 @@ void OpenBinaryorAsciiFiles(string &infile, int ibinary, int numfiletypes, int k
     if (ifieldhalos) {
         fnamearray[itemp++]=fname4;fnamearray[itemp++]=fname5;fnamearray[itemp++]=fname6;
     }
-    if (itypematch!=ALLTYPEMATCH) { 
+    if (itypematch!=ALLTYPEMATCH) {
         fnamearray[itemp++]=fname7;fnamearray[itemp++]=fname8;
         if (ifieldhalos) {
             fnamearray[itemp++]=fname9;fnamearray[itemp++]=fname10;
         }
     }
+    fnamearray[itemp++]=fname11;
     if (ibinary==INBINARY) {
         Fgroup.open(fname1.c_str(),ios::in|ios::binary);
         Fpart.open(fname2.c_str(),ios::in|ios::binary);
@@ -67,6 +72,8 @@ void OpenBinaryorAsciiFiles(string &infile, int ibinary, int numfiletypes, int k
                 Fsuparttype.open(fname10.c_str(),ios::in|ios::binary);
             }
         }
+        Fhaloinfo.open(fname11.c_str(),ios::in|ios::binary);
+        if (ifieldhalos) Fshaloinfo.open(fname12.c_str(),ios::in|ios::binary);
     }
     else {
         Fgroup.open(fname1.c_str(),ios::in);
@@ -85,8 +92,10 @@ void OpenBinaryorAsciiFiles(string &infile, int ibinary, int numfiletypes, int k
                 Fsuparttype.open(fname10.c_str(),ios::in);
             }
         }
+        Fhaloinfo.open(fname11.c_str(),ios::in);
+        if (ifieldhalos) Fshaloinfo.open(fname12.c_str(),ios::in);
     }
-    
+
     itemp=0;
     Farray[itemp++]=&Fgroup;Farray[itemp++]=&Fpart;Farray[itemp++]=&Fupart;
     if (ifieldhalos) {
@@ -98,6 +107,8 @@ void OpenBinaryorAsciiFiles(string &infile, int ibinary, int numfiletypes, int k
             Farray[itemp++]=&Fsparttype;Farray[itemp++]=&Fsuparttype;
         }
     }
+    Farray[itemp++]=&Fhaloinfo;
+    if (ifieldhalos) Farray[itemp++]=&Fshaloinfo;
     for (int i=0;i<numfiletypes;i++) {
         if(!Farray[i]->is_open()){
             cerr<<"can't open "<<fnamearray[i]<<endl;
@@ -111,10 +122,11 @@ void OpenBinaryorAsciiFiles(string &infile, int ibinary, int numfiletypes, int k
     }
 }
 void CloseBinaryorAsciiFiles(
-    fstream &Fgroup, fstream &Fpart, fstream &Fupart, 
+    fstream &Fgroup, fstream &Fpart, fstream &Fupart,
     fstream &Fsgroup, fstream &Fspart, fstream &Fsupart,
     fstream &Fparttype, fstream &Fuparttype,
     fstream &Fsparttype, fstream &Fsuparttype,
+    fstream &Fhaloinfo,fstream &Fshaloinfo,
     int ifieldhalos, int itypematch
 )
 {
@@ -134,22 +146,26 @@ void CloseBinaryorAsciiFiles(
             Fsuparttype.close();
         }
     }
+    Fhaloinfo.close();
+    if (ifieldhalos) Fshaloinfo.close();
 }
 
 #ifdef USEHDF
 void OpenHDFFiles(string &infile, int numfiletypes, int k, int mpi_ninput, int ifieldhalos, int itypematch,
-    H5File &Fgroup, H5File &Fpart, H5File &Fupart, 
+    H5File &Fgroup, H5File &Fpart, H5File &Fupart,
     H5File &Fsgroup, H5File &Fspart, H5File &Fsupart,
     H5File &Fparttype, H5File &Fuparttype,
     H5File &Fsparttype, H5File &Fsuparttype,
+    H5File &Fhaloinfo, H5File &Fshaloinfo,
     int iverbose)
 {
     string fname1,fname2,fname3;
     string fname4,fname5,fname6;
     string fname7,fname8;
     string fname9,fname10;
-    string fnamearray[10];
-    H5File *Farray[10];
+    string fname11,fname12;
+    string fnamearray[12];
+    H5File *Farray[12];
     VELOCIraptorFileTypeNames vftn;
     int itemp;
     vftn.UpdateName(infile,fnamearray,k,mpi_ninput);
@@ -163,6 +179,8 @@ void OpenHDFFiles(string &infile, int numfiletypes, int k, int mpi_ninput, int i
     fname8=fnamearray[7];
     fname9=fnamearray[8];
     fname10=fnamearray[9];
+    fname11=fnamearray[10];
+    fname12=fnamearray[11];
 
     //set names of files
     itemp=0;
@@ -170,12 +188,14 @@ void OpenHDFFiles(string &infile, int numfiletypes, int k, int mpi_ninput, int i
     if (ifieldhalos) {
         fnamearray[itemp++]=fname4;fnamearray[itemp++]=fname5;fnamearray[itemp++]=fname6;
     }
-    if (itypematch!=ALLTYPEMATCH) { 
+    if (itypematch!=ALLTYPEMATCH) {
         fnamearray[itemp++]=fname7;fnamearray[itemp++]=fname8;
         if (ifieldhalos) {
             fnamearray[itemp++]=fname9;fnamearray[itemp++]=fname10;
         }
     }
+    fnamearray[itemp++]=fname11;
+    if (ifieldhalos) fnamearray[itemp++]=fname12;
     itemp=0;
     Farray[itemp++]=&Fgroup;Farray[itemp++]=&Fpart;Farray[itemp++]=&Fupart;
     if (ifieldhalos) {
@@ -187,6 +207,8 @@ void OpenHDFFiles(string &infile, int numfiletypes, int k, int mpi_ninput, int i
             Farray[itemp++]=&Fsparttype;Farray[itemp++]=&Fsuparttype;
         }
     }
+    Farray[itemp++]=&Fhaloinfo;
+    if (ifieldhalos) Farray[itemp++]=&Fshaloinfo;
     for (int i=0;i<numfiletypes;i++) {
         try {
             Farray[i]->openFile(fnamearray[i].c_str(),H5F_ACC_RDONLY);
@@ -202,10 +224,11 @@ void OpenHDFFiles(string &infile, int numfiletypes, int k, int mpi_ninput, int i
     }
 }
 void CloseHDFFiles(
-    H5File &Fgroup, H5File &Fpart, H5File &Fupart, 
+    H5File &Fgroup, H5File &Fpart, H5File &Fupart,
     H5File &Fsgroup, H5File &Fspart, H5File &Fsupart,
     H5File &Fparttype, H5File &Fuparttype,
     H5File &Fsparttype, H5File &Fsuparttype,
+    H5File &Fhaloinfo, H5File &Fshaloinfo,
     int ifieldhalos, int itypematch
 )
 {
@@ -225,6 +248,8 @@ void CloseHDFFiles(
             Fsuparttype.close();
         }
     }
+    Fhaloinfo.close();
+    if (ifieldhalos) Fshaloinfo.close();
 }
 #endif
 //@}
@@ -236,13 +261,13 @@ inline void STFReadNumFileInfoAndCorrectNumFile(int &itask, int &nprocs, int &nm
 #ifdef USEHDF
     H5File &Fhdfgroup, DataSet &dataset, DataSpace &dataspace,
 #endif
-    int ibinary, int ifieldhalos) 
+    int ibinary, int ifieldhalos)
 {
 #ifdef USEHDF
     HDFCatalogNames hdfnames;
 #endif
     int itemp;
-    
+
     if (ibinary==INBINARY) {
         Fgroup.read((char*)&itask,sizeof(int));
         Fgroup.read((char*)&nprocs,sizeof(int));
@@ -291,14 +316,14 @@ inline void STFReadNumGroups(unsigned long &nglocal, unsigned long &TotalNumbero
 #ifdef USEHDF
     H5File &Fhdfgroup, H5File &Fhdfsgroup, DataSet &dataset, DataSpace &dataspace,
 #endif
-    int ibinary, int ifieldhalos) 
+    int ibinary, int ifieldhalos)
 {
 #ifdef USEHDF
     HDFCatalogNames hdfnames;
 #endif
     int itemp;
     unsigned long ltemp;
-    
+
     //now read data
     if (ibinary==INBINARY) {
         Fgroup.read((char*)&ltemp,sizeof(unsigned long));
@@ -343,18 +368,18 @@ inline void STFReadNumGroups(unsigned long &nglocal, unsigned long &TotalNumbero
     }
 }
 
-inline void STFReadNumData(unsigned long &nids, unsigned long &nsids, unsigned long &nuids, unsigned long &nsuids, 
-    unsigned long &nidstot, unsigned long &nsidstot, unsigned long &nuidstot, unsigned long &nsuidstot, 
-    fstream &Fpart, fstream &Fupart, fstream &Fspart, fstream &Fsupart, 
-    fstream &Fparttype, fstream &Fuparttype, fstream &Fsparttype, fstream &Fsuparttype, 
+inline void STFReadNumData(unsigned long &nids, unsigned long &nsids, unsigned long &nuids, unsigned long &nsuids,
+    unsigned long &nidstot, unsigned long &nsidstot, unsigned long &nuidstot, unsigned long &nsuidstot,
+    fstream &Fpart, fstream &Fupart, fstream &Fspart, fstream &Fsupart,
+    fstream &Fparttype, fstream &Fuparttype, fstream &Fsparttype, fstream &Fsuparttype,
 #ifdef USEHDF
-    H5File &Fhdfpart, H5File &Fhdfspart, H5File &Fhdfupart, H5File &Fhdfsupart, 
-    H5File &Fhdfparttype, H5File &Fhdfsparttype, H5File &Fhdfuparttype, H5File &Fhdfsuparttype, 
+    H5File &Fhdfpart, H5File &Fhdfspart, H5File &Fhdfupart, H5File &Fhdfsupart,
+    H5File &Fhdfparttype, H5File &Fhdfsparttype, H5File &Fhdfuparttype, H5File &Fhdfsuparttype,
     DataSet &dataset, DataSpace &dataspace,
 #endif
-    int ibinary, int ifieldhalos, int itypematch) 
+    int ibinary, int ifieldhalos, int itypematch)
 {
-    
+
 #ifdef USEHDF
     HDFCatalogNames hdfnames;
 #endif
@@ -423,7 +448,7 @@ inline void STFReadNumData(unsigned long &nids, unsigned long &nsids, unsigned l
         dataset.read(&ltemp,hdfnames.partdatatype[itemp],dataspace);
         nuids=ltemp;
         itemp++;
-        
+
         dataset=Fhdfpart.openDataSet(hdfnames.part[itemp]);
         dataspace=dataset.getSpace();
         dataset.read(&ltemp,hdfnames.partdatatype[itemp],dataspace);
@@ -444,7 +469,7 @@ inline void STFReadNumData(unsigned long &nids, unsigned long &nsids, unsigned l
             dataset.read(&ltemp,hdfnames.partdatatype[itemp],dataspace);
             nsuids=ltemp;
             itemp++;
-            
+
             dataset=Fhdfspart.openDataSet(hdfnames.part[itemp]);
             dataspace=dataset.getSpace();
             dataset.read(&ltemp,hdfnames.partdatatype[itemp],dataspace);
@@ -481,6 +506,83 @@ inline void STFReadNumData(unsigned long &nids, unsigned long &nsids, unsigned l
         }
     }
 }
+
+
+///read information from the group catalog file and correct the number of files if necessary
+inline void STFReadHaloProperties(const unsigned long nglocal, HaloData *Halo, fstream &Fhaloinfo,
+#ifdef USEHDF
+    H5File &Fhdfhaloinfo, DataSet &dataset, DataSpace &dataspace,
+#endif
+    int ibinary)
+{
+#ifdef USEHDF
+    HDFCatalogNames hdfnames;
+#endif
+    int itemp;
+    unsigned long ltemp;
+    void *data;
+    //now read data
+    if (ibinary==INBINARY) {
+        //offset by header
+        Fhaloinfo.read((char*)&itemp,sizeof(int));
+        Fhaloinfo.read((char*)&itemp,sizeof(int));
+        Fhaloinfo.read((char*)&itemp,sizeof(unsigned long));
+        Fhaloinfo.read((char*)&ltemp,sizeof(unsigned long));
+    }
+#ifdef USEHDF
+    else if (ibinary==INHDF) {
+        data=::operator new(sizeof(double)*(nglocal+1));
+        //read from halo properties, the positions, velocities, rmax and vmax of halos
+        itemp=4;
+        dataset=Fhdfhaloinfo.openDataSet(hdfnames.properties[itemp]);
+        dataspace=dataset.getSpace();
+        dataset.read(data,hdfnames.propertiesdatatype[itemp],dataspace);
+        for (auto i=0;i<nglocal;i++) Halo[i].Xcm[0]=((double*)data)[i];
+        itemp++;
+        dataset=Fhdfhaloinfo.openDataSet(hdfnames.properties[itemp]);
+        dataspace=dataset.getSpace();
+        dataset.read(data,hdfnames.propertiesdatatype[itemp],dataspace);
+        for (auto i=0;i<nglocal;i++) Halo[i].Xcm[1]=((double*)data)[i];
+        itemp++;
+        dataset=Fhdfhaloinfo.openDataSet(hdfnames.properties[itemp]);
+        dataspace=dataset.getSpace();
+        dataset.read(data,hdfnames.propertiesdatatype[itemp],dataspace);
+        for (auto i=0;i<nglocal;i++) Halo[i].Xcm[2]=((double*)data)[i];
+        itemp++;
+        dataset=Fhdfhaloinfo.openDataSet(hdfnames.properties[itemp]);
+        dataspace=dataset.getSpace();
+        dataset.read(data,hdfnames.propertiesdatatype[itemp],dataspace);
+        for (auto i=0;i<nglocal;i++) Halo[i].Vcm[0]=((double*)data)[i];
+        itemp++;
+        dataset=Fhdfhaloinfo.openDataSet(hdfnames.properties[itemp]);
+        dataspace=dataset.getSpace();
+        dataset.read(data,hdfnames.propertiesdatatype[itemp],dataspace);
+        for (auto i=0;i<nglocal;i++) Halo[i].Vcm[1]=((double*)data)[i];
+        itemp++;
+        dataset=Fhdfhaloinfo.openDataSet(hdfnames.properties[itemp]);
+        dataspace=dataset.getSpace();
+        dataset.read(data,hdfnames.propertiesdatatype[itemp],dataspace);
+        for (auto i=0;i<nglocal;i++) Halo[i].Vcm[2]=((double*)data)[i];
+        itemp++;
+        dataset=Fhdfhaloinfo.openDataSet(hdfnames.properties[itemp]);
+        dataspace=dataset.getSpace();
+        dataset.read(data,hdfnames.propertiesdatatype[itemp],dataspace);
+        for (auto i=0;i<nglocal;i++) Halo[i].Rmax=((double*)data)[i];
+        itemp++;
+        dataset=Fhdfhaloinfo.openDataSet(hdfnames.properties[itemp]);
+        dataspace=dataset.getSpace();
+        dataset.read(data,hdfnames.propertiesdatatype[itemp],dataspace);
+        for (auto i=0;i<nglocal;i++) Halo[i].Vmax=((double*)data)[i];
+        ::operator delete(data);
+    }
+#endif
+    else {
+        Fhaloinfo>>itemp;
+        Fhaloinfo>>itemp;
+        Fhaloinfo>>ltemp;
+        Fhaloinfo>>ltemp;
+    }
+}
 //@}
 
 int CheckType(unsigned int t, int tmatch){
@@ -504,17 +606,19 @@ unsigned long MPIReadHaloGroupCatalogDataNum(string &infile, int mpi_ninput, int
     fstream Fsgroup,Fspart,Fsupart; //sublevels
     fstream Fparttype,Fuparttype; //field objects
     fstream Fsparttype,Fsuparttype; //sublevels
+    fstream Fhaloinfo, Fshaloinfo; //halo properties
 #ifdef USEHDF
     H5File Fhdfgroup,Fhdfpart,Fhdfupart; //field objects
     H5File Fhdfsgroup,Fhdfspart,Fhdfsupart; //sublevels
     H5File Fhdfparttype,Fhdfuparttype; //field objects
     H5File Fhdfsparttype,Fhdfsuparttype; //sublevels
+    H5File Fhdfhaloinfo, Fhdfshaloinfo; //halo properties
     DataSpace dataspace;
     DataSet dataset;
     HDFCatalogNames hdfnames;
     void * data;
 #endif
-    //void pointer to 
+    //void pointer to
     void * Farray;
     unsigned long nids,nuids,nsids,nsuids,nglocal,nsglocal;
     unsigned long nidstot,nuidstot,nsidstot,nsuidstot;
@@ -539,9 +643,19 @@ unsigned long MPIReadHaloGroupCatalogDataNum(string &infile, int mpi_ninput, int
     nglocal=nsglocal=0;
     //load the group catalogues and the related particle files
     //check if files exist and open
-    if (ibinary!=INHDF) OpenBinaryorAsciiFiles(infile, ibinary, numfiletypes, 0, mpi_ninput, ifieldhalos, itypematch, Fgroup, Fpart, Fupart, Fsgroup, Fspart, Fsupart, Fparttype, Fuparttype, Fsparttype, Fsuparttype);
+    if (ibinary!=INHDF) OpenBinaryorAsciiFiles(infile, ibinary, numfiletypes, 0, mpi_ninput, ifieldhalos, itypematch,
+        Fgroup, Fpart, Fupart,
+        Fsgroup, Fspart, Fsupart,
+        Fparttype, Fuparttype, Fsparttype, Fsuparttype,
+        Fhaloinfo, Fshaloinfo
+    );
 #ifdef USEHDF
-    else OpenHDFFiles(infile, numfiletypes, 0, mpi_ninput, ifieldhalos, itypematch, Fhdfgroup, Fhdfpart, Fhdfupart, Fhdfsgroup, Fhdfspart, Fhdfsupart, Fhdfparttype, Fhdfuparttype, Fhdfsparttype, Fhdfsuparttype);
+    else OpenHDFFiles(infile, numfiletypes, 0, mpi_ninput, ifieldhalos, itypematch,
+        Fhdfgroup, Fhdfpart, Fhdfupart,
+        Fhdfsgroup, Fhdfspart, Fhdfsupart,
+        Fhdfparttype, Fhdfuparttype, Fhdfsparttype, Fhdfsuparttype,
+        Fhdfhaloinfo, Fhdfshaloinfo
+    );
 #endif
 
     //read number of output files
@@ -556,11 +670,19 @@ unsigned long MPIReadHaloGroupCatalogDataNum(string &infile, int mpi_ninput, int
         Fhdfgroup, Fhdfsgroup, dataset, dataspace,
 #endif
         ibinary, ifieldhalos);
-    if (ibinary!=INHDF) CloseBinaryorAsciiFiles(Fgroup, Fpart, Fupart, Fsgroup, Fspart, Fsupart, Fparttype, Fuparttype, Fsparttype, Fsuparttype, ifieldhalos, itypematch);
+    if (ibinary!=INHDF) CloseBinaryorAsciiFiles(Fgroup, Fpart, Fupart,
+        Fsgroup, Fspart, Fsupart,
+        Fparttype, Fuparttype, Fsparttype, Fsuparttype,
+        Fhaloinfo, Fshaloinfo,
+        ifieldhalos, itypematch);
 #ifdef USEHDF
-    else CloseHDFFiles(Fhdfgroup, Fhdfpart, Fhdfupart, Fhdfsgroup, Fhdfspart, Fhdfsupart, Fhdfparttype, Fhdfuparttype, Fhdfsparttype, Fhdfsuparttype, ifieldhalos, itypematch);
+    else CloseHDFFiles(Fhdfgroup, Fhdfpart, Fhdfupart,
+        Fhdfsgroup, Fhdfspart, Fhdfsupart,
+        Fhdfparttype, Fhdfuparttype, Fhdfsparttype, Fhdfsuparttype,
+        Fhdfhaloinfo, Fhdfshaloinfo,
+        ifieldhalos, itypematch);
 #endif
-    
+
     return TotalNumberofHalos;
 }
 
@@ -580,11 +702,13 @@ unsigned long MPIReadHaloGroupCatalogDataParticleNum(string &infile, int mpi_nin
     fstream Fsgroup,Fspart,Fsupart; //sublevels
     fstream Fparttype,Fuparttype; //field objects
     fstream Fsparttype,Fsuparttype; //sublevels
+    fstream Fhaloinfo, Fshaloinfo; //halo properties
 #ifdef USEHDF
     H5File Fhdfgroup,Fhdfpart,Fhdfupart; //field objects
     H5File Fhdfsgroup,Fhdfspart,Fhdfsupart; //sublevels
     H5File Fhdfparttype,Fhdfuparttype; //field objects
     H5File Fhdfsparttype,Fhdfsuparttype; //sublevels
+    H5File Fhdfhaloinfo, Fhdfshaloinfo; //halo properties
     DataSpace dataspace;
     DataSet dataset;
     HDFCatalogNames hdfnames;
@@ -613,9 +737,19 @@ unsigned long MPIReadHaloGroupCatalogDataParticleNum(string &infile, int mpi_nin
         nglocal=nsglocal=0;
         //load the group catalogues and the related particle files
         //check if files exist and open
-        if (ibinary!=INHDF) OpenBinaryorAsciiFiles(infile, ibinary, numfiletypes, k, mpi_ninput, ifieldhalos, itypematch, Fgroup, Fpart, Fupart, Fsgroup, Fspart, Fsupart, Fparttype, Fuparttype, Fsparttype, Fsuparttype);
+        if (ibinary!=INHDF) OpenBinaryorAsciiFiles(infile, ibinary, numfiletypes, k, mpi_ninput, ifieldhalos, itypematch,
+            Fgroup, Fpart, Fupart,
+            Fsgroup, Fspart, Fsupart,
+            Fparttype, Fuparttype, Fsparttype, Fsuparttype,
+            Fhaloinfo, Fshaloinfo
+        );
 #ifdef USEHDF
-        else OpenHDFFiles(infile, numfiletypes, k, mpi_ninput, ifieldhalos, itypematch, Fhdfgroup, Fhdfpart, Fhdfupart, Fhdfsgroup, Fhdfspart, Fhdfsupart, Fhdfparttype, Fhdfuparttype, Fhdfsparttype, Fhdfsuparttype);
+        else OpenHDFFiles(infile, numfiletypes, k, mpi_ninput, ifieldhalos, itypematch,
+            Fhdfgroup, Fhdfpart, Fhdfupart,
+            Fhdfsgroup, Fhdfspart, Fhdfsupart,
+            Fhdfparttype, Fhdfuparttype, Fhdfsparttype, Fhdfsuparttype,
+            Fhdfhaloinfo, Fhdfshaloinfo
+        );
 #endif
 
         //read number of output files
@@ -679,9 +813,17 @@ unsigned long MPIReadHaloGroupCatalogDataParticleNum(string &infile, int mpi_nin
         }
         noffset+=nglocal+nsglocal;
 
-        if (ibinary!=INHDF) CloseBinaryorAsciiFiles(Fgroup, Fpart, Fupart, Fsgroup, Fspart, Fsupart, Fparttype, Fuparttype, Fsparttype, Fsuparttype, ifieldhalos, itypematch);
+        if (ibinary!=INHDF) CloseBinaryorAsciiFiles(Fgroup, Fpart, Fupart,
+            Fsgroup, Fspart, Fsupart,
+            Fparttype, Fuparttype, Fsparttype, Fsuparttype,
+            Fhaloinfo, Fshaloinfo,
+            ifieldhalos, itypematch);
 #ifdef USEHDF
-        else CloseHDFFiles(Fhdfgroup, Fhdfpart, Fhdfupart, Fhdfsgroup, Fhdfspart, Fhdfsupart, Fhdfparttype, Fhdfuparttype, Fhdfsparttype, Fhdfsuparttype, ifieldhalos, itypematch);
+        else CloseHDFFiles(Fhdfgroup, Fhdfpart, Fhdfupart,
+            Fhdfsgroup, Fhdfspart, Fhdfsupart,
+            Fhdfparttype, Fhdfuparttype, Fhdfsparttype, Fhdfsuparttype,
+            Fhdfhaloinfo, Fhdfshaloinfo,
+            ifieldhalos, itypematch);
 #endif
     }
 
@@ -701,11 +843,13 @@ HaloData *MPIReadHaloGroupCatalogDataAllocation(string &infile, Int_t &numhalos,
     fstream Fsgroup,Fspart,Fsupart; //sublevels
     fstream Fparttype,Fuparttype; //field objects
     fstream Fsparttype,Fsuparttype; //sublevels
+    fstream Fhaloinfo, Fshaloinfo; //halo properties
 #ifdef USEHDF
     H5File Fhdfgroup,Fhdfpart,Fhdfupart; //field objects
     H5File Fhdfsgroup,Fhdfspart,Fhdfsupart; //sublevels
     H5File Fhdfparttype,Fhdfuparttype; //field objects
     H5File Fhdfsparttype,Fhdfsuparttype; //sublevels
+    H5File Fhdfhaloinfo, Fhdfshaloinfo; //halo properties
     DataSpace dataspace;
     DataSet dataset;
     HDFCatalogNames hdfnames;
@@ -735,9 +879,19 @@ HaloData *MPIReadHaloGroupCatalogDataAllocation(string &infile, Int_t &numhalos,
         nglocal=nsglocal=0;
         //load the group catalogues and the related particle files
         //check if files exist and open
-        if (ibinary!=INHDF) OpenBinaryorAsciiFiles(infile, ibinary, numfiletypes, k, mpi_ninput, ifieldhalos, itypematch, Fgroup, Fpart, Fupart, Fsgroup, Fspart, Fsupart, Fparttype, Fuparttype, Fsparttype, Fsuparttype);
+        if (ibinary!=INHDF) OpenBinaryorAsciiFiles(infile, ibinary, numfiletypes, k, mpi_ninput, ifieldhalos, itypematch,
+            Fgroup, Fpart, Fupart,
+            Fsgroup, Fspart, Fsupart,
+            Fparttype, Fuparttype, Fsparttype, Fsuparttype,
+            Fhaloinfo, Fshaloinfo
+        );
 #ifdef USEHDF
-        else OpenHDFFiles(infile, numfiletypes, k, mpi_ninput, ifieldhalos, itypematch, Fhdfgroup, Fhdfpart, Fhdfupart, Fhdfsgroup, Fhdfspart, Fhdfsupart, Fhdfparttype, Fhdfuparttype, Fhdfsparttype, Fhdfsuparttype);
+        else OpenHDFFiles(infile, numfiletypes, k, mpi_ninput, ifieldhalos, itypematch,
+            Fhdfgroup, Fhdfpart, Fhdfupart,
+            Fhdfsgroup, Fhdfspart, Fhdfsupart,
+            Fhdfparttype, Fhdfuparttype, Fhdfsparttype, Fhdfsuparttype,
+            Fhdfhaloinfo, Fhdfshaloinfo
+        );
 #endif
 
         //read number of output files
@@ -798,9 +952,17 @@ HaloData *MPIReadHaloGroupCatalogDataAllocation(string &infile, Int_t &numhalos,
         }
         noffset+=nglocal+nsglocal;
 
-        if (ibinary!=INHDF) CloseBinaryorAsciiFiles(Fgroup, Fpart, Fupart, Fsgroup, Fspart, Fsupart, Fparttype, Fuparttype, Fsparttype, Fsuparttype, ifieldhalos, itypematch);
+        if (ibinary!=INHDF) CloseBinaryorAsciiFiles(Fgroup, Fpart, Fupart,
+            Fsgroup, Fspart, Fsupart,
+            Fparttype, Fuparttype, Fsparttype, Fsuparttype,
+            Fhaloinfo, Fshaloinfo,
+            ifieldhalos, itypematch);
 #ifdef USEHDF
-        else CloseHDFFiles(Fhdfgroup, Fhdfpart, Fhdfupart, Fhdfsgroup, Fhdfspart, Fhdfsupart, Fhdfparttype, Fhdfuparttype, Fhdfsparttype, Fhdfsuparttype, ifieldhalos, itypematch);
+        else CloseHDFFiles(Fhdfgroup, Fhdfpart, Fhdfupart,
+            Fhdfsgroup, Fhdfspart, Fhdfsupart,
+            Fhdfparttype, Fhdfuparttype, Fhdfsparttype, Fhdfsuparttype,
+            Fhdfhaloinfo, Fhdfshaloinfo,
+            ifieldhalos, itypematch);
 #endif
     }
 
@@ -819,11 +981,13 @@ void MPIReadHaloGroupCatalogData(string &infile, Int_t &numhalos, HaloData *&Hal
     fstream Fsgroup,Fspart,Fsupart; //sublevels
     fstream Fparttype,Fuparttype; //field objects
     fstream Fsparttype,Fsuparttype; //sublevels
+    fstream Fhaloinfo, Fshaloinfo; //halo properties
 #ifdef USEHDF
     H5File Fhdfgroup,Fhdfpart,Fhdfupart; //field objects
     H5File Fhdfsgroup,Fhdfspart,Fhdfsupart; //sublevels
     H5File Fhdfparttype,Fhdfuparttype; //field objects
     H5File Fhdfsparttype,Fhdfsuparttype; //sublevels
+    H5File Fhdfhaloinfo, Fhdfshaloinfo; //halo properties
     DataSpace dataspace;
     DataSet dataset;
     HDFCatalogNames hdfnames;
@@ -832,6 +996,7 @@ void MPIReadHaloGroupCatalogData(string &infile, Int_t &numhalos, HaloData *&Hal
     unsigned long nids,nuids,nsids,nsuids,nglocal,nsglocal;
     unsigned long nidstot,nuidstot,nsidstot,nsuidstot;
     Int_t *numingroup,*numingroupbound,*offset,*uoffset;
+    float *X,*Y, *Z, *VX, *VY, *VZ, *Rmax, *Vmax;
     Int_t counter,nn;
     int nmpicount,itask,nprocs;
     Int_t *idval;
@@ -852,9 +1017,19 @@ void MPIReadHaloGroupCatalogData(string &infile, Int_t &numhalos, HaloData *&Hal
         nglocal=nsglocal=0;
         //load the group catalogues and the related particle files
         //check if files exist and open
-        if (ibinary!=INHDF) OpenBinaryorAsciiFiles(infile, ibinary, numfiletypes, k, mpi_ninput, ifieldhalos, itypematch, Fgroup, Fpart, Fupart, Fsgroup, Fspart, Fsupart, Fparttype, Fuparttype, Fsparttype, Fsuparttype);
+        if (ibinary!=INHDF) OpenBinaryorAsciiFiles(infile, ibinary, numfiletypes, k, mpi_ninput, ifieldhalos, itypematch,
+            Fgroup, Fpart, Fupart,
+            Fsgroup, Fspart, Fsupart,
+            Fparttype, Fuparttype, Fsparttype, Fsuparttype,
+            Fhaloinfo, Fshaloinfo
+        );
 #ifdef USEHDF
-        else OpenHDFFiles(infile, numfiletypes, k, mpi_ninput, ifieldhalos, itypematch, Fhdfgroup, Fhdfpart, Fhdfupart, Fhdfsgroup, Fhdfspart, Fhdfsupart, Fhdfparttype, Fhdfuparttype, Fhdfsparttype, Fhdfsuparttype);
+        else OpenHDFFiles(infile, numfiletypes, k, mpi_ninput, ifieldhalos, itypematch,
+            Fhdfgroup, Fhdfpart, Fhdfupart,
+            Fhdfsgroup, Fhdfspart, Fhdfsupart,
+            Fhdfparttype, Fhdfuparttype, Fhdfsparttype, Fhdfsuparttype,
+            Fhdfhaloinfo, Fhdfshaloinfo
+        );
 #endif
 
         //read number of output files
@@ -877,13 +1052,13 @@ void MPIReadHaloGroupCatalogData(string &infile, Int_t &numhalos, HaloData *&Hal
             numhalos=TotalNumberofHalos;
         }
 
-        STFReadNumData(nids, nsids, nuids, nsuids, 
-            nidstot, nsidstot, nuidstot, nsuidstot, 
-            Fpart, Fupart, Fspart, Fsupart, 
-            Fparttype, Fuparttype, Fsparttype, Fsuparttype, 
+        STFReadNumData(nids, nsids, nuids, nsuids,
+            nidstot, nsidstot, nuidstot, nsuidstot,
+            Fpart, Fupart, Fspart, Fsupart,
+            Fparttype, Fuparttype, Fsparttype, Fsuparttype,
 #ifdef USEHDF
-            Fhdfpart, Fhdfspart, Fhdfupart, Fhdfsupart, 
-            Fhdfparttype, Fhdfsparttype, Fhdfuparttype, Fhdfsuparttype, 
+            Fhdfpart, Fhdfspart, Fhdfupart, Fhdfsupart,
+            Fhdfparttype, Fhdfsparttype, Fhdfuparttype, Fhdfsuparttype,
             dataset, dataspace,
 #endif
             ibinary, ifieldhalos, itypematch);
@@ -1008,6 +1183,13 @@ void MPIReadHaloGroupCatalogData(string &infile, Int_t &numhalos, HaloData *&Hal
             delete[] numingroupbound;
             delete[] numingroup;
             if (itypematch!=ALLTYPEMATCH) delete[] typeval;
+            //now read positions if desired
+            //alter interface so that it is passed a file and reads data
+            STFReadHaloProperties(nglocal, &Halo[noffset], Fhaloinfo,
+            #ifdef USEHDF
+                Fhdfhaloinfo, dataset, dataspace,
+            #endif
+                ibinary);
         }
 
         for (Int_t i=0;i<nglocal+nsglocal;i++) Halo[i+noffset].haloID=i+1+noffset;
@@ -1132,12 +1314,25 @@ void MPIReadHaloGroupCatalogData(string &infile, Int_t &numhalos, HaloData *&Hal
                 delete[] numingroup;
                 if (itypematch!=ALLTYPEMATCH) delete[] typeval;
             }
+            STFReadHaloProperties(nsglocal, &Halo[noffset+nglocal], Fshaloinfo,
+            #ifdef USEHDF
+                Fhdfshaloinfo, dataset, dataspace,
+            #endif
+                ibinary);
         }
         noffset+=nglocal+nsglocal;
 
-        if (ibinary!=INHDF) CloseBinaryorAsciiFiles(Fgroup, Fpart, Fupart, Fsgroup, Fspart, Fsupart, Fparttype, Fuparttype, Fsparttype, Fsuparttype, ifieldhalos, itypematch);
+        if (ibinary!=INHDF) CloseBinaryorAsciiFiles(Fgroup, Fpart, Fupart,
+            Fsgroup, Fspart, Fsupart,
+            Fparttype, Fuparttype, Fsparttype, Fsuparttype,
+            Fhaloinfo, Fshaloinfo,
+            ifieldhalos, itypematch);
 #ifdef USEHDF
-        else CloseHDFFiles(Fhdfgroup, Fhdfpart, Fhdfupart, Fhdfsgroup, Fhdfspart, Fhdfsupart, Fhdfparttype, Fhdfuparttype, Fhdfsparttype, Fhdfsuparttype, ifieldhalos, itypematch);
+        else CloseHDFFiles(Fhdfgroup, Fhdfpart, Fhdfupart,
+            Fhdfsgroup, Fhdfspart, Fhdfsupart,
+            Fhdfparttype, Fhdfuparttype, Fhdfsparttype, Fhdfsuparttype,
+            Fhdfhaloinfo, Fhdfshaloinfo,
+            ifieldhalos, itypematch);
 #endif
 
     }
@@ -1160,11 +1355,13 @@ HaloData *ReadHaloGroupCatalogData(string &infile, Int_t &numhalos, int mpi_ninp
     fstream Fsgroup,Fspart,Fsupart; //sublevels
     fstream Fparttype,Fuparttype; //field objects
     fstream Fsparttype,Fsuparttype; //sublevels
+    fstream Fhaloinfo, Fshaloinfo; //halo properties
 #ifdef USEHDF
     H5File Fhdfgroup,Fhdfpart,Fhdfupart; //field objects
     H5File Fhdfsgroup,Fhdfspart,Fhdfsupart; //sublevels
     H5File Fhdfparttype,Fhdfuparttype; //field objects
     H5File Fhdfsparttype,Fhdfsuparttype; //sublevels
+    H5File Fhdfhaloinfo, Fhdfshaloinfo; //halo properties
     DataSpace dataspace;
     DataSet dataset;
     HDFCatalogNames hdfnames;
@@ -1195,9 +1392,19 @@ HaloData *ReadHaloGroupCatalogData(string &infile, Int_t &numhalos, int mpi_ninp
     for (int k=0;k<nmpicount;k++) {
         nglocal=nsglocal=0;
         //load the group catalogues and the related particle files
-        if (ibinary!=INHDF) OpenBinaryorAsciiFiles(infile, ibinary, numfiletypes, k, mpi_ninput, ifieldhalos, itypematch, Fgroup, Fpart, Fupart, Fsgroup, Fspart, Fsupart, Fparttype, Fuparttype, Fsparttype, Fsuparttype, iverbose);
+        if (ibinary!=INHDF) OpenBinaryorAsciiFiles(infile, ibinary, numfiletypes, k, mpi_ninput, ifieldhalos, itypematch,
+            Fgroup, Fpart, Fupart,
+            Fsgroup, Fspart, Fsupart,
+            Fparttype, Fuparttype, Fsparttype, Fsuparttype,
+            Fhaloinfo, Fshaloinfo
+        );
 #ifdef USEHDF
-        else OpenHDFFiles(infile, numfiletypes, k, mpi_ninput, ifieldhalos, itypematch, Fhdfgroup, Fhdfpart, Fhdfupart, Fhdfsgroup, Fhdfspart, Fhdfsupart, Fhdfparttype, Fhdfuparttype, Fhdfsparttype, Fhdfsuparttype, iverbose);
+        else OpenHDFFiles(infile, numfiletypes, k, mpi_ninput, ifieldhalos, itypematch,
+            Fhdfgroup, Fhdfpart, Fhdfupart,
+            Fhdfsgroup, Fhdfspart, Fhdfsupart,
+            Fhdfparttype, Fhdfuparttype, Fhdfsparttype, Fhdfsuparttype,
+            Fhdfhaloinfo, Fhdfshaloinfo
+        );
 #endif
         //read number of output files
         STFReadNumFileInfoAndCorrectNumFile(itask, nprocs, nmpicount, mpi_ninput, Fgroup, Fsgroup,
@@ -1218,22 +1425,30 @@ HaloData *ReadHaloGroupCatalogData(string &infile, Int_t &numhalos, int mpi_ninp
             numhalos=TotalNumberofHalos;
             //if no haloes close file and return
             if (numhalos==0) {
-                if (ibinary!=INHDF) CloseBinaryorAsciiFiles(Fgroup, Fpart, Fupart, Fsgroup, Fspart, Fsupart, Fparttype, Fuparttype, Fsparttype, Fsuparttype, ifieldhalos, itypematch);
+                if (ibinary!=INHDF) CloseBinaryorAsciiFiles(Fgroup, Fpart, Fupart,
+                    Fsgroup, Fspart, Fsupart,
+                    Fparttype, Fuparttype, Fsparttype, Fsuparttype,
+                    Fhaloinfo, Fshaloinfo,
+                    ifieldhalos, itypematch);
 #ifdef USEHDF
-                else CloseHDFFiles(Fhdfgroup, Fhdfpart, Fhdfupart, Fhdfsgroup, Fhdfspart, Fhdfsupart, Fhdfparttype, Fhdfuparttype, Fhdfsparttype, Fhdfsuparttype, ifieldhalos, itypematch);
+                else CloseHDFFiles(Fhdfgroup, Fhdfpart, Fhdfupart,
+                    Fhdfsgroup, Fhdfspart, Fhdfsupart,
+                    Fhdfparttype, Fhdfuparttype, Fhdfsparttype, Fhdfsuparttype,
+                    Fhdfhaloinfo, Fhdfshaloinfo,
+                    ifieldhalos, itypematch);
 #endif
                 return Halo;
             }
         }
         //if no local groups no need to read anything else in this file. So only proceed if ngloca>0
         if (nglocal>0) {
-            STFReadNumData(nids, nsids, nuids, nsuids, 
-                nidstot, nsidstot, nuidstot, nsuidstot, 
-                Fpart, Fupart, Fspart, Fsupart, 
-                Fparttype, Fuparttype, Fsparttype, Fsuparttype, 
+            STFReadNumData(nids, nsids, nuids, nsuids,
+                nidstot, nsidstot, nuidstot, nsuidstot,
+                Fpart, Fupart, Fspart, Fsupart,
+                Fparttype, Fuparttype, Fsparttype, Fsuparttype,
 #ifdef USEHDF
-                Fhdfpart, Fhdfspart, Fhdfupart, Fhdfsupart, 
-                Fhdfparttype, Fhdfsparttype, Fhdfuparttype, Fhdfsuparttype, 
+                Fhdfpart, Fhdfspart, Fhdfupart, Fhdfsupart,
+                Fhdfparttype, Fhdfsparttype, Fhdfuparttype, Fhdfsuparttype,
                 dataset, dataspace,
 #endif
                 ibinary, ifieldhalos, itypematch);
@@ -1365,6 +1580,11 @@ HaloData *ReadHaloGroupCatalogData(string &infile, Int_t &numhalos, int mpi_ninp
             delete[] numingroupbound;
             delete[] numingroup;
             if (itypematch!=ALLTYPEMATCH) delete[] typeval;
+            STFReadHaloProperties(nglocal, &Halo[noffset], Fhaloinfo,
+            #ifdef USEHDF
+                Fhdfhaloinfo, dataset, dataspace,
+            #endif
+                ibinary);
         }
 
         for (Int_t i=0;i<nglocal+nsglocal;i++) Halo[i+noffset].haloID=i+1+noffset;
@@ -1493,16 +1713,28 @@ HaloData *ReadHaloGroupCatalogData(string &infile, Int_t &numhalos, int mpi_ninp
             delete[] numingroupbound;
             delete[] numingroup;
             if (itypematch!=ALLTYPEMATCH) delete[] typeval;
+            STFReadHaloProperties(nsglocal, &Halo[noffset+nglocal], Fshaloinfo,
+            #ifdef USEHDF
+                Fhdfshaloinfo, dataset, dataspace,
+            #endif
+                ibinary);
         }
         noffset+=nglocal+nsglocal;
 
-        if (ibinary!=INHDF) CloseBinaryorAsciiFiles(Fgroup, Fpart, Fupart, Fsgroup, Fspart, Fsupart, Fparttype, Fuparttype, Fsparttype, Fsuparttype, ifieldhalos, itypematch);
+        if (ibinary!=INHDF) CloseBinaryorAsciiFiles(Fgroup, Fpart, Fupart,
+            Fsgroup, Fspart, Fsupart,
+            Fparttype, Fuparttype, Fsparttype, Fsuparttype,
+            Fhaloinfo, Fshaloinfo,
+            ifieldhalos, itypematch);
 #ifdef USEHDF
-        else CloseHDFFiles(Fhdfgroup, Fhdfpart, Fhdfupart, Fhdfsgroup, Fhdfspart, Fhdfsupart, Fhdfparttype, Fhdfuparttype, Fhdfsparttype, Fhdfsuparttype, ifieldhalos, itypematch);
+        else CloseHDFFiles(Fhdfgroup, Fhdfpart, Fhdfupart,
+            Fhdfsgroup, Fhdfspart, Fhdfsupart,
+            Fhdfparttype, Fhdfuparttype, Fhdfsparttype, Fhdfsuparttype,
+            Fhdfhaloinfo, Fhdfshaloinfo,
+            ifieldhalos, itypematch);
 #endif
 
     }
 
     return Halo;
 }
-

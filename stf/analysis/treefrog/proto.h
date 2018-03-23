@@ -51,12 +51,30 @@ HaloData *ReadHaloGroupCatalogData(string &infile, Int_t &numhalos, int mpi_ninp
 /// see \ref stfio.cxx for implementation
 //@{
 ///minor interface routine associated with reading VELOCIraptor output, openfiles appropriate files
-void OpenBinaryorAsciiFiles(string &infile, int ibinary, int numfiletypes, int k, int mpi_ninput, int ifieldhalos, int itypematch, fstream &Fgroup, fstream &Fpart, fstream &Fupart, fstream &Fsgroup, fstream &Fspart, fstream &Fsupart, fstream &Fparttype, fstream &Fuparttype, fstream &Fsparttype, fstream &Fsuparttype, int iverbose=0);
+void OpenBinaryorAsciiFiles(string &infile, int ibinary, int numfiletypes, int k, int mpi_ninput, int ifieldhalos, int itypematch,
+    fstream &Fgroup, fstream &Fpart, fstream &Fupart,
+    fstream &Fsgroup, fstream &Fspart, fstream &Fsupart,
+    fstream &Fparttype, fstream &Fuparttype, fstream &Fsparttype, fstream &Fsuparttype,
+    fstream &Fhaloinfo, fstream &Fshaloinfo,
+    int iverbose=0);
 ///minor interface for closing appropriate files
-void CloseBinaryorAsciiFiles(fstream &Fgroup, fstream &Fpart, fstream &Fupart, fstream &Fsgroup, fstream &Fspart, fstream &Fsupart, fstream &Fparttype, fstream &Fuparttype, fstream &Fsparttype, fstream &Fsuparttype, int ifieldhalos, int itypematch);
+void CloseBinaryorAsciiFiles(fstream &Fgroup, fstream &Fpart, fstream &Fupart,
+    fstream &Fsgroup, fstream &Fspart, fstream &Fsupart,
+    fstream &Fparttype, fstream &Fuparttype, fstream &Fsparttype, fstream &Fsuparttype,
+    fstream &Fhaloinfo, fstream &Fshaloinfo,
+    int ifieldhalos, int itypematch);
 #ifdef USEHDF
-void OpenHDFFiles(string &infile, int numfiletypes, int k, int mpi_ninput, int ifieldhalos, int itypematch, H5File &Fgroup, H5File &Fpart, H5File &Fupart, H5File &Fsgroup, H5File &Fspart, H5File &Fsupart, H5File &Fparttype, H5File &Fuparttype, H5File &Fsparttype, H5File &Fsuparttype, int iverbose=0);
-void CloseHDFFiles(H5File &Fgroup, H5File &Fpart, H5File &Fupart, H5File &Fsgroup, H5File &Fspart, H5File &Fsupart, H5File &Fparttype, H5File &Fuparttype, H5File &Fsparttype, H5File &Fsuparttype, int ifieldhalos, int itypematch);
+void OpenHDFFiles(string &infile, int numfiletypes, int k, int mpi_ninput, int ifieldhalos, int itypematch,
+    H5File &Fgroup, H5File &Fpart, H5File &Fupart,
+    H5File &Fsgroup, H5File &Fspart, H5File &Fsupart,
+    H5File &Fparttype, H5File &Fuparttype, H5File &Fsparttype, H5File &Fsuparttype,
+    H5File &Fhaloinfo, H5File &Fshaloinfo,
+    int iverbose=0);
+void CloseHDFFiles(H5File &Fgroup, H5File &Fpart, H5File &Fupart,
+    H5File &Fsgroup, H5File &Fspart, H5File &Fsupart,
+    H5File &Fparttype, H5File &Fuparttype, H5File &Fsparttype, H5File &Fsuparttype,
+    H5File &Fhaloinfo, H5File &Fshaloinfo,
+    int ifieldhalos, int itypematch);
 #endif
 ///read routine to load number of files the VELOCIraptor output is split between
 inline void STFReadNumFileInfoAndCorrectNumFile(int &itask, int &nprocs, int &nmpicount, int &mpi_ninput, fstream &Fgroup, fstream &Fsgroup,
