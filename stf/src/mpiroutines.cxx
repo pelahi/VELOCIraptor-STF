@@ -1418,8 +1418,7 @@ void MPIAdjustLocalGroupIDs(const Int_t nbodies, Int_t *pfof){
 //Also must determine optimal way of setting which processor the group should end up on. Best way might be to use the length of the group locally since
 //that would minimize the broadcasts.
 
-/*! Determine which particles have a spatial linking length such that linking overlaps the domain of another processor store the necessary information to send that data
-    and then send that information
+/*! Particles that have been marked for export may have had their fof information updated so need to update this info
 */
 void MPIUpdateExportList(const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_tree_t *&Len){
     Int_t i, j,nthreads,nexport;
@@ -1499,11 +1498,17 @@ Int_t MPILinkAcross(const Int_t nbodies, KDTree *&tree, Particle *Part, Int_t *&
     Coordinate x;
     for (i=0;i<NImport;i++) {
         for (j=0;j<3;j++) x[j]=PartDataGet[i].GetPosition(j);
+        //find all particles within a search radius of the imported particle
         nt=tree->SearchBallPosTagged(x, rdist2, nn);
         for (Int_t ii=0;ii<nt;ii++) {
             k=nn[ii];
+            //if the imported particle does not belong to a group
             if (FoFDataGet[i].iGroup==0)
             {
+                //if the current local particle's group head is zero and the exported particle group is zero
+                //update the local particle's group id and the task to which it belongs
+                //then one should link it and to make global decision base whether this task handles
+                //the change on the PID of the particle
                 if (pfof[Part[Head[k]].GetID()]==0&&Part[Head[k]].GetPID() > PartDataGet[i].GetPID()) {
                     pfof[Part[k].GetID()]=mpi_maxgid+mpi_gidoffset;///some unique identifier based on this task
                     mpi_gidoffset++;//increase unique identifier
@@ -1511,29 +1516,39 @@ Int_t MPILinkAcross(const Int_t nbodies, KDTree *&tree, Particle *Part, Int_t *&
                     mpi_foftask[Part[k].GetID()]=FoFDataGet[i].iGroupTask;
                     links++;
                 }
+                //if the local particle does belong to a group, let the task from which the imported particle came from
+                //handle the change
             }
+            //if imported particle has already been linked
             else {
-            if (pfof[Part[Head[k]].GetID()]>0)  {
-                if(pfof[Part[Head[k]].GetID()] > FoFDataGet[i].iGroup) {
-                    Int_t ss = Head[k];
-                    Int_t oldlen=Len[k];
-                    do{
-                        pfof[Part[ss].GetID()]=FoFDataGet[i].iGroup;
-                        mpi_foftask[Part[ss].GetID()]=FoFDataGet[i].iGroupTask;
-                        Len[ss]=FoFDataGet[i].iLen+oldlen;
-                    }while((ss = Next[ss]) >= 0);
-                    FoFDataGet[i].iLen+=oldlen;
-                    ss = Head[k];
+                //check to see if local particle has already been linked
+                if (pfof[Part[Head[k]].GetID()]>0)  {
+                    //as iGroups and pfof have been rank ordered globally
+                    //proceed to link local particle to imported particle if
+                    //its group id is larger
+                    if(pfof[Part[Head[k]].GetID()] > FoFDataGet[i].iGroup) {
+                        Int_t ss = Head[k];
+                        Int_t oldlen=Len[k];
+                        do{
+                            pfof[Part[ss].GetID()]=FoFDataGet[i].iGroup;
+                            mpi_foftask[Part[ss].GetID()]=FoFDataGet[i].iGroupTask;
+                            Len[ss]=FoFDataGet[i].iLen+oldlen;
+                        }while((ss = Next[ss]) >= 0);
+                        FoFDataGet[i].iLen+=oldlen;
+                        ss = Head[k];
+                        links++;
+                    }
+                    //otherwise, let the task from which this imported particle came from
+                    //handle the change
+                }
+                //if not in local group, add the particle to the imported particles group
+                else {
+                    pfof[Part[k].GetID()]=FoFDataGet[i].iGroup;
+                    Len[k]=FoFDataGet[i].iLen;
+                    mpi_foftask[Part[k].GetID()]=FoFDataGet[i].iGroupTask;
+                    FoFDataGet[i].iLen+=1;
                     links++;
                 }
-            }
-            else {
-                pfof[Part[k].GetID()]=FoFDataGet[i].iGroup;
-                Len[k]=FoFDataGet[i].iLen;
-                mpi_foftask[Part[k].GetID()]=FoFDataGet[i].iGroupTask;
-                FoFDataGet[i].iLen+=1;
-                links++;
-            }
             }
         }
     }
