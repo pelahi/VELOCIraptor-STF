@@ -149,55 +149,6 @@ void InvokeVelociraptor(const int num_gravity_parts, struct gpart *gravity_parts
 #else
     Ntotal=Nlocal;
 #endif
-
-    //get spatial statistics from gparts
-    for (auto j=0;j<3;j++) {maxc[j]=0;minc[j]=libvelociraptorOpt.p;avec[j]=0;sumave[j]=sumsigma[j]=0;}
-    for(auto i=0; i<Nlocal; i++) {
-        for (auto j=0;j<3;j++) {
-            if (gravity_parts[i].x[j]>maxc[j]) maxc[j]=gravity_parts[i].x[j];
-            if (gravity_parts[i].x[j]<minc[j]) minc[j]=gravity_parts[i].x[j];
-            avec[j]+=gravity_parts[i].x[j];
-            sumave[j]+=gravity_parts[i].x[j];
-            sumsigma[j]+=gravity_parts[i].x[j]*gravity_parts[i].x[j];
-        }
-    }
-    avec=avec*(1.0/(double)Nlocal);
-    cout<<"Local gravity_parts based MPI domain Stats of positions (min,ave,max)"<<endl;
-    for (auto j=0;j<3;j++) {
-        cout<<j<<" : "<<minc[j]<<", "<<avec[j]<<", "<<maxc[j]<<endl;
-    }
-#ifdef USEMPI
-    for (auto j=0;j<3;j++) {
-        double blahx;
-        MPI_Allreduce(&sumave[j], &blahx, 1, MPI_Real_t, MPI_SUM, MPI_COMM_WORLD);
-        totave[j]=blahx;
-        MPI_Allreduce(&sumsigma[j], &blahx, 1, MPI_Real_t, MPI_SUM, MPI_COMM_WORLD);
-        totsigma[j]=blahx;
-        MPI_Allreduce(&minc[j], &blahx, 1, MPI_Real_t, MPI_MIN, MPI_COMM_WORLD);
-        totmin[j]=blahx;
-        MPI_Allreduce(&maxc[j], &blahx, 1, MPI_Real_t, MPI_MAX, MPI_COMM_WORLD);
-        totmax[j]=blahx;
-    }
-#else
-    totave=sumave;
-    totsigma=sumsigma;
-    totmin=minc;
-    totmax=maxc;
-#endif
-#ifdef USEMPI
-    MPI_Barrier(MPI_COMM_WORLD);
-#endif
-    if (ThisTask==0) {
-        cout.precision(10);
-        cout<<"Global gravity_parts stats of positions (min,ave,sigma,max)"<<endl;
-        for (auto j=0;j<3;j++) {
-            cout<<j<<" : "<<totmin[j]<<", "<<totave[j]/(double)Ntotal<<", "<<totsigma[j]/(double)Ntotal<<", "<<totmax[j]<<endl;
-        }
-    }
-    #ifdef USEMPI
-        MPI_Barrier(MPI_COMM_WORLD);
-    #endif
-
     parts=new Particle[Nmemlocal];
     cout<<"Copying particle data..."<< endl;
     time1=MyGetTime();
@@ -213,64 +164,6 @@ void InvokeVelociraptor(const int num_gravity_parts, struct gpart *gravity_parts
     //if (libvelociraptorOpt.iBaryonSearch>0) cout<<ThisTask<<"There are "<<Nlocalbaryon[0]<<" baryon particles and have allocated enough memory for "<<Nmemlocalbaryon<<" requiring "<<Nmemlocalbaryon*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
     cout<<ThisTask<<" will also require additional memory for FOF algorithms and substructure search. Largest mem needed for preliminary FOF search. Rough estimate is "<<Nlocal*(sizeof(Int_tree_t)*8)/1024./1024./1024.<<"GB of memory"<<endl;
 
-    //
-    // Calculate some statistics: min, max, avg positions and particle potentials.
-    //
-    for (auto j=0;j<3;j++) {maxc[j]=0;minc[j]=libvelociraptorOpt.p;avec[j]=0;sumave[j]=sumsigma[j]=0;}
-    for(auto i=0; i<Nlocal; i++) {
-        for (auto j=0;j<3;j++) {
-            if (parts[i].GetPosition(j)>maxc[j]) maxc[j]=parts[i].GetPosition(j);
-            if (parts[i].GetPosition(j)<minc[j]) minc[j]=parts[i].GetPosition(j);
-            avec[j]+=parts[i].GetPosition(j);
-            sumave[j]+=parts[i].GetPosition(j);
-            sumsigma[j]+=parts[i].GetPosition(j)*parts[i].GetPosition(j);
-        }
-    }
-    avec=avec*(1.0/(double)Nlocal);
-    cout<<"Local MPI domain Stats of positions (min,ave,max)"<<endl;
-    for (auto j=0;j<3;j++) {
-        cout<<j<<" : "<<minc[j]<<", "<<avec[j]<<", "<<maxc[j]<<endl;
-    }
-    Double_t minphi,maxphi,avephi;
-    minphi=1e16;maxphi=-1e16;avephi=0;
-    for(auto i=0; i<Nlocal; i++) {
-        if (parts[i].GetGravityPotential()>maxphi) maxphi=parts[i].GetGravityPotential();
-        if (parts[i].GetGravityPotential()<minphi) minphi=parts[i].GetGravityPotential();
-        avephi+=parts[i].GetGravityPotential();
-    }
-    avephi=avephi*(1.0/(double)Nlocal);
-    cout<<"Stats of potential "<<minphi<<" "<<maxphi<<" "<<avephi<<endl;
-#ifdef USEMPI
-    for (auto j=0;j<3;j++) {
-        double blahx;
-        MPI_Allreduce(&sumave[j], &blahx, 1, MPI_Real_t, MPI_SUM, MPI_COMM_WORLD);
-        totave[j]=blahx;
-        MPI_Allreduce(&sumsigma[j], &blahx, 1, MPI_Real_t, MPI_SUM, MPI_COMM_WORLD);
-        totsigma[j]=blahx;
-        MPI_Allreduce(&minc[j], &blahx, 1, MPI_Real_t, MPI_MIN, MPI_COMM_WORLD);
-        totmin[j]=blahx;
-        MPI_Allreduce(&maxc[j], &blahx, 1, MPI_Real_t, MPI_MAX, MPI_COMM_WORLD);
-        totmax[j]=blahx;
-    }
-#else
-    totave=sumave;
-    totsigma=sumsigma;
-    totmin=minc;
-    totmax=maxc;
-#endif
-#ifdef USEMPI
-    MPI_Barrier(MPI_COMM_WORLD);
-#endif
-    if (ThisTask==0) {
-        cout.precision(10);
-        cout<<"Global stats of positions (min,ave,sigma,max)"<<endl;
-        for (auto j=0;j<3;j++) {
-            cout<<j<<" : "<<totmin[j]<<", "<<totave[j]/(double)Ntotal<<", "<<totsigma[j]/(double)Ntotal<<", "<<totmax[j]<<endl;
-        }
-    }
-    #ifdef USEMPI
-        MPI_Barrier(MPI_COMM_WORLD);
-    #endif
     //
     // Perform FOF search.
     //
@@ -334,7 +227,10 @@ void InvokeVelociraptor(const int num_gravity_parts, struct gpart *gravity_parts
     delete[] pglist;
     delete[] parts;
 
+    ///\todo need to return fof and substructure information back to swift
+
     cout<<"VELOCIraptor returning."<< endl;
+
 }
 
 #endif
