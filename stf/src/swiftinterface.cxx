@@ -145,6 +145,7 @@ void InvokeVelociraptor(const int num_gravity_parts, struct gpart *gravity_parts
     Nmemlocal*=(1+libvelociraptorOpt.mpipartfac); /* JSW: Not set in parameter file. */
 #ifdef USEMPI
     MPI_Allreduce(&num_gravity_parts, &Ntotal, 1, MPI_Int_t, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allgather(&Nlocal, 1, MPI_Int_t, mpi_nlocal, 1, MPI_Int_t, MPI_COMM_WORLD);
 #else
     Ntotal=Nlocal;
 #endif
