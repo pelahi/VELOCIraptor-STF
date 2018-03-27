@@ -2160,7 +2160,7 @@ linkedparticles.push_back(Part[Head[k]]);
 linkedparticles[linkedparticles.size()-1].SetType(FoFDataGet[i].iGroupTask);
 linkedparticles[linkedparticles.size()-1].SetID(ThisTask);
 linkedparticles[linkedparticles.size()-1].SetMass(FoFDataGet[i].iGroup);
-linkedimportparticles.push_back(PartDataIn[i]);
+linkedimportparticles.push_back(PartDataGet[i]);
 
                     Int_t ss = Head[k];
                     Int_t oldlen=Len[k];
@@ -2180,7 +2180,7 @@ linkedparticles.push_back(Part[k]);
 linkedparticles[linkedparticles.size()-1].SetType(FoFDataGet[i].iGroupTask);
 linkedparticles[linkedparticles.size()-1].SetID(ThisTask);
 linkedparticles[linkedparticles.size()-1].SetMass(FoFDataGet[i].iGroup);
-linkedimportparticles.push_back(PartDataIn[i]);
+linkedimportparticles.push_back(PartDataGet[i]);
                 pfof[Part[k].GetID()]=FoFDataGet[i].iGroup;
                 Len[k]=FoFDataGet[i].iLen;
                 mpi_foftask[Part[k].GetID()]=FoFDataGet[i].iGroupTask;
