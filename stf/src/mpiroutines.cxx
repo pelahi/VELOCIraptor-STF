@@ -2187,6 +2187,7 @@ linkedparticles[linkedparticles.size()-1].SetID(ThisTask);
 //once particles have been added
 //lets stack paticles together
 MPI_Barrier(MPI_COMM_WORLD);
+qsort(linkedparticles.data(),linkedparticles.size(),sizeof(Particle),PIDCompare);
 for (auto itask=0;itask<NProcs;itask++) {
     if (itask==ThisTask) {
         cout<<ThisTask<<" has "<<linkedparticles.size()<<" head particles linked "<<endl;
