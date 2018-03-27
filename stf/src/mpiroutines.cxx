@@ -2135,6 +2135,7 @@ Int_t MPILinkAcross(const Int_t nbodies, KDTree *tree, Particle *&Part, Int_t *&
     Coordinate x;
     ///???
     vector<Particle> linkedparticles;
+    vector<Particle> linkedimportparticles;
     for (i=0;i<NImport;i++) {
         for (j=0;j<3;j++) x[j]=PartDataGet[i].GetPosition(j);
         nt=tree->SearchBallPosTagged(x, rdist2, nn);
@@ -2158,6 +2159,9 @@ Int_t MPILinkAcross(const Int_t nbodies, KDTree *tree, Particle *&Part, Int_t *&
 linkedparticles.push_back(Part[Head[k]]);
 linkedparticles[linkedparticles.size()-1].SetType(FoFDataGet[i].iGroupTask);
 linkedparticles[linkedparticles.size()-1].SetID(ThisTask);
+linkedparticles[linkedparticles.size()-1].SetMass(FoFDataGet[i].iGroup);
+linkedimportparticles.push_back(PartDataIn[i]);
+
                     Int_t ss = Head[k];
                     Int_t oldlen=Len[k];
                     do{
@@ -2175,6 +2179,8 @@ linkedparticles[linkedparticles.size()-1].SetID(ThisTask);
 linkedparticles.push_back(Part[k]);
 linkedparticles[linkedparticles.size()-1].SetType(FoFDataGet[i].iGroupTask);
 linkedparticles[linkedparticles.size()-1].SetID(ThisTask);
+linkedparticles[linkedparticles.size()-1].SetMass(FoFDataGet[i].iGroup);
+linkedimportparticles.push_back(PartDataIn[i]);
                 pfof[Part[k].GetID()]=FoFDataGet[i].iGroup;
                 Len[k]=FoFDataGet[i].iLen;
                 mpi_foftask[Part[k].GetID()]=FoFDataGet[i].iGroupTask;
@@ -2187,13 +2193,16 @@ linkedparticles[linkedparticles.size()-1].SetID(ThisTask);
 //once particles have been added
 //lets stack paticles together
 MPI_Barrier(MPI_COMM_WORLD);
-qsort(linkedparticles.data(),linkedparticles.size(),sizeof(Particle),PIDCompare);
+//qsort(linkedparticles.data(),linkedparticles.size(),sizeof(Particle),PIDCompare);
 for (auto itask=0;itask<NProcs;itask++) {
     if (itask==ThisTask) {
         cout<<ThisTask<<" has "<<linkedparticles.size()<<" head particles linked "<<endl;
-        for (auto p:linkedparticles) {
-            cout<<p.GetPID()<<" from "<<p.GetID()<<" to "<<p.GetType()<<endl;
+        for (auto ii=0;ii<linkedparticles.size();ii++) {
+            cout<<linkedparticles[ii].GetPID()<<" from "<<linkedparticles[ii].GetID()<<" to "<<linkedparticles[ii].GetType()<<" group "<<(unsigned long)linkedparticles[ii].GetMass()<<" via particle "<<linkedimportparticles[ii].GetPID()<<endl;
         }
+        /*for (auto p:linkedparticles) {
+            cout<<p.GetPID()<<" from "<<p.GetID()<<" to "<<p.GetType()<<" group "<<(unsigned long)p.GetMass()<<endl;
+        }*/
     }
     MPI_Barrier(MPI_COMM_WORLD);
 }
