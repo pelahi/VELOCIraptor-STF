@@ -36,6 +36,8 @@ using namespace std;
 using namespace Math;
 using namespace NBody;
 
+#ifdef SWIFTINTERFACE
+
 ///structure for interfacing with swift and extract cosmological information
 namespace Swift {
     struct cosmoinfo {
@@ -48,7 +50,7 @@ namespace Swift {
 
     /* Structure to hold the location of a top-level cell. */
     //struct cell_loc {
-    //                                                                  
+    //
     //    /* Coordinates x,y,z */
     //    double loc[3];
 
@@ -57,10 +59,10 @@ namespace Swift {
     //store simulation info
     struct siminfo {
         double period, zoomhigresolutionmass, interparticlespacing, spacedimension[3];
-        
+
         /* Number of top-level cells. */
         int numcells;
-        
+
         /* Number of top-level cells in each dimension. */
         int numcellsperdim;
 
@@ -69,15 +71,16 @@ namespace Swift {
 
         /*! Top-level cell width. */
         double cellwidth[3];
-        
+
         /*! Inverse of the top-level cell width. */
         double icellwidth[3];
-        
+
         /*! Holds the node ID of each top-level cell. */
         int *cellnodeids;
 
         int icosmologicalsim;
     };
+
 }
 
 using namespace Swift;
@@ -90,9 +93,12 @@ extern "C" void InitVelociraptor(char* configname, char* outputname, Swift::cosm
 ///actually run velociraptor
 extern "C" void InvokeVelociraptor(const int num_gravity_parts, struct gpart *gravity_parts, const int *cell_node_ids);
 //@}
-
+extern KDTree *mpimeshtree;
+extern Particle *mpimeshinfo;
 
 ///global libvelociraptorOptions structure that is used when calling library velociraptor from swift
 extern Options libvelociraptorOpt;
+
+#endif
 
 #endif

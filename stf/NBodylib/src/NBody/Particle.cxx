@@ -23,16 +23,16 @@ namespace NBody
 
     int PIDCompare (const void *a, const void *b)
     {
-        Int_t aa = ((Particle*)a)->GetPID();
-        Int_t bb = ((Particle*)b)->GetPID();
+        PARTPIDTYPE aa = ((Particle*)a)->GetPID();
+        PARTPIDTYPE bb = ((Particle*)b)->GetPID();
         if (aa > bb) return 1;
         else if (aa < bb) return -1;
         else return 0;
     }
     int IDCompare (const void *a, const void *b)
     {
-        Int_t aa = ((Particle*)a)->GetID();
-        Int_t bb = ((Particle*)b)->GetID();
+        PARTIDTYPE aa = ((Particle*)a)->GetID();
+        PARTIDTYPE bb = ((Particle*)b)->GetID();
         if (aa > bb) return 1;
         else if (aa < bb) return -1;
         else return 0;
@@ -74,7 +74,7 @@ namespace NBody
       -----------------------*/
     // Constructors
     Particle::Particle(Double_t Mass, Double_t x, Double_t y, Double_t z,
-                        Double_t vx, Double_t vy, Double_t vz, Int_t ID, int Type, Double_t Rho, Double_t Phi, Int_t PID)
+                        Double_t vx, Double_t vy, Double_t vz, PARTIDTYPE ID, int Type, Double_t Rho, Double_t Phi, PARTPIDTYPE PID)
     {
 #ifndef NOMASS
         mass = Mass;
@@ -105,7 +105,7 @@ namespace NBody
 #endif
     }
 
-    Particle::Particle(Double_t Mass, Double_t *NewPos, Double_t *NewVel, Int_t ID, int Type, Double_t Rho, Double_t Phi, Int_t PID)
+    Particle::Particle(Double_t Mass, Double_t *NewPos, Double_t *NewVel, PARTIDTYPE ID, int Type, Double_t Rho, Double_t Phi, PARTPIDTYPE PID)
     {
 #ifndef NOMASS
         mass = Mass;
@@ -343,7 +343,7 @@ namespace NBody
         Sub Particle Classes: Gas and Star particles
     */
     GasParticle::GasParticle(Double_t Mass, Double_t x, Double_t y, Double_t z,
-                        Double_t vx, Double_t vy, Double_t vz, Int_t ID, int Type, Double_t Rho, Double_t Phi, Double_t Temp, Double_t Ui, Double_t Pi, Double_t NE,Double_t NH0,Double_t Zi, Double_t SFR,Double_t LGS): Particle::Particle(Mass,x,y,z,vx,vy,vz,ID,Type,Rho,Phi)
+                        Double_t vx, Double_t vy, Double_t vz, PARTIDTYPE ID, int Type, Double_t Rho, Double_t Phi, Double_t Temp, Double_t Ui, Double_t Pi, Double_t NE,Double_t NH0,Double_t Zi, Double_t SFR,Double_t LGS): Particle::Particle(Mass,x,y,z,vx,vy,vz,ID,Type,Rho,Phi)
     {
         temp = Temp;
         U = Ui;
@@ -355,7 +355,7 @@ namespace NBody
         lgS=LGS;
     }
 
-    GasParticle::GasParticle(Double_t Mass, Double_t *NewPos, Double_t *NewVel, Int_t ID, int Type, Double_t Rho, Double_t Phi, Double_t Temp, Double_t Ui, Double_t Pi, Double_t NE,Double_t NH0,Double_t Zi, Double_t SFR,Double_t LGS): Particle::Particle(Mass,NewPos,NewVel,ID,Type,Rho,Phi)
+    GasParticle::GasParticle(Double_t Mass, Double_t *NewPos, Double_t *NewVel, PARTIDTYPE ID, int Type, Double_t Rho, Double_t Phi, Double_t Temp, Double_t Ui, Double_t Pi, Double_t NE,Double_t NH0,Double_t Zi, Double_t SFR,Double_t LGS): Particle::Particle(Mass,NewPos,NewVel,ID,Type,Rho,Phi)
     {
         temp = Temp;
         U = Ui;
@@ -427,13 +427,13 @@ namespace NBody
 
 
     StarParticle::StarParticle(Double_t Mass, Double_t x, Double_t y, Double_t z,
-                        Double_t vx, Double_t vy, Double_t vz, Int_t ID, int Type, Double_t Rho, Double_t Phi, Double_t TF, Double_t Zi): Particle::Particle(Mass,x,y,z,vx,vy,vz,ID,Type,Rho,Phi)
+                        Double_t vx, Double_t vy, Double_t vz, PARTIDTYPE ID, int Type, Double_t Rho, Double_t Phi, Double_t TF, Double_t Zi): Particle::Particle(Mass,x,y,z,vx,vy,vz,ID,Type,Rho,Phi)
     {
         tform=TF;
         metal=Zi;
     }
 
-    StarParticle::StarParticle(Double_t Mass, Double_t *NewPos, Double_t *NewVel, Int_t ID, int Type, Double_t Rho, Double_t Phi, Double_t TF, Double_t Zi): Particle::Particle(Mass,NewPos,NewVel,ID,Type,Rho,Phi)
+    StarParticle::StarParticle(Double_t Mass, Double_t *NewPos, Double_t *NewVel, PARTIDTYPE ID, int Type, Double_t Rho, Double_t Phi, Double_t TF, Double_t Zi): Particle::Particle(Mass,NewPos,NewVel,ID,Type,Rho,Phi)
     {
         tform=TF;
         metal=Zi;

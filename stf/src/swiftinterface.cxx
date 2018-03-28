@@ -8,6 +8,9 @@
 #ifdef SWIFTINTERFACE
 
 Options libvelociraptorOpt;
+KDTree *mpimeshtree;
+Particle *mpimeshinfo;
+
 void InitVelociraptor(char* configname, char* outputname, cosmoinfo c, unitinfo u, siminfo s)
 {
 
@@ -104,6 +107,8 @@ void InitVelociraptor(char* configname, char* outputname, cosmoinfo c, unitinfo 
     else MinNumOld=libvelociraptorOpt.HaloMinSize;
     mpi_period = libvelociraptorOpt.p;
 #endif
+    //allocate memory to store metis mesh info
+    mpimeshinfo=new Particle[libvelociraptorOpt.numcells];
 
     //write velociraptor info
     WriteVELOCIraptorConfig(libvelociraptorOpt);
@@ -136,7 +141,6 @@ void InvokeVelociraptor(const int num_gravity_parts, struct gpart *gravity_parts
     //to store information about the group
     PropData *pdata=NULL,*pdatahalos=NULL;
     double time1;
-    Coordinate minc,maxc,avec,sumave,sumsigma,totave,totsigma,totmin,totmax;
 
     /// Set pointer to cell node IDs
     libvelociraptorOpt.cellnodeids = cell_node_ids;
@@ -163,6 +167,15 @@ void InvokeVelociraptor(const int num_gravity_parts, struct gpart *gravity_parts
     cout<<ThisTask<<" There are "<<Nlocal<<" particles and have allocated enough memory for "<<Nmemlocal<<" requiring "<<Nmemlocal*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
     //if (libvelociraptorOpt.iBaryonSearch>0) cout<<ThisTask<<"There are "<<Nlocalbaryon[0]<<" baryon particles and have allocated enough memory for "<<Nmemlocalbaryon<<" requiring "<<Nmemlocalbaryon*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
     cout<<ThisTask<<" will also require additional memory for FOF algorithms and substructure search. Largest mem needed for preliminary FOF search. Rough estimate is "<<Nlocal*(sizeof(Int_tree_t)*8)/1024./1024./1024.<<"GB of memory"<<endl;
+
+    //build binary tree to store cells for quick search
+    Double_t *period=NULL;
+    if (libvelociraptorOpt.p>0) {
+        period=new Double_t[3];
+        for (int j=0;j<3;j++) period[j]=libvelociraptorOpt.p;
+    }
+    for (auto i=0;i<libvelociraptorOpt.numcells; i++) for (auto j=0;j<3;j++) mpimeshinfo[i].SetPosition(j,libvelociraptorOpt.cellloc[i].loc[j]);
+    mpimeshtree=new KDTree(mpimeshinfo,libvelociraptorOpt.numcells,1,mpimeshtree->TPHYS,mpimeshtree->KEPAN,100,0,0,0,period);
 
     //
     // Perform FOF search.
@@ -226,6 +239,9 @@ void InvokeVelociraptor(const int num_gravity_parts, struct gpart *gravity_parts
     for (Int_t i=1;i<=ngroup;i++) delete[] pglist[i];
     delete[] pglist;
     delete[] parts;
+
+    //delete tree used to search mpi mesh
+    delete mpimeshtree;
 
     ///\todo need to return fof and substructure information back to swift
 

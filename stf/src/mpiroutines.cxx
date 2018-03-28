@@ -477,6 +477,7 @@ int MPISearchForOverlap(Particle &Part, Double_t &rdist){
 
 ///\todo clean up memory allocation in these functions, no need to keep allocating xsearch,xsearchp,numoverlap,etc
 /// Determine if a particle needs to be exported to another mpi domain based on a physical search radius
+#ifdef SWIFTINTERFACE
 int MPISearchForOverlapUsingMesh(Options &opt, Particle &Part, Double_t &rdist){
     Double_t xsearch[3][2];
     Double_t xsearchp[7][3][2];//used to store periodic reflections
@@ -701,6 +702,7 @@ int MPISearchForOverlapUsingMesh(Options &opt, Particle &Part, Double_t &rdist){
     }
     return numoverlap;
 }
+#endif
 //@}
 
 /// \name Routines involved in reading input data
@@ -993,6 +995,7 @@ void MPIGetExportNum(const Int_t nbodies, Particle *&Part, Double_t rdist){
     for (j=0;j<NProcs;j++)NImport+=mpi_nsend[ThisTask+j*NProcs];
 }
 
+#ifdef SWIFTINTERFACE
 void MPIGetExportNumUsingMesh(Options &opt, const Int_t nbodies, Particle *&Part, Double_t rdist){
     Int_t i, j,nthreads,nexport=0,nimport=0;
     Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
@@ -1019,6 +1022,7 @@ void MPIGetExportNumUsingMesh(Options &opt, const Int_t nbodies, Particle *&Part
     const double ih_x = opt.icellwidth[0];
     const double ih_y = opt.icellwidth[1];
     const double ih_z = opt.icellwidth[2];
+    Int_t *icells=new Int_t[opt.numcells];
 
     for (i=0;i<nbodies;i++) {
 
@@ -1041,11 +1045,15 @@ void MPIGetExportNumUsingMesh(Options &opt, const Int_t nbodies, Particle *&Part
         for(int i=0; i<NProcs; i++) sent_mpi_domain[i] = 0;
 
         /// Loop over all top-level cells
-        for (int j=0; j<opt.numcells; j++) {
-
+        //for (int j=0; j<opt.numcells; j++) {
+        Double_t searchdist=(pow(rdist+opt.cellwidth[0],2.0)+pow(rdist+opt.cellwidth[1],2.0)+pow(rdist+opt.cellwidth[2],2.0));
+        Int_t nt=mpimeshtree->SearchBallPosTagged(Part[i].GetPosition(),searchdist,icells);
+        for (auto k=0;k<nt;k++) {
+            int j=icells[k];
             const int cellnodeID = opt.cellnodeids[j];
+            if (cellnodeID==ThisTask) continue;
             /// Only check if particles have overlap with neighbouring cells that are on another MPI domain and have not already been sent to
-            if(cellnodeID != ThisTask && sent_mpi_domain[cellnodeID] == 0) {
+            if(sent_mpi_domain[cellnodeID] == 0) {
                 Double_t bnd[3][2];
                 for(int k=0; k<3; k++) bnd[k][0] = opt.cellloc[j].loc[k];
                 for(int k=0; k<3; k++) bnd[k][1] = bnd[k][0] + opt.cellwidth[k];
@@ -1065,6 +1073,7 @@ void MPIGetExportNumUsingMesh(Options &opt, const Int_t nbodies, Particle *&Part
     NImport=0;
     for (j=0;j<NProcs;j++)NImport+=mpi_nsend[ThisTask+j*NProcs];
 }
+#endif
 
 /*! Determine which particles have a spatial linking length such that linking overlaps the domain of another processor store the necessary information to send that data
     and then send that information
@@ -1234,6 +1243,7 @@ void MPIBuildParticleExportList(const Int_t nbodies, Particle *&Part, Int_t *&pf
 
 /*! Similar to \ref MPIBuildParticleExportList but uses mesh of swift to determine when mpi's to search
 */
+#ifdef SWIFTINTERFACE
 void MPIBuildParticleExportListUsingMesh(Options &opt, const Int_t nbodies, Particle *&Part, Int_t *&pfof, Int_tree_t *&Len, Double_t rdist){
     Int_t i, j,nthreads,nexport=0,nimport=0;
     Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
@@ -1432,6 +1442,7 @@ void MPIBuildParticleExportListUsingMesh(Options &opt, const Int_t nbodies, Part
         }
     }
 }
+#endif
 
 /*! like \ref MPIGetExportNum but number based on NN search, useful for reducing memory costs at the expense of cpu cycles
 */
@@ -1479,6 +1490,7 @@ void MPIGetNNExportNum(const Int_t nbodies, Particle *Part, Double_t *rdist){
 
 /*! like \ref MPIGetExportNum but number based on NN search, useful for reducing memory costs at the expense of cpu cycles
 */
+#ifdef SWIFTINTERFACE
 void MPIGetNNExportNumUsingMesh(Options &opt, const Int_t nbodies, Particle *Part, Double_t *rdist){
     Int_t i, j,nthreads,nexport=0,nimport=0;
     Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
@@ -1534,6 +1546,7 @@ void MPIGetNNExportNumUsingMesh(Options &opt, const Int_t nbodies, Particle *Par
     for (j=0;j<NProcs;j++)NImport+=mpi_nsend[ThisTask+j*NProcs];
     NExport=nexport;
 }
+#endif
 
 /*! like \ref MPIBuildParticleExportList but each particle has a different distance stored in rdist used to find nearest neighbours
 */
@@ -1620,6 +1633,7 @@ void MPIBuildParticleNNExportList(const Int_t nbodies, Particle *Part, Double_t 
 }
 /*! like \ref MPIBuildParticleExportList but each particle has a different distance stored in rdist used to find nearest neighbours
 */
+#ifdef SWIFTINTERFACE
 void MPIBuildParticleNNExportListUsingMesh(Options &opt, const Int_t nbodies, Particle *Part, Double_t *rdist){
     Int_t i, j,nthreads,nexport=0,nimport=0;
     Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
@@ -1717,6 +1731,7 @@ void MPIBuildParticleNNExportListUsingMesh(Options &opt, const Int_t nbodies, Pa
     }
     MPI_Barrier(MPI_COMM_WORLD);
 }
+#endif
 
 /*! Mirror to \ref MPIGetNNExportNum, use exported particles, run ball search to find number of all local particles that need to be
     imported back to exported particle's thread so that a proper NN search can be made.
@@ -2133,20 +2148,6 @@ Int_t MPILinkAcross(const Int_t nbodies, KDTree *tree, Particle *&Part, Int_t *&
     Int_t *nn=new Int_t[nbodies];
     Int_t nt,ss,oldlen;
     Coordinate x;
-    ///???
-    vector<Particle> linkedparticles;
-    vector<Particle> linkedimportparticles;
-
-    ///??? silly check for a particle to see if it has a particular PIDs
-    for (i=0;i<nbodies;i++) if (Part[i].GetPID()==837362551582) {
-        cout<<ThisTask<<" found interesting local particle "<<Part[i].GetPID()<<" "<<Part[i].X()<<" "<<Part[i].Y()<<" "<<Part[i].Z()<<endl;
-    }
-    for (i=0;i<NImport;i++) if (PartDataGet[i].GetPID()==837362551582) {
-        for (j=0;j<3;j++) x[j]=PartDataGet[i].GetPosition(j);
-        nt=tree->SearchBallPosTagged(x, rdist2, nn);
-        cout<<ThisTask<<" found interesting imported particle "<<PartDataGet[i].GetPID()<<" "<<PartDataGet[i].X()<<" "<<PartDataGet[i].Y()<<" "<<PartDataGet[i].Z()<<" | "<<x[0]<<" "<<x[1]<<" "<<x[2]<<" || number of links "<<nt<<endl;
-    }
-
     for (i=0;i<NImport;i++) {
         for (j=0;j<3;j++) x[j]=PartDataGet[i].GetPosition(j);
         nt=tree->SearchBallPosTagged(x, rdist2, nn);
@@ -2154,31 +2155,18 @@ Int_t MPILinkAcross(const Int_t nbodies, KDTree *tree, Particle *&Part, Int_t *&
             k=nn[ii];
             if (FoFDataGet[i].iGroup==0)
             {
-                //cout<<ThisTask<<" link across mpi found, unlinked particles in both. PID="<<Part[Head[k]].GetPID()<<" to task="<<FoFDataGet[i].iGroupTask<<endl;
-                /*if (pfof[Part[Head[k]].GetID()]==0&&Part[Head[k]].GetPID() > PartDataGet[i].GetPID()) {
+
+                if (pfof[Part[Head[k]].GetID()]==0&&Part[Head[k]].GetPID() > PartDataGet[i].GetPID()) {
                     pfof[Part[k].GetID()]=mpi_maxgid+mpi_gidoffset;///some unique identifier based on this task
                     mpi_gidoffset++;//increase unique identifier
                     Len[k]=1;
                     mpi_foftask[Part[k].GetID()]=FoFDataGet[i].iGroupTask;
                     links++;
-                }*/
+                }
             }
             else {
             if (pfof[Part[Head[k]].GetID()]>0)  {
                 if(pfof[Part[Head[k]].GetID()] > FoFDataGet[i].iGroup) {
-                    //cout<<ThisTask<<" link across mpi found, group merged. PID="<<Part[Head[k]].GetPID()<<" task="<<FoFDataGet[i].iGroupTask<<", groups"<<pfof[Part[Head[k]].GetID()]<<" with " <<FoFDataGet[i].iGroup<<endl;
-                    ss = Head[k];
-                    Int_t maxpid=Part[Head[k]].GetPID(), maxss=ss;
-                    do{
-                        if (maxpid<Part[ss].GetPID()) {maxpid=Part[ss].GetPID();maxss=ss;}
-                    }while((ss = Next[ss]) >= 0);
-linkedparticles.push_back(Part[maxss]);
-linkedparticles[linkedparticles.size()-1].SetType(FoFDataGet[i].iGroupTask);
-linkedparticles[linkedparticles.size()-1].SetID(ThisTask);
-linkedparticles[linkedparticles.size()-1].SetMass(FoFDataGet[i].iGroup);
-linkedparticles[linkedparticles.size()-1].SetPotential(pfof[Part[Head[k]].GetID()]);
-linkedimportparticles.push_back(PartDataGet[i]);
-
                     ss = Head[k];
                     oldlen=Len[k];
                     do{
@@ -2192,14 +2180,6 @@ linkedimportparticles.push_back(PartDataGet[i]);
                 }
             }
             else {
-                //cout<<ThisTask<<" link across mpi found, ungrouped  "<<Part[Head[k]].GetPID()<<" "<<FoFDataGet[i].iGroupTask<<" adding to "<<FoFDataGet[i].iGroup<<endl;
-linkedparticles.push_back(Part[k]);
-linkedparticles[linkedparticles.size()-1].SetType(FoFDataGet[i].iGroupTask);
-linkedparticles[linkedparticles.size()-1].SetID(ThisTask);
-linkedparticles[linkedparticles.size()-1].SetMass(FoFDataGet[i].iGroup);
-linkedparticles[linkedparticles.size()-1].SetPotential(-1);
-linkedimportparticles.push_back(PartDataGet[i]);
-
                 pfof[Part[k].GetID()]=FoFDataGet[i].iGroup;
                 Len[k]=FoFDataGet[i].iLen;
                 mpi_foftask[Part[k].GetID()]=FoFDataGet[i].iGroupTask;
@@ -2209,22 +2189,6 @@ linkedimportparticles.push_back(PartDataGet[i]);
             }
         }
     }
-//once particles have been added
-//lets stack paticles together
-MPI_Barrier(MPI_COMM_WORLD);
-//qsort(linkedparticles.data(),linkedparticles.size(),sizeof(Particle),PIDCompare);
-for (auto itask=0;itask<NProcs;itask++) {
-    if (itask==ThisTask) {
-        cout<<ThisTask<<" has "<<linkedparticles.size()<<" head particles linked "<<endl;
-        for (auto ii=0;ii<linkedparticles.size();ii++) {
-            cout<<linkedparticles[ii].GetPID()<<" from "<<linkedparticles[ii].GetID()<<" to "<<linkedparticles[ii].GetType()<<", was part of group "<<(long long)linkedparticles[ii].GetPotential()<<" group "<<(unsigned long)linkedparticles[ii].GetMass()<<" via particle "<<linkedimportparticles[ii].GetPID()<<endl;
-        }
-        /*for (auto p:linkedparticles) {
-            cout<<p.GetPID()<<" from "<<p.GetID()<<" to "<<p.GetType()<<" group "<<(unsigned long)p.GetMass()<<endl;
-        }*/
-    }
-    MPI_Barrier(MPI_COMM_WORLD);
-}
     return links;
 }
 ///link particles belonging to the same group across mpi domains using comparison function
