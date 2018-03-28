@@ -1291,7 +1291,7 @@ void MPIBuildParticleExportListUsingMesh(Options &opt, const Int_t nbodies, Part
                 {
                     //FoFDataIn[nexport].Part=Part[i];
                     FoFDataIn[nexport].Index = i;
-                    FoFDataIn[nexport].Task = j;
+                    FoFDataIn[nexport].Task = cellnodeID;
                     FoFDataIn[nexport].iGroup = pfof[Part[i].GetID()];//set group id
                     FoFDataIn[nexport].iGroupTask = ThisTask;//and the task of the group
                     FoFDataIn[nexport].iLen = Len[i];
@@ -1662,7 +1662,7 @@ void MPIBuildParticleNNExportListUsingMesh(Options &opt, const Int_t nbodies, Pa
                 if(MPIInDomain(xsearch,bnd))
                 {
                     //NNDataIn[nexport].Index=i;
-                    NNDataIn[nexport].ToTask=j;
+                    NNDataIn[nexport].ToTask=cellnodeID;
                     NNDataIn[nexport].FromTask=ThisTask;
                     NNDataIn[nexport].R2=rdist[i]*rdist[i];
                     //NNDataIn[nexport].V2=vdist2[i];
