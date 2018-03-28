@@ -2131,7 +2131,7 @@ Int_t MPILinkAcross(const Int_t nbodies, KDTree *tree, Particle *&Part, Int_t *&
     Int_t links=0;
     Int_t nbuffer[NProcs];
     Int_t *nn=new Int_t[nbodies];
-    Int_t nt;
+    Int_t nt,ss,oldlen;
     Coordinate x;
     ///???
     vector<Particle> linkedparticles;
@@ -2156,14 +2156,20 @@ Int_t MPILinkAcross(const Int_t nbodies, KDTree *tree, Particle *&Part, Int_t *&
             if (pfof[Part[Head[k]].GetID()]>0)  {
                 if(pfof[Part[Head[k]].GetID()] > FoFDataGet[i].iGroup) {
                     //cout<<ThisTask<<" link across mpi found, group merged. PID="<<Part[Head[k]].GetPID()<<" task="<<FoFDataGet[i].iGroupTask<<", groups"<<pfof[Part[Head[k]].GetID()]<<" with " <<FoFDataGet[i].iGroup<<endl;
-linkedparticles.push_back(Part[Head[k]]);
+                    ss = Head[k];
+                    Int_t maxpid=Part[Head[k]].GetPID(), maxss=ss;
+                    do{
+                        if (maxpid<Part[ss].GetPID()) {maxpid=Part[ss].GetPID();maxss=ss;}
+                    }while((ss = Next[ss]) >= 0);
+linkedparticles.push_back(Part[maxss]);
 linkedparticles[linkedparticles.size()-1].SetType(FoFDataGet[i].iGroupTask);
 linkedparticles[linkedparticles.size()-1].SetID(ThisTask);
 linkedparticles[linkedparticles.size()-1].SetMass(FoFDataGet[i].iGroup);
+linkedparticles[linkedparticles.size()-1].SetPotential(pfof[Part[Head[k]].GetID()]);
 linkedimportparticles.push_back(PartDataGet[i]);
 
-                    Int_t ss = Head[k];
-                    Int_t oldlen=Len[k];
+                    ss = Head[k];
+                    oldlen=Len[k];
                     do{
                         pfof[Part[ss].GetID()]=FoFDataGet[i].iGroup;
                         mpi_foftask[Part[ss].GetID()]=FoFDataGet[i].iGroupTask;
@@ -2180,7 +2186,9 @@ linkedparticles.push_back(Part[k]);
 linkedparticles[linkedparticles.size()-1].SetType(FoFDataGet[i].iGroupTask);
 linkedparticles[linkedparticles.size()-1].SetID(ThisTask);
 linkedparticles[linkedparticles.size()-1].SetMass(FoFDataGet[i].iGroup);
+linkedparticles[linkedparticles.size()-1].SetPotential(-1);
 linkedimportparticles.push_back(PartDataGet[i]);
+
                 pfof[Part[k].GetID()]=FoFDataGet[i].iGroup;
                 Len[k]=FoFDataGet[i].iLen;
                 mpi_foftask[Part[k].GetID()]=FoFDataGet[i].iGroupTask;
@@ -2198,7 +2206,7 @@ for (auto itask=0;itask<NProcs;itask++) {
     if (itask==ThisTask) {
         cout<<ThisTask<<" has "<<linkedparticles.size()<<" head particles linked "<<endl;
         for (auto ii=0;ii<linkedparticles.size();ii++) {
-            cout<<linkedparticles[ii].GetPID()<<" from "<<linkedparticles[ii].GetID()<<" to "<<linkedparticles[ii].GetType()<<" group "<<(unsigned long)linkedparticles[ii].GetMass()<<" via particle "<<linkedimportparticles[ii].GetPID()<<endl;
+            cout<<linkedparticles[ii].GetPID()<<" from "<<linkedparticles[ii].GetID()<<" to "<<linkedparticles[ii].GetType()<<", was part of group "<<(long long)linkedparticles[ii].GetPotential()<<" group "<<(unsigned long)linkedparticles[ii].GetMass()<<" via particle "<<linkedimportparticles[ii].GetPID()<<endl;
         }
         /*for (auto p:linkedparticles) {
             cout<<p.GetPID()<<" from "<<p.GetID()<<" to "<<p.GetType()<<" group "<<(unsigned long)p.GetMass()<<endl;
