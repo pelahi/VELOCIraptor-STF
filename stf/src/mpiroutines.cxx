@@ -2136,6 +2136,17 @@ Int_t MPILinkAcross(const Int_t nbodies, KDTree *tree, Particle *&Part, Int_t *&
     ///???
     vector<Particle> linkedparticles;
     vector<Particle> linkedimportparticles;
+
+    ///??? silly check for a particle to see if it has a particular PIDs
+    for (i=0;i<nbodies;i++) if (Part[i].GetPID()==837362551582) {
+        cout<<ThisTask<<" found interesting local particle "<<Part[i].GetPID()<<" "<<Part[i].X()<<" "<<Part[i].Y()<<" "<<Part[i].Z()<<endl;
+    }
+    for (i=0;i<NImport;i++) if (PartDataGet[i].GetPID()==837362551582) {
+        for (j=0;j<3;j++) x[j]=PartDataGet[i].GetPosition(j);
+        nt=tree->SearchBallPosTagged(x, rdist2, nn);
+        cout<<ThisTask<<" found interesting imported particle "<<PartDataGet[i].GetPID()<<" "<<PartDataGet[i].X()<<" "<<PartDataGet[i].Y()<<" "<<PartDataGet[i].Z()<<" | "<<x[0]<<" "<<x[1]<<" "<<x[2]<<" || number of links "<<nt<<endl;
+    }
+
     for (i=0;i<NImport;i++) {
         for (j=0;j<3;j++) x[j]=PartDataGet[i].GetPosition(j);
         nt=tree->SearchBallPosTagged(x, rdist2, nn);
