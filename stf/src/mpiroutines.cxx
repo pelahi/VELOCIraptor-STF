@@ -1044,8 +1044,8 @@ void MPIGetExportNumUsingMesh(Options &opt, const Int_t nbodies, Particle *&Part
         //for (int j=0; j<opt.numcells; j++) {
         Double_t searchdist=(pow(rdist+opt.cellwidth[0],2.0)+pow(rdist+opt.cellwidth[1],2.0)+pow(rdist+opt.cellwidth[2],2.0));
         Int_t nt=mpimeshtree->SearchBallPosTagged(Part[i].GetPosition(),searchdist,icells);
-        for (auto k=0;k<nt;k++) {
-            int j=icells[k];
+        for (auto ic=0;ic<nt;ic++) {
+            int j=icells[ic];
             const int cellnodeID = opt.cellnodeids[j];
             if (cellnodeID==ThisTask) continue;
             /// Only check if particles have overlap with neighbouring cells that are on another MPI domain and have not already been sent to
