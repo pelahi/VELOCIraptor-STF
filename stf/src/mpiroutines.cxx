@@ -675,10 +675,6 @@ int MPISearchForOverlapUsingMesh(Options &opt, Particle &Part, Double_t &rdist){
             }
         }
 
-        /// Store whether an MPI domain has already been sent to
-        int *sent_mpi_domain = new int[NProcs];
-        for(int i=0; i<NProcs; i++) sent_mpi_domain[i] = 0;
-
         for (int j=0; j<opt.numcells; j++) {
 
             const int cellnodeID = opt.cellnodeids[j];
@@ -688,7 +684,7 @@ int MPISearchForOverlapUsingMesh(Options &opt, Particle &Part, Double_t &rdist){
                 for(int k=0; k<3; k++) bnd[k][0] = opt.cellloc[j].loc[k];
                 for(int k=0; k<3; k++) bnd[k][1] = bnd[k][0] + opt.cellwidth[k];
 
-                for (k=0;k<numreflecchoice;k++)
+                for (int k=0;k<numreflecchoice;k++)
                 //determine if search region is not outside of this processors domain
                 if(!((bnd[0][1] < xsearchp[k][0][0]) || (bnd[0][0] > xsearchp[k][0][1]) ||
                     (bnd[1][1] < xsearchp[k][1][0]) || (bnd[1][0] > xsearchp[k][1][1]) ||
@@ -1042,7 +1038,7 @@ void MPIGetExportNumUsingMesh(Options &opt, const Int_t nbodies, Particle *&Part
 
         /// Store whether an MPI domain has already been sent to
         int *sent_mpi_domain = new int[NProcs];
-        for(int i=0; i<NProcs; i++) sent_mpi_domain[i] = 0;
+        for(int k=0; k<NProcs; k++) sent_mpi_domain[k] = 0;
 
         /// Loop over all top-level cells
         //for (int j=0; j<opt.numcells; j++) {
@@ -1284,7 +1280,7 @@ void MPIBuildParticleExportListUsingMesh(Options &opt, const Int_t nbodies, Part
 
         /// Store whether an MPI domain has already been sent to
         int *sent_mpi_domain = new int[NProcs];
-        for(int i=0; i<NProcs; i++) sent_mpi_domain[i] = 0;
+        for(int k=0; k<NProcs; k++) sent_mpi_domain[k] = 0;
 
         /// Loop over all top-level cells
         for (int j=0; j<opt.numcells; j++) {
@@ -1515,7 +1511,7 @@ void MPIGetNNExportNumUsingMesh(Options &opt, const Int_t nbodies, Particle *Par
 
         /// Store whether an MPI domain has already been sent to
         int *sent_mpi_domain = new int[NProcs];
-        for(int i=0; i<NProcs; i++) sent_mpi_domain[i] = 0;
+        for(int k=0; k<NProcs; k++) sent_mpi_domain[k] = 0;
 
         /// Loop over all top-level cells
         for (int j=0; j<opt.numcells; j++) {
@@ -1658,7 +1654,7 @@ void MPIBuildParticleNNExportListUsingMesh(Options &opt, const Int_t nbodies, Pa
 
         /// Store whether an MPI domain has already been sent to
         int *sent_mpi_domain = new int[NProcs];
-        for(int i=0; i<NProcs; i++) sent_mpi_domain[i] = 0;
+        for(int k=0; k<NProcs; k++) sent_mpi_domain[k] = 0;
 
         //once search extent stored, loop over cells in mesh to find any that do not belong to this
         //task and see if the boundiers are within the search domain.
