@@ -3239,11 +3239,11 @@ vector<int> MPIGetCellListInSearchUsingMesh(Options &opt, Double_t xsearch[3][2]
     vector<int> celllist;
 
     ixstart=floor(xsearch[0][0]/opt.cellwidth[0]);
-    ixend=ceil(xsearch[0][1]/opt.cellwidth[0]);
+    ixend=floor(xsearch[0][1]/opt.cellwidth[0]);
     iystart=floor(xsearch[1][0]/opt.cellwidth[1]);
-    iyend=ceil(xsearch[1][1]/opt.cellwidth[1]);
+    iyend=floor(xsearch[1][1]/opt.cellwidth[1]);
     izstart=floor(xsearch[2][0]/opt.cellwidth[2]);
-    izend=ceil(xsearch[2][1]/opt.cellwidth[2]);
+    izend=floor(xsearch[2][1]/opt.cellwidth[2]);
     for (auto ix=ixstart;ix<=ixend;ix++){
         for (auto iy=iystart;iy<=iyend;iy++){
             for (auto iz=izstart;iz<=izend;iz++){
