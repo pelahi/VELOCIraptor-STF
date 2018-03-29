@@ -388,6 +388,9 @@ int MPISearchForOverlapUsingMesh(Options &opt, Particle &Part, Double_t &rdist);
 #endif
 ///determine if search domain overlaps domain
 int MPIInDomain(Double_t xsearch[3][2], Double_t bnd[3][2]);
+
+///determine list of cells of a mesh within a search domain
+vector<int> MPIGetCellListInSearchUsingMesh(Options &opt, Double_t xsearch[3][2], bool ignorelocalcells=true);
 //@}
 
 /// \name MPI send/recv related routines when reading input data
