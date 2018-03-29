@@ -3238,25 +3238,26 @@ vector<int> MPIGetCellListInSearchUsingMesh(Options &opt, Double_t xsearch[3][2]
     int ixstart,iystart,izstart,ixend,iyend,izend,index;
     vector<int> celllist;
 
-    ixstart=floor(xsearch[0][0]/opt.cellwidth[0]);
-    ixend=floor(xsearch[0][1]/opt.cellwidth[0]);
-    iystart=floor(xsearch[1][0]/opt.cellwidth[1]);
-    iyend=floor(xsearch[1][1]/opt.cellwidth[1]);
-    izstart=floor(xsearch[2][0]/opt.cellwidth[2]);
-    izend=floor(xsearch[2][1]/opt.cellwidth[2]);
+    ixstart=floor(xsearch[0][0]*opt.icellwidth[0]);
+    ixend=floor(xsearch[0][1]*opt.icellwidth[0]);
+    iystart=floor(xsearch[1][0]*opt.icellwidth[1]);
+    iyend=floor(xsearch[1][1]*opt.icellwidth[1]);
+    izstart=floor(xsearch[2][0]*opt.icellwidth[2]);
+    izend=floor(xsearch[2][1]*opt.icellwidth[2]);
     for (auto ix=ixstart;ix<=ixend;ix++){
         for (auto iy=iystart;iy<=iyend;iy++){
             for (auto iz=izstart;iz<=izend;iz++){
                 index=0;
-                if (iz<0) index+=opt.numcellsperdim-1-iz;
+                if (iz<0) index+=opt.numcellsperdim-iz;
                 else if (iz>=opt.numcellsperdim) index+=iz-opt.numcellsperdim;
                 else index+=iz;
-                if (iy<0) index+=(opt.numcellsperdim-1-iy)*opt.numcellsperdim;
+                if (iy<0) index+=(opt.numcellsperdim-iy)*opt.numcellsperdim;
                 else if (iy>=opt.numcellsperdim) index+=(iy-opt.numcellsperdim)*opt.numcellsperdim;
                 else index+=iy*opt.numcellsperdim;
-                if (ix<0) index+=(opt.numcellsperdim-1-ix)*opt.numcellsperdim*opt.numcellsperdim;
+                if (ix<0) index+=(opt.numcellsperdim-ix)*opt.numcellsperdim*opt.numcellsperdim;
                 else if (ix>=opt.numcellsperdim) index+=(ix-opt.numcellsperdim)*opt.numcellsperdim*opt.numcellsperdim;
                 else index+=ix*opt.numcellsperdim*opt.numcellsperdim;
+                cout<<ix<<" "<<iy<<" "<<iz<<" "<<index<<endl;
                 if (ignorelocalcells && opt.cellnodeids[index]==ThisTask) continue;
                 celllist.push_back(index);
             }
