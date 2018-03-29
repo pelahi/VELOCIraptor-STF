@@ -10,7 +10,7 @@
 //@{
 
 ///Calculate the merit between two haloes that have been matched
-Double_t CalculateMerit(Options &opt, UInt_t n1, UInt_t n2, UInt_t nsh, HaloData &h1, HaloData &h2, UInt_t hindex=0,UInt_t *sharepartlist=NULL, Double_t *rankingsum=NULL)
+Double_t CalculateMerit(Options &opt, UInt_t n1, UInt_t n2, UInt_t nsh, HaloData &h1, HaloData &h2, UInt_t hindex=0, unsigned int *sharepartlist=NULL, Double_t *rankingsum=NULL)
 {
     Double_t merit;
     Double_t ranksum,norm;
@@ -159,8 +159,8 @@ private(j,k,tid,offset)
         }
 
         ntotitems=nhalos2*(long unsigned)nthreads;
-        sharelist=new UInt_t[ntotitems];
-        halolist=new UInt_t[ntotitems];
+        sharelist=new unsigned int[ntotitems];
+        halolist=new unsigned int[ntotitems];
         for (i=0;i<ntotitems;i++)sharelist[i]=0;
 
 #ifdef USEOPENMP
@@ -472,8 +472,8 @@ private(i,tid,offset,offset2)
             }
         }
 
-        sharelist=new UInt_t[ntotitems];
-        halolist=new UInt_t[ntotitems];
+        sharelist=new unsigned int[ntotitems];
+        halolist=new unsigned int[ntotitems];
         for (i=0;i<ntotitems;i++)sharelist[i]=0;
 
 #ifdef USEOPENMP
