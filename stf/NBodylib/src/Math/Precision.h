@@ -7,12 +7,12 @@
 #ifndef NBODYPRECISION_H
 #define NBODYPRECISION_H
 
-/// \typedef Double_t 
+/// \typedef Double_t
 /// specifies the floating point precision
-/// \typedef Real_t 
+/// \typedef Real_t
 /// place holder for other standard precision, that is if Double_t is single precision, Real_t is double precision, and visaversa. Just for compatability issues.
 
-/// \typedef Int_t 
+/// \typedef Int_t
 /// specifies the size of integers
 
 #ifdef QUADQUADPRECISION
@@ -34,7 +34,7 @@ typedef float Double_t;
 typedef double Real_t;
 #define MINVALUE 1e-16
 #define MAXVALUE 1e+16
-#else 
+#else
 #define MINVALUE 1e-32
 #define MAXVALUE 1e+32
 typedef double Double_t;
@@ -43,17 +43,12 @@ typedef float Real_t;
 
 #ifdef LONGINT
 typedef long long int Int_t;
+typedef long long unsigned int UInt_t;
 #elif SHORT
 typedef short Int_t;
-#else 
-typedef int Int_t;
-#endif
-
-#ifdef LONGUINT
-typedef long long unsigned int UInt_t;
-#elif USHORT
 typedef unsigned short UInt_t;
-#else 
+#else
+typedef int Int_t;
 typedef unsigned int UInt_t;
 #endif
 
