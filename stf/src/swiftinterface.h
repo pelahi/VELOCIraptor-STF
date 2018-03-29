@@ -93,8 +93,9 @@ extern "C" void InitVelociraptor(char* configname, char* outputname, Swift::cosm
 ///actually run velociraptor
 extern "C" void InvokeVelociraptor(const int num_gravity_parts, struct gpart *gravity_parts, const int *cell_node_ids);
 //@}
-extern KDTree *mpimeshtree;
-extern Particle *mpimeshinfo;
+
+//extern KDTree *mpimeshtree;
+//extern Particle *mpimeshinfo;
 
 ///global libvelociraptorOptions structure that is used when calling library velociraptor from swift
 extern Options libvelociraptorOpt;
