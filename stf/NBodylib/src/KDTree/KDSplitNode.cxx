@@ -489,6 +489,66 @@ namespace NBody
         SearchBallPosTagged(rd,fdist2,bucket,tagged,off,x.GetCoord(),nt,dim);
     }
 
+    void SplitNode::SearchBallPosTagged(Double_t rd, Double_t fdist2, Particle *bucket, vector<Int_t> &tagged, Double_t* off, Int_t target, int dim)
+    {
+        Double_t old_off = off[cut_dim];
+        Double_t new_off = bucket[target].GetPhase(cut_dim) - cut_val;
+        if (new_off < 0)
+        {
+            left->SearchBallPosTagged(rd,fdist2,bucket,tagged,off,target,dim);
+            rd += -old_off*old_off + new_off*new_off;
+            if (rd < fdist2)
+            {
+                off[cut_dim] = new_off;
+                right->SearchBallPosTagged(rd,fdist2,bucket,tagged,off,target,dim);
+                off[cut_dim] = old_off;
+            }
+        }
+        else
+        {
+            right->SearchBallPosTagged(rd,fdist2,bucket,tagged,off,target,dim);
+            rd += -old_off*old_off + new_off*new_off;
+            if (rd < fdist2)
+            {
+                off[cut_dim] = new_off;
+                left->SearchBallPosTagged(rd,fdist2,bucket,tagged,off,target,dim);
+                off[cut_dim] = old_off;
+            }
+        }
+    }
+
+    void SplitNode::SearchBallPosTagged(Double_t rd, Double_t fdist2, Particle *bucket, vector<Int_t> &tagged, Double_t* off, Double_t *x, int dim)
+    {
+        Double_t old_off = off[cut_dim];
+        Double_t new_off = x[cut_dim] - cut_val;
+        if (new_off < 0)
+        {
+            left->SearchBallPosTagged(rd,fdist2,bucket,tagged,off,x,dim);
+            rd += -old_off*old_off + new_off*new_off;
+            if (rd < fdist2)
+            {
+                off[cut_dim] = new_off;
+                right->SearchBallPosTagged(rd,fdist2,bucket,tagged,off,x,dim);
+                off[cut_dim] = old_off;
+            }
+        }
+        else
+        {
+            right->SearchBallPosTagged(rd,fdist2,bucket,tagged,off,x,dim);
+            rd += -old_off*old_off + new_off*new_off;
+            if (rd < fdist2)
+            {
+                off[cut_dim] = new_off;
+                left->SearchBallPosTagged(rd,fdist2,bucket,tagged,off,x,dim);
+                off[cut_dim] = old_off;
+            }
+        }
+    }
+    void SplitNode::SearchBallPosTagged(Double_t rd, Double_t fdist2, Particle *bucket, vector<Int_t> &tagged, Double_t* off, Coordinate x, int dim)
+    {
+        SearchBallPosTagged(rd,fdist2,bucket,tagged,off,x.GetCoord(),dim);
+    }
+
 
 	void SplitNode::SearchCriterion(Double_t rd, FOFcompfunc cmp, Double_t *params, Int_t iGroup, Particle *bucket, Int_t *Group, Double_t *dist2, Double_t* off, Int_t target, int dim)
     {
@@ -603,6 +663,64 @@ namespace NBody
             }
         }
     }
+
+    void SplitNode::SearchCriterionTagged(Double_t rd, FOFcompfunc cmp, Double_t *params, Particle *bucket, vector<Int_t> &tagged, Double_t* off, Int_t target, int dim)
+    {
+        //assume some distance measure is stored in params[1]
+        Double_t old_off = off[cut_dim];
+        Double_t new_off = bucket[target].GetPhase(cut_dim) - cut_val;
+        if (new_off < 0)
+        {
+            left->SearchCriterionTagged(rd,cmp,params,bucket,tagged,off,target, dim);
+            rd += -old_off*old_off + new_off*new_off;
+            if (rd < params[1])
+            {
+                off[cut_dim] = new_off;
+                right->SearchCriterionTagged(rd,cmp,params,bucket,tagged,off,target, dim);
+                off[cut_dim] = old_off;
+            }
+        }
+        else
+        {
+            right->SearchCriterionTagged(rd,cmp,params,bucket,tagged,off,target, dim);
+            rd += -old_off*old_off + new_off*new_off;
+            if (rd < params[1])
+            {
+                off[cut_dim] = new_off;
+                left->SearchCriterionTagged(rd,cmp,params,bucket,tagged,off,target, dim);
+                off[cut_dim] = old_off;
+            }
+        }
+    }
+    void SplitNode::SearchCriterionTagged(Double_t rd, FOFcompfunc cmp, Double_t *params, Particle *bucket, vector<Int_t> &tagged, Double_t* off, Particle &target, int dim)
+    {
+        //assume some distance measure is stored in params[1]
+        Double_t old_off = off[cut_dim];
+        Double_t new_off = target.GetPhase(cut_dim) - cut_val;
+        if (new_off < 0)
+        {
+            left->SearchCriterionTagged(rd,cmp,params,bucket,tagged,off,target, dim);
+            rd += -old_off*old_off + new_off*new_off;
+            if (rd < params[1])
+            {
+                off[cut_dim] = new_off;
+                right->SearchCriterionTagged(rd,cmp,params,bucket,tagged,off,target, dim);
+                off[cut_dim] = old_off;
+            }
+        }
+        else
+        {
+            right->SearchCriterionTagged(rd,cmp,params,bucket,tagged,off,target, dim);
+            rd += -old_off*old_off + new_off*new_off;
+            if (rd < params[1])
+            {
+                off[cut_dim] = new_off;
+                left->SearchCriterionTagged(rd,cmp,params,bucket,tagged,off,target, dim);
+                off[cut_dim] = old_off;
+            }
+        }
+    }
+
     void SplitNode::SearchCriterionNoDist(Double_t rd, FOFcompfunc cmp, Double_t *params, Int_t iGroup, Particle *bucket, Int_t *Group, Double_t* off, Int_t target, int dim)
     {
         //assume some distance measure is stored in params[1]
@@ -1043,6 +1161,46 @@ namespace NBody
         SearchBallPosPeriodicTagged(rd,fdist2,bucket,tagged,off,p,x.GetCoord(),nt,dim);
     }
 
+    void SplitNode::SearchBallPosPeriodicTagged(Double_t rd, Double_t fdist2, Particle *bucket, vector<Int_t> &tagged, Double_t *off, Double_t *p, Int_t target, int dim)
+    {
+        Coordinate x0;
+        x0=Coordinate(bucket[target].GetPosition());
+        SearchBallPosPeriodicTagged(rd,fdist2,bucket,tagged,off,p,x0,dim);
+    }
+
+    void SplitNode::SearchBallPosPeriodicTagged(Double_t rd, Double_t fdist2, Particle *bucket, vector<Int_t> &tagged, Double_t *off, Double_t *p, Double_t *x, int dim)
+    {
+        Double_t sval;
+        Coordinate x0(x),xp;
+        SearchBallPosTagged(rd,fdist2,bucket,tagged,off,x0,dim);
+        for (int k=0;k<dim;k++) {
+            for (int j = 0; j < dim; j++) off[j] = 0.0;
+            sval=PeriodicReflection1D(x0,xp,p,k);
+            if (fdist2>sval*sval) SearchBallPosTagged(rd,fdist2,bucket,tagged,off,xp,dim);
+        }
+        if (dim==3) {
+            for (int j = 0; j < dim; j++) off[j] = 0.0;
+            sval=PeriodicReflection2D(x0,xp,p,0,1);
+            if (fdist2>sval*sval) SearchBallPosTagged(rd,fdist2,bucket,tagged,off,xp,dim);
+            for (int j = 0; j < dim; j++) off[j] = 0.0;
+            sval=PeriodicReflection2D(x0,xp,p,0,2);
+            if (fdist2>sval*sval) SearchBallPosTagged(rd,fdist2,bucket,tagged,off,xp,dim);
+            for (int j = 0; j < dim; j++) off[j] = 0.0;
+            sval=PeriodicReflection2D(x0,xp,p,1,2);
+            if (fdist2>sval*sval) SearchBallPosTagged(rd,fdist2,bucket,tagged,off,xp,dim);
+        }
+        // search all axis if current max dist less than search radius
+        if (dim>1) {
+            for (int j = 0; j < dim; j++) off[j] = 0.0;
+            sval=PeriodicReflectionND(x0,xp,p,dim);
+            if (fdist2>sval*sval) SearchBallPosTagged(rd,fdist2,bucket,tagged,off,xp,dim);
+        }
+    }
+    void SplitNode::SearchBallPosPeriodicTagged(Double_t rd, Double_t fdist2, Particle *bucket, vector<Int_t> &tagged, Double_t *off, Double_t *p, Coordinate x, int dim)
+    {
+        SearchBallPosPeriodicTagged(rd,fdist2,bucket,tagged,off,p,x.GetCoord(),dim);
+    }
+
     void SplitNode::SearchCriterionPeriodic(Double_t rd, FOFcompfunc cmp, Double_t *params, Int_t iGroup, Particle *bucket, Int_t *Group, Double_t *dist2, Double_t *off, Double_t *p, Int_t target, int dim)
     {
         Particle x0;
@@ -1077,6 +1235,7 @@ namespace NBody
             SearchCriterion(rd,cmp,params,iGroup,bucket,Group,dist2,off,pp,dim);
         }
     }
+
     void SplitNode::SearchCriterionPeriodicTagged(Double_t rd, FOFcompfunc cmp, Double_t *params, Particle *bucket, Int_t &nt, Int_t *tagged, Double_t *off, Double_t *p, Int_t target, int dim)
     {
         Particle x0;
@@ -1109,6 +1268,46 @@ namespace NBody
             for (int j = 0; j < dim; j++) off[j] = 0.0;
             PeriodicReflectionND(p0,pp,p,dim);
             SearchCriterionTagged(rd,cmp,params,bucket,nt,tagged,off,pp,dim);
+        }
+    }
+
+
+
+
+
+
+    void SplitNode::SearchCriterionPeriodicTagged(Double_t rd, FOFcompfunc cmp, Double_t *params, Particle *bucket, vector<Int_t> &tagged, Double_t *off, Double_t *p, Int_t target, int dim)
+    {
+        Particle x0;
+        x0=bucket[target];
+        SearchCriterionPeriodicTagged(rd,cmp,params,bucket,tagged,off,p,x0,dim);
+    }
+    void SplitNode::SearchCriterionPeriodicTagged(Double_t rd, FOFcompfunc cmp, Double_t *params, Particle *bucket, vector<Int_t> &tagged, Double_t *off, Double_t *p, Particle &p0, int dim)
+    {
+        Particle pp;
+        pp=p0;
+        SearchCriterionTagged(rd,cmp,params,bucket,tagged,off,p0,dim);
+        for (int k=0;k<dim;k++) {
+            for (int j = 0; j < dim; j++) off[j] = 0.0;
+            PeriodicReflection1D(p0,pp,p,k);
+            SearchCriterionTagged(rd,cmp,params,bucket,tagged,off,pp,dim);
+        }
+        if (dim==3) {
+            for (int j = 0; j < dim; j++) off[j] = 0.0;
+            PeriodicReflection2D(p0,pp,p,0,1);
+            SearchCriterionTagged(rd,cmp,params,bucket,tagged,off,pp,dim);
+            for (int j = 0; j < dim; j++) off[j] = 0.0;
+            PeriodicReflection2D(p0,pp,p,0,2);
+            SearchCriterionTagged(rd,cmp,params,bucket,tagged,off,pp,dim);
+            for (int j = 0; j < dim; j++) off[j] = 0.0;
+            PeriodicReflection2D(p0,pp,p,1,2);
+            SearchCriterionTagged(rd,cmp,params,bucket,tagged,off,pp,dim);
+        }
+        // search all axis if current max dist less than search radius
+        if (dim>1) {
+            for (int j = 0; j < dim; j++) off[j] = 0.0;
+            PeriodicReflectionND(p0,pp,p,dim);
+            SearchCriterionTagged(rd,cmp,params,bucket,tagged,off,pp,dim);
         }
     }
 

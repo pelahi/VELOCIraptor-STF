@@ -313,6 +313,53 @@ namespace NBody
         SearchBallPosTagged(rd,fdist2,bucket,tagged,off,x.GetCoord(),nt,dim);
     }
 
+    void LeafNode::SearchBallPosTagged(Double_t rd, Double_t fdist2, Particle *bucket, vector<Int_t> &tagged, Double_t* off, Int_t target, int dim)
+    {
+        //first check to see if entire node lies wihtin search distance
+        Double_t maxr0=0.,maxr1=0.;
+        for (int j=0;j<dim;j++){
+            maxr0+=(bucket[target].GetPosition(j)-xbnd[j][0])*(bucket[target].GetPosition(j)-xbnd[j][0]);
+            maxr1+=(bucket[target].GetPosition(j)-xbnd[j][1])*(bucket[target].GetPosition(j)-xbnd[j][1]);
+        }
+        if (maxr0<fdist2&&maxr1<fdist2)
+            for (Int_t i = bucket_start; i < bucket_end; i++)
+                tagged.push_back(i);
+        else
+        for (Int_t i = bucket_start; i < bucket_end; i++)
+        {
+            if (i!=target){
+            Double_t dist2 = DistanceSqd(bucket[target].GetPosition(),bucket[i].GetPosition(), dim);
+            if (dist2 < fdist2) tagged.push_back(i);
+            }
+        }
+    }
+
+    void LeafNode::SearchBallPosTagged(Double_t rd, Double_t fdist2, Particle *bucket, vector<Int_t> &tagged, Double_t* off, Double_t *x, int dim)
+    {
+        //first check to see if entire node lies wihtin search distance
+        Double_t maxr0=0.,maxr1=0.;
+        for (int j=0;j<dim;j++){
+            maxr0+=(x[j]-xbnd[j][0])*(x[j]-xbnd[j][0]);
+            maxr1+=(x[j]-xbnd[j][1])*(x[j]-xbnd[j][1]);
+        }
+        if (maxr0<fdist2&&maxr1<fdist2)
+            for (Int_t i = bucket_start; i < bucket_end; i++)
+                tagged.push_back(i);
+        else
+        for (Int_t i = bucket_start; i < bucket_end; i++)
+        {
+            Double_t dist2 = DistanceSqd(x,bucket[i].GetPosition(), dim);
+            if (dist2 < fdist2)
+            {
+                tagged.push_back(i);
+            }
+        }
+    }
+    void LeafNode::SearchBallPosTagged(Double_t rd, Double_t fdist2, Particle *bucket, vector<Int_t> &tagged, Double_t* off, Coordinate x, int dim)
+    {
+        SearchBallPosTagged(rd,fdist2,bucket,tagged,off,x.GetCoord(),dim);
+    }
+
     void LeafNode::SearchCriterion(Double_t rd, FOFcompfunc cmp, Double_t *params, Int_t iGroup, Particle *bucket, Int_t *Group, Double_t *pdist2, Double_t* off, Int_t target, int dim)
     {
         for (Int_t i = bucket_start; i < bucket_end; i++)
@@ -368,6 +415,31 @@ namespace NBody
             }
         }
     }
+    void LeafNode::SearchCriterionTagged(Double_t rd, FOFcompfunc cmp, Double_t *params, Particle *bucket, vector<Int_t> &tagged,Double_t* off, Int_t target, int dim)
+    {
+        for (Int_t i = bucket_start; i < bucket_end; i++)
+        {
+            if (i!=target){
+            if (cmp(bucket[target],bucket[i],params))
+            {
+                tagged.push_back(i);
+            }
+            }
+        }
+    }
+    void LeafNode::SearchCriterionTagged(Double_t rd, FOFcompfunc cmp, Double_t *params, Particle *bucket, vector<Int_t> &tagged, Double_t* off, Particle &target, int dim)
+    {
+        for (Int_t i = bucket_start; i < bucket_end; i++)
+        {
+            if (!(bucket[i]==target)){
+            if (cmp(target,bucket[i],params))
+            {
+                tagged.push_back(i);
+            }
+            }
+        }
+    }
+
     void LeafNode::SearchCriterionNoDist(Double_t rd, FOFcompfunc cmp, Double_t *params, Int_t iGroup, Particle *bucket, Int_t *Group, Double_t* off, Int_t target, int dim)
     {
         for (Int_t i = bucket_start; i < bucket_end; i++)
@@ -636,6 +708,21 @@ namespace NBody
         SearchBallPosTagged(rd,fdist2,bucket,tagged,off,x.GetCoord(),nt,dim);
     }
 
+    void LeafNode::SearchBallPosPeriodicTagged(Double_t rd, Double_t fdist2, Particle *bucket, vector<Int_t> &tagged, Double_t *off, Double_t *p, Int_t target, int dim)
+    {
+        Coordinate x0;
+        x0=Coordinate(bucket[target].GetPosition());
+        SearchBallPosTagged(rd,fdist2,bucket,tagged,off,x0,dim);
+    }
+    void LeafNode::SearchBallPosPeriodicTagged(Double_t rd, Double_t fdist2,  Particle *bucket, vector<Int_t> &tagged, Double_t *off, Double_t *p, Double_t *x, int dim)
+    {
+        SearchBallPosTagged(rd,fdist2,bucket,tagged,off,x,dim);
+    }
+    void LeafNode::SearchBallPosPeriodicTagged(Double_t rd, Double_t fdist2, Particle *bucket, vector<Int_t> &tagged, Double_t *off, Double_t *p, Coordinate x, int dim)
+    {
+        SearchBallPosTagged(rd,fdist2,bucket,tagged,off,x.GetCoord(),dim);
+    }
+
     void LeafNode::SearchCriterionPeriodic(Double_t rd, FOFcompfunc cmp, Double_t *params, Int_t iGroup, Particle *bucket, Int_t *Group, Double_t *pdist2, Double_t *off, Double_t *p, Int_t target, int dim)
     {
         Particle x0;
@@ -652,6 +739,18 @@ namespace NBody
     {
         SearchCriterionTagged(rd,cmp,params,bucket,nt,tagged,off,target,dim);
     }
+
+    void LeafNode::SearchCriterionPeriodicTagged(Double_t rd, FOFcompfunc cmp, Double_t *params, Particle *bucket, vector<Int_t> &tagged, Double_t *off, Double_t *p, Int_t target, int dim)
+    {
+        Particle x0;
+        x0=bucket[target];
+        SearchCriterionTagged(rd,cmp,params,bucket,tagged,off,x0,dim);
+    }
+    void LeafNode::SearchCriterionPeriodicTagged(Double_t rd, FOFcompfunc cmp, Double_t *params, Particle *bucket, vector<Int_t> &tagged, Double_t *off, Double_t *p, Particle &target, int dim)
+    {
+        SearchCriterionTagged(rd,cmp,params,bucket,tagged,off,target,dim);
+    }
+
     void LeafNode::SearchCriterionNoDistPeriodic(Double_t rd, FOFcompfunc cmp, Double_t *params, Int_t iGroup, Particle *bucket, Int_t *Group, Double_t *off, Double_t *p, Int_t target, int dim)
     {
         Particle x0;

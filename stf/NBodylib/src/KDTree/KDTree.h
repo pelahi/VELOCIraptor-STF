@@ -42,6 +42,7 @@
 #include <iomanip>
 #include <cstdio>
 #include <iostream>
+#include <vector>
 
 #ifdef USEOPENMP
 #include <omp.h>
@@ -251,6 +252,13 @@ namespace NBody
         //return number of tagged particles meeting a criterion
         Int_t SearchCriterionTagged(Int_t tt, FOFcompfunc cmp, Double_t *params, Int_t *tagged);
         Int_t SearchCriterionTagged(Particle &p, FOFcompfunc cmp, Double_t *params, Int_t *tagged);
+
+        vector<Int_t> SearchBallPosTagged(Int_t tt, Double_t fdist2);
+        vector<Int_t> SearchBallPosTagged(Coordinate x, Double_t fdist2);
+        vector<Int_t> SearchBallPosTagged(Double_t *x, Double_t fdist2);
+        //return number of tagged particles meeting a criterion
+        vector<Int_t> SearchCriterionTagged(Int_t tt, FOFcompfunc cmp, Double_t *params);
+        vector<Int_t> SearchCriterionTagged(Particle &p, FOFcompfunc cmp, Double_t *params);
         //@}
 
 
