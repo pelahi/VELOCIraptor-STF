@@ -345,6 +345,8 @@ namespace NBody
 
         ///Calculate quantity having already found distances stored in a PriorityQueue along with weights
         Double_t CalcSmoothLocalValue(Int_t Nsmooth, PriorityQueue *pq, Double_t* weight);
+        ///simialr to above but with array of distances sorted in descending order
+        Double_t CalcSmoothLocalValue(Int_t Nsmooth, Double_t *dist, Double_t* weight);
 
         //@}
 
