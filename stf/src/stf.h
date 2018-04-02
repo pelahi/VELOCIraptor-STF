@@ -43,9 +43,11 @@ http://www.gnu.org/copyleft/gpl.html
 
 VELOCIraptor/STF is a massively parallel code for finding substructure in halos from N-body simulations.
 It was designed to identify tidal debris, an impossible task for most other structures finders since most are designed to find overdensities in configuration space.
-Tidal debris is
+Tidal debris and other forms of substructure within haloes/galaxies are identified using a 6D phase-space algorithm.
+Structures are also analysed and bulk properties recorded in output files along with all particles that belong to structures.
 
-This program reads a N-body output such as a tipsy/gadget file and finds (sub)structures. \n
+This program runs by reading an input N-body snapshot such as a tipsy/gadget/HDF5 file and finds (sub)structures,
+outputing files containing bulk properties and particles IDs belonging to (sub)structures. \n
 It is primarily designed to use the VELOCIraptor/STF algorithm (which generates an outlier subset) but can also
 use the 3DFOF and 6DFOF algorithm (effectively finds regions of high physical or phase-space density).\n
 The program can be altered to read different formats by altering \ref proto.h, \ref io.cxx, specifically \ref ReadData
