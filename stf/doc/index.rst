@@ -2,12 +2,12 @@
    sphinx-quickstart on Mon Jul 31 10:13:40 2017.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
-   VELOCIraptor is a C++ halo finder using MPI and OpenMP APIs.
-   It comes with a halo merger tree builder, TreeFrog (also C++ MPI+OpenMP)
+   **VELOCIraptor** is a C++ halo finder using MPI and OpenMP APIs.
+   It comes with a halo merger tree builder, **TreeFrog** (also C++ MPI+OpenMP)
    and several associated analysis tools in python, example configuration files
    and analysis python scripts (and sample jupyter notebooks).
 
-Welcome to VELOCIraptor's documentation!
+Welcome to **VELOCIraptor**'s documentation!
 ========================================
 
 .. toctree::
