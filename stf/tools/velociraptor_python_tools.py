@@ -154,7 +154,7 @@ def ReadPropertyFile(basefilename,ibinary=0,iseparatesubfiles=0,iverbose=0, desi
 		numfiles=int(halofile["Num_of_files"][0])
 		numhalos=np.uint64(halofile["Num_of_groups"][0])
 		numtothalos=np.uint64(halofile["Total_num_of_groups"][0])
-		atime=np.float(halofile.attrs["Time"]) 
+		atime=np.float(halofile.attrs["Time"])
 		fieldnames=[str(n) for n in halofile.keys()]
 		#clean of header info
 		fieldnames.remove("File_id")
@@ -230,8 +230,24 @@ def ReadPropertyFile(basefilename,ibinary=0,iseparatesubfiles=0,iverbose=0, desi
 			if (numhalos>0): catalog[catvalue][noffset:noffset+numhalos]=htemp[i]
 			noffset+=numhalos
 
+	#load associated simulation info, time and units
+	siminfoname=basefilename+".siminfo"
+	unitinfoname=basefilename+".units"
+	siminfo=open(siminfoname,'r')
+	unitinfo=open(unitinfoname,'r')
+	catalog['SimulationInfo']=dict()
+	catalog['UnitInfo']=dict()
+	for l in siminfo:
+		d=l.strip().split(' : ')
+		catalog['SimulationInfo'][d[0]]=float(d[1])
+	for l in unitinfo:
+		d=l.strip().split(' : ')
+		catalog['UnitInfo'][d[0]]=float(d[1])
+	siminfo.close()
+	unitinfo.close()
+
 	if (iverbose): print("done reading properties file ",time.clock()-start)
-	return catalog,numtothalos,atime
+	return catalog,numtothalos
 
 def ReadPropertyFileMultiWrapper(basefilename,index,halodata,numhalos,atime,ibinary=0,iseparatesubfiles=0,iverbose=0,desiredfields=[]):
 	"""
@@ -323,7 +339,7 @@ def ReadHaloMergerTree(numsnaps,treefilename,ibinary=0,iverbose=0):
 
 				#Read in the progenitors, splitting them as reading them in
 				tree[snap]["Progen"] = np.split(treedata["Progenitors"][:],split)
- 
+
 		snaptreelist.close()
 	if (iverbose): print("done reading tree file ",time.clock()-start)
 	return tree
@@ -414,7 +430,7 @@ def ReadHaloMergerTreeDescendant(numsnaps,treefilename,ireverseorder=True,ibinar
 				# Read in the data splitting it up as reading it in
 				tree[snap]["Descen"] = np.split(treedata["Descendants"][:],split)
 				tree[snap]["Rank"] = np.split(treedata["Ranks"][:],split)
- 
+
 		snaptreelist.close()
 	if (iverbose): print("done reading tree file ",time.clock()-start)
 	return tree
