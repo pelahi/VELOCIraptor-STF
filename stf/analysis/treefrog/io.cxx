@@ -422,8 +422,8 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
             datasetname=H5std_string("ProgenOffsets");
             dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
             for(Int_t j=0;j<h[i].numhalos;j++){
-                totnprogen+=p[i][j].NumberofProgenitors;
-                data4[j]=totnprogen;   
+                data4[j]=totnprogen; 
+                totnprogen+=p[i][j].NumberofProgenitors;  
             }
             dataset.write(data4,PredType::STD_U64LE);
 
@@ -815,8 +815,8 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
             datasetname=H5std_string("DescOffsets");
             dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
             for(Int_t j=0;j<h[i].numhalos;j++){
-                totndesc+=p[i][j].NumberofDescendants;
-                data4[j]=totndesc;   
+                data4[j]=totndesc; 
+                totndesc+=p[i][j].NumberofDescendants;  
             }
             dataset.write(data4,PredType::STD_U64LE);
 

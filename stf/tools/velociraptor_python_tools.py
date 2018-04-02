@@ -315,10 +315,10 @@ def ReadHaloMergerTree(numsnaps,treefilename,ibinary=0,iverbose=0):
 			if("ProgenOffsets" in treedata.keys()):
 
 				#Find the indices to split the array
-				split = np.array(treedata["ProgenOffsets"])
+				split = np.add(np.array(treedata["ProgenOffsets"]),tree[snap]["Num_progen"],dtype=np.uint64,casting="unsafe")
 
 				#Read in the progenitors, splitting them as reading them in
-				tree[snap]["Progen"] = np.split(treedata["Progenitors"][:],split)
+				tree[snap]["Progen"] = np.split(treedata["Progenitors"][:],split[:-1])
  
 		snaptreelist.close()
 	if (iverbose): print("done reading tree file ",time.clock()-start)
@@ -401,12 +401,12 @@ def ReadHaloMergerTreeDescendant(numsnaps,treefilename,ireverseorder=True,ibinar
 			if("DescOffsets" in treedata.keys()):
 
 				#Find the indices to split the array
-				split = np.array(treedata["DescOffsets"])
+				split = np.add(np.array(treedata["DescOffsets"]), tree[snap]["Num_descen"],dtype=np.uint64,casting="unsafe")
 
 				# Read in the data splitting it up as reading it in
-				tree[snap]["Descen"] = np.split(treedata["Descendants"][:],split)
-				tree[snap]["Rank"] = np.split(treedata["Ranks"][:],split)
- 
+				tree[snap]["Descen"] = np.split(treedata["Descendants"][:],split[:-1])
+				tree[snap]["Rank"] = np.split(treedata["Ranks"][:],split[:-1])
+
 		snaptreelist.close()
 		
 	if (iverbose): print("done reading tree file ",time.clock()-start)
