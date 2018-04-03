@@ -184,10 +184,10 @@ void usage(void)
     \arg <b> \e Halo_core_ellx_fac </b> scaling applied to linking length when identifying merger remnants. Typically values are \f$ \sim0.5 \f$  \ref Options.halocorexfac
     \arg <b> \e Halo_core_ellv_fac </b> scaling applied to local dispersion to define the velocity scale used to identify merger remnants. Typically values are \f$ \sim1 \f$  \ref Options.halocorevfac
     \arg <b> \e Halo_core_ncellfac </b> used to determine the minimum number of particles a merger remnants is composed of, specifically \f$ N_{\rm min}= f_{\rm ncell}* N_{\rm S} \f$. Typically values are     \arg <b> \e Halo_core_adaptive_sigma_fac </b> used when running fully adaptive core search, specifies the width of the physical linking length in configuration space dispersion (think of this as how many sigma to include). Typically values are \f$ \sim2 \f$. This has been tested on hydrodynamnical simulations to separate galaxy mergers. \ref Options.halocoresigmafac
-    \arg <b> \e Halo_core_num_loops</b> allows the core search to iterate, shrinking the velocity linking length to used till the number of cores identified decreases or this limit is reached. Allows apative search with larger linking length to be robust.  Typically values are \f$ \sim5 \f$ with loops only running often twice. \ref Options.halocorenumloops.
-    \arg <b> \e Halo_core_loop_ellx_fac</b> Factor by which configuration linking length is decreased when running loops for core search.  Typically values are \f$ \sim0.75 \f$. \ref Options.halocorexfaciter
-    \arg <b> \e Halo_core_loop_ellv_fac</b> Factor by which velocity linking length is decreased when running loops for core search.  Typically values are \f$ \sim0.75 \f$. \ref Options.halocorevfaciter
-    \arg <b> \e Halo_core_loop_elln_fac</b> Factor by which min group size is changed when running loops for core search.  Typically values are \f$ \sim0.25 \f$. \ref Options.halocorenumfaciter
+    \arg <b> \e Halo_core_num_loops </b> allows the core search to iterate, shrinking the velocity linking length to used till the number of cores identified decreases or this limit is reached. Allows apative search with larger linking length to be robust.  Typically values are \f$ \sim5 \f$ with loops only running often twice. \ref Options.halocorenumloops.
+    \arg <b> \e Halo_core_loop_ellx_fac </b> Factor by which configuration linking length is decreased when running loops for core search.  Typically values are \f$ \sim0.75 \f$. \ref Options.halocorexfaciter
+    \arg <b> \e Halo_core_loop_ellv_fac </b> Factor by which velocity linking length is decreased when running loops for core search.  Typically values are \f$ \sim0.75 \f$. \ref Options.halocorevfaciter
+    \arg <b> \e Halo_core_loop_elln_fac </b> Factor by which min group size is changed when running loops for core search.  Typically values are \f$ \sim0.25 \f$. \ref Options.halocorenumfaciter
 
     \subsection fofotherconfig Other modifiers for search
     \arg <b> \e Singlehalo_search_search </b> 0/1 flag indicates that no field search is going to be run and the entire volume will be treated as a background region. Useful if searching for substructures in non-cosmological simulations. But can also be co-opted for other searches using different outlier criteria and FOF algorithms. \ref Options.iSingleHalo \n
@@ -222,9 +222,9 @@ void usage(void)
     \arg <b> \e Gravity </b> change the gravity unit. should be set such that \f$ v^2=GM/r \f$.   \ref Options.G \n
     \arg <b> \e Hubble_unit </b> change the value of Hubble expansion (from normal 100 km/s/Mpc to units used, that is velocity unit/length unit) \ref Options.G \n
     \arg <b> \e Mass_value </b> if not mass is stored using the option \b NOMASS (see \ref STF-makeflags) then this is the mass of the particles \ref Options.MassValue \n
-    \arg <b> \e Length_unit_to_kpc</b> specify the desired return unit in kpc \ref Options.lengthtokpc \n
-    \arg <b> \e Velocity_unit_to_kms</b> specify the desired return unit in kms \ref Options.velocitytokms \n
-    \arg <b> \e Mass_unit_to_solarmass</b> specify the desired return unit in solar masses \ref Options.masstosolarmass \n
+    \arg <b> \e Length_unit_to_kpc </b> specify the desired return unit in kpc \ref Options.lengthtokpc \n
+    \arg <b> \e Velocity_unit_to_kms </b> specify the desired return unit in kms \ref Options.velocitytokms \n
+    \arg <b> \e Mass_unit_to_solarmass </b> specify the desired return unit in solar masses \ref Options.masstosolarmass \n
 
     \subsection cosmologyconfig Cosmology
     \arg <b> \e Period </b> if not defined in the input data one can pass the period in the input units of the data. This is not always necessary, for instance the gadget snapshot format has this in the header.  \ref Options.p \n
@@ -240,7 +240,7 @@ void usage(void)
 
     \section otherconfigs Other configuration options
     \arg <b> \e Effective_Resolution </b> If running a multiple resolution cosmological zoom simulation, simple method of scaling the linking length by using the period, ie: \f$ p/N_{\rm eff} \f$ \ref Options.Neff \n
-    \arg <b> \e Snapshot_value</b> If halo ids need to be offset to some starting value based on the snapshot of the output, which is useful for some halo merger tree codes, one can specific a snapshot number, and all halo ids will be listed as internal haloid + \f$ sn\times10^{12}\f$. \ref Options.snapshotvalue \n
+    \arg <b> \e Snapshot_value </b> If halo ids need to be offset to some starting value based on the snapshot of the output, which is useful for some halo merger tree codes, one can specific a snapshot number, and all halo ids will be listed as internal haloid + \f$ sn\times10^{12}\f$. \ref Options.snapshotvalue \n
     \arg <b> \e Verbose </b> 2/1/0 flag indicating how talkative the code is (2 very verbose, 1 verbose, 0 quiet). \ref Options.iverbose \n
     \arg <b> \e Inclusive_halo_mass </b> 1/0 flag indicating whether inclusive masses are calculated for field objects. \ref Options.iInclusiveHalo \n
 

@@ -32,7 +32,7 @@ and analysis python scripts (and sample jupyter notebooks).
 Sections
 ========
 * :ref:`getting` : How to compile the code
-* :ref:`using` : How to run the code
+* :ref:`usage` : How to run the code
 * :ref:`output` : Output formats and how to read them
 * :ref:`analysis` : Sample of how to analyse output data
 * :ref:`genindex`
