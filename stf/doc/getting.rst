@@ -1,5 +1,7 @@
+.. _getting:
+
 Getting **VELOCIraptor**
-###################
+########################
 
 **VELOCIraptor** is currently hosted in `GitHub <https://github.com/pelahi/VELOCIraptor-STF>`_.
 To get a copy you can clone the repository::
@@ -12,9 +14,8 @@ Compiling
 
 **VELOCIraptor** depends on:
 
-* `GSL <https://www.gnu.org/software/gsl/>`_
-* libNBody - a scientific library included with **VELOCIraptor**.
-**VELOCIraptor** needs this library for a number of structures, classes, and methods it provides.
+* `GSL <https://www.gnu.org/software/gsl/>`_ - the GNU Scientific Library
+* **NBodylib** - a internal scientific library included with **VELOCIraptor**. **VELOCIraptor** needs this library for a number of structures, classes, and methods it provides.
 
 Optional requirements
 ---------------------
@@ -42,19 +43,23 @@ To compile **VELOCIraptor** (assuming you are inside the ``VELOCIraptor-STF/stf`
  $> cp Makefile.config.template Makefile.config
 Edit Makefile.config with you favourite editor and type::
  $> make
-A list of compile time options is found below and is listed in .. doxygenfile:: ui.cxx
+A list of compile time options is found below and is listed in .. doxygenfile:: ../src/ui.cxx
 
 Editing Makefile.config
 =======================
 
-* Parallel APIs can be enabled by setting
-    * For MPI |
-    *MPI="on"* |
-    *MPIREDUCE="on"*
-    * For OpenMP |
+
+.. topic:: Parallel APIs can be enabled by setting
+
+    * 
+        For MPI
+        *MPI="on"*
+        *MPIREDUCE="on"*
+    * For OpenMP
     *OMP="on"*
 
-* To enable input/output formats
+.. topic:: Enable input/output formats
+
     * For HDF |
     *HDFENABLE="on"*
     * for XDF (nchilada) input |
@@ -101,7 +106,7 @@ Editing Makefile.config
 
 
 * Hydro simulations: activate extra data structures in the Particle class, used when compiling the **NBodylib** library |
-    * activate gas, store self-energy |
+    * activate gas, store self-energy
     *USEGAS="on"*
     * activate stars only, store metallicity, formation time, star foramtion rate (for gas particles) |
     *USESTARS="on"*
@@ -129,3 +134,6 @@ Editing Makefile.config
 
 * Enable debugging
     * *DEBUG="on"*
+
+something else
+=======================

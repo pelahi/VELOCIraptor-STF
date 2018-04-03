@@ -1,5 +1,8 @@
 stf/doc/latex/*
 stf/doc/html/*
+stf/doc/_build/*
+stf/doc/_static/*
+stf/doc/_templates/*
 stf/bin/*
 stf/src/*.o
 stf/include/*
