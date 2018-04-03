@@ -11,7 +11,7 @@ Options libvelociraptorOpt;
 //KDTree *mpimeshtree;
 //Particle *mpimeshinfo;
 
-void InitVelociraptor(char* configname, char* outputname, cosmoinfo c, unitinfo u, siminfo s)
+void InitVelociraptor(char* configname, cosmoinfo c, unitinfo u, siminfo s)
 {
 
 #ifdef USEMPI
@@ -30,8 +30,7 @@ void InitVelociraptor(char* configname, char* outputname, cosmoinfo c, unitinfo 
     cout<<"Initialising VELOCIraptor..."<< endl;
 
     libvelociraptorOpt.pname = configname;
-    libvelociraptorOpt.outname = outputname;
-
+    
     cout<<"Reading VELOCIraptor config file..."<< endl;
     GetParamFile(libvelociraptorOpt);
     cout<<"Setting cosmology, units, sim stuff "<<endl;
@@ -114,10 +113,9 @@ void InitVelociraptor(char* configname, char* outputname, cosmoinfo c, unitinfo 
     WriteVELOCIraptorConfig(libvelociraptorOpt);
     WriteSimulationInfo(libvelociraptorOpt);
     WriteUnitInfo(libvelociraptorOpt);
-
 }
 
-void InvokeVelociraptor(const int num_gravity_parts, struct gpart *gravity_parts, const int *cell_node_ids) {
+void InvokeVelociraptor(const int num_gravity_parts, struct gpart *gravity_parts, const int *cell_node_ids, char* outputname) {
 #ifndef USEMPI
     int ThisTask=0;
     int NProcs=1;
@@ -132,6 +130,9 @@ void InvokeVelociraptor(const int num_gravity_parts, struct gpart *gravity_parts
 #else
     nthreads=1;
 #endif
+    
+    libvelociraptorOpt.outname = outputname;
+    cout<<"Invoke: Output filename: "<< libvelociraptorOpt.outname<<endl;
 
     Particle *parts;
     Int_t *pfof,*numingroup,**pglist;

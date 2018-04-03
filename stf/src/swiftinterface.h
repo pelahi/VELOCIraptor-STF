@@ -89,9 +89,9 @@ using namespace Swift;
 //@{
 //extern "C" void InvokeVelociraptor(const int num_gravity_parts, const int num_hydro_parts, struct gpart *gravity_parts, struct part *hydro_parts, double mpi_domain [3][2]);
 ///initialize velociraptor
-extern "C" void InitVelociraptor(char* configname, char* outputname, Swift::cosmoinfo, Swift::unitinfo, Swift::siminfo);
+extern "C" void InitVelociraptor(char* configname, Swift::cosmoinfo, Swift::unitinfo, Swift::siminfo);
 ///actually run velociraptor
-extern "C" void InvokeVelociraptor(const int num_gravity_parts, struct gpart *gravity_parts, const int *cell_node_ids);
+extern "C" void InvokeVelociraptor(const int num_gravity_parts, struct gpart *gravity_parts, const int *cell_node_ids, char* outputname);
 //@}
 
 //extern KDTree *mpimeshtree;
