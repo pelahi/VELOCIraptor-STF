@@ -3257,7 +3257,6 @@ vector<int> MPIGetCellListInSearchUsingMesh(Options &opt, Double_t xsearch[3][2]
                 if (ix<0) index+=(opt.numcellsperdim+ix)*opt.numcellsperdim*opt.numcellsperdim;
                 else if (ix>=opt.numcellsperdim) index+=(ix-opt.numcellsperdim)*opt.numcellsperdim*opt.numcellsperdim;
                 else index+=ix*opt.numcellsperdim*opt.numcellsperdim;
-                cout<<ix<<" "<<iy<<" "<<iz<<" "<<index<<endl;
                 if (ignorelocalcells && opt.cellnodeids[index]==ThisTask) continue;
                 celllist.push_back(index);
             }
