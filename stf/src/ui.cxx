@@ -286,7 +286,7 @@ void GetParamFile(Options &opt)
     char buff[1024],*pbuff,tbuff[1024],vbuff[1024],fname[1024];
     fstream paramfile,cfgfile;
     if (!FileExists(opt.pname)){
-            cerr<<"Config file does not exist or can't be read, terminating"<<endl;
+            cerr<<"Config file: "<<opt.pname <<" does not exist or can't be read, terminating"<<endl;
 #ifdef USEMPI
             MPI_Abort(MPI_COMM_WORLD,9);
 #else
@@ -321,6 +321,7 @@ void GetParamFile(Options &opt)
                 }
             }
         }
+#ifndef SWIFTINTERFACE
         if (opt.outname==NULL) {
             cerr<<"No output name given, terminating"<<endl;
 #ifdef USEMPI
@@ -328,6 +329,7 @@ void GetParamFile(Options &opt)
 #endif
             exit(9);
         }
+#endif
     }
     //sprintf(fname,"%s.cfg",opt.outname);
     //cfgfile.open(fname, ios::out);

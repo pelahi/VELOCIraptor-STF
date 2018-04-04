@@ -109,6 +109,8 @@ void InitVelociraptor(char* configname, cosmoinfo c, unitinfo u, siminfo s)
     //allocate memory to store metis mesh info
     //mpimeshinfo=new Particle[libvelociraptorOpt.numcells];
 
+    libvelociraptorOpt.outname = (char *)"stf_output.out";
+
     //write velociraptor info
     WriteVELOCIraptorConfig(libvelociraptorOpt);
     WriteSimulationInfo(libvelociraptorOpt);
