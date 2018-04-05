@@ -91,7 +91,7 @@ These can be changed by editing Makefile.config (based on the :download:`templat
             ``LONGINT="on"``
 
     * Adjust **NBodylib** Particle class data precision and memory footprint
-        * Do not store the mass as all particles are the same mass
+        * Do not store the mass as all particles are the same mass. :strong:`WARNING`: :emphasis:`This is not fully implement for all types of input and requires further testing, use with caution.`
             ``NOMASS="on"``
         * Use single precision to store positions,velocities, and possibly other internal properties
             ``SINGLEPARTICLEPRECISION="on"``

@@ -40,24 +40,53 @@ There are numerous key words that can be passed. Here we list them
         ``Cosmological_input = 1/0``
     * Amount of information to read from input file in one go (100000).
         ``Input_chunk_size = 100000``
+        \arg <b> \e HDF_name_convention </b> HDF dataset naming convection. See \ref hdfitems.h for what naming conventions are available and what names exist. Currently have \ref HDFNUMNAMETYPES. \ref Options.ihdfnameconvention \n
+        \arg <b> \e Input_includes_star_particle </b> If star particle specific information is in the input file. \ref Options.iusestarparticles \n
+        \arg <b> \e Input_includes_bh_particle </b> If bh/sink particle specific information is in the input file. \ref Options.iusesinkparticles \n
+        \arg <b> \e Input_includes_wind_particle </b> If wind particle specific information is in the input file. \ref Options.iusewindparticles \n
+        \arg <b> \e Input_includes_tracer_particle </b> If tracer particle specific information is in the input file. \ref Options.iusetracerparticles \n
+        \arg <b> \e Input_includes_star_particle </b> If star particle specific information is in the input file. \ref Options.iusestarparticles \n
 
 .. topic:: Parameters related to search type.
 
-    * A integer describing what types of particles are searched. Options are:
+    * An integer describing what types of particles are searched. Options are:
         - **1** *All* particles are searched
         - **2** *DarkMatter* particles (which are typically defined as type 1,2,3 for gadget) are searched
         - **3** Star particles (which are typically defined as type 4 for gadget) are searched
         - **4** Gas particles (which are typically defined as type 0 for gadget) are searched
         ``Particle_search_type = 1/2/3/4``
-\n
-\arg <b> \e Baryon_searchflag </b> 0/1/2 indicating gas/stellar search done separately from DM search \ref Options.iBaryonSearch. \n
-    - \b 1 field search run as normal and then substructure search for baryons run using baryons identified in field search.
-    - \b 2 field search also altered to treat baryons differently, allowing only DM particles to be used as head links (ie link dm-dm, dm-baryon, but not baryon-baryon nor baryon-dm).
-    - \b 0 is do nothing special for baryon particles.
-\n
+    * An integer indicating gas/stellar search done separately from DM search.
+        - **1** field search run as normal and then substructure search for baryons run using baryons identified in field search.
+        - **2** field search also altered to treat baryons differently, allowing only DM particles to be used as head links (ie link dm-dm, dm-baryon, but not baryon-baryon nor baryon-dm). Then DM substructure search with baryons associated to closest DM particle in phase-space.
+        - **0** do nothing special for baryon particles.
+        ``Baryon_searchflag = 0/1/2``
+    * Flag indicating whether field objects are searched for internal substructures. Default is 1 (on)
+        ``Search_for_substructure = 1/0``
+    * Flag indicates that no field search is going to be run and the entire volume will be treated as a background region (halo). Useful if searching for substructures in non-cosmological simulations. But can also be co-opted for other searches using different outlier criteria and FOF algorithms
+        ``Singlehalo_search_search = 0/1``
 
-\section localdensityconfig Parameters related to local density estimator.
-See \ref localfield.cxx, \ref bgfield.cxx & \ref localbgcomp.cxx for more details
+.. topic:: Parameters related to field (halo) search.
+
+    * An integer indicating what type of field search is run. There are several
+        - **5** standard 3D FOF based algorithm
+        - **4** standard 3D FOF based algorithm :strong:`FOLLOWED` by 6D FOF search using the velocity scale defined by the largest halo on particles in 3DFOF groups
+        - **3** standard 3D FOF based algorithm :strong:`FOLLOWED` by 6D FOF search using :emphasis:`adaptive` velocity scale for each 3DFOF group on particles in these groups.
+        ``FoF_Field_search_type = 5/4/3``
+    * Multiplicative factor of order unity that allows one to use different physical linking lengths between field objects and substructures. :strong:`Note`: substructure search defines the base linking length via ```Physical_linking_length``. Typically for standard 3DFOF searches of dark matter haloes, set to 2.0, as typical base linking length is 0.1 times the interparticle spacing when examining cosmological simulations.
+        ``Halo_linking_length_factor = 2.0``
+    * Multiplicative factor of order unity for the dispersions used in 6D searches. Typical values are order unity as velocity dispersions are used to define the velocity linking length scale.
+        ``Halo_velocity_linking_length_factor =``
+    * Multiplicative factor of order unity that allows one to use different configuration space linking lengths between 3DFOF and 6DFOF field search. Typically this is 1.0
+        ``Halo_6D_linking_length_factor = 1.0``
+    * Multiplicative factor of order unity scaling applied to dispersions used in 6DFOF field search. Typical values are 1.25.
+        ``Halo_6D_vel_linking_length_factor = 1.25``
+    * Flag that keeps the 3DFOF if field 6DFOF search is done. This is typically invoked when searching for galaxies as the 3DFOF can be interpreted as the inter halo stellar mass and 6DFOF galaxies.
+        ``Keep_FOF = 0/1``
+    * Integer that allows field objects (or so-called halos) to require a different minimum size than all other substructures. Ignored if not passed or <0, with halos defaulting to ``Minimum_size`` value.
+        ``Minimum_halo_size =-1``
+
+
+.. topic:: Parameters related to local density estimator used to identify particles in substructures
 
 \arg <b> \e Nsearch_velocity </b> number of velocity neighbours used to calculate velocity density, adjust \ref Options.Nvel (suggested value is 32) \n
 \arg <b> \e Nsearch_physical </b> number of physical neighbours searched for Nv to calculate velocity density  \ref Options.Nsearch (suggested value is 256) \n
@@ -71,8 +100,6 @@ See \ref localfield.cxx, \ref bgfield.cxx & \ref localbgcomp.cxx for more detail
 See \ref search.cxx \ref fofalgo.h for more details
 
 \subsection fofsubconfig Configuration for substructure search
-\arg <b> \e Search_for_substructure </b> By default field objects are searched for internal substructures but can disable this by setting this to 0 \n
-\arg <b> \e Keep_FOF </b> if field 6DFOF search is done, allows to keep structures found in 3DFOF (can be interpreted as the inter halo stellar mass when only stellar search is used).\n
 \arg <b> \e FoF_search_type </b> There are several substructure FOF criteria implemented (see \ref FOFTYPES for more types and \ref fofalgo.h for implementation) \n
     - \b 1 \e standard phase-space based, well tested VELOCIraptor criterion.
 
@@ -91,15 +118,6 @@ See \ref search.cxx \ref fofalgo.h for more details
 \arg <b> \e CMrefadjustsubsearch_flag </b> 1/0 flag indicating whether particles are moved to the rough CM velocity frame of the background before substructures are searched for. \ref Options.icmrefadjust \n
 
 \subsection foffieldconfig Configuration for field search
-\arg <b> \e FoF_Field_search_type </b> There are several FOF criteria implemented to search for so-called field objects (see \ref FOFTYPES for more types and \ref fofalgo.h for implementation) \ref Options.fofbgtype \n
-    - \b 5 \e standard 3D FOF based algorithm
-    - \b 4 \e standard 3D FOF based algorithm <b> FOLLOWED </b> by 6D FOF search using the velocity scale defined by the largest halo on <b> ONLY </b> particles in 3DFOF groups
-    - \b 3 \e standard 3D FOF based algorithm <b> FOLLOWED </b> by 6D FOF search using the velocity scale for each 3DFOF group
-\arg <b> \e Minimum_halo_size </b> Allows field objects (or so-called halos) to require a different minimum size (typically would be <= \ref Options.MinSize. Default is -1 which sets it to \ref Options.MinSize) \ref Options.HaloMinSize \n
-\arg <b> \e Halo_linking_length_factor </b> allows one to use different physical linking lengths between field objects and substructures.  (Typically for 3DFOF searches of dark matter haloes, set to value such that this times \ref Options.ellphys = 0.2 the interparticle spacing when examining cosmological simulations ) \ref Options.ellhalophysfac \n
-\arg <b> \e Halo_velocity_linking_length_factor </b> allows one to use different velocity linking lengths between field objects and substructures when using 6D FOF searches.  (Since in such cases the general idea is to use the local velocity dispersion to define a scale, \f$ \geq5 \f$ times this value seems to correctly scale searches) \ref Options.ellhalovelfac \n
-\arg <b> \e Halo_6D_linking_length_factor </b> allows one to use different linking lengths between 3DFOF and 6DFOF field search. Typically values are \f$ \sim 1 \f$ \n
-\arg <b> \e Halo_6D_vel_linking_length_factor </b> scaling applied to dispersions used in 6DFOF field search. Typical values are \f$ \geq 1.25 \f$ \n
 
 \arg <b> \e Halo_core_search </b> 0/1/2 flag allows one to explicitly search for large 6D FOF cores that are indicative of a recent major merger. Since substructure is defined on the scale of the maximum cell size and major mergers typically result two or more phase-space dense regions that are \e larger than the cell size used in reasonable substructure searches, one can identify them using this search. The overall goal is to treat these objects differently than a substructure. However, if 2 is set, then smaller core is treated as substruture and all particles within the FOF envelop are assigned to the cores based on their phase-space distance to core particles \ref Options.iHaloCoreSearch \n
 \arg <b> \e Use_adaptive_core_search </b> 0/1 flag allows one to run complex adaptive phase-space search for large 6D FOF cores and then use these linking lengths to separate mergers. 0 is simple high density dispersively cold cores with v scale adaptive, 1 is adaptive with simple dispersions in both x and v.
@@ -113,7 +131,6 @@ See \ref search.cxx \ref fofalgo.h for more details
 \arg <b> \e Halo_core_loop_elln_fac </b> Factor by which min group size is changed when running loops for core search.  Typically values are \f$ \sim0.25 \f$. \ref Options.halocorenumfaciter
 
 \subsection fofotherconfig Other modifiers for search
-\arg <b> \e Singlehalo_search_search </b> 0/1 flag indicates that no field search is going to be run and the entire volume will be treated as a background region. Useful if searching for substructures in non-cosmological simulations. But can also be co-opted for other searches using different outlier criteria and FOF algorithms. \ref Options.iSingleHalo \n
 \arg <b> \e CM_refadjustflag </b> 0/1 flag indicates that one moves to the CM frame of the structure to search for substructures.
 
 \section unbindconfig Unbinding Parameters
@@ -167,27 +184,11 @@ removes "unbound" particles till system also has a true bound fraction > \ref Un
 \arg <b> \e Verbose </b> 2/1/0 flag indicating how talkative the code is (2 very verbose, 1 verbose, 0 quiet). \ref Options.iverbose \n
 \arg <b> \e Inclusive_halo_mass </b> 1/0 flag indicating whether inclusive masses are calculated for field objects. \ref Options.iInclusiveHalo \n
 
-\section ioconfigs I/O options
-\arg <b> \e Cosmological_input </b> 1/0 indicating that input simulation is cosmological or not. With cosmological input, a variety of length/velocity scales are set to determine such things as the virial overdensity, linking length. \ref Options.icosmologicalin \n
-\arg <b> \e Input_chunk_size </b> Amount of information to read from input file in one go (100000). \ref Options.inputbufsize \n
-\arg <b> \e Write_group_array_file </b> 0/1 flag indicating whether write a single large tipsy style group assignment file is written. \ref Options.iwritefof \n
-\arg <b> \e Separate_output_files </b> 1/0 flag indicating whether separate files are written for field and subhalo groups. \ref Options.iseparatefiles \n
-\arg <b> \e Binary_output </b> 3/2/1/0 flag indicating whether output is hdf, binary or ascii. \ref Options.ibinaryout, \ref OUTADIOS, \ref OUTHDF, \ref OUTBINARY, \ref OUTASCII \n
-\arg <b> \e Extensive_halo_properties_output </b> 1/0 flag indicating whether to calculate/output even more halo properties. \ref Options.iextrahalooutput \n
-\arg <b> \e Extended_output </b> 1/0 flag indicating whether produce extended output for quick particle extraction from input catalog of particles in structures \ref Options.iextendedoutput \n
-\arg <b> \e Comoving_units </b> 1/0 flag indicating whether the properties output is in physical or comoving little h units. \ref Options.icomoveunit \n
-
 \section inputflags input flags related to varies input formats
 \arg <b> \e NSPH_extra_blocks </b> If gadget snapshot is loaded one can specific the number of extra <b> SPH </b> blocks are read/in the file. \ref Options.gnsphblocks \n
 \arg <b> \e NStar_extra_blocks </b> If gadget snapshot is loaded one can specific the number of extra <b> Star </b> blocks are read/in the file. \ref Options.gnstarblocks \n
 \arg <b> \e NBH_extra_blocks </b> If gadget snapshot is loaded one can specific the number of extra <b> Black hole </b> blocks are read/in the file. \ref Options.gnbhblocks \n
 
-\arg <b> \e HDF_name_convention </b> HDF dataset naming convection. See \ref hdfitems.h for what naming conventions are available and what names exist. Currently have \ref HDFNUMNAMETYPES. \ref Options.ihdfnameconvention \n
-\arg <b> \e Input_includes_star_particle </b> If star particle specific information is in the input file. \ref Options.iusestarparticles \n
-\arg <b> \e Input_includes_bh_particle </b> If bh/sink particle specific information is in the input file. \ref Options.iusesinkparticles \n
-\arg <b> \e Input_includes_wind_particle </b> If wind particle specific information is in the input file. \ref Options.iusewindparticles \n
-\arg <b> \e Input_includes_tracer_particle </b> If tracer particle specific information is in the input file. \ref Options.iusetracerparticles \n
-\arg <b> \e Input_includes_star_particle </b> If star particle specific information is in the input file. \ref Options.iusestarparticles \n
 
 \section mpiconfigs MPI specific options
 \arg <b> \e MPI_part_allocation_fac </b> Memory allocated in mpi mode to store particles is (1+factor)* the memory need for the initial mpi decomposition.
