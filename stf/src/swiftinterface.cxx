@@ -44,6 +44,7 @@ void InitVelociraptor(char* configname, char* outputname, cosmoinfo c, unitinfo 
     libvelociraptorOpt.V=u.velocitytokms;
     ///these should be in units of kpc, km/s, and solar mass
     libvelociraptorOpt.G=u.gravity;
+    libvelociraptorOpt.U=u.energyperunitmass;
     libvelociraptorOpt.H=u.hubbleunit;
     ///set cosmology
     libvelociraptorOpt.a=c.atime;
@@ -159,7 +160,7 @@ void InvokeVelociraptor(const int num_gravity_parts, struct gpart *gravity_parts
     cout<<"Copying particle data..."<< endl;
     time1=MyGetTime();
     for(auto i=0; i<Nlocal; i++) {
-        parts[i] = Particle(gravity_parts[i], libvelociraptorOpt.L, libvelociraptorOpt.V, libvelociraptorOpt.M, libvelociraptorOpt.icosmologicalin,libvelociraptorOpt.a,libvelociraptorOpt.h);
+        parts[i] = Particle(gravity_parts[i], libvelociraptorOpt.L, libvelociraptorOpt.V, libvelociraptorOpt.M, libvelociraptorOpt.U, libvelociraptorOpt.icosmologicalin,libvelociraptorOpt.a,libvelociraptorOpt.h);
         parts[i].SetType(DARKTYPE);
     }
     time1=MyGetTime()-time1;

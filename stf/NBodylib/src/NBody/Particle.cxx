@@ -181,7 +181,7 @@ namespace NBody
     }
 
     // SWIFT interface constructor. Copies particle properties from SWIFT particle.
-    Particle::Particle(const struct gpart &p, double lscale, double vscale, double mscale, bool icosmological, double a, double h)
+    Particle::Particle(const struct gpart &p, double lscale, double vscale, double mscale, double uscale, bool icosmological, double a, double h)
     {
 #ifndef NOMASS
       mass = p.mass;
@@ -205,7 +205,7 @@ namespace NBody
       //rho=p.rho;
 #ifdef SWIFTINTERFACE
         ///\todo does this need to be converted for cosmology as well ? and unit conversion
-      gravityphi=p.potential;
+      gravityphi=p.potential*uscale;
 #endif
       pid=p.id_or_neg_offset;
     }

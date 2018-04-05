@@ -382,7 +382,7 @@ struct Options
 
     ///\name length,m,v,grav conversion units
     //@{
-    Double_t L, M, V, G;
+    Double_t L, M, U, V, G;
     Double_t lengthtokpc, velocitytokms, masstosolarmass;
     //@}
     ///period (comove)

@@ -45,7 +45,7 @@ namespace Swift {
     };
     ///structure to store unit information of swift
     struct unitinfo {
-        double lengthtokpc,velocitytokms,masstosolarmass,gravity,hubbleunit;
+        double lengthtokpc,velocitytokms,masstosolarmass,energyperunitmass,gravity,hubbleunit;
     };
 
     /* Structure to hold the location of a top-level cell. */

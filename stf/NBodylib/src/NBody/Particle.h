@@ -158,7 +158,7 @@ typedef Int_t PARTPIDTYPE;
                 Double_t vx = 0, Double_t vy = 0, Double_t vz = 0, PARTIDTYPE ID=0, int type=0, Double_t Rho=0, Double_t Phi=0, PARTPIDTYPE PID=0);
         Particle(Double_t Mass, Double_t *NewPos, Double_t *NewVel, PARTIDTYPE ID=0, int type=0, Double_t Rho=0, Double_t Phi=0, PARTPIDTYPE PID=0);
         Particle(const Particle &p);
-        Particle(const struct gpart &p,  double lscale, double vscale, double mscale, bool icosmological=true, double scalefactor=1.0, double littleh=1.0);
+        Particle(const struct gpart &p,  double lscale, double vscale, double mscale, double uscale, bool icosmological=true, double scalefactor=1.0, double littleh=1.0);
         Particle(std::istream &F);
         //No dynamic allocation, thus destructor not needed.
         ~Particle(){};
