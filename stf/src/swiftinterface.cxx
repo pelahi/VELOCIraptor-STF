@@ -11,7 +11,7 @@ Options libvelociraptorOpt;
 //KDTree *mpimeshtree;
 //Particle *mpimeshinfo;
 
-void InitVelociraptor(char* configname, cosmoinfo c, unitinfo u, siminfo s)
+void InitVelociraptor(char* configname, char* outputname, cosmoinfo c, unitinfo u, siminfo s)
 {
 
 #ifdef USEMPI
@@ -30,6 +30,7 @@ void InitVelociraptor(char* configname, cosmoinfo c, unitinfo u, siminfo s)
     cout<<"Initialising VELOCIraptor..."<< endl;
 
     libvelociraptorOpt.pname = configname;
+    libvelociraptorOpt.outname = outputname;
     
     cout<<"Reading VELOCIraptor config file..."<< endl;
     GetParamFile(libvelociraptorOpt);
@@ -108,8 +109,6 @@ void InitVelociraptor(char* configname, cosmoinfo c, unitinfo u, siminfo s)
 #endif
     //allocate memory to store metis mesh info
     //mpimeshinfo=new Particle[libvelociraptorOpt.numcells];
-
-    libvelociraptorOpt.outname = (char *)"stf_output.out";
 
     //write velociraptor info
     WriteVELOCIraptorConfig(libvelociraptorOpt);
