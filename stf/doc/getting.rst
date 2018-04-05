@@ -17,7 +17,7 @@ Edit Makefile.config which sets the compilation flags with you favourite editor 
 ::
     $> make
 
-A list of compile time options is found below in `Compilation Options`_.
+A list of compile time options is found below in :ref:`compileoptions`.
 
 Requirments
 ===========
@@ -45,6 +45,8 @@ HDF and ADIOS can be enabled and disabled, and require libraries.
 
 * `Hiearchical Data Format (HDF) <https://www.hdfgroup.org/>`_ - self describing data format.
 * `Adaptable IO System (ADIOS) <https://www.olcf.ornl.gov/center-projects/adios/>`_ - self describing data format.
+
+.. _compileoptions:
 
 Compilation Options
 ===================

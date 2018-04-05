@@ -68,13 +68,9 @@ using namespace H5;
 ///example at most one needs a dimensionality of 13 for the tracer particles in Illustris for fluid related info
 #define HDFMAXPROPDIM 13
 
-///\name labels for HDF naming conventions
-//@{
-
-///\name Structures for the HDF5 interface, primarily used to store the strings of Groups and DataSets
+///\defgroup HDFNAMES labels for HDF naming conventions
 //@{
 #define HDFNUMNAMETYPES  4
-
 #define HDFILLUSTISNAMES 0
 #define HDFGADGETXNAMES  1
 #define HDFEAGLENAMES    2
