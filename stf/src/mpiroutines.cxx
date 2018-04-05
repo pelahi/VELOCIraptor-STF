@@ -499,7 +499,7 @@ int MPISearchForOverlapUsingMesh(Options &opt, Particle &Part, Double_t &rdist){
         numoverlap++;
         sent_mpi_domain[cellnodeID]++;
     }
-
+    /*
     if (mpi_period!=0) {
         for (k=0;k<3;k++) if (xsearch[k][0]<0||xsearch[k][1]>mpi_period) ireflec[numreflecs++]=k;
         if (numreflecs==1)numreflecchoice=1;
@@ -675,6 +675,7 @@ int MPISearchForOverlapUsingMesh(Options &opt, Particle &Part, Double_t &rdist){
             }
         }
     }
+    */
     return numoverlap;
 }
 #endif
@@ -3018,30 +3019,208 @@ int fof_id_cmp(const void *a, const void *b)
 //@{
 vector<int> MPIGetCellListInSearchUsingMesh(Options &opt, Double_t xsearch[3][2], bool ignorelocalcells)
 {
+    int numreflecs=0,numreflecchoice=0,ireflec[3];
+    Double_t xsearchp[8][3][2]
     int ixstart,iystart,izstart,ixend,iyend,izend,index;
+    int j,k;
+    bool *icell=new bool[opt.numcells];
     vector<int> celllist;
+    for (auto i=0;i<opt.numcells;i++) icell[i]=false;
 
-    ixstart=floor(xsearch[0][0]*opt.icellwidth[0]);
-    ixend=floor(xsearch[0][1]*opt.icellwidth[0]);
-    iystart=floor(xsearch[1][0]*opt.icellwidth[1]);
-    iyend=floor(xsearch[1][1]*opt.icellwidth[1]);
-    izstart=floor(xsearch[2][0]*opt.icellwidth[2]);
-    izend=floor(xsearch[2][1]*opt.icellwidth[2]);
-    for (auto ix=ixstart;ix<=ixend;ix++){
-        for (auto iy=iystart;iy<=iyend;iy++){
-            for (auto iz=izstart;iz<=izend;iz++){
-                index=0;
-                if (iz<0) index+=opt.numcellsperdim+iz;
-                else if (iz>=opt.numcellsperdim) index+=iz-opt.numcellsperdim;
-                else index+=iz;
-                if (iy<0) index+=(opt.numcellsperdim+iy)*opt.numcellsperdim;
-                else if (iy>=opt.numcellsperdim) index+=(iy-opt.numcellsperdim)*opt.numcellsperdim;
-                else index+=iy*opt.numcellsperdim;
-                if (ix<0) index+=(opt.numcellsperdim+ix)*opt.numcellsperdim*opt.numcellsperdim;
-                else if (ix>=opt.numcellsperdim) index+=(ix-opt.numcellsperdim)*opt.numcellsperdim*opt.numcellsperdim;
-                else index+=ix*opt.numcellsperdim*opt.numcellsperdim;
-                if (ignorelocalcells && opt.cellnodeids[index]==ThisTask) continue;
-                celllist.push_back(index);
+    //search all possible reflections
+    if (mpi_period==0) numreflecs=0;
+    else for (k=0;k<3;k++) if (xsearch[k][0]<0||xsearch[k][1]>mpi_period) ireflec[numreflecs++]=k;
+    if (numreflecs==1)numreflecchoice=1;
+    else if (numreflecs==2) numreflecchoice=3;
+    else if (numreflecs==3) numreflecchoice=7;
+
+    for (j=0;j<=numreflecchoice;j++) for (k=0;k<3;k++) {xsearchp[j][k][0]=xsearch[k][0];xsearchp[j][k][1]=xsearch[k][1];}
+    if (numreflecs==1) {
+        j=1;
+        if (xsearch[ireflec[0]][0]<0) {
+                xsearchp[j][ireflec[0]][0]=xsearch[ireflec[0]][0]+mpi_period;
+                xsearchp[j][ireflec[0]][1]=xsearch[ireflec[0]][1]+mpi_period;
+        }
+        else if (xsearch[ireflec[0]][1]>mpi_period) {
+                xsearchp[j][ireflec[0]][0]=xsearch[ireflec[0]][0]-mpi_period;
+                xsearchp[j][ireflec[0]][1]=xsearch[ireflec[0]][1]-mpi_period;
+        }
+    }
+    else if (numreflecs==2) {
+        k=0;j=1;
+        if (xsearch[ireflec[k]][0]<0) {
+                xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]+mpi_period;
+                xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]+mpi_period;
+        }
+        else if (xsearch[ireflec[k]][1]>mpi_period) {
+                xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]-mpi_period;
+                xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]-mpi_period;
+        }
+        k++;j++;
+        if (xsearch[ireflec[k]][0]<0) {
+                xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]+mpi_period;
+                xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]+mpi_period;
+        }
+        else if (xsearch[ireflec[k]][1]>mpi_period) {
+                xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]-mpi_period;
+                xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]-mpi_period;
+        }
+        j++;k=0;
+        if (xsearch[ireflec[k]][0]<0) {
+                xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]+mpi_period;
+                xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]+mpi_period;
+        }
+        else if (xsearch[ireflec[k]][1]>mpi_period) {
+                xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]-mpi_period;
+                xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]-mpi_period;
+        }
+        k++;
+        if (xsearch[ireflec[k]][0]<0) {
+                xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]+mpi_period;
+                xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]+mpi_period;
+        }
+        else if (xsearch[ireflec[k]][1]>mpi_period) {
+                xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]-mpi_period;
+                xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]-mpi_period;
+        }
+    }
+    else if (numreflecs==3) {
+        j=1;k=0;
+        if (xsearch[ireflec[k]][0]<0) {
+                xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]+mpi_period;
+                xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]+mpi_period;
+        }
+        else if (xsearch[ireflec[k]][1]>mpi_period) {
+                xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]-mpi_period;
+                xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]-mpi_period;
+        }
+        j++;k++;
+        if (xsearch[ireflec[k]][0]<0) {
+                xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]+mpi_period;
+                xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]+mpi_period;
+        }
+        else if (xsearch[ireflec[k]][1]>mpi_period) {
+                xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]-mpi_period;
+                xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]-mpi_period;
+        }
+        j++;k++;
+        if (xsearch[ireflec[k]][0]<0) {
+                xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]+mpi_period;
+                xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]+mpi_period;
+        }
+        else if (xsearch[ireflec[k]][1]>mpi_period) {
+                xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]-mpi_period;
+                xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]-mpi_period;
+        }
+        j++;k=0;
+        if (xsearch[ireflec[k]][0]<0) {
+                xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]+mpi_period;
+                xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]+mpi_period;
+        }
+        else if (xsearch[ireflec[k]][1]>mpi_period) {
+                xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]-mpi_period;
+                xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]-mpi_period;
+        }
+        k=1;
+        if (xsearch[ireflec[k]][0]<0) {
+                xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]+mpi_period;
+                xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]+mpi_period;
+        }
+        else if (xsearch[ireflec[k]][1]>mpi_period) {
+                xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]-mpi_period;
+                xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]-mpi_period;
+        }
+        j++;k=0;
+        if (xsearch[ireflec[k]][0]<0) {
+                xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]+mpi_period;
+                xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]+mpi_period;
+        }
+        else if (xsearch[ireflec[k]][1]>mpi_period) {
+                xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]-mpi_period;
+                xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]-mpi_period;
+        }
+        k=2;
+        if (xsearch[ireflec[k]][0]<0) {
+                xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]+mpi_period;
+                xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]+mpi_period;
+        }
+        else if (xsearch[ireflec[k]][1]>mpi_period) {
+                xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]-mpi_period;
+                xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]-mpi_period;
+        }
+        j++;k=1;
+        if (xsearch[ireflec[k]][0]<0) {
+                xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]+mpi_period;
+                xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]+mpi_period;
+        }
+        else if (xsearch[ireflec[k]][1]>mpi_period) {
+                xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]-mpi_period;
+                xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]-mpi_period;
+        }
+        k=2;
+        if (xsearch[ireflec[k]][0]<0) {
+                xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]+mpi_period;
+                xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]+mpi_period;
+        }
+        else if (xsearch[ireflec[k]][1]>mpi_period) {
+                xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]-mpi_period;
+                xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]-mpi_period;
+        }
+        j++;k=0;
+        if (xsearch[ireflec[k]][0]<0) {
+                xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]+mpi_period;
+                xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]+mpi_period;
+        }
+        else if (xsearch[ireflec[k]][1]>mpi_period) {
+                xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]-mpi_period;
+                xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]-mpi_period;
+        }
+        k++;
+        if (xsearch[ireflec[k]][0]<0) {
+                xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]+mpi_period;
+                xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]+mpi_period;
+        }
+        else if (xsearch[ireflec[k]][1]>mpi_period) {
+                xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]-mpi_period;
+                xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]-mpi_period;
+        }
+        k++;
+        if (xsearch[ireflec[k]][0]<0) {
+                xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]+mpi_period;
+                xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]+mpi_period;
+        }
+        else if (xsearch[ireflec[k]][1]>mpi_period) {
+                xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]-mpi_period;
+                xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]-mpi_period;
+        }
+    }
+
+    for (auto i=0;i<=numreflecchoice;i++) {
+
+        ixstart=floor(xsearchp[0][0]*opt.icellwidth[0]);
+        ixend=floor(xsearchp[0][1]*opt.icellwidth[0]);
+        iystart=floor(xsearchp[1][0]*opt.icellwidth[1]);
+        iyend=floor(xsearchp[1][1]*opt.icellwidth[1]);
+        izstart=floor(xsearchp[2][0]*opt.icellwidth[2]);
+        izend=floor(xsearchp[2][1]*opt.icellwidth[2]);
+
+        for (auto ix=ixstart;ix<=ixend;ix++){
+            for (auto iy=iystart;iy<=iyend;iy++){
+                for (auto iz=izstart;iz<=izend;iz++){
+                    index=0;
+                    if (iz<0) index+=opt.numcellsperdim+iz;
+                    else if (iz>=opt.numcellsperdim) index+=iz-opt.numcellsperdim;
+                    else index+=iz;
+                    if (iy<0) index+=(opt.numcellsperdim+iy)*opt.numcellsperdim;
+                    else if (iy>=opt.numcellsperdim) index+=(iy-opt.numcellsperdim)*opt.numcellsperdim;
+                    else index+=iy*opt.numcellsperdim;
+                    if (ix<0) index+=(opt.numcellsperdim+ix)*opt.numcellsperdim*opt.numcellsperdim;
+                    else if (ix>=opt.numcellsperdim) index+=(ix-opt.numcellsperdim)*opt.numcellsperdim*opt.numcellsperdim;
+                    else index+=ix*opt.numcellsperdim*opt.numcellsperdim;
+                    if (ignorelocalcells && opt.cellnodeids[index]==ThisTask && icell[index]) continue;
+                    celllist.push_back(index);
+                    icell[index]=true;
+                }
             }
         }
     }
