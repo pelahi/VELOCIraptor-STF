@@ -3020,7 +3020,7 @@ int fof_id_cmp(const void *a, const void *b)
 vector<int> MPIGetCellListInSearchUsingMesh(Options &opt, Double_t xsearch[3][2], bool ignorelocalcells)
 {
     int numreflecs=0,numreflecchoice=0,ireflec[3];
-    Double_t xsearchp[8][3][2]
+    Double_t xsearchp[8][3][2];
     int ixstart,iystart,izstart,ixend,iyend,izend,index;
     int j,k;
     bool *icell=new bool[opt.numcells];
@@ -3197,12 +3197,12 @@ vector<int> MPIGetCellListInSearchUsingMesh(Options &opt, Double_t xsearch[3][2]
 
     for (auto i=0;i<=numreflecchoice;i++) {
 
-        ixstart=floor(xsearchp[0][0]*opt.icellwidth[0]);
-        ixend=floor(xsearchp[0][1]*opt.icellwidth[0]);
-        iystart=floor(xsearchp[1][0]*opt.icellwidth[1]);
-        iyend=floor(xsearchp[1][1]*opt.icellwidth[1]);
-        izstart=floor(xsearchp[2][0]*opt.icellwidth[2]);
-        izend=floor(xsearchp[2][1]*opt.icellwidth[2]);
+        ixstart=floor(xsearchp[i][0][0]*opt.icellwidth[0]);
+        ixend=floor(xsearchp[i][0][1]*opt.icellwidth[0]);
+        iystart=floor(xsearchp[i][1][0]*opt.icellwidth[1]);
+        iyend=floor(xsearchp[i][1][1]*opt.icellwidth[1]);
+        izstart=floor(xsearchp[i][2][0]*opt.icellwidth[2]);
+        izend=floor(xsearchp[i][2][1]*opt.icellwidth[2]);
 
         for (auto ix=ixstart;ix<=ixend;ix++){
             for (auto iy=iystart;iy<=iyend;iy++){
