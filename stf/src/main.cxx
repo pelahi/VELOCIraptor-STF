@@ -262,7 +262,7 @@ int main(int argc,char **argv)
         time1=MyGetTime();
         if(FileExists(fname4)) ReadLocalVelocityDensity(opt, nbodies,Part);
         else  {
-            GetVelocityDensity(opt, nbodies, Part);
+            GetVelocityDensity(opt, nbodies, Part.data());
             WriteLocalVelocityDensity(opt, nbodies,Part);
         }
         time1=MyGetTime()-time1;
