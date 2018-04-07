@@ -59,7 +59,7 @@ namespace Math
 
 	Double_t nran2(long *idum)
 	{
-		Double_t u,v,s,x,y;
+		Double_t u,v,s,x;
 		do {
 			u=ran2(idum);
 			v=ran2(idum);

@@ -64,7 +64,7 @@ namespace Math
 
     void PolyInt(Double_t *xa, Double_t *ya, int n, Double_t x, Double_t &y, Double_t &dy)
     {
-        int i,m,ns;
+        int ns;
         Double_t den,dif,dift,ho,hp,w;
         Double_t *c=new Double_t[n],*d=new Double_t[n];
         //interpolate uses index one arrays

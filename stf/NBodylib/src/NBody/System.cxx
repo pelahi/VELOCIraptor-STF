@@ -158,7 +158,6 @@ namespace NBody
         Double_t temp,*r=new Double_t[3];
         Double_t mtot=0.;
         Double_t averad=0.;
-        Int_t i;
         if (!cmframe) {
             System S(*this);
             S.AdjustForCM();
@@ -359,13 +358,12 @@ namespace NBody
         Coordinate v(0,0,0);
         Double_t mtot=0.;
         Int_t i;
-        int j;
         if (!cmframe) {
             System S(*this);
             S.AdjustForCMVel();
 #ifndef USEOPENMP
             for (i=0;i<numparts;i++) {
-                for (j=0;j<3;j++) v[j]+=S[i].GetMass()*S[i].GetVelocity(j);
+                for (int j=0;j<3;j++) v[j]+=S[i].GetMass()*S[i].GetVelocity(j);
                 mtot+=S[i].GetMass();
             }
 #else 
@@ -387,7 +385,7 @@ namespace NBody
         else {
 #ifndef USEOPENMP
             for (i=0;i<numparts;i++){ 
-                for (j=0;j<3;j++) v[j]+=particle[i].GetMass()*particle[i].GetVelocity(j);
+                for (int j=0;j<3;j++) v[j]+=particle[i].GetMass()*particle[i].GetVelocity(j);
                 mtot+=particle[i].GetMass();
             }
 #else 

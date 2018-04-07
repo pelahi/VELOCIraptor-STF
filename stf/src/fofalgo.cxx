@@ -66,7 +66,7 @@ int FOFStreamwithprobNN(Particle &a, Particle &b, Double_t *params){
 
 int FOFStreamwithprobNNNODIST(Particle &a, Particle &b, Double_t *params){
     if (a.GetPotential()<params[9]||b.GetPotential()<params[9]) return 0;
-    Double_t total=0,v1=0,v2=0,vdot=0,vnorm;
+    Double_t v1=0,v2=0,vdot=0,vnorm;
     for (int j=0;j<3;j++){
         v1+=a.GetVelocity(j)*a.GetVelocity(j);
         v2+=b.GetVelocity(j)*b.GetVelocity(j);

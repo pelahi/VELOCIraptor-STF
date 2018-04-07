@@ -39,7 +39,7 @@ namespace NBody
         Int_t nsmooth=8,ivol;//search for nsmooth most distant nearest neighbour
         Int_t ID[nsmooth];
         Double_t dist2[nsmooth],off[ND];
-        Double_t sr0[ND],vsmooth=0.,kvol;//? what is vsmooth ? see below where sr0 is normalized by vsmooth
+        Double_t sr0[ND],kvol;//? what is vsmooth ? see below where sr0 is normalized by vsmooth
         for (int i=0;i<3;i++) {xyz[i]=x[i];xyz[i+3]=v[i];}
         //FindNearestPhase(x, v, ID, dist2, nsmooth);
         PriorityQueue *pq=new PriorityQueue(nsmooth);
@@ -70,7 +70,7 @@ namespace NBody
         Int_t nsmooth=8,ivol;//search for nsmooth most distant nearest neighbour
         Int_t ID[nsmooth];
         Double_t dist2[nsmooth],off[ND];
-        Double_t sr0[ND],vsmooth=0.,kvol;//? what is vsmooth ? see below where sr0 is normalized by vsmooth
+        Double_t sr0[ND],kvol;//? what is vsmooth ? see below where sr0 is normalized by vsmooth
         for (int i=0;i<3;i++) {xyz[i]=x[i];xyz[i+3]=v[i];}
         //FindNearestPhase(x, v, ID, dist2, nsmooth);
         PriorityQueue *pq=new PriorityQueue(nsmooth);

@@ -14,12 +14,12 @@
 void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle *&Pbaryons, Int_t nbaryons)
 {
     //counters
-    Int_t i,j,k,n,m,temp,count,countsph,countstar,countbh,count2,bcount,bcount2,pc,pc_new, Ntot,indark,ingas,instar,Ntotfile;
+    Int_t i,k,n,temp,count,countsph,count2,bcount,bcount2,pc,pc_new,indark,ingas,instar,Ntotfile;
     Int_t ntot_withmasses;
     //used to read gadget data
     unsigned int dummy;
     GADGETIDTYPE idval;
-    FLOAT ctemp[3],sphtemp;
+    FLOAT ctemp[3];
     REAL dtemp;
     char buf[2000];
     char DATA[5];
@@ -48,7 +48,6 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
     fstream *Fgadvel, *Fgadid, *Fgadmass, *Fgadsph;
     fstream *Fgadstar, *Fgadbh;
     FLOAT vtemp[3];
-    MPI_Status status;
     MPI_Comm mpi_comm_read;
     Particle *Pbuf;
     vector<Particle> *Preadbuf;
@@ -59,11 +58,11 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
     REAL *dtempchunk;
     GADGETIDTYPE *idvalchunk;
     //for parallel io
-    Int_t Nlocalbuf,*Nbuf, *Nreadbuf,*nreadoffset;
-    int ibuf=0,itask;
+    Int_t *Nbuf, *Nreadbuf,*nreadoffset;
+    int ibuf=0;
     Int_t ibufindex;
-    Int_t *Nlocalthreadbuf,Nlocaltotalbuf;
-    int *irecv, sendTask,recvTask,irecvflag, *mpi_irecvflag;
+    Int_t *Nlocalthreadbuf;
+    int *irecv, *mpi_irecvflag;
     MPI_Request *mpi_request;
     Int_t *mpi_nsend_baryon;
     if (opt.iBaryonSearch && opt.partsearchtype!=PSTALL) mpi_nsend_baryon=new Int_t[NProcs*NProcs];
@@ -256,30 +255,30 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
             {
                 Fgad[i].read((char*)&ctemp[0], sizeof(FLOAT)*3);
                 if (opt.partsearchtype==PSTALL) {
-                    for (m=0;m<3;m++) Part[count2].SetPosition(m,LittleFLOAT(ctemp[m]));
+                    for (Int_t m=0;m<3;m++) Part[count2].SetPosition(m,LittleFLOAT(ctemp[m]));
                     count2++;
                 }
                 else if (opt.partsearchtype==PSTDARK) {
                     if (!(k==GGASTYPE||k==GSTARTYPE||k==GBHTYPE)) {
-                        for (m=0;m<3;m++) Part[count2].SetPosition(m,LittleFLOAT(ctemp[m]));
+                        for (Int_t m=0;m<3;m++) Part[count2].SetPosition(m,LittleFLOAT(ctemp[m]));
                         count2++;
                     }
                     else {
                         if (opt.iBaryonSearch==1 && (k==GGASTYPE || k==GSTARTYPE)) {
-                            for (m=0;m<3;m++) Pbaryons[bcount2].SetPosition(m,LittleFLOAT(ctemp[m]));
+                            for (Int_t m=0;m<3;m++) Pbaryons[bcount2].SetPosition(m,LittleFLOAT(ctemp[m]));
                             bcount2++;
                         }
                     }
                 }
                 else if (opt.partsearchtype==PSTSTAR) {
                     if (k==GSTARTYPE) {
-                        for (m=0;m<3;m++) Part[count2].SetPosition(m,LittleFLOAT(ctemp[m]));
+                        for (Int_t m=0;m<3;m++) Part[count2].SetPosition(m,LittleFLOAT(ctemp[m]));
                         count2++;
                     }
                 }
                 else if (opt.partsearchtype==PSTGAS) {
                     if (k==GGASTYPE) {
-                        for (m=0;m<3;m++) Part[count2].SetPosition(m,LittleFLOAT(ctemp[m]));
+                        for (Int_t m=0;m<3;m++) Part[count2].SetPosition(m,LittleFLOAT(ctemp[m]));
                         count2++;
                     }
                 }
@@ -302,30 +301,30 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
             {
                 Fgad[i].read((char*)&ctemp[0], sizeof(FLOAT)*3);
                 if (opt.partsearchtype==PSTALL) {
-                    for (m=0;m<3;m++) Part[count2].SetVelocity(m,LittleFLOAT(ctemp[m]));
+                    for (Int_t m=0;m<3;m++) Part[count2].SetVelocity(m,LittleFLOAT(ctemp[m]));
                     count2++;
                 }
                 else if (opt.partsearchtype==PSTDARK) {
                     if (!(k==GGASTYPE||k==GSTARTYPE||k==GBHTYPE)) {
-                        for (m=0;m<3;m++) Part[count2].SetVelocity(m,LittleFLOAT(ctemp[m]));
+                        for (Int_t m=0;m<3;m++) Part[count2].SetVelocity(m,LittleFLOAT(ctemp[m]));
                         count2++;
                     }
                     else {
                         if (opt.iBaryonSearch==1 && (k==GGASTYPE || k==GSTARTYPE)) {
-                            for (m=0;m<3;m++) Pbaryons[bcount2].SetVelocity(m,LittleFLOAT(ctemp[m]));
+                            for (Int_t m=0;m<3;m++) Pbaryons[bcount2].SetVelocity(m,LittleFLOAT(ctemp[m]));
                             bcount2++;
                         }
                     }
                 }
                 else if (opt.partsearchtype==PSTSTAR) {
                     if (k==GSTARTYPE) {
-                        for (m=0;m<3;m++) Part[count2].SetVelocity(m,LittleFLOAT(ctemp[m]));
+                        for (Int_t m=0;m<3;m++) Part[count2].SetVelocity(m,LittleFLOAT(ctemp[m]));
                         count2++;
                     }
                 }
                 else if (opt.partsearchtype==PSTGAS) {
                     if (k==GGASTYPE) {
-                        for (m=0;m<3;m++) Part[count2].SetVelocity(m,LittleFLOAT(ctemp[m]));
+                        for (Int_t m=0;m<3;m++) Part[count2].SetVelocity(m,LittleFLOAT(ctemp[m]));
                         count2++;
                     }
                 }
@@ -988,8 +987,7 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
             Fgadstar[i+starstart].read((char*)&dummy, sizeof(dummy));
 #endif
             Fgadstar[i+starstart].read((char*)&dummy, sizeof(dummy));
-            countstar=dummy;
-            Fgadstar[i+starstart].seekg(countstar,ios::cur);
+            Fgadstar[i+starstart].seekg(dummy,ios::cur);
             Fgadstar[i+starstart].read((char*)&dummy, sizeof(dummy));
         }
         }

@@ -638,7 +638,7 @@ namespace NBody
         else
         {
             numnodes++;
-            int splitdim=0,j, enflag;
+            int splitdim=0,j;
             Int_t k = start + (size - 1) / 2;
             Double_t maxspread, minentropy, maxsig,splitvalue;
             Double_t nbins;

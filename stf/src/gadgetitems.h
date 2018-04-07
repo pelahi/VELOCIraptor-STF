@@ -129,7 +129,7 @@ inline int find_files(char *fname)
 {
   FILE *fd;
   char buf[200], buf1[200];
-  int j, dummy;
+  int dummy;
   struct gadget_header header1;
 
 

@@ -40,7 +40,7 @@
 */
 void MPIDomainExtentGadget(Options &opt){
     #define SKIP2 Fgad[i].read((char*)&dummy, sizeof(dummy));
-    Int_t i,j,k,n,m,temp,count,count2,pc,pc_new, Ntot;
+    Int_t i,j,k,n,m,temp,pc,pc_new, Ntot;
     int dummy;
     FLOAT ctemp[3];
     char   buf[200];
@@ -131,7 +131,7 @@ void MPIDomainExtentGadget(Options &opt){
 ///to update the decomposition based on gadget information
 void MPIDomainDecompositionGadget(Options &opt){
     #define SKIP2 Fgad[i].read((char*)&dummy, sizeof(dummy));
-    Int_t i,j,k,n,m,temp,count,count2,pc,pc_new, Ntot;
+    Int_t i,j,k,n,m,temp,pc,pc_new, Ntot;
     int Nsplit,isplit;
     Int_t nbins1d,nbins3d, ibin[3];
     Double_t **histo1d;//for initial projection and estimate of domain decomposition
@@ -511,7 +511,7 @@ void MPINumInDomainGadget(Options &opt)
     MPIDomainExtentGadget(opt);
     MPIInitialDomainDecomposition();
     MPIDomainDecompositionGadget(opt);
-    Int_t i,j,k,n,m,temp,count,count2,pc,pc_new, Ntot,indark,ingas,instar;
+    Int_t i,j,k,n,m,temp,pc,pc_new, Ntot,indark,ingas,instar;
     Int_t idval;
     Int_t ntot_withmasses;
     int dummy;

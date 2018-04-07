@@ -73,7 +73,6 @@ private(i,vel)
 void FillTreeGrid(Options &opt, const Int_t nbodies, const Int_t ngrid, KDTree *&tree, Particle *Part, GridCell* &grid)
 //void FillTreeGrid(Options &opt, const Int_t nbodies, const Int_t ngrid, KDTree *tree, Particle *Part, GridCell* grid, PartCellNum *pglist)
 {
-    Int_t  i;
     Int_t gridcount=0,ncount=0;
     //this is used to create tree and search for near neighbours
     Particle *ptemp=new Particle[ngrid];
@@ -151,7 +150,6 @@ void FillTreeGrid(Options &opt, const Int_t nbodies, const Int_t ngrid, KDTree *
 Coordinate* GetCellVel(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngrid, GridCell *grid)
 {
     Int_t i;
-    int nthreads;
     Double_t mtot;
     Coordinate *gvel;
     gvel=new Coordinate[ngrid];
@@ -181,7 +179,6 @@ private(i,mtot)
 Matrix* GetCellVelDisp(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngrid, GridCell *grid, Coordinate *gvel)
 {
     Int_t i;
-    int nthreads;
     Double_t mtot;
     Matrix *gveldisp;
     gveldisp=new Matrix[ngrid];

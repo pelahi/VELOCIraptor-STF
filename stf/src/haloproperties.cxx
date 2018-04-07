@@ -11,7 +11,7 @@
     These quantites, such as average spacing and ciricular velocity at virial radius, are stored in \ref Options.ellxscale and \ref Options.ellvscale.
 */
 void ScaleLinkingLengths(Options &opt,const Int_t nbodies, Particle *Part,Coordinate &cm,Coordinate &cmvel,Double_t Mtot) {
-    Double_t rhoc,MaxVcirc,rlim[3], Menc[3],Renc[3], Rvir,Mvir,Vcirc;
+    Double_t rhoc,MaxVcirc,rlim[3], Menc[3],Renc[3], Rvir,Mvir;
     cout<<"Determining bulk halo properties to determine physical and velocity scalings"<<endl;
     AdjusttoCM(nbodies, Part, cm, cmvel, Mtot, rlim, MaxVcirc);
     Menc[0]=0.2;Menc[1]=0.5;Menc[2]=0.8;

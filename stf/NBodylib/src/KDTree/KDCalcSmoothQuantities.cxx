@@ -22,7 +22,7 @@ namespace NBody
         Int_t nsmooth=8,ivol;//search for nsmooth most distant nearest neighbour
         Int_t ID[nsmooth];
         Double_t dist2[nsmooth],off[ND];
-        Double_t sr0[ND],vsmooth=0.,kvol;
+        Double_t sr0[ND],kvol;
         for (int i=0;i<3;i++) {xyz[i]=x[i];xyz[i+3]=v[i];}
         PriorityQueue *pq=new PriorityQueue(nsmooth);
         for (Int_t i = 0; i < nsmooth; i++) pq->Push(-1, MAXVALUE);
@@ -60,7 +60,7 @@ namespace NBody
         Int_t nsmooth=8,ivol;//search for nsmooth most distant nearest neighbour
         Int_t ID[nsmooth];
         Double_t dist2[nsmooth],off[ND];
-        Double_t sr0[ND],vsmooth=0.,kvol;
+        Double_t sr0[ND],kvol;
         for (int i=0;i<3;i++) {xyz[i]=x[i];xyz[i+3]=v[i];}
         PriorityQueue *pq=new PriorityQueue(nsmooth);
         for (Int_t i = 0; i < nsmooth; i++) pq->Push(-1, MAXVALUE);
@@ -259,7 +259,6 @@ namespace NBody
                     }
                 }
             }
-            Double_t new_furthest = 0.0;
             Double_t hi = 0.5 * sqrt(pq->TopPriority());
 			//Normalizing by most distant neighbour
             Double_t norm=1.0/pow(hi,(Double_t)(ND*1.));
@@ -814,7 +813,6 @@ namespace NBody
                 }
             }
         }
-        Double_t new_furthest = 0.0;
         Double_t hi = 0.5 * sqrt(pq->TopPriority());
         Double_t norm=1.0/pow(hi,(Double_t)(ND*1.));
         //for phase with anisotropic kernel must account for the fact that metric used in finding
@@ -905,13 +903,11 @@ namespace NBody
                 pq2->Push(nnIDs[j], vdist[j]);
             }
         Double_t hi=0.5*pq2->TopPriority();
-        Double_t new_furthest = 0.0;
         //Normalizing by most distant neighbour
         Double_t norm=1.0/pow(hi,(Double_t)(ND*1.));
         for (Int_t j = 0; j < Nsmooth; j++)
         {
             Double_t rij = pq2->TopPriority();
-            Int_t id=pq2->TopQueue();
             //smoothing kernel used to get weight of particle in SPH calculation
             Double_t Wij = Wsm(rij/hi, (int)(rij/hi*0.5*(kernres-1)), kernres, 2.0/(Double_t)(kernres-1), Kernel)*norm;
             vden+=Wij;
@@ -1124,7 +1120,6 @@ namespace NBody
                 root->FindNearestMetricwithTensor(0.0,bucket,pq,off,x,v,m0,m1,gm);
             }
         }
-        Double_t new_furthest = 0.0;
         Double_t hi = 0.5 * sqrt(pq->TopPriority());
         Double_t norm=1.0/pow(hi,(Double_t)(ND*1.));
         //for phase with anisotropic kernel must account for the fact that metric used in finding
@@ -1197,13 +1192,11 @@ namespace NBody
                 pq2->Push(nnIDs[j], vdist[j]);
             }
         Double_t hi=0.5*pq2->TopPriority();
-        Double_t new_furthest = 0.0;
     	//Normalizing by most distant neighbour
         Double_t norm=1.0/pow(hi,(Double_t)(ND*1.));
         for (Int_t j = 0; j < Nsmooth; j++)
         {
             Double_t rij = pq2->TopPriority();
-            Int_t id=pq2->TopQueue();
             //smoothing kernel used to get weight of particle in SPH calculation
             Double_t Wij = Wsm(rij/hi, (int)(rij/hi*0.5*(kernres-1)), kernres, 2.0/(Double_t)(kernres-1), Kernel)*norm;
             vden+=Wij;
@@ -1342,7 +1335,6 @@ namespace NBody
                 root->FindNearestMetricwithTensor(0.0,bucket,pq,off,x,v,m0,m1,gm);
             }
         }
-        Double_t new_furthest = 0.0;
         Double_t hi = 0.5 * sqrt(pq->TopPriority());
         Double_t norm=1.0/pow(hi,(Double_t)(ND*1.));
         //for phase with anisotropic kernel must account for the fact that metric used in finding
@@ -1415,13 +1407,11 @@ namespace NBody
                 pq2->Push(nnIDs[j], vdist[j]);
             }
         Double_t hi=0.5*pq2->TopPriority();
-        Double_t new_furthest = 0.0;
         //Normalizing by most distant neighbour
         Double_t norm=1.0/pow(hi,(Double_t)(ND*1.));
         for (Int_t j = 0; j < Nsmooth; j++)
         {
             Double_t rij = pq2->TopPriority();
-            Int_t id=pq2->TopQueue();
             //smoothing kernel used to get weight of particle in SPH calculation
             Double_t Wij = Wsm(rij/hi, (int)(rij/hi*0.5*(kernres-1)), kernres, 2.0/(Double_t)(kernres-1), Kernel)*norm;
             vden+=Wij;

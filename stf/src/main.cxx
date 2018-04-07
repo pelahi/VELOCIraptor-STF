@@ -100,7 +100,6 @@ int main(int argc,char **argv)
     //vector<Int_t> pfof, pfofbaryons;
     Int_t *pfof, *pfofbaryons;;
     Int_t *numingroup,**pglist;
-    Int_t *numingroupbaryons,**pglistbaryons;
     Int_t *pfofall;
     //to store information about the group
     PropData *pdata=NULL,*pdatahalos=NULL;
@@ -111,7 +110,7 @@ int main(int argc,char **argv)
 
     Coordinate cm,cmvel;
     Double_t Mtot;
-    char fname1[1000],fname2[1000],fname3[1000],fname4[1000];
+    char fname1[1000],fname4[1000];
 
 #ifdef USEMPI
     mpi_nlocal=new Int_t[NProcs];

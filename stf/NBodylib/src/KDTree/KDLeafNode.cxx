@@ -266,7 +266,6 @@ namespace NBody
 
     void LeafNode::SearchBallPosTagged(Double_t rd, Double_t fdist2, Particle *bucket, Int_t *tagged, Double_t* off, Int_t target, Int_t &nt, int dim)
     {
-        int oldnt=nt;
         //first check to see if entire node lies wihtin search distance
         Double_t maxr0=0.,maxr1=0.;
         for (int j=0;j<dim;j++){
@@ -288,7 +287,6 @@ namespace NBody
 
     void LeafNode::SearchBallPosTagged(Double_t rd, Double_t fdist2, Particle *bucket, Int_t *tagged, Double_t* off, Double_t *x, Int_t &nt, int dim)
     {
-        int oldnt=nt;
         //first check to see if entire node lies wihtin search distance
         Double_t maxr0=0.,maxr1=0.;
         for (int j=0;j<dim;j++){

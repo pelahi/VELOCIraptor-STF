@@ -163,7 +163,6 @@ namespace Cosmology
 	Double_t Timet(Double_t a, const Double_t om, const Double_t ola)
 	{
 	    double h0t0,h0t;
-    	double low[1],up[1];
 	    Double_t *param=new Double_t[20];
 		param[1]=om;
 		param[2]=ola;
@@ -217,7 +216,6 @@ namespace Cosmology
     Double_t Timeh(const Double_t a, const Double_t om, const Double_t ola)
     {
 	    double result;
-    	double low[1],up[1];
 	    Double_t *param=new Double_t[20];
 		param[1]=om;
 		param[2]=ola;
@@ -758,12 +756,11 @@ namespace Cosmology
         const int jmax=14;
         const int jmaxp=jmax+1; 
         const int k=5;
-        const int km=k-1;
         Double_t *h=new Double_t[jmaxp+1];
         Double_t *s=new Double_t[jmaxp];
         Double_t x,del,ddel,sum,ss,dss;
         Double_t arange=a2-a1;
-        int it,tnm;
+        int it;
         h[1]=1.;
         for (int j=1;j<=jmax;j++)
         {

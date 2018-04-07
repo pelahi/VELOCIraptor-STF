@@ -667,7 +667,7 @@ namespace NBody
         Int_t nsize;
         Double_t off[6];
 
-        Int_t iHead=target,iTail=target,id=bucket[target].GetID(),iid;
+        Int_t iHead=target,iTail=target,iid;
         Int_t oldtail,oldidval;
         pLen[iGroup]=0;
         //initial arrays

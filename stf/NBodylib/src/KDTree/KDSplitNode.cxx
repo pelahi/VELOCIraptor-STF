@@ -879,7 +879,6 @@ namespace NBody
     //there are several reflections to search (sum_i^ND choose(ND,i), so for 3d have 7 possible reflections)
     void SplitNode::FindNearestPosPeriodic(Double_t rd, Particle *bucket, PriorityQueue *pq, Double_t *off, Double_t *p, Int_t target, int dim)
     {
-        Double_t sval;
         Coordinate x0,xp;
         x0=Coordinate(bucket[target].GetPosition());
         FindNearestPosPeriodic(rd,bucket,pq,off,p,x0,dim);

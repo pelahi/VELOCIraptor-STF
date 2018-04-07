@@ -335,7 +335,6 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
     Attribute headerattribs;
     HDF_Header hdf_header_info;
     //buffers to load data
-    int intbuff[NHDFTYPE];
     unsigned int uintbuff[NHDFTYPE];
     int j,k,ireaderror=0;
     Int_t nbodies=0;

@@ -193,7 +193,6 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 #ifdef USEMPI
     //since positions, velocities, masses are all at different points in the file,
     //to correctly assign particle to proccessor with correct velocities and mass must have several file pointers
-    MPI_Status status;
     Particle *Pbuf;
     int mpi_ireaderror;
 
@@ -201,11 +200,11 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     MPI_Comm mpi_comm_read;
     vector<Particle> *Preadbuf;
     Int_t BufSize=opt.mpiparticlebufsize;
-    Int_t Nlocalbuf,*Nbuf, *Nreadbuf,*nreadoffset;
-    int ibuf=0,itask;
+    Int_t *Nbuf, *Nreadbuf,*nreadoffset;
+    int ibuf=0;
     Int_t ibufindex;
-    Int_t *Nlocalthreadbuf,Nlocaltotalbuf;
-    int *irecv, sendTask,recvTask,irecvflag, *mpi_irecvflag;
+    Int_t *Nlocalthreadbuf;
+    int *irecv, *mpi_irecvflag;
     MPI_Request *mpi_request;
     Int_t *mpi_nsend_baryon;
     if (opt.iBaryonSearch && opt.partsearchtype!=PSTALL) mpi_nsend_baryon=new Int_t[NProcs*NProcs];
@@ -221,7 +220,6 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     //used in mpi to load access to all the data blocks of interest
     DataSet *partsdatasetall;
     DataSpace *partsdataspaceall;
-    DataSpace *chunkspaceall;
 
     //extra blocks to store info
     float *velfloatbuff=new float[chunksize*3];

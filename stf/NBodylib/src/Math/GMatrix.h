@@ -480,8 +480,7 @@ class GMatrix
     GMatrix Unit_Upper_Triangular_Inverse()
     {
         Double_t U[row*col];
-        int i, j, k, p_i, p_j, p_k;
-        Double_t sum;
+        int i, j, k, p_i, p_k;
         for (j=0;j<row;j++) for (k=j+1;k<col;k++) U[j*col+k]=matrix[j*col+k];
         for (j=0;j<row;j++) for (k=0;k<=j;k++) U[j*col+k]=(j==k);
         //         Invert the superdiagonal part of the matrix U row by row where

@@ -71,7 +71,7 @@ namespace Math
                          const Double_t b, const int n)
     {
         int it,j;
-        Double_t  sum,s, del,x,tnm,si;
+        Double_t  sum,s, del,x,tnm;
         //cerr<<n<<" "<<a<<" "<<((Double_t *)f->params)[0]<<" "<<f->function(a,f->params)<<endl;
         if (n<=1) return (0.5*(b-a)*(f->function(a,f->params)+f->function(b,f->params)));
         /*else

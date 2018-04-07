@@ -126,12 +126,11 @@ namespace Math
 
     Double_t OptimalBins(const int npoints, Double_t *points, Double_t xmin, Double_t xmax, Double_t *weights){
         //for bracketing to find mimimum, use very large number of bins and very small number
-        Int_t nbins=max((Int_t)npoints/100.0,9.0)+1;
         Int_t nbins1=max((Int_t)npoints/100.0,9.0)+1,nbins2=5;
-        Double_t *ki, *ki1,*ki2;
-        Double_t delta1,delta2,deltamin,deltamid;
+        Double_t *ki1,*ki2;
+        Double_t delta1,delta2,deltamin;
         Double_t kmean1,kvar1,kmean2,kvar2;
-        Double_t Cdelta1,Cdelta2,dCddelta1,dCdelta2,Cdeltamin;
+        Double_t Cdelta1,Cdelta2,Cdeltamin;
         
         //xbins=new Double_t[nbins];
         ki1=new Double_t[nbins1];
