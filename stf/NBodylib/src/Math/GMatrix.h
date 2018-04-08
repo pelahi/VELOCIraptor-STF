@@ -357,13 +357,11 @@ class GMatrix
     Double_t Det() const
     {
         Double_t total =0.;
-        Double_t temp;
         int tempi;
         if (row==col) {
             if (row==2) return matrix[0]*matrix[3]-matrix[1]*matrix[2];
             else {
                 for (int i = 0; i < col; i++) {
-                    temp=matrix[i];
                     Double_t data[(row-1)*(row-1)];
                     tempi=0;
                     for (int j=1;j<row;j++)

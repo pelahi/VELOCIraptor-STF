@@ -493,8 +493,6 @@ namespace Cosmology
 	    gsl_monte_function gslFM1;
   		gslFM1.dim=1;
     	gslFM1.params=params;
-    	gsl_function gslF1;
-	    gslF1.params=params;
 	    //math_multidim_function FM1;
    		//FM1.ndim=1;
     	//FM1.params=params;
@@ -690,8 +688,6 @@ namespace Cosmology
 	    gsl_monte_function gslFM1;
   		gslFM1.dim=1;
     	gslFM1.params=params;
-    	gsl_function gslF1;
-	    gslF1.params=params;
 	    //math_multidim_function FM1;
    		//FM1.ndim=1;
     	//FM1.params=params;

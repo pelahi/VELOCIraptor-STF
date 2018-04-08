@@ -21,7 +21,7 @@ namespace NBody
         Double_t xyz[6];
         Int_t nsmooth=8,ivol;//search for nsmooth most distant nearest neighbour
         Int_t ID[nsmooth];
-        Double_t dist2[nsmooth],off[ND];
+        Double_t off[ND];
         Double_t sr0[ND],kvol;
         for (int i=0;i<3;i++) {xyz[i]=x[i];xyz[i+3]=v[i];}
         PriorityQueue *pq=new PriorityQueue(nsmooth);
@@ -36,7 +36,6 @@ namespace NBody
                 printf("CalculateMetricSpacing failed for unknown reasons\n");
                 exit(1);
             }
-            dist2[i] = pq->TopPriority();
             pq->Pop();
         }
         delete pq;
@@ -59,7 +58,7 @@ namespace NBody
         Double_t xyz[6];
         Int_t nsmooth=8,ivol;//search for nsmooth most distant nearest neighbour
         Int_t ID[nsmooth];
-        Double_t dist2[nsmooth],off[ND];
+        Double_t off[ND];
         Double_t sr0[ND],kvol;
         for (int i=0;i<3;i++) {xyz[i]=x[i];xyz[i+3]=v[i];}
         PriorityQueue *pq=new PriorityQueue(nsmooth);
@@ -74,7 +73,6 @@ namespace NBody
                 printf("CalculateMetricSpacing failed for unknown reasons\n");
                 exit(1);
             }
-            dist2[i] = pq->TopPriority();
             pq->Pop();
         }
         delete pq;

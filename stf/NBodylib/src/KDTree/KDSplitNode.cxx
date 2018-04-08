@@ -1397,31 +1397,30 @@ namespace NBody
     {
         FOFSearchCriterion(rd,cmp,params,iGroup,nActive,bucket,Group,Len,Head,Tail,Next,BucketFlag,Fifo,iTail,off,target);
         Coordinate x0(bucket[target].GetPosition()),xp;
-        Double_t sval;
         for (int k=0;k<NSPACEDIM;k++) {
             for (int j = 0; j < NSPACEDIM; j++) off[j] = 0.0;
-            sval=PeriodicReflection1D(x0,xp,p,k);
+            PeriodicReflection1D(x0,xp,p,k);
             for (int j=0;j<3;j++) bucket[target].SetPosition(j,xp[j]);
             FOFSearchCriterion(rd,cmp,params,iGroup,nActive,bucket,Group,Len,Head,Tail,Next,BucketFlag,Fifo,iTail,off,target);
         }
         if (NSPACEDIM==3) {
             for (int j = 0; j < NSPACEDIM; j++) off[j] = 0.0;
-            sval=PeriodicReflection2D(x0,xp,p,0,1);
+            PeriodicReflection2D(x0,xp,p,0,1);
             for (int j=0;j<3;j++) bucket[target].SetPosition(j,xp[j]);
             FOFSearchCriterion(rd,cmp,params,iGroup,nActive,bucket,Group,Len,Head,Tail,Next,BucketFlag,Fifo,iTail,off,target);
             for (int j = 0; j < NSPACEDIM; j++) off[j] = 0.0;
-            sval=PeriodicReflection2D(x0,xp,p,0,2);
+            PeriodicReflection2D(x0,xp,p,0,2);
             for (int j=0;j<3;j++) bucket[target].SetPosition(j,xp[j]);
             FOFSearchCriterion(rd,cmp,params,iGroup,nActive,bucket,Group,Len,Head,Tail,Next,BucketFlag,Fifo,iTail,off,target);
             for (int j = 0; j < NSPACEDIM; j++) off[j] = 0.0;
-            sval=PeriodicReflection2D(x0,xp,p,1,2);
+            PeriodicReflection2D(x0,xp,p,1,2);
             for (int j=0;j<3;j++) bucket[target].SetPosition(j,xp[j]);
             FOFSearchCriterion(rd,cmp,params,iGroup,nActive,bucket,Group,Len,Head,Tail,Next,BucketFlag,Fifo,iTail,off,target);
         }
         // search all axis if current max dist less than search radius
         if (NSPACEDIM>1) {
             for (int j = 0; j < NSPACEDIM; j++) off[j] = 0.0;
-            sval=PeriodicReflectionND(x0,xp,p,NSPACEDIM);
+            PeriodicReflectionND(x0,xp,p,NSPACEDIM);
             for (int j=0;j<3;j++) bucket[target].SetPosition(j,xp[j]);
             FOFSearchCriterion(rd,cmp,params,iGroup,nActive,bucket,Group,Len,Head,Tail,Next,BucketFlag,Fifo,iTail,off,target);
         }
@@ -1432,31 +1431,30 @@ namespace NBody
     {
         FOFSearchCriterionSetBasisForLinks(rd,cmp,check,params,iGroup,nActive,bucket,Group,Len,Head,Tail,Next,BucketFlag,Fifo,iTail,off,target);
         Coordinate x0(bucket[target].GetPosition()),xp;
-        Double_t sval;
         for (int k=0;k<NSPACEDIM;k++) {
             for (int j = 0; j < NSPACEDIM; j++) off[j] = 0.0;
-            sval=PeriodicReflection1D(x0,xp,p,k);
+            PeriodicReflection1D(x0,xp,p,k);
             for (int j=0;j<3;j++) bucket[target].SetPosition(j,xp[j]);
             FOFSearchCriterionSetBasisForLinks(rd,cmp,check,params,iGroup,nActive,bucket,Group,Len,Head,Tail,Next,BucketFlag,Fifo,iTail,off,target);
         }
         if (NSPACEDIM==3) {
             for (int j = 0; j < NSPACEDIM; j++) off[j] = 0.0;
-            sval=PeriodicReflection2D(x0,xp,p,0,1);
+            PeriodicReflection2D(x0,xp,p,0,1);
             for (int j=0;j<3;j++) bucket[target].SetPosition(j,xp[j]);
             FOFSearchCriterionSetBasisForLinks(rd,cmp,check,params,iGroup,nActive,bucket,Group,Len,Head,Tail,Next,BucketFlag,Fifo,iTail,off,target);
             for (int j = 0; j < NSPACEDIM; j++) off[j] = 0.0;
-            sval=PeriodicReflection2D(x0,xp,p,0,2);
+            PeriodicReflection2D(x0,xp,p,0,2);
             for (int j=0;j<3;j++) bucket[target].SetPosition(j,xp[j]);
             FOFSearchCriterionSetBasisForLinks(rd,cmp,check,params,iGroup,nActive,bucket,Group,Len,Head,Tail,Next,BucketFlag,Fifo,iTail,off,target);
             for (int j = 0; j < NSPACEDIM; j++) off[j] = 0.0;
-            sval=PeriodicReflection2D(x0,xp,p,1,2);
+            PeriodicReflection2D(x0,xp,p,1,2);
             for (int j=0;j<3;j++) bucket[target].SetPosition(j,xp[j]);
             FOFSearchCriterionSetBasisForLinks(rd,cmp,check,params,iGroup,nActive,bucket,Group,Len,Head,Tail,Next,BucketFlag,Fifo,iTail,off,target);
         }
         // search all axis if current max dist less than search radius
         if (NSPACEDIM>1) {
             for (int j = 0; j < NSPACEDIM; j++) off[j] = 0.0;
-            sval=PeriodicReflectionND(x0,xp,p,NSPACEDIM);
+            PeriodicReflectionND(x0,xp,p,NSPACEDIM);
             for (int j=0;j<3;j++) bucket[target].SetPosition(j,xp[j]);
             FOFSearchCriterionSetBasisForLinks(rd,cmp,check,params,iGroup,nActive,bucket,Group,Len,Head,Tail,Next,BucketFlag,Fifo,iTail,off,target);
         }

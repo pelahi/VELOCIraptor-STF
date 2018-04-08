@@ -22,7 +22,7 @@ namespace Math
             for (int i=0;i<nparams;i++) parlist[i]=i;
         }
         int dof=npoints-npar-(binned==1);
-        Double_t chi2,oldchi2,deltachi2,lambda=0.001,lambdabnd;
+        Double_t chi2,oldchi2,deltachi2,lambda=0.001;
         GMatrix Jacobian(npoints,npar),JT(npoints,npar);
         GMatrix dY(npoints,1), dP(npar,1); //difference between data points and prediction, and resulting difference in parameters
         GMatrix a(npar), aa(npar), b(npar,1), ainv(npar);//temporary matrices
@@ -45,7 +45,6 @@ namespace Math
             JT=Jacobian.Transpose();
             a=JT*(*W)*Jacobian;
             if (a.Trace()==0) {return -1;}
-            lambdabnd=1.0/(a.Trace());
             //increase importance of diagonal elements of a with Levenberg-Marquardt parameter
             //aa=a.Diag();
             a=(a+a.Diag())*lambda;

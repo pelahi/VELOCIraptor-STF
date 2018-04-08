@@ -36,7 +36,7 @@ namespace NBody
         if (pTail==NULL)    {pTail=new Int_tree_t[numparts];ipt=true;}
 
         Int_t iGroup=0,iHead=0,iTail=0,id,iid;
-        Int_t maxlen=0,maxlenid;
+        Int_t maxlen=0;
 
         //initial arrays
         for (Int_t i=0;i<numparts;i++) {
@@ -78,7 +78,7 @@ namespace NBody
                 } while ((ii=pNext[ii])!=-1);
             pLen[iGroup--]=0;
             }
-            if (maxlen<pLen[iGroup]){maxlen=pLen[iGroup];maxlenid=iGroup;}
+            if (maxlen<pLen[iGroup]){maxlen=pLen[iGroup];}
         }
 
         for (Int_t i=0;i<numparts;i++) if(pGroup[bucket[i].GetID()]==-1)pGroup[bucket[i].GetID()]=0;
@@ -104,7 +104,6 @@ namespace NBody
                     }
                 }
                 //now order group indices
-                maxlenid=1;
                 PriorityQueue *pq=new PriorityQueue(iGroup);
                 for (Int_t i = 1; i <=iGroup; i++) pq->Push(i, pLen[i]);
                 maxlen=pq->TopPriority();
@@ -147,7 +146,7 @@ namespace NBody
 
         Double_t off[6];
         Int_t iGroup=0,iHead=0,iTail=0,id,iid;
-        Int_t maxlen=0,maxlenid;
+        Int_t maxlen=0;
 
         //initial arrays
         for (Int_t i=0;i<numparts;i++) {
@@ -190,7 +189,7 @@ namespace NBody
             pLen[iGroup--]=0;
             }
             //determine biggest group
-            else if (maxlen<pLen[iGroup]){maxlen=pLen[iGroup];maxlenid=iGroup;}
+            else if (maxlen<pLen[iGroup]){maxlen=pLen[iGroup];}
         }
 
         //for all groups that were too small reset id to 0
@@ -216,7 +215,6 @@ namespace NBody
 
                 }
                 //now order group indices
-                maxlenid=1;
                 PriorityQueue *pq=new PriorityQueue(iGroup);
                 for (Int_t i = 1; i <=iGroup; i++) pq->Push(i, pLen[i]);
                 maxlen=pq->TopPriority();
@@ -257,7 +255,7 @@ namespace NBody
 
         Double_t off[6];
         Int_t iGroup=0,iHead=0,iTail=0,id,iid;
-        Int_t maxlen=0,maxlenid;
+        Int_t maxlen=0;
 
         //initial arrays
         for (Int_t i=0;i<numparts;i++) {
@@ -303,7 +301,7 @@ namespace NBody
             pLen[iGroup--]=0;
             }
             //determine biggest group
-            else if (maxlen<pLen[iGroup]){maxlen=pLen[iGroup];maxlenid=iGroup;}
+            else if (maxlen<pLen[iGroup]){maxlen=pLen[iGroup];}
         }
 
         //for all groups that were too small reset id to 0
@@ -329,7 +327,6 @@ namespace NBody
 
                 }
                 //now order group indices
-                maxlenid=1;
                 PriorityQueue *pq=new PriorityQueue(iGroup);
                 for (Int_t i = 1; i <=iGroup; i++) pq->Push(i, pLen[i]);
                 maxlen=pq->TopPriority();

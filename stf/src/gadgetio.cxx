@@ -14,7 +14,7 @@
 void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle *&Pbaryons, Int_t nbaryons)
 {
     //counters
-    Int_t i,k,n,temp,count,countsph,count2,bcount,bcount2,pc,pc_new,indark,ingas,instar,Ntotfile;
+    Int_t i,k,n,temp,count,countsph,count2,bcount,bcount2,pc,pc_new,Ntotfile;
     Int_t ntot_withmasses;
     //used to read gadget data
     unsigned int dummy;
@@ -233,7 +233,6 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
     //now read and store data appropriately
     for(i=0,count=0,bcount=0,pc=0;i<opt.num_files; i++,pc=pc_new,count=count2,bcount=bcount2)
     {
-        indark=instar=ingas=0;
 #ifdef GADGET2FORMAT
         SKIP2;
         Fgad[i].read((char*)&DATA[0],sizeof(char)*4);DATA[4] = '\0';
