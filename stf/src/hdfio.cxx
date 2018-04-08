@@ -438,30 +438,30 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                 hdf_header_info[i].num_files=longbuff[0];
             }
         }
-        catch(GroupIException error)
+        catch(GroupIException &error)
         {
             error.printError();
         }
         // catch failure caused by the H5File operations
-        catch( FileIException error )
+        catch( FileIException &error )
         {
             error.printError();
 
         }
         // catch failure caused by the DataSet operations
-        catch( DataSetIException error )
+        catch( DataSetIException &error )
         {
             error.printError();
             ireaderror=1;
         }
         // catch failure caused by the DataSpace operations
-        catch( DataSpaceIException error )
+        catch( DataSpaceIException &error )
         {
             error.printError();
             ireaderror=1;
         }
         // catch failure caused by the DataSpace operations
-        catch( DataTypeIException error )
+        catch( DataTypeIException &error )
         {
             error.printError();
             ireaderror=1;

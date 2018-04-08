@@ -381,30 +381,30 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
         headerattribs.read(PredType::NATIVE_UINT,&uintbuff);
         for (j=0;j<NHDFTYPE;j++) hdf_header_info.npartTotalHW[j]=uintbuff[j];
     }
-    catch(GroupIException error)
+    catch(GroupIException &error)
     {
         error.printError();
     }
     // catch failure caused by the H5File operations
-    catch( FileIException error )
+    catch( FileIException &error )
     {
         error.printError();
 
     }
     // catch failure caused by the DataSet operations
-    catch( DataSetIException error )
+    catch( DataSetIException &error )
     {
         error.printError();
         ireaderror=1;
     }
     // catch failure caused by the DataSpace operations
-    catch( DataSpaceIException error )
+    catch( DataSpaceIException &error )
     {
         error.printError();
         ireaderror=1;
     }
     // catch failure caused by the DataSpace operations
-    catch( DataTypeIException error )
+    catch( DataTypeIException &error )
     {
         error.printError();
         ireaderror=1;
@@ -474,30 +474,30 @@ inline Int_t HDF_get_nfiles(char *fname, int ptype)
           hdf_header_info.num_files = longbuff;
         }
     }
-    catch(GroupIException error)
+    catch(GroupIException &error)
     {
         error.printError();
     }
     // catch failure caused by the H5File operations
-    catch( FileIException error )
+    catch( FileIException &error )
     {
         error.printError();
 
     }
     // catch failure caused by the DataSet operations
-    catch( DataSetIException error )
+    catch( DataSetIException &error )
     {
         error.printError();
         ireaderror=1;
     }
     // catch failure caused by the DataSpace operations
-    catch( DataSpaceIException error )
+    catch( DataSpaceIException &error )
     {
         error.printError();
         ireaderror=1;
     }
     // catch failure caused by the DataSpace operations
-    catch( DataTypeIException error )
+    catch( DataTypeIException &error )
     {
         error.printError();
         ireaderror=1;
