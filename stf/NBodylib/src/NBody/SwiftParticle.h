@@ -22,6 +22,8 @@ namespace Swift
         swift_type_count
     } __attribute__((packed));
 
+    typedef char timebin_t;
+
     /* Gravity particle. */
     struct gpart {
 
@@ -47,11 +49,8 @@ namespace Swift
         /* Gravitational potential */
         float potential;
 
-        /* Softening length */
-        float epsilon;
-
         /* Time-step length */
-        //timebin_t time_bin;
+        timebin_t time_bin;
 
         /* Type of the #gpart (DM, gas, star, ...) */
         enum part_type type;
