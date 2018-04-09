@@ -3020,6 +3020,7 @@ int fof_id_cmp(const void *a, const void *b)
 vector<int> MPIGetCellListInSearchUsingMesh(Options &opt, Double_t xsearch[3][2], bool ignorelocalcells)
 {
     int ixstart,iystart,izstart,ixend,iyend,izend,index;
+    vector<int> celllist;
     ixstart=floor(xsearch[0][0]*opt.icellwidth[0]);
     ixend=floor(xsearch[0][1]*opt.icellwidth[0]);
     iystart=floor(xsearch[1][0]*opt.icellwidth[1]);
@@ -3040,9 +3041,8 @@ vector<int> MPIGetCellListInSearchUsingMesh(Options &opt, Double_t xsearch[3][2]
                 if (ix<0) index+=(opt.numcellsperdim+ix)*opt.numcellsperdim*opt.numcellsperdim;
                 else if (ix>=opt.numcellsperdim) index+=(ix-opt.numcellsperdim)*opt.numcellsperdim*opt.numcellsperdim;
                 else index+=ix*opt.numcellsperdim*opt.numcellsperdim;
-                if (ignorelocalcells && opt.cellnodeids[index]==ThisTask && icell[index]) continue;
+                if (ignorelocalcells && opt.cellnodeids[index]==ThisTask) continue;
                 celllist.push_back(index);
-                icell[index]=true;
             }
         }
     }
