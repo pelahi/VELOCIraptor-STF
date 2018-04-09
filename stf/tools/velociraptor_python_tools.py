@@ -33,7 +33,7 @@ Routines for reading velociraptor output
 	IO Routines
 """
 
-def ReadPropertyFile(basefilename,ibinary=0,iseparatesubfiles=0,iverbose=0, desiredfields=[]):
+def ReadPropertyFile(basefilename,ibinary=0,iseparatesubfiles=0,iverbose=0, desiredfields=[], isiminfo=True, iunitinfo=True):
 	"""
 	VELOCIraptor/STF files in various formats
 	for example ascii format contains
@@ -154,7 +154,7 @@ def ReadPropertyFile(basefilename,ibinary=0,iseparatesubfiles=0,iverbose=0, desi
 		numfiles=int(halofile["Num_of_files"][0])
 		numhalos=np.uint64(halofile["Num_of_groups"][0])
 		numtothalos=np.uint64(halofile["Total_num_of_groups"][0])
-		atime=np.float(halofile.attrs["Time"])
+		#atime=np.float(halofile.attrs["Time"])
 		fieldnames=[str(n) for n in halofile.keys()]
 		#clean of header info
 		fieldnames.remove("File_id")
@@ -229,22 +229,23 @@ def ReadPropertyFile(basefilename,ibinary=0,iseparatesubfiles=0,iverbose=0, desi
 				catvalue=fieldnames[i]
 			if (numhalos>0): catalog[catvalue][noffset:noffset+numhalos]=htemp[i]
 			noffset+=numhalos
-
 	#load associated simulation info, time and units
-	siminfoname=basefilename+".siminfo"
-	unitinfoname=basefilename+".units"
-	siminfo=open(siminfoname,'r')
-	unitinfo=open(unitinfoname,'r')
-	catalog['SimulationInfo']=dict()
-	catalog['UnitInfo']=dict()
-	for l in siminfo:
-		d=l.strip().split(' : ')
-		catalog['SimulationInfo'][d[0]]=float(d[1])
-	for l in unitinfo:
-		d=l.strip().split(' : ')
-		catalog['UnitInfo'][d[0]]=float(d[1])
-	siminfo.close()
-	unitinfo.close()
+	if (isiminfo):
+		siminfoname=basefilename+".siminfo"
+		siminfo=open(siminfoname,'r')
+		catalog['SimulationInfo']=dict()
+		for l in siminfo:
+			d=l.strip().split(' : ')
+			catalog['SimulationInfo'][d[0]]=float(d[1])
+		siminfo.close()
+	if (iunitinfo):
+		unitinfoname=basefilename+".units"
+		unitinfo=open(unitinfoname,'r')
+		catalog['UnitInfo']=dict()
+		for l in unitinfo:
+			d=l.strip().split(' : ')
+			catalog['UnitInfo'][d[0]]=float(d[1])
+		unitinfo.close()
 
 	if (iverbose): print("done reading properties file ",time.clock()-start)
 	return catalog,numtothalos
@@ -260,7 +261,7 @@ def ReadPropertyFileMultiWrapperNamespace(index,basefilename,ns,ibinary=0,isepar
 	#call read routine and store the data
 	ns.hdata[index],ns.ndata[index],ns.adata[index]=ReadPropertyFile(basefilename,ibinary,iseparatesubfiles,iverbose,desiredfields)
 
-def ReadHaloMergerTree(numsnaps,treefilename,ibinary=0,iverbose=0):
+def ReadHaloMergerTree(treefilename,ibinary=0,iverbose=0):
 	"""
 	VELOCIraptor/STF merger tree in ascii format contains
 	a header with
@@ -318,6 +319,14 @@ def ReadHaloMergerTree(numsnaps,treefilename,ibinary=0,iverbose=0):
 						tree[i]["Progen"][j][k]=np.int64(treefile.readline())
 
 	elif(ibinary==2):
+
+		snaptreelist=open(treefilename,'r')
+		#read the first file, get number of snaps from hdf file
+		snaptreename = snaptreelist.readline().strip()+".tree.hdf5"
+		treedata=h5py.File(snaptreename,"r")
+		numsnaps=treedata.attrs['Num_snaps']
+		treedata.close()
+		snaptreelist.close()
 
 		tree=[{"haloID": [], "Num_progen": [], "Progen": []} for i in range(numsnaps)]
 		snaptreelist=open(treefilename,'r')
