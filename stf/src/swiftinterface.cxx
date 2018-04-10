@@ -117,7 +117,7 @@ void InitVelociraptor(char* configname, char* outputname, cosmoinfo c, unitinfo 
     WriteUnitInfo(libvelociraptorOpt);
 }
 
-void InvokeVelociraptor(const int num_gravity_parts, struct gpart *gravity_parts, const int *cell_node_ids, char* outputname) {
+void InvokeVelociraptor(const int num_gravity_parts, const int num_hydro_parts, struct gpart *gravity_parts, const int *cell_node_ids, char* outputname) {
 #ifndef USEMPI
     int ThisTask=0;
     int NProcs=1;
@@ -159,10 +159,35 @@ void InvokeVelociraptor(const int num_gravity_parts, struct gpart *gravity_parts
     parts=new Particle[Nmemlocal];
     cout<<"Copying particle data..."<< endl;
     time1=MyGetTime();
-    for(auto i=0; i<Nlocal; i++) {
-        parts[i] = Particle(gravity_parts[i], libvelociraptorOpt.L, libvelociraptorOpt.V, libvelociraptorOpt.M, libvelociraptorOpt.U, libvelociraptorOpt.icosmologicalin,libvelociraptorOpt.a,libvelociraptorOpt.h);
-        parts[i].SetType(DARKTYPE);
+
+/// If we are performing a baryon search, sort the particles so that the DM particles are at the start of the array followed by the gas particles.
+    if (libvelociraptorOpt.iBaryonSearch>0 && libvelociraptorOpt.partsearchtype!=PSTALL) {
+      size_t dmCount = num_gravity_parts - num_hydro_parts, gasCount = num_hydro_parts;
+      size_t dmOffset = 0, gasOffset = 0;
+      
+      cout<<"There are "<<gasCount<<" gas particles and "<<dmCount<<" DM particles."<<endl;
+      for(auto i=0; i<Nlocal; i++) {
+        if(gravity_parts[i].type == DARKTYPE) {
+          parts[dmOffset++] = Particle(gravity_parts[i], libvelociraptorOpt.L, libvelociraptorOpt.V, libvelociraptorOpt.M, libvelociraptorOpt.U, libvelociraptorOpt.icosmologicalin,libvelociraptorOpt.a,libvelociraptorOpt.h);
+        }
+        else if(gravity_parts[i].type == GASTYPE) {
+          parts[dmCount + gasOffset] = Particle(gravity_parts[i], libvelociraptorOpt.L, libvelociraptorOpt.V, libvelociraptorOpt.M, libvelociraptorOpt.U, libvelociraptorOpt.icosmologicalin,libvelociraptorOpt.a,libvelociraptorOpt.h);
+          gasOffset++;
+        }
+        else {
+          cout<<"Unknown particle type found: "<<gravity_parts[i].type<<" Exiting..."<<endl;
+          exit(0);
+        }
+      }
     }
+    else {
+
+      for(auto i=0; i<Nlocal; i++) {
+        parts[i] = Particle(gravity_parts[i], libvelociraptorOpt.L, libvelociraptorOpt.V, libvelociraptorOpt.M, libvelociraptorOpt.U, libvelociraptorOpt.icosmologicalin,libvelociraptorOpt.a,libvelociraptorOpt.h);
+      }
+
+    }
+
     time1=MyGetTime()-time1;
     cout<<"Finished copying particle data."<< endl;
     Nlocal=num_gravity_parts; /* JSW: Already set previously to same value. */
