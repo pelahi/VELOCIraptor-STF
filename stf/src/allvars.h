@@ -74,9 +74,7 @@ using namespace NBody;
 
 //-- Structures and external variables
 
-/// \name Particle types
-//@{
-/// \defgroup PARTTYPES
+/// \defgroup PARTTYPES Particle types
 //@{
 #define  GASTYPE 0
 #define  DARKTYPE 1
@@ -89,11 +87,8 @@ using namespace NBody;
 //number of baryon types +1, to store all baryons
 #define  NBARYONTYPES 5
 //@}
-//@}
 
-/// \defgroup SEARCHTYPES
-//@{
-/// \name Specify particle type to be searched, all, dm only, separate
+/// \defgroup SEARCHTYPES Specify particle type to be searched, all, dm only, separate
 //@{
 #define  PSTALL 1
 #define  PSTDARK 2
@@ -102,13 +97,10 @@ using namespace NBody;
 #define  PSTBH 5
 #define  PSTNOBH 6
 //@}
-//@}
 
-/// \defgroup STRUCTURETYPES
+/// \defgroup STRUCTURETYPES Specific structure type, allow for other types beside HALO
 //@{
-/// \name Specific structure type, allow for other types beside HALO
 /// \todo note that here I have set background group type to a halo structure type but that can be changed
-//@{
 #define HALOSTYPE 10
 #define HALOCORESTYPE 5
 #define WALLSTYPE 1
@@ -119,11 +111,8 @@ using namespace NBody;
 #define FOF3DTYPE 7
 #define FOF3DGROUP -2
 //@}
-//@}
 
-/// \defgroup FOFTYPES
-//@{
-/// \name FOF search types
+/// \defgroup FOFTYPES FOF search types
 //@{
 //subsets made
 ///call \ref FOFStreamwithprob
@@ -143,7 +132,7 @@ using namespace NBody;
 #define  FOFSTPROBSCALEELL 13
 //#define  FOFSTPROBIT 13
 #define  FOFSTPROBSCALEELLNN 14
-//solely phase-space tensor core growth substructure search 
+//solely phase-space tensor core growth substructure search
 #define  FOF6DCORE 6
 
 ///phase-space FOF but no subset produced
@@ -155,11 +144,8 @@ using namespace NBody;
 ///3d search
 #define  FOF3D 5
 //@}
-//@}
 
-/// \defgroup INTERATIVESEARCHPARAMS
-//@{
-/// \name for iterative subsubstructure search
+/// \defgroup INTERATIVESEARCHPARAMS for iterative subsubstructure search
 //@{
 /// this is minimum particle number size for a subsearch to proceed whereby substructure split up into CELLSPLITNUM new cells
 #define  MINCELLSIZE 100
@@ -169,16 +155,12 @@ using namespace NBody;
 /// maximum fraction a cell can take of a halo
 #define  MAXCELLFRACTION 0.1
 //@}
-//@}
 
-///\defgroup GRIDTYPES
-//@{
-/// \name Type of Grid structures
+///\defgroup GRIDTYPES Type of Grid structures
 //@{
 #define  PHYSENGRID 1
 #define  PHASEENGRID 2
 #define  PHYSGRID 3
-//@}
 //@}
 
 /// \name Max number of neighbouring cells used in interpolation of background velocity field.
@@ -192,9 +174,7 @@ using namespace NBody;
 
 //@}
 
-///\defgroup INPUTTYPES
-//@{
-/// \name defining types of input
+///\defgroup INPUTTYPES defining types of input
 //@{
 #define  NUMINPUTS 5
 #define  IOGADGET 1
@@ -203,19 +183,16 @@ using namespace NBody;
 #define  IORAMSES 4
 #define  IONCHILADA 5
 //@}
-//@}
 
 
-///\defgroup OUTPUTTYPES
-//@{
-/// \name defining format types of output
+///\defgroup OUTPUTTYPES defining format types of output
 //@{
 #define OUTASCII 0
 #define OUTBINARY 1
 #define OUTHDF 2
 #define OUTADIOS 3
 //@}
-//@}
+
 /// \name For Unbinding
 //@{
 
@@ -245,15 +222,12 @@ using namespace NBody;
 
 //@}
 
-/// \defgroup OMPLIMS
-//@{
-///\name For determining whether loop contains enough for openm to be worthwhile.
+/// \defgroup OMPLIMS For determining whether loop contains enough for openm to be worthwhile.
 //@{
 #define ompsearchnum 50000
 #define ompunbindnum 1000
 #define ompperiodnum 50000
 #define omppropnum 50000
-//@}
 //@}
 
 
@@ -264,13 +238,10 @@ using namespace NBody;
 #define HALOIDSNVAL 1000000
 #endif
 
-///\defgroup GASPARAMS
-//@{
-///\name Useful constants for gas
+///\defgroup GASPARAMS Useful constants for gas
 //@{
 ///mass of helium relative to hydrogen
 #define M_HetoM_H 4.0026
-//@}
 //@}
 
 
