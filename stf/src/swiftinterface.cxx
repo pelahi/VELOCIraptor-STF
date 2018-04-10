@@ -122,6 +122,7 @@ void InvokeVelociraptor(const int num_gravity_parts, const int num_hydro_parts, 
     int ThisTask=0;
     int NProcs=1;
     Int_t Nlocal, Ntotal, Nmemlocal;
+    Int_t Nmemlocalbaryon, Nlocalbaryon[1];
 #endif
     int nthreads;
 #ifdef USEOPENMP
@@ -134,12 +135,11 @@ void InvokeVelociraptor(const int num_gravity_parts, const int num_hydro_parts, 
 #endif
     
     libvelociraptorOpt.outname = outputname;
-    cout<<"Invoke: Output filename: "<< libvelociraptorOpt.outname<<endl;
 
-    Particle *parts;
-    Int_t *pfof,*numingroup,**pglist;
+    Particle *parts, *pbaryons;
+    Int_t *pfof, *pfofall, *pfofbaryons, *numingroup,**pglist;
+    Int_t nbaryons, ndark;
     Int_t ngroup, nhalos;
-    //Int_t nbodies,nbaryons,ndark;
     //KDTree *tree;
     //to store information about the group
     PropData *pdata=NULL,*pdatahalos=NULL;
@@ -157,22 +157,28 @@ void InvokeVelociraptor(const int num_gravity_parts, const int num_hydro_parts, 
     Ntotal=Nlocal;
 #endif
     parts=new Particle[Nmemlocal];
+
     cout<<"Copying particle data..."<< endl;
     time1=MyGetTime();
 
-/// If we are performing a baryon search, sort the particles so that the DM particles are at the start of the array followed by the gas particles.
+      ndark = num_gravity_parts - num_hydro_parts, nbaryons = num_hydro_parts;
+      Nlocalbaryon[0]=nbaryons;
+      Nmemlocalbaryon=Nlocalbaryon[0];
+
+      /// If we are performing a baryon search, sort the particles so that the DM particles are at the start of the array followed by the gas particles.
     if (libvelociraptorOpt.iBaryonSearch>0 && libvelociraptorOpt.partsearchtype!=PSTALL) {
-      size_t dmCount = num_gravity_parts - num_hydro_parts, gasCount = num_hydro_parts;
+
       size_t dmOffset = 0, gasOffset = 0;
+     
+      pbaryons=&parts[ndark];
       
-      cout<<"There are "<<gasCount<<" gas particles and "<<dmCount<<" DM particles."<<endl;
+      cout<<"There are "<<nbaryons<<" gas particles and "<<ndark<<" DM particles."<<endl;
       for(auto i=0; i<Nlocal; i++) {
         if(gravity_parts[i].type == DARKTYPE) {
           parts[dmOffset++] = Particle(gravity_parts[i], libvelociraptorOpt.L, libvelociraptorOpt.V, libvelociraptorOpt.M, libvelociraptorOpt.U, libvelociraptorOpt.icosmologicalin,libvelociraptorOpt.a,libvelociraptorOpt.h);
         }
         else if(gravity_parts[i].type == GASTYPE) {
-          parts[dmCount + gasOffset] = Particle(gravity_parts[i], libvelociraptorOpt.L, libvelociraptorOpt.V, libvelociraptorOpt.M, libvelociraptorOpt.U, libvelociraptorOpt.icosmologicalin,libvelociraptorOpt.a,libvelociraptorOpt.h);
-          gasOffset++;
+          pbaryons[gasOffset++] = Particle(gravity_parts[i], libvelociraptorOpt.L, libvelociraptorOpt.V, libvelociraptorOpt.M, libvelociraptorOpt.U, libvelociraptorOpt.icosmologicalin,libvelociraptorOpt.a,libvelociraptorOpt.h);
         }
         else {
           cout<<"Unknown particle type found: "<<gravity_parts[i].type<<" Exiting..."<<endl;
@@ -190,10 +196,9 @@ void InvokeVelociraptor(const int num_gravity_parts, const int num_hydro_parts, 
 
     time1=MyGetTime()-time1;
     cout<<"Finished copying particle data."<< endl;
-    Nlocal=num_gravity_parts; /* JSW: Already set previously to same value. */
     cout<<"TIME::"<<ThisTask<<" took "<<time1<<" to copy "<<Nlocal<<" particles from SWIFT to a local format. Out of "<<Ntotal<<endl;
     cout<<ThisTask<<" There are "<<Nlocal<<" particles and have allocated enough memory for "<<Nmemlocal<<" requiring "<<Nmemlocal*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
-    //if (libvelociraptorOpt.iBaryonSearch>0) cout<<ThisTask<<"There are "<<Nlocalbaryon[0]<<" baryon particles and have allocated enough memory for "<<Nmemlocalbaryon<<" requiring "<<Nmemlocalbaryon*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
+    if (libvelociraptorOpt.iBaryonSearch>0) cout<<ThisTask<<"There are "<<Nlocalbaryon[0]<<" baryon particles and have allocated enough memory for "<<Nmemlocalbaryon<<" requiring "<<Nmemlocalbaryon*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
     cout<<ThisTask<<" will also require additional memory for FOF algorithms and substructure search. Largest mem needed for preliminary FOF search. Rough estimate is "<<Nlocal*(sizeof(Int_tree_t)*8)/1024./1024./1024.<<"GB of memory"<<endl;
 
     //build binary tree to store cells for quick search
@@ -250,7 +255,27 @@ void InvokeVelociraptor(const int num_gravity_parts, const int num_hydro_parts, 
         CopyMasses(nhalos,pdatahalos,pdata);
         delete[] pdatahalos;
     }
-    //need to add baryon interface
+
+    //
+    // Search for baryons
+    //
+
+    //if only searching initially for dark matter groups, once found, search for associated baryonic structures if requried
+    if (libvelociraptorOpt.iBaryonSearch>0) {
+        time1=MyGetTime();
+        if (libvelociraptorOpt.partsearchtype==PSTDARK) {
+            pfofall=SearchBaryons(libvelociraptorOpt, nbaryons, pbaryons, ndark, parts, pfof, ngroup,nhalos,libvelociraptorOpt.iseparatefiles,libvelociraptorOpt.iInclusiveHalo,pdata);
+            pfofbaryons=&pfofall[Nlocal];
+        }
+        //if FOF search overall particle types then running sub search over just dm and need to associate baryons to just dm particles must determine number of baryons, sort list, run search, etc
+        //but only need to run search if substructure has been searched
+        else if (libvelociraptorOpt.iSubSearch==1){
+            pbaryons=NULL;
+            SearchBaryons(libvelociraptorOpt, nbaryons, pbaryons, ndark, parts, pfof, ngroup,nhalos,libvelociraptorOpt.iseparatefiles,libvelociraptorOpt.iInclusiveHalo,pdata);
+        }
+        time1=MyGetTime()-time1;
+        cout<<"TIME::"<<ThisTask<<" took "<<time1<<" to search baryons  with "<<nthreads<<endl;
+    }
 
     //get mpi local hierarchy
     Int_t *nsub,*parentgid, *uparentgid,*stype;
