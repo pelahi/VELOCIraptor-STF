@@ -199,13 +199,11 @@ namespace NBody
       mass*=mscale;
       for (auto i=0;i<3;i++) velocity[i]*=vscale;
       for (auto i=0;i<3;i++) position[i]*=lscale;
-      //id=p.id;
-      //type=swift_map_type(p.type);
-      type=1;
+      type=p.type;
       //rho=p.rho;
 #ifdef SWIFTINTERFACE
         ///\todo does this need to be converted for cosmology as well ? and unit conversion
-      gravityphi=p.potential*uscale;
+      gravityphi=p.potential*uscale*mass;
 #endif
       pid=p.id_or_neg_offset;
     }
