@@ -181,7 +181,7 @@ def ReadPropertyFile(basefilename,ibinary=0,iseparatesubfiles=0,iverbose=0, desi
 			halofile.readline()
 			numhalos=np.uint64(halofile.readline().split()[0])
 			halofile.close()
-			if (numhalos>0):htemp = np.loadtxt(filename,skiprows=3, usecols=fieldindex, dtype=fieldtypestring, unpack=True)
+			if (numhalos>0):htemp = np.loadtxt(filename,skiprows=3, usecols=fieldindex, dtype=fieldtypestring, unpack=True, ndmin=1)
 		elif(ibinary==1):
 			halofile = open(filename, 'rb')
 			np.fromfile(halofile,dtype=np.int32,count=2)
