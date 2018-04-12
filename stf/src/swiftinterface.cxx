@@ -264,12 +264,18 @@ void InvokeVelociraptor(const int num_gravity_parts, const int num_hydro_parts, 
     if (libvelociraptorOpt.iBaryonSearch>0) {
         time1=MyGetTime();
         if (libvelociraptorOpt.partsearchtype==PSTDARK) {
-            pfofall=SearchBaryons(libvelociraptorOpt, nbaryons, pbaryons, ndark, parts, pfof, ngroup,nhalos,libvelociraptorOpt.iseparatefiles,libvelociraptorOpt.iInclusiveHalo,pdata);
+            pfofall=SearchBaryons(libvelociraptorOpt, nbaryons, pbaryons, Nlocal, parts, pfof, ngroup,nhalos,libvelociraptorOpt.iseparatefiles,libvelociraptorOpt.iInclusiveHalo,pdata);
             pfofbaryons=&pfofall[Nlocal];
         }
         //if FOF search overall particle types then running sub search over just dm and need to associate baryons to just dm particles must determine number of baryons, sort list, run search, etc
         //but only need to run search if substructure has been searched
         else if (libvelociraptorOpt.iSubSearch==1){
+            nbaryons=0;
+            ndark=0;
+            for (Int_t i=0;i<Nlocal;i++) {
+                if (parts[i].GetType()==DARKTYPE)ndark++;
+                else nbaryons++;
+            }
             pbaryons=NULL;
             SearchBaryons(libvelociraptorOpt, nbaryons, pbaryons, ndark, parts, pfof, ngroup,nhalos,libvelociraptorOpt.iseparatefiles,libvelociraptorOpt.iInclusiveHalo,pdata);
         }
