@@ -22,6 +22,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
 {
     Int_t i, *pfof,*pfoftemp, minsize;
     FOFcompfunc fofcmp;
+    FOFcheckfunc fofcheck;
     fstream Fout;
     char fname[2000];
     Double_t param[20];
@@ -73,7 +74,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     cout<<"Done"<<endl;
     cout<<"Search particles using 3DFOF in physical space"<<endl;
     cout<<"Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits (and likely "<<sqrt(param[6])/opt.ellxscale<<" in interparticle spacing"<<endl;
-    if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) {fofcmp=&FOF3dDM;param[7]=DARKTYPE;}
+    if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) {fofcmp=&FOF3dDM;param[7]=DARKTYPE;fofcheck=FOFchecktype;}
     else fofcmp=&FOF3d;
     //if using mpi no need to locally sort just yet and might as well return the Head, Len, Next arrays
 #ifdef USEMPI
@@ -158,7 +159,13 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     Int_t links_across,links_across_total;
     cout<<ThisTask<<": Starting to linking across MPI domains"<<endl;
     do {
-        links_across=MPILinkAcross(nbodies, tree, Part.data(), pfof, Len, Head, Next, param[1]);
+        if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) {
+            links_across=MPILinkAcross(nbodies, tree, Part.data(), pfof, Len, Head, Next, param[1], fofcheck, param);
+        }
+        else {
+            links_across=MPILinkAcross(nbodies, tree, Part.data(), pfof, Len, Head, Next, param[1]);
+        }
+        cout<<ThisTask<<" number of links "<<links_across<<endl;
         MPI_Allreduce(&links_across, &links_across_total, 1, MPI_Int_t, MPI_SUM, MPI_COMM_WORLD);
         MPIUpdateExportList(nbodies,Part.data(),pfof,Len);
     }while(links_across_total>0);
@@ -1184,7 +1191,7 @@ private(i,tid)
 
         //now begin fof6d search for large background objects that are missed using smaller grid cells ONLY IF substructures have been found
         //this search can identify merger excited radial shells so for the moment, disabled
-        
+
         if (numgroups>0) {
             bgoffset=0;
             minsize=ncl*0.2;
@@ -2626,7 +2633,11 @@ Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, const I
         for (i=0;i<ndark;i++) pfofall[i]=pfofdark[i];
         pfofbaryons=&pfofall[ndark];
         for (i=0;i<nbaryons;i++) pfofbaryons[i]=0;
-        if (ngroupdark==0) return pfofall;
+        if (ngroupdark==0) {
+            delete[] storeval;
+            delete[] storeval2;
+            return pfofall;
+        }
     }
 #else
     //if using mpi but all particle FOF search, then everything is localized
@@ -2923,22 +2934,22 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
         while (ppsldata!=NULL) {papsldata[nhierarchy++]=ppsldata;ppsldata=ppsldata->nextlevel;}
         //now parse hierarchy and repoint stuff to the pfofall pointer instead of pfof
         if (opt.partsearchtype!=PSTALL) {
-        for (i=nhierarchy-1;i>=0;i--){
-            for (int j=1;j<=papsldata[i]->nsinlevel;j++) {
-                gidval=(*papsldata[i]->gidhead[j]);
-                papsldata[i]->gidhead[j]=&pfofall[pglistall[gidval][0]];
-                if (papsldata[i]->gidparenthead[j]!=NULL) {
-                    gidval=(*papsldata[i]->gidparenthead[j]);
-                    if (numingroup[gidval]>0) papsldata[i]->gidparenthead[j]=&pfofall[pglistall[gidval][0]];
-                    else papsldata[i]->gidparenthead[j]=NULL;
+            for (i=nhierarchy-1;i>=0;i--){
+                for (int j=1;j<=papsldata[i]->nsinlevel;j++) {
+                    gidval=(*papsldata[i]->gidhead[j]);
+                    papsldata[i]->gidhead[j]=&pfofall[pglistall[gidval][0]];
+                    if (papsldata[i]->gidparenthead[j]!=NULL) {
+                        gidval=(*papsldata[i]->gidparenthead[j]);
+                        if (numingroup[gidval]>0) papsldata[i]->gidparenthead[j]=&pfofall[pglistall[gidval][0]];
+                        else papsldata[i]->gidparenthead[j]=NULL;
+                    }
+                    if (papsldata[i]->giduberparenthead[j]!=NULL) {
+                        gidval=(*papsldata[i]->giduberparenthead[j]);
+                        if (numingroup[gidval]>0) papsldata[i]->giduberparenthead[j]=&pfofall[pglistall[gidval][0]];
+                    }
+                    else papsldata[i]->giduberparenthead[j]=NULL;
                 }
-                if (papsldata[i]->giduberparenthead[j]!=NULL) {
-                    gidval=(*papsldata[i]->giduberparenthead[j]);
-                    if (numingroup[gidval]>0) papsldata[i]->giduberparenthead[j]=&pfofall[pglistall[gidval][0]];
-                }
-                else papsldata[i]->giduberparenthead[j]=NULL;
             }
-        }
         }
         //store old number of groups
         ng=ngroupdark;
@@ -2960,7 +2971,8 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
             //now if pfofall is zero but was a substructure reassign back to uber parent
             for (i=0;i<nparts;i++)
             {
-                if (pfofall[Part[i].GetID()]==0 && pfofold[Part[i].GetID()]<nhalos && pfofold[Part[i].GetID()]>=1) {
+                //if (pfofall[Part[i].GetID()]==0 && pfofold[Part[i].GetID()]<nhalos && pfofold[Part[i].GetID()]>=1) {
+                if (pfofall[Part[i].GetID()]==0 && pfofold[Part[i].GetID()]>nhalos) {
                     pfofall[Part[i].GetID()]=uparentgid[pfofold[Part[i].GetID()]];
                     ningall[uparentgid[pfofold[Part[i].GetID()]]]++;
                 }
@@ -2970,6 +2982,8 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
             delete[] pglistall;
             pglistall=BuildPGList(nparts, ng, ningall, pfofall);
             //now adjust the structure pointers after unbinding where groups are NOT reordered
+            //first find groups that have been removed, tag their head as NULL
+            //otherwise update the head, parent and uber parent
             int nlevel=0,ninleveloff=0,ii;
             for (i=1;i<=ng;i++) {
                 if (i-ninleveloff>papsldata[nlevel]->nsinlevel) {
@@ -2996,12 +3010,16 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
                     }
                 }
             }
+            //then clean up the structure list so that removed groups no longer in structure list
             for (i=nhierarchy-1;i>=0;i--) {
-                Int_t ninlevel=0;
+                Int_t ninlevel=0, iend=papsldata[i]->nsinlevel;
                 for (Int_t k=1;k<=papsldata[i]->nsinlevel;k++) if (papsldata[i]->Phead[k]!=NULL) ninlevel++;
                 for (Int_t k=1,j=0;k<=ninlevel;k++) {
                     if (papsldata[i]->Phead[k]==NULL) {
-                        j=k+1;while(papsldata[i]->Phead[j]==NULL) j++;
+                        //j=k+1;while(papsldata[i]->Phead[j]==NULL) j++;
+                        //find last entry that is not NULL
+                        j=iend;while(papsldata[i]->Phead[j]==NULL) j--;
+                        iend--;
                         //copy the first non-NULL pointer to current NULL pointers,
                         //ie: for a non-existing structure which has been unbound, remove it from the structure list
                         //by copying the pointers of the next still viable structure to that address and setting
@@ -3020,15 +3038,19 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
                 }
                 papsldata[i]->nsinlevel=ninlevel;
             }
+            if (opt.iverbose) cout<<ThisTask<<" Reorder after finding baryons and unbinding, previously had "<<ng<<" groups and now have "<<ngroupdark<<endl;
             //reorder groups just according to number of dark matter particles
-            //and whether object is a substructure or not
+            //and whether object is a substructure or not. First get current number of dark matter particles
+            //note that one could technically have no dark matter partices remaining bound
+            //here numingroup is how data will be sorted, largest first.
             numingroup=BuildNumInGroup(ndark, ng, pfofall);
-            if (opt.iverbose) cout<<ThisTask<<" Reorder after finding baryons and unbinding!"<<endl;
+            //MPI_Barrier(MPI_COMM_WORLD);
             //if wish to organise halos and subhaloes differently, adjust numingroup which is used to sort data
             if (ihaloflag&&opt.iSubSearch) {
                 Int_t nleveloffset=nhalos,ninleveloffset=0;
                 for (Int_t k=1;k<=papsldata[0]->nsinlevel;k++)ninleveloffset+=ningall[(*papsldata[0]->gidhead[k])];
-                for (i=1;i<=nhalos;i++) if (numingroup[i]>0) numingroup[i]+=ninleveloffset;
+                //if looking to separate haloes and substructure then offset numingroup[i] for halos so long as ningall[i]>0
+                for (i=1;i<=nhalos;i++) if (ningall[i]>0) numingroup[i]+=ninleveloffset;
             }
             //store new number of halos
             nhalos=papsldata[0]->nsinlevel;
@@ -3036,10 +3058,11 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
             else ReorderGroupIDsbyValue(ng, ngroupdark, ningall, pfofall, pglistall, numingroup);
             if (opt.iverbose) cout<<ThisTask<<" Done"<<endl;
             delete[] numingroup;
-            //delete[] ningall;
+            delete[] ningall;
             for (i=1;i<=ng;i++) delete[] pglistall[i];
             delete[] pglistall;
-
+            for (i=nhierarchy-1;i>=0;i--) papsldata[i]=NULL;
+            delete[] papsldata;
         }
         delete[] pfofold;
         delete[] nsub;
@@ -3082,7 +3105,6 @@ Int_t GetHierarchy(Options &opt,Int_t ngroups, Int_t *nsub, Int_t *parentgid, In
     papsldata=new StrucLevelData*[nhierarchy];
     nhierarchy=0;
     while (ppsldata!=NULL) {papsldata[nhierarchy++]=ppsldata;ppsldata=ppsldata->nextlevel;}
-
     for (int i=nhierarchy-1;i>=1;i--){
         //store number of substructures
         for (int j=1;j<=papsldata[i]->nsinlevel;j++) {

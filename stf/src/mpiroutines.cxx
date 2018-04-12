@@ -1600,6 +1600,51 @@ Int_t MPILinkAcross(const Int_t nbodies, KDTree *&tree, Particle *Part, Int_t *&
     return links;
 }
 
+///link particles belonging to the same group across mpi domains given a type check function
+Int_t MPILinkAcross(const Int_t nbodies, KDTree *&tree, Particle *Part, Int_t *&pfof, Int_tree_t *&Len, Int_tree_t *&Head, Int_tree_t *&Next, Double_t rdist2, FOFcheckfunc &check, Double_t *params){
+    Int_t i,j,k;
+    Int_t links=0;
+    Int_t nbuffer[NProcs];
+    Int_t *nn=new Int_t[nbodies];
+    Int_t nt;
+    bool iflag;
+    Coordinate x;
+    for (i=0;i<NImport;i++) {
+        //if exported particle not in a group, do nothing
+        if (FoFDataGet[i].iGroup==0) continue;
+        for (j=0;j<3;j++) x[j]=PartDataGet[i].GetPosition(j);
+        nt=tree->SearchBallPosTagged(x, rdist2, nn);
+        for (Int_t ii=0;ii<nt;ii++) {
+            k=nn[ii];
+            //check that at least on of the particles meets the type criterion
+            if (check(Part[k],params)!=0 && check(PartDataGet[i],params)!=0) continue;
+            //if local particle in a group
+            if (pfof[Part[Head[k]].GetID()]>0)  {
+                //only change if both particles are appropriate type and group ids indicate local needs to be exported
+                if (!(check(Part[k],params)==0 && check(PartDataGet[i],params)==0)) continue;
+                if(pfof[Part[Head[k]].GetID()] > FoFDataGet[i].iGroup) {
+                    Int_t ss = Head[k];
+                    do{
+                        pfof[Part[ss].GetID()]=FoFDataGet[i].iGroup;
+                        mpi_foftask[Part[ss].GetID()]=FoFDataGet[i].iGroupTask;
+                        Len[ss]=FoFDataGet[i].iLen;
+                    }while((ss = Next[ss]) >= 0);
+                    ss = Head[k];
+                    links++;
+                }
+            }
+            //if local particle not in a group and export is appropriate type, link
+            else {
+                if (check(PartDataGet[i],params)!=0) continue;
+                pfof[Part[k].GetID()]=FoFDataGet[i].iGroup;
+                Len[k]=FoFDataGet[i].iLen;
+                mpi_foftask[Part[k].GetID()]=FoFDataGet[i].iGroupTask;
+                links++;
+            }
+        }
+    }
+    return links;
+}
 /*!
     Group particles belong to a group to a particular mpi thread so that locally easy to determine
     the maximum group size and reoder the group ids according to descending group size.

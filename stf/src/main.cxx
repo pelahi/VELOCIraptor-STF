@@ -521,7 +521,7 @@ int main(int argc,char **argv)
 
     delete[] numingroup;
     delete[] pdata;
-    //delete[] Part;
+    delete psldata;
 
     tottime=MyGetTime()-tottime;
     cout<<"TIME::"<<ThisTask<<" took "<<tottime<<" in all"<<endl;
