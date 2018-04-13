@@ -1494,7 +1494,7 @@ Int_t MPILinkAcross(const Int_t nbodies, KDTree *&tree, Particle *Part, Int_t *&
     Int_t links=0;
     Int_t nbuffer[NProcs];
     Int_t *nn=new Int_t[nbodies];
-    Int_t nt;
+    Int_t nt,ss,oldlen;
     Coordinate x;
     for (i=0;i<NImport;i++) {
         for (j=0;j<3;j++) x[j]=PartDataGet[i].GetPosition(j);
@@ -1527,8 +1527,8 @@ Int_t MPILinkAcross(const Int_t nbodies, KDTree *&tree, Particle *Part, Int_t *&
                     //proceed to link local particle to imported particle if
                     //its group id is larger
                     if(pfof[Part[Head[k]].GetID()] > FoFDataGet[i].iGroup) {
-                        Int_t ss = Head[k];
-                        Int_t oldlen=Len[k];
+                        ss = Head[k];
+                        oldlen=Len[k];
                         do{
                             pfof[Part[ss].GetID()]=FoFDataGet[i].iGroup;
                             mpi_foftask[Part[ss].GetID()]=FoFDataGet[i].iGroupTask;
