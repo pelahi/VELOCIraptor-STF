@@ -2971,7 +2971,6 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
             //now if pfofall is zero but was a substructure reassign back to uber parent
             for (i=0;i<nparts;i++)
             {
-                //if (pfofall[Part[i].GetID()]==0 && pfofold[Part[i].GetID()]<nhalos && pfofold[Part[i].GetID()]>=1) {
                 if (pfofall[Part[i].GetID()]==0 && pfofold[Part[i].GetID()]>nhalos) {
                     pfofall[Part[i].GetID()]=uparentgid[pfofold[Part[i].GetID()]];
                     ningall[uparentgid[pfofold[Part[i].GetID()]]]++;
@@ -3044,7 +3043,6 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
             //note that one could technically have no dark matter partices remaining bound
             //here numingroup is how data will be sorted, largest first.
             numingroup=BuildNumInGroup(ndark, ng, pfofall);
-            //MPI_Barrier(MPI_COMM_WORLD);
             //if wish to organise halos and subhaloes differently, adjust numingroup which is used to sort data
             if (ihaloflag&&opt.iSubSearch) {
                 Int_t nleveloffset=nhalos,ninleveloffset=0;
