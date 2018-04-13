@@ -1979,6 +1979,17 @@ struct StrucLevelData
     void Initialize(){
         for (Int_t i=1;i<=nsinlevel;i++) {gidhead[i]=NULL;gidparenthead[i]=NULL;giduberparenthead[i]=NULL;}
     }
+    ~StrucLevelData(){
+        if (nextlevel!=NULL) delete nextlevel;
+        nextlevel=NULL;
+        if (nsinlevel>0) {
+            delete[] Phead;
+            delete[] gidhead;
+            delete[] stypeinlevel;
+            delete[] gidparenthead;
+            delete[] giduberparenthead;
+        }
+    }
 };
 
 #if defined(USEHDF)||defined(USEADIOS)
