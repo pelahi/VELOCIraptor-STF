@@ -209,9 +209,11 @@ void OpenHDFFiles(string &infile, int numfiletypes, int k, int mpi_ninput, int i
     }
     Farray[itemp++]=&Fhaloinfo;
     if (ifieldhalos) Farray[itemp++]=&Fshaloinfo;
+    cout<<"trying to open "<<numfiletypes<<" "<<endl;
     for (int i=0;i<numfiletypes;i++) {
         try {
             Farray[i]->openFile(fnamearray[i].c_str(),H5F_ACC_RDONLY);
+            cout<<"open "<<fnamearray[i]<<" "<<endl;
         }
         catch(const H5::FileIException&) {
             cerr<<"can't open "<<fnamearray[i]<<endl;
@@ -633,6 +635,9 @@ unsigned long MPIReadHaloGroupCatalogDataNum(string &infile, int mpi_ninput, int
         numfiletypes+=2;
         if (ifieldhalos) numfiletypes+=2;
     }
+    //halo properties
+    numfiletypes+=1;
+    if (ifieldhalos) numfiletypes+=1;
 
     ///adjust files read based on whether mpi output or not
     if (mpi_ninput==0) nmpicount=1;
@@ -727,6 +732,8 @@ unsigned long MPIReadHaloGroupCatalogDataParticleNum(string &infile, int mpi_nin
         numfiletypes+=2;
         if (ifieldhalos) numfiletypes+=2;
     }
+    numfiletypes+=1;
+    if (ifieldhalos) numfiletypes+=1;
 
     ///adjust files read based on whether mpi output or not
     if (mpi_ninput==0) nmpicount=1;
@@ -869,6 +876,9 @@ HaloData *MPIReadHaloGroupCatalogDataAllocation(string &infile, Int_t &numhalos,
         numfiletypes+=2;
         if (ifieldhalos) numfiletypes+=2;
     }
+    //halo properties
+    numfiletypes+=1;
+    if (ifieldhalos) numfiletypes+=1;
 
     ///adjust files read based on whether mpi output or not
     if (mpi_ninput==0) nmpicount=1;
@@ -1007,6 +1017,9 @@ void MPIReadHaloGroupCatalogData(string &infile, Int_t &numhalos, HaloData *&Hal
         numfiletypes+=2;
         if (ifieldhalos) numfiletypes+=2;
     }
+    //halo properties
+    numfiletypes+=1;
+    if (ifieldhalos) numfiletypes+=1;
 
     ///adjust files read based on whether mpi output or not
     if (mpi_ninput==0) nmpicount=1;
@@ -1383,6 +1396,9 @@ HaloData *ReadHaloGroupCatalogData(string &infile, Int_t &numhalos, int mpi_ninp
         numfiletypes+=2;
         if (ifieldhalos) numfiletypes+=2;
     }
+    //halo properties
+    numfiletypes+=1;
+    if (ifieldhalos) numfiletypes+=1;
 
     ///adjust files read based on whether mpi output or not
     if (mpi_ninput==0) nmpicount=1;
