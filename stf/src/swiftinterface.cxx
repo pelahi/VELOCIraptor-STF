@@ -2,7 +2,6 @@
  *  \brief this file contains routines that allow the velociraptor library to interface with the swift N-body code from within swift.
  */
 
-
 #include "swiftinterface.h"
 
 #ifdef SWIFTINTERFACE
@@ -11,7 +10,7 @@ Options libvelociraptorOpt;
 //KDTree *mpimeshtree;
 //Particle *mpimeshinfo;
 
-void InitVelociraptor(char* configname, char* outputname, cosmoinfo c, unitinfo u, siminfo s)
+int InitVelociraptor(char* configname, char* outputname, cosmoinfo c, unitinfo u, siminfo s)
 {
 
 #ifdef USEMPI
@@ -115,9 +114,11 @@ void InitVelociraptor(char* configname, char* outputname, cosmoinfo c, unitinfo 
     WriteVELOCIraptorConfig(libvelociraptorOpt);
     WriteSimulationInfo(libvelociraptorOpt);
     WriteUnitInfo(libvelociraptorOpt);
+
+    return 1;
 }
 
-void InvokeVelociraptor(const int num_gravity_parts, const int num_hydro_parts, struct gpart *gravity_parts, const int *cell_node_ids, char* outputname) {
+int InvokeVelociraptor(const int num_gravity_parts, const int num_hydro_parts, struct gpart *gravity_parts, const int *cell_node_ids, char* outputname) {
 #ifndef USEMPI
     int ThisTask=0;
     int NProcs=1;
@@ -182,7 +183,7 @@ void InvokeVelociraptor(const int num_gravity_parts, const int num_hydro_parts, 
         }
         else {
           cout<<"Unknown particle type found: "<<gravity_parts[i].type<<" Exiting..."<<endl;
-          exit(0);
+          return 0;
         }
       }
     }
@@ -307,7 +308,8 @@ void InvokeVelociraptor(const int num_gravity_parts, const int num_hydro_parts, 
     ///\todo need to return fof and substructure information back to swift
 
     cout<<"VELOCIraptor returning."<< endl;
-
+    
+    return 1;
 }
 
 #endif
