@@ -2662,7 +2662,11 @@ Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, const I
         for (i=0;i<ndark;i++) pfofall[i]=pfofdark[i];
         pfofbaryons=&pfofall[ndark];
         for (i=0;i<nbaryons;i++) pfofbaryons[i]=0;
-        if (ngroupdark==0) return pfofall;
+        if (ngroupdark==0) {
+            delete[] storeval;
+            delete[] storeval2;
+            return pfofall;
+        }
     }
 #else
     //if using mpi but all particle FOF search, then everything is localized
