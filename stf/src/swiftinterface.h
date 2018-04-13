@@ -91,7 +91,7 @@ using namespace Swift;
 ///initialize velociraptor
 extern "C" int InitVelociraptor(char* configname, char* outputname, Swift::cosmoinfo, Swift::unitinfo, Swift::siminfo);
 ///actually run velociraptor
-extern "C" int InvokeVelociraptor(const int num_gravity_parts, const int num_hydro_parts, struct gpart *gravity_parts, const int *cell_node_ids, char* outputname);
+extern "C" int InvokeVelociraptor(const size_t num_gravity_parts, const size_t num_hydro_parts, struct gpart *gravity_parts, const int *cell_node_ids, char* outputname);
 //@}
 
 //extern KDTree *mpimeshtree;

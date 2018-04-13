@@ -118,7 +118,7 @@ int InitVelociraptor(char* configname, char* outputname, cosmoinfo c, unitinfo u
     return 1;
 }
 
-int InvokeVelociraptor(const int num_gravity_parts, const int num_hydro_parts, struct gpart *gravity_parts, const int *cell_node_ids, char* outputname) {
+int InvokeVelociraptor(const size_t num_gravity_parts, const size_t num_hydro_parts, struct gpart *gravity_parts, const int *cell_node_ids, char* outputname) {
 #ifndef USEMPI
     int ThisTask=0;
     int NProcs=1;
