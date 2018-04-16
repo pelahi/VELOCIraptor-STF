@@ -118,7 +118,11 @@ int InitVelociraptor(char* configname, char* outputname, cosmoinfo c, unitinfo u
     return 1;
 }
 
-int InvokeVelociraptor(const size_t num_gravity_parts, const size_t num_hydro_parts, struct gpart *gravity_parts, const int *cell_node_ids, char* outputname) {
+int InvokeVelociraptor(const size_t num_gravity_parts, const size_t num_hydro_parts, struct gpart *gravity_parts, struct part *hydro_parts, float *internal_energies, const int *cell_node_ids, char* outputname) {
+#ifndef GASON
+    cout<<"Gas has not been turned on in VELOCIraptor. Set GASON in Makefile.config and recompiled VELOCIraptor."<<endl;
+    return 0;
+#endif
 #ifndef USEMPI
     int ThisTask=0;
     int NProcs=1;
@@ -179,7 +183,10 @@ int InvokeVelociraptor(const size_t num_gravity_parts, const size_t num_hydro_pa
           parts[dmOffset++] = Particle(gravity_parts[i], libvelociraptorOpt.L, libvelociraptorOpt.V, libvelociraptorOpt.M, libvelociraptorOpt.U, libvelociraptorOpt.icosmologicalin,libvelociraptorOpt.a,libvelociraptorOpt.h);
         }
         else if(gravity_parts[i].type == GASTYPE) {
-          pbaryons[gasOffset++] = Particle(gravity_parts[i], libvelociraptorOpt.L, libvelociraptorOpt.V, libvelociraptorOpt.M, libvelociraptorOpt.U, libvelociraptorOpt.icosmologicalin,libvelociraptorOpt.a,libvelociraptorOpt.h);
+          pbaryons[gasOffset] = Particle(gravity_parts[i], libvelociraptorOpt.L, libvelociraptorOpt.V, libvelociraptorOpt.M, libvelociraptorOpt.U, libvelociraptorOpt.icosmologicalin,libvelociraptorOpt.a,libvelociraptorOpt.h);
+          pbaryons[gasOffset].SetPID(hydro_parts[-gravity_parts[i].id_or_neg_offset].id);
+          pbaryons[gasOffset++].SetU(internal_energies[-gravity_parts[i].id_or_neg_offset]);
+
         }
         else {
           cout<<"Unknown particle type found: "<<gravity_parts[i].type<<" Exiting..."<<endl;

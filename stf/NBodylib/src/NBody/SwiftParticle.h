@@ -77,6 +77,9 @@ namespace Swift
 
     } SWIFT_STRUCT_ALIGN;
 
+    extern "C" {
+        #include "hydro_part.h"
+    }
 }
 
 #endif
