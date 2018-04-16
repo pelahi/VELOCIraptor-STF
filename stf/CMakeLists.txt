@@ -261,19 +261,9 @@ message("")
 set(VR_NBODY_DEFINES ${VR_DEFINES})
 set(VR_NBODY_CXX_FLAGS ${VR_CXX_FLAGS})
 
-# Finally, include all subdirectories,
-# where the magic happens
-include_directories(
-	NBodylib/src/Analysis
-	NBodylib/src/Cosmology
-	NBodylib/src/InitCond/
-	NBodylib/src/KDTree
-	NBodylib/src/Math
-	NBodylib/src/NBody
-)
-
 # This provides us with the nbodylib library
 add_subdirectory(NBodylib)
+include_directories("${NBODYLIB_INCLUDE_DIRS}")
 
 # This provides us with the velociraptor library and the stf binary
 add_subdirectory(src)
