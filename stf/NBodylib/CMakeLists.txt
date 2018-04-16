@@ -14,7 +14,7 @@
 # Macro used by subdirectories to build each a static library
 #
 macro(add_nbody_lib libname sources)
-	add_library(${libname} STATIC ${sources})
+	add_library(${libname} OBJECT ${sources})
 	target_compile_definitions(${libname} PRIVATE ${VR_NBODY_DEFINES})
 	if (VR_NBODY_CXX_FLAGS)
 		set_target_properties(${libname} PROPERTIES COMPILE_FLAGS ${VR_NBODY_CXX_FLAGS})
@@ -28,10 +28,9 @@ add_subdirectory(src/KDTree)
 add_subdirectory(src/Math)
 add_subdirectory(src/NBody)
 
-
-# Establish the dependencies between the different libraries
-add_dependencies(Cosmology Math)
-add_dependencies(NBody Math)
-add_dependencies(InitCond Math NBody)
-add_dependencies(KDTree Math NBody)
-add_dependencies(Analysis Math NBody KDTree)
+# Build the final static libnbodylib.a library
+add_library(nbodylib STATIC
+    $<TARGET_OBJECTS:Analysis> $<TARGET_OBJECTS:Cosmology>
+    $<TARGET_OBJECTS:InitCond> $<TARGET_OBJECTS:KDTree>
+	 $<TARGET_OBJECTS:Math> $<TARGET_OBJECTS:NBody>
+)

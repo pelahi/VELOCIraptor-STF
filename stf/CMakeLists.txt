@@ -271,7 +271,9 @@ include_directories(
 	NBodylib/src/Math
 	NBodylib/src/NBody
 )
+
+# This provides us with the nbodylib library
 add_subdirectory(NBodylib)
 
-set(NBODY_LIBS Analysis Cosmology InitCond KDTree Math NBody)
+# This provides us with the velociraptor library and the stf binary
 add_subdirectory(src)
