@@ -11,6 +11,8 @@
 
 cmake_minimum_required(VERSION 3.0)
 
+set(_subdirs Analysis Cosmology InitCond KDTree Math NBody)
+
 # We have the version here
 file(STRINGS ${CMAKE_SOURCE_DIR}/VERSION NBODY_VERSION)
 string(REPLACE "." ";" VERSION_LIST ${NBODY_VERSION})
@@ -28,10 +30,21 @@ endif()
 project(NBodyLib VERSION ${NBODY_VERSION} LANGUAGES ${NBODY_LANGS})
 set(CMAKE_CXX_STANDARD 11)
 
+# Are we part of an outside build?
+# If so, we want to let the caller know what to include, define, etc at the end
+set(_export OFF)
+get_directory_property(_hasParent PARENT_DIRECTORY)
+if (_hasParent)
+	set(_export ON)
+endif()
+
 # Options users can give on the command line via -D
 macro(nbody_option optname optdesc)
 	option(NBODY_${optname} "${optdec}" ON)
 endmacro()
+
+# Optional dependencies
+option(NBODY_NO_OPENMP "Don't attempt to include OpenMP support in NBodyLib" OFF)
 
 # Precision options
 nbody_option(SINGLE_PRECISION  "Use single point precision to store all properties and perform all calculations")
@@ -55,6 +68,7 @@ endif()
 
 # Flags used for compiling nbodylib.
 # They are optionally exported at the end if there is an outer scope
+set(NBODY_INCLUDE_DIRS "")
 set(NBODY_DEFINES "")
 set(NBODY_LIBS "")
 set(NBODY_CXX_FLAGS "")
@@ -79,6 +93,44 @@ nbody_option_defines(UNSIGNED_PARTICLE_IDS     PARTICLEUIDS)
 nbody_option_defines(LARGEKDTREE               LARGETREE)
 nbody_option_defines(USE_GAS                   GASON)
 nbody_option_defines(USE_STARS                 STARON)
+
+#
+# How we find GSL and set it up
+#
+macro(find_gsl)
+	find_package(GSL REQUIRED)
+	list(APPEND NBODY_INCLUDE_DIRS ${GSL_INCLUDE_DIRS})
+	list(APPEND NBODY_LIBS ${GSL_LIBRARIES})
+endmacro()
+
+# How we find OpenMP and set it up
+#
+macro(find_openmp)
+	find_package(OpenMP COMPONENTS CXX)
+	if (OPENMP_FOUND)
+		list(APPEND NBODY_CXX_FLAGS ${OpenMP_CXX_FLAGS})
+		list(APPEND NBODY_LINK_FLAGS ${OpenMP_CXX_FLAGS})
+		list(APPEND NBODY_DEFINES USEOPENMP USEOMP)
+		set(NBODY_HAS_OPENMP Yes)
+	endif()
+endmacro()
+
+#
+# Now go and find our dependencies, depending on whether
+# we actually need them or not
+#
+find_gsl()
+
+set(NBODY_HAS_OPENMP No)
+if (NOT NBODY_NO_OPENMP)
+	find_openmp()
+endif()
+
+
+# Add subdirectories to list of include directories
+foreach(_subdir IN ITEMS ${_subdirs})
+	list(APPEND NBODY_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/src/${_subdir}")
+endforeach()
 
 #
 # Tell the world what what we are doing
@@ -111,6 +163,7 @@ macro(nbody_report feature)
 endmacro()
 
 message("\nNBodyLib successfully configured with the following settings:")
+nbody_report(Dependencies "OpenMP" OPENMP)
 nbody_report(Types "All calculations/properties stored as float" SINGLE_PRECISION "All integeres are long int" LONG_INT)
 nbody_report("Particle data" "Do not store mass, all particles are the same mass" NO_MASS
              "Use single precision to store positions, velocities, other props" SINGLE_PARTICLE_PRECISION
@@ -120,28 +173,12 @@ message("")
 message("Compilation")
 message("-----------")
 message("")
-message(" Defines: ${NBODY_DEFINES}")
+message(" Include directories: ${NBODY_INCLUDE_DIRS}")
+message(" Macros defined: ${NBODY_DEFINES}")
 message(" Libs: ${NBODY_LIBS}")
 message(" C++ flags: ${NBODY_CXX_FLAGS}")
 message(" Link flags: ${NBODY_LINK_FLAGS}")
 message("")
-
-
-# Are we part of an outside build?
-# If so, we want to let the caller know what to include, define, etc
-set(_export OFF)
-get_directory_property(_hasParent PARENT_DIRECTORY)
-if (_hasParent)
-	set(_export ON)
-endif()
-
-set(_subdirs Analysis Cosmology InitCond KDTree Math NBody)
-
-# Calculate all subdirectories first
-set(_inc_dirs "")
-foreach(_subdir IN ITEMS ${_subdirs})
-	list(APPEND _inc_dirs "${CMAKE_CURRENT_SOURCE_DIR}/src/${_subdir}")
-endforeach()
 
 #
 # Macro used by subdirectories to build each a static library
@@ -149,7 +186,7 @@ endforeach()
 macro(add_nbody_lib libname sources)
 	add_library(${libname} OBJECT ${sources})
 	target_compile_definitions(${libname} PRIVATE ${NBODY_DEFINES})
-	target_include_directories(${libname} PRIVATE ${_inc_dirs})
+	target_include_directories(${libname} PRIVATE ${NBODY_INCLUDE_DIRS})
 	if (NBODY_CXX_FLAGS)
 		set_target_properties(${libname} PROPERTIES COMPILE_FLAGS ${NBODY_CXX_FLAGS})
 	endif()
@@ -170,6 +207,9 @@ add_library(nbodylib STATIC
 
 # Export the include directories and definitions, if necessary
 if (_export)
-	set(NBODYLIB_INCLUDE_DIRS "${_inc_dirs}" PARENT_SCOPE)
+	set(NBODYLIB_INCLUDE_DIRS "${NBODY_INCLUDE_DIRS}" PARENT_SCOPE)
 	set(NBODYLIB_DEFINES "${NBODY_DEFINES}" PARENT_SCOPE)
+	set(NBODYLIB_CXX_FLAGS "${NBODY_CXX_FLAGS}" PARENT_SCOPE)
+	set(NBODYLIB_LINK_FLAGS "${NBODY_LINK_FLAGS}" PARENT_SCOPE)
+	set(NBODYLIB_LIBS "${NBODY_LIBS}" PARENT_SCOPE)
 endif()

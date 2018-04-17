@@ -37,7 +37,6 @@ endmacro()
 
 # Optional dependencies
 option(VR_NO_MPI    "Don't attempt to include MPI support in VELOCIraptor" OFF)
-option(VR_NO_OPENMP "Don't attempt to include OpenMP support in VELOCIraptor" OFF)
 option(VR_NO_HDF5   "Don't attempt to include HDF5 support in VELOCIraptor" OFF)
 option(VR_NO_XDR    "Don't include XDF (nchilada) input support (which in turn requires HDF5 support)" OFF)
 
@@ -104,17 +103,6 @@ vr_option_defines(HALO_DEN                  HALOONLYDEN)
 vr_option_defines(ZOOM_SIM                  HIGHRES)
 
 #
-# How we find GSL and set it up
-#
-macro(find_gsl)
-	# Easy...
-	find_package(GSL REQUIRED)
-	list(APPEND VR_INCLUDE_DIRS ${GSL_INCLUDE_DIRS})
-	list(APPEND VR_LIBS ${GSL_LIBRARIES})
-endmacro()
-
-
-#
 # How we find HDF5 and set it up
 #
 macro(find_hdf5)
@@ -128,20 +116,6 @@ macro(find_hdf5)
 			list(APPEND VR_DEFINES USEXDR)
 			set(VR_HAS_XDR Yes)
 		endif()
-	endif()
-endmacro()
-
-
-#
-# How we find OpenMP and set it up
-#
-macro(find_openmp)
-	find_package(OpenMP COMPONENTS CXX)
-	if (OPENMP_FOUND)
-		list(APPEND VR_CXX_FLAGS ${OpenMP_CXX_FLAGS})
-		list(APPEND VR_LINK_FLAGS ${OpenMP_CXX_FLAGS})
-		list(APPEND VR_DEFINES USEOPENMP)
-		set(VR_HAS_OPENMP Yes)
 	endif()
 endmacro()
 
@@ -166,17 +140,10 @@ endmacro()
 # Go and find our dependencies, depending on whether
 # we actually need them or not
 #
-find_gsl()
-
 set(VR_HAS_HDF5 No)
 set(VR_HAS_XDR No)
 if (NOT VR_NO_HDF5)
 	find_hdf5()
-endif()
-
-set(VR_HAS_OPENMP No)
-if (NOT VR_NO_OPENMP)
-	find_openmp()
 endif()
 
 set(VR_HAS_MPI No)
@@ -192,6 +159,9 @@ if (NOT TARGET nbodylib)
 endif()
 list(APPEND VR_INCLUDE_DIRS ${NBODYLIB_INCLUDE_DIRS})
 list(APPEND VR_DEFINES "${NBODYLIB_DEFINES}")
+list(APPEND VR_CXX_FLAGS "${NBODYLIB_CXX_FLAGS}")
+list(APPEND VR_LINK_FLAGS "${NBODYLIB_LINK_FLAGS}")
+list(APPEND VR_LIBS "${NBODYLIB_LIBS}")
 
 
 #
@@ -226,7 +196,7 @@ endmacro()
 
 message("\nVELOCIraptor successfully configured with the following settings:")
 vr_report(Dependencies
-          "MPI" MPI "OpenMP" OPENMP "HDF5" HDF5 "nchilada" XDR)
+          "MPI" MPI "HDF5" HDF5 "nchilada" XDR)
 vr_report("MPI-specifics (ignore if no MPI)"
           "Reduce MPI memory overhead at the cost of extra CPU cycles" MPI_REDUCE
           "Use huge MPI domains" LARGE_MPI_DOMAIN)

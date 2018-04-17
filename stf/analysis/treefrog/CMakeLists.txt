@@ -53,6 +53,9 @@ set(_treefrog_sources
 add_subdirectory(../../NBodylib NBodylib)
 list(APPEND TF_INCLUDE_DIRS ${NBODYLIB_INCLUDE_DIRS})
 list(APPEND TF_DEFINES ${NBODYLIB_DEFINES})
+list(APPEND TF_LIBS ${NBODYLIB_LIBS})
+list(APPEND TF_CXX_FLAGS ${NBODYLIB_CXX_FLAGS})
+list(APPEND TF_LINK_FLAGS ${NBODYLIB_LINK_FLAGS})
 
 # Optionally include VELOCIraptor, which might be needed (and internally
 # includes nbodylib)
