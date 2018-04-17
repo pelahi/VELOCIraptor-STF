@@ -261,7 +261,7 @@ def ReadPropertyFileMultiWrapperNamespace(index,basefilename,ns,ibinary=0,isepar
 	#call read routine and store the data
 	ns.hdata[index],ns.ndata[index],ns.adata[index]=ReadPropertyFile(basefilename,ibinary,iseparatesubfiles,iverbose,desiredfields)
 
-def ReadHaloMergerTree(treefilename,ibinary=0,iverbose=0):
+def ReadHaloMergerTree(treefilename,ibinary=0,iverbose=0, imerit=False, inpart=False):
 	"""
 	VELOCIraptor/STF merger tree in ascii format contains
 	a header with
@@ -294,9 +294,30 @@ def ReadHaloMergerTree(treefilename,ibinary=0,iverbose=0):
 	if (ibinary==0):
 		treefile = open(treefilename, 'r')
 		numsnap=int(treefile.readline())
+		treefile.close()
+	elif(ibinary==2):
+		snaptreelist=open(treefilename,'r')
+		numsnap = sum(1 for line in snaptreelist)
+		snaptreelist.close()
+	else:
+		print("Unknown format, returning null")
+		numsnap=0
+		return tree
+
+	tree=[{"haloID": [], "Num_progen": [], "Progen": []} for i in range(numsnap)]
+	if (imerit):
+		for i in range(numsnap):
+			tree[i]['Merit']=[]
+	if (inpart):
+		for i in range(numsnap):
+			tree[i]['Npart']=[]
+
+	#if ascii format
+	if (ibinary==0):
+		treefile = open(treefilename, 'r')
+		numsnap=int(treefile.readline())
 		descrip=treefile.readline().strip()
 		tothalos=int(treefile.readline())
-		tree=[{"haloID": [], "Num_progen": [], "Progen": []} for i in range(numsnap)]
 		offset=0
 		totalnumprogen=0
 		for i in range(numsnap):
@@ -305,18 +326,24 @@ def ReadHaloMergerTree(treefilename,ibinary=0,iverbose=0):
 			#if really verbose
 			if (iverbose==2): print(snapval,numhalos)
 			tree[i]["haloID"]=np.zeros(numhalos, dtype=np.int64)
-			tree[i]["Num_progen"]=np.zeros(numhalos, dtype=np.int32)
+			tree[i]["Num_progen"]=np.zeros(numhalos, dtype=np.uint32)
 			tree[i]["Progen"]=[[] for j in range(numhalos)]
+			if (imerit): tree[i]["Merit"]=[[] for j in range(numhalos)]
+			if (inpart): tree[i]["Npart"]=np.zeros(numhalos, dtype=np.uint32)
 			for j in range(numhalos):
-				[hid,nprog]=treefile.readline().strip().split('\t')
-				hid=np.int64(hid);nprog=int(nprog)
+				data=treefile.readline().strip().split('\t')
+				hid=np.int64(data[0]);nprog=np.uint32(data[1])
 				tree[i]["haloID"][j]=hid
 				tree[i]["Num_progen"][j]=nprog
+				if (inpart):tree[i]["Npart"][j]=np.uint32(data[2])
 				totalnumprogen+=nprog
 				if (nprog>0):
 					tree[i]["Progen"][j]=np.zeros(nprog,dtype=np.int64)
+					if (imerit): tree[i]["Merit"][j]=np.zeros(nprog,dtype=np.float32)
 					for k in range(nprog):
-						tree[i]["Progen"][j][k]=np.int64(treefile.readline())
+						data=treefile.readline().strip().split(' ')
+						tree[i]["Progen"][j][k]=np.int64(data[0])
+						if (imerit):tree[i]["Merit"][j][k]=np.float32(data[1])
 
 	elif(ibinary==2):
 
