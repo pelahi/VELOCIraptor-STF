@@ -68,6 +68,12 @@ if (TF_BUILD_VELOCIRAPTOR)
 	list(APPEND TF_LIBS "${VR_LIBS}")
 endif()
 
+# cleanup duplicates and convert to single string
+list(REMOVE_DUPLICATES TF_CXX_FLAGS)
+string(REPLACE ";" " " TF_CXX_FLAGS "${TF_CXX_FLAGS}")
+list(REMOVE_DUPLICATES TF_LINK_FLAGS)
+string(REPLACE ";" " " TF_LINK_FLAGS "${TF_LINK_FLAGS}")
+
 include_directories(${TF_INCLUDE_DIRS})
 add_executable(treefrog ${_treefrog_sources})
 target_link_libraries(treefrog nbodylib ${TF_LIBS})
