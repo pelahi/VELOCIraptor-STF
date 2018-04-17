@@ -393,12 +393,16 @@ def ReadHaloMergerTreeDescendant(treefilename,ireverseorder=True,ibinary=0,iverb
 	elif(ibinary==2):
 		if (iverbose): print("Reading HDF5 input")
 		snaptreelist=open(treefilename,'r')
-		numsnaps = sum(1 for line in snaptreelist)
+		numsnap = sum(1 for line in snaptreelist)
 		snaptreelist.close()
+	else:
+		print("Unknown format, returning null")
+		numsnap=0
+		return tree
 
-	tree=[{"haloID": [], "Num_descen": [], "Descen": [], "Rank": []} for i in range(numsnaps)]
+	tree=[{"haloID": [], "Num_descen": [], "Descen": [], "Rank": []} for i in range(numsnap)]
 	if (imerit):
-		for i in range(numsnaps):
+		for i in range(numsnap):
 			tree['Merit']=[]
 
 	if (ibinary==0):
@@ -439,7 +443,7 @@ def ReadHaloMergerTreeDescendant(treefilename,ireverseorder=True,ibinary=0,iverb
 	#hdf format
 	elif(ibinary==2):
 		snaptreelist=open(treefilename,'r')
-		for snap in range(numsnaps):
+		for snap in range(numsnap):
 			snaptreename = snaptreelist.readline().strip()+".tree"
 			if (iverbose): print("Reading",snaptreename)
 			treedata = h5py.File(snaptreename,"r")
