@@ -185,6 +185,15 @@ if (NOT VR_NO_MPI)
 endif()
 
 
+# This provides us with the nbodylib library
+# We need to add it unless it was already added by somebody else
+if (NOT TARGET nbodylib)
+	add_subdirectory(NBodylib)
+endif()
+list(APPEND VR_INCLUDE_DIRS ${NBODYLIB_INCLUDE_DIRS})
+list(APPEND VR_DEFINES "${NBODYLIB_DEFINES}")
+
+
 #
 # Tell the world what what we are doing
 #
@@ -235,7 +244,8 @@ message("")
 message("Compilation")
 message("-----------")
 message("")
-message(" Defines: ${VR_DEFINES}")
+message(" Include dirs: ${VR_INCLUDE_DIRS}")
+message(" Macros defined: ${VR_DEFINES}")
 message(" Libs: ${VR_LIBS}")
 message(" C++ flags: ${VR_CXX_FLAGS}")
 message(" Link flags: ${VR_LINK_FLAGS}")
@@ -248,14 +258,6 @@ get_directory_property(_hasParent PARENT_DIRECTORY)
 if (_hasParent)
 	set(_export ON)
 endif()
-
-# This provides us with the nbodylib library
-# We need to add it unless it was already added by somebody else
-if (NOT TARGET nbodylib)
-	add_subdirectory(NBodylib)
-endif()
-list(APPEND VR_INCLUDE_DIRS ${NBODYLIB_INCLUDE_DIRS})
-list(APPEND VR_DEFINES "${NBODYLIB_DEFINES}")
 
 include_directories(${VR_INCLUDE_DIRS})
 
