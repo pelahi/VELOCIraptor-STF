@@ -31,6 +31,12 @@ set(CMAKE_CXX_STANDARD 11)
 # Command-line treefrog-specific options
 option(TF_BUILD_VELOCIRAPTOR "Whether VELOCiraptor should be built together with treefrog or not" OFF)
 
+set(TF_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}")
+set(TF_DEFINES "")
+set(TF_LIBS "")
+set(TF_CXX_FLAGS "")
+set(TF_LINK_FLAGS "")
+
 set(_treefrog_sources
     allvars.cxx
     crosscheck.cxx
@@ -45,14 +51,27 @@ set(_treefrog_sources
 
 # Include nbodylib, which is definitely needed
 add_subdirectory(../../NBodylib NBodylib)
-include_directories("${NBODYLIB_INCLUDE_DIRS}")
+list(APPEND TF_INCLUDE_DIRS ${NBODYLIB_INCLUDE_DIRS})
+list(APPEND TF_DEFINES ${NBODYLIB_DEFINES})
 
 # Optionally include VELOCIraptor, which might be needed (and internally
 # includes nbodylib)
 if (TF_BUILD_VELOCIRAPTOR)
 	add_subdirectory(../.. velociraptor)
 	include_directories("${VR_INCLUDE_DIRS}")
+	list(APPEND TF_DEFINES "${VR_DEFINES}")
+	list(APPEND TF_CXX_FLAGS "${VR_CXX_FLAGS}")
+	list(APPEND TF_LINK_FLAGS "${VR_LINK_FLAGS}")
+	list(APPEND TF_LIBS "${VR_LIBS}")
 endif()
 
+include_directories(${TF_INCLUDE_DIRS})
 add_executable(treefrog ${_treefrog_sources})
-target_link_libraries(treefrog nbodylib)
+target_link_libraries(treefrog nbodylib ${TF_LIBS})
+target_compile_definitions(treefrog PRIVATE ${TF_DEFINES})
+if (TF_CXX_FLAGS)
+	set_target_properties(treefrog PROPERTIES COMPILE_FLAGS ${TF_CXX_FLAGS})
+endif()
+if (TF_LINK_FLAGS)
+	set_target_properties(treefrog PROPERTIES LINK_FLAGS ${TF_LINK_FLAGS})
+endif()
