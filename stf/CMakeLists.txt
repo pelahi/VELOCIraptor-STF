@@ -261,9 +261,25 @@ message("")
 set(VR_NBODY_DEFINES ${VR_DEFINES})
 set(VR_NBODY_CXX_FLAGS ${VR_CXX_FLAGS})
 
+# Are we part of an outside build (i.e., of a treefrog build)?
+# If so, we want to let the caller know what to include
+set(_export_inc_dirs OFF)
+get_directory_property(_hasParent PARENT_DIRECTORY)
+if (_hasParent)
+	set(_export_inc_dirs ON)
+endif()
+
 # This provides us with the nbodylib library
-add_subdirectory(NBodylib)
-include_directories("${NBODYLIB_INCLUDE_DIRS}")
+# We need to add it unless it was already added by somebody else
+if (NOT TARGET nbodylib)
+	add_subdirectory(NBodylib)
+	include_directories("${NBODYLIB_INCLUDE_DIRS}")
+endif()
 
 # This provides us with the velociraptor library and the stf binary
 add_subdirectory(src)
+
+# Export the include directories, if necessary
+if (_export_inc_dirs)
+	set(VR_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/src" PARENT_SCOPE)
+endif()
