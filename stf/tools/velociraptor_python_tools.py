@@ -403,7 +403,7 @@ def ReadHaloMergerTreeDescendant(treefilename,ireverseorder=True,ibinary=0,iverb
 	tree=[{"haloID": [], "Num_descen": [], "Descen": [], "Rank": []} for i in range(numsnap)]
 	if (imerit):
 		for i in range(numsnap):
-			tree['Merit']=[]
+			tree[i]['Merit']=[]
 
 	if (ibinary==0):
 		treefile = open(treefilename, 'r')
