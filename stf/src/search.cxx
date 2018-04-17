@@ -261,6 +261,10 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, Particle *&Part, Int_t &
     //have now 3dfof groups local to a MPI thread and particles are back in index order that will be used from now on
     //note that from on, use Nlocal, which is altered in mpi but set to nbodies in non-mpi
     if (opt.fofbgtype<=FOF6D && totalgroups>0) {
+    ///\todo In the 6DFOF, particles are sorted into group order but then resorted back into input index order
+    ///this is not necessary if the tipsy still .grp array does not need to be constructed.
+    ///we would removing storing the old ids alter how the local group lists are stiched together into the larger array
+    ///and remove a slow sort back into original ID order
     time1=MyGetTime();
     time2=MyGetTime();
 
@@ -445,6 +449,7 @@ private(i,tid,xscaling,vscaling)
         Int_t *pfof6dfof=new Int_t[Nlocal];
         for (i=0;i<Nlocal;i++) pfof6dfof[i]=0;
         ng=0;
+        ///\todo restructure how data is stored in the pfof6dfof since will no longer necessarily keep stuff in index order
         for (i=1;i<=iend;i++) {
             for (int j=0;j<numingroup[i];j++) {
                 pfof6dfof[ids[Part[noffset[i]+j].GetID()+noffset[i]]]=pfofomp[i][j]+(pfofomp[i][j]>0)*ng;
@@ -545,6 +550,7 @@ private(i,tid,xscaling,vscaling)
         delete[] numingroup;
     }
 
+    ///\todo only run this sort if necessary to keep id order
     for (i=0;i<npartingroups;i++) Part[i].SetID(ids[i]);
     gsl_heapsort(Part, Nlocal, sizeof(Particle), IDCompare);
     delete[] ids;
