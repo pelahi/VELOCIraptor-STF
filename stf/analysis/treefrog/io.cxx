@@ -333,7 +333,7 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
         for (int i=opt.numsnapshots-1;i>0;i--) if (i>=istart && i<iend) {
 
 
-            sprintf(fname,"%s/snapshot_%03d.VELOCIraptor.tree",opt.outname,i);
+            sprintf(fname,"%s/snapshot_%03d.VELOCIraptor.tree",opt.outname,i+opt.snapshotvaloffset);
             cout<<ThisTask<<" is writing to "<<fname<<" "<<MyGetTime()-time1<<endl;
 
             //Header information
@@ -486,7 +486,7 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
         ///last file has no connections
         if(ThisTask==0){
 
-            sprintf(fname,"%s/snapshot_%03d.VELOCIraptor.tree",opt.outname,0);
+            sprintf(fname,"%s/snapshot_%03d.VELOCIraptor.tree",opt.outname,0+opt.snapshotvaloffset);
             cout<<ThisTask<<" is writing to "<<fname<<" "<<MyGetTime()-time1<<endl;
 
             //Header information
@@ -725,7 +725,7 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
 
         for (int i=istart;i<iend;i++) {
 
-            sprintf(fname,"%s/snapshot_%03d.VELOCIraptor.tree",opt.outname,i);
+            sprintf(fname,"%s/snapshot_%03d.VELOCIraptor.tree",opt.outname,i+opt.snapshotvaloffset);
             cout<<ThisTask<<" is writing to "<<fname<<" "<<MyGetTime()-time1<<endl;
 
             //Header information
@@ -896,7 +896,7 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
         ///last file has no connections
         if(ThisTask==NProcs-1){
 
-            sprintf(fname,"%s/snapshot_%03d.VELOCIraptor.tree",opt.outname,opt.numsnapshots-1);
+            sprintf(fname,"%s/snapshot_%03d.VELOCIraptor.tree",opt.outname,opt.numsnapshots-1+opt.snapshotvaloffset);
             cout<<ThisTask<<" is writing to "<<fname<<" "<<MyGetTime()-time1<<endl;
 
             //Header information

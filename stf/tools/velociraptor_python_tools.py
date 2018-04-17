@@ -522,6 +522,46 @@ def ReadCrossCatalogList(fname,meritlim=0.1,iverbose=0):
 	if (iverbose): print("done reading cross catalog ",time.clock()-start)
 	return pdata
 
+def ReadSimInfo(basefilename):
+	"""
+	Reads in the information in .siminfo and returns it as a dictionary
+	"""
+
+	filename = basefilename + ".siminfo"
+
+	if (os.path.isfile(filename)==False):
+		print("file not found")
+		return []
+
+	cosmodata = {}
+	siminfofile = open(filename,"r")
+	line = siminfofile.readline().strip().split(" : ")
+	while(line[0]!=""):
+		cosmodata[line[0]] = float(line[1])
+		line = siminfofile.readline().strip().split(" : ")
+	siminfofile.close()
+	return cosmodata
+
+def ReadUnitInfo(basefilename):
+	"""
+	Reads in the information in .units and returns it as a dictionary
+	"""
+
+	filename = basefilename + ".units"
+
+	if (os.path.isfile(filename)==False):
+		print("file not found")
+		return []
+		
+	unitdata = {}
+	unitsfile = open(filename,"r")
+	line = unitsfile.readline().strip().split(" : ")
+	while(line[0]!=""):
+		unitdata[line[0]] = float(line[1])
+		line = unitsfile.readline().strip().split(" : ")
+	unitsfile.close()
+	return unitdata
+
 def ReadParticleDataFile(basefilename,ibinary=0,iseparatesubfiles=0,iparttypes=0,iverbose=0, binarydtype=np.int64):
 	"""
 	VELOCIraptor/STF catalog_group, catalog_particles and catalog_parttypes in various formats
@@ -960,7 +1000,11 @@ def TraceMainDescendant(istart,ihalo,numsnaps,numhalos,halodata,tree,TEMPORALHAL
 		#tail set, then must be the the first progenitor
 		#otherwise it should have already been set and just need to store the root tail
 		if (halodata[halosnap]['Tail'][ihalo]==0):
-			halodata[halosnap]['Tail'][ihalo]=haloid
+			try:
+				halodata[halosnap]['Tail'][ihalo]=haloid
+			except OverflowError:
+				print(haloid,haloid/TEMPORALHALOIDVAL,halosnap,ihalo)
+				raise SystemExit()
 			halodata[halosnap]['TailSnap'][ihalo]=halosnap
 			halodata[halosnap]['RootTail'][ihalo]=haloid
 			halodata[halosnap]['RootTailSnap'][ihalo]=halosnap
@@ -1860,7 +1904,7 @@ def ProduceUnifiedTreeandHaloCatalog(fname,numsnaps,tree,numhalos,halodata,atime
 			else:
 				snapgrp.create_dataset(key,data=tree[i][key])
 			"""
-			if (key=="Progen"): continue
+			if ((key=="Progen") | (key=="Descen")): continue
 			snapgrp.create_dataset(key,data=tree[i][key])
 	hdffile.close()
 

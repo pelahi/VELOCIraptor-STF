@@ -55,6 +55,7 @@ extern int *mpi_startsnap,*mpi_endsnap;
 /// \name MPI load decomposition parameters
 //@{
 #define MPILOADBALANCE 3.0
+#define MPIHALOBALANCE
 //@}
 
 #endif
