@@ -6,6 +6,8 @@
 #ifndef SWIFT_PARTICLE_H
 #define SWIFT_PARTICLE_H
 
+#ifdef SWIFTINTERFACE
+
 namespace Swift
 {
     /* Include some struct definitions from SWIFT. */
@@ -17,5 +19,7 @@ namespace Swift
         #include "hydro_part.h"
     }
 }
+
+#endif
 
 #endif

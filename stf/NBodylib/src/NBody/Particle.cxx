@@ -10,17 +10,7 @@ using namespace Math;
 
 namespace NBody
 {
-    int swift_map_type(enum part_type type) {
-        int vel_type = (int)swift_type_dark_matter;
-
-        if(type & swift_type_gas) vel_type = (int)swift_type_gas;
-        else if(type & swift_type_dark_matter) vel_type = (int)swift_type_dark_matter;
-        else if(type & swift_type_star) vel_type = (int)swift_type_star;
-        else if(type & swift_type_black_hole) vel_type = (int)swift_type_black_hole;
-        
-        return vel_type;
-    }
-
+  
     int PIDCompare (const void *a, const void *b)
     {
         PARTPIDTYPE aa = ((Particle*)a)->GetPID();
@@ -180,6 +170,7 @@ namespace NBody
         }
     }
 
+#ifdef SWIFTINTERFACE
     // SWIFT interface constructor. Copies particle properties from SWIFT particle.
     Particle::Particle(const struct gpart &p, double lscale, double vscale, double mscale, double uscale, bool icosmological, double a, double h)
     {
@@ -207,6 +198,7 @@ namespace NBody
 #endif
       pid=p.id_or_neg_offset;
     }
+#endif
 
     //    OPERATORS
     //assignment operator only carried out if not same object

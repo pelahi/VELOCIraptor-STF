@@ -11,9 +11,10 @@
 
 #include "stf.h"
 
+#ifdef SWIFTINTERFACE
 #include "swiftinterface.h"
-
 using namespace Swift;
+#endif
 
 /// \name Domain decomposition routines and io routines to place particles correctly in local mpi data space
 //@{
