@@ -149,8 +149,8 @@ for i in range(numsims):
             meritdata=[trees[labellist[i]][labellist[j]][0]['Merit'][w][0] for w in wmatch[0]]
             meritstats=np.concatenate([np.array([max(meritdata),min(meritdata)], dtype=np.float32),np.array(np.percentile(meritdata,[16,50,84]),dtype=np.float32)])
             if (meritstats[1]<tol['merit']):
-                print('FAIL, lowest merit too small'meritstats[1],tol['merit'])
+                print('FAIL, lowest merit too small',meritstats[1],tol['merit'])
             if (meritstats[0]<tol['merit']):
                 print('FAIL, largest merit too small',meritstats[0],tol['merit'])
             if (meritstats[3]>tol['merit']):
-                print('FAIL, average merit too small'meritstats[3],tol['merit'])
+                print('FAIL, average merit too small',meritstats[3],tol['merit'])
