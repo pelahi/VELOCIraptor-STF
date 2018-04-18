@@ -6,7 +6,7 @@ and checks to see if there are consisten within some tolerance.
 
 The general interface is to provide an input file that is a list of catalogs to compare
 The code will then invoke a simple, single thread treefrog instance and do a
-cross catalog comparison. 
+cross catalog comparison.
 
 This is then read by python read tools and analysed
 
@@ -35,20 +35,20 @@ from mpl_toolkits.mplot3d import Axes3D
 
 #load python routines
 #one of these paths should work
-sys.path.append('/home/pelahi/myresearch/streamfinder/code/repo/VELOCIraptor-STF/stf/tools/')
+pathtovelociraptor=sys.argv[0].split('examples')[0]
+sys.path.append(pathtovelociraptor+'/tools/')
 import velociraptor_python_tools as vpt
-
 
 #if __name__ == '__main__':
 
-if (os.path.isfile(sys.argv[1])==False): 
+if (os.path.isfile(sys.argv[1])==False):
     print("Missing info file",sys.argv[1])
     exit()
-if (os.path.isfile(sys.argv[2])==False): 
+if (os.path.isfile(sys.argv[2])==False):
     print("Missing tolerance file",sys.argv[2])
     exit()
 
-#load the plot info file, 
+#load the plot info file,
 print("Reading info file", sys.argv[1])
 infofile=open(sys.argv[1],"r")
 #load the code and arguments that will be run
@@ -120,14 +120,14 @@ for i in range(numsims):
             print('pass, all objects have match' )
         else:
             #check if number of object difference is issue
-            if (n1!=n2): 
+            if (n1!=n2):
                 print('catalogs have different number of objects',n1,n2)
                 if (np.abs(n1-n2)/float(n1+n2)>tol['numobjfrac']):
                     print('FAIL, too large a difference between catalogs')
                 else:
                     print('pass')
             #check if number of missing matches and issue
-            if (nnomatch>0): 
+            if (nnomatch>0):
                 print('catalog 1 -> 2 produces missing matches',nnomatch)
                 if (nnomatch/float(n1)>tol['nomatchfrac']):
                     print('FAIL, too many missing matches')
@@ -135,12 +135,12 @@ for i in range(numsims):
                     print('pass')
                 #check if number of particles of objects with missing matches is an issue
                 if (npartstats[1]>tol['nomatchnpart']):
-                    print('FAIL, smallest missing matches too large')
+                    print('FAIL, smallest missing matches too large',npartstats[1],tol['nomatchnpart'])
                 if (npartstats[0]>tol['nomatchnpart']):
-                    print('FAIL, largest missing matches too large')
+                    print('FAIL, largest missing matches too large',npartstats[0],tol['nomatchnpart'])
                 if (npartstats[3]>tol['nomatchnpart']):
-                    print('FAIL, average missing matches too large')
-                    
+                    print('FAIL, average missing matches too large',npartstats[3],tol['nomatchnpart'])
+
         #merit check
         wmatch=np.where(trees[labellist[i]][labellist[j]][0]['Num_progen']>0)
         nmatch=len(wmatch[0])
@@ -149,10 +149,8 @@ for i in range(numsims):
             meritdata=[trees[labellist[i]][labellist[j]][0]['Merit'][w][0] for w in wmatch[0]]
             meritstats=np.concatenate([np.array([max(meritdata),min(meritdata)], dtype=np.float32),np.array(np.percentile(meritdata,[16,50,84]),dtype=np.float32)])
             if (meritstats[1]<tol['merit']):
-                print('FAIL, lowest merit too small')
+                print('FAIL, lowest merit too small'meritstats[1],tol['merit'])
             if (meritstats[0]<tol['merit']):
-                print('FAIL, largest merit too small')
+                print('FAIL, largest merit too small',meritstats[0],tol['merit'])
             if (meritstats[3]>tol['merit']):
-                print('FAIL, average merit too small')
-            
-
+                print('FAIL, average merit too small'meritstats[3],tol['merit'])
