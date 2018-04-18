@@ -485,22 +485,22 @@ inline void ConfigCheck(Options &opt)
     else if(opt.imultsteplinkcrit==MSLCMERITPRIMARYPROGEN)  opt.description+=(char*)" if missing a link, low merit or if link is secondary progenitor when constructing descendant tree |";
 
     opt.description+=(char*)"Tree built using ";
-    opt.description+=static_cast<ostringstream*>( &(ostringstream() << opt.numsteps) )->str();
+    opt.description+=(ostringstream() << opt.numsteps).str();
     opt.description+=(char*)" temporal steps | ";
 
     opt.description+=(char*)"Particle types for matching limited to ";
     if (opt.itypematch==ALLTYPEMATCH) opt.description+=(char*)" all |";
-    else {opt.description+=(char*)" part type ";opt.description+=static_cast<ostringstream*>( &(ostringstream() << opt.itypematch) )->str();}
+    else {opt.description+=(char*)" part type ";opt.description+=(ostringstream() << opt.itypematch).str();}
     opt.description+=(char*)" | ";
 
     if (opt.particle_frac<1 && opt.particle_frac>0) {
-        opt.description+=(char*)" Fractions of paritcles from which merit calculated with ";opt.description+=static_cast<ostringstream*>( &(ostringstream() << opt.particle_frac) )->str();
-        opt.description+=(char*)" with lower particle number limit of ";opt.description+=static_cast<ostringstream*>( &(ostringstream() << opt.min_numpart) )->str();
+        opt.description+=(char*)" Fractions of paritcles from which merit calculated with ";opt.description+=(ostringstream() << opt.particle_frac).str();
+        opt.description+=(char*)" with lower particle number limit of ";opt.description+=(ostringstream() << opt.min_numpart).str();
         opt.description+=(char*)" | ";
     }
 
     opt.description+=(char*)"Merit threshold is  ";
-    opt.description+=static_cast<ostringstream*>( &(ostringstream() << opt.meritlimit) )->str();
+    opt.description+=(ostringstream() << opt.meritlimit).str();
     opt.description+=(char*)" | ";
 
     if (ThisTask==0) cout<<"TreeFrog running with "<<endl<<"---------"<<endl<<opt.description<<endl<<"---------"<<endl<<endl;
