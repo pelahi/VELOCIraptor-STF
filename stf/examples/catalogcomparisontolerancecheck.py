@@ -41,8 +41,15 @@ import velociraptor_python_tools as vpt
 
 #if __name__ == '__main__':
 
+if (os.path.isfile(sys.argv[1])==False): 
+    print("Missing info file",sys.argv[1])
+    exit()
+if (os.path.isfile(sys.argv[2])==False): 
+    print("Missing tolerance file",sys.argv[2])
+    exit()
+
 #load the plot info file, 
-print "Reading info file", sys.argv[1]
+print("Reading info file", sys.argv[1])
 infofile=open(sys.argv[1],"r")
 #load the code and arguments that will be run
 treefrogexe=infofile.readline().strip()
@@ -56,7 +63,7 @@ for i in range(numsims):
     filenamelist[i]=data[1]
 infofile.close()
 
-print "Reading tolerance file", sys.argv[2]
+print("Reading tolerance file", sys.argv[2])
 tolerancefile=open(sys.argv[2],"r")
 tolerancefile.close()
 
@@ -77,8 +84,8 @@ for i in range(numsims-1):
     for j in range(i+1,numsims):
         catcompname="catcomplist."+labellist[i]+"."+labellist[j]+".txt"
         os.system("rm "+catcompname)
-        os.system("echo "+labellist[j]+" >> "+catcompname)
-        os.system("echo "+labellist[i]+" >> "+catcompname)
+        os.system("echo "+filenamelist[j]+" >> "+catcompname)
+        os.system("echo "+filenamelist[i]+" >> "+catcompname)
         outputname='catcomp.'+labellist[i]+'.'+labellist[j]
         if (os.path.exists(outputname)==False):
             cmd=treefrogexe+" "+treefrogargs+' -i '+catcompname+' -o '+outputname
