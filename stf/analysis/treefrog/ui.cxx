@@ -417,6 +417,18 @@ inline void ConfigCheck(Options &opt)
             exit(8);
 #endif
     }
+    if ((opt.particle_frac<1 && opt.particle_frac>0 && opt.icorematchtype!=PARTLISTNOCORE && opt.min_numpart>1)){
+        if (ThisTask==0) {
+            cerr<<"Core matching configuration inconsistent. \n";
+            if (opt.icorematchtype==PARTLISTNOCORE) cerr<<"Core fractions less than 1 but core matching disabled. Alter -E argument. \n";
+            if (opt.min_numpart<1) cerr<<"Min num of particles used to identify matches < 1. Alter -p argument. \n";
+        }
+#ifdef USEMPI
+            MPI_Abort(MPI_COMM_WORLD,8);
+#else
+            exit(8);
+#endif
+    }
     if (opt.idefaultvalues) {
         cout<<"Parameters specifying special matching criteria not passed by user, using default values"<<endl;
         if (opt.icatalog==DCROSSCAT){
@@ -432,16 +444,15 @@ inline void ConfigCheck(Options &opt)
             if(opt.isearchdirection==SEARCHDESCEN) {
                 opt.icorematchtype=PARTLISTCORE;
                 opt.min_numpart=20;
-                opt.particle_frac=0.1;
-                opt.meritlimit=0.1;
-                opt.imerittype=MERITNsharedN1N2;
+                opt.particle_frac=0.4;
+                opt.meritlimit=0.025;
+                opt.imerittype=MERITRankWeightedBoth;
                 opt.imultsteplinkcrit=MSLCPRIMARYPROGEN;
                 opt.iopttemporalmerittype=GENERALIZEDMERITTIMEPROGEN;
             }
             else if (opt.isearchdirection==SEARCHPROGEN) {
                 opt.icorematchtype=PARTLISTCORECORE;
-                opt.min_numpart=20;
-                opt.particle_frac=0.1;
+                opt.particle_frac=0.4;
                 opt.meritlimit=0.1;
                 opt.imerittype=MERITNsharedN1N2;
                 opt.imultsteplinkcrit=MSLCMERIT;
@@ -485,22 +496,29 @@ inline void ConfigCheck(Options &opt)
     else if(opt.imultsteplinkcrit==MSLCMERITPRIMARYPROGEN)  opt.description+=(char*)" if missing a link, low merit or if link is secondary progenitor when constructing descendant tree |";
 
     opt.description+=(char*)"Tree built using ";
-    opt.description+=(ostringstream() << opt.numsteps).str();
+    opt.description+=to_string(opt.numsteps);
     opt.description+=(char*)" temporal steps | ";
 
     opt.description+=(char*)"Particle types for matching limited to ";
     if (opt.itypematch==ALLTYPEMATCH) opt.description+=(char*)" all |";
-    else {opt.description+=(char*)" part type ";opt.description+=(ostringstream() << opt.itypematch).str();}
+    else {opt.description+=(char*)" part type ";opt.description+=to_string(opt.itypematch);}
     opt.description+=(char*)" | ";
 
-    if (opt.particle_frac<1 && opt.particle_frac>0) {
-        opt.description+=(char*)" Fractions of paritcles from which merit calculated with ";opt.description+=(ostringstream() << opt.particle_frac).str();
-        opt.description+=(char*)" with lower particle number limit of ";opt.description+=(ostringstream() << opt.min_numpart).str();
+    if (opt.particle_frac<1 && opt.particle_frac>0 && opt.icorematchtype!=PARTLISTNOCORE) {
+        opt.description+=(char*)" Fractions of paritcles from which merit calculated with ";opt.description+=to_string(opt.particle_frac);
+        opt.description+=(char*)" with lower particle number limit of ";opt.description+=to_string(opt.min_numpart);
         opt.description+=(char*)" | ";
+        if (opt.isearchdirection==SEARCHDESCEN) {
+            opt.description+=(char*)" Core match type is core to all initially, followed by a reranking based on core to core matching | ";
+        }
+        else if (opt.isearchdirection==SEARCHPROGEN) {
+            if (opt.icorematchtype==PARTLISTCORE) opt.description+=(char*)" Core match type is core to all  | ";
+            else if (opt.icorematchtype==PARTLISTCORECORE) opt.description+=(char*)" Core match type is all to all initially, followed by a reranking based on core to core matching | ";
+        }
     }
 
     opt.description+=(char*)"Merit threshold is  ";
-    opt.description+=(ostringstream() << opt.meritlimit).str();
+    opt.description+=to_string(opt.meritlimit);
     opt.description+=(char*)" | ";
 
     if (ThisTask==0) cout<<"TreeFrog running with "<<endl<<"---------"<<endl<<opt.description<<endl<<"---------"<<endl<<endl;
