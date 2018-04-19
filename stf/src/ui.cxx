@@ -691,6 +691,34 @@ inline void ConfigCheck(Options &opt)
     }
 #endif
 
+#ifndef USEHDF
+    if (opt.ibinaryout==OUTHDF){
+#ifdef USEMPI
+    if (ThisTask==0)
+#endif
+        cerr<<"Code not compiled with HDF output enabled. Recompile with this enabled or change Binary_output.\n";
+#ifdef USEMPI
+        MPI_Abort(MPI_COMM_WORLD,8);
+#else
+        exit(8);
+#endif
+}
+#endif
+
+#ifndef USEADIOS
+    if (opt.ibinaryout==OUTADIOS){
+#ifdef USEMPI
+    if (ThisTask==0)
+#endif
+        cerr<<"Code not compiled with ADIOS output enabled. Recompile with this enabled or change Binary_output.\n";
+#ifdef USEMPI
+        MPI_Abort(MPI_COMM_WORLD,8);
+#else
+        exit(8);
+#endif
+}
+#endif
+
 #ifdef USEMPI
     if (ThisTask==0) {
 #endif
