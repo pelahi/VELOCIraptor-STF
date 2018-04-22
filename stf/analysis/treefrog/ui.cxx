@@ -417,7 +417,7 @@ inline void ConfigCheck(Options &opt)
             exit(8);
 #endif
     }
-    if ((opt.particle_frac<1 && opt.particle_frac>0 && opt.icorematchtype!=PARTLISTNOCORE && opt.min_numpart>1)){
+    if ((opt.particle_frac<1 && opt.particle_frac>0 && opt.icorematchtype==PARTLISTNOCORE && opt.min_numpart>1)){
         if (ThisTask==0) {
             cerr<<"Core matching configuration inconsistent. \n";
             if (opt.icorematchtype==PARTLISTNOCORE) cerr<<"Core fractions less than 1 but core matching disabled. Alter -E argument. \n";
