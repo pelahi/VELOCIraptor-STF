@@ -208,6 +208,14 @@ using namespace NBody;
 #define OMPCHUNKSIZE 100UL
 #endif
 
+/// \name MPI parameters for load balancing
+#ifdef USEMPI
+///particle based splitting
+#define MPIPARTICLEBALANCE 0
+///halo based splitting
+#define MPIHALOBALANCE 1
+#endif
+
 #ifdef TREEFROGLONGIDS
 typedef long long IDTYPE;
 #elif defined(TREEFROGLONGUIDS)
@@ -319,6 +327,9 @@ struct Options
     int ndesiredmpithreads;
     ///whether mpi threads write in parallel
     int iwriteparallel;
+    ///Set if the load balancing is either halo or particle based splitting
+    int impiloadbalancesplitting;
+
 #endif
 
     Options()
@@ -370,6 +381,7 @@ struct Options
         numpermpi=0;
         ndesiredmpithreads=0;
         iwriteparallel=0;
+        impiloadbalancesplitting=MPIHALOBALANCE;
 #endif
     }
 };

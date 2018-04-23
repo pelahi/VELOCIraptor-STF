@@ -94,7 +94,7 @@ void GetArgs(int argc, char *argv[], Options &opt)
 {
     int option;
     int NumArgs = 0;
-    while ((option = getopt(argc, argv, ":i:s:I:N:B:F:o:O:d:T:D:M:X:E:U:C:l:m:n:t:f:p:b:a:j:h:H:g:v:y:z:Z:")) != EOF)
+    while ((option = getopt(argc, argv, ":i:s:I:N:B:F:o:O:d:T:D:M:X:E:U:C:l:m:n:t:f:p:b:a:j:h:H:g:v:y:z:Z:S:")) != EOF)
     {
         switch(option)
         {
@@ -250,6 +250,10 @@ void GetArgs(int argc, char *argv[], Options &opt)
                 opt.iwriteparallel = atoi(optarg);
                 NumArgs += 2;
                 break;
+            case 'S':
+                opt.impiloadbalancesplitting = atoi(optarg);
+                NumArgs += 2;
+                break;
 #endif
             case '?':
                 usage();
@@ -317,6 +321,8 @@ void usage(void)
     cerr<<"-M <cross correlation function type to identify main progenitor/descendant/link. Default ("<<opt.imerittype<<"). Possibilities are :\n";
     cerr<<'\t'<<MERITNsharedN1N2<<" standard merit of Nshared^2/N1/N2, \n";
     cerr<<'\t'<<MERITNsharedN1<<" fraction merit of Nshared/N1, \n";
+    cerr<<'\t'<<MERITRankWeighted<<" ranking merit times Nshared/N1, \n";
+    cerr<<'\t'<<MERITRankWeightedBoth<<" ranking merit both ways times Nshared/N1, \n";
     cerr<<"-X <criteria for when to keep searching for new links if multiple steps invoked ("<<opt.imultsteplinkcrit<<"). Possibilities are :\n";
     cerr<<'\t'<<MSLCMISSING<<" Only missing ,\n";
     cerr<<'\t'<<MSLCMERIT<<" Missing & low merit given by merit limit, \n";
@@ -348,7 +354,8 @@ void usage(void)
     cerr<<" ID related options "<<endl;
     cerr<<" ========================= "<<endl;
     cerr<<"-n <Max ID value of particles [Must specify if not mapping ids to index] ("<<opt.MaxIDValue<<")>\n";
-    cerr<<"-D <adjust particle IDs for nIFTY cross catalogs across simulations ("<<opt.idcorrectflag<<")\n";
+    //need to adjust this
+    //cerr<<"-D <adjust particle IDs for nIFTY cross catalogs across simulations ("<<opt.idcorrectflag<<")\n";
     cerr<<"-m <Mapping of particle ids to index ("<<opt.imapping<<" [ no maping "<<DNOMAP<<", simple mapping "<<DSIMPLEMAP<<", computational expensive but memory efficient adaptive map "<<DMEMEFFICIENTMAP<<"])\n";
     cerr<<" ========================= "<<endl<<endl;
 
@@ -373,6 +380,7 @@ void usage(void)
     cerr<<"-y <number of items per mpi thead, use for load balacing. If 0, based on input ("<<opt.numpermpi<<")\n";
     cerr<<"-z <number of mpi theads used to calculate load balacing. If >0 this used with one actual mpi thread but determines load balancing based on desired number of mpi threads. Write load balancing file and terminates. If 0 (default) normal operation \n";
     cerr<<"-Z <whether to write output in parallel (0/1). \n";
+    cerr<<"-S <how the files are split across MPI threads, 1 for halo based splitting, 0 for particle based splitting. ("<<opt.impiloadbalancesplitting<<")\n";
     cerr<<" ========================= "<<endl<<endl;
 #endif
 #ifdef USEMPI
@@ -417,7 +425,7 @@ inline void ConfigCheck(Options &opt)
             exit(8);
 #endif
     }
-    if ((opt.particle_frac<1 && opt.particle_frac>0 && opt.icorematchtype!=PARTLISTNOCORE && opt.min_numpart>1)){
+    if ((opt.particle_frac<1 && opt.particle_frac>0 && opt.icorematchtype==PARTLISTNOCORE && opt.min_numpart>1)){
         if (ThisTask==0) {
             cerr<<"Core matching configuration inconsistent. \n";
             if (opt.icorematchtype==PARTLISTNOCORE) cerr<<"Core fractions less than 1 but core matching disabled. Alter -E argument. \n";

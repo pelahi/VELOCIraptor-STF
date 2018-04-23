@@ -200,14 +200,24 @@ void MPINumInDomainHDF(Options &opt)
     int usetypes[NHDFTYPE];
     if (ireadtask[ThisTask]>=0) {
         if (opt.partsearchtype==PSTALL) {
-            //lets assume there are dm/stars/gas.
-            nusetypes=3;
-            usetypes[0]=HDFGASTYPE;usetypes[1]=HDFDMTYPE;usetypes[2]=HDFSTARTYPE;
-            //now if also blackholes/sink particles increase number of types
+            nusetypes=0;
+            //assume existance of dark matter and gas
+            usetypes[nusetypes++]=HDFGASTYPE;usetypes[nusetypes++]=HDFDMTYPE;
+            if (opt.iuseextradarkparticles) {
+                usetypes[nusetypes++]=HDFDM1TYPE;
+                usetypes[nusetypes++]=HDFDM2TYPE;
+        	}
+            if (opt.iusestarparticles) usetypes[nusetypes++]=HDFSTARTYPE;
             if (opt.iusesinkparticles) usetypes[nusetypes++]=HDFBHTYPE;
             if (opt.iusewindparticles) usetypes[nusetypes++]=HDFWINDTYPE;
         }
-        else if (opt.partsearchtype==PSTDARK) {nusetypes=1;usetypes[0]=HDFDMTYPE;}
+        else if (opt.partsearchtype==PSTDARK) {
+            nusetypes=1;usetypes[0]=HDFDMTYPE;
+            if (opt.iuseextradarkparticles) {
+                usetypes[nusetypes++]=HDFDM1TYPE;
+                usetypes[nusetypes++]=HDFDM2TYPE;
+            }
+        }
         else if (opt.partsearchtype==PSTGAS) {nusetypes=1;usetypes[0]=HDFGASTYPE;}
         else if (opt.partsearchtype==PSTSTAR) {nusetypes=1;usetypes[0]=HDFSTARTYPE;}
         else if (opt.partsearchtype==PSTBH) {nusetypes=1;usetypes[0]=HDFBHTYPE;}
