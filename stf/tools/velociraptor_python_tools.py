@@ -261,7 +261,7 @@ def ReadPropertyFileMultiWrapperNamespace(index,basefilename,ns,ibinary=0,isepar
 	#call read routine and store the data
 	ns.hdata[index],ns.ndata[index],ns.adata[index]=ReadPropertyFile(basefilename,ibinary,iseparatesubfiles,iverbose,desiredfields)
 
-def ReadHaloMergerTree(treefilename,ibinary=0,iverbose=0):
+def ReadHaloMergerTree(treefilename,ibinary=0,iverbose=0, imerit=False, inpart=False):
 	"""
 	VELOCIraptor/STF merger tree in ascii format contains
 	a header with
@@ -294,9 +294,31 @@ def ReadHaloMergerTree(treefilename,ibinary=0,iverbose=0):
 	if (ibinary==0):
 		treefile = open(treefilename, 'r')
 		numsnap=int(treefile.readline())
+		treefile.close()
+	elif(ibinary==2):
+		snaptreelist=open(treefilename,'r')
+		numsnap = sum(1 for line in snaptreelist)
+		snaptreelist.close()
+	else:
+		print("Unknown format, returning null")
+		numsnap=0
+		return tree
+
+	tree=[{"haloID": [], "Num_progen": [], "Progen": []} for i in range(numsnap)]
+	if (imerit):
+		for i in range(numsnap):
+			tree[i]['Merit']=[]
+	if (inpart):
+		for i in range(numsnap):
+			tree[i]['Npart']=[]
+			tree[i]['Npart_progen']=[]
+
+	#if ascii format
+	if (ibinary==0):
+		treefile = open(treefilename, 'r')
+		numsnap=int(treefile.readline())
 		descrip=treefile.readline().strip()
 		tothalos=int(treefile.readline())
-		tree=[{"haloID": [], "Num_progen": [], "Progen": []} for i in range(numsnap)]
 		offset=0
 		totalnumprogen=0
 		for i in range(numsnap):
@@ -305,18 +327,28 @@ def ReadHaloMergerTree(treefilename,ibinary=0,iverbose=0):
 			#if really verbose
 			if (iverbose==2): print(snapval,numhalos)
 			tree[i]["haloID"]=np.zeros(numhalos, dtype=np.int64)
-			tree[i]["Num_progen"]=np.zeros(numhalos, dtype=np.int32)
+			tree[i]["Num_progen"]=np.zeros(numhalos, dtype=np.uint32)
 			tree[i]["Progen"]=[[] for j in range(numhalos)]
+			if (imerit): tree[i]["Merit"]=[[] for j in range(numhalos)]
+			if (inpart):
+				tree[i]["Npart"]=np.zeros(numhalos, dtype=np.uint32)
+				tree[i]["Npart_progen"]=[[] for j in range(numhalos)]
 			for j in range(numhalos):
-				[hid,nprog]=treefile.readline().strip().split('\t')
-				hid=np.int64(hid);nprog=int(nprog)
+				data=treefile.readline().strip().split('\t')
+				hid=np.int64(data[0]);nprog=np.uint32(data[1])
 				tree[i]["haloID"][j]=hid
 				tree[i]["Num_progen"][j]=nprog
+				if (inpart):tree[i]["Npart"][j]=np.uint32(data[2])
 				totalnumprogen+=nprog
 				if (nprog>0):
 					tree[i]["Progen"][j]=np.zeros(nprog,dtype=np.int64)
+					if (imerit): tree[i]["Merit"][j]=np.zeros(nprog,dtype=np.float32)
+					if (inpart): tree[i]["Npart_progen"][j]=np.zeros(nprog,dtype=np.uint32)
 					for k in range(nprog):
-						tree[i]["Progen"][j][k]=np.int64(treefile.readline())
+						data=treefile.readline().strip().split(' ')
+						tree[i]["Progen"][j][k]=np.int64(data[0])
+						if (imerit):tree[i]["Merit"][j][k]=np.float32(data[1])
+						if (inpart):tree[i]["Npart_progen"][j][k]=np.uint32(data[2])
 
 	elif(ibinary==2):
 
@@ -328,7 +360,6 @@ def ReadHaloMergerTree(treefilename,ibinary=0,iverbose=0):
 		treedata.close()
 		snaptreelist.close()
 
-		tree=[{"haloID": [], "Num_progen": [], "Progen": []} for i in range(numsnaps)]
 		snaptreelist=open(treefilename,'r')
 		for snap in range(numsnaps):
 			snaptreename = snaptreelist.readline().strip()+".tree.hdf5"
@@ -353,7 +384,7 @@ def ReadHaloMergerTree(treefilename,ibinary=0,iverbose=0):
 	if (iverbose): print("done reading tree file ",time.clock()-start)
 	return tree
 
-def ReadHaloMergerTreeDescendant(numsnaps,treefilename,ireverseorder=True,ibinary=0,iverbose=0):
+def ReadHaloMergerTreeDescendant(treefilename,ireverseorder=True,ibinary=0,iverbose=0,imerit=False, inpart=False):
 	"""
 	VELOCIraptor/STF descendant based merger tree in ascii format contains
 	a header with
@@ -382,13 +413,38 @@ def ReadHaloMergerTreeDescendant(numsnaps,treefilename,ireverseorder=True,ibinar
 	if (os.path.isfile(treefilename)==False):
 		print("Error, file not found")
 		return tree
+	#fine out how many snapshots there are
 	#if ascii format
+	if (ibinary==0):
+		if (iverbose): print("Reading ascii input")
+		treefile = open(treefilename, 'r')
+		numsnap=int(treefile.readline())
+		treefile.close()
+	#hdf format, input file is a list of filenames
+	elif(ibinary==2):
+		if (iverbose): print("Reading HDF5 input")
+		snaptreelist=open(treefilename,'r')
+		numsnap = sum(1 for line in snaptreelist)
+		snaptreelist.close()
+	else:
+		print("Unknown format, returning null")
+		numsnap=0
+		return tree
+
+	tree=[{"haloID": [], "Num_descen": [], "Descen": [], "Rank": []} for i in range(numsnap)]
+	if (imerit):
+		for i in range(numsnap):
+			tree[i]['Merit']=[]
+	if (inpart):
+		for i in range(numsnap):
+			tree[i]['Npart']=[]
+			tree[i]['Npart_descen']=[]
+
 	if (ibinary==0):
 		treefile = open(treefilename, 'r')
 		numsnap=int(treefile.readline())
 		descrip=treefile.readline().strip()
 		tothalos=int(treefile.readline())
-		tree=[{"haloID": [], "Num_descen": [], "Descen": [], "Rank": []} for i in range(numsnap)]
 		offset=0
 		totalnumdescen=0
 		for i in range(numsnap):
@@ -399,32 +455,37 @@ def ReadHaloMergerTreeDescendant(numsnaps,treefilename,ireverseorder=True,ibinar
 			#if really verbose
 			if (iverbose==2): print(snapval,numhalos)
 			tree[ii]["haloID"]=np.zeros(numhalos, dtype=np.int64)
-			tree[ii]["Num_descen"]=np.zeros(numhalos, dtype=np.int32)
+			tree[ii]["Num_descen"]=np.zeros(numhalos, dtype=np.uint32)
 			tree[ii]["Descen"]=[[] for j in range(numhalos)]
 			tree[ii]["Rank"]=[[] for j in range(numhalos)]
+			if (imerit): tree[ii]["Merit"]=[[] for j in range(numhalos)]
+			if (inpart): tree[i]["Npart"]=np.zeros(numhalos, dtype=np.uint32)
 			for j in range(numhalos):
-				[hid,ndescen]=treefile.readline().strip().split('\t')
-				hid=np.int64(hid);ndescen=int(ndescen)
+				data=treefile.readline().strip().split('\t')
+				hid=np.int64(data[0]);ndescen=np.uint32(data[1])
 				tree[ii]["haloID"][j]=hid
 				tree[ii]["Num_descen"][j]=ndescen
+				if (inpart):tree[ii]["Npart"][j]=np.uint32(data[2])
 				totalnumdescen+=ndescen
 				if (ndescen>0):
 					tree[ii]["Descen"][j]=np.zeros(ndescen,dtype=np.int64)
 					tree[ii]["Rank"][j]=np.zeros(ndescen,dtype=np.uint32)
+					if (imerit): tree[ii]["Merit"][j]=np.zeros(ndescen,dtype=np.float32)
+					if (inpart): tree[ii]["Npart_descen"][j]=np.zeros(ndescen,dtype=np.float32)
 					for k in range(ndescen):
 						data=treefile.readline().strip().split(' ')
 						tree[ii]["Descen"][j][k]=np.int64(data[0])
 						tree[ii]["Rank"][j][k]=np.uint32(data[1])
+						if (imerit): tree[ii]["Merit"][j][k]=np.float32(data[2])
+						if (inpart): tree[ii]["Npart_descen"][j][k]=np.uint32(data[3])
 
+	#hdf format
 	elif(ibinary==2):
-
-		tree=[{"haloID": [], "Num_descen": [], "Descen": [], "Rank": []} for i in range(numsnaps)]
 		snaptreelist=open(treefilename,'r')
-		for snap in range(numsnaps):
+		for snap in range(numsnap):
 			snaptreename = snaptreelist.readline().strip()+".tree"
 			if (iverbose): print("Reading",snaptreename)
 			treedata = h5py.File(snaptreename,"r")
-
 			tree[snap]["haloID"] = np.array(treedata["ID"])
 			tree[snap]["Num_descen"] = np.array(treedata["NumDesc"])
 
