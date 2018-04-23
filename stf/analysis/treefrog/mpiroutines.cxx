@@ -20,6 +20,7 @@ int *mpi_startsnap,*mpi_endsnap;
 
 
 ///load balance how snapshots are split across mpi domains
+///\todo improvement of the load balancing so splits better and checks if the data can be loaded into RAM 
 void MPILoadBalanceSnapshots(Options &opt){
     mpi_startsnap=new int[NProcs];
     mpi_endsnap=new int[NProcs];
@@ -59,13 +60,15 @@ void MPILoadBalanceSnapshots(Options &opt){
         //load balancing via particles is the defaul option but could compile with halo load balancing
         unsigned long *numinfo=new unsigned long[opt.numsnapshots];
         unsigned long totpart;
-#ifdef MPIHALOBALANCE
-        cout<<"Halo based splitting"<<endl;
-        totpart=ReadNumberofHalos(opt,numinfo);
-#else
-        cout<<"Particle in halos based splitting"<<endl;
-        totpart=ReadNumberofParticlesInHalos(opt,numinfo);
-#endif
+        if(opt.impiloadbalancesplitting==1){
+            cout<<"Halo based splitting"<<endl;
+            totpart=ReadNumberofHalos(opt,numinfo);
+        }
+        else{
+            cout<<"Particle in halos based splitting"<<endl;
+            totpart=ReadNumberofParticlesInHalos(opt,numinfo);
+        }
+
         //now number of particles per mpi thread
         if (opt.numpermpi==0) opt.numpermpi=totpart/NProcs;
         unsigned long sum=0;

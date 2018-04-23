@@ -94,7 +94,7 @@ void GetArgs(int argc, char *argv[], Options &opt)
 {
     int option;
     int NumArgs = 0;
-    while ((option = getopt(argc, argv, ":i:s:I:N:B:F:o:O:d:T:D:M:X:E:U:C:l:m:n:t:f:p:b:a:j:h:H:g:v:y:z:Z:")) != EOF)
+    while ((option = getopt(argc, argv, ":i:s:I:N:B:F:o:O:d:T:D:M:X:E:U:C:l:m:n:t:f:p:b:a:j:h:H:g:v:y:z:Z:S:")) != EOF)
     {
         switch(option)
         {
@@ -250,6 +250,10 @@ void GetArgs(int argc, char *argv[], Options &opt)
                 opt.iwriteparallel = atoi(optarg);
                 NumArgs += 2;
                 break;
+            case 'S':
+                opt.impiloadbalancesplitting = atoi(optarg);
+                NumArgs += 2;
+                break;
 #endif
             case '?':
                 usage();
@@ -371,6 +375,7 @@ void usage(void)
     cerr<<"-y <number of items per mpi thead, use for load balacing. If 0, based on input ("<<opt.numpermpi<<")\n";
     cerr<<"-z <number of mpi theads used to calculate load balacing. If >0 this used with one actual mpi thread but determines load balancing based on desired number of mpi threads. Write load balancing file and terminates. If 0 (default) normal operation \n";
     cerr<<"-Z <whether to write output in parallel (0/1). \n";
+    cerr<<"-S <how the files are split across MPI threads, 1 for halo based splitting, 0 for particle based splitting. ("<<opt.impiloadbalancesplitting<<")\n";
     cerr<<" ========================= "<<endl<<endl;
 #endif
 #ifdef USEMPI
