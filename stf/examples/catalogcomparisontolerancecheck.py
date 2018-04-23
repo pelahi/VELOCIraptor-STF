@@ -152,5 +152,5 @@ for i in range(numsims):
                 print('FAIL, lowest merit too small',meritstats[1],tol['merit'])
             if (meritstats[0]<tol['merit']):
                 print('FAIL, largest merit too small',meritstats[0],tol['merit'])
-            if (meritstats[3]>tol['merit']):
+            if (meritstats[3]<tol['merit']):
                 print('FAIL, average merit too small',meritstats[3],tol['merit'])
