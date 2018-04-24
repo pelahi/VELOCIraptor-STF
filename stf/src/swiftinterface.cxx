@@ -166,31 +166,40 @@ int InvokeVelociraptor(const size_t num_gravity_parts, const size_t num_hydro_pa
     cout<<"Copying particle data..."<< endl;
     time1=MyGetTime();
 
-      ndark = num_gravity_parts - num_hydro_parts, nbaryons = num_hydro_parts;
-      Nlocalbaryon[0]=nbaryons;
-      Nmemlocalbaryon=Nlocalbaryon[0];
+    ndark = num_gravity_parts - num_hydro_parts, nbaryons = num_hydro_parts;
+    Nlocalbaryon[0]=nbaryons;
+    Nmemlocalbaryon=Nlocalbaryon[0];
 
-      /// If we are performing a baryon search, sort the particles so that the DM particles are at the start of the array followed by the gas particles.
+    /// If we are performing a baryon search, sort the particles so that the DM particles are at the start of the array followed by the gas particles.
     if (libvelociraptorOpt.iBaryonSearch>0 && libvelociraptorOpt.partsearchtype!=PSTALL) {
 
       size_t dmOffset = 0, gasOffset = 0;
-     
+
       pbaryons=&parts[ndark];
-      
+
       cout<<"There are "<<nbaryons<<" gas particles and "<<ndark<<" DM particles."<<endl;
       for(auto i=0; i<Nlocal; i++) {
         if(gravity_parts[i].type == DARKTYPE) {
           parts[dmOffset++] = Particle(gravity_parts[i], libvelociraptorOpt.L, libvelociraptorOpt.V, libvelociraptorOpt.M, libvelociraptorOpt.U, libvelociraptorOpt.icosmologicalin,libvelociraptorOpt.a,libvelociraptorOpt.h);
         }
-        else if(gravity_parts[i].type == GASTYPE) {
-          pbaryons[gasOffset] = Particle(gravity_parts[i], libvelociraptorOpt.L, libvelociraptorOpt.V, libvelociraptorOpt.M, libvelociraptorOpt.U, libvelociraptorOpt.icosmologicalin,libvelociraptorOpt.a,libvelociraptorOpt.h);
-          pbaryons[gasOffset].SetPID(hydro_parts[-gravity_parts[i].id_or_neg_offset].id);
-          pbaryons[gasOffset++].SetU(internal_energies[-gravity_parts[i].id_or_neg_offset]);
-
-        }
-        else {
-          cout<<"Unknown particle type found: "<<gravity_parts[i].type<<" Exiting..."<<endl;
-          return 0;
+        else { 
+          if(gravity_parts[i].type == GASTYPE) {
+            pbaryons[gasOffset] = Particle(gravity_parts[i], libvelociraptorOpt.L, libvelociraptorOpt.V, libvelociraptorOpt.M, libvelociraptorOpt.U, libvelociraptorOpt.icosmologicalin,libvelociraptorOpt.a,libvelociraptorOpt.h);
+            pbaryons[gasOffset].SetPID(hydro_parts[-gravity_parts[i].id_or_neg_offset].id);
+            pbaryons[gasOffset++].SetU(internal_energies[-gravity_parts[i].id_or_neg_offset]);
+          }
+          else if(gravity_parts[i].type == STARTYPE) {
+            cout<<"Star particle type not supported yet. Exiting..."<<endl;
+            return 0;
+          }
+          else if(gravity_parts[i].type == BHTYPE) {
+            cout<<"Black hole particle type not supported yet. Exiting..."<<endl;
+            return 0;
+          }
+          else {
+            cout<<"Unknown particle type found: "<<gravity_parts[i].type<<" while treating baryons differently. Exiting..."<<endl;
+            return 0;
+          }
         }
       }
     }
@@ -198,7 +207,23 @@ int InvokeVelociraptor(const size_t num_gravity_parts, const size_t num_hydro_pa
 
       for(auto i=0; i<Nlocal; i++) {
         parts[i] = Particle(gravity_parts[i], libvelociraptorOpt.L, libvelociraptorOpt.V, libvelociraptorOpt.M, libvelociraptorOpt.U, libvelociraptorOpt.icosmologicalin,libvelociraptorOpt.a,libvelociraptorOpt.h);
-      }
+        if(gravity_parts[i].type == GASTYPE) {
+          parts[i].SetPID(hydro_parts[-gravity_parts[i].id_or_neg_offset].id);
+          parts[i].SetU(internal_energies[-gravity_parts[i].id_or_neg_offset]);
+        }
+        else if(gravity_parts[i].type == STARTYPE) {
+          cout<<"Star particle type not supported yet. Exiting..."<<endl;
+          return 0;
+        }
+        else if(gravity_parts[i].type == BHTYPE) {
+          cout<<"Black hole particle type not supported yet. Exiting..."<<endl;
+          return 0;
+        }
+        else if(gravity_parts[i].type != DARKTYPE) {
+          cout<<"Unknown particle type found: "<<gravity_parts[i].type<<" while searching all particles equally. Exiting..."<<endl;
+          return 0;
+        }
+     }
 
     }
 
@@ -305,6 +330,11 @@ int InvokeVelociraptor(const size_t num_gravity_parts, const size_t num_hydro_pa
     pglist=SortAccordingtoBindingEnergy(libvelociraptorOpt,Nlocal,parts,ngroup,pfof,numingroup,pdata);//alters pglist so most bound particles first
     WriteProperties(libvelociraptorOpt,ngroup,pdata);
     WriteGroupCatalog(libvelociraptorOpt, ngroup, numingroup, pglist, parts);
+    //if baryons have been searched output related gas baryon catalogue
+    if (libvelociraptorOpt.iBaryonSearch>0 || libvelociraptorOpt.partsearchtype==PSTALL){
+      WriteGroupPartType(libvelociraptorOpt, ngroup, numingroup, pglist, parts);
+    }
+
     for (Int_t i=1;i<=ngroup;i++) delete[] pglist[i];
     delete[] pglist;
     delete[] parts;
