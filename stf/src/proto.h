@@ -7,7 +7,7 @@
 #include "allvars.h"
 
 #include "fofalgo.h"
-#include "fitting.h"
+#include "stf-fitting.h"
 
 #ifndef STFPROTO_H
 #define STFPROTO_H
