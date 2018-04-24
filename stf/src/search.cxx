@@ -342,9 +342,9 @@ private(i,vscale2,mtotregion,vx,vy,vz,vmean)
         for (i=1;i<=numgroups;i++) {
             vscale2=mtotregion=vx=vy=vz=0;
             for (Int_t j=0;j<numingroup[i];j++) {
-                vx+=Part[j+noffset[i]].GetVelocity(0)*Part[i].GetMass();
-                vy+=Part[j+noffset[i]].GetVelocity(1)*Part[i].GetMass();
-                vz+=Part[j+noffset[i]].GetVelocity(2)*Part[i].GetMass();
+                vx+=Part[j+noffset[i]].GetVelocity(0)*Part[j+noffset[i]].GetMass();
+                vy+=Part[j+noffset[i]].GetVelocity(1)*Part[j+noffset[i]].GetMass();
+                vz+=Part[j+noffset[i]].GetVelocity(2)*Part[j+noffset[i]].GetMass();
                 mtotregion+=Part[j+noffset[i]].GetMass();
             }
             vmean[0]=vx/mtotregion;vmean[1]=vy/mtotregion;vmean[2]=vz/mtotregion;
