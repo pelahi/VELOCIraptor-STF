@@ -1046,9 +1046,20 @@ void WriteCrossComp(Options &opt, ProgenitorData **p, HaloTreeData *h) {
     for (int i=opt.numsnapshots-1;i>0;i--) {
         Fout<<i<<"\t"<<h[i].numhalos<<endl;
         for (int j=0;j<h[i].numhalos;j++) {
-            Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofProgenitors<<endl;
+            Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofProgenitors;
+            if (opt.outdataformat>=2) {
+                Fout<<"\t"<<h[i].Halo[j].NumberofParticles;
+            }
+            Fout<<endl;
             for (int k=0;k<p[i][j].NumberofProgenitors;k++) {
-                Fout<<h[i-1].Halo[p[i][j].ProgenitorList[k]-1].haloID<<" "<<p[i][j].Merit[k]<<endl;
+                Fout<<h[i-1].Halo[p[i][j].ProgenitorList[k]-1].haloID<<" ";
+                if (opt.outdataformat>=1) {
+                    Fout<<p[i][j].Merit[k]<<" ";
+                }
+                if (opt.outdataformat>=2) {
+                    Fout<<h[i-p[i][j].istep].Halo[p[i][j].ProgenitorList[k]-1].NumberofParticles<<" ";
+                }
+                Fout<<endl;
             }
         }
     }

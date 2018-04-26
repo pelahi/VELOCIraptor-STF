@@ -10,7 +10,7 @@
 //@{
 
 ///Calculate the merit between two haloes that have been matched
-Double_t CalculateMerit(Options &opt, UInt_t n1, UInt_t n2, UInt_t nsh, HaloData &h1, HaloData &h2, UInt_t hindex=0,UInt_t *sharepartlist=NULL, Double_t *rankingsum=NULL)
+Double_t CalculateMerit(Options &opt, UInt_t n1, UInt_t n2, UInt_t nsh, HaloData &h1, HaloData &h2, UInt_t hindex=0, unsigned int *sharepartlist=NULL, Double_t *rankingsum=NULL)
 {
     Double_t merit;
     Double_t ranksum,norm;
@@ -89,7 +89,7 @@ ProgenitorData *CrossMatch(Options &opt, const long unsigned nhalos1, const long
     chunksize=min((long unsigned)(nhalos1/nthreads+1),OMPCHUNKSIZE);
 #endif
     ProgenitorData *p1=new ProgenitorData[nhalos1];
-    UInt_t *sharelist,*halolist;
+    unsigned int *sharelist,*halolist;
     long unsigned num_noprogen, ntotitems;
     long unsigned *needprogenlist;
     //init that list is updated if no reference list is provided
@@ -103,8 +103,8 @@ ProgenitorData *CrossMatch(Options &opt, const long unsigned nhalos1, const long
     //if a reference list is not provided, then build for every halo
     if (refprogen==NULL) {
     ntotitems=nhalos2*(long unsigned)nthreads;
-    sharelist=new UInt_t[ntotitems];
-    halolist=new UInt_t[ntotitems];
+    sharelist=new unsigned int[ntotitems];
+    halolist=new unsigned int[ntotitems];
     //to store haloes that share links and the halo index of those shared haloes
     for (i=0;i<ntotitems;i++)sharelist[i]=0;
 #ifdef USEOPENMP
@@ -159,8 +159,8 @@ private(j,k,tid,offset)
         }
 
         ntotitems=nhalos2*(long unsigned)nthreads;
-        sharelist=new UInt_t[ntotitems];
-        halolist=new UInt_t[ntotitems];
+        sharelist=new unsigned int[ntotitems];
+        halolist=new unsigned int[ntotitems];
         for (i=0;i<ntotitems;i++)sharelist[i]=0;
 
 #ifdef USEOPENMP
@@ -384,7 +384,7 @@ DescendantData *CrossMatchDescendant(Options &opt, const long unsigned nhalos1, 
     chunksize=min((long unsigned)(nhalos1/nthreads+1),OMPCHUNKSIZE);
 #endif
     DescendantData *d1=new DescendantData[nhalos1];
-    UInt_t *sharelist, *halolist, *sharepartlist=NULL;
+    unsigned int *sharelist, *halolist, *sharepartlist=NULL;
     Double_t *rankingsum=NULL;
     UInt_t nbiggest;
     long unsigned num_nodescen, ntotitems;
@@ -404,7 +404,7 @@ DescendantData *CrossMatchDescendant(Options &opt, const long unsigned nhalos1, 
     if (opt.imerittype==MERITRankWeighted||opt.imerittype==MERITRankWeightedBoth) {
         nbiggest=h1[0].NumberofParticles;
         for (i=1;i<nhalos1;i++) if (nbiggest<h1[i].NumberofParticles) nbiggest=h1[i].NumberofParticles;
-        sharepartlist=new UInt_t[nbiggest*(long unsigned)nthreads];
+        sharepartlist=new unsigned int[nbiggest*(long unsigned)nthreads];
     }
     if (opt.imerittype==MERITRankWeightedBoth) {
         rankingsum=new Double_t[ntotitems];
@@ -412,8 +412,8 @@ DescendantData *CrossMatchDescendant(Options &opt, const long unsigned nhalos1, 
     }
 
     if (refdescen==NULL) {
-    sharelist=new UInt_t[ntotitems];
-    halolist=new UInt_t[ntotitems];
+    sharelist=new unsigned int[ntotitems];
+    halolist=new unsigned int[ntotitems];
     //to store haloes that share links and the halo index of those shared haloes
     for (i=0;i<ntotitems;i++)sharelist[i]=0;
 #ifdef USEOPENMP
@@ -472,8 +472,8 @@ private(i,tid,offset,offset2)
             }
         }
 
-        sharelist=new UInt_t[ntotitems];
-        halolist=new UInt_t[ntotitems];
+        sharelist=new unsigned int[ntotitems];
+        halolist=new unsigned int[ntotitems];
         for (i=0;i<ntotitems;i++)sharelist[i]=0;
 
 #ifdef USEOPENMP
