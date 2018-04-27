@@ -1157,11 +1157,8 @@ private(i,tid)
     else if (opt.iverbose>=2) cout<<ThisTask<<": "<<"NO SUBSTRUCTURES FOUND"<<endl;
 
     //now search particle list for large compact substructures that are considered part of the background when using smaller grids
-    //if smaller substructures have been found, also search for true 6d cores for signs of similar mass mergers
-    //if (nsubset>opt.HaloMergerSize&&((!opt.iSingleHalo&&sublevel==1)||(opt.iSingleHalo&&sublevel==0)))
-    if (nsubset>=MINSUBSIZE)
+    if (nsubset>=MINSUBSIZE && opt.iLargerCellSearch)
     {
-
         //first have to delete tree used in search so that particles are in original particle order
         //then construct a new grid with much larger cells so that new bg velocity dispersion can be estimated
         delete tree;
