@@ -68,10 +68,11 @@ tolerancefile=open(sys.argv[2],"r")
 tolerancefile.close()
 
 tol=dict()
-tol['numobjfrac']=0.001
-tol['nomatchfrac']=0.001
-tol['nomatchnpart']=20
-tol['merit']=1.0
+tol['numobjfrac']=0.005
+tol['nomatchfrac']=0.005
+tol['nomatchnpart']=30
+tol['merit']=0.95
+tol['nomatchnpartfracabove']=0.005
 
 checksummary=dict()
 checksummarykeylist=['numobjs','nomatch','nomatchsize','merits']
@@ -114,8 +115,9 @@ for i in range(numsims):
         wnomatch=np.where(trees[labellist[i]][labellist[j]][0]['Num_progen']==0)
         nnomatch=len(wnomatch[0])
         if (nnomatch>0):
-            npartdata=trees[labellist[i]][labellist[j]][0]['Npart'][wnomatch]
-            npartstats=np.concatenate([np.array([max(npartdata),min(npartdata)], dtype=np.float32),np.array(np.percentile(npartdata,[16,50,84]),dtype=np.float32)])
+            npartdata=np.array(trees[labellist[i]][labellist[j]][0]['Npart'][wnomatch])
+            iddata=np.array(trees[labellist[i]][labellist[j]][0]['haloID'][wnomatch])
+            npartstats=np.concatenate([np.array([max(npartdata),min(npartdata)], dtype=np.float32),np.array(np.percentile(npartdata,[16,50,84,2.5,97.5]),dtype=np.float32)])
         if (len(wnomatch[0])==0 and n1==n2):
             print('pass, all objects have match' )
         else:
@@ -128,6 +130,8 @@ for i in range(numsims):
                     print('pass')
             #check if number of missing matches and issue
             if (nnomatch>0):
+                #get fraction of missing matches above threshold
+                fracabove=float(len(np.where(npartdata>=tol['nomatchnpart'])[0]))/float(nnomatch)
                 print('catalog 1 -> 2 produces missing matches',nnomatch)
                 if (nnomatch/float(n1)>tol['nomatchfrac']):
                     print('FAIL, too many missing matches')
@@ -140,17 +144,30 @@ for i in range(numsims):
                     print('FAIL, largest missing matches too large',npartstats[0],tol['nomatchnpart'])
                 if (npartstats[3]>tol['nomatchnpart']):
                     print('FAIL, average missing matches too large',npartstats[3],tol['nomatchnpart'])
+                if (fracabove>tol['nomatchnpartfracabove']):
+                    print('FAIL, fraction of groups above',tol['nomatchnpart'],' particles is too high',fracabove,tol['nomatchnpartfracabove'])
+                print('Missing objects have :')
+                print('Npart:',npartdata)
+                print('ID:',iddata)
 
         #merit check
         wmatch=np.where(trees[labellist[i]][labellist[j]][0]['Num_progen']>0)
         nmatch=len(wmatch[0])
         print(labellist[i],labellist[j],'Merits of matches:')
         if (nmatch>0):
-            meritdata=[trees[labellist[i]][labellist[j]][0]['Merit'][w][0] for w in wmatch[0]]
-            meritstats=np.concatenate([np.array([max(meritdata),min(meritdata)], dtype=np.float32),np.array(np.percentile(meritdata,[16,50,84]),dtype=np.float32)])
+            meritdata=np.array([trees[labellist[i]][labellist[j]][0]['Merit'][w][0] for w in wmatch[0]])
+            npartdata=np.array([trees[labellist[i]][labellist[j]][0]['Npart'][w] for w in wmatch[0]])
+            iddata=np.array([trees[labellist[i]][labellist[j]][0]['haloID'][w] for w in wmatch[0]])
+            meritstats=np.concatenate([np.array([max(meritdata),min(meritdata)], dtype=np.float32),np.array(np.percentile(meritdata,[16,50,84,2.5,97.5]),dtype=np.float32)])
             if (meritstats[1]<tol['merit']):
                 print('FAIL, lowest merit too small',meritstats[1],tol['merit'])
             if (meritstats[0]<tol['merit']):
                 print('FAIL, largest merit too small',meritstats[0],tol['merit'])
             if (meritstats[3]<tol['merit']):
                 print('FAIL, average merit too small',meritstats[3],tol['merit'])
+            wdata=np.where(meritdata<tol['merit'])
+            if (len(wdata[0])>0):
+                print('Objects that fail tolerance are :')
+                print('Merit:',meritdata[wdata])
+                print('Npart:',npartdata[wdata])
+                print('ID:',iddata[wdata])
