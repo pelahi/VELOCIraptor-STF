@@ -170,6 +170,11 @@ using namespace NBody;
 #define OUTHDF 2
 //@}
 
+/// \name size of chunks in hdf files for Compression
+#ifdef USEHDF
+#define HDFOUTPUTCHUNKSIZE 8192
+#endif
+
 /// \name defining types of multisnapshot linking done
 //@{
 ///missing link
