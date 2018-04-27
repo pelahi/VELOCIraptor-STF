@@ -75,19 +75,23 @@ Double_t CalculateMerit(Options &opt, UInt_t n1, UInt_t n2, UInt_t nsh, HaloData
 ProgenitorData *CrossMatch(Options &opt, const long unsigned nhalos1, const long unsigned nhalos2, HaloData *&h1, HaloData *&h2, unsigned int*&pfof2, int &ilistupdated, int istepval, ProgenitorData *refprogen)
 {
     long int i,j,k,n;
-    int nthreads=1,tid,chunksize;
+    int nthreads=1,tid,maxnthreads=1,chunksize;
     long unsigned offset;
     //temp variable to store the openmp reduction value for ilistupdated
     int newilistupdated;
+    //setup openmp environment
 #ifdef USEOPENMP
 #pragma omp parallel
     {
     if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
+    if (omp_get_thread_num()==0) maxnthreads=omp_get_num_threads();
     }
-    //chunksize should be small as typically halo distribution is a few very large haloes followed by many smaller ones
-    //to ensure reasonably even splitting of work, have small chunks
-    chunksize=min((long unsigned)(nhalos1/nthreads+1),OMPCHUNKSIZE);
+    //set the active number of threads based on breaking up computation in large enough chunks
+    nthreads=min((int)ceil((double)nhalos1/(double)OMPCHUNKSIZE),maxnthreads);
+    omp_set_num_threads(nthreads);
+    chunksize=OMPCHUNKSIZE;
 #endif
+
     ProgenitorData *p1=new ProgenitorData[nhalos1];
     unsigned int *sharelist,*halolist;
     long unsigned num_noprogen, ntotitems;
@@ -107,21 +111,23 @@ ProgenitorData *CrossMatch(Options &opt, const long unsigned nhalos1, const long
     halolist=new unsigned int[ntotitems];
     //to store haloes that share links and the halo index of those shared haloes
     for (i=0;i<ntotitems;i++)sharelist[i]=0;
+
+    offset=0;
 #ifdef USEOPENMP
-#pragma omp parallel for schedule(dynamic,chunksize) \
-default(shared) \
-private(j,k,tid,offset)
-#endif
-    for (i=0;i<nhalos1;i++){
-#ifdef USEOPENMP
+#pragma omp parallel default(shared) \
+private(i,tid,offset)
+{
         //initialize variables
         tid=omp_get_thread_num();
-        offset=((long int)tid)*nhalos2;
-#else
-        offset=0;
+        offset=((long unsigned)tid)*nhalos2;
+#pragma omp for schedule(dynamic,chunksize) nowait
 #endif
+    for (i=0;i<nhalos1;i++){
         CrossMatchProgenitorIndividual(opt, i, nhalos1, nhalos2, h1, h2,  pfof2, istepval, p1, sharelist, halolist, offset);
     }
+#ifdef USEOPENMP
+}
+#endif
     delete[] sharelist;
     delete[] halolist;
     }
@@ -146,6 +152,12 @@ private(j,k,tid,offset)
     }
     //only allocate memory and process list if there are any haloes needing to be searched
     if (num_noprogen>0) {
+        //set OpenMP environment
+#ifdef USEOPENMP
+        //set the active number of threads based on breaking up computation in large enough chunks
+        nthreads=min((int)ceil((double)num_noprogen/(double)OMPCHUNKSIZE),maxnthreads);
+        omp_set_num_threads(nthreads);
+#endif
         needprogenlist=new long unsigned[num_noprogen];
         num_noprogen=0;
         for (i=0;i<nhalos1;i++){
@@ -163,21 +175,23 @@ private(j,k,tid,offset)
         halolist=new unsigned int[ntotitems];
         for (i=0;i<ntotitems;i++)sharelist[i]=0;
 
+        offset=0;
 #ifdef USEOPENMP
-#pragma omp parallel for schedule(dynamic,chunksize) reduction(+:newilistupdated) \
-default(shared) \
-private(i,j,n,tid,offset)
+#pragma omp parallel default(shared) \
+private(i,k,tid,offset)
+{
+        //initialize variables
+        tid=omp_get_thread_num();
+        offset=((long unsigned)tid)*nhalos2;
+#pragma omp parallel for schedule(dynamic,chunksize) reduction(+:newilistupdated)
 #endif
         for (k=0;k<num_noprogen;k++){
-#ifdef USEOPENMP
-            tid=omp_get_thread_num();
-            offset=((long int)tid)*nhalos2;
-#else
-            offset=0;
-#endif
             i=needprogenlist[k];
             newilistupdated+=CrossMatchProgenitorIndividual(opt, i, nhalos1, nhalos2, h1, h2,  pfof2, istepval, p1, sharelist, halolist, offset);
         }
+#ifdef USEOPENMP
+}
+#endif
         delete[] sharelist;
         delete[] halolist;
         delete[] needprogenlist;
@@ -195,6 +209,11 @@ private(i,j,n,tid,offset)
         }
     }
 
+    //reset number of threads back to maximum
+#ifdef USEOPENMP
+#pragma omp parallel
+        omp_set_num_threads(maxnthreads);
+#endif
     return p1;
 }
 
@@ -368,21 +387,24 @@ DescendantData *CrossMatchDescendant(Options &opt, const long unsigned nhalos1, 
     DescendantData *refdescen)
 {
     long int i,j,k,n;
-    int nthreads=1,tid;
+    int nthreads=1,tid,maxnthreads=1,chunksize;
     long unsigned offset, offset2;
     //temp variable to store the openmp reduction value for ilistupdated
     int newilistupdated;
-    int chunksize;
     int initdtopval;
+    //setup openmp environment
 #ifdef USEOPENMP
 #pragma omp parallel
     {
     if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
+    if (omp_get_thread_num()==0) maxnthreads=omp_get_num_threads();
     }
-    //chunksize should be small as typically halo distribution is a few very large haloes followed by many smaller ones
-    //to ensure reasonably even splitting of work, have small chunks
-    chunksize=min((long unsigned)(nhalos1/nthreads+1),OMPCHUNKSIZE);
+    //set the active number of threads based on breaking up computation in large enough chunks
+    nthreads=min((int)ceil((double)nhalos1/(double)OMPCHUNKSIZE),maxnthreads);
+    omp_set_num_threads(nthreads);
+    chunksize=OMPCHUNKSIZE;
 #endif
+
     DescendantData *d1=new DescendantData[nhalos1];
     unsigned int *sharelist, *halolist, *sharepartlist=NULL;
     Double_t *rankingsum=NULL;
@@ -416,24 +438,24 @@ DescendantData *CrossMatchDescendant(Options &opt, const long unsigned nhalos1, 
     halolist=new unsigned int[ntotitems];
     //to store haloes that share links and the halo index of those shared haloes
     for (i=0;i<ntotitems;i++)sharelist[i]=0;
+    offset=offset2=0;
 #ifdef USEOPENMP
-#pragma omp parallel for schedule(dynamic,chunksize) \
-default(shared) \
+#pragma omp parallel default(shared) \
 private(i,tid,offset,offset2)
-#endif
-    for (i=0;i<nhalos1;i++){
-#ifdef USEOPENMP
+{
         //initialize variables
         tid=omp_get_thread_num();
-        offset=((long int)tid)*nhalos2;
-        offset2=((long int)tid)*nbiggest;
-#else
-        offset=0;
-        offset2=0;
+        offset=((long unsigned)tid)*nhalos2;
+        offset2=((long unsigned)tid)*nbiggest;
+#pragma omp for schedule(dynamic,chunksize) nowait
 #endif
+    for (i=0;i<nhalos1;i++){
         CrossMatchDescendantIndividual(opt, i, nhalos1, nhalos2, h1, h2, pfof2, istepval, initdtopval, d1,
             sharelist, halolist, offset, offset2, sharepartlist, pranking2, rankingsum);
     }
+#ifdef USEOPENMP
+}
+#endif
         delete[] sharelist;
         delete[] halolist;
     }
@@ -457,6 +479,12 @@ private(i,tid,offset,offset2)
     }
     //only allocate memory and process list if there are any haloes needing to be searched
     if (num_nodescen>0) {
+        //set OpenMP environment
+#ifdef USEOPENMP
+        //set the active number of threads based on breaking up computation in large enough chunks
+        nthreads=min((int)ceil((double)num_nodescen/(double)OMPCHUNKSIZE),maxnthreads);
+        omp_set_num_threads(nthreads);
+#endif
         needdescenlist=new long unsigned[num_nodescen];
         num_nodescen=0;
         for (i=0;i<nhalos1;i++){
@@ -476,24 +504,25 @@ private(i,tid,offset,offset2)
         halolist=new unsigned int[ntotitems];
         for (i=0;i<ntotitems;i++)sharelist[i]=0;
 
+        offset=offset2=0;
 #ifdef USEOPENMP
-#pragma omp parallel for schedule(dynamic,chunksize) reduction(+:newilistupdated) \
-default(shared) \
-private(i,j,n,tid,offset,offset2)
+#pragma omp parallel default(shared) \
+private(i,k,tid,offset,offset2)
+{
+        //initialize variables
+        tid=omp_get_thread_num();
+        offset=((long unsigned)tid)*nhalos2;
+        offset2=((long unsigned)tid)*nbiggest;
+#pragma omp parallel for schedule(dynamic,chunksize) reduction(+:newilistupdated)
 #endif
         for (k=0;k<num_nodescen;k++){
-#ifdef USEOPENMP
-            tid=omp_get_thread_num();
-            offset=((long int)tid)*nhalos2;
-            offset2=((long int)tid)*nbiggest;
-#else
-            offset=0;
-            offset2=0;
-#endif
             i=needdescenlist[k];
             newilistupdated+=CrossMatchDescendantIndividual(opt, i, nhalos1, nhalos2, h1, h2, pfof2, istepval, initdtopval, d1,
                 sharelist, halolist, offset, offset2, sharepartlist, pranking2, rankingsum);
         }
+#ifdef USEOPENMP
+}
+#endif
         delete[] sharelist;
         delete[] halolist;
         delete[] needdescenlist;
@@ -514,6 +543,11 @@ private(i,j,n,tid,offset,offset2)
             d1[i].DescendantList=NULL;d1[i].Merit=NULL;
         }
     }
+    //reset number of threads back to maximum
+#ifdef USEOPENMP
+#pragma omp parallel
+        omp_set_num_threads(maxnthreads);
+#endif
     return d1;
 }
 
@@ -617,7 +651,7 @@ int CrossMatchDescendantIndividual(Options &opt, Int_t i,
         np1=(h1[i].NumberofParticles*opt.particle_frac);
         if (h1[i].NumberofParticles<opt.min_numpart) np1=h2[j].NumberofParticles;
         else if (np1<opt.min_numpart) np1=opt.min_numpart;
-        if (opt.imerittype==MERITRankWeighted||opt.imerittype==MERITRankWeightedBoth) for (j=0;j<np1;j++) sharepartlist[j]=0;
+        if (opt.imerittype==MERITRankWeighted||opt.imerittype==MERITRankWeightedBoth) for (j=0;j<np1;j++) sharepartlist[j+offset2]=0;
         //if halo has enough particle for meaningful most bound particles check, proceed to find merits. Similar to normal merit
         //calculations but have now np2 for calculating merits
         if (np1>=opt.min_numpart) {

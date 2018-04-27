@@ -205,7 +205,7 @@ using namespace NBody;
 
 /// \name OpenMP parameters for load balancing
 #ifdef USEOPENMP
-#define OMPCHUNKSIZE 100UL
+#define OMPCHUNKSIZE 100000UL
 #endif
 
 /// \name MPI parameters for load balancing
