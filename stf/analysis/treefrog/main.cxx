@@ -490,12 +490,12 @@ int main(int argc,char **argv)
                         }
                     }
                 }
+                //to free up some memory, no need to keep particle ids
+                for (j=0;j<pht[i].numhalos;j++) {
+                    delete[] pht[i].Halo[j].ParticleID;pht[i].Halo[j].ParticleID=NULL;
+                }
+                if (opt.iverbose) cout<<ThisTask<<" finished descendant processing for snapshot "<<i<<" in "<<MyGetTime()-time2<<endl;
             }
-            //to free up some memory, no need to keep particle ids
-            for (j=0;j<pht[i].numhalos;j++) {
-                delete[] pht[i].Halo[j].ParticleID;pht[i].Halo[j].ParticleID=NULL;
-            }
-            if (opt.iverbose) cout<<ThisTask<<" finished descendant processing for snapshot "<<i<<" in "<<MyGetTime()-time2<<endl;
         }
 
         delete[] pfofd;
