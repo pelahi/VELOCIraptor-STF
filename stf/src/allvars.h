@@ -338,8 +338,6 @@ struct Options
     /// to reduce likelihood of having to expand/allocate new memory
     Double_t mpipartfac;
 
-
-
     ///\name length,m,v,grav conversion units
     //@{
     Double_t L, M, V, G;
@@ -445,6 +443,10 @@ struct Options
 
     ///effective resolution for zoom simulations
     Int_t Neff;
+
+    ///if during substructure search, want to also search for larger substructures
+    //using the more time consuming local velocity calculations (partly in lieu of using the faster core search)
+    int iLargerCellSearch;
 
     ///\name extra stuff for halo merger check and identification of multiple halo core and flag for fully adaptive linking length using number density of candidate objects
     //@{
@@ -578,6 +580,8 @@ struct Options
         iBoundHalos=0;
         iInclusiveHalo=0;
         iKeepFOF=0;
+
+        iLargerCellSearch=0;
 
         iHaloCoreSearch=0;
         iAdaptiveCoreLinking=0;

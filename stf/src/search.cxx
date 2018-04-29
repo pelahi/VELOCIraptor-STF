@@ -318,9 +318,9 @@ private(i,vscale2,mtotregion,vx,vy,vz,vmean)
         for (i=1;i<=numgroups;i++) {
             vscale2=mtotregion=vx=vy=vz=0;
             for (Int_t j=0;j<numingroup[i];j++) {
-                vx+=Part[j+noffset[i]].GetVelocity(0)*Part[i].GetMass();
-                vy+=Part[j+noffset[i]].GetVelocity(1)*Part[i].GetMass();
-                vz+=Part[j+noffset[i]].GetVelocity(2)*Part[i].GetMass();
+                vx+=Part[j+noffset[i]].GetVelocity(0)*Part[j+noffset[i]].GetMass();
+                vy+=Part[j+noffset[i]].GetVelocity(1)*Part[j+noffset[i]].GetMass();
+                vz+=Part[j+noffset[i]].GetVelocity(2)*Part[j+noffset[i]].GetMass();
                 mtotregion+=Part[j+noffset[i]].GetMass();
             }
             vmean[0]=vx/mtotregion;vmean[1]=vy/mtotregion;vmean[2]=vz/mtotregion;
@@ -1157,11 +1157,8 @@ private(i,tid)
     else if (opt.iverbose>=2) cout<<ThisTask<<": "<<"NO SUBSTRUCTURES FOUND"<<endl;
 
     //now search particle list for large compact substructures that are considered part of the background when using smaller grids
-    //if smaller substructures have been found, also search for true 6d cores for signs of similar mass mergers
-    //if (nsubset>opt.HaloMergerSize&&((!opt.iSingleHalo&&sublevel==1)||(opt.iSingleHalo&&sublevel==0)))
-    if (nsubset>=MINSUBSIZE)
+    if (nsubset>=MINSUBSIZE && opt.iLargerCellSearch)
     {
-
         //first have to delete tree used in search so that particles are in original particle order
         //then construct a new grid with much larger cells so that new bg velocity dispersion can be estimated
         delete tree;
