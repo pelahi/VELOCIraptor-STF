@@ -66,7 +66,7 @@ extern "C" herr_t file_info(hid_t loc_id, const char *name, const H5L_info_t *li
 }
 
 ///reads an hdf5 formatted file.
-void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbaryons, Int_t nbaryons)
+void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle *&Pbaryons, Int_t nbaryons)
 {
     //structure stores the names of the groups in the hdf input
     char buf[2000];
@@ -124,9 +124,9 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
         //assume existance of dark matter and gas
         usetypes[nusetypes++]=HDFGASTYPE;usetypes[nusetypes++]=HDFDMTYPE;
         if (opt.iuseextradarkparticles) {
-	  usetypes[nusetypes++]=HDFDM1TYPE;
-	  usetypes[nusetypes++]=HDFDM2TYPE;
-	}
+            usetypes[nusetypes++]=HDFDM1TYPE;
+            usetypes[nusetypes++]=HDFDM2TYPE;
+    	}
         if (opt.iusestarparticles) usetypes[nusetypes++]=HDFSTARTYPE;
         if (opt.iusesinkparticles) usetypes[nusetypes++]=HDFBHTYPE;
         if (opt.iusewindparticles) usetypes[nusetypes++]=HDFWINDTYPE;
@@ -134,9 +134,9 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
     else if (opt.partsearchtype==PSTDARK) {
         nusetypes=1;usetypes[0]=HDFDMTYPE;
         if (opt.iuseextradarkparticles) {
-	  usetypes[nusetypes++]=HDFDM1TYPE;
-	  usetypes[nusetypes++]=HDFDM2TYPE;
-	}
+            usetypes[nusetypes++]=HDFDM1TYPE;
+            usetypes[nusetypes++]=HDFDM2TYPE;
+        }
         if (opt.iBaryonSearch) {
             nbusetypes=1;usetypes[nusetypes+nbusetypes++]=HDFGASTYPE;
             if (opt.iusestarparticles) usetypes[nusetypes+nbusetypes++]=HDFSTARTYPE;
@@ -147,10 +147,6 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
     else if (opt.partsearchtype==PSTSTAR) {nusetypes=1;usetypes[0]=HDFSTARTYPE;}
     else if (opt.partsearchtype==PSTBH) {
         nusetypes=1;usetypes[0]=HDFBHTYPE;
-        if (opt.iuseextradarkparticles) {
-	  usetypes[nusetypes++]=HDFDM1TYPE;
-	  usetypes[nusetypes++]=HDFDM2TYPE;
-	}
     }
 
     Int_t i,j,k,n,nchunk,count,bcount,itemp,count2,bcount2;
@@ -1485,7 +1481,7 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
                     }
 #endif
                     Nbuf[ibuf]++;
-                    MPIAddParticletoAppropriateBuffer(ibuf, ibufindex, ireadtask, BufSize, Nbuf, Pbuf, Nlocal, Part, Nreadbuf, Preadbuf);
+                    MPIAddParticletoAppropriateBuffer(ibuf, ibufindex, ireadtask, BufSize, Nbuf, Pbuf, Nlocal, Part.data(), Nreadbuf, Preadbuf);
                 }
             }
         }
@@ -1673,7 +1669,7 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
         //send info between read threads
         if (opt.nsnapread>1&&inreadsend<totreadsend){
             MPI_Allgather(Nreadbuf, opt.nsnapread, MPI_Int_t, mpi_nsend_readthread, opt.nsnapread, MPI_Int_t, mpi_comm_read);
-            MPISendParticlesBetweenReadThreads(opt, Preadbuf, Part, ireadtask, readtaskID, Pbaryons, mpi_comm_read, mpi_nsend_readthread, mpi_nsend_readthread_baryon);
+            MPISendParticlesBetweenReadThreads(opt, Preadbuf, Part.data(), ireadtask, readtaskID, Pbaryons, mpi_comm_read, mpi_nsend_readthread, mpi_nsend_readthread_baryon);
             inreadsend++;
             for(ibuf = 0; ibuf < opt.nsnapread; ibuf++) Nreadbuf[ibuf]=0;
         }
@@ -1694,14 +1690,14 @@ void ReadHDF(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbary
     //do final send between read threads
     if (opt.nsnapread>1){
         MPI_Allgather(Nreadbuf, opt.nsnapread, MPI_Int_t, mpi_nsend_readthread, opt.nsnapread, MPI_Int_t, mpi_comm_read);
-        MPISendParticlesBetweenReadThreads(opt, Preadbuf, Part, ireadtask, readtaskID, Pbaryons, mpi_comm_read, mpi_nsend_readthread, mpi_nsend_readthread_baryon);
+        MPISendParticlesBetweenReadThreads(opt, Preadbuf, Part.data(), ireadtask, readtaskID, Pbaryons, mpi_comm_read, mpi_nsend_readthread, mpi_nsend_readthread_baryon);
         inreadsend++;
         for(ibuf = 0; ibuf < opt.nsnapread; ibuf++) Nreadbuf[ibuf]=0;
     }
     }
     //if not reading information than waiting to receive information
     else {
-        MPIReceiveParticlesFromReadThreads(opt,Pbuf,Part,readtaskID, irecv, mpi_irecvflag, Nlocalthreadbuf, mpi_request,Pbaryons);
+        MPIReceiveParticlesFromReadThreads(opt,Pbuf,Part.data(),readtaskID, irecv, mpi_irecvflag, Nlocalthreadbuf, mpi_request,Pbaryons);
     }
 #endif
 

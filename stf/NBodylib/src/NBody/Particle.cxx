@@ -59,6 +59,42 @@ namespace NBody
         else if (aa < bb) return -1;
         else return 0;
     }
+    bool PIDCompareVec(const Particle&a, const Particle &b)
+    {
+        Int_t aa = a.GetPID();
+        Int_t bb = b.GetPID();
+        return (aa > bb);
+    }
+    bool IDCompareVec(const Particle&a, const Particle &b)
+    {
+        Int_t aa = a.GetID();
+        Int_t bb = b.GetID();
+        return (aa > bb);
+    }
+    bool RadCompareVec(const Particle&a, const Particle &b)
+    {
+        Double_t aa = a.Radius();
+        Double_t bb = b.Radius();
+        return (aa > bb);
+    }
+    bool TypeCompareVec(const Particle&a, const Particle &b)
+    {
+        int aa = a.GetType();
+        int bb = b.GetType();
+        return (aa > bb);
+    }
+    bool DenCompareVec(const Particle&a, const Particle &b)
+    {
+        Double_t aa = a.GetDensity();
+        Double_t bb = b.GetDensity();
+        return (aa > bb);
+    }
+    bool PotCompareVec(const Particle&a, const Particle &b)
+    {
+        Double_t aa = a.GetPotential();
+        Double_t bb = b.GetPotential();
+        return (aa > bb);
+    }
     /*-----------------------
         Particle functions
       -----------------------*/

@@ -295,22 +295,22 @@ void MapPIDStoIndex(Options &opt, HaloTreeData *&pht, map<IDTYPE, IDTYPE> &idmap
 #endif
     Int_t i,j,k;
     if (ThisTask==0) cout<<"Mapping PIDS to index "<<endl;
-#ifdef USEOPENMP
-#pragma omp parallel default(shared) \
-private(i,j,k)
-{
-#pragma omp for schedule(dynamic) nowait
-#endif
     for (i=StartSnap;i<EndSnap;i++) {
+        #ifdef USEOPENMP
+        #pragma omp parallel default(shared) \
+        private(j,k)
+        {
+        #pragma omp for schedule(dynamic) nowait
+        #endif
         for (j=0;j<pht[i].numhalos;j++) {
             for (k=0;k<pht[i].Halo[j].NumberofParticles;k++){
                 pht[i].Halo[j].ParticleID[k]=idmap[pht[i].Halo[j].ParticleID[k]];
             }
         }
+        #ifdef USEOPENMP
+        }
+        #endif
     }
-#ifdef USEOPENMP
-}
-#endif
 }
 
 void MapPIDStoIndex(Options &opt, HaloTreeData *&pht) {

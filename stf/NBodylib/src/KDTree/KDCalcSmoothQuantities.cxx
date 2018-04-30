@@ -1,6 +1,6 @@
 /*! \file KDCalcSmoothQuantities.cxx
  *  \brief This file contains subroutines involving calculating kernel smooth quantities.
- 
+
 */
 
 #include <KDTree.h>
@@ -24,7 +24,7 @@ namespace NBody
         Double_t dist2[nsmooth],off[ND];
         Double_t sr0[ND],vsmooth=0.,kvol;
         for (int i=0;i<3;i++) {xyz[i]=x[i];xyz[i+3]=v[i];}
-        PriorityQueue *pq=new PriorityQueue(nsmooth); 
+        PriorityQueue *pq=new PriorityQueue(nsmooth);
         for (Int_t i = 0; i < nsmooth; i++) pq->Push(-1, MAXVALUE);
         for (int i = 0; i < ND; i++) off[i] = 0.0;
         root->FindNearestPhase(0.0,bucket,pq,off,x,v);
@@ -62,7 +62,7 @@ namespace NBody
         Double_t dist2[nsmooth],off[ND];
         Double_t sr0[ND],vsmooth=0.,kvol;
         for (int i=0;i<3;i++) {xyz[i]=x[i];xyz[i+3]=v[i];}
-        PriorityQueue *pq=new PriorityQueue(nsmooth); 
+        PriorityQueue *pq=new PriorityQueue(nsmooth);
         for (Int_t i = 0; i < nsmooth; i++) pq->Push(-1, MAXVALUE);
         for (int i = 0; i < ND; i++) off[i] = 0.0;
         root->FindNearestPhase(0.0,bucket,pq,off,x,v);
@@ -99,7 +99,7 @@ namespace NBody
     inline void KDTree::CalculateMetricTensor(const Real_t *x, const Real_t *v, int treetype, Double_t *smetric, Double_t *metric, GMatrix &gmetric){
         Double_t xyz[6];
         int nsmooth=64;
-        PriorityQueue *pq=new PriorityQueue(nsmooth); 
+        PriorityQueue *pq=new PriorityQueue(nsmooth);
         Int_t qsize=pq->MaxSize();
         Int_t idlist[qsize];
         Double_t r2list[qsize];
@@ -134,7 +134,7 @@ namespace NBody
                 for(int k=0;k<ND;k++)
                     mdisp(j,k)+=dx[j]*dx[k]*bucket[idlist[i]].GetMass();
         }
-        for (int i=0;i<ND;i++) 
+        for (int i=0;i<ND;i++)
             for(int j=0;j<ND;j++)
                 mdisp(i,j)*=sqrt(smetric[i])*sqrt(smetric[j])/(mtot*r2list[0]);
 
@@ -151,7 +151,7 @@ namespace NBody
     inline void KDTree::CalculateMetricTensor(const Double_t *x, const Double_t *v, int treetype, Double_t *smetric, Double_t *metric, GMatrix &gmetric){
         Double_t xyz[6];
         int nsmooth=64;
-        PriorityQueue *pq=new PriorityQueue(nsmooth); 
+        PriorityQueue *pq=new PriorityQueue(nsmooth);
         Int_t qsize=pq->MaxSize();
         Int_t idlist[qsize];
         Double_t r2list[qsize];
@@ -186,7 +186,7 @@ namespace NBody
                 for(int k=0;k<ND;k++)
                     mdisp(j,k)+=dx[j]*dx[k]*bucket[idlist[i]].GetMass();
         }
-        for (int i=0;i<ND;i++) 
+        for (int i=0;i<ND;i++)
             for(int j=0;j<ND;j++)
                 mdisp(i,j)*=sqrt(smetric[i])*sqrt(smetric[j])/(mtot*r2list[0]);
 
@@ -263,7 +263,7 @@ namespace NBody
             Double_t hi = 0.5 * sqrt(pq->TopPriority());
 			//Normalizing by most distant neighbour
             Double_t norm=1.0/pow(hi,(Double_t)(ND*1.));
-            //for phase with anisotropic kernel must account for the fact that metric used in finding 
+            //for phase with anisotropic kernel must account for the fact that metric used in finding
             //near neighbours is not unity. see Sharma & Steinmetz for details.
             if (treetype==TPHS) {
                 Double_t temp=1.0;
@@ -307,7 +307,7 @@ namespace NBody
         delete pq;
     }
 
-    /// Calculate the velocity density of each particle in the tree by smoothing over 
+    /// Calculate the velocity density of each particle in the tree by smoothing over
     /// the nearest Nsmooth velocity neighbours from set of Nsearch physical neighbours
     void KDTree::CalcVelDensity(Int_t Nsmooth, Int_t Nsearch)
     {
@@ -366,7 +366,7 @@ namespace NBody
             }
             for (Int_t j = 0; j <Nsmooth; j++) pq2->Push(-1, furthest);
             //from this set find nearest velocity neighbours
-            for (Int_t j=0;j<Nsearch;j++) 
+            for (Int_t j=0;j<Nsearch;j++)
                 if (vdist[j] < pq2->TopPriority()){
                     pq2->Pop();
                     pq2->Push(nnIDs[j], vdist[j]);
@@ -444,7 +444,7 @@ namespace NBody
             //for (Int_t j = 0; j <Nsmooth; j++) pq2->Push(-1, furthest,0);
             for (Int_t j = 0; j <Nsmooth; j++) pq2->Push(-1, furthest);
             //from this set find nearest velocity neighbours
-            for (Int_t j=0;j<Nsearch;j++) 
+            for (Int_t j=0;j<Nsearch;j++)
                 if (vdist[j] < pq2->TopPriority()){
                     pq2->Pop();
                     //pq2->Push(nnIDs[j], vdist[j],&xdist[j]);
@@ -491,7 +491,7 @@ namespace NBody
 		if (!(treetype==TPHYS||treetype==TPROJ)) {
 			printf("CalcSmoothVel is only relvant if physical density was calculated and thus requires physical tree\n");
 			exit(1);
-		} 
+		}
         if (densityset!=1) CalcDensity(Nsmooth);
 
         PriorityQueue *pq=new PriorityQueue(Nsmooth);
@@ -553,9 +553,9 @@ namespace NBody
 		if (!(treetype==TPHYS||treetype==TPROJ)) {
 			printf("CalcSmoothVelDisp is only relvant if physical density was calculated and thus requires physical tree\n");
 			exit(1);
-		} 
+		}
         if (densityset!=1) CalcDensity(Nsmooth);
-        if (meanvelset!=1){ 
+        if (meanvelset!=1){
 			if (smvel!=NULL) delete[] smvel;
 			smvel=CalcSmoothVel(Nsmooth);
 		}
@@ -616,7 +616,7 @@ namespace NBody
         return smveldisp;
     }
 
-    /// Calculates velocity skewness (here just getting it as function of velocity 
+    /// Calculates velocity skewness (here just getting it as function of velocity
     Coordinate * KDTree::CalcSmoothVelSkew(Coordinate *smvel, Matrix *smveldisp, Int_t Nsmooth, int densityset, int meanvelset, int veldispset)
     {
         Coordinate *smvelskew;
@@ -628,13 +628,13 @@ namespace NBody
 		if (!(treetype==TPHYS||treetype==TPROJ)) {
 			printf("CalcSmoothVelSkew is only relvant if physical density was calculated and thus requires physical tree\n");
 			exit(1);
-		} 
+		}
         if (densityset!=1) CalcDensity(Nsmooth);
-        if (meanvelset!=1){ 
+        if (meanvelset!=1){
             if (smvel!=NULL) delete[] smvel;
             smvel=CalcSmoothVel(Nsmooth);
         }
-        if (veldispset!=1){ 
+        if (veldispset!=1){
             if (smveldisp!=NULL) delete[] smveldisp;
             smveldisp=CalcSmoothVelDisp(smvel,Nsmooth);
         }
@@ -691,7 +691,7 @@ namespace NBody
         return smvelskew;
     }
 
-    /// Calculates velocity kurtosis (here just getting it as function of velocity) 
+    /// Calculates velocity kurtosis (here just getting it as function of velocity)
     Coordinate * KDTree::CalcSmoothVelKurtosis(Coordinate *smvel, Matrix *smveldisp, Int_t Nsmooth, int densityset, int meanvelset, int veldispset)
     {
         Coordinate *smvelkurt;
@@ -703,13 +703,13 @@ namespace NBody
 		if (!(treetype==TPHYS||treetype==TPROJ)) {
 			printf("CalcSmoothVelKurtosis is only relvant if physical density was calculated and thus requires physical tree\n");
 			exit(1);
-		} 
+		}
         if (densityset!=1) CalcDensity(Nsmooth);
-        if (meanvelset!=1){ 
+        if (meanvelset!=1){
             if (smvel!=NULL) delete[] smvel;
             smvel=CalcSmoothVel(Nsmooth);
         }
-        if (veldispset!=1){ 
+        if (veldispset!=1){
             if (smveldisp!=NULL) delete[] smveldisp;
             smveldisp=CalcSmoothVelDisp(smvel,Nsmooth);
         }
@@ -817,7 +817,7 @@ namespace NBody
         Double_t new_furthest = 0.0;
         Double_t hi = 0.5 * sqrt(pq->TopPriority());
         Double_t norm=1.0/pow(hi,(Double_t)(ND*1.));
-        //for phase with anisotropic kernel must account for the fact that metric used in finding 
+        //for phase with anisotropic kernel must account for the fact that metric used in finding
         //near neighbours is not unity. see Sharma & Steinmetz for details.
 
         if (treetype==TPHS) {
@@ -855,7 +855,7 @@ namespace NBody
         if (!(treetype==TPHYS||treetype==TPROJ||treetype==TPHS)) {
             printf("CalcVelDensity is only relvant if tree is physical or phase-space tree\n");
             exit(1);
-        } 
+        }
         if (Nsmooth>Nsearch) {
             printf("CalcVelDensity Nsmooth must be < Nsearch, setting Nsmooth=Nsearch\n");
             Nsmooth=Nsearch;
@@ -899,7 +899,7 @@ namespace NBody
             pq->Pop();
         }
         for (Int_t j = 0; j <Nsmooth; j++) pq2->Push(-1, furthest);
-        for (Int_t j=0;j<Nsearch;j++) 
+        for (Int_t j=0;j<Nsearch;j++)
             if (vdist[j] < pq2->TopPriority()){
                 pq2->Pop();
                 pq2->Push(nnIDs[j], vdist[j]);
@@ -968,7 +968,7 @@ namespace NBody
             }
             for (Int_t j = 0; j <Nsmooth; j++) pq2->Push(-1, furthest);
             //from this set find nearest velocity neighbours
-            for (Int_t j=0;j<Nsearch;j++) 
+            for (Int_t j=0;j<Nsearch;j++)
                 if (vdist[j] < pq2->TopPriority()){
                     pq2->Pop();
                     pq2->Push(nnIDs[j], vdist[j]);
@@ -1005,7 +1005,7 @@ namespace NBody
 		if (!(treetype==TPHYS||treetype==TPROJ)) {
 			printf("CalcSmoothVel is only relvant if physical density was calculated and thus requires physical tree\n");
 			exit(1);
-		} 
+		}
         if (densityset!=1) CalcDensity(Nsmooth);
 
         PriorityQueue *pq=new PriorityQueue(Nsmooth);
@@ -1051,7 +1051,7 @@ namespace NBody
 		if (!(treetype==TPHYS||treetype==TPROJ)) {
 			printf("CalcSmoothVelDisp is only relvant if physical density was calculated and thus requires physical tree\n");
 			exit(1);
-		} 
+		}
         if (densityset!=1) CalcDensity(Nsmooth);
         PriorityQueue *pq=new PriorityQueue(Nsmooth);
         Double_t furthest = MAXVALUE,off[ND];
@@ -1093,7 +1093,7 @@ namespace NBody
         return smveldisp;
     }
 
-    //-- Like above but for a specific coordinate 
+    //-- Like above but for a specific coordinate
 
     Double_t KDTree::CalcDensityPosition(Double_t *x, Int_t Nsmooth, Double_t *v)
     {
@@ -1127,7 +1127,7 @@ namespace NBody
         Double_t new_furthest = 0.0;
         Double_t hi = 0.5 * sqrt(pq->TopPriority());
         Double_t norm=1.0/pow(hi,(Double_t)(ND*1.));
-        //for phase with anisotropic kernel must account for the fact that metric used in finding 
+        //for phase with anisotropic kernel must account for the fact that metric used in finding
         //near neighbours is not unity. see Sharma & Steinmetz for details.
         if (treetype>=2) {
             Double_t temp=1.0;
@@ -1163,7 +1163,7 @@ namespace NBody
 		if (!(treetype==TPHYS||treetype==TPROJ)) {
 			printf("CalcVelDensity is only relvant if physical density was calculated and thus requires physical tree\n");
 			exit(1);
-		} 
+		}
         if (Nsmooth>Nsearch) {
             printf("CalcVelDensity Nsmooth must be < Nsearch, setting Nsmooth=Nsearch\n");
             Nsmooth=Nsearch;
@@ -1191,7 +1191,7 @@ namespace NBody
             pq->Pop();
         }
         for (Int_t j = 0; j <Nsmooth; j++) pq2->Push(-1, furthest);
-        for (Int_t j=0;j<Nsearch;j++) 
+        for (Int_t j=0;j<Nsearch;j++)
             if (vdist[j] < pq2->TopPriority()){
                 pq2->Pop();
                 pq2->Push(nnIDs[j], vdist[j]);
@@ -1225,7 +1225,7 @@ namespace NBody
 		if (!(treetype==TPHYS||treetype==TPROJ)) {
 			printf("CalcSmoothVel is only relvant if physical density was calculated and thus requires physical tree\n");
 			exit(1);
-		} 
+		}
         if (densityset!=1) CalcDensity(Nsmooth);
 
         PriorityQueue *pq=new PriorityQueue(Nsmooth);
@@ -1271,7 +1271,7 @@ namespace NBody
 		if (!(treetype==TPHYS||treetype==TPROJ)) {
 			printf("CalcSmoothVelDisp is only relvant if physical density was calculated and thus requires physical tree\n");
 			exit(1);
-		} 
+		}
         if (densityset!=1) CalcDensity(Nsmooth);
         PriorityQueue *pq=new PriorityQueue(Nsmooth);
         Double_t furthest = MAXVALUE,off[ND];
@@ -1345,7 +1345,7 @@ namespace NBody
         Double_t new_furthest = 0.0;
         Double_t hi = 0.5 * sqrt(pq->TopPriority());
         Double_t norm=1.0/pow(hi,(Double_t)(ND*1.));
-        //for phase with anisotropic kernel must account for the fact that metric used in finding 
+        //for phase with anisotropic kernel must account for the fact that metric used in finding
         //near neighbours is not unity. see Sharma & Steinmetz for details.
         if (treetype>=2) {
             Double_t temp=1.0;
@@ -1381,7 +1381,7 @@ namespace NBody
         if (!(treetype==TPHYS||treetype==TPROJ)) {
             printf("CalcVelDensity is only relvant if physical density was calculated and thus requires physical tree\n");
             exit(1);
-        } 
+        }
         if (Nsmooth>Nsearch) {
             printf("CalcVelDensity Nsmooth must be < Nsearch, setting Nsmooth=Nsearch\n");
             Nsmooth=Nsearch;
@@ -1409,7 +1409,7 @@ namespace NBody
             pq->Pop();
         }
         for (Int_t j = 0; j <Nsmooth; j++) pq2->Push(-1, furthest);
-        for (Int_t j=0;j<Nsearch;j++) 
+        for (Int_t j=0;j<Nsearch;j++)
             if (vdist[j] < pq2->TopPriority()){
                 pq2->Pop();
                 pq2->Push(nnIDs[j], vdist[j]);
@@ -1443,7 +1443,7 @@ namespace NBody
         if (!(treetype==TPHYS||treetype==TPROJ)) {
             printf("CalcSmoothVel is only relvant if physical density was calculated and thus requires physical tree\n");
             exit(1);
-        } 
+        }
         if (densityset!=1) CalcDensity(Nsmooth);
 
         PriorityQueue *pq=new PriorityQueue(Nsmooth);
@@ -1489,7 +1489,7 @@ namespace NBody
         if (!(treetype==TPHYS||treetype==TPROJ)) {
             printf("CalcSmoothVelDisp is only relvant if physical density was calculated and thus requires physical tree\n");
             exit(1);
-        } 
+        }
         if (densityset!=1) CalcDensity(Nsmooth);
         PriorityQueue *pq=new PriorityQueue(Nsmooth);
         Double_t furthest = MAXVALUE,off[ND];
@@ -1587,7 +1587,7 @@ namespace NBody
         return mean;
     }
 
-    ///Calculate the dispersion of some arbitrary local quantity using sph kernel 
+    ///Calculate the dispersion of some arbitrary local quantity using sph kernel
     Double_t KDTree::CalcSmoothLocalDispParticle(Int_t target, Double_t *weight, Double_t mean, Int_t Nsmooth, int densityset)
     {
 
@@ -1729,5 +1729,20 @@ namespace NBody
         }
         return value;
     }
-}
 
+    Double_t KDTree::CalcSmoothLocalValue(Int_t Nsmooth, Double_t *dist, Double_t* weight)
+    {
+
+        Double_t hi = 0.5 * dist[0];
+        //Normalizing by most distant neighbour
+        Double_t norm=1.0/pow(hi,(Double_t)(ND*1.));
+        Double_t value=0;
+        for (Int_t j = 0; j < Nsmooth; j++)
+        {
+            Double_t rij = dist[j];
+            Double_t Wij = Wsm(rij/hi, (int)(rij/hi*0.5*(kernres-1)), kernres, 2.0/(Double_t)(kernres-1), Kernel)*norm;
+            value+= Wij* weight[j];
+        }
+        return value;
+    }
+}

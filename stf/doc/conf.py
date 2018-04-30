@@ -40,11 +40,16 @@ extensions = ['breathe', 'sphinx.ext.autodoc',
     'sphinx.ext.viewcode',
     'sphinx.ext.githubpages']
 
+#adding breathe config options
 breathe_projects = {
     'VELOCIraptor': 'xml'
 }
 breathe_default_project = 'VELOCIraptor'
 breathe_domain_by_extension = {"h" : "cxx"}
+#breathe_projects_source = {
+#   "VELOCIraptor" :
+#       ( "../src/", [ "stf.h", "ui.cxx" ] )
+#   }
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

@@ -10,7 +10,7 @@
 #include "endianutils.h"
 
 ///reads a tipsy file
-void ReadTipsy(Options &opt, Particle *&Part, const Int_t nbodies,Particle *&Pbaryons, Int_t nbaryons)
+void ReadTipsy(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle *&Pbaryons, Int_t nbaryons)
 {
     struct tipsy_dump tipsyheader;
     struct tipsy_gas_particle gas;

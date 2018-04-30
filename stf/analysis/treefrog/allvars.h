@@ -208,6 +208,14 @@ using namespace NBody;
 #define OMPCHUNKSIZE 100UL
 #endif
 
+/// \name MPI parameters for load balancing
+#ifdef USEMPI
+///particle based splitting
+#define MPIPARTICLEBALANCE 0
+///halo based splitting
+#define MPIHALOBALANCE 1
+#endif
+
 #ifdef TREEFROGLONGIDS
 typedef long long IDTYPE;
 #elif defined(TREEFROGLONGUIDS)
@@ -233,6 +241,8 @@ struct Options
     long unsigned MaxIDValue;
     ///total number of haloes across all snapshots
     long unsigned TotalNumberofHalos;
+    ///read halo positions
+    int iposinfoflag;
 
     /// store description of code
     string description;
@@ -317,6 +327,9 @@ struct Options
     int ndesiredmpithreads;
     ///whether mpi threads write in parallel
     int iwriteparallel;
+    ///Set if the load balancing is either halo or particle based splitting
+    int impiloadbalancesplitting;
+
 #endif
 
     Options()
@@ -328,6 +341,7 @@ struct Options
         MaxIDValue=512*512*512;
         TotalNumberofHalos=0;
         iexclusiveids=1;
+        iposinfoflag=0;
 
         isearchdirection=SEARCHPROGEN;
         imerittype=MERITNsharedN1N2;
@@ -367,6 +381,7 @@ struct Options
         numpermpi=0;
         ndesiredmpithreads=0;
         iwriteparallel=0;
+        impiloadbalancesplitting=MPIHALOBALANCE;
 #endif
     }
 };
@@ -378,15 +393,13 @@ struct HaloData{
     long unsigned haloID;
     long unsigned NumberofParticles;
     IDTYPE *ParticleID;
-    //Coordinate         *X;
-    //Coordinate         *V;
+    float Xcm[3], Vcm[3];
+    float Rmax, Vmax;
     HaloData(long unsigned np=0){
         NumberofParticles=np;
         ParticleID=NULL;
         if (NumberofParticles>0) {
             ParticleID=new IDTYPE[NumberofParticles];
-            //X=new Coordinate[NumberofParticles];
-            //V=new Coordinate[NumberofParticles];
         }
     }
     void Alloc(long unsigned np=0){
@@ -394,22 +407,16 @@ struct HaloData{
         if (ParticleID!=NULL){
             delete[] ParticleID;
             ParticleID=NULL;
-            //delete[] X;
-            //delete[] V;
         }
         NumberofParticles=np;
         if (NumberofParticles>0) {
             ParticleID=new IDTYPE[NumberofParticles];
-            //X=new Coordinate[NumberofParticles];
-            //V=new Coordinate[NumberofParticles];
         }
     }
     ~HaloData(){
         //if (NumberofParticles>0){
         if (ParticleID!=NULL){
             delete[] ParticleID;
-            //delete[] X;
-            //delete[] V;
         }
     }
 };
@@ -974,6 +981,8 @@ struct VELOCIraptorFileTypeNames {
         ftypename.push_back("catalog_parttypes.unbound");
         ftypename.push_back("sublevels.catalog_parttypes");
         ftypename.push_back("sublevels.catalog_parttypes.unbound");
+        ftypename.push_back("properties");
+        ftypename.push_back("sublevels.properties");
     }
     void UpdateName(string &infile, string farray[], int k,int impi=0){
         std::ostringstream oss;
@@ -1005,6 +1014,11 @@ struct HDFCatalogNames {
     vector<H5std_string> hierarchy;
     //store the data type
     vector<PredType> hierarchydatatype;
+
+    ///store the names of catalog particle files
+    vector<H5std_string> properties;
+    //store the data type
+    vector<PredType> propertiesdatatype;
 
     HDFCatalogNames(){
         group.push_back("File_id");
@@ -1057,6 +1071,31 @@ struct HDFCatalogNames {
         hierarchydatatype.push_back(PredType::STD_U64LE);
         hierarchydatatype.push_back(PredType::STD_U32LE);
         hierarchydatatype.push_back(PredType::STD_I64LE);
+
+        properties.push_back("File_id");
+        properties.push_back("Num_of_files");
+        properties.push_back("Num_of_groups");
+        properties.push_back("Total_num_of_groups");
+        properties.push_back("Xc");
+        properties.push_back("Yc");
+        properties.push_back("Zc");
+        properties.push_back("VXc");
+        properties.push_back("VYc");
+        properties.push_back("VZc");
+        properties.push_back("Rmax");
+        properties.push_back("Vmax");
+        propertiesdatatype.push_back(PredType::STD_I32LE);
+        propertiesdatatype.push_back(PredType::STD_I32LE);
+        propertiesdatatype.push_back(PredType::STD_U64LE);
+        propertiesdatatype.push_back(PredType::STD_U64LE);
+        propertiesdatatype.push_back(PredType::NATIVE_DOUBLE);
+        propertiesdatatype.push_back(PredType::NATIVE_DOUBLE);
+        propertiesdatatype.push_back(PredType::NATIVE_DOUBLE);
+        propertiesdatatype.push_back(PredType::NATIVE_DOUBLE);
+        propertiesdatatype.push_back(PredType::NATIVE_DOUBLE);
+        propertiesdatatype.push_back(PredType::NATIVE_DOUBLE);
+        propertiesdatatype.push_back(PredType::NATIVE_DOUBLE);
+        propertiesdatatype.push_back(PredType::NATIVE_DOUBLE);
     }
 };
 #endif

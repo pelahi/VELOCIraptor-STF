@@ -205,7 +205,7 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
     DataSet dataset;
     Attribute attr;
     DataSpace attrspace;
-    hsize_t *dims;
+    hsize_t dims[1];
     int rank;
     DataSpace *propdataspace;
     DataSet *propdataset;
@@ -325,18 +325,18 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
 #ifdef USEHDF
     else if (opt.outputformat==OUTHDF)
     {
-#ifdef USEMPI
-        if (opt.iwriteparallel==1 && ThisTask==0) cout<<"Writing files in parallel "<<endl;
-        if (opt.iwriteparallel==1) sprintf(fname,"%s.mpi_task-%d.isnap-%d.fsnap-%d",opt.outname,ThisTask,istart,iend);
-        else sprintf(fname,"%s",fname);
-#else
-        sprintf(fname,"%s",fname);
-#endif
-        //write header information
-#ifdef USEMPI
-        if ((opt.iwriteparallel==0 && ThisTask==0) || (opt.iwriteparallel==1))
-#endif
-        {
+        //If hdf5 then write a tree file per snapshot meaning it can be written out in parallel
+        iend=EndSnap;
+        istart=StartSnap+opt.numsteps;
+        if (ThisTask==0) istart=0;
+
+        for (int i=opt.numsnapshots-1;i>0;i--) if (i>=istart && i<iend) {
+
+
+            sprintf(fname,"%s/snapshot_%03d.VELOCIraptor.tree",opt.outname,i+opt.snapshotvaloffset);
+            cout<<ThisTask<<" is writing to "<<fname<<" "<<MyGetTime()-time1<<endl;
+
+            //Header information
             Fhdf=H5File(fname,H5F_ACC_TRUNC);
             attrspace=DataSpace(H5S_SCALAR);
             attr=Fhdf.createAttribute("Number_of_snapshots", PredType::STD_U32LE, attrspace);
@@ -371,56 +371,209 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
             const H5std_string strwritebuf (opt.description);
             attr = Fhdf.createAttribute("Description", strdatatype, attrspace);
             attr.write(strdatatype, strwritebuf);
+
+
+            //Setup the datasets
+            dims[0]=h[i].numhalos;
+            rank=1;
+
+            //ID
+            long unsigned *data1 = new long unsigned[h[i].numhalos];
+
+            dataspace = DataSpace(rank,dims);
+            datasetname=H5std_string("ID");
+            dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
+            for(Int_t j=0;j<h[i].numhalos;j++) data1[j]=h[i].Halo[j].haloID;
+            dataset.write(data1,PredType::STD_U64LE);
+
+            delete[] data1;
+
+            //Num progenitors
+            int *data2 = new int[h[i].numhalos];
+
+            dataspace = DataSpace(rank,dims);
+            datasetname=H5std_string("NumProgen");
+            dataset = Fhdf.createDataSet(datasetname,PredType::STD_I32LE,dataspace);
+            for(Int_t j=0;j<h[i].numhalos;j++)
+                data2[j]=p[i][j].NumberofProgenitors;
+
+            dataset.write(data2,PredType::STD_I32LE);
+
+            delete[] data2;
+
+            // Number of particles 
+            if (opt.outdataformat>=2) {
+                long unsigned *data3 = new long unsigned[h[i].numhalos];
+
+                dataspace = DataSpace(rank,dims);
+                datasetname=H5std_string("Npart");
+                dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
+                for(Int_t j=0;j<h[i].numhalos;j++)  data3[j]=h[i].Halo[j].NumberofParticles;
+                dataset.write(data3,PredType::STD_U64LE);
+
+                delete[] data3;
+            }
+
+            //Progenitors offsets
+            long unsigned *data4 = new long unsigned[h[i].numhalos];
+            long unsigned totnprogen=0;
+
+            dataspace = DataSpace(rank,dims);
+            datasetname=H5std_string("ProgenOffsets");
+            dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
+            for(Int_t j=0;j<h[i].numhalos;j++){
+                data4[j]=totnprogen; 
+                totnprogen+=p[i][j].NumberofProgenitors;  
+            }
+            dataset.write(data4,PredType::STD_U64LE);
+
+            delete[] data4;
+
+            //Progenitor IDs
+            long unsigned *data5= new long unsigned[totnprogen];
+            long unsigned itemp=0;
+            dims[0]=totnprogen;
+            rank=1;
+
+            dataspace = DataSpace(rank,dims);
+            datasetname=H5std_string("Progenitors");
+            dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
+            for(Int_t j=0;j<h[i].numhalos;j++)
+                for (Int_t k=0;k<p[i][j].NumberofProgenitors;k++)
+                    data5[itemp++] = h[i-p[i][j].istep].Halo[p[i][j].ProgenitorList[k]-1].haloID;
+
+            dataset.write(data5,PredType::STD_U64LE);
+
+            delete[] data5;
+
+            //Merits
+            if (opt.outdataformat>=1) {
+                float *data6 = new float[totnprogen];
+                itemp=0;
+
+                datasetname=H5std_string("Merits");
+                dataset = Fhdf.createDataSet(datasetname,PredType::NATIVE_FLOAT,dataspace);
+                for(Int_t j=0;j<h[i].numhalos;j++)
+                    for (Int_t k=0;k<p[i][j].NumberofProgenitors;k++)
+                        data6[itemp++] = p[i][j].Merit[k];
+                dataset.write(data6,PredType::NATIVE_FLOAT);
+
+                delete[] data6;
+            }
+
+            //Progenitor number of particles
+            if (opt.outdataformat>=2) {
+                long unsigned *data7 = new long unsigned[totnprogen];
+                itemp=0;
+
+                dataspace = DataSpace(rank,dims);
+                datasetname=H5std_string("ProgenNpart");
+                dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
+                for(Int_t j=0;j<h[i].numhalos;j++)
+                    for (Int_t k=0;k<p[i][j].NumberofProgenitors;k++)
+                        data7[itemp++] = h[i-p[i][j].istep].Halo[p[i][j].ProgenitorList[k]-1].NumberofParticles;
+                dataset.write(data7,PredType::STD_U64LE);
+
+                delete[] data7;
+            }
+            
             Fhdf.close();
+        
+            cout<<ThisTask<<" Done writing to "<<fname<<" "<<MyGetTime()-time1<<endl;
+
         }
 
-        iend=EndSnap;
-        istart=StartSnap+opt.numsteps;
-        if (ThisTask==0) istart=0;
-        //having written header if necessary, reopen and append to hdf file
-        for (int itask=NProcs-1;itask>=0;itask--) {
-            Fhdf=H5File(fname,H5F_ACC_RDWR);
-            /*
-            if (opt.outputformat==0) {
-            for (int i=opt.numsnapshots-1;i>0;i--) if (i>=istart && i<iend) {
-                Fout<<i+opt.snapshotvaloffset<<"\t"<<h[i].numhalos<<endl;
-                for (int j=0;j<h[i].numhalos;j++) {
-                    Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofProgenitors<<endl;
-                    for (int k=0;k<p[i][j].NumberofProgenitors;k++) {
-                        Fout<<h[i-p[i][j].istep].Halo[p[i][j].ProgenitorList[k]-1].haloID<<endl;
-                    }
-                }
-            }
-            }
-            else {
-            for (int i=opt.numsnapshots-1;i>0;i--) if (i>=istart && i<iend) {
-                Fout<<i+opt.snapshotvaloffset<<"\t"<<h[i].numhalos<<endl;
-                for (int j=0;j<h[i].numhalos;j++) {
-                    Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofProgenitors<<endl;
-                    for (int k=0;k<p[i][j].NumberofProgenitors;k++) {
-                        Fout<<h[i-p[i][j].istep].Halo[p[i][j].ProgenitorList[k]-1].haloID<<" "<<p[i][j].Merit[k]<<endl;
-                    }
-                }
-            }
-            }
-            */
-            //might need to be careful about stagging writes to the file
-            Fhdf.close();
-        }
-        if (ThisTask==0) {
-            Fhdf=H5File(fname,H5F_ACC_RDWR);
-            /*
+        ///last file has no connections
+        if(ThisTask==0){
+
+            sprintf(fname,"%s/snapshot_%03d.VELOCIraptor.tree",opt.outname,0+opt.snapshotvaloffset);
+            cout<<ThisTask<<" is writing to "<<fname<<" "<<MyGetTime()-time1<<endl;
+
+            //Header information
+            Fhdf=H5File(fname,H5F_ACC_TRUNC);
+            attrspace=DataSpace(H5S_SCALAR);
+            attr=Fhdf.createAttribute("Number_of_snapshots", PredType::STD_U32LE, attrspace);
+            attr.write(PredType::STD_U32LE,&opt.numsnapshots);
+            attrspace=DataSpace(H5S_SCALAR);
+            attr=Fhdf.createAttribute("Total_number_of_halos", PredType::STD_U64LE, attrspace);
+            attr.write(PredType::STD_U64LE,&opt.TotalNumberofHalos);
+            attrspace=DataSpace(H5S_SCALAR);
+            attr=Fhdf.createAttribute("Merit_limit", PredType::NATIVE_DOUBLE, attrspace);
+            attr.write(PredType::NATIVE_DOUBLE,&opt.mlsig);
+            //for multistep info
+            attrspace=DataSpace(H5S_SCALAR);
+            attr=Fhdf.createAttribute("Number_of_steps", PredType::STD_U32LE, attrspace);
+            attr.write(PredType::STD_U32LE,&opt.numsteps);
+            attrspace=DataSpace(H5S_SCALAR);
+            attr=Fhdf.createAttribute("Search_next_step_criterion", PredType::STD_U32LE, attrspace);
+            attr.write(PredType::STD_U32LE,&opt.imultsteplinkcrit);
+            attrspace=DataSpace(H5S_SCALAR);
+            attr=Fhdf.createAttribute("Merit_limit_for_next_step", PredType::NATIVE_DOUBLE, attrspace);
+            attr.write(PredType::NATIVE_DOUBLE,&opt.meritlimit);
+            //for core matching info
+            attrspace=DataSpace(H5S_SCALAR);
+            attr=Fhdf.createAttribute("Core_fraction", PredType::NATIVE_DOUBLE, attrspace);
+            attr.write(PredType::NATIVE_DOUBLE,&opt.particle_frac);
+            attrspace=DataSpace(H5S_SCALAR);
+            attr=Fhdf.createAttribute("Core_min_number_of_particles", PredType::STD_U32LE, attrspace);
+            attr.write(PredType::STD_U32LE,&opt.min_numpart);
+            // general description
+            // Create new string datatype for attribute
+            StrType strdatatype(PredType::C_S1, 1000);
+            // Set up write buffer for attribute
+            const H5std_string strwritebuf (opt.description);
+            attr = Fhdf.createAttribute("Description", strdatatype, attrspace);
+            attr.write(strdatatype, strwritebuf);
+
+
+
             ///last file has no connections
-            Fout<<0+opt.snapshotvaloffset<<"\t"<<h[0].numhalos<<endl;
-            for (int j=0;j<h[0].numhalos;j++) {
-                Fout<<h[0].Halo[j].haloID<<"\t"<<0<<endl;
+            dims[0]=h[0].numhalos;
+            rank=1;
+
+            //ID
+            long unsigned *data8 = new long unsigned[h[0].numhalos];
+
+            dataspace = DataSpace(rank,dims);
+            datasetname=H5std_string("ID");
+            dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
+            for(Int_t j=0;j<h[0].numhalos;j++) data8[j]=h[0].Halo[j].haloID;
+            dataset.write(data8,PredType::STD_U64LE);
+
+            delete[] data8;
+
+            //Num Progenitors
+            int *data9 = new int[h[0].numhalos];
+
+            dataspace = DataSpace(rank,dims);
+            datasetname=H5std_string("NumProgen");
+            dataset = Fhdf.createDataSet(datasetname,PredType::STD_I32LE,dataspace);
+            for(Int_t j=0;j<h[0].numhalos;j++) data9[j]=0;
+            dataset.write(data9,PredType::STD_I32LE);
+
+            delete[] data9;
+
+
+            // Number of particles 
+            if (opt.outdataformat>=2) {
+                long unsigned *data10 = new long unsigned[h[0].numhalos];
+
+                dataspace = DataSpace(rank,dims);
+                datasetname=H5std_string("Npart");
+                dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
+                for(Int_t j=0;j<h[0].numhalos;j++)  data10[j]=h[0].Halo[j].NumberofParticles;
+                dataset.write(data10,PredType::STD_U64LE);
+
+                delete[] data10;
             }
-            */
+
             Fhdf.close();
+
+            cout<<ThisTask<<" Done writing to "<<fname<<" "<<MyGetTime()-time1<<endl;
+
         }
-    }
+    } //End of hdf5 output
 #endif
-    if (ThisTask==0) cout<<"Done writing to "<<fname<<" "<<MyGetTime()-time1<<endl;
 }
 
 /// same as \ref WriteHaloMergerTree  but going reverse direction using DescendantData
@@ -434,6 +587,7 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
 #ifndef USEMPI
     int ThisTask=0, NProcs=1;
     int StartSnap=0,EndSnap=opt.numsnapshots;
+    
 #endif
 #ifdef USEHDF
     H5File Fhdf;
@@ -442,10 +596,8 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
     DataSet dataset;
     Attribute attr;
     DataSpace attrspace;
-    hsize_t *dims;
+    hsize_t dims[1];
     int rank;
-    DataSpace *propdataspace;
-    DataSet *propdataset;
     HDFCatalogNames hdfnames;
     int itemp=0;
 #endif
@@ -565,10 +717,272 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
 #ifdef USEHDF
     else if (opt.outputformat==OUTHDF)
     {
+        //If hdf5 then write a tree file per snapshot meaning it can be written out in parallel
+        iend=EndSnap-opt.numsteps;
+        istart=StartSnap;
+        if (ThisTask==0) istart=0;
+        if (ThisTask==NProcs-1) iend=opt.numsnapshots-1;
 
-    }
+        for (int i=istart;i<iend;i++) {
+
+            sprintf(fname,"%s/snapshot_%03d.VELOCIraptor.tree",opt.outname,i+opt.snapshotvaloffset);
+            cout<<ThisTask<<" is writing to "<<fname<<" "<<MyGetTime()-time1<<endl;
+
+            //Header information
+            Fhdf=H5File(fname,H5F_ACC_TRUNC);
+            attrspace=DataSpace(H5S_SCALAR);
+            attr=Fhdf.createAttribute("Number_of_snapshots", PredType::STD_U32LE, attrspace);
+            attr.write(PredType::STD_U32LE,&opt.numsnapshots);
+            attrspace=DataSpace(H5S_SCALAR);
+            attr=Fhdf.createAttribute("Total_number_of_halos", PredType::STD_U64LE, attrspace);
+            attr.write(PredType::STD_U64LE,&opt.TotalNumberofHalos);
+            attrspace=DataSpace(H5S_SCALAR);
+            attr=Fhdf.createAttribute("Merit_limit", PredType::NATIVE_DOUBLE, attrspace);
+            attr.write(PredType::NATIVE_DOUBLE,&opt.mlsig);
+            //for multistep info
+            attrspace=DataSpace(H5S_SCALAR);
+            attr=Fhdf.createAttribute("Number_of_steps", PredType::STD_U32LE, attrspace);
+            attr.write(PredType::STD_U32LE,&opt.numsteps);
+            attrspace=DataSpace(H5S_SCALAR);
+            attr=Fhdf.createAttribute("Search_next_step_criterion", PredType::STD_U32LE, attrspace);
+            attr.write(PredType::STD_U32LE,&opt.imultsteplinkcrit);
+            attrspace=DataSpace(H5S_SCALAR);
+            attr=Fhdf.createAttribute("Merit_limit_for_next_step", PredType::NATIVE_DOUBLE, attrspace);
+            attr.write(PredType::NATIVE_DOUBLE,&opt.meritlimit);
+            //for core matching info
+            attrspace=DataSpace(H5S_SCALAR);
+            attr=Fhdf.createAttribute("Core_fraction", PredType::NATIVE_DOUBLE, attrspace);
+            attr.write(PredType::NATIVE_DOUBLE,&opt.particle_frac);
+            attrspace=DataSpace(H5S_SCALAR);
+            attr=Fhdf.createAttribute("Core_min_number_of_particles", PredType::STD_U32LE, attrspace);
+            attr.write(PredType::STD_U32LE,&opt.min_numpart);
+            // general description
+            // Create new string datatype for attribute
+            StrType strdatatype(PredType::C_S1, 1000);
+            // Set up write buffer for attribute
+            const H5std_string strwritebuf (opt.description);
+            attr = Fhdf.createAttribute("Description", strdatatype, attrspace);
+            attr.write(strdatatype, strwritebuf);
+
+
+            //Setup the datasets
+            dims[0]=h[i].numhalos;
+            rank=1;
+
+            //ID
+            long unsigned *data1 = new long unsigned[h[i].numhalos];
+
+            dataspace = DataSpace(rank,dims);
+            datasetname=H5std_string("ID");
+            dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
+            for(Int_t j=0;j<h[i].numhalos;j++) data1[j]=h[i].Halo[j].haloID;
+            dataset.write(data1,PredType::STD_U64LE);
+
+            delete[] data1;
+
+            //Num Descendants
+            int *data2 = new int[h[i].numhalos];
+
+            dataspace = DataSpace(rank,dims);
+            datasetname=H5std_string("NumDesc");
+            dataset = Fhdf.createDataSet(datasetname,PredType::STD_I32LE,dataspace);
+            for(Int_t j=0;j<h[i].numhalos;j++)
+                data2[j]=p[i][j].NumberofDescendants;
+            
+            dataset.write(data2,PredType::STD_I32LE);
+
+            delete[] data2;
+
+
+            // If want to output the number of particles
+            if (opt.outdataformat>=2) {
+                long unsigned *data3 = new long unsigned[h[i].numhalos];
+
+                dataspace = DataSpace(rank,dims);
+                datasetname=H5std_string("Npart");
+                dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
+                for(Int_t j=0;j<h[i].numhalos;j++)  data3[j]=h[i].Halo[j].NumberofParticles;
+                dataset.write(data3,PredType::STD_U64LE);
+
+                delete[] data3;
+            }
+
+            //Decendants offsets
+            long unsigned *data4 = new long unsigned[h[i].numhalos];
+            long unsigned totndesc=0;
+
+            dataspace = DataSpace(rank,dims);
+            datasetname=H5std_string("DescOffsets");
+            dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
+            for(Int_t j=0;j<h[i].numhalos;j++){
+                data4[j]=totndesc; 
+                totndesc+=p[i][j].NumberofDescendants;  
+            }
+            dataset.write(data4,PredType::STD_U64LE);
+
+            delete[] data4;
+
+            // Descendant IDs
+            long unsigned *data5 = new long unsigned[totndesc];
+            long unsigned itemp=0;
+            dims[0]=totndesc;
+            rank=1;
+
+            dataspace = DataSpace(rank,dims);
+            datasetname=H5std_string("Descendants");
+            dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
+            for(Int_t j=0;j<h[i].numhalos;j++)
+                for (Int_t k=0;k<p[i][j].NumberofDescendants;k++)
+                    data5[itemp++] = h[i+p[i][j].istep].Halo[p[i][j].DescendantList[k]-1].haloID;
+
+            dataset.write(data5,PredType::STD_U64LE);
+
+            delete[] data5;
+
+            // Descendant rank
+            int *data6 = new int[totndesc];
+            itemp=0;
+
+            dataspace = DataSpace(rank,dims);
+            datasetname=H5std_string("Ranks");
+            dataset = Fhdf.createDataSet(datasetname,PredType::STD_I32LE,dataspace);
+            for(Int_t j=0;j<h[i].numhalos;j++)
+                for (Int_t k=0;k<p[i][j].NumberofDescendants;k++)
+                    data6[itemp++] = p[i][j].dtoptype[k];
+
+
+            dataset.write(data6,PredType::STD_I32LE);
+
+            delete[] data6;
+
+            //Merits
+            if (opt.outdataformat>=1) {
+                float *data7 = new float[totndesc];
+                itemp=0;
+
+                datasetname=H5std_string("Merits");
+                dataset = Fhdf.createDataSet(datasetname,PredType::NATIVE_FLOAT,dataspace);
+                for(Int_t j=0;j<h[i].numhalos;j++)
+                    for (Int_t k=0;k<p[i][j].NumberofDescendants;k++)
+                        data7[itemp++] = p[i][j].Merit[k];
+                dataset.write(data7,PredType::NATIVE_FLOAT);
+
+                delete[] data7;
+            }
+
+            //Descendant number of particles
+            if (opt.outdataformat>=2) {
+                long unsigned *data8 = new long unsigned[totndesc];
+                itemp=0;
+
+                dataspace = DataSpace(rank,dims);
+                datasetname=H5std_string("DescNpart");
+                dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
+                for(Int_t j=0;j<h[i].numhalos;j++)
+                    for (Int_t k=0;k<p[i][j].NumberofDescendants;k++)
+                        data8[itemp++] = h[i+p[i][j].istep].Halo[p[i][j].DescendantList[k]-1].NumberofParticles;
+                dataset.write(data8,PredType::STD_U64LE);
+
+                delete[] data8;
+            }
+            
+            Fhdf.close();
+
+            cout<<ThisTask<<" Done writing to "<<fname<<" "<<MyGetTime()-time1<<endl;
+
+        }
+
+
+        ///last file has no connections
+        if(ThisTask==NProcs-1){
+
+            sprintf(fname,"%s/snapshot_%03d.VELOCIraptor.tree",opt.outname,opt.numsnapshots-1+opt.snapshotvaloffset);
+            cout<<ThisTask<<" is writing to "<<fname<<" "<<MyGetTime()-time1<<endl;
+
+            //Header information
+            Fhdf=H5File(fname,H5F_ACC_TRUNC);
+            attrspace=DataSpace(H5S_SCALAR);
+            attr=Fhdf.createAttribute("Number_of_snapshots", PredType::STD_U32LE, attrspace);
+            attr.write(PredType::STD_U32LE,&opt.numsnapshots);
+            attrspace=DataSpace(H5S_SCALAR);
+            attr=Fhdf.createAttribute("Total_number_of_halos", PredType::STD_U64LE, attrspace);
+            attr.write(PredType::STD_U64LE,&opt.TotalNumberofHalos);
+            attrspace=DataSpace(H5S_SCALAR);
+            attr=Fhdf.createAttribute("Merit_limit", PredType::NATIVE_DOUBLE, attrspace);
+            attr.write(PredType::NATIVE_DOUBLE,&opt.mlsig);
+            //for multistep info
+            attrspace=DataSpace(H5S_SCALAR);
+            attr=Fhdf.createAttribute("Number_of_steps", PredType::STD_U32LE, attrspace);
+            attr.write(PredType::STD_U32LE,&opt.numsteps);
+            attrspace=DataSpace(H5S_SCALAR);
+            attr=Fhdf.createAttribute("Search_next_step_criterion", PredType::STD_U32LE, attrspace);
+            attr.write(PredType::STD_U32LE,&opt.imultsteplinkcrit);
+            attrspace=DataSpace(H5S_SCALAR);
+            attr=Fhdf.createAttribute("Merit_limit_for_next_step", PredType::NATIVE_DOUBLE, attrspace);
+            attr.write(PredType::NATIVE_DOUBLE,&opt.meritlimit);
+            //for core matching info
+            attrspace=DataSpace(H5S_SCALAR);
+            attr=Fhdf.createAttribute("Core_fraction", PredType::NATIVE_DOUBLE, attrspace);
+            attr.write(PredType::NATIVE_DOUBLE,&opt.particle_frac);
+            attrspace=DataSpace(H5S_SCALAR);
+            attr=Fhdf.createAttribute("Core_min_number_of_particles", PredType::STD_U32LE, attrspace);
+            attr.write(PredType::STD_U32LE,&opt.min_numpart);
+            // general description
+            // Create new string datatype for attribute
+            StrType strdatatype(PredType::C_S1, 1000);
+            // Set up write buffer for attribute
+            const H5std_string strwritebuf (opt.description);
+            attr = Fhdf.createAttribute("Description", strdatatype, attrspace);
+            attr.write(strdatatype, strwritebuf);
+
+
+            ///last file has no connections
+            dims[0]=h[opt.numsnapshots-1].numhalos;
+            rank=1;
+
+            //ID
+            long unsigned *data9 = new long unsigned[h[opt.numsnapshots-1].numhalos];
+
+            dataspace = DataSpace(rank,dims);
+            datasetname=H5std_string("ID");
+            dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
+            for(Int_t j=0;j<h[opt.numsnapshots-1].numhalos;j++) data9[j]=h[opt.numsnapshots-1].Halo[j].haloID;
+            dataset.write(data9,PredType::STD_U64LE);
+
+            delete[] data9;
+
+            //Num Descendants
+            int *data10 = new int[h[opt.numsnapshots-1].numhalos];
+
+            dataspace = DataSpace(rank,dims);
+            datasetname=H5std_string("NumDesc");
+            dataset = Fhdf.createDataSet(datasetname,PredType::STD_I32LE,dataspace);
+            for(Int_t j=0;j<h[opt.numsnapshots-1].numhalos;j++) data10[j]=0;
+            dataset.write(data10,PredType::STD_I32LE);
+
+            delete[] data10;
+
+            // If want to output the number of particles
+            if (opt.outdataformat>=2) {
+                long unsigned *data11 = new long unsigned[h[opt.numsnapshots-1].numhalos];
+
+                dataspace = DataSpace(rank,dims);
+                datasetname=H5std_string("Npart");
+                dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
+                for(Int_t j=0;j<h[opt.numsnapshots-1].numhalos;j++)  data11[j]=h[opt.numsnapshots-1].Halo[j].NumberofParticles;
+                dataset.write(data11,PredType::STD_U64LE);
+
+                delete[] data11;
+            }
+
+            Fhdf.close();
+       
+
+            cout<<ThisTask<<" Done writing to "<<fname<<" "<<MyGetTime()-time1<<endl;
+
+        }
+    }//End of hdf5 output
 #endif
-    if (ThisTask==0) cout<<"Done writing to "<<fname<<" "<<MyGetTime()-time1<<endl;
 }
 
 void WriteHaloGraph(Options &opt, ProgenitorData **p, DescendantData **d, HaloTreeData *h) {
@@ -632,9 +1046,20 @@ void WriteCrossComp(Options &opt, ProgenitorData **p, HaloTreeData *h) {
     for (int i=opt.numsnapshots-1;i>0;i--) {
         Fout<<i<<"\t"<<h[i].numhalos<<endl;
         for (int j=0;j<h[i].numhalos;j++) {
-            Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofProgenitors<<endl;
+            Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofProgenitors;
+            if (opt.outdataformat>=2) {
+                Fout<<"\t"<<h[i].Halo[j].NumberofParticles;
+            }
+            Fout<<endl;
             for (int k=0;k<p[i][j].NumberofProgenitors;k++) {
-                Fout<<h[i-1].Halo[p[i][j].ProgenitorList[k]-1].haloID<<" "<<p[i][j].Merit[k]<<endl;
+                Fout<<h[i-1].Halo[p[i][j].ProgenitorList[k]-1].haloID<<" ";
+                if (opt.outdataformat>=1) {
+                    Fout<<p[i][j].Merit[k]<<" ";
+                }
+                if (opt.outdataformat>=2) {
+                    Fout<<h[i-p[i][j].istep].Halo[p[i][j].ProgenitorList[k]-1].NumberofParticles<<" ";
+                }
+                Fout<<endl;
             }
         }
     }
