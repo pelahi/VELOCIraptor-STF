@@ -427,7 +427,7 @@ void MPIBuildParticleExportListUsingMesh(Options &opt, const Int_t nbodies, Part
 ///Link groups across MPI threads using a physical search
 Int_t MPILinkAcross(const Int_t nbodies, KDTree *&tree, Particle *Part, Int_t *&pfof, Int_tree_t *&Len, Int_tree_t *&Head, Int_tree_t *&Next, Double_t rdist2);
 ///Link groups across MPI threads using criterion
-Int_t MPILinkAcross(const Int_t nbodies, KDTree *tree, Particle *Part, Int_t *&pfof, Int_tree_t *&Len, Int_tree_t *&Head, Int_tree_t *&Next, Double_t rdist2, FOFcompfunc &cmp, Double_t *params);
+Int_t MPILinkAcross(const Int_t nbodies, KDTree *&tree, Particle *Part, Int_t *&pfof, Int_tree_t *&Len, Int_tree_t *&Head, Int_tree_t *&Next, Double_t rdist2, FOFcompfunc &cmp, Double_t *params);
 ///Link groups across MPI threads checking particle types
 Int_t MPILinkAcross(const Int_t nbodies, KDTree *&tree, Particle *Part, Int_t *&pfof, Int_tree_t *&Len, Int_tree_t *&Head, Int_tree_t *&Next, Double_t rdist2, FOFcheckfunc &check, Double_t *params);
 ///update export list after after linking across
