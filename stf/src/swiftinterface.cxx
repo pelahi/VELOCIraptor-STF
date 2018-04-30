@@ -141,7 +141,8 @@ int InvokeVelociraptor(const size_t num_gravity_parts, const size_t num_hydro_pa
     
     libvelociraptorOpt.outname = outputname;
 
-    Particle *parts, *pbaryons;
+    vector<Particle> parts;
+    Particle *pbaryons;
     Int_t *pfof, *pfofall, *pfofbaryons, *numingroup,**pglist;
     Int_t nbaryons, ndark;
     Int_t ngroup, nhalos;
@@ -161,7 +162,7 @@ int InvokeVelociraptor(const size_t num_gravity_parts, const size_t num_hydro_pa
 #else
     Ntotal=Nlocal;
 #endif
-    parts=new Particle[Nmemlocal];
+    parts.resize(Nmemlocal);
 
     cout<<"Copying particle data..."<< endl;
     time1=MyGetTime();
@@ -175,7 +176,7 @@ int InvokeVelociraptor(const size_t num_gravity_parts, const size_t num_hydro_pa
 
       size_t dmOffset = 0, gasOffset = 0;
 
-      pbaryons=&parts[ndark];
+      pbaryons=&(parts.data()[ndark]);
 
       cout<<"There are "<<nbaryons<<" gas particles and "<<ndark<<" DM particles."<<endl;
       for(auto i=0; i<Nlocal; i++) {
@@ -261,9 +262,9 @@ int InvokeVelociraptor(const size_t num_gravity_parts, const size_t num_hydro_pa
         Int_t *sortvalhalos=new Int_t[Nlocal];
         Int_t *originalID=new Int_t[Nlocal];
         for (Int_t i=0;i<Nlocal;i++) {sortvalhalos[i]=pfof[i]*(pfof[i]>0)+Nlocal*(pfof[i]==0);originalID[i]=parts[i].GetID();parts[i].SetID(i);}
-        Int_t *noffsethalos=BuildNoffset(Nlocal, parts, nhalos, numinhalos, sortvalhalos);
-        GetInclusiveMasses(libvelociraptorOpt, Nlocal, parts, nhalos, pfof, numinhalos, pdatahalos, noffsethalos);
-        qsort(parts,Nlocal,sizeof(Particle),IDCompare);
+        Int_t *noffsethalos=BuildNoffset(Nlocal, parts.data(), nhalos, numinhalos, sortvalhalos);
+        GetInclusiveMasses(libvelociraptorOpt, Nlocal, parts.data(), nhalos, pfof, numinhalos, pdatahalos, noffsethalos);
+        qsort(parts.data(),Nlocal,sizeof(Particle),IDCompare);
         delete[] numinhalos;
         delete[] sortvalhalos;
         delete[] noffsethalos;
@@ -327,7 +328,7 @@ int InvokeVelociraptor(const size_t num_gravity_parts, const size_t num_hydro_pa
 
     //calculate data and output
     numingroup=BuildNumInGroup(Nlocal, ngroup, pfof);
-    pglist=SortAccordingtoBindingEnergy(libvelociraptorOpt,Nlocal,parts,ngroup,pfof,numingroup,pdata);//alters pglist so most bound particles first
+    pglist=SortAccordingtoBindingEnergy(libvelociraptorOpt,Nlocal,parts.data(),ngroup,pfof,numingroup,pdata);//alters pglist so most bound particles first
     WriteProperties(libvelociraptorOpt,ngroup,pdata);
     WriteGroupCatalog(libvelociraptorOpt, ngroup, numingroup, pglist, parts);
     //if baryons have been searched output related gas baryon catalogue
@@ -337,7 +338,7 @@ int InvokeVelociraptor(const size_t num_gravity_parts, const size_t num_hydro_pa
 
     for (Int_t i=1;i<=ngroup;i++) delete[] pglist[i];
     delete[] pglist;
-    delete[] parts;
+    //delete[] parts;
 
     //delete tree used to search mpi mesh
     //delete mpimeshtree;
