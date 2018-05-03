@@ -1976,7 +1976,7 @@ def ProduceUnifiedTreeandHaloCatalog(fname,numsnaps,tree,numhalos,halodata,atime
 
 		for i in range(numsnaps):
 			snapgrp=hdffile.create_group("Snap_%03d"%(numsnaps-1-i))
-			snapgrp.attrs["Snapnum"]=i
+			snapgrp.attrs["Snapnum"]=(numsnaps-1-i)
 			snapgrp.attrs["NHalos"]=numhalos[i]
 			snapgrp.attrs["scalefactor"]=atime[i]
 			for key in halodata[i].keys():
@@ -1985,7 +1985,7 @@ def ProduceUnifiedTreeandHaloCatalog(fname,numsnaps,tree,numhalos,halodata,atime
 	else:
 		for i in range(numsnaps):
 			hdffile=h5py.File(fname+".snap_%03d.hdf.data"%(numsnaps-1-i),'w')
-			hdffile.create_dataset("Snap_value",data=np.array([i],dtype=np.uint32))
+			hdffile.create_dataset("Snap_value",data=np.array([numsnaps-1-i],dtype=np.uint32))
 			hdffile.create_dataset("NSnaps",data=np.array([numsnaps],dtype=np.uint32))
 			hdffile.create_dataset("NHalos",data=np.array([numhalos[i]],dtype=np.uint64))
 			hdffile.create_dataset("TotalNHalos",data=np.array([totnumhalos],dtype=np.uint64))

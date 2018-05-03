@@ -1459,32 +1459,25 @@ void RerankDescendants(Options &opt, HaloTreeData *&pht, DescendantData **&pdesc
             if (pdescen[i][j].NumberofDescendants>1) {
                 for (auto k=0;k<pdescen[i][j].NumberofDescendants;k++)
                 {
-                    //rank accoring to initial ranking and generalized merit.
+                 	//rank accoring to initial ranking and generalized merit.
                     rank=pdescen[i][j].dtoptype[k];
                     generalizedmerit=pdescen[i][j].Merit[k];
                     generalizedmerit/=(rank+1.0);
-                    for (auto k=0;k<pdescen[i][j].NumberofDescendants;k++)
-                    {
-                     	//rank accoring to initial ranking and generalized merit.
-                        rank=pdescen[i][j].dtoptype[k];
-                        generalizedmerit=pdescen[i][j].Merit[k];
-                        generalizedmerit/=(rank+1.0);
-                        //for ascending order merit, store 1/merit
-                        merit.push_back(make_pair(1.0/generalizedmerit,k));
-                        dtop.push_back(pdescen[i][j].dtoptype[k]);
-                        dindex.push_back(pdescen[i][j].DescendantList[k]);
-                    }
-                    sort(merit.begin(),merit.end());
-                    for (auto k=0;k<pdescen[i][j].NumberofDescendants;k++) {
-                        index=merit[k].second;
-                      	pdescen[i][j].Merit[k]=1.0/merit[k].first;
-                        pdescen[i][j].DescendantList[k]=dindex[index];
-                        pdescen[i][j].dtoptype[k]=dtop[index];
-                    }
-                    merit.clear();
-                    dtop.clear();
-                    dindex.clear();
+                    //for ascending order merit, store 1/merit
+                    merit.push_back(make_pair(1.0/generalizedmerit,k));
+                    dtop.push_back(pdescen[i][j].dtoptype[k]);
+                    dindex.push_back(pdescen[i][j].DescendantList[k]);
                 }
+                sort(merit.begin(),merit.end());
+                for (auto k=0;k<pdescen[i][j].NumberofDescendants;k++) {
+                    index=merit[k].second;
+                  	pdescen[i][j].Merit[k]=1.0/merit[k].first;
+                    pdescen[i][j].DescendantList[k]=dindex[index];
+                    pdescen[i][j].dtoptype[k]=dtop[index];
+                }
+                merit.clear();
+                dtop.clear();
+                dindex.clear();
             }
         }
     }
