@@ -94,7 +94,7 @@ void GetArgs(int argc, char *argv[], Options &opt)
 {
     int option;
     int NumArgs = 0;
-    while ((option = getopt(argc, argv, ":i:s:I:N:B:F:o:O:d:T:D:M:X:E:U:C:l:m:n:t:f:p:b:a:j:h:H:g:v:y:z:Z:S:")) != EOF)
+    while ((option = getopt(argc, argv, ":i:s:I:N:B:F:o:O:d:T:D:M:X:E:U:C:l:m:n:t:f:p:b:a:j:h:H:g:v:y:z:Z:S:q:")) != EOF)
     {
         switch(option)
         {
@@ -214,6 +214,11 @@ void GetArgs(int argc, char *argv[], Options &opt)
                 break;
             case 'j':
                 opt.meritratiolimit = atof(optarg);
+                opt.idefaultvalues = 0;
+                NumArgs += 2;
+                break;
+            case 'q':
+                opt.meritratioambiguitylimit = atof(optarg);
                 opt.idefaultvalues = 0;
                 NumArgs += 2;
                 break;
