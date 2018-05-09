@@ -85,6 +85,109 @@ using namespace H5;
 ///size of chunks in hdf files for Compression
 #define HDFOUTPUTCHUNKSIZE 8192
 
+#define HDF5_NEWER_THAN_1_10_0
+
+#ifdef HDF5_NEWER_THAN_1_10_0
+#define HDF5_FILE_GROUP_COMMON_BASE H5::Group
+#define HDF5_GROUP_DATASET_COMMON_BASE H5::H5Object
+#else
+#define HDF5_FILE_GROUP_COMMON_BASE H5::CommonFG
+#define HDF5_GROUP_DATASET_COMMON_BASE H5::H5Location
+#endif
+
+static inline
+H5::Attribute get_attribute(const HDF5_GROUP_DATASET_COMMON_BASE &l, const std::string attr_name)
+{
+	if (!l.attrExists(attr_name)) {
+		throw invalid_argument(std::string("attribute not found ") + attr_name);
+	}
+	return l.openAttribute(attr_name);
+}
+
+static inline
+H5::Attribute get_attribute(const HDF5_FILE_GROUP_COMMON_BASE &file_or_group, const std::vector<std::string> &parts)
+{
+	// This is the attribute name
+	if (parts.size() == 1) {
+		return get_attribute(dynamic_cast<const HDF5_GROUP_DATASET_COMMON_BASE &>(file_or_group), parts[0]);
+	}
+
+	auto n_groups = file_or_group.getNumObjs();
+
+	const auto path = parts.front();
+	for(hsize_t i = 0; i < n_groups; i++) {
+
+		auto objname = file_or_group.getObjnameByIdx(i);
+		if (objname != path) {
+			continue;
+		}
+
+		auto objtype = file_or_group.getObjTypeByIdx(i);
+		if (objtype == H5G_GROUP) {
+			std::vector<std::string> subparts(parts.begin() + 1, parts.end());
+			return get_attribute(file_or_group.openGroup(objname), subparts);
+		}
+		else if (objtype == H5G_DATASET) {
+			std::vector<std::string> subparts(parts.begin() + 1, parts.end());
+			return get_attribute(file_or_group.openDataSet(objname), parts.back());
+		}
+	}
+
+	throw invalid_argument("attribute name not found");
+}
+
+static inline
+vector<string> tokenize(const string &s, const string &delims)
+{
+	string::size_type lastPos = s.find_first_not_of(delims, 0);
+	string::size_type pos     = s.find_first_of(delims, lastPos);
+
+	vector<string> tokens;
+	while (string::npos != pos || string::npos != lastPos) {
+		tokens.push_back(s.substr(lastPos, pos - lastPos));
+		lastPos = s.find_first_not_of(delims, pos);
+		pos = s.find_first_of(delims, lastPos);
+	}
+	return tokens;
+}
+
+static inline
+H5::Attribute get_attribute(const H5::H5File &file, const string &name)
+{
+	std::vector<std::string> parts = tokenize(name, "/");
+	return get_attribute(file, parts);
+}
+
+template<typename T>
+static inline
+void _do_read(const H5::Attribute &attr, const H5::DataType type, T &val)
+{
+	attr.read(type, &val);
+}
+
+template<>
+void _do_read<std::string>(const H5::Attribute &attr, const H5::DataType type, std::string &val)
+{
+	attr.read(type, val);
+}
+
+template<typename T>
+const T read_attribute(const H5::H5File &filename, const std::string &name) {
+	std::string attr_name;
+	H5::Attribute attr = get_attribute(filename, name);
+	H5::DataType type = attr.getDataType();
+	T val;
+	_do_read(attr, type, val);
+	attr.close();
+	return val;
+}
+
+template<typename T>
+const T read_attribute(const std::string &filename, const std::string &name) {
+	H5::H5File file(filename, H5F_ACC_RDONLY);
+	return read_attribute<T>(file, name);
+}
+
 ///This structures stores the strings defining the groups of data in the hdf input. NOTE: HERE I show the strings for Illustris format
 struct HDF_Group_Names {
     //define the strings associated with the types of structures contained in the hdf file.
@@ -99,14 +202,29 @@ struct HDF_Group_Names {
     H5std_string names[NHDFTYPE+1];
 
     ///constructor
-    HDF_Group_Names(){
-        Header_name=H5std_string("Header");
-        GASpart_name=H5std_string("PartType0");
-        DMpart_name=H5std_string("PartType1");
-        EXTRApart_name=H5std_string("PartType2");
-        TRACERpart_name=H5std_string("PartType3");
-        STARpart_name=H5std_string("PartType4");
-        BHpart_name=H5std_string("PartType5");
+    HDF_Group_Names(int hdfnametype=HDFEAGLENAMES){
+        switch (hdfnametype) {
+          case HDFSWIFTEAGLENAMES:
+            Header_name=H5std_string("Header");
+            GASpart_name=H5std_string("PartType0");
+            DMpart_name=H5std_string("PartType1");
+            EXTRApart_name=H5std_string("PartType2");
+            TRACERpart_name=H5std_string("PartType3");
+            STARpart_name=H5std_string("PartType4");
+            BHpart_name=H5std_string("PartType5");
+          break;
+
+          default:
+            Header_name=H5std_string("Header");
+            GASpart_name=H5std_string("PartType0");
+            DMpart_name=H5std_string("PartType1");
+            EXTRApart_name=H5std_string("PartType2");
+            TRACERpart_name=H5std_string("PartType3");
+            STARpart_name=H5std_string("PartType4");
+            BHpart_name=H5std_string("PartType5");
+          break;
+        }
+
         part_names[0]=GASpart_name;
         part_names[1]=DMpart_name;
         part_names[2]=EXTRApart_name;
@@ -150,19 +268,37 @@ struct HDF_Header {
     const static int IHubbleParam =10;
 
     ///constructor
-    HDF_Header() {
+    HDF_Header(int hdfnametype=HDFEAGLENAMES) {
         int itemp=0;
-        names[itemp++]=H5std_string("BoxSize");
-        names[itemp++]=H5std_string("MassTable");
-        names[itemp++]=H5std_string("NumPart_ThisFile");
-        names[itemp++]=H5std_string("NumPart_Total");
-        names[itemp++]=H5std_string("NumPart_Total_HighWord");
-        names[itemp++]=H5std_string("Omega0");
-        names[itemp++]=H5std_string("OmegaLambda");
-        names[itemp++]=H5std_string("Redshift");
-        names[itemp++]=H5std_string("Time");
-        names[itemp++]=H5std_string("NumFilesPerSnapshot");
-        names[itemp++]=H5std_string("HubbleParam");
+        switch (hdfnametype) {
+          case HDFSWIFTEAGLENAMES:
+            names[itemp++]=H5std_string("Header/BoxSize");
+            names[itemp++]=H5std_string("Header/MassTable");
+            names[itemp++]=H5std_string("Header/NumPart_ThisFile");
+            names[itemp++]=H5std_string("Header/NumPart_Total");
+            names[itemp++]=H5std_string("Header/NumPart_Total_HighWord");
+            names[itemp++]=H5std_string("Parameters/Cosmology:Omega_m");
+            names[itemp++]=H5std_string("Parameters/Cosmology:Omega_lambda");
+            names[itemp++]=H5std_string("Header/Redshift");
+            names[itemp++]=H5std_string("Header/Time");
+            names[itemp++]=H5std_string("Header/NumFilesPerSnapshot");
+            names[itemp++]=H5std_string("Parameters/Cosmology:h");
+            break;
+          
+          default:
+            names[itemp++]=H5std_string("Header/BoxSize");
+            names[itemp++]=H5std_string("Header/MassTable");
+            names[itemp++]=H5std_string("Header/NumPart_ThisFile");
+            names[itemp++]=H5std_string("Header/NumPart_Total");
+            names[itemp++]=H5std_string("Header/NumPart_Total_HighWord");
+            names[itemp++]=H5std_string("Header/Omega0");
+            names[itemp++]=H5std_string("Header/OmegaLambda");
+            names[itemp++]=H5std_string("Header/Redshift");
+            names[itemp++]=H5std_string("Header/Time");
+            names[itemp++]=H5std_string("Header/NumFilesPerSnapshot");
+            names[itemp++]=H5std_string("Header/HubbleParam");
+            break;
+        }
     }
 };
 
@@ -339,7 +475,6 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
     H5File Fhdf;
     HDF_Group_Names hdf_gnames;
     //to store the groups, data sets and their associated data spaces
-    Group headergroup;
     Attribute headerattribs;
     HDF_Header hdf_header_info;
     //buffers to load data
@@ -379,14 +514,13 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
         //Open the specified file and the specified dataset in the file.
         Fhdf.openFile(buf, H5F_ACC_RDONLY);
         cout<<"Loading HDF header info in header group: "<<hdf_gnames.Header_name<<endl;
-        //get header group
-        headergroup=Fhdf.openGroup(hdf_gnames.Header_name);
 
-        headerattribs=headergroup.openAttribute(hdf_header_info.names[hdf_header_info.INumTot]);
+        headerattribs=get_attribute(Fhdf, hdf_header_info.names[hdf_header_info.INumTot]);
+        
         headerattribs.read(PredType::NATIVE_UINT,&uintbuff);
         for (j=0;j<NHDFTYPE;j++) hdf_header_info.npartTotal[j]=uintbuff[j];
 
-        headerattribs=headergroup.openAttribute(hdf_header_info.names[hdf_header_info.INumTotHW]);
+        headerattribs=get_attribute(Fhdf, hdf_header_info.names[hdf_header_info.INumTotHW]);
         headerattribs.read(PredType::NATIVE_UINT,&uintbuff);
         for (j=0;j<NHDFTYPE;j++) hdf_header_info.npartTotalHW[j]=uintbuff[j];
     }
@@ -448,7 +582,6 @@ inline Int_t HDF_get_nfiles(char *fname, int ptype)
     H5File Fhdf;
     HDF_Group_Names hdf_gnames;
     //to store the groups, data sets and their associated data spaces
-    Group headergroup;
     Attribute headerattribs;
     HDF_Header hdf_header_info;
     //buffers to load data
@@ -468,9 +601,8 @@ inline Int_t HDF_get_nfiles(char *fname, int ptype)
         //Open the specified file and the specified dataset in the file.
         Fhdf.openFile(buf, H5F_ACC_RDONLY);
         //get header group
-        headergroup=Fhdf.openGroup(hdf_gnames.Header_name);
 
-        headerattribs = headergroup.openAttribute(hdf_header_info.names[hdf_header_info.INumFiles]);
+        headerattribs = get_attribute(Fhdf, hdf_header_info.names[hdf_header_info.INumFiles]);
         inttype = headerattribs.getIntType();
         if (inttype.getSize() == sizeof(int))
         {
@@ -519,106 +651,6 @@ inline Int_t HDF_get_nfiles(char *fname, int ptype)
 //@}
 
 
-#ifdef HDF5_NEWER_THAN_1_10_0
-#define HDF5_FILE_GROUP_COMMON_BASE H5::Group
-#define HDF5_GROUP_DATASET_COMMON_BASE H5::H5Object
-#else
-#define HDF5_FILE_GROUP_COMMON_BASE H5::CommonFG
-#define HDF5_GROUP_DATASET_COMMON_BASE H5::H5Location
-#endif
-
-static inline
-H5::Attribute get_attribute(const HDF5_GROUP_DATASET_COMMON_BASE &l, const std::string attr_name)
-{
-	if (!l.attrExists(attr_name)) {
-		throw invalid_argument(std::string("attribute not found ") + attr_name);
-	}
-	return l.openAttribute(attr_name);
-}
-
-static inline
-H5::Attribute get_attribute(const HDF5_FILE_GROUP_COMMON_BASE &file_or_group, const std::vector<std::string> &parts)
-{
-	// This is the attribute name
-	if (parts.size() == 1) {
-		return get_attribute(dynamic_cast<const HDF5_GROUP_DATASET_COMMON_BASE &>(file_or_group), parts[0]);
-	}
-
-	auto n_groups = file_or_group.getNumObjs();
-
-	const auto path = parts.front();
-	for(hsize_t i = 0; i < n_groups; i++) {
-
-		auto objname = file_or_group.getObjnameByIdx(i);
-		if (objname != path) {
-			continue;
-		}
-
-		auto objtype = file_or_group.getObjTypeByIdx(i);
-		if (objtype == H5G_GROUP) {
-			std::vector<std::string> subparts(parts.begin() + 1, parts.end());
-			return get_attribute(file_or_group.openGroup(objname), subparts);
-		}
-		else if (objtype == H5G_DATASET) {
-			std::vector<std::string> subparts(parts.begin() + 1, parts.end());
-			return get_attribute(file_or_group.openDataSet(objname), parts.back());
-		}
-	}
-
-	throw invalid_argument("attribute name not found");
-}
-
-static inline
-vector<string> tokenize(const string &s, const string &delims)
-{
-	string::size_type lastPos = s.find_first_not_of(delims, 0);
-	string::size_type pos     = s.find_first_of(delims, lastPos);
-
-	vector<string> tokens;
-	while (string::npos != pos || string::npos != lastPos) {
-		tokens.push_back(s.substr(lastPos, pos - lastPos));
-		lastPos = s.find_first_not_of(delims, pos);
-		pos = s.find_first_of(delims, lastPos);
-	}
-	return tokens;
-}
-
-static inline
-H5::Attribute get_attribute(const H5::H5File &file, const string &name)
-{
-	std::vector<std::string> parts = tokenize(name, "/");
-	return get_attribute(file, parts);
-}
-
-template<typename T>
-static inline
-void _do_read(const H5::Attribute &attr, const H5::DataType type, T &val)
-{
-	attr.read(type, &val);
-}
-
-template<>
-void _do_read<std::string>(const H5::Attribute &attr, const H5::DataType type, std::string &val)
-{
-	attr.read(type, val);
-}
-
-template<typename T>
-const T read_attribute(const H5::H5File &filename, const std::string &name) {
-	std::string attr_name;
-	H5::Attribute attr = get_attribute(filename, name);
-	H5::DataType type = attr.getDataType();
-	T val;
-	_do_read(attr, type, val);
-	attr.close();
-	return val;
-}
-
-template<typename T>
-const T read_attribute(const std::string &filename, const std::string &name) {
-	H5::H5File file(filename, H5F_ACC_RDONLY);
-	return read_attribute<T>(file, name);
-}
 
 
 #endif
