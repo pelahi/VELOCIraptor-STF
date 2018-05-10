@@ -244,16 +244,16 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
                     Fout<<i+opt.snapshotvaloffset<<"\t"<<h[i].numhalos<<endl;
                     for (int j=0;j<h[i].numhalos;j++) {
                         Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofProgenitors;
-                        if (opt.outdataformat>=2) {
+                        if (opt.outdataformat>=DATAOUTMERITNPART) {
                             Fout<<"\t"<<h[i].Halo[j].NumberofParticles;
                         }
                         Fout<<endl;
                         for (int k=0;k<p[i][j].NumberofProgenitors;k++) {
                             Fout<<h[i-p[i][j].istep].Halo[p[i][j].ProgenitorList[k]-1].haloID<<" ";
-                            if (opt.outdataformat>=1) {
+                            if (opt.outdataformat>=DATAOUTMERIT) {
                                 Fout<<p[i][j].Merit[k]<<" ";
                             }
-                            if (opt.outdataformat>=2) {
+                            if (opt.outdataformat>=DATAOUTMERITNPART) {
                                 Fout<<h[i-p[i][j].istep].Halo[p[i][j].ProgenitorList[k]-1].NumberofParticles<<" ";
                             }
                             Fout<<endl;
@@ -270,7 +270,7 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
             Fout<<0+opt.snapshotvaloffset<<"\t"<<h[0].numhalos<<endl;
             for (int j=0;j<h[0].numhalos;j++) {
                 Fout<<h[0].Halo[j].haloID<<"\t"<<0;
-                if (opt.outdataformat>=2) {
+                if (opt.outdataformat>=DATAOUTMERITNPART) {
                     Fout<<"\t"<<h[0].Halo[j].NumberofParticles;
                 }
                 Fout<<endl;
@@ -290,16 +290,16 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
                 Fout<<i+opt.snapshotvaloffset<<"\t"<<h[i].numhalos<<endl;
                 for (int j=0;j<h[i].numhalos;j++) {
                     Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofProgenitors;
-                    if (opt.outdataformat>=2) {
+                    if (opt.outdataformat>=DATAOUTMERITNPART) {
                         Fout<<"\t"<<h[i].Halo[j].NumberofParticles;
                     }
                     Fout<<endl;
                     for (int k=0;k<p[i][j].NumberofProgenitors;k++) {
                         Fout<<h[i-p[i][j].istep].Halo[p[i][j].ProgenitorList[k]-1].haloID<<" ";
-                        if (opt.outdataformat>=1) {
+                        if (opt.outdataformat>=DATAOUTMERIT) {
                             Fout<<p[i][j].Merit[k]<<" ";
                         }
-                        if (opt.outdataformat>=2) {
+                        if (opt.outdataformat>=DATAOUTMERITNPART) {
                             Fout<<h[i-p[i][j].istep].Halo[p[i][j].ProgenitorList[k]-1].NumberofParticles<<" ";
                         }
                         Fout<<endl;
@@ -310,7 +310,7 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
             ///last file has no connections
             for (int j=0;j<h[0].numhalos;j++) {
                 Fout<<h[0].Halo[j].haloID<<"\t"<<0;
-                if (opt.outdataformat>=2) {
+                if (opt.outdataformat>=DATAOUTMERITNPART) {
                     Fout<<"\t"<<h[0].Halo[j].NumberofParticles;
                 }
                 Fout<<endl;
@@ -425,8 +425,8 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
 
             delete[] data2;
 
-            // Number of particles 
-            if (opt.outdataformat>=2) {
+            // Number of particles
+            if (opt.outdataformat>=DATAOUTMERITNPART) {
                 dataspace = DataSpace(rank,dims);
                 datasetname=H5std_string("Npart");
 
@@ -472,8 +472,8 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
             //Write out the dataset
             long unsigned *data4 = new long unsigned[h[i].numhalos];
             for(Int_t j=0;j<h[i].numhalos;j++){
-                data4[j]=totnprogen; 
-                totnprogen+=p[i][j].NumberofProgenitors;  
+                data4[j]=totnprogen;
+                totnprogen+=p[i][j].NumberofProgenitors;
             }
             dataset.write(data4,PredType::STD_U64LE);
 
@@ -492,8 +492,8 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
             //Progenitor IDs
             dataspace = DataSpace(rank,dims);
             datasetname=H5std_string("Progenitors");
-            
-            
+
+
             // Check if there are halos to output so it can be compressed
             if (chunk_dims[0]>0) {
                 // Modify dataset creation property to enable chunking
@@ -516,7 +516,7 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
             delete[] data5;
 
             //Merits
-            if (opt.outdataformat>=1) {
+            if (opt.outdataformat>=DATAOUTMERIT) {
                 itemp=0;
 
                 dataspace = DataSpace(rank,dims);
@@ -544,7 +544,7 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
             }
 
             //Progenitor number of particles
-            if (opt.outdataformat>=2) {
+            if (opt.outdataformat>=DATAOUTMERITNPART) {
                 itemp=0;
 
                 dataspace = DataSpace(rank,dims);
@@ -573,7 +573,7 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
             }
 
             Fhdf.close();
-        
+
             cout<<ThisTask<<" Done writing to "<<fname<<" "<<MyGetTime()-time1<<endl;
 
         }
@@ -675,8 +675,8 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
 
             delete[] data9;
 
-            // Number of particles 
-            if (opt.outdataformat>=2) {
+            // Number of particles
+            if (opt.outdataformat>=DATAOUTMERITNPART) {
                 dataspace = DataSpace(rank,dims);
                 datasetname=H5std_string("Npart");
 
@@ -720,7 +720,7 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
 #ifndef USEMPI
     int ThisTask=0, NProcs=1;
     int StartSnap=0,EndSnap=opt.numsnapshots;
-    
+
 #endif
 #ifdef USEHDF
     H5File Fhdf;
@@ -769,17 +769,17 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
                     Fout<<i+opt.snapshotvaloffset<<"\t"<<h[i].numhalos<<endl;
                     for (int j=0;j<h[i].numhalos;j++) {
                         Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofDescendants;
-                        if (opt.outdataformat>=2) {
+                        if (opt.outdataformat>=DATAOUTMERITNPART) {
                             Fout<<"\t"<<h[i].Halo[j].NumberofParticles;
                         }
                         Fout<<endl;
                         for (int k=0;k<p[i][j].NumberofDescendants;k++) {
                             Fout<<h[i+p[i][j].istep].Halo[p[i][j].DescendantList[k]-1].haloID<<" ";
                             Fout<<p[i][j].dtoptype[k]<<" ";
-                            if (opt.outdataformat>=1) {
+                            if (opt.outdataformat>=DATAOUTMERIT) {
                                 Fout<<p[i][j].Merit[k]<<" ";
                             }
-                            if (opt.outdataformat>=2) {
+                            if (opt.outdataformat>=DATAOUTMERITNPART) {
                                 Fout<<h[i+p[i][j].istep].Halo[p[i][j].DescendantList[k]-1].NumberofParticles<<" ";
                             }
                             Fout<<endl;
@@ -796,7 +796,7 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
             Fout<<opt.numsnapshots-1+opt.snapshotvaloffset<<"\t"<<h[opt.numsnapshots-1].numhalos<<endl;
             for (int j=0;j<h[opt.numsnapshots-1].numhalos;j++) {
                 Fout<<h[opt.numsnapshots-1].Halo[j].haloID<<"\t"<<0;
-                if (opt.outdataformat>=2) {
+                if (opt.outdataformat>=DATAOUTMERITNPART) {
                     Fout<<"\t"<<h[opt.numsnapshots-1].Halo[j].NumberofParticles;
                 }
                 Fout<<endl;
@@ -816,17 +816,17 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
                 Fout<<i+opt.snapshotvaloffset<<"\t"<<h[i].numhalos<<endl;
                 for (int j=0;j<h[i].numhalos;j++) {
                     Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofDescendants;
-                    if (opt.outdataformat>=2) {
+                    if (opt.outdataformat>=DATAOUTMERITNPART) {
                         Fout<<"\t"<<h[i].Halo[j].NumberofParticles;
                     }
                     Fout<<endl;
                     for (int k=0;k<p[i][j].NumberofDescendants;k++) {
                         Fout<<h[i+p[i][j].istep].Halo[p[i][j].DescendantList[k]-1].haloID<<" ";
                         Fout<<p[i][j].dtoptype[k]<<" ";
-                        if (opt.outdataformat>=1) {
+                        if (opt.outdataformat>=DATAOUTMERIT) {
                             Fout<<p[i][j].Merit[k]<<" ";
                         }
-                        if (opt.outdataformat>=2) {
+                        if (opt.outdataformat>=DATAOUTMERITNPART) {
                             Fout<<h[i+p[i][j].istep].Halo[p[i][j].DescendantList[k]-1].NumberofParticles<<" ";
                         }
                         Fout<<endl;
@@ -837,7 +837,7 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
             ///last file has no connections
             for (int j=0;j<h[opt.numsnapshots-1].numhalos;j++) {
                 Fout<<h[opt.numsnapshots-1].Halo[j].haloID<<"\t"<<0;
-                if (opt.outdataformat>=2) {
+                if (opt.outdataformat>=DATAOUTMERITNPART) {
                     Fout<<"\t"<<h[opt.numsnapshots-1].Halo[j].NumberofParticles;
                 }
                 Fout<<endl;
@@ -954,7 +954,7 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
 
 
             // If want to output the number of particles
-            if (opt.outdataformat>=2) {
+            if (opt.outdataformat>=DATAOUTMERITNPART) {
                 dataspace = DataSpace(rank,dims);
                 datasetname=H5std_string("Npart");
 
@@ -978,7 +978,7 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
                 delete[] data3;
             }
 
-            
+
             // Store the total number of decendants
             long unsigned totndesc=0;
 
@@ -1001,8 +1001,8 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
             //Write out the dataset
             long unsigned *data4 = new long unsigned[h[i].numhalos];
             for(Int_t j=0;j<h[i].numhalos;j++){
-                data4[j]=totndesc; 
-                totndesc+=p[i][j].NumberofDescendants;  
+                data4[j]=totndesc;
+                totndesc+=p[i][j].NumberofDescendants;
             }
             dataset.write(data4,PredType::STD_U64LE);
 
@@ -1070,7 +1070,7 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
             delete[] data6;
 
             //Merits
-            if (opt.outdataformat>=1) {
+            if (opt.outdataformat>=DATAOUTMERIT) {
                 itemp=0;
                 datasetname=H5std_string("Merits");
                 dataspace = DataSpace(rank,dims);
@@ -1098,7 +1098,7 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
             }
 
             //Descendant number of particles
-            if (opt.outdataformat>=2) {
+            if (opt.outdataformat>=DATAOUTMERITNPART) {
                 itemp=0;
                 dataspace = DataSpace(rank,dims);
                 datasetname=H5std_string("DescNpart");
@@ -1124,7 +1124,7 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
 
                 delete[] data8;
             }
-            
+
             Fhdf.close();
 
             cout<<ThisTask<<" Done writing to "<<fname<<" "<<MyGetTime()-time1<<endl;
@@ -1232,7 +1232,7 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
             delete[] data10;
 
             // If want to output the number of particles
-            if (opt.outdataformat>=2) {
+            if (opt.outdataformat>=DATAOUTMERITNPART) {
                 dataspace = DataSpace(rank,dims);
                 datasetname=H5std_string("Npart");
 
@@ -1257,7 +1257,7 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
             }
 
             Fhdf.close();
-       
+
 
             cout<<ThisTask<<" Done writing to "<<fname<<" "<<MyGetTime()-time1<<endl;
 
@@ -1281,17 +1281,17 @@ void WriteHaloGraph(Options &opt, ProgenitorData **p, DescendantData **d, HaloTr
             if (i==opt.numsnapshots-1) Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofProgenitors<<"\t"<<0;
             else if (i==0)Fout<<h[i].Halo[j].haloID<<"\t"<<0<<"\t"<<d[i][j].NumberofDescendants;
             else Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofProgenitors<<"\t"<<d[i][j].NumberofDescendants;
-            if (opt.outdataformat>=2) {
+            if (opt.outdataformat>=DATAOUTMERITNPART) {
                 Fout<<"\t"<<h[i].Halo[j].NumberofParticles;
             }
             Fout<<endl;
             if (i>0) {
                 for (int k=0;k<p[i][j].NumberofProgenitors;k++) {
                     Fout<<h[i-p[i][j].istep].Halo[p[i][j].ProgenitorList[k]-1].haloID<<" ";
-                    if (opt.outdataformat>=1) {
+                    if (opt.outdataformat>=DATAOUTMERIT) {
                         Fout<<p[i][j].Merit[k]<<" ";
                     }
-                    if (opt.outdataformat>=2) {
+                    if (opt.outdataformat>=DATAOUTMERITNPART) {
                         Fout<<h[i-p[i][j].istep].Halo[p[i][j].ProgenitorList[k]-1].NumberofParticles<<" ";
                     }
                     Fout<<endl;
@@ -1301,10 +1301,10 @@ void WriteHaloGraph(Options &opt, ProgenitorData **p, DescendantData **d, HaloTr
                 for (int k=0;k<d[i][j].NumberofDescendants;k++) {
                     Fout<<h[i+d[i][j].istep].Halo[d[i][j].DescendantList[k]-1].haloID<<" ";
                     Fout<<d[i][j].dtoptype[k]<<" ";
-                    if (opt.outdataformat>=1) {
+                    if (opt.outdataformat>=DATAOUTMERIT) {
                         Fout<<d[i][j].Merit[k]<<" ";
                     }
-                    if (opt.outdataformat>=2) {
+                    if (opt.outdataformat>=DATAOUTMERITNPART) {
                         Fout<<h[i+d[i][j].istep].Halo[d[i][j].DescendantList[k]-1].NumberofParticles<<" ";
                     }
                     Fout<<endl;
@@ -1328,16 +1328,16 @@ void WriteCrossComp(Options &opt, ProgenitorData **p, HaloTreeData *h) {
         Fout<<i<<"\t"<<h[i].numhalos<<endl;
         for (int j=0;j<h[i].numhalos;j++) {
             Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofProgenitors;
-            if (opt.outdataformat>=2) {
+            if (opt.outdataformat>=DATAOUTMERITNPART) {
                 Fout<<"\t"<<h[i].Halo[j].NumberofParticles;
             }
             Fout<<endl;
             for (int k=0;k<p[i][j].NumberofProgenitors;k++) {
                 Fout<<h[i-1].Halo[p[i][j].ProgenitorList[k]-1].haloID<<" ";
-                if (opt.outdataformat>=1) {
+                if (opt.outdataformat>=DATAOUTMERIT) {
                     Fout<<p[i][j].Merit[k]<<" ";
                 }
-                if (opt.outdataformat>=2) {
+                if (opt.outdataformat>=DATAOUTMERITNPART) {
                     Fout<<h[i-p[i][j].istep].Halo[p[i][j].ProgenitorList[k]-1].NumberofParticles<<" ";
                 }
                 Fout<<endl;

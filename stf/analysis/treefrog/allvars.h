@@ -170,6 +170,13 @@ using namespace NBody;
 #define OUTHDF 2
 //@}
 
+/// \name data that is outputed
+//@{
+#define DATAOUTMATCHESONLY 0
+#define DATAOUTMERIT 1
+#define DATAOUTMERITNPART 2
+//@}
+
 /// \name size of chunks in hdf files for Compression
 #ifdef USEHDF
 #define HDFOUTPUTCHUNKSIZE 8192
@@ -370,7 +377,7 @@ struct Options
         haloidval=0;
         idcorrectflag=0;
         outputformat=OUTASCII;
-        outdataformat=0;
+        outdataformat=DATAOUTMERIT;
         haloidoffset=0;
 
         icorematchtype=PARTLISTNOCORE;
