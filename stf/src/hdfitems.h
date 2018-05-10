@@ -298,7 +298,6 @@ struct HDF_Header {
             names[itemp++]=H5std_string("Header/Time");
             names[itemp++]=H5std_string("Header/NumFilesPerSnapshot");
             names[itemp++]=H5std_string("Header/HubbleParam");
-            names[itemp++]=H5std_string("Cosmology/Cosmological run");
             break;
         }
     }
@@ -535,8 +534,7 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
           // Read SWIFT parameters
           if(!swift_str.compare(stringbuff)) {
             // Is it a cosmological simulation?
-            //headerattribs=get_attribute(Fhdf, hdf_header_info.names[hdf_header_info.IIsCosmological]);
-            headerattribs=get_attribute(Fhdf, "Cosmology/Cosmological run");
+            headerattribs=get_attribute(Fhdf, hdf_header_info.names[hdf_header_info.IIsCosmological]);
             headerdataspace=headerattribs.getSpace();
 
             if (headerdataspace.getSimpleExtentNdims()!=1) ireaderror=1;

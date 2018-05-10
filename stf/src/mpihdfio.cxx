@@ -29,7 +29,6 @@ void MPIDomainExtentHDF(Options &opt){
     H5File Fhdf;
     HDF_Group_Names hdf_gnames;
     HDF_Header hdf_header_info;
-    Group headergroup;
     Attribute headerattribs;
     DataSpace headerdataspace;
     float floatbuff;
@@ -52,11 +51,9 @@ void MPIDomainExtentHDF(Options &opt){
             //Open the specified file and the specified dataset in the file.
             Fhdf.openFile(buf, H5F_ACC_RDONLY);
             cout<<"Loading HDF header info in header group: "<<hdf_gnames.Header_name<<endl;
-            //get header group
-            headergroup=Fhdf.openGroup(hdf_gnames.Header_name);
 
             //start reading attributes
-            headerattribs=headergroup.openAttribute(hdf_header_info.names[hdf_header_info.IBoxSize]);
+            headerattribs=get_attribute(Fhdf, hdf_header_info.names[hdf_header_info.IBoxSize]);
             headerdataspace=headerattribs.getSpace();
             floattype=headerattribs.getFloatType();
             if (floattype.getSize()==sizeof(float)) {
@@ -157,7 +154,6 @@ void MPINumInDomainHDF(Options &opt)
     H5File *Fhdf;
     //to store the groups, data sets and their associated data spaces
     HDF_Header *hdf_header_info;
-    Group *headergroup;
     Attribute *headerattribs;
     DataSpace *headerdataspace;
     Group *partsgroup;
@@ -224,7 +220,6 @@ void MPINumInDomainHDF(Options &opt)
 
         Fhdf=new H5File[opt.num_files];
         hdf_header_info=new HDF_Header[opt.num_files];
-        headergroup=new Group[opt.num_files];
         headerdataspace=new DataSpace[opt.num_files];
         headerattribs=new Attribute[opt.num_files];
         partsgroup=new Group[opt.num_files*NHDFTYPE];
@@ -237,9 +232,8 @@ void MPINumInDomainHDF(Options &opt)
             else sprintf(buf,"%s.hdf5",opt.fname);
             //Open the specified file and the specified dataset in the file.
             Fhdf[i].openFile(buf, H5F_ACC_RDONLY);
-            headergroup[i]=Fhdf[i].openGroup(hdf_gnames.Header_name);
             //get number in file
-            headerattribs[i]=headergroup[i].openAttribute(hdf_header_info[i].names[hdf_header_info[i].INuminFile]);
+            headerattribs[i]=get_attribute(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].INuminFile]);
             headerdataspace[i]=headerattribs[i].getSpace();
             inttype=headerattribs[i].getIntType();
             if (inttype.getSize()==sizeof(int)) {
