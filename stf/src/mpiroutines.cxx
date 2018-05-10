@@ -279,12 +279,16 @@ int MPIInDomain(Double_t xsearch[3][2], Double_t bnd[3][2]){
 /// Determine if a particle needs to be exported to another mpi domain based on a physical search radius
 int MPISearchForOverlap(Particle &Part, Double_t &rdist){
     Double_t xsearch[3][2];
+    for (auto k=0;k<3;k++) {xsearch[k][0]=Part.GetPosition(k)-rdist;xsearch[k][1]=Part.GetPosition(k)+rdist;}
+    return MPISearchForOverlap(xsearch);
+}
+
+int MPISearchForOverlap(Double_t xsearch[3][2]){
     Double_t xsearchp[7][3][2];//used to store periodic reflections
     int numoverlap=0,numreflecs=0,ireflec[3],numreflecchoice=0;
     int indomain;
     int j,k;
 
-    for (k=0;k<3;k++) {xsearch[k][0]=Part.GetPosition(k)-rdist;xsearch[k][1]=Part.GetPosition(k)+rdist;}
     for (j=0;j<NProcs;j++) {
         if (j!=ThisTask) {
             //determine if search region is not outside of this processors domain
@@ -470,6 +474,7 @@ int MPISearchForOverlap(Particle &Part, Double_t &rdist){
     }
     return numoverlap;
 }
+
 //@}
 
 /// \name Routines involved in reading input data

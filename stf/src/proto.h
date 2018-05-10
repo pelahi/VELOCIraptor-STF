@@ -382,6 +382,8 @@ void MPINumInDomainNchilada(Options &opt);
 void MPIAdjustDomain(Options opt);
 ///determine if the search domain of a particle overlaps another mpi domain
 int MPISearchForOverlap(Particle &Part, Double_t &rdist);
+///determine if the search domain overlaps another mpi domain
+int MPISearchForOverlap(Double_t xsearch[3][2]);
 ///determine if search domain overlaps domain
 int MPIInDomain(Double_t xsearch[3][2], Double_t bnd[3][2]);
 //@}

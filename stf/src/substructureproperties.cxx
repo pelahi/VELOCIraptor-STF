@@ -1830,10 +1830,12 @@ private(i,j,k,Pval)
         if (opt.iverbose) cout<<"Done getting properties"<<endl;
 }
 
-///Get inclusive halo FOF based masses
+///Get inclusive halo FOF based masses. If requesting spherical overdensity masses then extra computation and search required
 void GetInclusiveMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&pfof, Int_t *&numingroup, PropData *&pdata, Int_t *&noffset)
 {
     Particle *Pval;
+    KDTree *tree;
+    Double_t *period;
     Int_t i,j,k;
     if (opt.iverbose) cout<<"Get inclusive masses"<<endl;
     Double_t ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside;
@@ -1847,6 +1849,9 @@ void GetInclusiveMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t
     Double_t m500val=log(opt.rhobg/opt.Omega_m*500.0);
 
     for (i=1;i<=ngroup;i++) pdata[i].gNFOF=numingroup[i];
+
+    //first get center of mass and maximum size
+
     //for small groups loop over groups
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
@@ -1857,14 +1862,13 @@ firstprivate(virval,m200val,m200mval)
 #endif
     for (i=1;i<=ngroup;i++) if (numingroup[i]<omppropnum)
     {
-        for (k=0;k<3;k++) pdata[i].gcm[k]=pdata[i].gcmvel[k]=0;
+        for (k=0;k<3;k++) pdata[i].gcm[k]=0;
         pdata[i].gmass=pdata[i].gmaxvel=0.0;
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
             pdata[i].gmass+=(*Pval).GetMass();
             for (k=0;k<3;k++) {
                 pdata[i].gcm[k]+=(*Pval).GetPosition(k)*(*Pval).GetMass();
-                pdata[i].gcmvel[k]+=(*Pval).GetVelocity(k)*(*Pval).GetMass();
             }
         }
         for (k=0;k<3;k++){pdata[i].gcm[k]*=(1.0/pdata[i].gmass);pdata[i].gcmvel[k]*=(1.0/pdata[i].gmass);}
@@ -1882,44 +1886,12 @@ firstprivate(virval,m200val,m200mval)
         pdata[i].gmass*=opt.MassValue;
 #endif
         pdata[i].gMFOF=pdata[i].gmass;
-
-        //here masses are technically exclusive but this routine is generally called before objects are separated into halo/substructures
-        EncMass=pdata[i].gmass;
-        for (j=numingroup[i]-1;j>=0;j--) {
-            Pval=&Part[j+noffset[i]];
-            rc=Pval->Radius();
-            if (pdata[i].gRvir==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>virval)
-            {pdata[i].gMvir=EncMass;pdata[i].gRvir=rc;}
-            if (pdata[i].gR200c==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m200val)
-            {pdata[i].gM200c=EncMass;pdata[i].gR200c=rc;}
-            if (pdata[i].gR200m==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m200mval)
-            {pdata[i].gM200m=EncMass;pdata[i].gR200m=rc;}
-            if (pdata[i].gR500c==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m500val)
-            {pdata[i].gM500c=EncMass;pdata[i].gR500c=rc;}
-            if (pdata[i].gR200m!=0&&pdata[i].gR200c!=0&&pdata[i].gRvir!=0) break;
-#ifdef NOMASS
-            EncMass-=opt.MassValue;
-#else
-            EncMass-=Pval->GetMass();
-#endif
-        }
-        //if overdensity never drops below thresholds then masses are equal to FOF mass or total mass.
-        if (pdata[i].gRvir==0) {pdata[i].gMvir=pdata[i].gmass;pdata[i].gRvir=pdata[i].gsize;}
-        if (pdata[i].gR200c==0) {pdata[i].gM200c=pdata[i].gmass;pdata[i].gR200c=pdata[i].gsize;}
-        if (pdata[i].gR200m==0) {pdata[i].gM200m=pdata[i].gmass;pdata[i].gR200m=pdata[i].gsize;}
-        if (pdata[i].gR500c==0) {pdata[i].gM500c=pdata[i].gmass;pdata[i].gR500c=pdata[i].gsize;}
-        //reset positions
-        for (j=0;j<numingroup[i];j++) {
-            Pval=&Part[j+noffset[i]];
-            x = (*Pval).X()+pdata[i].gcm[0];
-            y = (*Pval).Y()+pdata[i].gcm[1];
-            z = (*Pval).Z()+pdata[i].gcm[2];
-            Pval->SetPosition(x,y,z);
-        }
     }
 #ifdef USEOPENMP
 }
 #endif
+
+    //now large groups
     for (i=1;i<=ngroup;i++) if (numingroup[i]>=omppropnum)
     {
         for (k=0;k<3;k++) pdata[i].gcm[k]=pdata[i].gcmvel[k]=0;
@@ -1929,7 +1901,7 @@ firstprivate(virval,m200val,m200mval)
 #pragma omp parallel default(shared)  \
 private(j,Pval)
 {
-    #pragma omp for reduction(+:EncMass,cmx,cmy,cmz)
+#pragma omp for reduction(+:EncMass,cmx,cmy,cmz)
 #endif
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
@@ -1959,6 +1931,20 @@ private(j,Pval)
         pdata[i].gmass*=opt.MassValue;
 #endif
         pdata[i].gMFOF=pdata[i].gmass;
+    }
+
+    //once center of masses have been found if want simple inclusive masses based on the FOF envelop
+    if (opt.iInclusiveHalo==1) {
+#ifdef USEOPENMP
+#pragma omp parallel default(shared)  \
+private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z,vc,rc,vx,vy,vz,numinvir,num200c,num200m)\
+firstprivate(virval,m200val,m200mval)
+{
+    #pragma omp for schedule(dynamic,1) nowait
+#endif
+    for (i=1;i<=ngroup;i++) if (numingroup[i]<omppropnum)
+    {
+
         //here masses are technically exclusive but this routine is generally called before objects are separated into halo/substructures
         EncMass=pdata[i].gmass;
         for (j=numingroup[i]-1;j>=0;j--) {
@@ -1984,15 +1970,143 @@ private(j,Pval)
         if (pdata[i].gR200c==0) {pdata[i].gM200c=pdata[i].gmass;pdata[i].gR200c=pdata[i].gsize;}
         if (pdata[i].gR200m==0) {pdata[i].gM200m=pdata[i].gmass;pdata[i].gR200m=pdata[i].gsize;}
         if (pdata[i].gR500c==0) {pdata[i].gM500c=pdata[i].gmass;pdata[i].gR500c=pdata[i].gsize;}
-        //reset positions
-        for (j=0;j<numingroup[i];j++) {
-            Pval=&Part[j+noffset[i]];
-            x = (*Pval).X()+pdata[i].gcm[0];
-            y = (*Pval).Y()+pdata[i].gcm[1];
-            z = (*Pval).Z()+pdata[i].gcm[2];
-            Pval->SetPosition(x,y,z);
-        }
     }
+#ifdef USEOPENMP
+}
+#endif
+
+    //now large groups
+    for (i=1;i<=ngroup;i++) if (numingroup[i]>=omppropnum)
+    {
+#ifdef NOMASS
+        pdata[i].gmass*=opt.MassValue;
+#endif
+        pdata[i].gMFOF=pdata[i].gmass;
+        //here masses are technically exclusive but this routine is generally called before objects are separated into halo/substructures
+        EncMass=pdata[i].gmass;
+        for (j=numingroup[i]-1;j>=0;j--) {
+            Pval=&Part[j+noffset[i]];
+            rc=Pval->Radius();
+            if (pdata[i].gRvir==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>virval)
+            {pdata[i].gMvir=EncMass;pdata[i].gRvir=rc;}
+            if (pdata[i].gR200c==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m200val)
+            {pdata[i].gM200c=EncMass;pdata[i].gR200c=rc;}
+            if (pdata[i].gR200m==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m200mval)
+            {pdata[i].gM200m=EncMass;pdata[i].gR200m=rc;}
+            if (pdata[i].gR500c==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m500val)
+            {pdata[i].gM500c=EncMass;pdata[i].gR500c=rc;}
+            if (pdata[i].gR200m!=0&&pdata[i].gR200c!=0&&pdata[i].gRvir!=0) break;
+#ifdef NOMASS
+            EncMass-=opt.MassValue;
+#else
+            EncMass-=Pval->GetMass();
+#endif
+        }
+        //if overdensity never drops below thresholds then masses are equal to FOF mass or total mass.
+        if (pdata[i].gRvir==0) {pdata[i].gMvir=pdata[i].gmass;pdata[i].gRvir=pdata[i].gsize;}
+        if (pdata[i].gR200c==0) {pdata[i].gM200c=pdata[i].gmass;pdata[i].gR200c=pdata[i].gsize;}
+        if (pdata[i].gR200m==0) {pdata[i].gM200m=pdata[i].gmass;pdata[i].gR200m=pdata[i].gsize;}
+        if (pdata[i].gR500c==0) {pdata[i].gM500c=pdata[i].gmass;pdata[i].gR500c=pdata[i].gsize;}
+    }
+
+    //reset the positions of the particles
+#ifdef USEOPENMP
+#pragma omp parallel default(shared)  \
+private(i,j,k,x,y,z)
+{
+    #pragma omp for schedule(dynamic,1) nowait
+#endif
+        for (i=1;i<=ngroup;i++)
+        {
+            //reset positions
+            for (j=0;j<numingroup[i];j++) {
+                Pval=&Part[j+noffset[i]];
+                x = (*Pval).X()+pdata[i].gcm[0];
+                y = (*Pval).Y()+pdata[i].gcm[1];
+                z = (*Pval).Z()+pdata[i].gcm[2];
+                Pval->SetPosition(x,y,z);
+            }
+        }
+#ifdef USEOPENMP
+}
+#endif
+    }
+    //if want SO masses including all particles then must
+    //search the mpi local particle data for any halos whose size
+    //extends outside of the local mpi domain
+    //if object does not, then can proceed locally otherwise, likely have to
+    //search other mpi domains for particles of interest.
+    else if (opt.iInclusiveHalo==2){
+        //reset the positions of the particles in local domain
+#ifdef USEOPENMP
+#pragma omp parallel default(shared)  \
+private(i,j,k,x,y,z)
+{
+    #pragma omp for schedule(dynamic,1) nowait
+#endif
+        for (i=1;i<=ngroup;i++)
+        {
+            //reset positions
+            for (j=0;j<numingroup[i];j++) {
+                Pval=&Part[j+noffset[i]];
+                x = (*Pval).X()+pdata[i].gcm[0];
+                y = (*Pval).Y()+pdata[i].gcm[1];
+                z = (*Pval).Z()+pdata[i].gcm[2];
+                Pval->SetPosition(x,y,z);
+            }
+        }
+#ifdef USEOPENMP
+}
+#endif
+
+#ifdef USEMPI
+        //then can identify any halos whose size extends outside the MPIDomain
+        bool *halooverlap=new bool[ngroup];
+        double xsearch[3][2];
+#ifdef USEOPENMP
+#pragma omp parallel default(shared)  \
+private(i,j,xsearch)
+{
+    #pragma omp for schedule(dynamic,1) nowait
+#endif
+        for (i=1;i<=ngroup;i++)
+        {
+            for (j=0;j<3;j++) {xsearch[j][0]=pdata[i].gcm[j]-pdata[i].gsize*opt.SphericalOverdensitySeachFac;xsearch[j][1]=pdata[i].gcm[j]+pdata[i].gsize*opt.SphericalOverdensitySeachFac;}
+            halooverlap[i]=MPISearchForOverlap(xsearch);
+        }
+#ifdef USEOPENMP
+}
+#endif
+#endif
+        //now loop over groups and search for particles. This is probably fast if we build a tree
+        //first we need to store the indices so we can place particles back in the order they need to be
+        Int_t *ids=new Int_t[nbodies];
+        for (i=0;i<nbodies;i++) ids[i]=Part[i].GetID();
+        //build tree optimised to search for more than min group size
+        tree=new KDTree(Part,nbodies,opt.HaloMinSize,tree->TPHYS,tree->KEPAN,1000,0,0,0,period);
+        //now for each group search the tree
+        vector<Int_t> taggedparts;
+        vector<Double_t> radii;
+        vector<Double_t> masses;
+        for (i=1;i<=ngroup;i++)
+        {
+#ifdef USEMPI
+            if (halooverlap[i]) continue;
+#endif
+            taggedparts=tree->SearchBallPosTagged(pdata[i].gcm,pdata[i].gsize*opt.SphericalOverdensitySeachFac);
+            for (auto index=0;index<taggedparts.size();index=0) {
+                masses[index]=Part[taggedparts[index]].GetMass();
+                radii[index]=0;
+                for (k=0;k<3;k++) radii[index]+=pow(Part[taggedparts[index]].GetPosition(k)-pdata[i].gcm[k],2.0);
+                radii[index]=sqrt(radii[index]);
+            }
+            //sort by radius
+            //then get overdensity working outwards from 0.1 of the mass or at least 10 particles
+        }
+
+
+    }
+
     if (opt.iverbose) cout<<"Done inclusive masses for field objects"<<endl;
 }
 //@}
