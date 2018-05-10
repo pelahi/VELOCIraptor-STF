@@ -205,10 +205,8 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
     DataSet dataset;
     Attribute attr;
     DataSpace attrspace;
-    hsize_t dims[1];
+    hsize_t dims[1], chunk_dims[1];
     int rank;
-    DataSpace *propdataspace;
-    DataSet *propdataset;
     HDFCatalogNames hdfnames;
     int itemp=0;
 #endif
@@ -246,16 +244,16 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
                     Fout<<i+opt.snapshotvaloffset<<"\t"<<h[i].numhalos<<endl;
                     for (int j=0;j<h[i].numhalos;j++) {
                         Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofProgenitors;
-                        if (opt.outdataformat>=2) {
+                        if (opt.outdataformat>=DATAOUTMERITNPART) {
                             Fout<<"\t"<<h[i].Halo[j].NumberofParticles;
                         }
                         Fout<<endl;
                         for (int k=0;k<p[i][j].NumberofProgenitors;k++) {
                             Fout<<h[i-p[i][j].istep].Halo[p[i][j].ProgenitorList[k]-1].haloID<<" ";
-                            if (opt.outdataformat>=1) {
+                            if (opt.outdataformat>=DATAOUTMERIT) {
                                 Fout<<p[i][j].Merit[k]<<" ";
                             }
-                            if (opt.outdataformat>=2) {
+                            if (opt.outdataformat>=DATAOUTMERITNPART) {
                                 Fout<<h[i-p[i][j].istep].Halo[p[i][j].ProgenitorList[k]-1].NumberofParticles<<" ";
                             }
                             Fout<<endl;
@@ -272,7 +270,7 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
             Fout<<0+opt.snapshotvaloffset<<"\t"<<h[0].numhalos<<endl;
             for (int j=0;j<h[0].numhalos;j++) {
                 Fout<<h[0].Halo[j].haloID<<"\t"<<0;
-                if (opt.outdataformat>=2) {
+                if (opt.outdataformat>=DATAOUTMERITNPART) {
                     Fout<<"\t"<<h[0].Halo[j].NumberofParticles;
                 }
                 Fout<<endl;
@@ -292,16 +290,16 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
                 Fout<<i+opt.snapshotvaloffset<<"\t"<<h[i].numhalos<<endl;
                 for (int j=0;j<h[i].numhalos;j++) {
                     Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofProgenitors;
-                    if (opt.outdataformat>=2) {
+                    if (opt.outdataformat>=DATAOUTMERITNPART) {
                         Fout<<"\t"<<h[i].Halo[j].NumberofParticles;
                     }
                     Fout<<endl;
                     for (int k=0;k<p[i][j].NumberofProgenitors;k++) {
                         Fout<<h[i-p[i][j].istep].Halo[p[i][j].ProgenitorList[k]-1].haloID<<" ";
-                        if (opt.outdataformat>=1) {
+                        if (opt.outdataformat>=DATAOUTMERIT) {
                             Fout<<p[i][j].Merit[k]<<" ";
                         }
-                        if (opt.outdataformat>=2) {
+                        if (opt.outdataformat>=DATAOUTMERITNPART) {
                             Fout<<h[i-p[i][j].istep].Halo[p[i][j].ProgenitorList[k]-1].NumberofParticles<<" ";
                         }
                         Fout<<endl;
@@ -312,7 +310,7 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
             ///last file has no connections
             for (int j=0;j<h[0].numhalos;j++) {
                 Fout<<h[0].Halo[j].haloID<<"\t"<<0;
-                if (opt.outdataformat>=2) {
+                if (opt.outdataformat>=DATAOUTMERITNPART) {
                     Fout<<"\t"<<h[0].Halo[j].NumberofParticles;
                 }
                 Fout<<endl;
@@ -334,7 +332,7 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
 
 
             sprintf(fname,"%s/snapshot_%03d.VELOCIraptor.tree",opt.outname,i+opt.snapshotvaloffset);
-            cout<<ThisTask<<" is writing to "<<fname<<" "<<MyGetTime()-time1<<endl;
+            cout<<ThisTask<<" is writing to "<<fname<<endl;
 
             //Header information
             Fhdf=H5File(fname,H5F_ACC_TRUNC);
@@ -373,86 +371,170 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
             attr.write(strdatatype, strwritebuf);
 
 
-            //Setup the datasets
+            //Set the datasets properties
             dims[0]=h[i].numhalos;
             rank=1;
+            // Set the minmum chunk size
+            chunk_dims[0]=min((unsigned long)HDFOUTPUTCHUNKSIZE,(unsigned long)h[i].numhalos);
+            //Create dataset proplist
+            DSetCreatPropList hdfdatasetproplist1;
 
-            //ID
-            long unsigned *data1 = new long unsigned[h[i].numhalos];
-
+            // ID
             dataspace = DataSpace(rank,dims);
             datasetname=H5std_string("ID");
-            dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
+
+            // Check if there are halos to output so it can be compressed
+            if (chunk_dims[0]>0) {
+                // Modify dataset creation property to enable chunking
+                hdfdatasetproplist1.setChunk(rank, chunk_dims);
+                // Set ZLIB (DEFLATE) Compression using level 6.
+                hdfdatasetproplist1.setDeflate(6);
+                dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace,hdfdatasetproplist1);
+            }
+            else {
+                dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
+            }
+
+            //Write out the dataset
+            long unsigned *data1 = new long unsigned[h[i].numhalos];
             for(Int_t j=0;j<h[i].numhalos;j++) data1[j]=h[i].Halo[j].haloID;
             dataset.write(data1,PredType::STD_U64LE);
 
             delete[] data1;
 
             //Num progenitors
-            int *data2 = new int[h[i].numhalos];
-
             dataspace = DataSpace(rank,dims);
             datasetname=H5std_string("NumProgen");
-            dataset = Fhdf.createDataSet(datasetname,PredType::STD_I32LE,dataspace);
-            for(Int_t j=0;j<h[i].numhalos;j++)
-                data2[j]=p[i][j].NumberofProgenitors;
 
+            // Check if there are halos to output so it can be compressed
+            if (chunk_dims[0]>0) {
+                // Modify dataset creation property to enable chunking
+                hdfdatasetproplist1.setChunk(rank, chunk_dims);
+                // Set ZLIB (DEFLATE) Compression using level 6.
+                hdfdatasetproplist1.setDeflate(6);
+                dataset = Fhdf.createDataSet(datasetname,PredType::STD_I32LE,dataspace,hdfdatasetproplist1);
+            }
+            else {
+                dataset = Fhdf.createDataSet(datasetname,PredType::STD_I32LE,dataspace);
+            }
+
+            //Write out the dataset
+            int *data2 = new int[h[i].numhalos];
+            for(Int_t j=0;j<h[i].numhalos;j++) data2[j]=p[i][j].NumberofProgenitors;
             dataset.write(data2,PredType::STD_I32LE);
 
             delete[] data2;
 
-            // Number of particles 
-            if (opt.outdataformat>=2) {
-                long unsigned *data3 = new long unsigned[h[i].numhalos];
-
+            // Number of particles
+            if (opt.outdataformat>=DATAOUTMERITNPART) {
                 dataspace = DataSpace(rank,dims);
                 datasetname=H5std_string("Npart");
-                dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
+
+                // Check if there are halos to output so it can be compressed
+                if (chunk_dims[0]>0) {
+                    // Modify dataset creation property to enable chunking
+                    hdfdatasetproplist1.setChunk(rank, chunk_dims);
+                    // Set ZLIB (DEFLATE) Compression using level 6.
+                    hdfdatasetproplist1.setDeflate(6);
+                    dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace,hdfdatasetproplist1);
+                }
+                else {
+                    dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
+                }
+
+                //Write out the dataset
+                long unsigned *data3 = new long unsigned[h[i].numhalos];
                 for(Int_t j=0;j<h[i].numhalos;j++)  data3[j]=h[i].Halo[j].NumberofParticles;
                 dataset.write(data3,PredType::STD_U64LE);
 
                 delete[] data3;
             }
 
-            //Progenitors offsets
-            long unsigned *data4 = new long unsigned[h[i].numhalos];
+            // Keep track of the number of progenitors
             long unsigned totnprogen=0;
 
+            //Progenitors offsets
             dataspace = DataSpace(rank,dims);
             datasetname=H5std_string("ProgenOffsets");
-            dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
+
+            // Check if there are halos to output so it can be compressed
+            if (chunk_dims[0]>0) {
+                // Modify dataset creation property to enable chunking
+                hdfdatasetproplist1.setChunk(rank, chunk_dims);
+                // Set ZLIB (DEFLATE) Compression using level 6.
+                hdfdatasetproplist1.setDeflate(6);
+                dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace,hdfdatasetproplist1);
+            }
+            else {
+                dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
+            }
+
+            //Write out the dataset
+            long unsigned *data4 = new long unsigned[h[i].numhalos];
             for(Int_t j=0;j<h[i].numhalos;j++){
-                data4[j]=totnprogen; 
-                totnprogen+=p[i][j].NumberofProgenitors;  
+                data4[j]=totnprogen;
+                totnprogen+=p[i][j].NumberofProgenitors;
             }
             dataset.write(data4,PredType::STD_U64LE);
 
             delete[] data4;
 
-            //Progenitor IDs
-            long unsigned *data5= new long unsigned[totnprogen];
+
+            //Set the new dataset parameters
             long unsigned itemp=0;
             dims[0]=totnprogen;
             rank=1;
+            //Set minimum chunk size
+            chunk_dims[0]=min((unsigned long)HDFOUTPUTCHUNKSIZE,totnprogen);
+            //Create dataset proplist
+            DSetCreatPropList hdfdatasetproplist2;
 
+            //Progenitor IDs
             dataspace = DataSpace(rank,dims);
             datasetname=H5std_string("Progenitors");
-            dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
+
+
+            // Check if there are halos to output so it can be compressed
+            if (chunk_dims[0]>0) {
+                // Modify dataset creation property to enable chunking
+                hdfdatasetproplist2.setChunk(rank, chunk_dims);
+                // Set ZLIB (DEFLATE) Compression using level 6.
+                hdfdatasetproplist2.setDeflate(6);
+                dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace,hdfdatasetproplist2);
+            }
+            else {
+                dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
+            }
+
+            //Write out the dataset
+            long unsigned *data5= new long unsigned[totnprogen];
             for(Int_t j=0;j<h[i].numhalos;j++)
                 for (Int_t k=0;k<p[i][j].NumberofProgenitors;k++)
                     data5[itemp++] = h[i-p[i][j].istep].Halo[p[i][j].ProgenitorList[k]-1].haloID;
-
             dataset.write(data5,PredType::STD_U64LE);
 
             delete[] data5;
 
             //Merits
-            if (opt.outdataformat>=1) {
-                float *data6 = new float[totnprogen];
+            if (opt.outdataformat>=DATAOUTMERIT) {
                 itemp=0;
 
+                dataspace = DataSpace(rank,dims);
                 datasetname=H5std_string("Merits");
-                dataset = Fhdf.createDataSet(datasetname,PredType::NATIVE_FLOAT,dataspace);
+                // Check if there are halos to output so it can be compressed
+                if (chunk_dims[0]>0) {
+                    // Modify dataset creation property to enable chunking
+                    hdfdatasetproplist2.setChunk(rank, chunk_dims);
+                    // Set ZLIB (DEFLATE) Compression using level 6.
+                    hdfdatasetproplist2.setDeflate(6);
+                    dataset = Fhdf.createDataSet(datasetname,PredType::NATIVE_FLOAT,dataspace,hdfdatasetproplist2);
+                }
+                else {
+                    dataset = Fhdf.createDataSet(datasetname,PredType::NATIVE_FLOAT,dataspace);
+                }
+
+                //Write out the dataset
+                float *data6 = new float[totnprogen];
                 for(Int_t j=0;j<h[i].numhalos;j++)
                     for (Int_t k=0;k<p[i][j].NumberofProgenitors;k++)
                         data6[itemp++] = p[i][j].Merit[k];
@@ -462,13 +544,26 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
             }
 
             //Progenitor number of particles
-            if (opt.outdataformat>=2) {
-                long unsigned *data7 = new long unsigned[totnprogen];
+            if (opt.outdataformat>=DATAOUTMERITNPART) {
                 itemp=0;
 
                 dataspace = DataSpace(rank,dims);
                 datasetname=H5std_string("ProgenNpart");
-                dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
+
+                // Check if there are halos to output so it can be compressed
+                if (chunk_dims[0]>0) {
+                    // Modify dataset creation property to enable chunking
+                    hdfdatasetproplist2.setChunk(rank, chunk_dims);
+                    // Set ZLIB (DEFLATE) Compression using level 6.
+                    hdfdatasetproplist2.setDeflate(6);
+                    dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace,hdfdatasetproplist2);
+                }
+                else {
+                    dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
+                }
+
+                //Write out the dataset
+                long unsigned *data7 = new long unsigned[totnprogen];
                 for(Int_t j=0;j<h[i].numhalos;j++)
                     for (Int_t k=0;k<p[i][j].NumberofProgenitors;k++)
                         data7[itemp++] = h[i-p[i][j].istep].Halo[p[i][j].ProgenitorList[k]-1].NumberofParticles;
@@ -476,9 +571,9 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
 
                 delete[] data7;
             }
-            
+
             Fhdf.close();
-        
+
             cout<<ThisTask<<" Done writing to "<<fname<<" "<<MyGetTime()-time1<<endl;
 
         }
@@ -487,7 +582,7 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
         if(ThisTask==0){
 
             sprintf(fname,"%s/snapshot_%03d.VELOCIraptor.tree",opt.outname,0+opt.snapshotvaloffset);
-            cout<<ThisTask<<" is writing to "<<fname<<" "<<MyGetTime()-time1<<endl;
+            cout<<ThisTask<<" is writing to "<<fname<<endl;
 
             //Header information
             Fhdf=H5File(fname,H5F_ACC_TRUNC);
@@ -526,41 +621,79 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
             attr.write(strdatatype, strwritebuf);
 
 
-
             ///last file has no connections
             dims[0]=h[0].numhalos;
             rank=1;
+            //Set minimum chunk size
+            chunk_dims[0]=min((unsigned long)HDFOUTPUTCHUNKSIZE,(unsigned long)h[0].numhalos);
+            //Create dataset proplist
+            DSetCreatPropList hdfdatasetproplist;
 
             //ID
-            long unsigned *data8 = new long unsigned[h[0].numhalos];
-
             dataspace = DataSpace(rank,dims);
             datasetname=H5std_string("ID");
-            dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
+
+            // Check if there are halos to output so it can be compressed
+            if (chunk_dims[0]>0) {
+                // Modify dataset creation property to enable chunking
+                hdfdatasetproplist.setChunk(rank, chunk_dims);
+                // Set ZLIB (DEFLATE) Compression using level 6.
+                hdfdatasetproplist.setDeflate(6);
+                dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace,hdfdatasetproplist);
+            }
+            else {
+                dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
+            }
+
+            //Write out the dataset
+            long unsigned *data8 = new long unsigned[h[0].numhalos];
             for(Int_t j=0;j<h[0].numhalos;j++) data8[j]=h[0].Halo[j].haloID;
             dataset.write(data8,PredType::STD_U64LE);
 
             delete[] data8;
 
             //Num Progenitors
-            int *data9 = new int[h[0].numhalos];
-
             dataspace = DataSpace(rank,dims);
             datasetname=H5std_string("NumProgen");
-            dataset = Fhdf.createDataSet(datasetname,PredType::STD_I32LE,dataspace);
+
+            // Check if there are halos to output so it can be compressed
+            if (chunk_dims[0]>0) {
+                // Modify dataset creation property to enable chunking
+                hdfdatasetproplist.setChunk(rank, chunk_dims);
+                // Set ZLIB (DEFLATE) Compression using level 6.
+                hdfdatasetproplist.setDeflate(6);
+                dataset = Fhdf.createDataSet(datasetname,PredType::STD_I32LE,dataspace,hdfdatasetproplist);
+            }
+            else {
+                dataset = Fhdf.createDataSet(datasetname,PredType::STD_I32LE,dataspace);
+            }
+
+            //Write out the dataset
+            int *data9 = new int[h[0].numhalos];
             for(Int_t j=0;j<h[0].numhalos;j++) data9[j]=0;
             dataset.write(data9,PredType::STD_I32LE);
 
             delete[] data9;
 
-
-            // Number of particles 
-            if (opt.outdataformat>=2) {
-                long unsigned *data10 = new long unsigned[h[0].numhalos];
-
+            // Number of particles
+            if (opt.outdataformat>=DATAOUTMERITNPART) {
                 dataspace = DataSpace(rank,dims);
                 datasetname=H5std_string("Npart");
-                dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
+
+                // Check if there are halos to output so it can be compressed
+                if (chunk_dims[0]>0) {
+                    // Modify dataset creation property to enable chunking
+                    hdfdatasetproplist.setChunk(rank, chunk_dims);
+                    // Set ZLIB (DEFLATE) Compression using level 6.
+                    hdfdatasetproplist.setDeflate(6);
+                    dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace,hdfdatasetproplist);
+                }
+                else {
+                    dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
+                }
+
+                //Write out the dataset
+                long unsigned *data10 = new long unsigned[h[0].numhalos];
                 for(Int_t j=0;j<h[0].numhalos;j++)  data10[j]=h[0].Halo[j].NumberofParticles;
                 dataset.write(data10,PredType::STD_U64LE);
 
@@ -587,7 +720,7 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
 #ifndef USEMPI
     int ThisTask=0, NProcs=1;
     int StartSnap=0,EndSnap=opt.numsnapshots;
-    
+
 #endif
 #ifdef USEHDF
     H5File Fhdf;
@@ -596,7 +729,7 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
     DataSet dataset;
     Attribute attr;
     DataSpace attrspace;
-    hsize_t dims[1];
+    hsize_t dims[1], chunk_dims[1];
     int rank;
     HDFCatalogNames hdfnames;
     int itemp=0;
@@ -636,17 +769,17 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
                     Fout<<i+opt.snapshotvaloffset<<"\t"<<h[i].numhalos<<endl;
                     for (int j=0;j<h[i].numhalos;j++) {
                         Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofDescendants;
-                        if (opt.outdataformat>=2) {
+                        if (opt.outdataformat>=DATAOUTMERITNPART) {
                             Fout<<"\t"<<h[i].Halo[j].NumberofParticles;
                         }
                         Fout<<endl;
                         for (int k=0;k<p[i][j].NumberofDescendants;k++) {
                             Fout<<h[i+p[i][j].istep].Halo[p[i][j].DescendantList[k]-1].haloID<<" ";
                             Fout<<p[i][j].dtoptype[k]<<" ";
-                            if (opt.outdataformat>=1) {
+                            if (opt.outdataformat>=DATAOUTMERIT) {
                                 Fout<<p[i][j].Merit[k]<<" ";
                             }
-                            if (opt.outdataformat>=2) {
+                            if (opt.outdataformat>=DATAOUTMERITNPART) {
                                 Fout<<h[i+p[i][j].istep].Halo[p[i][j].DescendantList[k]-1].NumberofParticles<<" ";
                             }
                             Fout<<endl;
@@ -663,7 +796,7 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
             Fout<<opt.numsnapshots-1+opt.snapshotvaloffset<<"\t"<<h[opt.numsnapshots-1].numhalos<<endl;
             for (int j=0;j<h[opt.numsnapshots-1].numhalos;j++) {
                 Fout<<h[opt.numsnapshots-1].Halo[j].haloID<<"\t"<<0;
-                if (opt.outdataformat>=2) {
+                if (opt.outdataformat>=DATAOUTMERITNPART) {
                     Fout<<"\t"<<h[opt.numsnapshots-1].Halo[j].NumberofParticles;
                 }
                 Fout<<endl;
@@ -683,17 +816,17 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
                 Fout<<i+opt.snapshotvaloffset<<"\t"<<h[i].numhalos<<endl;
                 for (int j=0;j<h[i].numhalos;j++) {
                     Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofDescendants;
-                    if (opt.outdataformat>=2) {
+                    if (opt.outdataformat>=DATAOUTMERITNPART) {
                         Fout<<"\t"<<h[i].Halo[j].NumberofParticles;
                     }
                     Fout<<endl;
                     for (int k=0;k<p[i][j].NumberofDescendants;k++) {
                         Fout<<h[i+p[i][j].istep].Halo[p[i][j].DescendantList[k]-1].haloID<<" ";
                         Fout<<p[i][j].dtoptype[k]<<" ";
-                        if (opt.outdataformat>=1) {
+                        if (opt.outdataformat>=DATAOUTMERIT) {
                             Fout<<p[i][j].Merit[k]<<" ";
                         }
-                        if (opt.outdataformat>=2) {
+                        if (opt.outdataformat>=DATAOUTMERITNPART) {
                             Fout<<h[i+p[i][j].istep].Halo[p[i][j].DescendantList[k]-1].NumberofParticles<<" ";
                         }
                         Fout<<endl;
@@ -704,7 +837,7 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
             ///last file has no connections
             for (int j=0;j<h[opt.numsnapshots-1].numhalos;j++) {
                 Fout<<h[opt.numsnapshots-1].Halo[j].haloID<<"\t"<<0;
-                if (opt.outdataformat>=2) {
+                if (opt.outdataformat>=DATAOUTMERITNPART) {
                     Fout<<"\t"<<h[opt.numsnapshots-1].Halo[j].NumberofParticles;
                 }
                 Fout<<endl;
@@ -726,7 +859,7 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
         for (int i=istart;i<iend;i++) {
 
             sprintf(fname,"%s/snapshot_%03d.VELOCIraptor.tree",opt.outname,i+opt.snapshotvaloffset);
-            cout<<ThisTask<<" is writing to "<<fname<<" "<<MyGetTime()-time1<<endl;
+            cout<<ThisTask<<" is writing to "<<fname<<endl;
 
             //Header information
             Fhdf=H5File(fname,H5F_ACC_TRUNC);
@@ -768,69 +901,140 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
             //Setup the datasets
             dims[0]=h[i].numhalos;
             rank=1;
+            // Set the minmum chunk size
+            chunk_dims[0]=min((unsigned long)HDFOUTPUTCHUNKSIZE,(unsigned long)h[i].numhalos);
+            //Create dataset proplist
+            DSetCreatPropList hdfdatasetproplist1;
 
             //ID
-            long unsigned *data1 = new long unsigned[h[i].numhalos];
-
             dataspace = DataSpace(rank,dims);
             datasetname=H5std_string("ID");
-            dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
+
+            // Check if there are halos to output so it can be compressed
+            if (chunk_dims[0]>0) {
+                // Modify dataset creation property to enable chunking
+                hdfdatasetproplist1.setChunk(rank, chunk_dims);
+                // Set ZLIB (DEFLATE) Compression using level 6.
+                hdfdatasetproplist1.setDeflate(6);
+                dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace,hdfdatasetproplist1);
+            }
+            else {
+                dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
+            }
+
+            //Write out the dataset
+            long unsigned *data1 = new long unsigned[h[i].numhalos];
             for(Int_t j=0;j<h[i].numhalos;j++) data1[j]=h[i].Halo[j].haloID;
             dataset.write(data1,PredType::STD_U64LE);
 
             delete[] data1;
 
             //Num Descendants
-            int *data2 = new int[h[i].numhalos];
-
             dataspace = DataSpace(rank,dims);
             datasetname=H5std_string("NumDesc");
-            dataset = Fhdf.createDataSet(datasetname,PredType::STD_I32LE,dataspace);
-            for(Int_t j=0;j<h[i].numhalos;j++)
-                data2[j]=p[i][j].NumberofDescendants;
-            
+
+            // Check if there are halos to output so it can be compressed
+            if (chunk_dims[0]>0) {
+                // Modify dataset creation property to enable chunking
+                hdfdatasetproplist1.setChunk(rank, chunk_dims);
+                // Set ZLIB (DEFLATE) Compression using level 6.
+                hdfdatasetproplist1.setDeflate(6);
+                dataset = Fhdf.createDataSet(datasetname,PredType::STD_I32LE,dataspace,hdfdatasetproplist1);
+            }
+            else {
+                dataset = Fhdf.createDataSet(datasetname,PredType::STD_I32LE,dataspace);
+            }
+
+            //Write out the dataset
+            int *data2 = new int[h[i].numhalos];
+            for(Int_t j=0;j<h[i].numhalos;j++) data2[j]=p[i][j].NumberofDescendants;
             dataset.write(data2,PredType::STD_I32LE);
 
             delete[] data2;
 
 
             // If want to output the number of particles
-            if (opt.outdataformat>=2) {
-                long unsigned *data3 = new long unsigned[h[i].numhalos];
-
+            if (opt.outdataformat>=DATAOUTMERITNPART) {
                 dataspace = DataSpace(rank,dims);
                 datasetname=H5std_string("Npart");
-                dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
+
+                // Check if there are halos to output so it can be compressed
+                if (chunk_dims[0]>0) {
+                    // Modify dataset creation property to enable chunking
+                    hdfdatasetproplist1.setChunk(rank, chunk_dims);
+                    // Set ZLIB (DEFLATE) Compression using level 6.
+                    hdfdatasetproplist1.setDeflate(6);
+                    dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace,hdfdatasetproplist1);
+                }
+                else {
+                    dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
+                }
+
+                //Write out the dataset
+                long unsigned *data3 = new long unsigned[h[i].numhalos];
                 for(Int_t j=0;j<h[i].numhalos;j++)  data3[j]=h[i].Halo[j].NumberofParticles;
                 dataset.write(data3,PredType::STD_U64LE);
 
                 delete[] data3;
             }
 
-            //Decendants offsets
-            long unsigned *data4 = new long unsigned[h[i].numhalos];
+
+            // Store the total number of decendants
             long unsigned totndesc=0;
 
+            //Decendants offsets
             dataspace = DataSpace(rank,dims);
             datasetname=H5std_string("DescOffsets");
-            dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
+
+            // Check if there are halos to output so it can be compressed
+            if (chunk_dims[0]>0) {
+                // Modify dataset creation property to enable chunking
+                hdfdatasetproplist1.setChunk(rank, chunk_dims);
+                // Set ZLIB (DEFLATE) Compression using level 6.
+                hdfdatasetproplist1.setDeflate(6);
+                dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace,hdfdatasetproplist1);
+            }
+            else {
+                dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
+            }
+
+            //Write out the dataset
+            long unsigned *data4 = new long unsigned[h[i].numhalos];
             for(Int_t j=0;j<h[i].numhalos;j++){
-                data4[j]=totndesc; 
-                totndesc+=p[i][j].NumberofDescendants;  
+                data4[j]=totndesc;
+                totndesc+=p[i][j].NumberofDescendants;
             }
             dataset.write(data4,PredType::STD_U64LE);
 
             delete[] data4;
 
-            // Descendant IDs
-            long unsigned *data5 = new long unsigned[totndesc];
+            //Set the new dataset parameters
             long unsigned itemp=0;
             dims[0]=totndesc;
             rank=1;
+            // Set the minmum chunk size
+            chunk_dims[0]=min((unsigned long)HDFOUTPUTCHUNKSIZE,totndesc);
+            //Create dataset proplist
+            DSetCreatPropList hdfdatasetproplist2;
 
+            // Descendant IDs
             dataspace = DataSpace(rank,dims);
             datasetname=H5std_string("Descendants");
-            dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
+
+            // Check if there are halos to output so it can be compressed
+            if (chunk_dims[0]>0) {
+                // Modify dataset creation property to enable chunking
+                hdfdatasetproplist2.setChunk(rank, chunk_dims);
+                // Set ZLIB (DEFLATE) Compression using level 6.
+                hdfdatasetproplist2.setDeflate(6);
+                dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace,hdfdatasetproplist2);
+            }
+            else {
+                dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
+            }
+
+            //Write out the dataset
+            long unsigned *data5 = new long unsigned[totndesc];
             for(Int_t j=0;j<h[i].numhalos;j++)
                 for (Int_t k=0;k<p[i][j].NumberofDescendants;k++)
                     data5[itemp++] = h[i+p[i][j].istep].Halo[p[i][j].DescendantList[k]-1].haloID;
@@ -840,28 +1044,51 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
             delete[] data5;
 
             // Descendant rank
-            int *data6 = new int[totndesc];
             itemp=0;
-
             dataspace = DataSpace(rank,dims);
             datasetname=H5std_string("Ranks");
-            dataset = Fhdf.createDataSet(datasetname,PredType::STD_I32LE,dataspace);
+
+            // Check if there are halos to output so it can be compressed
+            if (chunk_dims[0]>0) {
+                // Modify dataset creation property to enable chunking
+                hdfdatasetproplist2.setChunk(rank, chunk_dims);
+                // Set ZLIB (DEFLATE) Compression using level 6.
+                hdfdatasetproplist2.setDeflate(6);
+                dataset = Fhdf.createDataSet(datasetname,PredType::STD_I32LE,dataspace,hdfdatasetproplist2);
+            }
+            else {
+                dataset = Fhdf.createDataSet(datasetname,PredType::STD_I32LE,dataspace);
+            }
+
+            //Write out the dataset
+            int *data6 = new int[totndesc];
             for(Int_t j=0;j<h[i].numhalos;j++)
                 for (Int_t k=0;k<p[i][j].NumberofDescendants;k++)
                     data6[itemp++] = p[i][j].dtoptype[k];
-
-
             dataset.write(data6,PredType::STD_I32LE);
 
             delete[] data6;
 
             //Merits
-            if (opt.outdataformat>=1) {
-                float *data7 = new float[totndesc];
+            if (opt.outdataformat>=DATAOUTMERIT) {
                 itemp=0;
-
                 datasetname=H5std_string("Merits");
-                dataset = Fhdf.createDataSet(datasetname,PredType::NATIVE_FLOAT,dataspace);
+                dataspace = DataSpace(rank,dims);
+
+                // Check if there are halos to output so it can be compressed
+                if (chunk_dims[0]>0) {
+                    // Modify dataset creation property to enable chunking
+                    hdfdatasetproplist2.setChunk(rank, chunk_dims);
+                    // Set ZLIB (DEFLATE) Compression using level 6.
+                    hdfdatasetproplist2.setDeflate(6);
+                    dataset = Fhdf.createDataSet(datasetname,PredType::NATIVE_FLOAT,dataspace,hdfdatasetproplist2);
+                }
+                else {
+                    dataset = Fhdf.createDataSet(datasetname,PredType::NATIVE_FLOAT,dataspace);
+                }
+
+                //Write out the dataset
+                float *data7 = new float[totndesc];
                 for(Int_t j=0;j<h[i].numhalos;j++)
                     for (Int_t k=0;k<p[i][j].NumberofDescendants;k++)
                         data7[itemp++] = p[i][j].Merit[k];
@@ -871,13 +1098,25 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
             }
 
             //Descendant number of particles
-            if (opt.outdataformat>=2) {
-                long unsigned *data8 = new long unsigned[totndesc];
+            if (opt.outdataformat>=DATAOUTMERITNPART) {
                 itemp=0;
-
                 dataspace = DataSpace(rank,dims);
                 datasetname=H5std_string("DescNpart");
-                dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
+
+                // Check if there are halos to output so it can be compressed
+                if (chunk_dims[0]>0) {
+                    // Modify dataset creation property to enable chunking
+                    hdfdatasetproplist2.setChunk(rank, chunk_dims);
+                    // Set ZLIB (DEFLATE) Compression using level 6.
+                    hdfdatasetproplist2.setDeflate(6);
+                    dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace,hdfdatasetproplist2);
+                }
+                else {
+                    dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
+                }
+
+                //Write out the dataset
+                long unsigned *data8 = new long unsigned[totndesc];
                 for(Int_t j=0;j<h[i].numhalos;j++)
                     for (Int_t k=0;k<p[i][j].NumberofDescendants;k++)
                         data8[itemp++] = h[i+p[i][j].istep].Halo[p[i][j].DescendantList[k]-1].NumberofParticles;
@@ -885,7 +1124,7 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
 
                 delete[] data8;
             }
-            
+
             Fhdf.close();
 
             cout<<ThisTask<<" Done writing to "<<fname<<" "<<MyGetTime()-time1<<endl;
@@ -897,7 +1136,7 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
         if(ThisTask==NProcs-1){
 
             sprintf(fname,"%s/snapshot_%03d.VELOCIraptor.tree",opt.outname,opt.numsnapshots-1+opt.snapshotvaloffset);
-            cout<<ThisTask<<" is writing to "<<fname<<" "<<MyGetTime()-time1<<endl;
+            cout<<ThisTask<<" is writing to "<<fname<<endl;
 
             //Header information
             Fhdf=H5File(fname,H5F_ACC_TRUNC);
@@ -936,39 +1175,81 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
             attr.write(strdatatype, strwritebuf);
 
 
+
+
             ///last file has no connections
             dims[0]=h[opt.numsnapshots-1].numhalos;
             rank=1;
+            // Set the minmum chunk size
+            chunk_dims[0]=min((unsigned long)HDFOUTPUTCHUNKSIZE,(unsigned long)h[opt.numsnapshots-1].numhalos);
+            //Create dataset proplist
+            DSetCreatPropList hdfdatasetproplist;
 
             //ID
-            long unsigned *data9 = new long unsigned[h[opt.numsnapshots-1].numhalos];
-
             dataspace = DataSpace(rank,dims);
             datasetname=H5std_string("ID");
-            dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
+
+            // Check if there are halos to output so it can be compressed
+            if (chunk_dims[0]>0) {
+                // Modify dataset creation property to enable chunking
+                hdfdatasetproplist.setChunk(rank, chunk_dims);
+                // Set ZLIB (DEFLATE) Compression using level 6.
+                hdfdatasetproplist.setDeflate(6);
+                dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace,hdfdatasetproplist);
+            }
+            else {
+                dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
+            }
+
+            //Write out the dataset
+            long unsigned *data9 = new long unsigned[h[opt.numsnapshots-1].numhalos];
             for(Int_t j=0;j<h[opt.numsnapshots-1].numhalos;j++) data9[j]=h[opt.numsnapshots-1].Halo[j].haloID;
             dataset.write(data9,PredType::STD_U64LE);
 
             delete[] data9;
 
             //Num Descendants
-            int *data10 = new int[h[opt.numsnapshots-1].numhalos];
-
             dataspace = DataSpace(rank,dims);
             datasetname=H5std_string("NumDesc");
-            dataset = Fhdf.createDataSet(datasetname,PredType::STD_I32LE,dataspace);
+
+            // Check if there are halos to output so it can be compressed
+            if (chunk_dims[0]>0) {
+                // Modify dataset creation property to enable chunking
+                hdfdatasetproplist.setChunk(rank, chunk_dims);
+                // Set ZLIB (DEFLATE) Compression using level 6.
+                hdfdatasetproplist.setDeflate(6);
+                dataset = Fhdf.createDataSet(datasetname,PredType::STD_I32LE,dataspace,hdfdatasetproplist);
+            }
+            else {
+                dataset = Fhdf.createDataSet(datasetname,PredType::STD_I32LE,dataspace);
+            }
+
+            //Write out the dataset
+            int *data10 = new int[h[opt.numsnapshots-1].numhalos];
             for(Int_t j=0;j<h[opt.numsnapshots-1].numhalos;j++) data10[j]=0;
             dataset.write(data10,PredType::STD_I32LE);
 
             delete[] data10;
 
             // If want to output the number of particles
-            if (opt.outdataformat>=2) {
-                long unsigned *data11 = new long unsigned[h[opt.numsnapshots-1].numhalos];
-
+            if (opt.outdataformat>=DATAOUTMERITNPART) {
                 dataspace = DataSpace(rank,dims);
                 datasetname=H5std_string("Npart");
-                dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
+
+                // Check if there are halos to output so it can be compressed
+                if (chunk_dims[0]>0) {
+                    // Modify dataset creation property to enable chunking
+                    hdfdatasetproplist.setChunk(rank, chunk_dims);
+                    // Set ZLIB (DEFLATE) Compression using level 6.
+                    hdfdatasetproplist.setDeflate(6);
+                    dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace,hdfdatasetproplist);
+                }
+                else {
+                    dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
+                }
+
+                //Write out the dataset
+                long unsigned *data11 = new long unsigned[h[opt.numsnapshots-1].numhalos];
                 for(Int_t j=0;j<h[opt.numsnapshots-1].numhalos;j++)  data11[j]=h[opt.numsnapshots-1].Halo[j].NumberofParticles;
                 dataset.write(data11,PredType::STD_U64LE);
 
@@ -976,7 +1257,7 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
             }
 
             Fhdf.close();
-       
+
 
             cout<<ThisTask<<" Done writing to "<<fname<<" "<<MyGetTime()-time1<<endl;
 
@@ -1000,17 +1281,17 @@ void WriteHaloGraph(Options &opt, ProgenitorData **p, DescendantData **d, HaloTr
             if (i==opt.numsnapshots-1) Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofProgenitors<<"\t"<<0;
             else if (i==0)Fout<<h[i].Halo[j].haloID<<"\t"<<0<<"\t"<<d[i][j].NumberofDescendants;
             else Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofProgenitors<<"\t"<<d[i][j].NumberofDescendants;
-            if (opt.outdataformat>=2) {
+            if (opt.outdataformat>=DATAOUTMERITNPART) {
                 Fout<<"\t"<<h[i].Halo[j].NumberofParticles;
             }
             Fout<<endl;
             if (i>0) {
                 for (int k=0;k<p[i][j].NumberofProgenitors;k++) {
                     Fout<<h[i-p[i][j].istep].Halo[p[i][j].ProgenitorList[k]-1].haloID<<" ";
-                    if (opt.outdataformat>=1) {
+                    if (opt.outdataformat>=DATAOUTMERIT) {
                         Fout<<p[i][j].Merit[k]<<" ";
                     }
-                    if (opt.outdataformat>=2) {
+                    if (opt.outdataformat>=DATAOUTMERITNPART) {
                         Fout<<h[i-p[i][j].istep].Halo[p[i][j].ProgenitorList[k]-1].NumberofParticles<<" ";
                     }
                     Fout<<endl;
@@ -1020,10 +1301,10 @@ void WriteHaloGraph(Options &opt, ProgenitorData **p, DescendantData **d, HaloTr
                 for (int k=0;k<d[i][j].NumberofDescendants;k++) {
                     Fout<<h[i+d[i][j].istep].Halo[d[i][j].DescendantList[k]-1].haloID<<" ";
                     Fout<<d[i][j].dtoptype[k]<<" ";
-                    if (opt.outdataformat>=1) {
+                    if (opt.outdataformat>=DATAOUTMERIT) {
                         Fout<<d[i][j].Merit[k]<<" ";
                     }
-                    if (opt.outdataformat>=2) {
+                    if (opt.outdataformat>=DATAOUTMERITNPART) {
                         Fout<<h[i+d[i][j].istep].Halo[d[i][j].DescendantList[k]-1].NumberofParticles<<" ";
                     }
                     Fout<<endl;
@@ -1047,16 +1328,16 @@ void WriteCrossComp(Options &opt, ProgenitorData **p, HaloTreeData *h) {
         Fout<<i<<"\t"<<h[i].numhalos<<endl;
         for (int j=0;j<h[i].numhalos;j++) {
             Fout<<h[i].Halo[j].haloID<<"\t"<<p[i][j].NumberofProgenitors;
-            if (opt.outdataformat>=2) {
+            if (opt.outdataformat>=DATAOUTMERITNPART) {
                 Fout<<"\t"<<h[i].Halo[j].NumberofParticles;
             }
             Fout<<endl;
             for (int k=0;k<p[i][j].NumberofProgenitors;k++) {
                 Fout<<h[i-1].Halo[p[i][j].ProgenitorList[k]-1].haloID<<" ";
-                if (opt.outdataformat>=1) {
+                if (opt.outdataformat>=DATAOUTMERIT) {
                     Fout<<p[i][j].Merit[k]<<" ";
                 }
-                if (opt.outdataformat>=2) {
+                if (opt.outdataformat>=DATAOUTMERITNPART) {
                     Fout<<h[i-p[i][j].istep].Halo[p[i][j].ProgenitorList[k]-1].NumberofParticles<<" ";
                 }
                 Fout<<endl;

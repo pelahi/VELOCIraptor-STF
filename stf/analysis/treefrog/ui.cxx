@@ -94,7 +94,7 @@ void GetArgs(int argc, char *argv[], Options &opt)
 {
     int option;
     int NumArgs = 0;
-    while ((option = getopt(argc, argv, ":i:s:I:N:B:F:o:O:d:T:D:M:X:E:U:C:l:m:n:t:f:p:b:a:j:h:H:g:v:y:z:Z:S:")) != EOF)
+    while ((option = getopt(argc, argv, ":i:s:I:N:B:F:o:O:d:T:D:M:X:E:U:C:l:m:n:t:f:p:b:a:j:h:H:g:v:y:z:Z:S:q:")) != EOF)
     {
         switch(option)
         {
@@ -217,6 +217,11 @@ void GetArgs(int argc, char *argv[], Options &opt)
                 opt.idefaultvalues = 0;
                 NumArgs += 2;
                 break;
+            case 'q':
+                opt.meritratioambiguitylimit = atof(optarg);
+                opt.idefaultvalues = 0;
+                NumArgs += 2;
+                break;
 
             //output offsets
             case 'H':
@@ -294,7 +299,7 @@ void usage(void)
     cerr<<"-c <produce cross catalog match (0 halo tree ,1 cross catalog ,2 full graph) default ("<<opt.icatalog<<")\n";
     cerr<<"-o <output filename if format is ASCII or folder if format is HDF5>\n";
     cerr<<"-O <output format, ASCII, HDF5 ("<<OUTASCII<<","<<" "<<OUTHDF<<"), with default "<<opt.outputformat<<">\n";
-    cerr<<"-d <output data, 0 for minimal, 1 for outputing merits as well, with default "<<opt.outdataformat<<">\n";
+    cerr<<"-d <output data, "<<DATAOUTMATCHESONLY<<" for minimal, "<<DATAOUTMERIT<<" for outputing merits as well, with default "<<opt.outdataformat<<">\n";
     cerr<<" ========================= "<<endl<<endl;
 
     cerr<<" ========================= "<<endl;

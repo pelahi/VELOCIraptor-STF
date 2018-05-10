@@ -1106,11 +1106,7 @@ def TraceMainDescendant(istart,ihalo,numsnaps,numhalos,halodata,tree,TEMPORALHAL
 		#tail set, then must be the the first progenitor
 		#otherwise it should have already been set and just need to store the root tail
 		if (halodata[halosnap]['Tail'][ihalo]==0):
-			try:
-				halodata[halosnap]['Tail'][ihalo]=haloid
-			except OverflowError:
-				print(haloid,haloid/TEMPORALHALOIDVAL,halosnap,ihalo)
-				raise SystemExit()
+			halodata[halosnap]['Tail'][ihalo]=haloid
 			halodata[halosnap]['TailSnap'][ihalo]=halosnap
 			halodata[halosnap]['RootTail'][ihalo]=haloid
 			halodata[halosnap]['RootTailSnap'][ihalo]=halosnap
@@ -1123,6 +1119,7 @@ def TraceMainDescendant(istart,ihalo,numsnaps,numhalos,halodata,tree,TEMPORALHAL
 		while (True):
 			#ids contain index information
 			haloindex=int(haloid%TEMPORALHALOIDVAL)-1
+
 			halodata[halosnap]['Num_descen'][haloindex]=tree[halosnap]['Num_descen'][haloindex]
 			#if no more descendants, break from search
 			if (halodata[halosnap]['Num_descen'][haloindex]==0):
