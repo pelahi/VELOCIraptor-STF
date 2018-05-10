@@ -35,7 +35,7 @@ using namespace H5;
 
 ///\name number of entries in various data groups
 //@{
-#define HDFHEADNINFO 11
+#define HDFHEADNINFO 12
 #define HDFGASNINFO 20
 #define HDFDMNINFO 7
 #define HDFTRACERNINFO 3
@@ -84,8 +84,6 @@ using namespace H5;
 
 ///size of chunks in hdf files for Compression
 #define HDFOUTPUTCHUNKSIZE 8192
-
-#define HDF5_NEWER_THAN_1_10_0
 
 #ifdef HDF5_NEWER_THAN_1_10_0
 #define HDF5_FILE_GROUP_COMMON_BASE H5::Group
@@ -252,6 +250,7 @@ struct HDF_Header {
     double      mass[NHDFTYPE];
     double      Omega0, OmegaLambda, HubbleParam;
     double      redshift, time;
+    int         iscosmological;
     int         num_files;
 
     H5std_string names[HDFHEADNINFO];
@@ -266,6 +265,7 @@ struct HDF_Header {
     const static int ITime     =8;
     const static int INumFiles =9;
     const static int IHubbleParam =10;
+    const static int IIsCosmological =11;
 
     ///constructor
     HDF_Header(int hdfnametype=HDFEAGLENAMES) {
@@ -277,12 +277,13 @@ struct HDF_Header {
             names[itemp++]=H5std_string("Header/NumPart_ThisFile");
             names[itemp++]=H5std_string("Header/NumPart_Total");
             names[itemp++]=H5std_string("Header/NumPart_Total_HighWord");
-            names[itemp++]=H5std_string("Parameters/Cosmology:Omega_m");
-            names[itemp++]=H5std_string("Parameters/Cosmology:Omega_lambda");
+            names[itemp++]=H5std_string("Cosmology/Omega_m");
+            names[itemp++]=H5std_string("Cosmology/Omega_lambda");
             names[itemp++]=H5std_string("Header/Redshift");
             names[itemp++]=H5std_string("Header/Time");
             names[itemp++]=H5std_string("Header/NumFilesPerSnapshot");
-            names[itemp++]=H5std_string("Parameters/Cosmology:h");
+            names[itemp++]=H5std_string("Cosmology/h");
+            names[itemp++]=H5std_string("Cosmology/Cosmological run");
             break;
           
           default:
@@ -297,6 +298,7 @@ struct HDF_Header {
             names[itemp++]=H5std_string("Header/Time");
             names[itemp++]=H5std_string("Header/NumFilesPerSnapshot");
             names[itemp++]=H5std_string("Header/HubbleParam");
+            names[itemp++]=H5std_string("Cosmology/Cosmological run");
             break;
         }
     }
@@ -476,13 +478,20 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
     HDF_Group_Names hdf_gnames;
     //to store the groups, data sets and their associated data spaces
     Attribute headerattribs;
-    HDF_Header hdf_header_info;
+    HDF_Header hdf_header_info = HDF_Header(opt.ihdfnameconvention);
     //buffers to load data
+    string stringbuff;
+    string swift_str = "SWIFT";
     int intbuff[NHDFTYPE];
+    long long longbuff[NHDFTYPE];
     unsigned int uintbuff[NHDFTYPE];
     int j,k,ireaderror=0;
     Int_t nbodies=0;
+    DataSpace headerdataspace;
 
+    //to determine types
+    IntType inttype;
+    StrType stringtype;
     int nusetypes,usetypes[NHDFTYPE];
 
     if (ptype==PSTALL) {
@@ -514,6 +523,65 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
         //Open the specified file and the specified dataset in the file.
         Fhdf.openFile(buf, H5F_ACC_RDONLY);
         cout<<"Loading HDF header info in header group: "<<hdf_gnames.Header_name<<endl;
+
+        // Check if it is a SWIFT snapshot. 
+        headerattribs=get_attribute(Fhdf, "Header/Code");
+        stringtype = headerattribs.getStrType();
+
+        headerattribs.read(stringtype, stringbuff);
+
+        if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES) {
+
+          // Read SWIFT parameters
+          if(!swift_str.compare(stringbuff)) {
+            // Is it a cosmological simulation?
+            //headerattribs=get_attribute(Fhdf, hdf_header_info.names[hdf_header_info.IIsCosmological]);
+            headerattribs=get_attribute(Fhdf, "Cosmology/Cosmological run");
+            headerdataspace=headerattribs.getSpace();
+
+            if (headerdataspace.getSimpleExtentNdims()!=1) ireaderror=1;
+            inttype=headerattribs.getIntType();
+            if (inttype.getSize()==sizeof(int)) {
+              headerattribs.read(PredType::NATIVE_INT,&intbuff[0]);
+              hdf_header_info.iscosmological = intbuff[0];
+            }
+            if (inttype.getSize()==sizeof(long long)) {
+              headerattribs.read(PredType::NATIVE_LONG,&longbuff[0]);
+              hdf_header_info.iscosmological = longbuff[0];
+            }
+
+            if (!hdf_header_info.iscosmological && opt.icosmologicalin) {
+             
+              cout<<"Error: cosmology is turned on in the config file but the snaphot provided is a non-cosmological run."<<endl;
+#ifdef USEMPI
+              MPI_Abort(MPI_COMM_WORLD, 8);
+#else
+              exit(0);
+#endif
+ 
+            }
+            else if (hdf_header_info.iscosmological && !opt.icosmologicalin) {
+             
+              cout<<"Error: cosmology is turned off in the config file but the snaphot provided is a cosmological run."<<endl;
+#ifdef USEMPI
+              MPI_Abort(MPI_COMM_WORLD, 8);
+#else
+              exit(0);
+#endif
+ 
+            }
+
+          }
+          // If the code is not SWIFT
+          else {
+            cout<<"SWIFT EAGLE HDF5 naming convention chosen in config file but the snapshot was not produced by SWIFT. The string read was: "<<stringbuff<<endl;
+#ifdef USEMPI
+            MPI_Abort(MPI_COMM_WORLD, 8);
+#else
+            exit(0);
+#endif
+          }
+        }
 
         headerattribs=get_attribute(Fhdf, hdf_header_info.names[hdf_header_info.INumTot]);
         
@@ -551,6 +619,19 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
     {
         error.printError();
         ireaderror=1;
+    }
+    // catch failure caused by missing attribute
+    catch( invalid_argument error )
+    {
+      if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES) {
+        cout<<"SWIFT EAGLE HDF5 naming convention chosen in config file but cannot find the Code attribute in snapshot."<<endl;
+        cerr<<"HDF5 file "<<error.what()<<endl;
+#ifdef USEMPI
+        MPI_Abort(MPI_COMM_WORLD, 8);
+#else
+        exit(0);
+#endif
+      }
     }
     Fhdf.close();
 
