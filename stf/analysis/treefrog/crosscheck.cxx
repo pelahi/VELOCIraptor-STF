@@ -848,9 +848,7 @@ void CleanCrossMatchDescendant(Options &opt, Int_t itime, HaloTreeData *&pht, Pr
     Double_t generalizedmerit, meritratio;
     int numcurprogen;
     int numcorrected=0;
-    //vector<Double_t> meritvec;
     vector<int> descenindexvec;
-    vector<int> descenindexvec2;
 
     //the idea here is to adjust rankings of descendant to progenitor or remove a connection completely
     //if an object has two our more descendants of rank 0
@@ -872,23 +870,9 @@ void CleanCrossMatchDescendant(Options &opt, Int_t itime, HaloTreeData *&pht, Pr
         //now search all other objects to see if they have descendants that link to other progenitors
         //if an object has multiple descendants of similar rank, may want to flag it as poor, reset ranks
 
-        //descenindexvec2.push_back(descenindexvec[0]);
-        //meritvec.push_back(pdescen[itime][k].Merit[descenindexvec[0]]);
-
         for (auto idescen=1;idescen<descenindexvec.size();idescen++) {
             itimedescen=itime+pdescen[itime][k].istep;
             did=pdescen[itime][k].DescendantList[descenindexvec[idescen]]-1;
-
-            //if descendant itself does not have any other progenitors do nothing
-            if (pdescenprogen[itimedescen][did].NumberofProgenitors<=1) continue;
-            //if object does not have another useful progenitor do nothing other than note this object
-            iflag=0;
-            for (auto iprogen=0;iprogen<pdescenprogen[itimedescen][did].NumberofProgenitors;iprogen++) iflag+=(pdescenprogen[itimedescen][did].Merit[iprogen]>opt.meritlimit);
-            if (iflag<=1) {
-                //descenindexvec2.push_back(descenindexvec[idescen]);
-                //meritvec.push_back(pdescen[itime][k].Merit[descenindexvec[idescen]]);
-                continue;
-            }
 
             //if object has other possible matches, adjust the rank of this descendant
             pdescen[itime][k].dtoptype[descenindexvec[idescen]]=1;
@@ -903,6 +887,14 @@ void CleanCrossMatchDescendant(Options &opt, Int_t itime, HaloTreeData *&pht, Pr
                     break;
                 }
             }
+
+            //if descendant itself does not have any other progenitors do nothing
+            if (pdescenprogen[itimedescen][did].NumberofProgenitors<=1) continue;
+            //if object does not have another useful progenitor do nothing other than note this object
+            iflag=0;
+            for (auto iprogen=0;iprogen<pdescenprogen[itimedescen][did].NumberofProgenitors;iprogen++) iflag+=(pdescenprogen[itimedescen][did].Merit[iprogen]>opt.meritlimit);
+            if (iflag<=1) continue;
+
 
             //otherwise see if the ranking can be swapped.
             //check other possible progenitors of this descendant, compare the merits
@@ -930,24 +922,6 @@ void CleanCrossMatchDescendant(Options &opt, Int_t itime, HaloTreeData *&pht, Pr
             numcorrected++;
         }
         descenindexvec.clear();
-        /*
-        //now if there are remaining other zero rank objects, check to see if in this list
-        //merits are similar enough to warrent flagging this primary object under scrutiny as having an ambiguous match
-        if (descenindexvec2.size()<=1) {
-            descenindexvec2.clear();
-            meritvec.clear();
-            continue;
-        }*/
-        //if (meritvec[0]/meritvec[1]<opt.meritratioambiguitylimit) {
-        //    pdescen[itime][k].dtoptype[descenindexvec[0]]=1;
-        //    numcorrected++;
-        //    /*for (auto idescen=0;idescen<descenindexvec2.size();idescen++) {
-        //        pdescen[itime][k].dtoptype[descenindexvec[idescen]]=1;
-        //        numcorrected++;
-        //    }*/
-        //}
-        //descenindexvec2.clear();
-        //meritvec.clear();
     }
     if (opt.iverbose>=2) cout<<"Number of corrected haloes "<<numcorrected<<endl;
 }
@@ -968,13 +942,13 @@ void CleanDescendantsForMissingProgenitors(Options &opt, Int_t itime, HaloTreeDa
     //change the ranking
     for (Int_t k=0;k<pht[itime].numhalos;k++) if (pdescenprogen[itime][k].NumberofProgenitors>0)
     {
-        //see if object has no zero rank progenitor
+        //see if object has no zero rank progenitor find best ranked progenitor of merit ordered values
         index=0;
         iflag=(pdescenprogen[itime][k].dtoptype[index]==0);
         irank=pdescenprogen[itime][k].dtoptype[index];
         for (auto iprogen=1;iprogen<pdescenprogen[itime][k].NumberofProgenitors;iprogen++)
         {
-            if (irank>pdescenprogen[itime][k].dtoptype[iprogen]) {
+            if (irank<pdescenprogen[itime][k].dtoptype[iprogen]) {
                 irank=pdescenprogen[itime][k].dtoptype[iprogen];
                 index=iprogen;
             }
