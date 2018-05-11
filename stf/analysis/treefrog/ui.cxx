@@ -462,7 +462,7 @@ inline void ConfigCheck(Options &opt)
                 opt.imerittype=MERITRankWeightedBoth;
                 opt.imultsteplinkcrit=MSLCMERITPRIMARYPROGEN;
                 opt.iopttemporalmerittype=GENERALIZEDMERITTIMEPROGEN;
-                part.icorematchtype=PARTLISTCORE;
+                opt.icorematchtype=PARTLISTCORE;
                 opt.meritratiolimit=5.0;
             }
             else if (opt.isearchdirection==SEARCHPROGEN) {
