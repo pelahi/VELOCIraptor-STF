@@ -1835,7 +1835,7 @@ void GetInclusiveMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t
 {
     Particle *Pval;
     KDTree *tree;
-    Double_t *period;
+    Double_t *period=NULL;
     Int_t i,j,k;
     if (opt.iverbose) cout<<"Get inclusive masses"<<endl;
     Double_t ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside;
@@ -1958,7 +1958,7 @@ firstprivate(virval,m200val,m200mval)
             {pdata[i].gM200m=EncMass;pdata[i].gR200m=rc;}
             if (pdata[i].gR500c==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m500val)
             {pdata[i].gM500c=EncMass;pdata[i].gR500c=rc;}
-            if (pdata[i].gR200m!=0&&pdata[i].gR200c!=0&&pdata[i].gRvir!=0) break;
+            if (pdata[i].gR200m!=0&&pdata[i].gR200c!=0&&pdata[i].gRvir!=0&&pdata[i].gR500c) break;
 #ifdef NOMASS
             EncMass-=opt.MassValue;
 #else
@@ -1978,10 +1978,6 @@ firstprivate(virval,m200val,m200mval)
     //now large groups
     for (i=1;i<=ngroup;i++) if (numingroup[i]>=omppropnum)
     {
-#ifdef NOMASS
-        pdata[i].gmass*=opt.MassValue;
-#endif
-        pdata[i].gMFOF=pdata[i].gmass;
         //here masses are technically exclusive but this routine is generally called before objects are separated into halo/substructures
         EncMass=pdata[i].gmass;
         for (j=numingroup[i]-1;j>=0;j--) {
@@ -1995,7 +1991,7 @@ firstprivate(virval,m200val,m200mval)
             {pdata[i].gM200m=EncMass;pdata[i].gR200m=rc;}
             if (pdata[i].gR500c==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m500val)
             {pdata[i].gM500c=EncMass;pdata[i].gR500c=rc;}
-            if (pdata[i].gR200m!=0&&pdata[i].gR200c!=0&&pdata[i].gRvir!=0) break;
+            if (pdata[i].gR200m!=0&&pdata[i].gR200c!=0&&pdata[i].gRvir!=0&&pdata[i].gR500c) break;
 #ifdef NOMASS
             EncMass-=opt.MassValue;
 #else
@@ -2037,6 +2033,14 @@ private(i,j,k,x,y,z)
     //if object does not, then can proceed locally otherwise, likely have to
     //search other mpi domains for particles of interest.
     else if (opt.iInclusiveHalo==2){
+
+        //set period
+        if (opt.p>0) {
+            period=new Double_t[3];
+            for (int j=0;j<3;j++) period[j]=opt.p;
+            mpi_period=opt.p;
+        }
+
         //reset the positions of the particles in local domain
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
@@ -2060,8 +2064,10 @@ private(i,j,k,x,y,z)
 #endif
 
 #ifdef USEMPI
+        vector<bool> halooverlap;
+        if (NProcs>1) {
         //then can identify any halos whose size extends outside the MPIDomain
-        bool *halooverlap=new bool[ngroup];
+        halooverlap.resize(ngroup);
         double xsearch[3][2];
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
@@ -2077,10 +2083,12 @@ private(i,j,xsearch)
 #ifdef USEOPENMP
 }
 #endif
+        //import particles
+        }
 #endif
         //now loop over groups and search for particles. This is probably fast if we build a tree
         //first we need to store the indices so we can place particles back in the order they need to be
-        Int_t *ids=new Int_t[nbodies];
+        vector<Int_t> ids(nbodies);
         for (i=0;i<nbodies;i++) ids[i]=Part[i].GetID();
         //build tree optimised to search for more than min group size
         tree=new KDTree(Part,nbodies,opt.HaloMinSize,tree->TPHYS,tree->KEPAN,1000,0,0,0,period);
@@ -2088,23 +2096,69 @@ private(i,j,xsearch)
         vector<Int_t> taggedparts;
         vector<Double_t> radii;
         vector<Double_t> masses;
+        vector<Int_t> indices;
         for (i=1;i<=ngroup;i++)
         {
-#ifdef USEMPI
-            if (halooverlap[i]) continue;
-#endif
+            cout<<"starting group "<<i<<" "<<numingroup[i]<<" "<<pdata[i].gsize<<" "<<opt.p<<endl;
             taggedparts=tree->SearchBallPosTagged(pdata[i].gcm,pdata[i].gsize*opt.SphericalOverdensitySeachFac);
+            cout<<"found "<<taggedparts.size()<<" in region"<<endl;
+            radii.resize(taggedparts.size());
+            masses.resize(taggedparts.size());
             for (auto index=0;index<taggedparts.size();index=0) {
                 masses[index]=Part[taggedparts[index]].GetMass();
                 radii[index]=0;
                 for (k=0;k<3;k++) radii[index]+=pow(Part[taggedparts[index]].GetPosition(k)-pdata[i].gcm[k],2.0);
                 radii[index]=sqrt(radii[index]);
             }
+#ifdef USEMPI
+            if (NProcs>1) {
+                //if halo has overlap then search the imported particles as well, add them to the
+                if (halooverlap[i]) {
+
+                }
+            }
+#endif
+            taggedparts.clear();
+            indices.resize(taggedparts.size());
             //sort by radius
+            size_t n(0);
+            generate(radii.begin(), radii.end(), [&]{ return n++; });
+            auto comparator = [&radii](int a, int b){ return radii[a] < radii[b]; };
+            sort(indices.begin(), indices.end(), comparator);
+            //now loop over radii
             //then get overdensity working outwards from 0.1 of the mass or at least 10 particles
+            int minnum=max((int)(0.05*radii.size()),10);
+            EncMass=0;for (j=0;j<minnum;j++) EncMass+=masses[indices[j]];
+
+            for (j=0;j<radii.size();j++) {
+                rc=radii[indices[j]];
+                if (pdata[i].gRvir==0) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)<=virval)
+                {pdata[i].gMvir=EncMass;pdata[i].gRvir=rc;}
+                if (pdata[i].gR200c==0) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)<=m200val)
+                {pdata[i].gM200c=EncMass;pdata[i].gR200c=rc;}
+                if (pdata[i].gR200m==0) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)<=m200mval)
+                {pdata[i].gM200m=EncMass;pdata[i].gR200m=rc;}
+                if (pdata[i].gR500c==0) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)<=m500val)
+                {pdata[i].gM500c=EncMass;pdata[i].gR500c=rc;}
+                if (pdata[i].gR200m!=0&&pdata[i].gR200c!=0&&pdata[i].gRvir!=0&&pdata[i].gR500c) break;
+#ifdef NOMASS
+                EncMass+=opt.MassValue;
+#else
+                EncMass+=masses[indices[j]];
+#endif
+            }
+            //if overdensity never drops below thresholds then masses are equal to FOF mass or total mass.
+            if (pdata[i].gRvir==0) {pdata[i].gMvir=pdata[i].gmass;pdata[i].gRvir=pdata[i].gsize;}
+            if (pdata[i].gR200c==0) {pdata[i].gM200c=pdata[i].gmass;pdata[i].gR200c=pdata[i].gsize;}
+            if (pdata[i].gR200m==0) {pdata[i].gM200m=pdata[i].gmass;pdata[i].gR200m=pdata[i].gsize;}
+            if (pdata[i].gR500c==0) {pdata[i].gM500c=pdata[i].gmass;pdata[i].gR500c=pdata[i].gsize;}
+            cout<<"Finsihed gorup "<<i<<endl;
         }
-
-
+        delete tree;
+        //reset its after putting particles back in input order
+        for (i=0;i<nbodies;i++) Part[i].SetID(ids[i]);
+        ids.clear();
+        mpi_period=opt.p;
     }
 
     if (opt.iverbose) cout<<"Done inclusive masses for field objects"<<endl;
