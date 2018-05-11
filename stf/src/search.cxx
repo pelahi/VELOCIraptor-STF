@@ -165,7 +165,6 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         else {
             links_across=MPILinkAcross(nbodies, tree, Part.data(), pfof, Len, Head, Next, param[1]);
         }
-        cout<<ThisTask<<" number of links "<<links_across<<endl;
         MPI_Allreduce(&links_across, &links_across_total, 1, MPI_Int_t, MPI_SUM, MPI_COMM_WORLD);
         MPIUpdateExportList(nbodies,Part.data(),pfof,Len);
     }while(links_across_total>0);
@@ -284,8 +283,8 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
             vx+=Part[i].GetVelocity(0)*Part[i].GetMass();
             vy+=Part[i].GetVelocity(1)*Part[i].GetMass();
             vz+=Part[i].GetVelocity(2)*Part[i].GetMass();
-            mtotregion+=Part[i].GetMass();
         }
+            mtotregion+=Part[i].GetMass();
         vmean[0]=vx/mtotregion;vmean[1]=vy/mtotregion;vmean[2]=vz/mtotregion;
         for (i=0;i<iend;i++) {
             for (int j=0;j<3;j++) vscale2+=pow(Part[i].GetVelocity(j)-vmean[j],2.0)*Part[i].GetMass();

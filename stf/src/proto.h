@@ -460,7 +460,14 @@ void MPIGetNNImportNum(const Int_t nbodies, KDTree *tree, Particle *Part);
 Int_t MPIBuildParticleNNImportList(const Int_t nbodies, KDTree *tree, Particle *Part, int iallflag=true);
 ///comparison function to order particles for export
 int nn_export_cmp(const void *a, const void *b);
-
+///Determine number of halos whose search regions overlap other mpi domains
+vector<bool> MPIGetHaloSearchExportNum(const Int_t ngroups, PropData *&pdata, vector<Double_t> &rdist);
+///Build the export list of halo positions and search distances
+void MPIBuildHaloSearchExportList(const Int_t ngroup, PropData *&pdata, vector<Double_t> &rdist, vector<bool> &halooverlap);
+///Determine number of imported particles based on halo search regions
+void MPIGetHaloSearchImportNum(const Int_t nbodies, KDTree *tree, Particle *Part);
+///Builds the import list of particles based on halo positions
+Int_t MPIBuildHaloSearchImportList(const Int_t nbodies, KDTree *tree, Particle *Part);
 //@}
 #endif
 
