@@ -2034,7 +2034,6 @@ private(i,j,k,x,y,z)
     //if object does not, then can proceed locally otherwise, likely have to
     //search other mpi domains for particles of interest.
     else if (opt.iInclusiveHalo==2){
-
         //first we need to store the indices so we can place particles back in the order they need to be
         //as we are going to build a tree to search particles
         vector<Int_t> ids(nbodies);
@@ -2080,49 +2079,25 @@ private(i,j,k,x,y,z)
         tree=new KDTree(Part,nbodies,opt.HaloMinSize,tree->TPHYS,tree->KEPAN,100,0,0,0,period);
         //store the radii that will be used to search for each group
         for (i=1;i<=ngroup;i++) maxrdist[i]=pdata[i].gsize*opt.SphericalOverdensitySeachFac;
-
 #ifdef USEMPI
         //if using mpi then determine if halo's search radius overlaps another mpi domain
         vector<bool> halooverlap;
         KDTree *treeimport=NULL;
         Int_t nimport,nexport;
         if (NProcs>1) {
-        /*
-        //then can identify any halos whose size extends outside the MPIDomain
-        halooverlap.resize(ngroup);
-        double xsearch[3][2];
-#ifdef USEOPENMP
-#pragma omp parallel default(shared)  \
-private(i,j,xsearch)
-{
-    #pragma omp for schedule(dynamic,1) nowait
-#endif
-        for (i=1;i<=ngroup;i++)
-        {
-            for (j=0;j<3;j++) {xsearch[j][0]=pdata[i].gcm[j]-maxrdist[i];xsearch[j][1]=pdata[i].gcm[j]+maxrdist[i];}
-            halooverlap[i]=MPISearchForOverlap(xsearch);
-        }
-#ifdef USEOPENMP
-}
-#endif
-        //and determine the import/export particles given the search distances
-        nexport=0;for (i=1;i<=ngroup;i++) nexport+=(halooverlap[i]>0);
-        NExport=nexport;
-        */
         halooverlap= MPIGetHaloSearchExportNum(ngroup, pdata, maxrdist);
         NNDataIn = new nndata_in[NExport];
         NNDataGet = new nndata_in[NImport];
         //build the exported halo group list using NNData structures
-        MPIBuildHaloSearchExportList(nbodies, pdata, maxrdist,halooverlap);
+        MPIBuildHaloSearchExportList(ngroup, pdata, maxrdist,halooverlap);
         MPIGetHaloSearchImportNum(nbodies, tree, Part);
-        PartDataIn = new Particle[NExport];
-        PartDataGet = new Particle[NImport];
+        PartDataIn = new Particle[NExport+1];
+        PartDataGet = new Particle[NImport+1];
         //run search on exported particles and determine which local particles need to be exported back (or imported)
         nimport=MPIBuildParticleNNImportList(nbodies, tree, Part);
         if (nimport>0) treeimport=new KDTree(PartDataGet,nimport,opt.HaloMinSize,tree->TPHYS,tree->KEPAN,100,0,0,0,period);
         }
 #endif
-
         //now loop over groups and search for particles. This is probably fast if we build a tree
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
@@ -2217,8 +2192,8 @@ private(i,j,k,taggedparts,radii,masses,indices,n,dx,EncMass,rc)
         //reset its after putting particles back in input order
         for (i=0;i<nbodies;i++) Part[i].SetID(ids[i]);
         ids.clear();
-        mpi_period=opt.p;
 #ifdef USEMPI
+        mpi_period=0;
         if (NProcs>1) {
             if (treeimport!=NULL) delete treeimport;
             delete[] PartDataGet;
@@ -2229,8 +2204,7 @@ private(i,j,k,taggedparts,radii,masses,indices,n,dx,EncMass,rc)
 #endif
     }
 
-    //if (opt.iverbose)
-    cout<<"Done inclusive masses for field objects in "<<MyGetTime()-time1<<endl;
+    if (opt.iverbose) cout<<"Done inclusive masses for field objects in "<<MyGetTime()-time1<<endl;
 }
 //@}
 

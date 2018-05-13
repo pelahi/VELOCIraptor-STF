@@ -1296,7 +1296,7 @@ vector<bool> MPIGetHaloSearchExportNum(const Int_t ngroup, PropData *&pdata, vec
     for (i=1;i<=ngroup;i++)
     {
         halooverlap[i]=false;
-        for (int k=0;k<3;k++) {xsearch[k][0]=pdata[i].gcm[k]-rdist[i];xsearch[k][1]=pdata[i].gcm[j]+rdist[i];}
+        for (int k=0;k<3;k++) {xsearch[k][0]=pdata[i].gcm[k]-rdist[i];xsearch[k][1]=pdata[i].gcm[k]+rdist[i];}
         for (j=0;j<NProcs;j++) {
             if (j!=ThisTask) {
                 //determine if search region is not outside of this processors domain
@@ -1338,10 +1338,10 @@ void MPIBuildHaloSearchExportList(const Int_t ngroup, PropData *&pdata, vector<D
     ///\em Or outer loop is over threads, inner loop over nbodies and just have a idlist of size Nlocal that tags particles
     ///which must be exported. Then its a much quicker follow up loop (no if statement) that stores the data
     for (j=0;j<NProcs;j++) nsend_local[j]=0;
-    for (i=0;i<ngroup;i++)
+    for (i=1;i<=ngroup;i++)
     {
-        if (halooverlap[i]) continue;
-        for (int k=0;k<3;k++) {xsearch[k][0]=pdata[i].gcm[k]-rdist[i];xsearch[k][1]=pdata[i].gcm[j]+rdist[i];}
+        if (halooverlap[i]==false) continue;
+        for (int k=0;k<3;k++) {xsearch[k][0]=pdata[i].gcm[k]-rdist[i];xsearch[k][1]=pdata[i].gcm[k]+rdist[i];}
         for (j=0;j<NProcs;j++) {
             if (j!=ThisTask) {
                 //determine if search region is not outside of this processors domain
@@ -1372,7 +1372,7 @@ void MPIBuildHaloSearchExportList(const Int_t ngroup, PropData *&pdata, vector<D
 
     for (j=0;j<NProcs;j++)nimport+=mpi_nsend[ThisTask+j*NProcs];
     //if task neither sends or receives, do nothing
-    if (!(nexport>0||nimport>0)) return;
+    if (nexport==0&&nimport==0) return;
     for(j=0;j<NProcs;j++)
     {
         if (j!=ThisTask)
@@ -1442,24 +1442,22 @@ void MPIGetHaloSearchImportNum(const Int_t nbodies, KDTree *tree, Particle *Part
         nbuffer[j]=0;
         for (int k=0;k<j;k++)nbuffer[j]+=mpi_nsend[ThisTask+k*NProcs];//offset on "receiver" end
     }
-
     for (j=0;j<NProcs;j++) nsend_local[j]=0;
     for (j=0;j<NProcs;j++) {
         for (i=0;i<nbodies;i++) nn[i]=-1;
-        if (j!=ThisTask) {
+        if (j==ThisTask) continue;
+        if (mpi_nsend[ThisTask+j*NProcs]==0) continue;
             //search local list and tag all local particles that need to be exported back (or imported) to the exported particles thread
             for (i=nbuffer[j];i<nbuffer[j]+mpi_nsend[ThisTask+j*NProcs];i++) {
                 tree->SearchBallPos(NNDataGet[i].Pos, NNDataGet[i].R2, j, nn, nnr2);
             }
             for (i=0;i<nbodies;i++) {
                 if (nn[i]!=-1) {
-                    for (int k=0;k<3;k++) {
-                    }
                     nexport++;
                     nsend_local[j]++;
                 }
             }
-        }
+        
     }
     //must store old mpi nsend for accessing NNDataGet properly.
     for (j=0;j<NProcs;j++) for (int k=0;k<NProcs;k++) oldnsend[k+j*NProcs]=mpi_nsend[k+j*NProcs];
@@ -1499,17 +1497,9 @@ Int_t MPIBuildHaloSearchImportList(const Int_t nbodies, KDTree *tree, Particle *
 
     for (j=0;j<NProcs;j++) nsend_local[j]=0;
     for (j=0;j<NProcs;j++) {
-#ifdef USEOPENMP
-#pragma omp parallel default(shared) \
-private(i)
-{
-#pragma omp for
-#endif
             for (i=0;i<nbodies;i++) nn[i]=-1;
-#ifdef USEOPENMP
-}
-#endif
-        if (j!=ThisTask) {
+        if (j==ThisTask) continue;
+        if (mpi_nsend[ThisTask+j*NProcs]==0) continue;
             //search local list and tag all local particles that need to be exported back (or imported) to the exported particles thread
             for (i=nbuffer[j];i<nbuffer[j]+mpi_nsend[ThisTask+j*NProcs];i++) {
                 tree->SearchBallPos(NNDataGet[i].Pos, NNDataGet[i].R2, j, nn, nnr2);
@@ -1524,7 +1514,6 @@ private(i)
                     nsend_local[j]++;
                 }
             }
-        }
     }
     //sort the export data such that all particles to be passed to thread j are together in ascending thread number
     //qsort(NNDataReturn, nexport, sizeof(struct nndata_in), nn_export_cmp);
