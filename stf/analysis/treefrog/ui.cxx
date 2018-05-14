@@ -297,7 +297,7 @@ void usage(void)
     cerr<<"-C <produce cross catalog match (0 halo tree ,1 cross catalog ,2 full graph) default ("<<opt.icatalog<<")\n";
     cerr<<"-o <output filename>\n";
     cerr<<"-c <produce cross catalog match (0 halo tree ,1 cross catalog ,2 full graph) default ("<<opt.icatalog<<")\n";
-    cerr<<"-o <output filename if format is ASCII or folder if format is HDF5>\n";
+    cerr<<"-o <output (base) filename (if HDF output separated into individual snapshots) >\n";
     cerr<<"-O <output format, ASCII, HDF5 ("<<OUTASCII<<","<<" "<<OUTHDF<<"), with default "<<opt.outputformat<<">\n";
     cerr<<"-d <output data, "<<DATAOUTMATCHESONLY<<" for minimal, "<<DATAOUTMERIT<<" for outputing merits as well, with default "<<opt.outdataformat<<">\n";
     cerr<<" ========================= "<<endl<<endl;
@@ -359,8 +359,6 @@ void usage(void)
     cerr<<" ID related options "<<endl;
     cerr<<" ========================= "<<endl;
     cerr<<"-n <Max ID value of particles [Must specify if not mapping ids to index] ("<<opt.MaxIDValue<<")>\n";
-    //need to adjust this
-    //cerr<<"-D <adjust particle IDs for nIFTY cross catalogs across simulations ("<<opt.idcorrectflag<<")\n";
     cerr<<"-m <Mapping of particle ids to index ("<<opt.imapping<<" [ no maping "<<DNOMAP<<", simple mapping "<<DSIMPLEMAP<<", computational expensive but memory efficient adaptive map "<<DMEMEFFICIENTMAP<<"])\n";
     cerr<<" ========================= "<<endl<<endl;
 
@@ -448,7 +446,7 @@ inline void ConfigCheck(Options &opt)
             if(opt.isearchdirection==SEARCHALL) {
                 opt.icorematchtype=PARTLISTNOCORE;
                 opt.min_numpart=20;
-                opt.particle_frac=0;
+                opt.particle_frac=-1;
                 opt.meritlimit=0;
                 opt.imerittype=MERITNsharedN1N2;
             }
@@ -458,7 +456,7 @@ inline void ConfigCheck(Options &opt)
                 opt.icorematchtype=PARTLISTCORE;
                 opt.min_numpart=5;
                 opt.particle_frac=0.4;
-                opt.meritlimit=0.025;
+                opt.meritlimit=0.05;
                 opt.imerittype=MERITRankWeightedBoth;
                 opt.imultsteplinkcrit=MSLCMERITPRIMARYPROGEN;
                 opt.iopttemporalmerittype=GENERALIZEDMERITTIMEPROGEN;
@@ -468,7 +466,7 @@ inline void ConfigCheck(Options &opt)
             else if (opt.isearchdirection==SEARCHPROGEN) {
                 opt.icorematchtype=PARTLISTCORECORE;
                 opt.particle_frac=0.4;
-                opt.meritlimit=0.1;
+                opt.meritlimit=0.05;
                 opt.imerittype=MERITNsharedN1N2;
                 opt.imultsteplinkcrit=MSLCMERIT;
                 opt.iopttemporalmerittype=GENERALIZEDMERITTIME;
@@ -483,7 +481,7 @@ inline void ConfigCheck(Options &opt)
         cerr<<"Output format not valid, defaulting to ascii"<<endl; opt.outputformat=OUTASCII;
     }
     if (opt.outdataformat<0){
-        cerr<<"Output data requested not valid, defaulting to minimal output"<<endl; opt.outdataformat=0;
+        cerr<<"Output data requested not valid, defaulting to minimal output"<<endl; opt.outdataformat=DATAOUTMATCHESONLY;
     }
 
     //now set description
