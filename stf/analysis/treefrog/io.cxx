@@ -205,6 +205,7 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
     DataSet dataset;
     Attribute attr;
     DataSpace attrspace;
+    DSetCreatPropList hdfdatasetproplist;
     hsize_t dims[1], chunk_dims[1];
     int rank;
     HDFCatalogNames hdfnames;
@@ -376,8 +377,6 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
             rank=1;
             // Set the minmum chunk size
             chunk_dims[0]=min((unsigned long)HDFOUTPUTCHUNKSIZE,(unsigned long)h[i].numhalos);
-            //Create dataset proplist
-            DSetCreatPropList hdfdatasetproplist1;
 
             // ID
             dataspace = DataSpace(rank,dims);
@@ -385,11 +384,12 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
 
             // Check if there are halos to output so it can be compressed
             if (chunk_dims[0]>0) {
+                hdfdatasetproplist=DSetCreatPropList();
                 // Modify dataset creation property to enable chunking
-                hdfdatasetproplist1.setChunk(rank, chunk_dims);
+                hdfdatasetproplist.setChunk(rank, chunk_dims);
                 // Set ZLIB (DEFLATE) Compression using level 6.
-                hdfdatasetproplist1.setDeflate(6);
-                dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace,hdfdatasetproplist1);
+                hdfdatasetproplist.setDeflate(6);
+                dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace,hdfdatasetproplist);
             }
             else {
                 dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
@@ -408,11 +408,12 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
 
             // Check if there are halos to output so it can be compressed
             if (chunk_dims[0]>0) {
+                hdfdatasetproplist=DSetCreatPropList();
                 // Modify dataset creation property to enable chunking
-                hdfdatasetproplist1.setChunk(rank, chunk_dims);
+                hdfdatasetproplist.setChunk(rank, chunk_dims);
                 // Set ZLIB (DEFLATE) Compression using level 6.
-                hdfdatasetproplist1.setDeflate(6);
-                dataset = Fhdf.createDataSet(datasetname,PredType::STD_I32LE,dataspace,hdfdatasetproplist1);
+                hdfdatasetproplist.setDeflate(6);
+                dataset = Fhdf.createDataSet(datasetname,PredType::STD_I32LE,dataspace,hdfdatasetproplist);
             }
             else {
                 dataset = Fhdf.createDataSet(datasetname,PredType::STD_I32LE,dataspace);
@@ -432,11 +433,12 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
 
                 // Check if there are halos to output so it can be compressed
                 if (chunk_dims[0]>0) {
+                    hdfdatasetproplist=DSetCreatPropList();
                     // Modify dataset creation property to enable chunking
-                    hdfdatasetproplist1.setChunk(rank, chunk_dims);
+                    hdfdatasetproplist.setChunk(rank, chunk_dims);
                     // Set ZLIB (DEFLATE) Compression using level 6.
-                    hdfdatasetproplist1.setDeflate(6);
-                    dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace,hdfdatasetproplist1);
+                    hdfdatasetproplist.setDeflate(6);
+                    dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace,hdfdatasetproplist);
                 }
                 else {
                     dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
@@ -459,11 +461,12 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
 
             // Check if there are halos to output so it can be compressed
             if (chunk_dims[0]>0) {
+                hdfdatasetproplist=DSetCreatPropList();
                 // Modify dataset creation property to enable chunking
-                hdfdatasetproplist1.setChunk(rank, chunk_dims);
+                hdfdatasetproplist.setChunk(rank, chunk_dims);
                 // Set ZLIB (DEFLATE) Compression using level 6.
-                hdfdatasetproplist1.setDeflate(6);
-                dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace,hdfdatasetproplist1);
+                hdfdatasetproplist.setDeflate(6);
+                dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace,hdfdatasetproplist);
             }
             else {
                 dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
@@ -486,8 +489,6 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
             rank=1;
             //Set minimum chunk size
             chunk_dims[0]=min((unsigned long)HDFOUTPUTCHUNKSIZE,totnprogen);
-            //Create dataset proplist
-            DSetCreatPropList hdfdatasetproplist2;
 
             //Progenitor IDs
             dataspace = DataSpace(rank,dims);
@@ -496,11 +497,12 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
 
             // Check if there are halos to output so it can be compressed
             if (chunk_dims[0]>0) {
+                hdfdatasetproplist=DSetCreatPropList();
                 // Modify dataset creation property to enable chunking
-                hdfdatasetproplist2.setChunk(rank, chunk_dims);
+                hdfdatasetproplist.setChunk(rank, chunk_dims);
                 // Set ZLIB (DEFLATE) Compression using level 6.
-                hdfdatasetproplist2.setDeflate(6);
-                dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace,hdfdatasetproplist2);
+                hdfdatasetproplist.setDeflate(6);
+                dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace,hdfdatasetproplist);
             }
             else {
                 dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
@@ -523,11 +525,12 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
                 datasetname=H5std_string("Merits");
                 // Check if there are halos to output so it can be compressed
                 if (chunk_dims[0]>0) {
+                    hdfdatasetproplist=DSetCreatPropList();
                     // Modify dataset creation property to enable chunking
-                    hdfdatasetproplist2.setChunk(rank, chunk_dims);
+                    hdfdatasetproplist.setChunk(rank, chunk_dims);
                     // Set ZLIB (DEFLATE) Compression using level 6.
-                    hdfdatasetproplist2.setDeflate(6);
-                    dataset = Fhdf.createDataSet(datasetname,PredType::NATIVE_FLOAT,dataspace,hdfdatasetproplist2);
+                    hdfdatasetproplist.setDeflate(6);
+                    dataset = Fhdf.createDataSet(datasetname,PredType::NATIVE_FLOAT,dataspace,hdfdatasetproplist);
                 }
                 else {
                     dataset = Fhdf.createDataSet(datasetname,PredType::NATIVE_FLOAT,dataspace);
@@ -552,11 +555,12 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
 
                 // Check if there are halos to output so it can be compressed
                 if (chunk_dims[0]>0) {
+                    hdfdatasetproplist=DSetCreatPropList();
                     // Modify dataset creation property to enable chunking
-                    hdfdatasetproplist2.setChunk(rank, chunk_dims);
+                    hdfdatasetproplist.setChunk(rank, chunk_dims);
                     // Set ZLIB (DEFLATE) Compression using level 6.
-                    hdfdatasetproplist2.setDeflate(6);
-                    dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace,hdfdatasetproplist2);
+                    hdfdatasetproplist.setDeflate(6);
+                    dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace,hdfdatasetproplist);
                 }
                 else {
                     dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
@@ -626,8 +630,6 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
             rank=1;
             //Set minimum chunk size
             chunk_dims[0]=min((unsigned long)HDFOUTPUTCHUNKSIZE,(unsigned long)h[0].numhalos);
-            //Create dataset proplist
-            DSetCreatPropList hdfdatasetproplist;
 
             //ID
             dataspace = DataSpace(rank,dims);
@@ -635,6 +637,7 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
 
             // Check if there are halos to output so it can be compressed
             if (chunk_dims[0]>0) {
+                hdfdatasetproplist=DSetCreatPropList();
                 // Modify dataset creation property to enable chunking
                 hdfdatasetproplist.setChunk(rank, chunk_dims);
                 // Set ZLIB (DEFLATE) Compression using level 6.
@@ -658,6 +661,7 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
 
             // Check if there are halos to output so it can be compressed
             if (chunk_dims[0]>0) {
+                hdfdatasetproplist=DSetCreatPropList();
                 // Modify dataset creation property to enable chunking
                 hdfdatasetproplist.setChunk(rank, chunk_dims);
                 // Set ZLIB (DEFLATE) Compression using level 6.
@@ -682,6 +686,7 @@ void WriteHaloMergerTree(Options &opt, ProgenitorData **p, HaloTreeData *h) {
 
                 // Check if there are halos to output so it can be compressed
                 if (chunk_dims[0]>0) {
+                    hdfdatasetproplist=DSetCreatPropList();
                     // Modify dataset creation property to enable chunking
                     hdfdatasetproplist.setChunk(rank, chunk_dims);
                     // Set ZLIB (DEFLATE) Compression using level 6.
@@ -729,6 +734,7 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
     DataSet dataset;
     Attribute attr;
     DataSpace attrspace;
+    DSetCreatPropList hdfdatasetproplist;
     hsize_t dims[1], chunk_dims[1];
     int rank;
     HDFCatalogNames hdfnames;
@@ -903,8 +909,6 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
             rank=1;
             // Set the minmum chunk size
             chunk_dims[0]=min((unsigned long)HDFOUTPUTCHUNKSIZE,(unsigned long)h[i].numhalos);
-            //Create dataset proplist
-            DSetCreatPropList hdfdatasetproplist1;
 
             //ID
             dataspace = DataSpace(rank,dims);
@@ -912,11 +916,12 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
 
             // Check if there are halos to output so it can be compressed
             if (chunk_dims[0]>0) {
+                hdfdatasetproplist=DSetCreatPropList();
                 // Modify dataset creation property to enable chunking
-                hdfdatasetproplist1.setChunk(rank, chunk_dims);
+                hdfdatasetproplist.setChunk(rank, chunk_dims);
                 // Set ZLIB (DEFLATE) Compression using level 6.
-                hdfdatasetproplist1.setDeflate(6);
-                dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace,hdfdatasetproplist1);
+                hdfdatasetproplist.setDeflate(6);
+                dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace,hdfdatasetproplist);
             }
             else {
                 dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
@@ -935,11 +940,12 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
 
             // Check if there are halos to output so it can be compressed
             if (chunk_dims[0]>0) {
+                hdfdatasetproplist=DSetCreatPropList();
                 // Modify dataset creation property to enable chunking
-                hdfdatasetproplist1.setChunk(rank, chunk_dims);
+                hdfdatasetproplist.setChunk(rank, chunk_dims);
                 // Set ZLIB (DEFLATE) Compression using level 6.
-                hdfdatasetproplist1.setDeflate(6);
-                dataset = Fhdf.createDataSet(datasetname,PredType::STD_I32LE,dataspace,hdfdatasetproplist1);
+                hdfdatasetproplist.setDeflate(6);
+                dataset = Fhdf.createDataSet(datasetname,PredType::STD_I32LE,dataspace,hdfdatasetproplist);
             }
             else {
                 dataset = Fhdf.createDataSet(datasetname,PredType::STD_I32LE,dataspace);
@@ -960,11 +966,12 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
 
                 // Check if there are halos to output so it can be compressed
                 if (chunk_dims[0]>0) {
+                    hdfdatasetproplist=DSetCreatPropList();
                     // Modify dataset creation property to enable chunking
-                    hdfdatasetproplist1.setChunk(rank, chunk_dims);
+                    hdfdatasetproplist.setChunk(rank, chunk_dims);
                     // Set ZLIB (DEFLATE) Compression using level 6.
-                    hdfdatasetproplist1.setDeflate(6);
-                    dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace,hdfdatasetproplist1);
+                    hdfdatasetproplist.setDeflate(6);
+                    dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace,hdfdatasetproplist);
                 }
                 else {
                     dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
@@ -988,11 +995,12 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
 
             // Check if there are halos to output so it can be compressed
             if (chunk_dims[0]>0) {
+                hdfdatasetproplist=DSetCreatPropList();
                 // Modify dataset creation property to enable chunking
-                hdfdatasetproplist1.setChunk(rank, chunk_dims);
+                hdfdatasetproplist.setChunk(rank, chunk_dims);
                 // Set ZLIB (DEFLATE) Compression using level 6.
-                hdfdatasetproplist1.setDeflate(6);
-                dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace,hdfdatasetproplist1);
+                hdfdatasetproplist.setDeflate(6);
+                dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace,hdfdatasetproplist);
             }
             else {
                 dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
@@ -1015,7 +1023,7 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
             // Set the minmum chunk size
             chunk_dims[0]=min((unsigned long)HDFOUTPUTCHUNKSIZE,totndesc);
             //Create dataset proplist
-            DSetCreatPropList hdfdatasetproplist2;
+            DSetCreatPropList hdfdatasetproplist;
 
             // Descendant IDs
             dataspace = DataSpace(rank,dims);
@@ -1023,11 +1031,12 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
 
             // Check if there are halos to output so it can be compressed
             if (chunk_dims[0]>0) {
+                hdfdatasetproplist=DSetCreatPropList();
                 // Modify dataset creation property to enable chunking
-                hdfdatasetproplist2.setChunk(rank, chunk_dims);
+                hdfdatasetproplist.setChunk(rank, chunk_dims);
                 // Set ZLIB (DEFLATE) Compression using level 6.
-                hdfdatasetproplist2.setDeflate(6);
-                dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace,hdfdatasetproplist2);
+                hdfdatasetproplist.setDeflate(6);
+                dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace,hdfdatasetproplist);
             }
             else {
                 dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
@@ -1050,11 +1059,12 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
 
             // Check if there are halos to output so it can be compressed
             if (chunk_dims[0]>0) {
+                hdfdatasetproplist=DSetCreatPropList();
                 // Modify dataset creation property to enable chunking
-                hdfdatasetproplist2.setChunk(rank, chunk_dims);
+                hdfdatasetproplist.setChunk(rank, chunk_dims);
                 // Set ZLIB (DEFLATE) Compression using level 6.
-                hdfdatasetproplist2.setDeflate(6);
-                dataset = Fhdf.createDataSet(datasetname,PredType::STD_I32LE,dataspace,hdfdatasetproplist2);
+                hdfdatasetproplist.setDeflate(6);
+                dataset = Fhdf.createDataSet(datasetname,PredType::STD_I32LE,dataspace,hdfdatasetproplist);
             }
             else {
                 dataset = Fhdf.createDataSet(datasetname,PredType::STD_I32LE,dataspace);
@@ -1077,11 +1087,12 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
 
                 // Check if there are halos to output so it can be compressed
                 if (chunk_dims[0]>0) {
+                    hdfdatasetproplist=DSetCreatPropList();
                     // Modify dataset creation property to enable chunking
-                    hdfdatasetproplist2.setChunk(rank, chunk_dims);
+                    hdfdatasetproplist.setChunk(rank, chunk_dims);
                     // Set ZLIB (DEFLATE) Compression using level 6.
-                    hdfdatasetproplist2.setDeflate(6);
-                    dataset = Fhdf.createDataSet(datasetname,PredType::NATIVE_FLOAT,dataspace,hdfdatasetproplist2);
+                    hdfdatasetproplist.setDeflate(6);
+                    dataset = Fhdf.createDataSet(datasetname,PredType::NATIVE_FLOAT,dataspace,hdfdatasetproplist);
                 }
                 else {
                     dataset = Fhdf.createDataSet(datasetname,PredType::NATIVE_FLOAT,dataspace);
@@ -1105,11 +1116,12 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
 
                 // Check if there are halos to output so it can be compressed
                 if (chunk_dims[0]>0) {
+                    hdfdatasetproplist=DSetCreatPropList();
                     // Modify dataset creation property to enable chunking
-                    hdfdatasetproplist2.setChunk(rank, chunk_dims);
+                    hdfdatasetproplist.setChunk(rank, chunk_dims);
                     // Set ZLIB (DEFLATE) Compression using level 6.
-                    hdfdatasetproplist2.setDeflate(6);
-                    dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace,hdfdatasetproplist2);
+                    hdfdatasetproplist.setDeflate(6);
+                    dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace,hdfdatasetproplist);
                 }
                 else {
                     dataset = Fhdf.createDataSet(datasetname,PredType::STD_U64LE,dataspace);
@@ -1182,8 +1194,6 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
             rank=1;
             // Set the minmum chunk size
             chunk_dims[0]=min((unsigned long)HDFOUTPUTCHUNKSIZE,(unsigned long)h[opt.numsnapshots-1].numhalos);
-            //Create dataset proplist
-            DSetCreatPropList hdfdatasetproplist;
 
             //ID
             dataspace = DataSpace(rank,dims);
@@ -1191,6 +1201,7 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
 
             // Check if there are halos to output so it can be compressed
             if (chunk_dims[0]>0) {
+                hdfdatasetproplist=DSetCreatPropList();
                 // Modify dataset creation property to enable chunking
                 hdfdatasetproplist.setChunk(rank, chunk_dims);
                 // Set ZLIB (DEFLATE) Compression using level 6.
@@ -1214,6 +1225,7 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
 
             // Check if there are halos to output so it can be compressed
             if (chunk_dims[0]>0) {
+                hdfdatasetproplist=DSetCreatPropList();
                 // Modify dataset creation property to enable chunking
                 hdfdatasetproplist.setChunk(rank, chunk_dims);
                 // Set ZLIB (DEFLATE) Compression using level 6.
@@ -1238,6 +1250,7 @@ void WriteHaloMergerTree(Options &opt, DescendantData **p, HaloTreeData *h) {
 
                 // Check if there are halos to output so it can be compressed
                 if (chunk_dims[0]>0) {
+                    hdfdatasetproplist=DSetCreatPropList();
                     // Modify dataset creation property to enable chunking
                     hdfdatasetproplist.setChunk(rank, chunk_dims);
                     // Set ZLIB (DEFLATE) Compression using level 6.
