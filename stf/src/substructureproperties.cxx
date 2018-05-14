@@ -1837,7 +1837,11 @@ void GetInclusiveMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t
     KDTree *tree;
     Double_t *period=NULL;
     Int_t i,j,k;
-    if (opt.iverbose) cout<<"Get inclusive masses"<<endl;
+    if (opt.iverbose) {
+        cout<<"Get inclusive masses"<<endl;
+        if (opt.iInclusiveHalo==1) cout<<" with masses based on the FOF envelopes (quicker)"<<endl;
+        else if (opt.iInclusiveHalo==2) cout<<" with masses based on full SO search (slower)"<<endl;
+    }
     Double_t ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside;
     Double_t vc,rc,x,y,z,vx,vy,vz;
     Coordinate cmold(0.),cmref;
@@ -1847,7 +1851,7 @@ void GetInclusiveMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t
     Double_t m200val=log(opt.rhobg/opt.Omega_m*200.0);
     Double_t m200mval=log(opt.rhobg*200.0);
     Double_t m500val=log(opt.rhobg/opt.Omega_m*500.0);
-    Double_t time1=MyGetTime();
+    Double_t time1=MyGetTime(),time2;
 
     for (i=1;i<=ngroup;i++) pdata[i].gNFOF=numingroup[i];
 
@@ -1859,7 +1863,7 @@ void GetInclusiveMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t
 private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z,vc,rc,vx,vy,vz,numinvir,num200c,num200m)\
 firstprivate(virval,m200val,m200mval)
 {
-    #pragma omp for schedule(dynamic,1) nowait
+    #pragma omp for schedule(dynamic) nowait
 #endif
     for (i=1;i<=ngroup;i++) if (numingroup[i]<omppropnum)
     {
@@ -1891,7 +1895,6 @@ firstprivate(virval,m200val,m200mval)
 #ifdef USEOPENMP
 }
 #endif
-
     //now large groups
     for (i=1;i<=ngroup;i++) if (numingroup[i]>=omppropnum)
     {
@@ -1933,7 +1936,6 @@ private(j,Pval)
 #endif
         pdata[i].gMFOF=pdata[i].gmass;
     }
-
     //once center of masses have been found if want simple inclusive masses based on the FOF envelop
     if (opt.iInclusiveHalo==1) {
 #ifdef USEOPENMP
@@ -1941,9 +1943,9 @@ private(j,Pval)
 private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z,vc,rc,vx,vy,vz,numinvir,num200c,num200m)\
 firstprivate(virval,m200val,m200mval)
 {
-    #pragma omp for schedule(dynamic,1) nowait
+    #pragma omp for schedule(dynamic) nowait
 #endif
-    for (i=1;i<=ngroup;i++) if (numingroup[i]<omppropnum)
+    for (i=1;i<=ngroup;i++)
     {
 
         //here masses are technically exclusive but this routine is generally called before objects are separated into halo/substructures
@@ -1976,42 +1978,12 @@ firstprivate(virval,m200val,m200mval)
 }
 #endif
 
-    //now large groups
-    for (i=1;i<=ngroup;i++) if (numingroup[i]>=omppropnum)
-    {
-        //here masses are technically exclusive but this routine is generally called before objects are separated into halo/substructures
-        EncMass=pdata[i].gmass;
-        for (j=numingroup[i]-1;j>=0;j--) {
-            Pval=&Part[j+noffset[i]];
-            rc=Pval->Radius();
-            if (pdata[i].gRvir==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>virval)
-            {pdata[i].gMvir=EncMass;pdata[i].gRvir=rc;}
-            if (pdata[i].gR200c==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m200val)
-            {pdata[i].gM200c=EncMass;pdata[i].gR200c=rc;}
-            if (pdata[i].gR200m==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m200mval)
-            {pdata[i].gM200m=EncMass;pdata[i].gR200m=rc;}
-            if (pdata[i].gR500c==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m500val)
-            {pdata[i].gM500c=EncMass;pdata[i].gR500c=rc;}
-            if (pdata[i].gR200m!=0&&pdata[i].gR200c!=0&&pdata[i].gRvir!=0&&pdata[i].gR500c) break;
-#ifdef NOMASS
-            EncMass-=opt.MassValue;
-#else
-            EncMass-=Pval->GetMass();
-#endif
-        }
-        //if overdensity never drops below thresholds then masses are equal to FOF mass or total mass.
-        if (pdata[i].gRvir==0) {pdata[i].gMvir=pdata[i].gmass;pdata[i].gRvir=pdata[i].gsize;}
-        if (pdata[i].gR200c==0) {pdata[i].gM200c=pdata[i].gmass;pdata[i].gR200c=pdata[i].gsize;}
-        if (pdata[i].gR200m==0) {pdata[i].gM200m=pdata[i].gmass;pdata[i].gR200m=pdata[i].gsize;}
-        if (pdata[i].gR500c==0) {pdata[i].gM500c=pdata[i].gmass;pdata[i].gR500c=pdata[i].gsize;}
-    }
-
     //reset the positions of the particles
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
 private(i,j,k,x,y,z)
 {
-    #pragma omp for schedule(dynamic,1) nowait
+    #pragma omp for schedule(dynamic) nowait
 #endif
         for (i=1;i<=ngroup;i++)
         {
@@ -2059,7 +2031,7 @@ private(i,j,k,x,y,z)
 #pragma omp parallel default(shared)  \
 private(i,j,k,x,y,z)
 {
-    #pragma omp for schedule(dynamic,1) nowait
+    #pragma omp for schedule(dynamic) nowait
 #endif
         for (i=1;i<=ngroup;i++)
         {
@@ -2076,6 +2048,8 @@ private(i,j,k,x,y,z)
 }
 #endif
         //build tree optimised to search for more than min group size
+        //this is the bottle neck for the SO calculation. Wonder if there is an easy
+        //way of speeding it up
         tree=new KDTree(Part,nbodies,opt.HaloMinSize,tree->TPHYS,tree->KEPAN,100,0,0,0,period);
         //store the radii that will be used to search for each group
         for (i=1;i<=ngroup;i++) maxrdist[i]=pdata[i].gsize*opt.SphericalOverdensitySeachFac;
@@ -2098,12 +2072,13 @@ private(i,j,k,x,y,z)
         if (nimport>0) treeimport=new KDTree(PartDataGet,nimport,opt.HaloMinSize,tree->TPHYS,tree->KEPAN,100,0,0,0,period);
         }
 #endif
+        time2=MyGetTime();
         //now loop over groups and search for particles. This is probably fast if we build a tree
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
 private(i,j,k,taggedparts,radii,masses,indices,n,dx,EncMass,rc)
 {
-    #pragma omp for schedule(dynamic,1) nowait
+    #pragma omp for schedule(dynamic) nowait
 #endif
         for (i=1;i<=ngroup;i++)
         {
