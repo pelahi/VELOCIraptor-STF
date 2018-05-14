@@ -504,6 +504,7 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
         // Modify dataset creation property to enable chunking
         chunk_dims[0]=min((unsigned long)HDFOUTPUTCHUNKSIZE,ng);
         if (chunk_dims[0]>0) {
+            hdfdatasetproplist=DSetCreatPropList();
             hdfdatasetproplist.setChunk(rank, chunk_dims);
             // Set ZLIB (DEFLATE) Compression using level 6.
             hdfdatasetproplist.setDeflate(6);
@@ -546,6 +547,7 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
         rank=1;
         chunk_dims[0]=min((unsigned long)HDFOUTPUTCHUNKSIZE,ng);
         if (chunk_dims[0]>0) {
+            hdfdatasetproplist=DSetCreatPropList();
             // Modify dataset creation property to enable chunking
             hdfdatasetproplist.setChunk(rank, chunk_dims);
             // Set ZLIB (DEFLATE) Compression using level 6.
@@ -728,6 +730,7 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
             rank=1;
             chunk_dims[0]=min((unsigned long)HDFOUTPUTCHUNKSIZE,nids);
             if (chunk_dims[0]>0) {
+                hdfdatasetproplist=DSetCreatPropList();
                 // Modify dataset creation property to enable chunking
                 hdfdatasetproplist.setChunk(rank, chunk_dims);
                 // Set ZLIB (DEFLATE) Compression using level 6.
@@ -794,6 +797,7 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
             rank=1;
             chunk_dims[0]=min((unsigned long)HDFOUTPUTCHUNKSIZE,nuids);
             if (chunk_dims[0]>0) {
+                hdfdatasetproplist=DSetCreatPropList();
                 // Modify dataset creation property to enable chunking
                 hdfdatasetproplist.setChunk(rank, chunk_dims);
                 // Set ZLIB (DEFLATE) Compression using level 6.
@@ -996,6 +1000,7 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
             rank=1;
             chunk_dims[0]=min((Int_t)HDFOUTPUTCHUNKSIZE,nids);
             if (chunk_dims[0]>0) {
+                hdfdatasetproplist=DSetCreatPropList();
                 // Modify dataset creation property to enable chunking
                 hdfdatasetproplist.setChunk(rank, chunk_dims);
                 // Set ZLIB (DEFLATE) Compression using level 6.
@@ -1037,6 +1042,7 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
             rank=1;
             chunk_dims[0]=min((Int_t)HDFOUTPUTCHUNKSIZE,nuids);
             if (chunk_dims[0]>0) {
+                hdfdatasetproplist=DSetCreatPropList();
                 // Modify dataset creation property to enable chunking
                 hdfdatasetproplist.setChunk(rank, chunk_dims);
                 // Set ZLIB (DEFLATE) Compression using level 6.
