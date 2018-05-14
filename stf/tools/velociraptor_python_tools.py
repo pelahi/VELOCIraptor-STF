@@ -378,8 +378,9 @@ def ReadHaloMergerTree(treefilename,ibinary=0,iverbose=0,imerit=False,inpart=Fal
 
 				#Read in the progenitors, splitting them as reading them in
 				tree[snap]["Progen"] = np.split(treedata["Progenitors"][:],split[:-1])
-				if(inpart): tree[snap]["Npart_progen"] = np.asarray(treedata["ProgenNpart"])
-				if(imerit): tree[snap]["Merit"] =  np.asarray(treedata["Merits"])
+
+				if(inpart): tree[snap]["Npart_progen"] = np.split(treedata["ProgenNpart"],split[:-1])
+				if(imerit): tree[snap]["Merit"] =  np.split(treedata["Merits"],split[:-1])
 
 		snaptreelist.close()
 	if (iverbose): print("done reading tree file ",time.clock()-start)
@@ -510,8 +511,9 @@ def ReadHaloMergerTreeDescendant(treefilename,ireverseorder=True,ibinary=0,iverb
 				# Read in the data splitting it up as reading it in
 				tree[snap]["Rank"] = np.split(treedata["Ranks"][:],split[:-1])
 				tree[snap]["Descen"] = np.split(treedata["Descendants"][:],split[:-1])
-				if(inpart): tree[snap]["Npart_descen"] = np.asarray(treedata["DescNpart"])
-				if(imerit): tree[snap]["Merit"] =  np.asarray(treedata["Merits"])
+
+				if(inpart): tree[snap]["Npart_progen"] = np.split(treedata["ProgenNpart"][:],split[:-1])
+				if(imerit): tree[snap]["Merit"] =  np.split(treedata["Merits"][:],split[:-1])
 
 		snaptreelist.close()
 
@@ -1106,11 +1108,7 @@ def TraceMainDescendant(istart,ihalo,numsnaps,numhalos,halodata,tree,TEMPORALHAL
 		#tail set, then must be the the first progenitor
 		#otherwise it should have already been set and just need to store the root tail
 		if (halodata[halosnap]['Tail'][ihalo]==0):
-			try:
-				halodata[halosnap]['Tail'][ihalo]=haloid
-			except OverflowError:
-				print(haloid,haloid/TEMPORALHALOIDVAL,halosnap,ihalo)
-				raise SystemExit()
+			halodata[halosnap]['Tail'][ihalo]=haloid
 			halodata[halosnap]['TailSnap'][ihalo]=halosnap
 			halodata[halosnap]['RootTail'][ihalo]=haloid
 			halodata[halosnap]['RootTailSnap'][ihalo]=halosnap
@@ -1123,6 +1121,7 @@ def TraceMainDescendant(istart,ihalo,numsnaps,numhalos,halodata,tree,TEMPORALHAL
 		while (True):
 			#ids contain index information
 			haloindex=int(haloid%TEMPORALHALOIDVAL)-1
+
 			halodata[halosnap]['Num_descen'][haloindex]=tree[halosnap]['Num_descen'][haloindex]
 			#if no more descendants, break from search
 			if (halodata[halosnap]['Num_descen'][haloindex]==0):
@@ -1976,7 +1975,7 @@ def ProduceUnifiedTreeandHaloCatalog(fname,numsnaps,tree,numhalos,halodata,atime
 
 		for i in range(numsnaps):
 			snapgrp=hdffile.create_group("Snap_%03d"%(numsnaps-1-i))
-			snapgrp.attrs["Snapnum"]=i
+			snapgrp.attrs["Snapnum"]=(numsnaps-1-i)
 			snapgrp.attrs["NHalos"]=numhalos[i]
 			snapgrp.attrs["scalefactor"]=atime[i]
 			for key in halodata[i].keys():
@@ -1985,7 +1984,7 @@ def ProduceUnifiedTreeandHaloCatalog(fname,numsnaps,tree,numhalos,halodata,atime
 	else:
 		for i in range(numsnaps):
 			hdffile=h5py.File(fname+".snap_%03d.hdf.data"%(numsnaps-1-i),'w')
-			hdffile.create_dataset("Snap_value",data=np.array([i],dtype=np.uint32))
+			hdffile.create_dataset("Snap_value",data=np.array([numsnaps-1-i],dtype=np.uint32))
 			hdffile.create_dataset("NSnaps",data=np.array([numsnaps],dtype=np.uint32))
 			hdffile.create_dataset("NHalos",data=np.array([numhalos[i]],dtype=np.uint64))
 			hdffile.create_dataset("TotalNHalos",data=np.array([totnumhalos],dtype=np.uint64))
