@@ -297,7 +297,7 @@ void usage(void)
     cerr<<"-C <produce cross catalog match (0 halo tree ,1 cross catalog ,2 full graph) default ("<<opt.icatalog<<")\n";
     cerr<<"-o <output filename>\n";
     cerr<<"-c <produce cross catalog match (0 halo tree ,1 cross catalog ,2 full graph) default ("<<opt.icatalog<<")\n";
-    cerr<<"-o <output filename if format is ASCII or folder if format is HDF5>\n";
+    cerr<<"-o <output (base) filename (if HDF output separated into individual snapshots) >\n";
     cerr<<"-O <output format, ASCII, HDF5 ("<<OUTASCII<<","<<" "<<OUTHDF<<"), with default "<<opt.outputformat<<">\n";
     cerr<<"-d <output data, "<<DATAOUTMATCHESONLY<<" for minimal, "<<DATAOUTMERIT<<" for outputing merits as well, with default "<<opt.outdataformat<<">\n";
     cerr<<" ========================= "<<endl<<endl;
