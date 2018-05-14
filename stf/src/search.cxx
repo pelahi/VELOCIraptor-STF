@@ -2525,7 +2525,7 @@ private(i)
                     betaave[i]=(aveell[i]/ellaveexp-1.0)*sqrt((Double_t)numingroup[i]);
                 } while(betaave[i]<opt.siglevel);
             }
-            else if ((numingroup[i])<opt.MinSize) {
+            if ((numingroup[i])<opt.MinSize) {
                 for (Int_t j=0;j<numingroup[i];j++) pfof[Partsubset[pglist[i][j]].GetID()]=0;
                 numingroup[i]=-1;
             }
