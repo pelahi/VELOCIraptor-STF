@@ -381,7 +381,7 @@ def ReadHaloMergerTree(treefilename,ibinary=0,iverbose=0,imerit=False,inpart=Fal
 
 				if(inpart): tree[snap]["Npart_progen"] = np.split(treedata["ProgenNpart"],split[:-1])
 				if(imerit): tree[snap]["Merit"] =  np.split(treedata["Merits"],split[:-1])
- 
+
 		snaptreelist.close()
 	if (iverbose): print("done reading tree file ",time.clock()-start)
 	return tree
@@ -511,10 +511,9 @@ def ReadHaloMergerTreeDescendant(treefilename,ireverseorder=True,ibinary=0,iverb
 				# Read in the data splitting it up as reading it in
 				tree[snap]["Rank"] = np.split(treedata["Ranks"][:],split[:-1])
 				tree[snap]["Descen"] = np.split(treedata["Descendants"][:],split[:-1])
-				tree[snap]["Rank"] = np.split(treedata["Ranks"][:],split[:-1])
 
-				if(inpart): tree[snap]["Npart_progen"] = np.split(treedata["ProgenNpart"],split[:-1])
-				if(imerit): tree[snap]["Merit"] =  np.split(treedata["Merits"],split[:-1])
+				if(inpart): tree[snap]["Npart_progen"] = np.split(treedata["ProgenNpart"][:],split[:-1])
+				if(imerit): tree[snap]["Merit"] =  np.split(treedata["Merits"][:],split[:-1])
 
 		snaptreelist.close()
 
