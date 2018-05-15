@@ -1851,7 +1851,15 @@ void GetInclusiveMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t
     Double_t m200val=log(opt.rhobg/opt.Omega_m*200.0);
     Double_t m200mval=log(opt.rhobg*200.0);
     Double_t m500val=log(opt.rhobg/opt.Omega_m*500.0);
+    Double_t fac,rhoval,rhoval2;
     Double_t time1=MyGetTime(),time2;
+    int nthreads=1,tid;
+#ifdef USEOPENMP
+#pragma omp parallel
+    {
+            if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
+    }
+#endif
 
     for (i=1;i<=ngroup;i++) pdata[i].gNFOF=numingroup[i];
 
@@ -1876,7 +1884,7 @@ firstprivate(virval,m200val,m200mval)
                 pdata[i].gcm[k]+=(*Pval).GetPosition(k)*(*Pval).GetMass();
             }
         }
-        for (k=0;k<3;k++){pdata[i].gcm[k]*=(1.0/pdata[i].gmass);pdata[i].gcmvel[k]*=(1.0/pdata[i].gmass);}
+        for (k=0;k<3;k++)pdata[i].gcm[k]*=(1.0/pdata[i].gmass);
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
             x = (*Pval).X() - pdata[i].gcm[0];
@@ -1898,7 +1906,7 @@ firstprivate(virval,m200val,m200mval)
     //now large groups
     for (i=1;i<=ngroup;i++) if (numingroup[i]>=omppropnum)
     {
-        for (k=0;k<3;k++) pdata[i].gcm[k]=pdata[i].gcmvel[k]=0;
+        for (k=0;k<3;k++) pdata[i].gcm[k]=0;
         pdata[i].gmass=pdata[i].gmaxvel=0.0;
         EncMass=cmx=cmy=cmz=0.;
 #ifdef USEOPENMP
@@ -1920,7 +1928,7 @@ private(j,Pval)
         pdata[i].gcm[0]=cmx;pdata[i].gcm[1]=cmy;pdata[i].gcm[2]=cmz;
         pdata[i].gmass=EncMass;
         pdata[i].gMFOF=EncMass;
-        for (k=0;k<3;k++){pdata[i].gcm[k]*=(1.0/pdata[i].gmass);pdata[i].gcmvel[k]*=(1.0/pdata[i].gmass);}
+        for (k=0;k<3;k++)pdata[i].gcm[k]*=(1.0/pdata[i].gmass);
         pdata[i].gsize=0;
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
@@ -1938,9 +1946,10 @@ private(j,Pval)
     }
     //once center of masses have been found if want simple inclusive masses based on the FOF envelop
     if (opt.iInclusiveHalo==1) {
+        fac=-log(4.0*M_PI/3.0);
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
-private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z,vc,rc,vx,vy,vz,numinvir,num200c,num200m)\
+private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z,vc,rc,vx,vy,vz,numinvir,num200c,num200m,rhoval)\
 firstprivate(virval,m200val,m200mval)
 {
     #pragma omp for schedule(dynamic) nowait
@@ -1953,13 +1962,14 @@ firstprivate(virval,m200val,m200mval)
         for (j=numingroup[i]-1;j>=0;j--) {
             Pval=&Part[j+noffset[i]];
             rc=Pval->Radius();
-            if (pdata[i].gRvir==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>virval)
+            rhoval=log(EncMass)-3.0*log(rc)+fac;
+            if (pdata[i].gRvir==0 && EncMass>=0.01*pdata[i].gmass) if (rhoval>virval)
             {pdata[i].gMvir=EncMass;pdata[i].gRvir=rc;}
-            if (pdata[i].gR200c==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m200val)
+            if (pdata[i].gR200c==0 && EncMass>=0.01*pdata[i].gmass) if (rhoval>m200val)
             {pdata[i].gM200c=EncMass;pdata[i].gR200c=rc;}
-            if (pdata[i].gR200m==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m200mval)
+            if (pdata[i].gR200m==0 && EncMass>=0.01*pdata[i].gmass) if (rhoval>m200mval)
             {pdata[i].gM200m=EncMass;pdata[i].gR200m=rc;}
-            if (pdata[i].gR500c==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m500val)
+            if (pdata[i].gR500c==0 && EncMass>=0.01*pdata[i].gmass) if (rhoval>m500val)
             {pdata[i].gM500c=EncMass;pdata[i].gR500c=rc;}
             if (pdata[i].gR200m!=0&&pdata[i].gR200c!=0&&pdata[i].gRvir!=0&&pdata[i].gR500c) break;
 #ifdef NOMASS
@@ -2018,12 +2028,17 @@ private(i,j,k,x,y,z)
         size_t n;
         Double_t dx;
         vector<Double_t> maxrdist(ngroup+1);
+        //to store particle ids of those in SO volume.
+        vector<Int_t> SOpids;
+        vector<Int_t> *SOpartlist=new vector<Int_t>[ngroup+1];
 
         //set period
         if (opt.p>0) {
             period=new Double_t[3];
             for (int j=0;j<3;j++) period[j]=opt.p;
+#ifdef USEMPI
             mpi_period=opt.p;
+#endif
         }
 
         //reset the positions of the particles in local domain
@@ -2052,7 +2067,15 @@ private(i,j,k,x,y,z)
         //way of speeding it up
         tree=new KDTree(Part,nbodies,opt.HaloMinSize,tree->TPHYS,tree->KEPAN,100,0,0,0,period);
         //store the radii that will be used to search for each group
-        for (i=1;i<=ngroup;i++) maxrdist[i]=pdata[i].gsize*opt.SphericalOverdensitySeachFac;
+        //this is based on maximum radius and the enclosed density within the FOF so that if
+        //this density is larger than desired overdensity then we must increase the radius
+        fac=-log(4.0*M_PI/3.0)-m200mval;
+        Double_t radfac;
+
+        for (i=1;i<=ngroup;i++) {
+            radfac=max(1.0,exp(1.0/3.0*(log(pdata[i].gMFOF)-3.0*log(pdata[i].gsize)+fac)));
+            maxrdist[i]=pdata[i].gsize*opt.SphericalOverdensitySeachFac*radfac;
+        }
 #ifdef USEMPI
         //if using mpi then determine if halo's search radius overlaps another mpi domain
         vector<bool> halooverlap;
@@ -2074,9 +2097,10 @@ private(i,j,k,x,y,z)
 #endif
         time2=MyGetTime();
         //now loop over groups and search for particles. This is probably fast if we build a tree
+        fac=-log(4.0*M_PI/3.0);
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
-private(i,j,k,taggedparts,radii,masses,indices,n,dx,EncMass,rc)
+private(i,j,k,taggedparts,radii,masses,indices,n,dx,EncMass,rc,rhoval,rhoval2,tid,SOpids)
 {
     #pragma omp for schedule(dynamic) nowait
 #endif
@@ -2085,8 +2109,10 @@ private(i,j,k,taggedparts,radii,masses,indices,n,dx,EncMass,rc)
             taggedparts=tree->SearchBallPosTagged(pdata[i].gcm,pow(maxrdist[i],2.0));
             radii.resize(taggedparts.size());
             masses.resize(taggedparts.size());
+            if (opt.iSphericalOverdensityPartList) SOpids.resize(taggedparts.size());
             for (j=0;j<taggedparts.size();j++) {
                 masses[j]=Part[taggedparts[j]].GetMass();
+                if (opt.iSphericalOverdensityPartList) SOpids[j]=Part[taggedparts[j]].GetPID();
                 radii[j]=0;
                 for (k=0;k<3;k++) {
                     dx=Part[taggedparts[j]].GetPosition(k)-pdata[i].gcm[k];
@@ -2108,8 +2134,10 @@ private(i,j,k,taggedparts,radii,masses,indices,n,dx,EncMass,rc)
                     Int_t offset=radii.size();
                     radii.resize(radii.size()+taggedparts.size());
                     masses.resize(masses.size()+taggedparts.size());
+                    if (opt.iSphericalOverdensityPartList) SOpids.resize(SOpids.size()+taggedparts.size());
                     for (j=0;j<taggedparts.size();j++) {
                         masses[offset+j]=Part[taggedparts[j]].GetMass();
+                        if (opt.iSphericalOverdensityPartList) SOpids[j+offset]=Part[taggedparts[j]].GetPID();
                         radii[offset+j]=0;
                         for (k=0;k<3;k++) {
                             dx=Part[taggedparts[j]].GetPosition(k)-pdata[i].gcm[k];
@@ -2135,30 +2163,64 @@ private(i,j,k,taggedparts,radii,masses,indices,n,dx,EncMass,rc)
             //now loop over radii
             //then get overdensity working outwards from some small fraction of the mass or at least 4 particles + small fraction of min halo size
             int minnum=max((int)(0.05*radii.size()),(int)(opt.HaloMinSize*0.05+4));
+            int iindex=radii.size();
             EncMass=0;for (j=0;j<minnum;j++) EncMass+=masses[indices[j]];
-
+            rc=radii[indices[minnum-1]];
+            rhoval2=log(EncMass)-3.0*log(rc)+fac;
             for (j=minnum;j<radii.size();j++) {
                 rc=radii[indices[j]];
-                if (pdata[i].gRvir==0) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)<=virval)
-                {pdata[i].gMvir=EncMass;pdata[i].gRvir=rc;}
-                if (pdata[i].gR200c==0) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)<=m200val)
-                {pdata[i].gM200c=EncMass;pdata[i].gR200c=rc;}
-                if (pdata[i].gR200m==0) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)<=m200mval)
-                {pdata[i].gM200m=EncMass;pdata[i].gR200m=rc;}
-                if (pdata[i].gR500c==0) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)<=m500val)
-                {pdata[i].gM500c=EncMass;pdata[i].gR500c=rc;}
-                if (pdata[i].gR200m!=0&&pdata[i].gR200c!=0&&pdata[i].gRvir!=0&&pdata[i].gR500c) break;
 #ifdef NOMASS
                 EncMass+=opt.MassValue;
 #else
                 EncMass+=masses[indices[j]];
 #endif
+                rhoval=log(EncMass)-3.0*log(rc)+fac;
+                if (pdata[i].gRvir==0) if (rhoval<=virval) {
+                    if (rhoval2>virval) {
+                        //linearly interpolate, unless previous density also below threshold (which would happen at the start, then just set value)
+                        pdata[i].gRvir=exp(log(rc/radii[indices[j-1]])/(rhoval-rhoval2)*(virval-rhoval2)+log(radii[indices[j-1]]));
+                        pdata[i].gMvir=exp(log(EncMass/(EncMass-masses[indices[j-1]]))/(rhoval-rhoval2)*(virval-rhoval2)+log(EncMass-masses[indices[j-1]]));
+                    }
+                    else {pdata[i].gMvir=EncMass;pdata[i].gRvir=rc;}
+                }
+                if (pdata[i].gR200c==0) if (rhoval<=m200val)
+                {
+                    if (rhoval2>m200val) {
+                        pdata[i].gR200c=exp(log(rc/radii[indices[j-1]])/(rhoval-rhoval2)*(m200val-rhoval2)+log(radii[indices[j-1]]));
+                        pdata[i].gM200c=exp(log(EncMass/(EncMass-masses[indices[j-1]]))/(rhoval-rhoval2)*(m200val-rhoval2)+log(EncMass-masses[indices[j-1]]));
+                    }
+                    else {pdata[i].gM200c=EncMass;pdata[i].gR200c=rc;}
+                }
+                if (pdata[i].gR200m==0) if (rhoval<=m200mval) {
+                    if (rhoval2>m200mval) {
+                        pdata[i].gR200m=exp(log(rc/radii[indices[j-1]])/(rhoval-rhoval2)*(m200mval-rhoval2)+log(radii[indices[j-1]]));
+                        pdata[i].gM200m=exp(log(EncMass/(EncMass-masses[indices[j-1]]))/(rhoval-rhoval2)*(m200mval-rhoval2)+log(EncMass-masses[indices[j-1]]));
+                    }
+                    else {pdata[i].gM200m=EncMass;pdata[i].gR200m=rc;}
+                    //use lowest density threshold and get index
+                    iindex=j-1;
+                }
+                if (pdata[i].gR500c==0) if (rhoval<=m500val){
+                    if (rhoval2>m500val) {
+                        pdata[i].gR500c=exp(log(rc/radii[indices[j-1]])/(rhoval-rhoval2)*(m500val-rhoval2)+log(radii[indices[j-1]]));
+                        pdata[i].gM500c=exp(log(EncMass/(EncMass-masses[indices[j-1]]))/(rhoval-rhoval2)*(m500val-rhoval2)+log(EncMass-masses[indices[j-1]]));
+                    }
+                    else {pdata[i].gM500c=EncMass;pdata[i].gR500c=rc;}
+                }
+                rhoval2=rhoval;
+                if (pdata[i].gR200m!=0&&pdata[i].gR200c!=0&&pdata[i].gRvir!=0&&pdata[i].gR500c) break;
             }
             //if overdensity never drops below thresholds then masses are equal to FOF mass or total mass.
             if (pdata[i].gRvir==0) {pdata[i].gMvir=pdata[i].gmass;pdata[i].gRvir=pdata[i].gsize;}
             if (pdata[i].gR200c==0) {pdata[i].gM200c=pdata[i].gmass;pdata[i].gR200c=pdata[i].gsize;}
             if (pdata[i].gR200m==0) {pdata[i].gM200m=pdata[i].gmass;pdata[i].gR200m=pdata[i].gsize;}
             if (pdata[i].gR500c==0) {pdata[i].gM500c=pdata[i].gmass;pdata[i].gR500c=pdata[i].gsize;}
+
+            if (opt.iSphericalOverdensityPartList) {
+                SOpartlist[i].resize(iindex);
+                for (j=0;j<iindex;j++) SOpartlist[i][j]=SOpids[indices[j]];
+                SOpids.clear();
+            }
         }
 #ifdef USEOPENMP
     }
@@ -2167,6 +2229,10 @@ private(i,j,k,taggedparts,radii,masses,indices,n,dx,EncMass,rc)
         //reset its after putting particles back in input order
         for (i=0;i<nbodies;i++) Part[i].SetID(ids[i]);
         ids.clear();
+        //write the particle lists
+        if (opt.iSphericalOverdensityPartList) {
+
+        }
 #ifdef USEMPI
         mpi_period=0;
         if (NProcs>1) {
