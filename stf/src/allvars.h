@@ -640,7 +640,7 @@ struct Options
         lengthtokpc30pow2=30.0*30.0;
         lengthtokpc30pow2=50.0*50.0;
 
-        SphericalOverdensitySeachFac=1.75;
+        SphericalOverdensitySeachFac=1.2;
 
         mpipartfac=0.1;
 #if USEHDF
