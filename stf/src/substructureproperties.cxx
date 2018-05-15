@@ -1853,6 +1853,13 @@ void GetInclusiveMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t
     Double_t m500val=log(opt.rhobg/opt.Omega_m*500.0);
     Double_t fac,rhoval,rhoval2;
     Double_t time1=MyGetTime(),time2;
+    int nthreads=1,tid;
+#ifdef USEOPENMP
+#pragma omp parallel
+    {
+            if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
+    }
+#endif
 
     for (i=1;i<=ngroup;i++) pdata[i].gNFOF=numingroup[i];
 
@@ -2021,6 +2028,9 @@ private(i,j,k,x,y,z)
         size_t n;
         Double_t dx;
         vector<Double_t> maxrdist(ngroup+1);
+        //to store particle ids of those in SO volume.
+        vector<Int_t> SOpids;
+        vector<Int_t> *SOpartlist=new vector<Int_t>[ngroup+1];
 
         //set period
         if (opt.p>0) {
@@ -2057,10 +2067,13 @@ private(i,j,k,x,y,z)
         //way of speeding it up
         tree=new KDTree(Part,nbodies,opt.HaloMinSize,tree->TPHYS,tree->KEPAN,100,0,0,0,period);
         //store the radii that will be used to search for each group
-        fac=-log(4.0*M_PI/3.0)-log(opt.rhobg*200);
+        //this is based on maximum radius and the enclosed density within the FOF so that if
+        //this density is larger than desired overdensity then we must increase the radius
+        fac=-log(4.0*M_PI/3.0)-m200mval;
         Double_t radfac;
+
         for (i=1;i<=ngroup;i++) {
-            radfac=max(1.0,exp(-1.0/3.0*(log(pdata[i].gMFOF)-3.0*log(pdata[i].gsize)+fac)));
+            radfac=max(1.0,exp(1.0/3.0*(log(pdata[i].gMFOF)-3.0*log(pdata[i].gsize)+fac)));
             maxrdist[i]=pdata[i].gsize*opt.SphericalOverdensitySeachFac*radfac;
         }
 #ifdef USEMPI
@@ -2087,7 +2100,7 @@ private(i,j,k,x,y,z)
         fac=-log(4.0*M_PI/3.0);
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
-private(i,j,k,taggedparts,radii,masses,indices,n,dx,EncMass,rc,rhoval,rhoval2)
+private(i,j,k,taggedparts,radii,masses,indices,n,dx,EncMass,rc,rhoval,rhoval2,tid,SOpids)
 {
     #pragma omp for schedule(dynamic) nowait
 #endif
@@ -2096,8 +2109,10 @@ private(i,j,k,taggedparts,radii,masses,indices,n,dx,EncMass,rc,rhoval,rhoval2)
             taggedparts=tree->SearchBallPosTagged(pdata[i].gcm,pow(maxrdist[i],2.0));
             radii.resize(taggedparts.size());
             masses.resize(taggedparts.size());
+            if (opt.iSphericalOverdensityPartList) SOpids.resize(taggedparts.size());
             for (j=0;j<taggedparts.size();j++) {
                 masses[j]=Part[taggedparts[j]].GetMass();
+                if (opt.iSphericalOverdensityPartList) SOpids[j]=Part[taggedparts[j]].GetPID();
                 radii[j]=0;
                 for (k=0;k<3;k++) {
                     dx=Part[taggedparts[j]].GetPosition(k)-pdata[i].gcm[k];
@@ -2119,8 +2134,10 @@ private(i,j,k,taggedparts,radii,masses,indices,n,dx,EncMass,rc,rhoval,rhoval2)
                     Int_t offset=radii.size();
                     radii.resize(radii.size()+taggedparts.size());
                     masses.resize(masses.size()+taggedparts.size());
+                    if (opt.iSphericalOverdensityPartList) SOpids.resize(SOpids.size()+taggedparts.size());
                     for (j=0;j<taggedparts.size();j++) {
                         masses[offset+j]=Part[taggedparts[j]].GetMass();
+                        if (opt.iSphericalOverdensityPartList) SOpids[j+offset]=Part[taggedparts[j]].GetPID();
                         radii[offset+j]=0;
                         for (k=0;k<3;k++) {
                             dx=Part[taggedparts[j]].GetPosition(k)-pdata[i].gcm[k];
@@ -2146,6 +2163,7 @@ private(i,j,k,taggedparts,radii,masses,indices,n,dx,EncMass,rc,rhoval,rhoval2)
             //now loop over radii
             //then get overdensity working outwards from some small fraction of the mass or at least 4 particles + small fraction of min halo size
             int minnum=max((int)(0.05*radii.size()),(int)(opt.HaloMinSize*0.05+4));
+            int iindex=radii.size();
             EncMass=0;for (j=0;j<minnum;j++) EncMass+=masses[indices[j]];
             rc=radii[indices[minnum-1]];
             rhoval2=log(EncMass)-3.0*log(rc)+fac;
@@ -2167,7 +2185,6 @@ private(i,j,k,taggedparts,radii,masses,indices,n,dx,EncMass,rc,rhoval,rhoval2)
                 }
                 if (pdata[i].gR200c==0) if (rhoval<=m200val)
                 {
-                    //if (rhoval2<=m200val) cout<<i<<" "<<numingroup[i]<<" "<<j<<" "<<minnum<<" "<<endl;
                     if (rhoval2>m200val) {
                         pdata[i].gR200c=exp(log(rc/radii[indices[j-1]])/(rhoval-rhoval2)*(m200val-rhoval2)+log(radii[indices[j-1]]));
                         pdata[i].gM200c=exp(log(EncMass/(EncMass-masses[indices[j-1]]))/(rhoval-rhoval2)*(m200val-rhoval2)+log(EncMass-masses[indices[j-1]]));
@@ -2180,6 +2197,8 @@ private(i,j,k,taggedparts,radii,masses,indices,n,dx,EncMass,rc,rhoval,rhoval2)
                         pdata[i].gM200m=exp(log(EncMass/(EncMass-masses[indices[j-1]]))/(rhoval-rhoval2)*(m200mval-rhoval2)+log(EncMass-masses[indices[j-1]]));
                     }
                     else {pdata[i].gM200m=EncMass;pdata[i].gR200m=rc;}
+                    //use lowest density threshold and get index
+                    iindex=j-1;
                 }
                 if (pdata[i].gR500c==0) if (rhoval<=m500val){
                     if (rhoval2>m500val) {
@@ -2196,6 +2215,12 @@ private(i,j,k,taggedparts,radii,masses,indices,n,dx,EncMass,rc,rhoval,rhoval2)
             if (pdata[i].gR200c==0) {pdata[i].gM200c=pdata[i].gmass;pdata[i].gR200c=pdata[i].gsize;}
             if (pdata[i].gR200m==0) {pdata[i].gM200m=pdata[i].gmass;pdata[i].gR200m=pdata[i].gsize;}
             if (pdata[i].gR500c==0) {pdata[i].gM500c=pdata[i].gmass;pdata[i].gR500c=pdata[i].gsize;}
+
+            if (opt.iSphericalOverdensityPartList) {
+                SOpartlist[i].resize(iindex);
+                for (j=0;j<iindex;j++) SOpartlist[i][j]=SOpids[indices[j]];
+                SOpids.clear();
+            }
         }
 #ifdef USEOPENMP
     }
@@ -2204,6 +2229,10 @@ private(i,j,k,taggedparts,radii,masses,indices,n,dx,EncMass,rc,rhoval,rhoval2)
         //reset its after putting particles back in input order
         for (i=0;i<nbodies;i++) Part[i].SetID(ids[i]);
         ids.clear();
+        //write the particle lists
+        if (opt.iSphericalOverdensityPartList) {
+
+        }
 #ifdef USEMPI
         mpi_period=0;
         if (NProcs>1) {
