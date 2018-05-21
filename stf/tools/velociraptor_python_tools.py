@@ -255,11 +255,11 @@ def ReadPropertyFileMultiWrapper(basefilename,index,halodata,numhalos,atime,ibin
 	Wrapper for multithreaded reading
 	"""
 	#call read routine and store the data
-	halodata[index],numhalos[index],atime[index]=ReadPropertyFile(basefilename,ibinary,iseparatesubfiles,iverbose,desiredfields)
+	halodata[index],numhalos[index]=ReadPropertyFile(basefilename,ibinary,iseparatesubfiles,iverbose,desiredfields)
 
 def ReadPropertyFileMultiWrapperNamespace(index,basefilename,ns,ibinary=0,iseparatesubfiles=0,iverbose=0,desiredfields=[]):
 	#call read routine and store the data
-	ns.hdata[index],ns.ndata[index],ns.adata[index]=ReadPropertyFile(basefilename,ibinary,iseparatesubfiles,iverbose,desiredfields)
+	ns.hdata[index],ns.ndata[index]=ReadPropertyFile(basefilename,ibinary,iseparatesubfiles,iverbose,desiredfields)
 
 def ReadHaloMergerTree(treefilename,ibinary=0,iverbose=0,imerit=False,inpart=False):
 	"""
@@ -1730,8 +1730,8 @@ def SetForestID(numsnaps,halodata,rootheadid,ForestID,AllRootHead,
 
 	return AllRootHead,halodata
 
-def GenerateForest(numsnaps,numhalos,halodata,cosmo,atime,
-	TEMPORALHALOIDVAL=1000000000000, iverbose=1, interactiontime=2, ispatialintflag=False, pos_tree=[]):
+def GenerateForest(numsnaps,numhalos,halodata,atime,
+	TEMPORALHALOIDVAL=1000000000000, iverbose=1, interactiontime=2, ispatialintflag=False, pos_tree=[], cosmo=dict()):
 	"""
 	This code traces all root heads back in time identifying all interacting haloes and bundles them together into the same forest id
 	The idea is to have in the halodata dictionary an associated unique forest id for all related (sub)haloes. The code also allows
@@ -1746,8 +1746,6 @@ def GenerateForest(numsnaps,numhalos,halodata,cosmo,atime,
 		array of the number of haloes per snapshot.
 	halodata : dict
 		the halodata dictionary structure which must contain the halo merger tree based keys (Head, RootHead), etc.
-	cosmo : dict
-		dictionary which has cosmological information such as box size, hval, Omega_m
 	atime : array
 		an array of scale factors
 
@@ -1762,10 +1760,12 @@ def GenerateForest(numsnaps,numhalos,halodata,cosmo,atime,
 		Optional functionality not implemented yet. Allows forest to be split if connections do not span
 		more than this number of snapshots
 	ispatialintflag : bool
-		Flag indicating whether spatial information should be used to join forests.
+		Flag indicating whether spatial information should be used to join forests. This requires cosmological information
 	pos_tree : scikit.spatial.cKDTree
 		Optional functionality not implemented yet. Allows forests to be joined if haloes
 		are spatially close.
+	cosmo : dict
+		dictionary which has cosmological information such as box size, hval, Omega_m
 
 	Returns
 	-------
