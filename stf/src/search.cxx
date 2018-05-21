@@ -60,7 +60,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     minsize=opt.HaloMinSize;
 #ifdef USEMPI
     //if using MPI, lower minimum number
-    minsize=MinNumMPI;
+    if (NProcs>1) minsize=MinNumMPI;
 #endif
 
     time1=MyGetTime();
@@ -118,6 +118,8 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
 #endif
 
 #ifdef USEMPI
+    if (NProcs==1) totalgroups=numgroups;
+    else {
     mpi_foftask=MPISetTaskID(Nlocal);
 
     Len=new Int_tree_t[nbodies];
@@ -200,9 +202,10 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     //free up memory now that only need to store pfof and global ids
     totalgroups=0;
     for (int j=0;j<NProcs;j++) totalgroups+=mpi_ngroups[j];
-    if (ThisTask==0) cout<<"Total number of groups found is "<<totalgroups<<endl;
     Nlocal=newnbodies;
+    }
 #endif
+    if (ThisTask==0) cout<<"Total number of groups found is "<<totalgroups<<endl;
     if (ThisTask==0) cout<<ThisTask<<": finished FOF search in total time of "<<MyGetTime()-time1<<endl;
 
     //if calculating velocity density only of particles resident in field structures large enough for substructure search
