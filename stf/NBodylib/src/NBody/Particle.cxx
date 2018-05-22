@@ -192,12 +192,15 @@ namespace NBody
             sfr=p.sfr;
 #endif
 #ifdef EXTENDEDFOFINFO
-	        oFile    = p.oFile;
-	        oIndex   = p.oIndex;
-	        oTask    = p.oTask;
-	        idStruct = p.idStruct;
-	        idFOFHost    = p.idFOFHost;
-	        idHost   = p.idHost;
+	        oFile     = p.oFile;
+	        oIndex    = p.oIndex;
+	        oTask     = p.oTask;
+	        idStruct  = p.idStruct;
+	        idFOFHost = p.idFOFHost;
+	        idHost    = p.idHost;
+          dummyi    = p.dummyi;
+          dummyd    = p.dummyd;
+          dummyl    = p.dummyl;
 #endif
         }
     }
@@ -234,12 +237,15 @@ namespace NBody
             sfr=p.sfr;
 #endif
 #ifdef EXTENDEDFOFINFO
-	        oFile    = p.oFile;
-	        oIndex   = p.oIndex;
-	        oTask    = p.oTask;
-	        idStruct = p.idStruct;
-	        idFOFHost    = p.idFOFHost;
-	        idHost   = p.idHost;
+            oFile     = p.oFile;
+            oIndex    = p.oIndex;
+            oTask     = p.oTask;
+            idStruct  = p.idStruct;
+            idFOFHost = p.idFOFHost;
+            idHost    = p.idHost;
+            dummyi    = p.dummyi;
+            dummyd    = p.dummyd;
+            dummyl    = p.dummyl;
 #endif
         }
       return *this;
@@ -382,6 +388,17 @@ namespace NBody
             metal = p.metal;
             sfr = p.sfr;
             lgS=p.lgS;
+#ifdef EXTENDEDFOFINFO
+            oFile     = p.oFile;
+            oIndex    = p.oIndex;
+            oTask     = p.oTask;
+            idStruct  = p.idStruct;
+            idFOFHost = p.idFOFHost;
+            idHost    = p.idHost;
+            dummyi    = p.dummyi;
+            dummyd    = p.dummyd;
+            dummyl    = p.dummyl;
+#endif
         }
     }
 
@@ -410,6 +427,17 @@ namespace NBody
             metal = p.metal;
             sfr = p.sfr;
             lgS=p.lgS;
+#ifdef EXTENDEDFOFINFO
+            oFile     = p.oFile;
+            oIndex    = p.oIndex;
+            oTask     = p.oTask;
+            idStruct  = p.idStruct;
+            idFOFHost = p.idFOFHost;
+            idHost    = p.idHost;
+            dummyi    = p.dummyi;
+            dummyd    = p.dummyd;
+            dummyl    = p.dummyl;
+#endif
         }
         return *this;
     }
@@ -448,6 +476,17 @@ namespace NBody
             phi=p.phi;
             tform=p.tform;
             metal=p.metal;
+#ifdef EXTENDEDFOFINFO
+            oFile     = p.oFile;
+            oIndex    = p.oIndex;
+            oTask     = p.oTask;
+            idStruct  = p.idStruct;
+            idFOFHost = p.idFOFHost;
+            idHost    = p.idHost;
+            dummyi    = p.dummyi;
+            dummyd    = p.dummyd;
+            dummyl    = p.dummyl;
+#endif
         }
     }
 
@@ -470,6 +509,17 @@ namespace NBody
             phi=p.phi;
             tform=p.tform;
             metal=p.metal;
+#ifdef EXTENDEDFOFINFO
+            oFile     = p.oFile;
+            oIndex    = p.oIndex;
+            oTask     = p.oTask;
+            idStruct  = p.idStruct;
+            idFOFHost = p.idFOFHost;
+            idHost    = p.idHost;
+            dummyi    = p.dummyi;
+            dummyd    = p.dummyd;
+            dummyl    = p.dummyl;
+#endif
         }
         return *this;
     }

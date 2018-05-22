@@ -256,6 +256,7 @@ int main(int argc,char **argv)
     //read local velocity data or calculate it
     //(and if STRUCDEN flag or HALOONLYDEN is set then only calculate the velocity density function for objects within a structure
     //as found by SearchFullSet)
+/*
 #if defined (STRUCDEN) || defined (HALOONLYDEN)
 #else
     if (opt.iSubSearch==1) {
@@ -269,7 +270,7 @@ int main(int argc,char **argv)
         cout<<"TIME::"<<ThisTask<<" took "<<time1<<" to analyze/read local velocity density for "<<Nlocal<<" with "<<nthreads<<endl;
     }
 #endif
-
+*/
     //here adjust Efrac to Omega_cdm/Omega_m from what it was before if baryonic search is separate
     if (opt.iBaryonSearch>0 && opt.partsearchtype!=PSTALL) opt.uinfo.Eratio*=opt.Omega_cdm/opt.Omega_m;
 

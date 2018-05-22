@@ -141,6 +141,10 @@ typedef Int_t PARTPIDTYPE;
 	    Int_t idFOFHost;
         ///host id
 	    Int_t idHost;
+        ///used for testing
+      Int_t     dummyi;
+      Double_t  dummyd;
+      long      dummyl;
         //}
 #endif
 
@@ -323,6 +327,15 @@ typedef Int_t PARTPIDTYPE;
 
         void SetIdFOFHost(const Int_t &i) {idFOFHost = i;}
         Int_t GetIdFOFHost() const {return idFOFHost;}
+
+        void SetDummyI(const Int_t &i) {dummyi = i;}
+        Int_t GetDummyI() const {return dummyi;}
+
+        void SetDummyD(const Int_t &i) {dummyd = i;}
+        Double_t GetDummyD() const {return dummyd;}
+
+        void SetDummyL(const Int_t &i) {dummyl = i;}
+        long GetDummyL() const {return dummyl;}
 #endif
 
         //@}

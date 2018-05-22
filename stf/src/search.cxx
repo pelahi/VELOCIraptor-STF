@@ -2,8 +2,6 @@
  *  \brief this file contains routines that search particle list using FOF routines
  */
 
-// This is a test for this branch. 
-
 
 //--  Suboutines that search particle list
 
