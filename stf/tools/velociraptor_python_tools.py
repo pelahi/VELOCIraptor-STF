@@ -3,7 +3,6 @@ from __future__ import print_function
 
 import sys,os,os.path,string,time,re,struct
 import math,operator
-from pylab import *
 import numpy as np
 import h5py #import hdf5 interface
 import tables as pytb #import pytables
@@ -1588,6 +1587,10 @@ def GenerateProgenitorLinks(numsnaps,numhalos,halodata,nsnapsearch=4,TEMPORALHAL
 	- the halodata dictionary structure which must contain the halo merger tree based keys, Head, RootHead, etc, and mass, phase-space positions of haloes,
 	and other desired properties
 	"""
+	if (nsnapsearch>=numsnaps-1):
+		nsnapsearch=numsnaps-1
+		print("Warning, number of snaps < search size, reducing search size to numsnaps-1=",nsnapsearch)
+
 	for j in range(numsnaps):
 		#store id and snap and mass of last major merger and while we're at it, store number of major mergers
 		halodata[j]["NextProgenitor"]=np.ones(numhalos[j],dtype=np.int64)*-1
@@ -1611,17 +1614,17 @@ def GenerateProgenitorLinks(numsnaps,numhalos,halodata,nsnapsearch=4,TEMPORALHAL
 			haloid=currenttails[0]
 			haloindex=int(haloid%TEMPORALHALOIDVAL-1)
 			halosnap=numsnaps-1-(haloid-int(haloid%TEMPORALHALOIDVAL))/TEMPORALHALOIDVAL
-			halodata[halosnap]['PreviousProgenitor'][haloindex]=haloid
+			halodata[halosnap]['PreviousProgenitor'][haloindex]=np.int64(haloid)
 			for itail in range(len(currenttails)-1):
 				haloid=currenttails[itail]
 				haloindex=int(haloid%TEMPORALHALOIDVAL-1)
-				halosnap=numsnaps-1-(haloid-int(haloid%TEMPORALHALOIDVAL))/TEMPORALHALOIDVAL
+				halosnap=np.inte64(numsnaps-1-(haloid-int(haloid%TEMPORALHALOIDVAL))/TEMPORALHALOIDVAL)
 				haloindex=int(currenttails[itail]%TEMPORALHALOIDVAL-1)
 				nexthaloid=currenttails[itail+1]
 				nexthaloindex=int(nexthaloid%TEMPORALHALOIDVAL-1)
-				nexthalosnap=numsnaps-1-(nexthaloid-int(nexthaloid%TEMPORALHALOIDVAL))/TEMPORALHALOIDVAL
-				halodata[halosnap]['NextProgenitor'][haloindex]=nexthaloid
-				halodata[nexthalosnap]['PreviousProgenitor'][nexthaloindex]=haloid
+				nexthalosnap=np.int64(numsnaps-1-(nexthaloid-int(nexthaloid%TEMPORALHALOIDVAL))/TEMPORALHALOIDVAL)
+				halodata[halosnap]['NextProgenitor'][haloindex]=np.int64(nexthaloid)
+				halodata[nexthalosnap]['PreviousProgenitor'][nexthaloindex]=np.int64(haloid)
 			haloid=currenttails[-1]
 			haloindex=int(haloid%TEMPORALHALOIDVAL-1)
 			halosnap=numsnaps-1-(haloid-int(haloid%TEMPORALHALOIDVAL))/TEMPORALHALOIDVAL
