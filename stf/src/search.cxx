@@ -62,7 +62,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     minsize=opt.HaloMinSize;
 #ifdef USEMPI
     //if using MPI, lower minimum number
-    minsize=MinNumMPI;
+    if (NProcs>1) minsize=MinNumMPI;
 #endif
 
     time1=MyGetTime();
@@ -120,6 +120,8 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
 #endif
 
 #ifdef USEMPI
+    if (NProcs==1) totalgroups=numgroups;
+    else {
     mpi_foftask=MPISetTaskID(Nlocal);
 
     Len=new Int_tree_t[nbodies];
@@ -218,14 +220,15 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     //free up memory now that only need to store pfof and global ids
     totalgroups=0;
     for (int j=0;j<NProcs;j++) totalgroups+=mpi_ngroups[j];
-    if (ThisTask==0) cout<<"Total number of groups found is "<<totalgroups<<endl;
     Nlocal=newnbodies;
+    }
 #endif
     if (opt.iverbose>=2) {
         Int_t sum=0;
         for (i=0;i<nbodies;i++) sum+=(pfof[i]>0);
         cout<<ThisTask<<" has found after full search "<<numgroups<<" with lower min size of "<<minsize<<", with  "<<sum<<" particles in all groups"<<endl;
     }
+    if (ThisTask==0) cout<<"Total number of groups found is "<<totalgroups<<endl;
     if (ThisTask==0) cout<<ThisTask<<": finished FOF search in total time of "<<MyGetTime()-time1<<endl;
 
     //if calculating velocity density only of particles resident in field structures large enough for substructure search
@@ -310,8 +313,8 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
             vx+=Part[i].GetVelocity(0)*Part[i].GetMass();
             vy+=Part[i].GetVelocity(1)*Part[i].GetMass();
             vz+=Part[i].GetVelocity(2)*Part[i].GetMass();
-            mtotregion+=Part[i].GetMass();
         }
+            mtotregion+=Part[i].GetMass();
         vmean[0]=vx/mtotregion;vmean[1]=vy/mtotregion;vmean[2]=vz/mtotregion;
         for (i=0;i<iend;i++) {
             for (int j=0;j<3;j++) vscale2+=pow(Part[i].GetVelocity(j)-vmean[j],2.0)*Part[i].GetMass();
@@ -2561,7 +2564,7 @@ private(i)
                     betaave[i]=(aveell[i]/ellaveexp-1.0)*sqrt((Double_t)numingroup[i]);
                 } while(betaave[i]<opt.siglevel);
             }
-            else if ((numingroup[i])<opt.MinSize) {
+            if ((numingroup[i])<opt.MinSize) {
                 for (Int_t j=0;j<numingroup[i];j++) pfof[Partsubset[pglist[i][j]].GetID()]=0;
                 numingroup[i]=-1;
             }

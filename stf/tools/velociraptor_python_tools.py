@@ -3,7 +3,6 @@ from __future__ import print_function
 
 import sys,os,os.path,string,time,re,struct
 import math,operator
-from pylab import *
 import numpy as np
 import h5py #import hdf5 interface
 import tables as pytb #import pytables
@@ -255,11 +254,11 @@ def ReadPropertyFileMultiWrapper(basefilename,index,halodata,numhalos,atime,ibin
 	Wrapper for multithreaded reading
 	"""
 	#call read routine and store the data
-	halodata[index],numhalos[index],atime[index]=ReadPropertyFile(basefilename,ibinary,iseparatesubfiles,iverbose,desiredfields)
+	halodata[index],numhalos[index]=ReadPropertyFile(basefilename,ibinary,iseparatesubfiles,iverbose,desiredfields)
 
 def ReadPropertyFileMultiWrapperNamespace(index,basefilename,ns,ibinary=0,iseparatesubfiles=0,iverbose=0,desiredfields=[]):
 	#call read routine and store the data
-	ns.hdata[index],ns.ndata[index],ns.adata[index]=ReadPropertyFile(basefilename,ibinary,iseparatesubfiles,iverbose,desiredfields)
+	ns.hdata[index],ns.ndata[index]=ReadPropertyFile(basefilename,ibinary,iseparatesubfiles,iverbose,desiredfields)
 
 def ReadHaloMergerTree(treefilename,ibinary=0,iverbose=0,imerit=False,inpart=False):
 	"""
@@ -378,8 +377,9 @@ def ReadHaloMergerTree(treefilename,ibinary=0,iverbose=0,imerit=False,inpart=Fal
 
 				#Read in the progenitors, splitting them as reading them in
 				tree[snap]["Progen"] = np.split(treedata["Progenitors"][:],split[:-1])
-				if(inpart): tree[snap]["Npart_progen"] = np.asarray(treedata["ProgenNpart"])
-				if(imerit): tree[snap]["Merit"] =  np.asarray(treedata["Merits"])
+
+				if(inpart): tree[snap]["Npart_progen"] = np.split(treedata["ProgenNpart"],split[:-1])
+				if(imerit): tree[snap]["Merit"] =  np.split(treedata["Merits"],split[:-1])
 
 		snaptreelist.close()
 	if (iverbose): print("done reading tree file ",time.clock()-start)
@@ -510,8 +510,9 @@ def ReadHaloMergerTreeDescendant(treefilename,ireverseorder=True,ibinary=0,iverb
 				# Read in the data splitting it up as reading it in
 				tree[snap]["Rank"] = np.split(treedata["Ranks"][:],split[:-1])
 				tree[snap]["Descen"] = np.split(treedata["Descendants"][:],split[:-1])
-				if(inpart): tree[snap]["Npart_descen"] = np.asarray(treedata["DescNpart"])
-				if(imerit): tree[snap]["Merit"] =  np.asarray(treedata["Merits"])
+
+				if(inpart): tree[snap]["Npart_progen"] = np.split(treedata["ProgenNpart"][:],split[:-1])
+				if(imerit): tree[snap]["Merit"] =  np.split(treedata["Merits"][:],split[:-1])
 
 		snaptreelist.close()
 
@@ -1106,11 +1107,7 @@ def TraceMainDescendant(istart,ihalo,numsnaps,numhalos,halodata,tree,TEMPORALHAL
 		#tail set, then must be the the first progenitor
 		#otherwise it should have already been set and just need to store the root tail
 		if (halodata[halosnap]['Tail'][ihalo]==0):
-			try:
-				halodata[halosnap]['Tail'][ihalo]=haloid
-			except OverflowError:
-				print(haloid,haloid/TEMPORALHALOIDVAL,halosnap,ihalo)
-				raise SystemExit()
+			halodata[halosnap]['Tail'][ihalo]=haloid
 			halodata[halosnap]['TailSnap'][ihalo]=halosnap
 			halodata[halosnap]['RootTail'][ihalo]=haloid
 			halodata[halosnap]['RootTailSnap'][ihalo]=halosnap
@@ -1123,6 +1120,7 @@ def TraceMainDescendant(istart,ihalo,numsnaps,numhalos,halodata,tree,TEMPORALHAL
 		while (True):
 			#ids contain index information
 			haloindex=int(haloid%TEMPORALHALOIDVAL)-1
+
 			halodata[halosnap]['Num_descen'][haloindex]=tree[halosnap]['Num_descen'][haloindex]
 			#if no more descendants, break from search
 			if (halodata[halosnap]['Num_descen'][haloindex]==0):
@@ -1589,6 +1587,10 @@ def GenerateProgenitorLinks(numsnaps,numhalos,halodata,nsnapsearch=4,TEMPORALHAL
 	- the halodata dictionary structure which must contain the halo merger tree based keys, Head, RootHead, etc, and mass, phase-space positions of haloes,
 	and other desired properties
 	"""
+	if (nsnapsearch>=numsnaps-1):
+		nsnapsearch=numsnaps-1
+		print("Warning, number of snaps < search size, reducing search size to numsnaps-1=",nsnapsearch)
+
 	for j in range(numsnaps):
 		#store id and snap and mass of last major merger and while we're at it, store number of major mergers
 		halodata[j]["NextProgenitor"]=np.ones(numhalos[j],dtype=np.int64)*-1
@@ -1612,17 +1614,17 @@ def GenerateProgenitorLinks(numsnaps,numhalos,halodata,nsnapsearch=4,TEMPORALHAL
 			haloid=currenttails[0]
 			haloindex=int(haloid%TEMPORALHALOIDVAL-1)
 			halosnap=numsnaps-1-(haloid-int(haloid%TEMPORALHALOIDVAL))/TEMPORALHALOIDVAL
-			halodata[halosnap]['PreviousProgenitor'][haloindex]=haloid
+			halodata[halosnap]['PreviousProgenitor'][haloindex]=np.int64(haloid)
 			for itail in range(len(currenttails)-1):
 				haloid=currenttails[itail]
 				haloindex=int(haloid%TEMPORALHALOIDVAL-1)
-				halosnap=numsnaps-1-(haloid-int(haloid%TEMPORALHALOIDVAL))/TEMPORALHALOIDVAL
+				halosnap=np.inte64(numsnaps-1-(haloid-int(haloid%TEMPORALHALOIDVAL))/TEMPORALHALOIDVAL)
 				haloindex=int(currenttails[itail]%TEMPORALHALOIDVAL-1)
 				nexthaloid=currenttails[itail+1]
 				nexthaloindex=int(nexthaloid%TEMPORALHALOIDVAL-1)
-				nexthalosnap=numsnaps-1-(nexthaloid-int(nexthaloid%TEMPORALHALOIDVAL))/TEMPORALHALOIDVAL
-				halodata[halosnap]['NextProgenitor'][haloindex]=nexthaloid
-				halodata[nexthalosnap]['PreviousProgenitor'][nexthaloindex]=haloid
+				nexthalosnap=np.int64(numsnaps-1-(nexthaloid-int(nexthaloid%TEMPORALHALOIDVAL))/TEMPORALHALOIDVAL)
+				halodata[halosnap]['NextProgenitor'][haloindex]=np.int64(nexthaloid)
+				halodata[nexthalosnap]['PreviousProgenitor'][nexthaloindex]=np.int64(haloid)
 			haloid=currenttails[-1]
 			haloindex=int(haloid%TEMPORALHALOIDVAL-1)
 			halosnap=numsnaps-1-(haloid-int(haloid%TEMPORALHALOIDVAL))/TEMPORALHALOIDVAL
@@ -1731,8 +1733,8 @@ def SetForestID(numsnaps,halodata,rootheadid,ForestID,AllRootHead,
 
 	return AllRootHead,halodata
 
-def GenerateForest(numsnaps,numhalos,halodata,cosmo,atime,
-	TEMPORALHALOIDVAL=1000000000000, iverbose=1, interactiontime=2, ispatialintflag=False, pos_tree=[]):
+def GenerateForest(numsnaps,numhalos,halodata,atime,
+	TEMPORALHALOIDVAL=1000000000000, iverbose=1, interactiontime=2, ispatialintflag=False, pos_tree=[], cosmo=dict()):
 	"""
 	This code traces all root heads back in time identifying all interacting haloes and bundles them together into the same forest id
 	The idea is to have in the halodata dictionary an associated unique forest id for all related (sub)haloes. The code also allows
@@ -1747,8 +1749,6 @@ def GenerateForest(numsnaps,numhalos,halodata,cosmo,atime,
 		array of the number of haloes per snapshot.
 	halodata : dict
 		the halodata dictionary structure which must contain the halo merger tree based keys (Head, RootHead), etc.
-	cosmo : dict
-		dictionary which has cosmological information such as box size, hval, Omega_m
 	atime : array
 		an array of scale factors
 
@@ -1763,10 +1763,12 @@ def GenerateForest(numsnaps,numhalos,halodata,cosmo,atime,
 		Optional functionality not implemented yet. Allows forest to be split if connections do not span
 		more than this number of snapshots
 	ispatialintflag : bool
-		Flag indicating whether spatial information should be used to join forests.
+		Flag indicating whether spatial information should be used to join forests. This requires cosmological information
 	pos_tree : scikit.spatial.cKDTree
 		Optional functionality not implemented yet. Allows forests to be joined if haloes
 		are spatially close.
+	cosmo : dict
+		dictionary which has cosmological information such as box size, hval, Omega_m
 
 	Returns
 	-------
@@ -1976,7 +1978,7 @@ def ProduceUnifiedTreeandHaloCatalog(fname,numsnaps,tree,numhalos,halodata,atime
 
 		for i in range(numsnaps):
 			snapgrp=hdffile.create_group("Snap_%03d"%(numsnaps-1-i))
-			snapgrp.attrs["Snapnum"]=i
+			snapgrp.attrs["Snapnum"]=(numsnaps-1-i)
 			snapgrp.attrs["NHalos"]=numhalos[i]
 			snapgrp.attrs["scalefactor"]=atime[i]
 			for key in halodata[i].keys():
@@ -1985,7 +1987,7 @@ def ProduceUnifiedTreeandHaloCatalog(fname,numsnaps,tree,numhalos,halodata,atime
 	else:
 		for i in range(numsnaps):
 			hdffile=h5py.File(fname+".snap_%03d.hdf.data"%(numsnaps-1-i),'w')
-			hdffile.create_dataset("Snap_value",data=np.array([i],dtype=np.uint32))
+			hdffile.create_dataset("Snap_value",data=np.array([numsnaps-1-i],dtype=np.uint32))
 			hdffile.create_dataset("NSnaps",data=np.array([numsnaps],dtype=np.uint32))
 			hdffile.create_dataset("NHalos",data=np.array([numhalos[i]],dtype=np.uint64))
 			hdffile.create_dataset("TotalNHalos",data=np.array([totnumhalos],dtype=np.uint64))

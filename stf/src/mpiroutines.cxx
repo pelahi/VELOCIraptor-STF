@@ -284,12 +284,16 @@ int MPIInDomain(Double_t xsearch[3][2], Double_t bnd[3][2]){
 /// Determine if a particle needs to be exported to another mpi domain based on a physical search radius
 int MPISearchForOverlap(Particle &Part, Double_t &rdist){
     Double_t xsearch[3][2];
+    for (auto k=0;k<3;k++) {xsearch[k][0]=Part.GetPosition(k)-rdist;xsearch[k][1]=Part.GetPosition(k)+rdist;}
+    return MPISearchForOverlap(xsearch);
+}
+
+int MPISearchForOverlap(Double_t xsearch[3][2]){
     Double_t xsearchp[7][3][2];//used to store periodic reflections
     int numoverlap=0,numreflecs=0,ireflec[3],numreflecchoice=0;
     int indomain;
     int j,k;
 
-    for (k=0;k<3;k++) {xsearch[k][0]=Part.GetPosition(k)-rdist;xsearch[k][1]=Part.GetPosition(k)+rdist;}
     for (j=0;j<NProcs;j++) {
         if (j!=ThisTask) {
             //determine if search region is not outside of this processors domain
@@ -1858,6 +1862,303 @@ private(i)
     ncount=0;for (int k=0;k<NProcs;k++)ncount+=mpi_nsend[ThisTask+k*NProcs];
     return ncount;
 }
+
+/*! similar \ref MPIGetExportNum but number based on halo properties to see if any
+*/
+vector<bool> MPIGetHaloSearchExportNum(const Int_t ngroup, PropData *&pdata, vector<Double_t> &rdist)
+{
+    Int_t i,j,nexport=0,nimport=0;
+    Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
+    Double_t xsearch[3][2];
+    Int_t sendTask,recvTask;
+    MPI_Status status;
+    int indomain;
+    vector<bool> halooverlap(ngroup+1);
+
+
+    ///\todo would like to add openmp to this code. In particular, loop over nbodies but issue is nexport.
+    ///This would either require making a FoFDataIn[nthreads][NExport] structure so that each omp thread
+    ///can only access the appropriate memory and adjust nsend_local.\n
+    ///\em Or outer loop is over threads, inner loop over nbodies and just have a idlist of size Nlocal that tags particles
+    ///which must be exported. Then its a much quicker follow up loop (no if statement) that stores the data
+    for (j=0;j<NProcs;j++) nsend_local[j]=0;
+    for (i=1;i<=ngroup;i++)
+    {
+        halooverlap[i]=false;
+        for (int k=0;k<3;k++) {xsearch[k][0]=pdata[i].gcm[k]-rdist[i];xsearch[k][1]=pdata[i].gcm[k]+rdist[i];}
+        for (j=0;j<NProcs;j++) {
+            if (j!=ThisTask) {
+                //determine if search region is not outside of this processors domain
+                if(MPIInDomain(xsearch,mpi_domain[j].bnd))
+                {
+                    nexport++;
+                    nsend_local[j]++;
+                    halooverlap[i]=true;
+                }
+            }
+        }
+    }
+    //and then gather the number of particles to be sent from mpi thread m to mpi thread n in the mpi_nsend[NProcs*NProcs] array via [n+m*NProcs]
+    MPI_Allgather(nsend_local, NProcs, MPI_Int_t, mpi_nsend, NProcs, MPI_Int_t, MPI_COMM_WORLD);
+    NImport=0;
+    for (j=0;j<NProcs;j++)NImport+=mpi_nsend[ThisTask+j*NProcs];
+    NExport=nexport;
+    return halooverlap;
+}
+
+/*! like \ref MPIBuildParticleExportList but each particle has a different distance stored in rdist used to find nearest neighbours
+*/
+void MPIBuildHaloSearchExportList(const Int_t ngroup, PropData *&pdata, vector<Double_t> &rdist, vector<bool> &halooverlap)
+{
+    Int_t i, j,nthreads,nexport=0,nimport=0;
+    Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
+    Double_t xsearch[3][2];
+    MPI_Status status;
+    int indomain;
+    int sendTask,recvTask;
+    int maxchunksize=2147483648/NProcs/sizeof(nndata_in);
+    int nsend,nrecv,nsendchunks,nrecvchunks,numsendrecv;
+    int sendoffset,recvoffset;
+    int cursendchunksize,currecvchunksize;
+
+    ///\todo would like to add openmp to this code. In particular, loop over nbodies but issue is nexport.
+    ///This would either require making a FoFDataIn[nthreads][NExport] structure so that each omp thread
+    ///can only access the appropriate memory and adjust nsend_local.\n
+    ///\em Or outer loop is over threads, inner loop over nbodies and just have a idlist of size Nlocal that tags particles
+    ///which must be exported. Then its a much quicker follow up loop (no if statement) that stores the data
+    for (j=0;j<NProcs;j++) nsend_local[j]=0;
+    for (i=1;i<=ngroup;i++)
+    {
+        if (halooverlap[i]==false) continue;
+        for (int k=0;k<3;k++) {xsearch[k][0]=pdata[i].gcm[k]-rdist[i];xsearch[k][1]=pdata[i].gcm[k]+rdist[i];}
+        for (j=0;j<NProcs;j++) {
+            if (j!=ThisTask) {
+                //determine if search region is not outside of this processors domain
+                if(MPIInDomain(xsearch,mpi_domain[j].bnd))
+                {
+                    //NNDataIn[nexport].Index=i;
+                    NNDataIn[nexport].ToTask=j;
+                    NNDataIn[nexport].FromTask=ThisTask;
+                    NNDataIn[nexport].R2=rdist[i]*rdist[i];
+                    //NNDataIn[nexport].V2=vdist2[i];
+                    for (int k=0;k<3;k++) {
+                        NNDataIn[nexport].Pos[k]=pdata[i].gcm[k];
+                    }
+                    nexport++;
+                    nsend_local[j]++;
+                }
+            }
+        }
+    }
+    //sort the export data such that all particles to be passed to thread j are together in ascending thread number
+    if (nexport>0) qsort(NNDataIn, nexport, sizeof(struct nndata_in), nn_export_cmp);
+
+    //then store the offset in the export data for the jth Task in order to send data.
+    for(j = 1, noffset[0] = 0; j < NProcs; j++) noffset[j]=noffset[j-1] + nsend_local[j-1];
+    //and then gather the number of items to be sent from mpi thread m to mpi thread n in the mpi_nsend[NProcs*NProcs] array via [n+m*NProcs]
+    MPI_Allgather(nsend_local, NProcs, MPI_Int_t, mpi_nsend, NProcs, MPI_Int_t, MPI_COMM_WORLD);
+    //now send the data.
+
+    for (j=0;j<NProcs;j++)nimport+=mpi_nsend[ThisTask+j*NProcs];
+    //if task neither sends or receives, do nothing
+    if (nexport==0&&nimport==0) return;
+    for(j=0;j<NProcs;j++)
+    {
+        if (j!=ThisTask)
+        {
+            sendTask = ThisTask;
+            recvTask = j;
+            nbuffer[recvTask]=0;
+            for (int k=0;k<recvTask;k++)nbuffer[recvTask]+=mpi_nsend[ThisTask+k*NProcs];//offset on local receiving buffer
+            if(mpi_nsend[ThisTask * NProcs + recvTask] > 0 || mpi_nsend[recvTask * NProcs + ThisTask] > 0)
+            {
+                //send info in loops to minimize memory footprint
+                cursendchunksize=currecvchunksize=maxchunksize;
+                nsendchunks=ceil(mpi_nsend[recvTask+ThisTask*NProcs]/(Double_t)maxchunksize);
+                nrecvchunks=ceil(mpi_nsend[ThisTask+recvTask*NProcs]/(Double_t)maxchunksize);
+                if (cursendchunksize>mpi_nsend[recvTask+ThisTask*NProcs]) {
+                    nsendchunks=1;
+                    cursendchunksize=mpi_nsend[recvTask+ThisTask*NProcs];
+                }
+                if (currecvchunksize>mpi_nsend[ThisTask+recvTask*NProcs]) {
+                    nrecvchunks=1;
+                    currecvchunksize=mpi_nsend[ThisTask+recvTask*NProcs];
+                }
+                numsendrecv=max(nsendchunks,nrecvchunks);
+                sendoffset=recvoffset=0;
+                for (auto ichunk=0;ichunk<numsendrecv;ichunk++)
+                {
+                    //blocking point-to-point send and receive. Here must determine the appropriate offset point in the local export buffer
+                    //for sending data and also the local appropriate offset in the local the receive buffer for information sent from the local receiving buffer
+                    MPI_Sendrecv(&NNDataIn[noffset[recvTask]+sendoffset],
+                        cursendchunksize * sizeof(struct nndata_in), MPI_BYTE,
+                        recvTask, TAG_NN_A+ichunk,
+                        &NNDataGet[nbuffer[recvTask]+recvoffset],
+                        currecvchunksize * sizeof(struct nndata_in),
+                        MPI_BYTE, recvTask, TAG_NN_A+ichunk, MPI_COMM_WORLD, &status);
+                    sendoffset+=cursendchunksize;
+                    recvoffset+=currecvchunksize;
+                    if (cursendchunksize>mpi_nsend[recvTask+ThisTask * NProcs]-sendoffset)cursendchunksize=mpi_nsend[recvTask+ThisTask * NProcs]-sendoffset;
+                    if (currecvchunksize>mpi_nsend[ThisTask+recvTask * NProcs]-sendoffset)currecvchunksize=mpi_nsend[ThisTask+recvTask * NProcs]-recvoffset;
+                }
+            }
+        }
+    }
+}
+
+/*! Mirror to \ref MPIGetHaloSearchExportNum, use exported positions, run ball search to find number of all local particles that need to be
+    imported back to exported positions's thread so that a proper search can be made.
+*/
+void MPIGetHaloSearchImportNum(const Int_t nbodies, KDTree *tree, Particle *Part)
+{
+    Int_t i, j,nthreads,nexport=0,ncount;
+    Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
+    Int_t oldnsend[NProcs*NProcs];
+    Double_t xsearch[3][2];
+    Int_t *nn=new Int_t[nbodies];
+    Double_t *nnr2=new Double_t[nbodies];
+    nthreads=1;
+    Int_t sendTask,recvTask;
+    MPI_Status status;
+#ifdef USEOPENMP
+#pragma omp parallel
+    {
+            if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
+    }
+#endif
+    for(j=0;j<NProcs;j++)
+    {
+        nbuffer[j]=0;
+        for (int k=0;k<j;k++)nbuffer[j]+=mpi_nsend[ThisTask+k*NProcs];//offset on "receiver" end
+    }
+    for (j=0;j<NProcs;j++) nsend_local[j]=0;
+    for (j=0;j<NProcs;j++) {
+        for (i=0;i<nbodies;i++) nn[i]=-1;
+        if (j==ThisTask) continue;
+        if (mpi_nsend[ThisTask+j*NProcs]==0) continue;
+            //search local list and tag all local particles that need to be exported back (or imported) to the exported particles thread
+            for (i=nbuffer[j];i<nbuffer[j]+mpi_nsend[ThisTask+j*NProcs];i++) {
+                tree->SearchBallPos(NNDataGet[i].Pos, NNDataGet[i].R2, j, nn, nnr2);
+            }
+            for (i=0;i<nbodies;i++) {
+                if (nn[i]!=-1) {
+                    nexport++;
+                    nsend_local[j]++;
+                }
+            }
+        
+    }
+    //must store old mpi nsend for accessing NNDataGet properly.
+    for (j=0;j<NProcs;j++) for (int k=0;k<NProcs;k++) oldnsend[k+j*NProcs]=mpi_nsend[k+j*NProcs];
+    MPI_Allgather(nsend_local, NProcs, MPI_Int_t, mpi_nsend, NProcs, MPI_Int_t, MPI_COMM_WORLD);
+    NImport=0;
+    for (j=0;j<NProcs;j++)NImport+=mpi_nsend[ThisTask+j*NProcs];
+    NExport=nexport;
+    for (j=0;j<NProcs;j++) for (int k=0;k<NProcs;k++) mpi_nsend[k+j*NProcs]=oldnsend[k+j*NProcs];
+}
+/*! Mirror to \ref MPIBuildHaloSearchExportList, use exported particles, run ball search to find all local particles that need to be
+    imported back to exported particle's thread so that a proper NN search can be made.
+*/
+Int_t MPIBuildHaloSearchImportList(const Int_t nbodies, KDTree *tree, Particle *Part){
+    Int_t i, j,nthreads,nexport=0,ncount;
+    Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
+    Double_t xsearch[3][2];
+    Int_t *nn=new Int_t[nbodies];
+    Double_t *nnr2=new Double_t[nbodies];
+    nthreads=1;
+    int sendTask,recvTask;
+    int maxchunksize=2147483648/NProcs/sizeof(Particle);
+    int nsend,nrecv,nsendchunks,nrecvchunks,numsendrecv;
+    int sendoffset,recvoffset;
+    int cursendchunksize,currecvchunksize;
+    MPI_Status status;
+#ifdef USEOPENMP
+#pragma omp parallel
+    {
+            if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
+    }
+#endif
+    for(j=0;j<NProcs;j++)
+    {
+        nbuffer[j]=0;
+        for (int k=0;k<j;k++)nbuffer[j]+=mpi_nsend[ThisTask+k*NProcs];//offset on "receiver" end
+    }
+
+    for (j=0;j<NProcs;j++) nsend_local[j]=0;
+    for (j=0;j<NProcs;j++) {
+            for (i=0;i<nbodies;i++) nn[i]=-1;
+        if (j==ThisTask) continue;
+        if (mpi_nsend[ThisTask+j*NProcs]==0) continue;
+            //search local list and tag all local particles that need to be exported back (or imported) to the exported particles thread
+            for (i=nbuffer[j];i<nbuffer[j]+mpi_nsend[ThisTask+j*NProcs];i++) {
+                tree->SearchBallPos(NNDataGet[i].Pos, NNDataGet[i].R2, j, nn, nnr2);
+            }
+            for (i=0;i<nbodies;i++) {
+                if (nn[i]!=-1) {
+                    for (int k=0;k<3;k++) {
+                        PartDataIn[nexport].SetPosition(k,Part[i].GetPosition(k));
+                        PartDataIn[nexport].SetVelocity(k,Part[i].GetVelocity(k));
+                    }
+                    nexport++;
+                    nsend_local[j]++;
+                }
+            }
+    }
+    //sort the export data such that all particles to be passed to thread j are together in ascending thread number
+    //qsort(NNDataReturn, nexport, sizeof(struct nndata_in), nn_export_cmp);
+
+    //then store the offset in the export particle data for the jth Task in order to send data.
+    for(j = 1, noffset[0] = 0; j < NProcs; j++) noffset[j]=noffset[j-1] + nsend_local[j-1];
+    //and then gather the number of particles to be sent from mpi thread m to mpi thread n in the mpi_nsend[NProcs*NProcs] array via [n+m*NProcs]
+    MPI_Allgather(nsend_local, NProcs, MPI_Int_t, mpi_nsend, NProcs, MPI_Int_t, MPI_COMM_WORLD);
+    //now send the data.
+    for(j=0;j<NProcs;j++)
+    {
+        if (j!=ThisTask)
+        {
+            sendTask = ThisTask;
+            recvTask = j;
+            nbuffer[recvTask]=0;
+            for (int k=0;k<recvTask;k++)nbuffer[recvTask]+=mpi_nsend[ThisTask+k*NProcs];//offset on local receiving buffer
+
+            if(mpi_nsend[ThisTask * NProcs + recvTask] > 0 || mpi_nsend[recvTask * NProcs + ThisTask] > 0)
+            {
+                //send info in loops to minimize memory footprint
+                cursendchunksize=currecvchunksize=maxchunksize;
+                nsendchunks=ceil(mpi_nsend[recvTask+ThisTask*NProcs]/(Double_t)maxchunksize);
+                nrecvchunks=ceil(mpi_nsend[ThisTask+recvTask*NProcs]/(Double_t)maxchunksize);
+                if (cursendchunksize>mpi_nsend[recvTask+ThisTask*NProcs]) {
+                    nsendchunks=1;
+                    cursendchunksize=mpi_nsend[recvTask+ThisTask*NProcs];
+                }
+                if (currecvchunksize>mpi_nsend[ThisTask+recvTask*NProcs]) {
+                    nrecvchunks=1;
+                    currecvchunksize=mpi_nsend[ThisTask+recvTask*NProcs];
+                }
+                numsendrecv=max(nsendchunks,nrecvchunks);
+                sendoffset=recvoffset=0;
+                for (auto ichunk=0;ichunk<numsendrecv;ichunk++)
+                {
+                    //blocking point-to-point send and receive. Here must determine the appropriate offset point in the local export buffer
+                    //for sending data and also the local appropriate offset in the local the receive buffer for information sent from the local receiving buffer
+                    MPI_Sendrecv(&PartDataIn[noffset[recvTask]+sendoffset],
+                        cursendchunksize * sizeof(Particle), MPI_BYTE,
+                        recvTask, TAG_NN_B+ichunk,
+                        &PartDataGet[nbuffer[recvTask]+recvoffset],
+                        currecvchunksize * sizeof(Particle),
+                        MPI_BYTE, recvTask, TAG_NN_B+ichunk, MPI_COMM_WORLD, &status);
+                    sendoffset+=cursendchunksize;
+                    recvoffset+=currecvchunksize;
+                    if (cursendchunksize>mpi_nsend[recvTask+ThisTask * NProcs]-sendoffset)cursendchunksize=mpi_nsend[recvTask+ThisTask * NProcs]-sendoffset;
+                    if (currecvchunksize>mpi_nsend[ThisTask+recvTask * NProcs]-sendoffset)currecvchunksize=mpi_nsend[ThisTask+recvTask * NProcs]-recvoffset;
+                }
+            }
+        }
+    }
+    ncount=0;for (int k=0;k<NProcs;k++)ncount+=mpi_nsend[ThisTask+k*NProcs];
+    return ncount;
+}
+
 
 /*! Similar to \ref MPIBuildParticleExportList, however this is for associated baryon search where particles have been moved from original
     mpi domains and their group id accessed through the id array and their stored id and length in numingroup
