@@ -36,8 +36,8 @@ macro(vr_option optname optdesc)
 endmacro()
 
 # Input formats
-option(VR_NO_HDF5   "Don't attempt to include HDF5 support in VELOCIraptor" OFF)
-option(VR_NO_XDR    "Don't include XDF (nchilada) input support (which in turn requires HDF5 support)" OFF)
+vr_option(HDF5 "Attempt to include HDF5 support in VELOCIraptor")
+vr_option(XDR  "XDR input support (used by nchilada)")
 
 # MPI options
 vr_option(MPI               "Attempt to include MPI support in VELOCIraptor")
@@ -112,7 +112,7 @@ macro(find_hdf5)
 		list(APPEND VR_LIBS ${HDF5_LIBRARIES})
 		list(APPEND VR_DEFINES USEHDF)
 		set(VR_HAS_HDF5 Yes)
-		if (NOT VR_NO_XDR)
+		if (VR_XDR)
 			list(APPEND VR_DEFINES USEXDR)
 			set(VR_HAS_XDR Yes)
 		endif()
@@ -142,7 +142,7 @@ endmacro()
 #
 set(VR_HAS_HDF5 No)
 set(VR_HAS_XDR No)
-if (NOT VR_NO_HDF5)
+if (VR_HDF5)
 	find_hdf5()
 endif()
 
