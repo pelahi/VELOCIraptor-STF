@@ -86,6 +86,8 @@ macro(vr_option_defines varname define)
 	endif()
 endmacro()
 
+vr_option_defines(XDR                       USEXDR)
+
 vr_option_defines(MPI_REDUCE                MPIREDUCEMEM)
 vr_option_defines(LARGE_MPI_DOMAIN          HUGEMPI)
 
@@ -112,10 +114,6 @@ macro(find_hdf5)
 		list(APPEND VR_LIBS ${HDF5_LIBRARIES})
 		list(APPEND VR_DEFINES USEHDF)
 		set(VR_HAS_HDF5 Yes)
-		if (VR_XDR)
-			list(APPEND VR_DEFINES USEXDR)
-			set(VR_HAS_XDR Yes)
-		endif()
 	endif()
 endmacro()
 
@@ -141,7 +139,6 @@ endmacro()
 # we actually need them or not
 #
 set(VR_HAS_HDF5 No)
-set(VR_HAS_XDR No)
 if (VR_HDF5)
 	find_hdf5()
 endif()
