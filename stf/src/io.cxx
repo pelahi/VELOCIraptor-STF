@@ -1074,14 +1074,15 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
 }
 
 void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids){
-    fstream Fout,Fout2,Fout3;
+    fstream Fout;
     char fname[500];
-    char fname2[500];
-    char fname3[500];
-    unsigned long noffset=0,ngtot=0,nids=0,nidstot,nuids=0,nuidstot,ng=0;
-    Int_t *offset;
+    unsigned long ng,noffset=0,ngtot=0,nSOids=0,nSOidstot=0;
+    unsigned long *offset;
+    long long *idval;
+    Int_t *numingroup;
+
 #ifdef USEHDF
-    H5File Fhdf,Fhdf3;
+    H5File Fhdf;
     H5std_string datasetname;
     DataSpace dataspace;
     DataSet dataset;
@@ -1093,8 +1094,8 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids){
 #ifdef USEADIOS
     int adios_err;
     uint64_t adios_groupsize , adios_totalsize ;
-    int64_t adios_file_handle,adios_file_handle3;
-    int64_t adios_grp_handle, adios_grp_handle3;
+    int64_t adios_file_handle;
+    int64_t adios_grp_handle;
     int64_t adios_var_handle;
     int64_t adios_attr_handle;
 #endif
@@ -1106,41 +1107,49 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids){
     int ThisTask=0,NProcs=1;
 #endif
 
+    ng=ngroups;
+#ifdef USEMPI
+    MPI_Allreduce(&ng, &ngtot, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
+#else
+    ngtot=ng;
+#endif
+    for (Int_t i=1;i<=ngroups;i++) nSOids+=SOpids[i].size();
+#ifdef USEMPI
+    MPI_Allreduce(&nSOids, &nSOidstot, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
+#else
+    nSOidstot=nSOids;
+#endif
+
 #ifdef USEMPI
     sprintf(fname,"%s.catalog_SOlist.%d",opt.outname,ThisTask);
 #else
     sprintf(fname,"%s.catalog_SOlist",opt.outname);
 #endif
 
-    cout<<"saving SO particle lists to "<<fname<<endl;
+    if (opt.iverbose) cout<<"saving SO particle lists to "<<fname<<endl;
     if (opt.ibinaryout==OUTBINARY) Fout.open(fname,ios::out|ios::binary);
 #ifdef USEHDF
-        //create file
-        else if (opt.ibinaryout==OUTHDF) {
+    //create file
+    else if (opt.ibinaryout==OUTHDF) {
         Fhdf=H5File(fname,H5F_ACC_TRUNC);
-        //Fhdf.H5Fcreate(fname,H5F_ACC_TRUNC,H5P_DEFAULT,H5P_DEFAULT);
     }
 #endif
 #ifdef USEADIOS
     else if (opt.ibinaryout==OUTADIOS) {
         //open an adios file
-        adios_err=adios_open(&adios_file_handle, "VELOCIraptor_catalog_groups", fname, "w", MPI_COMM_WORLD);
+        adios_err=adios_open(&adios_file_handle, "VELOCIraptor_SOlist", fname, "w", MPI_COMM_WORLD);
     }
 #endif
     else Fout.open(fname,ios::out);
-    ng=ngroups;
 
-#ifdef USEMPI
-    for (int j=0;j<NProcs;j++) ngtot+=mpi_ngroups[j];
-#else
-    ngtot=ngroups+nadditional;//useful if outputing field halos
-#endif
     //write header
     if (opt.ibinaryout==OUTBINARY) {
         Fout.write((char*)&ThisTask,sizeof(int));
         Fout.write((char*)&NProcs,sizeof(int));
         Fout.write((char*)&ng,sizeof(unsigned long));
         Fout.write((char*)&ngtot,sizeof(unsigned long));
+        Fout.write((char*)&nSOids,sizeof(unsigned long));
+        Fout.write((char*)&nSOidstot,sizeof(unsigned long));
     }
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
@@ -1149,54 +1158,76 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids){
         dims[0]=1;
         rank=1;
         itemp=0;
-        //datasetname=H5std_string("File_id");
         dataspace=DataSpace(rank,dims);
         dataset = Fhdf.createDataSet(datagroupnames.SO[itemp], datagroupnames.SOdatatype[itemp], dataspace);
         dataset.write(&ThisTask,datagroupnames.SOdatatype[itemp]);
         itemp++;
 
         dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.group[itemp], datagroupnames.groupdatatype[itemp], dataspace);
+        dataset = Fhdf.createDataSet(datagroupnames.SO[itemp], datagroupnames.SOdatatype[itemp], dataspace);
         dataset.write(&NProcs,datagroupnames.groupdatatype[itemp]);
         itemp++;
 
         dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.group[itemp], datagroupnames.groupdatatype[itemp], dataspace);
-        dataset.write(&ng,datagroupnames.groupdatatype[itemp]);
+        dataset = Fhdf.createDataSet(datagroupnames.SO[itemp], datagroupnames.SOdatatype[itemp], dataspace);
+        dataset.write(&ng,datagroupnames.SOdatatype[itemp]);
         itemp++;
 
         dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.group[itemp], datagroupnames.groupdatatype[itemp], dataspace);
-        dataset.write(&ngtot,datagroupnames.groupdatatype[itemp]);
+        dataset = Fhdf.createDataSet(datagroupnames.SO[itemp], datagroupnames.SOdatatype[itemp], dataspace);
+        dataset.write(&ngtot,datagroupnames.SOdatatype[itemp]);
         itemp++;
+
+        dataspace=DataSpace(rank,dims);
+        dataset = Fhdf.createDataSet(datagroupnames.SO[itemp], datagroupnames.SOdatatype[itemp], dataspace);
+        dataset.write(&nSOids,datagroupnames.SOdatatype[itemp]);
+        itemp++;
+
+        dataspace=DataSpace(rank,dims);
+        dataset = Fhdf.createDataSet(datagroupnames.SO[itemp], datagroupnames.SOdatatype[itemp], dataspace);
+        dataset.write(&nSOidstot,datagroupnames.SOdatatype[itemp]);
+        itemp++;
+
         delete[] dims;
     }
 #endif
 #ifdef USEADIOS
-    else if (opt.ibinaryout==OUTADIOS) {
+    else if (opt.ibinaryout==OUTADIOS)
+    {
         //declare the attributes in a header group, assiging the group handle, setting the name, no time step indicator, and a flag saying yes to all statistics
         adios_err=adios_declare_group(&adios_grp_handle,"Header", "" , adios_stat_full);
         //select simple mpi method
         adios_select_method (adios_grp_handle, "MPI", "", "");
         //define some attributes
-        adios_err=adios_define_attribute(adios_grp_handle,datagroupnames.group[itemp].c_str(),"",datagroupnames.adiosgroupdatatype[itemp],to_string(ThisTask).c_str(),"");
+        adios_err=adios_define_attribute(adios_grp_handle,datagroupnames.SO[itemp].c_str(),"",datagroupnames.adiosSOdatatype[itemp],to_string(ThisTask).c_str(),"");
         itemp++;
-        adios_err=adios_define_attribute(adios_grp_handle,datagroupnames.group[itemp].c_str(),"",datagroupnames.adiosgroupdatatype[itemp],to_string(NProcs).c_str(),"");
+        adios_err=adios_define_attribute(adios_grp_handle,datagroupnames.SO[itemp].c_str(),"",datagroupnames.adiosSOdatatype[itemp],to_string(NProcs).c_str(),"");
         itemp++;
-        adios_err=adios_define_attribute(adios_grp_handle,datagroupnames.group[itemp].c_str(),"",datagroupnames.adiosgroupdatatype[itemp],to_string(ng).c_str(),"");
+        adios_err=adios_define_attribute(adios_grp_handle,datagroupnames.SO[itemp].c_str(),"",datagroupnames.adiosSOdatatype[itemp],to_string(ng).c_str(),"");
         itemp++;
-        adios_err=adios_define_attribute(adios_grp_handle,datagroupnames.group[itemp].c_str(),"",datagroupnames.adiosgroupdatatype[itemp],to_string(ngtot).c_str(),"");
+        adios_err=adios_define_attribute(adios_grp_handle,datagroupnames.SO[itemp].c_str(),"",datagroupnames.adiosSOdatatype[itemp],to_string(ngtot).c_str(),"");
+        itemp++;
+        adios_err=adios_define_attribute(adios_grp_handle,datagroupnames.SO[itemp].c_str(),"",datagroupnames.adiosSOdatatype[itemp],to_string(nSOids).c_str(),"");
+        itemp++;
+        adios_err=adios_define_attribute(adios_grp_handle,datagroupnames.SO[itemp].c_str(),"",datagroupnames.adiosSOdatatype[itemp],to_string(nSOidstot).c_str(),"");
         itemp++;
         ///\todo don't actually know if I should use adios attribute or var to store simple single values
     }
 #endif
-    else{
+    else
+    {
         Fout<<ThisTask<<" "<<NProcs<<endl;
         Fout<<ng<<" "<<ngtot<<endl;
+        Fout<<nSOids<<" "<<nSOidstot<<endl;
     }
 
     //write group size
-    if (opt.ibinaryout==OUTBINARY) Fout.write((char*)&numingroup[1],sizeof(Int_t)*ngroups);
+    if (opt.ibinaryout==OUTBINARY) {
+        numingroup=new Int_t[ngroups+1];
+        for (auto i=1;i<=ngroups;i++) numingroup[i]=SOpids[i].size();
+        Fout.write((char*)&numingroup[1],sizeof(Int_t)*ngroups);
+        delete[] numingroup;
+    }
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
         dims=new hsize_t[1];
@@ -1210,14 +1241,14 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids){
             hdfdatasetproplist.setChunk(rank, chunk_dims);
             // Set ZLIB (DEFLATE) Compression using level 6.
             hdfdatasetproplist.setDeflate(6);
-            dataset = Fhdf.createDataSet(datagroupnames.group[itemp], datagroupnames.groupdatatype[itemp], dataspace, hdfdatasetproplist);
+            dataset = Fhdf.createDataSet(datagroupnames.SO[itemp], datagroupnames.SOdatatype[itemp], dataspace, hdfdatasetproplist);
         }
         else {
-            dataset = Fhdf.createDataSet(datagroupnames.group[itemp], datagroupnames.groupdatatype[itemp], dataspace);
+            dataset = Fhdf.createDataSet(datagroupnames.SO[itemp], datagroupnames.SOdatatype[itemp], dataspace);
         }
         unsigned int *data=new unsigned int[ng];
-        for (Int_t i=1;i<=ng;i++) data[i-1]=numingroup[i];
-        dataset.write(data,datagroupnames.groupdatatype[itemp]);
+        for (Int_t i=1;i<=ng;i++) data[i-1]=SOpids[i].size();
+        dataset.write(data,datagroupnames.SOdatatype[itemp]);
         itemp++;
         delete[] data;
         delete[] dims;
@@ -1241,27 +1272,26 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids){
         adios_err=adios_define_var(adios_grp_handle,"ngmpioffset","", adios_unsigned_long,0,0,0);
         //then define the group actually storing the data. Might be useful to define an offset variable as well for quick access when reading
         //offset would be the last field in the code below
-        adios_err=adios_define_var(adios_grp_handle,datagroupnames.group[itemp].c_str(),"",datagroupnames.adiosgroupdatatype[itemp],"ng","ngtot","ngmpioffset");
+        adios_err=adios_define_var(adios_grp_handle,datagroupnames.SO[itemp].c_str(),"",datagroupnames.adiosSOdatatype[itemp],"ng","ngtot","ngmpioffset");
         adios_err=adios_write(adios_file_handle,"ng",&ng);
         adios_err=adios_write(adios_file_handle,"ngtot",&ngtot);
         Int_t mpioffset=0;
         for (Int_t itask=0;itask<ThisTask;itask++)mpioffset+=mpi_ngroups[itask];
         adios_err=adios_write(adios_file_handle,"ngmpioffset",&mpioffset);
         unsigned int *data=new unsigned int[ng];
-        for (Int_t i=1;i<=ng;i++) data[i-1]=numingroup[i];
-        adios_err=adios_write(adios_file_handle,datagroupnames.group[itemp].c_str(),data);
+        for (Int_t i=1;i<=ng;i++) data[i-1]=SOpids[i].size();
+        adios_err=adios_write(adios_file_handle,datagroupnames.SO[itemp].c_str(),data);
         delete[] data;
         itemp++;
     }
 #endif
-    else for (Int_t i=1;i<=ngroups;i++) Fout<<numingroup[i]<<endl;
+    else for (Int_t i=1;i<=ngroups;i++) Fout<<SOpids[i].size()<<endl;
 
 
-    //Write offsets for bound and unbound particles
-    offset=new Int_t[ngroups+1];
+    //Write offsets
+    offset=new unsigned long[ngroups+1];
     offset[1]=0;
-    //note before had offsets at numingroup but to account for unbound particles use value of pglist at numingroup
-    for (Int_t i=2;i<=ngroups;i++) offset[i]=offset[i-1]+pglist[i-1][numingroup[i-1]];
+    for (Int_t i=2;i<=ngroups;i++) offset[i]=offset[i-1]+SOpids[i].size();
 
     if (opt.ibinaryout==OUTBINARY) Fout.write((char*)&offset[1],sizeof(Int_t)*ngroups);
 #ifdef USEHDF
@@ -1278,14 +1308,14 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids){
             // Set ZLIB (DEFLATE) Compression using level 6.
             hdfdatasetproplist.setDeflate(6);
             dataspace=DataSpace(rank,dims);
-            dataset = Fhdf.createDataSet(datagroupnames.group[itemp], datagroupnames.groupdatatype[itemp], dataspace,hdfdatasetproplist);
+            dataset = Fhdf.createDataSet(datagroupnames.SO[itemp], datagroupnames.SOdatatype[itemp], dataspace,hdfdatasetproplist);
         }
         else {
-            dataset = Fhdf.createDataSet(datagroupnames.group[itemp], datagroupnames.groupdatatype[itemp], dataspace);
+            dataset = Fhdf.createDataSet(datagroupnames.SO[itemp], datagroupnames.SOdatatype[itemp], dataspace);
         }
         unsigned long *data=new unsigned long[ng];
         for (Int_t i=1;i<=ng;i++) data[i-1]=offset[i];
-        dataset.write(data,datagroupnames.groupdatatype[itemp]);
+        dataset.write(data,datagroupnames.SOdatatype[itemp]);
         itemp++;
         delete[] data;
         delete[] dims;
@@ -1295,61 +1325,17 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids){
 #ifdef USEADIOS
     else if (opt.ibinaryout==OUTADIOS) {
         //don't delcare new group, just add data
-        adios_err=adios_define_var(adios_grp_handle,datagroupnames.group[itemp].c_str(),"",datagroupnames.adiosgroupdatatype[itemp],"ng","ngtot","ngmpioffset");
+        adios_err=adios_define_var(adios_grp_handle,datagroupnames.SO[itemp].c_str(),"",datagroupnames.adiosSOdatatype[itemp],"ng","ngtot","ngmpioffset");
         unsigned long *data=new unsigned long[ng];
         for (Int_t i=1;i<=ng;i++) data[i-1]=offset[i];
-        adios_err=adios_write(adios_file_handle,datagroupnames.group[itemp].c_str(),data);
+        adios_err=adios_write(adios_file_handle,datagroupnames.SO[itemp].c_str(),data);
         delete[] data;
         itemp++;
     }
 #endif
     else for (Int_t i=1;i<=ngroups;i++) Fout<<offset[i]<<endl;
-
-    //position of unbound particle
-    for (Int_t i=2;i<=ngroups;i++) offset[i]=offset[i-1]+numingroup[i-1]-pglist[i-1][numingroup[i-1]];
-    if (opt.ibinaryout==OUTBINARY) Fout.write((char*)&offset[1],sizeof(Int_t)*ngroups);
-#ifdef USEHDF
-    else if (opt.ibinaryout==OUTHDF) {
-        dims=new hsize_t[1];
-        chunk_dims=new hsize_t[1];
-        dims[0]=ng;
-        rank=1;
-        chunk_dims[0]=min((unsigned long)HDFOUTPUTCHUNKSIZE,ng);
-        if (chunk_dims[0]>0) {
-            hdfdatasetproplist=DSetCreatPropList();
-            // Modify dataset creation property to enable chunking
-            hdfdatasetproplist.setChunk(rank, chunk_dims);
-            // Set ZLIB (DEFLATE) Compression using level 6.
-            hdfdatasetproplist.setDeflate(6);
-            dataspace=DataSpace(rank,dims);
-            dataset = Fhdf.createDataSet(datagroupnames.group[itemp], datagroupnames.groupdatatype[itemp], dataspace, hdfdatasetproplist);
-        }
-        else {
-            dataset = Fhdf.createDataSet(datagroupnames.group[itemp], datagroupnames.groupdatatype[itemp], dataspace);
-        }
-        unsigned long *data=new unsigned long[ng];
-        for (Int_t i=1;i<=ng;i++) data[i-1]=offset[i];
-        dataset.write(data,datagroupnames.groupdatatype[itemp]);
-        itemp++;
-        delete[] data;
-        delete[] dims;
-        delete[] chunk_dims;
-    }
-#endif
-#ifdef USEADIOS
-    else if (opt.ibinaryout==OUTADIOS) {
-        //don't delcare new group, just add data
-        adios_err=adios_define_var(adios_grp_handle,datagroupnames.group[itemp].c_str(),"",datagroupnames.adiosgroupdatatype[itemp],"ng","ngtot","ngmpioffset");
-        unsigned long *data=new unsigned long[ng];
-        for (Int_t i=1;i<=ng;i++) data[i-1]=offset[i];
-        adios_err=adios_write(adios_file_handle,datagroupnames.group[itemp].c_str(),data);
-        delete[] data;
-        itemp++;
-    }
-#endif
-    else for (Int_t i=1;i<=ngroups;i++) Fout<<offset[i]<<endl;
-
     delete[] offset;
+
     if (opt.ibinaryout==OUTASCII || opt.ibinaryout==OUTBINARY) Fout.close();
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) Fhdf.close();
@@ -1358,191 +1344,59 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids){
     else if (opt.ibinaryout==OUTADIOS) adios_err=adios_close(adios_file_handle);
 #endif
 
-    //now write pid files
-#ifdef USEMPI
-    sprintf(fname,"%s.catalog_particles.%d",opt.outname,ThisTask);
-    sprintf(fname3,"%s.catalog_particles.unbound.%d",opt.outname,ThisTask);
-#else
-    sprintf(fname,"%s.catalog_particles",opt.outname);
-    sprintf(fname3,"%s.catalog_particles.unbound",opt.outname);
-#endif
-    cout<<"saving particle catalog to "<<fname<<endl;
-
-    if (opt.ibinaryout==OUTBINARY) {
-        Fout.open(fname,ios::out|ios::binary);
-        Fout3.open(fname3,ios::out|ios::binary);
-    }
-#ifdef USEHDF
-    else if (opt.ibinaryout==OUTHDF) {
-        Fhdf=H5File(fname,H5F_ACC_TRUNC);
-        Fhdf3=H5File(fname3,H5F_ACC_TRUNC);
-    }
-#endif
-#ifdef USEADIOS
-    else if (opt.ibinaryout==OUTADIOS) {
-        adios_err=adios_open(&adios_file_handle, "VELOCIraptor_catalog_particles", fname, "w", MPI_COMM_WORLD);
-        adios_err=adios_open(&adios_file_handle3, "VELOCIraptor_catalog_particles.unbound", fname3, "w", MPI_COMM_WORLD);
-    }
-#endif
-    else {
-        Fout.open(fname,ios::out);
-        Fout3.open(fname3,ios::out);
-    }
-
-    //see above regarding unbound particle
-    //for (Int_t i=1;i<=ngroups;i++) nids+=numingroup[i];
-    for (Int_t i=1;i<=ngroups;i++) {nids+=pglist[i][numingroup[i]];nuids+=numingroup[i]-pglist[i][numingroup[i]];}
-#ifdef USEMPI
-    MPI_Allreduce(&nids, &nidstot, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
-    MPI_Allreduce(&nuids, &nuidstot, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
-#else
-    nidstot=nids;
-    nuidstot=nuids;
-#endif
-
-    //write header
-    if (opt.ibinaryout==OUTBINARY) {
-        Fout.write((char*)&ThisTask,sizeof(int));
-        Fout.write((char*)&NProcs,sizeof(int));
-        Fout.write((char*)&nids,sizeof(unsigned long));
-        Fout.write((char*)&nidstot,sizeof(unsigned long));
-
-        Fout3.write((char*)&ThisTask,sizeof(int));
-        Fout3.write((char*)&NProcs,sizeof(int));
-        Fout3.write((char*)&nuids,sizeof(unsigned long));
-        Fout3.write((char*)&nuidstot,sizeof(unsigned long));
-    }
-#ifdef USEHDF
-    else if (opt.ibinaryout==OUTHDF) {
-        //set file info
-        dims=new hsize_t[1];
-        dims[0]=1;
-        rank=1;
-        itemp=0;
-        //datasetname=H5std_string("File_id");
-        dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.part[itemp], datagroupnames.partdatatype[itemp], dataspace);
-        dataset.write(&ThisTask,datagroupnames.partdatatype[itemp]);
-        dataset = Fhdf3.createDataSet(datagroupnames.part[itemp], datagroupnames.partdatatype[itemp], dataspace);
-        dataset.write(&ThisTask,datagroupnames.partdatatype[itemp]);
-        itemp++;
-
-        //datasetname=H5std_string("Num_of_files");
-        dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.part[itemp], datagroupnames.partdatatype[itemp], dataspace);
-        dataset.write(&NProcs,datagroupnames.partdatatype[itemp]);
-        dataset = Fhdf3.createDataSet(datagroupnames.part[itemp], datagroupnames.partdatatype[itemp], dataspace);
-        dataset.write(&NProcs,datagroupnames.partdatatype[itemp]);
-        itemp++;
-
-        //datasetname=H5std_string("Num_of_particles_in_groups");
-        dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.part[itemp], datagroupnames.partdatatype[itemp], dataspace);
-        dataset.write(&nids,datagroupnames.partdatatype[itemp]);
-        dataset = Fhdf3.createDataSet(datagroupnames.part[itemp], datagroupnames.partdatatype[itemp], dataspace);
-        dataset.write(&nuids,datagroupnames.partdatatype[itemp]);
-        itemp++;
-
-        //datasetname=H5std_string("Total_num_of_particles_in_all_groups");
-        dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.part[itemp], datagroupnames.partdatatype[itemp], dataspace);
-        dataset.write(&nidstot,datagroupnames.partdatatype[itemp]);
-        dataset = Fhdf3.createDataSet(datagroupnames.part[itemp], datagroupnames.partdatatype[itemp], dataspace);
-        dataset.write(&nuidstot,datagroupnames.partdatatype[itemp]);
-        itemp++;
-        delete[] dims;
-    }
-#endif
-#ifdef USEADIOS
-    else if (opt.ibinaryout==OUTADIOS) {
-        //declare the attributes in a header group, assiging the group handle, setting the name, no time step indicator, and a flag saying yes to all statistics
-        adios_err=adios_declare_group(&adios_grp_handle,"Header", "" , adios_stat_full);
-        //select simple mpi method
-        adios_select_method (adios_grp_handle, "MPI", "", "");
-        //define some attributes
-        adios_err=adios_define_attribute(adios_grp_handle,datagroupnames.group[itemp].c_str(),"",datagroupnames.adiosgroupdatatype[itemp],to_string(ThisTask).c_str(),"");
-        adios_err=adios_define_attribute(adios_grp_handle3,datagroupnames.group[itemp].c_str(),"",datagroupnames.adiosgroupdatatype[itemp],to_string(ThisTask).c_str(),"");
-        itemp++;
-        adios_err=adios_define_attribute(adios_grp_handle,datagroupnames.group[itemp].c_str(),"",datagroupnames.adiosgroupdatatype[itemp],to_string(NProcs).c_str(),"");
-        adios_err=adios_define_attribute(adios_grp_handle3,datagroupnames.group[itemp].c_str(),"",datagroupnames.adiosgroupdatatype[itemp],to_string(NProcs).c_str(),"");
-        itemp++;
-        adios_err=adios_define_attribute(adios_grp_handle,datagroupnames.group[itemp].c_str(),"",datagroupnames.adiosgroupdatatype[itemp],to_string(nids).c_str(),"");
-        adios_err=adios_define_attribute(adios_grp_handle3,datagroupnames.group[itemp].c_str(),"",datagroupnames.adiosgroupdatatype[itemp],to_string(nuids).c_str(),"");
-        itemp++;
-        adios_err=adios_define_attribute(adios_grp_handle,datagroupnames.group[itemp].c_str(),"",datagroupnames.adiosgroupdatatype[itemp],to_string(nidstot).c_str(),"");
-        adios_err=adios_define_attribute(adios_grp_handle3,datagroupnames.group[itemp].c_str(),"",datagroupnames.adiosgroupdatatype[itemp],to_string(nuidstot).c_str(),"");
-        itemp++;
-        ///\todo don't actually know if I should use adios attribute or var to store simple single values
-    }
-#endif
-    else {
-        Fout<<ThisTask<<" "<<NProcs<<endl;
-        Fout<<nids<<" "<<nidstot<<endl;
-
-        Fout3<<ThisTask<<" "<<NProcs<<endl;
-        Fout3<<nuids<<" "<<nuidstot<<endl;
-    }
-
-    Int_t *idval;
-    if (nids>0) {
-        idval=new Int_t[nids];
-        nids=0;
+    if (nSOids>0) {
+        idval=new long long[nSOids];
+        nSOids=0;
         for (Int_t i=1;i<=ngroups;i++)
-            for (Int_t j=0;j<pglist[i][numingroup[i]];j++)
-                idval[nids++]=Part[pglist[i][j]].GetPID();
-        if (opt.ibinaryout==OUTBINARY) Fout.write((char*)idval,sizeof(Int_t)*nids);
+            for (Int_t j=0;j<SOpids[i].size();j++)
+                idval[nSOids++]=SOpids[i][j];
+    }
+    if (opt.ibinaryout==OUTBINARY) {if (nSOids>0) Fout.write((char*)idval,sizeof(Int_t)*nSOids);}
 #ifdef USEHDF
-        else if (opt.ibinaryout==OUTHDF) {
-            dims=new hsize_t[1];
-            chunk_dims=new hsize_t[1];
-            dims[0]=nids;
-            rank=1;
-            chunk_dims[0]=min((unsigned long)HDFOUTPUTCHUNKSIZE,nids);
-            if (chunk_dims[0]>0) {
-                hdfdatasetproplist=DSetCreatPropList();
-                // Modify dataset creation property to enable chunking
-                hdfdatasetproplist.setChunk(rank, chunk_dims);
-                // Set ZLIB (DEFLATE) Compression using level 6.
-                hdfdatasetproplist.setDeflate(6);
-                dataspace=DataSpace(rank,dims);
-                dataset = Fhdf.createDataSet(datagroupnames.part[itemp], datagroupnames.partdatatype[itemp], dataspace, hdfdatasetproplist);
-            }
-            else {
-                dataset = Fhdf.createDataSet(datagroupnames.part[itemp], datagroupnames.partdatatype[itemp], dataspace);
-            }
-            long long *data=new long long[nids];
-            for (Int_t i=0;i<nids;i++) data[i]=idval[i];
-            dataset.write(data,datagroupnames.partdatatype[itemp]);
-            delete[] data;
-            delete[] dims;
-            delete[] chunk_dims;
+    else if (opt.ibinaryout==OUTHDF) {
+        dims=new hsize_t[1];
+        chunk_dims=new hsize_t[1];
+        dims[0]=nSOids;
+        rank=1;
+        chunk_dims[0]=min((unsigned long)HDFOUTPUTCHUNKSIZE,nSOids);
+        if (chunk_dims[0]>0) {
+            hdfdatasetproplist=DSetCreatPropList();
+            // Modify dataset creation property to enable chunking
+            hdfdatasetproplist.setChunk(rank, chunk_dims);
+            // Set ZLIB (DEFLATE) Compression using level 6.
+            hdfdatasetproplist.setDeflate(6);
+            dataspace=DataSpace(rank,dims);
+            dataset = Fhdf.createDataSet(datagroupnames.SO[itemp], datagroupnames.SOdatatype[itemp], dataspace, hdfdatasetproplist);
         }
+        else {
+            dataset = Fhdf.createDataSet(datagroupnames.SO[itemp], datagroupnames.SOdatatype[itemp], dataspace);
+        }
+        dataset.write(idval,datagroupnames.SOdatatype[itemp]);
+        delete[] dims;
+        delete[] chunk_dims;
+    }
 #endif
 #ifdef USEADIOS
-        else if (opt.ibinaryout==OUTADIOS) {
-            adios_err=adios_declare_group(&adios_grp_handle,"Catalog_Data", "" , adios_stat_full);
-            adios_select_method (adios_grp_handle, "MPI", "", "");
-            //store local dim
-            adios_err=adios_define_var(adios_grp_handle,"nids","", adios_unsigned_long,0,0,0);
-            //store global dim
-            adios_err=adios_define_var(adios_grp_handle,"nidstot","", adios_unsigned_long,0,0,0);
-            //store mpi offset
-            adios_err=adios_define_var(adios_grp_handle,"nidsmpioffset","", adios_unsigned_long,0,0,0);
-            adios_err=adios_define_var(adios_grp_handle,datagroupnames.group[itemp].c_str(),"",datagroupnames.adiosgroupdatatype[itemp],"nids","nidstot","nidsmpioffset");
-            adios_err=adios_write(adios_file_handle,"nids",&nids);
-            adios_err=adios_write(adios_file_handle,"nidstot",&nidstot);
-            Int_t mpioffset=0;
-            //for (Int_t itask=0;itask<ThisTask;itask++)mpioffset+=mpi_ngroups[itask];
-            adios_err=adios_write(adios_file_handle,"nidsmpioffset",&mpioffset);
-            long long *data=new long long[nids];
-            for (Int_t i=0;i<nids;i++) data[i-1]=idval[i];
-            adios_err=adios_write(adios_file_handle,datagroupnames.group[itemp].c_str(),data);
-            delete[] data;
-        }
-#endif
-        else for (Int_t i=0;i<nids;i++) Fout<<idval[i]<<endl;
-        delete[] idval;
+    else if (opt.ibinaryout==OUTADIOS) {
+        adios_err=adios_declare_group(&adios_grp_handle,"Catalog_Data", "" , adios_stat_full);
+        adios_select_method (adios_grp_handle, "MPI", "", "");
+        //store local dim
+        adios_err=adios_define_var(adios_grp_handle,"nSOids","", adios_unsigned_long,0,0,0);
+        //store global dim
+        adios_err=adios_define_var(adios_grp_handle,"nSOidstot","", adios_unsigned_long,0,0,0);
+        //store mpi offset
+        adios_err=adios_define_var(adios_grp_handle,"nSOidsmpioffset","", adios_unsigned_long,0,0,0);
+        adios_err=adios_define_var(adios_grp_handle,datagroupnames.SO[itemp].c_str(),"",datagroupnames.adiosSOdatatype[itemp],"nSOids","nSOidstot","nSOidsmpioffset");
+        adios_err=adios_write(adios_file_handle,"nSOids",&nSOids);
+        adios_err=adios_write(adios_file_handle,"nSOidstot",&nSOidstot);
+        Int_t mpioffset=0;
+        adios_err=adios_write(adios_file_handle,"nSOidsmpioffset",&mpioffset);
+        adios_err=adios_write(adios_file_handle,datagroupnames.SO[itemp].c_str(),idval);
     }
+#endif
+    else for (Int_t i=0;i<nSOids;i++) Fout<<idval[i]<<endl;
+    if (nSOids>0) delete[] idval;
+
     if (opt.ibinaryout==OUTASCII || opt.ibinaryout==OUTBINARY) Fout.close();
 #ifdef USEHDF
     if (opt.ibinaryout==OUTHDF) Fhdf.close();
@@ -1551,78 +1405,8 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids){
     else if (opt.ibinaryout==OUTADIOS) adios_err=adios_close(adios_file_handle);
 #endif
 
-    if (nuids>0) {
-        idval=new Int_t[nuids];
-        nuids=0;
-        for (Int_t i=1;i<=ngroups;i++)
-            for (Int_t j=pglist[i][numingroup[i]];j<numingroup[i];j++)
-                idval[nuids++]=Part[pglist[i][j]].GetPID();
-        if (opt.ibinaryout==OUTBINARY) Fout3.write((char*)idval,sizeof(Int_t)*nuids);
-#ifdef USEHDF
-        else if (opt.ibinaryout==OUTHDF) {
-            dims=new hsize_t[1];
-            chunk_dims=new hsize_t[1];
-            dims[0]=nuids;
-            rank=1;
-            chunk_dims[0]=min((unsigned long)HDFOUTPUTCHUNKSIZE,nuids);
-            if (chunk_dims[0]>0) {
-                hdfdatasetproplist=DSetCreatPropList();
-                // Modify dataset creation property to enable chunking
-                hdfdatasetproplist.setChunk(rank, chunk_dims);
-                // Set ZLIB (DEFLATE) Compression using level 6.
-                hdfdatasetproplist.setDeflate(6);
-                dataspace=DataSpace(rank,dims);
-                dataset = Fhdf3.createDataSet(datagroupnames.part[itemp], datagroupnames.partdatatype[itemp], dataspace,hdfdatasetproplist);
-            }
-            else {
-                dataset = Fhdf3.createDataSet(datagroupnames.part[itemp], datagroupnames.partdatatype[itemp], dataspace);
-            }
-            long long *data=new long long[nuids];
-            for (Int_t i=0;i<nuids;i++) data[i]=idval[i];
-            dataset.write(data,datagroupnames.partdatatype[itemp]);
-            delete[] data;
-            delete[] dims;
-            delete[] chunk_dims;
-        }
-#endif
-#ifdef USEADIOS
-        else if (opt.ibinaryout==OUTADIOS) {
-            adios_err=adios_declare_group(&adios_grp_handle3,"Catalog_Data", "" , adios_stat_full);
-            adios_select_method (adios_grp_handle3, "MPI", "", "");
-            //store local dim
-            adios_err=adios_define_var(adios_grp_handle3,"nuids","", adios_unsigned_long,0,0,0);
-            //store global dim
-            adios_err=adios_define_var(adios_grp_handle3,"nuidstot","", adios_unsigned_long,0,0,0);
-            //store mpi offset
-            adios_err=adios_define_var(adios_grp_handle3,"nuidsmpioffset","", adios_unsigned_long,0,0,0);
-            adios_err=adios_define_var(adios_grp_handle3,datagroupnames.group[itemp].c_str(),"",datagroupnames.adiosgroupdatatype[itemp],"nuids","nuidstot","nuidsmpioffset");
-            adios_err=adios_write(adios_file_handle3,"nuids",&nuids);
-            adios_err=adios_write(adios_file_handle3,"nuidstot",&nuidstot);
-            Int_t mpioffset=0;
-            //for (Int_t itask=0;itask<ThisTask;itask++)mpioffset+=mpi_ngroups[itask];
-            adios_err=adios_write(adios_file_handle3,"nidsmpioffset",&mpioffset);
-            long long *data=new long long[nuids];
-            for (Int_t i=0;i<nuids;i++) data[i-1]=idval[i];
-            adios_err=adios_write(adios_file_handle3,datagroupnames.group[itemp].c_str(),data);
-            delete[] data;
-        }
-#endif
-        else for (Int_t i=0;i<nuids;i++) Fout3<<idval[i]<<endl;
-        delete[] idval;
-    }
-
-    if (opt.ibinaryout==OUTASCII || opt.ibinaryout==OUTBINARY) Fout3.close();
-#ifdef USEHDF
-    if (opt.ibinaryout==OUTHDF) Fhdf3.close();
-#endif
-#ifdef USEADIOS
-    else if (opt.ibinaryout==OUTADIOS) adios_err=adios_close(adios_file_handle3);
-#endif
-
-#ifdef USEMPI
-    MPI_Barrier(MPI_COMM_WORLD);
-#endif
 }
+
 //@}
 
 

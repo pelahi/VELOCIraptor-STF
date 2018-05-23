@@ -2231,7 +2231,7 @@ private(i,j,k,taggedparts,radii,masses,indices,n,dx,EncMass,rc,rhoval,rhoval2,ti
         ids.clear();
         //write the particle lists
         if (opt.iSphericalOverdensityPartList) {
-
+            WriteSOCatalog(opt, ngroup, SOpartlist);
         }
 #ifdef USEMPI
         mpi_period=0;

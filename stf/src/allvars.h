@@ -2131,6 +2131,7 @@ struct DataGroupNames {
         SO.push_back("Total_num_of_field_halos");
         SO.push_back("Num_of_parts_in_SO");
         SO.push_back("Offset");
+        SO.push_back("Particle_IDs");
 #ifdef USEHDF
         SOdatatype.push_back(PredType::STD_I32LE);
         SOdatatype.push_back(PredType::STD_I32LE);
@@ -2138,6 +2139,7 @@ struct DataGroupNames {
         SOdatatype.push_back(PredType::STD_U64LE);
         SOdatatype.push_back(PredType::STD_U32LE);
         SOdatatype.push_back(PredType::STD_U64LE);
+        SOdatatype.push_back(PredType::STD_I64LE);
 #endif
 #ifdef USEADIOS
         adiosSOdatatype.push_back(ADIOS_DATATYPES::adios_integer);
@@ -2147,6 +2149,7 @@ struct DataGroupNames {
         adiosSOdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_integer);
         adiosSOdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
         adiosSOdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+        adiosSOdatatype.push_back(ADIOS_DATATYPES::adios_long);
 #endif
     }
 };
