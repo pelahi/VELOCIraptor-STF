@@ -35,12 +35,12 @@ macro(vr_option optname optdesc)
 	option(VR_${optname} "${optdec}" ON)
 endmacro()
 
-# Optional dependencies
-option(VR_NO_MPI    "Don't attempt to include MPI support in VELOCIraptor" OFF)
+# Input formats
 option(VR_NO_HDF5   "Don't attempt to include HDF5 support in VELOCIraptor" OFF)
 option(VR_NO_XDR    "Don't include XDF (nchilada) input support (which in turn requires HDF5 support)" OFF)
 
 # MPI options
+vr_option(MPI               "Attempt to include MPI support in VELOCIraptor")
 vr_option(MPI_REDUCE        "Reduce impact of MPI memory overhead at the cost of extra cpu cycles. Suggested this be turned on")
 vr_option(LARGE_MPI_DOMAIN  "Use large integers to represent MPI domains")
 
@@ -147,7 +147,7 @@ if (NOT VR_NO_HDF5)
 endif()
 
 set(VR_HAS_MPI No)
-if (NOT VR_NO_MPI)
+if (VR_MPI)
 	find_mpi()
 endif()
 
@@ -195,9 +195,11 @@ macro(vr_report feature)
 endmacro()
 
 message("\nVELOCIraptor successfully configured with the following settings:")
-vr_report(Dependencies
-          "MPI" MPI "HDF5" HDF5 "nchilada" XDR)
-vr_report("MPI-specifics (ignore if no MPI)"
+vr_report("File formats"
+          "HDF5" HDF5
+          "nchilada" XDR)
+vr_report("MPI-specifics"
+          "MPI support" MPI
           "Reduce MPI memory overhead at the cost of extra CPU cycles" MPI_REDUCE
           "Use huge MPI domains" LARGE_MPI_DOMAIN)
 vr_report(Gadget
