@@ -1159,7 +1159,7 @@ private(i,tid)
     else if (opt.iverbose>=2) cout<<ThisTask<<": "<<"NO SUBSTRUCTURES FOUND"<<endl;
 
     //now search particle list for large compact substructures that are considered part of the background when using smaller grids
-    if (nsubset>=MINSUBSIZE && opt.iLargerCellSearch)
+    if (nsubset>=MINSUBSIZE && opt.iLargerCellSearch && opt.foftype!=FOF6DCORE)
     {
         //first have to delete tree used in search so that particles are in original particle order
         //then construct a new grid with much larger cells so that new bg velocity dispersion can be estimated
