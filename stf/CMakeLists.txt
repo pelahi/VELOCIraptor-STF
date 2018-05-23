@@ -32,7 +32,7 @@ set(CMAKE_CXX_STANDARD 11)
 # Options users can give on the command line via -D
 #
 macro(vr_option optname optdesc)
-	option(VR_${optname} "${optdec}" ON)
+	option(VR_${optname} "${optdesc}" ON)
 endmacro()
 
 # Input formats

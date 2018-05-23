@@ -40,7 +40,7 @@ endif()
 
 # Options users can give on the command line via -D
 macro(nbody_option optname optdesc)
-	option(NBODY_${optname} "${optdec}" ON)
+	option(NBODY_${optname} "${optdesc}" ON)
 endmacro()
 
 # Optional dependencies
