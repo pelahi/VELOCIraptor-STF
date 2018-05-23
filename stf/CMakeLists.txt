@@ -64,7 +64,7 @@ vr_option(ZOOM_SIM      "Used to run against simulations with a high resolution 
 
 # Let's true to our word
 if (VR_USE_HYDRO)
-   set(NBODY_USE_GAS ON)
+	set(NBODY_USE_GAS ON)
 	set(NBODY_USE_STARS ON)
 	set(VR_USE_BH ON)
 endif()
