@@ -381,7 +381,7 @@ struct Options
         haloidoffset=0;
 
         icorematchtype=PARTLISTNOCORE;
-        particle_frac=0.2;
+        particle_frac=-1;
         min_numpart=20;
         max_numpart=-1;
         meritratiolimit=4.0;

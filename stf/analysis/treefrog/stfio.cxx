@@ -388,6 +388,7 @@ inline void STFReadNumData(unsigned long &nids, unsigned long &nsids, unsigned l
     int itemp;
     unsigned long ltemp;
     int itask,nprocs;
+    nids=nsids=nuids=nsuids=nidstot=nsidstot=nuidstot=nsuidstot=0;
     //read the header info before reading lengths of the halos
     if (ibinary==INBINARY) {
         Fpart.read((char*)&itask,sizeof(int));
@@ -739,100 +740,53 @@ unsigned long MPIReadHaloGroupCatalogDataParticleNum(string &infile, int mpi_nin
     if (mpi_ninput==0) nmpicount=1;
     else nmpicount=mpi_ninput;
     //to offset the halo structure pointer given that data maybe split among multiple files
-    noffset=0;
-    for (int k=0;k<nmpicount;k++) {
-        nglocal=nsglocal=0;
-        //load the group catalogues and the related particle files
-        //check if files exist and open
-        if (ibinary!=INHDF) OpenBinaryorAsciiFiles(infile, ibinary, numfiletypes, k, mpi_ninput, ifieldhalos, itypematch,
-            Fgroup, Fpart, Fupart,
-            Fsgroup, Fspart, Fsupart,
-            Fparttype, Fuparttype, Fsparttype, Fsuparttype,
-            Fhaloinfo, Fshaloinfo
-        );
+    //load the group catalogues and the related particle files
+    //check if files exist and open
+    if (ibinary!=INHDF) OpenBinaryorAsciiFiles(infile, ibinary, numfiletypes, 0, mpi_ninput, ifieldhalos, itypematch,
+        Fgroup, Fpart, Fupart,
+        Fsgroup, Fspart, Fsupart,
+        Fparttype, Fuparttype, Fsparttype, Fsuparttype,
+        Fhaloinfo, Fshaloinfo
+    );
 #ifdef USEHDF
-        else OpenHDFFiles(infile, numfiletypes, k, mpi_ninput, ifieldhalos, itypematch,
-            Fhdfgroup, Fhdfpart, Fhdfupart,
-            Fhdfsgroup, Fhdfspart, Fhdfsupart,
-            Fhdfparttype, Fhdfuparttype, Fhdfsparttype, Fhdfsuparttype,
-            Fhdfhaloinfo, Fhdfshaloinfo
-        );
+    else OpenHDFFiles(infile, numfiletypes, 0, mpi_ninput, ifieldhalos, itypematch,
+        Fhdfgroup, Fhdfpart, Fhdfupart,
+        Fhdfsgroup, Fhdfspart, Fhdfsupart,
+        Fhdfparttype, Fhdfuparttype, Fhdfsparttype, Fhdfsuparttype,
+        Fhdfhaloinfo, Fhdfshaloinfo
+    );
 #endif
 
-        //read number of output files
-        STFReadNumFileInfoAndCorrectNumFile(itask, nprocs, nmpicount, mpi_ninput, Fgroup, Fsgroup,
+    //read number of output files
+    STFReadNumFileInfoAndCorrectNumFile(itask, nprocs, nmpicount, mpi_ninput, Fgroup, Fsgroup,
 #ifdef USEHDF
-            Fhdfgroup, dataset, dataspace,
+        Fhdfgroup, dataset, dataspace,
 #endif
-            ibinary, ifieldhalos);
+        ibinary, ifieldhalos);
 
-        STFReadNumGroups(nglocal, ngtot, nsglocal, Fgroup, Fsgroup,
+    STFReadNumData(nids, nsids, nuids, nsuids,
+        nidstot, nsidstot, nuidstot, nsuidstot,
+        Fpart, Fupart, Fspart, Fsupart, Fparttype, Fuparttype, Fsparttype, Fsuparttype,
 #ifdef USEHDF
-            Fhdfgroup, Fhdfsgroup, dataset, dataspace,
+        Fhdfpart, Fhdfspart, Fhdfupart, Fhdfsupart,
+        Fhdfparttype, Fhdfsparttype, Fhdfuparttype, Fhdfsuparttype,
+        dataset, dataspace,
 #endif
-            ibinary, ifieldhalos);
-        if (nglocal>0) {
-            numingroup=new Int_t[nglocal+1];
+        ibinary, ifieldhalos, itypematch);
+    TotalNumberofParticles=nidstot+nsidstot+nuidstot+nsuidstot;
 
-            if (ibinary==INBINARY) {
-                Fgroup.read((char*)numingroup,sizeof(Int_t)*nglocal);
-                for (Int_t i=0;i<nglocal;i++) TotalNumberofParticles+=numingroup[i];
-            }
+    if (ibinary!=INHDF) CloseBinaryorAsciiFiles(Fgroup, Fpart, Fupart,
+        Fsgroup, Fspart, Fsupart,
+        Fparttype, Fuparttype, Fsparttype, Fsuparttype,
+        Fhaloinfo, Fshaloinfo,
+        ifieldhalos, itypematch);
 #ifdef USEHDF
-            else if (ibinary==INHDF) {
-                dataset=Fhdfgroup.openDataSet(hdfnames.group[4]);
-                dataspace=dataset.getSpace();
-                data=::operator new(sizeof(unsigned int)*(nglocal+1));
-                dataset.read(data,hdfnames.groupdatatype[4],dataspace);
-                for (Int_t i=0;i<nglocal;i++) TotalNumberofParticles+=((unsigned int*)data)[i];
-                ::operator delete(data);
-            }
+    else CloseHDFFiles(Fhdfgroup, Fhdfpart, Fhdfupart,
+        Fhdfsgroup, Fhdfspart, Fhdfsupart,
+        Fhdfparttype, Fhdfuparttype, Fhdfsparttype, Fhdfsuparttype,
+        Fhdfhaloinfo, Fhdfshaloinfo,
+        ifieldhalos, itypematch);
 #endif
-            else {
-                for (Int_t i=0;i<nglocal;i++) {Fgroup>>numingroup[i];TotalNumberofParticles+=numingroup[i];}
-            }
-            delete[] numingroup;
-        }
-
-        if (ifieldhalos) {
-            if (nsglocal>0) {
-                //now read substructure data
-                numingroup=new Int_t[nsglocal];
-                if (ibinary==INBINARY) {
-                    Fsgroup.read((char*)numingroup,sizeof(Int_t)*nsglocal);
-                    for (Int_t i=0;i<nsglocal;i++) TotalNumberofParticles+=numingroup[i];
-                }
-#ifdef USEHDF
-                else if (ibinary==INHDF) {
-                    dataset=Fhdfsgroup.openDataSet(hdfnames.group[4]);
-                    dataspace=dataset.getSpace();
-                    data=::operator new(sizeof(unsigned int)*(nglocal+1));
-                    dataset.read(data,hdfnames.groupdatatype[4],dataspace);
-                    for (Int_t i=0;i<nglocal;i++) TotalNumberofParticles+=((unsigned int*)data)[i];
-                    ::operator delete(data);
-                }
-#endif
-                else {
-                    for (Int_t i=0;i<nsglocal;i++) {Fsgroup>>numingroup[i];TotalNumberofParticles+=numingroup[i];}
-                }
-                delete[] numingroup;
-            }
-        }
-        noffset+=nglocal+nsglocal;
-
-        if (ibinary!=INHDF) CloseBinaryorAsciiFiles(Fgroup, Fpart, Fupart,
-            Fsgroup, Fspart, Fsupart,
-            Fparttype, Fuparttype, Fsparttype, Fsuparttype,
-            Fhaloinfo, Fshaloinfo,
-            ifieldhalos, itypematch);
-#ifdef USEHDF
-        else CloseHDFFiles(Fhdfgroup, Fhdfpart, Fhdfupart,
-            Fhdfsgroup, Fhdfspart, Fhdfsupart,
-            Fhdfparttype, Fhdfuparttype, Fhdfsparttype, Fhdfsuparttype,
-            Fhdfhaloinfo, Fhdfshaloinfo,
-            ifieldhalos, itypematch);
-#endif
-    }
 
     return TotalNumberofParticles;
 }

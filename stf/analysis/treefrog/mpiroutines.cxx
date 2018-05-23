@@ -20,7 +20,7 @@ int *mpi_startsnap,*mpi_endsnap;
 
 
 ///load balance how snapshots are split across mpi domains
-///\todo improvement of the load balancing so splits better and checks if the data can be loaded into RAM 
+///\todo improvement of the load balancing so splits better and checks if the data can be loaded into RAM
 void MPILoadBalanceSnapshots(Options &opt){
     mpi_startsnap=new int[NProcs];
     mpi_endsnap=new int[NProcs];
@@ -141,10 +141,7 @@ void MPIWriteLoadBalance(Options &opt){
     char fname[1000];
     fstream Fout;
     if (ThisTask==0) {
-
-        if (opt.outputformat==OUTHDF) sprintf(fname,"%s/treefrog.mpiloadbalance.txt",opt.outname);
-        else sprintf(fname,"%s.mpiloadbalance.txt",opt.outname);
-        
+        sprintf(fname,"%s.mpiloadbalance.txt",opt.outname);
         cout<<"Writing load balancing information to "<<fname<<endl;
         Fout.open(fname,ios::out);
         Fout<<NProcs<<endl;
@@ -161,10 +158,7 @@ int MPIReadLoadBalance(Options &opt){
     int nprocs,numsnaps,numsteps;
     int iflag=1;
     if (ThisTask==0) {
-
-        if (opt.outputformat==OUTHDF) sprintf(fname,"%s/treefrog.mpiloadbalance.txt",opt.outname);
-        else sprintf(fname,"%s.mpiloadbalance.txt",opt.outname);
-
+        sprintf(fname,"%s.mpiloadbalance.txt",opt.outname);
         cout<<"Reading load balancing information from "<<fname<<endl;
         Fin.open(fname,ios::in);
         if (Fin.is_open()) {
