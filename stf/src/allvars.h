@@ -338,8 +338,6 @@ struct Options
     /// to reduce likelihood of having to expand/allocate new memory
     Double_t mpipartfac;
 
-
-
     ///\name length,m,v,grav conversion units
     //@{
     Double_t L, M, V, G;
@@ -446,6 +444,10 @@ struct Options
     ///effective resolution for zoom simulations
     Int_t Neff;
 
+    ///if during substructure search, want to also search for larger substructures
+    //using the more time consuming local velocity calculations (partly in lieu of using the faster core search)
+    int iLargerCellSearch;
+
     ///\name extra stuff for halo merger check and identification of multiple halo core and flag for fully adaptive linking length using number density of candidate objects
     //@{
     /// run halo core search for mergers
@@ -493,6 +495,11 @@ struct Options
     int iuseextradarkparticles;
     //@}
 
+    /// if want full spherical overdensity, factor by which size is multiplied to get
+    ///bucket of particles
+    Double_t SphericalOverdensitySeachFac;
+    ///if want to the particle IDs that are within the SO overdensity of a halo
+    int iSphericalOverdensityPartList;
     /// \name Extra variables to store information useful in zoom simluations
     //@{
     /// store the lowest dark matter particle mass
@@ -579,6 +586,8 @@ struct Options
         iInclusiveHalo=0;
         iKeepFOF=0;
 
+        iLargerCellSearch=0;
+
         iHaloCoreSearch=0;
         iAdaptiveCoreLinking=0;
         iPhaseCoreGrowth=1;
@@ -632,6 +641,9 @@ struct Options
 
         lengthtokpc30pow2=30.0*30.0;
         lengthtokpc30pow2=50.0*50.0;
+
+        SphericalOverdensitySeachFac=1.25;
+        iSphericalOverdensityPartList=0;
 
         mpipartfac=0.1;
 #if USEHDF

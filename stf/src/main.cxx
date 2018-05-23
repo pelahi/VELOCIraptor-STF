@@ -137,10 +137,14 @@ int main(int argc,char **argv)
             int pstemp=opt.partsearchtype;
             opt.partsearchtype=PSTGAS;
             nbaryons+=ReadHeader(opt);
-            opt.partsearchtype=PSTSTAR;
-            nbaryons+=ReadHeader(opt);
-            opt.partsearchtype=PSTBH;
-            nbaryons+=ReadHeader(opt);
+            if (opt.iusestarparticles) {
+                opt.partsearchtype=PSTSTAR;
+                nbaryons+=ReadHeader(opt);
+            }
+            if (opt.iusesinkparticles) {
+                opt.partsearchtype=PSTBH;
+                nbaryons+=ReadHeader(opt);
+            }
             opt.partsearchtype=pstemp;
         }
         else nbaryons=0;

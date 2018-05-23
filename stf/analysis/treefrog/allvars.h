@@ -170,6 +170,18 @@ using namespace NBody;
 #define OUTHDF 2
 //@}
 
+/// \name data that is outputed
+//@{
+#define DATAOUTMATCHESONLY 0
+#define DATAOUTMERIT 1
+#define DATAOUTMERITNPART 2
+//@}
+
+/// \name size of chunks in hdf files for Compression
+#ifdef USEHDF
+#define HDFOUTPUTCHUNKSIZE 8192
+#endif
+
 /// \name defining types of multisnapshot linking done
 //@{
 ///missing link
@@ -205,7 +217,15 @@ using namespace NBody;
 
 /// \name OpenMP parameters for load balancing
 #ifdef USEOPENMP
-#define OMPCHUNKSIZE 100UL
+#define OMPCHUNKSIZE 100000UL
+#endif
+
+/// \name MPI parameters for load balancing
+#ifdef USEMPI
+///particle based splitting
+#define MPIPARTICLEBALANCE 0
+///halo based splitting
+#define MPIHALOBALANCE 1
 #endif
 
 #ifdef TREEFROGLONGIDS
@@ -319,6 +339,9 @@ struct Options
     int ndesiredmpithreads;
     ///whether mpi threads write in parallel
     int iwriteparallel;
+    ///Set if the load balancing is either halo or particle based splitting
+    int impiloadbalancesplitting;
+
 #endif
 
     Options()
@@ -354,11 +377,11 @@ struct Options
         haloidval=0;
         idcorrectflag=0;
         outputformat=OUTASCII;
-        outdataformat=0;
+        outdataformat=DATAOUTMERIT;
         haloidoffset=0;
 
         icorematchtype=PARTLISTNOCORE;
-        particle_frac=0.2;
+        particle_frac=-1;
         min_numpart=20;
         max_numpart=-1;
         meritratiolimit=4.0;
@@ -370,6 +393,7 @@ struct Options
         numpermpi=0;
         ndesiredmpithreads=0;
         iwriteparallel=0;
+        impiloadbalancesplitting=MPIHALOBALANCE;
 #endif
     }
 };
