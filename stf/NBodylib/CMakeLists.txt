@@ -44,7 +44,7 @@ macro(nbody_option optname optdesc)
 endmacro()
 
 # Optional dependencies
-option(NBODY_NO_OPENMP "Don't attempt to include OpenMP support in NBodyLib" OFF)
+nbody_option(OPENMP "Attempt to include OpenMP support in NBodyLib")
 
 # Precision options
 nbody_option(SINGLE_PRECISION  "Use single point precision to store all properties and perform all calculations")
@@ -122,7 +122,7 @@ endmacro()
 find_gsl()
 
 set(NBODY_HAS_OPENMP No)
-if (NOT NBODY_NO_OPENMP)
+if (NBODY_OPENMP)
 	find_openmp()
 endif()
 
