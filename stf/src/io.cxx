@@ -1073,6 +1073,10 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
 #endif
 }
 
+///Write the particles in each SO region
+///Note that this particle list will not be exclusive
+///\todo optimisation memory wise can be implemented by not creating an array
+///to store all ids and then copying info from the array of vectors into it.
 void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids){
     fstream Fout;
     char fname[500];
@@ -1336,14 +1340,6 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids){
     else for (Int_t i=1;i<=ngroups;i++) Fout<<offset[i]<<endl;
     delete[] offset;
 
-    if (opt.ibinaryout==OUTASCII || opt.ibinaryout==OUTBINARY) Fout.close();
-#ifdef USEHDF
-    else if (opt.ibinaryout==OUTHDF) Fhdf.close();
-#endif
-#ifdef USEADIOS
-    else if (opt.ibinaryout==OUTADIOS) adios_err=adios_close(adios_file_handle);
-#endif
-
     if (nSOids>0) {
         idval=new long long[nSOids];
         nSOids=0;
@@ -1378,7 +1374,7 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids){
 #endif
 #ifdef USEADIOS
     else if (opt.ibinaryout==OUTADIOS) {
-        adios_err=adios_declare_group(&adios_grp_handle,"Catalog_Data", "" , adios_stat_full);
+        adios_err=adios_declare_group(&adios_grp_handle,"Particle_Data", "" , adios_stat_full);
         adios_select_method (adios_grp_handle, "MPI", "", "");
         //store local dim
         adios_err=adios_define_var(adios_grp_handle,"nSOids","", adios_unsigned_long,0,0,0);

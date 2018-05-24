@@ -2127,14 +2127,18 @@ struct DataGroupNames {
 #endif
         SO.push_back("File_id");
         SO.push_back("Num_of_files");
-        SO.push_back("Num_of_field_halos");
-        SO.push_back("Total_num_of_field_halos");
-        SO.push_back("Num_of_parts_in_SO");
+        SO.push_back("Num_of_SO_regions");
+        SO.push_back("Total_num_of_SO_regions");
+        SO.push_back("Num_of_particles_in_SO_regions");
+        SO.push_back("Total_num_of_particles_in_SO_regions");
+        SO.push_back("SO_size");
         SO.push_back("Offset");
         SO.push_back("Particle_IDs");
 #ifdef USEHDF
         SOdatatype.push_back(PredType::STD_I32LE);
         SOdatatype.push_back(PredType::STD_I32LE);
+        SOdatatype.push_back(PredType::STD_U64LE);
+        SOdatatype.push_back(PredType::STD_U64LE);
         SOdatatype.push_back(PredType::STD_U64LE);
         SOdatatype.push_back(PredType::STD_U64LE);
         SOdatatype.push_back(PredType::STD_U32LE);
@@ -2146,8 +2150,9 @@ struct DataGroupNames {
         adiosSOdatatype.push_back(ADIOS_DATATYPES::adios_integer);
         adiosSOdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
         adiosSOdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
-        adiosSOdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_integer);
         adiosSOdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+        adiosSOdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+        adiosSOdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_integer);
         adiosSOdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
         adiosSOdatatype.push_back(ADIOS_DATATYPES::adios_long);
 #endif

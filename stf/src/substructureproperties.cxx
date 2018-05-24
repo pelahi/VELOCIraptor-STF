@@ -2030,7 +2030,8 @@ private(i,j,k,x,y,z)
         vector<Double_t> maxrdist(ngroup+1);
         //to store particle ids of those in SO volume.
         vector<Int_t> SOpids;
-        vector<Int_t> *SOpartlist=new vector<Int_t>[ngroup+1];
+        vector<Int_t> *SOpartlist;
+        if (opt.iSphericalOverdensityPartList)SOpartlist=new vector<Int_t>[ngroup+1];
 
         //set period
         if (opt.p>0) {
@@ -2232,6 +2233,7 @@ private(i,j,k,taggedparts,radii,masses,indices,n,dx,EncMass,rc,rhoval,rhoval2,ti
         //write the particle lists
         if (opt.iSphericalOverdensityPartList) {
             WriteSOCatalog(opt, ngroup, SOpartlist);
+            delete[] SOpartlist;
         }
 #ifdef USEMPI
         mpi_period=0;

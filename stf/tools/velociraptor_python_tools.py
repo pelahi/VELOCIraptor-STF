@@ -861,6 +861,107 @@ def ReadParticleDataFile(basefilename,ibinary=0,iseparatesubfiles=0,iparttypes=0
 
 	return particledata
 
+def ReadSOParticleDataFile(basefilename,ibinary=0,iverbose=0,binarydtype=np.int64):
+	"""
+	VELOCIraptor/STF catalog_group, catalog_particles and catalog_parttypes in various formats
+
+	Note that a file will indicate how many files the total output has been split into
+
+	"""
+	inompi=True
+	if (iverbose): print("reading particle data",basefilename)
+	filename=basefilename+".SOlist"
+	#check for file existence
+	if (os.path.isfile(gfilename)==True):
+		numfiles=0
+	else:
+		filename+=".0"
+		inompi=False
+		if (os.path.isfile(filename)==False):
+			print("file not found")
+			return []
+	byteoffset=0
+
+	#load header information from file to get total number of groups
+	#ascii
+	if (ibinary==0):
+		gfile = open(filename, 'r')
+		[filenum,numfiles]=gfile.readline().split()
+		filenum=int(filenum);numfiles=int(numfiles)
+		[numSO, numtotSO]= gfile.readline().split()
+		[numparts, numtotparts]= gfile.readline().split()
+		numSO=np.uint64(numSO);numtothalos=np.uint64(numtotSO)
+		numparts=np.uint64(numparts);numtotparts=np.uint64(numtotparts)
+	#binary
+	elif (ibinary==1):
+		gfile = open(filename, 'rb')
+		[filenum,numfiles]=np.fromfile(gfile,dtype=np.int32,count=2)
+		[numSO,numtotSO]=np.fromfile(gfile,dtype=np.uint64,count=2)
+		[numparts,numtotparts]=np.fromfile(gfile,dtype=np.uint64,count=2)
+	#hdf
+	elif (ibinary==2):
+		gfile = h5py.File(filename, 'r')
+		filenum=int(gfile["File_id"][0])
+		numfiles=int(gfile["Num_of_files"][0])
+		numSO=np.uint64(gfile["Num_of_SO_regions"][0])
+		numtotSO=np.uint64(gfile["Total_num_of_SO_regions"][0])
+		numparts=np.uint64(gfile["Num_of_particles_in_SO"][0])
+		numtotparts=np.uint64(gfile["Total_num_of_particles_in_SO"][0])
+	gfile.close()
+
+	particledata=dict()
+	particledata['Npart']=np.zeros(numtotSO,dtype=uint64)
+	particledata['Particle_IDs']=[[] for i in range(numtotSO)]
+
+	#now for all files
+	counter=np.uint64(0)
+	subfilenames=[""]
+	for ifile in range(numfiles):
+		gfilename=basefilename+".catalog_SOlist"
+
+		#ascii
+		if (ibinary==0):
+			gfile = open(gfilename, 'r')
+			#read header information
+			gfile.readline()
+			[numSO,foo]= gfile.readline().split()
+			[numparts,foo]= gfile.readline().split()
+			numSO=np.uint64(numSO)
+			numparts=np.uint64(numSO)
+			gfile.close()
+			#load data
+			gdata=np.loadtxt(gfilename,skiprows=2,dtype=np.uint64)
+			numingroup=gdata[:numSO]
+			offset=gdata[np.int64(numSO):np.int64(2*numSO)]
+			piddata=gdata[np.int64(2*numSO):np.int64(2*numSO+numparts)]
+		#binary
+		elif (ibinary==1):
+			gfile = open(gfilename, 'rb')
+			np.fromfile(gfile,dtype=np.int32,count=2)
+			[numSO,foo]=np.fromfile(gfile,dtype=np.uint64,count=2)
+			[numparts,foo]=np.fromfile(gfile,dtype=np.uint64,count=2)
+			numingroup=np.fromfile(gfile,dtype=binarydtype ,count=numSO)
+			offset=np.fromfile(gfile,dtype=binarydtype,count=numSO)
+			piddata=np.fromfile(gfile,dtype=binarydtype ,count=numparts)
+			gfile.close()
+		#hdf
+		elif (ibinary==2):
+			gfile = h5py.File(gfilename, 'r')
+			numhalos=np.uint64(gfile["Num_of_SO_regions"][0])
+			numingroup=np.uint64(gfile["SO_Size"])
+			offset=np.uint64(gfile["Offset"])
+			piddata=np.int64(gfile["Particle_IDs"])
+			gfile.close()
+
+		#now with data loaded, process it to produce data structure
+		particledata['Npart'][counter:counter+numSO]=numingroup
+
+		for i in range(numhalos):
+			particledata['Particle_IDs'][int(i+counter)]=np.array(piddata[offset[i]:offset[i]+numingroup[i]])
+		counter+=numhalos
+
+	return particledata
+
 """
 	Routines to build a hierarchy structure (both spatially and temporally)
 """
