@@ -870,15 +870,15 @@ def ReadSOParticleDataFile(basefilename,ibinary=0,iverbose=0,binarydtype=np.int6
 	"""
 	inompi=True
 	if (iverbose): print("reading particle data",basefilename)
-	filename=basefilename+".SOlist"
+	filename=basefilename+".catalog_SOlist"
 	#check for file existence
-	if (os.path.isfile(gfilename)==True):
+	if (os.path.isfile(filename)==True):
 		numfiles=0
 	else:
 		filename+=".0"
 		inompi=False
 		if (os.path.isfile(filename)==False):
-			print("file not found")
+			print("file not found",filename)
 			return []
 	byteoffset=0
 
@@ -905,23 +905,28 @@ def ReadSOParticleDataFile(basefilename,ibinary=0,iverbose=0,binarydtype=np.int6
 		numfiles=int(gfile["Num_of_files"][0])
 		numSO=np.uint64(gfile["Num_of_SO_regions"][0])
 		numtotSO=np.uint64(gfile["Total_num_of_SO_regions"][0])
-		numparts=np.uint64(gfile["Num_of_particles_in_SO"][0])
-		numtotparts=np.uint64(gfile["Total_num_of_particles_in_SO"][0])
+		numparts=np.uint64(gfile["Num_of_particles_in_SO_regions"][0])
+		numtotparts=np.uint64(gfile["Total_num_of_particles_in_SO_regions"][0])
 	gfile.close()
-
 	particledata=dict()
-	particledata['Npart']=np.zeros(numtotSO,dtype=uint64)
+	particledata['Npart']=[]
+	particledata['Particle_IDs']=[]
+	if (iverbose): 
+		print("SO lists contains ",numtotSO," regions containing total of ",numtotparts," in ",numfiles," files")
+	if (numtotSO==0): 
+		return particledata
+	particledata['Npart']=np.zeros(numtotSO,dtype=np.uint64)
 	particledata['Particle_IDs']=[[] for i in range(numtotSO)]
 
 	#now for all files
 	counter=np.uint64(0)
-	subfilenames=[""]
 	for ifile in range(numfiles):
-		gfilename=basefilename+".catalog_SOlist"
-
+		filename=basefilename+".catalog_SOlist"
+		if (inompi==False):
+			filename+="."+str(ifile)
 		#ascii
 		if (ibinary==0):
-			gfile = open(gfilename, 'r')
+			gfile = open(filename, 'r')
 			#read header information
 			gfile.readline()
 			[numSO,foo]= gfile.readline().split()
@@ -936,7 +941,7 @@ def ReadSOParticleDataFile(basefilename,ibinary=0,iverbose=0,binarydtype=np.int6
 			piddata=gdata[np.int64(2*numSO):np.int64(2*numSO+numparts)]
 		#binary
 		elif (ibinary==1):
-			gfile = open(gfilename, 'rb')
+			gfile = open(filename, 'rb')
 			np.fromfile(gfile,dtype=np.int32,count=2)
 			[numSO,foo]=np.fromfile(gfile,dtype=np.uint64,count=2)
 			[numparts,foo]=np.fromfile(gfile,dtype=np.uint64,count=2)
@@ -946,19 +951,18 @@ def ReadSOParticleDataFile(basefilename,ibinary=0,iverbose=0,binarydtype=np.int6
 			gfile.close()
 		#hdf
 		elif (ibinary==2):
-			gfile = h5py.File(gfilename, 'r')
-			numhalos=np.uint64(gfile["Num_of_SO_regions"][0])
-			numingroup=np.uint64(gfile["SO_Size"])
+			gfile = h5py.File(filename, 'r')
+			numSO=np.uint64(gfile["Num_of_SO_regions"][0])
+			numingroup=np.uint64(gfile["SO_size"])
 			offset=np.uint64(gfile["Offset"])
 			piddata=np.int64(gfile["Particle_IDs"])
 			gfile.close()
 
 		#now with data loaded, process it to produce data structure
 		particledata['Npart'][counter:counter+numSO]=numingroup
-
-		for i in range(numhalos):
+		for i in range(numSO):
 			particledata['Particle_IDs'][int(i+counter)]=np.array(piddata[offset[i]:offset[i]+numingroup[i]])
-		counter+=numhalos
+		counter+=numSO
 
 	return particledata
 
