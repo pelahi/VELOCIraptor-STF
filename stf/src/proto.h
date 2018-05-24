@@ -80,7 +80,8 @@ void WriteVELOCIraptorConfig(Options &opt);
 void WriteSimulationInfo(Options &opt);
 ///Write the unit info
 void WriteUnitInfo(Options &opt);
-
+///Write particle ids of those within spherical overdensity of a field halo 
+void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids);
 ///Writes ROCKSTAR like output
 //@{
 //@}
@@ -382,6 +383,8 @@ void MPINumInDomainNchilada(Options &opt);
 void MPIAdjustDomain(Options opt);
 ///determine if the search domain of a particle overlaps another mpi domain
 int MPISearchForOverlap(Particle &Part, Double_t &rdist);
+///determine if the search domain overlaps another mpi domain
+int MPISearchForOverlap(Double_t xsearch[3][2]);
 ///determine if search domain overlaps domain
 int MPIInDomain(Double_t xsearch[3][2], Double_t bnd[3][2]);
 //@}
@@ -415,6 +418,8 @@ void MPIBuildParticleExportList(const Int_t nbodies, Particle *Part, Int_t *&pfo
 Int_t MPILinkAcross(const Int_t nbodies, KDTree *&tree, Particle *Part, Int_t *&pfof, Int_tree_t *&Len, Int_tree_t *&Head, Int_tree_t *&Next, Double_t rdist2);
 ///Link groups across MPI threads using criterion
 Int_t MPILinkAcross(const Int_t nbodies, KDTree *&tree, Particle *Part, Int_t *&pfof, Int_tree_t *&Len, Int_tree_t *&Head, Int_tree_t *&Next, Double_t rdist2, FOFcompfunc &cmp, Double_t *params);
+///Link groups across MPI threads checking particle types
+Int_t MPILinkAcross(const Int_t nbodies, KDTree *&tree, Particle *Part, Int_t *&pfof, Int_tree_t *&Len, Int_tree_t *&Head, Int_tree_t *&Next, Double_t rdist2, FOFcheckfunc &check, Double_t *params);
 ///update export list after after linking across
 void MPIUpdateExportList(const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_tree_t *&Len);
 ///localize groups to a single mpi thread
@@ -456,7 +461,14 @@ void MPIGetNNImportNum(const Int_t nbodies, KDTree *tree, Particle *Part);
 Int_t MPIBuildParticleNNImportList(const Int_t nbodies, KDTree *tree, Particle *Part, int iallflag=true);
 ///comparison function to order particles for export
 int nn_export_cmp(const void *a, const void *b);
-
+///Determine number of halos whose search regions overlap other mpi domains
+vector<bool> MPIGetHaloSearchExportNum(const Int_t ngroups, PropData *&pdata, vector<Double_t> &rdist);
+///Build the export list of halo positions and search distances
+void MPIBuildHaloSearchExportList(const Int_t ngroup, PropData *&pdata, vector<Double_t> &rdist, vector<bool> &halooverlap);
+///Determine number of imported particles based on halo search regions
+void MPIGetHaloSearchImportNum(const Int_t nbodies, KDTree *tree, Particle *Part);
+///Builds the import list of particles based on halo positions
+Int_t MPIBuildHaloSearchImportList(const Int_t nbodies, KDTree *tree, Particle *Part);
 //@}
 #endif
 

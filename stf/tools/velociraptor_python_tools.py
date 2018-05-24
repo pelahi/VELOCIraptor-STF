@@ -3,7 +3,6 @@ from __future__ import print_function
 
 import sys,os,os.path,string,time,re,struct
 import math,operator
-from pylab import *
 import numpy as np
 import h5py #import hdf5 interface
 import tables as pytb #import pytables
@@ -33,7 +32,7 @@ Routines for reading velociraptor output
 	IO Routines
 """
 
-def ReadPropertyFile(basefilename,ibinary=0,iseparatesubfiles=0,iverbose=0, desiredfields=[]):
+def ReadPropertyFile(basefilename,ibinary=0,iseparatesubfiles=0,iverbose=0, desiredfields=[], isiminfo=True, iunitinfo=True):
 	"""
 	VELOCIraptor/STF files in various formats
 	for example ascii format contains
@@ -154,7 +153,7 @@ def ReadPropertyFile(basefilename,ibinary=0,iseparatesubfiles=0,iverbose=0, desi
 		numfiles=int(halofile["Num_of_files"][0])
 		numhalos=np.uint64(halofile["Num_of_groups"][0])
 		numtothalos=np.uint64(halofile["Total_num_of_groups"][0])
-		atime=np.float(halofile.attrs["Time"]) 
+		#atime=np.float(halofile.attrs["Time"])
 		fieldnames=[str(n) for n in halofile.keys()]
 		#clean of header info
 		fieldnames.remove("File_id")
@@ -181,7 +180,7 @@ def ReadPropertyFile(basefilename,ibinary=0,iseparatesubfiles=0,iverbose=0, desi
 			halofile.readline()
 			numhalos=np.uint64(halofile.readline().split()[0])
 			halofile.close()
-			if (numhalos>0):htemp = np.loadtxt(filename,skiprows=3, usecols=fieldindex, dtype=fieldtypestring, unpack=True)
+			if (numhalos>0):htemp = np.loadtxt(filename,skiprows=3, usecols=fieldindex, dtype=fieldtypestring, unpack=True, ndmin=1)
 		elif(ibinary==1):
 			halofile = open(filename, 'rb')
 			np.fromfile(halofile,dtype=np.int32,count=2)
@@ -211,7 +210,7 @@ def ReadPropertyFile(basefilename,ibinary=0,iseparatesubfiles=0,iverbose=0, desi
 				halofile.readline()
 				numhalos=np.uint64(halofile.readline().split()[0])
 				halofile.close()
-				if (numhalos>0):htemp = np.loadtxt(filename,skiprows=3, usecols=fieldindex, dtype=fieldtypestring, unpack=True)
+				if (numhalos>0):htemp = np.loadtxt(filename,skiprows=3, usecols=fieldindex, dtype=fieldtypestring, unpack=True, ndmin=1)
 			elif(ibinary==1):
 				halofile = open(filename, 'rb')
 				#halofile.seek(byteoffset);
@@ -229,20 +228,37 @@ def ReadPropertyFile(basefilename,ibinary=0,iseparatesubfiles=0,iverbose=0, desi
 				catvalue=fieldnames[i]
 			if (numhalos>0): catalog[catvalue][noffset:noffset+numhalos]=htemp[i]
 			noffset+=numhalos
+	#load associated simulation info, time and units
+	if (isiminfo):
+		siminfoname=basefilename+".siminfo"
+		siminfo=open(siminfoname,'r')
+		catalog['SimulationInfo']=dict()
+		for l in siminfo:
+			d=l.strip().split(' : ')
+			catalog['SimulationInfo'][d[0]]=float(d[1])
+		siminfo.close()
+	if (iunitinfo):
+		unitinfoname=basefilename+".units"
+		unitinfo=open(unitinfoname,'r')
+		catalog['UnitInfo']=dict()
+		for l in unitinfo:
+			d=l.strip().split(' : ')
+			catalog['UnitInfo'][d[0]]=float(d[1])
+		unitinfo.close()
 
 	if (iverbose): print("done reading properties file ",time.clock()-start)
-	return catalog,numtothalos,atime
+	return catalog,numtothalos
 
 def ReadPropertyFileMultiWrapper(basefilename,index,halodata,numhalos,atime,ibinary=0,iseparatesubfiles=0,iverbose=0,desiredfields=[]):
 	"""
 	Wrapper for multithreaded reading
 	"""
 	#call read routine and store the data
-	halodata[index],numhalos[index],atime[index]=ReadPropertyFile(basefilename,ibinary,iseparatesubfiles,iverbose,desiredfields)
+	halodata[index],numhalos[index]=ReadPropertyFile(basefilename,ibinary,iseparatesubfiles,iverbose,desiredfields)
 
 def ReadPropertyFileMultiWrapperNamespace(index,basefilename,ns,ibinary=0,iseparatesubfiles=0,iverbose=0,desiredfields=[]):
 	#call read routine and store the data
-	ns.hdata[index],ns.ndata[index],ns.adata[index]=ReadPropertyFile(basefilename,ibinary,iseparatesubfiles,iverbose,desiredfields)
+	ns.hdata[index],ns.ndata[index]=ReadPropertyFile(basefilename,ibinary,iseparatesubfiles,iverbose,desiredfields)
 
 def ReadHaloMergerTree(treefilename,ibinary=0,iverbose=0,imerit=False,inpart=False):
 	"""
@@ -343,7 +359,6 @@ def ReadHaloMergerTree(treefilename,ibinary=0,iverbose=0,imerit=False,inpart=Fal
 		treedata.close()
 		snaptreelist.close()
 
-
 		snaptreelist=open(treefilename,'r')
 		for snap in range(numsnaps):
 			snaptreename = snaptreelist.readline().strip()+".tree"
@@ -365,7 +380,7 @@ def ReadHaloMergerTree(treefilename,ibinary=0,iverbose=0,imerit=False,inpart=Fal
 
 				if(inpart): tree[snap]["Npart_progen"] = np.split(treedata["ProgenNpart"],split[:-1])
 				if(imerit): tree[snap]["Merit"] =  np.split(treedata["Merits"],split[:-1])
- 
+
 		snaptreelist.close()
 	if (iverbose): print("done reading tree file ",time.clock()-start)
 	return tree
@@ -445,7 +460,9 @@ def ReadHaloMergerTreeDescendant(treefilename,ireverseorder=True,ibinary=0,iverb
 			tree[ii]["Descen"]=[[] for j in range(numhalos)]
 			tree[ii]["Rank"]=[[] for j in range(numhalos)]
 			if (imerit): tree[ii]["Merit"]=[[] for j in range(numhalos)]
-			if (inpart): tree[i]["Npart"]=np.zeros(numhalos, dtype=np.uint32)
+			if (inpart):
+				tree[i]["Npart"]=np.zeros(numhalos, dtype=np.uint32)
+				tree[ii]["Npart_descen"]=[[] for j in range(numhalos)]
 			for j in range(numhalos):
 				data=treefile.readline().strip().split('\t')
 				hid=np.int64(data[0]);ndescen=np.uint32(data[1])
@@ -475,8 +492,6 @@ def ReadHaloMergerTreeDescendant(treefilename,ireverseorder=True,ibinary=0,iverb
 		numsnaps=treedata.attrs['Number_of_snapshots']
 		treedata.close()
 		snaptreelist.close()
-
-
 		snaptreelist=open(treefilename,'r')
 		for snap in range(numsnap):
 			snaptreename = snaptreelist.readline().strip()+".tree"
@@ -493,14 +508,14 @@ def ReadHaloMergerTreeDescendant(treefilename,ireverseorder=True,ibinary=0,iverb
 				split = np.add(np.array(treedata["DescOffsets"]), tree[snap]["Num_descen"],dtype=np.uint64,casting="unsafe")
 
 				# Read in the data splitting it up as reading it in
-				tree[snap]["Descen"] = np.split(treedata["Descendants"][:],split[:-1])
 				tree[snap]["Rank"] = np.split(treedata["Ranks"][:],split[:-1])
+				tree[snap]["Descen"] = np.split(treedata["Descendants"][:],split[:-1])
 
-				if(inpart): tree[snap]["Npart_progen"] = np.split(treedata["ProgenNpart"],split[:-1])
-				if(imerit): tree[snap]["Merit"] =  np.split(treedata["Merits"],split[:-1])
+				if(inpart): tree[snap]["Npart_progen"] = np.split(treedata["ProgenNpart"][:],split[:-1])
+				if(imerit): tree[snap]["Merit"] =  np.split(treedata["Merits"][:],split[:-1])
 
 		snaptreelist.close()
-		
+
 	if (iverbose): print("done reading tree file ",time.clock()-start)
 	return tree
 
@@ -644,7 +659,7 @@ def ReadUnitInfo(basefilename):
 	if (os.path.isfile(filename)==False):
 		print("file not found")
 		return []
-		
+
 	unitdata = {}
 	unitsfile = open(filename,"r")
 	line = unitsfile.readline().strip().split(" : ")
@@ -843,6 +858,111 @@ def ReadParticleDataFile(basefilename,ibinary=0,iseparatesubfiles=0,iparttypes=0
 					particledata['Particle_Types'][int(i+counter)][:int(numingroup[i]-unumingroup[i])]=tdata[offset[i]:offset[i]+numingroup[i]-unumingroup[i]]
 					particledata['Particle_Types'][int(i+counter)][int(numingroup[i]-unumingroup[i]):numingroup[i]]=utdata[uoffset[i]:uoffset[i]+unumingroup[i]]
 			counter+=numhalos
+
+	return particledata
+
+def ReadSOParticleDataFile(basefilename,ibinary=0,iverbose=0,binarydtype=np.int64):
+	"""
+	VELOCIraptor/STF catalog_group, catalog_particles and catalog_parttypes in various formats
+
+	Note that a file will indicate how many files the total output has been split into
+
+	"""
+	inompi=True
+	if (iverbose): print("reading particle data",basefilename)
+	filename=basefilename+".catalog_SOlist"
+	#check for file existence
+	if (os.path.isfile(filename)==True):
+		numfiles=0
+	else:
+		filename+=".0"
+		inompi=False
+		if (os.path.isfile(filename)==False):
+			print("file not found",filename)
+			return []
+	byteoffset=0
+
+	#load header information from file to get total number of groups
+	#ascii
+	if (ibinary==0):
+		gfile = open(filename, 'r')
+		[filenum,numfiles]=gfile.readline().split()
+		filenum=int(filenum);numfiles=int(numfiles)
+		[numSO, numtotSO]= gfile.readline().split()
+		[numparts, numtotparts]= gfile.readline().split()
+		numSO=np.uint64(numSO);numtothalos=np.uint64(numtotSO)
+		numparts=np.uint64(numparts);numtotparts=np.uint64(numtotparts)
+	#binary
+	elif (ibinary==1):
+		gfile = open(filename, 'rb')
+		[filenum,numfiles]=np.fromfile(gfile,dtype=np.int32,count=2)
+		[numSO,numtotSO]=np.fromfile(gfile,dtype=np.uint64,count=2)
+		[numparts,numtotparts]=np.fromfile(gfile,dtype=np.uint64,count=2)
+	#hdf
+	elif (ibinary==2):
+		gfile = h5py.File(filename, 'r')
+		filenum=int(gfile["File_id"][0])
+		numfiles=int(gfile["Num_of_files"][0])
+		numSO=np.uint64(gfile["Num_of_SO_regions"][0])
+		numtotSO=np.uint64(gfile["Total_num_of_SO_regions"][0])
+		numparts=np.uint64(gfile["Num_of_particles_in_SO_regions"][0])
+		numtotparts=np.uint64(gfile["Total_num_of_particles_in_SO_regions"][0])
+	gfile.close()
+	particledata=dict()
+	particledata['Npart']=[]
+	particledata['Particle_IDs']=[]
+	if (iverbose): 
+		print("SO lists contains ",numtotSO," regions containing total of ",numtotparts," in ",numfiles," files")
+	if (numtotSO==0): 
+		return particledata
+	particledata['Npart']=np.zeros(numtotSO,dtype=np.uint64)
+	particledata['Particle_IDs']=[[] for i in range(numtotSO)]
+
+	#now for all files
+	counter=np.uint64(0)
+	for ifile in range(numfiles):
+		filename=basefilename+".catalog_SOlist"
+		if (inompi==False):
+			filename+="."+str(ifile)
+		#ascii
+		if (ibinary==0):
+			gfile = open(filename, 'r')
+			#read header information
+			gfile.readline()
+			[numSO,foo]= gfile.readline().split()
+			[numparts,foo]= gfile.readline().split()
+			numSO=np.uint64(numSO)
+			numparts=np.uint64(numSO)
+			gfile.close()
+			#load data
+			gdata=np.loadtxt(gfilename,skiprows=2,dtype=np.uint64)
+			numingroup=gdata[:numSO]
+			offset=gdata[np.int64(numSO):np.int64(2*numSO)]
+			piddata=gdata[np.int64(2*numSO):np.int64(2*numSO+numparts)]
+		#binary
+		elif (ibinary==1):
+			gfile = open(filename, 'rb')
+			np.fromfile(gfile,dtype=np.int32,count=2)
+			[numSO,foo]=np.fromfile(gfile,dtype=np.uint64,count=2)
+			[numparts,foo]=np.fromfile(gfile,dtype=np.uint64,count=2)
+			numingroup=np.fromfile(gfile,dtype=binarydtype ,count=numSO)
+			offset=np.fromfile(gfile,dtype=binarydtype,count=numSO)
+			piddata=np.fromfile(gfile,dtype=binarydtype ,count=numparts)
+			gfile.close()
+		#hdf
+		elif (ibinary==2):
+			gfile = h5py.File(filename, 'r')
+			numSO=np.uint64(gfile["Num_of_SO_regions"][0])
+			numingroup=np.uint64(gfile["SO_size"])
+			offset=np.uint64(gfile["Offset"])
+			piddata=np.int64(gfile["Particle_IDs"])
+			gfile.close()
+
+		#now with data loaded, process it to produce data structure
+		particledata['Npart'][counter:counter+numSO]=numingroup
+		for i in range(numSO):
+			particledata['Particle_IDs'][int(i+counter)]=np.array(piddata[offset[i]:offset[i]+numingroup[i]])
+		counter+=numSO
 
 	return particledata
 
@@ -1572,6 +1692,10 @@ def GenerateProgenitorLinks(numsnaps,numhalos,halodata,nsnapsearch=4,TEMPORALHAL
 	- the halodata dictionary structure which must contain the halo merger tree based keys, Head, RootHead, etc, and mass, phase-space positions of haloes,
 	and other desired properties
 	"""
+	if (nsnapsearch>=numsnaps-1):
+		nsnapsearch=numsnaps-1
+		print("Warning, number of snaps < search size, reducing search size to numsnaps-1=",nsnapsearch)
+
 	for j in range(numsnaps):
 		#store id and snap and mass of last major merger and while we're at it, store number of major mergers
 		halodata[j]["NextProgenitor"]=np.ones(numhalos[j],dtype=np.int64)*-1
@@ -1595,17 +1719,17 @@ def GenerateProgenitorLinks(numsnaps,numhalos,halodata,nsnapsearch=4,TEMPORALHAL
 			haloid=currenttails[0]
 			haloindex=int(haloid%TEMPORALHALOIDVAL-1)
 			halosnap=numsnaps-1-(haloid-int(haloid%TEMPORALHALOIDVAL))/TEMPORALHALOIDVAL
-			halodata[halosnap]['PreviousProgenitor'][haloindex]=haloid
+			halodata[halosnap]['PreviousProgenitor'][haloindex]=np.int64(haloid)
 			for itail in range(len(currenttails)-1):
 				haloid=currenttails[itail]
 				haloindex=int(haloid%TEMPORALHALOIDVAL-1)
-				halosnap=numsnaps-1-(haloid-int(haloid%TEMPORALHALOIDVAL))/TEMPORALHALOIDVAL
+				halosnap=np.inte64(numsnaps-1-(haloid-int(haloid%TEMPORALHALOIDVAL))/TEMPORALHALOIDVAL)
 				haloindex=int(currenttails[itail]%TEMPORALHALOIDVAL-1)
 				nexthaloid=currenttails[itail+1]
 				nexthaloindex=int(nexthaloid%TEMPORALHALOIDVAL-1)
-				nexthalosnap=numsnaps-1-(nexthaloid-int(nexthaloid%TEMPORALHALOIDVAL))/TEMPORALHALOIDVAL
-				halodata[halosnap]['NextProgenitor'][haloindex]=nexthaloid
-				halodata[nexthalosnap]['PreviousProgenitor'][nexthaloindex]=haloid
+				nexthalosnap=np.int64(numsnaps-1-(nexthaloid-int(nexthaloid%TEMPORALHALOIDVAL))/TEMPORALHALOIDVAL)
+				halodata[halosnap]['NextProgenitor'][haloindex]=np.int64(nexthaloid)
+				halodata[nexthalosnap]['PreviousProgenitor'][nexthaloindex]=np.int64(haloid)
 			haloid=currenttails[-1]
 			haloindex=int(haloid%TEMPORALHALOIDVAL-1)
 			halosnap=numsnaps-1-(haloid-int(haloid%TEMPORALHALOIDVAL))/TEMPORALHALOIDVAL
@@ -1714,8 +1838,8 @@ def SetForestID(numsnaps,halodata,rootheadid,ForestID,AllRootHead,
 
 	return AllRootHead,halodata
 
-def GenerateForest(numsnaps,numhalos,halodata,cosmo,atime,
-	TEMPORALHALOIDVAL=1000000000000, iverbose=1, interactiontime=2, ispatialintflag=False, pos_tree=[]):
+def GenerateForest(numsnaps,numhalos,halodata,atime,
+	TEMPORALHALOIDVAL=1000000000000, iverbose=1, interactiontime=2, ispatialintflag=False, pos_tree=[], cosmo=dict()):
 	"""
 	This code traces all root heads back in time identifying all interacting haloes and bundles them together into the same forest id
 	The idea is to have in the halodata dictionary an associated unique forest id for all related (sub)haloes. The code also allows
@@ -1730,8 +1854,6 @@ def GenerateForest(numsnaps,numhalos,halodata,cosmo,atime,
 		array of the number of haloes per snapshot.
 	halodata : dict
 		the halodata dictionary structure which must contain the halo merger tree based keys (Head, RootHead), etc.
-	cosmo : dict
-		dictionary which has cosmological information such as box size, hval, Omega_m
 	atime : array
 		an array of scale factors
 
@@ -1746,10 +1868,12 @@ def GenerateForest(numsnaps,numhalos,halodata,cosmo,atime,
 		Optional functionality not implemented yet. Allows forest to be split if connections do not span
 		more than this number of snapshots
 	ispatialintflag : bool
-		Flag indicating whether spatial information should be used to join forests.
+		Flag indicating whether spatial information should be used to join forests. This requires cosmological information
 	pos_tree : scikit.spatial.cKDTree
 		Optional functionality not implemented yet. Allows forests to be joined if haloes
 		are spatially close.
+	cosmo : dict
+		dictionary which has cosmological information such as box size, hval, Omega_m
 
 	Returns
 	-------
@@ -1959,7 +2083,7 @@ def ProduceUnifiedTreeandHaloCatalog(fname,numsnaps,tree,numhalos,halodata,atime
 
 		for i in range(numsnaps):
 			snapgrp=hdffile.create_group("Snap_%03d"%(numsnaps-1-i))
-			snapgrp.attrs["Snapnum"]=i
+			snapgrp.attrs["Snapnum"]=(numsnaps-1-i)
 			snapgrp.attrs["NHalos"]=numhalos[i]
 			snapgrp.attrs["scalefactor"]=atime[i]
 			for key in halodata[i].keys():
@@ -1968,7 +2092,7 @@ def ProduceUnifiedTreeandHaloCatalog(fname,numsnaps,tree,numhalos,halodata,atime
 	else:
 		for i in range(numsnaps):
 			hdffile=h5py.File(fname+".snap_%03d.hdf.data"%(numsnaps-1-i),'w')
-			hdffile.create_dataset("Snap_value",data=np.array([i],dtype=np.uint32))
+			hdffile.create_dataset("Snap_value",data=np.array([numsnaps-1-i],dtype=np.uint32))
 			hdffile.create_dataset("NSnaps",data=np.array([numsnaps],dtype=np.uint32))
 			hdffile.create_dataset("NHalos",data=np.array([numhalos[i]],dtype=np.uint64))
 			hdffile.create_dataset("TotalNHalos",data=np.array([totnumhalos],dtype=np.uint64))

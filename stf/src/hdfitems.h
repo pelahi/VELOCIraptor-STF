@@ -68,18 +68,17 @@ using namespace H5;
 ///example at most one needs a dimensionality of 13 for the tracer particles in Illustris for fluid related info
 #define HDFMAXPROPDIM 13
 
-///\name labels for HDF naming conventions
+///\defgroup HDFNAMES labels for HDF naming conventions
 //@{
-
-///\name Structures for the HDF5 interface, primarily used to store the strings of Groups and DataSets
-//@{
-#define HDFNUMNAMETYPES  4 
-
+#define HDFNUMNAMETYPES  4
 #define HDFILLUSTISNAMES 0
 #define HDFGADGETXNAMES  1
 #define HDFEAGLENAMES    2
 #define HDFGIZMONAMES    3
 //@}
+
+///size of chunks in hdf files for Compression
+#define HDFOUTPUTCHUNKSIZE 8192
 
 ///This structures stores the strings defining the groups of data in the hdf input. NOTE: HERE I show the strings for Illustris format
 struct HDF_Group_Names {
@@ -347,7 +346,7 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
         //lets assume there are dm/gas.
         nusetypes=0;
         usetypes[nusetypes++]=HDFGASTYPE;usetypes[nusetypes++]=HDFDMTYPE;
-        if (opt.iuseextradarkparticles) usetypes[nusetypes++]=HDFDM1TYPE;usetypes[nusetypes++]=HDFDM2TYPE;
+        if (opt.iuseextradarkparticles) {usetypes[nusetypes++]=HDFDM1TYPE;usetypes[nusetypes++]=HDFDM2TYPE;}
         if (opt.iusestarparticles) usetypes[nusetypes++]=HDFSTARTYPE;
         if (opt.iusesinkparticles) usetypes[nusetypes++]=HDFBHTYPE;
         if (opt.iusewindparticles) usetypes[nusetypes++]=HDFWINDTYPE;

@@ -1,6 +1,6 @@
 /*! \file KDFindNearest.cxx
- *  \brief This file contains subroutines involving finding the nearest neighbours 
- 
+ *  \brief This file contains subroutines involving finding the nearest neighbours
+
 */
 
 #include <KDTree.h>
@@ -27,7 +27,7 @@ namespace NBody
     //@{
     /// Calculate the local metric describing the mass distribution of the local phase-space volume using the leaf node containing particle position
     /// For this to work effectively, leaf nodes should contain few particles (but more than one).
-    /// In Enbid, where leaf nodes contain one particle, the idea is to find the enclosing leaf node and then expand volume around point till the ratio 
+    /// In Enbid, where leaf nodes contain one particle, the idea is to find the enclosing leaf node and then expand volume around point till the ratio
     /// of the search volume to the node boundary is greater than one, that is move out from the particle till the search radius is greater than the node enclosing the mid point
     /// once the product of this ratio for all dimensions is > 1, then Enbid kicks out of the loop and the local phase space volume is given by the boundaries of the node enclosing the point.
     /// Another way of doing this is to find the leaf node containing the particle, find its nearest neighbour and use that information to determine the metric spacing.
@@ -42,7 +42,7 @@ namespace NBody
         Double_t sr0[ND],vsmooth=0.,kvol;//? what is vsmooth ? see below where sr0 is normalized by vsmooth
         for (int i=0;i<3;i++) {xyz[i]=x[i];xyz[i+3]=v[i];}
         //FindNearestPhase(x, v, ID, dist2, nsmooth);
-        PriorityQueue *pq=new PriorityQueue(nsmooth); 
+        PriorityQueue *pq=new PriorityQueue(nsmooth);
         for (Int_t i = 0; i < nsmooth; i++) pq->Push(-1, MAXVALUE);
         for (int i = 0; i < ND; i++) off[i] = 0.0;
         if (period==NULL) root->FindNearestPhase(0.0,bucket,pq,off,x,v);
@@ -73,13 +73,13 @@ namespace NBody
         Double_t sr0[ND],vsmooth=0.,kvol;//? what is vsmooth ? see below where sr0 is normalized by vsmooth
         for (int i=0;i<3;i++) {xyz[i]=x[i];xyz[i+3]=v[i];}
         //FindNearestPhase(x, v, ID, dist2, nsmooth);
-        PriorityQueue *pq=new PriorityQueue(nsmooth); 
+        PriorityQueue *pq=new PriorityQueue(nsmooth);
         for (Int_t i = 0; i < nsmooth; i++) pq->Push(-1, MAXVALUE);
         for (int i = 0; i < ND; i++) off[i] = 0.0;
         if (period==NULL) root->FindNearestPhase(0.0,bucket,pq,off,x,v);
         else root->FindNearestPhasePeriodic(0.0,bucket,pq,off,period,x,v);
         LoadNN(nsmooth,pq,ID,dist2);
-        
+
         /*for (Int_t i = nsmooth-1; i >=0; i--)
         {
             ID[i] = pq->TopQueue();
@@ -91,7 +91,7 @@ namespace NBody
             dist2[i] = pq->TopPriority();
             pq->Pop();
         }*/
-        
+
         delete pq;
         //move outward from 2nd most nearest neighbour to nsmooth till all metric distances are not zero (ie product is nolonger zero
         kvol=0.0;
@@ -153,7 +153,7 @@ namespace NBody
         for (int j=0;j<ND;j++) smetric[j]=1.0/(sr0[j]*sr0[j]);
     }
     */
-    /// Calculate the distribution of mass in the full phase-space. 
+    /// Calculate the distribution of mass in the full phase-space.
     /// to ensure good statistics must use ~10 times the number of nearest neighbours used to get initial metric estimate, nsmooth here is 64 (but 128 is also okay)
     inline void KDTree::CalculateMetricTensor(Int_t target, int treetype, Double_t *smetric, Double_t *metric, GMatrix &gmetric){
         CalculateMetricTensor(bucket[target].GetPosition(), bucket[target].GetVelocity(),treetype,smetric,metric,gmetric);
@@ -161,7 +161,7 @@ namespace NBody
     inline void KDTree::CalculateMetricTensor(const Real_t *x, const Real_t *v, int treetype, Double_t *smetric, Double_t *metric, GMatrix &gmetric){
         Double_t xyz[6];
         int nsmooth=64;
-        PriorityQueue *pq=new PriorityQueue(nsmooth); 
+        PriorityQueue *pq=new PriorityQueue(nsmooth);
         Int_t qsize=pq->MaxSize();
         Int_t idlist[qsize];
         Double_t r2list[qsize];
@@ -197,7 +197,7 @@ namespace NBody
                 for(int k=0;k<ND;k++)
                     mdisp(j,k)+=dx[j]*dx[k]*bucket[idlist[i]].GetMass();
         }
-        for (int i=0;i<ND;i++) 
+        for (int i=0;i<ND;i++)
             for(int j=0;j<ND;j++)
                 mdisp(i,j)*=sqrt(smetric[i])*sqrt(smetric[j])/(mtot*r2list[0]);
 
@@ -214,7 +214,7 @@ namespace NBody
     inline void KDTree::CalculateMetricTensor(const Double_t *x, const Double_t *v, int treetype, Double_t *smetric, Double_t *metric, GMatrix &gmetric){
         Double_t xyz[6];
         int nsmooth=64;
-        PriorityQueue *pq=new PriorityQueue(nsmooth); 
+        PriorityQueue *pq=new PriorityQueue(nsmooth);
         Int_t qsize=pq->MaxSize();
         Int_t idlist[qsize];
         Double_t r2list[qsize];
@@ -250,7 +250,7 @@ namespace NBody
                 for(int k=0;k<ND;k++)
                     mdisp(j,k)+=dx[j]*dx[k]*bucket[idlist[i]].GetMass();
         }
-        for (int i=0;i<ND;i++) 
+        for (int i=0;i<ND;i++)
             for(int j=0;j<ND;j++)
                 mdisp(i,j)*=sqrt(smetric[i])*sqrt(smetric[j])/(mtot*r2list[0]);
 
@@ -333,7 +333,7 @@ namespace NBody
         }
         //else if (treetype==TMETRIC) root->FindNearestMetric(0.0,bucket,pq,off,tt,metric);
         }
-        else 
+        else
         {
         if (treetype==TPHYS) root->FindNearestPosPeriodic(0.0,bucket,pq,off,period,tt,ND);
         else if (treetype==TVEL) root->FindNearestVel(0.0,bucket,pq,off,tt,ND);
@@ -503,11 +503,11 @@ namespace NBody
                 }
             }
         }
-        }            
+        }
         LoadNN(Nsearch,pq,nn,dist2);
         delete pq;
     }
-    
+
     void KDTree::FindNearestPos(Double_t *x, Int_t *nn, Double_t *dist2, Int_t Nsearch)
     {
         PriorityQueue *pq=new PriorityQueue(Nsearch);
@@ -651,6 +651,52 @@ namespace NBody
         if (period==NULL) root->SearchCriterionTagged(0.0,cmp,params,bucket,numtagged,tagged,off,p);
         else root->SearchCriterionPeriodicTagged(0.0,cmp,params,bucket,numtagged,tagged,off,period,p);
         return numtagged;
+    }
+
+
+    // Find particles that lie within a distance fdist2 and return vector storing indices of particles of interest
+    vector<Int_t> KDTree::SearchBallPosTagged(Int_t tt, Double_t fdist2)
+    {
+        vector<Int_t> tagged;
+        Double_t off[6];
+        for (int i = 0; i < 3; i++) off[i] = 0.0;
+        if (period==NULL) root->SearchBallPosTagged(0.0,fdist2,bucket,tagged,off,tt);
+        else root->SearchBallPosPeriodicTagged(0.0,fdist2,bucket,tagged,off,period,tt);
+        return tagged;
+    }
+    // Find particles that lie within a distance fdist2 to target position
+    vector<Int_t> KDTree::SearchBallPosTagged(Double_t *x, Double_t fdist2)
+    {
+        vector<Int_t> tagged;
+        Double_t off[6];
+        for (int i = 0; i < 3; i++) off[i] = 0.0;
+        if (period==NULL) root->SearchBallPosTagged(0.0,fdist2,bucket,tagged,off,x);
+        else root->SearchBallPosPeriodicTagged(0.0,fdist2,bucket,tagged,off,period,x);
+        return tagged;
+    }
+    // Find particles that lie within a distance fdist2 to target position
+    vector<Int_t> KDTree::SearchBallPosTagged(Coordinate x, Double_t fdist2)
+    {
+        vector<Int_t> tagged;
+        return SearchBallPosTagged(x.GetCoord(),fdist2);
+    }
+    vector<Int_t> KDTree::SearchCriterionTagged(Int_t tt, FOFcompfunc cmp, Double_t *params)
+    {
+        vector<Int_t> tagged;
+        Double_t off[6];
+        for (int i = 0; i < 3; i++) off[i] = 0.0;
+        if (period==NULL) root->SearchCriterionTagged(0.0,cmp,params,bucket,tagged,off,tt);
+        else root->SearchCriterionPeriodicTagged(0.0,cmp,params,bucket,tagged,period,off,tt);
+        return tagged;
+    }
+    vector<Int_t> KDTree::SearchCriterionTagged(Particle &p, FOFcompfunc cmp, Double_t *params)
+    {
+        vector<Int_t> tagged;
+        Double_t off[6];
+        for (int i = 0; i < 3; i++) off[i] = 0.0;
+        if (period==NULL) root->SearchCriterionTagged(0.0,cmp,params,bucket,tagged,off,p);
+        else root->SearchCriterionPeriodicTagged(0.0,cmp,params,bucket,tagged,off,period,p);
+        return tagged;
     }
 
 

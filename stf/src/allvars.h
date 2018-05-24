@@ -74,9 +74,7 @@ using namespace NBody;
 
 //-- Structures and external variables
 
-/// \name Particle types
-//@{
-/// \defgroup PARTTYPES
+/// \defgroup PARTTYPES Particle types
 //@{
 #define  GASTYPE 0
 #define  DARKTYPE 1
@@ -89,11 +87,8 @@ using namespace NBody;
 //number of baryon types +1, to store all baryons
 #define  NBARYONTYPES 5
 //@}
-//@}
 
-/// \defgroup SEARCHTYPES
-//@{
-/// \name Specify particle type to be searched, all, dm only, separate
+/// \defgroup SEARCHTYPES Specify particle type to be searched, all, dm only, separate
 //@{
 #define  PSTALL 1
 #define  PSTDARK 2
@@ -102,13 +97,10 @@ using namespace NBody;
 #define  PSTBH 5
 #define  PSTNOBH 6
 //@}
-//@}
 
-/// \defgroup STRUCTURETYPES
+/// \defgroup STRUCTURETYPES Specific structure type, allow for other types beside HALO
 //@{
-/// \name Specific structure type, allow for other types beside HALO
 /// \todo note that here I have set background group type to a halo structure type but that can be changed
-//@{
 #define HALOSTYPE 10
 #define HALOCORESTYPE 5
 #define WALLSTYPE 1
@@ -119,11 +111,8 @@ using namespace NBody;
 #define FOF3DTYPE 7
 #define FOF3DGROUP -2
 //@}
-//@}
 
-/// \defgroup FOFTYPES
-//@{
-/// \name FOF search types
+/// \defgroup FOFTYPES FOF search types
 //@{
 //subsets made
 ///call \ref FOFStreamwithprob
@@ -143,6 +132,8 @@ using namespace NBody;
 #define  FOFSTPROBSCALEELL 13
 //#define  FOFSTPROBIT 13
 #define  FOFSTPROBSCALEELLNN 14
+//solely phase-space tensor core growth substructure search
+#define  FOF6DCORE 6
 
 ///phase-space FOF but no subset produced
 #define  FOFSTNOSUBSET 2
@@ -153,11 +144,8 @@ using namespace NBody;
 ///3d search
 #define  FOF3D 5
 //@}
-//@}
 
-/// \defgroup INTERATIVESEARCHPARAMS
-//@{
-/// \name for iterative subsubstructure search
+/// \defgroup INTERATIVESEARCHPARAMS for iterative subsubstructure search
 //@{
 /// this is minimum particle number size for a subsearch to proceed whereby substructure split up into CELLSPLITNUM new cells
 #define  MINCELLSIZE 100
@@ -167,16 +155,12 @@ using namespace NBody;
 /// maximum fraction a cell can take of a halo
 #define  MAXCELLFRACTION 0.1
 //@}
-//@}
 
-///\defgroup GRIDTYPES
-//@{
-/// \name Type of Grid structures
+///\defgroup GRIDTYPES Type of Grid structures
 //@{
 #define  PHYSENGRID 1
 #define  PHASEENGRID 2
 #define  PHYSGRID 3
-//@}
 //@}
 
 /// \name Max number of neighbouring cells used in interpolation of background velocity field.
@@ -190,9 +174,7 @@ using namespace NBody;
 
 //@}
 
-///\defgroup INPUTTYPES
-//@{
-/// \name defining types of input
+///\defgroup INPUTTYPES defining types of input
 //@{
 #define  NUMINPUTS 5
 #define  IOGADGET 1
@@ -201,19 +183,16 @@ using namespace NBody;
 #define  IORAMSES 4
 #define  IONCHILADA 5
 //@}
-//@}
 
 
-///\defgroup OUTPUTTYPES
-//@{
-/// \name defining format types of output
+///\defgroup OUTPUTTYPES defining format types of output
 //@{
 #define OUTASCII 0
 #define OUTBINARY 1
 #define OUTHDF 2
 #define OUTADIOS 3
 //@}
-//@}
+
 /// \name For Unbinding
 //@{
 
@@ -243,15 +222,12 @@ using namespace NBody;
 
 //@}
 
-/// \defgroup OMPLIMS
-//@{
-///\name For determining whether loop contains enough for openm to be worthwhile.
+/// \defgroup OMPLIMS For determining whether loop contains enough for openm to be worthwhile.
 //@{
 #define ompsearchnum 50000
 #define ompunbindnum 1000
 #define ompperiodnum 50000
 #define omppropnum 50000
-//@}
 //@}
 
 
@@ -262,13 +238,10 @@ using namespace NBody;
 #define HALOIDSNVAL 1000000
 #endif
 
-///\defgroup GASPARAMS
-//@{
-///\name Useful constants for gas
+///\defgroup GASPARAMS Useful constants for gas
 //@{
 ///mass of helium relative to hydrogen
 #define M_HetoM_H 4.0026
-//@}
 //@}
 
 
@@ -364,8 +337,6 @@ struct Options
     /// mpi factor by which to multiple the memory allocated, ie: buffer region
     /// to reduce likelihood of having to expand/allocate new memory
     Double_t mpipartfac;
-
-
 
     ///\name length,m,v,grav conversion units
     //@{
@@ -473,6 +444,10 @@ struct Options
     ///effective resolution for zoom simulations
     Int_t Neff;
 
+    ///if during substructure search, want to also search for larger substructures
+    //using the more time consuming local velocity calculations (partly in lieu of using the faster core search)
+    int iLargerCellSearch;
+
     ///\name extra stuff for halo merger check and identification of multiple halo core and flag for fully adaptive linking length using number density of candidate objects
     //@{
     /// run halo core search for mergers
@@ -520,6 +495,11 @@ struct Options
     int iuseextradarkparticles;
     //@}
 
+    /// if want full spherical overdensity, factor by which size is multiplied to get
+    ///bucket of particles
+    Double_t SphericalOverdensitySeachFac;
+    ///if want to the particle IDs that are within the SO overdensity of a halo
+    int iSphericalOverdensityPartList;
     /// \name Extra variables to store information useful in zoom simluations
     //@{
     /// store the lowest dark matter particle mass
@@ -606,6 +586,8 @@ struct Options
         iInclusiveHalo=0;
         iKeepFOF=0;
 
+        iLargerCellSearch=0;
+
         iHaloCoreSearch=0;
         iAdaptiveCoreLinking=0;
         iPhaseCoreGrowth=1;
@@ -659,6 +641,9 @@ struct Options
 
         lengthtokpc30pow2=30.0*30.0;
         lengthtokpc30pow2=50.0*50.0;
+
+        SphericalOverdensitySeachFac=1.25;
+        iSphericalOverdensityPartList=0;
 
         mpipartfac=0.1;
 #if USEHDF
@@ -1942,6 +1927,17 @@ struct StrucLevelData
     void Initialize(){
         for (Int_t i=1;i<=nsinlevel;i++) {gidhead[i]=NULL;gidparenthead[i]=NULL;giduberparenthead[i]=NULL;}
     }
+    ~StrucLevelData(){
+        if (nextlevel!=NULL) delete nextlevel;
+        nextlevel=NULL;
+        if (nsinlevel>0) {
+            delete[] Phead;
+            delete[] gidhead;
+            delete[] stypeinlevel;
+            delete[] gidparenthead;
+            delete[] giduberparenthead;
+        }
+    }
 };
 
 #if defined(USEHDF)||defined(USEADIOS)
@@ -1991,6 +1987,15 @@ struct DataGroupNames {
 #endif
 #ifdef USEADIOS
     vector<ADIOS_DATATYPES> adioshierarchydatatype;
+#endif
+
+    ///store names of catalog group files
+    vector<string> SO;
+#ifdef USEHDF
+    vector<PredType> SOdatatype;
+#endif
+#ifdef USEADIOS
+    vector<ADIOS_DATATYPES> SOdatatype;
 #endif
 
     DataGroupNames(){
@@ -2119,6 +2124,37 @@ struct DataGroupNames {
         adioshierarchydatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
         adioshierarchydatatype.push_back(ADIOS_DATATYPES::adios_unsigned_integer);
         adioshierarchydatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+#endif
+        SO.push_back("File_id");
+        SO.push_back("Num_of_files");
+        SO.push_back("Num_of_SO_regions");
+        SO.push_back("Total_num_of_SO_regions");
+        SO.push_back("Num_of_particles_in_SO_regions");
+        SO.push_back("Total_num_of_particles_in_SO_regions");
+        SO.push_back("SO_size");
+        SO.push_back("Offset");
+        SO.push_back("Particle_IDs");
+#ifdef USEHDF
+        SOdatatype.push_back(PredType::STD_I32LE);
+        SOdatatype.push_back(PredType::STD_I32LE);
+        SOdatatype.push_back(PredType::STD_U64LE);
+        SOdatatype.push_back(PredType::STD_U64LE);
+        SOdatatype.push_back(PredType::STD_U64LE);
+        SOdatatype.push_back(PredType::STD_U64LE);
+        SOdatatype.push_back(PredType::STD_U32LE);
+        SOdatatype.push_back(PredType::STD_U64LE);
+        SOdatatype.push_back(PredType::STD_I64LE);
+#endif
+#ifdef USEADIOS
+        adiosSOdatatype.push_back(ADIOS_DATATYPES::adios_integer);
+        adiosSOdatatype.push_back(ADIOS_DATATYPES::adios_integer);
+        adiosSOdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+        adiosSOdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+        adiosSOdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+        adiosSOdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+        adiosSOdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_integer);
+        adiosSOdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+        adiosSOdatatype.push_back(ADIOS_DATATYPES::adios_long);
 #endif
     }
 };

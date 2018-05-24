@@ -454,13 +454,14 @@ inline void ConfigCheck(Options &opt)
         else {
             if(opt.isearchdirection==SEARCHDESCEN) {
                 opt.icorematchtype=PARTLISTCORE;
-                opt.min_numpart=20;
+                opt.min_numpart=5;
                 opt.particle_frac=0.4;
                 opt.meritlimit=0.05;
                 opt.imerittype=MERITRankWeightedBoth;
                 opt.imultsteplinkcrit=MSLCMERITPRIMARYPROGEN;
                 opt.iopttemporalmerittype=GENERALIZEDMERITTIMEPROGEN;
-                opt.meritratiolimit=4.0;
+                opt.icorematchtype=PARTLISTCORE;
+                opt.meritratiolimit=5.0;
             }
             else if (opt.isearchdirection==SEARCHPROGEN) {
                 opt.icorematchtype=PARTLISTCORECORE;
