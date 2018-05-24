@@ -235,6 +235,8 @@ void BuildDescendantBasedProgenitorList(Int_t itimedescen, Int_t nhalos, Descend
 ///updates descendants data structure so that an object knows what type of progenitor it is to its descendants. Specifically this finds all progenitors of
 ///a halo looking back a time istep and ranks their descendant to progenitor match based on their merit (a temporally local ranking)
 void UpdateDescendantUsingDescendantBasedProgenitorList(Int_t nhalos, DescendantData *&pdescen, ProgenitorDataDescenBased *&pdescenprogen, int istep, Double_t meritlimit);
+///similar to above but does a full rerank based on all progenitors across time
+void UpdateDescendantAcrossTimeUsingDescendantBasedProgenitorList(Int_t nhalos, DescendantData **&pdescen, ProgenitorDataDescenBased *&pdescenprogen, Double_t meritlimit);
 /// Updates the descandant data structure with new information and removes/updates old links
 void UpdateRefDescendants(Options &opt, const Int_t numhalos,DescendantData *&pref, DescendantData *&ptemp, ProgenitorDataDescenBased **&pdescenprogen, Int_t itime);
 ///removes progenitor links of individual halo stored in the \ref ProgenitorDataDescenBased structure.
