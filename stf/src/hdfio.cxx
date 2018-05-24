@@ -1802,7 +1802,9 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     MPI_Bcast(&LN, 1, MPI_Real_t, 0, MPI_COMM_WORLD);
 #endif
     ///if not an individual halo and cosmological and store scale of the highest resolution interparticle spacing to scale the physical FOF linking length
-    if (opt.iSingleHalo==0 && opt.icosmologicalin==1)
+    //if (opt.iSingleHalo==0 && opt.icosmologicalin==1)
+    // Set linking length when using a SWIFT snapshot
+    if (opt.iSingleHalo==0)
     {
       opt.ellxscale=LN;
       opt.uinfo.eps*=LN;
