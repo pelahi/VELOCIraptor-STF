@@ -546,6 +546,8 @@ void GetParamFile(Options &opt)
                         opt.iextrahalooutput = atof(vbuff);
                     else if (strcmp(tbuff, "Extended_output")==0)
                         opt.iextendedoutput = atof(vbuff);
+                    else if (strcmp(tbuff, "Spherical_overdensity_halo_particle_list_output")==0)
+                        opt.iSphericalOverdensityPartList = atof(vbuff);
 
                     //gadget io related to extra info for sph, stars, bhs,
                     else if (strcmp(tbuff, "NSPH_extra_blocks")==0)
