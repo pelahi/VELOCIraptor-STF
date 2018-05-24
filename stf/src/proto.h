@@ -80,7 +80,8 @@ void WriteVELOCIraptorConfig(Options &opt);
 void WriteSimulationInfo(Options &opt);
 ///Write the unit info
 void WriteUnitInfo(Options &opt);
-
+///Write particle ids of those within spherical overdensity of a field halo 
+void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids);
 ///Writes ROCKSTAR like output
 //@{
 //@}
