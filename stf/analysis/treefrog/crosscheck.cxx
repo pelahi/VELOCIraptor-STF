@@ -1294,15 +1294,20 @@ void UpdateDescendantUsingDescendantBasedProgenitorList(Int_t nhalos,
 }
 
 void UpdateDescendantAcrossTimeUsingDescendantBasedProgenitorList(Int_t nhalos,
-    DescendantData **&pdescen, ProgenitorDataDescenBased *&pdescenprogen, Double_t meritlimit)
+    DescendantData **&pdescenref, DescendantData *&pdescentemp, ProgenitorDataDescenBased *&pdescenprogen, int istep, Double_t meritlimit)
 {
     PriorityQueue *pq;
-    Int_t nattime,rank;
+    int iflag;
+    Int_t rank;
     Int_t progindex,descenindex,descentemporalindex,descenprogenindex;
     vector<int> progindexvec;
     vector<Double_t> meritvec;
     for (Int_t k=0;k<nhalos;k++) if (pdescenprogen[k].NumberofProgenitors>1)
     {
+        //if all objects are at the same time do nothing as this has been set already
+        iflag=1;
+        for (auto iprogen=1;iprogen<pdescenprogen[k].NumberofProgenitors;iprogen++) if (pdescenprogen[k].deltat[iprogen]!=pdescenprogen[k].deltat[0]) iflag=0;
+        if (iflag) continue;
         //fill the priority queue so that the best merit are first
         pq=new PriorityQueue(pdescenprogen[k].NumberofProgenitors);
         for (auto iprogen=0;iprogen<pdescenprogen[k].NumberofProgenitors;iprogen++)
@@ -1318,7 +1323,10 @@ void UpdateDescendantAcrossTimeUsingDescendantBasedProgenitorList(Int_t nhalos,
             descentemporalindex=pdescenprogen[k].halotemporalindex[progindex];
             descenprogenindex=pdescenprogen[k].progenindex[progindex];
             pdescenprogen[k].dtoptype[progindex]=rank;
-            pdescen[descentemporalindex][descenindex].dtoptype[descenprogenindex]=rank;
+            //if deltat is that of the temporary descendant list, update the rank there
+            if (pdescenprogen[k].deltat[progindex]==istep) pdescentemp[descenindex].dtoptype[descenprogenindex]=rank;
+            //otherwise update rank of reference list
+            else pdescenref[descentemporalindex][descenindex].dtoptype[descenprogenindex]=rank;
             rank++;
             pq->Pop();
         }
