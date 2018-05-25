@@ -209,11 +209,10 @@ void OpenHDFFiles(string &infile, int numfiletypes, int k, int mpi_ninput, int i
     }
     Farray[itemp++]=&Fhaloinfo;
     if (ifieldhalos) Farray[itemp++]=&Fshaloinfo;
-    cout<<"trying to open "<<numfiletypes<<" "<<endl;
     for (int i=0;i<numfiletypes;i++) {
         try {
             Farray[i]->openFile(fnamearray[i].c_str(),H5F_ACC_RDONLY);
-            cout<<"open "<<fnamearray[i]<<" "<<endl;
+            if (iverbose) cout<<"open "<<fnamearray[i]<<" "<<endl;
         }
         catch(const H5::FileIException&) {
             cerr<<"can't open "<<fnamearray[i]<<endl;
@@ -297,8 +296,6 @@ inline void STFReadNumFileInfoAndCorrectNumFile(int &itask, int &nprocs, int &nm
         }
     }
     if (nprocs!=mpi_ninput&&mpi_ninput>0) {
-        cout<<"Error, number of mpi outputs was set to "<<mpi_ninput<<" but file indicates there are "<<nprocs<<endl;
-        cout<<"Correcting to this number and proceeding"<<endl;
         nmpicount=mpi_ninput=nprocs;
     }
     else if ((mpi_ninput==0&&nprocs!=1)) {
