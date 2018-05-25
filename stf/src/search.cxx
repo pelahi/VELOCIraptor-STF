@@ -1450,6 +1450,10 @@ private(i,tid)
         param[9]=0.5;
         pfofbg=tree->FOFCriterion(fofcmp,param,numgroupsbg,minsize,iorder,icheck,FOFcheckbg);
 
+
+        //
+        //  --- Fine till this point ---
+        //
         for (i=0;i<nsubset;i++) if (pfofbg[Partsubset[i].GetID()]<=1 && pfof[Partsubset[i].GetID()]==0) Partsubset[i].SetType(numactiveloops);
 
         //store the dispersion limit factor, which depends on level of the loop at which cores are found as the disperions criterion limits how large a dispersion a core can have when measured
@@ -1461,6 +1465,76 @@ private(i,tid)
         //no cores are found
         for (i=1;i<=numgroupsbg;i++) dispfac[i]=1.0;
         for (i=1;i<=numgroupsbg;i++) corelevel[i]=numactiveloops;
+
+        //----------------------||
+        //                      ||
+        //
+        //  Here I added the computation of Velocity dispersion
+        //  and select minimum between param[7] and New velocity dispersion
+        //  Recalculate velocity dispersion in order to reduce number of iterations
+        //
+        /*
+
+        int nincore = 0;
+
+        for (i = 0; i < nsubset; i++)
+          if (pfofbg[i] == 1)
+            nincore++;
+
+        Particle * Pcore = new Particle [nincore];
+
+        nincore = 0;
+        for (i = 0; i < nsubset; i++)
+          if (pfofbg[Partsubset[i].GetID()] == 1)
+          {
+            Pcore[nincore] = Partsubset[i];
+            Pcore[nincore].SetType(Partsubset[i].GetID());
+            nincore++;
+          }
+
+        Matrix myeigvec, myI;
+        double XX, YY, ZZ;
+        double mtott, xx, yy, zz, vx, vy, vz;
+        double xmean[3], vmean[3];
+        mtott = xx = yy = zz = vx = vy = vz = 0;
+
+        for (i = 0; i < nincore; i++)
+        {
+          xx += Pcore[i].GetPosition(0) * Pcore[i].GetMass();
+          yy += Pcore[i].GetPosition(1) * Pcore[i].GetMass();
+          zz += Pcore[i].GetPosition(2) * Pcore[i].GetMass();
+
+          vx += Pcore[i].GetVelocity(0) * Pcore[i].GetMass();
+          vy += Pcore[i].GetVelocity(1) * Pcore[i].GetMass();
+          vz += Pcore[i].GetVelocity(2) * Pcore[i].GetMass();
+
+          mtott += Pcore[i].GetMass();
+        }
+
+        xmean[0] = xx / mtott;      xmean[1] = yy / mtott;      xmean[2] = zz / mtott;
+        vmean[0] = vx / mtott;      vmean[1] = vy / mtott;      vmean[2] = vz / mtott;
+
+        for (i = 0; i < nincore; i++)
+        {
+          Pcore[i].SetPosition(0, Pcore[i].GetPosition(0) - xmean[0]);
+          Pcore[i].SetPosition(1, Pcore[i].GetPosition(1) - xmean[1]);
+          Pcore[i].SetPosition(2, Pcore[i].GetPosition(2) - xmean[2]);
+
+          Pcore[i].SetVelocity(0, Pcore[i].GetVelocity(0) - vmean[0]);
+          Pcore[i].SetVelocity(1, Pcore[i].GetVelocity(1) - vmean[1]);
+          Pcore[i].SetVelocity(2, Pcore[i].GetVelocity(2) - vmean[2]);
+        }
+
+        CalcVelSigmaTensor(nincore, Pcore, XX, YY, ZZ, myeigvec, myI, -1);
+
+        delete [] Pcore;
+
+        param[7] = min(XX, param[7]);
+
+        */
+        //                      ||
+        //----------------------||
+
         if (opt.halocorenumloops>1)
         {
             //store the old velocity dispersion
@@ -1545,6 +1619,11 @@ private(i,tid)
 
         delete[] pfofbg;
     }
+
+//
+//  From here onwards it is the same...
+//
+
 
 #ifdef USEMPI
     //now if substructures are subsubstructures, then the region of interest has already been localized to a single MPI domain
