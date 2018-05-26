@@ -1169,8 +1169,13 @@ void UpdateRefDescendants(Options &opt, const Int_t numhalos, DescendantData *&d
         for (Int_t i=0;i<numhalos;i++) {
             if (dref[i].NumberofDescendants==0 && dtemp[i].NumberofDescendants>0) {
                 dref[i]=dtemp[i];
-                AddLinksDescendantBasedProgenitorList(itime, i, dref[i], pdescenprogen);
+                //as already added this in across time
+                //AddLinksDescendantBasedProgenitorList(itime, i, dref[i], pdescenprogen);
             }
+            else if (dtemp[i].NumberofDescendants>0)) {
+                RemoveLinksDescendantBasedProgenitorList(itime, i, dtemp[i], pdescenprogen);
+            }
+
         }
     }
     //also add if newly identified descendant link is 0 (primary) and previous was not.
@@ -1180,7 +1185,7 @@ void UpdateRefDescendants(Options &opt, const Int_t numhalos, DescendantData *&d
         for (Int_t i=0;i<numhalos;i++) {
             if (dref[i].NumberofDescendants==0 && dtemp[i].NumberofDescendants>0) {
                 dref[i]=dtemp[i];
-                AddLinksDescendantBasedProgenitorList(itime, i, dref[i], pdescenprogen);
+                //AddLinksDescendantBasedProgenitorList(itime, i, dref[i], pdescenprogen);
             }
             else if (dref[i].NumberofDescendants>0 && dtemp[i].NumberofDescendants>0) {
                 if (dtemp[i].dtoptype[0]==0 && dref[i].dtoptype[0]!=0) {
@@ -1191,21 +1196,30 @@ void UpdateRefDescendants(Options &opt, const Int_t numhalos, DescendantData *&d
                     for (auto j=0;j<pdescenprogen[itimedescen][idescen].NumberofProgenitors;j++) {
                         if (pdescenprogen[itimedescen][idescen].dtoptype[j]==0) iflag=1;
                     }
-                    if (iflag==1) continue;
+                    if (iflag==1) {
+                        RemoveLinksDescendantBasedProgenitorList(itime, i, dtemp[i], pdescenprogen);
+                        //continue;
+                    }
+                    else {
                     //otherwise, either object had no progenitors or a secondary rank progenitor
                     //in that case, update by removing old links and adding new ones
                     RemoveLinksDescendantBasedProgenitorList(itime, i, dref[i], pdescenprogen);
                     dref[i]=dtemp[i];
-                    AddLinksDescendantBasedProgenitorList(itime, i, dref[i], pdescenprogen);
+                    //AddLinksDescendantBasedProgenitorList(itime, i, dref[i], pdescenprogen);
+                    }
                 }
             }
+            else if (dtemp[i].NumberofDescendants>0)) {
+                RemoveLinksDescendantBasedProgenitorList(itime, i, dtemp[i], pdescenprogen);
+            }
+
         }
     }
     else if (opt.imultsteplinkcrit==MSLCMERITPRIMARYPROGEN) {
         for (Int_t i=0;i<numhalos;i++) {
             if (dref[i].NumberofDescendants==0 && dtemp[i].NumberofDescendants>0) {
                 dref[i]=dtemp[i];
-                AddLinksDescendantBasedProgenitorList(itime, i, dref[i], pdescenprogen);
+                //AddLinksDescendantBasedProgenitorList(itime, i, dref[i], pdescenprogen);
             }
             else if (dref[i].NumberofDescendants>0 && dtemp[i].NumberofDescendants>0) {
                 if (dtemp[i].dtoptype[0]==0 && dref[i].dtoptype[0]!=0) {
@@ -1216,16 +1230,27 @@ void UpdateRefDescendants(Options &opt, const Int_t numhalos, DescendantData *&d
                     for (auto j=0;j<pdescenprogen[itimedescen][idescen].NumberofProgenitors;j++) {
                         if (pdescenprogen[itimedescen][idescen].dtoptype[j]==0) iflag=1;
                     }
-                    if (iflag==1) continue;
-                    RemoveLinksDescendantBasedProgenitorList(itime, i, dref[i], pdescenprogen);
-                    dref[i]=dtemp[i];
-                    AddLinksDescendantBasedProgenitorList(itime, i, dref[i], pdescenprogen);
+                    if (iflag==1) {
+                        RemoveLinksDescendantBasedProgenitorList(itime, i, dtemp[i], pdescenprogen);
+                        //continue;
+                    }
+                    else {
+                        RemoveLinksDescendantBasedProgenitorList(itime, i, dref[i], pdescenprogen);
+                        dref[i]=dtemp[i];
+                        //AddLinksDescendantBasedProgenitorList(itime, i, dref[i], pdescenprogen);
+                    }
                 }
                 else if (dtemp[i].dtoptype[0]<=dref[i].dtoptype[0] && dtemp[i].Merit[0]>dref[i].Merit[0]) {
                     RemoveLinksDescendantBasedProgenitorList(itime, i, dref[i], pdescenprogen);
                     dref[i]=dtemp[i];
-                    AddLinksDescendantBasedProgenitorList(itime, i, dref[i], pdescenprogen);
+                    //AddLinksDescendantBasedProgenitorList(itime, i, dref[i], pdescenprogen);
                 }
+                else {
+                    RemoveLinksDescendantBasedProgenitorList(itime, i, dtemp[i], pdescenprogen);
+                }
+            }
+            else if (dtemp[i].NumberofDescendants>0)) {
+                RemoveLinksDescendantBasedProgenitorList(itime, i, dtemp[i], pdescenprogen);
             }
         }
     }
