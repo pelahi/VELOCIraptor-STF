@@ -1172,7 +1172,7 @@ void UpdateRefDescendants(Options &opt, const Int_t numhalos, DescendantData *&d
                 //as already added this in across time
                 //AddLinksDescendantBasedProgenitorList(itime, i, dref[i], pdescenprogen);
             }
-            else if (dtemp[i].NumberofDescendants>0)) {
+            else if (dtemp[i].NumberofDescendants>0) {
                 RemoveLinksDescendantBasedProgenitorList(itime, i, dtemp[i], pdescenprogen);
             }
 
@@ -1209,7 +1209,7 @@ void UpdateRefDescendants(Options &opt, const Int_t numhalos, DescendantData *&d
                     }
                 }
             }
-            else if (dtemp[i].NumberofDescendants>0)) {
+            else if (dtemp[i].NumberofDescendants>0) {
                 RemoveLinksDescendantBasedProgenitorList(itime, i, dtemp[i], pdescenprogen);
             }
 
@@ -1249,7 +1249,7 @@ void UpdateRefDescendants(Options &opt, const Int_t numhalos, DescendantData *&d
                     RemoveLinksDescendantBasedProgenitorList(itime, i, dtemp[i], pdescenprogen);
                 }
             }
-            else if (dtemp[i].NumberofDescendants>0)) {
+            else if (dtemp[i].NumberofDescendants>0) {
                 RemoveLinksDescendantBasedProgenitorList(itime, i, dtemp[i], pdescenprogen);
             }
         }
