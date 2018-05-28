@@ -1471,7 +1471,9 @@ private(i,tid)
         //
         //  Here I added the computation of Velocity dispersion
         //  and select minimum between param[7] and New velocity dispersion
+        //  of the largest core found in the first core search
         //  Recalculate velocity dispersion in order to reduce number of iterations
+        //  However this is not really necessary...
         //
         /*
 
@@ -1535,6 +1537,66 @@ private(i,tid)
         //                      ||
         //----------------------||
 
+        //----------------------||
+        //                      ||
+        //
+        //  This is a test to see whether the
+        //  cores are found are significant structures or noise
+        //
+        //  The logic was:
+        //     - if the largest core found has less than 3% the mass of the
+        //       original structure, all substructures found are probably not
+        //       real structrues of any kind
+        //     - if a major merger is found and the mass of the companion
+        //       object is less than 3% of the original structure it means That
+        //       we are probably splitting a structure not really finding
+        //       antoher galaxy/halo/stream
+        //     - These test however are probably overriden by the significance
+        //       test
+        //
+
+        /*
+        //\TODO Change 1.5 for opt.Something
+        double fac = 1.5;
+        double  tmpparam = param[7];
+
+        if (numgroupsbg > 1)
+        {
+          int    * numincores = new int    [numgroupsbg+1];
+          double * numratio   = new double [numgroupsbg+1];
+          int iKeepCore = 1;
+
+          for (i = 0; i < numgroupsbg+1; i++)
+          {
+            numincores[i] = 0;
+            numratio  [i] = 0;
+          }
+          for (i = 0; i < nsubset; i++)
+            numincores[pfofbg[i]]++;
+
+          //\TODO Change 0.3 for opt.Something
+          if ( (numincores[1]/(double)nsubset) < 0.03)
+            iKeepCore = 0;
+
+          //\TODO Change 0.5 for opt.Something
+          for (i = 2; i < numgroupsbg+1; i++)
+          {
+            numratio[i] =  numincores[i] / (double) numincores[1];
+            if (numratio[i] >= 0.5 && (numincores[i]/(double)nsubset) < 0.03)
+              iKeepCore = 0;
+          }
+          if (!iKeepCore)
+          {
+            numgroupsbg = 0;
+            for (i = 0; i < nsubset; i++)
+              pfofbg[i] = 0;
+          }
+        }
+        */
+        //                      ||
+        //----------------------||
+
+
         if (opt.halocorenumloops>1)
         {
             //store the old velocity dispersion
@@ -1573,7 +1635,9 @@ private(i,tid)
                 //now if numgroupsbg is greater than one, need to update the pfofbgnew array
                 if (numgroupsbg>1) {
                     numactiveloops++;
-                    for (i=0;i<nsubset;i++) if (pfofbg[Partsubset[i].GetID()]==1 && pfofbgnew[Partsubset[i].GetID()]<=1 && pfof[Partsubset[i].GetID()]==0) Partsubset[i].SetType(numactiveloops);
+                    for (i=0;i<nsubset;i++)
+                      if (pfofbg[Partsubset[i].GetID()]==1 && pfofbgnew[Partsubset[i].GetID()]<=1 && pfof[Partsubset[i].GetID()]==0)
+                        Partsubset[i].SetType(numactiveloops);
                     dispfac[1]=dispvaltot;
                     corelevel[1]=numactiveloops;
                     for (i=2;i<=numgroupsbg;i++) dispfac.push_back(dispvaltot);
@@ -1586,7 +1650,6 @@ private(i,tid)
                         else if (pfofbg[pid]>1) pfofbgnew[pid]=pfofbg[pid]-1+newnumgroupsbg;
                     }
                     newnumgroupsbg+=numgroupsbg-1;
-
                 }
             }while (numgroupsbg > 0 && numloops<opt.halocorenumloops && minsize*opt.halocorenumfaciter<nsubset);
             //once the loop is finished, update info
