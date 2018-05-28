@@ -2971,11 +2971,14 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
         for (i=0;i<nparts;i++) pfofold[i]=pfofall[i];
         if (CheckUnboundGroups(opt,nparts, Part.data(), ngroupdark, pfofall, ningall,pglistall,0)) {
             //now if pfofall is zero but was a substructure reassign back to uber parent
+            //so long as that uber parent still exists. 
             for (i=0;i<nparts;i++)
             {
                 if (pfofall[Part[i].GetID()]==0 && pfofold[Part[i].GetID()]>nhalos) {
-                    pfofall[Part[i].GetID()]=uparentgid[pfofold[Part[i].GetID()]];
-                    ningall[uparentgid[pfofold[Part[i].GetID()]]]++;
+                    if (ningall[uparentgid[pfofold[Part[i].GetID()]]]>0) {
+                        pfofall[Part[i].GetID()]=uparentgid[pfofold[Part[i].GetID()]];
+                        ningall[uparentgid[pfofold[Part[i].GetID()]]]++;
+                    }
                 }
             }
             //must rebuild pglistall
