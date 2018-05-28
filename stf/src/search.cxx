@@ -2186,6 +2186,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
     ///\todo check offsets of firstgroup and old
     if (opt.iKeepFOF) {
         firstgroup=opt.num3dfof+1;
+        firstgroupoffset=opt.num3dfof;
         ngroupidoffsetold=opt.num3dfof;
         pcsld=psldata->nextlevel;
         nsubsearch=ngroup-opt.num3dfof;
