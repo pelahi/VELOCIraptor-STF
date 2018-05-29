@@ -191,8 +191,10 @@ void ReorderGroupIDsAndArraybyValue(const Int_t numgroups, const Int_t newnumgro
     PriorityQueue *pq=new PriorityQueue(newnumgroups);
     Double_t *gtemp=new Double_t[numgroups+1];
     Int_t groupid;
+    Int_t count=0;
     for (Int_t i = 1; i <= numgroups; i++) gtemp[i]=gdata[i];
-    for (Int_t i = 1; i <= numgroups; i++) if (numingroup[i]>0) pq->Push(i, value[i]);
+    for (Int_t i = 1; i <= numgroups; i++) if (numingroup[i]>0 && count<newnumgroups) {pq->Push(i, value[i]);count++;}
+    //for (Int_t i = 1; i <= numgroups; i++) if (numingroup[i]>0) pq->Push(i, value[i]);
     for (Int_t i = 1; i <= newnumgroups; i++) {
         groupid=pq->TopQueue();pq->Pop();
         for (Int_t j=0;j<numingroup[groupid];j++) pfof[pglist[groupid][j]]=i;
@@ -206,8 +208,10 @@ void ReorderGroupIDsAndArraybyValue(const Int_t numgroups, const Int_t newnumgro
     PriorityQueue *pq=new PriorityQueue(newnumgroups);
     Double_t *gtemp=new Double_t[numgroups+1];
     Int_t groupid;
+    Int_t count=0;
     for (Int_t i = 1; i <= numgroups; i++) gtemp[i]=gdata[i];
-    for (Int_t i = 1; i <= numgroups; i++) if (numingroup[i]>0) pq->Push(i, value[i]);
+    for (Int_t i = 1; i <= numgroups; i++) if (numingroup[i]>0 && count<newnumgroups) {pq->Push(i, value[i]);count++;}
+    //for (Int_t i = 1; i <= numgroups; i++) if (numingroup[i]>0) pq->Push(i, value[i]);
     for (Int_t i = 1; i <= newnumgroups; i++) {
         groupid=pq->TopQueue();pq->Pop();
         for (Int_t j=0;j<numingroup[groupid];j++) pfof[pglist[groupid][j]]=i;
