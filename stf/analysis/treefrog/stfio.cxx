@@ -1158,7 +1158,6 @@ void MPIReadHaloGroupCatalogData(string &infile, Int_t &numhalos, HaloData *&Hal
 
         for (Int_t i=0;i<nglocal+nsglocal;i++) Halo[i+noffset].haloID=i+1+noffset;
         if (ifieldhalos) {
-            //cout<<infile<<" has sublevels with "<<nsglocal<<" "<<nsids<<" "<<nsuids<<endl;
             if (nsglocal>0) {
                 //now read substructure data
                 numingroup=new Int_t[nsglocal];
