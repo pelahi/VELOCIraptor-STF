@@ -2246,6 +2246,9 @@ private(i,j,k,taggedparts,radii,masses,indices,n,dx,EncMass,rc,rhoval,rhoval2,ti
                 for (j=0;j<iindex;j++) SOpartlist[i][j]=SOpids[indices[j]];
                 SOpids.clear();
             }
+            indices.clear();
+            radii.clear();
+            masses.clear();
         }
 #ifdef USEOPENMP
     }
@@ -2256,7 +2259,8 @@ private(i,j,k,taggedparts,radii,masses,indices,n,dx,EncMass,rc,rhoval,rhoval2,ti
         ids.clear();
         //write the particle lists
         if (opt.iSphericalOverdensityPartList) {
-
+            WriteSOCatalog(opt, ngroup, SOpartlist);
+            delete[] SOpartlist;
         }
 #ifdef USEMPI
         mpi_period=0;
