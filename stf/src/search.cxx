@@ -60,7 +60,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     minsize=opt.HaloMinSize;
 #ifdef USEMPI
     //if using MPI, lower minimum number
-    minsize=MinNumMPI;
+    if (NProcs>1) minsize=MinNumMPI;
 #endif
 
     time1=MyGetTime();
@@ -118,6 +118,11 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
 #endif
 
 #ifdef USEMPI
+    if (NProcs==1) {
+        totalgroups=numgroups;
+        delete tree;
+    }
+    else {
     mpi_foftask=MPISetTaskID(Nlocal);
 
     Len=new Int_tree_t[nbodies];
@@ -200,9 +205,10 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     //free up memory now that only need to store pfof and global ids
     totalgroups=0;
     for (int j=0;j<NProcs;j++) totalgroups+=mpi_ngroups[j];
-    if (ThisTask==0) cout<<"Total number of groups found is "<<totalgroups<<endl;
     Nlocal=newnbodies;
+    }
 #endif
+    if (ThisTask==0) cout<<"Total number of groups found is "<<totalgroups<<endl;
     if (ThisTask==0) cout<<ThisTask<<": finished FOF search in total time of "<<MyGetTime()-time1<<endl;
 
     //if calculating velocity density only of particles resident in field structures large enough for substructure search
@@ -1156,7 +1162,7 @@ private(i,tid)
     else if (opt.iverbose>=2) cout<<ThisTask<<": "<<"NO SUBSTRUCTURES FOUND"<<endl;
 
     //now search particle list for large compact substructures that are considered part of the background when using smaller grids
-    if (nsubset>=MINSUBSIZE && opt.iLargerCellSearch)
+    if (nsubset>=MINSUBSIZE && opt.iLargerCellSearch && opt.foftype!=FOF6DCORE)
     {
         //first have to delete tree used in search so that particles are in original particle order
         //then construct a new grid with much larger cells so that new bg velocity dispersion can be estimated
@@ -2965,11 +2971,14 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
         for (i=0;i<nparts;i++) pfofold[i]=pfofall[i];
         if (CheckUnboundGroups(opt,nparts, Part.data(), ngroupdark, pfofall, ningall,pglistall,0)) {
             //now if pfofall is zero but was a substructure reassign back to uber parent
+            //so long as that uber parent still exists. 
             for (i=0;i<nparts;i++)
             {
                 if (pfofall[Part[i].GetID()]==0 && pfofold[Part[i].GetID()]>nhalos) {
-                    pfofall[Part[i].GetID()]=uparentgid[pfofold[Part[i].GetID()]];
-                    ningall[uparentgid[pfofold[Part[i].GetID()]]]++;
+                    if (ningall[uparentgid[pfofold[Part[i].GetID()]]]>0) {
+                        pfofall[Part[i].GetID()]=uparentgid[pfofold[Part[i].GetID()]];
+                        ningall[uparentgid[pfofold[Part[i].GetID()]]]++;
+                    }
                 }
             }
             //must rebuild pglistall

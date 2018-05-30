@@ -344,7 +344,7 @@ int main(int argc,char **argv)
         if (opt.numsteps>1) {
             //followed by multi-snapshot linking
             for (i=0;i<opt.numsnapshots;i++) {
-                if (!(i>=StartSnap && i<EndSnap-1)) {pdescen[i]=NULL; continue;}
+                if (!(i>=StartSnap && i<EndSnap-1)) continue;
                 time2=MyGetTime();
                 if(pht[i].numhalos==0) continue;
                 cout<<i<<" "<<pht[i].numhalos<<" cross matching objects in descendant direction second pass for poor/missing matches "<<endl;
@@ -385,6 +385,7 @@ int main(int argc,char **argv)
                     if (ilistupdated>0) {
                         //update the halo ids
                         UpdateDescendantIndexing(istep, pht[i].numhalos, pht[i+istep].numhalos, pht[i].Halo, pht[i+istep].Halo, pdescentemp);
+                        /*
                         //to rank progenitors of descendants at this time, need to allocate a ProgenitorDataDescenBased list
                         pdescenprogentemp=new ProgenitorDataDescenBased[pht[i+istep].numhalos];
                         BuildDescendantBasedProgenitorList(i, pht[i].numhalos, pdescentemp, pdescenprogentemp, istep);
@@ -394,6 +395,13 @@ int main(int argc,char **argv)
                         //clean up the information stored in this list, adjusing rankings as necessary
                         CleanCrossMatchDescendant(opt, i, pht, pdescenprogen, pdescen);
                         delete[] pdescenprogentemp;
+                        */
+                        BuildDescendantBasedProgenitorList(i, pht[i].numhalos, pdescentemp, pdescenprogen[i+istep], istep);
+                        UpdateDescendantAcrossTimeUsingDescendantBasedProgenitorList(pht[i+istep].numhalos, pdescen, pdescentemp, pdescenprogen[i+istep], istep, opt.meritlimit);
+                        //having ranked the progenitors based on their descendants looking backwards, we can now update the descendant list appropriately
+                        UpdateRefDescendants(opt,pht[i].numhalos, pdescen[i], pdescentemp, pdescenprogen, i);
+                        //clean up the information stored in this list, adjusing rankings as necessary
+                        CleanCrossMatchDescendant(opt, i, pht, pdescenprogen, pdescen);
                     }
                     delete[] pdescentemp;
 
@@ -409,6 +417,13 @@ int main(int argc,char **argv)
                 }
                 if (opt.iverbose) cout<<ThisTask<<" finished descendant processing for snapshot "<<i<<" in "<<MyGetTime()-time2<<endl;
             }
+            /*
+            //and final reranking where descendant looks at all progenitors
+            for (i=0;i<opt.numsnapshots;i++) {
+                if (!(i>=StartSnap+1 && i<EndSnap))  continue;
+                UpdateDescendantAcrossTimeUsingDescendantBasedProgenitorList(pht[i].numhalos, pdescen, pdescenprogen[i], opt.meritlimit);
+            }
+            */
         }
 
         delete[] pfofd;

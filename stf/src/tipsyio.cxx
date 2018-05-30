@@ -79,6 +79,11 @@ void ReadTipsy(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particl
     z=1./opt.a-1.;
     Hubble=opt.h*opt.H*sqrt((1.0-opt.Omega_m-opt.Omega_Lambda)*pow(1.0+z,2.0)+opt.Omega_m*pow(1.0+z,3.0)+opt.Omega_Lambda);
     opt.rhobg=3.*Hubble*Hubble/8.0/M_PI/opt.G*opt.Omega_m;
+    Double_t bnx=-((1-opt.Omega_m-opt.Omega_Lambda)*pow(aadjust,-2.0)+opt.Omega_Lambda)/((1-opt.Omega_m-opt.Omega_Lambda)*pow(aadjust,-2.0)+opt.Omega_m*pow(aadjust,-3.0)+opt.Omega_Lambda);
+    opt.virBN98=(18.0*M_PI*M_PI+82.0*bnx-39*bnx*bnx)/opt.Omega_m;
+    //if opt.virlevel<0, then use virial overdensity based on Bryan and Norman 1997 virialization level is given by
+    if (opt.virlevel<0) opt.virlevel=opt.virBN98;
+
     mscale=opt.M;lscale=opt.L*aadjust;lvscale=opt.L*opt.a;
     //normally Hubbleflow=lvscale*Hubble but we only care about peculiar velocities
     //ignore hubble flow
