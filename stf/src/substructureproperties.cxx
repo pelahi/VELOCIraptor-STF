@@ -2146,7 +2146,7 @@ private(i,j,k,taggedparts,radii,masses,indices,n,dx,EncMass,rc,rhoval,rhoval2,ti
 #ifdef USEMPI
             if (NProcs>1) {
                 //if halo has overlap then search the imported particles as well, add them to the radii and mass vectors
-                if (halooverlap[i]) {
+                if (halooverlap[i]&&nimport>0) {
                     taggedparts=treeimport->SearchBallPosTagged(pdata[i].gcm,pow(maxrdist[i],2.0));
                     Int_t offset=radii.size();
                     radii.resize(radii.size()+taggedparts.size());
