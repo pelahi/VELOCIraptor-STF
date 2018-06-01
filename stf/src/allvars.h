@@ -347,7 +347,7 @@ struct Options
     Double_t p;
     ///\name scale factor, Hubunit, h, cosmology, virial density. These are used if linking lengths are scaled or trying to define virlevel using the cosmology
     //@{
-    Double_t a,H,h, Omega_m, Omega_b, Omega_cdm, Omega_Lambda, w_de, rhobg, virlevel;
+    Double_t a,H,h, Omega_m, Omega_b, Omega_cdm, Omega_Lambda, w_de, rhobg, virlevel, virBN98;
     int comove;
     /// to store the internal code unit to kpc and the distance^2 of 30 kpc, and 50 kpc
     Double_t lengthtokpc30pow2, lengthtokpc50pow2;
@@ -997,7 +997,7 @@ struct PropData
     ///\name physical properties regarding mass, size
     //@{
     Double_t gmass,gsize,gMvir,gRvir,gRmbp,gmaxvel,gRmaxvel,gMmaxvel,gRhalfmass;
-    Double_t gM200c,gR200c,gM200m,gR200m,gMFOF, gM500c, gR500c;
+    Double_t gM200c,gR200c,gM200m,gR200m,gMFOF,gM500c,gR500c,gMBN98,gRBN98;
     //@}
     ///\name physical properties for shape/mass distribution
     //@{
@@ -1113,6 +1113,7 @@ struct PropData
         gmass=gsize=gRmbp=gmaxvel=gRmaxvel=gRvir=gR200m=gR200c=gRhalfmass=Efrac=Pot=T=0.;
         gMFOF=0;
         gM500c=gR500c=0;
+        gMBN98=gRBN98=0;
         gcm[0]=gcm[1]=gcm[2]=gcmvel[0]=gcmvel[1]=gcmvel[2]=0.;
         gJ[0]=gJ[1]=gJ[2]=0;
         gJ200m[0]=gJ200m[1]=gJ200m[2]=0;
@@ -1171,6 +1172,7 @@ struct PropData
         gM200c=p.gM200c;gR200c=p.gR200c;
         gM200m=p.gM200m;gR200m=p.gR200m;
         gM500c=p.gM500c;gR500c=p.gR500c;
+        gMBN98=p.gMBN98;gRBN98=p.gRBN98;
         gNFOF=p.gNFOF;
         gMFOF=p.gMFOF;
         return *this;
@@ -1185,6 +1187,8 @@ struct PropData
         gMvir*=opt.h;
         gM200c*=opt.h;
         gM200m*=opt.h;
+        gM500c*=opt.h;
+        gMBN98*=opt.h;
         gMFOF*=opt.h;
         gsize*=opt.h/opt.a;
         gRmbp*=opt.h/opt.a;
@@ -1192,6 +1196,8 @@ struct PropData
         gRvir*=opt.h/opt.a;
         gR200c*=opt.h/opt.a;
         gR200m*=opt.h/opt.a;
+        gR500c*=opt.h/opt.a;
+        gRBN98*=opt.h/opt.a;
         gJ=gJ*opt.h*opt.h/opt.a;
         gJ200m=gJ200m*opt.h*opt.h/opt.a;
         gJ200c=gJ200c*opt.h*opt.h/opt.a;
@@ -1270,7 +1276,7 @@ struct PropData
         Fout.write((char*)&val,sizeof(val));
         val=gM200c;
         Fout.write((char*)&val,sizeof(val));
-        val=gMvir;
+        val=gMBN98;
         Fout.write((char*)&val,sizeof(val));
 
         val=Efrac;
@@ -1284,7 +1290,7 @@ struct PropData
         Fout.write((char*)&val,sizeof(val));
         val=gR200c;
         Fout.write((char*)&val,sizeof(val));
-        val=gRvir;
+        val=gRBN98;
         Fout.write((char*)&val,sizeof(val));
         val=gRhalfmass;
         Fout.write((char*)&val,sizeof(val));
@@ -1465,13 +1471,13 @@ struct PropData
         Fout<<gMFOF<<" ";
         Fout<<gM200m<<" ";
         Fout<<gM200c<<" ";
-        Fout<<gMvir<<" ";
+        Fout<<gMBN98<<" ";
         Fout<<Efrac<<" ";
         Fout<<gRvir<<" ";
         Fout<<gsize<<" ";
         Fout<<gR200m<<" ";
         Fout<<gR200c<<" ";
-        Fout<<gRvir<<" ";
+        Fout<<gRBN98<<" ";
         Fout<<gRhalfmass<<" ";
         Fout<<gRmaxvel<<" ";
         Fout<<gmaxvel<<" ";
@@ -1637,13 +1643,13 @@ struct PropDataHeader{
         headerdatainfo.push_back("Mass_FOF");
         headerdatainfo.push_back("Mass_200mean");
         headerdatainfo.push_back("Mass_200crit");
-        headerdatainfo.push_back("Mass_BN97");
+        headerdatainfo.push_back("Mass_BN98");
         headerdatainfo.push_back("Efrac");
         headerdatainfo.push_back("Rvir");
         headerdatainfo.push_back("R_size");
         headerdatainfo.push_back("R_200mean");
         headerdatainfo.push_back("R_200crit");
-        headerdatainfo.push_back("R_BN97");
+        headerdatainfo.push_back("R_BN98");
         headerdatainfo.push_back("R_HalfMass");
         headerdatainfo.push_back("Rmax");
         headerdatainfo.push_back("Vmax");
@@ -1989,6 +1995,15 @@ struct DataGroupNames {
     vector<ADIOS_DATATYPES> adioshierarchydatatype;
 #endif
 
+    ///store names of catalog group files
+    vector<string> SO;
+#ifdef USEHDF
+    vector<PredType> SOdatatype;
+#endif
+#ifdef USEADIOS
+    vector<ADIOS_DATATYPES> SOdatatype;
+#endif
+
     DataGroupNames(){
         prop.push_back("File_id");
         prop.push_back("Num_of_files");
@@ -2115,6 +2130,37 @@ struct DataGroupNames {
         adioshierarchydatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
         adioshierarchydatatype.push_back(ADIOS_DATATYPES::adios_unsigned_integer);
         adioshierarchydatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+#endif
+        SO.push_back("File_id");
+        SO.push_back("Num_of_files");
+        SO.push_back("Num_of_SO_regions");
+        SO.push_back("Total_num_of_SO_regions");
+        SO.push_back("Num_of_particles_in_SO_regions");
+        SO.push_back("Total_num_of_particles_in_SO_regions");
+        SO.push_back("SO_size");
+        SO.push_back("Offset");
+        SO.push_back("Particle_IDs");
+#ifdef USEHDF
+        SOdatatype.push_back(PredType::STD_I32LE);
+        SOdatatype.push_back(PredType::STD_I32LE);
+        SOdatatype.push_back(PredType::STD_U64LE);
+        SOdatatype.push_back(PredType::STD_U64LE);
+        SOdatatype.push_back(PredType::STD_U64LE);
+        SOdatatype.push_back(PredType::STD_U64LE);
+        SOdatatype.push_back(PredType::STD_U32LE);
+        SOdatatype.push_back(PredType::STD_U64LE);
+        SOdatatype.push_back(PredType::STD_I64LE);
+#endif
+#ifdef USEADIOS
+        adiosSOdatatype.push_back(ADIOS_DATATYPES::adios_integer);
+        adiosSOdatatype.push_back(ADIOS_DATATYPES::adios_integer);
+        adiosSOdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+        adiosSOdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+        adiosSOdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+        adiosSOdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+        adiosSOdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_integer);
+        adiosSOdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+        adiosSOdatatype.push_back(ADIOS_DATATYPES::adios_long);
 #endif
     }
 };
