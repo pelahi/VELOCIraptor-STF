@@ -1,11 +1,11 @@
-/*! \file fitting.h
+/*! \file stf-fitting.h
  *  \brief this file contains inline function declarations for fitting the R distribution
  */
 
 #ifndef STFFITTING_H
 #define STFFITTING_H
 
-///\name Functions for Skew Gaussian distribution 
+///\name Functions for Skew Gaussian distribution
 ///Here param[0] is amplitude, param[1] is mean, param[2] is variance and param[3] is s^2, the skew parameter
 //@{
 inline Double_t SkewGauss(Double_t x, void *param){
