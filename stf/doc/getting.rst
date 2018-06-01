@@ -8,14 +8,28 @@ To get a copy you can clone the repository
 ::
     git clone https://github.com/pelahi/VELOCIraptor-STF
 
-**VELOCIraptor**'s compilation system is based on `GNU make <https://www.gnu.org/software/make/>`_.
-To compile **VELOCIraptor** (assuming you are inside the ``VELOCIraptor-STF/stf`` directory already) first
-::
-    $> cp Makefile.config.template Makefile.config
+**VELOCIraptor**'s compilation system is based on `cmake <https://www.cmake.org/>`_. ``cmake`` will
+check that you have a proper compiler (anything supporting C++14 or later should do),
+and scan the system for all required dependencies.
 
-Edit Makefile.config which sets the compilation flags with you favourite editor and type:
-::
-    $> make
+To compile **VELOCIraptor** run (assuming you are inside the ``VELOCIraptor-STF/stf/`` directory already)::
+
+ $> mkdir build
+ $> cd build
+ $> cmake ..
+ $> make
+
+With ``cmake`` you can also specify additional compilation flags.
+For example, if you want to generate the fastest possible code
+you can try this::
+
+ $> cmake .. -DCMAKE_CXX_FLAGS="-O3 -march=native"
+
+You can also specify a different installation directory like this::
+
+ $> cmake .. -DCMAKE_INSTALL_PREFIX=~/my/installation/directory
+
+Other ``cmake`` options that can be given in the command-line include:
 
 A list of compile time options is found below in :ref:`compileoptions`.
 
@@ -51,38 +65,35 @@ HDF and ADIOS can be enabled and disabled, and require libraries.
 Compilation Options
 ===================
 
-These can be changed by editing Makefile.config (based on the :download:`template <../Makefile.config.template>`) in your favourite editor.
+These can be passed to ``cmake``
 
 .. topic:: External library flags
 
     * Parallel APIs can be enabled by setting
         * For MPI
-            | ``MPI="on"``
-            | ``MPIREDUCE="on"``
+            | ``VR_MPI``: boolean to compile with MPI support
+            | ``VR_MPI_REDUCE``: boolean that reduces impact of MPI memory overhead at the cost of extra cpu cycles. Suggested this be turned on
+            | ``MPI_LIBRARY``: specify library path to MPI
+            | ``MPI_EXTRA_LIBRARY``: Extra MPI libraries to link against
         * For OpenMP
-            ``OMP="on"``
+            | ``NBODY_OPENMP``: boolean to compile with OpenMP support
+            | ``OpenMP_CXX_FLAGS``: string, compiler flag that enables OpenMP
+
 
     * Enable input/output formats
-        * For HDF |
-            ``HDFENABLE="on"``
-        * for XDF (nchilada) input
-            ``XDRENABLE="on"``
-        * for adios output
-            ``ADIOSENABLE="on"``
+        * For HDF
+            | ``VR_HDF5``: boolean on whether to include HDF support
+            | ``HDF5_DIR``: specify a local directory containing HDF library.
+        * for XDR (nchilada) input
+            | ``VR_XDR``: boolean on whether to include XDR support
+            | ``XDR_DIR``: specify a local directory containing XDR library.
+        * for adios output (alpha, not yet available)
+            | ``VR_ADIOS``: boolean on whether to include ADIOS support
+            | ``ADIOS_DIR``: specify a local directory containing ADIOS library.
 
-    * To set local libraries
-        * Activate the following flags
-            | ``LOCALGSL="on"``
-            | ``LOCALFFTW="on"``
-            | ``LOCALHDF="on"``
-            | ``LOCALADIOS="on"``
-            | ``LOCALXDR="on"``
-
+    * To set directories of required libraries 
         * Set the directories of the following libraries
             | ``GSL_DIR =``
-            | ``FFTW_DIR =``
-            | ``HDF_DIR =``
-            | ``ADIOS_DIR =``
 
 .. topic:: Internal precision and data structure flags
 
