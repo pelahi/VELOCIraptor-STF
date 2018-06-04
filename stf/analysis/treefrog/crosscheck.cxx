@@ -649,8 +649,8 @@ int CrossMatchDescendantIndividual(Options &opt, Int_t i,
     if (opt.icorematchtype!=PARTLISTNOCORE && opt.particle_frac<1 && opt.particle_frac>0 && numshared>0) {
         //calculate number of particles
         np1=(h1[i].NumberofParticles*opt.particle_frac);
-        if (h1[i].NumberofParticles<opt.min_numpart) np1=h2[j].NumberofParticles;
-        else if (np1<opt.min_numpart) np1=opt.min_numpart;
+        if (np1<opt.min_numpart) np1=opt.min_numpart;
+        if (h1[i].NumberofParticles<np1) np1=h1[i].NumberofParticles;
         if (opt.imerittype==MERITRankWeighted||opt.imerittype==MERITRankWeightedBoth) for (j=0;j<np1;j++) sharepartlist[j+offset2]=0;
         //if halo has enough particle for meaningful most bound particles check, proceed to find merits. Similar to normal merit
         //calculations but have now np2 for calculating merits
