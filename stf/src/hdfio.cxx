@@ -1437,6 +1437,20 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                     if (ifloat_pos) ibuf=MPIGetParticlesProcessor(floatbuff[nn*3],floatbuff[nn*3+1],floatbuff[nn*3+2]);
                     else ibuf=MPIGetParticlesProcessor(doublebuff[nn*3],doublebuff[nn*3+1],doublebuff[nn*3+2]);
                     ibufindex=ibuf*BufSize+Nbuf[ibuf];
+                    //reset hydro quantities of buffer
+#ifdef GASON
+                    Pbuf[ibufindex].SetU(0);
+#ifdef STARON
+                    Pbuf[ibufindex].SetSFR(0);
+                    Pbuf[ibufindex].SetZmet(0);
+#endif
+#endif
+#ifdef STARON
+                    Pbuf[ibufindex].SetZmet(0);
+                    Pbuf[ibufindex].SetTage(0);
+#endif
+#ifdef BHON
+#endif
                     //store particle info in Ptemp;
                     if (ifloat_pos)
                         Pbuf[ibufindex].SetPosition(floatbuff[nn*3],floatbuff[nn*3+1],floatbuff[nn*3+2]);
@@ -1459,31 +1473,6 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                     else if (k==HDFDMTYPE) Pbuf[ibufindex].SetType(DARKTYPE);
                     else if (k==HDFSTARTYPE) Pbuf[ibufindex].SetType(STARTYPE);
                     else if (k==HDFBHTYPE) Pbuf[ibufindex].SetType(BHTYPE);
-
-                    //when running hydro runs, need to reset particle buffer quantities
-                    //related to hydro info to zero
-#ifdef GASON
-                    //if not gas type make sure to set Pbuf quanties to zero
-                    if (Pbuf[ibufindex].GetType()!=GASTYPE) {
-                        Pbuf[ibufindex].SetU(0);
-#ifdef STARON
-                        Pbuf[ibufindex].SetSFR(0);
-                        Pbuf[ibufindex].SetZmet(0);
-#endif
-                    }
-#endif
-#ifdef STARON
-                    //if not star type make sure to set Pbuf star quantities to zero
-                    if (Pbuf[ibufindex].GetType()!=STARTYPE) {
-                        Pbuf[ibufindex].SetZmet(0);
-                        Pbuf[ibufindex].SetTage(0);
-                    }
-#endif
-#ifdef BHON
-                    //if not star type make sure to set Pbuf star quantities to zero
-                    if (Pbuf[ibufindex].GetType()!=BHTYPE) {
-                    }
-#endif
 
 #ifdef GASON
                     if (k==HDFGASTYPE) {
@@ -1640,6 +1629,20 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                     if (ifloat_pos) ibuf=MPIGetParticlesProcessor(floatbuff[nn*3],floatbuff[nn*3+1],floatbuff[nn*3+2]);
                     else ibuf=MPIGetParticlesProcessor(doublebuff[nn*3],doublebuff[nn*3+1],doublebuff[nn*3+2]);
                     ibufindex=ibuf*BufSize+Nbuf[ibuf];
+                    //reset hydro quantities of buffer
+#ifdef GASON
+                    Pbuf[ibufindex].SetU(0);
+#ifdef STARON
+                    Pbuf[ibufindex].SetSFR(0);
+                    Pbuf[ibufindex].SetZmet(0);
+#endif
+#endif
+#ifdef STARON
+                    Pbuf[ibufindex].SetZmet(0);
+                    Pbuf[ibufindex].SetTage(0);
+#endif
+#ifdef BHON
+#endif
                     //store particle info in Ptemp;
                     if(ifloat_pos) {
                         Pbuf[ibufindex].SetPosition(floatbuff[nn*3],floatbuff[nn*3+1],floatbuff[nn*3+2]);
@@ -1664,32 +1667,6 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                     else if (k==HDFDMTYPE) Pbuf[ibufindex].SetType(DARKTYPE);
                     else if (k==HDFSTARTYPE) Pbuf[ibufindex].SetType(STARTYPE);
                     else if (k==HDFBHTYPE) Pbuf[ibufindex].SetType(BHTYPE);
-
-                    //when running hydro runs, need to reset particle buffer quantities
-                    //related to hydro info to zero
-#ifdef GASON
-                    //if not gas type make sure to set Pbuf quanties to zero
-                    if (Pbuf[ibufindex].GetType()!=GASTYPE) {
-                        Pbuf[ibufindex].SetU(0);
-#ifdef STARON
-                        Pbuf[ibufindex].SetSFR(0);
-                        Pbuf[ibufindex].SetZmet(0);
-#endif
-                    }
-#endif
-#ifdef STARON
-                    //if not star type make sure to set Pbuf star quantities to zero
-                    if (Pbuf[ibufindex].GetType()!=STARTYPE) {
-                        Pbuf[ibufindex].SetZmet(0);
-                        Pbuf[ibufindex].SetTage(0);
-                    }
-#endif
-#ifdef BHON
-                    //if not star type make sure to set Pbuf star quantities to zero
-                    if (Pbuf[ibufindex].GetType()!=BHTYPE) {
-                    }
-#endif
-
 #ifdef GASON
                     if (k==HDFGASTYPE) {
                         if (ifloat) Pbuf[ibufindex].SetU(ufloatbuff[nn]);

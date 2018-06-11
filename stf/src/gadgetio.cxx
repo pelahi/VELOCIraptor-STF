@@ -1107,6 +1107,22 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
                 //determine processor this particle belongs on based on its spatial position
                 ibuf=MPIGetParticlesProcessor(ctemp[0],ctemp[1],ctemp[2]);
                 ibufindex=ibuf*BufSize+Nbuf[ibuf];
+                //when running hydro runs, need to reset particle buffer quantities
+                //related to hydro info to zero
+#ifdef GASON
+                Pbuf[ibufindex].SetU(0);
+#ifdef STARON
+                Pbuf[ibufindex].SetSFR(0);
+                Pbuf[ibufindex].SetZmet(0);
+#endif
+#endif
+#ifdef STARON
+                Pbuf[ibufindex].SetZmet(0);
+                Pbuf[ibufindex].SetTage(0);
+#endif
+#ifdef BHON
+#endif
+
                 //now depending on the type of particle and the type of search,
                 //load the particle into a particle buffer. If the particle belongs on local thread, then just copy it over
                 //to the Part array (or Pbaryons array if the iBaryonSearch is set). Otherwise, keep adding to the Pbuf array
@@ -1123,32 +1139,6 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
                     else if (k==GSTARTYPE) Pbuf[ibufindex].SetType(STARTYPE);
                     else if (k==GBHTYPE) Pbuf[ibufindex].SetType(BHTYPE);
                     else Pbuf[ibufindex].SetType(DARKTYPE);
-
-                    //when running hydro runs, need to reset particle buffer quantities
-                    //related to hydro info to zero
-#ifdef GASON
-                    //if not gas type make sure to set Pbuf quanties to zero
-                    if (Pbuf[ibufindex].GetType()!=GASTYPE) {
-                        Pbuf[ibufindex].SetU(0);
-#ifdef STARON
-                        Pbuf[ibufindex].SetSFR(0);
-                        Pbuf[ibufindex].SetZmet(0);
-#endif
-                    }
-#endif
-#ifdef STARON
-                    //if not star type make sure to set Pbuf star quantities to zero
-                    if (Pbuf[ibufindex].GetType()!=STARTYPE) {
-                        Pbuf[ibufindex].SetZmet(0);
-                        Pbuf[ibufindex].SetTage(0);
-                    }
-#endif
-#ifdef BHON
-                    //if not star type make sure to set Pbuf star quantities to zero
-                    if (Pbuf[ibufindex].GetType()!=BHTYPE) {
-                    }
-#endif
-
                     //assume that first sphblock is internal energy
 #ifdef GASON
                     if (k==GGASTYPE) Pbuf[ibufindex].SetU(sphtempchunk[0*nchunk+nn]);
@@ -1172,30 +1162,6 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
                         Pbuf[ibufindex].SetPID(idval);
                         //when running hydro runs, need to reset particle buffer quantities
                         //related to hydro info to zero
-                        if (opt.iBaryonSearch) {
-#ifdef GASON
-                            //if not gas type make sure to set Pbuf quanties to zero
-                            if (Pbuf[ibufindex].GetType()!=GASTYPE) {
-                                Pbuf[ibufindex].SetU(0);
-#ifdef STARON
-                                Pbuf[ibufindex].SetSFR(0);
-                                Pbuf[ibufindex].SetZmet(0);
-#endif
-                            }
-#endif
-#ifdef STARON
-                            //if not star type make sure to set Pbuf star quantities to zero
-                            if (Pbuf[ibufindex].GetType()!=STARTYPE) {
-                                Pbuf[ibufindex].SetZmet(0);
-                                Pbuf[ibufindex].SetTage(0);
-                            }
-#endif
-#ifdef BHON
-                            //if not star type make sure to set Pbuf star quantities to zero
-                            if (Pbuf[ibufindex].GetType()!=BHTYPE) {
-                            }
-#endif
-                        }
                         Nbuf[ibuf]++;
                         MPIAddParticletoAppropriateBuffer(ibuf, ibufindex, ireadtask, BufSize, Nbuf, Pbuf, Nlocal, Part.data(), Nreadbuf, Preadbuf);
                         count2++;
@@ -1208,28 +1174,6 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
                             vtemp[2]*opt.V*sqrt(opt.a)+Hubbleflow*ctemp[2],
                             count2);
                         Pbuf[ibufindex].SetPID(idval);
-#ifdef GASON
-                        //if not gas type make sure to set Pbuf quanties to zero
-                        if (Pbuf[ibufindex].GetType()!=GASTYPE) {
-                            Pbuf[ibufindex].SetU(0);
-#ifdef STARON
-                            Pbuf[ibufindex].SetSFR(0);
-                            Pbuf[ibufindex].SetZmet(0);
-#endif
-                        }
-#endif
-#ifdef STARON
-                        //if not star type make sure to set Pbuf star quantities to zero
-                        if (Pbuf[ibufindex].GetType()!=STARTYPE) {
-                            Pbuf[ibufindex].SetZmet(0);
-                            Pbuf[ibufindex].SetTage(0);
-                        }
-#endif
-#ifdef BHON
-                        //if not star type make sure to set Pbuf star quantities to zero
-                        if (Pbuf[ibufindex].GetType()!=BHTYPE) {
-                        }
-#endif
                         if (k==GGASTYPE) {
 #ifdef GASON
                             Pbuf[ibufindex].SetU(sphtempchunk[0*nchunk+nn]);
