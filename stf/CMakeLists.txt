@@ -105,6 +105,15 @@ vr_option_defines(HALO_DEN                  HALOONLYDEN)
 vr_option_defines(ZOOM_SIM                  HIGHRES)
 
 #
+# How we find GSL and set it up
+#
+macro(find_gsl)
+	find_package(GSL REQUIRED)
+	list(APPEND VR_INCLUDE_DIRS ${GSL_INCLUDE_DIRS})
+	list(APPEND VR_LIBS ${GSL_LIBRARIES})
+endmacro()
+
+#
 # How we find HDF5 and set it up
 #
 macro(find_hdf5)
@@ -141,6 +150,8 @@ endmacro()
 # Go and find our dependencies, depending on whether
 # we actually need them or not
 #
+find_gsl()
+
 set(VR_HAS_HDF5 No)
 if (VR_HDF5)
 	find_hdf5()
