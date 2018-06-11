@@ -189,7 +189,6 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 #ifdef USEMPI
     //since positions, velocities, masses are all at different points in the file,
     //to correctly assign particle to proccessor with correct velocities and mass must have several file pointers
-    MPI_Status status;
     Particle *Pbuf;
     int mpi_ireaderror;
 
@@ -197,11 +196,11 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     MPI_Comm mpi_comm_read;
     vector<Particle> *Preadbuf;
     Int_t BufSize=opt.mpiparticlebufsize;
-    Int_t Nlocalbuf,*Nbuf, *Nreadbuf,*nreadoffset;
-    int ibuf=0,itask;
+    Int_t *Nbuf, *Nreadbuf,*nreadoffset;
+    int ibuf=0;
     Int_t ibufindex;
-    Int_t *Nlocalthreadbuf,Nlocaltotalbuf;
-    int *irecv, sendTask,recvTask,irecvflag, *mpi_irecvflag;
+    Int_t *Nlocalthreadbuf;
+    int *irecv, *mpi_irecvflag;
     MPI_Request *mpi_request;
     Int_t *mpi_nsend_baryon;
     if (opt.iBaryonSearch && opt.partsearchtype!=PSTALL) mpi_nsend_baryon=new Int_t[NProcs*NProcs];
@@ -217,7 +216,6 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     //used in mpi to load access to all the data blocks of interest
     DataSet *partsdatasetall;
     DataSpace *partsdataspaceall;
-    DataSpace *chunkspaceall;
 
     //extra blocks to store info
     float *velfloatbuff=new float[chunksize*3];
@@ -356,13 +354,13 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 
             headerattribs[i]=headergroup[i].openAttribute(hdf_header_info[i].names[hdf_header_info[i].INumTot]);
             headerdataspace[i]=headerattribs[i].getSpace();
-	    headerattribs[i].read(PredType::NATIVE_UINT,&uintbuff[0]);
-	    for (k=0;k<NHDFTYPE;k++) hdf_header_info[i].npartTotal[k]=uintbuff[k];
+            headerattribs[i].read(PredType::NATIVE_UINT,&uintbuff[0]);
+            for (k=0;k<NHDFTYPE;k++) hdf_header_info[i].npartTotal[k]=uintbuff[k];
 
             headerattribs[i]=headergroup[i].openAttribute(hdf_header_info[i].names[hdf_header_info[i].INumTotHW]);
             headerdataspace[i]=headerattribs[i].getSpace();
-	    headerattribs[i].read(PredType::NATIVE_UINT,&uintbuff[0]);
-	    for (k=0;k<NHDFTYPE;k++) hdf_header_info[i].npartTotalHW[k]=uintbuff[k];
+            headerattribs[i].read(PredType::NATIVE_UINT,&uintbuff[0]);
+	           for (k=0;k<NHDFTYPE;k++) hdf_header_info[i].npartTotalHW[k]=uintbuff[k];
 
             headerattribs[i]=headergroup[i].openAttribute(hdf_header_info[i].names[hdf_header_info[i].IOmega0]);
             headerdataspace[i]=headerattribs[i].getSpace();
@@ -436,30 +434,30 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                 hdf_header_info[i].num_files=longbuff[0];
             }
         }
-        catch(GroupIException error)
+        catch(GroupIException &error)
         {
             error.printError();
         }
         // catch failure caused by the H5File operations
-        catch( FileIException error )
+        catch( FileIException &error )
         {
             error.printError();
 
         }
         // catch failure caused by the DataSet operations
-        catch( DataSetIException error )
+        catch( DataSetIException &error )
         {
             error.printError();
             ireaderror=1;
         }
         // catch failure caused by the DataSpace operations
-        catch( DataSpaceIException error )
+        catch( DataSpaceIException &error )
         {
             error.printError();
             ireaderror=1;
         }
         // catch failure caused by the DataSpace operations
-        catch( DataTypeIException error )
+        catch( DataTypeIException &error )
         {
             error.printError();
             ireaderror=1;
@@ -1461,6 +1459,32 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                     else if (k==HDFDMTYPE) Pbuf[ibufindex].SetType(DARKTYPE);
                     else if (k==HDFSTARTYPE) Pbuf[ibufindex].SetType(STARTYPE);
                     else if (k==HDFBHTYPE) Pbuf[ibufindex].SetType(BHTYPE);
+
+                    //when running hydro runs, need to reset particle buffer quantities
+                    //related to hydro info to zero
+#ifdef GASON
+                    //if not gas type make sure to set Pbuf quanties to zero
+                    if (Pbuf[ibufindex].GetType()!=GASTYPE) {
+                        Pbuf[ibufindex].SetU(0);
+#ifdef STARON
+                        Pbuf[ibufindex].SetSFR(0);
+                        Pbuf[ibufindex].SetZmet(0);
+#endif
+                    }
+#endif
+#ifdef STARON
+                    //if not star type make sure to set Pbuf star quantities to zero
+                    if (Pbuf[ibufindex].GetType()!=STARTYPE) {
+                        Pbuf[ibufindex].SetZmet(0);
+                        Pbuf[ibufindex].SetTage(0);
+                    }
+#endif
+#ifdef BHON
+                    //if not star type make sure to set Pbuf star quantities to zero
+                    if (Pbuf[ibufindex].GetType()!=BHTYPE) {
+                    }
+#endif
+
 #ifdef GASON
                     if (k==HDFGASTYPE) {
                         if (ifloat) Pbuf[ibufindex].SetU(ufloatbuff[nn]);
@@ -1640,6 +1664,32 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                     else if (k==HDFDMTYPE) Pbuf[ibufindex].SetType(DARKTYPE);
                     else if (k==HDFSTARTYPE) Pbuf[ibufindex].SetType(STARTYPE);
                     else if (k==HDFBHTYPE) Pbuf[ibufindex].SetType(BHTYPE);
+
+                    //when running hydro runs, need to reset particle buffer quantities
+                    //related to hydro info to zero
+#ifdef GASON
+                    //if not gas type make sure to set Pbuf quanties to zero
+                    if (Pbuf[ibufindex].GetType()!=GASTYPE) {
+                        Pbuf[ibufindex].SetU(0);
+#ifdef STARON
+                        Pbuf[ibufindex].SetSFR(0);
+                        Pbuf[ibufindex].SetZmet(0);
+#endif
+                    }
+#endif
+#ifdef STARON
+                    //if not star type make sure to set Pbuf star quantities to zero
+                    if (Pbuf[ibufindex].GetType()!=STARTYPE) {
+                        Pbuf[ibufindex].SetZmet(0);
+                        Pbuf[ibufindex].SetTage(0);
+                    }
+#endif
+#ifdef BHON
+                    //if not star type make sure to set Pbuf star quantities to zero
+                    if (Pbuf[ibufindex].GetType()!=BHTYPE) {
+                    }
+#endif
+
 #ifdef GASON
                     if (k==HDFGASTYPE) {
                         if (ifloat) Pbuf[ibufindex].SetU(ufloatbuff[nn]);
