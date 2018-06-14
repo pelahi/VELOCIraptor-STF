@@ -177,12 +177,11 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
         else aadjust=opt.a;
         Hubble=opt.h*opt.H*sqrt((1-opt.Omega_m-opt.Omega_Lambda)*pow(aadjust,-2.0)+opt.Omega_m*pow(aadjust,-3.0)+opt.Omega_Lambda);
         opt.rhobg=3.*Hubble*Hubble/(8.0*M_PI*opt.G)*opt.Omega_m;
-        //if opt.virlevel<0, then use virial overdensity based on Bryan and Norman 1998 virialization level is given by
-        if (opt.virlevel<0)
-        {
-            Double_t bnx=-((1-opt.Omega_m-opt.Omega_Lambda)*pow(aadjust,-2.0)+opt.Omega_Lambda)/((1-opt.Omega_m-opt.Omega_Lambda)*pow(aadjust,-2.0)+opt.Omega_m*pow(aadjust,-3.0)+opt.Omega_Lambda);
-            opt.virlevel=(18.0*M_PI*M_PI+82.0*bnx-39*bnx*bnx)/opt.Omega_m;
-        }
+        Double_t bnx=-((1-opt.Omega_m-opt.Omega_Lambda)*pow(aadjust,-2.0)+opt.Omega_Lambda)/((1-opt.Omega_m-opt.Omega_Lambda)*pow(aadjust,-2.0)+opt.Omega_m*pow(aadjust,-3.0)+opt.Omega_Lambda);
+        opt.virBN98=(18.0*M_PI*M_PI+82.0*bnx-39*bnx*bnx)/opt.Omega_m;
+        //if opt.virlevel<0, then use virial overdensity based on Bryan and Norman 1997 virialization level is given by
+        if (opt.virlevel<0) opt.virlevel=opt.virBN98;
+
         //normally Hubbleflow=lvscale*Hubble but we only care about peculiar velocities
         //ignore hubble flow
         Hubbleflow=0.;
@@ -1108,6 +1107,22 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
                 //determine processor this particle belongs on based on its spatial position
                 ibuf=MPIGetParticlesProcessor(ctemp[0],ctemp[1],ctemp[2]);
                 ibufindex=ibuf*BufSize+Nbuf[ibuf];
+                //when running hydro runs, need to reset particle buffer quantities
+                //related to hydro info to zero
+#ifdef GASON
+                Pbuf[ibufindex].SetU(0);
+#ifdef STARON
+                Pbuf[ibufindex].SetSFR(0);
+                Pbuf[ibufindex].SetZmet(0);
+#endif
+#endif
+#ifdef STARON
+                Pbuf[ibufindex].SetZmet(0);
+                Pbuf[ibufindex].SetTage(0);
+#endif
+#ifdef BHON
+#endif
+
                 //now depending on the type of particle and the type of search,
                 //load the particle into a particle buffer. If the particle belongs on local thread, then just copy it over
                 //to the Part array (or Pbaryons array if the iBaryonSearch is set). Otherwise, keep adding to the Pbuf array
@@ -1120,6 +1135,10 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
                         vtemp[2]*opt.V*sqrt(opt.a)+Hubbleflow*ctemp[2],
                         count2,k);
                     Pbuf[ibufindex].SetPID(idval);
+                    if (k==GGASTYPE) Pbuf[ibufindex].SetType(GASTYPE);
+                    else if (k==GSTARTYPE) Pbuf[ibufindex].SetType(STARTYPE);
+                    else if (k==GBHTYPE) Pbuf[ibufindex].SetType(BHTYPE);
+                    else Pbuf[ibufindex].SetType(DARKTYPE);
                     //assume that first sphblock is internal energy
 #ifdef GASON
                     if (k==GGASTYPE) Pbuf[ibufindex].SetU(sphtempchunk[0*nchunk+nn]);
@@ -1128,10 +1147,6 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
 #ifdef STARON
                     if (k==GSTARTYPE) Pbuf[ibufindex].SetTage(startempchunk[0*nchunk+nn]);
 #endif
-                    if (k==GGASTYPE) Pbuf[ibufindex].SetType(GASTYPE);
-                    else if (k==GSTARTYPE) Pbuf[ibufindex].SetType(STARTYPE);
-                    else if (k==GBHTYPE) Pbuf[ibufindex].SetType(BHTYPE);
-                    else Pbuf[ibufindex].SetType(DARKTYPE);
                     Nbuf[ibuf]++;
                     MPIAddParticletoAppropriateBuffer(ibuf, ibufindex, ireadtask, BufSize, Nbuf, Pbuf, Nlocal, Part.data(), Nreadbuf, Preadbuf);
                     count2++;
@@ -1145,6 +1160,8 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
                             vtemp[2]*opt.V*sqrt(opt.a)+Hubbleflow*ctemp[2],
                             count2,DARKTYPE);
                         Pbuf[ibufindex].SetPID(idval);
+                        //when running hydro runs, need to reset particle buffer quantities
+                        //related to hydro info to zero
                         Nbuf[ibuf]++;
                         MPIAddParticletoAppropriateBuffer(ibuf, ibufindex, ireadtask, BufSize, Nbuf, Pbuf, Nlocal, Part.data(), Nreadbuf, Preadbuf);
                         count2++;

@@ -188,7 +188,6 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 #ifdef USEMPI
     //since positions, velocities, masses are all at different points in the file,
     //to correctly assign particle to proccessor with correct velocities and mass must have several file pointers
-    MPI_Status status;
     Particle *Pbuf;
     int mpi_ireaderror;
 
@@ -196,11 +195,11 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     MPI_Comm mpi_comm_read;
     vector<Particle> *Preadbuf;
     Int_t BufSize=opt.mpiparticlebufsize;
-    Int_t Nlocalbuf,*Nbuf, *Nreadbuf,*nreadoffset;
-    int ibuf=0,itask;
+    Int_t *Nbuf, *Nreadbuf,*nreadoffset;
+    int ibuf=0;
     Int_t ibufindex;
-    Int_t *Nlocalthreadbuf,Nlocaltotalbuf;
-    int *irecv, sendTask,recvTask,irecvflag, *mpi_irecvflag;
+    Int_t *Nlocalthreadbuf;
+    int *irecv, *mpi_irecvflag;
     MPI_Request *mpi_request;
     Int_t *mpi_nsend_baryon;
     if (opt.iBaryonSearch && opt.partsearchtype!=PSTALL) mpi_nsend_baryon=new Int_t[NProcs*NProcs];
@@ -216,7 +215,6 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     //used in mpi to load access to all the data blocks of interest
     DataSet *partsdatasetall;
     DataSpace *partsdataspaceall;
-    DataSpace *chunkspaceall;
 
     //extra blocks to store info
     float *velfloatbuff=new float[chunksize*3];
@@ -354,13 +352,13 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 
             headerattribs[i]=get_attribute(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].INumTot]);
             headerdataspace[i]=headerattribs[i].getSpace();
-    	    headerattribs[i].read(PredType::NATIVE_UINT,&uintbuff[0]);
-    	    for (k=0;k<NHDFTYPE;k++) hdf_header_info[i].npartTotal[k]=uintbuff[k];
+            headerattribs[i].read(PredType::NATIVE_UINT,&uintbuff[0]);
+            for (k=0;k<NHDFTYPE;k++) hdf_header_info[i].npartTotal[k]=uintbuff[k];
 
             headerattribs[i]=get_attribute(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].INumTotHW]);
             headerdataspace[i]=headerattribs[i].getSpace();
-    	    headerattribs[i].read(PredType::NATIVE_UINT,&uintbuff[0]);
-    	    for (k=0;k<NHDFTYPE;k++) hdf_header_info[i].npartTotalHW[k]=uintbuff[k];
+            headerattribs[i].read(PredType::NATIVE_UINT,&uintbuff[0]);
+            for (k=0;k<NHDFTYPE;k++) hdf_header_info[i].npartTotalHW[k]=uintbuff[k];
 
           headerattribs[i]=get_attribute(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].IOmega0]);
           headerdataspace[i]=headerattribs[i].getSpace();
@@ -437,30 +435,30 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
             hdf_header_info[i].num_files=longbuff[0];
           }
         }
-        catch(GroupIException error)
+        catch(GroupIException &error)
         {
           error.printError();
         }
         // catch failure caused by the H5File operations
-        catch( FileIException error )
+        catch( FileIException &error )
         {
           error.printError();
 
         }
         // catch failure caused by the DataSet operations
-        catch( DataSetIException error )
+        catch( DataSetIException &error )
         {
           error.printError();
           ireaderror=1;
         }
         // catch failure caused by the DataSpace operations
-        catch( DataSpaceIException error )
+        catch( DataSpaceIException &error )
         {
           error.printError();
           ireaderror=1;
         }
         // catch failure caused by the DataSpace operations
-        catch( DataTypeIException error )
+        catch( DataTypeIException &error )
         {
           error.printError();
           ireaderror=1;
@@ -469,26 +467,23 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     }
     //after info read, initialise cosmological parameters
     opt.p=hdf_header_info[ifirstfile].BoxSize;
-    // If it is a cosmological run use the parameters read from the snapshot
-    if(opt.icosmologicalin) {
-
-      z=hdf_header_info[ifirstfile].redshift;
-      opt.a=1./(1.+z);
-      opt.Omega_m=hdf_header_info[ifirstfile].Omega0;
-      opt.Omega_Lambda=hdf_header_info[ifirstfile].OmegaLambda;
-      opt.h=hdf_header_info[ifirstfile].HubbleParam;
-      opt.Omega_cdm=opt.Omega_m-opt.Omega_b;
-      //Hubble flow
-      if (opt.comove) aadjust=1.0;
-      else aadjust=opt.a;
-      Hubble=opt.h*opt.H*sqrt((1-opt.Omega_m-opt.Omega_Lambda)*pow(aadjust,-2.0)+opt.Omega_m*pow(aadjust,-3.0)+opt.Omega_Lambda);
-      opt.rhobg=3.*Hubble*Hubble/(8.0*M_PI*opt.G)*opt.Omega_m;
-      //if opt.virlevel<0, then use virial overdensity based on Bryan and Norman 1998 virialization level is given by
-      if (opt.virlevel<0)
-      {
+    if (opt.icosmologicalin) {
+        z=hdf_header_info[ifirstfile].redshift;
+        opt.a=1./(1.+z);
+        opt.Omega_m=hdf_header_info[ifirstfile].Omega0;
+        opt.Omega_Lambda=hdf_header_info[ifirstfile].OmegaLambda;
+        opt.h=hdf_header_info[ifirstfile].HubbleParam;
+        opt.Omega_cdm=opt.Omega_m-opt.Omega_b;
+        //Hubble flow
+        if (opt.comove) aadjust=1.0;
+        else aadjust=opt.a;
+        Hubble=opt.h*opt.H*sqrt((1-opt.Omega_m-opt.Omega_Lambda)*pow(aadjust,-2.0)+opt.Omega_m*pow(aadjust,-3.0)+opt.Omega_Lambda);
+        opt.rhobg=3.*Hubble*Hubble/(8.0*M_PI*opt.G)*opt.Omega_m;
         Double_t bnx=-((1-opt.Omega_m-opt.Omega_Lambda)*pow(aadjust,-2.0)+opt.Omega_Lambda)/((1-opt.Omega_m-opt.Omega_Lambda)*pow(aadjust,-2.0)+opt.Omega_m*pow(aadjust,-3.0)+opt.Omega_Lambda);
-        opt.virlevel=(18.0*M_PI*M_PI+82.0*bnx-39*bnx*bnx)/opt.Omega_m;
-      }
+        opt.virBN98=(18.0*M_PI*M_PI+82.0*bnx-39*bnx*bnx)/opt.Omega_m;
+        //if opt.virlevel<0, then use virial overdensity based on Bryan and Norman 1997 virialization level is given by
+        if (opt.virlevel<0) opt.virlevel=opt.virBN98;
+        cout<<"Cosmology (h,Omega_m,Omega_cdm,Omega_b,Omega_L) = ("<< opt.h<<","<<opt.Omega_m<<","<<opt.Omega_cdm<<","<<opt.Omega_b<<","<<opt.Omega_Lambda<<")"<<endl;
     }
     else {
       opt.a=1.0;
@@ -1445,31 +1440,46 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 #endif
 
                 for (int nn=0;nn<nchunk;nn++) {
-                  if (ifloat_pos) ibuf=MPIGetParticlesProcessor(floatbuff[nn*3],floatbuff[nn*3+1],floatbuff[nn*3+2]);
-                  else ibuf=MPIGetParticlesProcessor(doublebuff[nn*3],doublebuff[nn*3+1],doublebuff[nn*3+2]);
-                  ibufindex=ibuf*BufSize+Nbuf[ibuf];
-                  //store particle info in Ptemp;
-                  if (ifloat_pos)
-                    Pbuf[ibufindex].SetPosition(floatbuff[nn*3],floatbuff[nn*3+1],floatbuff[nn*3+2]);
-                  else
-                    Pbuf[ibufindex].SetPosition(doublebuff[nn*3],doublebuff[nn*3+1],doublebuff[nn*3+2]);
-                  if (ifloat) {
-                    Pbuf[ibufindex].SetVelocity(velfloatbuff[nn*3],velfloatbuff[nn*3+1],velfloatbuff[nn*3+2]);
-                    if (hdf_header_info[i].mass[k]==0)Pbuf[ibufindex].SetMass(massfloatbuff[nn]);
-                    else Pbuf[ibufindex].SetMass(hdf_header_info[i].mass[k]);
-                  }
-                  else {
-                    Pbuf[ibufindex].SetVelocity(veldoublebuff[nn*3],veldoublebuff[nn*3+1],veldoublebuff[nn*3+2]);
-                    if (hdf_header_info[i].mass[k]==0)Pbuf[ibufindex].SetMass(massdoublebuff[nn]);
-                    else Pbuf[ibufindex].SetMass(hdf_header_info[i].mass[k]);
-                  }
-                  if (iint) Pbuf[ibufindex].SetPID(intbuff[nn]);
-                  else Pbuf[ibufindex].SetPID(longbuff[nn]);
-                  Pbuf[ibufindex].SetID(nn);
-                  if (k==HDFGASTYPE) Pbuf[ibufindex].SetType(GASTYPE);
-                  else if (k==HDFDMTYPE) Pbuf[ibufindex].SetType(DARKTYPE);
-                  else if (k==HDFSTARTYPE) Pbuf[ibufindex].SetType(STARTYPE);
-                  else if (k==HDFBHTYPE) Pbuf[ibufindex].SetType(BHTYPE);
+                    if (ifloat_pos) ibuf=MPIGetParticlesProcessor(floatbuff[nn*3],floatbuff[nn*3+1],floatbuff[nn*3+2]);
+                    else ibuf=MPIGetParticlesProcessor(doublebuff[nn*3],doublebuff[nn*3+1],doublebuff[nn*3+2]);
+                    ibufindex=ibuf*BufSize+Nbuf[ibuf];
+                    //reset hydro quantities of buffer
+#ifdef GASON
+                    Pbuf[ibufindex].SetU(0);
+#ifdef STARON
+                    Pbuf[ibufindex].SetSFR(0);
+                    Pbuf[ibufindex].SetZmet(0);
+#endif
+#endif
+#ifdef STARON
+                    Pbuf[ibufindex].SetZmet(0);
+                    Pbuf[ibufindex].SetTage(0);
+#endif
+#ifdef BHON
+#endif
+                    //store particle info in Ptemp;
+                    if (ifloat_pos)
+                        Pbuf[ibufindex].SetPosition(floatbuff[nn*3],floatbuff[nn*3+1],floatbuff[nn*3+2]);
+                    else
+                        Pbuf[ibufindex].SetPosition(doublebuff[nn*3],doublebuff[nn*3+1],doublebuff[nn*3+2]);
+                    if (ifloat) {
+                        Pbuf[ibufindex].SetVelocity(velfloatbuff[nn*3],velfloatbuff[nn*3+1],velfloatbuff[nn*3+2]);
+                        if (hdf_header_info[i].mass[k]==0)Pbuf[ibufindex].SetMass(massfloatbuff[nn]);
+                        else Pbuf[ibufindex].SetMass(hdf_header_info[i].mass[k]);
+                    }
+                    else {
+                        Pbuf[ibufindex].SetVelocity(veldoublebuff[nn*3],veldoublebuff[nn*3+1],veldoublebuff[nn*3+2]);
+                        if (hdf_header_info[i].mass[k]==0)Pbuf[ibufindex].SetMass(massdoublebuff[nn]);
+                        else Pbuf[ibufindex].SetMass(hdf_header_info[i].mass[k]);
+                    }
+                    if (iint) Pbuf[ibufindex].SetPID(intbuff[nn]);
+                    else Pbuf[ibufindex].SetPID(longbuff[nn]);
+                    Pbuf[ibufindex].SetID(nn);
+                    if (k==HDFGASTYPE) Pbuf[ibufindex].SetType(GASTYPE);
+                    else if (k==HDFDMTYPE) Pbuf[ibufindex].SetType(DARKTYPE);
+                    else if (k==HDFSTARTYPE) Pbuf[ibufindex].SetType(STARTYPE);
+                    else if (k==HDFBHTYPE) Pbuf[ibufindex].SetType(BHTYPE);
+
 #ifdef GASON
                   if (k==HDFGASTYPE) {
                     if (ifloat) Pbuf[ibufindex].SetU(ufloatbuff[nn]);
@@ -1625,6 +1635,20 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                     if (ifloat_pos) ibuf=MPIGetParticlesProcessor(floatbuff[nn*3],floatbuff[nn*3+1],floatbuff[nn*3+2]);
                     else ibuf=MPIGetParticlesProcessor(doublebuff[nn*3],doublebuff[nn*3+1],doublebuff[nn*3+2]);
                     ibufindex=ibuf*BufSize+Nbuf[ibuf];
+                    //reset hydro quantities of buffer
+#ifdef GASON
+                    Pbuf[ibufindex].SetU(0);
+#ifdef STARON
+                    Pbuf[ibufindex].SetSFR(0);
+                    Pbuf[ibufindex].SetZmet(0);
+#endif
+#endif
+#ifdef STARON
+                    Pbuf[ibufindex].SetZmet(0);
+                    Pbuf[ibufindex].SetTage(0);
+#endif
+#ifdef BHON
+#endif
                     //store particle info in Ptemp;
                     if(ifloat_pos) {
                       Pbuf[ibufindex].SetPosition(floatbuff[nn*3],floatbuff[nn*3+1],floatbuff[nn*3+2]);

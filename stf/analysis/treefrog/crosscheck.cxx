@@ -649,8 +649,8 @@ int CrossMatchDescendantIndividual(Options &opt, Int_t i,
     if (opt.icorematchtype!=PARTLISTNOCORE && opt.particle_frac<1 && opt.particle_frac>0 && numshared>0) {
         //calculate number of particles
         np1=(h1[i].NumberofParticles*opt.particle_frac);
-        if (h1[i].NumberofParticles<opt.min_numpart) np1=h2[j].NumberofParticles;
-        else if (np1<opt.min_numpart) np1=opt.min_numpart;
+        if (np1<opt.min_numpart) np1=opt.min_numpart;
+        if (h1[i].NumberofParticles<np1) np1=h1[i].NumberofParticles;
         if (opt.imerittype==MERITRankWeighted||opt.imerittype==MERITRankWeightedBoth) for (j=0;j<np1;j++) sharepartlist[j+offset2]=0;
         //if halo has enough particle for meaningful most bound particles check, proceed to find merits. Similar to normal merit
         //calculations but have now np2 for calculating merits
@@ -1164,6 +1164,10 @@ void UpdateRefDescendants(Options &opt, const Int_t numhalos, DescendantData *&d
     int iprogen,idescen;
     int itimeprogen,itimedescen;
     int iflag;
+    //remove all connections present in dtemp after ranking, and only add them if required
+    for (Int_t i=0;i<numhalos;i++) if (dtemp[i].NumberofDescendants>0) {
+        RemoveLinksDescendantBasedProgenitorList(itime, i, dtemp[i], pdescenprogen);
+    }
     //only add new descendant if reference has no descendant
     if (opt.imultsteplinkcrit==MSLCMISSING) {
         for (Int_t i=0;i<numhalos;i++) {
@@ -1192,8 +1196,7 @@ void UpdateRefDescendants(Options &opt, const Int_t numhalos, DescendantData *&d
                         if (pdescenprogen[itimedescen][idescen].dtoptype[j]==0) iflag=1;
                     }
                     if (iflag==1) continue;
-                    //otherwise, either object had no progenitors or a secondary rank progenitor
-                    //in that case, update by removing old links and adding new ones
+                    //update by removing old links and adding new ones
                     RemoveLinksDescendantBasedProgenitorList(itime, i, dref[i], pdescenprogen);
                     dref[i]=dtemp[i];
                     AddLinksDescendantBasedProgenitorList(itime, i, dref[i], pdescenprogen);
@@ -1270,43 +1273,13 @@ void UpdateDescendantUsingDescendantBasedProgenitorList(Int_t nhalos,
         //for each halo descandant rank its progenior haloes based on the merit at a given time
         nattime=0;
         for (auto iprogen=0;iprogen<pdescenprogen[k].NumberofProgenitors;iprogen++) nattime+=(pdescenprogen[k].deltat[iprogen]==istep);
-        if (nattime<=1) continue;
+        if (nattime<1) continue;
         //fill the priority queue so that the best merit are first
         pq=new PriorityQueue(nattime);
         for (auto iprogen=0;iprogen<pdescenprogen[k].NumberofProgenitors;iprogen++) if (pdescenprogen[k].deltat[iprogen]==istep)
         {
             pq->Push(iprogen,pdescenprogen[k].Merit[iprogen]);
         }
-        /*
-        //fill vector in order
-        while(pq->Size()>0)
-        {
-            progindexvec.push_back(pq->TopQueue());
-            meritvec.push_back(pq->TopPriority());
-            pq->Pop();
-        }
-        delete pq;
-        //if the merit is poor then ranking starts at 1, otherwise, have a valid zero rank descendant/progenitor
-        //also if second best merit is viable and almost equivalent to best merit
-        //then also not ideal progenitor found
-        //if not then no progenitor is ideal and increase rank value by 1
-        rank=0;
-        if (meritvec[0]<meritlimit) rank=1;
-        else if (nattime>1) {
-            if (meritvec[1]/meritvec[0]>0.75) rank=1;
-        }
-        for (auto iprogen=0;iprogen<progindexvec.size();iprogen++)
-        {
-            progindex=progindexvec[iprogen];
-            descenindex=pdescenprogen[k].haloindex[progindex];
-            descenprogenindex=pdescenprogen[k].progenindex[progindex];
-            pdescenprogen[k].dtoptype[progindex]=rank;
-            pdescen[descenindex].dtoptype[descenprogenindex]=rank;
-            rank++;
-        }
-        progindexvec.clear();
-        meritvec.clear();
-        */
         //if the merit is poor then ranking starts at 1, otherwise, have a valid zero rank descendant/progenitor
         rank=(pq->TopPriority()<meritlimit);
         while(pq->Size()>0)
@@ -1316,6 +1289,47 @@ void UpdateDescendantUsingDescendantBasedProgenitorList(Int_t nhalos,
             descenprogenindex=pdescenprogen[k].progenindex[progindex];
             pdescenprogen[k].dtoptype[progindex]=rank;
             pdescen[descenindex].dtoptype[descenprogenindex]=rank;
+            rank++;
+            pq->Pop();
+        }
+        delete pq;
+    }
+}
+
+void UpdateDescendantAcrossTimeUsingDescendantBasedProgenitorList(Int_t nhalos,
+    DescendantData **&pdescenref, DescendantData *&pdescentemp, ProgenitorDataDescenBased *&pdescenprogen, int istep, Double_t meritlimit)
+{
+    PriorityQueue *pq;
+    int iflag;
+    Int_t rank;
+    Int_t progindex,descenindex,descentemporalindex,descenprogenindex;
+    vector<int> progindexvec;
+    vector<Double_t> meritvec;
+    for (Int_t k=0;k<nhalos;k++) if (pdescenprogen[k].NumberofProgenitors>1)
+    {
+        //if all objects are at the same time do nothing as this has been set already
+        iflag=1;
+        for (auto iprogen=1;iprogen<pdescenprogen[k].NumberofProgenitors;iprogen++) if (pdescenprogen[k].deltat[iprogen]!=pdescenprogen[k].deltat[0]) iflag=0;
+        if (iflag) continue;
+        //fill the priority queue so that the best merit are first
+        pq=new PriorityQueue(pdescenprogen[k].NumberofProgenitors);
+        for (auto iprogen=0;iprogen<pdescenprogen[k].NumberofProgenitors;iprogen++)
+        {
+            pq->Push(iprogen,pdescenprogen[k].Merit[iprogen]);
+        }
+        //if best rank is poor, lets start with 0
+        rank=(pq->TopPriority()<meritlimit);
+        while(pq->Size()>0)
+        {
+            progindex=pq->TopQueue();
+            descenindex=pdescenprogen[k].haloindex[progindex];
+            descentemporalindex=pdescenprogen[k].halotemporalindex[progindex];
+            descenprogenindex=pdescenprogen[k].progenindex[progindex];
+            pdescenprogen[k].dtoptype[progindex]=rank;
+            //if deltat is that of the temporary descendant list, update the rank there
+            if (pdescenprogen[k].deltat[progindex]==istep) pdescentemp[descenindex].dtoptype[descenprogenindex]=rank;
+            //otherwise update rank of reference list
+            else pdescenref[descentemporalindex][descenindex].dtoptype[descenprogenindex]=rank;
             rank++;
             pq->Pop();
         }

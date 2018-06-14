@@ -85,9 +85,9 @@ def ReadPropertyFile(basefilename,ibinary=0,iseparatesubfiles=0,iverbose=0, desi
 		fieldnames= [fieldname.split("(")[0] for fieldname in names]
 		for i in np.arange(fieldnames.__len__()):
 			fieldname=fieldnames[i]
-			if fieldname in ["ID","hostHalo","numSubStruct","npart","n_gas","n_star"]:
+			if fieldname in ["ID",,"numSubStruct","npart","n_gas","n_star", "Structuretype"]:
 				fieldtype.append(np.uint64)
-			elif fieldname in ["ID_mbp"]:
+			elif fieldname in ["ID_mbp", "hostHaloID"]:
 				fieldtype.append(np.int64)
 			else:
 				fieldtype.append(np.float64)
@@ -121,9 +121,9 @@ def ReadPropertyFile(basefilename,ibinary=0,iseparatesubfiles=0,iverbose=0, desi
 			fieldnames.append(unpack('s', halofile.read(CHARSIZE)).strip())
 		for i in np.arange(fieldnames.__len__()):
 			fieldname=fieldnames[i]
-			if fieldname in ["ID","hostHalo","numSubStruct","npart","n_gas","n_star"]:
+			if fieldname in ["ID",,"numSubStruct","npart","n_gas","n_star", "Structuretype"]:
 				fieldtype.append(np.uint64)
-			elif fieldname in ["ID_mbp"]:
+			elif fieldname in ["ID_mbp", "hostHaloID"]:
 				fieldtype.append(np.int64)
 			else:
 				fieldtype.append(np.float64)
@@ -721,8 +721,8 @@ def ReadParticleDataFile(basefilename,ibinary=0,iseparatesubfiles=0,iparttypes=0
 	gfile.close()
 
 	particledata=dict()
-	particledata['Npart']=np.zeros(numtothalos,dtype=uint64)
-	particledata['Npart_unbound']=np.zeros(numtothalos,dtype=uint64)
+	particledata['Npart']=np.zeros(numtothalos,dtype=np.uint64)
+	particledata['Npart_unbound']=np.zeros(numtothalos,dtype=np.uint64)
 	particledata['Particle_IDs']=[[] for i in range(numtothalos)]
 	if (iparttypes==1):
 		particledata['Particle_Types']=[[] for i in range(numtothalos)]
@@ -844,7 +844,7 @@ def ReadParticleDataFile(basefilename,ibinary=0,iseparatesubfiles=0,iparttypes=0
 
 			#now with data loaded, process it to produce data structure
 			particledata['Npart'][counter:counter+numhalos]=numingroup
-			unumingroup=np.zeros(numhalos,dtype=uint64)
+			unumingroup=np.zeros(numhalos,dtype=np.uint64)
 			for i in range(int(numhalos-1)):
 				unumingroup[i]=(uoffset[i+1]-uoffset[i]);
 			unumingroup[-1]=(unpart-uoffset[-1])
@@ -911,9 +911,9 @@ def ReadSOParticleDataFile(basefilename,ibinary=0,iverbose=0,binarydtype=np.int6
 	particledata=dict()
 	particledata['Npart']=[]
 	particledata['Particle_IDs']=[]
-	if (iverbose): 
+	if (iverbose):
 		print("SO lists contains ",numtotSO," regions containing total of ",numtotparts," in ",numfiles," files")
-	if (numtotSO==0): 
+	if (numtotSO==0):
 		return particledata
 	particledata['Npart']=np.zeros(numtotSO,dtype=np.uint64)
 	particledata['Particle_IDs']=[[] for i in range(numtotSO)]

@@ -227,7 +227,7 @@ void MPINumInDomainHDF(Options &opt)
         partsdataspace=new DataSpace[opt.num_files*NHDFTYPE];
         MPISetFilesRead(opt,ireadfile,ireadtask);
         for(i=0; i<opt.num_files; i++) {
-	  if(ireadfile[i]) {
+	    if(ireadfile[i]) {
             if(opt.num_files>1) sprintf(buf,"%s.%d.hdf5",opt.fname,i);
             else sprintf(buf,"%s.hdf5",opt.fname);
             //Open the specified file and the specified dataset in the file.
