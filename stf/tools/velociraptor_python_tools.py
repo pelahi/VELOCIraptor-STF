@@ -85,7 +85,7 @@ def ReadPropertyFile(basefilename,ibinary=0,iseparatesubfiles=0,iverbose=0, desi
 		fieldnames= [fieldname.split("(")[0] for fieldname in names]
 		for i in np.arange(fieldnames.__len__()):
 			fieldname=fieldnames[i]
-			if fieldname in ["ID",,"numSubStruct","npart","n_gas","n_star", "Structuretype"]:
+			if fieldname in ["ID","numSubStruct","npart","n_gas","n_star", "Structuretype"]:
 				fieldtype.append(np.uint64)
 			elif fieldname in ["ID_mbp", "hostHaloID"]:
 				fieldtype.append(np.int64)
@@ -121,7 +121,7 @@ def ReadPropertyFile(basefilename,ibinary=0,iseparatesubfiles=0,iverbose=0, desi
 			fieldnames.append(unpack('s', halofile.read(CHARSIZE)).strip())
 		for i in np.arange(fieldnames.__len__()):
 			fieldname=fieldnames[i]
-			if fieldname in ["ID",,"numSubStruct","npart","n_gas","n_star", "Structuretype"]:
+			if fieldname in ["ID","numSubStruct","npart","n_gas","n_star", "Structuretype"]:
 				fieldtype.append(np.uint64)
 			elif fieldname in ["ID_mbp", "hostHaloID"]:
 				fieldtype.append(np.int64)
