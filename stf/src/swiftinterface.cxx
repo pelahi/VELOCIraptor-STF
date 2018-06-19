@@ -30,7 +30,7 @@ int InitVelociraptor(char* configname, char* outputname, cosmoinfo c, unitinfo u
 
     libvelociraptorOpt.pname = configname;
     libvelociraptorOpt.outname = outputname;
-    
+
     cout<<"Reading VELOCIraptor config file..."<< endl;
     GetParamFile(libvelociraptorOpt);
     cout<<"Setting cosmology, units, sim stuff "<<endl;
@@ -138,7 +138,7 @@ int InvokeVelociraptor(const size_t num_gravity_parts, const size_t num_hydro_pa
 #else
     nthreads=1;
 #endif
-    
+
     libvelociraptorOpt.outname = outputname;
 
     vector<Particle> parts;
@@ -183,11 +183,13 @@ int InvokeVelociraptor(const size_t num_gravity_parts, const size_t num_hydro_pa
         if(gravity_parts[i].type == DARKTYPE) {
           parts[dmOffset++] = Particle(gravity_parts[i], libvelociraptorOpt.L, libvelociraptorOpt.V, libvelociraptorOpt.M, libvelociraptorOpt.U, libvelociraptorOpt.icosmologicalin,libvelociraptorOpt.a,libvelociraptorOpt.h);
         }
-        else { 
+        else {
           if(gravity_parts[i].type == GASTYPE) {
             pbaryons[gasOffset] = Particle(gravity_parts[i], libvelociraptorOpt.L, libvelociraptorOpt.V, libvelociraptorOpt.M, libvelociraptorOpt.U, libvelociraptorOpt.icosmologicalin,libvelociraptorOpt.a,libvelociraptorOpt.h);
             pbaryons[gasOffset].SetPID(hydro_parts[-gravity_parts[i].id_or_neg_offset].id);
+#ifdef GASON
             pbaryons[gasOffset++].SetU(internal_energies[-gravity_parts[i].id_or_neg_offset]);
+#endif
           }
           else if(gravity_parts[i].type == STARTYPE) {
             cout<<"Star particle type not supported yet. Exiting..."<<endl;
@@ -210,7 +212,9 @@ int InvokeVelociraptor(const size_t num_gravity_parts, const size_t num_hydro_pa
         parts[i] = Particle(gravity_parts[i], libvelociraptorOpt.L, libvelociraptorOpt.V, libvelociraptorOpt.M, libvelociraptorOpt.U, libvelociraptorOpt.icosmologicalin,libvelociraptorOpt.a,libvelociraptorOpt.h);
         if(gravity_parts[i].type == GASTYPE) {
           parts[i].SetPID(hydro_parts[-gravity_parts[i].id_or_neg_offset].id);
+#ifdef GASON
           parts[i].SetU(internal_energies[-gravity_parts[i].id_or_neg_offset]);
+#endif
         }
         else if(gravity_parts[i].type == STARTYPE) {
           cout<<"Star particle type not supported yet. Exiting..."<<endl;
@@ -346,7 +350,7 @@ int InvokeVelociraptor(const size_t num_gravity_parts, const size_t num_hydro_pa
     ///\todo need to return fof and substructure information back to swift
 
     cout<<"VELOCIraptor returning."<< endl;
-    
+
     return 1;
 }
 
