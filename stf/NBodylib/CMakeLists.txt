@@ -230,7 +230,7 @@ endforeach()
 add_library(nbodylib STATIC
     $<TARGET_OBJECTS:Analysis> $<TARGET_OBJECTS:Cosmology>
     $<TARGET_OBJECTS:InitCond> $<TARGET_OBJECTS:KDTree>
-	 $<TARGET_OBJECTS:Math> $<TARGET_OBJECTS:NBody>
+    $<TARGET_OBJECTS:Math> $<TARGET_OBJECTS:NBody>
 )
 
 # Export the include directories and definitions, if necessary
