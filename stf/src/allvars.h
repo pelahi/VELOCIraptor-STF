@@ -68,6 +68,9 @@ using namespace H5;
 #include "adios.h"
 #endif
 
+//#include "swiftinterface.h"
+//
+//using namespace Swift;
 using namespace std;
 using namespace Math;
 using namespace NBody;
@@ -252,6 +255,8 @@ struct UnbindInfo
     //@{
     int unbindflag,bgpot,unbindtype,cmvelreftype;
     //@}
+    ///boolean as to whether code calculate potentials or potentials are externally provided
+    bool icalculatepotential;
     ///fraction of potential energy that kinetic energy is allowed to be and consider particle bound
     Double_t Eratio;
     ///minimum bound mass fraction
@@ -272,6 +277,7 @@ struct UnbindInfo
     Double_t eps;
     //@}
     UnbindInfo(){
+        icalculatepotential=true;
         unbindflag=0;
         bgpot=1;
         unbindtype=UPART;
@@ -299,6 +305,14 @@ struct PropInfo
         cmfrac=0.1;
         cmadjustfac=0.7;
     }
+};
+
+/* Structure to hold the location of a top-level cell. */
+struct cell_loc {
+
+    /* Coordinates x,y,z */
+    double loc[3];
+
 };
 
 /// Options structure stores useful variables that have user determined values which are altered by \ref GetArgs in \ref ui.cxx
@@ -340,7 +354,7 @@ struct Options
 
     ///\name length,m,v,grav conversion units
     //@{
-    Double_t L, M, V, G;
+    Double_t L, M, U, V, G;
     Double_t lengthtokpc, velocitytokms, masstosolarmass;
     //@}
     ///period (comove)
@@ -510,6 +524,30 @@ struct Options
     //@{
     ///scale lengths. Useful if searching single halo system and which to automatically scale linking lengths
     int iScaleLengths;
+
+    // Swift simulation information
+    //Swift::siminfo swiftsiminfo;
+
+    double spacedimension[3];
+        
+    /* Number of top-level cells. */
+    int numcells;
+
+    /* Number of top-level cells in each dimension. */
+    int numcellsperdim;
+
+    /* Locations of top-level cells. */
+    cell_loc *cellloc;
+
+    /*! Top-level cell width. */
+    double cellwidth[3];
+
+    /*! Inverse of the top-level cell width. */
+    double icellwidth[3];
+
+    /*! Holds the node ID of each top-level cell. */
+    const int *cellnodeids;
+
     //@}
     Options()
     {

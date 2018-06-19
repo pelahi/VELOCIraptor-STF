@@ -6,6 +6,8 @@
 
 #include "stf.h"
 
+#include "swiftinterface.h"
+
 /// \name Searches full system
 //@{
 
@@ -72,8 +74,8 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     cout<<"First build tree ... "<<endl;
     tree=new KDTree(Part.data(),nbodies,opt.Bsize,tree->TPHYS,tree->KEPAN,1000,0,0,0,period);
     cout<<"Done"<<endl;
-    cout<<"Search particles using 3DFOF in physical space"<<endl;
-    cout<<"Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits (and likely "<<sqrt(param[6])/opt.ellxscale<<" in interparticle spacing"<<endl;
+    cout<<ThisTask<<" Search particles using 3DFOF in physical space"<<endl;
+    cout<<ThisTask<<" Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits (ell^2="<<param[6]<<" and likely "<<sqrt(param[6])/opt.ellxscale<<" in interparticle spacing"<<endl;
     if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) {fofcmp=&FOF3dDM;param[7]=DARKTYPE;fofcheck=FOFchecktype;}
     else fofcmp=&FOF3d;
     //if using mpi no need to locally sort just yet and might as well return the Head, Len, Next arrays
@@ -126,6 +128,11 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     mpi_foftask=MPISetTaskID(Nlocal);
 
     Len=new Int_tree_t[nbodies];
+    if (opt.iverbose>=2) {
+        Int_t sum=0;
+        for (i=0;i<nbodies;i++) sum+=(pfof[i]>0);
+        cout<<ThisTask<<" has found locally "<<numgroups<<" with lower min size of "<<minsize<<", with  "<<sum<<" particles in all groups"<<endl;
+    }
     if (numgroups) {
         numingroup=BuildNumInGroup(nbodies, numgroups, pfof);
         for (i=0;i<nbodies;i++) Len[i]=numingroup[pfof[Part[i].GetID()]];
@@ -139,7 +146,11 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     MPIAdjustLocalGroupIDs(nbodies, pfof);
     //then determine export particles, declare arrays used to export data
 #ifdef MPIREDUCEMEM
+#ifdef SWIFTINTERFACE
+    MPIGetExportNumUsingMesh(libvelociraptorOpt, nbodies, Part.data(), sqrt(param[1]));
+#else
     MPIGetExportNum(nbodies, Part.data(), sqrt(param[1]));
+#endif
 #endif
     //allocate memory to store info
     cout<<ThisTask<<": Finished local search, nexport/nimport = "<<NExport<<" "<<NImport<<" in "<<MyGetTime()-time2<<endl;
@@ -155,7 +166,11 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
 
     //I have adjusted FOF data structure to have local group length and also seperated the export particles from export fof data
     //the reason is that will have to update fof data in iterative section but don't need to update particle information.
+#ifdef SWIFTINTERFACE
+    MPIBuildParticleExportListUsingMesh(libvelociraptorOpt, nbodies, Part.data(), pfof, Len, sqrt(param[1]));
+#else
     MPIBuildParticleExportList(nbodies, Part.data(), pfof, Len, sqrt(param[1]));
+#endif
     MPI_Barrier(MPI_COMM_WORLD);
     //Now that have FoFDataGet (the exported particles) must search local volume using said particles
     //This is done by finding all particles in the search volume and then checking if those particles meet the FoF criterion
@@ -169,6 +184,9 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         }
         else {
             links_across=MPILinkAcross(nbodies, tree, Part.data(), pfof, Len, Head, Next, param[1]);
+        }
+        if (opt.iverbose>=2) {
+            cout<<ThisTask<<" has found "<<links_across<<" links to particles on other mpi domains "<<endl;
         }
         MPI_Allreduce(&links_across, &links_across_total, 1, MPI_Int_t, MPI_SUM, MPI_COMM_WORLD);
         MPIUpdateExportList(nbodies,Part.data(),pfof,Len);
@@ -208,6 +226,11 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     Nlocal=newnbodies;
     }
 #endif
+    if (opt.iverbose>=2) {
+        Int_t sum=0;
+        for (i=0;i<nbodies;i++) sum+=(pfof[i]>0);
+        cout<<ThisTask<<" has found after full search "<<numgroups<<" with lower min size of "<<minsize<<", with  "<<sum<<" particles in all groups"<<endl;
+    }
     if (ThisTask==0) cout<<"Total number of groups found is "<<totalgroups<<endl;
     if (ThisTask==0) cout<<ThisTask<<": finished FOF search in total time of "<<MyGetTime()-time1<<endl;
 
@@ -245,6 +268,10 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     //have now 3dfof groups local to a MPI thread and particles are back in index order that will be used from now on
     //note that from on, use Nlocal, which is altered in mpi but set to nbodies in non-mpi
     if (opt.fofbgtype<=FOF6D && totalgroups>0) {
+    ///\todo In the 6DFOF, particles are sorted into group order but then resorted back into input index order
+    ///this is not necessary if the tipsy still .grp array does not need to be constructed.
+    ///we would removing storing the old ids alter how the local group lists are stiched together into the larger array
+    ///and remove a slow sort back into original ID order
     time1=MyGetTime();
     time2=MyGetTime();
 
@@ -430,6 +457,7 @@ private(i,tid,xscaling,vscaling)
         Int_t *pfof6dfof=new Int_t[Nlocal];
         for (i=0;i<Nlocal;i++) pfof6dfof[i]=0;
         ng=0;
+        ///\todo restructure how data is stored in the pfof6dfof since will no longer necessarily keep stuff in index order
         for (i=1;i<=iend;i++) {
             for (int j=0;j<numingroup[i];j++) {
                 pfof6dfof[ids[Part[noffset[i]+j].GetID()+noffset[i]]]=pfofomp[i][j]+(pfofomp[i][j]>0)*ng;
@@ -530,6 +558,7 @@ private(i,tid,xscaling,vscaling)
         delete[] numingroup;
     }
 
+    ///\todo only run this sort if necessary to keep id order
     for (i=0;i<npartingroups;i++) Part[i].SetID(ids[i]);
     gsl_heapsort(Part.data(), Nlocal, sizeof(Particle), IDCompare);
     //sort(Part.begin(), Part.end(), IDCompareVec);
@@ -1575,7 +1604,11 @@ private(i,tid)
 
     //then determine export particles, declare arrays used to export data
 #ifdef MPIREDUCEMEM
+#ifdef SWIFTINTERFACE
+    MPIGetExportNumUsingMesh(libvelociraptorOpt, nbodies, Partsubset, sqrt(param[1]));
+#else
     MPIGetExportNum(nbodies, Partsubset, sqrt(param[1]));
+#endif
 #endif
     //then determine export particles, declare arrays used to export data
     PartDataIn = new Particle[NExport];
@@ -1584,7 +1617,11 @@ private(i,tid)
     FoFDataGet = new fofdata_in[NExport];
     //I have adjusted FOF data structure to have local group length and also seperated the export particles from export fof data
     //the reason is that will have to update fof data in iterative section but don't need to update particle information.
+#ifdef SWIFTINTERFACE
+    MPIBuildParticleExportListUsingMesh(libvelociraptorOpt, nsubset, Partsubset, pfof, Len, sqrt(param[1]));
+#else
     MPIBuildParticleExportList(nsubset, Partsubset, pfof, Len, sqrt(param[1]));
+#endif
     //Now that have FoFDataGet (the exported particles) must search local volume using said particles
     //This is done by finding all particles in the search volume and then checking if those particles meet the FoF criterion
     //One must keep iterating till there are no new links.
@@ -2788,7 +2825,11 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
         if (opt.iverbose) cout<<ThisTask<<" finished local search"<<endl;
         MPI_Barrier(MPI_COMM_WORLD);
         //determine all tagged dark matter particles that have search areas that overlap another mpi domain
+#ifdef SWIFTINTERFACE
+        MPIGetExportNumUsingMesh(libvelociraptorOpt, npartingroups, Part.data(), sqrt(param[1]));
+#else
         MPIGetExportNum(npartingroups, Part.data(), sqrt(param[1]));
+#endif
         //to store local mpi task
         mpi_foftask=MPISetTaskID(nbaryons);
         //then determine export particles, declare arrays used to export data

@@ -1543,7 +1543,6 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         dims[0]=ng;
         //size of chunks in compression
         chunk_dims=new hsize_t[1];
-
         chunk_dims[0]=min((unsigned long)HDFOUTPUTCHUNKSIZE,ng);
         rank=1;
         // Modify dataset creation property to enable chunking
@@ -2040,7 +2039,7 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
             itemp=4;
             if (ngroups-nfield>0) {
                 hdfdatasetproplist.setChunk(rank, chunk_dims);
-            	hdfdatasetproplist.setDeflate(6);
+                hdfdatasetproplist.setDeflate(6);
                 dataspace=DataSpace(rank,dims);
                 dataset = Fhdf.createDataSet(datagroupnames.hierarchy[itemp], datagroupnames.hierarchydatatype[itemp], dataspace, hdfdatasetproplist);
             }
@@ -2054,7 +2053,7 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
             itemp++;
             if (chunk_dims[0]>0) {
                 hdfdatasetproplist.setChunk(rank, chunk_dims);
-            	hdfdatasetproplist.setDeflate(6);
+                hdfdatasetproplist.setDeflate(6);
                 dataspace=DataSpace(rank,dims);
                 dataset = Fhdf.createDataSet(datagroupnames.hierarchy[itemp], datagroupnames.hierarchydatatype[itemp], dataspace, hdfdatasetproplist);
             }

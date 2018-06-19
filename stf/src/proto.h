@@ -383,10 +383,17 @@ void MPINumInDomainNchilada(Options &opt);
 void MPIAdjustDomain(Options opt);
 ///determine if the search domain of a particle overlaps another mpi domain
 int MPISearchForOverlap(Particle &Part, Double_t &rdist);
+#ifdef SWIFTINTERFACE
+///determine if the search domain of a particle overlaps another mpi domain using the SWIFT mesh
+int MPISearchForOverlapUsingMesh(Options &opt, Particle &Part, Double_t &rdist);
+#endif
 ///determine if the search domain overlaps another mpi domain
 int MPISearchForOverlap(Double_t xsearch[3][2]);
 ///determine if search domain overlaps domain
 int MPIInDomain(Double_t xsearch[3][2], Double_t bnd[3][2]);
+
+///determine list of cells of a mesh within a search domain
+vector<int> MPIGetCellListInSearchUsingMesh(Options &opt, Double_t xsearch[3][2], bool ignorelocalcells=true);
 //@}
 
 /// \name MPI send/recv related routines when reading input data
@@ -412,8 +419,14 @@ short_mpi_t *MPISetTaskID(const Int_t nbodies);
 void MPIAdjustLocalGroupIDs(const Int_t nbodies, Int_t *pfof);
 ///Determine number of particles that need to be exported to another mpi thread from local mpi thread based on rdist
 void MPIGetExportNum(const Int_t nbodies, Particle *Part, Double_t rdist);
+#ifdef SWIFTINTERFACE
+///Determine number of particles that need to be exported to another mpi thread from local mpi thread based on rdist using the SWIFT mesh
+void MPIGetExportNumUsingMesh(Options &opt, const Int_t nbodies, Particle *Part, Double_t rdist);
+#endif
 ///Determine and send particles that need to be exported to another mpi thread from local mpi thread based on rdist
 void MPIBuildParticleExportList(const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_tree_t *&Len, Double_t rdist);
+///Determine and send particles that need to be exported to another mpi thread from local mpi thread based on rdist using the SWIFT mesh
+void MPIBuildParticleExportListUsingMesh(Options &opt, const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_tree_t *&Len, Double_t rdist);
 ///Link groups across MPI threads using a physical search
 Int_t MPILinkAcross(const Int_t nbodies, KDTree *&tree, Particle *Part, Int_t *&pfof, Int_tree_t *&Len, Int_tree_t *&Head, Int_tree_t *&Next, Double_t rdist2);
 ///Link groups across MPI threads using criterion
@@ -453,8 +466,16 @@ Int_t MPIBaryonExchange(const Int_t nbaryons, Particle *&Pbaryons, Int_t *&pfofb
 void MPIBuildGridData(const Int_t ngrid, GridCell *grid, Coordinate *gvel, Matrix *gveldisp);
 ///Determine number of particles that need to be exported to another mpi thread from local mpi thread based on array of distances for each particle for NN search
 void MPIGetNNExportNum(const Int_t nbodies, Particle *Part, Double_t *rdist);
+#ifdef SWIFTINTERFACE
+///Determine number of particles that need to be exported to another mpi thread from local mpi thread based on array of distances for each particle for NN search
+void MPIGetNNExportNumUsingMesh(Options &opt, const Int_t nbodies, Particle *Part, Double_t *rdist);
+#endif
 ///Determine and send particles that need to be exported to another mpi thread from local mpi thread based on array of distances for each particle for NN search
 void MPIBuildParticleNNExportList(const Int_t nbodies, Particle *Part, Double_t *rdist);
+#ifdef SWIFTINTERFACE
+///Determine and send particles that need to be exported to another mpi thread from local mpi thread based on array of distances for each particle for NN search
+void MPIBuildParticleNNExportListUsingMesh(Options &opt, const Int_t nbodies, Particle *Part, Double_t *rdist);
+#endif
 ///Determine number of local particles that need to be exported back based on ball search.
 void MPIGetNNImportNum(const Int_t nbodies, KDTree *tree, Particle *Part);
 ///Determine local particles that need to be exported back based on ball search.
