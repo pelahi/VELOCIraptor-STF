@@ -31,42 +31,59 @@ set(CMAKE_CXX_STANDARD 11)
 #
 # Options users can give on the command line via -D
 #
-macro(vr_option optname optdesc)
-	option(VR_${optname} "${optdesc}" ON)
+macro(vr_option optname optdesc status)
+	option(VR_${optname} "${optdesc}" "${status}")
 endmacro()
 
 # Input formats
-vr_option(HDF5 "Attempt to include HDF5 support in VELOCIraptor")
-vr_option(XDR  "XDR input support (used by nchilada)")
+vr_option(HDF5 "Attempt to include HDF5 support in VELOCIraptor" ON)
+vr_option(XDR  "XDR input support (used by nchilada)" OFF)
 
 # MPI options
-vr_option(MPI               "Attempt to include MPI support in VELOCIraptor")
-vr_option(MPI_REDUCE        "Reduce impact of MPI memory overhead at the cost of extra cpu cycles. Suggested this be turned on")
-vr_option(LARGE_MPI_DOMAIN  "Use large integers to represent MPI domains")
+vr_option(MPI               "Attempt to include MPI support in VELOCIraptor" ON)
+vr_option(MPI_REDUCE        "Reduce impact of MPI memory overhead at the cost of extra cpu cycles. Suggested this be turned on" ON)
+vr_option(LARGE_MPI_DOMAIN  "Use large integers to represent MPI domains" OFF)
 
 # Gadget handling details
-vr_option(GADGET_LONGID  "Support for long IDSs in Gadget")
-vr_option(GADGET_DPOS    "Support for double precision pos and vel in Gadget")
-vr_option(GADGET_SMASS   "Support for single precision mass in Gadget")
-vr_option(GADGET_HEAD2   "Support for header type 2 in Gadget")
+vr_option(GADGET_LONGID  "Support for long IDSs in Gadget" OFF)
+vr_option(GADGET_DPOS    "Support for double precision pos and vel in Gadget" OFF)
+vr_option(GADGET_SMASS   "Support for single precision mass in Gadget" OFF)
+vr_option(GADGET_HEAD2   "Support for header type 2 in Gadget" OFF)
 
 # Gadget extra info
-vr_option(GADGET_SPH_INFO   "Support for extra SPH information in Gadget")
-vr_option(GADGET_STAR_INFO  "Support for extra star information in Gadget")
-vr_option(GADGET_BH_INFO    "Support for extra black hole information in Gadget")
+vr_option(GADGET_SPH_INFO   "Support for extra SPH information in Gadget" OFF)
+vr_option(GADGET_STAR_INFO  "Support for extra star information in Gadget" OFF)
+vr_option(GADGET_BH_INFO    "Support for extra black hole information in Gadget" OFF)
 
-# Others
-vr_option(USE_BH        "Use black holes")
-vr_option(USE_HYDRO     "NBODY_USE_GAS + NBODY_USE_STARS + VR_USE_BH")
-vr_option(STRUCTURE_DEN "Calculate local density dist. only for particles in field objects; uses all particles to estimate quantity")
-vr_option(HALO_DEN      "Like STRUCTURE_DEN, but se particles inside field objects")
-vr_option(ZOOM_SIM      "Used to run against simulations with a high resolution region")
+# Particle data options
+vr_option(USE_STAR      "Use star particles" OFF)
+vr_option(USE_GAS       "Use gas particles" OFF)
+vr_option(USE_BH        "Use black holes" OFF)
+vr_option(USE_HYDRO     "NBODY_USE_GAS + NBODY_USE_STARS + VR_USE_BH" OFF)
+
+# VELOCiraptor behavior options
+vr_option(STRUCTURE_DEN "Calculate local density dist. only for particles in field objects; uses all particles to estimate quantity" ON)
+vr_option(HALO_DEN      "Like STRUCTURE_DEN, but se particles inside field objects" OFF)
+vr_option(ZOOM_SIM      "Used to run against simulations with a high resolution region" OFF)
+vr_option(USE_SWIFT_INTERFACE "Used to compile the code with hooks for being called from the SWIFT Hydro nbody code" OFF)
 
 # Let's true to our word
 if (VR_USE_HYDRO)
 	set(NBODY_USE_GAS ON)
 	set(NBODY_USE_STARS ON)
+	set(NBODY_USE_BH ON)
 	set(VR_USE_BH ON)
+	set(VR_USE_GAS ON)
+	set(VR_USE_STAR ON)
+endif()
+if (VR_USE_STAR)
+	set(NBODY_USE_STARS ON)
+endif()
+if (VR_USE_GAS)
+	set(NBODY_USE_GAS ON)
+endif()
+if (VR_USE_GAS)
+	set(NBODY_USE_GAS ON)
 endif()
 
 
@@ -100,10 +117,13 @@ vr_option_defines(GADGET_SPH_INFO           EXTRASPHINFO)
 vr_option_defines(GADGET_STAR_INFO          EXTRASTARINFO)
 vr_option_defines(GADGET_BH_INFO            EXTRABHINFO)
 
+vr_option_defines(USE_GAS                   GASON)
+vr_option_defines(USE_STAR                  STARON)
 vr_option_defines(USE_BH                    BHON)
 vr_option_defines(STRUCTURE_DEN             STRUCDEN)
 vr_option_defines(HALO_DEN                  HALOONLYDEN)
 vr_option_defines(ZOOM_SIM                  HIGHRES)
+vr_option_defines(USE_SWIFT_INTERFACE       SWIFTINTERFACE)
 
 #
 # How we find GSL and set it up
@@ -145,7 +165,9 @@ macro(find_mpi)
 		set(VR_HAS_MPI Yes)
 	endif()
 endmacro()
-
+if (VR_USE_SWIFT_INTERFACE)
+        list(APPEND VR_INCLUDE_DIRS ${SWIFT_INCLUDE_DIR})
+endif()
 
 #
 # Go and find our dependencies, depending on whether

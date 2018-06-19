@@ -66,30 +66,36 @@ if (_hasParent)
 endif()
 
 # Options users can give on the command line via -D
-macro(nbody_option optname optdesc)
-	option(NBODY_${optname} "${optdesc}" ON)
+macro(nbody_option optname optdesc status )
+	option(NBODY_${optname} "${optdesc}" "${status}")
 endmacro()
 
 # Optional dependencies
-nbody_option(OPENMP "Attempt to include OpenMP support in NBodyLib")
+nbody_option(OPENMP "Attempt to include OpenMP support in NBodyLib" ON)
 
 # Precision options
-nbody_option(SINGLE_PRECISION  "Use single point precision to store all properties and perform all calculations")
-nbody_option(LONG_INT          "Use long ints to represent all integers. Needed if dealing with more than MAXINT number of particles")
+nbody_option(SINGLE_PRECISION  "Use single point precision to store all properties and perform all calculations" OFF)
+nbody_option(LONG_INT          "Use long ints to represent all integers. Needed if dealing with more than MAXINT number of particles" OFF)
 
 # Particle class details options
-nbody_option(NO_MASS                    "Do not store the mass as all particles are the same mass")
-nbody_option(SINGLE_PARTICLE_PRECISION  "Do not store the mass as all particles are the same mass")
-nbody_option(UNSIGNED_PARTICLE_PIDS     "Use unsigned particle PIDs")
-nbody_option(UNSIGNED_PARTICLE_IDS      "Use unsigned particle IDs")
-nbody_option(USE_GAS                    "Particle class has gas")
-nbody_option(USE_STARS                  "Particle class has stars")
-nbody_option(USE_BARYONS                "VR_USE_GAS + VR_USE_STARS")
+nbody_option(NO_MASS                    "Do not store the mass as all particles are the same mass" OFF)
+nbody_option(SINGLE_PARTICLE_PRECISION  "Do not store the mass as all particles are the same mass" OFF)
+nbody_option(UNSIGNED_PARTICLE_PIDS     "Use unsigned particle PIDs" OFF)
+nbody_option(UNSIGNED_PARTICLE_IDS      "Use unsigned particle IDs" OFF)
+nbody_option(USE_GAS                    "Particle class has gas" OFF)
+nbody_option(USE_STARS                  "Particle class has stars" OFF)
+nbody_option(USE_BARYONS                "VR_USE_GAS + VR_USE_STARS" OFF)
+nbody_option(USE_HYDRO                  "VR_USE_GAS + VR_USE_STARS+VR_USE_BH" OFF)
 
 # Process high-level options
 if (NBODY_USE_BARYONS)
 	set(NBODY_USE_GAS ON)
 	set(NBODY_USE_STARS ON)
+endif()
+if (NBODY_USE_HYDRO)
+	set(NBODY_USE_GAS ON)
+	set(NBODY_USE_STARS ON)
+	set(NBODY_USE_BH ON)
 endif()
 
 
@@ -121,6 +127,7 @@ nbody_option_defines(UNSIGNED_PARTICLE_IDS     PARTICLEUIDS)
 nbody_option_defines(LARGEKDTREE               LARGETREE)
 nbody_option_defines(USE_GAS                   GASON)
 nbody_option_defines(USE_STARS                 STARON)
+nbody_option_defines(USE_BH                    BHON)
 
 #
 # How we find GSL and set it up
