@@ -56,6 +56,7 @@ list(APPEND TF_DEFINES ${NBODYLIB_DEFINES})
 list(APPEND TF_LIBS ${NBODYLIB_LIBS})
 list(APPEND TF_CXX_FLAGS ${NBODYLIB_CXX_FLAGS})
 list(APPEND TF_LINK_FLAGS ${NBODYLIB_LINK_FLAGS})
+list(APPEND TF_DOC_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/doc")
 
 # Optionally include VELOCIraptor, which might be needed (and internally
 # includes nbodylib)
@@ -66,7 +67,10 @@ if (TF_BUILD_VELOCIRAPTOR)
 	list(APPEND TF_CXX_FLAGS ${VR_CXX_FLAGS})
 	list(APPEND TF_LINK_FLAGS ${VR_LINK_FLAGS})
 	list(APPEND TF_LIBS ${VR_LIBS})
+	list(INSERT TF_DOC_DIRS 0 ${VR_DOC_DIRS})
 endif()
+
+list(INSERT TF_DOC_DIRS 0 ${NBODYLIB_DOC_DIRS})
 
 # cleanup duplicates and convert to single string
 list(REMOVE_DUPLICATES TF_CXX_FLAGS)
@@ -84,3 +88,5 @@ endif()
 if (TF_LINK_FLAGS)
 	set_target_properties(treefrog PROPERTIES LINK_FLAGS ${TF_LINK_FLAGS})
 endif()
+
+try_add_doc_target("${TF_DOC_DIRS}")

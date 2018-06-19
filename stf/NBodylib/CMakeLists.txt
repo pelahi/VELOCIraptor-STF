@@ -30,6 +30,33 @@ endif()
 project(NBodyLib VERSION ${NBODY_VERSION} LANGUAGES ${NBODY_LANGS})
 set(CMAKE_CXX_STANDARD 11)
 
+
+# Function to add a "doc" target, which will doxygen out the given
+# list of directories
+function(try_add_doc_target doc_dirs)
+	find_program(DOXYGEN_FOUND doxygen)
+	if (NOT DOXYGEN_FOUND)
+		return()
+	endif()
+
+	# Create a target for each individual doc directory, then a final one
+	# that depends on them all
+	message("-- Adding doc target for directories: ${doc_dirs}")
+	set(_dependencies "")
+	set(x 1)
+	foreach(_doc_dir IN ITEMS ${doc_dirs})
+		add_custom_command(OUTPUT ${_doc_dir}/xml/index.xml
+		                   COMMAND doxygen
+		                   WORKING_DIRECTORY ${_doc_dir})
+		add_custom_target(doc_${x}
+		                  COMMAND doxygen
+		                  WORKING_DIRECTORY ${_doc_dir})
+		list(APPEND _dependencies doc_${x})
+		math(EXPR x "${x} + 1")
+	endforeach()
+	add_custom_target(doc DEPENDS "${_dependencies}")
+endfunction()
+
 # Are we part of an outside build?
 # If so, we want to let the caller know what to include, define, etc at the end
 set(_export OFF)
@@ -73,6 +100,7 @@ set(NBODY_DEFINES "")
 set(NBODY_LIBS "")
 set(NBODY_CXX_FLAGS "")
 set(NBODY_LINK_FLAGS "")
+set(NBODY_DOC_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/doc)
 
 # Define macros depending on the user's choices
 macro(nbody_option_defines varname define)
@@ -206,10 +234,14 @@ add_library(nbodylib STATIC
 )
 
 # Export the include directories and definitions, if necessary
+# If building on our own, add the "doc" target
 if (_export)
 	set(NBODYLIB_INCLUDE_DIRS "${NBODY_INCLUDE_DIRS}" PARENT_SCOPE)
 	set(NBODYLIB_DEFINES "${NBODY_DEFINES}" PARENT_SCOPE)
 	set(NBODYLIB_CXX_FLAGS "${NBODY_CXX_FLAGS}" PARENT_SCOPE)
 	set(NBODYLIB_LINK_FLAGS "${NBODY_LINK_FLAGS}" PARENT_SCOPE)
 	set(NBODYLIB_LIBS "${NBODY_LIBS}" PARENT_SCOPE)
+	set(NBODYLIB_DOC_DIRS "${NBODY_DOC_DIRS}" PARENT_SCOPE)
+else()
+	try_add_doc_target("${NBODY_DOC_DIRS}")
 endif()
