@@ -95,6 +95,8 @@ STRUCTUREDEN="on"
 #HALODEN="on"
 #flag useful for zoom simulations with a high resolution region
 #ZOOMSIM="on"
+#if compiling for swift only, useful to set
+SWIFTINTERFACE="on"
 #===========================================
 
 #===========================================
@@ -172,15 +174,15 @@ endif
 #===========================================
 ifeq ($(SYSTEM),"intel-standard")
     C+ = icc -Kc++
-    COMPILEFLAGS = -O2 -std=c++14
+    COMPILEFLAGS = -O3 -std=c++17 -fPIC
 endif
 ifeq ($(SYSTEM),"gcc-standard")
     C+ = g++
-    COMPILEFLAGS = -O2 -std=c++14
+    COMPILEFLAGS = -O3 -std=c++17 -fPIC
 endif
 ifeq ($(SYSTEM),"cray")
     C+ = CC
-    COMPILEFLAGS = -O2 -std=c++14
+    COMPILEFLAGS = -O3 -std=c++17 -fPIC
 endif
 
 #===========================================
@@ -202,7 +204,7 @@ endif
 
 ifeq ($(OMP),"on")
 ifeq ($(SYSTEM),"intel-standard")
-    PARALLEL += -openmp -DUSEOPENMP
+    PARALLEL += -qopenmp -DUSEOPENMP
 else ifeq ($(SYSTEM),"cray")
     PARALLEL += -DUSEOPENMP
 else
@@ -261,7 +263,9 @@ ifneq ($(TREEFROGUNSIGNEDIDS),"on")
     COMPILEFLAGS+= -DTREEFROGINTIDS
 endif
 endif
-
+ifeq ($(SWIFTINTERFACE),"on")
+    COMPILEFLAGS+= -DSWIFTINTERFACE
+endif
 
 C+FLAGS = $(PARALLEL) $(COMPILEFLAGS)
 #===========================================
@@ -323,6 +327,8 @@ endif
 
 ifeq ($(HDFENABLE),"on")
     C+FLAGS+= -DUSEHDF
+		# Comment out if your HDF5 library is version 1.10.0 or older
+    C+FLAGS+= -DHDF5_NEWER_THAN_1_10_0
     C+LIBS+= -lhdf5_hl_cpp -lhdf5_cpp -lhdf5_hl -lhdf5 -lz -lrt -ldl
     IFLAGS+= $(HDF_INCL)
     LFLAGS+= $(HDF_LIBS)
@@ -330,9 +336,9 @@ endif
 
 ifeq ($(ADIOSENABLE),"on")
     C+FLAGS+= -DUSEADIOS
-    C+LIBS+= $(shell $(ADIOS_DIR)/bin/adios_config -c)
-    IFLAGS+= $(shell $(ADIOS_DIR)/bin/adios_config -c)
-    LFLAGS+= $(shell $(ADIOS_DIR)/bin/adios_config -l)
+    C+LIBS+= $(shell $(ADIOS_DIR)/bin/adios_config -c -f)
+    IFLAGS+= $(shell $(ADIOS_DIR)/bin/adios_config -c -f)
+    LFLAGS+= $(shell $(ADIOS_DIR)/bin/adios_config -l -f)
 endif
 
 ifeq ($(XDRENABLE),"on")
@@ -397,15 +403,17 @@ NBODYDIR = $(STFDIR)/NBodylib/
 NBODYSRCDIR = $(NBODYDIR)/src/
 NBODYLIBDIR = $(NBODYDIR)/lib/
 NBODYINCLUDEDIR = $(NBODYDIR)/include/
+SWIFTDIR =
+SWIFT_INCL =
 #===========================================
 
 #===========================================
 #set flags
 #===========================================
-IFLAGS += -I$(NBODYINCLUDEDIR) -I$(STFINCLUDEDIR) $(GSL_INCL)
+IFLAGS += -I$(NBODYINCLUDEDIR) -I$(STFINCLUDEDIR) $(GSL_INCL) $(SWIFT_INCL)
 LFLAGS += -L$(NBODYLIBDIR) $(GSL_LIBS) $(MPI_LINK_FLAGS)
 C+LIBS += -lm -lAnalysis -lKD -lNBody -lMath -lgsl -lgslcblas
-NBODYIFLAGS = -I$(NBODYSRCDIR)/Math/ -I$(NBODYSRCDIR)/NBody/ -I$(NBODYSRCDIR)/Analysis/ -I$(NBODYSRCDIR)/Cosmology/ -I$(NBODYSRCDIR)/InitCond/ -I$(NBODYSRCDIR)/KDTree $(GSL_CFLAGS) #-I$(BOOST_INCL) -I$(MPI_INCL)
+NBODYIFLAGS = -I$(NBODYSRCDIR)/Math/ -I$(NBODYSRCDIR)/NBody/ -I$(NBODYSRCDIR)/Analysis/ -I$(NBODYSRCDIR)/Cosmology/ -I$(NBODYSRCDIR)/InitCond/ -I$(NBODYSRCDIR)/KDTree $(GSL_CFLAGS) $(SWIFT_INCL) #-I$(BOOST_INCL) -I$(MPI_INCL)
 
 NBODYPARALLEL =
 NBODYC+FLAGS = $(NBODYPARALLEL) $(COMPILEFLAGS) -c

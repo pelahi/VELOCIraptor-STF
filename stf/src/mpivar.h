@@ -17,6 +17,24 @@
 
 #include <mpi.h>
 
+//
+// Limits the value of x to be between a and b
+//
+//Only wraps once. If x > 2b, the returned value will be larger than b.
+//Similarly for x < -b.
+//
+#define box_wrap(x, a, b)                                \
+    ({                                                     \
+     const __typeof__(x) _x = (x);                        \
+     const __typeof__(a) _a = (a);                        \
+     const __typeof__(b) _b = (b);                        \
+     _x < _a ? (_x + _b) : ((_x >= _b) ? (_x - _b) : _x); \
+     })
+
+/* Convert cell location to ID. */
+#define cell_getid(cdim, i, j, k) \
+      ((int)(k) + (cdim)[2] * ((int)(j) + (cdim)[1] * (int)(i)))
+
 ///\name Include for NBodyFramework library.
 //@{
 ///nbody code

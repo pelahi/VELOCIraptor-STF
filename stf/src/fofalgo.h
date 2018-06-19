@@ -30,6 +30,8 @@ int FOFStreamwithprobscaleell(Particle &a, Particle &b, Double_t *params);
 int FOFStreamwithprobscaleellNN(Particle &a, Particle &b, Double_t *params);
 ///6dfof linking but with a potential checks to see if potential is below threshold value param 9
 int FOF6dbg(Particle &a, Particle &b, Double_t *params);
+/// optimised 6d FOF
+int FOF6d_opt(Particle &a, Particle &b, Double_t *params);
 ///similar to \ref FOF6dbg but here particles have to be above threshold value
 int FOF6dbgup(Particle &a, Particle &b, Double_t *params);
 ///checks to see if particles have positive types (useful for \ref GetVelocityDensity calculation with \ref STRUCDEN flag)
