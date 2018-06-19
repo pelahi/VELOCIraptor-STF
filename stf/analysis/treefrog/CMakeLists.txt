@@ -12,7 +12,7 @@
 cmake_minimum_required(VERSION 3.0)
 
 # We have the version here
-file(STRINGS ${CMAKE_SOURCE_DIR}/VERSION TF_VERSION)
+file(STRINGS ${CMAKE_CURRENT_SOURCE_DIR}/VERSION TF_VERSION)
 string(REPLACE "." ";" VERSION_LIST ${TF_VERSION})
 list(GET VERSION_LIST 0 TF_VERSION_MAJOR)
 list(GET VERSION_LIST 1 TF_VERSION_MINOR)
@@ -49,8 +49,12 @@ set(_treefrog_sources
     ui.cxx
     utilities.cxx)
 
-# Include nbodylib, which is definitely needed
+# Include nbodylib, which is definitely needed, and check its version
 add_subdirectory(../../NBodylib NBodylib)
+if (NBODYLIB_VERSION VERSION_LESS "1.10")
+	message(FATAL_ERROR "NBodyLib version ${NBODYLIB_VERSION} unsupported, treefrog requires >= 1.10")
+endif()
+
 list(APPEND TF_INCLUDE_DIRS ${NBODYLIB_INCLUDE_DIRS})
 list(APPEND TF_DEFINES ${NBODYLIB_DEFINES})
 list(APPEND TF_LIBS ${NBODYLIB_LIBS})
@@ -62,6 +66,9 @@ list(APPEND TF_DOC_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/doc")
 # includes nbodylib)
 if (TF_BUILD_VELOCIRAPTOR)
 	add_subdirectory(../.. velociraptor)
+	if (VR_VERSION VERSION_LESS "1.30")
+		message(FATAL_ERROR "VELOCIraptor version ${VR_VERSION} unsupported, treefrog requires >= 1.30")
+	endif()
 	list(APPEND TF_INCLUDE_DIRS ${VR_INCLUDE_DIRS})
 	list(APPEND TF_DEFINES ${VR_DEFINES})
 	list(APPEND TF_CXX_FLAGS ${VR_CXX_FLAGS})

@@ -12,10 +12,10 @@
 cmake_minimum_required(VERSION 3.0)
 
 # We have the version here
-file(STRINGS ${CMAKE_SOURCE_DIR}/VERSION VR_VERSION)
+file(STRINGS ${CMAKE_CURRENT_SOURCE_DIR}/VERSION VR_VERSION)
 string(REPLACE "." ";" VERSION_LIST ${VR_VERSION})
-list(GET VERSION_LIST 0 VELOCIRAPTOR_VERSION_MAJOR)
-list(GET VERSION_LIST 1 VELOCIRAPTOR_VERSION_MINOR)
+list(GET VERSION_LIST 0 VR_VERSION_MAJOR)
+list(GET VERSION_LIST 1 VR_VERSION_MINOR)
 
 # We have only C++ sources, but until cmake 3.4 the check_symbol_exists
 # macro didn't work properly if only defining C++ as the project language
@@ -168,6 +168,9 @@ endif()
 # We need to add it unless it was already added by somebody else
 if (NOT TARGET nbodylib)
 	add_subdirectory(NBodylib)
+	if (NBODYLIB_VERSION VERSION_LESS "1.10")
+		message(FATAL_ERROR "NBodyLib version ${NBODYLIB_VERSION} unsupported, VELOCIraptor requires >= 1.10")
+	endif()
 	list(INSERT VR_DOC_DIRS 0 ${NBODYLIB_DOC_DIRS})
 endif()
 list(APPEND VR_INCLUDE_DIRS ${NBODYLIB_INCLUDE_DIRS})
@@ -252,6 +255,9 @@ add_subdirectory(src)
 # Export the include directories, if necessary
 # If building on our own, add the "doc" target
 if (_export)
+	set(VR_VERSION "${VR_VERSION_MAJOR}.${VR_VERSION_MINOR}" PARENT_SCOPE)
+	set(VR_VERSION_MAJOR "${VR_VERSION_MAJOR}" PARENT_SCOPE)
+	set(VR_VERSION_MINOR "${VR_VERSION_MINOR}" PARENT_SCOPE)
 	set(VR_INCLUDE_DIRS "${VR_INCLUDE_DIRS}" PARENT_SCOPE)
 	set(VR_DEFINES "${VR_DEFINES}" PARENT_SCOPE)
 	set(VR_CXX_FLAGS "${VR_CXX_FLAGS}" PARENT_SCOPE)
