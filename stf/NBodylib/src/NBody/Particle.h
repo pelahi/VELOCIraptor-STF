@@ -13,7 +13,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <NBodyMath.h>
-
+#include <SwiftParticle.h>
 
 #ifdef USEBOOSTMPI
 #include <boost/mpi.hpp>
@@ -27,6 +27,9 @@
 
 using namespace std;
 using namespace Math;
+#ifdef SWIFTINTERFACE
+using namespace Swift;
+#endif
 namespace NBody
 {
 
@@ -99,6 +102,9 @@ typedef Int_t PARTPIDTYPE;
         Double_t rho;
         ///potential
         Double_t phi;
+#ifdef SWIFTINTERFACE
+        Double_t gravityphi;
+#endif
         ///For hydrodynamical quantities
         //@{
         ///if gas flag is set, then particle also can have sph based quantities. if star flag is set,
@@ -153,6 +159,9 @@ typedef Int_t PARTPIDTYPE;
                 Double_t vx = 0, Double_t vy = 0, Double_t vz = 0, PARTIDTYPE ID=0, int type=0, Double_t Rho=0, Double_t Phi=0, PARTPIDTYPE PID=0);
         Particle(Double_t Mass, Double_t *NewPos, Double_t *NewVel, PARTIDTYPE ID=0, int type=0, Double_t Rho=0, Double_t Phi=0, PARTPIDTYPE PID=0);
         Particle(const Particle &p);
+#ifdef SWIFTINTERFACE
+        Particle(const struct gpart &p,  double lscale, double vscale, double mscale, double uscale, bool icosmological=true, double scalefactor=1.0, double littleh=1.0);
+#endif
         Particle(std::istream &F);
         //No dynamic allocation, thus destructor not needed.
         ~Particle(){};
@@ -280,6 +289,10 @@ typedef Int_t PARTPIDTYPE;
         void SetDensity(const Double_t &Rho){rho=Rho;}
         Double_t GetPotential() const {return phi;}
         void SetPotential(const Double_t &Phi){phi=Phi;}
+#ifdef SWIFTINTERFACE
+        Double_t GetGravityPotential() {return gravityphi;}
+        void SetGravityPotential(const Double_t &Phi){gravityphi=Phi;}
+#endif
 #ifdef GASON
         Double_t GetU() const {return u;}
         void SetU(const Double_t &U){u=U;}

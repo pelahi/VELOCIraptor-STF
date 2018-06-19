@@ -172,6 +172,19 @@ int FOF6dbgup(Particle &a, Particle &b, Double_t *params){
     return (total<1);
 }
 
+/// Optimised version of 6DFOF that performs no divisions
+int FOF6d_opt(Particle &a, Particle &b, Double_t *params){
+    Double_t total_x=0;
+    Double_t total_v=0;
+    for (int j=0;j<3;j++){
+        total_x+=(a.GetPosition(j)-b.GetPosition(j))*(a.GetPosition(j)-b.GetPosition(j));
+        total_v+=(a.GetVelocity(j)-b.GetVelocity(j))*(a.GetVelocity(j)-b.GetVelocity(j));
+    }
+    total_x*=params[7];
+    total_v*=params[6];
+    return (total_x + total_v < params[7] * params[6]);
+}
+
 ///stream FOF algorithm that requires the primary particle to be dark matter for a link to occur
 int FOF3dDM(Particle &a, Particle &b, Double_t *params){
     if (a.GetType()!=int(params[7])) return 0;

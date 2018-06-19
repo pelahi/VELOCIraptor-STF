@@ -787,7 +787,21 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
             ibuf=MPIGetParticlesProcessor(xtemp[0],xtemp[1],xtemp[2]);
             ibufindex=ibuf*BufSize+Nbuf[ibuf];
 #endif
-            //
+            //reset hydro quantities of buffer
+#ifdef GASON
+            Pbuf[ibufindex].SetU(0);
+#ifdef STARON
+            Pbuf[ibufindex].SetSFR(0);
+            Pbuf[ibufindex].SetZmet(0);
+#endif
+#endif
+#ifdef STARON
+            Pbuf[ibufindex].SetZmet(0);
+            Pbuf[ibufindex].SetTage(0);
+#endif
+#ifdef BHON
+#endif
+
             if (opt.partsearchtype==PSTALL) {
 #ifdef USEMPI
                 Pbuf[ibufindex]=Particle(mtemp*mscale,
@@ -800,11 +814,11 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
 #ifdef EXTENDEDFOFINFO
                 if (opt.iextendedoutput)
                 {
-                  Pbuf[ibufindex].SetOFile(i);
-                  Pbuf[ibufindex].SetOTask(ThisTask);
-                  Pbuf[ibufindex].SetOIndex(nn);
-                  Pbuf[ibufindex].SetPfof6d(0);
-                  Pbuf[ibufindex].SetPfof6dCore(0);
+                    Pbuf[ibufindex].SetOFile(i);
+                    Pbuf[ibufindex].SetOTask(ThisTask);
+                    Pbuf[ibufindex].SetOIndex(nn);
+                    Pbuf[ibufindex].SetPfof6d(0);
+                    Pbuf[ibufindex].SetPfof6dCore(0);
                 }
 #endif
                 Nbuf[ibuf]++;
