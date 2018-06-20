@@ -16,7 +16,9 @@
 #include <getopt.h>
 #include <sys/stat.h>
 
+#ifdef USEMPI
 #include <mpi.h>
+#endif
 
 ///include the options structure via allvars
 #include "allvars.h"
