@@ -265,10 +265,13 @@ private(i,j,k,tid,pid,pid2,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,p
 #ifndef USEOPENMP
     for (i=0;i<nbodies;i++) {
 #ifdef STRUCDEN
-        if (Part[i].GetType()>0) {
+        if (Part[i].GetType()>0)
+        {
 #endif
             Part[i].SetDensity(tree->CalcVelDensityParticle(i,opt.Nvel,opt.Nsearch));
+#ifdef STRUCDEN
         }
+#endif
     }
 #else
 #pragma omp parallel
