@@ -137,7 +137,13 @@ endmacro()
 #
 # How we find HDF5 and set it up
 #
+
 macro(find_hdf5)
+	# FindHDF5 needs an environment variable, oddly, unlike
+	# most other packages that use normal cmake variables
+	if (HDF5_ROOT)
+		set(ENV{HDF5_ROOT} ${HDF5_ROOT})
+	endif()
 	find_package(HDF5 COMPONENTS CXX)
 	if (HDF5_FOUND)
 		list(APPEND VR_INCLUDE_DIRS ${HDF5_INCLUDE_DIRS})
@@ -149,7 +155,6 @@ macro(find_hdf5)
 		endif()
 	endif()
 endmacro()
-
 
 #
 # How we find MPI and set it up
