@@ -75,6 +75,14 @@ ___________.__            .___
     cluttering the original source code directories) and several build system, like make and
     ninja files.
 
+    VELOCIraptor uses submodules so if you have a fresh clone use 
+
+    git submodule update --init --recursive
+
+    to update the submodules use 
+
+    git submodule update --recursive --remote
+
     The simplest way of building is, standing on the root your repository, run cmake to produce
     Makefiles and then compile with these steps:
 
