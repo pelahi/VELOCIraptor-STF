@@ -363,7 +363,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
           headerattribs[i]=get_attribute(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].IOmega0]);
           headerdataspace[i]=headerattribs[i].getSpace();
           floattype=headerattribs[i].getFloatType();
-          
+
           if (floattype.getSize()==sizeof(float)) {
             headerattribs[i].read(PredType::NATIVE_FLOAT,&floatbuff[0]);
             hdf_header_info[i].Omega0=floatbuff[0];
@@ -400,7 +400,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
           headerattribs[i]=get_attribute(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].ITime]);
           headerdataspace[i]=headerattribs[i].getSpace();
           floattype=headerattribs[i].getFloatType();
-          
+
           if (floattype.getSize()==sizeof(float)) {
             headerattribs[i].read(PredType::NATIVE_FLOAT,&floatbuff[0]);
             hdf_header_info[i].time=floatbuff[0];
@@ -413,7 +413,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
           headerattribs[i]=get_attribute(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].IHubbleParam]);
           headerdataspace[i]=headerattribs[i].getSpace();
           floattype=headerattribs[i].getFloatType();
-          
+
           if (floattype.getSize()==sizeof(float)) {
             headerattribs[i].read(PredType::NATIVE_FLOAT,&floatbuff[0]);
             hdf_header_info[i].HubbleParam=floatbuff[0];
@@ -437,30 +437,30 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
         }
         catch(GroupIException &error)
         {
-          error.printError();
+          HDF5PrintError(error);
         }
         // catch failure caused by the H5File operations
         catch( FileIException &error )
         {
-          error.printError();
+          HDF5PrintError(error);
 
         }
         // catch failure caused by the DataSet operations
         catch( DataSetIException &error )
         {
-          error.printError();
+          HDF5PrintError(error);
           ireaderror=1;
         }
         // catch failure caused by the DataSpace operations
         catch( DataSpaceIException &error )
         {
-          error.printError();
+          HDF5PrintError(error);
           ireaderror=1;
         }
         // catch failure caused by the DataSpace operations
         catch( DataTypeIException &error )
         {
-          error.printError();
+          HDF5PrintError(error);
           ireaderror=1;
         }
     }
@@ -1704,30 +1704,30 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
           }
           catch(GroupIException error)
           {
-            error.printError();
+            HDF5PrintError(error);
           }
           // catch failure caused by the H5File operations
           catch( FileIException error )
           {
-            error.printError();
+            HDF5PrintError(error);
 
           }
           // catch failure caused by the DataSet operations
           catch( DataSetIException error )
           {
-            error.printError();
+            HDF5PrintError(error);
             ireaderror=1;
           }
           // catch failure caused by the DataSpace operations
           catch( DataSpaceIException error )
           {
-            error.printError();
+            HDF5PrintError(error);
             ireaderror=1;
           }
           // catch failure caused by the DataSpace operations
           catch( DataTypeIException error )
           {
-            error.printError();
+            HDF5PrintError(error);
             ireaderror=1;
           }
           Fhdf[i].close();
