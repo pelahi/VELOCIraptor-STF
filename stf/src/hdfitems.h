@@ -184,6 +184,14 @@ const T read_attribute(const std::string &filename, const std::string &name) {
 	return read_attribute<T>(file, name);
 }
 
+static inline void HDF5PrintError(const H5::Exception &error) {
+#ifdef HDF5_NEWER_THAN_1_10_0
+	error.printErrorStack();
+#else
+	error.printError();
+#endif
+}
+
 ///This structures stores the strings defining the groups of data in the hdf input. NOTE: HERE I show the strings for Illustris format
 struct HDF_Group_Names {
     //define the strings associated with the types of structures contained in the hdf file.
@@ -636,30 +644,30 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
     }
     catch(GroupIException error)
     {
-        error.printError();
+        HDF5PrintError(error);
     }
     // catch failure caused by the H5File operations
     catch( FileIException error )
     {
-        error.printError();
+        HDF5PrintError(error);
 
     }
     // catch failure caused by the DataSet operations
     catch( DataSetIException error )
     {
-        error.printError();
+        HDF5PrintError(error);
         ireaderror=1;
     }
     // catch failure caused by the DataSpace operations
     catch( DataSpaceIException error )
     {
-        error.printError();
+        HDF5PrintError(error);
         ireaderror=1;
     }
     // catch failure caused by the DataSpace operations
     catch( DataTypeIException error )
     {
-        error.printError();
+        HDF5PrintError(error);
         ireaderror=1;
     }
     // catch failure caused by missing attribute
@@ -740,30 +748,30 @@ inline Int_t HDF_get_nfiles(char *fname, int ptype)
     }
     catch(GroupIException error)
     {
-        error.printError();
+        HDF5PrintError(error);
     }
     // catch failure caused by the H5File operations
     catch( FileIException error )
     {
-        error.printError();
+        HDF5PrintError(error);
 
     }
     // catch failure caused by the DataSet operations
     catch( DataSetIException error )
     {
-        error.printError();
+        HDF5PrintError(error);
         ireaderror=1;
     }
     // catch failure caused by the DataSpace operations
     catch( DataSpaceIException error )
     {
-        error.printError();
+        HDF5PrintError(error);
         ireaderror=1;
     }
     // catch failure caused by the DataSpace operations
     catch( DataTypeIException error )
     {
-        error.printError();
+        HDF5PrintError(error);
         ireaderror=1;
     }
     Fhdf.close();
