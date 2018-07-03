@@ -234,6 +234,27 @@ namespace NBody
 #endif
       pid=p.id_or_neg_offset;
     }
+
+    // SWIFT interface constructor. Copies particle properties from SWIFT particle.
+    Particle::Particle(const struct swift_vel_part &p)
+    {
+#ifndef NOMASS
+      mass = p.mass;
+#endif
+      position[0] = p.x[0];
+      position[1] = p.x[1];
+      position[2] = p.x[2];
+      velocity[0] = p.v[0];
+      velocity[1] = p.v[1];
+      velocity[2] = p.v[2];
+      type=p.type;
+      //rho=p.rho;
+      ///\todo does this need to be converted for cosmology as well ? and unit conversion
+      gravityphi=p.potential;
+      // TODO: Internal energy
+      pid=p.id;
+    }
+
 #endif
 
     //    OPERATORS

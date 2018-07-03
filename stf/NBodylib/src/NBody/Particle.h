@@ -161,6 +161,7 @@ typedef Int_t PARTPIDTYPE;
         Particle(const Particle &p);
 #ifdef SWIFTINTERFACE
         Particle(const struct gpart &p,  double lscale, double vscale, double mscale, double uscale, bool icosmological=true, double scalefactor=1.0, double littleh=1.0);
+        Particle(const struct swift_vel_part &p);
 #endif
         Particle(std::istream &F);
         //No dynamic allocation, thus destructor not needed.

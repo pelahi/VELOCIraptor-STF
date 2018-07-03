@@ -118,9 +118,9 @@ int InitVelociraptor(char* configname, char* outputname, cosmoinfo c, unitinfo u
     return 1;
 }
 
-int InvokeVelociraptor(const size_t num_gravity_parts, const size_t num_hydro_parts, struct gpart *gravity_parts, struct part *hydro_parts, float *internal_energies, const int *cell_node_ids, char* outputname) {
+int InvokeVelociraptor(const size_t num_gravity_parts, const size_t num_hydro_parts, struct swift_vel_part *swift_parts, const int *cell_node_ids, char* outputname) {
 #ifndef GASON
-    cout<<"Gas has not been turned on in VELOCIraptor. Set GASON in Makefile.config and recompiled VELOCIraptor."<<endl;
+    cout<<"Gas has not been turned on in VELOCIraptor. Set GASON in Makefile.config and recompile VELOCIraptor."<<endl;
     return 0;
 #endif
 #ifndef USEMPI
@@ -180,25 +180,23 @@ int InvokeVelociraptor(const size_t num_gravity_parts, const size_t num_hydro_pa
 
       cout<<"There are "<<nbaryons<<" gas particles and "<<ndark<<" DM particles."<<endl;
       for(auto i=0; i<Nlocal; i++) {
-        if(gravity_parts[i].type == DARKTYPE) {
-          parts[dmOffset++] = Particle(gravity_parts[i], libvelociraptorOpt.L, libvelociraptorOpt.V, libvelociraptorOpt.M, libvelociraptorOpt.U, libvelociraptorOpt.icosmologicalin,libvelociraptorOpt.a,libvelociraptorOpt.h);
+        if(swift_parts[i].type == DARKTYPE) {
+          parts[dmOffset++] = Particle(swift_parts[i]);
         }
         else { 
-          if(gravity_parts[i].type == GASTYPE) {
-            pbaryons[gasOffset] = Particle(gravity_parts[i], libvelociraptorOpt.L, libvelociraptorOpt.V, libvelociraptorOpt.M, libvelociraptorOpt.U, libvelociraptorOpt.icosmologicalin,libvelociraptorOpt.a,libvelociraptorOpt.h);
-            pbaryons[gasOffset].SetPID(hydro_parts[-gravity_parts[i].id_or_neg_offset].id);
-            pbaryons[gasOffset++].SetU(internal_energies[-gravity_parts[i].id_or_neg_offset]);
+          if(swift_parts[i].type == GASTYPE) {
+            pbaryons[gasOffset++] = Particle(swift_parts[i]);
           }
-          else if(gravity_parts[i].type == STARTYPE) {
+          else if(swift_parts[i].type == STARTYPE) {
             cout<<"Star particle type not supported yet. Exiting..."<<endl;
             return 0;
           }
-          else if(gravity_parts[i].type == BHTYPE) {
+          else if(swift_parts[i].type == BHTYPE) {
             cout<<"Black hole particle type not supported yet. Exiting..."<<endl;
             return 0;
           }
           else {
-            cout<<"Unknown particle type found: "<<gravity_parts[i].type<<" while treating baryons differently. Exiting..."<<endl;
+            cout<<"Unknown particle type found: "<<swift_parts[i].type<<" while treating baryons differently. Exiting..."<<endl;
             return 0;
           }
         }
@@ -207,26 +205,28 @@ int InvokeVelociraptor(const size_t num_gravity_parts, const size_t num_hydro_pa
     else {
 
       for(auto i=0; i<Nlocal; i++) {
-        parts[i] = Particle(gravity_parts[i], libvelociraptorOpt.L, libvelociraptorOpt.V, libvelociraptorOpt.M, libvelociraptorOpt.U, libvelociraptorOpt.icosmologicalin,libvelociraptorOpt.a,libvelociraptorOpt.h);
-        if(gravity_parts[i].type == GASTYPE) {
-          parts[i].SetPID(hydro_parts[-gravity_parts[i].id_or_neg_offset].id);
-          parts[i].SetU(internal_energies[-gravity_parts[i].id_or_neg_offset]);
-        }
-        else if(gravity_parts[i].type == STARTYPE) {
+        parts[i] = Particle(swift_parts[i]);
+        if(swift_parts[i].type == STARTYPE) {
           cout<<"Star particle type not supported yet. Exiting..."<<endl;
           return 0;
         }
-        else if(gravity_parts[i].type == BHTYPE) {
+        else if(swift_parts[i].type == BHTYPE) {
           cout<<"Black hole particle type not supported yet. Exiting..."<<endl;
           return 0;
         }
-        else if(gravity_parts[i].type != DARKTYPE) {
-          cout<<"Unknown particle type found: "<<gravity_parts[i].type<<" while searching all particles equally. Exiting..."<<endl;
+        else if(swift_parts[i].type != DARKTYPE && swift_parts[i].type != GASTYPE) {
+          cout<<"Unknown particle type found: "<<swift_parts[i].type<<" while searching all particles equally. Exiting..."<<endl;
           return 0;
         }
      }
 
     }
+
+    qsort(parts.data(), Nlocal, sizeof(Particle), PIDCompare);
+
+    //for (auto i=0;i<Nlocal;i++) {
+    //  if (parts[i].GetType()==GASTYPE) cout<<"Particle "<<parts[i].GetPID()<<" E: "<<parts[i].GetU()<<endl;
+    //}
 
     time1=MyGetTime()-time1;
     cout<<"Finished copying particle data."<< endl;
