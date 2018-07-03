@@ -222,12 +222,6 @@ int InvokeVelociraptor(const size_t num_gravity_parts, const size_t num_hydro_pa
 
     }
 
-    qsort(parts.data(), Nlocal, sizeof(Particle), PIDCompare);
-
-    //for (auto i=0;i<Nlocal;i++) {
-    //  if (parts[i].GetType()==GASTYPE) cout<<"Particle "<<parts[i].GetPID()<<" E: "<<parts[i].GetU()<<endl;
-    //}
-
     time1=MyGetTime()-time1;
     cout<<"Finished copying particle data."<< endl;
     cout<<"TIME::"<<ThisTask<<" took "<<time1<<" to copy "<<Nlocal<<" particles from SWIFT to a local format. Out of "<<Ntotal<<endl;
