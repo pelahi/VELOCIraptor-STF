@@ -575,62 +575,58 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
         Fhdf.openFile(buf, H5F_ACC_RDONLY);
         cout<<"Loading HDF header info in header group: "<<hdf_gnames.Header_name<<endl;
 
-        // Check if it is a SWIFT snapshot.
-        headerattribs=get_attribute(Fhdf, "Header/Code");
-        stringtype = headerattribs.getStrType();
-
-        headerattribs.read(stringtype, stringbuff);
-
         if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES) {
 
-          // Read SWIFT parameters
-          if(!swift_str.compare(stringbuff)) {
-            // Is it a cosmological simulation?
-            headerattribs=get_attribute(Fhdf, hdf_header_info.names[hdf_header_info.IIsCosmological]);
-            headerdataspace=headerattribs.getSpace();
+			// Check if it is a SWIFT snapshot.
+			headerattribs=get_attribute(Fhdf, "Header/Code");
+			stringtype = headerattribs.getStrType();
+			headerattribs.read(stringtype, stringbuff);
 
-            if (headerdataspace.getSimpleExtentNdims()!=1) ireaderror=1;
-            inttype=headerattribs.getIntType();
-            if (inttype.getSize()==sizeof(int)) {
-              headerattribs.read(PredType::NATIVE_INT,&intbuff[0]);
-              hdf_header_info.iscosmological = intbuff[0];
-            }
-            if (inttype.getSize()==sizeof(long long)) {
-              headerattribs.read(PredType::NATIVE_LONG,&longbuff[0]);
-              hdf_header_info.iscosmological = longbuff[0];
-            }
+			// Read SWIFT parameters
+			if(!swift_str.compare(stringbuff)) {
+				// Is it a cosmological simulation?
+				headerattribs=get_attribute(Fhdf, hdf_header_info.names[hdf_header_info.IIsCosmological]);
+				headerdataspace=headerattribs.getSpace();
 
-            if (!hdf_header_info.iscosmological && opt.icosmologicalin) {
+				if (headerdataspace.getSimpleExtentNdims()!=1) ireaderror=1;
+				inttype=headerattribs.getIntType();
+				if (inttype.getSize()==sizeof(int)) {
+					headerattribs.read(PredType::NATIVE_INT,&intbuff[0]);
+					hdf_header_info.iscosmological = intbuff[0];
+				}
+				if (inttype.getSize()==sizeof(long long)) {
+					headerattribs.read(PredType::NATIVE_LONG,&longbuff[0]);
+					hdf_header_info.iscosmological = longbuff[0];
+				}
 
-              cout<<"Error: cosmology is turned on in the config file but the snaphot provided is a non-cosmological run."<<endl;
+            	if (!hdf_header_info.iscosmological && opt.icosmologicalin) {
+              		cout<<"Error: cosmology is turned on in the config file but the snaphot provided is a non-cosmological run."<<endl;
 #ifdef USEMPI
-              MPI_Abort(MPI_COMM_WORLD, 8);
+              		MPI_Abort(MPI_COMM_WORLD, 8);
 #else
-              exit(0);
+              		exit(0);
 #endif
 
-            }
-            else if (hdf_header_info.iscosmological && !opt.icosmologicalin) {
-
-              cout<<"Error: cosmology is turned off in the config file but the snaphot provided is a cosmological run."<<endl;
+            	}
+            	else if (hdf_header_info.iscosmological && !opt.icosmologicalin) {
+					cout<<"Error: cosmology is turned off in the config file but the snaphot provided is a cosmological run."<<endl;
 #ifdef USEMPI
-              MPI_Abort(MPI_COMM_WORLD, 8);
+              		MPI_Abort(MPI_COMM_WORLD, 8);
 #else
-              exit(0);
+              		exit(0);
 #endif
 
-            }
-
-          }
-          // If the code is not SWIFT
-          else {
-            cout<<"SWIFT EAGLE HDF5 naming convention chosen in config file but the snapshot was not produced by SWIFT. The string read was: "<<stringbuff<<endl;
+            	}
+          	}
+			// If the code is not SWIFT
+			else {
+            	cout<<"SWIFT EAGLE HDF5 naming convention chosen in config file but the snapshot was not produced by SWIFT. The string read was: "<<stringbuff<<endl;
 #ifdef USEMPI
-            MPI_Abort(MPI_COMM_WORLD, 8);
+            	MPI_Abort(MPI_COMM_WORLD, 8);
 #else
-            exit(0);
+            	exit(0);
 #endif
-          }
+          	}
         }
 
         headerattribs=get_attribute(Fhdf, hdf_header_info.names[hdf_header_info.INumTot]);
