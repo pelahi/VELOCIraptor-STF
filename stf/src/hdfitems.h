@@ -641,30 +641,65 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
     catch(GroupIException error)
     {
         HDF5PrintError(error);
-    }
+		cerr<<"Error in group might suggest config file has the incorrect HDF naming convention. ";
+		cerr<<"Check HDF_name_convetion or add new naming convention updating hdfitems.h in the source code. "<<endl;
+		Fhdf.close();
+#ifdef USEMPI
+		MPI_Abort(MPI_COMM_WORLD,8);
+#else
+		exit(8);
+#endif
+	}
     // catch failure caused by the H5File operations
     catch( FileIException error )
     {
         HDF5PrintError(error);
+		cerr<<"Error reading file. Exiting "<<endl;
+		Fhdf.close();
+#ifdef USEMPI
+		MPI_Abort(MPI_COMM_WORLD,8);
+#else
+		exit(8);
+#endif
 
     }
     // catch failure caused by the DataSet operations
     catch( DataSetIException error )
     {
         HDF5PrintError(error);
-        ireaderror=1;
+		cerr<<"Error in data set might suggest config file has the incorrect HDF naming convention. ";
+		cerr<<"Check HDF_name_convetion or update hdfio.cxx in the source code to read correct format"<<endl;
+		Fhdf.close();
+#ifdef USEMPI
+		MPI_Abort(MPI_COMM_WORLD,8);
+#else
+		exit(8);
+#endif
     }
     // catch failure caused by the DataSpace operations
     catch( DataSpaceIException error )
     {
         HDF5PrintError(error);
-        ireaderror=1;
+		cerr<<"Error in data space might suggest config file has the incorrect HDF naming convention. ";
+		cerr<<"Check HDF_name_convetion or update hdfio.cxx in the source code to read correct format"<<endl;
+		Fhdf.close();
+#ifdef USEMPI
+		MPI_Abort(MPI_COMM_WORLD,8);
+#else
+		exit(8);
+#endif
     }
     // catch failure caused by the DataSpace operations
     catch( DataTypeIException error )
     {
         HDF5PrintError(error);
-        ireaderror=1;
+		cerr<<"Error in data type might suggest need to update hdfio.cxx in the source code to read correct format"<<endl;
+		Fhdf.close();
+#ifdef USEMPI
+		MPI_Abort(MPI_COMM_WORLD,8);
+#else
+		exit(8);
+#endif
     }
     // catch failure caused by missing attribute
     catch( invalid_argument error )
@@ -675,7 +710,7 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
 #ifdef USEMPI
         MPI_Abort(MPI_COMM_WORLD, 8);
 #else
-        exit(0);
+        exit(8);
 #endif
       }
     }
