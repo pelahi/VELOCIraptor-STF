@@ -324,7 +324,7 @@ struct HDF_Part_Info {
         //gas
         if (ptype==HDFGASTYPE) {
             names[itemp++]=H5std_string("Coordinates");
-            if(hdfnametype==HDFEAGLENAMES || hdfnametype==HDFSWIFTEAGLENAMES) names[itemp++]=H5std_string("Velocity");
+            if(hdfnametype==HDFEAGLENAMES) names[itemp++]=H5std_string("Velocity");
             else names[itemp++]=H5std_string("Velocities");
             names[itemp++]=H5std_string("ParticleIDs");
             names[itemp++]=H5std_string("Masses");
@@ -392,7 +392,7 @@ struct HDF_Part_Info {
         //dark matter
         if (ptype==HDFDMTYPE) {
             names[itemp++]=H5std_string("Coordinates");
-            if(hdfnametype==HDFEAGLENAMES || hdfnametype==HDFSWIFTEAGLENAMES) names[itemp++]=H5std_string("Velocity");
+            if(hdfnametype==HDFEAGLENAMES) names[itemp++]=H5std_string("Velocity");
             else names[itemp++]=H5std_string("Velocities");
             names[itemp++]=H5std_string("ParticleIDs");
             if (hdfnametype==HDFSWIFTEAGLENAMES) {
@@ -412,7 +412,7 @@ struct HDF_Part_Info {
         //also dark matter particles
         if (ptype==HDFDM1TYPE ||ptype==HDFDM2TYPE) {
             names[itemp++]=H5std_string("Coordinates");
-            if(hdfnametype==HDFEAGLENAMES || hdfnametype==HDFSWIFTEAGLENAMES) names[itemp++]=H5std_string("Velocity");
+            if(hdfnametype==HDFEAGLENAMES) names[itemp++]=H5std_string("Velocity");
             else names[itemp++]=H5std_string("Velocities");
             names[itemp++]=H5std_string("ParticleIDs");
             names[itemp++]=H5std_string("Masses");
@@ -427,7 +427,7 @@ struct HDF_Part_Info {
         }
         if (ptype==HDFSTARTYPE) {
             names[itemp++]=H5std_string("Coordinates");
-            if(hdfnametype==HDFEAGLENAMES || hdfnametype==HDFSWIFTEAGLENAMES) names[itemp++]=H5std_string("Velocity");
+            if(hdfnametype==HDFEAGLENAMES) names[itemp++]=H5std_string("Velocity");
             else names[itemp++]=H5std_string("Velocities");
             names[itemp++]=H5std_string("ParticleIDs");
             names[itemp++]=H5std_string("Masses");
@@ -468,7 +468,7 @@ struct HDF_Part_Info {
         }
         if (ptype==HDFBHTYPE) {
             names[itemp++]=H5std_string("Coordinates");
-            if(hdfnametype==HDFEAGLENAMES || hdfnametype==HDFSWIFTEAGLENAMES) names[itemp++]=H5std_string("Velocity");
+            if(hdfnametype==HDFEAGLENAMES) names[itemp++]=H5std_string("Velocity");
             else names[itemp++]=H5std_string("Velocities");
             names[itemp++]=H5std_string("ParticleIDs");
             names[itemp++]=H5std_string("Masses");
