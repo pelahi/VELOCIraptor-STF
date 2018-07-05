@@ -176,37 +176,14 @@ ___________.__            .___
 
     TreeFrog (Fomerly Halotree):
     --------------------------------------------------------------------------------------------
-    This is a MPI+OpenMP code that reads in particle IDs information between various structure
-    catalogues and cross matches catalogues assuming that particle IDs are unique and constant
-    across snapshots. Though it is built as a cross correlator (in that it can match particles
-    across several different catalogues), its principle use is as halo merger tree builder. The
-    code produces links between objects found at different snapshots (or catalogues) and uses
-    several possible functions to evaluate the merit of a link between one object at a given
-    snapshot (or in a given catalogue) to another object in a previous snapshot
-    (or different catalogue). It can also produce a full graph.
+    This code is a separate repo 
 
-    This code naturally reads VELOCIraptor output and is optimised for it but can also read output
-    from other structure finders like AHF.
+    git clone https://github.com/pelahi/TreeFrog.git
 
-    Running the code is
-    mpirun -np numberofmpi ./bin/treefrog -i filelist.txt -o outname -s numberofsnapsorcatalogues
-
-    The code also has many other command line arguments. Simply pass -?
-
-    Note that building a tree can be quite memory intensive for large simulations with lots of snapshots.
-    In mpi mode, the snapshots are split so as to approximately have the same number of particles in
-    structures per mpi process (load balance the memory footprint). This means that some mpi threads will
-    process significantly more snapshots than others (consider early times where few particles belong
-    to groups compared to late times where lots of structure has formed.) In that case it may be useful
-    to play with the load balancing when running in mpi. This can be done using a single mpi thread and
-    specifying the desired number of mpithreads and the desired number of particles per mpi thread.
-    mpirun -np 1 ./bin/treefrog -i filelist.txt -o outname -s numberofsnapsorcatalogues -z nummpi -n numpermpi
-    This will produce a file containing the load balance (ie: what files a mpi process should read).
-
-    Baryons (discontinued/in need of major revision)
-    --------------------------------------------------------------------------------------------
-    Tool designed to calculate numerous properties and profiles based on the input from
-    VELOCIraptor catalogs.
+    but is useful for checking halo catalogs, particularly the 
+    examples/catalogcomparisontolerancecheck.py code that runs TreeFrog to compare two catalogs.
+    The goal of this code is as a test to see if a new catalog produced by velociraptor matches
+    a reference catalog. 
 
 ================================================================================================
 
