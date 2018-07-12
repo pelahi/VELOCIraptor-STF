@@ -679,6 +679,11 @@ private(i,tid,xscaling,vscaling)
                         psldata->nextlevel->Pparenthead[pfof[i]-opt.num3dfof] = &Part[i];
                     }
                     psldata->nextlevel->stypeinlevel[pfof[i]-opt.num3dfof] = HALOSTYPE;
+
+                    printf ("pfof               %d\n", pfof[i]);
+                    printf ("gidhead            %d\n", *(psldata->nextlevel->gidhead[pfof[i]-opt.num3dfof]));
+                    printf ("gidparenthead      %d\n", *(psldata->nextlevel->gidparenthead[pfof[i]-opt.num3dfof]));
+                    printf ("giduberparenthead  %d\n", *(psldata->nextlevel->giduberparenthead[pfof[i]-opt.num3dfof]));
                 }
                 }
             }
@@ -2433,6 +2438,14 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
                     Pparentheadval=&Partsubset[subpglist[i][ii]];
                     gidparentheadval=pcsld->gidhead[iindex];
                     giduberparentheadval=pcsld->giduberparenthead[iindex];
+                    if (i > 1)
+                    {
+                     printf ("iindex             %d\n", iindex);
+                     printf ("pfof               %d\n", pfof[subpglist[i][ii]]);
+                     printf ("gidhead            %d\n", *(pcsld->gidhead[iindex]));
+                     printf ("gidparenthead      %d\n", *(pcsld->gidparenthead[iindex]));
+                     printf ("giduberparenthead  %d\n", *(pcsld->giduberparenthead[iindex]));
+                    }
                 }
                 for (Int_t j=1;j<=subngroup[i];j++) {
                     //need to restructure pointers so that they point to what the parent halo
