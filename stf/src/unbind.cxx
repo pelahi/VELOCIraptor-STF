@@ -405,13 +405,6 @@ private(i,j,k,npot,menc,potpos,storeval)
 #endif
     for (i=1;i<=numgroups;i++)
     {
-        for (j=0;j<numingroup[i];j++) {
-            gmass[i]+=gPart[i][j].GetMass();
-            for (k=0;k<3;k++)
-                cmvel[i][k]+=gPart[i][j].GetVelocity(k)*gPart[i][j].GetMass();
-        }
-        for (k=0;k<3;k++)cmvel[i][k]*=(1.0/gmass[i]);
-
         for (k=0;k<3;k++) potpos[k]=cmvel[i][k]=0;
         for (j=0;j<numingroup[i];j++) {
             gmass[i]+=gPart[i][j].GetMass();
@@ -1166,13 +1159,11 @@ private(i,j,k,npot,menc,potpos,storeval)
                 cmvel[i][k]+=gPart[noffset[i]+j].GetVelocity(k)*gPart[noffset[i]+j].GetMass();
         }
         for (k=0;k<3;k++)cmvel[i][k]*=(1.0/gmass[i]);
-
         for (k=0;k<3;k++) potpos[k]=cmvel[i][k]=0;
         for (j=0;j<numingroup[i];j++) {
             gmass[i]+=gPart[noffset[i]+j].GetMass();
             for (k=0;k<3;k++)
                 potpos[k]+=gPart[noffset[i]+j].GetPosition(k)*gPart[noffset[i]+j].GetMass();
-                //cmvel[i][k]+=gPart[noffset[i]+j].GetVelocity(k)*gPart[noffset[i]+j].GetMass();
         }
         for (k=0;k<3;k++)potpos[k]*=(1.0/gmass[i]);
         //for (k=0;k<3;k++)cmvel[i][k]*=(1.0/gmass[i]);
