@@ -606,6 +606,17 @@ inline void ConfigCheck(Options &opt)
             exit(8);
 #endif
     }
+    if (opt.iBoundHalos && opt.iKeepFOF) {
+#ifdef USEMPI
+    if (ThisTask==0)
+#endif
+        cerr<<"Conflict in config file: Asking for Bound Field objects but also asking to keep the 3DFOF/then run 6DFOF. This is incompatible. Check config\n";
+#ifdef USEMPI
+            MPI_Abort(MPI_COMM_WORLD,8);
+#else
+            exit(8);
+#endif
+    }
     if (opt.HaloMinSize==-1) opt.HaloMinSize=opt.MinSize;
 
     if (opt.num_files<1){
