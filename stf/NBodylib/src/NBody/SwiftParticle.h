@@ -15,7 +15,17 @@
 
 namespace Swift
 {
-    /* SWIFT/VELOCIraptor particle. */
+  
+  /* SWIFT enum of part types. Should match VELOCIraptor type values. */
+  enum part_type {
+    swift_type_gas = 0,
+    swift_type_dark_matter = 1,
+    swift_type_star = 4,
+    swift_type_black_hole = 5,
+    swift_type_count
+  } __attribute__((packed));
+
+  /* SWIFT/VELOCIraptor particle. */
     struct swift_vel_part {
 
       /*! Particle ID. If negative, it is the negative offset of the #part with
