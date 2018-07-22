@@ -11,18 +11,10 @@
  * @brief The default struct alignment in SWIFT.
  */
 #define SWIFT_STRUCT_ALIGNMENT 32
+#define SWIFT_STRUCT_ALIGN __attribute__((aligned(SWIFT_STRUCT_ALIGNMENT)))
 
 namespace Swift
 {
-    /* Include some struct definitions from SWIFT. */
-    extern "C" {
-        #include "align.h"
-        #include "timeline.h"
-        #include "part_type.h"
-        #include "gravity_part.h"
-        #include "hydro_part.h"
-    }
-
     /* SWIFT/VELOCIraptor particle. */
     struct swift_vel_part {
 
