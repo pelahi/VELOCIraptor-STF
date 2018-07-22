@@ -43,10 +43,10 @@ import velociraptor_python_tools as vpt
 
 if (os.path.isfile(sys.argv[1])==False):
     print("Missing info file",sys.argv[1])
-    exit()
+    exit(1)
 if (os.path.isfile(sys.argv[2])==False):
     print("Missing tolerance file",sys.argv[2])
-    exit()
+    exit(1)
 
 #load the plot info file,
 print("Reading info file", sys.argv[1])
