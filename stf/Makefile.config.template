@@ -403,17 +403,15 @@ NBODYDIR = $(STFDIR)/NBodylib/
 NBODYSRCDIR = $(NBODYDIR)/src/
 NBODYLIBDIR = $(NBODYDIR)/lib/
 NBODYINCLUDEDIR = $(NBODYDIR)/include/
-SWIFTDIR =
-SWIFT_INCL =
 #===========================================
 
 #===========================================
 #set flags
 #===========================================
-IFLAGS += -I$(NBODYINCLUDEDIR) -I$(STFINCLUDEDIR) $(GSL_INCL) $(SWIFT_INCL)
+IFLAGS += -I$(NBODYINCLUDEDIR) -I$(STFINCLUDEDIR) $(GSL_INCL)
 LFLAGS += -L$(NBODYLIBDIR) $(GSL_LIBS) $(MPI_LINK_FLAGS)
 C+LIBS += -lm -lAnalysis -lKD -lNBody -lMath -lgsl -lgslcblas
-NBODYIFLAGS = -I$(NBODYSRCDIR)/Math/ -I$(NBODYSRCDIR)/NBody/ -I$(NBODYSRCDIR)/Analysis/ -I$(NBODYSRCDIR)/Cosmology/ -I$(NBODYSRCDIR)/InitCond/ -I$(NBODYSRCDIR)/KDTree $(GSL_CFLAGS) $(SWIFT_INCL) #-I$(BOOST_INCL) -I$(MPI_INCL)
+NBODYIFLAGS = -I$(NBODYSRCDIR)/Math/ -I$(NBODYSRCDIR)/NBody/ -I$(NBODYSRCDIR)/Analysis/ -I$(NBODYSRCDIR)/Cosmology/ -I$(NBODYSRCDIR)/InitCond/ -I$(NBODYSRCDIR)/KDTree $(GSL_CFLAGS) #-I$(BOOST_INCL) -I$(MPI_INCL)
 
 NBODYPARALLEL =
 NBODYC+FLAGS = $(NBODYPARALLEL) $(COMPILEFLAGS) -c
