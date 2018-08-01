@@ -483,10 +483,11 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
     Fpartmet   = new fstream[opt.num_files];
     header     = new RAMSES_Header[opt.num_files];
 
+    Particle *Pbuf;
 #ifdef USEMPI
     MPI_Status status;
     MPI_Comm mpi_comm_read;
-    Particle *Pbuf;
+
     vector<Particle> *Preadbuf;
     //for parallel io
     Int_t BufSize=opt.mpiparticlebufsize;
