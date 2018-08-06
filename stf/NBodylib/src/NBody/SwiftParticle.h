@@ -7,11 +7,6 @@
 #define SWIFT_PARTICLE_H
 
 #ifdef SWIFTINTERFACE
-  /**
- * @brief The default struct alignment in SWIFT.
- */
-#define SWIFT_STRUCT_ALIGNMENT 32
-#define SWIFT_STRUCT_ALIGN __attribute__((aligned(SWIFT_STRUCT_ALIGNMENT)))
 
 namespace Swift
 {
@@ -28,8 +23,7 @@ namespace Swift
   /* SWIFT/VELOCIraptor particle. */
     struct swift_vel_part {
 
-      /*! Particle ID. If negative, it is the negative offset of the #part with
-        which this gpart is linked. */
+      /*! Particle ID. */
       long long id;
 
       /*! Particle position. */
@@ -50,7 +44,7 @@ namespace Swift
       /*! Type of the #gpart (DM, gas, star, ...) */
       enum part_type type;
 
-    } SWIFT_STRUCT_ALIGN;
+    };
 
 }
 
