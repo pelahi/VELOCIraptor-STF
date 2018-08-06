@@ -207,7 +207,7 @@ endif
 
 ifeq ($(OMP),"on")
 ifeq ($(SYSTEM),"intel-standard")
-    PARALLEL += -openmp -DUSEOPENMP
+    PARALLEL += -qopenmp -DUSEOPENMP
 else ifeq ($(SYSTEM),"cray")
     PARALLEL += -openmp -DUSEOPENMP
 else

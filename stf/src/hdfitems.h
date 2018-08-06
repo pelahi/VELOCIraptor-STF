@@ -83,7 +83,7 @@ using namespace H5;
 ///size of chunks in hdf files for Compression
 #define HDFOUTPUTCHUNKSIZE 8192
 
-#ifdef H5_VERSION_GE(1,10,1)
+#if H5_VERSION_GE(1,10,1)
 #define HDF5_FILE_GROUP_COMMON_BASE H5::Group
 #define HDF5_GROUP_DATASET_COMMON_BASE H5::H5Object
 #else
@@ -636,30 +636,30 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
     }
     catch(GroupIException error)
     {
-        error.printError();
+        error.printErrorStack();
     }
     // catch failure caused by the H5File operations
     catch( FileIException error )
     {
-        error.printError();
+        error.printErrorStack();
 
     }
     // catch failure caused by the DataSet operations
     catch( DataSetIException error )
     {
-        error.printError();
+        error.printErrorStack();
         ireaderror=1;
     }
     // catch failure caused by the DataSpace operations
     catch( DataSpaceIException error )
     {
-        error.printError();
+        error.printErrorStack();
         ireaderror=1;
     }
     // catch failure caused by the DataSpace operations
     catch( DataTypeIException error )
     {
-        error.printError();
+        error.printErrorStack();
         ireaderror=1;
     }
     // catch failure caused by missing attribute
@@ -740,30 +740,30 @@ inline Int_t HDF_get_nfiles(char *fname, int ptype)
     }
     catch(GroupIException error)
     {
-        error.printError();
+        error.printErrorStack();
     }
     // catch failure caused by the H5File operations
     catch( FileIException error )
     {
-        error.printError();
+        error.printErrorStack();
 
     }
     // catch failure caused by the DataSet operations
     catch( DataSetIException error )
     {
-        error.printError();
+        error.printErrorStack();
         ireaderror=1;
     }
     // catch failure caused by the DataSpace operations
     catch( DataSpaceIException error )
     {
-        error.printError();
+        error.printErrorStack();
         ireaderror=1;
     }
     // catch failure caused by the DataSpace operations
     catch( DataTypeIException error )
     {
-        error.printError();
+        error.printErrorStack();
         ireaderror=1;
     }
     Fhdf.close();
@@ -772,8 +772,5 @@ inline Int_t HDF_get_nfiles(char *fname, int ptype)
 
 }
 //@}
-
-
-
 
 #endif
