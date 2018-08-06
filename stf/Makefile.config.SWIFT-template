@@ -330,8 +330,6 @@ endif
 
 ifeq ($(HDFENABLE),"on")
     C+FLAGS+= -DUSEHDF
-		# Comment out if your HDF5 library is version 1.10.0 or older
-    #C+FLAGS+= -DHDF5_NEWER_THAN_1_10_0
     C+LIBS+= -lhdf5_hl_cpp -lhdf5_cpp -lhdf5_hl -lhdf5 -lz -lrt -ldl
     IFLAGS+= $(HDF_INCL)
     LFLAGS+= $(HDF_LIBS)

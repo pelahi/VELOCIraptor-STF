@@ -83,7 +83,7 @@ using namespace H5;
 ///size of chunks in hdf files for Compression
 #define HDFOUTPUTCHUNKSIZE 8192
 
-#ifdef HDF5_NEWER_THAN_1_10_0
+#ifdef H5_VERSION_GE(1,10,1)
 #define HDF5_FILE_GROUP_COMMON_BASE H5::Group
 #define HDF5_GROUP_DATASET_COMMON_BASE H5::H5Object
 #else
