@@ -135,6 +135,7 @@ int InvokeVelociraptor(const size_t num_gravity_parts, const size_t num_hydro_pa
 {
     if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
 }
+    if (ThisTask==0) cout<<"VELOCIraptor/STF running with OpenMP. Number of openmp threads: "<<nthreads<<endl;
 #else
     nthreads=1;
 #endif
