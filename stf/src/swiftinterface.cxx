@@ -123,7 +123,9 @@ int InvokeVelociraptor(const size_t num_gravity_parts, const size_t num_hydro_pa
     cout<<"Gas has not been turned on in VELOCIraptor. Set GASON in Makefile.config and recompile VELOCIraptor."<<endl;
     return 0;
 #endif
-#ifndef USEMPI
+#ifdef USEMPI
+    if (ThisTask==0) cout<<"VELOCIraptor/STF running with MPI. Number of mpi threads: "<<NProcs<<endl;
+#else
     int ThisTask=0;
     int NProcs=1;
     Int_t Nlocal, Ntotal, Nmemlocal;
