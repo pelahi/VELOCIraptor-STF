@@ -492,7 +492,15 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
       cout<<"Non-cosmological input, using h = "<< opt.h<<endl;
     }
 
-    mscale=opt.M/opt.h;lscale=opt.L/opt.h*aadjust;lvscale=opt.L/opt.h*opt.a;
+    // SWIFT snapshots already include the 1/h factor factor, 
+    // so there is no need to include it.
+    if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES) {
+      mscale=opt.M;lscale=opt.L*aadjust;lvscale=opt.L*opt.a;
+    }
+    else {
+      mscale=opt.M/opt.h;lscale=opt.L/opt.h*aadjust;lvscale=opt.L/opt.h*opt.a;
+    }
+
     //ignore hubble flow
     Hubbleflow=0.;
     Ntotal=0;
@@ -1784,9 +1792,20 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
         opt.Omega_b=MP_B/(MP_DM+MP_B)*opt.Omega_m;
         opt.Omega_cdm=opt.Omega_m-opt.Omega_b;
       }
-      //adjust period
-      if (opt.comove) opt.p*=opt.L/opt.h;
-      else opt.p*=opt.L/opt.h*opt.a;
+      
+      // SWIFT snapshots already include the 1/h factor factor, 
+      // so there is no need to include it.
+      if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES) {
+        //adjust period
+        if (opt.comove) opt.p*=opt.L;
+        else opt.p*=opt.L*opt.a;
+      }
+      else {
+        //adjust period
+        if (opt.comove) opt.p*=opt.L/opt.h;
+        else opt.p*=opt.L/opt.h*opt.a;
+      }
+
 #ifdef USEMPI
     }
 #endif
