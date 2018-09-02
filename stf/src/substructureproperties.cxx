@@ -844,54 +844,45 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
 
         //rotational calcs
         if (pdata[i].n_gas>=10) {
-        EncMass=0;
-        for (j=0;j<numingroup[i];j++) {
-            Pval=&Part[j+noffset[i]];
-            if (Pval->GetType()==GASTYPE) {
-            x = (*Pval).X()-pdata[i].cm_gas[0];
-            y = (*Pval).Y()-pdata[i].cm_gas[1];
-            z = (*Pval).Z()-pdata[i].cm_gas[2];
-            vx = (*Pval).Vx()-pdata[i].gcmvel[0]-pdata[i].cmvel_gas[0];
-            vy = (*Pval).Vy()-pdata[i].gcmvel[1]-pdata[i].cmvel_gas[1];
-            vz = (*Pval).Vz()-pdata[i].gcmvel[2]-pdata[i].cmvel_gas[2];
-            mval=Pval->GetMass();
-            EncMass+=mval;
-            if (EncMass>0.5*pdata[i].M_gas && pdata[i].Rhalfmass_gas==0) pdata[i].Rhalfmass_gas=sqrt(x*x+y*y+z*z);
-            jval=Coordinate(x,y,z).Cross(Coordinate(vx,vy,vz));
-            jzval=(jval*pdata[i].L_gas)/pdata[i].L_gas.Length();
-            zdist=(Coordinate(x,y,z)*pdata[i].L_gas)/pdata[i].L_gas.Length();
-            Rdist=sqrt(x*x+y*y+z*z-zdist*zdist);
-            pdata[i].Krot_gas+=mval*(jzval*jzval/(Rdist*Rdist));
-            Ekin+=mval*(vx*vx+vy*vy+vz*vz);
-            }
-        }
-        pdata[i].Krot_gas/=Ekin;
-	    pdata[i].T_gas=0.5*Ekin;
-        }
-        if (pdata[i].n_gas>=10) GetGlobalSpatialMorphology(numingroup[i], &Part[noffset[i]], pdata[i].q_gas, pdata[i].s_gas, 1e-2, pdata[i].eigvec_gas,0,GASTYPE,0);
-        if (opt.iextragasoutput) {
-            for (j=numingroup[i]-1;j>=0;j--) {
+            EncMass=0;
+            for (j=0;j<numingroup[i];j++) {
                 Pval=&Part[j+noffset[i]];
                 if (Pval->GetType()==GASTYPE) {
-                rc=Pval->Radius();
-                mval=Part[j+noffset[i]].GetMass();
-                if (rc<=pdata[i].gR200c_excl) {
-                    pdata[i].M_200crit_excl_gas+=mval;
-                }
-                if (rc<=pdata[i].gR200m_excl) {
-                    pdata[i].M_200mean_excl_gas+=mval;
-                }
-                if (rc<=pdata[i].gRBN98_excl) {
-                    pdata[i].M_BN98_excl_gas+=mval;
-                }
-#ifdef NOMASS
-                EncMass-=opt.MassValue;
-#else
-                EncMass-=Pval->GetMass();
-#endif
+                    x = (*Pval).X()-pdata[i].cm_gas[0];
+                    y = (*Pval).Y()-pdata[i].cm_gas[1];
+                    z = (*Pval).Z()-pdata[i].cm_gas[2];
+                    vx = (*Pval).Vx()-pdata[i].gcmvel[0]-pdata[i].cmvel_gas[0];
+                    vy = (*Pval).Vy()-pdata[i].gcmvel[1]-pdata[i].cmvel_gas[1];
+                    vz = (*Pval).Vz()-pdata[i].gcmvel[2]-pdata[i].cmvel_gas[2];
+                    mval=Pval->GetMass();
+                    EncMass+=mval;
+                    if (EncMass>0.5*pdata[i].M_gas && pdata[i].Rhalfmass_gas==0) pdata[i].Rhalfmass_gas=sqrt(x*x+y*y+z*z);
+                    jval=Coordinate(x,y,z).Cross(Coordinate(vx,vy,vz));
+                    jzval=(jval*pdata[i].L_gas)/pdata[i].L_gas.Length();
+                    zdist=(Coordinate(x,y,z)*pdata[i].L_gas)/pdata[i].L_gas.Length();
+                    Rdist=sqrt(x*x+y*y+z*z-zdist*zdist);
+                    pdata[i].Krot_gas+=mval*(jzval*jzval/(Rdist*Rdist));
+                    Ekin+=mval*(vx*vx+vy*vy+vz*vz);
+                    if (opt.iextragasoutput) {
+                        if (rc<=pdata[i].gR200c_excl) {
+                            pdata[i].M_200crit_excl_gas+=mval;
+                            pdata[i].L_200crit_excl_gas+=jval;
+                        }
+                        if (rc<=pdata[i].gR200m_excl) {
+                            pdata[i].M_200mean_excl_gas+=mval;
+                            pdata[i].L_200mean_excl_gas+=jval;
+                        }
+                        if (rc<=pdata[i].gRBN98_excl) {
+                            pdata[i].M_BN98_excl_gas+=mval;
+                            pdata[i].L_BN98_excl_gas+=jval;
+                        }
+                    }
                 }
             }
+            pdata[i].Krot_gas/=Ekin;
+    	    pdata[i].T_gas=0.5*Ekin;
         }
+        if (pdata[i].n_gas>=10) GetGlobalSpatialMorphology(numingroup[i], &Part[noffset[i]], pdata[i].q_gas, pdata[i].s_gas, 1e-2, pdata[i].eigvec_gas,0,GASTYPE,0);
 #endif
 #ifdef STARON
         for (j=0;j<numingroup[i];j++) {
