@@ -666,8 +666,7 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
     catch( invalid_argument error )
     {
       if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES) {
-        cout<<"SWIFT EAGLE HDF5 naming convention chosen in config file but cannot find the Code attribute in snapshot."<<endl;
-        cerr<<"HDF5 file "<<error.what()<<endl;
+        cerr<<"Reading SWIFT EAGLE HDF5 file: "<<error.what()<<endl;
 #ifdef USEMPI
         MPI_Abort(MPI_COMM_WORLD, 8);
 #else
