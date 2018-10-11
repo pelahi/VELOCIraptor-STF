@@ -806,6 +806,7 @@ Int_t* SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Part
     Int_t bgoffset, *pfofbg, numgroupsbg;
     int maxhalocoresublevel;
     //initialize
+    numgroups=0;
     if (pnumcores!=NULL) *pnumcores=0;
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
@@ -842,7 +843,7 @@ Int_t* SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Part
     param[8]=cos(opt.thetaopen*M_PI);
     param[9]=opt.ellthreshold;
     //if iterating slightly increase constraints and decrease minimum number
-    if (opt.iiterflag) {
+    if (opt.iiterflag && opt.foftype==FOFSTPROB) {
         if (opt.iverbose) cout<<"Increasing thresholds to search for initial list.\n";
         param[1]*=opt.ellxfac*opt.ellxfac/4.0;
         param[6]*=opt.ellxfac*opt.ellxfac/4.0;
@@ -1188,13 +1189,14 @@ private(i,tid)
         delete[] numingroup;
     }
     if (numgroups>0) if (opt.iverbose>=2) cout<<ThisTask<<": "<<numgroups<<" substructures found"<<endl;
-    else if (opt.iverbose>=2) cout<<ThisTask<<": "<<"NO SUBSTRUCTURES FOUND"<<endl;
+    else {if (opt.iverbose>=2) cout<<ThisTask<<": "<<"NO SUBSTRUCTURES FOUND"<<endl;}
 
     //now search particle list for large compact substructures that are considered part of the background when using smaller grids
     if (nsubset>=MINSUBSIZE && opt.iLargerCellSearch && opt.foftype!=FOF6DCORE)
     {
         //first have to delete tree used in search so that particles are in original particle order
         //then construct a new grid with much larger cells so that new bg velocity dispersion can be estimated
+        cout<<" entering large cell search "<<opt.iLargerCellSearch<<endl;
         delete tree;
         Int_t ngrid;
         Coordinate *gvel;
@@ -1402,7 +1404,7 @@ private(i,tid)
         }
         //output results of search
         if (numgroups>0) if (opt.iverbose>=2) cout<<numgroups<<" substructures found after large grid search"<<endl;
-        else if (opt.iverbose>=2) cout<<"NO SUBSTRUCTURES FOUND"<<endl;
+        else {if (opt.iverbose>=2) cout<<ThisTask<<": "<<"NO SUBSTRUCTURES FOUND"<<endl;}
     }
 
     //ONCE ALL substructures are found, search for cores of major mergers with minimum size set by cell size since grid is quite large after bg search
@@ -1684,7 +1686,7 @@ private(i,tid)
 #ifdef USEMPI
     }
 #endif
-    if (opt.iverbose) cout<<"Done"<<endl;
+    if (opt.iverbose) cout<<"Done search for substructure in this subset"<<endl;
     return pfof;
 }
 
@@ -3012,7 +3014,7 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
         for (i=0;i<nparts;i++) pfofold[i]=pfofall[i];
         if (CheckUnboundGroups(opt,nparts, Part.data(), ngroupdark, pfofall, ningall,pglistall,0)) {
             //now if pfofall is zero but was a substructure reassign back to uber parent
-            //so long as that uber parent still exists. 
+            //so long as that uber parent still exists.
             for (i=0;i<nparts;i++)
             {
                 if (pfofall[Part[i].GetID()]==0 && pfofold[Part[i].GetID()]>nhalos) {

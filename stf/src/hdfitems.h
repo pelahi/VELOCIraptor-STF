@@ -184,6 +184,14 @@ const T read_attribute(const std::string &filename, const std::string &name) {
 	return read_attribute<T>(file, name);
 }
 
+static inline void HDF5PrintError(const H5::Exception &error) {
+#if H5_VERSION_GE(1,10,1)
+	error.printErrorStack();
+#else
+	error.printError();
+#endif
+}
+
 ///This structures stores the strings defining the groups of data in the hdf input. NOTE: HERE I show the strings for Illustris format
 struct HDF_Group_Names {
     //define the strings associated with the types of structures contained in the hdf file.
@@ -316,8 +324,8 @@ struct HDF_Part_Info {
         //gas
         if (ptype==HDFGASTYPE) {
             names[itemp++]=H5std_string("Coordinates");
-            if(hdfnametype!=HDFEAGLENAMES || hdfnametype!=HDFSWIFTEAGLENAMES) names[itemp++]=H5std_string("Velocities");
-            else names[itemp++]=H5std_string("Velocity");
+            if(hdfnametype==HDFEAGLENAMES) names[itemp++]=H5std_string("Velocity");
+            else names[itemp++]=H5std_string("Velocities");
             names[itemp++]=H5std_string("ParticleIDs");
             names[itemp++]=H5std_string("Masses");
             names[itemp++]=H5std_string("Density");
@@ -384,8 +392,8 @@ struct HDF_Part_Info {
         //dark matter
         if (ptype==HDFDMTYPE) {
             names[itemp++]=H5std_string("Coordinates");
-            if(hdfnametype!=HDFEAGLENAMES || hdfnametype!=HDFSWIFTEAGLENAMES) names[itemp++]=H5std_string("Velocities");
-            else names[itemp++]=H5std_string("Velocity");
+            if(hdfnametype==HDFEAGLENAMES) names[itemp++]=H5std_string("Velocity");
+            else names[itemp++]=H5std_string("Velocities");
             names[itemp++]=H5std_string("ParticleIDs");
             if (hdfnametype==HDFSWIFTEAGLENAMES) {
                 names[itemp++]=H5std_string("Masses");
@@ -404,8 +412,8 @@ struct HDF_Part_Info {
         //also dark matter particles
         if (ptype==HDFDM1TYPE ||ptype==HDFDM2TYPE) {
             names[itemp++]=H5std_string("Coordinates");
-            if(hdfnametype!=HDFEAGLENAMES || hdfnametype!=HDFSWIFTEAGLENAMES) names[itemp++]=H5std_string("Velocities");
-            else names[itemp++]=H5std_string("Velocity");
+            if(hdfnametype==HDFEAGLENAMES) names[itemp++]=H5std_string("Velocity");
+            else names[itemp++]=H5std_string("Velocities");
             names[itemp++]=H5std_string("ParticleIDs");
             names[itemp++]=H5std_string("Masses");
             if (hdfnametype==HDFSIMBANAMES||hdfnametype==HDFMUFASANAMES) {
@@ -419,8 +427,8 @@ struct HDF_Part_Info {
         }
         if (ptype==HDFSTARTYPE) {
             names[itemp++]=H5std_string("Coordinates");
-            if(hdfnametype!=HDFEAGLENAMES || hdfnametype!=HDFSWIFTEAGLENAMES) names[itemp++]=H5std_string("Velocities");
-            else names[itemp++]=H5std_string("Velocity");
+            if(hdfnametype==HDFEAGLENAMES) names[itemp++]=H5std_string("Velocity");
+            else names[itemp++]=H5std_string("Velocities");
             names[itemp++]=H5std_string("ParticleIDs");
             names[itemp++]=H5std_string("Masses");
             //for stars assume star formation and metallicy are position 4, 5 in name array
@@ -460,8 +468,8 @@ struct HDF_Part_Info {
         }
         if (ptype==HDFBHTYPE) {
             names[itemp++]=H5std_string("Coordinates");
-            if(hdfnametype!=HDFEAGLENAMES || hdfnametype!=HDFSWIFTEAGLENAMES) names[itemp++]=H5std_string("Velocities");
-            else names[itemp++]=H5std_string("Velocity");
+            if(hdfnametype==HDFEAGLENAMES) names[itemp++]=H5std_string("Velocity");
+            else names[itemp++]=H5std_string("Velocities");
             names[itemp++]=H5std_string("ParticleIDs");
             names[itemp++]=H5std_string("Masses");
             if (hdfnametype==HDFILLUSTISNAMES) {
@@ -567,62 +575,58 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
         Fhdf.openFile(buf, H5F_ACC_RDONLY);
         cout<<"Loading HDF header info in header group: "<<hdf_gnames.Header_name<<endl;
 
-        // Check if it is a SWIFT snapshot.
-        headerattribs=get_attribute(Fhdf, "Header/Code");
-        stringtype = headerattribs.getStrType();
-
-        headerattribs.read(stringtype, stringbuff);
-
         if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES) {
 
-          // Read SWIFT parameters
-          if(!swift_str.compare(stringbuff)) {
-            // Is it a cosmological simulation?
-            headerattribs=get_attribute(Fhdf, hdf_header_info.names[hdf_header_info.IIsCosmological]);
-            headerdataspace=headerattribs.getSpace();
+			// Check if it is a SWIFT snapshot.
+			headerattribs=get_attribute(Fhdf, "Header/Code");
+			stringtype = headerattribs.getStrType();
+			headerattribs.read(stringtype, stringbuff);
 
-            if (headerdataspace.getSimpleExtentNdims()!=1) ireaderror=1;
-            inttype=headerattribs.getIntType();
-            if (inttype.getSize()==sizeof(int)) {
-              headerattribs.read(PredType::NATIVE_INT,&intbuff[0]);
-              hdf_header_info.iscosmological = intbuff[0];
-            }
-            if (inttype.getSize()==sizeof(long long)) {
-              headerattribs.read(PredType::NATIVE_LONG,&longbuff[0]);
-              hdf_header_info.iscosmological = longbuff[0];
-            }
+			// Read SWIFT parameters
+			if(!swift_str.compare(stringbuff)) {
+				// Is it a cosmological simulation?
+				headerattribs=get_attribute(Fhdf, hdf_header_info.names[hdf_header_info.IIsCosmological]);
+				headerdataspace=headerattribs.getSpace();
 
-            if (!hdf_header_info.iscosmological && opt.icosmologicalin) {
+				if (headerdataspace.getSimpleExtentNdims()!=1) ireaderror=1;
+				inttype=headerattribs.getIntType();
+				if (inttype.getSize()==sizeof(int)) {
+					headerattribs.read(PredType::NATIVE_INT,&intbuff[0]);
+					hdf_header_info.iscosmological = intbuff[0];
+				}
+				if (inttype.getSize()==sizeof(long long)) {
+					headerattribs.read(PredType::NATIVE_LONG,&longbuff[0]);
+					hdf_header_info.iscosmological = longbuff[0];
+				}
 
-              cout<<"Error: cosmology is turned on in the config file but the snaphot provided is a non-cosmological run."<<endl;
+            	if (!hdf_header_info.iscosmological && opt.icosmologicalin) {
+              		cout<<"Error: cosmology is turned on in the config file but the snaphot provided is a non-cosmological run."<<endl;
 #ifdef USEMPI
-              MPI_Abort(MPI_COMM_WORLD, 8);
+              		MPI_Abort(MPI_COMM_WORLD, 8);
 #else
-              exit(0);
+              		exit(0);
 #endif
 
-            }
-            else if (hdf_header_info.iscosmological && !opt.icosmologicalin) {
-
-              cout<<"Error: cosmology is turned off in the config file but the snaphot provided is a cosmological run."<<endl;
+            	}
+            	else if (hdf_header_info.iscosmological && !opt.icosmologicalin) {
+					cout<<"Error: cosmology is turned off in the config file but the snaphot provided is a cosmological run."<<endl;
 #ifdef USEMPI
-              MPI_Abort(MPI_COMM_WORLD, 8);
+              		MPI_Abort(MPI_COMM_WORLD, 8);
 #else
-              exit(0);
+              		exit(0);
 #endif
 
-            }
-
-          }
-          // If the code is not SWIFT
-          else {
-            cout<<"SWIFT EAGLE HDF5 naming convention chosen in config file but the snapshot was not produced by SWIFT. The string read was: "<<stringbuff<<endl;
+            	}
+          	}
+			// If the code is not SWIFT
+			else {
+            	cout<<"SWIFT EAGLE HDF5 naming convention chosen in config file but the snapshot was not produced by SWIFT. The string read was: "<<stringbuff<<endl;
 #ifdef USEMPI
-            MPI_Abort(MPI_COMM_WORLD, 8);
+            	MPI_Abort(MPI_COMM_WORLD, 8);
 #else
-            exit(0);
+            	exit(0);
 #endif
-          }
+          	}
         }
 
         headerattribs=get_attribute(Fhdf, hdf_header_info.names[hdf_header_info.INumTot]);
@@ -636,31 +640,65 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
     }
     catch(GroupIException error)
     {
-        error.printErrorStack();
+        HDF5PrintError(error);
+        cerr<<"Error in group might suggest config file has the incorrect HDF naming convention. ";
+        cerr<<"Check HDF_name_convetion or add new naming convention updating hdfitems.h in the source code. "<<endl;
+        Fhdf.close();
+#ifdef USEMPI
+        MPI_Abort(MPI_COMM_WORLD,8);
+#else
+        exit(8);
+#endif
     }
     // catch failure caused by the H5File operations
     catch( FileIException error )
     {
-        error.printErrorStack();
-
+      HDF5PrintError(error);
+      cerr<<"Error reading file. Exiting "<<endl;
+      Fhdf.close();
+#ifdef USEMPI
+      MPI_Abort(MPI_COMM_WORLD,8);
+#else
+      exit(8);
+#endif
     }
     // catch failure caused by the DataSet operations
     catch( DataSetIException error )
     {
-        error.printErrorStack();
-        ireaderror=1;
+      HDF5PrintError(error);
+      cerr<<"Error in data set might suggest config file has the incorrect HDF naming convention. ";
+      cerr<<"Check HDF_name_convetion or update hdfio.cxx in the source code to read correct format"<<endl;
+      Fhdf.close();
+#ifdef USEMPI
+      MPI_Abort(MPI_COMM_WORLD,8);
+#else
+      exit(8);
+#endif
     }
     // catch failure caused by the DataSpace operations
     catch( DataSpaceIException error )
     {
-        error.printErrorStack();
-        ireaderror=1;
+      HDF5PrintError(error);
+      cerr<<"Error in data space might suggest config file has the incorrect HDF naming convention. ";
+      cerr<<"Check HDF_name_convetion or update hdfio.cxx in the source code to read correct format"<<endl;
+      Fhdf.close();
+#ifdef USEMPI
+      MPI_Abort(MPI_COMM_WORLD,8);
+#else
+      exit(8);
+#endif
     }
     // catch failure caused by the DataSpace operations
     catch( DataTypeIException error )
     {
-        error.printErrorStack();
-        ireaderror=1;
+      HDF5PrintError(error);
+      cerr<<"Error in data type might suggest need to update hdfio.cxx in the source code to read correct format"<<endl;
+      Fhdf.close();
+#ifdef USEMPI
+      MPI_Abort(MPI_COMM_WORLD,8);
+#else
+      exit(8);
+#endif
     }
     // catch failure caused by missing attribute
     catch( invalid_argument error )
@@ -670,7 +708,7 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
 #ifdef USEMPI
         MPI_Abort(MPI_COMM_WORLD, 8);
 #else
-        exit(0);
+        exit(8);
 #endif
       }
     }
@@ -739,30 +777,29 @@ inline Int_t HDF_get_nfiles(char *fname, int ptype)
     }
     catch(GroupIException error)
     {
-        error.printErrorStack();
+        HDF5PrintError(error);
     }
     // catch failure caused by the H5File operations
     catch( FileIException error )
     {
-        error.printErrorStack();
-
+        HDF5PrintError(error);
     }
     // catch failure caused by the DataSet operations
     catch( DataSetIException error )
     {
-        error.printErrorStack();
+        HDF5PrintError(error);
         ireaderror=1;
     }
     // catch failure caused by the DataSpace operations
     catch( DataSpaceIException error )
     {
-        error.printErrorStack();
+        HDF5PrintError(error);
         ireaderror=1;
     }
     // catch failure caused by the DataSpace operations
     catch( DataTypeIException error )
     {
-        error.printErrorStack();
+        HDF5PrintError(error);
         ireaderror=1;
     }
     Fhdf.close();

@@ -1158,6 +1158,7 @@ private(j,Pval,x,y,z)
 #endif
         if (pdata[i].gMFOF==0 && pdata[i].hostid==-1) pdata[i].gMFOF=pdata[i].gmass;
         qsort(&Part[noffset[i]], numingroup[i], sizeof(Particle), RadCompare);
+        pdata[i].gsize=Part[noffset[i]+numingroup[i]-1].Radius();
 
         //determine overdensity mass and radii. AGAIN REMEMBER THAT THESE ARE NOT MEANINGFUL FOR TIDAL DEBRIS
         //HERE MASSES ARE EXCLUSIVE!
@@ -1190,7 +1191,6 @@ private(j,Pval,x,y,z)
             if (pdata[i].gRBN98==0) {pdata[i].gMBN98=pdata[i].gmass;pdata[i].gRBN98=pdata[i].gsize;}
         }
 
-        pdata[i].gsize=Part[noffset[i]+numingroup[i]-1].Radius();
         EncMass=0;
         Double_t Jx,Jy,Jz,sxx,sxy,sxz,syy,syz,szz;
         Double_t Jx200m,Jy200m,Jz200m;

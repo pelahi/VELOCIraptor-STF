@@ -30,7 +30,7 @@ int InitVelociraptor(char* configname, char* outputname, cosmoinfo c, unitinfo u
 
     libvelociraptorOpt.pname = configname;
     libvelociraptorOpt.outname = outputname;
-    
+
     cout<<"Reading VELOCIraptor config file..."<< endl;
     GetParamFile(libvelociraptorOpt);
     cout<<"Setting cosmology, units, sim stuff "<<endl;
@@ -141,7 +141,7 @@ int InvokeVelociraptor(const size_t num_gravity_parts, const size_t num_hydro_pa
 #else
     nthreads=1;
 #endif
-    
+
     libvelociraptorOpt.outname = outputname;
 
     vector<Particle> parts;
@@ -343,7 +343,7 @@ int InvokeVelociraptor(const size_t num_gravity_parts, const size_t num_hydro_pa
     ///\todo need to return fof and substructure information back to swift
 
     cout<<"VELOCIraptor returning."<< endl;
-    
+
     return 1;
 }
 
