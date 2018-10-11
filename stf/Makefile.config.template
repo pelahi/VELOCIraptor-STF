@@ -346,11 +346,6 @@ ifeq ($(XDRENABLE),"on")
     LFLAGS+= $(HDF_LIBS)
 endif
 
-ifeq ($(SWIFTINTERFACE),"on")
-        SWIFTDIR = /home/pelahi/software/swiftsim/
-        SWIFT_INCL = -I${SWIFTDIR}/src/ -I${SWIFTDIR}/src/gravity/Default/ -I${SWIFTDIR}/src/hydro/Default/
-endif
-
 #===========================================
 
 
