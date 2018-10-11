@@ -567,13 +567,13 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
         Fhdf.openFile(buf, H5F_ACC_RDONLY);
         cout<<"Loading HDF header info in header group: "<<hdf_gnames.Header_name<<endl;
 
-        // Check if it is a SWIFT snapshot.
-        headerattribs=get_attribute(Fhdf, "Header/Code");
-        stringtype = headerattribs.getStrType();
-
-        headerattribs.read(stringtype, stringbuff);
-
         if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES) {
+
+          // Check if it is a SWIFT snapshot.
+          headerattribs=get_attribute(Fhdf, "Header/Code");
+          stringtype = headerattribs.getStrType();
+
+          headerattribs.read(stringtype, stringbuff);
 
           // Read SWIFT parameters
           if(!swift_str.compare(stringbuff)) {
