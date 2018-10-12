@@ -72,7 +72,7 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata);
 void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t &nhierarchy, const Int_t &nfield, Int_t *nsub, Int_t *parentgid, Int_t *stype,int subflag=0);
 
 ///Write Extended Output
-void WriteExtendedOutput(Options &opt, Int_t numgroups, Int_t nbodies, PropData *pdata, vector<Particle> &p, Int_t * pfof);
+void WriteExtendedOutput (Options &opt, Int_t numgroups, Int_t nbodies, PropData *pdata, Particle *p, Int_t * pfof);
 
 ///Write the configuartion options that the code used
 void WriteVELOCIraptorConfig(Options &opt);
@@ -111,6 +111,8 @@ void ReadCellValues(Options &opt, const Int_t nbodies, const Int_t ngrid, GridCe
 #ifdef EXTENDEDHALOOUTPUT
 //Write extended halo output for extraction of haloes from input files
 void WriteExtendedOutput (Options &opt, Int_t numgroups, Int_t nbodies, PropData *pdata, Particle *p, Int_t * pfof);
+int ExtendedFileCompare (const void * a, const void * b);
+int ExtendedIndexCompare (const void * a, const void * b);
 #endif
 //@}
 

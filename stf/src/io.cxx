@@ -2555,392 +2555,590 @@ void WriteUnitInfo(Options &opt){
 //@}
 
 #ifdef EXTENDEDHALOOUTPUT
-/// \name Routines that can be used to output information of a halo subvolume decomposition
+/// \name Extended Output for fast extraction of structures
 //@{
-///Writes cell quantites
+typedef struct Extended
+{
+  int idStrct;
+  int oFile;
+  int oIndex;
+} Extended;
+
+
 void WriteExtendedOutput (Options &opt, Int_t numgroups, Int_t nbodies, PropData *pdata, Particle *p, Int_t * pfof)
 {
-    fstream Fout;
-    char fname[1000];
-    int ngtot = 0;
-    int noffset = 0;
+  cout << "WRITING EXTENDED OUTPUT" << endl;
+
+  Extended  * xtndd;
+  fstream     Fout;
+  int         nPartTotThisTask;
+  char        fname[1000];
+  int         ngtot = 0;
+  int         noffset = 0;
+  int         offst;
 
 #ifdef USEMPI
-    for (int j = 0; j < NProcs; j++) ngtot += mpi_ngroups[j];
-    for (int j = 0; j < ThisTask; j++) noffset += mpi_ngroups[j];
+  for (int j = 0; j < NProcs; j++)
+    ngtot += mpi_ngroups[j];
+
+  for (int j = 0; j < ThisTask; j++)
+    noffset += mpi_ngroups[j];
 #else
-    int ThisTask = 0;
-    int NProcs = 1;
-    ngtot = numgroups;
+  int ThisTask = 0;
+  int NProcs   = 1;
+  ngtot        = numgroups;
 #endif
-    cout << "numgroups  " << numgroups << endl;
-    numgroups++;
 
-    Int_t *  nfilespergroup = new Int_t   [numgroups];
-    Int_t ** filesofgroup   = new Int_t * [numgroups];
+  Int_t *  nfilespergroup = new Int_t   [numgroups+1];
+  Int_t ** filesofgroup   = new Int_t * [numgroups+1];
 
-    Int_t *  ntaskspergroup = new Int_t   [numgroups];
-    Int_t ** tasksofgroup   = new Int_t * [numgroups];
+  Int_t *  ntaskspergroup = new Int_t   [numgroups+1];
+  Int_t ** tasksofgroup   = new Int_t * [numgroups+1];
 
-    // First send to Task 0, Groups and number of files over which the group is distributed
-    // from original reading
-
-    // Groups id have already the offset
-    Int_t ** npartsofgroupinfile = new Int_t * [numgroups];
-    Int_t ** npartsofgroupintask = new Int_t * [numgroups];
+  /// First send to Task 0, Groups and number of files over which the group is distributed
+  /// from original reading
+  ///
+  /// Groups id have already the offset
+  ///
+  Int_t ** npartsofgroupinfile = new Int_t * [numgroups+1];
+  Int_t ** npartsofgroupintask = new Int_t * [numgroups+1];
 
 #ifdef USEMPI
-    Int_t ntosendtotask      [NProcs];
-    Int_t ntorecievefromtask [NProcs];
-    for (Int_t i = 0; i < NProcs; i++)
+  Int_t * ntosendtotask = new Int_t [NProcs];
+  Int_t * ntorecvfmtask = new Int_t [NProcs];
+  for (Int_t i = 0; i < NProcs; i++)
+  {
+    ntosendtotask[i] = 0;
+    ntorecvfmtask[i] = 0;
+  }
+#endif
+
+  /// Initialize arrays
+  ///
+  for (Int_t i = 0; i <= numgroups; i++)
+  {
+    npartsofgroupinfile[i] = new Int_t [opt.num_files];
+
+#ifdef USEMPI
+    npartsofgroupintask[i] = new Int_t [NProcs];
+    ntaskspergroup[i] = 0;
+    for(Int_t j = 0; j < NProcs; j++)
+      npartsofgroupintask[i][j] = 0;
+#endif
+    nfilespergroup[i] = 0;
+    for(Int_t j = 0; j < opt.num_files; j++)
+      npartsofgroupinfile[i][j] = 0;
+  }
+
+  /// Set IdStruct
+  ///
+  for (Int_t i = 0; i < nbodies; i++)
+  {
+    if (pfof[p[i].GetID()] == 0)
+      p[i].SetIdStruct (0);
+    else
+      p[i].SetIdStruct (pdata[pfof[p[i].GetID()]].haloid);
+
+    npartsofgroupinfile[pfof[i]][p[i].GetOFile()]++;
+#ifdef USEMPI
+    npartsofgroupintask[pfof[i]][p[i].GetOTask()]++;
+#endif
+  }
+
+  for (Int_t i = 0; i <= numgroups; i++)
+  {
+#ifdef USEMPI
+    for(Int_t j = 0; j < NProcs; j++)
+      if(npartsofgroupintask[i][j] > 0)
+        ntaskspergroup[i]++;
+#endif
+    for(Int_t j = 0; j < opt.num_files; j++)
+      if(npartsofgroupinfile[i][j] > 0)
+        nfilespergroup[i]++;
+  }
+
+  /// Shorten arrays
+  ///
+  for (Int_t i = 0; i <= numgroups; i++)
+  {
+    Int_t k = 0;
+#ifdef USEMPI
+    tasksofgroup[i] = new Int_t [ntaskspergroup[i]];
+    for(Int_t j = 0; j < NProcs; j++)
     {
-        ntosendtotask[i] = 0;
-        ntorecievefromtask[i] = 0;
+      if(npartsofgroupintask[i][j] > 0)
+      {
+        tasksofgroup[i][k] = j;
+        ntosendtotask[j] += npartsofgroupintask[i][j];
+        k++;
+      }
     }
+    k = 0;
 #endif
-
-    // Initialize arrays
-    for (Int_t i = 0; i < numgroups; i++)
+    filesofgroup[i] = new Int_t [nfilespergroup[i]];
+    for(Int_t j = 0; j < opt.num_files; j++)
     {
-        npartsofgroupinfile[i] = new Int_t [opt.num_files];
-
-#ifdef USEMPI
-        npartsofgroupintask[i] = new Int_t [NProcs];
-        ntaskspergroup[i] = 0;
-        for(Int_t j = 0; j < NProcs; j++)
-            npartsofgroupintask[i][j] = 0;
-#endif
-
-        nfilespergroup[i] = 0;
-        for(Int_t j = 0; j < opt.num_files; j++)
-            npartsofgroupinfile[i][j] = 0;
+      if(npartsofgroupinfile[i][j] > 0)
+      {
+        filesofgroup[i][k] = j;
+        k++;
+      }
     }
-
-    // Set IdStruct IdTopHost and fill arrays
-    for (Int_t i = 0; i < nbodies; i++)
-    {
-        if (pfof[i] == 0)
-        {
-            p[i].SetIdTopHost(0);
-            p[i].SetIdHost(0);
-            p[i].SetIdStruct(0);
-        }
-        else
-        {
-            p[i].SetIdStruct (pdata[pfof[i]].haloid);
-            if (pdata[pfof[i]].hostfofid == 0)
-                p[i].SetIdTopHost (pfof[i] + noffset);
-            else
-                p[i].SetIdTopHost (pdata[pfof[i]].hostfofid);
-            if (pdata[pfof[i]].hostid < 0)
-                p[i].SetIdHost (pfof[i] + noffset);
-            else
-                p[i].SetIdHost (pdata[pfof[i]].hostid);
-        }
-
-        npartsofgroupinfile[pfof[i]][p[i].GetOFile()]++;
+    delete [] npartsofgroupinfile[i];
 #ifdef USEMPI
-        npartsofgroupintask[pfof[i]][p[i].GetOTask()]++;
+    delete [] npartsofgroupintask[i];
 #endif
+  }
+  delete [] npartsofgroupinfile;
+#ifdef USEMPI
+  delete [] npartsofgroupintask;
+#endif
+
+  /// Now nfilespergroup has the number of files over which the group is distributed and
+  /// filesofgroup has the id of the files
+  ///
+  /// Write FilesOfGroup File
+  ///
+  int myturn = 0;
+
+#ifdef USEMPI
+  MPI_Status status;
+  MPI_Request rqst;
+
+  if (ThisTask == 0)
+  {
+#endif
+    myturn = 1;
+    char fog [1000];
+    sprintf (fog, "%s.filesofgroup", opt.outname);
+    Fout.open (fog, ios::out);
+    for (Int_t i = 1; i <= numgroups; i++)
+    {
+      Fout << pdata[i].haloid << "  " << nfilespergroup[i] << endl;
+      for (Int_t j = 0; j < nfilespergroup[i]; j++)
+        Fout << filesofgroup[i][j] << " ";
+      Fout << endl;
     }
+    Fout.close();
 
-    for (Int_t i = 0; i < numgroups; i++)
-    {
 #ifdef USEMPI
-        for(Int_t j = 0; j < NProcs; j++)
-            if(npartsofgroupintask[i][j] > 0)
-                ntaskspergroup[i]++;
-#endif
-        for(Int_t j = 0; j < opt.num_files; j++)
-            if(npartsofgroupinfile[i][j] > 0)
-                nfilespergroup[i]++;
+    if (NProcs > 1)
+      MPI_Isend (&myturn, 1, MPI_INT, ThisTask+1, ThisTask, MPI_COMM_WORLD, &rqst);
+  }
+  else
+  {
+    MPI_Recv (&myturn, 1, MPI_INT, ThisTask-1, ThisTask-1, MPI_COMM_WORLD, &status);
+
+    ofstream fout;
+    char fog[1000];
+    sprintf (fog, "%s.filesofgroup", opt.outname);
+    fout.open (fog, ios::app);
+    for (Int_t i = 1; i <= numgroups; i++)
+    {
+      fout << pdata[i].haloid << " " << nfilespergroup[i] << endl;
+      for (Int_t j = 0; j < nfilespergroup[i]; j++)
+        fout << filesofgroup[i][j] << " ";
+      fout << endl;
     }
+    fout.close();
 
-    // Shorten arrays
-    for (Int_t i = 0; i < numgroups; i++)
+    if (ThisTask != NProcs-1)
+      MPI_Isend (&myturn, 1, MPI_INT, ThisTask+1, ThisTask, MPI_COMM_WORLD, &rqst);
+  }
+#endif
+  for (Int_t i = 0; i <= numgroups; i++)
+  {
+    delete [] filesofgroup[i];
+    delete [] tasksofgroup[i];
+  }
+  delete [] filesofgroup;
+  delete [] tasksofgroup;
+  delete [] ntaskspergroup;
+  delete [] nfilespergroup;
+
+  if (opt.iverbose)
+    cout << ThisTask << "filesofgroup written" << endl;
+
+
+#ifdef USEMPI
+  //
+  // Communicate to all other processors how many particles are going to be sent
+  //
+  int  src;
+  int  dst;
+
+  ntosendtotask[ThisTask] = 0;
+  for (Int_t i = 1; i < NProcs; i++)
+  {
+    src = (ThisTask + NProcs - i) % NProcs;
+    dst = (ThisTask + i) % NProcs;
+    MPI_Isend (&ntosendtotask[dst], 1, MPI_INT, dst, ThisTask, MPI_COMM_WORLD, &rqst);
+    MPI_Recv  (&ntorecvfmtask[src], 1, MPI_INT, src, src, MPI_COMM_WORLD, &status);
+    cout << ThisTask << "ntosendto  " << dst << " " << ntosendtotask[dst] <<"  ntorecvfrom  " << src << " " << ntorecvfmtask[src] << endl;
+  }
+
+  nPartTotThisTask = 0;
+  for (Int_t i = 0; i < nbodies; i++)
+    if (p[i].GetOTask() == ThisTask)
+      nPartTotThisTask++;
+
+  for (Int_t i = 0; i < NProcs; i++)
+    nPartTotThisTask += ntorecvfmtask[i];
+#endif
+
+  //
+  // Sort Particles by Task to send and send in buffers
+  //
+  for (Int_t i = 0; i < nbodies; i++)
+    p[i].SetDummyI(i);
+  qsort (p, nbodies, sizeof(Particle), OTaskCompare);
+
+  //
+  // Allocate arrays for extended output
+  //
+  xtndd = new Extended [nPartTotThisTask];
+  offst = 0;
+  for (Int_t i = 0; i < nbodies; i++)
+  {
+    if (p[i].GetOTask() == ThisTask)
     {
-        Int_t k = 0;
-#ifdef USEMPI
-        tasksofgroup[i] = new Int_t [ntaskspergroup[i]];
-        for(Int_t j = 0; j < NProcs; j++)
-        {
-            if(npartsofgroupintask[i][j] > 0)
-            {
-                tasksofgroup[i][k] = j;
-                ntosendtotask[j] += npartsofgroupintask[i][j];
-                k++;
-            }
-        }
-        k = 0;
-#endif
-        filesofgroup[i] = new Int_t [nfilespergroup[i]];
-        for(Int_t j = 0; j < opt.num_files; j++)
-        {
-            if(npartsofgroupinfile[i][j] > 0)
-            {
-                filesofgroup[i][k] = j;
-                k++;
-            }
-        }
-        delete [] npartsofgroupinfile[i];
-#ifdef USEMPI
-        delete [] npartsofgroupintask[i];
-#endif
+      xtndd[offst].idStrct = p[i].GetIdStruct();
+      xtndd[offst].oFile   = p[i].GetOFile();
+      xtndd[offst].oIndex  = p[i].GetOIndex();
+      offst++;
     }
-    delete [] npartsofgroupinfile;
-#ifdef USEMPI
-    delete [] npartsofgroupintask;
-#endif
-    // Now nfilespergroup has the number of files over which the group is distributed and
-    // filesofgroup has the id of the files
-    //
-    // Write FilesOfGroup File
-    int myturn = 0;
+  }
 
 #ifdef USEMPI
-    MPI_Status status;
-    MPI_Request rqst;
+  int * taskSendOffset = new int [NProcs];
+  ntosendtotask[ThisTask] = offst;
+  for (Int_t i = 0; i < NProcs; i++) taskSendOffset[i] = 0;
+  for (Int_t i = 1; i < NProcs; i++) taskSendOffset[i] += ntosendtotask[i-1] + taskSendOffset[i-1];
 
-    if (ThisTask == 0)
+  //
+  // Calculate max number of loops
+  //
+  Int_t       sizeSend;
+  Int_t       sizeRecv;
+  int         buffSendOffset;
+  long int    maxNumPart = LOCAL_MAX_MSGSIZE / (long int) sizeof(Particle);
+  int         maxNumPartInBuffer = 0.5 * maxNumPart;
+//    int         maxNumPartInBuffer = 10000;
+  Particle  * recvBuffer = new Particle [maxNumPartInBuffer];
+  int         localMax = 0;
+  int         globalMax = 0;
+
+  for (Int_t i = 0; i < NProcs; i++)
+    if (ntosendtotask[i] > localMax)
+      localMax = ntosendtotask[i];
+
+  MPI_Allreduce (&localMax, &globalMax, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+  globalMax = globalMax/maxNumPartInBuffer + 1;
+
+  for (int i = 1; i < NProcs; i++)
+  {
+    src            = (ThisTask + NProcs - i) % NProcs;
+    dst            = (ThisTask + i) % NProcs;
+    buffSendOffset = 0;
+    for (int j = 0; j < globalMax; j++)
     {
+      sizeSend = (ntosendtotask[dst] / maxNumPartInBuffer) ? maxNumPartInBuffer : (ntosendtotask[dst] % maxNumPartInBuffer);
+      sizeRecv = (ntorecvfmtask[src] / maxNumPartInBuffer) ? maxNumPartInBuffer : (ntorecvfmtask[src] % maxNumPartInBuffer);
+      ntosendtotask[dst] -= sizeSend;
+      ntorecvfmtask[src] -= sizeRecv;
+
+      MPI_Sendrecv (&p[taskSendOffset[dst]+buffSendOffset], sizeSend*sizeof(Particle), MPI_BYTE, dst, j, \
+                    &recvBuffer[0],                         sizeRecv*sizeof(Particle), MPI_BYTE, src, j, \
+                    MPI_COMM_WORLD, &status);
+
+      for (int k = 0; k < sizeRecv; k++)
+      {
+        xtndd[offst].oFile   = recvBuffer[k].GetOFile();
+        xtndd[offst].oIndex  = recvBuffer[k].GetOIndex();
+        xtndd[offst].idStrct = recvBuffer[k].GetIdStruct();
+        offst++;
+      }
+
+      buffSendOffset += sizeSend;
+    }
+  }
+  MPI_Barrier (MPI_COMM_WORLD);
+  cout << ThisTask << " Done sendrecvs" << endl;
 #endif
-        myturn = 1;
-        char fog [1000];
-        sprintf (fog, "%s.filesofgroup", opt.outname);
-        Fout.open (fog, ios::out);
-        for (Int_t i = 1; i < numgroups; i++)
+
+  //
+  // Write ExtendedFiles
+  //
+  int * myFiles = new int [opt.num_files];
+  for (Int_t i = 0; i < opt.num_files; i++)      myFiles[i] = 0;
+  for (Int_t i = 0; i < nPartTotThisTask; i++)   myFiles[xtndd[i].oFile]++;
+  qsort (xtndd, nPartTotThisTask, sizeof(Extended), ExtendedFileCompare);
+
+
+  for (Int_t i = 0, k = 0; i < opt.num_files; i++)
+  {
+    if (myFiles[i])
+    {
+      for (Int_t j = 0, counter = 0; j < myFiles[i]; j++, k++)
+        if (xtndd[k].idStrct > 0)
+          counter++;
+
+//
+//  NEED TO CREATE ARRAY HERE TO EASILY OUTPUT HDF5
+//
+
+      sprintf (fname,"%s.extended.%d",opt.outname,i);
+
+#ifdef USEHDF
+      if (opt.ibinaryout == OUTHDF)
+      {
+        Fhdf  = H5File(fname, H5F_ACC_TRUNC);
+        group = H5Group(Fhdf.createGroup("/Extended Output"));
+
+        dims      = new hsize_t [1];
+        dims[0]   = counter;
+        dataspace = H5Dataspace (rank, dims);
+        dataset   = Fhdf.createDataSet ("Index", STD_I32BE, dataspace);
+        dataset.write (&ThisTask,)
+        cout<<"Done"<<endl;
+        Fhdf.close();
+      }
+      else
+#endif
+      if (opt.ibinaryout == OUTASCII)
+      {
+        Fout.open (fname,ios::out);
+        for (Int_t j = 0; j < myFiles[i]; j++, k++)
         {
-            Fout << pdata[i].haloid << "  " << nfilespergroup[i] << endl;
-            for (Int_t j = 0; j < nfilespergroup[i]; j++)
-            Fout << filesofgroup[i][j] << " ";
-            Fout << endl;
+          if (xtndd[k].idStrct > 0)
+          {
+            Fout << xtndd[k].oIndex  << "  ";
+            Fout << xtndd[k].idStrct << endl;
+          }
         }
         Fout.close();
-
-#ifdef USEMPI
-        if (NProcs > 1)
-            MPI_Isend (&myturn, 1, MPI_INT, ThisTask+1, ThisTask, MPI_COMM_WORLD, &rqst);
+      }
     }
-    else
-    {
-        MPI_Recv (&myturn, 1, MPI_INT, ThisTask-1, ThisTask-1, MPI_COMM_WORLD, &status);
+  }
 
-        ofstream fout;
-        char fog[1000];
-        sprintf (fog, "%s.filesofgroup", opt.outname);
-        fout.open (fog, ios::app);
-        for (Int_t i = 1; i < numgroups; i++)
-        {
-            fout << pdata[i].haloid << " " << nfilespergroup[i] << endl;
-            for (Int_t j = 0; j < nfilespergroup[i]; j++)fout << filesofgroup[i][j] << " ";
-            fout << endl;
-        }
-        fout.close();
 
-        if (ThisTask != NProcs-1)
-            MPI_Isend (&myturn, 1, MPI_INT, ThisTask+1, ThisTask, MPI_COMM_WORLD, &rqst);
-    }
-    delete [] filesofgroup;
-    delete [] tasksofgroup;
-    delete [] ntaskspergroup;
-    delete [] nfilespergroup;
+#ifdef USEHDF
+  H5File               Fhdf;
+  H5std_string         datasetname;
+  DataSpace            dataspace;
+  DataSet              dataset;
+  DataSpace            attrspace;
+  Attribute            attr;
+  Group                group;
+  float                attrvalue;
+  hsize_t            * dims;
+  hsize_t            * chunk_dims;
 
-    if (opt.iverbose) cout << ThisTask << "filesofgroup written" << endl;
-    // Send and Particles before writing Extended Files
-    // Communicate to all other processors how many particles are going to be sent
-    ntosendtotask[ThisTask] = 0;
-    for (Int_t i = 1; i < NProcs; i++)
-    {
-        int src = (ThisTask + NProcs - i) % NProcs;
-        int dst = (ThisTask + i) % NProcs;
-        MPI_Isend (&ntosendtotask[dst], 1, MPI_INT, dst, ThisTask, MPI_COMM_WORLD, &rqst);
-        MPI_Recv (&ntorecievefromtask[src], 1, MPI_INT, src, src, MPI_COMM_WORLD, &status);
-    }
-
-    // Declare and allocate Particle arrays for sending and receiving
-    Particle ** PartsToSend = new Particle * [NProcs];
-    Particle ** PartsToRecv = new Particle * [NProcs];
-
-    int * count = new int [NProcs];
-    for (Int_t i = 0; i < NProcs; i++)
-    {
-        count[i] = 0;
-        PartsToSend[i] = new Particle [ntosendtotask[i]+1];
-        PartsToRecv[i] = new Particle [ntorecievefromtask[i]+1];
-    }
-
-    // Copy Particles to send
-    for (Int_t i = 0; i < nbodies; i++)
-        if (p[i].GetOTask() != ThisTask)
-            PartsToSend[p[i].GetOTask()][count[p[i].GetOTask()]++] = Particle(p[i]);
-
-    //determine if number of particles can fit into a single send
-    int bufferFlag = 1;
-    long int  maxNumPart = LOCAL_MAX_MSGSIZE / (long int) sizeof(Particle);
-    int localMax = 0;
-    int globalMax = 0;
-    //find max local send and global send
-    for (Int_t i = 0; i < NProcs; i++) if (ntosendtotask[i] > localMax) localMax = ntosendtotask[i];
-    MPI_Allreduce (&localMax, &globalMax, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-
-    if (globalMax >= maxNumPart) bufferFlag = 1;
-
-    // Send and Receive Particles
-    //if splitting sends into chunks
-    if (bufferFlag)
-    {
-        int numBuffersToSend [NProcs];
-        int numBuffersToRecv [NProcs];
-        int numPartInBuffer = maxNumPart;
-
-        for (int jj = 0; jj < NProcs; jj++)
-        {
-            numBuffersToSend[jj] = 0;
-            numBuffersToRecv[jj] = 0;
-            if (ntosendtotask[jj] > 0) numBuffersToSend[jj] = (ntosendtotask[jj]/numPartInBuffer) + 1;
-        }
-        //broadcast numbers sent
-        for (int i = 1; i < NProcs; i++)
-        {
-            int src = (ThisTask + NProcs - i) % NProcs;
-            int dst = (ThisTask + i) % NProcs;
-            MPI_Isend (&numBuffersToSend[dst], 1, MPI_INT, dst, 0, MPI_COMM_WORLD, &rqst);
-            MPI_Recv  (&numBuffersToRecv[src], 1, MPI_INT, src, 0, MPI_COMM_WORLD, &status);
-        }
-        MPI_Barrier (MPI_COMM_WORLD);
-
-        //for each mpi thread send info as necessary
-        for (int i = 1; i < NProcs; i++)
-        {
-            int src = (ThisTask + NProcs - i) % NProcs;
-            int dst = (ThisTask + i) % NProcs;
-            Int_t size = numPartInBuffer;
-            int buffOffset = 0;
-            //send buffers
-            for (int jj = 0; jj < numBuffersToSend[dst]-1; jj++)
-            {
-              MPI_Isend (&size, 1, MPI_Int_t, dst, (int)(jj+1), MPI_COMM_WORLD, &rqst);
-              MPI_Isend (&PartsToSend[dst][buffOffset], sizeof(Particle)*size, MPI_BYTE,
-                         dst, (int)(10000+jj+1), MPI_COMM_WORLD, &rqst);
-            }
-            //and if anything is remaining
-            size = ntosendtotask[dst] % numPartInBuffer;
-            if (size > 0 && numBuffersToSend[dst] > 0)
-            {
-              MPI_Isend (&size, 1, MPI_Int_t, dst, (int)(numBuffersToSend[dst]), MPI_COMM_WORLD, &rqst);
-              MPI_Isend (&PartsToSend[dst][buffOffset], sizeof(Particle)*size, MPI_BYTE,
-                         dst, (int)(10000+numBuffersToSend[dst]), MPI_COMM_WORLD, &rqst);
-            }
-
-            // Receive Buffers
-            buffOffset = 0;
-            for (int jj = 0; jj < numBuffersToRecv[src]; jj++)
-            {
-              Int_t numInBuffer = 0;
-              MPI_Recv (&numInBuffer, 1, MPI_Int_t, src, (int)(jj+1), MPI_COMM_WORLD, &status);
-              MPI_Recv (&PartsToRecv[src][buffOffset], sizeof(Particle)*numInBuffer,
-                        MPI_BYTE, src, (int)(10000+jj+1), MPI_COMM_WORLD, &status);
-              buffOffset += numInBuffer;
-            }
-        }
-    }
-    else
-    {
-        for (Int_t i = 1; i < NProcs; i++)
-        {
-            int src = (ThisTask + NProcs - i) % NProcs;
-            int dst = (ThisTask + i) % NProcs;
-            MPI_Isend (PartsToSend[dst], ntosendtotask[dst]*sizeof(Particle), MPI_BYTE, dst, ThisTask, MPI_COMM_WORLD, &rqst);
-            MPI_Recv (PartsToRecv[src], ntorecievefromtask[src]*sizeof(Particle), MPI_BYTE, src, src, MPI_COMM_WORLD, &status);
-        }
-    }
+  int rank;
+  DataSpace          * propdataspace;
+  DataSet            * propdataset;
+  DSetCreatPropList  * hdfdatasetproplist;
+  int itemp = 0;
+#endif
+#if defined(USEHDF)
+  DataGroupNames datagroupnames;
 #endif
 
-    // Organize particles in files for the ExtendedOutput
-    // First determine which files ThisTask should write
-    int npartthistask = 0;
-    int npartperfile[opt.num_files];
+  PropDataHeader head(opt);
 
-    for (Int_t i = 0; i < opt.num_files; i++)
-        npartperfile[i] = 0;
+  //write header
+    //set file info
+    dims=new hsize_t[1];
+    dims[0]=1;
+    rank=1;
+    itemp=0;
+    //datasetname=H5std_string("File_id");
+    dataspace=DataSpace(rank,dims);
+    dataset = Fhdf.createDataSet(datagroupnames.prop[itemp], datagroupnames.propdatatype[itemp], dataspace);
+    dataset.write(&ThisTask,datagroupnames.propdatatype[itemp]);
+    itemp++;
 
-    // Loop over particles to get how many go to each file
-    for (Int_t i = 0; i < nbodies; i++) if (p[i].GetOTask() == ThisTask)
-    {
-        npartthistask++;
-        npartperfile[p[i].GetOFile()]++;
-    }
+    //datasetname=H5std_string("Num_of_files");
+    dataspace=DataSpace(rank,dims);
+    dataset = Fhdf.createDataSet(datagroupnames.prop[itemp], datagroupnames.propdatatype[itemp], dataspace);
+    dataset.write(&NProcs,datagroupnames.propdatatype[itemp]);
+    itemp++;
 
-#ifdef USEMPI
-    for (Int_t i = 0; i < NProcs; i++)
-        for (Int_t j = 0; j < ntorecievefromtask[i]; j++)
-            if (PartsToRecv[i][j].GetOTask() == ThisTask)
-            {
-                npartthistask++;
-                npartperfile[PartsToRecv[i][j].GetOFile()]++;
-            }
+    //datasetname=H5std_string("Num_of_groups");
+    dataspace=DataSpace(rank,dims);
+    dataset = Fhdf.createDataSet(datagroupnames.prop[itemp], datagroupnames.propdatatype[itemp], dataspace);
+    dataset.write(&ng,datagroupnames.propdatatype[itemp]);
+    itemp++;
+
+    //datasetname=H5std_string("Total_num_of_groups");
+    dataspace=DataSpace(rank,dims);
+    dataset = Fhdf.createDataSet(datagroupnames.prop[itemp], datagroupnames.propdatatype[itemp], dataspace);
+    dataset.write(&ngtot,datagroupnames.propdatatype[itemp]);
+    itemp++;
+
+    //add unit/simulation information as attributes
+    attrspace=DataSpace(H5S_SCALAR);
+    attr=Fhdf.createAttribute(datagroupnames.prop[itemp], datagroupnames.propdatatype[itemp], attrspace);
+    attr.write(datagroupnames.propdatatype[itemp],&opt.icosmologicalin);
+    itemp++;
+    attrspace=DataSpace(H5S_SCALAR);
+    attr=Fhdf.createAttribute(datagroupnames.prop[itemp], datagroupnames.propdatatype[itemp], attrspace);
+    attr.write(datagroupnames.propdatatype[itemp],&opt.icomoveunit);
+    itemp++;
+    attrvalue=opt.p;
+    attrspace=DataSpace(H5S_SCALAR);
+    attr=Fhdf.createAttribute(datagroupnames.prop[itemp], datagroupnames.propdatatype[itemp], attrspace);
+    attr.write(datagroupnames.propdatatype[itemp],&attrvalue);
+    itemp++;
+    attrvalue=opt.a;
+    attrspace=DataSpace(H5S_SCALAR);
+    attr=Fhdf.createAttribute(datagroupnames.prop[itemp], datagroupnames.propdatatype[itemp], attrspace);
+    attr.write(datagroupnames.propdatatype[itemp],&attrvalue);
+    itemp++;
+    attrvalue=opt.lengthtokpc;
+    attrspace=DataSpace(H5S_SCALAR);
+    attr=Fhdf.createAttribute(datagroupnames.prop[itemp], datagroupnames.propdatatype[itemp], attrspace);
+    attr.write(datagroupnames.propdatatype[itemp],&attrvalue);
+    itemp++;
+    attrvalue=opt.velocitytokms;
+    attrspace=DataSpace(H5S_SCALAR);
+    attr=Fhdf.createAttribute(datagroupnames.prop[itemp], datagroupnames.propdatatype[itemp], attrspace);
+    attr.write(datagroupnames.propdatatype[itemp],&attrvalue);
+    itemp++;
+    attrvalue=opt.masstosolarmass;
+    attrspace=DataSpace(H5S_SCALAR);
+    attr=Fhdf.createAttribute(datagroupnames.prop[itemp], datagroupnames.propdatatype[itemp], attrspace);
+    attr.write(datagroupnames.propdatatype[itemp],&attrvalue);
+    itemp++;
+
+      //load data spaces
+      propdataspace=new DataSpace[head.headerdatainfo.size()];
+      propdataset=new DataSet[head.headerdatainfo.size()];
+      dims[0]=ng;
+      //size of chunks in compression
+      chunk_dims=new hsize_t[1];
+      chunk_dims[0]=min((unsigned long)HDFOUTPUTCHUNKSIZE,ng);
+      rank=1;
+      // Modify dataset creation property to enable chunking
+      if (ng>0) {
+        hdfdatasetproplist = new  DSetCreatPropList;
+        hdfdatasetproplist->setChunk(rank, chunk_dims);
+        // Set ZLIB (DEFLATE) Compression using level 6.
+        hdfdatasetproplist->setDeflate(6);
+      }
+      dataspace=DataSpace(rank,dims);
+      for (Int_t i=0;i<head.headerdatainfo.size();i++) {
+          datasetname=H5std_string(head.headerdatainfo[i]);
+          propdataspace[i]=DataSpace(rank,dims);
+          if (ng>0) propdataset[i] = Fhdf.createDataSet(datasetname, head.predtypeinfo[i], propdataspace[i],*hdfdatasetproplist);
+          else propdataset[i] = Fhdf.createDataSet(datasetname, head.predtypeinfo[i], propdataspace[i]);
+      }
+      delete[] dims;
+      delete[] chunk_dims;
+  }
+#endif
+  else {
+      Fout.open(fname,ios::out);
+      Fout<<ThisTask<<" "<<NProcs<<endl;
+      Fout<<ngroups<<" "<<ngtot<<endl;
+      for (Int_t i=0;i<head.headerdatainfo.size();i++) Fout<<head.headerdatainfo[i]<<"("<<i+1<<") ";Fout<<endl;
+      Fout<<setprecision(10);
+  }
+
+  long long idbound;
+  //for ensuring downgrade of precision as subfind uses floats when storing values save for Mvir (??why??)
+  float value,ctemp[3],mtemp[9];
+  double dvalue;
+  int ivalue;
+
+#ifdef USEHDF
+  if (opt.ibinaryout==OUTHDF)
+  {
+      //for hdf may be more useful to produce an array of the appropriate size and write each data set in one go
+      //requires allocating memory
+      int *iarray,itemp;
+      unsigned int *uiarray;
+      long long *larray;
+      unsigned long *ularray;
+      //void pointer to hold data
+      void *data;
+      //allocate enough memory to store largest data type
+      data= ::operator new(sizeof(long long)*(ng+1));
+      itemp=0;
+
+      //first is halo ids, then id of most bound particle, host halo id, number of direct subhaloes, number of particles
+      for (Int_t i=0;i<ngroups;i++) ((unsigned long*)data)[i]=pdata[i+1].haloid;
+      propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+      itemp++;
+      for (Int_t i=0;i<ngroups;i++) ((long long*)data)[i]=pdata[i+1].ibound;
+      propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+      itemp++;
+      for (Int_t i=0;i<ngroups;i++) ((long long*)data)[i]=pdata[i+1].hostid;
+      propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+      itemp++;
+      for (Int_t i=0;i<ngroups;i++) ((unsigned long*)data)[i]=pdata[i+1].numsubs;
+      propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+      itemp++;
+      for (Int_t i=0;i<ngroups;i++) ((unsigned long*)data)[i]=pdata[i+1].num;
+      propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+      itemp++;
+      for (Int_t i=0;i<ngroups;i++) ((int*)data)[i]=pdata[i+1].stype;
+      propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+      itemp++;
+
+      //delete memory associated with void pointer
+      ::operator delete(data);
+      delete[] propdataspace;
+      delete[] propdataset;
+  }
+#endif
+  cout<<"Done"<<endl;
+  if (opt.ibinaryout!=OUTHDF) Fout.close();
+#ifdef USEHDF
+  else Fhdf.close();
 #endif
 
-    // Allocate and fill arrays of particle, halo, host, and igm ids
-    // Here I am assuming that we have n particles with indexes rangin from 0 to n-1
-    int ** Id, ** IdStruct, ** IdTopHost, ** IdHost;
 
-    Id       = new int * [opt.num_files];
-    IdStruct = new int * [opt.num_files];
-    IdTopHost    = new int * [opt.num_files];
-    IdHost   = new int * [opt.num_files];
 
-    for (Int_t i = 0; i < opt.num_files; i++)
-    if (npartperfile[i] > 0)
-    {
-        Id[i]       = new int [npartperfile[i]];
-        IdStruct[i] = new int [npartperfile[i]];
-        IdTopHost[i]    = new int [npartperfile[i]];
-        IdHost[i]   = new int [npartperfile[i]];
-    }
 
-    for (Int_t i = 0; i < nbodies; i++)
-    {
-        if (p[i].GetOTask() == ThisTask)
-        {
-            Id       [p[i].GetOFile()][p[i].GetOIndex()] = p[i].GetPID();
-            IdStruct [p[i].GetOFile()][p[i].GetOIndex()] = p[i].GetIdStruct();
-            IdHost   [p[i].GetOFile()][p[i].GetOIndex()] = p[i].GetIdHost();
-            IdTopHost    [p[i].GetOFile()][p[i].GetOIndex()] = p[i].GetIdTopHost();
-        }
-    }
+
 #ifdef USEMPI
-    for (Int_t i = 0; i < NProcs; i++)
-        for (Int_t j = 0; j < ntorecievefromtask[i]; j++)
-            if (PartsToRecv[i][j].GetOTask() == ThisTask)
-            {
-                Id       [PartsToRecv[i][j].GetOFile()][PartsToRecv[i][j].GetOIndex()] = PartsToRecv[i][j].GetPID();
-                IdStruct [PartsToRecv[i][j].GetOFile()][PartsToRecv[i][j].GetOIndex()] = PartsToRecv[i][j].GetIdStruct();
-                IdHost   [PartsToRecv[i][j].GetOFile()][PartsToRecv[i][j].GetOIndex()] = PartsToRecv[i][j].GetIdHost();
-                IdTopHost    [PartsToRecv[i][j].GetOFile()][PartsToRecv[i][j].GetOIndex()] = PartsToRecv[i][j].GetIdTopHost();
-            }
+  MPI_Barrier (MPI_COMM_WORLD);
+  delete [] taskSendOffset;
+  delete [] recvBuffer;
+  delete [] ntosendtotask;
+  delete [] ntorecvfmtask;
 #endif
+  delete [] myFiles;
+  delete [] xtndd;
 
-    // Write ExtendedFiles
-    for (Int_t i = 0; i < opt.num_files; i++)
-        if (npartperfile[i] > 0)
-        {
-            sprintf (fname,"%s.extended.%d",opt.outname,i);
-            Fout.open (fname,ios::out);
-            for (Int_t j = 0; j < npartperfile[i]; j++)
-            {
-                Fout << setw(12) << Id[i][j]       << "  ";
-                Fout << setw(7)  << IdStruct[i][j] << "  ";
-                Fout << setw(7)  << IdHost[i][j]   << "  ";
-                Fout << setw(7)  << IdTopHost[i][j]    << "  ";
-                Fout << endl;
-            }
-            Fout.close();
-        }
-#ifdef USEMPI
-    MPI_Barrier (MPI_COMM_WORLD);
-#endif
+  // Return particles to original order
+  qsort (p, nbodies, sizeof(Particle), DummyICompare);
+
+  if (opt.iverbose)
     cout << ThisTask << " Finished writing extended output" << endl;
+}
+
+
+int ExtendedFileCompare (const void * a, const void * b)
+{
+  Extended * xtndd1 = (Extended *) a;
+  Extended * xtndd2 = (Extended *) b;
+
+  if (xtndd1->oFile >  xtndd2->oFile) return  1;
+  if (xtndd1->oFile == xtndd2->oFile) return  0;
+  if (xtndd1->oFile <  xtndd2->oFile) return -1;
+}
+
+
+int ExtendedIndexCompare (const void * a, const void * b)
+{
+  Extended * xtndd1 = (Extended *) a;
+  Extended * xtndd2 = (Extended *) b;
+
+  if (xtndd1->oIndex >  xtndd2->oIndex) return  1;
+  if (xtndd1->oIndex == xtndd2->oIndex) return  0;
+  if (xtndd1->oIndex <  xtndd2->oIndex) return -1;
 }
 //@}
 #endif

@@ -21,7 +21,7 @@ int main(int argc,char **argv)
 {
 #ifdef SWIFTINTERFACE
   cout<<"Built with SWIFT interface enabled when running standalone VELOCIraptor. Should only be enabled when running VELOCIraptor as a library from SWIFT. Exiting..."<<endl;
-  exit(0);  
+  exit(0);
 #endif
 #ifdef USEMPI
     //start MPI
@@ -524,7 +524,8 @@ int main(int argc,char **argv)
     }
 
 #ifdef EXTENDEDHALOOUTPUT
-    if (opt.iExtendedOutput) WriteExtendedOutput (opt, ngroup, nbodies, pdata, Part, pfof);
+    if (opt.iextendedoutput)
+      WriteExtendedOutput (opt, ngroup, nbodies, pdata, Part.data(), pfof);
 #endif
 
     delete[] numingroup;

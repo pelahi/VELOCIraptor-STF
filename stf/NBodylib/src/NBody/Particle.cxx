@@ -95,6 +95,27 @@ namespace NBody
         Double_t bb = b.GetPotential();
         return (aa > bb);
     }
+
+#ifdef EXTENDEDHALOOUTPUT    
+    int OTaskCompare (const void *a, const void *b)
+    {
+        Double_t aa = ((Particle*)a)->GetOTask();
+        Double_t bb = ((Particle*)b)->GetOTask();
+        if (aa > bb) return 1;
+        else if (aa < bb) return -1;
+        else return 0;
+    }
+
+    int DummyICompare (const void *a, const void *b)
+    {
+        Double_t aa = ((Particle*)a)->GetDummyI();
+        Double_t bb = ((Particle*)b)->GetDummyI();
+        if (aa > bb) return 1;
+        else if (aa < bb) return -1;
+        else return 0;
+    }
+#endif
+
     /*-----------------------
         Particle functions
       -----------------------*/
@@ -195,13 +216,17 @@ namespace NBody
             zmet=p.zmet;
             sfr=p.sfr;
 #endif
-#ifdef EXTENDEDFOFINFO
-	        oFile    = p.oFile;
-	        oIndex   = p.oIndex;
-	        oTask    = p.oTask;
-	        idStruct = p.idStruct;
-	        idFOFHost    = p.idFOFHost;
-	        idHost   = p.idHost;
+            
+#ifdef EXTENDEDHALOOUTPUT
+            oFile      = p.oFile;
+            oIndex     = p.oIndex;
+            oTask      = p.oTask;
+            idStruct   = p.idStruct;
+            dummyi     = p.dummyi;
+#ifdef EXTRAINFO
+            pfof6d     = p.pfof6d;
+            pfof6dcore = p.pfof6dcore;
+#endif            
 #endif
         }
     }
@@ -270,13 +295,17 @@ namespace NBody
             zmet=p.zmet;
             sfr=p.sfr;
 #endif
-#ifdef EXTENDEDFOFINFO
-	        oFile    = p.oFile;
-	        oIndex   = p.oIndex;
-	        oTask    = p.oTask;
-	        idStruct = p.idStruct;
-	        idFOFHost    = p.idFOFHost;
-	        idHost   = p.idHost;
+
+#ifdef EXTENDEDHALOOUTPUT
+            oFile      = p.oFile;
+            oIndex     = p.oIndex;
+            oTask      = p.oTask;
+            idStruct   = p.idStruct;
+            dummyi     = p.dummyi;
+#ifdef EXTRAINFO
+            pfof6d     = p.pfof6d;
+            pfof6dcore = p.pfof6dcore;
+#endif            
 #endif
         }
       return *this;
@@ -447,6 +476,18 @@ namespace NBody
             metal = p.metal;
             sfr = p.sfr;
             lgS=p.lgS;
+
+#ifdef EXTENDEDHALOOUTPUT
+            oFile      = p.oFile;
+            oIndex     = p.oIndex;
+            oTask      = p.oTask;
+            idStruct   = p.idStruct;
+            dummyi     = p.dummyi;
+#ifdef EXTRAINFO
+            pfof6d     = p.pfof6d;
+            pfof6dcore = p.pfof6dcore;
+#endif            
+#endif
         }
         return *this;
     }
@@ -485,6 +526,18 @@ namespace NBody
             phi=p.phi;
             tform=p.tform;
             metal=p.metal;
+            
+#ifdef EXTENDEDHALOOUTPUT
+            oFile      = p.oFile;
+            oIndex     = p.oIndex;
+            oTask      = p.oTask;
+            idStruct   = p.idStruct;
+            dummyi     = p.dummyi;
+#ifdef EXTRAINFO
+            pfof6d     = p.pfof6d;
+            pfof6dcore = p.pfof6dcore;
+#endif            
+#endif
         }
     }
 
@@ -507,6 +560,18 @@ namespace NBody
             phi=p.phi;
             tform=p.tform;
             metal=p.metal;
+            
+#ifdef EXTENDEDHALOOUTPUT
+            oFile      = p.oFile;
+            oIndex     = p.oIndex;
+            oTask      = p.oTask;
+            idStruct   = p.idStruct;
+            dummyi     = p.dummyi;
+#ifdef EXTRAINFO
+            pfof6d     = p.pfof6d;
+            pfof6dcore = p.pfof6dcore;
+#endif            
+#endif
         }
         return *this;
     }

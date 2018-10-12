@@ -131,28 +131,29 @@ typedef Int_t PARTPIDTYPE;
 #endif
         //@}
 
-#ifdef EXTENDEDFOFINFO
-	    ///Variables to store extra info
+#ifdef EXTENDEDHALOOUTPUT
+        ///Variables to store extra info
         ///used by VELOCIraptor group finding
         //@{
         ///file id of input file containing particle
-    	Int_t oFile;
+        Int_t oFile;
         ///index of particle in input file
-	    Int_t oIndex;
+        Int_t oIndex;
         ///mpi thread id of thread which originally read particle
-	    Int_t oTask;
-        ///group id (halo, subhalo, etc)
-	    Int_t idStruct;
-        ///3DFOF envelop id
-	    Int_t idFOFHost;
+        Int_t oTask;
         ///host id
-	    Int_t idHost;
-        //}
+        Int_t idStruct;
+        ///dummy integer value
+        Int_t dummyi;
+        
+#ifdef EXTRAINFO        
+        long pfof6d;
+        long pfof6dcore;
+#endif        
+        //@}
 #endif
 
-
         public:
-
         /// \name Constructors & Destructors
         //@{
         Particle(Double_t Mass = 0, Double_t x = 0, Double_t y = 0, Double_t z = 0,
@@ -317,7 +318,7 @@ typedef Int_t PARTPIDTYPE;
         void SetEntropy(const Double_t &Entropy) {entropy=Entropy;}
 #endif
 
-#ifdef EXTENDEDFOFINFO
+#ifdef EXTENDEDHALOOUTPUT
         ///Sets and Gets for ExtendedOutput variables
         void SetOFile(const Int_t &i) {oFile = i;}
         Int_t GetOFile() const {return oFile;}
@@ -331,13 +332,17 @@ typedef Int_t PARTPIDTYPE;
         void SetIdStruct(const Int_t &i) {idStruct = i;}
         Int_t GetIdStruct() const {return idStruct;}
 
-        void SetIdHost(const Int_t &i) {idHost = i;}
-        Int_t GetIdHost() const {return idHost;}
-
-        void SetIdFOFHost(const Int_t &i) {idFOFHost = i;}
-        Int_t GetIdFOFHost() const {return idFOFHost;}
+        void SetDummyI(const long &i) {dummyi = i;}
+        Int_t GetDummyI() {return dummyi;}
+        
+#ifdef EXTRAINFO        
+        void SetPfof6d(const long &i) {pfof6d = i;}
+        Int_t GetPfof6d() {return pfof6d;}
+        
+        void SetPfof6dCore(const long &i) {pfof6dcore = i;}
+        Int_t GetPfof6dCore() {return pfof6dcore;}
+#endif        
 #endif
-
         //@}
 
         /// \name Other useful functions
@@ -601,6 +606,13 @@ typedef Int_t PARTPIDTYPE;
     ///sort in ascending particle potential
     int PotCompare (const void *a, const void *b);
 
+#ifdef EXTENDEDHALOOUTPUT
+    ///sort in ascending particle potential
+    int OTaskCompare (const void *a, const void *b);
+    ///sort in ascending particle potential
+    int DummyICompare (const void *a, const void *b);
+#endif    
+    
     ///sort in ascending particle pid for std::sort vector inferface
     bool PIDCompareVec (const Particle &a, const Particle &b);
     ///sort in ascending particle id
