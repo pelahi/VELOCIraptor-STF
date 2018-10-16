@@ -2589,6 +2589,20 @@ void WriteExtendedOutput (Options &opt, Int_t numgroups, Int_t nbodies, PropData
   ngtot        = numgroups;
 #endif
 
+#ifdef USEHDF
+  H5File               Fhdf;
+  H5std_string         datasetname;
+  DataSpace            dataspace;
+  DataSet              dataset;
+  DataSpace            attrspace;
+  Attribute            attr;
+  Group                group;
+  float                attrvalue;
+  hsize_t            * dims;
+  hsize_t            * chunk_dims;
+  int rank;
+#endif
+
   Int_t *  nfilespergroup = new Int_t   [numgroups+1];
   Int_t ** filesofgroup   = new Int_t * [numgroups+1];
 
@@ -2874,41 +2888,68 @@ void WriteExtendedOutput (Options &opt, Int_t numgroups, Int_t nbodies, PropData
   for (Int_t i = 0; i < nPartTotThisTask; i++)   myFiles[xtndd[i].oFile]++;
   qsort (xtndd, nPartTotThisTask, sizeof(Extended), ExtendedFileCompare);
 
+  int * index_array;
+  int * strct_array;
+  int   counter;
+  int   curr;
 
-  for (Int_t i = 0, k = 0; i < opt.num_files; i++)
+  for (Int_t i = 0, curr = 0; i < opt.num_files; i++)
   {
     if (myFiles[i])
     {
-      for (Int_t j = 0, counter = 0; j < myFiles[i]; j++, k++)
+      counter = 0;
+      for (Int_t j = 0, k = curr; j < myFiles[i]; j++, k++)
         if (xtndd[k].idStrct > 0)
           counter++;
-
-//
-//  NEED TO CREATE ARRAY HERE TO EASILY OUTPUT HDF5
-//
 
       sprintf (fname,"%s.extended.%d",opt.outname,i);
 
 #ifdef USEHDF
       if (opt.ibinaryout == OUTHDF)
       {
-        Fhdf  = H5File(fname, H5F_ACC_TRUNC);
-        group = H5Group(Fhdf.createGroup("/Extended Output"));
+        index_array = new int [counter];
+        strct_array = new int [counter];
 
-        dims      = new hsize_t [1];
+        counter = 0;
+        for (Int_t j = 0, k = curr; j < myFiles[i]; j++, k++)
+        {
+          if (xtndd[k].idStrct > 0)
+          {
+            index_array[counter] = xtndd[k].idStrct;
+            strct_array[counter] = xtndd[k].oIndex;
+            counter++;
+          }
+        }
+
+        printf ("HERE\n");
+
+        printf ("counter  %d\n", counter);
+
+        Fhdf  = H5File(fname, H5F_ACC_TRUNC);
+
+        rank      = 1;
+        dims      = new hsize_t [rank];
         dims[0]   = counter;
-        dataspace = H5Dataspace (rank, dims);
-        dataset   = Fhdf.createDataSet ("Index", STD_I32BE, dataspace);
-        dataset.write (&ThisTask,)
-        cout<<"Done"<<endl;
+        dataspace = DataSpace (rank, dims);
+        dataset   = Fhdf.createDataSet ("/Index", PredType::STD_I32LE, dataspace);
+        dataset.write (index_array, PredType::STD_I32LE);
+
+        dataspace = DataSpace (rank, dims);
+        dataset   = Fhdf.createDataSet ("/StructID", PredType::STD_I32LE, dataspace);
+        dataset.write (strct_array, PredType::STD_I32LE);
+
         Fhdf.close();
+        cout << "Done" << endl;
+
+        delete [] index_array;
+        delete [] strct_array;
       }
       else
 #endif
       if (opt.ibinaryout == OUTASCII)
       {
         Fout.open (fname,ios::out);
-        for (Int_t j = 0; j < myFiles[i]; j++, k++)
+        for (Int_t j = 0, k = curr; j < myFiles[i]; j++, k++)
         {
           if (xtndd[k].idStrct > 0)
           {
@@ -2917,189 +2958,11 @@ void WriteExtendedOutput (Options &opt, Int_t numgroups, Int_t nbodies, PropData
           }
         }
         Fout.close();
+        cout<<"Done"<<endl;
       }
+      curr += myFiles[i];
     }
   }
-
-
-#ifdef USEHDF
-  H5File               Fhdf;
-  H5std_string         datasetname;
-  DataSpace            dataspace;
-  DataSet              dataset;
-  DataSpace            attrspace;
-  Attribute            attr;
-  Group                group;
-  float                attrvalue;
-  hsize_t            * dims;
-  hsize_t            * chunk_dims;
-
-  int rank;
-  DataSpace          * propdataspace;
-  DataSet            * propdataset;
-  DSetCreatPropList  * hdfdatasetproplist;
-  int itemp = 0;
-#endif
-#if defined(USEHDF)
-  DataGroupNames datagroupnames;
-#endif
-
-  PropDataHeader head(opt);
-
-  //write header
-    //set file info
-    dims=new hsize_t[1];
-    dims[0]=1;
-    rank=1;
-    itemp=0;
-    //datasetname=H5std_string("File_id");
-    dataspace=DataSpace(rank,dims);
-    dataset = Fhdf.createDataSet(datagroupnames.prop[itemp], datagroupnames.propdatatype[itemp], dataspace);
-    dataset.write(&ThisTask,datagroupnames.propdatatype[itemp]);
-    itemp++;
-
-    //datasetname=H5std_string("Num_of_files");
-    dataspace=DataSpace(rank,dims);
-    dataset = Fhdf.createDataSet(datagroupnames.prop[itemp], datagroupnames.propdatatype[itemp], dataspace);
-    dataset.write(&NProcs,datagroupnames.propdatatype[itemp]);
-    itemp++;
-
-    //datasetname=H5std_string("Num_of_groups");
-    dataspace=DataSpace(rank,dims);
-    dataset = Fhdf.createDataSet(datagroupnames.prop[itemp], datagroupnames.propdatatype[itemp], dataspace);
-    dataset.write(&ng,datagroupnames.propdatatype[itemp]);
-    itemp++;
-
-    //datasetname=H5std_string("Total_num_of_groups");
-    dataspace=DataSpace(rank,dims);
-    dataset = Fhdf.createDataSet(datagroupnames.prop[itemp], datagroupnames.propdatatype[itemp], dataspace);
-    dataset.write(&ngtot,datagroupnames.propdatatype[itemp]);
-    itemp++;
-
-    //add unit/simulation information as attributes
-    attrspace=DataSpace(H5S_SCALAR);
-    attr=Fhdf.createAttribute(datagroupnames.prop[itemp], datagroupnames.propdatatype[itemp], attrspace);
-    attr.write(datagroupnames.propdatatype[itemp],&opt.icosmologicalin);
-    itemp++;
-    attrspace=DataSpace(H5S_SCALAR);
-    attr=Fhdf.createAttribute(datagroupnames.prop[itemp], datagroupnames.propdatatype[itemp], attrspace);
-    attr.write(datagroupnames.propdatatype[itemp],&opt.icomoveunit);
-    itemp++;
-    attrvalue=opt.p;
-    attrspace=DataSpace(H5S_SCALAR);
-    attr=Fhdf.createAttribute(datagroupnames.prop[itemp], datagroupnames.propdatatype[itemp], attrspace);
-    attr.write(datagroupnames.propdatatype[itemp],&attrvalue);
-    itemp++;
-    attrvalue=opt.a;
-    attrspace=DataSpace(H5S_SCALAR);
-    attr=Fhdf.createAttribute(datagroupnames.prop[itemp], datagroupnames.propdatatype[itemp], attrspace);
-    attr.write(datagroupnames.propdatatype[itemp],&attrvalue);
-    itemp++;
-    attrvalue=opt.lengthtokpc;
-    attrspace=DataSpace(H5S_SCALAR);
-    attr=Fhdf.createAttribute(datagroupnames.prop[itemp], datagroupnames.propdatatype[itemp], attrspace);
-    attr.write(datagroupnames.propdatatype[itemp],&attrvalue);
-    itemp++;
-    attrvalue=opt.velocitytokms;
-    attrspace=DataSpace(H5S_SCALAR);
-    attr=Fhdf.createAttribute(datagroupnames.prop[itemp], datagroupnames.propdatatype[itemp], attrspace);
-    attr.write(datagroupnames.propdatatype[itemp],&attrvalue);
-    itemp++;
-    attrvalue=opt.masstosolarmass;
-    attrspace=DataSpace(H5S_SCALAR);
-    attr=Fhdf.createAttribute(datagroupnames.prop[itemp], datagroupnames.propdatatype[itemp], attrspace);
-    attr.write(datagroupnames.propdatatype[itemp],&attrvalue);
-    itemp++;
-
-      //load data spaces
-      propdataspace=new DataSpace[head.headerdatainfo.size()];
-      propdataset=new DataSet[head.headerdatainfo.size()];
-      dims[0]=ng;
-      //size of chunks in compression
-      chunk_dims=new hsize_t[1];
-      chunk_dims[0]=min((unsigned long)HDFOUTPUTCHUNKSIZE,ng);
-      rank=1;
-      // Modify dataset creation property to enable chunking
-      if (ng>0) {
-        hdfdatasetproplist = new  DSetCreatPropList;
-        hdfdatasetproplist->setChunk(rank, chunk_dims);
-        // Set ZLIB (DEFLATE) Compression using level 6.
-        hdfdatasetproplist->setDeflate(6);
-      }
-      dataspace=DataSpace(rank,dims);
-      for (Int_t i=0;i<head.headerdatainfo.size();i++) {
-          datasetname=H5std_string(head.headerdatainfo[i]);
-          propdataspace[i]=DataSpace(rank,dims);
-          if (ng>0) propdataset[i] = Fhdf.createDataSet(datasetname, head.predtypeinfo[i], propdataspace[i],*hdfdatasetproplist);
-          else propdataset[i] = Fhdf.createDataSet(datasetname, head.predtypeinfo[i], propdataspace[i]);
-      }
-      delete[] dims;
-      delete[] chunk_dims;
-  }
-#endif
-  else {
-      Fout.open(fname,ios::out);
-      Fout<<ThisTask<<" "<<NProcs<<endl;
-      Fout<<ngroups<<" "<<ngtot<<endl;
-      for (Int_t i=0;i<head.headerdatainfo.size();i++) Fout<<head.headerdatainfo[i]<<"("<<i+1<<") ";Fout<<endl;
-      Fout<<setprecision(10);
-  }
-
-  long long idbound;
-  //for ensuring downgrade of precision as subfind uses floats when storing values save for Mvir (??why??)
-  float value,ctemp[3],mtemp[9];
-  double dvalue;
-  int ivalue;
-
-#ifdef USEHDF
-  if (opt.ibinaryout==OUTHDF)
-  {
-      //for hdf may be more useful to produce an array of the appropriate size and write each data set in one go
-      //requires allocating memory
-      int *iarray,itemp;
-      unsigned int *uiarray;
-      long long *larray;
-      unsigned long *ularray;
-      //void pointer to hold data
-      void *data;
-      //allocate enough memory to store largest data type
-      data= ::operator new(sizeof(long long)*(ng+1));
-      itemp=0;
-
-      //first is halo ids, then id of most bound particle, host halo id, number of direct subhaloes, number of particles
-      for (Int_t i=0;i<ngroups;i++) ((unsigned long*)data)[i]=pdata[i+1].haloid;
-      propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-      itemp++;
-      for (Int_t i=0;i<ngroups;i++) ((long long*)data)[i]=pdata[i+1].ibound;
-      propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-      itemp++;
-      for (Int_t i=0;i<ngroups;i++) ((long long*)data)[i]=pdata[i+1].hostid;
-      propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-      itemp++;
-      for (Int_t i=0;i<ngroups;i++) ((unsigned long*)data)[i]=pdata[i+1].numsubs;
-      propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-      itemp++;
-      for (Int_t i=0;i<ngroups;i++) ((unsigned long*)data)[i]=pdata[i+1].num;
-      propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-      itemp++;
-      for (Int_t i=0;i<ngroups;i++) ((int*)data)[i]=pdata[i+1].stype;
-      propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-      itemp++;
-
-      //delete memory associated with void pointer
-      ::operator delete(data);
-      delete[] propdataspace;
-      delete[] propdataset;
-  }
-#endif
-  cout<<"Done"<<endl;
-  if (opt.ibinaryout!=OUTHDF) Fout.close();
-#ifdef USEHDF
-  else Fhdf.close();
-#endif
-
-
-
 
 
 #ifdef USEMPI
