@@ -122,6 +122,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
 #ifdef USEMPI
     if (NProcs==1) {
         totalgroups=numgroups;
+        mpi_ngroups[ThisTask]=numgroups;
         delete tree;
     }
     else {

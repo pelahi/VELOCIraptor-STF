@@ -2915,20 +2915,21 @@ void WriteExtendedOutput (Options &opt, Int_t numgroups, Int_t nbodies, PropData
         {
           if (xtndd[k].idStrct > 0)
           {
-            index_array[counter] = xtndd[k].idStrct;
-            strct_array[counter] = xtndd[k].oIndex;
+            index_array[counter] = xtndd[k].oIndex;
+            strct_array[counter] = xtndd[k].idStrct;
             counter++;
           }
         }
-
-        printf ("HERE\n");
-
-        printf ("counter  %d\n", counter);
 
         Fhdf  = H5File(fname, H5F_ACC_TRUNC);
 
         rank      = 1;
         dims      = new hsize_t [rank];
+        dims[0]   = 1;
+        dataspace = DataSpace (rank, dims);
+        dataset   = Fhdf.createDataSet ("/Nparts", PredType::STD_I32LE, dataspace);
+        dataset.write (&counter, PredType::STD_I32LE);
+
         dims[0]   = counter;
         dataspace = DataSpace (rank, dims);
         dataset   = Fhdf.createDataSet ("/Index", PredType::STD_I32LE, dataspace);
