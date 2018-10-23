@@ -138,6 +138,9 @@ using namespace NBody;
 //solely phase-space tensor core growth substructure search
 #define  FOF6DCORE 6
 
+//Dark Matter Halos Search + Galaxies using stars
+#define FOFDMGALSTARS 15
+
 ///phase-space FOF but no subset produced
 #define  FOFSTNOSUBSET 2
 ///no subsets made, just 6d (with each 6dfof search using 3d fof velocity dispersion,)
@@ -529,7 +532,7 @@ struct Options
     //Swift::siminfo swiftsiminfo;
 
     double spacedimension[3];
-        
+
     /* Number of top-level cells. */
     int numcells;
 

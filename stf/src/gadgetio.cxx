@@ -367,6 +367,18 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
                         Part[count2].SetPID(idval);
                         Part[count2].SetID(count2);
                         Part[count2].SetType(DARKTYPE);
+#ifdef EXTENDEDHALOOUTPUT
+                        if (opt.iextendedoutput)
+                        {
+                          Part[count2].SetOFile(i);
+                          Part[count2].SetOTask(ThisTask);
+                          Part[count2].SetOIndex(indx);
+#ifdef EXTRAINFO
+                          Part[count2].SetPfof6d(0);
+                          Part[count2].SetPfof6dCore(0);
+#endif
+                        }
+#endif
                         count2++;
                     }
                     else {
@@ -381,8 +393,8 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
                               Part[bcount2].SetOTask(ThisTask);
                               Part[bcount2].SetOIndex(indx);
 #ifdef EXTRAINFO
-                              Part[count2].SetPfof6d(0);
-                              Part[count2].SetPfof6dCore(0);
+                              Part[bcount2].SetPfof6d(0);
+                              Part[bcount2].SetPfof6dCore(0);
 #endif
                             }
 #endif
