@@ -223,7 +223,9 @@ namespace NBody
       //rho=p.rho;
       ///\todo does this need to be converted for cosmology as well ? and unit conversion
       gravityphi=p.potential;
-      // TODO: Internal energy
+#ifdef GASON
+      u = p.u;
+#endif
       pid=p.id;
     }
 
