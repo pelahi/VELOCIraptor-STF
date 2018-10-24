@@ -466,30 +466,73 @@ int main(int argc,char **argv)
         WriteFOF(opt,nbodies,pfof);
 #endif
     }
-    numingroup=BuildNumInGroup(Nlocal, ngroup, pfof);
 
-    //if separate files explicitly save halos, associated baryons, and subhalos separately
-    if (opt.iseparatefiles) {
-    if (nhalos>0) {
-        pglist=SortAccordingtoBindingEnergy(opt,Nlocal,Part.data(),nhalos,pfof,numingroup,pdata);//alters pglist so most bound particles first
-        WriteProperties(opt,nhalos,pdata);
-        WriteGroupCatalog(opt, nhalos, numingroup, pglist, Part,ngroup-nhalos);
-        //if baryons have been searched output related gas baryon catalogue
-        if (opt.iBaryonSearch>0 || opt.partsearchtype==PSTALL){
-            WriteGroupPartType(opt, nhalos, numingroup, pglist, Part);
+
+    //-------------------------------------------------
+    // Write different files for structures
+    //
+    Int_t ploop;
+    Int_t nptypes = 3;
+    Int_t * pfoftmp = new Int_t [Nlocal];
+    Int_t * ptypes  = new Int_t [nptypes];
+
+    char oname   [1024];
+    char tmpbuff [1024];
+
+    ptypes[0] = DARKTYPE;
+    ptypes[1] = STARTYPE;
+    ptypes[2] = GASTYPE;
+
+    for (int j = 0; j < Nlocal; j++)
+      pfoftmp[j] = pfof[j];
+
+    strcpy (oname, opt.outname);
+
+    for (ploop = 0; ploop < nptypes; ploop++)
+    {
+      // Make pfof of all particles not of current type 0
+      for (int j = 0; j < Nlocal; j++)
+        if (Part[j].GetType() != ptypes[ploop])
+          pfof[j] = 0;
+
+      numingroup=BuildNumInGroup(Nlocal, ngroup, pfof);
+
+      sprintf (tmpbuff, "%s_%d", oname, ptypes[ploop]);
+      strcpy (opt.outname, tmpbuff);
+
+      //if separate files explicitly save halos, associated baryons, and subhalos separately
+      if (opt.iseparatefiles) {
+        if (nhalos>0) {
+            pglist=SortAccordingtoBindingEnergy(opt,Nlocal,Part.data(),nhalos,pfof,numingroup,pdata);//alters pglist so most bound particles first
+            WriteProperties(opt,nhalos,pdata);
+            WriteGroupCatalog(opt, nhalos, numingroup, pglist, Part,ngroup-nhalos);
+            //if baryons have been searched output related gas baryon catalogue
+            if (opt.iBaryonSearch>0 || opt.partsearchtype==PSTALL){
+                WriteGroupPartType(opt, nhalos, numingroup, pglist, Part);
+            }
+            WriteHierarchy(opt,ngroup,nhierarchy,psldata->nsinlevel,nsub,parentgid,stype);
+            for (Int_t i=1;i<=nhalos;i++) delete[] pglist[i];
+            delete[] pglist;
         }
-        WriteHierarchy(opt,ngroup,nhierarchy,psldata->nsinlevel,nsub,parentgid,stype);
-        for (Int_t i=1;i<=nhalos;i++) delete[] pglist[i];
-        delete[] pglist;
-    }
-    else {
-        WriteGroupCatalog(opt,nhalos,numingroup,NULL,Part);
-        WriteHierarchy(opt,nhalos,nhierarchy,psldata->nsinlevel,nsub,parentgid,stype);
-        if (opt.iBaryonSearch>0 || opt.partsearchtype==PSTALL){
-            WriteGroupPartType(opt, nhalos, numingroup, NULL, Part);
+        else {
+            WriteGroupCatalog(opt,nhalos,numingroup,NULL,Part);
+            WriteHierarchy(opt,nhalos,nhierarchy,psldata->nsinlevel,nsub,parentgid,stype);
+            if (opt.iBaryonSearch>0 || opt.partsearchtype==PSTALL){
+                WriteGroupPartType(opt, nhalos, numingroup, NULL, Part);
+            }
         }
+      }
+      // Make pfof of all particles not of current type 0
+      for (int j = 0; j < Nlocal; j++)
+        if (Part[j].GetType() == ptypes[ploop])
+          pfoftmp[j] = pfof[j];
     }
-    }
+    strcpy (opt.outname, oname);
+
+    //-------------------------------------------------
+
+    //--------------- ASK PASCAL WHAT THIS DOES ---------------------
+    //
     Int_t indexii=0;
     ng=ngroup;
     //if separate files, alter offsets
@@ -522,11 +565,38 @@ int main(int argc,char **argv)
             WriteGroupPartType(opt, ng, &numingroup[indexii], NULL, Part);
         }
     }
+    //
+    //--------------- ASK PASCAL WHAT THIS DOES ---------------------
 
 #ifdef EXTENDEDHALOOUTPUT
     if (opt.iextendedoutput)
-      WriteExtendedOutput (opt, ngroup, nbodies, pdata, Part.data(), pfof);
+    {
+      for (int j = 0; j < Nlocal; j++)
+        pfoftmp[j] = pfof[j];
+
+      strcpy (oname, opt.outname);
+
+      for (ploop = 0; ploop < nptypes; ploop++)
+      {
+        // Make pfof of all particles not of current type 0
+        for (int j = 0; j < Nlocal; j++)
+          if (Part[j].GetType() != ptypes[ploop])
+            pfof[j] = 0;
+
+        sprintf (tmpbuff, "%s_%d", oname, ptypes[ploop]);
+        strcpy (opt.outname, tmpbuff);
+        WriteExtendedOutput (opt, ngroup, nbodies, pdata, Part.data(), pfof);
+
+        for (int j = 0; j < Nlocal; j++)
+          if (Part[j].GetType() == ptypes[ploop])
+            pfoftmp[j] = pfof[j];
+      }
+    }
 #endif
+    strcpy (opt.outname, oname);
+    for (int j = 0; j < Nlocal; j++)
+      pfof[j] = pfoftmp[j];
+    delete [] pfoftmp;
 
     delete[] numingroup;
     delete[] pdata;
