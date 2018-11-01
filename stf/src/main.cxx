@@ -270,8 +270,8 @@ int main(int argc,char **argv)
         time1=MyGetTime();
         if(FileExists(fname4)) ReadLocalVelocityDensity(opt, nbodies,Part);
         else  {
-            GetVelocityDensity(opt, nbodies, Part);
-            WriteLocalVelocityDensity(opt, nbodies,Part);
+    //        GetVelocityDensity(opt, nbodies, Part);
+    //        WriteLocalVelocityDensity(opt, nbodies,Part);
         }
         time1=MyGetTime()-time1;
         cout<<"TIME::"<<ThisTask<<" took "<<time1<<" to analyze/read local velocity density for "<<Nlocal<<" with "<<nthreads<<endl;
@@ -522,49 +522,48 @@ int main(int argc,char **argv)
             }
         }
       }
+      //-------------------------------------------------
+
+      //--------------- ASK PASCAL WHAT THIS DOES ---------------------
+      //
+      Int_t indexii=0;
+      ng=ngroup;
+      //if separate files, alter offsets
+      if (opt.iseparatefiles) {
+          sprintf(fname1,"%s.sublevels",opt.outname);
+          sprintf(opt.outname,"%s",fname1);
+          //alter index point to just output sublevels (assumes no reordering and assumes no change in nhalos as a result of unbinding in SubSubSearch)
+          indexii=nhalos;
+          ng=ngroup-nhalos;
+      }
+
+      if (ng>0) {
+          pglist=SortAccordingtoBindingEnergy(opt,nbodies,Part.data(),ng,pfof,&numingroup[indexii],&pdata[indexii],indexii);//alters pglist so most bound particles first
+          WriteProperties(opt,ng,&pdata[indexii]);
+          WriteGroupCatalog(opt, ng, &numingroup[indexii], pglist, Part);
+          if (opt.iseparatefiles) WriteHierarchy(opt,ngroup,nhierarchy,psldata->nsinlevel,nsub,parentgid,stype,1);
+          else WriteHierarchy(opt,ngroup,nhierarchy,psldata->nsinlevel,nsub,parentgid,stype,-1);
+          if (opt.iBaryonSearch>0 || opt.partsearchtype==PSTALL){
+              WriteGroupPartType(opt, ng, &numingroup[indexii], pglist, Part);
+          }
+          for (Int_t i=1;i<=ng;i++) delete[] pglist[i];
+          delete[] pglist;
+      }
+      else {
+          WriteProperties(opt,ng,NULL);
+          WriteGroupCatalog(opt,ng,&numingroup[indexii],NULL,Part);
+          if (opt.iseparatefiles) WriteHierarchy(opt,ngroup,nhierarchy,psldata->nsinlevel,nsub,parentgid,stype,1);
+          else WriteHierarchy(opt,ngroup,nhierarchy,psldata->nsinlevel,nsub,parentgid,stype,-1);
+          if (opt.iBaryonSearch>0 || opt.partsearchtype==PSTALL){
+              WriteGroupPartType(opt, ng, &numingroup[indexii], NULL, Part);
+          }
+      }
       // Make pfof of all particles not of current type 0
       for (int j = 0; j < Nlocal; j++)
         if (Part[j].GetType() == ptypes[ploop])
           pfoftmp[j] = pfof[j];
     }
     strcpy (opt.outname, oname);
-
-    //-------------------------------------------------
-
-    //--------------- ASK PASCAL WHAT THIS DOES ---------------------
-    //
-    Int_t indexii=0;
-    ng=ngroup;
-    //if separate files, alter offsets
-    if (opt.iseparatefiles) {
-        sprintf(fname1,"%s.sublevels",opt.outname);
-        sprintf(opt.outname,"%s",fname1);
-        //alter index point to just output sublevels (assumes no reordering and assumes no change in nhalos as a result of unbinding in SubSubSearch)
-        indexii=nhalos;
-        ng=ngroup-nhalos;
-    }
-
-    if (ng>0) {
-        pglist=SortAccordingtoBindingEnergy(opt,nbodies,Part.data(),ng,pfof,&numingroup[indexii],&pdata[indexii],indexii);//alters pglist so most bound particles first
-        WriteProperties(opt,ng,&pdata[indexii]);
-        WriteGroupCatalog(opt, ng, &numingroup[indexii], pglist, Part);
-        if (opt.iseparatefiles) WriteHierarchy(opt,ngroup,nhierarchy,psldata->nsinlevel,nsub,parentgid,stype,1);
-        else WriteHierarchy(opt,ngroup,nhierarchy,psldata->nsinlevel,nsub,parentgid,stype,-1);
-        if (opt.iBaryonSearch>0 || opt.partsearchtype==PSTALL){
-            WriteGroupPartType(opt, ng, &numingroup[indexii], pglist, Part);
-        }
-        for (Int_t i=1;i<=ng;i++) delete[] pglist[i];
-        delete[] pglist;
-    }
-    else {
-        WriteProperties(opt,ng,NULL);
-        WriteGroupCatalog(opt,ng,&numingroup[indexii],NULL,Part);
-        if (opt.iseparatefiles) WriteHierarchy(opt,ngroup,nhierarchy,psldata->nsinlevel,nsub,parentgid,stype,1);
-        else WriteHierarchy(opt,ngroup,nhierarchy,psldata->nsinlevel,nsub,parentgid,stype,-1);
-        if (opt.iBaryonSearch>0 || opt.partsearchtype==PSTALL){
-            WriteGroupPartType(opt, ng, &numingroup[indexii], NULL, Part);
-        }
-    }
     //
     //--------------- ASK PASCAL WHAT THIS DOES ---------------------
 
