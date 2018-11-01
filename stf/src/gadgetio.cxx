@@ -377,12 +377,12 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
 #ifdef EXTENDEDHALOOUTPUT
                             if (opt.iextendedoutput)
                             {
-                              Part[bcount2].SetOFile(i);
-                              Part[bcount2].SetOTask(ThisTask);
-                              Part[bcount2].SetOIndex(indx);
+                              Pbaryons[bcount2].SetOFile(i);
+                              Pbaryons[bcount2].SetOTask(ThisTask);
+                              Pbaryons[bcount2].SetOIndex(indx);
 #ifdef EXTRAINFO
-                              Part[count2].SetPfof6d(0);
-                              Part[count2].SetPfof6dCore(0);
+                              Pbaryons[bcount2].SetPfof6d(0);
+                              Pbaryons[bcount2].SetPfof6dCore(0);
 #endif
                             }
 #endif
