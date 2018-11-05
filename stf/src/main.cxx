@@ -266,6 +266,7 @@ int main(int argc,char **argv)
     //as found by SearchFullSet)
 #if defined (STRUCDEN) || defined (HALOONLYDEN)
 #else
+/*
     if (opt.iSubSearch==1) {
         time1=MyGetTime();
         if(FileExists(fname4)) ReadLocalVelocityDensity(opt, nbodies,Part);
@@ -276,6 +277,7 @@ int main(int argc,char **argv)
         time1=MyGetTime()-time1;
         cout<<"TIME::"<<ThisTask<<" took "<<time1<<" to analyze/read local velocity density for "<<Nlocal<<" with "<<nthreads<<endl;
     }
+*/
 #endif
 
     //here adjust Efrac to Omega_cdm/Omega_m from what it was before if baryonic search is separate

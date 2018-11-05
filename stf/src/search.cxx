@@ -449,6 +449,138 @@ private(i,tid,xscaling,vscaling)
 }
 #endif
 
+
+    if (opt.iAllField)
+    {
+      int ptype;
+      if (opt.partsearchtype==PSTSTAR) ptype = STARTYPE;
+      if (opt.partsearchtype==PSTGAS)  ptype = GASTYPE;
+      if (opt.partsearchtype==PSTBH)   ptype = BHTYPE;
+
+      delete [] numingroup;
+      delete [] Head;
+      delete [] Next;
+      delete [] Tail;
+      delete [] Len;
+      delete [] paramomp;
+      //
+      // Sort Particles back to pfof
+      //
+      // iend is currently number of groups after 3D or 6D FOF
+      for (i=0;i<Nlocal;i++) pfof[i]=0;
+      ng=0;
+      // Only particles of selected type keep their fof value, zero otherwise
+      for (i=1;i<=iend;i++)
+      {
+        for (int j=0;j<numingroup[i];j++)
+          if (Part[noffset[i]+j].GetType() == ptype)
+            pfof[ids[Part[noffset[i]+j].GetID()+noffset[i]]] = pfofomp[i][j]+(pfofomp[i][j]>0)*ng;
+        Part[noffset[i]+j].SetID(ids[Part[noffset[i]+j].GetID()+noffset[i]]);
+        ng+=ngomp[i];
+        delete[] pfofomp[i];
+      }
+      delete [] pfofomp;
+      gsl_heapsort(Part.data(), Nlocal, sizeof(Particle), IDCompare);
+      // at this point pfof and Part should be in the same order
+
+      // Same code as above, to sort particles by group
+      numgroups = ng;
+      storetype = new Int_t[Nlocal];
+      if (numingroup != NULL) delete [] numingroup; numingroup = new Int_t[numgroups+1];
+      if (noffset    != NULL) delete [] noffset;    noffset    = new Int_t[numgroups+1];
+
+      for (i=0;i<=numgroups;i++) numingroup[i]=noffset[i]=0;
+      for (i=0;i<Nlocal;i++)
+      {
+        storetype[i]=Part[i].GetPID();
+        Part[i].SetPID((pfof[i]==0)*Nlocal+(pfof[i]>0)*pfof[i]);
+        npartingroups+=(Int_t)(pfof[i]>0);
+        iend+=(pfof[i]==1);
+        numingroup[pfof[i]]++;
+      }
+      for (i=2;i<=numgroups;i++) noffset[i]=noffset[i-1]+numingroup[i-1];
+      qsort(Part.data(), Nlocal, sizeof(Particle), PIDCompare);
+      for (i=0;i<Nlocal;i++) Part[i].SetPID(storetype[Part[i].GetID()]);
+      delete[] storetype;
+      for (i=0;i<Nlocal;i++) ids[i]=Part[i].GetID();
+
+      //now if 6dfof search to overcome issues with 3DFOF by searching only particles that have been previously linked by the 3dfof
+      //adjust physical linking length
+      param[1]*=opt.ellhalo6dxfac_pstype*opt.ellhalo6dxfac_pstype;
+      param[6]=param[1];
+      //set min size and fof criterion
+      minsize=opt.HaloMinSize_pstype;
+
+      if(opt.fofbgtype==FOF6DADAPTIVE || opt.iKeepFOF)
+      {
+        vscale2array=new Double_t[numgroups+1];
+        for (i=1;i<=numgroups;i++)
+        {
+          vscale2=mtotregion=vx=vy=vz=0;
+
+          for (Int_t j=0;j<numingroup[i];j++)
+          {
+            vx += Part[j+noffset[i]].GetVelocity(0) * Part[j+noffset[i]].GetMass();
+            vy += Part[j+noffset[i]].GetVelocity(1) * Part[j+noffset[i]].GetMass();
+            vz += Part[j+noffset[i]].GetVelocity(2) * Part[j+noffset[i]].GetMass();
+            mtotregion += Part[j+noffset[i]].GetMass();
+          }
+
+          vmean[0]=vx/mtotregion;
+          vmean[1]=vy/mtotregion;
+          vmean[2]=vz/mtotregion;
+
+          for (Int_t j=0;j<numingroup[i];j++)
+          {
+            for (int k=0;k<3;k++)
+             vscale2+=pow(Part[j+noffset[i]].GetVelocity(k)-vmean[k],2.0)*Part[j+noffset[i]].GetMass();
+          }
+          vscale2array[i]=vscale2/mtotregion*opt.ellhalo6dvfac*opt.ellhalo6dvfac;;
+        }
+      }
+
+      Head = new Int_tree_t [Nlocal];
+      Next = new Int_tree_t [Nlocal];
+      Tail = new Int_tree_t [Nlocal];
+      Len  = new Int_tree_t [Nlocal];
+      //now split search by group. If doing fixed velocity dispersion search can group together all small
+      //3DFOF groups into a single search
+      //otherwise don't group together all small groups
+      iend = numgroups;
+      //copy the parameters appropriately to the paramsomp array which can be used by openmp
+      for (i=0;i<nthreads;i++)
+        for (int j=0;j<20;j++)
+        paramomp[j+i*20]=param[j];
+
+      ///\todo need to improve kdtree 6dfof construction to make use of scaling dimensions and running in 6d.
+      ///before ran FOF criterion on physical tree but try scaling particles according to linking lengths, run
+      ///6d phase tree and simple FOF ball search
+      pfofomp=new Int_t*[iend+1];
+      ngomp=new Int_t[iend+1];
+      for (i=1;i<=iend;i++)
+      {
+        tid=0;
+        //if adaptive 6dfof, set params
+        if (opt.fofbgtype==FOF6DADAPTIVE) paramomp[2+tid*20]=paramomp[7+tid*20]=vscale2array[i];
+        //scale particle positions
+        xscaling=1.0/sqrt(paramomp[1+tid*20]);vscaling=1.0/sqrt(paramomp[2+tid*20]);
+        for (Int_t j=0;j<numingroup[i];j++)
+        {
+          Part[noffset[i]+j].ScalePhase(xscaling,vscaling);
+        }
+        xscaling = 1.0 / xscaling;
+        vscaling = 1.0 / vscaling;
+        treeomp[tid] = new KDTree(&(Part.data()[noffset[i]]),numingroup[i],opt.Bsize,treeomp[tid]->TPHS,tree->KEPAN,100);
+        pfofomp[i]   = treeomp[tid]->FOF(1.0,ngomp[i],minsize,1,&Head[noffset[i]],&Next[noffset[i]],&Tail[noffset[i]],&Len[noffset[i]]);
+        delete treeomp[tid];
+        for (Int_t j=0;j<numingroup[i];j++)
+        {
+          Part[noffset[i]+j].ScalePhase(xscaling,vscaling);
+        }
+      }
+    //end of opt.iAllField
+    }
+
     //now if keeping original 3DFOF structures (useful for stellar haloes search) then store original number of 3d fof haloes
     if (opt.iKeepFOF)
     {

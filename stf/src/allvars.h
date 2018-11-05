@@ -335,6 +335,8 @@ struct Options
     int ibinaryout;
     ///for extended output allowing extraction of particles
     int iextendedoutput;
+    ///Field search is done using all particles, substructures are then searched on a specific particle type
+    int iAllField;
     /// output extra fields in halo properties
     int iextrahalooutput;
     ///disable particle id related output like fof.grp or catalog_group data. Useful if just want halo properties
@@ -529,7 +531,7 @@ struct Options
     //Swift::siminfo swiftsiminfo;
 
     double spacedimension[3];
-        
+
     /* Number of top-level cells. */
     int numcells;
 
