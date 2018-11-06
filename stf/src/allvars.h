@@ -335,8 +335,6 @@ struct Options
     int ibinaryout;
     ///for extended output allowing extraction of particles
     int iextendedoutput;
-    ///Field search is done using all particles, substructures are then searched on a specific particle type
-    int iAllField;
     /// output extra fields in halo properties
     int iextrahalooutput;
     ///disable particle id related output like fof.grp or catalog_group data. Useful if just want halo properties
@@ -551,6 +549,17 @@ struct Options
     const int *cellnodeids;
 
     //@}
+
+    //@{ Added for allpart field then ptype search
+    ///
+    ///Field search is done using all particles, substructures are then searched on a specific particle type
+    int iAllField;
+    ///scaling for ellphs and ellvel
+    Double_t ellhalo6dxfac_pstype;
+    Double_t ellhalo6dvfac_pstype;
+    int HaloMinSize_pstype;
+    //@}
+
     Options()
     {
         L = 1.0;

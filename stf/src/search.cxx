@@ -79,6 +79,15 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) {fofcmp=&FOF3dDM;param[7]=DARKTYPE;fofcheck=FOFchecktype;}
     else fofcmp=&FOF3d;
     //if using mpi no need to locally sort just yet and might as well return the Head, Len, Next arrays
+
+    int opstype   = opt.partsearchtype;
+    int oibsearch = opt.iBaryonSearch;
+    if (opt.iAllField)
+    {
+      opt.partsearchtype = PSTALL;
+      opt.iBaryonSearch  = 1;
+    }
+
 #ifdef USEMPI
     Head=new Int_tree_t[nbodies];Next=new Int_tree_t[nbodies];
     //posible alteration for all particle search
@@ -452,6 +461,10 @@ private(i,tid,xscaling,vscaling)
 
     if (opt.iAllField)
     {
+      //Return params to original ones
+      opt.partsearchtype = opstype;
+      opt.iBaryonSearch  = oibsearch;
+
       int ptype;
       if (opt.partsearchtype==PSTSTAR) ptype = STARTYPE;
       if (opt.partsearchtype==PSTGAS)  ptype = GASTYPE;
@@ -473,9 +486,11 @@ private(i,tid,xscaling,vscaling)
       for (i=1;i<=iend;i++)
       {
         for (int j=0;j<numingroup[i];j++)
+        {
           if (Part[noffset[i]+j].GetType() == ptype)
             pfof[ids[Part[noffset[i]+j].GetID()+noffset[i]]] = pfofomp[i][j]+(pfofomp[i][j]>0)*ng;
-        Part[noffset[i]+j].SetID(ids[Part[noffset[i]+j].GetID()+noffset[i]]);
+          Part[noffset[i]+j].SetID(ids[Part[noffset[i]+j].GetID()+noffset[i]]);
+        }
         ng+=ngomp[i];
         delete[] pfofomp[i];
       }
@@ -535,7 +550,7 @@ private(i,tid,xscaling,vscaling)
             for (int k=0;k<3;k++)
              vscale2+=pow(Part[j+noffset[i]].GetVelocity(k)-vmean[k],2.0)*Part[j+noffset[i]].GetMass();
           }
-          vscale2array[i]=vscale2/mtotregion*opt.ellhalo6dvfac*opt.ellhalo6dvfac;;
+          vscale2array[i]=vscale2/mtotregion*opt.ellhalo6dvfac_pstype*opt.ellhalo6dvfac_pstype;
         }
       }
 

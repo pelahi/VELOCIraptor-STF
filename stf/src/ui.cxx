@@ -574,6 +574,15 @@ void GetParamFile(Options &opt)
                     else if (strcmp(tbuff, "Input_includes_extradm_particle")==0)
                         opt.iuseextradarkparticles = atoi(vbuff);
 
+                    //input related to allparts field search + pstype subsearch
+                    else if (strcmp(tbuff, "Halo_6D_linking_length_factor_pstype")==0)
+                        opt.ellhalo6dxfac_pstype = atof(vbuff);
+                    else if (strcmp(tbuff, "Halo_6D_vel_linking_length_factor_pstype")==0)
+                        opt.ellhalo6dvfac_pstype = atof(vbuff);
+                    else if (strcmp(tbuff, "Minimum_halo_size_pstype")==0)
+                        opt.HaloMinSize_pstype = atoi(vbuff);
+                    else if (strcmp(tbuff, "All_ptypes_field_pstype_sub")==0)
+                        opt.iAllField = atoi(vbuff);
                 }
             }
         }
