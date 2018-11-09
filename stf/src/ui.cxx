@@ -581,8 +581,10 @@ void GetParamFile(Options &opt)
                         opt.ellhalo6dvfac_pstype = atof(vbuff);
                     else if (strcmp(tbuff, "Minimum_halo_size_pstype")==0)
                         opt.HaloMinSize_pstype = atoi(vbuff);
-                    else if (strcmp(tbuff, "All_ptypes_field_pstype_sub")==0)
+                    else if (strcmp(tbuff, "All_ptypes_field")==0)
                         opt.iAllField = atoi(vbuff);
+                    else if (strcmp(tbuff, "All_ptypes_field_pstype")==0)
+                        opt.allfield_pstype = atoi(vbuff);
                 }
             }
         }

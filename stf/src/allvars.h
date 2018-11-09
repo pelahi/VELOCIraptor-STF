@@ -558,6 +558,7 @@ struct Options
     Double_t ellhalo6dxfac_pstype;
     Double_t ellhalo6dvfac_pstype;
     int HaloMinSize_pstype;
+    int allfield_pstype;
     //@}
 
     Options()

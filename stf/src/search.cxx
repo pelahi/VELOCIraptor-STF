@@ -80,14 +80,6 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     else fofcmp=&FOF3d;
     //if using mpi no need to locally sort just yet and might as well return the Head, Len, Next arrays
 
-    int opstype   = opt.partsearchtype;
-    int oibsearch = opt.iBaryonSearch;
-    if (opt.iAllField)
-    {
-      opt.partsearchtype = PSTALL;
-      opt.iBaryonSearch  = 1;
-    }
-
 #ifdef USEMPI
     Head=new Int_tree_t[nbodies];Next=new Int_tree_t[nbodies];
     //posible alteration for all particle search
@@ -461,16 +453,17 @@ private(i,tid,xscaling,vscaling)
 
     if (opt.iAllField)
     {
+      cout << "All parts field 6DFOF search done." << endl;
+
       //Return params to original ones
-      opt.partsearchtype = opstype;
-      opt.iBaryonSearch  = oibsearch;
+      opt.partsearchtype = opt.allfield_pstype;
+      opt.iBaryonSearch  = 0;
 
       int ptype;
       if (opt.partsearchtype==PSTSTAR) ptype = STARTYPE;
       if (opt.partsearchtype==PSTGAS)  ptype = GASTYPE;
       if (opt.partsearchtype==PSTBH)   ptype = BHTYPE;
 
-      delete [] numingroup;
       delete [] Head;
       delete [] Next;
       delete [] Tail;
@@ -554,10 +547,12 @@ private(i,tid,xscaling,vscaling)
         }
       }
 
-      Head = new Int_tree_t [Nlocal];
-      Next = new Int_tree_t [Nlocal];
-      Tail = new Int_tree_t [Nlocal];
-      Len  = new Int_tree_t [Nlocal];
+      Head     = new Int_tree_t [Nlocal];
+      Next     = new Int_tree_t [Nlocal];
+      Tail     = new Int_tree_t [Nlocal];
+      Len      = new Int_tree_t [Nlocal];
+      paramomp = new Double_t   [nthreads*20];
+
       //now split search by group. If doing fixed velocity dispersion search can group together all small
       //3DFOF groups into a single search
       //otherwise don't group together all small groups
