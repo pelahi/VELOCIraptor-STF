@@ -2205,8 +2205,8 @@ private(j,Pval,x,y,z,massval)
         fac=-log(4.0*M_PI/3.0);
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
-private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol)\
-private(x,y,z,vx,vy,vz,numinvir,num200c,num200m,rhoval,rhoval2,rcold,J)\
+private(i,j,k,Pval)\
+private(massval,x,y,z,vx,vy,vz,J,rc,rcold,EncMass,numinvir,num200c,num200m,rhoval,rhoval2)\
 firstprivate(virval,m200val,m200mval,mBN98val)
 {
     #pragma omp for schedule(dynamic) nowait
@@ -2456,7 +2456,7 @@ private(i,j,k,x,y,z)
         fac=-log(4.0*M_PI/3.0);
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
-private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,EncMass,rc,rhoval,rhoval2,tid,SOpids)
+private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,EncMass,J,rc,rhoval,rhoval2,tid,SOpids)
 {
     #pragma omp for schedule(dynamic) nowait
 #endif
