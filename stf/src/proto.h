@@ -80,7 +80,7 @@ void WriteVELOCIraptorConfig(Options &opt);
 void WriteSimulationInfo(Options &opt);
 ///Write the unit info
 void WriteUnitInfo(Options &opt);
-///Write particle ids of those within spherical overdensity of a field halo 
+///Write particle ids of those within spherical overdensity of a field halo
 void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids);
 ///Writes ROCKSTAR like output
 //@{
@@ -270,7 +270,7 @@ void GetCMProp(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, 
 ///Get inclusive masses for field objects
 void GetInclusiveMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&pfof, Int_t *&numingroup, PropData *&pdata, Int_t *&noffset);
 ///simple routine to copy over mass information (useful for storing inclusive info)
-void CopyMasses(const Int_t nhalos, PropData *&pold, PropData *&pnew);
+void CopyMasses(Options &opt, const Int_t nhalos, PropData *&pold, PropData *&pnew);
 ///simple routine to reorder mass information based on number of particles when new remaining number of haloes < old halos
 void ReorderInclusiveMasses(const Int_t &nold, const Int_t &nnew, Int_t *&numingroup, PropData *&pdata);
 ///Get Binding Energy

@@ -1136,11 +1136,19 @@ struct PropData
     int n_star;
     ///mass
     Double_t M_star, M_star_rvmax, M_star_30kpc, M_star_50kpc, M_star_500c;
+    ///mass in spherical overdensities
+    Double_t M_200crit_star, M_200mean_star, M_BN98_star;
+    ///mass in spherical overdensities inclusive of all masses
+    Double_t M_200crit_excl_star, M_200mean_excl_star, M_BN98_excl_star;
     ///pos/vel info
     Coordinate cm_star,cmvel_star;
     ///velocity/angular momentum info
     Double_t Krot_star;
     Coordinate L_star;
+    ///physical properties for angular momentum (can be inclusive or exclusive )
+    Coordinate L_200crit_star, L_200mean_star, L_BN98_star;
+    ///physical properties for angular momentum exclusiveto object
+    Coordinate L_200crit_excl_star, L_200mean_excl_star, L_BN98_excl_star;
     Matrix veldisp_star;
     ///morphology
     Double_t Rhalfmass_star,q_star,s_star;
@@ -1234,6 +1242,15 @@ struct PropData
         t_star=Z_star=0.;
         veldisp_star=Matrix(0.);
         Krot_star=T_star=Pot_star=0;
+
+        M_200mean_star=M_200crit_star=M_BN98_star=0;
+        M_200mean_excl_star=M_200crit_excl_star=M_BN98_excl_star=0;
+        L_200crit_star[0]=L_200crit_star[1]=L_200crit_star[2]=0;
+        L_200mean_star[0]=L_200mean_star[1]=L_200mean_star[2]=0;
+        L_BN98_star[0]=L_BN98_star[1]=L_BN98_star[2]=0;
+        L_200crit_excl_star[0]=L_200crit_excl_star[1]=L_200crit_excl_star[2]=0;
+        L_200mean_excl_star[0]=L_200mean_excl_star[1]=L_200mean_excl_star[2]=0;
+        L_BN98_excl_star[0]=L_BN98_excl_star[1]=L_BN98_excl_star[2]=0;
 #endif
 #ifdef BHON
         n_bh=M_bh=0;
@@ -1283,6 +1300,20 @@ struct PropData
         L_200mean_excl_gas=p.L_200mean_excl_gas;
         L_200crit_excl_gas=p.L_200crit_excl_gas;
         L_BN98_excl_gas=p.L_BN98_excl_gas;
+#endif
+#ifdef STARON
+        M_200mean_star=p.M_200mean_star;
+        M_200crit_star=p.M_200crit_star;
+        M_BN98_star=p.M_BN98_star;
+        M_200mean_excl_star=p.M_200mean_excl_star;
+        M_200crit_excl_star=p.M_200crit_excl_star;
+        M_BN98_excl_star=p.M_BN98_excl_star;
+        L_200mean_star=p.L_200mean_star;
+        L_200crit_star=p.L_200crit_star;
+        L_BN98_star=p.L_BN98_star;
+        L_200mean_excl_star=p.L_200mean_excl_star;
+        L_200crit_excl_star=p.L_200crit_excl_star;
+        L_BN98_excl_star=p.L_BN98_excl_star;
 #endif
         return *this;
     }
@@ -1950,8 +1981,6 @@ struct PropDataHeader{
                 headerdatainfo.push_back("R_200mean_excl");
                 headerdatainfo.push_back("R_200crit_excl");
                 headerdatainfo.push_back("R_BN98_excl");
-            }
-            if (opt.iInclusiveHalo==2) {
                 headerdatainfo.push_back("Lx_200mean_excl");
                 headerdatainfo.push_back("Ly_200mean_excl");
                 headerdatainfo.push_back("Lz_200mean_excl");
@@ -2108,6 +2137,34 @@ struct PropDataHeader{
         headerdatainfo.push_back("Krot_star");
         headerdatainfo.push_back("tage_star");
         headerdatainfo.push_back("Zmet_star");
+        if (opt.iextrastaroutput) {
+            headerdatainfo.push_back("Mass_200mean_star");
+            headerdatainfo.push_back("Mass_200crit_star");
+            headerdatainfo.push_back("Mass_BN98_star");
+            headerdatainfo.push_back("Lx_200c_star");
+            headerdatainfo.push_back("Ly_200c_star");
+            headerdatainfo.push_back("Lz_200c_star");
+            headerdatainfo.push_back("Lx_200m_star");
+            headerdatainfo.push_back("Ly_200m_star");
+            headerdatainfo.push_back("Lz_200m_star");
+            headerdatainfo.push_back("Lx_BN98_star");
+            headerdatainfo.push_back("Ly_BN98_star");
+            headerdatainfo.push_back("Lz_BN98_star");
+            if (opt.iInclusiveHalo==2) {
+                headerdatainfo.push_back("Mass_200mean_excl_star");
+                headerdatainfo.push_back("Mass_200crit_excl_star");
+                headerdatainfo.push_back("Mass_BN98_excl_star");
+                headerdatainfo.push_back("Lx_200c_excl_star");
+                headerdatainfo.push_back("Ly_200c_excl_star");
+                headerdatainfo.push_back("Lz_200c_excl_star");
+                headerdatainfo.push_back("Lx_200m_excl_star");
+                headerdatainfo.push_back("Ly_200m_excl_star");
+                headerdatainfo.push_back("Lz_200m_excl_star");
+                headerdatainfo.push_back("Lx_BN98_excl_star");
+                headerdatainfo.push_back("Ly_BN98_excl_star");
+                headerdatainfo.push_back("Lz_BN98_excl_star");
+            }
+        }
 #ifdef USEHDF
         sizeval=predtypeinfo.size();
         for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);

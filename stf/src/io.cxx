@@ -2015,6 +2015,61 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Z_star;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
+        if (opt.iextrastaroutput) {
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200mean_star;
+            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+            itemp++;
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200crit_star;
+            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+            itemp++;
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_BN98_star;
+            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+            itemp++;
+
+            for (int k=0;k<3;k++){
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200mean_star[k];
+            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+            itemp++;
+            }
+            for (int k=0;k<3;k++){
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200crit_star[k];
+            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+            itemp++;
+            }
+            for (int k=0;k<3;k++){
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_BN98_star[k];
+            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+            itemp++;
+            }
+
+            if (opt.iInclusiveHalo==2) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200mean_excl_star;
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200crit_excl_star;
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_BN98_excl_star;
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+
+                for (int k=0;k<3;k++){
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200mean_excl_star[k];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+                }
+                for (int k=0;k<3;k++){
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200crit_excl_star[k];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+                }
+                for (int k=0;k<3;k++){
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_BN98_excl_star[k];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+                }
+            }
+        }
 #endif
 #ifdef BHON
         for (Int_t i=0;i<ngroups;i++) ((unsigned long*)data)[i]=pdata[i+1].n_bh;
