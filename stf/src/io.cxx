@@ -1790,7 +1790,7 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
             propdataset[itemp].write(data,head.predtypeinfo[itemp]);
             itemp++;
             }
-            if (opt.iInclusiveHalo==2) {
+            if (opt.iInclusiveHalo>0) {
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gM200m_excl;
                 propdataset[itemp].write(data,head.predtypeinfo[itemp]);
                 itemp++;
@@ -1918,7 +1918,7 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         itemp++;
         }
 
-        if (opt.iInclusiveHalo==2) {
+        if (opt.iInclusiveHalo>0) {
             for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200mean_excl_gas;
             propdataset[itemp].write(data,head.predtypeinfo[itemp]);
             itemp++;
@@ -2042,7 +2042,7 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
             itemp++;
             }
 
-            if (opt.iInclusiveHalo==2) {
+            if (opt.iInclusiveHalo>0) {
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200mean_excl_star;
                 propdataset[itemp].write(data,head.predtypeinfo[itemp]);
                 itemp++;

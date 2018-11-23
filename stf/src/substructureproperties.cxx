@@ -559,6 +559,8 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
             if (pdata[i].gRBN98==0) {pdata[i].gMBN98=pdata[i].gmass;pdata[i].gRBN98=pdata[i].gsize;}
         }
         if (opt.iextrahalooutput) {
+            EncMass=pdata[i].gmass;
+            if (opt.iInclusiveHalo>0 && pdata[i].hostid!=-1) {
             for (j=numingroup[i]-1;j>=0;j--) {
                 Pval=&Part[j+noffset[i]];
                 rc=Pval->Radius();
@@ -581,6 +583,7 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
             if (pdata[i].gR200c_excl==0) {pdata[i].gM200c_excl=pdata[i].gmass;pdata[i].gR200c_excl=pdata[i].gsize;}
             if (pdata[i].gR200m_excl==0) {pdata[i].gM200m_excl=pdata[i].gmass;pdata[i].gR200m_excl=pdata[i].gsize;}
             if (pdata[i].gRBN98_excl==0) {pdata[i].gMBN98_excl=pdata[i].gmass;pdata[i].gRBN98_excl=pdata[i].gsize;}
+            }
         }
 
         //determine properties like maximum circular velocity, velocity dispersion, angular momentum, etc
@@ -588,6 +591,7 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
         EncMass=0;
         Ekin=0.;
         pdata[i].gJ[0]=pdata[i].gJ[1]=pdata[i].gJ[2]=0.;
+        Coordinate J;
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
 #ifdef NOMASS
@@ -599,9 +603,20 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
             vx = (*Pval).Vx()-pdata[i].gcmvel[0];
             vy = (*Pval).Vy()-pdata[i].gcmvel[1];
             vz = (*Pval).Vz()-pdata[i].gcmvel[2];
-            pdata[i].gJ=pdata[i].gJ+Coordinate(Pval->GetPosition()).Cross(Coordinate(vx,vy,vz))*Pval->GetMass();
-            if (rc<pdata[i].gR200m) pdata[i].gJ200m=pdata[i].gJ200m+Coordinate(Pval->GetPosition()).Cross(Coordinate(vx,vy,vz))*Pval->GetMass();
-            if (rc<pdata[i].gR200c) pdata[i].gJ200c=pdata[i].gJ200c+Coordinate(Pval->GetPosition()).Cross(Coordinate(vx,vy,vz))*Pval->GetMass();
+            J=Coordinate(Pval->GetPosition()).Cross(Coordinate(vx,vy,vz))*Pval->GetMass();
+            pdata[i].gJ=pdata[i].gJ+J;
+            if (opt.iextrahalooutput) {
+                if (opt.iInclusiveHalo>0 && pdata[i].hostid!=-1) {
+                    if (rc<pdata[i].gR200m) pdata[i].gJ200m=pdata[i].gJ200m+J;
+                    if (rc<pdata[i].gR200c) pdata[i].gJ200c=pdata[i].gJ200c+J;
+                    if (rc<pdata[i].gRBN98) pdata[i].gJBN98=pdata[i].gJBN98+J;
+                }
+                if (opt.iInclusiveHalo>0) {
+                    if (rc<pdata[i].gR200m) pdata[i].gJ200m_excl=pdata[i].gJ200m_excl+J;
+                    if (rc<pdata[i].gR200c) pdata[i].gJ200c_excl=pdata[i].gJ200c_excl+J;
+                    if (rc<pdata[i].gRBN98) pdata[i].gJBN98_excl=pdata[i].gJBN98_excl+J;
+                }
+            }
             Ekin+=Pval->GetMass()*(vx*vx+vy*vy+vz*vz);
             pdata[i].gveldisp(0,0)+=vx*vx*Pval->GetMass();
             pdata[i].gveldisp(1,1)+=vy*vy*Pval->GetMass();
@@ -1086,9 +1101,9 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
 }
 #endif
 
-time1=MyGetTime()-time1;
-cout<<ThisTask<<" done with small groups in "<<time1<<endl;
-time1=MyGetTime();
+    time1=MyGetTime()-time1;
+    cout<<ThisTask<<" done with small groups in "<<time1<<endl;
+    time1=MyGetTime();
 
     for (i=1;i<=ngroup;i++) if (numingroup[i]>=omppropnum)
     {
@@ -1237,11 +1252,39 @@ private(j,Pval,x,y,z)
             if (pdata[i].gR500c==0) {pdata[i].gM500c=pdata[i].gmass;pdata[i].gR500c=pdata[i].gsize;}
             if (pdata[i].gRBN98==0) {pdata[i].gMBN98=pdata[i].gmass;pdata[i].gRBN98=pdata[i].gsize;}
         }
+        if (opt.iextrahalooutput) {
+            EncMass=pdata[i].gmass;
+            if (opt.iInclusiveHalo>0 && pdata[i].hostid!=-1) {
+            for (j=numingroup[i]-1;j>=0;j--) {
+                Pval=&Part[j+noffset[i]];
+                rc=Pval->Radius();
+                if (pdata[i].gRvir_excl==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>virval)
+                {pdata[i].gMvir_excl=EncMass;pdata[i].gRvir_excl=rc;}
+                if (pdata[i].gR200c_excl==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m200val)
+                {pdata[i].gM200c_excl=EncMass;pdata[i].gR200c_excl=rc;}
+                if (pdata[i].gR200m_excl==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m200mval)
+                {pdata[i].gM200m_excl=EncMass;pdata[i].gR200m_excl=rc;}
+                if (pdata[i].gRBN98_excl==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>mBN98val)
+                {pdata[i].gMBN98_excl=EncMass;pdata[i].gRBN98_excl=rc;}
+                if (pdata[i].gR200m_excl!=0&&pdata[i].gR200c_excl!=0&&pdata[i].gRvir_excl!=0&&pdata[i].gRBN98_excl!=0) break;
+#ifdef NOMASS
+                EncMass-=opt.MassValue;
+#else
+                EncMass-=Pval->GetMass();
+#endif
+            }
+            if (pdata[i].gRvir_excl==0) {pdata[i].gMvir_excl=pdata[i].gmass;pdata[i].gRvir_excl=pdata[i].gsize;}
+            if (pdata[i].gR200c_excl==0) {pdata[i].gM200c_excl=pdata[i].gmass;pdata[i].gR200c_excl=pdata[i].gsize;}
+            if (pdata[i].gR200m_excl==0) {pdata[i].gM200m_excl=pdata[i].gmass;pdata[i].gR200m_excl=pdata[i].gsize;}
+            if (pdata[i].gRBN98_excl==0) {pdata[i].gMBN98_excl=pdata[i].gmass;pdata[i].gRBN98_excl=pdata[i].gsize;}
+            }
+        }
 
         EncMass=0;
         Double_t Jx,Jy,Jz,sxx,sxy,sxz,syy,syz,szz;
         Double_t Jx200m,Jy200m,Jz200m;
         Double_t Jx200c,Jy200c,Jz200c;
+        Double_t JxBN98,JyBN98,JzBN98;
         Coordinate J;
         Ekin=Jx=Jy=Jz=sxx=sxy=sxz=syy=syz=szz=Krot=0.;
 #ifdef USEOPENMP
@@ -1264,6 +1307,7 @@ private(j,Pval,rc,x,y,z,vx,vy,vz,J,mval)
             Jx+=J[0];Jy+=J[1];Jz+=J[2];
             if (rc<pdata[i].gR200m) Jx200m+=J[0];Jy200m+=J[1];Jz200m+=J[2];
             if (rc<pdata[i].gR200c) Jx200c+=J[0];Jy200c+=J[1];Jz200c+=J[2];
+            if (rc<pdata[i].gRBN98) JxBN98+=J[0];JyBN98+=J[1];JzBN98+=J[2];
             sxx+=vx*vx*mval;
             syy+=vy*vy*mval;
             szz+=vz*vz*mval;
@@ -1275,16 +1319,33 @@ private(j,Pval,rc,x,y,z,vx,vy,vz,J,mval)
 #ifdef USEOPENMP
 }
 #endif
-
         pdata[i].gJ[0]=Jx;
         pdata[i].gJ[1]=Jy;
         pdata[i].gJ[2]=Jz;
-        pdata[i].gJ200m[0]=Jx200m;
-        pdata[i].gJ200m[1]=Jy200m;
-        pdata[i].gJ200m[2]=Jz200m;
-        pdata[i].gJ200c[0]=Jx200c;
-        pdata[i].gJ200c[1]=Jy200c;
-        pdata[i].gJ200c[2]=Jz200c;
+        if (opt.iextrahalooutput) {
+            if (opt.iInclusiveHalo>0 && pdata[i].hostid!=-1) {
+                pdata[i].gJ200m[0]=Jx200m;
+                pdata[i].gJ200m[1]=Jy200m;
+                pdata[i].gJ200m[2]=Jz200m;
+                pdata[i].gJ200c[0]=Jx200c;
+                pdata[i].gJ200c[1]=Jy200c;
+                pdata[i].gJ200c[2]=Jz200c;
+                pdata[i].gJBN98[0]=JxBN98;
+                pdata[i].gJBN98[1]=JyBN98;
+                pdata[i].gJBN98[2]=JzBN98;
+            }
+            if (opt.iInclusiveHalo>0) {
+                pdata[i].gJ200m_excl[0]=Jx200m;
+                pdata[i].gJ200m_excl[1]=Jy200m;
+                pdata[i].gJ200m_excl[2]=Jz200m;
+                pdata[i].gJ200c_excl[0]=Jx200c;
+                pdata[i].gJ200c_excl[1]=Jy200c;
+                pdata[i].gJ200c_excl[2]=Jz200c;
+                pdata[i].gJBN98_excl[0]=JxBN98;
+                pdata[i].gJBN98_excl[1]=JyBN98;
+                pdata[i].gJBN98_excl[2]=JzBN98;
+            }
+        }
         pdata[i].gveldisp(0,0)=sxx;
         pdata[i].gveldisp(1,1)=syy;
         pdata[i].gveldisp(2,2)=szz;

@@ -1519,7 +1519,7 @@ struct PropData
             Fout.write((char*)val3,sizeof(val)*3);
             for (int k=0;k<3;k++) val3[k]=gJBN98[k];
             Fout.write((char*)val3,sizeof(val)*3);
-            if (opt.iInclusiveHalo==2) {
+            if (opt.iInclusiveHalo>0) {
                 val=gM200m_excl;
                 Fout.write((char*)&val,sizeof(val));
                 val=gM200c_excl;
@@ -1595,7 +1595,7 @@ struct PropData
         Fout.write((char*)val3,sizeof(val)*3);
         for (int k=0;k<3;k++) val3[k]=L_BN98_gas[k];
         Fout.write((char*)val3,sizeof(val)*3);
-        if (opt.iInclusiveHalo==2) {
+        if (opt.iInclusiveHalo>0) {
             val=M_200mean_excl_gas;
             Fout.write((char*)&val,sizeof(val));
             val=M_200crit_excl_gas;
@@ -1655,6 +1655,34 @@ struct PropData
         val=Z_star;
         Fout.write((char*)&val,sizeof(val));
 
+        if (opt.iextragasoutput) {
+            val=M_200mean_star;
+            Fout.write((char*)&val,sizeof(val));
+            val=M_200crit_star;
+            Fout.write((char*)&val,sizeof(val));
+            val=M_BN98_star;
+            Fout.write((char*)&val,sizeof(val));
+            for (int k=0;k<3;k++) val3[k]=L_200mean_star[k];
+            Fout.write((char*)val3,sizeof(val)*3);
+            for (int k=0;k<3;k++) val3[k]=L_200crit_star[k];
+            Fout.write((char*)val3,sizeof(val)*3);
+            for (int k=0;k<3;k++) val3[k]=L_BN98_star[k];
+            Fout.write((char*)val3,sizeof(val)*3);
+            if (opt.iInclusiveHalo>0) {
+                val=M_200mean_excl_star;
+                Fout.write((char*)&val,sizeof(val));
+                val=M_200crit_excl_star;
+                Fout.write((char*)&val,sizeof(val));
+                val=M_BN98_excl_star;
+                Fout.write((char*)&val,sizeof(val));
+                for (int k=0;k<3;k++) val3[k]=L_200mean_excl_star[k];
+                Fout.write((char*)val3,sizeof(val)*3);
+                for (int k=0;k<3;k++) val3[k]=L_200crit_excl_star[k];
+                Fout.write((char*)val3,sizeof(val)*3);
+                for (int k=0;k<3;k++) val3[k]=L_BN98_excl_star[k];
+                Fout.write((char*)val3,sizeof(val)*3);
+            }
+        }
 #endif
 
 #ifdef BHON
@@ -1726,7 +1754,7 @@ struct PropData
             for (int k=0;k<3;k++) Fout<<gJ200m[k]<<" ";
             for (int k=0;k<3;k++) Fout<<gJ200c[k]<<" ";
             for (int k=0;k<3;k++) Fout<<gJBN98[k]<<" ";
-            if (opt.iInclusiveHalo==2){
+            if (opt.iInclusiveHalo>0) {
                 Fout<<gM200m_excl<<" ";
                 Fout<<gM200c_excl<<" ";
                 Fout<<gMBN98_excl<<" ";
@@ -1768,7 +1796,7 @@ struct PropData
         for (int k=0;k<3;k++) Fout<<L_200mean_gas[k]<<" ";
         for (int k=0;k<3;k++) Fout<<L_200crit_gas[k]<<" ";
         for (int k=0;k<3;k++) Fout<<L_BN98_gas[k]<<" ";
-        if (opt.iInclusiveHalo==2) {
+        if (opt.iInclusiveHalo>0) {
             Fout<<M_200mean_excl_gas<<" ";
             Fout<<M_200crit_excl_gas<<" ";
             Fout<<M_BN98_excl_gas<<" ";
@@ -1798,6 +1826,22 @@ struct PropData
         Fout<<Krot_star<<" ";
         Fout<<t_star<<" ";
         Fout<<Z_star<<" ";
+        if (opt.iextragasoutput) {
+            Fout<<M_200mean_star<<" ";
+            Fout<<M_200crit_star<<" ";
+            Fout<<M_BN98_star<<" ";
+            for (int k=0;k<3;k++) Fout<<L_200mean_star[k]<<" ";
+            for (int k=0;k<3;k++) Fout<<L_200crit_star[k]<<" ";
+            for (int k=0;k<3;k++) Fout<<L_BN98_star[k]<<" ";
+            if (opt.iInclusiveHalo>0) {
+                Fout<<M_200mean_excl_star<<" ";
+                Fout<<M_200crit_excl_star<<" ";
+                Fout<<M_BN98_excl_star<<" ";
+                for (int k=0;k<3;k++) Fout<<L_200mean_excl_star[k]<<" ";
+                for (int k=0;k<3;k++) Fout<<L_200crit_excl_star[k]<<" ";
+                for (int k=0;k<3;k++) Fout<<L_BN98_excl_star[k]<<" ";
+            }
+        }
 #endif
 
 #ifdef BHON
@@ -1974,7 +2018,7 @@ struct PropDataHeader{
             headerdatainfo.push_back("Lx_BN98");
             headerdatainfo.push_back("Ly_BN98");
             headerdatainfo.push_back("Lz_BN98");
-            if (opt.iInclusiveHalo==2) {
+            if (opt.iInclusiveHalo>0) {
                 headerdatainfo.push_back("Mass_200mean_excl");
                 headerdatainfo.push_back("Mass_200crit_excl");
                 headerdatainfo.push_back("Mass_BN98_excl");
@@ -2065,7 +2109,7 @@ struct PropDataHeader{
         headerdatainfo.push_back("Lx_BN98_gas");
         headerdatainfo.push_back("Ly_BN98_gas");
         headerdatainfo.push_back("Lz_BN98_gas");
-        if (opt.iInclusiveHalo==2) {
+        if (opt.iInclusiveHalo>0) {
             headerdatainfo.push_back("Mass_200mean_excl_gas");
             headerdatainfo.push_back("Mass_200crit_excl_gas");
             headerdatainfo.push_back("Mass_BN98_excl_gas");
@@ -2150,7 +2194,7 @@ struct PropDataHeader{
             headerdatainfo.push_back("Lx_BN98_star");
             headerdatainfo.push_back("Ly_BN98_star");
             headerdatainfo.push_back("Lz_BN98_star");
-            if (opt.iInclusiveHalo==2) {
+            if (opt.iInclusiveHalo>0) {
                 headerdatainfo.push_back("Mass_200mean_excl_star");
                 headerdatainfo.push_back("Mass_200crit_excl_star");
                 headerdatainfo.push_back("Mass_BN98_excl_star");
