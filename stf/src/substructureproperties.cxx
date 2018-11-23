@@ -2245,12 +2245,30 @@ firstprivate(virval,m200val,m200mval,mBN98val)
                             pdata[i].L_200crit_gas+=J;
                         }
                         if (rc<=pdata[i].gR200m) {
-                            pdata[i].M_200crit_gas+=massval;
-                            pdata[i].L_200crit_gas+=J;
+                            pdata[i].M_200mean_gas+=massval;
+                            pdata[i].L_200mean_gas+=J;
                         }
                         if (rc<=pdata[i].gRBN98) {
-                            pdata[i].M_200crit_gas+=massval;
-                            pdata[i].L_200crit_gas+=J;
+                            pdata[i].M_BN98_gas+=massval;
+                            pdata[i].L_BN98_gas+=J;
+                        }
+                    }
+                }
+#endif
+#ifdef STARON
+                if (opt.iextrastaroutput) {
+                    if (Part[noffset[i] + j].GetType()==STARTYPE){
+                        if (rc<=pdata[i].gR200c) {
+                            pdata[i].M_200crit_star+=massval;
+                            pdata[i].L_200crit_star+=J;
+                        }
+                        if (rc<=pdata[i].gR200m) {
+                            pdata[i].M_200mean_star+=massval;
+                            pdata[i].L_200mean_star+=J;
+                        }
+                        if (rc<=pdata[i].gRBN98) {
+                            pdata[i].M_BN98_star+=massval;
+                            pdata[i].L_BN98_star+=J;
                         }
                     }
                 }
@@ -2546,12 +2564,30 @@ private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,
                                 pdata[i].L_200crit_gas+=J;
                             }
                             if (rc<=pdata[i].gR200m) {
-                                pdata[i].M_200crit_gas+=massval;
-                                pdata[i].L_200crit_gas+=J;
+                                pdata[i].M_200mean_gas+=massval;
+                                pdata[i].L_200mean_gas+=J;
                             }
                             if (rc<=pdata[i].gRBN98) {
-                                pdata[i].M_200crit_gas+=massval;
-                                pdata[i].L_200crit_gas+=J;
+                                pdata[i].M_BN98_gas+=massval;
+                                pdata[i].L_BN98_gas+=J;
+                            }
+                        }
+                    }
+#endif
+#ifdef STARON
+                    if (opt.iextrastaroutput) {
+                        if (typeparts[j]==STARTYPE){
+                            if (rc<=pdata[i].gR200c) {
+                                pdata[i].M_200crit_star+=massval;
+                                pdata[i].L_200crit_star+=J;
+                            }
+                            if (rc<=pdata[i].gR200m) {
+                                pdata[i].M_200mean_star+=massval;
+                                pdata[i].L_200mean_star+=J;
+                            }
+                            if (rc<=pdata[i].gRBN98) {
+                                pdata[i].M_BN98_star+=massval;
+                                pdata[i].L_BN98_star+=J;
                             }
                         }
                     }
@@ -2567,6 +2603,14 @@ private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,
             indices.clear();
             radii.clear();
             masses.clear();
+            if (opt.iextrahalooutput) {
+                posparts.clear();
+                velparts.clear();
+            }
+#if defined(GASON) || defined(STARON) || defined(BHON)
+            typeparts.clear();
+#endif
+
         }
 #ifdef USEOPENMP
     }
@@ -3176,7 +3220,7 @@ void GetConcentration(PropData &p)
 ///\name Routines for manipulation of property data
 //@{
 ///copy mass information over
-void CopyMasses(const Int_t nhalos, PropData *&pold, PropData *&pnew){
+void CopyMasses(Options &opt, const Int_t nhalos, PropData *&pold, PropData *&pnew){
     for (Int_t i=1;i<=nhalos;i++) {
         pnew[i].gNFOF=pold[i].gNFOF;
         pnew[i].gMFOF=pold[i].gMFOF;
@@ -3189,6 +3233,31 @@ void CopyMasses(const Int_t nhalos, PropData *&pold, PropData *&pnew){
         pnew[i].gMBN98=pold[i].gMBN98;
         pnew[i].gRBN98=pold[i].gRBN98;
         pnew[i].gRhalfmass=pold[i].gRhalfmass;
+        if (opt.iextrahalooutput) {
+            pnew[i].gJ200c=pold[i].gJ200c;
+            pnew[i].gJ200m=pold[i].gJ200m;
+            pnew[i].gJBN98=pold[i].gJBN98;
+#ifdef GASON
+            if (opt.iextragasoutput) {
+                pnew[i].M_200crit_gas=pold[i].M_200crit_gas;
+                pnew[i].L_200crit_gas=pold[i].L_200crit_gas;
+                pnew[i].M_200mean_gas=pold[i].M_200mean_gas;
+                pnew[i].L_200mean_gas=pold[i].L_200mean_gas;
+                pnew[i].M_BN98_gas=pold[i].M_BN98_gas;
+                pnew[i].L_BN98_gas=pold[i].L_BN98_gas;
+            }
+#endif
+#ifdef STARON
+            if (opt.iextrastaroutput) {
+                pnew[i].M_200crit_star=pold[i].M_200crit_star;
+                pnew[i].L_200crit_star=pold[i].L_200crit_star;
+                pnew[i].M_200mean_star=pold[i].M_200mean_star;
+                pnew[i].L_200mean_star=pold[i].L_200mean_star;
+                pnew[i].M_BN98_star=pold[i].M_BN98_star;
+                pnew[i].L_BN98_star=pold[i].L_BN98_star;
+            }
+#endif
+        }
     }
 }
 ///reorder mass information stored in properties data
