@@ -423,10 +423,6 @@ private(i)
 }
 #endif
 
-    int blah=0;for (i=1;i<=ngroup;i++) if (numingroup[i]<omppropnum) blah++;
-    cout<<ThisTask<<" has "<<ngroup<<" with "<<blah<<" small groups "<<endl;
-double time1=MyGetTime();
-
     //for small groups loop over groups
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
@@ -617,7 +613,7 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
                         if (rc<pdata[i].gR200c) pdata[i].gJ200c=pdata[i].gJ200c+J;
                         if (rc<pdata[i].gRBN98) pdata[i].gJBN98=pdata[i].gJBN98+J;
                     }
-                    if (pdata[i].hostid==-1) {
+                    else if (pdata[i].hostid==-1) {
                         if (rc<pdata[i].gR200m) pdata[i].gJ200m_excl=pdata[i].gJ200m_excl+J;
                         if (rc<pdata[i].gR200c) pdata[i].gJ200c_excl=pdata[i].gJ200c_excl+J;
                         if (rc<pdata[i].gRBN98) pdata[i].gJBN98_excl=pdata[i].gJBN98_excl+J;
@@ -1107,10 +1103,6 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
 #ifdef USEOPENMP
 }
 #endif
-
-    time1=MyGetTime()-time1;
-    cout<<ThisTask<<" done with small groups in "<<time1<<endl;
-    time1=MyGetTime();
 
     for (i=1;i<=ngroup;i++) if (numingroup[i]>=omppropnum)
     {
@@ -1954,10 +1946,6 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
             Pval->SetPosition(x,y,z);
         }
     }
-
-time1=MyGetTime()-time1;
-cout<<ThisTask<<" done with large groups in "<<time1<<endl;
-time1=MyGetTime();
 
     //loop over groups for black hole properties
 #ifdef USEOPENMP
