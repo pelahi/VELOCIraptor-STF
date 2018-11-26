@@ -788,6 +788,7 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
             ibufindex=ibuf*BufSize+Nbuf[ibuf];
 #endif
             //reset hydro quantities of buffer
+#ifdef USEMPI
 #ifdef GASON
             Pbuf[ibufindex].SetU(0);
 #ifdef STARON
@@ -800,6 +801,7 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
             Pbuf[ibufindex].SetTage(0);
 #endif
 #ifdef BHON
+#endif
 #endif
 
             if (opt.partsearchtype==PSTALL) {
