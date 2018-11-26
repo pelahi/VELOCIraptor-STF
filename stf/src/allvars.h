@@ -1526,6 +1526,14 @@ struct PropData
                 Fout.write((char*)&val,sizeof(val));
                 val=gMBN98_excl;
                 Fout.write((char*)&val,sizeof(val));
+
+                val=gR200m_excl;
+                Fout.write((char*)&val,sizeof(val));
+                val=gR200c_excl;
+                Fout.write((char*)&val,sizeof(val));
+                val=gRBN98_excl;
+                Fout.write((char*)&val,sizeof(val));
+
                 for (int k=0;k<3;k++) val3[k]=gJ200m_excl[k];
                 Fout.write((char*)val3,sizeof(val)*3);
                 for (int k=0;k<3;k++) val3[k]=gJ200c_excl[k];
