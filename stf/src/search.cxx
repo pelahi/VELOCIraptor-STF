@@ -2318,7 +2318,9 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
                 else {
                     //otherwise, just a matter of updating some pointers
                     //store index in the structure list to access the parent (sub)structure
-                    iindex=pfof[subpglist[i][ii]]-ngroupidoffsetold-firstgroupoffset;
+                    //iindex=pfof[subpglist[i][ii]]-ngroupidoffsetold-firstgroupoffset;
+                    //don't need to offset group as already taken care of. 
+                    iindex=pfof[subpglist[i][ii]]-ngroupidoffsetold;
                     pcsld->gidhead[iindex]=&pfof[subpglist[i][ii]];
                     pcsld->Phead[iindex]=&Partsubset[subpglist[i][ii]];
                     //only for field haloes does the gidparenthead and giduberparenthead need to be adjusted

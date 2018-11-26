@@ -546,11 +546,13 @@ void GetParamFile(Options &opt)
                     else if (strcmp(tbuff, "Comoving_units")==0)
                         opt.icomoveunit = atoi(vbuff);
                     else if (strcmp(tbuff, "Extensive_halo_properties_output")==0)
-                        opt.iextrahalooutput = atof(vbuff);
+                        opt.iextrahalooutput = atoi(vbuff);
+                    else if (strcmp(tbuff, "Extensive_gas_properties_output")==0)
+                        opt.iextragasoutput = atoi(vbuff);
                     else if (strcmp(tbuff, "Extended_output")==0)
-                        opt.iextendedoutput = atof(vbuff);
+                        opt.iextendedoutput = atoi(vbuff);
                     else if (strcmp(tbuff, "Spherical_overdensity_halo_particle_list_output")==0)
-                        opt.iSphericalOverdensityPartList = atof(vbuff);
+                        opt.iSphericalOverdensityPartList = atoi(vbuff);
 
                     //gadget io related to extra info for sph, stars, bhs,
                     else if (strcmp(tbuff, "NSPH_extra_blocks")==0)
