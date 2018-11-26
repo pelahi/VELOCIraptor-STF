@@ -2215,14 +2215,10 @@ firstprivate(virval,m200val,m200mval,mBN98val)
     {
 
         //here masses are technically exclusive but this routine is generally called before objects are separated into halo/substructures
-        EncMass=pdata[i].gmass;
-        //for last particle add on diff between last and 2nd last
-        rcold=Part[noffset[i]-1].Radius()*2-Part[noffset[i]-2].Radius();
-        rhoval2=log(EncMass)-3.0*log(rcold)+fac;
         int minnum=max((int)(0.05*numingroup[i]),(int)(opt.HaloMinSize*0.05+4));
         EncMass=0;for (j=0;j<minnum;j++) EncMass+=Part[j+noffset[i]].GetMass();
-        rc=Part[minnum-1+noffset[i]].GetMass();
-        rhoval2=log(EncMass)-3.0*log(rc)+fac;
+        rcold=Part[minnum-1+noffset[i]].Radius();
+        rhoval2=log(EncMass)-3.0*log(rcold)+fac;
         for (j=minnum;j<numingroup[i];j++) {
             rc=Part[j+noffset[i]].Radius();
             massval=Part[j+noffset[i]].GetMass();
@@ -2235,7 +2231,7 @@ firstprivate(virval,m200val,m200mval,mBN98val)
             {
                 if (rhoval2>virval) {
                     //linearly interpolate, unless previous density also below threshold (which would happen at the start, then just set value)
-                    pdata[i].gRvir=exp(log(rc/rcold)/(rhoval-rhoval2)*(virval-rhoval2)+log(rhoval));
+                    pdata[i].gRvir=exp(log(rc/rcold)/(rhoval-rhoval2)*(virval-rhoval2)+log(rcold));
                     pdata[i].gMvir=exp(log(EncMass/(EncMass-massval))/(rhoval-rhoval2)*(virval-rhoval2)+log(EncMass-massval));
                 }
                 else {pdata[i].gMvir=EncMass;pdata[i].gRvir=rc;}
@@ -2243,7 +2239,7 @@ firstprivate(virval,m200val,m200mval,mBN98val)
             if (pdata[i].gR200c==0) if (rhoval<=m200val)
             {
                 if (rhoval2>m200val) {
-                    pdata[i].gR200c=exp(log(rc/rcold)/(rhoval-rhoval2)*(m200val-rhoval2)+log(rhoval));
+                    pdata[i].gR200c=exp(log(rc/rcold)/(rhoval-rhoval2)*(m200val-rhoval2)+log(rcold));
                     pdata[i].gM200c=exp(log(EncMass/(EncMass-massval))/(rhoval-rhoval2)*(m200val-rhoval2)+log(EncMass-massval));
                 }
                 else {pdata[i].gM200c=EncMass;pdata[i].gR200c=rc;}
@@ -2251,7 +2247,7 @@ firstprivate(virval,m200val,m200mval,mBN98val)
             if (pdata[i].gR200m==0) if (rhoval<=m200mval)
             {
                 if (rhoval2>m200mval) {
-                    pdata[i].gR200c=exp(log(rc/rcold)/(rhoval-rhoval2)*(m200mval-rhoval2)+log(rhoval));
+                    pdata[i].gR200c=exp(log(rc/rcold)/(rhoval-rhoval2)*(m200mval-rhoval2)+log(rcold));
                     pdata[i].gM200c=exp(log(EncMass/(EncMass-massval))/(rhoval-rhoval2)*(m200mval-rhoval2)+log(EncMass-massval));
                 }
                 else {pdata[i].gM200m=EncMass;pdata[i].gR200m=rc;}
@@ -2259,7 +2255,7 @@ firstprivate(virval,m200val,m200mval,mBN98val)
             if (pdata[i].gR500c==0) if (rhoval<=m500val)
             {
                 if (rhoval2>m500val) {
-                    pdata[i].gR500c=exp(log(rc/rcold)/(rhoval-rhoval2)*(m500val-rhoval2)+log(rhoval));
+                    pdata[i].gR500c=exp(log(rc/rcold)/(rhoval-rhoval2)*(m500val-rhoval2)+log(rcold));
                     pdata[i].gM500c=exp(log(EncMass/(EncMass-massval))/(rhoval-rhoval2)*(m500val-rhoval2)+log(EncMass-massval));
                 }
                 else {pdata[i].gM500c=EncMass;pdata[i].gR500c=rc;}
@@ -2267,12 +2263,13 @@ firstprivate(virval,m200val,m200mval,mBN98val)
             if (pdata[i].gRBN98==0) if (rhoval<=mBN98val)
             {
                 if (rhoval2>mBN98val) {
-                    pdata[i].gR500c=exp(log(rc/rcold)/(rhoval-rhoval2)*(mBN98val-rhoval2)+log(rhoval));
+                    pdata[i].gR500c=exp(log(rc/rcold)/(rhoval-rhoval2)*(mBN98val-rhoval2)+log(rcold));
                     pdata[i].gM500c=exp(log(EncMass/(EncMass-massval))/(rhoval-rhoval2)*(mBN98val-rhoval2)+log(EncMass-massval));
                 }
                 else {pdata[i].gMBN98=EncMass;pdata[i].gRBN98=rc;}
             }
             rhoval2=rhoval;
+            rcold=rc;
             if (pdata[i].gR200m!=0&&pdata[i].gR200c!=0&&pdata[i].gRvir!=0&&pdata[i].gR500c!=0&&pdata[i].gRBN98!=0) break;
         }
         //if overdensity never drops below thresholds then masses are equal to FOF mass or total mass.
@@ -2696,7 +2693,6 @@ private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,
         }
 #endif
     }
-
     if (opt.iverbose) cout<<"Done inclusive masses for field objects in "<<MyGetTime()-time1<<endl;
 }
 //@}
