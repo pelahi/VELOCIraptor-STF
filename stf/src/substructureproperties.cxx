@@ -531,7 +531,7 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
         //determine overdensity mass and radii. AGAIN REMEMBER THAT THESE ARE NOT MEANINGFUL FOR TIDAL DEBRIS
         //HERE MASSES ARE EXCLUSIVE!
         EncMass=pdata[i].gmass;
-        if (opt.iInclusiveHalo==0 || opt.iInclusiveHalo!=0 && pdata[i].hostid!=-1) {
+        if (opt.iInclusiveHalo==0 || opt.iInclusiveHalo>0 && pdata[i].hostid!=-1) {
             for (j=numingroup[i]-1;j>=0;j--) {
                 Pval=&Part[j+noffset[i]];
                 rc=Pval->Radius();
@@ -560,7 +560,7 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
         }
         if (opt.iextrahalooutput) {
             EncMass=pdata[i].gmass;
-            if (opt.iInclusiveHalo>0 && pdata[i].hostid!=-1) {
+            if (opt.iInclusiveHalo>0 && pdata[i].hostid==-1) {
             for (j=numingroup[i]-1;j>=0;j--) {
                 Pval=&Part[j+noffset[i]];
                 rc=Pval->Radius();
@@ -606,15 +606,22 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
             J=Coordinate(Pval->GetPosition()).Cross(Coordinate(vx,vy,vz))*Pval->GetMass();
             pdata[i].gJ=pdata[i].gJ+J;
             if (opt.iextrahalooutput) {
-                if (opt.iInclusiveHalo>0 && pdata[i].hostid!=-1) {
+                if (opt.iInclusiveHalo==0) {
                     if (rc<pdata[i].gR200m) pdata[i].gJ200m=pdata[i].gJ200m+J;
                     if (rc<pdata[i].gR200c) pdata[i].gJ200c=pdata[i].gJ200c+J;
                     if (rc<pdata[i].gRBN98) pdata[i].gJBN98=pdata[i].gJBN98+J;
                 }
-                if (opt.iInclusiveHalo>0) {
-                    if (rc<pdata[i].gR200m) pdata[i].gJ200m_excl=pdata[i].gJ200m_excl+J;
-                    if (rc<pdata[i].gR200c) pdata[i].gJ200c_excl=pdata[i].gJ200c_excl+J;
-                    if (rc<pdata[i].gRBN98) pdata[i].gJBN98_excl=pdata[i].gJBN98_excl+J;
+                else {
+                    if (pdata[i].hostid!=-1) {
+                        if (rc<pdata[i].gR200m) pdata[i].gJ200m=pdata[i].gJ200m+J;
+                        if (rc<pdata[i].gR200c) pdata[i].gJ200c=pdata[i].gJ200c+J;
+                        if (rc<pdata[i].gRBN98) pdata[i].gJBN98=pdata[i].gJBN98+J;
+                    }
+                    if (pdata[i].hostid==-1) {
+                        if (rc<pdata[i].gR200m) pdata[i].gJ200m_excl=pdata[i].gJ200m_excl+J;
+                        if (rc<pdata[i].gR200c) pdata[i].gJ200c_excl=pdata[i].gJ200c_excl+J;
+                        if (rc<pdata[i].gRBN98) pdata[i].gJBN98_excl=pdata[i].gJBN98_excl+J;
+                    }
                 }
             }
             Ekin+=Pval->GetMass()*(vx*vx+vy*vy+vz*vz);
@@ -1254,7 +1261,7 @@ private(j,Pval,x,y,z)
         }
         if (opt.iextrahalooutput) {
             EncMass=pdata[i].gmass;
-            if (opt.iInclusiveHalo>0 && pdata[i].hostid!=-1) {
+            if (opt.iInclusiveHalo>0 && pdata[i].hostid==-1) {
             for (j=numingroup[i]-1;j>=0;j--) {
                 Pval=&Part[j+noffset[i]];
                 rc=Pval->Radius();
@@ -1323,7 +1330,7 @@ private(j,Pval,rc,x,y,z,vx,vy,vz,J,mval)
         pdata[i].gJ[1]=Jy;
         pdata[i].gJ[2]=Jz;
         if (opt.iextrahalooutput) {
-            if (opt.iInclusiveHalo>0 && pdata[i].hostid!=-1) {
+            if (opt.iInclusiveHalo==0) {
                 pdata[i].gJ200m[0]=Jx200m;
                 pdata[i].gJ200m[1]=Jy200m;
                 pdata[i].gJ200m[2]=Jz200m;
@@ -1334,16 +1341,29 @@ private(j,Pval,rc,x,y,z,vx,vy,vz,J,mval)
                 pdata[i].gJBN98[1]=JyBN98;
                 pdata[i].gJBN98[2]=JzBN98;
             }
-            if (opt.iInclusiveHalo>0) {
-                pdata[i].gJ200m_excl[0]=Jx200m;
-                pdata[i].gJ200m_excl[1]=Jy200m;
-                pdata[i].gJ200m_excl[2]=Jz200m;
-                pdata[i].gJ200c_excl[0]=Jx200c;
-                pdata[i].gJ200c_excl[1]=Jy200c;
-                pdata[i].gJ200c_excl[2]=Jz200c;
-                pdata[i].gJBN98_excl[0]=JxBN98;
-                pdata[i].gJBN98_excl[1]=JyBN98;
-                pdata[i].gJBN98_excl[2]=JzBN98;
+            else {
+                if (pdata[i].hostid!=-1) {
+                    pdata[i].gJ200m[0]=Jx200m;
+                    pdata[i].gJ200m[1]=Jy200m;
+                    pdata[i].gJ200m[2]=Jz200m;
+                    pdata[i].gJ200c[0]=Jx200c;
+                    pdata[i].gJ200c[1]=Jy200c;
+                    pdata[i].gJ200c[2]=Jz200c;
+                    pdata[i].gJBN98[0]=JxBN98;
+                    pdata[i].gJBN98[1]=JyBN98;
+                    pdata[i].gJBN98[2]=JzBN98;
+                }
+                if (pdata[i].hostid==-1) {
+                    pdata[i].gJ200m_excl[0]=Jx200m;
+                    pdata[i].gJ200m_excl[1]=Jy200m;
+                    pdata[i].gJ200m_excl[2]=Jz200m;
+                    pdata[i].gJ200c_excl[0]=Jx200c;
+                    pdata[i].gJ200c_excl[1]=Jy200c;
+                    pdata[i].gJ200c_excl[2]=Jz200c;
+                    pdata[i].gJBN98_excl[0]=JxBN98;
+                    pdata[i].gJBN98_excl[1]=JyBN98;
+                    pdata[i].gJBN98_excl[2]=JzBN98;
+                }
             }
         }
         pdata[i].gveldisp(0,0)=sxx;
