@@ -422,6 +422,7 @@ private(i)
 #ifdef USEOPENMP
 }
 #endif
+
     //for small groups loop over groups
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
@@ -526,7 +527,7 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
         //determine overdensity mass and radii. AGAIN REMEMBER THAT THESE ARE NOT MEANINGFUL FOR TIDAL DEBRIS
         //HERE MASSES ARE EXCLUSIVE!
         EncMass=pdata[i].gmass;
-        if (opt.iInclusiveHalo==0 || opt.iInclusiveHalo!=0 && pdata[i].hostid!=-1) {
+        if (opt.iInclusiveHalo==0 || opt.iInclusiveHalo>0 && pdata[i].hostid!=-1) {
             for (j=numingroup[i]-1;j>=0;j--) {
                 Pval=&Part[j+noffset[i]];
                 rc=Pval->Radius();
@@ -553,12 +554,40 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
             if (pdata[i].gR500c==0) {pdata[i].gM500c=pdata[i].gmass;pdata[i].gR500c=pdata[i].gsize;}
             if (pdata[i].gRBN98==0) {pdata[i].gMBN98=pdata[i].gmass;pdata[i].gRBN98=pdata[i].gsize;}
         }
+        if (opt.iextrahalooutput) {
+            EncMass=pdata[i].gmass;
+            if (opt.iInclusiveHalo>0 && pdata[i].hostid==-1) {
+            for (j=numingroup[i]-1;j>=0;j--) {
+                Pval=&Part[j+noffset[i]];
+                rc=Pval->Radius();
+                if (pdata[i].gRvir_excl==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>virval)
+                {pdata[i].gMvir_excl=EncMass;pdata[i].gRvir_excl=rc;}
+                if (pdata[i].gR200c_excl==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m200val)
+                {pdata[i].gM200c_excl=EncMass;pdata[i].gR200c_excl=rc;}
+                if (pdata[i].gR200m_excl==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m200mval)
+                {pdata[i].gM200m_excl=EncMass;pdata[i].gR200m_excl=rc;}
+                if (pdata[i].gRBN98_excl==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>mBN98val)
+                {pdata[i].gMBN98_excl=EncMass;pdata[i].gRBN98_excl=rc;}
+                if (pdata[i].gR200m_excl!=0&&pdata[i].gR200c_excl!=0&&pdata[i].gRvir_excl!=0&&pdata[i].gRBN98_excl!=0) break;
+#ifdef NOMASS
+                EncMass-=opt.MassValue;
+#else
+                EncMass-=Pval->GetMass();
+#endif
+            }
+            if (pdata[i].gRvir_excl==0) {pdata[i].gMvir_excl=pdata[i].gmass;pdata[i].gRvir_excl=pdata[i].gsize;}
+            if (pdata[i].gR200c_excl==0) {pdata[i].gM200c_excl=pdata[i].gmass;pdata[i].gR200c_excl=pdata[i].gsize;}
+            if (pdata[i].gR200m_excl==0) {pdata[i].gM200m_excl=pdata[i].gmass;pdata[i].gR200m_excl=pdata[i].gsize;}
+            if (pdata[i].gRBN98_excl==0) {pdata[i].gMBN98_excl=pdata[i].gmass;pdata[i].gRBN98_excl=pdata[i].gsize;}
+            }
+        }
 
         //determine properties like maximum circular velocity, velocity dispersion, angular momentum, etc
         pdata[i].gmaxvel=0.;
         EncMass=0;
         Ekin=0.;
         pdata[i].gJ[0]=pdata[i].gJ[1]=pdata[i].gJ[2]=0.;
+        Coordinate J;
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
 #ifdef NOMASS
@@ -570,9 +599,27 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
             vx = (*Pval).Vx()-pdata[i].gcmvel[0];
             vy = (*Pval).Vy()-pdata[i].gcmvel[1];
             vz = (*Pval).Vz()-pdata[i].gcmvel[2];
-            pdata[i].gJ=pdata[i].gJ+Coordinate(Pval->GetPosition()).Cross(Coordinate(vx,vy,vz))*Pval->GetMass();
-            if (rc<pdata[i].gR200m) pdata[i].gJ200m=pdata[i].gJ200m+Coordinate(Pval->GetPosition()).Cross(Coordinate(vx,vy,vz))*Pval->GetMass();
-            if (rc<pdata[i].gR200c) pdata[i].gJ200c=pdata[i].gJ200c+Coordinate(Pval->GetPosition()).Cross(Coordinate(vx,vy,vz))*Pval->GetMass();
+            J=Coordinate(Pval->GetPosition()).Cross(Coordinate(vx,vy,vz))*Pval->GetMass();
+            pdata[i].gJ=pdata[i].gJ+J;
+            if (opt.iextrahalooutput) {
+                if (opt.iInclusiveHalo==0) {
+                    if (rc<pdata[i].gR200m) pdata[i].gJ200m=pdata[i].gJ200m+J;
+                    if (rc<pdata[i].gR200c) pdata[i].gJ200c=pdata[i].gJ200c+J;
+                    if (rc<pdata[i].gRBN98) pdata[i].gJBN98=pdata[i].gJBN98+J;
+                }
+                else {
+                    if (pdata[i].hostid!=-1) {
+                        if (rc<pdata[i].gR200m) pdata[i].gJ200m=pdata[i].gJ200m+J;
+                        if (rc<pdata[i].gR200c) pdata[i].gJ200c=pdata[i].gJ200c+J;
+                        if (rc<pdata[i].gRBN98) pdata[i].gJBN98=pdata[i].gJBN98+J;
+                    }
+                    else if (pdata[i].hostid==-1) {
+                        if (rc<pdata[i].gR200m) pdata[i].gJ200m_excl=pdata[i].gJ200m_excl+J;
+                        if (rc<pdata[i].gR200c) pdata[i].gJ200c_excl=pdata[i].gJ200c_excl+J;
+                        if (rc<pdata[i].gRBN98) pdata[i].gJBN98_excl=pdata[i].gJBN98_excl+J;
+                    }
+                }
+            }
             Ekin+=Pval->GetMass()*(vx*vx+vy*vy+vz*vz);
             pdata[i].gveldisp(0,0)+=vx*vx*Pval->GetMass();
             pdata[i].gveldisp(1,1)+=vy*vy*Pval->GetMass();
@@ -820,29 +867,43 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
 
         //rotational calcs
         if (pdata[i].n_gas>=10) {
-        EncMass=0;
-        for (j=0;j<numingroup[i];j++) {
-            Pval=&Part[j+noffset[i]];
-            if (Pval->GetType()==GASTYPE) {
-            x = (*Pval).X()-pdata[i].cm_gas[0];
-            y = (*Pval).Y()-pdata[i].cm_gas[1];
-            z = (*Pval).Z()-pdata[i].cm_gas[2];
-            vx = (*Pval).Vx()-pdata[i].gcmvel[0]-pdata[i].cmvel_gas[0];
-            vy = (*Pval).Vy()-pdata[i].gcmvel[1]-pdata[i].cmvel_gas[1];
-            vz = (*Pval).Vz()-pdata[i].gcmvel[2]-pdata[i].cmvel_gas[2];
-            mval=Pval->GetMass();
-            EncMass+=mval;
-            if (EncMass>0.5*pdata[i].M_gas && pdata[i].Rhalfmass_gas==0) pdata[i].Rhalfmass_gas=sqrt(x*x+y*y+z*z);
-            jval=Coordinate(x,y,z).Cross(Coordinate(vx,vy,vz));
-            jzval=(jval*pdata[i].L_gas)/pdata[i].L_gas.Length();
-            zdist=(Coordinate(x,y,z)*pdata[i].L_gas)/pdata[i].L_gas.Length();
-            Rdist=sqrt(x*x+y*y+z*z-zdist*zdist);
-            pdata[i].Krot_gas+=mval*(jzval*jzval/(Rdist*Rdist));
-            Ekin+=mval*(vx*vx+vy*vy+vz*vz);
+            EncMass=0;
+            for (j=0;j<numingroup[i];j++) {
+                Pval=&Part[j+noffset[i]];
+                if (Pval->GetType()==GASTYPE) {
+                    x = (*Pval).X()-pdata[i].cm_gas[0];
+                    y = (*Pval).Y()-pdata[i].cm_gas[1];
+                    z = (*Pval).Z()-pdata[i].cm_gas[2];
+                    vx = (*Pval).Vx()-pdata[i].gcmvel[0]-pdata[i].cmvel_gas[0];
+                    vy = (*Pval).Vy()-pdata[i].gcmvel[1]-pdata[i].cmvel_gas[1];
+                    vz = (*Pval).Vz()-pdata[i].gcmvel[2]-pdata[i].cmvel_gas[2];
+                    mval=Pval->GetMass();
+                    EncMass+=mval;
+                    if (EncMass>0.5*pdata[i].M_gas && pdata[i].Rhalfmass_gas==0) pdata[i].Rhalfmass_gas=sqrt(x*x+y*y+z*z);
+                    jval=Coordinate(x,y,z).Cross(Coordinate(vx,vy,vz));
+                    jzval=(jval*pdata[i].L_gas)/pdata[i].L_gas.Length();
+                    zdist=(Coordinate(x,y,z)*pdata[i].L_gas)/pdata[i].L_gas.Length();
+                    Rdist=sqrt(x*x+y*y+z*z-zdist*zdist);
+                    pdata[i].Krot_gas+=mval*(jzval*jzval/(Rdist*Rdist));
+                    Ekin+=mval*(vx*vx+vy*vy+vz*vz);
+                    if (opt.iextragasoutput) {
+                        if (rc<=pdata[i].gR200c_excl) {
+                            pdata[i].M_200crit_excl_gas+=mval;
+                            pdata[i].L_200crit_excl_gas+=jval;
+                        }
+                        if (rc<=pdata[i].gR200m_excl) {
+                            pdata[i].M_200mean_excl_gas+=mval;
+                            pdata[i].L_200mean_excl_gas+=jval;
+                        }
+                        if (rc<=pdata[i].gRBN98_excl) {
+                            pdata[i].M_BN98_excl_gas+=mval;
+                            pdata[i].L_BN98_excl_gas+=jval;
+                        }
+                    }
+                }
             }
-        }
-        pdata[i].Krot_gas/=Ekin;
-	    pdata[i].T_gas=0.5*Ekin;
+            pdata[i].Krot_gas/=Ekin;
+    	    pdata[i].T_gas=0.5*Ekin;
         }
         if (pdata[i].n_gas>=10) GetGlobalSpatialMorphology(numingroup[i], &Part[noffset[i]], pdata[i].q_gas, pdata[i].s_gas, 1e-2, pdata[i].eigvec_gas,0,GASTYPE,0);
 #endif
@@ -1190,11 +1251,39 @@ private(j,Pval,x,y,z)
             if (pdata[i].gR500c==0) {pdata[i].gM500c=pdata[i].gmass;pdata[i].gR500c=pdata[i].gsize;}
             if (pdata[i].gRBN98==0) {pdata[i].gMBN98=pdata[i].gmass;pdata[i].gRBN98=pdata[i].gsize;}
         }
+        if (opt.iextrahalooutput) {
+            EncMass=pdata[i].gmass;
+            if (opt.iInclusiveHalo>0 && pdata[i].hostid==-1) {
+            for (j=numingroup[i]-1;j>=0;j--) {
+                Pval=&Part[j+noffset[i]];
+                rc=Pval->Radius();
+                if (pdata[i].gRvir_excl==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>virval)
+                {pdata[i].gMvir_excl=EncMass;pdata[i].gRvir_excl=rc;}
+                if (pdata[i].gR200c_excl==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m200val)
+                {pdata[i].gM200c_excl=EncMass;pdata[i].gR200c_excl=rc;}
+                if (pdata[i].gR200m_excl==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>m200mval)
+                {pdata[i].gM200m_excl=EncMass;pdata[i].gR200m_excl=rc;}
+                if (pdata[i].gRBN98_excl==0 && EncMass>=0.01*pdata[i].gmass) if (log(EncMass)-3.0*log(rc)-log(4.0*M_PI/3.0)>mBN98val)
+                {pdata[i].gMBN98_excl=EncMass;pdata[i].gRBN98_excl=rc;}
+                if (pdata[i].gR200m_excl!=0&&pdata[i].gR200c_excl!=0&&pdata[i].gRvir_excl!=0&&pdata[i].gRBN98_excl!=0) break;
+#ifdef NOMASS
+                EncMass-=opt.MassValue;
+#else
+                EncMass-=Pval->GetMass();
+#endif
+            }
+            if (pdata[i].gRvir_excl==0) {pdata[i].gMvir_excl=pdata[i].gmass;pdata[i].gRvir_excl=pdata[i].gsize;}
+            if (pdata[i].gR200c_excl==0) {pdata[i].gM200c_excl=pdata[i].gmass;pdata[i].gR200c_excl=pdata[i].gsize;}
+            if (pdata[i].gR200m_excl==0) {pdata[i].gM200m_excl=pdata[i].gmass;pdata[i].gR200m_excl=pdata[i].gsize;}
+            if (pdata[i].gRBN98_excl==0) {pdata[i].gMBN98_excl=pdata[i].gmass;pdata[i].gRBN98_excl=pdata[i].gsize;}
+            }
+        }
 
         EncMass=0;
         Double_t Jx,Jy,Jz,sxx,sxy,sxz,syy,syz,szz;
         Double_t Jx200m,Jy200m,Jz200m;
         Double_t Jx200c,Jy200c,Jz200c;
+        Double_t JxBN98,JyBN98,JzBN98;
         Coordinate J;
         Ekin=Jx=Jy=Jz=sxx=sxy=sxz=syy=syz=szz=Krot=0.;
 #ifdef USEOPENMP
@@ -1217,6 +1306,7 @@ private(j,Pval,rc,x,y,z,vx,vy,vz,J,mval)
             Jx+=J[0];Jy+=J[1];Jz+=J[2];
             if (rc<pdata[i].gR200m) Jx200m+=J[0];Jy200m+=J[1];Jz200m+=J[2];
             if (rc<pdata[i].gR200c) Jx200c+=J[0];Jy200c+=J[1];Jz200c+=J[2];
+            if (rc<pdata[i].gRBN98) JxBN98+=J[0];JyBN98+=J[1];JzBN98+=J[2];
             sxx+=vx*vx*mval;
             syy+=vy*vy*mval;
             szz+=vz*vz*mval;
@@ -1228,16 +1318,46 @@ private(j,Pval,rc,x,y,z,vx,vy,vz,J,mval)
 #ifdef USEOPENMP
 }
 #endif
-
         pdata[i].gJ[0]=Jx;
         pdata[i].gJ[1]=Jy;
         pdata[i].gJ[2]=Jz;
-        pdata[i].gJ200m[0]=Jx200m;
-        pdata[i].gJ200m[1]=Jy200m;
-        pdata[i].gJ200m[2]=Jz200m;
-        pdata[i].gJ200c[0]=Jx200c;
-        pdata[i].gJ200c[1]=Jy200c;
-        pdata[i].gJ200c[2]=Jz200c;
+        if (opt.iextrahalooutput) {
+            if (opt.iInclusiveHalo==0) {
+                pdata[i].gJ200m[0]=Jx200m;
+                pdata[i].gJ200m[1]=Jy200m;
+                pdata[i].gJ200m[2]=Jz200m;
+                pdata[i].gJ200c[0]=Jx200c;
+                pdata[i].gJ200c[1]=Jy200c;
+                pdata[i].gJ200c[2]=Jz200c;
+                pdata[i].gJBN98[0]=JxBN98;
+                pdata[i].gJBN98[1]=JyBN98;
+                pdata[i].gJBN98[2]=JzBN98;
+            }
+            else {
+                if (pdata[i].hostid!=-1) {
+                    pdata[i].gJ200m[0]=Jx200m;
+                    pdata[i].gJ200m[1]=Jy200m;
+                    pdata[i].gJ200m[2]=Jz200m;
+                    pdata[i].gJ200c[0]=Jx200c;
+                    pdata[i].gJ200c[1]=Jy200c;
+                    pdata[i].gJ200c[2]=Jz200c;
+                    pdata[i].gJBN98[0]=JxBN98;
+                    pdata[i].gJBN98[1]=JyBN98;
+                    pdata[i].gJBN98[2]=JzBN98;
+                }
+                if (pdata[i].hostid==-1) {
+                    pdata[i].gJ200m_excl[0]=Jx200m;
+                    pdata[i].gJ200m_excl[1]=Jy200m;
+                    pdata[i].gJ200m_excl[2]=Jz200m;
+                    pdata[i].gJ200c_excl[0]=Jx200c;
+                    pdata[i].gJ200c_excl[1]=Jy200c;
+                    pdata[i].gJ200c_excl[2]=Jz200c;
+                    pdata[i].gJBN98_excl[0]=JxBN98;
+                    pdata[i].gJBN98_excl[1]=JyBN98;
+                    pdata[i].gJBN98_excl[2]=JzBN98;
+                }
+            }
+        }
         pdata[i].gveldisp(0,0)=sxx;
         pdata[i].gveldisp(1,1)=syy;
         pdata[i].gveldisp(2,2)=szz;
@@ -1826,6 +1946,7 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
             Pval->SetPosition(x,y,z);
         }
     }
+
     //loop over groups for black hole properties
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
@@ -1855,9 +1976,9 @@ void GetInclusiveMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t
         if (opt.iInclusiveHalo==1) cout<<" with masses based on the FOF envelopes (quicker)"<<endl;
         else if (opt.iInclusiveHalo==2) cout<<" with masses based on full SO search (slower)"<<endl;
     }
-    Double_t ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside;
-    Double_t vc,rc,x,y,z,vx,vy,vz;
-    Coordinate cmold(0.),cmref;
+    Double_t ri,ri2,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside;
+    Double_t x,y,z,vx,vy,vz,massval,rc,rcold;
+    Coordinate cmold(0.),J(0.);
     Double_t change=MAXVALUE,tol=1e-2;
     Int_t ii,icmv,numinvir,num200c,num200m;
     Double_t virval=log(opt.virlevel*opt.rhobg);
@@ -1882,30 +2003,75 @@ void GetInclusiveMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t
     //for small groups loop over groups
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
-private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z,vc,rc,vx,vy,vz,numinvir,num200c,num200m)\
-firstprivate(virval,m200val,m200mval,mBN98val)
+private(i,j,k,Pval,ri,rcmv,ri2,r2,cmx,cmy,cmz,EncMass,Ninside,icmv,cmold,x,y,z,vx,vy,vz,massval)
 {
     #pragma omp for schedule(dynamic) nowait
 #endif
     for (i=1;i<=ngroup;i++) if (numingroup[i]<omppropnum)
     {
         for (k=0;k<3;k++) pdata[i].gcm[k]=0;
-        pdata[i].gmass=pdata[i].gmaxvel=0.0;
+        pdata[i].gmass=0.0;
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
-            pdata[i].gmass+=(*Pval).GetMass();
+            massval=(*Pval).GetMass();
+            pdata[i].gmass+=massval;
             for (k=0;k<3;k++) {
-                pdata[i].gcm[k]+=(*Pval).GetPosition(k)*(*Pval).GetMass();
+                pdata[i].gcm[k]+=(*Pval).GetPosition(k)*massval;
             }
         }
         for (k=0;k<3;k++)pdata[i].gcm[k]*=(1.0/pdata[i].gmass);
+        ri=ri2=0;
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
             x = (*Pval).X() - pdata[i].gcm[0];
             y = (*Pval).Y() - pdata[i].gcm[1];
             z = (*Pval).Z() - pdata[i].gcm[2];
-            Pval->SetPosition(x,y,z);
+            r2=x*x+y*y+z*z;
+            if (ri2<r2) {ri2=r2;ri=sqrt(ri2);}
         }
+        //iterate cm
+        cmold=pdata[i].gcm;
+        icmv=numingroup[i];
+        while (true)
+        {
+            ri*=opt.pinfo.cmadjustfac;
+            rcmv=ri;
+            ri2=ri*ri;
+            // find c/m of all particles within ri
+            cmx=cmy=cmz=0.;
+            EncMass=0.;
+            Ninside=0;
+            for (j=0;j<numingroup[i];j++)
+            {
+                Pval=&Part[j+noffset[i]];
+                x = (*Pval).X() - cmold[0];
+                y = (*Pval).Y() - cmold[1];
+                z = (*Pval).Z() - cmold[2];
+                if ((x*x + y*y + z*z) <= ri2)
+                {
+                    cmx += (*Pval).GetMass()*(*Pval).X();
+                    cmy += (*Pval).GetMass()*(*Pval).Y();
+                    cmz += (*Pval).GetMass()*(*Pval).Z();
+                    EncMass += (*Pval).GetMass();
+                    Ninside++;
+                }
+            }
+            if (Ninside >= opt.pinfo.cmfrac * numingroup[i] && Ninside >= propmincmnum) {
+                pdata[i].gcm[0]=cmx;pdata[i].gcm[1]=cmy;pdata[i].gcm[2]=cmz;
+                for (k=0;k<3;k++) pdata[i].gcm[k] /= EncMass;
+                cmold=pdata[i].gcm;
+                icmv=Ninside;
+            }
+            else break;
+        }
+        //move to centre-of-mass
+        for (j=0;j<numingroup[i];j++) {
+            Pval=&Part[j+noffset[i]];
+            for (k=0;k<3;k++) {
+                Pval->SetPosition(k,(*Pval).GetPosition(k)-pdata[i].gcm[k]);
+            }
+        }
+        //sort by radius
         gsl_heapsort(&Part[noffset[i]], numingroup[i], sizeof(Particle), RadCompare);
         pdata[i].gsize=Part[noffset[i]+numingroup[i]-1].Radius();
         pdata[i].gRhalfmass=Part[noffset[i]+(numingroup[i]/2)].Radius();
@@ -1913,6 +2079,21 @@ firstprivate(virval,m200val,m200mval,mBN98val)
         pdata[i].gmass*=opt.MassValue;
 #endif
         pdata[i].gMFOF=pdata[i].gmass;
+        //then get cmvel if extra output is desired as will need angular momentum
+        if (opt.iextrahalooutput) {
+            cmx=cmy=cmz=EncMass=0.;
+            for (j=0;j<icmv;j++)
+            {
+                Pval = &Part[noffset[i] + j];
+                massval = Pval->GetMass() ;
+                cmx += massval* Pval->Vx();
+                cmy += massval* Pval->Vy();
+                cmz += massval* Pval->Vz();
+                EncMass += massval;
+            }
+            pdata[i].gcmvel[0]=cmx;pdata[i].gcmvel[1]=cmy;pdata[i].gcmvel[2]=cmz;
+            for (k=0;k<3;k++) pdata[i].gcmvel[k] /= EncMass;
+        }
     }
 #ifdef USEOPENMP
 }
@@ -1925,25 +2106,77 @@ firstprivate(virval,m200val,m200mval,mBN98val)
         EncMass=cmx=cmy=cmz=0.;
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
-private(j,Pval)
+private(j,Pval,massval)
 {
 #pragma omp for reduction(+:EncMass,cmx,cmy,cmz)
 #endif
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
-            EncMass+=(*Pval).GetMass();
-            cmx+=(*Pval).X()*(*Pval).GetMass();
-            cmy+=(*Pval).Y()*(*Pval).GetMass();
-            cmz+=(*Pval).Z()*(*Pval).GetMass();
+            massval=(*Pval).GetMass();
+            EncMass+=massval;
+            cmx+=(*Pval).X()*massval;
+            cmy+=(*Pval).Y()*massval;
+            cmz+=(*Pval).Z()*massval;
         }
 #ifdef USEOPENMP
 }
 #endif
-        pdata[i].gcm[0]=cmx;pdata[i].gcm[1]=cmy;pdata[i].gcm[2]=cmz;
         pdata[i].gmass=EncMass;
-        pdata[i].gMFOF=EncMass;
+        pdata[i].gcm[0]=cmx;pdata[i].gcm[1]=cmy;pdata[i].gcm[2]=cmz;
         for (k=0;k<3;k++)pdata[i].gcm[k]*=(1.0/pdata[i].gmass);
-        pdata[i].gsize=0;
+        ri=ri2=0;
+        for (j=0;j<numingroup[i];j++) {
+            Pval=&Part[j+noffset[i]];
+            x = (*Pval).X() - pdata[i].gcm[0];
+            y = (*Pval).Y() - pdata[i].gcm[1];
+            z = (*Pval).Z() - pdata[i].gcm[2];
+            r2=x*x+y*y+z*z;
+            if (ri2<r2) {ri2=r2;ri=sqrt(ri2);}
+        }
+        //iterate cm
+        cmold=pdata[i].gcm;
+        icmv=numingroup[i];
+        while (true)
+        {
+            ri*=opt.pinfo.cmadjustfac;
+            rcmv=ri;
+            ri2=ri*ri;
+            // find c/m of all particles within ri
+            cmx=cmy=cmz=0.;
+            EncMass=0.;
+            Ninside=0;
+#ifdef USEOPENMP
+#pragma omp parallel default(shared)  \
+private(j,Pval,x,y,z,massval)
+{
+#pragma omp for reduction(+:EncMass,Ninside,cmx,cmy,cmz)
+#endif
+            for (j=0;j<numingroup[i];j++) {
+                Pval=&Part[j+noffset[i]];
+                x = (*Pval).X() - cmold[0];
+                y = (*Pval).Y() - cmold[1];
+                z = (*Pval).Z() - cmold[2];
+                massval=(*Pval).GetMass();
+                if ((x*x + y*y + z*z) <= ri2)
+                {
+                    EncMass+=massval;
+                    cmx+=(*Pval).X()*massval;
+                    cmy+=(*Pval).Y()*massval;
+                    cmz+=(*Pval).Z()*massval;
+                    Ninside++;
+                }
+            }
+#ifdef USEOPENMP
+}
+#endif
+            if (Ninside >= opt.pinfo.cmfrac * numingroup[i] && Ninside >= propmincmnum) {
+                pdata[i].gcm[0]=cmx;pdata[i].gcm[1]=cmy;pdata[i].gcm[2]=cmz;
+                for (k=0;k<3;k++) pdata[i].gcm[k] /= EncMass;
+                cmold=pdata[i].gcm;
+                icmv=Ninside;
+            }
+            else break;
+        }
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
             for (k=0;k<3;k++) {
@@ -1957,13 +2190,31 @@ private(j,Pval)
         pdata[i].gmass*=opt.MassValue;
 #endif
         pdata[i].gMFOF=pdata[i].gmass;
+        //then get cmvel if extra output is desired as will need angular momentum
+        if (opt.iextrahalooutput) {
+            cmx=cmy=cmz=EncMass=0.;
+
+            for (j=0;j<icmv;j++)
+            {
+                Pval = &Part[noffset[i] + j];
+                massval = Pval->GetMass() ;
+                cmx += massval* Pval->Vx();
+                cmy += massval* Pval->Vy();
+                cmz += massval* Pval->Vz();
+                EncMass += massval;
+            }
+            pdata[i].gcmvel[0]=cmx;pdata[i].gcmvel[1]=cmy;pdata[i].gcmvel[2]=cmz;
+            for (k=0;k<3;k++) pdata[i].gcmvel[k] /= EncMass;
+        }
     }
+
     //once center of masses have been found if want simple inclusive masses based on the FOF envelop
     if (opt.iInclusiveHalo==1) {
         fac=-log(4.0*M_PI/3.0);
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
-private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z,vc,rc,vx,vy,vz,numinvir,num200c,num200m,rhoval)\
+private(i,j,k,Pval)\
+private(massval,x,y,z,vx,vy,vz,J,rc,rcold,EncMass,numinvir,num200c,num200m,rhoval,rhoval2)\
 firstprivate(virval,m200val,m200mval,mBN98val)
 {
     #pragma omp for schedule(dynamic) nowait
@@ -1972,26 +2223,61 @@ firstprivate(virval,m200val,m200mval,mBN98val)
     {
 
         //here masses are technically exclusive but this routine is generally called before objects are separated into halo/substructures
-        EncMass=pdata[i].gmass;
-        for (j=numingroup[i]-1;j>=0;j--) {
-            Pval=&Part[j+noffset[i]];
-            rc=Pval->Radius();
-            rhoval=log(EncMass)-3.0*log(rc)+fac;
-            if (pdata[i].gRvir==0 && EncMass>=0.01*pdata[i].gmass) if (rhoval>virval)
-            {pdata[i].gMvir=EncMass;pdata[i].gRvir=rc;}
-            if (pdata[i].gR200c==0 && EncMass>=0.01*pdata[i].gmass) if (rhoval>m200val)
-            {pdata[i].gM200c=EncMass;pdata[i].gR200c=rc;}
-            if (pdata[i].gR200m==0 && EncMass>=0.01*pdata[i].gmass) if (rhoval>m200mval)
-            {pdata[i].gM200m=EncMass;pdata[i].gR200m=rc;}
-            if (pdata[i].gR500c==0 && EncMass>=0.01*pdata[i].gmass) if (rhoval>m500val)
-            {pdata[i].gM500c=EncMass;pdata[i].gR500c=rc;}
-            if (pdata[i].gRBN98==0 && EncMass>=0.01*pdata[i].gMBN98) if (rhoval>mBN98val)
-            {pdata[i].gMBN98=EncMass;pdata[i].gRBN98=rc;}
+        int minnum=max((int)(0.05*numingroup[i]),(int)(opt.HaloMinSize*0.05+4));
+        EncMass=0;for (j=0;j<minnum;j++) EncMass+=Part[j+noffset[i]].GetMass();
+        rcold=Part[minnum-1+noffset[i]].Radius();
+        rhoval2=log(EncMass)-3.0*log(rcold)+fac;
+        for (j=minnum;j<numingroup[i];j++) {
+            rc=Part[j+noffset[i]].Radius();
+            massval=Part[j+noffset[i]].GetMass();
 #ifdef NOMASS
-            EncMass-=opt.MassValue;
-#else
-            EncMass-=Pval->GetMass();
+            massval=*opt.MassValue;
 #endif
+            EncMass+=massval;
+            rhoval=log(EncMass)-3.0*log(rc)+fac;
+            if (pdata[i].gRvir==0) if (rhoval<=virval)
+            {
+                if (rhoval2>virval) {
+                    //linearly interpolate, unless previous density also below threshold (which would happen at the start, then just set value)
+                    pdata[i].gRvir=exp(log(rc/rcold)/(rhoval-rhoval2)*(virval-rhoval2)+log(rcold));
+                    pdata[i].gMvir=exp(log(EncMass/(EncMass-massval))/(rhoval-rhoval2)*(virval-rhoval2)+log(EncMass-massval));
+                }
+                else {pdata[i].gMvir=EncMass;pdata[i].gRvir=rc;}
+            }
+            if (pdata[i].gR200c==0) if (rhoval<=m200val)
+            {
+                if (rhoval2>m200val) {
+                    pdata[i].gR200c=exp(log(rc/rcold)/(rhoval-rhoval2)*(m200val-rhoval2)+log(rcold));
+                    pdata[i].gM200c=exp(log(EncMass/(EncMass-massval))/(rhoval-rhoval2)*(m200val-rhoval2)+log(EncMass-massval));
+                }
+                else {pdata[i].gM200c=EncMass;pdata[i].gR200c=rc;}
+            }
+            if (pdata[i].gR200m==0) if (rhoval<=m200mval)
+            {
+                if (rhoval2>m200mval) {
+                    pdata[i].gR200c=exp(log(rc/rcold)/(rhoval-rhoval2)*(m200mval-rhoval2)+log(rcold));
+                    pdata[i].gM200c=exp(log(EncMass/(EncMass-massval))/(rhoval-rhoval2)*(m200mval-rhoval2)+log(EncMass-massval));
+                }
+                else {pdata[i].gM200m=EncMass;pdata[i].gR200m=rc;}
+            }
+            if (pdata[i].gR500c==0) if (rhoval<=m500val)
+            {
+                if (rhoval2>m500val) {
+                    pdata[i].gR500c=exp(log(rc/rcold)/(rhoval-rhoval2)*(m500val-rhoval2)+log(rcold));
+                    pdata[i].gM500c=exp(log(EncMass/(EncMass-massval))/(rhoval-rhoval2)*(m500val-rhoval2)+log(EncMass-massval));
+                }
+                else {pdata[i].gM500c=EncMass;pdata[i].gR500c=rc;}
+            }
+            if (pdata[i].gRBN98==0) if (rhoval<=mBN98val)
+            {
+                if (rhoval2>mBN98val) {
+                    pdata[i].gR500c=exp(log(rc/rcold)/(rhoval-rhoval2)*(mBN98val-rhoval2)+log(rcold));
+                    pdata[i].gM500c=exp(log(EncMass/(EncMass-massval))/(rhoval-rhoval2)*(mBN98val-rhoval2)+log(EncMass-massval));
+                }
+                else {pdata[i].gMBN98=EncMass;pdata[i].gRBN98=rc;}
+            }
+            rhoval2=rhoval;
+            rcold=rc;
             if (pdata[i].gR200m!=0&&pdata[i].gR200c!=0&&pdata[i].gRvir!=0&&pdata[i].gR500c!=0&&pdata[i].gRBN98!=0) break;
         }
         //if overdensity never drops below thresholds then masses are equal to FOF mass or total mass.
@@ -2000,6 +2286,61 @@ firstprivate(virval,m200val,m200mval,mBN98val)
         if (pdata[i].gR200m==0) {pdata[i].gM200m=pdata[i].gmass;pdata[i].gR200m=pdata[i].gsize;}
         if (pdata[i].gR500c==0) {pdata[i].gM500c=pdata[i].gmass;pdata[i].gR500c=pdata[i].gsize;}
         if (pdata[i].gRBN98==0) {pdata[i].gMBN98=pdata[i].gmass;pdata[i].gRBN98=pdata[i].gsize;}
+        //calculate angular momentum if necessary
+        if (opt.iextrahalooutput) {
+            for (j=0;j<=numingroup[i];j++) {
+                Pval = &Part[noffset[i] + j];
+                massval = Pval->GetMass() ;
+                vx = Pval->Vx()-pdata[i].gcmvel[0];
+                vy = Pval->Vy()-pdata[i].gcmvel[1];
+                vz = Pval->Vz()-pdata[i].gcmvel[2];
+                x = Pval->X();
+                y = Pval->Y();
+                z = Pval->Z();
+                //J=Coordinate(Pval->GetPosition()).Cross(Coordinate(vx,vy,vz))*massval;
+                J=Coordinate(x,y,z).Cross(Coordinate(vx,vy,vz))*massval;
+                rc=Pval->Radius();
+                if (rc<=pdata[i].gR200c) pdata[i].gJ200c+=J;
+                if (rc<=pdata[i].gR200m) pdata[i].gJ200m+=J;
+                if (rc<=pdata[i].gRBN98) pdata[i].gJBN98+=J;
+#ifdef GASON
+                if (opt.iextragasoutput) {
+                    if (Part[noffset[i] + j].GetType()==GASTYPE){
+                        if (rc<=pdata[i].gR200c) {
+                            pdata[i].M_200crit_gas+=massval;
+                            pdata[i].L_200crit_gas+=J;
+                        }
+                        if (rc<=pdata[i].gR200m) {
+                            pdata[i].M_200mean_gas+=massval;
+                            pdata[i].L_200mean_gas+=J;
+                        }
+                        if (rc<=pdata[i].gRBN98) {
+                            pdata[i].M_BN98_gas+=massval;
+                            pdata[i].L_BN98_gas+=J;
+                        }
+                    }
+                }
+#endif
+#ifdef STARON
+                if (opt.iextrastaroutput) {
+                    if (Part[noffset[i] + j].GetType()==STARTYPE){
+                        if (rc<=pdata[i].gR200c) {
+                            pdata[i].M_200crit_star+=massval;
+                            pdata[i].L_200crit_star+=J;
+                        }
+                        if (rc<=pdata[i].gR200m) {
+                            pdata[i].M_200mean_star+=massval;
+                            pdata[i].L_200mean_star+=J;
+                        }
+                        if (rc<=pdata[i].gRBN98) {
+                            pdata[i].M_BN98_star+=massval;
+                            pdata[i].L_BN98_star+=J;
+                        }
+                    }
+                }
+#endif
+            }
+        }
     }
 #ifdef USEOPENMP
 }
@@ -2042,6 +2383,9 @@ private(i,j,k,x,y,z)
         vector<Double_t> radii;
         vector<Double_t> masses;
         vector<Int_t> indices;
+        vector<Coordinate> posparts;
+        vector<Coordinate> velparts;
+        vector<int> typeparts;
         size_t n;
         Double_t dx;
         vector<Double_t> maxrdist(ngroup+1);
@@ -2117,7 +2461,7 @@ private(i,j,k,x,y,z)
         fac=-log(4.0*M_PI/3.0);
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
-private(i,j,k,taggedparts,radii,masses,indices,n,dx,EncMass,rc,rhoval,rhoval2,tid,SOpids)
+private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,EncMass,J,rc,rhoval,rhoval2,tid,SOpids)
 {
     #pragma omp for schedule(dynamic) nowait
 #endif
@@ -2126,17 +2470,31 @@ private(i,j,k,taggedparts,radii,masses,indices,n,dx,EncMass,rc,rhoval,rhoval2,ti
             taggedparts=tree->SearchBallPosTagged(pdata[i].gcm,pow(maxrdist[i],2.0));
             radii.resize(taggedparts.size());
             masses.resize(taggedparts.size());
+            if (opt.iextrahalooutput) {
+                posparts.resize(taggedparts.size());
+                velparts.resize(taggedparts.size());
+            }
+#if defined(GASON) || defined(STARON) || defined(BHON)
+            if (opt.iextragasoutput) typeparts.resize(taggedparts.size());
+#endif
             if (opt.iSphericalOverdensityPartList) SOpids.resize(taggedparts.size());
             for (j=0;j<taggedparts.size();j++) {
                 masses[j]=Part[taggedparts[j]].GetMass();
                 if (opt.iSphericalOverdensityPartList) SOpids[j]=Part[taggedparts[j]].GetPID();
                 radii[j]=0;
+#if defined(GASON) || defined(STARON) || defined(BHON)
+                if (opt.iextragasoutput) typeparts[j]=Part[taggedparts[j]].GetMass();
+#endif
                 for (k=0;k<3;k++) {
                     dx=Part[taggedparts[j]].GetPosition(k)-pdata[i].gcm[k];
                     //correct for period
                     if (opt.p>0) {
                         if (dx>opt.p*0.5) dx-=opt.p;
                         else if (dx<-opt.p*0.5) dx+=opt.p;
+                    }
+                    if (opt.iextrahalooutput) {
+                        posparts[j][k]=dx;
+                        velparts[j][k]=Part[taggedparts[j]].GetVelocity(k)-pdata[i].gcmvel[k];
                     }
                     radii[j]+=dx*dx;
                 }
@@ -2151,17 +2509,31 @@ private(i,j,k,taggedparts,radii,masses,indices,n,dx,EncMass,rc,rhoval,rhoval2,ti
                     Int_t offset=radii.size();
                     radii.resize(radii.size()+taggedparts.size());
                     masses.resize(masses.size()+taggedparts.size());
+                    if (opt.iextrahalooutput) {
+                        posparts.resize(posparts.size()+taggedparts.size());
+                        velparts.resize(velparts.size()+taggedparts.size());
+                    }
+#if defined(GASON) || defined(STARON) || defined(BHON)
+                    if (opt.iextragasoutput) typeparts.resize(typeparts.size()+taggedparts.size());
+#endif
                     if (opt.iSphericalOverdensityPartList) SOpids.resize(SOpids.size()+taggedparts.size());
                     for (j=0;j<taggedparts.size();j++) {
-                        masses[offset+j]=Part[taggedparts[j]].GetMass();
-                        if (opt.iSphericalOverdensityPartList) SOpids[j+offset]=Part[taggedparts[j]].GetPID();
+                        masses[offset+j]=PartDataGet[taggedparts[j]].GetMass();
+                        if (opt.iSphericalOverdensityPartList) SOpids[j+offset]=PartDataGet[taggedparts[j]].GetPID();
+#if defined(GASON) || defined(STARON) || defined(BHON)
+                        if (opt.iextragasoutput) typeparts[offset+j]=PartDataGet[taggedparts[j]].GetMass();
+#endif
                         radii[offset+j]=0;
                         for (k=0;k<3;k++) {
-                            dx=Part[taggedparts[j]].GetPosition(k)-pdata[i].gcm[k];
+                            dx=PartDataGet[taggedparts[j]].GetPosition(k)-pdata[i].gcm[k];
                             //correct for period
                             if (opt.p>0) {
                                 if (dx>opt.p*0.5) dx-=opt.p;
                                 else if (dx<-opt.p*0.5) dx+=opt.p;
+                            }
+                            if (opt.iextrahalooutput) {
+                                posparts[j+offset][k]=dx;
+                                velparts[j+offset][k]=PartDataGet[taggedparts[j]].GetVelocity(k)-pdata[i].gcmvel[k];
                             }
                             radii[offset+j]+=dx*dx;
                         }
@@ -2241,6 +2613,54 @@ private(i,j,k,taggedparts,radii,masses,indices,n,dx,EncMass,rc,rhoval,rhoval2,ti
             if (pdata[i].gR500c==0) {pdata[i].gM500c=pdata[i].gmass;pdata[i].gR500c=pdata[i].gsize;}
             if (pdata[i].gRBN98==0) {pdata[i].gMBN98=pdata[i].gmass;pdata[i].gRBN98=pdata[i].gsize;}
 
+            //calculate angular momentum if necessary
+            if (opt.iextrahalooutput) {
+                for (j=0;j<=radii.size();j++) {
+                    massval = masses[indices[j]];
+                    J=Coordinate(posparts[indices[j]]).Cross(velparts[indices[j]])*massval;
+                    rc=posparts[indices[j]].Length();
+                    if (rc<=pdata[i].gR200c) pdata[i].gJ200c+=J;
+                    if (rc<=pdata[i].gR200m) pdata[i].gJ200m+=J;
+                    if (rc<=pdata[i].gRBN98) pdata[i].gJBN98+=J;
+#ifdef GASON
+                    if (opt.iextragasoutput) {
+                        if (typeparts[j]==GASTYPE){
+                            if (rc<=pdata[i].gR200c) {
+                                pdata[i].M_200crit_gas+=massval;
+                                pdata[i].L_200crit_gas+=J;
+                            }
+                            if (rc<=pdata[i].gR200m) {
+                                pdata[i].M_200mean_gas+=massval;
+                                pdata[i].L_200mean_gas+=J;
+                            }
+                            if (rc<=pdata[i].gRBN98) {
+                                pdata[i].M_BN98_gas+=massval;
+                                pdata[i].L_BN98_gas+=J;
+                            }
+                        }
+                    }
+#endif
+#ifdef STARON
+                    if (opt.iextrastaroutput) {
+                        if (typeparts[j]==STARTYPE){
+                            if (rc<=pdata[i].gR200c) {
+                                pdata[i].M_200crit_star+=massval;
+                                pdata[i].L_200crit_star+=J;
+                            }
+                            if (rc<=pdata[i].gR200m) {
+                                pdata[i].M_200mean_star+=massval;
+                                pdata[i].L_200mean_star+=J;
+                            }
+                            if (rc<=pdata[i].gRBN98) {
+                                pdata[i].M_BN98_star+=massval;
+                                pdata[i].L_BN98_star+=J;
+                            }
+                        }
+                    }
+#endif
+                }
+            }
+
             if (opt.iSphericalOverdensityPartList) {
                 SOpartlist[i].resize(iindex);
                 for (j=0;j<iindex;j++) SOpartlist[i][j]=SOpids[indices[j]];
@@ -2249,6 +2669,14 @@ private(i,j,k,taggedparts,radii,masses,indices,n,dx,EncMass,rc,rhoval,rhoval2,ti
             indices.clear();
             radii.clear();
             masses.clear();
+            if (opt.iextrahalooutput) {
+                posparts.clear();
+                velparts.clear();
+            }
+#if defined(GASON) || defined(STARON) || defined(BHON)
+            typeparts.clear();
+#endif
+
         }
 #ifdef USEOPENMP
     }
@@ -2273,7 +2701,6 @@ private(i,j,k,taggedparts,radii,masses,indices,n,dx,EncMass,rc,rhoval,rhoval2,ti
         }
 #endif
     }
-
     if (opt.iverbose) cout<<"Done inclusive masses for field objects in "<<MyGetTime()-time1<<endl;
 }
 //@}
@@ -2858,7 +3285,7 @@ void GetConcentration(PropData &p)
 ///\name Routines for manipulation of property data
 //@{
 ///copy mass information over
-void CopyMasses(const Int_t nhalos, PropData *&pold, PropData *&pnew){
+void CopyMasses(Options &opt, const Int_t nhalos, PropData *&pold, PropData *&pnew){
     for (Int_t i=1;i<=nhalos;i++) {
         pnew[i].gNFOF=pold[i].gNFOF;
         pnew[i].gMFOF=pold[i].gMFOF;
@@ -2871,6 +3298,31 @@ void CopyMasses(const Int_t nhalos, PropData *&pold, PropData *&pnew){
         pnew[i].gMBN98=pold[i].gMBN98;
         pnew[i].gRBN98=pold[i].gRBN98;
         pnew[i].gRhalfmass=pold[i].gRhalfmass;
+        if (opt.iextrahalooutput) {
+            pnew[i].gJ200c=pold[i].gJ200c;
+            pnew[i].gJ200m=pold[i].gJ200m;
+            pnew[i].gJBN98=pold[i].gJBN98;
+#ifdef GASON
+            if (opt.iextragasoutput) {
+                pnew[i].M_200crit_gas=pold[i].M_200crit_gas;
+                pnew[i].L_200crit_gas=pold[i].L_200crit_gas;
+                pnew[i].M_200mean_gas=pold[i].M_200mean_gas;
+                pnew[i].L_200mean_gas=pold[i].L_200mean_gas;
+                pnew[i].M_BN98_gas=pold[i].M_BN98_gas;
+                pnew[i].L_BN98_gas=pold[i].L_BN98_gas;
+            }
+#endif
+#ifdef STARON
+            if (opt.iextrastaroutput) {
+                pnew[i].M_200crit_star=pold[i].M_200crit_star;
+                pnew[i].L_200crit_star=pold[i].L_200crit_star;
+                pnew[i].M_200mean_star=pold[i].M_200mean_star;
+                pnew[i].L_200mean_star=pold[i].L_200mean_star;
+                pnew[i].M_BN98_star=pold[i].M_BN98_star;
+                pnew[i].L_BN98_star=pold[i].L_BN98_star;
+            }
+#endif
+        }
     }
 }
 ///reorder mass information stored in properties data
@@ -2930,6 +3382,7 @@ void GetBindingEnergy(Options &opt, const Int_t nbodies, Particle *Part, Int_t n
     //finished it puts the particles back into the input order. Therefore store id values in PID  value (which can be over written)
     //also if wish to use the deepest potential as a reference, then used to store original order
     Int_t *storepid;
+
     if (opt.uinfo.icalculatepotential) {
     //small groups with PP calculations of potential.
 #ifdef USEOPENMP
@@ -3053,7 +3506,6 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid)
 #ifdef USEOPENMP
 }
 #endif
-
     if (opt.uinfo.icalculatepotential) {
     //loop for large groups with tree calculation
     for (i=1;i<=ngroup;i++) if (numingroup[i]>=ompunbindnum) {
@@ -3119,7 +3571,6 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin)
 }
 #endif
     }
-
     //finally calculate binding energy
     for (i=1;i<=ngroup;i++) if (numingroup[i]>=ompunbindnum) {
         Tval=0;Potval=0;Efracval=0;
@@ -3173,7 +3624,6 @@ private(j,v2,Ti)
         if (pdata[i].n_star>0)pdata[i].Efrac_star=Efracval_star/(Double_t)pdata[i].n_star;
 #endif
     }
-
     if (opt.iverbose) cout<<"Done."<<endl;
 }
 
