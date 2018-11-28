@@ -179,11 +179,11 @@ endif()
 # Make sure we have the git submodules we need
 #
 macro(ensure_git_submodules)
-	if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/NBodylib/CMakeLists.txt")
+	if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/NBodylib/CMakeLists.txt" OR NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tools/velociraptor_python_tools.py")
 		find_package(Git QUIET)
 		if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
 			# Update submodules as needed
-			message(STATUS "Updating NBodylib submodule")
+			message(STATUS "Updating NBodylib and tools submodule")
 			execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init
 			                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 			                RESULT_VARIABLE GIT_SUBMOD_RESULT)
@@ -191,7 +191,7 @@ macro(ensure_git_submodules)
 			    message(FATAL_ERROR "git submodule update --init failed with ${GIT_SUBMOD_RESULT}, please checkout submodules")
 			endif()
 		else()
-			message(FATAL_ERROR "Cannot get NBodylib submodule automatically.
+			message(FATAL_ERROR "Cannot get NBodylib submodule or tools submodule automatically.
 				  Make sure you get your submodules")
 		endif()
 	endif()
