@@ -31,6 +31,7 @@ set(VR_SOURCES
     nchiladaio.cxx
     ramsesio.cxx
     search.cxx
+    swiftinterface.cxx
     substructureproperties.cxx
     tipsyio.cxx
     ui.cxx

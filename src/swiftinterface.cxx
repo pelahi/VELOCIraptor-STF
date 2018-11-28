@@ -283,7 +283,7 @@ int InvokeVelociraptor(const size_t num_gravity_parts, const size_t num_hydro_pa
     pdata=new PropData[ngroup+1];
     //if inclusive halo mass required
     if (libvelociraptorOpt.iInclusiveHalo && ngroup>0) {
-        CopyMasses(nhalos,pdatahalos,pdata);
+        CopyMasses(libvelociraptorOpt,nhalos,pdatahalos,pdata);
         delete[] pdatahalos;
     }
 
