@@ -22,3 +22,4 @@ stf/analysis/treefrog/doc/html/*
 stf/analysis/treefrog/doc/xml/*
 stf/Makefile.config
 *~
+*.tag
