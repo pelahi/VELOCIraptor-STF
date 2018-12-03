@@ -279,7 +279,8 @@ vr_report(Others
           "Activate black hole physics" USE_BH
           "Calculate local density dist. only for particles in field objects" STRUCTURE_DEN
           "Like above, but use particles inside field objects only for calclation" HALO_DEN
-          "Used to run against simulations with a high resolution region" ZOOM_SIM)
+          "Used to run against simulations with a high resolution region" ZOOM_SIM
+          "Activate SWIFT interface" USE_SWIFT_INTERFACE)
 message("")
 message("Compilation")
 message("-----------")
