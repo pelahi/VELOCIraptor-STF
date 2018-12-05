@@ -1,6 +1,6 @@
-[submodule "stf/NBodylib"]
+[submodule "NBodylib"]
 	path = NBodylib
 	url = https://github.com/pelahi/NBodylib.git
-[submodule "stf/tools"]
+[submodule "tools"]
 	path = tools
 	url = https://github.com/pelahi/VELOCIraptor_Python_Tools
