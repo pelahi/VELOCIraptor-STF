@@ -39,6 +39,9 @@ endmacro()
 vr_option(HDF5 "Attempt to include HDF5 support in VELOCIraptor" ON)
 vr_option(XDR  "XDR input support (used by nchilada)" OFF)
 
+# OpenMP options
+vr_option(OPENMP               "Attempt to include OpenMP support in VELOCIraptor" ON)
+
 # MPI options
 vr_option(MPI               "Attempt to include MPI support in VELOCIraptor" ON)
 vr_option(MPI_REDUCE        "Reduce impact of MPI memory overhead at the cost of extra cpu cycles. Suggested this be turned on" ON)
@@ -59,7 +62,7 @@ vr_option(GADGET_BH_INFO    "Support for extra black hole information in Gadget"
 vr_option(USE_STAR      "Use star particles" OFF)
 vr_option(USE_GAS       "Use gas particles" OFF)
 vr_option(USE_BH        "Use black holes" OFF)
-vr_option(USE_HYDRO     "NBODY_USE_GAS + NBODY_USE_STARS + VR_USE_BH" OFF)
+vr_option(USE_HYDRO     "Use all particle types, (gas, star, bh, etc)" OFF)
 
 # VELOCiraptor behavior options
 vr_option(STRUCTURE_DEN "Calculate local density dist. only for particles in field objects; uses all particles to estimate quantity" ON)
@@ -68,6 +71,9 @@ vr_option(ZOOM_SIM      "Used to run against simulations with a high resolution 
 vr_option(USE_SWIFT_INTERFACE "Used to compile the code with hooks for being called from the SWIFT Hydro nbody code" OFF)
 
 # Let's true to our word
+if (VR_USE_SWIFT_INTERFACE)
+	set(NBODY_USE_SWIFT_INTERFACE ON)
+endif()
 if (VR_USE_HYDRO)
 	set(NBODY_USE_GAS ON)
 	set(NBODY_USE_STARS ON)
@@ -82,8 +88,11 @@ endif()
 if (VR_USE_GAS)
 	set(NBODY_USE_GAS ON)
 endif()
-if (VR_USE_GAS)
-	set(NBODY_USE_GAS ON)
+if (VR_USE_BH)
+	set(NBODY_USE_BH ON)
+endif()
+if (VR_OPENMP)
+	set(NBODY_OPENMP ON)
 endif()
 
 
@@ -106,6 +115,7 @@ endmacro()
 
 vr_option_defines(XDR                       USEXDR)
 
+vr_option_defines(OPENMP                    USEOPENMP)
 vr_option_defines(MPI_REDUCE                MPIREDUCEMEM)
 vr_option_defines(LARGE_MPI_DOMAIN          HUGEMPI)
 
@@ -266,6 +276,8 @@ message("\nVELOCIraptor successfully configured with the following settings:")
 vr_report("File formats"
           "HDF5" HDF5
           "nchilada" XDR)
+vr_report("OpenMP-specifics"
+          "OpenMP support" OPENMP)
 vr_report("MPI-specifics"
           "MPI support" MPI
           "Reduce MPI memory overhead at the cost of extra CPU cycles" MPI_REDUCE
