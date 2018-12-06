@@ -1,4 +1,4 @@
-================================================================================================
+```
 
 ____   _______________.____    ________  _________ .___                      __
 \   \ /   /\_   _____/|    |   \_____  \ \_   ___ \|   |___________  _______/  |_  ___________
@@ -7,7 +7,9 @@ ____   _______________.____    ________  _________ .___                      __
    \___/   /_______  /|_______ \_______  /\______  /___||__|  (____  /   __/|__|  \____/|__|
                    \/         \/       \/        \/                \/|__|
 
+```
 (Formerly)
+```
   ____________________                     __
  /   _____/\__    ___/______ __ __   _____/  |_ __ _________   ____
  \_____  \   |    |  \_  __ \  |  \_/ ___\   __\  |  \_  __ \_/ __ \
@@ -27,13 +29,14 @@ ___________.__            .___
   \  \  /_______  /  |____|    \___  /     /  /
    \__\         \/                 \/     /__/
 
-================================================================================================
+```
 
-    VELOCIraptor (formerly STructure Finder)
+![alt text](https://github.com/pelahi/VELOCIraptor-STF/blob/master/velociraptoricon.png)
+
+# VELOCIraptor (formerly STructure Finder)
 
 ================================================================================================
-    developed by:
-================================================================================================
+## developed by:
 
     Pascal Jahan Elahi (continuously)
     Additional contributors:
@@ -42,31 +45,20 @@ ___________.__            .___
 
 ================================================================================================
 
-    Content
+## Content
     (for more information type make doc in main dir and in NBodylib dir and
     see documents in the doc directory)
 
-================================================================================================
     src/        contains main source code for the algorithm
-    analysis/   contains routines that can be used to analyze the (sub)structures found in a
-                simulation. Typically, these routines read in the Nbody data and then calculate
-                a variety of properties
     doc/        contains Doxygen generated latex and html file of code
-    NBodylib/   contains library of objects and routines used by algorithm (can also be used by
-                other routines)
-    NBodylib/lib library containing libMath, libNBody, libKD, libAnalysis, libCosmology,
-                libInitCond
-    NBodylib/include/ include files
-    NBodylib/src/ contains source code for the libraries
-    NBodylib/doc/ contains Doxygen generated latex and html file of code
+    examples/   contains examples of configuration files and how to run the code
+    NBodylib/   submodule:contains library of objects and routines used by algorithm
+    tools/      submodule: contains python tools of manipulating/reading output
 
-    Makefile.config   contains compilation flags
 
 ================================================================================================
 
-    Compiling (see documentation for more information)
-
-================================================================================================
+## Compiling (see documentation for more information)
 
     VELOCIraptor uses CMake as its build tool. cmake is used to perform system-level checks,
     like looking for libraries and setting up the rules for the build, and then generates the
@@ -75,13 +67,15 @@ ___________.__            .___
     cluttering the original source code directories) and several build system, like make and
     ninja files.
 
-    VELOCIraptor uses submodules so if you have a fresh clone use 
+    VELOCIraptor uses submodules so if you have a fresh clone you can use
 
     git submodule update --init --recursive
 
-    to update the submodules use 
+    to update the submodules use
 
     git submodule update --recursive --remote
+
+    Note that cmake will init the submodules by default
 
     The simplest way of building is, standing on the root your repository, run cmake to produce
     Makefiles and then compile with these steps:
@@ -108,9 +102,7 @@ ___________.__            .___
 
 ================================================================================================
 
-    Running (see documentation for more information)
-
-================================================================================================
+## Running (see documentation for more information)
 
     Running is as simple as
     ./bin/stf -i input -s nsnaportype -C configfile
@@ -123,7 +115,7 @@ ___________.__            .___
     with enough memory. A more complete version capable of handling large structures across
     mpi domains that are then searched for substructures is in the works.
 
-    Outputs:
+## Outputs
 
     The code will produce several files related to the configuration options (.configuration)
     input data (.siminfo), units information based on the input and the configuration options (.units)
@@ -158,9 +150,7 @@ ___________.__            .___
 
 ================================================================================================
 
-    Altering IO for other file types (see documentation for more information)
-
-================================================================================================
+## Altering IO for other file types (see documentation for more information)
 
     Naturally, not all simulations will be in the io formats already written. An example of
     several implemented io routines are in the src directory. The routine needs to load all
@@ -170,26 +160,17 @@ ___________.__            .___
 
 ================================================================================================
 
-    Associated analysis:
-
-================================================================================================
+## Associated analysis:
 
     TreeFrog (Fomerly Halotree):
-    --------------------------------------------------------------------------------------------
-    This code is a separate repo 
+
+    This code is a separate repo
 
     git clone https://github.com/pelahi/TreeFrog.git
 
-    but is useful for checking halo catalogs, particularly the 
+    but is useful for checking halo catalogs, particularly the
     examples/catalogcomparisontolerancecheck.py code that runs TreeFrog to compare two catalogs.
     The goal of this code is as a test to see if a new catalog produced by velociraptor matches
-    a reference catalog. 
+    a reference catalog.
 
 ================================================================================================
-
-    Tools:
-
-================================================================================================
-
-    Contains some example of reading routines for velociraptor output. For example will show
-    how a routine will read the output of velociraptor.
