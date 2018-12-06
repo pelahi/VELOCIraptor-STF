@@ -67,6 +67,7 @@ vr_option(USE_STAR      "Use star particles" OFF)
 vr_option(USE_GAS       "Use gas particles" OFF)
 vr_option(USE_BH        "Use black holes" OFF)
 vr_option(USE_HYDRO     "Use all particle types, (gas, star, bh, etc)" OFF)
+vr_option(NO_MASS       "Particles do not store mass (useful for pure N-body sims and reducing memory footprint)" OFF)
 
 # VELOCiraptor behavior options
 vr_option(STRUCTURE_DEN "Calculate local density dist. only for particles in field objects; uses all particles to estimate quantity" ON)
@@ -94,6 +95,9 @@ if (VR_USE_GAS)
 endif()
 if (VR_USE_BH)
 	set(NBODY_USE_BH ON)
+endif()
+if (VR_NO_MASS)
+	set(NBODY_NO_MASS ON)
 endif()
 if (VR_LONG_INT)
 	set(NBODY_LONG_INT ON)
@@ -144,9 +148,12 @@ vr_option_defines(GADGET_BH_INFO            EXTRABHINFO)
 vr_option_defines(USE_GAS                   GASON)
 vr_option_defines(USE_STAR                  STARON)
 vr_option_defines(USE_BH                    BHON)
+vr_option_defines(NO_MASS                   NOMASS)
+
 vr_option_defines(STRUCTURE_DEN             STRUCDEN)
 vr_option_defines(HALO_DEN                  HALOONLYDEN)
 vr_option_defines(ZOOM_SIM                  HIGHRES)
+
 vr_option_defines(USE_SWIFT_INTERFACE       SWIFTINTERFACE)
 
 #
@@ -299,17 +306,24 @@ vr_report("MPI-specifics"
           "MPI support" MPI
           "Reduce MPI memory overhead at the cost of extra CPU cycles" MPI_REDUCE
           "Use huge MPI domains" LARGE_MPI_DOMAIN)
-vr_report(Gadget
+vr_report("Gadget"
           "Use longs IDs" GADGET_LONGID "Use double precision pos and vel" GADGET_DPOS
           "Use single precision mass" GADGET_SMASS "Use header type 2" GADGET_HEAD2
           "Use extra SPH information" GADGET_SPH_INFO "Use extra star information" GADGET_STAR_INFO
           "Use extra black hole information" GADGET_BH_INFO)
-vr_report(Others
-          "Activate black hole physics" USE_BH
-          "Calculate local density dist. only for particles in field objects" STRUCTURE_DEN
-          "Like above, but use particles inside field objects only for calclation" HALO_DEN
+vr_report("Particle-specifics"
+          "Activate gas (& associated physics, properties calculated)" USE_GAS
+		  "Activate stars (& associated physics, properties calculated)" USE_STAR
+		  "Activate black holes (& associated physics, properties calculated)" USE_BH
+		  "Mass not stored (for uniform N-Body sims, reduce mem footprint)" NO_MASS
+	  )
+vr_report("Simulation-specifics"
           "Used to run against simulations with a high resolution region" ZOOM_SIM
-          "Activate SWIFT interface" USE_SWIFT_INTERFACE)
+	      "Build library for integration into SWIFT Sim code " USE_SWIFT_INTERFACE)
+vr_report("Others"
+          "Calculate local density dist. only for particles in field objects" STRUCTURE_DEN
+	      "Like above, but use particles inside field objects only for calclation" HALO_DEN)
+
 message("")
 message("Compilation")
 message("-----------")
