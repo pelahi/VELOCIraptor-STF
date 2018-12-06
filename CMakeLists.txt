@@ -39,6 +39,13 @@ endmacro()
 vr_option(HDF5 "Attempt to include HDF5 support in VELOCIraptor" ON)
 vr_option(XDR  "XDR input support (used by nchilada)" OFF)
 
+# Precision options
+vr_option(SINGLE_PRECISION  "Use single point precision to store all properties and perform all calculations" OFF)
+vr_option(LONG_INT          "Use long ints to represent all integers. Needed if dealing with more than MAXINT number of particles" ON)
+
+# OpenMP options
+vr_option(OPENMP           "Attempt to include OpenMP support in VELOCIraptor" ON)
+
 # MPI options
 vr_option(MPI               "Attempt to include MPI support in VELOCIraptor" ON)
 vr_option(MPI_REDUCE        "Reduce impact of MPI memory overhead at the cost of extra cpu cycles. Suggested this be turned on" ON)
@@ -85,6 +92,15 @@ endif()
 if (VR_USE_GAS)
 	set(NBODY_USE_GAS ON)
 endif()
+if (VR_LONG_INT)
+	set(NBODY_LONG_INT ON)
+endif()
+if (VR_SINGLE_PRECISION)
+	set(NBODY_SINGLE_PRECISION ON)
+endif()
+if (VR_OPENMP)
+	set(NBODY_OPENMP ON)
+endif()
 
 
 set(VR_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/src")
@@ -105,6 +121,11 @@ macro(vr_option_defines varname define)
 endmacro()
 
 vr_option_defines(XDR                       USEXDR)
+
+vr_option_defines(SINGLE_PRECISION          SINGLEPRECISION)
+vr_option_defines(LONG_INT                  LONGINT)
+
+vr_option_defines(OPENMP                    USEOPENMP)
 
 vr_option_defines(MPI_REDUCE                MPIREDUCEMEM)
 vr_option_defines(LARGE_MPI_DOMAIN          HUGEMPI)
@@ -266,6 +287,11 @@ message("\nVELOCIraptor successfully configured with the following settings:")
 vr_report("File formats"
           "HDF5" HDF5
           "nchilada" XDR)
+vr_report("Precision-specifics"
+        "Long Integers" LONG_INT
+        "Single precision floats" SINGLE_PRECISION)
+vr_report("OpenMP-specifics"
+        "OpenMP support" OPENMP)
 vr_report("MPI-specifics"
           "MPI support" MPI
           "Reduce MPI memory overhead at the cost of extra CPU cycles" MPI_REDUCE

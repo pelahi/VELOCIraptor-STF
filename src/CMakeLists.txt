@@ -31,6 +31,7 @@ set(VR_SOURCES
     nchiladaio.cxx
     ramsesio.cxx
     search.cxx
+    swiftinterface.cxx
     substructureproperties.cxx
     tipsyio.cxx
     ui.cxx
@@ -45,8 +46,13 @@ if (VR_CXX_FLAGS)
 endif()
 set_target_properties(velociraptor PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
+
+# Bringing NBodyLib objects into the velociraptor library
+target_link_libraries(velociraptor nbodylib_iface)
+
 add_executable(stf main.cxx)
-target_link_libraries(stf velociraptor nbodylib ${VR_LIBS})
+target_link_libraries(stf velociraptor ${VR_LIBS})
+
 target_compile_definitions(stf PRIVATE ${VR_DEFINES})
 if (VR_CXX_FLAGS)
 	set_target_properties(stf PROPERTIES COMPILE_FLAGS ${VR_CXX_FLAGS})
