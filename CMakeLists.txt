@@ -66,7 +66,7 @@ vr_option(GADGET_BH_INFO    "Support for extra black hole information in Gadget"
 vr_option(USE_STAR      "Use star particles" OFF)
 vr_option(USE_GAS       "Use gas particles" OFF)
 vr_option(USE_BH        "Use black holes" OFF)
-vr_option(USE_HYDRO     "NBODY_USE_GAS + NBODY_USE_STARS + VR_USE_BH" OFF)
+vr_option(USE_HYDRO     "Use all particle types, (gas, star, bh, etc)" OFF)
 vr_option(NO_MASS       "Particles do not store mass (useful for pure N-body sims and reducing memory footprint)" OFF)
 
 # VELOCiraptor behavior options
@@ -76,6 +76,9 @@ vr_option(ZOOM_SIM      "Used to run against simulations with a high resolution 
 vr_option(USE_SWIFT_INTERFACE "Used to compile the code with hooks for being called from the SWIFT Hydro nbody code" OFF)
 
 # Let's true to our word
+if (VR_USE_SWIFT_INTERFACE)
+	set(NBODY_USE_SWIFT_INTERFACE ON)
+endif()
 if (VR_USE_HYDRO)
 	set(NBODY_USE_GAS ON)
 	set(NBODY_USE_STARS ON)
@@ -90,8 +93,8 @@ endif()
 if (VR_USE_GAS)
 	set(NBODY_USE_GAS ON)
 endif()
-if (VR_USE_GAS)
-	set(NBODY_USE_GAS ON)
+if (VR_USE_BH)
+	set(NBODY_USE_BH ON)
 endif()
 if (VR_NO_MASS)
 	set(NBODY_NO_MASS ON)

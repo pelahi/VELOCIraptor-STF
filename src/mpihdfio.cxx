@@ -73,7 +73,6 @@ void MPIDomainExtentHDF(Options &opt){
         catch( FileIException error )
         {
             HDF5PrintError(error);
-
         }
         // catch failure caused by the DataSet operations
         catch( DataSetIException error )

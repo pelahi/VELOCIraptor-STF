@@ -435,65 +435,65 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
         }
         catch(GroupIException &error)
         {
-            HDF5PrintError(error);
-            cerr<<"Error in group might suggest config file has the incorrect HDF naming convention. ";
-    		cerr<<"Check HDF_name_convetion or add new naming convention updating hdfitems.h in the source code. "<<endl;
-    		Fhdf[i].close();
-    #ifdef USEMPI
-    		MPI_Abort(MPI_COMM_WORLD,8);
-    #else
-    		exit(8);
-    #endif
+          HDF5PrintError(error);
+          cerr<<"Error in group might suggest config file has the incorrect HDF naming convention. ";
+          cerr<<"Check HDF_name_convetion or add new naming convention updating hdfitems.h in the source code. "<<endl;
+          Fhdf[i].close();
+#ifdef USEMPI
+          MPI_Abort(MPI_COMM_WORLD,8);
+#else
+          exit(8);
+#endif
         }
         // catch failure caused by the H5File operations
         catch( FileIException &error )
         {
-            HDF5PrintError(error);
-            cerr<<"Error reading file. Exiting "<<endl;
-    		Fhdf[i].close();
-    #ifdef USEMPI
-    		MPI_Abort(MPI_COMM_WORLD,8);
-    #else
-    		exit(8);
-    #endif
+          HDF5PrintError(error);
+          cerr<<"Error reading file. Exiting "<<endl;
+          Fhdf[i].close();
+#ifdef USEMPI
+          MPI_Abort(MPI_COMM_WORLD,8);
+#else
+          exit(8);
+#endif
         }
         // catch failure caused by the DataSet operations
         catch( DataSetIException &error )
         {
-            HDF5PrintError(error);
-            cerr<<"Error in data set might suggest config file has the incorrect HDF naming convention. ";
-    		cerr<<"Check HDF_name_convetion or update hdfio.cxx in the source code to read correct format"<<endl;
-    		Fhdf[i].close();
-    #ifdef USEMPI
-    		MPI_Abort(MPI_COMM_WORLD,8);
-    #else
-    		exit(8);
-    #endif
+          HDF5PrintError(error);
+          cerr<<"Error in data set might suggest config file has the incorrect HDF naming convention. ";
+          cerr<<"Check HDF_name_convetion or update hdfio.cxx in the source code to read correct format"<<endl;
+          Fhdf[i].close();
+#ifdef USEMPI
+          MPI_Abort(MPI_COMM_WORLD,8);
+#else
+          exit(8);
+#endif
         }
         // catch failure caused by the DataSpace operations
         catch( DataSpaceIException &error )
         {
-            HDF5PrintError(error);
-            cerr<<"Error in data space might suggest config file has the incorrect HDF naming convention. ";
-    		cerr<<"Check HDF_name_convetion or update hdfio.cxx in the source code to read correct format"<<endl;
-    		Fhdf[i].close();
-    #ifdef USEMPI
-    		MPI_Abort(MPI_COMM_WORLD,8);
-    #else
-    		exit(8);
-    #endif
+          HDF5PrintError(error);
+          cerr<<"Error in data space might suggest config file has the incorrect HDF naming convention. ";
+          cerr<<"Check HDF_name_convetion or update hdfio.cxx in the source code to read correct format"<<endl;
+          Fhdf[i].close();
+#ifdef USEMPI
+          MPI_Abort(MPI_COMM_WORLD,8);
+#else
+          exit(8);
+#endif
         }
         // catch failure caused by the DataSpace operations
         catch( DataTypeIException &error )
         {
-            HDF5PrintError(error);
-            cerr<<"Error in data type might suggest need to update hdfio.cxx in the source code to read correct format"<<endl;
-    		Fhdf[i].close();
-    #ifdef USEMPI
-    		MPI_Abort(MPI_COMM_WORLD,8);
-    #else
-    		exit(8);
-    #endif
+          HDF5PrintError(error);
+          cerr<<"Error in data type might suggest need to update hdfio.cxx in the source code to read correct format"<<endl;
+          Fhdf[i].close();
+#ifdef USEMPI
+          MPI_Abort(MPI_COMM_WORLD,8);
+#else
+          exit(8);
+#endif
         }
     }
     //after info read, initialise cosmological parameters
@@ -523,7 +523,15 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
       cout<<"Non-cosmological input, using h = "<< opt.h<<endl;
     }
 
-    mscale=opt.M/opt.h;lscale=opt.L/opt.h*aadjust;lvscale=opt.L/opt.h*opt.a;
+    // SWIFT snapshots already include the 1/h factor factor, 
+    // so there is no need to include it.
+    if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES) {
+      mscale=opt.M;lscale=opt.L*aadjust;lvscale=opt.L*opt.a;
+    }
+    else {
+      mscale=opt.M/opt.h;lscale=opt.L/opt.h*aadjust;lvscale=opt.L/opt.h*opt.a;
+    }
+
     //ignore hubble flow
     Hubbleflow=0.;
     Ntotal=0;
@@ -1215,11 +1223,18 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
         Fhdf[i].close();
     }
 
+    double vscale = 0.0;
+
+    // SWIFT snapshot velocities already contain the sqrt(a) factor, 
+    // so there is no need to include it.
+    if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES) vscale = opt.V;
+    else vscale = opt.V*sqrt(opt.a);
+
     //finally adjust to appropriate units
     for (i=0;i<nbodies;i++)
     {
       Part[i].SetMass(Part[i].GetMass()*mscale);
-      for (int j=0;j<3;j++) Part[i].SetVelocity(j,Part[i].GetVelocity(j)*opt.V*sqrt(opt.a)+Hubbleflow*Part[i].GetPosition(j));
+      for (int j=0;j<3;j++) Part[i].SetVelocity(j,Part[i].GetVelocity(j)*vscale+Hubbleflow*Part[i].GetPosition(j));
       for (int j=0;j<3;j++) Part[i].SetPosition(j,Part[i].GetPosition(j)*lscale);
 #ifdef GASON
       if (Part[i].GetType()==GASTYPE) Part[i].SetU(Part[i].GetU()*opt.V*opt.V);
@@ -1229,7 +1244,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
       for (i=0;i<nbaryons;i++)
       {
         Pbaryons[i].SetMass(Pbaryons[i].GetMass()*mscale);
-        for (int j=0;j<3;j++) Pbaryons[i].SetVelocity(j,Pbaryons[i].GetVelocity(j)*opt.V*sqrt(opt.a)+Hubbleflow*Pbaryons[i].GetPosition(j));
+        for (int j=0;j<3;j++) Pbaryons[i].SetVelocity(j,Pbaryons[i].GetVelocity(j)*vscale+Hubbleflow*Pbaryons[i].GetPosition(j));
         for (int j=0;j<3;j++) Pbaryons[i].SetPosition(j,Pbaryons[i].GetPosition(j)*lscale);
 #ifdef GASON
         Pbaryons[i].SetU(Pbaryons[i].GetU()*opt.V*opt.V);
@@ -1843,9 +1858,20 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
         opt.Omega_b=MP_B/(MP_DM+MP_B)*opt.Omega_m;
         opt.Omega_cdm=opt.Omega_m-opt.Omega_b;
       }
-      //adjust period
-      if (opt.comove) opt.p*=opt.L/opt.h;
-      else opt.p*=opt.L/opt.h*opt.a;
+      
+      // SWIFT snapshots already include the 1/h factor factor, 
+      // so there is no need to include it.
+      if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES) {
+        //adjust period
+        if (opt.comove) opt.p*=opt.L;
+        else opt.p*=opt.L*opt.a;
+      }
+      else {
+        //adjust period
+        if (opt.comove) opt.p*=opt.L/opt.h;
+        else opt.p*=opt.L/opt.h*opt.a;
+      }
+
 #ifdef USEMPI
     }
 #endif
@@ -1919,11 +1945,19 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 #endif
 
 #ifdef USEMPI
+    
+    double vscale = 0.0;
+
+    // SWIFT snapshot velocities already contain the sqrt(a) factor, 
+    // so there is no need to include it.
+    if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES) vscale = opt.V;
+    else vscale = opt.V*sqrt(opt.a);
+
     //finally adjust to appropriate units
     for (i=0;i<Nlocal;i++)
     {
       Part[i].SetMass(Part[i].GetMass()*mscale);
-      for (int j=0;j<3;j++) Part[i].SetVelocity(j,Part[i].GetVelocity(j)*opt.V*sqrt(opt.a)+Hubbleflow*Part[i].GetPosition(j));
+      for (int j=0;j<3;j++) Part[i].SetVelocity(j,Part[i].GetVelocity(j)*vscale+Hubbleflow*Part[i].GetPosition(j));
       for (int j=0;j<3;j++) Part[i].SetPosition(j,Part[i].GetPosition(j)*lscale);
 #ifdef GASON
       if (Part[i].GetType()==GASTYPE) Part[i].SetU(Part[i].GetU()*opt.V*opt.V);
@@ -1933,7 +1967,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
       for (i=0;i<Nlocalbaryon[0];i++)
       {
         Pbaryons[i].SetMass(Pbaryons[i].GetMass()*mscale);
-        for (int j=0;j<3;j++) Pbaryons[i].SetVelocity(j,Pbaryons[i].GetVelocity(j)*opt.V*sqrt(opt.a)+Hubbleflow*Pbaryons[i].GetPosition(j));
+        for (int j=0;j<3;j++) Pbaryons[i].SetVelocity(j,Pbaryons[i].GetVelocity(j)*vscale+Hubbleflow*Pbaryons[i].GetPosition(j));
         for (int j=0;j<3;j++) Pbaryons[i].SetPosition(j,Pbaryons[i].GetPosition(j)*lscale);
 #ifdef GASON
         Pbaryons[i].SetU(Pbaryons[i].GetU()*opt.V*opt.V);
