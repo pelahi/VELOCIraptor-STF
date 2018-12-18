@@ -83,7 +83,7 @@ using namespace H5;
 ///size of chunks in hdf files for Compression
 #define HDFOUTPUTCHUNKSIZE 8192
 
-#ifdef HDF5_NEWER_THAN_1_10_0
+#if H5_VERSION_GE(1,10,1)
 #define HDF5_FILE_GROUP_COMMON_BASE H5::Group
 #define HDF5_GROUP_DATASET_COMMON_BASE H5::H5Object
 #else
@@ -185,7 +185,7 @@ const T read_attribute(const std::string &filename, const std::string &name) {
 }
 
 static inline void HDF5PrintError(const H5::Exception &error) {
-#ifdef HDF5_NEWER_THAN_1_10_0
+#if H5_VERSION_GE(1,10,1)
 	error.printErrorStack();
 #else
 	error.printError();
@@ -577,56 +577,56 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
 
         if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES) {
 
-			// Check if it is a SWIFT snapshot.
-			headerattribs=get_attribute(Fhdf, "Header/Code");
-			stringtype = headerattribs.getStrType();
-			headerattribs.read(stringtype, stringbuff);
+          // Check if it is a SWIFT snapshot.
+          headerattribs=get_attribute(Fhdf, "Header/Code");
+          stringtype = headerattribs.getStrType();
+          headerattribs.read(stringtype, stringbuff);
 
-			// Read SWIFT parameters
-			if(!swift_str.compare(stringbuff)) {
-				// Is it a cosmological simulation?
-				headerattribs=get_attribute(Fhdf, hdf_header_info.names[hdf_header_info.IIsCosmological]);
-				headerdataspace=headerattribs.getSpace();
+          // Read SWIFT parameters
+          if(!swift_str.compare(stringbuff)) {
+            // Is it a cosmological simulation?
+            headerattribs=get_attribute(Fhdf, hdf_header_info.names[hdf_header_info.IIsCosmological]);
+            headerdataspace=headerattribs.getSpace();
 
-				if (headerdataspace.getSimpleExtentNdims()!=1) ireaderror=1;
-				inttype=headerattribs.getIntType();
-				if (inttype.getSize()==sizeof(int)) {
-					headerattribs.read(PredType::NATIVE_INT,&intbuff[0]);
-					hdf_header_info.iscosmological = intbuff[0];
-				}
-				if (inttype.getSize()==sizeof(long long)) {
-					headerattribs.read(PredType::NATIVE_LONG,&longbuff[0]);
-					hdf_header_info.iscosmological = longbuff[0];
-				}
+            if (headerdataspace.getSimpleExtentNdims()!=1) ireaderror=1;
+            inttype=headerattribs.getIntType();
+            if (inttype.getSize()==sizeof(int)) {
+              headerattribs.read(PredType::NATIVE_INT,&intbuff[0]);
+              hdf_header_info.iscosmological = intbuff[0];
+            }
+            if (inttype.getSize()==sizeof(long long)) {
+              headerattribs.read(PredType::NATIVE_LONG,&longbuff[0]);
+              hdf_header_info.iscosmological = longbuff[0];
+            }
 
-            	if (!hdf_header_info.iscosmological && opt.icosmologicalin) {
-              		cout<<"Error: cosmology is turned on in the config file but the snaphot provided is a non-cosmological run."<<endl;
+            if (!hdf_header_info.iscosmological && opt.icosmologicalin) {
+              cout<<"Error: cosmology is turned on in the config file but the snaphot provided is a non-cosmological run."<<endl;
 #ifdef USEMPI
-              		MPI_Abort(MPI_COMM_WORLD, 8);
+              MPI_Abort(MPI_COMM_WORLD, 8);
 #else
-              		exit(0);
+              exit(0);
 #endif
 
-            	}
-            	else if (hdf_header_info.iscosmological && !opt.icosmologicalin) {
-					cout<<"Error: cosmology is turned off in the config file but the snaphot provided is a cosmological run."<<endl;
+            }
+            else if (hdf_header_info.iscosmological && !opt.icosmologicalin) {
+              cout<<"Error: cosmology is turned off in the config file but the snaphot provided is a cosmological run."<<endl;
 #ifdef USEMPI
-              		MPI_Abort(MPI_COMM_WORLD, 8);
+              MPI_Abort(MPI_COMM_WORLD, 8);
 #else
-              		exit(0);
+              exit(0);
 #endif
 
-            	}
-          	}
-			// If the code is not SWIFT
-			else {
-            	cout<<"SWIFT EAGLE HDF5 naming convention chosen in config file but the snapshot was not produced by SWIFT. The string read was: "<<stringbuff<<endl;
+            }
+          }
+          // If the code is not SWIFT
+          else {
+            cout<<"SWIFT EAGLE HDF5 naming convention chosen in config file but the snapshot was not produced by SWIFT. The string read was: "<<stringbuff<<endl;
 #ifdef USEMPI
-            	MPI_Abort(MPI_COMM_WORLD, 8);
+            MPI_Abort(MPI_COMM_WORLD, 8);
 #else
-            	exit(0);
+            exit(0);
 #endif
-          	}
+          }
         }
 
         headerattribs=get_attribute(Fhdf, hdf_header_info.names[hdf_header_info.INumTot]);
@@ -641,72 +641,70 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
     catch(GroupIException &error)
     {
         HDF5PrintError(error);
-		cerr<<"Error in group might suggest config file has the incorrect HDF naming convention. ";
-		cerr<<"Check HDF_name_convetion or add new naming convention updating hdfitems.h in the source code. "<<endl;
-		Fhdf.close();
+        cerr<<"Error in group might suggest config file has the incorrect HDF naming convention. ";
+        cerr<<"Check HDF_name_convetion or add new naming convention updating hdfitems.h in the source code. "<<endl;
+        Fhdf.close();
 #ifdef USEMPI
-		MPI_Abort(MPI_COMM_WORLD,8);
+        MPI_Abort(MPI_COMM_WORLD,8);
 #else
-		exit(8);
+        exit(8);
 #endif
-	}
+    }
     // catch failure caused by the H5File operations
     catch( FileIException &error )
     {
-        HDF5PrintError(error);
-		cerr<<"Error reading file. Exiting "<<endl;
-		Fhdf.close();
+      HDF5PrintError(error);
+      cerr<<"Error reading file. Exiting "<<endl;
+      Fhdf.close();
 #ifdef USEMPI
-		MPI_Abort(MPI_COMM_WORLD,8);
+      MPI_Abort(MPI_COMM_WORLD,8);
 #else
-		exit(8);
+      exit(8);
 #endif
-
     }
     // catch failure caused by the DataSet operations
     catch( DataSetIException &error )
     {
-        HDF5PrintError(error);
-		cerr<<"Error in data set might suggest config file has the incorrect HDF naming convention. ";
-		cerr<<"Check HDF_name_convetion or update hdfio.cxx in the source code to read correct format"<<endl;
-		Fhdf.close();
+      HDF5PrintError(error);
+      cerr<<"Error in data set might suggest config file has the incorrect HDF naming convention. ";
+      cerr<<"Check HDF_name_convetion or update hdfio.cxx in the source code to read correct format"<<endl;
+      Fhdf.close();
 #ifdef USEMPI
-		MPI_Abort(MPI_COMM_WORLD,8);
+      MPI_Abort(MPI_COMM_WORLD,8);
 #else
-		exit(8);
+      exit(8);
 #endif
     }
     // catch failure caused by the DataSpace operations
     catch( DataSpaceIException &error )
     {
-        HDF5PrintError(error);
-		cerr<<"Error in data space might suggest config file has the incorrect HDF naming convention. ";
-		cerr<<"Check HDF_name_convetion or update hdfio.cxx in the source code to read correct format"<<endl;
-		Fhdf.close();
+      HDF5PrintError(error);
+      cerr<<"Error in data space might suggest config file has the incorrect HDF naming convention. ";
+      cerr<<"Check HDF_name_convetion or update hdfio.cxx in the source code to read correct format"<<endl;
+      Fhdf.close();
 #ifdef USEMPI
-		MPI_Abort(MPI_COMM_WORLD,8);
+      MPI_Abort(MPI_COMM_WORLD,8);
 #else
-		exit(8);
+      exit(8);
 #endif
     }
     // catch failure caused by the DataSpace operations
     catch( DataTypeIException &error )
     {
-        HDF5PrintError(error);
-		cerr<<"Error in data type might suggest need to update hdfio.cxx in the source code to read correct format"<<endl;
-		Fhdf.close();
+      HDF5PrintError(error);
+      cerr<<"Error in data type might suggest need to update hdfio.cxx in the source code to read correct format"<<endl;
+      Fhdf.close();
 #ifdef USEMPI
-		MPI_Abort(MPI_COMM_WORLD,8);
+      MPI_Abort(MPI_COMM_WORLD,8);
 #else
-		exit(8);
+      exit(8);
 #endif
     }
     // catch failure caused by missing attribute
     catch( invalid_argument error )
     {
       if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES) {
-        cout<<"SWIFT EAGLE HDF5 naming convention chosen in config file but cannot find the Code attribute in snapshot."<<endl;
-        cerr<<"HDF5 file "<<error.what()<<endl;
+        cerr<<"Reading SWIFT EAGLE HDF5 file: "<<error.what()<<endl;
 #ifdef USEMPI
         MPI_Abort(MPI_COMM_WORLD, 8);
 #else
@@ -785,7 +783,6 @@ inline Int_t HDF_get_nfiles(char *fname, int ptype)
     catch( FileIException &error )
     {
         HDF5PrintError(error);
-
     }
     // catch failure caused by the DataSet operations
     catch( DataSetIException &error )
@@ -811,8 +808,5 @@ inline Int_t HDF_get_nfiles(char *fname, int ptype)
 
 }
 //@}
-
-
-
 
 #endif
