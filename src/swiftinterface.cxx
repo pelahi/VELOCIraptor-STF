@@ -143,7 +143,7 @@ int InvokeVelociraptor(const size_t num_gravity_parts, const size_t num_hydro_pa
 #endif
 
     libvelociraptorOpt.outname = outputname;
-    libvelociraptorOpt.snapshotvalue = snapnum;
+    libvelociraptorOpt.snapshotvalue = HALOIDSNVAL* snapnum;
 
     //write associated units and simulation details (which contains scale factor/time information)
     WriteSimulationInfo(libvelociraptorOpt);
