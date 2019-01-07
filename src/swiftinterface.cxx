@@ -112,13 +112,13 @@ int InitVelociraptor(char* configname, char* outputname, cosmoinfo c, unitinfo u
 
     //write velociraptor info
     WriteVELOCIraptorConfig(libvelociraptorOpt);
-    WriteSimulationInfo(libvelociraptorOpt);
-    WriteUnitInfo(libvelociraptorOpt);
+    //WriteSimulationInfo(libvelociraptorOpt);
+    //WriteUnitInfo(libvelociraptorOpt);
 
     return 1;
 }
 
-int InvokeVelociraptor(const size_t num_gravity_parts, const size_t num_hydro_parts, struct swift_vel_part *swift_parts, const int *cell_node_ids, char* outputname) {
+int InvokeVelociraptor(const size_t num_gravity_parts, const size_t num_hydro_parts, const int snapnum, struct swift_vel_part *swift_parts, const int *cell_node_ids, char* outputname) {
 #ifndef GASON
     cout<<"Gas has not been turned on in VELOCIraptor. Set GASON in Makefile.config and recompile VELOCIraptor."<<endl;
     return 0;
@@ -143,6 +143,11 @@ int InvokeVelociraptor(const size_t num_gravity_parts, const size_t num_hydro_pa
 #endif
 
     libvelociraptorOpt.outname = outputname;
+    libvelociraptorOpt.snapshotvalue = HALOIDSNVAL* snapnum;
+
+    //write associated units and simulation details (which contains scale factor/time information)
+    WriteSimulationInfo(libvelociraptorOpt);
+    WriteUnitInfo(libvelociraptorOpt);
 
     vector<Particle> parts;
     Particle *pbaryons;
@@ -186,7 +191,7 @@ int InvokeVelociraptor(const size_t num_gravity_parts, const size_t num_hydro_pa
         if(swift_parts[i].type == DARKTYPE) {
           parts[dmOffset++] = Particle(swift_parts[i]);
         }
-        else { 
+        else {
           if(swift_parts[i].type == GASTYPE) {
             pbaryons[gasOffset++] = Particle(swift_parts[i]);
           }
