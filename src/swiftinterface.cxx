@@ -10,7 +10,7 @@ Options libvelociraptorOpt;
 //KDTree *mpimeshtree;
 //Particle *mpimeshinfo;
 
-int InitVelociraptor(char* configname, char* outputname, cosmoinfo c, unitinfo u, siminfo s)
+int InitVelociraptor(char* configname, char* outputname, cosmoinfo c, unitinfo u, siminfo s, const int numthreads)
 {
 
 #ifdef USEMPI
@@ -24,6 +24,7 @@ int InitVelociraptor(char* configname, char* outputname, cosmoinfo c, unitinfo u
     MPI_Comm_rank(MPI_COMM_WORLD,&ThisTask);
     //store MinSize as when using mpi prior to stitching use min of 2;
     MinNumMPI=2;
+    ///??? add something to get number of pthreads from swift and assign them as openmp threads
 
 #endif
     cout<<"Initialising VELOCIraptor..."<< endl;
@@ -118,7 +119,7 @@ int InitVelociraptor(char* configname, char* outputname, cosmoinfo c, unitinfo u
     return 1;
 }
 
-int InvokeVelociraptor(const size_t num_gravity_parts, const size_t num_hydro_parts, const int snapnum, struct swift_vel_part *swift_parts, const int *cell_node_ids, char* outputname) {
+int InvokeVelociraptor(const size_t num_gravity_parts, const size_t num_hydro_parts, const int snapnum, struct swift_vel_part *swift_parts, const int *cell_node_ids, char* outputname, const int numthreads) {
 #ifndef GASON
     cout<<"Gas has not been turned on in VELOCIraptor. Set GASON in Makefile.config and recompile VELOCIraptor."<<endl;
     return 0;
@@ -133,6 +134,10 @@ int InvokeVelociraptor(const size_t num_gravity_parts, const size_t num_hydro_pa
 #endif
     int nthreads;
 #ifdef USEOPENMP
+    omp_set_num_threads(numthreads);
+#endif
+
+#ifdef USEOPENMP
 #pragma omp parallel
 {
     if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
@@ -144,6 +149,8 @@ int InvokeVelociraptor(const size_t num_gravity_parts, const size_t num_hydro_pa
 
     libvelociraptorOpt.outname = outputname;
     libvelociraptorOpt.snapshotvalue = HALOIDSNVAL* snapnum;
+    cout<<libvelociraptorOpt.outname<<" ----- "<<endl;
+    cout<<outputname<<" ----- "<<endl;
 
     //write associated units and simulation details (which contains scale factor/time information)
     WriteSimulationInfo(libvelociraptorOpt);
@@ -204,14 +211,13 @@ int InvokeVelociraptor(const size_t num_gravity_parts, const size_t num_hydro_pa
             return 0;
           }
           else {
-            cout<<"Unknown particle type found: "<<swift_parts[i].type<<" while treating baryons differently. Exiting..."<<endl;
+            cout<<"Unknown particle type found: index="<<i<<" type="<<swift_parts[i].type<<" while treating baryons differently. Exiting..."<<endl;
             return 0;
           }
         }
       }
     }
     else {
-
       for(auto i=0; i<Nlocal; i++) {
         parts[i] = Particle(swift_parts[i]);
         if(swift_parts[i].type == STARTYPE) {
@@ -223,10 +229,17 @@ int InvokeVelociraptor(const size_t num_gravity_parts, const size_t num_hydro_pa
           return 0;
         }
         else if(swift_parts[i].type != DARKTYPE && swift_parts[i].type != GASTYPE) {
-          cout<<"Unknown particle type found: "<<swift_parts[i].type<<" while searching all particles equally. Exiting..."<<endl;
+          cout<<"Unknown particle type found: index="<<i<<" type="<<swift_parts[i].type<<" when loading particles. Exiting..."<<endl;
           return 0;
         }
      }
+
+/*
+      for(auto i=0; i<Nlocal; i++) {
+        parts[i] = Particle(swift_parts[i]);
+        parts[i].SetType(DARKTYPE);
+     }
+*/
 
     }
 
