@@ -159,6 +159,7 @@ int InitVelociraptor(char* configname, unitinfo u, siminfo s, const int numthrea
     libvelociraptorOpt.G=u.gravity;
     libvelociraptorOpt.U=u.energyperunitmass;
     libvelociraptorOpt.H=u.hubbleunit;
+    libvelociraptorOpt.icosmologicalin=s.icosmologicalsim;
 
     //write velociraptor configuration info, appending .configuration to the input config file and writing every config option
     libvelociraptorOpt.outname = configname;
