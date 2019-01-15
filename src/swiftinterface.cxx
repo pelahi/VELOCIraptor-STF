@@ -10,9 +10,117 @@ Options libvelociraptorOpt;
 //KDTree *mpimeshtree;
 //Particle *mpimeshinfo;
 
-int InitVelociraptor(char* configname, char* outputname, cosmoinfo c, unitinfo u, siminfo s, const int numthreads)
-{
+/// \defgroup SWIFTCONFIGERRORS Errors for swift
+//@{
+///
+#define SWIFTCONFIGOPTMISSING 8
+#define SWIFTCONFIGOPTERROR 9
+#define SWIFTCONFIGOPTCONFLICT 10
+//@}
 
+///check configuration options with swift
+inline int ConfigCheckSwift(Options &opt, Swift::siminfo &s)
+{
+#ifndef USEMPI
+    int ThisTask=0;
+#endif
+    if (opt.iBaryonSearch && !(opt.partsearchtype==PSTALL || opt.partsearchtype==PSTDARK)) {
+        if (ThisTask==0) cerr<<"Conflict in config file: both gas/star/etc particle type search AND the separate baryonic (gas,star,etc) search flag are on. Check config\n";
+        return SWIFTCONFIGOPTCONFLICT;
+    }
+    if (opt.iBoundHalos && opt.iKeepFOF) {
+        if (ThisTask==0) cerr<<"Conflict in config file: Asking for Bound Field objects but also asking to keep the 3DFOF/then run 6DFOF. This is incompatible. Check config\n";
+        return SWIFTCONFIGOPTCONFLICT;
+    }
+    if (opt.HaloMinSize==-1) opt.HaloMinSize=opt.MinSize;
+
+    if (s.idarkmatter == false && opt.partsearchtype==PSTDARK) {
+        if (ThisTask==0) cerr<<"Conflict in config file: simulation contains no dark matter but searching only dark matter. This is incompatible. Check config\n";
+        return SWIFTCONFIGOPTCONFLICT;
+    }
+    if (s.idarkmatter == false && opt.partsearchtype==PSTALL && opt.iBaryonSearch) {
+        if (ThisTask==0) cerr<<"Conflict in config file: simulation contains no dark matter but using dark matter to define links when searching all particles . This is incompatible. Check config\n";
+        return SWIFTCONFIGOPTCONFLICT;
+    }
+    if (s.igas == false && opt.partsearchtype==PSTGAS) {
+        if (ThisTask==0) cerr<<"Conflict in config file: simulation contains no gas but searching only gas. This is incompatible. Check config\n";
+        return SWIFTCONFIGOPTCONFLICT;
+    }
+    if ((s.istar == false && opt.partsearchtype==PSTSTAR)) {
+        if (ThisTask==0) cerr<<"Conflict in config file: simulation contains no gas but searching only stars or using stars as basis for links. This is incompatible. Check config\n";
+        return SWIFTCONFIGOPTCONFLICT;
+    }
+
+#ifndef USEHDF
+    if (opt.ibinaryout==OUTHDF){
+        if (ThisTask==0) cerr<<"Code not compiled with HDF output enabled. Recompile with this enabled or change Binary_output.\n";
+        return SWIFTCONFIGOPTERROR;
+    }
+#endif
+
+#ifndef USEADIOS
+    if (opt.ibinaryout==OUTADIOS){
+        if (ThisTask==0) cerr<<"Code not compiled with ADIOS output enabled. Recompile with this enabled or change Binary_output.\n";
+        return SWIFTCONFIGOPTERROR;
+    }
+#endif
+
+    if (ThisTask==0) {
+    cout<<"CONFIG INFO SUMMARY -------------------------- "<<endl;
+    switch(opt.partsearchtype)
+    {
+            case PSTALL:
+                cout<<"Searching all particles regardless of type"<<endl;
+                break;
+            case PSTDARK:
+                cout<<"Searching dark matter particles "<<endl;
+                break;
+            case PSTGAS:
+                cout<<"Searching gas particles "<<endl;
+                break;
+            case PSTSTAR:
+                cout<<"Searching star particles"<<endl;
+                break;
+            case PSTBH:
+                cout<<"Searching BH particles?! Really? Are there enough?"<<endl;
+                break;
+    }
+    if (opt.fofbgtype==FOF6D) cout<<"Field objects found with 3d FOF"<<endl;
+    else if (opt.fofbgtype==FOF6D) cout<<"Field objects found with initial 3d FOF then use single dispersion to find 6d FOFs"<<endl;
+    else if (opt.fofbgtype==FOF6DADAPTIVE) cout<<"Field objects found with initial 3d FOF then use adaptive dispersion to find 6d FOFs"<<endl;
+    else if (opt.fofbgtype==FOFSTNOSUBSET) cout<<"Field objects found with initial 3d FOF then use phase-space stream finding algorithm"<<endl;
+    if (opt.fofbgtype<=FOF6D && opt.iKeepFOF) cout<<"Field objects found with initial 3d FOF then use dispersion to find 6d FOFs and 3dFOF objects kept as base objects (consider them inter halo stellar mass or ICL for stellar only searches) "<<endl;
+    if (opt.iBaryonSearch==1) cout<<"Baryons treated separately for substructure search"<<endl;
+    else if (opt.iBaryonSearch==2) cout<<"Baryons treated separately for substructure search and also FOF field search"<<endl;
+    if (opt.iSingleHalo) cout<<"Field objects NOT searched for, assuming single Halo and subsearch using mean field first step"<<endl;
+    cout<<"Allowed potential to kinetic ratio when unbinding particles "<<opt.uinfo.Eratio<<endl;
+    if (opt.HaloMinSize!=opt.MinSize) cout<<"Field objects (aka Halos) have different minimum required size than substructures: "<<opt.HaloMinSize<<" vs "<<opt.MinSize<<endl;
+    cout<<"Units: L="<<opt.L<<", M="<<opt.M<<", V="<<opt.V<<", G="<<opt.G<<endl;
+    if (opt.ibinaryout) cout<<"Binary output"<<endl;
+    if (opt.iseparatefiles) cout<<"Separate files output"<<endl;
+    if (opt.iextendedoutput) cout<<"Extended output for particle extraction from input files"<<endl;
+    if (opt.iHaloCoreSearch) cout<<"Searching for 6dfof cores so as to disentangle mergers"<<endl;
+    if (opt.iHaloCoreSearch && opt.iAdaptiveCoreLinking) cout<<"With adaptive linking lengths"<<endl;
+    if (opt.iHaloCoreSearch && opt.iPhaseCoreGrowth) cout<<"With with phase-space tensor core assignment"<<endl;
+    if (opt.inputtype==IOGADGET) cout<<"Gadget file particle input "<<endl;
+    else if (opt.inputtype==IOTIPSY) cout<<"Tipsy file particle input "<<endl;
+    else if (opt.inputtype==IORAMSES) cout<<"RAMSES file particle input "<<endl;
+#ifdef USEHDF
+    else if (opt.inputtype==IOHDF) cout<<"HDF file particle input "<<endl;
+#endif
+#ifdef USEXDR
+    else if (opt.inputtype==IONCHILADA) cout<<"NCHILADA file particle input "<<endl;
+#endif
+    cout<<" -------------------------- "<<endl;
+    }
+    return 1;
+}
+
+
+int InitVelociraptor(char* configname, unitinfo u, siminfo s, const int numthreads)
+{
+    cout<<"Initialising VELOCIraptor..."<< endl;
+    // if mpi invokved, init the velociraptor tasks and openmp threads
 #ifdef USEMPI
     //find out how big the SPMD world is
     MPI_Comm_size(MPI_COMM_WORLD,&NProcs);
@@ -24,16 +132,19 @@ int InitVelociraptor(char* configname, char* outputname, cosmoinfo c, unitinfo u
     MPI_Comm_rank(MPI_COMM_WORLD,&ThisTask);
     //store MinSize as when using mpi prior to stitching use min of 2;
     MinNumMPI=2;
-    ///??? add something to get number of pthreads from swift and assign them as openmp threads
-
 #endif
-    cout<<"Initialising VELOCIraptor..."<< endl;
-
+#ifdef USEOPENMP
+    omp_set_num_threads(numthreads);
+#endif
+    int iconfigflag;
+    ///read the parameter file
     libvelociraptorOpt.pname = configname;
-    libvelociraptorOpt.outname = outputname;
-
     cout<<"Reading VELOCIraptor config file..."<< endl;
     GetParamFile(libvelociraptorOpt);
+    ///check configuration
+    iconfigflag = ConfigCheckSwift(libvelociraptorOpt, s);
+    if (iconfigflag != 1) return iconfigflag;
+
     cout<<"Setting cosmology, units, sim stuff "<<endl;
     ///set units, here idea is to convert internal units so that have kpc, km/s, solar mass
     libvelociraptorOpt.lengthtokpc=1.0;
@@ -42,10 +153,26 @@ int InitVelociraptor(char* configname, char* outputname, cosmoinfo c, unitinfo u
     libvelociraptorOpt.L=u.lengthtokpc;
     libvelociraptorOpt.M=u.masstosolarmass;
     libvelociraptorOpt.V=u.velocitytokms;
+
+    //set cosmological parameters that do not change
     ///these should be in units of kpc, km/s, and solar mass
     libvelociraptorOpt.G=u.gravity;
     libvelociraptorOpt.U=u.energyperunitmass;
     libvelociraptorOpt.H=u.hubbleunit;
+
+    //write velociraptor configuration info, appending .configuration to the input config file and writing every config option
+    libvelociraptorOpt.outname = configname;
+    WriteVELOCIraptorConfig(libvelociraptorOpt);
+
+    cout<<"Finished initialising VELOCIraptor"<<endl;
+
+    //return the configuration flag value
+    return iconfigflag;
+
+}
+
+void SetVelociraptorSimulationState(cosmoinfo c, siminfo s)
+{
     ///set cosmology
     libvelociraptorOpt.a=c.atime;
     libvelociraptorOpt.h=c.littleh;
@@ -55,27 +182,29 @@ int InitVelociraptor(char* configname, char* outputname, cosmoinfo c, unitinfo u
     libvelociraptorOpt.Omega_Lambda=c.Omega_Lambda;
     libvelociraptorOpt.w_de=c.w_de;
 
-    //if libvelociraptorOpt.virlevel<0, then use virial overdensity based on Bryan and Norman 1998 virialization level is given by
-    if (libvelociraptorOpt.virlevel<0)
-    {
-        Double_t bnx=-((1-libvelociraptorOpt.Omega_m-libvelociraptorOpt.Omega_Lambda)*pow(libvelociraptorOpt.a,-2.0)+libvelociraptorOpt.Omega_Lambda)/((1-libvelociraptorOpt.Omega_m-libvelociraptorOpt.Omega_Lambda)*pow(libvelociraptorOpt.a,-2.0)+libvelociraptorOpt.Omega_m*pow(libvelociraptorOpt.a,-3.0)+libvelociraptorOpt.Omega_Lambda);
-        libvelociraptorOpt.virlevel=(18.0*M_PI*M_PI+82.0*bnx-39*bnx*bnx)/libvelociraptorOpt.Omega_m;
-    }
     //set some sim information
     libvelociraptorOpt.p=s.period;
     libvelociraptorOpt.zoomlowmassdm=s.zoomhigresolutionmass;
     libvelociraptorOpt.icosmologicalin=s.icosmologicalsim;
     libvelociraptorOpt.ellxscale=s.interparticlespacing;
     libvelociraptorOpt.uinfo.eps*=libvelociraptorOpt.ellxscale;
+
     if (libvelociraptorOpt.icosmologicalin) {
         libvelociraptorOpt.ellxscale*=libvelociraptorOpt.a;
         libvelociraptorOpt.uinfo.eps*=libvelociraptorOpt.a;
         double Hubble=libvelociraptorOpt.h*libvelociraptorOpt.H*sqrt((1-libvelociraptorOpt.Omega_m-libvelociraptorOpt.Omega_Lambda)*pow(libvelociraptorOpt.a,-2.0)+libvelociraptorOpt.Omega_m*pow(libvelociraptorOpt.a,-3.0)+libvelociraptorOpt.Omega_Lambda);
         libvelociraptorOpt.rhobg=3.*Hubble*Hubble/(8.0*M_PI*libvelociraptorOpt.G)*libvelociraptorOpt.Omega_m;
+        //if libvelociraptorOpt.virlevel<0, then use virial overdensity based on Bryan and Norman 1998 virialization level is given by
+        if (libvelociraptorOpt.virlevel<0)
+        {
+            Double_t bnx=-((1-libvelociraptorOpt.Omega_m-libvelociraptorOpt.Omega_Lambda)*pow(libvelociraptorOpt.a,-2.0)+libvelociraptorOpt.Omega_Lambda)/((1-libvelociraptorOpt.Omega_m-libvelociraptorOpt.Omega_Lambda)*pow(libvelociraptorOpt.a,-2.0)+libvelociraptorOpt.Omega_m*pow(libvelociraptorOpt.a,-3.0)+libvelociraptorOpt.Omega_Lambda);
+            libvelociraptorOpt.virlevel=(18.0*M_PI*M_PI+82.0*bnx-39*bnx*bnx)/libvelociraptorOpt.Omega_m;
+        }
     }
     else {
         libvelociraptorOpt.rhobg=1.0;
     }
+
     //assume above is in comoving is cosmological simulation and then need to correct to physical
     if (libvelociraptorOpt.icosmologicalin) {
         libvelociraptorOpt.p*=libvelociraptorOpt.a;
@@ -84,7 +213,7 @@ int InitVelociraptor(char* configname, char* outputname, cosmoinfo c, unitinfo u
     }
     libvelociraptorOpt.uinfo.icalculatepotential=true;
 
-    // Set mesh information.
+    // Set mesh information. (has this been mapped to physical?)
     libvelociraptorOpt.spacedimension[0] = s.spacedimension[0];
     libvelociraptorOpt.spacedimension[1] = s.spacedimension[1];
     libvelociraptorOpt.spacedimension[2] = s.spacedimension[2];
@@ -98,9 +227,6 @@ int InitVelociraptor(char* configname, char* outputname, cosmoinfo c, unitinfo u
     libvelociraptorOpt.numcellsperdim = cbrt(s.numcells);
     libvelociraptorOpt.cellloc = s.cellloc;
 
-    cout<<"Finished initialising VELOCIraptor"<<endl;
-    if (libvelociraptorOpt.HaloMinSize==-1) libvelociraptorOpt.HaloMinSize=libvelociraptorOpt.MinSize;
-
 #ifdef USEMPI
     //if single halo, use minsize to initialize the old minimum number
     //else use the halominsize since if mpi and not single halo, halos localized to mpi domain for substructure search
@@ -108,18 +234,14 @@ int InitVelociraptor(char* configname, char* outputname, cosmoinfo c, unitinfo u
     else MinNumOld=libvelociraptorOpt.HaloMinSize;
     mpi_period = libvelociraptorOpt.p;
 #endif
-    //allocate memory to store metis mesh info
-    //mpimeshinfo=new Particle[libvelociraptorOpt.numcells];
-
-    //write velociraptor info
-    WriteVELOCIraptorConfig(libvelociraptorOpt);
-    //WriteSimulationInfo(libvelociraptorOpt);
-    //WriteUnitInfo(libvelociraptorOpt);
-
-    return 1;
 }
 
-int InvokeVelociraptor(const size_t num_gravity_parts, const size_t num_hydro_parts, const int snapnum, struct swift_vel_part *swift_parts, const int *cell_node_ids, char* outputname, const int numthreads) {
+int InvokeVelociraptor(const int snapnum, char* outputname,
+    cosmoinfo c, siminfo s,
+    const size_t num_gravity_parts, const size_t num_hydro_parts,
+    struct swift_vel_part *swift_parts, const int *cell_node_ids,
+    const int numthreads)
+{
 #ifndef GASON
     cout<<"Gas has not been turned on in VELOCIraptor. Set GASON in Makefile.config and recompile VELOCIraptor."<<endl;
     return 0;
@@ -134,10 +256,6 @@ int InvokeVelociraptor(const size_t num_gravity_parts, const size_t num_hydro_pa
 #endif
     int nthreads;
 #ifdef USEOPENMP
-    omp_set_num_threads(numthreads);
-#endif
-
-#ifdef USEOPENMP
 #pragma omp parallel
 {
     if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
@@ -149,10 +267,9 @@ int InvokeVelociraptor(const size_t num_gravity_parts, const size_t num_hydro_pa
 
     libvelociraptorOpt.outname = outputname;
     libvelociraptorOpt.snapshotvalue = HALOIDSNVAL* snapnum;
-    cout<<libvelociraptorOpt.outname<<" ----- "<<endl;
-    cout<<outputname<<" ----- "<<endl;
 
     //write associated units and simulation details (which contains scale factor/time information)
+    SetVelociraptorSimulationState(c, s);
     WriteSimulationInfo(libvelociraptorOpt);
     WriteUnitInfo(libvelociraptorOpt);
 

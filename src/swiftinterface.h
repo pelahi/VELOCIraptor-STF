@@ -42,8 +42,12 @@ using namespace NBody;
 
 ///structure for interfacing with swift and extract cosmological information
 namespace Swift {
+    /// store basic cosmological information
     struct cosmoinfo {
-        double atime, littleh, Omega_m, Omega_b, Omega_Lambda, Omega_cdm, w_de;
+        double atime;
+        double littleh;
+        //have matter, baryons, dark matter, cosmological constant, radiation, neutrinos, dark energy and eos of de
+        double Omega_m, Omega_b, Omega_cdm, Omega_Lambda, Omega_r, Omega_nu, Omega_de, w_de;
     };
     ///structure to store unit information of swift
     struct unitinfo {
@@ -58,7 +62,7 @@ namespace Swift {
 
     //} SWIFT_STRUCT_ALIGN;
 
-    //store simulation info
+    ///store simulation info
     struct siminfo {
         double period, zoomhigresolutionmass, interparticlespacing, spacedimension[3];
 
@@ -80,7 +84,12 @@ namespace Swift {
         /*! Holds the node ID of each top-level cell. */
         int *cellnodeids;
 
+        /// whether run is cosmological simulation
         int icosmologicalsim;
+        /// running a zoom simulation
+        int izoomsim;
+        /// flags indicating what types of particles are present
+        int idarkmatter, igas, istar, ibh, iother;
     };
 
 }
@@ -89,11 +98,17 @@ using namespace Swift;
 
 ///\defgroup external C style interfaces that can be called in swift N-body code.
 //@{
-//extern "C" void InvokeVelociraptor(const int num_gravity_parts, const int num_hydro_parts, struct gpart *gravity_parts, struct part *hydro_parts, double mpi_domain [3][2]);
-///initialize velociraptor
-extern "C" int InitVelociraptor(char* configname, char* outputname, Swift::cosmoinfo, Swift::unitinfo, Swift::siminfo, const int numthreads);
+//extern "C" int InitVelociraptor(char* configname, char* outputname, Swift::cosmoinfo, Swift::unitinfo, Swift::siminfo, const int numthreads);
+///initialize velociraptor, check configuration options,
+extern "C" int InitVelociraptor(char* configname, Swift::unitinfo, Swift::siminfo, const int numthreads);
 ///actually run velociraptor
-extern "C" int InvokeVelociraptor(const size_t num_gravity_parts, const size_t num_hydro_parts, const int snapnum, struct swift_vel_part *swift_parts, const int *cell_node_ids, char* outputname, const int numthreads);
+extern "C" int InvokeVelociraptor(const int snapnum, char* outputname,
+    Swift::cosmoinfo, Swift::siminfo,
+    const size_t num_gravity_parts, const size_t num_hydro_parts,
+    struct swift_vel_part *swift_parts, const int *cell_node_ids,
+    const int numthreads);
+///set simulation information
+void SetVelociraptorSimulationState(Swift::cosmoinfo, Swift::siminfo);
 //@}
 
 //extern KDTree *mpimeshtree;
