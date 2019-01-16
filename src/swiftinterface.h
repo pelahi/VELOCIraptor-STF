@@ -92,7 +92,12 @@ namespace Swift {
         int idarkmatter, igas, istar, ibh, iother;
     };
 
+    struct groupinfo {
+      int index;
+      long long groupid;
+    };
 }
+
 
 using namespace Swift;
 
@@ -102,11 +107,11 @@ using namespace Swift;
 ///initialize velociraptor, check configuration options,
 extern "C" int InitVelociraptor(char* configname, Swift::unitinfo, Swift::siminfo, const int numthreads);
 ///actually run velociraptor
-extern "C" int InvokeVelociraptor(const int snapnum, char* outputname,
+extern "C" Swift::groupinfo * InvokeVelociraptor(const int snapnum, char* outputname,
     Swift::cosmoinfo, Swift::siminfo,
     const size_t num_gravity_parts, const size_t num_hydro_parts,
     struct swift_vel_part *swift_parts, const int *cell_node_ids,
-    const int numthreads);
+    const int numthreads, int *numingroups);
 ///set simulation information
 void SetVelociraptorSimulationState(Swift::cosmoinfo, Swift::siminfo);
 //@}

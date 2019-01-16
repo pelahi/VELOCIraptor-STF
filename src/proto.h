@@ -490,6 +490,10 @@ void MPIBuildHaloSearchExportList(const Int_t ngroup, PropData *&pdata, vector<D
 void MPIGetHaloSearchImportNum(const Int_t nbodies, KDTree *tree, Particle *Part);
 ///Builds the import list of particles based on halo positions
 Int_t MPIBuildHaloSearchImportList(const Int_t nbodies, KDTree *tree, Particle *Part);
+#ifdef SWIFTINTERFACE
+///Exchange Particles so that particles in group are back original swift task
+void MPISwiftExchange(vector<Particle> &Part);
+#endif
 //@}
 #endif
 

@@ -237,11 +237,11 @@ void SetVelociraptorSimulationState(cosmoinfo c, siminfo s)
 #endif
 }
 
-int InvokeVelociraptor(const int snapnum, char* outputname,
+groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
     cosmoinfo c, siminfo s,
     const size_t num_gravity_parts, const size_t num_hydro_parts,
     struct swift_vel_part *swift_parts, const int *cell_node_ids,
-    const int numthreads)
+    const int numthreads, int *numingroups)
 {
 #ifndef GASON
     cout<<"Gas has not been turned on in VELOCIraptor. Set GASON in Makefile.config and recompile VELOCIraptor."<<endl;
@@ -279,6 +279,7 @@ int InvokeVelociraptor(const int snapnum, char* outputname,
     Int_t *pfof, *pfofall, *pfofbaryons, *numingroup,**pglist;
     Int_t nbaryons, ndark;
     Int_t ngroup, nhalos;
+    groupinfo *group_info;
     //KDTree *tree;
     //to store information about the group
     PropData *pdata=NULL,*pdatahalos=NULL;
@@ -352,13 +353,6 @@ int InvokeVelociraptor(const int snapnum, char* outputname,
         }
      }
 
-/*
-      for(auto i=0; i<Nlocal; i++) {
-        parts[i] = Particle(swift_parts[i]);
-        parts[i].SetType(DARKTYPE);
-     }
-*/
-
     }
 
     time1=MyGetTime()-time1;
@@ -367,17 +361,6 @@ int InvokeVelociraptor(const int snapnum, char* outputname,
     cout<<ThisTask<<" There are "<<Nlocal<<" particles and have allocated enough memory for "<<Nmemlocal<<" requiring "<<Nmemlocal*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
     if (libvelociraptorOpt.iBaryonSearch>0) cout<<ThisTask<<"There are "<<Nlocalbaryon[0]<<" baryon particles and have allocated enough memory for "<<Nmemlocalbaryon<<" requiring "<<Nmemlocalbaryon*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
     cout<<ThisTask<<" will also require additional memory for FOF algorithms and substructure search. Largest mem needed for preliminary FOF search. Rough estimate is "<<Nlocal*(sizeof(Int_tree_t)*8)/1024./1024./1024.<<"GB of memory"<<endl;
-
-    //build binary tree to store cells for quick search
-    /*
-    Double_t *period=NULL;
-    if (libvelociraptorOpt.p>0) {
-        period=new Double_t[3];
-        for (int j=0;j<3;j++) period[j]=libvelociraptorOpt.p;
-    }
-    for (auto i=0;i<libvelociraptorOpt.numcells; i++) for (auto j=0;j<3;j++) mpimeshinfo[i].SetPosition(j,libvelociraptorOpt.cellloc[i].loc[j]);
-    mpimeshtree=new KDTree(mpimeshinfo,libvelociraptorOpt.numcells,1,mpimeshtree->TPHYS,mpimeshtree->KEPAN,100,0,0,0,period);
-    */
 
     //
     // Perform FOF search.
@@ -471,16 +454,44 @@ int InvokeVelociraptor(const int snapnum, char* outputname,
 
     for (Int_t i=1;i<=ngroup;i++) delete[] pglist[i];
     delete[] pglist;
-    //delete[] parts;
 
-    //delete tree used to search mpi mesh
-    //delete mpimeshtree;
+    //store group information to return information to swift
+    //first sort so all particles in groups first
+    Int_t ngoffset=0,ngtot=0;
+    Int_t nig=0;
 
-    ///\todo need to return fof and substructure information back to swift
+#ifdef USEMPI
+    for (auto j=0;j<ThisTask;j++)ngoffset+=mpi_ngroups[j];
+    for (auto j=0;j<NProcs;j++)ngtot+=mpi_ngroups[j];
+#else
+    ngtot=ngroup;
+#endif
+    for (auto i=1;i<=ngroup; i++) nig+=numingroup[i];
+    for (auto i=0;i<Nlocal; i++) {
+        if (pfof[i]>0) parts[i].SetPID((pfof[i]+ngoffset)+libvelociraptorOpt.snapshotvalue);
+        else parts[i].SetPID(ngtot+1+libvelociraptorOpt.snapshotvalue);
+    }
+    qsort(parts.data(), Nlocal, sizeof(Particle), PIDCompare);
+    parts.resize(nig);
+    Nlocal = parts.size();
+#ifdef USEMPI
+    for (auto i=0;i<Nlocal; i++) parts[i].SetID((parts[i].GetSwiftTask()==ThisTask));
+    //now sort items according to whether local swift task
+    qsort(parts.data(), nig, sizeof(Particle), IDCompare);
+    //communicate information
+    MPISwiftExchange(parts);
+#endif
+
+    //now allocate mem and copy data
+    group_info = new groupinfo[Nlocal];
+    for (auto i=0;i<Nlocal; i++) {
+        group_info[i].groupid=parts[i].GetPID();
+        group_info[i].index=parts[i].GetSwiftIndex();
+    }
 
     cout<<"VELOCIraptor returning."<< endl;
 
-    return 1;
+    return group_info;
 }
 
 #endif
