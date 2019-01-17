@@ -44,10 +44,35 @@ using namespace NBody;
 namespace Swift {
     /// store basic cosmological information
     struct cosmoinfo {
-        double atime;
-        double littleh;
-        //have matter, baryons, dark matter, cosmological constant, radiation, neutrinos, dark energy and eos of de
-        double Omega_m, Omega_b, Omega_cdm, Omega_Lambda, Omega_r, Omega_nu, Omega_de, w_de;
+  /*! Current expansion factor of the Universe. (cosmology.a) */
+  double atime;
+
+  /*! Reduced Hubble constant (H0 / (100km/s/Mpc) (cosmology.h) */
+  double littleh;
+
+  /*! Matter density parameter (cosmology.Omega_m) */
+  double Omega_m;
+
+  /*! Radiation density parameter (cosmology.Omega_r) */
+  double Omega_r;
+
+  /*! Neutrino density parameter (0 in SWIFT) */
+  double Omega_nu;
+
+  /*! Neutrino density parameter (cosmology.Omega_k) */
+  double Omega_k;
+
+  /*! Baryon density parameter (cosmology.Omega_b) */
+  double Omega_b;
+
+  /*! Radiation constant density parameter (cosmology.Omega_lambda) */
+  double Omega_Lambda;
+
+  /*! Dark matter density parameter (cosmology.Omega_m - cosmology.Omega_b) */
+  double Omega_cdm;
+
+  /*! Dark-energy equation of state at the current time (cosmology.w)*/
+  double w_de;
     };
     ///structure to store unit information of swift
     struct unitinfo {
@@ -111,7 +136,7 @@ extern "C" Swift::groupinfo * InvokeVelociraptor(const int snapnum, char* output
     Swift::cosmoinfo, Swift::siminfo,
     const size_t num_gravity_parts, const size_t num_hydro_parts,
     struct swift_vel_part *swift_parts, const int *cell_node_ids,
-    const int numthreads, int ireturngroupinfoflag, int *numingroups);
+    const int numthreads, const int ireturngroupinfoflag, int *const numingroups);
 ///set simulation information
 void SetVelociraptorSimulationState(Swift::cosmoinfo, Swift::siminfo);
 //@}

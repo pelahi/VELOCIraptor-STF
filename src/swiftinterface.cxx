@@ -147,19 +147,24 @@ int InitVelociraptor(char* configname, unitinfo u, siminfo s, const int numthrea
 
     cout<<"Setting cosmology, units, sim stuff "<<endl;
     ///set units, here idea is to convert internal units so that have kpc, km/s, solar mass
-    libvelociraptorOpt.lengthtokpc=1.0;
-    libvelociraptorOpt.velocitytokms=1.0;
-    libvelociraptorOpt.masstosolarmass=1.0;
-    libvelociraptorOpt.L=u.lengthtokpc;
-    libvelociraptorOpt.M=u.masstosolarmass;
-    libvelociraptorOpt.V=u.velocitytokms;
+    ///\todo switch this so run in reasonable swift units and store conversion
+    libvelociraptorOpt.lengthtokpc=u.lengthtokpc;
+    libvelociraptorOpt.velocitytokms=u.velocitytokms;
+    libvelociraptorOpt.masstosolarmass=u.masstosolarmass;
+    libvelociraptorOpt.energyperunitmass=u.energyperunitmass;
+
+    libvelociraptorOpt.L=1.0;
+    libvelociraptorOpt.M=1.0;
+    libvelociraptorOpt.V=1.0;
+    libvelociraptorOpt.U=1.0;
 
     //set cosmological parameters that do not change
     ///these should be in units of kpc, km/s, and solar mass
     libvelociraptorOpt.G=u.gravity;
-    libvelociraptorOpt.U=u.energyperunitmass;
     libvelociraptorOpt.H=u.hubbleunit;
-    libvelociraptorOpt.icosmologicalin=s.icosmologicalsim;
+
+    //set if cosmological 
+    libvelociraptorOpt.icosmologicalin = s.icosmologicalsim;
 
     //write velociraptor configuration info, appending .configuration to the input config file and writing every config option
     libvelociraptorOpt.outname = configname;
@@ -181,7 +186,14 @@ void SetVelociraptorSimulationState(cosmoinfo c, siminfo s)
     libvelociraptorOpt.Omega_b=c.Omega_b;
     libvelociraptorOpt.Omega_cdm=c.Omega_cdm;
     libvelociraptorOpt.Omega_Lambda=c.Omega_Lambda;
+    libvelociraptorOpt.Omega_r=c.Omega_r;
+    libvelociraptorOpt.Omega_nu=c.Omega_nu;
+    libvelociraptorOpt.Omega_k=c.Omega_k;
     libvelociraptorOpt.w_de=c.w_de;
+    if (libvelociraptorOpt.w_de != -1) {
+        libvelociraptorOpt.Omega_de = libvelociraptorOpt.Omega_Lambda;
+        libvelociraptorOpt.Omega_Lambda = 0;
+    }
 
     //set some sim information
     libvelociraptorOpt.p=s.period;
@@ -193,7 +205,8 @@ void SetVelociraptorSimulationState(cosmoinfo c, siminfo s)
     if (libvelociraptorOpt.icosmologicalin) {
         libvelociraptorOpt.ellxscale*=libvelociraptorOpt.a;
         libvelociraptorOpt.uinfo.eps*=libvelociraptorOpt.a;
-        double Hubble=libvelociraptorOpt.h*libvelociraptorOpt.H*sqrt((1-libvelociraptorOpt.Omega_m-libvelociraptorOpt.Omega_Lambda)*pow(libvelociraptorOpt.a,-2.0)+libvelociraptorOpt.Omega_m*pow(libvelociraptorOpt.a,-3.0)+libvelociraptorOpt.Omega_Lambda);
+        double Hubble=libvelociraptorOpt.h*libvelociraptorOpt.H*sqrt((libvelociraptorOpt.Omega_k)*pow(libvelociraptorOpt.a,-2.0)+libvelociraptorOpt.Omega_m*pow(libvelociraptorOpt.a,-3.0)
++libvelociraptorOpt.Omega_r*pow(libvelociraptorOpt.a,-4.0)+libvelociraptorOpt.Omega_Lambda+libvelociraptorOpt.Omega_de*pow(libvelociraptorOpt.a,-3.0*(1+libvelociraptorOpt.w_de)));
         libvelociraptorOpt.rhobg=3.*Hubble*Hubble/(8.0*M_PI*libvelociraptorOpt.G)*libvelociraptorOpt.Omega_m;
         //if libvelociraptorOpt.virlevel<0, then use virial overdensity based on Bryan and Norman 1998 virialization level is given by
         if (libvelociraptorOpt.virlevel<0)
@@ -237,11 +250,14 @@ void SetVelociraptorSimulationState(cosmoinfo c, siminfo s)
 #endif
 }
 
+///\todo interface with swift is comoving positions, period, peculiar velocities and physical self-energy
 groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
     cosmoinfo c, siminfo s,
     const size_t num_gravity_parts, const size_t num_hydro_parts,
     struct swift_vel_part *swift_parts, const int *cell_node_ids,
-    const int numthreads, const int ireturngroupinfoflag, int *numpartingroups)
+    const int numthreads, 
+    const int ireturngroupinfoflag, 
+    int * const numpartingroups)
 {
 #ifndef GASON
     cout<<"Gas has not been turned on in VELOCIraptor. Set GASON in Makefile.config and recompile VELOCIraptor."<<endl;
@@ -345,8 +361,7 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
         }
     }
     //lets free the memory of swift_parts
-    ///\todo would this work?
-    //delete[] swift_parts;
+    free(swift_parts);
 
     time1=MyGetTime()-time1;
     cout<<"Finished copying particle data."<< endl;
@@ -452,19 +467,29 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
     //otherwise, return NULL as pointer
     if (ireturngroupinfoflag == 0 ) {
         cout<<"VELOCIraptor returning, no group info returned to swift as requested."<< endl;
-        numpartingroups=0;
+        *numpartingroups=0;
         return NULL;
     }
+    
     //first sort so all particles in groups first
     Int_t ngoffset=0,ngtot=0;
     Int_t nig=0;
 
 #ifdef USEMPI
+    if (NProcs > 1) {
     for (auto j=0;j<ThisTask;j++)ngoffset+=mpi_ngroups[j];
     for (auto j=0;j<NProcs;j++)ngtot+=mpi_ngroups[j];
+    }
+    else ngtot=ngroup;
 #else
     ngtot=ngroup;
 #endif
+    cout<<"VELOCIraptor sorting info to return group ids to swift"<<endl;
+    if (ngroup == 0) {
+        *numpartingroups=nig;
+        return NULL;
+    }
+
     for (auto i=1;i<=ngroup; i++) nig+=numingroup[i];
     for (auto i=0;i<Nlocal; i++) {
         if (pfof[i]>0) parts[i].SetPID((pfof[i]+ngoffset)+libvelociraptorOpt.snapshotvalue);
@@ -474,12 +499,14 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
     parts.resize(nig);
     Nlocal = parts.size();
 #ifdef USEMPI
+    if (NProcs > 1) {
     for (auto i=0;i<Nlocal; i++) parts[i].SetID((parts[i].GetSwiftTask()==ThisTask));
     //now sort items according to whether local swift task
     qsort(parts.data(), nig, sizeof(Particle), IDCompare);
     //communicate information
     MPISwiftExchange(parts);
     Nlocal = parts.size();
+    }
 #endif
     *numpartingroups = Nlocal;
     //now allocate mem and copy data
