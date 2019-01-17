@@ -366,13 +366,15 @@ struct Options
     ///\name length,m,v,grav conversion units
     //@{
     Double_t L, M, U, V, G;
-    Double_t lengthtokpc, velocitytokms, masstosolarmass;
+    Double_t lengthtokpc, velocitytokms, masstosolarmass, timetoseconds;
     //@}
     ///period (comove)
     Double_t p;
     ///\name scale factor, Hubunit, h, cosmology, virial density. These are used if linking lengths are scaled or trying to define virlevel using the cosmology
     //@{
-    Double_t a,H,h, Omega_m, Omega_b, Omega_cdm, Omega_Lambda, w_de, rhobg, virlevel, virBN98;
+    Double_t a,H,h;
+    Double_t Omega_m, Omega_b, Omega_cdm, Omega_Lambda, Omega_k, Omega_r, Omega_nu, Omega_de, w_de;
+    Double_t rhocrit, rhobg, virlevel, virBN98;
     int comove;
     /// to store the internal code unit to kpc and the distance^2 of 30 kpc, and 50 kpc
     Double_t lengthtokpc30pow2, lengthtokpc50pow2;
@@ -575,6 +577,10 @@ struct Options
         Omega_Lambda = 0.0;
         Omega_b = 0.0;
         Omega_cdm = Omega_m;
+        Omega_r = 0.0;
+        Omega_nu = 0.0;
+        Omega_de = 0.0;
+
         rhobg = 1.0;
         virlevel = -1;
         comove=0;
@@ -692,7 +698,7 @@ struct Options
         masstosolarmass=-1.0;
 
         lengthtokpc30pow2=30.0*30.0;
-        lengthtokpc30pow2=50.0*50.0;
+        lengthtokpc50pow2=50.0*50.0;
 
         SphericalOverdensitySeachFac=1.25;
         iSphericalOverdensityPartList=0;

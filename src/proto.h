@@ -260,6 +260,16 @@ void GetVirialQuantities(const Int_t nbodies, Particle *Part, const Double_t mto
 
 //@}
 
+/// \name Routines for cosmology related calculations
+//@{
+void CalcOmegak(Options &opt);
+void CalcCriticalDensity(Options &opt, Double_t a);
+void CalcBackgroundDensity(Options &opt, Double_t a);
+void CalcVirBN98(Options &opt, Double_t a);
+void CalcCosmoParams(Options &opt, Double_t a);
+Double_t GetHubble(Options &opt, Double_t a);
+Double_t CalcCosmicTime(Options &opt, Double_t a);
+//@}
 /// \name Routines to calculate substructure properties and sort particles in a substructure according to some property
 /// see \ref substructureproperties.cxx for implementation
 //@{
