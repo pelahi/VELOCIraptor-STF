@@ -372,7 +372,7 @@ struct Options
     Double_t p;
     ///\name scale factor, Hubunit, h, cosmology, virial density. These are used if linking lengths are scaled or trying to define virlevel using the cosmology
     //@{
-    Double_t a,H,h, Omega_m, Omega_b, Omega_cdm, Omega_Lambda, w_de, rhobg, virlevel, virBN98;
+    Double_t a,H,h, Omega_m, Omega_b, Omega_cdm, Omega_Lambda, Omega_r, Omega_nu, Omega_k, w_de, rhobg, virlevel, virBN98;
     int comove;
     /// to store the internal code unit to kpc and the distance^2 of 30 kpc, and 50 kpc
     Double_t lengthtokpc30pow2, lengthtokpc50pow2;

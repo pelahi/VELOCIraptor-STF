@@ -241,7 +241,7 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
     cosmoinfo c, siminfo s,
     const size_t num_gravity_parts, const size_t num_hydro_parts,
     struct swift_vel_part *swift_parts, const int *cell_node_ids,
-    const int numthreads, int *numingroups)
+    const int numthreads, const int ireturngroupinfoflag, int *numpartingroups)
 {
 #ifndef GASON
     cout<<"Gas has not been turned on in VELOCIraptor. Set GASON in Makefile.config and recompile VELOCIraptor."<<endl;
@@ -307,53 +307,46 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
 
     /// If we are performing a baryon search, sort the particles so that the DM particles are at the start of the array followed by the gas particles.
     if (libvelociraptorOpt.iBaryonSearch>0 && libvelociraptorOpt.partsearchtype!=PSTALL) {
-
-      size_t dmOffset = 0, gasOffset = 0;
-
-      pbaryons=&(parts.data()[ndark]);
-
-      cout<<"There are "<<nbaryons<<" gas particles and "<<ndark<<" DM particles."<<endl;
-      for(auto i=0; i<Nlocal; i++) {
-        if(swift_parts[i].type == DARKTYPE) {
-          parts[dmOffset++] = Particle(swift_parts[i]);
+        size_t dmOffset = 0, baryonOffset = 0, gasOffset = 0, starOffset = 0, bhOffset = 0, otherparttype = 0;
+        pbaryons=&(parts.data()[ndark]);
+        cout<<"There are "<<nbaryons<<" gas particles and "<<ndark<<" DM particles."<<endl;
+        for(auto i=0; i<Nlocal; i++)
+        {
+            if(swift_parts[i].type == DARKTYPE) {
+                parts[dmOffset++] = Particle(swift_parts[i]);
+            }
+            else {
+                if(swift_parts[i].type == GASTYPE) {
+                    pbaryons[baryonOffset++] = Particle(swift_parts[i]);
+                    gasOffset++;
+                }
+                else if(swift_parts[i].type == STARTYPE) {
+                    starOffset++;
+                    pbaryons[baryonOffset++] = Particle(swift_parts[i]);
+                }
+                else if(swift_parts[i].type == BHTYPE) {
+                    bhOffset++;
+                    pbaryons[baryonOffset++] = Particle(swift_parts[i]);
+                }
+                else {
+                    cout<<"Unknown particle type found: index="<<i<<" type="<<swift_parts[i].type<<" while treating baryons differently. Exiting..."<<endl;
+                    return NULL;
+                }
+            }
         }
-        else {
-          if(swift_parts[i].type == GASTYPE) {
-            pbaryons[gasOffset++] = Particle(swift_parts[i]);
-          }
-          else if(swift_parts[i].type == STARTYPE) {
-            cout<<"Star particle type not supported yet. Exiting..."<<endl;
-            return 0;
-          }
-          else if(swift_parts[i].type == BHTYPE) {
-            cout<<"Black hole particle type not supported yet. Exiting..."<<endl;
-            return 0;
-          }
-          else {
-            cout<<"Unknown particle type found: index="<<i<<" type="<<swift_parts[i].type<<" while treating baryons differently. Exiting..."<<endl;
-            return 0;
-          }
-        }
-      }
     }
     else {
-      for(auto i=0; i<Nlocal; i++) {
-        parts[i] = Particle(swift_parts[i]);
-        if(swift_parts[i].type == STARTYPE) {
-          cout<<"Star particle type not supported yet. Exiting..."<<endl;
-          return 0;
+        for(auto i=0; i<Nlocal; i++) {
+            parts[i] = Particle(swift_parts[i]);
+            if(swift_parts[i].type != DARKTYPE && swift_parts[i].type != GASTYPE && swift_parts[i].type != STARTYPE && swift_parts[i].type != BHTYPE) {
+                cout<<"Unknown particle type found: index="<<i<<" type="<<swift_parts[i].type<<" when loading particles. Exiting..."<<endl;
+                return NULL;
+            }
         }
-        else if(swift_parts[i].type == BHTYPE) {
-          cout<<"Black hole particle type not supported yet. Exiting..."<<endl;
-          return 0;
-        }
-        else if(swift_parts[i].type != DARKTYPE && swift_parts[i].type != GASTYPE) {
-          cout<<"Unknown particle type found: index="<<i<<" type="<<swift_parts[i].type<<" when loading particles. Exiting..."<<endl;
-          return 0;
-        }
-     }
-
     }
+    //lets free the memory of swift_parts
+    ///\todo would this work?
+    //delete[] swift_parts;
 
     time1=MyGetTime()-time1;
     cout<<"Finished copying particle data."<< endl;
@@ -455,7 +448,13 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
     for (Int_t i=1;i<=ngroup;i++) delete[] pglist[i];
     delete[] pglist;
 
-    //store group information to return information to swift
+    //store group information to return information to swift if required
+    //otherwise, return NULL as pointer
+    if (ireturngroupinfoflag == 0 ) {
+        cout<<"VELOCIraptor returning, no group info returned to swift as requested."<< endl;
+        numpartingroups=0;
+        return NULL;
+    }
     //first sort so all particles in groups first
     Int_t ngoffset=0,ngtot=0;
     Int_t nig=0;
@@ -480,17 +479,16 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
     qsort(parts.data(), nig, sizeof(Particle), IDCompare);
     //communicate information
     MPISwiftExchange(parts);
+    Nlocal = parts.size();
 #endif
-
+    *numpartingroups = Nlocal;
     //now allocate mem and copy data
     group_info = new groupinfo[Nlocal];
     for (auto i=0;i<Nlocal; i++) {
         group_info[i].groupid=parts[i].GetPID();
         group_info[i].index=parts[i].GetSwiftIndex();
     }
-
     cout<<"VELOCIraptor returning."<< endl;
-
     return group_info;
 }
 
