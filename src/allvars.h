@@ -575,6 +575,9 @@ struct Options
         Omega_Lambda = 0.0;
         Omega_b = 0.0;
         Omega_cdm = Omega_m;
+        Omega_r = Omega_nu = Omega_k = Omega_de = 0;
+        w_de = -1.0;
+
         rhobg = 1.0;
         virlevel = -1;
         comove=0;

@@ -153,6 +153,7 @@ int InitVelociraptor(char* configname, unitinfo u, siminfo s, const int numthrea
     libvelociraptorOpt.masstosolarmass=u.masstosolarmass;
     libvelociraptorOpt.energyperunitmass=u.energyperunitmass;
 
+    //run in swift internal units, don't convert units
     libvelociraptorOpt.L=1.0;
     libvelociraptorOpt.M=1.0;
     libvelociraptorOpt.V=1.0;
@@ -163,7 +164,7 @@ int InitVelociraptor(char* configname, unitinfo u, siminfo s, const int numthrea
     libvelociraptorOpt.G=u.gravity;
     libvelociraptorOpt.H=u.hubbleunit;
 
-    //set if cosmological 
+    //set if cosmological
     libvelociraptorOpt.icosmologicalin = s.icosmologicalsim;
 
     //write velociraptor configuration info, appending .configuration to the input config file and writing every config option
@@ -177,10 +178,9 @@ int InitVelociraptor(char* configname, unitinfo u, siminfo s, const int numthrea
 
 }
 
-void SetVelociraptorSimulationState(cosmoinfo c, siminfo s)
+void SetVelociraptorCosmology(cosmoinfo c)
 {
     ///set cosmology
-    libvelociraptorOpt.a=c.atime;
     libvelociraptorOpt.h=c.littleh;
     libvelociraptorOpt.Omega_m=c.Omega_m;
     libvelociraptorOpt.Omega_b=c.Omega_b;
@@ -189,11 +189,24 @@ void SetVelociraptorSimulationState(cosmoinfo c, siminfo s)
     libvelociraptorOpt.Omega_r=c.Omega_r;
     libvelociraptorOpt.Omega_nu=c.Omega_nu;
     libvelociraptorOpt.Omega_k=c.Omega_k;
+    libvelociraptorOpt.Omega_de = 0.0;
     libvelociraptorOpt.w_de=c.w_de;
     if (libvelociraptorOpt.w_de != -1) {
         libvelociraptorOpt.Omega_de = libvelociraptorOpt.Omega_Lambda;
         libvelociraptorOpt.Omega_Lambda = 0;
     }
+    PrintCosmology(libvelociraptorOpt);
+}
+
+//set simulation state
+void SetVelociraptorSimulationState(cosmoinfo c, siminfo s)
+{
+    double Hubble;
+    ///set cosmology
+    if (libvelociraptorOpt.icosmologicalin) SetVelociraptorCosmology(c);
+
+    //set current scalefactor
+    libvelociraptorOpt.a=c.atime;
 
     //set some sim information
     libvelociraptorOpt.p=s.period;
@@ -202,32 +215,9 @@ void SetVelociraptorSimulationState(cosmoinfo c, siminfo s)
     libvelociraptorOpt.ellxscale=s.interparticlespacing;
     libvelociraptorOpt.uinfo.eps*=libvelociraptorOpt.ellxscale;
 
-    if (libvelociraptorOpt.icosmologicalin) {
-        libvelociraptorOpt.ellxscale*=libvelociraptorOpt.a;
-        libvelociraptorOpt.uinfo.eps*=libvelociraptorOpt.a;
-        double Hubble=libvelociraptorOpt.h*libvelociraptorOpt.H*sqrt((libvelociraptorOpt.Omega_k)*pow(libvelociraptorOpt.a,-2.0)+libvelociraptorOpt.Omega_m*pow(libvelociraptorOpt.a,-3.0)
-+libvelociraptorOpt.Omega_r*pow(libvelociraptorOpt.a,-4.0)+libvelociraptorOpt.Omega_Lambda+libvelociraptorOpt.Omega_de*pow(libvelociraptorOpt.a,-3.0*(1+libvelociraptorOpt.w_de)));
-        libvelociraptorOpt.rhobg=3.*Hubble*Hubble/(8.0*M_PI*libvelociraptorOpt.G)*libvelociraptorOpt.Omega_m;
-        //if libvelociraptorOpt.virlevel<0, then use virial overdensity based on Bryan and Norman 1998 virialization level is given by
-        if (libvelociraptorOpt.virlevel<0)
-        {
-            Double_t bnx=-((1-libvelociraptorOpt.Omega_m-libvelociraptorOpt.Omega_Lambda)*pow(libvelociraptorOpt.a,-2.0)+libvelociraptorOpt.Omega_Lambda)/((1-libvelociraptorOpt.Omega_m-libvelociraptorOpt.Omega_Lambda)*pow(libvelociraptorOpt.a,-2.0)+libvelociraptorOpt.Omega_m*pow(libvelociraptorOpt.a,-3.0)+libvelociraptorOpt.Omega_Lambda);
-            libvelociraptorOpt.virlevel=(18.0*M_PI*M_PI+82.0*bnx-39*bnx*bnx)/libvelociraptorOpt.Omega_m;
-        }
-    }
-    else {
-        libvelociraptorOpt.rhobg=1.0;
-    }
-
-    //assume above is in comoving is cosmological simulation and then need to correct to physical
-    if (libvelociraptorOpt.icosmologicalin) {
-        libvelociraptorOpt.p*=libvelociraptorOpt.a;
-        libvelociraptorOpt.ellxscale*=libvelociraptorOpt.a;
-        libvelociraptorOpt.uinfo.eps*=libvelociraptorOpt.a;
-    }
     libvelociraptorOpt.uinfo.icalculatepotential=true;
 
-    // Set mesh information. (has this been mapped to physical?)
+    // Set mesh information.
     libvelociraptorOpt.spacedimension[0] = s.spacedimension[0];
     libvelociraptorOpt.spacedimension[1] = s.spacedimension[1];
     libvelociraptorOpt.spacedimension[2] = s.spacedimension[2];
@@ -240,6 +230,32 @@ void SetVelociraptorSimulationState(cosmoinfo c, siminfo s)
     libvelociraptorOpt.numcells = s.numcells;
     libvelociraptorOpt.numcellsperdim = cbrt(s.numcells);
     libvelociraptorOpt.cellloc = s.cellloc;
+
+    //assume above is in comoving is cosmological simulation and then need to correct to physical
+    if (libvelociraptorOpt.icosmologicalin) {
+        libvelociraptorOpt.p*=libvelociraptorOpt.a;
+        libvelociraptorOpt.ellxscale*=libvelociraptorOpt.a;
+        libvelociraptorOpt.uinfo.eps*=libvelociraptorOpt.a;
+
+        Hubble=libvelociraptorOpt.h*libvelociraptorOpt.H*sqrt(libvelociraptorOpt.Omega_k*pow(libvelociraptorOpt.a,-2.0)+libvelociraptorOpt.Omega_m*pow(libvelociraptorOpt.a,-3.0)
++libvelociraptorOpt.Omega_r*pow(libvelociraptorOpt.a,-4.0)+libvelociraptorOpt.Omega_Lambda+libvelociraptorOpt.Omega_de*pow(libvelociraptorOpt.a,-3.0*(1+libvelociraptorOpt.w_de)));
+        libvelociraptorOpt.rhobg=3.*Hubble*Hubble/(8.0*M_PI*libvelociraptorOpt.G)*libvelociraptorOpt.Omega_m;
+        //if libvelociraptorOpt.virlevel<0, then use virial overdensity based on Bryan and Norman 1998 virialization level is given by
+        if (libvelociraptorOpt.virlevel<0)
+        {
+            Double_t bnx=-(libvelociraptorOpt.Omega_k*pow(libvelociraptorOpt.a,-2.0)+libvelociraptorOpt.Omega_Lambda)/((1-libvelociraptorOpt.Omega_m-libvelociraptorOpt.Omega_Lambda)*pow(libvelociraptorOpt.a,-2.0)+libvelociraptorOpt.Omega_m*pow(libvelociraptorOpt.a,-3.0)+libvelociraptorOpt.Omega_Lambda);
+            libvelociraptorOpt.virlevel=(18.0*M_PI*M_PI+82.0*bnx-39*bnx*bnx)/libvelociraptorOpt.Omega_m;
+        }
+        for (auto i=0;i<3;i++) {
+            libvelociraptorOpt.spacedimension[i] *= libvelociraptorOpt.a;
+            libvelociraptorOpt.cellwidth[i] *= libvelociraptorOpt.a;
+            libvelociraptorOpt.icellwidth[i] /= libvelociraptorOpt.a;
+        }
+    }
+    else {
+        libvelociraptorOpt.rhobg=1.0;
+    }
+    PrintSimulationState(libvelociraptorOpt);
 
 #ifdef USEMPI
     //if single halo, use minsize to initialize the old minimum number
@@ -254,9 +270,9 @@ void SetVelociraptorSimulationState(cosmoinfo c, siminfo s)
 groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
     cosmoinfo c, siminfo s,
     const size_t num_gravity_parts, const size_t num_hydro_parts,
-    struct swift_vel_part *swift_parts, const int *cell_node_ids,
-    const int numthreads, 
-    const int ireturngroupinfoflag, 
+    struct swift_vel_part *swift_parts, int *cell_node_ids,
+    const int numthreads,
+    const int ireturngroupinfoflag,
     int * const numpartingroups)
 {
 #ifndef GASON
@@ -360,6 +376,10 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
             }
         }
     }
+    //explicitly convert positions from comoving to physical
+    for (auto i=0; i<Nlocal; i++)
+        for (auto j=0;j<3;j++) parts[i].SetPosition(j,libvelociraptorOpt.a*parts[i].GetPosition(j));
+
     //lets free the memory of swift_parts
     free(swift_parts);
 
@@ -463,14 +483,20 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
     for (Int_t i=1;i<=ngroup;i++) delete[] pglist[i];
     delete[] pglist;
 
+
     //store group information to return information to swift if required
     //otherwise, return NULL as pointer
     if (ireturngroupinfoflag == 0 ) {
         cout<<"VELOCIraptor returning, no group info returned to swift as requested."<< endl;
+        //free mem associate with mpi cell node ides
+        libvelociraptorOpt.cellnodeids = NULL;
+        libvelociraptorOpt.cellloc = NULL;
+        free(s.cellloc);
+        free(cell_node_ids);
         *numpartingroups=0;
         return NULL;
     }
-    
+
     //first sort so all particles in groups first
     Int_t ngoffset=0,ngtot=0;
     Int_t nig=0;
@@ -486,6 +512,11 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
 #endif
     cout<<"VELOCIraptor sorting info to return group ids to swift"<<endl;
     if (ngroup == 0) {
+        //free mem associate with mpi cell node ides
+        libvelociraptorOpt.cellnodeids = NULL;
+        libvelociraptorOpt.cellloc = NULL;
+        free(s.cellloc);
+        free(cell_node_ids);
         *numpartingroups=nig;
         return NULL;
     }
@@ -516,6 +547,13 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
         group_info[i].index=parts[i].GetSwiftIndex();
     }
     cout<<"VELOCIraptor returning."<< endl;
+
+    //free mem associate with mpi cell node ides
+    libvelociraptorOpt.cellnodeids = NULL;
+    libvelociraptorOpt.cellloc = NULL;
+    free(s.cellloc);
+    free(cell_node_ids);
+
     return group_info;
 }
 
