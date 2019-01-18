@@ -269,7 +269,7 @@ void SetVelociraptorSimulationState(cosmoinfo c, siminfo s)
 ///\todo interface with swift is comoving positions, period, peculiar velocities and physical self-energy
 groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
     cosmoinfo c, siminfo s,
-    const size_t num_gravity_parts, const size_t num_hydro_parts,
+    const size_t num_gravity_parts, const size_t num_hydro_parts, const size_t num_star_parts, 
     struct swift_vel_part *swift_parts, int *cell_node_ids,
     const int numthreads,
     const int ireturngroupinfoflag,
@@ -333,17 +333,19 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
     cout<<"Copying particle data..."<< endl;
     time1=MyGetTime();
 
-    ndark = num_gravity_parts - num_hydro_parts, nbaryons = num_hydro_parts;
+    ndark = num_gravity_parts - num_hydro_parts - num_star_parts, nbaryons = num_hydro_parts+num_star_parts;
     Nlocalbaryon[0]=nbaryons;
     Nmemlocalbaryon=Nlocalbaryon[0];
 
     /// If we are performing a baryon search, sort the particles so that the DM particles are at the start of the array followed by the gas particles.
+    // note that we explicitly convert positions from comoving to physical as swift_vel_parts is in 
     if (libvelociraptorOpt.iBaryonSearch>0 && libvelociraptorOpt.partsearchtype!=PSTALL) {
         size_t dmOffset = 0, baryonOffset = 0, gasOffset = 0, starOffset = 0, bhOffset = 0, otherparttype = 0;
         pbaryons=&(parts.data()[ndark]);
         cout<<"There are "<<nbaryons<<" gas particles and "<<ndark<<" DM particles."<<endl;
         for(auto i=0; i<Nlocal; i++)
         {
+            for (auto j=0;j<3;j++) swift_parts[i].x[j]*=libvelociraptorOpt.a;
             if(swift_parts[i].type == DARKTYPE) {
                 parts[dmOffset++] = Particle(swift_parts[i]);
             }
@@ -369,16 +371,14 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
     }
     else {
         for(auto i=0; i<Nlocal; i++) {
-            parts[i] = Particle(swift_parts[i]);
             if(swift_parts[i].type != DARKTYPE && swift_parts[i].type != GASTYPE && swift_parts[i].type != STARTYPE && swift_parts[i].type != BHTYPE) {
                 cout<<"Unknown particle type found: index="<<i<<" type="<<swift_parts[i].type<<" when loading particles. Exiting..."<<endl;
                 return NULL;
             }
+            for (auto j=0;j<3;j++) swift_parts[i].x[j]*=libvelociraptorOpt.a;
+            parts[i] = Particle(swift_parts[i]);
         }
     }
-    //explicitly convert positions from comoving to physical
-    for (auto i=0; i<Nlocal; i++)
-        for (auto j=0;j<3;j++) parts[i].SetPosition(j,libvelociraptorOpt.a*parts[i].GetPosition(j));
 
     //lets free the memory of swift_parts
     free(swift_parts);
