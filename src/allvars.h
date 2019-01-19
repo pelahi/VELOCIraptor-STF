@@ -231,6 +231,7 @@ using namespace NBody;
 #define ompunbindnum 1000
 #define ompperiodnum 50000
 #define omppropnum 50000
+#define ompfofsearchnum 2000000
 //@}
 
 /// \defgroup PROPLIMS Particle limits for calculating properties
@@ -2560,6 +2561,13 @@ struct DataGroupNames {
         adiosSOdatatype.push_back(ADIOS_DATATYPES::adios_long);
 #endif
     }
+};
+#endif
+
+#ifdef USEOPENMP
+struct OMP_Domain {
+    Int_t ncount, noffset;
+    Double_t bnd[3][2];
 };
 #endif
 
