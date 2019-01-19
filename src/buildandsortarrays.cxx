@@ -115,6 +115,7 @@ Int_t *BuildNoffset(const Int_t nbodies, Particle *Part, Int_t numgroups,Int_t *
     if (numgroups > 1) noffset[0]=noffset[1]=0;
     for (Int_t i=2;i<=numgroups;i++) noffset[i]=noffset[i-1]+numingroup[i-1];
     for (Int_t i=0;i<nbodies;i++) Part[i].SetType(storetype[Part[i].GetID()]);
+    delete[] storetype;
     return noffset;
 }
 
