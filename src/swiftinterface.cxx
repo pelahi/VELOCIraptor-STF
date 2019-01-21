@@ -500,7 +500,6 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
         free(cell_node_ids);
         delete[] pfof;
         delete[] numingroup;
-        delete psldata;
         *numpartingroups=0;
         return NULL;
     }
@@ -527,9 +526,7 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
         free(cell_node_ids);
         delete[] pfof;
         delete[] numingroup;
-        delete psldata;
         *numpartingroups=nig;
-	delete[] pfof;
         return NULL;
     }
 
@@ -540,7 +537,6 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
     }
     delete[] pfof;
     delete[] numingroup;
-    delete psldata;
     qsort(parts.data(), Nlocal, sizeof(Particle), PIDCompare);
     parts.resize(nig);
     Nlocal = parts.size();
@@ -568,7 +564,6 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
     libvelociraptorOpt.cellloc = NULL;
     free(s.cellloc);
     free(cell_node_ids);
-    delete[] pfof;
     
     return group_info;
 }
