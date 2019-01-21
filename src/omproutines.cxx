@@ -43,6 +43,117 @@ int OpenMPSearchForOverlap(Particle &Part, Double_t bnd[3][2], Double_t rdist, D
     return OpenMPSearchForOverlap(xsearch,bnd,period);
 }
 
+void OpenMPLinkAcross(Options &opt,
+    Int_t nbodies, vector<Particle> &Part, Int_t * &pfof,
+    Int_t *&storetype, Int_tree_t *&Head, Int_tree_t *&Next,
+    Double_t *param, FOFcheckfunc &fofcheck,
+    const Int_t numompregions, OMP_Domain *&ompdomain, KDTree **tree3dfofomp,
+    Int_t *&omp_nrecv_total, Particle** &Partompimport)
+{
+    //now begin linking across
+    Int_t i;
+    Int_t omp_links_across_total;
+    Int_t nt, orgIndex, curIndex, *nn=new Int_t[nbodies];
+    Coordinate x;
+
+    cout<<ThisTask<<": Starting linking across OpenMP domains"<<endl;
+    do {
+        #pragma omp parallel default(shared) \
+        private(i,orgIndex,curIndex, x, nt)
+        {
+        #pragma omp for schedule(dynamic,1) nowait reduction(+:omp_links_across_total)
+        for (i=0;i<numompregions;i++) {
+            for (auto j=0;j<omp_nrecv_total[i];j++) {
+                //for each imported particle, find all particles within search window
+                for (auto k=0;k<3;k++) x[k]=Partompimport[i][j].GetPosition(k);
+                nt=tree3dfofomp[i]->SearchBallPosTagged(x, param[1], &nn[ompdomain[i].noffset]);
+                for (auto k=0;k<nt;k++) {
+                    curIndex=nn[k+ompdomain[i].noffset]+ompdomain[i].noffset;
+                    //check that at least on of the particles meets the type criterion if necessary
+                    if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1)
+                        if (fofcheck(Part[curIndex],param)!=0 && fofcheck(Partompimport[i][j],param)!=0) continue;
+
+                    orgIndex = storetype[Part[curIndex].GetID()+ompdomain[i].noffset];
+                    //otherwise, change these particles to local group id if local group id smaller
+                    //if local particle in a group
+                    if (pfof[orgIndex]>0)  {
+                        //only change if both particles are appropriate type and group ids indicate local needs to be exported
+                        if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1)
+                            if (!(fofcheck(Part[curIndex],param)==0 && fofcheck(Partompimport[i][j],param)==0)) continue;
+                        //if local group id is larger, change locally
+                        if(pfof[orgIndex] > Partompimport[i][j].GetPID()) {
+                            Int_t ss = Head[nn[k+ompdomain[i].noffset]+ompdomain[i].noffset];
+                            do{
+                                orgIndex = storetype[Part[ss+ompdomain[i].noffset].GetID()+ompdomain[i].noffset];
+                                pfof[orgIndex]=Partompimport[i][j].GetPID();
+                            }while((ss = Next[ss+ompdomain[i].noffset]) >= 0);
+                            omp_links_across_total++;
+                        }
+                    }
+                    //if local particle not in a group and export is appropriate type, link
+                    else {
+
+                        if (fofcheck(Partompimport[i][j],param)!=0) continue;
+                        pfof[orgIndex]=Partompimport[i][j].GetPID();
+                        omp_links_across_total++;
+                    }
+                }
+            }
+        }
+        }
+    }while(omp_links_across_total>0);
+    delete[] nn;
+}
+
+Int_t OpenMPResortParticleandGroups(Int_t nbodies, vector<Particle> &Part, Int_t *&pfof, Int_t minsize)
+{
+    Int_t start, ngroups=0;
+    Int_t *numingroup, **plist;
+    //now get number of groups and reorder group ids
+    for (auto i=0;i<nbodies;i++) Part[i].SetID(-pfof[i]);
+    //used to use ID store store group id info
+    qsort(Part.data(),nbodies,sizeof(Particle),IDCompare);
+
+    //determine the # of groups, their size and the current group ID
+    for (auto i=0,start=0;i<nbodies;i++) {
+        if (Part[i].GetID()!=Part[start].GetID()) {
+            //if group is too small set type to zero, which currently is used to store the group id
+            if ((i-start)<minsize) for (Int_t j=start;j<i;j++) Part[j].SetID(0);
+            else ngroups++;
+            start=i;
+        }
+        if (Part[i].GetID()==0) break;
+    }
+    //again resort to move untagged particles to the end.
+    qsort(Part.data(),nbodies,sizeof(Particle),IDCompare);
+
+    //now adjust pfof and ids.
+    for (auto i=0;i<nbodies;i++) {pfof[i]=-Part[i].GetID();Part[i].SetID(i);}
+    numingroup=new Int_t[ngroups+1];
+    plist=new Int_t*[ngroups+1];
+    ngroups=1;//offset as group zero is untagged
+    for (auto i=0,start=0;i<nbodies;i++) {
+        if (pfof[i]!=pfof[start]) {
+            numingroup[ngroups]=i-start;
+            plist[ngroups]=new Int_t[numingroup[ngroups]];
+            for (auto j=start,count=0;j<i;j++) plist[ngroups][count++]=j;
+            ngroups++;
+            start=i;
+        }
+        if (pfof[i]==0) break;
+    }
+    ngroups--;
+
+    //reorder groups ids according to size
+    ReorderGroupIDs(ngroups,ngroups,numingroup,pfof,plist);
+    for (auto i=1;i<=ngroups;i++) delete[] plist[i];
+    delete[] plist;
+    delete[] numingroup;
+    return ngroups;
+}
+
+
+
 //@}
 
 #endif

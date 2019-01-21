@@ -31,7 +31,7 @@ using namespace NBody;
 //@}
 
 struct OMP_Domain {
-    Int_t ncount, noffset;
+    Int_t ncount, noffset, numgroups;
     Double_t bnd[3][2];
 };
 
