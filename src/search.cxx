@@ -112,29 +112,106 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     cout<<ThisTask<<" Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits (ell^2="<<param[6]<<" and likely "<<sqrt(param[6])/opt.ellxscale<<" in interparticle spacing"<<endl;
     if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) {fofcmp=&FOF3dDM;param[7]=DARKTYPE;fofcheck=FOFchecktype;}
     else fofcmp=&FOF3d;
-    //if using mpi no need to locally sort just yet and might as well return the Head, Len, Next arrays
+
 #ifdef USEMPI
+    //if using mpi no need to locally sort just yet and might as well return the Head, Len, Next arrays
+    Head=new Int_tree_t[nbodies];Next=new Int_tree_t[nbodies];
+#else
+    Head=NULL;Next=NULL;
+#endif
+
 #ifdef USEOPENMP
+    //if enough regions then search each individually
+    //then link across omp domains
+    Int_t ompminsize = 2;
     if (numompregions>=4){
-        treefofomp = new KDTree*[numompregions];
+        Int_t orgIndex;
+        Double_t rdist= sqrt(param[1]);
         pfof = new Int_t[nbodies];
         for (i=0;i<nbodies;i++)pfof[i]=0;
+        treefofomp = new KDTree*[numompregions];
+        //get fof in each region
         #pragma omp parallel default(shared) \
-        private(i,pfofomp)
+        private(i,pfofomp,orgIndex)
         {
         #pragma omp for schedule(dynamic,1) nowait
         for (i=0;i<numompregions;i++) {
             treefofomp[i] = new KDTree(&Part.data()[ompdomain[i].noffset],ompdomain[i].ncount,opt.Bsize,tree->TPHYS,tree->KEPAN,1000,0,0,0,period);
-            if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) pfofomp=treefofomp[i]->FOFCriterionSetBasisForLinks(fofcmp,param,numgroups,minsize,0,0,FOFchecktype);
-            else pfofomp=treefofomp[i]->FOF(sqrt(param[1]),numgroups,minsize,0);
+            if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) pfofomp=treefofomp[i]->FOFCriterionSetBasisForLinks(fofcmp,param,numgroups,ompminsize,0,0,FOFchecktype);
+            else pfofomp=treefofomp[i]->FOF(rdist,numgroups,minsize,0);
             for (int j=0;j<ompdomain[i].ncount;j++) if (pfofomp[j]>0){
-                pfof[j+ompdomain[i].noffset] = pfofomp[j]+ompdomain[i].noffset;
+                orgIndex = storetype[Part[j+ompdomain[i].noffset].GetID()+ompdomain[i].noffset];
+                pfof[orgIndex] = pfofomp[j]+ompdomain[i].noffset;
             }
-            delete pfofomp;
+            delete[] pfofomp;
         }
         }
-        //now stitch pfof across omp domains. Copy the MPI style stitching.
+        //then for each omp region determine the particles to "import" from other omp regions
+        Particle **ompPart = new Particle*[numompregions];
+        Int_t *omp_nrecv_total = new Int_t[numompregions];
+        for (i=0;i<numompregions;i++) omp_nrecv_total[i]=0;
+
+        #pragma omp parallel default(shared) \
+        private(i)
+        {
+        #pragma omp for schedule(dynamic,1) nowait
+        for (i=0;i<numompregions;i++) {
+            for (auto j=0;j<nbodies;j++) {
+                if (j > ompdomain[i].noffset && j < ompdomain[i].noffset+ompdomain[i].ncount) continue;
+                if (OpenMPSearchForOverlap(Part[j],ompdomain[i].bnd,rdist,opt.p)) omp_nrecv_total[i] += 1;
+            }
+        }
+        }
+
+        for (i=0;i<numompregions;i++) {
+            ompPart[i] = new Particle[omp_nrecv_total[i]];
+            omp_nrecv_total[i] = 0;
+        }
+
+        #pragma omp parallel default(shared) \
+        private(i,orgIndex)
+        {
+        #pragma omp for schedule(dynamic,1) nowait
+        for (i=0;i<numompregions;i++) {
+            for (auto j=0;j<nbodies;j++) {
+                if (j > ompdomain[i].noffset && j < ompdomain[i].noffset+ompdomain[i].ncount) continue;
+                if (OpenMPSearchForOverlap(Part[j],ompdomain[i].bnd,rdist,opt.p)) {
+                    ompPart[i][omp_nrecv_total[i]] = Part[j];
+                    orgIndex = storetype[Part[j].GetID()+ompdomain[i].noffset];
+                    //check indexing
+                    ompPart[i][omp_nrecv_total[i]].SetPID(pfof[orgIndex]);
+                    omp_nrecv_total[i] += 1;
+                }
+            }
+        }
+        }
+        //now begin linking across
+        Int_t links_across,links_across_total;
+        cout<<ThisTask<<": Starting linking across OpenMP domains"<<endl;
+        do {
+            if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) {
+                links_across=MPILinkAcross(nbodies, tree, Part.data(), pfof, Len, Head, Next, param[1], fofcheck, param);
+            }
+            else {
+                links_across=MPILinkAcross(nbodies, tree, Part.data(), pfof, Len, Head, Next, param[1]);
+            }
+            if (opt.iverbose>=2) {
+                cout<<ThisTask<<" has found "<<links_across<<" links to particles on other mpi domains "<<endl;
+            }
+            MPI_Allreduce(&links_across, &links_across_total, 1, MPI_Int_t, MPI_SUM, MPI_COMM_WORLD);
+            MPIUpdateExportList(nbodies,Part.data(),pfof,Len);
+        }while(links_across_total>0);
+        if (ThisTask==0) cout<<ThisTask<<": finished linking across MPI domains in "<<MyGetTime()-time2<<endl;
+        for (i=0;i<numompregions;i++) delete[] ompPart[i];
+        delete[] ompPart;
+        delete[] omp_nrecv_total;
+        for (i=0;i<numompregions;i++) delete[] treefofomp;
         delete[] ompdomain;
+        //reset particle ids to before omp tree built
+        for (i=0;i<nbodies;i++) Part[i].SetID(storetype[i]);
+        //delete coarse omp tree and rebuild fine tree;
+        delete tree;
+        tree = new KDTree(Part.data(),nbodies,opt.Bsize,tree->TPHYS,tree->KEPAN,1000,0,0,0,period);
     }
     else {
         Head=new Int_tree_t[nbodies];Next=new Int_tree_t[nbodies];
@@ -143,24 +220,9 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         else pfof=tree->FOF(sqrt(param[1]),numgroups,minsize,0,Head,Next);
     }
 #else
-    Head=new Int_tree_t[nbodies];Next=new Int_tree_t[nbodies];
     //posible alteration for all particle search
     if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) pfof=tree->FOFCriterionSetBasisForLinks(fofcmp,param,numgroups,minsize,0,0,FOFchecktype,Head,Next);
     else pfof=tree->FOF(sqrt(param[1]),numgroups,minsize,0,Head,Next);
-#endif
-#else
-#ifdef USEOPENMP
-    if (numompregions>=4){
-
-    }
-    else {
-        if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) pfof=tree->FOFCriterionSetBasisForLinks(fofcmp,param,numgroups,minsize,1,0,FOFchecktype);
-        else pfof=tree->FOF(sqrt(param[1]),numgroups,minsize,1);
-    }
-#else
-    if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) pfof=tree->FOFCriterionSetBasisForLinks(fofcmp,param,numgroups,minsize,1,0,FOFchecktype);
-    else pfof=tree->FOF(sqrt(param[1]),numgroups,minsize,1);
-#endif
 #endif
 
 #ifndef USEMPI

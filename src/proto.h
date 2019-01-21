@@ -326,6 +326,14 @@ Int_t *GetSubstructureNum(Int_t ngroups);
 Int_t *GetParentID(Int_t ngroups);
 //@}
 
+#ifdef USEOPENMP
+/// \name OpenMP Search routines
+/// see \ref omproutines.cxx for implementation
+//@{
+int OpenMPSearchForOverlap(Double_t xsearch[3][2], Double_t bnd[3][2], Double_t period);
+int OpenMPSearchForOverlap(Particle &Part, Double_t bnd[3][2], Double_t rdist, Double_t period);
+#endif
+
 #ifdef USEMPI
 /// \name MPI Domain Decomposition routines
 /// see \ref mpiroutines.cxx for implementation

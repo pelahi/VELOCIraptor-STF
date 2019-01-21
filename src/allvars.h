@@ -53,6 +53,7 @@
 ///if using OpenMP API
 #ifdef USEOPENMP
 #include <omp.h>
+#include "ompvar.h"
 #endif
 
 ///if using HDF API
@@ -223,15 +224,6 @@ using namespace NBody;
 ///cellflag means a node that is not necessarily a leaf node can be approximated by mono-pole
 #define cellflag 0
 
-//@}
-
-/// \defgroup OMPLIMS For determining whether loop contains enough for openm to be worthwhile.
-//@{
-#define ompsearchnum 50000
-#define ompunbindnum 1000
-#define ompperiodnum 50000
-#define omppropnum 50000
-#define ompfofsearchnum 2000000
 //@}
 
 /// \defgroup PROPLIMS Particle limits for calculating properties
@@ -2561,13 +2553,6 @@ struct DataGroupNames {
         adiosSOdatatype.push_back(ADIOS_DATATYPES::adios_long);
 #endif
     }
-};
-#endif
-
-#ifdef USEOPENMP
-struct OMP_Domain {
-    Int_t ncount, noffset;
-    Double_t bnd[3][2];
 };
 #endif
 
