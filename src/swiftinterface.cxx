@@ -431,8 +431,8 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
     //if inclusive halo mass required
     if (libvelociraptorOpt.iInclusiveHalo && ngroup>0) {
         CopyMasses(libvelociraptorOpt,nhalos,pdatahalos,pdata);
-        delete[] pdatahalos;
     }
+    delete[] pdatahalos;
 
     //
     // Search for baryons
@@ -482,9 +482,10 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
 
     for (Int_t i=1;i<=ngroup;i++) delete[] pglist[i];
     delete[] pglist;
+    delete[] pdata;
     delete[] nsub;
-    delete[] parentgid;
     delete[] uparentgid;
+    delete[] parentgid;
     delete[] stype;
     delete psldata;
 
@@ -528,6 +529,7 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
         delete[] numingroup;
         delete psldata;
         *numpartingroups=nig;
+	delete[] pfof;
         return NULL;
     }
 
@@ -566,7 +568,8 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
     libvelociraptorOpt.cellloc = NULL;
     free(s.cellloc);
     free(cell_node_ids);
-
+    delete[] pfof;
+    
     return group_info;
 }
 

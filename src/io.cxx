@@ -490,7 +490,7 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
 
     //Write offsets for bound and unbound particles
     offset=new Int_t[ngroups+1];
-    offset[1]=0;
+    if(ngroups > 1) offset[1]=0;
     //note before had offsets at numingroup but to account for unbound particles use value of pglist at numingroup
     for (Int_t i=2;i<=ngroups;i++) offset[i]=offset[i-1]+pglist[i-1][numingroup[i-1]];
 

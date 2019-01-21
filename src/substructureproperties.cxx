@@ -3655,7 +3655,7 @@ Int_t **SortAccordingtoBindingEnergy(Options &opt, const Int_t nbodies, Particle
     for (i=0;i<nbodies;i++) Part[i].SetPID(storepid[Part[i].GetID()]);
     delete[] storepid;
 
-    noffset[0]=noffset[1]=0;
+    if (ngroup > 1) noffset[0]=noffset[1]=0;
     for (i=2;i<=ngroup;i++) noffset[i]=noffset[i-1]+numingroup[i-1];
 
     // for small groups interate over groups using openmp threads
