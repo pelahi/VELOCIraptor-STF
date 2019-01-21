@@ -269,7 +269,7 @@ void SetVelociraptorSimulationState(cosmoinfo c, siminfo s)
 ///\todo interface with swift is comoving positions, period, peculiar velocities and physical self-energy
 groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
     cosmoinfo c, siminfo s,
-    const size_t num_gravity_parts, const size_t num_hydro_parts, const size_t num_star_parts, 
+    const size_t num_gravity_parts, const size_t num_hydro_parts, const size_t num_star_parts,
     struct swift_vel_part *swift_parts, int *cell_node_ids,
     const int numthreads,
     const int ireturngroupinfoflag,
@@ -338,7 +338,7 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
     Nmemlocalbaryon=Nlocalbaryon[0];
 
     /// If we are performing a baryon search, sort the particles so that the DM particles are at the start of the array followed by the gas particles.
-    // note that we explicitly convert positions from comoving to physical as swift_vel_parts is in 
+    // note that we explicitly convert positions from comoving to physical as swift_vel_parts is in
     if (libvelociraptorOpt.iBaryonSearch>0 && libvelociraptorOpt.partsearchtype!=PSTALL) {
         size_t dmOffset = 0, baryonOffset = 0, gasOffset = 0, starOffset = 0, bhOffset = 0, otherparttype = 0;
         pbaryons=&(parts.data()[ndark]);
@@ -482,7 +482,11 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
 
     for (Int_t i=1;i<=ngroup;i++) delete[] pglist[i];
     delete[] pglist;
-
+    delete[] nsub;
+    delete[] parentgid;
+    delete[] uparentgid;
+    delete[] stype;
+    delete psldata;
 
     //store group information to return information to swift if required
     //otherwise, return NULL as pointer
@@ -493,6 +497,9 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
         libvelociraptorOpt.cellloc = NULL;
         free(s.cellloc);
         free(cell_node_ids);
+        delete[] pfof;
+        delete[] numingroup;
+        delete psldata;
         *numpartingroups=0;
         return NULL;
     }
@@ -517,6 +524,9 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
         libvelociraptorOpt.cellloc = NULL;
         free(s.cellloc);
         free(cell_node_ids);
+        delete[] pfof;
+        delete[] numingroup;
+        delete psldata;
         *numpartingroups=nig;
         return NULL;
     }
@@ -526,6 +536,9 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
         if (pfof[i]>0) parts[i].SetPID((pfof[i]+ngoffset)+libvelociraptorOpt.snapshotvalue);
         else parts[i].SetPID(ngtot+1+libvelociraptorOpt.snapshotvalue);
     }
+    delete[] pfof;
+    delete[] numingroup;
+    delete psldata;
     qsort(parts.data(), Nlocal, sizeof(Particle), PIDCompare);
     parts.resize(nig);
     Nlocal = parts.size();
