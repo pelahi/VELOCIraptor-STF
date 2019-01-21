@@ -148,12 +148,15 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         Head = new Int_tree_t[nbodies];
         Next = new Int_tree_t[nbodies];
 #endif
+        Particle **Partompimport = new Particle*[numompregions];
+        Int_t *omp_nrecv_total = new Int_t[numompregions];
         //get fof in each region
         ng = 0;
+        Int_t ngtot=0;
         #pragma omp parallel default(shared) \
         private(i,p3dfofomp,orgIndex, ng)
         {
-        #pragma omp for schedule(dynamic,1) nowait reduction(+:numgroups)
+        #pragma omp for schedule(dynamic,1) nowait reduction(+:ngtot)
         for (i=0;i<numompregions;i++) {
             if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) p3dfofomp=tree3dfofomp[i]->FOFCriterionSetBasisForLinks(fofcmp,param,ng,ompminsize,0,0,FOFchecktype, &Head[ompdomain[i].noffset], &Next[ompdomain[i].noffset]);
             else p3dfofomp=tree3dfofomp[i]->FOF(rdist,ng,ompminsize,0, &Head[ompdomain[i].noffset], &Next[ompdomain[i].noffset]);
@@ -163,14 +166,14 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
             }
             delete[] p3dfofomp;
             ompdomain[i].numgroups = ng;
-            numgroups += ng;
+            ngtot += ng;
         }
         }
+        numgroups=ngtot;
         if (opt.iverbose) cout<<ThisTask<<": finished omp local search of "<<numompregions<<" containing total of "<<numgroups<<" groups "<<MyGetTime()-time3<<endl;
+        if (numgroups > 0) {
 
         //then for each omp region determine the particles to "import" from other omp regions
-        Particle **Partompimport = new Particle*[numompregions];
-        Int_t *omp_nrecv_total = new Int_t[numompregions];
         for (i=0;i<numompregions;i++) omp_nrecv_total[i]=0;
 
         #pragma omp parallel default(shared) \
@@ -215,16 +218,23 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         OpenMPLinkAcross(opt, nbodies, Part, pfof, storetype, Head, Next,
             param, fofcheck, numompregions, ompdomain, tree3dfofomp,
             omp_nrecv_total, Partompimport);
+        }
 
         //free memory
 #ifndef USEMPI
         delete[] Head;
         delete[] Next;
 #endif
-        for (i=0;i<numompregions;i++) delete[] Partompimport[i];
+        if (numgroups > 0) for (i=0;i<numompregions;i++) delete[] Partompimport[i];
         delete[] Partompimport;
         delete[] omp_nrecv_total;
+
+        #pragma omp parallel default(shared) \
+        private(i)
+        {
+        #pragma omp for schedule(dynamic,1) nowait
         for (i=0;i<numompregions;i++) delete tree3dfofomp[i];
+        }
         delete[] tree3dfofomp;
         delete[] ompdomain;
 
@@ -236,10 +246,10 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         delete tree;
         tree = NULL;
         //resort particles and group ids
-        numgroups = OpenMPResortParticleandGroups(nbodies, Part, pfof, minsize);
-
+        if (numgroups > 0) {
+            numgroups = OpenMPResortParticleandGroups(nbodies, Part, pfof, minsize);
+        }
         //and reallocate tree if required (that is only if not using MPI but searching for substructure
-        //need to think about this ???
 #if !defined(USEMPI) && defined(STRUCDEN)
         if (numgroups>0 && (opt.iSubSearch==1&&opt.foftype!=FOF6DCORE))
             tree = new KDTree(Part.data(),nbodies,opt.Bsize,tree->TPHYS,tree->KEPAN,1000,0,0,0,period);

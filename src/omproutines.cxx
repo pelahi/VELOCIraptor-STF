@@ -55,6 +55,9 @@ void OpenMPLinkAcross(Options &opt,
     Int_t omp_links_across_total;
     Int_t nt, orgIndex, curIndex, *nn=new Int_t[nbodies];
     Coordinate x;
+#ifndef USEMPI
+    int ThisTask =0;
+#endif
 
     cout<<ThisTask<<": Starting linking across OpenMP domains"<<endl;
     do {
