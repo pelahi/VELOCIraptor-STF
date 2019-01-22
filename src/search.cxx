@@ -19,6 +19,7 @@
     around (no baryon+DM). That is DM particles are basis for generating links but NOT gas/star/bh particles
     Also start of implementation to keep the 3DFOF envelopes as separate structures.
     \todo 3DFOF envelop kept as separate structures is NOT fully tested nor truly implemented just yet.
+    \todo OpenMP parallel finding likely has other opmisations that can be implemented to reduce compute time. 
 */
 Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, Int_t &numgroups)
 {
@@ -442,13 +443,6 @@ printf("%d %d \n", omp_get_thread_num(), omp_get_num_threads());
         delete[] storetype;
     }
 #endif
-
-//???
-//cout<<" fj;adf"<<endl;
-//for (i=0;i<nbodies;i++) Part[i].SetType(pfof[i]);
-//qsort(Part.data(),nbodies,sizeof(Particle),PIDCompare);
-//for (i=0;i<nbodies;i++) cout<<i<<" "<<Part[i].GetID()<<" "<<Part[i].GetPID()<<" "<<Part[i].GetType()<<endl;
-
 
     //if search was periodic, alter particle positions in structures so substructure search no longer has to be
     //periodic
