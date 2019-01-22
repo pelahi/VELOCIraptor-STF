@@ -43,6 +43,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     KDTree *tree;
     KDTree **tree3dfofomp;
     Int_t *p3dfofomp;
+    int iorder = 1;
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
     Int_t Nlocal=nbodies;
@@ -50,12 +51,12 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
 #ifdef USEOPENMP
 #pragma omp parallel
     {
+printf("%d %d \n", omp_get_thread_num(), omp_get_num_threads());
     if (omp_get_thread_num()==0) maxnthreads=omp_get_num_threads();
     if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
     }
     OMP_Domain *ompdomain;
 #endif
-
     if (opt.p>0) {
         period=new Double_t[3];
         for (int j=0;j<3;j++) period[j]=opt.p;
@@ -66,6 +67,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
 #ifdef USEMPI
     //if using MPI, lower minimum number
     if (NProcs>1) minsize=MinNumMPI;
+    iorder = 0;
 #endif
 
     time1=MyGetTime();
@@ -92,15 +94,14 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
             ompdomain[i].ncount = np->GetCount();
             ompdomain[i].noffset = noffset;
             for (int j=0;j<3;j++) {
-                ompdomain[i].bnd[j][0]=np->GetBoundary(j,0);
-                ompdomain[i].bnd[j][1]=np->GetBoundary(j,1);
+                ompdomain[i].bnd[j][0]=np->GetBoundary(j,0)*0.99;
+                ompdomain[i].bnd[j][1]=np->GetBoundary(j,1)*1.01;
             }
             noffset+=ompdomain[i].ncount;
         }
         storetype = new Int_t[nbodies];
-        for (i=0;i<nbodies;i++){
-            storetype[i]=Part[i].GetID();
-        }
+        for (i=0;i<nbodies;i++) storetype[i]=Part[i].GetID();
+
         tree3dfofomp = new KDTree*[numompregions];
         //get fof in each region
         #pragma omp parallel default(shared) \
@@ -108,7 +109,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         {
         #pragma omp for schedule(dynamic,1) nowait
         for (i=0;i<numompregions;i++) {
-            tree3dfofomp[i] = new KDTree(&Part.data()[ompdomain[i].noffset],ompdomain[i].ncount,opt.Bsize,tree->TPHYS,tree->KEPAN,1000,0,0,0,period);
+            tree3dfofomp[i] = new KDTree(&Part.data()[ompdomain[i].noffset],ompdomain[i].ncount,opt.Bsize,tree->TPHYS,tree->KEPAN,100,0,0,0,period);
         }
         }
         if (opt.iverbose) cout<<ThisTask<<": finished building "<<numompregions<<" domains and trees "<<MyGetTime()-time3<<endl;
@@ -118,6 +119,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         tree = new KDTree(Part.data(),nbodies,opt.Bsize,tree->TPHYS,tree->KEPAN,1000,0,0,0,period);
         if (opt.iverbose) cout<<ThisTask<<": finished building single tree with single OpenMP "<<MyGetTime()-time3<<endl;
     }
+
 #else
     tree=new KDTree(Part.data(),nbodies,opt.Bsize,tree->TPHYS,tree->KEPAN,1000,0,0,0,period);
 #endif
@@ -126,6 +128,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     cout<<ThisTask<<" Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits (ell^2="<<param[6]<<" and likely "<<sqrt(param[6])/opt.ellxscale<<" in interparticle spacing"<<endl;
     if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) {fofcmp=&FOF3dDM;param[7]=DARKTYPE;fofcheck=FOFchecktype;}
     else fofcmp=&FOF3d;
+
 
 #ifdef USEMPI
     //if using mpi no need to locally sort just yet and might as well return the Head, Len, Next arrays
@@ -141,7 +144,8 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     if (numompregions>=4 && nthreads > 1){
         time3=MyGetTime();
         Int_t orgIndex;
-        Double_t rdist= sqrt(param[1]);
+        int omptask;
+        Double_t rdist = sqrt(param[1]);
         pfof = new Int_t[nbodies];
         for (i=0;i<nbodies;i++)pfof[i]=0;
 #ifndef USEMPI
@@ -156,19 +160,22 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         #pragma omp parallel default(shared) \
         private(i,p3dfofomp,orgIndex, ng)
         {
-        #pragma omp for schedule(dynamic,1) nowait reduction(+:ngtot)
+        #pragma omp for schedule(dynamic) nowait reduction(+:ngtot)
         for (i=0;i<numompregions;i++) {
             if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) p3dfofomp=tree3dfofomp[i]->FOFCriterionSetBasisForLinks(fofcmp,param,ng,ompminsize,0,0,FOFchecktype, &Head[ompdomain[i].noffset], &Next[ompdomain[i].noffset]);
             else p3dfofomp=tree3dfofomp[i]->FOF(rdist,ng,ompminsize,0, &Head[ompdomain[i].noffset], &Next[ompdomain[i].noffset]);
-            for (int j=0;j<ompdomain[i].ncount;j++) if (p3dfofomp[j]>0){
-                orgIndex = storetype[Part[j+ompdomain[i].noffset].GetID()+ompdomain[i].noffset];
-                pfof[orgIndex] = p3dfofomp[j]+ompdomain[i].noffset;
+            if (ng > 0) {
+                for (int j=0;j<ompdomain[i].ncount;j++) if (p3dfofomp[Part[j+ompdomain[i].noffset].GetID()]>0){
+                    orgIndex = storetype[Part[j+ompdomain[i].noffset].GetID()+ompdomain[i].noffset];
+                    pfof[orgIndex] = p3dfofomp[Part[j+ompdomain[i].noffset].GetID()]+ompdomain[i].noffset;
+                }
             }
             delete[] p3dfofomp;
             ompdomain[i].numgroups = ng;
             ngtot += ng;
         }
         }
+
         numgroups=ngtot;
         if (opt.iverbose) cout<<ThisTask<<": finished omp local search of "<<numompregions<<" containing total of "<<numgroups<<" groups "<<MyGetTime()-time3<<endl;
         if (numgroups > 0) {
@@ -176,40 +183,45 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         //then for each omp region determine the particles to "import" from other omp regions
         for (i=0;i<numompregions;i++) omp_nrecv_total[i]=0;
 
+
         #pragma omp parallel default(shared) \
-        private(i,orgIndex)
+        private(i,orgIndex,omptask)
         {
-        #pragma omp for schedule(dynamic,1) nowait
+        #pragma omp for schedule(dynamic) nowait
         for (i=0;i<numompregions;i++) {
-            for (auto j=0;j<nbodies;j++) {
-                if (j > ompdomain[i].noffset && j < ompdomain[i].noffset+ompdomain[i].ncount) continue;
-                //only import particles from other omp domains that belong to a group
-                orgIndex = storetype[Part[j+ompdomain[i].noffset].GetID()+ompdomain[i].noffset];
-                if (pfof[orgIndex] == 0) continue;
-                if (OpenMPSearchForOverlap(Part[j],ompdomain[i].bnd,rdist,opt.p)) omp_nrecv_total[i] += 1;
+            for (auto k=0;k<numompregions;k++) if (i!=k) {
+                for (auto j=0;j<ompdomain[k].ncount;j++) {
+                    //only import particles from other omp domains that belong to a group
+                    orgIndex = storetype[Part[j+ompdomain[k].noffset].GetID()+ompdomain[k].noffset];
+                    if (pfof[orgIndex] == 0) continue;
+                    if (OpenMPSearchForOverlap(Part[j+ompdomain[k].noffset],ompdomain[i].bnd,rdist,opt.p)) omp_nrecv_total[i] += 1;
+                }
             }
         }
         }
 
         for (i=0;i<numompregions;i++) {
+            if (opt.iverbose > 1) cout<<ThisTask<<" omp region "<<i<<" is importing "<<omp_nrecv_total[i]<<endl;
             Partompimport[i] = new Particle[omp_nrecv_total[i]];
             omp_nrecv_total[i] = 0;
         }
 
         #pragma omp parallel default(shared) \
-        private(i,orgIndex)
+        private(i,orgIndex,omptask)
         {
         #pragma omp for schedule(dynamic,1) nowait
         for (i=0;i<numompregions;i++) {
-            for (auto j=0;j<nbodies;j++) {
-                if (j > ompdomain[i].noffset && j < ompdomain[i].noffset+ompdomain[i].ncount) continue;
-                orgIndex = storetype[Part[j+ompdomain[i].noffset].GetID()+ompdomain[i].noffset];
-                if (pfof[orgIndex] == 0) continue;
-                if (OpenMPSearchForOverlap(Part[j],ompdomain[i].bnd,rdist,opt.p)) {
-                    Partompimport[i][omp_nrecv_total[i]] = Part[j];
-                    //store group id in pid
-                    Partompimport[i][omp_nrecv_total[i]].SetPID(pfof[orgIndex]);
-                    omp_nrecv_total[i] += 1;
+            for (auto k=0;k<numompregions;k++) if (i!=k) {
+                for (auto j=0;j<ompdomain[k].ncount;j++) {
+                    //only import particles from other omp domains that belong to a group
+                    orgIndex = storetype[Part[j+ompdomain[k].noffset].GetID()+ompdomain[k].noffset];
+                    if (pfof[orgIndex] == 0) continue;
+                    if (OpenMPSearchForOverlap(Part[j+ompdomain[k].noffset],ompdomain[i].bnd,rdist,opt.p)) {
+                        Partompimport[i][omp_nrecv_total[i]] = Part[j+ompdomain[k].noffset];
+                        //store group id in pid
+                        Partompimport[i][omp_nrecv_total[i]].SetID(pfof[orgIndex]);
+                        omp_nrecv_total[i] += 1;
+                    }
                 }
             }
         }
@@ -218,8 +230,8 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         OpenMPLinkAcross(opt, nbodies, Part, pfof, storetype, Head, Next,
             param, fofcheck, numompregions, ompdomain, tree3dfofomp,
             omp_nrecv_total, Partompimport);
-        }
 
+        }
         //free memory
 #ifndef USEMPI
         delete[] Head;
@@ -229,12 +241,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         delete[] Partompimport;
         delete[] omp_nrecv_total;
 
-        #pragma omp parallel default(shared) \
-        private(i)
-        {
-        #pragma omp for schedule(dynamic,1) nowait
         for (i=0;i<numompregions;i++) delete tree3dfofomp[i];
-        }
         delete[] tree3dfofomp;
         delete[] ompdomain;
 
@@ -249,6 +256,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         if (numgroups > 0) {
             numgroups = OpenMPResortParticleandGroups(nbodies, Part, pfof, minsize);
         }
+
         //and reallocate tree if required (that is only if not using MPI but searching for substructure
 #if !defined(USEMPI) && defined(STRUCDEN)
         if (numgroups>0 && (opt.iSubSearch==1&&opt.foftype!=FOF6DCORE))
@@ -257,13 +265,13 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     }
     else {
         //posible alteration for all particle search
-        if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) pfof=tree->FOFCriterionSetBasisForLinks(fofcmp,param,numgroups,minsize,0,0,FOFchecktype,Head,Next);
-        else pfof=tree->FOF(sqrt(param[1]),numgroups,minsize,0,Head,Next);
+        if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) pfof=tree->FOFCriterionSetBasisForLinks(fofcmp,param,numgroups,minsize,iorder,0,FOFchecktype,Head,Next);
+        else pfof=tree->FOF(sqrt(param[1]),numgroups,minsize,iorder,Head,Next);
     }
 #else
     //posible alteration for all particle search
-    if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) pfof=tree->FOFCriterionSetBasisForLinks(fofcmp,param,numgroups,minsize,0,0,FOFchecktype,Head,Next);
-    else pfof=tree->FOF(sqrt(param[1]),numgroups,minsize,0,Head,Next);
+    if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) pfof=tree->FOFCriterionSetBasisForLinks(fofcmp,param,numgroups,minsize,iorder,0,FOFchecktype,Head,Next);
+    else pfof=tree->FOF(sqrt(param[1]),numgroups,minsize,iorder,Head,Next);
 #endif
 
 #ifndef USEMPI
@@ -434,6 +442,13 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         delete[] storetype;
     }
 #endif
+
+//???
+//cout<<" fj;adf"<<endl;
+//for (i=0;i<nbodies;i++) Part[i].SetType(pfof[i]);
+//qsort(Part.data(),nbodies,sizeof(Particle),PIDCompare);
+//for (i=0;i<nbodies;i++) cout<<i<<" "<<Part[i].GetID()<<" "<<Part[i].GetPID()<<" "<<Part[i].GetType()<<endl;
+
 
     //if search was periodic, alter particle positions in structures so substructure search no longer has to be
     //periodic

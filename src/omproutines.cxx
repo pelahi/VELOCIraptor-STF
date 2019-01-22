@@ -54,6 +54,8 @@ void OpenMPLinkAcross(Options &opt,
     Int_t i;
     Int_t omp_links_across_total;
     Int_t nt, orgIndex, curIndex, *nn=new Int_t[nbodies];
+    int numloops = 0;
+    Double_t rdist=sqrt(param[1]), rdist2=param[1];
     Coordinate x;
 #ifndef USEMPI
     int ThisTask =0;
@@ -61,6 +63,7 @@ void OpenMPLinkAcross(Options &opt,
 
     cout<<ThisTask<<": Starting linking across OpenMP domains"<<endl;
     do {
+        omp_links_across_total = 0;
         #pragma omp parallel default(shared) \
         private(i,orgIndex,curIndex, x, nt)
         {
@@ -69,13 +72,12 @@ void OpenMPLinkAcross(Options &opt,
             for (auto j=0;j<omp_nrecv_total[i];j++) {
                 //for each imported particle, find all particles within search window
                 for (auto k=0;k<3;k++) x[k]=Partompimport[i][j].GetPosition(k);
-                nt=tree3dfofomp[i]->SearchBallPosTagged(x, param[1], &nn[ompdomain[i].noffset]);
+                nt=tree3dfofomp[i]->SearchBallPosTagged(x, rdist2, &nn[ompdomain[i].noffset]);
                 for (auto k=0;k<nt;k++) {
                     curIndex=nn[k+ompdomain[i].noffset]+ompdomain[i].noffset;
                     //check that at least on of the particles meets the type criterion if necessary
                     if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1)
                         if (fofcheck(Part[curIndex],param)!=0 && fofcheck(Partompimport[i][j],param)!=0) continue;
-
                     orgIndex = storetype[Part[curIndex].GetID()+ompdomain[i].noffset];
                     //otherwise, change these particles to local group id if local group id smaller
                     //if local particle in a group
@@ -84,26 +86,29 @@ void OpenMPLinkAcross(Options &opt,
                         if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1)
                             if (!(fofcheck(Part[curIndex],param)==0 && fofcheck(Partompimport[i][j],param)==0)) continue;
                         //if local group id is larger, change locally
-                        if(pfof[orgIndex] > Partompimport[i][j].GetPID()) {
+                        if(pfof[orgIndex] > Partompimport[i][j].GetID()) {
                             Int_t ss = Head[nn[k+ompdomain[i].noffset]+ompdomain[i].noffset];
                             do{
                                 orgIndex = storetype[Part[ss+ompdomain[i].noffset].GetID()+ompdomain[i].noffset];
-                                pfof[orgIndex]=Partompimport[i][j].GetPID();
+                                pfof[orgIndex]=Partompimport[i][j].GetID();
                             }while((ss = Next[ss+ompdomain[i].noffset]) >= 0);
                             omp_links_across_total++;
                         }
                     }
                     //if local particle not in a group and export is appropriate type, link
                     else {
-
-                        if (fofcheck(Partompimport[i][j],param)!=0) continue;
-                        pfof[orgIndex]=Partompimport[i][j].GetPID();
+                        if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1)
+                            if (fofcheck(Partompimport[i][j],param)!=0) continue;
+                        pfof[orgIndex]=Partompimport[i][j].GetID();
                         omp_links_across_total++;
                     }
                 }
+
             }
         }
         }
+        numloops++;
+        if (opt.iverbose > 1) cout<<ThisTask<<" at loop "<<numloops<<" having found "<<omp_links_across_total<<" links across omp domains"<<endl;
     }while(omp_links_across_total>0);
     delete[] nn;
 }
@@ -112,42 +117,50 @@ Int_t OpenMPResortParticleandGroups(Int_t nbodies, vector<Particle> &Part, Int_t
 {
     Int_t start, ngroups=0;
     Int_t *numingroup, **plist;
+
     //now get number of groups and reorder group ids
-    for (auto i=0;i<nbodies;i++) Part[i].SetID(-pfof[i]);
-    //used to use ID store store group id info
-    qsort(Part.data(),nbodies,sizeof(Particle),IDCompare);
+    Int_t *storepid = new Int_t[nbodies];
+    for (auto i=0;i<nbodies;i++) {
+        storepid[i] = Part[i].GetPID();
+        Part[i].SetPID(-pfof[i]);
+    }
+    qsort(Part.data(),nbodies,sizeof(Particle),PIDCompare);
 
     //determine the # of groups, their size and the current group ID
     for (auto i=0,start=0;i<nbodies;i++) {
-        if (Part[i].GetID()!=Part[start].GetID()) {
-            //if group is too small set type to zero, which currently is used to store the group id
-            if ((i-start)<minsize) for (Int_t j=start;j<i;j++) Part[j].SetID(0);
+        if (Part[i].GetPID()!=Part[start].GetPID()) {
+            //if group is too small set pid to zero, which currently is used to store the group id
+            if ((i-start)<minsize) for (Int_t j=start;j<i;j++) Part[j].SetPID(0);
             else ngroups++;
             start=i;
         }
-        if (Part[i].GetID()==0) break;
+        if (Part[i].GetPID()==0) break;
     }
+
     //again resort to move untagged particles to the end.
-    qsort(Part.data(),nbodies,sizeof(Particle),IDCompare);
+    qsort(Part.data(),nbodies,sizeof(Particle),PIDCompare);
 
     //now adjust pfof and ids.
-    for (auto i=0;i<nbodies;i++) {pfof[i]=-Part[i].GetID();Part[i].SetID(i);}
+    for (auto i=0;i<nbodies;i++) {pfof[Part[i].GetID()]=-Part[i].GetPID();Part[i].SetPID(storepid[Part[i].GetID()]);}
+    delete[] storepid;
+
     numingroup=new Int_t[ngroups+1];
     plist=new Int_t*[ngroups+1];
     ngroups=1;//offset as group zero is untagged
     for (auto i=0,start=0;i<nbodies;i++) {
-        if (pfof[i]!=pfof[start]) {
+        if (pfof[Part[i].GetID()]!=pfof[Part[start].GetID()]) {
             numingroup[ngroups]=i-start;
             plist[ngroups]=new Int_t[numingroup[ngroups]];
-            for (auto j=start,count=0;j<i;j++) plist[ngroups][count++]=j;
+            for (auto j=start,count=0;j<i;j++) plist[ngroups][count++]=Part[j].GetID();
             ngroups++;
             start=i;
         }
-        if (pfof[i]==0) break;
+        if (pfof[Part[i].GetID()]==0) break;
     }
     ngroups--;
 
     //reorder groups ids according to size
+    qsort(Part.data(),nbodies,sizeof(Particle), IDCompare);
     ReorderGroupIDs(ngroups,ngroups,numingroup,pfof,plist);
     for (auto i=1;i<=ngroups;i++) delete[] plist[i];
     delete[] plist;
