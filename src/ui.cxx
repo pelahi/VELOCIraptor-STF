@@ -212,7 +212,7 @@ void usage(void)
     \arg <b> \e Frac_pot_ref </b> Set the fraction of particles used to calculate the velocity of the minimum of the potential (0.1). \ref Options.uinfo & \ref UnbindInfo.fracpotref \n
     \arg <b> \e Unbinding_type </b> Set the unbinding criteria, either just remove particles deemeed "unbound", that is those with \f$ \alpha T+W>0\f$, choosing \ref UPART. Or with \ref USYSANDPART
     removes "unbound" particles till system also has a true bound fraction > \ref UnbindInfo.minEfrac.
-    \arg <b> \e Softening_length </b> Set the (simple plummer) gravitational softening length. \ref UnbindInfo.eps 
+    \arg <b> \e Softening_length </b> Set the (simple plummer) gravitational softening length. \ref UnbindInfo.eps
 
     \section cosmoconfig Units & Cosmology
     \subsection unitconfig Units
@@ -657,6 +657,9 @@ inline void ConfigCheck(Options &opt)
             exit(8);
 #endif
     }
+    //convert reference apertures
+    opt.lengthtokpc30pow2 /= opt.lengthtokpc*opt.lengthtokpc;
+    opt.lengthtokpc50pow2 /= opt.lengthtokpc*opt.lengthtokpc; 
     if (opt.velocitytokms<=0){
 #ifdef USEMPI
     if (ThisTask==0)

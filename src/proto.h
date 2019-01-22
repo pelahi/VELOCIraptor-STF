@@ -265,6 +265,16 @@ void GetVirialQuantities(const Int_t nbodies, Particle *Part, const Double_t mto
 
 //@}
 
+/// \name Routines for cosmology related calculations
+//@{
+void CalcOmegak(Options &opt);
+void CalcCriticalDensity(Options &opt, Double_t a);
+void CalcBackgroundDensity(Options &opt, Double_t a);
+void CalcVirBN98(Options &opt, Double_t a);
+void CalcCosmoParams(Options &opt, Double_t a);
+Double_t GetHubble(Options &opt, Double_t a);
+Double_t CalcCosmicTime(Options &opt, Double_t a);
+//@}
 /// \name Routines to calculate substructure properties and sort particles in a substructure according to some property
 /// see \ref substructureproperties.cxx for implementation
 //@{
@@ -320,6 +330,28 @@ Int_t *GetSubstructureNum(Int_t ngroups);
 ///Get parent structure id of substructures
 Int_t *GetParentID(Int_t ngroups);
 //@}
+
+#ifdef USEOPENMP
+/// \name OpenMP Search routines
+/// see \ref omproutines.cxx for implementation
+//@{
+//returns whether overlap is found
+int OpenMPSearchForOverlap(Double_t xsearch[3][2], Double_t bnd[3][2], Double_t period);
+
+//returns whether overlap is found
+int OpenMPSearchForOverlap(Particle &Part, Double_t bnd[3][2], Double_t rdist, Double_t period);
+
+//link across mpi domains
+void OpenMPLinkAcross(Options &opt,
+    Int_t nbodies, vector<Particle> &Part, Int_t * &pfof,
+    Int_t *&storetype, Int_tree_t *&Head, Int_tree_t *&Next,
+    Double_t *param, FOFcheckfunc &fofcheck,
+    const Int_t numompregions, OMP_Domain *&ompdomain, KDTree **tree3dfofomp,
+    Int_t *&omp_nrecv_total, Particle** &Partompimport);
+
+//resorts particles and group id values after OpenMP search
+Int_t OpenMPResortParticleandGroups(Int_t nbodies, vector<Particle> &Part, Int_t *&pfof, Int_t minsize);
+#endif
 
 #ifdef USEMPI
 /// \name MPI Domain Decomposition routines
