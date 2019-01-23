@@ -289,6 +289,7 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
 #endif
     int nthreads;
 #ifdef USEOPENMP
+    omp_set_num_threads(numthreads);
 #pragma omp parallel
 {
     if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
@@ -564,7 +565,7 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
     libvelociraptorOpt.cellloc = NULL;
     free(s.cellloc);
     free(cell_node_ids);
-    
+
     return group_info;
 }
 
