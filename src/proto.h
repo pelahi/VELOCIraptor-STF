@@ -330,6 +330,12 @@ Int_t *GetParentID(Int_t ngroups);
 /// \name OpenMP Search routines
 /// see \ref omproutines.cxx for implementation
 //@{
+///build the openmp domains
+OMP_Domain *OpenMPBuildDomains(Options &opt, const Int_t numompregions, KDTree *&tree, const Double_t rdist);
+
+//build the local OpenMP trees that are used to search the domain
+KDTree **OpenMPBuildLocalTrees(Options &opt, const Int_t numompregions, vector<Particle> &Part, OMP_Domain *ompdomain, Double_t *period);
+
 //returns whether overlap is found
 int OpenMPSearchForOverlap(Double_t xsearch[3][2], Double_t bnd[3][2], Double_t period);
 

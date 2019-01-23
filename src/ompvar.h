@@ -27,12 +27,13 @@ using namespace NBody;
 #define ompunbindnum 1000
 #define ompperiodnum 50000
 #define omppropnum 50000
-#define ompfofsearchnum 20000
+#define ompfofsearchnum 2000000
 //@}
 
 struct OMP_Domain {
     Int_t ncount, noffset, numgroups;
     Double_t bnd[3][2];
+    vector<int> neighbour;
 };
 
 #endif

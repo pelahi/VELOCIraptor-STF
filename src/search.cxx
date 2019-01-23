@@ -83,35 +83,15 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     int numompregions = ceil(nbodies/(float)ompfofsearchnum);
     if (numompregions >= 4 && nthreads > 1) {
         time3=MyGetTime();
+        Double_t rdist = sqrt(param[1]);
         //determine the omp regions;
         tree = new KDTree(Part.data(),nbodies,ompfofsearchnum,tree->TPHYS,tree->KEPAN,100);
         numompregions=tree->GetNumLeafNodes();
-        ompdomain = new OMP_Domain[numompregions];
-        Int_t noffset=0;
-        Node *np;
-        for (i=0;i<numompregions;i++) {
-            np = (tree->FindLeafNode(noffset));
-            ompdomain[i].ncount = np->GetCount();
-            ompdomain[i].noffset = noffset;
-            for (int j=0;j<3;j++) {
-                ompdomain[i].bnd[j][0]=np->GetBoundary(j,0)*0.99;
-                ompdomain[i].bnd[j][1]=np->GetBoundary(j,1)*1.01;
-            }
-            noffset+=ompdomain[i].ncount;
-        }
+        ompdomain = OpenMPBuildDomains(opt, numompregions, tree, rdist);
         storetype = new Int_t[nbodies];
         for (i=0;i<nbodies;i++) storetype[i]=Part[i].GetID();
-
-        tree3dfofomp = new KDTree*[numompregions];
-        //get fof in each region
-        #pragma omp parallel default(shared) \
-        private(i)
-        {
-        #pragma omp for schedule(dynamic,1) nowait
-        for (i=0;i<numompregions;i++) {
-            tree3dfofomp[i] = new KDTree(&Part.data()[ompdomain[i].noffset],ompdomain[i].ncount,opt.Bsize,tree->TPHYS,tree->KEPAN,100,0,0,0,period);
-        }
-        }
+        //build local trees
+        tree3dfofomp = OpenMPBuildLocalTrees(opt, numompregions, Part, ompdomain, period);
         if (opt.iverbose) cout<<ThisTask<<": finished building "<<numompregions<<" domains and trees "<<MyGetTime()-time3<<endl;
     }
     else {
@@ -157,6 +137,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         Int_t *omp_nrecv_offset = new Int_t[numompregions];
 
         //get fof in each region
+        //OpenMPLocalSearch()
         ng = 0;
         Int_t ngtot=0;
         #pragma omp parallel default(shared) \

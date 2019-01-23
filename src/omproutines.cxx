@@ -12,6 +12,51 @@
 
 /// \name routines which check to see if some search region overlaps with local mpi domain
 //@{
+///construct omp domains
+OMP_Domain *OpenMPBuildDomains(Options &opt, const Int_t numompregions, KDTree *&tree, const Double_t rdist)
+{
+    OMP_Domain *ompdomain = new OMP_Domain[numompregions];
+    Int_t noffset=0;
+    Node *np;
+    for (auto i=0;i<numompregions;i++) {
+        np = (tree->FindLeafNode(noffset));
+        ompdomain[i].ncount = np->GetCount();
+        ompdomain[i].noffset = noffset;
+        for (int j=0;j<3;j++) {
+            ompdomain[i].bnd[j][0]=np->GetBoundary(j,0)*0.99;
+            ompdomain[i].bnd[j][1]=np->GetBoundary(j,1)*1.01;
+        }
+        noffset+=ompdomain[i].ncount;
+    }
+    //determine for each omp region, what are neighbour omp regions within rdist
+    Double_t xsearch[3][2];
+    for (auto i=0;i<numompregions;i++) {
+        for (auto k=0;k<3;k++) {xsearch[k][0]=ompdomain[i].bnd[k][0]-rdist;xsearch[k][0]=ompdomain[i].bnd[k][1]+rdist;}
+        for (auto j=0;j<numompregions;j++) if (j!=i){
+            if (OpenMPSearchForOverlap(xsearch,ompdomain[j].bnd, opt.p)) ompdomain[i].neighbour.push_back(j);
+        }
+        noffset+=ompdomain[i].ncount;
+    }
+    np=NULL;
+    return ompdomain;
+}
+
+KDTree **OpenMPBuildLocalTrees(Options &opt, const Int_t numompregions, vector<Particle> &Part, OMP_Domain *ompdomain, Double_t *period)
+{
+    KDTree **tree3dfofomp = new KDTree*[numompregions];
+    Int_t i;
+    //get fof in each region
+    #pragma omp parallel default(shared) \
+    private(i)
+    {
+    #pragma omp for schedule(dynamic) nowait
+    for (i=0;i<numompregions;i++) {
+        tree3dfofomp[i] = new KDTree(&Part.data()[ompdomain[i].noffset],ompdomain[i].ncount,opt.Bsize,tree3dfofomp[i]->TPHYS,tree3dfofomp[i]->KEPAN,100,0,0,0,period);
+    }
+    }
+    return tree3dfofomp;
+}
+
 ///search if some region is in the local mpi domain
 int OpenMPSearchForOverlap(Double_t xsearch[3][2], Double_t bnd[3][2], Double_t period){
     Double_t xsearchp[3][2];
@@ -67,7 +112,8 @@ Particle *OpenMPImportParticles(Options &opt, const Int_t nbodies, vector<Partic
         for (auto j=ompdomain[i].noffset;j<ompdomain[i].noffset+ompdomain[i].ncount;j++) {
             orgIndex = storetype[Part[j].GetID()+ompdomain[i].noffset];
             if (pfof[orgIndex] == 0) continue;
-            for (auto k=0;k<numompregions;k++) if (k!=i) {
+            //for (auto k=0;k<numompregions;k++) if (k!=i) {
+            for (auto k: ompdomain[i].neighbour) {
                 if (OpenMPSearchForOverlap(Part[i],ompdomain[k].bnd,rdist,opt.p)) omp_nrecv_total[k] += 1;
             }
         }
@@ -90,10 +136,11 @@ Particle *OpenMPImportParticles(Options &opt, const Int_t nbodies, vector<Partic
         for (auto j=ompdomain[i].noffset;j<ompdomain[i].noffset+ompdomain[i].ncount;j++) {
             orgIndex = storetype[Part[j].GetID()+ompdomain[i].noffset];
             if (pfof[orgIndex] == 0) continue;
-            for (auto k=0;k<numompregions;k++) if (k!=i) {
+            //for (auto k=0;k<numompregions;k++) if (k!=i) {
+            for (auto k: ompdomain[i].neighbour) {
                 if (OpenMPSearchForOverlap(Part[i],ompdomain[k].bnd,rdist,opt.p)) {
                     Partompimport[omp_nrecv_total[k]+omp_nrecv_offset[k]] = Part[j];
-                    Partompimport[omp_nrecv_total[k]+omp_nrecv_offset[k]].SetPID(pfof[orgIndex]);
+                    Partompimport[omp_nrecv_total[k]+omp_nrecv_offset[k]].SetID(pfof[orgIndex]);
                     omp_nrecv_total[k] += 1;
                 }
             }
@@ -120,9 +167,10 @@ void OpenMPLinkAcross(Options &opt,
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
 #endif
+
     cout<<ThisTask<<": Starting linking across OpenMP domains"<<endl;
     do {
-        omp_links_across_total=0;
+        omp_links_across_total = 0;
         #pragma omp parallel default(shared) \
         private(i,orgIndex,curIndex, x, nt)
         {
@@ -168,7 +216,7 @@ void OpenMPLinkAcross(Options &opt,
         }
     }while(omp_links_across_total>0);
     delete[] nn;
-    cout<<ThisTask<<" finished cross link "<<MyGetTime()-time1<<endl;
+    cout<<ThisTask<<" finished linking "<<MyGetTime()-time1<<endl;
 }
 
 Int_t OpenMPResortParticleandGroups(Int_t nbodies, vector<Particle> &Part, Int_t *&pfof, Int_t minsize)
