@@ -19,7 +19,7 @@
     around (no baryon+DM). That is DM particles are basis for generating links but NOT gas/star/bh particles
     Also start of implementation to keep the 3DFOF envelopes as separate structures.
     \todo 3DFOF envelop kept as separate structures is NOT fully tested nor truly implemented just yet.
-    \todo OpenMP parallel finding likely has other opmisations that can be implemented to reduce compute time. 
+    \todo OpenMP parallel finding likely has other opmisations that can be implemented to reduce compute time.
 */
 Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, Int_t &numgroups)
 {
@@ -155,6 +155,7 @@ printf("%d %d \n", omp_get_thread_num(), omp_get_num_threads());
 #endif
         Particle **Partompimport = new Particle*[numompregions];
         Int_t *omp_nrecv_total = new Int_t[numompregions];
+
         //get fof in each region
         ng = 0;
         Int_t ngtot=0;
@@ -182,51 +183,9 @@ printf("%d %d \n", omp_get_thread_num(), omp_get_num_threads());
         if (numgroups > 0) {
 
         //then for each omp region determine the particles to "import" from other omp regions
-        for (i=0;i<numompregions;i++) omp_nrecv_total[i]=0;
-
-
-        #pragma omp parallel default(shared) \
-        private(i,orgIndex,omptask)
-        {
-        #pragma omp for schedule(dynamic) nowait
-        for (i=0;i<numompregions;i++) {
-            for (auto k=0;k<numompregions;k++) if (i!=k) {
-                for (auto j=0;j<ompdomain[k].ncount;j++) {
-                    //only import particles from other omp domains that belong to a group
-                    orgIndex = storetype[Part[j+ompdomain[k].noffset].GetID()+ompdomain[k].noffset];
-                    if (pfof[orgIndex] == 0) continue;
-                    if (OpenMPSearchForOverlap(Part[j+ompdomain[k].noffset],ompdomain[i].bnd,rdist,opt.p)) omp_nrecv_total[i] += 1;
-                }
-            }
-        }
-        }
-
-        for (i=0;i<numompregions;i++) {
-            if (opt.iverbose > 1) cout<<ThisTask<<" omp region "<<i<<" is importing "<<omp_nrecv_total[i]<<endl;
-            Partompimport[i] = new Particle[omp_nrecv_total[i]];
-            omp_nrecv_total[i] = 0;
-        }
-
-        #pragma omp parallel default(shared) \
-        private(i,orgIndex,omptask)
-        {
-        #pragma omp for schedule(dynamic,1) nowait
-        for (i=0;i<numompregions;i++) {
-            for (auto k=0;k<numompregions;k++) if (i!=k) {
-                for (auto j=0;j<ompdomain[k].ncount;j++) {
-                    //only import particles from other omp domains that belong to a group
-                    orgIndex = storetype[Part[j+ompdomain[k].noffset].GetID()+ompdomain[k].noffset];
-                    if (pfof[orgIndex] == 0) continue;
-                    if (OpenMPSearchForOverlap(Part[j+ompdomain[k].noffset],ompdomain[i].bnd,rdist,opt.p)) {
-                        Partompimport[i][omp_nrecv_total[i]] = Part[j+ompdomain[k].noffset];
-                        //store group id in pid
-                        Partompimport[i][omp_nrecv_total[i]].SetID(pfof[orgIndex]);
-                        omp_nrecv_total[i] += 1;
-                    }
-                }
-            }
-        }
-        }
+        OpenMPImportParticles(opt, nbodies, Part, pfof, storetype,
+            numompregions, ompdomain, rdist,
+            omp_nrecv_total, Partompimport);
 
         OpenMPLinkAcross(opt, nbodies, Part, pfof, storetype, Head, Next,
             param, fofcheck, numompregions, ompdomain, tree3dfofomp,
