@@ -343,7 +343,7 @@ int OpenMPSearchForOverlap(Double_t xsearch[3][2], Double_t bnd[3][2], Double_t 
 int OpenMPSearchForOverlap(Particle &Part, Double_t bnd[3][2], Double_t rdist, Double_t period);
 
 //determine particle to import from other OpenMP domains
-Particle *OpenMPImportParticles(Options &opt, const Int_t nbodies, vector<Particle> &Part, Int_t * &pfof, Int_t *&storetype,
+OMP_ImportInfo *OpenMPImportParticles(Options &opt, const Int_t nbodies, vector<Particle> &Part, Int_t * &pfof, Int_t *&storetype,
     const Int_t numompregions, OMP_Domain *&ompdomain, const Double_t rdist,
     Int_t *&omp_nrecv_total, Int_t *&omp_nrecv_offset);
 
@@ -353,7 +353,7 @@ void OpenMPLinkAcross(Options &opt,
     Int_t *&storetype, Int_tree_t *&Head, Int_tree_t *&Next,
     Double_t *param, FOFcheckfunc &fofcheck,
     const Int_t numompregions, OMP_Domain *&ompdomain, KDTree **tree3dfofomp,
-    Int_t *&omp_nrecv_total, Int_t *&omp_nrecv_offset, Particle* &Partompimport);
+    Int_t *&omp_nrecv_total, Int_t *&omp_nrecv_offset, OMP_ImportInfo* &ompimport);
 
 //resorts particles and group id values after OpenMP search
 Int_t OpenMPResortParticleandGroups(Int_t nbodies, vector<Particle> &Part, Int_t *&pfof, Int_t minsize);

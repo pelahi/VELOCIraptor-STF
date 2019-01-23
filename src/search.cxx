@@ -132,9 +132,10 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         Head = new Int_tree_t[nbodies];
         Next = new Int_tree_t[nbodies];
 #endif
-        Particle *Partompimport;
+        //Particle *Partompimport;
         Int_t *omp_nrecv_total = new Int_t[numompregions];
         Int_t *omp_nrecv_offset = new Int_t[numompregions];
+        OMP_ImportInfo *ompimport;
 
         //get fof in each region
         //OpenMPLocalSearch()
@@ -164,13 +165,13 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         if (numgroups > 0) {
 
         //then for each omp region determine the particles to "import" from other omp regions
-        Partompimport = OpenMPImportParticles(opt, nbodies, Part, pfof, storetype,
+        ompimport = OpenMPImportParticles(opt, nbodies, Part, pfof, storetype,
             numompregions, ompdomain, rdist,
             omp_nrecv_total, omp_nrecv_offset);
 
         OpenMPLinkAcross(opt, nbodies, Part, pfof, storetype, Head, Next,
             param, fofcheck, numompregions, ompdomain, tree3dfofomp,
-            omp_nrecv_total, omp_nrecv_offset, Partompimport);
+            omp_nrecv_total, omp_nrecv_offset, ompimport);
 
         }
         //free memory
@@ -178,9 +179,10 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         delete[] Head;
         delete[] Next;
 #endif
-        delete[] Partompimport;
+        //delete[] Partompimport;
         delete[] omp_nrecv_total;
         delete[] omp_nrecv_offset;
+        delete[] ompimport;
 
         for (i=0;i<numompregions;i++) delete tree3dfofomp[i];
         delete[] tree3dfofomp;

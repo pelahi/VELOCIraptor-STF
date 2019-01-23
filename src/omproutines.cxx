@@ -89,7 +89,7 @@ int OpenMPSearchForOverlap(Particle &Part, Double_t bnd[3][2], Double_t rdist, D
 }
 
 ///Saerch particles to see if they overlap other OpenMP domains
-Particle *OpenMPImportParticles(Options &opt, const Int_t nbodies, vector<Particle> &Part, Int_t * &pfof, Int_t *&storetype,
+OMP_ImportInfo *OpenMPImportParticles(Options &opt, const Int_t nbodies, vector<Particle> &Part, Int_t * &pfof, Int_t *&storetype,
     const Int_t numompregions, OMP_Domain *&ompdomain, const Double_t rdist,
     Int_t *&omp_nrecv_total, Int_t *&omp_nrecv_offset)
 {
@@ -99,6 +99,7 @@ Particle *OpenMPImportParticles(Options &opt, const Int_t nbodies, vector<Partic
     double time1=MyGetTime();
     Particle *Partompimport;
     Int_t *Partompimportindex;
+    OMP_ImportInfo *ompimport;
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
 #endif
@@ -125,7 +126,8 @@ Particle *OpenMPImportParticles(Options &opt, const Int_t nbodies, vector<Partic
         importtotal += omp_nrecv_total[i];
         omp_nrecv_total[i] = 0;
     }
-    Partompimport = new Particle[importtotal];
+    //Partompimport = new Particle[importtotal];
+    ompimport = new OMP_ImportInfo[importtotal];
 
     #pragma omp parallel default(shared) \
     private(i,orgIndex,omptask)
@@ -137,8 +139,10 @@ Particle *OpenMPImportParticles(Options &opt, const Int_t nbodies, vector<Partic
             if (pfof[orgIndex] == 0) continue;
             for (auto k: ompdomain[i].neighbour) {
                 if (OpenMPSearchForOverlap(Part[j],ompdomain[k].bnd,rdist,opt.p)) {
-                    Partompimport[omp_nrecv_total[k]+omp_nrecv_offset[k]] = Part[j];
-                    Partompimport[omp_nrecv_total[k]+omp_nrecv_offset[k]].SetPID(pfof[orgIndex]);
+                    //Partompimport[omp_nrecv_total[k]+omp_nrecv_offset[k]] = Part[j];
+                    //Partompimport[omp_nrecv_total[k]+omp_nrecv_offset[k]].SetPID(pfof[orgIndex]);
+                    ompimport[omp_nrecv_total[k]+omp_nrecv_offset[k]].index = j;
+                    ompimport[omp_nrecv_total[k]+omp_nrecv_offset[k]].pfof = pfof[orgIndex];
                     omp_nrecv_total[k] += 1;
                 }
             }
@@ -146,7 +150,7 @@ Particle *OpenMPImportParticles(Options &opt, const Int_t nbodies, vector<Partic
     }
     }
     cout<<ThisTask<<" finished import "<<MyGetTime()-time1<<endl;
-    return Partompimport;
+    return ompimport;
 }
 
 void OpenMPLinkAcross(Options &opt,
@@ -154,7 +158,7 @@ void OpenMPLinkAcross(Options &opt,
     Int_t *&storetype, Int_tree_t *&Head, Int_tree_t *&Next,
     Double_t *param, FOFcheckfunc &fofcheck,
     const Int_t numompregions, OMP_Domain *&ompdomain, KDTree **tree3dfofomp,
-    Int_t *&omp_nrecv_total, Int_t *&omp_nrecv_offset, Particle* &Partompimport)
+    Int_t *&omp_nrecv_total, Int_t *&omp_nrecv_offset, OMP_ImportInfo* &ompimport)
 {
     //now begin linking across
     Int_t i;
@@ -174,13 +178,13 @@ void OpenMPLinkAcross(Options &opt,
         #pragma omp parallel default(shared) \
         private(i,orgIndex,curIndex, x, nt, Pval, pfofcomp)
         {
-        #pragma omp for schedule(dynamic,1) nowait reduction(+:omp_links_across_total)
+        #pragma omp for nowait reduction(+:omp_links_across_total)
         for (i=0;i<numompregions;i++) {
             for (auto j=0;j<omp_nrecv_total[i];j++) {
-                Pval=&Partompimport[omp_nrecv_offset[i]+j];
+                Pval=&Part[ompimport[omp_nrecv_offset[i]+j].index];
+                pfofcomp = ompimport[omp_nrecv_offset[i]+j].pfof;
                 //for each imported particle, find all particles within search window
                 for (auto k=0;k<3;k++) x[k]=Pval->GetPosition(k);
-                pfofcomp = Pval->GetPID();
                 nt=tree3dfofomp[i]->SearchBallPosTagged(x, param[1], &nn[ompdomain[i].noffset]);
                 for (auto k=0;k<nt;k++) {
                     curIndex=nn[k+ompdomain[i].noffset]+ompdomain[i].noffset;
@@ -212,6 +216,21 @@ void OpenMPLinkAcross(Options &opt,
                         pfof[orgIndex]=pfofcomp;
                         omp_links_across_total++;
                     }
+                }
+            }
+        }
+        }
+
+        #pragma omp parallel default(shared) \
+        private(i,orgIndex,curIndex)
+        {
+        #pragma omp for nowait
+        for (i=0;i<numompregions;i++) {
+            for (auto j=0;j<omp_nrecv_total[i];j++) {
+                for (auto j=0;j<omp_nrecv_total[i];j++) {
+                    curIndex=ompimport[omp_nrecv_offset[i]+j].index;
+                    orgIndex=storetype[Part[curIndex].GetID()+ompdomain[i].noffset];
+                    ompimport[omp_nrecv_offset[i]+j].pfof=pfof[orgIndex];
                 }
             }
         }

@@ -30,10 +30,15 @@ using namespace NBody;
 #define ompfofsearchnum 2000000
 //@}
 
+///structure to store relevant info for searching openmp domains
 struct OMP_Domain {
     Int_t ncount, noffset, numgroups;
     Double_t bnd[3][2];
     vector<int> neighbour;
 };
 
+///structure relevant for exchanging particle information between openmp domains
+struct OMP_ImportInfo {
+    Int_t index, pfof;
+};
 #endif
