@@ -153,8 +153,9 @@ printf("%d %d \n", omp_get_thread_num(), omp_get_num_threads());
         Head = new Int_tree_t[nbodies];
         Next = new Int_tree_t[nbodies];
 #endif
-        Particle **Partompimport = new Particle*[numompregions];
+        Particle *Partompimport;
         Int_t *omp_nrecv_total = new Int_t[numompregions];
+        Int_t *omp_nrecv_offset = new Int_t[numompregions];
 
         //get fof in each region
         ng = 0;
@@ -183,13 +184,13 @@ printf("%d %d \n", omp_get_thread_num(), omp_get_num_threads());
         if (numgroups > 0) {
 
         //then for each omp region determine the particles to "import" from other omp regions
-        OpenMPImportParticles(opt, nbodies, Part, pfof, storetype,
+        Partompimport = OpenMPImportParticles(opt, nbodies, Part, pfof, storetype,
             numompregions, ompdomain, rdist,
-            omp_nrecv_total, Partompimport);
+            omp_nrecv_total, omp_nrecv_offset);
 
         OpenMPLinkAcross(opt, nbodies, Part, pfof, storetype, Head, Next,
             param, fofcheck, numompregions, ompdomain, tree3dfofomp,
-            omp_nrecv_total, Partompimport);
+            omp_nrecv_total, omp_nrecv_offset, Partompimport);
 
         }
         //free memory
@@ -197,9 +198,9 @@ printf("%d %d \n", omp_get_thread_num(), omp_get_num_threads());
         delete[] Head;
         delete[] Next;
 #endif
-        if (numgroups > 0) for (i=0;i<numompregions;i++) delete[] Partompimport[i];
         delete[] Partompimport;
         delete[] omp_nrecv_total;
+        delete[] omp_nrecv_offset;
 
         for (i=0;i<numompregions;i++) delete tree3dfofomp[i];
         delete[] tree3dfofomp;
