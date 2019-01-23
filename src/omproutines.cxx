@@ -31,7 +31,7 @@ OMP_Domain *OpenMPBuildDomains(Options &opt, const Int_t numompregions, KDTree *
     //determine for each omp region, what are neighbour omp regions within rdist
     Double_t xsearch[3][2];
     for (auto i=0;i<numompregions;i++) {
-        for (auto k=0;k<3;k++) {xsearch[k][0]=ompdomain[i].bnd[k][0]-rdist;xsearch[k][0]=ompdomain[i].bnd[k][1]+rdist;}
+        for (auto k=0;k<3;k++) {xsearch[k][0]=ompdomain[i].bnd[k][0]-rdist;xsearch[k][1]=ompdomain[i].bnd[k][1]+rdist;}
         for (auto j=0;j<numompregions;j++) if (j!=i){
             if (OpenMPSearchForOverlap(xsearch,ompdomain[j].bnd, opt.p)) ompdomain[i].neighbour.push_back(j);
         }
