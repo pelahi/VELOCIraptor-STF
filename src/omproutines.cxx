@@ -93,13 +93,14 @@ Particle *OpenMPImportParticles(Options &opt, const Int_t nbodies, vector<Partic
             for (auto k=0;k<numompregions;k++) if (k!=i) {
                 if (OpenMPSearchForOverlap(Part[i],ompdomain[k].bnd,rdist,opt.p)) {
                     Partompimport[omp_nrecv_total[k]+omp_nrecv_offset[k]] = Part[j];
-                    Partompimport[omp_nrecv_total[k]+omp_nrecv_offset[k]].SetID(pfof[orgIndex]);
+                    Partompimport[omp_nrecv_total[k]+omp_nrecv_offset[k]].SetPID(pfof[orgIndex]);
                     omp_nrecv_total[k] += 1;
                 }
             }
         }
     }
     }
+    cout<<ThisTask<<" finished import "<<MyGetTime()-time1<<endl;
     return Partompimport;
 }
 
@@ -115,13 +116,13 @@ void OpenMPLinkAcross(Options &opt,
     Int_t omp_links_across_total;
     Int_t nt, orgIndex, curIndex, *nn=new Int_t[nbodies];
     Coordinate x;
-    double time1;
+    double time1=MyGetTime();
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
 #endif
-
     cout<<ThisTask<<": Starting linking across OpenMP domains"<<endl;
     do {
+        omp_links_across_total=0;
         #pragma omp parallel default(shared) \
         private(i,orgIndex,curIndex, x, nt)
         {
@@ -156,8 +157,8 @@ void OpenMPLinkAcross(Options &opt,
                     }
                     //if local particle not in a group and export is appropriate type, link
                     else {
-
-                        if (fofcheck(Partompimport[omp_nrecv_offset[i]+j],param)!=0) continue;
+                        if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1)
+                            if (fofcheck(Partompimport[omp_nrecv_offset[i]+j],param)!=0) continue;
                         pfof[orgIndex]=Partompimport[omp_nrecv_offset[i]+j].GetPID();
                         omp_links_across_total++;
                     }
@@ -167,7 +168,7 @@ void OpenMPLinkAcross(Options &opt,
         }
     }while(omp_links_across_total>0);
     delete[] nn;
-    cout<<ThisTask<<" finished import "<<MyGetTime()-time1<<endl;
+    cout<<ThisTask<<" finished cross link "<<MyGetTime()-time1<<endl;
 }
 
 Int_t OpenMPResortParticleandGroups(Int_t nbodies, vector<Particle> &Part, Int_t *&pfof, Int_t minsize)

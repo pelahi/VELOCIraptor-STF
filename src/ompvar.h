@@ -27,7 +27,7 @@ using namespace NBody;
 #define ompunbindnum 1000
 #define ompperiodnum 50000
 #define omppropnum 50000
-#define ompfofsearchnum 2000000
+#define ompfofsearchnum 20000
 //@}
 
 struct OMP_Domain {

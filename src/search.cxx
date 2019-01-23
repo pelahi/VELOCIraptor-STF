@@ -52,7 +52,6 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
 #ifdef USEOPENMP
 #pragma omp parallel
     {
-printf("%d %d \n", omp_get_thread_num(), omp_get_num_threads());
     if (omp_get_thread_num()==0) maxnthreads=omp_get_num_threads();
     if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
     }
