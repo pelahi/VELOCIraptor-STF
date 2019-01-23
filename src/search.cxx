@@ -35,7 +35,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     Coordinate vmean(0,0,0);
     int maxnthreads,nthreads=1,tid;
     Int_tree_t *Len,*Head,*Next,*Tail;
-    Int_t *storetype;
+    Int_t *storetype,*storeorgIndex;
     Int_t *ids, *numingroup=NULL, *noffset;
     Int_t *id_3dfof_of_6dfof;
     Int_t ng,npartingroups;
@@ -88,8 +88,8 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         tree = new KDTree(Part.data(),nbodies,ompfofsearchnum,tree->TPHYS,tree->KEPAN,100);
         numompregions=tree->GetNumLeafNodes();
         ompdomain = OpenMPBuildDomains(opt, numompregions, tree, rdist);
-        storetype = new Int_t[nbodies];
-        for (i=0;i<nbodies;i++) storetype[i]=Part[i].GetID();
+        storeorgIndex = new Int_t[nbodies];
+        for (i=0;i<nbodies;i++) storeorgIndex[i]=Part[i].GetID();
         //build local trees
         tree3dfofomp = OpenMPBuildLocalTrees(opt, numompregions, Part, ompdomain, period);
         if (opt.iverbose) cout<<ThisTask<<": finished building "<<numompregions<<" domains and trees "<<MyGetTime()-time3<<endl;
@@ -149,9 +149,11 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
             if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) p3dfofomp=tree3dfofomp[i]->FOFCriterionSetBasisForLinks(fofcmp,param,ng,ompminsize,0,0,FOFchecktype, &Head[ompdomain[i].noffset], &Next[ompdomain[i].noffset]);
             else p3dfofomp=tree3dfofomp[i]->FOF(rdist,ng,ompminsize,0, &Head[ompdomain[i].noffset], &Next[ompdomain[i].noffset]);
             if (ng > 0) {
-                for (int j=0;j<ompdomain[i].ncount;j++) if (p3dfofomp[Part[j+ompdomain[i].noffset].GetID()]>0){
-                    orgIndex = storetype[Part[j+ompdomain[i].noffset].GetID()+ompdomain[i].noffset];
-                    pfof[orgIndex] = p3dfofomp[Part[j+ompdomain[i].noffset].GetID()]+ompdomain[i].noffset;
+                for (int j=ompdomain[i].noffset;j<ompdomain[i].noffset+ompdomain[i].ncount;j++)
+                if (p3dfofomp[Part[j].GetID()]>0)
+                {
+                    orgIndex = storeorgIndex[Part[j].GetID()+ompdomain[i].noffset];
+                    pfof[orgIndex] = p3dfofomp[Part[j].GetID()]+ompdomain[i].noffset;
                 }
             }
             delete[] p3dfofomp;
@@ -165,11 +167,11 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         if (numgroups > 0) {
 
         //then for each omp region determine the particles to "import" from other omp regions
-        ompimport = OpenMPImportParticles(opt, nbodies, Part, pfof, storetype,
+        ompimport = OpenMPImportParticles(opt, nbodies, Part, pfof, storeorgIndex,
             numompregions, ompdomain, rdist,
             omp_nrecv_total, omp_nrecv_offset);
 
-        OpenMPLinkAcross(opt, nbodies, Part, pfof, storetype, Head, Next,
+        OpenMPLinkAcross(opt, nbodies, Part, pfof, storeorgIndex, Head, Next,
             param, fofcheck, numompregions, ompdomain, tree3dfofomp,
             omp_nrecv_total, omp_nrecv_offset, ompimport);
 
@@ -189,8 +191,8 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         delete[] ompdomain;
 
         //reset particle ids to before omp tree built
-        for (i=0;i<nbodies;i++) Part[i].SetID(storetype[i]);
-        delete[] storetype;
+        for (i=0;i<nbodies;i++) Part[i].SetID(storeorgIndex[i]);
+        delete[] storeorgIndex;
 
         //delete coarse omp tree and rebuild fine tree;
         delete tree;
