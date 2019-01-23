@@ -335,11 +335,22 @@ Int_t *GetParentID(Int_t ngroups);
 /// \name OpenMP Search routines
 /// see \ref omproutines.cxx for implementation
 //@{
+///build the openmp domains
+OMP_Domain *OpenMPBuildDomains(Options &opt, const Int_t numompregions, KDTree *&tree, const Double_t rdist);
+
+//build the local OpenMP trees that are used to search the domain
+KDTree **OpenMPBuildLocalTrees(Options &opt, const Int_t numompregions, vector<Particle> &Part, OMP_Domain *ompdomain, Double_t *period);
+
 //returns whether overlap is found
 int OpenMPSearchForOverlap(Double_t xsearch[3][2], Double_t bnd[3][2], Double_t period);
 
 //returns whether overlap is found
 int OpenMPSearchForOverlap(Particle &Part, Double_t bnd[3][2], Double_t rdist, Double_t period);
+
+//determine particle to import from other OpenMP domains
+Particle *OpenMPImportParticles(Options &opt, const Int_t nbodies, vector<Particle> &Part, Int_t * &pfof, Int_t *&storetype,
+    const Int_t numompregions, OMP_Domain *&ompdomain, const Double_t rdist,
+    Int_t *&omp_nrecv_total, Int_t *&omp_nrecv_offset);
 
 //link across mpi domains
 void OpenMPLinkAcross(Options &opt,
@@ -347,7 +358,7 @@ void OpenMPLinkAcross(Options &opt,
     Int_t *&storetype, Int_tree_t *&Head, Int_tree_t *&Next,
     Double_t *param, FOFcheckfunc &fofcheck,
     const Int_t numompregions, OMP_Domain *&ompdomain, KDTree **tree3dfofomp,
-    Int_t *&omp_nrecv_total, Particle** &Partompimport);
+    Int_t *&omp_nrecv_total, Int_t *&omp_nrecv_offset, Particle* &Partompimport);
 
 //resorts particles and group id values after OpenMP search
 Int_t OpenMPResortParticleandGroups(Int_t nbodies, vector<Particle> &Part, Int_t *&pfof, Int_t minsize);

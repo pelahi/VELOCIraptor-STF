@@ -19,7 +19,7 @@
     around (no baryon+DM). That is DM particles are basis for generating links but NOT gas/star/bh particles
     Also start of implementation to keep the 3DFOF envelopes as separate structures.
     \todo 3DFOF envelop kept as separate structures is NOT fully tested nor truly implemented just yet.
-    \todo OpenMP parallel finding likely has other opmisations that can be implemented to reduce compute time. 
+    \todo OpenMP parallel finding likely has other opmisations that can be implemented to reduce compute time.
 */
 Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, Int_t &numgroups)
 {
@@ -52,7 +52,6 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
 #ifdef USEOPENMP
 #pragma omp parallel
     {
-printf("%d %d \n", omp_get_thread_num(), omp_get_num_threads());
     if (omp_get_thread_num()==0) maxnthreads=omp_get_num_threads();
     if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
     }
@@ -84,35 +83,15 @@ printf("%d %d \n", omp_get_thread_num(), omp_get_num_threads());
     int numompregions = ceil(nbodies/(float)ompfofsearchnum);
     if (numompregions >= 4 && nthreads > 1) {
         time3=MyGetTime();
+        Double_t rdist = sqrt(param[1]);
         //determine the omp regions;
         tree = new KDTree(Part.data(),nbodies,ompfofsearchnum,tree->TPHYS,tree->KEPAN,100);
         numompregions=tree->GetNumLeafNodes();
-        ompdomain = new OMP_Domain[numompregions];
-        Int_t noffset=0;
-        Node *np;
-        for (i=0;i<numompregions;i++) {
-            np = (tree->FindLeafNode(noffset));
-            ompdomain[i].ncount = np->GetCount();
-            ompdomain[i].noffset = noffset;
-            for (int j=0;j<3;j++) {
-                ompdomain[i].bnd[j][0]=np->GetBoundary(j,0)*0.99;
-                ompdomain[i].bnd[j][1]=np->GetBoundary(j,1)*1.01;
-            }
-            noffset+=ompdomain[i].ncount;
-        }
+        ompdomain = OpenMPBuildDomains(opt, numompregions, tree, rdist);
         storetype = new Int_t[nbodies];
         for (i=0;i<nbodies;i++) storetype[i]=Part[i].GetID();
-
-        tree3dfofomp = new KDTree*[numompregions];
-        //get fof in each region
-        #pragma omp parallel default(shared) \
-        private(i)
-        {
-        #pragma omp for schedule(dynamic,1) nowait
-        for (i=0;i<numompregions;i++) {
-            tree3dfofomp[i] = new KDTree(&Part.data()[ompdomain[i].noffset],ompdomain[i].ncount,opt.Bsize,tree->TPHYS,tree->KEPAN,100,0,0,0,period);
-        }
-        }
+        //build local trees
+        tree3dfofomp = OpenMPBuildLocalTrees(opt, numompregions, Part, ompdomain, period);
         if (opt.iverbose) cout<<ThisTask<<": finished building "<<numompregions<<" domains and trees "<<MyGetTime()-time3<<endl;
     }
     else {
@@ -153,9 +132,12 @@ printf("%d %d \n", omp_get_thread_num(), omp_get_num_threads());
         Head = new Int_tree_t[nbodies];
         Next = new Int_tree_t[nbodies];
 #endif
-        Particle **Partompimport = new Particle*[numompregions];
+        Particle *Partompimport;
         Int_t *omp_nrecv_total = new Int_t[numompregions];
+        Int_t *omp_nrecv_offset = new Int_t[numompregions];
+
         //get fof in each region
+        //OpenMPLocalSearch()
         ng = 0;
         Int_t ngtot=0;
         #pragma omp parallel default(shared) \
@@ -182,55 +164,13 @@ printf("%d %d \n", omp_get_thread_num(), omp_get_num_threads());
         if (numgroups > 0) {
 
         //then for each omp region determine the particles to "import" from other omp regions
-        for (i=0;i<numompregions;i++) omp_nrecv_total[i]=0;
-
-
-        #pragma omp parallel default(shared) \
-        private(i,orgIndex,omptask)
-        {
-        #pragma omp for schedule(dynamic) nowait
-        for (i=0;i<numompregions;i++) {
-            for (auto k=0;k<numompregions;k++) if (i!=k) {
-                for (auto j=0;j<ompdomain[k].ncount;j++) {
-                    //only import particles from other omp domains that belong to a group
-                    orgIndex = storetype[Part[j+ompdomain[k].noffset].GetID()+ompdomain[k].noffset];
-                    if (pfof[orgIndex] == 0) continue;
-                    if (OpenMPSearchForOverlap(Part[j+ompdomain[k].noffset],ompdomain[i].bnd,rdist,opt.p)) omp_nrecv_total[i] += 1;
-                }
-            }
-        }
-        }
-
-        for (i=0;i<numompregions;i++) {
-            if (opt.iverbose > 1) cout<<ThisTask<<" omp region "<<i<<" is importing "<<omp_nrecv_total[i]<<endl;
-            Partompimport[i] = new Particle[omp_nrecv_total[i]];
-            omp_nrecv_total[i] = 0;
-        }
-
-        #pragma omp parallel default(shared) \
-        private(i,orgIndex,omptask)
-        {
-        #pragma omp for schedule(dynamic,1) nowait
-        for (i=0;i<numompregions;i++) {
-            for (auto k=0;k<numompregions;k++) if (i!=k) {
-                for (auto j=0;j<ompdomain[k].ncount;j++) {
-                    //only import particles from other omp domains that belong to a group
-                    orgIndex = storetype[Part[j+ompdomain[k].noffset].GetID()+ompdomain[k].noffset];
-                    if (pfof[orgIndex] == 0) continue;
-                    if (OpenMPSearchForOverlap(Part[j+ompdomain[k].noffset],ompdomain[i].bnd,rdist,opt.p)) {
-                        Partompimport[i][omp_nrecv_total[i]] = Part[j+ompdomain[k].noffset];
-                        //store group id in pid
-                        Partompimport[i][omp_nrecv_total[i]].SetID(pfof[orgIndex]);
-                        omp_nrecv_total[i] += 1;
-                    }
-                }
-            }
-        }
-        }
+        Partompimport = OpenMPImportParticles(opt, nbodies, Part, pfof, storetype,
+            numompregions, ompdomain, rdist,
+            omp_nrecv_total, omp_nrecv_offset);
 
         OpenMPLinkAcross(opt, nbodies, Part, pfof, storetype, Head, Next,
             param, fofcheck, numompregions, ompdomain, tree3dfofomp,
-            omp_nrecv_total, Partompimport);
+            omp_nrecv_total, omp_nrecv_offset, Partompimport);
 
         }
         //free memory
@@ -238,9 +178,9 @@ printf("%d %d \n", omp_get_thread_num(), omp_get_num_threads());
         delete[] Head;
         delete[] Next;
 #endif
-        if (numgroups > 0) for (i=0;i<numompregions;i++) delete[] Partompimport[i];
         delete[] Partompimport;
         delete[] omp_nrecv_total;
+        delete[] omp_nrecv_offset;
 
         for (i=0;i<numompregions;i++) delete tree3dfofomp[i];
         delete[] tree3dfofomp;
