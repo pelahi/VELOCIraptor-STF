@@ -138,31 +138,11 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         OMP_ImportInfo *ompimport;
 
         //get fof in each region
-        //OpenMPLocalSearch()
-        ng = 0;
-        Int_t ngtot=0;
-        #pragma omp parallel default(shared) \
-        private(i,p3dfofomp,orgIndex, ng)
-        {
-        #pragma omp for schedule(dynamic) nowait reduction(+:ngtot)
-        for (i=0;i<numompregions;i++) {
-            if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) p3dfofomp=tree3dfofomp[i]->FOFCriterionSetBasisForLinks(fofcmp,param,ng,ompminsize,0,0,FOFchecktype, &Head[ompdomain[i].noffset], &Next[ompdomain[i].noffset]);
-            else p3dfofomp=tree3dfofomp[i]->FOF(rdist,ng,ompminsize,0, &Head[ompdomain[i].noffset], &Next[ompdomain[i].noffset]);
-            if (ng > 0) {
-                for (int j=ompdomain[i].noffset;j<ompdomain[i].noffset+ompdomain[i].ncount;j++)
-                if (p3dfofomp[Part[j].GetID()]>0)
-                {
-                    orgIndex = storeorgIndex[Part[j].GetID()+ompdomain[i].noffset];
-                    pfof[orgIndex] = p3dfofomp[Part[j].GetID()]+ompdomain[i].noffset;
-                }
-            }
-            delete[] p3dfofomp;
-            ompdomain[i].numgroups = ng;
-            ngtot += ng;
-        }
-        }
-
-        numgroups=ngtot;
+        numgroups = OpenMPLocalSearch(opt,
+            nbodies, Part, pfof, storeorgIndex,
+            Head, Next,
+            tree3dfofomp, param, rdist, ompminsize, fofcmp,
+            numompregions, ompdomain);
         if (opt.iverbose) cout<<ThisTask<<": finished omp local search of "<<numompregions<<" containing total of "<<numgroups<<" groups "<<MyGetTime()-time3<<endl;
         if (numgroups > 0) {
 
