@@ -132,7 +132,6 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         Head = new Int_tree_t[nbodies];
         Next = new Int_tree_t[nbodies];
 #endif
-        //Particle *Partompimport;
         Int_t *omp_nrecv_total = new Int_t[numompregions];
         Int_t *omp_nrecv_offset = new Int_t[numompregions];
         OMP_ImportInfo *ompimport;
@@ -161,12 +160,16 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         delete[] Head;
         delete[] Next;
 #endif
-        //delete[] Partompimport;
         delete[] omp_nrecv_total;
         delete[] omp_nrecv_offset;
         delete[] ompimport;
 
+        #pragma omp parallel default(shared) \
+        private(i)
+        {
+        #pragma omp for schedule(dynamic) nowait
         for (i=0;i<numompregions;i++) delete tree3dfofomp[i];
+        }
         delete[] tree3dfofomp;
         delete[] ompdomain;
 

@@ -144,8 +144,6 @@ OMP_ImportInfo *OpenMPImportParticles(Options &opt, const Int_t nbodies, vector<
     int omptask;
     Int_t importtotal=0;
     double time1=MyGetTime();
-    Particle *Partompimport;
-    Int_t *Partompimportindex;
     OMP_ImportInfo *ompimport;
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
@@ -167,7 +165,6 @@ OMP_ImportInfo *OpenMPImportParticles(Options &opt, const Int_t nbodies, vector<
         importtotal += omp_nrecv_total[i];
         omp_nrecv_total[i] = 0;
     }
-    //Partompimport = new Particle[importtotal];
     ompimport = new OMP_ImportInfo[importtotal];
 
     for (i=0;i<numompregions;i++) {
@@ -279,6 +276,9 @@ void OpenMPLinkAcross(Options &opt,
 
 Int_t OpenMPResortParticleandGroups(Int_t nbodies, vector<Particle> &Part, Int_t *&pfof, Int_t minsize)
 {
+#ifndef USEMPI
+    int ThisTask=0,NProcs=1;
+#endif
     Int_t start, ngroups=0;
     Int_t *numingroup, **plist;
     //now get number of groups and reorder group ids
