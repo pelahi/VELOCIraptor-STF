@@ -42,8 +42,37 @@ using namespace NBody;
 
 ///structure for interfacing with swift and extract cosmological information
 namespace Swift {
+    /// store basic cosmological information
     struct cosmoinfo {
-        double atime, littleh, Omega_m, Omega_b, Omega_Lambda, Omega_cdm, w_de;
+  /*! Current expansion factor of the Universe. (cosmology.a) */
+  double atime;
+
+  /*! Reduced Hubble constant (H0 / (100km/s/Mpc) (cosmology.h) */
+  double littleh;
+
+  /*! Matter density parameter (cosmology.Omega_m) */
+  double Omega_m;
+
+  /*! Radiation density parameter (cosmology.Omega_r) */
+  double Omega_r;
+
+  /*! Neutrino density parameter (0 in SWIFT) */
+  double Omega_nu;
+
+  /*! Neutrino density parameter (cosmology.Omega_k) */
+  double Omega_k;
+
+  /*! Baryon density parameter (cosmology.Omega_b) */
+  double Omega_b;
+
+  /*! Radiation constant density parameter (cosmology.Omega_lambda) */
+  double Omega_Lambda;
+
+  /*! Dark matter density parameter (cosmology.Omega_m - cosmology.Omega_b) */
+  double Omega_cdm;
+
+  /*! Dark-energy equation of state at the current time (cosmology.w)*/
+  double w_de;
     };
     ///structure to store unit information of swift
     struct unitinfo {
@@ -58,7 +87,7 @@ namespace Swift {
 
     //} SWIFT_STRUCT_ALIGN;
 
-    //store simulation info
+    ///store simulation info
     struct siminfo {
         double period, zoomhigresolutionmass, interparticlespacing, spacedimension[3];
 
@@ -80,20 +109,36 @@ namespace Swift {
         /*! Holds the node ID of each top-level cell. */
         int *cellnodeids;
 
+        /// whether run is cosmological simulation
         int icosmologicalsim;
+        /// running a zoom simulation
+        int izoomsim;
+        /// flags indicating what types of particles are present
+        int idarkmatter, igas, istar, ibh, iother;
     };
 
+    struct groupinfo {
+      int index;
+      long long groupid;
+    };
 }
+
 
 using namespace Swift;
 
 ///\defgroup external C style interfaces that can be called in swift N-body code.
 //@{
-//extern "C" void InvokeVelociraptor(const int num_gravity_parts, const int num_hydro_parts, struct gpart *gravity_parts, struct part *hydro_parts, double mpi_domain [3][2]);
-///initialize velociraptor
-extern "C" int InitVelociraptor(char* configname, char* outputname, Swift::cosmoinfo, Swift::unitinfo, Swift::siminfo);
+//extern "C" int InitVelociraptor(char* configname, char* outputname, Swift::cosmoinfo, Swift::unitinfo, Swift::siminfo, const int numthreads);
+///initialize velociraptor, check configuration options,
+extern "C" int InitVelociraptor(char* configname, Swift::unitinfo, Swift::siminfo, const int numthreads);
 ///actually run velociraptor
-extern "C" int InvokeVelociraptor(const size_t num_gravity_parts, const size_t num_hydro_parts, const int snapnum, struct swift_vel_part *swift_parts, const int *cell_node_ids, char* outputname);
+extern "C" Swift::groupinfo * InvokeVelociraptor(const int snapnum, char* outputname,
+    Swift::cosmoinfo, Swift::siminfo,
+    const size_t num_gravity_parts, const size_t num_hydro_parts, const size_t num_star_parts,
+    struct swift_vel_part *swift_parts, int *cell_node_ids,
+    const int numthreads, const int ireturngroupinfoflag, int *const numingroups);
+///set simulation information
+void SetVelociraptorSimulationState(Swift::cosmoinfo, Swift::siminfo);
 //@}
 
 //extern KDTree *mpimeshtree;

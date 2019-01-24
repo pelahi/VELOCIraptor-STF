@@ -111,6 +111,10 @@ typedef short short_mpi_t;
 ///flags for Extended output exchange
 #define TAG_EXTENDED_A 100
 #define TAG_EXTENDED_B 200
+
+
+///flags for swift information exchange
+#define TAG_SWIFT_A 1000
 //@}
 
 /// \name for mpi tasks and domain construction

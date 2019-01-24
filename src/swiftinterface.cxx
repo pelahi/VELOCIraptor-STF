@@ -10,9 +10,117 @@ Options libvelociraptorOpt;
 //KDTree *mpimeshtree;
 //Particle *mpimeshinfo;
 
-int InitVelociraptor(char* configname, char* outputname, cosmoinfo c, unitinfo u, siminfo s)
-{
+/// \defgroup SWIFTCONFIGERRORS Errors for swift
+//@{
+///
+#define SWIFTCONFIGOPTMISSING 8
+#define SWIFTCONFIGOPTERROR 9
+#define SWIFTCONFIGOPTCONFLICT 10
+//@}
 
+///check configuration options with swift
+inline int ConfigCheckSwift(Options &opt, Swift::siminfo &s)
+{
+#ifndef USEMPI
+    int ThisTask=0;
+#endif
+    if (opt.iBaryonSearch && !(opt.partsearchtype==PSTALL || opt.partsearchtype==PSTDARK)) {
+        if (ThisTask==0) cerr<<"Conflict in config file: both gas/star/etc particle type search AND the separate baryonic (gas,star,etc) search flag are on. Check config\n";
+        return SWIFTCONFIGOPTCONFLICT;
+    }
+    if (opt.iBoundHalos && opt.iKeepFOF) {
+        if (ThisTask==0) cerr<<"Conflict in config file: Asking for Bound Field objects but also asking to keep the 3DFOF/then run 6DFOF. This is incompatible. Check config\n";
+        return SWIFTCONFIGOPTCONFLICT;
+    }
+    if (opt.HaloMinSize==-1) opt.HaloMinSize=opt.MinSize;
+
+    if (s.idarkmatter == false && opt.partsearchtype==PSTDARK) {
+        if (ThisTask==0) cerr<<"Conflict in config file: simulation contains no dark matter but searching only dark matter. This is incompatible. Check config\n";
+        return SWIFTCONFIGOPTCONFLICT;
+    }
+    if (s.idarkmatter == false && opt.partsearchtype==PSTALL && opt.iBaryonSearch) {
+        if (ThisTask==0) cerr<<"Conflict in config file: simulation contains no dark matter but using dark matter to define links when searching all particles . This is incompatible. Check config\n";
+        return SWIFTCONFIGOPTCONFLICT;
+    }
+    if (s.igas == false && opt.partsearchtype==PSTGAS) {
+        if (ThisTask==0) cerr<<"Conflict in config file: simulation contains no gas but searching only gas. This is incompatible. Check config\n";
+        return SWIFTCONFIGOPTCONFLICT;
+    }
+    if ((s.istar == false && opt.partsearchtype==PSTSTAR)) {
+        if (ThisTask==0) cerr<<"Conflict in config file: simulation contains no gas but searching only stars or using stars as basis for links. This is incompatible. Check config\n";
+        return SWIFTCONFIGOPTCONFLICT;
+    }
+
+#ifndef USEHDF
+    if (opt.ibinaryout==OUTHDF){
+        if (ThisTask==0) cerr<<"Code not compiled with HDF output enabled. Recompile with this enabled or change Binary_output.\n";
+        return SWIFTCONFIGOPTERROR;
+    }
+#endif
+
+#ifndef USEADIOS
+    if (opt.ibinaryout==OUTADIOS){
+        if (ThisTask==0) cerr<<"Code not compiled with ADIOS output enabled. Recompile with this enabled or change Binary_output.\n";
+        return SWIFTCONFIGOPTERROR;
+    }
+#endif
+
+    if (ThisTask==0) {
+    cout<<"CONFIG INFO SUMMARY -------------------------- "<<endl;
+    switch(opt.partsearchtype)
+    {
+            case PSTALL:
+                cout<<"Searching all particles regardless of type"<<endl;
+                break;
+            case PSTDARK:
+                cout<<"Searching dark matter particles "<<endl;
+                break;
+            case PSTGAS:
+                cout<<"Searching gas particles "<<endl;
+                break;
+            case PSTSTAR:
+                cout<<"Searching star particles"<<endl;
+                break;
+            case PSTBH:
+                cout<<"Searching BH particles?! Really? Are there enough?"<<endl;
+                break;
+    }
+    if (opt.fofbgtype==FOF6D) cout<<"Field objects found with 3d FOF"<<endl;
+    else if (opt.fofbgtype==FOF6D) cout<<"Field objects found with initial 3d FOF then use single dispersion to find 6d FOFs"<<endl;
+    else if (opt.fofbgtype==FOF6DADAPTIVE) cout<<"Field objects found with initial 3d FOF then use adaptive dispersion to find 6d FOFs"<<endl;
+    else if (opt.fofbgtype==FOFSTNOSUBSET) cout<<"Field objects found with initial 3d FOF then use phase-space stream finding algorithm"<<endl;
+    if (opt.fofbgtype<=FOF6D && opt.iKeepFOF) cout<<"Field objects found with initial 3d FOF then use dispersion to find 6d FOFs and 3dFOF objects kept as base objects (consider them inter halo stellar mass or ICL for stellar only searches) "<<endl;
+    if (opt.iBaryonSearch==1) cout<<"Baryons treated separately for substructure search"<<endl;
+    else if (opt.iBaryonSearch==2) cout<<"Baryons treated separately for substructure search and also FOF field search"<<endl;
+    if (opt.iSingleHalo) cout<<"Field objects NOT searched for, assuming single Halo and subsearch using mean field first step"<<endl;
+    cout<<"Allowed potential to kinetic ratio when unbinding particles "<<opt.uinfo.Eratio<<endl;
+    if (opt.HaloMinSize!=opt.MinSize) cout<<"Field objects (aka Halos) have different minimum required size than substructures: "<<opt.HaloMinSize<<" vs "<<opt.MinSize<<endl;
+    cout<<"Units: L="<<opt.L<<", M="<<opt.M<<", V="<<opt.V<<", G="<<opt.G<<endl;
+    if (opt.ibinaryout) cout<<"Binary output"<<endl;
+    if (opt.iseparatefiles) cout<<"Separate files output"<<endl;
+    if (opt.iextendedoutput) cout<<"Extended output for particle extraction from input files"<<endl;
+    if (opt.iHaloCoreSearch) cout<<"Searching for 6dfof cores so as to disentangle mergers"<<endl;
+    if (opt.iHaloCoreSearch && opt.iAdaptiveCoreLinking) cout<<"With adaptive linking lengths"<<endl;
+    if (opt.iHaloCoreSearch && opt.iPhaseCoreGrowth) cout<<"With with phase-space tensor core assignment"<<endl;
+    if (opt.inputtype==IOGADGET) cout<<"Gadget file particle input "<<endl;
+    else if (opt.inputtype==IOTIPSY) cout<<"Tipsy file particle input "<<endl;
+    else if (opt.inputtype==IORAMSES) cout<<"RAMSES file particle input "<<endl;
+#ifdef USEHDF
+    else if (opt.inputtype==IOHDF) cout<<"HDF file particle input "<<endl;
+#endif
+#ifdef USEXDR
+    else if (opt.inputtype==IONCHILADA) cout<<"NCHILADA file particle input "<<endl;
+#endif
+    cout<<" -------------------------- "<<endl;
+    }
+    return 1;
+}
+
+
+int InitVelociraptor(char* configname, unitinfo u, siminfo s, const int numthreads)
+{
+    cout<<"Initialising VELOCIraptor..."<< endl;
+    // if mpi invokved, init the velociraptor tasks and openmp threads
 #ifdef USEMPI
     //find out how big the SPMD world is
     MPI_Comm_size(MPI_COMM_WORLD,&NProcs);
@@ -24,63 +132,89 @@ int InitVelociraptor(char* configname, char* outputname, cosmoinfo c, unitinfo u
     MPI_Comm_rank(MPI_COMM_WORLD,&ThisTask);
     //store MinSize as when using mpi prior to stitching use min of 2;
     MinNumMPI=2;
-
 #endif
-    cout<<"Initialising VELOCIraptor..."<< endl;
-
+#ifdef USEOPENMP
+    omp_set_num_threads(numthreads);
+#endif
+    int iconfigflag;
+    ///read the parameter file
     libvelociraptorOpt.pname = configname;
-    libvelociraptorOpt.outname = outputname;
-
     cout<<"Reading VELOCIraptor config file..."<< endl;
     GetParamFile(libvelociraptorOpt);
+    ///check configuration
+    iconfigflag = ConfigCheckSwift(libvelociraptorOpt, s);
+    if (iconfigflag != 1) return iconfigflag;
+
     cout<<"Setting cosmology, units, sim stuff "<<endl;
     ///set units, here idea is to convert internal units so that have kpc, km/s, solar mass
-    libvelociraptorOpt.lengthtokpc=1.0;
-    libvelociraptorOpt.velocitytokms=1.0;
-    libvelociraptorOpt.masstosolarmass=1.0;
-    libvelociraptorOpt.L=u.lengthtokpc;
-    libvelociraptorOpt.M=u.masstosolarmass;
-    libvelociraptorOpt.V=u.velocitytokms;
+    ///\todo switch this so run in reasonable swift units and store conversion
+    libvelociraptorOpt.lengthtokpc=u.lengthtokpc;
+    libvelociraptorOpt.velocitytokms=u.velocitytokms;
+    libvelociraptorOpt.masstosolarmass=u.masstosolarmass;
+    libvelociraptorOpt.energyperunitmass=u.energyperunitmass;
+
+    //run in swift internal units, don't convert units
+    libvelociraptorOpt.L=1.0;
+    libvelociraptorOpt.M=1.0;
+    libvelociraptorOpt.V=1.0;
+    libvelociraptorOpt.U=1.0;
+
+    //set cosmological parameters that do not change
     ///these should be in units of kpc, km/s, and solar mass
     libvelociraptorOpt.G=u.gravity;
-    libvelociraptorOpt.U=u.energyperunitmass;
     libvelociraptorOpt.H=u.hubbleunit;
+
+    //set if cosmological
+    libvelociraptorOpt.icosmologicalin = s.icosmologicalsim;
+
+    //write velociraptor configuration info, appending .configuration to the input config file and writing every config option
+    libvelociraptorOpt.outname = configname;
+    WriteVELOCIraptorConfig(libvelociraptorOpt);
+
+    cout<<"Finished initialising VELOCIraptor"<<endl;
+
+    //return the configuration flag value
+    return iconfigflag;
+
+}
+
+void SetVelociraptorCosmology(cosmoinfo c)
+{
     ///set cosmology
-    libvelociraptorOpt.a=c.atime;
     libvelociraptorOpt.h=c.littleh;
     libvelociraptorOpt.Omega_m=c.Omega_m;
     libvelociraptorOpt.Omega_b=c.Omega_b;
     libvelociraptorOpt.Omega_cdm=c.Omega_cdm;
     libvelociraptorOpt.Omega_Lambda=c.Omega_Lambda;
+    libvelociraptorOpt.Omega_r=c.Omega_r;
+    libvelociraptorOpt.Omega_nu=c.Omega_nu;
+    libvelociraptorOpt.Omega_k=c.Omega_k;
+    libvelociraptorOpt.Omega_de = 0.0;
     libvelociraptorOpt.w_de=c.w_de;
-
-    //if libvelociraptorOpt.virlevel<0, then use virial overdensity based on Bryan and Norman 1998 virialization level is given by
-    if (libvelociraptorOpt.virlevel<0)
-    {
-        Double_t bnx=-((1-libvelociraptorOpt.Omega_m-libvelociraptorOpt.Omega_Lambda)*pow(libvelociraptorOpt.a,-2.0)+libvelociraptorOpt.Omega_Lambda)/((1-libvelociraptorOpt.Omega_m-libvelociraptorOpt.Omega_Lambda)*pow(libvelociraptorOpt.a,-2.0)+libvelociraptorOpt.Omega_m*pow(libvelociraptorOpt.a,-3.0)+libvelociraptorOpt.Omega_Lambda);
-        libvelociraptorOpt.virlevel=(18.0*M_PI*M_PI+82.0*bnx-39*bnx*bnx)/libvelociraptorOpt.Omega_m;
+    if (libvelociraptorOpt.w_de != -1) {
+        libvelociraptorOpt.Omega_de = libvelociraptorOpt.Omega_Lambda;
+        libvelociraptorOpt.Omega_Lambda = 0;
     }
+    PrintCosmology(libvelociraptorOpt);
+}
+
+//set simulation state
+void SetVelociraptorSimulationState(cosmoinfo c, siminfo s)
+{
+    double Hubble;
+    ///set cosmology
+    if (libvelociraptorOpt.icosmologicalin) SetVelociraptorCosmology(c);
+
+    //set current scalefactor
+    libvelociraptorOpt.a=c.atime;
+
     //set some sim information
     libvelociraptorOpt.p=s.period;
     libvelociraptorOpt.zoomlowmassdm=s.zoomhigresolutionmass;
     libvelociraptorOpt.icosmologicalin=s.icosmologicalsim;
     libvelociraptorOpt.ellxscale=s.interparticlespacing;
     libvelociraptorOpt.uinfo.eps*=libvelociraptorOpt.ellxscale;
-    if (libvelociraptorOpt.icosmologicalin) {
-        libvelociraptorOpt.ellxscale*=libvelociraptorOpt.a;
-        libvelociraptorOpt.uinfo.eps*=libvelociraptorOpt.a;
-        double Hubble=libvelociraptorOpt.h*libvelociraptorOpt.H*sqrt((1-libvelociraptorOpt.Omega_m-libvelociraptorOpt.Omega_Lambda)*pow(libvelociraptorOpt.a,-2.0)+libvelociraptorOpt.Omega_m*pow(libvelociraptorOpt.a,-3.0)+libvelociraptorOpt.Omega_Lambda);
-        libvelociraptorOpt.rhobg=3.*Hubble*Hubble/(8.0*M_PI*libvelociraptorOpt.G)*libvelociraptorOpt.Omega_m;
-    }
-    else {
-        libvelociraptorOpt.rhobg=1.0;
-    }
-    //assume above is in comoving is cosmological simulation and then need to correct to physical
-    if (libvelociraptorOpt.icosmologicalin) {
-        libvelociraptorOpt.p*=libvelociraptorOpt.a;
-        libvelociraptorOpt.ellxscale*=libvelociraptorOpt.a;
-        libvelociraptorOpt.uinfo.eps*=libvelociraptorOpt.a;
-    }
+
     libvelociraptorOpt.uinfo.icalculatepotential=true;
 
     // Set mesh information.
@@ -97,8 +231,31 @@ int InitVelociraptor(char* configname, char* outputname, cosmoinfo c, unitinfo u
     libvelociraptorOpt.numcellsperdim = cbrt(s.numcells);
     libvelociraptorOpt.cellloc = s.cellloc;
 
-    cout<<"Finished initialising VELOCIraptor"<<endl;
-    if (libvelociraptorOpt.HaloMinSize==-1) libvelociraptorOpt.HaloMinSize=libvelociraptorOpt.MinSize;
+    //assume above is in comoving is cosmological simulation and then need to correct to physical
+    if (libvelociraptorOpt.icosmologicalin) {
+        libvelociraptorOpt.p*=libvelociraptorOpt.a;
+        libvelociraptorOpt.ellxscale*=libvelociraptorOpt.a;
+        libvelociraptorOpt.uinfo.eps*=libvelociraptorOpt.a;
+
+        Hubble=libvelociraptorOpt.h*libvelociraptorOpt.H*sqrt(libvelociraptorOpt.Omega_k*pow(libvelociraptorOpt.a,-2.0)+libvelociraptorOpt.Omega_m*pow(libvelociraptorOpt.a,-3.0)
++libvelociraptorOpt.Omega_r*pow(libvelociraptorOpt.a,-4.0)+libvelociraptorOpt.Omega_Lambda+libvelociraptorOpt.Omega_de*pow(libvelociraptorOpt.a,-3.0*(1+libvelociraptorOpt.w_de)));
+        libvelociraptorOpt.rhobg=3.*Hubble*Hubble/(8.0*M_PI*libvelociraptorOpt.G)*libvelociraptorOpt.Omega_m;
+        //if libvelociraptorOpt.virlevel<0, then use virial overdensity based on Bryan and Norman 1998 virialization level is given by
+        if (libvelociraptorOpt.virlevel<0)
+        {
+            Double_t bnx=-(libvelociraptorOpt.Omega_k*pow(libvelociraptorOpt.a,-2.0)+libvelociraptorOpt.Omega_Lambda)/((1-libvelociraptorOpt.Omega_m-libvelociraptorOpt.Omega_Lambda)*pow(libvelociraptorOpt.a,-2.0)+libvelociraptorOpt.Omega_m*pow(libvelociraptorOpt.a,-3.0)+libvelociraptorOpt.Omega_Lambda);
+            libvelociraptorOpt.virlevel=(18.0*M_PI*M_PI+82.0*bnx-39*bnx*bnx)/libvelociraptorOpt.Omega_m;
+        }
+        for (auto i=0;i<3;i++) {
+            libvelociraptorOpt.spacedimension[i] *= libvelociraptorOpt.a;
+            libvelociraptorOpt.cellwidth[i] *= libvelociraptorOpt.a;
+            libvelociraptorOpt.icellwidth[i] /= libvelociraptorOpt.a;
+        }
+    }
+    else {
+        libvelociraptorOpt.rhobg=1.0;
+    }
+    PrintSimulationState(libvelociraptorOpt);
 
 #ifdef USEMPI
     //if single halo, use minsize to initialize the old minimum number
@@ -107,18 +264,17 @@ int InitVelociraptor(char* configname, char* outputname, cosmoinfo c, unitinfo u
     else MinNumOld=libvelociraptorOpt.HaloMinSize;
     mpi_period = libvelociraptorOpt.p;
 #endif
-    //allocate memory to store metis mesh info
-    //mpimeshinfo=new Particle[libvelociraptorOpt.numcells];
-
-    //write velociraptor info
-    WriteVELOCIraptorConfig(libvelociraptorOpt);
-    //WriteSimulationInfo(libvelociraptorOpt);
-    //WriteUnitInfo(libvelociraptorOpt);
-
-    return 1;
 }
 
-int InvokeVelociraptor(const size_t num_gravity_parts, const size_t num_hydro_parts, const int snapnum, struct swift_vel_part *swift_parts, const int *cell_node_ids, char* outputname) {
+///\todo interface with swift is comoving positions, period, peculiar velocities and physical self-energy
+groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
+    cosmoinfo c, siminfo s,
+    const size_t num_gravity_parts, const size_t num_hydro_parts, const size_t num_star_parts,
+    struct swift_vel_part *swift_parts, int *cell_node_ids,
+    const int numthreads,
+    const int ireturngroupinfoflag,
+    int * const numpartingroups)
+{
 #ifndef GASON
     cout<<"Gas has not been turned on in VELOCIraptor. Set GASON in Makefile.config and recompile VELOCIraptor."<<endl;
     return 0;
@@ -133,6 +289,7 @@ int InvokeVelociraptor(const size_t num_gravity_parts, const size_t num_hydro_pa
 #endif
     int nthreads;
 #ifdef USEOPENMP
+    omp_set_num_threads(numthreads);
 #pragma omp parallel
 {
     if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
@@ -146,6 +303,7 @@ int InvokeVelociraptor(const size_t num_gravity_parts, const size_t num_hydro_pa
     libvelociraptorOpt.snapshotvalue = HALOIDSNVAL* snapnum;
 
     //write associated units and simulation details (which contains scale factor/time information)
+    SetVelociraptorSimulationState(c, s);
     WriteSimulationInfo(libvelociraptorOpt);
     WriteUnitInfo(libvelociraptorOpt);
 
@@ -154,6 +312,7 @@ int InvokeVelociraptor(const size_t num_gravity_parts, const size_t num_hydro_pa
     Int_t *pfof, *pfofall, *pfofbaryons, *numingroup,**pglist;
     Int_t nbaryons, ndark;
     Int_t ngroup, nhalos;
+    groupinfo *group_info;
     //KDTree *tree;
     //to store information about the group
     PropData *pdata=NULL,*pdatahalos=NULL;
@@ -175,60 +334,55 @@ int InvokeVelociraptor(const size_t num_gravity_parts, const size_t num_hydro_pa
     cout<<"Copying particle data..."<< endl;
     time1=MyGetTime();
 
-    ndark = num_gravity_parts - num_hydro_parts, nbaryons = num_hydro_parts;
+    ndark = num_gravity_parts - num_hydro_parts - num_star_parts, nbaryons = num_hydro_parts+num_star_parts;
     Nlocalbaryon[0]=nbaryons;
     Nmemlocalbaryon=Nlocalbaryon[0];
 
     /// If we are performing a baryon search, sort the particles so that the DM particles are at the start of the array followed by the gas particles.
+    // note that we explicitly convert positions from comoving to physical as swift_vel_parts is in
     if (libvelociraptorOpt.iBaryonSearch>0 && libvelociraptorOpt.partsearchtype!=PSTALL) {
-
-      size_t dmOffset = 0, gasOffset = 0;
-
-      pbaryons=&(parts.data()[ndark]);
-
-      cout<<"There are "<<nbaryons<<" gas particles and "<<ndark<<" DM particles."<<endl;
-      for(auto i=0; i<Nlocal; i++) {
-        if(swift_parts[i].type == DARKTYPE) {
-          parts[dmOffset++] = Particle(swift_parts[i]);
+        size_t dmOffset = 0, baryonOffset = 0, gasOffset = 0, starOffset = 0, bhOffset = 0, otherparttype = 0;
+        pbaryons=&(parts.data()[ndark]);
+        cout<<"There are "<<nbaryons<<" gas particles and "<<ndark<<" DM particles."<<endl;
+        for(auto i=0; i<Nlocal; i++)
+        {
+            for (auto j=0;j<3;j++) swift_parts[i].x[j]*=libvelociraptorOpt.a;
+            if(swift_parts[i].type == DARKTYPE) {
+                parts[dmOffset++] = Particle(swift_parts[i]);
+            }
+            else {
+                if(swift_parts[i].type == GASTYPE) {
+                    pbaryons[baryonOffset++] = Particle(swift_parts[i]);
+                    gasOffset++;
+                }
+                else if(swift_parts[i].type == STARTYPE) {
+                    starOffset++;
+                    pbaryons[baryonOffset++] = Particle(swift_parts[i]);
+                }
+                else if(swift_parts[i].type == BHTYPE) {
+                    bhOffset++;
+                    pbaryons[baryonOffset++] = Particle(swift_parts[i]);
+                }
+                else {
+                    cout<<"Unknown particle type found: index="<<i<<" type="<<swift_parts[i].type<<" while treating baryons differently. Exiting..."<<endl;
+                    return NULL;
+                }
+            }
         }
-        else {
-          if(swift_parts[i].type == GASTYPE) {
-            pbaryons[gasOffset++] = Particle(swift_parts[i]);
-          }
-          else if(swift_parts[i].type == STARTYPE) {
-            cout<<"Star particle type not supported yet. Exiting..."<<endl;
-            return 0;
-          }
-          else if(swift_parts[i].type == BHTYPE) {
-            cout<<"Black hole particle type not supported yet. Exiting..."<<endl;
-            return 0;
-          }
-          else {
-            cout<<"Unknown particle type found: "<<swift_parts[i].type<<" while treating baryons differently. Exiting..."<<endl;
-            return 0;
-          }
-        }
-      }
     }
     else {
-
-      for(auto i=0; i<Nlocal; i++) {
-        parts[i] = Particle(swift_parts[i]);
-        if(swift_parts[i].type == STARTYPE) {
-          cout<<"Star particle type not supported yet. Exiting..."<<endl;
-          return 0;
+        for(auto i=0; i<Nlocal; i++) {
+            if(swift_parts[i].type != DARKTYPE && swift_parts[i].type != GASTYPE && swift_parts[i].type != STARTYPE && swift_parts[i].type != BHTYPE) {
+                cout<<"Unknown particle type found: index="<<i<<" type="<<swift_parts[i].type<<" when loading particles. Exiting..."<<endl;
+                return NULL;
+            }
+            for (auto j=0;j<3;j++) swift_parts[i].x[j]*=libvelociraptorOpt.a;
+            parts[i] = Particle(swift_parts[i]);
         }
-        else if(swift_parts[i].type == BHTYPE) {
-          cout<<"Black hole particle type not supported yet. Exiting..."<<endl;
-          return 0;
-        }
-        else if(swift_parts[i].type != DARKTYPE && swift_parts[i].type != GASTYPE) {
-          cout<<"Unknown particle type found: "<<swift_parts[i].type<<" while searching all particles equally. Exiting..."<<endl;
-          return 0;
-        }
-     }
-
     }
+
+    //lets free the memory of swift_parts
+    free(swift_parts);
 
     time1=MyGetTime()-time1;
     cout<<"Finished copying particle data."<< endl;
@@ -236,17 +390,6 @@ int InvokeVelociraptor(const size_t num_gravity_parts, const size_t num_hydro_pa
     cout<<ThisTask<<" There are "<<Nlocal<<" particles and have allocated enough memory for "<<Nmemlocal<<" requiring "<<Nmemlocal*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
     if (libvelociraptorOpt.iBaryonSearch>0) cout<<ThisTask<<"There are "<<Nlocalbaryon[0]<<" baryon particles and have allocated enough memory for "<<Nmemlocalbaryon<<" requiring "<<Nmemlocalbaryon*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
     cout<<ThisTask<<" will also require additional memory for FOF algorithms and substructure search. Largest mem needed for preliminary FOF search. Rough estimate is "<<Nlocal*(sizeof(Int_tree_t)*8)/1024./1024./1024.<<"GB of memory"<<endl;
-
-    //build binary tree to store cells for quick search
-    /*
-    Double_t *period=NULL;
-    if (libvelociraptorOpt.p>0) {
-        period=new Double_t[3];
-        for (int j=0;j<3;j++) period[j]=libvelociraptorOpt.p;
-    }
-    for (auto i=0;i<libvelociraptorOpt.numcells; i++) for (auto j=0;j<3;j++) mpimeshinfo[i].SetPosition(j,libvelociraptorOpt.cellloc[i].loc[j]);
-    mpimeshtree=new KDTree(mpimeshinfo,libvelociraptorOpt.numcells,1,mpimeshtree->TPHYS,mpimeshtree->KEPAN,100,0,0,0,period);
-    */
 
     //
     // Perform FOF search.
@@ -289,8 +432,8 @@ int InvokeVelociraptor(const size_t num_gravity_parts, const size_t num_hydro_pa
     //if inclusive halo mass required
     if (libvelociraptorOpt.iInclusiveHalo && ngroup>0) {
         CopyMasses(libvelociraptorOpt,nhalos,pdatahalos,pdata);
-        delete[] pdatahalos;
     }
+    delete[] pdatahalos;
 
     //
     // Search for baryons
@@ -340,16 +483,90 @@ int InvokeVelociraptor(const size_t num_gravity_parts, const size_t num_hydro_pa
 
     for (Int_t i=1;i<=ngroup;i++) delete[] pglist[i];
     delete[] pglist;
-    //delete[] parts;
+    delete[] pdata;
+    delete[] nsub;
+    delete[] uparentgid;
+    delete[] parentgid;
+    delete[] stype;
+    delete psldata;
 
-    //delete tree used to search mpi mesh
-    //delete mpimeshtree;
+    //store group information to return information to swift if required
+    //otherwise, return NULL as pointer
+    if (ireturngroupinfoflag == 0 ) {
+        cout<<"VELOCIraptor returning, no group info returned to swift as requested."<< endl;
+        //free mem associate with mpi cell node ides
+        libvelociraptorOpt.cellnodeids = NULL;
+        libvelociraptorOpt.cellloc = NULL;
+        free(s.cellloc);
+        free(cell_node_ids);
+        delete[] pfof;
+        delete[] numingroup;
+        *numpartingroups=0;
+        return NULL;
+    }
 
-    ///\todo need to return fof and substructure information back to swift
+    //first sort so all particles in groups first
+    Int_t ngoffset=0,ngtot=0;
+    Int_t nig=0;
 
+#ifdef USEMPI
+    if (NProcs > 1) {
+    for (auto j=0;j<ThisTask;j++)ngoffset+=mpi_ngroups[j];
+    for (auto j=0;j<NProcs;j++)ngtot+=mpi_ngroups[j];
+    }
+    else ngtot=ngroup;
+#else
+    ngtot=ngroup;
+#endif
+    cout<<"VELOCIraptor sorting info to return group ids to swift"<<endl;
+    if (ngroup == 0) {
+        //free mem associate with mpi cell node ides
+        libvelociraptorOpt.cellnodeids = NULL;
+        libvelociraptorOpt.cellloc = NULL;
+        free(s.cellloc);
+        free(cell_node_ids);
+        delete[] pfof;
+        delete[] numingroup;
+        *numpartingroups=nig;
+        return NULL;
+    }
+
+    for (auto i=1;i<=ngroup; i++) nig+=numingroup[i];
+    for (auto i=0;i<Nlocal; i++) {
+        if (pfof[i]>0) parts[i].SetPID((pfof[i]+ngoffset)+libvelociraptorOpt.snapshotvalue);
+        else parts[i].SetPID(ngtot+1+libvelociraptorOpt.snapshotvalue);
+    }
+    delete[] pfof;
+    delete[] numingroup;
+    qsort(parts.data(), Nlocal, sizeof(Particle), PIDCompare);
+    parts.resize(nig);
+    Nlocal = parts.size();
+#ifdef USEMPI
+    if (NProcs > 1) {
+    for (auto i=0;i<Nlocal; i++) parts[i].SetID((parts[i].GetSwiftTask()==ThisTask));
+    //now sort items according to whether local swift task
+    qsort(parts.data(), nig, sizeof(Particle), IDCompare);
+    //communicate information
+    MPISwiftExchange(parts);
+    Nlocal = parts.size();
+    }
+#endif
+    *numpartingroups = Nlocal;
+    //now allocate mem and copy data
+    group_info = new groupinfo[Nlocal];
+    for (auto i=0;i<Nlocal; i++) {
+        group_info[i].groupid=parts[i].GetPID();
+        group_info[i].index=parts[i].GetSwiftIndex();
+    }
     cout<<"VELOCIraptor returning."<< endl;
 
-    return 1;
+    //free mem associate with mpi cell node ides
+    libvelociraptorOpt.cellnodeids = NULL;
+    libvelociraptorOpt.cellloc = NULL;
+    free(s.cellloc);
+    free(cell_node_ids);
+
+    return group_info;
 }
 
 #endif

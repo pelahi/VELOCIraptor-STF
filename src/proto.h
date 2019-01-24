@@ -108,6 +108,11 @@ void ReadCellValues(Options &opt, const Int_t nbodies, const Int_t ngrid, GridCe
 // ///Reads number of cells
 //Int_t ReadCellNum(Options &opt);
 
+///Print some info about cosmology
+void PrintCosmology(Options &opt);
+///Print some info about simulation
+void PrintSimulationState(Options &opt);
+
 #ifdef EXTENDEDHALOOUTPUT
 //Write extended halo output for extraction of haloes from input files
 void WriteExtendedOutput (Options &opt, Int_t numgroups, Int_t nbodies, PropData *pdata, Particle *p, Int_t * pfof);
@@ -546,6 +551,10 @@ void MPIBuildHaloSearchExportList(const Int_t ngroup, PropData *&pdata, vector<D
 void MPIGetHaloSearchImportNum(const Int_t nbodies, KDTree *tree, Particle *Part);
 ///Builds the import list of particles based on halo positions
 Int_t MPIBuildHaloSearchImportList(const Int_t nbodies, KDTree *tree, Particle *Part);
+#ifdef SWIFTINTERFACE
+///Exchange Particles so that particles in group are back original swift task
+void MPISwiftExchange(vector<Particle> &Part);
+#endif
 //@}
 #endif
 
