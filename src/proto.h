@@ -108,6 +108,11 @@ void ReadCellValues(Options &opt, const Int_t nbodies, const Int_t ngrid, GridCe
 // ///Reads number of cells
 //Int_t ReadCellNum(Options &opt);
 
+///Print some info about cosmology
+void PrintCosmology(Options &opt);
+///Print some info about simulation
+void PrintSimulationState(Options &opt);
+
 #ifdef EXTENDEDHALOOUTPUT
 //Write extended halo output for extraction of haloes from input files
 void WriteExtendedOutput (Options &opt, Int_t numgroups, Int_t nbodies, PropData *pdata, Particle *p, Int_t * pfof);
@@ -260,6 +265,16 @@ void GetVirialQuantities(const Int_t nbodies, Particle *Part, const Double_t mto
 
 //@}
 
+/// \name Routines for cosmology related calculations
+//@{
+void CalcOmegak(Options &opt);
+void CalcCriticalDensity(Options &opt, Double_t a);
+void CalcBackgroundDensity(Options &opt, Double_t a);
+void CalcVirBN98(Options &opt, Double_t a);
+void CalcCosmoParams(Options &opt, Double_t a);
+Double_t GetHubble(Options &opt, Double_t a);
+Double_t CalcCosmicTime(Options &opt, Double_t a);
+//@}
 /// \name Routines to calculate substructure properties and sort particles in a substructure according to some property
 /// see \ref substructureproperties.cxx for implementation
 //@{
@@ -315,6 +330,52 @@ Int_t *GetSubstructureNum(Int_t ngroups);
 ///Get parent structure id of substructures
 Int_t *GetParentID(Int_t ngroups);
 //@}
+
+#ifdef USEOPENMP
+/// \name OpenMP Search routines
+/// see \ref omproutines.cxx for implementation
+//@{
+///build the openmp domains
+OMP_Domain *OpenMPBuildDomains(Options &opt, const Int_t numompregions, KDTree *&tree, const Double_t rdist);
+
+///build the local OpenMP trees that are used to search the domain
+KDTree **OpenMPBuildLocalTrees(Options &opt, const Int_t numompregions, vector<Particle> &Part, OMP_Domain *ompdomain, Double_t *period);
+
+///returns whether overlap is found
+int OpenMPSearchForOverlap(Double_t xsearch[3][2], Double_t bnd[3][2], Double_t period);
+
+///returns whether overlap is found
+int OpenMPSearchForOverlap(Particle &Part, Double_t bnd[3][2], Double_t rdist, Double_t period);
+
+///returns whether region fully contained within domain
+int OpenMPInDomain(Double_t xsearch[3][2], Double_t bnd[3][2]);
+
+///returns whether particles search region fully contained within domain
+int OpenMPInDomain(Particle &Part, Double_t bnd[3][2], Double_t rdist);
+
+///Search all OpenMP domains using FOF algorithm
+Int_t OpenMPLocalSearch(Options &opt,
+    const Int_t nbodies, vector<Particle> &Part, Int_t * &pfof, Int_t *&storeorgIndex,
+    Int_tree_t *&Head, Int_tree_t *&Next,
+    KDTree **&tree3dfofomp, Double_t *param, const Double_t rdist, const Int_t ompminsize, FOFcompfunc fofcomp,
+    const Int_t numompregions, OMP_Domain *&ompdomain);
+
+///determine particle to import from other OpenMP domains
+OMP_ImportInfo *OpenMPImportParticles(Options &opt, const Int_t nbodies, vector<Particle> &Part, Int_t * &pfof, Int_t *&storetype,
+    const Int_t numompregions, OMP_Domain *&ompdomain, const Double_t rdist,
+    Int_t *&omp_nrecv_total, Int_t *&omp_nrecv_offset);
+
+///link across mpi domains
+void OpenMPLinkAcross(Options &opt,
+    Int_t nbodies, vector<Particle> &Part, Int_t * &pfof,
+    Int_t *&storetype, Int_tree_t *&Head, Int_tree_t *&Next,
+    Double_t *param, FOFcheckfunc &fofcheck,
+    const Int_t numompregions, OMP_Domain *&ompdomain, KDTree **tree3dfofomp,
+    Int_t *&omp_nrecv_total, Int_t *&omp_nrecv_offset, OMP_ImportInfo* &ompimport);
+
+///resorts particles and group id values after OpenMP search
+Int_t OpenMPResortParticleandGroups(Int_t nbodies, vector<Particle> &Part, Int_t *&pfof, Int_t minsize);
+#endif
 
 #ifdef USEMPI
 /// \name MPI Domain Decomposition routines
@@ -490,6 +551,10 @@ void MPIBuildHaloSearchExportList(const Int_t ngroup, PropData *&pdata, vector<D
 void MPIGetHaloSearchImportNum(const Int_t nbodies, KDTree *tree, Particle *Part);
 ///Builds the import list of particles based on halo positions
 Int_t MPIBuildHaloSearchImportList(const Int_t nbodies, KDTree *tree, Particle *Part);
+#ifdef SWIFTINTERFACE
+///Exchange Particles so that particles in group are back original swift task
+void MPISwiftExchange(vector<Particle> &Part);
+#endif
 //@}
 #endif
 

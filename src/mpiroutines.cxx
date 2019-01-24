@@ -2046,7 +2046,7 @@ void MPIGetHaloSearchImportNum(const Int_t nbodies, KDTree *tree, Particle *Part
                     nsend_local[j]++;
                 }
             }
-        
+
     }
     //must store old mpi nsend for accessing NNDataGet properly.
     for (j=0;j<NProcs;j++) for (int k=0;k<NProcs;k++) oldnsend[k+j*NProcs]=mpi_nsend[k+j*NProcs];
@@ -3361,6 +3361,103 @@ vector<int> MPIGetCellListInSearchUsingMesh(Options &opt, Double_t xsearch[3][2]
     }
     return celllist;
 }
+
+//@}
+
+//@{
+///Find local particle that originated from foreign swift tasks
+#ifdef SWIFTINTERFACE
+void MPISwiftExchange(vector<Particle> &Part){
+    Int_t nbodies = Part.size();
+    Int_t i, j, nexport=0,nimport=0;
+    Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
+    int sendTask,recvTask;
+    int maxchunksize=2147483648/NProcs/sizeof(Particle);
+    int nsend,nrecv,nsendchunks,nrecvchunks,numsendrecv;
+    int sendoffset,recvoffset;
+    int cursendchunksize,currecvchunksize;
+    MPI_Status status;
+    Particle *PartBufSend, *PartBufRecv;
+    for (j=0;j<NProcs;j++) nsend_local[j]=0;
+    for (i=0;i<nbodies;i++) {
+        if (Part[i].GetSwiftTask() != ThisTask) {
+            nexport++;
+            nsend_local[Part[i].GetSwiftTask()]++;
+        }
+    }
+    for(j = 1, noffset[0] = 0; j < NProcs; j++) noffset[j]=noffset[j-1] + nsend_local[j-1];
+    MPI_Allgather(nsend_local, NProcs, MPI_Int_t, mpi_nsend, NProcs, MPI_Int_t, MPI_COMM_WORLD);
+    for (j=0;j<NProcs;j++)nimport+=mpi_nsend[ThisTask+j*NProcs];
+    ///\todo need to copy information and see what is what
+
+    if (nexport >0) {
+        PartBufSend=new Particle[nexport];
+        for (i=0;i<nexport;i++) {
+            PartBufSend[i]=Part[i+nbodies-nexport];
+            PartBufSend[i].SetID(Part[i+nbodies-nexport].GetSwiftTask());
+        }
+        qsort(PartBufSend,nexport,sizeof(Particle),IDCompare);
+    }
+    if (nimport > 0) PartBufRecv = new Particle[nimport];
+
+    //now send the data.
+    ///\todo In determination of particle export, eventually need to place a check for the communication buffer so that if exported number
+    ///is larger than the size of the buffer, iterate over the number exported
+    //if either sending or receiving then run this process
+    if (nexport>0||nimport>0) {
+    for(j=0;j<NProcs;j++)
+    {
+        if (j!=ThisTask)
+        {
+            sendTask = ThisTask;
+            recvTask = j;
+            nbuffer[recvTask]=0;
+            for (int k=0;k<recvTask;k++)nbuffer[recvTask]+=mpi_nsend[ThisTask+k*NProcs];//offset on local receiving buffer
+            if(mpi_nsend[ThisTask * NProcs + recvTask] > 0 || mpi_nsend[recvTask * NProcs + ThisTask] > 0)
+            {
+                //send info in loops to minimize memory footprint
+                cursendchunksize=currecvchunksize=maxchunksize;
+                nsendchunks=ceil(mpi_nsend[recvTask+ThisTask*NProcs]/(Double_t)maxchunksize);
+                nrecvchunks=ceil(mpi_nsend[ThisTask+recvTask*NProcs]/(Double_t)maxchunksize);
+                if (cursendchunksize>mpi_nsend[recvTask+ThisTask*NProcs]) {
+                    nsendchunks=1;
+                    cursendchunksize=mpi_nsend[recvTask+ThisTask*NProcs];
+                }
+                if (currecvchunksize>mpi_nsend[ThisTask+recvTask*NProcs]) {
+                    nrecvchunks=1;
+                    currecvchunksize=mpi_nsend[ThisTask+recvTask*NProcs];
+                }
+                numsendrecv=max(nsendchunks,nrecvchunks);
+                sendoffset=recvoffset=0;
+                for (auto ichunk=0;ichunk<numsendrecv;ichunk++)
+                {
+                    //blocking point-to-point send and receive. Here must determine the appropriate offset point in the local export buffer
+                    //for sending data and also the local appropriate offset in the local the receive buffer for information sent from the local receiving buffer
+                    MPI_Sendrecv(&PartBufSend[noffset[recvTask]+sendoffset],
+                        cursendchunksize * sizeof(Particle), MPI_BYTE,
+                        recvTask, TAG_SWIFT_A+ichunk,
+                        &PartBufRecv[nbuffer[recvTask]+recvoffset],
+                        currecvchunksize * sizeof(Particle),
+                        MPI_BYTE, recvTask, TAG_SWIFT_A+ichunk, MPI_COMM_WORLD, &status);
+                    sendoffset+=cursendchunksize;
+                    recvoffset+=currecvchunksize;
+                    if (cursendchunksize>mpi_nsend[recvTask+ThisTask * NProcs]-sendoffset)cursendchunksize=mpi_nsend[recvTask+ThisTask * NProcs]-sendoffset;
+                    if (currecvchunksize>mpi_nsend[ThisTask+recvTask * NProcs]-sendoffset)currecvchunksize=mpi_nsend[ThisTask+recvTask * NProcs]-recvoffset;
+                }
+            }
+        }
+    }
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+    if (nexport > 0) delete[] PartBufSend;
+    if (nimport > 0) {
+        for (i=0;i<nimport;i++) Part[i+nbodies-nexport]=PartBufRecv[i];
+        delete[] PartBufRecv;
+    }
+    Part.resize(nbodies-nexport+nimport);
+}
+
+#endif
 
 //@}
 

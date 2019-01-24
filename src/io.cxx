@@ -490,7 +490,7 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
 
     //Write offsets for bound and unbound particles
     offset=new Int_t[ngroups+1];
-    offset[1]=0;
+    if(ngroups > 1) offset[1]=0;
     //note before had offsets at numingroup but to account for unbound particles use value of pglist at numingroup
     for (Int_t i=2;i<=ngroups;i++) offset[i]=offset[i-1]+pglist[i-1][numingroup[i-1]];
 
@@ -2715,6 +2715,42 @@ void WriteUnitInfo(Options &opt){
         Fout.close();
     }
 
+}
+//@}
+
+///\name output simulation state
+//@{
+void PrintCosmology(Options &opt){
+    if (opt.iverbose) {
+        cout<<"Cosmology (h, Omega_m, Omega_cdm, Omega_b, Omega_L, Omega_r, Omega_nu, Omega_k, Omega_de, w_de) =";
+        cout<<"("<<opt.h<<", ";
+        cout<<opt.Omega_m<<", ";
+        cout<<opt.Omega_cdm<<", ";
+        cout<<opt.Omega_b<<", ";
+        cout<<opt.Omega_Lambda<<", ";
+        cout<<opt.Omega_r<<", ";
+        cout<<opt.Omega_nu<<", ";
+        cout<<opt.Omega_k<<", ";
+        cout<<opt.Omega_de<<", ";
+        cout<<opt.w_de<<", ";
+        cout<<")"<<endl;
+    }
+}
+
+void PrintSimulationState(Options &opt){
+    if (opt.iverbose) {
+        cout<<"Current simulation state "<<endl;
+        cout<<"Scale factor :"<<opt.a<<endl;
+        cout<<"Period :"<<opt.p<<endl;
+        if (opt.icosmologicalin) {
+            double Hubble=opt.h*opt.H*sqrt(opt.Omega_k*pow(opt.a,-2.0)+opt.Omega_m*pow(opt.a,-3.0)
+            +opt.Omega_r*pow(opt.a,-4.0)+opt.Omega_Lambda+opt.Omega_de*pow(opt.a,-3.0*(1+opt.w_de)));
+            cout<<"Cosmological simulation with "<<endl;
+            cout<<"Hubble expansion :"<<Hubble<<endl;
+            cout<<"Critical Density :"<<opt.rhobg/opt.Omega_m<<endl;
+            cout<<"Matter density :"<<opt.rhobg<<endl;
+        }
+    }
 }
 //@}
 
