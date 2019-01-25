@@ -154,8 +154,8 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
                 param, fofcheck, numompregions, ompdomain, tree3dfofomp,
                 omp_nrecv_total, omp_nrecv_offset, ompimport);
 
-            }
             delete[] ompimport;
+            }
         }
         //free memory
 #ifndef USEMPI
