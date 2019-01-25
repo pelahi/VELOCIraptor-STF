@@ -123,7 +123,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     Int_t ompminsize = 2;
     if (numompregions>=4 && nthreads > 1){
         time3=MyGetTime();
-        Int_t orgIndex;
+        Int_t orgIndex, omp_import_total;
         int omptask;
         Double_t rdist = sqrt(param[1]);
         pfof = new Int_t[nbodies];
@@ -148,12 +148,14 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         //then for each omp region determine the particles to "import" from other omp regions
         ompimport = OpenMPImportParticles(opt, nbodies, Part, pfof, storeorgIndex,
             numompregions, ompdomain, rdist,
-            omp_nrecv_total, omp_nrecv_offset);
+            omp_nrecv_total, omp_nrecv_offset, omp_import_total);
+        if (omp_import_total > 0) {
+            OpenMPLinkAcross(opt, nbodies, Part, pfof, storeorgIndex, Head, Next,
+                param, fofcheck, numompregions, ompdomain, tree3dfofomp,
+                omp_nrecv_total, omp_nrecv_offset, ompimport);
 
-        OpenMPLinkAcross(opt, nbodies, Part, pfof, storeorgIndex, Head, Next,
-            param, fofcheck, numompregions, ompdomain, tree3dfofomp,
-            omp_nrecv_total, omp_nrecv_offset, ompimport);
-
+            }
+            delete[] ompimport;
         }
         //free memory
 #ifndef USEMPI
@@ -162,7 +164,6 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
 #endif
         delete[] omp_nrecv_total;
         delete[] omp_nrecv_offset;
-        delete[] ompimport;
 
         #pragma omp parallel default(shared) \
         private(i)

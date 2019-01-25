@@ -363,7 +363,7 @@ Int_t OpenMPLocalSearch(Options &opt,
 ///determine particle to import from other OpenMP domains
 OMP_ImportInfo *OpenMPImportParticles(Options &opt, const Int_t nbodies, vector<Particle> &Part, Int_t * &pfof, Int_t *&storetype,
     const Int_t numompregions, OMP_Domain *&ompdomain, const Double_t rdist,
-    Int_t *&omp_nrecv_total, Int_t *&omp_nrecv_offset);
+    Int_t *&omp_nrecv_total, Int_t *&omp_nrecv_offset, Int_t &omp_import_total);
 
 ///link across mpi domains
 void OpenMPLinkAcross(Options &opt,

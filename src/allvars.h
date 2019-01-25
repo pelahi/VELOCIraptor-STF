@@ -244,6 +244,14 @@ using namespace NBody;
 #define M_HetoM_H 4.0026
 //@}
 
+/// \defgroup OMPLIMS For determining whether loop contains enough for openm to be worthwhile.
+//@{
+#define ompsearchnum 50000
+#define ompunbindnum 1000
+#define ompperiodnum 50000
+#define omppropnum 50000
+#define ompfofsearchnum 2000000
+//@}
 
 /// Structure stores unbinding information
 struct UnbindInfo
