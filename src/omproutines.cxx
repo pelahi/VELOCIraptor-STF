@@ -234,7 +234,6 @@ void OpenMPLinkAcross(Options &opt,
                         if (fofcheck(Part[curIndex],param)!=0 && fofcheck(*Pval,param)!=0) continue;
 
                     orgIndex = storeorgIndex[Part[curIndex].GetID()+ompdomain[i].noffset];
-                    if (pfof[orgIndex] < pfofcomp) continue;
                     //otherwise, change these particles to local group id if local group id smaller
                     //if local particle in a group
                     if (pfof[orgIndex]>0)  {
@@ -242,12 +241,14 @@ void OpenMPLinkAcross(Options &opt,
                         if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1)
                             if (!(fofcheck(Part[curIndex],param)==0 && fofcheck(*Pval,param)==0)) continue;
                         //if local group id is larger, change locally
-                        Int_t ss = Head[nn[k+ompdomain[i].noffset]+ompdomain[i].noffset];
-                        do{
-                            orgIndex = storeorgIndex[Part[ss+ompdomain[i].noffset].GetID()+ompdomain[i].noffset];
-                            pfof[orgIndex]=pfofcomp;
-                        }while((ss = Next[ss+ompdomain[i].noffset]) >= 0);
-                        omp_links_across_total++;
+                        if (pfof[orgIndex] > pfofcomp) {
+                            Int_t ss = Head[nn[k+ompdomain[i].noffset]+ompdomain[i].noffset];
+                            do{
+                                orgIndex = storeorgIndex[Part[ss+ompdomain[i].noffset].GetID()+ompdomain[i].noffset];
+                                pfof[orgIndex]=pfofcomp;
+                            }while((ss = Next[ss+ompdomain[i].noffset]) >= 0);
+                            omp_links_across_total++;
+                        }
                     }
                     //if local particle not in a group and export is appropriate type, link
                     else {
