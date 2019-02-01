@@ -3435,6 +3435,8 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin)
             //determine position of minimum potential and by radius around this position
             potmin=Part[noffset[i]].GetPotential();ipotmin=0;
             for (j=0;j<numingroup[i];j++) if (Part[j+noffset[i]].GetPotential()<potmin) {potmin=Part[j+noffset[i]].GetPotential();ipotmin=j;}
+            pdata[i].iminpot=Part[ipotmin+noffset[i]].GetPID();
+            for (k=0;k<3;k++) {pdata[i].gposminpot[k]=Part[ipotmin+noffset[i]].GetPosition(k);pdata[i].gvelminpot[k]=Part[ipotmin+noffset[i]].GetVelocity(k);}
             for (k=0;k<3;k++) pdata[i].gcm[k]=Part[ipotmin+noffset[i]].GetPosition(k);
             for (j=0;j<numingroup[i];j++) {
                 for (k=0;k<3;k++) Part[j+noffset[i]].SetPosition(k,Part[j+noffset[i]].GetPosition(k)-pdata[i].gcm[k]);
@@ -3455,6 +3457,23 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin)
                 for (k=0;k<3;k++) Part[j+noffset[i]].SetPosition(k,Part[j+noffset[i]].GetPosition(k)+pdata[i].gcm[k]);
             }
         }
+#ifdef USEOPENMP
+}
+#endif
+    }
+    else {
+#ifdef USEOPENMP
+#pragma omp parallel default(shared)  \
+private(i,j,k,potmin,ipotmin)
+{
+    #pragma omp for schedule(dynamic,1) nowait
+#endif
+    for (i=1;i<=ngroup;i++) if (numingroup[i]<ompunbindnum) {
+        potmin=Part[noffset[i]].GetPotential();ipotmin=0;
+        for (j=0;j<numingroup[i];j++) if (Part[j+noffset[i]].GetPotential()<potmin) {potmin=Part[j+noffset[i]].GetPotential();ipotmin=j;}
+        pdata[i].iminpot=Part[ipotmin+noffset[i]].GetPID();
+        for (k=0;k<3;k++) {pdata[i].gposminpot[k]=Part[ipotmin+noffset[i]].GetPosition(k);pdata[i].gvelminpot[k]=Part[ipotmin+noffset[i]].GetVelocity(k);}
+    }
 #ifdef USEOPENMP
 }
 #endif
@@ -3506,6 +3525,8 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid)
 #ifdef USEOPENMP
 }
 #endif
+
+    //begin large groups
     if (opt.uinfo.icalculatepotential) {
     //loop for large groups with tree calculation
     for (i=1;i<=ngroup;i++) if (numingroup[i]>=ompunbindnum) {
@@ -3547,6 +3568,8 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin)
             //determine position of minimum potential and by radius around this position
             potmin=Part[noffset[i]].GetPotential();ipotmin=0;
             for (j=0;j<numingroup[i];j++) if (Part[j+noffset[i]].GetPotential()<potmin) {potmin=Part[j+noffset[i]].GetPotential();ipotmin=j;}
+            pdata[i].iminpot=Part[ipotmin+noffset[i]].GetPID();
+            for (k=0;k<3;k++) {pdata[i].gposminpot[k]=Part[ipotmin+noffset[i]].GetPosition(k);pdata[i].gvelminpot[k]=Part[ipotmin+noffset[i]].GetVelocity(k);}
             for (k=0;k<3;k++) pdata[i].gcm[k]=Part[ipotmin+noffset[i]].GetPosition(k);
             for (j=0;j<numingroup[i];j++) {
                 for (k=0;k<3;k++) Part[j+noffset[i]].SetPosition(k,Part[j+noffset[i]].GetPosition(k)-pdata[i].gcm[k]);
@@ -3567,6 +3590,23 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin)
                 for (k=0;k<3;k++) Part[j+noffset[i]].SetPosition(k,Part[j+noffset[i]].GetPosition(k)+pdata[i].gcm[k]);
             }
         }
+#ifdef USEOPENMP
+}
+#endif
+    }
+    else {
+#ifdef USEOPENMP
+#pragma omp parallel default(shared)  \
+private(i,j,k,potmin,ipotmin)
+{
+    #pragma omp for schedule(dynamic,1) nowait
+#endif
+    for (i=1;i<=ngroup;i++) if (numingroup[i]>=ompunbindnum) {
+        potmin=Part[noffset[i]].GetPotential();ipotmin=0;
+        for (j=0;j<numingroup[i];j++) if (Part[j+noffset[i]].GetPotential()<potmin) {potmin=Part[j+noffset[i]].GetPotential();ipotmin=j;}
+        pdata[i].iminpot=Part[ipotmin+noffset[i]].GetPID();
+        for (k=0;k<3;k++) {pdata[i].gposminpot[k]=Part[ipotmin+noffset[i]].GetPosition(k);pdata[i].gvelminpot[k]=Part[ipotmin+noffset[i]].GetVelocity(k);}
+    }
 #ifdef USEOPENMP
 }
 #endif

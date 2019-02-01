@@ -1273,7 +1273,7 @@ struct PropData
         num=p.num;
         gcm=p.gcm;gcmvel=p.gcmvel;
         gpos=p.gpos;gvel=p.gvel;
-        gposminpot=p.gposmintpo;gvelminpot=p.gvelminpot;
+        gposminpot=p.gposminpot;gvelminpot=p.gvelminpot;
         gmass=p.gmass;gsize=p.gsize;
         gMvir=p.gMvir;gRvir=p.gRvir;gRmbp=p.gRmbp;
         gmaxvel=gmaxvel=p.gmaxvel;gRmaxvel=p.gRmaxvel;gMmaxvel=p.gMmaxvel;
