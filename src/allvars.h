@@ -246,6 +246,11 @@ using namespace NBody;
 #define HALOIDSNVAL 1000000
 #endif
 
+///\defgroup radial profile parameters
+//@{
+#define PROFILER200CRITLOG 0
+//@}
+
 ///\defgroup GASPARAMS Useful constants for gas
 //@{
 ///mass of helium relative to hydrogen
@@ -539,7 +544,8 @@ struct Options
     ///scale lengths. Useful if searching single halo system and which to automatically scale linking lengths
     int iScaleLengths;
 
-    // Swift simulation information
+    /// \name Swift/Metis related quantitites
+    //@{
     //Swift::siminfo swiftsiminfo;
 
     double spacedimension[3];
@@ -561,8 +567,17 @@ struct Options
 
     /*! Holds the node ID of each top-level cell. */
     const int *cellnodeids;
-
     //@}
+
+    /// \name profile related options
+    //@{
+    int iprofilecalc;
+    int profilenbins;
+    int iprofilenorm;
+    int iprofilecumulative;
+    //}
+
+
     Options()
     {
         L = 1.0;
@@ -709,6 +724,10 @@ struct Options
 #if USEHDF
         ihdfnameconvention=0;
 #endif
+        iprofilecalc=0;
+        iprofilenorm=PROFILER200CRITLOG;
+        iprofilecumulative=0;
+        profilenbins=10;
     }
 };
 
@@ -1105,6 +1124,12 @@ struct PropData
     Double_t RV_Krot;
     //@}
 
+    ///\name radial profiles
+    //@{
+    vector<float> massprofile;
+    vector<Coordinate> angularprofile;
+    //@}
+
 #ifdef GASON
     ///\name gas specific quantities
     //@{
@@ -1134,6 +1159,12 @@ struct PropData
     Double_t Temp_gas,Z_gas,SFR_gas;
     ///physical properties for dynamical state
     Double_t Efrac_gas,Pot_gas,T_gas;
+    //@}
+
+    ///\name gas radial profiles
+    //@{
+    vector<float> massprofile_gas;
+    vector<Coordinate> angularprofile_gas;
     //@}
 #endif
 
@@ -1165,6 +1196,12 @@ struct PropData
     Double_t t_star,Z_star;
     ///physical properties for dynamical state
     Double_t Efrac_star,Pot_star,T_star;
+    //@}
+
+    ///\name stellar radial profiles
+    //@{
+    vector<float> massprofile_star;
+    vector<Coordinate> angularprofile_star;
     //@}
 #endif
 

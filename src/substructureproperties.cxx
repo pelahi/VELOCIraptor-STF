@@ -1961,6 +1961,11 @@ private(i,j,k,Pval)
 }
 #endif
 
+    ///if calculating profiles. 
+    if (opt.iprofilecalc) {
+
+    }
+
         if (opt.iverbose) cout<<"Done getting properties"<<endl;
 }
 
