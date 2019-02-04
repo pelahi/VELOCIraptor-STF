@@ -345,7 +345,7 @@ void OpenMPHeadNextUpdate(const Int_t nbodies, vector<Particle> &Part, const Int
         for (auto j=1;j<numingroup[i];j++) Head[pglist[i][j]]=pglist[i][0];
         for (auto j=0;j<numingroup[i]-1;j++) Next[pglist[i][j]]=pglist[i][j+1];
     }
-    for (auto i=1;i<=numgroups;i++) delete[] pglist;
+    for (auto i=1;i<=numgroups;i++) delete[] pglist[i];
     delete[] numingroup;
     delete[] pglist;
 }
