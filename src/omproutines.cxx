@@ -332,7 +332,23 @@ Int_t OpenMPResortParticleandGroups(Int_t nbodies, vector<Particle> &Part, Int_t
     return ngroups;
 }
 
-
+void OpenMPHeadNextUpdate(const Int_t nbodies, vector<Particle> &Part, const Int_t numgroups, Int_t *&pfof, Int_tree_t *&Head, Int_tree_t *&Next){
+    Int_t *numingroup;
+    Int_t **pglist;
+    numingroup=BuildNumInGroup(nbodies, numgroups, pfof);
+    pglist=BuildPGList(nbodies, numgroups, numingroup, pfof, Part.data());
+    for (auto i=0;i<nbodies;i++) {
+        Head[i]=i;
+        Next[i]=-1;
+    }
+    for (auto i=1;i<=numgroups;i++) {
+        for (auto j=1;j<numingroup[i];j++) Head[pglist[i][j]]=pglist[i][0];
+        for (auto j=0;j<numingroup[i]-1;j++) Next[pglist[i][j]]=pglist[i][j+1];
+    }
+    for (auto i=1;i<=numgroups;i++) delete[] pglist;
+    delete[] numingroup;
+    delete[] pglist;
+}
 
 //@}
 

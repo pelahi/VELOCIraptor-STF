@@ -375,6 +375,9 @@ void OpenMPLinkAcross(Options &opt,
 
 ///resorts particles and group id values after OpenMP search
 Int_t OpenMPResortParticleandGroups(Int_t nbodies, vector<Particle> &Part, Int_t *&pfof, Int_t minsize);
+
+///sets the head/next arrays based on the current particle order and the current pfof array
+void OpenMPHeadNextUpdate(const Int_t nbodies, vector<Particle> &Part, const Int_t numgroups, Int_t *&pfof, Int_tree_t *&Head, Int_tree_t *&Next);
 #endif
 
 #ifdef USEMPI

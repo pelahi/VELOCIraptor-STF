@@ -189,8 +189,13 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         //and reallocate tree if required (that is only if not using MPI but searching for substructure
 #if !defined(USEMPI) && defined(STRUCDEN)
         if (numgroups>0 && (opt.iSubSearch==1&&opt.foftype!=FOF6DCORE))
-            tree = new KDTree(Part.data(),nbodies,opt.Bsize,tree->TPHYS,tree->KEPAN,1000,0,0,0,period);
 #endif
+        tree = new KDTree(Part.data(),nbodies,opt.Bsize,tree->TPHYS,tree->KEPAN,1000,0,0,0,period);
+        //if running MPI then need to pudate the head, next info
+#ifdef USEMPI
+        OpenMPHeadNextUpdate(nbodies, Part, numgroups, pfof, Head, Next);
+#endif
+
     }
     else {
         //posible alteration for all particle search
