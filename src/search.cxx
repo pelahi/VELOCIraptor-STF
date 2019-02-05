@@ -347,7 +347,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
 #endif
     if (opt.iverbose>=2) {
         Int_t sum=0;
-        for (i=0;i<nbodies;i++) sum+=(pfof[i]>0);
+        for (i=0;i<Nlocal;i++) sum+=(pfof[i]>0);
         cout<<ThisTask<<" has found after full search "<<numgroups<<" with lower min size of "<<minsize<<", with  "<<sum<<" particles in all groups"<<endl;
     }
     if (ThisTask==0) cout<<"Total number of groups found is "<<totalgroups<<endl;
