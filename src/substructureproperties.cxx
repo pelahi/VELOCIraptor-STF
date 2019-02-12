@@ -3377,6 +3377,7 @@ void GetBindingEnergy(Options &opt, const Int_t nbodies, Particle *Part, Int_t n
     Double_t mw2=opt.MassValue*opt.MassValue;
     Double_t potmin,menc;
     Int_t npot,ipotmin;
+    Coordinate cmpotmin;
 
     //used to temporarily store pids. Needed for large groups as the tree code used to calculate potential overwrites the id of particles so that once
     //finished it puts the particles back into the input order. Therefore store id values in PID  value (which can be over written)
@@ -3422,22 +3423,19 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin)
     if (opt.uinfo.cmvelreftype==POTREF) {
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
-private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin)
+private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin,cmpotmin)
 {
     #pragma omp for schedule(dynamic,1) nowait
 #endif
         for (i=1;i<=ngroup;i++) if (numingroup[i]<ompunbindnum) {
             //determine how many particles to use
             npot=max(opt.uinfo.Npotref,Int_t(opt.uinfo.fracpotref*numingroup[i]));
-            //store old ordering
-            storepid=new Int_t[numingroup[i]];
-            for (j=0;j<numingroup[i];j++) {storepid[j]=Part[j+noffset[i]].GetPID();Part[j+noffset[i]].SetPID(j);}
             //determine position of minimum potential and by radius around this position
             potmin=Part[noffset[i]].GetPotential();ipotmin=0;
             for (j=0;j<numingroup[i];j++) if (Part[j+noffset[i]].GetPotential()<potmin) {potmin=Part[j+noffset[i]].GetPotential();ipotmin=j;}
-            for (k=0;k<3;k++) pdata[i].gcm[k]=Part[ipotmin+noffset[i]].GetPosition(k);
+            for (k=0;k<3;k++) cmpotmin[k]=Part[ipotmin+noffset[i]].GetPosition(k);
             for (j=0;j<numingroup[i];j++) {
-                for (k=0;k<3;k++) Part[j+noffset[i]].SetPosition(k,Part[j+noffset[i]].GetPosition(k)-pdata[i].gcm[k]);
+                for (k=0;k<3;k++) Part[j+noffset[i]].SetPosition(k,Part[j+noffset[i]].GetPosition(k)-cmpotmin[k]);
             }
             gsl_heapsort(&Part[noffset[i]],numingroup[i],sizeof(Particle),RadCompare);
             //now determine kinetic frame
@@ -3447,12 +3445,8 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin)
                 menc+=Part[j+noffset[i]].GetMass();
             }
             for (j=0;j<3;j++) {pdata[i].gcmvel[j]/=menc;}
-            //and restore order and original frame
-            gsl_heapsort(&Part[noffset[i]],numingroup[i],sizeof(Particle),PIDCompare);
-            for (j=0;j<numingroup[i];j++) Part[j+noffset[i]].SetPID(storepid[j]);
-            delete[] storepid;
             for (j=0;j<numingroup[i];j++) {
-                for (k=0;k<3;k++) Part[j+noffset[i]].SetPosition(k,Part[j+noffset[i]].GetPosition(k)+pdata[i].gcm[k]);
+                for (k=0;k<3;k++) Part[j+noffset[i]].SetPosition(k,Part[j+noffset[i]].GetPosition(k)+cmpotmin[k]);
             }
         }
 #ifdef USEOPENMP
@@ -3533,7 +3527,7 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid)
     if (opt.uinfo.cmvelreftype==POTREF) {
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
-private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin)
+private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin,cmpotmin)
 {
     #pragma omp for schedule(dynamic,1) nowait
 #endif
@@ -3541,15 +3535,12 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin)
             //once potential is calculated, iff using NOT cm but velocity around deepest potential well
             //determine how many particles to use
             npot=max(opt.uinfo.Npotref,Int_t(opt.uinfo.fracpotref*numingroup[i]));
-            //store old ordering
-            storepid=new Int_t[numingroup[i]];
-            for (j=0;j<numingroup[i];j++) {storepid[j]=Part[j+noffset[i]].GetPID();Part[j+noffset[i]].SetPID(j);}
             //determine position of minimum potential and by radius around this position
             potmin=Part[noffset[i]].GetPotential();ipotmin=0;
             for (j=0;j<numingroup[i];j++) if (Part[j+noffset[i]].GetPotential()<potmin) {potmin=Part[j+noffset[i]].GetPotential();ipotmin=j;}
-            for (k=0;k<3;k++) pdata[i].gcm[k]=Part[ipotmin+noffset[i]].GetPosition(k);
+            for (k=0;k<3;k++) cmpotmin[k]=Part[ipotmin+noffset[i]].GetPosition(k);
             for (j=0;j<numingroup[i];j++) {
-                for (k=0;k<3;k++) Part[j+noffset[i]].SetPosition(k,Part[j+noffset[i]].GetPosition(k)-pdata[i].gcm[k]);
+                for (k=0;k<3;k++) Part[j+noffset[i]].SetPosition(k,Part[j+noffset[i]].GetPosition(k)-cmpotmin[k]);
             }
             gsl_heapsort(&Part[noffset[i]],numingroup[i],sizeof(Particle),RadCompare);
             //now determine kinetic frame
@@ -3559,12 +3550,8 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin)
                 menc+=Part[j+noffset[i]].GetMass();
             }
             for (j=0;j<3;j++) {pdata[i].gcmvel[j]/=menc;}
-            //and restore order and original frame
-            gsl_heapsort(&Part[noffset[i]],numingroup[i],sizeof(Particle),PIDCompare);
-            for (j=0;j<numingroup[i];j++) Part[j+noffset[i]].SetPID(storepid[j]);
-            delete[] storepid;
             for (j=0;j<numingroup[i];j++) {
-                for (k=0;k<3;k++) Part[j+noffset[i]].SetPosition(k,Part[j+noffset[i]].GetPosition(k)+pdata[i].gcm[k]);
+                for (k=0;k<3;k++) Part[j+noffset[i]].SetPosition(k,Part[j+noffset[i]].GetPosition(k)+cmpotmin[k]);
             }
         }
 #ifdef USEOPENMP
