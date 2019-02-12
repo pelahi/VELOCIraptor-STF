@@ -8,6 +8,9 @@
 /// \todo alter interface as now need to be able to specify only smdata file (no grid, res, normalized res) and functionality to specify eps, background fof search, etc
 void GetArgs(int argc, char *argv[], Options &opt)
 {
+#ifndef USEMPI
+    int ThisTask =0, NProcs =1;
+#endif
     int option;
     int NumArgs = 0;
     int configflag=0;
@@ -61,6 +64,7 @@ void GetArgs(int argc, char *argv[], Options &opt)
         }
     }
     if(configflag){
+        if (ThisTask==0)
         cout<<"Reading config file"<<endl;
         GetParamFile(opt);
     }
@@ -76,10 +80,11 @@ void GetArgs(int argc, char *argv[], Options &opt)
 ///Outputs the usage to stdout
 void usage(void)
 {
-    Options opt;
-#ifdef USEMPI
-    if (ThisTask==0) {
+#ifndef USEMPI
+    int ThisTask =0, NProcs =1;
 #endif
+    Options opt;
+    if (ThisTask==0) {
     cerr<<"USAGE:\n";
     cerr<<"\n";
     cerr<<"-C <configuration file (overrides other options)> "<<endl;
@@ -95,8 +100,8 @@ void usage(void)
     cerr<<" ===== EXTRA OPTIONS REQUIRED FOR RAMSES INPUT ====== "<<endl;
     cerr<<"-t <ramses snapnumber>"<<endl;
 
-#ifdef USEMPI
     }
+#ifdef USEMPI
     MPI_Finalize();
 #endif
     exit(1);
@@ -281,11 +286,15 @@ void usage(void)
 ///\todo still more parameters that can be adjusted
 void GetParamFile(Options &opt)
 {
+#ifndef USEMPI
+    int ThisTask =0, NProcs =1;
+#endif
     string line,sep="=";
     string tag,val;
     char buff[1024],*pbuff,tbuff[1024],vbuff[1024],fname[1024];
     fstream paramfile,cfgfile;
     if (!FileExists(opt.pname)){
+        if (ThisTask==0)
             cerr<<"Config file: "<<opt.pname <<" does not exist or can't be read, terminating"<<endl;
 #ifdef USEMPI
             MPI_Abort(MPI_COMM_WORLD,9);
@@ -323,7 +332,8 @@ void GetParamFile(Options &opt)
         }
 #ifndef SWIFTINTERFACE
         if (opt.outname==NULL) {
-            cerr<<"No output name given, terminating"<<endl;
+            if (ThisTask==0)
+                cerr<<"No output name given, terminating"<<endl;
 #ifdef USEMPI
             MPI_Finalize();
 #endif
@@ -537,6 +547,12 @@ void GetParamFile(Options &opt)
                     //mpi memory related
                     else if (strcmp(tbuff, "MPI_part_allocation_fac")==0)
                         opt.mpipartfac = atof(vbuff);
+                    ///OpenMP related
+                    else if (strcmp(tbuff, "OMP_run_fof")==0)
+                        opt.iopenmpfof = atoi(vbuff);
+                    else if (strcmp(tbuff, "OMP_fof_region_size")==0)
+                        opt.openmpfofsize = atoi(vbuff);
+
 
                     //output related
                     else if (strcmp(tbuff, "Separate_output_files")==0)
@@ -587,10 +603,11 @@ void GetParamFile(Options &opt)
 
 inline void ConfigCheck(Options &opt)
 {
-    if (opt.fname==NULL||opt.outname==NULL){
-#ifdef USEMPI
-    if (ThisTask==0)
+#ifndef USEMPI
+    int ThisTask =0, NProcs =1;
 #endif
+    if (opt.fname==NULL||opt.outname==NULL){
+    if (ThisTask==0)
         cerr<<"Must provide input and output file names\n";
 #ifdef USEMPI
             MPI_Abort(MPI_COMM_WORLD,8);
@@ -599,9 +616,7 @@ inline void ConfigCheck(Options &opt)
 #endif
     }
     if (opt.iBaryonSearch && !(opt.partsearchtype==PSTALL || opt.partsearchtype==PSTDARK)) {
-#ifdef USEMPI
     if (ThisTask==0)
-#endif
         cerr<<"Conflict in config file: both gas/star/etc particle type search AND the separate baryonic (gas,star,etc) search flag are on. Check config\n";
 #ifdef USEMPI
             MPI_Abort(MPI_COMM_WORLD,8);
@@ -610,9 +625,7 @@ inline void ConfigCheck(Options &opt)
 #endif
     }
     if (opt.iBoundHalos && opt.iKeepFOF) {
-#ifdef USEMPI
     if (ThisTask==0)
-#endif
         cerr<<"Conflict in config file: Asking for Bound Field objects but also asking to keep the 3DFOF/then run 6DFOF. This is incompatible. Check config\n";
 #ifdef USEMPI
             MPI_Abort(MPI_COMM_WORLD,8);
@@ -623,9 +636,7 @@ inline void ConfigCheck(Options &opt)
     if (opt.HaloMinSize==-1) opt.HaloMinSize=opt.MinSize;
 
     if (opt.num_files<1){
-#ifdef USEMPI
     if (ThisTask==0)
-#endif
         cerr<<"Invalid number of input files (<1) \n";
 #ifdef USEMPI
             MPI_Abort(MPI_COMM_WORLD,8);
@@ -635,9 +646,7 @@ inline void ConfigCheck(Options &opt)
     }
 
     if (opt.inputbufsize<1){
-#ifdef USEMPI
     if (ThisTask==0)
-#endif
         cerr<<"Invalid read buf size (<1)\n";
 #ifdef USEMPI
             MPI_Abort(MPI_COMM_WORLD,8);
@@ -647,9 +656,7 @@ inline void ConfigCheck(Options &opt)
     }
 
     if (opt.lengthtokpc<=0){
-#ifdef USEMPI
     if (ThisTask==0)
-#endif
         cerr<<"Invalid unit conversion, length unit to kpc is <=0 or was not set. Update config file\n";
 #ifdef USEMPI
             MPI_Abort(MPI_COMM_WORLD,8);
@@ -659,11 +666,9 @@ inline void ConfigCheck(Options &opt)
     }
     //convert reference apertures
     opt.lengthtokpc30pow2 /= opt.lengthtokpc*opt.lengthtokpc;
-    opt.lengthtokpc50pow2 /= opt.lengthtokpc*opt.lengthtokpc; 
+    opt.lengthtokpc50pow2 /= opt.lengthtokpc*opt.lengthtokpc;
     if (opt.velocitytokms<=0){
-#ifdef USEMPI
     if (ThisTask==0)
-#endif
         cerr<<"Invalid unit conversion, velocity unit to km/s is <=0 or was not set. Update config file\n";
 #ifdef USEMPI
             MPI_Abort(MPI_COMM_WORLD,8);
@@ -672,9 +677,7 @@ inline void ConfigCheck(Options &opt)
 #endif
     }
     if (opt.masstosolarmass<=0){
-#ifdef USEMPI
     if (ThisTask==0)
-#endif
         cerr<<"Invalid unit conversion, mass unit to solar mass is <=0 or was not set. Update config file\n";
 #ifdef USEMPI
             MPI_Abort(MPI_COMM_WORLD,8);
@@ -712,11 +715,17 @@ inline void ConfigCheck(Options &opt)
     }
 #endif
 
+#ifdef USEOPENMP
+    if (opt.iopenmpfof == 1 && opt.openmpfofsize < ompfofsearchnum){
+    if (ThisTask==0)
+        cerr<<"WARNING: OpenMP FOF search region is small, resetting to minimum of "<<ompfofsearchnum<<endl;
+        opt.openmpfofsize = ompfofsearchnum;
+    }
+#endif
+
 #ifndef USEHDF
     if (opt.ibinaryout==OUTHDF){
-#ifdef USEMPI
     if (ThisTask==0)
-#endif
         cerr<<"Code not compiled with HDF output enabled. Recompile with this enabled or change Binary_output.\n";
 #ifdef USEMPI
         MPI_Abort(MPI_COMM_WORLD,8);
@@ -728,9 +737,7 @@ inline void ConfigCheck(Options &opt)
 
 #ifndef USEADIOS
     if (opt.ibinaryout==OUTADIOS){
-#ifdef USEMPI
     if (ThisTask==0)
-#endif
         cerr<<"Code not compiled with ADIOS output enabled. Recompile with this enabled or change Binary_output.\n";
 #ifdef USEMPI
         MPI_Abort(MPI_COMM_WORLD,8);
@@ -740,9 +747,7 @@ inline void ConfigCheck(Options &opt)
 }
 #endif
 
-#ifdef USEMPI
     if (ThisTask==0) {
-#endif
     cout<<"CONFIG INFO SUMMARY -------------------------- "<<endl;
     switch(opt.partsearchtype)
     {
@@ -792,9 +797,7 @@ inline void ConfigCheck(Options &opt)
     cout<<"MPI input communication requires allocation of temporary particle buffer of size "<<opt.mpiparticletotbufsize/1024./1024./1024.<<" GB."<<endl;
 #endif
     cout<<" -------------------------- "<<endl;
-#ifdef USEMPI
     }
-#endif
 #ifdef USEMPI
     MPI_Barrier(MPI_COMM_WORLD);
 #endif

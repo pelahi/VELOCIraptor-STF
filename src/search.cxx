@@ -80,12 +80,12 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
 #ifdef USEOPENMP
     //if using openmp produce tree with large buckets as a decomposition of the local mpi domain
     //to then run local fof searches on each domain before stitching
-    int numompregions = ceil(nbodies/(float)ompfofsearchnum);
-    if (numompregions >= 4 && nthreads > 1) {
+    int numompregions = ceil(nbodies/(float)opt.openmpfofsize);
+    if (numompregions >= 4 && nthreads > 1 && opt.iopenmpfof == 1) {
         time3=MyGetTime();
         Double_t rdist = sqrt(param[1]);
         //determine the omp regions;
-        tree = new KDTree(Part.data(),nbodies,ompfofsearchnum,tree->TPHYS,tree->KEPAN,100);
+        tree = new KDTree(Part.data(),nbodies,opt.openmpfofsize,tree->TPHYS,tree->KEPAN,100);
         numompregions=tree->GetNumLeafNodes();
         ompdomain = OpenMPBuildDomains(opt, numompregions, tree, rdist);
         storeorgIndex = new Int_t[nbodies];
@@ -121,7 +121,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     //if enough regions then search each individually
     //then link across omp domains
     Int_t ompminsize = 2;
-    if (numompregions>=4 && nthreads > 1){
+    if (numompregions>=4 && nthreads > 1 && opt.iopenmpfof == 1){
         time3=MyGetTime();
         Int_t orgIndex, omp_import_total;
         int omptask;
