@@ -364,6 +364,11 @@ struct Options
     /// to reduce likelihood of having to expand/allocate new memory
     Double_t mpipartfac;
 
+    /// run FOF using OpenMP
+    int iopenmpfof;
+    /// size of openmp FOF region
+    int openmpfofsize;
+
     ///\name length,m,v,grav conversion units
     //@{
     Double_t L, M, U, V, G;
@@ -708,6 +713,10 @@ struct Options
         mpipartfac=0.1;
 #if USEHDF
         ihdfnameconvention=0;
+#endif
+#ifdef USEOPENMP
+        iopenmpfof = 1;
+        openmpfofsize = ompfofsearchnum;
 #endif
     }
 };
