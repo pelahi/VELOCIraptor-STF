@@ -418,7 +418,7 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
                     dtemp=LittleREAL(dtemp);
                 }
                 else dtemp=header[i].mass[k];
-                if(k!=GGASTYPE && k!=GSTARTYPE && dtemp<MP_DM&&dtemp>0) MP_DM=dtemp;
+                if(k!=GGASTYPE && k!=GSTARTYPE && k!=GBHTYPE && dtemp<MP_DM&&dtemp>0) MP_DM=dtemp;
                 if(k==GGASTYPE && dtemp<MP_B&&dtemp>0) MP_B=dtemp;
                 if (opt.partsearchtype==PSTALL) {
                     Part[count2].SetMass(dtemp);
