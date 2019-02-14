@@ -1094,6 +1094,7 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
 
         //reset particle positions
         for (j=0;j<numingroup[i];j++) {
+            Pval=&Part[j+noffset[i]];
             x = (*Pval).X()+pdata[i].gcm[0];
             y = (*Pval).Y()+pdata[i].gcm[1];
             z = (*Pval).Z()+pdata[i].gcm[2];
@@ -1940,6 +1941,7 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
 #endif
         //reset particle positions
         for (j=0;j<numingroup[i];j++) {
+            Pval=&Part[j+noffset[i]];
             x = (*Pval).X()+pdata[i].gcm[0];
             y = (*Pval).Y()+pdata[i].gcm[1];
             z = (*Pval).Z()+pdata[i].gcm[2];
@@ -3441,7 +3443,7 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin,cmpotmin)
             potmin=Part[noffset[i]].GetPotential();ipotmin=0;
             for (j=0;j<numingroup[i];j++) if (Part[j+noffset[i]].GetPotential()<potmin) {potmin=Part[j+noffset[i]].GetPotential();ipotmin=j;}
             pdata[i].iminpot=Part[ipotmin+noffset[i]].GetPID();
-            for (k=0;k<3;k++) {pdata[i].gposminpot[k]=Part[ipotmin+noffset[i]].GetPosition(k);pdata[i].gvelminpot[k]=Part[ipotmin+noffset[i]].GetVelocity(k);}
+            for (k=0;k<3;k++) {pdata[i].gposminpot[k]=Part[ipotmin+noffset[i]].GetPosition(k)-pdata[i].gcm[k];pdata[i].gvelminpot[k]=Part[ipotmin+noffset[i]].GetVelocity(k)-pdata[i].gcmvel[k];}
             for (k=0;k<3;k++) cmpotmin[k]=Part[ipotmin+noffset[i]].GetPosition(k);
             for (j=0;j<numingroup[i];j++) {
                 for (k=0;k<3;k++) Part[j+noffset[i]].SetPosition(k,Part[j+noffset[i]].GetPosition(k)-cmpotmin[k]);
@@ -3567,7 +3569,7 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin,cmpotmin)
             potmin=Part[noffset[i]].GetPotential();ipotmin=0;
             for (j=0;j<numingroup[i];j++) if (Part[j+noffset[i]].GetPotential()<potmin) {potmin=Part[j+noffset[i]].GetPotential();ipotmin=j;}
             pdata[i].iminpot=Part[ipotmin+noffset[i]].GetPID();
-            for (k=0;k<3;k++) {pdata[i].gposminpot[k]=Part[ipotmin+noffset[i]].GetPosition(k);pdata[i].gvelminpot[k]=Part[ipotmin+noffset[i]].GetVelocity(k);}
+            for (k=0;k<3;k++) {pdata[i].gposminpot[k]=Part[ipotmin+noffset[i]].GetPosition(k)-pdata[i].gcm[k];pdata[i].gvelminpot[k]=Part[ipotmin+noffset[i]].GetVelocity(k)-pdata[i].gcmvel[k];}
             for (k=0;k<3;k++) cmpotmin[k]=Part[ipotmin+noffset[i]].GetPosition(k);
             for (j=0;j<numingroup[i];j++) {
                 for (k=0;k<3;k++) Part[j+noffset[i]].SetPosition(k,Part[j+noffset[i]].GetPosition(k)-cmpotmin[k]);
