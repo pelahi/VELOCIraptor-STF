@@ -3729,6 +3729,16 @@ private(i,j)
 #ifdef USEOPENMP
 }
 #endif
+    //wrap positions if periodic
+    if (opt.p > 0) {
+        for (i=1;i<=ngroup;i++) {
+            for (j=0;j<3;j++) {
+                if (pdata[i].gcm[j]<0) pdata[i].gcm[j]+=opt.p;
+                else if (pdata[i].gcm[j]>opt.p) pdata[i].gcm[j]-=opt.p;
+            }
+        }
+    }
+
     //before used to store the id in pglist and then have to reset particle order so that Ids correspond to indices
     //but to reduce computing time could just store index and leave particle array unchanged but only really necessary
     //if want to have separate field and subhalo files
