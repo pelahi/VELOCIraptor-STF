@@ -49,7 +49,7 @@ void GetProperties(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngro
 #pragma omp parallel default(shared)  \
 private(i)
 {
-    #pragma omp for schedule(dynamic,1) nowait
+    #pragma omp for schedule(dynamic) nowait
 #endif
     for (i=1;i<=ngroup;i++) pdata[i].num=numingroup[i];
 #ifdef USEOPENMP
@@ -60,7 +60,7 @@ private(i)
 #pragma omp parallel default(shared)  \
 private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z,vc,rc)
 {
-    #pragma omp for schedule(dynamic,1) nowait
+    #pragma omp for schedule(dynamic) nowait
 #endif
     for (i=1;i<=ngroup;i++) if (numingroup[i]<ompunbindnum)
     {
@@ -317,7 +317,7 @@ private(j,Pval,x,y,z)
 #pragma omp parallel default(shared)  \
 private(i,j,k)
 {
-    #pragma omp for schedule(dynamic,1) nowait
+    #pragma omp for schedule(dynamic) nowait
 #endif
     for (i=1;i<=ngroup;i++) if (numingroup[i]<ompunbindnum) {
         Double_t r2=0.0,v2,poti,Ti,pot;
@@ -416,7 +416,7 @@ void GetCMProp(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, 
 #pragma omp parallel default(shared)  \
 private(i)
 {
-    #pragma omp for schedule(dynamic,1) nowait
+    #pragma omp for schedule(dynamic) nowait
 #endif
     for (i=1;i<=ngroup;i++) pdata[i].num=numingroup[i];
 #ifdef USEOPENMP
@@ -428,7 +428,7 @@ private(i)
 #pragma omp parallel default(shared)  \
 private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z,vx,vy,vz,vc,rc,jval,jzval,Rdist,zdist,Ekin,Krot,mval,RV_Ekin,RV_Krot,RV_num)
 {
-    #pragma omp for schedule(dynamic,1) nowait
+    #pragma omp for schedule(dynamic) nowait
 #endif
     for (i=1;i<=ngroup;i++) if (numingroup[i]<omppropnum)
     {
@@ -765,7 +765,7 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
                 pdata[i].cmvel_gas[2]+=vz*mval;
 
                 pdata[i].L_gas=pdata[i].L_gas+Coordinate(Pval->GetPosition()).Cross(Coordinate(vx,vy,vz))*mval;
-                if (pdata[i].n_gas>=10) {
+                if (pdata[i].n_gas>=PROPROTMINNUM) {
                     pdata[i].veldisp_gas(0,0)+=vx*vx*mval;
                     pdata[i].veldisp_gas(1,1)+=vy*vy*mval;
                     pdata[i].veldisp_gas(2,2)+=vz*vz*mval;
@@ -939,7 +939,7 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
                 pdata[i].cmvel_star[2]+=vz*mval;
 
                 pdata[i].L_star=pdata[i].L_star+Coordinate(Pval->GetPosition()).Cross(Coordinate(vx,vy,vz))*mval;
-                if (pdata[i].n_star>=10) {
+                if (pdata[i].n_star>=PROPROTMINNUM) {
                     pdata[i].veldisp_star(0,0)+=vx*vx*mval;
                     pdata[i].veldisp_star(1,1)+=vy*vy*mval;
                     pdata[i].veldisp_star(2,2)+=vz*vz*mval;
@@ -1086,10 +1086,10 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
 #ifdef NOMASS
         GetGlobalSpatialMorphology(numingroup[i], &Part[noffset[i]], pdata[i].gq, pdata[i].gs, 1e-2, pdata[i].geigvec,0);
         //calculate morphology based on particles within RV, the radius of maximum circular velocity
-        if (RV_num>=10) GetGlobalSpatialMorphology(RV_num, &Part[noffset[i]], pdata[i].RV_q, pdata[i].RV_s, 1e-2, pdata[i].RV_eigvec,0);
+        if (RV_num>=PROPMORPHMINNUM) GetGlobalSpatialMorphology(RV_num, &Part[noffset[i]], pdata[i].RV_q, pdata[i].RV_s, 1e-2, pdata[i].RV_eigvec,0);
 #else
         GetGlobalSpatialMorphology(numingroup[i], &Part[noffset[i]], pdata[i].gq, pdata[i].gs, 1e-2, pdata[i].geigvec,1);
-        if (RV_num>=10) GetGlobalSpatialMorphology(RV_num, &Part[noffset[i]], pdata[i].RV_q, pdata[i].RV_s, 1e-2, pdata[i].RV_eigvec,1);
+        if (RV_num>=PROPMORPHMINNUM) GetGlobalSpatialMorphology(RV_num, &Part[noffset[i]], pdata[i].RV_q, pdata[i].RV_s, 1e-2, pdata[i].RV_eigvec,1);
 #endif
 
         //reset particle positions
@@ -1954,7 +1954,7 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
 #pragma omp parallel default(shared)  \
 private(i,j,k,Pval)
 {
-    #pragma omp for schedule(dynamic,1) nowait
+    #pragma omp for schedule(dynamic) nowait
 #endif
     for (i=1;i<=ngroup;i++) if (numingroup[i]<omppropnum)
     {
@@ -1968,7 +1968,7 @@ private(i,j,k,Pval)
 
     }
 
-        if (opt.iverbose) cout<<"Done getting properties"<<endl;
+    if (opt.iverbose) cout<<"Done getting properties"<<endl;
 }
 
 ///Get inclusive halo FOF based masses. If requesting spherical overdensity masses then extra computation and search required
@@ -3399,7 +3399,7 @@ void GetBindingEnergy(Options &opt, const Int_t nbodies, Particle *Part, Int_t n
 #pragma omp parallel default(shared)  \
 private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin)
 {
-    #pragma omp for schedule(dynamic,1) nowait
+    #pragma omp for schedule(dynamic) nowait
 #endif
     for (i=1;i<=ngroup;i++) if (numingroup[i]<ompunbindnum) {
         for (j=0;j<numingroup[i];j++) {
@@ -3434,7 +3434,7 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin)
 #pragma omp parallel default(shared)  \
 private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin,cmpotmin)
 {
-    #pragma omp for schedule(dynamic,1) nowait
+    #pragma omp for schedule(dynamic) nowait
 #endif
         for (i=1;i<=ngroup;i++) if (numingroup[i]<ompunbindnum) {
             //determine how many particles to use
@@ -3469,7 +3469,7 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin,cmpotmin)
 #pragma omp parallel default(shared)  \
 private(i,j,k,potmin,ipotmin)
 {
-    #pragma omp for schedule(dynamic,1) nowait
+    #pragma omp for schedule(dynamic) nowait
 #endif
     for (i=1;i<=ngroup;i++) if (numingroup[i]<ompunbindnum) {
         potmin=Part[noffset[i]].GetPotential();ipotmin=0;
@@ -3487,7 +3487,7 @@ private(i,j,k,potmin,ipotmin)
 #pragma omp parallel default(shared)  \
 private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid)
 {
-    #pragma omp for schedule(dynamic,1) nowait
+    #pragma omp for schedule(dynamic) nowait
 #endif
     for (i=1;i<=ngroup;i++) if (numingroup[i]<ompunbindnum) {
         for (j=0;j<numingroup[i];j++) {
@@ -3559,7 +3559,7 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid)
 #pragma omp parallel default(shared)  \
 private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin,cmpotmin)
 {
-    #pragma omp for schedule(dynamic,1) nowait
+    #pragma omp for schedule(dynamic) nowait
 #endif
         for (i=1;i<=ngroup;i++) if (numingroup[i]>=ompunbindnum) {
             //once potential is calculated, iff using NOT cm but velocity around deepest potential well
@@ -3595,7 +3595,7 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin,cmpotmin)
 #pragma omp parallel default(shared)  \
 private(i,j,k,potmin,ipotmin)
 {
-    #pragma omp for schedule(dynamic,1) nowait
+    #pragma omp for schedule(dynamic) nowait
 #endif
     for (i=1;i<=ngroup;i++) if (numingroup[i]>=ompunbindnum) {
         potmin=Part[noffset[i]].GetPotential();ipotmin=0;
