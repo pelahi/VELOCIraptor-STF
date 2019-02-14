@@ -2293,7 +2293,7 @@ firstprivate(virval,m200val,m200mval,mBN98val)
         if (pdata[i].gRBN98==0) {pdata[i].gMBN98=pdata[i].gmass;pdata[i].gRBN98=pdata[i].gsize;}
         //calculate angular momentum if necessary
         if (opt.iextrahalooutput) {
-            for (j=0;j<=numingroup[i];j++) {
+            for (j=0;j<numingroup[i];j++) {
                 Pval = &Part[noffset[i] + j];
                 massval = Pval->GetMass() ;
                 vx = Pval->Vx()-pdata[i].gcmvel[0];
@@ -2480,7 +2480,7 @@ private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,
                 velparts.resize(taggedparts.size());
             }
 #if defined(GASON) || defined(STARON) || defined(BHON)
-            if (opt.iextragasoutput) typeparts.resize(taggedparts.size());
+            if (opt.iextragasoutput || opt.iextrastaroutput) typeparts.resize(taggedparts.size());
 #endif
             if (opt.iSphericalOverdensityPartList) SOpids.resize(taggedparts.size());
             for (j=0;j<taggedparts.size();j++) {
@@ -2488,7 +2488,7 @@ private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,
                 if (opt.iSphericalOverdensityPartList) SOpids[j]=Part[taggedparts[j]].GetPID();
                 radii[j]=0;
 #if defined(GASON) || defined(STARON) || defined(BHON)
-                if (opt.iextragasoutput) typeparts[j]=Part[taggedparts[j]].GetMass();
+                if (opt.iextragasoutput || opt.iextrastaroutput) typeparts[j]=Part[taggedparts[j]].GetMass();
 #endif
                 for (k=0;k<3;k++) {
                     dx=Part[taggedparts[j]].GetPosition(k)-pdata[i].gcm[k];
@@ -2511,38 +2511,40 @@ private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,
                 //if halo has overlap then search the imported particles as well, add them to the radii and mass vectors
                 if (halooverlap[i]&&nimport>0) {
                     taggedparts=treeimport->SearchBallPosTagged(pdata[i].gcm,pow(maxrdist[i],2.0));
-                    Int_t offset=radii.size();
-                    radii.resize(radii.size()+taggedparts.size());
-                    masses.resize(masses.size()+taggedparts.size());
-                    if (opt.iextrahalooutput) {
-                        posparts.resize(posparts.size()+taggedparts.size());
-                        velparts.resize(velparts.size()+taggedparts.size());
-                    }
-#if defined(GASON) || defined(STARON) || defined(BHON)
-                    if (opt.iextragasoutput) typeparts.resize(typeparts.size()+taggedparts.size());
-#endif
-                    if (opt.iSphericalOverdensityPartList) SOpids.resize(SOpids.size()+taggedparts.size());
-                    for (j=0;j<taggedparts.size();j++) {
-                        masses[offset+j]=PartDataGet[taggedparts[j]].GetMass();
-                        if (opt.iSphericalOverdensityPartList) SOpids[j+offset]=PartDataGet[taggedparts[j]].GetPID();
-#if defined(GASON) || defined(STARON) || defined(BHON)
-                        if (opt.iextragasoutput) typeparts[offset+j]=PartDataGet[taggedparts[j]].GetMass();
-#endif
-                        radii[offset+j]=0;
-                        for (k=0;k<3;k++) {
-                            dx=PartDataGet[taggedparts[j]].GetPosition(k)-pdata[i].gcm[k];
-                            //correct for period
-                            if (opt.p>0) {
-                                if (dx>opt.p*0.5) dx-=opt.p;
-                                else if (dx<-opt.p*0.5) dx+=opt.p;
-                            }
-                            if (opt.iextrahalooutput) {
-                                posparts[j+offset][k]=dx;
-                                velparts[j+offset][k]=PartDataGet[taggedparts[j]].GetVelocity(k)-pdata[i].gcmvel[k];
-                            }
-                            radii[offset+j]+=dx*dx;
+                    if (taggedparts.size() > 0) {
+                        Int_t offset=radii.size();
+                        radii.resize(radii.size()+taggedparts.size());
+                        masses.resize(masses.size()+taggedparts.size());
+                        if (opt.iextrahalooutput) {
+                            posparts.resize(posparts.size()+taggedparts.size());
+                            velparts.resize(velparts.size()+taggedparts.size());
                         }
-                        radii[offset+j]=sqrt(radii[offset+j]);
+#if defined(GASON) || defined(STARON) || defined(BHON)
+                        if (opt.iextragasoutput || opt.iextrastaroutput) typeparts.resize(typeparts.size()+taggedparts.size());
+#endif
+                        if (opt.iSphericalOverdensityPartList) SOpids.resize(SOpids.size()+taggedparts.size());
+                        for (j=0;j<taggedparts.size();j++) {
+                            masses[offset+j]=PartDataGet[taggedparts[j]].GetMass();
+                            if (opt.iSphericalOverdensityPartList) SOpids[j+offset]=PartDataGet[taggedparts[j]].GetPID();
+#if defined(GASON) || defined(STARON) || defined(BHON)
+                            if (opt.iextragasoutput || opt.iextrastaroutput) typeparts[offset+j]=PartDataGet[taggedparts[j]].GetMass();
+#endif
+                            radii[offset+j]=0;
+                            for (k=0;k<3;k++) {
+                                dx=PartDataGet[taggedparts[j]].GetPosition(k)-pdata[i].gcm[k];
+                                //correct for period
+                                if (opt.p>0) {
+                                    if (dx>opt.p*0.5) dx-=opt.p;
+                                    else if (dx<-opt.p*0.5) dx+=opt.p;
+                                }
+                                if (opt.iextrahalooutput) {
+                                    posparts[j+offset][k]=dx;
+                                    velparts[j+offset][k]=PartDataGet[taggedparts[j]].GetVelocity(k)-pdata[i].gcmvel[k];
+                                }
+                                radii[offset+j]+=dx*dx;
+                            }
+                            radii[offset+j]=sqrt(radii[offset+j]);
+                        }
                     }
                     taggedparts.clear();
                 }
@@ -2620,7 +2622,7 @@ private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,
 
             //calculate angular momentum if necessary
             if (opt.iextrahalooutput) {
-                for (j=0;j<=radii.size();j++) {
+                for (j=0;j<radii.size();j++) {
                     massval = masses[indices[j]];
                     J=Coordinate(posparts[indices[j]]).Cross(velparts[indices[j]])*massval;
                     rc=posparts[indices[j]].Length();
@@ -2629,7 +2631,7 @@ private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,
                     if (rc<=pdata[i].gRBN98) pdata[i].gJBN98+=J;
 #ifdef GASON
                     if (opt.iextragasoutput) {
-                        if (typeparts[j]==GASTYPE){
+                        if (typeparts[indices[j]]==GASTYPE){
                             if (rc<=pdata[i].gR200c) {
                                 pdata[i].M_200crit_gas+=massval;
                                 pdata[i].L_200crit_gas+=J;
@@ -2647,7 +2649,7 @@ private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,
 #endif
 #ifdef STARON
                     if (opt.iextrastaroutput) {
-                        if (typeparts[j]==STARTYPE){
+                        if (typeparts[indices[j]]==STARTYPE){
                             if (rc<=pdata[i].gR200c) {
                                 pdata[i].M_200crit_star+=massval;
                                 pdata[i].L_200crit_star+=J;
@@ -2679,7 +2681,7 @@ private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,
                 velparts.clear();
             }
 #if defined(GASON) || defined(STARON) || defined(BHON)
-            typeparts.clear();
+            if (opt.iextragasoutput || opt.iextrastaroutput) typeparts.clear();
 #endif
 
         }
