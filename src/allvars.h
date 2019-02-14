@@ -236,7 +236,10 @@ using namespace NBody;
 
 /// \defgroup PROPLIMS Particle limits for calculating properties
 //@{
-#define propmincmnum 10
+#define PROPNFWMINNUM 100 
+#define PROPCMMINNUM 10
+#define PROPROTMINNUM 10
+#define PROPMORPHMINNUM 10
 //@}
 
 ///\name halo id modifers used with current snapshot value to make temporally unique halo identifiers

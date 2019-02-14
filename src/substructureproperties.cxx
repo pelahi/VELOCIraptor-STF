@@ -453,7 +453,7 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
         //iterate for better cm if group large enough
         cmold=pdata[i].gcm;
         change=MAXVALUE;tol=1e-2;
-        if (numingroup[i]*opt.pinfo.cmfrac>=50) {
+        if (numingroup[i]*opt.pinfo.cmadjustfac>=PROPCMMINNUM) {
             ri=pdata[i].gsize;
             ri=ri*ri;
             cmold=pdata[i].gcm;
@@ -480,7 +480,7 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
                         Ninside++;
                     }
                 }
-                if (Ninside > opt.pinfo.cmfrac * numingroup[i]) {
+                if (Ninside >= opt.pinfo.cmfrac * numingroup[i] && Ninside >= PROPCMMINNUM) {
                     pdata[i].gcm[0]=cmx;pdata[i].gcm[1]=cmy;pdata[i].gcm[2]=cmz;
                     for (k=0;k<3;k++) pdata[i].gcm[k] /= EncMass;
                     cmold=pdata[i].gcm;
@@ -722,7 +722,7 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
             else pdata[i].cNFW=pdata[i].gR200c/pdata[i].gRmaxvel;
         }
         else {
-            if (numingroup[i]>=100) GetConcentration(pdata[i]);
+            if (numingroup[i]>=PROPNFWMINNUM) GetConcentration(pdata[i]);
             else {
                 if (pdata[i].gM200c==0) pdata[i].cNFW=pdata[i].gsize/pdata[i].gRmaxvel;
                 else pdata[i].cNFW=pdata[i].gR200c/pdata[i].gRmaxvel;
@@ -793,7 +793,7 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
         //iterate for better cm if group large enough
         cmold=pdata[i].cm_gas;
         change=MAXVALUE;tol=1e-2;
-        if (pdata[i].n_gas*opt.pinfo.cmfrac>=50) {
+        if (pdata[i].n_gas*opt.pinfo.cmadjustfac>=PROPCMMINNUM) {
             ri=pdata[i].gsize;
             ri=ri*ri;
             cmold=pdata[i].cm_gas;
@@ -822,7 +822,7 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
                     }
                 }
                 }
-                if (Ninside > opt.pinfo.cmfrac * pdata[i].n_gas) {
+                if (Ninside >= opt.pinfo.cmfrac * pdata[i].n_gas && Ninside >= PROPCMMINNUM) {
                     pdata[i].cm_gas[0]=cmx;pdata[i].cm_gas[1]=cmy;pdata[i].cm_gas[2]=cmz;
                     for (k=0;k<3;k++) pdata[i].cm_gas[k] /= EncMass;
                     cmold=pdata[i].cm_gas;
@@ -866,7 +866,7 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
         }
 
         //rotational calcs
-        if (pdata[i].n_gas>=10) {
+        if (pdata[i].n_gas>=PROPROTMINNUM) {
             EncMass=0;
             for (j=0;j<numingroup[i];j++) {
                 Pval=&Part[j+noffset[i]];
@@ -905,7 +905,7 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
             pdata[i].Krot_gas/=Ekin;
     	    pdata[i].T_gas=0.5*Ekin;
         }
-        if (pdata[i].n_gas>=10) GetGlobalSpatialMorphology(numingroup[i], &Part[noffset[i]], pdata[i].q_gas, pdata[i].s_gas, 1e-2, pdata[i].eigvec_gas,0,GASTYPE,0);
+        if (pdata[i].n_gas>=PROPMORPHMINNUM) GetGlobalSpatialMorphology(numingroup[i], &Part[noffset[i]], pdata[i].q_gas, pdata[i].s_gas, 1e-2, pdata[i].eigvec_gas,0,GASTYPE,0);
 #endif
 #ifdef STARON
         for (j=0;j<numingroup[i];j++) {
@@ -962,7 +962,7 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
         //iterate for better cm if group large enough
         cmold=pdata[i].cm_star;
         change=MAXVALUE;tol=1e-2;
-        if (pdata[i].n_star*opt.pinfo.cmfrac>=50) {
+        if (pdata[i].n_star*opt.pinfo.cmadjustfac>=PROPCMMINNUM) {
             ri=pdata[i].gsize;
             ri=ri*ri;
             cmold=pdata[i].cm_star;
@@ -991,7 +991,7 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
                     }
                 }
                 }
-                if (Ninside > opt.pinfo.cmfrac * pdata[i].n_star) {
+                if (Ninside >= opt.pinfo.cmfrac * pdata[i].n_star && Ninside >= PROPCMMINNUM) {
                     pdata[i].cm_star[0]=cmx;pdata[i].cm_star[1]=cmy;pdata[i].cm_star[2]=cmz;
                     for (k=0;k<3;k++) pdata[i].cm_star[k] /= EncMass;
                     cmold=pdata[i].cm_star;
@@ -1034,7 +1034,7 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
         }
 
         //rotational calcs
-        if (pdata[i].n_star>=10) {
+        if (pdata[i].n_star>=PROPROTMINNUM) {
         EncMass=0.;
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
@@ -1060,7 +1060,7 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
         pdata[i].Krot_star/=Ekin;
 	    pdata[i].T_star=0.5*Ekin;
         }
-        if (pdata[i].n_star>=10) GetGlobalSpatialMorphology(numingroup[i], &Part[noffset[i]], pdata[i].q_star, pdata[i].s_star, 1e-2, pdata[i].eigvec_star,0,STARTYPE,0);
+        if (pdata[i].n_star>=PROPMORPHMINNUM) GetGlobalSpatialMorphology(numingroup[i], &Part[noffset[i]], pdata[i].q_star, pdata[i].s_star, 1e-2, pdata[i].eigvec_star,0,STARTYPE,0);
 #endif
 
 #ifdef BHON
@@ -1178,7 +1178,7 @@ private(j,Pval,x,y,z)
             x = Part[noffset[i]+ii-1].X() - cmold[0];
             y = Part[noffset[i]+ii-1].Y() - cmold[1];
             z = Part[noffset[i]+ii-1].Z() - cmold[2];
-            if (Ninside > opt.pinfo.cmfrac * numingroup[i]) {
+            if (Ninside >= opt.pinfo.cmfrac * numingroup[i] && Ninside >= PROPCMMINNUM) {
                 cmold[0]=cmx;cmold[1]=cmy;cmold[2]=cmz;
                 for (k=0;k<3;k++) cmold[k] /= EncMass;
                 rcmv=ri;
@@ -1561,7 +1561,7 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval)
         pdata[i].cm_gas[0]=cmx;pdata[i].cm_gas[1]=cmy;pdata[i].cm_gas[2]=cmz;
         pdata[i].cmvel_gas[0]=cmvx;pdata[i].cmvel_gas[1]=cmvy;pdata[i].cmvel_gas[2]=cmvz;
         pdata[i].L_gas[0]=Jx;pdata[i].L_gas[1]=Jy;pdata[i].L_gas[2]=Jz;
-        if (pdata[i].n_gas>=10) {
+        if (pdata[i].n_gas>=PROPROTMINNUM) {
             pdata[i].veldisp_gas(0,0)=sxx;
             pdata[i].veldisp_gas(1,1)=syy;
             pdata[i].veldisp_gas(2,2)=szz;
@@ -1585,7 +1585,7 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval)
         //iterate for better cm if group large enough
         cmold=pdata[i].cm_gas;
         change=MAXVALUE;tol=1e-2;
-        if (pdata[i].n_gas*opt.pinfo.cmfrac>=50) {
+        if (pdata[i].n_gas*opt.pinfo.cmadjustfac>=PROPCMMINNUM) {
             ri=pdata[i].gsize;
             ri=ri*ri;
             cmold=pdata[i].cm_gas;
@@ -1614,7 +1614,7 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval)
                     }
                 }
                 }
-                if (Ninside > opt.pinfo.cmfrac * pdata[i].n_gas) {
+                if (Ninside >= opt.pinfo.cmfrac * pdata[i].n_gas && Ninside >= PROPCMMINNUM) {
                     pdata[i].cm_gas[0]=cmx;pdata[i].cm_gas[1]=cmy;pdata[i].cm_gas[2]=cmz;
                     for (k=0;k<3;k++) pdata[i].cm_gas[k] /= EncMass;
                     cmold=pdata[i].cm_gas;
@@ -1658,7 +1658,7 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval)
         }
 
         //rotational calcs
-        if (pdata[i].n_gas>=10) {
+        if (pdata[i].n_gas>=PROPROTMINNUM) {
         EncMass=0;
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
@@ -1699,7 +1699,7 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
 #endif
         pdata[i].Krot_gas=Krot/Ekin;
         }
-        if (pdata[i].n_gas>=10) GetGlobalSpatialMorphology(numingroup[i], &Part[noffset[i]], pdata[i].q_gas, pdata[i].s_gas, 1e-2, pdata[i].eigvec_gas,0,GASTYPE,0);
+        if (pdata[i].n_gas>=PROPMORPHMINNUM) GetGlobalSpatialMorphology(numingroup[i], &Part[noffset[i]], pdata[i].q_gas, pdata[i].s_gas, 1e-2, pdata[i].eigvec_gas,0,GASTYPE,0);
 #ifdef NOMASS
         pdata[i].M_gas*=opt.MassValue;
 #endif
@@ -1768,7 +1768,7 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval)
         pdata[i].cm_star[0]=cmx;pdata[i].cm_star[1]=cmy;pdata[i].cm_star[2]=cmz;
         pdata[i].cmvel_star[0]=cmvx;pdata[i].cmvel_star[1]=cmvy;pdata[i].cmvel_star[2]=cmvz;
         pdata[i].L_star[0]=Jx;pdata[i].L_star[1]=Jy;pdata[i].L_star[2]=Jz;
-        if (pdata[i].n_star>=10) {
+        if (pdata[i].n_star>=PROPROTMINNUM) {
             pdata[i].veldisp_star(0,0)=sxx;
             pdata[i].veldisp_star(1,1)=syy;
             pdata[i].veldisp_star(2,2)=szz;
@@ -1791,7 +1791,7 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval)
         //iterate for better cm if group large enough
         cmold=pdata[i].cm_star;
         change=MAXVALUE;tol=1e-2;
-        if (pdata[i].n_star*opt.pinfo.cmfrac>=50) {
+        if (pdata[i].n_star*opt.pinfo.cmadjustfac>=PROPCMMINNUM) {
             ri=pdata[i].gsize;
             ri=ri*ri;
             cmold=pdata[i].cm_star;
@@ -1820,7 +1820,7 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval)
                     }
                 }
                 }
-                if (Ninside > opt.pinfo.cmfrac * pdata[i].n_star) {
+                if (Ninside >= opt.pinfo.cmfrac * pdata[i].n_star && Ninside >= PROPCMMINNUM) {
                     pdata[i].cm_star[0]=cmx;pdata[i].cm_star[1]=cmy;pdata[i].cm_star[2]=cmz;
                     for (k=0;k<3;k++) pdata[i].cm_star[k] /= EncMass;
                     cmold=pdata[i].cm_star;
@@ -1864,7 +1864,7 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval)
         }
 
         //rotational calcs
-        if (pdata[i].n_star>=10) {
+        if (pdata[i].n_star>=PROPROTMINNUM) {
         EncMass=0;
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
@@ -1906,7 +1906,7 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
         pdata[i].Krot_star=Krot/Ekin;
         }
 
-        if (pdata[i].n_star>=10) GetGlobalSpatialMorphology(numingroup[i], &Part[noffset[i]], pdata[i].q_star, pdata[i].s_star, 1e-2, pdata[i].eigvec_star,0,STARTYPE,0);
+        if (pdata[i].n_star>=PROPMORPHMINNUM) GetGlobalSpatialMorphology(numingroup[i], &Part[noffset[i]], pdata[i].q_star, pdata[i].s_star, 1e-2, pdata[i].eigvec_star,0,STARTYPE,0);
 #ifdef NOMASS
         pdata[i].M_star*=opt.MassValue;
 #endif
@@ -1933,10 +1933,10 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
 
 #ifdef NOMASS
         GetGlobalSpatialMorphology(numingroup[i], &Part[noffset[i]], pdata[i].gq, pdata[i].gs, 1e-2, pdata[i].geigvec,0);
-        if (RV_num>=10) GetGlobalSpatialMorphology(RV_num, &Part[noffset[i]], pdata[i].RV_q, pdata[i].RV_s, 1e-2, pdata[i].RV_eigvec,0);
+        if (RV_num>=PROPMORPHMINNUM) GetGlobalSpatialMorphology(RV_num, &Part[noffset[i]], pdata[i].RV_q, pdata[i].RV_s, 1e-2, pdata[i].RV_eigvec,0);
 #else
         GetGlobalSpatialMorphology(numingroup[i], &Part[noffset[i]], pdata[i].gq, pdata[i].gs, 1e-2, pdata[i].geigvec,1);
-        if (RV_num>=10) GetGlobalSpatialMorphology(RV_num, &Part[noffset[i]], pdata[i].RV_q, pdata[i].RV_s, 1e-2, pdata[i].RV_eigvec,1);
+        if (RV_num>=PROPMORPHMINNUM) GetGlobalSpatialMorphology(RV_num, &Part[noffset[i]], pdata[i].RV_q, pdata[i].RV_s, 1e-2, pdata[i].RV_eigvec,1);
 #endif
         //reset particle positions
         for (j=0;j<numingroup[i];j++) {
@@ -2061,7 +2061,7 @@ private(i,j,k,Pval,ri,rcmv,ri2,r2,cmx,cmy,cmz,EncMass,Ninside,icmv,cmold,x,y,z,v
                     Ninside++;
                 }
             }
-            if (Ninside >= opt.pinfo.cmfrac * numingroup[i] && Ninside >= propmincmnum) {
+            if (Ninside >= opt.pinfo.cmfrac * numingroup[i] && Ninside >= PROPCMMINNUM) {
                 pdata[i].gcm[0]=cmx;pdata[i].gcm[1]=cmy;pdata[i].gcm[2]=cmz;
                 for (k=0;k<3;k++) pdata[i].gcm[k] /= EncMass;
                 cmold=pdata[i].gcm;
@@ -2174,7 +2174,7 @@ private(j,Pval,x,y,z,massval)
 #ifdef USEOPENMP
 }
 #endif
-            if (Ninside >= opt.pinfo.cmfrac * numingroup[i] && Ninside >= propmincmnum) {
+            if (Ninside >= opt.pinfo.cmfrac * numingroup[i] && Ninside >= PROPCMMINNUM) {
                 pdata[i].gcm[0]=cmx;pdata[i].gcm[1]=cmy;pdata[i].gcm[2]=cmz;
                 for (k=0;k<3;k++) pdata[i].gcm[k] /= EncMass;
                 cmold=pdata[i].gcm;
