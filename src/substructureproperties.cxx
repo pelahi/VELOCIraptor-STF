@@ -2356,7 +2356,7 @@ firstprivate(virval,m200val,m200mval,mBN98val)
     //reset the positions of the particles
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
-private(i,j,k,x,y,z)
+private(i,j,k,x,y,z,Pval)
 {
     #pragma omp for schedule(dynamic) nowait
 #endif
@@ -2412,7 +2412,7 @@ private(i,j,k,x,y,z)
         //reset the positions of the particles in local domain
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
-private(i,j,k,x,y,z)
+private(i,j,k,x,y,z,Pval)
 {
     #pragma omp for schedule(dynamic) nowait
 #endif
@@ -3443,7 +3443,7 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin,cmpotmin)
             potmin=Part[noffset[i]].GetPotential();ipotmin=0;
             for (j=0;j<numingroup[i];j++) if (Part[j+noffset[i]].GetPotential()<potmin) {potmin=Part[j+noffset[i]].GetPotential();ipotmin=j;}
             pdata[i].iminpot=Part[ipotmin+noffset[i]].GetPID();
-            for (k=0;k<3;k++) {pdata[i].gposminpot[k]=Part[ipotmin+noffset[i]].GetPosition(k)-pdata[i].gcm[k];pdata[i].gvelminpot[k]=Part[ipotmin+noffset[i]].GetVelocity(k)-pdata[i].gcmvel[k];}
+            for (k=0;k<3;k++) {pdata[i].gposminpot[k]=Part[ipotmin+noffset[i]].GetPosition(k);pdata[i].gvelminpot[k]=Part[ipotmin+noffset[i]].GetVelocity(k);}
             for (k=0;k<3;k++) cmpotmin[k]=Part[ipotmin+noffset[i]].GetPosition(k);
             for (j=0;j<numingroup[i];j++) {
                 for (k=0;k<3;k++) Part[j+noffset[i]].SetPosition(k,Part[j+noffset[i]].GetPosition(k)-cmpotmin[k]);
@@ -3475,7 +3475,7 @@ private(i,j,k,potmin,ipotmin)
         potmin=Part[noffset[i]].GetPotential();ipotmin=0;
         for (j=0;j<numingroup[i];j++) if (Part[j+noffset[i]].GetPotential()<potmin) {potmin=Part[j+noffset[i]].GetPotential();ipotmin=j;}
         pdata[i].iminpot=Part[ipotmin+noffset[i]].GetPID();
-        for (k=0;k<3;k++) {pdata[i].gposminpot[k]=Part[ipotmin+noffset[i]].GetPosition(k)-pdata[i].gcm[k];pdata[i].gvelminpot[k]=Part[ipotmin+noffset[i]].GetVelocity(k)-pdata[i].gcmvel[k];}
+        for (k=0;k<3;k++) {pdata[i].gposminpot[k]=Part[ipotmin+noffset[i]].GetPosition(k);pdata[i].gvelminpot[k]=Part[ipotmin+noffset[i]].GetVelocity(k);}
     }
 #ifdef USEOPENMP
 }
@@ -3569,7 +3569,7 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin,cmpotmin)
             potmin=Part[noffset[i]].GetPotential();ipotmin=0;
             for (j=0;j<numingroup[i];j++) if (Part[j+noffset[i]].GetPotential()<potmin) {potmin=Part[j+noffset[i]].GetPotential();ipotmin=j;}
             pdata[i].iminpot=Part[ipotmin+noffset[i]].GetPID();
-            for (k=0;k<3;k++) {pdata[i].gposminpot[k]=Part[ipotmin+noffset[i]].GetPosition(k)-pdata[i].gcm[k];pdata[i].gvelminpot[k]=Part[ipotmin+noffset[i]].GetVelocity(k)-pdata[i].gcmvel[k];}
+            for (k=0;k<3;k++) {pdata[i].gposminpot[k]=Part[ipotmin+noffset[i]].GetPosition(k);pdata[i].gvelminpot[k]=Part[ipotmin+noffset[i]].GetVelocity(k);}
             for (k=0;k<3;k++) cmpotmin[k]=Part[ipotmin+noffset[i]].GetPosition(k);
             for (j=0;j<numingroup[i];j++) {
                 for (k=0;k<3;k++) Part[j+noffset[i]].SetPosition(k,Part[j+noffset[i]].GetPosition(k)-cmpotmin[k]);
@@ -3601,7 +3601,7 @@ private(i,j,k,potmin,ipotmin)
         potmin=Part[noffset[i]].GetPotential();ipotmin=0;
         for (j=0;j<numingroup[i];j++) if (Part[j+noffset[i]].GetPotential()<potmin) {potmin=Part[j+noffset[i]].GetPotential();ipotmin=j;}
         pdata[i].iminpot=Part[ipotmin+noffset[i]].GetPID();
-        for (k=0;k<3;k++) {pdata[i].gposminpot[k]=Part[ipotmin+noffset[i]].GetPosition(k)-pdata[i].gcm[k];pdata[i].gvelminpot[k]=Part[ipotmin+noffset[i]].GetVelocity(k)-pdata[i].gcmvel[k];}
+        for (k=0;k<3;k++) {pdata[i].gposminpot[k]=Part[ipotmin+noffset[i]].GetPosition(k);pdata[i].gvelminpot[k]=Part[ipotmin+noffset[i]].GetVelocity(k);}
     }
 #ifdef USEOPENMP
 }
@@ -3710,12 +3710,19 @@ private(i,j)
 #endif
     for (i=1;i<=ngroup;i++) {
         qsort(&Part[noffset[i]], numingroup[i], sizeof(Particle), PotCompare);
-        pdata[i].gpos=Coordinate(Part[noffset[i]].GetPosition())-pdata[i].gcm;
-        pdata[i].gvel=Coordinate(Part[noffset[i]].GetVelocity())-pdata[i].gcmvel;
+        //having sorted particles get most bound, first unbound
         pdata[i].ibound=Part[noffset[i]].GetPID();
         pdata[i].iunbound=numingroup[i];
         if (numingroup[i]>0)
             for (j=0;j<numingroup[i];j++) if(Part[noffset[i]+j].GetPotential()>0) {pdata[i].iunbound=j;break;}
+        //get relative positions of most bound an min pot particles
+        for (auto k=0;k<3;k++) {
+            pdata[i].gpos[k]=Part[noffset[i]].GetPosition(k)-pdata[i].gcm[k];
+            pdata[i].gvel[k]=Part[noffset[i]].GetVelocity(k)-pdata[i].gcmvel[k];
+            pdata[i].gposminpot[k]=pdata[i].gposminpot[k]-pdata[i].gcm[k];
+            pdata[i].gvelminpot[k]=pdata[i].gvelminpot[k]-pdata[i].gcmvel[k];
+        }
+        //get size to using most bound
         Double_t x,y,z,r2;
         for (j=1;j<numingroup[i];j++) {
             x=Part[noffset[i]+j].X()-Part[noffset[i]].X();
