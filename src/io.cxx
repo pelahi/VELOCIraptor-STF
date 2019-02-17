@@ -1612,6 +1612,9 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         for (Int_t i=0;i<ngroups;i++) ((long long*)data)[i]=pdata[i+1].ibound;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((long long*)data)[i]=pdata[i+1].iminpot;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
         for (Int_t i=0;i<ngroups;i++) ((long long*)data)[i]=pdata[i+1].hostid;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
@@ -1648,12 +1651,22 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         itemp++;
         }
         for (int k=0;k<3;k++){
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gposminpot[k];
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        }
+        for (int k=0;k<3;k++){
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gcmvel[k];
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
         }
         for (int k=0;k<3;k++){
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gvel[k];
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        }
+        for (int k=0;k<3;k++){
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gvelminpot[k];
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
         }

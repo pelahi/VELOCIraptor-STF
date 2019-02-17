@@ -49,7 +49,7 @@ void GetProperties(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngro
 #pragma omp parallel default(shared)  \
 private(i)
 {
-    #pragma omp for schedule(dynamic,1) nowait
+    #pragma omp for schedule(dynamic) nowait
 #endif
     for (i=1;i<=ngroup;i++) pdata[i].num=numingroup[i];
 #ifdef USEOPENMP
@@ -60,7 +60,7 @@ private(i)
 #pragma omp parallel default(shared)  \
 private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z,vc,rc)
 {
-    #pragma omp for schedule(dynamic,1) nowait
+    #pragma omp for schedule(dynamic) nowait
 #endif
     for (i=1;i<=ngroup;i++) if (numingroup[i]<ompunbindnum)
     {
@@ -317,7 +317,7 @@ private(j,Pval,x,y,z)
 #pragma omp parallel default(shared)  \
 private(i,j,k)
 {
-    #pragma omp for schedule(dynamic,1) nowait
+    #pragma omp for schedule(dynamic) nowait
 #endif
     for (i=1;i<=ngroup;i++) if (numingroup[i]<ompunbindnum) {
         Double_t r2=0.0,v2,poti,Ti,pot;
@@ -416,7 +416,7 @@ void GetCMProp(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, 
 #pragma omp parallel default(shared)  \
 private(i)
 {
-    #pragma omp for schedule(dynamic,1) nowait
+    #pragma omp for schedule(dynamic) nowait
 #endif
     for (i=1;i<=ngroup;i++) pdata[i].num=numingroup[i];
 #ifdef USEOPENMP
@@ -428,7 +428,7 @@ private(i)
 #pragma omp parallel default(shared)  \
 private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z,vx,vy,vz,vc,rc,jval,jzval,Rdist,zdist,Ekin,Krot,mval,RV_Ekin,RV_Krot,RV_num)
 {
-    #pragma omp for schedule(dynamic,1) nowait
+    #pragma omp for schedule(dynamic) nowait
 #endif
     for (i=1;i<=ngroup;i++) if (numingroup[i]<omppropnum)
     {
@@ -453,7 +453,7 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
         //iterate for better cm if group large enough
         cmold=pdata[i].gcm;
         change=MAXVALUE;tol=1e-2;
-        if (numingroup[i]*opt.pinfo.cmfrac>=50) {
+        if (numingroup[i]*opt.pinfo.cmadjustfac>=PROPCMMINNUM) {
             ri=pdata[i].gsize;
             ri=ri*ri;
             cmold=pdata[i].gcm;
@@ -480,7 +480,7 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
                         Ninside++;
                     }
                 }
-                if (Ninside > opt.pinfo.cmfrac * numingroup[i]) {
+                if (Ninside >= opt.pinfo.cmfrac * numingroup[i] && Ninside >= PROPCMMINNUM) {
                     pdata[i].gcm[0]=cmx;pdata[i].gcm[1]=cmy;pdata[i].gcm[2]=cmz;
                     for (k=0;k<3;k++) pdata[i].gcm[k] /= EncMass;
                     cmold=pdata[i].gcm;
@@ -722,7 +722,7 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
             else pdata[i].cNFW=pdata[i].gR200c/pdata[i].gRmaxvel;
         }
         else {
-            if (numingroup[i]>=100) GetConcentration(pdata[i]);
+            if (numingroup[i]>=PROPNFWMINNUM) GetConcentration(pdata[i]);
             else {
                 if (pdata[i].gM200c==0) pdata[i].cNFW=pdata[i].gsize/pdata[i].gRmaxvel;
                 else pdata[i].cNFW=pdata[i].gR200c/pdata[i].gRmaxvel;
@@ -765,7 +765,7 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
                 pdata[i].cmvel_gas[2]+=vz*mval;
 
                 pdata[i].L_gas=pdata[i].L_gas+Coordinate(Pval->GetPosition()).Cross(Coordinate(vx,vy,vz))*mval;
-                if (pdata[i].n_gas>=10) {
+                if (pdata[i].n_gas>=PROPROTMINNUM) {
                     pdata[i].veldisp_gas(0,0)+=vx*vx*mval;
                     pdata[i].veldisp_gas(1,1)+=vy*vy*mval;
                     pdata[i].veldisp_gas(2,2)+=vz*vz*mval;
@@ -793,7 +793,7 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
         //iterate for better cm if group large enough
         cmold=pdata[i].cm_gas;
         change=MAXVALUE;tol=1e-2;
-        if (pdata[i].n_gas*opt.pinfo.cmfrac>=50) {
+        if (pdata[i].n_gas*opt.pinfo.cmadjustfac>=PROPCMMINNUM) {
             ri=pdata[i].gsize;
             ri=ri*ri;
             cmold=pdata[i].cm_gas;
@@ -822,7 +822,7 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
                     }
                 }
                 }
-                if (Ninside > opt.pinfo.cmfrac * pdata[i].n_gas) {
+                if (Ninside >= opt.pinfo.cmfrac * pdata[i].n_gas && Ninside >= PROPCMMINNUM) {
                     pdata[i].cm_gas[0]=cmx;pdata[i].cm_gas[1]=cmy;pdata[i].cm_gas[2]=cmz;
                     for (k=0;k<3;k++) pdata[i].cm_gas[k] /= EncMass;
                     cmold=pdata[i].cm_gas;
@@ -866,7 +866,7 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
         }
 
         //rotational calcs
-        if (pdata[i].n_gas>=10) {
+        if (pdata[i].n_gas>=PROPROTMINNUM) {
             EncMass=0;
             for (j=0;j<numingroup[i];j++) {
                 Pval=&Part[j+noffset[i]];
@@ -905,7 +905,7 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
             pdata[i].Krot_gas/=Ekin;
     	    pdata[i].T_gas=0.5*Ekin;
         }
-        if (pdata[i].n_gas>=10) GetGlobalSpatialMorphology(numingroup[i], &Part[noffset[i]], pdata[i].q_gas, pdata[i].s_gas, 1e-2, pdata[i].eigvec_gas,0,GASTYPE,0);
+        if (pdata[i].n_gas>=PROPMORPHMINNUM) GetGlobalSpatialMorphology(numingroup[i], &Part[noffset[i]], pdata[i].q_gas, pdata[i].s_gas, 1e-2, pdata[i].eigvec_gas,0,GASTYPE,0);
 #endif
 #ifdef STARON
         for (j=0;j<numingroup[i];j++) {
@@ -939,7 +939,7 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
                 pdata[i].cmvel_star[2]+=vz*mval;
 
                 pdata[i].L_star=pdata[i].L_star+Coordinate(Pval->GetPosition()).Cross(Coordinate(vx,vy,vz))*mval;
-                if (pdata[i].n_star>=10) {
+                if (pdata[i].n_star>=PROPROTMINNUM) {
                     pdata[i].veldisp_star(0,0)+=vx*vx*mval;
                     pdata[i].veldisp_star(1,1)+=vy*vy*mval;
                     pdata[i].veldisp_star(2,2)+=vz*vz*mval;
@@ -962,7 +962,7 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
         //iterate for better cm if group large enough
         cmold=pdata[i].cm_star;
         change=MAXVALUE;tol=1e-2;
-        if (pdata[i].n_star*opt.pinfo.cmfrac>=50) {
+        if (pdata[i].n_star*opt.pinfo.cmadjustfac>=PROPCMMINNUM) {
             ri=pdata[i].gsize;
             ri=ri*ri;
             cmold=pdata[i].cm_star;
@@ -991,7 +991,7 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
                     }
                 }
                 }
-                if (Ninside > opt.pinfo.cmfrac * pdata[i].n_star) {
+                if (Ninside >= opt.pinfo.cmfrac * pdata[i].n_star && Ninside >= PROPCMMINNUM) {
                     pdata[i].cm_star[0]=cmx;pdata[i].cm_star[1]=cmy;pdata[i].cm_star[2]=cmz;
                     for (k=0;k<3;k++) pdata[i].cm_star[k] /= EncMass;
                     cmold=pdata[i].cm_star;
@@ -1034,7 +1034,7 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
         }
 
         //rotational calcs
-        if (pdata[i].n_star>=10) {
+        if (pdata[i].n_star>=PROPROTMINNUM) {
         EncMass=0.;
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
@@ -1060,7 +1060,7 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
         pdata[i].Krot_star/=Ekin;
 	    pdata[i].T_star=0.5*Ekin;
         }
-        if (pdata[i].n_star>=10) GetGlobalSpatialMorphology(numingroup[i], &Part[noffset[i]], pdata[i].q_star, pdata[i].s_star, 1e-2, pdata[i].eigvec_star,0,STARTYPE,0);
+        if (pdata[i].n_star>=PROPMORPHMINNUM) GetGlobalSpatialMorphology(numingroup[i], &Part[noffset[i]], pdata[i].q_star, pdata[i].s_star, 1e-2, pdata[i].eigvec_star,0,STARTYPE,0);
 #endif
 
 #ifdef BHON
@@ -1086,14 +1086,15 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
 #ifdef NOMASS
         GetGlobalSpatialMorphology(numingroup[i], &Part[noffset[i]], pdata[i].gq, pdata[i].gs, 1e-2, pdata[i].geigvec,0);
         //calculate morphology based on particles within RV, the radius of maximum circular velocity
-        if (RV_num>=10) GetGlobalSpatialMorphology(RV_num, &Part[noffset[i]], pdata[i].RV_q, pdata[i].RV_s, 1e-2, pdata[i].RV_eigvec,0);
+        if (RV_num>=PROPMORPHMINNUM) GetGlobalSpatialMorphology(RV_num, &Part[noffset[i]], pdata[i].RV_q, pdata[i].RV_s, 1e-2, pdata[i].RV_eigvec,0);
 #else
         GetGlobalSpatialMorphology(numingroup[i], &Part[noffset[i]], pdata[i].gq, pdata[i].gs, 1e-2, pdata[i].geigvec,1);
-        if (RV_num>=10) GetGlobalSpatialMorphology(RV_num, &Part[noffset[i]], pdata[i].RV_q, pdata[i].RV_s, 1e-2, pdata[i].RV_eigvec,1);
+        if (RV_num>=PROPMORPHMINNUM) GetGlobalSpatialMorphology(RV_num, &Part[noffset[i]], pdata[i].RV_q, pdata[i].RV_s, 1e-2, pdata[i].RV_eigvec,1);
 #endif
 
         //reset particle positions
         for (j=0;j<numingroup[i];j++) {
+            Pval=&Part[j+noffset[i]];
             x = (*Pval).X()+pdata[i].gcm[0];
             y = (*Pval).Y()+pdata[i].gcm[1];
             z = (*Pval).Z()+pdata[i].gcm[2];
@@ -1178,7 +1179,7 @@ private(j,Pval,x,y,z)
             x = Part[noffset[i]+ii-1].X() - cmold[0];
             y = Part[noffset[i]+ii-1].Y() - cmold[1];
             z = Part[noffset[i]+ii-1].Z() - cmold[2];
-            if (Ninside > opt.pinfo.cmfrac * numingroup[i]) {
+            if (Ninside >= opt.pinfo.cmfrac * numingroup[i] && Ninside >= PROPCMMINNUM) {
                 cmold[0]=cmx;cmold[1]=cmy;cmold[2]=cmz;
                 for (k=0;k<3;k++) cmold[k] /= EncMass;
                 rcmv=ri;
@@ -1561,7 +1562,7 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval)
         pdata[i].cm_gas[0]=cmx;pdata[i].cm_gas[1]=cmy;pdata[i].cm_gas[2]=cmz;
         pdata[i].cmvel_gas[0]=cmvx;pdata[i].cmvel_gas[1]=cmvy;pdata[i].cmvel_gas[2]=cmvz;
         pdata[i].L_gas[0]=Jx;pdata[i].L_gas[1]=Jy;pdata[i].L_gas[2]=Jz;
-        if (pdata[i].n_gas>=10) {
+        if (pdata[i].n_gas>=PROPROTMINNUM) {
             pdata[i].veldisp_gas(0,0)=sxx;
             pdata[i].veldisp_gas(1,1)=syy;
             pdata[i].veldisp_gas(2,2)=szz;
@@ -1585,7 +1586,7 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval)
         //iterate for better cm if group large enough
         cmold=pdata[i].cm_gas;
         change=MAXVALUE;tol=1e-2;
-        if (pdata[i].n_gas*opt.pinfo.cmfrac>=50) {
+        if (pdata[i].n_gas*opt.pinfo.cmadjustfac>=PROPCMMINNUM) {
             ri=pdata[i].gsize;
             ri=ri*ri;
             cmold=pdata[i].cm_gas;
@@ -1614,7 +1615,7 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval)
                     }
                 }
                 }
-                if (Ninside > opt.pinfo.cmfrac * pdata[i].n_gas) {
+                if (Ninside >= opt.pinfo.cmfrac * pdata[i].n_gas && Ninside >= PROPCMMINNUM) {
                     pdata[i].cm_gas[0]=cmx;pdata[i].cm_gas[1]=cmy;pdata[i].cm_gas[2]=cmz;
                     for (k=0;k<3;k++) pdata[i].cm_gas[k] /= EncMass;
                     cmold=pdata[i].cm_gas;
@@ -1658,7 +1659,7 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval)
         }
 
         //rotational calcs
-        if (pdata[i].n_gas>=10) {
+        if (pdata[i].n_gas>=PROPROTMINNUM) {
         EncMass=0;
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
@@ -1699,7 +1700,7 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
 #endif
         pdata[i].Krot_gas=Krot/Ekin;
         }
-        if (pdata[i].n_gas>=10) GetGlobalSpatialMorphology(numingroup[i], &Part[noffset[i]], pdata[i].q_gas, pdata[i].s_gas, 1e-2, pdata[i].eigvec_gas,0,GASTYPE,0);
+        if (pdata[i].n_gas>=PROPMORPHMINNUM) GetGlobalSpatialMorphology(numingroup[i], &Part[noffset[i]], pdata[i].q_gas, pdata[i].s_gas, 1e-2, pdata[i].eigvec_gas,0,GASTYPE,0);
 #ifdef NOMASS
         pdata[i].M_gas*=opt.MassValue;
 #endif
@@ -1768,7 +1769,7 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval)
         pdata[i].cm_star[0]=cmx;pdata[i].cm_star[1]=cmy;pdata[i].cm_star[2]=cmz;
         pdata[i].cmvel_star[0]=cmvx;pdata[i].cmvel_star[1]=cmvy;pdata[i].cmvel_star[2]=cmvz;
         pdata[i].L_star[0]=Jx;pdata[i].L_star[1]=Jy;pdata[i].L_star[2]=Jz;
-        if (pdata[i].n_star>=10) {
+        if (pdata[i].n_star>=PROPROTMINNUM) {
             pdata[i].veldisp_star(0,0)=sxx;
             pdata[i].veldisp_star(1,1)=syy;
             pdata[i].veldisp_star(2,2)=szz;
@@ -1791,7 +1792,7 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval)
         //iterate for better cm if group large enough
         cmold=pdata[i].cm_star;
         change=MAXVALUE;tol=1e-2;
-        if (pdata[i].n_star*opt.pinfo.cmfrac>=50) {
+        if (pdata[i].n_star*opt.pinfo.cmadjustfac>=PROPCMMINNUM) {
             ri=pdata[i].gsize;
             ri=ri*ri;
             cmold=pdata[i].cm_star;
@@ -1820,7 +1821,7 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval)
                     }
                 }
                 }
-                if (Ninside > opt.pinfo.cmfrac * pdata[i].n_star) {
+                if (Ninside >= opt.pinfo.cmfrac * pdata[i].n_star && Ninside >= PROPCMMINNUM) {
                     pdata[i].cm_star[0]=cmx;pdata[i].cm_star[1]=cmy;pdata[i].cm_star[2]=cmz;
                     for (k=0;k<3;k++) pdata[i].cm_star[k] /= EncMass;
                     cmold=pdata[i].cm_star;
@@ -1864,7 +1865,7 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval)
         }
 
         //rotational calcs
-        if (pdata[i].n_star>=10) {
+        if (pdata[i].n_star>=PROPROTMINNUM) {
         EncMass=0;
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
@@ -1906,7 +1907,7 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
         pdata[i].Krot_star=Krot/Ekin;
         }
 
-        if (pdata[i].n_star>=10) GetGlobalSpatialMorphology(numingroup[i], &Part[noffset[i]], pdata[i].q_star, pdata[i].s_star, 1e-2, pdata[i].eigvec_star,0,STARTYPE,0);
+        if (pdata[i].n_star>=PROPMORPHMINNUM) GetGlobalSpatialMorphology(numingroup[i], &Part[noffset[i]], pdata[i].q_star, pdata[i].s_star, 1e-2, pdata[i].eigvec_star,0,STARTYPE,0);
 #ifdef NOMASS
         pdata[i].M_star*=opt.MassValue;
 #endif
@@ -1933,13 +1934,14 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
 
 #ifdef NOMASS
         GetGlobalSpatialMorphology(numingroup[i], &Part[noffset[i]], pdata[i].gq, pdata[i].gs, 1e-2, pdata[i].geigvec,0);
-        if (RV_num>=10) GetGlobalSpatialMorphology(RV_num, &Part[noffset[i]], pdata[i].RV_q, pdata[i].RV_s, 1e-2, pdata[i].RV_eigvec,0);
+        if (RV_num>=PROPMORPHMINNUM) GetGlobalSpatialMorphology(RV_num, &Part[noffset[i]], pdata[i].RV_q, pdata[i].RV_s, 1e-2, pdata[i].RV_eigvec,0);
 #else
         GetGlobalSpatialMorphology(numingroup[i], &Part[noffset[i]], pdata[i].gq, pdata[i].gs, 1e-2, pdata[i].geigvec,1);
-        if (RV_num>=10) GetGlobalSpatialMorphology(RV_num, &Part[noffset[i]], pdata[i].RV_q, pdata[i].RV_s, 1e-2, pdata[i].RV_eigvec,1);
+        if (RV_num>=PROPMORPHMINNUM) GetGlobalSpatialMorphology(RV_num, &Part[noffset[i]], pdata[i].RV_q, pdata[i].RV_s, 1e-2, pdata[i].RV_eigvec,1);
 #endif
         //reset particle positions
         for (j=0;j<numingroup[i];j++) {
+            Pval=&Part[j+noffset[i]];
             x = (*Pval).X()+pdata[i].gcm[0];
             y = (*Pval).Y()+pdata[i].gcm[1];
             z = (*Pval).Z()+pdata[i].gcm[2];
@@ -1952,7 +1954,7 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
 #pragma omp parallel default(shared)  \
 private(i,j,k,Pval)
 {
-    #pragma omp for schedule(dynamic,1) nowait
+    #pragma omp for schedule(dynamic) nowait
 #endif
     for (i=1;i<=ngroup;i++) if (numingroup[i]<omppropnum)
     {
@@ -1961,7 +1963,12 @@ private(i,j,k,Pval)
 }
 #endif
 
-        if (opt.iverbose) cout<<"Done getting properties"<<endl;
+    ///if calculating profiles.
+    if (opt.iprofilecalc) {
+
+    }
+
+    if (opt.iverbose) cout<<"Done getting properties"<<endl;
 }
 
 ///Get inclusive halo FOF based masses. If requesting spherical overdensity masses then extra computation and search required
@@ -2056,7 +2063,7 @@ private(i,j,k,Pval,ri,rcmv,ri2,r2,cmx,cmy,cmz,EncMass,Ninside,icmv,cmold,x,y,z,v
                     Ninside++;
                 }
             }
-            if (Ninside >= opt.pinfo.cmfrac * numingroup[i] && Ninside >= propmincmnum) {
+            if (Ninside >= opt.pinfo.cmfrac * numingroup[i] && Ninside >= PROPCMMINNUM) {
                 pdata[i].gcm[0]=cmx;pdata[i].gcm[1]=cmy;pdata[i].gcm[2]=cmz;
                 for (k=0;k<3;k++) pdata[i].gcm[k] /= EncMass;
                 cmold=pdata[i].gcm;
@@ -2169,7 +2176,7 @@ private(j,Pval,x,y,z,massval)
 #ifdef USEOPENMP
 }
 #endif
-            if (Ninside >= opt.pinfo.cmfrac * numingroup[i] && Ninside >= propmincmnum) {
+            if (Ninside >= opt.pinfo.cmfrac * numingroup[i] && Ninside >= PROPCMMINNUM) {
                 pdata[i].gcm[0]=cmx;pdata[i].gcm[1]=cmy;pdata[i].gcm[2]=cmz;
                 for (k=0;k<3;k++) pdata[i].gcm[k] /= EncMass;
                 cmold=pdata[i].gcm;
@@ -2288,7 +2295,7 @@ firstprivate(virval,m200val,m200mval,mBN98val)
         if (pdata[i].gRBN98==0) {pdata[i].gMBN98=pdata[i].gmass;pdata[i].gRBN98=pdata[i].gsize;}
         //calculate angular momentum if necessary
         if (opt.iextrahalooutput) {
-            for (j=0;j<=numingroup[i];j++) {
+            for (j=0;j<numingroup[i];j++) {
                 Pval = &Part[noffset[i] + j];
                 massval = Pval->GetMass() ;
                 vx = Pval->Vx()-pdata[i].gcmvel[0];
@@ -2349,7 +2356,7 @@ firstprivate(virval,m200val,m200mval,mBN98val)
     //reset the positions of the particles
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
-private(i,j,k,x,y,z)
+private(i,j,k,x,y,z,Pval)
 {
     #pragma omp for schedule(dynamic) nowait
 #endif
@@ -2405,7 +2412,7 @@ private(i,j,k,x,y,z)
         //reset the positions of the particles in local domain
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
-private(i,j,k,x,y,z)
+private(i,j,k,x,y,z,Pval)
 {
     #pragma omp for schedule(dynamic) nowait
 #endif
@@ -2475,7 +2482,7 @@ private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,
                 velparts.resize(taggedparts.size());
             }
 #if defined(GASON) || defined(STARON) || defined(BHON)
-            if (opt.iextragasoutput) typeparts.resize(taggedparts.size());
+            if (opt.iextragasoutput || opt.iextrastaroutput) typeparts.resize(taggedparts.size());
 #endif
             if (opt.iSphericalOverdensityPartList) SOpids.resize(taggedparts.size());
             for (j=0;j<taggedparts.size();j++) {
@@ -2483,7 +2490,7 @@ private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,
                 if (opt.iSphericalOverdensityPartList) SOpids[j]=Part[taggedparts[j]].GetPID();
                 radii[j]=0;
 #if defined(GASON) || defined(STARON) || defined(BHON)
-                if (opt.iextragasoutput) typeparts[j]=Part[taggedparts[j]].GetMass();
+                if (opt.iextragasoutput || opt.iextrastaroutput) typeparts[j]=Part[taggedparts[j]].GetMass();
 #endif
                 for (k=0;k<3;k++) {
                     dx=Part[taggedparts[j]].GetPosition(k)-pdata[i].gcm[k];
@@ -2506,38 +2513,40 @@ private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,
                 //if halo has overlap then search the imported particles as well, add them to the radii and mass vectors
                 if (halooverlap[i]&&nimport>0) {
                     taggedparts=treeimport->SearchBallPosTagged(pdata[i].gcm,pow(maxrdist[i],2.0));
-                    Int_t offset=radii.size();
-                    radii.resize(radii.size()+taggedparts.size());
-                    masses.resize(masses.size()+taggedparts.size());
-                    if (opt.iextrahalooutput) {
-                        posparts.resize(posparts.size()+taggedparts.size());
-                        velparts.resize(velparts.size()+taggedparts.size());
-                    }
-#if defined(GASON) || defined(STARON) || defined(BHON)
-                    if (opt.iextragasoutput) typeparts.resize(typeparts.size()+taggedparts.size());
-#endif
-                    if (opt.iSphericalOverdensityPartList) SOpids.resize(SOpids.size()+taggedparts.size());
-                    for (j=0;j<taggedparts.size();j++) {
-                        masses[offset+j]=PartDataGet[taggedparts[j]].GetMass();
-                        if (opt.iSphericalOverdensityPartList) SOpids[j+offset]=PartDataGet[taggedparts[j]].GetPID();
-#if defined(GASON) || defined(STARON) || defined(BHON)
-                        if (opt.iextragasoutput) typeparts[offset+j]=PartDataGet[taggedparts[j]].GetMass();
-#endif
-                        radii[offset+j]=0;
-                        for (k=0;k<3;k++) {
-                            dx=PartDataGet[taggedparts[j]].GetPosition(k)-pdata[i].gcm[k];
-                            //correct for period
-                            if (opt.p>0) {
-                                if (dx>opt.p*0.5) dx-=opt.p;
-                                else if (dx<-opt.p*0.5) dx+=opt.p;
-                            }
-                            if (opt.iextrahalooutput) {
-                                posparts[j+offset][k]=dx;
-                                velparts[j+offset][k]=PartDataGet[taggedparts[j]].GetVelocity(k)-pdata[i].gcmvel[k];
-                            }
-                            radii[offset+j]+=dx*dx;
+                    if (taggedparts.size() > 0) {
+                        Int_t offset=radii.size();
+                        radii.resize(radii.size()+taggedparts.size());
+                        masses.resize(masses.size()+taggedparts.size());
+                        if (opt.iextrahalooutput) {
+                            posparts.resize(posparts.size()+taggedparts.size());
+                            velparts.resize(velparts.size()+taggedparts.size());
                         }
-                        radii[offset+j]=sqrt(radii[offset+j]);
+#if defined(GASON) || defined(STARON) || defined(BHON)
+                        if (opt.iextragasoutput || opt.iextrastaroutput) typeparts.resize(typeparts.size()+taggedparts.size());
+#endif
+                        if (opt.iSphericalOverdensityPartList) SOpids.resize(SOpids.size()+taggedparts.size());
+                        for (j=0;j<taggedparts.size();j++) {
+                            masses[offset+j]=PartDataGet[taggedparts[j]].GetMass();
+                            if (opt.iSphericalOverdensityPartList) SOpids[j+offset]=PartDataGet[taggedparts[j]].GetPID();
+#if defined(GASON) || defined(STARON) || defined(BHON)
+                            if (opt.iextragasoutput || opt.iextrastaroutput) typeparts[offset+j]=PartDataGet[taggedparts[j]].GetMass();
+#endif
+                            radii[offset+j]=0;
+                            for (k=0;k<3;k++) {
+                                dx=PartDataGet[taggedparts[j]].GetPosition(k)-pdata[i].gcm[k];
+                                //correct for period
+                                if (opt.p>0) {
+                                    if (dx>opt.p*0.5) dx-=opt.p;
+                                    else if (dx<-opt.p*0.5) dx+=opt.p;
+                                }
+                                if (opt.iextrahalooutput) {
+                                    posparts[j+offset][k]=dx;
+                                    velparts[j+offset][k]=PartDataGet[taggedparts[j]].GetVelocity(k)-pdata[i].gcmvel[k];
+                                }
+                                radii[offset+j]+=dx*dx;
+                            }
+                            radii[offset+j]=sqrt(radii[offset+j]);
+                        }
                     }
                     taggedparts.clear();
                 }
@@ -2615,7 +2624,7 @@ private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,
 
             //calculate angular momentum if necessary
             if (opt.iextrahalooutput) {
-                for (j=0;j<=radii.size();j++) {
+                for (j=0;j<radii.size();j++) {
                     massval = masses[indices[j]];
                     J=Coordinate(posparts[indices[j]]).Cross(velparts[indices[j]])*massval;
                     rc=posparts[indices[j]].Length();
@@ -2624,7 +2633,7 @@ private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,
                     if (rc<=pdata[i].gRBN98) pdata[i].gJBN98+=J;
 #ifdef GASON
                     if (opt.iextragasoutput) {
-                        if (typeparts[j]==GASTYPE){
+                        if (typeparts[indices[j]]==GASTYPE){
                             if (rc<=pdata[i].gR200c) {
                                 pdata[i].M_200crit_gas+=massval;
                                 pdata[i].L_200crit_gas+=J;
@@ -2642,7 +2651,7 @@ private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,
 #endif
 #ifdef STARON
                     if (opt.iextrastaroutput) {
-                        if (typeparts[j]==STARTYPE){
+                        if (typeparts[indices[j]]==STARTYPE){
                             if (rc<=pdata[i].gR200c) {
                                 pdata[i].M_200crit_star+=massval;
                                 pdata[i].L_200crit_star+=J;
@@ -2674,7 +2683,7 @@ private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,
                 velparts.clear();
             }
 #if defined(GASON) || defined(STARON) || defined(BHON)
-            typeparts.clear();
+            if (opt.iextragasoutput || opt.iextrastaroutput) typeparts.clear();
 #endif
 
         }
@@ -3390,7 +3399,7 @@ void GetBindingEnergy(Options &opt, const Int_t nbodies, Particle *Part, Int_t n
 #pragma omp parallel default(shared)  \
 private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin)
 {
-    #pragma omp for schedule(dynamic,1) nowait
+    #pragma omp for schedule(dynamic) nowait
 #endif
     for (i=1;i<=ngroup;i++) if (numingroup[i]<ompunbindnum) {
         for (j=0;j<numingroup[i];j++) {
@@ -3425,7 +3434,7 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin)
 #pragma omp parallel default(shared)  \
 private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin,cmpotmin)
 {
-    #pragma omp for schedule(dynamic,1) nowait
+    #pragma omp for schedule(dynamic) nowait
 #endif
         for (i=1;i<=ngroup;i++) if (numingroup[i]<ompunbindnum) {
             //determine how many particles to use
@@ -3433,6 +3442,8 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin,cmpotmin)
             //determine position of minimum potential and by radius around this position
             potmin=Part[noffset[i]].GetPotential();ipotmin=0;
             for (j=0;j<numingroup[i];j++) if (Part[j+noffset[i]].GetPotential()<potmin) {potmin=Part[j+noffset[i]].GetPotential();ipotmin=j;}
+            pdata[i].iminpot=Part[ipotmin+noffset[i]].GetPID();
+            for (k=0;k<3;k++) {pdata[i].gposminpot[k]=Part[ipotmin+noffset[i]].GetPosition(k);pdata[i].gvelminpot[k]=Part[ipotmin+noffset[i]].GetVelocity(k);}
             for (k=0;k<3;k++) cmpotmin[k]=Part[ipotmin+noffset[i]].GetPosition(k);
             for (j=0;j<numingroup[i];j++) {
                 for (k=0;k<3;k++) Part[j+noffset[i]].SetPosition(k,Part[j+noffset[i]].GetPosition(k)-cmpotmin[k]);
@@ -3453,13 +3464,30 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin,cmpotmin)
 }
 #endif
     }
+    else {
+#ifdef USEOPENMP
+#pragma omp parallel default(shared)  \
+private(i,j,k,potmin,ipotmin)
+{
+    #pragma omp for schedule(dynamic) nowait
+#endif
+    for (i=1;i<=ngroup;i++) if (numingroup[i]<ompunbindnum) {
+        potmin=Part[noffset[i]].GetPotential();ipotmin=0;
+        for (j=0;j<numingroup[i];j++) if (Part[j+noffset[i]].GetPotential()<potmin) {potmin=Part[j+noffset[i]].GetPotential();ipotmin=j;}
+        pdata[i].iminpot=Part[ipotmin+noffset[i]].GetPID();
+        for (k=0;k<3;k++) {pdata[i].gposminpot[k]=Part[ipotmin+noffset[i]].GetPosition(k);pdata[i].gvelminpot[k]=Part[ipotmin+noffset[i]].GetVelocity(k);}
+    }
+#ifdef USEOPENMP
+}
+#endif
+    }
 
     //then calculate binding energy and store in potential
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
 private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid)
 {
-    #pragma omp for schedule(dynamic,1) nowait
+    #pragma omp for schedule(dynamic) nowait
 #endif
     for (i=1;i<=ngroup;i++) if (numingroup[i]<ompunbindnum) {
         for (j=0;j<numingroup[i];j++) {
@@ -3500,6 +3528,8 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid)
 #ifdef USEOPENMP
 }
 #endif
+
+    //begin large groups
     if (opt.uinfo.icalculatepotential) {
     //loop for large groups with tree calculation
     for (i=1;i<=ngroup;i++) if (numingroup[i]>=ompunbindnum) {
@@ -3529,7 +3559,7 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid)
 #pragma omp parallel default(shared)  \
 private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin,cmpotmin)
 {
-    #pragma omp for schedule(dynamic,1) nowait
+    #pragma omp for schedule(dynamic) nowait
 #endif
         for (i=1;i<=ngroup;i++) if (numingroup[i]>=ompunbindnum) {
             //once potential is calculated, iff using NOT cm but velocity around deepest potential well
@@ -3538,6 +3568,8 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin,cmpotmin)
             //determine position of minimum potential and by radius around this position
             potmin=Part[noffset[i]].GetPotential();ipotmin=0;
             for (j=0;j<numingroup[i];j++) if (Part[j+noffset[i]].GetPotential()<potmin) {potmin=Part[j+noffset[i]].GetPotential();ipotmin=j;}
+            pdata[i].iminpot=Part[ipotmin+noffset[i]].GetPID();
+            for (k=0;k<3;k++) {pdata[i].gposminpot[k]=Part[ipotmin+noffset[i]].GetPosition(k);pdata[i].gvelminpot[k]=Part[ipotmin+noffset[i]].GetVelocity(k);}
             for (k=0;k<3;k++) cmpotmin[k]=Part[ipotmin+noffset[i]].GetPosition(k);
             for (j=0;j<numingroup[i];j++) {
                 for (k=0;k<3;k++) Part[j+noffset[i]].SetPosition(k,Part[j+noffset[i]].GetPosition(k)-cmpotmin[k]);
@@ -3554,6 +3586,23 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin,cmpotmin)
                 for (k=0;k<3;k++) Part[j+noffset[i]].SetPosition(k,Part[j+noffset[i]].GetPosition(k)+cmpotmin[k]);
             }
         }
+#ifdef USEOPENMP
+}
+#endif
+    }
+    else {
+#ifdef USEOPENMP
+#pragma omp parallel default(shared)  \
+private(i,j,k,potmin,ipotmin)
+{
+    #pragma omp for schedule(dynamic) nowait
+#endif
+    for (i=1;i<=ngroup;i++) if (numingroup[i]>=ompunbindnum) {
+        potmin=Part[noffset[i]].GetPotential();ipotmin=0;
+        for (j=0;j<numingroup[i];j++) if (Part[j+noffset[i]].GetPotential()<potmin) {potmin=Part[j+noffset[i]].GetPotential();ipotmin=j;}
+        pdata[i].iminpot=Part[ipotmin+noffset[i]].GetPID();
+        for (k=0;k<3;k++) {pdata[i].gposminpot[k]=Part[ipotmin+noffset[i]].GetPosition(k);pdata[i].gvelminpot[k]=Part[ipotmin+noffset[i]].GetVelocity(k);}
+    }
 #ifdef USEOPENMP
 }
 #endif
@@ -3642,7 +3691,7 @@ Int_t **SortAccordingtoBindingEnergy(Options &opt, const Int_t nbodies, Particle
     for (i=0;i<nbodies;i++) Part[i].SetPID(storepid[Part[i].GetID()]);
     delete[] storepid;
 
-    noffset[0]=noffset[1]=0;
+    if (ngroup > 1) noffset[0]=noffset[1]=0;
     for (i=2;i<=ngroup;i++) noffset[i]=noffset[i-1]+numingroup[i-1];
 
     // for small groups interate over groups using openmp threads
@@ -3661,12 +3710,19 @@ private(i,j)
 #endif
     for (i=1;i<=ngroup;i++) {
         qsort(&Part[noffset[i]], numingroup[i], sizeof(Particle), PotCompare);
-        pdata[i].gpos=Coordinate(Part[noffset[i]].GetPosition());
-        pdata[i].gvel=Coordinate(Part[noffset[i]].GetVelocity());
+        //having sorted particles get most bound, first unbound
         pdata[i].ibound=Part[noffset[i]].GetPID();
         pdata[i].iunbound=numingroup[i];
         if (numingroup[i]>0)
             for (j=0;j<numingroup[i];j++) if(Part[noffset[i]+j].GetPotential()>0) {pdata[i].iunbound=j;break;}
+        //get relative positions of most bound an min pot particles
+        for (auto k=0;k<3;k++) {
+            pdata[i].gpos[k]=Part[noffset[i]].GetPosition(k)-pdata[i].gcm[k];
+            pdata[i].gvel[k]=Part[noffset[i]].GetVelocity(k)-pdata[i].gcmvel[k];
+            pdata[i].gposminpot[k]=pdata[i].gposminpot[k]-pdata[i].gcm[k];
+            pdata[i].gvelminpot[k]=pdata[i].gvelminpot[k]-pdata[i].gcmvel[k];
+        }
+        //get size to using most bound
         Double_t x,y,z,r2;
         for (j=1;j<numingroup[i];j++) {
             x=Part[noffset[i]+j].X()-Part[noffset[i]].X();
@@ -3680,6 +3736,16 @@ private(i,j)
 #ifdef USEOPENMP
 }
 #endif
+    //wrap positions if periodic
+    if (opt.p > 0) {
+        for (i=1;i<=ngroup;i++) {
+            for (j=0;j<3;j++) {
+                if (pdata[i].gcm[j]<0) pdata[i].gcm[j]+=opt.p;
+                else if (pdata[i].gcm[j]>opt.p) pdata[i].gcm[j]-=opt.p;
+            }
+        }
+    }
+
     //before used to store the id in pglist and then have to reset particle order so that Ids correspond to indices
     //but to reduce computing time could just store index and leave particle array unchanged but only really necessary
     //if want to have separate field and subhalo files
@@ -3806,4 +3872,69 @@ double mycNFW_fdf(double c, void *params, double *y, double *dy)
   *y=(VmaxVvir2)-0.216*c/(log(1.0+c)-conec);
   *dy=0.216*conec*conec/c;
 }
+//@}
+
+///\name Simple cosmology related functions
+//@{
+void CalcOmegak(Options &opt) {
+    opt.Omega_k=(1-opt.Omega_m-opt.Omega_Lambda-opt.Omega_r-opt.Omega_nu-opt.Omega_de);
+}
+void CalcCriticalDensity(Options &opt, Double_t a){
+    Double_t Hubble=GetHubble(opt,a);
+    opt.rhocrit=3.*Hubble*Hubble/(8.0*M_PI*opt.G);
+}
+void CalcBackgroundDensity(Options &opt, Double_t a){
+    CalcCriticalDensity(opt, a);
+    opt.rhobg=opt.rhocrit*opt.Omega_m;
+}
+void CalcVirBN98(Options &opt, Double_t a){
+    Double_t bnx=-(opt.Omega_k*pow(a,-2.0)+opt.Omega_Lambda)/(opt.Omega_k*pow(a,-2.0)+opt.Omega_m*pow(a,-3.0)+opt.Omega_Lambda);
+    opt.virBN98=(18.0*M_PI*M_PI+82.0*bnx-39*bnx*bnx)/opt.Omega_m;
+}
+void CalcCosmoParams(Options &opt, Double_t a){
+    CalcOmegak(opt);
+    CalcCriticalDensity(opt,a);
+    CalcBackgroundDensity(opt,a);
+    CalcVirBN98(opt,a);
+}
+
+Double_t GetHubble(Options &opt, Double_t a){
+    return opt.h*opt.H*sqrt(opt.Omega_k*pow(a,-2.0)+opt.Omega_m*pow(a,-3.0)+opt.Omega_r*pow(a,-3.0)+opt.Omega_Lambda+opt.Omega_de*pow(a,-3.0*(1+opt.w_de)));
+}
+
+Double_t GetInvaH(double a, void * params) {
+    double Omega_m = ((double*)params)[0];
+    double Omega_Lambda = ((double*)params)[1];
+    double Omega_r = ((double*)params)[2];
+    double Omega_nu = ((double*)params)[3];
+    double Omega_k = ((double*)params)[4];
+    double Omega_de = ((double*)params)[5];
+    double w_de = ((double*)params)[6];
+
+    double H=sqrt(Omega_k*pow(a,-2.0)+Omega_m*pow(a,-3.0)+Omega_r*pow(a,-3.0)+Omega_Lambda+Omega_de*pow(a,-3.0*(1+w_de)));
+    return 1.0/(a*H);
+}
+//return cosmic time in years
+Double_t CalcCosmicTime(Options &opt, Double_t a1, Double_t a2){
+    Double_t cosmictime;
+    double result, error;
+    gsl_integration_workspace * w = gsl_integration_workspace_alloc (1000);
+    gsl_function F;
+    double params[10];
+    params[0]=opt.Omega_m;
+    params[1]=opt.Omega_Lambda;
+    params[2]=opt.Omega_k;
+    params[3]=opt.Omega_r;
+    params[4]=opt.Omega_nu;
+    params[5]=opt.Omega_de;
+    params[6]=opt.w_de;
+    F.function = &GetInvaH;
+    F.params = (void*)params;
+    gsl_integration_qags (&F, a1, a2, 0, 1e-7, 1000, w, &result, &error);
+    gsl_integration_workspace_free (w);
+    cosmictime = 1./(opt.h*opt.H*opt.velocitytokms/opt.lengthtokpc*1.02269032e-9)*result;
+    return cosmictime;
+}
+
+
 //@}

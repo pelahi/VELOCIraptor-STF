@@ -29,6 +29,7 @@ set(VR_SOURCES
     mpitipsyio.cxx
     mpivar.cxx
     nchiladaio.cxx
+    omproutines.cxx
     ramsesio.cxx
     search.cxx
     swiftinterface.cxx

@@ -53,6 +53,7 @@
 ///if using OpenMP API
 #ifdef USEOPENMP
 #include <omp.h>
+#include "ompvar.h"
 #endif
 
 ///if using HDF API
@@ -235,7 +236,10 @@ using namespace NBody;
 
 /// \defgroup PROPLIMS Particle limits for calculating properties
 //@{
-#define propmincmnum 10
+#define PROPNFWMINNUM 100 
+#define PROPCMMINNUM 10
+#define PROPROTMINNUM 10
+#define PROPMORPHMINNUM 10
 //@}
 
 ///\name halo id modifers used with current snapshot value to make temporally unique halo identifiers
@@ -244,6 +248,11 @@ using namespace NBody;
 #else
 #define HALOIDSNVAL 1000000
 #endif
+
+///\defgroup radial profile parameters
+//@{
+#define PROFILER200CRITLOG 0
+//@}
 
 ///\defgroup GASPARAMS Useful constants for gas
 //@{
@@ -363,16 +372,23 @@ struct Options
     /// to reduce likelihood of having to expand/allocate new memory
     Double_t mpipartfac;
 
+    /// run FOF using OpenMP
+    int iopenmpfof;
+    /// size of openmp FOF region
+    int openmpfofsize;
+
     ///\name length,m,v,grav conversion units
     //@{
     Double_t L, M, U, V, G;
-    Double_t lengthtokpc, velocitytokms, masstosolarmass;
+    Double_t lengthtokpc, velocitytokms, masstosolarmass, energyperunitmass, timetoseconds;
     //@}
     ///period (comove)
     Double_t p;
     ///\name scale factor, Hubunit, h, cosmology, virial density. These are used if linking lengths are scaled or trying to define virlevel using the cosmology
     //@{
-    Double_t a,H,h, Omega_m, Omega_b, Omega_cdm, Omega_Lambda, w_de, rhobg, virlevel, virBN98;
+    Double_t a,H,h;
+    Double_t Omega_m, Omega_b, Omega_cdm, Omega_Lambda, Omega_k, Omega_r, Omega_nu, Omega_de, w_de;
+    Double_t rhocrit, rhobg, virlevel, virBN98;
     int comove;
     /// to store the internal code unit to kpc and the distance^2 of 30 kpc, and 50 kpc
     Double_t lengthtokpc30pow2, lengthtokpc50pow2;
@@ -536,7 +552,8 @@ struct Options
     ///scale lengths. Useful if searching single halo system and which to automatically scale linking lengths
     int iScaleLengths;
 
-    // Swift simulation information
+    /// \name Swift/Metis related quantitites
+    //@{
     //Swift::siminfo swiftsiminfo;
 
     double spacedimension[3];
@@ -558,8 +575,17 @@ struct Options
 
     /*! Holds the node ID of each top-level cell. */
     const int *cellnodeids;
-
     //@}
+
+    /// \name profile related options
+    //@{
+    int iprofilecalc;
+    int profilenbins;
+    int iprofilenorm;
+    int iprofilecumulative;
+    //}
+
+
     Options()
     {
         L = 1.0;
@@ -575,6 +601,11 @@ struct Options
         Omega_Lambda = 0.0;
         Omega_b = 0.0;
         Omega_cdm = Omega_m;
+        Omega_k = 0;
+        Omega_r = 0.0;
+        Omega_nu = 0.0;
+        Omega_de = 0.0;
+        w_de = -1.0;
         rhobg = 1.0;
         virlevel = -1;
         comove=0;
@@ -692,7 +723,7 @@ struct Options
         masstosolarmass=-1.0;
 
         lengthtokpc30pow2=30.0*30.0;
-        lengthtokpc30pow2=50.0*50.0;
+        lengthtokpc50pow2=50.0*50.0;
 
         SphericalOverdensitySeachFac=1.25;
         iSphericalOverdensityPartList=0;
@@ -700,6 +731,14 @@ struct Options
         mpipartfac=0.1;
 #if USEHDF
         ihdfnameconvention=0;
+#endif
+        iprofilecalc=0;
+        iprofilenorm=PROFILER200CRITLOG;
+        iprofilecumulative=0;
+        profilenbins=10;
+#ifdef USEOPENMP
+        iopenmpfof = 1;
+        openmpfofsize = ompfofsearchnum;
 #endif
     }
 };
@@ -1044,8 +1083,8 @@ struct PropData
     Int_t gNFOF;
     ///centre of mass
     Coordinate gcm, gcmvel;
-    ///Position of most bound particle
-    Coordinate gpos, gvel;
+    ///Position of most bound particle, and also of particle with min potential
+    Coordinate gpos, gvel, gposminpot, gvelminpot;
     ///\name physical properties regarding mass, size
     //@{
     Double_t gmass,gsize,gMvir,gRvir,gRmbp,gmaxvel,gRmaxvel,gMmaxvel,gRhalfmass;
@@ -1074,8 +1113,8 @@ struct PropData
     Coordinate gJ200m, gJ200c, gJBN98;
     ///physical properties for angular momentum exclusive
     Coordinate gJ200m_excl, gJ200c_excl, gJBN98_excl;
-    ///Keep track of position of least unbound particle and most bound particle pid
-    Int_t iunbound,ibound;
+    ///Keep track of position of least unbound particle and most bound particle pid and minimum potential
+    Int_t iunbound,ibound, iminpot;
     ///Type of structure
     int stype;
     ///concentration (and related quantity used to calculate a concentration)
@@ -1095,6 +1134,12 @@ struct PropData
     Coordinate RV_J;
     Double_t RV_lambda_B,RV_lambda_P;
     Double_t RV_Krot;
+    //@}
+
+    ///\name radial profiles
+    //@{
+    vector<float> massprofile;
+    vector<Coordinate> angularprofile;
     //@}
 
 #ifdef GASON
@@ -1127,6 +1172,12 @@ struct PropData
     ///physical properties for dynamical state
     Double_t Efrac_gas,Pot_gas,T_gas;
     //@}
+
+    ///\name gas radial profiles
+    //@{
+    vector<float> massprofile_gas;
+    vector<Coordinate> angularprofile_gas;
+    //@}
 #endif
 
 #ifdef STARON
@@ -1157,6 +1208,12 @@ struct PropData
     Double_t t_star,Z_star;
     ///physical properties for dynamical state
     Double_t Efrac_star,Pot_star,T_star;
+    //@}
+
+    ///\name stellar radial profiles
+    //@{
+    vector<float> massprofile_star;
+    vector<Coordinate> angularprofile_star;
     //@}
 #endif
 
@@ -1265,6 +1322,7 @@ struct PropData
         num=p.num;
         gcm=p.gcm;gcmvel=p.gcmvel;
         gpos=p.gpos;gvel=p.gvel;
+        gposminpot=p.gposminpot;gvelminpot=p.gvelminpot;
         gmass=p.gmass;gsize=p.gsize;
         gMvir=p.gMvir;gRvir=p.gRvir;gRmbp=p.gRmbp;
         gmaxvel=gmaxvel=p.gmaxvel;gRmaxvel=p.gRmaxvel;gMmaxvel=p.gMmaxvel;
@@ -1323,6 +1381,7 @@ struct PropData
     void ConverttoComove(Options &opt){
         gcm=gcm*opt.h/opt.a;
         gpos=gpos*opt.h/opt.a;
+        gposminpot=gposminpot*opt.h/opt.a;
         gmass*=opt.h;
         gMvir*=opt.h;
         gM200c*=opt.h;
@@ -1411,6 +1470,8 @@ struct PropData
         Fout.write((char*)&idval,sizeof(idval));
         lval=ibound;
         Fout.write((char*)&lval,sizeof(idval));
+        lval=iminpot;
+        Fout.write((char*)&lval,sizeof(idval));
         lval=hostid;
         Fout.write((char*)&lval,sizeof(idval));
         idval=numsubs;
@@ -1433,10 +1494,15 @@ struct PropData
         Fout.write((char*)val3,sizeof(val)*3);
         for (int k=0;k<3;k++) val3[k]=gpos[k];
         Fout.write((char*)val3,sizeof(val)*3);
+        for (int k=0;k<3;k++) val3[k]=gposminpot[k];
+        Fout.write((char*)val3,sizeof(val)*3);
         for (int k=0;k<3;k++) val3[k]=gcmvel[k];
         Fout.write((char*)val3,sizeof(val)*3);
         for (int k=0;k<3;k++) val3[k]=gvel[k];
         Fout.write((char*)val3,sizeof(val)*3);
+        for (int k=0;k<3;k++) val3[k]=gvelminpot[k];
+        Fout.write((char*)val3,sizeof(val)*3);
+
 
         val=gmass;
         Fout.write((char*)&val,sizeof(val));
@@ -1711,6 +1777,7 @@ struct PropData
     void WriteAscii(fstream &Fout, Options&opt){
         Fout<<haloid<<" ";
         Fout<<ibound<<" ";
+        Fout<<iminpot<<" ";
         Fout<<hostid<<" ";
         Fout<<numsubs<<" ";
         Fout<<num<<" ";
@@ -1722,8 +1789,10 @@ struct PropData
         Fout<<gMvir<<" ";
         for (int k=0;k<3;k++) Fout<<gcm[k]<<" ";
         for (int k=0;k<3;k++) Fout<<gpos[k]<<" ";
+        for (int k=0;k<3;k++) Fout<<gposminpot[k]<<" ";
         for (int k=0;k<3;k++) Fout<<gcmvel[k]<<" ";
         for (int k=0;k<3;k++) Fout<<gvel[k]<<" ";
+        for (int k=0;k<3;k++) Fout<<gvelminpot[k]<<" ";
         Fout<<gmass<<" ";
         Fout<<gMFOF<<" ";
         Fout<<gM200m<<" ";
@@ -1897,6 +1966,7 @@ struct PropDataHeader{
 
         headerdatainfo.push_back("ID");
         headerdatainfo.push_back("ID_mbp");
+        headerdatainfo.push_back("ID_minpot");
         headerdatainfo.push_back("hostHaloID");
         headerdatainfo.push_back("numSubStruct");
         headerdatainfo.push_back("npart");
@@ -1911,6 +1981,7 @@ struct PropDataHeader{
         predtypeinfo.push_back(PredType::STD_U64LE);
         predtypeinfo.push_back(PredType::STD_I64LE);
         predtypeinfo.push_back(PredType::STD_I64LE);
+        predtypeinfo.push_back(PredType::STD_I64LE);
         predtypeinfo.push_back(PredType::STD_U64LE);
         predtypeinfo.push_back(PredType::STD_U64LE);
         predtypeinfo.push_back(PredType::STD_I32LE);
@@ -1921,6 +1992,7 @@ struct PropDataHeader{
 #endif
 #ifdef USEADIOS
         adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+        adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_long);
         adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_long);
         adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_long);
         adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
@@ -1939,12 +2011,18 @@ struct PropDataHeader{
         headerdatainfo.push_back("Xcmbp");
         headerdatainfo.push_back("Ycmbp");
         headerdatainfo.push_back("Zcmbp");
+        headerdatainfo.push_back("Xcminpot");
+        headerdatainfo.push_back("Ycminpot");
+        headerdatainfo.push_back("Zcminpot");
         headerdatainfo.push_back("VXc");
         headerdatainfo.push_back("VYc");
         headerdatainfo.push_back("VZc");
         headerdatainfo.push_back("VXcmbp");
         headerdatainfo.push_back("VYcmbp");
         headerdatainfo.push_back("VZcmbp");
+        headerdatainfo.push_back("VXcminpot");
+        headerdatainfo.push_back("VYcminpot");
+        headerdatainfo.push_back("VZcminpot");
         headerdatainfo.push_back("Mass_tot");
         headerdatainfo.push_back("Mass_FOF");
         headerdatainfo.push_back("Mass_200mean");

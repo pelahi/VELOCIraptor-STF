@@ -248,8 +248,9 @@ endif()
 # We need to add it unless it was already added by somebody else
 if (NOT TARGET nbodylib)
 	add_subdirectory(NBodylib)
-	if (NBODYLIB_VERSION VERSION_LESS "1.10")
-		message(FATAL_ERROR "NBodyLib version ${NBODYLIB_VERSION} unsupported, VELOCIraptor requires >= 1.10")
+	if (NBODYLIB_VERSION VERSION_LESS "1.12")
+		message(FATAL_ERROR "NBodyLib version ${NBODYLIB_VERSION} unsupported,
+		VELOCIraptor requires >= 1.12, try running git submodule update --recursive --remote")
 	endif()
 	list(INSERT VR_DOC_DIRS 0 ${NBODYLIB_DOC_DIRS})
 endif()
