@@ -3902,7 +3902,7 @@ Double_t GetHubble(Options &opt, Double_t a){
     return opt.h*opt.H*sqrt(opt.Omega_k*pow(a,-2.0)+opt.Omega_m*pow(a,-3.0)+opt.Omega_r*pow(a,-3.0)+opt.Omega_Lambda+opt.Omega_de*pow(a,-3.0*(1+opt.w_de)));
 }
 
-Double_t GetInvaH(double a, void * params) {
+double GetInvaH(double a, void * params) {
     double Omega_m = ((double*)params)[0];
     double Omega_Lambda = ((double*)params)[1];
     double Omega_r = ((double*)params)[2];
