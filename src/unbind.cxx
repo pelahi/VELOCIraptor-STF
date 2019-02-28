@@ -717,7 +717,7 @@ private(j,k,v2,Ti,unbindcheck)
     //now for small groups loop over groups
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
-private(i,j,k,maxE,pq,pqsize,nEplus,nEplusid,Eplusflag,totT,v2,Ti,unbindcheck,Efrac,nEfrac)
+private(i,j,k,n,maxE,pq,pqsize,nEplus,nEplusid,Eplusflag,totT,v2,Ti,unbindcheck,Efrac,nEfrac,r2,poti)
 {
     #pragma omp for schedule(dynamic) nowait reduction(+:iunbindflag)
 #endif
