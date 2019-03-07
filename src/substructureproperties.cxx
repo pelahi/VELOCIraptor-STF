@@ -3691,7 +3691,7 @@ Int_t **SortAccordingtoBindingEnergy(Options &opt, const Int_t nbodies, Particle
     for (i=0;i<nbodies;i++) Part[i].SetPID(storepid[Part[i].GetID()]);
     delete[] storepid;
 
-    if (ngroup > 1) noffset[0]=noffset[1]=0;
+    if (ngroup >= 1) noffset[0]=noffset[1]=0;
     for (i=2;i<=ngroup;i++) noffset[i]=noffset[i-1]+numingroup[i-1];
 
     // for small groups interate over groups using openmp threads
@@ -3902,7 +3902,7 @@ Double_t GetHubble(Options &opt, Double_t a){
     return opt.h*opt.H*sqrt(opt.Omega_k*pow(a,-2.0)+opt.Omega_m*pow(a,-3.0)+opt.Omega_r*pow(a,-3.0)+opt.Omega_Lambda+opt.Omega_de*pow(a,-3.0*(1+opt.w_de)));
 }
 
-Double_t GetInvaH(double a, void * params) {
+double GetInvaH(double a, void * params) {
     double Omega_m = ((double*)params)[0];
     double Omega_Lambda = ((double*)params)[1];
     double Omega_r = ((double*)params)[2];
