@@ -418,7 +418,10 @@ private(i)
 {
     #pragma omp for schedule(dynamic) nowait
 #endif
-    for (i=1;i<=ngroup;i++) pdata[i].num=numingroup[i];
+    for (i=1;i<=ngroup;i++) {
+        pdata[i].num=numingroup[i];
+        pdata[i].AllocateProfiles(opt);
+    }
 #ifdef USEOPENMP
 }
 #endif
@@ -1081,6 +1084,55 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
             }
         }
 #endif
+
+        if (opt.iaperturecalc) {
+            int iaptindex=0;
+            double EncMassGas=0, EncMassGasSF=0, EncMassGasNSF=0, EncMassStar=0, EncMassBH=0, EncMassInterloper=0;
+            for (j=0;j<numingroup[i];j++) {
+                Pval=&Part[j+noffset[i]];
+                EncMass+=Pval->GetMass();
+                rc=Pval->Radius();
+#ifdef GASON
+                if (Pval->GetType()==GASTYPE) {
+                    EncMassGas+=Pval->GetMass();
+                    if (Pval->GetSFR()>opt.gas_sfr_threshold) EncMassGasSF+=Pval->GetMass();
+                    else EncMassGasNSF+=Pval->GetMass();
+                }
+#endif
+#ifdef STARON
+                if (Pval->GetType()==STARTYPE) EncMassStar+=Pval->GetMass();
+#endif
+#ifdef BHON
+                if (Pval->GetType()==BHTYPE) EncMassBH+=Pval->GetMass();
+#endif
+                if (rc>=opt.aperture_values_kpc[iaptindex]) {
+                    pdata[i].aperture_mass[iaptindex]=EncMass;
+#ifdef GASON
+                    pdata[i].aperture_mass_gas[iaptindex]=EncMassGas;
+                    pdata[i].aperture_mass_gas_sf[iaptindex]=EncMassGasSF;
+                    pdata[i].aperture_mass_gas_nsf[iaptindex]=EncMassGasNSF;
+#endif
+#ifdef STARON
+                    pdata[i].aperture_mass_star[iaptindex]=EncMassStar;
+#endif
+                    iaptindex++;
+                }
+                if (iaptindex==opt.aperturenum) break;
+            }
+
+#ifdef NOMASS
+            pdata[i].aperture_mass[iaptindex]*=opt.MassValue;
+#ifdef GASON
+            pdata[i].aperture_mass_gas[iaptindex]*=opt.MassValue;
+            pdata[i].aperture_mass_gas_sf[iaptindex]*=opt.MassValue;
+            pdata[i].aperture_mass_gas_nsf[iaptindex]*=opt.MassValue;
+#endif
+#ifdef STARON
+            pdata[i].aperture_mass_star[iaptindex]*=opt.MassValue;
+#endif
+
+#endif
+        }
 
         //morphology calcs
 #ifdef NOMASS
@@ -1939,7 +1991,82 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
         GetGlobalSpatialMorphology(numingroup[i], &Part[noffset[i]], pdata[i].gq, pdata[i].gs, 1e-2, pdata[i].geigvec,1);
         if (RV_num>=PROPMORPHMINNUM) GetGlobalSpatialMorphology(RV_num, &Part[noffset[i]], pdata[i].RV_q, pdata[i].RV_s, 1e-2, pdata[i].RV_eigvec,1);
 #endif
-        //reset particle positions
+    }
+
+    //large groups aperture calculation
+    if (opt.iaperturecalc) {
+#ifdef USEOPENMP
+#pragma omp parallel default(shared)  \
+private(i,j,k,Pval,rc,EncMass)
+{
+    #pragma omp for schedule(dynamic) nowait
+#endif
+        for (i=1;i<=ngroup;i++) if (numingroup[i]>=omppropnum)
+        {
+            int iaptindex=0;
+            double EncMassGas=0, EncMassGasSF=0, EncMassGasNSF=0, EncMassStar=0, EncMassBH=0, EncMassInterloper=0;
+            for (j=0;j<numingroup[i];j++) {
+                Pval=&Part[j+noffset[i]];
+                EncMass+=Pval->GetMass();
+                rc=Pval->Radius();
+#ifdef GASON
+                if (Pval->GetType()==GASTYPE) {
+                    EncMassGas+=Pval->GetMass();
+                    if (Pval->GetSFR()>opt.gas_sfr_threshold) EncMassGasSF+=Pval->GetMass();
+                    else EncMassGasNSF+=Pval->GetMass();
+                }
+#endif
+#ifdef STARON
+                if (Pval->GetType()==STARTYPE) EncMassStar+=Pval->GetMass();
+#endif
+#ifdef BHON
+                if (Pval->GetType()==BHTYPE) EncMassBH+=Pval->GetMass();
+#endif
+                if (rc>=opt.aperture_values_kpc[iaptindex]) {
+                    pdata[i].aperture_mass[iaptindex]=EncMass;
+#ifdef GASON
+                    pdata[i].aperture_mass_gas[iaptindex]=EncMassGas;
+                    pdata[i].aperture_mass_gas_sf[iaptindex]=EncMassGasSF;
+                    pdata[i].aperture_mass_gas_nsf[iaptindex]=EncMassGasNSF;
+#endif
+#ifdef STARON
+                    pdata[i].aperture_mass_star[iaptindex]=EncMassStar;
+#endif
+                    iaptindex++;
+                }
+                if (iaptindex==opt.aperturenum) break;
+            }
+#ifdef NOMASS
+            pdata[i].aperture_mass[iaptindex]*=opt.MassValue;
+#ifdef GASON
+            pdata[i].aperture_mass_gas[iaptindex]*=opt.MassValue;
+            pdata[i].aperture_mass_gas_sf[iaptindex]*=opt.MassValue;
+            pdata[i].aperture_mass_gas_nsf[iaptindex]*=opt.MassValue;
+#endif
+#ifdef STARON
+            pdata[i].aperture_mass_star[iaptindex]*=opt.MassValue;
+#endif
+
+#endif
+        }
+#ifdef USEOPENMP
+}
+#endif
+    }
+    ///if calculating profiles.
+    if (opt.iprofilecalc) {
+
+    }
+
+    //reset particle positions
+#ifdef USEOPENMP
+#pragma omp parallel default(shared)  \
+private(i,j,k,Pval,x,y,z)
+{
+    #pragma omp for schedule(dynamic) nowait
+#endif
+    for (i=1;i<=ngroup;i++) if (numingroup[i]>=omppropnum)
+    {
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
             x = (*Pval).X()+pdata[i].gcm[0];
@@ -1948,6 +2075,9 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
             Pval->SetPosition(x,y,z);
         }
     }
+#ifdef USEOPENMP
+}
+#endif
 
     //loop over groups for black hole properties
 #ifdef USEOPENMP
@@ -1962,11 +2092,6 @@ private(i,j,k,Pval)
 #ifdef USEOPENMP
 }
 #endif
-
-    ///if calculating profiles.
-    if (opt.iprofilecalc) {
-
-    }
 
     if (opt.iverbose) cout<<"Done getting properties"<<endl;
 }

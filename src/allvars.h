@@ -236,7 +236,7 @@ using namespace NBody;
 
 /// \defgroup PROPLIMS Particle limits for calculating properties
 //@{
-#define PROPNFWMINNUM 100 
+#define PROPNFWMINNUM 100
 #define PROPCMMINNUM 10
 #define PROPROTMINNUM 10
 #define PROPMORPHMINNUM 10
@@ -577,13 +577,23 @@ struct Options
     const int *cellnodeids;
     //@}
 
-    /// \name profile related options
+    /// \name options related to calculation of aperture/profile
     //@{
+    int iaperturecalc;
+    int aperturenum;
+    vector<Double_t> aperture_values_kpc;
+    vector<string> aperture_names_kpc;
     int iprofilecalc;
     int profilenbins;
     int iprofilenorm;
     int iprofilecumulative;
-    //}
+    vector<Double_t> profile_bin_edges;
+    //@}
+
+    /// \name options related to calculating star forming gas quantities
+    //@{
+    Double_t gas_sfr_threshold;
+    //@}
 
 
     Options()
@@ -732,10 +742,13 @@ struct Options
 #if USEHDF
         ihdfnameconvention=0;
 #endif
+        iaperturecalc=0;
+        aperturenum=0;
+
         iprofilecalc=0;
         iprofilenorm=PROFILER200CRITLOG;
         iprofilecumulative=0;
-        profilenbins=10;
+        profilenbins=0;
 #ifdef USEOPENMP
         iopenmpfof = 1;
         openmpfofsize = ompfofsearchnum;
@@ -1138,8 +1151,10 @@ struct PropData
 
     ///\name radial profiles
     //@{
-    vector<float> massprofile;
-    vector<Coordinate> angularprofile;
+    vector<float> aperture_mass;
+    vector<int> profile_npart;
+    vector<float> profile_mass;
+    vector<Coordinate> profile_L;
     //@}
 
 #ifdef GASON
@@ -1148,7 +1163,7 @@ struct PropData
     ///number of particles
     int n_gas;
     ///mass
-    Double_t M_gas, M_gas_rvmax,M_gas_30kpc,M_gas_50kpc, M_gas_500c;
+    Double_t M_gas, M_gas_rvmax, M_gas_30kpc, M_gas_50kpc, M_gas_500c;
     ///mass in spherical overdensities
     Double_t M_200crit_gas, M_200mean_gas, M_BN98_gas;
     ///mass in spherical overdensities inclusive of all masses
@@ -1165,18 +1180,98 @@ struct PropData
     //dispersion
     Matrix veldisp_gas;
     ///morphology
-    Double_t Rhalfmass_gas,q_gas,s_gas;
+    Double_t Rhalfmass_gas, q_gas, s_gas;
     Matrix eigvec_gas;
     ///mean temperature,metallicty,star formation rate
-    Double_t Temp_gas,Z_gas,SFR_gas;
+    Double_t Temp_gas, Z_gas, SFR_gas;
     ///physical properties for dynamical state
-    Double_t Efrac_gas,Pot_gas,T_gas;
+    Double_t Efrac_gas, Pot_gas, T_gas;
     //@}
 
     ///\name gas radial profiles
     //@{
-    vector<float> massprofile_gas;
-    vector<Coordinate> angularprofile_gas;
+    vector<float> aperture_mass_gas;
+    vector<int> profile_npart_gas;
+    vector<float> profile_mass_gas;
+    vector<Coordinate> profile_L_gas;
+    //@}
+
+
+    ///\name star forming gas specific quantities
+    //@{
+    ///number of particles
+    int n_gas_sf;
+    ///mass
+    Double_t M_gas_sf, M_gas_sf_rvmax,M_gas_sf_30kpc,M_gas_sf_50kpc, M_gas_sf_500c;
+    ///mass in spherical overdensities
+    Double_t M_200crit_gas_sf, M_200mean_gas_sf, M_BN98_gas_sf;
+    ///mass in spherical overdensities inclusive of all masses
+    Double_t M_200crit_excl_gas_sf, M_200mean_excl_gas_sf, M_BN98_excl_gas_sf;
+    ///pos/vel info
+    Coordinate cm_gas_sf, cmvel_gas_sf;
+    ///velocity/angular momentum info
+    Double_t Krot_gas_sf;
+    Coordinate L_gas_sf;
+    ///physical properties for angular momentum (can be inclusive or exclusive )
+    Coordinate L_200crit_gas_sf, L_200mean_gas_sf, L_BN98_gas_sf;
+    ///physical properties for angular momentum exclusiveto object
+    Coordinate L_200crit_excl_gas_sf, L_200mean_excl_gas_sf, L_BN98_excl_gas_sf;
+    //dispersion
+    Matrix veldisp_gas_sf;
+    ///morphology
+    Double_t Rhalfmass_gas_sf, q_gas_sf, s_gas_sf;
+    Matrix eigvec_gas_sf;
+    ///mean temperature,metallicty,star formation rate
+    Double_t Temp_gas_sf, Z_gas_sf, SFR_gas_sf;
+    ///physical properties for dynamical state
+    Double_t Efrac_gas_sf, Pot_gas_sf, T_gas_sf;
+    //@}
+
+    ///\name gas star forming radial profiles
+    //@{
+    vector<float> aperture_mass_gas_sf;
+    vector<int> profile_npart_gas_sf;
+    vector<float> profile_mass_gas_sf;
+    vector<Coordinate> profile_L_gas_sf;
+    //@}
+
+
+    ///\name star forming gas specific quantities
+    //@{
+    ///number of particles
+    int n_gas_nsf;
+    ///mass
+    Double_t M_gas_nsf, M_gas_nsf_rvmax,M_gas_nsf_30kpc,M_gas_nsf_50kpc, M_gas_nsf_500c;
+    ///mass in spherical overdensities
+    Double_t M_200crit_gas_nsf, M_200mean_gas_nsf, M_BN98_gas_nsf;
+    ///mass in spherical overdensities inclusive of all masses
+    Double_t M_200crit_excl_gas_nsf, M_200mean_excl_gas_nsf, M_BN98_excl_gas_nsf;
+    ///pos/vel info
+    Coordinate cm_gas_nsf, cmvel_gas_nsf;
+    ///velocity/angular momentum info
+    Double_t Krot_gas_nsf;
+    Coordinate L_gas_nsf;
+    ///physical properties for angular momentum (can be inclusive or exclusive )
+    Coordinate L_200crit_gas_nsf, L_200mean_gas_nsf, L_BN98_gas_nsf;
+    ///physical properties for angular momentum exclusiveto object
+    Coordinate L_200crit_excl_gas_nsf, L_200mean_excl_gas_nsf, L_BN98_excl_gas_nsf;
+    //dispersion
+    Matrix veldisp_gas_nsf;
+    ///morphology
+    Double_t Rhalfmass_gas_nsf, q_gas_nsf, s_gas_nsf;
+    Matrix eigvec_gas_nsf;
+    ///mean temperature,metallicty,star formation rate
+    Double_t Temp_gas_nsf, Z_gas_nsf, SFR_gas_nsf;
+    ///physical properties for dynamical state
+    Double_t Efrac_gas_nsf, Pot_gas_nsf, T_gas_nsf;
+    //@}
+
+    ///\name gas star forming radial profiles
+    //@{
+    vector<float> aperture_mass_gas_nsf;
+    vector<int> profile_npart_gas_nsf;
+    vector<float> profile_mass_gas_nsf;
+    vector<Coordinate> profile_L_gas_nsf;
     //@}
 #endif
 
@@ -1212,8 +1307,10 @@ struct PropData
 
     ///\name stellar radial profiles
     //@{
-    vector<float> massprofile_star;
-    vector<Coordinate> angularprofile_star;
+    vector<float> aperture_mass_star;
+    vector<int> profile_npart_star;
+    vector<float> profile_mass_star;
+    vector<Coordinate> profile_L_star;
     //@}
 #endif
 
@@ -1223,9 +1320,9 @@ struct PropData
     ///number of BH
     int n_bh;
     ///mass
-    Double_t M_bh;
-    ///mean accretion rate,metallicty
-    Double_t acc_bh;
+    Double_t M_bh, M_bh_mostmassive;
+    ///mean accretion rate, metallicty
+    Double_t acc_bh, acc_bh_mostmassive;
     //@}
 #endif
 
@@ -1239,7 +1336,8 @@ struct PropData
     //@}
 #endif
 
-    PropData(){
+    PropData()
+    {
         num=gNFOF=0;
         gmass=gsize=gRmbp=gmaxvel=gRmaxvel=gRvir=gR200m=gR200c=gRhalfmass=Efrac=Pot=T=0.;
         gMFOF=0;
@@ -1287,6 +1385,47 @@ struct PropData
         L_200crit_excl_gas[0]=L_200crit_excl_gas[1]=L_200crit_excl_gas[2]=0;
         L_200mean_excl_gas[0]=L_200mean_excl_gas[1]=L_200mean_excl_gas[2]=0;
         L_BN98_excl_gas[0]=L_BN98_excl_gas[1]=L_BN98_excl_gas[2]=0;
+
+        M_gas_sf_rvmax=M_gas_sf_30kpc=M_gas_sf_50kpc=0;
+        n_gas_sf=M_gas_sf=Efrac_gas_sf=0;
+        cm_gas_sf[0]=cm_gas_sf[1]=cm_gas_sf[2]=cmvel_gas_sf[0]=cmvel_gas_sf[1]=cmvel_gas_sf[2]=0.;
+        L_gas_sf[0]=L_gas_sf[1]=L_gas_sf[2]=0;
+        q_gas_sf=s_gas_sf=1.0;
+        Rhalfmass_gas_sf=0;
+        eigvec_gas_sf=Matrix(1,0,0,0,1,0,0,0,1);
+        Temp_gas_sf=Z_gas_sf=SFR_gas_sf=0.0;
+        veldisp_gas_sf=Matrix(0.);
+        Krot_gas_sf=T_gas_sf=Pot_gas_sf=0;
+
+        M_200mean_gas_sf=M_200crit_gas_sf=M_BN98_gas_sf=0;
+        M_200mean_excl_gas_sf=M_200crit_excl_gas_sf=M_BN98_excl_gas_sf=0;
+        L_200crit_gas_sf[0]=L_200crit_gas_sf[1]=L_200crit_gas_sf[2]=0;
+        L_200mean_gas_sf[0]=L_200mean_gas_sf[1]=L_200mean_gas_sf[2]=0;
+        L_BN98_gas_sf[0]=L_BN98_gas_sf[1]=L_BN98_gas_sf[2]=0;
+        L_200crit_excl_gas_sf[0]=L_200crit_excl_gas_sf[1]=L_200crit_excl_gas_sf[2]=0;
+        L_200mean_excl_gas_sf[0]=L_200mean_excl_gas_sf[1]=L_200mean_excl_gas_sf[2]=0;
+        L_BN98_excl_gas_sf[0]=L_BN98_excl_gas_sf[1]=L_BN98_excl_gas_sf[2]=0;
+
+        M_gas_nsf_rvmax=M_gas_nsf_30kpc=M_gas_nsf_50kpc=0;
+        n_gas_nsf=M_gas_nsf=Efrac_gas_nsf=0;
+        cm_gas_nsf[0]=cm_gas_nsf[1]=cm_gas_nsf[2]=cmvel_gas_nsf[0]=cmvel_gas_nsf[1]=cmvel_gas_nsf[2]=0.;
+        L_gas_nsf[0]=L_gas_nsf[1]=L_gas_nsf[2]=0;
+        q_gas_nsf=s_gas_nsf=1.0;
+        Rhalfmass_gas_nsf=0;
+        eigvec_gas_nsf=Matrix(1,0,0,0,1,0,0,0,1);
+        Temp_gas_nsf=Z_gas_nsf=SFR_gas_nsf=0.0;
+        veldisp_gas_nsf=Matrix(0.);
+        Krot_gas_nsf=T_gas_nsf=Pot_gas_nsf=0;
+
+        M_200mean_gas_nsf=M_200crit_gas_nsf=M_BN98_gas_nsf=0;
+        M_200mean_excl_gas_nsf=M_200crit_excl_gas_nsf=M_BN98_excl_gas_nsf=0;
+        L_200crit_gas_nsf[0]=L_200crit_gas_nsf[1]=L_200crit_gas_nsf[2]=0;
+        L_200mean_gas_nsf[0]=L_200mean_gas_nsf[1]=L_200mean_gas_nsf[2]=0;
+        L_BN98_gas_nsf[0]=L_BN98_gas_nsf[1]=L_BN98_gas_nsf[2]=0;
+        L_200crit_excl_gas_nsf[0]=L_200crit_excl_gas_nsf[1]=L_200crit_excl_gas_nsf[2]=0;
+        L_200mean_excl_gas_nsf[0]=L_200mean_excl_gas_nsf[1]=L_200mean_excl_gas_nsf[2]=0;
+        L_BN98_excl_gas_nsf[0]=L_BN98_excl_gas_nsf[1]=L_BN98_excl_gas_nsf[2]=0;
+
 #endif
 #ifdef STARON
         M_star_rvmax=M_star_30kpc=M_star_50kpc=0;
@@ -1311,7 +1450,9 @@ struct PropData
 #endif
 #ifdef BHON
         n_bh=M_bh=0;
+        M_bh_mostmassive=0;
         acc_bh=0;
+        acc_bh_mostmassive=0;
 #endif
 #ifdef HIGHRES
         n_interloper=M_interloper=0;
@@ -1358,6 +1499,32 @@ struct PropData
         L_200mean_excl_gas=p.L_200mean_excl_gas;
         L_200crit_excl_gas=p.L_200crit_excl_gas;
         L_BN98_excl_gas=p.L_BN98_excl_gas;
+
+        M_200mean_gas_sf=p.M_200mean_gas_sf;
+        M_200crit_gas_sf=p.M_200crit_gas_sf;
+        M_BN98_gas_sf=p.M_BN98_gas_sf;
+        M_200mean_excl_gas_sf=p.M_200mean_excl_gas_sf;
+        M_200crit_excl_gas_sf=p.M_200crit_excl_gas_sf;
+        M_BN98_excl_gas_sf=p.M_BN98_excl_gas_sf;
+        L_200mean_gas_sf=p.L_200mean_gas_sf;
+        L_200crit_gas_sf=p.L_200crit_gas_sf;
+        L_BN98_gas_sf=p.L_BN98_gas_sf;
+        L_200mean_excl_gas_sf=p.L_200mean_excl_gas_sf;
+        L_200crit_excl_gas_sf=p.L_200crit_excl_gas_sf;
+        L_BN98_excl_gas_sf=p.L_BN98_excl_gas_sf;
+
+        M_200mean_gas_nsf=p.M_200mean_gas_nsf;
+        M_200crit_gas_nsf=p.M_200crit_gas_nsf;
+        M_BN98_gas_nsf=p.M_BN98_gas_nsf;
+        M_200mean_excl_gas_nsf=p.M_200mean_excl_gas_nsf;
+        M_200crit_excl_gas_nsf=p.M_200crit_excl_gas_nsf;
+        M_BN98_excl_gas_nsf=p.M_BN98_excl_gas_nsf;
+        L_200mean_gas_nsf=p.L_200mean_gas_nsf;
+        L_200crit_gas_nsf=p.L_200crit_gas_nsf;
+        L_BN98_gas_nsf=p.L_BN98_gas_nsf;
+        L_200mean_excl_gas_nsf=p.L_200mean_excl_gas_nsf;
+        L_200crit_excl_gas_nsf=p.L_200crit_excl_gas_nsf;
+        L_BN98_excl_gas_nsf=p.L_BN98_excl_gas_nsf;
 #endif
 #ifdef STARON
         M_200mean_star=p.M_200mean_star;
@@ -1373,7 +1540,47 @@ struct PropData
         L_200crit_excl_star=p.L_200crit_excl_star;
         L_BN98_excl_star=p.L_BN98_excl_star;
 #endif
+        aperture_mass=p.aperture_mass;
+#ifdef GASON
+        aperture_mass_gas=p.aperture_mass_gas;
+        aperture_mass_gas_sf=p.aperture_mass_gas_sf;
+        aperture_mass_gas_nsf=p.aperture_mass_gas_nsf;
+#endif
+#ifdef STARON
+        aperture_mass_star=p.aperture_mass_star;
+#endif
         return *this;
+    }
+    //allocate memory for profiles
+    void AllocateProfiles(Options &opt)
+    {
+        if (opt.iaperturecalc) {
+            aperture_mass.resize(opt.aperturenum);
+#ifdef GASON
+            aperture_mass_gas.resize(opt.aperturenum);
+            aperture_mass_gas_sf.resize(opt.aperturenum);
+            aperture_mass_gas_nsf.resize(opt.aperturenum);
+#endif
+#ifdef STARON
+            aperture_mass_star.resize(opt.aperturenum);
+#endif
+        }
+        if (opt.iprofilecalc) {
+            profile_npart.resize(opt.profilenbins);
+            profile_mass.resize(opt.profilenbins);
+#ifdef GASON
+            profile_npart_gas.resize(opt.profilenbins);
+            profile_mass_gas.resize(opt.profilenbins);
+            profile_npart_gas_sf.resize(opt.profilenbins);
+            profile_mass_gas_sf.resize(opt.profilenbins);
+            profile_npart_gas_nsf.resize(opt.profilenbins);
+            profile_mass_gas_nsf.resize(opt.profilenbins);
+#endif
+#ifdef STARON
+            profile_npart_star.resize(opt.profilenbins);
+            profile_mass_star.resize(opt.profilenbins);
+#endif
+        }
     }
 
     ///converts the properties data into comoving little h values
@@ -1458,6 +1665,32 @@ struct PropData
 #ifdef HIGHRES
         M_interloper*=opt.h;
 #endif
+        if (opt.iaperturecalc) {
+            for (auto i=0;i<opt.iaperturecalc;i++) {
+                aperture_mass[i]*=opt.h;
+#ifdef GASON
+                aperture_mass_gas[i]*=opt.h;
+                aperture_mass_gas_sf[i]*=opt.h;
+                aperture_mass_gas_nsf[i]*=opt.h;
+#endif
+#ifdef STARON
+                aperture_mass_star[i]*=opt.h;
+#endif
+            }
+        }
+        if (opt.iprofilecalc) {
+            for (auto i=0;i<opt.profilenbins;i++) {
+                profile_mass[i]*=opt.h;
+#ifdef GASON
+                profile_mass_gas[i]*=opt.h;
+                profile_mass_gas_sf[i]*=opt.h;
+                profile_mass_gas_nsf[i]*=opt.h;
+#endif
+#ifdef STARON
+                profile_mass_star[i]*=opt.h;
+#endif
+            }
+        }
     }
 
     ///write (append) the properties data to an already open binary file
