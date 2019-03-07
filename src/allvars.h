@@ -1154,6 +1154,7 @@ struct PropData
     vector<float> aperture_mass;
     vector<int> profile_npart;
     vector<float> profile_mass;
+    vector<float> profile_mass_inclusive;
     vector<Coordinate> profile_L;
     //@}
 
@@ -1193,6 +1194,7 @@ struct PropData
     vector<float> aperture_mass_gas;
     vector<int> profile_npart_gas;
     vector<float> profile_mass_gas;
+    vector<float> profile_mass_inclusive_gas;
     vector<Coordinate> profile_L_gas;
     //@}
 
@@ -1232,6 +1234,7 @@ struct PropData
     vector<float> aperture_mass_gas_sf;
     vector<int> profile_npart_gas_sf;
     vector<float> profile_mass_gas_sf;
+    vector<float> profile_mass_inclusive_gas_sf;
     vector<Coordinate> profile_L_gas_sf;
     //@}
 
@@ -1271,6 +1274,7 @@ struct PropData
     vector<float> aperture_mass_gas_nsf;
     vector<int> profile_npart_gas_nsf;
     vector<float> profile_mass_gas_nsf;
+    vector<float> profile_mass_inclusive_gas_nsf;
     vector<Coordinate> profile_L_gas_nsf;
     //@}
 #endif
@@ -1310,6 +1314,7 @@ struct PropData
     vector<float> aperture_mass_star;
     vector<int> profile_npart_star;
     vector<float> profile_mass_star;
+    vector<float> profile_mass_inclusive_star;
     vector<Coordinate> profile_L_star;
     //@}
 #endif

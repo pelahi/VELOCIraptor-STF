@@ -623,7 +623,6 @@ void GetParamFile(Options &opt)
                         opt.iusetracerparticles = atoi(vbuff);
                     else if (strcmp(tbuff, "Input_includes_extradm_particle")==0)
                         opt.iuseextradarkparticles = atoi(vbuff);
-
                 }
             }
         }
@@ -765,6 +764,7 @@ inline void ConfigCheck(Options &opt)
                 cerr<<"Aperture calculations requested but number of apertures is zero. Check config. \n";
             ConfigExit();
         }
+        for (auto i=0;i<opt.aperture_values_kpc.size();i++) opt.aperture_values_kpc[i]/=opt.lengthtokpc;
     }
     if (opt.iprofilecalc>0) {
         if (opt.profilenbins != opt.profile_bin_edges.size()) {
@@ -778,6 +778,7 @@ inline void ConfigCheck(Options &opt)
             ConfigExit();
         }
     }
+
 
     if (ThisTask==0) {
     cout<<"CONFIG INFO SUMMARY -------------------------- "<<endl;
