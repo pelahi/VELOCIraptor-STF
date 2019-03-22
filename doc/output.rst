@@ -3,7 +3,7 @@
 Understanding and Analysing **VELOCIraptor** Output
 ###################################################
 
-**VELOCIraptor** produces produce several different types of output files.
+**VELOCIraptor** produces several different types of output files.
 
 (with the mpi threads appending their rank to the end of the file name):
 
