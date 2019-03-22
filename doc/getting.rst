@@ -12,7 +12,7 @@ To get a copy you can clone the repository
 check that you have a proper compiler (anything supporting C++14 or later should do),
 and scan the system for all required dependencies.
 
-To compile **VELOCIraptor** run (assuming you are inside the ``VELOCIraptor-STF/stf/`` directory already)::
+To compile **VELOCIraptor** run (assuming you are inside the ``VELOCIraptor-STF/`` directory already)::
 
  $> mkdir build
  $> cd build
@@ -91,7 +91,7 @@ These can be passed to ``cmake``
             | ``VR_ADIOS``: boolean on whether to include ADIOS support
             | ``ADIOS_DIR``: specify a local directory containing ADIOS library.
 
-    * To set directories of required libraries 
+    * To set directories of required libraries
         * Set the directories of the following libraries
             | ``GSL_DIR =``
 
