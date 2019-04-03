@@ -250,7 +250,7 @@ struct HDF_Group_Names {
 struct HDF_Header {
 
     double      BoxSize;
-    int         npart[NHDFTYPE];
+    unsigned long int npart[NHDFTYPE];
     unsigned int npartTotal[NHDFTYPE];
     unsigned int npartTotalHW[NHDFTYPE];
     double      mass[NHDFTYPE];
