@@ -31,6 +31,7 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
     Double_t mscale,lscale,lvscale;
     Double_t MP_DM=MAXVALUE,LN,N_DM,MP_B=MAXVALUE;
     int ifirstfile=0,*ireadfile,*ireadtask,*readtaskID;
+    Int_t ninputoffset = 0;
 #ifndef USEMPI
     Int_t Ntotal;
     int ThisTask=0,NProcs=1;
@@ -357,6 +358,13 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
 #else
                     Part[count2].SetType(k);
 #endif
+#ifdef EXTRAINPUTINFO
+                    if (opt.iextendedoutput)
+                    {
+                        Part[count2].SetInputFileID(i);
+                        Part[count2].SetInputIndexInFile(n);
+                    }
+#endif
                     count2++;
                 }
                 else if (opt.partsearchtype==PSTDARK) {
@@ -364,6 +372,13 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
                         Part[count2].SetPID(idval);
                         Part[count2].SetID(count2);
                         Part[count2].SetType(DARKTYPE);
+#ifdef EXTRAINPUTINFO
+                        if (opt.iextendedoutput)
+                        {
+                            Part[count2].SetInputFileID(i);
+                            Part[count2].SetInputIndexInFile(n);
+                        }
+#endif
                         count2++;
                     }
                     else {
@@ -371,6 +386,13 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
                             Pbaryons[bcount2].SetPID(idval);
                             Pbaryons[bcount2].SetID(bcount2+nbodies);
                             Pbaryons[bcount2].SetType(STARTYPE*(k==GSTARTYPE)+GASTYPE*(k==GGASTYPE)+BHTYPE*(k==GBHTYPE));
+#ifdef EXTRAINPUTINFO
+                            if (opt.iextendedoutput)
+                            {
+                                Pbaryons[bcount2].SetInputFileID(i);
+                                Pbaryons[bcount2].SetInputIndexInFile(n);
+                            }
+#endif
                             bcount2++;
                         }
                     }
@@ -380,6 +402,13 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
                         Part[count2].SetPID(idval);
                         Part[count2].SetID(count2);
                         Part[count2].SetType(STARTYPE);
+#ifdef EXTRAINPUTINFO
+                        if (opt.iextendedoutput)
+                        {
+                            Part[count2].SetInputFileID(i);
+                            Part[count2].SetInputIndexInFile(n);
+                        }
+#endif
                         count2++;
                     }
                 }
@@ -388,6 +417,13 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
                         Part[count2].SetPID(idval);
                         Part[count2].SetID(count2);
                         Part[count2].SetType(GASTYPE);
+#ifdef EXTRAINPUTINFO
+                        if (opt.iextendedoutput)
+                        {
+                            Part[count2].SetInputFileID(i);
+                            Part[count2].SetInputIndexInFile(n);
+                        }
+#endif
                         count2++;
                     }
                 }
@@ -1051,6 +1087,7 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
             //data loaded into memory in chunks
             if (header[i].npart[k]<chunksize)nchunk=header[i].npart[k];
             else nchunk=chunksize;
+            ninputoffset = 0;
             for(n=0;n<header[i].npart[k];n+=nchunk)
             {
                 if (header[i].npart[k]-n<chunksize&&header[i].npart[k]-n>0)nchunk=header[i].npart[k]-n;
@@ -1144,6 +1181,13 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
 #ifdef STARON
                     if (k==GSTARTYPE) Pbuf[ibufindex].SetTage(startempchunk[0*nchunk+nn]);
 #endif
+#ifdef EXTRAINPUTINFO
+                    if (opt.iextendedoutput)
+                    {
+                        Pbuf[ibufindex].SetInputFileID(i);
+                        Pbuf[ibufindex].SetInputIndexInFile(nn+ninputoffset);
+                    }
+#endif
                     Nbuf[ibuf]++;
                     MPIAddParticletoAppropriateBuffer(ibuf, ibufindex, ireadtask, BufSize, Nbuf, Pbuf, Nlocal, Part.data(), Nreadbuf, Preadbuf);
                     count2++;
@@ -1157,6 +1201,13 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
                             vtemp[2]*opt.V*sqrt(opt.a)+Hubbleflow*ctemp[2],
                             count2,DARKTYPE);
                         Pbuf[ibufindex].SetPID(idval);
+#ifdef EXTRAINPUTINFO
+                        if (opt.iextendedoutput)
+                        {
+                            Pbuf[ibufindex].SetInputFileID(i);
+                            Pbuf[ibufindex].SetInputIndexInFile(nn+ninputoffset);
+                        }
+#endif
                         //when running hydro runs, need to reset particle buffer quantities
                         //related to hydro info to zero
                         Nbuf[ibuf]++;
@@ -1185,6 +1236,13 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
                             Pbuf[ibufindex].SetType(STARTYPE);
                         }
                         else if (k==GBHTYPE) Pbuf[ibufindex].SetType(BHTYPE);
+#ifdef EXTRAINPUTINFO
+                        if (opt.iextendedoutput)
+                        {
+                            Pbuf[ibufindex].SetInputFileID(i);
+                            Pbuf[ibufindex].SetInputIndexInFile(nn+ninputoffset);
+                        }
+#endif
                         Nbuf[ibuf]++;
                         if (ibuf==ThisTask) {
                             if (k==GGASTYPE) Nlocalbaryon[1]++;
@@ -1209,6 +1267,13 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
                         Pbuf[ibufindex].SetTage(startempchunk[0*nchunk+nn]);
 #endif
                         Pbuf[ibufindex].SetPID(idval);
+#ifdef EXTRAINPUTINFO
+                        if (opt.iextendedoutput)
+                        {
+                            Pbuf[ibufindex].SetInputFileID(i);
+                            Pbuf[ibufindex].SetInputIndexInFile(nn+ninputoffset);
+                        }
+#endif
                         Nbuf[ibuf]++;
                         MPIAddParticletoAppropriateBuffer(ibuf, ibufindex, ireadtask, BufSize, Nbuf, Pbuf, Nlocal, Part.data(), Nreadbuf, Preadbuf);
                         count2++;
@@ -1228,6 +1293,13 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
                         Pbuf[ibufindex].SetU(sphtempchunk[0*nchunk+nn]);
                         Pbuf[ibufindex].SetSPHDen(sphtempchunk[1*nchunk+nn]);
 #endif
+#ifdef EXTRAINPUTINFO
+                        if (opt.iextendedoutput)
+                        {
+                            Pbuf[ibufindex].SetInputFileID(i);
+                            Pbuf[ibufindex].SetInputIndexInFile(nn+ninputoffset);
+                        }
+#endif
                         Nbuf[ibuf]++;
                         MPIAddParticletoAppropriateBuffer(ibuf, ibufindex, ireadtask, BufSize, Nbuf, Pbuf, Nlocal, Part.data(), Nreadbuf, Preadbuf);
                         count2++;
@@ -1235,6 +1307,7 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
                 }
                 pc_new++;
                 }
+                ninputoffset += nchunk;
             }
         }
         //more information contained in sph particles and if there is sf feed back but for the moment, ignore

@@ -12,7 +12,7 @@ To get a copy you can clone the repository
 check that you have a proper compiler (anything supporting C++14 or later should do),
 and scan the system for all required dependencies.
 
-To compile **VELOCIraptor** run (assuming you are inside the ``VELOCIraptor-STF/stf/`` directory already)::
+To compile **VELOCIraptor** run (assuming you are inside the ``VELOCIraptor-STF/`` directory already)::
 
  $> mkdir build
  $> cd build
@@ -75,6 +75,7 @@ These can be passed to ``cmake``
             | ``VR_MPI_REDUCE``: boolean that reduces impact of MPI memory overhead at the cost of extra cpu cycles. Suggested this be turned on
             | ``MPI_LIBRARY``: specify library path to MPI
             | ``MPI_EXTRA_LIBRARY``: Extra MPI libraries to link against
+            | ``VR_LARGE_MPI_DOMAIN`` : Enable if mpi domain is going to contain more than max 16 bit integer number of mpi processes
         * For OpenMP
             | ``NBODY_OPENMP``: boolean to compile with OpenMP support
             | ``OpenMP_CXX_FLAGS``: string, compiler flag that enables OpenMP
@@ -83,7 +84,7 @@ These can be passed to ``cmake``
     * Enable input/output formats
         * For HDF
             | ``VR_HDF5``: boolean on whether to include HDF support
-            | ``HDF5_DIR``: specify a local directory containing HDF library.
+            | ``HDF5_ROOT``: specify a local directory containing HDF library.
         * for XDR (nchilada) input
             | ``VR_XDR``: boolean on whether to include XDR support
             | ``XDR_DIR``: specify a local directory containing XDR library.
@@ -91,7 +92,7 @@ These can be passed to ``cmake``
             | ``VR_ADIOS``: boolean on whether to include ADIOS support
             | ``ADIOS_DIR``: specify a local directory containing ADIOS library.
 
-    * To set directories of required libraries 
+    * To set directories of required libraries
         * Set the directories of the following libraries
             | ``GSL_DIR =``
 
@@ -99,53 +100,44 @@ These can be passed to ``cmake``
 
     * Adjust precision in stored variables and calculations
         * Calculations/properties at 32 bit float precision
-            ``SINGLEPRECISION="on"``
+            ``VR_SINGLE_PRECISION=ON``
         * all integers are 64 bit integers. Enable this if dealing with more than MAXINT total number of particles
-            ``LONGINT="on"``
+            ``VR_LONG_INT=ON``
 
     * Adjust **NBodylib** Particle class data precision and memory footprint
         * Do not store the mass as all particles are the same mass. :strong:`WARNING`: :emphasis:`This is not fully implement for all types of input and requires further testing, use with caution.`
-            ``NOMASS="on"``
+            ``VR_NO_MASS=ON``
         * Use single precision to store positions,velocities, and possibly other internal properties
-            ``SINGLEPARTICLEPRECISION="on"``
+            ``NBODY_SINGLE_PARTICLE_PRECISION=ON``
         * Use unsigned ints (size set by whether using long int or not) to store permanent 'particle' ids
-            ``UNSIGNEDPARTICLEPIDS="on"``
+            ``NBODY_UNSIGNED_PARTICLE_PIDS=ON``
         * Use unsigned ints (size set by whether using long int or not) to store ids (index value). Note that velociraptor uses negative index values for sorting purposes so ONLY ENABLE if library to be used with other codes.
-            ``UNSIGNEDPARTICLEIDS="on"``
+            ``NBODY_UNSIGNED_PARTICLE_IDS=ON``
 
     * Hydro simulations: activate extra data structures in the **NBodylib** Particle class
         * activate gas, store self-energy
-            ``USEGAS="on"``
+            ``VR_USE_GAS=ON``
         * activate stars only, store metallicity, formation time, star foramtion rate (for gas particles)
-            ``USESTARS="on"``
+            ``VR_USE_STARS=ON``
         * Calculate bulk black hole properties
-            ``USEBH="on"``
-        * stars and gas
-            ``USEBARYONS="on"``
-        * Cosmic ray quantities, currently nothing enabled
-            ``USECOSMICRAYS="on"``
-        * activate everything
-            ``USEHYDRO="on"``
+            ``VR_USE_BH=ON``
+        * stars and gas and black holes
+            ``VR_USE_HYDRO=ON``
 
-    * Adjust memory/max size of Binary KD Tree options, used to run search particles
-        * if tree is going to be built on more than max 32 bit integer number particles then enable, memory footprint increases |
-            ``LARGEKDTREE="on"``
+    * Adjust memory/max size of Binary KD Tree options, used to run search particles. If tree is going to be built on more than max 32 bit integer number particles then enable, memory footprint increases
+            ``VR_USE_LARGE_KDTREE=ON``
+
+.. topic:: Operation flags
+
+    * only calculate local density distribution for particles residing in field objects (but using all particles to estimate quantity). Default.
+        ``VR_STRUCTURE_DEN=ON``
+    * or just use particles inside field objects, reducing cpu cycles but will bias estimates for particle in outer region of field structures, overrides STRUCTUREDEN |
+        ``VR_HALO_DEN=ON``
+    * flag useful for zoom simulations with a high resolution region
+        ``VR_ZOOM_SIM=ON``
 
 .. topic:: Executable flags
-
-    * Adjust **VELOCIraptor** operation
-        * only calculate local density distribution for particles residing in field objects (but using all particles to estimate quantity). Default. |
-            ``STRUCTUREDEN="on"``
-        * or just use particles inside field objects, reducing cpu cycles but will bias estimates for particle in outer region of field structures, overrides STRUCTUREDEN |
-            ``HALODEN="on"``
-        * flag useful for zoom simulations with a high resolution region |
-            ``ZOOMSIM="on"``
-    * Adjust **TreeFrog** memory footprint
-        * if particle ids are long integers |
-            ``TREEFROGLONGIDS="on"``
-        * if particle ids are unsigned |
-            ``TREEFROGUNSIGNEDIDS="on"``
-    * Enable if mpi domain is going to contain more than max 16 bit integer number of mpi processes
-        ``LARGEMPIDOMAIN="on"``
+    * Produce SWIFTSIM compatible library (executable still produced but does simply returns warning)
+        ``VR_USE_SWIFT_INTERFACE=ON``
     * Enable debugging
-        ``DEBUG="on"``
+        ``DEBUG=ON``

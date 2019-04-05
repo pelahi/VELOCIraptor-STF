@@ -68,12 +68,16 @@ vr_option(USE_GAS       "Use gas particles" OFF)
 vr_option(USE_BH        "Use black holes" OFF)
 vr_option(USE_HYDRO     "Use all particle types, (gas, star, bh, etc)" OFF)
 vr_option(NO_MASS       "Particles do not store mass (useful for pure N-body sims and reducing memory footprint)" OFF)
+vr_option(USE_EXTRA_INPUT_INFO     "Store where particles are located in the input file" OFF)
+vr_option(USE_EXTRA_FOF_INFO     "Store particles fof, group, SO ids" OFF)
+vr_option(USE_LARGE_KDTREE      "Require large mem KDTree as there are more than > max 32-bit integer entries" OFF)
 
 # VELOCiraptor behavior options
 vr_option(STRUCTURE_DEN "Calculate local density dist. only for particles in field objects; uses all particles to estimate quantity" ON)
 vr_option(HALO_DEN      "Like STRUCTURE_DEN, but se particles inside field objects" OFF)
 vr_option(ZOOM_SIM      "Used to run against simulations with a high resolution region" OFF)
 vr_option(USE_SWIFT_INTERFACE "Used to compile the code with hooks for being called from the SWIFT Hydro nbody code" OFF)
+
 
 # Let's true to our word
 if (VR_USE_SWIFT_INTERFACE)
@@ -96,6 +100,12 @@ endif()
 if (VR_USE_BH)
 	set(NBODY_USE_BH ON)
 endif()
+if (VR_USE_EXTRA_INPUT_INFO)
+	set(NBODY_USE_EXTRA_INPUT_INFO ON)
+endif()
+if (VR_USE_EXTRA_FOF_INFO)
+	set(NBODY_USE_EXTRA_FOF_INFO ON)
+endif()
 if (VR_NO_MASS)
 	set(NBODY_NO_MASS ON)
 endif()
@@ -104,6 +114,9 @@ if (VR_LONG_INT)
 endif()
 if (VR_SINGLE_PRECISION)
 	set(NBODY_SINGLE_PRECISION ON)
+endif()
+if (VR_USE_LARGE_KDTREE)
+	set(NBODY_USE_LARGE_KDTREE ON)
 endif()
 if (VR_OPENMP)
 	set(NBODY_OPENMP ON)
@@ -149,10 +162,13 @@ vr_option_defines(USE_GAS                   GASON)
 vr_option_defines(USE_STAR                  STARON)
 vr_option_defines(USE_BH                    BHON)
 vr_option_defines(NO_MASS                   NOMASS)
+vr_option_defines(USE_EXTRA_INPUT_INFO      EXTRAINPUTINFO)
+vr_option_defines(USE_EXTRA_FOF_INFO        EXTRAFOFINFO)
 
 vr_option_defines(STRUCTURE_DEN             STRUCDEN)
 vr_option_defines(HALO_DEN                  HALOONLYDEN)
 vr_option_defines(ZOOM_SIM                  HIGHRES)
+vr_option_defines(USE_LARGE_KDTREE          LARGETREE)
 
 vr_option_defines(USE_SWIFT_INTERFACE       SWIFTINTERFACE)
 
@@ -248,9 +264,9 @@ endif()
 # We need to add it unless it was already added by somebody else
 if (NOT TARGET nbodylib)
 	add_subdirectory(NBodylib)
-	if (NBODYLIB_VERSION VERSION_LESS "1.12")
+	if (NBODYLIB_VERSION VERSION_LESS "1.13")
 		message(FATAL_ERROR "NBodyLib version ${NBODYLIB_VERSION} unsupported,
-		VELOCIraptor requires >= 1.12, try running git submodule update --recursive --remote")
+		VELOCIraptor requires >= 1.13, try running git submodule update --recursive --remote")
 	endif()
 	list(INSERT VR_DOC_DIRS 0 ${NBODYLIB_DOC_DIRS})
 endif()
@@ -314,6 +330,7 @@ vr_report("Particle-specifics"
 		  "Activate stars (& associated physics, properties calculated)" USE_STAR
 		  "Activate black holes (& associated physics, properties calculated)" USE_BH
 		  "Mass not stored (for uniform N-Body sims, reduce mem footprint)" NO_MASS
+		  "Large memory KDTree to handle > max 32-bit integer entries per tree" USE_LARGE_KDTREE
 	  )
 vr_report("Simulation-specifics"
           "Used to run against simulations with a high resolution region" ZOOM_SIM

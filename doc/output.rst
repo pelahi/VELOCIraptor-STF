@@ -3,7 +3,7 @@
 Understanding and Analysing **VELOCIraptor** Output
 ###################################################
 
-**VELOCIraptor** produces produce several different types of output files.
+**VELOCIraptor** produces several different types of output files.
 
 (with the mpi threads appending their rank to the end of the file name):
 
@@ -13,7 +13,6 @@ Understanding and Analysing **VELOCIraptor** Output
     * ``.catalog_groups``: a file containing the size of the structures (in number of particles associated) & information need to read particle information produced by velociraptor
     * ``.catalog_particles``: a file containing a list of particle IDs of those in structures. Information contained in ``.catalog_groups`` is used to parse this data.
     * ``.catalog_particles.unbound``: similar to ``catalog_particles`` but lists particles in structures but are formally unbound. Information contained in ``.catalog_groups`` is used to parse this data.
-
 
 Properties
 ==========
@@ -37,7 +36,7 @@ We give an almost complete list of properties and the keyword associate with the
 +-------------------+-------------------------------------------------------------------------------------------------------+
 | ID_mbp            | Particle ID of the most bound particle in the group.                                                  |
 +-------------------+-------------------------------------------------------------------------------------------------------+
-| hostHal oID       | ID of the host field halo. If an object is a field halo, this is -1.                                  |
+| hostHaloID        | ID of the host field halo. If an object is a field halo, this is -1.                                  |
 | Structuretype     | Structure types contain information on how the object was found and at                                |
 |                   | what level in the subhalo hierarchy. Field halos are 10. Substructures                                |
 |                   | identified using the local velocity field are type 10+10=20,                                          |

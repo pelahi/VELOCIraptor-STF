@@ -157,6 +157,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     Double_t MP_DM=MAXVALUE,LN,N_DM,MP_B=0;
     int ifirstfile=0,*ireadfile,ireaderror=0;
     int *ireadtask,*readtaskID;
+    Int_t ninputoffset;
 
 #ifdef USEMPI
     if (ThisTask == 0)
@@ -523,7 +524,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
       cout<<"Non-cosmological input, using h = "<< opt.h<<endl;
     }
 
-    // SWIFT snapshots already include the 1/h factor factor, 
+    // SWIFT snapshots already include the 1/h factor factor,
     // so there is no need to include it.
     if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES) {
       mscale=opt.M;lscale=opt.L*aadjust;lvscale=opt.L*opt.a;
@@ -729,6 +730,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
               //data loaded into memory in chunks
               if (hdf_header_info[i].npart[k]<chunksize)nchunk=hdf_header_info[i].npart[k];
               else nchunk=chunksize;
+              ninputoffset=0;
               for(n=0;n<hdf_header_info[i].npart[k];n+=nchunk)
               {
                 if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
@@ -742,15 +744,23 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                 partsdataset[i*NHDFTYPE+k].read(integerbuff,HDFINTEGERTYPE,chunkspace,partsdataspace[i*NHDFTYPE+k]);
 
                 for (int nn=0;nn<nchunk;nn++) {
-                  if (iint) Part[count].SetPID(intbuff[nn]);
-                  else Part[count].SetPID(longbuff[nn]);
-                  Part[count].SetID(count);
-                  if (k==HDFGASTYPE) Part[count].SetType(GASTYPE);
-                  else if (k==HDFDMTYPE) Part[count].SetType(DARKTYPE);
-                  else if (k==HDFSTARTYPE) Part[count].SetType(STARTYPE);
-                  else if (k==HDFBHTYPE) Part[count].SetType(BHTYPE);
-                  count++;
+                    if (iint) Part[count].SetPID(intbuff[nn]);
+                    else Part[count].SetPID(longbuff[nn]);
+                    Part[count].SetID(count);
+                    if (k==HDFGASTYPE) Part[count].SetType(GASTYPE);
+                    else if (k==HDFDMTYPE) Part[count].SetType(DARKTYPE);
+                    else if (k==HDFSTARTYPE) Part[count].SetType(STARTYPE);
+                    else if (k==HDFBHTYPE) Part[count].SetType(BHTYPE);
+#ifdef EXTRAINPUTINFO
+                    if (opt.iextendedoutput)
+                    {
+                        Part[count].SetInputFileID(i);
+                        Part[count].SetInputIndexInFile(nn+ninputoffset);
+                    }
+#endif
+                    count++;
                 }
+                ninputoffset += nchunk;
               }
             }
             if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) {
@@ -759,6 +769,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                 //data loaded into memory in chunks
                 if (hdf_header_info[i].npart[k]<chunksize)nchunk=hdf_header_info[i].npart[k];
                 else nchunk=chunksize;
+                ninputoffset=0;
                 for(n=0;n<hdf_header_info[i].npart[k];n+=nchunk)
                 {
                   if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
@@ -777,8 +788,16 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                     if (k==HDFGASTYPE) Pbaryons[bcount].SetType(GASTYPE);
                     else if (k==HDFSTARTYPE) Pbaryons[bcount].SetType(STARTYPE);
                     else if (k==HDFBHTYPE) Pbaryons[bcount].SetType(BHTYPE);
+#ifdef EXTRAINPUTINFO
+                    if (opt.iextendedoutput)
+                    {
+                        Pbaryons[bcount].SetInputFileID(i);
+                        Pbaryons[bcount].SetInputIndexInFile(nn+ninputoffset);
+                    }
+#endif
                     bcount++;
                   }
+                  ninputoffset+=nchunk;
                 }
               }
             }
@@ -1225,7 +1244,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 
     double vscale = 0.0;
 
-    // SWIFT snapshot velocities already contain the sqrt(a) factor, 
+    // SWIFT snapshot velocities already contain the sqrt(a) factor,
     // so there is no need to include it.
     if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES) vscale = opt.V;
     else vscale = opt.V*sqrt(opt.a);
@@ -1392,6 +1411,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                   //data loaded into memory in chunks
                   if (hdf_header_info[i].npart[k]<chunksize)nchunk=hdf_header_info[i].npart[k];
                   else nchunk=chunksize;
+                  ninputoffset = 0;
                   for(n=0;n<hdf_header_info[i].npart[k];n+=nchunk)
                   {
                     if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
@@ -1573,9 +1593,17 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         else {if (Tagedoublebuff[nn]<0) Pbuf[ibufindex].SetType(WINDTYPE);Pbuf[ibufindex].SetTage(Tagedoublebuff[nn]);}
                       }
 #endif
+#ifdef EXTRAINPUTINFO
+                        if (opt.iextendedoutput)
+                        {
+                            Pbuf[ibufindex].SetInputFileID(i);
+                            Pbuf[ibufindex].SetInputIndexInFile(nn+ninputoffset);
+                        }
+#endif
                       Nbuf[ibuf]++;
                       MPIAddParticletoAppropriateBuffer(ibuf, ibufindex, ireadtask, BufSize, Nbuf, Pbuf, Nlocal, Part.data(), Nreadbuf, Preadbuf);
                     }
+                    ninputoffset += nchunk;
                   }
                 }
                 if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) {
@@ -1764,9 +1792,17 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                           else {if (Tagedoublebuff[nn]<0) Pbuf[ibufindex].SetType(WINDTYPE);Pbuf[ibufindex].SetTage(Tagedoublebuff[nn]);}
                         }
 #endif
+#ifdef EXTRAINPUTINFO
+                        if (opt.iextendedoutput)
+                        {
+                            Pbuf[ibufindex].SetInputFileID(i);
+                            Pbuf[ibufindex].SetInputIndexInFile(nn+ninputoffset);
+                        }
+#endif
                         Nbuf[ibuf]++;
                         MPIAddParticletoAppropriateBuffer(ibuf, ibufindex, ireadtask, BufSize, Nbuf, Pbuf, Nlocalbaryon[0], Pbaryons, Nreadbuf, Preadbuf);
                       }
+                      ninputoffset+=nchunk;
                     }//end of chunk
                   }//end of party type
                 }//end of baryon if
@@ -1858,8 +1894,8 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
         opt.Omega_b=MP_B/(MP_DM+MP_B)*opt.Omega_m;
         opt.Omega_cdm=opt.Omega_m-opt.Omega_b;
       }
-      
-      // SWIFT snapshots already include the 1/h factor factor, 
+
+      // SWIFT snapshots already include the 1/h factor factor,
       // so there is no need to include it.
       if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES) {
         //adjust period
@@ -1945,10 +1981,10 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 #endif
 
 #ifdef USEMPI
-    
+
     double vscale = 0.0;
 
-    // SWIFT snapshot velocities already contain the sqrt(a) factor, 
+    // SWIFT snapshot velocities already contain the sqrt(a) factor,
     // so there is no need to include it.
     if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES) vscale = opt.V;
     else vscale = opt.V*sqrt(opt.a);

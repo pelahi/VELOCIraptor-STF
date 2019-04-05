@@ -88,6 +88,7 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
     int alltotal   = 0;
     int ghoststars = 0;
     string stringbuf;
+    int ninputoffset = 0;
     sprintf(buf1,"%s/amr_%s.out00001",fname,opt.ramsessnapname);
     sprintf(buf2,"%s/amr_%s.out",fname,opt.ramsessnapname);
     if (FileExists(buf1)) sprintf(buf,"%s",buf1);
@@ -454,6 +455,7 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
     int lmin=1000000,lmax=0;
     double dmp_mass;
 
+    int ninputoffset = 0;
     int ifirstfile=0,*ireadfile,ibuf=0;
     Int_t ibufindex;
     int *ireadtask,*readtaskID;
@@ -730,6 +732,7 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
 
         //data loaded into memory in chunks
         chunksize    = nchunk = header[i].npartlocal;
+        ninputoffset = 0;
         xtempchunk   = new RAMSESFLOAT  [3*chunksize];
         vtempchunk   = new RAMSESFLOAT  [3*chunksize];
         mtempchunk   = new RAMSESFLOAT  [chunksize];
@@ -814,14 +817,11 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
                     vtemp[2]*opt.V+Hubbleflow*xtemp[2],
                     count2,typeval);
                 Pbuf[ibufindex].SetPID(idval);
-#ifdef EXTENDEDFOFINFO
+#ifdef EXTRAINPUTINFO
                 if (opt.iextendedoutput)
                 {
-                    Pbuf[ibufindex].SetOFile(i);
-                    Pbuf[ibufindex].SetOTask(ThisTask);
-                    Pbuf[ibufindex].SetOIndex(nn);
-                    Pbuf[ibufindex].SetPfof6d(0);
-                    Pbuf[ibufindex].SetPfof6dCore(0);
+                    Part[ibufindex].SetInputFileID(i);
+                    Part[ibufindex].SetInputIndexInFile(nn+ninputoffset);
                 }
 #endif
                 Nbuf[ibuf]++;
@@ -834,14 +834,11 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
                     vtemp[2]*opt.V+Hubbleflow*xtemp[2],
                     count2,typeval);
                 Part[count2].SetPID(idval);
-#ifdef EXTENDEDFOFINFO
+#ifdef EXTRAINPUTINFO
                 if (opt.iextendedoutput)
                 {
-                  Part[count2].SetOFile(i);
-                  Part[count2].SetOTask(ThisTask);
-                  Part[count2].SetOIndex(nn);
-                  Part[count2].SetPfof6d(0);
-                  Part[count2].SetPfof6dCore(0);
+                  Part[count2].SetInputFileID(i);
+                  Part[count2].SetInputIndexInFile(nn+ninputoffset);
                 }
 #endif
 #endif
@@ -857,14 +854,11 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
                         vtemp[2]*opt.V+Hubbleflow*xtemp[2],
                         count2,DARKTYPE);
                     Pbuf[ibufindex].SetPID(idval);
-#ifdef EXTENDEDFOFINFO
+#ifdef EXTRAINPUTINFO
                     if (opt.iextendedoutput)
                     {
-                      Pbuf[ibufindex].SetOFile(i);
-                      Pbuf[ibufindex].SetOTask(ThisTask);
-                      Pbuf[ibufindex].SetOIndex(nn);
-                      Pbuf[ibufindex].SetPfof6d(0);
-                      Pbuf[ibufindex].SetPfof6dCore(0);
+                        Pbuf[ibufindex].SetInputFileID(i);
+                        Pbuf[ibufindex].SetInputIndexInFile(nn+ninputoffset);
                     }
 #endif
                     //ensure that store number of particles to be sent to other reading threads
@@ -878,14 +872,11 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
                         vtemp[2]*opt.V+Hubbleflow*xtemp[2],
                         count2,typeval);
                     Part[count2].SetPID(idval);
-#ifdef EXTENDEDFOFINFO
+#ifdef EXTRAINPUTINFO
                     if (opt.iextendedoutput)
                     {
-                      Part[count2].SetOFile(i);
-                      Part[count2].SetOTask(ThisTask);
-                      Part[count2].SetOIndex(nn);
-                      Part[count2].SetPfof6d(0);
-                      Part[count2].SetPfof6dCore(0);
+                        Part[count2].SetInputFileID(i);
+                        Part[count2].SetInputIndexInFile(nn+ninputoffset);
                     }
 #endif
 #endif
@@ -900,14 +891,11 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
                         vtemp[2]*opt.V+Hubbleflow*xtemp[2],
                         count2);
                     Pbuf[ibufindex].SetPID(idval);
-#ifdef EXTENDEDFOFINFO
+#ifdef EXTRAINPUTINFO
                     if (opt.iextendedoutput)
                     {
-                      Pbuf[ibufindex].SetOFile(i);
-                      Pbuf[ibufindex].SetOTask(ThisTask);
-                      Pbuf[ibufindex].SetOIndex(nn);
-                      Pbuf[ibufindex].SetPfof6d(0);
-                      Pbuf[ibufindex].SetPfof6dCore(0);
+                        Pbuf[ibufindex].SetInputFileID(i);
+                        Pbuf[ibufindex].SetInputIndexInFile(nn+ninputoffset);
                     }
 #endif
                     if (typeval==STARTYPE) Pbuf[ibufindex].SetType(STARTYPE);
@@ -927,14 +915,11 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
                         vtemp[2]*opt.V+Hubbleflow*xtemp[2],
                         count2,typeval);
                     Pbaryons[bcount2].SetPID(idval);
-#ifdef EXTENDEDFOFINFO
+#ifdef EXTRAINPUTINFO
                     if (opt.iextendedoutput)
                     {
-                      Part[bcount2].SetOFile(i);
-                      Part[bcount2].SetOTask(ThisTask);
-                      Part[bcount2].SetOIndex(nn);
-                      Part[count2].SetPfof6d(0);
-                      Part[count2].SetPfof6dCore(0);
+                        Part[bcount2].SetInputFileID(i);
+                        Part[bcount2].SetInputIndexInFile(nn+ninputoffset);
                     }
 #endif
 #endif
@@ -954,14 +939,11 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
                         count2,STARTYPE);
                     //ensure that store number of particles to be sent to the reading threads
                     Pbuf[ibufindex].SetPID(idval);
-#ifdef EXTENDEDFOFINFO
+#ifdef EXTRAINPUTINFO
                     if (opt.iextendedoutput)
                     {
-                      Pbuf[ibufindex].SetOFile(i);
-                      Pbuf[ibufindex].SetOTask(ThisTask);
-                      Pbuf[ibufindex].SetOIndex(nn);
-                      Pbuf[ibufindex].SetPfof6d(0);
-                      Pbuf[ibufindex].SetPfof6dCore(0);
+                        Pbuf[ibufindex].SetInputFileID(i);
+                        Pbuf[ibufindex].SetInputIndexInFile(nn+ninputoffset);
                     }
 #endif
                     Nbuf[ibuf]++;
@@ -974,14 +956,11 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
                     vtemp[2]*opt.V+Hubbleflow*xtemp[2],
                     count2,typeval);
                 Part[count2].SetPID(idval);
-#ifdef EXTENDEDFOFINFO
+#ifdef EXTRAINPUTINFO
                   if (opt.iextendedoutput)
                   {
-                    Part[count2].SetOFile(i);
-                    Part[count2].SetOTask(ThisTask);
-                    Part[count2].SetOIndex(nn);
-                    Part[count2].SetPfof6d(0);
-                    Part[count2].SetPfof6dCore(0);
+                      Part[count2].SetInputFileID(i);
+                      Part[count2].SetInputIndexInFile(nn+ninputoffset);
 	              }
 #endif
 #endif
@@ -1111,6 +1090,8 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
         if (orderingstring==string("bisection")) RAMSES_fortran_skip(Famr[i],5);
         else RAMSES_fortran_skip(Famr[i],4);
 
+        ninputoffset=0;
+
         for (k=0;k<header[i].nboundary+1;k++) {
             for (j=0;j<header[i].nlevelmax;j++) {
                 //first read amr for positions
@@ -1188,6 +1169,13 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
                                             Pbuf[ibufindex].SetZmet(Ztemp);
 #endif
 #endif
+#ifdef EXTRAINPUTINFO
+                                            if (opt.iextendedoutput)
+                                            {
+                                                Pbuf[ibufindex].SetInputFileID(i);
+                                                Pbuf[ibufindex].SetInputIndexInFile(idim*chunksize*header[i].nvarh+0*chunksize+igrid+ninputoffset);
+                                            }
+#endif
                                             //ensure that store number of particles to be sent to the threads involved with reading snapshot files
                                             Nbuf[ibuf]++;
                                             MPIAddParticletoAppropriateBuffer(ibuf, ibufindex, ireadtask, BufSize, Nbuf, Pbuf, Nlocal, Part.data(), Nreadbuf, Preadbuf);
@@ -1205,6 +1193,13 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
 #ifdef STARON
                                             Part[count2].SetZmet(Ztemp);
 #endif
+#endif
+#ifdef EXTRAINPUTINFO
+                                            if (opt.iextendedoutput)
+                                            {
+                                                Part[count2].SetInputFileID(i);
+                                                Part[count2].SetInputIndexInFile(idim*chunksize*header[i].nvarh+0*chunksize+igrid+ninputoffset);
+                                            }
 #endif
 
 #endif
@@ -1226,6 +1221,13 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
                                             Pbuf[ibufindex].SetZmet(Ztemp);
 #endif
 #endif
+#ifdef EXTRAINPUTINFO
+                                            if (opt.iextendedoutput)
+                                            {
+                                                Pbuf[ibufindex].SetInputFileID(i);
+                                                Pbuf[ibufindex].SetInputIndexInFile(idim*chunksize*header[i].nvarh+0*chunksize+igrid+ninputoffset);
+                                            }
+#endif
                                             //ensure that store number of particles to be sent to the reading threads
                                             if (ibuf==ThisTask) {
                                                 Nlocalbaryon[1]++;
@@ -1245,6 +1247,13 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
 #ifdef STARON
                                             Pbaryons[bcount2].SetZmet(Ztemp);
 #endif
+#endif
+#ifdef EXTRAINPUTINFO
+                                            if (opt.iextendedoutput)
+                                            {
+                                                Pbaryons[bcount2].SetInputFileID(i);
+                                                Pbaryons[bcount2].SetInputIndexInFile(idim*chunksize*header[i].nvarh+0*chunksize+igrid+ninputoffset);
+                                            }
 #endif
 
 #endif

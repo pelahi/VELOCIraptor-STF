@@ -11,7 +11,6 @@ Welcome to **VELOCIraptor**'s documentation!
 #############################################
 
 **VELOCIraptor** is a C++ halo finder using MPI and OpenMP APIs.
-It comes with a halo merger tree builder, **TreeFrog** (also C++ MPI+OpenMP).
 The repository also contains several associated analysis tools in python, example configuration files
 and analysis python scripts (and sample jupyter notebooks).
 
