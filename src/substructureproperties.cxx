@@ -420,7 +420,6 @@ private(i)
 #endif
     for (i=1;i<=ngroup;i++) {
         pdata[i].num=numingroup[i];
-
         if ((opt.iInclusiveHalo && pdata[i].hostid !=-1) || opt.iInclusiveHalo==0) pdata[i].AllocateProfiles(opt);
     }
 #ifdef USEOPENMP
@@ -1085,35 +1084,60 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
             }
         }
 #endif
-
         if (opt.iaperturecalc) {
+            EncMass=0;
+            Ninside=0;
             int iaptindex=0;
             double EncMassGas=0, EncMassGasSF=0, EncMassGasNSF=0, EncMassStar=0, EncMassBH=0, EncMassInterloper=0;
+            int NinsideGas=0, NinsideGasSF=0,NinsideGasNSF=0,NinsideStar=0,NinsideBH=0,NinsideInterloper=0;
             for (j=0;j<numingroup[i];j++) {
                 Pval=&Part[j+noffset[i]];
                 EncMass+=Pval->GetMass();
                 rc=Pval->Radius();
+                Ninside++;
 #ifdef GASON
                 if (Pval->GetType()==GASTYPE) {
+                    NinsideGas++;
                     EncMassGas+=Pval->GetMass();
-                    if (Pval->GetSFR()>opt.gas_sfr_threshold) EncMassGasSF+=Pval->GetMass();
-                    else EncMassGasNSF+=Pval->GetMass();
+#ifdef STARON
+                    if (Pval->GetSFR()>opt.gas_sfr_threshold) {
+                        NinsideGasSF++;
+                        EncMassGasSF+=Pval->GetMass();
+                    }
+                    else {
+                        NinsideGasNSF++;
+                        EncMassGasNSF+=Pval->GetMass();
+                    }
+#endif
                 }
 #endif
 #ifdef STARON
-                if (Pval->GetType()==STARTYPE) EncMassStar+=Pval->GetMass();
+                if (Pval->GetType()==STARTYPE) {
+                    NinsideStar++;
+                    EncMassStar+=Pval->GetMass();
+                }
 #endif
 #ifdef BHON
-                if (Pval->GetType()==BHTYPE) EncMassBH+=Pval->GetMass();
+                if (Pval->GetType()==BHTYPE) {
+                    NinsideBH++;
+                    EncMassBH+=Pval->GetMass();
+                }
 #endif
                 if (rc>=opt.aperture_values_kpc[iaptindex]) {
+                    pdata[i].aperture_npart[iaptindex]=Ninside;
                     pdata[i].aperture_mass[iaptindex]=EncMass;
 #ifdef GASON
+                    pdata[i].aperture_npart_gas[iaptindex]=NinsideGas;
                     pdata[i].aperture_mass_gas[iaptindex]=EncMassGas;
+#ifdef STARON
+                    pdata[i].aperture_npart_gas_sf[iaptindex]=NinsideGasSF;
+                    pdata[i].aperture_npart_gas_nsf[iaptindex]=NinsideGasNSF;
                     pdata[i].aperture_mass_gas_sf[iaptindex]=EncMassGasSF;
                     pdata[i].aperture_mass_gas_nsf[iaptindex]=EncMassGasNSF;
 #endif
+#endif
 #ifdef STARON
+                    pdata[i].aperture_npart_star[iaptindex]=NinsideStar;
                     pdata[i].aperture_mass_star[iaptindex]=EncMassStar;
 #endif
                     iaptindex++;
@@ -1125,8 +1149,10 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
             pdata[i].aperture_mass[iaptindex]*=opt.MassValue;
 #ifdef GASON
             pdata[i].aperture_mass_gas[iaptindex]*=opt.MassValue;
+#ifdef STARON
             pdata[i].aperture_mass_gas_sf[iaptindex]*=opt.MassValue;
             pdata[i].aperture_mass_gas_nsf[iaptindex]*=opt.MassValue;
+#endif
 #endif
 #ifdef STARON
             pdata[i].aperture_mass_star[iaptindex]*=opt.MassValue;
@@ -1998,39 +2024,65 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
     if (opt.iaperturecalc) {
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
-private(i,j,k,Pval,rc,EncMass)
+private(i,j,k,Pval,rc,EncMass,Ninside)
 {
     #pragma omp for schedule(dynamic) nowait
 #endif
         for (i=1;i<=ngroup;i++) if (numingroup[i]>=omppropnum)
         {
+            EncMass=0;
+            Ninside=0;
             int iaptindex=0;
             double EncMassGas=0, EncMassGasSF=0, EncMassGasNSF=0, EncMassStar=0, EncMassBH=0, EncMassInterloper=0;
+            int NinsideGas=0, NinsideGasSF=0,NinsideGasNSF=0,NinsideStar=0,NinsideBH=0,NinsideInterloper=0;
             for (j=0;j<numingroup[i];j++) {
                 Pval=&Part[j+noffset[i]];
+                Ninside++;
                 EncMass+=Pval->GetMass();
                 rc=Pval->Radius();
 #ifdef GASON
                 if (Pval->GetType()==GASTYPE) {
+                    NinsideGas++;
                     EncMassGas+=Pval->GetMass();
-                    if (Pval->GetSFR()>opt.gas_sfr_threshold) EncMassGasSF+=Pval->GetMass();
-                    else EncMassGasNSF+=Pval->GetMass();
+#ifdef STARON
+                    if (Pval->GetSFR()>opt.gas_sfr_threshold) {
+                        NinsideGasSF++;
+                        EncMassGasSF+=Pval->GetMass();
+                    }
+                    else {
+                        NinsideGasNSF++;
+                        EncMassGasNSF+=Pval->GetMass();
+                    }
+#endif
                 }
 #endif
 #ifdef STARON
-                if (Pval->GetType()==STARTYPE) EncMassStar+=Pval->GetMass();
+                if (Pval->GetType()==STARTYPE) {
+                    NinsideStar++;
+                    EncMassStar+=Pval->GetMass();
+                }
 #endif
 #ifdef BHON
-                if (Pval->GetType()==BHTYPE) EncMassBH+=Pval->GetMass();
+                if (Pval->GetType()==BHTYPE) {
+                    NinsideBH++;
+                    EncMassBH+=Pval->GetMass();
+                }
 #endif
                 if (rc>=opt.aperture_values_kpc[iaptindex]) {
+                    pdata[i].aperture_npart[iaptindex]=Ninside;
                     pdata[i].aperture_mass[iaptindex]=EncMass;
 #ifdef GASON
+                    pdata[i].aperture_npart_gas[iaptindex]=NinsideGas;
                     pdata[i].aperture_mass_gas[iaptindex]=EncMassGas;
+#ifdef STARON
+                    pdata[i].aperture_npart_gas_sf[iaptindex]=NinsideGasSF;
+                    pdata[i].aperture_npart_gas_nsf[iaptindex]=NinsideGasNSF;
                     pdata[i].aperture_mass_gas_sf[iaptindex]=EncMassGasSF;
                     pdata[i].aperture_mass_gas_nsf[iaptindex]=EncMassGasNSF;
 #endif
+#endif
 #ifdef STARON
+                    pdata[i].aperture_npart_star[iaptindex]=NinsideStar;
                     pdata[i].aperture_mass_star[iaptindex]=EncMassStar;
 #endif
                     iaptindex++;
@@ -2041,8 +2093,10 @@ private(i,j,k,Pval,rc,EncMass)
             pdata[i].aperture_mass[iaptindex]*=opt.MassValue;
 #ifdef GASON
             pdata[i].aperture_mass_gas[iaptindex]*=opt.MassValue;
+#ifdef STARON
             pdata[i].aperture_mass_gas_sf[iaptindex]*=opt.MassValue;
             pdata[i].aperture_mass_gas_nsf[iaptindex]*=opt.MassValue;
+#endif
 #endif
 #ifdef STARON
             pdata[i].aperture_mass_star[iaptindex]*=opt.MassValue;
@@ -2480,6 +2534,56 @@ firstprivate(virval,m200val,m200mval,mBN98val)
 #endif
 
     //if calculating profiles
+    if (opt.iprofilecalc) {
+#ifdef USEOPENMP
+#pragma omp parallel default(shared)  \
+private(i,j,k,Pval)\
+private(massval,EncMass,Ninside,rc)
+{
+#pragma omp for schedule(dynamic) nowait
+#endif
+        for (i=1;i<=ngroup;i++)
+        {
+            double irnorm;
+            int rbinindex;
+            if (opt.iprofilenorm == PROFILER200CRITLOG) irnorm = 1.0/pdata[i].gR200c;
+            else irnorm = 1.0/pdata[i].gR200c;
+            for (j=0;j<numingroup[i];j++) {
+                Pval = &Part[noffset[i] + j];
+                massval = Pval->GetMass() ;
+                rc = Pval->Radius()*irnorm;
+                //rbindex = GetRadialBin(rc);
+                pdata[i].profile_mass_inclusive[rbinindex] += massval;
+                pdata[i].profile_npart_inclusive[rbinindex] += 1;
+#ifdef GASON
+                if (Pval->GetType()==GASTYPE) {
+                    pdata[i].profile_mass_inclusive_gas[rbinindex] += massval;
+                    pdata[i].profile_npart_inclusive_gas[rbinindex] += 1;
+#ifdef STARON
+                    if (Pval->GetSFR()>opt.gas_sfr_threshold)
+                    {
+                        pdata[i].profile_mass_inclusive_gas_sf[rbinindex] += massval;
+                        pdata[i].profile_npart_inclusive_gas_sf[rbinindex] += 1;
+                    }
+                    else {
+                        pdata[i].profile_mass_inclusive_gas_nsf[rbinindex] += massval;
+                        pdata[i].profile_npart_inclusive_gas_nsf[rbinindex] += 1;
+                    }
+#endif
+                }
+#endif
+#ifdef STARON
+                if (Pval->GetType()==STARTYPE) {
+                    pdata[i].profile_mass_inclusive_star[rbinindex] += massval;
+                    pdata[i].profile_npart_inclusive_star[rbinindex] += 1;
+                }
+#endif
+            }
+        }
+#ifdef USEOPENMP
+}
+#endif
+    }
 
     //reset the positions of the particles
 #ifdef USEOPENMP

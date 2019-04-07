@@ -595,7 +595,6 @@ struct Options
     Double_t gas_sfr_threshold;
     //@}
 
-
     Options()
     {
         L = 1.0;
@@ -1151,6 +1150,7 @@ struct PropData
 
     ///\name radial profiles
     //@{
+    vector<int> aperture_npart;
     vector<float> aperture_mass;
     vector<int> profile_npart;
     vector<int> profile_npart_inclusive;
@@ -1192,6 +1192,7 @@ struct PropData
 
     ///\name gas radial profiles
     //@{
+    vector<float> aperture_npart_gas;
     vector<float> aperture_mass_gas;
     vector<int> profile_npart_gas;
     vector<int> profile_npart_inclusive_gas;
@@ -1233,6 +1234,7 @@ struct PropData
 
     ///\name gas star forming radial profiles
     //@{
+    vector<int> aperture_npart_gas_sf;
     vector<float> aperture_mass_gas_sf;
     vector<int> profile_npart_gas_sf;
     vector<int> profile_npart_inclusive_gas_sf;
@@ -1274,6 +1276,7 @@ struct PropData
 
     ///\name gas star forming radial profiles
     //@{
+    vector<int> aperture_npart_gas_nsf;
     vector<float> aperture_mass_gas_nsf;
     vector<int> profile_npart_gas_nsf;
     vector<int> profile_npart_inclusive_gas_nsf;
@@ -1315,6 +1318,7 @@ struct PropData
 
     ///\name stellar radial profiles
     //@{
+    vector<int> aperture_npart_star;
     vector<float> aperture_mass_star;
     vector<int> profile_npart_star;
     vector<int> profile_npart_inclusive_star;
@@ -1550,13 +1554,18 @@ struct PropData
         L_200crit_excl_star=p.L_200crit_excl_star;
         L_BN98_excl_star=p.L_BN98_excl_star;
 #endif
+        aperture_npart=p.aperture_npart;
         aperture_mass=p.aperture_mass;
 #ifdef GASON
+        aperture_npart_gas=p.aperture_npart_gas;
+        aperture_npart_gas_sf=p.aperture_npart_gas_sf;
+        aperture_npart_gas_nsf=p.aperture_npart_gas_nsf;
         aperture_mass_gas=p.aperture_mass_gas;
         aperture_mass_gas_sf=p.aperture_mass_gas_sf;
         aperture_mass_gas_nsf=p.aperture_mass_gas_nsf;
 #endif
 #ifdef STARON
+        aperture_npart_star=p.aperture_npart_star;
         aperture_mass_star=p.aperture_mass_star;
 #endif
         profile_npart=p.profile_npart;
@@ -1590,13 +1599,18 @@ struct PropData
     void AllocateProfiles(Options &opt)
     {
         if (opt.iaperturecalc) {
+            aperture_npart.resize(opt.aperturenum);
             aperture_mass.resize(opt.aperturenum);
 #ifdef GASON
+            aperture_npart_gas.resize(opt.aperturenum);
+            aperture_npart_gas_sf.resize(opt.aperturenum);
+            aperture_npart_gas_nsf.resize(opt.aperturenum);
             aperture_mass_gas.resize(opt.aperturenum);
             aperture_mass_gas_sf.resize(opt.aperturenum);
             aperture_mass_gas_nsf.resize(opt.aperturenum);
 #endif
 #ifdef STARON
+            aperture_npart_star.resize(opt.aperturenum);
             aperture_mass_star.resize(opt.aperturenum);
 #endif
         }
