@@ -715,65 +715,67 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     }
 
     Int_t *idval;
-    if (nids>0) {
-        idval=new Int_t[nids];
-        nids=0;
-        for (Int_t i=1;i<=ngroups;i++)
-            for (Int_t j=0;j<pglist[i][numingroup[i]];j++)
-                idval[nids++]=Part[pglist[i][j]].GetPID();
-        if (opt.ibinaryout==OUTBINARY) Fout.write((char*)idval,sizeof(Int_t)*nids);
+    idval=new Int_t[nids+1];
+    nids=0;
+    for (Int_t i=1;i<=ngroups;i++)
+        for (Int_t j=0;j<pglist[i][numingroup[i]];j++)
+            idval[nids++]=Part[pglist[i][j]].GetPID();
+    if (opt.ibinaryout==OUTBINARY) Fout.write((char*)idval,sizeof(Int_t)*nids);
 #ifdef USEHDF
-        else if (opt.ibinaryout==OUTHDF) {
-            dims=new hsize_t[1];
-            chunk_dims=new hsize_t[1];
-            dims[0]=nids;
-            rank=1;
-            chunk_dims[0]=min((unsigned long)HDFOUTPUTCHUNKSIZE,nids);
-            if (chunk_dims[0]>0) {
-                hdfdatasetproplist=DSetCreatPropList();
-                // Modify dataset creation property to enable chunking
-                hdfdatasetproplist.setChunk(rank, chunk_dims);
-                // Set ZLIB (DEFLATE) Compression using level 6.
-                hdfdatasetproplist.setDeflate(6);
-                dataspace=DataSpace(rank,dims);
-                dataset = Fhdf.createDataSet(datagroupnames.part[itemp], datagroupnames.partdatatype[itemp], dataspace, hdfdatasetproplist);
-            }
-            else {
-                dataset = Fhdf.createDataSet(datagroupnames.part[itemp], datagroupnames.partdatatype[itemp], dataspace);
-            }
+    else if (opt.ibinaryout==OUTHDF) {
+        dims=new hsize_t[1];
+        chunk_dims=new hsize_t[1];
+        dims[0]=nids;
+        rank=1;
+        chunk_dims[0]=min((unsigned long)HDFOUTPUTCHUNKSIZE,nids);
+        if (chunk_dims[0]>0) {
+            hdfdatasetproplist=DSetCreatPropList();
+            // Modify dataset creation property to enable chunking
+            hdfdatasetproplist.setChunk(rank, chunk_dims);
+            // Set ZLIB (DEFLATE) Compression using level 6.
+            hdfdatasetproplist.setDeflate(6);
+            dataspace=DataSpace(rank,dims);
+            dataset = Fhdf.createDataSet(datagroupnames.part[itemp], datagroupnames.partdatatype[itemp], dataspace, hdfdatasetproplist);
+        }
+        else {
+            dataset = Fhdf.createDataSet(datagroupnames.part[itemp], datagroupnames.partdatatype[itemp], dataspace);
+        }
+        if (nids > 0){
             long long *data=new long long[nids];
             for (Int_t i=0;i<nids;i++) data[i]=idval[i];
             dataset.write(data,datagroupnames.partdatatype[itemp]);
             delete[] data;
-            delete[] dims;
-            delete[] chunk_dims;
         }
+        delete[] dims;
+        delete[] chunk_dims;
+    }
 #endif
 #ifdef USEADIOS
-        else if (opt.ibinaryout==OUTADIOS) {
-            adios_err=adios_declare_group(&adios_grp_handle,"Catalog_Data", "" , adios_stat_full);
-            adios_select_method (adios_grp_handle, "MPI", "", "");
-            //store local dim
-            adios_err=adios_define_var(adios_grp_handle,"nids","", adios_unsigned_long,0,0,0);
-            //store global dim
-            adios_err=adios_define_var(adios_grp_handle,"nidstot","", adios_unsigned_long,0,0,0);
-            //store mpi offset
-            adios_err=adios_define_var(adios_grp_handle,"nidsmpioffset","", adios_unsigned_long,0,0,0);
-            adios_err=adios_define_var(adios_grp_handle,datagroupnames.group[itemp].c_str(),"",datagroupnames.adiosgroupdatatype[itemp],"nids","nidstot","nidsmpioffset");
-            adios_err=adios_write(adios_file_handle,"nids",&nids);
-            adios_err=adios_write(adios_file_handle,"nidstot",&nidstot);
-            Int_t mpioffset=0;
-            //for (Int_t itask=0;itask<ThisTask;itask++)mpioffset+=mpi_ngroups[itask];
-            adios_err=adios_write(adios_file_handle,"nidsmpioffset",&mpioffset);
+    else if (opt.ibinaryout==OUTADIOS) {
+        adios_err=adios_declare_group(&adios_grp_handle,"Catalog_Data", "" , adios_stat_full);
+        adios_select_method (adios_grp_handle, "MPI", "", "");
+        //store local dim
+        adios_err=adios_define_var(adios_grp_handle,"nids","", adios_unsigned_long,0,0,0);
+        //store global dim
+        adios_err=adios_define_var(adios_grp_handle,"nidstot","", adios_unsigned_long,0,0,0);
+        //store mpi offset
+        adios_err=adios_define_var(adios_grp_handle,"nidsmpioffset","", adios_unsigned_long,0,0,0);
+        adios_err=adios_define_var(adios_grp_handle,datagroupnames.group[itemp].c_str(),"",datagroupnames.adiosgroupdatatype[itemp],"nids","nidstot","nidsmpioffset");
+        adios_err=adios_write(adios_file_handle,"nids",&nids);
+        adios_err=adios_write(adios_file_handle,"nidstot",&nidstot);
+        Int_t mpioffset=0;
+        //for (Int_t itask=0;itask<ThisTask;itask++)mpioffset+=mpi_ngroups[itask];
+        adios_err=adios_write(adios_file_handle,"nidsmpioffset",&mpioffset);
+        if (nids > 0) {
             long long *data=new long long[nids];
             for (Int_t i=0;i<nids;i++) data[i-1]=idval[i];
             adios_err=adios_write(adios_file_handle,datagroupnames.group[itemp].c_str(),data);
             delete[] data;
         }
-#endif
-        else for (Int_t i=0;i<nids;i++) Fout<<idval[i]<<endl;
-        delete[] idval;
     }
+#endif
+    else for (Int_t i=0;i<nids;i++) Fout<<idval[i]<<endl;
+    delete[] idval;
     if (opt.ibinaryout==OUTASCII || opt.ibinaryout==OUTBINARY) Fout.close();
 #ifdef USEHDF
     if (opt.ibinaryout==OUTHDF) Fhdf.close();
@@ -782,65 +784,67 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     else if (opt.ibinaryout==OUTADIOS) adios_err=adios_close(adios_file_handle);
 #endif
 
-    if (nuids>0) {
-        idval=new Int_t[nuids];
-        nuids=0;
-        for (Int_t i=1;i<=ngroups;i++)
-            for (Int_t j=pglist[i][numingroup[i]];j<numingroup[i];j++)
-                idval[nuids++]=Part[pglist[i][j]].GetPID();
-        if (opt.ibinaryout==OUTBINARY) Fout3.write((char*)idval,sizeof(Int_t)*nuids);
+    idval=new Int_t[nuids+1];
+    nuids=0;
+    for (Int_t i=1;i<=ngroups;i++)
+        for (Int_t j=pglist[i][numingroup[i]];j<numingroup[i];j++)
+            idval[nuids++]=Part[pglist[i][j]].GetPID();
+    if (opt.ibinaryout==OUTBINARY) Fout3.write((char*)idval,sizeof(Int_t)*nuids);
 #ifdef USEHDF
-        else if (opt.ibinaryout==OUTHDF) {
-            dims=new hsize_t[1];
-            chunk_dims=new hsize_t[1];
-            dims[0]=nuids;
-            rank=1;
-            chunk_dims[0]=min((unsigned long)HDFOUTPUTCHUNKSIZE,nuids);
-            if (chunk_dims[0]>0) {
-                hdfdatasetproplist=DSetCreatPropList();
-                // Modify dataset creation property to enable chunking
-                hdfdatasetproplist.setChunk(rank, chunk_dims);
-                // Set ZLIB (DEFLATE) Compression using level 6.
-                hdfdatasetproplist.setDeflate(6);
-                dataspace=DataSpace(rank,dims);
-                dataset = Fhdf3.createDataSet(datagroupnames.part[itemp], datagroupnames.partdatatype[itemp], dataspace,hdfdatasetproplist);
-            }
-            else {
-                dataset = Fhdf3.createDataSet(datagroupnames.part[itemp], datagroupnames.partdatatype[itemp], dataspace);
-            }
+    else if (opt.ibinaryout==OUTHDF) {
+        dims=new hsize_t[1];
+        chunk_dims=new hsize_t[1];
+        dims[0]=nuids;
+        rank=1;
+        chunk_dims[0]=min((unsigned long)HDFOUTPUTCHUNKSIZE,nuids);
+        if (chunk_dims[0]>0) {
+            hdfdatasetproplist=DSetCreatPropList();
+            // Modify dataset creation property to enable chunking
+            hdfdatasetproplist.setChunk(rank, chunk_dims);
+            // Set ZLIB (DEFLATE) Compression using level 6.
+            hdfdatasetproplist.setDeflate(6);
+            dataspace=DataSpace(rank,dims);
+            dataset = Fhdf3.createDataSet(datagroupnames.part[itemp], datagroupnames.partdatatype[itemp], dataspace,hdfdatasetproplist);
+        }
+        else {
+            dataset = Fhdf3.createDataSet(datagroupnames.part[itemp], datagroupnames.partdatatype[itemp], dataspace);
+        }
+        if (nuids > 0) {
             long long *data=new long long[nuids];
             for (Int_t i=0;i<nuids;i++) data[i]=idval[i];
             dataset.write(data,datagroupnames.partdatatype[itemp]);
             delete[] data;
-            delete[] dims;
-            delete[] chunk_dims;
         }
+        delete[] dims;
+        delete[] chunk_dims;
+    }
 #endif
 #ifdef USEADIOS
-        else if (opt.ibinaryout==OUTADIOS) {
-            adios_err=adios_declare_group(&adios_grp_handle3,"Catalog_Data", "" , adios_stat_full);
-            adios_select_method (adios_grp_handle3, "MPI", "", "");
-            //store local dim
-            adios_err=adios_define_var(adios_grp_handle3,"nuids","", adios_unsigned_long,0,0,0);
-            //store global dim
-            adios_err=adios_define_var(adios_grp_handle3,"nuidstot","", adios_unsigned_long,0,0,0);
-            //store mpi offset
-            adios_err=adios_define_var(adios_grp_handle3,"nuidsmpioffset","", adios_unsigned_long,0,0,0);
-            adios_err=adios_define_var(adios_grp_handle3,datagroupnames.group[itemp].c_str(),"",datagroupnames.adiosgroupdatatype[itemp],"nuids","nuidstot","nuidsmpioffset");
-            adios_err=adios_write(adios_file_handle3,"nuids",&nuids);
-            adios_err=adios_write(adios_file_handle3,"nuidstot",&nuidstot);
-            Int_t mpioffset=0;
-            //for (Int_t itask=0;itask<ThisTask;itask++)mpioffset+=mpi_ngroups[itask];
-            adios_err=adios_write(adios_file_handle3,"nidsmpioffset",&mpioffset);
+    else if (opt.ibinaryout==OUTADIOS) {
+        adios_err=adios_declare_group(&adios_grp_handle3,"Catalog_Data", "" , adios_stat_full);
+        adios_select_method (adios_grp_handle3, "MPI", "", "");
+        //store local dim
+        adios_err=adios_define_var(adios_grp_handle3,"nuids","", adios_unsigned_long,0,0,0);
+        //store global dim
+        adios_err=adios_define_var(adios_grp_handle3,"nuidstot","", adios_unsigned_long,0,0,0);
+        //store mpi offset
+        adios_err=adios_define_var(adios_grp_handle3,"nuidsmpioffset","", adios_unsigned_long,0,0,0);
+        adios_err=adios_define_var(adios_grp_handle3,datagroupnames.group[itemp].c_str(),"",datagroupnames.adiosgroupdatatype[itemp],"nuids","nuidstot","nuidsmpioffset");
+        adios_err=adios_write(adios_file_handle3,"nuids",&nuids);
+        adios_err=adios_write(adios_file_handle3,"nuidstot",&nuidstot);
+        Int_t mpioffset=0;
+        //for (Int_t itask=0;itask<ThisTask;itask++)mpioffset+=mpi_ngroups[itask];
+        adios_err=adios_write(adios_file_handle3,"nidsmpioffset",&mpioffset);
+        if (nuids > 0) {
             long long *data=new long long[nuids];
             for (Int_t i=0;i<nuids;i++) data[i-1]=idval[i];
             adios_err=adios_write(adios_file_handle3,datagroupnames.group[itemp].c_str(),data);
             delete[] data;
         }
-#endif
-        else for (Int_t i=0;i<nuids;i++) Fout3<<idval[i]<<endl;
-        delete[] idval;
     }
+#endif
+    else for (Int_t i=0;i<nuids;i++) Fout3<<idval[i]<<endl;
+    delete[] idval;
 
     if (opt.ibinaryout==OUTASCII || opt.ibinaryout==OUTBINARY) Fout3.close();
 #ifdef USEHDF
@@ -985,84 +989,84 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
         Fout2<<nuids<<" "<<nuidstot<<endl;
     }
 
-    if (nids>0) {
-        typeval=new int[nids];
-        nids=0;
-        for (Int_t i=1;i<=ngroups;i++)
-            for (Int_t j=0;j<pglist[i][numingroup[i]];j++)
-                typeval[nids++]=Part[pglist[i][j]].GetType();
-        if (opt.ibinaryout==OUTBINARY) Fout.write((char*)typeval,sizeof(int)*nids);
+    typeval=new int[nids+1];
+    nids=0;
+    for (Int_t i=1;i<=ngroups;i++)
+        for (Int_t j=0;j<pglist[i][numingroup[i]];j++)
+            typeval[nids++]=Part[pglist[i][j]].GetType();
+    if (opt.ibinaryout==OUTBINARY) Fout.write((char*)typeval,sizeof(int)*nids);
 #ifdef USEHDF
-        else if (opt.ibinaryout==OUTHDF) {
-            dims=new hsize_t[1];
-            chunk_dims=new hsize_t[1];
-            dims[0]=nids;
-            rank=1;
-            chunk_dims[0]=min((Int_t)HDFOUTPUTCHUNKSIZE,nids);
-            if (chunk_dims[0]>0) {
-                hdfdatasetproplist=DSetCreatPropList();
-                // Modify dataset creation property to enable chunking
-                hdfdatasetproplist.setChunk(rank, chunk_dims);
-                // Set ZLIB (DEFLATE) Compression using level 6.
-                hdfdatasetproplist.setDeflate(6);
-                dataspace=DataSpace(rank,dims);
-                dataset = Fhdf.createDataSet(datagroupnames.types[itemp], datagroupnames.typesdatatype[itemp], dataspace, hdfdatasetproplist);
-            }
-            else {
-                dataset = Fhdf.createDataSet(datagroupnames.types[itemp], datagroupnames.typesdatatype[itemp], dataspace);
-            }
+    else if (opt.ibinaryout==OUTHDF) {
+        dims=new hsize_t[1];
+        chunk_dims=new hsize_t[1];
+        dims[0]=nids;
+        rank=1;
+        chunk_dims[0]=min((Int_t)HDFOUTPUTCHUNKSIZE,nids);
+        if (chunk_dims[0]>0) {
+            hdfdatasetproplist=DSetCreatPropList();
+            // Modify dataset creation property to enable chunking
+            hdfdatasetproplist.setChunk(rank, chunk_dims);
+            // Set ZLIB (DEFLATE) Compression using level 6.
+            hdfdatasetproplist.setDeflate(6);
+            dataspace=DataSpace(rank,dims);
+            dataset = Fhdf.createDataSet(datagroupnames.types[itemp], datagroupnames.typesdatatype[itemp], dataspace, hdfdatasetproplist);
+        }
+        else {
+            dataset = Fhdf.createDataSet(datagroupnames.types[itemp], datagroupnames.typesdatatype[itemp], dataspace);
+        }
+        if (nids>0) {
             unsigned short *data=new unsigned short[nids];
             for (Int_t i=0;i<nids;i++) data[i]=typeval[i];
             dataset.write(data,datagroupnames.typesdatatype[itemp]);
             delete[] data;
-            delete[] dims;
-            delete[] chunk_dims;
         }
-#endif
-        else for (Int_t i=0;i<nids;i++) Fout<<typeval[i]<<endl;
-        delete[] typeval;
+        delete[] dims;
+        delete[] chunk_dims;
     }
+#endif
+    else for (Int_t i=0;i<nids;i++) Fout<<typeval[i]<<endl;
+    delete[] typeval;
     if (opt.ibinaryout!=OUTHDF) Fout.close();
 #ifdef USEHDF
     else Fhdf.close();
 #endif
 
-    if (nuids>0) {
-        typeval=new int[nuids];
-        nuids=0;
-        for (Int_t i=1;i<=ngroups;i++)
-            for (Int_t j=pglist[i][numingroup[i]];j<numingroup[i];j++)
-                typeval[nuids++]=Part[pglist[i][j]].GetType();
-        if (opt.ibinaryout==OUTBINARY) Fout2.write((char*)typeval,sizeof(int)*nuids);
+    typeval=new int[nuids];
+    nuids=0;
+    for (Int_t i=1;i<=ngroups;i++)
+        for (Int_t j=pglist[i][numingroup[i]];j<numingroup[i];j++)
+            typeval[nuids++]=Part[pglist[i][j]].GetType();
+    if (opt.ibinaryout==OUTBINARY) Fout2.write((char*)typeval,sizeof(int)*nuids);
 #ifdef USEHDF
-        else if (opt.ibinaryout==OUTHDF) {
-            dims=new hsize_t[1];
-            chunk_dims=new hsize_t[1];
-            dims[0]=nuids;
-            rank=1;
-            chunk_dims[0]=min((Int_t)HDFOUTPUTCHUNKSIZE,nuids);
-            if (chunk_dims[0]>0) {
-                hdfdatasetproplist=DSetCreatPropList();
-                // Modify dataset creation property to enable chunking
-                hdfdatasetproplist.setChunk(rank, chunk_dims);
-                // Set ZLIB (DEFLATE) Compression using level 6.
-                hdfdatasetproplist.setDeflate(6);
-                dataspace=DataSpace(rank,dims);
-                dataset = Fhdf2.createDataSet(datagroupnames.types[itemp], datagroupnames.typesdatatype[itemp], dataspace,hdfdatasetproplist);
-            }
-            else {
-                dataset = Fhdf2.createDataSet(datagroupnames.types[itemp], datagroupnames.typesdatatype[itemp], dataspace);
-            }
+    else if (opt.ibinaryout==OUTHDF) {
+        dims=new hsize_t[1];
+        chunk_dims=new hsize_t[1];
+        dims[0]=nuids;
+        rank=1;
+        chunk_dims[0]=min((Int_t)HDFOUTPUTCHUNKSIZE,nuids);
+        if (chunk_dims[0]>0) {
+            hdfdatasetproplist=DSetCreatPropList();
+            // Modify dataset creation property to enable chunking
+            hdfdatasetproplist.setChunk(rank, chunk_dims);
+            // Set ZLIB (DEFLATE) Compression using level 6.
+            hdfdatasetproplist.setDeflate(6);
+            dataspace=DataSpace(rank,dims);
+            dataset = Fhdf2.createDataSet(datagroupnames.types[itemp], datagroupnames.typesdatatype[itemp], dataspace,hdfdatasetproplist);
+        }
+        else {
+            dataset = Fhdf2.createDataSet(datagroupnames.types[itemp], datagroupnames.typesdatatype[itemp], dataspace);
+        }
+        if (nuids>0) {
             unsigned short *data=new unsigned short[nuids];
             for (Int_t i=0;i<nuids;i++) data[i]=typeval[i];
             dataset.write(data,datagroupnames.typesdatatype[itemp]);
             delete[] data;
-            delete[] dims;
         }
-#endif
-        else for (Int_t i=0;i<nuids;i++) Fout2<<typeval[i]<<endl;
-        delete[] typeval;
+        delete[] dims;
     }
+#endif
+    else for (Int_t i=0;i<nuids;i++) Fout2<<typeval[i]<<endl;
+    delete[] typeval;
     if (opt.ibinaryout!=OUTHDF) Fout2.close();
 #ifdef USEHDF
     else Fhdf2.close();

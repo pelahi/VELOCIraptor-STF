@@ -429,7 +429,3 @@ List of naming conventions are
 .. doxygengroup:: HDFNAMES
 
 For complete discussion of implementation see :download:`../src/hdfitems.h`
-
-
-Using **TreeFrog**
-##################
