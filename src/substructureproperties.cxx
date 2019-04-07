@@ -420,7 +420,8 @@ private(i)
 #endif
     for (i=1;i<=ngroup;i++) {
         pdata[i].num=numingroup[i];
-        pdata[i].AllocateProfiles(opt);
+
+        if ((opt.iInclusiveHalo && pdata[i].hostid !=-1) || opt.iInclusiveHalo==0) pdata[i].AllocateProfiles(opt);
     }
 #ifdef USEOPENMP
 }
@@ -2477,6 +2478,8 @@ firstprivate(virval,m200val,m200mval,mBN98val)
 #ifdef USEOPENMP
 }
 #endif
+
+    //if calculating profiles
 
     //reset the positions of the particles
 #ifdef USEOPENMP
