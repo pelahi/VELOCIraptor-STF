@@ -251,6 +251,7 @@ using namespace NBody;
 
 ///\defgroup radial profile parameters
 //@{
+#define PROFILERNORMR200CRIT 0
 #define PROFILER200CRITLOG 0
 //@}
 

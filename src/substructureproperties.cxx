@@ -2545,39 +2545,13 @@ private(massval,EncMass,Ninside,rc)
         for (i=1;i<=ngroup;i++)
         {
             double irnorm;
-            int rbinindex;
+            //as particles are radially sorted, init the radial bin at zero
+            int ibin =0;
             if (opt.iprofilenorm == PROFILER200CRITLOG) irnorm = 1.0/pdata[i].gR200c;
             else irnorm = 1.0/pdata[i].gR200c;
             for (j=0;j<numingroup[i];j++) {
                 Pval = &Part[noffset[i] + j];
-                massval = Pval->GetMass() ;
-                rc = Pval->Radius()*irnorm;
-                //rbindex = GetRadialBin(rc);
-                pdata[i].profile_mass_inclusive[rbinindex] += massval;
-                pdata[i].profile_npart_inclusive[rbinindex] += 1;
-#ifdef GASON
-                if (Pval->GetType()==GASTYPE) {
-                    pdata[i].profile_mass_inclusive_gas[rbinindex] += massval;
-                    pdata[i].profile_npart_inclusive_gas[rbinindex] += 1;
-#ifdef STARON
-                    if (Pval->GetSFR()>opt.gas_sfr_threshold)
-                    {
-                        pdata[i].profile_mass_inclusive_gas_sf[rbinindex] += massval;
-                        pdata[i].profile_npart_inclusive_gas_sf[rbinindex] += 1;
-                    }
-                    else {
-                        pdata[i].profile_mass_inclusive_gas_nsf[rbinindex] += massval;
-                        pdata[i].profile_npart_inclusive_gas_nsf[rbinindex] += 1;
-                    }
-#endif
-                }
-#endif
-#ifdef STARON
-                if (Pval->GetType()==STARTYPE) {
-                    pdata[i].profile_mass_inclusive_star[rbinindex] += massval;
-                    pdata[i].profile_npart_inclusive_star[rbinindex] += 1;
-                }
-#endif
+                AddParticleToRadialBin(opt,Pval,irnorm,ibin,pdata[i]);
             }
         }
 #ifdef USEOPENMP
@@ -2901,6 +2875,27 @@ private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,
 #endif
                 }
             }
+
+            //if calculating profiles
+            if (opt.iprofilecalc) {
+                double irnorm;
+                //as particles are radially sorted, init the radial bin at zero
+                int ibin = 0;
+                if (opt.iprofilenorm == PROFILER200CRITLOG) irnorm = 1.0/pdata[i].gR200c;
+                else irnorm = 1.0/pdata[i].gR200c;
+                for (j=0;j<radii.size();j++) {
+                    ///\todo need to update to allow for star forming/non-star forming profiles
+                    ///by storing the star forming value.
+                    double sfrval = 0;
+                    AddDataToRadialBin(opt, radii[indices[j]], masses[indices[j]],
+#if defined(GASON) || defined(STARON) || defined(BHON)
+                        sfrval, typeparts[indices[j]],
+#endif
+                        irnorm, ibin, pdata[i]);
+                }
+
+            }
+
 
             if (opt.iSphericalOverdensityPartList) {
                 SOpartlist[i].resize(iindex);
@@ -4167,6 +4162,89 @@ Double_t CalcCosmicTime(Options &opt, Double_t a1, Double_t a2){
     cosmictime = 1./(opt.h*opt.H*opt.velocitytokms/opt.lengthtokpc*1.02269032e-9)*result;
     return cosmictime;
 }
+//@}
 
+///\name Radial Profile functions
+//@{
+int GetRadialBin(Options &opt, Double_t rc, int &ibin) {
+    if (opt.iprofilecalc==PROFILER200CRITLOG)
+    {
+        rc = log10(rc);
+        //if radial bin outside last bin edge return -1 and data ignored.
+        if (rc > opt.profile_bin_edges[opt.profile_bin_edges.size()-1]) return -1;
+        //otherwise check to see if input rc (which should be sorted in increase radius) is
+        //greater than current active bin edge and increase ibin, the active bin
+        if (rc > opt.profile_bin_edges[ibin]) ibin++;
+    }
+    return ibin;
+}
+
+void AddParticleToRadialBin(Options &opt, Particle *Pval, Double_t irnorm, int &ibin, PropData &pdata)
+{
+    ibin = GetRadialBin(opt,Pval->Radius()*irnorm, ibin);
+    if (ibin == -1) return;
+    Double_t massval = Pval->GetMass();
+    pdata.profile_mass_inclusive[ibin] += massval;
+    pdata.profile_npart_inclusive[ibin] += 1;
+#ifdef GASON
+    if (Pval->GetType()==GASTYPE) {
+        pdata.profile_mass_inclusive_gas[ibin] += massval;
+        pdata.profile_npart_inclusive_gas[ibin] += 1;
+#ifdef STARON
+        if (Pval->GetSFR()>opt.gas_sfr_threshold)
+        {
+            pdata.profile_mass_inclusive_gas_sf[ibin] += massval;
+            pdata.profile_npart_inclusive_gas_sf[ibin] += 1;
+        }
+        else {
+            pdata.profile_mass_inclusive_gas_nsf[ibin] += massval;
+            pdata.profile_npart_inclusive_gas_nsf[ibin] += 1;
+        }
+#endif
+    }
+#endif
+#ifdef STARON
+    if (Pval->GetType()==STARTYPE) {
+        pdata.profile_mass_inclusive_star[ibin] += massval;
+        pdata.profile_npart_inclusive_star[ibin] += 1;
+    }
+#endif
+}
+
+
+void AddDataToRadialBin(Options &opt, Double_t rval, Double_t massval,
+#if defined(GASON) || defined(STARON) || defined(BHON)
+    Double_t sfrval, int typeval,
+#endif
+    Double_t irnorm, int &ibin, PropData &pdata)
+{
+    ibin = GetRadialBin(opt,rval*irnorm, ibin);
+    if (ibin == -1) return;
+    pdata.profile_mass_inclusive[ibin] += massval;
+    pdata.profile_npart_inclusive[ibin] += 1;
+#ifdef GASON
+    if (typeval==GASTYPE) {
+        pdata.profile_mass_inclusive_gas[ibin] += massval;
+        pdata.profile_npart_inclusive_gas[ibin] += 1;
+#ifdef STARON
+        if (sfrval>opt.gas_sfr_threshold)
+        {
+            pdata.profile_mass_inclusive_gas_sf[ibin] += massval;
+            pdata.profile_npart_inclusive_gas_sf[ibin] += 1;
+        }
+        else {
+            pdata.profile_mass_inclusive_gas_nsf[ibin] += massval;
+            pdata.profile_npart_inclusive_gas_nsf[ibin] += 1;
+        }
+#endif
+    }
+#endif
+#ifdef STARON
+    if (typeval==STARTYPE) {
+        pdata.profile_mass_inclusive_star[ibin] += massval;
+        pdata.profile_npart_inclusive_star[ibin] += 1;
+    }
+#endif
+}
 
 //@}
