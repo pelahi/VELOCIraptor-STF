@@ -1630,7 +1630,7 @@ struct PropData
 #endif
             for (auto i=0;i<opt.profilenbins;i++) profile_npart_gas[i]=profile_mass_gas[i]=0;
 #ifdef STARON
-            for (auto i=0;i<opt.profilenbins;i++) profile_npart_gas_sfr[i]=profile_mass_gas_sfr[i]=profile_npart_gas_nsfr[i]=profile_mass_gas_nsfr[i]=0;
+            for (auto i=0;i<opt.profilenbins;i++) profile_npart_gas_sf[i]=profile_mass_gas_sf[i]=profile_npart_gas_nsf[i]=profile_mass_gas_nsf[i]=0;
 #endif
 #endif
 #ifdef STARON
@@ -1653,7 +1653,7 @@ struct PropData
 #endif
                 for (auto i=0;i<opt.profilenbins;i++) profile_npart_inclusive_gas[i]=profile_mass_inclusive_gas[i]=0;
 #ifdef STARON
-                for (auto i=0;i<opt.profilenbins;i++) profile_npart_inclusive_gas_sfr[i]=profile_mass_inclusive_gas_sfr[i]=profile_npart_inclusive_gas_nsfr[i]=profile_mass_inclusive_gas_nsfr[i]=0;
+                for (auto i=0;i<opt.profilenbins;i++) profile_npart_inclusive_gas_sf[i]=profile_mass_inclusive_gas_sf[i]=profile_npart_inclusive_gas_nsf[i]=profile_mass_inclusive_gas_nsf[i]=0;
 #endif
 #endif
 #ifdef STARON
@@ -1675,12 +1675,12 @@ struct PropData
             profile_mass_inclusive_gas[i]=profile_mass_gas[i];
             profile_npart_gas[i]=profile_mass_gas[i]=0;
 #ifdef STARON
-            profile_npart_inclusive_gas_sfr[i]=profile_npart_gas_sfr[i];
-            profile_mass_inclusive_gas_sfr[i]=profile_mass_gas_sfr[i];
-            profile_npart_gas_sfr[i]=profile_mass_gas_sfr[i]=0;
-            profile_npart_inclusive_gas_nsfr[i]=profile_npart_gas_nsfr[i];
-            profile_mass_inclusive_gas_nsfr[i]=profile_mass_gas_nsfr[i];
-            profile_npart_gas_nsfr[i]=profile_mass_gas_nsfr[i]=0;
+            profile_npart_inclusive_gas_sf[i]=profile_npart_gas_sf[i];
+            profile_mass_inclusive_gas_sf[i]=profile_mass_gas_sf[i];
+            profile_npart_gas_sf[i]=profile_mass_gas_sf[i]=0;
+            profile_npart_inclusive_gas_nsf[i]=profile_npart_gas_nsf[i];
+            profile_mass_inclusive_gas_nsf[i]=profile_mass_gas_nsf[i];
+            profile_npart_gas_nsf[i]=profile_mass_gas_nsf[i]=0;
 #endif
 #endif
 #ifdef STARON
@@ -2127,6 +2127,45 @@ struct PropData
         val=M_interloper;
         Fout.write((char*)&val,sizeof(val));
 #endif
+
+        if (opt.iaperturecalc){
+            for (auto j=0;j<opt.aperturenum;j++) {
+                Fout.write((char*)&aperture_npart[j],sizeof(int));
+            }
+            for (auto j=0;j<opt.aperturenum;j++) {
+                Fout.write((char*)&aperture_mass[j],sizeof(val));
+            }
+#ifdef GASON
+            for (auto j=0;j<opt.aperturenum;j++) {
+                Fout.write((char*)&aperture_npart_gas[j],sizeof(int));
+            }
+            for (auto j=0;j<opt.aperturenum;j++) {
+                Fout.write((char*)&aperture_mass_gas[j],sizeof(val));
+            }
+#ifdef STARON
+            for (auto j=0;j<opt.aperturenum;j++) {
+                Fout.write((char*)&aperture_npart_gas_sf[j],sizeof(int));
+            }
+            for (auto j=0;j<opt.aperturenum;j++) {
+                Fout.write((char*)&aperture_mass_gas_sf[j],sizeof(val));
+            }
+            for (auto j=0;j<opt.aperturenum;j++) {
+                Fout.write((char*)&aperture_npart_gas_nsf[j],sizeof(int));
+            }
+            for (auto j=0;j<opt.aperturenum;j++) {
+                Fout.write((char*)&aperture_mass_gas_nsf[j],sizeof(val));
+            }
+#endif
+#endif
+#ifdef STARON
+            for (auto j=0;j<opt.aperturenum;j++) {
+                Fout.write((char*)&aperture_npart_star[j],sizeof(int));
+            }
+            for (auto j=0;j<opt.aperturenum;j++) {
+                Fout.write((char*)&aperture_mass_star[j],sizeof(val));
+            }
+#endif
+        }
     }
 
     ///write (append) the properties data to an already open ascii file
@@ -2285,6 +2324,45 @@ struct PropData
         Fout<<n_interloper<<" ";
         Fout<<M_interloper<<" ";
 #endif
+        if (opt.iaperturecalc){
+            for (auto j=0;j<opt.aperturenum;j++) {
+                Fout<<aperture_npart[j]<<" ";
+            }
+            for (auto j=0;j<opt.aperturenum;j++) {
+                Fout<<aperture_mass[j]<<" ";
+            }
+#ifdef GASON
+            for (auto j=0;j<opt.aperturenum;j++) {
+                Fout<<aperture_npart_gas[j]<<" ";
+            }
+            for (auto j=0;j<opt.aperturenum;j++) {
+                Fout<<aperture_mass_gas[j]<<" ";
+            }
+#ifdef STARON
+            for (auto j=0;j<opt.aperturenum;j++) {
+                Fout<<aperture_npart_gas_sf[j]<<" ";
+            }
+            for (auto j=0;j<opt.aperturenum;j++) {
+                Fout<<aperture_mass_gas_sf[j]<<" ";
+            }
+            for (auto j=0;j<opt.aperturenum;j++) {
+                Fout<<aperture_npart_gas_nsf[j]<<" ";
+            }
+            for (auto j=0;j<opt.aperturenum;j++) {
+                Fout<<aperture_mass_gas_nsf[j]<<" ";
+            }
+#endif
+#endif
+#ifdef STARON
+            for (auto j=0;j<opt.aperturenum;j++) {
+                Fout<<aperture_npart_star[j]<<" ";
+            }
+            for (auto j=0;j<opt.aperturenum;j++) {
+                Fout<<aperture_mass_star[j]<<" ";
+            }
+#endif
+        }
+
         Fout<<endl;
     }
 #ifdef USEHDF
@@ -2699,11 +2777,105 @@ struct PropDataHeader{
         for (int i=sizeval;i<headerdatainfo.size();i++) adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
 #endif
 #endif
-        //additional information about a halo
-        if (opt.iextrahalooutput) {
-
+        //if aperture information calculated also include
+        if (opt.iaperturecalc>0) {
+            for (auto i=0; i<opt.aperturenum;i++) {
+                headerdatainfo.push_back((string("npart_")+opt.aperture_names_kpc[i]+string("_kpc")));
+#ifdef USEHDF
+                predtypeinfo.push_back(PredType::STD_U64LE);
+#endif
+#ifdef USEADIOS
+                adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+#endif
+            }
+            for (auto i=0; i<opt.aperturenum;i++) {
+                headerdatainfo.push_back((string("mass_")+opt.aperture_names_kpc[i]+string("_kpc")));
+#ifdef USEHDF
+                predtypeinfo.push_back(desiredproprealtype[0]);
+#endif
+#ifdef USEADIOS
+                adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
+#endif
+            }
+#ifdef GASON
+        for (auto i=0; i<opt.aperturenum;i++) {
+            headerdatainfo.push_back((string("npart_gas_")+opt.aperture_names_kpc[i]+string("_kpc")));
+#ifdef USEHDF
+            predtypeinfo.push_back(PredType::STD_U64LE);
+#endif
+#ifdef USEADIOS
+            adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+#endif
         }
-
+        for (auto i=0; i<opt.aperturenum;i++) {
+            headerdatainfo.push_back((string("mass_gas_")+opt.aperture_names_kpc[i]+string("_kpc")));
+#ifdef USEHDF
+            predtypeinfo.push_back(desiredproprealtype[0]);
+#endif
+#ifdef USEADIOS
+            adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
+#endif
+        }
+#ifdef STARON
+        for (auto i=0; i<opt.aperturenum;i++) {
+            headerdatainfo.push_back((string("npart_gas_sf_")+opt.aperture_names_kpc[i]+string("_kpc")));
+#ifdef USEHDF
+            predtypeinfo.push_back(PredType::STD_U64LE);
+#endif
+#ifdef USEADIOS
+            adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+#endif
+        }
+        for (auto i=0; i<opt.aperturenum;i++) {
+            headerdatainfo.push_back((string("mass_gas_sf_")+opt.aperture_names_kpc[i]+string("_kpc")));
+#ifdef USEHDF
+            predtypeinfo.push_back(desiredproprealtype[0]);
+#endif
+#ifdef USEADIOS
+            adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
+#endif
+        }
+        for (auto i=0; i<opt.aperturenum;i++) {
+            headerdatainfo.push_back((string("npart_gas_nsf_")+opt.aperture_names_kpc[i]+string("_kpc")));
+#ifdef USEHDF
+            predtypeinfo.push_back(PredType::STD_U64LE);
+#endif
+#ifdef USEADIOS
+            adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+#endif
+        }
+        for (auto i=0; i<opt.aperturenum;i++) {
+            headerdatainfo.push_back((string("mass_gas_nsf_")+opt.aperture_names_kpc[i]+string("_kpc")));
+#ifdef USEHDF
+            predtypeinfo.push_back(desiredproprealtype[0]);
+#endif
+#ifdef USEADIOS
+            adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
+#endif
+        }
+#endif
+#endif
+#ifdef STARON
+        for (auto i=0; i<opt.aperturenum;i++) {
+            headerdatainfo.push_back((string("npart_star_")+opt.aperture_names_kpc[i]+string("_kpc")));
+#ifdef USEHDF
+            predtypeinfo.push_back(PredType::STD_U64LE);
+#endif
+#ifdef USEADIOS
+            adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+#endif
+        }
+        for (auto i=0; i<opt.aperturenum;i++) {
+            headerdatainfo.push_back((string("mass_star_")+opt.aperture_names_kpc[i]+string("_kpc")));
+#ifdef USEHDF
+            predtypeinfo.push_back(desiredproprealtype[0]);
+#endif
+#ifdef USEADIOS
+            adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
+#endif
+        }
+#endif
+        }
     }
 };
 
