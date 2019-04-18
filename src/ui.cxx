@@ -528,49 +528,13 @@ void GetParamFile(Options &opt)
                     else if (strcmp(tbuff, "Unbinding_type")==0)
                         opt.uinfo.unbindtype = atoi(vbuff);
 
-                    //other options
-                    else if (strcmp(tbuff, "Verbose")==0)
-                        opt.iverbose = atoi(vbuff);
-                    else if (strcmp(tbuff, "Write_group_array_file")==0)
-                        opt.iwritefof = atoi(vbuff);
-                    else if (strcmp(tbuff, "Snapshot_value")==0)
-                        opt.snapshotvalue = HALOIDSNVAL*atoi(vbuff);
+                    //property related
                     else if (strcmp(tbuff, "Inclusive_halo_masses")==0)
                         opt.iInclusiveHalo = atoi(vbuff);
-
-                    //input related
-                    else if (strcmp(tbuff, "Cosmological_input")==0)
-                        opt.icosmologicalin = atoi(vbuff);
-                    //input read related
-                    else if (strcmp(tbuff, "Input_chunk_size")==0)
-                        opt.inputbufsize = atol(vbuff);
-                    else if (strcmp(tbuff, "MPI_particle_total_buf_size")==0)
-                        opt.mpiparticletotbufsize = atol(vbuff);
-                    //mpi memory related
-                    else if (strcmp(tbuff, "MPI_part_allocation_fac")==0)
-                        opt.mpipartfac = atof(vbuff);
-                    ///OpenMP related
-                    else if (strcmp(tbuff, "OMP_run_fof")==0)
-                        opt.iopenmpfof = atoi(vbuff);
-                    else if (strcmp(tbuff, "OMP_fof_region_size")==0)
-                        opt.openmpfofsize = atoi(vbuff);
-
-
-                    //output related
-                    else if (strcmp(tbuff, "Separate_output_files")==0)
-                        opt.iseparatefiles = atoi(vbuff);
-                    else if (strcmp(tbuff, "Binary_output")==0)
-                        opt.ibinaryout = atoi(vbuff);
-                    else if (strcmp(tbuff, "Comoving_units")==0)
-                        opt.icomoveunit = atoi(vbuff);
                     else if (strcmp(tbuff, "Extensive_halo_properties_output")==0)
                         opt.iextrahalooutput = atoi(vbuff);
                     else if (strcmp(tbuff, "Extensive_gas_properties_output")==0)
                         opt.iextragasoutput = atoi(vbuff);
-                    else if (strcmp(tbuff, "Extended_output")==0)
-                        opt.iextendedoutput = atoi(vbuff);
-                    else if (strcmp(tbuff, "Spherical_overdensity_halo_particle_list_output")==0)
-                        opt.iSphericalOverdensityPartList = atoi(vbuff);
                     else if (strcmp(tbuff, "Calculate_aperture_quantities")==0)
                         opt.iaperturecalc = atoi(vbuff);
                     else if (strcmp(tbuff, "Number_of_apertures")==0)
@@ -600,6 +564,44 @@ void GetParamFile(Options &opt)
                             dataline.erase(0, pos + delimiter.length());
                         }
                     }
+
+                    //other options
+                    else if (strcmp(tbuff, "Verbose")==0)
+                        opt.iverbose = atoi(vbuff);
+                    else if (strcmp(tbuff, "Write_group_array_file")==0)
+                        opt.iwritefof = atoi(vbuff);
+                    else if (strcmp(tbuff, "Snapshot_value")==0)
+                        opt.snapshotvalue = HALOIDSNVAL*atoi(vbuff);
+
+                    //input related
+                    else if (strcmp(tbuff, "Cosmological_input")==0)
+                        opt.icosmologicalin = atoi(vbuff);
+                    //input read related
+                    else if (strcmp(tbuff, "Input_chunk_size")==0)
+                        opt.inputbufsize = atol(vbuff);
+                    else if (strcmp(tbuff, "MPI_particle_total_buf_size")==0)
+                        opt.mpiparticletotbufsize = atol(vbuff);
+                    //mpi memory related
+                    else if (strcmp(tbuff, "MPI_part_allocation_fac")==0)
+                        opt.mpipartfac = atof(vbuff);
+                    ///OpenMP related
+                    else if (strcmp(tbuff, "OMP_run_fof")==0)
+                        opt.iopenmpfof = atoi(vbuff);
+                    else if (strcmp(tbuff, "OMP_fof_region_size")==0)
+                        opt.openmpfofsize = atoi(vbuff);
+
+
+                    //output related
+                    else if (strcmp(tbuff, "Separate_output_files")==0)
+                        opt.iseparatefiles = atoi(vbuff);
+                    else if (strcmp(tbuff, "Binary_output")==0)
+                        opt.ibinaryout = atoi(vbuff);
+                    else if (strcmp(tbuff, "Comoving_units")==0)
+                        opt.icomoveunit = atoi(vbuff);
+                    else if (strcmp(tbuff, "Extended_output")==0)
+                        opt.iextendedoutput = atoi(vbuff);
+                    else if (strcmp(tbuff, "Spherical_overdensity_halo_particle_list_output")==0)
+                        opt.iSphericalOverdensityPartList = atoi(vbuff);
 
                     //gadget io related to extra info for sph, stars, bhs,
                     else if (strcmp(tbuff, "NSPH_extra_blocks")==0)

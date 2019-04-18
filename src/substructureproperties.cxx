@@ -420,7 +420,7 @@ private(i)
 #endif
     for (i=1;i<=ngroup;i++) {
         pdata[i].num=numingroup[i];
-        if ((opt.iInclusiveHalo && pdata[i].hostid !=-1) || opt.iInclusiveHalo==0) pdata[i].AllocateProfiles(opt);
+        if (opt.iprofilecalc && ((opt.iInclusiveHalo && pdata[i].hostid !=-1) || opt.iInclusiveHalo==0)) pdata[i].AllocateProfiles(opt);
     }
 #ifdef USEOPENMP
 }
@@ -1161,6 +1161,19 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
 #endif
         }
 
+        //if calculating profiles
+        if (opt.iprofilecalc) {
+            double irnorm;
+            //as particles are radially sorted, init the radial bin at zero
+            int ibin=0;
+            if (opt.iprofilenorm == PROFILER200CRITLOG) irnorm = 1.0/pdata[i].gR200c;
+            else irnorm = 1.0/pdata[i].gR200c;
+            for (j=0;j<numingroup[i];j++) {
+                Pval = &Part[noffset[i] + j];
+                AddParticleToRadialBin(opt,Pval,irnorm,ibin,pdata[i]);
+            }
+        }
+
         //morphology calcs
 #ifdef NOMASS
         GetGlobalSpatialMorphology(numingroup[i], &Part[noffset[i]], pdata[i].gq, pdata[i].gs, 1e-2, pdata[i].geigvec,0);
@@ -1184,6 +1197,7 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
 }
 #endif
 
+    //large groups
     for (i=1;i<=ngroup;i++) if (numingroup[i]>=omppropnum)
     {
         for (k=0;k<3;k++) pdata[i].gcm[k]=pdata[i].gcmvel[k]=0;
@@ -2108,10 +2122,32 @@ private(i,j,k,Pval,rc,EncMass,Ninside)
 }
 #endif
     }
-    ///if calculating profiles.
-    if (opt.iprofilecalc) {
 
+    //if calculating profiles
+    if (opt.iprofilecalc) {
+#ifdef USEOPENMP
+#pragma omp parallel default(shared)  \
+private(i,j,k,Pval,x,y,z)
+{
+    #pragma omp for schedule(dynamic) nowait
+#endif
+    for (i=1;i<=ngroup;i++) if (numingroup[i]>=omppropnum)
+    {
+        double irnorm;
+        //as particles are radially sorted, init the radial bin at zero
+        int ibin=0;
+        if (opt.iprofilenorm == PROFILER200CRITLOG) irnorm = 1.0/pdata[i].gR200c;
+        else irnorm = 1.0/pdata[i].gR200c;
+        for (j=0;j<numingroup[i];j++) {
+            Pval = &Part[noffset[i] + j];
+            AddParticleToRadialBin(opt, Pval, irnorm, ibin, pdata[i]);
+        }
     }
+#ifdef USEOPENMP
+}
+#endif
+    }
+
 
     //reset particle positions
 #ifdef USEOPENMP
@@ -2183,7 +2219,10 @@ void GetInclusiveMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t
     }
 #endif
 
-    for (i=1;i<=ngroup;i++) pdata[i].gNFOF=numingroup[i];
+    for (i=1;i<=ngroup;i++) {
+        pdata[i].gNFOF=numingroup[i];
+        if (opt.iprofilecalc) pdata[i].AllocateProfiles(opt);
+    }
 
     //first get center of mass and maximum size
 
@@ -2553,6 +2592,7 @@ private(massval,EncMass,Ninside,rc)
                 Pval = &Part[noffset[i] + j];
                 AddParticleToRadialBin(opt,Pval,irnorm,ibin,pdata[i]);
             }
+            pdata[i].CopyProfileToInclusive(opt);
         }
 #ifdef USEOPENMP
 }
@@ -2893,7 +2933,7 @@ private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,
 #endif
                         irnorm, ibin, pdata[i]);
                 }
-
+                pdata[i].CopyProfileToInclusive(opt);
             }
 
 

@@ -1618,39 +1618,83 @@ struct PropData
         if (opt.iprofilecalc) {
             profile_npart.resize(opt.profilenbins);
             profile_mass.resize(opt.profilenbins);
+            for (auto i=0;i<opt.profilenbins;i++) profile_npart[i]=profile_mass[i]=0;
 #ifdef GASON
             profile_npart_gas.resize(opt.profilenbins);
             profile_mass_gas.resize(opt.profilenbins);
+#ifdef STARON
             profile_npart_gas_sf.resize(opt.profilenbins);
             profile_mass_gas_sf.resize(opt.profilenbins);
             profile_npart_gas_nsf.resize(opt.profilenbins);
             profile_mass_gas_nsf.resize(opt.profilenbins);
 #endif
+            for (auto i=0;i<opt.profilenbins;i++) profile_npart_gas[i]=profile_mass_gas[i]=0;
+#ifdef STARON
+            for (auto i=0;i<opt.profilenbins;i++) profile_npart_gas_sfr[i]=profile_mass_gas_sfr[i]=profile_npart_gas_nsfr[i]=profile_mass_gas_nsfr[i]=0;
+#endif
+#endif
 #ifdef STARON
             profile_npart_star.resize(opt.profilenbins);
             profile_mass_star.resize(opt.profilenbins);
+            for (auto i=0;i<opt.profilenbins;i++) profile_npart_star[i]=profile_mass_star[i]=0;
 #endif
-            if (opt.iInclusiveHalo) {
+            if (opt.iInclusiveHalo>0) {
                 profile_npart_inclusive.resize(opt.profilenbins);
                 profile_mass_inclusive.resize(opt.profilenbins);
+                for (auto i=0;i<opt.profilenbins;i++) profile_npart_inclusive[i]=profile_mass_inclusive[i]=0;
 #ifdef GASON
                 profile_npart_inclusive_gas.resize(opt.profilenbins);
                 profile_mass_inclusive_gas.resize(opt.profilenbins);
+#ifdef STARON
                 profile_npart_inclusive_gas_sf.resize(opt.profilenbins);
                 profile_mass_inclusive_gas_sf.resize(opt.profilenbins);
                 profile_npart_inclusive_gas_nsf.resize(opt.profilenbins);
                 profile_mass_inclusive_gas_nsf.resize(opt.profilenbins);
 #endif
+                for (auto i=0;i<opt.profilenbins;i++) profile_npart_inclusive_gas[i]=profile_mass_inclusive_gas[i]=0;
+#ifdef STARON
+                for (auto i=0;i<opt.profilenbins;i++) profile_npart_inclusive_gas_sfr[i]=profile_mass_inclusive_gas_sfr[i]=profile_npart_inclusive_gas_nsfr[i]=profile_mass_inclusive_gas_nsfr[i]=0;
+#endif
+#endif
 #ifdef STARON
                 profile_npart_inclusive_star.resize(opt.profilenbins);
                 profile_mass_inclusive_star.resize(opt.profilenbins);
+                for (auto i=0;i<opt.profilenbins;i++) profile_npart_inclusive_star[i]=profile_mass_inclusive_star[i]=0;
 #endif
             }
+
+        }
+    }
+    void CopyProfileToInclusive(Options &opt) {
+        for (auto i=0;i<opt.profilenbins;i++) {
+            profile_npart_inclusive[i]=profile_npart[i];
+            profile_mass_inclusive[i]=profile_mass[i];
+            profile_npart[i]=profile_mass[i]=0;
+#ifdef GASON
+            profile_npart_inclusive_gas[i]=profile_npart_gas[i];
+            profile_mass_inclusive_gas[i]=profile_mass_gas[i];
+            profile_npart_gas[i]=profile_mass_gas[i]=0;
+#ifdef STARON
+            profile_npart_inclusive_gas_sfr[i]=profile_npart_gas_sfr[i];
+            profile_mass_inclusive_gas_sfr[i]=profile_mass_gas_sfr[i];
+            profile_npart_gas_sfr[i]=profile_mass_gas_sfr[i]=0;
+            profile_npart_inclusive_gas_nsfr[i]=profile_npart_gas_nsfr[i];
+            profile_mass_inclusive_gas_nsfr[i]=profile_mass_gas_nsfr[i];
+            profile_npart_gas_nsfr[i]=profile_mass_gas_nsfr[i]=0;
+#endif
+#endif
+#ifdef STARON
+            profile_npart_inclusive_star[i]=profile_npart_star[i];
+            profile_mass_inclusive_star[i]=profile_mass_star[i];
+            profile_npart_star[i]=profile_mass_star[i]=0;
+#endif
         }
     }
 
     ///converts the properties data into comoving little h values
     ///so masses, positions have little h values and positions are comoving
+
+
     void ConverttoComove(Options &opt){
         gcm=gcm*opt.h/opt.a;
         gpos=gpos*opt.h/opt.a;
