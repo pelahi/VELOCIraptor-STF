@@ -41,31 +41,31 @@ matrix:
     addons:
      apt:
       sources: ubuntu-toolchain-r-test
-      packages: [g++-5, libhdf5-dev, hdf5-tools, libgsl0-dev, openmpi-dev]
+      packages: [g++-5, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
     env: COMPILER=g++-5
   - compiler: gcc
     addons:
      apt:
       sources: ubuntu-toolchain-r-test
-      packages: [g++-5, libhdf5-dev, hdf5-tools, libgsl0-dev, openmpi-dev]
+      packages: [g++-5, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
     env: COMPILER=g++-5 USEGAS=1 USESTARS=1
   - compiler: gcc
     addons:
      apt:
       sources: ubuntu-toolchain-r-test
-      packages: [g++-5, libhdf5-dev, hdf5-tools, libgsl0-dev, openmpi-dev]
+      packages: [g++-5, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
     env: COMPILER=g++-5 USESWIFT=1
   - compiler: gcc
     addons:
      apt:
       sources: ubuntu-toolchain-r-test
-      packages: [g++-6, libhdf5-dev, hdf5-tools, libgsl0-dev, openmpi-dev]
+      packages: [g++-6, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
     env: COMPILER=g++-6
   - compiler: gcc
     addons:
      apt:
       sources: ubuntu-toolchain-r-test
-      packages: [g++-7, libhdf5-dev, hdf5-tools, libgsl0-dev, openmpi-dev]
+      packages: [g++-7, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
     env: COMPILER=g++-7
 
 # We "source" it because it exports variables
