@@ -1560,7 +1560,7 @@ struct PropData
 #ifdef GASON
         aperture_npart_gas=p.aperture_npart_gas;
         aperture_mass_gas=p.aperture_mass_gas;
-#ifdef STARON 
+#ifdef STARON
         aperture_npart_gas_sf=p.aperture_npart_gas_sf;
         aperture_npart_gas_nsf=p.aperture_npart_gas_nsf;
         aperture_mass_gas_sf=p.aperture_mass_gas_sf;
@@ -2784,7 +2784,7 @@ struct PropDataHeader{
         //if aperture information calculated also include
         if (opt.iaperturecalc>0) {
             for (auto i=0; i<opt.aperturenum;i++) {
-                headerdatainfo.push_back((string("npart_")+opt.aperture_names_kpc[i]+string("_kpc")));
+                headerdatainfo.push_back((string("Aperture_npart_")+opt.aperture_names_kpc[i]+string("_kpc")));
 #ifdef USEHDF
                 predtypeinfo.push_back(PredType::STD_U64LE);
 #endif
@@ -2793,7 +2793,7 @@ struct PropDataHeader{
 #endif
             }
             for (auto i=0; i<opt.aperturenum;i++) {
-                headerdatainfo.push_back((string("mass_")+opt.aperture_names_kpc[i]+string("_kpc")));
+                headerdatainfo.push_back((string("Aperture_mass_")+opt.aperture_names_kpc[i]+string("_kpc")));
 #ifdef USEHDF
                 predtypeinfo.push_back(desiredproprealtype[0]);
 #endif
@@ -2802,82 +2802,82 @@ struct PropDataHeader{
 #endif
             }
 #ifdef GASON
-        for (auto i=0; i<opt.aperturenum;i++) {
-            headerdatainfo.push_back((string("npart_gas_")+opt.aperture_names_kpc[i]+string("_kpc")));
+            for (auto i=0; i<opt.aperturenum;i++) {
+                headerdatainfo.push_back((string("Aperture_npart_gas_")+opt.aperture_names_kpc[i]+string("_kpc")));
 #ifdef USEHDF
-            predtypeinfo.push_back(PredType::STD_U64LE);
+                predtypeinfo.push_back(PredType::STD_U64LE);
 #endif
 #ifdef USEADIOS
-            adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+                adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
 #endif
-        }
-        for (auto i=0; i<opt.aperturenum;i++) {
-            headerdatainfo.push_back((string("mass_gas_")+opt.aperture_names_kpc[i]+string("_kpc")));
+            }
+            for (auto i=0; i<opt.aperturenum;i++) {
+                headerdatainfo.push_back((string("Aperture_mass_gas_")+opt.aperture_names_kpc[i]+string("_kpc")));
 #ifdef USEHDF
-            predtypeinfo.push_back(desiredproprealtype[0]);
+                predtypeinfo.push_back(desiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
-            adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
+                adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
 #endif
-        }
+            }
 #ifdef STARON
-        for (auto i=0; i<opt.aperturenum;i++) {
-            headerdatainfo.push_back((string("npart_gas_sf_")+opt.aperture_names_kpc[i]+string("_kpc")));
+            for (auto i=0; i<opt.aperturenum;i++) {
+                headerdatainfo.push_back((string("Aperture_npart_gas_sf_")+opt.aperture_names_kpc[i]+string("_kpc")));
 #ifdef USEHDF
-            predtypeinfo.push_back(PredType::STD_U64LE);
+                predtypeinfo.push_back(PredType::STD_U64LE);
 #endif
 #ifdef USEADIOS
-            adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+                adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
 #endif
-        }
-        for (auto i=0; i<opt.aperturenum;i++) {
-            headerdatainfo.push_back((string("mass_gas_sf_")+opt.aperture_names_kpc[i]+string("_kpc")));
+            }
+            for (auto i=0; i<opt.aperturenum;i++) {
+                headerdatainfo.push_back((string("Aperture_mass_gas_sf_")+opt.aperture_names_kpc[i]+string("_kpc")));
 #ifdef USEHDF
-            predtypeinfo.push_back(desiredproprealtype[0]);
+                predtypeinfo.push_back(desiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
-            adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
+                adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
 #endif
-        }
-        for (auto i=0; i<opt.aperturenum;i++) {
-            headerdatainfo.push_back((string("npart_gas_nsf_")+opt.aperture_names_kpc[i]+string("_kpc")));
+            }
+            for (auto i=0; i<opt.aperturenum;i++) {
+                headerdatainfo.push_back((string("Aperture_npart_gas_nsf_")+opt.aperture_names_kpc[i]+string("_kpc")));
 #ifdef USEHDF
-            predtypeinfo.push_back(PredType::STD_U64LE);
+                predtypeinfo.push_back(PredType::STD_U64LE);
 #endif
 #ifdef USEADIOS
-            adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+                adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
 #endif
-        }
-        for (auto i=0; i<opt.aperturenum;i++) {
-            headerdatainfo.push_back((string("mass_gas_nsf_")+opt.aperture_names_kpc[i]+string("_kpc")));
+            }
+            for (auto i=0; i<opt.aperturenum;i++) {
+                headerdatainfo.push_back((string("Aperture_mass_gas_nsf_")+opt.aperture_names_kpc[i]+string("_kpc")));
 #ifdef USEHDF
-            predtypeinfo.push_back(desiredproprealtype[0]);
+                predtypeinfo.push_back(desiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
-            adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
+                adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
 #endif
-        }
+            }
 #endif
 #endif
 #ifdef STARON
-        for (auto i=0; i<opt.aperturenum;i++) {
-            headerdatainfo.push_back((string("npart_star_")+opt.aperture_names_kpc[i]+string("_kpc")));
+            for (auto i=0; i<opt.aperturenum;i++) {
+                headerdatainfo.push_back((string("Aperture_npart_star_")+opt.aperture_names_kpc[i]+string("_kpc")));
 #ifdef USEHDF
-            predtypeinfo.push_back(PredType::STD_U64LE);
+                predtypeinfo.push_back(PredType::STD_U64LE);
 #endif
 #ifdef USEADIOS
-            adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+                adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
 #endif
-        }
-        for (auto i=0; i<opt.aperturenum;i++) {
-            headerdatainfo.push_back((string("mass_star_")+opt.aperture_names_kpc[i]+string("_kpc")));
+            }
+            for (auto i=0; i<opt.aperturenum;i++) {
+                headerdatainfo.push_back((string("Aperture_mass_star_")+opt.aperture_names_kpc[i]+string("_kpc")));
 #ifdef USEHDF
-            predtypeinfo.push_back(desiredproprealtype[0]);
+                predtypeinfo.push_back(desiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
-            adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
+                adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
 #endif
-        }
+            }
 #endif
         }
     }
