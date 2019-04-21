@@ -1559,11 +1559,13 @@ struct PropData
         aperture_mass=p.aperture_mass;
 #ifdef GASON
         aperture_npart_gas=p.aperture_npart_gas;
+        aperture_mass_gas=p.aperture_mass_gas;
+#ifdef STARON 
         aperture_npart_gas_sf=p.aperture_npart_gas_sf;
         aperture_npart_gas_nsf=p.aperture_npart_gas_nsf;
-        aperture_mass_gas=p.aperture_mass_gas;
         aperture_mass_gas_sf=p.aperture_mass_gas_sf;
         aperture_mass_gas_nsf=p.aperture_mass_gas_nsf;
+#endif
 #endif
 #ifdef STARON
         aperture_npart_star=p.aperture_npart_star;
@@ -1578,6 +1580,7 @@ struct PropData
         profile_mass_gas=p.profile_mass_gas;
         profile_npart_inclusive_gas=p.profile_npart_inclusive_gas;
         profile_mass_inclusive_gas=p.profile_mass_inclusive_gas;
+#ifdef STARON
         profile_npart_gas_sf=p.profile_npart_gas_sf;
         profile_mass_gas_sf=p.profile_mass_gas_sf;
         profile_npart_inclusive_gas_sf=p.profile_npart_inclusive_gas_sf;
@@ -1586,6 +1589,7 @@ struct PropData
         profile_mass_gas_nsf=p.profile_mass_gas_nsf;
         profile_npart_inclusive_gas_nsf=p.profile_npart_inclusive_gas_nsf;
         profile_mass_inclusive_gas_nsf=p.profile_mass_inclusive_gas_nsf;
+#endif
 #endif
 #ifdef STARON
         profile_npart_star=p.profile_npart_star;

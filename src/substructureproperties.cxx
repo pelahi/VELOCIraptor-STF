@@ -412,19 +412,11 @@ void GetCMProp(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, 
     Double_t mBN98val=log(opt.virBN98*opt.rhobg);
     //also calculate 500 overdensity and useful for gas/star content
     Double_t m500val=log(opt.rhobg/opt.Omega_m*500.0);
-#ifdef USEOPENMP
-#pragma omp parallel default(shared)  \
-private(i)
-{
-    #pragma omp for schedule(dynamic) nowait
-#endif
+
     for (i=1;i<=ngroup;i++) {
         pdata[i].num=numingroup[i];
         if (opt.iprofilecalc && ((opt.iInclusiveHalo && pdata[i].hostid !=-1) || opt.iInclusiveHalo==0)) pdata[i].AllocateProfiles(opt);
     }
-#ifdef USEOPENMP
-}
-#endif
 
     //for small groups loop over groups
 #ifdef USEOPENMP
@@ -3597,6 +3589,52 @@ void CopyMasses(Options &opt, const Int_t nhalos, PropData *&pold, PropData *&pn
                 pnew[i].M_BN98_star=pold[i].M_BN98_star;
                 pnew[i].L_BN98_star=pold[i].L_BN98_star;
             }
+#endif
+        }
+        if (opt.iaperturecalc) {
+            pnew[i].aperture_npart=pold[i].aperture_npart;
+            pnew[i].aperture_mass=pold[i].aperture_mass;
+#ifdef GASON
+            pnew[i].aperture_npart_gas=pold[i].aperture_npart_gas;
+            pnew[i].aperture_mass_gas=pold[i].aperture_mass_gas;
+#ifdef STARON
+            pnew[i].aperture_npart_gas_sf=pold[i].aperture_npart_gas_sf;
+            pnew[i].aperture_npart_gas_nsf=pold[i].aperture_npart_gas_nsf;
+            pnew[i].aperture_mass_gas_sf=pold[i].aperture_mass_gas_sf;
+            pnew[i].aperture_mass_gas_nsf=pold[i].aperture_mass_gas_nsf;
+#endif
+#endif
+#ifdef STARON
+            pnew[i].aperture_npart_star=pold[i].aperture_npart_star;
+            pnew[i].aperture_mass_star=pold[i].aperture_mass_star;
+#endif
+        }
+        if (opt.iprofilecalc) {
+            pnew[i].profile_npart=pold[i].profile_npart;
+            pnew[i].profile_mass=pold[i].profile_mass;
+            pnew[i].profile_npart_inclusive=pold[i].profile_npart_inclusive;
+            pnew[i].profile_mass_inclusive=pold[i].profile_mass_inclusive;
+#ifdef GASON
+            pnew[i].profile_npart_gas=pold[i].profile_npart_gas;
+            pnew[i].profile_mass_gas=pold[i].profile_mass_gas;
+            pnew[i].profile_npart_inclusive_gas=pold[i].profile_npart_inclusive_gas;
+            pnew[i].profile_mass_inclusive_gas=pold[i].profile_mass_inclusive_gas;
+#ifdef STARON
+            pnew[i].profile_npart_gas_sf=pold[i].profile_npart_gas_sf;
+            pnew[i].profile_mass_gas_sf=pold[i].profile_mass_gas_sf;
+            pnew[i].profile_npart_inclusive_gas_sf=pold[i].profile_npart_inclusive_gas_sf;
+            pnew[i].profile_mass_inclusive_gas_sf=pold[i].profile_mass_inclusive_gas_sf;
+            pnew[i].profile_npart_gas_nsf=pold[i].profile_npart_gas_nsf;
+            pnew[i].profile_mass_gas_nsf=pold[i].profile_mass_gas_nsf;
+            pnew[i].profile_npart_inclusive_gas_nsf=pold[i].profile_npart_inclusive_gas_nsf;
+            pnew[i].profile_mass_inclusive_gas_nsf=pold[i].profile_mass_inclusive_gas_nsf;
+#endif
+#endif
+#ifdef STARON
+            pnew[i].profile_npart_star=pold[i].profile_npart_star;
+            pnew[i].profile_mass_star=pold[i].profile_mass_star;
+            pnew[i].profile_npart_inclusive_star=pold[i].profile_npart_inclusive_star;
+            pnew[i].profile_mass_inclusive_star=pold[i].profile_mass_inclusive_star;
 #endif
         }
     }
