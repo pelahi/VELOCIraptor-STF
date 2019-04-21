@@ -640,7 +640,15 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
         pdata[i].gMmaxvel*=opt.MassValue;
         Ekin*=opt.MassValue;
 #endif
-        pdata[i].glambda_B=pdata[i].gJ.Length()/(pdata[i].gM200c*sqrt(2.0*opt.G*pdata[i].gM200c*pdata[i].gR200c));
+        if (opt.iextrahalooutput && pdata[i].hostid == -1) {
+            pdata[i].glambda_B=pdata[i].gJ200c.Length()/(pdata[i].gM200c*sqrt(2.0*opt.G*pdata[i].gM200c*pdata[i].gR200c));
+        }
+        else if (opt.iextrahalooutput && pdata[i].hostid != -1){
+            pdata[i].glambda_B=pdata[i].gJ200c.Length()/(pdata[i].gM200c*sqrt(2.0*opt.G*pdata[i].gM200c*pdata[i].gR200c));
+        }
+        else {
+            pdata[i].glambda_B=pdata[i].gJ.Length()/(pdata[i].gM200c*sqrt(2.0*opt.G*pdata[i].gM200c*pdata[i].gR200c));
+        }
 
         //calculate the rotational energy about the angular momentum axis
         //this is defined as the specific angular momentum about the angular momentum
@@ -1453,7 +1461,15 @@ private(j,Pval,rc,x,y,z,vx,vy,vz,J,mval)
         pdata[i].gveldisp=pdata[i].gveldisp*(1.0/pdata[i].gmass);
         pdata[i].gsigma_v=pow(pdata[i].gveldisp.Det(),1.0/6.0);
         Ekin*=0.5;
-        pdata[i].glambda_B=pdata[i].gJ.Length()/(pdata[i].gM200c*sqrt(2.0*opt.G*pdata[i].gM200c*pdata[i].gR200c));
+        if (opt.iextrahalooutput && pdata[i].hostid == -1) {
+            pdata[i].glambda_B=pdata[i].gJ200c.Length()/(pdata[i].gM200c*sqrt(2.0*opt.G*pdata[i].gM200c*pdata[i].gR200c));
+        }
+        else if (opt.iextrahalooutput && pdata[i].hostid != -1){
+            pdata[i].glambda_B=pdata[i].gJ200c.Length()/(pdata[i].gM200c*sqrt(2.0*opt.G*pdata[i].gM200c*pdata[i].gR200c));
+        }
+        else {
+            pdata[i].glambda_B=pdata[i].gJ.Length()/(pdata[i].gM200c*sqrt(2.0*opt.G*pdata[i].gM200c*pdata[i].gR200c));
+        }
 
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
