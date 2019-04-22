@@ -33,6 +33,4 @@ fail() {
 cd ${TRAVIS_BUILD_DIR}/build
 
 # Run unit tests first
-make CTEST_OUTPUT_ON_FAILURE=1 test || fail "unit tests failed"
-
-# Need to update test so as to run VR in full on an input simulation. 
+# Need to update test so as to run VR in full on an input simulation.

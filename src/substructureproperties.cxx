@@ -412,16 +412,11 @@ void GetCMProp(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, 
     Double_t mBN98val=log(opt.virBN98*opt.rhobg);
     //also calculate 500 overdensity and useful for gas/star content
     Double_t m500val=log(opt.rhobg/opt.Omega_m*500.0);
-#ifdef USEOPENMP
-#pragma omp parallel default(shared)  \
-private(i)
-{
-    #pragma omp for schedule(dynamic) nowait
-#endif
-    for (i=1;i<=ngroup;i++) pdata[i].num=numingroup[i];
-#ifdef USEOPENMP
-}
-#endif
+
+    for (i=1;i<=ngroup;i++) {
+        pdata[i].num=numingroup[i];
+        if (opt.iprofilecalc && ((opt.iInclusiveHalo && pdata[i].hostid !=-1) || opt.iInclusiveHalo==0)) pdata[i].AllocateProfiles(opt);
+    }
 
     //for small groups loop over groups
 #ifdef USEOPENMP
@@ -645,7 +640,15 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
         pdata[i].gMmaxvel*=opt.MassValue;
         Ekin*=opt.MassValue;
 #endif
-        pdata[i].glambda_B=pdata[i].gJ.Length()/(pdata[i].gM200c*sqrt(2.0*opt.G*pdata[i].gM200c*pdata[i].gR200c));
+        if (opt.iextrahalooutput && pdata[i].hostid == -1) {
+            pdata[i].glambda_B=pdata[i].gJ200c.Length()/(pdata[i].gM200c*sqrt(2.0*opt.G*pdata[i].gM200c*pdata[i].gR200c));
+        }
+        else if (opt.iextrahalooutput && pdata[i].hostid != -1){
+            pdata[i].glambda_B=pdata[i].gJ200c.Length()/(pdata[i].gM200c*sqrt(2.0*opt.G*pdata[i].gM200c*pdata[i].gR200c));
+        }
+        else {
+            pdata[i].glambda_B=pdata[i].gJ.Length()/(pdata[i].gM200c*sqrt(2.0*opt.G*pdata[i].gM200c*pdata[i].gR200c));
+        }
 
         //calculate the rotational energy about the angular momentum axis
         //this is defined as the specific angular momentum about the angular momentum
@@ -1081,6 +1084,95 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
             }
         }
 #endif
+        if (opt.iaperturecalc) {
+            EncMass=0;
+            Ninside=0;
+            int iaptindex=0;
+            double EncMassGas=0, EncMassGasSF=0, EncMassGasNSF=0, EncMassStar=0, EncMassBH=0, EncMassInterloper=0;
+            int NinsideGas=0, NinsideGasSF=0,NinsideGasNSF=0,NinsideStar=0,NinsideBH=0,NinsideInterloper=0;
+            for (j=0;j<numingroup[i];j++) {
+                Pval=&Part[j+noffset[i]];
+                EncMass+=Pval->GetMass();
+                rc=Pval->Radius();
+                Ninside++;
+#ifdef GASON
+                if (Pval->GetType()==GASTYPE) {
+                    NinsideGas++;
+                    EncMassGas+=Pval->GetMass();
+#ifdef STARON
+                    if (Pval->GetSFR()>opt.gas_sfr_threshold) {
+                        NinsideGasSF++;
+                        EncMassGasSF+=Pval->GetMass();
+                    }
+                    else {
+                        NinsideGasNSF++;
+                        EncMassGasNSF+=Pval->GetMass();
+                    }
+#endif
+                }
+#endif
+#ifdef STARON
+                if (Pval->GetType()==STARTYPE) {
+                    NinsideStar++;
+                    EncMassStar+=Pval->GetMass();
+                }
+#endif
+#ifdef BHON
+                if (Pval->GetType()==BHTYPE) {
+                    NinsideBH++;
+                    EncMassBH+=Pval->GetMass();
+                }
+#endif
+                if (rc>=opt.aperture_values_kpc[iaptindex]) {
+                    pdata[i].aperture_npart[iaptindex]=Ninside;
+                    pdata[i].aperture_mass[iaptindex]=EncMass;
+#ifdef GASON
+                    pdata[i].aperture_npart_gas[iaptindex]=NinsideGas;
+                    pdata[i].aperture_mass_gas[iaptindex]=EncMassGas;
+#ifdef STARON
+                    pdata[i].aperture_npart_gas_sf[iaptindex]=NinsideGasSF;
+                    pdata[i].aperture_npart_gas_nsf[iaptindex]=NinsideGasNSF;
+                    pdata[i].aperture_mass_gas_sf[iaptindex]=EncMassGasSF;
+                    pdata[i].aperture_mass_gas_nsf[iaptindex]=EncMassGasNSF;
+#endif
+#endif
+#ifdef STARON
+                    pdata[i].aperture_npart_star[iaptindex]=NinsideStar;
+                    pdata[i].aperture_mass_star[iaptindex]=EncMassStar;
+#endif
+                    iaptindex++;
+                }
+                if (iaptindex==opt.aperturenum) break;
+            }
+
+#ifdef NOMASS
+            pdata[i].aperture_mass[iaptindex]*=opt.MassValue;
+#ifdef GASON
+            pdata[i].aperture_mass_gas[iaptindex]*=opt.MassValue;
+#ifdef STARON
+            pdata[i].aperture_mass_gas_sf[iaptindex]*=opt.MassValue;
+            pdata[i].aperture_mass_gas_nsf[iaptindex]*=opt.MassValue;
+#endif
+#endif
+#ifdef STARON
+            pdata[i].aperture_mass_star[iaptindex]*=opt.MassValue;
+#endif
+
+#endif
+        }
+
+        //if calculating profiles
+        if (opt.iprofilecalc) {
+            double irnorm;
+            //as particles are radially sorted, init the radial bin at zero
+            int ibin=0;
+            if (opt.iprofilenorm == PROFILER200CRITLOG) irnorm = 1.0/pdata[i].gR200c;
+            else irnorm = 1.0/pdata[i].gR200c;
+            for (j=0;j<numingroup[i];j++) {
+                Pval = &Part[noffset[i] + j];
+                AddParticleToRadialBin(opt,Pval,irnorm,ibin,pdata[i]);
+            }
+        }
 
         //morphology calcs
 #ifdef NOMASS
@@ -1105,6 +1197,7 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
 }
 #endif
 
+    //large groups
     for (i=1;i<=ngroup;i++) if (numingroup[i]>=omppropnum)
     {
         for (k=0;k<3;k++) pdata[i].gcm[k]=pdata[i].gcmvel[k]=0;
@@ -1368,7 +1461,15 @@ private(j,Pval,rc,x,y,z,vx,vy,vz,J,mval)
         pdata[i].gveldisp=pdata[i].gveldisp*(1.0/pdata[i].gmass);
         pdata[i].gsigma_v=pow(pdata[i].gveldisp.Det(),1.0/6.0);
         Ekin*=0.5;
-        pdata[i].glambda_B=pdata[i].gJ.Length()/(pdata[i].gM200c*sqrt(2.0*opt.G*pdata[i].gM200c*pdata[i].gR200c));
+        if (opt.iextrahalooutput && pdata[i].hostid == -1) {
+            pdata[i].glambda_B=pdata[i].gJ200c.Length()/(pdata[i].gM200c*sqrt(2.0*opt.G*pdata[i].gM200c*pdata[i].gR200c));
+        }
+        else if (opt.iextrahalooutput && pdata[i].hostid != -1){
+            pdata[i].glambda_B=pdata[i].gJ200c.Length()/(pdata[i].gM200c*sqrt(2.0*opt.G*pdata[i].gM200c*pdata[i].gR200c));
+        }
+        else {
+            pdata[i].glambda_B=pdata[i].gJ.Length()/(pdata[i].gM200c*sqrt(2.0*opt.G*pdata[i].gM200c*pdata[i].gR200c));
+        }
 
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
@@ -1939,7 +2040,132 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
         GetGlobalSpatialMorphology(numingroup[i], &Part[noffset[i]], pdata[i].gq, pdata[i].gs, 1e-2, pdata[i].geigvec,1);
         if (RV_num>=PROPMORPHMINNUM) GetGlobalSpatialMorphology(RV_num, &Part[noffset[i]], pdata[i].RV_q, pdata[i].RV_s, 1e-2, pdata[i].RV_eigvec,1);
 #endif
-        //reset particle positions
+    }
+
+    //large groups aperture calculation
+    if (opt.iaperturecalc) {
+#ifdef USEOPENMP
+#pragma omp parallel default(shared)  \
+private(i,j,k,Pval,rc,EncMass,Ninside)
+{
+    #pragma omp for schedule(dynamic) nowait
+#endif
+        for (i=1;i<=ngroup;i++) if (numingroup[i]>=omppropnum)
+        {
+            EncMass=0;
+            Ninside=0;
+            int iaptindex=0;
+            double EncMassGas=0, EncMassGasSF=0, EncMassGasNSF=0, EncMassStar=0, EncMassBH=0, EncMassInterloper=0;
+            int NinsideGas=0, NinsideGasSF=0,NinsideGasNSF=0,NinsideStar=0,NinsideBH=0,NinsideInterloper=0;
+            for (j=0;j<numingroup[i];j++) {
+                Pval=&Part[j+noffset[i]];
+                Ninside++;
+                EncMass+=Pval->GetMass();
+                rc=Pval->Radius();
+#ifdef GASON
+                if (Pval->GetType()==GASTYPE) {
+                    NinsideGas++;
+                    EncMassGas+=Pval->GetMass();
+#ifdef STARON
+                    if (Pval->GetSFR()>opt.gas_sfr_threshold) {
+                        NinsideGasSF++;
+                        EncMassGasSF+=Pval->GetMass();
+                    }
+                    else {
+                        NinsideGasNSF++;
+                        EncMassGasNSF+=Pval->GetMass();
+                    }
+#endif
+                }
+#endif
+#ifdef STARON
+                if (Pval->GetType()==STARTYPE) {
+                    NinsideStar++;
+                    EncMassStar+=Pval->GetMass();
+                }
+#endif
+#ifdef BHON
+                if (Pval->GetType()==BHTYPE) {
+                    NinsideBH++;
+                    EncMassBH+=Pval->GetMass();
+                }
+#endif
+                if (rc>=opt.aperture_values_kpc[iaptindex]) {
+                    pdata[i].aperture_npart[iaptindex]=Ninside;
+                    pdata[i].aperture_mass[iaptindex]=EncMass;
+#ifdef GASON
+                    pdata[i].aperture_npart_gas[iaptindex]=NinsideGas;
+                    pdata[i].aperture_mass_gas[iaptindex]=EncMassGas;
+#ifdef STARON
+                    pdata[i].aperture_npart_gas_sf[iaptindex]=NinsideGasSF;
+                    pdata[i].aperture_npart_gas_nsf[iaptindex]=NinsideGasNSF;
+                    pdata[i].aperture_mass_gas_sf[iaptindex]=EncMassGasSF;
+                    pdata[i].aperture_mass_gas_nsf[iaptindex]=EncMassGasNSF;
+#endif
+#endif
+#ifdef STARON
+                    pdata[i].aperture_npart_star[iaptindex]=NinsideStar;
+                    pdata[i].aperture_mass_star[iaptindex]=EncMassStar;
+#endif
+                    iaptindex++;
+                }
+                if (iaptindex==opt.aperturenum) break;
+            }
+#ifdef NOMASS
+            pdata[i].aperture_mass[iaptindex]*=opt.MassValue;
+#ifdef GASON
+            pdata[i].aperture_mass_gas[iaptindex]*=opt.MassValue;
+#ifdef STARON
+            pdata[i].aperture_mass_gas_sf[iaptindex]*=opt.MassValue;
+            pdata[i].aperture_mass_gas_nsf[iaptindex]*=opt.MassValue;
+#endif
+#endif
+#ifdef STARON
+            pdata[i].aperture_mass_star[iaptindex]*=opt.MassValue;
+#endif
+
+#endif
+        }
+#ifdef USEOPENMP
+}
+#endif
+    }
+
+    //if calculating profiles
+    if (opt.iprofilecalc) {
+#ifdef USEOPENMP
+#pragma omp parallel default(shared)  \
+private(i,j,k,Pval,x,y,z)
+{
+    #pragma omp for schedule(dynamic) nowait
+#endif
+    for (i=1;i<=ngroup;i++) if (numingroup[i]>=omppropnum)
+    {
+        double irnorm;
+        //as particles are radially sorted, init the radial bin at zero
+        int ibin=0;
+        if (opt.iprofilenorm == PROFILER200CRITLOG) irnorm = 1.0/pdata[i].gR200c;
+        else irnorm = 1.0/pdata[i].gR200c;
+        for (j=0;j<numingroup[i];j++) {
+            Pval = &Part[noffset[i] + j];
+            AddParticleToRadialBin(opt, Pval, irnorm, ibin, pdata[i]);
+        }
+    }
+#ifdef USEOPENMP
+}
+#endif
+    }
+
+
+    //reset particle positions
+#ifdef USEOPENMP
+#pragma omp parallel default(shared)  \
+private(i,j,k,Pval,x,y,z)
+{
+    #pragma omp for schedule(dynamic) nowait
+#endif
+    for (i=1;i<=ngroup;i++) if (numingroup[i]>=omppropnum)
+    {
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
             x = (*Pval).X()+pdata[i].gcm[0];
@@ -1948,6 +2174,9 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
             Pval->SetPosition(x,y,z);
         }
     }
+#ifdef USEOPENMP
+}
+#endif
 
     //loop over groups for black hole properties
 #ifdef USEOPENMP
@@ -1962,11 +2191,6 @@ private(i,j,k,Pval)
 #ifdef USEOPENMP
 }
 #endif
-
-    ///if calculating profiles.
-    if (opt.iprofilecalc) {
-
-    }
 
     if (opt.iverbose) cout<<"Done getting properties"<<endl;
 }
@@ -2003,7 +2227,10 @@ void GetInclusiveMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t
     }
 #endif
 
-    for (i=1;i<=ngroup;i++) pdata[i].gNFOF=numingroup[i];
+    for (i=1;i<=ngroup;i++) {
+        pdata[i].gNFOF=numingroup[i];
+        if (opt.iprofilecalc) pdata[i].AllocateProfiles(opt);
+    }
 
     //first get center of mass and maximum size
 
@@ -2353,6 +2580,33 @@ firstprivate(virval,m200val,m200mval,mBN98val)
 }
 #endif
 
+    //if calculating profiles
+    if (opt.iprofilecalc) {
+#ifdef USEOPENMP
+#pragma omp parallel default(shared)  \
+private(i,j,k,Pval)\
+private(massval,EncMass,Ninside,rc)
+{
+#pragma omp for schedule(dynamic) nowait
+#endif
+        for (i=1;i<=ngroup;i++)
+        {
+            double irnorm;
+            //as particles are radially sorted, init the radial bin at zero
+            int ibin =0;
+            if (opt.iprofilenorm == PROFILER200CRITLOG) irnorm = 1.0/pdata[i].gR200c;
+            else irnorm = 1.0/pdata[i].gR200c;
+            for (j=0;j<numingroup[i];j++) {
+                Pval = &Part[noffset[i] + j];
+                AddParticleToRadialBin(opt,Pval,irnorm,ibin,pdata[i]);
+            }
+            pdata[i].CopyProfileToInclusive(opt);
+        }
+#ifdef USEOPENMP
+}
+#endif
+    }
+
     //reset the positions of the particles
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
@@ -2669,6 +2923,27 @@ private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,
 #endif
                 }
             }
+
+            //if calculating profiles
+            if (opt.iprofilecalc) {
+                double irnorm;
+                //as particles are radially sorted, init the radial bin at zero
+                int ibin = 0;
+                if (opt.iprofilenorm == PROFILER200CRITLOG) irnorm = 1.0/pdata[i].gR200c;
+                else irnorm = 1.0/pdata[i].gR200c;
+                for (j=0;j<radii.size();j++) {
+                    ///\todo need to update to allow for star forming/non-star forming profiles
+                    ///by storing the star forming value.
+                    double sfrval = 0;
+                    AddDataToRadialBin(opt, radii[indices[j]], masses[indices[j]],
+#if defined(GASON) || defined(STARON) || defined(BHON)
+                        sfrval, typeparts[indices[j]],
+#endif
+                        irnorm, ibin, pdata[i]);
+                }
+                pdata[i].CopyProfileToInclusive(opt);
+            }
+
 
             if (opt.iSphericalOverdensityPartList) {
                 SOpartlist[i].resize(iindex);
@@ -3332,6 +3607,52 @@ void CopyMasses(Options &opt, const Int_t nhalos, PropData *&pold, PropData *&pn
             }
 #endif
         }
+        if (opt.iaperturecalc) {
+            pnew[i].aperture_npart=pold[i].aperture_npart;
+            pnew[i].aperture_mass=pold[i].aperture_mass;
+#ifdef GASON
+            pnew[i].aperture_npart_gas=pold[i].aperture_npart_gas;
+            pnew[i].aperture_mass_gas=pold[i].aperture_mass_gas;
+#ifdef STARON
+            pnew[i].aperture_npart_gas_sf=pold[i].aperture_npart_gas_sf;
+            pnew[i].aperture_npart_gas_nsf=pold[i].aperture_npart_gas_nsf;
+            pnew[i].aperture_mass_gas_sf=pold[i].aperture_mass_gas_sf;
+            pnew[i].aperture_mass_gas_nsf=pold[i].aperture_mass_gas_nsf;
+#endif
+#endif
+#ifdef STARON
+            pnew[i].aperture_npart_star=pold[i].aperture_npart_star;
+            pnew[i].aperture_mass_star=pold[i].aperture_mass_star;
+#endif
+        }
+        if (opt.iprofilecalc) {
+            pnew[i].profile_npart=pold[i].profile_npart;
+            pnew[i].profile_mass=pold[i].profile_mass;
+            pnew[i].profile_npart_inclusive=pold[i].profile_npart_inclusive;
+            pnew[i].profile_mass_inclusive=pold[i].profile_mass_inclusive;
+#ifdef GASON
+            pnew[i].profile_npart_gas=pold[i].profile_npart_gas;
+            pnew[i].profile_mass_gas=pold[i].profile_mass_gas;
+            pnew[i].profile_npart_inclusive_gas=pold[i].profile_npart_inclusive_gas;
+            pnew[i].profile_mass_inclusive_gas=pold[i].profile_mass_inclusive_gas;
+#ifdef STARON
+            pnew[i].profile_npart_gas_sf=pold[i].profile_npart_gas_sf;
+            pnew[i].profile_mass_gas_sf=pold[i].profile_mass_gas_sf;
+            pnew[i].profile_npart_inclusive_gas_sf=pold[i].profile_npart_inclusive_gas_sf;
+            pnew[i].profile_mass_inclusive_gas_sf=pold[i].profile_mass_inclusive_gas_sf;
+            pnew[i].profile_npart_gas_nsf=pold[i].profile_npart_gas_nsf;
+            pnew[i].profile_mass_gas_nsf=pold[i].profile_mass_gas_nsf;
+            pnew[i].profile_npart_inclusive_gas_nsf=pold[i].profile_npart_inclusive_gas_nsf;
+            pnew[i].profile_mass_inclusive_gas_nsf=pold[i].profile_mass_inclusive_gas_nsf;
+#endif
+#endif
+#ifdef STARON
+            pnew[i].profile_npart_star=pold[i].profile_npart_star;
+            pnew[i].profile_mass_star=pold[i].profile_mass_star;
+            pnew[i].profile_npart_inclusive_star=pold[i].profile_npart_inclusive_star;
+            pnew[i].profile_mass_inclusive_star=pold[i].profile_mass_inclusive_star;
+#endif
+        }
     }
 }
 ///reorder mass information stored in properties data
@@ -3935,6 +4256,89 @@ Double_t CalcCosmicTime(Options &opt, Double_t a1, Double_t a2){
     cosmictime = 1./(opt.h*opt.H*opt.velocitytokms/opt.lengthtokpc*1.02269032e-9)*result;
     return cosmictime;
 }
+//@}
 
+///\name Radial Profile functions
+//@{
+int GetRadialBin(Options &opt, Double_t rc, int &ibin) {
+    if (opt.iprofilecalc==PROFILER200CRITLOG)
+    {
+        rc = log10(rc);
+        //if radial bin outside last bin edge return -1 and data ignored.
+        if (rc > opt.profile_bin_edges[opt.profile_bin_edges.size()-1]) return -1;
+        //otherwise check to see if input rc (which should be sorted in increase radius) is
+        //greater than current active bin edge and increase ibin, the active bin
+        if (rc > opt.profile_bin_edges[ibin]) ibin++;
+    }
+    return ibin;
+}
+
+void AddParticleToRadialBin(Options &opt, Particle *Pval, Double_t irnorm, int &ibin, PropData &pdata)
+{
+    ibin = GetRadialBin(opt,Pval->Radius()*irnorm, ibin);
+    if (ibin == -1) return;
+    Double_t massval = Pval->GetMass();
+    pdata.profile_mass_inclusive[ibin] += massval;
+    pdata.profile_npart_inclusive[ibin] += 1;
+#ifdef GASON
+    if (Pval->GetType()==GASTYPE) {
+        pdata.profile_mass_inclusive_gas[ibin] += massval;
+        pdata.profile_npart_inclusive_gas[ibin] += 1;
+#ifdef STARON
+        if (Pval->GetSFR()>opt.gas_sfr_threshold)
+        {
+            pdata.profile_mass_inclusive_gas_sf[ibin] += massval;
+            pdata.profile_npart_inclusive_gas_sf[ibin] += 1;
+        }
+        else {
+            pdata.profile_mass_inclusive_gas_nsf[ibin] += massval;
+            pdata.profile_npart_inclusive_gas_nsf[ibin] += 1;
+        }
+#endif
+    }
+#endif
+#ifdef STARON
+    if (Pval->GetType()==STARTYPE) {
+        pdata.profile_mass_inclusive_star[ibin] += massval;
+        pdata.profile_npart_inclusive_star[ibin] += 1;
+    }
+#endif
+}
+
+
+void AddDataToRadialBin(Options &opt, Double_t rval, Double_t massval,
+#if defined(GASON) || defined(STARON) || defined(BHON)
+    Double_t sfrval, int typeval,
+#endif
+    Double_t irnorm, int &ibin, PropData &pdata)
+{
+    ibin = GetRadialBin(opt,rval*irnorm, ibin);
+    if (ibin == -1) return;
+    pdata.profile_mass_inclusive[ibin] += massval;
+    pdata.profile_npart_inclusive[ibin] += 1;
+#ifdef GASON
+    if (typeval==GASTYPE) {
+        pdata.profile_mass_inclusive_gas[ibin] += massval;
+        pdata.profile_npart_inclusive_gas[ibin] += 1;
+#ifdef STARON
+        if (sfrval>opt.gas_sfr_threshold)
+        {
+            pdata.profile_mass_inclusive_gas_sf[ibin] += massval;
+            pdata.profile_npart_inclusive_gas_sf[ibin] += 1;
+        }
+        else {
+            pdata.profile_mass_inclusive_gas_nsf[ibin] += massval;
+            pdata.profile_npart_inclusive_gas_nsf[ibin] += 1;
+        }
+#endif
+    }
+#endif
+#ifdef STARON
+    if (typeval==STARTYPE) {
+        pdata.profile_mass_inclusive_star[ibin] += massval;
+        pdata.profile_npart_inclusive_star[ibin] += 1;
+    }
+#endif
+}
 
 //@}

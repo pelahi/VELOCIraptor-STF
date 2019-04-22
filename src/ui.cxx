@@ -293,6 +293,8 @@ void GetParamFile(Options &opt)
     string tag,val;
     char buff[1024],*pbuff,tbuff[1024],vbuff[1024],fname[1024];
     fstream paramfile,cfgfile;
+    size_t pos;
+    string dataline, token, delimiter = ",";
     if (!FileExists(opt.pname)){
         if (ThisTask==0)
             cerr<<"Config file: "<<opt.pname <<" does not exist or can't be read, terminating"<<endl;
@@ -526,6 +528,43 @@ void GetParamFile(Options &opt)
                     else if (strcmp(tbuff, "Unbinding_type")==0)
                         opt.uinfo.unbindtype = atoi(vbuff);
 
+                    //property related
+                    else if (strcmp(tbuff, "Inclusive_halo_masses")==0)
+                        opt.iInclusiveHalo = atoi(vbuff);
+                    else if (strcmp(tbuff, "Extensive_halo_properties_output")==0)
+                        opt.iextrahalooutput = atoi(vbuff);
+                    else if (strcmp(tbuff, "Extensive_gas_properties_output")==0)
+                        opt.iextragasoutput = atoi(vbuff);
+                    else if (strcmp(tbuff, "Calculate_aperture_quantities")==0)
+                        opt.iaperturecalc = atoi(vbuff);
+                    else if (strcmp(tbuff, "Number_of_apertures")==0)
+                        opt.aperturenum = atoi(vbuff);
+                    else if (strcmp(tbuff, "Aperture_values_in_kpc")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            opt.aperture_names_kpc.push_back(token);
+                            opt.aperture_values_kpc.push_back(stof(token));
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                    }
+                    else if (strcmp(tbuff, "Calculate_radial_profiles")==0)
+                        opt.iprofilecalc = atoi(vbuff);
+                    else if (strcmp(tbuff, "Number_of_radial_profile_bin_edges")==0)
+                        opt.profilenbins = atoi(vbuff);
+                    else if (strcmp(tbuff, "Radial_profile_norm")==0)
+                        opt.iprofilenorm = atoi(vbuff);
+                    else if (strcmp(tbuff, "Radial_profile_bin_edges")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            opt.profile_bin_edges.push_back(stof(token));
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                    }
+
                     //other options
                     else if (strcmp(tbuff, "Verbose")==0)
                         opt.iverbose = atoi(vbuff);
@@ -533,8 +572,6 @@ void GetParamFile(Options &opt)
                         opt.iwritefof = atoi(vbuff);
                     else if (strcmp(tbuff, "Snapshot_value")==0)
                         opt.snapshotvalue = HALOIDSNVAL*atoi(vbuff);
-                    else if (strcmp(tbuff, "Inclusive_halo_masses")==0)
-                        opt.iInclusiveHalo = atoi(vbuff);
 
                     //input related
                     else if (strcmp(tbuff, "Cosmological_input")==0)
@@ -561,10 +598,6 @@ void GetParamFile(Options &opt)
                         opt.ibinaryout = atoi(vbuff);
                     else if (strcmp(tbuff, "Comoving_units")==0)
                         opt.icomoveunit = atoi(vbuff);
-                    else if (strcmp(tbuff, "Extensive_halo_properties_output")==0)
-                        opt.iextrahalooutput = atoi(vbuff);
-                    else if (strcmp(tbuff, "Extensive_gas_properties_output")==0)
-                        opt.iextragasoutput = atoi(vbuff);
                     else if (strcmp(tbuff, "Extended_output")==0)
                         opt.iextendedoutput = atoi(vbuff);
                     else if (strcmp(tbuff, "Spherical_overdensity_halo_particle_list_output")==0)
@@ -592,7 +625,6 @@ void GetParamFile(Options &opt)
                         opt.iusetracerparticles = atoi(vbuff);
                     else if (strcmp(tbuff, "Input_includes_extradm_particle")==0)
                         opt.iuseextradarkparticles = atoi(vbuff);
-
                 }
             }
         }
@@ -601,89 +633,74 @@ void GetParamFile(Options &opt)
     }
 }
 
+inline void ConfigMessage(char *c) {
+#ifndef USEMPI
+    int ThisTask = 0;
+#endif
+    if (ThisTask==0) cerr<<c<<endl;
+}
+
+inline void ConfigExit() {
+#ifdef USEMPI
+            MPI_Abort(MPI_COMM_WORLD,8);
+#else
+            exit(8);
+#endif
+}
+
+
+
 inline void ConfigCheck(Options &opt)
 {
 #ifndef USEMPI
     int ThisTask =0, NProcs =1;
 #endif
     if (opt.fname==NULL||opt.outname==NULL){
-    if (ThisTask==0)
-        cerr<<"Must provide input and output file names\n";
-#ifdef USEMPI
-            MPI_Abort(MPI_COMM_WORLD,8);
-#else
-            exit(8);
-#endif
+        if (ThisTask==0)
+            cerr<<"Must provide input and output file names\n";
+        ConfigExit();
     }
     if (opt.iBaryonSearch && !(opt.partsearchtype==PSTALL || opt.partsearchtype==PSTDARK)) {
-    if (ThisTask==0)
-        cerr<<"Conflict in config file: both gas/star/etc particle type search AND the separate baryonic (gas,star,etc) search flag are on. Check config\n";
-#ifdef USEMPI
-            MPI_Abort(MPI_COMM_WORLD,8);
-#else
-            exit(8);
-#endif
+        if (ThisTask==0)
+            cerr<<"Conflict in config file: both gas/star/etc particle type search AND the separate baryonic (gas,star,etc) search flag are on. Check config\n";
+        ConfigExit();
     }
     if (opt.iBoundHalos && opt.iKeepFOF) {
-    if (ThisTask==0)
-        cerr<<"Conflict in config file: Asking for Bound Field objects but also asking to keep the 3DFOF/then run 6DFOF. This is incompatible. Check config\n";
-#ifdef USEMPI
-            MPI_Abort(MPI_COMM_WORLD,8);
-#else
-            exit(8);
-#endif
+        if (ThisTask==0)
+            cerr<<"Conflict in config file: Asking for Bound Field objects but also asking to keep the 3DFOF/then run 6DFOF. This is incompatible. Check config\n";
+        ConfigExit();
     }
     if (opt.HaloMinSize==-1) opt.HaloMinSize=opt.MinSize;
 
     if (opt.num_files<1){
-    if (ThisTask==0)
-        cerr<<"Invalid number of input files (<1) \n";
-#ifdef USEMPI
-            MPI_Abort(MPI_COMM_WORLD,8);
-#else
-            exit(8);
-#endif
+        if (ThisTask==0)
+            cerr<<"Invalid number of input files (<1) \n";
+        ConfigExit();
     }
 
     if (opt.inputbufsize<1){
-    if (ThisTask==0)
-        cerr<<"Invalid read buf size (<1)\n";
-#ifdef USEMPI
-            MPI_Abort(MPI_COMM_WORLD,8);
-#else
-            exit(8);
-#endif
+        if (ThisTask==0)
+            cerr<<"Invalid read buf size (<1)\n";
+        ConfigExit();
     }
 
     if (opt.lengthtokpc<=0){
-    if (ThisTask==0)
-        cerr<<"Invalid unit conversion, length unit to kpc is <=0 or was not set. Update config file\n";
-#ifdef USEMPI
-            MPI_Abort(MPI_COMM_WORLD,8);
-#else
-            exit(8);
-#endif
+        if (ThisTask==0)
+            cerr<<"Invalid unit conversion, length unit to kpc is <=0 or was not set. Update config file\n";
+        ConfigExit();
     }
     //convert reference apertures
     opt.lengthtokpc30pow2 /= opt.lengthtokpc*opt.lengthtokpc;
     opt.lengthtokpc50pow2 /= opt.lengthtokpc*opt.lengthtokpc;
     if (opt.velocitytokms<=0){
-    if (ThisTask==0)
-        cerr<<"Invalid unit conversion, velocity unit to km/s is <=0 or was not set. Update config file\n";
-#ifdef USEMPI
-            MPI_Abort(MPI_COMM_WORLD,8);
-#else
-            exit(8);
-#endif
+        if (ThisTask==0)
+            cerr<<"Invalid unit conversion, velocity unit to km/s is <=0 or was not set. Update config file\n";
+        ConfigExit();
     }
     if (opt.masstosolarmass<=0){
-    if (ThisTask==0)
-        cerr<<"Invalid unit conversion, mass unit to solar mass is <=0 or was not set. Update config file\n";
-#ifdef USEMPI
-            MPI_Abort(MPI_COMM_WORLD,8);
-#else
-            exit(8);
-#endif
+        if (ThisTask==0)
+            cerr<<"Invalid unit conversion, mass unit to solar mass is <=0 or was not set. Update config file\n";
+        ConfigExit();
     }
 
 #ifdef USEMPI
@@ -692,7 +709,7 @@ inline void ConfigCheck(Options &opt)
             cerr<<"Invalid input particle buffer send size, mininmum input buffer size given paritcle byte size ";
             cerr<<sizeof(Particle)<<" and have "<<NProcs<<" mpi processes is "<<sizeof(Particle)*NProcs<<endl;
         }
-        MPI_Abort(MPI_COMM_WORLD,8);
+        ConfigExit();
     }
     //if total buffer size is -1 then calculate individual buffer size based on default mpi size
     else if (opt.mpiparticletotbufsize==-1) {
@@ -706,7 +723,7 @@ inline void ConfigCheck(Options &opt)
         if (ThisTask==0) {
             cerr<<"Invalid MPI particle allocation factor, must be >0."<<endl;
         }
-        MPI_Abort(MPI_COMM_WORLD,8);
+        ConfigExit();
     }
     else if (opt.mpipartfac>1){
         if (ThisTask==0) {
@@ -727,11 +744,7 @@ inline void ConfigCheck(Options &opt)
     if (opt.ibinaryout==OUTHDF){
     if (ThisTask==0)
         cerr<<"Code not compiled with HDF output enabled. Recompile with this enabled or change Binary_output.\n";
-#ifdef USEMPI
-        MPI_Abort(MPI_COMM_WORLD,8);
-#else
-        exit(8);
-#endif
+    ConfigExit();
 }
 #endif
 
@@ -739,13 +752,35 @@ inline void ConfigCheck(Options &opt)
     if (opt.ibinaryout==OUTADIOS){
     if (ThisTask==0)
         cerr<<"Code not compiled with ADIOS output enabled. Recompile with this enabled or change Binary_output.\n";
-#ifdef USEMPI
-        MPI_Abort(MPI_COMM_WORLD,8);
-#else
-        exit(8);
-#endif
+    ConfigExit();
 }
 #endif
+    if (opt.iaperturecalc>0) {
+        if (opt.aperturenum != opt.aperture_values_kpc.size()) {
+            if (ThisTask==0)
+                cerr<<"Aperture calculations requested but mismatch between number stated and values provided. Check config. \n";
+            ConfigExit();
+        }
+        if (opt.aperturenum == 0) {
+            if (ThisTask==0)
+                cerr<<"Aperture calculations requested but number of apertures is zero. Check config. \n";
+            ConfigExit();
+        }
+        for (auto i=0;i<opt.aperture_values_kpc.size();i++) opt.aperture_values_kpc[i]/=opt.lengthtokpc;
+    }
+    if (opt.iprofilecalc>0) {
+        if (opt.profilenbins != opt.profile_bin_edges.size()) {
+            if (ThisTask==0)
+                cerr<<"Radial profile calculations requested but mismatch between number of edges stated and number provided. Check config. \n";
+            ConfigExit();
+        }
+        if (opt.profilenbins == 0) {
+            if (ThisTask==0)
+                cerr<<"Radial profile calculations requested but number of bin edges is zero. Check config. \n";
+            ConfigExit();
+        }
+    }
+
 
     if (ThisTask==0) {
     cout<<"CONFIG INFO SUMMARY -------------------------- "<<endl;
@@ -780,7 +815,24 @@ inline void ConfigCheck(Options &opt)
     cout<<"Units: L="<<opt.L<<", M="<<opt.M<<", V="<<opt.V<<", G="<<opt.G<<endl;
     if (opt.ibinaryout) cout<<"Binary output"<<endl;
     if (opt.iseparatefiles) cout<<"Separate files output"<<endl;
-    if (opt.iextendedoutput) cout<<"Extended output for particle extraction from input files"<<endl;
+    if (opt.icomoveunit) cout<<"Converting properties into comoving, little h units. "<<endl;
+    if (opt.iextrahalooutput) cout<<"Calculating extra halo properties. "<<endl;
+    if (opt.iextragasoutput) cout<<"Calculating extra gas properties. "<<endl;
+    if (opt.iextrastaroutput) cout<<"Calculating extra star properties. "<<endl;
+    if (opt.iaperturecalc) {
+        cout<<"Calculating quantities in apertures: ";
+        for (auto apname: opt.aperture_names_kpc) cout<<apname<<",";
+        cout<<endl;
+    }
+    if (opt.iprofilecalc) {
+        cout<<"Calculating radial profiles: ";
+        for (auto binedge: opt.profile_bin_edges) cout<<binedge<<",";
+        cout<<endl;
+    }
+
+    if (opt.iextendedoutput) cout<<"Writing extended output for particle extraction from input files"<<endl;
+    if (opt.iSphericalOverdensityPartList) cout<<"Writing list of particles in SO regions of halos. "<<endl;
+
     if (opt.iHaloCoreSearch) cout<<"Searching for 6dfof cores so as to disentangle mergers"<<endl;
     if (opt.iHaloCoreSearch && opt.iAdaptiveCoreLinking) cout<<"With adaptive linking lengths"<<endl;
     if (opt.iHaloCoreSearch && opt.iPhaseCoreGrowth) cout<<"With with phase-space tensor core assignment"<<endl;

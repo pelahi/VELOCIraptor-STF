@@ -85,17 +85,20 @@ using namespace H5;
 
 #if H5_VERSION_GE(1,10,1)
 #define HDF5_FILE_GROUP_COMMON_BASE H5::Group
-#define HDF5_GROUP_DATASET_COMMON_BASE H5::H5Object
 #else
 #define HDF5_FILE_GROUP_COMMON_BASE H5::CommonFG
-#define HDF5_GROUP_DATASET_COMMON_BASE H5::H5Location
 #endif
 
+template <typename AttributeHolder>
 static inline
-H5::Attribute get_attribute(const HDF5_GROUP_DATASET_COMMON_BASE &l, const std::string attr_name)
+H5::Attribute get_attribute(const AttributeHolder &l, const std::string attr_name)
 {
-	if (!l.attrExists(attr_name)) {
+	auto exists = H5Aexists(l.getId(), attr_name.c_str());
+	if (exists == 0) {
 		throw invalid_argument(std::string("attribute not found ") + attr_name);
+	}
+	else if (exists < 0) {
+		throw std::runtime_error("Error on H5Aexists");
 	}
 	return l.openAttribute(attr_name);
 }
@@ -105,7 +108,7 @@ H5::Attribute get_attribute(const HDF5_FILE_GROUP_COMMON_BASE &file_or_group, co
 {
 	// This is the attribute name
 	if (parts.size() == 1) {
-		return get_attribute(dynamic_cast<const HDF5_GROUP_DATASET_COMMON_BASE &>(file_or_group), parts[0]);
+		return get_attribute(static_cast<const H5::Group &>(file_or_group), parts[0]);
 	}
 
 	auto n_groups = file_or_group.getNumObjs();
