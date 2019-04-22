@@ -1,4 +1,4 @@
-Travis CI configuration file
+# Travis CI configuration file
 #
 # ICRAR - International Centre for Radio Astronomy Research
 # (c) UWA - The University of Western Australia, 2018
@@ -26,12 +26,6 @@ Travis CI configuration file
 language: cpp
 sudo: false
 
-# In Linux we cache the gsl binary version
-cache:
- directories:
-- gsl/2.4
-- openmpi/3.1.3
-
 # We try with both GNU and LLVM
 # When running with gcc-6 we also collect coverage information
 # and upload it to coveralls
@@ -41,20 +35,38 @@ matrix:
     addons:
      apt:
       sources: ubuntu-toolchain-r-test
-      packages: [g++-5, libhdf5-dev, hdf5-tools, libboost-filesystem-dev, libboost-program-options-dev, libboost-log-dev, cxxtest]
+      packages: [g++-5, libhdf5-dev, hdf5-tools, libgsl0-dev]
     env: COMPILER=g++-5
   - compiler: gcc
     addons:
      apt:
       sources: ubuntu-toolchain-r-test
-      packages: [g++-6, libhdf5-dev, hdf5-tools, libboost-filesystem-dev, libboost-program-options-dev, libboost-log-dev, cxxtest, python-matplotlib, python-scipy, python-h5py, python-tk]
-    env: COMPILER=g++-6 PYTHON=python
+      packages: [g++-5, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
+    env: COMPILER=g++-5
   - compiler: gcc
     addons:
      apt:
       sources: ubuntu-toolchain-r-test
-      packages: [g++-7, libhdf5-dev, hdf5-tools, libboost-filesystem-dev, libboost-program-options-dev, libboost-log-dev, cxxtest, python3-matplotlib, python3-scipy, python3-h5py, python3-tk]
-    env: COMPILER=g++-7 PYTHON=python3
+      packages: [g++-5, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
+    env: COMPILER=g++-5 USEGAS=1 USESTARS=1
+  - compiler: gcc
+    addons:
+     apt:
+      sources: ubuntu-toolchain-r-test
+      packages: [g++-5, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
+    env: COMPILER=g++-5 USESWIFT=1
+  - compiler: gcc
+    addons:
+     apt:
+      sources: ubuntu-toolchain-r-test
+      packages: [g++-6, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
+    env: COMPILER=g++-6
+  - compiler: gcc
+    addons:
+     apt:
+      sources: ubuntu-toolchain-r-test
+      packages: [g++-7, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
+    env: COMPILER=g++-7
 
 # We "source" it because it exports variables
 before_install:

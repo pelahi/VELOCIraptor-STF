@@ -1410,6 +1410,16 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids){
 //@}
 
 
+template <typename T>
+static void write_scalar_attr(const H5::H5File &file, const DataGroupNames &dgnames, int idx, const T value)
+{
+    DataSpace space(H5S_SCALAR);
+    auto attr_id = H5Acreate2(file.getId(), dgnames.prop[idx].c_str(), dgnames.propdatatype[idx].getId(),
+						    space.getId(), PropList::DEFAULT.getId(), H5P_DEFAULT);
+    Attribute attr(attr_id);
+    attr.write(dgnames.propdatatype[idx], &value);
+}
+
 ///\name Final outputs such as properties and output that can be used to construct merger trees and substructure hierarchy
 //@{
 ///Writes the bulk properties of the substructures
@@ -1507,39 +1517,13 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         itemp++;
 
         //add unit/simulation information as attributes
-        attrspace=DataSpace(H5S_SCALAR);
-        attr=Fhdf.createAttribute(datagroupnames.prop[itemp], datagroupnames.propdatatype[itemp], attrspace);
-        attr.write(datagroupnames.propdatatype[itemp],&opt.icosmologicalin);
-        itemp++;
-        attrspace=DataSpace(H5S_SCALAR);
-        attr=Fhdf.createAttribute(datagroupnames.prop[itemp], datagroupnames.propdatatype[itemp], attrspace);
-        attr.write(datagroupnames.propdatatype[itemp],&opt.icomoveunit);
-        itemp++;
-        attrvalue=opt.p;
-        attrspace=DataSpace(H5S_SCALAR);
-        attr=Fhdf.createAttribute(datagroupnames.prop[itemp], datagroupnames.propdatatype[itemp], attrspace);
-        attr.write(datagroupnames.propdatatype[itemp],&attrvalue);
-        itemp++;
-        attrvalue=opt.a;
-        attrspace=DataSpace(H5S_SCALAR);
-        attr=Fhdf.createAttribute(datagroupnames.prop[itemp], datagroupnames.propdatatype[itemp], attrspace);
-        attr.write(datagroupnames.propdatatype[itemp],&attrvalue);
-        itemp++;
-        attrvalue=opt.lengthtokpc;
-        attrspace=DataSpace(H5S_SCALAR);
-        attr=Fhdf.createAttribute(datagroupnames.prop[itemp], datagroupnames.propdatatype[itemp], attrspace);
-        attr.write(datagroupnames.propdatatype[itemp],&attrvalue);
-        itemp++;
-        attrvalue=opt.velocitytokms;
-        attrspace=DataSpace(H5S_SCALAR);
-        attr=Fhdf.createAttribute(datagroupnames.prop[itemp], datagroupnames.propdatatype[itemp], attrspace);
-        attr.write(datagroupnames.propdatatype[itemp],&attrvalue);
-        itemp++;
-        attrvalue=opt.masstosolarmass;
-        attrspace=DataSpace(H5S_SCALAR);
-        attr=Fhdf.createAttribute(datagroupnames.prop[itemp], datagroupnames.propdatatype[itemp], attrspace);
-        attr.write(datagroupnames.propdatatype[itemp],&attrvalue);
-        itemp++;
+        write_scalar_attr(Fhdf, datagroupnames, itemp++, opt.icosmologicalin);
+        write_scalar_attr(Fhdf, datagroupnames, itemp++, opt.icomoveunit);
+        write_scalar_attr(Fhdf, datagroupnames, itemp++, opt.p);
+        write_scalar_attr(Fhdf, datagroupnames, itemp++, opt.a);
+        write_scalar_attr(Fhdf, datagroupnames, itemp++, opt.lengthtokpc);
+        write_scalar_attr(Fhdf, datagroupnames, itemp++, opt.velocitytokms);
+        write_scalar_attr(Fhdf, datagroupnames, itemp++, opt.masstosolarmass);
 
         //load data spaces
         propdataspace=new DataSpace[head.headerdatainfo.size()];
@@ -2115,6 +2099,65 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
 #endif
+        //output apertures
+        if (opt.iaperturecalc){
+            for (auto j=0;j<opt.aperturenum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((unsigned int*)data)[i]=pdata[i+1].aperture_npart[j];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+            for (auto j=0;j<opt.aperturenum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_mass[j];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+#ifdef GASON
+            for (auto j=0;j<opt.aperturenum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((unsigned int*)data)[i]=pdata[i+1].aperture_npart_gas[j];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+            for (auto j=0;j<opt.aperturenum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_mass_gas[j];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+#ifdef STARON
+            for (auto j=0;j<opt.aperturenum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((unsigned int*)data)[i]=pdata[i+1].aperture_npart_gas_sf[j];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+            for (auto j=0;j<opt.aperturenum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_mass_gas_sf[j];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+            for (auto j=0;j<opt.aperturenum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((unsigned int*)data)[i]=pdata[i+1].aperture_npart_gas_nsf[j];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+            for (auto j=0;j<opt.aperturenum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_mass_gas_nsf[j];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+#endif
+#endif
+#ifdef STARON
+            for (auto j=0;j<opt.aperturenum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((unsigned int*)data)[i]=pdata[i+1].aperture_npart_star[j];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+            for (auto j=0;j<opt.aperturenum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_mass_star[j];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+#endif
+        }
         //delete memory associated with void pointer
         ::operator delete(data);
         delete[] propdataspace;

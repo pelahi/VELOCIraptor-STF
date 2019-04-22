@@ -34,7 +34,16 @@ cd ${TRAVIS_BUILD_DIR}
 mkdir build
 cd build
 
-VR_CMAKE_OPTIONS="-DCMAKE_CXX_COMPILER=$COMPILER -DVR_TEST=ON -DGSL_ROOT_DIR=${GSL_ROOT_DIR}"
+VR_CMAKE_OPTIONS="-DCMAKE_CXX_COMPILER=$COMPILER "
+if [ "$USEGAS" = 1 ]; then
+	VR_CMAKE_OPTIONS+=" -DVR_USE_GAS=ON "
+fi
+if [ "$USESTARS" = 1 ]; then
+	VR_CMAKE_OPTIONS+=" -DVR_USE_STAR=ON "
+fi
+if [ "$USESWIFT" = 1 ]; then
+	VR_CMAKE_OPTIONS+=" -DVR_USE_SWIFT_INTERFACE=ON "
+fi
 
 # Go, go, go!
 cmake .. ${VR_CMAKE_OPTIONS} || fail "cmake failed"

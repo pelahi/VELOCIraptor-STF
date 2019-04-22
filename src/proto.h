@@ -322,6 +322,18 @@ double mycNFW_deriv(double c, void *params);
 ///wrappers for root finding used to get concentration
 double mycNFW_fdf(double c, void *params, double*y,double *dy);
 
+///determine the radial bin for calculating profiles
+int GetRadialBin(Options &opt, Double_t rc, int &ibin);
+///add a particle's properties to the appropriate radial bin.
+void AddParticleToRadialBin(Options &opt, Particle *Pval, Double_t irnorm, int &ibin, PropData &pdata);
+///add data to the appropriate radial bin
+void AddDataToRadialBin(Options &opt, Double_t rval, Double_t massval,
+#if defined(GASON) || defined(STARON) || defined(BHON)
+    Double_t srfval, int typeval,
+#endif
+    Double_t irnorm, int &ibin, PropData &pdata);
+
+
 ///used to sort a pglist based on substructure binding energy
 Int_t **SortAccordingtoBindingEnergy(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&pfof, Int_t *numingroup, PropData *pdata, Int_t ioffset=0);
 ///used to calculate properties and ignores keeping particle order, assumes particle PID information meaningless
