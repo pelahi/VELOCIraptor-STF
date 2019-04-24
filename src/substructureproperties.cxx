@@ -2653,6 +2653,10 @@ private(i,j,k,x,y,z,Pval)
         //to store particle ids of those in SO volume.
         vector<Int_t> SOpids;
         vector<Int_t> *SOpartlist=new vector<Int_t>[ngroup+1];
+        vector<int> *SOparttypelist = NULL;
+#if defined(GASON) || defined(STARON) || defined(BHON)
+        SOparttypelist=new vector<int>[ngroup+1];
+#endif
 
         //set period
         if (opt.p>0) {
@@ -2947,7 +2951,13 @@ private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,
 
             if (opt.iSphericalOverdensityPartList) {
                 SOpartlist[i].resize(iindex);
+#if defined(GASON) || defined(STARON) || defined(BHON)
+                SOparttypelist[i].resize(iindex);
+#endif
                 for (j=0;j<iindex;j++) SOpartlist[i][j]=SOpids[indices[j]];
+#if defined(GASON) || defined(STARON) || defined(BHON)
+                for (j=0;j<iindex;j++) SOparttypelist[i][j]=typeparts[indices[j]];
+#endif
                 SOpids.clear();
             }
             indices.clear();
@@ -2971,8 +2981,11 @@ private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,
         ids.clear();
         //write the particle lists
         if (opt.iSphericalOverdensityPartList) {
-            WriteSOCatalog(opt, ngroup, SOpartlist);
+            WriteSOCatalog(opt, ngroup, SOpartlist, SOparttypelist);
             delete[] SOpartlist;
+#if defined(GASON) || defined(STARON) || defined(BHON)
+            delete[] SOparttypelist;
+#endif
         }
 #ifdef USEMPI
         mpi_period=0;
