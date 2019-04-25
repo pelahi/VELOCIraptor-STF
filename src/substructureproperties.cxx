@@ -407,11 +407,11 @@ void GetCMProp(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, 
     Int_t ii,icmv;
     Int_t RV_num;
     Double_t virval=log(opt.virlevel*opt.rhobg);
-    Double_t m200val=log(opt.rhobg/opt.Omega_m*200.0);
+    Double_t m200val=log(opt.rhocrit*200.0);
     Double_t m200mval=log(opt.rhobg*200.0);
     Double_t mBN98val=log(opt.virBN98*opt.rhobg);
     //also calculate 500 overdensity and useful for gas/star content
-    Double_t m500val=log(opt.rhobg/opt.Omega_m*500.0);
+    Double_t m500val=log(opt.rhocrit*500.0);
 
     for (i=1;i<=ngroup;i++) {
         pdata[i].num=numingroup[i];
@@ -2214,9 +2214,9 @@ void GetInclusiveMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t
     Int_t ii,icmv,numinvir,num200c,num200m;
     Double_t virval=log(opt.virlevel*opt.rhobg);
     Double_t mBN98val=log(opt.virBN98*opt.rhobg);
-    Double_t m200val=log(opt.rhobg/opt.Omega_m*200.0);
+    Double_t m200val=log(opt.rhocrit*200.0);
     Double_t m200mval=log(opt.rhobg*200.0);
-    Double_t m500val=log(opt.rhobg/opt.Omega_m*500.0);
+    Double_t m500val=log(opt.rhocrit*500.0);
     Double_t fac,rhoval,rhoval2;
     Double_t time1=MyGetTime(),time2;
     int nthreads=1,tid;
@@ -4205,8 +4205,8 @@ void CalcCriticalDensity(Options &opt, Double_t a){
     opt.rhocrit=3.*Hubble*Hubble/(8.0*M_PI*opt.G);
 }
 void CalcBackgroundDensity(Options &opt, Double_t a){
-    CalcCriticalDensity(opt, a);
-    opt.rhobg=opt.rhocrit*opt.Omega_m;
+    CalcCriticalDensity(opt, 1.0);
+    opt.rhobg=opt.rhocrit*opt.Omega_m/(a*a*a);
 }
 void CalcVirBN98(Options &opt, Double_t a){
     Double_t bnx=-(opt.Omega_k*pow(a,-2.0)+opt.Omega_Lambda)/(opt.Omega_k*pow(a,-2.0)+opt.Omega_m*pow(a,-3.0)+opt.Omega_Lambda);
