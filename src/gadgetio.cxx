@@ -178,6 +178,7 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
         else aadjust=opt.a;
         Hubble=GetHubble(opt, aadjust);
         CalcCriticalDensity(opt, aadjust);
+        CalcBackgroundDensity(opt, aadjust);
         CalcVirBN98(opt,aadjust);
         //if opt.virlevel<0, then use virial overdensity based on Bryan and Norman 1997 virialization level is given by
         if (opt.virlevel<0) opt.virlevel=opt.virBN98;
