@@ -237,6 +237,7 @@ void SetVelociraptorSimulationState(cosmoinfo c, siminfo s)
         libvelociraptorOpt.ellxscale*=libvelociraptorOpt.a;
         libvelociraptorOpt.uinfo.eps*=libvelociraptorOpt.a;
 
+        /*
         Hubble=libvelociraptorOpt.h*libvelociraptorOpt.H*sqrt(libvelociraptorOpt.Omega_k*pow(libvelociraptorOpt.a,-2.0)+libvelociraptorOpt.Omega_m*pow(libvelociraptorOpt.a,-3.0)
 +libvelociraptorOpt.Omega_r*pow(libvelociraptorOpt.a,-4.0)+libvelociraptorOpt.Omega_Lambda+libvelociraptorOpt.Omega_de*pow(libvelociraptorOpt.a,-3.0*(1+libvelociraptorOpt.w_de)));
         libvelociraptorOpt.rhobg=3.*Hubble*Hubble/(8.0*M_PI*libvelociraptorOpt.G)*libvelociraptorOpt.Omega_m;
@@ -246,6 +247,14 @@ void SetVelociraptorSimulationState(cosmoinfo c, siminfo s)
             Double_t bnx=-(libvelociraptorOpt.Omega_k*pow(libvelociraptorOpt.a,-2.0)+libvelociraptorOpt.Omega_Lambda)/((1-libvelociraptorOpt.Omega_m-libvelociraptorOpt.Omega_Lambda)*pow(libvelociraptorOpt.a,-2.0)+libvelociraptorOpt.Omega_m*pow(libvelociraptorOpt.a,-3.0)+libvelociraptorOpt.Omega_Lambda);
             libvelociraptorOpt.virlevel=(18.0*M_PI*M_PI+82.0*bnx-39*bnx*bnx)/libvelociraptorOpt.Omega_m;
         }
+        */
+        CalcOmegak(libvelociraptorOpt);
+        Hubble=GetHubble(libvelociraptorOpt, libvelociraptorOpt.a);
+        CalcCriticalDensity(libvelociraptorOpt, libvelociraptorOpt.a);
+        CalcBackgroundDensity(libvelociraptorOpt, libvelociraptorOpt.a);
+        CalcVirBN98(libvelociraptorOpt,libvelociraptorOpt.a);
+        if (libvelociraptorOpt.virlevel<0) libvelociraptorOpt.virlevel=libvelociraptorOpt.virBN98;
+
         for (auto i=0;i<3;i++) {
             libvelociraptorOpt.spacedimension[i] *= libvelociraptorOpt.a;
             libvelociraptorOpt.cellwidth[i] *= libvelociraptorOpt.a;
@@ -253,6 +262,7 @@ void SetVelociraptorSimulationState(cosmoinfo c, siminfo s)
         }
     }
     else {
+        libvelociraptorOpt.rhocrit=1.0;
         libvelociraptorOpt.rhobg=1.0;
     }
     PrintSimulationState(libvelociraptorOpt);
