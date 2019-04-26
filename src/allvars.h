@@ -3142,7 +3142,7 @@ struct DataGroupNames {
         SO.push_back("Offset");
         SO.push_back("Particle_IDs");
 #if defined(GASON) || defined(STARON) || defined(BHON)
-        SO.push_back("Particle_type");
+        SO.push_back("Particle_types");
 #endif
 
 #ifdef USEHDF

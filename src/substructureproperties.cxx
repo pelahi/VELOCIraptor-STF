@@ -2740,7 +2740,7 @@ private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,
                 velparts.resize(taggedparts.size());
             }
 #if defined(GASON) || defined(STARON) || defined(BHON)
-            if (opt.iextragasoutput || opt.iextrastaroutput) typeparts.resize(taggedparts.size());
+            if (opt.iextragasoutput || opt.iextrastaroutput || opt.iSphericalOverdensityPartList) typeparts.resize(taggedparts.size());
 #endif
             if (opt.iSphericalOverdensityPartList) SOpids.resize(taggedparts.size());
             for (j=0;j<taggedparts.size();j++) {
@@ -2748,7 +2748,7 @@ private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,
                 if (opt.iSphericalOverdensityPartList) SOpids[j]=Part[taggedparts[j]].GetPID();
                 radii[j]=0;
 #if defined(GASON) || defined(STARON) || defined(BHON)
-                if (opt.iextragasoutput || opt.iextrastaroutput) typeparts[j]=Part[taggedparts[j]].GetMass();
+                if (opt.iextragasoutput || opt.iextrastaroutput || opt.iSphericalOverdensityPartList) typeparts[j]=Part[taggedparts[j]].GetType();
 #endif
                 for (k=0;k<3;k++) {
                     dx=Part[taggedparts[j]].GetPosition(k)-pdata[i].gcm[k];
@@ -2780,14 +2780,14 @@ private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,
                             velparts.resize(velparts.size()+taggedparts.size());
                         }
 #if defined(GASON) || defined(STARON) || defined(BHON)
-                        if (opt.iextragasoutput || opt.iextrastaroutput) typeparts.resize(typeparts.size()+taggedparts.size());
+                        if (opt.iextragasoutput || opt.iextrastaroutput || opt.iSphericalOverdensityPartList) typeparts.resize(typeparts.size()+taggedparts.size());
 #endif
                         if (opt.iSphericalOverdensityPartList) SOpids.resize(SOpids.size()+taggedparts.size());
                         for (j=0;j<taggedparts.size();j++) {
                             masses[offset+j]=PartDataGet[taggedparts[j]].GetMass();
                             if (opt.iSphericalOverdensityPartList) SOpids[j+offset]=PartDataGet[taggedparts[j]].GetPID();
 #if defined(GASON) || defined(STARON) || defined(BHON)
-                            if (opt.iextragasoutput || opt.iextrastaroutput) typeparts[offset+j]=PartDataGet[taggedparts[j]].GetMass();
+                            if (opt.iextragasoutput || opt.iextrastaroutput || opt.iSphericalOverdensityPartList) typeparts[offset+j]=PartDataGet[taggedparts[j]].GetType();
 #endif
                             radii[offset+j]=0;
                             for (k=0;k<3;k++) {

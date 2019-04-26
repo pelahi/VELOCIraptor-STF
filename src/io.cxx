@@ -1352,15 +1352,19 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids, ve
     if (nSOids>0) {
         idval=new long long[nSOids];
         nSOids=0;
-        for (Int_t i=1;i<=ngroups;i++)
+        for (Int_t i=1;i<=ngroups;i++) {
             for (Int_t j=0;j<SOpids[i].size();j++)
                 idval[nSOids++]=SOpids[i][j];
+            SOpids[i].resize(0);
+        }
 #if defined(GASON) || defined(STARON) || defined(BHON)
         typeval=new int[nSOids];
         nSOids=0;
-        for (Int_t i=1;i<=ngroups;i++)
+        for (Int_t i=1;i<=ngroups;i++) {
             for (Int_t j=0;j<SOtypes[i].size();j++)
                 typeval[nSOids++]=SOtypes[i][j];
+            SOtypes[i].resize(0);
+        }
 #endif
     }
     if (opt.ibinaryout==OUTBINARY) {
