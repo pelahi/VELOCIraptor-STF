@@ -3141,6 +3141,10 @@ struct DataGroupNames {
         SO.push_back("SO_size");
         SO.push_back("Offset");
         SO.push_back("Particle_IDs");
+#if defined(GASON) || defined(STARON) || defined(BHON)
+        SO.push_back("Particle_types");
+#endif
+
 #ifdef USEHDF
         SOdatatype.push_back(PredType::STD_I32LE);
         SOdatatype.push_back(PredType::STD_I32LE);
@@ -3151,6 +3155,9 @@ struct DataGroupNames {
         SOdatatype.push_back(PredType::STD_U32LE);
         SOdatatype.push_back(PredType::STD_U64LE);
         SOdatatype.push_back(PredType::STD_I64LE);
+#if defined(GASON) || defined(STARON) || defined(BHON)
+        SOdatatype.push_back(PredType::STD_I32LE);
+#endif
 #endif
 #ifdef USEADIOS
         adiosSOdatatype.push_back(ADIOS_DATATYPES::adios_integer);
@@ -3162,6 +3169,9 @@ struct DataGroupNames {
         adiosSOdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_integer);
         adiosSOdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
         adiosSOdatatype.push_back(ADIOS_DATATYPES::adios_long);
+#if defined(GASON) || defined(STARON) || defined(BHON)
+        adiosSOdatatype.push_back(ADIOS_DATATYPES::adios_integer);
+#endif
 #endif
     }
 };

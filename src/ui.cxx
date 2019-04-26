@@ -485,18 +485,24 @@ void GetParamFile(Options &opt)
                         opt.a = atof(vbuff);
                     else if (strcmp(tbuff, "h_val")==0)
                         opt.h = atof(vbuff);
-                    else if (strcmp(tbuff, "Omega_m")==0)
-                        opt.Omega_m = atof(vbuff);
-                    else if (strcmp(tbuff, "Omega_Lambda")==0)
-                        opt.Omega_Lambda = atof(vbuff);
                     else if (strcmp(tbuff, "Critical_density")==0)
                         opt.rhobg = atof(vbuff);
                     else if (strcmp(tbuff, "Virial_density")==0)
                         opt.virlevel = atof(vbuff);
+                    else if (strcmp(tbuff, "Omega_m")==0)
+                        opt.Omega_m = atof(vbuff);
+                    else if (strcmp(tbuff, "Omega_Lambda")==0)
+                        opt.Omega_Lambda = atof(vbuff);
+                    else if (strcmp(tbuff, "Omega_DE")==0)
+                        opt.Omega_de = atof(vbuff);
                     else if (strcmp(tbuff, "Omega_cdm")==0)
                         opt.Omega_cdm= atof(vbuff);
                     else if (strcmp(tbuff, "Omega_b")==0)
                         opt.Omega_b= atof(vbuff);
+                    else if (strcmp(tbuff, "Omega_r")==0)
+                        opt.Omega_r= atof(vbuff);
+                    else if (strcmp(tbuff, "Omega_nu")==0)
+                        opt.Omega_nu= atof(vbuff);
                     else if (strcmp(tbuff, "w_of_DE")==0)
                         opt.w_de= atof(vbuff);
                     //so units can be specified to convert to kpc, km/s, solar mass
