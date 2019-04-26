@@ -407,11 +407,11 @@ void GetCMProp(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, 
     Int_t ii,icmv;
     Int_t RV_num;
     Double_t virval=log(opt.virlevel*opt.rhobg);
-    Double_t m200val=log(opt.rhobg/opt.Omega_m*200.0);
+    Double_t m200val=log(opt.rhocrit*200.0);
     Double_t m200mval=log(opt.rhobg*200.0);
-    Double_t mBN98val=log(opt.virBN98*opt.rhobg);
+    Double_t mBN98val=log(opt.virBN98*opt.rhocrit);
     //also calculate 500 overdensity and useful for gas/star content
-    Double_t m500val=log(opt.rhobg/opt.Omega_m*500.0);
+    Double_t m500val=log(opt.rhocrit*500.0);
 
     for (i=1;i<=ngroup;i++) {
         pdata[i].num=numingroup[i];
@@ -2213,10 +2213,10 @@ void GetInclusiveMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t
     Double_t change=MAXVALUE,tol=1e-2;
     Int_t ii,icmv,numinvir,num200c,num200m;
     Double_t virval=log(opt.virlevel*opt.rhobg);
-    Double_t mBN98val=log(opt.virBN98*opt.rhobg);
-    Double_t m200val=log(opt.rhobg/opt.Omega_m*200.0);
+    Double_t mBN98val=log(opt.virBN98*opt.rhocrit);
+    Double_t m200val=log(opt.rhocrit*200.0);
     Double_t m200mval=log(opt.rhobg*200.0);
-    Double_t m500val=log(opt.rhobg/opt.Omega_m*500.0);
+    Double_t m500val=log(opt.rhocrit*500.0);
     Double_t fac,rhoval,rhoval2;
     Double_t time1=MyGetTime(),time2;
     int nthreads=1,tid;
@@ -2653,6 +2653,10 @@ private(i,j,k,x,y,z,Pval)
         //to store particle ids of those in SO volume.
         vector<Int_t> SOpids;
         vector<Int_t> *SOpartlist=new vector<Int_t>[ngroup+1];
+        vector<int> *SOparttypelist = NULL;
+#if defined(GASON) || defined(STARON) || defined(BHON)
+        SOparttypelist=new vector<int>[ngroup+1];
+#endif
 
         //set period
         if (opt.p>0) {
@@ -2736,7 +2740,7 @@ private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,
                 velparts.resize(taggedparts.size());
             }
 #if defined(GASON) || defined(STARON) || defined(BHON)
-            if (opt.iextragasoutput || opt.iextrastaroutput) typeparts.resize(taggedparts.size());
+            if (opt.iextragasoutput || opt.iextrastaroutput || opt.iSphericalOverdensityPartList) typeparts.resize(taggedparts.size());
 #endif
             if (opt.iSphericalOverdensityPartList) SOpids.resize(taggedparts.size());
             for (j=0;j<taggedparts.size();j++) {
@@ -2744,7 +2748,7 @@ private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,
                 if (opt.iSphericalOverdensityPartList) SOpids[j]=Part[taggedparts[j]].GetPID();
                 radii[j]=0;
 #if defined(GASON) || defined(STARON) || defined(BHON)
-                if (opt.iextragasoutput || opt.iextrastaroutput) typeparts[j]=Part[taggedparts[j]].GetMass();
+                if (opt.iextragasoutput || opt.iextrastaroutput || opt.iSphericalOverdensityPartList) typeparts[j]=Part[taggedparts[j]].GetType();
 #endif
                 for (k=0;k<3;k++) {
                     dx=Part[taggedparts[j]].GetPosition(k)-pdata[i].gcm[k];
@@ -2776,14 +2780,14 @@ private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,
                             velparts.resize(velparts.size()+taggedparts.size());
                         }
 #if defined(GASON) || defined(STARON) || defined(BHON)
-                        if (opt.iextragasoutput || opt.iextrastaroutput) typeparts.resize(typeparts.size()+taggedparts.size());
+                        if (opt.iextragasoutput || opt.iextrastaroutput || opt.iSphericalOverdensityPartList) typeparts.resize(typeparts.size()+taggedparts.size());
 #endif
                         if (opt.iSphericalOverdensityPartList) SOpids.resize(SOpids.size()+taggedparts.size());
                         for (j=0;j<taggedparts.size();j++) {
                             masses[offset+j]=PartDataGet[taggedparts[j]].GetMass();
                             if (opt.iSphericalOverdensityPartList) SOpids[j+offset]=PartDataGet[taggedparts[j]].GetPID();
 #if defined(GASON) || defined(STARON) || defined(BHON)
-                            if (opt.iextragasoutput || opt.iextrastaroutput) typeparts[offset+j]=PartDataGet[taggedparts[j]].GetMass();
+                            if (opt.iextragasoutput || opt.iextrastaroutput || opt.iSphericalOverdensityPartList) typeparts[offset+j]=PartDataGet[taggedparts[j]].GetType();
 #endif
                             radii[offset+j]=0;
                             for (k=0;k<3;k++) {
@@ -2947,7 +2951,13 @@ private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,
 
             if (opt.iSphericalOverdensityPartList) {
                 SOpartlist[i].resize(iindex);
+#if defined(GASON) || defined(STARON) || defined(BHON)
+                SOparttypelist[i].resize(iindex);
+#endif
                 for (j=0;j<iindex;j++) SOpartlist[i][j]=SOpids[indices[j]];
+#if defined(GASON) || defined(STARON) || defined(BHON)
+                for (j=0;j<iindex;j++) SOparttypelist[i][j]=typeparts[indices[j]];
+#endif
                 SOpids.clear();
             }
             indices.clear();
@@ -2971,8 +2981,11 @@ private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,
         ids.clear();
         //write the particle lists
         if (opt.iSphericalOverdensityPartList) {
-            WriteSOCatalog(opt, ngroup, SOpartlist);
+            WriteSOCatalog(opt, ngroup, SOpartlist, SOparttypelist);
             delete[] SOpartlist;
+#if defined(GASON) || defined(STARON) || defined(BHON)
+            delete[] SOparttypelist;
+#endif
         }
 #ifdef USEMPI
         mpi_period=0;
@@ -4205,12 +4218,12 @@ void CalcCriticalDensity(Options &opt, Double_t a){
     opt.rhocrit=3.*Hubble*Hubble/(8.0*M_PI*opt.G);
 }
 void CalcBackgroundDensity(Options &opt, Double_t a){
-    CalcCriticalDensity(opt, a);
-    opt.rhobg=opt.rhocrit*opt.Omega_m;
+    Double_t Hubble=GetHubble(opt,1.0);
+    opt.rhobg=3.*Hubble*Hubble/(8.0*M_PI*opt.G)*opt.Omega_m/(a*a*a);
 }
 void CalcVirBN98(Options &opt, Double_t a){
     Double_t bnx=-(opt.Omega_k*pow(a,-2.0)+opt.Omega_Lambda)/(opt.Omega_k*pow(a,-2.0)+opt.Omega_m*pow(a,-3.0)+opt.Omega_Lambda);
-    opt.virBN98=(18.0*M_PI*M_PI+82.0*bnx-39*bnx*bnx)/opt.Omega_m;
+    opt.virBN98=(18.0*M_PI*M_PI+82.0*bnx-39*bnx*bnx);
 }
 void CalcCosmoParams(Options &opt, Double_t a){
     CalcOmegak(opt);
@@ -4220,7 +4233,7 @@ void CalcCosmoParams(Options &opt, Double_t a){
 }
 
 Double_t GetHubble(Options &opt, Double_t a){
-    return opt.h*opt.H*sqrt(opt.Omega_k*pow(a,-2.0)+opt.Omega_m*pow(a,-3.0)+opt.Omega_r*pow(a,-3.0)+opt.Omega_Lambda+opt.Omega_de*pow(a,-3.0*(1+opt.w_de)));
+    return opt.h*opt.H*sqrt(opt.Omega_k*pow(a,-2.0)+opt.Omega_m*pow(a,-3.0)+opt.Omega_r*pow(a,-4.0)+opt.Omega_Lambda+opt.Omega_de*pow(a,-3.0*(1+opt.w_de)));
 }
 
 double GetInvaH(double a, void * params) {

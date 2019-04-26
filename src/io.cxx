@@ -1081,12 +1081,13 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
 ///Note that this particle list will not be exclusive
 ///\todo optimisation memory wise can be implemented by not creating an array
 ///to store all ids and then copying info from the array of vectors into it.
-void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids){
+void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids, vector<int> *SOtypes){
     fstream Fout;
     char fname[500];
     unsigned long ng,noffset=0,ngtot=0,nSOids=0,nSOidstot=0;
     unsigned long *offset;
     long long *idval;
+    int *typeval;
     Int_t *numingroup;
 
 #ifdef USEHDF
@@ -1293,7 +1294,9 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids){
         itemp++;
     }
 #endif
-    else for (Int_t i=1;i<=ngroups;i++) Fout<<SOpids[i].size()<<endl;
+    else {
+        for (Int_t i=1;i<=ngroups;i++) Fout<<SOpids[i].size()<<endl;
+    }
 
 
     //Write offsets
@@ -1341,17 +1344,35 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids){
         itemp++;
     }
 #endif
-    else for (Int_t i=1;i<=ngroups;i++) Fout<<offset[i]<<endl;
+    else {
+        for (Int_t i=1;i<=ngroups;i++) Fout<<offset[i]<<endl;
+    }
     delete[] offset;
 
     if (nSOids>0) {
         idval=new long long[nSOids];
         nSOids=0;
-        for (Int_t i=1;i<=ngroups;i++)
+        for (Int_t i=1;i<=ngroups;i++) {
             for (Int_t j=0;j<SOpids[i].size();j++)
                 idval[nSOids++]=SOpids[i][j];
+            SOpids[i].resize(0);
+        }
+#if defined(GASON) || defined(STARON) || defined(BHON)
+        typeval=new int[nSOids];
+        nSOids=0;
+        for (Int_t i=1;i<=ngroups;i++) {
+            for (Int_t j=0;j<SOtypes[i].size();j++)
+                typeval[nSOids++]=SOtypes[i][j];
+            SOtypes[i].resize(0);
+        }
+#endif
     }
-    if (opt.ibinaryout==OUTBINARY) {if (nSOids>0) Fout.write((char*)idval,sizeof(Int_t)*nSOids);}
+    if (opt.ibinaryout==OUTBINARY) {
+        if (nSOids>0) Fout.write((char*)idval,sizeof(Int_t)*nSOids);
+#if defined(GASON) || defined(STARON) || defined(BHON)
+        if (nSOids>0) Fout.write((char*)typeval,sizeof(int)*nSOids);
+#endif
+    }
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
         dims=new hsize_t[1];
@@ -1372,6 +1393,23 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids){
             dataset = Fhdf.createDataSet(datagroupnames.SO[itemp], datagroupnames.SOdatatype[itemp], dataspace);
         }
         dataset.write(idval,datagroupnames.SOdatatype[itemp]);
+        //if need to store particle types
+#if defined(GASON) || defined(STARON) || defined(BHON)
+        itemp++;
+        if (chunk_dims[0]>0) {
+            hdfdatasetproplist=DSetCreatPropList();
+            // Modify dataset creation property to enable chunking
+            hdfdatasetproplist.setChunk(rank, chunk_dims);
+            // Set ZLIB (DEFLATE) Compression using level 6.
+            hdfdatasetproplist.setDeflate(6);
+            dataspace=DataSpace(rank,dims);
+            dataset = Fhdf.createDataSet(datagroupnames.SO[itemp], datagroupnames.SOdatatype[itemp], dataspace, hdfdatasetproplist);
+        }
+        else {
+            dataset = Fhdf.createDataSet(datagroupnames.SO[itemp], datagroupnames.SOdatatype[itemp], dataspace);
+        }
+        dataset.write(typeval,datagroupnames.SOdatatype[itemp]);
+#endif
         delete[] dims;
         delete[] chunk_dims;
     }
@@ -1392,10 +1430,22 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids){
         Int_t mpioffset=0;
         adios_err=adios_write(adios_file_handle,"nSOidsmpioffset",&mpioffset);
         adios_err=adios_write(adios_file_handle,datagroupnames.SO[itemp].c_str(),idval);
+#if defined(GASON) || defined(STARON) || defined(BHON)
+        itemp++;
+        adios_err=adios_write(adios_file_handle,datagroupnames.SO[itemp].c_str(),typeval);
+#endif
     }
 #endif
-    else for (Int_t i=0;i<nSOids;i++) Fout<<idval[i]<<endl;
+    else {
+        for (Int_t i=0;i<nSOids;i++) Fout<<idval[i]<<endl;
+#if defined(GASON) || defined(STARON) || defined(BHON)
+        for (Int_t i=0;i<nSOids;i++) Fout<<typeval[i]<<endl;
+#endif
+    }
     if (nSOids>0) delete[] idval;
+#if defined(GASON) || defined(STARON) || defined(BHON)
+    if (nSOids>0) delete[] typeval;
+#endif
 
     if (opt.ibinaryout==OUTASCII || opt.ibinaryout==OUTBINARY) Fout.close();
 #ifdef USEHDF

@@ -506,16 +506,17 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
         opt.Omega_Lambda=hdf_header_info[ifirstfile].OmegaLambda;
         opt.h=hdf_header_info[ifirstfile].HubbleParam;
         opt.Omega_cdm=opt.Omega_m-opt.Omega_b;
+        CalcOmegak(opt);
         //Hubble flow
         if (opt.comove) aadjust=1.0;
         else aadjust=opt.a;
-        Hubble=opt.h*opt.H*sqrt((1-opt.Omega_m-opt.Omega_Lambda)*pow(aadjust,-2.0)+opt.Omega_m*pow(aadjust,-3.0)+opt.Omega_Lambda);
-        opt.rhobg=3.*Hubble*Hubble/(8.0*M_PI*opt.G)*opt.Omega_m;
-        Double_t bnx=-((1-opt.Omega_m-opt.Omega_Lambda)*pow(aadjust,-2.0)+opt.Omega_Lambda)/((1-opt.Omega_m-opt.Omega_Lambda)*pow(aadjust,-2.0)+opt.Omega_m*pow(aadjust,-3.0)+opt.Omega_Lambda);
-        opt.virBN98=(18.0*M_PI*M_PI+82.0*bnx-39*bnx*bnx)/opt.Omega_m;
+        Hubble=GetHubble(opt, aadjust);
+        CalcCriticalDensity(opt, aadjust);
+        CalcBackgroundDensity(opt, aadjust);
+        CalcVirBN98(opt,aadjust);
         //if opt.virlevel<0, then use virial overdensity based on Bryan and Norman 1997 virialization level is given by
         if (opt.virlevel<0) opt.virlevel=opt.virBN98;
-        cout<<"Cosmology (h,Omega_m,Omega_cdm,Omega_b,Omega_L) = ("<< opt.h<<","<<opt.Omega_m<<","<<opt.Omega_cdm<<","<<opt.Omega_b<<","<<opt.Omega_Lambda<<")"<<endl;
+        PrintCosmology(opt);
     }
     else {
       opt.a=1.0;
