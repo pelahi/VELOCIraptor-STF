@@ -448,7 +448,7 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
         //iterate for better cm if group large enough
         cmold=pdata[i].gcm;
         change=MAXVALUE;tol=1e-2;
-        if (numingroup[i]*opt.pinfo.cmadjustfac>=PROPCMMINNUM) {
+        if (numingroup[i]*opt.pinfo.cmadjustfac>=PROPCMMINNUM && opt.iIterateCM) {
             ri=pdata[i].gsize;
             ri=ri*ri;
             cmold=pdata[i].gcm;
@@ -796,7 +796,7 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
         //iterate for better cm if group large enough
         cmold=pdata[i].cm_gas;
         change=MAXVALUE;tol=1e-2;
-        if (pdata[i].n_gas*opt.pinfo.cmadjustfac>=PROPCMMINNUM) {
+        if (pdata[i].n_gas*opt.pinfo.cmadjustfac>=PROPCMMINNUM && opt.iIterateCM) {
             ri=pdata[i].gsize;
             ri=ri*ri;
             cmold=pdata[i].cm_gas;
@@ -965,7 +965,7 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
         //iterate for better cm if group large enough
         cmold=pdata[i].cm_star;
         change=MAXVALUE;tol=1e-2;
-        if (pdata[i].n_star*opt.pinfo.cmadjustfac>=PROPCMMINNUM) {
+        if (pdata[i].n_star*opt.pinfo.cmadjustfac>=PROPCMMINNUM && opt.iIterateCM) {
             ri=pdata[i].gsize;
             ri=ri*ri;
             cmold=pdata[i].cm_star;
@@ -1238,7 +1238,7 @@ private(j,Pval)
         cmref=pdata[i].gcm;//cmold=pdata[i].gcm;
         rcmv=ri;
         ii=numingroup[i];
-        while (true)
+        while (opt.iIterateCM)
         {
             ri*=opt.pinfo.cmadjustfac;
             // find c/m of all particles within ri
@@ -1687,7 +1687,7 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval)
         //iterate for better cm if group large enough
         cmold=pdata[i].cm_gas;
         change=MAXVALUE;tol=1e-2;
-        if (pdata[i].n_gas*opt.pinfo.cmadjustfac>=PROPCMMINNUM) {
+        if (pdata[i].n_gas*opt.pinfo.cmadjustfac>=PROPCMMINNUM && opt.iIterateCM) {
             ri=pdata[i].gsize;
             ri=ri*ri;
             cmold=pdata[i].cm_gas;
@@ -1893,7 +1893,7 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval)
         //iterate for better cm if group large enough
         cmold=pdata[i].cm_star;
         change=MAXVALUE;tol=1e-2;
-        if (pdata[i].n_star*opt.pinfo.cmadjustfac>=PROPCMMINNUM) {
+        if (pdata[i].n_star*opt.pinfo.cmadjustfac>=PROPCMMINNUM && opt.iIterateCM) {
             ri=pdata[i].gsize;
             ri=ri*ri;
             cmold=pdata[i].cm_star;
@@ -2266,7 +2266,7 @@ private(i,j,k,Pval,ri,rcmv,ri2,r2,cmx,cmy,cmz,EncMass,Ninside,icmv,cmold,x,y,z,v
         //iterate cm
         cmold=pdata[i].gcm;
         icmv=numingroup[i];
-        while (true)
+        while (opt.iIterateCM)
         {
             ri*=opt.pinfo.cmadjustfac;
             rcmv=ri;
@@ -2370,7 +2370,7 @@ private(j,Pval,massval)
         //iterate cm
         cmold=pdata[i].gcm;
         icmv=numingroup[i];
-        while (true)
+        while (opt.iIterateCM)
         {
             ri*=opt.pinfo.cmadjustfac;
             rcmv=ri;
@@ -3714,8 +3714,9 @@ void GetBindingEnergy(Options &opt, const Int_t nbodies, Particle *Part, Int_t n
     Double_t eps2=opt.uinfo.eps*opt.uinfo.eps;
 
     //useful variables to store temporary results
-    Double_t r2,v2,Ti,poti,pot;
-    Double_t Tval,Potval,Efracval,Eval,Emostbound,Eunbound,imostbound,iunbound;
+    Double_t r2,v2,Ti,poti,pot,Ei;
+    Double_t Tval,Potval,Efracval,Eval,Emostbound,Eunbound;
+    Int_t imostbound,iunbound;
     Double_t Efracval_gas,Efracval_star;
     Double_t mw2=opt.MassValue*opt.MassValue;
     Double_t potmin,menc;
@@ -3816,7 +3817,7 @@ private(i,j,k,potmin,ipotmin)
 #endif
     }
 
-    //then calculate binding energy and store in potential
+    //then calculate binding energy and store in density
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
 private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid)
@@ -3839,16 +3840,16 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid)
 #endif
             pdata[i].T+=Ti;
 #ifdef NOMASS
-            Part[j+noffset[i]].SetPotential(Ti+Part[j+noffset[i]].GetPotential()*mw2);
+            Part[j+noffset[i]].SetDensity(Ti+Part[j+noffset[i]].GetPotential()*mw2);
 #else
-            Part[j+noffset[i]].SetPotential(Ti+Part[j+noffset[i]].GetPotential());
+            Part[j+noffset[i]].SetDensity(Ti+Part[j+noffset[i]].GetPotential());
 #endif
-            if(Part[j+noffset[i]].GetPotential()<0) pdata[i].Efrac+=1.0;
+            if(Part[j+noffset[i]].GetDensity()<0) pdata[i].Efrac+=1.0;
 #ifdef GASON
-            if(Part[j+noffset[i]].GetPotential()<0&&Part[j+noffset[i]].GetType()==GASTYPE) pdata[i].Efrac_gas+=1.0;
+            if(Part[j+noffset[i]].GetDensity()<0&&Part[j+noffset[i]].GetType()==GASTYPE) pdata[i].Efrac_gas+=1.0;
 #endif
 #ifdef STARON
-            if(Part[j+noffset[i]].GetPotential()<0&&Part[j+noffset[i]].GetType()==STARTYPE) pdata[i].Efrac_star+=1.0;
+            if(Part[j+noffset[i]].GetDensity()<0&&Part[j+noffset[i]].GetType()==STARTYPE) pdata[i].Efrac_star+=1.0;
 #endif
         }
         pdata[i].Efrac/=(Double_t)numingroup[i];
@@ -3952,7 +3953,7 @@ private(i,j,k,potmin,ipotmin)
 #endif
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
-private(j,v2,Ti)
+private(j,v2,Ti,Ei)
 {
     #pragma omp for reduction(+:Tval,Efracval,Potval,Efracval_gas,Efracval_star)
 #endif
@@ -3964,27 +3965,28 @@ private(j,v2,Ti)
             Ti+=opt.MassValue*Part[j+noffset[i]].GetU();
 #endif
             Potval+=Part[j+noffset[i]].GetPotential()*mw2;
-            Part[j+noffset[i]].SetPotential(Part[j+noffset[i]].GetPotential()*mw2+Ti);
+            Part[j+noffset[i]].SetDensity(Part[j+noffset[i]].GetPotential()*mw2+Ti);
 #else
             Ti=0.5*Part[j+noffset[i]].GetMass()*v2;
 #ifdef GASON
             Ti+=Part[j+noffset[i]].GetMass()*Part[j+noffset[i]].GetU();
 #endif
             Potval+=Part[j+noffset[i]].GetPotential();
-            Part[j+noffset[i]].SetPotential(Part[j+noffset[i]].GetPotential()+Ti);
+            Part[j+noffset[i]].SetDensity(Part[j+noffset[i]].GetPotential()+Ti);
 #endif
             Tval+=Ti;
-            if(Part[j+noffset[i]].GetPotential()<0.0) Efracval+=1.0;
+            if(Part[j+noffset[i]].GetDensity()<0.0) Efracval+=1.0;
 #ifdef GASON
-            if(Part[j+noffset[i]].GetPotential()<0&&Part[j+noffset[i]].GetType()==GASTYPE) Efracval_gas+=1.0;
+            if(Part[j+noffset[i]].GetDensity()<0&&Part[j+noffset[i]].GetType()==GASTYPE) Efracval_gas+=1.0;
 #endif
 #ifdef STARON
-            if(Part[j+noffset[i]].GetPotential()<0&&Part[j+noffset[i]].GetType()==STARTYPE) Efracval_star+=1.0;
+            if(Part[j+noffset[i]].GetDensity()<0&&Part[j+noffset[i]].GetType()==STARTYPE) Efracval_star+=1.0;
 #endif
         }
 #ifdef USEOPENMP
 }
 #endif
+        //get potential, fraction bound, etc
         pdata[i].T=Tval;pdata[i].Efrac=Efracval;pdata[i].Pot=Potval;
         pdata[i].Efrac/=(Double_t)numingroup[i];
 #ifdef GASON
@@ -3994,6 +3996,35 @@ private(j,v2,Ti)
         if (pdata[i].n_star>0)pdata[i].Efrac_star=Efracval_star/(Double_t)pdata[i].n_star;
 #endif
     }
+
+
+    //get most bound particle
+#ifdef USEOPENMP
+#pragma omp parallel default(shared)  \
+private(i,j,Emostbound,imostbound)
+{
+    #pragma omp for schedule(dynamic) nowait
+#endif
+    for (i=1;i<=ngroup;i++) {
+        Emostbound = Part[noffset[i]].GetDensity();
+        imostbound = 0;
+        pdata[i].ibound = Part[noffset[i]].GetPID();
+        for (j=1;j<numingroup[i];j++) {
+            if (Part[noffset[i]+j].GetDensity() < Emostbound){
+                Emostbound = Part[noffset[i]+j].GetDensity();
+                imostbound = j;
+                pdata[i].ibound=Part[noffset[i]+j].GetPID();
+            }
+        }
+        for (j=0;j<3;j++) {
+            pdata[i].gpos[j] = Part[noffset[i]+imostbound].GetPosition(j);
+            pdata[i].gvel[j] = Part[noffset[i]+imostbound].GetVelocity(j);
+        }
+    }
+#ifdef USEOPENMP
+}
+#endif
+
     if (opt.iverbose) cout<<"Done."<<endl;
 }
 
@@ -4043,26 +4074,28 @@ private(i,j)
     #pragma omp for nowait
 #endif
     for (i=1;i<=ngroup;i++) {
-        qsort(&Part[noffset[i]], numingroup[i], sizeof(Particle), PotCompare);
+        if (opt.iSortByBindingEnergy) {
+            qsort(&Part[noffset[i]], numingroup[i], sizeof(Particle), DenCompare);
+        }
+        else {
+            qsort(&Part[noffset[i]], numingroup[i], sizeof(Particle), PotCompare);
+        }
         //having sorted particles get most bound, first unbound
-        pdata[i].ibound=Part[noffset[i]].GetPID();
         pdata[i].iunbound=numingroup[i];
         if (numingroup[i]>0)
-            for (j=0;j<numingroup[i];j++) if(Part[noffset[i]+j].GetPotential()>0) {pdata[i].iunbound=j;break;}
+            for (j=0;j<numingroup[i];j++) if(Part[noffset[i]+j].GetDensity()>0) {pdata[i].iunbound=j;break;}
         //get relative positions of most bound an min pot particles
         for (auto k=0;k<3;k++) {
-            pdata[i].gpos[k]=Part[noffset[i]].GetPosition(k)-pdata[i].gcm[k];
-            pdata[i].gvel[k]=Part[noffset[i]].GetVelocity(k)-pdata[i].gcmvel[k];
+            pdata[i].gpos[k]=pdata[i].gpos[k]-pdata[i].gcm[k];
+            pdata[i].gvel[k]=pdata[i].gvel[k]-pdata[i].gcmvel[k];
             pdata[i].gposminpot[k]=pdata[i].gposminpot[k]-pdata[i].gcm[k];
             pdata[i].gvelminpot[k]=pdata[i].gvelminpot[k]-pdata[i].gcmvel[k];
         }
         //get size to using most bound
         Double_t x,y,z,r2;
         for (j=1;j<numingroup[i];j++) {
-            x=Part[noffset[i]+j].X()-Part[noffset[i]].X();
-            y=Part[noffset[i]+j].Y()-Part[noffset[i]].Y();
-            z=Part[noffset[i]+j].Z()-Part[noffset[i]].Z();
-            r2=x*x+y*y+z*z;
+            r2=0;
+            for (auto k=0;k<3;k++) r2+=pow(Part[noffset[i]+j].GetPosition(k)-(pdata[i].gpos[k]+pdata[i].gcm[k]),2.0);
             if(pdata[i].gRmbp<r2) pdata[i].gRmbp=r2;
         }
         pdata[i].gRmbp=sqrt(pdata[i].gRmbp);
@@ -4094,9 +4127,9 @@ private(i,j)
     delete[] noffset;
     //reset particles back to id order
     if (opt.iseparatefiles) {
-    cout<<"Reset particles to original order"<<endl;
-    qsort(Part, nbodies, sizeof(Particle), IDCompare);
-    //sort(Part.begin(), Part.end(), IDCompareVec);
+        cout<<"Reset particles to original order"<<endl;
+        qsort(Part, nbodies, sizeof(Particle), IDCompare);
+        //sort(Part.begin(), Part.end(), IDCompareVec);
     }
     cout<<"Done"<<endl;
     return pglist;

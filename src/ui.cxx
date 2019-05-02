@@ -389,6 +389,8 @@ void GetParamFile(Options &opt)
                         opt.iBaryonSearch = atoi(vbuff);
                     else if (strcmp(tbuff, "CMrefadjustsubsearch_flag")==0)
                         opt.icmrefadjust = atoi(vbuff);
+                    else if (strcmp(tbuff, "Iterate_cm_flag")==0)
+                        opt.iIterateCM = atoi(vbuff);
                     else if (strcmp(tbuff, "Halo_core_search")==0)
                         opt.iHaloCoreSearch = atoi(vbuff);
                     else if (strcmp(tbuff, "Use_adaptive_core_search")==0)
@@ -608,6 +610,8 @@ void GetParamFile(Options &opt)
                         opt.iextendedoutput = atoi(vbuff);
                     else if (strcmp(tbuff, "Spherical_overdensity_halo_particle_list_output")==0)
                         opt.iSphericalOverdensityPartList = atoi(vbuff);
+                    else if (strcmp(tbuff, "Sort_by_binding_energy")==0)
+                        opt.iSortByBindingEnergy = atoi(vbuff);
 
                     //gadget io related to extra info for sph, stars, bhs,
                     else if (strcmp(tbuff, "NSPH_extra_blocks")==0)

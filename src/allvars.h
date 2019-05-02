@@ -424,6 +424,11 @@ struct Options
     int iBaryonSearch;
     ///flag indicating if move to CM frame for substructure search
     int icmrefadjust;
+    /// flag indicating if CM is interated shrinking spheres
+    int iIterateCM;
+    /// flag to sort output particle lists by binding energy (or potential if not on)
+    int iSortByBindingEnergy;
+
 
     ///threshold on particle ELL value, normalized logarithmic distance from predicted maxwellian velocity density.
     Double_t ellthreshold;
@@ -643,6 +648,7 @@ struct Options
         idenvflag=0;
         iBaryonSearch=0;
         icmrefadjust=1;
+        iIterateCM = 1;
 
         Neff=-1;
 
@@ -675,6 +681,7 @@ struct Options
         iBoundHalos=0;
         iInclusiveHalo=0;
         iKeepFOF=0;
+        iSortByBindingEnergy=1;
 
         iLargerCellSearch=0;
 
