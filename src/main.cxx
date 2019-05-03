@@ -58,10 +58,7 @@ int main(int argc,char **argv)
 #endif
     int nthreads;
 #ifdef USEOPENMP
-#pragma omp parallel
-    {
-    if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
-    }
+    nthreads = omp_get_max_threads();
 #else
     nthreads=1;
 #endif
