@@ -88,7 +88,7 @@ void usage(void)
     cerr<<"USAGE:\n";
     cerr<<"\n";
     cerr<<"-C <configuration file (overrides other options)> "<<endl;
-    cerr<<"-I <input format [Gadget (Default) "<<IOGADGET<<", HDF (if implemented)"<<IOHDF<<", TIPSY "<<IOTIPSY<<", RAMSES "<<IORAMSES<<", HDF "<<IOHDF<<", NCHILADA "<<IONCHILADA<<">"<<endl;
+    cerr<<"-I <input format [Gadget (Default) "<<IOGADGET<<", HDF (if implemented) "<<IOHDF<<", TIPSY "<<IOTIPSY<<", RAMSES "<<IORAMSES<<", NCHILADA "<<IONCHILADA<<">"<<endl;
     cerr<<"-i <input file> "<<endl;
     cerr<<"-s <number of files per output for gadget input 1 [default]>"<<endl;
     cerr<<"-Z <number of threads used in parallel read ("<<opt.nsnapread<<")>"<<endl;
