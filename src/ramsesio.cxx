@@ -1325,8 +1325,10 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
     MPI_Bcast(&(opt.Omega_m),sizeof(opt.Omega_m),MPI_BYTE,0,MPI_COMM_WORLD);
     MPI_Bcast(&(opt.Omega_Lambda),sizeof(opt.Omega_Lambda),MPI_BYTE,0,MPI_COMM_WORLD);
     MPI_Bcast(&(opt.h),sizeof(opt.h),MPI_BYTE,0,MPI_COMM_WORLD);
+    MPI_Bcast(&(opt.rhocrit),sizeof(opt.rhocrit),MPI_BYTE,0,MPI_COMM_WORLD);
     MPI_Bcast(&(opt.rhobg),sizeof(opt.rhobg),MPI_BYTE,0,MPI_COMM_WORLD);
     MPI_Bcast(&(opt.virlevel),sizeof(opt.virlevel),MPI_BYTE,0,MPI_COMM_WORLD);
+    MPI_Bcast(&(opt.virBN98),sizeof(opt.virBN98),MPI_BYTE,0,MPI_COMM_WORLD);
     MPI_Bcast(&(opt.ellxscale),sizeof(opt.ellxscale),MPI_BYTE,0,MPI_COMM_WORLD);
     MPI_Bcast(&(opt.L),sizeof(opt.L),MPI_BYTE,0,MPI_COMM_WORLD);
     MPI_Bcast(&(opt.V),sizeof(opt.V),MPI_BYTE,0,MPI_COMM_WORLD);
