@@ -2217,6 +2217,8 @@ void GetInclusiveMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t
     Double_t m200val=log(opt.rhocrit*200.0);
     Double_t m200mval=log(opt.rhobg*200.0);
     Double_t m500val=log(opt.rhocrit*500.0);
+    //find the lowest rho value and set minim threshold to half that
+    Double_t minlgrhoval = min({virval, m200val, mBN98val, m200mval})-log(2.0);
     Double_t fac,rhoval,rhoval2;
     Double_t time1=MyGetTime(),time2;
     int nthreads=1,tid;
@@ -2515,6 +2517,7 @@ firstprivate(virval,m200val,m200mval,mBN98val)
             if (pdata[i].gR200m!=0&&pdata[i].gR200c!=0&&pdata[i].gRvir!=0&&pdata[i].gR500c!=0&&pdata[i].gRBN98!=0) break;
         }
         //if overdensity never drops below thresholds then masses are equal to FOF mass or total mass.
+
         if (pdata[i].gRvir==0) {pdata[i].gMvir=pdata[i].gmass;pdata[i].gRvir=pdata[i].gsize;}
         if (pdata[i].gR200c==0) {pdata[i].gM200c=pdata[i].gmass;pdata[i].gR200c=pdata[i].gsize;}
         if (pdata[i].gR200m==0) {pdata[i].gM200m=pdata[i].gmass;pdata[i].gR200m=pdata[i].gsize;}
@@ -2695,9 +2698,9 @@ private(i,j,k,x,y,z,Pval)
         //store the radii that will be used to search for each group
         //this is based on maximum radius and the enclosed density within the FOF so that if
         //this density is larger than desired overdensity then we must increase the radius
-        fac=-log(4.0*M_PI/3.0)-m200mval;
+        //use the lowest desired overdensity / 2 to scale search radius
+        fac=-log(4.0*M_PI/3.0)-minlgrhoval;
         Double_t radfac;
-
         for (i=1;i<=ngroup;i++) {
             radfac=max(1.0,exp(1.0/3.0*(log(pdata[i].gMFOF)-3.0*log(pdata[i].gsize)+fac)));
             maxrdist[i]=pdata[i].gsize*opt.SphericalOverdensitySeachFac*radfac;
@@ -2818,11 +2821,26 @@ private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,
             sort(indices.begin(), indices.end(), comparator);
             //now loop over radii
             //then get overdensity working outwards from some small fraction of the mass or at least 4 particles + small fraction of min halo size
-            int minnum=max((int)(0.05*radii.size()),(int)(opt.HaloMinSize*0.05+4));
+            int minnum=max((int)(opt.SphericalOverdensityMinHaloFac*radii.size()+4),(int)(opt.HaloMinSize*opt.SphericalOverdensityMinHaloFac+4));
             int iindex=radii.size();
+            //if the lowest overdensity threshold is below the density at the outer
+            //edge then extrapolate density based on average slope using 10% of radial bins
+            double rc2, EncMass2, gamma1, gamma2, lgrhoedge, deltalgrhodeltalgr, MassEdge;
+            int lindex=0.9*iindex, llindex;
+            MassEdge=EncMass=0;
+            for (j=0;j<iindex;j++) {
+                MassEdge+=masses[indices[j]];
+                if (j<lindex) EncMass+=masses[indices[j]];
+            }
+            lgrhoedge = log(MassEdge)-3.0*log(radii[indices[iindex-1]])+fac;
+            deltalgrhodeltalgr = log(EncMass/MassEdge)/log(radii[indices[lindex]]/radii[indices[iindex-1]])-3.0;
+            //now find radii matching SO density thresholds
             EncMass=0;for (j=0;j<minnum;j++) EncMass+=masses[indices[j]];
             rc=radii[indices[minnum-1]];
-            rhoval2=log(EncMass)-3.0*log(rc)+fac;
+            llindex=radii.size();
+            rc2=rc;
+            EncMass2=EncMass;
+            rhoval2=log(EncMass2)-3.0*log(rc2)+fac;
             for (j=minnum;j<radii.size();j++) {
                 rc=radii[indices[j]];
 #ifdef NOMASS
@@ -2831,55 +2849,64 @@ private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,
                 EncMass+=masses[indices[j]];
 #endif
                 rhoval=log(EncMass)-3.0*log(rc)+fac;
-                if (pdata[i].gRvir==0) if (rhoval<=virval) {
-                    if (rhoval2>virval) {
-                        //linearly interpolate, unless previous density also below threshold (which would happen at the start, then just set value)
-                        pdata[i].gRvir=exp(log(rc/radii[indices[j-1]])/(rhoval-rhoval2)*(virval-rhoval2)+log(radii[indices[j-1]]));
-                        pdata[i].gMvir=exp(log(EncMass/(EncMass-masses[indices[j-1]]))/(rhoval-rhoval2)*(virval-rhoval2)+log(EncMass-masses[indices[j-1]]));
-                    }
-                    else {pdata[i].gMvir=EncMass;pdata[i].gRvir=rc;}
-                }
-                if (pdata[i].gR200c==0) if (rhoval<=m200val)
+                gamma1 = log(rc/rc2)/(rhoval-rhoval2);
+                gamma2 = log(EncMass/EncMass2)/(rhoval-rhoval2);
+                //for simplicit of interpolation, if slope is not decreasing, do not interpolate but move to the next point
+                if (gamma1>0) continue;
+                if (pdata[i].gRvir==0) if (rhoval<virval)
                 {
-                    if (rhoval2>m200val) {
-                        pdata[i].gR200c=exp(log(rc/radii[indices[j-1]])/(rhoval-rhoval2)*(m200val-rhoval2)+log(radii[indices[j-1]]));
-                        pdata[i].gM200c=exp(log(EncMass/(EncMass-masses[indices[j-1]]))/(rhoval-rhoval2)*(m200val-rhoval2)+log(EncMass-masses[indices[j-1]]));
-                    }
-                    else {pdata[i].gM200c=EncMass;pdata[i].gR200c=rc;}
+                    //linearly interpolate, unless previous density also below threshold (which would happen at the start, then just set value)
+                    pdata[i].gRvir=rc*exp(gamma1*(virval-rhoval));
+                    pdata[i].gMvir=EncMass*exp(gamma2*(virval-rhoval));
                 }
-                if (pdata[i].gR200m==0) if (rhoval<=m200mval) {
-                    if (rhoval2>m200mval) {
-                        pdata[i].gR200m=exp(log(rc/radii[indices[j-1]])/(rhoval-rhoval2)*(m200mval-rhoval2)+log(radii[indices[j-1]]));
-                        pdata[i].gM200m=exp(log(EncMass/(EncMass-masses[indices[j-1]]))/(rhoval-rhoval2)*(m200mval-rhoval2)+log(EncMass-masses[indices[j-1]]));
-                    }
-                    else {pdata[i].gM200m=EncMass;pdata[i].gR200m=rc;}
-                    //use lowest density threshold and get index
-                    iindex=j-1;
+                if (pdata[i].gR200c==0) if (rhoval<m200val)
+                {
+                        pdata[i].gR200c=rc*exp(gamma1*(m200val-rhoval));
+                        pdata[i].gM200c=EncMass*exp(gamma2*(m200val-rhoval));
                 }
-                if (pdata[i].gR500c==0) if (rhoval<=m500val){
-                    if (rhoval2>m500val) {
-                        pdata[i].gR500c=exp(log(rc/radii[indices[j-1]])/(rhoval-rhoval2)*(m500val-rhoval2)+log(radii[indices[j-1]]));
-                        pdata[i].gM500c=exp(log(EncMass/(EncMass-masses[indices[j-1]]))/(rhoval-rhoval2)*(m500val-rhoval2)+log(EncMass-masses[indices[j-1]]));
-                    }
-                    else {pdata[i].gM500c=EncMass;pdata[i].gR500c=rc;}
+                if (pdata[i].gR200m==0) if (rhoval<m200mval)
+                {
+                    pdata[i].gR200m=rc*exp(gamma1*(m200mval-rhoval));
+                    pdata[i].gM200m=EncMass*exp(gamma2*(m200mval-rhoval));
+                    //use 200 mean as reference for limiting number of particles written to SOlist
+                    llindex = min((int)(j+radii.size()*0.1),llindex);
                 }
-                if (pdata[i].gRBN98==0) if (rhoval<=mBN98val){
-                    if (rhoval2>mBN98val) {
-                        pdata[i].gRBN98=exp(log(rc/radii[indices[j-1]])/(rhoval-rhoval2)*(mBN98val-rhoval2)+log(radii[indices[j-1]]));
-                        pdata[i].gMBN98=exp(log(EncMass/(EncMass-masses[indices[j-1]]))/(rhoval-rhoval2)*(mBN98val-rhoval2)+log(EncMass-masses[indices[j-1]]));
-                    }
-                    else {pdata[i].gMBN98=EncMass;pdata[i].gRBN98=rc;}
+                if (pdata[i].gR500c==0) if (rhoval<m500val)
+                {
+                    pdata[i].gR500c=rc*exp(gamma1*(m500val-rhoval));
+                    pdata[i].gM500c=EncMass*exp(gamma2*(m500val-rhoval));
                 }
-                rhoval2=rhoval;
+                if (pdata[i].gRBN98==0) if (rhoval<mBN98val)
+                {
+                    pdata[i].gRBN98=rc*exp(gamma1*(mBN98val-rhoval));
+                    pdata[i].gMBN98=EncMass*exp(gamma2*(mBN98val-rhoval));
+                }
                 if (pdata[i].gR200m!=0&&pdata[i].gR200c!=0&&pdata[i].gRvir!=0&&pdata[i].gR500c!=0&&pdata[i].gRBN98!=0) break;
+                rhoval2 = rhoval;
+                rc2 = rc;
+                EncMass2 = EncMass;
             }
-            //if overdensity never drops below thresholds then masses are equal to FOF mass or total mass.
-            if (pdata[i].gRvir==0) {pdata[i].gMvir=pdata[i].gmass;pdata[i].gRvir=pdata[i].gsize;}
-            if (pdata[i].gR200c==0) {pdata[i].gM200c=pdata[i].gmass;pdata[i].gR200c=pdata[i].gsize;}
-            if (pdata[i].gR200m==0) {pdata[i].gM200m=pdata[i].gmass;pdata[i].gR200m=pdata[i].gsize;}
-            if (pdata[i].gR500c==0) {pdata[i].gM500c=pdata[i].gmass;pdata[i].gR500c=pdata[i].gsize;}
-            if (pdata[i].gRBN98==0) {pdata[i].gMBN98=pdata[i].gmass;pdata[i].gRBN98=pdata[i].gsize;}
-
+            //if overdensity never drops below thresholds then extrapolate the radial overdensity and mass
+            if (pdata[i].gRvir==0 && deltalgrhodeltalgr<0) {
+                pdata[i].gRvir=radii[indices[iindex-1]]*exp(1.0/deltalgrhodeltalgr*(virval-lgrhoedge));
+                pdata[i].gMvir=exp(3.0*log(pdata[i].gRvir)+virval-fac);
+            }
+            if (pdata[i].gR200c==0 && deltalgrhodeltalgr<0) {
+                pdata[i].gR200c=radii[indices[iindex-1]]*exp(1.0/deltalgrhodeltalgr*(m200val-lgrhoedge));
+                pdata[i].gM200c=exp(3.0*log(pdata[i].gR200c)+m200val-fac);
+            }
+            if (pdata[i].gR200m==0 && deltalgrhodeltalgr<0) {
+                pdata[i].gR200m=radii[indices[iindex-1]]*exp(1.0/deltalgrhodeltalgr*(m200mval-lgrhoedge));
+                pdata[i].gM200m=exp(3.0*log(pdata[i].gR200m)+m200mval-fac);
+            }
+            if (pdata[i].gR500c==0 && deltalgrhodeltalgr<0) {
+                pdata[i].gR500c=radii[indices[iindex-1]]*exp(1.0/deltalgrhodeltalgr*(m500val-lgrhoedge));
+                pdata[i].gM500c=exp(3.0*log(pdata[i].gR500c)+m500val-fac);
+            }
+            if (pdata[i].gRBN98==0 && deltalgrhodeltalgr<0) {
+                pdata[i].gRBN98=radii[indices[iindex-1]]*exp(1.0/deltalgrhodeltalgr*(mBN98val-lgrhoedge));
+                pdata[i].gMBN98=exp(3.0*log(pdata[i].gRBN98)+mBN98val-fac);
+            }
             //calculate angular momentum if necessary
             if (opt.iextrahalooutput) {
                 for (j=0;j<radii.size();j++) {
@@ -2950,13 +2977,13 @@ private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,
 
 
             if (opt.iSphericalOverdensityPartList) {
-                SOpartlist[i].resize(iindex);
+                SOpartlist[i].resize(llindex);
 #if defined(GASON) || defined(STARON) || defined(BHON)
-                SOparttypelist[i].resize(iindex);
+                SOparttypelist[i].resize(llindex);
 #endif
-                for (j=0;j<iindex;j++) SOpartlist[i][j]=SOpids[indices[j]];
+                for (j=0;j<llindex;j++) SOpartlist[i][j]=SOpids[indices[j]];
 #if defined(GASON) || defined(STARON) || defined(BHON)
-                for (j=0;j<iindex;j++) SOparttypelist[i][j]=typeparts[indices[j]];
+                for (j=0;j<llindex;j++) SOparttypelist[i][j]=typeparts[indices[j]];
 #endif
                 SOpids.clear();
             }

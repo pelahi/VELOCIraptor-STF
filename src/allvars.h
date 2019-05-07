@@ -228,10 +228,12 @@ using namespace NBody;
 
 /// \defgroup OMPLIMS For determining whether loop contains enough for openm to be worthwhile.
 //@{
+#ifndef USEOPENMP
 #define ompsearchnum 50000
 #define ompunbindnum 1000
 #define ompperiodnum 50000
 #define omppropnum 50000
+#endif
 //@}
 
 /// \defgroup PROPLIMS Particle limits for calculating properties
@@ -545,6 +547,8 @@ struct Options
     /// if want full spherical overdensity, factor by which size is multiplied to get
     ///bucket of particles
     Double_t SphericalOverdensitySeachFac;
+    ///minimum enclosed mass on which to base SO calculations, <1
+    Double_t SphericalOverdensityMinHaloFac;
     ///if want to the particle IDs that are within the SO overdensity of a halo
     int iSphericalOverdensityPartList;
     /// \name Extra variables to store information useful in zoom simluations
@@ -743,6 +747,7 @@ struct Options
         lengthtokpc50pow2=50.0*50.0;
 
         SphericalOverdensitySeachFac=1.25;
+        SphericalOverdensityMinHaloFac=0.1;
         iSphericalOverdensityPartList=0;
 
         mpipartfac=0.1;
@@ -915,6 +920,12 @@ struct ConfigInfo{
         datainfo.push_back(to_string(opt.Omega_cdm));
         nameinfo.push_back("Omega_b");
         datainfo.push_back(to_string(opt.Omega_b));
+        nameinfo.push_back("Omega_r");
+        datainfo.push_back(to_string(opt.Omega_r));
+        nameinfo.push_back("Omega_nu");
+        datainfo.push_back(to_string(opt.Omega_nu));
+        nameinfo.push_back("Omega_DE");
+        datainfo.push_back(to_string(opt.Omega_de));
         nameinfo.push_back("w_of_DE");
         datainfo.push_back(to_string(opt.w_de));
 
@@ -938,6 +949,18 @@ struct ConfigInfo{
         nameinfo.push_back("Unbinding_type");
         datainfo.push_back(to_string(opt.uinfo.unbindtype));
 
+        //property related
+        nameinfo.push_back("Inclusive_halo_masses");
+        datainfo.push_back(to_string(opt.iInclusiveHalo));
+        nameinfo.push_back("Extensive_halo_properties_output");
+        datainfo.push_back(to_string(opt.iextrahalooutput));
+        nameinfo.push_back("Extensive_gas_properties_output");
+        datainfo.push_back(to_string(opt.iextragasoutput));
+        nameinfo.push_back("Iterate_cm_flag");
+        datainfo.push_back(to_string(opt.iIterateCM));
+        nameinfo.push_back("Sort_by_binding_energy");
+        datainfo.push_back(to_string(opt.iSortByBindingEnergy));
+
         //other options
         nameinfo.push_back("Verbose");
         datainfo.push_back(to_string(opt.iverbose));
@@ -945,8 +968,6 @@ struct ConfigInfo{
         datainfo.push_back(to_string(opt.iwritefof));
         nameinfo.push_back("Snapshot_value");
         datainfo.push_back(to_string(opt.snapshotvalue));
-        nameinfo.push_back("Inclusive_halo_masses");
-        datainfo.push_back(to_string(opt.iInclusiveHalo));
 
         //io related
         nameinfo.push_back("Cosmological_input");
