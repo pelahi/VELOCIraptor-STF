@@ -34,19 +34,22 @@ try() {
 	fi
 }
 
-upload_to_dropbox() {
-	# Upload and create a shareable link
-	dropbox_dir=/pr${TRAVIS_PULL_REQUEST}
-	dropbox_path=$dropbox_dir/`date +%s`_$1
+create_dropbox_folder() {
+	dropbox_dir="$1"
 	curl -X POST https://api.dropboxapi.com/2/files/create_folder_v2 \
 	    -H "Authorization: Bearer $DROPBOX_TOKEN" \
 	    -H 'Content-Type: application/json' \
 	    --data "{\"path\": \"$dropbox_dir\", \"autorename\": false}" > /dev/null
+}
+
+upload_to_dropbox() {
+	# Upload and create a shareable link
+	dropbox_path=$1/$2
 	try curl -X POST https://content.dropboxapi.com/2/files/upload \
 	    -H "Authorization: Bearer $DROPBOX_TOKEN" \
 	    -H 'Content-Type: application/octet-stream' \
 	    -H "Dropbox-API-Arg: {\"path\": \"$dropbox_path\"}" \
-	    --data-binary @$1 > /dev/null
+	    --data-binary @$2 > /dev/null
 	try curl -X POST https://api.dropboxapi.com/2/sharing/create_shared_link_with_settings \
 	    -H "Authorization: Bearer $DROPBOX_TOKEN" \
 	    -H "Content-Type: application/json" \
@@ -56,13 +59,57 @@ upload_to_dropbox() {
 	echo $url
 }
 
-comment_on_github() {
-	echo "Uploading comment to GitHub: $1"
+post_comment() {
+	# Transform real newlines into escaped newlines
+	comment="`echo "$1" | sed ':a; N; $!ba; s/\n/\\\\n/g'`"
+	echo "Uploading comment to GitHub: $comment"
 	try curl \
 	    -H "Authorization: token ${GITHUB_TOKEN}" \
 	    -X POST \
-	    -d "{\"body\": \"$1\"}" \
+	    --data '{"body": "'"$comment"'"}' \
 	    "https://api.github.com/repos/${TRAVIS_REPO_SLUG}/issues/${TRAVIS_PULL_REQUEST}/comments"
+}
+
+config_param_as_row() {
+	sed -n "s/$2=\([^# ]*\).*/$2 | \\1/p" "$1"
+}
+
+run_vr() {
+	config_file_url="$1"
+	run_name=$2
+	dropbox_dir="$3"
+
+	title="`echo $run_name | sed '{h; p; x; s/./=/g}'`"
+
+	# Get config file and run VR
+	try wget --no-verbose -O $run_name.conf "$config_file_url"
+	OMP_NUM_THREADS=2 try ./stf -C $run_name.conf -i EAGLE-L0012N0188-z0/snap_028_z000p000 -o $run_name -I 2 -s 16
+
+	# Get relevant configuration parameters for display in comment
+	config_table="Relevant configuration parameters:\n\n"
+	config_table+="Parameter | Value\n--- | ---\n"
+	config_table+="`config_param_as_row $run_name.conf Bound_halos`\n"
+	config_table+="`config_param_as_row $run_name.conf Physical_linking_length`\n"
+	config_table+="`config_param_as_row $run_name.conf FoF_Field_search_type`\n"
+	config_table+="`config_param_as_row $run_name.conf Halo_6D_linking_length_factor`\n"
+	config_table+="`config_param_as_row $run_name.conf Halo_6D_vel_linking_length_factor`\n"
+
+	# Produce a small plot
+	try python <<EOF
+import h5py
+from matplotlib import pyplot
+with h5py.File('${run_name}.properties.0') as f:
+    m200, r200 = f['/Mass_200mean'].value, f['/R_200mean'].value
+pyplot.xscale('log'); pyplot.yscale('log')
+pyplot.plot(r200, m200, marker='.', linestyle=' ')
+pyplot.savefig('${run_name}_m200_r200.png')
+EOF
+
+	# Upload plot to dropbox and add a link in the comment
+	m200_r200_url=`upload_to_dropbox $dropbox_dir ${run_name}_m200_r200.png`
+	m200_r200_comment='M200 v/s R200: ![m200-r200]('"$m200_r200_url"' \"M200 v/s R200\")'
+
+	comment+="\n\n$title\n\n$config_table\n\n$m200_r200_comment"
 }
 
 cd ${TRAVIS_BUILD_DIR}/build
@@ -75,24 +122,20 @@ cd ${TRAVIS_BUILD_DIR}/build
 # and post the results back to the pull request
 # We only have travis-ci.org configured, so let's check that the environment variables
 # are set to distinguish when and when not to actually run this
-if [ "$TRAVIS_PULL_REQUEST" != false -a "$MAKE_PLOTS" = true -a -n "$VR_CONFIG_URL" ]; then
-	try wget --no-verbose -O vr.conf "$VR_CONFIG_URL"
+if [ "$TRAVIS_PULL_REQUEST" != false -a "$MAKE_PLOTS" = true -a -n "$EAGLE_DATA_URL" ]; then
+
+	# Get input data, prepare for plotting and upload
 	try wget --no-verbose -O EAGLE-L0012N0188-z0.tar.gz "$EAGLE_DATA_URL"
 	try tar xf EAGLE-L0012N0188-z0.tar.gz
-	OMP_NUM_THREADS=2 try ./stf -C vr.conf -i EAGLE-L0012N0188-z0/snap_028_z000p000 -o small-run -I 2 -s 16
-
-	# Produce a small plot
 	echo "backend: Agg" >> matplotlibrc
-	try python <<EOF
-import h5py
-from matplotlib import pyplot
-f = h5py.File('small-run.properties.0')
-m200, r200 = f['/Mass_200mean'], f['/R_200mean']
-pyplot.xscale('log'); pyplot.yscale('log')
-pyplot.plot(r200, m200, marker='.', linestyle=' ')
-pyplot.savefig('mass_radius.png')
-EOF
-	mass_radius_url=`upload_to_dropbox mass_radius.png`
-	comment='Mass Radius relationship: ![mass-radius-rel]('"$mass_radius_url"' \"Mass Radius relationship\")'
-	comment_on_github "$comment"
+	dropbox_dir=/pr${TRAVIS_PULL_REQUEST}/${TRAVIS_BUILD_ID}
+	create_dropbox_folder $dropbox_dir
+
+	# Run VR using 3D and 6D configuration files. This implicitly
+	# augments the $comment variable
+	comment=''
+	run_vr "$VR_3DCONFIG_URL" 3d-run "$dropbox_dir"
+	run_vr "$VR_6DCONFIG_URL" 6d-run "$dropbox_dir"
+
+	post_comment "$comment"
 fi
