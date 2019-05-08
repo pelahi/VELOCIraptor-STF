@@ -521,6 +521,7 @@ int main(int argc,char **argv)
             WriteGroupPartType(opt, ng, &numingroup[indexii], NULL, Part);
         }
     }
+    if (opt.iprofilecalc) WriteProfiles(opt, ngroup, pdata);
 
 #ifdef EXTENDEDHALOOUTPUT
     if (opt.iExtendedOutput) WriteExtendedOutput (opt, ngroup, nbodies, pdata, Part, pfof);

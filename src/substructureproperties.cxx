@@ -1166,8 +1166,8 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
             double irnorm;
             //as particles are radially sorted, init the radial bin at zero
             int ibin=0;
-            if (opt.iprofilenorm == PROFILER200CRITLOG) irnorm = 1.0/pdata[i].gR200c;
-            else irnorm = 1.0/pdata[i].gR200c;
+            if (opt.iprofilenorm == PROFILERNORMR200CRIT) irnorm = 1.0/pdata[i].gR200c;
+            else irnorm = 1.0;
             for (j=0;j<numingroup[i];j++) {
                 Pval = &Part[noffset[i] + j];
                 AddParticleToRadialBin(opt,Pval,irnorm,ibin,pdata[i]);
@@ -2144,8 +2144,8 @@ private(i,j,k,Pval,x,y,z)
         double irnorm;
         //as particles are radially sorted, init the radial bin at zero
         int ibin=0;
-        if (opt.iprofilenorm == PROFILER200CRITLOG) irnorm = 1.0/pdata[i].gR200c;
-        else irnorm = 1.0/pdata[i].gR200c;
+        if (opt.iprofilenorm == PROFILERNORMR200CRIT) irnorm = 1.0/pdata[i].gR200c;
+        else irnorm = 1.0;
         for (j=0;j<numingroup[i];j++) {
             Pval = &Part[noffset[i] + j];
             AddParticleToRadialBin(opt, Pval, irnorm, ibin, pdata[i]);
@@ -2597,8 +2597,8 @@ private(massval,EncMass,Ninside,rc)
             double irnorm;
             //as particles are radially sorted, init the radial bin at zero
             int ibin =0;
-            if (opt.iprofilenorm == PROFILER200CRITLOG) irnorm = 1.0/pdata[i].gR200c;
-            else irnorm = 1.0/pdata[i].gR200c;
+            if (opt.iprofilenorm == PROFILERNORMR200CRIT) irnorm = 1.0/pdata[i].gR200c;
+            else irnorm = 1.0;
             for (j=0;j<numingroup[i];j++) {
                 Pval = &Part[noffset[i] + j];
                 AddParticleToRadialBin(opt,Pval,irnorm,ibin,pdata[i]);
@@ -2960,8 +2960,8 @@ private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,
                 double irnorm;
                 //as particles are radially sorted, init the radial bin at zero
                 int ibin = 0;
-                if (opt.iprofilenorm == PROFILER200CRITLOG) irnorm = 1.0/pdata[i].gR200c;
-                else irnorm = 1.0/pdata[i].gR200c;
+                if (opt.iprofilenorm == PROFILERNORMR200CRIT) irnorm = 1.0/pdata[i].gR200c;
+                else irnorm = 1.0;
                 for (j=0;j<radii.size();j++) {
                     ///\todo need to update to allow for star forming/non-star forming profiles
                     ///by storing the star forming value.
@@ -4334,15 +4334,11 @@ Double_t CalcCosmicTime(Options &opt, Double_t a1, Double_t a2){
 ///\name Radial Profile functions
 //@{
 int GetRadialBin(Options &opt, Double_t rc, int &ibin) {
-    if (opt.iprofilecalc==PROFILER200CRITLOG)
-    {
-        rc = log10(rc);
-        //if radial bin outside last bin edge return -1 and data ignored.
-        if (rc > opt.profile_bin_edges[opt.profile_bin_edges.size()-1]) return -1;
-        //otherwise check to see if input rc (which should be sorted in increase radius) is
-        //greater than current active bin edge and increase ibin, the active bin
-        if (rc > opt.profile_bin_edges[ibin]) ibin++;
-    }
+    //if radial bin outside last bin edge return -1 and data ignored.
+    if (rc > opt.profile_bin_edges[opt.profile_bin_edges.size()-1]) return -1;
+    //otherwise check to see if input rc (which should be sorted in increase radius) is
+    //greater than current active bin edge and increase ibin, the active bin
+    if (rc > opt.profile_bin_edges[ibin]) ibin++;
     return ibin;
 }
 

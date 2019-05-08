@@ -163,7 +163,8 @@ void usage(void)
     \arg <b> \e Significance_level </b> minimum significance level of group (default is 1) \ref Options.siglevel \n
     \arg <b> \e Velocity_ratio </b> speed ratio used in linking particles \ref Options.Vratio \n
     \arg <b> \e Velocity_opening_angle </b> angle between velocities when linking (in units of \f$ \pi \f$) \ref Options.thetaopen \n
-    \arg <b> \e Physical_linking_length </b> physical linking length used in fof (if cosmological gadget file then assumed to be in units of inter particle spacing \ref gadgetio.cxx, if loading in a single halo then based on average interparticle spacing calculated in \ref haloproperties.cxx) \ref Options.ellphys \n
+    \arg <b> \e Physical_linking_length </b> physical linking length used in fof (if cosmological gadget file then assumed to be in units of inter particle spacing \ref gadgetio.cxx, if loading in a single halo then based on average interparticle spacing calculated in \ref haloproperties.cxx). To be deprecated and replaced by Substructure_physical_linking_length \ref Options.ellphys \n
+    \arg <b> \e Substructure_physical_linking_length </b> physical linking length used in fof (if cosmological gadget file then assumed to be in units of inter particle spacing \ref gadgetio.cxx, if loading in a single halo then based on average interparticle spacing calculated in \ref haloproperties.cxx) \ref Options.ellphys \n
     \arg <b> \e Minimum_size </b> Minimum group (substructure) size \ref Options.MinSize \n
 
     \arg <b> \e Iterative_searchflag </b> 1/0 use interactive substructure search which is designed to first identify spatially compact candidate outlier regions and then relaxes the criteria to find the more diffuse (in phase-space) regions associate with these candidate structures \ref Options.iiterflag \n
@@ -418,6 +419,8 @@ void GetParamFile(Options &opt)
                         opt.Vratio = atof(vbuff);
                     else if (strcmp(tbuff, "Velocity_opening_angle")==0)
                         opt.thetaopen = atof(vbuff);
+                    else if (strcmp(tbuff, "Substructure_physical_linking_length")==0)
+                        opt.ellphys = atof(vbuff);
                     else if (strcmp(tbuff, "Physical_linking_length")==0)
                         opt.ellphys = atof(vbuff);
                     else if (strcmp(tbuff, "Velocity_linking_length")==0)
@@ -428,6 +431,8 @@ void GetParamFile(Options &opt)
                         opt.HaloMinSize = atoi(vbuff);
                     else if (strcmp(tbuff, "Halo_linking_length_factor")==0)
                         opt.ellhalophysfac = atof(vbuff);
+                    else if (strcmp(tbuff, "Halo_3D_linking_length")==0)
+                        opt.ellhalo3dxfac = atof(vbuff);
                     else if (strcmp(tbuff, "Halo_velocity_linking_length_factor")==0)
                         opt.ellhalovelfac = atof(vbuff);
                     //specific to 6DFOF field search
@@ -794,8 +799,19 @@ inline void ConfigCheck(Options &opt)
                 cerr<<"Radial profile calculations requested but number of bin edges is zero. Check config. \n";
             ConfigExit();
         }
+        if (opt.iprofilebintype == PROFILERBINTYPELOG) {
+            for (auto i=0;i<opt.profilenbins;i++) opt.profile_bin_edges[i]=pow(10.0,opt.profile_bin_edges[i]);
+        }
+        if (opt.iprofilenorm == PROFILERNORMR200CRIT) opt.profileradnormstring = "R_200crit";
+        else if (opt.iprofilenorm == PROFILERNORMPHYS) opt.profileradnormstring = "Physical";
     }
-
+    //set halo 3d fof linking length if necessary
+    if (opt.ellhalo3dxfac == -1) {
+        opt.ellhalo3dxfac = opt.ellhalophysfac * opt.ellphys;
+    }
+    else {
+        opt.ellhalophysfac = opt.ellhalo3dxfac / opt.ellphys;
+    }
 
     if (ThisTask==0) {
     cout<<"CONFIG INFO SUMMARY -------------------------- "<<endl;

@@ -253,8 +253,9 @@ using namespace NBody;
 
 ///\defgroup radial profile parameters
 //@{
-#define PROFILERNORMR200CRIT 0
-#define PROFILER200CRITLOG 0
+#define PROFILERNORMPHYS 0
+#define PROFILERNORMR200CRIT 1
+#define PROFILERBINTYPELOG 0
 //@}
 
 ///\defgroup GASPARAMS Useful constants for gas
@@ -455,6 +456,7 @@ struct Options
     //@}
     ///\name parameters related to 3DFOF search & subsequent 6DFOF search
     //@{
+    Double_t ellhalo3dxfac;
     Double_t ellhalo6dxfac;
     Double_t ellhalo6dvfac;
     int iKeepFOF;
@@ -593,10 +595,10 @@ struct Options
     int aperturenum;
     vector<Double_t> aperture_values_kpc;
     vector<string> aperture_names_kpc;
-    int iprofilecalc;
+    int iprofilecalc, iprofilenorm, iprofilebintype;
     int profilenbins;
-    int iprofilenorm;
     int iprofilecumulative;
+    string profileradnormstring;
     vector<Double_t> profile_bin_edges;
     //@}
 
@@ -668,6 +670,7 @@ struct Options
         ellhalophysfac=ellhalovelfac=1.0;
         ellhalo6dxfac=1.0;
         ellhalo6dvfac=1.25;
+        ellhalo3dxfac=-1.0;
 
         iiterflag=0;
         ellfac=2.5;
@@ -758,7 +761,8 @@ struct Options
         aperturenum=0;
 
         iprofilecalc=0;
-        iprofilenorm=PROFILER200CRITLOG;
+        iprofilenorm=PROFILERNORMR200CRIT;
+        iprofilebintype=PROFILERBINTYPELOG;
         iprofilecumulative=0;
         profilenbins=0;
 #ifdef USEOPENMP
@@ -822,7 +826,10 @@ struct ConfigInfo{
         datainfo.push_back(to_string(opt.Vratio));
         nameinfo.push_back("Velocity_opening_angle");
         datainfo.push_back(to_string(opt.thetaopen));
-        nameinfo.push_back("Physical_linking_length");
+        ///\todo this configuration option will be deprecated. Replaced by Substructure_physical_linking_length
+        //nameinfo.push_back("Physical_linking_length");
+        //datainfo.push_back(to_string(opt.ellphys));
+        nameinfo.push_back("Substructure_physical_linking_length");
         datainfo.push_back(to_string(opt.ellphys));
         nameinfo.push_back("Velocity_linking_length");
         datainfo.push_back(to_string(opt.ellvel));
@@ -832,8 +839,11 @@ struct ConfigInfo{
         //field object specific searches
         nameinfo.push_back("Minimum_halo_size");
         datainfo.push_back(to_string(opt.HaloMinSize));
-        nameinfo.push_back("Halo_linking_length_factor");
-        datainfo.push_back(to_string(opt.ellhalophysfac));
+        ///\todo this configuration option will be deprecated. Replaced by Halo_3D_physical_linking_length
+        //nameinfo.push_back("Halo_linking_length_factor");
+        //datainfo.push_back(to_string(opt.ellhalophysfac));
+        nameinfo.push_back("Halo_3D_linking_length");
+        datainfo.push_back(to_string(opt.ellhalo3dxfac));
         nameinfo.push_back("Halo_velocity_linking_length_factor");
         datainfo.push_back(to_string(opt.ellhalovelfac));
 
@@ -1820,30 +1830,31 @@ struct PropData
 #endif
             }
         }
-        if (opt.iprofilecalc) {
-            for (auto i=0;i<opt.profilenbins;i++) {
-                profile_mass[i]*=opt.h;
+    }
+
+    void ConvertProfilestoComove(Options &opt){
+        for (auto i=0;i<opt.profilenbins;i++) {
+            profile_mass[i]*=opt.h;
 #ifdef GASON
-                profile_mass_gas[i]*=opt.h;
-                profile_mass_gas_sf[i]*=opt.h;
-                profile_mass_gas_nsf[i]*=opt.h;
+            profile_mass_gas[i]*=opt.h;
+            profile_mass_gas_sf[i]*=opt.h;
+            profile_mass_gas_nsf[i]*=opt.h;
 #endif
 #ifdef STARON
-                profile_mass_star[i]*=opt.h;
+            profile_mass_star[i]*=opt.h;
 #endif
             }
-            if (opt.iInclusiveHalo) {
-                for (auto i=0;i<opt.profilenbins;i++) {
-                    profile_mass_inclusive[i]*=opt.h;
+        if (opt.iInclusiveHalo) {
+            for (auto i=0;i<opt.profilenbins;i++) {
+                profile_mass_inclusive[i]*=opt.h;
 #ifdef GASON
-                    profile_mass_inclusive_gas[i]*=opt.h;
-                    profile_mass_inclusive_gas_sf[i]*=opt.h;
-                    profile_mass_inclusive_gas_nsf[i]*=opt.h;
+                profile_mass_inclusive_gas[i]*=opt.h;
+                profile_mass_inclusive_gas_sf[i]*=opt.h;
+                profile_mass_inclusive_gas_nsf[i]*=opt.h;
 #endif
 #ifdef STARON
-                    profile_mass_inclusive_star[i]*=opt.h;
+                profile_mass_inclusive_star[i]*=opt.h;
 #endif
-                }
             }
         }
     }
@@ -2911,6 +2922,144 @@ struct PropDataHeader{
     }
 };
 
+
+/*! Structures stores profile info of the data writen by the \ref PropData profiles data structures,
+    specifically the \ref PropData::WriteProfileBinary, \ref PropData::WriteProfileAscii, \ref PropData::WriteProfileHDF routines
+*/
+
+struct ProfileDataHeader{
+    //list the header info
+    vector<string> headerdatainfo;
+#ifdef USEHDF
+    vector<PredType> predtypeinfo;
+#endif
+#ifdef USEADIOS
+    vector<ADIOS_DATATYPES> adiospredtypeinfo;
+#endif
+    Int_t numberscalarentries, numberarrayentries, numberexclusivearrayentries, numberinclusivearrayentries;
+
+
+    ProfileDataHeader(Options&opt){
+        int sizeval;
+#ifdef USEHDF
+        vector<PredType> desiredproprealtype;
+        if (sizeof(Double_t)==sizeof(double)) desiredproprealtype.push_back(PredType::NATIVE_DOUBLE);
+        else desiredproprealtype.push_back(PredType::NATIVE_FLOAT);
+#endif
+#ifdef USEADIOS
+        vector<ADIOS_DATATYPES> desiredadiosproprealtype;
+        if (sizeof(Double_t)==sizeof(double)) desiredadiosproprealtype.push_back(ADIOS_DATATYPES::adios_double);
+        else desiredadiosproprealtype.push_back(ADIOS_DATATYPES::adios_real);
+#endif
+
+        headerdatainfo.push_back("ID");
+#ifdef USEHDF
+        predtypeinfo.push_back(PredType::STD_U64LE);
+#endif
+#ifdef USEADIOS
+        adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+#endif
+        //if normalisation is phys then no need for writing normalisation block
+        if (opt.iprofilenorm != PROFILERNORMPHYS) {
+        headerdatainfo.push_back(opt.profileradnormstring);
+#ifdef USEHDF
+        predtypeinfo.push_back(desiredproprealtype[0]);
+#endif
+#ifdef USEADIOS
+        adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
+#endif
+        }
+        numberscalarentries=headerdatainfo.size();
+
+        headerdatainfo.push_back("Npart_profile");
+#ifdef GASON
+        headerdatainfo.push_back("Npart_profile_gas");
+#ifdef STARON
+        headerdatainfo.push_back("Npart_profile_gas_sf");
+        headerdatainfo.push_back("Npart_profile_gas_nsf");
+#endif
+#endif
+#ifdef STARON
+        headerdatainfo.push_back("Npart_profile_star");
+#endif
+#ifdef USEHDF
+        sizeval=predtypeinfo.size();
+        for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(PredType::STD_U32LE);
+#endif
+#ifdef USEADIOS
+        sizeval=adiospredtypeinfo.size();
+        for (int i=sizeval;i<headerdatainfo.size();i++) adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_integer);
+#endif
+
+        headerdatainfo.push_back("Mass_profile");
+#ifdef GASON
+        headerdatainfo.push_back("Mass_profile_gas");
+#ifdef STARON
+        headerdatainfo.push_back("Mass_profile_gas_sf");
+        headerdatainfo.push_back("Mass_profile_gas_nsf");
+#endif
+#endif
+#ifdef STARON
+        headerdatainfo.push_back("Mass_profile_star");
+#endif
+
+#ifdef USEHDF
+        sizeval=predtypeinfo.size();
+        for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(PredType::NATIVE_FLOAT);
+#endif
+#ifdef USEADIOS
+        sizeval=adiospredtypeinfo.size();
+        for (int i=sizeval;i<headerdatainfo.size();i++) adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_real);
+#endif
+        numberexclusivearrayentries=headerdatainfo.size()-numberscalarentries;
+
+        //stuff for inclusive halo/SO profiles
+        if (opt.iInclusiveHalo >0) {
+        headerdatainfo.push_back("Npart_inclusive_profile");
+#ifdef GASON
+        headerdatainfo.push_back("Npart_inclusive_profile_gas");
+#ifdef STARON
+        headerdatainfo.push_back("Npart_inclusive_profile_gas_sf");
+        headerdatainfo.push_back("Npart_inclusive_profile_gas_nsf");
+#endif
+#endif
+#ifdef STARON
+        headerdatainfo.push_back("Npart_inclusive_profile_star");
+#endif
+#ifdef USEHDF
+        sizeval=predtypeinfo.size();
+        for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(PredType::STD_U32LE);
+#endif
+#ifdef USEADIOS
+        sizeval=adiospredtypeinfo.size();
+        for (int i=sizeval;i<headerdatainfo.size();i++) adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_integer);
+#endif
+
+        headerdatainfo.push_back("Mass_inclusive_profile");
+#ifdef GASON
+        headerdatainfo.push_back("Mass_inclusive_profile_gas");
+#ifdef STARON
+        headerdatainfo.push_back("Mass_inclusive_profile_gas_sf");
+        headerdatainfo.push_back("Mass_inclusive_profile_gas_nsf");
+#endif
+#endif
+#ifdef STARON
+        headerdatainfo.push_back("Mass_inclusive_profile_star");
+#endif
+#ifdef USEHDF
+        sizeval=predtypeinfo.size();
+        for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(PredType::NATIVE_FLOAT);
+#endif
+#ifdef USEADIOS
+        sizeval=adiospredtypeinfo.size();
+        for (int i=sizeval;i<headerdatainfo.size();i++) adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_real);
+#endif
+        }
+        numberinclusivearrayentries=headerdatainfo.size()-numberexclusivearrayentries;
+        numberarrayentries=headerdatainfo.size()-numberscalarentries;
+    }
+};
+
 /*! Structure used to keep track of a structure's parent structure
     note that level could be sim->halo->subhalo->subsubhalo
     or even sim->wall/void/filament->halo->substructure->subsubstructure
@@ -3006,7 +3155,7 @@ struct DataGroupNames {
     vector<ADIOS_DATATYPES> adiospartdatatype;
 #endif
 
-    ///store the names of catalog particle files
+    ///store the names of catalog particle type files
     vector<string> types;
 #ifdef USEHDF
     vector<PredType> typesdatatype;
@@ -3015,7 +3164,7 @@ struct DataGroupNames {
     vector<ADIOS_DATATYPES> adiostypesdatatype;
 #endif
 
-    ///store the names of catalog particle files
+    ///store the names of hierarchy files
     vector<string> hierarchy;
 #ifdef USEHDF
     vector<PredType> hierarchydatatype;
@@ -3024,7 +3173,7 @@ struct DataGroupNames {
     vector<ADIOS_DATATYPES> adioshierarchydatatype;
 #endif
 
-    ///store names of catalog group files
+    ///store names of SO files
     vector<string> SO;
 #ifdef USEHDF
     vector<PredType> SOdatatype;
@@ -3033,7 +3182,27 @@ struct DataGroupNames {
     vector<ADIOS_DATATYPES> SOdatatype;
 #endif
 
+    //store names of profile files
+    vector<string> profile;
+#ifdef USEHDF
+    //store the data type
+    vector<PredType> profiledatatype;
+#endif
+#ifdef USEADIOS
+    vector<ADIOS_DATATYPES> adiosprofiledatatype;
+#endif
+
     DataGroupNames(){
+#ifdef USEHDF
+        vector<PredType> desiredproprealtype;
+        if (sizeof(Double_t)==sizeof(double)) desiredproprealtype.push_back(PredType::NATIVE_DOUBLE);
+        else desiredproprealtype.push_back(PredType::NATIVE_FLOAT);
+#endif
+#ifdef USEADIOS
+        vector<ADIOS_DATATYPES> desiredadiosproprealtype;
+        if (sizeof(Double_t)==sizeof(double)) desiredadiosproprealtype.push_back(ADIOS_DATATYPES::adios_double);
+        else desiredadiosproprealtype.push_back(ADIOS_DATATYPES::adios_real);
+#endif
         prop.push_back("File_id");
         prop.push_back("Num_of_files");
         prop.push_back("Num_of_groups");
@@ -3201,6 +3370,27 @@ struct DataGroupNames {
         adiosSOdatatype.push_back(ADIOS_DATATYPES::adios_integer);
 #endif
 #endif
+
+        profile.push_back("File_id");
+        profile.push_back("Num_of_files");
+        profile.push_back("Radial_norm");
+        profile.push_back("Num_of_bin_edges");
+        profile.push_back("Radial_bin_edges");
+#ifdef USEHDF
+        profiledatatype.push_back(PredType::STD_I32LE);
+        profiledatatype.push_back(PredType::STD_I32LE);
+        profiledatatype.push_back(PredType::C_S1);
+        profiledatatype.push_back(PredType::STD_I32LE);
+        profiledatatype.push_back(desiredproprealtype[0]);
+#endif
+#ifdef USEADIOS
+        adiosprofiledatatype.push_back(ADIOS_DATATYPES::adios_integer);
+        adiosprofiledatatype.push_back(ADIOS_DATATYPES::adios_integer);
+        adiosprofiledatatype.push_back(ADIOS_DATATYPES::adios_string);
+        adiosprofiledatatype.push_back(ADIOS_DATATYPES::adios_integer);
+        adiosprofiledatatype.push_back(desiredadiosproprealtype[0]);
+#endif
+
     }
 };
 #endif
