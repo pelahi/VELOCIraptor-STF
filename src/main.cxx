@@ -121,6 +121,7 @@ int main(int argc,char **argv)
     mpi_domain=new MPI_Domain[NProcs];
     mpi_nsend=new Int_t[NProcs*NProcs];
     mpi_ngroups=new Int_t[NProcs];
+    mpi_nhalos=new Int_t[NProcs];
     //store MinSize as when using mpi prior to stitching use min of 2;
     MinNumMPI=2;
     //if single halo, use minsize to initialize the old minimum number
@@ -441,7 +442,6 @@ int main(int argc,char **argv)
         WriteProperties(opt,ngroup,pdata);
         delete[] numingroup;
         delete[] pdata;
-        //delete[] Part;
 #ifdef USEMPI
 #ifdef USEADIOS
         adios_finalize(ThisTask);
@@ -521,6 +521,8 @@ int main(int argc,char **argv)
             WriteGroupPartType(opt, ng, &numingroup[indexii], NULL, Part);
         }
     }
+
+    if (opt.iprofilecalc) WriteProfiles(opt, ngroup, pdata);
 
 #ifdef EXTENDEDHALOOUTPUT
     if (opt.iExtendedOutput) WriteExtendedOutput (opt, ngroup, nbodies, pdata, Part, pfof);

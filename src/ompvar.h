@@ -25,7 +25,7 @@ using namespace NBody;
 //@{
 #define ompsearchnum 50000
 #define ompunbindnum 1000
-#define ompperiodnum 50000
+#define ompperiodnum 100000
 #define omppropnum 50000
 #define ompfofsearchnum 2000000
 //@}

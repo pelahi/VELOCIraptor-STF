@@ -88,7 +88,7 @@ void usage(void)
     cerr<<"USAGE:\n";
     cerr<<"\n";
     cerr<<"-C <configuration file (overrides other options)> "<<endl;
-    cerr<<"-I <input format [Gadget (Default) "<<IOGADGET<<", HDF (if implemented)"<<IOHDF<<", TIPSY "<<IOTIPSY<<", RAMSES "<<IORAMSES<<", HDF "<<IOHDF<<", NCHILADA "<<IONCHILADA<<">"<<endl;
+    cerr<<"-I <input format [Gadget (Default) "<<IOGADGET<<", HDF (if implemented) "<<IOHDF<<", TIPSY "<<IOTIPSY<<", RAMSES "<<IORAMSES<<", NCHILADA "<<IONCHILADA<<">"<<endl;
     cerr<<"-i <input file> "<<endl;
     cerr<<"-s <number of files per output for gadget input 1 [default]>"<<endl;
     cerr<<"-Z <number of threads used in parallel read ("<<opt.nsnapread<<")>"<<endl;
@@ -163,7 +163,8 @@ void usage(void)
     \arg <b> \e Significance_level </b> minimum significance level of group (default is 1) \ref Options.siglevel \n
     \arg <b> \e Velocity_ratio </b> speed ratio used in linking particles \ref Options.Vratio \n
     \arg <b> \e Velocity_opening_angle </b> angle between velocities when linking (in units of \f$ \pi \f$) \ref Options.thetaopen \n
-    \arg <b> \e Physical_linking_length </b> physical linking length used in fof (if cosmological gadget file then assumed to be in units of inter particle spacing \ref gadgetio.cxx, if loading in a single halo then based on average interparticle spacing calculated in \ref haloproperties.cxx) \ref Options.ellphys \n
+    \arg <b> \e Physical_linking_length </b> physical linking length used in fof (if cosmological gadget file then assumed to be in units of inter particle spacing \ref gadgetio.cxx, if loading in a single halo then based on average interparticle spacing calculated in \ref haloproperties.cxx). To be deprecated and replaced by Substructure_physical_linking_length \ref Options.ellphys \n
+    \arg <b> \e Substructure_physical_linking_length </b> physical linking length used in fof (if cosmological gadget file then assumed to be in units of inter particle spacing \ref gadgetio.cxx, if loading in a single halo then based on average interparticle spacing calculated in \ref haloproperties.cxx) \ref Options.ellphys \n
     \arg <b> \e Minimum_size </b> Minimum group (substructure) size \ref Options.MinSize \n
 
     \arg <b> \e Iterative_searchflag </b> 1/0 use interactive substructure search which is designed to first identify spatially compact candidate outlier regions and then relaxes the criteria to find the more diffuse (in phase-space) regions associate with these candidate structures \ref Options.iiterflag \n
@@ -239,6 +240,9 @@ void usage(void)
     \arg <b> \e Omega_Lambda </b> energy density of the cosmological constant (or can technically be used for a dark energy fluid) in units of the critical density used in cosmological simulations. This is not always necessary, for instance the gadget snapshot format has this in the header.  \ref Options.Omega_Lambda \n
     \arg <b> \e Omega_cdm </b> dark matter density in units of the critical density used in cosmological simulations. This is not always necessary since for simple pure DM cosmological simulations this is easily determined by the total mass in the simulation. <em> However, for multiple resolution or non-standard DM models, this should be provided. </em> \ref Options.Omega_cdm \n
     \arg <b> \e Omega_b </b> baryon density in units of the critical density used in cosmological simulations. This is not always necessary since for simple pure adiabatic cosmological simulations this is easily determined by the total gas mass in the simulation.  \ref Options.Omega_b \n
+    \arg <b> \e Omega_r </b> radiation density in units of the critical density used in cosmological simulations. Typically 0 as negligible in most simulations.  \ref Options.Omega_r \n
+    \arg <b> \e Omega_nu </b> neutrino density in units of the critical density used in cosmological simulations. Typically 0 as negligible in most simulations and may need alteration for consistent evolution across cosmic time.  \ref Options.Omega_nu \n
+    \arg <b> \e Omega_DE </b> dark energy density in units of the critical density used in cosmological simulations. Typically 0 unless what evolution based on w_of_DE.  \ref Options.Omega_de \n
     \arg <b> \e w_of_DE </b> equation of state of the dark energy fluid, \f$ w=\frac{p}{\rho} \f$. This is not necessary unless one is using a cosmological simulation with a \f$ w\neq -1 \f$ \ref Options.w_de \n
     \arg <b> \e Virial_density </b> virial overdensity in units of the background matter density used in cosmological simulations. This is not absolutely necessary for gadget format as for this input, the Bryan & Norman 1998 virial density is calculated based on a LCDM cosmology as \ref Options.virlevel is set to -1 and if left, a virial density is calculated. If set and a gadget input is used, this overrides the Bryan & Norman calculation. \n
     \arg <b> \e Critical_density </b> critical density in input units used in cosmological simulations. This is not absolutely necessary for gadget format as it can be calculated from the quantities in the header for typical GR cosmologies. \ref Options.rhobg \n
@@ -247,7 +251,13 @@ void usage(void)
     \arg <b> \e Effective_Resolution </b> If running a multiple resolution cosmological zoom simulation, simple method of scaling the linking length by using the period, ie: \f$ p/N_{\rm eff} \f$ \ref Options.Neff \n
     \arg <b> \e Snapshot_value </b> If halo ids need to be offset to some starting value based on the snapshot of the output, which is useful for some halo merger tree codes, one can specific a snapshot number, and all halo ids will be listed as internal haloid + \f$ sn\times10^{12}\f$. \ref Options.snapshotvalue \n
     \arg <b> \e Verbose </b> 2/1/0 flag indicating how talkative the code is (2 very verbose, 1 verbose, 0 quiet). \ref Options.iverbose \n
+
+    \section propconfigs Property calculation options
     \arg <b> \e Inclusive_halo_mass </b> 1/0 flag indicating whether inclusive masses are calculated for field objects. \ref Options.iInclusiveHalo \n
+    \arg <b> \e Extensive_halo_properties_output </b> 1/0 flag indicating whether to calculate/output even more halo properties. \ref Options.iextrahalooutput \n
+    \arg <b> \e Extended_output </b> 1/0 flag indicating whether produce extended output for quick particle extraction from input catalog of particles in structures \ref Options.iextendedoutput \n
+    \arg <b> \e Iterate_cm_flag </b> 1/0 flag indicating whether to use shrinking spheres to calculate the center of mass and velocity. \ref Options.iIterateCM \n
+    \arg <b> \e Sort_by_binding_energy </b> 1/0 flag indicating whether to sort by particle binding energy or by potential (if 0). \ref Options.iSortByBindingEnergy \n
 
     \section ioconfigs I/O options
     \arg <b> \e Cosmological_input </b> 1/0 indicating that input simulation is cosmological or not. With cosmological input, a variety of length/velocity scales are set to determine such things as the virial overdensity, linking length. \ref Options.icosmologicalin \n
@@ -255,8 +265,6 @@ void usage(void)
     \arg <b> \e Write_group_array_file </b> 0/1 flag indicating whether write a single large tipsy style group assignment file is written. \ref Options.iwritefof \n
     \arg <b> \e Separate_output_files </b> 1/0 flag indicating whether separate files are written for field and subhalo groups. \ref Options.iseparatefiles \n
     \arg <b> \e Binary_output </b> 3/2/1/0 flag indicating whether output is hdf, binary or ascii. \ref Options.ibinaryout, \ref OUTADIOS, \ref OUTHDF, \ref OUTBINARY, \ref OUTASCII \n
-    \arg <b> \e Extensive_halo_properties_output </b> 1/0 flag indicating whether to calculate/output even more halo properties. \ref Options.iextrahalooutput \n
-    \arg <b> \e Extended_output </b> 1/0 flag indicating whether produce extended output for quick particle extraction from input catalog of particles in structures \ref Options.iextendedoutput \n
     \arg <b> \e Comoving_units </b> 1/0 flag indicating whether the properties output is in physical or comoving little h units. \ref Options.icomoveunit \n
 
     \section inputflags input flags related to varies input formats
@@ -277,8 +285,6 @@ void usage(void)
     of data. \ref Options.mpipartfac \n
     \arg <b> \e MPI_particle_total_buf_size </b> Total memory size in bytes used to store particles in temporary buffer such that
     particles are sent to non-reading mpi processes in one communication round in chunks of size buffer_size/NProcs/sizeof(Particle). \ref Options.mpiparticlebufsize \n
-
-
 
     */
 
@@ -413,6 +419,8 @@ void GetParamFile(Options &opt)
                         opt.Vratio = atof(vbuff);
                     else if (strcmp(tbuff, "Velocity_opening_angle")==0)
                         opt.thetaopen = atof(vbuff);
+                    else if (strcmp(tbuff, "Substructure_physical_linking_length")==0)
+                        opt.ellphys = atof(vbuff);
                     else if (strcmp(tbuff, "Physical_linking_length")==0)
                         opt.ellphys = atof(vbuff);
                     else if (strcmp(tbuff, "Velocity_linking_length")==0)
@@ -423,6 +431,8 @@ void GetParamFile(Options &opt)
                         opt.HaloMinSize = atoi(vbuff);
                     else if (strcmp(tbuff, "Halo_linking_length_factor")==0)
                         opt.ellhalophysfac = atof(vbuff);
+                    else if (strcmp(tbuff, "Halo_3D_linking_length")==0)
+                        opt.ellhalo3dxfac = atof(vbuff);
                     else if (strcmp(tbuff, "Halo_velocity_linking_length_factor")==0)
                         opt.ellhalovelfac = atof(vbuff);
                     //specific to 6DFOF field search
@@ -535,6 +545,8 @@ void GetParamFile(Options &opt)
                         opt.uinfo.unbindtype = atoi(vbuff);
 
                     //property related
+                    else if (strcmp(tbuff, "Iterate_cm_flag")==0)
+                        opt.iIterateCM = atoi(vbuff);
                     else if (strcmp(tbuff, "Inclusive_halo_masses")==0)
                         opt.iInclusiveHalo = atoi(vbuff);
                     else if (strcmp(tbuff, "Extensive_halo_properties_output")==0)
@@ -608,6 +620,8 @@ void GetParamFile(Options &opt)
                         opt.iextendedoutput = atoi(vbuff);
                     else if (strcmp(tbuff, "Spherical_overdensity_halo_particle_list_output")==0)
                         opt.iSphericalOverdensityPartList = atoi(vbuff);
+                    else if (strcmp(tbuff, "Sort_by_binding_energy")==0)
+                        opt.iSortByBindingEnergy = atoi(vbuff);
 
                     //gadget io related to extra info for sph, stars, bhs,
                     else if (strcmp(tbuff, "NSPH_extra_blocks")==0)
@@ -785,8 +799,19 @@ inline void ConfigCheck(Options &opt)
                 cerr<<"Radial profile calculations requested but number of bin edges is zero. Check config. \n";
             ConfigExit();
         }
+        if (opt.iprofilebintype == PROFILERBINTYPELOG) {
+            for (auto i=0;i<opt.profilenbins;i++) opt.profile_bin_edges[i]=pow(10.0,opt.profile_bin_edges[i]);
+        }
+        if (opt.iprofilenorm == PROFILERNORMR200CRIT) opt.profileradnormstring = "R_200crit";
+        else if (opt.iprofilenorm == PROFILERNORMPHYS) opt.profileradnormstring = "Physical";
     }
-
+    //set halo 3d fof linking length if necessary
+    if (opt.ellhalo3dxfac == -1) {
+        opt.ellhalo3dxfac = opt.ellhalophysfac * opt.ellphys;
+    }
+    else {
+        opt.ellhalophysfac = opt.ellhalo3dxfac / opt.ellphys;
+    }
 
     if (ThisTask==0) {
     cout<<"CONFIG INFO SUMMARY -------------------------- "<<endl;
