@@ -29,6 +29,9 @@ void GetProperties(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngro
     Double_t vc,rc,x,y,z;
     Coordinate cmold(0.),cmref;
     Double_t change=MAXVALUE,tol=1e-2;
+#ifndef USEMPI
+    int ThisTask=0,NProcs=1;
+#endif
 
     if (numingroup==NULL) {numingroup=BuildNumInGroup(nbodies, ngroup, pfof);inflag=1;}
     //sort the particle data according to their group id so that one can then sort particle data
@@ -412,6 +415,9 @@ void GetCMProp(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, 
     Double_t mBN98val=log(opt.virBN98*opt.rhocrit);
     //also calculate 500 overdensity and useful for gas/star content
     Double_t m500val=log(opt.rhocrit*500.0);
+#ifndef USEMPI
+    int ThisTask=0,NProcs=1;
+#endif
 
     for (i=1;i<=ngroup;i++) {
         pdata[i].num=numingroup[i];
@@ -2222,6 +2228,9 @@ void GetInclusiveMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t
     Double_t fac,rhoval,rhoval2;
     Double_t time1=MyGetTime(),time2;
     int nthreads=1,tid;
+#ifndef USEMPI
+    int ThisTask=0,NProcs=1;
+#endif
 #ifdef USEOPENMP
 #pragma omp parallel
     {
@@ -3738,7 +3747,7 @@ void ReorderInclusiveMasses(const Int_t &numgroups, const Int_t &newnumgroups, I
 void GetBindingEnergy(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&pfof, Int_t *&numingroup, PropData *&pdata, Int_t *&noffset)
 {
 #ifndef USEMPI
-    int ThisTask=0;
+    int ThisTask=0,NProcs=1;
 #endif
     if (opt.iverbose) cout<<ThisTask<<" Get Energy"<<endl;
     if (opt.uinfo.cmvelreftype==POTREF && opt.iverbose==1) cout<<"Using minimum potential reference"<<endl;
@@ -4073,7 +4082,7 @@ private(i,j,Emostbound,imostbound)
 Int_t **SortAccordingtoBindingEnergy(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&pfof, Int_t *numingroup, PropData *pdata, Int_t ioffset)
 {
 #ifndef USEMPI
-    int ThisTask=0;
+    int ThisTask=0,NProcs=1;
 #endif
     cout<<ThisTask<<" Sort particles to compute properties"<<ngroup<<endl;
     Int_t i,j,k;
@@ -4178,7 +4187,7 @@ private(i,j)
 void CalculateHaloProperties(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&pfof, Int_t *numingroup, PropData *pdata)
 {
 #ifndef USEMPI
-    int ThisTask=0;
+    int ThisTask=0,NProcs=1;
 #endif
     Int_t i,j,k;
     Int_t *noffset=new Int_t[ngroup+1];
