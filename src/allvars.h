@@ -2936,8 +2936,8 @@ struct ProfileDataHeader{
 #ifdef USEADIOS
     vector<ADIOS_DATATYPES> adiospredtypeinfo;
 #endif
-    Int_t numberscalarentries, numberarrayentries, numberexclusivearrayentries, numberinclusivearrayentries;
-
+    int numberscalarentries, numberarrayallgroupentries, numberarrayhaloentries;
+    int offsetscalarentries, offsetarrayallgroupentries, offsetarrayhaloentries;
 
     ProfileDataHeader(Options&opt){
         int sizeval;
@@ -2952,6 +2952,7 @@ struct ProfileDataHeader{
         else desiredadiosproprealtype.push_back(ADIOS_DATATYPES::adios_real);
 #endif
 
+        offsetscalarentries=0;
         headerdatainfo.push_back("ID");
 #ifdef USEHDF
         predtypeinfo.push_back(PredType::STD_U64LE);
@@ -2971,6 +2972,7 @@ struct ProfileDataHeader{
         }
         numberscalarentries=headerdatainfo.size();
 
+	offsetarrayallgroupentries=headerdatainfo.size();
         headerdatainfo.push_back("Npart_profile");
 #ifdef GASON
         headerdatainfo.push_back("Npart_profile_gas");
@@ -3011,10 +3013,11 @@ struct ProfileDataHeader{
         sizeval=adiospredtypeinfo.size();
         for (int i=sizeval;i<headerdatainfo.size();i++) adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_real);
 #endif
-        numberexclusivearrayentries=headerdatainfo.size()-numberscalarentries;
+        numberarrayallgroupentries=headerdatainfo.size()-offsetarrayallgroupentries;
 
         //stuff for inclusive halo/SO profiles
         if (opt.iInclusiveHalo >0) {
+        offsetarrayhaloentries=headerdatainfo.size();
         headerdatainfo.push_back("Npart_inclusive_profile");
 #ifdef GASON
         headerdatainfo.push_back("Npart_inclusive_profile_gas");
@@ -3054,9 +3057,8 @@ struct ProfileDataHeader{
         sizeval=adiospredtypeinfo.size();
         for (int i=sizeval;i<headerdatainfo.size();i++) adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_real);
 #endif
+        numberarrayhaloentries=headerdatainfo.size()-offsetarrayhaloentries;
         }
-        numberinclusivearrayentries=headerdatainfo.size()-numberexclusivearrayentries;
-        numberarrayentries=headerdatainfo.size()-numberscalarentries;
     }
 };
 
@@ -3373,20 +3375,35 @@ struct DataGroupNames {
 
         profile.push_back("File_id");
         profile.push_back("Num_of_files");
+        profile.push_back("Num_of_groups");
+        profile.push_back("Total_num_of_groups");
+        profile.push_back("Num_of_halos");
+        profile.push_back("Total_num_of_halos");
         profile.push_back("Radial_norm");
+        profile.push_back("Inclusive_profiles_flag");
         profile.push_back("Num_of_bin_edges");
         profile.push_back("Radial_bin_edges");
 #ifdef USEHDF
         profiledatatype.push_back(PredType::STD_I32LE);
         profiledatatype.push_back(PredType::STD_I32LE);
+        profiledatatype.push_back(PredType::STD_U64LE);
+        profiledatatype.push_back(PredType::STD_U64LE);
+        profiledatatype.push_back(PredType::STD_U64LE);
+        profiledatatype.push_back(PredType::STD_U64LE);
         profiledatatype.push_back(PredType::C_S1);
+        profiledatatype.push_back(PredType::STD_I32LE);
         profiledatatype.push_back(PredType::STD_I32LE);
         profiledatatype.push_back(desiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
         adiosprofiledatatype.push_back(ADIOS_DATATYPES::adios_integer);
         adiosprofiledatatype.push_back(ADIOS_DATATYPES::adios_integer);
+        adiosprofiledatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+        adiosprofiledatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+        adiosprofiledatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
+        adiosprofiledatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
         adiosprofiledatatype.push_back(ADIOS_DATATYPES::adios_string);
+        adiosprofiledatatype.push_back(ADIOS_DATATYPES::adios_integer);
         adiosprofiledatatype.push_back(ADIOS_DATATYPES::adios_integer);
         adiosprofiledatatype.push_back(desiredadiosproprealtype[0]);
 #endif
