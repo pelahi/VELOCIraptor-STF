@@ -94,18 +94,8 @@ run_vr() {
 	config_table+="`config_param_as_row $run_name.conf Halo_6D_linking_length_factor`\n"
 	config_table+="`config_param_as_row $run_name.conf Halo_6D_vel_linking_length_factor`\n"
 
-	# Produce a small plot
-	try python <<EOF
-import h5py
-from matplotlib import pyplot
-with h5py.File('${run_name}.properties.0') as f:
-    m200, r200 = f['/Mass_200mean'].value, f['/R_200mean'].value
-pyplot.xscale('log'); pyplot.yscale('log')
-pyplot.plot(r200, m200, marker='.', linestyle=' ')
-pyplot.savefig('${run_name}_m200_r200.png')
-EOF
-
-	# Upload plot to dropbox and add a link in the comment
+	# M200 v/s R200
+	try python ${TRAVIS_BUILD_DIR}/.travis/plots/m200_r200.py ${run_name}.properties.0 ${run_name}_m200_r200.png
 	m200_r200_url=`upload_to_dropbox $dropbox_dir ${run_name}_m200_r200.png`
 	m200_r200_comment='M200 v/s R200: ![m200-r200]('"$m200_r200_url"' \"M200 v/s R200\")'
 
