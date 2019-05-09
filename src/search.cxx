@@ -719,6 +719,7 @@ private(i,tid,xscaling,vscaling)
     }
     if (ThisTask==0) cout<<ThisTask<<" finished 6d/phase-space fof search in "<<MyGetTime()-time2<<endl;
     }
+    MPI_Allgather(&numgroups, 1, MPI_Int_t, mpi_nhalos, 1, MPI_Int_t, MPI_COMM_WORLD);
 #endif
 
     //now that field structures have been identified, allocate enough memory for the psldata pointer,

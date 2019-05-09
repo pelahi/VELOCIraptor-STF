@@ -415,7 +415,7 @@ void GetCMProp(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, 
 
     for (i=1;i<=ngroup;i++) {
         pdata[i].num=numingroup[i];
-        if (opt.iprofilecalc && ((opt.iInclusiveHalo && pdata[i].hostid !=-1) || opt.iInclusiveHalo==0)) pdata[i].AllocateProfiles(opt);
+        if (((opt.iInclusiveHalo && pdata[i].hostid !=-1) || opt.iInclusiveHalo==0)) pdata[i].Allocate(opt);
     }
 
     //for small groups loop over groups
@@ -2231,7 +2231,7 @@ void GetInclusiveMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t
 
     for (i=1;i<=ngroup;i++) {
         pdata[i].gNFOF=numingroup[i];
-        if (opt.iprofilecalc) pdata[i].AllocateProfiles(opt);
+        pdata[i].Allocate(opt);
     }
 
     //first get center of mass and maximum size
@@ -2691,6 +2691,10 @@ private(i,j,k,x,y,z,Pval)
 #ifdef USEOPENMP
 }
 #endif
+        //
+        if (opt.iverbose >= 2) {
+            cout<<ThisTask<<" building trees for SO search "<<endl;
+        }
         //build tree optimised to search for more than min group size
         //this is the bottle neck for the SO calculation. Wonder if there is an easy
         //way of speeding it up
@@ -2700,10 +2704,14 @@ private(i,j,k,x,y,z,Pval)
         //this density is larger than desired overdensity then we must increase the radius
         //use the lowest desired overdensity / 2 to scale search radius
         fac=-log(4.0*M_PI/3.0)-minlgrhoval;
-        Double_t radfac;
+        Double_t radfac, maxsearchdist=0;
         for (i=1;i<=ngroup;i++) {
             radfac=max(1.0,exp(1.0/3.0*(log(pdata[i].gMFOF)-3.0*log(pdata[i].gsize)+fac)));
             maxrdist[i]=pdata[i].gsize*opt.SphericalOverdensitySeachFac*radfac;
+        }
+        if (opt.iverbose >= 2) {
+            for (i=1;i<=ngroup;i++) if (maxsearchdist < maxrdist[i]) maxsearchdist = maxrdist[i];
+            cout<<ThisTask<<" max search distance is "<<maxsearchdist<<" in period fraction "<<maxsearchdist/opt.p<<endl;
         }
 #ifdef USEMPI
         //if using mpi then determine if halo's search radius overlaps another mpi domain
@@ -2852,7 +2860,12 @@ private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,
                 gamma1 = log(rc/rc2)/(rhoval-rhoval2);
                 gamma2 = log(EncMass/EncMass2)/(rhoval-rhoval2);
                 //for simplicit of interpolation, if slope is not decreasing, do not interpolate but move to the next point
-                if (gamma1>0) continue;
+                if (gamma1>0) {
+                    rhoval2 = rhoval;
+                    rc2 = rc;
+                    EncMass2 = EncMass;
+                    continue;
+                }
                 if (pdata[i].gRvir==0) if (rhoval<virval)
                 {
                     //linearly interpolate, unless previous density also below threshold (which would happen at the start, then just set value)
@@ -2882,9 +2895,6 @@ private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,
                     pdata[i].gMBN98=EncMass*exp(gamma2*(mBN98val-rhoval));
                 }
                 if (pdata[i].gR200m!=0&&pdata[i].gR200c!=0&&pdata[i].gRvir!=0&&pdata[i].gR500c!=0&&pdata[i].gRBN98!=0) break;
-                rhoval2 = rhoval;
-                rc2 = rc;
-                EncMass2 = EncMass;
             }
             //if overdensity never drops below thresholds then extrapolate the radial overdensity and mass
             if (pdata[i].gRvir==0 && deltalgrhodeltalgr<0) {
@@ -4338,7 +4348,7 @@ int GetRadialBin(Options &opt, Double_t rc, int &ibin) {
     if (rc > opt.profile_bin_edges[opt.profile_bin_edges.size()-1]) return -1;
     //otherwise check to see if input rc (which should be sorted in increase radius) is
     //greater than current active bin edge and increase ibin, the active bin
-    if (rc > opt.profile_bin_edges[ibin]) ibin++;
+    while (rc > opt.profile_bin_edges[ibin]) ibin++;
     return ibin;
 }
 
@@ -4347,29 +4357,29 @@ void AddParticleToRadialBin(Options &opt, Particle *Pval, Double_t irnorm, int &
     ibin = GetRadialBin(opt,Pval->Radius()*irnorm, ibin);
     if (ibin == -1) return;
     Double_t massval = Pval->GetMass();
-    pdata.profile_mass_inclusive[ibin] += massval;
-    pdata.profile_npart_inclusive[ibin] += 1;
+    pdata.profile_mass[ibin] += massval;
+    pdata.profile_npart[ibin] += 1;
 #ifdef GASON
     if (Pval->GetType()==GASTYPE) {
-        pdata.profile_mass_inclusive_gas[ibin] += massval;
-        pdata.profile_npart_inclusive_gas[ibin] += 1;
+        pdata.profile_mass_gas[ibin] += massval;
+        pdata.profile_npart_gas[ibin] += 1;
 #ifdef STARON
         if (Pval->GetSFR()>opt.gas_sfr_threshold)
         {
-            pdata.profile_mass_inclusive_gas_sf[ibin] += massval;
-            pdata.profile_npart_inclusive_gas_sf[ibin] += 1;
+            pdata.profile_mass_gas_sf[ibin] += massval;
+            pdata.profile_npart_gas_sf[ibin] += 1;
         }
         else {
-            pdata.profile_mass_inclusive_gas_nsf[ibin] += massval;
-            pdata.profile_npart_inclusive_gas_nsf[ibin] += 1;
+            pdata.profile_mass_gas_nsf[ibin] += massval;
+            pdata.profile_npart_gas_nsf[ibin] += 1;
         }
 #endif
     }
 #endif
 #ifdef STARON
     if (Pval->GetType()==STARTYPE) {
-        pdata.profile_mass_inclusive_star[ibin] += massval;
-        pdata.profile_npart_inclusive_star[ibin] += 1;
+        pdata.profile_mass_star[ibin] += massval;
+        pdata.profile_npart_star[ibin] += 1;
     }
 #endif
 }
@@ -4383,31 +4393,32 @@ void AddDataToRadialBin(Options &opt, Double_t rval, Double_t massval,
 {
     ibin = GetRadialBin(opt,rval*irnorm, ibin);
     if (ibin == -1) return;
-    pdata.profile_mass_inclusive[ibin] += massval;
-    pdata.profile_npart_inclusive[ibin] += 1;
+    pdata.profile_mass[ibin] += massval;
+    pdata.profile_npart[ibin] += 1;
 #ifdef GASON
     if (typeval==GASTYPE) {
-        pdata.profile_mass_inclusive_gas[ibin] += massval;
-        pdata.profile_npart_inclusive_gas[ibin] += 1;
+        pdata.profile_mass_gas[ibin] += massval;
+        pdata.profile_npart_gas[ibin] += 1;
 #ifdef STARON
         if (sfrval>opt.gas_sfr_threshold)
         {
-            pdata.profile_mass_inclusive_gas_sf[ibin] += massval;
-            pdata.profile_npart_inclusive_gas_sf[ibin] += 1;
+            pdata.profile_mass_gas_sf[ibin] += massval;
+            pdata.profile_npart_gas_sf[ibin] += 1;
         }
         else {
-            pdata.profile_mass_inclusive_gas_nsf[ibin] += massval;
-            pdata.profile_npart_inclusive_gas_nsf[ibin] += 1;
+            pdata.profile_mass_gas_nsf[ibin] += massval;
+            pdata.profile_npart_gas_nsf[ibin] += 1;
         }
 #endif
     }
 #endif
 #ifdef STARON
     if (typeval==STARTYPE) {
-        pdata.profile_mass_inclusive_star[ibin] += massval;
-        pdata.profile_npart_inclusive_star[ibin] += 1;
+        pdata.profile_mass_star[ibin] += massval;
+        pdata.profile_npart_star[ibin] += 1;
     }
 #endif
 }
+
 
 //@}

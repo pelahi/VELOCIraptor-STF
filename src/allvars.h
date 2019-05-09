@@ -1639,24 +1639,33 @@ struct PropData
     }
 
     //allocate memory for profiles
-    void AllocateProfiles(Options &opt)
+    void Allocate(Options &opt) {
+        AllocateApertures(opt);
+        AllocateProfiles(opt);
+    }
+    void AllocateApertures(Options &opt)
     {
         if (opt.iaperturecalc) {
             aperture_npart.resize(opt.aperturenum);
             aperture_mass.resize(opt.aperturenum);
 #ifdef GASON
             aperture_npart_gas.resize(opt.aperturenum);
+            aperture_mass_gas.resize(opt.aperturenum);
+#ifdef STARON
             aperture_npart_gas_sf.resize(opt.aperturenum);
             aperture_npart_gas_nsf.resize(opt.aperturenum);
-            aperture_mass_gas.resize(opt.aperturenum);
             aperture_mass_gas_sf.resize(opt.aperturenum);
             aperture_mass_gas_nsf.resize(opt.aperturenum);
+#endif
 #endif
 #ifdef STARON
             aperture_npart_star.resize(opt.aperturenum);
             aperture_mass_star.resize(opt.aperturenum);
 #endif
         }
+    }
+    void AllocateProfiles(Options &opt)
+    {
         if (opt.iprofilecalc) {
             profile_npart.resize(opt.profilenbins);
             profile_mass.resize(opt.profilenbins);

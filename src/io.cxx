@@ -2261,7 +2261,7 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
     sprintf(fname,"%s.profiles.%d",opt.outname,ThisTask);
     for (int j=0;j<NProcs;j++) ngtot+=mpi_ngroups[j];
     for (int j=0;j<ThisTask;j++)noffset+=mpi_ngroups[j];
-    MPI_Allreduce(&nhalos, &nhalostot, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
+    for (int j=0;j<NProcs;j++) nhalostot+=mpi_nhalos[j];
 #else
     sprintf(fname,"%s.profiles",opt.outname);
     int ThisTask=0,NProcs=1;
@@ -2336,9 +2336,10 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
         itemp++;
 
         //write the radial bin information
-        dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.profile[itemp], datagroupnames.profiledatatype[itemp], dataspace);
-        dataset.write(opt.profileradnormstring,datagroupnames.profiledatatype[itemp]);
+        dataspace=DataSpace(H5S_SCALAR);
+        DataType stype = _datatype_string(opt.profileradnormstring);
+        dataset = Fhdf.createDataSet(datagroupnames.profile[itemp], stype, dataspace);
+        dataset.write(opt.profileradnormstring,stype);
         itemp++;
 
         dataspace=DataSpace(rank,dims);
