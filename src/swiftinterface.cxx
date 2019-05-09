@@ -128,6 +128,7 @@ int InitVelociraptor(char* configname, unitinfo u, siminfo s, const int numthrea
     mpi_nlocal=new Int_t[NProcs];
     mpi_nsend=new Int_t[NProcs*NProcs];
     mpi_ngroups=new Int_t[NProcs];
+    mpi_nhalos=new Int_t[NProcs];
     //and this processes' rank is
     MPI_Comm_rank(MPI_COMM_WORLD,&ThisTask);
     //store MinSize as when using mpi prior to stitching use min of 2;
