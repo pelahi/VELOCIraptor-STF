@@ -2269,7 +2269,6 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
     nhalostot=nhalos;
 #endif
     cout<<"saving profiles "<<fname<<endl;
-MPI_Barrier(MPI_COMM_WORLD);
     //allocate enough memory to store largest data type
     data= ::operator new(sizeof(long long)*(opt.profilenbins+1));
     ((Double_t*)data)[0]=0.0;for (auto i=0;i<opt.profilenbins;i++) ((Double_t*)data)[i+1]=opt.profile_bin_edges[i];
@@ -2300,7 +2299,6 @@ MPI_Barrier(MPI_COMM_WORLD);
     }
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
-cout<<" writing into hdf "<<endl;
         Fhdf=H5File(fname,H5F_ACC_TRUNC);
         //set file info
         dims=new hsize_t[1];
