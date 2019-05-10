@@ -93,8 +93,12 @@ run_vr() {
 	try wget --no-verbose -O $run_name.conf "$config_file_url"
 	OMP_NUM_THREADS=2 try ./stf -C $run_name.conf -i EAGLE-L0012N0188-z0/snap_028_z000p000 -o $run_name -I 2 -s 16
 
+	# Upload the configuration file to dropbox to link to it
+	# useful if we keep changing the reference configuration file
+	config_file_url=`upload_to_dropbox $dropbox_dir ${run_name}.conf download`
+
 	# Get relevant configuration parameters for display in comment
-	config_table="Relevant configuration parameters:\n\n"
+	config_table="Relevant configuration parameters [full file]($config_file_url):\n\n"
 	config_table+="Parameter | Value\n--- | ---\n"
 	config_table+="`config_param_as_row $run_name.conf Bound_halos`\n"
 	config_table+="`config_param_as_row $run_name.conf Physical_linking_length`\n"
