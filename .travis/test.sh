@@ -45,6 +45,7 @@ create_dropbox_folder() {
 upload_to_dropbox() {
 	# Upload and create a shareable link
 	dropbox_path=$1/$2
+	flavour=$3
 	try curl -X POST https://content.dropboxapi.com/2/files/upload \
 	    -H "Authorization: Bearer $DROPBOX_TOKEN" \
 	    -H 'Content-Type: application/octet-stream' \
@@ -55,7 +56,14 @@ upload_to_dropbox() {
 	    -H "Content-Type: application/json" \
 	    --data "{\"path\": \"$dropbox_path\",\"settings\": {\"requested_visibility\": \"public\"}}" \
 	    -o output.json > /dev/null
-	url=`sed -n 's/.*"url": "\([^"]*\)?dl=0".*/\1/p' output.json`?raw=1
+	url=`sed -n 's/.*"url": "\([^"]*\)?dl=0".*/\1/p' output.json`
+	if [ $flavour == raw ]; then
+		url+=?raw=1
+	elif [ $flavour == download ]; then
+		url+=?dl=1
+	else
+		url+=?dl=0
+	fi
 	echo $url
 }
 
@@ -96,7 +104,7 @@ run_vr() {
 
 	# M200 v/s R200
 	try python ${TRAVIS_BUILD_DIR}/.travis/plots/m200_r200.py ${run_name}.properties.0 ${run_name}_m200_r200.png
-	m200_r200_url=`upload_to_dropbox $dropbox_dir ${run_name}_m200_r200.png`
+	m200_r200_url=`upload_to_dropbox $dropbox_dir ${run_name}_m200_r200.png raw`
 	m200_r200_comment='M200 v/s R200: ![m200-r200]('"$m200_r200_url"' \"M200 v/s R200\")'
 
 	comment+="\n\n$title\n\n$config_table\n\n$m200_r200_comment"
