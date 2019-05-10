@@ -25,6 +25,8 @@
 # MA 02111-1307  USA
 #
 
+PLOTS_DIR=${TRAVIS_BUILD_DIR}/.travis/plots
+
 try() {
 	"$@"
 	status=$?
@@ -82,12 +84,42 @@ config_param_as_row() {
 	sed -n "s/$2=\([^# ]*\).*/$2 | \\1/p" "$1"
 }
 
+make_histogram() {
+	run_name=$1
+	dataset=$2
+	do_log=$3
+	bins=$4
+	input_name=${run_name}.properties.0
+	image_name=${run_name}_${dataset}_hist.png
+
+	try python ${PLOTS_DIR}/histogram.py ${input_name} /$dataset $image_name $do_log $bins
+	url=`upload_to_dropbox $dropbox_dir ${image_name} raw`
+	comment="$dataset histogram: "'!'"[]($url)\n\n"
+	echo $comment
+}
+
+make_xy_plot() {
+	run_name=$1
+	ds_x=$2
+	ds_y=$3
+	log_x=$4
+	log_y=$5
+	input_name=${run_name}.properties.0
+	image_name=${run_name}_${ds_x}__vs__${ds_y}.png
+
+	try python ${PLOTS_DIR}/xy.py ${input_name} /${ds_x} /${ds_y} ${image_name} 1 1
+	url=`upload_to_dropbox $dropbox_dir ${image_name} raw`
+	comment="$ds_y v/s $ds_x: "'!'"[]($url)\n\n"
+	echo $comment
+}
+
 run_vr() {
 	config_file_url="$1"
 	run_name=$2
 	dropbox_dir="$3"
 
 	title="`echo $run_name | sed '{h; p; x; s/./=/g}'`"
+	comment+="\n\n$title"
 
 	# Get config file and run VR
 	try wget --no-verbose -O $run_name.conf "$config_file_url"
@@ -105,13 +137,17 @@ run_vr() {
 	config_table+="`config_param_as_row $run_name.conf FoF_Field_search_type`\n"
 	config_table+="`config_param_as_row $run_name.conf Halo_6D_linking_length_factor`\n"
 	config_table+="`config_param_as_row $run_name.conf Halo_6D_vel_linking_length_factor`\n"
+	comment+="\n\n$config_table"
 
-	# M200 v/s R200
-	try python ${TRAVIS_BUILD_DIR}/.travis/plots/m200_r200.py ${run_name}.properties.0 ${run_name}_m200_r200.png
-	m200_r200_url=`upload_to_dropbox $dropbox_dir ${run_name}_m200_r200.png raw`
-	m200_r200_comment='M200 v/s R200: ![m200-r200]('"$m200_r200_url"' \"M200 v/s R200\")'
+	# M200 v/s R200 plots
+	comment+=`make_xy_plot $run_name Mass_200crit R_200crit 1 1`
+	comment+=`make_xy_plot $run_name Mass_200mean R_200mean 1 1`
 
-	comment+="\n\n$title\n\n$config_table\n\n$m200_r200_comment"
+	# {Mass,R}_200{crit,mean} histograms in log space
+	comment+=`make_histogram $run_name Mass_200crit 1 25`
+	comment+=`make_histogram $run_name Mass_200mean 1 25`
+	comment+=`make_histogram $run_name R_200crit 1 25`
+	comment+=`make_histogram $run_name R_200mean 1 25`
 }
 
 cd ${TRAVIS_BUILD_DIR}/build
