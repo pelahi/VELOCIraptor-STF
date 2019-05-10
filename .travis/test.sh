@@ -84,18 +84,24 @@ config_param_as_row() {
 	sed -n "s/$2=\([^# ]*\).*/$2 | \\1/p" "$1"
 }
 
+image_to_comment() {
+	image_name=$1
+	convert ${image_name}.png -trim -resize 200x ${image_name}_tb.png
+	url=`upload_to_dropbox $dropbox_dir ${image_name}.png raw`
+	tb_url=`upload_to_dropbox $dropbox_dir ${image_name}_tb.png raw`
+	echo "["'!'"[]($tb_url)]($url)"
+}
+
 make_histogram() {
 	run_name=$1
 	dataset=$2
 	do_log=$3
 	bins=$4
 	input_name=${run_name}.properties.0
-	image_name=${run_name}_${dataset}_hist.png
+	image_name=${run_name}_${dataset}_hist
 
-	try python ${PLOTS_DIR}/histogram.py ${input_name} /$dataset $image_name $do_log $bins
-	url=`upload_to_dropbox $dropbox_dir ${image_name} raw`
-	comment="$dataset histogram: "'!'"[]($url)\n\n"
-	echo $comment
+	try python ${PLOTS_DIR}/histogram.py ${input_name} /$dataset ${image_name}.png $do_log $bins
+	echo "$dataset histogram: `image_to_comment ${image_name}`\n\n"
 }
 
 make_xy_plot() {
@@ -105,12 +111,11 @@ make_xy_plot() {
 	log_x=$4
 	log_y=$5
 	input_name=${run_name}.properties.0
-	image_name=${run_name}_${ds_x}__vs__${ds_y}.png
+	image_name=${run_name}_${ds_x}__vs__${ds_y}
 
-	try python ${PLOTS_DIR}/xy.py ${input_name} /${ds_x} /${ds_y} ${image_name} 1 1
-	url=`upload_to_dropbox $dropbox_dir ${image_name} raw`
-	comment="$ds_y v/s $ds_x: "'!'"[]($url)\n\n"
-	echo $comment
+	# Create plot and thumbnail, upload both, comment inlines thumbnail and links to full plot
+	try python ${PLOTS_DIR}/xy.py ${input_name} /${ds_x} /${ds_y} ${image_name}.png 1 1
+	echo "$ds_y v/s $ds_x: `image_to_comment ${image_name}`\n\n"
 }
 
 run_vr() {
@@ -137,7 +142,7 @@ run_vr() {
 	config_table+="`config_param_as_row $run_name.conf FoF_Field_search_type`\n"
 	config_table+="`config_param_as_row $run_name.conf Halo_6D_linking_length_factor`\n"
 	config_table+="`config_param_as_row $run_name.conf Halo_6D_vel_linking_length_factor`\n"
-	comment+="\n\n$config_table"
+	comment+="\n\n$config_table\n"
 
 	# M200 v/s R200 plots
 	comment+=`make_xy_plot $run_name Mass_200crit R_200crit 1 1`

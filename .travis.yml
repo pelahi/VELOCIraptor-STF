@@ -65,7 +65,7 @@ matrix:
     addons:
      apt:
       sources: ubuntu-toolchain-r-test
-      packages: [g++-7, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev, openmpi-bin, python-matplotlib, python-h5py, python-tk]
+      packages: [g++-7, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev, openmpi-bin, python-matplotlib, python-h5py, python-tk, imagemagick]
     env: COMPILER=g++-7 MAKE_PLOTS=true
 
 # We "source" it because it exports variables
