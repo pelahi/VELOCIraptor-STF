@@ -4348,6 +4348,7 @@ Int_t **SortAccordingtoBindingEnergy(Options &opt, const Int_t nbodies, Particle
     for (i=1;i<=ngroup;i++) pdata[i].num=numingroup[i];
 
     GetCM(opt, nbodies, Part, ngroup, pfof, numingroup, pdata, noffset);
+    GetFOFMass(opt, ngroup, numingroup, pdata);
     if (opt.iPropertyReferencePosition == PROPREFCM) {
         GetProperties(opt, nbodies, Part, ngroup, pfof, numingroup, pdata, noffset);
         GetBindingEnergy(opt, nbodies, Part, ngroup, pfof, numingroup, pdata, noffset);
@@ -4391,10 +4392,7 @@ for (j=1;j<numingroup[i];j++) {
 pdata[i].gRmbp=sqrt(pdata[i].gRmbp);
 */
     //calculate spherical masses after substructures identified if using InclusiveHalo = 3
-    if (opt.iInclusiveHalo == 3) {
-        GetFOFMass(opt, ngroup, numingroup, pdata);
-        GetSOMasses(opt, nbodies, Part, ngroup,  numingroup, pdata);
-    }
+    if (opt.iInclusiveHalo == 3) GetSOMasses(opt, nbodies, Part, ngroup,  numingroup, pdata);
     //and finally calculate concentrations
     GetNFWConcentrations(opt, ngroup, numingroup, pdata);
 
@@ -4443,6 +4441,7 @@ void CalculateHaloProperties(Options &opt, const Int_t nbodies, Particle *Part, 
     for (i=2;i<=ngroup;i++) noffset[i]=noffset[i-1]+numingroup[i-1];
     //calculate properties and binding energies
     GetCM(opt, nbodies, Part, ngroup, pfof, numingroup, pdata, noffset);
+    GetFOFMass(opt, ngroup, numingroup, pdata);
     if (opt.iPropertyReferencePosition == PROPREFCM) {
         GetProperties(opt, nbodies, Part, ngroup, pfof, numingroup, pdata, noffset);
         GetBindingEnergy(opt, nbodies, Part, ngroup, pfof, numingroup, pdata, noffset);
@@ -4453,10 +4452,7 @@ void CalculateHaloProperties(Options &opt, const Int_t nbodies, Particle *Part, 
     }
     AdjustHaloPositionRelativeToReferenceFrame(opt, ngroup, numingroup, pdata);
     //calculate spherical masses after substructures identified if using InclusiveHalo = 3
-    if (opt.iInclusiveHalo == 3) {
-        GetFOFMass(opt, ngroup, numingroup, pdata);
-        GetSOMasses(opt, nbodies, Part, ngroup,  numingroup, pdata);
-    }
+    if (opt.iInclusiveHalo == 3) GetSOMasses(opt, nbodies, Part, ngroup,  numingroup, pdata);
     //and finally calculate concentrations
     GetNFWConcentrations(opt, ngroup, numingroup, pdata);
 
