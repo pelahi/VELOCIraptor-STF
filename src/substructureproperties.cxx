@@ -2880,7 +2880,7 @@ void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup
     vector<Double_t> radii;
     vector<Double_t> masses;
     vector<Int_t> indices;
-    Coordinate refpos;
+    Coordinate posref;
     vector<Coordinate> velparts;
     vector<Coordinate> posparts;
     vector<int> typeparts;
