@@ -1148,7 +1148,7 @@ struct PropData
     ///centre of mass
     Coordinate gcm, gcmvel;
     ///Position of most bound particle, and also of particle with min potential
-    Coordinate gpos, gvel, gposminpot, gvelminpot;
+    Coordinate gposmbp, gvelmbp, gposminpot, gvelminpot;
     ///\name physical properties regarding mass, size
     //@{
     Double_t gmass,gsize,gMvir,gRvir,gRmbp,gmaxvel,gRmaxvel,gMmaxvel,gRhalfmass;
@@ -1528,7 +1528,7 @@ struct PropData
     PropData& operator=(const PropData &p){
         num=p.num;
         gcm=p.gcm;gcmvel=p.gcmvel;
-        gpos=p.gpos;gvel=p.gvel;
+        gposmbp=p.gposmbp;gvelmbp=p.gvelmbp;
         gposminpot=p.gposminpot;gvelminpot=p.gvelminpot;
         gmass=p.gmass;gsize=p.gsize;
         gMvir=p.gMvir;gRvir=p.gRvir;gRmbp=p.gRmbp;
@@ -1761,7 +1761,7 @@ struct PropData
 
     void ConverttoComove(Options &opt){
         gcm=gcm*opt.h/opt.a;
-        gpos=gpos*opt.h/opt.a;
+        gposmbp=gposmbp*opt.h/opt.a;
         gposminpot=gposminpot*opt.h/opt.a;
         gmass*=opt.h;
         gMvir*=opt.h;
@@ -1913,13 +1913,13 @@ struct PropData
 
         for (int k=0;k<3;k++) val3[k]=gcm[k];
         Fout.write((char*)val3,sizeof(val)*3);
-        for (int k=0;k<3;k++) val3[k]=gpos[k];
+        for (int k=0;k<3;k++) val3[k]=gposmbp[k];
         Fout.write((char*)val3,sizeof(val)*3);
         for (int k=0;k<3;k++) val3[k]=gposminpot[k];
         Fout.write((char*)val3,sizeof(val)*3);
         for (int k=0;k<3;k++) val3[k]=gcmvel[k];
         Fout.write((char*)val3,sizeof(val)*3);
-        for (int k=0;k<3;k++) val3[k]=gvel[k];
+        for (int k=0;k<3;k++) val3[k]=gvelmbp[k];
         Fout.write((char*)val3,sizeof(val)*3);
         for (int k=0;k<3;k++) val3[k]=gvelminpot[k];
         Fout.write((char*)val3,sizeof(val)*3);
@@ -2248,10 +2248,10 @@ struct PropData
         }
         Fout<<gMvir<<" ";
         for (int k=0;k<3;k++) Fout<<gcm[k]<<" ";
-        for (int k=0;k<3;k++) Fout<<gpos[k]<<" ";
+        for (int k=0;k<3;k++) Fout<<gposmbp[k]<<" ";
         for (int k=0;k<3;k++) Fout<<gposminpot[k]<<" ";
         for (int k=0;k<3;k++) Fout<<gcmvel[k]<<" ";
-        for (int k=0;k<3;k++) Fout<<gvel[k]<<" ";
+        for (int k=0;k<3;k++) Fout<<gvelmbp[k]<<" ";
         for (int k=0;k<3;k++) Fout<<gvelminpot[k]<<" ";
         Fout<<gmass<<" ";
         Fout<<gMFOF<<" ";

@@ -1684,7 +1684,7 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         itemp++;
         }
         for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gpos[k];
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gposmbp[k];
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
         }
@@ -1699,7 +1699,7 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         itemp++;
         }
         for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gvel[k];
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gvelmbp[k];
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
         }

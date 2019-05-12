@@ -286,7 +286,7 @@ private(i,j,k,Pval,cmref)
     for (i=1;i<=ngroup;i++)
     {
         if (opt.iPropertyReferencePosition == PROPREFCM) cmref=pdata[i].gcm;
-        else if (opt.iPropertyReferencePosition == PROPREFMBP) cmref=pdata[i].gpos;
+        else if (opt.iPropertyReferencePosition == PROPREFMBP) cmref=pdata[i].gposmbp;
         else if (opt.iPropertyReferencePosition == PROPREFMINPOT) cmref=pdata[i].gposminpot;
         for (j=0;j<numingroup[i];j++)
         {
@@ -505,7 +505,8 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
 #ifdef NOMASS
         pdata[i].RV_Krot*=opt.MassValue;
 #endif
-
+/*
+???
         //calculate the concentration based on prada 2012 where [(Vmax)/(GM/R)]^2-(0.216*c)/f(c)=0,
         //where f(c)=ln(1+c)-c/(1+c) and M is some "virial" mass and associated radius
         if (pdata[i].gR200c==0) pdata[i].VmaxVvir2=(pdata[i].gmaxvel*pdata[i].gmaxvel)/(opt.G*pdata[i].gmass/pdata[i].gsize);
@@ -522,7 +523,7 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
                 else pdata[i].cNFW=pdata[i].gR200c/pdata[i].gRmaxvel;
             }
         }
-
+*/
         //baryons
 #if defined(GASON)
         for (j=0;j<numingroup[i];j++) {
@@ -1252,7 +1253,8 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
 #ifdef NOMASS
         pdata[i].RV_Krot*=opt.MassValue;
 #endif
-
+/*
+???
         //calculate the concentration based on prada 2012 where [(Vmax)/(GM/R)]^2-(0.216*c)/f(c)=0,
         //where f(c)=ln(1+c)-c/(1+c) and M is some "virial" mass and associated radius
         if (pdata[i].gR200c==0) pdata[i].VmaxVvir2=(pdata[i].gmaxvel*pdata[i].gmaxvel)/(opt.G*pdata[i].gmass/pdata[i].gsize);
@@ -1263,7 +1265,7 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
             else pdata[i].cNFW=pdata[i].gR200c/pdata[i].gRmaxvel;
         }
         else GetConcentration(pdata[i]);
-
+*/
     //baryons
 #if defined(GASON)
         for (j=0;j<numingroup[i];j++) {
@@ -1850,7 +1852,7 @@ private(i,j,k,Pval,cmref)
     for (i=1;i<=ngroup;i++)
     {
         if (opt.iPropertyReferencePosition == PROPREFCM) cmref=pdata[i].gcm;
-        else if (opt.iPropertyReferencePosition == PROPREFMBP) cmref=pdata[i].gpos;
+        else if (opt.iPropertyReferencePosition == PROPREFMBP) cmref=pdata[i].gposmbp;
         else if (opt.iPropertyReferencePosition == PROPREFMINPOT) cmref=pdata[i].gposminpot;
         for (j=0;j<numingroup[i];j++)
         {
@@ -1863,6 +1865,92 @@ private(i,j,k,Pval,cmref)
 #endif
 
     if (opt.iverbose) cout<<ThisTask<<" Done getting properties in "<<MyGetTime()-time1<<endl;
+}
+
+///Adjust positions of bulk properties to desired reference
+void AdjustHaloPositionRelativeToReferenceFrame(Options &opt, Int_t ngroup, Int_t *&numingroup, PropData *&pdata)
+{
+    Int_t i;
+#ifdef USEOPENMP
+#pragma omp parallel default(shared)  \
+private(i)
+{
+    #pragma omp for nowait
+#endif
+    for (i=1;i<=ngroup;i++)
+    {
+        //get relative positions of cm/most bound/min pot depending on reference frame choice.
+        if (opt.iPropertyReferencePosition == PROPREFCM)
+        {
+            //get relative positions of most bound an min pot particles
+            for (auto k=0;k<3;k++) {
+                pdata[i].gposmbp[k]=pdata[i].gposmbp[k]-pdata[i].gcm[k];
+                pdata[i].gvelmbp[k]=pdata[i].gvelmbp[k]-pdata[i].gcmvel[k];
+                pdata[i].gposminpot[k]=pdata[i].gposminpot[k]-pdata[i].gcm[k];
+                pdata[i].gvelminpot[k]=pdata[i].gvelminpot[k]-pdata[i].gcmvel[k];
+                if (pdata[i].gcm[k]<0) pdata[i].gcm[k]+=opt.p;
+                else if (pdata[i].gcm[k]>opt.p) pdata[i].gcm[k]-=opt.p;
+            }
+        }
+        if (opt.iPropertyReferencePosition == PROPREFMBP)
+        {
+            for (auto k=0;k<3;k++) {
+                pdata[i].gcm[k]=pdata[i].gcm[k]-pdata[i].gposmbp[k];
+                pdata[i].gcmvel[k]=pdata[i].gcmvel[k]-pdata[i].gvelmbp[k];
+                pdata[i].gposminpot[k]=pdata[i].gposminpot[k]-pdata[i].gposmbp[k];
+                pdata[i].gvelminpot[k]=pdata[i].gvelminpot[k]-pdata[i].gvelmbp[k];
+                if (pdata[i].gposmbp[k]<0) pdata[i].gposmbp[k]+=opt.p;
+                else if (pdata[i].gposmbp[k]>opt.p) pdata[i].gposmbp[k]-=opt.p;
+            }
+        }
+        if (opt.iPropertyReferencePosition == PROPREFMINPOT)
+        {
+            for (auto k=0;k<3;k++) {
+                pdata[i].gposmbp[k]=pdata[i].gposmbp[k]-pdata[i].gposminpot[k];
+                pdata[i].gvelmbp[k]=pdata[i].gvelmbp[k]-pdata[i].gvelminpot[k];
+                pdata[i].gcm[k]=pdata[i].gcm[k]-pdata[i].gposminpot[k];
+                pdata[i].gcmvel[k]=pdata[i].gcmvel[k]-pdata[i].gvelminpot[k];
+                if (pdata[i].gposminpot[k]<0) pdata[i].gposminpot[k]+=opt.p;
+                else if (pdata[i].gposminpot[k]>opt.p) pdata[i].gposminpot[k]-=opt.p;
+            }
+        }
+    }
+#ifdef USEOPENMP
+}
+#endif
+}
+
+///Calculate concentration parameter based on assuming NFW profile
+void GetNFWConcentrations(Options &opt, Int_t ngroup, Int_t *&numingroup, PropData *&pdata)
+{
+    Int_t i;
+#ifdef USEOPENMP
+#pragma omp parallel default(shared)  \
+private(i)
+{
+    #pragma omp for schedule(dynamic) nowait
+#endif
+    for (i=1;i<=ngroup;i++)
+    {
+        //calculate the concentration based on prada 2012 where [(Vmax)/(GM/R)]^2-(0.216*c)/f(c)=0,
+        //where f(c)=ln(1+c)-c/(1+c) and M is some "virial" mass and associated radius
+        pdata[i].VmaxVvir2=(pdata[i].gmaxvel*pdata[i].gmaxvel)/(opt.G*pdata[i].gM200c/pdata[i].gR200c);
+        //always possible halo severly truncated before so correct if necessary and also for tidal debris, both vmax concentration pretty meaningless
+        if (pdata[i].VmaxVvir2<=1.05) {
+            if (pdata[i].gM200c==0) pdata[i].cNFW=pdata[i].gsize/pdata[i].gRmaxvel;
+            else pdata[i].cNFW=pdata[i].gR200c/pdata[i].gRmaxvel;
+        }
+        else {
+            if (numingroup[i]>=PROPNFWMINNUM) GetConcentration(pdata[i]);
+            else {
+                if (pdata[i].gM200c==0) pdata[i].cNFW=pdata[i].gsize/pdata[i].gRmaxvel;
+                else pdata[i].cNFW=pdata[i].gR200c/pdata[i].gRmaxvel;
+            }
+        }
+    }
+#ifdef USEOPENMP
+}
+#endif
 }
 
 ///Get inclusive halo FOF based masses. If requesting spherical overdensity masses then extra computation and search required
@@ -4184,8 +4272,8 @@ private(i,j,Emostbound,imostbound)
             }
         }
         for (j=0;j<3;j++) {
-            pdata[i].gpos[j] = Part[noffset[i]+imostbound].GetPosition(j);
-            pdata[i].gvel[j] = Part[noffset[i]+imostbound].GetVelocity(j);
+            pdata[i].gposmbp[j] = Part[noffset[i]+imostbound].GetPosition(j);
+            pdata[i].gvelmbp[j] = Part[noffset[i]+imostbound].GetVelocity(j);
         }
     }
 #ifdef USEOPENMP
@@ -4205,7 +4293,7 @@ Int_t **SortAccordingtoBindingEnergy(Options &opt, const Int_t nbodies, Particle
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
 #endif
-    cout<<ThisTask<<" Sort particles and compute properties"<<ngroup<<endl;
+    cout<<ThisTask<<" Sort particles and compute properties of "<<ngroup<<" objects "<<endl;
     Int_t i,j,k;
     Int_t *noffset=new Int_t[ngroup+1];
     Int_t *storepid;
@@ -4234,8 +4322,6 @@ Int_t **SortAccordingtoBindingEnergy(Options &opt, const Int_t nbodies, Particle
     for (i=2;i<=ngroup;i++) noffset[i]=noffset[i-1]+numingroup[i-1];
     for (i=1;i<=ngroup;i++) pdata[i].num=numingroup[i];
 
-    // for small groups interate over groups using openmp threads
-    // for large groups interate over particles
     GetCM(opt, nbodies, Part, ngroup, pfof, numingroup, pdata, noffset);
     if (opt.iPropertyReferencePosition == PROPREFCM) {
         GetProperties(opt, nbodies, Part, ngroup, pfof, numingroup, pdata, noffset);
@@ -4245,6 +4331,7 @@ Int_t **SortAccordingtoBindingEnergy(Options &opt, const Int_t nbodies, Particle
         GetBindingEnergy(opt, nbodies, Part, ngroup, pfof, numingroup, pdata, noffset);
         GetProperties(opt, nbodies, Part, ngroup, pfof, numingroup, pdata, noffset);
     }
+    AdjustHaloPositionRelativeToReferenceFrame(opt, ngroup, numingroup, pdata);
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
 private(i,j)
@@ -4261,57 +4348,27 @@ private(i,j)
         }
         //having sorted particles get most bound, first unbound
         pdata[i].iunbound=numingroup[i];
-        if (numingroup[i]>0)
-            for (j=0;j<numingroup[i];j++) if(Part[noffset[i]+j].GetDensity()>0) {pdata[i].iunbound=j;break;}
-        //get relative positions of cm/most bound/min pot depending on reference frame choice.
-        if (opt.iPropertyReferencePosition == PROPREFCM)
-        {
-            //get relative positions of most bound an min pot particles
-            for (auto k=0;k<3;k++) {
-                pdata[i].gpos[k]=pdata[i].gpos[k]-pdata[i].gcm[k];
-                pdata[i].gvel[k]=pdata[i].gvel[k]-pdata[i].gcmvel[k];
-                pdata[i].gposminpot[k]=pdata[i].gposminpot[k]-pdata[i].gcm[k];
-                pdata[i].gvelminpot[k]=pdata[i].gvelminpot[k]-pdata[i].gcmvel[k];
-                if (pdata[i].gcm[k]<0) pdata[i].gcm[k]+=opt.p;
-                else if (pdata[i].gcm[k]>opt.p) pdata[i].gcm[k]-=opt.p;
-            }
-        }
-        if (opt.iPropertyReferencePosition == PROPREFMBP)
-        {
-            for (auto k=0;k<3;k++) {
-                pdata[i].gcm[k]=pdata[i].gcm[k]-pdata[i].gpos[k];
-                pdata[i].gcmvel[k]=pdata[i].gcmvel[k]-pdata[i].gvel[k];
-                pdata[i].gposminpot[k]=pdata[i].gposminpot[k]-pdata[i].gpos[k];
-                pdata[i].gvelminpot[k]=pdata[i].gvelminpot[k]-pdata[i].gvel[k];
-                if (pdata[i].gpos[k]<0) pdata[i].gpos[k]+=opt.p;
-                else if (pdata[i].gpos[k]>opt.p) pdata[i].gpos[k]-=opt.p;
-            }
-        }
-        if (opt.iPropertyReferencePosition == PROPREFMINPOT)
-        {
-            for (auto k=0;k<3;k++) {
-                pdata[i].gpos[k]=pdata[i].gpos[k]-pdata[i].gposminpot[k];
-                pdata[i].gvel[k]=pdata[i].gvel[k]-pdata[i].gvelminpot[k];
-                pdata[i].gcm[k]=pdata[i].gcm[k]-pdata[i].gposminpot[k];
-                pdata[i].gcmvel[k]=pdata[i].gcmvel[k]-pdata[i].gvelminpot[k];
-                if (pdata[i].gposminpot[k]<0) pdata[i].gposminpot[k]+=opt.p;
-                else if (pdata[i].gposminpot[k]>opt.p) pdata[i].gposminpot[k]-=opt.p;
-            }
-        }
-        //get size to using most bound
-        ///this should likely be removed
-        Double_t x,y,z,r2;
-        for (j=1;j<numingroup[i];j++) {
-            r2=0;
-            for (auto k=0;k<3;k++) r2+=pow(Part[noffset[i]+j].GetPosition(k)-(pdata[i].gpos[k]+pdata[i].gcm[k]),2.0);
-            if(pdata[i].gRmbp<r2) pdata[i].gRmbp=r2;
-        }
-        pdata[i].gRmbp=sqrt(pdata[i].gRmbp);
+        for (j=0;j<numingroup[i];j++) if(Part[noffset[i]+j].GetDensity()>0) {pdata[i].iunbound=j;break;}
     }
 #ifdef USEOPENMP
 }
 #endif
+
+/*
+//get size to using most bound
+///this should likely be removed
+Double_t x,y,z,r2;
+for (j=1;j<numingroup[i];j++) {
+    r2=0;
+    for (auto k=0;k<3;k++) r2+=pow(Part[noffset[i]+j].GetPosition(k)-(pdata[i].gposmbp[k]+pdata[i].gcm[k]),2.0);
+    if(pdata[i].gRmbp<r2) pdata[i].gRmbp=r2;
+}
+pdata[i].gRmbp=sqrt(pdata[i].gRmbp);
+*/
+    //calculate spherical masses after substructures identified if using InclusiveHalo = 3
     if (opt.iInclusiveHalo == 3) GetSOMasses(opt, nbodies, Part, ngroup,  numingroup, pdata);
+    //and finally calculate concentrations
+    GetNFWConcentrations(opt, ngroup, numingroup, pdata);
 
     //before used to store the id in pglist and then have to reset particle order so that Ids correspond to indices
     //but to reduce computing time could just store index and leave particle array unchanged but only really necessary
@@ -4356,15 +4413,24 @@ void CalculateHaloProperties(Options &opt, const Int_t nbodies, Particle *Part, 
 
     noffset[0]=noffset[1]=0;
     for (i=2;i<=ngroup;i++) noffset[i]=noffset[i-1]+numingroup[i-1];
-
-    // for small groups interate over groups using openmp threads
-    // for large groups interate over particles
-    for (i=1;i<=ngroup;i++) pdata[i].num=numingroup[i];
-    cout<<ThisTask<<" Calculate properties"<<endl;
+    //calculate properties and binding energies
     GetCM(opt, nbodies, Part, ngroup, pfof, numingroup, pdata, noffset);
-    GetProperties(opt, nbodies, Part, ngroup, pfof, numingroup, pdata, noffset);
-    GetBindingEnergy(opt, nbodies, Part, ngroup, pfof, numingroup, pdata, noffset);
+    if (opt.iPropertyReferencePosition == PROPREFCM) {
+        GetProperties(opt, nbodies, Part, ngroup, pfof, numingroup, pdata, noffset);
+        GetBindingEnergy(opt, nbodies, Part, ngroup, pfof, numingroup, pdata, noffset);
+    }
+    else {
+        GetBindingEnergy(opt, nbodies, Part, ngroup, pfof, numingroup, pdata, noffset);
+        GetProperties(opt, nbodies, Part, ngroup, pfof, numingroup, pdata, noffset);
+    }
+    AdjustHaloPositionRelativeToReferenceFrame(opt, ngroup, numingroup, pdata);
+    //calculate spherical masses after substructures identified if using InclusiveHalo = 3
+    if (opt.iInclusiveHalo == 3) GetSOMasses(opt, nbodies, Part, ngroup,  numingroup, pdata);
+    //and finally calculate concentrations
+    GetNFWConcentrations(opt, ngroup, numingroup, pdata);
+
     for (i=1;i<=ngroup;i++) pdata[i].ibound=Part[noffset[i]].GetPID();
+    for (i=1;i<=ngroup;i++) pdata[i].iunbound=Part[noffset[i]+numingroup[i]-1].GetPID();
     delete[] noffset;
 }
 

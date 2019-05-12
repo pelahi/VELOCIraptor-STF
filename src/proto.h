@@ -287,6 +287,10 @@ void GetCM(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_
 void GetProperties(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&pfof, Int_t *&numingroup, PropData *&pdata, Int_t *&noffset);
 ///Get CM properties
 //void GetCMProp(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&pfof, Int_t *&numingroup, PropData *&pdata, Int_t *&noffset);
+///Adjust positions of bulk properties to desired reference
+void AdjustHaloPositionRelativeToReferenceFrame(Options &opt, Int_t ngroup, Int_t *&numingroup, PropData *&pdata);
+///Get NFW R200crit concentrations assuming an NFW profile and using Vmax/Rmax
+void GetNFWConcentrations(Options &opt, Int_t ngroup, Int_t *&numingroup, PropData *&pdata);
 ///Get inclusive masses for field objects
 void GetInclusiveMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&pfof, Int_t *&numingroup, PropData *&pdata, Int_t *&noffset);
 ///Get FOF masses for field objects
