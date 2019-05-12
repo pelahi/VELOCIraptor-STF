@@ -881,53 +881,6 @@ private(i,j,diff,gid)
 #ifdef USEOPENMP
 }
 #endif
-
-
-    /*
-    numingroup=BuildNumInGroup(nbodies, numgroups, pfof);
-    pglist=BuildPGList(nbodies, numgroups, numingroup, pfof,Part.data());
-    if (opt.iverbose) cout<<ThisTask<<" Adjusting for period "<<opt.p<<endl;
-    for (i=1;i<=numgroups;i++) if (numingroup[i]>ompperiodnum) {
-        c=Coordinate(Part[pglist[i][0]].GetPosition());
-        Int_t j;
-#ifdef USEOPENMP
-#pragma omp parallel default(shared) \
-private(j,diff)
-{
-#pragma omp for
-#endif
-        for (j=1;j<numingroup[i];j++) {
-            for (int k=0;k<3;k++) {
-                diff=c[k]-Part[pglist[i][j]].GetPosition(k);
-                if (diff<-0.5*opt.p) Part[pglist[i][j]].SetPosition(k,Part[pglist[i][j]].GetPosition(k)-opt.p);
-                else if (diff>0.5*opt.p) Part[pglist[i][j]].SetPosition(k,Part[pglist[i][j]].GetPosition(k)+opt.p);
-            }
-        }
-#ifdef USEOPENMP
-}
-#endif
-    }
-#ifdef USEOPENMP
-
-#pragma omp parallel default(shared) \
-private(i,c,diff)
-{
-#pragma omp for schedule(dynamic)
-#endif
-    for (i=1;i<=numgroups;i++) if (numingroup[i]<=ompperiodnum) {
-        c=Coordinate(Part[pglist[i][0]].GetPosition());
-        for (Int_t j=1;j<numingroup[i];j++) {
-            for (int k=0;k<3;k++) {
-                diff=c[k]-Part[pglist[i][j]].GetPosition(k);
-                if (diff<-0.5*opt.p) Part[pglist[i][j]].SetPosition(k,Part[pglist[i][j]].GetPosition(k)-opt.p);
-                else if (diff>0.5*opt.p) Part[pglist[i][j]].SetPosition(k,Part[pglist[i][j]].GetPosition(k)+opt.p);
-            }
-        }
-    }
-#ifdef USEOPENMP
-}
-#endif
-    */
 }
 
 //@}
