@@ -4594,25 +4594,25 @@ void AddParticleToRadialBinInclusive(Options &opt, Particle *Pval, Double_t irno
     pdata.profile_npart_inclusive[ibin] += 1;
 #ifdef GASON
     if (Pval->GetType()==GASTYPE) {
-        pdata.profile_mass_gas_inclusive[ibin] += massval;
-        pdata.profile_npart_gas_inclusive[ibin] += 1;
+        pdata.profile_mass_inclusive_gas[ibin] += massval;
+        pdata.profile_npart_inclusive_gas[ibin] += 1;
 #ifdef STARON
         if (Pval->GetSFR()>opt.gas_sfr_threshold)
         {
-            pdata.profile_mass_gas_sf_inclusive[ibin] += massval;
-            pdata.profile_npart_gas_sf_inclusive[ibin] += 1;
+            pdata.profile_mass_inclusive_gas_sf[ibin] += massval;
+            pdata.profile_npart_inclusive_gas_sf[ibin] += 1;
         }
         else {
-            pdata.profile_mass_gas_nsf_inclusive[ibin] += massval;
-            pdata.profile_npart_gas_nsf_inclusive[ibin] += 1;
+            pdata.profile_mass_inclusive_gas_nsf[ibin] += massval;
+            pdata.profile_npart_inclusive_gas_nsf[ibin] += 1;
         }
 #endif
     }
 #endif
 #ifdef STARON
     if (Pval->GetType()==STARTYPE) {
-        pdata.profile_mass_star_inclusive[ibin] += massval;
-        pdata.profile_npart_star_inclusive[ibin] += 1;
+        pdata.profile_mass_inclusive_star[ibin] += massval;
+        pdata.profile_npart_inclusive_star[ibin] += 1;
     }
 #endif
 }
@@ -4630,25 +4630,25 @@ void AddDataToRadialBinInclusive(Options &opt, Double_t rval, Double_t massval,
     pdata.profile_npart_inclusive[ibin] += 1;
 #ifdef GASON
     if (typeval==GASTYPE) {
-        pdata.profile_mass_gas_inclusive[ibin] += massval;
-        pdata.profile_npart_gas_inclusive[ibin] += 1;
+        pdata.profile_mass_inclusive_gas[ibin] += massval;
+        pdata.profile_npart_inclusive_gas[ibin] += 1;
 #ifdef STARON
         if (sfrval>opt.gas_sfr_threshold)
         {
-            pdata.profile_mass_gas_sf_inclusive[ibin] += massval;
-            pdata.profile_npart_gas_sf_inclusive[ibin] += 1;
+            pdata.profile_mass_inclusive_gas_sf[ibin] += massval;
+            pdata.profile_npart_inclusive_gas_sf[ibin] += 1;
         }
         else {
-            pdata.profile_mass_gas_nsf_inclusive[ibin] += massval;
-            pdata.profile_npart_gas_nsf_inclusive[ibin] += 1;
+            pdata.profile_mass_inclusive_gas_nsf[ibin] += massval;
+            pdata.profile_npart_inclusive_gas_nsf[ibin] += 1;
         }
 #endif
     }
 #endif
 #ifdef STARON
     if (typeval==STARTYPE) {
-        pdata.profile_mass_star_inclusive[ibin] += massval;
-        pdata.profile_npart_star_inclusive[ibin] += 1;
+        pdata.profile_mass_inclusive_star[ibin] += massval;
+        pdata.profile_npart_inclusive_star[ibin] += 1;
     }
 #endif
 }
