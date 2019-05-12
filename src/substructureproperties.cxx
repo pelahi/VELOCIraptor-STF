@@ -279,7 +279,7 @@ void GetProperties(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngro
     //for all groups, move particles to their appropriate reference frame
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
-private(i,j,k,Pval)
+private(i,j,k,Pval,cmref)
 {
     #pragma omp for schedule(dynamic) nowait
 #endif
@@ -1843,7 +1843,7 @@ private(i,j,k,Pval)
     //reset particle positions
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
-private(i,j,k,Pval)
+private(i,j,k,Pval,cmref)
 {
     #pragma omp for schedule(dynamic) nowait
 #endif
@@ -3869,7 +3869,8 @@ void GetBindingEnergy(Options &opt, const Int_t nbodies, Particle *Part, Int_t n
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
 #endif
-    if (opt.iverbose) cout<<ThisTask<<" Get Energy"<<endl;
+    double time1 = MyGetTime();
+    if (opt.iverbose) cout<<ThisTask<<" getting energy"<<endl;
     if (opt.uinfo.cmvelreftype==POTREF && opt.iverbose==1) cout<<"Using minimum potential reference"<<endl;
 
     //used to access current particle
@@ -4191,7 +4192,7 @@ private(i,j,Emostbound,imostbound)
 }
 #endif
 
-    if (opt.iverbose) cout<<"Done."<<endl;
+    if (opt.iverbose) cout<<ThisTask<<"Done getting energy in "<<MyGetTime()-time1<<endl;
 }
 
 
@@ -4235,58 +4236,81 @@ Int_t **SortAccordingtoBindingEnergy(Options &opt, const Int_t nbodies, Particle
 
     // for small groups interate over groups using openmp threads
     // for large groups interate over particles
+    GetCM(opt, nbodies, Part, ngroup, pfof, numingroup, pdata, noffset);
     if (opt.iPropertyReferencePosition == PROPREFCM) {
-        GetCM(opt, nbodies, Part, ngroup, pfof, numingroup, pdata, noffset);
         GetProperties(opt, nbodies, Part, ngroup, pfof, numingroup, pdata, noffset);
         GetBindingEnergy(opt, nbodies, Part, ngroup, pfof, numingroup, pdata, noffset);
+    }
+    else {
+        GetBindingEnergy(opt, nbodies, Part, ngroup, pfof, numingroup, pdata, noffset);
+        GetProperties(opt, nbodies, Part, ngroup, pfof, numingroup, pdata, noffset);
+    }
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
 private(i,j)
 {
     #pragma omp for nowait
 #endif
-        for (i=1;i<=ngroup;i++) {
-            if (opt.iSortByBindingEnergy) {
-                qsort(&Part[noffset[i]], numingroup[i], sizeof(Particle), DenCompare);
-            }
-            else {
-                qsort(&Part[noffset[i]], numingroup[i], sizeof(Particle), PotCompare);
-            }
-            //having sorted particles get most bound, first unbound
-            pdata[i].iunbound=numingroup[i];
-            if (numingroup[i]>0)
-                for (j=0;j<numingroup[i];j++) if(Part[noffset[i]+j].GetDensity()>0) {pdata[i].iunbound=j;break;}
+    for (i=1;i<=ngroup;i++)
+    {
+        if (opt.iSortByBindingEnergy) {
+            qsort(&Part[noffset[i]], numingroup[i], sizeof(Particle), DenCompare);
+        }
+        else {
+            qsort(&Part[noffset[i]], numingroup[i], sizeof(Particle), PotCompare);
+        }
+        //having sorted particles get most bound, first unbound
+        pdata[i].iunbound=numingroup[i];
+        if (numingroup[i]>0)
+            for (j=0;j<numingroup[i];j++) if(Part[noffset[i]+j].GetDensity()>0) {pdata[i].iunbound=j;break;}
+        //get relative positions of cm/most bound/min pot depending on reference frame choice.
+        if (opt.iPropertyReferencePosition == PROPREFCM)
+        {
             //get relative positions of most bound an min pot particles
-            //??? have this depend on type of PRPOPERTYREFERENCE frame? or remove entirely?
             for (auto k=0;k<3;k++) {
                 pdata[i].gpos[k]=pdata[i].gpos[k]-pdata[i].gcm[k];
                 pdata[i].gvel[k]=pdata[i].gvel[k]-pdata[i].gcmvel[k];
                 pdata[i].gposminpot[k]=pdata[i].gposminpot[k]-pdata[i].gcm[k];
                 pdata[i].gvelminpot[k]=pdata[i].gvelminpot[k]-pdata[i].gcmvel[k];
+                if (pdata[i].gcm[k]<0) pdata[i].gcm[k]+=opt.p;
+                else if (pdata[i].gcm[k]>opt.p) pdata[i].gcm[k]-=opt.p;
             }
-            //get size to using most bound
-            ///this should likely be removed
-            Double_t x,y,z,r2;
-            for (j=1;j<numingroup[i];j++) {
-                r2=0;
-                for (auto k=0;k<3;k++) r2+=pow(Part[noffset[i]+j].GetPosition(k)-(pdata[i].gpos[k]+pdata[i].gcm[k]),2.0);
-                if(pdata[i].gRmbp<r2) pdata[i].gRmbp=r2;
-            }
-            pdata[i].gRmbp=sqrt(pdata[i].gRmbp);
         }
+        if (opt.iPropertyReferencePosition == PROPREFMBP)
+        {
+            for (auto k=0;k<3;k++) {
+                pdata[i].gcm[k]=pdata[i].gcm[k]-pdata[i].gpos[k];
+                pdata[i].gcmvel[k]=pdata[i].gcmvel[k]-pdata[i].gvel[k];
+                pdata[i].gposminpot[k]=pdata[i].gposminpot[k]-pdata[i].gpos[k];
+                pdata[i].gvelminpot[k]=pdata[i].gvelminpot[k]-pdata[i].gvel[k];
+                if (pdata[i].gpos[k]<0) pdata[i].gpos[k]+=opt.p;
+                else if (pdata[i].gpos[k]>opt.p) pdata[i].gpos[k]-=opt.p;
+            }
+        }
+        if (opt.iPropertyReferencePosition == PROPREFMINPOT)
+        {
+            for (auto k=0;k<3;k++) {
+                pdata[i].gpos[k]=pdata[i].gpos[k]-pdata[i].gposminpot[k];
+                pdata[i].gvel[k]=pdata[i].gvel[k]-pdata[i].gvelminpot[k];
+                pdata[i].gcm[k]=pdata[i].gcm[k]-pdata[i].gposminpot[k];
+                pdata[i].gcmvel[k]=pdata[i].gcmvel[k]-pdata[i].gvelminpot[k];
+                if (pdata[i].gposminpot[k]<0) pdata[i].gposminpot[k]+=opt.p;
+                else if (pdata[i].gposminpot[k]>opt.p) pdata[i].gposminpot[k]-=opt.p;
+            }
+        }
+        //get size to using most bound
+        ///this should likely be removed
+        Double_t x,y,z,r2;
+        for (j=1;j<numingroup[i];j++) {
+            r2=0;
+            for (auto k=0;k<3;k++) r2+=pow(Part[noffset[i]+j].GetPosition(k)-(pdata[i].gpos[k]+pdata[i].gcm[k]),2.0);
+            if(pdata[i].gRmbp<r2) pdata[i].gRmbp=r2;
+        }
+        pdata[i].gRmbp=sqrt(pdata[i].gRmbp);
+    }
 #ifdef USEOPENMP
 }
 #endif
-        //wrap positions if periodic
-        if (opt.p > 0) {
-            for (i=1;i<=ngroup;i++) {
-                for (j=0;j<3;j++) {
-                    if (pdata[i].gcm[j]<0) pdata[i].gcm[j]+=opt.p;
-                    else if (pdata[i].gcm[j]>opt.p) pdata[i].gcm[j]-=opt.p;
-                }
-            }
-        }
-    }
     if (opt.iInclusiveHalo == 3) GetSOMasses(opt, nbodies, Part, ngroup,  numingroup, pdata);
 
     //before used to store the id in pglist and then have to reset particle order so that Ids correspond to indices
