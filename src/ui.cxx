@@ -545,6 +545,8 @@ void GetParamFile(Options &opt)
                         opt.uinfo.unbindtype = atoi(vbuff);
 
                     //property related
+                    else if (strcmp(tbuff, "Reference_frame_for_properties")==0)
+                        opt.iPropertyReferencePosition = atoi(vbuff);
                     else if (strcmp(tbuff, "Iterate_cm_flag")==0)
                         opt.iIterateCM = atoi(vbuff);
                     else if (strcmp(tbuff, "Inclusive_halo_masses")==0)
@@ -678,6 +680,9 @@ inline void errormessage(string message) {
 
 inline void ConfigCheck(Options &opt)
 {
+#ifndef USEMPI
+    int ThisTask =0;
+#endif
     if (opt.fname==NULL||opt.outname==NULL){
         errormessage("Must provide input and output file names");
         ConfigExit();
