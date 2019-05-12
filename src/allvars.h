@@ -211,6 +211,12 @@ using namespace NBody;
 #define CMVELREF 0
 ///use the particle at potential minimum. Issues if too few particles used as particles will move in and out of deepest point of the potential well
 #define POTREF 1
+///use Centre-of-mass to caculate Properties
+#define PROPREFCM 0
+///use most bound particle to calculate properties
+#define PROPREFMBP 1
+///use minimum potential particle to calculat properties
+#define PROPREFMINPOT 2
 
 //@}
 
@@ -360,6 +366,8 @@ struct Options
     int iextrastaroutput;
     /// calculate and output extra star fields
     int iextrabhoutput;
+    /// calculate subind like properties
+    int isubfindproperties;
 
     ///disable particle id related output like fof.grp or catalog_group data. Useful if just want halo properties
     ///and not interested in tracking. Code writes halo properties catalog and exits.
@@ -431,6 +439,8 @@ struct Options
     int iIterateCM;
     /// flag to sort output particle lists by binding energy (or potential if not on)
     int iSortByBindingEnergy;
+    /// what reference position to use when calculating Properties
+    int iPropertyReferencePosition;
 
 
     ///threshold on particle ELL value, normalized logarithmic distance from predicted maxwellian velocity density.
@@ -689,6 +699,7 @@ struct Options
         iInclusiveHalo=0;
         iKeepFOF=0;
         iSortByBindingEnergy=1;
+        iPropertyReferencePosition=PROPREFCM;
 
         iLargerCellSearch=0;
 
@@ -710,14 +721,16 @@ struct Options
         iwritefof=0;
         iseparatefiles=0;
         ibinaryout=0;
-        iextrahalooutput=0;
         iextendedoutput=0;
         inoidoutput=0;
         icomoveunit=0;
         icosmologicalin=1;
 
+        iextrahalooutput=0;
         iextragasoutput=0;
         iextrastaroutput=0;
+        isubfindproperties=0;
+
 
         iusestarparticles=1;
         iusesinkparticles=1;
