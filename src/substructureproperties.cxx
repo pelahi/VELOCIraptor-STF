@@ -421,7 +421,7 @@ void GetCMProp(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, 
 
     for (i=1;i<=ngroup;i++) {
         pdata[i].num=numingroup[i];
-        if (((opt.iInclusiveHalo && pdata[i].hostid !=-1) || opt.iInclusiveHalo==0)) pdata[i].Allocate(opt);
+        if ((opt.iInclusiveHalo>0 && opt.iInclusiveHalo <3 && pdata[i].hostid !=-1) || opt.iInclusiveHalo==0 || opt.iInclusiveHalo == 3) pdata[i].Allocate(opt);
     }
 
     //for small groups loop over groups
@@ -521,7 +521,7 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
 #ifdef NOMASS
         pdata[i].gmass*=opt.MassValue;
 #endif
-        if (pdata[i].gMFOF==0 && pdata[i].hostid==-1) pdata[i].gMFOF=pdata[i].gmass;
+        if (opt.iInclusiveHalo == 0 && pdata[i].hostid==-1) pdata[i].gMFOF=pdata[i].gmass;
         //sort by radius (here use gsl_heapsort as no need to allocate more memory
         gsl_heapsort(&Part[noffset[i]], numingroup[i], sizeof(Particle), RadCompare);
 
@@ -3048,6 +3048,462 @@ private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,
 }
 //@}
 
+
+/// Calculate FOF mass
+void GetFOFMass(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&pfof, Int_t *&numingroup, PropData *&pdata, Int_t *&noffset)
+{
+    Particle *Pval;
+    KDTree *tree;
+    Double_t *period=NULL;
+    Int_t i,j,k;
+    Double_t time1=MyGetTime(), massval;
+    int nthreads=1,tid;
+#ifndef USEMPI
+    int ThisTask=0,NProcs=1;
+#endif
+#ifdef USEOPENMP
+#pragma omp parallel
+    {
+            if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
+    }
+#endif
+
+#ifdef USEOPENMP
+#pragma omp parallel default(shared)  \
+private(i,j,k,Pval,massval)
+{
+    #pragma omp for schedule(dynamic) nowait
+#endif
+    for (i=1;i<=ngroup;i++)
+    {
+        pdata[i].gNFOF=numingroup[i];
+        pdata[i].gmass=0.0;
+        for (j=0;j<numingroup[i];j++) {
+            Pval=&Part[j+noffset[i]];
+            massval=(*Pval).GetMass();
+            pdata[i].gmass+=massval;
+        }
+#ifdef NOMASS
+        pdata[i].gmass*=opt.MassValue;
+#endif
+    }
+#ifdef USEOPENMP
+}
+#endif
+    if (opt.iverbose) cout<<"Done FOF masses "<<MyGetTime()-time1<<endl;
+}
+
+/// of all host halos using there centre of masses
+void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&numingroup, PropData *&pdata)
+{
+    Particle *Pval;
+    KDTree *tree;
+    Double_t *period=NULL;
+    Int_t i,j,k;
+    if (opt.iverbose) {
+        cout<<"Get inclusive masses"<<endl;
+        cout<<" with masses based on full SO search (slower)"<<endl;
+    }
+    Double_t ri,ri2,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside;
+    Double_t x,y,z,vx,vy,vz,massval,rc,rcold;
+    Coordinate J(0.);
+    Double_t virval=log(opt.virlevel*opt.rhobg);
+    Double_t mBN98val=log(opt.virBN98*opt.rhocrit);
+    Double_t m200val=log(opt.rhocrit*200.0);
+    Double_t m200mval=log(opt.rhobg*200.0);
+    Double_t m500val=log(opt.rhocrit*500.0);
+    //find the lowest rho value and set minim threshold to half that
+    Double_t minlgrhoval = min({virval, m200val, mBN98val, m200mval})-log(2.0);
+    Double_t fac,rhoval,rhoval2;
+    Double_t time1=MyGetTime(),time2;
+    int nthreads=1,tid;
+#ifndef USEMPI
+    int ThisTask=0,NProcs=1;
+#endif
+#ifdef USEOPENMP
+#pragma omp parallel
+    {
+            if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
+    }
+#endif
+
+    //first we need to store the indices so we can place particles back in the order they need to be
+    //as we are going to build a tree to search particles
+    vector<Int_t> ids(nbodies);
+    for (i=0;i<nbodies;i++) ids[i]=Part[i].GetID();
+
+    vector<Int_t> taggedparts;
+    vector<Double_t> radii;
+    vector<Double_t> masses;
+    vector<Int_t> indices;
+    vector<Coordinate> posparts;
+    vector<Coordinate> velparts;
+    vector<int> typeparts;
+    size_t n;
+    Double_t dx;
+    vector<Double_t> maxrdist(ngroup+1);
+    //to store particle ids of those in SO volume.
+    vector<Int_t> SOpids;
+    vector<Int_t> *SOpartlist=new vector<Int_t>[ngroup+1];
+    vector<int> *SOparttypelist = NULL;
+#if defined(GASON) || defined(STARON) || defined(BHON)
+    SOparttypelist=new vector<int>[ngroup+1];
+#endif
+
+    //set period
+    if (opt.p>0) {
+        period=new Double_t[3];
+        for (int j=0;j<3;j++) period[j]=opt.p;
+#ifdef USEMPI
+        mpi_period=opt.p;
+#endif
+    }
+
+    if (opt.iverbose >= 2) {
+        cout<<ThisTask<<" building trees for SO search "<<endl;
+    }
+    //build tree optimised to search for more than min group size
+    //this is the bottle neck for the SO calculation. Wonder if there is an easy
+    //way of speeding it up
+    tree=new KDTree(Part,nbodies,opt.HaloMinSize,tree->TPHYS,tree->KEPAN,100,0,0,0,period);
+    //store the radii that will be used to search for each group
+    //this is based on maximum radius and the enclosed density within the FOF so that if
+    //this density is larger than desired overdensity then we must increase the radius
+    //use the lowest desired overdensity / 2 to scale search radius
+    fac=-log(4.0*M_PI/3.0)-minlgrhoval;
+    Double_t radfac, maxsearchdist=0;
+    for (i=1;i<=ngroup;i++) {
+        radfac=max(1.0,exp(1.0/3.0*(log(pdata[i].gmass)-3.0*log(pdata[i].gsize)+fac)));
+        maxrdist[i]=pdata[i].gsize*opt.SphericalOverdensitySeachFac*radfac;
+    }
+    if (opt.iverbose >= 2) {
+        for (i=1;i<=ngroup;i++) if (maxsearchdist < maxrdist[i]) maxsearchdist = maxrdist[i];
+        cout<<ThisTask<<" max search distance is "<<maxsearchdist<<" in period fraction "<<maxsearchdist/opt.p<<endl;
+    }
+#ifdef USEMPI
+    //if using mpi then determine if halo's search radius overlaps another mpi domain
+    vector<bool> halooverlap;
+    KDTree *treeimport=NULL;
+    Int_t nimport,nexport;
+    if (NProcs>1) {
+        halooverlap= MPIGetHaloSearchExportNum(ngroup, pdata, maxrdist);
+        NNDataIn = new nndata_in[NExport];
+        NNDataGet = new nndata_in[NImport];
+        //build the exported halo group list using NNData structures
+        MPIBuildHaloSearchExportList(ngroup, pdata, maxrdist,halooverlap);
+        MPIGetHaloSearchImportNum(nbodies, tree, Part);
+        PartDataIn = new Particle[NExport+1];
+        PartDataGet = new Particle[NImport+1];
+        //run search on exported particles and determine which local particles need to be exported back (or imported)
+        nimport=MPIBuildParticleNNImportList(nbodies, tree, Part);
+        if (nimport>0) treeimport=new KDTree(PartDataGet,nimport,opt.HaloMinSize,tree->TPHYS,tree->KEPAN,100,0,0,0,period);
+    }
+#endif
+    time2=MyGetTime();
+    //now loop over groups and search for particles. This is probably fast if we build a tree
+    fac=-log(4.0*M_PI/3.0);
+#ifdef USEOPENMP
+#pragma omp parallel default(shared)  \
+private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,EncMass,J,rc,rhoval,rhoval2,tid,SOpids)
+{
+#pragma omp for schedule(dynamic) nowait
+#endif
+    for (i=1;i<=ngroup;i++)
+    {
+        if (pdata[i].hostid != -1) continue;
+        taggedparts=tree->SearchBallPosTagged(pdata[i].gposminpot+pdata[i].gcm,pow(maxrdist[i],2.0));
+        radii.resize(taggedparts.size());
+        masses.resize(taggedparts.size());
+        if (opt.iextrahalooutput) {
+            posparts.resize(taggedparts.size());
+            velparts.resize(taggedparts.size());
+        }
+#if defined(GASON) || defined(STARON) || defined(BHON)
+        if (opt.iextragasoutput || opt.iextrastaroutput || opt.iSphericalOverdensityPartList) typeparts.resize(taggedparts.size());
+#endif
+        if (opt.iSphericalOverdensityPartList) SOpids.resize(taggedparts.size());
+        for (j=0;j<taggedparts.size();j++) {
+            masses[j]=Part[taggedparts[j]].GetMass();
+            if (opt.iSphericalOverdensityPartList) SOpids[j]=Part[taggedparts[j]].GetPID();
+            radii[j]=0;
+#if defined(GASON) || defined(STARON) || defined(BHON)
+            if (opt.iextragasoutput || opt.iextrastaroutput || opt.iSphericalOverdensityPartList) typeparts[j]=Part[taggedparts[j]].GetType();
+#endif
+            for (k=0;k<3;k++) {
+                dx=Part[taggedparts[j]].GetPosition(k)-pdata[i].gposminpot[k]-pdata[i].gcm[k];
+                //correct for period
+                if (opt.p>0) {
+                    if (dx>opt.p*0.5) dx-=opt.p;
+                    else if (dx<-opt.p*0.5) dx+=opt.p;
+                }
+                if (opt.iextrahalooutput) {
+                    posparts[j][k]=dx;
+                    velparts[j][k]=Part[taggedparts[j]].GetVelocity(k)-pdata[i].gcmvel[k];//??? i think this should be okay
+                }
+                radii[j]+=dx*dx;
+            }
+            radii[j]=sqrt(radii[j]);
+        }
+        taggedparts.clear();
+#ifdef USEMPI
+        if (NProcs>1) {
+            //if halo has overlap then search the imported particles as well, add them to the radii and mass vectors
+            if (halooverlap[i]&&nimport>0) {
+                taggedparts=treeimport->SearchBallPosTagged(pdata[i].gposminpot,pow(maxrdist[i],2.0));
+                if (taggedparts.size() > 0) {
+                    Int_t offset=radii.size();
+                    radii.resize(radii.size()+taggedparts.size());
+                    masses.resize(masses.size()+taggedparts.size());
+                    if (opt.iextrahalooutput) {
+                        posparts.resize(posparts.size()+taggedparts.size());
+                        velparts.resize(velparts.size()+taggedparts.size());
+                    }
+#if defined(GASON) || defined(STARON) || defined(BHON)
+                    if (opt.iextragasoutput || opt.iextrastaroutput || opt.iSphericalOverdensityPartList) typeparts.resize(typeparts.size()+taggedparts.size());
+#endif
+                    if (opt.iSphericalOverdensityPartList) SOpids.resize(SOpids.size()+taggedparts.size());
+                    for (j=0;j<taggedparts.size();j++) {
+                        masses[offset+j]=PartDataGet[taggedparts[j]].GetMass();
+                        if (opt.iSphericalOverdensityPartList) SOpids[j+offset]=PartDataGet[taggedparts[j]].GetPID();
+#if defined(GASON) || defined(STARON) || defined(BHON)
+                        if (opt.iextragasoutput || opt.iextrastaroutput || opt.iSphericalOverdensityPartList) typeparts[offset+j]=PartDataGet[taggedparts[j]].GetType();
+#endif
+                        radii[offset+j]=0;
+                        for (k=0;k<3;k++) {
+                            dx=PartDataGet[taggedparts[j]].GetPosition(k)-pdata[i].gcm[k];
+                            //correct for period
+                            if (opt.p>0) {
+                                if (dx>opt.p*0.5) dx-=opt.p;
+                                else if (dx<-opt.p*0.5) dx+=opt.p;
+                            }
+                            if (opt.iextrahalooutput) {
+                                posparts[j+offset][k]=dx;
+                                velparts[j+offset][k]=PartDataGet[taggedparts[j]].GetVelocity(k)-pdata[i].gcmvel[k];
+                            }
+                            radii[offset+j]+=dx*dx;
+                        }
+                        radii[offset+j]=sqrt(radii[offset+j]);
+                    }
+                }
+                taggedparts.clear();
+            }
+        }
+#endif
+        //get incides
+        indices.resize(radii.size());
+        n=0;generate(indices.begin(), indices.end(), [&]{ return n++; });
+        //sort by radius
+        auto comparator = [&radii](int a, int b){ return radii[a] < radii[b]; };
+        sort(indices.begin(), indices.end(), comparator);
+        //now loop over radii
+        //then get overdensity working outwards from some small fraction of the mass or at least 4 particles + small fraction of min halo size
+        int minnum=max((int)(opt.SphericalOverdensityMinHaloFac*radii.size()+4),(int)(opt.HaloMinSize*opt.SphericalOverdensityMinHaloFac+4));
+        int iindex=radii.size();
+        //if the lowest overdensity threshold is below the density at the outer
+        //edge then extrapolate density based on average slope using 10% of radial bins
+        double rc2, EncMass2, gamma1, gamma2, lgrhoedge, deltalgrhodeltalgr, MassEdge;
+        int lindex=0.9*iindex, llindex;
+        MassEdge=EncMass=0;
+        for (j=0;j<iindex;j++) {
+            MassEdge+=masses[indices[j]];
+            if (j<lindex) EncMass+=masses[indices[j]];
+        }
+        lgrhoedge = log(MassEdge)-3.0*log(radii[indices[iindex-1]])+fac;
+        deltalgrhodeltalgr = log(EncMass/MassEdge)/log(radii[indices[lindex]]/radii[indices[iindex-1]])-3.0;
+        //now find radii matching SO density thresholds
+        EncMass=0;for (j=0;j<minnum;j++) EncMass+=masses[indices[j]];
+        rc=radii[indices[minnum-1]];
+        llindex=radii.size();
+        rc2=rc;
+        EncMass2=EncMass;
+        rhoval2=log(EncMass2)-3.0*log(rc2)+fac;
+        for (j=minnum;j<radii.size();j++) {
+            rc=radii[indices[j]];
+#ifdef NOMASS
+            EncMass+=opt.MassValue;
+#else
+            EncMass+=masses[indices[j]];
+#endif
+            rhoval=log(EncMass)-3.0*log(rc)+fac;
+            gamma1 = log(rc/rc2)/(rhoval-rhoval2);
+            gamma2 = log(EncMass/EncMass2)/(rhoval-rhoval2);
+            //for simplicit of interpolation, if slope is not decreasing, do not interpolate but move to the next point
+            if (gamma1>0) {
+                rhoval2 = rhoval;
+                rc2 = rc;
+                EncMass2 = EncMass;
+                continue;
+            }
+            if (pdata[i].gRvir==0) if (rhoval<virval)
+            {
+                //linearly interpolate, unless previous density also below threshold (which would happen at the start, then just set value)
+                pdata[i].gRvir=rc*exp(gamma1*(virval-rhoval));
+                pdata[i].gMvir=EncMass*exp(gamma2*(virval-rhoval));
+            }
+            if (pdata[i].gR200c==0) if (rhoval<m200val)
+            {
+                    pdata[i].gR200c=rc*exp(gamma1*(m200val-rhoval));
+                    pdata[i].gM200c=EncMass*exp(gamma2*(m200val-rhoval));
+            }
+            if (pdata[i].gR200m==0) if (rhoval<m200mval)
+            {
+                pdata[i].gR200m=rc*exp(gamma1*(m200mval-rhoval));
+                pdata[i].gM200m=EncMass*exp(gamma2*(m200mval-rhoval));
+                //use 200 mean as reference for limiting number of particles written to SOlist
+                llindex = min((int)(j+radii.size()*0.1),llindex);
+            }
+            if (pdata[i].gR500c==0) if (rhoval<m500val)
+            {
+                pdata[i].gR500c=rc*exp(gamma1*(m500val-rhoval));
+                pdata[i].gM500c=EncMass*exp(gamma2*(m500val-rhoval));
+            }
+            if (pdata[i].gRBN98==0) if (rhoval<mBN98val)
+            {
+                pdata[i].gRBN98=rc*exp(gamma1*(mBN98val-rhoval));
+                pdata[i].gMBN98=EncMass*exp(gamma2*(mBN98val-rhoval));
+            }
+            if (pdata[i].gR200m!=0&&pdata[i].gR200c!=0&&pdata[i].gRvir!=0&&pdata[i].gR500c!=0&&pdata[i].gRBN98!=0) break;
+        }
+        //if overdensity never drops below thresholds then extrapolate the radial overdensity and mass
+        if (pdata[i].gRvir==0 && deltalgrhodeltalgr<0) {
+            pdata[i].gRvir=radii[indices[iindex-1]]*exp(1.0/deltalgrhodeltalgr*(virval-lgrhoedge));
+            pdata[i].gMvir=exp(3.0*log(pdata[i].gRvir)+virval-fac);
+        }
+        if (pdata[i].gR200c==0 && deltalgrhodeltalgr<0) {
+            pdata[i].gR200c=radii[indices[iindex-1]]*exp(1.0/deltalgrhodeltalgr*(m200val-lgrhoedge));
+            pdata[i].gM200c=exp(3.0*log(pdata[i].gR200c)+m200val-fac);
+        }
+        if (pdata[i].gR200m==0 && deltalgrhodeltalgr<0) {
+            pdata[i].gR200m=radii[indices[iindex-1]]*exp(1.0/deltalgrhodeltalgr*(m200mval-lgrhoedge));
+            pdata[i].gM200m=exp(3.0*log(pdata[i].gR200m)+m200mval-fac);
+        }
+        if (pdata[i].gR500c==0 && deltalgrhodeltalgr<0) {
+            pdata[i].gR500c=radii[indices[iindex-1]]*exp(1.0/deltalgrhodeltalgr*(m500val-lgrhoedge));
+            pdata[i].gM500c=exp(3.0*log(pdata[i].gR500c)+m500val-fac);
+        }
+        if (pdata[i].gRBN98==0 && deltalgrhodeltalgr<0) {
+            pdata[i].gRBN98=radii[indices[iindex-1]]*exp(1.0/deltalgrhodeltalgr*(mBN98val-lgrhoedge));
+            pdata[i].gMBN98=exp(3.0*log(pdata[i].gRBN98)+mBN98val-fac);
+        }
+        //calculate angular momentum if necessary
+        if (opt.iextrahalooutput) {
+            for (j=0;j<radii.size();j++) {
+                massval = masses[indices[j]];
+                J=Coordinate(posparts[indices[j]]).Cross(velparts[indices[j]])*massval;
+                rc=posparts[indices[j]].Length();
+                if (rc<=pdata[i].gR200c) pdata[i].gJ200c+=J;
+                if (rc<=pdata[i].gR200m) pdata[i].gJ200m+=J;
+                if (rc<=pdata[i].gRBN98) pdata[i].gJBN98+=J;
+#ifdef GASON
+                if (opt.iextragasoutput) {
+                    if (typeparts[indices[j]]==GASTYPE){
+                        if (rc<=pdata[i].gR200c) {
+                            pdata[i].M_200crit_gas+=massval;
+                            pdata[i].L_200crit_gas+=J;
+                        }
+                        if (rc<=pdata[i].gR200m) {
+                            pdata[i].M_200mean_gas+=massval;
+                            pdata[i].L_200mean_gas+=J;
+                        }
+                        if (rc<=pdata[i].gRBN98) {
+                            pdata[i].M_BN98_gas+=massval;
+                            pdata[i].L_BN98_gas+=J;
+                        }
+                    }
+                }
+#endif
+#ifdef STARON
+                if (opt.iextrastaroutput) {
+                    if (typeparts[indices[j]]==STARTYPE){
+                        if (rc<=pdata[i].gR200c) {
+                            pdata[i].M_200crit_star+=massval;
+                            pdata[i].L_200crit_star+=J;
+                        }
+                        if (rc<=pdata[i].gR200m) {
+                            pdata[i].M_200mean_star+=massval;
+                            pdata[i].L_200mean_star+=J;
+                        }
+                        if (rc<=pdata[i].gRBN98) {
+                            pdata[i].M_BN98_star+=massval;
+                            pdata[i].L_BN98_star+=J;
+                        }
+                    }
+                }
+#endif
+            }
+        }
+
+        //if calculating profiles
+        if (opt.iprofilecalc) {
+            double irnorm;
+            //as particles are radially sorted, init the radial bin at zero
+            int ibin = 0;
+            if (opt.iprofilenorm == PROFILERNORMR200CRIT) irnorm = 1.0/pdata[i].gR200c;
+            else irnorm = 1.0;
+            for (j=0;j<radii.size();j++) {
+                ///\todo need to update to allow for star forming/non-star forming profiles
+                ///by storing the star forming value.
+                double sfrval = 0;
+                AddDataToRadialBinInclusive(opt, radii[indices[j]], masses[indices[j]],
+#if defined(GASON) || defined(STARON) || defined(BHON)
+                    sfrval, typeparts[indices[j]],
+#endif
+                    irnorm, ibin, pdata[i]);
+            }
+        }
+
+
+        if (opt.iSphericalOverdensityPartList) {
+            SOpartlist[i].resize(llindex);
+#if defined(GASON) || defined(STARON) || defined(BHON)
+            SOparttypelist[i].resize(llindex);
+#endif
+            for (j=0;j<llindex;j++) SOpartlist[i][j]=SOpids[indices[j]];
+#if defined(GASON) || defined(STARON) || defined(BHON)
+            for (j=0;j<llindex;j++) SOparttypelist[i][j]=typeparts[indices[j]];
+#endif
+            SOpids.clear();
+        }
+        indices.clear();
+        radii.clear();
+        masses.clear();
+        if (opt.iextrahalooutput) {
+            posparts.clear();
+            velparts.clear();
+        }
+#if defined(GASON) || defined(STARON) || defined(BHON)
+        if (opt.iextragasoutput || opt.iextrastaroutput) typeparts.clear();
+#endif
+
+    }
+#ifdef USEOPENMP
+}
+#endif
+    delete tree;
+    //reset its after putting particles back in input order
+    for (i=0;i<nbodies;i++) Part[i].SetID(ids[i]);
+    ids.clear();
+    //write the particle lists
+    if (opt.iSphericalOverdensityPartList) {
+        WriteSOCatalog(opt, ngroup, SOpartlist, SOparttypelist);
+        delete[] SOpartlist;
+#if defined(GASON) || defined(STARON) || defined(BHON)
+        delete[] SOparttypelist;
+#endif
+    }
+#ifdef USEMPI
+    mpi_period=0;
+    if (NProcs>1) {
+        if (treeimport!=NULL) delete treeimport;
+        delete[] PartDataGet;
+        delete[] PartDataIn;
+        delete[] NNDataGet;
+        delete[] NNDataIn;
+    }
+#endif
+    if (opt.iverbose) cout<<"Done SO masses for field objects in "<<MyGetTime()-time1<<endl;
+}
+
 ///\name Routines to calculate specific property of a set of particles
 //@{
 ///Get spatial morphology using iterative procedure
@@ -4111,7 +4567,8 @@ Int_t **SortAccordingtoBindingEnergy(Options &opt, const Int_t nbodies, Particle
     cout<<ThisTask<<" Calculate properties"<<endl;
     GetCMProp(opt, nbodies, Part, ngroup, pfof, numingroup, pdata, noffset);
     GetBindingEnergy(opt, nbodies, Part, ngroup, pfof, numingroup, pdata, noffset);
-    cout<<ThisTask<<" Sort particles by binding energy"<<endl;
+    if (opt.iSortByBindingEnergy) cout<<ThisTask<<" Sort particles by binding energy"<<endl;
+    else cout<<ThisTask<<" Sort particles by potential energy"<<endl;
     //sort by energy
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
@@ -4158,6 +4615,7 @@ private(i,j)
             }
         }
     }
+    if (opt.iInclusiveHalo == 3) GetSOMasses(opt, nbodies, Part, ngroup,  numingroup, pdata);
 
     //before used to store the id in pglist and then have to reset particle order so that Ids correspond to indices
     //but to reduce computing time could just store index and leave particle array unchanged but only really necessary
@@ -4429,5 +4887,72 @@ void AddDataToRadialBin(Options &opt, Double_t rval, Double_t massval,
 #endif
 }
 
+void AddParticleToRadialBinInclusive(Options &opt, Particle *Pval, Double_t irnorm, int &ibin, PropData &pdata)
+{
+    ibin = GetRadialBin(opt,Pval->Radius()*irnorm, ibin);
+    if (ibin == -1) return;
+    Double_t massval = Pval->GetMass();
+    pdata.profile_mass_inclusive[ibin] += massval;
+    pdata.profile_npart_inclusive[ibin] += 1;
+#ifdef GASON
+    if (Pval->GetType()==GASTYPE) {
+        pdata.profile_mass_gas_inclusive[ibin] += massval;
+        pdata.profile_npart_gas_inclusive[ibin] += 1;
+#ifdef STARON
+        if (Pval->GetSFR()>opt.gas_sfr_threshold)
+        {
+            pdata.profile_mass_gas_sf_inclusive[ibin] += massval;
+            pdata.profile_npart_gas_sf_inclusive[ibin] += 1;
+        }
+        else {
+            pdata.profile_mass_gas_nsf_inclusive[ibin] += massval;
+            pdata.profile_npart_gas_nsf_inclusive[ibin] += 1;
+        }
+#endif
+    }
+#endif
+#ifdef STARON
+    if (Pval->GetType()==STARTYPE) {
+        pdata.profile_mass_star_inclusive[ibin] += massval;
+        pdata.profile_npart_star_inclusive[ibin] += 1;
+    }
+#endif
+}
+
+
+void AddDataToRadialBinInclusive(Options &opt, Double_t rval, Double_t massval,
+#if defined(GASON) || defined(STARON) || defined(BHON)
+    Double_t sfrval, int typeval,
+#endif
+    Double_t irnorm, int &ibin, PropData &pdata)
+{
+    ibin = GetRadialBin(opt,rval*irnorm, ibin);
+    if (ibin == -1) return;
+    pdata.profile_mass_inclusive[ibin] += massval;
+    pdata.profile_npart_inclusive[ibin] += 1;
+#ifdef GASON
+    if (typeval==GASTYPE) {
+        pdata.profile_mass_gas_inclusive[ibin] += massval;
+        pdata.profile_npart_gas_inclusive[ibin] += 1;
+#ifdef STARON
+        if (sfrval>opt.gas_sfr_threshold)
+        {
+            pdata.profile_mass_gas_sf_inclusive[ibin] += massval;
+            pdata.profile_npart_gas_sf_inclusive[ibin] += 1;
+        }
+        else {
+            pdata.profile_mass_gas_nsf_inclusive[ibin] += massval;
+            pdata.profile_npart_gas_nsf_inclusive[ibin] += 1;
+        }
+#endif
+    }
+#endif
+#ifdef STARON
+    if (typeval==STARTYPE) {
+        pdata.profile_mass_star_inclusive[ibin] += massval;
+        pdata.profile_npart_star_inclusive[ibin] += 1;
+    }
+#endif
+}
 
 //@}

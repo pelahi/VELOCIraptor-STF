@@ -287,6 +287,10 @@ void GetProperties(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngro
 void GetCMProp(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&pfof, Int_t *&numingroup, PropData *&pdata, Int_t *&noffset);
 ///Get inclusive masses for field objects
 void GetInclusiveMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&pfof, Int_t *&numingroup, PropData *&pdata, Int_t *&noffset);
+///Get FOF masses for field objects
+void GetFOFMass(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&pfof, Int_t *&numingroup, PropData *&pdata, Int_t *&noffset);
+///Get Spherical Overdensity Masses for field objects only. Assumes want to keep input order.
+void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&numingroup, PropData *&pdata);
 ///simple routine to copy over mass information (useful for storing inclusive info)
 void CopyMasses(Options &opt, const Int_t nhalos, PropData *&pold, PropData *&pnew);
 ///simple routine to reorder mass information based on number of particles when new remaining number of haloes < old halos
@@ -330,6 +334,13 @@ int GetRadialBin(Options &opt, Double_t rc, int &ibin);
 void AddParticleToRadialBin(Options &opt, Particle *Pval, Double_t irnorm, int &ibin, PropData &pdata);
 ///add data to the appropriate radial bin
 void AddDataToRadialBin(Options &opt, Double_t rval, Double_t massval,
+#if defined(GASON) || defined(STARON) || defined(BHON)
+    Double_t srfval, int typeval,
+#endif
+    Double_t irnorm, int &ibin, PropData &pdata);
+void AddParticleToRadialBinInclusive(Options &opt, Particle *Pval, Double_t irnorm, int &ibin, PropData &pdata);
+///add data to the appropriate radial bin
+void AddDataToRadialBinInclusive(Options &opt, Double_t rval, Double_t massval,
 #if defined(GASON) || defined(STARON) || defined(BHON)
     Double_t srfval, int typeval,
 #endif

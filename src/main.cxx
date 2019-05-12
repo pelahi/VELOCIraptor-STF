@@ -315,7 +315,10 @@ int main(int argc,char **argv)
             Int_t *originalID=new Int_t[nbodies];
             for (Int_t i=0;i<nbodies;i++) {sortvalhalos[i]=pfof[i]*(pfof[i]>0)+nbodies*(pfof[i]==0);originalID[i]=Part[i].GetID();Part[i].SetID(i);}
             Int_t *noffsethalos=BuildNoffset(nbodies, Part.data(), nhalos, numinhalos, sortvalhalos);
-            GetInclusiveMasses(opt, nbodies, Part.data(), nhalos, pfof, numinhalos, pdatahalos, noffsethalos);
+            ///here if inclusive halo flag is 3, then S0 masses are calculated after substructures are found for field objects
+            ///and only calculate FOF masses. Otherwise calculate inclusive masses at this moment.
+            if (opt.iInclusiveHalo < 3 ) GetInclusiveMasses(opt, nbodies, Part.data(), nhalos, pfof, numinhalos, pdatahalos, noffsethalos);
+            else GetFOFMass(opt, nbodies, Part.data(), nhalos, pfof, numinhalos, pdatahalos, noffsethalos);
             qsort(Part.data(),nbodies,sizeof(Particle),IDCompare);
             //sort(Part.begin(), Part.end(), IDCompareVec);
             delete[] numinhalos;

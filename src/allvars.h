@@ -755,7 +755,7 @@ struct Options
 
         mpipartfac=0.1;
 #if USEHDF
-        ihdfnameconvention=0;
+        ihdfnameconvention=-1;
 #endif
         iaperturecalc=0;
         aperturenum=0;
