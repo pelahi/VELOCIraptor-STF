@@ -1589,7 +1589,7 @@ private(i,tid)
             minsize=opt.MinSize;
         }
         if (opt.iverbose>=2) {
-            cout<<ThisTask<<" "<<"Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits, ellphys="<<sqrt(param[7])<<" Vunits"<<endl;
+            cout<<ThisTask<<" "<<"Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits, ellvel="<<sqrt(param[7])<<" Vunits"<<endl;
             cout<<"with minimum size of "<<minsize<<endl;
         }
         //start first 6d search
@@ -2208,7 +2208,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
         pcsld=psldata->nextlevel;
         nsubsearch=ngroup-opt.num3dfof;
     }
-    for (Int_t i=firstgroup;i<=ngroup;i++) if (numingroup[i]<MINCELLSIZE) {nsubsearch=i-firstgroup;break;}
+    for (Int_t i=firstgroup;i<=ngroup;i++) if (numingroup[i]<opt.MinSize*2) {nsubsearch=i-firstgroup;break;}
     iflag=(nsubsearch>0);
 
     if (iflag) {

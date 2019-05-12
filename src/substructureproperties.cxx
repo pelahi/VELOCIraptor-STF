@@ -273,7 +273,9 @@ void GetProperties(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngro
 
     for (i=1;i<=ngroup;i++) {
         pdata[i].num=numingroup[i];
-        if ((opt.iInclusiveHalo>0 && opt.iInclusiveHalo <3 && pdata[i].hostid !=-1) || opt.iInclusiveHalo==0 || opt.iInclusiveHalo == 3) pdata[i].Allocate(opt);
+        if ((opt.iInclusiveHalo>0 && opt.iInclusiveHalo <3 && pdata[i].hostid !=-1)
+        || opt.iInclusiveHalo==0
+        || opt.iInclusiveHalo == 3) pdata[i].Allocate(opt);
     }
 
     //for all groups, move particles to their appropriate reference frame
@@ -309,7 +311,7 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
 #endif
     for (i=1;i<=ngroup;i++) if (numingroup[i]<omppropnum)
     {
-        if (opt.iInclusiveHalo == 0 && pdata[i].hostid==-1) pdata[i].gMFOF=pdata[i].gmass;
+        //if (opt.iInclusiveHalo == 0 && pdata[i].hostid==-1) pdata[i].gMFOF=pdata[i].gmass;
         pdata[i].gsize=Part[noffset[i]+numingroup[i]-1].Radius();
         //determine overdensity mass and radii. AGAIN REMEMBER THAT THESE ARE NOT MEANINGFUL FOR TIDAL DEBRIS
         //HERE MASSES ARE EXCLUSIVE!
@@ -983,7 +985,7 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
     //large groups
     for (i=1;i<=ngroup;i++) if (numingroup[i]>=omppropnum)
     {
-        if (pdata[i].gMFOF==0 && pdata[i].hostid==-1) pdata[i].gMFOF=pdata[i].gmass;
+        //if (pdata[i].gMFOF==0 && pdata[i].hostid==-1) pdata[i].gMFOF=pdata[i].gmass;
         pdata[i].gsize=Part[noffset[i]+numingroup[i]-1].Radius();
 
         //determine overdensity mass and radii. AGAIN REMEMBER THAT THESE ARE NOT MEANINGFUL FOR TIDAL DEBRIS
@@ -1990,8 +1992,8 @@ void GetInclusiveMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t
     }
 #endif
 
+    GetFOFMass(opt, nbodies, Part, ngroup, pfof, numingroup, pdata, noffset);
     for (i=1;i<=ngroup;i++) {
-        pdata[i].gNFOF=numingroup[i];
         pdata[i].Allocate(opt);
     }
 
@@ -2075,7 +2077,6 @@ private(i,j,k,Pval,ri,rcmv,ri2,r2,cmx,cmy,cmz,EncMass,Ninside,icmv,cmold,x,y,z,v
 #ifdef NOMASS
         pdata[i].gmass*=opt.MassValue;
 #endif
-        pdata[i].gMFOF=pdata[i].gmass;
         //then get cmvel if extra output is desired as will need angular momentum
         if (opt.iextrahalooutput) {
             cmx=cmy=cmz=EncMass=0.;
@@ -2186,7 +2187,6 @@ private(j,Pval,x,y,z,massval)
 #ifdef NOMASS
         pdata[i].gmass*=opt.MassValue;
 #endif
-        pdata[i].gMFOF=pdata[i].gmass;
         //then get cmvel if extra output is desired as will need angular momentum
         if (opt.iextrahalooutput) {
             cmx=cmy=cmz=EncMass=0.;
@@ -2801,23 +2801,15 @@ private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,
 //@}
 
 
-/// Calculate FOF mass
+/// Calculate FOF mass looping over particles and invoking inclusive halo flag 1 or 2
 void GetFOFMass(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&pfof, Int_t *&numingroup, PropData *&pdata, Int_t *&noffset)
 {
     Particle *Pval;
-    KDTree *tree;
-    Double_t *period=NULL;
     Int_t i,j,k;
     Double_t time1=MyGetTime(), massval;
     int nthreads=1,tid;
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
-#endif
-#ifdef USEOPENMP
-#pragma omp parallel
-    {
-            if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
-    }
 #endif
 
 #ifdef USEOPENMP
@@ -2828,19 +2820,52 @@ private(i,j,k,Pval,massval)
 #endif
     for (i=1;i<=ngroup;i++)
     {
+        if (pdata[i].hostid != -1) continue;
         pdata[i].gNFOF=numingroup[i];
-        pdata[i].gmass=0.0;
+        pdata[i].gMFOF=0.0;
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
             massval=(*Pval).GetMass();
-            pdata[i].gmass+=massval;
+            pdata[i].gMFOF+=massval;
         }
 #ifdef NOMASS
-        pdata[i].gmass*=opt.MassValue;
+        pdata[i].gMFOF*=opt.MassValue;
 #endif
     }
 #ifdef USEOPENMP
 }
+#endif
+    if (opt.iverbose) cout<<"Done FOF masses "<<MyGetTime()-time1<<endl;
+}
+
+/// Calculate FOF mass looping over groups once substructure search and have calculated properties
+void GetFOFMass(Options &opt, Int_t ngroup, Int_t *&numingroup, PropData *&pdata)
+{
+    Int_t i,j,k,haloidoffset=0, hostindex;
+    Double_t time1=MyGetTime(), massval;
+    int nthreads=1,tid;
+#ifndef USEMPI
+    int ThisTask=0,NProcs=1;
+#endif
+#ifdef USEMPI
+    for (int j=0;j<ThisTask;j++)haloidoffset+=mpi_ngroups[j];
+#endif
+
+    //if substructure has been found then need to update the FOF masses based on their substructure
+    for (i=1;i<=ngroup;i++)
+    {
+        if (pdata[i].hostid != -1) {
+            hostindex = pdata[i].hostid - opt.snapshotvalue - haloidoffset;
+            pdata[hostindex].gNFOF += numingroup[i];
+            pdata[hostindex].gMFOF += pdata[i].gmass;
+        }
+        else {
+            pdata[i].gNFOF += numingroup[i];
+            pdata[i].gMFOF += pdata[i].gmass;
+        }
+    }
+#ifdef NOMASS
+    for (i=1;i<=ngroup;i++) pdata[i].gMFOF*=opt.MassValue;
 #endif
     if (opt.iverbose) cout<<"Done FOF masses "<<MyGetTime()-time1<<endl;
 }
@@ -4366,7 +4391,10 @@ for (j=1;j<numingroup[i];j++) {
 pdata[i].gRmbp=sqrt(pdata[i].gRmbp);
 */
     //calculate spherical masses after substructures identified if using InclusiveHalo = 3
-    if (opt.iInclusiveHalo == 3) GetSOMasses(opt, nbodies, Part, ngroup,  numingroup, pdata);
+    if (opt.iInclusiveHalo == 3) {
+        GetFOFMass(opt, ngroup, numingroup, pdata);
+        GetSOMasses(opt, nbodies, Part, ngroup,  numingroup, pdata);
+    }
     //and finally calculate concentrations
     GetNFWConcentrations(opt, ngroup, numingroup, pdata);
 
@@ -4425,7 +4453,10 @@ void CalculateHaloProperties(Options &opt, const Int_t nbodies, Particle *Part, 
     }
     AdjustHaloPositionRelativeToReferenceFrame(opt, ngroup, numingroup, pdata);
     //calculate spherical masses after substructures identified if using InclusiveHalo = 3
-    if (opt.iInclusiveHalo == 3) GetSOMasses(opt, nbodies, Part, ngroup,  numingroup, pdata);
+    if (opt.iInclusiveHalo == 3) {
+        GetFOFMass(opt, ngroup, numingroup, pdata);
+        GetSOMasses(opt, nbodies, Part, ngroup,  numingroup, pdata);
+    }
     //and finally calculate concentrations
     GetNFWConcentrations(opt, ngroup, numingroup, pdata);
 

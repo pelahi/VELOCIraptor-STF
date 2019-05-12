@@ -1144,7 +1144,7 @@ struct PropData
     ///number of particles
     Int_t num;
     ///number of particles in FOF envelop
-    Int_t gNFOF;
+    Int_t gNFOF,gN6DFOF;
     ///centre of mass
     Coordinate gcm, gcmvel;
     ///Position of most bound particle, and also of particle with min potential
@@ -1152,7 +1152,7 @@ struct PropData
     ///\name physical properties regarding mass, size
     //@{
     Double_t gmass,gsize,gMvir,gRvir,gRmbp,gmaxvel,gRmaxvel,gMmaxvel,gRhalfmass;
-    Double_t gM200c,gR200c,gM200m,gR200m,gMFOF,gM500c,gR500c,gMBN98,gRBN98;
+    Double_t gM200c,gR200c,gM200m,gR200m,gMFOF,gM6DFOF,gM500c,gR500c,gMBN98,gRBN98;
     //to store exclusive masses of halo ignoring substructure
     Double_t gMvir_excl,gRvir_excl,gM200c_excl,gR200c_excl,gM200m_excl,gR200m_excl,gMBN98_excl,gRBN98_excl;
     //@}
@@ -1404,9 +1404,9 @@ struct PropData
 
     PropData()
     {
-        num=gNFOF=0;
+        num=gNFOF=gN6DFOF=0;
         gmass=gsize=gRmbp=gmaxvel=gRmaxvel=gRvir=gR200m=gR200c=gRhalfmass=Efrac=Pot=T=0.;
-        gMFOF=0;
+        gMFOF=gM6DFOF=0;
         gM500c=gR500c=0;
         gMBN98=gRBN98=0;
         gcm[0]=gcm[1]=gcm[2]=gcmvel[0]=gcmvel[1]=gcmvel[2]=0.;

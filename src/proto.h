@@ -295,6 +295,8 @@ void GetNFWConcentrations(Options &opt, Int_t ngroup, Int_t *&numingroup, PropDa
 void GetInclusiveMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&pfof, Int_t *&numingroup, PropData *&pdata, Int_t *&noffset);
 ///Get FOF masses for field objects
 void GetFOFMass(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&pfof, Int_t *&numingroup, PropData *&pdata, Int_t *&noffset);
+/// Calculate FOF mass looping over groups once substructure search and have calculated properties
+void GetFOFMass(Options &opt, Int_t ngroup, Int_t *&numingroup, PropData *&pdata);
 ///Get Spherical Overdensity Masses for field objects only. Assumes want to keep input order.
 void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&numingroup, PropData *&pdata);
 ///simple routine to copy over mass information (useful for storing inclusive info)

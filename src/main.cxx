@@ -308,7 +308,7 @@ int main(int argc,char **argv)
 #endif
         //if compiled to determine inclusive halo masses, then for simplicity, I assume halo id order NOT rearranged!
         //this is not necessarily true if baryons are searched for separately.
-        if (opt.iInclusiveHalo) {
+        if (opt.iInclusiveHalo > 0 && opt.iInclusiveHalo < 3) {
             pdatahalos=new PropData[nhalos+1];
             Int_t *numinhalos=BuildNumInGroup(nbodies, nhalos, pfof);
             Int_t *sortvalhalos=new Int_t[nbodies];
@@ -317,8 +317,7 @@ int main(int argc,char **argv)
             Int_t *noffsethalos=BuildNoffset(nbodies, Part.data(), nhalos, numinhalos, sortvalhalos);
             ///here if inclusive halo flag is 3, then S0 masses are calculated after substructures are found for field objects
             ///and only calculate FOF masses. Otherwise calculate inclusive masses at this moment.
-            if (opt.iInclusiveHalo < 3 ) GetInclusiveMasses(opt, nbodies, Part.data(), nhalos, pfof, numinhalos, pdatahalos, noffsethalos);
-            else GetFOFMass(opt, nbodies, Part.data(), nhalos, pfof, numinhalos, pdatahalos, noffsethalos);
+            GetInclusiveMasses(opt, nbodies, Part.data(), nhalos, pfof, numinhalos, pdatahalos, noffsethalos);
             qsort(Part.data(),nbodies,sizeof(Particle),IDCompare);
             //sort(Part.begin(), Part.end(), IDCompareVec);
             delete[] numinhalos;
@@ -390,7 +389,7 @@ int main(int argc,char **argv)
     }
     pdata=new PropData[ngroup+1];
     //if inclusive halo mass required
-    if (opt.iInclusiveHalo && ngroup>0) {
+    if (opt.iInclusiveHalo > 0 && opt.iInclusiveHalo < 3 && ngroup>0) {
         CopyMasses(opt,nhalos,pdatahalos,pdata);
         delete[] pdatahalos;
     }
