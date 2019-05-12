@@ -844,13 +844,47 @@ private(i,tid,xscaling,vscaling)
 
 void AdjustStructureForPeriod(Options &opt, const Int_t nbodies, vector<Particle> &Part, Int_t numgroups, Int_t *pfof)
 {
-    Int_t i,j;
-    Int_t *numingroup, **pglist;
-    Coordinate c;
+    Int_t i,j, gid;
+    //Int_t *numingroup, **pglist;
+    //Coordinate c;
     double diff;
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
 #endif
+    vector<Coordinate> refpos(numgroups+1);
+    vector<Int_t> irefpos(numgroups+1);
+    if (opt.iverbose) cout<<ThisTask<<" Adjusting for period "<<opt.p<<endl;
+    for (i=1;i<=numgroups;i++) irefpos[i]=-1;
+    for (i=0;i<nbodies;i++) {
+        if (pfof[i]==0) continue;
+        if (irefpos[pfof[i]] != -1) continue;
+        refpos[pfof[i]] = Coordinate(Part[i].GetPosition());
+        irefpos[pfof[i]] = i;
+    }
+#ifdef USEOPENMP
+#pragma omp parallel default(shared) \
+private(i,j,diff,gid)
+{
+#pragma omp for
+#endif
+    for (i=0;i<nbodies;i++)
+    {
+        gid = pfof[i];
+        if (gid==0) continue;
+        if (irefpos[gid] == i) continue;
+        for (j=0;j<3;j++) {
+            diff=refpos[gid][j]-Part[i].GetPosition(j);
+            if (diff<-0.5*opt.p) diff += opt.p;
+            else if (diff>0.5*opt.p) diff -= opt.p;
+            Part[i].SetPosition(j,diff);
+        }
+    }
+#ifdef USEOPENMP
+}
+#endif
+
+
+    /*
     numingroup=BuildNumInGroup(nbodies, numgroups, pfof);
     pglist=BuildPGList(nbodies, numgroups, numingroup, pfof,Part.data());
     if (opt.iverbose) cout<<ThisTask<<" Adjusting for period "<<opt.p<<endl;
@@ -894,6 +928,7 @@ private(i,c,diff)
 #ifdef USEOPENMP
 }
 #endif
+    */
 }
 
 //@}

@@ -303,8 +303,6 @@ int main(int argc,char **argv)
         cout<<"TIME::"<<ThisTask<<" took "<<time1<<" to search "<<Nlocal<<" with "<<nthreads<<endl;
         nbodies=Nlocal;
         nhalos=ngroup;
-        //place barrier here to ensure all mpi threads have pfof for groups localized to their memory
-        MPI_Barrier(MPI_COMM_WORLD);
 #endif
         //if compiled to determine inclusive halo masses, then for simplicity, I assume halo id order NOT rearranged!
         //this is not necessarily true if baryons are searched for separately.
@@ -375,8 +373,6 @@ int main(int argc,char **argv)
         //after this is called Nlocal is adjusted to the local subset where groups are localized to a given mpi thread.
         pfof=SearchSubset(opt,Nlocal,Nlocal,Part.data(),ngroup);
         nbodies=Nlocal;
-        //place barrier here to ensure all mpi threads have pfof for groups localized to their memory
-        MPI_Barrier(MPI_COMM_WORLD);
 #endif
     }
     if (opt.iSubSearch) {
