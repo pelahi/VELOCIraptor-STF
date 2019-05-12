@@ -507,25 +507,6 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
 #ifdef NOMASS
         pdata[i].RV_Krot*=opt.MassValue;
 #endif
-/*
-???
-        //calculate the concentration based on prada 2012 where [(Vmax)/(GM/R)]^2-(0.216*c)/f(c)=0,
-        //where f(c)=ln(1+c)-c/(1+c) and M is some "virial" mass and associated radius
-        if (pdata[i].gR200c==0) pdata[i].VmaxVvir2=(pdata[i].gmaxvel*pdata[i].gmaxvel)/(opt.G*pdata[i].gmass/pdata[i].gsize);
-        else pdata[i].VmaxVvir2=(pdata[i].gmaxvel*pdata[i].gmaxvel)/(opt.G*pdata[i].gM200c/pdata[i].gR200c);
-        //always possible halo severly truncated before so correct if necessary and also for tidal debris, both vmax concentration pretty meaningless
-        if (pdata[i].VmaxVvir2<=1.05) {
-            if (pdata[i].gM200c==0) pdata[i].cNFW=pdata[i].gsize/pdata[i].gRmaxvel;
-            else pdata[i].cNFW=pdata[i].gR200c/pdata[i].gRmaxvel;
-        }
-        else {
-            if (numingroup[i]>=PROPNFWMINNUM) GetConcentration(pdata[i]);
-            else {
-                if (pdata[i].gM200c==0) pdata[i].cNFW=pdata[i].gsize/pdata[i].gRmaxvel;
-                else pdata[i].cNFW=pdata[i].gR200c/pdata[i].gRmaxvel;
-            }
-        }
-*/
         //baryons
 #if defined(GASON)
         for (j=0;j<numingroup[i];j++) {
@@ -985,7 +966,6 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
     //large groups
     for (i=1;i<=ngroup;i++) if (numingroup[i]>=omppropnum)
     {
-        //if (pdata[i].gMFOF==0 && pdata[i].hostid==-1) pdata[i].gMFOF=pdata[i].gmass;
         pdata[i].gsize=Part[noffset[i]+numingroup[i]-1].Radius();
 
         //determine overdensity mass and radii. AGAIN REMEMBER THAT THESE ARE NOT MEANINGFUL FOR TIDAL DEBRIS
@@ -1255,19 +1235,6 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
 #ifdef NOMASS
         pdata[i].RV_Krot*=opt.MassValue;
 #endif
-/*
-???
-        //calculate the concentration based on prada 2012 where [(Vmax)/(GM/R)]^2-(0.216*c)/f(c)=0,
-        //where f(c)=ln(1+c)-c/(1+c) and M is some "virial" mass and associated radius
-        if (pdata[i].gR200c==0) pdata[i].VmaxVvir2=(pdata[i].gmaxvel*pdata[i].gmaxvel)/(opt.G*pdata[i].gmass/pdata[i].gsize);
-        else pdata[i].VmaxVvir2=(pdata[i].gmaxvel*pdata[i].gmaxvel)/(opt.G*pdata[i].gM200c/pdata[i].gR200c);
-        //always possible halo severly truncated before so correct if necessary and also for tidal debris, both vmax concentration pretty meaningless
-        if (pdata[i].VmaxVvir2<=1.05) {
-            if (pdata[i].gM200c==0) pdata[i].cNFW=pdata[i].gsize/pdata[i].gRmaxvel;
-            else pdata[i].cNFW=pdata[i].gR200c/pdata[i].gRmaxvel;
-        }
-        else GetConcentration(pdata[i]);
-*/
     //baryons
 #if defined(GASON)
         for (j=0;j<numingroup[i];j++) {
@@ -2913,8 +2880,9 @@ void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup
     vector<Double_t> radii;
     vector<Double_t> masses;
     vector<Int_t> indices;
-    vector<Coordinate> posparts;
+    Coordinate refpos;
     vector<Coordinate> velparts;
+    vector<Coordinate> posparts;
     vector<int> typeparts;
     size_t n;
     Double_t dx;
@@ -2923,6 +2891,7 @@ void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup
     vector<Int_t> SOpids;
     vector<Int_t> *SOpartlist=new vector<Int_t>[ngroup+1];
     vector<int> *SOparttypelist = NULL;
+
 #if defined(GASON) || defined(STARON) || defined(BHON)
     SOparttypelist=new vector<int>[ngroup+1];
 #endif
@@ -2981,14 +2950,18 @@ void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup
     fac=-log(4.0*M_PI/3.0);
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
-private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,EncMass,J,rc,rhoval,rhoval2,tid,SOpids)
+private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typeparts,n,dx,EncMass,J,rc,rhoval,rhoval2,tid,SOpids)
 {
 #pragma omp for schedule(dynamic) nowait
 #endif
     for (i=1;i<=ngroup;i++)
     {
+        if (opt.iPropertyReferencePosition == PROPREFCM) posref=pdata[i].gcm;
+        else if (opt.iPropertyReferencePosition == PROPREFMBP) posref=pdata[i].gposmbp;
+        else if (opt.iPropertyReferencePosition == PROPREFMINPOT) posref=pdata[i].gposminpot;
+
         if (pdata[i].hostid != -1) continue;
-        taggedparts=tree->SearchBallPosTagged(pdata[i].gposminpot+pdata[i].gcm,pow(maxrdist[i],2.0));
+        taggedparts=tree->SearchBallPosTagged(posref,pow(maxrdist[i],2.0));
         radii.resize(taggedparts.size());
         masses.resize(taggedparts.size());
         if (opt.iextrahalooutput) {
@@ -3007,7 +2980,7 @@ private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,
             if (opt.iextragasoutput || opt.iextrastaroutput || opt.iSphericalOverdensityPartList) typeparts[j]=Part[taggedparts[j]].GetType();
 #endif
             for (k=0;k<3;k++) {
-                dx=Part[taggedparts[j]].GetPosition(k)-pdata[i].gposminpot[k]-pdata[i].gcm[k];
+                dx=Part[taggedparts[j]].GetPosition(k)-posref[k];
                 //correct for period
                 if (opt.p>0) {
                     if (dx>opt.p*0.5) dx-=opt.p;
@@ -3026,7 +2999,7 @@ private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,
         if (NProcs>1) {
             //if halo has overlap then search the imported particles as well, add them to the radii and mass vectors
             if (halooverlap[i]&&nimport>0) {
-                taggedparts=treeimport->SearchBallPosTagged(pdata[i].gposminpot,pow(maxrdist[i],2.0));
+                taggedparts=treeimport->SearchBallPosTagged(posref,pow(maxrdist[i],2.0));
                 if (taggedparts.size() > 0) {
                     Int_t offset=radii.size();
                     radii.resize(radii.size()+taggedparts.size());
@@ -3047,7 +3020,7 @@ private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,
 #endif
                         radii[offset+j]=0;
                         for (k=0;k<3;k++) {
-                            dx=PartDataGet[taggedparts[j]].GetPosition(k)-pdata[i].gcm[k];
+                            dx=PartDataGet[taggedparts[j]].GetPosition(k)-posref[k];
                             //correct for period
                             if (opt.p>0) {
                                 if (dx>opt.p*0.5) dx-=opt.p;
@@ -3142,6 +3115,7 @@ private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,
             if (pdata[i].gR200m!=0&&pdata[i].gR200c!=0&&pdata[i].gRvir!=0&&pdata[i].gR500c!=0&&pdata[i].gRBN98!=0) break;
         }
         //if overdensity never drops below thresholds then extrapolate the radial overdensity and mass
+        /*
         if (pdata[i].gRvir==0 && deltalgrhodeltalgr<0) {
             pdata[i].gRvir=radii[indices[iindex-1]]*exp(1.0/deltalgrhodeltalgr*(virval-lgrhoedge));
             pdata[i].gMvir=exp(3.0*log(pdata[i].gRvir)+virval-fac);
@@ -3161,6 +3135,27 @@ private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,
         if (pdata[i].gRBN98==0 && deltalgrhodeltalgr<0) {
             pdata[i].gRBN98=radii[indices[iindex-1]]*exp(1.0/deltalgrhodeltalgr*(mBN98val-lgrhoedge));
             pdata[i].gMBN98=exp(3.0*log(pdata[i].gRBN98)+mBN98val-fac);
+        }
+        */
+        if (pdata[i].gRvir==0) {
+            pdata[i].gRvir=-1;
+            pdata[i].gMvir=-1;
+        }
+        if (pdata[i].gR200c==0) {
+            pdata[i].gR200c=-1;
+            pdata[i].gM200c=-1;
+        }
+        if (pdata[i].gR200m==0) {
+            pdata[i].gR200m=-1;
+            pdata[i].gM200m=-1;
+        }
+        if (pdata[i].gR500c==0) {
+            pdata[i].gR500c=-1;
+            pdata[i].gM500c=-1;
+        }
+        if (pdata[i].gRBN98==0) {
+            pdata[i].gRBN98=-1;
+            pdata[i].gMBN98=-1;
         }
         //calculate angular momentum if necessary
         if (opt.iextrahalooutput) {
