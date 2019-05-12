@@ -874,9 +874,8 @@ private(i,j,diff,gid)
         if (irefpos[gid] == i) continue;
         for (j=0;j<3;j++) {
             diff=refpos[gid][j]-Part[i].GetPosition(j);
-            if (diff<-0.5*opt.p) diff += opt.p;
-            else if (diff>0.5*opt.p) diff -= opt.p;
-            Part[i].SetPosition(j,diff);
+            if (diff<-0.5*opt.p) Part[i].SetPosition(j, Part[i].GetPosition(j)-opt.p);
+            else if (diff>0.5*opt.p) Part[i].SetPosition(j, Part[i].GetPosition(j)+opt.p);
         }
     }
 #ifdef USEOPENMP
