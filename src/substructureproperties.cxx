@@ -2843,10 +2843,10 @@ void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup
     Particle *Pval;
     KDTree *tree;
     Double_t *period=NULL;
-    Int_t i,j,k;
+    Int_t i,j,k, nhalos = 0;
     if (opt.iverbose) {
         cout<<"Get inclusive masses"<<endl;
-        cout<<" with masses based on full SO search (slower)"<<endl;
+        cout<<" with masses based on full SO search (slower) for halos only "<<endl;
     }
     Double_t ri,ri2,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside;
     Double_t x,y,z,vx,vy,vz,massval,rc,rcold;
@@ -2919,6 +2919,8 @@ void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup
     fac=-log(4.0*M_PI/3.0)-minlgrhoval;
     Double_t radfac, maxsearchdist=0;
     for (i=1;i<=ngroup;i++) {
+        if (pdata[i].hostid != -1) continue;
+        nhalos++;
         radfac=max(1.0,exp(1.0/3.0*(log(pdata[i].gmass)-3.0*log(pdata[i].gsize)+fac)));
         maxrdist[i]=pdata[i].gsize*opt.SphericalOverdensitySeachFac*radfac;
     }
@@ -2956,11 +2958,11 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
 #endif
     for (i=1;i<=ngroup;i++)
     {
+        if (pdata[i].hostid != -1) continue;
         if (opt.iPropertyReferencePosition == PROPREFCM) posref=pdata[i].gcm;
         else if (opt.iPropertyReferencePosition == PROPREFMBP) posref=pdata[i].gposmbp;
         else if (opt.iPropertyReferencePosition == PROPREFMINPOT) posref=pdata[i].gposminpot;
 
-        if (pdata[i].hostid != -1) continue;
         taggedparts=tree->SearchBallPosTagged(posref,pow(maxrdist[i],2.0));
         radii.resize(taggedparts.size());
         masses.resize(taggedparts.size());
@@ -3047,7 +3049,7 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
         sort(indices.begin(), indices.end(), comparator);
         //now loop over radii
         //then get overdensity working outwards from some small fraction of the mass or at least 4 particles + small fraction of min halo size
-        int minnum=max((int)(opt.SphericalOverdensityMinHaloFac*radii.size()+4),(int)(opt.HaloMinSize*opt.SphericalOverdensityMinHaloFac+4));
+        int minnum=max((int)(opt.SphericalOverdensityMinHaloFac*radii.size()+1),(int)(opt.HaloMinSize*opt.SphericalOverdensityMinHaloFac+1));
         int iindex=radii.size();
         //if the lowest overdensity threshold is below the density at the outer
         //edge then extrapolate density based on average slope using 10% of radial bins
@@ -3257,7 +3259,7 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
     ids.clear();
     //write the particle lists
     if (opt.iSphericalOverdensityPartList) {
-        WriteSOCatalog(opt, ngroup, SOpartlist, SOparttypelist);
+        WriteSOCatalog(opt, nhalos, SOpartlist, SOparttypelist);
         delete[] SOpartlist;
 #if defined(GASON) || defined(STARON) || defined(BHON)
         delete[] SOparttypelist;
