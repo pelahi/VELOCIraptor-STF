@@ -762,8 +762,8 @@ struct Options
         lengthtokpc30pow2=30.0*30.0;
         lengthtokpc50pow2=50.0*50.0;
 
-        SphericalOverdensitySeachFac=1.25;
-        SphericalOverdensityMinHaloFac=0.1;
+        SphericalOverdensitySeachFac=2.5;
+        SphericalOverdensityMinHaloFac=0.05;
         iSphericalOverdensityPartList=0;
 
         mpipartfac=0.1;
@@ -1151,7 +1151,7 @@ struct PropData
     Coordinate gposmbp, gvelmbp, gposminpot, gvelminpot;
     ///\name physical properties regarding mass, size
     //@{
-    Double_t gmass,gsize,gMvir,gRvir,gRmbp,gRminpot,gmaxvel,gRmaxvel,gMmaxvel,gRhalfmass;
+    Double_t gmass,gsize,gMvir,gRvir,gRcm,gRmbp,gRminpot,gmaxvel,gRmaxvel,gMmaxvel,gRhalfmass;
     Double_t gM200c,gR200c,gM200m,gR200m,gMFOF,gM6DFOF,gM500c,gR500c,gMBN98,gRBN98;
     //to store exclusive masses of halo ignoring substructure
     Double_t gMvir_excl,gRvir_excl,gM200c_excl,gR200c_excl,gM200m_excl,gR200m_excl,gMBN98_excl,gRBN98_excl;

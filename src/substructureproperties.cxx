@@ -1889,6 +1889,40 @@ private(i)
 #endif
 }
 
+///calculate max distance from reference positions
+void GetMaximumSizes(Options &opt, Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&numingroup, PropData *&pdata, Int_t *&noffset) {
+    Int_t i;
+    Double_t rcm,rmbp,rminpot;
+    Particle *Pval;
+#ifdef USEOPENMP
+#pragma omp parallel default(shared)  \
+private(i, Pval, rcm,rmbp,rminpot)
+{
+    #pragma omp for nowait
+#endif
+    for (i=1;i<=ngroup;i++)
+    {
+        pdata[i].gRcm = pdata[i].gRmbp = pdata[i].gRminpot =0;
+        for (auto j=0;j<numingroup[i];j++) {
+            Pval=&Part[j+noffset[i]];
+            rcm = rmbp = rminpot = 0;
+            for (auto k=0;k<3;k++) {
+                rcm += pow(Pval->GetPosition(k) - pdata[i].gcm[k],2.0);
+                rmbp += pow(Pval->GetPosition(k) - pdata[i].gposmbp[k],2.0);
+                rminpot += pow(Pval->GetPosition(k) - pdata[i].gposminpot[k],2.0);
+            }
+            rcm = sqrt(rcm); rmbp = sqrt(rmbp); rminpot = sqrt(rminpot);
+            if (rcm > pdata[i].gRcm) pdata[i].gRcm=rcm;
+            if (rmbp > pdata[i].gRmbp) pdata[i].gRmbp=rmbp;
+            if (rminpot > pdata[i].gRminpot) pdata[i].gRminpot=rminpot;
+        }
+    }
+#ifdef USEOPENMP
+}
+#endif
+
+}
+
 ///Calculate concentration parameter based on assuming NFW profile
 void GetNFWConcentrations(Options &opt, Int_t ngroup, Int_t *&numingroup, PropData *&pdata)
 {
@@ -1901,6 +1935,8 @@ private(i)
 #endif
     for (i=1;i<=ngroup;i++)
     {
+        //if no viable R200c, then continue
+        if (pdata[i].gR200c <= 0) {pdata[i].cNFW = -1; continue;}
         //calculate the concentration based on prada 2012 where [(Vmax)/(GM/R)]^2-(0.216*c)/f(c)=0,
         //where f(c)=ln(1+c)-c/(1+c) and M is some "virial" mass and associated radius
         pdata[i].VmaxVvir2=(pdata[i].gmaxvel*pdata[i].gmaxvel)/(opt.G*pdata[i].gM200c/pdata[i].gR200c);
@@ -1910,7 +1946,7 @@ private(i)
             else pdata[i].cNFW=pdata[i].gR200c/pdata[i].gRmaxvel;
         }
         else {
-            if (numingroup[i]>=PROPNFWMINNUM) GetConcentration(pdata[i]);
+            if (numingroup[i]>=PROPNFWMINNUM) CalcConcentration(pdata[i]);
             else {
                 if (pdata[i].gM200c==0) pdata[i].cNFW=pdata[i].gsize/pdata[i].gRmaxvel;
                 else pdata[i].cNFW=pdata[i].gR200c/pdata[i].gRmaxvel;
@@ -2950,6 +2986,7 @@ void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup
     time2=MyGetTime();
     //now loop over groups and search for particles. This is probably fast if we build a tree
     fac=-log(4.0*M_PI/3.0);
+
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
 private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typeparts,n,dx,EncMass,J,rc,rhoval,rhoval2,tid,SOpids)
@@ -3053,8 +3090,10 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
         int iindex=radii.size();
         //if the lowest overdensity threshold is below the density at the outer
         //edge then extrapolate density based on average slope using 10% of radial bins
-        double rc2, EncMass2, gamma1, gamma2, lgrhoedge, deltalgrhodeltalgr, MassEdge;
-        int lindex=0.9*iindex, llindex;
+        double rc2, EncMass2, delta, gamma1, gamma2, gamma1lin, gamma2lin;
+        double lgrhoedge, deltalgrhodeltalgr, MassEdge;
+        int lindex=0.9*iindex, llindex=iindex;
+
         MassEdge=EncMass=0;
         for (j=0;j<iindex;j++) {
             MassEdge+=masses[indices[j]];
@@ -3089,56 +3128,42 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
             if (pdata[i].gRvir==0) if (rhoval<virval)
             {
                 //linearly interpolate, unless previous density also below threshold (which would happen at the start, then just set value)
-                pdata[i].gRvir=rc*exp(gamma1*(virval-rhoval));
-                pdata[i].gMvir=EncMass*exp(gamma2*(virval-rhoval));
+                delta = (virval-rhoval);
+                pdata[i].gRvir=rc*exp(gamma1*delta);
+                pdata[i].gMvir=EncMass*exp(gamma2*delta);
             }
             if (pdata[i].gR200c==0) if (rhoval<m200val)
             {
-                    pdata[i].gR200c=rc*exp(gamma1*(m200val-rhoval));
-                    pdata[i].gM200c=EncMass*exp(gamma2*(m200val-rhoval));
+                    delta = (m200val-rhoval);
+                    pdata[i].gR200c=rc*exp(gamma1*delta);
+                    pdata[i].gM200c=EncMass*exp(gamma2*delta);
             }
             if (pdata[i].gR200m==0) if (rhoval<m200mval)
             {
-                pdata[i].gR200m=rc*exp(gamma1*(m200mval-rhoval));
-                pdata[i].gM200m=EncMass*exp(gamma2*(m200mval-rhoval));
-                //use 200 mean as reference for limiting number of particles written to SOlist
-                llindex = min((int)(j+radii.size()*0.1),llindex);
+                delta = (m200mval-rhoval);
+                pdata[i].gR200m=rc*exp(gamma1*delta);
+                pdata[i].gM200m=EncMass*exp(gamma2*delta);
             }
             if (pdata[i].gR500c==0) if (rhoval<m500val)
             {
-                pdata[i].gR500c=rc*exp(gamma1*(m500val-rhoval));
-                pdata[i].gM500c=EncMass*exp(gamma2*(m500val-rhoval));
+                delta = (m500val-rhoval);
+                pdata[i].gR500c=rc*exp(gamma1*delta);
+                pdata[i].gM500c=EncMass*exp(gamma2*delta);
             }
             if (pdata[i].gRBN98==0) if (rhoval<mBN98val)
             {
-                pdata[i].gRBN98=rc*exp(gamma1*(mBN98val-rhoval));
-                pdata[i].gMBN98=EncMass*exp(gamma2*(mBN98val-rhoval));
+                delta = (mBN98val-rhoval);
+                pdata[i].gRBN98=rc*exp(gamma1*delta);
+                pdata[i].gMBN98=EncMass*exp(gamma2*delta);
             }
-            if (pdata[i].gR200m!=0&&pdata[i].gR200c!=0&&pdata[i].gRvir!=0&&pdata[i].gR500c!=0&&pdata[i].gRBN98!=0) break;
+            //if all overdensity thresholds found, store index and exit
+            if (pdata[i].gR200m!=0&&pdata[i].gR200c!=0&&pdata[i].gRvir!=0&&pdata[i].gR500c!=0&&pdata[i].gRBN98!=0) {
+                llindex=j;
+                break;
+            }
+
         }
-        //if overdensity never drops below thresholds then extrapolate the radial overdensity and mass
-        /*
-        if (pdata[i].gRvir==0 && deltalgrhodeltalgr<0) {
-            pdata[i].gRvir=radii[indices[iindex-1]]*exp(1.0/deltalgrhodeltalgr*(virval-lgrhoedge));
-            pdata[i].gMvir=exp(3.0*log(pdata[i].gRvir)+virval-fac);
-        }
-        if (pdata[i].gR200c==0 && deltalgrhodeltalgr<0) {
-            pdata[i].gR200c=radii[indices[iindex-1]]*exp(1.0/deltalgrhodeltalgr*(m200val-lgrhoedge));
-            pdata[i].gM200c=exp(3.0*log(pdata[i].gR200c)+m200val-fac);
-        }
-        if (pdata[i].gR200m==0 && deltalgrhodeltalgr<0) {
-            pdata[i].gR200m=radii[indices[iindex-1]]*exp(1.0/deltalgrhodeltalgr*(m200mval-lgrhoedge));
-            pdata[i].gM200m=exp(3.0*log(pdata[i].gR200m)+m200mval-fac);
-        }
-        if (pdata[i].gR500c==0 && deltalgrhodeltalgr<0) {
-            pdata[i].gR500c=radii[indices[iindex-1]]*exp(1.0/deltalgrhodeltalgr*(m500val-lgrhoedge));
-            pdata[i].gM500c=exp(3.0*log(pdata[i].gR500c)+m500val-fac);
-        }
-        if (pdata[i].gRBN98==0 && deltalgrhodeltalgr<0) {
-            pdata[i].gRBN98=radii[indices[iindex-1]]*exp(1.0/deltalgrhodeltalgr*(mBN98val-lgrhoedge));
-            pdata[i].gMBN98=exp(3.0*log(pdata[i].gRBN98)+mBN98val-fac);
-        }
-        */
+        //if overdensity never monotonically drops below thresholds then flag
         if (pdata[i].gRvir==0) {
             pdata[i].gRvir=-1;
             pdata[i].gMvir=-1;
@@ -3817,7 +3842,7 @@ private(i,weight)
 }
 
 ///calculate concentration. Note that we limit concentration to 1000 or so which means VmaxVvir2<=36
-void GetConcentration(PropData &p)
+void CalcConcentration(PropData &p)
 {
 
     int status;
@@ -4354,7 +4379,6 @@ Int_t **SortAccordingtoBindingEnergy(Options &opt, const Int_t nbodies, Particle
         GetBindingEnergy(opt, nbodies, Part, ngroup, pfof, numingroup, pdata, noffset);
         GetProperties(opt, nbodies, Part, ngroup, pfof, numingroup, pdata, noffset);
     }
-    AdjustHaloPositionRelativeToReferenceFrame(opt, ngroup, numingroup, pdata);
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
 private(i,j)
@@ -4376,22 +4400,12 @@ private(i,j)
 #ifdef USEOPENMP
 }
 #endif
-
-/*
-//get size to using most bound
-///this should likely be removed
-Double_t x,y,z,r2;
-for (j=1;j<numingroup[i];j++) {
-    r2=0;
-    for (auto k=0;k<3;k++) r2+=pow(Part[noffset[i]+j].GetPosition(k)-(pdata[i].gposmbp[k]+pdata[i].gcm[k]),2.0);
-    if(pdata[i].gRmbp<r2) pdata[i].gRmbp=r2;
-}
-pdata[i].gRmbp=sqrt(pdata[i].gRmbp);
-*/
+    GetMaximumSizes(opt, nbodies, Part, ngroup, numingroup, pdata, noffset);
     //calculate spherical masses after substructures identified if using InclusiveHalo = 3
     if (opt.iInclusiveHalo == 3) GetSOMasses(opt, nbodies, Part, ngroup,  numingroup, pdata);
     //and finally calculate concentrations
     GetNFWConcentrations(opt, ngroup, numingroup, pdata);
+    AdjustHaloPositionRelativeToReferenceFrame(opt, ngroup, numingroup, pdata);
 
     //before used to store the id in pglist and then have to reset particle order so that Ids correspond to indices
     //but to reduce computing time could just store index and leave particle array unchanged but only really necessary
@@ -4447,11 +4461,12 @@ void CalculateHaloProperties(Options &opt, const Int_t nbodies, Particle *Part, 
         GetBindingEnergy(opt, nbodies, Part, ngroup, pfof, numingroup, pdata, noffset);
         GetProperties(opt, nbodies, Part, ngroup, pfof, numingroup, pdata, noffset);
     }
-    AdjustHaloPositionRelativeToReferenceFrame(opt, ngroup, numingroup, pdata);
+    GetMaximumSizes(opt, nbodies, Part, ngroup, numingroup, pdata, noffset);
     //calculate spherical masses after substructures identified if using InclusiveHalo = 3
     if (opt.iInclusiveHalo == 3) GetSOMasses(opt, nbodies, Part, ngroup,  numingroup, pdata);
     //and finally calculate concentrations
     GetNFWConcentrations(opt, ngroup, numingroup, pdata);
+    AdjustHaloPositionRelativeToReferenceFrame(opt, ngroup, numingroup, pdata);
 
     for (i=1;i<=ngroup;i++) pdata[i].ibound=Part[noffset[i]].GetPID();
     for (i=1;i<=ngroup;i++) pdata[i].iunbound=Part[noffset[i]+numingroup[i]-1].GetPID();

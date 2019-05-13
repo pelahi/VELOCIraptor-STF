@@ -287,6 +287,8 @@ void GetCM(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_
 void GetProperties(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&pfof, Int_t *&numingroup, PropData *&pdata, Int_t *&noffset);
 ///Get CM properties
 //void GetCMProp(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&pfof, Int_t *&numingroup, PropData *&pdata, Int_t *&noffset);
+///Get max dist to several reference frames
+void GetMaximumSizes(Options &opt, Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&numingroup, PropData *&pdata, Int_t *&noffset);
 ///Adjust positions of bulk properties to desired reference
 void AdjustHaloPositionRelativeToReferenceFrame(Options &opt, Int_t ngroup, Int_t *&numingroup, PropData *&pdata);
 ///Get NFW R200crit concentrations assuming an NFW profile and using Vmax/Rmax
@@ -328,7 +330,7 @@ void RotParticles(const Int_t n, Particle *p, Matrix &R);
 GMatrix CalcPhaseCM(const Int_t n, Particle *p, int itype=-1);
 
 ///get concentration routines associted with finding concentrations via root finding
-void GetConcentration(PropData &p);
+void CalcConcentration(PropData &p);
 ///wrappers for root finding used to get concentration
 double mycNFW(double c, void *params);
 ///wrappers for root finding used to get concentration
