@@ -844,51 +844,38 @@ private(i,tid,xscaling,vscaling)
 
 void AdjustStructureForPeriod(Options &opt, const Int_t nbodies, vector<Particle> &Part, Int_t numgroups, Int_t *pfof)
 {
-    Int_t i,j;
-    Int_t *numingroup, **pglist;
-    Coordinate c;
+    Int_t i,j, gid;
+    //Int_t *numingroup, **pglist;
+    //Coordinate c;
     double diff;
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
 #endif
-    numingroup=BuildNumInGroup(nbodies, numgroups, pfof);
-    pglist=BuildPGList(nbodies, numgroups, numingroup, pfof,Part.data());
+    vector<Coordinate> refpos(numgroups+1);
+    vector<Int_t> irefpos(numgroups+1);
     if (opt.iverbose) cout<<ThisTask<<" Adjusting for period "<<opt.p<<endl;
-    for (i=1;i<=numgroups;i++) if (numingroup[i]>ompperiodnum) {
-        c=Coordinate(Part[pglist[i][0]].GetPosition());
-        Int_t j;
+    for (i=1;i<=numgroups;i++) irefpos[i]=-1;
+    for (i=0;i<nbodies;i++) {
+        if (pfof[i]==0) continue;
+        if (irefpos[pfof[i]] != -1) continue;
+        refpos[pfof[i]] = Coordinate(Part[i].GetPosition());
+        irefpos[pfof[i]] = i;
+    }
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
-private(j,diff)
+private(i,j,diff,gid)
 {
 #pragma omp for
 #endif
-        for (j=1;j<numingroup[i];j++) {
-            for (int k=0;k<3;k++) {
-                diff=c[k]-Part[pglist[i][j]].GetPosition(k);
-                if (diff<-0.5*opt.p) Part[pglist[i][j]].SetPosition(k,Part[pglist[i][j]].GetPosition(k)-opt.p);
-                else if (diff>0.5*opt.p) Part[pglist[i][j]].SetPosition(k,Part[pglist[i][j]].GetPosition(k)+opt.p);
-            }
-        }
-#ifdef USEOPENMP
-}
-#endif
-    }
-#ifdef USEOPENMP
-
-#pragma omp parallel default(shared) \
-private(i,c,diff)
-{
-#pragma omp for schedule(dynamic)
-#endif
-    for (i=1;i<=numgroups;i++) if (numingroup[i]<=ompperiodnum) {
-        c=Coordinate(Part[pglist[i][0]].GetPosition());
-        for (Int_t j=1;j<numingroup[i];j++) {
-            for (int k=0;k<3;k++) {
-                diff=c[k]-Part[pglist[i][j]].GetPosition(k);
-                if (diff<-0.5*opt.p) Part[pglist[i][j]].SetPosition(k,Part[pglist[i][j]].GetPosition(k)-opt.p);
-                else if (diff>0.5*opt.p) Part[pglist[i][j]].SetPosition(k,Part[pglist[i][j]].GetPosition(k)+opt.p);
-            }
+    for (i=0;i<nbodies;i++)
+    {
+        gid = pfof[i];
+        if (gid==0) continue;
+        if (irefpos[gid] == i) continue;
+        for (j=0;j<3;j++) {
+            diff=refpos[gid][j]-Part[i].GetPosition(j);
+            if (diff<-0.5*opt.p) Part[i].SetPosition(j, Part[i].GetPosition(j)-opt.p);
+            else if (diff>0.5*opt.p) Part[i].SetPosition(j, Part[i].GetPosition(j)+opt.p);
         }
     }
 #ifdef USEOPENMP
@@ -1589,7 +1576,7 @@ private(i,tid)
             minsize=opt.MinSize;
         }
         if (opt.iverbose>=2) {
-            cout<<ThisTask<<" "<<"Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits, ellphys="<<sqrt(param[7])<<" Vunits"<<endl;
+            cout<<ThisTask<<" "<<"Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits, ellvel="<<sqrt(param[7])<<" Vunits"<<endl;
             cout<<"with minimum size of "<<minsize<<endl;
         }
         //start first 6d search
@@ -2208,7 +2195,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
         pcsld=psldata->nextlevel;
         nsubsearch=ngroup-opt.num3dfof;
     }
-    for (Int_t i=firstgroup;i<=ngroup;i++) if (numingroup[i]<MINCELLSIZE) {nsubsearch=i-firstgroup;break;}
+    for (Int_t i=firstgroup;i<=ngroup;i++) if (numingroup[i]<opt.MinSize*2) {nsubsearch=i-firstgroup;break;}
     iflag=(nsubsearch>0);
 
     if (iflag) {

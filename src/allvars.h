@@ -211,6 +211,12 @@ using namespace NBody;
 #define CMVELREF 0
 ///use the particle at potential minimum. Issues if too few particles used as particles will move in and out of deepest point of the potential well
 #define POTREF 1
+///use Centre-of-mass to caculate Properties
+#define PROPREFCM 0
+///use most bound particle to calculate properties
+#define PROPREFMBP 1
+///use minimum potential particle to calculat properties
+#define PROPREFMINPOT 2
 
 //@}
 
@@ -360,6 +366,8 @@ struct Options
     int iextrastaroutput;
     /// calculate and output extra star fields
     int iextrabhoutput;
+    /// calculate subind like properties
+    int isubfindproperties;
 
     ///disable particle id related output like fof.grp or catalog_group data. Useful if just want halo properties
     ///and not interested in tracking. Code writes halo properties catalog and exits.
@@ -431,6 +439,8 @@ struct Options
     int iIterateCM;
     /// flag to sort output particle lists by binding energy (or potential if not on)
     int iSortByBindingEnergy;
+    /// what reference position to use when calculating Properties
+    int iPropertyReferencePosition;
 
 
     ///threshold on particle ELL value, normalized logarithmic distance from predicted maxwellian velocity density.
@@ -689,6 +699,7 @@ struct Options
         iInclusiveHalo=0;
         iKeepFOF=0;
         iSortByBindingEnergy=1;
+        iPropertyReferencePosition=PROPREFCM;
 
         iLargerCellSearch=0;
 
@@ -710,14 +721,16 @@ struct Options
         iwritefof=0;
         iseparatefiles=0;
         ibinaryout=0;
-        iextrahalooutput=0;
         iextendedoutput=0;
         inoidoutput=0;
         icomoveunit=0;
         icosmologicalin=1;
 
+        iextrahalooutput=0;
         iextragasoutput=0;
         iextrastaroutput=0;
+        isubfindproperties=0;
+
 
         iusestarparticles=1;
         iusesinkparticles=1;
@@ -749,13 +762,13 @@ struct Options
         lengthtokpc30pow2=30.0*30.0;
         lengthtokpc50pow2=50.0*50.0;
 
-        SphericalOverdensitySeachFac=1.25;
-        SphericalOverdensityMinHaloFac=0.1;
+        SphericalOverdensitySeachFac=2.5;
+        SphericalOverdensityMinHaloFac=0.05;
         iSphericalOverdensityPartList=0;
 
         mpipartfac=0.1;
 #if USEHDF
-        ihdfnameconvention=0;
+        ihdfnameconvention=-1;
 #endif
         iaperturecalc=0;
         aperturenum=0;
@@ -1131,15 +1144,15 @@ struct PropData
     ///number of particles
     Int_t num;
     ///number of particles in FOF envelop
-    Int_t gNFOF;
+    Int_t gNFOF,gN6DFOF;
     ///centre of mass
     Coordinate gcm, gcmvel;
     ///Position of most bound particle, and also of particle with min potential
-    Coordinate gpos, gvel, gposminpot, gvelminpot;
+    Coordinate gposmbp, gvelmbp, gposminpot, gvelminpot;
     ///\name physical properties regarding mass, size
     //@{
-    Double_t gmass,gsize,gMvir,gRvir,gRmbp,gmaxvel,gRmaxvel,gMmaxvel,gRhalfmass;
-    Double_t gM200c,gR200c,gM200m,gR200m,gMFOF,gM500c,gR500c,gMBN98,gRBN98;
+    Double_t gmass,gsize,gMvir,gRvir,gRcm,gRmbp,gRminpot,gmaxvel,gRmaxvel,gMmaxvel,gRhalfmass;
+    Double_t gM200c,gR200c,gM200m,gR200m,gMFOF,gM6DFOF,gM500c,gR500c,gMBN98,gRBN98;
     //to store exclusive masses of halo ignoring substructure
     Double_t gMvir_excl,gRvir_excl,gM200c_excl,gR200c_excl,gM200m_excl,gR200m_excl,gMBN98_excl,gRBN98_excl;
     //@}
@@ -1391,9 +1404,9 @@ struct PropData
 
     PropData()
     {
-        num=gNFOF=0;
+        num=gNFOF=gN6DFOF=0;
         gmass=gsize=gRmbp=gmaxvel=gRmaxvel=gRvir=gR200m=gR200c=gRhalfmass=Efrac=Pot=T=0.;
-        gMFOF=0;
+        gMFOF=gM6DFOF=0;
         gM500c=gR500c=0;
         gMBN98=gRBN98=0;
         gcm[0]=gcm[1]=gcm[2]=gcmvel[0]=gcmvel[1]=gcmvel[2]=0.;
@@ -1515,7 +1528,7 @@ struct PropData
     PropData& operator=(const PropData &p){
         num=p.num;
         gcm=p.gcm;gcmvel=p.gcmvel;
-        gpos=p.gpos;gvel=p.gvel;
+        gposmbp=p.gposmbp;gvelmbp=p.gvelmbp;
         gposminpot=p.gposminpot;gvelminpot=p.gvelminpot;
         gmass=p.gmass;gsize=p.gsize;
         gMvir=p.gMvir;gRvir=p.gRvir;gRmbp=p.gRmbp;
@@ -1748,7 +1761,7 @@ struct PropData
 
     void ConverttoComove(Options &opt){
         gcm=gcm*opt.h/opt.a;
-        gpos=gpos*opt.h/opt.a;
+        gposmbp=gposmbp*opt.h/opt.a;
         gposminpot=gposminpot*opt.h/opt.a;
         gmass*=opt.h;
         gMvir*=opt.h;
@@ -1900,13 +1913,13 @@ struct PropData
 
         for (int k=0;k<3;k++) val3[k]=gcm[k];
         Fout.write((char*)val3,sizeof(val)*3);
-        for (int k=0;k<3;k++) val3[k]=gpos[k];
+        for (int k=0;k<3;k++) val3[k]=gposmbp[k];
         Fout.write((char*)val3,sizeof(val)*3);
         for (int k=0;k<3;k++) val3[k]=gposminpot[k];
         Fout.write((char*)val3,sizeof(val)*3);
         for (int k=0;k<3;k++) val3[k]=gcmvel[k];
         Fout.write((char*)val3,sizeof(val)*3);
-        for (int k=0;k<3;k++) val3[k]=gvel[k];
+        for (int k=0;k<3;k++) val3[k]=gvelmbp[k];
         Fout.write((char*)val3,sizeof(val)*3);
         for (int k=0;k<3;k++) val3[k]=gvelminpot[k];
         Fout.write((char*)val3,sizeof(val)*3);
@@ -2235,10 +2248,10 @@ struct PropData
         }
         Fout<<gMvir<<" ";
         for (int k=0;k<3;k++) Fout<<gcm[k]<<" ";
-        for (int k=0;k<3;k++) Fout<<gpos[k]<<" ";
+        for (int k=0;k<3;k++) Fout<<gposmbp[k]<<" ";
         for (int k=0;k<3;k++) Fout<<gposminpot[k]<<" ";
         for (int k=0;k<3;k++) Fout<<gcmvel[k]<<" ";
-        for (int k=0;k<3;k++) Fout<<gvel[k]<<" ";
+        for (int k=0;k<3;k++) Fout<<gvelmbp[k]<<" ";
         for (int k=0;k<3;k++) Fout<<gvelminpot[k]<<" ";
         Fout<<gmass<<" ";
         Fout<<gMFOF<<" ";

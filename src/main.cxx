@@ -303,18 +303,18 @@ int main(int argc,char **argv)
         cout<<"TIME::"<<ThisTask<<" took "<<time1<<" to search "<<Nlocal<<" with "<<nthreads<<endl;
         nbodies=Nlocal;
         nhalos=ngroup;
-        //place barrier here to ensure all mpi threads have pfof for groups localized to their memory
-        MPI_Barrier(MPI_COMM_WORLD);
 #endif
         //if compiled to determine inclusive halo masses, then for simplicity, I assume halo id order NOT rearranged!
         //this is not necessarily true if baryons are searched for separately.
-        if (opt.iInclusiveHalo) {
+        if (opt.iInclusiveHalo > 0 && opt.iInclusiveHalo < 3) {
             pdatahalos=new PropData[nhalos+1];
             Int_t *numinhalos=BuildNumInGroup(nbodies, nhalos, pfof);
             Int_t *sortvalhalos=new Int_t[nbodies];
             Int_t *originalID=new Int_t[nbodies];
             for (Int_t i=0;i<nbodies;i++) {sortvalhalos[i]=pfof[i]*(pfof[i]>0)+nbodies*(pfof[i]==0);originalID[i]=Part[i].GetID();Part[i].SetID(i);}
             Int_t *noffsethalos=BuildNoffset(nbodies, Part.data(), nhalos, numinhalos, sortvalhalos);
+            ///here if inclusive halo flag is 3, then S0 masses are calculated after substructures are found for field objects
+            ///and only calculate FOF masses. Otherwise calculate inclusive masses at this moment.
             GetInclusiveMasses(opt, nbodies, Part.data(), nhalos, pfof, numinhalos, pdatahalos, noffsethalos);
             qsort(Part.data(),nbodies,sizeof(Particle),IDCompare);
             //sort(Part.begin(), Part.end(), IDCompareVec);
@@ -373,8 +373,6 @@ int main(int argc,char **argv)
         //after this is called Nlocal is adjusted to the local subset where groups are localized to a given mpi thread.
         pfof=SearchSubset(opt,Nlocal,Nlocal,Part.data(),ngroup);
         nbodies=Nlocal;
-        //place barrier here to ensure all mpi threads have pfof for groups localized to their memory
-        MPI_Barrier(MPI_COMM_WORLD);
 #endif
     }
     if (opt.iSubSearch) {
@@ -387,7 +385,7 @@ int main(int argc,char **argv)
     }
     pdata=new PropData[ngroup+1];
     //if inclusive halo mass required
-    if (opt.iInclusiveHalo && ngroup>0) {
+    if (opt.iInclusiveHalo > 0 && opt.iInclusiveHalo < 3 && ngroup>0) {
         CopyMasses(opt,nhalos,pdatahalos,pdata);
         delete[] pdatahalos;
     }
