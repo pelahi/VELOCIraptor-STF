@@ -27,7 +27,7 @@ Double_t mpi_period;
 MPI_Domain *mpi_domain;
 Int_t *mpi_nlocal,*mpi_nsend,*mpi_idlist;
 short_mpi_t *mpi_foftask;
-Int_t *mpi_ngroups, *mpi_pfof, *mpi_indexlist;
+Int_t *mpi_ngroups, *mpi_pfof, *mpi_indexlist, *mpi_nhalos;
 int *mpi_part_send_domain;
 
 Int_t mpi_maxgid,mpi_gidoffset;

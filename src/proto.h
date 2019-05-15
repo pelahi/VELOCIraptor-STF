@@ -81,7 +81,9 @@ void WriteSimulationInfo(Options &opt);
 ///Write the unit info
 void WriteUnitInfo(Options &opt);
 ///Write particle ids of those within spherical overdensity of a field halo
-void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids);
+void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids, vector<int> *SOtypes=NULL);
+///Write profiles
+void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata);
 ///Writes ROCKSTAR like output
 //@{
 //@}
@@ -279,12 +281,26 @@ Double_t CalcCosmicTime(Options &opt, Double_t a);
 /// \name Routines to calculate substructure properties and sort particles in a substructure according to some property
 /// see \ref substructureproperties.cxx for implementation
 //@{
+///Get Centre of mass quantities
+void GetCM(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&pfof, Int_t *&numingroup, PropData *&pdata, Int_t *&noffset);
 ///Get the properties of the substructures and output the results
-void GetProperties(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&pfof, Int_t *numingroup=NULL, Int_t **pglist=NULL);
+void GetProperties(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&pfof, Int_t *&numingroup, PropData *&pdata, Int_t *&noffset);
 ///Get CM properties
-void GetCMProp(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&pfof, Int_t *&numingroup, PropData *&pdata, Int_t *&noffset);
+//void GetCMProp(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&pfof, Int_t *&numingroup, PropData *&pdata, Int_t *&noffset);
+///Get max dist to several reference frames
+void GetMaximumSizes(Options &opt, Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&numingroup, PropData *&pdata, Int_t *&noffset);
+///Adjust positions of bulk properties to desired reference
+void AdjustHaloPositionRelativeToReferenceFrame(Options &opt, Int_t ngroup, Int_t *&numingroup, PropData *&pdata);
+///Get NFW R200crit concentrations assuming an NFW profile and using Vmax/Rmax
+void GetNFWConcentrations(Options &opt, Int_t ngroup, Int_t *&numingroup, PropData *&pdata);
 ///Get inclusive masses for field objects
 void GetInclusiveMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&pfof, Int_t *&numingroup, PropData *&pdata, Int_t *&noffset);
+///Get FOF masses for field objects
+void GetFOFMass(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&pfof, Int_t *&numingroup, PropData *&pdata, Int_t *&noffset);
+/// Calculate FOF mass looping over groups once substructure search and have calculated properties
+void GetFOFMass(Options &opt, Int_t ngroup, Int_t *&numingroup, PropData *&pdata);
+///Get Spherical Overdensity Masses for field objects only. Assumes want to keep input order.
+void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&numingroup, PropData *&pdata);
 ///simple routine to copy over mass information (useful for storing inclusive info)
 void CopyMasses(Options &opt, const Int_t nhalos, PropData *&pold, PropData *&pnew);
 ///simple routine to reorder mass information based on number of particles when new remaining number of haloes < old halos
@@ -314,7 +330,7 @@ void RotParticles(const Int_t n, Particle *p, Matrix &R);
 GMatrix CalcPhaseCM(const Int_t n, Particle *p, int itype=-1);
 
 ///get concentration routines associted with finding concentrations via root finding
-void GetConcentration(PropData &p);
+void CalcConcentration(PropData &p);
 ///wrappers for root finding used to get concentration
 double mycNFW(double c, void *params);
 ///wrappers for root finding used to get concentration
@@ -328,6 +344,13 @@ int GetRadialBin(Options &opt, Double_t rc, int &ibin);
 void AddParticleToRadialBin(Options &opt, Particle *Pval, Double_t irnorm, int &ibin, PropData &pdata);
 ///add data to the appropriate radial bin
 void AddDataToRadialBin(Options &opt, Double_t rval, Double_t massval,
+#if defined(GASON) || defined(STARON) || defined(BHON)
+    Double_t srfval, int typeval,
+#endif
+    Double_t irnorm, int &ibin, PropData &pdata);
+void AddParticleToRadialBinInclusive(Options &opt, Particle *Pval, Double_t irnorm, int &ibin, PropData &pdata);
+///add data to the appropriate radial bin
+void AddDataToRadialBinInclusive(Options &opt, Double_t rval, Double_t massval,
 #if defined(GASON) || defined(STARON) || defined(BHON)
     Double_t srfval, int typeval,
 #endif

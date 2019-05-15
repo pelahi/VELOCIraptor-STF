@@ -152,6 +152,8 @@ extern Int_t *mpi_indexlist;
 extern short_mpi_t *mpi_foftask;
 ///array that stores number of groups, need for properly setting Ids and broadcasting data
 extern Int_t *mpi_ngroups;
+///array that stores number of field halos
+extern Int_t *mpi_nhalos;
 ///array that is used by task zero to collect the group ids of every particle so that it can be written to a file.
 extern Int_t *mpi_pfof;
 ///array that is used to indicate particle must be sent across an mpi_domain, stores the mpi thread num particle is to be sent to

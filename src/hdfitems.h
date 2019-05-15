@@ -9,6 +9,7 @@
 
 
 #include "H5Cpp.h"
+
 using namespace H5;
 
 ///\name ILLUSTRIS specific constants
@@ -193,6 +194,12 @@ static inline void HDF5PrintError(const H5::Exception &error) {
 #else
 	error.printError();
 #endif
+}
+
+inline
+H5::DataType _datatype_string(const std::string &val)
+{
+    return H5::StrType(H5::PredType::C_S1, val.size());
 }
 
 ///This structures stores the strings defining the groups of data in the hdf input. NOTE: HERE I show the strings for Illustris format
