@@ -152,8 +152,10 @@ void GetVelocityDensity(Options &opt, const Int_t nbodies, Particle *Part, KDTre
 void GetVelocityDensityOld(Options &opt, const Int_t nbodies, Particle *Part, KDTree *tree);
 ///Velocity density where only particles in a halo (which is localised to an mpi domain) are within the tree
 void GetVelocityDensityHaloOnlyDen(Options &opt, const Int_t nbodies, Particle *Part, KDTree *tree);
+///exact velocity density, finds for each particle nearest physical neighbours and estimates velocity
+void GetVelocityDensityExact(Options &opt, const Int_t nbodies, Particle *Part, KDTree *tree);
 ///optimised search for cosmological simulations
-void GetVelocityDensityCosmological(Options &opt, const Int_t nbodies, Particle *Part, KDTree *tree);
+void GetVelocityDensityApproximative(Options &opt, const Int_t nbodies, Particle *Part, KDTree *tree);
 //@}
 
 /// \name Suboutines that compare local velocity density to background
