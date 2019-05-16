@@ -148,8 +148,10 @@ Matrix *GetCellVelDisp(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
 
 ///Calculate local velocity density
 void GetVelocityDensity(Options &opt, const Int_t nbodies, Particle *Part, KDTree *tree=NULL);
-///sub interfaces depending on type of velocity density desired. 
+///sub interfaces depending on type of velocity density desired.
 void GetVelocityDensityOld(Options &opt, const Int_t nbodies, Particle *Part, KDTree *tree);
+///Velocity density where only particles in a halo (which is localised to an mpi domain) are within the tree
+void GetVelocityDensityHaloOnlyDen(Options &opt, const Int_t nbodies, Particle *Part, KDTree *tree);
 
 //@}
 
@@ -485,12 +487,20 @@ void MPINumInDomainNchilada(Options &opt);
 void MPIAdjustDomain(Options opt);
 ///determine if the search domain of a particle overlaps another mpi domain
 int MPISearchForOverlap(Particle &Part, Double_t &rdist);
+///determine if the search domain of a particle overlaps another mpi domain
+int MPISearchForOverlap(Coordinate &x, Double_t &rdist);
 #ifdef SWIFTINTERFACE
 ///determine if the search domain of a particle overlaps another mpi domain using the SWIFT mesh
 int MPISearchForOverlapUsingMesh(Options &opt, Particle &Part, Double_t &rdist);
+///determine if the search domain of a coordinate overlaps another mpi domain using the SWIFT mesh
+int MPISearchForOverlapUsingMesh(Options &opt, Coordinate &x, Double_t &rdist);
 #endif
 ///determine if the search domain overlaps another mpi domain
 int MPISearchForOverlap(Double_t xsearch[3][2]);
+#ifdef SWIFTINTERFACE
+int MPISearchForOverlapUsingMesh(Options &opt, Double_t xsearch[3][2]);
+#endif
+
 ///determine if search domain overlaps domain
 int MPIInDomain(Double_t xsearch[3][2], Double_t bnd[3][2]);
 

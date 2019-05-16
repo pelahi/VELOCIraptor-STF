@@ -288,6 +288,12 @@ int MPISearchForOverlap(Particle &Part, Double_t &rdist){
     return MPISearchForOverlap(xsearch);
 }
 
+int MPISearchForOverlap(Coordinate &x, Double_t &rdist){
+    Double_t xsearch[3][2];
+    for (auto k=0;k<3;k++) {xsearch[k][0]=x[k]-rdist;xsearch[k][1]=x[k]+rdist;}
+    return MPISearchForOverlap(xsearch);
+}
+
 int MPISearchForOverlap(Double_t xsearch[3][2]){
     Double_t xsearchp[7][3][2];//used to store periodic reflections
     int numoverlap=0,numreflecs=0,ireflec[3],numreflecchoice=0;
@@ -483,15 +489,21 @@ int MPISearchForOverlap(Double_t xsearch[3][2]){
 ///\todo clean up memory allocation in these functions, no need to keep allocating xsearch,xsearchp,numoverlap,etc
 /// Determine if a particle needs to be exported to another mpi domain based on a physical search radius
 #ifdef SWIFTINTERFACE
+
 int MPISearchForOverlapUsingMesh(Options &opt, Particle &Part, Double_t &rdist){
     Double_t xsearch[3][2];
-    Double_t xsearchp[7][3][2];//used to store periodic reflections
-    int numoverlap=0,numreflecs=0,ireflec[3],numreflecchoice=0;
-    int indomain;
-    int j,k;
+    for (auto k=0;k<3;k++) {xsearch[k][0]=Part.GetPosition(k)-rdist;xsearch[k][1]=Part.GetPosition(k)+rdist;}
+    return MPISearchForOverlapUsingMesh(Options &opt, Double_t xsearch[3][2])
+}
 
-    for (k=0;k<3;k++) {xsearch[k][0]=Part.GetPosition(k)-rdist;xsearch[k][1]=Part.GetPosition(k)+rdist;}
+int MPISearchForOverlapUsingMesh(Options &opt, Coordinate &x, Double_t &rdist){
+    Double_t xsearch[3][2];
+    for (auto k=0;k<3;k++) {xsearch[k][0]=x[k]-rdist;xsearch[k][1]=x[k]+rdist;}
+    return MPISearchForOverlapUsingMesh(Options &opt, Double_t xsearch[3][2])
+}
 
+int MPISearchForOverlapUsingMesh(Options &opt, Double_t xsearch[3][2]){
+    int numoverlap=0;
     /// Store whether an MPI domain has already been sent to
     int *sent_mpi_domain = new int[NProcs];
     for(int i=0; i<NProcs; i++) sent_mpi_domain[i] = 0;
@@ -504,183 +516,6 @@ int MPISearchForOverlapUsingMesh(Options &opt, Particle &Part, Double_t &rdist){
         numoverlap++;
         sent_mpi_domain[cellnodeID]++;
     }
-    /*
-    if (mpi_period!=0) {
-        for (k=0;k<3;k++) if (xsearch[k][0]<0||xsearch[k][1]>mpi_period) ireflec[numreflecs++]=k;
-        if (numreflecs==1)numreflecchoice=1;
-        else if (numreflecs==2) numreflecchoice=3;
-        else if (numreflecs==3) numreflecchoice=7;
-        for (j=0;j<numreflecchoice;j++) for (k=0;k<3;k++) {xsearchp[j][k][0]=xsearch[k][0];xsearchp[j][k][1]=xsearch[k][1];}
-        if (numreflecs==1) {
-            if (xsearch[ireflec[0]][0]<0) {
-                    xsearchp[0][ireflec[0]][0]=xsearch[ireflec[0]][0]+mpi_period;
-                    xsearchp[0][ireflec[0]][1]=xsearch[ireflec[0]][1]+mpi_period;
-            }
-            else if (xsearch[ireflec[0]][1]>mpi_period) {
-                    xsearchp[0][ireflec[0]][0]=xsearch[ireflec[0]][0]-mpi_period;
-                    xsearchp[0][ireflec[0]][1]=xsearch[ireflec[0]][1]-mpi_period;
-            }
-        }
-        else if (numreflecs==2) {
-            k=0;j=0;
-            if (xsearch[ireflec[k]][0]<0) {
-                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]+mpi_period;
-                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]+mpi_period;
-            }
-            else if (xsearch[ireflec[k]][1]>mpi_period) {
-                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]-mpi_period;
-                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]-mpi_period;
-            }
-            k++;j++;
-            if (xsearch[ireflec[k]][0]<0) {
-                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]+mpi_period;
-                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]+mpi_period;
-            }
-            else if (xsearch[ireflec[k]][1]>mpi_period) {
-                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]-mpi_period;
-                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]-mpi_period;
-            }
-            j++;k=0;
-            if (xsearch[ireflec[k]][0]<0) {
-                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]+mpi_period;
-                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]+mpi_period;
-            }
-            else if (xsearch[ireflec[k]][1]>mpi_period) {
-                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]-mpi_period;
-                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]-mpi_period;
-            }
-            k++;
-            if (xsearch[ireflec[k]][0]<0) {
-                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]+mpi_period;
-                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]+mpi_period;
-            }
-            else if (xsearch[ireflec[k]][1]>mpi_period) {
-                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]-mpi_period;
-                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]-mpi_period;
-            }
-        }
-        else if (numreflecs==3) {
-            j=0;k=0;
-            if (xsearch[ireflec[k]][0]<0) {
-                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]+mpi_period;
-                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]+mpi_period;
-            }
-            else if (xsearch[ireflec[k]][1]>mpi_period) {
-                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]-mpi_period;
-                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]-mpi_period;
-            }
-            j++;k++;
-            if (xsearch[ireflec[k]][0]<0) {
-                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]+mpi_period;
-                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]+mpi_period;
-            }
-            else if (xsearch[ireflec[k]][1]>mpi_period) {
-                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]-mpi_period;
-                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]-mpi_period;
-            }
-            j++;k++;
-            if (xsearch[ireflec[k]][0]<0) {
-                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]+mpi_period;
-                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]+mpi_period;
-            }
-            else if (xsearch[ireflec[k]][1]>mpi_period) {
-                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]-mpi_period;
-                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]-mpi_period;
-            }
-            j++;k=0;
-            if (xsearch[ireflec[k]][0]<0) {
-                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]+mpi_period;
-                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]+mpi_period;
-            }
-            else if (xsearch[ireflec[k]][1]>mpi_period) {
-                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]-mpi_period;
-                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]-mpi_period;
-            }
-            k=1;
-            if (xsearch[ireflec[k]][0]<0) {
-                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]+mpi_period;
-                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]+mpi_period;
-            }
-            else if (xsearch[ireflec[k]][1]>mpi_period) {
-                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]-mpi_period;
-                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]-mpi_period;
-            }
-            j++;k=0;
-            if (xsearch[ireflec[k]][0]<0) {
-                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]+mpi_period;
-                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]+mpi_period;
-            }
-            else if (xsearch[ireflec[k]][1]>mpi_period) {
-                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]-mpi_period;
-                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]-mpi_period;
-            }
-            k=2;
-            if (xsearch[ireflec[k]][0]<0) {
-                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]+mpi_period;
-                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]+mpi_period;
-            }
-            else if (xsearch[ireflec[k]][1]>mpi_period) {
-                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]-mpi_period;
-                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]-mpi_period;
-            }
-            j++;k=1;
-            if (xsearch[ireflec[k]][0]<0) {
-                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]+mpi_period;
-                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]+mpi_period;
-            }
-            else if (xsearch[ireflec[k]][1]>mpi_period) {
-                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]-mpi_period;
-                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]-mpi_period;
-            }
-            k=2;
-            if (xsearch[ireflec[k]][0]<0) {
-                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]+mpi_period;
-                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]+mpi_period;
-            }
-            else if (xsearch[ireflec[k]][1]>mpi_period) {
-                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]-mpi_period;
-                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]-mpi_period;
-            }
-            j++;k=0;
-            if (xsearch[ireflec[k]][0]<0) {
-                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]+mpi_period;
-                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]+mpi_period;
-            }
-            else if (xsearch[ireflec[k]][1]>mpi_period) {
-                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]-mpi_period;
-                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]-mpi_period;
-            }
-            k++;
-            if (xsearch[ireflec[k]][0]<0) {
-                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]+mpi_period;
-                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]+mpi_period;
-            }
-            else if (xsearch[ireflec[k]][1]>mpi_period) {
-                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]-mpi_period;
-                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]-mpi_period;
-            }
-            k++;
-            if (xsearch[ireflec[k]][0]<0) {
-                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]+mpi_period;
-                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]+mpi_period;
-            }
-            else if (xsearch[ireflec[k]][1]>mpi_period) {
-                    xsearchp[j][ireflec[k]][0]=xsearch[ireflec[k]][0]-mpi_period;
-                    xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]-mpi_period;
-            }
-        }
-        for (int k=0;k<numreflecchoice;k++) {
-            vector<int> celllist=MPIGetCellListInSearchUsingMesh(opt,xsearchp[k]);
-            for (auto j:celllist) {
-                const int cellnodeID = opt.cellnodeids[j];
-                /// Only check if particles have overlap with neighbouring cells that are on another MPI domain and have not already been sent to
-                if (sent_mpi_domain[cellnodeID] == 1) continue;
-                numoverlap++;
-                sent_mpi_domain[cellnodeID]++;
-            }
-        }
-    }
-    */
     return numoverlap;
 }
 #endif
