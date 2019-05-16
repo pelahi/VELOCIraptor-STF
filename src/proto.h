@@ -148,6 +148,8 @@ Matrix *GetCellVelDisp(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
 
 ///Calculate local velocity density
 void GetVelocityDensity(Options &opt, const Int_t nbodies, Particle *Part, KDTree *tree=NULL);
+///sub interfaces depending on type of velocity density desired. 
+void GetVelocityDensityOld(Options &opt, const Int_t nbodies, Particle *Part, KDTree *tree);
 
 //@}
 
