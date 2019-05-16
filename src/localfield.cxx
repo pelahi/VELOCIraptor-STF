@@ -26,12 +26,13 @@ void GetVelocityDensity(Options &opt, const Int_t nbodies, Particle *Part, KDTre
         cout<<ThisTask<<" "<<"Using the following parameters to calculate velocity density using sph kernel: ";
         cout<<ThisTask<<" "<<"(Nse,Nv)="<<opt.Nsearch<<","<<opt.Nvel<<endl;
         cout<<ThisTask<<" "<<"Get velocity density using a subset of nearby physical or phase-space neighbours"<<endl;
-        cout<<"Building Tree first in (x) space to get local velocity density"<<endl;
+        if (tree == NULL) cout<<"Building Tree first in (x) space to get local velocity density"<<endl;
     }
 #ifdef HALOONLYDEN
     GetVelocityDensityHaloOnlyDen(opt, nbodies, Part, tree);
 #else
-    GetVelocityDensityOld(opt, nbodies, Part, tree);
+    //GetVelocityDensityOld(opt, nbodies, Part, tree);
+    GetVelocityDensityCosmological(opt, nbodies, Part, tree);
 #endif
 
     cout<<ThisTask<<": finished calculation in "<<MyGetTime()-time1<<endl;
@@ -491,7 +492,7 @@ private(i,tid)
 
 void GetVelocityDensityCosmological(Options &opt, const Int_t nbodies, Particle *Part, KDTree *tree)
 {
-    Int_t i,j,k;
+    //Int_t i;
     int nthreads;
     int tid,id,pid,pid2,itreeflag=0;
     Double_t v2;
@@ -509,7 +510,7 @@ void GetVelocityDensityCosmological(Options &opt, const Int_t nbodies, Particle 
     //if using mpi run NN search store largest distance for each particle so that export list can be built.
     //if calculating using only particles IN a structure,
     Int_t nimport;
-    Double_t *maxrdist=new Double_t[nbodies];
+    Double_t *maxrdist;
     Double_t *weight;
     Int_t *nnids,*nnidsneighbours;
     Double_t *nnr2, *nnr2neighbours;
@@ -539,101 +540,112 @@ void GetVelocityDensityCosmological(Options &opt, const Int_t nbodies, Particle 
 
     //first get all local leaf nodes;
     Int_t numleafnodes = tree->GetNumLeafNodes();
-    vector<Node*> leafnodes(numleafnodes);
-    i=j=0;
-    while (i<nbodies) {
-        leafnodes[j]=tree->FindLeafNode(i);
-        i+=leafnodes[j]->GetCount();
-        j++;
+    Node *n;
+    vector<leaf_node_info> leafnodes(numleafnodes);
+    Int_t inode=0, ipart=0;
+    while (ipart<nbodies) {
+        n=tree->FindLeafNode(ipart);
+        leafnodes[inode].id = inode;
+        leafnodes[inode].istart = n->GetStart();
+        leafnodes[inode].iend = n->GetEnd();
+        ipart+=n->GetCount();
+        inode++;
     }
-    //then calculate centre, size and number of active particles in each leaf node
-    vector<Coordinate> leafnodeCM(numleafnodes);
-    vector<Double_t> leafnodesize(numleafnodes);
-    vector<int> leafnodenum(numleafnodes);
-#ifdef USEMPI
-    vector<Double_t> leafnodemaxsearchrdist(numleafnodes);
-#endif
+    cout<<ThisTask<<"have leafnodes"<<inode<<endl;
+    /*
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
-private(i,j)
+private(leafnode, j,k)
 {
 #pragma omp for schedule(dynamic)
 #endif
-    for (i=0;i<numleafnodes;i++) {
-        leafnodenum[i]=leafnodesize[i]=leafnodeCM[i][0]=leafnodeCM[i][1]=leafnodeCM[i][2]=0;
-        for (j=leafnodes[i]->GetStart();j<leafnodes[i]->GetEnd();j++) {
+*/
+    for (auto i=0;i<numleafnodes;i++)
+    {
+        leafnodes[i].num=leafnodes[i].cm[0]=leafnodes[i].cm[1]=leafnodes[i].cm[2]=0;
+        for (auto j=leafnodes[i].istart;j<leafnodes[i].iend;j++)
+        {
 #ifdef STRUCDEN
-            if (Part[i].GetType()==0) continue;
+            if (Part[j].GetType()==0) continue;
 #endif
-            leafnodenum[i]++;
-            for (k=0;k<3;k++) leafnodeCM[i][k] += Part[j].GetPosition(k);
+            leafnodes[i].num++;
+            for (auto k=0;k<3;k++) leafnodes[i].cm[k] += Part[j].GetPosition(k);
         }
-        if (leafnodenum[i]>0) for (k=0;k<3;k++) leafnodeCM[i][k]/= (float)leafnodenum[i];
-        for (j=leafnodes[i]->GetStart();j<leafnodes[i]->GetEnd();j++) {
-#ifdef STRUCDEN
-            if (Part[i].GetType()==0) continue;
-#endif
-            double r2 = 0;
-            for (k=0;k<3;k++) r2 += pow(Part[j].GetPosition(k)-leafnodeCM[i][k],2.0);
-            if (r2>leafnodesize[i]) leafnodesize[i]=r2;
-        }
-        leafnodesize[i]=sqrt(leafnodesize[i]);
+        if (leafnodes[i].num == 0) {
 #ifdef USEMPI
-        if (leafnodenum[i]>0) leafnodemaxsearchrdist[i]=leafnodesize[i]*pow(opt.Nsearch/leafnodenum[i],1.0/3.0)*1.2;
+            leafnodes[i].searchdist = 0;
+#endif
+            continue;
+        }
+        for (auto k=0;k<3;k++) leafnodes[i].cm[k]/= (float)leafnodes[i].num;
+        for (auto j=leafnodes[i].istart;j<leafnodes[i].iend;j++)
+        {
+            double r2 = 0;
+            for (auto k=0;k<3;k++) r2 += pow(Part[j].GetPosition(k)-leafnodes[i].cm[k],2.0);
+            if (r2>leafnodes[i].size) leafnodes[i].size=r2;
+        }
+        leafnodes[i].size=sqrt(leafnodes[i].size);
+#ifdef USEMPI
+        leafnodes[i].searchdist=leafnodes[i].size*pow(opt.Nsearch/(float)leafnodes[i].num,1.0/3.0)*1.2;
 #endif
     }
+
+    /*
 #ifdef USEOPENMP
 }
 #endif
+*/
 
-
-#ifdef USEOPENMP
+/*#ifdef USEOPENMP
 #pragma omp parallel default(shared) \
 private(i,j,k,tid,id,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,pqx,pqv)
 {
 #endif
+*/
     nnids=new Int_t[opt.Nsearch];
     nnr2=new Double_t[opt.Nsearch];
     weight=new Double_t[opt.Nvel];
-    pqx=new PriorityQueue(opt.Nsearch);
     pqv=new PriorityQueue(opt.Nvel);
-#ifdef USEOPENMP
+/*#ifdef USEOPENMP
 #pragma omp for schedule(dynamic)
 #endif
-    for (i=0;i<numleafnodes;i++) {
+*/
+    for (auto i=0;i<numleafnodes;i++) {
         //if there are no active particles in leaf node, do nothing
-        if (leafnodenum[i] == 0) continue;
+        cout<<ThisTask<<" looking at node "<<leafnodes[i].id<<" with "<<leafnodes[i].num<<endl;
+        if (leafnodes[i].num == 0) continue;
 #ifdef USEMPI
         //check if search region from Particle extends into other mpi domain, if so, skip particles
 #ifdef SWIFTINTERFACE
-        if (MPISearchForOverlapUsingMesh(libvelociraptorOpt,leafnodeCM[i],leafnodemaxsearchrdist[i])!=0) continue;
+        if (MPISearchForOverlapUsingMesh(libvelociraptorOpt,leafnodes[i].cm,leafnodes[i].searchdist)!=0) continue;
 #else
-        if (MPISearchForOverlap(leafnodeCM[i],leafnodemaxsearchrdist[i])!=0) continue;
+        if (MPISearchForOverlap(leafnodes[i].cm,leafnodes[i].searchdist)!=0) continue;
 #endif
 #endif
         //find the near neighbours for all particles in the leaf node
 #ifdef STRUCDEN
-        if (Part[i].GetType()>0) {
         //if not searching all particles in FOF then also doing baryon search then just find nearest neighbours
-        if (!(opt.iBaryonSearch==1 && opt.partsearchtype==PSTALL)) tree->FindNearestPos(leafnodeCM[i],nnids,nnr2,opt.Nsearch);
+        if (!(opt.iBaryonSearch==1 && opt.partsearchtype==PSTALL)) tree->FindNearestPos(leafnodes[i].cm,nnids,nnr2,opt.Nsearch);
         //otherwise distinction must be made so that only base calculation on dark matter particles
-        else tree->FindNearestCriterion(leafnodeCM[i],FOFPositivetypes,NULL,nnids,nnr2,opt.Nsearch);
+        else tree->FindNearestCheck(leafnodes[i].cm,FOFcheckpositivetype,NULL,nnids,nnr2,opt.Nsearch);
 #else
-        tree->FindNearestPos(leafnodeCM[i],nnids,nnr2,opt.Nsearch);
+        tree->FindNearestPos(leafnodes[i].cm,nnids,nnr2,opt.Nsearch);
 #endif
-        for (j=leafnodes[i]->GetStart();leafnodes[i]->GetEnd();j++) {
+cout<<ThisTask<<" have searched node "<<leafnodes[i].istart<<endl;
+        for (auto j=leafnodes[i].istart;j<leafnodes[i].iend;j++)
+        {
 #ifdef STRUCDEN
-            if (Part[i].GetType()==0) continue;
+            if (Part[j].GetType()==0) continue;
 #endif
-            for (k=0;k<opt.Nvel;k++) {
+            for (auto k=0;k<opt.Nvel;k++) {
                 pqv->Push(-1, MAXVALUE);
                 weight[k]=1.0;
             }
-            for (k=0;k<opt.Nsearch;k++) {
+            for (auto k=0;k<opt.Nsearch;k++) {
                 v2=0;
                 id=nnids[k];
-                if (id == j)
-                for (auto n=0;n<3;n++) v2+=(Part[i].GetVelocity(n)-Part[id].GetVelocity(n))*(Part[i].GetVelocity(n)-Part[id].GetVelocity(n));
+                if (id == j) continue;
+                for (auto n=0;n<3;n++) v2+=(Part[j].GetVelocity(n)-Part[id].GetVelocity(n))*(Part[j].GetVelocity(n)-Part[id].GetVelocity(n));
                 if (v2 < pqv->TopPriority()){
                     pqv->Pop();
                     pqv->Push(id, v2);
@@ -641,35 +653,40 @@ private(i,j,k,tid,id,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,pqx,pqv
             }
             Part[j].SetDensity(tree->CalcSmoothLocalValue(opt.Nvel, pqv, weight));
         }
+        cout<<ThisTask<<" finished looking at node "<<leafnodes[i].istart<<endl;
     }
     delete[] nnids;
     delete[] nnr2;
     delete[] weight;
-    delete pqx;
     delete pqv;
-#ifdef USEOPENMP
+/*#ifdef USEOPENMP
 }
-#endif
+#endif*/
 
 #ifdef USEMPI
     if (opt.iverbose) cout<<ThisTask<<" finished local calculation in "<<MyGetTime()-time2<<endl;
     time2=MyGetTime();
+    maxrdist=new Double_t[nbodies];
+    for (auto &leafnode:leafnodes)
+    {
+        for (auto j=leafnode.istart;j<leafnode.iend;j++) maxrdist[j]=leafnode.searchdist;
+    }
 
     //determines export AND import numbers
 #ifdef SWIFTINTERFACE
-    MPIGetNNExportNumUsingMesh(libvelociraptorOpt, tree->GetNumLeafNodes(), leafnodeCM, leafnodemaxsearchrdist);
+    MPIGetNNExportNumUsingMesh(libvelociraptorOpt, nbodies, Part, maxrdist);
 #else
-    MPIGetNNExportNum(tree->GetNumLeafNodes(), leafnodeCM, leafnodemaxsearchrdist);
+    MPIGetNNExportNum(nbodies, Part, maxrdist);
 #endif
     NNDataIn = new nndata_in[NExport];
     NNDataGet = new nndata_in[NImport];
     //build the exported particle list using NNData structures
 #ifdef SWIFTINTERFACE
-    MPIBuildParticleNNExportListUsingMesh(libvelociraptorOpt, tree->GetNumLeafNodes(), leafnodeCM, leafnodemaxsearchrdist);
+    MPIBuildParticleNNExportListUsingMesh(libvelociraptorOpt, nbodies, Part, maxrdist);
 #else
-    MPIBuildParticleNNExportList(tree->GetNumLeafNodes(), leafnodeCM, leafnodemaxsearchrdist);
+    MPIBuildParticleNNExportList(nbodies, Part, maxrdist);
 #endif
-    MPIGetNNImportNum(tree->GetNumLeafNodes(), leafnodeCM, leafnodemaxsearchrdist);
+    MPIGetNNImportNum(nbodies, tree, Part);
     PartDataIn = new Particle[NExport];
     PartDataGet = new Particle[NImport];
     //run search on exported particles and determine which local particles need to be exported back (or imported)
@@ -681,66 +698,80 @@ private(i,j,k,tid,id,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,pqx,pqv
     //first build neighbouring tree
     KDTree *treeneighbours=NULL;
     if (nimport>0) treeneighbours=new KDTree(PartDataGet,nimport,1,tree->TPHYS,tree->KEPAN,100,0,0,0,period);
-
+    delete[] maxrdist;
+/*
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
 private(i,j,k,tid,id,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,pqx,pqv)
 {
 #endif
+*/
     nnids=new Int_t[opt.Nsearch];
     nnr2=new Double_t[opt.Nsearch];
     weight=new Double_t[opt.Nvel];
     pqx=new PriorityQueue(opt.Nsearch);
     pqv=new PriorityQueue(opt.Nvel);
+    /*
 #ifdef USEOPENMP
 #pragma omp for schedule(dynamic)
 #endif
-    for (i=0;i<tree->GetNumLeafNodes();i++) {
+*/
+    for (auto &leafnode:leafnodes) {
         //if there are no active particles in leaf node, do nothing
-        if (leafnodenum[i] == 0) continue;
+        if (leafnode.num == 0) continue;
         //only nodes that have search regions overlapping other domains are processed
 #ifdef SWIFTINTERFACE
-        if (MPISearchForOverlapUsingMesh(libvelociraptorOpt,leafnodeCM[i],leafnodemaxsearchrdist[i])==0) continue;
+        if (MPISearchForOverlapUsingMesh(libvelociraptorOpt,leafnode.cm,leafnode.searchdist)==0) continue;
 #else
-        if (MPISearchForOverlap(leafnodeCM[i],leafnodemaxsearchrdist[inode])==0) continue;
+        if (MPISearchForOverlap(leafnode.cm,leafnode.searchdist)==0) continue;
 #endif
         //find the near neighbours for all particles in the leaf node
 #ifdef STRUCDEN
-        if (Part[i].GetType()>0) {
         //if not searching all particles in FOF then also doing baryon search then just find nearest neighbours
-        if (!(opt.iBaryonSearch==1 && opt.partsearchtype==PSTALL)) tree->FindNearestPos(leafnodeCM[i],nnids,nnr2,opt.Nsearch);
+        if (!(opt.iBaryonSearch==1 && opt.partsearchtype==PSTALL)) tree->FindNearestPos(leafnode.cm,nnids,nnr2,opt.Nsearch);
         //otherwise distinction must be made so that only base calculation on dark matter particles
-        else tree->FindNearestCriterion(leafnodeCM[i],FOFPositivetypes,NULL,nnids,nnr2,opt.Nsearch);
-        }
+        else tree->FindNearestCheck(leafnode.cm,FOFcheckpositivetype,NULL,nnids,nnr2,opt.Nsearch);
 #else
-        tree->FindNearestPos(leafnodeCM[i],nnids,nnr2,opt.Nsearch);
+        tree->FindNearestPos(leafnode.cm,nnids,nnr2,opt.Nsearch);
 #endif
-        //extra stuff needed
-        treeneighbours->FindNearestPos(leafnodeCM[i],nnidsneighbours,nnr2neighbours,nimportsearch);
-        for (j=0;j<nimportsearch;j++) {
+        //fill priority queue with local particles
+        for (auto j = 0; j <opt.Nsearch; j++) pqx->Push(-1, MAXVALUE);
+        for (auto j=0;j<opt.Nsearch;j++) {
+            if (nnr2[j] < pqx->TopPriority()){
+                pqx->Pop();
+                pqx->Push(nnids[j], nnr2[j]);
+            }
+        }
+        //search neighbouring domain and update priority queue
+        treeneighbours->FindNearestPos(leafnode.cm,nnidsneighbours,nnr2neighbours,nimportsearch);
+        for (auto j=0;j<nimportsearch;j++) {
             if (nnr2neighbours[j] < pqx->TopPriority()){
                 pqx->Pop();
                 pqx->Push(nnidsneighbours[j]+nbodies, nnr2neighbours[j]);
             }
         }
 
-        for (j=leafnodes[i]->GetStart();leafnodes[i]->GetEnd();j++) {
+        for (auto j=leafnode.istart;j<leafnode.iend;j++)
+        {
 #ifdef STRUCDEN
-            if (Part[i].GetType()==0) continue;
+            if (Part[j].GetType()==0) continue;
 #endif
-            for (k=0;k<opt.Nvel;k++) {
-                pqv->Push(-1, MAXVALUE);
-                weight[k]=1.0;
-            }
-            for (k=0;k<opt.Nsearch;k++) {
+            for (auto k=0;k<opt.Nsearch;k++) {
                 v2=0;
-                id=nnids[k];
-                if (id == j)
-                for (auto n=0;n<3;n++) v2+=(Part[i].GetVelocity(n)-Part[id].GetVelocity(n))*(Part[i].GetVelocity(n)-Part[id].GetVelocity(n));
+                if (pqx->TopQueue()<nbodies) {
+                    pid2=pqx->TopQueue();
+                    if (pid2 == k) continue;
+                    for (auto n=0;n<3;n++) v2+=(Part[j].GetVelocity(n)-Part[pid2].GetVelocity(n))*(Part[j].GetVelocity(n)-Part[pid2].GetVelocity(n));
+                }
+                else {
+                    pid2=pqx->TopQueue()-nbodies;
+                    for (auto n=0;n<3;n++) v2+=(Part[j].GetVelocity(n)-PartDataGet[pid2].GetVelocity(n))*(Part[j].GetVelocity(n)-PartDataGet[pid2].GetVelocity(n));
+                }
                 if (v2 < pqv->TopPriority()){
                     pqv->Pop();
-                    pqv->Push(id, v2);
+                    pqv->Push(pqx->TopQueue(), v2);
                 }
+                pqx->Pop();
             }
             Part[j].SetDensity(tree->CalcSmoothLocalValue(opt.Nvel, pqv, weight));
         }
@@ -750,10 +781,11 @@ private(i,j,k,tid,id,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,pqx,pqv
     delete[] weight;
     delete pqx;
     delete pqv;
+    /*
 #ifdef USEOPENMP
 }
 #endif
-
+*/
     if (nimport>0) delete treeneighbours;
     delete[] PartDataIn;
     delete[] PartDataGet;

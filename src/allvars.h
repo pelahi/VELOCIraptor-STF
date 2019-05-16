@@ -3434,6 +3434,17 @@ struct DataGroupNames {
 };
 #endif
 
+///Useful structore to store information of leaf nodes in the tree
+struct leaf_node_info{
+    int num;
+    Int_t id, istart, iend;
+    Coordinate cm;
+    Double_t size;
+#ifdef USEMPI
+    Double_t searchdist;
+#endif
+};
+
 ///if using MPI API
 #ifdef USEMPI
 #include <mpi.h>
