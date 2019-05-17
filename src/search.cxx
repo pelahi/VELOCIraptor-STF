@@ -230,6 +230,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     for (i=0;i<nbodies;i++) if (Part[i].GetType()>0) numinstrucs++;
     if (opt.iverbose) cout<<"Number of particles in large subhalo searchable structures "<<numinstrucs<<endl;
     if (numinstrucs>0) GetVelocityDensity(opt, nbodies, Part.data(), tree);
+
     for (i=0;i<nbodies;i++) Part[i].SetType(storetype[i]);
     delete[] storetype;
     if (opt.fofbgtype>FOF6D) delete[] numingroup;
@@ -2215,6 +2216,11 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
     delete[] pglist;
     delete[] numingroup;
     //now start searching while there are still sublevels to be searched
+
+    //???
+    for (Int_t i=0;i<nsubset;i++) {
+        if (pfof[Partsubset[i].GetID()] > 0) cout<<i<<" "<<Partsubset[i].GetID()<<" "<<Partsubset[i].GetPID()<<" "<<pfof[Partsubset[i].GetID()]<<" "<<Partsubset[i].GetDensity()<<endl;
+    }
 
     while (iflag) {
         if (opt.iverbose) cout<<ThisTask<<" There are "<<nsubsearch<<" substructures large enough to search for other substructures at sub level "<<sublevel<<endl;

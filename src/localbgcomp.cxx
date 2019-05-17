@@ -41,7 +41,7 @@ private(i)
 }
 #endif
 
-    //build grid tree so that one can find nearest cells for each particle 
+    //build grid tree so that one can find nearest cells for each particle
     //if using MPI since number of cells is far fewer than number of particles, simple gather collect all the data so that each processor has access to it
 #ifdef USEMPI
     if(opt.iSingleHalo) {
@@ -59,15 +59,15 @@ private(i)
     gvel=mpi_gvel;
     gveldisp=mpi_gveldisp;
     }
-#endif 
+#endif
     ptemp=new Particle[ngrid];
     for (i=0;i<ngrid;i++) ptemp[i]=Particle(1.0,grid[i].xm[0],grid[i].xm[1],grid[i].xm[2],0.0,0.0,0.0,i);
     tree=new KDTree(ptemp,ngrid,1,tree->TPHYS);
-    
+
 #ifndef USEOPENMP
     nthreads=1;
 #else
-#pragma omp parallel 
+#pragma omp parallel
     {
             if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
     }
@@ -86,6 +86,7 @@ private(i,w,wsum,sv,vsv,fbg,vp,maxdist,vmweighted,isvweighted,tid,tempdenv)
     for (i=0;i<nbodies;i++)
     {
         tempdenv=Part[i].GetDensity()/opt.Nsearch;
+        if (Part[i].GetDensity() == 0) printf("weird, particle with zero density %d %f \n",Part[i].GetPID(),Part[i].GetDensity());
 #ifdef USEOPENMP
         tid=omp_get_thread_num();
 #else
@@ -141,7 +142,7 @@ void DetermineDenVRatioDistribution(Options &opt,const Int_t nbodies, Particle *
     Double_t w;
     Int_t ir;
 #ifdef USEOPENMP
-#pragma omp parallel 
+#pragma omp parallel
     {
         if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
     }
@@ -167,7 +168,7 @@ void DetermineDenVRatioDistribution(Options &opt,const Int_t nbodies, Particle *
 #pragma omp parallel default(shared) \
 private(i,tid)
 {
-#pragma omp for 
+#pragma omp for
     for (i=1;i<nbodies;i++) {
         tid=omp_get_thread_num();
         if (rmina[tid]>Part[i].GetPotential())rmina[tid]=Part[i].GetPotential();
@@ -186,7 +187,7 @@ private(i,tid)
         if (rmax<Part[i].GetPotential())rmax=Part[i].GetPotential();
     }
     }
-#else 
+#else
     for (i=1;i<nbodies;i++) {
         if (rmin>Part[i].GetPotential())rmin=Part[i].GetPotential();
         if (rmax<Part[i].GetPotential())rmax=Part[i].GetPotential();
@@ -203,7 +204,7 @@ private(i,tid)
     mtot=0;
 #ifdef USEOPENMP
     if (nbodies>ompperiodnum) {
-#pragma omp parallel default(shared) 
+#pragma omp parallel default(shared)
 {
 #pragma omp for private(i,tid,w,ir) reduction(+:mtot)
     for (i=0;i<nbodies;i++) {
@@ -292,7 +293,7 @@ private(i,tid)
         if (opt.iverbose) printf("Using meanr=%e sdlow=%e sdhigh=%e\n",meanr,sdlow,sdhigh);
         return;
     }
-    //now rebin around most probable over sl in either direction to be used to estimate dispersion 
+    //now rebin around most probable over sl in either direction to be used to estimate dispersion
     //and gradually increase region till region encompases over 50% of the mass or particle numbers
     GMatrix W(nbins,nbins);
     rbin=new Double_t[nbins];
@@ -318,7 +319,7 @@ private(i,tid)
         //for (int j=0;j<nthreads;j++) for (i=0;i<nbins;i++) omp_rbin[j][i]=0;
         for (int j=0;j<nbins;j++) for (int k=0;k<nbins;k++) W(j,k)=0.;
 /*#ifdef USEOPENMP
-#pragma omp parallel default(shared) 
+#pragma omp parallel default(shared)
 {
 #pragma omp for private(i) reduction(+ : mtotpeak)
 #endif
@@ -419,7 +420,7 @@ private(i,tid)
     difffuncs[3].function=DiffSkewGaussSkew;
     params[0]=maxprob;
     params[1]=meanr;
-    params[2]=sdhigh*sdhigh*0.8;//assume conservative dispersion 
+    params[2]=sdhigh*sdhigh*0.8;//assume conservative dispersion
     params[3]=1.0;
 
     itemp=0;
@@ -463,7 +464,7 @@ private(i,tid)
     delete[] omp_rbin;
 }
 
-/*! Calculates the normalized deviations from the mean of the dominated population. 
+/*! Calculates the normalized deviations from the mean of the dominated population.
     \todo note that before had FOFSTPROB set density to probability, but here set to ell, the normalized logaritmic "distance" from predicted maxwellian velocity density)
     but could add routine that transforms these values to probablity if necessary.
 

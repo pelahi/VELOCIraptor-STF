@@ -493,13 +493,13 @@ int MPISearchForOverlap(Double_t xsearch[3][2]){
 int MPISearchForOverlapUsingMesh(Options &opt, Particle &Part, Double_t &rdist){
     Double_t xsearch[3][2];
     for (auto k=0;k<3;k++) {xsearch[k][0]=Part.GetPosition(k)-rdist;xsearch[k][1]=Part.GetPosition(k)+rdist;}
-    return MPISearchForOverlapUsingMesh(Options &opt, Double_t xsearch[3][2])
+    return MPISearchForOverlapUsingMesh(opt, xsearch[3][2])
 }
 
 int MPISearchForOverlapUsingMesh(Options &opt, Coordinate &x, Double_t &rdist){
     Double_t xsearch[3][2];
     for (auto k=0;k<3;k++) {xsearch[k][0]=x[k]-rdist;xsearch[k][1]=x[k]+rdist;}
-    return MPISearchForOverlapUsingMesh(Options &opt, Double_t xsearch[3][2])
+    return MPISearchForOverlapUsingMesh(opt, xsearch[3][2])
 }
 
 int MPISearchForOverlapUsingMesh(Options &opt, Double_t xsearch[3][2]){
@@ -1229,9 +1229,9 @@ void MPIGetNNExportNum(const Int_t nbodies, Particle *Part, Double_t *rdist){
     for (i=0;i<nbodies;i++)
     {
 #ifdef STRUCDEN
-    if (Part[i].GetType()>0)
-    {
+        if (Part[i].GetType()==0) continue;
 #endif
+        if (rdist[i] == 0) continue;
         for (int k=0;k<3;k++) {xsearch[k][0]=Part[i].GetPosition(k)-rdist[i];xsearch[k][1]=Part[i].GetPosition(k)+rdist[i];}
         for (j=0;j<NProcs;j++) {
             if (j!=ThisTask) {
@@ -1243,9 +1243,6 @@ void MPIGetNNExportNum(const Int_t nbodies, Particle *Part, Double_t *rdist){
                 }
             }
         }
-#ifdef STRUCDEN
-    }
-#endif
     }
     //and then gather the number of particles to be sent from mpi thread m to mpi thread n in the mpi_nsend[NProcs*NProcs] array via [n+m*NProcs]
     MPI_Allgather(nsend_local, NProcs, MPI_Int_t, mpi_nsend, NProcs, MPI_Int_t, MPI_COMM_WORLD);
@@ -1277,6 +1274,7 @@ void MPIGetNNExportNumUsingMesh(Options &opt, const Int_t nbodies, Particle *Par
 #ifdef STRUCDEN
         if (Part[i].GetType() == 0) continue;
 #endif
+        if (rdist[i] == 0) continue;
         for(int k=0; k<NProcs; k++) sent_mpi_domain[k] = 0;
         for (int k=0;k<3;k++) {xsearch[k][0]=Part[i].GetPosition(k)-rdist[i];xsearch[k][1]=Part[i].GetPosition(k)+rdist[i];}
         vector<int> celllist=MPIGetCellListInSearchUsingMesh(opt,xsearch);
@@ -1375,6 +1373,7 @@ void MPIBuildParticleNNExportList(const Int_t nbodies, Particle *Part, Double_t 
 #ifdef STRUCDEN
         if (Part[i].GetType()==0) continue;
 #endif
+        if (rdist[i] == 0) continue;
         for (int k=0;k<3;k++) {xsearch[k][0]=Part[i].GetPosition(k)-rdist[i];xsearch[k][1]=Part[i].GetPosition(k)+rdist[i];}
         for (j=0;j<NProcs;j++) {
             if (j!=ThisTask) {
@@ -1397,7 +1396,12 @@ void MPIBuildParticleNNExportList(const Int_t nbodies, Particle *Part, Double_t 
         }
     }
     //sort the export data such that all particles to be passed to thread j are together in ascending thread number
-    if (nexport>0) qsort(NNDataIn, nexport, sizeof(struct nndata_in), nn_export_cmp);
+    //if (nexport>0) qsort(NNDataIn, nexport, sizeof(struct nndata_in), nn_export_cmp);
+    if (nexport>0) {
+	       std::sort(NNDataIn, NNDataIn + nexport, [](const nndata_in &a, const nndata_in &b) {
+            return a.ToTask < b.ToTask;
+        });
+     }
 
     //then store the offset in the export particle data for the jth Task in order to send data.
     for(j = 1, noffset[0] = 0; j < NProcs; j++) noffset[j]=noffset[j-1] + nsend_local[j-1];
@@ -1452,7 +1456,6 @@ void MPIBuildParticleNNExportList(const Int_t nbodies, Particle *Part, Double_t 
         }
     }
     }
-    MPI_Barrier(MPI_COMM_WORLD);
 }
 /*! like \ref MPIBuildParticleExportList but each particle has a different distance stored in rdist used to find nearest neighbours
 */
@@ -1477,6 +1480,7 @@ void MPIBuildParticleNNExportListUsingMesh(Options &opt, const Int_t nbodies, Pa
 #ifdef STRUCDEN
         if (Part[i].GetType()==0) continue;
 #endif
+        if (rdist[i] == 0) continue;
         for (int k=0;k<3;k++) {xsearch[k][0]=Part[i].GetPosition(k)-rdist[i];xsearch[k][1]=Part[i].GetPosition(k)+rdist[i];}
 
         /// Store whether an MPI domain has already been sent to
@@ -1508,7 +1512,12 @@ void MPIBuildParticleNNExportListUsingMesh(Options &opt, const Int_t nbodies, Pa
         }
     }
     //sort the export data such that all particles to be passed to thread j are together in ascending thread number
-    if (nexport>0) qsort(NNDataIn, nexport, sizeof(struct nndata_in), nn_export_cmp);
+    //if (nexport>0) qsort(NNDataIn, nexport, sizeof(struct nndata_in), nn_export_cmp);
+    if (nexport>0) {
+	       std::sort(NNDataIn, NNDataIn + nexport, [](const nndata_in &a, const nndata_in &b) {
+            return a.ToTask < b.ToTask;
+        });
+     }
 
     //then store the offset in the export particle data for the jth Task in order to send data.
     for(j = 1, noffset[0] = 0; j < NProcs; j++) noffset[j]=noffset[j-1] + nsend_local[j-1];
@@ -1570,7 +1579,6 @@ void MPIGetNNImportNum(const Int_t nbodies, KDTree *tree, Particle *Part){
         nbuffer[j]=0;
         for (int k=0;k<j;k++)nbuffer[j]+=mpi_nsend[ThisTask+k*NProcs];//offset on "receiver" end
     }
-
     for (j=0;j<NProcs;j++) nsend_local[j]=0;
     for (j=0;j<NProcs;j++) {
         for (i=0;i<nbodies;i++) nn[i]=-1;
@@ -1625,7 +1633,6 @@ Int_t MPIBuildParticleNNImportList(const Int_t nbodies, KDTree *tree, Particle *
         nbuffer[j]=0;
         for (int k=0;k<j;k++)nbuffer[j]+=mpi_nsend[ThisTask+k*NProcs];//offset on "receiver" end
     }
-
     for (j=0;j<NProcs;j++) nsend_local[j]=0;
     for (j=0;j<NProcs;j++) {
 #ifdef USEOPENMP

@@ -650,7 +650,7 @@ struct Options
 
         fname=outname=smname=pname=gname=outname=NULL;
 
-        Bsize=16;
+        Bsize=32;
         Nvel=32;
         Nsearch=256;
         Ncellfac=0.01;
@@ -3436,7 +3436,7 @@ struct DataGroupNames {
 
 ///Useful structore to store information of leaf nodes in the tree
 struct leaf_node_info{
-    int num;
+    int num, numtot;
     Int_t id, istart, iend;
     Coordinate cm;
     Double_t size;
