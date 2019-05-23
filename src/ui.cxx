@@ -403,6 +403,8 @@ void GetParamFile(Options &opt)
                         opt.iPhaseCoreGrowth = atof(vbuff);
 
                     //bg and fof parameters
+                    else if (strcmp(tbuff, "Local_velocity_density_approximate_calculation")==0)
+                        opt.iLocalVelDenApproxCalcFlag = atoi(vbuff);
                     else if (strcmp(tbuff, "Cell_fraction")==0)
                         opt.Ncellfac = atof(vbuff);
                     else if (strcmp(tbuff, "Grid_type")==0)

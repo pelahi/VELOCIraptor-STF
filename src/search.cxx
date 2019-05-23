@@ -2218,9 +2218,9 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
     //now start searching while there are still sublevels to be searched
 
     //???
-    for (Int_t i=0;i<nsubset;i++) {
-        if (pfof[Partsubset[i].GetID()] > 0) cout<<i<<" "<<Partsubset[i].GetID()<<" "<<Partsubset[i].GetPID()<<" "<<pfof[Partsubset[i].GetID()]<<" "<<Partsubset[i].GetDensity()<<endl;
-    }
+    //for (Int_t i=0;i<nsubset;i++) {
+    //    if (pfof[Partsubset[i].GetID()] > 0) cout<<i<<" "<<Partsubset[i].GetID()<<" "<<Partsubset[i].GetPID()<<" "<<pfof[Partsubset[i].GetID()]<<" "<<Partsubset[i].GetDensity()<<endl;
+    //}
 
     while (iflag) {
         if (opt.iverbose) cout<<ThisTask<<" There are "<<nsubsearch<<" substructures large enough to search for other substructures at sub level "<<sublevel<<endl;
