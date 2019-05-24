@@ -796,7 +796,7 @@ void GetVelocityDensityApproximative(Options &opt, const Int_t nbodies, Particle
         leafnodes[i].num=0;
         leafnodes[i].cm[0]=leafnodes[i].cm[1]=leafnodes[i].cm[2]=0;
 #ifdef USEMPI
-            leafnodes[i].searchdist = 0;
+        leafnodes[i].searchdist = 0;
 #endif
         for (auto j=leafnodes[i].istart;j<leafnodes[i].iend;j++)
         {
@@ -815,7 +815,9 @@ void GetVelocityDensityApproximative(Options &opt, const Int_t nbodies, Particle
             if (r2>leafnodes[i].size) leafnodes[i].size=r2;
         }
         leafnodes[i].size=sqrt(leafnodes[i].size);
+#ifdef USEMPI
         leafnodes[i].searchdist=leafnodes[i].size*pow(opt.Nsearch/(float)leafnodes[i].numtot,1.0/3.0)*1.2;
+#endif
     }
 #ifdef USEOPENMP
 }
