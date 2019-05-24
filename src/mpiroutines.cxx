@@ -493,13 +493,13 @@ int MPISearchForOverlap(Double_t xsearch[3][2]){
 int MPISearchForOverlapUsingMesh(Options &opt, Particle &Part, Double_t &rdist){
     Double_t xsearch[3][2];
     for (auto k=0;k<3;k++) {xsearch[k][0]=Part.GetPosition(k)-rdist;xsearch[k][1]=Part.GetPosition(k)+rdist;}
-    return MPISearchForOverlapUsingMesh(opt, xsearch[3][2])
+    return MPISearchForOverlapUsingMesh(opt, xsearch);
 }
 
 int MPISearchForOverlapUsingMesh(Options &opt, Coordinate &x, Double_t &rdist){
     Double_t xsearch[3][2];
     for (auto k=0;k<3;k++) {xsearch[k][0]=x[k]-rdist;xsearch[k][1]=x[k]+rdist;}
-    return MPISearchForOverlapUsingMesh(opt, xsearch[3][2])
+    return MPISearchForOverlapUsingMesh(opt, xsearch);
 }
 
 int MPISearchForOverlapUsingMesh(Options &opt, Double_t xsearch[3][2]){
@@ -1300,6 +1300,7 @@ void MPIGetNNExportNumUsingMesh(Options &opt, const Int_t nbodies, Particle *Par
     NExport=nexport;
 }
 
+/*
 void MPIGetNNExportNumUsingMesh(Options &opt, const Int_t numleafnodes, vector<leaf_node_info> &leafnodes, KDTree *&tree){
     Int_t i, j,nthreads,nexport=0,nimport=0;
     Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
@@ -1346,6 +1347,7 @@ void MPIGetNNExportNumUsingMesh(Options &opt, const Int_t numleafnodes, vector<l
     for (j=0;j<NProcs;j++)NImport+=mpi_nsend[ThisTask+j*NProcs];
     NExport=nexport;
 }
+*/
 #endif
 
 /*! like \ref MPIBuildParticleExportList but each particle has a different distance stored in rdist used to find nearest neighbours
