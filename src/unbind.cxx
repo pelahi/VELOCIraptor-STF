@@ -45,6 +45,128 @@ inline void MarkCell(Node *np, Int_t *marktreecell, Int_t *markleafcell, Int_t &
 
 //@}
 
+//@{
+inline bool CheckGroupForBoundness(Options &opt, Double_t &Efrac, Double_t &maxE, Int_t ning) {
+    bool unbindcheck;
+    if (opt.uinfo.unbindtype==USYSANDPART) {
+        if(((Efrac<opt.uinfo.minEfrac)||(maxE>0))&&(ning>=opt.MinSize)) unbindcheck=true;
+        else unbindcheck=false;
+    }
+    else if (opt.uinfo.unbindtype==UPART) {
+        if ((maxE>0)&&(ning>=opt.MinSize))unbindcheck=true;
+        else unbindcheck=false;
+    }
+    return unbindcheck;
+}
+
+inline Int_t FillUnboundArrays(Options &opt, PriorityQueue *&pq, int pqsize,
+    Int_t ning, Particle *&groupPart, const Double_t &Efrac,
+    Int_t *&nEplusid, int *&Eplusflag
+)
+{
+    Int_t  nEplus, nEfrac;
+    if (pqsize > 2) {
+        for (auto j=0;j<ning;j++)Eplusflag[j]=0;
+        pq=new PriorityQueue(pqsize);
+        for (auto j=0;j<pqsize;j++) pq->Push(j,groupPart[j].GetDensity());
+        for (auto j=pqsize;j<ning;j++) {
+            if (groupPart[j].GetDensity()>groupPart[pq->TopQueue()].GetDensity())
+            {
+                pq->Pop();
+                pq->Push(j,groupPart[j].GetDensity());
+            }
+        }
+        nEplus=0;
+        //if just looking at particle then add to removal list till energy >0
+        if (opt.uinfo.unbindtype==UPART) {
+            for (auto j=0;j<pqsize;j++) {
+                if (groupPart[pq->TopQueue()].GetDensity()>0) {
+                    nEplusid[nEplus++]=pq->TopQueue();
+                    Eplusflag[pq->TopQueue()]=1;
+                    pq->Pop();
+                }
+                else break;
+            }
+        }
+        //otherwise, remove all positive energies and also if Efrac< minEfrac, keep adding to removal list
+        else if (opt.uinfo.unbindtype==USYSANDPART) {
+            nEfrac=0;
+            if (Efrac<opt.uinfo.minEfrac) nEfrac=(opt.uinfo.minEfrac-Efrac)*ning;
+            for (auto j=0;j<pqsize;j++) {
+                if (groupPart[pq->TopQueue()].GetDensity()>0 || nEplus<nEfrac)
+                {
+                    nEplusid[nEplus++]=pq->TopQueue();
+                    Eplusflag[pq->TopQueue()]=1;
+                    pq->Pop();
+                }
+                else break;
+            }
+        }
+        delete pq;
+    }
+    else {
+        nEplus = 1;
+        nEplusid[0]=0;
+        Eplusflag[0]=0;
+        for (auto j=1;j<ning;j++) {
+            Eplusflag[j]=0;
+            if (groupPart[j].GetDensity()>groupPart[nEplusid[0]].GetDensity()) nEplusid[0] = j;
+        }
+        Eplusflag[nEplusid[0]] = 1;
+    }
+    return nEplus;
+}
+
+///remove particles with positive energy
+inline void RemoveUnboundParticles(Int_t *&pfof, Int_t &ning, Int_t *&pglist, Particle *&groupPart,
+            Int_t &nEplus, Int_t *&nEplusid, int *&Eplusflag)
+{
+    for (auto j=0;j<nEplus;j++) pfof[pglist[nEplusid[j]]]=0;
+    Int_t k=ning-1;
+    for (auto j=0;j<nEplus;j++) if (nEplusid[j]<ning-nEplus) {
+        while(Eplusflag[k]==1)k--;
+        pglist[nEplusid[j]]=pglist[k];
+        groupPart[nEplusid[j]]=groupPart[k];
+        Eplusflag[nEplusid[j]]=0;
+        k--;
+    }
+    ning-=nEplus;
+}
+
+///correct cm for removal of all least bound particles
+inline void UpdateCMForUnboundParticles(Options &opt,
+    Double_t &mass, Coordinate &cmvel,
+    Int_t &nig, Particle *&groupPart,
+    Int_t &nEplus, Int_t *&nEplusid, int *&Eplusflag)
+{
+    double temp=1.0/mass, temp2=0.;
+    if (opt.uinfo.fracpotref == 1.0) {
+        for (auto j=0;j<nEplus;j++) {
+            for (auto k=0;k<3;k++)
+                cmvel[k]-=groupPart[nEplusid[j]].GetVelocity(k)*groupPart[nEplusid[j]].GetMass()*temp;
+            temp2+=groupPart[nEplusid[j]].GetMass();
+        }
+        temp=mass/(mass-temp2);
+        cmvel*=temp;
+        mass-=temp2;
+    }
+    else {
+        for (auto j=0;j<nEplus;j++) mass-=groupPart[nEplusid[j]].GetMass();
+    }
+}
+
+inline void RemoveGroup(Options &opt, Int_t &ning, Int_t *&pfof, Int_t *&pglist, int &iunbindflag)
+{
+    //if group too small remove entirely
+    if (ning<opt.MinSize) {
+        for (auto j=0;j<ning;j++) pfof[pglist[j]]=0;
+        ning=0;
+        iunbindflag++;
+    }
+}
+
+//@}
+
 ///\name Remove unbound particles from a candidate group
 //@{
 /*!
@@ -82,6 +204,7 @@ int CheckUnboundGroups(Options opt, const Int_t nbodies, Particle *Part, Int_t &
     for (Int_t i=2;i<=ngroup;i++) noffset[i]=noffset[i-1]+numingroup[i-1];
 #else
     Particle **gPart=BuildPartList(ngroup, numingroup, pglist, Part);
+    for (Int_t i=1;i<=ngroup;i++) for (Int_t j=0;j<numingroup[i];j++) gPart[i][j].SetID(j);
 #endif
 
 #ifdef SAVEMEM
@@ -173,6 +296,7 @@ int Unbind(Options &opt, Particle **gPart, Int_t &numgroups, Int_t *numingroup, 
     int iunbindsizeflag;
     int maxnthreads,nthreads=1,l,n;
     Int_t i,j,k,ng=numgroups;
+    int unbindloops;
     Double_t maxE,totT,v2,r2,poti,Ti,eps2=opt.uinfo.eps*opt.uinfo.eps,mv2=opt.MassValue*opt.MassValue,Efrac;
     Double_t *gmass,*totV;
     PriorityQueue *pq;
@@ -262,7 +386,6 @@ private(i,j,k,n,r2,poti)
 #ifdef USEOPENMP
 }
 #endif
-
     //reset number of threads to maximum number
 #ifdef USEOPENMP
 #pragma omp master
@@ -271,124 +394,10 @@ private(i,j,k,n,r2,poti)
     }
     nthreads=maxnthreads;
 #endif
-
-    //now begin large group calculation
-    marktreecell=new Int_t*[nthreads];
-    markleafcell=new Int_t*[nthreads];
-    r2val=new Double_t*[nthreads];
-    npomp=new Node*[nthreads];
-    //otherwise use tree tree gravity calculation
-    //here openmp is per group since each group is large
     for (i=1;i<=numgroups;i++)
     {
         if (numingroup[i]>UNBINDNUM) {
-            //to make this memory efficient really need just KDTree that uses Coordinates
-            tree=new KDTree(gPart[i],numingroup[i],opt.uinfo.BucketSize,tree->TPHYS);
-
-            ncell=tree->GetNumNodes();
-            root=tree->GetRoot();
-            //to store particles in a given node
-            start=new Int_t[ncell];
-            end=new Int_t[ncell];
-            //distance calculations used to determine when one uses cell or when one uses particles
-            cmtot=new Double_t[ncell];
-            cBmax=new Double_t[ncell];
-            cR2max=new Double_t[ncell];
-            cellcm=new Coordinate[ncell];
-            //to store note list
-            nodelist=new Node*[ncell];
-
-            //search tree
-            for (j=0;j<nthreads;j++) {marktreecell[j]=new Int_t[ncell];markleafcell[j]=new Int_t[ncell];}
-            for (j=0;j<nthreads;j++) {r2val[j]=new Double_t[ncell];}
-            //from root node calculate cm for each node
-            //start at root node and recursively move through list
-            ncell=0;
-            GetNodeList(root,ncell,nodelist,opt.uinfo.BucketSize);
-            ncell++;
-
-            //determine cm for all cells and openings
-#ifdef USEOPENMP
-#pragma omp parallel default(shared)  \
-private(j,k,n)
-{
-    #pragma omp for schedule(dynamic,1) nowait
-#endif
-            for (j=0;j<ncell;j++) {
-                start[j]=(nodelist[j])->GetStart();
-                end[j]=(nodelist[j])->GetEnd();
-                cellcm[j][0]=cellcm[j][1]=cellcm[j][2]=0.;
-                cmtot[j]=0;
-                for (k=start[j];k<end[j];k++) {
-                    for (n=0;n<3;n++) cellcm[j][n]+=gPart[i][k].GetPosition(n)*gPart[i][k].GetMass();
-                    cmtot[j]+=gPart[i][k].GetMass();
-                }
-                for (n=0;n<3;n++) cellcm[j][n]/=cmtot[j];
-                Double_t xdiff,xdiff1;
-                xdiff=(cellcm[j]-Coordinate(gPart[i][start[j]].GetPosition())).Length();
-                for (k=start[j]+1;k<end[j];k++) {
-                    xdiff1=(cellcm[j]-Coordinate(gPart[i][k].GetPosition())).Length();
-                    if (xdiff<xdiff1) xdiff=xdiff1;
-                }
-                cBmax[j]=xdiff;
-                cR2max[j]=4.0/3.0*xdiff*xdiff/(opt.uinfo.TreeThetaOpen*opt.uinfo.TreeThetaOpen);
-            }
-#ifdef USEOPENMP
-}
-#endif
-            //then for each cell find all other cells that contain particles within a cells gRmax and mark those
-            //and mark all cells for which one does not have to unfold
-            //for marked cells calculate pp, for every other cell just use the CM of the cell to calculate the potential.
-#ifdef USEOPENMP
-#pragma omp parallel default(shared)  \
-private(j,k,l,n,ntreecell,nleafcell,r2,poti)
-{
-    #pragma omp for schedule(dynamic,1) nowait
-#endif
-            for (j=0;j<numingroup[i];j++) {
-                int tid;
-#ifdef USEOPENMP
-                tid=omp_get_thread_num();
-#else
-                tid=0;
-#endif
-                npomp[tid]=tree->GetRoot();
-                Coordinate xpos(gPart[i][j].GetPosition());
-                nleafcell=ntreecell=0;
-                MarkCell(npomp[tid],marktreecell[tid], markleafcell[tid],ntreecell,nleafcell,r2val[tid],opt.uinfo.BucketSize, cR2max, cellcm, cmtot, xpos, eps2);
-                poti=0;
-                for (k=0;k<ntreecell;k++) {
-                    poti+=-gPart[i][j].GetMass()*r2val[tid][k];
-                }
-                for (k=0;k<nleafcell;k++) {
-                    for (l=start[markleafcell[tid][k]];l<end[markleafcell[tid][k]];l++) {
-                        if (j!=l) {
-                            r2=0.;for (n=0;n<3;n++) r2+=pow(gPart[i][j].GetPosition(n)-gPart[i][l].GetPosition(n),(Double_t)2.0);
-                            r2+=eps2;
-                            r2=1.0/sqrt(r2);
-                            poti+=-(gPart[i][j].GetMass()*gPart[i][l].GetMass())*r2;
-                        }
-                    }
-                }
-                poti*=opt.G;
-#ifdef NOMASS
-                poti*=mv2;
-#endif
-                gPart[i][j].SetPotential(poti);
-            }
-#ifdef USEOPENMP
-}
-#endif
-            for (j=0;j<numingroup[i];j++) totV[i]+=0.5*gPart[i][j].GetPotential();
-            delete tree;
-            delete[] start;
-            delete[] end;
-            delete[] cmtot;
-            delete[] cBmax;
-            delete[] cR2max;
-            delete[] cellcm;
-            delete[] nodelist;
-            for (j=0;j<nthreads;j++) {delete[] marktreecell[j];delete[] markleafcell[j];delete[] r2val[j];}
+            Potential(opt, numingroup[i], gPart[i]);
         }
     }
 
@@ -396,7 +405,27 @@ private(j,k,l,n,ntreecell,nleafcell,r2,poti)
 
     //Now set the kinetic reference frame
     //if using standard frame, then using CMVEL of the entire structure
-    if (opt.uinfo.cmvelreftype==CMVELREF) {
+    if (opt.uinfo.fracpotref==1.0) {
+#ifdef USEOPENMP
+#pragma omp parallel default(shared)  \
+private(i,j,k)
+{
+    #pragma omp for schedule(dynamic,1) nowait
+#endif
+        for (i=1;i<=numgroups;i++)
+        {
+            for (k=0;k<3;k++) cmvel[i][k]=0;
+            for (j=0;j<numingroup[i];j++) {
+                gmass[i]+=gPart[i][j].GetMass();
+                for (k=0;k<3;k++) cmvel[i][k]+=gPart[i][j].GetVelocity(k)*gPart[i][j].GetMass();
+            }
+            cmvel[i] *= 1.0/gmass[i];
+        }
+#ifdef USEOPENMP
+}
+#endif
+    }
+    else if (opt.uinfo.cmvelreftype==CMVELREF) {
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
 private(i,j,k,npot,menc,potpos,storeval)
@@ -408,12 +437,9 @@ private(i,j,k,npot,menc,potpos,storeval)
         for (k=0;k<3;k++) potpos[k]=cmvel[i][k]=0;
         for (j=0;j<numingroup[i];j++) {
             gmass[i]+=gPart[i][j].GetMass();
-            for (k=0;k<3;k++)
-                potpos[k]+=gPart[i][j].GetPosition(k)*gPart[i][j].GetMass();
-                //cmvel[i][k]+=gPart[i][j].GetVelocity(k)*gPart[i][j].GetMass();
+            for (k=0;k<3;k++) potpos[k]+=gPart[i][j].GetPosition(k)*gPart[i][j].GetMass();
         }
-        for (k=0;k<3;k++)potpos[k]*=(1.0/gmass[i]);
-        //for (k=0;k<3;k++)cmvel[i][k]*=(1.0/gmass[i]);
+        potpos*=(1.0/gmass[i]);
         //now sort by radius, first store original position in array
         storeval=new Int_t[numingroup[i]];
         for (j=0;j<numingroup[i];j++) {
@@ -522,49 +548,26 @@ private(j,k,v2,Ti,unbindcheck)
         Efrac/=(Double_t)numingroup[i];
         //determine if any particle  number of particle with positive energy upto opt.uinfo.maxunbindfrac*numingroup+1
         nEplus=0;
-        pqsize=(Int_t)(opt.uinfo.maxunbindfrac*numingroup[i]+2);
+        pqsize=(Int_t)(opt.uinfo.maxunbindfrac*numingroup[i]+1);
         nEplusid=new Int_t[pqsize];
         Eplusflag=new int[numingroup[i]];
         maxE=gPart[i][0].GetDensity();
-        for (j=1;j<numingroup[i];j++) if(maxE<gPart[i][j].GetDensity()) maxE=gPart[i][j].GetDensity();
+        for (j=1;j<numingroup[i];j++) {
+            if(maxE<gPart[i][j].GetDensity()) maxE=gPart[i][j].GetDensity();
+        }
+        unbindloops=0;
         //check if bound;
-        if (opt.uinfo.unbindtype==USYSANDPART) {
-            if(((Efrac<opt.uinfo.minEfrac)||(maxE>0))&&(numingroup[i]>=opt.MinSize)) unbindcheck=true;
-            else unbindcheck=false;
-        }
-        else if (opt.uinfo.unbindtype==UPART) {
-            if ((maxE>0)&&(numingroup[i]>=opt.MinSize))unbindcheck=true;
-            else unbindcheck=false;
-        }
-        //if need to unbind load largest energies so as to remove at most pqsize particles (roughly 1%) per removal loop
+        unbindcheck = CheckGroupForBoundness(opt,Efrac,maxE,numingroup[i]);
         if (unbindcheck) {
-            for (j=0;j<numingroup[i];j++)Eplusflag[j]=0;
-            pq=new PriorityQueue(pqsize);
-            for (j=0;j<pqsize;j++) pq->Push(j,gPart[i][j].GetDensity());
-            for (j=pqsize;j<numingroup[i];j++) if (gPart[i][j].GetDensity()>gPart[i][pq->TopQueue()].GetDensity()) {pq->Pop();pq->Push(j,gPart[i][j].GetDensity());}
-            nEplus=0;
-            //if just looking at particle then add to removal list till energy >0
-            if (opt.uinfo.unbindtype==UPART) {
-                for (j=0;j<pqsize;j++) {
-                    if (gPart[i][pq->TopQueue()].GetDensity()>0) {nEplusid[nEplus++]=pq->TopQueue();Eplusflag[pq->TopQueue()]=1;pq->Pop();}
-                    else break;
-                }
-            }
-            //otherwise, remove all positive energies and also if Efrac< minEfrac, keep adding to removal list
-            else if (opt.uinfo.unbindtype==USYSANDPART) {
-                nEfrac=0;
-                if (Efrac<opt.uinfo.minEfrac) nEfrac=(opt.uinfo.minEfrac-Efrac)*numingroup[i];
-                for (j=0;j<pqsize;j++) {
-                    if (gPart[i][pq->TopQueue()].GetDensity()>0 || nEplus<nEfrac) {nEplusid[nEplus++]=pq->TopQueue();Eplusflag[pq->TopQueue()]=1;pq->Pop();}
-                    else break;
-                }
-            }
-            delete pq;
+            nEplus = FillUnboundArrays(opt, pq, pqsize, numingroup[i], gPart[i], Efrac, nEplusid, Eplusflag);
         }
 
+//???
+cout<<ThisTask<<" unbinding "<<i<<" "<<numingroup[i]<<" "<<(int)unbindcheck<<" "<<pqsize<<" "<<nEplus<<" "<<Efrac<<" "<<nEplusid[0]<<endl;
         while(unbindcheck)
         {
             iunbindflag+=1;
+            unbindloops++;
             //first correct for removal of all least bound particle
             double temp=1.0/gmass[i], temp2=0.;
             if (opt.uinfo.cmvelreftype==CMVELREF) {
@@ -618,17 +621,7 @@ private(j,r2,poti)
             else {
                 if (opt.uinfo.bgpot==0) for (k=0;k<nEplus;k++) totV[i]-=0.5*gPart[i][nEplusid[k]].GetPotential();
             }
-            //remove particles with positive energy
-            for (j=0;j<nEplus;j++) pfof[pglist[i][nEplusid[j]]]=0;
-            k=numingroup[i]-1;
-            for (j=0;j<nEplus;j++) if (nEplusid[j]<numingroup[i]-nEplus) {
-                while(Eplusflag[k]==1)k--;
-                pglist[i][nEplusid[j]]=pglist[i][k];
-                gPart[i][nEplusid[j]]=gPart[i][k];
-                Eplusflag[nEplusid[j]]=0;
-                k--;
-            }
-            numingroup[i]-=nEplus;
+            RemoveUnboundParticles(pfof, numingroup[i], pglist[i], gPart[i], nEplus, nEplusid, Eplusflag);
             if (iunbindsizeflag && opt.uinfo.bgpot==0) Potential(opt, numingroup[i], gPart[i]);
             //if number of particles remove with positive energy is near to the number allowed to be removed
             //must recalculate kinetic energies and check if maxE>0
@@ -640,27 +633,27 @@ private(j,r2,poti)
             Efrac=0.;
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
-private(j,k,v2,Ti,unbindcheck)
+private(j,k,v2,Ti)
 {
     #pragma omp for reduction(+:totT,Efrac)
 #endif
-        for (j=0;j<numingroup[i];j++) {
-            v2=0.0;for (k=0;k<3;k++) v2+=pow(gPart[i][j].GetVelocity(k)-cmvel[i][k],2.0);
+            for (j=0;j<numingroup[i];j++) {
+                v2=0.0;for (k=0;k<3;k++) v2+=pow(gPart[i][j].GetVelocity(k)-cmvel[i][k],2.0);
 #ifdef NOMASS
-            Ti=0.5*gPart[i][j].GetMass()*v2*opt.MassValue;
+                Ti=0.5*gPart[i][j].GetMass()*v2*opt.MassValue;
 #ifdef GASON
-            Ti+=opt.MassValue*gPart[i][j].GetU();
+                Ti+=opt.MassValue*gPart[i][j].GetU();
 #endif
 #else
-            Ti=0.5*gPart[i][j].GetMass()*v2;
+                Ti=0.5*gPart[i][j].GetMass()*v2;
 #ifdef GASON
-            Ti+=gPart[i][j].GetMass()*gPart[i][j].GetU();
+                Ti+=gPart[i][j].GetMass()*gPart[i][j].GetU();
 #endif
 #endif
-            totT+=Ti;
-            gPart[i][j].SetDensity(opt.uinfo.Eratio*Ti+gPart[i][j].GetPotential());
-            Efrac+=(Ti+gPart[i][j].GetPotential()<0);
-        }
+                totT+=Ti;
+                gPart[i][j].SetDensity(opt.uinfo.Eratio*Ti+gPart[i][j].GetPotential());
+                Efrac+=(Ti+gPart[i][j].GetPotential()<0);
+            }
 #ifdef USEOPENMP
 }
 #endif
@@ -669,40 +662,14 @@ private(j,k,v2,Ti,unbindcheck)
             maxE=gPart[i][0].GetDensity();
             for (j=1;j<numingroup[i];j++) if(maxE<gPart[i][j].GetDensity()) maxE=gPart[i][j].GetDensity();
             pqsize=(Int_t)(opt.uinfo.maxunbindfrac*numingroup[i]+1);
-            if (opt.uinfo.unbindtype==USYSANDPART) {
-                if(((Efrac<opt.uinfo.minEfrac)||(maxE>0))&&(numingroup[i]>=opt.MinSize)) unbindcheck=true;
-                else unbindcheck=false;
-            }
-            else if (opt.uinfo.unbindtype==UPART) {
-                if ((maxE>0)&&(numingroup[i]>=opt.MinSize))unbindcheck=true;
-                else unbindcheck=false;
-            }
+            unbindcheck = CheckGroupForBoundness(opt,Efrac,maxE,numingroup[i]);
             if (unbindcheck) {
-                pq=new PriorityQueue(pqsize);
-                nEplus=0;
-                for (j=0;j<pqsize;j++) pq->Push(j,gPart[i][j].GetDensity());
-                for (j=pqsize;j<numingroup[i];j++) if (gPart[i][j].GetDensity()>gPart[i][pq->TopQueue()].GetDensity()) {pq->Pop();pq->Push(j,gPart[i][j].GetDensity());}
-                //if just looking at particle then add to removal list till energy >0
-                if (opt.uinfo.unbindtype==UPART) {
-                    for (j=0;j<pqsize;j++) {
-                        if (gPart[i][pq->TopQueue()].GetDensity()>0) {nEplusid[nEplus++]=pq->TopQueue();Eplusflag[pq->TopQueue()]=1;pq->Pop();}
-                        else break;
-                    }
-                }
-                //otherwise, remove all positive energies and also if Efrac< minEfrac, keep adding to removal list
-                else if (opt.uinfo.unbindtype==USYSANDPART) {
-                    nEfrac=0;
-                    if (Efrac<opt.uinfo.minEfrac) nEfrac=(opt.uinfo.minEfrac-Efrac)*numingroup[i];
-                    for (j=0;j<pqsize;j++) {
-                        if (gPart[i][pq->TopQueue()].GetDensity()>0 || nEplus<nEfrac) {nEplusid[nEplus++]=pq->TopQueue();Eplusflag[pq->TopQueue()]=1;pq->Pop();}
-                        else break;
-                    }
-                }
-                delete pq;
+                nEplus = FillUnboundArrays(opt, pq, pqsize, numingroup[i], gPart[i], Efrac, nEplusid, Eplusflag);
             }
+            }
+            else unbindcheck=false;
         }
-        else unbindcheck=false;
-        }
+cout<<ThisTask<<" after unbinding "<<i<<" "<<numingroup[i]<<" "<<(int)unbindcheck<<" | "<<unbindloops<<" "<<pqsize<<" "<<nEplus<<" "<<Efrac<<" "<<nEplusid[0]<<endl;
         //if group too small remove entirely
         if (numingroup[i]<opt.MinSize) {
             for (j=0;j<numingroup[i];j++) pfof[pglist[i][j]]=0;
@@ -717,7 +684,7 @@ private(j,k,v2,Ti,unbindcheck)
     //now for small groups loop over groups
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
-private(i,j,k,n,maxE,pq,pqsize,nEplus,nEplusid,Eplusflag,totT,v2,Ti,unbindcheck,Efrac,nEfrac,r2,poti)
+private(i,j,k,n,maxE,pq,pqsize,nEplus,nEplusid,Eplusflag,totT,v2,Ti,unbindcheck,Efrac,nEfrac,r2,poti,unbindloops)
 {
     #pragma omp for schedule(dynamic) nowait reduction(+:iunbindflag)
 #endif
@@ -727,6 +694,7 @@ private(i,j,k,n,maxE,pq,pqsize,nEplus,nEplusid,Eplusflag,totT,v2,Ti,unbindcheck,
         maxE=-MAXVALUE;
         nEplus=0;
         Efrac=0.;
+        unbindloops=0;
         for (j=0;j<numingroup[i];j++) {
             v2=0.0;for (k=0;k<3;k++) v2+=pow(gPart[i][j].GetVelocity(k)-cmvel[i][k],2.0);
 #ifdef NOMASS
@@ -750,41 +718,15 @@ private(i,j,k,n,maxE,pq,pqsize,nEplus,nEplusid,Eplusflag,totT,v2,Ti,unbindcheck,
         pqsize=(Int_t)(opt.uinfo.maxunbindfrac*numingroup[i]+2);
         Eplusflag=new int[numingroup[i]];
         nEplusid=new Int_t[pqsize];
-        if (opt.uinfo.unbindtype==USYSANDPART) {
-            if(((Efrac<opt.uinfo.minEfrac)||(maxE>0))&&(numingroup[i]>=opt.MinSize)) unbindcheck=true;
-            else unbindcheck=false;
-        }
-        else if (opt.uinfo.unbindtype==UPART) {
-            if ((maxE>0)&&(numingroup[i]>=opt.MinSize))unbindcheck=true;
-            else unbindcheck=false;
-        }
+        unbindcheck = CheckGroupForBoundness(opt,Efrac,maxE,numingroup[i]);
         if (unbindcheck) {
-            for (j=0;j<numingroup[i];j++)Eplusflag[j]=0;
-            pq=new PriorityQueue(pqsize);
-            for (j=0;j<pqsize;j++) pq->Push(j,gPart[i][j].GetDensity());
-            for (j=pqsize;j<numingroup[i];j++) if (gPart[i][j].GetDensity()>gPart[i][pq->TopQueue()].GetDensity()) {pq->Pop();pq->Push(j,gPart[i][j].GetDensity());}
-            nEplus=0;
-            //if just looking at particle then add to removal list till energy >0
-            if (opt.uinfo.unbindtype==UPART) {
-                for (j=0;j<pqsize;j++) {
-                    if (gPart[i][pq->TopQueue()].GetDensity()>0) {nEplusid[nEplus++]=pq->TopQueue();Eplusflag[pq->TopQueue()]=1;pq->Pop();}
-                    else break;
-                }
-            }
-            //otherwise, remove all positive energies and also if Efrac< minEfrac, keep adding to removal list
-            else if (opt.uinfo.unbindtype==USYSANDPART) {
-                nEfrac=0;
-                if (Efrac<opt.uinfo.minEfrac) nEfrac=(opt.uinfo.minEfrac-Efrac)*numingroup[i];
-                for (j=0;j<pqsize;j++) {
-                    if (gPart[i][pq->TopQueue()].GetDensity()>0 || nEplus<nEfrac) {nEplusid[nEplus++]=pq->TopQueue();Eplusflag[pq->TopQueue()]=1;pq->Pop();}
-                    else break;
-                }
-            }
-            delete pq;
+            nEplus = FillUnboundArrays(opt, pq, pqsize, numingroup[i], gPart[i], Efrac, nEplusid, Eplusflag);
         }
+cout<<ThisTask<<" unbinding "<<i<<" "<<numingroup[i]<<" "<<(int)unbindcheck<<" "<<pqsize<<" "<<nEplus<<" "<<Efrac<<" "<<nEplusid[0]<<endl;
         while(unbindcheck)
         {
             iunbindflag++;
+            unbindloops++;
             //first correct for removal of all least bound particle
             double temp=1.0/gmass[i], temp2=0.;
             if (opt.uinfo.cmvelreftype==CMVELREF) {
@@ -819,16 +761,7 @@ private(i,j,k,n,maxE,pq,pqsize,nEplus,nEplusid,Eplusflag,totT,v2,Ti,unbindcheck,
                 }
             }
             //remove particles with positive energy
-            for (j=0;j<nEplus;j++) pfof[pglist[i][nEplusid[j]]]=0;
-            k=numingroup[i]-1;
-            for (j=0;j<nEplus;j++) if (nEplusid[j]<numingroup[i]-nEplus) {
-                while(Eplusflag[k]==1)k--;
-                pglist[i][nEplusid[j]]=pglist[i][k];
-                gPart[i][nEplusid[j]]=gPart[i][k];
-                Eplusflag[nEplusid[j]]=0;
-                k--;
-            }
-            numingroup[i]-=nEplus;
+            RemoveUnboundParticles(pfof, numingroup[i], pglist[i], gPart[i], nEplus, nEplusid, Eplusflag);
 
             if (nEplus>=0.1*pqsize+0.5) {
 
@@ -854,42 +787,16 @@ private(i,j,k,n,maxE,pq,pqsize,nEplus,nEplusid,Eplusflag,totT,v2,Ti,unbindcheck,
                     if(maxE<gPart[i][j].GetDensity()) maxE=gPart[i][j].GetDensity();
             }
             Efrac/=(Double_t)numingroup[i];
-            if (opt.uinfo.unbindtype==USYSANDPART) {
-                if(((Efrac<opt.uinfo.minEfrac)||(maxE>0))&&(numingroup[i]>=opt.MinSize)) unbindcheck=true;
-                else unbindcheck=false;
-            }
-            else if (opt.uinfo.unbindtype==UPART) {
-                if ((maxE>0)&&(numingroup[i]>=opt.MinSize))unbindcheck=true;
-                else unbindcheck=false;
-            }
+            pqsize=(Int_t)(opt.uinfo.maxunbindfrac*numingroup[i]+1);
+            unbindcheck = CheckGroupForBoundness(opt,Efrac,maxE,numingroup[i]);
             if (unbindcheck) {
-                //determine if any particle  number of particle with positive energy upto opt.uinfo.maxunbindfrac*numingroup+1
-                pqsize=(Int_t)(opt.uinfo.maxunbindfrac*numingroup[i]+1);
-                pq=new PriorityQueue(pqsize);
-                for (j=0;j<pqsize;j++) pq->Push(j,gPart[i][j].GetDensity());
-                for (j=pqsize;j<numingroup[i];j++) if (gPart[i][j].GetDensity()>gPart[i][pq->TopQueue()].GetDensity()) {pq->Pop();pq->Push(j,gPart[i][j].GetDensity());}
-                nEplus=0;
-                //if just looking at particle then add to removal list till energy >0
-                if (opt.uinfo.unbindtype==UPART) {
-                    for (j=0;j<pqsize;j++) {
-                        if (gPart[i][pq->TopQueue()].GetDensity()>0) {nEplusid[nEplus++]=pq->TopQueue();Eplusflag[pq->TopQueue()]=1;pq->Pop();}
-                        else break;
-                    }
-                }
-                //otherwise, remove all positive energies and also if Efrac< minEfrac, keep adding to removal list
-                else if (opt.uinfo.unbindtype==USYSANDPART) {
-                    nEfrac=0;
-                    if (Efrac<opt.uinfo.minEfrac) nEfrac=(opt.uinfo.minEfrac-Efrac)*numingroup[i];
-                    for (j=0;j<pqsize;j++) {
-                        if (gPart[i][pq->TopQueue()].GetDensity()>0 || nEplus<nEfrac) {nEplusid[nEplus++]=pq->TopQueue();Eplusflag[pq->TopQueue()]=1;pq->Pop();}
-                        else break;
-                    }
-                }
-                delete pq;
+                nEplus = FillUnboundArrays(opt, pq, pqsize, numingroup[i], gPart[i], Efrac, nEplusid, Eplusflag);
             }
+            }
+            else unbindcheck=false;
         }
-        else unbindcheck=false;
-        }
+//???
+cout<<ThisTask<<" after unbinding "<<i<<" "<<numingroup[i]<<" "<<(int)unbindcheck<<" | "<<unbindloops<<" "<<pqsize<<" "<<nEplus<<" "<<Efrac<<" "<<nEplusid[0]<<endl;
         //if group too small remove entirely
         if (numingroup[i]<opt.MinSize) {
             iunbindflag++;
@@ -1275,7 +1182,7 @@ private(j,k,v2,Ti,unbindcheck)
         Efrac/=(Double_t)numingroup[i];
         //determine if any particle  number of particle with positive energy upto opt.uinfo.maxunbindfrac*numingroup+1
         nEplus=0;
-        pqsize=(Int_t)(opt.uinfo.maxunbindfrac*numingroup[i]+2);
+        pqsize=(Int_t)(opt.uinfo.maxunbindfrac*numingroup[i]+1);
         nEplusid=new Int_t[pqsize];
         Eplusflag=new int[numingroup[i]];
         maxE=gPart[noffset[i]+0].GetDensity();
@@ -1496,7 +1403,7 @@ private(i,j,k,maxE,pq,pqsize,nEplus,nEplusid,Eplusflag,totT,v2,Ti,unbindcheck,Ef
         }
         Efrac/=(Double_t)numingroup[i];
         //determine if any particle  number of particle with positive energy upto opt.uinfo.maxunbindfrac*numingroup+1
-        pqsize=(Int_t)(opt.uinfo.maxunbindfrac*numingroup[i]+2);
+        pqsize=(Int_t)(opt.uinfo.maxunbindfrac*numingroup[i]+1);
         Eplusflag=new int[numingroup[i]];
         nEplusid=new Int_t[pqsize];
         if (opt.uinfo.unbindtype==USYSANDPART) {

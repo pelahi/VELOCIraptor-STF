@@ -309,11 +309,12 @@ struct UnbindInfo
         Eratio=1.0;
         minEfrac=1.0;
         BucketSize=8;
-        TreeThetaOpen=0.7;
+        TreeThetaOpen=0.5;
         eps=0.0;
-        maxunbindfrac=0.05;
-        Npotref=10;
-        fracpotref=0.1;
+        maxunbindfrac=0.01;
+        //maxunbindfrac=0;
+        Npotref=20;
+        fracpotref=1.0;
     }
 };
 

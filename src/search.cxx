@@ -1570,7 +1570,7 @@ private(i,tid)
         //for a galaxy search (ie: PSTSTAR, we set this to the min search size,
         //but for others, smaller (DM) substructures have already been cleaned.
         if (opt.partsearchtype!=PSTSTAR) {
-            minsize=nsubset*opt.halocorenfac;
+            minsize=nsubset*opt.halocorenfac*pow(opt.halocorenumfaciter,sublevel-1);
             minsize=max(minsize,opt.MinSize);
         }
         else if (opt.foftype==FOF6DCORE || opt.partsearchtype==PSTSTAR){
