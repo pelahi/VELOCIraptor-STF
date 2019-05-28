@@ -71,7 +71,7 @@ using namespace H5;
 
 ///\defgroup HDFNAMES labels for HDF naming conventions
 //@{
-#define HDFNUMNAMETYPES  7
+#define HDFNUMNAMETYPES  8
 #define HDFILLUSTISNAMES 0
 #define HDFGADGETXNAMES  1
 #define HDFEAGLENAMES    2
@@ -79,6 +79,7 @@ using namespace H5;
 #define HDFSIMBANAMES    4
 #define HDFMUFASANAMES   5
 #define HDFSWIFTEAGLENAMES    6
+#define HDFEAGLEVERSION2NAMES    7
 //@}
 
 ///size of chunks in hdf files for Compression
@@ -337,7 +338,8 @@ struct HDF_Part_Info {
             if(hdfnametype==HDFEAGLENAMES) names[itemp++]=H5std_string("Velocity");
             else names[itemp++]=H5std_string("Velocities");
             names[itemp++]=H5std_string("ParticleIDs");
-            names[itemp++]=H5std_string("Masses");
+            if(hdfnametype==HDFEAGLENAMES) names[itemp++]=H5std_string("Mass");
+            else names[itemp++]=H5std_string("Masses");
             names[itemp++]=H5std_string("Density");
             names[itemp++]=H5std_string("InternalEnergy");
             names[itemp++]=H5std_string("StarFormationRate");
@@ -398,6 +400,10 @@ struct HDF_Part_Info {
                 names[itemp++]=H5std_string("Dust_Masses");
                 names[itemp++]=H5std_string("Dust_Metallicity");//11 metals stored in this data set
             }
+            else if (hdfnametype==HDFEAGLENAMES) {
+                propindex[HDFGASIMETAL]=itemp;
+                names[itemp++]=H5std_string("Metallicity");
+            }
         }
         //dark matter
         if (ptype==HDFDMTYPE) {
@@ -440,7 +446,8 @@ struct HDF_Part_Info {
             if(hdfnametype==HDFEAGLENAMES) names[itemp++]=H5std_string("Velocity");
             else names[itemp++]=H5std_string("Velocities");
             names[itemp++]=H5std_string("ParticleIDs");
-            names[itemp++]=H5std_string("Masses");
+            if(hdfnametype==HDFEAGLENAMES) names[itemp++]=H5std_string("Mass");
+            else names[itemp++]=H5std_string("Masses");
             //for stars assume star formation and metallicy are position 4, 5 in name array
             if (hdfnametype==HDFILLUSTISNAMES) {
                 propindex[HDFSTARIAGE]=itemp;
@@ -475,13 +482,20 @@ struct HDF_Part_Info {
                 names[itemp++]=H5std_string("Dust_Masses");
                 names[itemp++]=H5std_string("Dust_Metallicity");//11 metals stored in this data set
             }
+            else if (hdfnametype==HDFEAGLENAMES) {
+                propindex[HDFSTARIAGE]=itemp;
+                names[itemp++]=H5std_string("StellarFormationTime");
+                propindex[HDFSTARIMETAL]=itemp;
+                names[itemp++]=H5std_string("Metallicity");
+            }
         }
         if (ptype==HDFBHTYPE) {
             names[itemp++]=H5std_string("Coordinates");
             if(hdfnametype==HDFEAGLENAMES) names[itemp++]=H5std_string("Velocity");
             else names[itemp++]=H5std_string("Velocities");
             names[itemp++]=H5std_string("ParticleIDs");
-            names[itemp++]=H5std_string("Masses");
+            if(hdfnametype==HDFEAGLENAMES) names[itemp++]=H5std_string("Mass");
+            else names[itemp++]=H5std_string("Masses");
             if (hdfnametype==HDFILLUSTISNAMES) {
                 names[itemp++]=H5std_string("HostHaloMass");
                 names[itemp++]=H5std_string("Potential");
@@ -506,7 +520,6 @@ struct HDF_Part_Info {
                 names[itemp++]=H5std_string("Potential");
             }
             else if (hdfnametype==HDFMUFASANAMES) {
-                propindex[HDFSTARIAGE]=itemp;
                 names[itemp++]=H5std_string("StellarFormationTime");
                 names[itemp++]=H5std_string("BH_AccretionLength");
                 names[itemp++]=H5std_string("BH_Mass");
@@ -514,6 +527,10 @@ struct HDF_Part_Info {
                 names[itemp++]=H5std_string("BH_Mass_Mdot");
                 names[itemp++]=H5std_string("BH_NProgs");
                 names[itemp++]=H5std_string("Potential");
+            }
+            else if (hdfnametype==HDFEAGLENAMES) {
+                //names[itemp++]=H5std_string("StellarFormationTime");
+                //names[itemp++]=H5std_string("Metallicity");
             }
         }
         nentries=itemp;
