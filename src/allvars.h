@@ -311,8 +311,7 @@ struct UnbindInfo
         BucketSize=8;
         TreeThetaOpen=0.5;
         eps=0.0;
-        maxunbindfrac=0.01;
-        //maxunbindfrac=0;
+        maxunbindfrac=0.5;
         Npotref=20;
         fracpotref=1.0;
     }
