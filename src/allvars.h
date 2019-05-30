@@ -288,6 +288,11 @@ struct UnbindInfo
     Double_t cmdelta;
     ///maximum fraction of particles to remove when unbinding in one given unbinding step
     Double_t maxunbindfrac;
+    ///Maximum fraction of particles that can be considered unbound before group removed entirely
+    Double_t maxunboundfracforiterativeunbind;
+    ///Min allowed unbound fraction to speed up unbinding
+    Double_t minallowedunboundfrac;
+
     ///minimum number of particles to use to calculate reference frame if using particles around deepest potential well as reference frame
     Int_t Npotref;
     ///fraction of number of particles to use to calculate reference frame if using particles around deepest potential well as reference frame
@@ -311,9 +316,11 @@ struct UnbindInfo
         BucketSize=8;
         TreeThetaOpen=0.5;
         eps=0.0;
-        maxunbindfrac=0.5;
         Npotref=20;
         fracpotref=1.0;
+        maxunbindfrac=0.5;
+        maxunboundfracforiterativeunbind=0.99;
+        minallowedunboundfrac=0.025;
     }
 };
 
