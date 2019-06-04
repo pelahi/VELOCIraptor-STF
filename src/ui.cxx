@@ -389,8 +389,6 @@ void GetParamFile(Options &opt)
                         opt.iKeepFOF = atoi(vbuff);
                     else if (strcmp(tbuff, "Iterative_searchflag")==0)
                         opt.iiterflag = atoi(vbuff);
-                    else if (strcmp(tbuff, "Unbind_flag")==0)
-                        opt.uinfo.unbindflag = atoi(vbuff);
                     else if (strcmp(tbuff, "Baryon_searchflag")==0)
                         opt.iBaryonSearch = atoi(vbuff);
                     else if (strcmp(tbuff, "CMrefadjustsubsearch_flag")==0)
@@ -527,14 +525,16 @@ void GetParamFile(Options &opt)
                     else if (strcmp(tbuff, "Mass_to_solarmass")==0)
                         opt.masstosolarmass = atof(vbuff);
                     //unbinding
-                    else if (strcmp(tbuff, "Softening_length")==0)
-                        opt.uinfo.eps = atof(vbuff);
+                    else if (strcmp(tbuff, "Unbind_flag")==0)
+                        opt.uinfo.unbindflag = atoi(vbuff);
+                    else if (strcmp(tbuff, "Unbinding_type")==0)
+                        opt.uinfo.unbindtype = atoi(vbuff);
+                    else if (strcmp(tbuff, "Bound_halos")==0)
+                        opt.iBoundHalos = atoi(vbuff);
                     else if (strcmp(tbuff, "Allowed_kinetic_potential_ratio")==0)
                         opt.uinfo.Eratio = atof(vbuff);
                     else if (strcmp(tbuff, "Min_bound_mass_frac")==0)
                         opt.uinfo.minEfrac = atof(vbuff);
-                    else if (strcmp(tbuff, "Bound_halos")==0)
-                        opt.iBoundHalos = atoi(vbuff);
                     else if (strcmp(tbuff, "Keep_background_potential")==0)
                         opt.uinfo.bgpot = atoi(vbuff);
                     else if (strcmp(tbuff, "Kinetic_reference_frame_type")==0)
@@ -543,8 +543,14 @@ void GetParamFile(Options &opt)
                         opt.uinfo.Npotref = atoi(vbuff);
                     else if (strcmp(tbuff, "Frac_pot_ref")==0)
                         opt.uinfo.fracpotref = atof(vbuff);
-                    else if (strcmp(tbuff, "Unbinding_type")==0)
-                        opt.uinfo.unbindtype = atoi(vbuff);
+                    else if (strcmp(tbuff, "Unbinding_max_unbound_removal_fraction_per_iteration")==0)
+                        opt.uinfo.maxunbindfrac = atof(vbuff);
+                    else if (strcmp(tbuff, "Unbinding_max_unbound_fraction")==0)
+                        opt.uinfo.maxunboundfracforiterativeunbind = atof(vbuff);
+                    else if (strcmp(tbuff, "Unbinding_max_unbound_fraction_allowed")==0)
+                        opt.uinfo.maxallowedunboundfrac = atof(vbuff);
+                    else if (strcmp(tbuff, "Softening_length")==0)
+                        opt.uinfo.eps = atof(vbuff);
 
                     //property related
                     else if (strcmp(tbuff, "Reference_frame_for_properties")==0)

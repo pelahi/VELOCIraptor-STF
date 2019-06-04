@@ -290,8 +290,8 @@ struct UnbindInfo
     Double_t maxunbindfrac;
     ///Maximum fraction of particles that can be considered unbound before group removed entirely
     Double_t maxunboundfracforiterativeunbind;
-    ///Min allowed unbound fraction to speed up unbinding
-    Double_t minallowedunboundfrac;
+    ///Max allowed unbound fraction to speed up unbinding
+    Double_t maxallowedunboundfrac;
 
     ///minimum number of particles to use to calculate reference frame if using particles around deepest potential well as reference frame
     Int_t Npotref;
@@ -319,8 +319,8 @@ struct UnbindInfo
         Npotref=20;
         fracpotref=1.0;
         maxunbindfrac=0.5;
-        maxunboundfracforiterativeunbind=0.99;
-        minallowedunboundfrac=0.025;
+        maxunboundfracforiterativeunbind=0.95;
+        maxallowedunboundfrac=0.025;
     }
 };
 
