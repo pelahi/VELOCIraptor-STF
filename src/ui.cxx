@@ -567,6 +567,8 @@ void GetParamFile(Options &opt)
                     //property related
                     else if (strcmp(tbuff, "Reference_frame_for_properties")==0)
                         opt.iPropertyReferencePosition = atoi(vbuff);
+                    else if (strcmp(tbuff, "Particle_type_for_reference_frames")==0)
+                        opt.ParticleTypeForRefenceFrame = atoi(vbuff);
                     else if (strcmp(tbuff, "Iterate_cm_flag")==0)
                         opt.iIterateCM = atoi(vbuff);
                     else if (strcmp(tbuff, "Inclusive_halo_masses")==0)
@@ -656,6 +658,8 @@ void GetParamFile(Options &opt)
                         opt.iSphericalOverdensityPartList = atoi(vbuff);
                     else if (strcmp(tbuff, "Sort_by_binding_energy")==0)
                         opt.iSortByBindingEnergy = atoi(vbuff);
+                    else if (strcmp(tbuff, "SUBFIND_like_output")==0)
+                        opt.isubfindoutput = atoi(vbuff);
 
                     //gadget io related to extra info for sph, stars, bhs,
                     else if (strcmp(tbuff, "NSPH_extra_blocks")==0)
@@ -805,16 +809,20 @@ inline void ConfigCheck(Options &opt)
 
 #ifndef USEHDF
     if (opt.ibinaryout==OUTHDF){
-    errormessage("Code not compiled with HDF output enabled. Recompile with this enabled or change Binary_output.");
-    ConfigExit();
-}
+        errormessage("Code not compiled with HDF output enabled. Recompile with this enabled or change Binary_output.");
+        ConfigExit();
+    }
+    if (opt.isubfindoutput) {
+        errormessage("Code not compiled with HDF output enabled. Recompile with this enabled to produce subfind like output or turn off subfind like output.");
+        ConfigExit();
+    }
 #endif
 
 #ifndef USEADIOS
     if (opt.ibinaryout==OUTADIOS){
-    errormessage("Code not compiled with ADIOS output enabled. Recompile with this enabled or change Binary_output.");
-    ConfigExit();
-}
+        errormessage("Code not compiled with ADIOS output enabled. Recompile with this enabled or change Binary_output.");
+        ConfigExit();
+    }
 #endif
     if (opt.iaperturecalc>0) {
         if (opt.aperturenum != opt.aperture_values_kpc.size()) {

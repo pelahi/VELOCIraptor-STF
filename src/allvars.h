@@ -368,6 +368,8 @@ struct Options
     int iextrabhoutput;
     /// calculate subind like properties
     int isubfindproperties;
+    ///for output, produce subfind like format
+    int isubfindoutput;
 
     ///disable particle id related output like fof.grp or catalog_group data. Useful if just want halo properties
     ///and not interested in tracking. Code writes halo properties catalog and exits.
@@ -445,6 +447,8 @@ struct Options
     int iSortByBindingEnergy;
     /// what reference position to use when calculating Properties
     int iPropertyReferencePosition;
+    /// what particle type is used to define reference position
+    int ParticleTypeForRefenceFrame;
 
 
     ///threshold on particle ELL value, normalized logarithmic distance from predicted maxwellian velocity density.
@@ -717,6 +721,7 @@ struct Options
         iKeepFOF=0;
         iSortByBindingEnergy=1;
         iPropertyReferencePosition=PROPREFCM;
+        ParticleTypeForRefenceFrame=-1;
 
         iLargerCellSearch=0;
 
@@ -739,6 +744,7 @@ struct Options
         iseparatefiles=0;
         ibinaryout=0;
         iextendedoutput=0;
+        isubfindoutput=0;
         inoidoutput=0;
         icomoveunit=0;
         icosmologicalin=1;
@@ -1139,6 +1145,14 @@ struct UnitInfo{
         datainfo.push_back(to_string(opt.velocitytokms));
         nameinfo.push_back("Mass_unit_to_solarmass");
         datainfo.push_back(to_string(opt.masstosolarmass));
+#if defined(GASON) || defined(STARON) || defined(BHON)
+        nameinfo.push_back("Metallicity_unit_to_solar");
+        datainfo.push_back(to_string(opt.metallicitytosolar));
+        nameinfo.push_back("SFR_unit_to_solarmassperyear");
+        datainfo.push_back(to_string(opt.SFRtosolarmassperyear));
+        nameinfo.push_back("Stellar_age_unit_to_yr");
+        datainfo.push_back(to_string(opt.stellaragetoyrs));
+#endif
 #endif
     }
 };
@@ -3523,6 +3537,11 @@ struct DataGroupNames {
         prop.push_back("Length_unit_to_kpc");
         prop.push_back("Velocity_to_kms");
         prop.push_back("Mass_unit_to_solarmass");
+#if defined(GASON) || defined(STARON) || defined(BHON)
+        prop.push_back("Metallicity_unit_to_solar");
+        prop.push_back("SFR_unit_to_solarmassperyear");
+        prop.push_back("Stellar_age_unit_to_yr");
+#endif
 #ifdef USEHDF
         propdatatype.push_back(PredType::STD_I32LE);
         propdatatype.push_back(PredType::STD_I32LE);
@@ -3530,11 +3549,16 @@ struct DataGroupNames {
         propdatatype.push_back(PredType::STD_U64LE);
         propdatatype.push_back(PredType::STD_U32LE);
         propdatatype.push_back(PredType::STD_U32LE);
-        propdatatype.push_back(PredType::NATIVE_FLOAT);
-        propdatatype.push_back(PredType::NATIVE_FLOAT);
-        propdatatype.push_back(PredType::NATIVE_FLOAT);
-        propdatatype.push_back(PredType::NATIVE_FLOAT);
-        propdatatype.push_back(PredType::NATIVE_FLOAT);
+        propdatatype.push_back(desiredproprealtype[0]);
+        propdatatype.push_back(desiredproprealtype[0]);
+        propdatatype.push_back(desiredproprealtype[0]);
+        propdatatype.push_back(desiredproprealtype[0]);
+        propdatatype.push_back(desiredproprealtype[0]);
+#if defined(GASON) || defined(STARON) || defined(BHON)
+        propdatatype.push_back(desiredproprealtype[0]);
+        propdatatype.push_back(desiredproprealtype[0]);
+        propdatatype.push_back(desiredproprealtype[0]);
+#endif
 #endif
 #ifdef USEADIOS
         adiospropdatatype.push_back(ADIOS_DATATYPES::adios_integer);
@@ -3543,11 +3567,16 @@ struct DataGroupNames {
         adiospropdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
         adiospropdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_integer);
         adiospropdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_integer);
-        adiospropdatatype.push_back(ADIOS_DATATYPES::adios_real);
-        adiospropdatatype.push_back(ADIOS_DATATYPES::adios_real);
-        adiospropdatatype.push_back(ADIOS_DATATYPES::adios_real);
-        adiospropdatatype.push_back(ADIOS_DATATYPES::adios_real);
-        adiospropdatatype.push_back(ADIOS_DATATYPES::adios_real);
+        adiospropdatatype.push_back(desiredadiosproprealtype[0]);
+        adiospropdatatype.push_back(desiredadiosproprealtype[0]);
+        adiospropdatatype.push_back(desiredadiosproprealtype[0]);
+        adiospropdatatype.push_back(desiredadiosproprealtype[0]);
+        adiospropdatatype.push_back(desiredadiosproprealtype[0]);
+#if defined(GASON) || defined(STARON) || defined(BHON)
+        adiospropdatatype.push_back(desiredadiosproprealtype[0]);
+        adiospropdatatype.push_back(desiredadiosproprealtype[0]);
+        adiospropdatatype.push_back(desiredadiosproprealtype[0]);
+#endif
 #endif
 
         group.push_back("File_id");
