@@ -3207,7 +3207,7 @@ void WriteSUBFINDProperties(Options &opt, const Int_t ngroups, PropData *pdata){
     int ivalue;
     //for hdf may be more useful to produce an array of the appropriate size and write each data set in one go
     //requires allocating memory
-    int *iarray,itemp;
+    int *iarray;
     unsigned int *uiarray;
     long long *larray;
     unsigned long *ularray;
