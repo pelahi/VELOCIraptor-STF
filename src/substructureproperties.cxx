@@ -558,13 +558,13 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
         }
 
         if (pdata[i].M_gas>0) {
-          pdata[i].veldisp_gas=pdata[i].veldisp_gas*(1.0/pdata[i].M_gas);
-          pdata[i].cm_gas=pdata[i].cm_gas*(1.0/pdata[i].M_gas);
-          pdata[i].cmvel_gas=pdata[i].cm_gas*(1.0/pdata[i].M_gas);
-          pdata[i].Temp_gas/=pdata[i].M_gas;
+            pdata[i].veldisp_gas=pdata[i].veldisp_gas*(1.0/pdata[i].M_gas);
+            pdata[i].cm_gas=pdata[i].cm_gas*(1.0/pdata[i].M_gas);
+            pdata[i].cmvel_gas=pdata[i].cm_gas*(1.0/pdata[i].M_gas);
+            pdata[i].Temp_mean_gas=pdata[i].Temp_gas/pdata[i].M_gas;
 #ifdef STARON
-          pdata[i].Z_gas/=pdata[i].M_gas;
-          pdata[i].SFR_gas/=pdata[i].M_gas;
+            pdata[i].Z_mean_gas=pdata[i].Z_gas/pdata[i].M_gas;
+            pdata[i].SFR_mean_gas=pdata[i].SFR_gas/pdata[i].M_gas;
 #endif
         }
 

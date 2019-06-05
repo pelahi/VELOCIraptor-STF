@@ -478,11 +478,11 @@ void GetParamFile(Options &opt)
 
                     //units, cosmology
                     else if (strcmp(tbuff, "Length_unit")==0)
-                        opt.L = atof(vbuff);
+                        opt.lengthinputconversion = atof(vbuff);
                     else if (strcmp(tbuff, "Velocity_unit")==0)
-                        opt.V = atof(vbuff);
+                        opt.velocityinputconversion = atof(vbuff);
                     else if (strcmp(tbuff, "Mass_unit")==0)
-                        opt.M = atof(vbuff);
+                        opt.massinputconversion = atof(vbuff);
                     else if (strcmp(tbuff, "Hubble_unit")==0)
                         opt.H = atof(vbuff);
                     else if (strcmp(tbuff, "Gravity")==0)
@@ -518,12 +518,32 @@ void GetParamFile(Options &opt)
                     //so units can be specified to convert to kpc, km/s, solar mass
                     //not necessarily the code units data is reported but the
                     //translation of these code units to these units
+                    else if (strcmp(tbuff, "Length_input_unit_conversion_to_output_unit")==0)
+                        opt.lengthinputconversion = atof(vbuff);
+                    else if (strcmp(tbuff, "Velocity_input_unit_conversion_to_output_unit")==0)
+                        opt.velocityinputconversion = atof(vbuff);
+                    else if (strcmp(tbuff, "Mass_input_unit_conversion_to_output_unit")==0)
+                        opt.massinputconversion = atof(vbuff);
+                    else if (strcmp(tbuff, "Metallicity_input_unit_conversion_to_output_unit")==0)
+                        opt.metallicityinputconversion = atof(vbuff);
+                    else if (strcmp(tbuff, "Star_formation_rate_input_unit_conversion_to_output_unit")==0)
+                        opt.SFRinputconversion = atof(vbuff);
+                    else if (strcmp(tbuff, "Stellar_age_input_unit_conversion_to_output_unit")==0)
+                        opt.stellarageinputconversion = atof(vbuff);
+                    else if (strcmp(tbuff, "Stellar_age_input_is_cosmological_scalefactor")==0)
+                        opt.istellaragescalefactor = atoi(vbuff);
                     else if (strcmp(tbuff, "Length_unit_to_kpc")==0)
                         opt.lengthtokpc = atof(vbuff);
                     else if (strcmp(tbuff, "Velocity_to_kms")==0)
                         opt.velocitytokms = atof(vbuff);
                     else if (strcmp(tbuff, "Mass_to_solarmass")==0)
                         opt.masstosolarmass = atof(vbuff);
+                    else if (strcmp(tbuff, "Metallicity_to_solarmetallicity")==0)
+                        opt.metallicitytosolar = atof(vbuff);
+                    else if (strcmp(tbuff, "Star_formation_rate_to_solarmassperyear")==0)
+                        opt.SFRtosolarmassperyear = atof(vbuff);
+                    else if (strcmp(tbuff, "Stellar_age_to_yr")==0)
+                        opt.stellaragetoyrs = atof(vbuff);
                     //unbinding
                     else if (strcmp(tbuff, "Softening_length")==0)
                         opt.uinfo.eps = atof(vbuff);
@@ -739,6 +759,20 @@ inline void ConfigCheck(Options &opt)
         errormessage("Invalid unit conversion, mass unit to solar mass is <=0 or was not set. Update config file");
         ConfigExit();
     }
+#if defined(GASON) || defined(STARON) || defined(BHON)
+    if (opt.SFRtosolarmassperyear<=0){
+        errormessage("Invalid unit conversion, SFR unit to solar mass per year is <=0 or was not set. Update config file");
+        ConfigExit();
+    }
+    if (opt.metallicitytosolar<=0){
+        errormessage("Invalid unit conversion, metallicity unit to solar is <=0 or was not set. Update config file");
+        ConfigExit();
+    }
+    if (opt.stellaragetoyrs<=0){
+        errormessage("Invalid unit conversion, stellar age unit to year is <=0 or was not set. Update config file");
+        ConfigExit();
+    }
+#endif
 
 #ifdef USEMPI
     if (opt.mpiparticletotbufsize<(long int)(sizeof(Particle)*NProcs) && opt.mpiparticletotbufsize!=-1){
@@ -852,7 +886,7 @@ inline void ConfigCheck(Options &opt)
     if (opt.iSingleHalo) cout<<"Field objects NOT searched for, assuming single Halo and subsearch using mean field first step"<<endl;
     cout<<"Allowed potential to kinetic ratio when unbinding particles "<<opt.uinfo.Eratio<<endl;
     if (opt.HaloMinSize!=opt.MinSize) cout<<"Field objects (aka Halos) have different minimum required size than substructures: "<<opt.HaloMinSize<<" vs "<<opt.MinSize<<endl;
-    cout<<"Units: L="<<opt.L<<", M="<<opt.M<<", V="<<opt.V<<", G="<<opt.G<<endl;
+    cout<<"Units: L="<<opt.lengthinputconversion<<", M="<<opt.massinputconversion<<", V="<<opt.velocityinputconversion<<", G="<<opt.G<<endl;
     if (opt.ibinaryout) cout<<"Binary output"<<endl;
     if (opt.iseparatefiles) cout<<"Separate files output"<<endl;
     if (opt.icomoveunit) cout<<"Converting properties into comoving, little h units. "<<endl;

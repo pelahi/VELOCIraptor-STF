@@ -50,6 +50,12 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle *&Pbaryons, Int_t nbaryons=0);
 ///Read Nchilada file
 void ReadNchilada(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle *&Pbaryons, Int_t nbaryons=0);
+///Adjust hydro particles/quantities to appropriate units
+void AdjustHydroQuantities(Options &opt, vector<Particle> &Part, const Int_t nbodies);
+///Adjust star particles/quantities to appropriate units
+void AdjustStarQuantities(Options &opt, vector<Particle> &Part, const Int_t nbodies);
+///Adjust BH particles/quantities to appropriate units
+void AdjustBHQuantities(Options &opt, vector<Particle> &Part, const Int_t nbodies);
 
 ///Read local velocity density
 void ReadLocalVelocityDensity(Options &opt, const Int_t nbodies, vector<Particle> &Part);
@@ -276,7 +282,7 @@ void CalcVirBN98(Options &opt, Double_t a);
 void CalcCosmoParams(Options &opt, Double_t a);
 Double_t GetHubble(Options &opt, Double_t a);
 double GetInvaH(double a, void * params);
-Double_t CalcCosmicTime(Options &opt, Double_t a);
+Double_t CalcCosmicTime(Options &opt, Double_t a1, Double_t a2);
 //@}
 /// \name Routines to calculate substructure properties and sort particles in a substructure according to some property
 /// see \ref substructureproperties.cxx for implementation

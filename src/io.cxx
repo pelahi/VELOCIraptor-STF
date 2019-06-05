@@ -91,11 +91,69 @@ void ReadData(Options &opt, vector<Particle> &Part, const Int_t nbodies, Particl
 #ifdef USEXDR
     else if (opt.inputtype==IONCHILADA) ReadNchilada(opt,Part,nbodies, Pbaryons, nbaryons);
 #endif
+#ifdef GASON
+    AdjustHydroQuantities(opt,Part,nbodies);
+#endif
+#ifdef STARON
+    AdjustStarQuantities(opt,Part,nbodies);
+#endif
+#ifdef BHON
+    AdjustBHQuantities(opt,Part,nbodies);
+#endif
 #ifdef USEMPI
     MPIAdjustDomain(opt);
 #endif
 }
 
+
+//Adjust particle data to appropriate units
+void AdjustHydroQuantities(Options &opt, vector<Particle> &Part, const Int_t nbodies) {
+    if (opt.metallicityinputconversion!=1.0) {
+        for (auto &p:Part) {
+            if (p.GetType()!=GASTYPE) continue;
+            p.SetZmet(p.GetZmet()*opt.metallicityinputconversion);
+        }
+    }
+    if (opt.SFRinputconversion!=1.0) {
+        for (auto &p:Part) {
+            if (p.GetType()!=GASTYPE) continue;
+            p.SetSFR(p.GetSFR()*opt.SFRinputconversion);
+        }
+    }
+}
+
+void AdjustStarQuantities(Options &opt, vector<Particle> &Part, const Int_t nbodies) {
+    if (opt.metallicityinputconversion!=1.0) {
+        for (auto &p:Part) {
+            if (p.GetType()!=STARTYPE) continue;
+            p.SetZmet(p.GetZmet()*opt.metallicityinputconversion);
+        }
+    }
+    if (opt.istellaragescalefactor!=0 || opt.stellarageinputconversion!=1.0) {
+        double tage;
+        for (auto &p:Part) {
+            if (p.GetType()!=STARTYPE) continue;
+            if (opt.istellaragescalefactor == 1) {
+                tage = CalcCosmicTime(opt,p.GetTage(),opt.a);
+            }
+            if (opt.istellaragescalefactor == 2) {
+                tage = CalcCosmicTime(opt,1.0/(p.GetTage()+1),opt.a);
+            }
+            else tage = p.GetTage();
+            tage*=opt.stellarageinputconversion;
+            p.SetTage(tage);
+        }
+    }
+}
+
+void AdjustBHQuantities(Options &opt, vector<Particle> &Part, const Int_t nbodies) {
+    if (opt.metallicityinputconversion!=1.0) {
+        for (auto &p:Part) {
+            if (p.GetType()!=BHTYPE) continue;
+            p.SetZmet(p.GetZmet()*opt.metallicityinputconversion);
+        }
+    }
+}
 //@}
 
 ///\name Read STF data files

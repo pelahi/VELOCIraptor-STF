@@ -601,11 +601,11 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
     PrintCosmology(opt);
 
     //adjust length scale so that convert from 0 to 1 (box units) to kpc comoving
-    //to scale mpi domains correctly need to store in opt.L the box size in comoving little h value
-    //opt.L= opt.p*opt.h/opt.a;
-    opt.L = header[ifirstfile].BoxSize;
+    //to scale mpi domains correctly need to store in opt.lengthinputconversion the box size in comoving little h value
+    //opt.lengthinputconversion= opt.p*opt.h/opt.a;
+    opt.lengthinputconversion = header[ifirstfile].BoxSize;
     //adjust velocity scale to that ramses is converted to km/s from which you can convert again;
-    opt.V = header[ifirstfile].scale_l/header[ifirstfile].scale_t*1e-5;
+    opt.velocityinputconversion = header[ifirstfile].scale_l/header[ifirstfile].scale_t*1e-5;
 
     //convert mass from code units to Solar Masses
     mscale   = header[ifirstfile].scale_d * (header[ifirstfile].scale_l * header[ifirstfile].scale_l * header[ifirstfile].scale_l) / 1.988e+33;
@@ -813,9 +813,9 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
 #ifdef USEMPI
                 Pbuf[ibufindex]=Particle(mtemp*mscale,
                     xtemp[0]*lscale,xtemp[1]*lscale,xtemp[2]*lscale,
-                    vtemp[0]*opt.V+Hubbleflow*xtemp[0],
-                    vtemp[1]*opt.V+Hubbleflow*xtemp[1],
-                    vtemp[2]*opt.V+Hubbleflow*xtemp[2],
+                    vtemp[0]*opt.velocityinputconversion+Hubbleflow*xtemp[0],
+                    vtemp[1]*opt.velocityinputconversion+Hubbleflow*xtemp[1],
+                    vtemp[2]*opt.velocityinputconversion+Hubbleflow*xtemp[2],
                     count2,typeval);
                 Pbuf[ibufindex].SetPID(idval);
 #ifdef EXTRAINPUTINFO
@@ -830,9 +830,9 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
 #else
                 Part[count2]=Particle(mtemp*mscale,
                     xtemp[0]*lscale,xtemp[1]*lscale,xtemp[2]*lscale,
-                    vtemp[0]*opt.V+Hubbleflow*xtemp[0],
-                    vtemp[1]*opt.V+Hubbleflow*xtemp[1],
-                    vtemp[2]*opt.V+Hubbleflow*xtemp[2],
+                    vtemp[0]*opt.velocityinputconversion+Hubbleflow*xtemp[0],
+                    vtemp[1]*opt.velocityinputconversion+Hubbleflow*xtemp[1],
+                    vtemp[2]*opt.velocityinputconversion+Hubbleflow*xtemp[2],
                     count2,typeval);
                 Part[count2].SetPID(idval);
 #ifdef EXTRAINPUTINFO
@@ -850,9 +850,9 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
 #ifdef USEMPI
                     Pbuf[ibufindex]=Particle(mtemp*mscale,
                         xtemp[0]*lscale,xtemp[1]*lscale,xtemp[2]*lscale,
-                        vtemp[0]*opt.V+Hubbleflow*xtemp[0],
-                        vtemp[1]*opt.V+Hubbleflow*xtemp[1],
-                        vtemp[2]*opt.V+Hubbleflow*xtemp[2],
+                        vtemp[0]*opt.velocityinputconversion+Hubbleflow*xtemp[0],
+                        vtemp[1]*opt.velocityinputconversion+Hubbleflow*xtemp[1],
+                        vtemp[2]*opt.velocityinputconversion+Hubbleflow*xtemp[2],
                         count2,DARKTYPE);
                     Pbuf[ibufindex].SetPID(idval);
 #ifdef EXTRAINPUTINFO
@@ -868,9 +868,9 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
 #else
                     Part[count2]=Particle(mtemp*mscale,
                         xtemp[0]*lscale,xtemp[1]*lscale,xtemp[2]*lscale,
-                        vtemp[0]*opt.V+Hubbleflow*xtemp[0],
-                        vtemp[1]*opt.V+Hubbleflow*xtemp[1],
-                        vtemp[2]*opt.V+Hubbleflow*xtemp[2],
+                        vtemp[0]*opt.velocityinputconversion+Hubbleflow*xtemp[0],
+                        vtemp[1]*opt.velocityinputconversion+Hubbleflow*xtemp[1],
+                        vtemp[2]*opt.velocityinputconversion+Hubbleflow*xtemp[2],
                         count2,typeval);
                     Part[count2].SetPID(idval);
 #ifdef EXTRAINPUTINFO
@@ -887,9 +887,9 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
 #ifdef USEMPI
                     Pbuf[ibufindex]=Particle(mtemp*mscale,
                         xtemp[0]*lscale,xtemp[1]*lscale,xtemp[2]*lscale,
-                        vtemp[0]*opt.V+Hubbleflow*xtemp[0],
-                        vtemp[1]*opt.V+Hubbleflow*xtemp[1],
-                        vtemp[2]*opt.V+Hubbleflow*xtemp[2],
+                        vtemp[0]*opt.velocityinputconversion+Hubbleflow*xtemp[0],
+                        vtemp[1]*opt.velocityinputconversion+Hubbleflow*xtemp[1],
+                        vtemp[2]*opt.velocityinputconversion+Hubbleflow*xtemp[2],
                         count2);
                     Pbuf[ibufindex].SetPID(idval);
 #ifdef EXTRAINPUTINFO
@@ -911,9 +911,9 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
 #else
                     Pbaryons[bcount2]=Particle(mtemp*mscale,
                         xtemp[0]*lscale,xtemp[1]*lscale,xtemp[2]*lscale,
-                        vtemp[0]*opt.V+Hubbleflow*xtemp[0],
-                        vtemp[1]*opt.V+Hubbleflow*xtemp[1],
-                        vtemp[2]*opt.V+Hubbleflow*xtemp[2],
+                        vtemp[0]*opt.velocityinputconversion+Hubbleflow*xtemp[0],
+                        vtemp[1]*opt.velocityinputconversion+Hubbleflow*xtemp[1],
+                        vtemp[2]*opt.velocityinputconversion+Hubbleflow*xtemp[2],
                         count2,typeval);
                     Pbaryons[bcount2].SetPID(idval);
 #ifdef EXTRAINPUTINFO
@@ -934,9 +934,9 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
                     //unless ibuf is 0, then just store locally
                     Pbuf[ibufindex]=Particle(mtemp*mscale,
                         xtemp[0]*lscale,xtemp[1]*lscale,xtemp[2]*lscale,
-                        vtemp[0]*opt.V+Hubbleflow*xtemp[0],
-                        vtemp[1]*opt.V+Hubbleflow*xtemp[1],
-                        vtemp[2]*opt.V+Hubbleflow*xtemp[2],
+                        vtemp[0]*opt.velocityinputconversion+Hubbleflow*xtemp[0],
+                        vtemp[1]*opt.velocityinputconversion+Hubbleflow*xtemp[1],
+                        vtemp[2]*opt.velocityinputconversion+Hubbleflow*xtemp[2],
                         count2,STARTYPE);
                     //ensure that store number of particles to be sent to the reading threads
                     Pbuf[ibufindex].SetPID(idval);
@@ -952,9 +952,9 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
 #else
                 Part[count2]=Particle(mtemp*mscale,
                     xtemp[0]*lscale,xtemp[1]*lscale,xtemp[2]*lscale,
-                    vtemp[0]*opt.V+Hubbleflow*xtemp[0],
-                    vtemp[1]*opt.V+Hubbleflow*xtemp[1],
-                    vtemp[2]*opt.V+Hubbleflow*xtemp[2],
+                    vtemp[0]*opt.velocityinputconversion+Hubbleflow*xtemp[0],
+                    vtemp[1]*opt.velocityinputconversion+Hubbleflow*xtemp[1],
+                    vtemp[2]*opt.velocityinputconversion+Hubbleflow*xtemp[2],
                     count2,typeval);
                 Part[count2].SetPID(idval);
 #ifdef EXTRAINPUTINFO
@@ -1158,9 +1158,9 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
 #ifdef USEMPI
                                             Pbuf[ibufindex]=Particle(mtemp*mscale,
                                                 xpos[0]*lscale,xpos[1]*lscale,xpos[2]*lscale,
-                                                vpos[0]*opt.V+Hubbleflow*xpos[0],
-                                                vpos[1]*opt.V+Hubbleflow*xpos[1],
-                                                vpos[2]*opt.V+Hubbleflow*xpos[2],
+                                                vpos[0]*opt.velocityinputconversion+Hubbleflow*xpos[0],
+                                                vpos[1]*opt.velocityinputconversion+Hubbleflow*xpos[1],
+                                                vpos[2]*opt.velocityinputconversion+Hubbleflow*xpos[2],
                                                 count2,GASTYPE);
                                             Pbuf[ibufindex].SetPID(idval);
 #ifdef GASON
@@ -1183,9 +1183,9 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
 #else
                                             Part[count2]=Particle(mtemp*mscale,
                                                 xpos[0]*lscale,xpos[1]*lscale,xpos[2]*lscale,
-                                                vpos[0]*opt.V+Hubbleflow*xpos[0],
-                                                vpos[1]*opt.V+Hubbleflow*xpos[1],
-                                                vpos[2]*opt.V+Hubbleflow*xpos[2],
+                                                vpos[0]*opt.velocityinputconversion+Hubbleflow*xpos[0],
+                                                vpos[1]*opt.velocityinputconversion+Hubbleflow*xpos[1],
+                                                vpos[2]*opt.velocityinputconversion+Hubbleflow*xpos[2],
                                                 count2,GASTYPE);
                                             Part[count2].SetPID(idval);
 #ifdef GASON
@@ -1210,9 +1210,9 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
 #ifdef USEMPI
                                             Pbuf[ibufindex]=Particle(mtemp*mscale,
                                                 xpos[0]*lscale,xpos[1]*lscale,xpos[2]*lscale,
-                                                vpos[0]*opt.V+Hubbleflow*xpos[0],
-                                                vpos[1]*opt.V+Hubbleflow*xpos[1],
-                                                vpos[2]*opt.V+Hubbleflow*xpos[2],
+                                                vpos[0]*opt.velocityinputconversion+Hubbleflow*xpos[0],
+                                                vpos[1]*opt.velocityinputconversion+Hubbleflow*xpos[1],
+                                                vpos[2]*opt.velocityinputconversion+Hubbleflow*xpos[2],
                                                 count2,GASTYPE);
                                             Pbuf[ibufindex].SetPID(idval);
 #ifdef GASON
@@ -1237,9 +1237,9 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
 #else
                                             Pbaryons[bcount2]=Particle(mtemp*mscale,
                                                 xpos[0]*lscale,xpos[1]*lscale,xpos[2]*lscale,
-                                                vpos[0]*opt.V+Hubbleflow*xpos[0],
-                                                vpos[1]*opt.V+Hubbleflow*xpos[1],
-                                                vpos[2]*opt.V+Hubbleflow*xpos[2],
+                                                vpos[0]*opt.velocityinputconversion+Hubbleflow*xpos[0],
+                                                vpos[1]*opt.velocityinputconversion+Hubbleflow*xpos[1],
+                                                vpos[2]*opt.velocityinputconversion+Hubbleflow*xpos[2],
                                                 count2,GASTYPE);
                                             Pbaryons[bcount2].SetPID(idval);
 #ifdef GASON
@@ -1330,9 +1330,9 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
     MPI_Bcast(&(opt.virlevel),sizeof(opt.virlevel),MPI_BYTE,0,MPI_COMM_WORLD);
     MPI_Bcast(&(opt.virBN98),sizeof(opt.virBN98),MPI_BYTE,0,MPI_COMM_WORLD);
     MPI_Bcast(&(opt.ellxscale),sizeof(opt.ellxscale),MPI_BYTE,0,MPI_COMM_WORLD);
-    MPI_Bcast(&(opt.L),sizeof(opt.L),MPI_BYTE,0,MPI_COMM_WORLD);
-    MPI_Bcast(&(opt.V),sizeof(opt.V),MPI_BYTE,0,MPI_COMM_WORLD);
-    MPI_Bcast(&(opt.M),sizeof(opt.M),MPI_BYTE,0,MPI_COMM_WORLD);
+    MPI_Bcast(&(opt.lengthinputconversion),sizeof(opt.lengthinputconversion),MPI_BYTE,0,MPI_COMM_WORLD);
+    MPI_Bcast(&(opt.velocityinputconversion),sizeof(opt.velocityinputconversion),MPI_BYTE,0,MPI_COMM_WORLD);
+    MPI_Bcast(&(opt.massinputconversion),sizeof(opt.massinputconversion),MPI_BYTE,0,MPI_COMM_WORLD);
     MPI_Bcast(&(opt.G),sizeof(opt.G),MPI_BYTE,0,MPI_COMM_WORLD);
 #ifdef NOMASS
     MPI_Bcast(&(opt.MassValue),sizeof(opt.MassValue),MPI_BYTE,0,MPI_COMM_WORLD);

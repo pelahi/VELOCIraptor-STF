@@ -391,8 +391,12 @@ struct Options
 
     ///\name length,m,v,grav conversion units
     //@{
-    Double_t L, M, U, V, G;
+    Double_t lengthinputconversion, massinputconversion, energyinputconversion, velocityinputconversion;
+    Double_t SFRinputconversion, metallicityinputconversion, stellarageinputconversion;
+    int istellaragescalefactor;
+    Double_t G;
     Double_t lengthtokpc, velocitytokms, masstosolarmass, energyperunitmass, timetoseconds;
+    Double_t SFRtosolarmassperyear, stellaragetoyrs, metallicitytosolar;
     //@}
     ///period (comove)
     Double_t p;
@@ -626,9 +630,15 @@ struct Options
 
     Options()
     {
-        L = 1.0;
-        M = 1.0;
-        V = 1.0;
+        lengthinputconversion = 1.0;
+        massinputconversion = 1.0;
+        velocityinputconversion = 1.0;
+        SFRinputconversion = 1.0;
+        metallicityinputconversion = 1.0;
+        energyinputconversion = 1.0;
+        stellarageinputconversion =1.0;
+        istellaragescalefactor = 1;
+
         G = 1.0;
         p = 0.0;
 
@@ -765,6 +775,12 @@ struct Options
         lengthtokpc=-1.0;
         velocitytokms=-1.0;
         masstosolarmass=-1.0;
+#if defined(GASON) || defined(STARON) || defined(BHON)
+        SFRtosolarmassperyear=-1.0;
+        stellaragetoyrs=-1.0;
+        metallicitytosolar=-1.0;
+#endif
+
 
         lengthtokpc30pow2=30.0*30.0;
         lengthtokpc50pow2=50.0*50.0;
@@ -914,11 +930,23 @@ struct ConfigInfo{
 
         //units, cosmology
         nameinfo.push_back("Length_unit");
-        datainfo.push_back(to_string(opt.L));
+        datainfo.push_back(to_string(opt.lengthinputconversion));
         nameinfo.push_back("Velocity_unit");
-        datainfo.push_back(to_string(opt.V));
+        datainfo.push_back(to_string(opt.velocityinputconversion));
         nameinfo.push_back("Mass_unit");
-        datainfo.push_back(to_string(opt.M));
+        datainfo.push_back(to_string(opt.massinputconversion));
+        nameinfo.push_back("Length_input_unit_conversion_to_output_unit");
+        datainfo.push_back(to_string(opt.lengthinputconversion));
+        nameinfo.push_back("Velocity_input_unit_conversion_to_output_unit");
+        datainfo.push_back(to_string(opt.velocityinputconversion));
+        nameinfo.push_back("Mass_input_unit_conversion_to_output_unit");
+        datainfo.push_back(to_string(opt.massinputconversion));
+        nameinfo.push_back("Star_formation_rate_input_unit_conversion_to_output_unit");
+        datainfo.push_back(to_string(opt.SFRinputconversion));
+        nameinfo.push_back("Metallicity_input_unit_conversion_to_output_unit");
+        datainfo.push_back(to_string(opt.metallicityinputconversion));
+        nameinfo.push_back("Stellar_age_input_is_cosmological_scalefactor");
+        datainfo.push_back(to_string(opt.istellaragescalefactor));
         nameinfo.push_back("Hubble_unit");
         datainfo.push_back(to_string(opt.H));
         nameinfo.push_back("Gravity");
@@ -931,6 +959,12 @@ struct ConfigInfo{
         datainfo.push_back(to_string(opt.velocitytokms));
         nameinfo.push_back("Mass_to_solarmass");
         datainfo.push_back(to_string(opt.masstosolarmass));
+        nameinfo.push_back("Star_formation_rate_to_solarmassperyear");
+        datainfo.push_back(to_string(opt.SFRtosolarmassperyear));
+        nameinfo.push_back("Metallicity_to_solarmetallicity");
+        datainfo.push_back(to_string(opt.metallicitytosolar));
+        nameinfo.push_back("Stellar_age_to_yr");
+        datainfo.push_back(to_string(opt.stellaragetoyrs));
 
         nameinfo.push_back("Period");
         datainfo.push_back(to_string(opt.p));
@@ -1069,11 +1103,11 @@ struct SimInfo{
 
         //units
         nameinfo.push_back("Length_unit");
-        datainfo.push_back(to_string(opt.L));
+        datainfo.push_back(to_string(opt.lengthinputconversion));
         nameinfo.push_back("Velocity_unit");
-        datainfo.push_back(to_string(opt.V));
+        datainfo.push_back(to_string(opt.velocityinputconversion));
         nameinfo.push_back("Mass_unit");
-        datainfo.push_back(to_string(opt.M));
+        datainfo.push_back(to_string(opt.massinputconversion));
         nameinfo.push_back("Gravity");
         datainfo.push_back(to_string(opt.G));
 #ifdef NOMASS
@@ -1247,8 +1281,10 @@ struct PropData
     ///morphology
     Double_t Rhalfmass_gas, q_gas, s_gas;
     Matrix eigvec_gas;
-    ///mean temperature,metallicty,star formation rate
+    ///mass weighted sum of temperature, metallicty, star formation rate
     Double_t Temp_gas, Z_gas, SFR_gas;
+    ///mean temperature,metallicty,star formation rate
+    Double_t Temp_mean_gas, Z_mean_gas, SFR_mean_gas;
     ///physical properties for dynamical state
     Double_t Efrac_gas, Pot_gas, T_gas;
     //@}
