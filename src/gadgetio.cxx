@@ -194,7 +194,7 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
         Hubbleflow=0.;
         cout<<"Non-cosmological input, using h = "<< opt.h<<endl;
     }
-    mscale=opt.M/opt.h;lscale=opt.L/opt.h*aadjust;lvscale=opt.L/opt.h*opt.a;
+    mscale=opt.massinputconversion/opt.h;lscale=opt.lengthinputconversion/opt.h*aadjust;lvscale=opt.lengthinputconversion/opt.h*opt.a;
     //for high res region find smallest mass
     Ntotal=0;
     for (int j=0;j<NGTYPE;j++)
@@ -766,17 +766,17 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
     for (i=0;i<nbodies;i++)
     {
         Part[i].SetMass(Part[i].GetMass()*mscale);
-        for (int j=0;j<3;j++) Part[i].SetVelocity(j,Part[i].GetVelocity(j)*opt.V*sqrt(opt.a)+Hubbleflow*Part[i].GetPosition(j));
+        for (int j=0;j<3;j++) Part[i].SetVelocity(j,Part[i].GetVelocity(j)*opt.velocityinputconversion*sqrt(opt.a)+Hubbleflow*Part[i].GetPosition(j));
         for (int j=0;j<3;j++) Part[i].SetPosition(j,Part[i].GetPosition(j)*lscale);
     }
     if (Pbaryons!=NULL && opt.iBaryonSearch==1) {
     for (i=0;i<nbaryons;i++)
     {
         Pbaryons[i].SetMass(Pbaryons[i].GetMass()*mscale);
-        for (int j=0;j<3;j++) Pbaryons[i].SetVelocity(j,Pbaryons[i].GetVelocity(j)*opt.V*sqrt(opt.a)+Hubbleflow*Pbaryons[i].GetPosition(j));
+        for (int j=0;j<3;j++) Pbaryons[i].SetVelocity(j,Pbaryons[i].GetVelocity(j)*opt.velocityinputconversion*sqrt(opt.a)+Hubbleflow*Pbaryons[i].GetPosition(j));
         for (int j=0;j<3;j++) Pbaryons[i].SetPosition(j,Pbaryons[i].GetPosition(j)*lscale);
 #ifdef GASON
-        Pbaryons[i].SetU(Pbaryons[i].GetU()*opt.V*opt.V);
+        Pbaryons[i].SetU(Pbaryons[i].GetU()*opt.velocityinputconversion*opt.velocityinputconversion);
 #endif
     }
     }
@@ -1165,9 +1165,9 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
                 if (opt.partsearchtype==PSTALL) {
                     Pbuf[ibufindex]=Particle(dtemp*mscale,
                         ctemp[0]*lscale,ctemp[1]*lscale,ctemp[2]*lscale,
-                        vtemp[0]*opt.V*sqrt(opt.a)+Hubbleflow*ctemp[0],
-                        vtemp[1]*opt.V*sqrt(opt.a)+Hubbleflow*ctemp[1],
-                        vtemp[2]*opt.V*sqrt(opt.a)+Hubbleflow*ctemp[2],
+                        vtemp[0]*opt.velocityinputconversion*sqrt(opt.a)+Hubbleflow*ctemp[0],
+                        vtemp[1]*opt.velocityinputconversion*sqrt(opt.a)+Hubbleflow*ctemp[1],
+                        vtemp[2]*opt.velocityinputconversion*sqrt(opt.a)+Hubbleflow*ctemp[2],
                         count2,k);
                     Pbuf[ibufindex].SetPID(idval);
                     if (k==GGASTYPE) Pbuf[ibufindex].SetType(GASTYPE);
@@ -1197,9 +1197,9 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
                     if (!(k==GGASTYPE||k==GSTARTYPE||k==GBHTYPE)) {
                         Pbuf[ibufindex]=Particle(dtemp*mscale,
                             ctemp[0]*lscale,ctemp[1]*lscale,ctemp[2]*lscale,
-                            vtemp[0]*opt.V*sqrt(opt.a)+Hubbleflow*ctemp[0],
-                            vtemp[1]*opt.V*sqrt(opt.a)+Hubbleflow*ctemp[1],
-                            vtemp[2]*opt.V*sqrt(opt.a)+Hubbleflow*ctemp[2],
+                            vtemp[0]*opt.velocityinputconversion*sqrt(opt.a)+Hubbleflow*ctemp[0],
+                            vtemp[1]*opt.velocityinputconversion*sqrt(opt.a)+Hubbleflow*ctemp[1],
+                            vtemp[2]*opt.velocityinputconversion*sqrt(opt.a)+Hubbleflow*ctemp[2],
                             count2,DARKTYPE);
                         Pbuf[ibufindex].SetPID(idval);
 #ifdef EXTRAINPUTINFO
@@ -1218,9 +1218,9 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
                     else if (opt.iBaryonSearch) {
                         Pbuf[ibufindex]=Particle(dtemp*mscale,
                             ctemp[0]*lscale,ctemp[1]*lscale,ctemp[2]*lscale,
-                            vtemp[0]*opt.V*sqrt(opt.a)+Hubbleflow*ctemp[0],
-                            vtemp[1]*opt.V*sqrt(opt.a)+Hubbleflow*ctemp[1],
-                            vtemp[2]*opt.V*sqrt(opt.a)+Hubbleflow*ctemp[2],
+                            vtemp[0]*opt.velocityinputconversion*sqrt(opt.a)+Hubbleflow*ctemp[0],
+                            vtemp[1]*opt.velocityinputconversion*sqrt(opt.a)+Hubbleflow*ctemp[1],
+                            vtemp[2]*opt.velocityinputconversion*sqrt(opt.a)+Hubbleflow*ctemp[2],
                             count2);
                         Pbuf[ibufindex].SetPID(idval);
                         if (k==GGASTYPE) {
@@ -1260,9 +1260,9 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
                         //unless ibuf is 0, then just store locally
                         Pbuf[ibufindex]=Particle(dtemp*mscale,
                             ctemp[0]*lscale,ctemp[1]*lscale,ctemp[2]*lscale,
-                            vtemp[0]*opt.V*sqrt(opt.a)+Hubbleflow*ctemp[0],
-                            vtemp[1]*opt.V*sqrt(opt.a)+Hubbleflow*ctemp[1],
-                            vtemp[2]*opt.V*sqrt(opt.a)+Hubbleflow*ctemp[2],
+                            vtemp[0]*opt.velocityinputconversion*sqrt(opt.a)+Hubbleflow*ctemp[0],
+                            vtemp[1]*opt.velocityinputconversion*sqrt(opt.a)+Hubbleflow*ctemp[1],
+                            vtemp[2]*opt.velocityinputconversion*sqrt(opt.a)+Hubbleflow*ctemp[2],
                             count2,STARTYPE);
 #ifdef STARON
                         Pbuf[ibufindex].SetTage(startempchunk[0*nchunk+nn]);
@@ -1284,9 +1284,9 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
                     if (k==GGASTYPE) {
                         Pbuf[ibufindex]=Particle(dtemp*mscale,
                             ctemp[0]*lscale,ctemp[1]*lscale,ctemp[2]*lscale,
-                            vtemp[0]*opt.V*sqrt(opt.a)+Hubbleflow*ctemp[0],
-                            vtemp[1]*opt.V*sqrt(opt.a)+Hubbleflow*ctemp[1],
-                            vtemp[2]*opt.V*sqrt(opt.a)+Hubbleflow*ctemp[2],
+                            vtemp[0]*opt.velocityinputconversion*sqrt(opt.a)+Hubbleflow*ctemp[0],
+                            vtemp[1]*opt.velocityinputconversion*sqrt(opt.a)+Hubbleflow*ctemp[1],
+                            vtemp[2]*opt.velocityinputconversion*sqrt(opt.a)+Hubbleflow*ctemp[2],
                             count2,GASTYPE);
                         //ensure that store number of particles to be sent to the reading threads
                         Pbuf[ibufindex].SetPID(idval);
@@ -1362,8 +1362,8 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
         opt.Omega_cdm=opt.Omega_m-opt.Omega_b;
     }
     //adjust period
-    if (opt.comove) opt.p*=opt.L/opt.h;
-    else opt.p*=opt.L/opt.h*opt.a;
+    if (opt.comove) opt.p*=opt.lengthinputconversion/opt.h;
+    else opt.p*=opt.lengthinputconversion/opt.h*opt.a;
 #ifdef USEMPI
     }
 #endif
@@ -1402,7 +1402,7 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
     if (opt.Neff==-1) {
         //Once smallest mass particle is found (which should correspond to highest resolution area,
         if (opt.Omega_b==0) MP_B=0;
-        LN=pow(((MP_DM+MP_B)*opt.M/opt.h)/(opt.Omega_m*3.0*opt.H*opt.h*opt.H*opt.h/(8.0*M_PI*opt.G)),1./3.)*opt.a;
+        LN=pow(((MP_DM+MP_B)*opt.massinputconversion/opt.h)/(opt.Omega_m*3.0*opt.H*opt.h*opt.H*opt.h/(8.0*M_PI*opt.G)),1./3.)*opt.a;
     }
     else {
         LN=opt.p/(Double_t)opt.Neff;

@@ -211,7 +211,7 @@ void MPIAdjustDomain(Options opt){
     Double_t aadjust, lscale;
     if (opt.comove) aadjust=1.0;
     else aadjust=opt.a;
-    lscale=opt.L/opt.h*aadjust;
+    lscale=opt.lengthinputconversion/opt.h*aadjust;
     for (int j=0;j<NProcs;j++) for (int k=0;k<3;k++) {mpi_domain[j].bnd[k][0]*=lscale;mpi_domain[j].bnd[k][1]*=lscale;}
 }
 

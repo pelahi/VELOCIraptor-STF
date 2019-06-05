@@ -558,13 +558,13 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
         }
 
         if (pdata[i].M_gas>0) {
-          pdata[i].veldisp_gas=pdata[i].veldisp_gas*(1.0/pdata[i].M_gas);
-          pdata[i].cm_gas=pdata[i].cm_gas*(1.0/pdata[i].M_gas);
-          pdata[i].cmvel_gas=pdata[i].cm_gas*(1.0/pdata[i].M_gas);
-          pdata[i].Temp_gas/=pdata[i].M_gas;
+            pdata[i].veldisp_gas=pdata[i].veldisp_gas*(1.0/pdata[i].M_gas);
+            pdata[i].cm_gas=pdata[i].cm_gas*(1.0/pdata[i].M_gas);
+            pdata[i].cmvel_gas=pdata[i].cm_gas*(1.0/pdata[i].M_gas);
+            pdata[i].Temp_mean_gas=pdata[i].Temp_gas/pdata[i].M_gas;
 #ifdef STARON
-          pdata[i].Z_gas/=pdata[i].M_gas;
-          pdata[i].SFR_gas/=pdata[i].M_gas;
+            pdata[i].Z_mean_gas=pdata[i].Z_gas/pdata[i].M_gas;
+            pdata[i].SFR_mean_gas=pdata[i].SFR_gas/pdata[i].M_gas;
 #endif
         }
 
@@ -2894,6 +2894,17 @@ void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup
     Double_t m500val=log(opt.rhocrit*500.0);
     //find the lowest rho value and set minim threshold to half that
     Double_t minlgrhoval = min({virval, m200val, mBN98val, m200mval})-log(2.0);
+    //if there are many overdensities to calculate iterate over the list
+    vector<Double_t> SOlgrhovals;
+    int iSOfound;
+    //vector<
+    if (opt.SOnum >0) {
+        SOlgrhovals.resize(opt.SOnum);
+        for (auto i=0;i<opt.SOnum;i++) {
+            SOlgrhovals[i]=log(opt.rhocrit*opt.SOthresholds_values_crit[i]);
+            minlgrhoval = min(minlgrhoval,SOlgrhovals[i]-log(2.0));
+        }
+    }
     Double_t fac,rhoval,rhoval2;
     Double_t time1=MyGetTime(),time2;
     int nthreads=1,tid;
@@ -2989,7 +3000,7 @@ void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup
 
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
-private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typeparts,n,dx,EncMass,J,rc,rhoval,rhoval2,tid,SOpids)
+private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typeparts,n,dx,EncMass,J,rc,rhoval,rhoval2,tid,SOpids,iSOfound)
 {
 #pragma omp for schedule(dynamic) nowait
 #endif
@@ -2999,6 +3010,7 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
         if (opt.iPropertyReferencePosition == PROPREFCM) posref=pdata[i].gcm;
         else if (opt.iPropertyReferencePosition == PROPREFMBP) posref=pdata[i].gposmbp;
         else if (opt.iPropertyReferencePosition == PROPREFMINPOT) posref=pdata[i].gposminpot;
+        iSOfound = 0;
 
         taggedparts=tree->SearchBallPosTagged(posref,pow(maxrdist[i],2.0));
         radii.resize(taggedparts.size());
@@ -3156,8 +3168,17 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
                 pdata[i].gRBN98=rc*exp(gamma1*delta);
                 pdata[i].gMBN98=EncMass*exp(gamma2*delta);
             }
+            for (auto iso=0;iso<opt.SOnum;iso++) {
+                if (pdata[i].SO_radius[iso]==0) if (rhoval<SOlgrhovals[iso])
+                {
+                    delta = (SOlgrhovals[iso]-rhoval);
+                    pdata[i].SO_radius[iso]=rc*exp(gamma1*delta);
+                    pdata[i].SO_mass[iso]=EncMass*exp(gamma2*delta);
+                    iSOfound++;
+                }
+            }
             //if all overdensity thresholds found, store index and exit
-            if (pdata[i].gR200m!=0&&pdata[i].gR200c!=0&&pdata[i].gRvir!=0&&pdata[i].gR500c!=0&&pdata[i].gRBN98!=0) {
+            if (pdata[i].gR200m!=0&& pdata[i].gR200c!=0&&pdata[i].gRvir!=0&&pdata[i].gR500c!=0&&pdata[i].gRBN98!=0&&iSOfound==opt.SOnum) {
                 llindex=j;
                 break;
             }
@@ -3184,6 +3205,11 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
             pdata[i].gRBN98=-1;
             pdata[i].gMBN98=-1;
         }
+        for (auto iso=0;iso<opt.SOnum;iso++) if (pdata[i].SO_radius[iso]==0)
+        {
+            pdata[i].SO_radius[iso]=-1;
+            pdata[i].SO_mass[iso]=-1;
+        }
         //calculate angular momentum if necessary
         if (opt.iextrahalooutput) {
             for (j=0;j<radii.size();j++) {
@@ -3193,6 +3219,9 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
                 if (rc<=pdata[i].gR200c) pdata[i].gJ200c+=J;
                 if (rc<=pdata[i].gR200m) pdata[i].gJ200m+=J;
                 if (rc<=pdata[i].gRBN98) pdata[i].gJBN98+=J;
+                for (auto iso=0;iso<opt.SOnum;iso++) if (rc<pdata[i].SO_radius[iso]) {
+                    pdata[i].SO_angularmomentum[iso]+=J;
+                }
 #ifdef GASON
                 if (opt.iextragasoutput) {
                     if (typeparts[indices[j]]==GASTYPE){
@@ -3207,6 +3236,10 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
                         if (rc<=pdata[i].gRBN98) {
                             pdata[i].M_BN98_gas+=massval;
                             pdata[i].L_BN98_gas+=J;
+                        }
+                        for (auto iso=0;iso<opt.SOnum;iso++) if (rc<pdata[i].SO_radius[iso]) {
+                            pdata[i].SO_mass_gas[iso]+=massval;
+                            pdata[i].SO_angularmomentum_gas[iso]+=J;
                         }
                     }
                 }
@@ -3225,6 +3258,10 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
                         if (rc<=pdata[i].gRBN98) {
                             pdata[i].M_BN98_star+=massval;
                             pdata[i].L_BN98_star+=J;
+                        }
+                        for (auto iso=0;iso<opt.SOnum;iso++) if (rc<pdata[i].SO_radius[iso]) {
+                            pdata[i].SO_mass_star[iso]+=massval;
+                            pdata[i].SO_angularmomentum_star[iso]+=J;
                         }
                     }
                 }
@@ -3973,6 +4010,27 @@ void CopyMasses(Options &opt, const Int_t nhalos, PropData *&pold, PropData *&pn
             pnew[i].profile_mass_inclusive_star=pold[i].profile_mass_inclusive_star;
 #endif
         }
+        if (opt.SOnum>0) {
+            pnew[i].SO_mass=pold[i].SO_mass;
+            pnew[i].SO_radius=pold[i].SO_radius;
+            if (opt.iextrahalooutput) {
+                pnew[i].SO_angularmomentum=pold[i].SO_angularmomentum;
+#ifdef GASON
+                if (opt.iextragasoutput) {
+                    pnew[i].SO_mass_gas=pold[i].SO_mass_gas;
+                    pnew[i].SO_angularmomentum_gas=pold[i].SO_angularmomentum_gas;
+#ifdef STARON
+#endif
+                }
+#endif
+#ifdef STARON
+                if (opt.iextrastaroutput) {
+                    pnew[i].SO_mass_star=pold[i].SO_mass_star;
+                    pnew[i].SO_angularmomentum_star=pold[i].SO_angularmomentum_star;
+                }
+#endif
+            }
+        }
     }
 }
 ///reorder mass information stored in properties data
@@ -4083,10 +4141,20 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin,cmpotmin)
             //determine how many particles to use
             npot=max(opt.uinfo.Npotref,Int_t(opt.uinfo.fracpotref*numingroup[i]));
             //determine position of minimum potential and by radius around this position
-            potmin=Part[noffset[i]].GetPotential();ipotmin=0;
-            for (j=0;j<numingroup[i];j++) if (Part[j+noffset[i]].GetPotential()<potmin) {potmin=Part[j+noffset[i]].GetPotential();ipotmin=j;}
+            potmin=Part[noffset[i]].GetPotential();
+            ipotmin=0;
+            for (j=0;j<numingroup[i];j++) if (Part[j+noffset[i]].GetPotential()<potmin)
+            {
+                if (opt.ParticleTypeForRefenceFrame !=-1 && Part[noffset[i]+j].GetType() != opt.ParticleTypeForRefenceFrame) continue;
+                potmin=Part[j+noffset[i]].GetPotential();
+                ipotmin=j;
+            }
             pdata[i].iminpot=Part[ipotmin+noffset[i]].GetPID();
-            for (k=0;k<3;k++) {pdata[i].gposminpot[k]=Part[ipotmin+noffset[i]].GetPosition(k);pdata[i].gvelminpot[k]=Part[ipotmin+noffset[i]].GetVelocity(k);}
+            for (k=0;k<3;k++)
+            {
+                pdata[i].gposminpot[k]=Part[ipotmin+noffset[i]].GetPosition(k);
+                pdata[i].gvelminpot[k]=Part[ipotmin+noffset[i]].GetVelocity(k);
+            }
             for (k=0;k<3;k++) cmpotmin[k]=Part[ipotmin+noffset[i]].GetPosition(k);
             for (j=0;j<numingroup[i];j++) {
                 for (k=0;k<3;k++) Part[j+noffset[i]].SetPosition(k,Part[j+noffset[i]].GetPosition(k)-cmpotmin[k]);
@@ -4098,8 +4166,9 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin,cmpotmin)
                 for (k=0;k<3;k++) pdata[i].gcmvel[k]+=Part[j+noffset[i]].GetVelocity(k)*Part[j+noffset[i]].GetMass();
                 menc+=Part[j+noffset[i]].GetMass();
             }
-            for (j=0;j<3;j++) {pdata[i].gcmvel[j]/=menc;}
-            for (j=0;j<numingroup[i];j++) {
+            pdata[i].gcmvel*=1.0/menc;
+            for (j=0;j<numingroup[i];j++)
+            {
                 for (k=0;k<3;k++) Part[j+noffset[i]].SetPosition(k,Part[j+noffset[i]].GetPosition(k)+cmpotmin[k]);
             }
         }
@@ -4116,9 +4185,18 @@ private(i,j,k,potmin,ipotmin)
 #endif
     for (i=1;i<=ngroup;i++) if (numingroup[i]<ompunbindnum) {
         potmin=Part[noffset[i]].GetPotential();ipotmin=0;
-        for (j=0;j<numingroup[i];j++) if (Part[j+noffset[i]].GetPotential()<potmin) {potmin=Part[j+noffset[i]].GetPotential();ipotmin=j;}
+        for (j=0;j<numingroup[i];j++) if (Part[j+noffset[i]].GetPotential()<potmin)
+        {
+            if (opt.ParticleTypeForRefenceFrame !=-1 && Part[noffset[i]+j].GetType() != opt.ParticleTypeForRefenceFrame) continue;
+            potmin=Part[j+noffset[i]].GetPotential();
+            ipotmin=j;
+        }
         pdata[i].iminpot=Part[ipotmin+noffset[i]].GetPID();
-        for (k=0;k<3;k++) {pdata[i].gposminpot[k]=Part[ipotmin+noffset[i]].GetPosition(k);pdata[i].gvelminpot[k]=Part[ipotmin+noffset[i]].GetVelocity(k);}
+        for (k=0;k<3;k++)
+        {
+            pdata[i].gposminpot[k]=Part[ipotmin+noffset[i]].GetPosition(k);
+            pdata[i].gvelminpot[k]=Part[ipotmin+noffset[i]].GetVelocity(k);
+        }
     }
 #ifdef USEOPENMP
 }
@@ -4209,10 +4287,20 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin,cmpotmin)
             //determine how many particles to use
             npot=max(opt.uinfo.Npotref,Int_t(opt.uinfo.fracpotref*numingroup[i]));
             //determine position of minimum potential and by radius around this position
-            potmin=Part[noffset[i]].GetPotential();ipotmin=0;
-            for (j=0;j<numingroup[i];j++) if (Part[j+noffset[i]].GetPotential()<potmin) {potmin=Part[j+noffset[i]].GetPotential();ipotmin=j;}
+            potmin=Part[noffset[i]].GetPotential();
+            ipotmin=0;
+            for (j=0;j<numingroup[i];j++) if (Part[j+noffset[i]].GetPotential()<potmin)
+            {
+                if (opt.ParticleTypeForRefenceFrame !=-1 && Part[noffset[i]+j].GetType() != opt.ParticleTypeForRefenceFrame) continue;
+                potmin=Part[j+noffset[i]].GetPotential();
+                ipotmin=j;
+            }
             pdata[i].iminpot=Part[ipotmin+noffset[i]].GetPID();
-            for (k=0;k<3;k++) {pdata[i].gposminpot[k]=Part[ipotmin+noffset[i]].GetPosition(k);pdata[i].gvelminpot[k]=Part[ipotmin+noffset[i]].GetVelocity(k);}
+            for (k=0;k<3;k++)
+            {
+                pdata[i].gposminpot[k]=Part[ipotmin+noffset[i]].GetPosition(k);
+                pdata[i].gvelminpot[k]=Part[ipotmin+noffset[i]].GetVelocity(k);
+            }
             for (k=0;k<3;k++) cmpotmin[k]=Part[ipotmin+noffset[i]].GetPosition(k);
             for (j=0;j<numingroup[i];j++) {
                 for (k=0;k<3;k++) Part[j+noffset[i]].SetPosition(k,Part[j+noffset[i]].GetPosition(k)-cmpotmin[k]);
@@ -4241,8 +4329,14 @@ private(i,j,k,potmin,ipotmin)
     #pragma omp for schedule(dynamic) nowait
 #endif
     for (i=1;i<=ngroup;i++) if (numingroup[i]>=ompunbindnum) {
-        potmin=Part[noffset[i]].GetPotential();ipotmin=0;
-        for (j=0;j<numingroup[i];j++) if (Part[j+noffset[i]].GetPotential()<potmin) {potmin=Part[j+noffset[i]].GetPotential();ipotmin=j;}
+        potmin=Part[noffset[i]].GetPotential();
+        ipotmin=0;
+        for (j=0;j<numingroup[i];j++) if (Part[j+noffset[i]].GetPotential()<potmin)
+        {
+            if (opt.ParticleTypeForRefenceFrame !=-1 && Part[noffset[i]+j].GetType() != opt.ParticleTypeForRefenceFrame) continue;
+            potmin=Part[j+noffset[i]].GetPotential();
+            ipotmin=j;
+        }
         pdata[i].iminpot=Part[ipotmin+noffset[i]].GetPID();
         for (k=0;k<3;k++) {pdata[i].gposminpot[k]=Part[ipotmin+noffset[i]].GetPosition(k);pdata[i].gvelminpot[k]=Part[ipotmin+noffset[i]].GetVelocity(k);}
     }
@@ -4316,14 +4410,14 @@ private(i,j,Emostbound,imostbound)
     for (i=1;i<=ngroup;i++) {
         Emostbound = Part[noffset[i]].GetDensity();
         imostbound = 0;
-        pdata[i].ibound = Part[noffset[i]].GetPID();
-        for (j=1;j<numingroup[i];j++) {
+        for (j=0;j<numingroup[i];j++) {
+            if (opt.ParticleTypeForRefenceFrame !=-1 && Part[noffset[i]+j].GetType() != opt.ParticleTypeForRefenceFrame) continue;
             if (Part[noffset[i]+j].GetDensity() < Emostbound){
                 Emostbound = Part[noffset[i]+j].GetDensity();
                 imostbound = j;
-                pdata[i].ibound=Part[noffset[i]+j].GetPID();
             }
         }
+        pdata[i].ibound=Part[noffset[i]+imostbound].GetPID();
         for (j=0;j<3;j++) {
             pdata[i].gposmbp[j] = Part[noffset[i]+imostbound].GetPosition(j);
             pdata[i].gvelmbp[j] = Part[noffset[i]+imostbound].GetVelocity(j);

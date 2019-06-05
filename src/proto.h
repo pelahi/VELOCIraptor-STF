@@ -50,6 +50,12 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle *&Pbaryons, Int_t nbaryons=0);
 ///Read Nchilada file
 void ReadNchilada(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle *&Pbaryons, Int_t nbaryons=0);
+///Adjust hydro particles/quantities to appropriate units
+void AdjustHydroQuantities(Options &opt, vector<Particle> &Part, const Int_t nbodies);
+///Adjust star particles/quantities to appropriate units
+void AdjustStarQuantities(Options &opt, vector<Particle> &Part, const Int_t nbodies);
+///Adjust BH particles/quantities to appropriate units
+void AdjustBHQuantities(Options &opt, vector<Particle> &Part, const Int_t nbodies);
 
 ///Read local velocity density
 void ReadLocalVelocityDensity(Options &opt, const Int_t nbodies, vector<Particle> &Part);
@@ -67,6 +73,8 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
 void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, Int_t **pglist, vector<Particle> &Part);
 ///Writes the bulk properties of the substructures
 void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata);
+///Writes the bulk properties of the substructures in a subfind like HDF5 format
+void WriteSUBFINDProperties(Options &opt, const Int_t ngroups, PropData *pdata);
 ///Writes the structure hierarchy
 //void WriteHierarchy(Options &opt, Int_t ngroups, int subflag=0);
 void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t &nhierarchy, const Int_t &nfield, Int_t *nsub, Int_t *parentgid, Int_t *stype,int subflag=0);
@@ -283,7 +291,7 @@ void CalcVirBN98(Options &opt, Double_t a);
 void CalcCosmoParams(Options &opt, Double_t a);
 Double_t GetHubble(Options &opt, Double_t a);
 double GetInvaH(double a, void * params);
-Double_t CalcCosmicTime(Options &opt, Double_t a);
+Double_t CalcCosmicTime(Options &opt, Double_t a1, Double_t a2);
 //@}
 /// \name Routines to calculate substructure properties and sort particles in a substructure according to some property
 /// see \ref substructureproperties.cxx for implementation

@@ -375,6 +375,8 @@ struct Options
     int iextrabhoutput;
     /// calculate subind like properties
     int isubfindproperties;
+    ///for output, produce subfind like format
+    int isubfindoutput;
 
     ///disable particle id related output like fof.grp or catalog_group data. Useful if just want halo properties
     ///and not interested in tracking. Code writes halo properties catalog and exits.
@@ -398,8 +400,12 @@ struct Options
 
     ///\name length,m,v,grav conversion units
     //@{
-    Double_t L, M, U, V, G;
+    Double_t lengthinputconversion, massinputconversion, energyinputconversion, velocityinputconversion;
+    Double_t SFRinputconversion, metallicityinputconversion, stellarageinputconversion;
+    int istellaragescalefactor;
+    Double_t G;
     Double_t lengthtokpc, velocitytokms, masstosolarmass, energyperunitmass, timetoseconds;
+    Double_t SFRtosolarmassperyear, stellaragetoyrs, metallicitytosolar;
     //@}
     ///period (comove)
     Double_t p;
@@ -449,6 +455,8 @@ struct Options
     int iSortByBindingEnergy;
     /// what reference position to use when calculating Properties
     int iPropertyReferencePosition;
+    /// what particle type is used to define reference position
+    int ParticleTypeForRefenceFrame;
 
 
     ///threshold on particle ELL value, normalized logarithmic distance from predicted maxwellian velocity density.
@@ -620,6 +628,13 @@ struct Options
     vector<Double_t> profile_bin_edges;
     //@}
 
+    /// \name options related to calculation of arbitrary overdensities masses, radii, angular momentum
+    //@{
+    int SOnum;
+    vector<Double_t> SOthresholds_values_crit;
+    vector<string> SOthresholds_names_crit;
+    //@}
+
     /// \name options related to calculating star forming gas quantities
     //@{
     Double_t gas_sfr_threshold;
@@ -627,9 +642,15 @@ struct Options
 
     Options()
     {
-        L = 1.0;
-        M = 1.0;
-        V = 1.0;
+        lengthinputconversion = 1.0;
+        massinputconversion = 1.0;
+        velocityinputconversion = 1.0;
+        SFRinputconversion = 1.0;
+        metallicityinputconversion = 1.0;
+        energyinputconversion = 1.0;
+        stellarageinputconversion =1.0;
+        istellaragescalefactor = 1;
+
         G = 1.0;
         p = 0.0;
 
@@ -710,6 +731,7 @@ struct Options
         iKeepFOF=0;
         iSortByBindingEnergy=1;
         iPropertyReferencePosition=PROPREFCM;
+        ParticleTypeForRefenceFrame=-1;
 
         iLargerCellSearch=0;
 
@@ -732,6 +754,7 @@ struct Options
         iseparatefiles=0;
         ibinaryout=0;
         iextendedoutput=0;
+        isubfindoutput=0;
         inoidoutput=0;
         icomoveunit=0;
         icosmologicalin=1;
@@ -768,6 +791,12 @@ struct Options
         lengthtokpc=-1.0;
         velocitytokms=-1.0;
         masstosolarmass=-1.0;
+#if defined(GASON) || defined(STARON) || defined(BHON)
+        SFRtosolarmassperyear=-1.0;
+        stellaragetoyrs=-1.0;
+        metallicitytosolar=-1.0;
+#endif
+
 
         lengthtokpc30pow2=30.0*30.0;
         lengthtokpc50pow2=50.0*50.0;
@@ -917,11 +946,23 @@ struct ConfigInfo{
 
         //units, cosmology
         nameinfo.push_back("Length_unit");
-        datainfo.push_back(to_string(opt.L));
+        datainfo.push_back(to_string(opt.lengthinputconversion));
         nameinfo.push_back("Velocity_unit");
-        datainfo.push_back(to_string(opt.V));
+        datainfo.push_back(to_string(opt.velocityinputconversion));
         nameinfo.push_back("Mass_unit");
-        datainfo.push_back(to_string(opt.M));
+        datainfo.push_back(to_string(opt.massinputconversion));
+        nameinfo.push_back("Length_input_unit_conversion_to_output_unit");
+        datainfo.push_back(to_string(opt.lengthinputconversion));
+        nameinfo.push_back("Velocity_input_unit_conversion_to_output_unit");
+        datainfo.push_back(to_string(opt.velocityinputconversion));
+        nameinfo.push_back("Mass_input_unit_conversion_to_output_unit");
+        datainfo.push_back(to_string(opt.massinputconversion));
+        nameinfo.push_back("Star_formation_rate_input_unit_conversion_to_output_unit");
+        datainfo.push_back(to_string(opt.SFRinputconversion));
+        nameinfo.push_back("Metallicity_input_unit_conversion_to_output_unit");
+        datainfo.push_back(to_string(opt.metallicityinputconversion));
+        nameinfo.push_back("Stellar_age_input_is_cosmological_scalefactor");
+        datainfo.push_back(to_string(opt.istellaragescalefactor));
         nameinfo.push_back("Hubble_unit");
         datainfo.push_back(to_string(opt.H));
         nameinfo.push_back("Gravity");
@@ -934,6 +975,12 @@ struct ConfigInfo{
         datainfo.push_back(to_string(opt.velocitytokms));
         nameinfo.push_back("Mass_to_solarmass");
         datainfo.push_back(to_string(opt.masstosolarmass));
+        nameinfo.push_back("Star_formation_rate_to_solarmassperyear");
+        datainfo.push_back(to_string(opt.SFRtosolarmassperyear));
+        nameinfo.push_back("Metallicity_to_solarmetallicity");
+        datainfo.push_back(to_string(opt.metallicitytosolar));
+        nameinfo.push_back("Stellar_age_to_yr");
+        datainfo.push_back(to_string(opt.stellaragetoyrs));
 
         nameinfo.push_back("Period");
         datainfo.push_back(to_string(opt.p));
@@ -1072,11 +1119,11 @@ struct SimInfo{
 
         //units
         nameinfo.push_back("Length_unit");
-        datainfo.push_back(to_string(opt.L));
+        datainfo.push_back(to_string(opt.lengthinputconversion));
         nameinfo.push_back("Velocity_unit");
-        datainfo.push_back(to_string(opt.V));
+        datainfo.push_back(to_string(opt.velocityinputconversion));
         nameinfo.push_back("Mass_unit");
-        datainfo.push_back(to_string(opt.M));
+        datainfo.push_back(to_string(opt.massinputconversion));
         nameinfo.push_back("Gravity");
         datainfo.push_back(to_string(opt.G));
 #ifdef NOMASS
@@ -1108,6 +1155,14 @@ struct UnitInfo{
         datainfo.push_back(to_string(opt.velocitytokms));
         nameinfo.push_back("Mass_unit_to_solarmass");
         datainfo.push_back(to_string(opt.masstosolarmass));
+#if defined(GASON) || defined(STARON) || defined(BHON)
+        nameinfo.push_back("Metallicity_unit_to_solar");
+        datainfo.push_back(to_string(opt.metallicitytosolar));
+        nameinfo.push_back("SFR_unit_to_solarmassperyear");
+        datainfo.push_back(to_string(opt.SFRtosolarmassperyear));
+        nameinfo.push_back("Stellar_age_unit_to_yr");
+        datainfo.push_back(to_string(opt.stellaragetoyrs));
+#endif
 #endif
     }
 };
@@ -1214,12 +1269,16 @@ struct PropData
     //@{
     vector<int> aperture_npart;
     vector<float> aperture_mass;
+    vector<Coordinate> aperture_L;
     vector<int> profile_npart;
     vector<int> profile_npart_inclusive;
     vector<float> profile_mass;
     vector<float> profile_mass_inclusive;
     vector<Coordinate> profile_L;
     //@}
+
+    vector<Double_t> SO_mass, SO_radius;
+    vector<Coordinate> SO_angularmomentum;
 
 #ifdef GASON
     ///\name gas specific quantities
@@ -1246,8 +1305,10 @@ struct PropData
     ///morphology
     Double_t Rhalfmass_gas, q_gas, s_gas;
     Matrix eigvec_gas;
-    ///mean temperature,metallicty,star formation rate
+    ///mass weighted sum of temperature, metallicty, star formation rate
     Double_t Temp_gas, Z_gas, SFR_gas;
+    ///mean temperature,metallicty,star formation rate
+    Double_t Temp_mean_gas, Z_mean_gas, SFR_mean_gas;
     ///physical properties for dynamical state
     Double_t Efrac_gas, Pot_gas, T_gas;
     //@}
@@ -1256,6 +1317,7 @@ struct PropData
     //@{
     vector<float> aperture_npart_gas;
     vector<float> aperture_mass_gas;
+    vector<Coordinate> aperture_L_gas;
     vector<int> profile_npart_gas;
     vector<int> profile_npart_inclusive_gas;
     vector<float> profile_mass_gas;
@@ -1263,6 +1325,8 @@ struct PropData
     vector<Coordinate> profile_L_gas;
     //@}
 
+    vector<Double_t> SO_mass_gas;
+    vector<Coordinate> SO_angularmomentum_gas;
 
     ///\name star forming gas specific quantities
     //@{
@@ -1298,6 +1362,7 @@ struct PropData
     //@{
     vector<int> aperture_npart_gas_sf;
     vector<float> aperture_mass_gas_sf;
+    vector<Coordinate> aperture_L_gas_sf;
     vector<int> profile_npart_gas_sf;
     vector<int> profile_npart_inclusive_gas_sf;
     vector<float> profile_mass_gas_sf;
@@ -1305,6 +1370,8 @@ struct PropData
     vector<Coordinate> profile_L_gas_sf;
     //@}
 
+    vector<Double_t> SO_mass_gas_sf;
+    vector<Coordinate> SO_angularmomentum_gas_sf;
 
     ///\name star forming gas specific quantities
     //@{
@@ -1340,12 +1407,16 @@ struct PropData
     //@{
     vector<int> aperture_npart_gas_nsf;
     vector<float> aperture_mass_gas_nsf;
+    vector<Coordinate> aperture_L_gas_nsf;
     vector<int> profile_npart_gas_nsf;
     vector<int> profile_npart_inclusive_gas_nsf;
     vector<float> profile_mass_gas_nsf;
     vector<float> profile_mass_inclusive_gas_nsf;
     vector<Coordinate> profile_L_gas_nsf;
     //@}
+
+    vector<Double_t> SO_mass_gas_nsf;
+    vector<Coordinate> SO_angularmomentum_gas_nsf;
 #endif
 
 #ifdef STARON
@@ -1382,12 +1453,16 @@ struct PropData
     //@{
     vector<int> aperture_npart_star;
     vector<float> aperture_mass_star;
+    vector<Coordinate> aperture_L_star;
     vector<int> profile_npart_star;
     vector<int> profile_npart_inclusive_star;
     vector<float> profile_mass_star;
     vector<float> profile_mass_inclusive_star;
     vector<Coordinate> profile_L_star;
     //@}
+
+    vector<Double_t> SO_mass_star;
+    vector<Coordinate> SO_angularmomentum_star;
 #endif
 
 #ifdef BHON
@@ -1399,6 +1474,16 @@ struct PropData
     Double_t M_bh, M_bh_mostmassive;
     ///mean accretion rate, metallicty
     Double_t acc_bh, acc_bh_mostmassive;
+
+    ///\name blackhole aperture/radial profiles
+    //@{
+    vector<int> aperture_npart_bh;
+    vector<float> aperture_mass_bh;
+    vector<Coordinate> aperture_L_bh;
+    //@}
+
+    vector<Double_t> SO_mass_bh;
+    vector<Coordinate> SO_angularmomentum_bh;
     //@}
 #endif
 
@@ -1665,6 +1750,7 @@ struct PropData
     void Allocate(Options &opt) {
         AllocateApertures(opt);
         AllocateProfiles(opt);
+        AllocateSOs(opt);
     }
     void AllocateApertures(Options &opt)
     {
@@ -1684,6 +1770,22 @@ struct PropData
 #ifdef STARON
             aperture_npart_star.resize(opt.aperturenum);
             aperture_mass_star.resize(opt.aperturenum);
+#endif
+            for (auto &np:aperture_npart) np=0;
+            for (auto &mp:aperture_mass) mp=0;
+#ifdef GASON
+            for (auto &np:aperture_npart_gas) np=0;
+            for (auto &mp:aperture_mass_gas) mp=0;
+#ifdef STARON
+            for (auto &np:aperture_npart_gas_sf) np=0;
+            for (auto &mp:aperture_mass_gas_sf) mp=0;
+            for (auto &np:aperture_npart_gas_nsf) np=0;
+            for (auto &mp:aperture_mass_gas_nsf) mp=0;
+#endif
+#endif
+#ifdef STARON
+            for (auto &np:aperture_npart_star) np=0;
+            for (auto &mp:aperture_mass_star) mp=0;
 #endif
         }
     }
@@ -1737,6 +1839,37 @@ struct PropData
 #endif
             }
 
+        }
+    }
+    void AllocateSOs(Options &opt)
+    {
+        if (opt.SOnum>0) {
+            SO_mass.resize(opt.SOnum);
+            SO_radius.resize(opt.SOnum);
+            for (auto &x:SO_mass) x=0;
+            for (auto &x:SO_radius) x=0;
+            if (opt.iextrahalooutput) {
+                SO_angularmomentum.resize(opt.SOnum);
+                for (auto &x:SO_angularmomentum) {x[0]=x[1]=x[2]=0;}
+#ifdef GASON
+                if (opt.iextragasoutput) {
+                    SO_mass_gas.resize(opt.SOnum);
+                    for (auto &x:SO_mass_gas) x=0;
+                    SO_angularmomentum_gas.resize(opt.SOnum);
+                    for (auto &x:SO_angularmomentum_gas) {x[0]=x[1]=x[2]=0;}
+#ifdef STARON
+#endif
+                }
+#endif
+#ifdef STARON
+                if (opt.iextrastaroutput) {
+                    SO_mass_star.resize(opt.SOnum);
+                    for (auto &x:SO_mass_star) x=0;
+                    SO_angularmomentum_star.resize(opt.SOnum);
+                    for (auto &x:SO_angularmomentum_star) {x[0]=x[1]=x[2]=0;}
+                }
+#endif
+            }
         }
     }
     void CopyProfileToInclusive(Options &opt) {
@@ -1854,12 +1987,33 @@ struct PropData
                 aperture_mass[i]*=opt.h;
 #ifdef GASON
                 aperture_mass_gas[i]*=opt.h;
+#ifdef STARON
                 aperture_mass_gas_sf[i]*=opt.h;
                 aperture_mass_gas_nsf[i]*=opt.h;
+#endif
 #endif
 #ifdef STARON
                 aperture_mass_star[i]*=opt.h;
 #endif
+            }
+        }
+        if (opt.SOnum>0) {
+            for (auto i=0;i<opt.SOnum;i++) {
+                SO_mass[i] *= opt.h;
+                SO_radius[i] *= opt.h/opt.a;
+                if (opt.iextrahalooutput) {
+                    SO_angularmomentum[i]*=(opt.h*opt.h/opt.a);
+#ifdef GASON
+                    SO_mass_gas[i] *= opt.h;
+                    SO_angularmomentum_gas[i]*=(opt.h*opt.h/opt.a);
+#ifdef STARON
+#endif
+#endif
+#ifdef STARON
+                    SO_mass_star[i] *= opt.h;
+                    SO_angularmomentum_star[i]*=(opt.h*opt.h/opt.a);
+#endif
+                }
             }
         }
     }
@@ -2437,6 +2591,47 @@ struct PropData
             }
 #endif
         }
+        if (opt.SOnum>0){
+            for (auto j=0;j<opt.SOnum;j++) {
+                Fout<<SO_mass[j]<<" ";
+            }
+            for (auto j=0;j<opt.SOnum;j++) {
+                Fout<<SO_radius[j]<<" ";
+            }
+#ifdef GASON
+            if (opt.iextragasoutput && opt.iextrahalooutput)
+            for (auto j=0;j<opt.SOnum;j++) {
+                Fout<<SO_mass_gas[j]<<" ";
+            }
+#ifdef STARON
+#endif
+#endif
+#ifdef STARON
+            if (opt.iextrastaroutput && opt.iextrahalooutput)
+            for (auto j=0;j<opt.SOnum;j++) {
+                Fout<<SO_mass_star[j]<<" ";
+            }
+#endif
+        }
+        if (opt.SOnum>0 && opt.iextrahalooutput){
+            for (auto j=0;j<opt.SOnum;j++) {
+                for (auto k=0;k<3;k++) Fout<<SO_angularmomentum[j][k]<<" ";
+            }
+#ifdef GASON
+            if (opt.iextragasoutput)
+            for (auto j=0;j<opt.SOnum;j++) {
+                for (auto k=0;k<3;k++) Fout<<SO_angularmomentum_gas[j][k]<<" ";
+            }
+#ifdef STARON
+#endif
+#endif
+#ifdef STARON
+            if (opt.iextrastaroutput)
+            for (auto j=0;j<opt.SOnum;j++) {
+                for (auto k=0;k<3;k++) Fout<<SO_angularmomentum_star[j][k]<<" ";
+            }
+#endif
+        }
 
         Fout<<endl;
     }
@@ -2951,6 +3146,110 @@ struct PropDataHeader{
             }
 #endif
         }
+
+        //if aperture information calculated also include
+        if (opt.SOnum>0) {
+            for (auto i=0; i<opt.SOnum;i++) {
+                headerdatainfo.push_back((string("SO_Mass_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
+#ifdef USEHDF
+                predtypeinfo.push_back(desiredproprealtype[0]);
+#endif
+#ifdef USEADIOS
+                adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
+#endif
+            }
+            for (auto i=0; i<opt.SOnum;i++) {
+                headerdatainfo.push_back((string("SO_R_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
+#ifdef USEHDF
+                predtypeinfo.push_back(desiredproprealtype[0]);
+#endif
+#ifdef USEADIOS
+                adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
+#endif
+            }
+#ifdef GASON
+            if (opt.iextragasoutput && opt.iextrahalooutput) {
+                for (auto i=0; i<opt.SOnum;i++) {
+                    headerdatainfo.push_back((string("SO_Mass_gas_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
+#ifdef USEHDF
+                    predtypeinfo.push_back(desiredproprealtype[0]);
+#endif
+#ifdef USEADIOS
+                    adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
+#endif
+                }
+#ifdef STARON
+#endif
+            }
+#endif
+
+#ifdef STARON
+            if (opt.iextrastaroutput && opt.iextrahalooutput) {
+                for (auto i=0; i<opt.SOnum;i++) {
+                    headerdatainfo.push_back((string("SO_Mass_star_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
+#ifdef USEHDF
+                    predtypeinfo.push_back(desiredproprealtype[0]);
+#endif
+#ifdef USEADIOS
+                    adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
+#endif
+                }
+            }
+#endif
+        }
+        if (opt.SOnum>0 && opt.iextrahalooutput) {
+            for (auto i=0; i<opt.SOnum;i++) {
+                headerdatainfo.push_back((string("SO_Lx_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
+                headerdatainfo.push_back((string("SO_Ly_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
+                headerdatainfo.push_back((string("SO_Lz_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
+                for (auto k=0;k<3;k++) {
+#ifdef USEHDF
+                    predtypeinfo.push_back(desiredproprealtype[0]);
+#endif
+#ifdef USEADIOS
+                    adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
+#endif
+                }
+            }
+#ifdef GASON
+            if (opt.iextragasoutput) {
+                for (auto i=0; i<opt.SOnum;i++) {
+                    headerdatainfo.push_back((string("SO_Lx_gas_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
+                    headerdatainfo.push_back((string("SO_Ly_gas_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
+                    headerdatainfo.push_back((string("SO_Lz_gas_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
+                    for (auto k=0;k<3;k++) {
+#ifdef USEHDF
+                        predtypeinfo.push_back(desiredproprealtype[0]);
+#endif
+#ifdef USEADIOS
+                        adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
+#endif
+                    }
+                }
+#ifdef STARON
+#endif
+            }
+#endif
+
+#ifdef STARON
+            if (opt.iextrastaroutput) {
+                for (auto i=0; i<opt.SOnum;i++) {
+                    headerdatainfo.push_back((string("SO_Lx_star_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
+                    headerdatainfo.push_back((string("SO_Ly_star_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
+                    headerdatainfo.push_back((string("SO_Lz_star_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
+                    for (auto k=0;k<3;k++) {
+#ifdef USEHDF
+                        predtypeinfo.push_back(desiredproprealtype[0]);
+#endif
+#ifdef USEADIOS
+                        adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
+#endif
+                    }
+                }
+            }
+#endif
+        }
+
     }
 };
 
@@ -3248,6 +3547,11 @@ struct DataGroupNames {
         prop.push_back("Length_unit_to_kpc");
         prop.push_back("Velocity_to_kms");
         prop.push_back("Mass_unit_to_solarmass");
+#if defined(GASON) || defined(STARON) || defined(BHON)
+        prop.push_back("Metallicity_unit_to_solar");
+        prop.push_back("SFR_unit_to_solarmassperyear");
+        prop.push_back("Stellar_age_unit_to_yr");
+#endif
 #ifdef USEHDF
         propdatatype.push_back(PredType::STD_I32LE);
         propdatatype.push_back(PredType::STD_I32LE);
@@ -3255,11 +3559,16 @@ struct DataGroupNames {
         propdatatype.push_back(PredType::STD_U64LE);
         propdatatype.push_back(PredType::STD_U32LE);
         propdatatype.push_back(PredType::STD_U32LE);
-        propdatatype.push_back(PredType::NATIVE_FLOAT);
-        propdatatype.push_back(PredType::NATIVE_FLOAT);
-        propdatatype.push_back(PredType::NATIVE_FLOAT);
-        propdatatype.push_back(PredType::NATIVE_FLOAT);
-        propdatatype.push_back(PredType::NATIVE_FLOAT);
+        propdatatype.push_back(desiredproprealtype[0]);
+        propdatatype.push_back(desiredproprealtype[0]);
+        propdatatype.push_back(desiredproprealtype[0]);
+        propdatatype.push_back(desiredproprealtype[0]);
+        propdatatype.push_back(desiredproprealtype[0]);
+#if defined(GASON) || defined(STARON) || defined(BHON)
+        propdatatype.push_back(desiredproprealtype[0]);
+        propdatatype.push_back(desiredproprealtype[0]);
+        propdatatype.push_back(desiredproprealtype[0]);
+#endif
 #endif
 #ifdef USEADIOS
         adiospropdatatype.push_back(ADIOS_DATATYPES::adios_integer);
@@ -3268,11 +3577,16 @@ struct DataGroupNames {
         adiospropdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_long);
         adiospropdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_integer);
         adiospropdatatype.push_back(ADIOS_DATATYPES::adios_unsigned_integer);
-        adiospropdatatype.push_back(ADIOS_DATATYPES::adios_real);
-        adiospropdatatype.push_back(ADIOS_DATATYPES::adios_real);
-        adiospropdatatype.push_back(ADIOS_DATATYPES::adios_real);
-        adiospropdatatype.push_back(ADIOS_DATATYPES::adios_real);
-        adiospropdatatype.push_back(ADIOS_DATATYPES::adios_real);
+        adiospropdatatype.push_back(desiredadiosproprealtype[0]);
+        adiospropdatatype.push_back(desiredadiosproprealtype[0]);
+        adiospropdatatype.push_back(desiredadiosproprealtype[0]);
+        adiospropdatatype.push_back(desiredadiosproprealtype[0]);
+        adiospropdatatype.push_back(desiredadiosproprealtype[0]);
+#if defined(GASON) || defined(STARON) || defined(BHON)
+        adiospropdatatype.push_back(desiredadiosproprealtype[0]);
+        adiospropdatatype.push_back(desiredadiosproprealtype[0]);
+        adiospropdatatype.push_back(desiredadiosproprealtype[0]);
+#endif
 #endif
 
         group.push_back("File_id");

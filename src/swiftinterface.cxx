@@ -95,7 +95,7 @@ inline int ConfigCheckSwift(Options &opt, Swift::siminfo &s)
     if (opt.iSingleHalo) cout<<"Field objects NOT searched for, assuming single Halo and subsearch using mean field first step"<<endl;
     cout<<"Allowed potential to kinetic ratio when unbinding particles "<<opt.uinfo.Eratio<<endl;
     if (opt.HaloMinSize!=opt.MinSize) cout<<"Field objects (aka Halos) have different minimum required size than substructures: "<<opt.HaloMinSize<<" vs "<<opt.MinSize<<endl;
-    cout<<"Units: L="<<opt.L<<", M="<<opt.M<<", V="<<opt.V<<", G="<<opt.G<<endl;
+    cout<<"Units: L="<<opt.lengthinputconversion<<", M="<<opt.massinputconversion<<", V="<<opt.velocityinputconversion<<", G="<<opt.G<<endl;
     if (opt.ibinaryout) cout<<"Binary output"<<endl;
     if (opt.iseparatefiles) cout<<"Separate files output"<<endl;
     if (opt.iextendedoutput) cout<<"Extended output for particle extraction from input files"<<endl;
@@ -155,10 +155,13 @@ int InitVelociraptor(char* configname, unitinfo u, siminfo s, const int numthrea
     libvelociraptorOpt.energyperunitmass=u.energyperunitmass;
 
     //run in swift internal units, don't convert units
-    libvelociraptorOpt.L=1.0;
-    libvelociraptorOpt.M=1.0;
-    libvelociraptorOpt.V=1.0;
-    libvelociraptorOpt.U=1.0;
+    libvelociraptorOpt.lengthinputconversion=1.0;
+    libvelociraptorOpt.massinputconversion=1.0;
+    libvelociraptorOpt.velocityinputconversion=1.0;
+    libvelociraptorOpt.energyinputconversion=1.0;
+    libvelociraptorOpt.SFRinputconversion=1.0;
+    libvelociraptorOpt.metallicityinputconversion=1.0;
+    libvelociraptorOpt.istellaragescalefactor = 1;
 
     //set cosmological parameters that do not change
     ///these should be in units of kpc, km/s, and solar mass
