@@ -2894,6 +2894,17 @@ void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup
     Double_t m500val=log(opt.rhocrit*500.0);
     //find the lowest rho value and set minim threshold to half that
     Double_t minlgrhoval = min({virval, m200val, mBN98val, m200mval})-log(2.0);
+    //if there are many overdensities to calculate iterate over the list
+    vector<Double_t> SOlgrhovals;
+    int iSOfound;
+    //vector<
+    if (opt.SOnum >0) {
+        SOlgrhovals.resize(opt.SOnum);
+        for (auto i=0;i<opt.SOnum;i++) {
+            SOlgrhovals[i]=log(opt.rhocrit*opt.SOthresholds_values_crit[i]);
+            minlgrhoval = min(minlgrhoval,SOlgrhovals[i]-log(2.0));
+        }
+    }
     Double_t fac,rhoval,rhoval2;
     Double_t time1=MyGetTime(),time2;
     int nthreads=1,tid;
@@ -2989,7 +3000,7 @@ void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup
 
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
-private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typeparts,n,dx,EncMass,J,rc,rhoval,rhoval2,tid,SOpids)
+private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typeparts,n,dx,EncMass,J,rc,rhoval,rhoval2,tid,SOpids,iSOfound)
 {
 #pragma omp for schedule(dynamic) nowait
 #endif
@@ -2999,6 +3010,7 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
         if (opt.iPropertyReferencePosition == PROPREFCM) posref=pdata[i].gcm;
         else if (opt.iPropertyReferencePosition == PROPREFMBP) posref=pdata[i].gposmbp;
         else if (opt.iPropertyReferencePosition == PROPREFMINPOT) posref=pdata[i].gposminpot;
+        iSOfound = 0;
 
         taggedparts=tree->SearchBallPosTagged(posref,pow(maxrdist[i],2.0));
         radii.resize(taggedparts.size());
@@ -3156,8 +3168,17 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
                 pdata[i].gRBN98=rc*exp(gamma1*delta);
                 pdata[i].gMBN98=EncMass*exp(gamma2*delta);
             }
+            for (auto iso=0;iso<opt.SOnum;iso++) {
+                if (pdata[i].SO_radius[iso]==0) if (rhoval<SOlgrhovals[iso])
+                {
+                    delta = (SOlgrhovals[iso]-rhoval);
+                    pdata[i].SO_radius[iso]=rc*exp(gamma1*delta);
+                    pdata[i].SO_mass[iso]=EncMass*exp(gamma2*delta);
+                    iSOfound++;
+                }
+            }
             //if all overdensity thresholds found, store index and exit
-            if (pdata[i].gR200m!=0&&pdata[i].gR200c!=0&&pdata[i].gRvir!=0&&pdata[i].gR500c!=0&&pdata[i].gRBN98!=0) {
+            if (pdata[i].gR200m!=0&& pdata[i].gR200c!=0&&pdata[i].gRvir!=0&&pdata[i].gR500c!=0&&pdata[i].gRBN98!=0&&iSOfound==opt.SOnum) {
                 llindex=j;
                 break;
             }
@@ -3184,6 +3205,11 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
             pdata[i].gRBN98=-1;
             pdata[i].gMBN98=-1;
         }
+        for (auto iso=0;iso<opt.SOnum;iso++) if (pdata[i].SO_radius[iso]==0)
+        {
+            pdata[i].SO_radius[iso]=-1;
+            pdata[i].SO_mass[iso]=-1;
+        }
         //calculate angular momentum if necessary
         if (opt.iextrahalooutput) {
             for (j=0;j<radii.size();j++) {
@@ -3193,6 +3219,9 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
                 if (rc<=pdata[i].gR200c) pdata[i].gJ200c+=J;
                 if (rc<=pdata[i].gR200m) pdata[i].gJ200m+=J;
                 if (rc<=pdata[i].gRBN98) pdata[i].gJBN98+=J;
+                for (auto iso=0;iso<opt.SOnum;iso++) if (rc<pdata[i].SO_radius[iso]) {
+                    pdata[i].SO_angularmomentum[iso]+=J;
+                }
 #ifdef GASON
                 if (opt.iextragasoutput) {
                     if (typeparts[indices[j]]==GASTYPE){
@@ -3207,6 +3236,10 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
                         if (rc<=pdata[i].gRBN98) {
                             pdata[i].M_BN98_gas+=massval;
                             pdata[i].L_BN98_gas+=J;
+                        }
+                        for (auto iso=0;iso<opt.SOnum;iso++) if (rc<pdata[i].SO_radius[iso]) {
+                            pdata[i].SO_mass_gas[iso]+=massval;
+                            pdata[i].SO_angularmomentum_gas[iso]+=J;
                         }
                     }
                 }
@@ -3225,6 +3258,10 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
                         if (rc<=pdata[i].gRBN98) {
                             pdata[i].M_BN98_star+=massval;
                             pdata[i].L_BN98_star+=J;
+                        }
+                        for (auto iso=0;iso<opt.SOnum;iso++) if (rc<pdata[i].SO_radius[iso]) {
+                            pdata[i].SO_mass_star[iso]+=massval;
+                            pdata[i].SO_angularmomentum_star[iso]+=J;
                         }
                     }
                 }
@@ -3972,6 +4009,27 @@ void CopyMasses(Options &opt, const Int_t nhalos, PropData *&pold, PropData *&pn
             pnew[i].profile_npart_inclusive_star=pold[i].profile_npart_inclusive_star;
             pnew[i].profile_mass_inclusive_star=pold[i].profile_mass_inclusive_star;
 #endif
+        }
+        if (opt.SOnum>0) {
+            pnew[i].SO_mass=pold[i].SO_mass;
+            pnew[i].SO_radius=pold[i].SO_radius;
+            if (opt.iextrahalooutput) {
+                pnew[i].SO_angularmomentum=pold[i].SO_angularmomentum;
+#ifdef GASON
+                if (opt.iextragasoutput) {
+                    pnew[i].SO_mass_gas=pold[i].SO_mass_gas;
+                    pnew[i].SO_angularmomentum_gas=pold[i].SO_angularmomentum_gas;
+#ifdef STARON
+#endif
+                }
+#endif
+#ifdef STARON
+                if (opt.iextrastaroutput) {
+                    pnew[i].SO_mass_star=pold[i].SO_mass_star;
+                    pnew[i].SO_angularmomentum_star=pold[i].SO_angularmomentum_star;
+                }
+#endif
+            }
         }
     }
 }

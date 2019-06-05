@@ -612,6 +612,13 @@ struct Options
     vector<Double_t> profile_bin_edges;
     //@}
 
+    /// \name options related to calculation of arbitrary overdensities masses, radii, angular momentum
+    //@{
+    int SOnum;
+    vector<Double_t> SOthresholds_values_crit;
+    vector<string> SOthresholds_names_crit;
+    //@}
+
     /// \name options related to calculating star forming gas quantities
     //@{
     Double_t gas_sfr_threshold;
@@ -1204,12 +1211,16 @@ struct PropData
     //@{
     vector<int> aperture_npart;
     vector<float> aperture_mass;
+    vector<Coordinate> aperture_L;
     vector<int> profile_npart;
     vector<int> profile_npart_inclusive;
     vector<float> profile_mass;
     vector<float> profile_mass_inclusive;
     vector<Coordinate> profile_L;
     //@}
+
+    vector<Double_t> SO_mass, SO_radius;
+    vector<Coordinate> SO_angularmomentum;
 
 #ifdef GASON
     ///\name gas specific quantities
@@ -1246,6 +1257,7 @@ struct PropData
     //@{
     vector<float> aperture_npart_gas;
     vector<float> aperture_mass_gas;
+    vector<Coordinate> aperture_L_gas;
     vector<int> profile_npart_gas;
     vector<int> profile_npart_inclusive_gas;
     vector<float> profile_mass_gas;
@@ -1253,6 +1265,8 @@ struct PropData
     vector<Coordinate> profile_L_gas;
     //@}
 
+    vector<Double_t> SO_mass_gas;
+    vector<Coordinate> SO_angularmomentum_gas;
 
     ///\name star forming gas specific quantities
     //@{
@@ -1288,6 +1302,7 @@ struct PropData
     //@{
     vector<int> aperture_npart_gas_sf;
     vector<float> aperture_mass_gas_sf;
+    vector<Coordinate> aperture_L_gas_sf;
     vector<int> profile_npart_gas_sf;
     vector<int> profile_npart_inclusive_gas_sf;
     vector<float> profile_mass_gas_sf;
@@ -1295,6 +1310,8 @@ struct PropData
     vector<Coordinate> profile_L_gas_sf;
     //@}
 
+    vector<Double_t> SO_mass_gas_sf;
+    vector<Coordinate> SO_angularmomentum_gas_sf;
 
     ///\name star forming gas specific quantities
     //@{
@@ -1330,12 +1347,16 @@ struct PropData
     //@{
     vector<int> aperture_npart_gas_nsf;
     vector<float> aperture_mass_gas_nsf;
+    vector<Coordinate> aperture_L_gas_nsf;
     vector<int> profile_npart_gas_nsf;
     vector<int> profile_npart_inclusive_gas_nsf;
     vector<float> profile_mass_gas_nsf;
     vector<float> profile_mass_inclusive_gas_nsf;
     vector<Coordinate> profile_L_gas_nsf;
     //@}
+
+    vector<Double_t> SO_mass_gas_nsf;
+    vector<Coordinate> SO_angularmomentum_gas_nsf;
 #endif
 
 #ifdef STARON
@@ -1372,12 +1393,16 @@ struct PropData
     //@{
     vector<int> aperture_npart_star;
     vector<float> aperture_mass_star;
+    vector<Coordinate> aperture_L_star;
     vector<int> profile_npart_star;
     vector<int> profile_npart_inclusive_star;
     vector<float> profile_mass_star;
     vector<float> profile_mass_inclusive_star;
     vector<Coordinate> profile_L_star;
     //@}
+
+    vector<Double_t> SO_mass_star;
+    vector<Coordinate> SO_angularmomentum_star;
 #endif
 
 #ifdef BHON
@@ -1389,6 +1414,16 @@ struct PropData
     Double_t M_bh, M_bh_mostmassive;
     ///mean accretion rate, metallicty
     Double_t acc_bh, acc_bh_mostmassive;
+
+    ///\name blackhole aperture/radial profiles
+    //@{
+    vector<int> aperture_npart_bh;
+    vector<float> aperture_mass_bh;
+    vector<Coordinate> aperture_L_bh;
+    //@}
+
+    vector<Double_t> SO_mass_bh;
+    vector<Coordinate> SO_angularmomentum_bh;
     //@}
 #endif
 
@@ -1655,6 +1690,7 @@ struct PropData
     void Allocate(Options &opt) {
         AllocateApertures(opt);
         AllocateProfiles(opt);
+        AllocateSOs(opt);
     }
     void AllocateApertures(Options &opt)
     {
@@ -1674,6 +1710,22 @@ struct PropData
 #ifdef STARON
             aperture_npart_star.resize(opt.aperturenum);
             aperture_mass_star.resize(opt.aperturenum);
+#endif
+            for (auto &np:aperture_npart) np=0;
+            for (auto &mp:aperture_mass) mp=0;
+#ifdef GASON
+            for (auto &np:aperture_npart_gas) np=0;
+            for (auto &mp:aperture_mass_gas) mp=0;
+#ifdef STARON
+            for (auto &np:aperture_npart_gas_sf) np=0;
+            for (auto &mp:aperture_mass_gas_sf) mp=0;
+            for (auto &np:aperture_npart_gas_nsf) np=0;
+            for (auto &mp:aperture_mass_gas_nsf) mp=0;
+#endif
+#endif
+#ifdef STARON
+            for (auto &np:aperture_npart_star) np=0;
+            for (auto &mp:aperture_mass_star) mp=0;
 #endif
         }
     }
@@ -1727,6 +1779,37 @@ struct PropData
 #endif
             }
 
+        }
+    }
+    void AllocateSOs(Options &opt)
+    {
+        if (opt.SOnum>0) {
+            SO_mass.resize(opt.SOnum);
+            SO_radius.resize(opt.SOnum);
+            for (auto &x:SO_mass) x=0;
+            for (auto &x:SO_radius) x=0;
+            if (opt.iextrahalooutput) {
+                SO_angularmomentum.resize(opt.SOnum);
+                for (auto &x:SO_angularmomentum) {x[0]=x[1]=x[2]=0;}
+#ifdef GASON
+                if (opt.iextragasoutput) {
+                    SO_mass_gas.resize(opt.SOnum);
+                    for (auto &x:SO_mass_gas) x=0;
+                    SO_angularmomentum_gas.resize(opt.SOnum);
+                    for (auto &x:SO_angularmomentum_gas) {x[0]=x[1]=x[2]=0;}
+#ifdef STARON
+#endif
+                }
+#endif
+#ifdef STARON
+                if (opt.iextrastaroutput) {
+                    SO_mass_star.resize(opt.SOnum);
+                    for (auto &x:SO_mass_star) x=0;
+                    SO_angularmomentum_star.resize(opt.SOnum);
+                    for (auto &x:SO_angularmomentum_star) {x[0]=x[1]=x[2]=0;}
+                }
+#endif
+            }
         }
     }
     void CopyProfileToInclusive(Options &opt) {
@@ -1844,12 +1927,33 @@ struct PropData
                 aperture_mass[i]*=opt.h;
 #ifdef GASON
                 aperture_mass_gas[i]*=opt.h;
+#ifdef STARON
                 aperture_mass_gas_sf[i]*=opt.h;
                 aperture_mass_gas_nsf[i]*=opt.h;
+#endif
 #endif
 #ifdef STARON
                 aperture_mass_star[i]*=opt.h;
 #endif
+            }
+        }
+        if (opt.SOnum>0) {
+            for (auto i=0;i<opt.SOnum;i++) {
+                SO_mass[i] *= opt.h;
+                SO_radius[i] *= opt.h/opt.a;
+                if (opt.iextrahalooutput) {
+                    SO_angularmomentum[i]*=(opt.h*opt.h/opt.a);
+#ifdef GASON
+                    SO_mass_gas[i] *= opt.h;
+                    SO_angularmomentum_gas[i]*=(opt.h*opt.h/opt.a);
+#ifdef STARON
+#endif
+#endif
+#ifdef STARON
+                    SO_mass_star[i] *= opt.h;
+                    SO_angularmomentum_star[i]*=(opt.h*opt.h/opt.a);
+#endif
+                }
             }
         }
     }
@@ -2427,6 +2531,47 @@ struct PropData
             }
 #endif
         }
+        if (opt.SOnum>0){
+            for (auto j=0;j<opt.SOnum;j++) {
+                Fout<<SO_mass[j]<<" ";
+            }
+            for (auto j=0;j<opt.SOnum;j++) {
+                Fout<<SO_radius[j]<<" ";
+            }
+#ifdef GASON
+            if (opt.iextragasoutput && opt.iextrahalooutput)
+            for (auto j=0;j<opt.SOnum;j++) {
+                Fout<<SO_mass_gas[j]<<" ";
+            }
+#ifdef STARON
+#endif
+#endif
+#ifdef STARON
+            if (opt.iextrastaroutput && opt.iextrahalooutput)
+            for (auto j=0;j<opt.SOnum;j++) {
+                Fout<<SO_mass_star[j]<<" ";
+            }
+#endif
+        }
+        if (opt.SOnum>0 && opt.iextrahalooutput){
+            for (auto j=0;j<opt.SOnum;j++) {
+                for (auto k=0;k<3;k++) Fout<<SO_angularmomentum[j][k]<<" ";
+            }
+#ifdef GASON
+            if (opt.iextragasoutput)
+            for (auto j=0;j<opt.SOnum;j++) {
+                for (auto k=0;k<3;k++) Fout<<SO_angularmomentum_gas[j][k]<<" ";
+            }
+#ifdef STARON
+#endif
+#endif
+#ifdef STARON
+            if (opt.iextrastaroutput)
+            for (auto j=0;j<opt.SOnum;j++) {
+                for (auto k=0;k<3;k++) Fout<<SO_angularmomentum_star[j][k]<<" ";
+            }
+#endif
+        }
 
         Fout<<endl;
     }
@@ -2941,6 +3086,110 @@ struct PropDataHeader{
             }
 #endif
         }
+
+        //if aperture information calculated also include
+        if (opt.SOnum>0) {
+            for (auto i=0; i<opt.SOnum;i++) {
+                headerdatainfo.push_back((string("SO_Mass_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
+#ifdef USEHDF
+                predtypeinfo.push_back(desiredproprealtype[0]);
+#endif
+#ifdef USEADIOS
+                adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
+#endif
+            }
+            for (auto i=0; i<opt.SOnum;i++) {
+                headerdatainfo.push_back((string("SO_R_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
+#ifdef USEHDF
+                predtypeinfo.push_back(desiredproprealtype[0]);
+#endif
+#ifdef USEADIOS
+                adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
+#endif
+            }
+#ifdef GASON
+            if (opt.iextragasoutput && opt.iextrahalooutput) {
+                for (auto i=0; i<opt.SOnum;i++) {
+                    headerdatainfo.push_back((string("SO_Mass_gas_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
+#ifdef USEHDF
+                    predtypeinfo.push_back(desiredproprealtype[0]);
+#endif
+#ifdef USEADIOS
+                    adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
+#endif
+                }
+#ifdef STARON
+#endif
+            }
+#endif
+
+#ifdef STARON
+            if (opt.iextrastaroutput && opt.iextrahalooutput) {
+                for (auto i=0; i<opt.SOnum;i++) {
+                    headerdatainfo.push_back((string("SO_Mass_star_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
+#ifdef USEHDF
+                    predtypeinfo.push_back(desiredproprealtype[0]);
+#endif
+#ifdef USEADIOS
+                    adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
+#endif
+                }
+            }
+#endif
+        }
+        if (opt.SOnum>0 && opt.iextrahalooutput) {
+            for (auto i=0; i<opt.SOnum;i++) {
+                headerdatainfo.push_back((string("SO_Lx_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
+                headerdatainfo.push_back((string("SO_Ly_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
+                headerdatainfo.push_back((string("SO_Lz_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
+                for (auto k=0;k<3;k++) {
+#ifdef USEHDF
+                    predtypeinfo.push_back(desiredproprealtype[0]);
+#endif
+#ifdef USEADIOS
+                    adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
+#endif
+                }
+            }
+#ifdef GASON
+            if (opt.iextragasoutput) {
+                for (auto i=0; i<opt.SOnum;i++) {
+                    headerdatainfo.push_back((string("SO_Lx_gas_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
+                    headerdatainfo.push_back((string("SO_Ly_gas_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
+                    headerdatainfo.push_back((string("SO_Lz_gas_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
+                    for (auto k=0;k<3;k++) {
+#ifdef USEHDF
+                        predtypeinfo.push_back(desiredproprealtype[0]);
+#endif
+#ifdef USEADIOS
+                        adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
+#endif
+                    }
+                }
+#ifdef STARON
+#endif
+            }
+#endif
+
+#ifdef STARON
+            if (opt.iextrastaroutput) {
+                for (auto i=0; i<opt.SOnum;i++) {
+                    headerdatainfo.push_back((string("SO_Lx_star_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
+                    headerdatainfo.push_back((string("SO_Ly_star_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
+                    headerdatainfo.push_back((string("SO_Lz_star_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
+                    for (auto k=0;k<3;k++) {
+#ifdef USEHDF
+                        predtypeinfo.push_back(desiredproprealtype[0]);
+#endif
+#ifdef USEADIOS
+                        adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
+#endif
+                    }
+                }
+            }
+#endif
+        }
+
     }
 };
 

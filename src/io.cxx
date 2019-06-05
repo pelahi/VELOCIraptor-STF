@@ -2208,6 +2208,83 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
             }
 #endif
         }
+        if (opt.SOnum>0) {
+            for (auto j=0;j<opt.SOnum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_mass[j];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+            for (auto j=0;j<opt.SOnum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_radius[j];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+#ifdef GASON
+            if (opt.iextragasoutput && opt.iextrahalooutput) {
+                for (auto j=0;j<opt.SOnum;j++) {
+                    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_mass_gas[j];
+                    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                    itemp++;
+                }
+#ifdef STARON
+#endif
+            }
+#endif
+#ifdef STARON
+            if (opt.iextrastaroutput && opt.iextrahalooutput) {
+                for (auto j=0;j<opt.SOnum;j++) {
+                    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_mass_star[j];
+                    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                    itemp++;
+                }
+            }
+#endif
+        }
+        if (opt.SOnum>0 && opt.iextrahalooutput) {
+        for (auto j=0;j<opt.SOnum;j++) {
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_angularmomentum[j][0];
+            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+            itemp++;
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_angularmomentum[j][1];
+            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+            itemp++;
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_angularmomentum[j][2];
+            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+            itemp++;
+        }
+#ifdef GASON
+        if (opt.iextragasoutput) {
+            for (auto j=0;j<opt.SOnum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_angularmomentum_gas[j][0];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_angularmomentum_gas[j][1];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_angularmomentum_gas[j][2];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+#ifdef STARON
+#endif
+        }
+#endif
+#ifdef STARON
+        if (opt.iextrastaroutput) {
+            for (auto j=0;j<opt.SOnum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_angularmomentum_star[j][0];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_angularmomentum_star[j][1];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_angularmomentum_star[j][2];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+        }
+#endif
+        }
         //delete memory associated with void pointer
         ::operator delete(data);
         delete[] propdataspace;

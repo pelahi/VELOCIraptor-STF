@@ -584,6 +584,18 @@ void GetParamFile(Options &opt)
                             dataline.erase(0, pos + delimiter.length());
                         }
                     }
+                    else if (strcmp(tbuff, "Number_of_overdensities")==0)
+                        opt.SOnum = atoi(vbuff);
+                    else if (strcmp(tbuff, "Overdensity_values_in_critical_density")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            opt.SOthresholds_names_crit.push_back(token);
+                            opt.SOthresholds_values_crit.push_back(stof(token));
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                    }
 
                     //other options
                     else if (strcmp(tbuff, "Verbose")==0)
@@ -780,6 +792,12 @@ inline void ConfigCheck(Options &opt)
             ConfigExit();
         }
         for (auto i=0;i<opt.aperture_values_kpc.size();i++) opt.aperture_values_kpc[i]/=opt.lengthtokpc;
+    }
+    if (opt.SOnum>0) {
+        if (opt.SOnum != opt.SOthresholds_values_crit.size()) {
+            errormessage("SO calculations requested but mismatch between number stated and values provided. Check config.");
+            ConfigExit();
+        }
     }
     if (opt.iprofilecalc>0) {
         if (opt.profilenbins != opt.profile_bin_edges.size()) {
