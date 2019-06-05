@@ -91,15 +91,9 @@ void ReadData(Options &opt, vector<Particle> &Part, const Int_t nbodies, Particl
 #ifdef USEXDR
     else if (opt.inputtype==IONCHILADA) ReadNchilada(opt,Part,nbodies, Pbaryons, nbaryons);
 #endif
-#ifdef GASON
     AdjustHydroQuantities(opt,Part,nbodies);
-#endif
-#ifdef STARON
     AdjustStarQuantities(opt,Part,nbodies);
-#endif
-#ifdef BHON
     AdjustBHQuantities(opt,Part,nbodies);
-#endif
 #ifdef USEMPI
     MPIAdjustDomain(opt);
 #endif
@@ -108,6 +102,8 @@ void ReadData(Options &opt, vector<Particle> &Part, const Int_t nbodies, Particl
 
 //Adjust particle data to appropriate units
 void AdjustHydroQuantities(Options &opt, vector<Particle> &Part, const Int_t nbodies) {
+    #ifdef GASON
+    #ifdef STARON
     if (opt.metallicityinputconversion!=1.0) {
         for (auto &p:Part) {
             if (p.GetType()!=GASTYPE) continue;
@@ -120,9 +116,12 @@ void AdjustHydroQuantities(Options &opt, vector<Particle> &Part, const Int_t nbo
             p.SetSFR(p.GetSFR()*opt.SFRinputconversion);
         }
     }
+    #endif
+    #endif
 }
 
 void AdjustStarQuantities(Options &opt, vector<Particle> &Part, const Int_t nbodies) {
+    #ifdef STARON
     if (opt.metallicityinputconversion!=1.0) {
         for (auto &p:Part) {
             if (p.GetType()!=STARTYPE) continue;
@@ -144,15 +143,18 @@ void AdjustStarQuantities(Options &opt, vector<Particle> &Part, const Int_t nbod
             p.SetTage(tage);
         }
     }
+    #endif
 }
 
 void AdjustBHQuantities(Options &opt, vector<Particle> &Part, const Int_t nbodies) {
+    #ifdef BHON
     if (opt.metallicityinputconversion!=1.0) {
         for (auto &p:Part) {
             if (p.GetType()!=BHTYPE) continue;
             p.SetZmet(p.GetZmet()*opt.metallicityinputconversion);
         }
     }
+    #endif
 }
 //@}
 
@@ -1633,7 +1635,11 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         write_scalar_attr(Fhdf, datagroupnames, itemp++, opt.lengthtokpc);
         write_scalar_attr(Fhdf, datagroupnames, itemp++, opt.velocitytokms);
         write_scalar_attr(Fhdf, datagroupnames, itemp++, opt.masstosolarmass);
-
+#if defined(GASON) || defined(STARON) || defined(BHON)
+        write_scalar_attr(Fhdf, datagroupnames, itemp++, opt.metallicitytosolar);
+        write_scalar_attr(Fhdf, datagroupnames, itemp++, opt.SFRtosolarmassperyear);
+        write_scalar_attr(Fhdf, datagroupnames, itemp++, opt.stellaragetoyrs);
+#endif
         //load data spaces
         propdataspace=new DataSpace[head.headerdatainfo.size()];
         propdataset=new DataSet[head.headerdatainfo.size()];
@@ -3164,6 +3170,11 @@ void WriteSUBFINDProperties(Options &opt, const Int_t ngroups, PropData *pdata){
     write_scalar_attr(Fhdf, datagroupnames, itemp++, opt.lengthtokpc);
     write_scalar_attr(Fhdf, datagroupnames, itemp++, opt.velocitytokms);
     write_scalar_attr(Fhdf, datagroupnames, itemp++, opt.masstosolarmass);
+#if defined(GASON) || defined(STARON) || defined(BHON)
+    write_scalar_attr(Fhdf, datagroupnames, itemp++, opt.metallicitytosolar);
+    write_scalar_attr(Fhdf, datagroupnames, itemp++, opt.SFRtosolarmassperyear);
+    write_scalar_attr(Fhdf, datagroupnames, itemp++, opt.stellaragetoyrs);
+#endif
 
     //load data spaces
     propdataspace=new DataSpace[head.headerdatainfo.size()];
@@ -3191,11 +3202,9 @@ void WriteSUBFINDProperties(Options &opt, const Int_t ngroups, PropData *pdata){
     delete[] chunk_dims;
 
     long long idbound;
-    //for ensuring downgrade of precision as subfind uses floats when storing values save for Mvir (??why??)
     float value,ctemp[3],mtemp[9];
     double dvalue;
     int ivalue;
-    if (opt.ibinaryout==OUTHDF) {
     //for hdf may be more useful to produce an array of the appropriate size and write each data set in one go
     //requires allocating memory
     int *iarray,itemp;
@@ -3854,7 +3863,6 @@ if (opt.iextragasoutput) {
     ::operator delete(data);
     delete[] propdataspace;
     delete[] propdataset;
-    }
     Fhdf.close();
 #endif
 }
