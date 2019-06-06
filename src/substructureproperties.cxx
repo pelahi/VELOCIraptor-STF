@@ -3230,6 +3230,12 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
                 }
 #endif
             }
+            if (pdata[i].gR200c != -1) {
+                pdata[i].glambda_B=pdata[i].gJ200c.Length()/(pdata[i].gM200c*sqrt(2.0*opt.G*pdata[i].gM200c*pdata[i].gR200c));
+            }
+            else {
+                pdata[i].glambda_B=0;
+            }
         }
 
         //if calculating profiles

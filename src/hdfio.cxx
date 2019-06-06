@@ -113,6 +113,9 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     int ifloat,ifloat_pos, iint;
     int datarank;
     hsize_t datadim[5];
+    //if any conversion is need for metallicity
+    float zmetconversion=1;
+    if (opt.ihdfnameconvention == HDFILLUSTISNAMES) zmetconversion=ILLUSTRISZMET;
 
     ///array listing number of particle types used.
     ///Since Illustris contains an unused type of particles (2) and tracer particles (3) really not useful to iterate over all particle types in loops
@@ -1082,8 +1085,8 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                     partsdataspace[i*NHDFTYPE+k].selectHyperslab(H5S_SELECT_SET, filespacecount, filespaceoffset);
                     partsdataset[i*NHDFTYPE+k].read(realbuff,HDFREALTYPE,chunkspace,partsdataspace[i*NHDFTYPE+k]);
 
-                    if (ifloat) for (int nn=0;nn<nchunk;nn++) Part[count++].SetZmet(floatbuff[nn]*ILLUSTRISZMET);
-                    else for (int nn=0;nn<nchunk;nn++) Part[count++].SetZmet(doublebuff[nn]*ILLUSTRISZMET);
+                    if (ifloat) for (int nn=0;nn<nchunk;nn++) Part[count++].SetZmet(floatbuff[nn]*zmetconversion);
+                    else for (int nn=0;nn<nchunk;nn++) Part[count++].SetZmet(doublebuff[nn]*zmetconversion);
                   }
                 }
                 else {
@@ -1109,8 +1112,8 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                       partsdataspace[i*NHDFTYPE+k].selectHyperslab(H5S_SELECT_SET, filespacecount, filespaceoffset);
                       partsdataset[i*NHDFTYPE+k].read(realbuff,HDFREALTYPE,chunkspace,partsdataspace[i*NHDFTYPE+k]);
 
-                      if (ifloat) for (int nn=0;nn<nchunk;nn++) Pbaryons[bcount++].SetZmet(floatbuff[nn]*ILLUSTRISZMET);
-                      else for (int nn=0;nn<nchunk;nn++) Pbaryons[bcount++].SetZmet(doublebuff[nn]*ILLUSTRISZMET);
+                      if (ifloat) for (int nn=0;nn<nchunk;nn++) Pbaryons[bcount++].SetZmet(floatbuff[nn]*zmetconversion);
+                      else for (int nn=0;nn<nchunk;nn++) Pbaryons[bcount++].SetZmet(doublebuff[nn]*zmetconversion);
                     }
                   }
                   else {
