@@ -352,7 +352,8 @@ double mycNFW(double c, void *params);
 double mycNFW_deriv(double c, void *params);
 ///wrappers for root finding used to get concentration
 double mycNFW_fdf(double c, void *params, double*y,double *dy);
-
+///Calculate aperture quantities
+void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, PropData &pdata);
 ///determine the radial bin for calculating profiles
 int GetRadialBin(Options &opt, Double_t rc, int &ibin);
 ///add a particle's properties to the appropriate radial bin.
