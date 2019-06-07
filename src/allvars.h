@@ -810,6 +810,7 @@ struct Options
         iaperturecalc=0;
         aperturenum=0;
         apertureprojnum=0;
+        SOnum=0;
 
         iprofilecalc=0;
         iprofilenorm=PROFILERNORMR200CRIT;
