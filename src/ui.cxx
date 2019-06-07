@@ -591,6 +591,18 @@ void GetParamFile(Options &opt)
                             dataline.erase(0, pos + delimiter.length());
                         }
                     }
+                    else if (strcmp(tbuff, "Number_of_projected_apertures")==0)
+                        opt.apertureprojnum = atoi(vbuff);
+                    else if (strcmp(tbuff, "Projected_aperture_values_in_kpc")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            opt.aperture_proj_names_kpc.push_back(token);
+                            opt.aperture_proj_values_kpc.push_back(stof(token));
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                    }
                     else if (strcmp(tbuff, "Calculate_radial_profiles")==0)
                         opt.iprofilecalc = atoi(vbuff);
                     else if (strcmp(tbuff, "Number_of_radial_profile_bin_edges")==0)
@@ -833,7 +845,16 @@ inline void ConfigCheck(Options &opt)
             errormessage("Aperture calculations requested but number of apertures is zero. Check config.");
             ConfigExit();
         }
-        for (auto i=0;i<opt.aperture_values_kpc.size();i++) opt.aperture_values_kpc[i]/=opt.lengthtokpc;
+        if (opt.apertureprojnum != opt.aperture_proj_values_kpc.size()) {
+            errormessage("Projected aperture calculations requested but mismatch between number stated and values provided. Check config.");
+            ConfigExit();
+        }
+        if (opt.apertureprojnum == 0) {
+            errormessage("Aperture calculations requested but number of projected apertures is zero. Check config.");
+            ConfigExit();
+        }
+        for (auto &x:opt.aperture_values_kpc) x/=opt.lengthtokpc;
+        for (auto &x:opt.aperture_proj_values_kpc) x/=opt.lengthtokpc;
     }
     if (opt.SOnum>0) {
         if (opt.SOnum != opt.SOthresholds_values_crit.size()) {

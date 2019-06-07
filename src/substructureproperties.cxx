@@ -4570,16 +4570,32 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
 {
 
     if (opt.iaperturecalc==0)  return;
-    Double_t EncMass=0, EncMassGas=0, EncMassGasSF=0, EncMassGasNSF=0, EncMassStar=0, EncMassBH=0, EncMassInterloper=0;
     unsigned int Ninside=0, NinsideGas=0, NinsideGasSF=0, NinsideGasNSF=0, NinsideStar=0, NinsideBH=0, NinsideInterloper=0;
+    Double_t EncMass=0, EncMassGas=0, EncMassGasSF=0, EncMassGasNSF=0, EncMassStar=0, EncMassBH=0, EncMassInterloper=0;
     Double_t EncVelDisp=0, EncVelDispGas=0, EncVelDispGasSF=0, EncVelDispGasNSF=0, EncVelDispStar=0, EncVelDispBH=0, EncVelDispInterloper=0;
-    int iaptindex=0;
-    Double_t mass, rc, veldisp;
+    int iaptindex=0, numapttotal, type;
+    Double_t mass, rc, veldisp, SFR;
     Particle *Pval;
+    Coordinate x2;
+    struct projectedmass {
+        int type;
+        float mass;
+        #if defined(GASON) && defined(STARON)
+        float SFR;
+        #endif
+        Coordinate rproj;
+    };
+    vector<projectedmass> proj(ning);
+
+    //first calculate 3d aperture values;
     for (auto j=0;j<ning;j++) {
         Pval=&Part[j];
         rc=Pval->Radius();
         mass = Pval->GetMass();
+        type = Pval->GetType();
+        #if defined(GASON) && defined(STARON)
+        SFR = Pval->GetSFR();
+        #endif
         veldisp = 0; for (auto k=0;k<3;k++) veldisp += pow(Pval->GetVelocity(k)-pdata.gcmvel[k],2.0); veldisp *= mass;
         if (rc>=opt.aperture_values_kpc[iaptindex]) {
             pdata.aperture_npart[iaptindex]=Ninside;
@@ -4610,12 +4626,12 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
         Ninside++;
         EncVelDisp += veldisp;
 #ifdef GASON
-        if (Pval->GetType()==GASTYPE) {
+        if (type==GASTYPE) {
             NinsideGas++;
             EncMassGas+=mass;
             EncVelDispGas += veldisp;
 #ifdef STARON
-            if (Pval->GetSFR()>opt.gas_sfr_threshold) {
+            if (SFR>opt.gas_sfr_threshold) {
                 NinsideGasSF++;
                 EncMassGasSF+=mass;
                 EncVelDispGasSF += veldisp;
@@ -4629,14 +4645,14 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
         }
 #endif
 #ifdef STARON
-        if (Pval->GetType()==STARTYPE) {
+        if (type==STARTYPE) {
             NinsideStar++;
             EncMassStar+=mass;
             EncVelDispStar += veldisp;
         }
 #endif
 #ifdef BHON
-        if (Pval->GetType()==BHTYPE) {
+        if (type==BHTYPE) {
             NinsideBH++;
             EncMassBH+=mass;
             EncVelDispBH += veldisp;
@@ -4667,6 +4683,236 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
         if (EncMassStar>0) pdata.aperture_veldisp_star[j]=EncVelDispStar/EncMassStar;
 #endif
     }
+    //then determine half mass radii for 3d apertures
+    EncMass=EncMassGas=EncMassGasSF=EncMassGasNSF=EncMassStar=EncMassBH=EncMassInterloper=0;
+    numapttotal=0;
+    numapttotal+=opt.aperturenum;
+#ifdef GASON
+    numapttotal+=opt.aperturenum;
+#ifdef STARON
+    numapttotal+=opt.aperturenum;
+    numapttotal+=opt.aperturenum;
+#endif
+#endif
+#ifdef STARON
+    numapttotal+=opt.aperturenum;
+#endif
+    iaptindex=0;
+    for (auto j=0;j<ning;j++) {
+        Pval=&Part[j];
+        rc=Pval->Radius();
+        mass = Pval->GetMass();
+        type = Pval->GetType();
+        #if defined(GASON) && defined(STARON)
+        SFR = Pval->GetSFR();
+        #endif
+        EncMass+=mass;
+        Ninside++;
+#ifdef GASON
+        if (type==GASTYPE) {
+            EncMassGas+=mass;
+#ifdef STARON
+            if (SFR>opt.gas_sfr_threshold) EncMassGasSF+=mass;
+            else EncMassGasNSF+=mass;
+#endif
+        }
+#endif
+#ifdef STARON
+        if (type==STARTYPE) EncMassStar+=mass;
+#endif
+#ifdef BHON
+        if (type==BHTYPE) EncMassBH+=mass;
+#endif
+        for (auto k=0;k<opt.aperturenum;k++) {
+            if (EncMass>=0.5*pdata.aperture_mass[k] && pdata.aperture_rhalfmass[k]==0) {
+                pdata.aperture_rhalfmass[k]=rc;
+                iaptindex++;
+            }
+#ifdef GASON
+            if (EncMassGas>=0.5*pdata.aperture_mass_gas[k] && pdata.aperture_rhalfmass_gas[k]==0) {
+                pdata.aperture_rhalfmass_gas[k]=rc;
+                iaptindex++;
+            }
+#ifdef STARON
+            if (EncMassGasSF>=0.5*pdata.aperture_mass_gas_sf[k] && pdata.aperture_rhalfmass_gas_sf[k]==0) {
+                pdata.aperture_rhalfmass_gas_sf[k]=rc;
+                iaptindex++;
+            }
+            if (EncMassGasNSF>=0.5*pdata.aperture_mass_gas_nsf[k] && pdata.aperture_rhalfmass_gas_nsf[k]==0) {
+                pdata.aperture_rhalfmass_gas_nsf[k]=rc;
+                iaptindex++;
+            }
+#endif
+#endif
+#ifdef STARON
+            if (EncMassGas>=0.5*pdata.aperture_mass_star[k] && pdata.aperture_rhalfmass_star[k]==0) {
+                pdata.aperture_rhalfmass_star[k]=rc;
+                iaptindex++;
+            }
+#endif
+        }
+        if (iaptindex==numapttotal) break;
+    }
+    //now move on to projected radii
+    //fill projectedmass structure, sort
+    for (auto j=0;j<ning;j++) {
+        Pval=&Part[j];
+        proj[j].mass = Pval->GetMass();
+        proj[j].type = Pval->GetType();
+        #if defined(GASON) && defined(STARON)
+        proj[j].SFR = Pval->GetSFR();
+        #endif
+        for (auto k=0;k<3;k++) {x2[k]=Pval->GetPosition(k);x2[k]=x2[k]*x2[k];}
+        proj[j].rproj[0]=sqrt(x2[0]+x2[1]);proj[j].rproj[1]=sqrt(x2[0]+x2[2]);proj[j].rproj[2]=sqrt(x2[1]+x2[2]);
+    }
+    //go through each projection
+    for (auto k=0;k<3;k++) {
+        if (k==0) {
+            sort(proj.begin(), proj.end(), [](projectedmass &a, projectedmass &b){
+            return a.rproj[0] < b.rproj[0];
+            });
+
+        }
+        if (k==1) {
+            sort(proj.begin(), proj.end(), [](projectedmass &a, projectedmass &b){
+            return a.rproj[1] < b.rproj[1];
+            });
+        }
+        if (k==2) {
+            sort(proj.begin(), proj.end(), [](projectedmass &a, projectedmass &b){
+            return a.rproj[2] < b.rproj[2];
+            });
+        }
+        iaptindex=0;
+        EncMass=EncMassGas=EncMassGasSF=EncMassGasNSF=EncMassStar=EncMassBH=EncMassInterloper=0;
+        for (auto j=0;j<ning;j++) {
+            rc=proj[j].rproj[k];
+            mass = proj[j].mass;
+            type = proj[j].type;
+            #if defined(GASON) && defined(STARON)
+            SFR = proj[j].SFR;
+            #endif
+            if (rc>=opt.aperture_values_kpc[iaptindex]) {
+                pdata.aperture_mass_proj[iaptindex][k]=EncMass;
+    #ifdef GASON
+                pdata.aperture_mass_proj_gas[iaptindex][k]=EncMassGas;
+    #ifdef STARON
+                pdata.aperture_mass_proj_gas_sf[iaptindex][k]=EncMassGasSF;
+                pdata.aperture_mass_proj_gas_nsf[iaptindex][k]=EncMassGasNSF;
+    #endif
+    #endif
+    #ifdef STARON
+                pdata.aperture_mass_proj_star[iaptindex][k]=EncMassStar;
+    #endif
+                iaptindex++;
+            }
+            if (iaptindex==opt.apertureprojnum) break;
+            EncMass+=mass;
+    #ifdef GASON
+            if (type==GASTYPE) {
+                EncMassGas+=mass;
+    #ifdef STARON
+                if (SFR>opt.gas_sfr_threshold) {
+                    EncMassGasSF+=mass;
+                }
+                else {
+                    EncMassGasNSF+=mass;
+                }
+    #endif
+            }
+    #endif
+    #ifdef STARON
+            if (type==STARTYPE) EncMassStar+=mass;
+    #endif
+    #ifdef BHON
+            if (type==BHTYPE) EncMassBH+=mass;
+    #endif
+        }
+        for (auto j=0;j<opt.apertureprojnum;j++) if (pdata.aperture_mass_proj[j][k]==0)
+        {
+            pdata.aperture_mass_proj[j][k]=EncMass;
+    #ifdef GASON
+            pdata.aperture_mass_proj_gas[j][k]=EncMassGas;
+    #ifdef STARON
+            pdata.aperture_mass_proj_gas_sf[j][k]=EncMassGasSF;
+            pdata.aperture_mass_proj_gas_nsf[j][k]=EncMassGasNSF;
+    #endif
+    #endif
+    #ifdef STARON
+            pdata.aperture_mass_proj_star[j][k]=EncMassStar;
+    #endif
+        }
+        //then determine half mass radii
+        EncMass=EncMassGas=EncMassGasSF=EncMassGasNSF=EncMassStar=EncMassBH=EncMassInterloper=0;
+        numapttotal=0;
+        numapttotal+=opt.apertureprojnum;
+    #ifdef GASON
+        numapttotal+=opt.apertureprojnum;
+    #ifdef STARON
+        numapttotal+=opt.apertureprojnum;
+        numapttotal+=opt.apertureprojnum;
+    #endif
+    #endif
+    #ifdef STARON
+        numapttotal+=opt.aperturenum;
+    #endif
+        iaptindex=0;
+        for (auto j=0;j<ning;j++) {
+            rc=proj[j].rproj[k];
+            mass = proj[j].mass;
+            type = proj[j].type;
+            #if defined(GASON) && defined(STARON)
+            SFR = proj[j].SFR;
+            #endif
+            EncMass+=mass;
+    #ifdef GASON
+            if (type==GASTYPE) {
+                EncMassGas+=mass;
+    #ifdef STARON
+                if (SFR>opt.gas_sfr_threshold) EncMassGasSF+=mass;
+                else EncMassGasNSF+=mass;
+    #endif
+            }
+    #endif
+    #ifdef STARON
+            if (type==STARTYPE) EncMassStar+=mass;
+    #endif
+    #ifdef BHON
+            if (type==BHTYPE) EncMassBH+=mass;
+    #endif
+            for (auto i=0;i<opt.apertureprojnum;i++) {
+                if (EncMass>=0.5*pdata.aperture_mass_proj[i][k] && pdata.aperture_rhalfmass_proj[i][k]==0) {
+                    pdata.aperture_rhalfmass_proj[i][k]=rc;
+                    iaptindex++;
+                }
+    #ifdef GASON
+                if (EncMassGas>=0.5*pdata.aperture_mass_proj_gas[k][i] && pdata.aperture_rhalfmass_proj_gas[i][k]==0) {
+                    pdata.aperture_rhalfmass_proj_gas[i][k]=rc;
+                    iaptindex++;
+                }
+    #ifdef STARON
+                if (EncMassGasSF>=0.5*pdata.aperture_mass_proj_gas_sf[i][k] && pdata.aperture_rhalfmass_proj_gas_sf[i][k]==0) {
+                    pdata.aperture_rhalfmass_proj_gas_sf[i][k]=rc;
+                    iaptindex++;
+                }
+                if (EncMassGasNSF>=0.5*pdata.aperture_mass_proj_gas_nsf[i][k] && pdata.aperture_rhalfmass_proj_gas_nsf[i][k]==0) {
+                    pdata.aperture_rhalfmass_proj_gas_nsf[i][k]=rc;
+                    iaptindex++;
+                }
+    #endif
+    #endif
+    #ifdef STARON
+                if (EncMassGas>=0.5*pdata.aperture_mass_proj_star[i][k] && pdata.aperture_rhalfmass_proj_star[i][k]==0) {
+                    pdata.aperture_rhalfmass_proj_star[i][k]=rc;
+                    iaptindex++;
+                }
+    #endif
+            }
+            if (iaptindex==numapttotal) break;
+        }
+
+    }
+
 
 #ifdef NOMASS
     for (auto j=0;j<opt.aperturenum;j++) {
@@ -4682,10 +4928,29 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
         pdata.aperture_mass_star[j]*=opt.MassValue;
     #endif
     #ifdef BHON
-        //pdata.aperture_mass_star[j]*=opt.MassValue;
+        //pdata.aperture_mass_bh[j]*=opt.MassValue;
     #endif
     #ifdef HIGHRES
-        //pdata.aperture_mass_star[j]*=opt.MassValue;
+        //pdata.aperture_mass_interloper[j]*=opt.MassValue;
+    #endif
+    }
+    for (auto j=0;j<opt.apertureprojnum;j++) {
+        pdata.aperture_mass_proj[j]*=opt.MassValue;
+    #ifdef GASON
+        pdata.aperture_mass_proj_gas[j]*=opt.MassValue;
+    #ifdef STARON
+        pdata.aperture_mass_gas_proj_sf[j]*=opt.MassValue;
+        pdata.aperture_mass_gas_proj_nsf[j]*=opt.MassValue;
+    #endif
+    #endif
+    #ifdef STARON
+        pdata.aperture_mass_proj_star[j]*=opt.MassValue;
+    #endif
+    #ifdef BHON
+        //pdata.aperture_mass_proj_bh[j]*=opt.MassValue;
+    #endif
+    #ifdef HIGHRES
+        //pdata.aperture_mass_proj_interloper[j]*=opt.MassValue;
     #endif
     }
 #endif
