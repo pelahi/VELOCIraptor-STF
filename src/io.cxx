@@ -2280,24 +2280,24 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
             }
 #endif
             for (auto j=0;j<opt.aperturenum;j++) {
-                for (Int_t i=0;i<ngroups;i++) ((unsigned int*)data)[i]=pdata[i+1].aperture_rhalfmass[j];
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_rhalfmass[j];
                 propdataset[itemp].write(data,head.predtypeinfo[itemp]);
                 itemp++;
             }
             #ifdef GASON
             for (auto j=0;j<opt.aperturenum;j++) {
-                for (Int_t i=0;i<ngroups;i++) ((unsigned int*)data)[i]=pdata[i+1].aperture_rhalfmass_gas[j];
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_rhalfmass_gas[j];
                 propdataset[itemp].write(data,head.predtypeinfo[itemp]);
                 itemp++;
             }
             #ifdef STARON
             for (auto j=0;j<opt.aperturenum;j++) {
-                for (Int_t i=0;i<ngroups;i++) ((unsigned int*)data)[i]=pdata[i+1].aperture_rhalfmass_gas_sf[j];
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_rhalfmass_gas_sf[j];
                 propdataset[itemp].write(data,head.predtypeinfo[itemp]);
                 itemp++;
             }
             for (auto j=0;j<opt.aperturenum;j++) {
-                for (Int_t i=0;i<ngroups;i++) ((unsigned int*)data)[i]=pdata[i+1].aperture_rhalfmass_gas_nsf[j];
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_rhalfmass_gas_nsf[j];
                 propdataset[itemp].write(data,head.predtypeinfo[itemp]);
                 itemp++;
             }
@@ -2305,30 +2305,30 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
             #endif
             #ifdef STARON
             for (auto j=0;j<opt.aperturenum;j++) {
-                for (Int_t i=0;i<ngroups;i++) ((unsigned int*)data)[i]=pdata[i+1].aperture_rhalfmass_star[j];
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_rhalfmass_star[j];
                 propdataset[itemp].write(data,head.predtypeinfo[itemp]);
                 itemp++;
             }
             #endif
             for (auto j=0;j<opt.aperturenum;j++) {
-                for (Int_t i=0;i<ngroups;i++) ((unsigned int*)data)[i]=pdata[i+1].aperture_veldisp[j];
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_veldisp[j];
                 propdataset[itemp].write(data,head.predtypeinfo[itemp]);
                 itemp++;
             }
 #ifdef GASON
             for (auto j=0;j<opt.aperturenum;j++) {
-                for (Int_t i=0;i<ngroups;i++) ((unsigned int*)data)[i]=pdata[i+1].aperture_veldisp_gas[j];
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_veldisp_gas[j];
                 propdataset[itemp].write(data,head.predtypeinfo[itemp]);
                 itemp++;
             }
 #ifdef STARON
             for (auto j=0;j<opt.aperturenum;j++) {
-                for (Int_t i=0;i<ngroups;i++) ((unsigned int*)data)[i]=pdata[i+1].aperture_veldisp_gas_sf[j];
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_veldisp_gas_sf[j];
                 propdataset[itemp].write(data,head.predtypeinfo[itemp]);
                 itemp++;
             }
             for (auto j=0;j<opt.aperturenum;j++) {
-                for (Int_t i=0;i<ngroups;i++) ((unsigned int*)data)[i]=pdata[i+1].aperture_veldisp_gas_nsf[j];
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_veldisp_gas_nsf[j];
                 propdataset[itemp].write(data,head.predtypeinfo[itemp]);
                 itemp++;
             }
@@ -2336,7 +2336,7 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
 #endif
 #ifdef STARON
             for (auto j=0;j<opt.aperturenum;j++) {
-                for (Int_t i=0;i<ngroups;i++) ((unsigned int*)data)[i]=pdata[i+1].aperture_veldisp_star[j];
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_veldisp_star[j];
                 propdataset[itemp].write(data,head.predtypeinfo[itemp]);
                 itemp++;
             }
