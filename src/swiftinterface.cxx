@@ -415,7 +415,7 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
     nhalos=ngroup;
     //if caculating inclusive halo masses, then for simplicity, I assume halo id order NOT rearranged!
     //this is not necessarily true if baryons are searched for separately.
-    if (libvelociraptorOpt.iInclusiveHalo) {
+    if (libvelociraptorOpt.iInclusiveHalo>0 && libvelociraptorOpt.iInclusiveHalo<3) {
         pdatahalos=new PropData[nhalos+1];
         Int_t *numinhalos=BuildNumInGroup(Nlocal, nhalos, pfof);
         Int_t *sortvalhalos=new Int_t[Nlocal];
@@ -444,10 +444,10 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
     }
     pdata=new PropData[ngroup+1];
     //if inclusive halo mass required
-    if (libvelociraptorOpt.iInclusiveHalo && ngroup>0) {
+    if (libvelociraptorOpt.iInclusiveHalo>0 && libvelociraptorOpt.iInclusiveHalo<3 && ngroup>0) {
         CopyMasses(libvelociraptorOpt,nhalos,pdatahalos,pdata);
+        delete[] pdatahalos;
     }
-    delete[] pdatahalos;
 
     //
     // Search for baryons
@@ -494,6 +494,9 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
     if (libvelociraptorOpt.iBaryonSearch>0 || libvelociraptorOpt.partsearchtype==PSTALL){
       WriteGroupPartType(libvelociraptorOpt, ngroup, numingroup, pglist, parts);
     }
+#ifdef EXTENDEDHALOOUTPUT
+    if (opt.iExtendedOutput) WriteExtendedOutput (opt, ngroup, nbodies, pdata, Part, pfof);
+#endif
 
     for (Int_t i=1;i<=ngroup;i++) delete[] pglist[i];
     delete[] pglist;
