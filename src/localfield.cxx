@@ -941,15 +941,12 @@ reduction(+:nprocessed,ntot)
     if (nimport>0) {
         treeneighbours=new KDTree(PartDataGet,nimport,1,tree->TPHYS,tree->KEPAN,100,0,0,0,period);
         treeneighbours->SetResetOrder(false);
-    }
-    nprocessed=0;
-/*
+        nprocessed=0;
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
 private(id,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,pqx,pqv,Pval)
 {
 #endif
-*/
     nnids=new Int_t[opt.Nsearch];
     nnr2=new Double_t[opt.Nsearch];
     nnidsneighbours=new Int_t[opt.Nsearch];
@@ -957,12 +954,10 @@ private(id,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,pqx,pqv,Pval)
     weight=new Double_t[opt.Nvel];
     pqx=new PriorityQueue(opt.Nsearch);
     pqv=new PriorityQueue(opt.Nvel);
-/*
 #ifdef USEOPENMP
 #pragma omp for schedule(dynamic) \
 reduction(+:nprocessed)
 #endif
-*/
     for (auto i=0;i<numleafnodes;i++) {
         //if there are no active particles in leaf node, do nothing
         if (leafnodes[i].num == 0) continue;
@@ -1033,13 +1028,11 @@ reduction(+:nprocessed)
     delete[] weight;
     delete pqx;
     delete pqv;
-/*
 #ifdef USEOPENMP
 }
 #endif
-*/
-
-    if (nimport>0) delete treeneighbours;
+        delete treeneighbours;
+    }
     delete[] PartDataIn;
     delete[] PartDataGet;
     delete[] NNDataIn;
