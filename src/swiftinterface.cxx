@@ -362,20 +362,33 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
         {
             for (auto j=0;j<3;j++) swift_parts[i].x[j]*=libvelociraptorOpt.a;
             if(swift_parts[i].type == DARKTYPE) {
-                parts[dmOffset++] = Particle(swift_parts[i]);
+                parts[dmOffset] = Particle(swift_parts[i]);
+                //set the swift mpi domain that this particle resides in
+                parts[dmOffset].SetSwiftTask(ThisTask);
+                parts[dmOffset].SetSwiftIndex(i);
+                dmOffset++;
             }
             else {
                 if(swift_parts[i].type == GASTYPE) {
-                    pbaryons[baryonOffset++] = Particle(swift_parts[i]);
+                    pbaryons[baryonOffset] = Particle(swift_parts[i]);
+                    pbaryons[baryonOffset].SetSwiftTask(ThisTask);
+                    pbaryons[baryonOffset].SetSwiftIndex(i);
+                    baryonOffset++;
                     gasOffset++;
                 }
                 else if(swift_parts[i].type == STARTYPE) {
+                    pbaryons[baryonOffset] = Particle(swift_parts[i]);
+                    pbaryons[baryonOffset].SetSwiftTask(ThisTask);
+                    pbaryons[baryonOffset].SetSwiftIndex(i);
+                    baryonOffset++;
                     starOffset++;
-                    pbaryons[baryonOffset++] = Particle(swift_parts[i]);
                 }
                 else if(swift_parts[i].type == BHTYPE) {
+                    pbaryons[baryonOffset] = Particle(swift_parts[i]);
+                    pbaryons[baryonOffset].SetSwiftTask(ThisTask);
+                    pbaryons[baryonOffset].SetSwiftIndex(i);
+                    baryonOffset++;
                     bhOffset++;
-                    pbaryons[baryonOffset++] = Particle(swift_parts[i]);
                 }
                 else {
                     cout<<"Unknown particle type found: index="<<i<<" type="<<swift_parts[i].type<<" while treating baryons differently. Exiting..."<<endl;
@@ -392,6 +405,9 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
             }
             for (auto j=0;j<3;j++) swift_parts[i].x[j]*=libvelociraptorOpt.a;
             parts[i] = Particle(swift_parts[i]);
+            //set the swift mpi domain that this particle resides in
+            parts[i].SetSwiftTask(ThisTask);
+            parts[i].SetSwiftIndex(i);
         }
     }
 
