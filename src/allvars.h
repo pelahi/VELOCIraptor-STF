@@ -758,7 +758,7 @@ struct Options
         halocorevfaciter=0.75;
         halocorenumfaciter=1.0;
         halocorephasedistsig=2.0;
-        coresubmergemindist=0.1;
+        coresubmergemindist=0.25;
 
         iverbose=0;
         iwritefof=0;
