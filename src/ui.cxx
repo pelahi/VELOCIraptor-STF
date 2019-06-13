@@ -844,19 +844,17 @@ inline void ConfigCheck(Options &opt)
             ConfigExit();
         }
         if (opt.aperturenum == 0) {
-            errormessage("Aperture calculations requested but number of apertures is zero. Check config.");
-            ConfigExit();
+            errormessage("WARNING: Aperture calculations requested but number of apertures is zero. ");
         }
         if (opt.apertureprojnum != opt.aperture_proj_values_kpc.size()) {
             errormessage("Projected aperture calculations requested but mismatch between number stated and values provided. Check config.");
             ConfigExit();
         }
         if (opt.apertureprojnum == 0) {
-            errormessage("Aperture calculations requested but number of projected apertures is zero. Check config.");
-            ConfigExit();
+            errormessage("WARNING: Aperture calculations requested but number of projected apertures is zero. ");
         }
-        for (auto &x:opt.aperture_values_kpc) x/=opt.lengthtokpc;
-        for (auto &x:opt.aperture_proj_values_kpc) x/=opt.lengthtokpc;
+        if (opt.aperturenum>0) for (auto &x:opt.aperture_values_kpc) x/=opt.lengthtokpc;
+        if (opt.apertureprojnum>0) for (auto &x:opt.aperture_proj_values_kpc) x/=opt.lengthtokpc;
     }
     if (opt.SOnum>0) {
         if (opt.SOnum != opt.SOthresholds_values_crit.size()) {

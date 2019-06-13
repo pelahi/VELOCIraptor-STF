@@ -1217,7 +1217,7 @@ struct PropData
     Coordinate gposmbp, gvelmbp, gposminpot, gvelminpot;
     ///\name physical properties regarding mass, size
     //@{
-    Double_t gmass,gsize,gMvir,gRvir,gRcm,gRmbp,gRminpot,gmaxvel,gRmaxvel,gMmaxvel,gRhalfmass;
+    Double_t gmass,gsize,gMvir,gRvir,gRcm,gRmbp,gRminpot,gmaxvel,gRmaxvel,gMmaxvel,gRhalfmass,gMassTwiceRhalfmass;
     Double_t gM200c,gR200c,gM200m,gR200m,gMFOF,gM6DFOF,gM500c,gR500c,gMBN98,gRBN98;
     //to store exclusive masses of halo ignoring substructure
     Double_t gMvir_excl,gRvir_excl,gM200c_excl,gR200c_excl,gM200m_excl,gR200m_excl,gMBN98_excl,gRBN98_excl;
@@ -1271,6 +1271,7 @@ struct PropData
     vector<unsigned int> aperture_npart;
     vector<float> aperture_mass;
     vector<float> aperture_veldisp;
+    vector<float> aperture_vrdisp;
     vector<float> aperture_rhalfmass;
     vector<Coordinate> aperture_mass_proj;
     vector<Coordinate> aperture_rhalfmass_proj;
@@ -1280,6 +1281,13 @@ struct PropData
     vector<float> profile_mass;
     vector<float> profile_mass_inclusive;
     vector<Coordinate> profile_L;
+    #if defined(GASON) || defined(STARON) || defined(BHON)
+    vector<unsigned int> aperture_npart_dm;
+    vector<float> aperture_mass_dm;
+    vector<float> aperture_veldisp_dm;
+    vector<float> aperture_vrdisp_dm;
+    vector<float> aperture_rhalfmass_dm;
+    #endif
     //@}
 
     vector<Double_t> SO_mass, SO_radius;
@@ -1308,7 +1316,7 @@ struct PropData
     //dispersion
     Matrix veldisp_gas;
     ///morphology
-    Double_t Rhalfmass_gas, q_gas, s_gas;
+    Double_t MassTwiceRhalfmass_gas, Rhalfmass_gas, q_gas, s_gas;
     Matrix eigvec_gas;
     ///mass weighted sum of temperature, metallicty, star formation rate
     Double_t Temp_gas, Z_gas, SFR_gas;
@@ -1323,10 +1331,12 @@ struct PropData
     vector<unsigned int> aperture_npart_gas;
     vector<float> aperture_mass_gas;
     vector<float> aperture_veldisp_gas;
+    vector<float> aperture_vrdisp_gas;
     vector<float> aperture_SFR_gas;
     vector<float> aperture_rhalfmass_gas;
     vector<Coordinate> aperture_mass_proj_gas;
     vector<Coordinate> aperture_rhalfmass_proj_gas;
+    vector<Coordinate> aperture_SFR_proj_gas;
     vector<Coordinate> aperture_L_gas;
     vector<unsigned int> profile_npart_gas;
     vector<unsigned int> profile_npart_inclusive_gas;
@@ -1360,7 +1370,7 @@ struct PropData
     //dispersion
     Matrix veldisp_gas_sf;
     ///morphology
-    Double_t Rhalfmass_gas_sf, q_gas_sf, s_gas_sf;
+    Double_t MassTwiceRhalfmass_gas_sf, Rhalfmass_gas_sf, q_gas_sf, s_gas_sf;
     Matrix eigvec_gas_sf;
     ///mean temperature,metallicty,star formation rate
     Double_t Temp_gas_sf, Z_gas_sf, SFR_gas_sf;
@@ -1373,6 +1383,7 @@ struct PropData
     vector<unsigned int> aperture_npart_gas_sf;
     vector<float> aperture_mass_gas_sf;
     vector<float> aperture_veldisp_gas_sf;
+    vector<float> aperture_vrdisp_gas_sf;
     vector<float> aperture_rhalfmass_gas_sf;
     vector<Coordinate> aperture_mass_proj_gas_sf;
     vector<Coordinate> aperture_rhalfmass_proj_gas_sf;
@@ -1409,7 +1420,7 @@ struct PropData
     //dispersion
     Matrix veldisp_gas_nsf;
     ///morphology
-    Double_t Rhalfmass_gas_nsf, q_gas_nsf, s_gas_nsf;
+    Double_t MassTwiceRhalfmass_gas_nsf, Rhalfmass_gas_nsf, q_gas_nsf, s_gas_nsf;
     Matrix eigvec_gas_nsf;
     ///mean temperature,metallicty,star formation rate
     Double_t Temp_gas_nsf, Z_gas_nsf, SFR_gas_nsf;
@@ -1422,6 +1433,7 @@ struct PropData
     vector<unsigned int> aperture_npart_gas_nsf;
     vector<float> aperture_mass_gas_nsf;
     vector<float> aperture_veldisp_gas_nsf;
+    vector<float> aperture_vrdisp_gas_nsf;
     vector<float> aperture_rhalfmass_gas_nsf;
     vector<Coordinate> aperture_mass_proj_gas_nsf;
     vector<Coordinate> aperture_rhalfmass_proj_gas_nsf;
@@ -1459,7 +1471,7 @@ struct PropData
     Coordinate L_200crit_excl_star, L_200mean_excl_star, L_BN98_excl_star;
     Matrix veldisp_star;
     ///morphology
-    Double_t Rhalfmass_star,q_star,s_star;
+    Double_t MassTwiceRhalfmass_star, Rhalfmass_star,q_star,s_star;
     Matrix eigvec_star;
     ///mean age,metallicty
     Double_t t_star,Z_star;
@@ -1472,6 +1484,7 @@ struct PropData
     vector<unsigned int> aperture_npart_star;
     vector<float> aperture_mass_star;
     vector<float> aperture_veldisp_star;
+    vector<float> aperture_vrdisp_star;
     vector<float> aperture_rhalfmass_star;
     vector<Coordinate> aperture_mass_proj_star;
     vector<Coordinate> aperture_rhalfmass_proj_star;
@@ -1522,7 +1535,7 @@ struct PropData
     PropData()
     {
         num=gNFOF=gN6DFOF=0;
-        gmass=gsize=gRmbp=gmaxvel=gRmaxvel=gRvir=gR200m=gR200c=gRhalfmass=Efrac=Pot=T=0.;
+        gmass=gsize=gRmbp=gmaxvel=gRmaxvel=gRvir=gR200m=gR200c=gRhalfmass=gMassTwiceRhalfmass=Efrac=Pot=T=0.;
         gMFOF=gM6DFOF=0;
         gM500c=gR500c=0;
         gMBN98=gRBN98=0;
@@ -1554,7 +1567,7 @@ struct PropData
         cm_gas[0]=cm_gas[1]=cm_gas[2]=cmvel_gas[0]=cmvel_gas[1]=cmvel_gas[2]=0.;
         L_gas[0]=L_gas[1]=L_gas[2]=0;
         q_gas=s_gas=1.0;
-        Rhalfmass_gas=0;
+        MassTwiceRhalfmass_gas=Rhalfmass_gas=0;
         eigvec_gas=Matrix(1,0,0,0,1,0,0,0,1);
         Temp_gas=Z_gas=SFR_gas=0.0;
         veldisp_gas=Matrix(0.);
@@ -1574,7 +1587,7 @@ struct PropData
         cm_gas_sf[0]=cm_gas_sf[1]=cm_gas_sf[2]=cmvel_gas_sf[0]=cmvel_gas_sf[1]=cmvel_gas_sf[2]=0.;
         L_gas_sf[0]=L_gas_sf[1]=L_gas_sf[2]=0;
         q_gas_sf=s_gas_sf=1.0;
-        Rhalfmass_gas_sf=0;
+        MassTwiceRhalfmass_gas_sf=Rhalfmass_gas_sf=0;
         eigvec_gas_sf=Matrix(1,0,0,0,1,0,0,0,1);
         Temp_gas_sf=Z_gas_sf=SFR_gas_sf=0.0;
         veldisp_gas_sf=Matrix(0.);
@@ -1594,7 +1607,7 @@ struct PropData
         cm_gas_nsf[0]=cm_gas_nsf[1]=cm_gas_nsf[2]=cmvel_gas_nsf[0]=cmvel_gas_nsf[1]=cmvel_gas_nsf[2]=0.;
         L_gas_nsf[0]=L_gas_nsf[1]=L_gas_nsf[2]=0;
         q_gas_nsf=s_gas_nsf=1.0;
-        Rhalfmass_gas_nsf=0;
+        MassTwiceRhalfmass_gas_nsf=Rhalfmass_gas_nsf=0;
         eigvec_gas_nsf=Matrix(1,0,0,0,1,0,0,0,1);
         Temp_gas_nsf=Z_gas_nsf=SFR_gas_nsf=0.0;
         veldisp_gas_nsf=Matrix(0.);
@@ -1616,7 +1629,7 @@ struct PropData
         cm_star[0]=cm_star[1]=cm_star[2]=cmvel_star[0]=cmvel_star[1]=cmvel_star[2]=0.;
         L_star[0]=L_star[1]=L_star[2]=0;
         q_star=s_star=1.0;
-        Rhalfmass_star=0;
+        MassTwiceRhalfmass_star=Rhalfmass_star=0;
         eigvec_star=Matrix(1,0,0,0,1,0,0,0,1);
         t_star=Z_star=0.;
         veldisp_star=Matrix(0.);
@@ -1726,7 +1739,15 @@ struct PropData
         aperture_npart=p.aperture_npart;
         aperture_mass=p.aperture_mass;
         aperture_veldisp=p.aperture_veldisp;
+        aperture_vrdisp=p.aperture_vrdisp;
         aperture_rhalfmass=p.aperture_rhalfmass;
+        #if defined(GASON) || defined(STARON) || defined(BHON)
+        aperture_npart_dm=p.aperture_npart_dm;
+        aperture_mass_dm=p.aperture_mass_dm;
+        aperture_veldisp_dm=p.aperture_veldisp_dm;
+        aperture_vrdisp_dm=p.aperture_vrdisp_dm;
+        aperture_rhalfmass_dm=p.aperture_rhalfmass_dm;
+        #endif
 #ifdef GASON
         aperture_npart_gas=p.aperture_npart_gas;
         aperture_mass_gas=p.aperture_mass_gas;
@@ -1740,6 +1761,8 @@ struct PropData
         aperture_mass_gas_nsf=p.aperture_mass_gas_nsf;
         aperture_veldisp_gas_sf=p.aperture_veldisp_gas_sf;
         aperture_veldisp_gas_nsf=p.aperture_veldisp_gas_nsf;
+        aperture_vrdisp_gas_sf=p.aperture_vrdisp_gas_sf;
+        aperture_vrdisp_gas_nsf=p.aperture_vrdisp_gas_nsf;
         aperture_rhalfmass_gas_sf=p.aperture_rhalfmass_gas_sf;
         aperture_rhalfmass_gas_nsf=p.aperture_rhalfmass_gas_nsf;
 #endif
@@ -1748,6 +1771,7 @@ struct PropData
         aperture_npart_star=p.aperture_npart_star;
         aperture_mass_star=p.aperture_mass_star;
         aperture_veldisp_star=p.aperture_veldisp_star;
+        aperture_vrdisp_star=p.aperture_vrdisp_star;
         aperture_rhalfmass_star=p.aperture_rhalfmass_star;
 #endif
         aperture_mass_proj=p.aperture_mass_proj;
@@ -1801,23 +1825,28 @@ struct PropData
     }
     void AllocateApertures(Options &opt)
     {
-        if (opt.iaperturecalc) {
+        if (opt.iaperturecalc && opt.aperturenum>0) {
             aperture_npart.resize(opt.aperturenum);
             aperture_mass.resize(opt.aperturenum);
             aperture_veldisp.resize(opt.aperturenum);
+            aperture_vrdisp.resize(opt.aperturenum);
             aperture_rhalfmass.resize(opt.aperturenum);
 #ifdef GASON
             aperture_npart_gas.resize(opt.aperturenum);
             aperture_mass_gas.resize(opt.aperturenum);
             aperture_veldisp_gas.resize(opt.aperturenum);
+            aperture_vrdisp_gas.resize(opt.aperturenum);
             aperture_rhalfmass_gas.resize(opt.aperturenum);
 #ifdef STARON
+            aperture_SFR_gas.resize(opt.aperturenum);
             aperture_npart_gas_sf.resize(opt.aperturenum);
             aperture_npart_gas_nsf.resize(opt.aperturenum);
             aperture_mass_gas_sf.resize(opt.aperturenum);
             aperture_mass_gas_nsf.resize(opt.aperturenum);
             aperture_veldisp_gas_sf.resize(opt.aperturenum);
             aperture_veldisp_gas_nsf.resize(opt.aperturenum);
+            aperture_vrdisp_gas_sf.resize(opt.aperturenum);
+            aperture_vrdisp_gas_nsf.resize(opt.aperturenum);
             aperture_rhalfmass_gas_sf.resize(opt.aperturenum);
             aperture_rhalfmass_gas_nsf.resize(opt.aperturenum);
 #endif
@@ -1826,8 +1855,19 @@ struct PropData
             aperture_npart_star.resize(opt.aperturenum);
             aperture_mass_star.resize(opt.aperturenum);
             aperture_veldisp_star.resize(opt.aperturenum);
+            aperture_vrdisp_star.resize(opt.aperturenum);
             aperture_rhalfmass_star.resize(opt.aperturenum);
 #endif
+            #if defined(GASON) || defined(STARON) || defined(BHON)
+            //if searching all types, also store dm only aperture quantities
+            if (opt.partsearchtype==PSTALL) {
+            aperture_npart_dm.resize(opt.aperturenum);
+            aperture_mass_dm.resize(opt.aperturenum);
+            aperture_veldisp_dm.resize(opt.aperturenum);
+            aperture_vrdisp_dm.resize(opt.aperturenum);
+            aperture_rhalfmass_dm.resize(opt.aperturenum);
+            }
+            #endif
             for (auto &x:aperture_npart) x=0;
             for (auto &x:aperture_mass) x=0;
             for (auto &x:aperture_veldisp) x=0;
@@ -1856,13 +1896,25 @@ struct PropData
             for (auto &x:aperture_veldisp_star) x=0;
             for (auto &x:aperture_rhalfmass_star) x=0;
 #endif
+            #if defined(GASON) || defined(STARON) || defined(BHON)
+            if (opt.partsearchtype==PSTALL) {
+            for (auto &x:aperture_npart_dm) x=0;
+            for (auto &x:aperture_mass_dm) x=0;
+            for (auto &x:aperture_veldisp_dm) x=0;
+            for (auto &x:aperture_rhalfmass_dm) x=0;
+            }
+            #endif
 
+        }
+
+        if (opt.iaperturecalc && opt.apertureprojnum>0) {
             aperture_mass_proj.resize(opt.apertureprojnum);
             aperture_rhalfmass_proj.resize(opt.apertureprojnum);
 #ifdef GASON
             aperture_mass_proj_gas.resize(opt.apertureprojnum);
             aperture_rhalfmass_proj_gas.resize(opt.apertureprojnum);
 #ifdef STARON
+            aperture_SFR_proj_gas.resize(opt.apertureprojnum);
             aperture_mass_proj_gas_sf.resize(opt.apertureprojnum);
             aperture_mass_proj_gas_nsf.resize(opt.apertureprojnum);
             aperture_rhalfmass_proj_gas_sf.resize(opt.apertureprojnum);
@@ -1880,9 +1932,9 @@ struct PropData
             for (auto &x:aperture_mass_proj_gas) x[0]=x[1]=x[2]=0;
             for (auto &x:aperture_rhalfmass_proj_gas) x[0]=x[1]=x[2]=0;
 #ifdef STARON
+            for (auto &x:aperture_SFR_proj_gas) x[0]=x[1]=x[2]=0;
             for (auto &x:aperture_mass_proj_gas_sf) x[0]=x[1]=x[2]=0;
             for (auto &x:aperture_rhalfmass_proj_gas_sf) x[0]=x[1]=x[2]=0;
-            for (auto &x:aperture_rhalfmass_gas_nsf) x=0;
             for (auto &x:aperture_mass_proj_gas_nsf) x[0]=x[1]=x[2]=0;
             for (auto &x:aperture_rhalfmass_proj_gas_nsf) x[0]=x[1]=x[2]=0;
 #endif
@@ -2004,8 +2056,6 @@ struct PropData
 
     ///converts the properties data into comoving little h values
     ///so masses, positions have little h values and positions are comoving
-
-
     void ConverttoComove(Options &opt){
         gcm=gcm*opt.h/opt.a;
         gposmbp=gposmbp*opt.h/opt.a;
@@ -2025,6 +2075,8 @@ struct PropData
         gR200m*=opt.h/opt.a;
         gR500c*=opt.h/opt.a;
         gRBN98*=opt.h/opt.a;
+        gMassTwiceRhalfmass*=opt.h;
+        gRhalfmass*=opt.h/opt.a;
         gJ=gJ*opt.h*opt.h/opt.a;
         gJ200m=gJ200m*opt.h*opt.h/opt.a;
         gJ200c=gJ200c*opt.h*opt.h/opt.a;
@@ -2051,8 +2103,9 @@ struct PropData
         M_gas_500c*=opt.h;
 
         cm_gas=cm_gas*opt.h/opt.a;
-        Rhalfmass_gas*=opt.h/opt.a;
         L_gas=L_gas*opt.h*opt.h/opt.a;
+        MassTwiceRhalfmass_gas*=opt.h;
+        Rhalfmass_gas*=opt.h/opt.a;
 
         if (opt.iextragasoutput) {
             M_200mean_gas*=opt.h;
@@ -2068,6 +2121,45 @@ struct PropData
             L_200mean_excl_gas=L_200mean_excl_gas*opt.h*opt.h/opt.a;
             L_BN98_excl_gas=L_BN98_excl_gas*opt.h*opt.h/opt.a;
         }
+        #ifdef STARON
+        M_gas_sf*=opt.h;
+        L_gas_sf*=opt.h*opt.h/opt.a;
+        MassTwiceRhalfmass_gas_sf*=opt.h;
+        Rhalfmass_gas_sf*=opt.h/opt.a;
+
+        M_gas_nsf*=opt.h;
+        L_gas_nsf*=opt.h*opt.h/opt.a;
+        MassTwiceRhalfmass_gas_nsf*=opt.h;
+        Rhalfmass_gas_nsf*=opt.h/opt.a;
+
+        if (opt.iextragasoutput) {
+            M_200mean_gas_sf*=opt.h;
+            M_200crit_gas_sf*=opt.h;
+            M_BN98_gas_sf*=opt.h;
+            M_200mean_excl_gas_sf*=opt.h;
+            M_200crit_excl_gas_sf*=opt.h;
+            M_BN98_excl_gas_sf*=opt.h;
+            L_200crit_gas_sf*=opt.h*opt.h/opt.a;
+            L_200mean_gas_sf*=opt.h*opt.h/opt.a;
+            L_BN98_gas_sf*=opt.h*opt.h/opt.a;
+            L_200crit_excl_gas_sf*=opt.h*opt.h/opt.a;
+            L_200mean_excl_gas_sf*=opt.h*opt.h/opt.a;
+            L_BN98_excl_gas_sf*=opt.h*opt.h/opt.a;
+
+            M_200mean_gas_nsf*=opt.h;
+            M_200crit_gas_nsf*=opt.h;
+            M_BN98_gas_nsf*=opt.h;
+            M_200mean_excl_gas_nsf*=opt.h;
+            M_200crit_excl_gas_nsf*=opt.h;
+            M_BN98_excl_gas_nsf*=opt.h;
+            L_200crit_gas_nsf*=opt.h*opt.h/opt.a;
+            L_200mean_gas_nsf*=opt.h*opt.h/opt.a;
+            L_BN98_gas_nsf*=opt.h*opt.h/opt.a;
+            L_200crit_excl_gas_nsf*=opt.h*opt.h/opt.a;
+            L_200mean_excl_gas_nsf*=opt.h*opt.h/opt.a;
+            L_BN98_excl_gas_nsf*=opt.h*opt.h/opt.a;
+        }
+        #endif
 
 #endif
 #ifdef STARON
@@ -2077,6 +2169,7 @@ struct PropData
         M_star_50kpc*=opt.h;
         M_star_500c*=opt.h;
         cm_star=cm_star*opt.h/opt.a;
+        MassTwiceRhalfmass_star*=opt.h/opt.a;
         Rhalfmass_star*=opt.h/opt.a;
         L_star=L_star*opt.h*opt.h/opt.a;
 #endif
