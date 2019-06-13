@@ -4255,6 +4255,14 @@ void PrintSimulationState(Options &opt){
 }
 //@}
 
+#ifdef SWIFTINTERFACE
+///write an HDF file that stores where particles are written.
+void WriteSwiftExtendedOutput(Options &opt, const Int_t ngroups, Int_t *numingroup, Int_t **pglist, vector<Particle> &Part)
+{
+    return;
+}
+#endif
+
 #ifdef EXTENDEDHALOOUTPUT
 /// \name Routines that can be used to output information of a halo subvolume decomposition
 //@{

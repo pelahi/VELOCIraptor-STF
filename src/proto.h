@@ -81,6 +81,10 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t &nhierarchy,
 
 ///Write Extended Output
 void WriteExtendedOutput(Options &opt, Int_t numgroups, Int_t nbodies, PropData *pdata, vector<Particle> &p, Int_t * pfof);
+#ifdef SWIFTINTERFACE
+///Write catalog information related to the address of particles in groups in a swift snapshot. 
+void WriteSwiftExtendedOutput(Options &opt, const Int_t ngroups, Int_t *numingroup, Int_t **pglist, vector<Particle> &Part);
+#endif
 
 ///Write the configuartion options that the code used
 void WriteVELOCIraptorConfig(Options &opt);
