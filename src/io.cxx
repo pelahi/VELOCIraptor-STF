@@ -110,6 +110,12 @@ void AdjustHydroQuantities(Options &opt, vector<Particle> &Part, const Int_t nbo
             p.SetZmet(p.GetZmet()*opt.metallicityinputconversion);
         }
     }
+    if (opt.isfrisssfr==1) {
+        for (auto &p:Part) {
+            if (p.GetType()!=GASTYPE) continue;
+            p.SetSFR(p.GetSFR()*p.GetMass());
+        }
+    }
     if (opt.SFRinputconversion!=1.0) {
         for (auto &p:Part) {
             if (p.GetType()!=GASTYPE) continue;

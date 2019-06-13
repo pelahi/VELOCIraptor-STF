@@ -399,7 +399,7 @@ struct Options
     //@{
     Double_t lengthinputconversion, massinputconversion, energyinputconversion, velocityinputconversion;
     Double_t SFRinputconversion, metallicityinputconversion, stellarageinputconversion;
-    int istellaragescalefactor;
+    int istellaragescalefactor, isfrisssfr;
     Double_t G;
     Double_t lengthtokpc, velocitytokms, masstosolarmass, energyperunitmass, timetoseconds;
     Double_t SFRtosolarmassperyear, stellaragetoyrs, metallicitytosolar;
@@ -650,6 +650,7 @@ struct Options
         energyinputconversion = 1.0;
         stellarageinputconversion =1.0;
         istellaragescalefactor = 1;
+        isfrisssfr = 0;
 
         G = 1.0;
         p = 0.0;

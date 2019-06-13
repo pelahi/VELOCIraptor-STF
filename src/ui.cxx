@@ -532,6 +532,8 @@ void GetParamFile(Options &opt)
                         opt.stellarageinputconversion = atof(vbuff);
                     else if (strcmp(tbuff, "Stellar_age_input_is_cosmological_scalefactor")==0)
                         opt.istellaragescalefactor = atoi(vbuff);
+                    else if (strcmp(tbuff, "Star_formation_rate_input_is_specific_star_formation_rate")==0)
+                        opt.isfrisssfr = atoi(vbuff);
                     else if (strcmp(tbuff, "Length_unit_to_kpc")==0)
                         opt.lengthtokpc = atof(vbuff);
                     else if (strcmp(tbuff, "Velocity_to_kms")==0)
