@@ -82,7 +82,7 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t &nhierarchy,
 ///Write Extended Output
 void WriteExtendedOutput(Options &opt, Int_t numgroups, Int_t nbodies, PropData *pdata, vector<Particle> &p, Int_t * pfof);
 #ifdef SWIFTINTERFACE
-///Write catalog information related to the address of particles in groups in a swift snapshot. 
+///Write catalog information related to the address of particles in groups in a swift snapshot.
 void WriteSwiftExtendedOutput(Options &opt, const Int_t ngroups, Int_t *numingroup, Int_t **pglist, vector<Particle> &Part);
 #endif
 
@@ -597,8 +597,16 @@ Int_t MPIBuildParticleNNImportList(const Int_t nbodies, KDTree *tree, Particle *
 int nn_export_cmp(const void *a, const void *b);
 ///Determine number of halos whose search regions overlap other mpi domains
 vector<bool> MPIGetHaloSearchExportNum(const Int_t ngroups, PropData *&pdata, vector<Double_t> &rdist);
+#ifdef SWIFTINTERFACE
+///Determine number of halos whose search regions overlap other mpi domains using swift mesh mpi decomposition
+vector<bool> MPIGetHaloSearchExportNumUsingMesh(Options &opt, const Int_t ngroup, PropData *&pdata, vector<Double_t> &rdist);
+#endif
 ///Build the export list of halo positions and search distances
 void MPIBuildHaloSearchExportList(const Int_t ngroup, PropData *&pdata, vector<Double_t> &rdist, vector<bool> &halooverlap);
+#ifdef SWIFTINTERFACE
+///Build the export list of halo positions and search distances using swift mesh mpi decomposition
+void MPIBuildHaloSearchExportListUsingMesh(Options &opt, const Int_t ngroup, PropData *&pdata, vector<Double_t> &rdist, vector<bool> &halooverlap);
+#endif
 ///Determine number of imported particles based on halo search regions
 void MPIGetHaloSearchImportNum(const Int_t nbodies, KDTree *tree, Particle *Part);
 ///Builds the import list of particles based on halo positions
