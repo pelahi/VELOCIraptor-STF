@@ -110,6 +110,12 @@ void AdjustHydroQuantities(Options &opt, vector<Particle> &Part, const Int_t nbo
             p.SetZmet(p.GetZmet()*opt.metallicityinputconversion);
         }
     }
+    if (opt.isfrisssfr==1) {
+        for (auto &p:Part) {
+            if (p.GetType()!=GASTYPE) continue;
+            p.SetSFR(p.GetSFR()*p.GetMass());
+        }
+    }
     if (opt.SFRinputconversion!=1.0) {
         for (auto &p:Part) {
             if (p.GetType()!=GASTYPE) continue;
@@ -4254,6 +4260,14 @@ void PrintSimulationState(Options &opt){
     }
 }
 //@}
+
+#ifdef SWIFTINTERFACE
+///write an HDF file that stores where particles are written.
+void WriteSwiftExtendedOutput(Options &opt, const Int_t ngroups, Int_t *numingroup, Int_t **pglist, vector<Particle> &Part)
+{
+    return;
+}
+#endif
 
 #ifdef EXTENDEDHALOOUTPUT
 /// \name Routines that can be used to output information of a halo subvolume decomposition

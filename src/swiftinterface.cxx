@@ -511,8 +511,11 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
       WriteGroupPartType(libvelociraptorOpt, ngroup, numingroup, pglist, parts);
     }
 #ifdef EXTENDEDHALOOUTPUT
-    if (opt.iExtendedOutput) WriteExtendedOutput (opt, ngroup, nbodies, pdata, Part, pfof);
+    if (opt.iExtendedOutput) WriteExtendedOutput (libvelociraptorOpt, ngroup, nbodies, pdata, parts, pfof);
 #endif
+    //if returning to swift as swift is writing a snapshot, then write for the groups where the particles are found in a file
+    //assuming that the swift task and swift index can be used to determine where a particle will be written.
+    if (ireturngroupinfoflag == 0 ) WriteSwiftExtendedOutput (libvelociraptorOpt, ngroup, numingroup, pglist, parts);
 
     for (Int_t i=1;i<=ngroup;i++) delete[] pglist[i];
     delete[] pglist;
@@ -552,7 +555,7 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
     ngtot=ngroup;
 #endif
     cout<<"VELOCIraptor sorting info to return group ids to swift"<<endl;
-    if (ngroup == 0) {
+    if (ngtot == 0) {
         //free mem associate with mpi cell node ides
         libvelociraptorOpt.cellnodeids = NULL;
         libvelociraptorOpt.cellloc = NULL;

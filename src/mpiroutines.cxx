@@ -505,7 +505,7 @@ int MPISearchForOverlapUsingMesh(Options &opt, Coordinate &x, Double_t &rdist){
 int MPISearchForOverlapUsingMesh(Options &opt, Double_t xsearch[3][2]){
     int numoverlap=0;
     /// Store whether an MPI domain has already been sent to
-    int *sent_mpi_domain = new int[NProcs];
+    vector<int>sent_mpi_domain(NProcs);
     for(int i=0; i<NProcs; i++) sent_mpi_domain[i] = 0;
 
     vector<int> celllist=MPIGetCellListInSearchUsingMesh(opt,xsearch);
@@ -839,7 +839,7 @@ void MPIGetExportNumUsingMesh(Options &opt, const Int_t nbodies, Particle *Part,
     const double ih_x = opt.icellwidth[0];
     const double ih_y = opt.icellwidth[1];
     const double ih_z = opt.icellwidth[2];
-    int *sent_mpi_domain = new int[NProcs];
+    vector<int>sent_mpi_domain(NProcs);
 
     for (i=0;i<nbodies;i++) {
         for(int k=0; k<NProcs; k++) sent_mpi_domain[k] = 0;
@@ -849,15 +849,9 @@ void MPIGetExportNumUsingMesh(Options &opt, const Int_t nbodies, Particle *Part,
             const int cellnodeID = opt.cellnodeids[j];
             /// Only check if particles have overlap with neighbouring cells that are on another MPI domain and have not already been sent to
             if (sent_mpi_domain[cellnodeID] == 1) continue;
-            vector<int> celllist=MPIGetCellListInSearchUsingMesh(opt,xsearch);
-            for (auto j:celllist) {
-                const int cellnodeID = opt.cellnodeids[j];
-                /// Only check if particles have overlap with neighbouring cells that are on another MPI domain and have not already been sent to
-                if (sent_mpi_domain[cellnodeID] == 1) continue;
-                nexport++;
-                nsend_local[cellnodeID]++;
-                sent_mpi_domain[cellnodeID]++;
-            }
+            nexport++;
+            nsend_local[cellnodeID]++;
+            sent_mpi_domain[cellnodeID]++;
         }
     }
     NExport=nexport;//*(1.0+MPIExportFac);
@@ -1042,7 +1036,7 @@ void MPIBuildParticleExportListUsingMesh(Options &opt, const Int_t nbodies, Part
     Double_t xsearch[3][2];
     Int_t sendTask,recvTask;
     MPI_Status status;
-    int *sent_mpi_domain = new int[NProcs];
+    vector<int>sent_mpi_domain(NProcs);
 
     ///\todo would like to add openmp to this code. In particular, loop over nbodies but issue is nexport.
     ///This would either require making a FoFDataIn[nthreads][NExport] structure so that each omp thread
@@ -1060,21 +1054,15 @@ void MPIBuildParticleExportListUsingMesh(Options &opt, const Int_t nbodies, Part
             const int cellnodeID = opt.cellnodeids[j];
             /// Only check if particles have overlap with neighbouring cells that are on another MPI domain and have not already been sent to
             if (sent_mpi_domain[cellnodeID] == 1) continue;
-            vector<int> celllist=MPIGetCellListInSearchUsingMesh(opt,xsearch);
-            for (auto j:celllist) {
-                const int cellnodeID = opt.cellnodeids[j];
-                /// Only check if particles have overlap with neighbouring cells that are on another MPI domain and have not already been sent to
-                if (sent_mpi_domain[cellnodeID] == 1) continue;
-                //FoFDataIn[nexport].Part=Part[i];
-                FoFDataIn[nexport].Index = i;
-                FoFDataIn[nexport].Task = cellnodeID;
-                FoFDataIn[nexport].iGroup = pfof[Part[i].GetID()];//set group id
-                FoFDataIn[nexport].iGroupTask = ThisTask;//and the task of the group
-                FoFDataIn[nexport].iLen = Len[i];
-                nexport++;
-                nsend_local[cellnodeID]++;
-                sent_mpi_domain[cellnodeID]++;
-            }
+            //FoFDataIn[nexport].Part=Part[i];
+            FoFDataIn[nexport].Index = i;
+            FoFDataIn[nexport].Task = cellnodeID;
+            FoFDataIn[nexport].iGroup = pfof[Part[i].GetID()];//set group id
+            FoFDataIn[nexport].iGroupTask = ThisTask;//and the task of the group
+            FoFDataIn[nexport].iLen = Len[i];
+            nexport++;
+            nsend_local[cellnodeID]++;
+            sent_mpi_domain[cellnodeID]++;
         }
     }
 
@@ -1261,7 +1249,7 @@ void MPIGetNNExportNumUsingMesh(Options &opt, const Int_t nbodies, Particle *Par
     Int_t sendTask,recvTask;
     MPI_Status status;
     int indomain;
-    int *sent_mpi_domain = new int[NProcs];
+    vector<int>sent_mpi_domain(NProcs);
 
     ///\todo would like to add openmp to this code. In particular, loop over nbodies but issue is nexport.
     ///This would either require making a FoFDataIn[nthreads][NExport] structure so that each omp thread
@@ -1282,15 +1270,9 @@ void MPIGetNNExportNumUsingMesh(Options &opt, const Int_t nbodies, Particle *Par
             const int cellnodeID = opt.cellnodeids[j];
             /// Only check if particles have overlap with neighbouring cells that are on another MPI domain and have not already been sent to
             if (sent_mpi_domain[cellnodeID] == 1) continue;
-            vector<int> celllist=MPIGetCellListInSearchUsingMesh(opt,xsearch);
-            for (auto j:celllist) {
-                const int cellnodeID = opt.cellnodeids[j];
-                /// Only check if particles have overlap with neighbouring cells that are on another MPI domain and have not already been sent to
-                if (sent_mpi_domain[cellnodeID] == 1) continue;
-                nexport++;
-                nsend_local[cellnodeID]++;
-                sent_mpi_domain[cellnodeID]++;
-            }
+            nexport++;
+            nsend_local[cellnodeID]++;
+            sent_mpi_domain[cellnodeID]++;
         }
     }
     //and then gather the number of particles to be sent from mpi thread m to mpi thread n in the mpi_nsend[NProcs*NProcs] array via [n+m*NProcs]
@@ -1469,7 +1451,7 @@ void MPIBuildParticleNNExportListUsingMesh(Options &opt, const Int_t nbodies, Pa
     Int_t sendTask,recvTask;
     MPI_Status status;
     int indomain;
-    int *sent_mpi_domain = new int[NProcs];
+    vector<int>sent_mpi_domain(NProcs);
 
     ///\todo would like to add openmp to this code. In particular, loop over nbodies but issue is nexport.
     ///This would either require making a FoFDataIn[nthreads][NExport] structure so that each omp thread
@@ -1493,24 +1475,18 @@ void MPIBuildParticleNNExportListUsingMesh(Options &opt, const Int_t nbodies, Pa
             const int cellnodeID = opt.cellnodeids[j];
             /// Only check if particles have overlap with neighbouring cells that are on another MPI domain and have not already been sent to
             if (sent_mpi_domain[cellnodeID] == 1) continue;
-            vector<int> celllist=MPIGetCellListInSearchUsingMesh(opt,xsearch);
-            for (auto j:celllist) {
-                const int cellnodeID = opt.cellnodeids[j];
-                /// Only check if particles have overlap with neighbouring cells that are on another MPI domain and have not already been sent to
-                if (sent_mpi_domain[cellnodeID] == 1) continue;
-                //NNDataIn[nexport].Index=i;
-                NNDataIn[nexport].ToTask=cellnodeID;
-                NNDataIn[nexport].FromTask=ThisTask;
-                NNDataIn[nexport].R2=rdist[i]*rdist[i];
-                //NNDataIn[nexport].V2=vdist2[i];
-                for (int k=0;k<3;k++) {
-                    NNDataIn[nexport].Pos[k]=Part[i].GetPosition(k);
-                    NNDataIn[nexport].Vel[k]=Part[i].GetVelocity(k);
-                }
-                nexport++;
-                nsend_local[cellnodeID]++;
-                sent_mpi_domain[cellnodeID]++;
+            //NNDataIn[nexport].Index=i;
+            NNDataIn[nexport].ToTask=cellnodeID;
+            NNDataIn[nexport].FromTask=ThisTask;
+            NNDataIn[nexport].R2=rdist[i]*rdist[i];
+            //NNDataIn[nexport].V2=vdist2[i];
+            for (int k=0;k<3;k++) {
+                NNDataIn[nexport].Pos[k]=Part[i].GetPosition(k);
+                NNDataIn[nexport].Vel[k]=Part[i].GetVelocity(k);
             }
+            nexport++;
+            nsend_local[cellnodeID]++;
+            sent_mpi_domain[cellnodeID]++;
         }
     }
     //sort the export data such that all particles to be passed to thread j are together in ascending thread number
@@ -1785,6 +1761,51 @@ vector<bool> MPIGetHaloSearchExportNum(const Int_t ngroup, PropData *&pdata, vec
     return halooverlap;
 }
 
+#ifdef SWIFTINTERFACE
+/*! similar \ref MPIGetHaloSearchExportNum but using swift mesh mpi decomposition
+*/
+vector<bool> MPIGetHaloSearchExportNumUsingMesh(Options &opt, const Int_t ngroup, PropData *&pdata, vector<Double_t> &rdist)
+{
+    Int_t nexport=0,nimport=0;
+    Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
+    Double_t xsearch[3][2];
+    Int_t sendTask,recvTask;
+    MPI_Status status;
+    int indomain;
+    vector<bool> halooverlap(ngroup+1);
+    vector<int>sent_mpi_domain(NProcs);
+
+    ///\todo would like to add openmp to this code. In particular, loop over nbodies but issue is nexport.
+    ///This would either require making a FoFDataIn[nthreads][NExport] structure so that each omp thread
+    ///can only access the appropriate memory and adjust nsend_local.\n
+    ///\em Or outer loop is over threads, inner loop over nbodies and just have a idlist of size Nlocal that tags particles
+    ///which must be exported. Then its a much quicker follow up loop (no if statement) that stores the data
+    for (auto j=0;j<NProcs;j++) nsend_local[j]=0;
+    for (auto i=1;i<=ngroup;i++)
+    {
+        for (int k=0; k<NProcs; k++) sent_mpi_domain[k] = 0;
+        for (int k=0;k<3;k++) {xsearch[k][0]=pdata[i].gcm[k]-rdist[i];xsearch[k][1]=pdata[i].gcm[k]+rdist[i];}
+        vector<int> celllist=MPIGetCellListInSearchUsingMesh(opt,xsearch);
+        for (auto j:celllist) {
+            const int cellnodeID = opt.cellnodeids[j];
+            /// Only check if particles have overlap with neighbouring cells that are on another MPI domain and have not already been sent to
+            if (sent_mpi_domain[cellnodeID] == 1) continue;
+            nexport++;
+            nsend_local[cellnodeID]++;
+            halooverlap[i]=true;
+            sent_mpi_domain[cellnodeID]++;
+        }
+    }
+
+    //and then gather the number of particles to be sent from mpi thread m to mpi thread n in the mpi_nsend[NProcs*NProcs] array via [n+m*NProcs]
+    MPI_Allgather(nsend_local, NProcs, MPI_Int_t, mpi_nsend, NProcs, MPI_Int_t, MPI_COMM_WORLD);
+    NImport=0;
+    for (auto j=0;j<NProcs;j++)NImport+=mpi_nsend[ThisTask+j*NProcs];
+    NExport=nexport;
+    return halooverlap;
+}
+#endif
+
 /*! like \ref MPIBuildParticleExportList but each particle has a different distance stored in rdist used to find nearest neighbours
 */
 void MPIBuildHaloSearchExportList(const Int_t ngroup, PropData *&pdata, vector<Double_t> &rdist, vector<bool> &halooverlap)
@@ -1884,6 +1905,110 @@ void MPIBuildHaloSearchExportList(const Int_t ngroup, PropData *&pdata, vector<D
         }
     }
 }
+
+#ifdef SWIFTINTERFACE
+/*! similar \ref MPIBuildHaloSearchExportList but for swift mesh mpi decomposition
+*/
+void MPIBuildHaloSearchExportListUsingMesh(Options &opt, const Int_t ngroup, PropData *&pdata, vector<Double_t> &rdist, vector<bool> &halooverlap)
+{
+    Int_t nthreads,nexport=0,nimport=0;
+    Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
+    Double_t xsearch[3][2];
+    MPI_Status status;
+    int indomain;
+    int sendTask,recvTask;
+    int maxchunksize=2147483648/NProcs/sizeof(nndata_in);
+    int nsend,nrecv,nsendchunks,nrecvchunks,numsendrecv;
+    int sendoffset,recvoffset;
+    int cursendchunksize,currecvchunksize;
+    vector<int>sent_mpi_domain(NProcs);
+
+    ///\todo would like to add openmp to this code. In particular, loop over nbodies but issue is nexport.
+    ///This would either require making a FoFDataIn[nthreads][NExport] structure so that each omp thread
+    ///can only access the appropriate memory and adjust nsend_local.\n
+    ///\em Or outer loop is over threads, inner loop over nbodies and just have a idlist of size Nlocal that tags particles
+    ///which must be exported. Then its a much quicker follow up loop (no if statement) that stores the data
+    for (auto j=0;j<NProcs;j++) nsend_local[j]=0;
+    for (auto i=1;i<=ngroup;i++)
+    {
+        if (halooverlap[i]==false) continue;
+        for (int k=0; k<NProcs; k++) sent_mpi_domain[k] = 0;
+        for (int k=0;k<3;k++) {xsearch[k][0]=pdata[i].gcm[k]-rdist[i];xsearch[k][1]=pdata[i].gcm[k]+rdist[i];}
+        vector<int> celllist=MPIGetCellListInSearchUsingMesh(opt,xsearch);
+        for (auto j:celllist) {
+            const int cellnodeID = opt.cellnodeids[j];
+            /// Only check if particles have overlap with neighbouring cells that are on another MPI domain and have not already been sent to
+            if (sent_mpi_domain[cellnodeID] == 1) continue;
+            //NNDataIn[nexport].Index=i;
+            NNDataIn[nexport].ToTask=cellnodeID;
+            NNDataIn[nexport].FromTask=ThisTask;
+            NNDataIn[nexport].R2=rdist[i]*rdist[i];
+            //NNDataIn[nexport].V2=vdist2[i];
+            for (int k=0;k<3;k++) {
+                NNDataIn[nexport].Pos[k]=pdata[i].gcm[k];
+            }
+            nexport++;
+            nsend_local[cellnodeID]++;
+            sent_mpi_domain[cellnodeID]++;
+        }
+    }
+
+    //sort the export data such that all particles to be passed to thread j are together in ascending thread number
+    if (nexport>0) qsort(NNDataIn, nexport, sizeof(struct nndata_in), nn_export_cmp);
+
+    //then store the offset in the export data for the jth Task in order to send data.
+    noffset[0] = 0; for(auto j = 1; j < NProcs; j++) noffset[j]=noffset[j-1] + nsend_local[j-1];
+    //and then gather the number of items to be sent from mpi thread m to mpi thread n in the mpi_nsend[NProcs*NProcs] array via [n+m*NProcs]
+    MPI_Allgather(nsend_local, NProcs, MPI_Int_t, mpi_nsend, NProcs, MPI_Int_t, MPI_COMM_WORLD);
+    //now send the data.
+
+    for (auto j=0;j<NProcs;j++)nimport+=mpi_nsend[ThisTask+j*NProcs];
+    //if task neither sends or receives, do nothing
+    if (nexport==0&&nimport==0) return;
+    for(auto j=0;j<NProcs;j++)
+    {
+        if (j!=ThisTask)
+        {
+            sendTask = ThisTask;
+            recvTask = j;
+            nbuffer[recvTask]=0;
+            for (int k=0;k<recvTask;k++)nbuffer[recvTask]+=mpi_nsend[ThisTask+k*NProcs];//offset on local receiving buffer
+            if(mpi_nsend[ThisTask * NProcs + recvTask] > 0 || mpi_nsend[recvTask * NProcs + ThisTask] > 0)
+            {
+                //send info in loops to minimize memory footprint
+                cursendchunksize=currecvchunksize=maxchunksize;
+                nsendchunks=ceil(mpi_nsend[recvTask+ThisTask*NProcs]/(Double_t)maxchunksize);
+                nrecvchunks=ceil(mpi_nsend[ThisTask+recvTask*NProcs]/(Double_t)maxchunksize);
+                if (cursendchunksize>mpi_nsend[recvTask+ThisTask*NProcs]) {
+                    nsendchunks=1;
+                    cursendchunksize=mpi_nsend[recvTask+ThisTask*NProcs];
+                }
+                if (currecvchunksize>mpi_nsend[ThisTask+recvTask*NProcs]) {
+                    nrecvchunks=1;
+                    currecvchunksize=mpi_nsend[ThisTask+recvTask*NProcs];
+                }
+                numsendrecv=max(nsendchunks,nrecvchunks);
+                sendoffset=recvoffset=0;
+                for (auto ichunk=0;ichunk<numsendrecv;ichunk++)
+                {
+                    //blocking point-to-point send and receive. Here must determine the appropriate offset point in the local export buffer
+                    //for sending data and also the local appropriate offset in the local the receive buffer for information sent from the local receiving buffer
+                    MPI_Sendrecv(&NNDataIn[noffset[recvTask]+sendoffset],
+                        cursendchunksize * sizeof(struct nndata_in), MPI_BYTE,
+                        recvTask, TAG_NN_A+ichunk,
+                        &NNDataGet[nbuffer[recvTask]+recvoffset],
+                        currecvchunksize * sizeof(struct nndata_in),
+                        MPI_BYTE, recvTask, TAG_NN_A+ichunk, MPI_COMM_WORLD, &status);
+                    sendoffset+=cursendchunksize;
+                    recvoffset+=currecvchunksize;
+                    if (cursendchunksize>mpi_nsend[recvTask+ThisTask * NProcs]-sendoffset)cursendchunksize=mpi_nsend[recvTask+ThisTask * NProcs]-sendoffset;
+                    if (currecvchunksize>mpi_nsend[ThisTask+recvTask * NProcs]-sendoffset)currecvchunksize=mpi_nsend[ThisTask+recvTask * NProcs]-recvoffset;
+                }
+            }
+        }
+    }
+}
+#endif
 
 /*! Mirror to \ref MPIGetHaloSearchExportNum, use exported positions, run ball search to find number of all local particles that need to be
     imported back to exported positions's thread so that a proper search can be made.
