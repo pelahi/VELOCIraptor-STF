@@ -4785,7 +4785,7 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
 #endif
 #endif
 #ifdef STARON
-            if (EncMassGas>=0.5*pdata.aperture_mass_star[k] && pdata.aperture_rhalfmass_star[k]==0) {
+            if (EncMassStar>=0.5*pdata.aperture_mass_star[k] && pdata.aperture_rhalfmass_star[k]==0) {
                 pdata.aperture_rhalfmass_star[k]=oldrc;
                 iaptindex++;
             }
@@ -4962,7 +4962,7 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
     #endif
     #endif
     #ifdef STARON
-                if (EncMassGas>=0.5*pdata.aperture_mass_proj_star[i][k] && pdata.aperture_rhalfmass_proj_star[i][k]==0) {
+                if (EncMassStar>=0.5*pdata.aperture_mass_proj_star[i][k] && pdata.aperture_rhalfmass_proj_star[i][k]==0) {
                     pdata.aperture_rhalfmass_proj_star[i][k]=oldrc;
                     iaptindex++;
                 }
