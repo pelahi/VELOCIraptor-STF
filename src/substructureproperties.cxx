@@ -264,6 +264,7 @@ void GetProperties(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngro
     Double_t Tsum,Tmeansum,tsum,tmeansum,Zsum,Zmeansum,sfrsum,sfrmeansum;
     Double_t Tsum_sf,Tmeansum_sf,Zsum_sf,Zmeansum_sf;
     Double_t Tsum_nsf,Tmeansum_nsf,Zsum_nsf,Zmeansum_nsf;
+    Double_t sigV_gas_sf,sigV_gas_nsf;
     Coordinate jval;
     Double_t change=MAXVALUE,tol=1e-2;
     Int_t ii,icmv;
@@ -1266,17 +1267,25 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
         Ekin=Krot=Jx=Jy=Jz=sxx=sxy=sxz=syy=syz=szz=0.;
         Tsum=tsum=Zsum=sfrsum=0.;
         Tmeansum=tmeansum=Zmeansum=sfrmeansum=0.;
+        Tsum_sf=tsum=Zsum_sf=0.;
+        Tmeansum_sf=Zmeansum_sf=0.;
+        Tsum_nsf=tsum=Zsum_nsf=0.;
+        Tmeansum_nsf=Zmeansum_nsf=0.;
         cmx=cmy=cmz=cmvx=cmvy=cmvz=0.;
+        sigV_gas_sf=sigV_gas_nsf=0;
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
-private(j,Pval,x,y,z,vx,vy,vz,J,mval)
+private(j,Pval,x,y,z,vx,vy,vz,J,mval,SFR)
 {
-    #pragma omp for reduction(+:Jx,Jy,Jz,sxx,sxy,sxz,syy,syz,szz,cmx,cmy,cmz,cmvx,cmvy,cmvz,Tsum,tsum,Zsum,sfrsum,Tmeansum,tmeansum,Zmeansum,sfrmeansum)
+    #pragma omp for reduction(+:Jx,Jy,Jz,sxx,sxy,sxz,syy,syz,szz,cmx,cmy,cmz,cmvx,cmvy,cmvz,Tsum,tsum,Zsum,sfrsum,Tmeansum,tmeansum,Zmeansum,sfrmeansum, Tsum_sf,Zsum_sf,Tmeansum_sf,Zmeansum_sf,Tsum_nsf,Zsum_nsf,Tmeansum_nsf,Zmeansum_nsf,sigV_gas_sf,sigV_gas_nsf)
 #endif
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
             if (Pval->GetType()==GASTYPE) {
                 mval=Pval->GetMass();
+                #ifdef STARON
+                SFR=Pval->GetSFR();
+                #endif
 
                 x = (*Pval).X();
                 y = (*Pval).Y();
@@ -1309,6 +1318,20 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval)
                 Zmeansum+=mval*Pval->GetZmet();
                 sfrsum+=Pval->GetSFR();
                 sfrmeansum+=mval*Pval->GetSFR();
+                if (SFR > opt.gas_sfr_threshold) {
+                    Tsum_sf+=Pval->GetU();
+                    Tmeansum_sf+=mval*Pval->GetU();
+                    Zsum_sf+=Pval->GetZmet();
+                    Zmeansum_sf+=mval*Pval->GetZmet();
+                    sigV_gas_sf+=(vx*vx+vy*vy*vz*vz)*mval;
+                }
+                else {
+                    Tsum_nsf+=Pval->GetU();
+                    Tmeansum_nsf+=mval*Pval->GetU();
+                    Zsum_nsf+=Pval->GetZmet();
+                    Zmeansum_nsf+=mval*Pval->GetZmet();
+                    sigV_gas_nsf+=(vx*vx+vy*vy*vz*vz)*mval;
+                }
 #endif
             }
         }
@@ -1519,8 +1542,8 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
         }
         if (pdata[i].n_star>0) {
         Ekin=Krot=Jx=Jy=Jz=sxx=sxy=sxz=syy=syz=szz=0.;
-        Tsum=tsum=Zsum=sfrsum=0.;
-        Tmeansum=tmeansum=Zmeansum=sfrmeansum=0.;
+        tsum=Zsum=0.;
+        tmeansum=Zmeansum=0.;
         cmx=cmy=cmz=cmvx=cmvy=cmvz=0.;
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
