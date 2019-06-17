@@ -2551,6 +2551,95 @@ struct PropData
         Fout.write((char*)&val,sizeof(val));
 #endif
 
+#if defined(GASON) && defined(STARON)
+    val=M_gas_sf;
+    Fout.write((char*)&val,sizeof(val));
+    val=Rhalfmass_gas_sf;
+    Fout.write((char*)&val,sizeof(val));
+    val=sigV_gas_sf;
+    Fout.write((char*)&val,sizeof(val));
+    for (int k=0;k<3;k++) val3[k]=L_gas_sf[k];
+    Fout.write((char*)val3,sizeof(val)*3);
+    val=Krot_gas_sf;
+    Fout.write((char*)&val,sizeof(val));
+    val=Temp_mean_gas_sf;
+    Fout.write((char*)&val,sizeof(val));
+    val=Z_mean_gas_sf;
+    Fout.write((char*)&val,sizeof(val));
+
+    if (opt.iextragasoutput) {
+    val=M_200mean_gas_sf;
+    Fout.write((char*)&val,sizeof(val));
+    val=M_200crit_gas_sf;
+    Fout.write((char*)&val,sizeof(val));
+    val=M_BN98_gas_sf;
+    Fout.write((char*)&val,sizeof(val));
+    for (int k=0;k<3;k++) val3[k]=L_200mean_gas_sf[k];
+    Fout.write((char*)val3,sizeof(val)*3);
+    for (int k=0;k<3;k++) val3[k]=L_200crit_gas_sf[k];
+    Fout.write((char*)val3,sizeof(val)*3);
+    for (int k=0;k<3;k++) val3[k]=L_BN98_gas_sf[k];
+    Fout.write((char*)val3,sizeof(val)*3);
+    if (opt.iInclusiveHalo>0) {
+        val=M_200mean_excl_gas_sf;
+        Fout.write((char*)&val,sizeof(val));
+        val=M_200crit_excl_gas_sf;
+        Fout.write((char*)&val,sizeof(val));
+        val=M_BN98_excl_gas_sf;
+        Fout.write((char*)&val,sizeof(val));
+        for (int k=0;k<3;k++) val3[k]=L_200mean_excl_gas_sf[k];
+        Fout.write((char*)val3,sizeof(val)*3);
+        for (int k=0;k<3;k++) val3[k]=L_200crit_excl_gas_sf[k];
+        Fout.write((char*)val3,sizeof(val)*3);
+        for (int k=0;k<3;k++) val3[k]=L_BN98_excl_gas_sf[k];
+        Fout.write((char*)val3,sizeof(val)*3);
+    }
+    }
+
+    val=M_gas_nsf;
+    Fout.write((char*)&val,sizeof(val));
+    val=Rhalfmass_gas_nsf;
+    Fout.write((char*)&val,sizeof(val));
+    val=sigV_gas_nsf;
+    Fout.write((char*)&val,sizeof(val));
+    for (int k=0;k<3;k++) val3[k]=L_gas_nsf[k];
+    Fout.write((char*)val3,sizeof(val)*3);
+    val=Krot_gas_nsf;
+    Fout.write((char*)&val,sizeof(val));
+    val=Temp_mean_gas_nsf;
+    Fout.write((char*)&val,sizeof(val));
+    val=Z_mean_gas_nsf;
+    Fout.write((char*)&val,sizeof(val));
+
+    if (opt.iextragasoutput) {
+    val=M_200mean_gas_nsf;
+    Fout.write((char*)&val,sizeof(val));
+    val=M_200crit_gas_nsf;
+    Fout.write((char*)&val,sizeof(val));
+    val=M_BN98_gas_nsf;
+    Fout.write((char*)&val,sizeof(val));
+    for (int k=0;k<3;k++) val3[k]=L_200mean_gas_nsf[k];
+    Fout.write((char*)val3,sizeof(val)*3);
+    for (int k=0;k<3;k++) val3[k]=L_200crit_gas_nsf[k];
+    Fout.write((char*)val3,sizeof(val)*3);
+    for (int k=0;k<3;k++) val3[k]=L_BN98_gas_nsf[k];
+    Fout.write((char*)val3,sizeof(val)*3);
+    if (opt.iInclusiveHalo>0) {
+        val=M_200mean_excl_gas_nsf;
+        Fout.write((char*)&val,sizeof(val));
+        val=M_200crit_excl_gas_nsf;
+        Fout.write((char*)&val,sizeof(val));
+        val=M_BN98_excl_gas_nsf;
+        Fout.write((char*)&val,sizeof(val));
+        for (int k=0;k<3;k++) val3[k]=L_200mean_excl_gas_nsf[k];
+        Fout.write((char*)val3,sizeof(val)*3);
+        for (int k=0;k<3;k++) val3[k]=L_200crit_excl_gas_nsf[k];
+        Fout.write((char*)val3,sizeof(val)*3);
+        for (int k=0;k<3;k++) val3[k]=L_BN98_excl_gas_nsf[k];
+        Fout.write((char*)val3,sizeof(val)*3);
+    }
+    }
+#endif
         if (opt.iaperturecalc){
             for (auto j=0;j<opt.aperturenum;j++) {
                 Fout.write((char*)&aperture_npart[j],sizeof(int));

@@ -1348,6 +1348,17 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval,SFR)
         pdata[i].Z_mean_gas=Zmeansum;
         pdata[i].SFR_gas=sfrsum;
         pdata[i].SFR_mean_gas=sfrmeansum;
+
+        pdata[i].sigV_gas_sf=sigV_gas_sf;
+        pdata[i].Temp_gas_sf=Tsum_sf;
+        pdata[i].Temp_mean_gas_sf=Tmeansum_sf;
+        pdata[i].Z_gas_sf=Zsum_sf;
+        pdata[i].Z_mean_gas_sf=Zmeansum_sf;
+        pdata[i].sigV_gas_nsf=sigV_gas_nsf;
+        pdata[i].Temp_gas_nsf=Tsum_nsf;
+        pdata[i].Temp_mean_gas_nsf=Tmeansum_nsf;
+        pdata[i].Z_gas_nsf=Zsum_nsf;
+        pdata[i].Z_mean_gas_nsf=Zmeansum_nsf;
 #endif
         pdata[i].cm_gas[0]=cmx;pdata[i].cm_gas[1]=cmy;pdata[i].cm_gas[2]=cmz;
         pdata[i].cmvel_gas[0]=cmvx;pdata[i].cmvel_gas[1]=cmvy;pdata[i].cmvel_gas[2]=cmvz;

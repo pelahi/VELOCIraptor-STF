@@ -2159,10 +2159,10 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Krot_star;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].t_star;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].t_mean_star;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Z_star;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Z_mean_star;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
         if (opt.iextrastaroutput) {
