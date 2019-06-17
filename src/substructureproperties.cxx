@@ -4719,6 +4719,7 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
     Double_t EncSFR=0;
     int iaptindex=0, numapttotal, type;
     Double_t mass, rc, oldrc, veldisp, vrdisp, SFR;
+    Double_t oldrc_gas,oldrc_gas_sf,oldrc_gas_nsf,oldrc_star,oldrc_bh;
     Particle *Pval;
     Coordinate x2;
     struct projectedmass {
@@ -4830,7 +4831,7 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
             pdata.aperture_mass_gas[j]=EncMassGas;
             if (EncMassGas>0) pdata.aperture_veldisp_gas[j]=EncVelDispGas/EncMassGas;
             if (EncMassGas>0) pdata.aperture_vrdisp_gas[j]=EncVRDispGas/EncMassGas;
-            pdata.aperture_SFR_gas[iaptindex]=EncSFR;
+            pdata.aperture_SFR_gas[j]=EncSFR;
         }
 #ifdef STARON
         if (pdata.aperture_npart_gas_sf[j]==0)
@@ -4874,7 +4875,7 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
     numapttotal+=opt.aperturenum;
 #endif
     iaptindex=0;
-    oldrc=0;
+    oldrc=oldrc_gas=oldrc_gas_sf=oldrc_gas_nsf=oldrc_star=oldrc_bh=0;
     for (auto j=0;j<ning;j++) {
         Pval=&Part[j];
         rc=Pval->Radius();
@@ -4884,7 +4885,6 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
         SFR = Pval->GetSFR();
         #endif
         EncMass+=mass;
-        Ninside++;
 #ifdef GASON
         if (type==GASTYPE) {
             EncMassGas+=mass;
@@ -4930,6 +4930,21 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
         }
         if (iaptindex==numapttotal) break;
         oldrc=rc;
+#ifdef GASON
+        if (type==GASTYPE) {
+            oldrc_gas=rc;
+#ifdef STARON
+            if (SFR>opt.gas_sfr_threshold) oldrc_gas_sf=rc;
+            else oldrc_gas_nsf=rc;
+#endif
+        }
+#endif
+#ifdef STARON
+        if (type==STARTYPE) oldrc_star=rc;
+#endif
+#ifdef BHON
+        if (type==BHTYPE) oldrc_bh=rc;
+#endif
     }
     //take sqrts of dispersions
     for (auto j=0;j<opt.aperturenum;j++) {
@@ -5055,7 +5070,7 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
         numapttotal+=opt.aperturenum;
     #endif
         iaptindex=0;
-        oldrc=0;
+        oldrc=oldrc_gas=oldrc_gas_sf=oldrc_gas_nsf=oldrc_star=oldrc_bh=0;
         for (auto j=0;j<ning;j++) {
             rc=proj[j].rproj[k];
             mass = proj[j].mass;
@@ -5109,6 +5124,21 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
             }
             if (iaptindex==numapttotal) break;
             oldrc=rc;
+#ifdef GASON
+            if (type==GASTYPE) {
+                oldrc_gas=rc;
+#ifdef STARON
+                if (SFR>opt.gas_sfr_threshold) oldrc_gas_sf=rc;
+                else oldrc_gas_nsf=rc;
+#endif
+            }
+#endif
+#ifdef STARON
+            if (type==STARTYPE) oldrc_star=rc;
+#endif
+#ifdef BHON
+            if (type==BHTYPE) oldrc_bh=rc;
+#endif
         }
 
     }
