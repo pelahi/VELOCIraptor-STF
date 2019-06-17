@@ -1862,12 +1862,12 @@ struct PropData
             }
             #endif
             for (auto &x:aperture_npart) x=0;
-            for (auto &x:aperture_mass) x=0;
+            for (auto &x:aperture_mass) x=-1;
             for (auto &x:aperture_veldisp) x=0;
             for (auto &x:aperture_rhalfmass) x=0;
 #ifdef GASON
             for (auto &x:aperture_npart_gas) x=0;
-            for (auto &x:aperture_mass_gas) x=0;
+            for (auto &x:aperture_mass_gas) x=-1;
             for (auto &x:aperture_veldisp_gas) x=0;
             for (auto &x:aperture_rhalfmass_gas) x=0;
             for (auto &x:aperture_mass_proj_gas) x[0]=x[1]=x[2]=0;
@@ -1875,9 +1875,9 @@ struct PropData
 #ifdef STARON
             for (auto &x:aperture_SFR_gas) x=0;
             for (auto &x:aperture_npart_gas_sf) x=0;
-            for (auto &x:aperture_mass_gas_sf) x=0;
+            for (auto &x:aperture_mass_gas_sf) x=-1;
             for (auto &x:aperture_npart_gas_nsf) x=0;
-            for (auto &x:aperture_mass_gas_nsf) x=0;
+            for (auto &x:aperture_mass_gas_nsf) x=-1;
             for (auto &x:aperture_veldisp_gas_sf) x=0;
             for (auto &x:aperture_veldisp_gas_nsf) x=0;
             for (auto &x:aperture_rhalfmass_gas_sf) x=0;
@@ -1885,14 +1885,14 @@ struct PropData
 #endif
 #ifdef STARON
             for (auto &x:aperture_npart_star) x=0;
-            for (auto &x:aperture_mass_star) x=0;
+            for (auto &x:aperture_mass_star) x=-1;
             for (auto &x:aperture_veldisp_star) x=0;
             for (auto &x:aperture_rhalfmass_star) x=0;
 #endif
             #if defined(GASON) || defined(STARON) || defined(BHON)
             if (opt.partsearchtype==PSTALL) {
             for (auto &x:aperture_npart_dm) x=0;
-            for (auto &x:aperture_mass_dm) x=0;
+            for (auto &x:aperture_mass_dm) x=-1;
             for (auto &x:aperture_veldisp_dm) x=0;
             for (auto &x:aperture_rhalfmass_dm) x=0;
             }
@@ -1919,21 +1919,21 @@ struct PropData
             aperture_rhalfmass_proj_star.resize(opt.apertureprojnum);
 #endif
 
-            for (auto &x:aperture_mass_proj) x[0]=x[1]=x[2]=0;
+            for (auto &x:aperture_mass_proj) x[0]=x[1]=x[2]=-1;
             for (auto &x:aperture_rhalfmass_proj) x[0]=x[1]=x[2]=0;
 #ifdef GASON
-            for (auto &x:aperture_mass_proj_gas) x[0]=x[1]=x[2]=0;
+            for (auto &x:aperture_mass_proj_gas) x[0]=x[1]=x[2]=-1;
             for (auto &x:aperture_rhalfmass_proj_gas) x[0]=x[1]=x[2]=0;
 #ifdef STARON
             for (auto &x:aperture_SFR_proj_gas) x[0]=x[1]=x[2]=0;
-            for (auto &x:aperture_mass_proj_gas_sf) x[0]=x[1]=x[2]=0;
+            for (auto &x:aperture_mass_proj_gas_sf) x[0]=x[1]=x[2]=-1;
             for (auto &x:aperture_rhalfmass_proj_gas_sf) x[0]=x[1]=x[2]=0;
-            for (auto &x:aperture_mass_proj_gas_nsf) x[0]=x[1]=x[2]=0;
+            for (auto &x:aperture_mass_proj_gas_nsf) x[0]=x[1]=x[2]=-1;
             for (auto &x:aperture_rhalfmass_proj_gas_nsf) x[0]=x[1]=x[2]=0;
 #endif
 #endif
 #ifdef STARON
-            for (auto &x:aperture_mass_proj_star) x[0]=x[1]=x[2]=0;
+            for (auto &x:aperture_mass_proj_star) x[0]=x[1]=x[2]=-1;
             for (auto &x:aperture_rhalfmass_proj_star) x[0]=x[1]=x[2]=0;
 #endif
         }
