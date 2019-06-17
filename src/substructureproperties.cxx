@@ -255,11 +255,15 @@ void GetProperties(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngro
     Particle *Pval;
     Int_t i,j,k;
     Coordinate cmold(0.),cmref;
-    Double_t ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside;
+    Double_t ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside, SFR;
+    Double_t EncMassSF,EncMassNSF;
     Double_t cmvx,cmvy,cmvz;
     Double_t vc,rc,x,y,z,vx,vy,vz,jzval,Rdist,zdist,Ekin,Krot,mval;
     Double_t RV_Ekin,RV_Krot;
-    Double_t Tsum,tsum,Zsum,sfrsum;
+    Double_t Ekin_sf,Ekin_nsf,Krot_sf,Krot_nsf;
+    Double_t Tsum,Tmeansum,tsum,tmeansum,Zsum,Zmeansum,sfrsum,sfrmeansum;
+    Double_t Tsum_sf,Tmeansum_sf,Zsum_sf,Zmeansum_sf;
+    Double_t Tsum_nsf,Tmeansum_nsf,Zsum_nsf,Zmeansum_nsf;
     Coordinate jval;
     Double_t change=MAXVALUE,tol=1e-2;
     Int_t ii,icmv;
@@ -305,7 +309,9 @@ private(i,j,k,Pval,cmref)
     //for small groups loop over groups
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
-private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z,vx,vy,vz,vc,rc,jval,jzval,Rdist,zdist,Ekin,Krot,mval,RV_Ekin,RV_Krot,RV_num)
+private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol)\
+private(x,y,z,vx,vy,vz,vc,rc,jval,jzval,Rdist,zdist,Ekin,Krot,mval,RV_Ekin,RV_Krot,RV_num,SFR)\
+private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
 {
     #pragma omp for schedule(dynamic) nowait
 #endif
@@ -515,6 +521,11 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
             if (Pval->GetType()==GASTYPE) {
                 pdata[i].n_gas++;
                 pdata[i].M_gas+=Pval->GetMass();
+                #ifdef STARON
+                SFR=Pval->GetSFR();
+                if (SFR>opt.gas_sfr_threshold) pdata[i].M_gas_sf+=Pval->GetMass();
+                else pdata[i].M_gas_nsf+=Pval->GetMass();
+                #endif
             }
         }
         Ekin=0;
@@ -523,11 +534,27 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
             if (Pval->GetType()==GASTYPE) {
                 mval=Pval->GetMass();
                 //store temperature in units of internal energy
-                pdata[i].Temp_gas+=mval*Pval->GetU();
+                pdata[i].Temp_gas+=Pval->GetU();
+                pdata[i].Temp_mean_gas+=mval*Pval->GetU();
                 //pdata[i].sphden_gas+=Pval->GetMass()*Pval->GetSPHDen();
 #ifdef STARON
-                pdata[i].Z_gas+=mval*Pval->GetZmet();
-                pdata[i].SFR_gas+=mval*Pval->GetSFR();
+                pdata[i].Z_gas+=Pval->GetZmet();
+                pdata[i].Z_mean_gas+=mval*Pval->GetZmet();
+                pdata[i].SFR_gas+=Pval->GetSFR();
+                pdata[i].SFR_mean_gas+=mval*Pval->GetSFR();
+                SFR=Pval->GetSFR();
+                if (SFR>opt.gas_sfr_threshold) {
+                    pdata[i].Temp_gas_sf+=Pval->GetU();
+                    pdata[i].Temp_mean_gas_sf+=mval*Pval->GetU();
+                    pdata[i].Z_gas_sf+=Pval->GetZmet();
+                    pdata[i].Z_mean_gas_sf+=mval*Pval->GetZmet();
+                }
+                else {
+                    pdata[i].Temp_gas_sf+=Pval->GetU();
+                    pdata[i].Temp_mean_gas_sf+=mval*Pval->GetU();
+                    pdata[i].Z_gas_sf+=Pval->GetZmet();
+                    pdata[i].Z_mean_gas_sf+=mval*Pval->GetZmet();
+                }
 #endif
                 x = (*Pval).X();
                 y = (*Pval).Y();
@@ -542,8 +569,8 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
                 pdata[i].cmvel_gas[0]+=vx*mval;
                 pdata[i].cmvel_gas[1]+=vy*mval;
                 pdata[i].cmvel_gas[2]+=vz*mval;
-
-                pdata[i].L_gas=pdata[i].L_gas+Coordinate(Pval->GetPosition()).Cross(Coordinate(vx,vy,vz))*mval;
+                J=Coordinate(Pval->GetPosition()).Cross(Coordinate(vx,vy,vz))*mval;
+                pdata[i].L_gas=pdata[i].L_gas+J;
                 if (pdata[i].n_gas>=PROPROTMINNUM) {
                     pdata[i].veldisp_gas(0,0)+=vx*vx*mval;
                     pdata[i].veldisp_gas(1,1)+=vy*vy*mval;
@@ -555,6 +582,16 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
                     pdata[i].veldisp_gas(2,0)+=vx*vz*mval;
                     pdata[i].veldisp_gas(2,1)+=vy*vz*mval;
                 }
+                #ifdef STARON
+                if (SFR>opt.gas_sfr_threshold) {
+                    pdata[i].L_gas_sf=pdata[i].L_gas_sf+J;
+                    pdata[i].sigV_gas_sf+=(vx*vx+vy*vy+vz*vz)*mval;
+                }
+                else {
+                    pdata[i].L_gas_nsf=pdata[i].L_gas_nsf+J;
+                    pdata[i].sigV_gas_nsf+=(vx*vx+vy*vy+vz*vz)*mval;
+                }
+                #endif
             }
         }
 
@@ -562,10 +599,22 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
             pdata[i].veldisp_gas=pdata[i].veldisp_gas*(1.0/pdata[i].M_gas);
             pdata[i].cm_gas=pdata[i].cm_gas*(1.0/pdata[i].M_gas);
             pdata[i].cmvel_gas=pdata[i].cm_gas*(1.0/pdata[i].M_gas);
-            pdata[i].Temp_mean_gas=pdata[i].Temp_gas/pdata[i].M_gas;
+            pdata[i].Temp_mean_gas/=pdata[i].M_gas;
 #ifdef STARON
-            pdata[i].Z_mean_gas=pdata[i].Z_gas/pdata[i].M_gas;
-            pdata[i].SFR_mean_gas=pdata[i].SFR_gas/pdata[i].M_gas;
+            pdata[i].Z_mean_gas/=pdata[i].M_gas;
+            pdata[i].SFR_mean_gas/=pdata[i].M_gas;
+            if (pdata[i].M_gas_sf>0) {
+                pdata[i].sigV_gas_sf/=pdata[i].M_gas_sf;
+                pdata[i].Temp_mean_gas_sf/=pdata[i].M_gas_sf;
+                pdata[i].Z_mean_gas_sf/=pdata[i].M_gas_sf;
+
+            }
+            if (pdata[i].M_gas_nsf>0) {
+                pdata[i].sigV_gas_nsf/=pdata[i].M_gas_nsf;
+                pdata[i].Temp_mean_gas_nsf/=pdata[i].M_gas_nsf;
+                pdata[i].Z_mean_gas_nsf/=pdata[i].M_gas_nsf;
+
+            }
 #endif
         }
 
@@ -630,39 +679,30 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
             for (k=0;k<3;k++) pdata[i].cmvel_gas[k] /= EncMass;
         }
 
-        for (j=0;j<numingroup[i];j++) {
-            Pval=&Part[j+noffset[i]];
-            if (Pval->GetType()==GASTYPE) {
-                x = (*Pval).X()-pdata[i].cm_gas[0];
-                y = (*Pval).Y()-pdata[i].cm_gas[1];
-                z = (*Pval).Z()-pdata[i].cm_gas[2];
-                r2=x*x+y*y+z*z;
-                if (r2<=pdata[i].gRmaxvel*pdata[i].gRmaxvel) pdata[i].M_gas_rvmax+=Pval->GetMass();
-                if (r2<=opt.lengthtokpc30pow2) pdata[i].M_gas_30kpc+=Pval->GetMass();
-                if (r2<=opt.lengthtokpc50pow2) pdata[i].M_gas_50kpc+=Pval->GetMass();
-                if (r2<=pdata[i].gR500c*pdata[i].gR500c) pdata[i].M_gas_500c+=Pval->GetMass();
-            }
-        }
-
-        //rotational calcs
         if (pdata[i].n_gas>=PROPROTMINNUM) {
-            EncMass=0;
+            EncMass=EncMassSF=EncMassNSF=0;
             for (j=0;j<numingroup[i];j++) {
                 Pval=&Part[j+noffset[i]];
                 if (Pval->GetType()==GASTYPE) {
-                    x = (*Pval).X()-pdata[i].cm_gas[0];
-                    y = (*Pval).Y()-pdata[i].cm_gas[1];
-                    z = (*Pval).Z()-pdata[i].cm_gas[2];
-                    vx = (*Pval).Vx()-pdata[i].gcmvel[0]-pdata[i].cmvel_gas[0];
-                    vy = (*Pval).Vy()-pdata[i].gcmvel[1]-pdata[i].cmvel_gas[1];
-                    vz = (*Pval).Vz()-pdata[i].gcmvel[2]-pdata[i].cmvel_gas[2];
+                    x = (*Pval).X();//-pdata[i].cm_gas[0];
+                    y = (*Pval).Y();//-pdata[i].cm_gas[1];
+                    z = (*Pval).Z();//-pdata[i].cm_gas[2];
+                    vx = (*Pval).Vx()-pdata[i].gcmvel[0];//-pdata[i].cmvel_gas[0];
+                    vy = (*Pval).Vy()-pdata[i].gcmvel[1];//-pdata[i].cmvel_gas[1];
+                    vz = (*Pval).Vz()-pdata[i].gcmvel[2];//-pdata[i].cmvel_gas[2];
                     mval=Pval->GetMass();
                     EncMass+=mval;
-                    if (EncMass>0.5*pdata[i].M_gas && pdata[i].Rhalfmass_gas==0) pdata[i].Rhalfmass_gas=sqrt(x*x+y*y+z*z);
+                    r2=x*x+y*y+z*z;
+                    rc=sqrt(r2);
                     jval=Coordinate(x,y,z).Cross(Coordinate(vx,vy,vz));
                     jzval=(jval*pdata[i].L_gas)/pdata[i].L_gas.Length();
                     zdist=(Coordinate(x,y,z)*pdata[i].L_gas)/pdata[i].L_gas.Length();
                     Rdist=sqrt(x*x+y*y+z*z-zdist*zdist);
+                    if (r2<=pdata[i].gRmaxvel*pdata[i].gRmaxvel) pdata[i].M_gas_rvmax+=mval;
+                    if (r2<=opt.lengthtokpc30pow2) pdata[i].M_gas_30kpc+=mval;
+                    if (r2<=opt.lengthtokpc50pow2) pdata[i].M_gas_50kpc+=mval;
+                    if (r2<=pdata[i].gR500c*pdata[i].gR500c) pdata[i].M_gas_500c+=mval;
+                    if (EncMass>0.5*pdata[i].M_gas && pdata[i].Rhalfmass_gas==0) pdata[i].Rhalfmass_gas=rc;
                     pdata[i].Krot_gas+=mval*(jzval*jzval/(Rdist*Rdist));
                     Ekin+=mval*(vx*vx+vy*vy+vz*vz);
                     if (opt.iextragasoutput) {
@@ -679,10 +719,51 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
                             pdata[i].L_BN98_excl_gas+=jval;
                         }
                     }
+                    #ifdef STARON
+                    SFR = Pval->GetSFR();
+                    if (SFR>opt.gas_sfr_threshold){
+                        EncMassSF+=mval;
+                        if (EncMassSF>0.5*pdata[i].M_gas_sf && pdata[i].Rhalfmass_gas_sf==0) pdata[i].Rhalfmass_gas_sf=rc;
+                        pdata[i].Krot_gas_sf+=mval*(jzval*jzval/(Rdist*Rdist));
+                        Ekin_sf+=mval*(vx*vx+vy*vy+vz*vz);
+                        if (opt.iextragasoutput) {
+                            if (rc<=pdata[i].gR200c_excl) {
+                                pdata[i].M_200crit_excl_gas_sf+=mval;
+                                pdata[i].L_200crit_excl_gas_sf+=jval;
+                            }
+                            if (rc<=pdata[i].gR200m_excl) {
+                                pdata[i].M_200mean_excl_gas_sf+=mval;
+                                pdata[i].L_200mean_excl_gas_sf+=jval;
+                            }
+                            if (rc<=pdata[i].gRBN98_excl) {
+                                pdata[i].M_BN98_excl_gas_sf+=mval;
+                                pdata[i].L_BN98_excl_gas_sf+=jval;
+                            }
+                        }
+                    }
+                    else {
+                        EncMassNSF+=mval;
+                        if (EncMassNSF>0.5*pdata[i].M_gas_nsf && pdata[i].Rhalfmass_gas_nsf==0) pdata[i].Rhalfmass_gas_nsf=rc;
+                        pdata[i].Krot_gas_nsf+=mval*(jzval*jzval/(Rdist*Rdist));
+                        Ekin_nsf+=mval*(vx*vx+vy*vy+vz*vz);
+                        if (opt.iextragasoutput) {
+                            if (rc<=pdata[i].gR200c_excl) {
+                                pdata[i].M_200crit_excl_gas_nsf+=mval;
+                                pdata[i].L_200crit_excl_gas_nsf+=jval;
+                            }
+                            if (rc<=pdata[i].gR200m_excl) {
+                                pdata[i].M_200mean_excl_gas_nsf+=mval;
+                                pdata[i].L_200mean_excl_gas_nsf+=jval;
+                            }
+                            if (rc<=pdata[i].gRBN98_excl) {
+                                pdata[i].M_BN98_excl_gas_nsf+=mval;
+                                pdata[i].L_BN98_excl_gas_nsf+=jval;
+                            }
+                        }
+                    }
+                    #endif
                 }
             }
-            pdata[i].Krot_gas/=Ekin;
-    	    pdata[i].T_gas=0.5*Ekin;
         }
         if (pdata[i].n_gas>=PROPMORPHMINNUM) GetGlobalSpatialMorphology(numingroup[i], &Part[noffset[i]], pdata[i].q_gas, pdata[i].s_gas, 1e-2, pdata[i].eigvec_gas,0,GASTYPE,0);
 #endif
@@ -699,9 +780,11 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
             Pval=&Part[j+noffset[i]];
             if (Pval->GetType()==STARTYPE) {
                 mval=Pval->GetMass();
-                pdata[i].t_star+=mval*Pval->GetTage();
+                pdata[i].t_star+=Pval->GetTage();
+                pdata[i].t_mean_star+=mval*Pval->GetTage();
 #ifdef STARON
-                pdata[i].Z_star+=mval*Pval->GetZmet();
+                pdata[i].Z_star+=Pval->GetZmet();
+                pdata[i].Z_mean_star+=mval*Pval->GetZmet();
 #endif
                 x = (*Pval).X();
                 y = (*Pval).Y();
@@ -734,9 +817,9 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
         if (pdata[i].M_star>0) {
             pdata[i].veldisp_star=pdata[i].veldisp_star*(1.0/pdata[i].M_star);
             pdata[i].cm_star=pdata[i].cm_star*(1.0/pdata[i].M_star);
-            pdata[i].cmvel_star=pdata[i].cm_star*(1.0/pdata[i].M_star);
-            pdata[i].t_star/=pdata[i].M_star;
-            pdata[i].Z_star/=pdata[i].M_star;
+            pdata[i].cmvel_star=pdata[i].cmvel_star*(1.0/pdata[i].M_star);
+            pdata[i].t_mean_star/=pdata[i].M_star;
+            pdata[i].Z_mean_star/=pdata[i].M_star;
         }
         //iterate for better cm if group large enough
         cmold=pdata[i].cm_star;
@@ -798,46 +881,49 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
             pdata[i].cmvel_star[0]=cmx;pdata[i].cmvel_star[1]=cmy;pdata[i].cmvel_star[2]=cmz;
             for (k=0;k<3;k++) pdata[i].cmvel_star[k] /= EncMass;
         }
-        for (j=0;j<numingroup[i];j++) {
-            Pval=&Part[j+noffset[i]];
-            if (Pval->GetType()==STARTYPE) {
-                x = (*Pval).X()-pdata[i].cm_star[0];
-                y = (*Pval).Y()-pdata[i].cm_star[1];
-                z = (*Pval).Z()-pdata[i].cm_star[2];
-                r2=x*x+y*y+z*z;
-                if (r2<=pdata[i].gRmaxvel*pdata[i].gRmaxvel) pdata[i].M_star_rvmax+=Pval->GetMass();
-                if (r2<=opt.lengthtokpc30pow2) pdata[i].M_star_30kpc+=Pval->GetMass();
-                if (r2<=opt.lengthtokpc50pow2) pdata[i].M_star_50kpc+=Pval->GetMass();
-                if (r2<=pdata[i].gR500c*pdata[i].gR500c) pdata[i].M_star_500c+=Pval->GetMass();
-            }
-        }
-
-        //rotational calcs
         if (pdata[i].n_star>=PROPROTMINNUM) {
-        EncMass=0.;
-        for (j=0;j<numingroup[i];j++) {
-            Pval=&Part[j+noffset[i]];
-            if (Pval->GetType()==STARTYPE) {
-            x = (*Pval).X()-pdata[i].cm_star[0];
-            y = (*Pval).Y()-pdata[i].cm_star[1];
-            z = (*Pval).Z()-pdata[i].cm_star[2];
-            vx = (*Pval).Vx()-pdata[i].gcmvel[0]-pdata[i].cmvel_star[0];
-            vy = (*Pval).Vy()-pdata[i].gcmvel[1]-pdata[i].cmvel_star[1];
-            vz = (*Pval).Vz()-pdata[i].gcmvel[2]-pdata[i].cmvel_star[2];
-            mval=Pval->GetMass();
-            EncMass+=mval;
-            if (EncMass>0.5*pdata[i].M_star && pdata[i].Rhalfmass_star==0)
-                pdata[i].Rhalfmass_star=sqrt(x*x+y*y+z*z);
-            jval=Coordinate(x,y,z).Cross(Coordinate(vx,vy,vz));
-            jzval=(jval*pdata[i].L_star)/pdata[i].L_star.Length();
-            zdist=(Coordinate(x,y,z)*pdata[i].L_star)/pdata[i].L_star.Length();
-            Rdist=sqrt(x*x+y*y+z*z-zdist*zdist);
-            pdata[i].Krot_star+=mval*(jzval*jzval/(Rdist*Rdist));
-            Ekin+=mval*(vx*vx+vy*vy+vz*vz);
+            for (j=0;j<numingroup[i];j++) {
+                Pval=&Part[j+noffset[i]];
+                if (Pval->GetType()==STARTYPE) {
+                    x = (*Pval).X();//-pdata[i].cm_star[0];
+                    y = (*Pval).Y();//-pdata[i].cm_star[1];
+                    z = (*Pval).Z();//-pdata[i].cm_star[2];
+                    vx = (*Pval).Vx()-pdata[i].gcmvel[0];//-pdata[i].cmvel_star[0];
+                    vy = (*Pval).Vy()-pdata[i].gcmvel[1];//-pdata[i].cmvel_star[1];
+                    vz = (*Pval).Vz()-pdata[i].gcmvel[2];//-pdata[i].cmvel_star[2];
+                    mval=Pval->GetMass();
+                    EncMass+=mval;
+                    r2=x*x+y*y+z*z;
+                    rc=sqrt(r2);
+                    jval=Coordinate(x,y,z).Cross(Coordinate(vx,vy,vz));
+                    jzval=(jval*pdata[i].L_star)/pdata[i].L_star.Length();
+                    zdist=(Coordinate(x,y,z)*pdata[i].L_star)/pdata[i].L_star.Length();
+                    Rdist=sqrt(x*x+y*y+z*z-zdist*zdist);
+                    if (r2<=pdata[i].gRmaxvel*pdata[i].gRmaxvel) pdata[i].M_star_rvmax+=Pval->GetMass();
+                    if (r2<=opt.lengthtokpc30pow2) pdata[i].M_star_30kpc+=Pval->GetMass();
+                    if (r2<=opt.lengthtokpc50pow2) pdata[i].M_star_50kpc+=Pval->GetMass();
+                    if (r2<=pdata[i].gR500c*pdata[i].gR500c) pdata[i].M_star_500c+=Pval->GetMass();
+                    if (EncMass>0.5*pdata[i].M_star && pdata[i].Rhalfmass_star==0) pdata[i].Rhalfmass_star=sqrt(x*x+y*y+z*z);
+                    pdata[i].Krot_star+=mval*(jzval*jzval/(Rdist*Rdist));
+                    Ekin+=mval*(vx*vx+vy*vy+vz*vz);
+                    if (opt.iextrastaroutput) {
+                        if (rc<=pdata[i].gR200c_excl) {
+                            pdata[i].M_200crit_excl_star+=mval;
+                            pdata[i].L_200crit_excl_star+=jval;
+                        }
+                        if (rc<=pdata[i].gR200m_excl) {
+                            pdata[i].M_200mean_excl_star+=mval;
+                            pdata[i].L_200mean_excl_star+=jval;
+                        }
+                        if (rc<=pdata[i].gRBN98_excl) {
+                            pdata[i].M_BN98_excl_star+=mval;
+                            pdata[i].L_BN98_excl_star+=jval;
+                        }
+                    }
+                }
             }
-        }
-        pdata[i].Krot_star/=Ekin;
-	    pdata[i].T_star=0.5*Ekin;
+            pdata[i].Krot_star/=Ekin;
+            pdata[i].T_star=0.5*Ekin;
         }
         if (pdata[i].n_star>=PROPMORPHMINNUM) GetGlobalSpatialMorphology(numingroup[i], &Part[noffset[i]], pdata[i].q_star, pdata[i].s_star, 1e-2, pdata[i].eigvec_star,0,STARTYPE,0);
 #endif
@@ -1049,7 +1135,7 @@ private(j,Pval,rc,x,y,z,vx,vy,vz,J,mval)
         else {
             pdata[i].glambda_B=pdata[i].gJ.Length()/(pdata[i].gM200c*sqrt(2.0*opt.G*pdata[i].gM200c*pdata[i].gR200c));
         }
-
+        //rotational support calculation
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
 private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
@@ -1168,17 +1254,24 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
             if (Pval->GetType()==GASTYPE) {
                 pdata[i].n_gas++;
                 pdata[i].M_gas+=Pval->GetMass();
+                #ifdef STARON
+                SFR = Pval->GetSFR();
+                if (SFR>opt.gas_sfr_threshold) pdata[i].M_gas_sf+=Pval->GetMass();
+                else pdata[i].M_gas_nsf+=Pval->GetMass();
+                #endif
             }
         }
-
+        //calculate properties of there are gas particles
+        if (pdata[i].n_gas>0) {
         Ekin=Krot=Jx=Jy=Jz=sxx=sxy=sxz=syy=syz=szz=0.;
         Tsum=tsum=Zsum=sfrsum=0.;
+        Tmeansum=tmeansum=Zmeansum=sfrmeansum=0.;
         cmx=cmy=cmz=cmvx=cmvy=cmvz=0.;
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
 private(j,Pval,x,y,z,vx,vy,vz,J,mval)
 {
-    #pragma omp for reduction(+:Jx,Jy,Jz,sxx,sxy,sxz,syy,syz,szz,cmx,cmy,cmz,cmvx,cmvy,cmvz,Tsum,Zsum,sfrsum)
+    #pragma omp for reduction(+:Jx,Jy,Jz,sxx,sxy,sxz,syy,syz,szz,cmx,cmy,cmz,cmvx,cmvy,cmvz,Tsum,tsum,Zsum,sfrsum,Tmeansum,tmeansum,Zmeansum,sfrmeansum)
 #endif
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
@@ -1209,10 +1302,13 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval)
                 sxz+=vx*vz*mval;
                 syz+=vy*vz*mval;
 
-                Tsum+=mval*Pval->GetU();
+                Tsum+=Pval->GetU();
+                Tmeansum+=mval*Pval->GetU();
 #ifdef STARON
-                Zsum+=mval*Pval->GetZmet();
-                sfrsum+=mval*Pval->GetSFR();
+                Zsum+=Pval->GetZmet();
+                Zmeansum+=mval*Pval->GetZmet();
+                sfrsum+=Pval->GetSFR();
+                sfrmeansum+=mval*Pval->GetSFR();
 #endif
             }
         }
@@ -1222,10 +1318,13 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval)
         //store data
         //store temperature in units of internal energy
         pdata[i].Temp_gas=Tsum;
+        pdata[i].Temp_mean_gas=Tmeansum;
         //pdata[i].sphden_gas+=Pval->GetMass()*Pval->GetSPHDen();
 #ifdef STARON
         pdata[i].Z_gas=Zsum;
+        pdata[i].Z_mean_gas=Zmeansum;
         pdata[i].SFR_gas=sfrsum;
+        pdata[i].SFR_mean_gas=sfrmeansum;
 #endif
         pdata[i].cm_gas[0]=cmx;pdata[i].cm_gas[1]=cmy;pdata[i].cm_gas[2]=cmz;
         pdata[i].cmvel_gas[0]=cmvx;pdata[i].cmvel_gas[1]=cmvy;pdata[i].cmvel_gas[2]=cmvz;
@@ -1244,11 +1343,23 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval)
         if (pdata[i].M_gas>0) {
             pdata[i].veldisp_gas=pdata[i].veldisp_gas*(1.0/pdata[i].M_gas);
             pdata[i].cm_gas=pdata[i].cm_gas*(1.0/pdata[i].M_gas);
-            pdata[i].cmvel_gas=pdata[i].cm_gas*(1.0/pdata[i].M_gas);
-            pdata[i].Temp_gas/=pdata[i].M_gas;
+            pdata[i].cmvel_gas=pdata[i].cmvel_gas*(1.0/pdata[i].M_gas);
+            pdata[i].Temp_mean_gas/=pdata[i].M_gas;
 #ifdef STARON
-            pdata[i].Z_gas/=pdata[i].M_gas;
-            pdata[i].SFR_gas/=pdata[i].M_gas;
+            pdata[i].Z_mean_gas/=pdata[i].M_gas;
+            pdata[i].SFR_mean_gas/=pdata[i].M_gas;
+            if (pdata[i].M_gas_sf>0) {
+                pdata[i].sigV_gas_sf/=pdata[i].M_gas_sf;
+                pdata[i].Temp_mean_gas_sf/=pdata[i].M_gas_sf;
+                pdata[i].Z_mean_gas_sf/=pdata[i].M_gas_sf;
+
+            }
+            if (pdata[i].M_gas_nsf>0) {
+                pdata[i].sigV_gas_nsf/=pdata[i].M_gas_nsf;
+                pdata[i].Temp_mean_gas_nsf/=pdata[i].M_gas_nsf;
+                pdata[i].Z_mean_gas_nsf/=pdata[i].M_gas_nsf;
+
+            }
 #endif
         }
         //iterate for better cm if group large enough
@@ -1311,68 +1422,91 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval)
             pdata[i].cmvel_gas[0]=cmx;pdata[i].cmvel_gas[1]=cmy;pdata[i].cmvel_gas[2]=cmz;
             for (k=0;k<3;k++) pdata[i].cmvel_gas[k] /= EncMass;
         }
-
-        for (j=0;j<numingroup[i];j++) {
-            Pval=&Part[j+noffset[i]];
-            if (Pval->GetType()==GASTYPE) {
-                x = (*Pval).X()-pdata[i].cm_gas[0];
-                y = (*Pval).Y()-pdata[i].cm_gas[1];
-                z = (*Pval).Z()-pdata[i].cm_gas[2];
-                r2=x*x+y*y+z*z;
-                if (r2<=pdata[i].gRmaxvel*pdata[i].gRmaxvel) pdata[i].M_gas_rvmax+=Pval->GetMass();
-                if (r2<=opt.lengthtokpc30pow2) pdata[i].M_gas_30kpc+=Pval->GetMass();
-                if (r2<=opt.lengthtokpc50pow2) pdata[i].M_gas_50kpc+=Pval->GetMass();
-                if (r2<=pdata[i].gR500c*pdata[i].gR500c) pdata[i].M_gas_500c+=Pval->GetMass();
+        //now having angular momentum and a few other properties.
+        if (pdata[i].n_gas>=PROPROTMINNUM) {
+            //first mass in radii
+            EncMass=EncMassSF=EncMassNSF=0;
+            for (j=0;j<numingroup[i];j++) {
+                Pval=&Part[j+noffset[i]];
+                if (Pval->GetType()==GASTYPE) {
+                    x = (*Pval).X();//-pdata[i].cm_gas[0];
+                    y = (*Pval).Y();//-pdata[i].cm_gas[1];
+                    z = (*Pval).Z();//-pdata[i].cm_gas[2];
+                    r2=x*x+y*y+z*z;
+                    rc=sqrt(r2);
+                    mval = Pval->GetMass();
+                    EncMass+=mval;
+                    if (r2<=pdata[i].gRmaxvel*pdata[i].gRmaxvel) pdata[i].M_gas_rvmax+=mval;
+                    if (r2<=opt.lengthtokpc30pow2) pdata[i].M_gas_30kpc+=mval;
+                    if (r2<=opt.lengthtokpc50pow2) pdata[i].M_gas_50kpc+=mval;
+                    if (r2<=pdata[i].gR500c*pdata[i].gR500c) pdata[i].M_gas_500c+=mval;
+                    if (EncMass>0.5*pdata[i].M_gas && pdata[i].Rhalfmass_gas==0) pdata[i].Rhalfmass_gas=rc;
+                    #ifdef STARON
+                    SFR = Pval->GetSFR();
+                    if (SFR>opt.gas_sfr_threshold) {
+                        EncMassSF+=mval;
+                        if (EncMassSF>0.5*pdata[i].M_gas_sf && pdata[i].Rhalfmass_gas_sf==0) pdata[i].Rhalfmass_gas_sf=rc;
+                    }
+                    else{
+                        EncMassNSF+=mval;
+                        if (EncMassNSF>0.5*pdata[i].M_gas_nsf && pdata[i].Rhalfmass_gas_nsf==0) pdata[i].Rhalfmass_gas_nsf=rc;
+                    }
+                    #endif
+                }
             }
-        }
 
         //rotational calcs
-        if (pdata[i].n_gas>=PROPROTMINNUM) {
-        EncMass=0;
-        for (j=0;j<numingroup[i];j++) {
-            Pval=&Part[j+noffset[i]];
-            if (Pval->GetType()==GASTYPE) {
-                EncMass+=Pval->GetMass();
-                x = (*Pval).X()-pdata[i].cm_gas[0];
-                y = (*Pval).Y()-pdata[i].cm_gas[1];
-                z = (*Pval).Z()-pdata[i].cm_gas[2];
-                if (EncMass>0.5*pdata[i].M_gas && pdata[i].Rhalfmass_gas==0)
-                    pdata[i].Rhalfmass_gas=sqrt(x*x+y*y+z*z);
-            }
-        }
+        Ekin=Krot=0;
+        EncMass=EncMassSF=EncMassNSF=0;
+        Krot_sf=Krot_nsf=Ekin_sf=Ekin_nsf=0;
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
 private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
 {
-    #pragma omp for reduction(+:Krot,Ekin)
+    #pragma omp for reduction(+:Krot,Ekin,Krot_sf,Ekin_sf,Krot_nsf,Ekin_nsf)
 #endif
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
-            if (Pval->GetType()==GASTYPE) {
-            x = (*Pval).X()-pdata[i].cm_gas[0];
-            y = (*Pval).Y()-pdata[i].cm_gas[1];
-            z = (*Pval).Z()-pdata[i].cm_gas[2];
-            vx = (*Pval).Vx()-pdata[i].gcmvel[0]-pdata[i].cmvel_gas[0];
-            vy = (*Pval).Vy()-pdata[i].gcmvel[1]-pdata[i].cmvel_gas[1];
-            vz = (*Pval).Vz()-pdata[i].gcmvel[2]-pdata[i].cmvel_gas[2];
+            if (Pval->GetType()!=GASTYPE) continue;
+            x = (*Pval).X();//-pdata[i].cm_gas[0];
+            y = (*Pval).Y();//-pdata[i].cm_gas[1];
+            z = (*Pval).Z();//-pdata[i].cm_gas[2];
+            vx = (*Pval).Vx()-pdata[i].gcmvel[0];//-pdata[i].cmvel_gas[0];
+            vy = (*Pval).Vy()-pdata[i].gcmvel[1];//-pdata[i].cmvel_gas[1];
+            vz = (*Pval).Vz()-pdata[i].gcmvel[2];//-pdata[i].cmvel_gas[2];
             jval=Coordinate(x,y,z).Cross(Coordinate(vx,vy,vz));
             jzval=(jval*pdata[i].L_gas)/pdata[i].L_gas.Length();
             zdist=(Coordinate(x,y,z)*pdata[i].L_gas)/pdata[i].L_gas.Length();
             Rdist=sqrt(x*x+y*y+z*z-zdist*zdist);
             Krot+=Pval->GetMass()*(jzval*jzval/(Rdist*Rdist));
             Ekin+=Pval->GetMass()*(vx*vx+vy*vy+vz*vz);
+            #ifdef STARON
+            SFR = Pval->GetSFR();
+            if (SFR>opt.gas_sfr_threshold) {
+                Krot_sf+=Pval->GetMass()*(jzval*jzval/(Rdist*Rdist));
+                Ekin_sf+=Pval->GetMass()*(vx*vx+vy*vy+vz*vz);
             }
+            else {
+                Krot_nsf+=Pval->GetMass()*(jzval*jzval/(Rdist*Rdist));
+                Ekin_nsf+=Pval->GetMass()*(vx*vx+vy*vy+vz*vz);
+
+            }
+            #endif
         }
 #ifdef USEOPENMP
 }
 #endif
         pdata[i].Krot_gas=Krot/Ekin;
+        #ifdef STARON
+        pdata[i].Krot_gas_sf=Krot_sf/Ekin_sf;
+        pdata[i].Krot_gas_nsf=Krot_nsf/Ekin_nsf;
+        #endif
         }
         if (pdata[i].n_gas>=PROPMORPHMINNUM) GetGlobalSpatialMorphology(numingroup[i], &Part[noffset[i]], pdata[i].q_gas, pdata[i].s_gas, 1e-2, pdata[i].eigvec_gas,0,GASTYPE,0);
 #ifdef NOMASS
         pdata[i].M_gas*=opt.MassValue;
 #endif
-
+        }//end of if statement checking that there are gas particles
 #endif
 
 #ifdef STARON
@@ -1383,14 +1517,16 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
                 pdata[i].M_star+=Pval->GetMass();
             }
         }
+        if (pdata[i].n_star>0) {
         Ekin=Krot=Jx=Jy=Jz=sxx=sxy=sxz=syy=syz=szz=0.;
         Tsum=tsum=Zsum=sfrsum=0.;
+        Tmeansum=tmeansum=Zmeansum=sfrmeansum=0.;
         cmx=cmy=cmz=cmvx=cmvy=cmvz=0.;
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
 private(j,Pval,x,y,z,vx,vy,vz,J,mval)
 {
-    #pragma omp for reduction(+:Jx,Jy,Jz,sxx,sxy,sxz,syy,syz,szz,cmx,cmy,cmz,cmvx,cmvy,cmvz,tsum,Zsum)
+    #pragma omp for reduction(+:Jx,Jy,Jz,sxx,sxy,sxz,syy,syz,szz,cmx,cmy,cmz,cmvx,cmvy,cmvz,tsum,Zsum,tmeansum,Zmeansum)
 #endif
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
@@ -1421,9 +1557,9 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval)
                 sxz+=vx*vz*mval;
                 syz+=vy*vz*mval;
 
-                tsum+=mval*Pval->GetTage();
+                tmeansum+=mval*Pval->GetTage();
 #ifdef GASON
-                Zsum+=mval*Pval->GetZmet();
+                Zmeansum+=mval*Pval->GetZmet();
 #endif
             }
         }
@@ -1431,8 +1567,8 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval)
 }
 #endif
         //store data
-        pdata[i].t_star=tsum;
-        pdata[i].Z_star=Zsum;
+        pdata[i].t_mean_star=tmeansum;
+        pdata[i].Z_mean_star=Zmeansum;
 
         pdata[i].cm_star[0]=cmx;pdata[i].cm_star[1]=cmy;pdata[i].cm_star[2]=cmz;
         pdata[i].cmvel_star[0]=cmvx;pdata[i].cmvel_star[1]=cmvy;pdata[i].cmvel_star[2]=cmvz;
@@ -1451,7 +1587,7 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval)
         if (pdata[i].M_star>0) {
             pdata[i].veldisp_star=pdata[i].veldisp_star*(1.0/pdata[i].M_star);
             pdata[i].cm_star=pdata[i].cm_star*(1.0/pdata[i].M_star);
-            pdata[i].cmvel_star=pdata[i].cm_star*(1.0/pdata[i].M_star);
+            pdata[i].cmvel_star=pdata[i].cmvel_star*(1.0/pdata[i].M_star);
             pdata[i].t_star/=pdata[i].M_star;
 #ifdef GASON
             pdata[i].Z_star/=pdata[i].M_star;
@@ -1518,34 +1654,25 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval)
             for (k=0;k<3;k++) pdata[i].cmvel_star[k] /= EncMass;
         }
 
-        for (j=0;j<numingroup[i];j++) {
-            Pval=&Part[j+noffset[i]];
-            if (Pval->GetType()==STARTYPE) {
-                x = (*Pval).X()-pdata[i].cm_star[0];
-                y = (*Pval).Y()-pdata[i].cm_star[1];
-                z = (*Pval).Z()-pdata[i].cm_star[2];
-                r2=x*x+y*y+z*z;
-                if (r2<=pdata[i].gRmaxvel*pdata[i].gRmaxvel) pdata[i].M_star_rvmax+=Pval->GetMass();
-                if (r2<=opt.lengthtokpc30pow2) pdata[i].M_star_30kpc+=Pval->GetMass();
-                if (r2<=opt.lengthtokpc50pow2) pdata[i].M_star_50kpc+=Pval->GetMass();
-                if (r2<=pdata[i].gR500c*pdata[i].gR500c) pdata[i].M_star_500c+=Pval->GetMass();
-            }
-        }
-
-        //rotational calcs
         if (pdata[i].n_star>=PROPROTMINNUM) {
-        EncMass=0;
-        for (j=0;j<numingroup[i];j++) {
-            Pval=&Part[j+noffset[i]];
-            if (Pval->GetType()==STARTYPE) {
-                EncMass+=Pval->GetMass();
-                x = (*Pval).X()-pdata[i].cm_star[0];
-                y = (*Pval).Y()-pdata[i].cm_star[1];
-                z = (*Pval).Z()-pdata[i].cm_star[2];
-                if (EncMass>0.5*pdata[i].M_star && pdata[i].Rhalfmass_star==0)
-                    pdata[i].Rhalfmass_star=sqrt(x*x+y*y+z*z);
+            EncMass=0;
+            for (j=0;j<numingroup[i];j++) {
+                Pval=&Part[j+noffset[i]];
+                if (Pval->GetType()==STARTYPE) {
+                    x = (*Pval).X();//-pdata[i].cm_star[0];
+                    y = (*Pval).Y();//-pdata[i].cm_star[1];
+                    z = (*Pval).Z();//-pdata[i].cm_star[2];
+                    mval=Pval->GetMass();
+                    EncMass+=mval;
+                    r2=x*x+y*y+z*z;
+                    rc=sqrt(r2);
+                    if (r2<=pdata[i].gRmaxvel*pdata[i].gRmaxvel) pdata[i].M_star_rvmax+=mval;
+                    if (r2<=opt.lengthtokpc30pow2) pdata[i].M_star_30kpc+=mval;
+                    if (r2<=opt.lengthtokpc50pow2) pdata[i].M_star_50kpc+=mval;
+                    if (r2<=pdata[i].gR500c*pdata[i].gR500c) pdata[i].M_star_500c+=mval;
+                    if (EncMass>0.5*pdata[i].M_star && pdata[i].Rhalfmass_star==0) pdata[i].Rhalfmass_star=rc;
+                }
             }
-        }
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
 private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
@@ -1555,12 +1682,12 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
             if (Pval->GetType()==STARTYPE) {
-            x = (*Pval).X()-pdata[i].cm_star[0];
-            y = (*Pval).Y()-pdata[i].cm_star[1];
-            z = (*Pval).Z()-pdata[i].cm_star[2];
-            vx = (*Pval).Vx()-pdata[i].gcmvel[0]-pdata[i].cmvel_star[0];
-            vy = (*Pval).Vy()-pdata[i].gcmvel[1]-pdata[i].cmvel_star[1];
-            vz = (*Pval).Vz()-pdata[i].gcmvel[2]-pdata[i].cmvel_star[2];
+            x = (*Pval).X();//-pdata[i].cm_star[0];
+            y = (*Pval).Y();//-pdata[i].cm_star[1];
+            z = (*Pval).Z();//-pdata[i].cm_star[2];
+            vx = (*Pval).Vx();//-pdata[i].gcmvel[0]-pdata[i].cmvel_star[0];
+            vy = (*Pval).Vy();//-pdata[i].gcmvel[1]-pdata[i].cmvel_star[1];
+            vz = (*Pval).Vz();//-pdata[i].gcmvel[2]-pdata[i].cmvel_star[2];
             jval=Coordinate(x,y,z).Cross(Coordinate(vx,vy,vz));
             jzval=(jval*pdata[i].L_star)/pdata[i].L_star.Length();
             zdist=(Coordinate(x,y,z)*pdata[i].L_star)/pdata[i].L_star.Length();
@@ -1579,6 +1706,7 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
 #ifdef NOMASS
         pdata[i].M_star*=opt.MassValue;
 #endif
+        }//end of calculations if stars are present
 #endif
 
 #ifdef BHON
