@@ -2402,7 +2402,7 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
 #endif
 
         //output apertures
-        if (opt.iaperturecalc){
+        if (opt.iaperturecalc && opt.aperturenum>0){
             for (auto j=0;j<opt.aperturenum;j++) {
                 for (Int_t i=0;i<ngroups;i++) ((unsigned int*)data)[i]=pdata[i+1].aperture_npart[j];
                 propdataset[itemp].write(data,head.predtypeinfo[itemp]);
@@ -2528,6 +2528,87 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
                 itemp++;
             }
 #endif
+#if defined(GASON) && defined(STARON)
+            for (auto j=0;j<opt.aperturenum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_SFR_gas[j];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+#endif
+        }
+        //output apertures
+        if (opt.iaperturecalc && opt.apertureprojnum>0){
+            for (auto k=0;k<3;k++) {
+            for (auto j=0;j<opt.apertureprojnum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_mass_proj[j][k];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+            #ifdef GASON
+            for (auto j=0;j<opt.apertureprojnum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_mass_proj_gas[j][k];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+            #ifdef STARON
+            for (auto j=0;j<opt.apertureprojnum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_mass_proj_gas_sf[j][k];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+            for (auto j=0;j<opt.apertureprojnum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_mass_proj_gas_nsf[j][k];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+            #endif
+            #endif
+            #ifdef STARON
+            for (auto j=0;j<opt.apertureprojnum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_mass_proj_star[j][k];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+            #endif
+            for (auto j=0;j<opt.apertureprojnum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_rhalfmass_proj[j][k];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+            #ifdef GASON
+            for (auto j=0;j<opt.apertureprojnum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_rhalfmass_proj_gas[j][k];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+            #ifdef STARON
+            for (auto j=0;j<opt.apertureprojnum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_rhalfmass_proj_gas_sf[j][k];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+            for (auto j=0;j<opt.apertureprojnum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_rhalfmass_proj_gas_nsf[j][k];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+            #endif
+            #endif
+            #ifdef STARON
+            for (auto j=0;j<opt.apertureprojnum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_rhalfmass_proj_star[j][k];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+            #endif
+            #if defined(GASON) && defined(STARON)
+            for (auto j=0;j<opt.apertureprojnum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_SFR_proj_gas[j][k];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+            #endif
+            }
         }
         if (opt.SOnum>0) {
             for (auto j=0;j<opt.SOnum;j++) {
