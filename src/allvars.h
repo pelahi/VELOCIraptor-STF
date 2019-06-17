@@ -3509,7 +3509,7 @@ struct PropDataHeader{
 #endif
 #ifdef STARON
             for (auto i=0; i<opt.aperturenum;i++)
-                headerdatainfo.push_back((string("Aperture_npart_star")+opt.aperture_names_kpc[i]+string("_kpc")));
+                headerdatainfo.push_back((string("Aperture_npart_star_")+opt.aperture_names_kpc[i]+string("_kpc")));
 #endif
 #ifdef USEHDF
             sizeval=predtypeinfo.size();
@@ -3533,7 +3533,7 @@ struct PropDataHeader{
 #endif
 #ifdef STARON
             for (auto i=0; i<opt.aperturenum;i++)
-                headerdatainfo.push_back((string("Aperture_mass_star")+opt.aperture_names_kpc[i]+string("_kpc")));
+                headerdatainfo.push_back((string("Aperture_mass_star_")+opt.aperture_names_kpc[i]+string("_kpc")));
 #endif
 
             for (auto i=0; i<opt.aperturenum;i++)
@@ -3550,7 +3550,7 @@ struct PropDataHeader{
 #endif
 #ifdef STARON
             for (auto i=0; i<opt.aperturenum;i++)
-                headerdatainfo.push_back((string("Aperture_rhalfmass_star")+opt.aperture_names_kpc[i]+string("_kpc")));
+                headerdatainfo.push_back((string("Aperture_rhalfmass_star_")+opt.aperture_names_kpc[i]+string("_kpc")));
 #endif
 
             for (auto i=0; i<opt.aperturenum;i++)
@@ -3567,7 +3567,7 @@ struct PropDataHeader{
 #endif
 #ifdef STARON
             for (auto i=0; i<opt.aperturenum;i++)
-                headerdatainfo.push_back((string("Aperture_veldisp_star")+opt.aperture_names_kpc[i]+string("_kpc")));
+                headerdatainfo.push_back((string("Aperture_veldisp_star_")+opt.aperture_names_kpc[i]+string("_kpc")));
 #endif
 
 #ifdef USEHDF
