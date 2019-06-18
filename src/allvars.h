@@ -3807,7 +3807,7 @@ struct PropDataHeader{
         }
         if (opt.iaperturecalc>0 && opt.apertureprojnum>0) {
             for (auto k=0;k<3;k++) {
-            string projname = "Projected_apeture_"+to_string(k+1)+"_";
+            string projname = "Projected_aperture_"+to_string(k+1)+"_";
             for (auto i=0; i<opt.apertureprojnum;i++)
                 headerdatainfo.push_back(projname+string("mass_")+opt.aperture_proj_names_kpc[i]+string("_kpc"));
 #ifdef GASON
