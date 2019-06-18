@@ -911,8 +911,9 @@ Int_t* SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Part
     int nthreads=1,maxnthreads,tid;
     Int_t *numingroup, **pglist;
     Int_tree_t *GroupTail, *Head, *Next;
-    Int_t bgoffset, *pfofbg, numgroupsbg;
+    Int_t bgoffset, *pfofbg, numgroupsbg=0;
     int maxhalocoresublevel;
+    Int_t numsubs=0;
     //initialize
     numgroups=0;
     if (pnumcores!=NULL) *pnumcores=0;
@@ -1504,6 +1505,7 @@ private(i,tid)
                 delete[] numingroup;
                 numgroups=ng;
                 if (opt.iverbose>=2) cout<<ThisTask<<" "<<"After expanded search there are now "<< ng<<" groups"<<endl;
+                numgroupsbg=0;
             }
             else if (opt.iverbose>=2) cout<<ThisTask<<" "<<"No large background substructure groups found"<<endl;
             delete[] pfofbg;
@@ -1512,6 +1514,7 @@ private(i,tid)
         if (numgroups>0) if (opt.iverbose>=2) cout<<numgroups<<" substructures found after large grid search"<<endl;
         else {if (opt.iverbose>=2) cout<<ThisTask<<": "<<"NO SUBSTRUCTURES FOUND"<<endl;}
     }
+    numsubs=numgroups;
 
     //ONCE ALL substructures are found, search for cores of major mergers with minimum size set by cell size since grid is quite large after bg search
     //for missing large substructure cores
@@ -1673,7 +1676,7 @@ private(i,tid)
                 if (numgroupsbg>=bgoffset+1) {
                     for (i=0;i<nsubset;i++) if (pfofbg[i]>bgoffset) pfof[i]=numgroups+(pfofbg[i]-bgoffset);
                     numgroupsbg-=bgoffset;
-                    if (numgroups>0 && opt.coresubmergemindist>0) MergeSubstructuresPhase(opt, nsubset, Partsubset, pfof, numgroups, numgroupsbg);
+                    //if (numgroups>0 && opt.coresubmergemindist>0) MergeSubstructuresCoresPhase(opt, nsubset, Partsubset, pfof, numgroups, numgroupsbg);
                     numgroups+=numgroupsbg;
                 }
                 if (opt.iverbose>=2) cout<<ThisTask<<": After 6dfof core search and assignment there are "<<numgroups<<" groups"<<endl;
@@ -1685,6 +1688,8 @@ private(i,tid)
 
         delete[] pfofbg;
     }
+    if (numgroups>0 && opt.coresubmergemindist>0 && nsubset>=MINSUBSIZE) MergeSubstructuresPhase(opt, nsubset, Partsubset, pfof, numgroups, numsubs, numgroupsbg);
+
 
 #ifdef USEMPI
     //now if substructures are subsubstructures, then the region of interest has already been localized to a single MPI domain
@@ -2128,7 +2133,7 @@ private(i,tid,Pval,x1,D2,dval,mval,pid,pidcore)
 
 
 //Merge any groups that overlap in phase-space
-void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_t *&pfof, Int_t &numsubs, Int_t &numcores)
+void MergeSubstructuresCoresPhase(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_t *&pfof, Int_t &numsubs, Int_t &numcores)
 {
     //get the phase centres of objects and see if they overlap
     Int_t pfofval, imerge, numlargesubs=0, newnumcores=numcores;
@@ -2144,7 +2149,6 @@ void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Parts
         Int_t index;
     };
     vector<indexfof> indexing;
-//cout<<"checking merging subs "<<numsubs<<" "<<numcores<<endl;
     subs.resize(numsubs);
     cores.resize(numcores);
     numingroup.resize(numsubs+numcores+1);
@@ -2172,8 +2176,6 @@ void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Parts
             for (auto k=0;k<6;k++) cores[pfofval].SetPhase(k,cores[pfofval].GetPhase(k)+Partsubset[i].GetPhase(k)*Partsubset[i].GetMass());
         }
     }
-    for (auto i=1;i<=numsubs;i++) if (numingroup[i]>=nsubset*opt.Ncellfac/5) numlargesubs++;
-    if (numlargesubs == 0) return;
     noffset[0]=0; for (auto i=1;i<=numsubs+numcores;i++) noffset[i]=numingroup[i-1]+noffset[i-1];
     pfofval=1;
     for (auto &x:subs) {
@@ -2219,10 +2221,9 @@ void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Parts
         sigXcores[i]*=1.0/cores[i].GetMass();
         sigVcores[i]*=1.0/cores[i].GetMass();
     }
-// cout<<"checking cores and subs "<<nsubset<<" "<<numcores<<" "<<numlargesubs<<endl;
     //now built tree on substructures
-    //tree = new KDTree(subs.data(),numsubs,1,tree->TPHYS,tree->KEPAN,100,0,0,0);
-    tree = new KDTree(subs.data(),numlargesubs,1,tree->TPHYS,tree->KEPAN,100,0,0,0);
+    tree = new KDTree(subs.data(),numsubs,1,tree->TPHYS,tree->KEPAN,100,0,0,0);
+    //tree = new KDTree(subs.data(),numlargesubs,1,tree->TPHYS,tree->KEPAN,100,0,0,0);
     //check all cores to see if they overlap significantly with substructures
     newnumcores=0;
     for (auto i=0;i<numcores;i++) {
@@ -2236,17 +2237,11 @@ void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Parts
         //if objects are within search window of core, get min phase distance
         imerge=-1;
         mindist2=MAXVALUE;
-// cout<<"core "<<i<<" has matches "<<taggedsubs.size()<<" "<<endl;
-//exit(9);
         for (auto j=0;j<taggedsubs.size();j++) {
-// double disp2;
             disp = 0; for (auto k=0;k<3;k++) disp+=pow(subs[taggedsubs[j]].GetPosition(k)-cores[i].GetPosition(k),2.0);
             dist2 = disp/sigXcores[i];
-// disp2=disp;
             disp = 0; for (auto k=0;k<3;k++) disp+=pow(subs[taggedsubs[j]].GetVelocity(k)-cores[i].GetVelocity(k),2.0);
             dist2 += disp/sigVcores[i];
-// cout<<" dist "<<subs[taggedsubs[j]].GetPID()<<" "<<numingroup[i+numsubs+1]<<" "<<numingroup[subs[taggedsubs[j]].GetPID()]<<" dist "<<sqrt(fdist2)<<" | "<<sqrt(dist2)<<" || "<<sqrt(disp2)<<" "<<sqrt(disp)<<" "<<sqrt(sigXcores[i])<<" "<<sqrt(sigVcores[i])<<endl;
-// //cout<<" dist "<<j<<" "<<numingroup[i+numsubs+1]<<" "<<numingroup[taggedsubs[j]+1]<<" dist "<<fdist2<<" "<<(dist2)<<" "<<(disp2)<<" "<<(disp)<<" "<<(sigXcores[i])<<" "<<(sigVcores[i])<<endl;
             if (dist2<fdist2 && dist2<mindist2){
                 imerge=subs[taggedsubs[j]].GetPID();
                 mindist2=dist2;
@@ -2254,14 +2249,12 @@ void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Parts
         }
         //merging core with sub if one is found
         if (imerge!=-1) {
-// cout<<"merging a core with a sub "<<i<<" with "<<imerge<<" "<<numingroup[i+numsubs+1]<<" "<<numingroup[imerge]<<" "<<sqrt(mindist2)<<endl;
             pfofval=i+numsubs+1;
             for (auto j=noffset[pfofval];j<noffset[pfofval]+numingroup[pfofval];j++) {
                 pfof[Partsubset[indexing[j].index].GetID()]=imerge;
             }
             cores[i].SetID(imerge);
             cores[i].SetPID(0);
-            //numingroup[pfofval]=0;
         }
         else {
             newnumcores++;
@@ -2271,15 +2264,6 @@ void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Parts
     delete tree;
     //if object has been mergerged then must update the pfof values of cores
     if (newnumcores!=numcores && newnumcores>0) {
-// cout<<" merged core with sub "<<newnumcores<<" "<<numcores<<endl;
-// for (auto i=0;i<numcores;i++) {
-// pfofval=i+numsubs+1;
-// cout<<" core "<<i<<" with "<<numingroup[pfofval]<<" "<<cores[i].GetPID()<<" "<<cores[i].GetID()<<endl;
-// //for (auto j=noffset[pfofval];j<noffset[pfofval]+numingroup[pfofval];j++) {
-// //    cout<<pfof[Partsubset[indexing[j].index].GetID()]<<" "<<cores[i].GetID()<<endl;
-// //}
-// }
-// //exit(9);
         for (auto i=0;i<numcores;i++) {
             pfofval=i+numsubs+1;
             if (cores[i].GetPID()==0) continue;
@@ -2290,6 +2274,178 @@ void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Parts
         }
     }
     numcores=newnumcores;
+}
+///Testing a merge of all substructures
+void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_t *&pfof, Int_t &numgroups, Int_t &numsubs, Int_t &numcores)
+{
+    //get the phase centres of objects and see if they overlap
+    Int_t pfofval, newpfofval, imerge, newnumgroups, newnumcores, nummerged=0, index1, index2;
+    Double_t disp, dist2, dist2sub1,dist2sub2, mindist2, fdist2=pow(opt.coresubmergemindist,2.0);
+    Coordinate pos;
+    vector<Int_t> numingroup, noffset, taggedsubs;
+    struct mergeinfo {
+        Int_t pfofval;
+        Int_t numingroup;
+        int type;
+        int nummerged;
+        bool ismerged;
+        vector<Int_t> mergedlist;
+        mergeinfo(){
+            nummerged=0;
+            ismerged=false;
+        };
+        //Int_t numingroup;
+    };
+    vector<Particle> subs;
+    vector<mergeinfo> minfo;
+    KDTree *tree;
+    //vector<GMatrix> phasetensorsubs(numsubs,GMatrix(6,6)), phasetensorcores(numcores,GMatrix(6,6));
+    vector<Double_t> sigXsubs(numgroups), sigVsubs(numgroups), sigXcores(numgroups), sigVcores(numgroups);
+    struct indexfof {
+        Int_t fofval;
+        Int_t index;
+    };
+    vector<indexfof> indexing;
+//cout<<ThisTask<<" entering merging "<<numgroups<<" "<<numsubs<<" "<<numcores<<endl;
+    subs.resize(numgroups);
+    minfo.resize(numgroups);
+    numingroup.resize(numgroups+1);
+    noffset.resize(numgroups+1);
+    indexing.resize(nsubset);
+    for (auto &x:sigXsubs) x=0;
+    for (auto &x:sigVsubs) x=0;
+    //get center of mass in phase-space
+    for (auto i=0;i<nsubset;i++) {
+        pfofval = pfof[Partsubset[i].GetID()];
+        indexing[i].fofval = pfofval;
+        indexing[i].index = i;
+        numingroup[pfofval]++;
+        if (pfofval==0) continue;
+        pfofval-=1;
+        subs[pfofval].SetMass(subs[pfofval].GetMass()+Partsubset[i].GetMass());
+        for (auto k=0;k<6;k++) subs[pfofval].SetPhase(k,subs[pfofval].GetPhase(k)+Partsubset[i].GetPhase(k)*Partsubset[i].GetMass());
+    }
+    noffset[0]=0; for (auto i=1;i<=numgroups;i++) noffset[i]=numingroup[i-1]+noffset[i-1];
+    pfofval=1;
+    for (auto &x:subs) {
+        x.SetPID(pfofval);
+        //x.SetID(pfofval);
+        x.SetType((pfofval>numsubs));
+        minfo[pfofval-1].pfofval=pfofval;
+        minfo[pfofval-1].type = x.GetType();
+        minfo[pfofval-1].numingroup=numingroup[pfofval];
+        pfofval++;
+        for (auto k=0;k<6;k++) x.SetPhase(k,x.GetPhase(k)/x.GetMass());
+    }
+    //sort indices by fof value
+    sort(indexing.begin(), indexing.end(), [](indexfof &a, indexfof &b){
+    return a.fofval < b.fofval;
+    });
+    //get the dispersions
+    for (auto i=0;i<nsubset;i++) {
+        pfofval = pfof[Partsubset[i].GetID()];
+        if (pfofval==0) continue;
+        pfofval-=1;
+        disp=0; for (auto k=0;k<3;k++) disp+=pow(Partsubset[i].GetPosition(k)-subs[pfofval].GetPosition(k),2.0);
+        sigXsubs[pfofval]+=disp*Partsubset[i].GetMass();
+        disp=0; for (auto k=0;k<3;k++) disp+=pow(Partsubset[i].GetVelocity(k)-subs[pfofval].GetVelocity(k),2.0);
+        sigVsubs[pfofval]+=disp*Partsubset[i].GetMass();
+    }
+    for (auto i=0;i<numgroups;i++) {
+        sigXsubs[i]*=1.0/subs[i].GetMass();
+        sigVsubs[i]*=1.0/subs[i].GetMass();
+    }
+    //now built tree on substructures
+    tree = new KDTree(subs.data(),numgroups,1,tree->TPHYS,tree->KEPAN,100,0,0,0);
+    //tree = new KDTree(subs.data(),numlargesubs,1,tree->TPHYS,tree->KEPAN,100,0,0,0);
+    //check all cores to see if they overlap significantly with substructures
+    for (auto i=0;i<numgroups;i++) {
+        //ignore if already merged
+        if (subs[i].GetPID()==0) continue;
+        //don't merge substructures into cores
+        if (subs[i].GetType()==1) continue;
+        index1=subs[i].GetPID()-1;
+        index1=subs[i].GetID();
+        taggedsubs = tree->SearchBallPosTagged(i, sigXsubs[index1]*fdist2);
+//cout<<i<<" sub tagged "<<subs[i].GetPID()<<" "<<numingroup[subs[i].GetPID()]<<" "<<taggedsubs.size()<<endl;
+        if (taggedsubs.size()<=1) continue;
+        //if objects are within search window of core, get min phase distance
+        imerge=-1;
+        mindist2=MAXVALUE;
+        for (auto j=0;j<taggedsubs.size();j++) {
+            if (i==taggedsubs[j]) continue;
+            if (subs[taggedsubs[j]].GetPID()==0) continue;
+            //index2=subs[taggedsubs[j]].GetPID()-1;
+            index2=subs[taggedsubs[j]].GetID();
+//double disp2;
+            disp = 0; for (auto k=0;k<3;k++) disp+=pow(subs[taggedsubs[j]].GetPosition(k)-subs[i].GetPosition(k),2.0);
+//disp2=disp;
+            dist2sub1 = disp/sigXsubs[index1];
+            dist2sub2 = disp/sigXsubs[index2];
+            disp = 0; for (auto k=0;k<3;k++) disp+=pow(subs[taggedsubs[j]].GetVelocity(k)-subs[i].GetVelocity(k),2.0);
+            dist2sub1 += disp/sigVsubs[index1];
+            dist2sub2 = disp/sigVsubs[index2];
+            dist2 = 0.5*(dist2sub1+dist2sub2);
+//cout<<" dist "<<subs[i].GetPID()<<" "<<subs[taggedsubs[j]].GetPID()<<" "<<numingroup[subs[i].GetPID()]<<" "<<numingroup[subs[taggedsubs[j]].GetPID()]<<" "<<sqrt(dist2)<<" || "<<sqrt(disp2)<<" "<<sqrt(disp)<<" "<<sqrt(sigXsubs[index1])<<" "<<sqrt(sigVsubs[index1])<<" "<<sqrt(sigXsubs[index2])<<" "<<sqrt(sigVsubs[index2])<<endl;
+            if (dist2sub1<fdist2 && dist2sub2<fdist2 && dist2<mindist2){
+                imerge=taggedsubs[j];
+                mindist2=dist2;
+            }
+        }
+        //merging core with sub if one is found
+        if (imerge!=-1) {
+            nummerged++;
+            pfofval=subs[imerge].GetPID();
+            index2=subs[imerge].GetID();
+            subs[imerge].SetPID(0);
+            minfo[index2].ismerged=true;
+            minfo[index1].nummerged = minfo[index2].nummerged+1;
+            minfo[index1].numingroup+=minfo[index2].numingroup;
+            minfo[index1].mergedlist.push_back(pfofval);
+            for (auto j=0;j<minfo[index2].nummerged;j++) minfo[index1].mergedlist.push_back(minfo[index2].mergedlist[j]);
+//cout<<"merging "<<subs[i].GetPID()<<" "<<pfofval<<" "<<minfo[index1].nummerged<<endl;
+        }
+    }
+    delete tree;
+    //if nothing has changed, do nothing
+    if (nummerged==0) return;
+//cout<<" merging subs has given  "<<nummerged<<" mergers "<<numgroups<<" "<<numcores<<endl;
+    sort(minfo.begin(), minfo.end(), [](mergeinfo &a, mergeinfo &b){
+        if (a.type<b.type) return true;
+        else if (a.type==b.type) return (a.numingroup > b.numingroup);
+        else return false;
+    });
+    newnumgroups=0;
+    newnumcores=0;
+    for (auto i=0;i<numgroups;i++) {
+//cout<<i<<" "<<minfo[i].numingroup<<" "<<minfo[i].type<<" and before "<<numingroup[minfo[i].pfofval]<<endl;
+        //if object has mergered do nothing
+        if (minfo[i].ismerged==true) continue;
+        newnumgroups++;
+        if (minfo[i].type == 1) newnumcores++;
+        //if object is still in same order and has not mergered with anything, do nothing
+        if (minfo[i].pfofval == newnumgroups && minfo[i].nummerged==0) continue;
+//cout<<"altering  "<<minfo[i].pfofval<<" to "<<newnumgroups<<endl;
+        pfofval=minfo[i].pfofval;
+        for (auto j=noffset[pfofval];j<noffset[pfofval]+numingroup[pfofval];j++) {
+            pfof[Partsubset[indexing[j].index].GetID()]=newnumgroups;
+        }
+        if (minfo[i].nummerged==0) continue;
+//cout<<"altering merged objects"<<minfo[i].nummerged<<" to "<<newnumgroups<<endl;
+        for (auto &mergedgroup:minfo[i].mergedlist) {
+//cout<<" halo that is merging "<<mergedgroup<<" "<<numingroup[mergedgroup]<<endl;
+            for (auto j=noffset[mergedgroup];j<noffset[mergedgroup]+numingroup[mergedgroup];j++) {
+                pfof[Partsubset[indexing[j].index].GetID()]=newnumgroups;
+            }
+        }
+    }
+//    for (auto i=0;i<nsubset;i++) if (pfof[Partsubset[i].GetID()]>newnumgroups) cout<<"WTF incorrect pfof value "<<i<<" "<<pfof[Partsubset[i].GetID()]<<" "<<newnumgroups<<endl;
+//cout<<"new is "<<newnumgroups<<" "<<newnumcores<<endl;
+    //exit(9);
+    numcores=newnumcores;
+    numgroups=newnumgroups;
+    numsubs=numgroups-numcores;
+//    cout<<ThisTask<<" after merging "<<numgroups<<" "<<numsubs<<" "<<numcores<<endl;
 }
 
 /*!

@@ -553,7 +553,7 @@ struct Options
     Double_t halocorenumfaciter;
     ///factor by which a core must be seperated from main core in phase-space in sigma units
     Double_t halocorephasedistsig;
-    ///factor by which a core must be closer than in phase-space to merger with substructure in sigma units
+    ///factor by which a substructure s must be closer than in phase-space to merger with another substructure in sigma units
     Double_t coresubmergemindist;
     //@}
     ///for storing a snapshot value to make halo ids unique across snapshots
@@ -759,7 +759,7 @@ struct Options
         halocorevfaciter=0.75;
         halocorenumfaciter=1.0;
         halocorephasedistsig=2.0;
-        coresubmergemindist=0.25;
+        coresubmergemindist=0.0;
 
         iverbose=0;
         iwritefof=0;
