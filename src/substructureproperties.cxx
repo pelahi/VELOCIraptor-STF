@@ -4938,24 +4938,24 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
         if (type==BHTYPE) EncMassBH+=mass;
         #endif
         for (auto k=0;k<opt.aperturenum;k++) {
-            if (EncMass>=0.5*pdata.aperture_mass[k] && pdata.aperture_rhalfmass[k]==0)
+            if (EncMass>=0.5*pdata.aperture_mass[k] && pdata.aperture_rhalfmass[k]==-1)
             {
                 pdata.aperture_rhalfmass[k]=oldrc;
                 iaptindex++;
             }
             #ifdef GASON
-            if (EncMassGas>=0.5*pdata.aperture_mass_gas[k] && pdata.aperture_rhalfmass_gas[k]==0)
+            if (EncMassGas>=0.5*pdata.aperture_mass_gas[k] && pdata.aperture_rhalfmass_gas[k]==-1)
             {
                 pdata.aperture_rhalfmass_gas[k]=oldrc_gas;
                 iaptindex++;
             }
             #ifdef STARON
-            if (EncMassGasSF>=0.5*pdata.aperture_mass_gas_sf[k] && pdata.aperture_rhalfmass_gas_sf[k]==0)
+            if (EncMassGasSF>=0.5*pdata.aperture_mass_gas_sf[k] && pdata.aperture_rhalfmass_gas_sf[k]==-1)
             {
                 pdata.aperture_rhalfmass_gas_sf[k]=oldrc_gas_sf;
                 iaptindex++;
             }
-            if (EncMassGasNSF>=0.5*pdata.aperture_mass_gas_nsf[k] && pdata.aperture_rhalfmass_gas_nsf[k]==0)
+            if (EncMassGasNSF>=0.5*pdata.aperture_mass_gas_nsf[k] && pdata.aperture_rhalfmass_gas_nsf[k]==-1)
             {
                 pdata.aperture_rhalfmass_gas_nsf[k]=oldrc_gas_nsf;
                 iaptindex++;
@@ -4963,7 +4963,7 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
             #endif
             #endif
             #ifdef STARON
-            if (EncMassStar>=0.5*pdata.aperture_mass_star[k] && pdata.aperture_rhalfmass_star[k]==0)
+            if (EncMassStar>=0.5*pdata.aperture_mass_star[k] && pdata.aperture_rhalfmass_star[k]==-1)
             {
                 pdata.aperture_rhalfmass_star[k]=oldrc_star;
                 iaptindex++;
@@ -5139,28 +5139,28 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
             if (type==BHTYPE) EncMassBH+=mass;
             #endif
             for (auto i=0;i<opt.apertureprojnum;i++) {
-                if (EncMass>=0.5*pdata.aperture_mass_proj[i][k] && pdata.aperture_rhalfmass_proj[i][k]==0) {
+                if (EncMass>=0.5*pdata.aperture_mass_proj[i][k] && pdata.aperture_rhalfmass_proj[i][k]==-1) {
                     pdata.aperture_rhalfmass_proj[i][k]=oldrc;
                     iaptindex++;
                 }
                 #ifdef GASON
-                if (EncMassGas>=0.5*pdata.aperture_mass_proj_gas[k][i] && pdata.aperture_rhalfmass_proj_gas[i][k]==0) {
+                if (EncMassGas>=0.5*pdata.aperture_mass_proj_gas[k][i] && pdata.aperture_rhalfmass_proj_gas[i][k]==-1) {
                     pdata.aperture_rhalfmass_proj_gas[i][k]=oldrc_gas;
                     iaptindex++;
                 }
                 #ifdef STARON
-                if (EncMassGasSF>=0.5*pdata.aperture_mass_proj_gas_sf[i][k] && pdata.aperture_rhalfmass_proj_gas_sf[i][k]==0) {
+                if (EncMassGasSF>=0.5*pdata.aperture_mass_proj_gas_sf[i][k] && pdata.aperture_rhalfmass_proj_gas_sf[i][k]==-1) {
                     pdata.aperture_rhalfmass_proj_gas_sf[i][k]=oldrc_gas_sf;
                     iaptindex++;
                 }
-                if (EncMassGasNSF>=0.5*pdata.aperture_mass_proj_gas_nsf[i][k] && pdata.aperture_rhalfmass_proj_gas_nsf[i][k]==0) {
+                if (EncMassGasNSF>=0.5*pdata.aperture_mass_proj_gas_nsf[i][k] && pdata.aperture_rhalfmass_proj_gas_nsf[i][k]==-1) {
                     pdata.aperture_rhalfmass_proj_gas_nsf[i][k]=oldrc_gas_nsf;
                     iaptindex++;
                 }
                 #endif
                 #endif
                 #ifdef STARON
-                if (EncMassStar>=0.5*pdata.aperture_mass_proj_star[i][k] && pdata.aperture_rhalfmass_proj_star[i][k]==0) {
+                if (EncMassStar>=0.5*pdata.aperture_mass_proj_star[i][k] && pdata.aperture_rhalfmass_proj_star[i][k]==-1) {
                     pdata.aperture_rhalfmass_proj_star[i][k]=oldrc_star;
                     iaptindex++;
                 }
