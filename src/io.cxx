@@ -2159,10 +2159,10 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Krot_star;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].t_star;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].t_mean_star;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Z_star;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Z_mean_star;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
         if (opt.iextrastaroutput) {
@@ -2239,8 +2239,170 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
 #endif
+
+#if defined(GASON) && defined(STARON)
+    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_gas_sf;
+    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+    itemp++;
+    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Rhalfmass_gas_sf;
+    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+    itemp++;
+    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].sigV_gas_sf;
+    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+    itemp++;
+    for (int k=0;k<3;k++){
+    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_gas_sf[k];
+    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+    itemp++;
+    }
+
+    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Krot_gas_sf;
+    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+    itemp++;
+    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Temp_mean_gas_sf;
+    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+    itemp++;
+    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Z_mean_gas_sf;
+    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+    itemp++;
+    if (opt.iextrastaroutput) {
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200mean_gas_sf;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200crit_gas_sf;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_BN98_gas_sf;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+
+        for (int k=0;k<3;k++){
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200mean_gas_sf[k];
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        }
+        for (int k=0;k<3;k++){
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200crit_gas_sf[k];
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        }
+        for (int k=0;k<3;k++){
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_BN98_gas_sf[k];
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        }
+
+        if (opt.iInclusiveHalo>0) {
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200mean_excl_gas_sf;
+            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+            itemp++;
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200crit_excl_gas_sf;
+            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+            itemp++;
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_BN98_excl_gas_sf;
+            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+            itemp++;
+
+            for (int k=0;k<3;k++){
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200mean_excl_gas_sf[k];
+            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+            itemp++;
+            }
+            for (int k=0;k<3;k++){
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200crit_excl_gas_sf[k];
+            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+            itemp++;
+            }
+            for (int k=0;k<3;k++){
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_BN98_excl_gas_sf[k];
+            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+            itemp++;
+            }
+        }
+    }
+    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_gas_nsf;
+    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+    itemp++;
+    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Rhalfmass_gas_nsf;
+    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+    itemp++;
+    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].sigV_gas_nsf;
+    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+    itemp++;
+    for (int k=0;k<3;k++){
+    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_gas_nsf[k];
+    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+    itemp++;
+    }
+
+    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Krot_gas_nsf;
+    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+    itemp++;
+    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Temp_mean_gas_nsf;
+    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+    itemp++;
+    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Z_mean_gas_nsf;
+    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+    itemp++;
+    if (opt.iextrastaroutput) {
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200mean_gas_nsf;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200crit_gas_nsf;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_BN98_gas_nsf;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+
+        for (int k=0;k<3;k++){
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200mean_gas_nsf[k];
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        }
+        for (int k=0;k<3;k++){
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200crit_gas_nsf[k];
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        }
+        for (int k=0;k<3;k++){
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_BN98_gas_nsf[k];
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        }
+
+        if (opt.iInclusiveHalo>0) {
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200mean_excl_gas_nsf;
+            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+            itemp++;
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200crit_excl_gas_nsf;
+            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+            itemp++;
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_BN98_excl_gas_nsf;
+            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+            itemp++;
+
+            for (int k=0;k<3;k++){
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200mean_excl_gas_nsf[k];
+            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+            itemp++;
+            }
+            for (int k=0;k<3;k++){
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200crit_excl_gas_nsf[k];
+            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+            itemp++;
+            }
+            for (int k=0;k<3;k++){
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_BN98_excl_gas_nsf[k];
+            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+            itemp++;
+            }
+        }
+    }
+#endif
+
         //output apertures
-        if (opt.iaperturecalc){
+        if (opt.iaperturecalc && opt.aperturenum>0){
             for (auto j=0;j<opt.aperturenum;j++) {
                 for (Int_t i=0;i<ngroups;i++) ((unsigned int*)data)[i]=pdata[i+1].aperture_npart[j];
                 propdataset[itemp].write(data,head.predtypeinfo[itemp]);
@@ -2366,6 +2528,87 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
                 itemp++;
             }
 #endif
+#if defined(GASON) && defined(STARON)
+            for (auto j=0;j<opt.aperturenum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_SFR_gas[j];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+#endif
+        }
+        //output apertures
+        if (opt.iaperturecalc && opt.apertureprojnum>0){
+            for (auto k=0;k<3;k++) {
+            for (auto j=0;j<opt.apertureprojnum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_mass_proj[j][k];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+            #ifdef GASON
+            for (auto j=0;j<opt.apertureprojnum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_mass_proj_gas[j][k];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+            #ifdef STARON
+            for (auto j=0;j<opt.apertureprojnum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_mass_proj_gas_sf[j][k];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+            for (auto j=0;j<opt.apertureprojnum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_mass_proj_gas_nsf[j][k];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+            #endif
+            #endif
+            #ifdef STARON
+            for (auto j=0;j<opt.apertureprojnum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_mass_proj_star[j][k];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+            #endif
+            for (auto j=0;j<opt.apertureprojnum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_rhalfmass_proj[j][k];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+            #ifdef GASON
+            for (auto j=0;j<opt.apertureprojnum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_rhalfmass_proj_gas[j][k];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+            #ifdef STARON
+            for (auto j=0;j<opt.apertureprojnum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_rhalfmass_proj_gas_sf[j][k];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+            for (auto j=0;j<opt.apertureprojnum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_rhalfmass_proj_gas_nsf[j][k];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+            #endif
+            #endif
+            #ifdef STARON
+            for (auto j=0;j<opt.apertureprojnum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_rhalfmass_proj_star[j][k];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+            #endif
+            #if defined(GASON) && defined(STARON)
+            for (auto j=0;j<opt.apertureprojnum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_SFR_proj_gas[j][k];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+            #endif
+            }
         }
         if (opt.SOnum>0) {
             for (auto j=0;j<opt.SOnum;j++) {
@@ -3216,939 +3459,15 @@ void WriteSUBFINDProperties(Options &opt, const Int_t ngroups, PropData *pdata){
     PropDataHeader head(opt);
 
 #ifdef USEMPI
-    sprintf(fname,"%s.properties.%d",opt.outname,ThisTask);
+    sprintf(fname,"%s.subfindproperties.%d",opt.outname,ThisTask);
     for (int j=0;j<NProcs;j++) ngtot+=mpi_ngroups[j];
     for (int j=0;j<ThisTask;j++)noffset+=mpi_ngroups[j];
 #else
-    sprintf(fname,"%s.properties",opt.outname);
+    sprintf(fname,"%s.subproperties",opt.outname);
     int ThisTask=0,NProcs=1;
     ngtot=ngroups;
 #endif
     cout<<"saving property data to "<<fname<<endl;
-
-    Fhdf=H5File(fname,H5F_ACC_TRUNC);
-    //set file info
-    dims=new hsize_t[1];
-    dims[0]=1;
-    rank=1;
-    itemp=0;
-    //datasetname=H5std_string("File_id");
-    dataspace=DataSpace(rank,dims);
-    dataset = Fhdf.createDataSet(datagroupnames.prop[itemp], datagroupnames.propdatatype[itemp], dataspace);
-    dataset.write(&ThisTask,datagroupnames.propdatatype[itemp]);
-    itemp++;
-
-    //datasetname=H5std_string("Num_of_files");
-    dataspace=DataSpace(rank,dims);
-    dataset = Fhdf.createDataSet(datagroupnames.prop[itemp], datagroupnames.propdatatype[itemp], dataspace);
-    dataset.write(&NProcs,datagroupnames.propdatatype[itemp]);
-    itemp++;
-
-    //datasetname=H5std_string("Num_of_groups");
-    dataspace=DataSpace(rank,dims);
-    dataset = Fhdf.createDataSet(datagroupnames.prop[itemp], datagroupnames.propdatatype[itemp], dataspace);
-    dataset.write(&ng,datagroupnames.propdatatype[itemp]);
-    itemp++;
-
-    //datasetname=H5std_string("Total_num_of_groups");
-    dataspace=DataSpace(rank,dims);
-    dataset = Fhdf.createDataSet(datagroupnames.prop[itemp], datagroupnames.propdatatype[itemp], dataspace);
-    dataset.write(&ngtot,datagroupnames.propdatatype[itemp]);
-    itemp++;
-
-    //add unit/simulation information as attributes
-    write_scalar_attr(Fhdf, datagroupnames, itemp++, opt.icosmologicalin);
-    write_scalar_attr(Fhdf, datagroupnames, itemp++, opt.icomoveunit);
-    write_scalar_attr(Fhdf, datagroupnames, itemp++, opt.p);
-    write_scalar_attr(Fhdf, datagroupnames, itemp++, opt.a);
-    write_scalar_attr(Fhdf, datagroupnames, itemp++, opt.lengthtokpc);
-    write_scalar_attr(Fhdf, datagroupnames, itemp++, opt.velocitytokms);
-    write_scalar_attr(Fhdf, datagroupnames, itemp++, opt.masstosolarmass);
-#if defined(GASON) || defined(STARON) || defined(BHON)
-    write_scalar_attr(Fhdf, datagroupnames, itemp++, opt.metallicitytosolar);
-    write_scalar_attr(Fhdf, datagroupnames, itemp++, opt.SFRtosolarmassperyear);
-    write_scalar_attr(Fhdf, datagroupnames, itemp++, opt.stellaragetoyrs);
-#endif
-
-    //load data spaces
-    propdataspace=new DataSpace[head.headerdatainfo.size()];
-    propdataset=new DataSet[head.headerdatainfo.size()];
-    dims[0]=ng;
-    //size of chunks in compression
-    chunk_dims=new hsize_t[1];
-    chunk_dims[0]=min((unsigned long)HDFOUTPUTCHUNKSIZE,ng);
-    rank=1;
-    // Modify dataset creation property to enable chunking
-    if (ng>0) {
-    	hdfdatasetproplist = new  DSetCreatPropList;
-    	hdfdatasetproplist->setChunk(rank, chunk_dims);
-    	// Set ZLIB (DEFLATE) Compression using level 6.
-    	hdfdatasetproplist->setDeflate(6);
-    }
-    dataspace=DataSpace(rank,dims);
-    for (Int_t i=0;i<head.headerdatainfo.size();i++) {
-        datasetname=H5std_string(head.headerdatainfo[i]);
-        propdataspace[i]=DataSpace(rank,dims);
-        if (ng>0) propdataset[i] = Fhdf.createDataSet(datasetname, head.predtypeinfo[i], propdataspace[i],*hdfdatasetproplist);
-        else propdataset[i] = Fhdf.createDataSet(datasetname, head.predtypeinfo[i], propdataspace[i]);
-    }
-    delete[] dims;
-    delete[] chunk_dims;
-
-    long long idbound;
-    float value,ctemp[3],mtemp[9];
-    double dvalue;
-    int ivalue;
-    //for hdf may be more useful to produce an array of the appropriate size and write each data set in one go
-    //requires allocating memory
-    int *iarray;
-    unsigned int *uiarray;
-    long long *larray;
-    unsigned long *ularray;
-    //void pointer to hold data
-    void *data;
-    //allocate enough memory to store largest data type
-    data= ::operator new(sizeof(long long)*(ng+1));
-    itemp=0;
-
-    //first is halo ids, then id of most bound particle, host halo id, number of direct subhaloes, number of particles
-    for (Int_t i=0;i<ngroups;i++) ((unsigned long*)data)[i]=pdata[i+1].haloid;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (Int_t i=0;i<ngroups;i++) ((long long*)data)[i]=pdata[i+1].ibound;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (Int_t i=0;i<ngroups;i++) ((long long*)data)[i]=pdata[i+1].iminpot;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (Int_t i=0;i<ngroups;i++) ((long long*)data)[i]=pdata[i+1].hostid;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (Int_t i=0;i<ngroups;i++) ((unsigned long*)data)[i]=pdata[i+1].numsubs;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (Int_t i=0;i<ngroups;i++) ((unsigned long*)data)[i]=pdata[i+1].num;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (Int_t i=0;i<ngroups;i++) ((int*)data)[i]=pdata[i+1].stype;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    if (opt.iKeepFOF==1){
-        for (Int_t i=0;i<ngroups;i++) ((unsigned long*)data)[i]=pdata[i+1].directhostid;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-        for (Int_t i=0;i<ngroups;i++) ((unsigned long*)data)[i]=pdata[i+1].hostfofid;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-    }
-
-    //now halo properties that are doubles
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gMvir;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (int k=0;k<3;k++){
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gcm[k];
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    }
-    for (int k=0;k<3;k++){
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gposmbp[k];
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    }
-    for (int k=0;k<3;k++){
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gposminpot[k];
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    }
-    for (int k=0;k<3;k++){
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gcmvel[k];
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    }
-    for (int k=0;k<3;k++){
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gvelmbp[k];
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    }
-    for (int k=0;k<3;k++){
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gvelminpot[k];
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    }
-
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gmass;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gMFOF;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gM200m;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gM200c;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gMBN98;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Efrac;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gRvir;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gsize;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gR200m;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gR200c;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gRBN98;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gRhalfmass;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gRmaxvel;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gmaxvel;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gsigma_v;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (int k=0;k<3;k++) for (int n=0;n<3;n++) {
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gveldisp(k,n);
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    }
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].glambda_B;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (int k=0;k<3;k++){
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gJ[k];
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    }
-
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gq;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gs;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (int k=0;k<3;k++) for (int n=0;n<3;n++) {
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].geigvec(k,n);
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    }
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].cNFW;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Krot;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].T;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Pot;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-
-
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].RV_sigma_v;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (int k=0;k<3;k++) for (int n=0;n<3;n++) {
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].RV_veldisp(k,n);
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    }
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].RV_lambda_B;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (int k=0;k<3;k++){
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].RV_J[k];
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    }
-
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].RV_q;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].RV_s;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (int k=0;k<3;k++) for (int n=0;n<3;n++) {
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].RV_eigvec(k,n);
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    }
-
-    if (opt.iextrahalooutput) {
-        for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gJ200m[k];
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-        }
-        for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gJ200c[k];
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-        }
-        for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gJBN98[k];
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-        }
-        if (opt.iInclusiveHalo>0) {
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gM200m_excl;
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gM200c_excl;
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gMBN98_excl;
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gR200m_excl;
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gR200c_excl;
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gRBN98_excl;
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
-
-            for (int k=0;k<3;k++){
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gJ200m_excl[k];
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
-            }
-            for (int k=0;k<3;k++){
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gJ200c_excl[k];
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
-            }
-            for (int k=0;k<3;k++){
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gJBN98_excl[k];
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
-            }
-        }
-    }
-
-#ifdef GASON
-    for (Int_t i=0;i<ngroups;i++) ((unsigned long*)data)[i]=pdata[i+1].n_gas;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_gas;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_gas_rvmax;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_gas_30kpc;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_gas_500c;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-
-    for (int k=0;k<3;k++){
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].cm_gas[k];
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    }
-    for (int k=0;k<3;k++){
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].cmvel_gas[k];
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    }
-
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Efrac_gas;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Rhalfmass_gas;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (int k=0;k<3;k++) for (int n=0;n<3;n++) {
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].veldisp_gas(k,n);
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    }
-    for (int k=0;k<3;k++){
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_gas[k];
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    }
-
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].q_gas;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].s_gas;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (int k=0;k<3;k++) for (int n=0;n<3;n++) {
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].eigvec_gas(k,n);
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    }
-
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Krot_gas;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Temp_mean_gas;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-#ifdef STARON
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Z_mean_gas;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SFR_gas;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-#endif
-if (opt.iextragasoutput) {
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200mean_gas;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200crit_gas;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_BN98_gas;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-
-    for (int k=0;k<3;k++){
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200mean_gas[k];
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    }
-    for (int k=0;k<3;k++){
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200crit_gas[k];
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    }
-    for (int k=0;k<3;k++){
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_BN98_gas[k];
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    }
-
-    if (opt.iInclusiveHalo>0) {
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200mean_excl_gas;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200crit_excl_gas;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_BN98_excl_gas;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-
-        for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200mean_excl_gas[k];
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-        }
-        for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200crit_excl_gas[k];
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-        }
-        for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_BN98_excl_gas[k];
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-        }
-    }
-}
-#endif
-
-#ifdef STARON
-    for (Int_t i=0;i<ngroups;i++) ((unsigned long*)data)[i]=pdata[i+1].n_star;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_star;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_star_rvmax;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_star_30kpc;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_star_500c;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-
-    for (int k=0;k<3;k++){
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].cm_star[k];
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    }
-    for (int k=0;k<3;k++){
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].cmvel_star[k];
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    }
-
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Efrac_star;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Rhalfmass_star;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (int k=0;k<3;k++) for (int n=0;n<3;n++) {
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].veldisp_star(k,n);
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    }
-    for (int k=0;k<3;k++){
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_star[k];
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    }
-
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].q_star;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].s_star;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (int k=0;k<3;k++) for (int n=0;n<3;n++) {
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].eigvec_star(k,n);
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    }
-
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Krot_star;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].t_mean_star;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Z_mean_star;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    if (opt.iextrastaroutput) {
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200mean_star;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200crit_star;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_BN98_star;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-
-        for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200mean_star[k];
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-        }
-        for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200crit_star[k];
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-        }
-        for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_BN98_star[k];
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-        }
-
-        if (opt.iInclusiveHalo>0) {
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200mean_excl_star;
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200crit_excl_star;
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_BN98_excl_star;
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
-
-            for (int k=0;k<3;k++){
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200mean_excl_star[k];
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
-            }
-            for (int k=0;k<3;k++){
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200crit_excl_star[k];
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
-            }
-            for (int k=0;k<3;k++){
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_BN98_excl_star[k];
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
-            }
-        }
-    }
-#endif
-#ifdef BHON
-    for (Int_t i=0;i<ngroups;i++) ((unsigned long*)data)[i]=pdata[i+1].n_bh;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_bh;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-#endif
-#ifdef HIGHRES
-    for (Int_t i=0;i<ngroups;i++) ((unsigned long*)data)[i]=pdata[i+1].n_interloper;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_interloper;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-#endif
-#if defined(GASON) && defined(STARON)
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_gas_sf;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Rhalfmass_gas_sf;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].sigV_gas_sf;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (int k=0;k<3;k++){
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_gas_sf[k];
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    }
-
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Krot_gas_sf;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Temp_mean_gas_sf;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Z_mean_gas_sf;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    if (opt.iextrastaroutput) {
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200mean_gas_sf;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200crit_gas_sf;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_BN98_gas_sf;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-
-        for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200mean_gas_sf[k];
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-        }
-        for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200crit_gas_sf[k];
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-        }
-        for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_BN98_gas_sf[k];
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-        }
-
-        if (opt.iInclusiveHalo>0) {
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200mean_excl_gas_sf;
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200crit_excl_gas_sf;
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_BN98_excl_gas_sf;
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
-
-            for (int k=0;k<3;k++){
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200mean_excl_gas_sf[k];
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
-            }
-            for (int k=0;k<3;k++){
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200crit_excl_gas_sf[k];
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
-            }
-            for (int k=0;k<3;k++){
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_BN98_excl_gas_sf[k];
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
-            }
-        }
-    }
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_gas_nsf;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Rhalfmass_gas_nsf;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].sigV_gas_nsf;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (int k=0;k<3;k++){
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_gas_nsf[k];
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    }
-
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Krot_gas_nsf;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Temp_mean_gas_nsf;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Z_mean_gas_nsf;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
-    if (opt.iextrastaroutput) {
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200mean_gas_nsf;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200crit_gas_nsf;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_BN98_gas_nsf;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-
-        for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200mean_gas_nsf[k];
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-        }
-        for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200crit_gas_nsf[k];
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-        }
-        for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_BN98_gas_nsf[k];
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-        }
-
-        if (opt.iInclusiveHalo>0) {
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200mean_excl_gas_nsf;
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200crit_excl_gas_nsf;
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_BN98_excl_gas_nsf;
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
-
-            for (int k=0;k<3;k++){
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200mean_excl_gas_nsf[k];
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
-            }
-            for (int k=0;k<3;k++){
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200crit_excl_gas_nsf[k];
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
-            }
-            for (int k=0;k<3;k++){
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_BN98_excl_gas_nsf[k];
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
-            }
-        }
-    }
-#endif
-    //output apertures
-    if (opt.iaperturecalc){
-        for (auto j=0;j<opt.aperturenum;j++) {
-            for (Int_t i=0;i<ngroups;i++) ((unsigned int*)data)[i]=pdata[i+1].aperture_npart[j];
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
-        }
-        for (auto j=0;j<opt.aperturenum;j++) {
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_mass[j];
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
-        }
-#ifdef GASON
-        for (auto j=0;j<opt.aperturenum;j++) {
-            for (Int_t i=0;i<ngroups;i++) ((unsigned int*)data)[i]=pdata[i+1].aperture_npart_gas[j];
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
-        }
-        for (auto j=0;j<opt.aperturenum;j++) {
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_mass_gas[j];
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
-        }
-#ifdef STARON
-        for (auto j=0;j<opt.aperturenum;j++) {
-            for (Int_t i=0;i<ngroups;i++) ((unsigned int*)data)[i]=pdata[i+1].aperture_npart_gas_sf[j];
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
-        }
-        for (auto j=0;j<opt.aperturenum;j++) {
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_mass_gas_sf[j];
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
-        }
-        for (auto j=0;j<opt.aperturenum;j++) {
-            for (Int_t i=0;i<ngroups;i++) ((unsigned int*)data)[i]=pdata[i+1].aperture_npart_gas_nsf[j];
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
-        }
-        for (auto j=0;j<opt.aperturenum;j++) {
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_mass_gas_nsf[j];
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
-        }
-#endif
-#endif
-#ifdef STARON
-        for (auto j=0;j<opt.aperturenum;j++) {
-            for (Int_t i=0;i<ngroups;i++) ((unsigned int*)data)[i]=pdata[i+1].aperture_npart_star[j];
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
-        }
-        for (auto j=0;j<opt.aperturenum;j++) {
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_mass_star[j];
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
-        }
-#endif
-        for (auto j=0;j<opt.aperturenum;j++) {
-            for (Int_t i=0;i<ngroups;i++) ((unsigned int*)data)[i]=pdata[i+1].aperture_veldisp[j];
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
-        }
-#ifdef GASON
-        for (auto j=0;j<opt.aperturenum;j++) {
-            for (Int_t i=0;i<ngroups;i++) ((unsigned int*)data)[i]=pdata[i+1].aperture_veldisp_gas[j];
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
-        }
-#ifdef STARON
-        for (auto j=0;j<opt.aperturenum;j++) {
-            for (Int_t i=0;i<ngroups;i++) ((unsigned int*)data)[i]=pdata[i+1].aperture_veldisp_gas_sf[j];
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
-        }
-        for (auto j=0;j<opt.aperturenum;j++) {
-            for (Int_t i=0;i<ngroups;i++) ((unsigned int*)data)[i]=pdata[i+1].aperture_veldisp_gas_nsf[j];
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
-        }
-#endif
-#endif
-#ifdef STARON
-        for (auto j=0;j<opt.aperturenum;j++) {
-            for (Int_t i=0;i<ngroups;i++) ((unsigned int*)data)[i]=pdata[i+1].aperture_veldisp_star[j];
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
-        }
-#endif
-    }
-    if (opt.SOnum>0) {
-        for (auto j=0;j<opt.SOnum;j++) {
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_mass[j];
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
-        }
-        for (auto j=0;j<opt.SOnum;j++) {
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_radius[j];
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
-        }
-#ifdef GASON
-        if (opt.iextragasoutput && opt.iextrahalooutput) {
-            for (auto j=0;j<opt.SOnum;j++) {
-                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_mass_gas[j];
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
-            }
-#ifdef STARON
-#endif
-        }
-#endif
-#ifdef STARON
-        if (opt.iextrastaroutput && opt.iextrahalooutput) {
-            for (auto j=0;j<opt.SOnum;j++) {
-                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_mass_star[j];
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
-            }
-        }
-#endif
-    }
-    if (opt.SOnum>0 && opt.iextrahalooutput) {
-    for (auto j=0;j<opt.SOnum;j++) {
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_angularmomentum[j][0];
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_angularmomentum[j][1];
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_angularmomentum[j][2];
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-    }
-#ifdef GASON
-    if (opt.iextragasoutput) {
-        for (auto j=0;j<opt.SOnum;j++) {
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_angularmomentum_gas[j][0];
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_angularmomentum_gas[j][1];
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_angularmomentum_gas[j][2];
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
-        }
-#ifdef STARON
-#endif
-    }
-#endif
-#ifdef STARON
-    if (opt.iextrastaroutput) {
-        for (auto j=0;j<opt.SOnum;j++) {
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_angularmomentum_star[j][0];
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_angularmomentum_star[j][1];
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_angularmomentum_star[j][2];
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
-        }
-    }
-#endif
-    }
-    //delete memory associated with void pointer
-    ::operator delete(data);
-    delete[] propdataspace;
-    delete[] propdataset;
-    Fhdf.close();
 #endif
 }
 //@}
