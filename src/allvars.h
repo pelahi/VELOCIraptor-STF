@@ -3809,41 +3809,41 @@ struct PropDataHeader{
             for (auto k=0;k<3;k++) {
             string projname = "Projected_apeture_"+to_string(k+1)+"_";
             for (auto i=0; i<opt.apertureprojnum;i++)
-                headerdatainfo.push_back(projname+string("mass_")+opt.aperture_names_kpc[i]+string("_kpc"));
+                headerdatainfo.push_back(projname+string("mass_")+opt.aperture_proj_names_kpc[i]+string("_kpc"));
 #ifdef GASON
             for (auto i=0; i<opt.apertureprojnum;i++)
-                headerdatainfo.push_back(projname+string("mass_gas_")+opt.aperture_names_kpc[i]+string("_kpc"));
+                headerdatainfo.push_back(projname+string("mass_gas_")+opt.aperture_proj_names_kpc[i]+string("_kpc"));
 #ifdef STARON
             for (auto i=0; i<opt.apertureprojnum;i++)
-                headerdatainfo.push_back(projname+string("mass_gas_sf_")+opt.aperture_names_kpc[i]+string("_kpc"));
+                headerdatainfo.push_back(projname+string("mass_gas_sf_")+opt.aperture_proj_names_kpc[i]+string("_kpc"));
             for (auto i=0; i<opt.apertureprojnum;i++)
-                headerdatainfo.push_back(projname+string("mass_gas_nsf_")+opt.aperture_names_kpc[i]+string("_kpc"));
+                headerdatainfo.push_back(projname+string("mass_gas_nsf_")+opt.aperture_proj_names_kpc[i]+string("_kpc"));
 #endif
 #endif
 #ifdef STARON
             for (auto i=0; i<opt.apertureprojnum;i++)
-                headerdatainfo.push_back(projname+string("mass_star_")+opt.aperture_names_kpc[i]+string("_kpc"));
+                headerdatainfo.push_back(projname+string("mass_star_")+opt.aperture_proj_names_kpc[i]+string("_kpc"));
 #endif
 
             for (auto i=0; i<opt.apertureprojnum;i++)
-                headerdatainfo.push_back(projname+string("rhalfmass_")+opt.aperture_names_kpc[i]+string("_kpc"));
+                headerdatainfo.push_back(projname+string("rhalfmass_")+opt.aperture_proj_names_kpc[i]+string("_kpc"));
 #ifdef GASON
             for (auto i=0; i<opt.apertureprojnum;i++)
-                headerdatainfo.push_back(projname+string("rhalfmass_gas_")+opt.aperture_names_kpc[i]+string("_kpc"));
+                headerdatainfo.push_back(projname+string("rhalfmass_gas_")+opt.aperture_proj_names_kpc[i]+string("_kpc"));
 #ifdef STARON
             for (auto i=0; i<opt.apertureprojnum;i++)
-                headerdatainfo.push_back(projname+string("rhalfmass_gas_sf_")+opt.aperture_names_kpc[i]+string("_kpc"));
+                headerdatainfo.push_back(projname+string("rhalfmass_gas_sf_")+opt.aperture_proj_names_kpc[i]+string("_kpc"));
             for (auto i=0; i<opt.apertureprojnum;i++)
-                headerdatainfo.push_back(projname+string("rhalfmass_gas_nsf_")+opt.aperture_names_kpc[i]+string("_kpc"));
+                headerdatainfo.push_back(projname+string("rhalfmass_gas_nsf_")+opt.aperture_proj_names_kpc[i]+string("_kpc"));
 #endif
 #endif
 #ifdef STARON
             for (auto i=0; i<opt.apertureprojnum;i++)
-                headerdatainfo.push_back(projname+string("rhalfmass_star_")+opt.aperture_names_kpc[i]+string("_kpc"));
+                headerdatainfo.push_back(projname+string("rhalfmass_star_")+opt.aperture_proj_names_kpc[i]+string("_kpc"));
 #endif
 #if defined(GASON) && defined(STARON)
             for (auto i=0; i<opt.apertureprojnum;i++)
-                headerdatainfo.push_back(projname+string("SFR_gas_")+opt.aperture_names_kpc[i]+string("_kpc"));
+                headerdatainfo.push_back(projname+string("SFR_gas_")+opt.aperture_proj_names_kpc[i]+string("_kpc"));
 #endif
             }
 #ifdef USEHDF

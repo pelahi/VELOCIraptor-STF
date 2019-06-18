@@ -5045,7 +5045,7 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
             #if defined(GASON) && defined(STARON)
             SFR = proj[j].SFR;
             #endif
-            if (rc>=opt.aperture_values_kpc[iaptindex]) {
+            if (rc>=opt.aperture_proj_values_kpc[iaptindex]) {
                 pdata.aperture_mass_proj[iaptindex][k]=EncMass;
                 #ifdef GASON
                 pdata.aperture_mass_proj_gas[iaptindex][k]=EncMassGas;
