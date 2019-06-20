@@ -1906,7 +1906,7 @@ void AdjustHaloPositionForPeriod(Options &opt, Int_t ngroup, Int_t *&numingroup,
 {
     if (opt.p==0) return;
 #ifdef USEOPENMP
-#pragma omp parallel default(shared) 
+#pragma omp parallel default(shared)
 {
     #pragma omp for nowait
 #endif
@@ -4898,7 +4898,9 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
             pdata.aperture_mass_gas[j]=EncMassGas;
             if (EncMassGas>0) pdata.aperture_veldisp_gas[j]=EncVelDispGas/EncMassGas;
             if (EncMassGas>0) pdata.aperture_vrdisp_gas[j]=EncVRDispGas/EncMassGas;
+            #ifdef STARON
             pdata.aperture_SFR_gas[j]=EncSFR;
+            #endif
         }
         #ifdef STARON
         if (pdata.aperture_mass_gas_sf[j]==-1)
@@ -5119,7 +5121,9 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
             #ifdef GASON
             if (pdata.aperture_mass_proj_gas[j][k]==-1) {
                 pdata.aperture_mass_proj_gas[j][k]=EncMassGas;
+                #ifdef STARON
                 pdata.aperture_SFR_proj_gas[j][k]=EncSFR;
+                #endif
             }
             #ifdef STARON
             if (pdata.aperture_mass_proj_gas_sf[j][k]==-1) pdata.aperture_mass_proj_gas_sf[j][k]=EncMassGasSF;
