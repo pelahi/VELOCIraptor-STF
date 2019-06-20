@@ -1902,6 +1902,31 @@ private(i)
 #endif
 }
 
+void AdjustHaloPositionForPeriod(Options &opt, Int_t ngroup, Int_t *&numingroup, PropData *&pdata)
+{
+    if (opt.p==0) return;
+#ifdef USEOPENMP
+#pragma omp parallel default(shared)
+{
+    #pragma omp for nowait
+#endif
+    for (auto i=1;i<=ngroup;i++)
+    {
+        //get relative positions of most bound an min pot particles
+        for (auto k=0;k<3;k++) {
+            if (pdata[i].gcm[k]<0) pdata[i].gcm[k]+=opt.p;
+            else if (pdata[i].gcm[k]>opt.p) pdata[i].gcm[k]-=opt.p;
+            if (pdata[i].gposmbp[k]<0) pdata[i].gposmbp[k]+=opt.p;
+            else if (pdata[i].gposmbp[k]>opt.p) pdata[i].gposmbp[k]-=opt.p;
+            if (pdata[i].gposminpot[k]<0) pdata[i].gposminpot[k]+=opt.p;
+            else if (pdata[i].gposminpot[k]>opt.p) pdata[i].gposminpot[k]-=opt.p;
+        }
+    }
+#ifdef USEOPENMP
+}
+#endif
+}
+
 ///calculate max distance from reference positions
 void GetMaximumSizes(Options &opt, Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&numingroup, PropData *&pdata, Int_t *&noffset) {
     Int_t i;
@@ -4534,7 +4559,8 @@ private(i,j)
     if (opt.iInclusiveHalo == 3) GetSOMasses(opt, nbodies, Part, ngroup,  numingroup, pdata);
     //and finally calculate concentrations
     GetNFWConcentrations(opt, ngroup, numingroup, pdata);
-    AdjustHaloPositionRelativeToReferenceFrame(opt, ngroup, numingroup, pdata);
+    //AdjustHaloPositionRelativeToReferenceFrame(opt, ngroup, numingroup, pdata);
+    AdjustHaloPositionForPeriod(opt, ngroup, numingroup, pdata);
 
     //before used to store the id in pglist and then have to reset particle order so that Ids correspond to indices
     //but to reduce computing time could just store index and leave particle array unchanged but only really necessary
@@ -4595,7 +4621,8 @@ void CalculateHaloProperties(Options &opt, const Int_t nbodies, Particle *Part, 
     if (opt.iInclusiveHalo == 3) GetSOMasses(opt, nbodies, Part, ngroup,  numingroup, pdata);
     //and finally calculate concentrations
     GetNFWConcentrations(opt, ngroup, numingroup, pdata);
-    AdjustHaloPositionRelativeToReferenceFrame(opt, ngroup, numingroup, pdata);
+    //AdjustHaloPositionRelativeToReferenceFrame(opt, ngroup, numingroup, pdata);
+    AdjustHaloPositionForPeriod(opt, ngroup, numingroup, pdata);
 
     for (i=1;i<=ngroup;i++) pdata[i].ibound=Part[noffset[i]].GetPID();
     for (i=1;i<=ngroup;i++) pdata[i].iunbound=Part[noffset[i]+numingroup[i]-1].GetPID();
@@ -4871,7 +4898,9 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
             pdata.aperture_mass_gas[j]=EncMassGas;
             if (EncMassGas>0) pdata.aperture_veldisp_gas[j]=EncVelDispGas/EncMassGas;
             if (EncMassGas>0) pdata.aperture_vrdisp_gas[j]=EncVRDispGas/EncMassGas;
+            #ifdef STARON
             pdata.aperture_SFR_gas[j]=EncSFR;
+            #endif
         }
         #ifdef STARON
         if (pdata.aperture_mass_gas_sf[j]==-1)
@@ -5092,7 +5121,9 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
             #ifdef GASON
             if (pdata.aperture_mass_proj_gas[j][k]==-1) {
                 pdata.aperture_mass_proj_gas[j][k]=EncMassGas;
+                #ifdef STARON
                 pdata.aperture_SFR_proj_gas[j][k]=EncSFR;
+                #endif
             }
             #ifdef STARON
             if (pdata.aperture_mass_proj_gas_sf[j][k]==-1) pdata.aperture_mass_proj_gas_sf[j][k]=EncMassGasSF;
