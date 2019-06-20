@@ -209,8 +209,10 @@ Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, const I
 Int_t GetHierarchy(Options &opt, Int_t ngroups, Int_t *nsub, Int_t *parentgid, Int_t *uparentgid, Int_t *stype);
 ///Copy hierarchy to PropData structure
 void CopyHierarchy(Options &opt, PropData *pdata,Int_t ngroups, Int_t *nsub, Int_t *parentgid, Int_t *uparentgid, Int_t *stype);
-///Adjust Structure search for period such that all substructure searches no longer have to run periodic searches
+///Adjust particles in structures for period such that all substructure searches no longer have to run periodic searches
 void AdjustStructureForPeriod(Options &opt, const Int_t nbodies, vector<Particle> &Part, Int_t numgroups, Int_t *pfof);
+///Adjust halo (object) positions back to inside the periodic volume.
+void AdjustHaloPositionForPeriod(Options &opt, Int_t ngroup, Int_t *&numingroup, PropData *&pdata);
 //@}
 
 /// \name Extra routines used in iterative search
