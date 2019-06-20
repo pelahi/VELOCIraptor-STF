@@ -138,12 +138,19 @@ void AdjustStarQuantities(Options &opt, vector<Particle> &Part, const Int_t nbod
         double tage;
         for (auto &p:Part) {
             if (p.GetType()!=STARTYPE) continue;
+            //if stellar age is initially stored as scale factor of formation
             if (opt.istellaragescalefactor == 1) {
                 tage = CalcCosmicTime(opt,p.GetTage(),opt.a);
             }
-            if (opt.istellaragescalefactor == 2) {
+            //if stellar age is initially stored as redshift of formation
+            else if (opt.istellaragescalefactor == 2) {
                 tage = CalcCosmicTime(opt,1.0/(p.GetTage()+1),opt.a);
             }
+            //if stellar age is initially stored as time of formation
+            else if (opt.istellaragescalefactor == 3) {
+                tage = opt.a-p.GetTage();
+            }
+            //if stellar age is initially stored as an age
             else tage = p.GetTage();
             tage*=opt.stellarageinputconversion;
             p.SetTage(tage);
