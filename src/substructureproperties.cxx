@@ -783,10 +783,8 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
                 mval=Pval->GetMass();
                 pdata[i].t_star+=Pval->GetTage();
                 pdata[i].t_mean_star+=mval*Pval->GetTage();
-#ifdef STARON
                 pdata[i].Z_star+=Pval->GetZmet();
                 pdata[i].Z_mean_star+=mval*Pval->GetZmet();
-#endif
                 x = (*Pval).X();
                 y = (*Pval).Y();
                 z = (*Pval).Z();
@@ -941,7 +939,8 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
 #ifdef HIGHRES
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
-            if (Pval->GetType()==DARKTYPE&&Pval->GetMass()>opt.zoomlowmassdm) {
+            if (Pval->GetType()==DARKTYPE&&Pval->GetMass()>opt.zoomlowmassdm)
+            {
                 pdata[i].n_interloper++;
                 pdata[i].M_interloper+=Pval->GetMass();
             }
@@ -2985,7 +2984,7 @@ void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup
     vector<Int_t> *SOpartlist=new vector<Int_t>[ngroup+1];
     vector<int> *SOparttypelist = NULL;
 
-#if defined(GASON) || defined(STARON) || defined(BHON)
+#if defined(GASON) || defined(STARON) || defined(BHON) || defined(HIGHRES)
     SOparttypelist=new vector<int>[ngroup+1];
 #endif
 
@@ -3073,16 +3072,16 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
             posparts.resize(taggedparts.size());
             velparts.resize(taggedparts.size());
         }
-#if defined(GASON) || defined(STARON) || defined(BHON)
-        if (opt.iextragasoutput || opt.iextrastaroutput || opt.iSphericalOverdensityPartList) typeparts.resize(taggedparts.size());
+#if defined(GASON) || defined(STARON) || defined(BHON) || defined(HIGHRES)
+        if (opt.iextragasoutput || opt.iextrastaroutput || opt.iextrainterloperoutput || opt.iSphericalOverdensityPartList) typeparts.resize(taggedparts.size());
 #endif
         if (opt.iSphericalOverdensityPartList) SOpids.resize(taggedparts.size());
         for (j=0;j<taggedparts.size();j++) {
             masses[j]=Part[taggedparts[j]].GetMass();
             if (opt.iSphericalOverdensityPartList) SOpids[j]=Part[taggedparts[j]].GetPID();
             radii[j]=0;
-#if defined(GASON) || defined(STARON) || defined(BHON)
-            if (opt.iextragasoutput || opt.iextrastaroutput || opt.iSphericalOverdensityPartList) typeparts[j]=Part[taggedparts[j]].GetType();
+#if defined(GASON) || defined(STARON) || defined(BHON) || defined(HIGHRES)
+            if (opt.iextragasoutput || opt.iextrastaroutput || opt.iextrainterloperoutput || opt.iSphericalOverdensityPartList) typeparts[j]=Part[taggedparts[j]].GetType();
 #endif
             for (k=0;k<3;k++) {
                 dx=Part[taggedparts[j]].GetPosition(k)-posref[k];
@@ -3113,15 +3112,15 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
                         posparts.resize(posparts.size()+taggedparts.size());
                         velparts.resize(velparts.size()+taggedparts.size());
                     }
-#if defined(GASON) || defined(STARON) || defined(BHON)
-                    if (opt.iextragasoutput || opt.iextrastaroutput || opt.iSphericalOverdensityPartList) typeparts.resize(typeparts.size()+taggedparts.size());
+#if defined(GASON) || defined(STARON) || defined(BHON) || defined(HIGHRES)
+                    if (opt.iextragasoutput || opt.iextrastaroutput || opt.iextrainterloperoutput || opt.iSphericalOverdensityPartList) typeparts.resize(typeparts.size()+taggedparts.size());
 #endif
                     if (opt.iSphericalOverdensityPartList) SOpids.resize(SOpids.size()+taggedparts.size());
                     for (j=0;j<taggedparts.size();j++) {
                         masses[offset+j]=PartDataGet[taggedparts[j]].GetMass();
                         if (opt.iSphericalOverdensityPartList) SOpids[j+offset]=PartDataGet[taggedparts[j]].GetPID();
-#if defined(GASON) || defined(STARON) || defined(BHON)
-                        if (opt.iextragasoutput || opt.iextrastaroutput || opt.iSphericalOverdensityPartList) typeparts[offset+j]=PartDataGet[taggedparts[j]].GetType();
+#if defined(GASON) || defined(STARON) || defined(BHON) || defined(HIGHRES)
+                        if (opt.iextragasoutput || opt.iextrastaroutput || opt.iextrainterloperoutput || opt.iSphericalOverdensityPartList) typeparts[offset+j]=PartDataGet[taggedparts[j]].GetType();
 #endif
                         radii[offset+j]=0;
                         for (k=0;k<3;k++) {
@@ -3320,7 +3319,26 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
                     }
                 }
 #endif
+#ifdef HIGHRES
+                if (opt.iextrainterloperoutput) {
+                    if (typeparts[indices[j]]==DARK2TYPE){
+                        if (rc<=pdata[i].gR200c) {
+                            pdata[i].M_200crit_interloper+=massval;
+                        }
+                        if (rc<=pdata[i].gR200m) {
+                            pdata[i].M_200mean_interloper+=massval;
+                        }
+                        if (rc<=pdata[i].gRBN98) {
+                            pdata[i].M_BN98_interloper+=massval;
+                        }
+                        for (auto iso=0;iso<opt.SOnum;iso++) if (rc<pdata[i].SO_radius[iso]) {
+                            pdata[i].SO_mass_interloper[iso]+=massval;
+                        }
+                    }
+                }
+#endif
             }
+
             if (pdata[i].gR200c != -1) {
                 pdata[i].glambda_B=pdata[i].gJ200c.Length()/(pdata[i].gM200c*sqrt(2.0*opt.G*pdata[i].gM200c*pdata[i].gR200c));
             }
@@ -3351,11 +3369,11 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
 
         if (opt.iSphericalOverdensityPartList) {
             SOpartlist[i].resize(llindex);
-#if defined(GASON) || defined(STARON) || defined(BHON)
+#if defined(GASON) || defined(STARON) || defined(BHON) || defined(HIGHRES)
             SOparttypelist[i].resize(llindex);
 #endif
             for (j=0;j<llindex;j++) SOpartlist[i][j]=SOpids[indices[j]];
-#if defined(GASON) || defined(STARON) || defined(BHON)
+#if defined(GASON) || defined(STARON) || defined(BHON) || defined(HIGHRES)
             for (j=0;j<llindex;j++) SOparttypelist[i][j]=typeparts[indices[j]];
 #endif
             SOpids.clear();
@@ -3367,8 +3385,8 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
             posparts.clear();
             velparts.clear();
         }
-#if defined(GASON) || defined(STARON) || defined(BHON)
-        if (opt.iextragasoutput || opt.iextrastaroutput) typeparts.clear();
+#if defined(GASON) || defined(STARON) || defined(BHON) || defined(HIGHRES)
+        if (opt.iextragasoutput || opt.iextrastaroutput || opt.iextrainterloperoutput) typeparts.clear();
 #endif
 
     }
@@ -3383,7 +3401,7 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
     if (opt.iSphericalOverdensityPartList) {
         WriteSOCatalog(opt, nhalos, SOpartlist, SOparttypelist);
         delete[] SOpartlist;
-#if defined(GASON) || defined(STARON) || defined(BHON)
+#if defined(GASON) || defined(STARON) || defined(BHON) || defined(HIGHRES)
         delete[] SOparttypelist;
 #endif
     }
@@ -4836,6 +4854,10 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
             if (EncMassStar>0) pdata.aperture_veldisp_star[iaptindex]=EncVelDispStar/EncMassStar;
             if (EncMassStar>0) pdata.aperture_vrdisp_star[iaptindex]=EncVRDispStar/EncMassStar;
             #endif
+            #ifdef HIGHRES
+            pdata.aperture_npart_interloper[iaptindex]=NinsideInterloper;
+            pdata.aperture_mass_interloper[iaptindex]=EncMassInterloper;
+            #endif
             iaptindex++;
         }
         if (iaptindex==opt.aperturenum) break;
@@ -4872,6 +4894,12 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
             EncMassStar+=mass;
             EncVelDispStar += veldisp;
             EncVRDispStar += vrdisp;
+        }
+        #endif
+        #ifdef HIGHRES
+        if (type==DARK2TYPE) {
+            NinsideInterloper++;
+            EncMassInterloper+=mass;
         }
         #endif
         #ifdef BHON
@@ -4926,6 +4954,13 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
             pdata.aperture_mass_star[j]=EncMassStar;
             if (EncMassStar>0) pdata.aperture_veldisp_star[j]=EncVelDispStar/EncMassStar;
             if (EncMassStar>0) pdata.aperture_vrdisp_star[j]=EncVRDispStar/EncMassStar;
+        }
+        #endif
+        #ifdef HIGHRES
+        if (pdata.aperture_mass_interloper[j]==-1)
+        {
+            pdata.aperture_npart_interloper[j]=NinsideInterloper;
+            pdata.aperture_mass_interloper[j]=EncMassInterloper;
         }
         #endif
     }
@@ -5082,7 +5117,6 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
                 #ifdef GASON
                 pdata.aperture_mass_proj_gas[iaptindex][k]=EncMassGas;
                 #ifdef STARON
-                pdata.aperture_SFR_proj_gas[iaptindex][k]=EncSFR;
                 pdata.aperture_mass_proj_gas_sf[iaptindex][k]=EncMassGasSF;
                 pdata.aperture_mass_proj_gas_nsf[iaptindex][k]=EncMassGasNSF;
                 #endif

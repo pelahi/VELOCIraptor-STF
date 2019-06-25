@@ -368,8 +368,10 @@ struct Options
     int iextragasoutput;
     /// calculate and output extra star fields
     int iextrastaroutput;
-    /// calculate and output extra star fields
+    /// calculate and output extra bh fields
     int iextrabhoutput;
+    /// calculate and output extra interloper fields
+    int iextrainterloperoutput;
     /// calculate subind like properties
     int isubfindproperties;
     ///for output, produce subfind like format
@@ -761,6 +763,7 @@ struct Options
         iextrahalooutput=0;
         iextragasoutput=0;
         iextrastaroutput=0;
+        iextrainterloperoutput=0;
         isubfindproperties=0;
 
 
@@ -1526,6 +1529,19 @@ struct PropData
     int n_interloper;
     ///mass
     Double_t M_interloper;
+    ///mass in spherical overdensities
+    Double_t M_200crit_interloper, M_200mean_interloper, M_BN98_interloper;
+    ///mass in spherical overdensities inclusive of all masses
+    Double_t M_200crit_excl_interloper, M_200mean_excl_interloper, M_BN98_excl_interloper;
+
+    vector<unsigned int> aperture_npart_interloper;
+    vector<float> aperture_mass_interloper;
+    vector<unsigned int> profile_npart_interloper;
+    vector<unsigned int> profile_npart_inclusive_interloper;
+    vector<float> profile_mass_interloper;
+    vector<float> profile_mass_inclusive_interloper;
+
+    vector<Double_t> SO_mass_interloper;
     //@}
 #endif
 
@@ -2980,6 +2996,16 @@ struct PropData
 #ifdef HIGHRES
         Fout<<n_interloper<<" ";
         Fout<<M_interloper<<" ";
+        if (opt.iextrainterloperoutput) {
+            Fout<<M_200mean_interloper<<" ";
+            Fout<<M_200crit_interloper<<" ";
+            Fout<<M_BN98_interloper<<" ";
+            if (opt.iInclusiveHalo>0) {
+                Fout<<M_200mean_excl_interloper<<" ";
+                Fout<<M_200crit_excl_interloper<<" ";
+                Fout<<M_BN98_excl_interloper<<" ";
+            }
+        }
 #endif
 
 #if defined(GASON) && defined(STARON)
@@ -3053,6 +3079,11 @@ struct PropData
                 Fout<<aperture_npart_star[j]<<" ";
             }
 #endif
+#ifdef HIGHRES
+            for (auto j=0;j<opt.aperturenum;j++) {
+                Fout<<aperture_npart_interloper[j]<<" ";
+            }
+#endif
             for (auto j=0;j<opt.aperturenum;j++) {
                 Fout<<aperture_mass[j]<<" ";
             }
@@ -3072,6 +3103,11 @@ struct PropData
 #ifdef STARON
             for (auto j=0;j<opt.aperturenum;j++) {
                 Fout<<aperture_mass_star[j]<<" ";
+            }
+#endif
+#ifdef HIGHRES
+            for (auto j=0;j<opt.aperturenum;j++) {
+                Fout<<aperture_mass_interloper[j]<<" ";
             }
 #endif
             for (auto j=0;j<opt.aperturenum;j++) {
@@ -3192,6 +3228,12 @@ struct PropData
             if (opt.iextrastaroutput && opt.iextrahalooutput)
             for (auto j=0;j<opt.SOnum;j++) {
                 Fout<<SO_mass_star[j]<<" ";
+            }
+#endif
+#ifdef HIGHRES
+            if (opt.iextrainterloperoutput && opt.iextrahalooutput)
+            for (auto j=0;j<opt.SOnum;j++) {
+                Fout<<SO_mass_interloper[j]<<" ";
             }
 #endif
         }
@@ -3619,6 +3661,16 @@ struct PropDataHeader{
         adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
 #endif
         headerdatainfo.push_back("M_interloper");
+        if (opt.iextragasoutput) {
+            headerdatainfo.push_back("Mass_200mean_interloper");
+            headerdatainfo.push_back("Mass_200crit_interloper");
+            headerdatainfo.push_back("Mass_BN98_interloper");
+            if (opt.iInclusiveHalo>0) {
+                headerdatainfo.push_back("Mass_200mean_excl_interloper");
+                headerdatainfo.push_back("Mass_200crit_excl_interloper");
+                headerdatainfo.push_back("Mass_BN98_excl_interloper");
+            }
+        }
 #ifdef USEHDF
         sizeval=predtypeinfo.size();
         for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
@@ -3732,6 +3784,10 @@ struct PropDataHeader{
             for (auto i=0; i<opt.aperturenum;i++)
                 headerdatainfo.push_back((string("Aperture_npart_star_")+opt.aperture_names_kpc[i]+string("_kpc")));
 #endif
+#ifdef HIGHRES
+            for (auto i=0; i<opt.aperturenum;i++)
+                headerdatainfo.push_back((string("Aperture_npart_interloper_")+opt.aperture_names_kpc[i]+string("_kpc")));
+#endif
 #ifdef USEHDF
             sizeval=predtypeinfo.size();
             for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(PredType::STD_U32LE);
@@ -3755,6 +3811,10 @@ struct PropDataHeader{
 #ifdef STARON
             for (auto i=0; i<opt.aperturenum;i++)
                 headerdatainfo.push_back((string("Aperture_mass_star_")+opt.aperture_names_kpc[i]+string("_kpc")));
+#endif
+#ifdef HIGHRES
+            for (auto i=0; i<opt.aperturenum;i++)
+                headerdatainfo.push_back((string("Aperture_mass_interloper_")+opt.aperture_names_kpc[i]+string("_kpc")));
 #endif
 
             for (auto i=0; i<opt.aperturenum;i++)
@@ -3895,6 +3955,19 @@ struct PropDataHeader{
             if (opt.iextrastaroutput && opt.iextrahalooutput) {
                 for (auto i=0; i<opt.SOnum;i++) {
                     headerdatainfo.push_back((string("SO_Mass_star_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
+#ifdef USEHDF
+                    predtypeinfo.push_back(desiredproprealtype[0]);
+#endif
+#ifdef USEADIOS
+                    adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
+#endif
+                }
+            }
+#endif
+#ifdef HIGHRES
+            if (opt.iextrainterloperoutput && opt.iextrahalooutput) {
+                for (auto i=0; i<opt.SOnum;i++) {
+                    headerdatainfo.push_back((string("SO_Mass_interloper_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
 #ifdef USEHDF
                     predtypeinfo.push_back(desiredproprealtype[0]);
 #endif

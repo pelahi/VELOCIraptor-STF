@@ -579,6 +579,10 @@ void GetParamFile(Options &opt)
                         opt.iextrahalooutput = atoi(vbuff);
                     else if (strcmp(tbuff, "Extensive_gas_properties_output")==0)
                         opt.iextragasoutput = atoi(vbuff);
+                    else if (strcmp(tbuff, "Extensive_star_properties_output")==0)
+                        opt.iextrastaroutput = atoi(vbuff);
+                    else if (strcmp(tbuff, "Extensive_interloper_properties_output")==0)
+                        opt.iextrainterloperoutput = atoi(vbuff);
                     else if (strcmp(tbuff, "Calculate_aperture_quantities")==0)
                         opt.iaperturecalc = atoi(vbuff);
                     else if (strcmp(tbuff, "Number_of_apertures")==0)

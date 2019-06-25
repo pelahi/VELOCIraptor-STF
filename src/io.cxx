@@ -2245,6 +2245,28 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_interloper;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
+        if (opt.iextrainterloperoutput) {
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200mean_interloper;
+            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+            itemp++;
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200crit_interloper;
+            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+            itemp++;
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_BN98_interloper;
+            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+            itemp++;
+            if (opt.iInclusiveHalo>0) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200mean_excl_interloper;
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200crit_excl_interloper;
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_BN98_excl_interloper;
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+        }
 #endif
 
 #if defined(GASON) && defined(STARON)
@@ -2441,6 +2463,13 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
                 itemp++;
             }
 #endif
+#ifdef HIGHRES
+            for (auto j=0;j<opt.aperturenum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((unsigned int*)data)[i]=pdata[i+1].aperture_npart_interloper[j];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+#endif
 
             for (auto j=0;j<opt.aperturenum;j++) {
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_mass[j];
@@ -2469,6 +2498,13 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
 #ifdef STARON
             for (auto j=0;j<opt.aperturenum;j++) {
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_mass_star[j];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+#endif
+#ifdef HIGHRES
+            for (auto j=0;j<opt.aperturenum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_mass_interloper[j];
                 propdataset[itemp].write(data,head.predtypeinfo[itemp]);
                 itemp++;
             }
@@ -2643,6 +2679,15 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
             if (opt.iextrastaroutput && opt.iextrahalooutput) {
                 for (auto j=0;j<opt.SOnum;j++) {
                     for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_mass_star[j];
+                    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                    itemp++;
+                }
+            }
+#endif
+#ifdef HIGHRES
+            if (opt.iextrainterloperoutput && opt.iextrahalooutput) {
+                for (auto j=0;j<opt.SOnum;j++) {
+                    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_mass_interloper[j];
                     propdataset[itemp].write(data,head.predtypeinfo[itemp]);
                     itemp++;
                 }
