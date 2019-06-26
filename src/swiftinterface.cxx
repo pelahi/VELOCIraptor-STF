@@ -241,17 +241,6 @@ void SetVelociraptorSimulationState(cosmoinfo c, siminfo s)
         libvelociraptorOpt.ellxscale*=libvelociraptorOpt.a;
         libvelociraptorOpt.uinfo.eps*=libvelociraptorOpt.a;
 
-        /*
-        Hubble=libvelociraptorOpt.h*libvelociraptorOpt.H*sqrt(libvelociraptorOpt.Omega_k*pow(libvelociraptorOpt.a,-2.0)+libvelociraptorOpt.Omega_m*pow(libvelociraptorOpt.a,-3.0)
-+libvelociraptorOpt.Omega_r*pow(libvelociraptorOpt.a,-4.0)+libvelociraptorOpt.Omega_Lambda+libvelociraptorOpt.Omega_de*pow(libvelociraptorOpt.a,-3.0*(1+libvelociraptorOpt.w_de)));
-        libvelociraptorOpt.rhobg=3.*Hubble*Hubble/(8.0*M_PI*libvelociraptorOpt.G)*libvelociraptorOpt.Omega_m;
-        //if libvelociraptorOpt.virlevel<0, then use virial overdensity based on Bryan and Norman 1998 virialization level is given by
-        if (libvelociraptorOpt.virlevel<0)
-        {
-            Double_t bnx=-(libvelociraptorOpt.Omega_k*pow(libvelociraptorOpt.a,-2.0)+libvelociraptorOpt.Omega_Lambda)/((1-libvelociraptorOpt.Omega_m-libvelociraptorOpt.Omega_Lambda)*pow(libvelociraptorOpt.a,-2.0)+libvelociraptorOpt.Omega_m*pow(libvelociraptorOpt.a,-3.0)+libvelociraptorOpt.Omega_Lambda);
-            libvelociraptorOpt.virlevel=(18.0*M_PI*M_PI+82.0*bnx-39*bnx*bnx)/libvelociraptorOpt.Omega_m;
-        }
-        */
         CalcOmegak(libvelociraptorOpt);
         Hubble=GetHubble(libvelociraptorOpt, libvelociraptorOpt.a);
         CalcCriticalDensity(libvelociraptorOpt, libvelociraptorOpt.a);
@@ -363,30 +352,27 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
             for (auto j=0;j<3;j++) swift_parts[i].x[j]*=libvelociraptorOpt.a;
             if(swift_parts[i].type == DARKTYPE) {
                 parts[dmOffset] = Particle(swift_parts[i]);
-                //set the swift mpi domain that this particle resides in
-                parts[dmOffset].SetSwiftTask(ThisTask);
-                parts[dmOffset].SetSwiftIndex(i);
                 dmOffset++;
             }
+            #ifdef HIGHRES
+            else if(swift_parts[i].type == DARK2TYPE) {
+                parts[dmOffset] = Particle(swift_parts[i]);
+                dmOffset++;
+            }
+            #endif
             else {
                 if(swift_parts[i].type == GASTYPE) {
                     pbaryons[baryonOffset] = Particle(swift_parts[i]);
-                    pbaryons[baryonOffset].SetSwiftTask(ThisTask);
-                    pbaryons[baryonOffset].SetSwiftIndex(i);
                     baryonOffset++;
                     gasOffset++;
                 }
                 else if(swift_parts[i].type == STARTYPE) {
                     pbaryons[baryonOffset] = Particle(swift_parts[i]);
-                    pbaryons[baryonOffset].SetSwiftTask(ThisTask);
-                    pbaryons[baryonOffset].SetSwiftIndex(i);
                     baryonOffset++;
                     starOffset++;
                 }
                 else if(swift_parts[i].type == BHTYPE) {
                     pbaryons[baryonOffset] = Particle(swift_parts[i]);
-                    pbaryons[baryonOffset].SetSwiftTask(ThisTask);
-                    pbaryons[baryonOffset].SetSwiftIndex(i);
                     baryonOffset++;
                     bhOffset++;
                 }
@@ -399,15 +385,20 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
     }
     else {
         for(auto i=0; i<Nlocal; i++) {
-            if(swift_parts[i].type != DARKTYPE && swift_parts[i].type != GASTYPE && swift_parts[i].type != STARTYPE && swift_parts[i].type != BHTYPE) {
+            if(swift_parts[i].type != DARKTYPE && swift_parts[i].type != GASTYPE && swift_parts[i].type != STARTYPE && swift_parts[i].type != BHTYPE)
+            {
+                //if high res then particle is also allowed to be type 2, a DARK2TYPE
+                #ifdef HIGHRES
+                if (swift_parts[i].type != DARK2TYPE) {
+                #endif
                 cout<<"Unknown particle type found: index="<<i<<" type="<<swift_parts[i].type<<" when loading particles. Exiting..."<<endl;
                 return NULL;
+                #ifdef HIGHRES
+                }
+                #endif
             }
             for (auto j=0;j<3;j++) swift_parts[i].x[j]*=libvelociraptorOpt.a;
             parts[i] = Particle(swift_parts[i]);
-            //set the swift mpi domain that this particle resides in
-            parts[i].SetSwiftTask(ThisTask);
-            parts[i].SetSwiftIndex(i);
         }
     }
 

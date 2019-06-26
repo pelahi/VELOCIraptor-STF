@@ -3227,6 +3227,19 @@ void MPIBuildGridData(const Int_t ngrid, GridCell *grid, Coordinate *gvel, Matri
 }
 //@}
 
+/// \name config updates for MPI
+//@{
+///Update config option for particle types present
+void MPIUpdateUseParticleTypes(Options &opt)
+{
+    MPI_Bcast(&(opt.iusestarparticles),sizeof(opt.iusestarparticles),MPI_BYTE,0,MPI_COMM_WORLD);
+    MPI_Bcast(&(opt.iusesinkparticles),sizeof(opt.iusesinkparticles),MPI_BYTE,0,MPI_COMM_WORLD);
+    MPI_Bcast(&(opt.iusewindparticles),sizeof(opt.iusewindparticles),MPI_BYTE,0,MPI_COMM_WORLD);
+    MPI_Bcast(&(opt.iusetracerparticles),sizeof(opt.iusetracerparticles),MPI_BYTE,0,MPI_COMM_WORLD);
+    MPI_Bcast(&(opt.iuseextradarkparticles),sizeof(opt.iuseextradarkparticles),MPI_BYTE,0,MPI_COMM_WORLD);
+}
+//@}
+
 /// \name comparison functions used to assign particles to a specific mpi thread
 //@{
 ///comprasion function used to sort particles for export so that all particles being exported to the same processor are in a contiguous block and well ordered
