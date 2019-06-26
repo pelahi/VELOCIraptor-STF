@@ -209,6 +209,7 @@ struct HDF_Group_Names {
     H5std_string Header_name;
     H5std_string GASpart_name;
     H5std_string DMpart_name;
+	H5std_string EXTRADMpart_name;
     H5std_string EXTRApart_name;
     H5std_string TRACERpart_name;
     H5std_string STARpart_name;
@@ -223,7 +224,8 @@ struct HDF_Group_Names {
             Header_name=H5std_string("Header");
             GASpart_name=H5std_string("PartType0");
             DMpart_name=H5std_string("PartType1");
-            EXTRApart_name=H5std_string("PartType2");
+			EXTRADMpart_name=H5std_string("PartType2");
+			EXTRApart_name=H5std_string("PartType2");
             TRACERpart_name=H5std_string("PartType3");
             STARpart_name=H5std_string("PartType4");
             BHpart_name=H5std_string("PartType5");
@@ -233,6 +235,7 @@ struct HDF_Group_Names {
             Header_name=H5std_string("Header");
             GASpart_name=H5std_string("PartType0");
             DMpart_name=H5std_string("PartType1");
+			EXTRADMpart_name=H5std_string("PartType2");
             EXTRApart_name=H5std_string("PartType2");
             TRACERpart_name=H5std_string("PartType3");
             STARpart_name=H5std_string("PartType4");
@@ -242,16 +245,24 @@ struct HDF_Group_Names {
 
         part_names[0]=GASpart_name;
         part_names[1]=DMpart_name;
-        part_names[2]=EXTRApart_name;
-        part_names[3]=TRACERpart_name;
+		#ifdef HIGHRES
+        part_names[2]=EXTRADMpart_name;
+		#else
+		part_names[2]=EXTRApart_name;
+		#endif
+		part_names[3]=TRACERpart_name;
         part_names[4]=STARpart_name;
         part_names[5]=BHpart_name;
 
         names[0]=Header_name;
         names[1]=GASpart_name;
         names[2]=DMpart_name;
+		#ifdef HIGHRES
+		names[3]=EXTRADMpart_name;
+		#else
         names[3]=EXTRApart_name;
-        names[4]=TRACERpart_name;
+		#endif
+		names[4]=TRACERpart_name;
         names[5]=STARpart_name;
         names[6]=BHpart_name;
     }

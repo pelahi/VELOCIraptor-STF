@@ -75,6 +75,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     HDF_Header *hdf_header_info;
     HDF_Part_Info hdf_gas_info(HDFGASTYPE,opt.ihdfnameconvention);
     HDF_Part_Info hdf_dm_info(HDFDMTYPE,opt.ihdfnameconvention);
+    HDF_Part_Info hdf_extradm_info(HDFDM1TYPE,opt.ihdfnameconvention);
     HDF_Part_Info hdf_tracer_info(HDFTRACERTYPE,opt.ihdfnameconvention);
     HDF_Part_Info hdf_star_info(HDFSTARTYPE,opt.ihdfnameconvention);
     HDF_Part_Info hdf_bh_info(HDFBHTYPE,opt.ihdfnameconvention);
@@ -82,8 +83,13 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     HDF_Part_Info *hdf_parts[NHDFTYPE];
     hdf_parts[0]=&hdf_gas_info;
     hdf_parts[1]=&hdf_dm_info;
-    //hdf_parts[2]=(void*)&hdf_extra_info;
+    #ifdef HIGHRES
+    hdf_parts[2]=&hdf_extradm_info;
+    hdf_parts[3]=&hdf_extradm_info;
+    #else
+    hdf_parts[2]=&hdf_extradm_info;
     hdf_parts[3]=&hdf_tracer_info;
+    #endif
     hdf_parts[4]=&hdf_star_info;
     hdf_parts[5]=&hdf_bh_info;
 
@@ -127,7 +133,10 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
         usetypes[nusetypes++]=HDFGASTYPE;usetypes[nusetypes++]=HDFDMTYPE;
         if (opt.iuseextradarkparticles) {
             usetypes[nusetypes++]=HDFDM1TYPE;
-            usetypes[nusetypes++]=HDFDM2TYPE;
+            if (opt.ihdfnameconvention!=HDFSWIFTEAGLENAMES)
+			{
+				usetypes[nusetypes++]=HDFDM2TYPE;
+			}
     	}
         if (opt.iusestarparticles) usetypes[nusetypes++]=HDFSTARTYPE;
         if (opt.iusesinkparticles) usetypes[nusetypes++]=HDFBHTYPE;
@@ -137,7 +146,10 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
         nusetypes=1;usetypes[0]=HDFDMTYPE;
         if (opt.iuseextradarkparticles) {
             usetypes[nusetypes++]=HDFDM1TYPE;
-            usetypes[nusetypes++]=HDFDM2TYPE;
+            if (opt.ihdfnameconvention!=HDFSWIFTEAGLENAMES)
+			{
+				usetypes[nusetypes++]=HDFDM2TYPE;
+			}
         }
         if (opt.iBaryonSearch) {
             nbusetypes=1;usetypes[nusetypes+nbusetypes++]=HDFGASTYPE;

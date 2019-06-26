@@ -560,6 +560,10 @@ struct Options
     //@{
     /// input naming convention
     int ihdfnameconvention;
+    /// input contains dm particles
+    int iusedmparticles;
+    /// input contains hydro/gas particles
+    int iusegasparticles;
     /// input contains star particles
     int iusestarparticles;
     /// input contains black hole/sink particles
@@ -766,7 +770,8 @@ struct Options
         iextrainterloperoutput=0;
         isubfindproperties=0;
 
-
+        iusedmparticles=1;
+        iusegasparticles=1;
         iusestarparticles=1;
         iusesinkparticles=1;
         iusewindparticles=0;
