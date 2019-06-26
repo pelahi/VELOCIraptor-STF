@@ -676,6 +676,38 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
         headerattribs=get_attribute(Fhdf, hdf_header_info.names[hdf_header_info.INumTotHW]);
         headerattribs.read(PredType::NATIVE_UINT,&uintbuff);
         for (j=0;j<NHDFTYPE;j++) hdf_header_info.npartTotalHW[j]=uintbuff[j];
+		//check to see if VR configured to load a particle type but none present in data.
+
+		if (opt.partsearchtype==PSTALL) {
+			if (opt.iusestarparticles && hdf_header_info.npartTotalHW[HDFSTARTYPE] == 0 && hdf_header_info.npartTotal[HDFSTARTYPE] == 0)
+			{
+				cerr<<"Warning: Configured to load star particles but none present"<<endl;
+				opt.iusestarparticles=0;
+			}
+			if (opt.iusesinkparticles && hdf_header_info.npartTotalHW[HDFBHTYPE] == 0 && hdf_header_info.npartTotal[HDFBHTYPE] == 0)
+			{
+				cerr<<"Warning: Configured to load black hole particles but none present"<<endl;
+				opt.iusesinkparticles=0;
+			}
+			if (opt.iusewindparticles && hdf_header_info.npartTotalHW[HDFWINDTYPE] == 0 && hdf_header_info.npartTotal[HDFWINDTYPE] == 0)
+			{
+				cerr<<"Warning: Configured to load wind particles but none present"<<endl;
+				opt.iusewindparticles=0;
+			}
+			if (opt.iusetracerparticles && hdf_header_info.npartTotalHW[HDFTRACERTYPE] == 0 && hdf_header_info.npartTotal[HDFTRACERTYPE] == 0)
+			{
+				cerr<<"Warning: Configured to load tracer particles but none present"<<endl;
+				opt.iusetracerparticles=0;
+			}
+			#ifdef HIGHRES
+			if (opt.iuseextradarkparticles && hdf_header_info.npartTotalHW[HDFDM1TYPE] == 0 && hdf_header_info.npartTotal[HDFDM1TYPE] == 0
+			&& hdf_header_info.npartTotalHW[HDFDM2TYPE] == 0 && hdf_header_info.npartTotal[HDFDM2TYPE] == 0)
+			{
+				cerr<<"Warning: Configured to load extra low res dark matter particles but none present"<<endl;
+				opt.iuseextradarkparticles=0;
+			}
+			#endif
+		}
     }
     catch(GroupIException &error)
     {

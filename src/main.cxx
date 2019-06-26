@@ -151,8 +151,11 @@ int main(int argc,char **argv)
         }
         else nbaryons=0;
     }
+
 #ifdef USEMPI
     MPI_Bcast(&nbodies,1, MPI_Int_t,0,MPI_COMM_WORLD);
+    //if MPI, possible desired particle types not present in file so update used particle types
+    MPIUpdateUseParticleTypes(opt);
     if (opt.iBaryonSearch>0) MPI_Bcast(&nbaryons,1, MPI_Int_t,0,MPI_COMM_WORLD);
     //initial estimate need for memory allocation assuming that work balance is not greatly off
 #endif
