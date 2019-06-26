@@ -410,7 +410,9 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
     // Perform FOF search.
     //
     time1=MyGetTime();
+    CheckSwiftTasks(string("Before searching full set"), Nlocal,parts.data());
     pfof=SearchFullSet(libvelociraptorOpt,Nlocal,parts,ngroup);
+    CheckSwiftTasks(string("AFTER searching full set"), Nlocal,parts.data());
     time1=MyGetTime()-time1;
     cout<<"TIME::"<<ThisTask<<" took "<<time1<<" to search "<<Nlocal<<" with "<<nthreads<<endl;
     nhalos=ngroup;
@@ -590,4 +592,28 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
     return group_info;
 }
 
+void CheckSwiftTasks(string message, const Int_t n, Particle *p){
+    #ifndef USEMPI
+    int ThisTask=0,NProcs=1;
+    #endif
+    int numbad = 0, numnonlocal=0;
+    cout<<"Checking swift tasks:"<<message<<endl;
+    for (auto i=0;i<n;i++) {
+        int task=p[i].GetSwiftTask();
+        int index = p[i].GetSwiftIndex();
+        if (task<0 || task>NProcs) {
+            cerr<<ThisTask<<" has odd swift particle with nonsensical swift task (cur index, swift index, swift task)=("<<i<<","<<index<<","<<task<<")"<<endl;
+            numbad++;
+        }
+        if (task!=ThisTask) numnonlocal++;
+    }
+    cout<<ThisTask<<" has "<<numnonlocal<<" swift particles "<<endl;
+    if (numbad>0) {
+        #ifdef USEMPI
+        MPI_Abort(MPI_COMM_WORLD,9);
+        #else
+        exit(9);
+        #endif
+    }
+}
 #endif
