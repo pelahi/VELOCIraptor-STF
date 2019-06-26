@@ -576,7 +576,13 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
         //lets assume there are dm/gas.
         nusetypes=0;
         usetypes[nusetypes++]=HDFGASTYPE;usetypes[nusetypes++]=HDFDMTYPE;
-        if (opt.iuseextradarkparticles) {usetypes[nusetypes++]=HDFDM1TYPE;usetypes[nusetypes++]=HDFDM2TYPE;}
+        if (opt.iuseextradarkparticles) {
+			usetypes[nusetypes++]=HDFDM1TYPE;
+			if (opt.ihdfnameconvention!=HDFSWIFTEAGLENAMES)
+			{
+				usetypes[nusetypes++]=HDFDM2TYPE;
+			}
+		}
         if (opt.iusestarparticles) usetypes[nusetypes++]=HDFSTARTYPE;
         if (opt.iusesinkparticles) usetypes[nusetypes++]=HDFBHTYPE;
         if (opt.iusewindparticles) usetypes[nusetypes++]=HDFWINDTYPE;
@@ -584,7 +590,13 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
     }
     else if (ptype==PSTDARK) {
         nusetypes=1;usetypes[0]=HDFDMTYPE;
-        if (opt.iuseextradarkparticles) usetypes[nusetypes++]=HDFDM1TYPE;usetypes[nusetypes++]=HDFDM2TYPE;
+        if (opt.iuseextradarkparticles) {
+			usetypes[nusetypes++]=HDFDM1TYPE;
+			if (opt.ihdfnameconvention!=HDFSWIFTEAGLENAMES)
+			{
+				usetypes[nusetypes++]=HDFDM2TYPE;
+			}
+		}
     }
     else if (ptype==PSTGAS) {nusetypes=1;usetypes[0]=HDFGASTYPE;}
     else if (ptype==PSTSTAR) {nusetypes=1;usetypes[0]=HDFSTARTYPE;}

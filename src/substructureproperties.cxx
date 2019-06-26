@@ -939,7 +939,7 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
 #ifdef HIGHRES
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
-            if (Pval->GetType()==DARKTYPE&&Pval->GetMass()>opt.zoomlowmassdm)
+            if (Pval->GetType() == DARK2TYPE || Pval->GetType() == DARK3TYPE || (Pval->GetType()==DARKTYPE&&Pval->GetMass()>opt.zoomlowmassdm))
             {
                 pdata[i].n_interloper++;
                 pdata[i].M_interloper+=Pval->GetMass();
@@ -1751,7 +1751,8 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
 #ifdef HIGHRES
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
-            if (Pval->GetType()==DARKTYPE&&Pval->GetMass()>opt.zoomlowmassdm) {
+            if (Pval->GetType() == DARK2TYPE || Pval->GetType() == DARK3TYPE || (Pval->GetType()==DARKTYPE&&Pval->GetMass()>opt.zoomlowmassdm))
+            {
                 pdata[i].n_interloper++;
                 pdata[i].M_interloper+=Pval->GetMass();
             }
@@ -3321,7 +3322,8 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
 #endif
 #ifdef HIGHRES
                 if (opt.iextrainterloperoutput) {
-                    if (typeparts[indices[j]]==DARK2TYPE){
+                    if (typeparts[indices[j]] == DARK2TYPE || typeparts[indices[j]] == DARK3TYPE || (typeparts[indices[j]]==DARKTYPE&&massval>opt.zoomlowmassdm))
+                    {
                         if (rc<=pdata[i].gR200c) {
                             pdata[i].M_200crit_interloper+=massval;
                         }
@@ -4897,7 +4899,8 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
         }
         #endif
         #ifdef HIGHRES
-        if (type==DARK2TYPE) {
+        if (type == DARK2TYPE || type == DARK3TYPE || (type==DARKTYPE&&mass>opt.zoomlowmassdm))
+        {
             NinsideInterloper++;
             EncMassInterloper+=mass;
         }
