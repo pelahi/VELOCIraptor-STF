@@ -586,7 +586,8 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
     if (ptype==PSTALL) {
         //lets assume there are dm/gas.
         nusetypes=0;
-        usetypes[nusetypes++]=HDFGASTYPE;usetypes[nusetypes++]=HDFDMTYPE;
+        if (opt.iusegasparticles) usetypes[nusetypes++]=HDFGASTYPE;
+		if (opt.iusedmparticles) usetypes[nusetypes++]=HDFDMTYPE;
         if (opt.iuseextradarkparticles) {
 			usetypes[nusetypes++]=HDFDM1TYPE;
 			if (opt.ihdfnameconvention!=HDFSWIFTEAGLENAMES)
