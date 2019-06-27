@@ -354,6 +354,12 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
                 parts[dmOffset] = Particle(swift_parts[i]);
                 dmOffset++;
             }
+            #ifdef HIGHRES
+            else if(swift_parts[i].type == DARK2TYPE) {
+                parts[dmOffset] = Particle(swift_parts[i]);
+                dmOffset++;
+            }
+            #endif
             else {
                 if(swift_parts[i].type == GASTYPE) {
                     pbaryons[baryonOffset] = Particle(swift_parts[i]);
