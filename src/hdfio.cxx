@@ -1980,6 +1980,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     ///to calculate the mean interparticle spacing.
     ///but one can also pass opt.Neff to adjust what the code thinks is the average inter particle spacing
 #ifdef HIGHRES
+    opt.zoomlowmassdm=MP_DM*mscale;
     if (opt.Neff==-1) {
       //Once smallest mass particle is found (which should correspond to highest resolution area,
       if (opt.Omega_b==0) MP_B=0;
@@ -1988,6 +1989,9 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     else {
       LN=opt.p/(Double_t)opt.Neff;
     }
+    #ifdef USEMPI
+    MPI_Bcast(&opt.zoomlowmassdm,sizeof(opt.zoomlowmassdm),MPI_BYTE,0,MPI_COMM_WORLD);
+    #endif
 #endif
 #ifdef USEMPI
     MPI_Bcast(&LN, 1, MPI_Real_t, 0, MPI_COMM_WORLD);
