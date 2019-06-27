@@ -209,6 +209,7 @@ struct HDF_Group_Names {
     H5std_string Header_name;
     H5std_string GASpart_name;
     H5std_string DMpart_name;
+	H5std_string EXTRADMpart_name;
     H5std_string EXTRApart_name;
     H5std_string TRACERpart_name;
     H5std_string STARpart_name;
@@ -223,7 +224,8 @@ struct HDF_Group_Names {
             Header_name=H5std_string("Header");
             GASpart_name=H5std_string("PartType0");
             DMpart_name=H5std_string("PartType1");
-            EXTRApart_name=H5std_string("PartType2");
+			EXTRADMpart_name=H5std_string("PartType2");
+			EXTRApart_name=H5std_string("PartType2");
             TRACERpart_name=H5std_string("PartType3");
             STARpart_name=H5std_string("PartType4");
             BHpart_name=H5std_string("PartType5");
@@ -233,6 +235,7 @@ struct HDF_Group_Names {
             Header_name=H5std_string("Header");
             GASpart_name=H5std_string("PartType0");
             DMpart_name=H5std_string("PartType1");
+			EXTRADMpart_name=H5std_string("PartType2");
             EXTRApart_name=H5std_string("PartType2");
             TRACERpart_name=H5std_string("PartType3");
             STARpart_name=H5std_string("PartType4");
@@ -242,16 +245,24 @@ struct HDF_Group_Names {
 
         part_names[0]=GASpart_name;
         part_names[1]=DMpart_name;
-        part_names[2]=EXTRApart_name;
-        part_names[3]=TRACERpart_name;
+		#ifdef HIGHRES
+        part_names[2]=EXTRADMpart_name;
+		#else
+		part_names[2]=EXTRApart_name;
+		#endif
+		part_names[3]=TRACERpart_name;
         part_names[4]=STARpart_name;
         part_names[5]=BHpart_name;
 
         names[0]=Header_name;
         names[1]=GASpart_name;
         names[2]=DMpart_name;
+		#ifdef HIGHRES
+		names[3]=EXTRADMpart_name;
+		#else
         names[3]=EXTRApart_name;
-        names[4]=TRACERpart_name;
+		#endif
+		names[4]=TRACERpart_name;
         names[5]=STARpart_name;
         names[6]=BHpart_name;
     }
@@ -575,8 +586,15 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
     if (ptype==PSTALL) {
         //lets assume there are dm/gas.
         nusetypes=0;
-        usetypes[nusetypes++]=HDFGASTYPE;usetypes[nusetypes++]=HDFDMTYPE;
-        if (opt.iuseextradarkparticles) {usetypes[nusetypes++]=HDFDM1TYPE;usetypes[nusetypes++]=HDFDM2TYPE;}
+        if (opt.iusegasparticles) usetypes[nusetypes++]=HDFGASTYPE;
+		if (opt.iusedmparticles) usetypes[nusetypes++]=HDFDMTYPE;
+        if (opt.iuseextradarkparticles) {
+			usetypes[nusetypes++]=HDFDM1TYPE;
+			if (opt.ihdfnameconvention!=HDFSWIFTEAGLENAMES)
+			{
+				usetypes[nusetypes++]=HDFDM2TYPE;
+			}
+		}
         if (opt.iusestarparticles) usetypes[nusetypes++]=HDFSTARTYPE;
         if (opt.iusesinkparticles) usetypes[nusetypes++]=HDFBHTYPE;
         if (opt.iusewindparticles) usetypes[nusetypes++]=HDFWINDTYPE;
@@ -584,7 +602,13 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
     }
     else if (ptype==PSTDARK) {
         nusetypes=1;usetypes[0]=HDFDMTYPE;
-        if (opt.iuseextradarkparticles) usetypes[nusetypes++]=HDFDM1TYPE;usetypes[nusetypes++]=HDFDM2TYPE;
+        if (opt.iuseextradarkparticles) {
+			usetypes[nusetypes++]=HDFDM1TYPE;
+			if (opt.ihdfnameconvention!=HDFSWIFTEAGLENAMES)
+			{
+				usetypes[nusetypes++]=HDFDM2TYPE;
+			}
+		}
     }
     else if (ptype==PSTGAS) {nusetypes=1;usetypes[0]=HDFGASTYPE;}
     else if (ptype==PSTSTAR) {nusetypes=1;usetypes[0]=HDFSTARTYPE;}
@@ -664,6 +688,38 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
         headerattribs=get_attribute(Fhdf, hdf_header_info.names[hdf_header_info.INumTotHW]);
         headerattribs.read(PredType::NATIVE_UINT,&uintbuff);
         for (j=0;j<NHDFTYPE;j++) hdf_header_info.npartTotalHW[j]=uintbuff[j];
+		//check to see if VR configured to load a particle type but none present in data.
+
+		if (opt.partsearchtype==PSTALL) {
+			if (opt.iusestarparticles && hdf_header_info.npartTotalHW[HDFSTARTYPE] == 0 && hdf_header_info.npartTotal[HDFSTARTYPE] == 0)
+			{
+				cerr<<"Warning: Configured to load star particles but none present"<<endl;
+				opt.iusestarparticles=0;
+			}
+			if (opt.iusesinkparticles && hdf_header_info.npartTotalHW[HDFBHTYPE] == 0 && hdf_header_info.npartTotal[HDFBHTYPE] == 0)
+			{
+				cerr<<"Warning: Configured to load black hole particles but none present"<<endl;
+				opt.iusesinkparticles=0;
+			}
+			if (opt.iusewindparticles && hdf_header_info.npartTotalHW[HDFWINDTYPE] == 0 && hdf_header_info.npartTotal[HDFWINDTYPE] == 0)
+			{
+				cerr<<"Warning: Configured to load wind particles but none present"<<endl;
+				opt.iusewindparticles=0;
+			}
+			if (opt.iusetracerparticles && hdf_header_info.npartTotalHW[HDFTRACERTYPE] == 0 && hdf_header_info.npartTotal[HDFTRACERTYPE] == 0)
+			{
+				cerr<<"Warning: Configured to load tracer particles but none present"<<endl;
+				opt.iusetracerparticles=0;
+			}
+			#ifdef HIGHRES
+			if (opt.iuseextradarkparticles && hdf_header_info.npartTotalHW[HDFDM1TYPE] == 0 && hdf_header_info.npartTotal[HDFDM1TYPE] == 0
+			&& hdf_header_info.npartTotalHW[HDFDM2TYPE] == 0 && hdf_header_info.npartTotal[HDFDM2TYPE] == 0)
+			{
+				cerr<<"Warning: Configured to load extra low res dark matter particles but none present"<<endl;
+				opt.iuseextradarkparticles=0;
+			}
+			#endif
+		}
     }
     catch(GroupIException &error)
     {

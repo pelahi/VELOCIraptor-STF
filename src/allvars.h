@@ -570,6 +570,10 @@ struct Options
     //@{
     /// input naming convention
     int ihdfnameconvention;
+    /// input contains dm particles
+    int iusedmparticles;
+    /// input contains hydro/gas particles
+    int iusegasparticles;
     /// input contains star particles
     int iusestarparticles;
     /// input contains black hole/sink particles
@@ -779,7 +783,8 @@ struct Options
         iextrainterloperoutput=0;
         isubfindproperties=0;
 
-
+        iusedmparticles=1;
+        iusegasparticles=1;
         iusestarparticles=1;
         iusesinkparticles=1;
         iusewindparticles=0;
@@ -1880,6 +1885,10 @@ struct PropData
             aperture_vrdisp_star.resize(opt.aperturenum);
             aperture_rhalfmass_star.resize(opt.aperturenum);
 #endif
+#ifdef HIGHRES
+            aperture_npart_interloper.resize(opt.aperturenum);
+            aperture_mass_interloper.resize(opt.aperturenum);
+#endif
             #if defined(GASON) || defined(STARON) || defined(BHON)
             //if searching all types, also store dm only aperture quantities
             if (opt.partsearchtype==PSTALL) {
@@ -1916,6 +1925,10 @@ struct PropData
             for (auto &x:aperture_mass_star) x=-1;
             for (auto &x:aperture_veldisp_star) x=0;
             for (auto &x:aperture_rhalfmass_star) x=-1;
+#endif
+#ifdef HIGHRES
+            for (auto &x:aperture_npart_interloper) x=0;
+            for (auto &x:aperture_mass_interloper) x=-1;
 #endif
             #if defined(GASON) || defined(STARON) || defined(BHON)
             if (opt.partsearchtype==PSTALL) {
@@ -2044,6 +2057,12 @@ struct PropData
                     for (auto &x:SO_mass_star) x=0;
                     SO_angularmomentum_star.resize(opt.SOnum);
                     for (auto &x:SO_angularmomentum_star) {x[0]=x[1]=x[2]=0;}
+                }
+#endif
+#ifdef HIGHRES
+                if (opt.iextrainterloperoutput) {
+                    SO_mass_interloper.resize(opt.SOnum);
+                    for (auto &x:SO_mass_interloper) x=0;
                 }
 #endif
             }
@@ -3674,7 +3693,7 @@ struct PropDataHeader{
         adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
 #endif
         headerdatainfo.push_back("M_interloper");
-        if (opt.iextragasoutput) {
+        if (opt.iextrainterloperoutput) {
             headerdatainfo.push_back("Mass_200mean_interloper");
             headerdatainfo.push_back("Mass_200crit_interloper");
             headerdatainfo.push_back("Mass_BN98_interloper");
@@ -4043,7 +4062,6 @@ struct PropDataHeader{
             }
 #endif
         }
-
     }
 };
 
