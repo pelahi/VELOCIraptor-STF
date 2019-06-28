@@ -135,18 +135,25 @@ void MPINumInDomainHDF(Options &opt)
     MPI_Status status;
 
     //structure stores the names of the groups in the hdf input
-    HDF_Group_Names hdf_gnames;
-    HDF_Part_Info hdf_gas_info(HDFGASTYPE);
-    HDF_Part_Info hdf_dm_info(HDFDMTYPE);
-    HDF_Part_Info hdf_tracer_info(HDFTRACERTYPE);
-    HDF_Part_Info hdf_star_info(HDFSTARTYPE);
-    HDF_Part_Info hdf_bh_info(HDFBHTYPE);
+    HDF_Group_Names hdf_gnames (opt.ihdfnameconvention);
+    //structures store names in groups
+    HDF_Part_Info hdf_gas_info(HDFGASTYPE,opt.ihdfnameconvention);
+    HDF_Part_Info hdf_dm_info(HDFDMTYPE,opt.ihdfnameconvention);
+    HDF_Part_Info hdf_extradm_info(HDFDM1TYPE,opt.ihdfnameconvention);
+    HDF_Part_Info hdf_tracer_info(HDFTRACERTYPE,opt.ihdfnameconvention);
+    HDF_Part_Info hdf_star_info(HDFSTARTYPE,opt.ihdfnameconvention);
+    HDF_Part_Info hdf_bh_info(HDFBHTYPE,opt.ihdfnameconvention);
 
     HDF_Part_Info *hdf_parts[NHDFTYPE];
     hdf_parts[0]=&hdf_gas_info;
     hdf_parts[1]=&hdf_dm_info;
-    //hdf_parts[2]=(void*)&hdf_extra_info;
+    #ifdef HIGHRES
+    hdf_parts[2]=&hdf_extradm_info;
+    hdf_parts[3]=&hdf_extradm_info;
+    #else
+    hdf_parts[2]=&hdf_extradm_info;
     hdf_parts[3]=&hdf_tracer_info;
+    #endif
     hdf_parts[4]=&hdf_star_info;
     hdf_parts[5]=&hdf_bh_info;
 
@@ -194,29 +201,7 @@ void MPINumInDomainHDF(Options &opt)
     int nusetypes,nbusetypes;
     int usetypes[NHDFTYPE];
     if (ireadtask[ThisTask]>=0) {
-        if (opt.partsearchtype==PSTALL) {
-            nusetypes=0;
-            //assume existance of dark matter and gas
-            usetypes[nusetypes++]=HDFGASTYPE;usetypes[nusetypes++]=HDFDMTYPE;
-            if (opt.iuseextradarkparticles) {
-                usetypes[nusetypes++]=HDFDM1TYPE;
-                usetypes[nusetypes++]=HDFDM2TYPE;
-        	}
-            if (opt.iusestarparticles) usetypes[nusetypes++]=HDFSTARTYPE;
-            if (opt.iusesinkparticles) usetypes[nusetypes++]=HDFBHTYPE;
-            if (opt.iusewindparticles) usetypes[nusetypes++]=HDFWINDTYPE;
-        }
-        else if (opt.partsearchtype==PSTDARK) {
-            nusetypes=1;usetypes[0]=HDFDMTYPE;
-            if (opt.iuseextradarkparticles) {
-                usetypes[nusetypes++]=HDFDM1TYPE;
-                usetypes[nusetypes++]=HDFDM2TYPE;
-            }
-        }
-        else if (opt.partsearchtype==PSTGAS) {nusetypes=1;usetypes[0]=HDFGASTYPE;}
-        else if (opt.partsearchtype==PSTSTAR) {nusetypes=1;usetypes[0]=HDFSTARTYPE;}
-        else if (opt.partsearchtype==PSTBH) {nusetypes=1;usetypes[0]=HDFBHTYPE;}
-
+        HDFSetUsedParticleTypes(opt,nusetypes,nbusetypes,usetypes);
         Fhdf=new H5File[opt.num_files];
         hdf_header_info=new HDF_Header[opt.num_files];
         headerdataspace=new DataSpace[opt.num_files];

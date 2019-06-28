@@ -127,43 +127,6 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     ///Since Illustris contains an unused type of particles (2) and tracer particles (3) really not useful to iterate over all particle types in loops
     int nusetypes,nbusetypes;
     int usetypes[NHDFTYPE];
-    if (opt.partsearchtype==PSTALL) {
-        nusetypes=0;
-        //assume existance of dark matter and gas
-        if (opt.iusegasparticles) usetypes[nusetypes++]=HDFGASTYPE;
-        if (opt.iusedmparticles) usetypes[nusetypes++]=HDFDMTYPE;
-        if (opt.iuseextradarkparticles) {
-            usetypes[nusetypes++]=HDFDM1TYPE;
-            if (opt.ihdfnameconvention!=HDFSWIFTEAGLENAMES)
-			{
-				usetypes[nusetypes++]=HDFDM2TYPE;
-			}
-    	}
-        if (opt.iusestarparticles) usetypes[nusetypes++]=HDFSTARTYPE;
-        if (opt.iusesinkparticles) usetypes[nusetypes++]=HDFBHTYPE;
-        if (opt.iusewindparticles) usetypes[nusetypes++]=HDFWINDTYPE;
-    }
-    else if (opt.partsearchtype==PSTDARK) {
-        nusetypes=1;usetypes[0]=HDFDMTYPE;
-        if (opt.iuseextradarkparticles) {
-            usetypes[nusetypes++]=HDFDM1TYPE;
-            if (opt.ihdfnameconvention!=HDFSWIFTEAGLENAMES)
-			{
-				usetypes[nusetypes++]=HDFDM2TYPE;
-			}
-        }
-        if (opt.iBaryonSearch) {
-            nbusetypes=1;usetypes[nusetypes+nbusetypes++]=HDFGASTYPE;
-            if (opt.iusestarparticles) usetypes[nusetypes+nbusetypes++]=HDFSTARTYPE;
-            if (opt.iusesinkparticles) usetypes[nusetypes+nbusetypes++]=HDFBHTYPE;
-        }
-    }
-    else if (opt.partsearchtype==PSTGAS) {nusetypes=1;usetypes[0]=HDFGASTYPE;}
-    else if (opt.partsearchtype==PSTSTAR) {nusetypes=1;usetypes[0]=HDFSTARTYPE;}
-    else if (opt.partsearchtype==PSTBH) {
-        nusetypes=1;usetypes[0]=HDFBHTYPE;
-    }
-
     Int_t i,j,k,n,nchunk,count,bcount,itemp,count2,bcount2;
 
     //store cosmology
@@ -179,6 +142,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     if (ThisTask == 0)
 #endif
     opt.num_files = HDF_get_nfiles (opt.fname, opt.partsearchtype);
+    HDFSetUsedParticleTypes(opt,nusetypes,nbusetypes,usetypes);
 
 #ifndef USEMPI
     Int_t Ntotal;
