@@ -577,9 +577,20 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
     }
 #endif
     CheckSwiftTasks(string("After reseting and return back to swift"), Nlocal,parts.data());
-    group_info = new groupinfo[Nlocal];
-    for (auto &p:parts) group_info[p.GetSwiftIndex()].groupid=p.GetPID();
-
+    qsort(parts.data(), Nlocal, sizeof(Particle), PIDCompare);
+    nig=0;
+    Int_t istart=0;
+    for (auto i=0;i<Nlocal;i++) if (parts[i].GetPID()>0) {nig=Nlocal-i;istart=i;break;}
+    *numpartingroups=nig;
+    group_info=NULL;
+    if (nig>0)
+    {
+        group_info = new groupinfo[nig];
+        for (auto i=istart;i<Nlocal;i++) {
+            group_info[i-istart].index=parts[i].GetSwiftIndex();
+            group_info[i-istart].groupid=parts[i].GetPID();
+        }
+    }
     /*
     for (auto i=1;i<=ngroup; i++) nig+=numingroup[i];
     for (auto i=0;i<Nlocal; i++) {

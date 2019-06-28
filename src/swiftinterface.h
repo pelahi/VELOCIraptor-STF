@@ -118,7 +118,7 @@ namespace Swift {
     };
 
     struct groupinfo {
-      //int index;
+      int index;
       long long groupid;
     };
 }
