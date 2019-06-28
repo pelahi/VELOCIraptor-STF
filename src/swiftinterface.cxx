@@ -416,9 +416,7 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
     // Perform FOF search.
     //
     time1=MyGetTime();
-    CheckSwiftTasks(string("Before searching full set"), Nlocal,parts.data());
     pfof=SearchFullSet(libvelociraptorOpt,Nlocal,parts,ngroup);
-    CheckSwiftTasks(string("AFTER searching full set"), Nlocal,parts.data());
     time1=MyGetTime()-time1;
     cout<<"TIME::"<<ThisTask<<" took "<<time1<<" to search "<<Nlocal<<" with "<<nthreads<<endl;
     nhalos=ngroup;
@@ -576,7 +574,6 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
     Nlocal = parts.size();
     }
 #endif
-    CheckSwiftTasks(string("After reseting and return back to swift"), Nlocal,parts.data());
     qsort(parts.data(), Nlocal, sizeof(Particle), PIDCompare);
     nig=0;
     Int_t istart=0;
@@ -591,35 +588,6 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
             group_info[i-istart].groupid=parts[i].GetPID();
         }
     }
-    /*
-    for (auto i=1;i<=ngroup; i++) nig+=numingroup[i];
-    for (auto i=0;i<Nlocal; i++) {
-        if (pfof[i]>0) parts[i].SetPID((pfof[i]+ngoffset)+libvelociraptorOpt.snapshotvalue);
-        else parts[i].SetPID(ngtot+1+libvelociraptorOpt.snapshotvalue);
-    }
-    delete[] pfof;
-    delete[] numingroup;
-    qsort(parts.data(), Nlocal, sizeof(Particle), PIDCompare);
-    parts.resize(nig);
-    Nlocal = parts.size();
-#ifdef USEMPI
-    if (NProcs > 1) {
-    for (auto i=0;i<Nlocal; i++) parts[i].SetID((parts[i].GetSwiftTask()==ThisTask));
-    //now sort items according to whether local swift task
-    qsort(parts.data(), nig, sizeof(Particle), IDCompare);
-    //communicate information
-    MPISwiftExchange(parts);
-    Nlocal = parts.size();
-    }
-#endif
-    *numpartingroups = Nlocal;
-    //now allocate mem and copy data
-    group_info = new groupinfo[Nlocal];
-    for (auto i=0;i<Nlocal; i++) {
-        group_info[i].groupid=parts[i].GetPID();
-        group_info[i].index=parts[i].GetSwiftIndex();
-    }
-    */
     cout<<"VELOCIraptor returning."<< endl;
 
     //free mem associate with mpi cell node ides
