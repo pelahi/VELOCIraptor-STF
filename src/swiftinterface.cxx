@@ -549,6 +549,7 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
 #endif
     cout<<"VELOCIraptor sorting info to return group ids to swift"<<endl;
     if (ngtot == 0) {
+        cout<<"No groups found"<<endl;
         //free mem associate with mpi cell node ides
         libvelociraptorOpt.cellnodeids = NULL;
         libvelociraptorOpt.cellloc = NULL;
@@ -559,7 +560,27 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
         *numpartingroups=nig;
         return NULL;
     }
+    //move particles back to original swift task
+    //store group id
+    for (auto i=0;i<Nlocal; i++) {
+        if (pfof[i]>0) parts[i].SetPID((pfof[i]+ngoffset)+libvelociraptorOpt.snapshotvalue);
+        else parts[i].SetPID(0);
+    }
+#ifdef USEMPI
+    if (NProcs > 1) {
+    for (auto i=0;i<Nlocal; i++) parts[i].SetID((parts[i].GetSwiftTask()==ThisTask));
+    //now sort items according to whether local swift task
+    qsort(parts.data(), nig, sizeof(Particle), IDCompare);
+    //communicate information
+    MPISwiftExchange(parts);
+    Nlocal = parts.size();
+    }
+#endif
+    CheckSwiftTasks(string("After reseting and return back to swift"), Nlocal,parts.data());
+    group_info = new groupinfo[Nlocal];
+    for (auto &p:parts) group_info[p.GetSwiftIndex()].groupid=p.GetPID();
 
+    /*
     for (auto i=1;i<=ngroup; i++) nig+=numingroup[i];
     for (auto i=0;i<Nlocal; i++) {
         if (pfof[i]>0) parts[i].SetPID((pfof[i]+ngoffset)+libvelociraptorOpt.snapshotvalue);
@@ -587,6 +608,7 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
         group_info[i].groupid=parts[i].GetPID();
         group_info[i].index=parts[i].GetSwiftIndex();
     }
+    */
     cout<<"VELOCIraptor returning."<< endl;
 
     //free mem associate with mpi cell node ides
