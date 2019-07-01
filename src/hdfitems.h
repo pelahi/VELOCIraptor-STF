@@ -549,6 +549,48 @@ struct HDF_Part_Info {
 };
 //@}
 
+/// \name Set the particle types to be load in from the HDF file
+//@{
+inline void HDFSetUsedParticleTypes(Options &opt, int &nusetypes, int &nbusetypes, int usetypes[])
+{
+	nusetypes=0;
+	if (opt.partsearchtype==PSTALL) {
+		nusetypes=0;
+        if (opt.iusegasparticles) usetypes[nusetypes++]=HDFGASTYPE;
+		if (opt.iusedmparticles) usetypes[nusetypes++]=HDFDMTYPE;
+        if (opt.iuseextradarkparticles) {
+			usetypes[nusetypes++]=HDFDM1TYPE;
+			if (opt.ihdfnameconvention!=HDFSWIFTEAGLENAMES)
+			{
+				usetypes[nusetypes++]=HDFDM2TYPE;
+			}
+		}
+        if (opt.iusestarparticles) usetypes[nusetypes++]=HDFSTARTYPE;
+        if (opt.iusesinkparticles) usetypes[nusetypes++]=HDFBHTYPE;
+        if (opt.iusewindparticles) usetypes[nusetypes++]=HDFWINDTYPE;
+        if (opt.iusetracerparticles) usetypes[nusetypes++]=HDFTRACERTYPE;
+	}
+	else if (opt.partsearchtype==PSTDARK) {
+		nusetypes=1;usetypes[0]=HDFDMTYPE;
+		if (opt.iuseextradarkparticles) {
+			usetypes[nusetypes++]=HDFDM1TYPE;
+			if (opt.ihdfnameconvention!=HDFSWIFTEAGLENAMES)
+			{
+				usetypes[nusetypes++]=HDFDM2TYPE;
+			}
+		}
+		if (opt.iBaryonSearch) {
+			nbusetypes=1;usetypes[nusetypes+nbusetypes++]=HDFGASTYPE;
+			if (opt.iusestarparticles) usetypes[nusetypes+nbusetypes++]=HDFSTARTYPE;
+			if (opt.iusesinkparticles) usetypes[nusetypes+nbusetypes++]=HDFBHTYPE;
+		}
+	}
+	else if (opt.partsearchtype==PSTGAS) {nusetypes=1;usetypes[0]=HDFGASTYPE;}
+	else if (opt.partsearchtype==PSTSTAR) {nusetypes=1;usetypes[0]=HDFSTARTYPE;}
+	else if (opt.partsearchtype==PSTBH) {nusetypes=1;usetypes[0]=HDFBHTYPE;}
+}
+//@}
+
 /// \name Get the number of particles in the hdf files
 //@{
 inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
@@ -581,39 +623,8 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
     //to determine types
     IntType inttype;
     StrType stringtype;
-    int nusetypes,usetypes[NHDFTYPE];
-
-    if (ptype==PSTALL) {
-        //lets assume there are dm/gas.
-        nusetypes=0;
-        if (opt.iusegasparticles) usetypes[nusetypes++]=HDFGASTYPE;
-		if (opt.iusedmparticles) usetypes[nusetypes++]=HDFDMTYPE;
-        if (opt.iuseextradarkparticles) {
-			usetypes[nusetypes++]=HDFDM1TYPE;
-			if (opt.ihdfnameconvention!=HDFSWIFTEAGLENAMES)
-			{
-				usetypes[nusetypes++]=HDFDM2TYPE;
-			}
-		}
-        if (opt.iusestarparticles) usetypes[nusetypes++]=HDFSTARTYPE;
-        if (opt.iusesinkparticles) usetypes[nusetypes++]=HDFBHTYPE;
-        if (opt.iusewindparticles) usetypes[nusetypes++]=HDFWINDTYPE;
-        if (opt.iusetracerparticles) usetypes[nusetypes++]=HDFTRACERTYPE;
-    }
-    else if (ptype==PSTDARK) {
-        nusetypes=1;usetypes[0]=HDFDMTYPE;
-        if (opt.iuseextradarkparticles) {
-			usetypes[nusetypes++]=HDFDM1TYPE;
-			if (opt.ihdfnameconvention!=HDFSWIFTEAGLENAMES)
-			{
-				usetypes[nusetypes++]=HDFDM2TYPE;
-			}
-		}
-    }
-    else if (ptype==PSTGAS) {nusetypes=1;usetypes[0]=HDFGASTYPE;}
-    else if (ptype==PSTSTAR) {nusetypes=1;usetypes[0]=HDFSTARTYPE;}
-    else if (ptype==PSTBH) {nusetypes=1;usetypes[0]=HDFBHTYPE;}
-    //else if (ptype==PSTNOBH) {nusetypes=3;usetypes[0]=0;usetypes[1]=1;usetypes[2]=4;}
+    int nusetypes,usetypes[NHDFTYPE],nbusetypes;
+	HDFSetUsedParticleTypes(opt,nusetypes,nbusetypes,usetypes);
 
     //Try block to detect exceptions raised by any of the calls inside it
     try
