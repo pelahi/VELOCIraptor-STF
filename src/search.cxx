@@ -3121,24 +3121,19 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
         //substructure they are reassigned to the uber parent halo
         pfofold=new Int_t[nparts];
         for (i=0;i<nparts;i++) pfofold[i]=pfofall[i];
-        //vector<Int_t> oldnuminhalos;
         //Only unbind subhalos if desired.
         if (opt.iBoundHalos==0) {
-            //oldnuminhalos.resize(nhalos+1);
-            //this can be done by setting the number in the group to the negative value as values below zero will
-            //ignored 
+            //this can be done by setting the number in the group to the negative value
+            //as values below zero will ignored
             for (i=1;i<=nhalos;i++) {
-                //oldnuminhalos[i]=ningall[i];
                 ningall[i]=-ningall[i];
             }
         }
         if (CheckUnboundGroups(opt,nparts, Part.data(), ngroupdark, pfofall, ningall,pglistall,0)) {
             if (opt.iBoundHalos==0) {
                 for (i=1;i<=nhalos;i++) {
-                    //ningall[i]=oldnuminhalos[i];
                     ningall[i]=-ningall[i];
                 }
-                //oldnuminhalos.resize(0);
             }
             //now if pfofall is zero but was a substructure reassign back to uber parent
             //so long as that uber parent still exists.
@@ -3213,6 +3208,28 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
                 papsldata[i]->nsinlevel=ninlevel;
             }
             if (opt.iverbose) cout<<ThisTask<<" Reorder after finding baryons and unbinding, previously had "<<ng<<" groups and now have "<<ngroupdark<<endl;
+            //reorder group ids, keeping the ordering unchanged.
+            map<Int_t, Int_t> remap;
+            Int_t newng=0, oldpid, newpid;
+            remap[0]=0;
+
+            for (auto i=1;i<=ng;i++) {
+                if (ningall[i]>0) {
+                    newng++;
+                    remap[ningall[i]]=newng;
+                }
+                else{
+                    remap[ningall[i]]=0;
+                }
+            }
+            for (i=0;i<nparts;i++)
+            {
+                oldpid = pfofall[Part[i].GetID()];
+                if (oldpid==0) continue;
+                newpid = remap[oldpid];
+                if (oldpid==newpid) continue;
+                pfofall[Part[i].GetID()] = newpid;
+            }
             /*
             //reorder groups just according to number of dark matter particles
             //and whether object is a substructure or not. First get current number of dark matter particles
@@ -3230,6 +3247,7 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
             nhalos=papsldata[0]->nsinlevel;
             if (iinclusive) ReorderGroupIDsAndHaloDatabyValue(ng, ngroupdark, ningall, pfofall, pglistall, numingroup, pdata);
             else ReorderGroupIDsbyValue(ng, ngroupdark, ningall, pfofall, pglistall, numingroup);
+            */
             if (opt.iverbose) cout<<ThisTask<<" Done"<<endl;
             delete[] numingroup;
             delete[] ningall;
@@ -3237,7 +3255,11 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
             delete[] pglistall;
             for (i=nhierarchy-1;i>=0;i--) papsldata[i]=NULL;
             delete[] papsldata;
-            */
+        }
+        else {
+            delete[] ningall;
+            for (i=1;i<=ng;i++) delete[] pglistall[i];
+            delete[] pglistall;
         }
         delete[] pfofold;
         delete[] nsub;
