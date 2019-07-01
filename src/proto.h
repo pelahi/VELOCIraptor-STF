@@ -448,6 +448,9 @@ void OpenMPHeadNextUpdate(const Int_t nbodies, vector<Particle> &Part, const Int
 /// for format specific stuff see related routines like \ref mpigadgetio.cxx or \ref mpitipsyio.cxx
 //@{
 
+///Update config options across mpi tasks of particles to load 
+void MPIUpdateUseParticleTypes(Options &opt);
+
 ///Domain decomposition of system
 void MPIInitialDomainDecomposition();
 ///Domain extent

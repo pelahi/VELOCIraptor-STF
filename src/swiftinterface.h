@@ -147,6 +147,7 @@ void SetVelociraptorSimulationState(Swift::cosmoinfo, Swift::siminfo);
 ///global libvelociraptorOptions structure that is used when calling library velociraptor from swift
 extern Options libvelociraptorOpt;
 
+void CheckSwiftTasks(string message, const Int_t n, Particle *p);
 #endif
 
 #endif
