@@ -510,7 +510,8 @@ void GetVelocityDensityExact(Options &opt, const Int_t nbodies, Particle *Part, 
     Int_t nimport;
     Int_t *nnidsneighbours;
     Double_t *nnr2neighbours;
-    Double_t *maxrdist = new Double_t[nbodies];
+    Double_t *maxrdist=NULL;
+    maxrdist = new Double_t[nbodies];
 #endif
 
 #ifndef USEOPENMP
@@ -550,6 +551,7 @@ private(i,j,k,tid,id,v2,nnids,nnr2,weight,pqv)
         tree->FindNearest(i,nnids,nnr2,opt.Nsearch);
 #endif
 #ifdef USEMPI
+        if (opt.iLocalVelDenApproxCalcFlag==1) {
         //once NN set is found, store maxrdist and see if particle's search radius overlaps with another mpi domain
         maxrdist[i]=sqrt(nnr2[opt.Nsearch-1]);
 #ifdef SWIFTINTERFACE
@@ -564,6 +566,7 @@ private(i,j,k,tid,id,v2,nnids,nnr2,weight,pqv)
         }
 #endif
         maxrdist[i]=0.0;
+        }
 #endif
         for (j=0;j<opt.Nvel;j++) {
             pqv->Push(-1, MAXVALUE);
@@ -741,7 +744,7 @@ void GetVelocityDensityApproximative(Options &opt, const Int_t nbodies, Particle
     //if using mpi run NN search store largest distance for each particle so that export list can be built.
     //if calculating using only particles IN a structure,
     Int_t nimport;
-    Double_t *maxrdist;
+    Double_t *maxrdist=NULL;
     Double_t *weight;
     Int_t *nnids,*nnidsneighbours;
     Double_t *nnr2, *nnr2neighbours;
@@ -851,6 +854,7 @@ reduction(+:nprocessed,ntot)
         tree->FindNearestPos(leafnodes[i].cm,nnids,nnr2,opt.Nsearch);
 #endif
 #ifdef USEMPI
+        if (opt.iLocalVelDenApproxCalcFlag==1) {
         leafnodes[i].searchdist = sqrt(nnr2[opt.Nsearch-1]);
         //check if search region from Particle extends into other mpi domain, if so, skip particles
 #ifdef SWIFTINTERFACE
@@ -859,6 +863,7 @@ reduction(+:nprocessed,ntot)
         if (MPISearchForOverlap(leafnodes[i].cm,leafnodes[i].searchdist)!=0) continue;
 #endif
         leafnodes[i].searchdist = 0;
+	}
 #endif
         nprocessed += leafnodes[i].num;
         for (auto j=leafnodes[i].istart;j<leafnodes[i].iend;j++)
@@ -892,26 +897,20 @@ reduction(+:nprocessed,ntot)
 #endif
 
 #ifdef USEMPI
-    if (NProcs >1) {
+    //if search is fully approximative, then since particles have been localized to mpi domains in FOF groups, don't search neighbour mpi domains
+    if (NProcs >1 && opt.iLocalVelDenApproxCalcFlag==1) {
     if (opt.iverbose) {
         cout<<ThisTask<<" finished local calculation in "<<MyGetTime()-time2<<endl;
         cout<<" fraction that is local"<<nprocessed/(float)ntot<<endl;
     }
     time2=MyGetTime();
     maxrdist=new Double_t[nbodies];
-    double maxmaxr = 0;
-#ifdef USEOPENMP
-#pragma omp parallel default(shared)
-{
-#endif
+    //double maxmaxr = 0;
     for (auto i=0;i<numleafnodes;i++)
     {
         for (auto j=leafnodes[i].istart;j<leafnodes[i].iend;j++) maxrdist[j]=leafnodes[i].searchdist;
-        if (leafnodes[i].searchdist > maxmaxr) maxmaxr = leafnodes[i].searchdist;
     }
-#ifdef USEOPENMP
-}
-#endif
+
     //determines export AND import numbers
 #ifdef SWIFTINTERFACE
     MPIGetNNExportNumUsingMesh(libvelociraptorOpt, nbodies, Part, maxrdist);
@@ -942,13 +941,13 @@ reduction(+:nprocessed,ntot)
         treeneighbours=new KDTree(PartDataGet,nimport,1,tree->TPHYS,tree->KEPAN,100,0,0,0,period);
         treeneighbours->SetResetOrder(false);
         nprocessed=0;
-/*
+
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
-private(id,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,pqx,pqv,Pval)
+private(id,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,pqx,pqv,Pval,pid2)
 {
 #endif
-*/
+
     nnids=new Int_t[opt.Nsearch];
     nnr2=new Double_t[opt.Nsearch];
     nnidsneighbours=new Int_t[opt.Nsearch];
@@ -956,10 +955,10 @@ private(id,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,pqx,pqv,Pval)
     weight=new Double_t[opt.Nvel];
     pqx=new PriorityQueue(opt.Nsearch);
     pqv=new PriorityQueue(opt.Nvel);
-/*#ifdef USEOPENMP
+#ifdef USEOPENMP
 #pragma omp for schedule(dynamic) \
 reduction(+:nprocessed)
-#endif*/
+#endif
     for (auto i=0;i<numleafnodes;i++) {
         //if there are no active particles in leaf node, do nothing
         if (leafnodes[i].num == 0) continue;
@@ -1030,9 +1029,9 @@ reduction(+:nprocessed)
     delete[] weight;
     delete pqx;
     delete pqv;
-/*#ifdef USEOPENMP
+#ifdef USEOPENMP
 }
-#endif*/
+#endif
         delete treeneighbours;
     }
     delete[] PartDataIn;

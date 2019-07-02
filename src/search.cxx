@@ -360,8 +360,11 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     {
         storetype=new Int_t[Nlocal];
         numingroup=BuildNumInGroup(Nlocal, numgroups, pfof);
+        Int_t numinstrucs=0,numlocalden=0;
         for (i=0;i<Nlocal;i++) storetype[i]=Part[i].GetType();
-        if (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)) for (i=0;i<Nlocal;i++) Part[i].SetType((numingroup[pfof[i]]>=MINSUBSIZE));
+        if (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)) {
+            for (i=0;i<Nlocal;i++) Part[i].SetType((numingroup[pfof[i]]>=MINSUBSIZE));
+        }
         //otherwise set type to group value for dark matter
         else {
             for (i=0;i<Nlocal;i++) {
@@ -369,6 +372,8 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
                 else Part[i].SetType(-1);
             }
         }
+        for (i=0;i<Nlocal;i++) {numinstrucs+=(pfof[i]>0);}
+        if (opt.iverbose) cout<<ThisTask<<" has "<<numinstrucs<<" particles for which density must be calculated"<<endl;
         cout<<ThisTask<<" Going to build tree "<<endl;
         tree=new KDTree(Part.data(),Nlocal,opt.Bsize,tree->TPHYS,tree->KEPAN,100,0,0,0,period);
         GetVelocityDensity(opt, Nlocal, Part.data(),tree);
