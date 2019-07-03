@@ -8,9 +8,9 @@
 #define HDFITEMS_H
 
 
-#include "H5Cpp.h"
-
-using namespace H5;
+//#include "H5Cpp.h"
+//using namespace H5;
+#include "hdf5.h"
 
 ///\name ILLUSTRIS specific constants
 //@{
@@ -84,6 +84,8 @@ using namespace H5;
 
 ///size of chunks in hdf files for Compression
 #define HDFOUTPUTCHUNKSIZE 8192
+#define HDFDEFLATE    6
+
 
 #if H5_VERSION_GE(1,10,1)
 #define HDF5_FILE_GROUP_COMMON_BASE H5::Group
@@ -91,54 +93,67 @@ using namespace H5;
 #define HDF5_FILE_GROUP_COMMON_BASE H5::CommonFG
 #endif
 
-template <typename AttributeHolder>
-static inline
-H5::Attribute get_attribute(const AttributeHolder &l, const std::string attr_name)
+template <typename ReturnT, typename F, typename ... Ts>
+ReturnT safe_hdf5(F function, Ts ... args)
 {
-	auto exists = H5Aexists(l.getId(), attr_name.c_str());
+       ReturnT status = function(std::forward<Ts>(args)...);
+       if (status < 0) {
+           cerr<<"Error in HDF routine "<<endl;//<<function.__PRETTY_FUNCTION__
+           //throw std::runtime_error("Error in HDF routine.");
+           #ifdef USEMPI
+           MPI_Abort(MPI_COMM_WORLD,1);
+           #else
+           exit(1);
+           #endif
+       }
+       return status;
+}
+
+//template <typename AttributeHolder>
+//static inline H5::Attribute get_attribute(const AttributeHolder &l, const std::string attr_name)
+static inline void get_attribute(vector<hid_t> &ids, const std::string attr_name)
+{
+	//can use H5Aexists as it is the C interface but how to access it?
+	//auto exists = H5Aexists(l.getId(), attr_name.c_str());
+	auto exists = H5Aexists(ids.back(), attr_name.c_str());
 	if (exists == 0) {
 		throw invalid_argument(std::string("attribute not found ") + attr_name);
 	}
 	else if (exists < 0) {
 		throw std::runtime_error("Error on H5Aexists");
 	}
-	return l.openAttribute(attr_name);
+	auto attr = H5Aopen(ids.back(), attr_name.c_str(), H5P_DEFAULT);
+	ids.push_back(attr);
 }
 
-static inline
-H5::Attribute get_attribute(const HDF5_FILE_GROUP_COMMON_BASE &file_or_group, const std::vector<std::string> &parts)
+
+static inline void get_attribute(vector<hid_t> &ids, const std::vector<std::string> &parts)
 {
-	// This is the attribute name
+	// This is the attribute name, so open it and store the id
 	if (parts.size() == 1) {
-		return get_attribute(static_cast<const H5::Group &>(file_or_group), parts[0]);
+		get_attribute(ids, parts[0]);
 	}
-
-	auto n_groups = file_or_group.getNumObjs();
-
-	const auto path = parts.front();
-	for(hsize_t i = 0; i < n_groups; i++) {
-
-		auto objname = file_or_group.getObjnameByIdx(i);
-		if (objname != path) {
-			continue;
+	else {
+		H5O_info_t object_info;
+		hid_t newid;
+		H5Oget_info_by_name(ids.back(), parts[0].c_str(), &object_info, H5P_DEFAULT);
+		if (object_info.type == H5G_GROUP) {
+			newid = H5Gopen2(ids.back(),parts[0].c_str(),H5P_DEFAULT);
 		}
+		else if (object_info.type == H5G_DATASET) {
+			newid = H5Dopen2(ids.back(),parts[0].c_str(),H5P_DEFAULT);
+		}
+		ids.push_back(newid);
+		//get the substring
+		vector<string> subparts(parts.begin() + 1, parts.end());
+		//call function again
+		get_attribute(ids, subparts);
 
-		auto objtype = file_or_group.getObjTypeByIdx(i);
-		if (objtype == H5G_GROUP) {
-			std::vector<std::string> subparts(parts.begin() + 1, parts.end());
-			return get_attribute(file_or_group.openGroup(objname), subparts);
-		}
-		else if (objtype == H5G_DATASET) {
-			std::vector<std::string> subparts(parts.begin() + 1, parts.end());
-			return get_attribute(file_or_group.openDataSet(objname), parts.back());
-		}
 	}
-
 	throw invalid_argument("attribute name not found");
 }
 
-static inline
-vector<string> tokenize(const string &s, const string &delims)
+static inline vector<string> tokenize(const string &s, const string &delims)
 {
 	string::size_type lastPos = s.find_first_not_of(delims, 0);
 	string::size_type pos     = s.find_first_of(delims, lastPos);
@@ -152,41 +167,64 @@ vector<string> tokenize(const string &s, const string &delims)
 	return tokens;
 }
 
-static inline
-H5::Attribute get_attribute(const H5::H5File &file, const string &name)
+static inline void get_attribute(const hid_t &file_id, vector<hid_t> &ids, const string &name)
 {
 	std::vector<std::string> parts = tokenize(name, "/");
-	return get_attribute(file, parts);
+	ids.push_back(file_id);
+	get_attribute(ids, parts);
 }
 
-template<typename T>
-static inline
-void _do_read(const H5::Attribute &attr, const H5::DataType type, T &val)
+/*
+template<typename T> static inline void _do_read(const H5::Attribute &attr, const H5::DataType type, T &val)
 {
 	attr.read(type, &val);
 }
 
-template<>
-void _do_read<std::string>(const H5::Attribute &attr, const H5::DataType type, std::string &val)
+template<> void _do_read<std::string>(const H5::Attribute &attr, const H5::DataType type, std::string &val)
 {
 	attr.read(type, val);
 }
-
-template<typename T>
-const T read_attribute(const H5::H5File &filename, const std::string &name) {
+*/
+template<typename T> const T read_attribute(const hid_t &file_id, const std::string &name) {
 	std::string attr_name;
-	H5::Attribute attr = get_attribute(filename, name);
-	H5::DataType type = attr.getDataType();
 	T val;
-	_do_read(attr, type, val);
-	attr.close();
+	hid_t type;
+	H5O_info_t object_info;
+	vector <hid_t> ids;
+	//traverse the file to get to the attribute, storing the ids of the
+	//groups, data spaces, etc that have been opened.
+	get_attribute(file_id, ids, name);
+	//now reverse ids and load attribute
+	reverse(ids.begin(),ids.end());
+	//read the appropriate type
+	type = H5Aget_type(ids[0]);
+	H5Aread(ids[0], type, &val);
+	H5Aclose(ids[0]);
+	//remove file id from id list
+	ids.pop_back();
+	ids.erase(ids.begin());
+	//now have hdf5 ids traversed to get to desired attribute so move along to close all
+	//based on their object type
+	for (auto &id:ids)
+	{
+		H5Oget_info(id, &object_info);
+		if (object_info.type == H5G_GROUP) {
+			H5Gclose(id);
+		}
+		else if (object_info.type == H5G_DATASET) {
+			H5Dclose(id);
+		}
+	}
 	return val;
 }
 
 template<typename T>
 const T read_attribute(const std::string &filename, const std::string &name) {
-	H5::H5File file(filename, H5F_ACC_RDONLY);
-	return read_attribute<T>(file, name);
+	safe_hdf5<herr_t>(H5Fopen, filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file_id = H5Fopen(filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
+	T attr = read_attribute<T>(file_id, name);
+	safe_hdf5<herr_t>(H5Fclose,file_id);
+	return attr;
 }
 
 static inline void HDF5PrintError(const H5::Exception &error) {
@@ -196,12 +234,216 @@ static inline void HDF5PrintError(const H5::Exception &error) {
 	error.printError();
 #endif
 }
-
+/*
 inline
 H5::DataType _datatype_string(const std::string &val)
 {
     return H5::StrType(H5::PredType::C_S1, val.size());
 }
+*/
+
+
+template <typename T>
+static void write_scalar_attr(const H5::H5File &file, const DataGroupNames &dgnames, int idx, const T value)
+{
+    DataSpace space(H5S_SCALAR);
+    auto attr_id = safe_hdf5<hid_t>(H5Acreate2, file.getId(), dgnames.prop[idx].c_str(),
+               dgnames.propdatatype[idx].getId(), space.getId(),
+               PropList::DEFAULT.getId(), H5P_DEFAULT);
+    //Attribute attr(attr_id);
+    //attr.write(dgnames.propdatatype[idx], &value);
+    safe_hdf5<herr_t>(H5Awrite, attr_id, dgnames.propdatatype[idx].getId(), &value);
+    safe_hdf5<herr_t>(H5Aclose, attr_id);
+}
+
+/*
+template <typename T>
+static void write_dataset(const H5::H5File &file, const DataGroupNames &dgnames, int idx, int rank, int *dims, const T* data)
+{
+	// Get HDF5 data type of the array in memory
+	T dummy;
+	hid_t memtype_id = hdf5_type(dummy);
+
+    DataSpace space(H5S_SCALAR);
+	// Only chunk datasets where we would have >1 chunk
+	int large_dataset = 0;
+	for(int i=0; i<rank; i++) if(dims[i] > HDFOUTPUTCHUNKSIZE) large_dataset = 1;
+
+	// Dataset creation properties
+	hid_t prop_id = H5Pcreate(H5P_DATASET_CREATE);
+	if(nonzero_size && large_dataset)
+	{
+		hsize_t *chunks = new hsize_t[rank];
+		for(auto i=0; i<rank; i++) chunks[i] = min((hsize_t) HDFOUTPUTCHUNKSIZE, dims[i]);
+		safe_hdf5<herr_t>(H5Pset_layout, (prop_id, H5D_CHUNKED);
+		H5Pset_chunk(prop_id, rank, chunks);
+		H5Pset_deflate(prop_id, HDFDEFLATE);
+		delete chunks;
+	}
+
+	// Create the dataset
+	hid_t dset_id = H5Dcreate(file_id, name.c_str(), filetype_id, dspace_id,
+							H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+    auto attr_id = safe_hdf5<hid_t>(H5Dcreate, file.getId(), dgnames.prop[idx].c_str(),
+               dgnames.propdatatype[idx].getId(), space.getId(),
+               PropList::DEFAULT.getId(), H5P_DEFAULT);
+    //Attribute attr(attr_id);
+    //attr.write(dgnames.propdatatype[idx], &value);
+    safe_hdf5<herr_t>(H5Awrite, attr_id, dgnames.propdatatype[idx].getId(), &value);
+    safe_hdf5<herr_t>(H5Aclose, attr_id);
+}
+*/
+
+///\name HDF class to manage writing information
+class H5OutputFile
+{
+	protected:
+
+	hid_t file_id;
+
+	// Called if a HDF5 call fails (might need to MPI_Abort)
+	void io_error(std::string message) {
+		std::cerr << message << std::endl;
+#ifdef USEMPI
+		MPI_Abort(MPI_COMM_WORLD, 1);
+#endif
+		abort();
+	}
+
+	public:
+
+	// Constructor
+	H5OutputFile() {
+		file_id = -1;
+	}
+
+	// Create a new file
+	void create(std::string filename)
+	{
+		if(file_id >= 0)io_error("Attempted to create file when already open!");
+		file_id = H5Fcreate(filename.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+		if(file_id < 0)io_error(string("Failed to create output file: ")+filename);
+	}
+
+	// Close the file
+	void close()
+	{
+		if(file_id < 0)io_error("Attempted to close file which is not open!");
+		H5Fclose(file_id);
+		file_id = -1;
+	}
+
+  	// Destructor closes the file if it's open
+	~H5OutputFile()
+	{
+	  if(file_id >= 0)
+	    close();
+	}
+
+	// Functions to return corresponding HDF5 type for C types
+	hid_t hdf5_type(float dummy)              {return H5T_NATIVE_FLOAT;}
+	hid_t hdf5_type(double dummy)             {return H5T_NATIVE_DOUBLE;}
+	hid_t hdf5_type(int dummy)                {return H5T_NATIVE_INT;}
+	hid_t hdf5_type(long dummy)               {return H5T_NATIVE_LONG;}
+	hid_t hdf5_type(long long dummy)          {return H5T_NATIVE_LLONG;}
+	hid_t hdf5_type(unsigned int dummy)       {return H5T_NATIVE_UINT;}
+	hid_t hdf5_type(unsigned long dummy)      {return H5T_NATIVE_ULONG;}
+	hid_t hdf5_type(unsigned long long dummy) {return H5T_NATIVE_ULLONG;}
+
+
+	/// Write a new 1D dataset. Data type of the new dataset is taken to be the type of
+	/// the input data if not explicitly specified with the filetype_id parameter.
+	template <typename T> void write_dataset(std::string name, hsize_t len, T *data,
+	                                       hid_t filetype_id=-1)
+    {
+		int rank = 1;
+      	hsize_t dims[1] = {len};
+      	write_dataset_nd(name, rank, dims, data, filetype_id);
+    }
+
+
+	/// Write a multidimensional dataset. Data type of the new dataset is taken to be the type of
+	/// the input data if not explicitly specified with the filetype_id parameter.
+	template <typename T> void write_dataset_nd(std::string name, int rank, hsize_t *dims, T *data,
+	                                          hid_t filetype_id=-1)
+    {
+		// Get HDF5 data type of the array in memory
+		T dummy;
+		hid_t memtype_id = hdf5_type(dummy);
+
+		// Determine type of the dataset to create
+		if(filetype_id < 0)filetype_id = memtype_id;
+
+		// Create the dataspace
+		hid_t dspace_id = H5Screate_simple(rank, dims, NULL);
+
+		// Only chunk non-zero size datasets
+		int nonzero_size = 1;
+		for(int i=0; i<rank; i+=1)
+		if(dims[i]==0)nonzero_size = 0;
+
+		// Only chunk datasets where we would have >1 chunk
+		int large_dataset = 0;
+		for(int i=0; i<rank; i+=1)
+		if(dims[i] > HDFOUTPUTCHUNKSIZE)large_dataset = 1;
+
+		// Dataset creation properties
+		hid_t prop_id = H5Pcreate(H5P_DATASET_CREATE);
+		if(nonzero_size && large_dataset)
+		{
+			hsize_t *chunks = new hsize_t[rank];
+			for(auto i=0; i<rank; i++) chunks[i] = min((hsize_t) HDFOUTPUTCHUNKSIZE, dims[i]);
+			H5Pset_layout(prop_id, H5D_CHUNKED);
+			H5Pset_chunk(prop_id, rank, chunks);
+			H5Pset_deflate(prop_id, HDFDEFLATE);
+			delete chunks;
+		}
+
+		// Create the dataset
+		hid_t dset_id = H5Dcreate(file_id, name.c_str(), filetype_id, dspace_id,
+		                        H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+		if(dset_id < 0)io_error(string("Failed to create dataset: ")+name);
+
+		// Write the data
+		if(H5Dwrite(dset_id, memtype_id, dspace_id, H5S_ALL, H5P_DEFAULT, data) < 0)
+		io_error(string("Failed to write dataset: ")+name);
+
+		// Clean up (note that dtype_id is NOT a new object so don't need to close it)
+		H5Sclose(dspace_id);
+		H5Dclose(dset_id);
+		H5Pclose(prop_id);
+
+    }
+
+	/// write an attribute
+    template <typename T> void write_attribute(std::string parent, std::string name, T data)
+    {
+		// Get HDF5 data type of the value to write
+		hid_t dtype_id = hdf5_type(data);
+
+		// Open the parent object
+		hid_t parent_id = H5Oopen(file_id, parent.c_str(), H5P_DEFAULT);
+		if(parent_id < 0)io_error(string("Unable to open object to write attribute: ")+name);
+
+		// Create dataspace
+		hid_t dspace_id = H5Screate(H5S_SCALAR);
+
+		// Create attribute
+		hid_t attr_id = H5Acreate(file_id, name.c_str(), dtype_id, dspace_id, H5P_DEFAULT, H5P_DEFAULT);
+		if(attr_id < 0)io_error(string("Unable to create attribute ")+name+string(" on object ")+parent);
+
+		// Write the attribute
+		if(H5Awrite(attr_id, dtype_id, &data) < 0)
+		io_error(string("Unable to write attribute ")+name+string(" on object ")+parent);
+
+		// Clean up
+		H5Aclose(attr_id);
+		H5Sclose(dspace_id);
+		H5Oclose(parent_id);
+    }
+};
+
 
 ///This structures stores the strings defining the groups of data in the hdf input. NOTE: HERE I show the strings for Illustris format
 struct HDF_Group_Names {
@@ -605,20 +847,23 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
         exit(9);
     }
 
-    H5File Fhdf;
+    //H5File Fhdf;
+	hid_t Fhdf;
     HDF_Group_Names hdf_gnames;
     //to store the groups, data sets and their associated data spaces
-    Attribute headerattribs;
+    //Attribute headerattribs;
+	hid_t headerattribs;
     HDF_Header hdf_header_info = HDF_Header(opt.ihdfnameconvention);
     //buffers to load data
-    string stringbuff;
+    string stringbuff, dataname;
     string swift_str = "SWIFT";
     int intbuff[NHDFTYPE];
     long long longbuff[NHDFTYPE];
     unsigned int uintbuff[NHDFTYPE];
     int j,k,ireaderror=0;
     Int_t nbodies=0;
-    DataSpace headerdataspace;
+    //DataSpace headerdataspace;
+	hid_t headerdataspace;
 
     //to determine types
     IntType inttype;
@@ -634,32 +879,36 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
         Exception::dontPrint();
 
         //Open the specified file and the specified dataset in the file.
-        Fhdf.openFile(buf, H5F_ACC_RDONLY);
+        //Fhdf.openFile(buf, H5F_ACC_RDONLY);
+		Fhdf = H5Fopen(buf, H5F_ACC_RDONLY, H5P_DEFAULT);
         cout<<"Loading HDF header info in header group: "<<hdf_gnames.Header_name<<endl;
 
         if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES) {
 
           // Check if it is a SWIFT snapshot.
-          headerattribs=get_attribute(Fhdf, "Header/Code");
-          stringtype = headerattribs.getStrType();
-          headerattribs.read(stringtype, stringbuff);
+          //headerattribs=get_attribute(Fhdf, "Header/Code");
+          //stringtype = headerattribs.getStrType();
+          //headerattribs.read(stringtype, stringbuff);
+		  dataname = string("Header/Code");
+		  stringbuff = read_attribute<string>(Fhdf, dataname);
 
           // Read SWIFT parameters
           if(!swift_str.compare(stringbuff)) {
             // Is it a cosmological simulation?
-            headerattribs=get_attribute(Fhdf, hdf_header_info.names[hdf_header_info.IIsCosmological]);
-            headerdataspace=headerattribs.getSpace();
-
-            if (headerdataspace.getSimpleExtentNdims()!=1) ireaderror=1;
-            inttype=headerattribs.getIntType();
-            if (inttype.getSize()==sizeof(int)) {
-              headerattribs.read(PredType::NATIVE_INT,&intbuff[0]);
-              hdf_header_info.iscosmological = intbuff[0];
-            }
-            if (inttype.getSize()==sizeof(long long)) {
-              headerattribs.read(PredType::NATIVE_LONG,&longbuff[0]);
-              hdf_header_info.iscosmological = longbuff[0];
-            }
+            // headerattribs=get_attribute(Fhdf, hdf_header_info.names[hdf_header_info.IIsCosmological]);
+            // headerdataspace=headerattribs.getSpace();
+			//
+            // if (headerdataspace.getSimpleExtentNdims()!=1) ireaderror=1;
+            // inttype=headerattribs.getIntType();
+            // if (inttype.getSize()==sizeof(int)) {
+            //   headerattribs.read(PredType::NATIVE_INT,&intbuff[0]);
+            //   hdf_header_info.iscosmological = intbuff[0];
+            // }
+            // if (inttype.getSize()==sizeof(long long)) {
+            //   headerattribs.read(PredType::NATIVE_LONG,&longbuff[0]);
+            //   hdf_header_info.iscosmological = longbuff[0];
+            // }
+			hdf_header_info.iscosmological=read_attribute(Fhdf, hdf_header_info.names[hdf_header_info.IIsCosmological]);
 
             if (!hdf_header_info.iscosmological && opt.icosmologicalin) {
               cout<<"Error: cosmology is turned on in the config file but the snaphot provided is a non-cosmological run."<<endl;
@@ -904,177 +1153,3 @@ inline Int_t HDF_get_nfiles(char *fname, int ptype)
 //@}
 
 #endif
-
-
-/*
-#ifndef HDF5OUTPUT_H
-#define HDF5OUTPUT_H
-
-#ifdef USEHDF
-
-#include <string>
-
-#ifdef SWIFTINTERFACE
-//if invoking swift, use C API of HDF5 (allowing for parallel HDF5)
-#include <hdf5.h>
-#else
-//else use the C++ API
-#include "H5Cpp.h"
-using namespace H5;
-#endif
-
-#define CHUNK_SIZE 8192
-#define DEFLATE    6
-
-class H5OutputFile {
-
-protected:
-
-  hid_t file_id;
-
-  // Called if a HDF5 call fails (might need to MPI_Abort)
-  void io_error(std::string message) {
-    std::cerr << message << std::endl;
-#ifdef USEMPI
-    MPI_Abort(MPI_COMM_WORLD, 1);
-#endif
-    abort();
-  }
-
-public:
-
-  // Constructor
-  H5OutputFile() {
-    file_id = -1;
-  }
-
-  // Create a new file
-  void create(std::string filename)
-  {
-    if(file_id >= 0)io_error("Attempted to create file when already open!");
-    file_id = H5Fcreate(filename.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
-    if(file_id < 0)io_error("Failed to create output file: "+filename);
-  }
-
-  // Close the file
-  void close()
-  {
-    if(file_id < 0)io_error("Attempted to close file which is not open!");
-    H5Fclose(file_id);
-    file_id = -1;
-  }
-
-  // Destructor closes the file if it's open
-  ~H5OutputFile()
-    {
-      if(file_id >= 0)
-        close();
-    }
-
-  // Functions to return corresponding HDF5 type for C types
-  hid_t hdf5_type(float dummy)              {return H5T_NATIVE_FLOAT;}
-  hid_t hdf5_type(double dummy)             {return H5T_NATIVE_DOUBLE;}
-  hid_t hdf5_type(int dummy)                {return H5T_NATIVE_INT;}
-  hid_t hdf5_type(long dummy)               {return H5T_NATIVE_LONG;}
-  hid_t hdf5_type(long long dummy)          {return H5T_NATIVE_LLONG;}
-  hid_t hdf5_type(unsigned int dummy)       {return H5T_NATIVE_UINT;}
-  hid_t hdf5_type(unsigned long dummy)      {return H5T_NATIVE_ULONG;}
-  hid_t hdf5_type(unsigned long long dummy) {return H5T_NATIVE_ULLONG;}
-
-
-  // Write a new 1D dataset. Data type of the new dataset is taken to be the type of
-  // the input data if not explicitly specified with the filetype_id parameter.
-  template <typename T> void write_dataset(std::string name, hsize_t len, T *data,
-                                           hid_t filetype_id=-1)
-    {
-      int rank = 1;
-      hsize_t dims[1] = {len};
-      write_dataset_nd(name, rank, dims, data, filetype_id);
-    }
-
-
-  // Write a multidimensional dataset. Data type of the new dataset is taken to be the type of
-  // the input data if not explicitly specified with the filetype_id parameter.
-  template <typename T> void write_dataset_nd(std::string name, int rank, hsize_t *dims, T *data,
-                                              hid_t filetype_id=-1)
-    {
-      // Get HDF5 data type of the array in memory
-      T dummy;
-      hid_t memtype_id = hdf5_type(dummy);
-
-      // Determine type of the dataset to create
-      if(filetype_id < 0)filetype_id = memtype_id;
-
-      // Create the dataspace
-      hid_t dspace_id = H5Screate_simple(rank, dims, NULL);
-
-      // Only chunk non-zero size datasets
-      int nonzero_size = 1;
-      for(int i=0; i<rank; i+=1)
-        if(dims[i]==0)nonzero_size = 0;
-
-      // Only chunk datasets where we would have >1 chunk
-      int large_dataset = 0;
-      for(int i=0; i<rank; i+=1)
-        if(dims[i] > CHUNK_SIZE)large_dataset = 1;
-
-      // Dataset creation properties
-      hid_t prop_id = H5Pcreate(H5P_DATASET_CREATE);
-      if(nonzero_size && large_dataset)
-        {
-          hsize_t *chunks = new hsize_t[rank];
-          for(int i=0; i<rank; i+=1)
-            chunks[i] = min((hsize_t) CHUNK_SIZE, dims[i]);
-          H5Pset_layout(prop_id, H5D_CHUNKED);
-          H5Pset_chunk(prop_id, rank, chunks);
-          H5Pset_deflate(prop_id, DEFLATE);
-          delete chunks;
-        }
-
-      // Create the dataset
-      hid_t dset_id = H5Dcreate(file_id, name.c_str(), filetype_id, dspace_id,
-                                H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-      if(dset_id < 0)io_error("Failed to create dataset: "+name);
-
-      // Write the data
-      if(H5Dwrite(dset_id, memtype_id, dspace_id, H5S_ALL, H5P_DEFAULT, data) < 0)
-        io_error("Failed to write dataset: "+name);
-
-      // Clean up (note that dtype_id is NOT a new object so don't need to close it)
-      H5Sclose(dspace_id);
-      H5Dclose(dset_id);
-      H5Pclose(prop_id);
-
-    }
-
-  template <typename T> void write_attribute(std::string parent, std::string name, T data)
-    {
-      // Get HDF5 data type of the value to write
-      hid_t dtype_id = hdf5_type(data);
-
-      // Open the parent object
-      hid_t parent = H5Oopen(file_id, parent.c_str(), H5P_DEFAULT);
-      if(parent < 0)io_error("Unable to open object to write attribute: "+name);
-
-      // Create dataspace
-      hid_t dspace_id = H5Screate(H5S_SCALAR);
-
-      // Create attribute
-      hid_t attr_id = H5Acreate(file_id, name.c_str(), dtype_id, dspace_id, H5P_DEFAULT, H5P_DEFAULT);
-      if(attr_id < 0)io_error("Unable to create attribute "+name+" on object "+parent);
-
-      // Write the attribute
-      if(H5Awrite(attr_id, dtype_id, &data) < 0)
-        io_error("Unable to write attribute "+name+" on object "+parent);
-
-      // Clean up
-      H5Aclose(attr_id);
-      H5Sclose(dspace_id);
-      H5Oclose(parent);
-    }
-};
-
-#endif // USEHDF
-
-#endif // HDF5OUTPUT_H
-*/

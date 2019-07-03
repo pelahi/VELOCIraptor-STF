@@ -1532,37 +1532,6 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids, ve
 
 //@}
 
-#ifdef USEHDF
-template <typename ReturnT, typename F, typename ... Ts>
-ReturnT safe_hdf5(F function, Ts ... args)
-{
-       ReturnT status = function(std::forward<Ts>(args)...);
-       if (status < 0) {
-           cerr<<"Error in HDF routine "<<endl;//<<function.__PRETTY_FUNCTION__
-           //throw std::runtime_error("Error in HDF routine.");
-           #ifdef USEMPI
-           MPI_Abort(MPI_COMM_WORLD,9);
-           #else
-           exit(9);
-           #endif
-       }
-       return status;
-}
-
-template <typename T>
-static void write_scalar_attr(const H5::H5File &file, const DataGroupNames &dgnames, int idx, const T value)
-{
-    DataSpace space(H5S_SCALAR);
-    auto attr_id = safe_hdf5<hid_t>(H5Acreate2, file.getId(), dgnames.prop[idx].c_str(),
-               dgnames.propdatatype[idx].getId(), space.getId(),
-               PropList::DEFAULT.getId(), H5P_DEFAULT);
-    //Attribute attr(attr_id);
-    //attr.write(dgnames.propdatatype[idx], &value);
-    safe_hdf5<herr_t>(H5Awrite, attr_id, dgnames.propdatatype[idx].getId(), &value);
-    safe_hdf5<herr_t>(H5Aclose, attr_id);
-}
-#endif
-
 ///\name Final outputs such as properties and output that can be used to construct merger trees and substructure hierarchy
 //@{
 ///Writes the bulk properties of the substructures
