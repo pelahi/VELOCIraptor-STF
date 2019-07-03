@@ -241,17 +241,6 @@ void SetVelociraptorSimulationState(cosmoinfo c, siminfo s)
         libvelociraptorOpt.ellxscale*=libvelociraptorOpt.a;
         libvelociraptorOpt.uinfo.eps*=libvelociraptorOpt.a;
 
-        /*
-        Hubble=libvelociraptorOpt.h*libvelociraptorOpt.H*sqrt(libvelociraptorOpt.Omega_k*pow(libvelociraptorOpt.a,-2.0)+libvelociraptorOpt.Omega_m*pow(libvelociraptorOpt.a,-3.0)
-+libvelociraptorOpt.Omega_r*pow(libvelociraptorOpt.a,-4.0)+libvelociraptorOpt.Omega_Lambda+libvelociraptorOpt.Omega_de*pow(libvelociraptorOpt.a,-3.0*(1+libvelociraptorOpt.w_de)));
-        libvelociraptorOpt.rhobg=3.*Hubble*Hubble/(8.0*M_PI*libvelociraptorOpt.G)*libvelociraptorOpt.Omega_m;
-        //if libvelociraptorOpt.virlevel<0, then use virial overdensity based on Bryan and Norman 1998 virialization level is given by
-        if (libvelociraptorOpt.virlevel<0)
-        {
-            Double_t bnx=-(libvelociraptorOpt.Omega_k*pow(libvelociraptorOpt.a,-2.0)+libvelociraptorOpt.Omega_Lambda)/((1-libvelociraptorOpt.Omega_m-libvelociraptorOpt.Omega_Lambda)*pow(libvelociraptorOpt.a,-2.0)+libvelociraptorOpt.Omega_m*pow(libvelociraptorOpt.a,-3.0)+libvelociraptorOpt.Omega_Lambda);
-            libvelociraptorOpt.virlevel=(18.0*M_PI*M_PI+82.0*bnx-39*bnx*bnx)/libvelociraptorOpt.Omega_m;
-        }
-        */
         CalcOmegak(libvelociraptorOpt);
         Hubble=GetHubble(libvelociraptorOpt, libvelociraptorOpt.a);
         CalcCriticalDensity(libvelociraptorOpt, libvelociraptorOpt.a);
@@ -363,30 +352,27 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
             for (auto j=0;j<3;j++) swift_parts[i].x[j]*=libvelociraptorOpt.a;
             if(swift_parts[i].type == DARKTYPE) {
                 parts[dmOffset] = Particle(swift_parts[i]);
-                //set the swift mpi domain that this particle resides in
-                parts[dmOffset].SetSwiftTask(ThisTask);
-                parts[dmOffset].SetSwiftIndex(i);
                 dmOffset++;
             }
+            #ifdef HIGHRES
+            else if(swift_parts[i].type == DARK2TYPE) {
+                parts[dmOffset] = Particle(swift_parts[i]);
+                dmOffset++;
+            }
+            #endif
             else {
                 if(swift_parts[i].type == GASTYPE) {
                     pbaryons[baryonOffset] = Particle(swift_parts[i]);
-                    pbaryons[baryonOffset].SetSwiftTask(ThisTask);
-                    pbaryons[baryonOffset].SetSwiftIndex(i);
                     baryonOffset++;
                     gasOffset++;
                 }
                 else if(swift_parts[i].type == STARTYPE) {
                     pbaryons[baryonOffset] = Particle(swift_parts[i]);
-                    pbaryons[baryonOffset].SetSwiftTask(ThisTask);
-                    pbaryons[baryonOffset].SetSwiftIndex(i);
                     baryonOffset++;
                     starOffset++;
                 }
                 else if(swift_parts[i].type == BHTYPE) {
                     pbaryons[baryonOffset] = Particle(swift_parts[i]);
-                    pbaryons[baryonOffset].SetSwiftTask(ThisTask);
-                    pbaryons[baryonOffset].SetSwiftIndex(i);
                     baryonOffset++;
                     bhOffset++;
                 }
@@ -399,15 +385,20 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
     }
     else {
         for(auto i=0; i<Nlocal; i++) {
-            if(swift_parts[i].type != DARKTYPE && swift_parts[i].type != GASTYPE && swift_parts[i].type != STARTYPE && swift_parts[i].type != BHTYPE) {
+            if(swift_parts[i].type != DARKTYPE && swift_parts[i].type != GASTYPE && swift_parts[i].type != STARTYPE && swift_parts[i].type != BHTYPE)
+            {
+                //if high res then particle is also allowed to be type 2, a DARK2TYPE
+                #ifdef HIGHRES
+                if (swift_parts[i].type != DARK2TYPE) {
+                #endif
                 cout<<"Unknown particle type found: index="<<i<<" type="<<swift_parts[i].type<<" when loading particles. Exiting..."<<endl;
                 return NULL;
+                #ifdef HIGHRES
+                }
+                #endif
             }
             for (auto j=0;j<3;j++) swift_parts[i].x[j]*=libvelociraptorOpt.a;
             parts[i] = Particle(swift_parts[i]);
-            //set the swift mpi domain that this particle resides in
-            parts[i].SetSwiftTask(ThisTask);
-            parts[i].SetSwiftIndex(i);
         }
     }
 
@@ -556,6 +547,7 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
 #endif
     cout<<"VELOCIraptor sorting info to return group ids to swift"<<endl;
     if (ngtot == 0) {
+        cout<<"No groups found"<<endl;
         //free mem associate with mpi cell node ides
         libvelociraptorOpt.cellnodeids = NULL;
         libvelociraptorOpt.cellloc = NULL;
@@ -566,17 +558,12 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
         *numpartingroups=nig;
         return NULL;
     }
-
-    for (auto i=1;i<=ngroup; i++) nig+=numingroup[i];
+    //move particles back to original swift task
+    //store group id
     for (auto i=0;i<Nlocal; i++) {
         if (pfof[i]>0) parts[i].SetPID((pfof[i]+ngoffset)+libvelociraptorOpt.snapshotvalue);
-        else parts[i].SetPID(ngtot+1+libvelociraptorOpt.snapshotvalue);
+        else parts[i].SetPID(0);
     }
-    delete[] pfof;
-    delete[] numingroup;
-    qsort(parts.data(), Nlocal, sizeof(Particle), PIDCompare);
-    parts.resize(nig);
-    Nlocal = parts.size();
 #ifdef USEMPI
     if (NProcs > 1) {
     for (auto i=0;i<Nlocal; i++) parts[i].SetID((parts[i].GetSwiftTask()==ThisTask));
@@ -587,12 +574,19 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
     Nlocal = parts.size();
     }
 #endif
-    *numpartingroups = Nlocal;
-    //now allocate mem and copy data
-    group_info = new groupinfo[Nlocal];
-    for (auto i=0;i<Nlocal; i++) {
-        group_info[i].groupid=parts[i].GetPID();
-        group_info[i].index=parts[i].GetSwiftIndex();
+    qsort(parts.data(), Nlocal, sizeof(Particle), PIDCompare);
+    nig=0;
+    Int_t istart=0;
+    for (auto i=0;i<Nlocal;i++) if (parts[i].GetPID()>0) {nig=Nlocal-i;istart=i;break;}
+    *numpartingroups=nig;
+    group_info=NULL;
+    if (nig>0)
+    {
+        group_info = new groupinfo[nig];
+        for (auto i=istart;i<Nlocal;i++) {
+            group_info[i-istart].index=parts[i].GetSwiftIndex();
+            group_info[i-istart].groupid=parts[i].GetPID();
+        }
     }
     cout<<"VELOCIraptor returning."<< endl;
 
@@ -605,4 +599,28 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
     return group_info;
 }
 
+void CheckSwiftTasks(string message, const Int_t n, Particle *p){
+    #ifndef USEMPI
+    int ThisTask=0,NProcs=1;
+    #endif
+    int numbad = 0, numnonlocal=0;
+    cout<<"Checking swift tasks:"<<message<<endl;
+    for (auto i=0;i<n;i++) {
+        int task=p[i].GetSwiftTask();
+        int index = p[i].GetSwiftIndex();
+        if (task<0 || task>NProcs) {
+            cerr<<ThisTask<<" has odd swift particle with nonsensical swift task (cur index, swift index, swift task)=("<<i<<","<<index<<","<<task<<")"<<endl;
+            numbad++;
+        }
+        if (task!=ThisTask) numnonlocal++;
+    }
+    cout<<ThisTask<<" has "<<numnonlocal<<" swift particles "<<endl;
+    if (numbad>0) {
+        #ifdef USEMPI
+        MPI_Abort(MPI_COMM_WORLD,9);
+        #else
+        exit(9);
+        #endif
+    }
+}
 #endif

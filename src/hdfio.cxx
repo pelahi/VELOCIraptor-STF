@@ -75,6 +75,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     HDF_Header *hdf_header_info;
     HDF_Part_Info hdf_gas_info(HDFGASTYPE,opt.ihdfnameconvention);
     HDF_Part_Info hdf_dm_info(HDFDMTYPE,opt.ihdfnameconvention);
+    HDF_Part_Info hdf_extradm_info(HDFDM1TYPE,opt.ihdfnameconvention);
     HDF_Part_Info hdf_tracer_info(HDFTRACERTYPE,opt.ihdfnameconvention);
     HDF_Part_Info hdf_star_info(HDFSTARTYPE,opt.ihdfnameconvention);
     HDF_Part_Info hdf_bh_info(HDFBHTYPE,opt.ihdfnameconvention);
@@ -82,8 +83,13 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     HDF_Part_Info *hdf_parts[NHDFTYPE];
     hdf_parts[0]=&hdf_gas_info;
     hdf_parts[1]=&hdf_dm_info;
-    //hdf_parts[2]=(void*)&hdf_extra_info;
+    #ifdef HIGHRES
+    hdf_parts[2]=&hdf_extradm_info;
+    hdf_parts[3]=&hdf_extradm_info;
+    #else
+    hdf_parts[2]=&hdf_extradm_info;
     hdf_parts[3]=&hdf_tracer_info;
+    #endif
     hdf_parts[4]=&hdf_star_info;
     hdf_parts[5]=&hdf_bh_info;
 
@@ -121,43 +127,13 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     ///Since Illustris contains an unused type of particles (2) and tracer particles (3) really not useful to iterate over all particle types in loops
     int nusetypes,nbusetypes;
     int usetypes[NHDFTYPE];
-    if (opt.partsearchtype==PSTALL) {
-        nusetypes=0;
-        //assume existance of dark matter and gas
-        usetypes[nusetypes++]=HDFGASTYPE;usetypes[nusetypes++]=HDFDMTYPE;
-        if (opt.iuseextradarkparticles) {
-            usetypes[nusetypes++]=HDFDM1TYPE;
-            usetypes[nusetypes++]=HDFDM2TYPE;
-    	}
-        if (opt.iusestarparticles) usetypes[nusetypes++]=HDFSTARTYPE;
-        if (opt.iusesinkparticles) usetypes[nusetypes++]=HDFBHTYPE;
-        if (opt.iusewindparticles) usetypes[nusetypes++]=HDFWINDTYPE;
-    }
-    else if (opt.partsearchtype==PSTDARK) {
-        nusetypes=1;usetypes[0]=HDFDMTYPE;
-        if (opt.iuseextradarkparticles) {
-            usetypes[nusetypes++]=HDFDM1TYPE;
-            usetypes[nusetypes++]=HDFDM2TYPE;
-        }
-        if (opt.iBaryonSearch) {
-            nbusetypes=1;usetypes[nusetypes+nbusetypes++]=HDFGASTYPE;
-            if (opt.iusestarparticles) usetypes[nusetypes+nbusetypes++]=HDFSTARTYPE;
-            if (opt.iusesinkparticles) usetypes[nusetypes+nbusetypes++]=HDFBHTYPE;
-        }
-    }
-    else if (opt.partsearchtype==PSTGAS) {nusetypes=1;usetypes[0]=HDFGASTYPE;}
-    else if (opt.partsearchtype==PSTSTAR) {nusetypes=1;usetypes[0]=HDFSTARTYPE;}
-    else if (opt.partsearchtype==PSTBH) {
-        nusetypes=1;usetypes[0]=HDFBHTYPE;
-    }
-
     Int_t i,j,k,n,nchunk,count,bcount,itemp,count2,bcount2;
 
     //store cosmology
     double z,aadjust,Hubble,Hubbleflow;
 
-    Double_t mscale,lscale,lvscale;
-    Double_t MP_DM=MAXVALUE,LN,N_DM,MP_B=0;
+    double mscale,lscale,lvscale;
+    double MP_DM=MAXVALUE,LN,N_DM,MP_B=0;
     int ifirstfile=0,*ireadfile,ireaderror=0;
     int *ireadtask,*readtaskID;
     Int_t ninputoffset;
@@ -166,6 +142,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     if (ThisTask == 0)
 #endif
     opt.num_files = HDF_get_nfiles (opt.fname, opt.partsearchtype);
+    HDFSetUsedParticleTypes(opt,nusetypes,nbusetypes,usetypes);
 
 #ifndef USEMPI
     Int_t Ntotal;
@@ -1256,6 +1233,9 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     //finally adjust to appropriate units
     for (i=0;i<nbodies;i++)
     {
+#ifdef HIGHRES
+      if (Part[i].GetType()==DARKTYPE && Part[i].GetMass()<MP_DM) MP_DM=Part[i].GetMass();
+#endif
       Part[i].SetMass(Part[i].GetMass()*mscale);
       for (int j=0;j<3;j++) Part[i].SetVelocity(j,Part[i].GetVelocity(j)*vscale+Hubbleflow*Part[i].GetPosition(j));
       for (int j=0;j<3;j++) Part[i].SetPosition(j,Part[i].GetPosition(j)*lscale);
@@ -1574,9 +1554,16 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         Pbuf[ibufindex].SetID(nn);
                         if (k==HDFGASTYPE) Pbuf[ibufindex].SetType(GASTYPE);
                         else if (k==HDFDMTYPE) Pbuf[ibufindex].SetType(DARKTYPE);
+#ifdef HIGHRES
+                        else if (k==HDFDM1TYPE) Pbuf[ibufindex].SetType(DARKTYPE);
+                        else if (k==HDFDM2TYPE) Pbuf[ibufindex].SetType(DARKTYPE);
+#endif
                         else if (k==HDFSTARTYPE) Pbuf[ibufindex].SetType(STARTYPE);
                         else if (k==HDFBHTYPE) Pbuf[ibufindex].SetType(BHTYPE);
 
+#ifdef HIGHRES
+                        if (k==HDFDMTYPE && MP_DM>Pbuf[ibufindex].GetMass()) MP_DM=Pbuf[ibufindex].GetMass();
+#endif
 #ifdef GASON
                       if (k==HDFGASTYPE) {
                         if (ifloat) Pbuf[ibufindex].SetU(ufloatbuff[nn]);
@@ -1774,8 +1761,15 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         Pbuf[ibufindex].SetID(nn);
                         if (k==HDFGASTYPE) Pbuf[ibufindex].SetType(GASTYPE);
                         else if (k==HDFDMTYPE) Pbuf[ibufindex].SetType(DARKTYPE);
+#ifdef HIGHRES
+                        else if (k==HDFDM1TYPE) Pbuf[ibufindex].SetType(DARKTYPE);
+                        else if (k==HDFDM2TYPE) Pbuf[ibufindex].SetType(DARKTYPE);
+#endif
                         else if (k==HDFSTARTYPE) Pbuf[ibufindex].SetType(STARTYPE);
                         else if (k==HDFBHTYPE) Pbuf[ibufindex].SetType(BHTYPE);
+#ifdef HIGHRES
+                        if (k==HDFDMTYPE && MP_DM>Pbuf[ibufindex].GetMass()) MP_DM=Pbuf[ibufindex].GetMass();
+#endif
 #ifdef GASON
                         if (k==HDFGASTYPE) {
                           if (ifloat) Pbuf[ibufindex].SetU(ufloatbuff[nn]);
@@ -1916,6 +1910,9 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     }
 #endif
 #ifdef USEMPI
+    if (opt.nsnapread>1) {
+        MPI_Allreduce(&MP_DM,&MP_DM, 1, MPI_DOUBLE, MPI_MIN,mpi_comm_read);
+    }
     MPI_Barrier(MPI_COMM_WORLD);
     //update cosmological data and boundary in code units
     MPI_Bcast(&(opt.p),sizeof(opt.p),MPI_BYTE,0,MPI_COMM_WORLD);
@@ -1947,14 +1944,18 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     ///to calculate the mean interparticle spacing.
     ///but one can also pass opt.Neff to adjust what the code thinks is the average inter particle spacing
 #ifdef HIGHRES
+    opt.zoomlowmassdm=MP_DM*mscale;
     if (opt.Neff==-1) {
       //Once smallest mass particle is found (which should correspond to highest resolution area,
       if (opt.Omega_b==0) MP_B=0;
-      LN=pow(((MP_DM+MP_B)*opt.massinputconversion/opt.h)/(opt.Omega_m*3.0*opt.H*opt.h*opt.H*opt.h/(8.0*M_PI*opt.G)),1./3.)*opt.a;
+      LN=pow((MP_DM+MP_B)*mscale/opt.rhobg,1.0/3.0);
     }
     else {
       LN=opt.p/(Double_t)opt.Neff;
     }
+    #ifdef USEMPI
+    MPI_Bcast(&opt.zoomlowmassdm,sizeof(opt.zoomlowmassdm),MPI_BYTE,0,MPI_COMM_WORLD);
+    #endif
 #endif
 #ifdef USEMPI
     MPI_Bcast(&LN, 1, MPI_Real_t, 0, MPI_COMM_WORLD);

@@ -273,6 +273,8 @@ void usage(void)
     \arg <b> \e NBH_extra_blocks </b> If gadget snapshot is loaded one can specific the number of extra <b> Black hole </b> blocks are read/in the file. \ref Options.gnbhblocks \n
 
     \arg <b> \e HDF_name_convention </b> HDF dataset naming convection. See \ref hdfitems.h for what naming conventions are available and what names exist. Currently have \ref HDFNUMNAMETYPES. \ref Options.ihdfnameconvention \n
+    \arg <b> \e Input_includes_dm_particle </b> If dm particle specific information is in the input file. \ref Options.iusedmparticles \n
+    \arg <b> \e Input_includes_gas_particle </b> If gas particle specific information is in the input file. \ref Options.iusegasparticles \n
     \arg <b> \e Input_includes_star_particle </b> If star particle specific information is in the input file. \ref Options.iusestarparticles \n
     \arg <b> \e Input_includes_bh_particle </b> If bh/sink particle specific information is in the input file. \ref Options.iusesinkparticles \n
     \arg <b> \e Input_includes_wind_particle </b> If wind particle specific information is in the input file. \ref Options.iusewindparticles \n
@@ -579,6 +581,10 @@ void GetParamFile(Options &opt)
                         opt.iextrahalooutput = atoi(vbuff);
                     else if (strcmp(tbuff, "Extensive_gas_properties_output")==0)
                         opt.iextragasoutput = atoi(vbuff);
+                    else if (strcmp(tbuff, "Extensive_star_properties_output")==0)
+                        opt.iextrastaroutput = atoi(vbuff);
+                    else if (strcmp(tbuff, "Extensive_interloper_properties_output")==0)
+                        opt.iextrainterloperoutput = atoi(vbuff);
                     else if (strcmp(tbuff, "Calculate_aperture_quantities")==0)
                         opt.iaperturecalc = atoi(vbuff);
                     else if (strcmp(tbuff, "Number_of_apertures")==0)
@@ -687,6 +693,10 @@ void GetParamFile(Options &opt)
                     //input related to info for stars, bhs, winds/tracers, etc
                     else if (strcmp(tbuff, "HDF_name_convention")==0)
                         opt.ihdfnameconvention = atoi(vbuff);
+                    else if (strcmp(tbuff, "Input_includes_dm_particle")==0)
+                        opt.iusedmparticles = atoi(vbuff);
+                    else if (strcmp(tbuff, "Input_includes_gas_particle")==0)
+                        opt.iusegasparticles = atoi(vbuff);
                     else if (strcmp(tbuff, "Input_includes_star_particle")==0)
                         opt.iusestarparticles = atoi(vbuff);
                     else if (strcmp(tbuff, "Input_includes_bh_particle")==0)
