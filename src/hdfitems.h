@@ -272,34 +272,59 @@ template<typename T> const T read_attribute(const std::string &filename, const s
 	return attr;
 }
 
+static inline hid_t HDF5OpenFile(string name, unsigned int flags){
+	return H5Fopen(name.c_str(),flags, H5P_DEFAULT);
+}
+
 static inline hid_t HDF5OpenGroup(const hid_t &file, string name){
 	return H5Gopen2(file,name.c_str(),H5P_DEFAULT);
 }
 static inline hid_t HDF5OpenDataSet(const hid_t &id, string name){
 	return H5Dopen2(id,name.c_str(),H5P_DEFAULT);
 }
-static inline hid_t HDF5GetDataSet(const hid_t &id){
+static inline hid_t HDF5OpenDataSpace(const hid_t &id){
 	return H5Dget_space(id);
 }
 
-template<typename T> const vector<T> HDF5ReadHyperSlab(
+static inline void HDF5CloseFile(const hid_t &id){
+	H5Fclose(id);
+}
+static inline void HDF5CloseGroup(const hid_t &id){
+	H5Gclose(id);
+}
+static inline void HDF5CloseDataSet(const hid_t &id){
+	H5Dclose(id);
+}
+static inline void HDF5CloseDataSpace(const hid_t &id){
+	H5Sclose(id);
+}
+
+void HDF5ReadHyperSlabReal(double *buffer,
 	const hid_t &dataset, const hid_t &dataspace,
 	const hsize_t datarank, const hsize_t ndim, int nchunk, int noffset
 )
 {
 	//setup hyperslab so that it is loaded into the buffer
-	datarank=1;
 	vector<hsize_t> datadim, start, stride;
-	vector<T> buffer(ndim*nchunk);
 	datadim.push_back(ndim*nchunk);
-	//chunkspace=DataSpace(datarank,datadim.data());
 	start.push_back(nchunk);start.push_back(ndim);
 	stride.push_back(noffset);stride.push_back(0);
-	safe_hdf5<herr_t>(H5Sselect_hyperslab, dataspace, H5S_SELECT_SET, start, stride, NULL, NULL);
-	safe_hdf5<herr_t>(H5Dread, dataset, HDFREALTYPE, H5S_ALL, dataspace, H5P_DEFAULT, buffer.data());
-	return buffer;
-	//partsdataspace[i*NHDFTYPE+k].selectHyperslab(H5S_SELECT_SET, filespacecount, filespaceoffset);
-	//partsdataset[i*NHDFTYPE+k].read(realbuff,HDFREALTYPE,chunkspace, partsdataspace[i*NHDFTYPE+k]);
+	H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, start.data(), stride.data(), NULL, NULL);
+	safe_hdf5<herr_t>(H5Dread, dataset, H5T_NATIVE_DOUBLE, H5S_ALL, dataspace, H5P_DEFAULT, buffer);
+}
+
+void HDF5ReadHyperSlabInteger(long long *buffer,
+	const hid_t &dataset, const hid_t &dataspace,
+	const hsize_t datarank, const hsize_t ndim, int nchunk, int noffset
+)
+{
+	//setup hyperslab so that it is loaded into the buffer
+	vector<hsize_t> datadim, start, stride;
+	datadim.push_back(ndim*nchunk);
+	start.push_back(nchunk);start.push_back(ndim);
+	stride.push_back(noffset);stride.push_back(0);
+	H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, start.data(), stride.data(), NULL, NULL);
+	safe_hdf5<herr_t>(H5Dread, dataset, H5T_NATIVE_LONG, H5S_ALL, dataspace, H5P_DEFAULT, buffer);
 }
 
 static inline void HDF5PrintError(const H5::Exception &error) {
@@ -1140,7 +1165,7 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
     }
     Fhdf.close();
 	*/
-	H5Fclose(Fhdf);
+	HDF5CloseFile(Fhdf);
 
     for(j=0, nbodies=0; j<nusetypes; j++) {
         k=usetypes[j];
@@ -1237,7 +1262,7 @@ inline Int_t HDF_get_nfiles(char *fname, int ptype)
     }
     Fhdf.close();
 	*/
-	H5Fclose(Fhdf);
+	HDF5CloseFile(Fhdf);
 
     return nfiles = hdf_header_info.num_files;
 

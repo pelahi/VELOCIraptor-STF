@@ -26,11 +26,12 @@
 ///Determine Domain for HDF input
 void MPIDomainExtentHDF(Options &opt){
     char buf[2000];
-    H5File Fhdf;
     HDF_Group_Names hdf_gnames;
     HDF_Header hdf_header_info;
-    Attribute headerattribs;
-    DataSpace headerdataspace;
+    // H5File Fhdf;
+    // Attribute headerattribs;
+    // DataSpace headerdataspace;
+    hid_t Fhdf, headerattribs, headerdataspace;
     float floatbuff;
     double doublebuff;
     FloatType floattype;
@@ -42,29 +43,32 @@ void MPIDomainExtentHDF(Options &opt){
         else sprintf(buf,"%s.hdf5",opt.fname);
 
         //Try block to detect exceptions raised by any of the calls inside it
-        try
+        //try
         {
             //turn off the auto-printing when failure occurs so that we can
             //handle the errors appropriately
             Exception::dontPrint();
 
             //Open the specified file and the specified dataset in the file.
-            Fhdf.openFile(buf, H5F_ACC_RDONLY);
+            // Fhdf.openFile(buf, H5F_ACC_RDONLY);
+            Fhdf = H5Fopen(buf, H5F_ACC_RDONLY, H5P_DEFAULT)
             cout<<"Loading HDF header info in header group: "<<hdf_gnames.Header_name<<endl;
 
             //start reading attributes
-            headerattribs=get_attribute(Fhdf, hdf_header_info.names[hdf_header_info.IBoxSize]);
-            headerdataspace=headerattribs.getSpace();
-            floattype=headerattribs.getFloatType();
-            if (floattype.getSize()==sizeof(float)) {
-                headerattribs.read(PredType::NATIVE_FLOAT,&floatbuff);
-                hdf_header_info.BoxSize=floatbuff;
-            }
-            if (floattype.getSize()==sizeof(double)) {
-                headerattribs.read(PredType::NATIVE_DOUBLE,&doublebuff);
-                hdf_header_info.BoxSize=doublebuff;
-            }
+            // headerattribs=get_attribute(Fhdf, hdf_header_info.names[hdf_header_info.IBoxSize]);
+            // headerdataspace=headerattribs.getSpace();
+            // floattype=headerattribs.getFloatType();
+            // if (floattype.getSize()==sizeof(float)) {
+            //     headerattribs.read(PredType::NATIVE_FLOAT,&floatbuff);
+            //     hdf_header_info.BoxSize=floatbuff;
+            // }
+            // if (floattype.getSize()==sizeof(double)) {
+            //     headerattribs.read(PredType::NATIVE_DOUBLE,&doublebuff);
+            //     hdf_header_info.BoxSize=doublebuff;
+            // }
+            hdf_header_info.BoxSize = read_attribute<double>(Fhdf, hdf_header_info.names[hdf_header_info.INumFiles]);
         }
+        /*
         catch(GroupIException error)
         {
             HDF5PrintError(error);
@@ -93,6 +97,8 @@ void MPIDomainExtentHDF(Options &opt){
             ireaderror=1;
         }
         Fhdf.close();
+        */
+        H5Fclose(Fhdf);
         for (int i=0;i<3;i++) {mpi_xlim[i][0]=0;mpi_xlim[i][1]=hdf_header_info.BoxSize;}
     }
     //There may be issues with particles exactly on the edge of a domain so before expanded limits by a small amount
@@ -265,8 +271,7 @@ void MPINumInDomainHDF(Options &opt)
                 // //assuming all particles use the same float type for shared property structures
                 // floattype=partsdataset[i*NHDFTYPE+k].getFloatType();
                 partsdataset[i*NHDFTYPE+k]=HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],hdf_parts[k]->names[0]);
-                partsdataspace[i*NHDFTYPE+k]=HDF5GetDataSpace(partsdataset[i*NHDFTYPE+k]);
-                floattype =
+                partsdataspace[i*NHDFTYPE+k]=HDF5OpenDataSpace(partsdataset[i*NHDFTYPE+k]);
                 // partsdataspace[i*NHDFTYPE+k]=partsdataset[i*NHDFTYPE+k].getSpace();
                 // //assuming all particles use the same float type for shared property structures
                 // floattype=partsdataset[i*NHDFTYPE+k].getFloatType();
@@ -276,7 +281,7 @@ void MPINumInDomainHDF(Options &opt)
                 // partsdataset[i*NHDFTYPE+k]=partsgroup[i*NHDFTYPE+k].openDataSet(hdf_parts[k]->names[0]);
                 // partsdataspace[i*NHDFTYPE+k]=partsdataset[i*NHDFTYPE+k].getSpace();
                 partsdataset[i*NHDFTYPE+k]=HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],hdf_parts[k]->names[0]);
-                partsdataspace[i*NHDFTYPE+k]=HDF5GetDataSpace(partsdataset[i*NHDFTYPE+k]);
+                partsdataspace[i*NHDFTYPE+k]=HDF5OpenDataSpace(partsdataset[i*NHDFTYPE+k]);
             }
             //if (floattype.getSize()==sizeof(float)) {HDFREALTYPE=PredType::NATIVE_FLOAT;realbuff=floatbuff;ifloat=1;}
             //else {HDFREALTYPE=PredType::NATIVE_DOUBLE ;realbuff=doublebuff;ifloat=0;}
@@ -296,7 +301,7 @@ void MPINumInDomainHDF(Options &opt)
                     // filespaceoffset[0]=n;filespaceoffset[1]=0;
                     // partsdataspace[i*NHDFTYPE+k].selectHyperslab(H5S_SELECT_SET, filespacecount, filespaceoffset);
                     // partsdataset[i*NHDFTYPE+k].read(realbuff,HDFREALTYPE,chunkspace,partsdataspace[i*NHDFTYPE+k]);
-                    vector<Double_t> posbuff = HDF5ReadHyperSlab<Double_t>(partsdataset[i*NHDFTYPE+k], partsdataspace[i*NHDFTYPE+k], 1, 3, nchunk, n);
+                    HDF5ReadHyperSlabReal(doublebuff,partsdataset[i*NHDFTYPE+k], partsdataspace[i*NHDFTYPE+k], 1, 3, nchunk, n);
 
                     // if (ifloat) {
                     //     for (int nn=0;nn<nchunk;nn++) {
@@ -311,7 +316,7 @@ void MPINumInDomainHDF(Options &opt)
                     //     }
                     // }
                     for (int nn=0;nn<nchunk;nn++) {
-                        ibuf=MPIGetParticlesProcessor(posbuff[nn*3],posbuff[nn*3+1],posbuff[nn*3+2]);
+                        ibuf=MPIGetParticlesProcessor(doublebuff[nn*3],doublebuff[nn*3+1],doublebuff[nn*3+2]);
                         Nbuf[ibuf]++;
                     }
                 }
@@ -346,9 +351,9 @@ void MPINumInDomainHDF(Options &opt)
                         //         Nbaryonbuf[ibuf]++;
                         //     }
                         // }
-                        vector<Double_t> posbuff = HDF5ReadHyperSlab<Double_t>(partsdataset[i*NHDFTYPE+k], partsdataspace[i*NHDFTYPE+k], 1, 3, nchunk, n);
+                        HDF5ReadHyperSlabReal(partsdataset[i*NHDFTYPE+k], partsdataspace[i*NHDFTYPE+k], 1, 3, nchunk, n);
                         for (int nn=0;nn<nchunk;nn++) {
-                            ibuf=MPIGetParticlesProcessor(posbuff[nn*3],posbuff[nn*3+1],posbuff[nn*3+2]);
+                            ibuf=MPIGetParticlesProcessor(doublebuff[nn*3],doublebuff[nn*3+1],doublebuff[nn*3+2]);
                             Nbaryonbuf[ibuf]++;
                         }
                     }
@@ -356,12 +361,23 @@ void MPINumInDomainHDF(Options &opt)
             }
             for (j=0;j<nusetypes;j++) {
                 k=usetypes[j];
-                H5Dclose(partsdataset[i*NHDFTYPE+k]);
+                HDF5DataSpaceClose(partsdataspace[i*NHDFTYPE+k]);
+                HDF5DataSetClose(partsdataset[i*NHDFTYPE+k]);
             }
             if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) for (j=1;j<=nbusetypes;j++) {
                 k=usetypes[j];
-                H5Dclose(partsdataset[i*NHDFTYPE+k]);
+                HDF5DataSpaceClose(partsdataspace[i*NHDFTYPE+k]);
+                HDF5DataSetClose(partsdataset[i*NHDFTYPE+k]);
             }
+            for (j=0;j<nusetypes;j++) {
+                k=usetypes[j];
+                HDF5DataGroupClose(partsdataspace[i*NHDFTYPE+k]);
+            }
+            if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) for (j=1;j<=nbusetypes;j++) {
+                k=usetypes[j];
+                HDF5DataGroupClose(partsdataspace[i*NHDFTYPE+k]);
+            }
+
             //Fhdf[i].close();
             H5Fclose(Fhdf[i]);
 	   }
