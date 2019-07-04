@@ -51,7 +51,7 @@ void MPIDomainExtentHDF(Options &opt){
 
             //Open the specified file and the specified dataset in the file.
             // Fhdf.openFile(buf, H5F_ACC_RDONLY);
-            Fhdf = H5Fopen(buf, H5F_ACC_RDONLY, H5P_DEFAULT)
+            Fhdf = H5Fopen(buf, H5F_ACC_RDONLY, H5P_DEFAULT);
             cout<<"Loading HDF header info in header group: "<<hdf_gnames.Header_name<<endl;
 
             //start reading attributes
@@ -223,8 +223,8 @@ void MPINumInDomainHDF(Options &opt)
         // partsgroup=new Group[opt.num_files*NHDFTYPE];
         // partsdataset=new DataSet[opt.num_files*NHDFTYPE];
         // partsdataspace=new DataSpace[opt.num_files*NHDFTYPE];
+        hdf_header_info=new HDF_Header[opt.num_files];
         Fhdf.resize(opt.num_files);
-        hdf_header_info.resize(opt.num_files);
         headerdataspace.resize(opt.num_files);
         headerattribs.resize(opt.num_files);
         partsgroup.resize(opt.num_files*NHDFTYPE);
@@ -351,7 +351,8 @@ void MPINumInDomainHDF(Options &opt)
                         //         Nbaryonbuf[ibuf]++;
                         //     }
                         // }
-                        HDF5ReadHyperSlabReal(partsdataset[i*NHDFTYPE+k], partsdataspace[i*NHDFTYPE+k], 1, 3, nchunk, n);
+                        HDF5ReadHyperSlabReal(doublebuff, partsdataset[i*NHDFTYPE+k], partsdataspace[i*NHDFTYPE+k], 1, 3, nchunk, n);
+
                         for (int nn=0;nn<nchunk;nn++) {
                             ibuf=MPIGetParticlesProcessor(doublebuff[nn*3],doublebuff[nn*3+1],doublebuff[nn*3+2]);
                             Nbaryonbuf[ibuf]++;
@@ -361,21 +362,21 @@ void MPINumInDomainHDF(Options &opt)
             }
             for (j=0;j<nusetypes;j++) {
                 k=usetypes[j];
-                HDF5DataSpaceClose(partsdataspace[i*NHDFTYPE+k]);
-                HDF5DataSetClose(partsdataset[i*NHDFTYPE+k]);
+                HDF5CloseDataSpace(partsdataspace[i*NHDFTYPE+k]);
+                HDF5CloseDataSet(partsdataset[i*NHDFTYPE+k]);
             }
             if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) for (j=1;j<=nbusetypes;j++) {
                 k=usetypes[j];
-                HDF5DataSpaceClose(partsdataspace[i*NHDFTYPE+k]);
-                HDF5DataSetClose(partsdataset[i*NHDFTYPE+k]);
+                HDF5CloseDataSpace(partsdataspace[i*NHDFTYPE+k]);
+                HDF5CloseDataSet(partsdataset[i*NHDFTYPE+k]);
             }
             for (j=0;j<nusetypes;j++) {
                 k=usetypes[j];
-                HDF5DataGroupClose(partsdataspace[i*NHDFTYPE+k]);
+                HDF5CloseGroup(partsdataspace[i*NHDFTYPE+k]);
             }
             if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) for (j=1;j<=nbusetypes;j++) {
                 k=usetypes[j];
-                HDF5DataGroupClose(partsdataspace[i*NHDFTYPE+k]);
+                HDF5CloseGroup(partsdataspace[i*NHDFTYPE+k]);
             }
 
             //Fhdf[i].close();

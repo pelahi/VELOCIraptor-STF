@@ -1866,7 +1866,7 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
 
         //first is halo ids, then id of most bound particle, host halo id, number of direct subhaloes, number of particles
         for (Int_t i=0;i<ngroups;i++) ((unsigned long*)data)[i]=pdata[i+1].haloid;
-        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,(unsigned long*)data,head.hdfpredtypeinfo[itemp]);itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (Int_t i=0;i<ngroups;i++) ((long long*)data)[i]=pdata[i+1].ibound;
         Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (Int_t i=0;i<ngroups;i++) ((long long*)data)[i]=pdata[i+1].iminpot;
@@ -2650,8 +2650,8 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         }
         //delete memory associated with void pointer
         ::operator delete(data);
-        delete[] propdataspace;
-        delete[] propdataset;
+        // delete[] propdataspace;
+        // delete[] propdataset;
     }
 #endif
     cout<<"Done"<<endl;
@@ -2678,19 +2678,21 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
     }
     if (opt.iInclusiveHalo>0) for (auto i=1;i<=ng;i++) nhalos += (pdata[i].hostid == -1);
 #ifdef USEHDF
-    H5File Fhdf;
-    H5std_string datasetname;
-    DataSpace dataspace;
-    DataSet dataset;
-    DataSpace attrspace;
-    Attribute attr;
-    float attrvalue;
-    hsize_t *dims, *chunk_dims;
-
-    int rank;
-    DataSpace *profiledataspace;
-    DataSet *profiledataset;
-    DSetCreatPropList  *hdfdatasetprofilelist;
+    // H5File Fhdf;
+    // H5std_string datasetname;
+    // DataSpace dataspace;
+    // DataSet dataset;
+    // DataSpace attrspace;
+    // Attribute attr;
+    // float attrvalue;
+    // hsize_t *dims, *chunk_dims;
+    //
+    // int rank;
+    // DataSpace *profiledataspace;
+    // DataSet *profiledataset;
+    // DSetCreatPropList  *hdfdatasetprofilelist;
+    H5OutputFile Fhdf;
+    vector<hsize_t> dims;
 #endif
 #if defined(USEHDF)||defined(USEADIOS)
     DataGroupNames datagroupnames;
@@ -2739,7 +2741,9 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
     }
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
-        Fhdf=H5File(fname,H5F_ACC_TRUNC);
+        //Fhdf=H5File(fname,H5F_ACC_TRUNC);
+        Fhdf.create(string(fname),H5F_ACC_TRUNC);
+        /*
         //set file info
         dims=new hsize_t[1];
         dims[0]=1;
@@ -2774,8 +2778,17 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
         dataset = Fhdf.createDataSet(datagroupnames.profile[itemp], datagroupnames.profiledatatype[itemp], dataspace);
         dataset.write(&nhalostot,datagroupnames.profiledatatype[itemp]);
         itemp++;
+        */
+        itemp=0;
+        Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, &ThisTask);
+        Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, &NProcs);
+        Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, &ng);
+        Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, &ngtot);
+        Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, &nhalos);
+        Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, &nhalostot);
 
         //write the radial bin information
+        /*
         dataspace=DataSpace(H5S_SCALAR);
         DataType stype = _datatype_string(opt.profileradnormstring);
         dataset = Fhdf.createDataSet(datagroupnames.profile[itemp], stype, dataspace);
@@ -2796,7 +2809,13 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
         dataset = Fhdf.createDataSet(datagroupnames.profile[itemp], datagroupnames.profiledatatype[itemp], dataspace);
         dataset.write((Double_t*)data,datagroupnames.profiledatatype[itemp]);
         itemp++;
+        */
+        Fhdf.write_dataset(datagroupnames.profile[itemp++], opt.profileradnormstring.size(), opt.profileradnormstring.c_str());
+        Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, &opt.iInclusiveHalo);
+        Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, &nbinsedges);
+        Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, data, H5T_NATIVE_DOUBLE);
 
+        /*
         //load data spaces, first scalars then the arrays
         profiledataspace=new DataSpace[head.headerdatainfo.size()];
         profiledataset=new DataSet[head.headerdatainfo.size()];
@@ -2867,6 +2886,7 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
 
         delete[] dims;
         delete[] chunk_dims;
+        */
     }
 #endif
     else {
@@ -2906,8 +2926,7 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
         data= ::operator new(sizeof(long long)*(ng));
         //first is halo ids, then normalisation
         for (Int_t i=0;i<ngroups;i++) ((unsigned long*)data)[i]=pdata[i+1].haloid;
-        profiledataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp], ngroups, data, head.hdfpredtypeinfo[itemp]);itemp++;
         if (opt.iprofilenorm == PROFILERNORMR200CRIT) {
             for (Int_t i=0;i<ngroups;i++) {
                 if (opt.iInclusiveHalo >0){
@@ -2916,111 +2935,98 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
                 }
                 else ((Double_t*)data)[i]=pdata[i+1].gR200c;
             }
-            profiledataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
+            Fhdf.write_dataset(head.headerdatainfo[itemp], ngroups, data, head.hdfpredtypeinfo[itemp]);itemp++;
         }
         //otherwise no normalisation and don't need to write data block
         ::operator delete(data);
+
         //now move onto 2d arrays;
         data= ::operator new(sizeof(int)*(ng)*(opt.profilenbins));
+        dims.resize(2);dims[0]=ngroups;dims[1]=opt.profilenbins;
         //write all the npart arrays
-        for (Int_t i=0;i<ngroups;i++) for (auto j=0;j<opt.profilenbins;j++) ((unsigned int*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_npart[j];
-        profiledataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        for (Int_t i=0;i<ngroups;i++) {
+            for (auto j=0;j<opt.profilenbins;j++) {
+                ((unsigned int*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_npart[j];
+            }
+        }
+        Fhdf.write_dataset_nd(head.headerdatainfo[itemp], 2, dims.data(), data, head.hdfpredtypeinfo[itemp]);itemp++;
+
 #ifdef GASON
         for (Int_t i=0;i<ngroups;i++) for (auto j=0;j<opt.profilenbins;j++) ((unsigned int*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_npart_gas[j];
-        profiledataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset_nd(head.headerdatainfo[itemp], 2, dims.data(), data, head.hdfpredtypeinfo[itemp]);itemp++;
 #ifdef STARON
         for (Int_t i=0;i<ngroups;i++) for (auto j=0;j<opt.profilenbins;j++) ((unsigned int*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_npart_gas_sf[j];
-        profiledataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset_nd(head.headerdatainfo[itemp], 2, dims.data(), data, head.hdfpredtypeinfo[itemp]);itemp++;
         for (Int_t i=0;i<ngroups;i++) for (auto j=0;j<opt.profilenbins;j++) ((unsigned int*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_npart_gas_nsf[j];
-        profiledataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset_nd(head.headerdatainfo[itemp], 2, dims.data(), data, head.hdfpredtypeinfo[itemp]);itemp++;
 #endif
 #endif
 #ifdef STARON
         for (Int_t i=0;i<ngroups;i++) for (auto j=0;j<opt.profilenbins;j++) ((unsigned int*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_npart_star[j];
-        profiledataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset_nd(head.headerdatainfo[itemp], 2, dims.data(), data, head.hdfpredtypeinfo[itemp]);itemp++;
 #endif
 
         for (Int_t i=0;i<ngroups;i++) for (auto j=0;j<opt.profilenbins;j++) ((float*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_mass[j];
-        profiledataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset_nd(head.headerdatainfo[itemp], 2, dims.data(), data, head.hdfpredtypeinfo[itemp]);itemp++;
 #ifdef GASON
         for (Int_t i=0;i<ngroups;i++) for (auto j=0;j<opt.profilenbins;j++) ((float*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_mass_gas[j];
-        profiledataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset_nd(head.headerdatainfo[itemp], 2, dims.data(), data, head.hdfpredtypeinfo[itemp]);itemp++;
 #ifdef STARON
         for (Int_t i=0;i<ngroups;i++) for (auto j=0;j<opt.profilenbins;j++) ((float*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_mass_gas_sf[j];
-        profiledataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset_nd(head.headerdatainfo[itemp], 2, dims.data(), data, head.hdfpredtypeinfo[itemp]);itemp++;
         for (Int_t i=0;i<ngroups;i++) for (auto j=0;j<opt.profilenbins;j++) ((float*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_mass_gas_nsf[j];
-        profiledataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset_nd(head.headerdatainfo[itemp], 2, dims.data(), data, head.hdfpredtypeinfo[itemp]);itemp++;
 #endif
 #endif
 #ifdef STARON
         for (Int_t i=0;i<ngroups;i++) for (auto j=0;j<opt.profilenbins;j++) ((float*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_mass_star[j];
-        profiledataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset_nd(head.headerdatainfo[itemp], 2, dims.data(), data, head.hdfpredtypeinfo[itemp]);itemp++;
 #endif
         ::operator delete(data);
 
         //write all the npart arrays for halos only if inclusive masses calculated
         if (opt.iInclusiveHalo >0) {
-        data= ::operator new(sizeof(int)*(nhalos)*(opt.profilenbins));
-        for (Int_t i=0;i<nhalos;i++) for (auto j=0;j<opt.profilenbins;j++) ((unsigned int*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_npart_inclusive[j];
-        profiledataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-#ifdef GASON
-        for (Int_t i=0;i<nhalos;i++) for (auto j=0;j<opt.profilenbins;j++) ((unsigned int*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_npart_inclusive_gas[j];
-        profiledataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-#ifdef STARON
-        for (Int_t i=0;i<nhalos;i++) for (auto j=0;j<opt.profilenbins;j++) ((unsigned int*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_npart_inclusive_gas_sf[j];
-        profiledataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-        for (Int_t i=0;i<nhalos;i++) for (auto j=0;j<opt.profilenbins;j++) ((unsigned int*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_npart_inclusive_gas_nsf[j];
-        profiledataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-#endif
-#endif
-#ifdef STARON
-        for (Int_t i=0;i<nhalos;i++) for (auto j=0;j<opt.profilenbins;j++) ((unsigned int*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_npart_inclusive_star[j];
-        profiledataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-#endif
+            data= ::operator new(sizeof(int)*(nhalos)*(opt.profilenbins));
+            dims.resize(2);dims[0]=nhalos;dims[1]=opt.profilenbins;
 
-        for (Int_t i=0;i<nhalos;i++) for (auto j=0;j<opt.profilenbins;j++) ((float*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_mass_inclusive[j];
-        profiledataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-#ifdef GASON
-        for (Int_t i=0;i<nhalos;i++) for (auto j=0;j<opt.profilenbins;j++) ((float*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_mass_inclusive_gas[j];
-        profiledataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-#ifdef STARON
-        for (Int_t i=0;i<nhalos;i++) for (auto j=0;j<opt.profilenbins;j++) ((float*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_mass_inclusive_gas_sf[j];
-        profiledataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-        for (Int_t i=0;i<nhalos;i++) for (auto j=0;j<opt.profilenbins;j++) ((float*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_mass_inclusive_gas_nsf[j];
-        profiledataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-#endif
-#endif
-#ifdef STARON
-        for (Int_t i=0;i<nhalos;i++) for (auto j=0;j<opt.profilenbins;j++) ((float*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_mass_inclusive_star[j];
-        profiledataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-#endif
+            for (Int_t i=0;i<nhalos;i++) for (auto j=0;j<opt.profilenbins;j++) ((unsigned int*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_npart_inclusive[j];
+            Fhdf.write_dataset_nd(head.headerdatainfo[itemp], 2, dims.data(), data, head.hdfpredtypeinfo[itemp]);itemp++;
+    #ifdef GASON
+            for (Int_t i=0;i<nhalos;i++) for (auto j=0;j<opt.profilenbins;j++) ((unsigned int*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_npart_inclusive_gas[j];
+            Fhdf.write_dataset_nd(head.headerdatainfo[itemp], 2, dims.data(), data, head.hdfpredtypeinfo[itemp]);itemp++;
+    #ifdef STARON
+            for (Int_t i=0;i<nhalos;i++) for (auto j=0;j<opt.profilenbins;j++) ((unsigned int*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_npart_inclusive_gas_sf[j];
+            Fhdf.write_dataset_nd(head.headerdatainfo[itemp], 2, dims.data(), data, head.hdfpredtypeinfo[itemp]);itemp++;
+            for (Int_t i=0;i<nhalos;i++) for (auto j=0;j<opt.profilenbins;j++) ((unsigned int*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_npart_inclusive_gas_nsf[j];
+            Fhdf.write_dataset_nd(head.headerdatainfo[itemp], 2, dims.data(), data, head.hdfpredtypeinfo[itemp]);itemp++;
+    #endif
+    #endif
+    #ifdef STARON
+            for (Int_t i=0;i<nhalos;i++) for (auto j=0;j<opt.profilenbins;j++) ((unsigned int*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_npart_inclusive_star[j];
+            Fhdf.write_dataset_nd(head.headerdatainfo[itemp], 2, dims.data(), data, head.hdfpredtypeinfo[itemp]);itemp++;
+    #endif
+
+            for (Int_t i=0;i<nhalos;i++) for (auto j=0;j<opt.profilenbins;j++) ((float*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_mass_inclusive[j];
+            Fhdf.write_dataset_nd(head.headerdatainfo[itemp], 2, dims.data(), data, head.hdfpredtypeinfo[itemp]);itemp++;
+    #ifdef GASON
+            for (Int_t i=0;i<nhalos;i++) for (auto j=0;j<opt.profilenbins;j++) ((float*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_mass_inclusive_gas[j];
+            Fhdf.write_dataset_nd(head.headerdatainfo[itemp], 2, dims.data(), data, head.hdfpredtypeinfo[itemp]);itemp++;
+    #ifdef STARON
+            for (Int_t i=0;i<nhalos;i++) for (auto j=0;j<opt.profilenbins;j++) ((float*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_mass_inclusive_gas_sf[j];
+            Fhdf.write_dataset_nd(head.headerdatainfo[itemp], 2, dims.data(), data, head.hdfpredtypeinfo[itemp]);itemp++;
+            for (Int_t i=0;i<nhalos;i++) for (auto j=0;j<opt.profilenbins;j++) ((float*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_mass_inclusive_gas_nsf[j];
+            Fhdf.write_dataset_nd(head.headerdatainfo[itemp], 2, dims.data(), data, head.hdfpredtypeinfo[itemp]);itemp++;
+    #endif
+    #endif
+    #ifdef STARON
+            for (Int_t i=0;i<nhalos;i++) for (auto j=0;j<opt.profilenbins;j++) ((float*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_mass_inclusive_star[j];
+            Fhdf.write_dataset_nd(head.headerdatainfo[itemp], 2, dims.data(), data, head.hdfpredtypeinfo[itemp]);itemp++;
+    #endif
         }
-
         ::operator delete(data);
         //delete memory associated with void pointer
-        delete[] profiledataspace;
-        delete[] profiledataset;
+        // delete[] profiledataspace;
+        // delete[] profiledataset;
     }
 #endif
     cout<<"Done"<<endl;
@@ -3040,12 +3046,13 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
     char fname[500],fname2[500];
     unsigned long ng=ngroups,ngtot=0,noffset=0;
 #ifdef USEHDF
-    H5File Fhdf;
-    H5std_string datasetname;
-    DataSpace dataspace;
-    DataSet dataset;
-    DSetCreatPropList hdfdatasetproplist;
-    hsize_t *dims, *chunk_dims;
+    // H5File Fhdf;
+    // H5std_string datasetname;
+    // DataSpace dataspace;
+    // DataSet dataset;
+    // DSetCreatPropList hdfdatasetproplist;
+    // hsize_t *dims, *chunk_dims;
+    H5OutputFile Fhdf;
     int rank;
     int itemp=0;
 #endif
@@ -3064,7 +3071,8 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
     if (opt.ibinaryout==OUTBINARY) Fout.open(fname,ios::out|ios::binary|ios::app);
 #ifdef USEHDF
     if (opt.ibinaryout==OUTHDF) {
-        Fhdf=H5File(fname,H5F_ACC_RDWR);
+        // Fhdf=H5File(fname,H5F_ACC_RDWR);
+        Fhdf.create(string(fname),H5F_ACC_RDWR);
     }
 #endif
     else Fout.open(fname,ios::out|ios::app);
@@ -3082,6 +3090,7 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
         if (opt.ibinaryout==OUTBINARY) Fout.write((char*)&nsub[1],sizeof(Int_t)*nfield);
 #ifdef USEHDF
         else if (opt.ibinaryout==OUTHDF) {
+            /*
             dims=new hsize_t[1];
             chunk_dims=new hsize_t[1];
             dims[0]=nfield;
@@ -3104,6 +3113,12 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
             delete[] data;
             delete[] dims;
             delete[] chunk_dims;
+            */
+            itemp=4;
+            unsigned int *data=new unsigned int[nfield];
+            for (Int_t i=1;i<=nfield;i++) data[i-1]=nsub[i];
+            Fhdf.write_dataset(datagroupnames.hierarchy[itemp], nfield, data);
+            delete[] data;
         }
 #endif
         else for (Int_t i=1;i<=nfield;i++)Fout<<nsub[i]<<endl;
@@ -3115,6 +3130,7 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
         }
 #ifdef USEHDF
         else if (opt.ibinaryout==OUTHDF) {
+            /*
             dims=new hsize_t[1];
             chunk_dims=new hsize_t[1];
             dims[0]=ngroups-nfield;
@@ -3150,6 +3166,16 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
             delete[] data2;
             delete[] dims;
             delete[] chunk_dims;
+            */
+            itemp=4;
+            unsigned int *data=new unsigned int[ngroups-nfield];
+            for (Int_t i=nfield+1;i<=ngroups;i++) data[i-nfield-1]=nsub[i];
+            Fhdf.write_dataset(datagroupnames.hierarchy[itemp++], ngroups-nfield, data);
+            delete[] data;
+            long long *data2=new long long[ngroups-nfield];
+            for (Int_t i=nfield+1;i<=ngroups;i++) data2[i-nfield-1]=parentgid[i];
+            Fhdf.write_dataset(datagroupnames.hierarchy[itemp++], ngroups-nfield, data2);
+            delete[] data2;
         }
 #endif
         else {
@@ -3165,6 +3191,7 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
         }
 #ifdef USEHDF
         else if (opt.ibinaryout==OUTHDF) {
+            /*
             dims=new hsize_t[1];
             chunk_dims=new hsize_t[1];
             dims[0]=ngroups;
@@ -3194,6 +3221,16 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
             delete[] data2;
             delete[] dims;
             delete[] chunk_dims;
+            */
+            itemp=4;
+            unsigned int *data=new unsigned int[ngroups];
+            for (Int_t i=1;i<=ngroups;i++) data[i-1]=nsub[i];
+            Fhdf.write_dataset(datagroupnames.hierarchy[itemp++], ngroups, data);
+            delete[] data;
+            long long *data2=new long long[ngroups];
+            for (Int_t i=1;i<=ngroups;i++) data2[i-1]=parentgid[i];
+            Fhdf.write_dataset(datagroupnames.hierarchy[itemp++], ngroups, data2);
+            delete[] data2;
         }
 #endif
         else {
@@ -3224,7 +3261,9 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
     }
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
-        Fhdf=H5File(fname,H5F_ACC_TRUNC);
+        // Fhdf=H5File(fname,H5F_ACC_TRUNC);
+        Fhdf.create(string(fname),H5F_ACC_TRUNC);
+        /*
         //set file info
         dims=new hsize_t[1];
         dims[0]=1;
@@ -3250,6 +3289,12 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
         dataset.write(&ngtot,datagroupnames.hierarchydatatype[itemp]);
         itemp++;
         delete[] dims;
+        */
+        itemp=0;
+        Fhdf.write_dataset(datagroupnames.hierarchy[itemp++], 1, &ThisTask);
+        Fhdf.write_dataset(datagroupnames.hierarchy[itemp++], 1, &NProcs);
+        Fhdf.write_dataset(datagroupnames.hierarchy[itemp++], 1, &ng);
+        Fhdf.write_dataset(datagroupnames.hierarchy[itemp++], 1, &ngtot);
     }
 #endif
     else {
@@ -3265,6 +3310,7 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
         }
 #ifdef USEHDF
         else if (opt.ibinaryout==OUTHDF) {
+            /*
             dims=new hsize_t[1];
             chunk_dims=new hsize_t[1];
             dims[0]=nfield;
@@ -3293,6 +3339,16 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
             delete[] data2;
             delete[] dims;
             delete[] chunk_dims;
+            */
+            itemp=4;
+            unsigned int *data=new unsigned int[nfield];
+            for (Int_t i=1;i<=nfield;i++) data[i-1]=nsub[i];
+            Fhdf.write_dataset(datagroupnames.hierarchy[itemp++], nfield, data);
+            delete[] data;
+            long long *data2=new long long[nfield];
+            for (Int_t i=1;i<=nfield;i++) data2[i-1]=parentgid[i];
+            Fhdf.write_dataset(datagroupnames.hierarchy[itemp++], nfield, data2);
+            delete[] data2;
         }
 #endif
         else for (Int_t i=1;i<=nfield;i++)Fout<<parentgid[i]<<" "<<nsub[i]<<endl;
@@ -3304,6 +3360,7 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
         }
 #ifdef USEHDF
         else if (opt.ibinaryout==OUTHDF) {
+            /*
             dims=new hsize_t[1];
             chunk_dims=new hsize_t[1];
             dims[0]=ngroups-nfield;
@@ -3332,6 +3389,15 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
             delete[] data2;
             delete[] dims;
             delete[] chunk_dims;
+            */
+            unsigned int *data=new unsigned int[ngroups-nfield];
+            for (Int_t i=nfield+1;i<=ngroups;i++) data[i-nfield-1]=nsub[i];
+            Fhdf.write_dataset(datagroupnames.hierarchy[itemp++], ngroups-nfield, data);
+            delete[] data;
+            long long *data2=new long long[ngroups-nfield];
+            for (Int_t i=nfield+1;i<=ngroups;i++) data2[i-nfield-1]=parentgid[i];
+            Fhdf.write_dataset(datagroupnames.hierarchy[itemp++], ngroups-nfield, data2);
+            delete[] data2;
         }
 #endif
         else for (Int_t i=nfield+1;i<=ngroups;i++)Fout<<parentgid[i]<<" "<<nsub[i]<<endl;
@@ -3344,6 +3410,7 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
         }
 #ifdef USEHDF
         else if (opt.ibinaryout==OUTHDF) {
+            /*
             dims=new hsize_t[1];
             chunk_dims=new hsize_t[1];
             dims[0]=ngroups;
@@ -3372,6 +3439,15 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
             delete[] data2;
             delete[] dims;
             delete[] chunk_dims;
+            */
+            unsigned int *data=new unsigned int[ngroups];
+            for (Int_t i=1;i<=ngroups;i++) data[i-1]=nsub[i];
+            Fhdf.write_dataset(datagroupnames.hierarchy[itemp++], ngroups, data);
+            delete[] data;
+            long long *data2=new long long[ngroups];
+            for (Int_t i=1;i<=ngroups;i++) data2[i-1]=parentgid[i];
+            Fhdf.write_dataset(datagroupnames.hierarchy[itemp++], ngroups, data2);
+            delete[] data2;
         }
 #endif
         else {

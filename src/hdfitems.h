@@ -464,6 +464,19 @@ class H5OutputFile
     {
 		int rank = 1;
       	hsize_t dims[1] = {len};
+		if (memtype_id == -1) {
+    		memtype_id = hdf5_type(T{});
+	 	}
+      	write_dataset_nd(name, rank, dims, data, memtype_id, filetype_id);
+    }
+	void write_dataset(std::string name, hsize_t len, void *data,
+	                                       hid_t memtype_id=-1, hid_t filetype_id=-1)
+    {
+		int rank = 1;
+      	hsize_t dims[1] = {len};
+		if (memtype_id == -1) {
+			throw std::runtime_error("Write data set called with void pointer but no type info passed.");
+        }
       	write_dataset_nd(name, rank, dims, data, memtype_id, filetype_id);
     }
 
@@ -474,9 +487,59 @@ class H5OutputFile
 	                                          hid_t memtype_id = -1, hid_t filetype_id=-1)
     {
 		// Get HDF5 data type of the array in memory
-		T dummy;
 		if (memtype_id == -1) {
-			memtype_id = hdf5_type(dummy);
+			memtype_id = hdf5_type(T{});
+		}
+
+		// Determine type of the dataset to create
+		if(filetype_id < 0)filetype_id = memtype_id;
+
+		// Create the dataspace
+		hid_t dspace_id = H5Screate_simple(rank, dims, NULL);
+
+		// Only chunk non-zero size datasets
+		int nonzero_size = 1;
+		for(int i=0; i<rank; i+=1)
+		if(dims[i]==0)nonzero_size = 0;
+
+		// Only chunk datasets where we would have >1 chunk
+		int large_dataset = 0;
+		for(int i=0; i<rank; i+=1)
+		if(dims[i] > HDFOUTPUTCHUNKSIZE)large_dataset = 1;
+
+		// Dataset creation properties
+		hid_t prop_id = H5Pcreate(H5P_DATASET_CREATE);
+		if(nonzero_size && large_dataset)
+		{
+			hsize_t *chunks = new hsize_t[rank];
+			for(auto i=0; i<rank; i++) chunks[i] = min((hsize_t) HDFOUTPUTCHUNKSIZE, dims[i]);
+			H5Pset_layout(prop_id, H5D_CHUNKED);
+			H5Pset_chunk(prop_id, rank, chunks);
+			H5Pset_deflate(prop_id, HDFDEFLATE);
+			delete chunks;
+		}
+
+		// Create the dataset
+		hid_t dset_id = H5Dcreate(file_id, name.c_str(), filetype_id, dspace_id,
+		                        H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+		if(dset_id < 0)io_error(string("Failed to create dataset: ")+name);
+
+		// Write the data
+		if(H5Dwrite(dset_id, memtype_id, dspace_id, H5S_ALL, H5P_DEFAULT, data) < 0)
+		io_error(string("Failed to write dataset: ")+name);
+
+		// Clean up (note that dtype_id is NOT a new object so don't need to close it)
+		H5Sclose(dspace_id);
+		H5Dclose(dset_id);
+		H5Pclose(prop_id);
+
+    }
+	void write_dataset_nd(std::string name, int rank, hsize_t *dims, void *data,
+	                                          hid_t memtype_id = -1, hid_t filetype_id=-1)
+    {
+		// Get HDF5 data type of the array in memory
+		if (memtype_id == -1) {
+			throw std::runtime_error("Write data set called with void pointer but no type info passed.");
 		}
 
 		// Determine type of the dataset to create
