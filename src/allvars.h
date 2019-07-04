@@ -3293,6 +3293,7 @@ struct PropDataHeader{
     vector<string> headerdatainfo;
 #ifdef USEHDF
     vector<PredType> predtypeinfo;
+    vector<hid_t> hdfpredtypeinfo;
 #endif
 #ifdef USEADIOS
     vector<ADIOS_DATATYPES> adiospredtypeinfo;
@@ -3301,8 +3302,12 @@ struct PropDataHeader{
         int sizeval;
 #ifdef USEHDF
         vector<PredType> desiredproprealtype;
+        vector<hid_t> hdfdesiredproprealtype;
         if (sizeof(Double_t)==sizeof(double)) desiredproprealtype.push_back(PredType::NATIVE_DOUBLE);
         else desiredproprealtype.push_back(PredType::NATIVE_FLOAT);
+        if (sizeof(Double_t)==sizeof(double)) hdfdesiredproprealtype.push_back(H5T_NATIVE_DOUBLE);
+        else hdfdesiredproprealtype.push_back(H5T_NATIVE_FLOAT);
+
 #endif
 #ifdef USEADIOS
         vector<ADIOS_DATATYPES> desiredadiosproprealtype;
@@ -3334,6 +3339,17 @@ struct PropDataHeader{
         if (opt.iKeepFOF==1){
             predtypeinfo.push_back(PredType::STD_I64LE);
             predtypeinfo.push_back(PredType::STD_I64LE);
+        }
+        hdfpredtypeinfo.push_back(H5T_NATIVE_ULONG);
+        hdfpredtypeinfo.push_back(H5T_NATIVE_LONG);
+        hdfpredtypeinfo.push_back(H5T_NATIVE_LONG);
+        hdfpredtypeinfo.push_back(H5T_NATIVE_LONG);
+        hdfpredtypeinfo.push_back(H5T_NATIVE_ULONG);
+        hdfpredtypeinfo.push_back(H5T_NATIVE_ULONG);
+        hdfpredtypeinfo.push_back(H5T_NATIVE_INT);
+        if (opt.iKeepFOF==1){
+            hdfpredtypeinfo.push_back(H5T_NATIVE_LONG);
+            hdfpredtypeinfo.push_back(H5T_NATIVE_LONG);
         }
 #endif
 #ifdef USEADIOS
@@ -3472,6 +3488,7 @@ struct PropDataHeader{
 #ifdef USEHDF
         sizeval=predtypeinfo.size();
         for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
+        for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
         sizeval=adiospredtypeinfo.size();
@@ -3482,6 +3499,7 @@ struct PropDataHeader{
         headerdatainfo.push_back("n_gas");
 #ifdef USEHDF
         predtypeinfo.push_back(PredType::STD_U64LE);
+        hdfpredtypeinfo.push_back(H5T_NATIVE_ULONG);
 #endif
 #ifdef USEADIOS
         adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
@@ -3559,6 +3577,7 @@ struct PropDataHeader{
 #ifdef USEHDF
         sizeval=predtypeinfo.size();
         for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
+        for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
         sizeval=adiospredtypeinfo.size();
@@ -3570,6 +3589,7 @@ struct PropDataHeader{
         headerdatainfo.push_back("n_star");
 #ifdef USEHDF
         predtypeinfo.push_back(PredType::STD_U64LE);
+        hdfpredtypeinfo.push_back(H5T_NATIVE_ULONG);
 #endif
 #ifdef USEADIOS
         adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
@@ -3644,6 +3664,7 @@ struct PropDataHeader{
 #ifdef USEHDF
         sizeval=predtypeinfo.size();
         for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
+        for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
         sizeval=adiospredtypeinfo.size();
@@ -3655,6 +3676,7 @@ struct PropDataHeader{
         headerdatainfo.push_back("n_bh");
 #ifdef USEHDF
         predtypeinfo.push_back(PredType::STD_U64LE);
+        hdfpredtypeinfo.push_back(H5T_NATIVE_ULONG);
 #endif
 #ifdef USEADIOS
         adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
@@ -3663,6 +3685,7 @@ struct PropDataHeader{
 #ifdef USEHDF
         sizeval=predtypeinfo.size();
         for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
+        for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
         sizeval=adiospredtypeinfo.size();
@@ -3675,6 +3698,7 @@ struct PropDataHeader{
         headerdatainfo.push_back("n_interloper");
 #ifdef USEHDF
         predtypeinfo.push_back(PredType::STD_U64LE);
+        hdfpredtypeinfo.push_back(H5T_NATIVE_ULONG);
 #endif
 #ifdef USEADIOS
         adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
@@ -3693,6 +3717,7 @@ struct PropDataHeader{
 #ifdef USEHDF
         sizeval=predtypeinfo.size();
         for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
+        for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
         sizeval=adiospredtypeinfo.size();
@@ -3778,6 +3803,7 @@ struct PropDataHeader{
 #ifdef USEHDF
         sizeval=predtypeinfo.size();
         for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
+        for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
         sizeval=adiospredtypeinfo.size();
@@ -3810,6 +3836,7 @@ struct PropDataHeader{
 #ifdef USEHDF
             sizeval=predtypeinfo.size();
             for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(PredType::STD_U32LE);
+            for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(H5T_NATIVE_UINT);
 #endif
 #ifdef USEADIOS
             sizeval=adiospredtypeinfo.size();
@@ -3877,6 +3904,7 @@ struct PropDataHeader{
 #ifdef USEHDF
             sizeval=predtypeinfo.size();
             for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
+            for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
             sizeval=adiospredtypeinfo.size();
@@ -3927,6 +3955,7 @@ struct PropDataHeader{
 #ifdef USEHDF
             sizeval=predtypeinfo.size();
             for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
+            for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
             sizeval=adiospredtypeinfo.size();
@@ -3940,6 +3969,7 @@ struct PropDataHeader{
                 headerdatainfo.push_back((string("SO_Mass_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
 #ifdef USEHDF
                 predtypeinfo.push_back(desiredproprealtype[0]);
+                hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
                 adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
@@ -3949,6 +3979,7 @@ struct PropDataHeader{
                 headerdatainfo.push_back((string("SO_R_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
 #ifdef USEHDF
                 predtypeinfo.push_back(desiredproprealtype[0]);
+                hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
                 adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
@@ -3960,6 +3991,7 @@ struct PropDataHeader{
                     headerdatainfo.push_back((string("SO_Mass_gas_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
 #ifdef USEHDF
                     predtypeinfo.push_back(desiredproprealtype[0]);
+                    hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
                     adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
@@ -3976,6 +4008,7 @@ struct PropDataHeader{
                     headerdatainfo.push_back((string("SO_Mass_star_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
 #ifdef USEHDF
                     predtypeinfo.push_back(desiredproprealtype[0]);
+                    hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
                     adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
@@ -3989,6 +4022,7 @@ struct PropDataHeader{
                     headerdatainfo.push_back((string("SO_Mass_interloper_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
 #ifdef USEHDF
                     predtypeinfo.push_back(desiredproprealtype[0]);
+                    hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
                     adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
@@ -4005,6 +4039,7 @@ struct PropDataHeader{
                 for (auto k=0;k<3;k++) {
 #ifdef USEHDF
                     predtypeinfo.push_back(desiredproprealtype[0]);
+                    hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
                     adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
@@ -4020,6 +4055,7 @@ struct PropDataHeader{
                     for (auto k=0;k<3;k++) {
 #ifdef USEHDF
                         predtypeinfo.push_back(desiredproprealtype[0]);
+                        hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
                         adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
@@ -4040,6 +4076,7 @@ struct PropDataHeader{
                     for (auto k=0;k<3;k++) {
 #ifdef USEHDF
                         predtypeinfo.push_back(desiredproprealtype[0]);
+                        hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
                         adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
@@ -4062,6 +4099,7 @@ struct ProfileDataHeader{
     vector<string> headerdatainfo;
 #ifdef USEHDF
     vector<PredType> predtypeinfo;
+    vector<hid_t> hdfpredtypeinfo;
 #endif
 #ifdef USEADIOS
     vector<ADIOS_DATATYPES> adiospredtypeinfo;
@@ -4073,8 +4111,11 @@ struct ProfileDataHeader{
         int sizeval;
 #ifdef USEHDF
         vector<PredType> desiredproprealtype;
+        vector<hid_t> hdfdesiredproprealtype;
         if (sizeof(Double_t)==sizeof(double)) desiredproprealtype.push_back(PredType::NATIVE_DOUBLE);
         else desiredproprealtype.push_back(PredType::NATIVE_FLOAT);
+        if (sizeof(Double_t)==sizeof(double)) hdfdesiredproprealtype.push_back(H5T_NATIVE_DOUBLE);
+        else hdfdesiredproprealtype.push_back(H5T_NATIVE_FLOAT);
 #endif
 #ifdef USEADIOS
         vector<ADIOS_DATATYPES> desiredadiosproprealtype;
@@ -4086,6 +4127,7 @@ struct ProfileDataHeader{
         headerdatainfo.push_back("ID");
 #ifdef USEHDF
         predtypeinfo.push_back(PredType::STD_U64LE);
+        hdfpredtypeinfo.push_back(H5T_NATIVE_ULONG);
 #endif
 #ifdef USEADIOS
         adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
@@ -4095,6 +4137,7 @@ struct ProfileDataHeader{
         headerdatainfo.push_back(opt.profileradnormstring);
 #ifdef USEHDF
         predtypeinfo.push_back(desiredproprealtype[0]);
+        hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
         adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
@@ -4102,7 +4145,7 @@ struct ProfileDataHeader{
         }
         numberscalarentries=headerdatainfo.size();
 
-	offsetarrayallgroupentries=headerdatainfo.size();
+	    offsetarrayallgroupentries=headerdatainfo.size();
         headerdatainfo.push_back("Npart_profile");
 #ifdef GASON
         headerdatainfo.push_back("Npart_profile_gas");
@@ -4117,6 +4160,7 @@ struct ProfileDataHeader{
 #ifdef USEHDF
         sizeval=predtypeinfo.size();
         for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(PredType::STD_U32LE);
+        for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(H5T_NATIVE_UINT);
 #endif
 #ifdef USEADIOS
         sizeval=adiospredtypeinfo.size();
@@ -4138,6 +4182,7 @@ struct ProfileDataHeader{
 #ifdef USEHDF
         sizeval=predtypeinfo.size();
         for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(PredType::NATIVE_FLOAT);
+        for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(H5T_NATIVE_FLOAT);
 #endif
 #ifdef USEADIOS
         sizeval=adiospredtypeinfo.size();
@@ -4162,6 +4207,7 @@ struct ProfileDataHeader{
 #ifdef USEHDF
         sizeval=predtypeinfo.size();
         for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(PredType::STD_U32LE);
+        for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(H5T_NATIVE_UINT);
 #endif
 #ifdef USEADIOS
         sizeval=adiospredtypeinfo.size();
@@ -4182,6 +4228,7 @@ struct ProfileDataHeader{
 #ifdef USEHDF
         sizeval=predtypeinfo.size();
         for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(PredType::NATIVE_FLOAT);
+        for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(H5T_NATIVE_FLOAT);
 #endif
 #ifdef USEADIOS
         sizeval=adiospredtypeinfo.size();
@@ -4264,6 +4311,7 @@ struct DataGroupNames {
 #ifdef USEHDF
     //store the data type
     vector<PredType> propdatatype;
+    vector<hid_t> hdfpropdatatype;
 #endif
 #ifdef USEADIOS
     vector<ADIOS_DATATYPES> adiospropdatatype;
@@ -4327,8 +4375,11 @@ struct DataGroupNames {
     DataGroupNames(){
 #ifdef USEHDF
         vector<PredType> desiredproprealtype;
+        vector<hid_t> hdfdesiredproprealtype;
         if (sizeof(Double_t)==sizeof(double)) desiredproprealtype.push_back(PredType::NATIVE_DOUBLE);
         else desiredproprealtype.push_back(PredType::NATIVE_FLOAT);
+        if (sizeof(Double_t)==sizeof(double)) hdfdesiredproprealtype.push_back(H5T_NATIVE_DOUBLE);
+        else hdfdesiredproprealtype.push_back(H5T_NATIVE_FLOAT);
 #endif
 #ifdef USEADIOS
         vector<ADIOS_DATATYPES> desiredadiosproprealtype;
@@ -4368,6 +4419,24 @@ struct DataGroupNames {
         propdatatype.push_back(desiredproprealtype[0]);
         propdatatype.push_back(desiredproprealtype[0]);
 #endif
+
+        hdfpropdatatype.push_back(H5T_NATIVE_INT);
+        hdfpropdatatype.push_back(H5T_NATIVE_INT);
+        hdfpropdatatype.push_back(H5T_NATIVE_ULONG);
+        hdfpropdatatype.push_back(H5T_NATIVE_ULONG);
+        hdfpropdatatype.push_back(H5T_NATIVE_UINT);
+        hdfpropdatatype.push_back(H5T_NATIVE_UINT);
+        hdfpropdatatype.push_back(hdfdesiredproprealtype[0]);
+        hdfpropdatatype.push_back(hdfdesiredproprealtype[0]);
+        hdfpropdatatype.push_back(hdfdesiredproprealtype[0]);
+        hdfpropdatatype.push_back(hdfdesiredproprealtype[0]);
+        hdfpropdatatype.push_back(hdfdesiredproprealtype[0]);
+#if defined(GASON) || defined(STARON) || defined(BHON)
+        hdfpropdatatype.push_back(hdfdesiredproprealtype[0]);
+        hdfpropdatatype.push_back(hdfdesiredproprealtype[0]);
+        hdfpropdatatype.push_back(hdfdesiredproprealtype[0]);
+#endif
+
 #endif
 #ifdef USEADIOS
         adiospropdatatype.push_back(ADIOS_DATATYPES::adios_integer);

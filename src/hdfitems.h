@@ -460,22 +460,24 @@ class H5OutputFile
 	/// Write a new 1D dataset. Data type of the new dataset is taken to be the type of
 	/// the input data if not explicitly specified with the filetype_id parameter.
 	template <typename T> void write_dataset(std::string name, hsize_t len, T *data,
-	                                       hid_t filetype_id=-1)
+	                                       hid_t memtype_id = -1, hid_t filetype_id=-1)
     {
 		int rank = 1;
       	hsize_t dims[1] = {len};
-      	write_dataset_nd(name, rank, dims, data, filetype_id);
+      	write_dataset_nd(name, rank, dims, data, memtype_id, filetype_id);
     }
 
 
 	/// Write a multidimensional dataset. Data type of the new dataset is taken to be the type of
 	/// the input data if not explicitly specified with the filetype_id parameter.
 	template <typename T> void write_dataset_nd(std::string name, int rank, hsize_t *dims, T *data,
-	                                          hid_t filetype_id=-1)
+	                                          hid_t memtype_id = -1, hid_t filetype_id=-1)
     {
 		// Get HDF5 data type of the array in memory
 		T dummy;
-		hid_t memtype_id = hdf5_type(dummy);
+		if (memtype_id == -1) {
+			memtype_id = hdf5_type(dummy);
+		}
 
 		// Determine type of the dataset to create
 		if(filetype_id < 0)filetype_id = memtype_id;
