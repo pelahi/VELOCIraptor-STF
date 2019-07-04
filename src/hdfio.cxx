@@ -283,9 +283,18 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     partsgroup.resize(opt.num_files*NHDFTYPE);
     partsdataset.resize(opt.num_files*NHDFTYPE);
     partsdataspace.resize(opt.num_files*NHDFTYPE);
+    //init the hid_t to negative values
+    for (auto &x:Fhdf) x=-1;
+    for (auto &x:headerdataspace) x=-1;
+    for (auto &x:headerattribs) x=-1;
+    for (auto &x:partsgroup) x=-1;
+    for (auto &x:partsdataset) x=-1;
+    for (auto &x:partsdataspace) x=-1;
 #ifdef USEMPI
     partsdatasetall.resize(opt.num_files*NHDFTYPE*NHDFDATABLOCK);
     partsdataspaceall.resize(opt.num_files*NHDFTYPE*NHDFDATABLOCK);
+    for (auto &x:partsdatasetall) x=-1;
+    for (auto &x:partsdataspaceall) x=-1;
 #endif
     for(i=0; i<opt.num_files; i++) if(ireadfile[i]) {
         if(opt.num_files>1) sprintf(buf,"%s.%d.hdf5",opt.fname,(int)i);
@@ -669,16 +678,9 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                 }
               }
             }
-            for (j=0;j<nusetypes;j++) {
-                k=usetypes[j];
-                HDF5CloseDataSpace(partsdataspace[i*NHDFTYPE+k]);
-                HDF5CloseDataSet(partsdataset[i*NHDFTYPE+k]);
-            }
-            if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) for (j=1;j<=nbusetypes;j++) {
-                k=usetypes[j];
-                HDF5CloseDataSpace(partsdataspace[i*NHDFTYPE+k]);
-                HDF5CloseDataSet(partsdataset[i*NHDFTYPE+k]);
-            }
+            //close data spaces
+            for (auto &hidval:partsdataspace) HDF5CloseDataSpace(hidval);
+            for (auto &hidval:partsdataset) HDF5CloseDataSet(hidval);
             //get velocities
             itemp++;
             for (j=0;j<nusetypes;j++) {
@@ -750,16 +752,9 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                 }
               }
             }
-            for (j=0;j<nusetypes;j++) {
-                k=usetypes[j];
-                HDF5CloseDataSpace(partsdataspace[i*NHDFTYPE+k]);
-                HDF5CloseDataSet(partsdataset[i*NHDFTYPE+k]);
-            }
-            if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) for (j=1;j<=nbusetypes;j++) {
-                k=usetypes[j];
-                HDF5CloseDataSpace(partsdataspace[i*NHDFTYPE+k]);
-                HDF5CloseDataSet(partsdataset[i*NHDFTYPE+k]);
-            }
+            //close data spaces
+            for (auto &hidval:partsdataspace) HDF5CloseDataSpace(hidval);
+            for (auto &hidval:partsdataset) HDF5CloseDataSet(hidval);
             //get ids
             itemp++;
             for (j=0;j<nusetypes;j++) {
@@ -863,16 +858,9 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                 }
               }
             }
-            for (j=0;j<nusetypes;j++) {
-                k=usetypes[j];
-                HDF5CloseDataSpace(partsdataspace[i*NHDFTYPE+k]);
-                HDF5CloseDataSet(partsdataset[i*NHDFTYPE+k]);
-            }
-            if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) for (j=1;j<=nbusetypes;j++) {
-                k=usetypes[j];
-                HDF5CloseDataSpace(partsdataspace[i*NHDFTYPE+k]);
-                HDF5CloseDataSet(partsdataset[i*NHDFTYPE+k]);
-            }
+            //close data spaces
+            for (auto &hidval:partsdataspace) HDF5CloseDataSpace(hidval);
+            for (auto &hidval:partsdataset) HDF5CloseDataSet(hidval);
 
             //get masses, note that DM do not contain a mass field
             itemp++;
@@ -959,16 +947,9 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                 }
               }
             }
-            for (j=0;j<nusetypes;j++) {
-                k=usetypes[j];
-                HDF5CloseDataSpace(partsdataspace[i*NHDFTYPE+k]);
-                HDF5CloseDataSet(partsdataset[i*NHDFTYPE+k]);
-            }
-            if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) for (j=1;j<=nbusetypes;j++) {
-                k=usetypes[j];
-                HDF5CloseDataSpace(partsdataspace[i*NHDFTYPE+k]);
-                HDF5CloseDataSet(partsdataset[i*NHDFTYPE+k]);
-            }
+            //close data spaces
+            for (auto &hidval:partsdataspace) HDF5CloseDataSpace(hidval);
+            for (auto &hidval:partsdataset) HDF5CloseDataSet(hidval);
 
             //and if not just searching DM, load other parameters
             if (!(opt.partsearchtype==PSTDARK && opt.iBaryonSearch==0)) {
@@ -1055,16 +1036,9 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                   }
                 }
               }
-              for (j=0;j<nusetypes;j++) {
-                  k=usetypes[j];
-                  HDF5CloseDataSpace(partsdataspace[i*NHDFTYPE+k]);
-                  HDF5CloseDataSet(partsdataset[i*NHDFTYPE+k]);
-              }
-              if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) for (j=1;j<=nbusetypes;j++) {
-                  k=usetypes[j];
-                  HDF5CloseDataSpace(partsdataspace[i*NHDFTYPE+k]);
-                  HDF5CloseDataSet(partsdataset[i*NHDFTYPE+k]);
-              }
+              //close data spaces
+              for (auto &hidval:partsdataspace) HDF5CloseDataSpace(hidval);
+              for (auto &hidval:partsdataset) HDF5CloseDataSet(hidval);
 #ifdef STARON
               //if star forming get star formation rate
               for (j=0;j<nusetypes;j++) {
@@ -1148,16 +1122,9 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                   }
                 }
               }
-              for (j=0;j<nusetypes;j++) {
-                  k=usetypes[j];
-                  HDF5CloseDataSpace(partsdataspace[i*NHDFTYPE+k]);
-                  HDF5CloseDataSet(partsdataset[i*NHDFTYPE+k]);
-              }
-              if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) for (j=1;j<=nbusetypes;j++) {
-                  k=usetypes[j];
-                  HDF5CloseDataSpace(partsdataspace[i*NHDFTYPE+k]);
-                  HDF5CloseDataSet(partsdataset[i*NHDFTYPE+k]);
-              }
+              //close data spaces
+              for (auto &hidval:partsdataspace) HDF5CloseDataSpace(hidval);
+              for (auto &hidval:partsdataset) HDF5CloseDataSet(hidval);
               //then metallicity
               for (j=0;j<nusetypes;j++) {
                 k=usetypes[j];
@@ -1255,16 +1222,9 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                   }
                 }
               }
-              for (j=0;j<nusetypes;j++) {
-                  k=usetypes[j];
-                  HDF5CloseDataSpace(partsdataspace[i*NHDFTYPE+k]);
-                  HDF5CloseDataSet(partsdataset[i*NHDFTYPE+k]);
-              }
-              if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) for (j=1;j<=nbusetypes;j++) {
-                  k=usetypes[j];
-                  HDF5CloseDataSpace(partsdataspace[i*NHDFTYPE+k]);
-                  HDF5CloseDataSet(partsdataset[i*NHDFTYPE+k]);
-              }
+              //close data spaces
+              for (auto &hidval:partsdataspace) HDF5CloseDataSpace(hidval);
+              for (auto &hidval:partsdataset) HDF5CloseDataSet(hidval);
               //then get star formation time, must also adjust so that if tage<0 this is a wind particle in Illustris so change particle type
               for (j=0;j<nusetypes;j++) {
                 k=usetypes[j];
@@ -1347,27 +1307,14 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                   }
                 }
               }
-              for (j=0;j<nusetypes;j++) {
-                  k=usetypes[j];
-                  HDF5CloseDataSpace(partsdataspace[i*NHDFTYPE+k]);
-                  HDF5CloseDataSet(partsdataset[i*NHDFTYPE+k]);
-              }
-              if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) for (j=1;j<=nbusetypes;j++) {
-                  k=usetypes[j];
-                  HDF5CloseDataSpace(partsdataspace[i*NHDFTYPE+k]);
-                  HDF5CloseDataSet(partsdataset[i*NHDFTYPE+k]);
-              }
+              //close data spaces
+              for (auto &hidval:partsdataspace) HDF5CloseDataSpace(hidval);
+              for (auto &hidval:partsdataset) HDF5CloseDataSet(hidval);
 #endif
 #endif
             }//end of if not dark matter then baryon search
-            for (j=0;j<nusetypes;j++) {
-                k=usetypes[j];
-                HDF5CloseGroup(partsdataspace[i*NHDFTYPE+k]);
-            }
-            if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) for (j=1;j<=nbusetypes;j++) {
-                k=usetypes[j];
-                HDF5CloseGroup(partsdataspace[i*NHDFTYPE+k]);
-            }
+            //close groups
+            for (auto &hidval:partsgroup) HDF5CloseGroup(hidval);
             count2=count;
             bcount2=bcount;
         }//end of try
@@ -1986,6 +1933,10 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                     }//end of chunk
                   }//end of part type
                 }//end of baryon if
+                //close data spaces
+                for (auto &hidval:partsdataspace) HDF5CloseDataSpace(hidval);
+                for (auto &hidval:partsdataset) HDF5CloseDataSet(hidval);
+                for (auto &hidval:partsgroup) HDF5CloseGroup(hidval);
             }//end of try block
             /*
             catch(GroupIException error)

@@ -273,6 +273,7 @@ template<typename T> const T read_attribute(const std::string &filename, const s
 }
 
 static inline hid_t HDF5OpenFile(string name, unsigned int flags){
+	hid_t Fhdf;
 	return H5Fopen(name.c_str(),flags, H5P_DEFAULT);
 }
 
@@ -286,17 +287,21 @@ static inline hid_t HDF5OpenDataSpace(const hid_t &id){
 	return H5Dget_space(id);
 }
 
-static inline void HDF5CloseFile(const hid_t &id){
-	H5Fclose(id);
+static inline void HDF5CloseFile(hid_t &id){
+	if (id>=0) H5Fclose(id);
+	id = -1;
 }
-static inline void HDF5CloseGroup(const hid_t &id){
-	H5Gclose(id);
+static inline void HDF5CloseGroup(hid_t &id){
+	if (id>=0) H5Gclose(id);
+	id = -1;
 }
-static inline void HDF5CloseDataSet(const hid_t &id){
-	H5Dclose(id);
+static inline void HDF5CloseDataSet(hid_t &id){
+	if (id>=0) H5Dclose(id);
+	id = -1;
 }
-static inline void HDF5CloseDataSpace(const hid_t &id){
-	H5Sclose(id);
+static inline void HDF5CloseDataSpace(hid_t &id){
+	if (id>=0) H5Sclose(id);
+	id = -1;
 }
 
 void HDF5ReadHyperSlabReal(double *buffer,
@@ -419,7 +424,7 @@ class H5OutputFile
 	}
 
 	// Create a new file
-	void create(std::string filename)
+	void create(std::string filename, unsigned int flag)
 	{
 		if(file_id >= 0)io_error("Attempted to create file when already open!");
 		file_id = H5Fcreate(filename.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);

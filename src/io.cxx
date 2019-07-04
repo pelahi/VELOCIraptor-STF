@@ -382,11 +382,17 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     unsigned long noffset=0,ngtot=0,nids=0,nidstot,nuids=0,nuidstot,ng=0;
     Int_t *offset;
 #ifdef USEHDF
-    H5File Fhdf,Fhdf3;
-    H5std_string datasetname;
-    DataSpace dataspace;
-    DataSet dataset;
-    DSetCreatPropList hdfdatasetproplist;
+    // H5File Fhdf,Fhdf3;
+    // H5std_string datasetname;
+    // DataSpace dataspace;
+    // DataSet dataset;
+    // DSetCreatPropList hdfdatasetproplist;
+    H5OutputFile Fhdf, Fhdf3;
+    //hid_t Fhdf,Fhdf3;
+    string datasetname;
+    hid_t dataset;
+    hid_t dataspace;
+    hid_t hdfdatasetproplist;
     hsize_t *dims,*chunk_dims;
     hsize_t rank;
     int itemp=0;
@@ -418,8 +424,10 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
 #ifdef USEHDF
         //create file
         else if (opt.ibinaryout==OUTHDF) {
-        Fhdf=H5File(fname,H5F_ACC_TRUNC);
+        //Fhdf=H5File(fname,H5F_ACC_TRUNC);
         //Fhdf.H5Fcreate(fname,H5F_ACC_TRUNC,H5P_DEFAULT,H5P_DEFAULT);
+        //Fhdf=HDF5OpenFile(string(fname),H5F_ACC_TRUNC);
+        Fhdf.create(string(fname),H5F_ACC_TRUNC);
     }
 #endif
 #ifdef USEADIOS
@@ -445,6 +453,16 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     }
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
+        itemp=0;
+        Fhdf.write_dataset<datagroupnames.groupdatatype[itemp]>(datagroupnames.group[itemp], 1, ThisTask);
+        itemp++;
+        Fhdf.write_dataset<datagroupnames.groupdatatype[itemp]>(datagroupnames.group[itemp], 1, NProcs);
+        itemp++;
+        Fhdf.write_dataset<datagroupnames.groupdatatype[itemp]>(datagroupnames.group[itemp], 1, ng);
+        itemp++;
+        Fhdf.write_dataset<datagroupnames.groupdatatype[itemp]>(datagroupnames.group[itemp], 1, ngtot);
+        itemp++;
+/*
         //set file info
         dims=new hsize_t[1];
         dims[0]=1;
@@ -474,6 +492,8 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
         dataset.write(&ngtot,datagroupnames.groupdatatype[itemp]);
         itemp++;
         delete[] dims;
+*/
+
     }
 #endif
 #ifdef USEADIOS
