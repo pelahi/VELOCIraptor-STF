@@ -411,7 +411,7 @@ struct HDF_Part_Info {
                 names[itemp++]=H5std_string("Dust_Masses");
                 names[itemp++]=H5std_string("Dust_Metallicity");//11 metals stored in this data set
             }
-            else if (hdfnametype==HDFEAGLENAMES) {
+            else if (hdfnametype==HDFEAGLENAMES || hdfnametype==HDFSWIFTEAGLENAMES) {
                 propindex[HDFGASIMETAL]=itemp;
                 names[itemp++]=H5std_string("Metallicity");
             }
