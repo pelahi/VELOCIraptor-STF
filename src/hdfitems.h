@@ -304,7 +304,7 @@ static inline void HDF5CloseDataSpace(hid_t &id){
 	id = -1;
 }
 
-void HDF5ReadHyperSlabReal(double *buffer,
+static inline void HDF5ReadHyperSlabReal(double *buffer,
 	const hid_t &dataset, const hid_t &dataspace,
 	const hsize_t datarank, const hsize_t ndim, int nchunk, int noffset
 )
@@ -318,7 +318,7 @@ void HDF5ReadHyperSlabReal(double *buffer,
 	safe_hdf5<herr_t>(H5Dread, dataset, H5T_NATIVE_DOUBLE, H5S_ALL, dataspace, H5P_DEFAULT, buffer);
 }
 
-void HDF5ReadHyperSlabInteger(long long *buffer,
+static inline void HDF5ReadHyperSlabInteger(long long *buffer,
 	const hid_t &dataset, const hid_t &dataspace,
 	const hsize_t datarank, const hsize_t ndim, int nchunk, int noffset
 )
@@ -332,6 +332,7 @@ void HDF5ReadHyperSlabInteger(long long *buffer,
 	safe_hdf5<herr_t>(H5Dread, dataset, H5T_NATIVE_LONG, H5S_ALL, dataspace, H5P_DEFAULT, buffer);
 }
 
+/*
 static inline void HDF5PrintError(const H5::Exception &error) {
 #if H5_VERSION_GE(1,10,1)
 	error.printErrorStack();
@@ -339,6 +340,7 @@ static inline void HDF5PrintError(const H5::Exception &error) {
 	error.printError();
 #endif
 }
+*/
 /*
 inline
 H5::DataType _datatype_string(const std::string &val)
@@ -347,7 +349,7 @@ H5::DataType _datatype_string(const std::string &val)
 }
 */
 
-
+/*
 template <typename T>
 static void write_scalar_attr(const H5::H5File &file, const DataGroupNames &dgnames, int idx, const T value)
 {
@@ -360,7 +362,7 @@ static void write_scalar_attr(const H5::H5File &file, const DataGroupNames &dgna
     safe_hdf5<herr_t>(H5Awrite, attr_id, dgnames.propdatatype[idx].getId(), &value);
     safe_hdf5<herr_t>(H5Aclose, attr_id);
 }
-
+*/
 /*
 template <typename T>
 static void write_dataset(const H5::H5File &file, const DataGroupNames &dgnames, int idx, int rank, int *dims, const T* data)
@@ -1037,8 +1039,8 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
 	hid_t headerdataspace;
 
     //to determine types
-    IntType inttype;
-    StrType stringtype;
+    //IntType inttype;
+    //StrType stringtype;
     int nusetypes,usetypes[NHDFTYPE],nbusetypes;
 	HDFSetUsedParticleTypes(opt,nusetypes,nbusetypes,usetypes);
 
@@ -1047,7 +1049,7 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
     {
         //turn off the auto-printing when failure occurs so that we can
         //handle the errors appropriately
-        Exception::dontPrint();
+        //Exception::dontPrint();
 
         //Open the specified file and the specified dataset in the file.
         //Fhdf.openFile(buf, H5F_ACC_RDONLY);
@@ -1274,14 +1276,14 @@ inline Int_t HDF_get_nfiles(char *fname, int ptype)
     long long longbuff;
     int ireaderror=0;
     Int_t nfiles = 0;
-    IntType inttype;
+    //IntType inttype;
 
     //Try block to detect exceptions raised by any of the calls inside it
     //try
     {
         //turn off the auto-printing when failure occurs so that we can
         //handle the errors appropriately
-        Exception::dontPrint();
+        //Exception::dontPrint();
 
         //Open the specified file and the specified dataset in the file.
         //Fhdf.openFile(buf, H5F_ACC_RDONLY);

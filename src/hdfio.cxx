@@ -121,10 +121,10 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     //arrays to store number of items to read and offsets when selecting hyperslabs
     hsize_t filespacecount[HDFMAXPROPDIM],filespaceoffset[HDFMAXPROPDIM];
     //to determine types
-    IntType inttype;
-    FloatType floattype;
-    PredType HDFREALTYPE(PredType::NATIVE_FLOAT);
-    PredType HDFINTEGERTYPE(PredType::NATIVE_LONG);
+    //IntType inttype;
+    //FloatType floattype;
+    //PredType HDFREALTYPE(PredType::NATIVE_FLOAT);
+    //PredType HDFINTEGERTYPE(PredType::NATIVE_LONG);
     int ifloat,ifloat_pos, iint;
     int datarank;
     hsize_t datadim[5];
@@ -304,7 +304,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
         {
             //turn off the auto-printing when failure occurs so that we can
             //handle the errors appropriately
-            Exception::dontPrint();
+            //Exception::dontPrint();
 
             //Open the specified file and the specified dataset in the file.
             //Fhdf[i].openFile(buf, H5F_ACC_RDONLY);

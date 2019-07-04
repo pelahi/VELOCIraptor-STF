@@ -3477,21 +3477,21 @@ void WriteSUBFINDProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         for (Int_t i=1;i<=ngroups;i++) pdata[i].ConverttoComove(opt);
     }
 #ifdef USEHDF
-    H5File Fhdf;
-    H5std_string datasetname;
-    DataSpace dataspace;
-    DataSet dataset;
-    DataSpace attrspace;
-    Attribute attr;
-    float attrvalue;
-    hsize_t *dims, *chunk_dims;
-
-    int rank;
-    DataSpace *propdataspace;
-    DataSet *propdataset;
-    DSetCreatPropList  *hdfdatasetproplist;
-    int itemp=0;
-    DataGroupNames datagroupnames;
+    // H5File Fhdf;
+    // H5std_string datasetname;
+    // DataSpace dataspace;
+    // DataSet dataset;
+    // DataSpace attrspace;
+    // Attribute attr;
+    // float attrvalue;
+    // hsize_t *dims, *chunk_dims;
+    //
+    // int rank;
+    // DataSpace *propdataspace;
+    // DataSet *propdataset;
+    // DSetCreatPropList  *hdfdatasetproplist;
+    // int itemp=0;
+    // DataGroupNames datagroupnames;
 
     PropDataHeader head(opt);
 
@@ -3648,14 +3648,14 @@ void WriteVELOCIraptorConfig(Options &opt){
 #endif
 
 #ifdef USEHDF
-    H5File Fhdf;
-    H5std_string datasetname;
-    DataSpace dataspace;
-    DataSet dataset;
-    hsize_t *dims;
-    int rank;
-    DataSpace *propdataspace;
-    DataSet *propdataset;
+    // H5File Fhdf;
+    // H5std_string datasetname;
+    // DataSpace dataspace;
+    // DataSet dataset;
+    // hsize_t *dims;
+    // int rank;
+    // DataSpace *propdataspace;
+    // DataSet *propdataset;
     int itemp=0;
 #endif
 #if defined(USEHDF)||defined(USEADIOS)
@@ -3688,14 +3688,14 @@ void WriteSimulationInfo(Options &opt){
 #endif
 
 #ifdef USEHDF
-    H5File Fhdf;
-    H5std_string datasetname;
-    DataSpace dataspace;
-    DataSet dataset;
-    hsize_t *dims;
-    int rank;
-    DataSpace *propdataspace;
-    DataSet *propdataset;
+    // H5File Fhdf;
+    // H5std_string datasetname;
+    // DataSpace dataspace;
+    // DataSet dataset;
+    // hsize_t *dims;
+    // int rank;
+    // DataSpace *propdataspace;
+    // DataSet *propdataset;
     int itemp=0;
 #endif
 #if defined(USEHDF)||defined(USEADIOS)
@@ -3727,14 +3727,14 @@ void WriteUnitInfo(Options &opt){
 #endif
 
 #ifdef USEHDF
-    H5File Fhdf;
-    H5std_string datasetname;
-    DataSpace dataspace;
-    DataSet dataset;
-    hsize_t *dims;
-    int rank;
-    DataSpace *propdataspace;
-    DataSet *propdataset;
+    // H5File Fhdf;
+    // H5std_string datasetname;
+    // DataSpace dataspace;
+    // DataSet dataset;
+    // hsize_t *dims;
+    // int rank;
+    // DataSpace *propdataspace;
+    // DataSet *propdataset;
     int itemp=0;
 #endif
 #if defined(USEHDF)||defined(USEADIOS)

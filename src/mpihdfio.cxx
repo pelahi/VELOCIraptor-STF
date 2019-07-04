@@ -34,8 +34,8 @@ void MPIDomainExtentHDF(Options &opt){
     hid_t Fhdf, headerattribs, headerdataspace;
     float floatbuff;
     double doublebuff;
-    FloatType floattype;
-    PredType HDFREALTYPE(PredType::NATIVE_FLOAT);
+    //FloatType floattype;
+    //PredType HDFREALTYPE(PredType::NATIVE_FLOAT);
     int ireaderror = 0;
 
     if (ThisTask==0) {
@@ -47,7 +47,7 @@ void MPIDomainExtentHDF(Options &opt){
         {
             //turn off the auto-printing when failure occurs so that we can
             //handle the errors appropriately
-            Exception::dontPrint();
+            //Exception::dontPrint();
 
             //Open the specified file and the specified dataset in the file.
             // Fhdf.openFile(buf, H5F_ACC_RDONLY);
@@ -191,10 +191,10 @@ void MPINumInDomainHDF(Options &opt)
     //at most one needs a dimensionality of 13 for the tracer particles in Illustris
     hsize_t filespacecount[13],filespaceoffset[13];
     //to determine types
-    IntType inttype;
-    FloatType floattype;
-    PredType HDFREALTYPE(PredType::NATIVE_FLOAT);
-    PredType HDFINTEGERTYPE(PredType::NATIVE_LONG);
+    //IntType inttype;
+    //FloatType floattype;
+    //PredType HDFREALTYPE(PredType::NATIVE_FLOAT);
+    //PredType HDFINTEGERTYPE(PredType::NATIVE_LONG);
     int ifloat,iint;
     int datarank;
     hsize_t datadim[5];
