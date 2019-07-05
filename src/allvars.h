@@ -58,10 +58,7 @@
 
 ///if using HDF API
 #ifdef USEHDF
-#include "H5Cpp.h"
-#ifndef H5_NO_NAMESPACE
-using namespace H5;
-#endif
+#include "hdf5.h"
 #endif
 
 ///if using ADIOS API
@@ -3279,8 +3276,7 @@ struct PropData
     }
 #ifdef USEHDF
     ///write (append) the properties data to an already open hdf file
-    void WriteHDF(H5File &Fhdf, DataSpace *&dataspaces, DataSet *&datasets, Options&opt){
-    };
+    //void WriteHDF(H5File &Fhdf, DataSpace *&dataspaces, DataSet *&datasets, Options&opt){};
 #endif
 };
 
