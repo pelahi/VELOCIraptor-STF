@@ -1435,7 +1435,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                       partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=HDF5OpenDataSpace(partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
 //???
 cout<<i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp<<" blah "<<partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]<<" "<<partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]<<endl;
-for (auto ii=0;ii<partsdataspace.size();ii++) if (partsdataspace[ii]!=-1) cout<<"open space "<<ii<<" "<<partsdataspace[ii]<<endl;
+for (auto ii=0;ii<partsdataspaceall.size();ii++) if (partsdataspaceall[ii]!=-1) cout<<"open space "<<ii<<" "<<partsdataspaceall[ii]<<endl;
 
                     }
                     if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) for (j=1;j<=nbusetypes;j++) {
@@ -1604,8 +1604,8 @@ for (auto ii=0;ii<partsdataspace.size();ii++) if (partsdataspace[ii]!=-1) cout<<
                     // //read hyperslab into local buffer
                     // partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].selectHyperslab(H5S_SELECT_SET, filespacecount, filespaceoffset);
                     // partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].read(realbuff,HDFREALTYPE,chunkspace,partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
-                    cout<<hdf_parts[k]->names[itemp]<<" "<<i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp<<" data set id "<<partsdataset[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]<<" space "<<partsdataspace[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]<<endl;
-                    HDF5ReadHyperSlabReal(doublebuff,partsdataset[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp], partsdataspace[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp], 1, 3, nchunk, n);
+cout<<hdf_parts[k]->names[itemp]<<" "<<i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp<<" data set id "<<partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]<<" space "<<partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]<<endl;
+                    HDF5ReadHyperSlabReal(doublebuff,partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp], partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp], 1, 3, nchunk, n);
 
                     //velocities
                     itemp++;
@@ -1619,7 +1619,8 @@ for (auto ii=0;ii<partsdataspace.size();ii++) if (partsdataspace[ii]!=-1) cout<<
                     // else {HDFREALTYPE=PredType::NATIVE_DOUBLE ;realbuff=veldoublebuff;ifloat=0;}
                     // partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].selectHyperslab(H5S_SELECT_SET, filespacecount, filespaceoffset);
                     // partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].read(realbuff,HDFREALTYPE,chunkspace,partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
-                    HDF5ReadHyperSlabReal(veldoublebuff,partsdataset[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp], partsdataspace[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp], 1, 3, nchunk, n);
+cout<<hdf_parts[k]->names[itemp]<<" "<<i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp<<" data set id "<<partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]<<" space "<<partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]<<endl;
+                    HDF5ReadHyperSlabReal(veldoublebuff,partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp], partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp], 1, 3, nchunk, n);
                     //ids
                     itemp++;
                     // datarank=1;
@@ -1632,7 +1633,8 @@ for (auto ii=0;ii<partsdataspace.size();ii++) if (partsdataspace[ii]!=-1) cout<<
                     // else {HDFINTEGERTYPE=PredType::NATIVE_LONG;integerbuff=longbuff;iint=0;}
                     // partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].selectHyperslab(H5S_SELECT_SET, filespacecount, filespaceoffset);
                     // partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].read(integerbuff,HDFINTEGERTYPE,chunkspace,partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
-                    HDF5ReadHyperSlabInteger(longbuff,partsdataset[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp], partsdataspace[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp], 1, 1, nchunk, n);
+cout<<hdf_parts[k]->names[itemp]<<" "<<i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp<<" data set id "<<partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]<<" space "<<partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]<<endl;
+                    HDF5ReadHyperSlabInteger(longbuff,partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp], partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp], 1, 1, nchunk, n);
                     //masses
                     itemp++;
                     // datarank=1;
@@ -1648,7 +1650,8 @@ for (auto ii=0;ii<partsdataspace.size();ii++) if (partsdataspace[ii]!=-1) cout<<
                     //   partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].read(realbuff,HDFREALTYPE,chunkspace,partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
                     // }
                     if (hdf_header_info[i].mass[k]==0) {
-                        HDF5ReadHyperSlabReal(massdoublebuff,partsdataset[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp], partsdataspace[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp], 1, 1, nchunk, n);
+cout<<hdf_parts[k]->names[itemp]<<" "<<i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp<<" data set id "<<partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]<<" space "<<partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]<<endl;
+                        HDF5ReadHyperSlabReal(massdoublebuff,partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp], partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp], 1, 1, nchunk, n);
                     }
 #ifdef GASON
                     //self-energy
@@ -1666,7 +1669,7 @@ for (auto ii=0;ii<partsdataspace.size();ii++) if (partsdataspace[ii]!=-1) cout<<
                     //   partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].read(realbuff,HDFREALTYPE,chunkspace,partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
                     // }
                     if (k == HDFGASTYPE) {
-                        HDF5ReadHyperSlabReal(udoublebuff,partsdataset[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp], partsdataspace[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp], 1, 1, nchunk, n);
+                        HDF5ReadHyperSlabReal(udoublebuff,partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp], partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp], 1, 1, nchunk, n);
                     }
 #ifdef STARON
                     //star formation rate
@@ -1702,7 +1705,7 @@ for (auto ii=0;ii<partsdataspace.size();ii++) if (partsdataspace[ii]!=-1) cout<<
                     //   partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].read(realbuff,HDFREALTYPE,chunkspace,partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
                     // }
                     if (k == HDFGASTYPE || k == HDFSTARTYPE) {
-                        HDF5ReadHyperSlabReal(Zdoublebuff,partsdataset[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp], partsdataspace[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp], 1, 1, nchunk, n);
+                        HDF5ReadHyperSlabReal(Zdoublebuff,partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp], partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp], 1, 1, nchunk, n);
                     }
 
                     //stellar age
@@ -1720,7 +1723,7 @@ for (auto ii=0;ii<partsdataspace.size();ii++) if (partsdataspace[ii]!=-1) cout<<
                     //   partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].read(realbuff,HDFREALTYPE,chunkspace,partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
                     // }
                     if (k == HDFSTARTYPE) {
-                        HDF5ReadHyperSlabReal(Tagedoublebuff,partsdataset[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp], partsdataspace[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp], 1, 1, nchunk, n);
+                        HDF5ReadHyperSlabReal(Tagedoublebuff,partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp], partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp], 1, 1, nchunk, n);
                     }
 #endif
 #endif

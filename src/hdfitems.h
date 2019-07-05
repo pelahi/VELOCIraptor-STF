@@ -321,17 +321,13 @@ static inline void HDF5ReadHyperSlabReal(double *buffer,
 )
 {
 	//setup hyperslab so that it is loaded into the buffer
-	vector<hsize_t> datadim, start, stride;
+	vector<hsize_t> datadim, start, count;
+	hsize_t *stride=NULL, *block=NULL;
 	datadim.push_back(ndim*nchunk);
-	start.push_back(nchunk);start.push_back(ndim);
-	stride.push_back(noffset);stride.push_back(0);
-	H5O_info_t object_info;
-	H5Oget_info(dataset, &object_info);
-	cout<<"checking dataset "<<dataset<<" "<<(object_info.type == H5G_DATASET)<<endl;
-	H5Oget_info(dataset, &object_info);
-	cout<<"checking dataspace "<<dataspace<<" "<<(object_info.type == H5G_DATASET)<<endl;
-
-	H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, start.data(), stride.data(), NULL, NULL);
+	start.push_back(noffset);start.push_back(0);
+	count.push_back(nchunk);count.push_back(ndim);
+	cout<<"Selecting hyperslab double "<<ndim<<" "<<nchunk<<" "<<noffset<<endl;
+	H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, start.data(), stride, count.data(), block);
 	safe_hdf5<herr_t>(H5Dread, dataset, H5T_NATIVE_DOUBLE, H5S_ALL, dataspace, H5P_DEFAULT, buffer);
 }
 
@@ -341,11 +337,13 @@ static inline void HDF5ReadHyperSlabInteger(long long *buffer,
 )
 {
 	//setup hyperslab so that it is loaded into the buffer
-	vector<hsize_t> datadim, start, stride;
+	vector<hsize_t> datadim, start, count;
+	hsize_t *stride=NULL, *block=NULL;
 	datadim.push_back(ndim*nchunk);
-	start.push_back(nchunk);start.push_back(ndim);
-	stride.push_back(noffset);stride.push_back(0);
-	H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, start.data(), stride.data(), NULL, NULL);
+	start.push_back(noffset);start.push_back(0);
+	count.push_back(nchunk);count.push_back(ndim);
+	cout<<"Selecting hyperslab int "<<ndim<<" "<<nchunk<<" "<<noffset<<endl;
+	H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, start.data(), stride, count.data(), block);
 	safe_hdf5<herr_t>(H5Dread, dataset, H5T_NATIVE_LONG, H5S_ALL, dataspace, H5P_DEFAULT, buffer);
 }
 
