@@ -1433,6 +1433,10 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                       // partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].getSpace();
                       partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],hdf_parts[k]->names[itemp]);
                       partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=HDF5OpenDataSpace(partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
+//???
+cout<<i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp<<" blah "<<partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]<<" "<<partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]<<endl;
+for (auto ii=0;ii<partsdataspace.size();ii++) if (partsdataspace[ii]!=-1) cout<<"open space "<<ii<<" "<<partsdataspace[ii]<<endl;
+
                     }
                     if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) for (j=1;j<=nbusetypes;j++) {
                       k=usetypes[j];
@@ -1449,6 +1453,8 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         // partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].getSpace();
                         partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],hdf_parts[k]->names[itemp]);
                         partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=HDF5OpenDataSpace(partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
+
+cout<<i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp<<" blah "<<partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]<<" "<<partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]<<endl;
                       }
                     }
                     if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) for (j=1;j<=nbusetypes;j++) {
@@ -1460,6 +1466,9 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                     }
                   }
                 }
+cout<<" finished all blocks "<<endl;
+for (auto ii=0;ii<partsdataspace.size();ii++) if (partsdataspace[ii]!=-1) cout<<"open space "<<ii<<" "<<partsdataspace[ii]<<endl;
+
                 //now for extra data blocks
                 //and if not just searching DM, load other parameters
                 if (!(opt.partsearchtype==PSTDARK && opt.iBaryonSearch==0)) {
@@ -1567,6 +1576,8 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 #endif
                 } //end of baryon read if not running search dm then baryons
 
+cout<< "now going to load data "<<endl;
+for (auto ii=0;ii<partsdataspace.size();ii++) if (partsdataspace[ii]!=-1) cout<<"open space "<<ii<<" "<<partsdataspace[ii]<<endl;
 
                 for (j=0;j<nusetypes;j++) {
                   k=usetypes[j];
@@ -1593,6 +1604,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                     // //read hyperslab into local buffer
                     // partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].selectHyperslab(H5S_SELECT_SET, filespacecount, filespaceoffset);
                     // partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp].read(realbuff,HDFREALTYPE,chunkspace,partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
+                    cout<<hdf_parts[k]->names[itemp]<<" "<<i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp<<" data set id "<<partsdataset[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]<<" space "<<partsdataspace[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]<<endl;
                     HDF5ReadHyperSlabReal(doublebuff,partsdataset[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp], partsdataspace[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp], 1, 3, nchunk, n);
 
                     //velocities

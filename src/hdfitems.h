@@ -150,7 +150,7 @@ static inline void get_attribute(vector<hid_t> &ids, const std::vector<std::stri
 		get_attribute(ids, subparts);
 
 	}
-	throw invalid_argument("attribute name not found");
+	//throw invalid_argument("attribute name not found");
 }
 
 static inline vector<string> tokenize(const string &s, const string &delims)
@@ -187,14 +187,17 @@ template<> void _do_read<std::string>(const hid_t &attr, const hid_t &type, std:
     hsize_t ndims = H5Sget_simple_extent_dims (space, dims, NULL);
 	buf.resize(dims[0]);
 	H5Aread(attr, type, buf.data());
+	H5Sclose(space);
 	val=string(buf.data());
 }
 
 template<typename T> static inline void _do_read_v(const hid_t &attr, const hid_t &type, vector<T> &val)
 {
-	int npoints = H5Sget_simple_extent_npoints(attr);
+	hid_t space = H5Aget_space (attr);
+	int npoints = H5Sget_simple_extent_npoints(space);
 	val.resize(npoints);
 	H5Aread(attr, type, val.data());
+	H5Sclose(space);
 }
 
 template<typename T> const T read_attribute(const hid_t &file_id, const std::string &name) {
@@ -281,25 +284,33 @@ static inline hid_t HDF5OpenGroup(const hid_t &file, string name){
 	return H5Gopen2(file,name.c_str(),H5P_DEFAULT);
 }
 static inline hid_t HDF5OpenDataSet(const hid_t &id, string name){
-	return H5Dopen2(id,name.c_str(),H5P_DEFAULT);
+    hid_t idval = H5Dopen2(id,name.c_str(),H5P_DEFAULT);
+    cout<<" opening data set "<<name<<" "<<idval<<endl;
+	return idval;
 }
 static inline hid_t HDF5OpenDataSpace(const hid_t &id){
-	return H5Dget_space(id);
+    hid_t idval=H5Dget_space(id);
+    cout<<"opening data space of "<<id<<" "<<idval<<endl;
+	return idval;
 }
 
 static inline void HDF5CloseFile(hid_t &id){
+cout<<" file close "<<id<<endl;
 	if (id>=0) H5Fclose(id);
 	id = -1;
 }
 static inline void HDF5CloseGroup(hid_t &id){
+cout<<" group close "<<id<<endl;
 	if (id>=0) H5Gclose(id);
 	id = -1;
 }
 static inline void HDF5CloseDataSet(hid_t &id){
+cout<<" dataset close "<<id<<endl;
 	if (id>=0) H5Dclose(id);
 	id = -1;
 }
 static inline void HDF5CloseDataSpace(hid_t &id){
+cout<<" data space close "<<id<<endl;
 	if (id>=0) H5Sclose(id);
 	id = -1;
 }
@@ -314,6 +325,12 @@ static inline void HDF5ReadHyperSlabReal(double *buffer,
 	datadim.push_back(ndim*nchunk);
 	start.push_back(nchunk);start.push_back(ndim);
 	stride.push_back(noffset);stride.push_back(0);
+	H5O_info_t object_info;
+	H5Oget_info(dataset, &object_info);
+	cout<<"checking dataset "<<dataset<<" "<<(object_info.type == H5G_DATASET)<<endl;
+	H5Oget_info(dataset, &object_info);
+	cout<<"checking dataspace "<<dataspace<<" "<<(object_info.type == H5G_DATASET)<<endl;
+
 	H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, start.data(), stride.data(), NULL, NULL);
 	safe_hdf5<herr_t>(H5Dread, dataset, H5T_NATIVE_DOUBLE, H5S_ALL, dataspace, H5P_DEFAULT, buffer);
 }
@@ -331,76 +348,6 @@ static inline void HDF5ReadHyperSlabInteger(long long *buffer,
 	H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, start.data(), stride.data(), NULL, NULL);
 	safe_hdf5<herr_t>(H5Dread, dataset, H5T_NATIVE_LONG, H5S_ALL, dataspace, H5P_DEFAULT, buffer);
 }
-
-/*
-static inline void HDF5PrintError(const H5::Exception &error) {
-#if H5_VERSION_GE(1,10,1)
-	error.printErrorStack();
-#else
-	error.printError();
-#endif
-}
-*/
-/*
-inline
-H5::DataType _datatype_string(const std::string &val)
-{
-    return H5::StrType(H5::PredType::C_S1, val.size());
-}
-*/
-
-/*
-template <typename T>
-static void write_scalar_attr(const H5::H5File &file, const DataGroupNames &dgnames, int idx, const T value)
-{
-    DataSpace space(H5S_SCALAR);
-    auto attr_id = safe_hdf5<hid_t>(H5Acreate2, file.getId(), dgnames.prop[idx].c_str(),
-               dgnames.propdatatype[idx].getId(), space.getId(),
-               PropList::DEFAULT.getId(), H5P_DEFAULT);
-    //Attribute attr(attr_id);
-    //attr.write(dgnames.propdatatype[idx], &value);
-    safe_hdf5<herr_t>(H5Awrite, attr_id, dgnames.propdatatype[idx].getId(), &value);
-    safe_hdf5<herr_t>(H5Aclose, attr_id);
-}
-*/
-/*
-template <typename T>
-static void write_dataset(const H5::H5File &file, const DataGroupNames &dgnames, int idx, int rank, int *dims, const T* data)
-{
-	// Get HDF5 data type of the array in memory
-	T dummy;
-	hid_t memtype_id = hdf5_type(dummy);
-
-    DataSpace space(H5S_SCALAR);
-	// Only chunk datasets where we would have >1 chunk
-	int large_dataset = 0;
-	for(int i=0; i<rank; i++) if(dims[i] > HDFOUTPUTCHUNKSIZE) large_dataset = 1;
-
-	// Dataset creation properties
-	hid_t prop_id = H5Pcreate(H5P_DATASET_CREATE);
-	if(nonzero_size && large_dataset)
-	{
-		hsize_t *chunks = new hsize_t[rank];
-		for(auto i=0; i<rank; i++) chunks[i] = min((hsize_t) HDFOUTPUTCHUNKSIZE, dims[i]);
-		safe_hdf5<herr_t>(H5Pset_layout, (prop_id, H5D_CHUNKED);
-		H5Pset_chunk(prop_id, rank, chunks);
-		H5Pset_deflate(prop_id, HDFDEFLATE);
-		delete chunks;
-	}
-
-	// Create the dataset
-	hid_t dset_id = H5Dcreate(file_id, name.c_str(), filetype_id, dspace_id,
-							H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-
-    auto attr_id = safe_hdf5<hid_t>(H5Dcreate, file.getId(), dgnames.prop[idx].c_str(),
-               dgnames.propdatatype[idx].getId(), space.getId(),
-               PropList::DEFAULT.getId(), H5P_DEFAULT);
-    //Attribute attr(attr_id);
-    //attr.write(dgnames.propdatatype[idx], &value);
-    safe_hdf5<herr_t>(H5Awrite, attr_id, dgnames.propdatatype[idx].getId(), &value);
-    safe_hdf5<herr_t>(H5Aclose, attr_id);
-}
-*/
 
 ///\name HDF class to manage writing information
 class H5OutputFile
@@ -1067,20 +1014,6 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
 
           // Read SWIFT parameters
           if(!swift_str.compare(stringbuff)) {
-            // Is it a cosmological simulation?
-            // headerattribs=get_attribute(Fhdf, hdf_header_info.names[hdf_header_info.IIsCosmological]);
-            // headerdataspace=headerattribs.getSpace();
-			//
-            // if (headerdataspace.getSimpleExtentNdims()!=1) ireaderror=1;
-            // inttype=headerattribs.getIntType();
-            // if (inttype.getSize()==sizeof(int)) {
-            //   headerattribs.read(PredType::NATIVE_INT,&intbuff[0]);
-            //   hdf_header_info.iscosmological = intbuff[0];
-            // }
-            // if (inttype.getSize()==sizeof(long long)) {
-            //   headerattribs.read(PredType::NATIVE_LONG,&longbuff[0]);
-            //   hdf_header_info.iscosmological = longbuff[0];
-            // }
 			hdf_header_info.iscosmological=read_attribute<int>(Fhdf, hdf_header_info.names[hdf_header_info.IIsCosmological]);
 
             if (!hdf_header_info.iscosmological && opt.icosmologicalin) {
@@ -1112,16 +1045,6 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
 #endif
           }
         }
-		//
-        // headerattribs=get_attribute(Fhdf, hdf_header_info.names[hdf_header_info.INumTot]);
-		//
-        // headerattribs.read(PredType::NATIVE_UINT,&uintbuff);
-        // for (j=0;j<NHDFTYPE;j++) hdf_header_info.npartTotal[j]=uintbuff[j];
-		//
-        // headerattribs=get_attribute(Fhdf, hdf_header_info.names[hdf_header_info.INumTotHW]);
-        // headerattribs.read(PredType::NATIVE_UINT,&uintbuff);
-        // for (j=0;j<NHDFTYPE;j++) hdf_header_info.npartTotalHW[j]=uintbuff[j];
-		//check to see if VR configured to load a particle type but none present in data.
 
 		vuintbuff=read_attribute_v<unsigned int>(Fhdf, hdf_header_info.names[hdf_header_info.INumTot]);
 		for (j=0;j<NHDFTYPE;j++) hdf_header_info.npartTotal[j]=vuintbuff[j];
@@ -1289,19 +1212,6 @@ inline Int_t HDF_get_nfiles(char *fname, int ptype)
         //Fhdf.openFile(buf, H5F_ACC_RDONLY);
 		Fhdf = H5Fopen(buf, H5F_ACC_RDONLY, H5P_DEFAULT);
         //get header group
-
-        // headerattribs = get_attribute(Fhdf, hdf_header_info.names[hdf_header_info.INumFiles]);
-        // inttype = headerattribs.getIntType();
-        // if (inttype.getSize() == sizeof(int))
-        // {
-        //   headerattribs.read(PredType::NATIVE_INT,&intbuff);
-        //   hdf_header_info.num_files = intbuff;
-        // }
-        // if (inttype.getSize() == sizeof(long long))
-        // {
-        //   headerattribs.read(PredType::NATIVE_LONG,&longbuff);
-        //   hdf_header_info.num_files = longbuff;
-        // }
 		hdf_header_info.num_files = read_attribute<int>(Fhdf, hdf_header_info.names[hdf_header_info.INumFiles]);
     }
 	/*
