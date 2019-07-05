@@ -66,7 +66,7 @@ void MPIDomainExtentHDF(Options &opt){
             //     headerattribs.read(PredType::NATIVE_DOUBLE,&doublebuff);
             //     hdf_header_info.BoxSize=doublebuff;
             // }
-            hdf_header_info.BoxSize = read_attribute<double>(Fhdf, hdf_header_info.names[hdf_header_info.INumFiles]);
+            hdf_header_info.BoxSize = read_attribute<double>(Fhdf, hdf_header_info.names[hdf_header_info.IBoxSize]);
         }
         /*
         catch(GroupIException error)
