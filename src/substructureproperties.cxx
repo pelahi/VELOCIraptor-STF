@@ -144,7 +144,25 @@ private(j,Pval)
 #endif
         pdata[i].gcm[0]=cmx;pdata[i].gcm[1]=cmy;pdata[i].gcm[2]=cmz;
         pdata[i].gmass=EncMass;
-        for (k=0;k<3;k++){pdata[i].gcm[k]*=(1.0/pdata[i].gmass);pdata[i].gcmvel[k]*=(1.0/pdata[i].gmass);}
+        pdata[i].gcm*=(1.0/pdata[i].gmass);
+        cmx=cmy=cmz=0.;
+#ifdef USEOPENMP
+#pragma omp parallel default(shared)  \
+private(j,Pval)
+{
+    #pragma omp for reduction(+:cmx,cmy,cmz)
+#endif
+        for (j=0;j<numingroup[i];j++) {
+            Pval=&Part[j+noffset[i]];
+            cmx+=(*Pval).Vx()*(*Pval).GetMass();
+            cmy+=(*Pval).Vy()*(*Pval).GetMass();
+            cmz+=(*Pval).Vz()*(*Pval).GetMass();
+        }
+#ifdef USEOPENMP
+}
+#endif
+        pdata[i].gcm[0]=cmx;pdata[i].gcm[1]=cmy;pdata[i].gcm[2]=cmz;
+        pdata[i].gcmvel*=(1.0/pdata[i].gmass);
         if (opt.iIterateCM == 0) continue;
         pdata[i].gsize=0;
         for (j=0;j<numingroup[i];j++) {
