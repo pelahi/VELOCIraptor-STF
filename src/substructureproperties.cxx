@@ -161,7 +161,7 @@ private(j,Pval)
 #ifdef USEOPENMP
 }
 #endif
-        pdata[i].gcm[0]=cmx;pdata[i].gcm[1]=cmy;pdata[i].gcm[2]=cmz;
+        pdata[i].gcmvel[0]=cmx;pdata[i].gcmvel[1]=cmy;pdata[i].gcmvel[2]=cmz;
         pdata[i].gcmvel*=(1.0/pdata[i].gmass);
         if (opt.iIterateCM == 0) continue;
         pdata[i].gsize=0;
