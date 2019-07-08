@@ -3000,20 +3000,6 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
         Pbaryons=&Part.data()[ndark];
         for (i=0;i<nbaryons;i++) Pbaryons[i].SetID(i+ndark);
         Nlocal=nparts;
-        /*
-        //and place all particles into a contiguous memory block
-        nparts=ndark+nbaryons;
-        mpi_Part2=new Particle[nparts];
-        for (i=0;i<ndark;i++)mpi_Part2[i]=Part[i];
-        for (i=0;i<nbaryons;i++)mpi_Part2[i+ndark]=Pbaryons[i];
-        if (mpi_Part1!=NULL) delete[] mpi_Part1;
-        else delete[] Part;
-        delete[] Pbaryons;
-        Part=mpi_Part2;
-        Pbaryons=&mpi_Part2[ndark];
-        for (i=0;i<nbaryons;i++) Pbaryons[i].SetID(i+ndark);
-        Nlocal=nparts;
-        */
     } // end of if preliminary search is NOT all particles
     else {
         //reset order
@@ -3227,26 +3213,7 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
                 if (oldpid==newpid) continue;
                 pfofall[Part[i].GetID()] = newpid;
             }
-            /*
-            //reorder groups just according to number of dark matter particles
-            //and whether object is a substructure or not. First get current number of dark matter particles
-            //note that one could technically have no dark matter partices remaining bound
-            //here numingroup is how data will be sorted, largest first.
-            numingroup=BuildNumInGroup(ndark, ng, pfofall);
-            //if wish to organise halos and subhaloes differently, adjust numingroup which is used to sort data
-            if (ihaloflag&&opt.iSubSearch) {
-                Int_t nleveloffset=nhalos,ninleveloffset=0;
-                for (Int_t k=1;k<=papsldata[0]->nsinlevel;k++)ninleveloffset+=ningall[(*papsldata[0]->gidhead[k])];
-                //if looking to separate haloes and substructure then offset numingroup[i] for halos so long as ningall[i]>0
-                for (i=1;i<=nhalos;i++) if (ningall[i]>0) numingroup[i]+=ninleveloffset;
-            }
-            //store new number of halos
-            nhalos=papsldata[0]->nsinlevel;
-            if (iinclusive) ReorderGroupIDsAndHaloDatabyValue(ng, ngroupdark, ningall, pfofall, pglistall, numingroup, pdata);
-            else ReorderGroupIDsbyValue(ng, ngroupdark, ningall, pfofall, pglistall, numingroup);
-            */
             if (opt.iverbose) cout<<ThisTask<<" Done"<<endl;
-            delete[] numingroup;
             delete[] ningall;
             for (i=1;i<=ng;i++) delete[] pglistall[i];
             delete[] pglistall;
