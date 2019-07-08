@@ -551,10 +551,10 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
                     pdata[i].Z_mean_gas_sf+=mval*Pval->GetZmet();
                 }
                 else {
-                    pdata[i].Temp_gas_sf+=Pval->GetU();
-                    pdata[i].Temp_mean_gas_sf+=mval*Pval->GetU();
-                    pdata[i].Z_gas_sf+=Pval->GetZmet();
-                    pdata[i].Z_mean_gas_sf+=mval*Pval->GetZmet();
+                    pdata[i].Temp_gas_nsf+=Pval->GetU();
+                    pdata[i].Temp_mean_gas_nsf+=mval*Pval->GetU();
+                    pdata[i].Z_gas_nsf+=Pval->GetZmet();
+                    pdata[i].Z_mean_gas_nsf+=mval*Pval->GetZmet();
                 }
 #endif
                 x = (*Pval).X();
