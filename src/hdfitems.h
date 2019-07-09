@@ -137,10 +137,10 @@ static inline void get_attribute(vector<hid_t> &ids, const std::vector<std::stri
 		H5O_info_t object_info;
 		hid_t newid;
 		H5Oget_info_by_name(ids.back(), parts[0].c_str(), &object_info, H5P_DEFAULT);
-		if (object_info.type == H5G_GROUP) {
+		if (object_info.type == H5O_TYPE_GROUP) {
 			newid = H5Gopen2(ids.back(),parts[0].c_str(),H5P_DEFAULT);
 		}
-		else if (object_info.type == H5G_DATASET) {
+		else if (object_info.type == H5O_TYPE_DATASET) {
 			newid = H5Dopen2(ids.back(),parts[0].c_str(),H5P_DEFAULT);
 		}
 		ids.push_back(newid);
@@ -172,6 +172,21 @@ static inline void get_attribute(const hid_t &file_id, vector<hid_t> &ids, const
 	std::vector<std::string> parts = tokenize(name, "/");
 	ids.push_back(file_id);
 	get_attribute(ids, parts);
+}
+
+static inline void close_hdf_ids(vector<hid_t> &ids)
+{
+	H5O_info_t object_info;
+	for (auto &id:ids)
+	{
+		H5Oget_info(id, &object_info);
+		if (object_info.type == H5O_TYPE_GROUP) {
+			H5Gclose(id);
+		}
+		else if (object_info.type == H5O_TYPE_GROUP) {
+			H5Dclose(id);
+		}
+	}
 }
 
 template<typename T> static inline void _do_read(const hid_t &attr, const hid_t &type, T &val)
@@ -220,16 +235,7 @@ template<typename T> const T read_attribute(const hid_t &file_id, const std::str
 	ids.erase(ids.begin());
 	//now have hdf5 ids traversed to get to desired attribute so move along to close all
 	//based on their object type
-	for (auto &id:ids)
-	{
-		H5Oget_info(id, &object_info);
-		if (object_info.type == H5G_GROUP) {
-			H5Gclose(id);
-		}
-		else if (object_info.type == H5G_DATASET) {
-			H5Dclose(id);
-		}
-	}
+	close_hdf_ids(ids);
 	return val;
 }
 
@@ -254,18 +260,10 @@ template<typename T> const vector<T> read_attribute_v(const hid_t &file_id, cons
 	ids.erase(ids.begin());
 	//now have hdf5 ids traversed to get to desired attribute so move along to close all
 	//based on their object type
-	for (auto &id:ids)
-	{
-		H5Oget_info(id, &object_info);
-		if (object_info.type == H5G_GROUP) {
-			H5Gclose(id);
-		}
-		else if (object_info.type == H5G_DATASET) {
-			H5Dclose(id);
-		}
-	}
+	close_hdf_ids(ids);
 	return val;
 }
+
 
 template<typename T> const T read_attribute(const std::string &filename, const std::string &name) {
 	safe_hdf5<herr_t>(H5Fopen, filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
@@ -415,7 +413,35 @@ class H5OutputFile
 	 	}
       	write_dataset_nd(name, rank, dims, data, memtype_id, filetype_id);
     }
-	void write_dataset(std::string name, hsize_t len, void *data,
+	void write_dataset(string name, hsize_t len, string data)
+    {
+		int rank = 1;
+      	hsize_t dims[1] = {len};
+
+		hid_t memtype_id, filetype_id, dspace_id, dset_id;
+		herr_t status;
+		memtype_id = H5Tcopy (H5T_C_S1);
+		status = H5Tset_size (memtype_id, data.size());
+		//status = H5Tset_size (memtype_id, H5T_VARIABLE);
+		filetype_id = H5Tcopy (H5T_C_S1);
+		//status = H5Tset_size (filetype_id, H5T_VARIABLE);
+		status = H5Tset_size (filetype_id, data.size());
+
+		// Create the dataspace
+		dspace_id = H5Screate_simple(rank, dims, NULL);
+
+		// Create the dataset
+		dset_id = H5Dcreate(file_id, name.c_str(), filetype_id, dspace_id,
+		                        H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+		// Write the data
+		if(H5Dwrite(dset_id, memtype_id, dspace_id, H5S_ALL, H5P_DEFAULT, data.c_str()) < 0)
+		io_error(string("Failed to write dataset: ")+name);
+
+		// Clean up (note that dtype_id is NOT a new object so don't need to close it)
+		H5Sclose(dspace_id);
+		H5Dclose(dset_id);
+    }
+	void write_dataset(string name, hsize_t len, void *data,
 	                                       hid_t memtype_id=-1, hid_t filetype_id=-1)
     {
 		int rank = 1;

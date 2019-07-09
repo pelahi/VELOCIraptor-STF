@@ -4660,11 +4660,10 @@ struct DataGroupNames {
         hdfprofiledatatype.push_back(H5T_NATIVE_ULONG);
         hdfprofiledatatype.push_back(H5T_NATIVE_ULONG);
         hdfprofiledatatype.push_back(H5T_NATIVE_ULONG);
-        hdfprofiledatatype.push_back(H5T_STRING);
+        hdfprofiledatatype.push_back(H5T_C_S1);
         hdfprofiledatatype.push_back(H5T_NATIVE_INT);
         hdfprofiledatatype.push_back(H5T_NATIVE_INT);
         hdfprofiledatatype.push_back(hdfdesiredproprealtype[0]);
-
 #endif
 #ifdef USEADIOS
         adiosprofiledatatype.push_back(ADIOS_DATATYPES::adios_integer);

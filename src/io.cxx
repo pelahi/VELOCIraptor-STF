@@ -2743,42 +2743,6 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
     else if (opt.ibinaryout==OUTHDF) {
         //Fhdf=H5File(fname,H5F_ACC_TRUNC);
         Fhdf.create(string(fname),H5F_ACC_TRUNC);
-        /*
-        //set file info
-        dims=new hsize_t[1];
-        dims[0]=1;
-        rank=1;
-        itemp=0;
-        dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.profile[itemp], datagroupnames.profiledatatype[itemp], dataspace);
-        dataset.write(&ThisTask,datagroupnames.profiledatatype[itemp]);
-        itemp++;
-
-        dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.profile[itemp], datagroupnames.profiledatatype[itemp], dataspace);
-        dataset.write(&NProcs,datagroupnames.profiledatatype[itemp]);
-        itemp++;
-
-        dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.profile[itemp], datagroupnames.profiledatatype[itemp], dataspace);
-        dataset.write(&ng,datagroupnames.profiledatatype[itemp]);
-        itemp++;
-
-        dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.profile[itemp], datagroupnames.profiledatatype[itemp], dataspace);
-        dataset.write(&ngtot,datagroupnames.profiledatatype[itemp]);
-        itemp++;
-
-        dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.profile[itemp], datagroupnames.profiledatatype[itemp], dataspace);
-        dataset.write(&nhalos,datagroupnames.profiledatatype[itemp]);
-        itemp++;
-
-        dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.profile[itemp], datagroupnames.profiledatatype[itemp], dataspace);
-        dataset.write(&nhalostot,datagroupnames.profiledatatype[itemp]);
-        itemp++;
-        */
         itemp=0;
         Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, &ThisTask);
         Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, &NProcs);
@@ -2787,106 +2751,12 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
         Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, &nhalos);
         Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, &nhalostot);
 
-        //write the radial bin information
-        /*
-        dataspace=DataSpace(H5S_SCALAR);
-        DataType stype = _datatype_string(opt.profileradnormstring);
-        dataset = Fhdf.createDataSet(datagroupnames.profile[itemp], stype, dataspace);
-        dataset.write(opt.profileradnormstring,stype);
-        itemp++;
-
-        dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.profile[itemp], datagroupnames.profiledatatype[itemp], dataspace);
-        dataset.write(&opt.iInclusiveHalo,datagroupnames.profiledatatype[itemp]);
-        itemp++;
-
-        dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.profile[itemp], datagroupnames.profiledatatype[itemp], dataspace);
-        dataset.write(&nbinsedges,datagroupnames.profiledatatype[itemp]);
-        itemp++;
-        dims[0]=nbinsedges;
-        dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.profile[itemp], datagroupnames.profiledatatype[itemp], dataspace);
-        dataset.write((Double_t*)data,datagroupnames.profiledatatype[itemp]);
-        itemp++;
-        */
-        Fhdf.write_dataset(datagroupnames.profile[itemp++], opt.profileradnormstring.size(), opt.profileradnormstring.c_str());
+        Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, opt.profileradnormstring);
+        //Fhdf.write_dataset(datagroupnames.profile[itemp++], opt.profileradnormstring.size(), opt.profileradnormstring);
         Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, &opt.iInclusiveHalo);
         Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, &nbinsedges);
-        Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, data, H5T_NATIVE_DOUBLE);
+        Fhdf.write_dataset(datagroupnames.profile[itemp++], nbinsedges, data, H5T_NATIVE_DOUBLE);
 
-        /*
-        //load data spaces, first scalars then the arrays
-        profiledataspace=new DataSpace[head.headerdatainfo.size()];
-        profiledataset=new DataSet[head.headerdatainfo.size()];
-        dims[0]=ng;
-        //size of chunks in compression
-        chunk_dims=new hsize_t[1];
-        chunk_dims[0]=min((unsigned long)HDFOUTPUTCHUNKSIZE,ng);
-        rank=1;
-        // Modify dataset creation property to enable chunking
-        if (ng>0) {
-            hdfdatasetprofilelist = new  DSetCreatPropList;
-            hdfdatasetprofilelist->setChunk(rank, chunk_dims);
-            // Set ZLIB (DEFLATE) Compression using level 6.
-            hdfdatasetprofilelist->setDeflate(6);
-        }
-        dataspace=DataSpace(rank,dims);
-        for (Int_t i=0;i<head.numberscalarentries;i++) {
-            datasetname=H5std_string(head.headerdatainfo[i]);
-            profiledataspace[i]=DataSpace(rank,dims);
-            if (ng>0) profiledataset[i] = Fhdf.createDataSet(datasetname, head.predtypeinfo[i], profiledataspace[i],*hdfdatasetprofilelist);
-            else profiledataset[i] = Fhdf.createDataSet(datasetname, head.predtypeinfo[i], profiledataspace[i]);
-        }
-        delete[] dims;
-        delete[] chunk_dims;
-
-        dims=new hsize_t[2];
-        dims[0]=ng;dims[1]=opt.profilenbins;
-        rank=2;
-        chunk_dims=new hsize_t[2];
-        chunk_dims[0]=min((unsigned long)HDFOUTPUTCHUNKSIZE,ng);
-        chunk_dims[1]=opt.profilenbins;
-        // Modify dataset creation property to enable chunking
-        if (ng>0) {
-            hdfdatasetprofilelist = new  DSetCreatPropList;
-            hdfdatasetprofilelist->setChunk(rank, chunk_dims);
-            // Set ZLIB (DEFLATE) Compression using level 6.
-            hdfdatasetprofilelist->setDeflate(6);
-        }
-        dataspace=DataSpace(rank,dims);
-        for (Int_t i=head.offsetarrayallgroupentries;i<head.numberarrayallgroupentries+head.offsetarrayallgroupentries;i++) {
-            datasetname=H5std_string(head.headerdatainfo[i]);
-            profiledataspace[i]=DataSpace(rank,dims);
-            if (ng>0) profiledataset[i] = Fhdf.createDataSet(datasetname, head.predtypeinfo[i], profiledataspace[i],*hdfdatasetprofilelist);
-            else profiledataset[i] = Fhdf.createDataSet(datasetname, head.predtypeinfo[i], profiledataspace[i]);
-        }
-
-        if (opt.iInclusiveHalo > 0) {
-        dims[0]=nhalos;dims[1]=opt.profilenbins;
-        rank=2;
-        chunk_dims=new hsize_t[2];
-        chunk_dims[0]=min((unsigned long)HDFOUTPUTCHUNKSIZE,nhalos);
-        chunk_dims[1]=opt.profilenbins;
-        // Modify dataset creation property to enable chunking
-        if (nhalos>0) {
-            hdfdatasetprofilelist = new  DSetCreatPropList;
-            hdfdatasetprofilelist->setChunk(rank, chunk_dims);
-            // Set ZLIB (DEFLATE) Compression using level 6.
-            hdfdatasetprofilelist->setDeflate(6);
-        }
-        dataspace=DataSpace(rank,dims);
-        for (Int_t i=head.offsetarrayhaloentries;i<head.numberarrayhaloentries+head.offsetarrayhaloentries;i++) {
-            datasetname=H5std_string(head.headerdatainfo[i]);
-            profiledataspace[i]=DataSpace(rank,dims);
-            if (nhalos>0) profiledataset[i] = Fhdf.createDataSet(datasetname, head.predtypeinfo[i], profiledataspace[i],*hdfdatasetprofilelist);
-            else profiledataset[i] = Fhdf.createDataSet(datasetname, head.predtypeinfo[i], profiledataspace[i]);
-        }
-        }
-
-        delete[] dims;
-        delete[] chunk_dims;
-        */
     }
 #endif
     else {
