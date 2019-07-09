@@ -754,8 +754,8 @@ void ReadNchilada(Options &opt, vector<Particle> &Part, const Int_t nbodies,Part
         opt.Omega_cdm=opt.Omega_m-opt.Omega_b;
     }
     //adjust period
-    if (opt.comove) opt.p*=opt.L/opt.h;
-    else opt.p*=opt.L/opt.h*opt.a;
+    if (opt.comove) opt.p*=opt.lengthinputconversion/opt.h;
+    else opt.p*=opt.lengthinputconversion/opt.h*opt.a;
 #ifdef USEMPI
     MPI_Barrier(MPI_COMM_WORLD);
     //update cosmological data and boundary in code units
@@ -791,7 +791,7 @@ void ReadNchilada(Options &opt, vector<Particle> &Part, const Int_t nbodies,Part
     if (opt.Neff==-1) {
         //Once smallest mass particle is found (which should correspond to highest resolution area,
         if (opt.Omega_b==0) MP_B=0;
-        LN=pow(((MP_DM+MP_B)*opt.M/opt.h)/(opt.Omega_m*3.0*opt.H*opt.h*opt.H*opt.h/(8.0*M_PI*opt.G)),1./3.)*opt.a;
+        LN=pow(((MP_DM+MP_B)*opt.massinputconversion/opt.h)/(opt.Omega_m*3.0*opt.H*opt.h*opt.H*opt.h/(8.0*M_PI*opt.G)),1./3.)*opt.a;
     }
     else {
         LN=opt.p/(Double_t)opt.Neff;
@@ -812,20 +812,20 @@ void ReadNchilada(Options &opt, vector<Particle> &Part, const Int_t nbodies,Part
     for (i=0;i<Nlocal;i++)
     {
         Part[i].SetMass(Part[i].GetMass()*mscale);
-        for (int j=0;j<3;j++) Part[i].SetVelocity(j,Part[i].GetVelocity(j)*opt.V*sqrt(opt.a)+Hubbleflow*Part[i].GetPosition(j));
+        for (int j=0;j<3;j++) Part[i].SetVelocity(j,Part[i].GetVelocity(j)*opt.velocityinputconversion*sqrt(opt.a)+Hubbleflow*Part[i].GetPosition(j));
         for (int j=0;j<3;j++) Part[i].SetPosition(j,Part[i].GetPosition(j)*lscale);
 #ifdef GASON
-        if (Part[i].GetType()==GASTYPE) Part[i].SetU(Part[i].GetU()*opt.V*opt.V);
+        if (Part[i].GetType()==GASTYPE) Part[i].SetU(Part[i].GetU()*opt.velocityinputconversion*opt.velocityinputconversion);
 #endif
     }
     if (Pbaryons!=NULL && opt.iBaryonSearch==1) {
     for (i=0;i<Nlocalbaryon[0];i++)
     {
         Pbaryons[i].SetMass(Pbaryons[i].GetMass()*mscale);
-        for (int j=0;j<3;j++) Pbaryons[i].SetVelocity(j,Pbaryons[i].GetVelocity(j)*opt.V*sqrt(opt.a)+Hubbleflow*Pbaryons[i].GetPosition(j));
+        for (int j=0;j<3;j++) Pbaryons[i].SetVelocity(j,Pbaryons[i].GetVelocity(j)*opt.velocityinputconversion*sqrt(opt.a)+Hubbleflow*Pbaryons[i].GetPosition(j));
         for (int j=0;j<3;j++) Pbaryons[i].SetPosition(j,Pbaryons[i].GetPosition(j)*lscale);
 #ifdef GASON
-        Pbaryons[i].SetU(Pbaryons[i].GetU()*opt.V*opt.V);
+        Pbaryons[i].SetU(Pbaryons[i].GetU()*opt.velocityinputconversion*opt.velocityinputconversion);
 #endif
     }
     }
