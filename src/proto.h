@@ -50,6 +50,12 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle *&Pbaryons, Int_t nbaryons=0);
 ///Read Nchilada file
 void ReadNchilada(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle *&Pbaryons, Int_t nbaryons=0);
+///Adjust hydro particles/quantities to appropriate units
+void AdjustHydroQuantities(Options &opt, vector<Particle> &Part, const Int_t nbodies);
+///Adjust star particles/quantities to appropriate units
+void AdjustStarQuantities(Options &opt, vector<Particle> &Part, const Int_t nbodies);
+///Adjust BH particles/quantities to appropriate units
+void AdjustBHQuantities(Options &opt, vector<Particle> &Part, const Int_t nbodies);
 
 ///Read local velocity density
 void ReadLocalVelocityDensity(Options &opt, const Int_t nbodies, vector<Particle> &Part);
@@ -67,12 +73,18 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
 void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, Int_t **pglist, vector<Particle> &Part);
 ///Writes the bulk properties of the substructures
 void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata);
+///Writes the bulk properties of the substructures in a subfind like HDF5 format
+void WriteSUBFINDProperties(Options &opt, const Int_t ngroups, PropData *pdata);
 ///Writes the structure hierarchy
 //void WriteHierarchy(Options &opt, Int_t ngroups, int subflag=0);
 void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t &nhierarchy, const Int_t &nfield, Int_t *nsub, Int_t *parentgid, Int_t *stype,int subflag=0);
 
 ///Write Extended Output
 void WriteExtendedOutput(Options &opt, Int_t numgroups, Int_t nbodies, PropData *pdata, vector<Particle> &p, Int_t * pfof);
+#ifdef SWIFTINTERFACE
+///Write catalog information related to the address of particles in groups in a swift snapshot.
+void WriteSwiftExtendedOutput(Options &opt, const Int_t ngroups, Int_t *numingroup, Int_t **pglist, vector<Particle> &Part);
+#endif
 
 ///Write the configuartion options that the code used
 void WriteVELOCIraptorConfig(Options &opt);
@@ -197,8 +209,10 @@ Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, const I
 Int_t GetHierarchy(Options &opt, Int_t ngroups, Int_t *nsub, Int_t *parentgid, Int_t *uparentgid, Int_t *stype);
 ///Copy hierarchy to PropData structure
 void CopyHierarchy(Options &opt, PropData *pdata,Int_t ngroups, Int_t *nsub, Int_t *parentgid, Int_t *uparentgid, Int_t *stype);
-///Adjust Structure search for period such that all substructure searches no longer have to run periodic searches
+///Adjust particles in structures for period such that all substructure searches no longer have to run periodic searches
 void AdjustStructureForPeriod(Options &opt, const Int_t nbodies, vector<Particle> &Part, Int_t numgroups, Int_t *pfof);
+///Adjust halo (object) positions back to inside the periodic volume.
+void AdjustHaloPositionForPeriod(Options &opt, Int_t ngroup, Int_t *&numingroup, PropData *&pdata);
 //@}
 
 /// \name Extra routines used in iterative search
@@ -276,17 +290,31 @@ void CalcVirBN98(Options &opt, Double_t a);
 void CalcCosmoParams(Options &opt, Double_t a);
 Double_t GetHubble(Options &opt, Double_t a);
 double GetInvaH(double a, void * params);
-Double_t CalcCosmicTime(Options &opt, Double_t a);
+Double_t CalcCosmicTime(Options &opt, Double_t a1, Double_t a2);
 //@}
 /// \name Routines to calculate substructure properties and sort particles in a substructure according to some property
 /// see \ref substructureproperties.cxx for implementation
 //@{
+///Get Centre of mass quantities
+void GetCM(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&pfof, Int_t *&numingroup, PropData *&pdata, Int_t *&noffset);
 ///Get the properties of the substructures and output the results
-void GetProperties(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&pfof, Int_t *numingroup=NULL, Int_t **pglist=NULL);
+void GetProperties(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&pfof, Int_t *&numingroup, PropData *&pdata, Int_t *&noffset);
 ///Get CM properties
-void GetCMProp(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&pfof, Int_t *&numingroup, PropData *&pdata, Int_t *&noffset);
+//void GetCMProp(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&pfof, Int_t *&numingroup, PropData *&pdata, Int_t *&noffset);
+///Get max dist to several reference frames
+void GetMaximumSizes(Options &opt, Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&numingroup, PropData *&pdata, Int_t *&noffset);
+///Adjust positions of bulk properties to desired reference
+void AdjustHaloPositionRelativeToReferenceFrame(Options &opt, Int_t ngroup, Int_t *&numingroup, PropData *&pdata);
+///Get NFW R200crit concentrations assuming an NFW profile and using Vmax/Rmax
+void GetNFWConcentrations(Options &opt, Int_t ngroup, Int_t *&numingroup, PropData *&pdata);
 ///Get inclusive masses for field objects
 void GetInclusiveMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&pfof, Int_t *&numingroup, PropData *&pdata, Int_t *&noffset);
+///Get FOF masses for field objects
+void GetFOFMass(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&pfof, Int_t *&numingroup, PropData *&pdata, Int_t *&noffset);
+/// Calculate FOF mass looping over groups once substructure search and have calculated properties
+void GetFOFMass(Options &opt, Int_t ngroup, Int_t *&numingroup, PropData *&pdata);
+///Get Spherical Overdensity Masses for field objects only. Assumes want to keep input order.
+void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&numingroup, PropData *&pdata);
 ///simple routine to copy over mass information (useful for storing inclusive info)
 void CopyMasses(Options &opt, const Int_t nhalos, PropData *&pold, PropData *&pnew);
 ///simple routine to reorder mass information based on number of particles when new remaining number of haloes < old halos
@@ -316,20 +344,28 @@ void RotParticles(const Int_t n, Particle *p, Matrix &R);
 GMatrix CalcPhaseCM(const Int_t n, Particle *p, int itype=-1);
 
 ///get concentration routines associted with finding concentrations via root finding
-void GetConcentration(PropData &p);
+void CalcConcentration(PropData &p);
 ///wrappers for root finding used to get concentration
 double mycNFW(double c, void *params);
 ///wrappers for root finding used to get concentration
 double mycNFW_deriv(double c, void *params);
 ///wrappers for root finding used to get concentration
 double mycNFW_fdf(double c, void *params, double*y,double *dy);
-
+///Calculate aperture quantities
+void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, PropData &pdata);
 ///determine the radial bin for calculating profiles
 int GetRadialBin(Options &opt, Double_t rc, int &ibin);
 ///add a particle's properties to the appropriate radial bin.
 void AddParticleToRadialBin(Options &opt, Particle *Pval, Double_t irnorm, int &ibin, PropData &pdata);
 ///add data to the appropriate radial bin
 void AddDataToRadialBin(Options &opt, Double_t rval, Double_t massval,
+#if defined(GASON) || defined(STARON) || defined(BHON)
+    Double_t srfval, int typeval,
+#endif
+    Double_t irnorm, int &ibin, PropData &pdata);
+void AddParticleToRadialBinInclusive(Options &opt, Particle *Pval, Double_t irnorm, int &ibin, PropData &pdata);
+///add data to the appropriate radial bin
+void AddDataToRadialBinInclusive(Options &opt, Double_t rval, Double_t massval,
 #if defined(GASON) || defined(STARON) || defined(BHON)
     Double_t srfval, int typeval,
 #endif
@@ -400,6 +436,9 @@ void OpenMPHeadNextUpdate(const Int_t nbodies, vector<Particle> &Part, const Int
 /// see \ref mpiroutines.cxx for implementation
 /// for format specific stuff see related routines like \ref mpigadgetio.cxx or \ref mpitipsyio.cxx
 //@{
+
+///Update config options across mpi tasks of particles to load 
+void MPIUpdateUseParticleTypes(Options &opt);
 
 ///Domain decomposition of system
 void MPIInitialDomainDecomposition();
@@ -563,8 +602,16 @@ Int_t MPIBuildParticleNNImportList(const Int_t nbodies, KDTree *tree, Particle *
 int nn_export_cmp(const void *a, const void *b);
 ///Determine number of halos whose search regions overlap other mpi domains
 vector<bool> MPIGetHaloSearchExportNum(const Int_t ngroups, PropData *&pdata, vector<Double_t> &rdist);
+#ifdef SWIFTINTERFACE
+///Determine number of halos whose search regions overlap other mpi domains using swift mesh mpi decomposition
+vector<bool> MPIGetHaloSearchExportNumUsingMesh(Options &opt, const Int_t ngroup, PropData *&pdata, vector<Double_t> &rdist);
+#endif
 ///Build the export list of halo positions and search distances
 void MPIBuildHaloSearchExportList(const Int_t ngroup, PropData *&pdata, vector<Double_t> &rdist, vector<bool> &halooverlap);
+#ifdef SWIFTINTERFACE
+///Build the export list of halo positions and search distances using swift mesh mpi decomposition
+void MPIBuildHaloSearchExportListUsingMesh(Options &opt, const Int_t ngroup, PropData *&pdata, vector<Double_t> &rdist, vector<bool> &halooverlap);
+#endif
 ///Determine number of imported particles based on halo search regions
 void MPIGetHaloSearchImportNum(const Int_t nbodies, KDTree *tree, Particle *Part);
 ///Builds the import list of particles based on halo positions
