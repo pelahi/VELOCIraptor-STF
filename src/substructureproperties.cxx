@@ -299,6 +299,9 @@ void GetProperties(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngro
         if ((opt.iInclusiveHalo>0 && opt.iInclusiveHalo <3 && pdata[i].hostid !=-1)
         || opt.iInclusiveHalo==0
         || opt.iInclusiveHalo == 3) pdata[i].Allocate(opt);
+        else if (opt.iInclusiveHalo>0 && opt.iInclusiveHalo <3 && pdata[i].hostid ==-1) {
+            pdata[i].AllocateApertures(opt);
+        }
     }
 
     //for all groups, move particles to their appropriate reference frame
@@ -4056,24 +4059,73 @@ void CopyMasses(Options &opt, const Int_t nhalos, PropData *&pold, PropData *&pn
             }
 #endif
         }
+        /*
         if (opt.iaperturecalc) {
             pnew[i].aperture_npart=pold[i].aperture_npart;
             pnew[i].aperture_mass=pold[i].aperture_mass;
+            pnew[i].aperture_veldisp=pold[i].aperture_veldisp;
+            pnew[i].aperture_vrdisp=pold[i].aperture_vrdisp;
+            pnew[i].aperture_rhalfmass=pold[i].aperture_rhalfmass;
 #ifdef GASON
             pnew[i].aperture_npart_gas=pold[i].aperture_npart_gas;
             pnew[i].aperture_mass_gas=pold[i].aperture_mass_gas;
+            pnew[i].aperture_veldisp_gas=pold[i].aperture_veldisp_gas;
+            pnew[i].aperture_vrdisp_gas=pold[i].aperture_vrdisp_gas;
+            pnew[i].aperture_rhalfmass_gas=pold[i].aperture_rhalfmass_gas;
 #ifdef STARON
+            pnew[i].aperture_SFR_gas=pold[i].aperture_SFR_gas;
             pnew[i].aperture_npart_gas_sf=pold[i].aperture_npart_gas_sf;
             pnew[i].aperture_npart_gas_nsf=pold[i].aperture_npart_gas_nsf;
             pnew[i].aperture_mass_gas_sf=pold[i].aperture_mass_gas_sf;
             pnew[i].aperture_mass_gas_nsf=pold[i].aperture_mass_gas_nsf;
+            pnew[i].aperture_veldisp_gas_sf=pold[i].aperture_veldisp_gas_sf;
+            pnew[i].aperture_veldisp_gas_nsf=pold[i].aperture_veldisp_gas_nsf;
+            pnew[i].aperture_rhalfmass_gas_sf=pold[i].aperture_rhalfmass_gas_sf;
+            pnew[i].aperture_rhalfmass_gas_nsf=pold[i].aperture_rhalfmass_gas_nsf;
+            pnew[i].aperture_vrdisp_gas_sf=pold[i].aperture_vrdisp_gas_sf;
+            pnew[i].aperture_vrdisp_gas_nsf=pold[i].aperture_vrdisp_gas_nsf;
 #endif
 #endif
 #ifdef STARON
             pnew[i].aperture_npart_star=pold[i].aperture_npart_star;
             pnew[i].aperture_mass_star=pold[i].aperture_mass_star;
+            pnew[i].aperture_veldisp_star=pold[i].aperture_veldisp_star;
+            pnew[i].aperture_rhalfmass_star=pold[i].aperture_rhalfmass_star;
+            pnew[i].aperture_vrdisp_star=pold[i].aperture_vrdisp_star;
+#endif
+#ifdef HIGHRES
+            pnew[i].aperture_npart_interloper=pold[i].aperture_npart_interloper;
+            pnew[i].aperture_mass_interloper=pold[i].aperture_mass_interloper;
+#endif
+            #if defined(GASON) || defined(STARON) || defined(BHON)
+            //if searching all types, also store dm only aperture quantities
+            if (opt.partsearchtype==PSTALL) {
+                pnew[i].aperture_npart_dm=pold[i].aperture_npart_dm;
+                pnew[i].aperture_mass_dm=pold[i].aperture_mass_dm;
+                pnew[i].aperture_veldisp_dm=pold[i].aperture_veldisp_dm;
+                pnew[i].aperture_vrdisp_dm=pold[i].aperture_vrdisp_dm;
+                pnew[i].aperture_rhalfmass_dm=pold[i].aperture_rhalfmass_dm;
+            }
+            #endif
+            pnew[i].aperture_mass_proj=pold[i].aperture_mass_proj;
+            pnew[i].aperture_rhalfmass_proj=pold[i].aperture_rhalfmass_proj;
+#ifdef GASON
+            pnew[i].aperture_mass_proj_gas=pold[i].aperture_mass_proj_gas;
+            pnew[i].aperture_rhalfmass_proj_gas=pold[i].aperture_rhalfmass_proj_gas;
+#ifdef STARON
+            pnew[i].aperture_SFR_proj_gas=pold[i].aperture_SFR_proj_gas;
+            pnew[i].aperture_mass_proj_gas_sf=pold[i].aperture_mass_proj_gas_sf;
+            pnew[i].aperture_rhalfmass_proj_gas_sf=pold[i].aperture_rhalfmass_proj_gas_sf;
+            pnew[i].aperture_mass_proj_gas_nsf=pold[i].aperture_mass_proj_gas_nsf;
+            pnew[i].aperture_rhalfmass_proj_gas_nsf=pold[i].aperture_rhalfmass_proj_gas_nsf;
+#endif
+#endif
+#ifdef STARON
+            pnew[i].aperture_mass_proj_star=pold[i].aperture_mass_proj_star;
+            pnew[i].aperture_rhalfmass_proj_star=pold[i].aperture_rhalfmass_proj_star;
 #endif
         }
+        */
         if (opt.iprofilecalc) {
             pnew[i].profile_npart=pold[i].profile_npart;
             pnew[i].profile_mass=pold[i].profile_mass;
