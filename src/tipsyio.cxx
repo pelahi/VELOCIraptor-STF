@@ -84,7 +84,7 @@ void ReadTipsy(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particl
     //if opt.virlevel<0, then use virial overdensity based on Bryan and Norman 1997 virialization level is given by
     if (opt.virlevel<0) opt.virlevel=opt.virBN98;
 
-    mscale=opt.M;lscale=opt.L*aadjust;lvscale=opt.L*opt.a;
+    mscale=opt.massinputconversion;lscale=opt.lengthinputconversion*aadjust;lvscale=opt.lengthinputconversion*opt.a;
     //normally Hubbleflow=lvscale*Hubble but we only care about peculiar velocities
     //ignore hubble flow
     Hubbleflow=0.;
@@ -158,9 +158,9 @@ void ReadTipsy(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particl
 #ifndef USEMPI
             Part[count]=Particle(gas.mass*mscale,
                 gas.pos[0]*lscale,gas.pos[1]*lscale,gas.pos[2]*lscale,
-                gas.vel[0]*opt.V+Hubbleflow*gas.pos[0],
-                gas.vel[1]*opt.V+Hubbleflow*gas.pos[1],
-                gas.vel[2]*opt.V+Hubbleflow*gas.pos[2],
+                gas.vel[0]*opt.velocityinputconversion+Hubbleflow*gas.pos[0],
+                gas.vel[1]*opt.velocityinputconversion+Hubbleflow*gas.pos[1],
+                gas.vel[2]*opt.velocityinputconversion+Hubbleflow*gas.pos[2],
                 count,GASTYPE);
 #else
             //if using MPI, determine ibuf, store particle in particle buffer and if buffer full, broadcast data
@@ -168,9 +168,9 @@ void ReadTipsy(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particl
             ibuf=MPIGetParticlesProcessor(gas.pos[0],gas.pos[1],gas.pos[2]);
             Pbuf[ibuf*BufSize+Nbuf[ibuf]]=Particle(gas.mass*mscale,
                 gas.pos[0]*lscale,gas.pos[1]*lscale,gas.pos[2]*lscale,
-                gas.vel[0]*opt.V+Hubbleflow*gas.pos[0],
-                gas.vel[1]*opt.V+Hubbleflow*gas.pos[1],
-                gas.vel[2]*opt.V+Hubbleflow*gas.pos[2],
+                gas.vel[0]*opt.velocityinputconversion+Hubbleflow*gas.pos[0],
+                gas.vel[1]*opt.velocityinputconversion+Hubbleflow*gas.pos[1],
+                gas.vel[2]*opt.velocityinputconversion+Hubbleflow*gas.pos[2],
                 count,GASTYPE);
             Nbuf[ibuf]++;
             if(ibuf==0){
@@ -200,17 +200,17 @@ void ReadTipsy(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particl
 #ifndef USEMPI
         Part[count]=Particle(dark.mass*mscale,
             dark.pos[0]*lscale,dark.pos[1]*lscale,dark.pos[2]*lscale,
-            dark.vel[0]*opt.V+Hubbleflow*dark.pos[0],
-            dark.vel[1]*opt.V+Hubbleflow*dark.pos[1],
-            dark.vel[2]*opt.V+Hubbleflow*dark.pos[2],
+            dark.vel[0]*opt.velocityinputconversion+Hubbleflow*dark.pos[0],
+            dark.vel[1]*opt.velocityinputconversion+Hubbleflow*dark.pos[1],
+            dark.vel[2]*opt.velocityinputconversion+Hubbleflow*dark.pos[2],
             count,DARKTYPE);
 #else
             ibuf=MPIGetParticlesProcessor(dark.pos[0],dark.pos[1],dark.pos[2]);
             Pbuf[ibuf*BufSize+Nbuf[ibuf]]=Particle(dark.mass*mscale,
                 dark.pos[0]*lscale,dark.pos[1]*lscale,dark.pos[2]*lscale,
-                dark.vel[0]*opt.V+Hubbleflow*dark.pos[0],
-                dark.vel[1]*opt.V+Hubbleflow*dark.pos[1],
-                dark.vel[2]*opt.V+Hubbleflow*dark.pos[2],
+                dark.vel[0]*opt.velocityinputconversion+Hubbleflow*dark.pos[0],
+                dark.vel[1]*opt.velocityinputconversion+Hubbleflow*dark.pos[1],
+                dark.vel[2]*opt.velocityinputconversion+Hubbleflow*dark.pos[2],
                 count,DARKTYPE);
             Nbuf[ibuf]++;
             if(ibuf==0){
@@ -246,17 +246,17 @@ void ReadTipsy(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particl
 #ifndef USEMPI
         Part[count]=Particle(star.mass*mscale,
             star.pos[0]*lscale,star.pos[1]*lscale,star.pos[2]*lscale,
-            star.vel[0]*opt.V+Hubbleflow*star.pos[0],
-            star.vel[1]*opt.V+Hubbleflow*star.pos[1],
-            star.vel[2]*opt.V+Hubbleflow*star.pos[2],
+            star.vel[0]*opt.velocityinputconversion+Hubbleflow*star.pos[0],
+            star.vel[1]*opt.velocityinputconversion+Hubbleflow*star.pos[1],
+            star.vel[2]*opt.velocityinputconversion+Hubbleflow*star.pos[2],
             count,STARTYPE);
 #else
             ibuf=MPIGetParticlesProcessor(star.pos[0],star.pos[1],star.pos[2]);
             Pbuf[ibuf*BufSize+Nbuf[ibuf]]=Particle(star.mass*mscale,
                 star.pos[0]*lscale,star.pos[1]*lscale,star.pos[2]*lscale,
-                star.vel[0]*opt.V+Hubbleflow*star.pos[0],
-                star.vel[1]*opt.V+Hubbleflow*star.pos[1],
-                star.vel[2]*opt.V+Hubbleflow*star.pos[2],
+                star.vel[0]*opt.velocityinputconversion+Hubbleflow*star.pos[0],
+                star.vel[1]*opt.velocityinputconversion+Hubbleflow*star.pos[1],
+                star.vel[2]*opt.velocityinputconversion+Hubbleflow*star.pos[2],
                 count,STARTYPE);
             Nbuf[ibuf]++;
             if(ibuf==0){
@@ -316,7 +316,7 @@ void ReadTipsy(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particl
 #ifdef HIGHRES
     if (opt.Neff==-1) {
         //Once smallest mass particle is found (which should correspond to highest resolution area,
-        LN=pow(((MP_DM)*opt.M)/(opt.Omega_cdm*3.0*opt.H*opt.h*opt.H*opt.h/(8.0*M_PI*opt.G)),1./3.)*opt.a;
+        LN=pow(((MP_DM)*opt.massinputconversion)/(opt.Omega_cdm*3.0*opt.H*opt.h*opt.H*opt.h/(8.0*M_PI*opt.G)),1./3.)*opt.a;
     }
     else {
         LN=opt.p/(Double_t)opt.Neff;

@@ -91,11 +91,84 @@ void ReadData(Options &opt, vector<Particle> &Part, const Int_t nbodies, Particl
 #ifdef USEXDR
     else if (opt.inputtype==IONCHILADA) ReadNchilada(opt,Part,nbodies, Pbaryons, nbaryons);
 #endif
+    AdjustHydroQuantities(opt,Part,nbodies);
+    AdjustStarQuantities(opt,Part,nbodies);
+    AdjustBHQuantities(opt,Part,nbodies);
 #ifdef USEMPI
     MPIAdjustDomain(opt);
 #endif
 }
 
+
+//Adjust particle data to appropriate units
+void AdjustHydroQuantities(Options &opt, vector<Particle> &Part, const Int_t nbodies) {
+    #ifdef GASON
+    #ifdef STARON
+    if (opt.metallicityinputconversion!=1.0) {
+        for (auto &p:Part) {
+            if (p.GetType()!=GASTYPE) continue;
+            p.SetZmet(p.GetZmet()*opt.metallicityinputconversion);
+        }
+    }
+    if (opt.isfrisssfr==1) {
+        for (auto &p:Part) {
+            if (p.GetType()!=GASTYPE) continue;
+            p.SetSFR(p.GetSFR()*p.GetMass());
+        }
+    }
+    if (opt.SFRinputconversion!=1.0) {
+        for (auto &p:Part) {
+            if (p.GetType()!=GASTYPE) continue;
+            p.SetSFR(p.GetSFR()*opt.SFRinputconversion);
+        }
+    }
+    #endif
+    #endif
+}
+
+void AdjustStarQuantities(Options &opt, vector<Particle> &Part, const Int_t nbodies) {
+    #ifdef STARON
+    if (opt.metallicityinputconversion!=1.0) {
+        for (auto &p:Part) {
+            if (p.GetType()!=STARTYPE) continue;
+            p.SetZmet(p.GetZmet()*opt.metallicityinputconversion);
+        }
+    }
+    if (opt.istellaragescalefactor!=0 || opt.stellarageinputconversion!=1.0) {
+        double tage;
+        for (auto &p:Part) {
+            if (p.GetType()!=STARTYPE) continue;
+            //if stellar age is initially stored as scale factor of formation
+            if (opt.istellaragescalefactor == 1) {
+                tage = CalcCosmicTime(opt,p.GetTage(),opt.a);
+            }
+            //if stellar age is initially stored as redshift of formation
+            else if (opt.istellaragescalefactor == 2) {
+                tage = CalcCosmicTime(opt,1.0/(p.GetTage()+1),opt.a);
+            }
+            //if stellar age is initially stored as time of formation
+            else if (opt.istellaragescalefactor == 3) {
+                tage = opt.a-p.GetTage();
+            }
+            //if stellar age is initially stored as an age
+            else tage = p.GetTage();
+            tage*=opt.stellarageinputconversion;
+            p.SetTage(tage);
+        }
+    }
+    #endif
+}
+
+void AdjustBHQuantities(Options &opt, vector<Particle> &Part, const Int_t nbodies) {
+    #ifdef BHON
+    if (opt.metallicityinputconversion!=1.0) {
+        for (auto &p:Part) {
+            if (p.GetType()!=BHTYPE) continue;
+            p.SetZmet(p.GetZmet()*opt.metallicityinputconversion);
+        }
+    }
+    #endif
+}
 //@}
 
 ///\name Read STF data files
@@ -1459,16 +1532,36 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids, ve
 
 //@}
 
+#ifdef USEHDF
+template <typename ReturnT, typename F, typename ... Ts>
+ReturnT safe_hdf5(F function, Ts ... args)
+{
+       ReturnT status = function(std::forward<Ts>(args)...);
+       if (status < 0) {
+           cerr<<"Error in HDF routine "<<endl;//<<function.__PRETTY_FUNCTION__
+           //throw std::runtime_error("Error in HDF routine.");
+           #ifdef USEMPI
+           MPI_Abort(MPI_COMM_WORLD,9);
+           #else
+           exit(9);
+           #endif
+       }
+       return status;
+}
 
 template <typename T>
 static void write_scalar_attr(const H5::H5File &file, const DataGroupNames &dgnames, int idx, const T value)
 {
     DataSpace space(H5S_SCALAR);
-    auto attr_id = H5Acreate2(file.getId(), dgnames.prop[idx].c_str(), dgnames.propdatatype[idx].getId(),
-						    space.getId(), PropList::DEFAULT.getId(), H5P_DEFAULT);
-    Attribute attr(attr_id);
-    attr.write(dgnames.propdatatype[idx], &value);
+    auto attr_id = safe_hdf5<hid_t>(H5Acreate2, file.getId(), dgnames.prop[idx].c_str(),
+               dgnames.propdatatype[idx].getId(), space.getId(),
+               PropList::DEFAULT.getId(), H5P_DEFAULT);
+    //Attribute attr(attr_id);
+    //attr.write(dgnames.propdatatype[idx], &value);
+    safe_hdf5<herr_t>(H5Awrite, attr_id, dgnames.propdatatype[idx].getId(), &value);
+    safe_hdf5<herr_t>(H5Aclose, attr_id);
 }
+#endif
 
 ///\name Final outputs such as properties and output that can be used to construct merger trees and substructure hierarchy
 //@{
@@ -1574,7 +1667,11 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         write_scalar_attr(Fhdf, datagroupnames, itemp++, opt.lengthtokpc);
         write_scalar_attr(Fhdf, datagroupnames, itemp++, opt.velocitytokms);
         write_scalar_attr(Fhdf, datagroupnames, itemp++, opt.masstosolarmass);
-
+#if defined(GASON) || defined(STARON) || defined(BHON)
+        write_scalar_attr(Fhdf, datagroupnames, itemp++, opt.metallicitytosolar);
+        write_scalar_attr(Fhdf, datagroupnames, itemp++, opt.SFRtosolarmassperyear);
+        write_scalar_attr(Fhdf, datagroupnames, itemp++, opt.stellaragetoyrs);
+#endif
         //load data spaces
         propdataspace=new DataSpace[head.headerdatainfo.size()];
         propdataset=new DataSet[head.headerdatainfo.size()];
@@ -1684,7 +1781,7 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         itemp++;
         }
         for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gpos[k];
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gposmbp[k];
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
         }
@@ -1699,7 +1796,7 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         itemp++;
         }
         for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gvel[k];
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gvelmbp[k];
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
         }
@@ -1940,11 +2037,11 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Krot_gas;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Temp_gas;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Temp_mean_gas;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
 #ifdef STARON
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Z_gas;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Z_mean_gas;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SFR_gas;
@@ -2069,10 +2166,10 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Krot_star;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].t_star;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].t_mean_star;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Z_star;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Z_mean_star;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
         if (opt.iextrastaroutput) {
@@ -2148,27 +2245,201 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_interloper;
         propdataset[itemp].write(data,head.predtypeinfo[itemp]);
         itemp++;
-#endif
-        //output apertures
-        if (opt.iaperturecalc){
-            for (auto j=0;j<opt.aperturenum;j++) {
-                for (Int_t i=0;i<ngroups;i++) ((unsigned int*)data)[i]=pdata[i+1].aperture_npart[j];
+        if (opt.iextrainterloperoutput) {
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200mean_interloper;
+            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+            itemp++;
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200crit_interloper;
+            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+            itemp++;
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_BN98_interloper;
+            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+            itemp++;
+            if (opt.iInclusiveHalo>0) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200mean_excl_interloper;
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200crit_excl_interloper;
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_BN98_excl_interloper;
                 propdataset[itemp].write(data,head.predtypeinfo[itemp]);
                 itemp++;
             }
+        }
+#endif
+
+#if defined(GASON) && defined(STARON)
+    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_gas_sf;
+    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+    itemp++;
+    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Rhalfmass_gas_sf;
+    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+    itemp++;
+    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].sigV_gas_sf;
+    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+    itemp++;
+    for (int k=0;k<3;k++){
+    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_gas_sf[k];
+    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+    itemp++;
+    }
+
+    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Krot_gas_sf;
+    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+    itemp++;
+    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Temp_mean_gas_sf;
+    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+    itemp++;
+    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Z_mean_gas_sf;
+    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+    itemp++;
+    if (opt.iextrastaroutput) {
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200mean_gas_sf;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200crit_gas_sf;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_BN98_gas_sf;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+
+        for (int k=0;k<3;k++){
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200mean_gas_sf[k];
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        }
+        for (int k=0;k<3;k++){
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200crit_gas_sf[k];
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        }
+        for (int k=0;k<3;k++){
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_BN98_gas_sf[k];
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        }
+
+        if (opt.iInclusiveHalo>0) {
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200mean_excl_gas_sf;
+            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+            itemp++;
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200crit_excl_gas_sf;
+            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+            itemp++;
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_BN98_excl_gas_sf;
+            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+            itemp++;
+
+            for (int k=0;k<3;k++){
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200mean_excl_gas_sf[k];
+            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+            itemp++;
+            }
+            for (int k=0;k<3;k++){
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200crit_excl_gas_sf[k];
+            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+            itemp++;
+            }
+            for (int k=0;k<3;k++){
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_BN98_excl_gas_sf[k];
+            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+            itemp++;
+            }
+        }
+    }
+    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_gas_nsf;
+    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+    itemp++;
+    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Rhalfmass_gas_nsf;
+    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+    itemp++;
+    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].sigV_gas_nsf;
+    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+    itemp++;
+    for (int k=0;k<3;k++){
+    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_gas_nsf[k];
+    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+    itemp++;
+    }
+
+    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Krot_gas_nsf;
+    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+    itemp++;
+    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Temp_mean_gas_nsf;
+    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+    itemp++;
+    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Z_mean_gas_nsf;
+    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+    itemp++;
+    if (opt.iextrastaroutput) {
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200mean_gas_nsf;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200crit_gas_nsf;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_BN98_gas_nsf;
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+
+        for (int k=0;k<3;k++){
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200mean_gas_nsf[k];
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        }
+        for (int k=0;k<3;k++){
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200crit_gas_nsf[k];
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        }
+        for (int k=0;k<3;k++){
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_BN98_gas_nsf[k];
+        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+        itemp++;
+        }
+
+        if (opt.iInclusiveHalo>0) {
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200mean_excl_gas_nsf;
+            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+            itemp++;
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200crit_excl_gas_nsf;
+            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+            itemp++;
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_BN98_excl_gas_nsf;
+            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+            itemp++;
+
+            for (int k=0;k<3;k++){
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200mean_excl_gas_nsf[k];
+            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+            itemp++;
+            }
+            for (int k=0;k<3;k++){
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200crit_excl_gas_nsf[k];
+            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+            itemp++;
+            }
+            for (int k=0;k<3;k++){
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_BN98_excl_gas_nsf[k];
+            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+            itemp++;
+            }
+        }
+    }
+#endif
+
+        //output apertures
+        if (opt.iaperturecalc && opt.aperturenum>0){
             for (auto j=0;j<opt.aperturenum;j++) {
-                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_mass[j];
+                for (Int_t i=0;i<ngroups;i++) ((unsigned int*)data)[i]=pdata[i+1].aperture_npart[j];
                 propdataset[itemp].write(data,head.predtypeinfo[itemp]);
                 itemp++;
             }
 #ifdef GASON
             for (auto j=0;j<opt.aperturenum;j++) {
                 for (Int_t i=0;i<ngroups;i++) ((unsigned int*)data)[i]=pdata[i+1].aperture_npart_gas[j];
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
-            }
-            for (auto j=0;j<opt.aperturenum;j++) {
-                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_mass_gas[j];
                 propdataset[itemp].write(data,head.predtypeinfo[itemp]);
                 itemp++;
             }
@@ -2179,12 +2450,41 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
                 itemp++;
             }
             for (auto j=0;j<opt.aperturenum;j++) {
-                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_mass_gas_sf[j];
+                for (Int_t i=0;i<ngroups;i++) ((unsigned int*)data)[i]=pdata[i+1].aperture_npart_gas_nsf[j];
                 propdataset[itemp].write(data,head.predtypeinfo[itemp]);
                 itemp++;
             }
+#endif
+#endif
+#ifdef STARON
             for (auto j=0;j<opt.aperturenum;j++) {
-                for (Int_t i=0;i<ngroups;i++) ((unsigned int*)data)[i]=pdata[i+1].aperture_npart_gas_nsf[j];
+                for (Int_t i=0;i<ngroups;i++) ((unsigned int*)data)[i]=pdata[i+1].aperture_npart_star[j];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+#endif
+#ifdef HIGHRES
+            for (auto j=0;j<opt.aperturenum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((unsigned int*)data)[i]=pdata[i+1].aperture_npart_interloper[j];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+#endif
+
+            for (auto j=0;j<opt.aperturenum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_mass[j];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+#ifdef GASON
+            for (auto j=0;j<opt.aperturenum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_mass_gas[j];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+#ifdef STARON
+            for (auto j=0;j<opt.aperturenum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_mass_gas_sf[j];
                 propdataset[itemp].write(data,head.predtypeinfo[itemp]);
                 itemp++;
             }
@@ -2197,15 +2497,246 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
 #endif
 #ifdef STARON
             for (auto j=0;j<opt.aperturenum;j++) {
-                for (Int_t i=0;i<ngroups;i++) ((unsigned int*)data)[i]=pdata[i+1].aperture_npart_star[j];
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
-            }
-            for (auto j=0;j<opt.aperturenum;j++) {
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_mass_star[j];
                 propdataset[itemp].write(data,head.predtypeinfo[itemp]);
                 itemp++;
             }
+#endif
+#ifdef HIGHRES
+            for (auto j=0;j<opt.aperturenum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_mass_interloper[j];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+#endif
+            for (auto j=0;j<opt.aperturenum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_rhalfmass[j];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+            #ifdef GASON
+            for (auto j=0;j<opt.aperturenum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_rhalfmass_gas[j];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+            #ifdef STARON
+            for (auto j=0;j<opt.aperturenum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_rhalfmass_gas_sf[j];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+            for (auto j=0;j<opt.aperturenum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_rhalfmass_gas_nsf[j];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+            #endif
+            #endif
+            #ifdef STARON
+            for (auto j=0;j<opt.aperturenum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_rhalfmass_star[j];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+            #endif
+            for (auto j=0;j<opt.aperturenum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_veldisp[j];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+#ifdef GASON
+            for (auto j=0;j<opt.aperturenum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_veldisp_gas[j];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+#ifdef STARON
+            for (auto j=0;j<opt.aperturenum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_veldisp_gas_sf[j];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+            for (auto j=0;j<opt.aperturenum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_veldisp_gas_nsf[j];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+#endif
+#endif
+#ifdef STARON
+            for (auto j=0;j<opt.aperturenum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_veldisp_star[j];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+#endif
+#if defined(GASON) && defined(STARON)
+            for (auto j=0;j<opt.aperturenum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_SFR_gas[j];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+#endif
+        }
+        //output apertures
+        if (opt.iaperturecalc && opt.apertureprojnum>0){
+            for (auto k=0;k<3;k++) {
+            for (auto j=0;j<opt.apertureprojnum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_mass_proj[j][k];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+            #ifdef GASON
+            for (auto j=0;j<opt.apertureprojnum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_mass_proj_gas[j][k];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+            #ifdef STARON
+            for (auto j=0;j<opt.apertureprojnum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_mass_proj_gas_sf[j][k];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+            for (auto j=0;j<opt.apertureprojnum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_mass_proj_gas_nsf[j][k];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+            #endif
+            #endif
+            #ifdef STARON
+            for (auto j=0;j<opt.apertureprojnum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_mass_proj_star[j][k];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+            #endif
+            for (auto j=0;j<opt.apertureprojnum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_rhalfmass_proj[j][k];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+            #ifdef GASON
+            for (auto j=0;j<opt.apertureprojnum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_rhalfmass_proj_gas[j][k];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+            #ifdef STARON
+            for (auto j=0;j<opt.apertureprojnum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_rhalfmass_proj_gas_sf[j][k];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+            for (auto j=0;j<opt.apertureprojnum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_rhalfmass_proj_gas_nsf[j][k];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+            #endif
+            #endif
+            #ifdef STARON
+            for (auto j=0;j<opt.apertureprojnum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_rhalfmass_proj_star[j][k];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+            #endif
+            #if defined(GASON) && defined(STARON)
+            for (auto j=0;j<opt.apertureprojnum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_SFR_proj_gas[j][k];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+            #endif
+            }
+        }
+        if (opt.SOnum>0) {
+            for (auto j=0;j<opt.SOnum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_mass[j];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+            for (auto j=0;j<opt.SOnum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_radius[j];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+#ifdef GASON
+            if (opt.iextragasoutput && opt.iextrahalooutput) {
+                for (auto j=0;j<opt.SOnum;j++) {
+                    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_mass_gas[j];
+                    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                    itemp++;
+                }
+#ifdef STARON
+#endif
+            }
+#endif
+#ifdef STARON
+            if (opt.iextrastaroutput && opt.iextrahalooutput) {
+                for (auto j=0;j<opt.SOnum;j++) {
+                    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_mass_star[j];
+                    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                    itemp++;
+                }
+            }
+#endif
+#ifdef HIGHRES
+            if (opt.iextrainterloperoutput && opt.iextrahalooutput) {
+                for (auto j=0;j<opt.SOnum;j++) {
+                    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_mass_interloper[j];
+                    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                    itemp++;
+                }
+            }
+#endif
+        }
+        if (opt.SOnum>0 && opt.iextrahalooutput) {
+        for (auto j=0;j<opt.SOnum;j++) {
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_angularmomentum[j][0];
+            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+            itemp++;
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_angularmomentum[j][1];
+            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+            itemp++;
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_angularmomentum[j][2];
+            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+            itemp++;
+        }
+#ifdef GASON
+        if (opt.iextragasoutput) {
+            for (auto j=0;j<opt.SOnum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_angularmomentum_gas[j][0];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_angularmomentum_gas[j][1];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_angularmomentum_gas[j][2];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+#ifdef STARON
+#endif
+        }
+#endif
+#ifdef STARON
+        if (opt.iextrastaroutput) {
+            for (auto j=0;j<opt.SOnum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_angularmomentum_star[j][0];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_angularmomentum_star[j][1];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_angularmomentum_star[j][2];
+                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
+                itemp++;
+            }
+        }
 #endif
         }
         //delete memory associated with void pointer
@@ -2945,6 +3476,52 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
 #endif
     cout<<"Done saving hierarchy"<<endl;
 }
+
+///Write subfind style format of properties, where selection of properties
+///are written for FOF objects and a larger selection of properties are written
+///for each object
+void WriteSUBFINDProperties(Options &opt, const Int_t ngroups, PropData *pdata){
+    fstream Fout;
+    char fname[1000];
+    char buf[40];
+    long unsigned ngtot=0, noffset=0, ng=ngroups;
+
+    //if need to convert from physical back to comoving
+    if (opt.icomoveunit) {
+        opt.p*=opt.h/opt.a;
+        for (Int_t i=1;i<=ngroups;i++) pdata[i].ConverttoComove(opt);
+    }
+#ifdef USEHDF
+    H5File Fhdf;
+    H5std_string datasetname;
+    DataSpace dataspace;
+    DataSet dataset;
+    DataSpace attrspace;
+    Attribute attr;
+    float attrvalue;
+    hsize_t *dims, *chunk_dims;
+
+    int rank;
+    DataSpace *propdataspace;
+    DataSet *propdataset;
+    DSetCreatPropList  *hdfdatasetproplist;
+    int itemp=0;
+    DataGroupNames datagroupnames;
+
+    PropDataHeader head(opt);
+
+#ifdef USEMPI
+    sprintf(fname,"%s.subfindproperties.%d",opt.outname,ThisTask);
+    for (int j=0;j<NProcs;j++) ngtot+=mpi_ngroups[j];
+    for (int j=0;j<ThisTask;j++)noffset+=mpi_ngroups[j];
+#else
+    sprintf(fname,"%s.subproperties",opt.outname);
+    int ThisTask=0,NProcs=1;
+    ngtot=ngroups;
+#endif
+    cout<<"saving property data to "<<fname<<endl;
+#endif
+}
 //@}
 
 /// \name Routines that can be used to output information of a halo subvolume decomposition
@@ -3233,6 +3810,14 @@ void PrintSimulationState(Options &opt){
     }
 }
 //@}
+
+#ifdef SWIFTINTERFACE
+///write an HDF file that stores where particles are written.
+void WriteSwiftExtendedOutput(Options &opt, const Int_t ngroups, Int_t *numingroup, Int_t **pglist, vector<Particle> &Part)
+{
+    return;
+}
+#endif
 
 #ifdef EXTENDEDHALOOUTPUT
 /// \name Routines that can be used to output information of a halo subvolume decomposition
