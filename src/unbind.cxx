@@ -243,6 +243,7 @@ private(i,j,k,n,r2,poti)
     for (i=1;i<=numgroups;i++)
     {
         if (numingroup[i]<=UNBINDNUM) {
+            if (numingroup[i]<0) continue;
             for (j=0;j<numingroup[i];j++) {
                 for (k=j+1;k<numingroup[i];k++) {
                     r2=0.;for (n=0;n<3;n++) r2+=pow(gPart[i][j].GetPosition(n)-gPart[i][k].GetPosition(n),2.0);
@@ -281,6 +282,7 @@ private(i,j,k,n,r2,poti)
     //here openmp is per group since each group is large
     for (i=1;i<=numgroups;i++)
     {
+        if (numingroup[i]<0) continue;
         if (numingroup[i]>UNBINDNUM) {
             //to make this memory efficient really need just KDTree that uses Coordinates
             tree=new KDTree(gPart[i],numingroup[i],opt.uinfo.BucketSize,tree->TPHYS);
@@ -405,6 +407,7 @@ private(i,j,k,npot,menc,potpos,storeval)
 #endif
     for (i=1;i<=numgroups;i++)
     {
+        if (numingroup[i]<0) continue;
         for (k=0;k<3;k++) potpos[k]=cmvel[i][k]=0;
         for (j=0;j<numingroup[i];j++) {
             gmass[i]+=gPart[i][j].GetMass();
@@ -452,6 +455,7 @@ private(i,j,k,npot,menc,potmin,ipotmin,potpos,storeval)
     #pragma omp for schedule(dynamic,1) nowait
 #endif
         for (i=1;i<=numgroups;i++) {
+            if (numingroup[i]<0) continue;
             //determine how many particles to use
             npot=max(opt.uinfo.Npotref,Int_t(opt.uinfo.fracpotref*numingroup[i]));
             npot=min(npot,numingroup[i]);
@@ -491,6 +495,7 @@ private(i,j,k,npot,menc,potmin,ipotmin,potpos,storeval)
     //here energy data is stored in density
     for (i=1;i<=numgroups;i++) if (numingroup[i]>=ompunbindnum)
     {
+        if (numingroup[i]<0) continue;
         totT=0;
         Efrac=0;
 #ifdef USEOPENMP
@@ -723,6 +728,7 @@ private(i,j,k,n,maxE,pq,pqsize,nEplus,nEplusid,Eplusflag,totT,v2,Ti,unbindcheck,
 #endif
     for (i=1;i<=numgroups;i++) if (numingroup[i]<=ompunbindnum && numingroup[i]>0)
     {
+        if (numingroup[i]<0) continue;
         totT=0;
         maxE=-MAXVALUE;
         nEplus=0;

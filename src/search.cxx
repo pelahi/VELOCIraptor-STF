@@ -3000,20 +3000,6 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
         Pbaryons=&Part.data()[ndark];
         for (i=0;i<nbaryons;i++) Pbaryons[i].SetID(i+ndark);
         Nlocal=nparts;
-        /*
-        //and place all particles into a contiguous memory block
-        nparts=ndark+nbaryons;
-        mpi_Part2=new Particle[nparts];
-        for (i=0;i<ndark;i++)mpi_Part2[i]=Part[i];
-        for (i=0;i<nbaryons;i++)mpi_Part2[i+ndark]=Pbaryons[i];
-        if (mpi_Part1!=NULL) delete[] mpi_Part1;
-        else delete[] Part;
-        delete[] Pbaryons;
-        Part=mpi_Part2;
-        Pbaryons=&mpi_Part2[ndark];
-        for (i=0;i<nbaryons;i++) Pbaryons[i].SetID(i+ndark);
-        Nlocal=nparts;
-        */
     } // end of if preliminary search is NOT all particles
     else {
         //reset order
@@ -3121,7 +3107,20 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
         //substructure they are reassigned to the uber parent halo
         pfofold=new Int_t[nparts];
         for (i=0;i<nparts;i++) pfofold[i]=pfofall[i];
+        //Only unbind subhalos if desired.
+        if (opt.iBoundHalos==0) {
+            //this can be done by setting the number in the group to the negative value
+            //as values below zero will ignored
+            for (i=1;i<=nhalos;i++) {
+                ningall[i]=-ningall[i];
+            }
+        }
         if (CheckUnboundGroups(opt,nparts, Part.data(), ngroupdark, pfofall, ningall,pglistall,0)) {
+            if (opt.iBoundHalos==0) {
+                for (i=1;i<=nhalos;i++) {
+                    ningall[i]=-ningall[i];
+                }
+            }
             //now if pfofall is zero but was a substructure reassign back to uber parent
             //so long as that uber parent still exists.
             for (i=0;i<nparts;i++)
@@ -3195,29 +3194,36 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
                 papsldata[i]->nsinlevel=ninlevel;
             }
             if (opt.iverbose) cout<<ThisTask<<" Reorder after finding baryons and unbinding, previously had "<<ng<<" groups and now have "<<ngroupdark<<endl;
-            //reorder groups just according to number of dark matter particles
-            //and whether object is a substructure or not. First get current number of dark matter particles
-            //note that one could technically have no dark matter partices remaining bound
-            //here numingroup is how data will be sorted, largest first.
-            numingroup=BuildNumInGroup(ndark, ng, pfofall);
-            //if wish to organise halos and subhaloes differently, adjust numingroup which is used to sort data
-            if (ihaloflag&&opt.iSubSearch) {
-                Int_t nleveloffset=nhalos,ninleveloffset=0;
-                for (Int_t k=1;k<=papsldata[0]->nsinlevel;k++)ninleveloffset+=ningall[(*papsldata[0]->gidhead[k])];
-                //if looking to separate haloes and substructure then offset numingroup[i] for halos so long as ningall[i]>0
-                for (i=1;i<=nhalos;i++) if (ningall[i]>0) numingroup[i]+=ninleveloffset;
+            //reorder group ids, keeping the ordering unchanged.
+            map<Int_t, Int_t> remap;
+            Int_t newng=0, oldpid, newpid;
+            remap[0]=0;
+            for (auto i=1;i<=ng;i++) {
+                if (ningall[i]>0) {
+                    newng++;
+                    remap[i]=newng;
+                }
+                else  remap[i]=0;
             }
-            //store new number of halos
-            nhalos=papsldata[0]->nsinlevel;
-            if (iinclusive) ReorderGroupIDsAndHaloDatabyValue(ng, ngroupdark, ningall, pfofall, pglistall, numingroup, pdata);
-            else ReorderGroupIDsbyValue(ng, ngroupdark, ningall, pfofall, pglistall, numingroup);
+            for (i=0;i<nparts;i++)
+            {
+                oldpid = pfofall[Part[i].GetID()];
+                if (oldpid==0) continue;
+                newpid = remap[oldpid];
+                if (oldpid==newpid) continue;
+                pfofall[Part[i].GetID()] = newpid;
+            }
             if (opt.iverbose) cout<<ThisTask<<" Done"<<endl;
-            delete[] numingroup;
             delete[] ningall;
             for (i=1;i<=ng;i++) delete[] pglistall[i];
             delete[] pglistall;
             for (i=nhierarchy-1;i>=0;i--) papsldata[i]=NULL;
             delete[] papsldata;
+        }
+        else {
+            delete[] ningall;
+            for (i=1;i<=ng;i++) delete[] pglistall[i];
+            delete[] pglistall;
         }
         delete[] pfofold;
         delete[] nsub;
