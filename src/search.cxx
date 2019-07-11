@@ -230,6 +230,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     for (i=0;i<nbodies;i++) if (Part[i].GetType()>0) numinstrucs++;
     if (opt.iverbose) cout<<"Number of particles in large subhalo searchable structures "<<numinstrucs<<endl;
     if (numinstrucs>0) GetVelocityDensity(opt, nbodies, Part.data(), tree);
+
     for (i=0;i<nbodies;i++) Part[i].SetType(storetype[i]);
     delete[] storetype;
     if (opt.fofbgtype>FOF6D) delete[] numingroup;
@@ -358,16 +359,26 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     if (totalgroups>0&&(opt.iSubSearch==1&&opt.foftype!=FOF6DCORE))
     {
         storetype=new Int_t[Nlocal];
-        numingroup=BuildNumInGroup(Nlocal, numgroups, pfof);
+        Int_t numinstrucs=0,numlocalden=0;
         for (i=0;i<Nlocal;i++) storetype[i]=Part[i].GetType();
-        if (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)) for (i=0;i<Nlocal;i++) Part[i].SetType((numingroup[pfof[i]]>=MINSUBSIZE));
-        //otherwise set type to group value for dark matter
-        else {
+        if (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)) {
+            numingroup=BuildNumInGroup(Nlocal, numgroups, pfof);
             for (i=0;i<Nlocal;i++) {
-                if (Part[i].GetType()==DARKTYPE) Part[i].SetType(numingroup[pfof[Part[i].GetID()]]>=MINSUBSIZE);
-                else Part[i].SetType(-1);
+                Part[i].SetType((numingroup[pfof[i]]>=MINSUBSIZE));
+                numlocalden += (Part[i].GetType()>0);
             }
         }
+        //otherwise set type to group value for dark matter
+        else {
+            numingroup=BuildNumInGroupTyped(Nlocal,numgroups,pfof,Part.data(),DARKTYPE);
+            for (i=0;i<Nlocal;i++) {
+                if (Part[i].GetType()==DARKTYPE) Part[i].SetType(numingroup[pfof[Part[i].GetID()]]>=MINSUBSIZE);
+                else Part[i].SetType(0);
+                numlocalden += (Part[i].GetType()>0);
+            }
+        }
+        for (i=0;i<Nlocal;i++) {numinstrucs+=(pfof[i]>0);}
+        if (opt.iverbose) cout<<ThisTask<<" has "<<numinstrucs<<" particles for which density must be calculated"<<endl;
         cout<<ThisTask<<" Going to build tree "<<endl;
         tree=new KDTree(Part.data(),Nlocal,opt.Bsize,tree->TPHYS,tree->KEPAN,100,0,0,0,period);
         GetVelocityDensity(opt, Nlocal, Part.data(),tree);
@@ -910,8 +921,9 @@ Int_t* SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Part
     int nthreads=1,maxnthreads,tid;
     Int_t *numingroup, **pglist;
     Int_tree_t *GroupTail, *Head, *Next;
-    Int_t bgoffset, *pfofbg, numgroupsbg;
+    Int_t bgoffset, *pfofbg, numgroupsbg=0;
     int maxhalocoresublevel;
+    Int_t numsubs=0;
     //initialize
     numgroups=0;
     if (pnumcores!=NULL) *pnumcores=0;
@@ -951,9 +963,7 @@ Int_t* SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Part
     param[9]=opt.ellthreshold;
     //if iterating slightly increase constraints and decrease minimum number
     if (opt.iiterflag && opt.foftype==FOFSTPROB) {
-        if (opt.iverbose) cout<<"Increasing thresholds to search for initial list.\n";
-        param[1]*=opt.ellxfac*opt.ellxfac/4.0;
-        param[6]*=opt.ellxfac*opt.ellxfac/4.0;
+        if (opt.iverbose>=2) cout<<"Increasing thresholds to search for initial list.\n";
         if (opt.foftype==FOF6DSUBSET) param[7]*=opt.vfac*opt.vfac;
         else param[7]*=opt.vfac;
         param[8]=cos(opt.thetaopen*M_PI*opt.thetafac);
@@ -964,7 +974,7 @@ Int_t* SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Part
     //Set fof type
     //@{
     if (opt.foftype==FOFSTPROB) {
-        if (opt.iverbose) {
+        if (opt.iverbose>=2) {
         cout<<"FOFSTPROB which uses: ellphys, vratio, thetaopen, and ellthreshold.\n";
         cout<<"Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits, vratio="<<param[7]<<", cos(thetaopen)="<<param[8]<<", ";
         cout<<param[9]<<" is outlier threshold.\n";
@@ -972,14 +982,14 @@ Int_t* SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Part
         fofcmp=&FOFStreamwithprob;
     }
     else if (opt.foftype==FOF6DSUBSET) {
-        if (opt.iverbose) {
+        if (opt.iverbose>=2) {
         cout<<"FOF6D uses ellphys and ellvel.\n";
         cout<<"Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits, ellvel="<<sqrt(param[7])<<" Vunits.\n";
         }
         fofcmp=&FOF6d;
     }
     else if (opt.foftype==FOFSTPROBNN) {
-        if (opt.iverbose) {
+        if (opt.iverbose>=2) {
         cout<<"FOFSTPROBNN which uses: ellphys, vratio, thetaopen, and ellthreshold.\n";
         cout<<"Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits, vratio="<<param[7]<<", cos(thetaopen)="<<param[8]<<", ";
         cout<<param[9]<<" is outlier threshold.\n";
@@ -988,7 +998,7 @@ Int_t* SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Part
         fofcmp=&FOFStreamwithprobNN;
     }
     else if (opt.foftype==FOFSTPROBNNLX) {
-        if (opt.iverbose) {
+        if (opt.iverbose>=2) {
         cout<<"FOFSTPROBNNLX which uses: ellphys, vratio, thetaopen, and ellthreshold.\n";
         cout<<"Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits, vratio="<<param[7]<<", cos(thetaopen)="<<param[8]<<", ";
         cout<<param[9]<<" is outlier threshold.\n";
@@ -997,7 +1007,7 @@ Int_t* SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Part
         fofcmp=&FOFStreamwithprobNNLX;
     }
     else if (opt.foftype==FOFSTPROBNNNODIST) {
-        if (opt.iverbose) {
+        if (opt.iverbose>=2) {
         cout<<"FOFSTPROBNN which uses: vratio, thetaopen, and ellthreshold.\n";
         cout<<"Parameters used are : vratio="<<param[7]<<", cos(thetaopen)="<<param[8]<<", ";
         cout<<param[9]<<" is outlier threshold.\n";
@@ -1006,7 +1016,7 @@ Int_t* SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Part
         fofcmp=&FOFStreamwithprobNNNODIST;
     }
     else if (opt.foftype==FOF6DCORE) {
-        if (opt.iverbose) {
+        if (opt.iverbose>=2) {
         cout<<"FOF6DCORE which identifies phase-space dense regions and assigns particles, ie core identification and growth\n";
         }
         //just build tree and initialize the pfof array
@@ -1019,12 +1029,12 @@ Int_t* SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Part
     //now actually search for dynamically distinct substructures
     //@{
     if (!(opt.foftype==FOFSTPROBNN||opt.foftype==FOFSTPROBNNLX||opt.foftype==FOFSTPROBNNNODIST||opt.foftype==FOF6DCORE)) {
-        if (opt.iverbose) cout<<"Building tree ... "<<endl;
+        if (opt.iverbose>=2) cout<<"Building tree ... "<<endl;
         tree=new KDTree(Partsubset,nsubset,opt.Bsize,tree->TPHYS);
         param[0]=tree->GetTreeType();
         //if large enough for statistically significant structures to be found then search. This is a robust search
         if (nsubset>=MINSUBSIZE) {
-            if (opt.iverbose) cout<<"Now search ... "<<endl;
+            if (opt.iverbose>=2) cout<<"Now search ... "<<endl;
             pfof=tree->FOFCriterion(fofcmp,param,numgroups,minsize,1,1,FOFchecksub);
         }
         else {
@@ -1032,15 +1042,15 @@ Int_t* SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Part
             pfof=new Int_t[nsubset];
             for (i=0;i<nsubset;i++) pfof[i]=0;
         }
-        if (opt.iverbose) cout<<"Done"<<endl;
+        if (opt.iverbose>=2) cout<<"Done"<<endl;
     }
     else if (opt.foftype==FOFSTPROBNN||opt.foftype==FOFSTPROBNNLX||opt.foftype==FOFSTPROBNNNODIST) {
         //here idea is to use subset but only search NN neighbours in phase-space once that is built for each particle, look at first particle's NN and see if any meet stffof criteria for velocity
         //then examine first tagged particle that meets critera by examining its NN and so on till reach particle where all NN are either already tagged or do not meet criteria
         //delete tree;
-        if (opt.iverbose) cout<<"Building tree ... "<<endl;
+        if (opt.iverbose>=2) cout<<"Building tree ... "<<endl;
         tree=new KDTree(Partsubset,nsubset,opt.Bsize,tree->TPHYS,tree->KEPAN,1000,1);
-        if (opt.iverbose) cout<<"Finding nearest neighbours"<<endl;
+        if (opt.iverbose>=2) cout<<"Finding nearest neighbours"<<endl;
         nnID=new Int_t*[nsubset];
         for (i=0;i<nsubset;i++) nnID[i]=new Int_t[nsearch];
         dist2=new Double_t*[nthreads];
@@ -1062,14 +1072,14 @@ private(i,tid)
 #ifdef USEOPENMP
 }
 #endif
-        if (opt.iverbose) cout<<"Done"<<endl;
-        if (opt.iverbose) cout<<"search nearest neighbours"<<endl;
+        if (opt.iverbose>=2) cout<<"Done"<<endl;
+        if (opt.iverbose>=2) cout<<"search nearest neighbours"<<endl;
         pfof=tree->FOFNNCriterion(fofcmp,param,nsearch,nnID,numgroups,minsize);
         for (i=0;i<nsubset;i++) delete[] nnID[i];
         delete[] nnID;
         for (i=0;i<nthreads;i++) delete[] dist2[i];
         delete[] dist2;
-        if (opt.iverbose) cout<<"Done"<<endl;
+        if (opt.iverbose>=2) cout<<"Done"<<endl;
     }
     //@}
 
@@ -1123,12 +1133,12 @@ private(i,tid)
         param[6]=(opt.ellxscale*opt.ellxscale)*(opt.ellphys*opt.ellphys);
         param[7]=(opt.Vratio);
         param[8]=cos(opt.thetaopen*M_PI);
-        param[9]=opt.ellthreshold*opt.ellfac;
+        param[9]=opt.ellthreshold;
         //if (opt.foftype==FOF6DSUBSET) param[7]/=opt.vfac*opt.vfac;
 
         fofcmp=&FOFStreamwithprobIterative;
-        if (opt.iverbose) {
-        cout<<ThisTask<<" "<<"Begin expanded search for groups near cell size"<<endl;
+        if (opt.iverbose>=2) {
+        cout<<ThisTask<<" "<<"Begin iterative search"<<endl;
         cout<<ThisTask<<" "<<"Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits, vratio="<<param[7]<<", cos(thetaopen)="<<param[8]<<", ";
         cout<<ThisTask<<" "<<param[9]<<" is outlier threshold.\n";
         }
@@ -1158,12 +1168,12 @@ private(i,tid)
         for (i=0;i<nsubset;i++) if (Partsubset[i].GetPotential()<param[9]&&nnID[0][Partsubset[i].GetID()]==0) nnID[0][Partsubset[i].GetID()]=-1;
 
         fofcmp=&FOFStreamwithprob;
-        param[1]=(opt.ellxscale*opt.ellxscale)*(opt.ellphys*opt.ellphys)*opt.ellxfac*opt.ellxfac;//increase physical linking length slightly
-        param[6]=(opt.ellxscale*opt.ellxscale)*(opt.ellphys*opt.ellphys)*opt.ellxfac*opt.ellxfac;
+        param[1]=(opt.ellxscale*opt.ellxscale)*(opt.ellphys*opt.ellphys);// *opt.ellxfac*opt.ellxfac;//increase physical linking length slightly
+        param[6]=(opt.ellxscale*opt.ellxscale)*(opt.ellphys*opt.ellphys);// *opt.ellxfac*opt.ellxfac;
         param[7]=(opt.Vratio)*opt.vfac;
         param[8]=cos(opt.thetaopen*M_PI*opt.thetafac);
         param[9]=opt.ellthreshold*opt.ellfac;
-        if (opt.iverbose) {
+        if (opt.iverbose>=2) {
         cout<<ThisTask<<" "<<"Begin second expanded search with large linking length "<<endl;
         cout<<ThisTask<<" "<<"FOFSTPROB which uses: ellphys, vratio, thetaopen, and ellthreshold.\n";
         cout<<ThisTask<<" "<<"Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits, vratio="<<param[7]<<", cos(thetaopen)="<<param[8]<<", ";
@@ -1188,7 +1198,7 @@ private(i,tid)
         }while(newlinks);
 
         //then search for intergroup links. When merging, identify all intergroup links and define merging criterion based on mass ratios, number of links, old mass (prior to expansion), etc
-        if (opt.iverbose) cout<<ThisTask<<" "<<"Search for intergroup links"<<endl;
+        if (opt.iverbose>=2) cout<<ThisTask<<" "<<"Search for intergroup links"<<endl;
         newintergroupIndex=new Int_t*[numgroups+1];
         intergroupgidIndex=new Int_t*[numgroups+1];
         newlinks=0;
@@ -1213,12 +1223,12 @@ private(i,tid)
             mergers+=MergeGroups(opt, Partsubset, numgroups, pfof, numingroup, oldnumingroup, pglist, numgrouplinksIndex, &intergroupgidIndex, &newintergroupIndex, intergrouplinksIndex, Head, Next, GroupTail, igflag, nnID[tid], newlinks, newlinksIndex);
         }while(mergers);
 
-        param[1]=(opt.ellxscale*opt.ellxscale)*(opt.ellphys*opt.ellphys)*opt.ellxfac*opt.ellxfac*2.25;//increase physical linking length slightly again
-        param[6]=(opt.ellxscale*opt.ellxscale)*(opt.ellphys*opt.ellphys)*opt.ellxfac*opt.ellxfac*2.25;
+        param[1]=(opt.ellxscale*opt.ellxscale)*(opt.ellphys*opt.ellphys)*opt.ellxfac*opt.ellxfac;//increase physical linking length slightly again
+        param[6]=(opt.ellxscale*opt.ellxscale)*(opt.ellphys*opt.ellphys)*opt.ellxfac*opt.ellxfac;
         param[7]=(opt.Vratio)*opt.vfac;
         param[8]=cos(opt.thetaopen*M_PI*opt.thetafac);
         param[9]=opt.ellthreshold*opt.ellfac;
-        if (opt.iverbose){
+        if (opt.iverbose>=2){
         cout<<ThisTask<<" "<<"Begin second expanded search with large linking length "<<endl;
         cout<<ThisTask<<" "<<"FOFSTPROB which uses: ellphys, vratio, thetaopen, and ellthreshold.\n";
         cout<<ThisTask<<" "<<"Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits, vratio="<<param[7]<<", cos(thetaopen)="<<param[8]<<", ";
@@ -1303,7 +1313,7 @@ private(i,tid)
     {
         //first have to delete tree used in search so that particles are in original particle order
         //then construct a new grid with much larger cells so that new bg velocity dispersion can be estimated
-        cout<<" entering large cell search "<<opt.iLargerCellSearch<<endl;
+        if (opt.iverbose>=2) cout<<" entering large cell search "<<opt.iLargerCellSearch<<endl;
         delete tree;
         Int_t ngrid;
         Coordinate *gvel;
@@ -1318,7 +1328,7 @@ private(i,tid)
         if (numgroups>0) {
             tree=InitializeTreeGrid(opt,nsubset,Partsubset);
             ngrid=tree->GetNumLeafNodes();
-            if (opt.iverbose) cout<<ThisTask<<" "<<"bg search using "<<ngrid<<" grid cells, with each node containing ~"<<(opt.Ncell=nsubset/ngrid)<<" particles"<<endl;
+            if (opt.iverbose>=2) cout<<ThisTask<<" "<<"bg search using "<<ngrid<<" grid cells, with each node containing ~"<<(opt.Ncell=nsubset/ngrid)<<" particles"<<endl;
             grid=new GridCell[ngrid];
             FillTreeGrid(opt, nsubset, ngrid, tree, Partsubset, grid);
             gvel=GetCellVel(opt,nsubset,Partsubset,ngrid,grid);
@@ -1342,7 +1352,7 @@ private(i,tid)
             param[7]=opt.HaloLocalSigmaV;
             param[8]=cos(opt.thetaopen*M_PI);
             param[9]=opt.ellthreshold*opt.ellfac;
-            if (opt.iverbose) {
+            if (opt.iverbose>=2) {
             cout<<ThisTask<<" "<<"FOF6D uses ellphys and ellvel."<<endl;
             cout<<ThisTask<<" "<<"Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits, ellvel="<<sqrt(param[7])<<" Vunits."<<endl;
             cout<<ThisTask<<" "<<param[9]<<" is outlier threshold and contains more than "<<minsize<<endl;
@@ -1366,7 +1376,7 @@ private(i,tid)
                 Int_t ng=numgroups+(numgroupsbg-bgoffset),oldng=numgroups;
                 for (i=0;i<nsubset;i++) if (pfof[i]==bgoffset&&pfofbg[i]>0) pfof[i]=oldng+(pfofbg[i]-bgoffset);
                 numgroups+=(numgroupsbg-bgoffset);
-                if (opt.iverbose) cout<<ThisTask<<" "<<"Found "<<numgroups<<endl;
+                if (opt.iverbose>=2) cout<<ThisTask<<" "<<"Found "<<numgroups<<endl;
 
                 //
                 numingroup=BuildNumInGroup(nsubset, numgroups, pfof);
@@ -1398,7 +1408,7 @@ private(i,tid)
 
                 //initialize nnID list so that if particle tagged no need to check comparison function
                 for (ii=0;ii<nsubset;ii++) nnID[0][ii]=0;
-                if (opt.iverbose) cout<<ThisTask<<" "<<"Search for bg intergroup links"<<endl;
+                if (opt.iverbose>=2) cout<<ThisTask<<" "<<"Search for bg intergroup links"<<endl;
                 newintergroupIndex=new Int_t*[numgroups+1];
                 intergroupgidIndex=new Int_t*[numgroups+1];
                 oldlinks=0;
@@ -1428,7 +1438,7 @@ private(i,tid)
                 param[8]=cos(opt.thetaopen*M_PI);
                 param[9]=opt.ellthreshold*opt.ellfac*0.8;
                 fofcmp=&FOFStreamwithprobIterative;
-                if (opt.iverbose){
+                if (opt.iverbose>=2){
                 cout<<ThisTask<<" "<<"Begin expanded search for groups near cell size"<<endl;
                 cout<<ThisTask<<" "<<"Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits, vratio="<<param[7]<<", cos(thetaopen)="<<param[8]<<", ";
                 cout<<ThisTask<<" "<<param[9]<<" is outlier threshold.\n";
@@ -1492,7 +1502,7 @@ private(i,tid)
                 for (i=0;i<nsubset;i++) if (numingroup[pfof[i]]<opt.MinSize) pfof[i]=0;
                 for (i=1;i<=numgroups;i++) numingroup[i]=0;
                 for (i=0;i<nsubset;i++) numingroup[pfof[i]]++;
-                if (opt.iverbose) cout<<ThisTask<<" "<<"Now determine number of groups with non zero length"<<endl;
+                if (opt.iverbose>=2) cout<<ThisTask<<" "<<"Now determine number of groups with non zero length"<<endl;
                 for (i=numgroups;i>=1;i--) {
                     if (numingroup[i]==0) ng--;
                     else pglist[i]=new Int_t[numingroup[i]];
@@ -1504,15 +1514,17 @@ private(i,tid)
                 delete[] pglist;
                 delete[] numingroup;
                 numgroups=ng;
-                if (opt.iverbose) cout<<ThisTask<<" "<<"After expanded search there are now "<< ng<<" groups"<<endl;
+                if (opt.iverbose>=2) cout<<ThisTask<<" "<<"After expanded search there are now "<< ng<<" groups"<<endl;
+                numgroupsbg=0;
             }
-            else if (opt.iverbose) cout<<ThisTask<<" "<<"No large background substructure groups found"<<endl;
+            else if (opt.iverbose>=2) cout<<ThisTask<<" "<<"No large background substructure groups found"<<endl;
             delete[] pfofbg;
         }
         //output results of search
         if (numgroups>0) if (opt.iverbose>=2) cout<<numgroups<<" substructures found after large grid search"<<endl;
         else {if (opt.iverbose>=2) cout<<ThisTask<<": "<<"NO SUBSTRUCTURES FOUND"<<endl;}
     }
+    numsubs=numgroups;
 
     //ONCE ALL substructures are found, search for cores of major mergers with minimum size set by cell size since grid is quite large after bg search
     //for missing large substructure cores
@@ -1569,7 +1581,7 @@ private(i,tid)
         //for a galaxy search (ie: PSTSTAR, we set this to the min search size,
         //but for others, smaller (DM) substructures have already been cleaned.
         if (opt.partsearchtype!=PSTSTAR) {
-            minsize=nsubset*opt.halocorenfac;
+            minsize=nsubset*opt.halocorenfac*pow(opt.halocorenumfaciter,sublevel-1);
             minsize=max(minsize,opt.MinSize);
         }
         else if (opt.foftype==FOF6DCORE || opt.partsearchtype==PSTSTAR){
@@ -1673,7 +1685,9 @@ private(i,tid)
                 if(pnumcores!=NULL) *pnumcores=numgroupsbg;
                 if (numgroupsbg>=bgoffset+1) {
                     for (i=0;i<nsubset;i++) if (pfofbg[i]>bgoffset) pfof[i]=numgroups+(pfofbg[i]-bgoffset);
-                    numgroups+=numgroupsbg-bgoffset;
+                    numgroupsbg-=bgoffset;
+                    //if (numgroups>0 && opt.coresubmergemindist>0) MergeSubstructuresCoresPhase(opt, nsubset, Partsubset, pfof, numgroups, numgroupsbg);
+                    numgroups+=numgroupsbg;
                 }
                 if (opt.iverbose>=2) cout<<ThisTask<<": After 6dfof core search and assignment there are "<<numgroups<<" groups"<<endl;
             }
@@ -1684,6 +1698,8 @@ private(i,tid)
 
         delete[] pfofbg;
     }
+    if (numgroups>0 && opt.coresubmergemindist>0 && nsubset>=MINSUBSIZE) MergeSubstructuresPhase(opt, nsubset, Partsubset, pfof, numgroups, numsubs, numgroupsbg);
+
 
 #ifdef USEMPI
     //now if substructures are subsubstructures, then the region of interest has already been localized to a single MPI domain
@@ -1793,7 +1809,7 @@ private(i,tid)
 #ifdef USEMPI
     }
 #endif
-    if (opt.iverbose) cout<<"Done search for substructure in this subset"<<endl;
+    if (opt.iverbose>=2) cout<<"Done search for substructure in this subset"<<endl;
     return pfof;
 }
 
@@ -2125,6 +2141,323 @@ private(i,tid,Pval,x1,D2,dval,mval,pid,pidcore)
     }
 }
 
+
+//Merge any groups that overlap in phase-space
+void MergeSubstructuresCoresPhase(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_t *&pfof, Int_t &numsubs, Int_t &numcores)
+{
+    //get the phase centres of objects and see if they overlap
+    Int_t pfofval, imerge, numlargesubs=0, newnumcores=numcores;
+    Double_t disp, dist2, mindist2, fdist2=pow(opt.coresubmergemindist,2.0);
+    Coordinate pos;
+    vector<Int_t> numingroup, noffset, taggedsubs;
+    vector<Particle> subs, cores;
+    KDTree *tree;
+    //vector<GMatrix> phasetensorsubs(numsubs,GMatrix(6,6)), phasetensorcores(numcores,GMatrix(6,6));
+    vector<Double_t> sigXsubs(numsubs), sigVsubs(numsubs), sigXcores(numcores), sigVcores(numcores);
+    struct indexfof {
+        Int_t fofval;
+        Int_t index;
+    };
+    vector<indexfof> indexing;
+    subs.resize(numsubs);
+    cores.resize(numcores);
+    numingroup.resize(numsubs+numcores+1);
+    noffset.resize(numsubs+numcores+1);
+    indexing.resize(nsubset);
+    for (auto &x:sigXsubs) x=0;
+    for (auto &x:sigVsubs) x=0;
+    for (auto &x:sigXcores) x=0;
+    for (auto &x:sigVcores) x=0;
+    //get center of mass in phase-space
+    for (auto i=0;i<nsubset;i++) {
+        pfofval = pfof[Partsubset[i].GetID()];
+        indexing[i].fofval = pfofval;
+        indexing[i].index = i;
+        numingroup[pfofval]++;
+        if (pfofval==0) continue;
+        if (pfofval<=numsubs) {
+            pfofval-=1;
+            subs[pfofval].SetMass(subs[pfofval].GetMass()+Partsubset[i].GetMass());
+            for (auto k=0;k<6;k++) subs[pfofval].SetPhase(k,subs[pfofval].GetPhase(k)+Partsubset[i].GetPhase(k)*Partsubset[i].GetMass());
+        }
+        else {
+            pfofval-=numsubs+1;
+            cores[pfofval].SetMass(cores[pfofval].GetMass()+Partsubset[i].GetMass());
+            for (auto k=0;k<6;k++) cores[pfofval].SetPhase(k,cores[pfofval].GetPhase(k)+Partsubset[i].GetPhase(k)*Partsubset[i].GetMass());
+        }
+    }
+    noffset[0]=0; for (auto i=1;i<=numsubs+numcores;i++) noffset[i]=numingroup[i-1]+noffset[i-1];
+    pfofval=1;
+    for (auto &x:subs) {
+        x.SetPID(pfofval);
+        x.SetID(pfofval);
+        pfofval++;
+        for (auto k=0;k<6;k++) x.SetPhase(k,x.GetPhase(k)/x.GetMass());
+    }
+    for (auto &x:cores) {
+        x.SetPID(pfofval);
+        x.SetID(pfofval);
+        pfofval++;
+        for (auto k=0;k<6;k++) x.SetPhase(k,x.GetPhase(k)/x.GetMass());
+    }
+    //sort indices by fof value
+    sort(indexing.begin(), indexing.end(), [](indexfof &a, indexfof &b){
+    return a.fofval < b.fofval;
+    });
+    //get the dispersions
+    for (auto i=0;i<nsubset;i++) {
+        pfofval = pfof[Partsubset[i].GetID()];
+        if (pfofval==0) continue;
+        if (pfofval<=numsubs) {
+            pfofval-=1;
+            disp=0; for (auto k=0;k<3;k++) disp+=pow(Partsubset[i].GetPosition(k)-subs[pfofval].GetPosition(k),2.0);
+            sigXsubs[pfofval]+=disp*Partsubset[i].GetMass();
+            disp=0; for (auto k=0;k<3;k++) disp+=pow(Partsubset[i].GetVelocity(k)-subs[pfofval].GetVelocity(k),2.0);
+            sigVsubs[pfofval]+=disp*Partsubset[i].GetMass();
+        }
+        else {
+            pfofval-=numsubs+1;
+            disp=0; for (auto k=0;k<3;k++) disp+=pow(Partsubset[i].GetPosition(k)-cores[pfofval].GetPosition(k),2.0);
+            sigXcores[pfofval]+=disp*Partsubset[i].GetMass();
+            disp=0; for (auto k=0;k<3;k++) disp+=pow(Partsubset[i].GetVelocity(k)-cores[pfofval].GetVelocity(k),2.0);
+            sigVcores[pfofval]+=disp*Partsubset[i].GetMass();
+        }
+    }
+    for (auto i=0;i<numsubs;i++) {
+        sigXsubs[i]*=1.0/subs[i].GetMass();
+        sigVsubs[i]*=1.0/subs[i].GetMass();
+    }
+    for (auto i=0;i<numcores;i++) {
+        sigXcores[i]*=1.0/cores[i].GetMass();
+        sigVcores[i]*=1.0/cores[i].GetMass();
+    }
+    //now built tree on substructures
+    tree = new KDTree(subs.data(),numsubs,1,tree->TPHYS,tree->KEPAN,100,0,0,0);
+    //tree = new KDTree(subs.data(),numlargesubs,1,tree->TPHYS,tree->KEPAN,100,0,0,0);
+    //check all cores to see if they overlap significantly with substructures
+    newnumcores=0;
+    for (auto i=0;i<numcores;i++) {
+        for (auto k=0;k<3;k++) pos[k]=cores[i].GetPosition(k);
+        taggedsubs = tree->SearchBallPosTagged(pos, sigXcores[i]*fdist2);
+        if (taggedsubs.size()==0) {
+            newnumcores++;
+            cores[i].SetID(newnumcores+numsubs);
+            continue;
+        }
+        //if objects are within search window of core, get min phase distance
+        imerge=-1;
+        mindist2=MAXVALUE;
+        for (auto j=0;j<taggedsubs.size();j++) {
+            disp = 0; for (auto k=0;k<3;k++) disp+=pow(subs[taggedsubs[j]].GetPosition(k)-cores[i].GetPosition(k),2.0);
+            dist2 = disp/sigXcores[i];
+            disp = 0; for (auto k=0;k<3;k++) disp+=pow(subs[taggedsubs[j]].GetVelocity(k)-cores[i].GetVelocity(k),2.0);
+            dist2 += disp/sigVcores[i];
+            if (dist2<fdist2 && dist2<mindist2){
+                imerge=subs[taggedsubs[j]].GetPID();
+                mindist2=dist2;
+            }
+        }
+        //merging core with sub if one is found
+        if (imerge!=-1) {
+            pfofval=i+numsubs+1;
+            for (auto j=noffset[pfofval];j<noffset[pfofval]+numingroup[pfofval];j++) {
+                pfof[Partsubset[indexing[j].index].GetID()]=imerge;
+            }
+            cores[i].SetID(imerge);
+            cores[i].SetPID(0);
+        }
+        else {
+            newnumcores++;
+            cores[i].SetID(newnumcores+numsubs);
+        }
+    }
+    delete tree;
+    //if object has been mergerged then must update the pfof values of cores
+    if (newnumcores!=numcores && newnumcores>0) {
+        for (auto i=0;i<numcores;i++) {
+            pfofval=i+numsubs+1;
+            if (cores[i].GetPID()==0) continue;
+            if (cores[i].GetPID()==cores[i].GetID()) continue;
+            for (auto j=noffset[pfofval];j<noffset[pfofval]+numingroup[pfofval];j++) {
+                pfof[Partsubset[indexing[j].index].GetID()]=cores[i].GetID();
+            }
+        }
+    }
+    numcores=newnumcores;
+}
+///Testing a merge of all substructures
+void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_t *&pfof, Int_t &numgroups, Int_t &numsubs, Int_t &numcores)
+{
+    //get the phase centres of objects and see if they overlap
+    Int_t pfofval, newpfofval, imerge, newnumgroups, newnumcores, nummerged=0, index1, index2;
+    Double_t disp, dist2, dist2sub1,dist2sub2, mindist2, fdist2=pow(opt.coresubmergemindist,2.0);
+    Coordinate pos;
+    vector<Int_t> numingroup, noffset, taggedsubs;
+    struct mergeinfo {
+        Int_t pfofval;
+        Int_t numingroup;
+        int type;
+        int nummerged;
+        bool ismerged;
+        vector<Int_t> mergedlist;
+        mergeinfo(){
+            nummerged=0;
+            ismerged=false;
+        };
+        //Int_t numingroup;
+    };
+    vector<Particle> subs;
+    vector<mergeinfo> minfo;
+    KDTree *tree;
+    //vector<GMatrix> phasetensorsubs(numsubs,GMatrix(6,6)), phasetensorcores(numcores,GMatrix(6,6));
+    vector<Double_t> sigXsubs(numgroups), sigVsubs(numgroups), sigXcores(numgroups), sigVcores(numgroups);
+    struct indexfof {
+        Int_t fofval;
+        Int_t index;
+    };
+    vector<indexfof> indexing;
+//cout<<ThisTask<<" entering merging "<<numgroups<<" "<<numsubs<<" "<<numcores<<endl;
+    subs.resize(numgroups);
+    minfo.resize(numgroups);
+    numingroup.resize(numgroups+1);
+    noffset.resize(numgroups+1);
+    indexing.resize(nsubset);
+    for (auto &x:sigXsubs) x=0;
+    for (auto &x:sigVsubs) x=0;
+    //get center of mass in phase-space
+    for (auto i=0;i<nsubset;i++) {
+        pfofval = pfof[Partsubset[i].GetID()];
+        indexing[i].fofval = pfofval;
+        indexing[i].index = i;
+        numingroup[pfofval]++;
+        if (pfofval==0) continue;
+        pfofval-=1;
+        subs[pfofval].SetMass(subs[pfofval].GetMass()+Partsubset[i].GetMass());
+        for (auto k=0;k<6;k++) subs[pfofval].SetPhase(k,subs[pfofval].GetPhase(k)+Partsubset[i].GetPhase(k)*Partsubset[i].GetMass());
+    }
+    noffset[0]=0; for (auto i=1;i<=numgroups;i++) noffset[i]=numingroup[i-1]+noffset[i-1];
+    pfofval=1;
+    for (auto &x:subs) {
+        x.SetPID(pfofval);
+        //x.SetID(pfofval);
+        x.SetType((pfofval>numsubs));
+        minfo[pfofval-1].pfofval=pfofval;
+        minfo[pfofval-1].type = x.GetType();
+        minfo[pfofval-1].numingroup=numingroup[pfofval];
+        pfofval++;
+        for (auto k=0;k<6;k++) x.SetPhase(k,x.GetPhase(k)/x.GetMass());
+    }
+    //sort indices by fof value
+    sort(indexing.begin(), indexing.end(), [](indexfof &a, indexfof &b){
+    return a.fofval < b.fofval;
+    });
+    //get the dispersions
+    for (auto i=0;i<nsubset;i++) {
+        pfofval = pfof[Partsubset[i].GetID()];
+        if (pfofval==0) continue;
+        pfofval-=1;
+        disp=0; for (auto k=0;k<3;k++) disp+=pow(Partsubset[i].GetPosition(k)-subs[pfofval].GetPosition(k),2.0);
+        sigXsubs[pfofval]+=disp*Partsubset[i].GetMass();
+        disp=0; for (auto k=0;k<3;k++) disp+=pow(Partsubset[i].GetVelocity(k)-subs[pfofval].GetVelocity(k),2.0);
+        sigVsubs[pfofval]+=disp*Partsubset[i].GetMass();
+    }
+    for (auto i=0;i<numgroups;i++) {
+        sigXsubs[i]*=1.0/subs[i].GetMass();
+        sigVsubs[i]*=1.0/subs[i].GetMass();
+    }
+    //now built tree on substructures
+    tree = new KDTree(subs.data(),numgroups,1,tree->TPHYS,tree->KEPAN,100,0,0,0);
+    //tree = new KDTree(subs.data(),numlargesubs,1,tree->TPHYS,tree->KEPAN,100,0,0,0);
+    //check all cores to see if they overlap significantly with substructures
+    for (auto i=0;i<numgroups;i++) {
+        //ignore if already merged
+        if (subs[i].GetPID()==0) continue;
+        //don't merge substructures into cores
+        if (subs[i].GetType()==1) continue;
+        index1=subs[i].GetPID()-1;
+        index1=subs[i].GetID();
+        taggedsubs = tree->SearchBallPosTagged(i, sigXsubs[index1]*fdist2);
+//cout<<i<<" sub tagged "<<subs[i].GetPID()<<" "<<numingroup[subs[i].GetPID()]<<" "<<taggedsubs.size()<<endl;
+        if (taggedsubs.size()<=1) continue;
+        //if objects are within search window of core, get min phase distance
+        imerge=-1;
+        mindist2=MAXVALUE;
+        for (auto j=0;j<taggedsubs.size();j++) {
+            if (i==taggedsubs[j]) continue;
+            if (subs[taggedsubs[j]].GetPID()==0) continue;
+            //index2=subs[taggedsubs[j]].GetPID()-1;
+            index2=subs[taggedsubs[j]].GetID();
+//double disp2;
+            disp = 0; for (auto k=0;k<3;k++) disp+=pow(subs[taggedsubs[j]].GetPosition(k)-subs[i].GetPosition(k),2.0);
+//disp2=disp;
+            dist2sub1 = disp/sigXsubs[index1];
+            dist2sub2 = disp/sigXsubs[index2];
+            disp = 0; for (auto k=0;k<3;k++) disp+=pow(subs[taggedsubs[j]].GetVelocity(k)-subs[i].GetVelocity(k),2.0);
+            dist2sub1 += disp/sigVsubs[index1];
+            dist2sub2 = disp/sigVsubs[index2];
+            dist2 = 0.5*(dist2sub1+dist2sub2);
+//cout<<" dist "<<subs[i].GetPID()<<" "<<subs[taggedsubs[j]].GetPID()<<" "<<numingroup[subs[i].GetPID()]<<" "<<numingroup[subs[taggedsubs[j]].GetPID()]<<" "<<sqrt(dist2)<<" || "<<sqrt(disp2)<<" "<<sqrt(disp)<<" "<<sqrt(sigXsubs[index1])<<" "<<sqrt(sigVsubs[index1])<<" "<<sqrt(sigXsubs[index2])<<" "<<sqrt(sigVsubs[index2])<<endl;
+            if (dist2sub1<fdist2 && dist2sub2<fdist2 && dist2<mindist2){
+                imerge=taggedsubs[j];
+                mindist2=dist2;
+            }
+        }
+        //merging core with sub if one is found
+        if (imerge!=-1) {
+            nummerged++;
+            pfofval=subs[imerge].GetPID();
+            index2=subs[imerge].GetID();
+            subs[imerge].SetPID(0);
+            minfo[index2].ismerged=true;
+            minfo[index1].nummerged = minfo[index2].nummerged+1;
+            minfo[index1].numingroup+=minfo[index2].numingroup;
+            minfo[index1].mergedlist.push_back(pfofval);
+            for (auto j=0;j<minfo[index2].nummerged;j++) minfo[index1].mergedlist.push_back(minfo[index2].mergedlist[j]);
+//cout<<"merging "<<subs[i].GetPID()<<" "<<pfofval<<" "<<minfo[index1].nummerged<<endl;
+        }
+    }
+    delete tree;
+    //if nothing has changed, do nothing
+    if (nummerged==0) return;
+//cout<<" merging subs has given  "<<nummerged<<" mergers "<<numgroups<<" "<<numcores<<endl;
+    sort(minfo.begin(), minfo.end(), [](mergeinfo &a, mergeinfo &b){
+        if (a.type<b.type) return true;
+        else if (a.type==b.type) return (a.numingroup > b.numingroup);
+        else return false;
+    });
+    newnumgroups=0;
+    newnumcores=0;
+    for (auto i=0;i<numgroups;i++) {
+//cout<<i<<" "<<minfo[i].numingroup<<" "<<minfo[i].type<<" and before "<<numingroup[minfo[i].pfofval]<<endl;
+        //if object has mergered do nothing
+        if (minfo[i].ismerged==true) continue;
+        newnumgroups++;
+        if (minfo[i].type == 1) newnumcores++;
+        //if object is still in same order and has not mergered with anything, do nothing
+        if (minfo[i].pfofval == newnumgroups && minfo[i].nummerged==0) continue;
+//cout<<"altering  "<<minfo[i].pfofval<<" to "<<newnumgroups<<endl;
+        pfofval=minfo[i].pfofval;
+        for (auto j=noffset[pfofval];j<noffset[pfofval]+numingroup[pfofval];j++) {
+            pfof[Partsubset[indexing[j].index].GetID()]=newnumgroups;
+        }
+        if (minfo[i].nummerged==0) continue;
+//cout<<"altering merged objects"<<minfo[i].nummerged<<" to "<<newnumgroups<<endl;
+        for (auto &mergedgroup:minfo[i].mergedlist) {
+//cout<<" halo that is merging "<<mergedgroup<<" "<<numingroup[mergedgroup]<<endl;
+            for (auto j=noffset[mergedgroup];j<noffset[mergedgroup]+numingroup[mergedgroup];j++) {
+                pfof[Partsubset[indexing[j].index].GetID()]=newnumgroups;
+            }
+        }
+    }
+//    for (auto i=0;i<nsubset;i++) if (pfof[Partsubset[i].GetID()]>newnumgroups) cout<<"WTF incorrect pfof value "<<i<<" "<<pfof[Partsubset[i].GetID()]<<" "<<newnumgroups<<endl;
+//cout<<"new is "<<newnumgroups<<" "<<newnumcores<<endl;
+    //exit(9);
+    numcores=newnumcores;
+    numgroups=newnumgroups;
+    numsubs=numgroups-numcores;
+//    cout<<ThisTask<<" after merging "<<numgroups<<" "<<numsubs<<" "<<numcores<<endl;
+}
+
 /*!
     Given a initial ordered candidate list of substructures, find all substructures that are large enough to be searched.
     These substructures are used as a mean background velocity field and a new outlier list is found and searched.
@@ -2216,7 +2549,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
     delete[] numingroup;
     //now start searching while there are still sublevels to be searched
 
-    while (iflag) {
+        while (iflag) {
         if (opt.iverbose) cout<<ThisTask<<" There are "<<nsubsearch<<" substructures large enough to search for other substructures at sub level "<<sublevel<<endl;
         oldnsubsearch=nsubsearch;
         subsubnumingroup=new Int_t*[nsubsearch+1];
@@ -2236,7 +2569,6 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
             Double_t mtotregion=0.0;
             Int_t j;
             if (opt.icmrefadjust) {
-                if(opt.iverbose) cout<<"moving to cm frame"<<endl;
 #ifdef USEOPENMP
             if (subnumingroup[i]>ompsearchnum) {
 #pragma omp parallel default(shared)
@@ -2624,14 +2956,16 @@ int CheckSignificance(Options &opt, const Int_t nsubset, Particle *Partsubset, I
     //varell=new Double_t[numgroups+1];
     betaave=new Double_t[numgroups+1];
 
+    /*
     if (opt.iiterflag) ellvallim=opt.ellthreshold*opt.ellfac;
     else ellvallim=opt.ellthreshold;
+    */
+    ellvallim=opt.ellthreshold;
     ellaveexp=sqrt(2.0/M_PI)*exp(-ellvallim*ellvallim)*exp(0.5*ellvallim*ellvallim)/(1.0-gsl_sf_erf(ellvallim/sqrt(2.0)));
 
     //first adjust system and store pList for each group so one can access pfof appropriately
     if (opt.iverbose) {
         cout<<"Checking that groups have a significance level of "<<opt.siglevel<<" and contain more than "<<opt.MinSize<<" members"<<endl;
-        cout<<"First calculate group properties"<<endl;
     }
     for (i=0;i<=numgroups;i++) {aveell[i]=0.;maxell[i]=-MAXVALUE;minell[i]=MAXVALUE;//numingroup[i]=0;
     }

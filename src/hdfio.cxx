@@ -530,7 +530,6 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     if (ThisTask==0) {
       cout<<"File contains "<<Ntotal<<" particles and is at time "<<opt.a<<endl;
       cout<<"Particle system contains "<<nbodies<<" particles and is at time "<<opt.a<<" in a box of size "<<opt.p<<endl;
-      cout<<"Cosmology (h,Omega_m,Omega_cdm,Omega_b,Omega_L) = ("<< opt.h<<","<<opt.Omega_m<<","<<opt.Omega_cdm<<","<<opt.Omega_b<<","<<opt.Omega_Lambda<<")"<<endl;
     }
     //by default the interparticle spacing is determined using GDMTYPE
     //which is particle of type 1

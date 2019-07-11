@@ -2330,8 +2330,8 @@ firstprivate(virval,m200val,m200mval,mBN98val)
             if (pdata[i].gRBN98==0) if (rhoval<=mBN98val)
             {
                 if (rhoval2>mBN98val) {
-                    pdata[i].gR500c=exp(log(rc/rcold)/(rhoval-rhoval2)*(mBN98val-rhoval2)+log(rcold));
-                    pdata[i].gM500c=exp(log(EncMass/(EncMass-massval))/(rhoval-rhoval2)*(mBN98val-rhoval2)+log(EncMass-massval));
+                    pdata[i].gRBN98=exp(log(rc/rcold)/(rhoval-rhoval2)*(mBN98val-rhoval2)+log(rcold));
+                    pdata[i].gMBN98=exp(log(EncMass/(EncMass-massval))/(rhoval-rhoval2)*(mBN98val-rhoval2)+log(EncMass-massval));
                 }
                 else {pdata[i].gMBN98=EncMass;pdata[i].gRBN98=rc;}
             }
@@ -5190,6 +5190,7 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
                 #ifdef GASON
                 pdata.aperture_mass_proj_gas[iaptindex][k]=EncMassGas;
                 #ifdef STARON
+                pdata.aperture_SFR_proj_gas[iaptindex][k]=EncSFR;
                 pdata.aperture_mass_proj_gas_sf[iaptindex][k]=EncMassGasSF;
                 pdata.aperture_mass_proj_gas_nsf[iaptindex][k]=EncMassGasNSF;
                 #endif
