@@ -2473,9 +2473,12 @@ void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Parts
     NOTE: if the code is altered and generalized to outliers in say the entropy distribution when searching for gas shocks,
     it might be possible to lower the cuts imposed.
 
-    \todo To account for major mergers, the mininmum size of object searched for substructure is now the smallest allowed cell
-    \ref MINCELLSIZE (order 100 particles). However, for objects smaller than \ref MINSUBSIZE, only can search effectively for
-    major mergers, very hard to identify substructures
+    \todo ADACS optimisation request. Here the function could be altered to employ better parallelisation. Specifically, the loop over
+    substructures at a given level could be parallelized (see for loop line 2561). Currently, at a given level in the substructure hierarchy
+    each object is searched sequentially but this does not need to be the case. It would require restructureing the loop and some of calls within
+    the loop so that the available pool of threads over which to run in parallel for the callled subroutines is adaptive. (Or it might be
+    simply more useful to not have the functions called within this loop parallelised. This loop invokes a few routines that have OpenMP
+    parallelisation: InitializeTreeGrid, GetCellVel, GetCellVelDisp, CalcVelSigmaTensor, etc. 
 */
 void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubset, Int_t *&pfof, Int_t &ngroup, Int_t &nhalos, PropData *pdata)
 {
