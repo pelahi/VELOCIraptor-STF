@@ -26,7 +26,7 @@ void GetVelocityDensity(Options &opt, const Int_t nbodies, Particle *Part, KDTre
         cout<<ThisTask<<" "<<"Using the following parameters to calculate velocity density using sph kernel: ";
         cout<<ThisTask<<" "<<"(Nse,Nv)="<<opt.Nsearch<<","<<opt.Nvel<<endl;
         cout<<ThisTask<<" "<<"Get velocity density using a subset of nearby physical or phase-space neighbours"<<endl;
-        if (tree == NULL) cout<<"Building Tree first in (x) space to get local velocity density"<<endl;
+        if (tree == NULL) cout<<ThisTask<<" Building Tree first in (x) space to get local velocity density"<<endl;
     }
 #ifdef HALOONLYDEN
     GetVelocityDensityHaloOnlyDen(opt, nbodies, Part, tree);
@@ -487,7 +487,7 @@ void GetVelocityDensityExact(Options &opt, const Int_t nbodies, Particle *Part, 
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
 #endif
-    if (opt.iverbose && ThisTask == 0) cout<<"Calculating the local velocity density by finding EXACT nearest physical neighbours to particles"<<endl;
+    if (opt.iverbose) cout<<ThisTask<<" Calculating the local velocity density by finding EXACT nearest physical neighbours to particles"<<endl;
     Int_t i,j,k;
     int nthreads;
     int tid,id,pid,pid2,itreeflag=0;
@@ -728,7 +728,7 @@ void GetVelocityDensityApproximative(Options &opt, const Int_t nbodies, Particle
 #ifndef USEMPI
     int ThisTask=0, NProcs=1;
 #endif
-    if (opt.iverbose && ThisTask == 0) cout<<"Calculating the local velocity density by finding APPROXIMATIVE nearest physical neighbour search for each particle "<<endl;
+    if (opt.iverbose) cout<<ThisTask<<" Calculating the local velocity density by finding APPROXIMATIVE nearest physical neighbour search for each particle "<<endl;
     int nthreads;
     int tid,id,pid,pid2,itreeflag=0;
     Double_t v2;
@@ -917,8 +917,10 @@ reduction(+:nprocessed,ntot)
 #else
     MPIGetNNExportNum(nbodies, Part, maxrdist);
 #endif
-    NNDataIn = new nndata_in[NExport];
-    NNDataGet = new nndata_in[NImport];
+
+    NNDataIn = NNDataGet = NULL;
+    if (NExport>0) NNDataIn = new nndata_in[NExport];
+    if (NImport>0) NNDataGet = new nndata_in[NImport];
     //build the exported particle list using NNData structures
 #ifdef SWIFTINTERFACE
     MPIBuildParticleNNExportListUsingMesh(libvelociraptorOpt, nbodies, Part, maxrdist);
@@ -927,8 +929,9 @@ reduction(+:nprocessed,ntot)
 #endif
     delete[] maxrdist;
     MPIGetNNImportNum(nbodies, tree, Part);
-    PartDataIn = new Particle[NExport];
-    PartDataGet = new Particle[NImport];
+    PartDataIn = PartDataGet = NULL;
+    if (NExport>0) PartDataIn = new Particle[NExport];
+    if (NImport>0) PartDataGet = new Particle[NImport];
     //run search on exported particles and determine which local particles need to be exported back (or imported)
     nimport=MPIBuildParticleNNImportList(nbodies, tree, Part, (!(opt.iBaryonSearch==1 && opt.partsearchtype==PSTALL)));
     int nimportsearch=opt.Nsearch;

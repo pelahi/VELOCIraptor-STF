@@ -359,17 +359,22 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     if (totalgroups>0&&(opt.iSubSearch==1&&opt.foftype!=FOF6DCORE))
     {
         storetype=new Int_t[Nlocal];
-        numingroup=BuildNumInGroup(Nlocal, numgroups, pfof);
         Int_t numinstrucs=0,numlocalden=0;
         for (i=0;i<Nlocal;i++) storetype[i]=Part[i].GetType();
         if (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)) {
-            for (i=0;i<Nlocal;i++) Part[i].SetType((numingroup[pfof[i]]>=MINSUBSIZE));
+            numingroup=BuildNumInGroup(Nlocal, numgroups, pfof);
+            for (i=0;i<Nlocal;i++) {
+                Part[i].SetType((numingroup[pfof[i]]>=MINSUBSIZE));
+                numlocalden += (Part[i].GetType()>0);
+            }
         }
         //otherwise set type to group value for dark matter
         else {
+            numingroup=BuildNumInGroupTyped(Nlocal,numgroups,pfof,Part.data(),DARKTYPE);
             for (i=0;i<Nlocal;i++) {
                 if (Part[i].GetType()==DARKTYPE) Part[i].SetType(numingroup[pfof[Part[i].GetID()]]>=MINSUBSIZE);
-                else Part[i].SetType(-1);
+                else Part[i].SetType(0);
+                numlocalden += (Part[i].GetType()>0);
             }
         }
         for (i=0;i<Nlocal;i++) {numinstrucs+=(pfof[i]>0);}
