@@ -381,8 +381,27 @@ void AddDataToRadialBinInclusive(Options &opt, Double_t rval, Double_t massval,
     Double_t srfval, int typeval,
 #endif
     Double_t irnorm, int &ibin, PropData &pdata);
+///calculate spherical overdensity from vector of radii, masses and indices
+Int_t CalculateSphericalOverdensity(Options &opt, PropData &pdata,
+    vector<Double_t> &radii, vector<Double_t> &masses, vector<Int_t> &indices,
+    Double_t &m200val, Double_t &m200mval, Double_t &mBN98val, Double_t &virval, Double_t &m500val,
+    vector<Double_t> &SOlgrhovals);
+Int_t CalculateSphericalOverdensity(Options &opt, PropData &pdata,
+    Int_t &numingroup, Particle *Part,
+    Double_t &m200val, Double_t &m200mval, Double_t &mBN98val, Double_t &virval, Double_t &m500val,
+    vector<Double_t> &SOlgrhovals);
+void CalculateSphericalOverdensitySubhalo(Options &opt, PropData &pdata,
+    Int_t &numingroup, Particle *Part,
+    Double_t &m200val, Double_t &m200mval, Double_t &mBN98val, Double_t &virval, Double_t &m500val,
+    vector<Double_t> &SOlgrhovals);
+void CalculateSphericalOverdensityExclusive(Options &opt, PropData &pdata,
+    Int_t &numingroup, Particle *Part,
+    Double_t &m200val, Double_t &m200mval, Double_t &mBN98val, Double_t &virval, Double_t &m500val,
+    vector<Double_t> &SOlgrhovals);
 
-
+void SetSphericalOverdensityMasstoFlagValue(Options &opt, PropData &pdata);
+void SetSphericalOverdensityMasstoTotalMass(Options &opt, PropData &pdata);
+void SetSphericalOverdensityMasstoTotalMassExclusive(Options &opt, PropData &pdata);
 ///used to sort a pglist based on substructure binding energy
 Int_t **SortAccordingtoBindingEnergy(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&pfof, Int_t *numingroup, PropData *pdata, Int_t ioffset=0);
 ///used to calculate properties and ignores keeping particle order, assumes particle PID information meaningless
@@ -448,7 +467,7 @@ void OpenMPHeadNextUpdate(const Int_t nbodies, vector<Particle> &Part, const Int
 /// for format specific stuff see related routines like \ref mpigadgetio.cxx or \ref mpitipsyio.cxx
 //@{
 
-///Update config options across mpi tasks of particles to load 
+///Update config options across mpi tasks of particles to load
 void MPIUpdateUseParticleTypes(Options &opt);
 
 ///Domain decomposition of system
