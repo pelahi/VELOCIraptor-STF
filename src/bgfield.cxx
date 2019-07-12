@@ -25,7 +25,6 @@ KDTree* InitializeTreeGrid(Options &opt, const Int_t nbodies, Particle *Part){
     Coordinate vel;
     Matrix eigvec(0.);
     Int_t i;
-    cout<<"Get Global Morphology\n";
     GetGlobalMorphologyWithMass(nbodies,Part, q, s, 1e-3, eigvec);
     //GetGlobalMorphologyWithMass(nbodies, Part, q, s, 1e-3);
     //and rotate velocities to new frame
@@ -45,23 +44,22 @@ private(i,vel)
 #ifdef USEOPENMP
 }
 #endif
-    cout<<"Done."<<endl;
 #endif
 
     //then build tree
     KDTree *tree;
-    if (opt.iverbose) cout<<"Grid system using leaf nodes with maximum size of "<<opt.Ncell<<endl;
+    if (opt.iverbose>=2) cout<<"Grid system using leaf nodes with maximum size of "<<opt.Ncell<<endl;
     if (opt.gridtype==PHYSGRID) {
-        if (opt.iverbose) cout<<"Building Physical Tree using simple spatial extend as splitting criterion"<<endl;
+        if (opt.iverbose>=2) cout<<"Building Physical Tree using simple spatial extend as splitting criterion"<<endl;
         tree=new KDTree(Part,nbodies,opt.Ncell,tree->TPHYS);
     }
     else if (opt.gridtype==PHYSENGRID) {
-        if (opt.iverbose) cout<<"Building physical Tree using minimum shannon entropy as splitting criterion"<<endl;
+        if (opt.iverbose>=2) cout<<"Building physical Tree using minimum shannon entropy as splitting criterion"<<endl;
         //tree=new KDTree(*S,opt.Ncell,tree->TPHYS,tree->KEPAN,100,1);
         tree=new KDTree(Part,nbodies,opt.Ncell,tree->TPHYS,tree->KEPAN,100,1);
     }
     else if (opt.gridtype==PHASEENGRID) {
-        if (opt.iverbose) cout<<"Building Phase-space Tree using minimum shannon entropy as splitting criterion"<<endl;
+        if (opt.iverbose>=2) cout<<"Building Phase-space Tree using minimum shannon entropy as splitting criterion"<<endl;
         //tree=new KDTree(*S,opt.Ncell,tree->TPHS,tree->KEPAN,100,1,1);//if phase tree, use entropy criterion with anisotropic kernel
         //if phase tree, use entropy criterion with anisotropic kernel
         tree=new KDTree(Part,nbodies,opt.Ncell,tree->TPHS,tree->KEPAN,100,1,1);
@@ -81,7 +79,7 @@ void FillTreeGrid(Options &opt, const Int_t nbodies, const Int_t ngrid, KDTree *
     if (treetype==tree->TPHYS) ND=3;
     else if (treetype==tree->TPHS) ND=6;
 
-    if (opt.iverbose) cout<<"Filling KD-Tree Grid"<<endl;
+    if (opt.iverbose>=2) cout<<"Filling KD-Tree Grid"<<endl;
 
     //this loop works well for large cells but for small cells may have to replace this with a for loop which goes through every particle
     //and stores nid and size of node, then builds grid based on these values and then places the particles in the cells.
@@ -128,17 +126,9 @@ void FillTreeGrid(Options &opt, const Int_t nbodies, const Int_t ngrid, KDTree *
         for (int j=0;j<ND;j++) ptemp[gridcount].SetPhase(j,grid[gridcount].xm[j]);
         gridcount++; ncount=end;
     }
-    //final check that no particle is not associated with a leaf node. Note that this check should always be passed.
-    /*for (i=0;i<nbodies;i++) if (pglist[i].glist[0]==-1) {
-        Int_t nid=(tree->FindLeafNode(i))->GetID();
-        //cerr<<"error for particle "<<i<<" which is in leaf node "<<nid<<endl;//exit(9);
-        pglist[i].glist[0]=nid;
-        //for (Int_t j=0;j<ngrid;j++) if (nid==grid[j].gid) {cerr<<"assigning particle to grid cell "<<j<<endl;pglist[i].glist[0]=j;break;}
-        //if (pglist[i].glist[0]==-1) exit(9);
-    }*/
     //resets particle order
     delete tree;
-    if (opt.iverbose) cout<<"Done."<<endl;
+    if (opt.iverbose>=2) cout<<"Done."<<endl;
 }
 
 //@}
@@ -153,7 +143,7 @@ Coordinate* GetCellVel(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
     Double_t mtot;
     Coordinate *gvel;
     gvel=new Coordinate[ngrid];
-    if (opt.iverbose) cout<<"Calculating Grid Mean Velocity"<<endl;
+    if (opt.iverbose>=2) cout<<"Calculating Grid Mean Velocity"<<endl;
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
 private(i,mtot)
@@ -171,7 +161,7 @@ private(i,mtot)
 #ifdef USEOPENMP
 }
 #endif
-    if (opt.iverbose) cout<<"Done"<<endl;
+    if (opt.iverbose>=2) cout<<"Done"<<endl;
     return gvel;
 }
 
@@ -182,7 +172,7 @@ Matrix* GetCellVelDisp(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
     Double_t mtot;
     Matrix *gveldisp;
     gveldisp=new Matrix[ngrid];
-    if (opt.iverbose) cout<<"Calculating Grid Velocity Dispersion"<<endl;
+    if (opt.iverbose>=2) cout<<"Calculating Grid Velocity Dispersion"<<endl;
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
 private(i,mtot)
@@ -200,7 +190,7 @@ private(i,mtot)
 #ifdef USEOPENMP
 }
 #endif
-    if (opt.iverbose) cout<<"Done"<<endl;
+    if (opt.iverbose>=2) cout<<"Done"<<endl;
     return gveldisp;
 }
 

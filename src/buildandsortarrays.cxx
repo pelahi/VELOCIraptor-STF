@@ -25,69 +25,117 @@ Int_t *BuildNumInGroupTyped(const Int_t nbodies, const Int_t numgroups, Int_t *p
 ///build the group particle index list (assumes particles are in ID order)
 Int_t **BuildPGList(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t *pfof){
     Int_t **pglist=new Int_t*[numgroups+1];
-    for (Int_t i=1;i<=numgroups;i++) {pglist[i]=new Int_t[numingroup[i]+1*(numingroup[i]==0)];numingroup[i]=0;}
-    for (Int_t i=0;i<nbodies;i++) if (pfof[i]>0) pglist[pfof[i]][numingroup[pfof[i]]++]=i;
+    Int_t pid;
+    for (Int_t i=1;i<=numgroups;i++) {
+        pglist[i] = NULL;
+        if (numingroup[i]<=0) continue;
+        pglist[i]=new Int_t[numingroup[i]];
+        numingroup[i]=0;
+    }
+    for (Int_t i=0;i<nbodies;i++) {
+        pid = pfof[i];
+        if (pid == 0) continue;
+        if (numingroup[pid]<0) continue;
+        pglist[pid][numingroup[pid]++]=i;
+    }
     return pglist;
 }
 ///build the group particle index list for particles of a specific type (assumes particles are in ID order)
 Int_t **BuildPGListTyped(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t *pfof, Particle *P, int type){
     Int_t **pglist=new Int_t*[numgroups+1];
-    for (Int_t i=1;i<=numgroups;i++) {pglist[i]=new Int_t[numingroup[i]+1*(numingroup[i]==0)];numingroup[i]=0;}
-    for (Int_t i=0;i<nbodies;i++) if (pfof[i]>0 && P[i].GetType()==type) pglist[pfof[i]][numingroup[pfof[i]]++]=i;
+    Int_t pid;
+    for (Int_t i=1;i<=numgroups;i++) {
+        pglist[i] = NULL;
+        if (numingroup[i]<=0) continue;
+        pglist[i]=new Int_t[numingroup[i]];
+        numingroup[i]=0;
+    }
+    for (Int_t i=0;i<nbodies;i++) {
+        pid = pfof[i];
+        if (pid == 0 || P[i].GetType() != type) continue;
+        if (numingroup[pid]<0) continue;
+        pglist[pid][numingroup[pid]++]=i;
+    }
     return pglist;
 }
 ///build the group particle index list (doesn't assume particles are in ID order and stores index of particle)
 Int_t **BuildPGList(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t *pfof, Particle *Part){
     Int_t **pglist=new Int_t*[numgroups+1];
-    for (Int_t i=1;i<=numgroups;i++) {pglist[i]=new Int_t[numingroup[i]];numingroup[i]=0;}
+    Int_t pid, index;
+    for (Int_t i=1;i<=numgroups;i++) {
+        pglist[i] = NULL;
+        if (numingroup[i]<=0) continue;
+        pglist[i]=new Int_t[numingroup[i]];
+        numingroup[i]=0;
+    }
     for (Int_t i=0;i<nbodies;i++) {
-        int pid=Part[i].GetID();
-        if (pfof[pid]>0) pglist[pfof[pid]][numingroup[pfof[pid]]++]=i;
+        index = Part[i].GetID();
+        pid = pfof[index];
+        if (pid == 0) continue;
+        if (numingroup[pid]<0) continue;
+        pglist[pid][numingroup[pid]++]=i;
     }
     return pglist;
 }
 ///build the group particle index list (doesn't assumes particles are in ID order)
 Int_t **BuildPGList(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t *pfof, Int_t *ids){
     Int_t **pglist=new Int_t*[numgroups+1];
-    for (Int_t i=1;i<=numgroups;i++) {pglist[i]=new Int_t[numingroup[i]];numingroup[i]=0;}
-    for (Int_t i=0;i<nbodies;i++) if (pfof[i]>0) pglist[pfof[i]][numingroup[pfof[i]]++]=ids[i];
+    Int_t pid;
+    for (Int_t i=1;i<=numgroups;i++) {
+        pglist[i] = NULL;
+        if (numingroup[i]<=0) continue;
+        pglist[i]=new Int_t[numingroup[i]];
+        numingroup[i]=0;
+    }
+    for (Int_t i=0;i<nbodies;i++) {
+        pid = pfof[i];
+        if (pid == 0) continue;
+        if (numingroup[pid]<0) continue;
+        pglist[pid][numingroup[pid]++]=ids[i];
+    }
     return pglist;
 }
 ///build the Head array which points to the head of the group a particle belongs to
 Int_tree_t *BuildHeadArray(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t **pglist){
     Int_tree_t *Head=new Int_tree_t[nbodies];
     for (Int_t i=0;i<nbodies;i++) Head[i]=i;
-    for (Int_t i=1;i<=numgroups;i++)
+    for (Int_t i=1;i<=numgroups;i++) {
         for (Int_t j=1;j<numingroup[i];j++) Head[pglist[i][j]]=Head[pglist[i][0]];
+    }
     return Head;
 }
 ///build the Next array which points to the next particle in the group
 Int_tree_t *BuildNextArray(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t **pglist){
     Int_tree_t *Next=new Int_tree_t[nbodies];
     for (Int_t i=0;i<nbodies;i++) Next[i]=-1;
-    for (Int_t i=1;i<=numgroups;i++)
+    for (Int_t i=1;i<=numgroups;i++) {
         for (Int_t j=0;j<numingroup[i]-1;j++) Next[pglist[i][j]]=pglist[i][j+1];
+    }
     return Next;
 }
 ///build the Len array which stores the length of the group a particle belongs to
 Int_tree_t *BuildLenArray(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t **pglist){
     Int_tree_t *Len=new Int_tree_t[nbodies];
     for (Int_t i=0;i<nbodies;i++) Len[i]=0;
-    for (Int_t i=1;i<=numgroups;i++)
+    for (Int_t i=1;i<=numgroups;i++) {
         for (Int_t j=0;j<numingroup[i];j++) Len[pglist[i][j]]=numingroup[i];
+    }
     return Len;
 }
 ///build the GroupTail array which stores the Tail of a group
 Int_tree_t *BuildGroupTailArray(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t **pglist){
     Int_tree_t *GTail=new Int_tree_t[numgroups+1];
-    for (Int_t i=1;i<=numgroups;i++)
+    for (Int_t i=1;i<=numgroups;i++) {
         GTail[i]=pglist[i][numingroup[i]-1];
+    }
     return GTail;
 }
 ///build the group particle arrays need for unbinding procedure
 Particle **BuildPartList(Int_t numgroups, Int_t *numingroup, Int_t **pglist, Particle* Part){
     Particle **gPart=new Particle*[numgroups+1];
     for (Int_t i=1;i<=numgroups;i++) {
+        gPart[i] = NULL;
+        if (numingroup[i]<=0) continue;
         gPart[i]=new Particle[numingroup[i]];
         for (Int_t j=0;j<numingroup[i];j++) gPart[i][j]=Part[pglist[i][j]];
     }

@@ -391,8 +391,6 @@ void GetParamFile(Options &opt)
                         opt.iKeepFOF = atoi(vbuff);
                     else if (strcmp(tbuff, "Iterative_searchflag")==0)
                         opt.iiterflag = atoi(vbuff);
-                    else if (strcmp(tbuff, "Unbind_flag")==0)
-                        opt.uinfo.unbindflag = atoi(vbuff);
                     else if (strcmp(tbuff, "Baryon_searchflag")==0)
                         opt.iBaryonSearch = atoi(vbuff);
                     else if (strcmp(tbuff, "CMrefadjustsubsearch_flag")==0)
@@ -405,6 +403,8 @@ void GetParamFile(Options &opt)
                         opt.iPhaseCoreGrowth = atof(vbuff);
 
                     //bg and fof parameters
+                    else if (strcmp(tbuff, "Local_velocity_density_approximate_calculation")==0)
+                        opt.iLocalVelDenApproxCalcFlag = atoi(vbuff);
                     else if (strcmp(tbuff, "Cell_fraction")==0)
                         opt.Ncellfac = atof(vbuff);
                     else if (strcmp(tbuff, "Grid_type")==0)
@@ -461,6 +461,8 @@ void GetParamFile(Options &opt)
                         opt.halocorenumfaciter = atof(vbuff);
                     else if (strcmp(tbuff, "Halo_core_phase_significance")==0)
                         opt.halocorephasedistsig = atof(vbuff);
+                    else if (strcmp(tbuff, "Halo_core_phase_merge_dist")==0)
+                        opt.coresubmergemindist = atof(vbuff);
 
                     //for changing factors used in iterative search
                     else if (strcmp(tbuff, "Iterative_threshold_factor")==0)
@@ -549,14 +551,16 @@ void GetParamFile(Options &opt)
                     else if (strcmp(tbuff, "Stellar_age_to_yr")==0)
                         opt.stellaragetoyrs = atof(vbuff);
                     //unbinding
-                    else if (strcmp(tbuff, "Softening_length")==0)
-                        opt.uinfo.eps = atof(vbuff);
+                    else if (strcmp(tbuff, "Unbind_flag")==0)
+                        opt.uinfo.unbindflag = atoi(vbuff);
+                    else if (strcmp(tbuff, "Unbinding_type")==0)
+                        opt.uinfo.unbindtype = atoi(vbuff);
+                    else if (strcmp(tbuff, "Bound_halos")==0)
+                        opt.iBoundHalos = atoi(vbuff);
                     else if (strcmp(tbuff, "Allowed_kinetic_potential_ratio")==0)
                         opt.uinfo.Eratio = atof(vbuff);
                     else if (strcmp(tbuff, "Min_bound_mass_frac")==0)
                         opt.uinfo.minEfrac = atof(vbuff);
-                    else if (strcmp(tbuff, "Bound_halos")==0)
-                        opt.iBoundHalos = atoi(vbuff);
                     else if (strcmp(tbuff, "Keep_background_potential")==0)
                         opt.uinfo.bgpot = atoi(vbuff);
                     else if (strcmp(tbuff, "Kinetic_reference_frame_type")==0)
@@ -565,8 +569,14 @@ void GetParamFile(Options &opt)
                         opt.uinfo.Npotref = atoi(vbuff);
                     else if (strcmp(tbuff, "Frac_pot_ref")==0)
                         opt.uinfo.fracpotref = atof(vbuff);
-                    else if (strcmp(tbuff, "Unbinding_type")==0)
-                        opt.uinfo.unbindtype = atoi(vbuff);
+                    else if (strcmp(tbuff, "Unbinding_max_unbound_removal_fraction_per_iteration")==0)
+                        opt.uinfo.maxunbindfrac = atof(vbuff);
+                    else if (strcmp(tbuff, "Unbinding_max_unbound_fraction")==0)
+                        opt.uinfo.maxunboundfracforiterativeunbind = atof(vbuff);
+                    else if (strcmp(tbuff, "Unbinding_max_unbound_fraction_allowed")==0)
+                        opt.uinfo.maxallowedunboundfrac = atof(vbuff);
+                    else if (strcmp(tbuff, "Softening_length")==0)
+                        opt.uinfo.eps = atof(vbuff);
 
                     //property related
                     else if (strcmp(tbuff, "Reference_frame_for_properties")==0)
