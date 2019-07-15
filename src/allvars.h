@@ -25,6 +25,7 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <map>
 #include <getopt.h>
 #include <sys/stat.h>
 #include <sys/timeb.h>
@@ -289,6 +290,11 @@ struct UnbindInfo
     Double_t cmdelta;
     ///maximum fraction of particles to remove when unbinding in one given unbinding step
     Double_t maxunbindfrac;
+    ///Maximum fraction of particles that can be considered unbound before group removed entirely
+    Double_t maxunboundfracforiterativeunbind;
+    ///Max allowed unbound fraction to speed up unbinding
+    Double_t maxallowedunboundfrac;
+
     ///minimum number of particles to use to calculate reference frame if using particles around deepest potential well as reference frame
     Int_t Npotref;
     ///fraction of number of particles to use to calculate reference frame if using particles around deepest potential well as reference frame
@@ -310,11 +316,13 @@ struct UnbindInfo
         Eratio=1.0;
         minEfrac=1.0;
         BucketSize=8;
-        TreeThetaOpen=0.7;
+        TreeThetaOpen=0.5;
         eps=0.0;
-        maxunbindfrac=0.05;
-        Npotref=10;
-        fracpotref=0.1;
+        Npotref=20;
+        fracpotref=1.0;
+        maxunbindfrac=0.5;
+        maxunboundfracforiterativeunbind=0.95;
+        maxallowedunboundfrac=0.025;
     }
 };
 
@@ -420,6 +428,7 @@ struct Options
 
     ///\name parameters that control the local and average volumes used to calculate the local velocity density and the mean field, also the size of the leafnode in the kd-tree used when searching the tree for fof neighbours
     //@{
+    int iLocalVelDenApproxCalcFlag;
     int Nvel, Nsearch, Bsize;
     Int_t Ncell;
     Double_t Ncellfac;
@@ -544,6 +553,8 @@ struct Options
     Double_t halocorenumfaciter;
     ///factor by which a core must be seperated from main core in phase-space in sigma units
     Double_t halocorephasedistsig;
+    ///factor by which a substructure s must be closer than in phase-space to merger with another substructure in sigma units
+    Double_t coresubmergemindist;
     //@}
     ///for storing a snapshot value to make halo ids unique across snapshots
     long long snapshotvalue;
@@ -683,7 +694,7 @@ struct Options
 
         fname=outname=smname=pname=gname=outname=NULL;
 
-        Bsize=16;
+        Bsize=32;
         Nvel=32;
         Nsearch=256;
         Ncellfac=0.01;
@@ -698,8 +709,10 @@ struct Options
         iBaryonSearch=0;
         icmrefadjust=1;
         iIterateCM = 1;
+        iLocalVelDenApproxCalcFlag = 1 ;
 
         Neff=-1;
+
 
         ellthreshold=1.5;
         thetaopen=0.05;
@@ -750,6 +763,7 @@ struct Options
         halocorevfaciter=0.75;
         halocorenumfaciter=1.0;
         halocorephasedistsig=2.0;
+        coresubmergemindist=0.0;
 
         iverbose=0;
         iwritefof=0;
@@ -4681,6 +4695,17 @@ struct DataGroupNames {
     }
 };
 #endif
+
+///Useful structore to store information of leaf nodes in the tree
+struct leaf_node_info{
+    int num, numtot;
+    Int_t id, istart, iend;
+    Coordinate cm;
+    Double_t size;
+#ifdef USEMPI
+    Double_t searchdist;
+#endif
+};
 
 ///if using MPI API
 #ifdef USEMPI
