@@ -210,5 +210,9 @@ int FOFchecktype(Particle &a, Double_t *params){
     if (a.GetType()==int(params[7])) return 0;
     else return -1;
 }
+int FOFcheckpositivetype(Particle &a, Double_t *params){
+    if (a.GetType()>=0) return 0;
+    else return -1;
+}
 
 //@}
