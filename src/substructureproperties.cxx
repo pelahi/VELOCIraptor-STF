@@ -454,7 +454,7 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
             jzval=(jval*pdata[i].gJ)/pdata[i].gJ.Length();
             zdist=(Coordinate(Pval->GetPosition())*pdata[i].gJ)/pdata[i].gJ.Length();
             Rdist=sqrt(Pval->Radius2()-zdist*zdist);
-            pdata[i].Krot+=Pval->GetMass()*(jzval*jzval/(Rdist*Rdist));
+            if (Rdist>0) pdata[i].Krot+=Pval->GetMass()*(jzval*jzval/(Rdist*Rdist));
         }
         pdata[i].Krot*=0.5/Ekin;
 #ifdef NOMASS
@@ -498,7 +498,7 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
             jzval=(jval*pdata[i].RV_J)/pdata[i].RV_J.Length();
             zdist=(Coordinate(Pval->GetPosition())*pdata[i].RV_J)/pdata[i].RV_J.Length();
             Rdist=sqrt(Pval->Radius2()-zdist*zdist);
-            pdata[i].RV_Krot+=Pval->GetMass()*(jzval*jzval/(Rdist*Rdist));
+            if (Rdist>0) pdata[i].RV_Krot+=Pval->GetMass()*(jzval*jzval/(Rdist*Rdist));
         }
         pdata[i].RV_Krot*=0.5/RV_Ekin;
 #ifdef NOMASS
@@ -693,7 +693,7 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
                     if (r2<=opt.lengthtokpc50pow2) pdata[i].M_gas_50kpc+=mval;
                     if (r2<=pdata[i].gR500c*pdata[i].gR500c) pdata[i].M_gas_500c+=mval;
                     if (EncMass>0.5*pdata[i].M_gas && pdata[i].Rhalfmass_gas==0) pdata[i].Rhalfmass_gas=rc;
-                    pdata[i].Krot_gas+=mval*(jzval*jzval/(Rdist*Rdist));
+                    if (Rdist>0) pdata[i].Krot_gas+=mval*(jzval*jzval/(Rdist*Rdist));
                     Ekin+=mval*(vx*vx+vy*vy+vz*vz);
                     if (opt.iextragasoutput) {
                         if (rc<=pdata[i].gR200c_excl) {
@@ -714,7 +714,7 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
                     if (SFR>opt.gas_sfr_threshold){
                         EncMassSF+=mval;
                         if (EncMassSF>0.5*pdata[i].M_gas_sf && pdata[i].Rhalfmass_gas_sf==0) pdata[i].Rhalfmass_gas_sf=rc;
-                        pdata[i].Krot_gas_sf+=mval*(jzval*jzval/(Rdist*Rdist));
+                        if (Rdist>0)pdata[i].Krot_gas_sf+=mval*(jzval*jzval/(Rdist*Rdist));
                         Ekin_sf+=mval*(vx*vx+vy*vy+vz*vz);
                         if (opt.iextragasoutput) {
                             if (rc<=pdata[i].gR200c_excl) {
@@ -734,7 +734,7 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
                     else {
                         EncMassNSF+=mval;
                         if (EncMassNSF>0.5*pdata[i].M_gas_nsf && pdata[i].Rhalfmass_gas_nsf==0) pdata[i].Rhalfmass_gas_nsf=rc;
-                        pdata[i].Krot_gas_nsf+=mval*(jzval*jzval/(Rdist*Rdist));
+                        if (Rdist>0)pdata[i].Krot_gas_nsf+=mval*(jzval*jzval/(Rdist*Rdist));
                         Ekin_nsf+=mval*(vx*vx+vy*vy+vz*vz);
                         if (opt.iextragasoutput) {
                             if (rc<=pdata[i].gR200c_excl) {
@@ -892,7 +892,7 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
                     if (r2<=opt.lengthtokpc50pow2) pdata[i].M_star_50kpc+=Pval->GetMass();
                     if (r2<=pdata[i].gR500c*pdata[i].gR500c) pdata[i].M_star_500c+=Pval->GetMass();
                     if (EncMass>0.5*pdata[i].M_star && pdata[i].Rhalfmass_star==0) pdata[i].Rhalfmass_star=sqrt(x*x+y*y+z*z);
-                    pdata[i].Krot_star+=mval*(jzval*jzval/(Rdist*Rdist));
+                    if (Rdist>0)pdata[i].Krot_star+=mval*(jzval*jzval/(Rdist*Rdist));
                     Ekin+=mval*(vx*vx+vy*vy+vz*vz);
                     if (opt.iextrastaroutput) {
                         if (rc<=pdata[i].gR200c_excl) {
@@ -1100,7 +1100,7 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
             jzval=(jval*pdata[i].gJ)/pdata[i].gJ.Length();
             zdist=(Coordinate(x,y,z)*pdata[i].gJ)/pdata[i].gJ.Length();
             Rdist=sqrt(x*x+y*y+z*z-zdist*zdist);
-            Krot+=Pval->GetMass()*(jzval*jzval/(Rdist*Rdist));
+            if (Rdist>0)Krot+=Pval->GetMass()*(jzval*jzval/(Rdist*Rdist));
         }
 #ifdef USEOPENMP
 }
@@ -1184,7 +1184,7 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
             jzval=(jval*pdata[i].RV_J)/pdata[i].RV_J.Length();
             zdist=(Coordinate(x,y,z)*pdata[i].RV_J)/pdata[i].RV_J.Length();
             Rdist=sqrt(x*x+y*y+z*z-zdist*zdist);
-            Krot+=Pval->GetMass()*(jzval*jzval/(Rdist*Rdist));
+            if (Rdist>0)Krot+=Pval->GetMass()*(jzval*jzval/(Rdist*Rdist));
         }
 #ifdef USEOPENMP
 }
@@ -1457,16 +1457,16 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
             jzval=(jval*pdata[i].L_gas)/pdata[i].L_gas.Length();
             zdist=(Coordinate(x,y,z)*pdata[i].L_gas)/pdata[i].L_gas.Length();
             Rdist=sqrt(x*x+y*y+z*z-zdist*zdist);
-            Krot+=Pval->GetMass()*(jzval*jzval/(Rdist*Rdist));
+            if (Rdist>0)Krot+=Pval->GetMass()*(jzval*jzval/(Rdist*Rdist));
             Ekin+=Pval->GetMass()*(vx*vx+vy*vy+vz*vz);
             #ifdef STARON
             SFR = Pval->GetSFR();
             if (SFR>opt.gas_sfr_threshold) {
-                Krot_sf+=Pval->GetMass()*(jzval*jzval/(Rdist*Rdist));
+                if (Rdist>0)Krot_sf+=Pval->GetMass()*(jzval*jzval/(Rdist*Rdist));
                 Ekin_sf+=Pval->GetMass()*(vx*vx+vy*vy+vz*vz);
             }
             else {
-                Krot_nsf+=Pval->GetMass()*(jzval*jzval/(Rdist*Rdist));
+                if (Rdist>0)Krot_nsf+=Pval->GetMass()*(jzval*jzval/(Rdist*Rdist));
                 Ekin_nsf+=Pval->GetMass()*(vx*vx+vy*vy+vz*vz);
 
             }
@@ -1668,7 +1668,7 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
             jzval=(jval*pdata[i].L_star)/pdata[i].L_star.Length();
             zdist=(Coordinate(x,y,z)*pdata[i].L_star)/pdata[i].L_star.Length();
             Rdist=sqrt(x*x+y*y+z*z-zdist*zdist);
-            Krot+=Pval->GetMass()*(jzval*jzval/(Rdist*Rdist));
+            if (Rdist>0)Krot+=Pval->GetMass()*(jzval*jzval/(Rdist*Rdist));
             Ekin+=Pval->GetMass()*(vx*vx+vy*vy+vz*vz);
             }
         }
