@@ -851,6 +851,7 @@ struct ConfigInfo{
     vector<string> datainfo;
     //vector<int> datatype;
     ConfigInfo(Options &opt){
+        string datastring;
         //if compiler is super old and does not have at least std 11 implementation to_string does not exist
 #ifndef OLDCCOMPILER
         //general search operations
@@ -866,8 +867,6 @@ struct ConfigInfo{
         datainfo.push_back(to_string(opt.iKeepFOF));
         nameinfo.push_back("Iterative_searchflag");
         datainfo.push_back(to_string(opt.iiterflag));
-        nameinfo.push_back("Unbind_flag");
-        datainfo.push_back(to_string(opt.uinfo.unbindflag));
         nameinfo.push_back("Baryon_searchflag");
         datainfo.push_back(to_string(opt.iBaryonSearch));
         nameinfo.push_back("CMrefadjustsubsearch_flag");
@@ -880,6 +879,8 @@ struct ConfigInfo{
         datainfo.push_back(to_string(opt.iPhaseCoreGrowth));
 
         //local field parameters
+        nameinfo.push_back("Local_velocity_density_approximate_calculation");
+        datainfo.push_back(to_string(opt.iLocalVelDenApproxCalcFlag));
         nameinfo.push_back("Cell_fraction");
         datainfo.push_back(to_string(opt.Ncellfac));
         nameinfo.push_back("Grid_type");
@@ -957,8 +958,10 @@ struct ConfigInfo{
         datainfo.push_back(to_string(opt.thetafac));
 
         //for changing effective resolution when rescaling linking lengh
+        #ifdef HIGHRES
         nameinfo.push_back("Effective_resolution");
         datainfo.push_back(to_string(opt.Neff));
+        #endif
 
         //for changing effective resolution when rescaling linking lengh
         nameinfo.push_back("Singlehalo_search");
@@ -1030,14 +1033,16 @@ struct ConfigInfo{
         datainfo.push_back(to_string(opt.w_de));
 
         //unbinding
-        nameinfo.push_back("Softening_length");
-        datainfo.push_back(to_string(opt.uinfo.eps));
+        nameinfo.push_back("Unbind_flag");
+        datainfo.push_back(to_string(opt.uinfo.unbindflag));
+        nameinfo.push_back("Unbinding_type");
+        datainfo.push_back(to_string(opt.uinfo.unbindtype));
+        nameinfo.push_back("Bound_halos");
+        datainfo.push_back(to_string(opt.iBoundHalos));
         nameinfo.push_back("Allowed_kinetic_potential_ratio");
         datainfo.push_back(to_string(opt.uinfo.Eratio));
         nameinfo.push_back("Min_bound_mass_frac");
         datainfo.push_back(to_string(opt.uinfo.minEfrac));
-        nameinfo.push_back("Bound_halos");
-        datainfo.push_back(to_string(opt.iBoundHalos));
         nameinfo.push_back("Keep_background_potential");
         datainfo.push_back(to_string(opt.uinfo.bgpot));
         nameinfo.push_back("Kinetic_reference_frame_type");
@@ -1046,8 +1051,14 @@ struct ConfigInfo{
         datainfo.push_back(to_string(opt.uinfo.Npotref));
         nameinfo.push_back("Frac_pot_ref");
         datainfo.push_back(to_string(opt.uinfo.fracpotref));
-        nameinfo.push_back("Unbinding_type");
-        datainfo.push_back(to_string(opt.uinfo.unbindtype));
+        nameinfo.push_back("Unbinding_max_unbound_removal_fraction_per_iteration");
+        datainfo.push_back(to_string(opt.uinfo.maxunbindfrac));
+        nameinfo.push_back("Unbinding_max_unbound_fraction");
+        datainfo.push_back(to_string(opt.uinfo.maxunboundfracforiterativeunbind));
+        nameinfo.push_back("Unbinding_max_unbound_fraction_allowed");
+        datainfo.push_back(to_string(opt.uinfo.maxallowedunboundfrac));
+        nameinfo.push_back("Softening_length");
+        datainfo.push_back(to_string(opt.uinfo.eps));
 
         //property related
         nameinfo.push_back("Inclusive_halo_masses");
@@ -1056,10 +1067,42 @@ struct ConfigInfo{
         datainfo.push_back(to_string(opt.iextrahalooutput));
         nameinfo.push_back("Extensive_gas_properties_output");
         datainfo.push_back(to_string(opt.iextragasoutput));
+        nameinfo.push_back("Extensive_star_properties_output");
+        datainfo.push_back(to_string(opt.iextrastaroutput));
+        nameinfo.push_back("Extensive_interloper_properties_output");
+        datainfo.push_back(to_string(opt.iextrainterloperoutput));
         nameinfo.push_back("Iterate_cm_flag");
         datainfo.push_back(to_string(opt.iIterateCM));
         nameinfo.push_back("Sort_by_binding_energy");
         datainfo.push_back(to_string(opt.iSortByBindingEnergy));
+        nameinfo.push_back("Reference_frame_for_properties");
+        datainfo.push_back(to_string(opt.iPropertyReferencePosition));
+        nameinfo.push_back("Calculate_aperture_quantities");
+        datainfo.push_back(to_string(opt.iaperturecalc));
+        nameinfo.push_back("Number_of_apertures");
+        datainfo.push_back(to_string(opt.aperturenum));
+        nameinfo.push_back("Aperture_values_in_kpc");
+        datastring=string("");for (auto &x:opt.aperture_names_kpc) {datastring+=x;datastring+=string(",");}
+        datainfo.push_back(datastring);
+        nameinfo.push_back("Number_of_projected_apertures");
+        datainfo.push_back(to_string(opt.apertureprojnum));
+        nameinfo.push_back("Projected_aperture_values_in_kpc");
+        datastring=string("");for (auto &x:opt.aperture_proj_names_kpc) {datastring+=x;datastring+=string(",");}
+        datainfo.push_back(datastring);
+        nameinfo.push_back("Calculate_radial_profiles");
+        datainfo.push_back(to_string(opt.iprofilecalc));
+        nameinfo.push_back("Number_of_radial_profile_bin_edges");
+        datainfo.push_back(to_string(opt.profilenbins));
+        nameinfo.push_back("Radial_profile_norm");
+        datainfo.push_back(to_string(opt.iprofilenorm));
+        nameinfo.push_back("Radial_profile_bin_edges");
+        datastring=string("");for (auto &x:opt.profile_bin_edges) {datastring+=to_string(x);datastring+=string(",");}
+        datainfo.push_back(datastring);
+        nameinfo.push_back("Number_of_overdensities");
+        datainfo.push_back(to_string(opt.SOnum));
+        nameinfo.push_back("Overdensity_values_in_critical_density");
+        datastring=string("");for (auto &x:opt.SOthresholds_names_crit) {datastring+=x;datastring+=string(",");}
+        datainfo.push_back(datastring);
 
         //other options
         nameinfo.push_back("Verbose");
