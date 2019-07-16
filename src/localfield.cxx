@@ -31,8 +31,7 @@ void GetVelocityDensity(Options &opt, const Int_t nbodies, Particle *Part, KDTre
 #ifdef HALOONLYDEN
     GetVelocityDensityHaloOnlyDen(opt, nbodies, Part, tree);
 #else
-    //GetVelocityDensityOld(opt, nbodies, Part, tree);
-    if (opt.iLocalVelDenApproxCalcFlag) GetVelocityDensityApproximative(opt, nbodies, Part, tree);
+    if (opt.iLocalVelDenApproxCalcFlag>0) GetVelocityDensityApproximative(opt, nbodies, Part, tree);
     else GetVelocityDensityExact(opt, nbodies, Part, tree);
 #endif
     cout<<ThisTask<<": finished calculation in "<<MyGetTime()-time1<<endl;
@@ -551,7 +550,7 @@ private(i,j,k,tid,id,v2,nnids,nnr2,weight,pqv)
         tree->FindNearest(i,nnids,nnr2,opt.Nsearch);
 #endif
 #ifdef USEMPI
-        if (opt.iLocalVelDenApproxCalcFlag==1) {
+        if (opt.iLocalVelDenApproxCalcFlag==0) {
         //once NN set is found, store maxrdist and see if particle's search radius overlaps with another mpi domain
         maxrdist[i]=sqrt(nnr2[opt.Nsearch-1]);
 #ifdef SWIFTINTERFACE
@@ -592,7 +591,7 @@ private(i,j,k,tid,id,v2,nnids,nnr2,weight,pqv)
 #endif
 
 #ifdef USEMPI
-    if (NProcs >1) {
+    if (NProcs >1 && opt.iLocalVelDenApproxCalcFlag==0) {
     if (opt.iverbose) cout<<ThisTask<<" finished local calculation in "<<MyGetTime()-time2<<endl;
     time2=MyGetTime();
     //determines export AND import numbers
