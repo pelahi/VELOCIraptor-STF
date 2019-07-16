@@ -754,6 +754,12 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
                     #endif
                 }
             }
+            pdata[i].Krot_gas*=0.5/Ekin;
+            pdata[i].T_gas=0.5*Ekin;
+#ifdef STARON
+            if (pdata[i].M_gas_sf>0) pdata[i].Krot_gas_sf*=0.5/Ekin_sf;
+            if (pdata[i].M_gas_nsf>0) pdata[i].Krot_gas_nsf*=0.5/Ekin_nsf;
+#endif
         }
         if (pdata[i].n_gas>=PROPMORPHMINNUM) GetGlobalSpatialMorphology(numingroup[i], &Part[noffset[i]], pdata[i].q_gas, pdata[i].s_gas, 1e-2, pdata[i].eigvec_gas,0,GASTYPE,0);
 #endif
@@ -1476,9 +1482,10 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
 }
 #endif
         pdata[i].Krot_gas=Krot/Ekin;
+        pdata[i].T_gas=0.5*Ekin;
         #ifdef STARON
-        pdata[i].Krot_gas_sf=Krot_sf/Ekin_sf;
-        pdata[i].Krot_gas_nsf=Krot_nsf/Ekin_nsf;
+        if (pdata[i].M_gas_sf>0) pdata[i].Krot_gas_sf*=0.5/Ekin_sf;
+        if (pdata[i].M_gas_nsf>0) pdata[i].Krot_gas_nsf*=0.5/Ekin_nsf;
         #endif
         }
         if (pdata[i].n_gas>=PROPMORPHMINNUM) GetGlobalSpatialMorphology(numingroup[i], &Part[noffset[i]], pdata[i].q_gas, pdata[i].s_gas, 1e-2, pdata[i].eigvec_gas,0,GASTYPE,0);
@@ -1676,6 +1683,7 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
 }
 #endif
         pdata[i].Krot_star=Krot/Ekin;
+        pdata[i].T_star=0.5*Ekin;
         }
 
         if (pdata[i].n_star>=PROPMORPHMINNUM) GetGlobalSpatialMorphology(numingroup[i], &Part[noffset[i]], pdata[i].q_star, pdata[i].s_star, 1e-2, pdata[i].eigvec_star,0,STARTYPE,0);
