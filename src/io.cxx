@@ -3684,7 +3684,8 @@ void WriteVELOCIraptorConfig(Options &opt){
 #ifndef OLDCCOMPILER
         for (Int_t i=0;i<config.nameinfo.size();i++) {
             Fout<<config.nameinfo[i]<<" : ";
-            Fout<<config.datainfo[i]<<" ";
+            Fout<<config.datainfo[i]<<" # ";
+            Fout<<config.datatype[i]<<" ";
             Fout<<endl;
         }
 #else
@@ -3723,7 +3724,8 @@ void WriteSimulationInfo(Options &opt){
 #ifndef OLDCCOMPILER
         for (Int_t i=0;i<siminfo.nameinfo.size();i++) {
             Fout<<siminfo.nameinfo[i]<<" : ";
-            Fout<<siminfo.datainfo[i]<<" ";
+            Fout<<siminfo.datainfo[i]<<" # ";
+            Fout<<siminfo.datatype[i]<<" ";
             Fout<<endl;
         }
 #else
@@ -3763,7 +3765,8 @@ void WriteUnitInfo(Options &opt){
 #ifndef OLDCCOMPILER
         for (Int_t i=0;i<unitinfo.nameinfo.size();i++) {
             Fout<<unitinfo.nameinfo[i]<<" : ";
-            Fout<<unitinfo.datainfo[i]<<" ";
+            Fout<<unitinfo.datainfo[i]<<" # ";
+            Fout<<unitinfo.datatype[i]<<" ";
             Fout<<endl;
         }
 #else

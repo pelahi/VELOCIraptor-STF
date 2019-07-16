@@ -393,9 +393,9 @@ struct Options
     /// input is a cosmological simulation so can use box sizes, cosmological parameters, etc to set scales
     int icosmologicalin;
     /// input buffer size when reading data
-    long int inputbufsize;
+    long long inputbufsize;
     /// mpi paritcle buffer size when sending input particle information
-    long int mpiparticletotbufsize,mpiparticlebufsize;
+    long long mpiparticletotbufsize,mpiparticlebufsize;
     /// mpi factor by which to multiple the memory allocated, ie: buffer region
     /// to reduce likelihood of having to expand/allocate new memory
     Double_t mpipartfac;
@@ -850,9 +850,17 @@ struct Options
 struct ConfigInfo{
     //list the name of the info
     vector<string> nameinfo;
-    //vector<float> datainfo;
     vector<string> datainfo;
-    //vector<int> datatype;
+    vector<string> datatype;
+
+    string python_type_string(bool &x){return string("bool");}
+    string python_type_string(int &x){return string("int32");}
+    string python_type_string(unsigned int &x){return string("uint32");}
+    string python_type_string(long long &x){return string("int64");}
+    string python_type_string(unsigned long long &x){return string("uint64");}
+    string python_type_string(float &x){return string("float32");}
+    string python_type_string(double &x){return string("float64");}
+
     ConfigInfo(Options &opt){
         string datastring;
         //if compiler is super old and does not have at least std 11 implementation to_string does not exist
@@ -860,288 +868,416 @@ struct ConfigInfo{
         //general search operations
         nameinfo.push_back("Particle_search_type");
         datainfo.push_back(to_string(opt.partsearchtype));
+        datatype.push_back(python_type_string(opt.partsearchtype));
         nameinfo.push_back("FoF_search_type");
         datainfo.push_back(to_string(opt.foftype));
+        datatype.push_back(python_type_string(opt.foftype));
         nameinfo.push_back("FoF_Field_search_type");
         datainfo.push_back(to_string(opt.fofbgtype));
+        datatype.push_back(python_type_string(opt.fofbgtype));
         nameinfo.push_back("Search_for_substructure");
         datainfo.push_back(to_string(opt.iSubSearch));
+        datatype.push_back(python_type_string(opt.iSubSearch));
         nameinfo.push_back("Keep_FOF");
         datainfo.push_back(to_string(opt.iKeepFOF));
+        datatype.push_back(python_type_string(opt.iKeepFOF));
         nameinfo.push_back("Iterative_searchflag");
         datainfo.push_back(to_string(opt.iiterflag));
+        datatype.push_back(python_type_string(opt.iiterflag));
         nameinfo.push_back("Baryon_searchflag");
         datainfo.push_back(to_string(opt.iBaryonSearch));
+        datatype.push_back(python_type_string(opt.iBaryonSearch));
         nameinfo.push_back("CMrefadjustsubsearch_flag");
         datainfo.push_back(to_string(opt.icmrefadjust));
+        datatype.push_back(python_type_string(opt.icmrefadjust));
         nameinfo.push_back("Halo_core_search");
         datainfo.push_back(to_string(opt.iHaloCoreSearch));
+        datatype.push_back(python_type_string(opt.iHaloCoreSearch));
         nameinfo.push_back("Use_adaptive_core_search");
         datainfo.push_back(to_string(opt.iAdaptiveCoreLinking));
+        datatype.push_back(python_type_string(opt.iAdaptiveCoreLinking));
         nameinfo.push_back("Use_phase_tensor_core_growth");
         datainfo.push_back(to_string(opt.iPhaseCoreGrowth));
+        datatype.push_back(python_type_string(opt.iPhaseCoreGrowth));
 
         //local field parameters
         nameinfo.push_back("Local_velocity_density_approximate_calculation");
         datainfo.push_back(to_string(opt.iLocalVelDenApproxCalcFlag));
+        datatype.push_back(python_type_string(opt.iLocalVelDenApproxCalcFlag));
         nameinfo.push_back("Cell_fraction");
         datainfo.push_back(to_string(opt.Ncellfac));
+        datatype.push_back(python_type_string(opt.Ncellfac));
         nameinfo.push_back("Grid_type");
         datainfo.push_back(to_string(opt.gridtype));
+        datatype.push_back(python_type_string(opt.gridtype));
         nameinfo.push_back("Nsearch_velocity");
         datainfo.push_back(to_string(opt.Nvel));
+        datatype.push_back(python_type_string(opt.Nvel));
         nameinfo.push_back("Nsearch_physical");
         datainfo.push_back(to_string(opt.Nsearch));
+        datatype.push_back(python_type_string(opt.Nsearch));
 
         //substructure search parameters
         nameinfo.push_back("Outlier_threshold");
         datainfo.push_back(to_string(opt.ellthreshold));
+        datatype.push_back(python_type_string(opt.ellthreshold));
         nameinfo.push_back("Significance_level");
         datainfo.push_back(to_string(opt.siglevel));
+        datatype.push_back(python_type_string(opt.siglevel));
         nameinfo.push_back("Velocity_ratio");
         datainfo.push_back(to_string(opt.Vratio));
+        datatype.push_back(python_type_string(opt.Vratio));
         nameinfo.push_back("Velocity_opening_angle");
         datainfo.push_back(to_string(opt.thetaopen));
+        datatype.push_back(python_type_string(opt.thetaopen));
         ///\todo this configuration option will be deprecated. Replaced by Substructure_physical_linking_length
         //nameinfo.push_back("Physical_linking_length");
         //datainfo.push_back(to_string(opt.ellphys));
         nameinfo.push_back("Substructure_physical_linking_length");
         datainfo.push_back(to_string(opt.ellphys));
+        datatype.push_back(python_type_string(opt.ellphys));
         nameinfo.push_back("Velocity_linking_length");
         datainfo.push_back(to_string(opt.ellvel));
+        datatype.push_back(python_type_string(opt.ellvel));
         nameinfo.push_back("Minimum_size");
         datainfo.push_back(to_string(opt.MinSize));
+        datatype.push_back(python_type_string(opt.MinSize));
 
         //field object specific searches
         nameinfo.push_back("Minimum_halo_size");
         datainfo.push_back(to_string(opt.HaloMinSize));
+        datatype.push_back(python_type_string(opt.HaloMinSize));
         ///\todo this configuration option will be deprecated. Replaced by Halo_3D_physical_linking_length
         //nameinfo.push_back("Halo_linking_length_factor");
         //datainfo.push_back(to_string(opt.ellhalophysfac));
         nameinfo.push_back("Halo_3D_linking_length");
         datainfo.push_back(to_string(opt.ellhalo3dxfac));
+        datatype.push_back(python_type_string(opt.ellhalo3dxfac));
         nameinfo.push_back("Halo_velocity_linking_length_factor");
         datainfo.push_back(to_string(opt.ellhalovelfac));
+        datatype.push_back(python_type_string(opt.ellhalovelfac));
 
         //specific to 6DFOF field search
         nameinfo.push_back("Halo_6D_linking_length_factor");
         datainfo.push_back(to_string(opt.ellhalo6dxfac));
+        datatype.push_back(python_type_string(opt.ellhalo6dxfac));
         nameinfo.push_back("Halo_6D_vel_linking_length_factor");
         datainfo.push_back(to_string(opt.ellhalo6dvfac));
+        datatype.push_back(python_type_string(opt.ellhalo6dvfac));
 
         //specific search for 6d fof core searches
         nameinfo.push_back("Halo_core_ellx_fac");
         datainfo.push_back(to_string(opt.halocorexfac));
+        datatype.push_back(python_type_string(opt.halocorexfac));
         nameinfo.push_back("Halo_core_ellv_fac");
         datainfo.push_back(to_string(opt.halocorevfac));
+        datatype.push_back(python_type_string(opt.halocorevfac));
         nameinfo.push_back("Halo_core_ncellfac");
         datainfo.push_back(to_string(opt.halocorenfac));
+        datatype.push_back(python_type_string(opt.halocorenfac));
         nameinfo.push_back("Halo_core_adaptive_sigma_fac");
         datainfo.push_back(to_string(opt.halocoresigmafac));
+        datatype.push_back(python_type_string(opt.halocoresigmafac));
         nameinfo.push_back("Halo_core_num_loops");
         datainfo.push_back(to_string(opt.halocorenumloops));
+        datatype.push_back(python_type_string(opt.halocorenumloops));
         nameinfo.push_back("Halo_core_loop_ellx_fac");
         datainfo.push_back(to_string(opt.halocorexfaciter));
+        datatype.push_back(python_type_string(opt.halocorexfaciter));
         nameinfo.push_back("Halo_core_loop_ellv_fac");
         datainfo.push_back(to_string(opt.halocorevfaciter));
+        datatype.push_back(python_type_string(opt.halocorevfaciter));
         nameinfo.push_back("Halo_core_loop_elln_fac");
         datainfo.push_back(to_string(opt.halocorenumfaciter));
+        datatype.push_back(python_type_string(opt.halocorenumfaciter));
         nameinfo.push_back("Halo_core_phase_significance");
         datainfo.push_back(to_string(opt.halocorephasedistsig));
+        datatype.push_back(python_type_string(opt.halocorephasedistsig));
 
 
         //for changing factors used in iterative search
         nameinfo.push_back("Iterative_threshold_factor");
         datainfo.push_back(to_string(opt.ellfac));
+        datatype.push_back(python_type_string(opt.ellfac));
         nameinfo.push_back("Iterative_linking_length_factor");
+        datatype.push_back(python_type_string(opt.ellxfac));
         datainfo.push_back(to_string(opt.ellxfac));
         nameinfo.push_back("Iterative_Vratio_factor");
         datainfo.push_back(to_string(opt.vfac));
+        datatype.push_back(python_type_string(opt.vfac));
         nameinfo.push_back("Iterative_ThetaOp_factor");
         datainfo.push_back(to_string(opt.thetafac));
+        datatype.push_back(python_type_string(opt.thetafac));
 
         //for changing effective resolution when rescaling linking lengh
         #ifdef HIGHRES
         nameinfo.push_back("Effective_resolution");
         datainfo.push_back(to_string(opt.Neff));
+        datatype.push_back(python_type_string(opt.Neff));
         #endif
 
         //for changing effective resolution when rescaling linking lengh
         nameinfo.push_back("Singlehalo_search");
         datainfo.push_back(to_string(opt.iSingleHalo));
+        datatype.push_back(python_type_string(opt.iSingleHalo));
 
         //units, cosmology
         nameinfo.push_back("Length_unit");
         datainfo.push_back(to_string(opt.lengthinputconversion));
+        datatype.push_back(python_type_string(opt.lengthinputconversion));
         nameinfo.push_back("Velocity_unit");
         datainfo.push_back(to_string(opt.velocityinputconversion));
+        datatype.push_back(python_type_string(opt.velocityinputconversion));
         nameinfo.push_back("Mass_unit");
         datainfo.push_back(to_string(opt.massinputconversion));
+        datatype.push_back(python_type_string(opt.massinputconversion));
         nameinfo.push_back("Length_input_unit_conversion_to_output_unit");
         datainfo.push_back(to_string(opt.lengthinputconversion));
+        datatype.push_back(python_type_string(opt.lengthinputconversion));
         nameinfo.push_back("Velocity_input_unit_conversion_to_output_unit");
         datainfo.push_back(to_string(opt.velocityinputconversion));
+        datatype.push_back(python_type_string(opt.velocityinputconversion));
         nameinfo.push_back("Mass_input_unit_conversion_to_output_unit");
         datainfo.push_back(to_string(opt.massinputconversion));
+        datatype.push_back(python_type_string(opt.massinputconversion));
         nameinfo.push_back("Star_formation_rate_input_unit_conversion_to_output_unit");
         datainfo.push_back(to_string(opt.SFRinputconversion));
+        datatype.push_back(python_type_string(opt.SFRinputconversion));
         nameinfo.push_back("Metallicity_input_unit_conversion_to_output_unit");
         datainfo.push_back(to_string(opt.metallicityinputconversion));
+        datatype.push_back(python_type_string(opt.metallicityinputconversion));
         nameinfo.push_back("Stellar_age_input_is_cosmological_scalefactor");
         datainfo.push_back(to_string(opt.istellaragescalefactor));
+        datatype.push_back(python_type_string(opt.istellaragescalefactor));
         nameinfo.push_back("Hubble_unit");
         datainfo.push_back(to_string(opt.H));
+        datatype.push_back(python_type_string(opt.H));
         nameinfo.push_back("Gravity");
         datainfo.push_back(to_string(opt.G));
+        datatype.push_back(python_type_string(opt.G));
         nameinfo.push_back("Mass_value");
         datainfo.push_back(to_string(opt.MassValue));
+        datatype.push_back(python_type_string(opt.MassValue));
         nameinfo.push_back("Length_unit_to_kpc");
         datainfo.push_back(to_string(opt.lengthtokpc));
+        datatype.push_back(python_type_string(opt.lengthtokpc));
         nameinfo.push_back("Velocity_to_kms");
         datainfo.push_back(to_string(opt.velocitytokms));
+        datatype.push_back(python_type_string(opt.velocitytokms));
         nameinfo.push_back("Mass_to_solarmass");
         datainfo.push_back(to_string(opt.masstosolarmass));
+        datatype.push_back(python_type_string(opt.masstosolarmass));
         nameinfo.push_back("Star_formation_rate_to_solarmassperyear");
         datainfo.push_back(to_string(opt.SFRtosolarmassperyear));
+        datatype.push_back(python_type_string(opt.SFRtosolarmassperyear));
         nameinfo.push_back("Metallicity_to_solarmetallicity");
         datainfo.push_back(to_string(opt.metallicitytosolar));
+        datatype.push_back(python_type_string(opt.metallicitytosolar));
         nameinfo.push_back("Stellar_age_to_yr");
         datainfo.push_back(to_string(opt.stellaragetoyrs));
+        datatype.push_back(python_type_string(opt.stellaragetoyrs));
 
         nameinfo.push_back("Period");
         datainfo.push_back(to_string(opt.p));
+        datatype.push_back(python_type_string(opt.p));
         nameinfo.push_back("Scale_factor");
         datainfo.push_back(to_string(opt.a));
+        datatype.push_back(python_type_string(opt.a));
         nameinfo.push_back("h_val");
         datainfo.push_back(to_string(opt.h));
+        datatype.push_back(python_type_string(opt.h));
         nameinfo.push_back("Omega_m");
         datainfo.push_back(to_string(opt.Omega_m));
+        datatype.push_back(python_type_string(opt.Omega_m));
         nameinfo.push_back("Omega_Lambda");
         datainfo.push_back(to_string(opt.Omega_Lambda));
+        datatype.push_back(python_type_string(opt.Omega_Lambda));
         nameinfo.push_back("Critical_density");
         datainfo.push_back(to_string(opt.rhobg));
+        datatype.push_back(python_type_string(opt.rhobg));
         nameinfo.push_back("Virial_density");
         datainfo.push_back(to_string(opt.virlevel));
+        datatype.push_back(python_type_string(opt.virlevel));
         nameinfo.push_back("Omega_cdm");
         datainfo.push_back(to_string(opt.Omega_cdm));
+        datatype.push_back(python_type_string(opt.Omega_cdm));
         nameinfo.push_back("Omega_b");
         datainfo.push_back(to_string(opt.Omega_b));
+        datatype.push_back(python_type_string(opt.Omega_b));
         nameinfo.push_back("Omega_r");
         datainfo.push_back(to_string(opt.Omega_r));
+        datatype.push_back(python_type_string(opt.Omega_r));
         nameinfo.push_back("Omega_nu");
         datainfo.push_back(to_string(opt.Omega_nu));
+        datatype.push_back(python_type_string(opt.Omega_nu));
         nameinfo.push_back("Omega_DE");
         datainfo.push_back(to_string(opt.Omega_de));
+        datatype.push_back(python_type_string(opt.Omega_de));
         nameinfo.push_back("w_of_DE");
         datainfo.push_back(to_string(opt.w_de));
+        datatype.push_back(python_type_string(opt.w_de));
 
         //unbinding
         nameinfo.push_back("Unbind_flag");
         datainfo.push_back(to_string(opt.uinfo.unbindflag));
+        datatype.push_back(python_type_string(opt.uinfo.unbindflag));
         nameinfo.push_back("Unbinding_type");
         datainfo.push_back(to_string(opt.uinfo.unbindtype));
+        datatype.push_back(python_type_string(opt.uinfo.unbindtype));
         nameinfo.push_back("Bound_halos");
         datainfo.push_back(to_string(opt.iBoundHalos));
+        datatype.push_back(python_type_string(opt.iBoundHalos));
         nameinfo.push_back("Allowed_kinetic_potential_ratio");
         datainfo.push_back(to_string(opt.uinfo.Eratio));
+        datatype.push_back(python_type_string(opt.uinfo.Eratio));
         nameinfo.push_back("Min_bound_mass_frac");
         datainfo.push_back(to_string(opt.uinfo.minEfrac));
+        datatype.push_back(python_type_string(opt.uinfo.minEfrac));
         nameinfo.push_back("Keep_background_potential");
         datainfo.push_back(to_string(opt.uinfo.bgpot));
+        datatype.push_back(python_type_string(opt.uinfo.bgpot));
         nameinfo.push_back("Kinetic_reference_frame_type");
         datainfo.push_back(to_string(opt.uinfo.cmvelreftype));
+        datatype.push_back(python_type_string(opt.uinfo.cmvelreftype));
         nameinfo.push_back("Min_npot_ref");
         datainfo.push_back(to_string(opt.uinfo.Npotref));
+        datatype.push_back(python_type_string(opt.uinfo.Npotref));
         nameinfo.push_back("Frac_pot_ref");
         datainfo.push_back(to_string(opt.uinfo.fracpotref));
+        datatype.push_back(python_type_string(opt.uinfo.fracpotref));
         nameinfo.push_back("Unbinding_max_unbound_removal_fraction_per_iteration");
         datainfo.push_back(to_string(opt.uinfo.maxunbindfrac));
+        datatype.push_back(python_type_string(opt.uinfo.maxunbindfrac));
         nameinfo.push_back("Unbinding_max_unbound_fraction");
         datainfo.push_back(to_string(opt.uinfo.maxunboundfracforiterativeunbind));
+        datatype.push_back(python_type_string(opt.uinfo.maxunboundfracforiterativeunbind));
         nameinfo.push_back("Unbinding_max_unbound_fraction_allowed");
         datainfo.push_back(to_string(opt.uinfo.maxallowedunboundfrac));
+        datatype.push_back(python_type_string(opt.uinfo.maxallowedunboundfrac));
         nameinfo.push_back("Softening_length");
         datainfo.push_back(to_string(opt.uinfo.eps));
+        datatype.push_back(python_type_string(opt.uinfo.eps));
 
         //property related
         nameinfo.push_back("Inclusive_halo_masses");
         datainfo.push_back(to_string(opt.iInclusiveHalo));
+        datatype.push_back(python_type_string(opt.iInclusiveHalo));
         nameinfo.push_back("Extensive_halo_properties_output");
         datainfo.push_back(to_string(opt.iextrahalooutput));
+        datatype.push_back(python_type_string(opt.iextrahalooutput));
         nameinfo.push_back("Extensive_gas_properties_output");
         datainfo.push_back(to_string(opt.iextragasoutput));
+        datatype.push_back(python_type_string(opt.iextragasoutput));
         nameinfo.push_back("Extensive_star_properties_output");
         datainfo.push_back(to_string(opt.iextrastaroutput));
+        datatype.push_back(python_type_string(opt.iextrastaroutput));
         nameinfo.push_back("Extensive_interloper_properties_output");
         datainfo.push_back(to_string(opt.iextrainterloperoutput));
+        datatype.push_back(python_type_string(opt.iextrainterloperoutput));
         nameinfo.push_back("Iterate_cm_flag");
         datainfo.push_back(to_string(opt.iIterateCM));
+        datatype.push_back(python_type_string(opt.iIterateCM));
         nameinfo.push_back("Sort_by_binding_energy");
         datainfo.push_back(to_string(opt.iSortByBindingEnergy));
+        datatype.push_back(python_type_string(opt.iSortByBindingEnergy));
         nameinfo.push_back("Reference_frame_for_properties");
         datainfo.push_back(to_string(opt.iPropertyReferencePosition));
+        datatype.push_back(python_type_string(opt.iPropertyReferencePosition));
         nameinfo.push_back("Calculate_aperture_quantities");
         datainfo.push_back(to_string(opt.iaperturecalc));
+        datatype.push_back(python_type_string(opt.iaperturecalc));
         nameinfo.push_back("Number_of_apertures");
         datainfo.push_back(to_string(opt.aperturenum));
-        nameinfo.push_back("Aperture_values_in_kpc");
-        datastring=string("");for (auto &x:opt.aperture_names_kpc) {datastring+=x;datastring+=string(",");}
-        datainfo.push_back(datastring);
+        datatype.push_back(python_type_string(opt.aperturenum));
+        if (opt.aperturenum>0){
+            nameinfo.push_back("Aperture_values_in_kpc");
+            datastring=string("");for (auto &x:opt.aperture_names_kpc) {datastring+=x;datastring+=string(",");}
+            datainfo.push_back(datastring);
+            datatype.push_back(python_type_string(opt.aperture_values_kpc[0]));
+        }
         nameinfo.push_back("Number_of_projected_apertures");
         datainfo.push_back(to_string(opt.apertureprojnum));
-        nameinfo.push_back("Projected_aperture_values_in_kpc");
-        datastring=string("");for (auto &x:opt.aperture_proj_names_kpc) {datastring+=x;datastring+=string(",");}
-        datainfo.push_back(datastring);
+        datatype.push_back(python_type_string(opt.apertureprojnum));
+        if (opt.apertureprojnum>0){
+            nameinfo.push_back("Projected_aperture_values_in_kpc");
+            datastring=string("");for (auto &x:opt.aperture_proj_names_kpc) {datastring+=x;datastring+=string(",");}
+            datainfo.push_back(datastring);
+            datatype.push_back(python_type_string(opt.aperture_proj_values_kpc[0]));
+        }
         nameinfo.push_back("Calculate_radial_profiles");
         datainfo.push_back(to_string(opt.iprofilecalc));
-        nameinfo.push_back("Number_of_radial_profile_bin_edges");
-        datainfo.push_back(to_string(opt.profilenbins));
-        nameinfo.push_back("Radial_profile_norm");
-        datainfo.push_back(to_string(opt.iprofilenorm));
-        nameinfo.push_back("Radial_profile_bin_edges");
-        datastring=string("");for (auto &x:opt.profile_bin_edges) {datastring+=to_string(x);datastring+=string(",");}
-        datainfo.push_back(datastring);
+        datatype.push_back(python_type_string(opt.iprofilecalc));
+        if(opt.iprofilecalc) {
+            nameinfo.push_back("Number_of_radial_profile_bin_edges");
+            datainfo.push_back(to_string(opt.profilenbins));
+            datatype.push_back(python_type_string(opt.profilenbins));
+            nameinfo.push_back("Radial_profile_norm");
+            datainfo.push_back(to_string(opt.iprofilenorm));
+            datatype.push_back(python_type_string(opt.iprofilenorm));
+            nameinfo.push_back("Radial_profile_bin_edges");
+            datastring=string("");for (auto &x:opt.profile_bin_edges) {datastring+=to_string(x);datastring+=string(",");}
+            datainfo.push_back(datastring);
+            datatype.push_back(python_type_string(opt.profile_bin_edges[0]));
+        }
         nameinfo.push_back("Number_of_overdensities");
         datainfo.push_back(to_string(opt.SOnum));
-        nameinfo.push_back("Overdensity_values_in_critical_density");
-        datastring=string("");for (auto &x:opt.SOthresholds_names_crit) {datastring+=x;datastring+=string(",");}
-        datainfo.push_back(datastring);
+        datatype.push_back(python_type_string(opt.SOnum));
+        if (opt.SOnum>0) {
+            nameinfo.push_back("Overdensity_values_in_critical_density");
+            datastring=string("");for (auto &x:opt.SOthresholds_names_crit) {datastring+=x;datastring+=string(",");}
+            datainfo.push_back(datastring);
+            datatype.push_back(python_type_string(opt.SOthresholds_values_crit[0]));
+        }
 
         //other options
         nameinfo.push_back("Verbose");
         datainfo.push_back(to_string(opt.iverbose));
+        datatype.push_back(python_type_string(opt.iverbose));
         nameinfo.push_back("Write_group_array_file");
         datainfo.push_back(to_string(opt.iwritefof));
+        datatype.push_back(python_type_string(opt.iwritefof));
         nameinfo.push_back("Snapshot_value");
         datainfo.push_back(to_string(opt.snapshotvalue));
+        datatype.push_back(python_type_string(opt.snapshotvalue));
 
         //io related
         nameinfo.push_back("Cosmological_input");
         datainfo.push_back(to_string(opt.icosmologicalin));
+        datatype.push_back(python_type_string(opt.icosmologicalin));
         nameinfo.push_back("Input_chunk_size");
         datainfo.push_back(to_string(opt.inputbufsize));
+        datatype.push_back(python_type_string(opt.inputbufsize));
         nameinfo.push_back("MPI_particle_total_buf_size");
         datainfo.push_back(to_string(opt.mpiparticletotbufsize));
+        datatype.push_back(python_type_string(opt.mpiparticletotbufsize));
         nameinfo.push_back("Separate_output_files");
         datainfo.push_back(to_string(opt.iseparatefiles));
+        datatype.push_back(python_type_string(opt.iseparatefiles));
         nameinfo.push_back("Binary_output");
         datainfo.push_back(to_string(opt.ibinaryout));
+        datatype.push_back(python_type_string(opt.ibinaryout));
         nameinfo.push_back("Comoving_units");
         datainfo.push_back(to_string(opt.icomoveunit));
+        datatype.push_back(python_type_string(opt.icomoveunit));
         nameinfo.push_back("Extended_output");
         datainfo.push_back(to_string(opt.iextendedoutput));
+        datatype.push_back(python_type_string(opt.iextendedoutput));
 
         //gadget io related to extra info for sph, stars, bhs,
         nameinfo.push_back("NSPH_extra_blocks");
         datainfo.push_back(to_string(opt.gnsphblocks));
+        datatype.push_back(python_type_string(opt.gnsphblocks));
         nameinfo.push_back("NStar_extra_blocks");
         datainfo.push_back(to_string(opt.gnstarblocks));
+        datatype.push_back(python_type_string(opt.gnstarblocks));
         nameinfo.push_back("NBH_extra_blocks");
         datainfo.push_back(to_string(opt.gnbhblocks));
+        datatype.push_back(python_type_string(opt.gnbhblocks));
 
         //mpi related configuration
         nameinfo.push_back("MPI_part_allocation_fac");
-        datainfo.push_back(to_string(opt.mpiparticletotbufsize));
+        datainfo.push_back(to_string(opt.mpipartfac));
+        datatype.push_back(python_type_string(opt.mpipartfac));
 #endif
     }
 };
@@ -1150,51 +1286,76 @@ struct SimInfo{
     //list the name of the info
     vector<string> nameinfo;
     vector<string> datainfo;
+    vector<string> datatype;
+
+    string python_type_string(int &x){return string("int32");}
+    string python_type_string(unsigned int &x){return string("uint32");}
+    string python_type_string(long &x){return string("int64");}
+    string python_type_string(unsigned long &x){return string("uint64");}
+    string python_type_string(float &x){return string("float32");}
+    string python_type_string(double &x){return string("float64");}
 
     SimInfo(Options &opt){
         //if compiler is super old and does not have at least std 11 implementation to_string does not exist
 #ifndef OLDCCOMPILER
         nameinfo.push_back("Cosmological_Sim");
         datainfo.push_back(to_string(opt.icosmologicalin));
+        datatype.push_back(python_type_string(opt.icosmologicalin));
         if (opt.icosmologicalin) {
             nameinfo.push_back("ScaleFactor");
             datainfo.push_back(to_string(opt.a));
+            datatype.push_back(python_type_string(opt.a));
             nameinfo.push_back("h_val");
             datainfo.push_back(to_string(opt.h));
+            datatype.push_back(python_type_string(opt.h));
             nameinfo.push_back("Omega_m");
             datainfo.push_back(to_string(opt.Omega_m));
+            datatype.push_back(python_type_string(opt.Omega_m));
             nameinfo.push_back("Omega_Lambda");
             datainfo.push_back(to_string(opt.Omega_Lambda));
+            datatype.push_back(python_type_string(opt.Omega_Lambda));
             nameinfo.push_back("Omega_cdm");
             datainfo.push_back(to_string(opt.Omega_cdm));
+            datatype.push_back(python_type_string(opt.Omega_cdm));
             nameinfo.push_back("Omega_b");
             datainfo.push_back(to_string(opt.Omega_b));
+            datatype.push_back(python_type_string(opt.Omega_b));
             nameinfo.push_back("w_of_DE");
             datainfo.push_back(to_string(opt.w_de));
+            datatype.push_back(python_type_string(opt.w_de));
             nameinfo.push_back("Period");
             datainfo.push_back(to_string(opt.p));
+            datatype.push_back(python_type_string(opt.p));
             nameinfo.push_back("Hubble_unit");
             datainfo.push_back(to_string(opt.H));
+            datatype.push_back(python_type_string(opt.H));
         }
         else{
             nameinfo.push_back("Time");
             datainfo.push_back(to_string(opt.a));
+            datatype.push_back(python_type_string(opt.a));
             nameinfo.push_back("Period");
             datainfo.push_back(to_string(opt.p));
+            datatype.push_back(python_type_string(opt.p));
         }
 
         //units
         nameinfo.push_back("Length_unit");
         datainfo.push_back(to_string(opt.lengthinputconversion));
+        datatype.push_back(python_type_string(opt.lengthinputconversion));
         nameinfo.push_back("Velocity_unit");
         datainfo.push_back(to_string(opt.velocityinputconversion));
+        datatype.push_back(python_type_string(opt.velocityinputconversion));
         nameinfo.push_back("Mass_unit");
         datainfo.push_back(to_string(opt.massinputconversion));
+        datatype.push_back(python_type_string(opt.massinputconversion));
         nameinfo.push_back("Gravity");
         datainfo.push_back(to_string(opt.G));
+        datatype.push_back(python_type_string(opt.G));
 #ifdef NOMASS
         nameinfo.push_back("Mass_value");
         datainfo.push_back(to_string(opt.MassValue));
+        datatype.push_back(python_type_string(opt.MassValue));
 #endif
 
 #endif
@@ -1206,28 +1367,44 @@ struct UnitInfo{
     //list the name of the info
     vector<string> nameinfo;
     vector<string> datainfo;
+    vector<string> datatype;
+
+    string python_type_string(int &x){return string("int32");}
+    string python_type_string(unsigned int &x){return string("uint32");}
+    string python_type_string(long &x){return string("int64");}
+    string python_type_string(unsigned long &x){return string("uint64");}
+    string python_type_string(float &x){return string("float32");}
+    string python_type_string(double &x){return string("float64");}
 
     UnitInfo(Options &opt){
         //if compiler is super old and does not have at least std 11 implementation to_string does not exist
 #ifndef OLDCCOMPILER
         nameinfo.push_back("Cosmological_Sim");
         datainfo.push_back(to_string(opt.icosmologicalin));
+        datatype.push_back(python_type_string(opt.icosmologicalin));
         nameinfo.push_back("Comoving_or_Physical");
         datainfo.push_back(to_string(opt.icomoveunit));
+        datatype.push_back(python_type_string(opt.icomoveunit));
         //units
         nameinfo.push_back("Length_unit_to_kpc");
         datainfo.push_back(to_string(opt.lengthtokpc));
+        datatype.push_back(python_type_string(opt.lengthtokpc));
         nameinfo.push_back("Velocity_unit_to_kms");
         datainfo.push_back(to_string(opt.velocitytokms));
+        datatype.push_back(python_type_string(opt.velocitytokms));
         nameinfo.push_back("Mass_unit_to_solarmass");
         datainfo.push_back(to_string(opt.masstosolarmass));
+        datatype.push_back(python_type_string(opt.masstosolarmass));
 #if defined(GASON) || defined(STARON) || defined(BHON)
         nameinfo.push_back("Metallicity_unit_to_solar");
         datainfo.push_back(to_string(opt.metallicitytosolar));
+        datatype.push_back(python_type_string(opt.metallicitytosolar));
         nameinfo.push_back("SFR_unit_to_solarmassperyear");
         datainfo.push_back(to_string(opt.SFRtosolarmassperyear));
+        datatype.push_back(python_type_string(opt.SFRtosolarmassperyear));
         nameinfo.push_back("Stellar_age_unit_to_yr");
         datainfo.push_back(to_string(opt.stellaragetoyrs));
+        datatype.push_back(python_type_string(opt.stellaragetoyrs));
 #endif
 #endif
     }
