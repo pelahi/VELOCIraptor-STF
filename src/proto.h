@@ -633,9 +633,9 @@ void MPIBuildParticleNNExportList(const Int_t nbodies, Particle *Part, Double_t 
 void MPIBuildParticleNNExportListUsingMesh(Options &opt, const Int_t nbodies, Particle *Part, Double_t *rdist);
 #endif
 ///Determine number of local particles that need to be exported back based on ball search.
-void MPIGetNNImportNum(const Int_t nbodies, KDTree *tree, Particle *Part);
+void MPIGetNNImportNum(const Int_t nbodies, KDTree *tree, Particle *Part, int iallflag=1);
 ///Determine local particles that need to be exported back based on ball search.
-Int_t MPIBuildParticleNNImportList(const Int_t nbodies, KDTree *tree, Particle *Part, int iallflag=true);
+Int_t MPIBuildParticleNNImportList(const Int_t nbodies, KDTree *tree, Particle *Part, int iallflag=1);
 ///comparison function to order particles for export
 int nn_export_cmp(const void *a, const void *b);
 ///Determine number of halos whose search regions overlap other mpi domains
