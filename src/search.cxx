@@ -3532,7 +3532,7 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
             map<Int_t, Int_t> remap;
             Int_t newng=0, oldpid, newpid;
             remap[0]=0;
-            for (auto i=1;i<=ng;i++) {
+            for (i=1;i<=ng;i++) {
                 if (ningall[i]>0) {
                     newng++;
                     remap[i]=newng;
