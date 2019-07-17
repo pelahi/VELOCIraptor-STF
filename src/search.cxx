@@ -2721,6 +2721,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
             //ADACS: this would need a reduction at the end.
             ns+=subngroup[i];
         }
+        // END: ENCAPSULATION-01
         //if objects have been found adjust the StrucLevelData
         //this stores the address of the parent particle and pfof along with child substructure particle and pfof
         if (ns>0) {
