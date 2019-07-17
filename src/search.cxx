@@ -2562,7 +2562,17 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
         subpfofold=new Int_t[nsubsearch+1];
         ns=0;
         // START: ENCAPSULATION-01
+        /* - If the whole for loop is to be encapsulated,
+        **   the following variables are in consideration to be parametised:
+        **      oldnsubsearch
+        **      subpglist
+        **      pfof
+        **      subnumingroup
+        **      opt.icmrefadjust
+        **      ompsearchnum
+        */
         //here loop over all sublevel groups that need to be searched for substructure
+        // ADACS: this loop proceses halos (that are independent) sequentially. This is unecessary.
         for (Int_t i=1;i<=oldnsubsearch;i++) {
             subpfofold[i]=pfof[subpglist[i][0]];
             subPart=new Particle[subnumingroup[i]];
