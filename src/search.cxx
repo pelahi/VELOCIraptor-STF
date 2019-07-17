@@ -2474,7 +2474,7 @@ void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Parts
     it might be possible to lower the cuts imposed.
 
     \todo ADACS optimisation request. Here the function could be altered to employ better parallelisation. Specifically, the loop over
-    substructures at a given level could be parallelized (see for loop line 2561). Currently, at a given level in the substructure hierarchy
+    substructures at a given level could be parallelized (see for loop commented with ENCAPSULATION-01). Currently, at a given level in the substructure hierarchy
     each object is searched sequentially but this does not need to be the case. It would require restructureing the loop and some of calls within
     the loop so that the available pool of threads over which to run in parallel for the callled subroutines is adaptive. (Or it might be
     simply more useful to not have the functions called within this loop parallelised. This loop invokes a few routines that have OpenMP
@@ -2561,6 +2561,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
         numcores=new Int_t[nsubsearch+1];
         subpfofold=new Int_t[nsubsearch+1];
         ns=0;
+        // START: ENCAPSULATION-01
         //here loop over all sublevel groups that need to be searched for substructure
         for (Int_t i=1;i<=oldnsubsearch;i++) {
             subpfofold[i]=pfof[subpglist[i][0]];
