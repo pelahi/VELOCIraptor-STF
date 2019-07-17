@@ -2579,6 +2579,8 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
             for (Int_t j=0;j<subnumingroup[i];j++) subPart[j]=Partsubset[subpglist[i][j]];
             //now if low statistics, then possible that very central regions of subhalo will be higher due to cell size used and Nv search
             //so first determine centre of subregion
+            // ADACS: here is an example of unecessary parallelisation in most cases
+            // ADACS: (save for very high res zooms of individual objects containing billions of particles 
             Double_t cmx=0.,cmy=0.,cmz=0.,cmvelx=0.,cmvely=0.,cmvelz=0.;
             Double_t mtotregion=0.0;
             Int_t j;
@@ -2616,6 +2618,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
             cm[0]=cmx;cm[1]=cmy;cm[2]=cmz;
             cmvel[0]=cmvelx;cmvel[1]=cmvely;cmvel[2]=cmvelz;
             for (int k=0;k<3;k++) {cm[k]/=mtotregion;cmvel[k]/=mtotregion;}
+            //ADACS: once phase-space CM calculated reset reference but again maybe unecessary parallelisation
 #ifdef USEOPENMP
             if (subnumingroup[i]>ompsearchnum) {
 #pragma omp parallel default(shared)
@@ -2637,6 +2640,9 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
 }
 #endif
             }
+            //ADACS: for large objects, extra processing steps are requried
+            //ADACS: Some of these subroutines make use of OpenMP. For this to continue
+		    //ADACS: the pool of threads would have to be changed
             if (subnumingroup[i]>=MINSUBSIZE&&opt.foftype!=FOF6DCORE) {
                 //now if object is large enough for phase-space decomposition and search, compare local field to bg field
                 opt.Ncell=opt.Ncellfac*subnumingroup[i];
@@ -2670,6 +2676,8 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
                 CalcVelSigmaTensor(subnumingroup[i], subPart, sigma2x, sigma2y, sigma2z, eigvec, I);
                 opt.HaloLocalSigmaV=opt.HaloSigmaV=pow(sigma2x*sigma2y*sigma2z,1.0/3.0);
             }
+            //ADACS: Here the object is searched. Not much of this uses OpenMP but there are 
+		    //  one or two subroutines called within SearchSubset that do make use of OpenMP. 
             subpfof=SearchSubset(opt,subnumingroup[i],subnumingroup[i],subPart,subngroup[i],sublevel,&numcores[i]);
             //now if subngroup>0 change the pfof ids of these particles in question and see if there are any substrucures that can be searched again.
             //the group ids must be stored along with the number of groups in this substructure that will be searched at next level.
@@ -2710,6 +2718,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
             delete[] subpfof;
             delete[] subPart;
             //increase tot num of objects at sublevel
+            //ADACS: this would need a reduction at the end.
             ns+=subngroup[i];
         }
         //if objects have been found adjust the StrucLevelData
