@@ -31,8 +31,7 @@ void GetVelocityDensity(Options &opt, const Int_t nbodies, Particle *Part, KDTre
 #ifdef HALOONLYDEN
     GetVelocityDensityHaloOnlyDen(opt, nbodies, Part, tree);
 #else
-    //GetVelocityDensityOld(opt, nbodies, Part, tree);
-    if (opt.iLocalVelDenApproxCalcFlag) GetVelocityDensityApproximative(opt, nbodies, Part, tree);
+    if (opt.iLocalVelDenApproxCalcFlag>0) GetVelocityDensityApproximative(opt, nbodies, Part, tree);
     else GetVelocityDensityExact(opt, nbodies, Part, tree);
 #endif
     cout<<ThisTask<<": finished calculation in "<<MyGetTime()-time1<<endl;
@@ -95,7 +94,7 @@ private(i,j,k,tid,id,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,pqx,pqv
 #ifdef STRUCDEN
         if (Part[i].GetType()>0) {
         //if not searching all particles in FOF then also doing baryon search then just find nearest neighbours
-        if (!(opt.iBaryonSearch==1 && opt.partsearchtype==PSTALL)) tree->FindNearest(i,nnids,nnr2,opt.Nsearch);
+        if (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)) tree->FindNearest(i,nnids,nnr2,opt.Nsearch);
         //otherwise distinction must be made so that only base calculation on dark matter particles
         else tree->FindNearestCriterion(i,FOFPositivetypes,NULL,nnids,nnr2,opt.Nsearch);
 #else
@@ -154,12 +153,12 @@ private(i,j,k,tid,id,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,pqx,pqv
 #else
     MPIBuildParticleNNExportList(nbodies, Part, maxrdist);
 #endif
-    MPIGetNNImportNum(nbodies, tree, Part);
+    MPIGetNNImportNum(nbodies, tree, Part, (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)));
     PartDataIn = new Particle[NExport];
     PartDataGet = new Particle[NImport];
     MPI_Barrier(MPI_COMM_WORLD);
     //run search on exported particles and determine which local particles need to be exported back (or imported)
-    nimport=MPIBuildParticleNNImportList(nbodies, tree, Part, (!(opt.iBaryonSearch==1 && opt.partsearchtype==PSTALL)));
+    nimport=MPIBuildParticleNNImportList(nbodies, tree, Part, (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)));
     int nimportsearch=opt.Nsearch;
     if (nimportsearch>nimport) nimportsearch=nimport;
     if (opt.iverbose) cout<<ThisTask<<" Searching particles in other domains "<<nimport<<endl;
@@ -197,7 +196,7 @@ private(i,j,k,tid,pid,pid2,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,p
             //search trees
 
             //if not searching all particles in FOF then also doing baryon search then just find nearest neighbours
-            if (!(opt.iBaryonSearch==1 && opt.partsearchtype==PSTALL)) tree->FindNearest(i,nnids,nnr2,opt.Nsearch);
+            if (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)) tree->FindNearest(i,nnids,nnr2,opt.Nsearch);
             //otherwise distinction must be made so that only base calculation on dark matter particles
             else tree->FindNearestCriterion(i,FOFPositivetypes,NULL,nnids,nnr2,opt.Nsearch);
 
@@ -314,7 +313,7 @@ private(i,tid)
 #endif
         tid=omp_get_thread_num();
         //if not searching all particles in FOF then also doing baryon search then just find nearest neighbours
-        if (!(opt.iBaryonSearch==1 && opt.partsearchtype==PSTALL)) Part[i].SetDensity(tree->CalcVelDensityParticle(i,opt.Nvel,opt.Nsearch,1,pqx[tid],pqv[tid],&nnids[tid*opt.Nsearch],&nnr2[tid*opt.Nsearch]));
+        if (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)) Part[i].SetDensity(tree->CalcVelDensityParticle(i,opt.Nvel,opt.Nsearch,1,pqx[tid],pqv[tid],&nnids[tid*opt.Nsearch],&nnr2[tid*opt.Nsearch]));
         //otherwise distinction must be made so that only base calculation on dark matter particles
         else {
             tree->FindNearestCriterion(i,FOFPositivetypes,NULL,&nnids[tid*opt.Nsearch],&nnr2[tid*opt.Nsearch],opt.Nsearch);
@@ -512,6 +511,7 @@ void GetVelocityDensityExact(Options &opt, const Int_t nbodies, Particle *Part, 
     Double_t *nnr2neighbours;
     Double_t *maxrdist=NULL;
     maxrdist = new Double_t[nbodies];
+    for (i=0;i<nbodies;i++) maxrdist[i]=0;
 #endif
 
 #ifndef USEOPENMP
@@ -542,16 +542,16 @@ private(i,j,k,tid,id,v2,nnids,nnr2,weight,pqv)
     for (i=0;i<nbodies;i++) {
         //if strucden compile flag set then only calculate velocity density for particles in groups
 #ifdef STRUCDEN
-        if (Part[i].GetType()==0) continue;
+        if (Part[i].GetType()<=0) continue;
         //if not searching all particles in FOF then also doing baryon search then just find nearest neighbours
-        if (!(opt.iBaryonSearch==1 && opt.partsearchtype==PSTALL)) tree->FindNearest(i,nnids,nnr2,opt.Nsearch);
+        if (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)) tree->FindNearest(i,nnids,nnr2,opt.Nsearch);
         //otherwise distinction must be made so that only base calculation on dark matter particles
         else tree->FindNearestCriterion(i,FOFPositivetypes,NULL,nnids,nnr2,opt.Nsearch);
 #else
         tree->FindNearest(i,nnids,nnr2,opt.Nsearch);
 #endif
 #ifdef USEMPI
-        if (opt.iLocalVelDenApproxCalcFlag==1) {
+        if (opt.iLocalVelDenApproxCalcFlag==0) {
         //once NN set is found, store maxrdist and see if particle's search radius overlaps with another mpi domain
         maxrdist[i]=sqrt(nnr2[opt.Nsearch-1]);
 #ifdef SWIFTINTERFACE
@@ -592,7 +592,7 @@ private(i,j,k,tid,id,v2,nnids,nnr2,weight,pqv)
 #endif
 
 #ifdef USEMPI
-    if (NProcs >1) {
+    if (NProcs >1 && opt.iLocalVelDenApproxCalcFlag==0) {
     if (opt.iverbose) cout<<ThisTask<<" finished local calculation in "<<MyGetTime()-time2<<endl;
     time2=MyGetTime();
     //determines export AND import numbers
@@ -609,12 +609,12 @@ private(i,j,k,tid,id,v2,nnids,nnr2,weight,pqv)
 #else
     MPIBuildParticleNNExportList(nbodies, Part, maxrdist);
 #endif
-    MPIGetNNImportNum(nbodies, tree, Part);
+    MPIGetNNImportNum(nbodies, tree, Part, (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)));
     PartDataIn = new Particle[NExport];
     PartDataGet = new Particle[NImport];
     MPI_Barrier(MPI_COMM_WORLD);
     //run search on exported particles and determine which local particles need to be exported back (or imported)
-    nimport=MPIBuildParticleNNImportList(nbodies, tree, Part, (!(opt.iBaryonSearch==1 && opt.partsearchtype==PSTALL)));
+    nimport=MPIBuildParticleNNImportList(nbodies, tree, Part,(!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)));
     int nimportsearch=opt.Nsearch;
     if (nimportsearch>nimport) nimportsearch=nimport;
     if (opt.iverbose) cout<<ThisTask<<" Searching particles in other domains "<<nimport<<endl;
@@ -640,7 +640,7 @@ private(i,j,k,tid,pid,pid2,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,p
 #endif
     for (i=0;i<nbodies;i++) {
 #ifdef STRUCDEN
-        if (Part[i].GetType()==0) continue;
+        if (Part[i].GetType()<=0) continue;
 #endif
 
 #ifdef USEOPENMP
@@ -653,7 +653,7 @@ private(i,j,k,tid,pid,pid2,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,p
             //search trees
 
             //if not searching all particles in FOF then also doing baryon search then just find nearest neighbours
-            if (!(opt.iBaryonSearch==1 && opt.partsearchtype==PSTALL)) tree->FindNearest(i,nnids,nnr2,opt.Nsearch);
+            if (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)) tree->FindNearest(i,nnids,nnr2,opt.Nsearch);
             //otherwise distinction must be made so that only base calculation on dark matter particles
             else tree->FindNearestCriterion(i,FOFPositivetypes,NULL,nnids,nnr2,opt.Nsearch);
 
@@ -804,7 +804,7 @@ void GetVelocityDensityApproximative(Options &opt, const Int_t nbodies, Particle
         for (auto j=leafnodes[i].istart;j<leafnodes[i].iend;j++)
         {
 #ifdef STRUCDEN
-            if (Part[j].GetType()==0) continue;
+            if (Part[j].GetType()<=0) continue;
 #endif
             leafnodes[i].num++;
             for (auto k=0;k<3;k++) leafnodes[i].cm[k] += Part[j].GetPosition(k);
@@ -847,7 +847,7 @@ reduction(+:nprocessed,ntot)
 
 #ifdef STRUCDEN
         //if not searching all particles in FOF then also doing baryon search then just find nearest neighbours
-        if (!(opt.iBaryonSearch==1 && opt.partsearchtype==PSTALL)) tree->FindNearestPos(leafnodes[i].cm,nnids,nnr2,opt.Nsearch);
+        if (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)) tree->FindNearestPos(leafnodes[i].cm,nnids,nnr2,opt.Nsearch);
         //otherwise distinction must be made so that only base calculation on dark matter particles
         else tree->FindNearestCheck(leafnodes[i].cm,FOFcheckpositivetype,NULL,nnids,nnr2,opt.Nsearch);
 #else
@@ -869,7 +869,7 @@ reduction(+:nprocessed,ntot)
         for (auto j=leafnodes[i].istart;j<leafnodes[i].iend;j++)
         {
 #ifdef STRUCDEN
-            if (Part[j].GetType()==0) continue;
+            if (Part[j].GetType()<=0) continue;
 #endif
             for (auto k=0;k<opt.Nvel;k++) {
                 pqv->Push(-1, MAXVALUE);
@@ -928,12 +928,12 @@ reduction(+:nprocessed,ntot)
     MPIBuildParticleNNExportList(nbodies, Part, maxrdist);
 #endif
     delete[] maxrdist;
-    MPIGetNNImportNum(nbodies, tree, Part);
+    MPIGetNNImportNum(nbodies, tree, Part,(!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)));
     PartDataIn = PartDataGet = NULL;
     if (NExport>0) PartDataIn = new Particle[NExport];
     if (NImport>0) PartDataGet = new Particle[NImport];
     //run search on exported particles and determine which local particles need to be exported back (or imported)
-    nimport=MPIBuildParticleNNImportList(nbodies, tree, Part, (!(opt.iBaryonSearch==1 && opt.partsearchtype==PSTALL)));
+    nimport=MPIBuildParticleNNImportList(nbodies, tree, Part, (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)));
     int nimportsearch=opt.Nsearch;
     if (nimportsearch>nimport) nimportsearch=nimport;
     if (opt.iverbose) cout<<ThisTask<<" Searching particles in other domains "<<nimport<<endl;
@@ -970,7 +970,7 @@ reduction(+:nprocessed)
         //find the near neighbours for all particles in the leaf node
 #ifdef STRUCDEN
         //if not searching all particles in FOF then also doing baryon search then just find nearest neighbours
-        if (!(opt.iBaryonSearch==1 && opt.partsearchtype==PSTALL)) tree->FindNearestPos(leafnodes[i].cm,nnids,nnr2,opt.Nsearch);
+        if (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)) tree->FindNearestPos(leafnodes[i].cm,nnids,nnr2,opt.Nsearch);
         //otherwise distinction must be made so that only base calculation on dark matter particles
         else tree->FindNearestCheck(leafnodes[i].cm,FOFcheckpositivetype,NULL,nnids,nnr2,opt.Nsearch);
 #else
@@ -1000,7 +1000,7 @@ reduction(+:nprocessed)
         for (auto j = leafnodes[i].istart; j < leafnodes[i].iend; j++)
         {
 #ifdef STRUCDEN
-            if (Part[j].GetType()==0) continue;
+            if (Part[j].GetType()<=0) continue;
 #endif
             for (auto k=0;k<opt.Nvel;k++) {
                 pqv->Push(-1, MAXVALUE);

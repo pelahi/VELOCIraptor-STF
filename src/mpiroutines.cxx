@@ -1217,7 +1217,7 @@ void MPIGetNNExportNum(const Int_t nbodies, Particle *Part, Double_t *rdist){
     for (i=0;i<nbodies;i++)
     {
 #ifdef STRUCDEN
-        if (Part[i].GetType()==0) continue;
+        if (Part[i].GetType()<=0) continue;
 #endif
         if (rdist[i] == 0) continue;
         for (int k=0;k<3;k++) {xsearch[k][0]=Part[i].GetPosition(k)-rdist[i];xsearch[k][1]=Part[i].GetPosition(k)+rdist[i];}
@@ -1260,7 +1260,7 @@ void MPIGetNNExportNumUsingMesh(Options &opt, const Int_t nbodies, Particle *Par
     for (i=0;i<nbodies;i++)
     {
 #ifdef STRUCDEN
-        if (Part[i].GetType() == 0) continue;
+        if (Part[i].GetType() <= 0) continue;
 #endif
         if (rdist[i] == 0) continue;
         for(int k=0; k<NProcs; k++) sent_mpi_domain[k] = 0;
@@ -1355,7 +1355,7 @@ void MPIBuildParticleNNExportList(const Int_t nbodies, Particle *Part, Double_t 
     for (i=0;i<nbodies;i++)
     {
 #ifdef STRUCDEN
-        if (Part[i].GetType()==0) continue;
+        if (Part[i].GetType()<=0) continue;
 #endif
         if (rdist[i] == 0) continue;
         for (int k=0;k<3;k++) {xsearch[k][0]=Part[i].GetPosition(k)-rdist[i];xsearch[k][1]=Part[i].GetPosition(k)+rdist[i];}
@@ -1462,7 +1462,7 @@ void MPIBuildParticleNNExportListUsingMesh(Options &opt, const Int_t nbodies, Pa
     for (i=0;i<nbodies;i++)
     {
 #ifdef STRUCDEN
-        if (Part[i].GetType()==0) continue;
+        if (Part[i].GetType()<=0) continue;
 #endif
         if (rdist[i] == 0) continue;
         for (int k=0;k<3;k++) {xsearch[k][0]=Part[i].GetPosition(k)-rdist[i];xsearch[k][1]=Part[i].GetPosition(k)+rdist[i];}
@@ -1536,13 +1536,13 @@ void MPIBuildParticleNNExportListUsingMesh(Options &opt, const Int_t nbodies, Pa
 /*! Mirror to \ref MPIGetNNExportNum, use exported particles, run ball search to find number of all local particles that need to be
     imported back to exported particle's thread so that a proper NN search can be made.
 */
-void MPIGetNNImportNum(const Int_t nbodies, KDTree *tree, Particle *Part){
+void MPIGetNNImportNum(const Int_t nbodies, KDTree *tree, Particle *Part, int iallflag){
     Int_t i, j,nthreads,nexport=0,ncount;
     Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
     Int_t oldnsend[NProcs*NProcs];
     Double_t xsearch[3][2];
-    Int_t *nn=new Int_t[nbodies];
-    Double_t *nnr2=new Double_t[nbodies];
+    bool *iflagged = new bool[nbodies];
+    vector<Int_t> taggedindex;
     nthreads=1;
     Int_t sendTask,recvTask;
     MPI_Status status;
@@ -1559,22 +1559,25 @@ void MPIGetNNImportNum(const Int_t nbodies, KDTree *tree, Particle *Part){
     }
     for (j=0;j<NProcs;j++) nsend_local[j]=0;
     for (j=0;j<NProcs;j++) {
-        for (i=0;i<nbodies;i++) nn[i]=-1;
-        if (j!=ThisTask) {
-            //search local list and tag all local particles that need to be exported back (or imported) to the exported particles thread
-            for (i=nbuffer[j];i<nbuffer[j]+mpi_nsend[ThisTask+j*NProcs];i++) {
-                tree->SearchBallPos(NNDataGet[i].Pos, NNDataGet[i].R2, j, nn, nnr2);
+        if (j==ThisTask) continue;
+        if (mpi_nsend[ThisTask+j*NProcs]==0) continue;
+        for (i=0;i<nbodies;i++) iflagged[i]=false;
+        //search local list and tag all local particles that need to be exported back (or imported) to the exported particles thread
+        for (i=nbuffer[j];i<nbuffer[j]+mpi_nsend[ThisTask+j*NProcs];i++) {
+            taggedindex = tree->SearchBallPosTagged(NNDataGet[i].Pos, NNDataGet[i].R2);
+            if (taggedindex.size()==0) continue;
+            for (auto &index:taggedindex) {
+                if (iflagged[index]) continue;
+                #ifdef STRUCDEN
+                if (iallflag==0 && Part[index].GetType()<0) continue;
+                #endif
+                nexport++;
+                nsend_local[j]++;
             }
-            for (i=0;i<nbodies;i++) {
-                if (nn[i]!=-1) {
-                    for (int k=0;k<3;k++) {
-                    }
-                    nexport++;
-                    nsend_local[j]++;
-                }
-            }
+            for (auto &index:taggedindex) iflagged[index]=true;
         }
     }
+    delete[] iflagged;
     //must store old mpi nsend for accessing NNDataGet properly.
     for (j=0;j<NProcs;j++) for (int k=0;k<NProcs;k++) oldnsend[k+j*NProcs]=mpi_nsend[k+j*NProcs];
     MPI_Allgather(nsend_local, NProcs, MPI_Int_t, mpi_nsend, NProcs, MPI_Int_t, MPI_COMM_WORLD);
@@ -1591,8 +1594,8 @@ Int_t MPIBuildParticleNNImportList(const Int_t nbodies, KDTree *tree, Particle *
     Int_t i, j,nthreads,nexport=0,ncount;
     Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
     Double_t xsearch[3][2];
-    Int_t *nn=new Int_t[nbodies];
-    Double_t *nnr2=new Double_t[nbodies];
+    bool *iflagged = new bool[nbodies];
+    vector<Int_t> taggedindex;
     nthreads=1;
     int sendTask,recvTask;
     int maxchunksize=2147483648/NProcs/sizeof(Particle);
@@ -1613,56 +1616,26 @@ Int_t MPIBuildParticleNNImportList(const Int_t nbodies, KDTree *tree, Particle *
     }
     for (j=0;j<NProcs;j++) nsend_local[j]=0;
     for (j=0;j<NProcs;j++) {
-#ifdef USEOPENMP
-#pragma omp parallel default(shared) \
-private(i)
-{
-#pragma omp for
-#endif
-            for (i=0;i<nbodies;i++) nn[i]=-1;
-#ifdef USEOPENMP
-}
-#endif
-        if (j!=ThisTask) {
-            //search local list and tag all local particles that need to be exported back (or imported) to the exported particles thread
-            for (i=nbuffer[j];i<nbuffer[j]+mpi_nsend[ThisTask+j*NProcs];i++) {
-                tree->SearchBallPos(NNDataGet[i].Pos, NNDataGet[i].R2, j, nn, nnr2);
+        if (j==ThisTask) continue;
+        if (mpi_nsend[ThisTask+j*NProcs]==0) continue;
+        for (i=0;i<nbodies;i++) iflagged[i]=false;
+        //search local list and tag all local particles that need to be exported back (or imported) to the exported particles thread
+        for (i=nbuffer[j];i<nbuffer[j]+mpi_nsend[ThisTask+j*NProcs];i++) {
+            taggedindex = tree->SearchBallPosTagged(NNDataGet[i].Pos, NNDataGet[i].R2);
+            if (taggedindex.size()==0) continue;
+            for (auto &index:taggedindex) {
+                if (iflagged[index]) continue;
+                #ifdef STRUCDEN
+                if (iallflag==0 && Part[index].GetType()<0) continue;
+                #endif
+                PartDataIn[nexport]=Part[index];
+                nexport++;
+                nsend_local[j]++;
             }
-            //if not spliting search so that only calculated velocity density function based on dark matter particles
-            //as fof search is all but a separate baryon search is choosen for substructure, then just export particles
-            //that are in spaitial window
-            if (iallflag) {
-            for (i=0;i<nbodies;i++) {
-                if (nn[i]!=-1) {
-                    for (int k=0;k<3;k++) {
-                        PartDataIn[nexport].SetPosition(k,Part[i].GetPosition(k));
-                        PartDataIn[nexport].SetVelocity(k,Part[i].GetVelocity(k));
-                    }
-                    nexport++;
-                    nsend_local[j]++;
-                }
-            }
-            }
-            //otherwise, check the particle type either == dark matter or if struct den is on then type set to group number if dark and negative group number if not
-            else {
-            for (i=0;i<nbodies;i++) {
-#ifdef STRUCDEN
-                if (nn[i]!=-1 && Part[i].GetType()>0)
-#else
-                if (nn[i]!=-1 && Part[i].GetType()==DARKTYPE)
-#endif
-                {
-                    for (int k=0;k<3;k++) {
-                        PartDataIn[nexport].SetPosition(k,Part[i].GetPosition(k));
-                        PartDataIn[nexport].SetVelocity(k,Part[i].GetVelocity(k));
-                    }
-                    nexport++;
-                    nsend_local[j]++;
-                }
-            }
-            }
+            for (auto &index:taggedindex) iflagged[index]=true;
         }
     }
+    delete[] iflagged;
     //sort the export data such that all particles to be passed to thread j are together in ascending thread number
     //qsort(NNDataReturn, nexport, sizeof(struct nndata_in), nn_export_cmp);
 
