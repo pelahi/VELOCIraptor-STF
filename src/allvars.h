@@ -1263,6 +1263,33 @@ struct ConfigInfo{
         datainfo.push_back(to_string(opt.iextendedoutput));
         datatype.push_back(python_type_string(opt.iextendedoutput));
 
+
+        //HDF io related info
+        nameinfo.push_back("HDF_name_convention");
+        datainfo.push_back(to_string(opt.ihdfnameconvention));
+        datatype.push_back(python_type_string(opt.ihdfnameconvention));
+        nameinfo.push_back("Input_includes_dm_particle");
+        datainfo.push_back(to_string(opt.iusedmparticles));
+        datatype.push_back(python_type_string(opt.iusedmparticles));
+        nameinfo.push_back("Input_includes_gas_particle");
+        datainfo.push_back(to_string(opt.iusegasparticles));
+        datatype.push_back(python_type_string(opt.iusegasparticles));
+        nameinfo.push_back("Input_includes_star_particle");
+        datainfo.push_back(to_string(opt.iusestarparticles));
+        datatype.push_back(python_type_string(opt.iusestarparticles));
+        nameinfo.push_back("Input_includes_bh_particle");
+        datainfo.push_back(to_string(opt.iusesinkparticles));
+        datatype.push_back(python_type_string(opt.iusesinkparticles));
+        nameinfo.push_back("Input_includes_extradm_particle");
+        datainfo.push_back(to_string(opt.iuseextradarkparticles));
+        datatype.push_back(python_type_string(opt.iuseextradarkparticles));
+        nameinfo.push_back("Input_includes_wind_particle");
+        datainfo.push_back(to_string(opt.iusewindparticles));
+        datatype.push_back(python_type_string(opt.iusewindparticles));
+        nameinfo.push_back("Input_includes_tracer_particle");
+        datainfo.push_back(to_string(opt.iusetracerparticles));
+        datatype.push_back(python_type_string(opt.iusetracerparticles));
+
         //gadget io related to extra info for sph, stars, bhs,
         nameinfo.push_back("NSPH_extra_blocks");
         datainfo.push_back(to_string(opt.gnsphblocks));
@@ -1279,6 +1306,45 @@ struct ConfigInfo{
         datainfo.push_back(to_string(opt.mpipartfac));
         datatype.push_back(python_type_string(opt.mpipartfac));
 #endif
+        nameinfo.push_back("#Compilation Info");
+        datainfo.push_back("");
+        datatype.push_back("");
+        #ifdef USEMPI
+        nameinfo.push_back("#USEMPI");
+        datainfo.push_back("");
+        datatype.push_back("");
+        #endif
+        #ifdef USEOPENMP
+        nameinfo.push_back("#USEOPENMP");
+        datainfo.push_back("");
+        datatype.push_back("");
+        #endif
+        #ifdef GASON
+        nameinfo.push_back("#USEGAS");
+        datainfo.push_back("");
+        datatype.push_back("");
+        #endif
+        #ifdef STARON
+        nameinfo.push_back("#USESTAR");
+        datainfo.push_back("");
+        datatype.push_back("");
+        #endif
+        #ifdef BHON
+        nameinfo.push_back("#USEBH");
+        datainfo.push_back("");
+        datatype.push_back("");
+        #endif
+        #ifdef HIGHRES
+        nameinfo.push_back("#ZOOMSIM");
+        datainfo.push_back("");
+        datatype.push_back("");
+        #endif
+        #ifdef SWIFTINTERFACE
+        nameinfo.push_back("#SWIFTINTERFACE");
+        datainfo.push_back("");
+        datatype.push_back("");
+        #endif
+
     }
 };
 

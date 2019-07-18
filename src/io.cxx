@@ -3683,7 +3683,7 @@ void WriteVELOCIraptorConfig(Options &opt){
         Fout.open(fname,ios::out);
 #ifndef OLDCCOMPILER
         for (Int_t i=0;i<config.nameinfo.size();i++) {
-            Fout<<config.nameinfo[i]<<" : ";
+            Fout<<config.nameinfo[i]<<"=";
             Fout<<config.datainfo[i]<<" # ";
             Fout<<config.datatype[i]<<" ";
             Fout<<endl;
