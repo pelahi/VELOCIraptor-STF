@@ -59,10 +59,7 @@
 
 ///if using HDF API
 #ifdef USEHDF
-#include "H5Cpp.h"
-#ifndef H5_NO_NAMESPACE
-using namespace H5;
-#endif
+#include "hdf5.h"
 #endif
 
 ///if using ADIOS API
@@ -3579,8 +3576,7 @@ struct PropData
     }
 #ifdef USEHDF
     ///write (append) the properties data to an already open hdf file
-    void WriteHDF(H5File &Fhdf, DataSpace *&dataspaces, DataSet *&datasets, Options&opt){
-    };
+    //void WriteHDF(H5File &Fhdf, DataSpace *&dataspaces, DataSet *&datasets, Options&opt){};
 #endif
 };
 
@@ -3592,7 +3588,8 @@ struct PropDataHeader{
     //list the header info
     vector<string> headerdatainfo;
 #ifdef USEHDF
-    vector<PredType> predtypeinfo;
+    // vector<PredType> predtypeinfo;
+    vector<hid_t> hdfpredtypeinfo;
 #endif
 #ifdef USEADIOS
     vector<ADIOS_DATATYPES> adiospredtypeinfo;
@@ -3600,9 +3597,13 @@ struct PropDataHeader{
     PropDataHeader(Options&opt){
         int sizeval;
 #ifdef USEHDF
-        vector<PredType> desiredproprealtype;
-        if (sizeof(Double_t)==sizeof(double)) desiredproprealtype.push_back(PredType::NATIVE_DOUBLE);
-        else desiredproprealtype.push_back(PredType::NATIVE_FLOAT);
+        // vector<PredType> desiredproprealtype;
+        vector<hid_t> hdfdesiredproprealtype;
+        // if (sizeof(Double_t)==sizeof(double)) desiredproprealtype.push_back(PredType::NATIVE_DOUBLE);
+        // else desiredproprealtype.push_back(PredType::NATIVE_FLOAT);
+        if (sizeof(Double_t)==sizeof(double)) hdfdesiredproprealtype.push_back(H5T_NATIVE_DOUBLE);
+        else hdfdesiredproprealtype.push_back(H5T_NATIVE_FLOAT);
+
 #endif
 #ifdef USEADIOS
         vector<ADIOS_DATATYPES> desiredadiosproprealtype;
@@ -3624,16 +3625,27 @@ struct PropDataHeader{
 
         //if using hdf, store the type
 #ifdef USEHDF
-        predtypeinfo.push_back(PredType::STD_U64LE);
-        predtypeinfo.push_back(PredType::STD_I64LE);
-        predtypeinfo.push_back(PredType::STD_I64LE);
-        predtypeinfo.push_back(PredType::STD_I64LE);
-        predtypeinfo.push_back(PredType::STD_U64LE);
-        predtypeinfo.push_back(PredType::STD_U64LE);
-        predtypeinfo.push_back(PredType::STD_I32LE);
+        // predtypeinfo.push_back(PredType::STD_U64LE);
+        // predtypeinfo.push_back(PredType::STD_I64LE);
+        // predtypeinfo.push_back(PredType::STD_I64LE);
+        // predtypeinfo.push_back(PredType::STD_I64LE);
+        // predtypeinfo.push_back(PredType::STD_U64LE);
+        // predtypeinfo.push_back(PredType::STD_U64LE);
+        // predtypeinfo.push_back(PredType::STD_I32LE);
+        // if (opt.iKeepFOF==1){
+        //     predtypeinfo.push_back(PredType::STD_I64LE);
+        //     predtypeinfo.push_back(PredType::STD_I64LE);
+        // }
+        hdfpredtypeinfo.push_back(H5T_NATIVE_ULONG);
+        hdfpredtypeinfo.push_back(H5T_NATIVE_LONG);
+        hdfpredtypeinfo.push_back(H5T_NATIVE_LONG);
+        hdfpredtypeinfo.push_back(H5T_NATIVE_LONG);
+        hdfpredtypeinfo.push_back(H5T_NATIVE_ULONG);
+        hdfpredtypeinfo.push_back(H5T_NATIVE_ULONG);
+        hdfpredtypeinfo.push_back(H5T_NATIVE_INT);
         if (opt.iKeepFOF==1){
-            predtypeinfo.push_back(PredType::STD_I64LE);
-            predtypeinfo.push_back(PredType::STD_I64LE);
+            hdfpredtypeinfo.push_back(H5T_NATIVE_LONG);
+            hdfpredtypeinfo.push_back(H5T_NATIVE_LONG);
         }
 #endif
 #ifdef USEADIOS
@@ -3770,8 +3782,9 @@ struct PropDataHeader{
         }
 
 #ifdef USEHDF
-        sizeval=predtypeinfo.size();
-        for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
+        sizeval=hdfpredtypeinfo.size();
+        // for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
+        for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
         sizeval=adiospredtypeinfo.size();
@@ -3781,7 +3794,8 @@ struct PropDataHeader{
 #ifdef GASON
         headerdatainfo.push_back("n_gas");
 #ifdef USEHDF
-        predtypeinfo.push_back(PredType::STD_U64LE);
+        // predtypeinfo.push_back(PredType::STD_U64LE);
+        hdfpredtypeinfo.push_back(H5T_NATIVE_ULONG);
 #endif
 #ifdef USEADIOS
         adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
@@ -3857,8 +3871,9 @@ struct PropDataHeader{
         }
     }
 #ifdef USEHDF
-        sizeval=predtypeinfo.size();
-        for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
+        sizeval=hdfpredtypeinfo.size();
+        // for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
+        for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
         sizeval=adiospredtypeinfo.size();
@@ -3869,7 +3884,8 @@ struct PropDataHeader{
 #ifdef STARON
         headerdatainfo.push_back("n_star");
 #ifdef USEHDF
-        predtypeinfo.push_back(PredType::STD_U64LE);
+        // predtypeinfo.push_back(PredType::STD_U64LE);
+        hdfpredtypeinfo.push_back(H5T_NATIVE_ULONG);
 #endif
 #ifdef USEADIOS
         adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
@@ -3942,8 +3958,9 @@ struct PropDataHeader{
             }
         }
 #ifdef USEHDF
-        sizeval=predtypeinfo.size();
-        for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
+        sizeval=hdfpredtypeinfo.size();
+        // for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
+        for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
         sizeval=adiospredtypeinfo.size();
@@ -3954,15 +3971,17 @@ struct PropDataHeader{
 #ifdef BHON
         headerdatainfo.push_back("n_bh");
 #ifdef USEHDF
-        predtypeinfo.push_back(PredType::STD_U64LE);
+        // predtypeinfo.push_back(PredType::STD_U64LE);
+        hdfpredtypeinfo.push_back(H5T_NATIVE_ULONG);
 #endif
 #ifdef USEADIOS
         adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
 #endif
         headerdatainfo.push_back("M_bh");
 #ifdef USEHDF
-        sizeval=predtypeinfo.size();
-        for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
+        sizeval=hdfpredtypeinfo.size();
+        // for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
+        for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
         sizeval=adiospredtypeinfo.size();
@@ -3974,7 +3993,8 @@ struct PropDataHeader{
 #ifdef HIGHRES
         headerdatainfo.push_back("n_interloper");
 #ifdef USEHDF
-        predtypeinfo.push_back(PredType::STD_U64LE);
+        // predtypeinfo.push_back(PredType::STD_U64LE);
+        hdfpredtypeinfo.push_back(H5T_NATIVE_ULONG);
 #endif
 #ifdef USEADIOS
         adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
@@ -3991,8 +4011,9 @@ struct PropDataHeader{
             }
         }
 #ifdef USEHDF
-        sizeval=predtypeinfo.size();
-        for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
+        sizeval=hdfpredtypeinfo.size();
+        // for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
+        for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
         sizeval=adiospredtypeinfo.size();
@@ -4076,8 +4097,9 @@ struct PropDataHeader{
             }
         }
 #ifdef USEHDF
-        sizeval=predtypeinfo.size();
-        for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
+        sizeval=hdfpredtypeinfo.size();
+        // for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
+        for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
         sizeval=adiospredtypeinfo.size();
@@ -4108,8 +4130,9 @@ struct PropDataHeader{
                 headerdatainfo.push_back((string("Aperture_npart_interloper_")+opt.aperture_names_kpc[i]+string("_kpc")));
 #endif
 #ifdef USEHDF
-            sizeval=predtypeinfo.size();
-            for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(PredType::STD_U32LE);
+            sizeval=hdfpredtypeinfo.size();
+            // for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(PredType::STD_U32LE);
+            for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(H5T_NATIVE_UINT);
 #endif
 #ifdef USEADIOS
             sizeval=adiospredtypeinfo.size();
@@ -4175,8 +4198,9 @@ struct PropDataHeader{
 #endif
 
 #ifdef USEHDF
-            sizeval=predtypeinfo.size();
-            for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
+            sizeval=hdfpredtypeinfo.size();
+            // for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
+            for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
             sizeval=adiospredtypeinfo.size();
@@ -4225,8 +4249,9 @@ struct PropDataHeader{
 #endif
             }
 #ifdef USEHDF
-            sizeval=predtypeinfo.size();
-            for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
+            sizeval=hdfpredtypeinfo.size();
+            // for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
+            for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
             sizeval=adiospredtypeinfo.size();
@@ -4239,7 +4264,8 @@ struct PropDataHeader{
             for (auto i=0; i<opt.SOnum;i++) {
                 headerdatainfo.push_back((string("SO_Mass_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
 #ifdef USEHDF
-                predtypeinfo.push_back(desiredproprealtype[0]);
+                // predtypeinfo.push_back(desiredproprealtype[0]);
+                hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
                 adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
@@ -4248,7 +4274,8 @@ struct PropDataHeader{
             for (auto i=0; i<opt.SOnum;i++) {
                 headerdatainfo.push_back((string("SO_R_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
 #ifdef USEHDF
-                predtypeinfo.push_back(desiredproprealtype[0]);
+                // predtypeinfo.push_back(desiredproprealtype[0]);
+                hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
                 adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
@@ -4259,7 +4286,8 @@ struct PropDataHeader{
                 for (auto i=0; i<opt.SOnum;i++) {
                     headerdatainfo.push_back((string("SO_Mass_gas_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
 #ifdef USEHDF
-                    predtypeinfo.push_back(desiredproprealtype[0]);
+                    // predtypeinfo.push_back(desiredproprealtype[0]);
+                    hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
                     adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
@@ -4275,7 +4303,8 @@ struct PropDataHeader{
                 for (auto i=0; i<opt.SOnum;i++) {
                     headerdatainfo.push_back((string("SO_Mass_star_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
 #ifdef USEHDF
-                    predtypeinfo.push_back(desiredproprealtype[0]);
+                    // predtypeinfo.push_back(desiredproprealtype[0]);
+                    hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
                     adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
@@ -4288,7 +4317,8 @@ struct PropDataHeader{
                 for (auto i=0; i<opt.SOnum;i++) {
                     headerdatainfo.push_back((string("SO_Mass_interloper_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
 #ifdef USEHDF
-                    predtypeinfo.push_back(desiredproprealtype[0]);
+                    // predtypeinfo.push_back(desiredproprealtype[0]);
+                    hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
                     adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
@@ -4304,7 +4334,8 @@ struct PropDataHeader{
                 headerdatainfo.push_back((string("SO_Lz_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
                 for (auto k=0;k<3;k++) {
 #ifdef USEHDF
-                    predtypeinfo.push_back(desiredproprealtype[0]);
+                    // predtypeinfo.push_back(desiredproprealtype[0]);
+                    hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
                     adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
@@ -4319,7 +4350,8 @@ struct PropDataHeader{
                     headerdatainfo.push_back((string("SO_Lz_gas_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
                     for (auto k=0;k<3;k++) {
 #ifdef USEHDF
-                        predtypeinfo.push_back(desiredproprealtype[0]);
+                        // predtypeinfo.push_back(desiredproprealtype[0]);
+                        hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
                         adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
@@ -4339,7 +4371,8 @@ struct PropDataHeader{
                     headerdatainfo.push_back((string("SO_Lz_star_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
                     for (auto k=0;k<3;k++) {
 #ifdef USEHDF
-                        predtypeinfo.push_back(desiredproprealtype[0]);
+                        // predtypeinfo.push_back(desiredproprealtype[0]);
+                        hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
                         adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
@@ -4361,7 +4394,8 @@ struct ProfileDataHeader{
     //list the header info
     vector<string> headerdatainfo;
 #ifdef USEHDF
-    vector<PredType> predtypeinfo;
+    // vector<PredType> predtypeinfo;
+    vector<hid_t> hdfpredtypeinfo;
 #endif
 #ifdef USEADIOS
     vector<ADIOS_DATATYPES> adiospredtypeinfo;
@@ -4372,9 +4406,12 @@ struct ProfileDataHeader{
     ProfileDataHeader(Options&opt){
         int sizeval;
 #ifdef USEHDF
-        vector<PredType> desiredproprealtype;
-        if (sizeof(Double_t)==sizeof(double)) desiredproprealtype.push_back(PredType::NATIVE_DOUBLE);
-        else desiredproprealtype.push_back(PredType::NATIVE_FLOAT);
+        // vector<PredType> desiredproprealtype;
+        // if (sizeof(Double_t)==sizeof(double)) desiredproprealtype.push_back(PredType::NATIVE_DOUBLE);
+        // else desiredproprealtype.push_back(PredType::NATIVE_FLOAT);
+        vector<hid_t> hdfdesiredproprealtype;
+        if (sizeof(Double_t)==sizeof(double)) hdfdesiredproprealtype.push_back(H5T_NATIVE_DOUBLE);
+        else hdfdesiredproprealtype.push_back(H5T_NATIVE_FLOAT);
 #endif
 #ifdef USEADIOS
         vector<ADIOS_DATATYPES> desiredadiosproprealtype;
@@ -4385,7 +4422,8 @@ struct ProfileDataHeader{
         offsetscalarentries=0;
         headerdatainfo.push_back("ID");
 #ifdef USEHDF
-        predtypeinfo.push_back(PredType::STD_U64LE);
+        // predtypeinfo.push_back(PredType::STD_U64LE);
+        hdfpredtypeinfo.push_back(H5T_NATIVE_ULONG);
 #endif
 #ifdef USEADIOS
         adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
@@ -4394,7 +4432,8 @@ struct ProfileDataHeader{
         if (opt.iprofilenorm != PROFILERNORMPHYS) {
         headerdatainfo.push_back(opt.profileradnormstring);
 #ifdef USEHDF
-        predtypeinfo.push_back(desiredproprealtype[0]);
+        // predtypeinfo.push_back(desiredproprealtype[0]);
+        hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
         adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
@@ -4402,7 +4441,7 @@ struct ProfileDataHeader{
         }
         numberscalarentries=headerdatainfo.size();
 
-	offsetarrayallgroupentries=headerdatainfo.size();
+	    offsetarrayallgroupentries=headerdatainfo.size();
         headerdatainfo.push_back("Npart_profile");
 #ifdef GASON
         headerdatainfo.push_back("Npart_profile_gas");
@@ -4415,8 +4454,9 @@ struct ProfileDataHeader{
         headerdatainfo.push_back("Npart_profile_star");
 #endif
 #ifdef USEHDF
-        sizeval=predtypeinfo.size();
-        for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(PredType::STD_U32LE);
+        sizeval=hdfpredtypeinfo.size();
+        // for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(PredType::STD_U32LE);
+        for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(H5T_NATIVE_UINT);
 #endif
 #ifdef USEADIOS
         sizeval=adiospredtypeinfo.size();
@@ -4436,8 +4476,9 @@ struct ProfileDataHeader{
 #endif
 
 #ifdef USEHDF
-        sizeval=predtypeinfo.size();
-        for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(PredType::NATIVE_FLOAT);
+        sizeval=hdfpredtypeinfo.size();
+        // for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(PredType::NATIVE_FLOAT);
+        for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(H5T_NATIVE_FLOAT);
 #endif
 #ifdef USEADIOS
         sizeval=adiospredtypeinfo.size();
@@ -4460,8 +4501,9 @@ struct ProfileDataHeader{
         headerdatainfo.push_back("Npart_inclusive_profile_star");
 #endif
 #ifdef USEHDF
-        sizeval=predtypeinfo.size();
-        for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(PredType::STD_U32LE);
+        sizeval=hdfpredtypeinfo.size();
+        // for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(PredType::STD_U32LE);
+        for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(H5T_NATIVE_UINT);
 #endif
 #ifdef USEADIOS
         sizeval=adiospredtypeinfo.size();
@@ -4480,8 +4522,9 @@ struct ProfileDataHeader{
         headerdatainfo.push_back("Mass_inclusive_profile_star");
 #endif
 #ifdef USEHDF
-        sizeval=predtypeinfo.size();
-        for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(PredType::NATIVE_FLOAT);
+        sizeval=hdfpredtypeinfo.size();
+        // for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(PredType::NATIVE_FLOAT);
+        for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(H5T_NATIVE_FLOAT);
 #endif
 #ifdef USEADIOS
         sizeval=adiospredtypeinfo.size();
@@ -4563,7 +4606,8 @@ struct DataGroupNames {
     vector<string> prop;
 #ifdef USEHDF
     //store the data type
-    vector<PredType> propdatatype;
+    // vector<PredType> propdatatype;
+    vector<hid_t> hdfpropdatatype;
 #endif
 #ifdef USEADIOS
     vector<ADIOS_DATATYPES> adiospropdatatype;
@@ -4572,7 +4616,8 @@ struct DataGroupNames {
     ///store names of catalog group files
     vector<string> group;
 #ifdef USEHDF
-    vector<PredType> groupdatatype;
+    // vector<PredType> groupdatatype;
+    vector<hid_t> hdfgroupdatatype;
 #endif
 #ifdef USEADIOS
     vector<ADIOS_DATATYPES> adiosgroupdatatype;
@@ -4581,7 +4626,8 @@ struct DataGroupNames {
     ///store the names of catalog particle files
     vector<string> part;
 #ifdef USEHDF
-    vector<PredType> partdatatype;
+    // vector<PredType> partdatatype;
+    vector<hid_t> hdfpartdatatype;
 #endif
 #ifdef USEADIOS
     vector<ADIOS_DATATYPES> adiospartdatatype;
@@ -4590,7 +4636,8 @@ struct DataGroupNames {
     ///store the names of catalog particle type files
     vector<string> types;
 #ifdef USEHDF
-    vector<PredType> typesdatatype;
+    // vector<PredType> typesdatatype;
+    vector<hid_t> hdftypesdatatype;
 #endif
 #ifdef USEADIOS
     vector<ADIOS_DATATYPES> adiostypesdatatype;
@@ -4599,7 +4646,8 @@ struct DataGroupNames {
     ///store the names of hierarchy files
     vector<string> hierarchy;
 #ifdef USEHDF
-    vector<PredType> hierarchydatatype;
+    // vector<PredType> hierarchydatatype;
+    vector<hid_t> hdfhierarchydatatype;
 #endif
 #ifdef USEADIOS
     vector<ADIOS_DATATYPES> adioshierarchydatatype;
@@ -4608,7 +4656,8 @@ struct DataGroupNames {
     ///store names of SO files
     vector<string> SO;
 #ifdef USEHDF
-    vector<PredType> SOdatatype;
+    // vector<PredType> SOdatatype;
+    vector<hid_t> hdfSOdatatype;
 #endif
 #ifdef USEADIOS
     vector<ADIOS_DATATYPES> SOdatatype;
@@ -4618,7 +4667,8 @@ struct DataGroupNames {
     vector<string> profile;
 #ifdef USEHDF
     //store the data type
-    vector<PredType> profiledatatype;
+    // vector<PredType> profiledatatype;
+    vector<hid_t> hdfprofiledatatype;
 #endif
 #ifdef USEADIOS
     vector<ADIOS_DATATYPES> adiosprofiledatatype;
@@ -4626,9 +4676,12 @@ struct DataGroupNames {
 
     DataGroupNames(){
 #ifdef USEHDF
-        vector<PredType> desiredproprealtype;
-        if (sizeof(Double_t)==sizeof(double)) desiredproprealtype.push_back(PredType::NATIVE_DOUBLE);
-        else desiredproprealtype.push_back(PredType::NATIVE_FLOAT);
+        // vector<PredType> desiredproprealtype;
+        // if (sizeof(Double_t)==sizeof(double)) desiredproprealtype.push_back(PredType::NATIVE_DOUBLE);
+        // else desiredproprealtype.push_back(PredType::NATIVE_FLOAT);
+        vector<hid_t> hdfdesiredproprealtype;
+        if (sizeof(Double_t)==sizeof(double)) hdfdesiredproprealtype.push_back(H5T_NATIVE_DOUBLE);
+        else hdfdesiredproprealtype.push_back(H5T_NATIVE_FLOAT);
 #endif
 #ifdef USEADIOS
         vector<ADIOS_DATATYPES> desiredadiosproprealtype;
@@ -4652,22 +4705,40 @@ struct DataGroupNames {
         prop.push_back("Stellar_age_unit_to_yr");
 #endif
 #ifdef USEHDF
-        propdatatype.push_back(PredType::STD_I32LE);
-        propdatatype.push_back(PredType::STD_I32LE);
-        propdatatype.push_back(PredType::STD_U64LE);
-        propdatatype.push_back(PredType::STD_U64LE);
-        propdatatype.push_back(PredType::STD_U32LE);
-        propdatatype.push_back(PredType::STD_U32LE);
-        propdatatype.push_back(desiredproprealtype[0]);
-        propdatatype.push_back(desiredproprealtype[0]);
-        propdatatype.push_back(desiredproprealtype[0]);
-        propdatatype.push_back(desiredproprealtype[0]);
-        propdatatype.push_back(desiredproprealtype[0]);
+//         propdatatype.push_back(PredType::STD_I32LE);
+//         propdatatype.push_back(PredType::STD_I32LE);
+//         propdatatype.push_back(PredType::STD_U64LE);
+//         propdatatype.push_back(PredType::STD_U64LE);
+//         propdatatype.push_back(PredType::STD_U32LE);
+//         propdatatype.push_back(PredType::STD_U32LE);
+//         propdatatype.push_back(desiredproprealtype[0]);
+//         propdatatype.push_back(desiredproprealtype[0]);
+//         propdatatype.push_back(desiredproprealtype[0]);
+//         propdatatype.push_back(desiredproprealtype[0]);
+//         propdatatype.push_back(desiredproprealtype[0]);
+// #if defined(GASON) || defined(STARON) || defined(BHON)
+//         propdatatype.push_back(desiredproprealtype[0]);
+//         propdatatype.push_back(desiredproprealtype[0]);
+//         propdatatype.push_back(desiredproprealtype[0]);
+// #endif
+
+        hdfpropdatatype.push_back(H5T_NATIVE_INT);
+        hdfpropdatatype.push_back(H5T_NATIVE_INT);
+        hdfpropdatatype.push_back(H5T_NATIVE_ULONG);
+        hdfpropdatatype.push_back(H5T_NATIVE_ULONG);
+        hdfpropdatatype.push_back(H5T_NATIVE_UINT);
+        hdfpropdatatype.push_back(H5T_NATIVE_UINT);
+        hdfpropdatatype.push_back(hdfdesiredproprealtype[0]);
+        hdfpropdatatype.push_back(hdfdesiredproprealtype[0]);
+        hdfpropdatatype.push_back(hdfdesiredproprealtype[0]);
+        hdfpropdatatype.push_back(hdfdesiredproprealtype[0]);
+        hdfpropdatatype.push_back(hdfdesiredproprealtype[0]);
 #if defined(GASON) || defined(STARON) || defined(BHON)
-        propdatatype.push_back(desiredproprealtype[0]);
-        propdatatype.push_back(desiredproprealtype[0]);
-        propdatatype.push_back(desiredproprealtype[0]);
+        hdfpropdatatype.push_back(hdfdesiredproprealtype[0]);
+        hdfpropdatatype.push_back(hdfdesiredproprealtype[0]);
+        hdfpropdatatype.push_back(hdfdesiredproprealtype[0]);
 #endif
+
 #endif
 #ifdef USEADIOS
         adiospropdatatype.push_back(ADIOS_DATATYPES::adios_integer);
@@ -4696,13 +4767,22 @@ struct DataGroupNames {
         group.push_back("Offset");
         group.push_back("Offset_unbound");
 #ifdef USEHDF
-        groupdatatype.push_back(PredType::STD_I32LE);
-        groupdatatype.push_back(PredType::STD_I32LE);
-        groupdatatype.push_back(PredType::STD_U64LE);
-        groupdatatype.push_back(PredType::STD_U64LE);
-        groupdatatype.push_back(PredType::STD_U32LE);
-        groupdatatype.push_back(PredType::STD_U64LE);
-        groupdatatype.push_back(PredType::STD_U64LE);
+        // groupdatatype.push_back(PredType::STD_I32LE);
+        // groupdatatype.push_back(PredType::STD_I32LE);
+        // groupdatatype.push_back(PredType::STD_U64LE);
+        // groupdatatype.push_back(PredType::STD_U64LE);
+        // groupdatatype.push_back(PredType::STD_U32LE);
+        // groupdatatype.push_back(PredType::STD_U64LE);
+        // groupdatatype.push_back(PredType::STD_U64LE);
+
+        hdfgroupdatatype.push_back(H5T_NATIVE_INT);
+        hdfgroupdatatype.push_back(H5T_NATIVE_INT);
+        hdfgroupdatatype.push_back(H5T_NATIVE_ULONG);
+        hdfgroupdatatype.push_back(H5T_NATIVE_ULONG);
+        hdfgroupdatatype.push_back(H5T_NATIVE_UINT);
+        hdfgroupdatatype.push_back(H5T_NATIVE_ULONG);
+        hdfgroupdatatype.push_back(H5T_NATIVE_ULONG);
+
 #endif
 #ifdef USEADIOS
         adiosgroupdatatype.push_back(ADIOS_DATATYPES::adios_integer);
@@ -4720,11 +4800,18 @@ struct DataGroupNames {
         part.push_back("Total_num_of_particles_in_all_groups");
         part.push_back("Particle_IDs");
 #ifdef USEHDF
-        partdatatype.push_back(PredType::STD_I32LE);
-        partdatatype.push_back(PredType::STD_I32LE);
-        partdatatype.push_back(PredType::STD_U64LE);
-        partdatatype.push_back(PredType::STD_U64LE);
-        partdatatype.push_back(PredType::STD_I64LE);
+        // partdatatype.push_back(PredType::STD_I32LE);
+        // partdatatype.push_back(PredType::STD_I32LE);
+        // partdatatype.push_back(PredType::STD_U64LE);
+        // partdatatype.push_back(PredType::STD_U64LE);
+        // partdatatype.push_back(PredType::STD_I64LE);
+
+        hdfpartdatatype.push_back(H5T_NATIVE_INT);
+        hdfpartdatatype.push_back(H5T_NATIVE_INT);
+        hdfpartdatatype.push_back(H5T_NATIVE_ULONG);
+        hdfpartdatatype.push_back(H5T_NATIVE_ULONG);
+        hdfpartdatatype.push_back(H5T_NATIVE_LONG);
+
 #endif
 #ifdef USEADIOS
         adiospartdatatype.push_back(ADIOS_DATATYPES::adios_integer);
@@ -4740,11 +4827,17 @@ struct DataGroupNames {
         types.push_back("Total_num_of_particles_in_all_groups");
         types.push_back("Particle_types");
 #ifdef USEHDF
-        typesdatatype.push_back(PredType::STD_I32LE);
-        typesdatatype.push_back(PredType::STD_I32LE);
-        typesdatatype.push_back(PredType::STD_U64LE);
-        typesdatatype.push_back(PredType::STD_U64LE);
-        typesdatatype.push_back(PredType::STD_U16LE);
+        // typesdatatype.push_back(PredType::STD_I32LE);
+        // typesdatatype.push_back(PredType::STD_I32LE);
+        // typesdatatype.push_back(PredType::STD_U64LE);
+        // typesdatatype.push_back(PredType::STD_U64LE);
+        // typesdatatype.push_back(PredType::STD_U16LE);
+
+        hdftypesdatatype.push_back(H5T_NATIVE_INT);
+        hdftypesdatatype.push_back(H5T_NATIVE_INT);
+        hdftypesdatatype.push_back(H5T_NATIVE_ULONG);
+        hdftypesdatatype.push_back(H5T_NATIVE_ULONG);
+        hdftypesdatatype.push_back(H5T_NATIVE_USHORT);
 #endif
 #ifdef USEADIOS
         adiostypesdatatype.push_back(ADIOS_DATATYPES::adios_integer);
@@ -4761,12 +4854,20 @@ struct DataGroupNames {
         hierarchy.push_back("Number_of_substructures_in_halo");
         hierarchy.push_back("Parent_halo_ID");
 #ifdef USEHDF
-        hierarchydatatype.push_back(PredType::STD_I32LE);
-        hierarchydatatype.push_back(PredType::STD_I32LE);
-        hierarchydatatype.push_back(PredType::STD_U64LE);
-        hierarchydatatype.push_back(PredType::STD_U64LE);
-        hierarchydatatype.push_back(PredType::STD_U32LE);
-        hierarchydatatype.push_back(PredType::STD_I64LE);
+        // hierarchydatatype.push_back(PredType::STD_I32LE);
+        // hierarchydatatype.push_back(PredType::STD_I32LE);
+        // hierarchydatatype.push_back(PredType::STD_U64LE);
+        // hierarchydatatype.push_back(PredType::STD_U64LE);
+        // hierarchydatatype.push_back(PredType::STD_U32LE);
+        // hierarchydatatype.push_back(PredType::STD_I64LE);
+
+        hdfhierarchydatatype.push_back(H5T_NATIVE_INT);
+        hdfhierarchydatatype.push_back(H5T_NATIVE_INT);
+        hdfhierarchydatatype.push_back(H5T_NATIVE_ULONG);
+        hdfhierarchydatatype.push_back(H5T_NATIVE_ULONG);
+        hdfhierarchydatatype.push_back(H5T_NATIVE_UINT);
+        hdfhierarchydatatype.push_back(H5T_NATIVE_LONG);
+
 #endif
 #ifdef USEADIOS
         adioshierarchydatatype.push_back(ADIOS_DATATYPES::adios_integer);
@@ -4790,18 +4891,31 @@ struct DataGroupNames {
 #endif
 
 #ifdef USEHDF
-        SOdatatype.push_back(PredType::STD_I32LE);
-        SOdatatype.push_back(PredType::STD_I32LE);
-        SOdatatype.push_back(PredType::STD_U64LE);
-        SOdatatype.push_back(PredType::STD_U64LE);
-        SOdatatype.push_back(PredType::STD_U64LE);
-        SOdatatype.push_back(PredType::STD_U64LE);
-        SOdatatype.push_back(PredType::STD_U32LE);
-        SOdatatype.push_back(PredType::STD_U64LE);
-        SOdatatype.push_back(PredType::STD_I64LE);
-#if defined(GASON) || defined(STARON) || defined(BHON)
-        SOdatatype.push_back(PredType::STD_I32LE);
-#endif
+//         SOdatatype.push_back(PredType::STD_I32LE);
+//         SOdatatype.push_back(PredType::STD_I32LE);
+//         SOdatatype.push_back(PredType::STD_U64LE);
+//         SOdatatype.push_back(PredType::STD_U64LE);
+//         SOdatatype.push_back(PredType::STD_U64LE);
+//         SOdatatype.push_back(PredType::STD_U64LE);
+//         SOdatatype.push_back(PredType::STD_U32LE);
+//         SOdatatype.push_back(PredType::STD_U64LE);
+//         SOdatatype.push_back(PredType::STD_I64LE);
+// #if defined(GASON) || defined(STARON) || defined(BHON)
+//         SOdatatype.push_back(PredType::STD_I32LE);
+// #endif
+        hdfSOdatatype.push_back(H5T_NATIVE_INT);
+        hdfSOdatatype.push_back(H5T_NATIVE_INT);
+        hdfSOdatatype.push_back(H5T_NATIVE_ULONG);
+        hdfSOdatatype.push_back(H5T_NATIVE_ULONG);
+        hdfSOdatatype.push_back(H5T_NATIVE_ULONG);
+        hdfSOdatatype.push_back(H5T_NATIVE_ULONG);
+        hdfSOdatatype.push_back(H5T_NATIVE_UINT);
+        hdfSOdatatype.push_back(H5T_NATIVE_ULONG);
+        hdfSOdatatype.push_back(H5T_NATIVE_LONG);
+        #if defined(GASON) || defined(STARON) || defined(BHON)
+        hdfSOdatatype.push_back(H5T_NATIVE_INT);
+        #endif
+
 #endif
 #ifdef USEADIOS
         adiosSOdatatype.push_back(ADIOS_DATATYPES::adios_integer);
@@ -4829,16 +4943,27 @@ struct DataGroupNames {
         profile.push_back("Num_of_bin_edges");
         profile.push_back("Radial_bin_edges");
 #ifdef USEHDF
-        profiledatatype.push_back(PredType::STD_I32LE);
-        profiledatatype.push_back(PredType::STD_I32LE);
-        profiledatatype.push_back(PredType::STD_U64LE);
-        profiledatatype.push_back(PredType::STD_U64LE);
-        profiledatatype.push_back(PredType::STD_U64LE);
-        profiledatatype.push_back(PredType::STD_U64LE);
-        profiledatatype.push_back(PredType::C_S1);
-        profiledatatype.push_back(PredType::STD_I32LE);
-        profiledatatype.push_back(PredType::STD_I32LE);
-        profiledatatype.push_back(desiredproprealtype[0]);
+        // profiledatatype.push_back(PredType::STD_I32LE);
+        // profiledatatype.push_back(PredType::STD_I32LE);
+        // profiledatatype.push_back(PredType::STD_U64LE);
+        // profiledatatype.push_back(PredType::STD_U64LE);
+        // profiledatatype.push_back(PredType::STD_U64LE);
+        // profiledatatype.push_back(PredType::STD_U64LE);
+        // profiledatatype.push_back(PredType::C_S1);
+        // profiledatatype.push_back(PredType::STD_I32LE);
+        // profiledatatype.push_back(PredType::STD_I32LE);
+        // profiledatatype.push_back(desiredproprealtype[0]);
+
+        hdfprofiledatatype.push_back(H5T_NATIVE_INT);
+        hdfprofiledatatype.push_back(H5T_NATIVE_INT);
+        hdfprofiledatatype.push_back(H5T_NATIVE_ULONG);
+        hdfprofiledatatype.push_back(H5T_NATIVE_ULONG);
+        hdfprofiledatatype.push_back(H5T_NATIVE_ULONG);
+        hdfprofiledatatype.push_back(H5T_NATIVE_ULONG);
+        hdfprofiledatatype.push_back(H5T_C_S1);
+        hdfprofiledatatype.push_back(H5T_NATIVE_INT);
+        hdfprofiledatatype.push_back(H5T_NATIVE_INT);
+        hdfprofiledatatype.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
         adiosprofiledatatype.push_back(ADIOS_DATATYPES::adios_integer);
