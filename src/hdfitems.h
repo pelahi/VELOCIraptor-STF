@@ -375,6 +375,13 @@ class H5OutputFile
 		if(file_id < 0)io_error(string("Failed to create output file: ")+filename);
 	}
 
+    void append(std::string filename, unsigned int flag)
+	{
+		if(file_id >= 0)io_error("Attempted to create file when already open!");
+		file_id = H5Fcreate(filename.c_str(), H5F_ACC_RDWR, H5P_DEFAULT, H5P_DEFAULT);
+		if(file_id < 0)io_error(string("Failed to create output file: ")+filename);
+	}
+
 	// Close the file
 	void close()
 	{
