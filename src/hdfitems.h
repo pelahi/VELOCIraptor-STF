@@ -198,9 +198,9 @@ template<> void _do_read<std::string>(const hid_t &attr, const hid_t &type, std:
 {
 	vector<char> buf;
 	hid_t space = H5Aget_space (attr);
-	hsize_t dims[1];
-    hsize_t ndims = H5Sget_simple_extent_dims (space, dims, NULL);
-	buf.resize(dims[0]);
+	hsize_t ndims=1, dims[1], maxdims[1];
+	//ndims = H5Sget_simple_extent_dims (space, dims, maxdims);
+	buf.resize(H5Tget_size (type));
 	H5Aread(attr, type, buf.data());
 	H5Sclose(space);
 	val=string(buf.data());
