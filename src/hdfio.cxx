@@ -1700,7 +1700,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     delete[] SFRdoublebuff;
 #endif
 #ifdef STARON
-    delete[] agefloatbuff;
+    delete[] Tagefloatbuff;
     delete[] Tagedoublebuff;
 #endif
 #endif
