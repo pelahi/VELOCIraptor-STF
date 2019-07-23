@@ -117,7 +117,9 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     void *integerbuff,*realbuff;
     vector<double> vdoublebuff;
     vector<int> vintbuff;
+    vector<unsigned int> vuintbuff;
     vector<long long> vlongbuff;
+    vector<unsigned long long> vulongbuff;
     //arrays to store number of items to read and offsets when selecting hyperslabs
     hsize_t filespacecount[HDFMAXPROPDIM],filespaceoffset[HDFMAXPROPDIM];
     //to determine types
@@ -319,12 +321,18 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
             hdf_header_info[i].BoxSize = read_attribute<double>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].IBoxSize]);
             vdoublebuff=read_attribute_v<double>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].IMass]);
             for (k=0;k<NHDFTYPE;k++)hdf_header_info[i].mass[k]=vdoublebuff[k];
-            vintbuff=read_attribute_v<int>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].INuminFile]);
-            for (k=0;k<NHDFTYPE;k++)hdf_header_info[i].npart[k]=vintbuff[k];
-            vintbuff=read_attribute_v<int>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].INumTot]);
-            for (k=0;k<NHDFTYPE;k++)hdf_header_info[i].npartTotal[k]=vintbuff[k];
-            vintbuff=read_attribute_v<int>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].INumTotHW]);
-            for (k=0;k<NHDFTYPE;k++)hdf_header_info[i].npartTotalHW[k]=vintbuff[k];
+            if (opt.ihdfnameconvention==HDFSWIFTEAGLENAMES) {
+                vlongbuff = read_attribute_v<long long>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].INuminFile]);
+                for (k=0;k<NHDFTYPE;k++) hdf_header_info[i].npart[k]=vlongbuff[k];
+            }
+            else{
+                vuintbuff = read_attribute_v<unsigned int>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].INuminFile]);
+                for (k=0;k<NHDFTYPE;k++) hdf_header_info[i].npart[k]=vuintbuff[k];
+            }
+            vuintbuff=read_attribute_v<unsigned int>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].INumTot]);
+            for (k=0;k<NHDFTYPE;k++)hdf_header_info[i].npartTotal[k]=vuintbuff[k];
+            vuintbuff=read_attribute_v<unsigned int>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].INumTotHW]);
+            for (k=0;k<NHDFTYPE;k++)hdf_header_info[i].npartTotalHW[k]=vuintbuff[k];
             hdf_header_info[i].Omega0 = read_attribute<double>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].IOmega0]);
             hdf_header_info[i].OmegaLambda = read_attribute<double>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].IOmegaL]);
             hdf_header_info[i].redshift = read_attribute<double>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].IRedshift]);
@@ -1668,6 +1676,33 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 #endif
     }
     }
+#endif
+
+
+    delete[] intbuff;
+    delete[] longbuff;
+    delete[] uintbuff;
+    delete[] floatbuff;
+    delete[] doublebuff;
+#ifdef USEMPI
+    delete[] velfloatbuff;
+    delete[] veldoublebuff;
+    delete[] massfloatbuff;
+    delete[] massdoublebuff;
+#ifdef GASON
+    delete[] ufloatbuff;
+    delete[] udoublebuff;
+#endif
+#if defined(GASON)&&defined(STARON)
+    delete[] Zfloatbuff;
+    delete[] Zdoublebuff;
+    delete[] SFRfloatbuff;
+    delete[] SFRdoublebuff;
+#endif
+#ifdef STARON
+    delete[] agefloatbuff;
+    delete[] Tagedoublebuff;
+#endif
 #endif
 
 }
