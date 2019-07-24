@@ -198,9 +198,9 @@ template<> void _do_read<std::string>(const hid_t &attr, const hid_t &type, std:
 {
 	vector<char> buf;
 	hid_t space = H5Aget_space (attr);
-	hsize_t dims[1];
-    hsize_t ndims = H5Sget_simple_extent_dims (space, dims, NULL);
-	buf.resize(dims[0]);
+	hsize_t ndims=1, dims[1], maxdims[1];
+	//ndims = H5Sget_simple_extent_dims (space, dims, maxdims);
+	buf.resize(H5Tget_size (type));
 	H5Aread(attr, type, buf.data());
 	H5Sclose(space);
 	val=string(buf.data());
@@ -372,6 +372,13 @@ class H5OutputFile
 	{
 		if(file_id >= 0)io_error("Attempted to create file when already open!");
 		file_id = H5Fcreate(filename.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+		if(file_id < 0)io_error(string("Failed to create output file: ")+filename);
+	}
+
+    void append(std::string filename, unsigned int flag)
+	{
+		if(file_id >= 0)io_error("Attempted to create file when already open!");
+		file_id = H5Fopen(filename.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
 		if(file_id < 0)io_error(string("Failed to create output file: ")+filename);
 	}
 
@@ -656,7 +663,7 @@ struct HDF_Group_Names {
 struct HDF_Header {
 
     double      BoxSize;
-    unsigned long int npart[NHDFTYPE];
+    unsigned long long npart[NHDFTYPE];
     unsigned int npartTotal[NHDFTYPE];
     unsigned int npartTotalHW[NHDFTYPE];
     double      mass[NHDFTYPE];

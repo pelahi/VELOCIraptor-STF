@@ -158,11 +158,9 @@ void MPINumInDomainHDF(Options &opt)
     hid_t chunkspace;
     int chunksize=opt.inputbufsize;
     //buffers to load data
-    int *intbuff=new int[NHDFTYPE];
-    long long *longbuff=new long long[NHDFTYPE];
-    float *floatbuff=new float[chunksize*3];
     double *doublebuff=new double[chunksize*3];
-    void *realbuff;
+    vector<int> vintbuff;
+    vector<long long> vlongbuff;
     //arrays to store number of items to read and offsets when selecting hyperslabs
     //at most one needs a dimensionality of 13 for the tracer particles in Illustris
     hsize_t filespacecount[13],filespaceoffset[13];
@@ -204,8 +202,14 @@ void MPINumInDomainHDF(Options &opt)
             // Fhdf[i].openFile(buf, H5F_ACC_RDONLY);
             Fhdf[i]=H5Fopen(buf, H5F_ACC_RDONLY, H5P_DEFAULT);
             //get number in file
-            vector<int> vintbuff = read_attribute_v<int>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].INuminFile]);
-            for (k=0;k<NHDFTYPE;k++) hdf_header_info[i].npart[k]=vintbuff[k];
+            if (opt.ihdfnameconvention==HDFSWIFTEAGLENAMES) {
+                vlongbuff = read_attribute_v<long long>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].INuminFile]);
+                for (k=0;k<NHDFTYPE;k++) hdf_header_info[i].npart[k]=vlongbuff[k];
+            }
+            else{
+                vintbuff = read_attribute_v<int>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].INuminFile]);
+                for (k=0;k<NHDFTYPE;k++) hdf_header_info[i].npart[k]=vintbuff[k];
+            }
 
             //open particle group structures
             for (j=0;j<nusetypes;j++) {k=usetypes[j]; partsgroup[i*NHDFTYPE+k]=HDF5OpenGroup(Fhdf[i],hdf_gnames.part_names[k]);}
@@ -288,6 +292,7 @@ void MPINumInDomainHDF(Options &opt)
         MPI_Allreduce(Nbaryonbuf,mpi_nlocal,NProcs,MPI_Int_t,MPI_SUM,MPI_COMM_WORLD);
         Nlocalbaryon[0]=mpi_nlocal[ThisTask];
     }
+    delete[] doublebuff;
 
 }
 
