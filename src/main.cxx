@@ -467,25 +467,30 @@ int main(int argc,char **argv)
 
     //if separate files explicitly save halos, associated baryons, and subhalos separately
     if (opt.iseparatefiles) {
-    if (nhalos>0) {
-        pglist=SortAccordingtoBindingEnergy(opt,Nlocal,Part.data(),nhalos,pfof,numingroup,pdata);//alters pglist so most bound particles first
-        WriteProperties(opt,nhalos,pdata);
-        WriteGroupCatalog(opt, nhalos, numingroup, pglist, Part,ngroup-nhalos);
-        //if baryons have been searched output related gas baryon catalogue
-        if (opt.iBaryonSearch>0 || opt.partsearchtype==PSTALL){
-            WriteGroupPartType(opt, nhalos, numingroup, pglist, Part);
+        if (nhalos>0) {
+            pglist=SortAccordingtoBindingEnergy(opt,Nlocal,Part.data(),nhalos,pfof,numingroup,pdata);//alters pglist so most bound particles first
+            WriteProperties(opt,nhalos,pdata);
+            WriteGroupCatalog(opt, nhalos, numingroup, pglist, Part,ngroup-nhalos);
+            //if baryons have been searched output related gas baryon catalogue
+            if (opt.iBaryonSearch>0 || opt.partsearchtype==PSTALL){
+                WriteGroupPartType(opt, nhalos, numingroup, pglist, Part);
+            }
+            WriteHierarchy(opt,ngroup,nhierarchy,psldata->nsinlevel,nsub,parentgid,stype);
+            for (Int_t i=1;i<=nhalos;i++) delete[] pglist[i];
+            delete[] pglist;
         }
-        WriteHierarchy(opt,ngroup,nhierarchy,psldata->nsinlevel,nsub,parentgid,stype);
-        for (Int_t i=1;i<=nhalos;i++) delete[] pglist[i];
-        delete[] pglist;
-    }
-    else {
-        WriteGroupCatalog(opt,nhalos,numingroup,NULL,Part);
-        WriteHierarchy(opt,nhalos,nhierarchy,psldata->nsinlevel,nsub,parentgid,stype);
-        if (opt.iBaryonSearch>0 || opt.partsearchtype==PSTALL){
-            WriteGroupPartType(opt, nhalos, numingroup, NULL, Part);
+        else {
+#ifdef USEMPI
+            //if calculating inclusive masses at end, must call SortAccordingtoBindingEnergy if
+            //MPI as domain, despite having no groups might need to exchange particles
+            if (opt.iInclusiveHalo==3) SortAccordingtoBindingEnergy(opt,Nlocal,Part.data(),nhalos,pfof,numingroup,pdata);
+#endif
+            WriteGroupCatalog(opt,nhalos,numingroup,NULL,Part);
+            WriteHierarchy(opt,nhalos,nhierarchy,psldata->nsinlevel,nsub,parentgid,stype);
+            if (opt.iBaryonSearch>0 || opt.partsearchtype==PSTALL){
+                WriteGroupPartType(opt, nhalos, numingroup, NULL, Part);
+            }
         }
-    }
     }
     Int_t indexii=0;
     ng=ngroup;
@@ -511,6 +516,11 @@ int main(int argc,char **argv)
         delete[] pglist;
     }
     else {
+#ifdef USEMPI
+        //if calculating inclusive masses at end, must call SortAccordingtoBindingEnergy if
+        //MPI as domain, despite having no groups might need to exchange particles
+        if (opt.iInclusiveHalo==3) SortAccordingtoBindingEnergy(opt,Nlocal,Part.data(),nhalos,pfof,numingroup,pdata);
+#endif
         WriteProperties(opt,ng,NULL);
         WriteGroupCatalog(opt,ng,&numingroup[indexii],NULL,Part);
         if (opt.iseparatefiles) WriteHierarchy(opt,ngroup,nhierarchy,psldata->nsinlevel,nsub,parentgid,stype,1);
