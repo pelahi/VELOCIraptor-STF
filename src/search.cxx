@@ -2511,6 +2511,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
     StrucLevelData *pcsld;
     //use to store total number in sublevel;
     Int_t ns;
+    int minsizeforsubsearch = opt.MinSize*2;
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
 #endif
@@ -2539,7 +2540,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
         pcsld=psldata->nextlevel;
         nsubsearch=ngroup-opt.num3dfof;
     }
-    for (Int_t i=firstgroup;i<=ngroup;i++) if (numingroup[i]<opt.MinSize*2) {nsubsearch=i-firstgroup;break;}
+    for (Int_t i=firstgroup;i<=ngroup;i++) if (numingroup[i]<minsizeforsubsearch) {nsubsearch=i-firstgroup;break;}
     iflag=(nsubsearch>0);
 
     if (iflag) {
@@ -2803,13 +2804,14 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
         }
         if (opt.iverbose) cout<<ThisTask<<"Finished searching substructures to sublevel "<<sublevel<<endl;
         sublevel++;
+        minsizeforsubsearch=min(minsizeforsubsearch*2,MINSUBSIZE);
         for (Int_t i=1;i<=oldnsubsearch;i++) delete[] subpglist[i];
         delete[] subpglist;
         delete[] subnumingroup;
         nsubsearch=0;
         //after looping over all level sublevel substructures adjust nsubsearch, set subpglist subnumingroup, so that can move to next level.
         for (Int_t i=1;i<=oldnsubsearch;i++)
-            for (Int_t j=1;j<=subngroup[i];j++) if (subsubnumingroup[i][j]>=MINSUBSIZE)
+            for (Int_t j=1;j<=subngroup[i];j++) if (subsubnumingroup[i][j]>=minsizeforsubsearch)
                 nsubsearch++;
         if (nsubsearch>0) {
             subnumingroup=new Int_t[nsubsearch+1];
@@ -2817,7 +2819,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
             nsubsearch=1;
             for (Int_t i=1;i<=oldnsubsearch;i++) {
                 for (Int_t j=1;j<=subngroup[i];j++)
-                    if (subsubnumingroup[i][j]>=MINSUBSIZE) {
+                    if (subsubnumingroup[i][j]>=minsizeforsubsearch) {
                         subnumingroup[nsubsearch]=subsubnumingroup[i][j];
                         subpglist[nsubsearch]=new Int_t[subnumingroup[nsubsearch]];
                         for (Int_t k=0;k<subnumingroup[nsubsearch];k++) subpglist[nsubsearch][k]=subsubpglist[i][j][k];

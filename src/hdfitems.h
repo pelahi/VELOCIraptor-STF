@@ -744,7 +744,8 @@ struct HDF_Part_Info {
             else names[itemp++]=string("Masses");
             names[itemp++]=string("Density");
             names[itemp++]=string("InternalEnergy");
-            names[itemp++]=string("StarFormationRate");
+            if (hdfnametype==HDFSWIFTEAGLENAMES) names[itemp++]=string("SFR");
+            else names[itemp++]=string("StarFormationRate");
             //always place the metacallity at position 7 in naming array
             if (hdfnametype==HDFILLUSTISNAMES) {
                 propindex[HDFGASIMETAL]=itemp;
@@ -875,7 +876,7 @@ struct HDF_Part_Info {
                 names[itemp++]=string("ParticleIDGenerationNumber");
                 names[itemp++]=string("Potential");
             }
-            else if (hdfnametype==HDFGIZMONAMES) {
+            else if (hdfnametype==HDFSIMBANAMES) {
                 propindex[HDFSTARIAGE]=itemp;
                 names[itemp++]=string("StellarFormationTime");
                 propindex[HDFSTARIMETAL]=itemp;
@@ -887,6 +888,12 @@ struct HDF_Part_Info {
             else if (hdfnametype==HDFEAGLENAMES) {
                 propindex[HDFSTARIAGE]=itemp;
                 names[itemp++]=string("StellarFormationTime");
+                propindex[HDFSTARIMETAL]=itemp;
+                names[itemp++]=string("Metallicity");
+            }
+            else if (hdfnametype==HDFSWIFTEAGLENAMES) {
+                propindex[HDFSTARIAGE]=itemp;
+                names[itemp++]=string("BirthTime");
                 propindex[HDFSTARIMETAL]=itemp;
                 names[itemp++]=string("Metallicity");
             }
