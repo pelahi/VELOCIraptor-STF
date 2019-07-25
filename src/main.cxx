@@ -504,7 +504,7 @@ int main(int argc,char **argv)
     }
 
     if (ng>0) {
-        pglist=SortAccordingtoBindingEnergy(opt,nbodies,Part.data(),ng,pfof,&numingroup[indexii],&pdata[indexii],indexii);//alters pglist so most bound particles first
+        pglist=SortAccordingtoBindingEnergy(opt,Nlocal,Part.data(),ng,pfof,&numingroup[indexii],&pdata[indexii],indexii);//alters pglist so most bound particles first
         WriteProperties(opt,ng,&pdata[indexii]);
         WriteGroupCatalog(opt, ng, &numingroup[indexii], pglist, Part);
         if (opt.iseparatefiles) WriteHierarchy(opt,ngroup,nhierarchy,psldata->nsinlevel,nsub,parentgid,stype,1);
@@ -519,7 +519,7 @@ int main(int argc,char **argv)
 #ifdef USEMPI
         //if calculating inclusive masses at end, must call SortAccordingtoBindingEnergy if
         //MPI as domain, despite having no groups might need to exchange particles
-        if (opt.iInclusiveHalo==3) SortAccordingtoBindingEnergy(opt,Nlocal,Part.data(),nhalos,pfof,numingroup,pdata);
+        if (opt.iInclusiveHalo==3) SortAccordingtoBindingEnergy(opt,Nlocal,Part.data(),ng,pfof,numingroup,pdata);
 #endif
         WriteProperties(opt,ng,NULL);
         WriteGroupCatalog(opt,ng,&numingroup[indexii],NULL,Part);
@@ -533,7 +533,7 @@ int main(int argc,char **argv)
     if (opt.iprofilecalc) WriteProfiles(opt, ngroup, pdata);
 
 #ifdef EXTENDEDHALOOUTPUT
-    if (opt.iExtendedOutput) WriteExtendedOutput (opt, ngroup, nbodies, pdata, Part, pfof);
+    if (opt.iExtendedOutput) WriteExtendedOutput (opt, ngroup, Nlocal, pdata, Part, pfof);
 #endif
 
     delete[] numingroup;
