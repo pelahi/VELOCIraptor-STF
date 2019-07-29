@@ -119,7 +119,7 @@ static inline hid_t hdf5_type(long long dummy)          {return H5T_NATIVE_LLONG
 static inline hid_t hdf5_type(unsigned int dummy)       {return H5T_NATIVE_UINT;}
 static inline hid_t hdf5_type(unsigned long dummy)      {return H5T_NATIVE_ULONG;}
 static inline hid_t hdf5_type(unsigned long long dummy) {return H5T_NATIVE_ULLONG;}
-static inline hid_t hdf5_type(std::string dummy)        {return H5T_NATIVE_CHAR;}
+static inline hid_t hdf5_type(std::string dummy)        {return H5T_C_S1;}
 
 //template <typename AttributeHolder>
 //static inline H5::Attribute get_attribute(const AttributeHolder &l, const std::string attr_name)
@@ -209,12 +209,15 @@ template<typename T> static inline void _do_read(const hid_t &attr, const hid_t 
 template<> void _do_read<std::string>(const hid_t &attr, const hid_t &type, std::string &val)
 {
 	vector<char> buf;
-	hid_t space = H5Aget_space (attr);
-	hsize_t ndims=1, dims[1], maxdims[1];
-	//ndims = H5Sget_simple_extent_dims (space, dims, maxdims);
-	buf.resize(H5Tget_size (type));
-	H5Aread(attr, type, buf.data());
-	H5Sclose(space);
+        hid_t type_in_file = H5Aget_type(attr);
+        hid_t type_in_memory = H5Tcopy(type); // copy memory type because we'll need to modify it
+        size_t length = H5Tget_size(type_in_file); // get length of the string in the file
+	buf.resize(length+1); // resize buffer in memory, allowing for null terminator
+        H5Tset_size(type_in_memory, length+1); // tell HDF5 the length of the buffer in memory
+        H5Tset_strpad(type_in_memory, H5T_STR_NULLTERM); // specify that we want a null terminated string
+	H5Aread(attr, type_in_memory, buf.data());
+        H5Tclose(type_in_memory);
+        H5Tclose(type_in_file);
 	val=string(buf.data());
 }
 
