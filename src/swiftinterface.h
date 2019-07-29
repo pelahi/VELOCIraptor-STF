@@ -120,6 +120,8 @@ namespace Swift {
     struct groupinfo {
       int index;
       long long groupid;
+      bool mostboundparticle;
+
     };
 }
 

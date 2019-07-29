@@ -506,7 +506,16 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
 #endif
     //if returning to swift as swift is writing a snapshot, then write for the groups where the particles are found in a file
     //assuming that the swift task and swift index can be used to determine where a particle will be written.
-    if (ireturngroupinfoflag == 0 ) WriteSwiftExtendedOutput (libvelociraptorOpt, ngroup, numingroup, pglist, parts);
+    if (ireturngroupinfoflag == 0 ) {
+        WriteSwiftExtendedOutput (libvelociraptorOpt, ngroup, numingroup, pglist, parts);
+    }
+
+    //store the most bound particle information
+    for (Int_t i=1;i<=ngroup;i++) {
+        if (numingroup[i]==0) continue;
+        //set the most bound particle type to negative of its value
+        parts[pglist[i][0]].SetType(-parts[pglist[i][0]].GetType()-1);
+    }
 
     for (Int_t i=1;i<=ngroup;i++) delete[] pglist[i];
     delete[] pglist;
@@ -586,6 +595,7 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
         for (auto i=istart;i<Nlocal;i++) {
             group_info[i-istart].index=parts[i].GetSwiftIndex();
             group_info[i-istart].groupid=parts[i].GetPID();
+            group_info[i-istart].mostboundparticle=(parts[i].GetType()<0);
         }
     }
     cout<<"VELOCIraptor returning."<< endl;
