@@ -354,7 +354,13 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
                     Part[count2].SetPID(idval);
                     Part[count2].SetID(count2);
 #ifdef HIGHRES
-                    if (!(k==GGASTYPE || k==GSTARTYPE || k==GBHTYPE)) Part[count2].SetType(DARKTYPE);
+                    if (!(k==GGASTYPE || k==GSTARTYPE || k==GBHTYPE)) {
+                        if (opt.iUseHighResOnlyFOF == 0) Part[count2].SetType(DARKTYPE);
+                        else {
+                            if (k==GDMTYPE) Part[count2].SetType(DARKTYPE);
+                            else Part[count2].SetType(DARKTYPELOWRES);
+                        }
+                    }
                     else Part[count2].SetType(k);
 #else
                     Part[count2].SetType(k);
@@ -1173,7 +1179,17 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
                     if (k==GGASTYPE) Pbuf[ibufindex].SetType(GASTYPE);
                     else if (k==GSTARTYPE) Pbuf[ibufindex].SetType(STARTYPE);
                     else if (k==GBHTYPE) Pbuf[ibufindex].SetType(BHTYPE);
+#ifdef HIGHRES
+                    else {
+                        if (opt.iUseHighResOnlyFOF == 0) Pbuf[ibufindex].SetType(DARKTYPE);
+                        else {
+                            if (k==GDMTYPE) Pbuf[ibufindex].SetType(DARKTYPE);
+                            else Pbuf[ibufindex].SetType(DARKTYPELOWRES);
+                        }
+                    }
+#else
                     else Pbuf[ibufindex].SetType(DARKTYPE);
+#endif
                     //assume that first sphblock is internal energy
 #ifdef GASON
                     if (k==GGASTYPE) Pbuf[ibufindex].SetU(sphtempchunk[0*nchunk+nn]);

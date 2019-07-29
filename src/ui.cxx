@@ -401,6 +401,10 @@ void GetParamFile(Options &opt)
                         opt.iAdaptiveCoreLinking = atof(vbuff);
                     else if (strcmp(tbuff, "Use_phase_tensor_core_growth")==0)
                         opt.iPhaseCoreGrowth = atof(vbuff);
+#ifdef HIGHRES
+                    else if (strcmp(tbuff, "Use_highres_particles_for_FOF_links_in_zooms")==0)
+                        opt.iUseHighResOnlyFOF = atoi(vbuff);
+#endif
 
                     //bg and fof parameters
                     else if (strcmp(tbuff, "Local_velocity_density_approximate_calculation")==0)
