@@ -355,7 +355,7 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
                 dmOffset++;
             }
             #ifdef HIGHRES
-            else if(swift_parts[i].type == DARK2TYPE) {
+            else if(swift_parts[i].type == DARKTYPELOWRES) {
                 parts[dmOffset] = Particle(swift_parts[i]);
                 dmOffset++;
             }
