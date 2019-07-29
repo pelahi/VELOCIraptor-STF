@@ -12,6 +12,7 @@
 //using namespace H5;
 #include "hdf5.h"
 
+
 ///\name ILLUSTRIS specific constants
 //@{
 ///convert illustris metallicty to ratio to solar
@@ -108,6 +109,17 @@ ReturnT safe_hdf5(F function, Ts ... args)
        }
        return status;
 }
+
+// Overloaded function to return HDF5 type given a C type
+static inline hid_t hdf5_type(float dummy)              {return H5T_NATIVE_FLOAT;}
+static inline hid_t hdf5_type(double dummy)             {return H5T_NATIVE_DOUBLE;}
+static inline hid_t hdf5_type(int dummy)                {return H5T_NATIVE_INT;}
+static inline hid_t hdf5_type(long dummy)               {return H5T_NATIVE_LONG;}
+static inline hid_t hdf5_type(long long dummy)          {return H5T_NATIVE_LLONG;}
+static inline hid_t hdf5_type(unsigned int dummy)       {return H5T_NATIVE_UINT;}
+static inline hid_t hdf5_type(unsigned long dummy)      {return H5T_NATIVE_ULONG;}
+static inline hid_t hdf5_type(unsigned long long dummy) {return H5T_NATIVE_ULLONG;}
+static inline hid_t hdf5_type(std::string dummy)        {return H5T_NATIVE_CHAR;}
 
 //template <typename AttributeHolder>
 //static inline H5::Attribute get_attribute(const AttributeHolder &l, const std::string attr_name)
@@ -226,8 +238,9 @@ template<typename T> const T read_attribute(const hid_t &file_id, const std::str
 	get_attribute(file_id, ids, name);
 	//now reverse ids and load attribute
 	reverse(ids.begin(),ids.end());
-	//read the appropriate type
-	type = H5Aget_type(ids[0]);
+	//determine hdf5 type of the array in memory
+        type = hdf5_type(T{});
+        // read the data
 	_do_read<T>(ids[0], type, val);
 	H5Aclose(ids[0]);
 	//remove file id from id list
@@ -251,8 +264,9 @@ template<typename T> const vector<T> read_attribute_v(const hid_t &file_id, cons
 	get_attribute(file_id, ids, name);
 	//now reverse ids and load attribute
 	reverse(ids.begin(),ids.end());
-	//read the appropriate type
-	type = H5Aget_type(ids[0]);
+	//determine hdf5 type of the array in memory
+        type = hdf5_type(T{});
+        // read the data
 	_do_read_v<T>(ids[0], type, val);
 	H5Aclose(ids[0]);
 	//remove file id from id list
@@ -396,17 +410,6 @@ class H5OutputFile
 	  if(file_id >= 0)
 	    close();
 	}
-
-	// Functions to return corresponding HDF5 type for C types
-	hid_t hdf5_type(float dummy)              {return H5T_NATIVE_FLOAT;}
-	hid_t hdf5_type(double dummy)             {return H5T_NATIVE_DOUBLE;}
-	hid_t hdf5_type(int dummy)                {return H5T_NATIVE_INT;}
-	hid_t hdf5_type(long dummy)               {return H5T_NATIVE_LONG;}
-	hid_t hdf5_type(long long dummy)          {return H5T_NATIVE_LLONG;}
-	hid_t hdf5_type(unsigned int dummy)       {return H5T_NATIVE_UINT;}
-	hid_t hdf5_type(unsigned long dummy)      {return H5T_NATIVE_ULONG;}
-	hid_t hdf5_type(unsigned long long dummy) {return H5T_NATIVE_ULLONG;}
-
 
 	/// Write a new 1D dataset. Data type of the new dataset is taken to be the type of
 	/// the input data if not explicitly specified with the filetype_id parameter.
