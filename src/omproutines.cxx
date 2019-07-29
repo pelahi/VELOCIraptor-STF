@@ -122,6 +122,9 @@ Int_t OpenMPLocalSearch(Options &opt,
     #pragma omp for schedule(dynamic) nowait reduction(+:ngtot)
     for (i=0;i<numompregions;i++) {
         if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) p3dfofomp=tree3dfofomp[i]->FOFCriterionSetBasisForLinks(fofcmp,param,ng,ompminsize,0,0,FOFchecktype, &Head[ompdomain[i].noffset], &Next[ompdomain[i].noffset]);
+#ifdef HIGHRES
+        else if (opt.partsearchtype==PSTALL && opt.iUseHighResOnlyFOF==1) p3dfofomp=tree3dfofomp[i]->FOFCriterionSetBasisForLinks(fofcmp,param,ng,ompminsize,0,0,FOFchecktype, &Head[ompdomain[i].noffset], &Next[ompdomain[i].noffset]);
+#endif
         else p3dfofomp=tree3dfofomp[i]->FOF(rdist,ng,ompminsize,0, &Head[ompdomain[i].noffset], &Next[ompdomain[i].noffset]);
         if (ng > 0) {
             for (int j=ompdomain[i].noffset;j<ompdomain[i].noffset+ompdomain[i].ncount;j++)
