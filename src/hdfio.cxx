@@ -614,6 +614,16 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                     Part[count].SetID(count);
                     if (k==HDFGASTYPE) Part[count].SetType(GASTYPE);
                     else if (k==HDFDMTYPE) Part[count].SetType(DARKTYPE);
+#ifdef HIGHRES
+                    else if (k==HDFDM1TYPE) {
+                        if (opt.iUseHighResOnlyFOF == 0) Part[count].SetType(DARKTYPE);
+                        else Part[count].SetType(DARKTYPELOWRES);
+                    }
+                    else if (k==HDFDM2TYPE) {
+                        if (opt.iUseHighResOnlyFOF == 0) Part[count].SetType(DARKTYPE);
+                        else Part[count].SetType(DARKTYPELOWRES);
+                    }
+#endif
                     else if (k==HDFSTARTYPE) Part[count].SetType(STARTYPE);
                     else if (k==HDFBHTYPE) Part[count].SetType(BHTYPE);
 #ifdef EXTRAINPUTINFO
@@ -1301,8 +1311,14 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         if (k==HDFGASTYPE) Pbuf[ibufindex].SetType(GASTYPE);
                         else if (k==HDFDMTYPE) Pbuf[ibufindex].SetType(DARKTYPE);
 #ifdef HIGHRES
-                        else if (k==HDFDM1TYPE) Pbuf[ibufindex].SetType(DARKTYPE);
-                        else if (k==HDFDM2TYPE) Pbuf[ibufindex].SetType(DARKTYPE);
+                        else if (k==HDFDM1TYPE) {
+                            if (opt.iUseHighResOnlyFOF == 0) Pbuf[ibufindex].SetType(DARKTYPE);
+                            else Pbuf[ibufindex].SetType(DARKTYPELOWRES);
+                        }
+                        else if (k==HDFDM2TYPE) {
+                            if (opt.iUseHighResOnlyFOF == 0) Pbuf[ibufindex].SetType(DARKTYPE);
+                            else Pbuf[ibufindex].SetType(DARKTYPELOWRES);
+                        }
 #endif
                         else if (k==HDFSTARTYPE) Pbuf[ibufindex].SetType(STARTYPE);
                         else if (k==HDFBHTYPE) Pbuf[ibufindex].SetType(BHTYPE);
@@ -1420,8 +1436,14 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         if (k==HDFGASTYPE) Pbuf[ibufindex].SetType(GASTYPE);
                         else if (k==HDFDMTYPE) Pbuf[ibufindex].SetType(DARKTYPE);
 #ifdef HIGHRES
-                        else if (k==HDFDM1TYPE) Pbuf[ibufindex].SetType(DARKTYPE);
-                        else if (k==HDFDM2TYPE) Pbuf[ibufindex].SetType(DARKTYPE);
+                        else if (k==HDFDM1TYPE) {
+                            if (opt.iUseHighResOnlyFOF == 0) Pbuf[ibufindex].SetType(DARKTYPE);
+                            else Pbuf[ibufindex].SetType(DARKTYPELOWRES);
+                        }
+                        else if (k==HDFDM2TYPE) {
+                            if (opt.iUseHighResOnlyFOF == 0) Pbuf[ibufindex].SetType(DARKTYPE);
+                            else Pbuf[ibufindex].SetType(DARKTYPELOWRES);
+                        }
 #endif
                         else if (k==HDFSTARTYPE) Pbuf[ibufindex].SetType(STARTYPE);
                         else if (k==HDFBHTYPE) Pbuf[ibufindex].SetType(BHTYPE);

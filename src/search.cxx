@@ -109,6 +109,9 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     cout<<ThisTask<<" Search particles using 3DFOF in physical space"<<endl;
     cout<<ThisTask<<" Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits (ell^2="<<param[6]<<" and likely "<<sqrt(param[6])/opt.ellxscale<<" in interparticle spacing"<<endl;
     if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) {fofcmp=&FOF3dDM;param[7]=DARKTYPE;fofcheck=FOFchecktype;}
+#ifdef HIGHRES
+    else if (opt.partsearchtype==PSTALL && opt.iUseHighResOnlyFOF==1) {fofcmp=&FOF3dDM;param[7]=DARKTYPE;fofcheck=FOFchecktype;}
+#endif
     else fofcmp=&FOF3d;
 
 
@@ -202,11 +205,17 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     else {
         //posible alteration for all particle search
         if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) pfof=tree->FOFCriterionSetBasisForLinks(fofcmp,param,numgroups,minsize,iorder,0,FOFchecktype,Head,Next);
+#ifdef HIGHRES
+        else if (opt.partsearchtype==PSTALL && opt.iUseHighResOnlyFOF==1) pfof=tree->FOFCriterionSetBasisForLinks(fofcmp,param,numgroups,minsize,iorder,0,FOFchecktype,Head,Next);
+#endif
         else pfof=tree->FOF(sqrt(param[1]),numgroups,minsize,iorder,Head,Next);
     }
 #else
     //posible alteration for all particle search
     if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) pfof=tree->FOFCriterionSetBasisForLinks(fofcmp,param,numgroups,minsize,iorder,0,FOFchecktype,Head,Next);
+#ifdef HIGHRES
+    else if (opt.partsearchtype==PSTALL && opt.iUseHighResOnlyFOF==1) pfof=tree->FOFCriterionSetBasisForLinks(fofcmp,param,numgroups,minsize,iorder,0,FOFchecktype,Head,Next);
+#endif
     else pfof=tree->FOF(sqrt(param[1]),numgroups,minsize,iorder,Head,Next);
 #endif
 
@@ -222,6 +231,9 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     //if not searching all particle then searching for baryons associated with substructures, then set type to group value
     //so that velocity density just calculated for particles in groups (type>0)
     if (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)) for (i=0;i<nbodies;i++) Part[i].SetType(numingroup[pfof[Part[i].GetID()]]>=MINSUBSIZE);
+    #ifdef HIGHRES
+    else if (opt.iUseHighResOnlyFOF==1 && opt.partsearchtype==PSTALL) for (i=0;i<nbodies;i++) Part[i].SetType(numingroup[pfof[Part[i].GetID()]]>=MINSUBSIZE);
+    #endif
     //otherwise set type to group value for dark matter
     else {
         for (i=0;i<nbodies;i++) {
@@ -299,6 +311,11 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) {
             links_across=MPILinkAcross(nbodies, tree, Part.data(), pfof, Len, Head, Next, param[1], fofcheck, param);
         }
+#ifdef HIGHRES
+        else if (opt.iUseHighResOnlyFOF==1 && opt.partsearchtype==PSTALL) {
+            links_across=MPILinkAcross(nbodies, tree, Part.data(), pfof, Len, Head, Next, param[1], fofcheck, param);
+        }
+#endif
         else {
             links_across=MPILinkAcross(nbodies, tree, Part.data(), pfof, Len, Head, Next, param[1]);
         }
@@ -372,6 +389,15 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
                 numlocalden += (Part[i].GetType()>0);
             }
         }
+        #ifdef HIGHRES
+        else if (opt.iUseHighResOnlyFOF==1 && opt.partsearchtype==PSTALL) {
+            numingroup=BuildNumInGroup(Nlocal, numgroups, pfof);
+            for (i=0;i<Nlocal;i++) {
+                Part[i].SetType((numingroup[pfof[i]]>=MINSUBSIZE));
+                numlocalden += (Part[i].GetType()>0);
+            }
+        }
+        #endif
         //otherwise set type to group value for dark matter
         else {
             numingroup=BuildNumInGroupTyped(Nlocal,numgroups,pfof,Part.data(),DARKTYPE);

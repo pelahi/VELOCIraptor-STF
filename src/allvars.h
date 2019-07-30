@@ -82,6 +82,7 @@ using namespace NBody;
 #define  DARKTYPE 1
 #define  DARK2TYPE 2
 #define  DARK3TYPE 3
+#define  DARKTYPELOWRES 2
 #define  STARTYPE 4
 #define  BHTYPE 5
 #define  WINDTYPE 6
@@ -599,6 +600,7 @@ struct Options
     //@{
     /// store the lowest dark matter particle mass
     Double_t zoomlowmassdm;
+    int iUseHighResOnlyFOF;
     //@}
 
     ///\name extra runtime flags
@@ -716,8 +718,11 @@ struct Options
         iLocalVelDenApproxCalcFlag = 1 ;
 
         Neff=-1;
-
-
+#ifdef HIGHRES
+        iUseHighResOnlyFOF=0;
+#else
+        iUseHighResOnlyFOF=0;
+#endif
         ellthreshold=1.5;
         thetaopen=0.05;
         Vratio=1.25;
@@ -902,6 +907,11 @@ struct ConfigInfo{
         nameinfo.push_back("Use_phase_tensor_core_growth");
         datainfo.push_back(to_string(opt.iPhaseCoreGrowth));
         datatype.push_back(python_type_string(opt.iPhaseCoreGrowth));
+#ifdef HIGHRES
+        nameinfo.push_back("Use_highres_particles_for_FOF_links_in_zooms");
+        datainfo.push_back(to_string(opt.iUseHighResOnlyFOF));
+        datatype.push_back(python_type_string(opt.iUseHighResOnlyFOF));
+#endif
 
         //local field parameters
         nameinfo.push_back("Local_velocity_density_approximate_calculation");
