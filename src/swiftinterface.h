@@ -136,7 +136,7 @@ extern "C" int InitVelociraptor(char* configname, Swift::unitinfo, Swift::siminf
 ///actually run velociraptor
 extern "C" Swift::groupinfo * InvokeVelociraptor(const int snapnum, char* outputname,
     Swift::cosmoinfo, Swift::siminfo,
-    const size_t num_gravity_parts, const size_t num_hydro_parts, const size_t num_star_parts,
+    const size_t num_gravity_parts, const size_t num_hydro_parts, const size_t num_star_parts, const size_t num_bh_parts, 
     struct swift_vel_part *swift_parts, int *cell_node_ids,
     const int numthreads, const int ireturngroupinfoflag, int *const numingroups);
 ///set simulation information
