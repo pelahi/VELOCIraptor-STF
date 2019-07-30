@@ -321,7 +321,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
             hdf_header_info[i].BoxSize = read_attribute<double>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].IBoxSize]);
             vdoublebuff=read_attribute_v<double>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].IMass]);
             for (k=0;k<NHDFTYPE;k++)hdf_header_info[i].mass[k]=vdoublebuff[k];
-            if (opt.ihdfnameconvention==HDFSWIFTEAGLENAMES) {
+            if (opt.ihdfnameconvention==HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES) {
                 vlongbuff = read_attribute_v<long long>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].INuminFile]);
                 for (k=0;k<NHDFTYPE;k++) hdf_header_info[i].npart[k]=vlongbuff[k];
             }
@@ -1065,9 +1065,6 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
       Part[i].SetMass(Part[i].GetMass()*mscale);
       for (int j=0;j<3;j++) Part[i].SetVelocity(j,Part[i].GetVelocity(j)*vscale+Hubbleflow*Part[i].GetPosition(j));
       for (int j=0;j<3;j++) Part[i].SetPosition(j,Part[i].GetPosition(j)*lscale);
-#ifdef GASON
-      if (Part[i].GetType()==GASTYPE) Part[i].SetU(Part[i].GetU()*opt.velocityinputconversion*opt.velocityinputconversion);
-#endif
     }
     if (Pbaryons!=NULL && opt.iBaryonSearch==1) {
       for (i=0;i<nbaryons;i++)
@@ -1075,9 +1072,6 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
         Pbaryons[i].SetMass(Pbaryons[i].GetMass()*mscale);
         for (int j=0;j<3;j++) Pbaryons[i].SetVelocity(j,Pbaryons[i].GetVelocity(j)*vscale+Hubbleflow*Pbaryons[i].GetPosition(j));
         for (int j=0;j<3;j++) Pbaryons[i].SetPosition(j,Pbaryons[i].GetPosition(j)*lscale);
-#ifdef GASON
-        Pbaryons[i].SetU(Pbaryons[i].GetU()*opt.velocityinputconversion*opt.velocityinputconversion);
-#endif
       }
     }
 
@@ -1661,6 +1655,9 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     // so there is no need to include it.
     if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES) vscale = opt.velocityinputconversion;
     else vscale = opt.velocityinputconversion*sqrt(opt.a);
+    if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES) opt.internalenergyinputconversion = opt.a*opt.a*opt.velocityinputconversion*opt.velocityinputconversion;
+    else opt.internalenergyinputconversion = opt.velocityinputconversion*opt.velocityinputconversion;
+
 
     //finally adjust to appropriate units
     for (i=0;i<Nlocal;i++)
@@ -1668,9 +1665,6 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
       Part[i].SetMass(Part[i].GetMass()*mscale);
       for (int j=0;j<3;j++) Part[i].SetVelocity(j,Part[i].GetVelocity(j)*vscale+Hubbleflow*Part[i].GetPosition(j));
       for (int j=0;j<3;j++) Part[i].SetPosition(j,Part[i].GetPosition(j)*lscale);
-#ifdef GASON
-      if (Part[i].GetType()==GASTYPE) Part[i].SetU(Part[i].GetU()*opt.velocityinputconversion*opt.velocityinputconversion);
-#endif
     }
     if (Pbaryons!=NULL && opt.iBaryonSearch==1) {
       for (i=0;i<Nlocalbaryon[0];i++)
@@ -1678,13 +1672,9 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
         Pbaryons[i].SetMass(Pbaryons[i].GetMass()*mscale);
         for (int j=0;j<3;j++) Pbaryons[i].SetVelocity(j,Pbaryons[i].GetVelocity(j)*vscale+Hubbleflow*Pbaryons[i].GetPosition(j));
         for (int j=0;j<3;j++) Pbaryons[i].SetPosition(j,Pbaryons[i].GetPosition(j)*lscale);
-#ifdef GASON
-        Pbaryons[i].SetU(Pbaryons[i].GetU()*opt.velocityinputconversion*opt.velocityinputconversion);
-#endif
     }
     }
 #endif
-
 
     delete[] intbuff;
     delete[] longbuff;

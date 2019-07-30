@@ -322,6 +322,8 @@ void ReadTipsy(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particl
         LN=opt.p/(Double_t)opt.Neff;
     }
 #endif
+    opt.internalenergyinputconversion = opt.velocityinputconversion*opt.velocityinputconversion;
+
     //adjust physical scales by the inferred interparticle spacing
     opt.ellxscale=LN;
     opt.uinfo.eps*=LN;

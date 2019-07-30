@@ -53,7 +53,9 @@
 #define HDFSTARIMETAL 40
 #define HDFSTARIAGE 41
 
-#define HDFBHIMDOT 50
+#define HDFBHIMETAL 50
+#define HDFBHIAGE 51
+#define HDFBHIMDOT 52
 //@}
 
 ///number of luminosity bands for stars
@@ -72,7 +74,7 @@
 
 ///\defgroup HDFNAMES labels for HDF naming conventions
 //@{
-#define HDFNUMNAMETYPES  8
+#define HDFNUMNAMETYPES  9
 #define HDFILLUSTISNAMES 0
 #define HDFGADGETXNAMES  1
 #define HDFEAGLENAMES    2
@@ -80,6 +82,7 @@
 #define HDFSIMBANAMES    4
 #define HDFMUFASANAMES   5
 #define HDFSWIFTEAGLENAMES    6
+#define HDFOLDSWIFTEAGLENAMES    8
 #define HDFEAGLEVERSION2NAMES    7
 //@}
 
@@ -748,9 +751,12 @@ struct HDF_Part_Info {
             names[itemp++]=string("ParticleIDs");
             if(hdfnametype==HDFEAGLENAMES) names[itemp++]=string("Mass");
             else names[itemp++]=string("Masses");
-            names[itemp++]=string("Density");
-            names[itemp++]=string("InternalEnergy");
-            if (hdfnametype==HDFSWIFTEAGLENAMES) names[itemp++]=string("SFR");
+            if (hdfnametype == HDFSWIFTEAGLENAMES) names[itemp++]=string("Densities");
+            else names[itemp++]=string("Density");
+            if (hdfnametype == HDFSWIFTEAGLENAMES) names[itemp++]=string("InternalEnergies");
+            else names[itemp++]=string("InternalEnergy");
+            if (hdfnametype==HDFSWIFTEAGLENAMES) names[itemp++]=string("StarFormationRates");
+            else if (hdfnametype==HDFOLDSWIFTEAGLENAMES) names[itemp++]=string("SFR");
             else names[itemp++]=string("StarFormationRate");
             //always place the metacallity at position 7 in naming array
             if (hdfnametype==HDFILLUSTISNAMES) {
@@ -809,9 +815,24 @@ struct HDF_Part_Info {
                 names[itemp++]=string("Dust_Masses");
                 names[itemp++]=string("Dust_Metallicity");//11 metals stored in this data set
             }
-            else if (hdfnametype==HDFEAGLENAMES || hdfnametype==HDFSWIFTEAGLENAMES) {
+            else if (hdfnametype==HDFEAGLENAMES || hdfnametype==HDFOLDSWIFTEAGLENAMES ) {
                 propindex[HDFGASIMETAL]=itemp;
                 names[itemp++]=string("Metallicity");
+            }
+            else if (hdfnametype==HDFSWIFTEAGLENAMES) {
+                propindex[HDFGASIMETAL]=itemp;
+                names[itemp++]=string("MetalMassFractions");
+
+                names[itemp++]=string("ElementMassFractions");
+                names[itemp++]=string("MetalMassFractionsFromSNIa");
+                names[itemp++]=string("MetalMassFractionsFromSNII");
+                names[itemp++]=string("MetalMassFractionsFromAGB");
+                names[itemp++]=string("MassesFromSNIa");
+                names[itemp++]=string("MassesFromSNII");
+                names[itemp++]=string("MassesFromAGB");
+                names[itemp++]=string("IronMassFractionsFromSNIa");
+                names[itemp++]=string("MaximalTemperatures");
+                names[itemp++]=string("MaximalTemperatureScaleFactors");
             }
         }
         //dark matter
@@ -882,7 +903,7 @@ struct HDF_Part_Info {
                 names[itemp++]=string("ParticleIDGenerationNumber");
                 names[itemp++]=string("Potential");
             }
-            else if (hdfnametype==HDFSIMBANAMES) {
+            else if (hdfnametype==HDFSIMBANAMES || hdfnametype== HDFMUFASANAMES) {
                 propindex[HDFSTARIAGE]=itemp;
                 names[itemp++]=string("StellarFormationTime");
                 propindex[HDFSTARIMETAL]=itemp;
@@ -899,6 +920,25 @@ struct HDF_Part_Info {
             }
             else if (hdfnametype==HDFSWIFTEAGLENAMES) {
                 propindex[HDFSTARIAGE]=itemp;
+                names[itemp++]=string("BirthScaleFactors");
+                propindex[HDFSTARIMETAL]=itemp;
+                names[itemp++]=string("MetalMassFractions");
+
+                names[itemp++]=string("ElementMassFractions");
+                names[itemp++]=string("BirthTemperatures");
+                names[itemp++]=string("MetalMassFractionsFromSNIa");
+                names[itemp++]=string("MetalMassFractionsFromSNII");
+                names[itemp++]=string("MetalMassFractionsFromAGB");
+                names[itemp++]=string("MassesFromSNIa");
+                names[itemp++]=string("MassesFromSNII");
+                names[itemp++]=string("MassesFromAGB");
+                names[itemp++]=string("IronMassFractionsFromSNIa");
+                names[itemp++]=string("MaximalTemperatures");
+                names[itemp++]=string("MaximalTemperatureScaleFactors");
+                names[itemp++]=string("FeedbackEnergyFractions");
+            }
+            else if (hdfnametype==HDFOLDSWIFTEAGLENAMES) {
+                propindex[HDFSTARIAGE]=itemp;
                 names[itemp++]=string("BirthTime");
                 propindex[HDFSTARIMETAL]=itemp;
                 names[itemp++]=string("Metallicity");
@@ -910,6 +950,7 @@ struct HDF_Part_Info {
             else names[itemp++]=string("Velocities");
             names[itemp++]=string("ParticleIDs");
             if(hdfnametype==HDFEAGLENAMES) names[itemp++]=string("Mass");
+            if(hdfnametype==HDFSWIFTEAGLENAMES) names[itemp++]=string("DynamicalMasses");
             else names[itemp++]=string("Masses");
             if (hdfnametype==HDFILLUSTISNAMES) {
                 names[itemp++]=string("HostHaloMass");
@@ -946,6 +987,28 @@ struct HDF_Part_Info {
             else if (hdfnametype==HDFEAGLENAMES) {
                 //names[itemp++]=string("StellarFormationTime");
                 //names[itemp++]=string("Metallicity");
+            }
+            else if (hdfnametype==HDFSWIFTEAGLENAMES) {
+                propindex[HDFBHIAGE]=itemp;
+                names[itemp++]=string("FormationScaleFactors");
+                propindex[HDFBHIMETAL]=itemp;
+                names[itemp++]=string("MetalMasses");
+                propindex[HDFBHIMDOT]=itemp;
+                names[itemp++]=string("AccretionRates");
+
+                names[itemp++]=string("SubgridMasses");
+                names[itemp++]=string("ElementMasses");
+                names[itemp++]=string("MetalMassFromSNIa");
+                names[itemp++]=string("MetalMassFromSNII");
+                names[itemp++]=string("MetalMassFromAGB");
+                names[itemp++]=string("MassesFromSNIa");
+                names[itemp++]=string("MassesFromSNII");
+                names[itemp++]=string("MassesFromAGB");
+                names[itemp++]=string("IronMassFromSNIa");
+                names[itemp++]=string("GasDensities");
+                names[itemp++]=string("GasSoundSpeeds");
+                names[itemp++]=string("EnergyReservoirs");
+                names[itemp++]=string("TotalAccretedMasses");
             }
         }
         nentries=itemp;

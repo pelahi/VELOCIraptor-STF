@@ -404,7 +404,7 @@ struct Options
 
     ///\name length,m,v,grav conversion units
     //@{
-    Double_t lengthinputconversion, massinputconversion, energyinputconversion, velocityinputconversion;
+    Double_t lengthinputconversion, massinputconversion, energyinputconversion, internalenergyinputconversion, velocityinputconversion;
     Double_t SFRinputconversion, metallicityinputconversion, stellarageinputconversion;
     int istellaragescalefactor, isfrisssfr;
     Double_t G;
