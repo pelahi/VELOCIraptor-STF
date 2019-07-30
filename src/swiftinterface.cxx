@@ -272,7 +272,7 @@ void SetVelociraptorSimulationState(cosmoinfo c, siminfo s)
 ///\todo interface with swift is comoving positions, period, peculiar velocities and physical self-energy
 groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
     cosmoinfo c, siminfo s,
-    const size_t num_gravity_parts, const size_t num_hydro_parts, const size_t num_star_parts,
+    const size_t num_gravity_parts, const size_t num_hydro_parts, const size_t num_star_parts, const size_t num_bh_parts,
     struct swift_vel_part *swift_parts, int *cell_node_ids,
     const int numthreads,
     const int ireturngroupinfoflag,
@@ -337,7 +337,7 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
     cout<<"Copying particle data..."<< endl;
     time1=MyGetTime();
 
-    ndark = num_gravity_parts - num_hydro_parts - num_star_parts, nbaryons = num_hydro_parts+num_star_parts;
+    ndark = num_gravity_parts - num_hydro_parts - num_star_parts - num_bh_parts, nbaryons = num_hydro_parts+num_star_parts+num_bh_parts;
     Nlocalbaryon[0]=nbaryons;
     Nmemlocalbaryon=Nlocalbaryon[0];
 
