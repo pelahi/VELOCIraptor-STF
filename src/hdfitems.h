@@ -12,6 +12,7 @@
 //using namespace H5;
 #include "hdf5.h"
 
+
 ///\name ILLUSTRIS specific constants
 //@{
 ///convert illustris metallicty to ratio to solar
@@ -52,7 +53,9 @@
 #define HDFSTARIMETAL 40
 #define HDFSTARIAGE 41
 
-#define HDFBHIMDOT 50
+#define HDFBHIMETAL 50
+#define HDFBHIAGE 51
+#define HDFBHIMDOT 52
 //@}
 
 ///number of luminosity bands for stars
@@ -71,7 +74,7 @@
 
 ///\defgroup HDFNAMES labels for HDF naming conventions
 //@{
-#define HDFNUMNAMETYPES  8
+#define HDFNUMNAMETYPES  9
 #define HDFILLUSTISNAMES 0
 #define HDFGADGETXNAMES  1
 #define HDFEAGLENAMES    2
@@ -79,6 +82,7 @@
 #define HDFSIMBANAMES    4
 #define HDFMUFASANAMES   5
 #define HDFSWIFTEAGLENAMES    6
+#define HDFOLDSWIFTEAGLENAMES    8
 #define HDFEAGLEVERSION2NAMES    7
 //@}
 
@@ -108,6 +112,17 @@ ReturnT safe_hdf5(F function, Ts ... args)
        }
        return status;
 }
+
+// Overloaded function to return HDF5 type given a C type
+static inline hid_t hdf5_type(float dummy)              {return H5T_NATIVE_FLOAT;}
+static inline hid_t hdf5_type(double dummy)             {return H5T_NATIVE_DOUBLE;}
+static inline hid_t hdf5_type(int dummy)                {return H5T_NATIVE_INT;}
+static inline hid_t hdf5_type(long dummy)               {return H5T_NATIVE_LONG;}
+static inline hid_t hdf5_type(long long dummy)          {return H5T_NATIVE_LLONG;}
+static inline hid_t hdf5_type(unsigned int dummy)       {return H5T_NATIVE_UINT;}
+static inline hid_t hdf5_type(unsigned long dummy)      {return H5T_NATIVE_ULONG;}
+static inline hid_t hdf5_type(unsigned long long dummy) {return H5T_NATIVE_ULLONG;}
+static inline hid_t hdf5_type(std::string dummy)        {return H5T_C_S1;}
 
 //template <typename AttributeHolder>
 //static inline H5::Attribute get_attribute(const AttributeHolder &l, const std::string attr_name)
@@ -197,12 +212,15 @@ template<typename T> static inline void _do_read(const hid_t &attr, const hid_t 
 template<> void _do_read<std::string>(const hid_t &attr, const hid_t &type, std::string &val)
 {
 	vector<char> buf;
-	hid_t space = H5Aget_space (attr);
-	hsize_t ndims=1, dims[1], maxdims[1];
-	//ndims = H5Sget_simple_extent_dims (space, dims, maxdims);
-	buf.resize(H5Tget_size (type));
-	H5Aread(attr, type, buf.data());
-	H5Sclose(space);
+        hid_t type_in_file = H5Aget_type(attr);
+        hid_t type_in_memory = H5Tcopy(type); // copy memory type because we'll need to modify it
+        size_t length = H5Tget_size(type_in_file); // get length of the string in the file
+	buf.resize(length+1); // resize buffer in memory, allowing for null terminator
+        H5Tset_size(type_in_memory, length+1); // tell HDF5 the length of the buffer in memory
+        H5Tset_strpad(type_in_memory, H5T_STR_NULLTERM); // specify that we want a null terminated string
+	H5Aread(attr, type_in_memory, buf.data());
+        H5Tclose(type_in_memory);
+        H5Tclose(type_in_file);
 	val=string(buf.data());
 }
 
@@ -226,8 +244,9 @@ template<typename T> const T read_attribute(const hid_t &file_id, const std::str
 	get_attribute(file_id, ids, name);
 	//now reverse ids and load attribute
 	reverse(ids.begin(),ids.end());
-	//read the appropriate type
-	type = H5Aget_type(ids[0]);
+	//determine hdf5 type of the array in memory
+        type = hdf5_type(T{});
+        // read the data
 	_do_read<T>(ids[0], type, val);
 	H5Aclose(ids[0]);
 	//remove file id from id list
@@ -251,8 +270,9 @@ template<typename T> const vector<T> read_attribute_v(const hid_t &file_id, cons
 	get_attribute(file_id, ids, name);
 	//now reverse ids and load attribute
 	reverse(ids.begin(),ids.end());
-	//read the appropriate type
-	type = H5Aget_type(ids[0]);
+	//determine hdf5 type of the array in memory
+        type = hdf5_type(T{});
+        // read the data
 	_do_read_v<T>(ids[0], type, val);
 	H5Aclose(ids[0]);
 	//remove file id from id list
@@ -396,17 +416,6 @@ class H5OutputFile
 	  if(file_id >= 0)
 	    close();
 	}
-
-	// Functions to return corresponding HDF5 type for C types
-	hid_t hdf5_type(float dummy)              {return H5T_NATIVE_FLOAT;}
-	hid_t hdf5_type(double dummy)             {return H5T_NATIVE_DOUBLE;}
-	hid_t hdf5_type(int dummy)                {return H5T_NATIVE_INT;}
-	hid_t hdf5_type(long dummy)               {return H5T_NATIVE_LONG;}
-	hid_t hdf5_type(long long dummy)          {return H5T_NATIVE_LLONG;}
-	hid_t hdf5_type(unsigned int dummy)       {return H5T_NATIVE_UINT;}
-	hid_t hdf5_type(unsigned long dummy)      {return H5T_NATIVE_ULONG;}
-	hid_t hdf5_type(unsigned long long dummy) {return H5T_NATIVE_ULLONG;}
-
 
 	/// Write a new 1D dataset. Data type of the new dataset is taken to be the type of
 	/// the input data if not explicitly specified with the filetype_id parameter.
@@ -742,9 +751,13 @@ struct HDF_Part_Info {
             names[itemp++]=string("ParticleIDs");
             if(hdfnametype==HDFEAGLENAMES) names[itemp++]=string("Mass");
             else names[itemp++]=string("Masses");
-            names[itemp++]=string("Density");
-            names[itemp++]=string("InternalEnergy");
-            names[itemp++]=string("StarFormationRate");
+            if (hdfnametype == HDFSWIFTEAGLENAMES) names[itemp++]=string("Densities");
+            else names[itemp++]=string("Density");
+            if (hdfnametype == HDFSWIFTEAGLENAMES) names[itemp++]=string("InternalEnergies");
+            else names[itemp++]=string("InternalEnergy");
+            if (hdfnametype==HDFSWIFTEAGLENAMES) names[itemp++]=string("StarFormationRates");
+            else if (hdfnametype==HDFOLDSWIFTEAGLENAMES) names[itemp++]=string("SFR");
+            else names[itemp++]=string("StarFormationRate");
             //always place the metacallity at position 7 in naming array
             if (hdfnametype==HDFILLUSTISNAMES) {
                 propindex[HDFGASIMETAL]=itemp;
@@ -802,9 +815,24 @@ struct HDF_Part_Info {
                 names[itemp++]=string("Dust_Masses");
                 names[itemp++]=string("Dust_Metallicity");//11 metals stored in this data set
             }
-            else if (hdfnametype==HDFEAGLENAMES || hdfnametype==HDFSWIFTEAGLENAMES) {
+            else if (hdfnametype==HDFEAGLENAMES || hdfnametype==HDFOLDSWIFTEAGLENAMES ) {
                 propindex[HDFGASIMETAL]=itemp;
                 names[itemp++]=string("Metallicity");
+            }
+            else if (hdfnametype==HDFSWIFTEAGLENAMES) {
+                propindex[HDFGASIMETAL]=itemp;
+                names[itemp++]=string("MetalMassFractions");
+
+                names[itemp++]=string("ElementMassFractions");
+                names[itemp++]=string("MetalMassFractionsFromSNIa");
+                names[itemp++]=string("MetalMassFractionsFromSNII");
+                names[itemp++]=string("MetalMassFractionsFromAGB");
+                names[itemp++]=string("MassesFromSNIa");
+                names[itemp++]=string("MassesFromSNII");
+                names[itemp++]=string("MassesFromAGB");
+                names[itemp++]=string("IronMassFractionsFromSNIa");
+                names[itemp++]=string("MaximalTemperatures");
+                names[itemp++]=string("MaximalTemperatureScaleFactors");
             }
         }
         //dark matter
@@ -875,7 +903,7 @@ struct HDF_Part_Info {
                 names[itemp++]=string("ParticleIDGenerationNumber");
                 names[itemp++]=string("Potential");
             }
-            else if (hdfnametype==HDFGIZMONAMES) {
+            else if (hdfnametype==HDFSIMBANAMES || hdfnametype== HDFMUFASANAMES) {
                 propindex[HDFSTARIAGE]=itemp;
                 names[itemp++]=string("StellarFormationTime");
                 propindex[HDFSTARIMETAL]=itemp;
@@ -890,6 +918,31 @@ struct HDF_Part_Info {
                 propindex[HDFSTARIMETAL]=itemp;
                 names[itemp++]=string("Metallicity");
             }
+            else if (hdfnametype==HDFSWIFTEAGLENAMES) {
+                propindex[HDFSTARIAGE]=itemp;
+                names[itemp++]=string("BirthScaleFactors");
+                propindex[HDFSTARIMETAL]=itemp;
+                names[itemp++]=string("MetalMassFractions");
+
+                names[itemp++]=string("ElementMassFractions");
+                names[itemp++]=string("BirthTemperatures");
+                names[itemp++]=string("MetalMassFractionsFromSNIa");
+                names[itemp++]=string("MetalMassFractionsFromSNII");
+                names[itemp++]=string("MetalMassFractionsFromAGB");
+                names[itemp++]=string("MassesFromSNIa");
+                names[itemp++]=string("MassesFromSNII");
+                names[itemp++]=string("MassesFromAGB");
+                names[itemp++]=string("IronMassFractionsFromSNIa");
+                names[itemp++]=string("MaximalTemperatures");
+                names[itemp++]=string("MaximalTemperatureScaleFactors");
+                names[itemp++]=string("FeedbackEnergyFractions");
+            }
+            else if (hdfnametype==HDFOLDSWIFTEAGLENAMES) {
+                propindex[HDFSTARIAGE]=itemp;
+                names[itemp++]=string("BirthTime");
+                propindex[HDFSTARIMETAL]=itemp;
+                names[itemp++]=string("Metallicity");
+            }
         }
         if (ptype==HDFBHTYPE) {
             names[itemp++]=string("Coordinates");
@@ -897,6 +950,7 @@ struct HDF_Part_Info {
             else names[itemp++]=string("Velocities");
             names[itemp++]=string("ParticleIDs");
             if(hdfnametype==HDFEAGLENAMES) names[itemp++]=string("Mass");
+            if(hdfnametype==HDFSWIFTEAGLENAMES) names[itemp++]=string("DynamicalMasses");
             else names[itemp++]=string("Masses");
             if (hdfnametype==HDFILLUSTISNAMES) {
                 names[itemp++]=string("HostHaloMass");
@@ -933,6 +987,28 @@ struct HDF_Part_Info {
             else if (hdfnametype==HDFEAGLENAMES) {
                 //names[itemp++]=string("StellarFormationTime");
                 //names[itemp++]=string("Metallicity");
+            }
+            else if (hdfnametype==HDFSWIFTEAGLENAMES) {
+                propindex[HDFBHIAGE]=itemp;
+                names[itemp++]=string("FormationScaleFactors");
+                propindex[HDFBHIMETAL]=itemp;
+                names[itemp++]=string("MetalMasses");
+                propindex[HDFBHIMDOT]=itemp;
+                names[itemp++]=string("AccretionRates");
+
+                names[itemp++]=string("SubgridMasses");
+                names[itemp++]=string("ElementMasses");
+                names[itemp++]=string("MetalMassFromSNIa");
+                names[itemp++]=string("MetalMassFromSNII");
+                names[itemp++]=string("MetalMassFromAGB");
+                names[itemp++]=string("MassesFromSNIa");
+                names[itemp++]=string("MassesFromSNII");
+                names[itemp++]=string("MassesFromAGB");
+                names[itemp++]=string("IronMassFromSNIa");
+                names[itemp++]=string("GasDensities");
+                names[itemp++]=string("GasSoundSpeeds");
+                names[itemp++]=string("EnergyReservoirs");
+                names[itemp++]=string("TotalAccretedMasses");
             }
         }
         nentries=itemp;

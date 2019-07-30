@@ -103,6 +103,10 @@ void ReadData(Options &opt, vector<Particle> &Part, const Int_t nbodies, Particl
 //Adjust particle data to appropriate units
 void AdjustHydroQuantities(Options &opt, vector<Particle> &Part, const Int_t nbodies) {
     #ifdef GASON
+    for (auto &p:Part) {
+        if (p.GetType()!=GASTYPE) continue;
+        p.SetU(p.GetU()*opt.internalenergyinputconversion);
+    }
     #ifdef STARON
     if (opt.metallicityinputconversion!=1.0) {
         for (auto &p:Part) {
@@ -559,7 +563,7 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
         unsigned int *data=new unsigned int[ng];
-        for (Int_t i=1;i<=ng;i++) data[i-1]=numingroup[i];
+        for (Int_t i=1;i<=ng;i++) data[i-1]=offset[i];
         Fhdf.write_dataset(datagroupnames.group[itemp], ng, data);
         itemp++;
         delete[] data;

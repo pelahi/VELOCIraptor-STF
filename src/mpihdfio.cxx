@@ -161,6 +161,7 @@ void MPINumInDomainHDF(Options &opt)
     double *doublebuff=new double[chunksize*3];
     vector<int> vintbuff;
     vector<long long> vlongbuff;
+    double period;
     //arrays to store number of items to read and offsets when selecting hyperslabs
     //at most one needs a dimensionality of 13 for the tracer particles in Illustris
     hsize_t filespacecount[13],filespaceoffset[13];
@@ -210,7 +211,7 @@ void MPINumInDomainHDF(Options &opt)
                 vintbuff = read_attribute_v<int>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].INuminFile]);
                 for (k=0;k<NHDFTYPE;k++) hdf_header_info[i].npart[k]=vintbuff[k];
             }
-
+            period = read_attribute<double>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].IBoxSize]);
             //open particle group structures
             for (j=0;j<nusetypes;j++) {k=usetypes[j]; partsgroup[i*NHDFTYPE+k]=HDF5OpenGroup(Fhdf[i],hdf_gnames.part_names[k]);}
             if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) {
@@ -239,6 +240,10 @@ void MPINumInDomainHDF(Options &opt)
                     //setup hyperslab so that it is loaded into the buffer
                     HDF5ReadHyperSlabReal(doublebuff,partsdataset[i*NHDFTYPE+k], partsdataspace[i*NHDFTYPE+k], 1, 3, nchunk, n);
                     for (int nn=0;nn<nchunk;nn++) {
+                        for (auto kk=0;kk<3;kk++) {
+                            if (doublebuff[nn*3+kk]<0) doublebuff[nn*3+kk]+=period;
+                            else if (doublebuff[nn*3+kk]>period) doublebuff[nn*3+kk]-=period;
+                        }
                         ibuf=MPIGetParticlesProcessor(doublebuff[nn*3],doublebuff[nn*3+1],doublebuff[nn*3+2]);
                         Nbuf[ibuf]++;
                     }
@@ -255,8 +260,11 @@ void MPINumInDomainHDF(Options &opt)
                         if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
                         // setup hyperslab so that it is loaded into the buffer
                         HDF5ReadHyperSlabReal(doublebuff, partsdataset[i*NHDFTYPE+k], partsdataspace[i*NHDFTYPE+k], 1, 3, nchunk, n);
-
                         for (int nn=0;nn<nchunk;nn++) {
+                            for (auto kk=0;kk<3;kk++) {
+                                if (doublebuff[nn*3+kk]<0) doublebuff[nn*3+kk]+=period;
+                                else if (doublebuff[nn*3+kk]>period) doublebuff[nn*3+kk]-=period;
+                            }
                             ibuf=MPIGetParticlesProcessor(doublebuff[nn*3],doublebuff[nn*3+1],doublebuff[nn*3+2]);
                             Nbaryonbuf[ibuf]++;
                         }
