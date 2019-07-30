@@ -105,7 +105,7 @@ void AdjustHydroQuantities(Options &opt, vector<Particle> &Part, const Int_t nbo
     #ifdef GASON
     for (auto &p:Part) {
         if (p.GetType()!=GASTYPE) continue;
-        p.SetU(p.GetU()*opt.internalenergyconversion);
+        p.SetU(p.GetU()*opt.internalenergyinputconversion);
     }
     #ifdef STARON
     if (opt.metallicityinputconversion!=1.0) {
