@@ -849,8 +849,8 @@ struct HDF_Part_Info {
             names[itemp++]=string("ParticleIDs");
 
             // Masses
-            if (hdfnametype==HDFSWIFTEAGLENAMES) names[itemp++]=string("Masses");
-            else if (hdfnametype==HDFSIMBANAMES||hdfnametype==HDFMUFASANAMES) {
+            if (hdfnametype==HDFSWIFTEAGLENAMES || hdfnametype==HDFSIMBANAMES ||
+                hdfnametype==HDFMUFASANAMES) {
                 names[itemp++]=string("Masses");
             }
 
