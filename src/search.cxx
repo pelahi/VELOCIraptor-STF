@@ -2141,6 +2141,30 @@ private(i,tid,Pval,x1,D2,dval,mval,pid,pidcore)
     }
 }
 
+// ENCAPSULATED: ECAPSULATION-01
+Double_t * GetMass_SubPart(Double_t cmx, Double_t cmy, Double_t cmz, Double_t cmvelx,Double_t cmvely, Double_t cmvelz, Double_t mtotregion,
+                        Int_t *subnumingroup, Particle *subPart, Int_t i)
+{
+    Int_t j;
+    Double_t array_output[7];
+    for (j=0;j<subnumingroup[i];j++) {
+        // cmx
+        array_output[0]+=subPart[j].X()*subPart[j].GetMass();
+        // cmy
+        array_output[1]+=subPart[j].Y()*subPart[j].GetMass();
+        // cmz
+        array_output[2]+=subPart[j].Z()*subPart[j].GetMass();
+        // cmvelx
+        array_output[3]+=subPart[j].Vx()*subPart[j].GetMass();
+        // cmvely
+        array_output[4]+=subPart[j].Vy()*subPart[j].GetMass();
+        // cmvelz
+        array_output[5]+=subPart[j].Vz()*subPart[j].GetMass();
+        // mtotregion
+        array_output[6]+=subPart[j].GetMass();
+    }
+    return array_output;
+}
 
 //Merge any groups that overlap in phase-space
 void MergeSubstructuresCoresPhase(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_t *&pfof, Int_t &numsubs, Int_t &numcores)
@@ -2584,34 +2608,73 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
             Double_t cmx=0.,cmy=0.,cmz=0.,cmvelx=0.,cmvely=0.,cmvelz=0.;
             Double_t mtotregion=0.0;
             Int_t j;
+            Double_t * test_encapsulate;
             if (opt.icmrefadjust) {
 #ifdef USEOPENMP
             if (subnumingroup[i]>ompsearchnum) {
 #pragma omp parallel default(shared)
 {
 #pragma omp for private(j) reduction(+:mtotregion,cmx,cmy,cmz,cmvelx,cmvely,cmvelz)
-            for (j=0;j<subnumingroup[i];j++) {
-                cmx+=subPart[j].X()*subPart[j].GetMass();
-                cmy+=subPart[j].Y()*subPart[j].GetMass();
-                cmz+=subPart[j].Z()*subPart[j].GetMass();
-                cmvelx+=subPart[j].Vx()*subPart[j].GetMass();
-                cmvely+=subPart[j].Vy()*subPart[j].GetMass();
-                cmvelz+=subPart[j].Vz()*subPart[j].GetMass();
-                mtotregion+=subPart[j].GetMass();
-            }
+            // for (j=0;j<subnumingroup[i];j++) {
+            //     cmx+=subPart[j].X()*subPart[j].GetMass();
+            //     cmy+=subPart[j].Y()*subPart[j].GetMass();
+            //     cmz+=subPart[j].Z()*subPart[j].GetMass();
+            //     cmvelx+=subPart[j].Vx()*subPart[j].GetMass();
+            //     cmvely+=subPart[j].Vy()*subPart[j].GetMass();
+            //     cmvelz+=subPart[j].Vz()*subPart[j].GetMass();
+            //     mtotregion+=subPart[j].GetMass();
+            // }
+            test_encapsulate = GetMass_SubPart(
+                                               cmx,
+                                               cmy,
+                                               cmz,
+                                               cmvelx,
+                                               cmvely,
+                                               cmvelz,
+                                               mtotregion,
+                                               subnumingroup,
+                                               subPart,
+                                               i
+            );
+            cmx=test_encapsulate[0];
+            cmy=test_encapsulate[1];
+            cmz=test_encapsulate[2];
+            cmvelx=test_encapsulate[3];
+            cmvely=test_encapsulate[4];
+            cmvelz=test_encapsulate[5];
+            mtotregion=test_encapsulate[6];
 }
             }
             else {
 #endif
-            for (j=0;j<subnumingroup[i];j++) {
-                cmx+=subPart[j].X()*subPart[j].GetMass();
-                cmy+=subPart[j].Y()*subPart[j].GetMass();
-                cmz+=subPart[j].Z()*subPart[j].GetMass();
-                cmvelx+=subPart[j].Vx()*subPart[j].GetMass();
-                cmvely+=subPart[j].Vy()*subPart[j].GetMass();
-                cmvelz+=subPart[j].Vz()*subPart[j].GetMass();
-                mtotregion+=subPart[j].GetMass();
-            }
+            // for (j=0;j<subnumingroup[i];j++) {
+            //     cmx+=subPart[j].X()*subPart[j].GetMass();
+            //     cmy+=subPart[j].Y()*subPart[j].GetMass();
+            //     cmz+=subPart[j].Z()*subPart[j].GetMass();
+            //     cmvelx+=subPart[j].Vx()*subPart[j].GetMass();
+            //     cmvely+=subPart[j].Vy()*subPart[j].GetMass();
+            //     cmvelz+=subPart[j].Vz()*subPart[j].GetMass();
+            //     mtotregion+=subPart[j].GetMass();
+            // }
+            test_encapsulate = GetMass_SubPart(
+                                               cmx,
+                                               cmy,
+                                               cmz,
+                                               cmvelx,
+                                               cmvely,
+                                               cmvelz,
+                                               mtotregion,
+                                               subnumingroup,
+                                               subPart,
+                                               i
+            );
+            cmx=test_encapsulate[0];
+            cmy=test_encapsulate[1];
+            cmz=test_encapsulate[2];
+            cmvelx=test_encapsulate[3];
+            cmvely=test_encapsulate[4];
+            cmvelz=test_encapsulate[5];
+            mtotregion=test_encapsulate[6];
 #ifdef USEOPENMP
 }
 #endif
