@@ -529,19 +529,17 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
               }
             }
             if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) {
-              for (j=1;j<=nbusetypes;j++) {
-                k=usetypes[j];
-                //data loaded into memory in chunks
-                if (hdf_header_info[i].npart[k]<chunksize)nchunk=hdf_header_info[i].npart[k];
-                else nchunk=chunksize;
-                for(n=0;n<hdf_header_info[i].npart[k];n+=nchunk)
-                {
-                  if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
-                  // //setup hyperslab so that it is loaded into the buffer
-                  HDF5ReadHyperSlabReal(doublebuff,partsdataset[i*NHDFTYPE+k], partsdataspace[i*NHDFTYPE+k], 1, 3, nchunk, n);
-                  for (int nn=0;nn<nchunk;nn++) Pbaryons[bcount++].SetPosition(doublebuff[nn*3],doublebuff[nn*3+1],doublebuff[nn*3+2]);
-                }
-              }
+              /* If we have baryon search on, but ask to only search the dark matter, we'll segfault here.
+               * Better to gracefully exit here with some helpful information. */
+
+              cout << "\n";
+              cout << "You have ran with the particle search type (=2) as Dark Matter but have \n";
+              cout << "left the baryon search type as something nonzero. You should  set the \n";
+              cout << "Baryon_searchflag to 0 in your parameter file.\n";
+
+              cerr << "Incompatible choice of parameter values. See stdout for more information.\n";
+
+              exit(1);
             }
             //close data spaces
             for (auto &hidval:partsdataspace) HDF5CloseDataSpace(hidval);
