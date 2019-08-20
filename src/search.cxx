@@ -2607,7 +2607,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
             // ADACS: (save for very high res zooms of individual objects containing billions of particles 
             Double_t cmx=0.,cmy=0.,cmz=0.,cmvelx=0.,cmvely=0.,cmvelz=0.;
             Double_t mtotregion=0.0;
-            Double_t * test_encapsulate = NULL;
+            Double_t * test_encapsulate;
             Int_t j;
             if (opt.icmrefadjust) {
 #ifdef USEOPENMP
@@ -2670,13 +2670,13 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
                 subPart,
                 i
             );
-            cmx=test_encapsulate[0];
-            cmy=test_encapsulate[1];
-            cmz=test_encapsulate[2];
-            cmvelx=test_encapsulate[3];
-            cmvely=test_encapsulate[4];
-            cmvelz=test_encapsulate[5];
-            mtotregion=test_encapsulate[6];
+            cmx=*(test_encapsulate + 0);
+            cmy=*(test_encapsulate + 1);
+            cmz=*(test_encapsulate + 2);
+            cmvelx=*(test_encapsulate + 3);
+            cmvely=*(test_encapsulate + 4);
+            cmvelz=*(test_encapsulate + 5);
+            mtotregion=*(test_encapsulate + 6);
 #ifdef USEOPENMP
 }
 #endif
