@@ -2607,7 +2607,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
             // ADACS: (save for very high res zooms of individual objects containing billions of particles 
             Double_t cmx=0.,cmy=0.,cmz=0.,cmvelx=0.,cmvely=0.,cmvelz=0.;
             Double_t mtotregion=0.0;
-            Double_t * test_encapsulate;
+            Double_t * test_encapsulate = NULL;
             Int_t j;
             if (opt.icmrefadjust) {
 #ifdef USEOPENMP
