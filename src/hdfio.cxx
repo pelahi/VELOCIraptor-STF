@@ -318,15 +318,15 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                 cout<<" Expecting "<<endl;
                 for (j=0;j<NHDFTYPE+1;j++) cout<<hdf_gnames.names[j]<<endl;
             }
-              
+
             /* Read the BoxSize */
             if (opt.ihdfnameconvention == HDFSWIFTEAGLENAMES) {
-              /* SWIFT can have non-cubic boxes; but for cosmological runs they will always be cubes.
-              * This makes the BoxSize a vector attribute, with it containing three values, but they
-              * will always be the same. */
-              hdf_header_info[i].BoxSize = read_attribute_v<double>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].IBoxSize])[0];
+                /* SWIFT can have non-cubic boxes; but for cosmological runs they will always be cubes.
+                * This makes the BoxSize a vector attribute, with it containing three values, but they
+                * will always be the same. */
+                hdf_header_info[i].BoxSize = read_attribute_v<double>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].IBoxSize])[0];
             } else {
-              hdf_header_info[i].BoxSize = read_attribute<double>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].IBoxSize]);
+                hdf_header_info[i].BoxSize = read_attribute<double>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].IBoxSize]);
             }
 
             vdoublebuff=read_attribute_v<double>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].IMass]);
