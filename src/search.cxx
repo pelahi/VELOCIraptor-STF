@@ -2599,6 +2599,14 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
                 cmvelz+=subPart[j].Vz()*subPart[j].GetMass();
                 mtotregion+=subPart[j].GetMass();
             }
+            cout<<"ORIGINAL[cmx]: "<<cmx;
+            //cmx=test_encapsulate[0];
+            //cmy=test_encapsulate[1];
+            //cmz=test_encapsulate[2];
+            //cmvelx=test_encapsulate[3];
+            //cmvely=test_encapsulate[4];
+            //cmvelz=test_encapsulate[5];
+            //mtotregion=test_encapsulate[6];
 }
             }
             else {
@@ -2612,6 +2620,14 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
                 cmvelz+=subPart[j].Vz()*subPart[j].GetMass();
                 mtotregion+=subPart[j].GetMass();
             }
+            cout<<"ORIGINAL[cmx]: "<<cmx;
+            //cmx=test_encapsulate[0];
+            //cmy=test_encapsulate[1];
+            //cmz=test_encapsulate[2];
+            //cmvelx=test_encapsulate[3];
+            //cmvely=test_encapsulate[4];
+            //cmvelz=test_encapsulate[5];
+            //mtotregion=test_encapsulate[6];
 #ifdef USEOPENMP
 }
 #endif
