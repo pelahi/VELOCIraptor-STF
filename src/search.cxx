@@ -2145,8 +2145,15 @@ private(i,tid,Pval,x1,D2,dval,mval,pid,pidcore)
 Double_t * GetMass_SubPart(Double_t cmx, Double_t cmy, Double_t cmz, Double_t cmvelx,Double_t cmvely, Double_t cmvelz, Double_t mtotregion,
                         Int_t *subnumingroup, Particle *subPart, Int_t i)
 {
+    static Double_t array_output[7];
+    array_output[0]=cmx;
+    array_output[1]=cmy;
+    array_output[2]=cmz;
+    array_output[3]=cmvelx;
+    array_output[4]=cmvely;
+    array_output[5]=cmvelz;
+    array_output[6]=mtotregion;
     Int_t j;
-    Double_t array_output[7];
     for (j=0;j<subnumingroup[i];j++) {
         // cmx
         array_output[0]+=subPart[j].X()*subPart[j].GetMass();
