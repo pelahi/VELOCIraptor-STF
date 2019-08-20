@@ -2141,6 +2141,30 @@ private(i,tid,Pval,x1,D2,dval,mval,pid,pidcore)
     }
 }
 
+// ENCAPSULATED: ECAPSULATION-01
+Double_t * GetMass_SubPart(Double_t cmx, Double_t cmy, Double_t cmz, Double_t cmvelx,Double_t cmvely, Double_t cmvelz, Double_t mtotregion,
+                        Int_t *subnumingroup, Particle *subPart, Int_t i)
+{
+    Int_t j;
+    Double_t array_output[7];
+    for (j=0;j<subnumingroup[i];j++) {
+        // cmx
+        array_output[0]+=subPart[j].X()*subPart[j].GetMass();
+        // cmy
+        array_output[1]+=subPart[j].Y()*subPart[j].GetMass();
+        // cmz
+        array_output[2]+=subPart[j].Z()*subPart[j].GetMass();
+        // cmvelx
+        array_output[3]+=subPart[j].Vx()*subPart[j].GetMass();
+        // cmvely
+        array_output[4]+=subPart[j].Vy()*subPart[j].GetMass();
+        // cmvelz
+        array_output[5]+=subPart[j].Vz()*subPart[j].GetMass();
+        // mtotregion
+        array_output[6]+=subPart[j].GetMass();
+    }
+    return array_output;
+}
 
 //Merge any groups that overlap in phase-space
 void MergeSubstructuresCoresPhase(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_t *&pfof, Int_t &numsubs, Int_t &numcores)
