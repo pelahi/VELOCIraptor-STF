@@ -2607,6 +2607,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
             // ADACS: (save for very high res zooms of individual objects containing billions of particles 
             Double_t cmx=0.,cmy=0.,cmz=0.,cmvelx=0.,cmvely=0.,cmvelz=0.;
             Double_t mtotregion=0.0;
+            Double_t * test_encapsulate;
             Int_t j;
             if (opt.icmrefadjust) {
 #ifdef USEOPENMP
@@ -2623,7 +2624,19 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
                 cmvelz+=subPart[j].Vz()*subPart[j].GetMass();
                 mtotregion+=subPart[j].GetMass();
             }
-            cout<<"ORIGINAL[cmx]: "<<cmx;
+            test_encapsulate = GetMass_SubPart(
+                cmx,
+                cmy,
+                cmz,
+                cmvelx,
+                cmvely,
+                cmvelz,
+                mtotregion,
+                subnumingroup,
+                subPart,
+                i
+            );
+            cout<<"ORIGINAL[cmx]: "<<cmx<<"ENCAPSULATED[cmx]: "<<test_encapsulate[0];
             //cmx=test_encapsulate[0];
             //cmy=test_encapsulate[1];
             //cmz=test_encapsulate[2];
@@ -2644,7 +2657,19 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
                 cmvelz+=subPart[j].Vz()*subPart[j].GetMass();
                 mtotregion+=subPart[j].GetMass();
             }
-            cout<<"ORIGINAL[cmx]: "<<cmx;
+            test_encapsulate = GetMass_SubPart(
+                cmx,
+                cmy,
+                cmz,
+                cmvelx,
+                cmvely,
+                cmvelz,
+                mtotregion,
+                subnumingroup,
+                subPart,
+                i
+            );
+            cout<<"ORIGINAL[cmx]: "<<cmx<<"ENCAPSULATED[cmx]: "<<test_encapsulate[0];
             //cmx=test_encapsulate[0];
             //cmy=test_encapsulate[1];
             //cmz=test_encapsulate[2];
