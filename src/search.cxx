@@ -2615,15 +2615,15 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
 #pragma omp parallel default(shared)
 {
 #pragma omp for private(j) reduction(+:mtotregion,cmx,cmy,cmz,cmvelx,cmvely,cmvelz)
-            for (j=0;j<subnumingroup[i];j++) {
-                cmx+=subPart[j].X()*subPart[j].GetMass();
-                cmy+=subPart[j].Y()*subPart[j].GetMass();
-                cmz+=subPart[j].Z()*subPart[j].GetMass();
-                cmvelx+=subPart[j].Vx()*subPart[j].GetMass();
-                cmvely+=subPart[j].Vy()*subPart[j].GetMass();
-                cmvelz+=subPart[j].Vz()*subPart[j].GetMass();
-                mtotregion+=subPart[j].GetMass();
-            }
+            // for (j=0;j<subnumingroup[i];j++) {
+            //     cmx+=subPart[j].X()*subPart[j].GetMass();
+            //     cmy+=subPart[j].Y()*subPart[j].GetMass();
+            //     cmz+=subPart[j].Z()*subPart[j].GetMass();
+            //     cmvelx+=subPart[j].Vx()*subPart[j].GetMass();
+            //     cmvely+=subPart[j].Vy()*subPart[j].GetMass();
+            //     cmvelz+=subPart[j].Vz()*subPart[j].GetMass();
+            //     mtotregion+=subPart[j].GetMass();
+            // }
             test_encapsulate = GetMass_SubPart(
                 cmx,
                 cmy,
@@ -2636,27 +2636,26 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
                 subPart,
                 i
             );
-            cout<<"ORIGINAL[cmx]: "<<cmx<<"ENCAPSULATED[cmx]: "<<test_encapsulate[0];
-            //cmx=test_encapsulate[0];
-            //cmy=test_encapsulate[1];
-            //cmz=test_encapsulate[2];
-            //cmvelx=test_encapsulate[3];
-            //cmvely=test_encapsulate[4];
-            //cmvelz=test_encapsulate[5];
-            //mtotregion=test_encapsulate[6];
+            cmx=test_encapsulate[0];
+            cmy=test_encapsulate[1];
+            cmz=test_encapsulate[2];
+            cmvelx=test_encapsulate[3];
+            cmvely=test_encapsulate[4];
+            cmvelz=test_encapsulate[5];
+            mtotregion=test_encapsulate[6];
 }
             }
             else {
 #endif
-            for (j=0;j<subnumingroup[i];j++) {
-                cmx+=subPart[j].X()*subPart[j].GetMass();
-                cmy+=subPart[j].Y()*subPart[j].GetMass();
-                cmz+=subPart[j].Z()*subPart[j].GetMass();
-                cmvelx+=subPart[j].Vx()*subPart[j].GetMass();
-                cmvely+=subPart[j].Vy()*subPart[j].GetMass();
-                cmvelz+=subPart[j].Vz()*subPart[j].GetMass();
-                mtotregion+=subPart[j].GetMass();
-            }
+            // for (j=0;j<subnumingroup[i];j++) {
+            //     cmx+=subPart[j].X()*subPart[j].GetMass();
+            //     cmy+=subPart[j].Y()*subPart[j].GetMass();
+            //     cmz+=subPart[j].Z()*subPart[j].GetMass();
+            //     cmvelx+=subPart[j].Vx()*subPart[j].GetMass();
+            //     cmvely+=subPart[j].Vy()*subPart[j].GetMass();
+            //     cmvelz+=subPart[j].Vz()*subPart[j].GetMass();
+            //     mtotregion+=subPart[j].GetMass();
+            // }
             test_encapsulate = GetMass_SubPart(
                 cmx,
                 cmy,
@@ -2669,14 +2668,13 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
                 subPart,
                 i
             );
-            cout<<"ORIGINAL[cmx]: "<<cmx<<"ENCAPSULATED[cmx]: "<<test_encapsulate[0];
-            //cmx=test_encapsulate[0];
-            //cmy=test_encapsulate[1];
-            //cmz=test_encapsulate[2];
-            //cmvelx=test_encapsulate[3];
-            //cmvely=test_encapsulate[4];
-            //cmvelz=test_encapsulate[5];
-            //mtotregion=test_encapsulate[6];
+            cmx=test_encapsulate[0];
+            cmy=test_encapsulate[1];
+            cmz=test_encapsulate[2];
+            cmvelx=test_encapsulate[3];
+            cmvely=test_encapsulate[4];
+            cmvelz=test_encapsulate[5];
+            mtotregion=test_encapsulate[6];
 #ifdef USEOPENMP
 }
 #endif
