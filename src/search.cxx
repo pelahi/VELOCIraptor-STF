@@ -2173,6 +2173,23 @@ Double_t * GetMass_SubPart(Double_t cmx, Double_t cmy, Double_t cmz, Double_t cm
     return array_output;
 }
 
+void AdjustSubPartToPhaseCM(Int_t num, Particle *subPart, GMatrix &cmphase)
+{
+    int nthreads = 1;
+#ifdef USEOPENMP
+    nthreads = max(1, (int)(num/(float)ompsearchnum));
+    nthreads = min(nthreads,omp_get_max_threads());
+#pragma omp parallel for \
+default(shared)  \
+num_threads(nthreads)
+#endif
+    for (auto j=0;j<num;j++)
+    {
+        for (int k=0;k<6;k++) subPart[j].SetPhase(k,subPart[j].GetPhase(k)-cmphase(k,0));
+    }
+}
+
+
 //Merge any groups that overlap in phase-space
 void MergeSubstructuresCoresPhase(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_t *&pfof, Int_t &numsubs, Int_t &numcores)
 {
@@ -2509,7 +2526,7 @@ void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Parts
     each object is searched sequentially but this does not need to be the case. It would require restructureing the loop and some of calls within
     the loop so that the available pool of threads over which to run in parallel for the callled subroutines is adaptive. (Or it might be
     simply more useful to not have the functions called within this loop parallelised. This loop invokes a few routines that have OpenMP
-    parallelisation: InitializeTreeGrid, GetCellVel, GetCellVelDisp, CalcVelSigmaTensor, etc. 
+    parallelisation: InitializeTreeGrid, GetCellVel, GetCellVelDisp, CalcVelSigmaTensor, etc.
 */
 void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubset, Int_t *&pfof, Int_t &ngroup, Int_t &nhalos, PropData *pdata)
 {
@@ -2608,10 +2625,19 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
             subpfofold[i]=pfof[subpglist[i][0]];
             subPart=new Particle[subnumingroup[i]];
             for (Int_t j=0;j<subnumingroup[i];j++) subPart[j]=Partsubset[subpglist[i][j]];
+
+            //suggested encapsulation by PJE
+            if (opt.icmrefadjust) {
+                //this routine is in substructureproperties.cxx. Has internal parallelisation
+                GMatrix cmphase = CalcPhaseCM(subnumingroup[i], subPart);
+                //this routine is within this file, also has internal parallelisation
+                AdjustSubPartToPhaseCM(subnumingroup[i], subPart, cmphase);
+            }
+            /*
             //now if low statistics, then possible that very central regions of subhalo will be higher due to cell size used and Nv search
             //so first determine centre of subregion
             // ADACS: here is an example of unecessary parallelisation in most cases
-            // ADACS: (save for very high res zooms of individual objects containing billions of particles 
+            // ADACS: (save for very high res zooms of individual objects containing billions of particles
             Double_t cmx=0.,cmy=0.,cmz=0.,cmvelx=0.,cmvely=0.,cmvelz=0.;
             Double_t mtotregion=0.0;
             Double_t * test_encapsulate;
@@ -2712,6 +2738,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
 }
 #endif
             }
+            */
             //ADACS: for large objects, extra processing steps are requried
             //ADACS: Some of these subroutines make use of OpenMP. For this to continue
 		    //ADACS: the pool of threads would have to be changed
@@ -2748,8 +2775,8 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
                 CalcVelSigmaTensor(subnumingroup[i], subPart, sigma2x, sigma2y, sigma2z, eigvec, I);
                 opt.HaloLocalSigmaV=opt.HaloSigmaV=pow(sigma2x*sigma2y*sigma2z,1.0/3.0);
             }
-            //ADACS: Here the object is searched. Not much of this uses OpenMP but there are 
-		    //  one or two subroutines called within SearchSubset that do make use of OpenMP. 
+            //ADACS: Here the object is searched. Not much of this uses OpenMP but there are
+		    //  one or two subroutines called within SearchSubset that do make use of OpenMP.
             subpfof=SearchSubset(opt,subnumingroup[i],subnumingroup[i],subPart,subngroup[i],sublevel,&numcores[i]);
             //now if subngroup>0 change the pfof ids of these particles in question and see if there are any substrucures that can be searched again.
             //the group ids must be stored along with the number of groups in this substructure that will be searched at next level.
@@ -2782,10 +2809,10 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
                         }
                     }
                 }
-                for (j=0;j<subnumingroup[i];j++) if (subpfof[j]>0) pfof[subpglist[i][j]]=ngroup+ngroupidoffset+subpfof[j];
+                for (Int_t j=0;j<subnumingroup[i];j++) if (subpfof[j]>0) pfof[subpglist[i][j]]=ngroup+ngroupidoffset+subpfof[j];
                 ngroupidoffset+=subngroup[i];
                 //now alter subsubpglist so that index pointed is global subset index as global subset is used to get the particles to be searched for subsubstructure
-                for (j=1;j<=subngroup[i];j++) for (Int_t k=0;k<subsubnumingroup[i][j];k++) subsubpglist[i][j][k]=subpglist[i][subsubpglist[i][j][k]];
+                for (Int_t j=1;j<=subngroup[i];j++) for (Int_t k=0;k<subsubnumingroup[i][j];k++) subsubpglist[i][j][k]=subpglist[i][subsubpglist[i][j][k]];
             }
             delete[] subpfof;
             delete[] subPart;
