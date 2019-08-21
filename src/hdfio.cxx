@@ -539,7 +539,11 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 
               cerr << "Incompatible choice of parameter values. See stdout for more information.\n";
 
+#ifdef USE_MPI
+              MPI_Abort(MPI_COMM_WORLD, 1);
+#else
               exit(1);
+#endif
             }
             //close data spaces
             for (auto &hidval:partsdataspace) HDF5CloseDataSpace(hidval);
