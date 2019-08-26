@@ -2633,7 +2633,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
                 //this routine is within this file, also has internal parallelisation
                 AdjustSubPartToPhaseCM(subnumingroup[i], subPart, cmphase);
             }
-            /*
+            
             //now if low statistics, then possible that very central regions of subhalo will be higher due to cell size used and Nv search
             //so first determine centre of subregion
             // ADACS: here is an example of unecessary parallelisation in most cases
@@ -2657,59 +2657,19 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
                 cmvelz+=subPart[j].Vz()*subPart[j].GetMass();
                 mtotregion+=subPart[j].GetMass();
             }
-            // ADACS: encapsulation forbidden
-            //  pragma directive expects for loop function
-            // test_encapsulate = GetMass_SubPart(
-            //     cmx,
-            //     cmy,
-            //     cmz,
-            //     cmvelx,
-            //     cmvely,
-            //     cmvelz,
-            //     mtotregion,
-            //     subnumingroup,
-            //     subPart,
-            //     i
-            // );
-            // cmx=test_encapsulate[0];
-            // cmy=test_encapsulate[1];
-            // cmz=test_encapsulate[2];
-            // cmvelx=test_encapsulate[3];
-            // cmvely=test_encapsulate[4];
-            // cmvelz=test_encapsulate[5];
-            // mtotregion=test_encapsulate[6];
 }
             }
             else {
 #endif
-            // for (j=0;j<subnumingroup[i];j++) {
-            //     cmx+=subPart[j].X()*subPart[j].GetMass();
-            //     cmy+=subPart[j].Y()*subPart[j].GetMass();
-            //     cmz+=subPart[j].Z()*subPart[j].GetMass();
-            //     cmvelx+=subPart[j].Vx()*subPart[j].GetMass();
-            //     cmvely+=subPart[j].Vy()*subPart[j].GetMass();
-            //     cmvelz+=subPart[j].Vz()*subPart[j].GetMass();
-            //     mtotregion+=subPart[j].GetMass();
-            // }
-            test_encapsulate = GetMass_SubPart(
-                cmx,
-                cmy,
-                cmz,
-                cmvelx,
-                cmvely,
-                cmvelz,
-                mtotregion,
-                subnumingroup,
-                subPart,
-                i
-            );
-            cmx=*(test_encapsulate + 0);
-            cmy=*(test_encapsulate + 1);
-            cmz=*(test_encapsulate + 2);
-            cmvelx=*(test_encapsulate + 3);
-            cmvely=*(test_encapsulate + 4);
-            cmvelz=*(test_encapsulate + 5);
-            mtotregion=*(test_encapsulate + 6);
+            for (j=0;j<subnumingroup[i];j++) {
+                cmx+=subPart[j].X()*subPart[j].GetMass();
+                cmy+=subPart[j].Y()*subPart[j].GetMass();
+                cmz+=subPart[j].Z()*subPart[j].GetMass();
+                cmvelx+=subPart[j].Vx()*subPart[j].GetMass();
+                cmvely+=subPart[j].Vy()*subPart[j].GetMass();
+                cmvelz+=subPart[j].Vz()*subPart[j].GetMass();
+                mtotregion+=subPart[j].GetMass();
+            }
 #ifdef USEOPENMP
 }
 #endif
@@ -2738,7 +2698,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
 }
 #endif
             }
-            */
+            
             //ADACS: for large objects, extra processing steps are requried
             //ADACS: Some of these subroutines make use of OpenMP. For this to continue
 		    //ADACS: the pool of threads would have to be changed
