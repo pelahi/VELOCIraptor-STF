@@ -54,7 +54,7 @@ def CheckProperties(VRdata):
     #number of objects the same but particle list ordered differently
     time1 = time.clock()
     for i in range(num):
-        if not np.array_equal(VRdata['ref']['particles']['Particle_IDs'][i], VRdata['comp']['particles']['Particle_IDs'][i]:
+        if not np.array_equal(VRdata['ref']['particles']['Particle_IDs'][i], VRdata['comp']['particles']['Particle_IDs'][i]):
             partdiff[i] = 1
         for prop in proplist:    
             if (VRdata['ref']['properties'][prop][i] != VRdata['comp']['properties'][prop][i]):
