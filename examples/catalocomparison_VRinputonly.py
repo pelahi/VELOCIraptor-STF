@@ -94,8 +94,8 @@ for label in ['ref', 'comp']:
     VRdata[label]= {'filename': None, 'inputformat': None, 'particles': None, 'properties': None, 'num': 0}
     VRdata[label]['filename'], VRdata[label]['inputformat'] = data[0], np.int32(data[1])
     print('Reading ',label,' stored in ',VRdata[label]['filename'])
-    VRdata[label]['particles'] = ReadParticleDataFile(VRdata[label]['filename'], VRdata[label]['inputformat'])
-    VRdata[label]['properties'], numhalos = ReadPropertyFile(VRdata[label]['filename'], VRdata[label]['inputformat'])
+    VRdata[label]['particles'] = vpt.ReadParticleDataFile(VRdata[label]['filename'], VRdata[label]['inputformat'])
+    VRdata[label]['properties'], numhalos = vpt.ReadPropertyFile(VRdata[label]['filename'], VRdata[label]['inputformat'])
     VRdata[label]['num'] = numhalos
 
 print('Finished reading information', time.clock()-time1)
