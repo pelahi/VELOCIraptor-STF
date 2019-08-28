@@ -8,7 +8,7 @@
     same order. Information is passed to the script via a simple text file that has the following format
     VRrefbasefilename VRrefinputformat
     VRcompbasefilename VRcompinputformat
-    
+
 """
 
 
@@ -23,10 +23,10 @@ import velociraptor_python_tools as vpt
 
 def PerfectCrossMatch(VRdata):
     iflag1 = (VRdata['ref']['properties']['num'] != VRdata['comp']['properties']['num'])
-    iflag2 = (VRdata['ref']['particles']['Npart'].size != VRdata['comp']['particles']['Npart'].size)    
+    iflag2 = (VRdata['ref']['particles']['Npart'].size != VRdata['comp']['particles']['Npart'].size)
     if (iflag1):
         print('Catalog contains different number of objects ... Not perfect match')
-    if (iflag2): 
+    if (iflag2):
         print('Particle catalog contains different number of particles ... Not perfect match')
     if (iflag1 or iflag2):
         return 0
@@ -41,11 +41,11 @@ def PerfectCrossMatch(VRdata):
             print('Particle catalog contains same number of particles but IDs differ ... Not perfect match')
             return 0
     return 2
-        
+
 def CheckProperties(VRdata):
     iflag1 = (VRdata['ref']['properties']['num'] != VRdata['comp']['properties']['num'])
     iflag2 = (VRdata['ref']['particles']['Npart'].size != VRdata['comp']['particles']['Npart'].size)
-    proplist = ['Mass_tot', 'Vmax']    
+    proplist = ['Mass_tot', 'Vmax']
     if (iflag1 == True):
         return 0
     partdiff = np.zeros(VRdata['ref']['properties']['num'], dtype = np.int32)
@@ -56,11 +56,11 @@ def CheckProperties(VRdata):
     for i in range(num):
         if not np.array_equal(VRdata['ref']['particles']['Particle_IDs'][i], VRdata['comp']['particles']['Particle_IDs'][i]):
             partdiff[i] = 1
-        for prop in proplist:    
+        for prop in proplist:
             if (VRdata['ref']['properties'][prop][i] != VRdata['comp']['properties'][prop][i]):
                 propdiff[i] = 1
     numpartdiff = np.sum(partdiff)
-    numpropdiff = np.sum(propdiff)    
+    numpropdiff = np.sum(propdiff)
     print('Finished processing individual objects in ', time.clock()-time1)
     if (numpartdiff > 0):
         print('Difference in particles', numpartdiff, ' of', num)
@@ -90,7 +90,7 @@ VRdata = {'label': None}
 
 time1=time.clock()
 for label in ['ref', 'comp']:
-    data = infofile.strip().split(' ')
+    data = infofile.readline().strip().split(' ')
     VRdata[label]= {'filename': None, 'inputformat': None, 'particles': None, 'properties': None, 'num': 0}
     VRdata[label]['filename'], VRdata[label]['inputformat'] = data[0], np.int32(data[1])
     print('Reading ',label,' stored in ',VRdata[label]['filename'])
@@ -115,4 +115,3 @@ else:
     print('* Comparison PASSED *')
     print('*********************\n')
     exit(0)
-
