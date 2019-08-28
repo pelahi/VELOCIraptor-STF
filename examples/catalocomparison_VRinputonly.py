@@ -96,7 +96,7 @@ for label in ['ref', 'comp']:
     print('Reading ',label,' stored in ',VRdata[label]['filename'])
     VRdata[label]['particles'] = vpt.ReadParticleDataFile(VRdata[label]['filename'], VRdata[label]['inputformat'])
     VRdata[label]['properties'], numhalos = vpt.ReadPropertyFile(VRdata[label]['filename'], VRdata[label]['inputformat'])
-    VRdata[label]['num'] = numhalos
+    VRdata[label]['properties']['num'] = numhalos
 
 print('Finished reading information', time.clock()-time1)
 print('Checking for perfect match')
