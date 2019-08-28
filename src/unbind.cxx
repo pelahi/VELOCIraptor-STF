@@ -598,7 +598,7 @@ private(i,j,k,npot,menc,potmin,ipotmin,potpos,storeval)
                                     r2=1.0/sqrt(r2);
                                     poti=gPart[i][j].GetPotential()+opt.G*(gPart[i][nEplusid[k]].GetMass()*gPart[i][j].GetMass())*r2;
     #ifdef NOMASS
-                                    poti*=mw2;
+                                    poti*=mv2;
     #endif
                                     gPart[i][j].SetPotential(poti);
                                 }

@@ -745,20 +745,34 @@ struct HDF_Part_Info {
         int itemp=0;
         //gas
         if (ptype==HDFGASTYPE) {
+
+            // Positions
             names[itemp++]=string("Coordinates");
+
+            // Velocities
             if(hdfnametype==HDFEAGLENAMES) names[itemp++]=string("Velocity");
             else names[itemp++]=string("Velocities");
+
+            // IDs
             names[itemp++]=string("ParticleIDs");
+
+            // Masses
             if(hdfnametype==HDFEAGLENAMES) names[itemp++]=string("Mass");
             else names[itemp++]=string("Masses");
-            if (hdfnametype == HDFSWIFTEAGLENAMES) names[itemp++]=string("Densities");
+
+            // Density
+            if(hdfnametype==HDFSWIFTEAGLENAMES) names[itemp++]=string("Densities");
             else names[itemp++]=string("Density");
-            if (hdfnametype == HDFSWIFTEAGLENAMES) names[itemp++]=string("InternalEnergies");
+
+            // Internal energies
+            if(hdfnametype==HDFSWIFTEAGLENAMES) names[itemp++]=string("InternalEnergies");
             else names[itemp++]=string("InternalEnergy");
-            if (hdfnametype==HDFSWIFTEAGLENAMES) names[itemp++]=string("StarFormationRates");
-            else if (hdfnametype==HDFOLDSWIFTEAGLENAMES) names[itemp++]=string("SFR");
+
+            // SFR
+            if(hdfnametype==HDFSWIFTEAGLENAMES) names[itemp++]=string("StarFormationRates");
             else names[itemp++]=string("StarFormationRate");
-            //always place the metacallity at position 7 in naming array
+
+            //Metallicity. Note always place at position 7 in naming array
             if (hdfnametype==HDFILLUSTISNAMES) {
                 propindex[HDFGASIMETAL]=itemp;
                 names[itemp++]=string("GFM_Metallicity");
@@ -815,53 +829,67 @@ struct HDF_Part_Info {
                 names[itemp++]=string("Dust_Masses");
                 names[itemp++]=string("Dust_Metallicity");//11 metals stored in this data set
             }
-            else if (hdfnametype==HDFEAGLENAMES || hdfnametype==HDFOLDSWIFTEAGLENAMES ) {
+            else if (hdfnametype==HDFEAGLENAMES) {
                 propindex[HDFGASIMETAL]=itemp;
                 names[itemp++]=string("Metallicity");
             }
-            else if (hdfnametype==HDFSWIFTEAGLENAMES) {
-                propindex[HDFGASIMETAL]=itemp;
-                names[itemp++]=string("MetalMassFractions");
-
-                names[itemp++]=string("ElementMassFractions");
-                names[itemp++]=string("MetalMassFractionsFromSNIa");
-                names[itemp++]=string("MetalMassFractionsFromSNII");
-                names[itemp++]=string("MetalMassFractionsFromAGB");
-                names[itemp++]=string("MassesFromSNIa");
-                names[itemp++]=string("MassesFromSNII");
-                names[itemp++]=string("MassesFromAGB");
-                names[itemp++]=string("IronMassFractionsFromSNIa");
-                names[itemp++]=string("MaximalTemperatures");
-                names[itemp++]=string("MaximalTemperatureScaleFactors");
+            else if(hdfnametype==HDFSWIFTEAGLENAMES) {
+              propindex[HDFGASIMETAL]=itemp;
+              names[itemp++]=string("MetalMassFractions");
             }
         }
         //dark matter
         if (ptype==HDFDMTYPE) {
+
+            // Positions
             names[itemp++]=string("Coordinates");
+
+            // Velocities
             if(hdfnametype==HDFEAGLENAMES) names[itemp++]=string("Velocity");
             else names[itemp++]=string("Velocities");
+
+            // IDs
             names[itemp++]=string("ParticleIDs");
-            if (hdfnametype==HDFSWIFTEAGLENAMES) {
+
+            // Masses
+            if (hdfnametype==HDFSWIFTEAGLENAMES || hdfnametype==HDFSIMBANAMES ||
+                hdfnametype==HDFMUFASANAMES) {
                 names[itemp++]=string("Masses");
             }
+
+            // Potential
             if (hdfnametype==HDFSIMBANAMES||hdfnametype==HDFMUFASANAMES) {
-                names[itemp++]=string("Masses");
                 names[itemp++]=string("Potential");
             }
-            if (hdfnametype==HDFILLUSTISNAMES) {
+            else if (hdfnametype==HDFILLUSTISNAMES) {
                 names[itemp++]=string("Potential");
+            }
+
+            // Subfind properties
+            if (hdfnametype==HDFILLUSTISNAMES) {
                 names[itemp++]=string("SubfindDensity");
                 names[itemp++]=string("SubfindHsml");
                 names[itemp++]=string("SubfindVelDisp");
             }
         }
+
         //also dark matter particles
         if (ptype==HDFDM1TYPE ||ptype==HDFDM2TYPE) {
+
+            // Positions
             names[itemp++]=string("Coordinates");
+
+            // Velocities
             if(hdfnametype==HDFEAGLENAMES) names[itemp++]=string("Velocity");
             else names[itemp++]=string("Velocities");
+
+            // IDs
             names[itemp++]=string("ParticleIDs");
+
+            // Masses
             names[itemp++]=string("Masses");
+
+            // Potential
             if (hdfnametype==HDFSIMBANAMES||hdfnametype==HDFMUFASANAMES) {
                 names[itemp++]=string("Potential");
             }
@@ -872,12 +900,21 @@ struct HDF_Part_Info {
             names[itemp++]=string("TracerID");
         }
         if (ptype==HDFSTARTYPE) {
+
+            // Positions
             names[itemp++]=string("Coordinates");
+
+            // Velocities
             if(hdfnametype==HDFEAGLENAMES) names[itemp++]=string("Velocity");
             else names[itemp++]=string("Velocities");
+
+            // IDs
             names[itemp++]=string("ParticleIDs");
+
+            // Masses
             if(hdfnametype==HDFEAGLENAMES) names[itemp++]=string("Mass");
             else names[itemp++]=string("Masses");
+
             //for stars assume star formation and metallicy are position 4, 5 in name array
             if (hdfnametype==HDFILLUSTISNAMES) {
                 propindex[HDFSTARIAGE]=itemp;
@@ -923,35 +960,25 @@ struct HDF_Part_Info {
                 names[itemp++]=string("BirthScaleFactors");
                 propindex[HDFSTARIMETAL]=itemp;
                 names[itemp++]=string("MetalMassFractions");
-
-                names[itemp++]=string("ElementMassFractions");
-                names[itemp++]=string("BirthTemperatures");
-                names[itemp++]=string("MetalMassFractionsFromSNIa");
-                names[itemp++]=string("MetalMassFractionsFromSNII");
-                names[itemp++]=string("MetalMassFractionsFromAGB");
-                names[itemp++]=string("MassesFromSNIa");
-                names[itemp++]=string("MassesFromSNII");
-                names[itemp++]=string("MassesFromAGB");
-                names[itemp++]=string("IronMassFractionsFromSNIa");
-                names[itemp++]=string("MaximalTemperatures");
-                names[itemp++]=string("MaximalTemperatureScaleFactors");
-                names[itemp++]=string("FeedbackEnergyFractions");
-            }
-            else if (hdfnametype==HDFOLDSWIFTEAGLENAMES) {
-                propindex[HDFSTARIAGE]=itemp;
-                names[itemp++]=string("BirthTime");
-                propindex[HDFSTARIMETAL]=itemp;
-                names[itemp++]=string("Metallicity");
             }
         }
         if (ptype==HDFBHTYPE) {
+
+            // Positions
             names[itemp++]=string("Coordinates");
+
+            // Velocities
             if(hdfnametype==HDFEAGLENAMES) names[itemp++]=string("Velocity");
             else names[itemp++]=string("Velocities");
+
+            // IDs
             names[itemp++]=string("ParticleIDs");
+
+            // Masses
             if(hdfnametype==HDFEAGLENAMES) names[itemp++]=string("Mass");
             if(hdfnametype==HDFSWIFTEAGLENAMES) names[itemp++]=string("DynamicalMasses");
             else names[itemp++]=string("Masses");
+
             if (hdfnametype==HDFILLUSTISNAMES) {
                 names[itemp++]=string("HostHaloMass");
                 names[itemp++]=string("Potential");

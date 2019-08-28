@@ -318,7 +318,17 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                 cout<<" Expecting "<<endl;
                 for (j=0;j<NHDFTYPE+1;j++) cout<<hdf_gnames.names[j]<<endl;
             }
-            hdf_header_info[i].BoxSize = read_attribute<double>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].IBoxSize]);
+
+            /* Read the BoxSize */
+            if (opt.ihdfnameconvention == HDFSWIFTEAGLENAMES) {
+                /* SWIFT can have non-cubic boxes; but for cosmological runs they will always be cubes.
+                * This makes the BoxSize a vector attribute, with it containing three values, but they
+                * will always be the same. */
+                hdf_header_info[i].BoxSize = read_attribute_v<double>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].IBoxSize])[0];
+            } else {
+                hdf_header_info[i].BoxSize = read_attribute<double>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].IBoxSize]);
+            }
+
             vdoublebuff=read_attribute_v<double>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].IMass]);
             for (k=0;k<NHDFTYPE;k++)hdf_header_info[i].mass[k]=vdoublebuff[k];
             if (opt.ihdfnameconvention==HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES) {
@@ -519,19 +529,21 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
               }
             }
             if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) {
-              for (j=1;j<=nbusetypes;j++) {
-                k=usetypes[j];
-                //data loaded into memory in chunks
-                if (hdf_header_info[i].npart[k]<chunksize)nchunk=hdf_header_info[i].npart[k];
-                else nchunk=chunksize;
-                for(n=0;n<hdf_header_info[i].npart[k];n+=nchunk)
-                {
-                  if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
-                  // //setup hyperslab so that it is loaded into the buffer
-                  HDF5ReadHyperSlabReal(doublebuff,partsdataset[i*NHDFTYPE+k], partsdataspace[i*NHDFTYPE+k], 1, 3, nchunk, n);
-                  for (int nn=0;nn<nchunk;nn++) Pbaryons[bcount++].SetPosition(doublebuff[nn*3],doublebuff[nn*3+1],doublebuff[nn*3+2]);
-                }
-              }
+              /* If we have baryon search on, but ask to only search the dark matter, we'll segfault here.
+               * Better to gracefully exit here with some helpful information. */
+
+              cout << "\n";
+              cout << "You have ran with the particle search type (=2) as Dark Matter but have \n";
+              cout << "left the baryon search type as something nonzero. You should  set the \n";
+              cout << "Baryon_searchflag to 0 in your parameter file.\n";
+
+              cerr << "Incompatible choice of parameter values. See stdout for more information.\n";
+
+#ifdef USE_MPI
+              MPI_Abort(MPI_COMM_WORLD, 1);
+#else
+              exit(1);
+#endif
             }
             //close data spaces
             for (auto &hidval:partsdataspace) HDF5CloseDataSpace(hidval);

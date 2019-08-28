@@ -5344,7 +5344,7 @@ Int_t CalculateSphericalOverdensity(Options &opt, PropData &pdata,
     for (auto j=0;j<minnum;j++) {
         massval=Part[j].GetMass();
     #ifdef NOMASS
-        massval=*opt.MassValue;
+        massval=opt.MassValue;
     #endif
         EncMass+=massval;
     }
@@ -5359,7 +5359,7 @@ Int_t CalculateSphericalOverdensity(Options &opt, PropData &pdata,
         rc=Part[j].Radius();
         massval=Part[j].GetMass();
     #ifdef NOMASS
-        massval=*opt.MassValue;
+        massval=opt.MassValue;
     #endif
         EncMass+=massval;
         rhoval=log(EncMass)-3.0*log(rc)+fac;
