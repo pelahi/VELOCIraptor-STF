@@ -2602,11 +2602,6 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
             //     //this routine is within this file, also has internal parallelisation
             //     AdjustSubPartToPhaseCM(subnumingroup[i], subPart, cmphase);
             // }
-<<<<<<< HEAD
-            
-=======
-
->>>>>>> 96dd40b78674085d929c4c4a2a8f79abce31819e
             //now if low statistics, then possible that very central regions of subhalo will be higher due to cell size used and Nv search
             //so first determine centre of subregion
             // ADACS: here is an example of unecessary parallelisation in most cases
