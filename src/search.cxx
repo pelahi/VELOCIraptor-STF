@@ -2602,71 +2602,85 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
             //     //this routine is within this file, also has internal parallelisation
             //     AdjustSubPartToPhaseCM(subnumingroup[i], subPart, cmphase);
             // }
+<<<<<<< HEAD
             
+=======
+
+>>>>>>> 96dd40b78674085d929c4c4a2a8f79abce31819e
             //now if low statistics, then possible that very central regions of subhalo will be higher due to cell size used and Nv search
             //so first determine centre of subregion
             // ADACS: here is an example of unecessary parallelisation in most cases
             // ADACS: (save for very high res zooms of individual objects containing billions of particles
-            Double_t cmx=0.,cmy=0.,cmz=0.,cmvelx=0.,cmvely=0.,cmvelz=0.;
-            Double_t mtotregion=0.0;
-            Int_t j;
             if (opt.icmrefadjust) {
+                Double_t cmx=0.,cmy=0.,cmz=0.,cmvelx=0.,cmvely=0.,cmvelz=0.;
+                Double_t mtotregion=0.0;
 #ifdef USEOPENMP
-            if (subnumingroup[i]>ompsearchnum) {
+                if (subnumingroup[i]>ompsearchnum)
+                {
 #pragma omp parallel default(shared)
 {
-#pragma omp for private(j) reduction(+:mtotregion,cmx,cmy,cmz,cmvelx,cmvely,cmvelz)
-            for (j=0;j<subnumingroup[i];j++) {
-                cmx+=subPart[j].X()*subPart[j].GetMass();
-                cmy+=subPart[j].Y()*subPart[j].GetMass();
-                cmz+=subPart[j].Z()*subPart[j].GetMass();
-                cmvelx+=subPart[j].Vx()*subPart[j].GetMass();
-                cmvely+=subPart[j].Vy()*subPart[j].GetMass();
-                cmvelz+=subPart[j].Vz()*subPart[j].GetMass();
-                mtotregion+=subPart[j].GetMass();
-            }
+#pragma omp for reduction(+:mtotregion,cmx,cmy,cmz,cmvelx,cmvely,cmvelz)
+                    for (Int_t j=0;j<subnumingroup[i];j++)
+                    {
+                        cmx+=subPart[j].X()*subPart[j].GetMass();
+                        cmy+=subPart[j].Y()*subPart[j].GetMass();
+                        cmz+=subPart[j].Z()*subPart[j].GetMass();
+                        cmvelx+=subPart[j].Vx()*subPart[j].GetMass();
+                        cmvely+=subPart[j].Vy()*subPart[j].GetMass();
+                        cmvelz+=subPart[j].Vz()*subPart[j].GetMass();
+                        mtotregion+=subPart[j].GetMass();
+                    }
 }
-            }
-            else {
+                }
+                else
+                {
 #endif
-            for (j=0;j<subnumingroup[i];j++) {
-                cmx+=subPart[j].X()*subPart[j].GetMass();
-                cmy+=subPart[j].Y()*subPart[j].GetMass();
-                cmz+=subPart[j].Z()*subPart[j].GetMass();
-                cmvelx+=subPart[j].Vx()*subPart[j].GetMass();
-                cmvely+=subPart[j].Vy()*subPart[j].GetMass();
-                cmvelz+=subPart[j].Vz()*subPart[j].GetMass();
-                mtotregion+=subPart[j].GetMass();
-            }
+                    for (Int_t j=0;j<subnumingroup[i];j++) {
+                        cmx+=subPart[j].X()*subPart[j].GetMass();
+                        cmy+=subPart[j].Y()*subPart[j].GetMass();
+                        cmz+=subPart[j].Z()*subPart[j].GetMass();
+                        cmvelx+=subPart[j].Vx()*subPart[j].GetMass();
+                        cmvely+=subPart[j].Vy()*subPart[j].GetMass();
+                        cmvelz+=subPart[j].Vz()*subPart[j].GetMass();
+                        mtotregion+=subPart[j].GetMass();
+                    }
 #ifdef USEOPENMP
-}
+                }
 #endif
-            cm[0]=cmx;cm[1]=cmy;cm[2]=cmz;
-            cmvel[0]=cmvelx;cmvel[1]=cmvely;cmvel[2]=cmvelz;
-            for (int k=0;k<3;k++) {cm[k]/=mtotregion;cmvel[k]/=mtotregion;}
-            //ADACS: once phase-space CM calculated reset reference but again maybe unecessary parallelisation
+                cm[0]=cmx;cm[1]=cmy;cm[2]=cmz;
+                cmvel[0]=cmvelx;cmvel[1]=cmvely;cmvel[2]=cmvelz;
+                for (int k=0;k<3;k++) {cm[k]/=mtotregion;cmvel[k]/=mtotregion;}
+                //ADACS: once phase-space CM calculated reset reference but again maybe unecessary parallelisation
 #ifdef USEOPENMP
-            if (subnumingroup[i]>ompsearchnum) {
+                if (subnumingroup[i]>ompsearchnum)
+                {
 #pragma omp parallel default(shared)
 {
-#pragma omp for private(j)
-            for (j=0;j<subnumingroup[i];j++)
-                for (int k=0;k<3;k++) {
-                    subPart[j].SetPosition(k,subPart[j].GetPosition(k)-cm[k]);subPart[j].SetVelocity(k,subPart[j].GetVelocity(k)-cmvel[k]);
-                }
+#pragma omp for
+                    for (Int_t j=0;j<subnumingroup[i];j++)
+                    {
+                        for (int k=0;k<3;k++)
+                        {
+                            subPart[j].SetPosition(k,subPart[j].GetPosition(k)-cm[k]);subPart[j].SetVelocity(k,subPart[j].GetVelocity(k)-cmvel[k]);
+                        }
+                    }
 }
-            }
-            else {
-#endif
-            for (j=0;j<subnumingroup[i];j++)
-                for (int k=0;k<3;k++) {
-                    subPart[j].SetPosition(k,subPart[j].GetPosition(k)-cm[k]);subPart[j].SetVelocity(k,subPart[j].GetVelocity(k)-cmvel[k]);
                 }
+                else
+                {
+#endif
+                    for (Int_t j=0;j<subnumingroup[i];j++)
+                    {
+                        for (int k=0;k<3;k++)
+                        {
+                            subPart[j].SetPosition(k,subPart[j].GetPosition(k)-cm[k]);subPart[j].SetVelocity(k,subPart[j].GetVelocity(k)-cmvel[k]);
+                        }
+                    }
 #ifdef USEOPENMP
-}
+                }
 #endif
             }
-            
+
             //ADACS: for large objects, extra processing steps are requried
             //ADACS: Some of these subroutines make use of OpenMP. For this to continue
 		    //ADACS: the pool of threads would have to be changed

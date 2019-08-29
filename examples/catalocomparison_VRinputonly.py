@@ -33,7 +33,7 @@ def PerfectCrossMatch(VRdata):
     num = VRdata['ref']['particles']['Npart'].size
     ref = np.concatenate(VRdata['ref']['particles']['Particle_IDs'])
     comp = np.concatenate(VRdata['comp']['particles']['Particle_IDs'])
-    if (np.array_equal(ref,comp)):
+    if (np.array_equal(ref,comp) == False):
         if (np.where(np.isin(ref,comp))[0].size == num):
             print('Particle catalog contains same number of particles but IDs in different order ... Not perfect match but close')
             return 1
