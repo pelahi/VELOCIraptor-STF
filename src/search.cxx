@@ -2596,12 +2596,12 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
             for (Int_t j=0;j<subnumingroup[i];j++) subPart[j]=Partsubset[subpglist[i][j]];
 
             //suggested encapsulation by PJE
-            if (opt.icmrefadjust) {
-                //this routine is in substructureproperties.cxx. Has internal parallelisation
-                GMatrix cmphase = CalcPhaseCM(subnumingroup[i], subPart);
-                //this routine is within this file, also has internal parallelisation
-                AdjustSubPartToPhaseCM(subnumingroup[i], subPart, cmphase);
-            }
+            // if (opt.icmrefadjust) {
+            //     //this routine is in substructureproperties.cxx. Has internal parallelisation
+            //     GMatrix cmphase = CalcPhaseCM(subnumingroup[i], subPart);
+            //     //this routine is within this file, also has internal parallelisation
+            //     AdjustSubPartToPhaseCM(subnumingroup[i], subPart, cmphase);
+            // }
             
             //now if low statistics, then possible that very central regions of subhalo will be higher due to cell size used and Nv search
             //so first determine centre of subregion
