@@ -320,7 +320,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
             }
 
             /* Read the BoxSize */
-            if (opt.ihdfnameconvention == HDFSWIFTEAGLENAMES) {
+            if (opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES)  {
                 /* SWIFT can have non-cubic boxes; but for cosmological runs they will always be cubes.
                 * This makes the BoxSize a vector attribute, with it containing three values, but they
                 * will always be the same. */
@@ -444,7 +444,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 
     // SWIFT snapshots already include the 1/h factor factor,
     // so there is no need to include it.
-    if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES) {
+    if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES) {
       mscale=opt.massinputconversion;lscale=opt.lengthinputconversion*aadjust;lvscale=opt.lengthinputconversion*opt.a;
     }
     else {
@@ -1065,7 +1065,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 
     // SWIFT snapshot velocities already contain the sqrt(a) factor,
     // so there is no need to include it.
-    if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES) vscale = opt.velocityinputconversion;
+    if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES) vscale = opt.velocityinputconversion;
     else vscale = opt.velocityinputconversion*sqrt(opt.a);
 
     //finally adjust to appropriate units
@@ -1566,7 +1566,8 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 
       // SWIFT snapshots already include the 1/h factor factor,
       // so there is no need to include it.
-      if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES) {
+      if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES)
+      {
         //adjust period
         if (opt.comove) opt.p*=opt.lengthinputconversion;
         else opt.p*=opt.lengthinputconversion*opt.a;
@@ -1664,7 +1665,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 
     // SWIFT snapshot velocities already contain the sqrt(a) factor,
     // so there is no need to include it.
-    if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES) vscale = opt.velocityinputconversion;
+    if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES) vscale = opt.velocityinputconversion;
     else vscale = opt.velocityinputconversion*sqrt(opt.a);
 
     //finally adjust to appropriate units
