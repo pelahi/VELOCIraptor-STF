@@ -654,6 +654,17 @@ struct Options
     Double_t gas_sfr_threshold;
     //@}
 
+    /// \name options related to calculating detailed hydro/star/bh properties related to chemistry/feedbac, etc
+    //@{
+    vector<string> gas_chem_names;
+    vector<string> star_chem_names;
+    vector<string> bh_chem_names;
+
+    vector<string> gas_chemproduction_names;
+    vector<string> star_chemproduction_names;
+    vector<string> bh_chemproduction_names;
+    //@}
+
     Options()
     {
         lengthinputconversion = 1.0;
@@ -1846,6 +1857,21 @@ struct PropData
     vector<Double_t> SO_mass_interloper;
     //@}
 #endif
+
+    /// \name extra hydro/star/bh properties such as chemistry/feedback/metal production
+
+    //@{
+#if defined(GASON)
+    HydroProperties hydroprop;
+#endif
+#if defined(STARON)
+    StarProperties starprop;
+#endif
+#if defined(BHON)
+    BHProperties bhprop;
+
+#endif
+    //@}
 
     PropData()
     {
