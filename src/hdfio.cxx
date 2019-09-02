@@ -1671,7 +1671,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         //reset hydro quantities of buffer
 #ifdef GASON
                         Pbuf[ibufindex].SetU(0);
-                        Pbuf[ibufindex].SetHydroProperties(NULL);
+                        Pbuf[ibufindex].SetHydroProperties();
 #ifdef STARON
                         Pbuf[ibufindex].SetSFR(0);
                         Pbuf[ibufindex].SetZmet(0);
@@ -1680,9 +1680,10 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 #ifdef STARON
                         Pbuf[ibufindex].SetZmet(0);
                         Pbuf[ibufindex].SetTage(0);
-                        Pbuf[ibufindex].SetStarProperties(NULL);
+                        Pbuf[ibufindex].SetStarProperties();
 #endif
 #ifdef BHON
+                        Pbuf[ibufindex].SetBHProperties();
 #endif
 
                         Pbuf[ibufindex].SetPosition(doublebuff[nn*3],doublebuff[nn*3+1],doublebuff[nn*3+2]);
@@ -1720,6 +1721,72 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                       }
 #endif
 
+                    if (numextrafields>0) {
+                        iextraoffset = 0;
+#ifdef GASON
+                        if (k==HDFGASTYPE) {
+                            if (!Pbuf[ibufindex].HasHydroProperties()) Pbuf[ibufindex].InitHydroProperties();
+                            if (opt.gas_chem_names.size()>0)
+                            {
+                                for (auto iextra=0;iextra<opt.gas_chem_names.size();iextra++)
+                                {
+                                    Pbuf[ibufindex].GetHydroProperties().SetChemistry(opt.gas_chem_names[iextra], extrafieldbuff[iextraoffset*chunksize+nn]);
+                                }
+                            }
+                            iextraoffset += opt.gas_chem_names.size();
+                            if (opt.gas_chemproduction_names.size()>0)
+                            {
+                                for (auto iextra=0;iextra<opt.gas_chemproduction_names.size();iextra++)
+                                {
+                                    Pbuf[ibufindex].GetHydroProperties().SetChemistryProduction(opt.gas_chemproduction_names[iextra], extrafieldbuff[iextraoffset*chunksize+nn]);
+                                }
+                            }
+                            iextraoffset += opt.gas_chemproduction_names.size();
+                        }
+#endif
+#ifdef STARON
+                        if (k==HDFSTARTYPE) {
+                            if (!Pbuf[ibufindex].HasStarProperties()) Pbuf[ibufindex].InitStarProperties();
+                            if (opt.star_chem_names.size()>0)
+                            {
+                                for (auto iextra=0;iextra<opt.star_chem_names.size();iextra++)
+                                {
+                                    Pbuf[ibufindex].GetStarProperties().SetChemistry(opt.star_chem_names[iextra], extrafieldbuff[iextraoffset*chunksize+nn]);
+                                }
+                            }
+                            iextraoffset += opt.star_chem_names.size();
+                            if (opt.star_chemproduction_names.size()>0)
+                            {
+                                for (auto iextra=0;iextra<opt.star_chemproduction_names.size();iextra++)
+                                {
+                                    Pbuf[ibufindex].GetStarProperties().SetChemistryProduction(opt.star_chemproduction_names[iextra], extrafieldbuff[iextraoffset*chunksize+nn]);
+                                }
+                            }
+                            iextraoffset += opt.star_chemproduction_names.size();
+                        }
+#endif
+#ifdef BHON
+                        if (k==HDFBHTYPE) {
+                            if (!Pbuf[ibufindex].HasBHProperties()) Pbuf[ibufindex].InitBHProperties();
+                            if (opt.bh_chem_names.size()>0)
+                            {
+                                for (auto iextra=0;iextra<opt.bh_chem_names.size();iextra++)
+                                {
+                                    Pbuf[ibufindex].GetBHProperties().SetChemistry(opt.bh_chem_names[iextra], extrafieldbuff[iextraoffset*chunksize+nn]);
+                                }
+                            }
+                            iextraoffset += opt.bh_chem_names.size();
+                            if (opt.bh_chemproduction_names.size()>0)
+                            {
+                                for (auto iextra=0;iextra<opt.bh_chemproduction_names.size();iextra++)
+                                {
+                                    Pbuf[ibufindex].GetBHProperties().SetChemistryProduction(opt.bh_chemproduction_names[iextra], extrafieldbuff[iextraoffset*chunksize+nn]);
+                                }
+                            }
+                            iextraoffset += opt.bh_chemproduction_names.size();
+                        }
+#endif
+                    }
 
 #ifdef EXTRAINPUTINFO
                         if (opt.iextendedoutput)
