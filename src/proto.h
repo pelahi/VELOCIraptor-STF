@@ -212,6 +212,8 @@ void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *&Partsubset, In
 void MergeSubstructuresCoresPhase(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_t *&pfof, Int_t &numsubs, Int_t &numcores);
 ///merge substructures if phase-space positions overlap
 void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_t *&pfof, Int_t &numgroups, Int_t &numsubs, Int_t &numcores);
+///remove spurious dynamical substructures that comprise most of their host halo
+void RemoveSpuriousDynamicalSubstructures(Options &opt, const Int_t nsubset, Int_t *&pfof, Int_t &numgroups, Int_t &numsubs, Int_t &numcores);
 ///Check significance of each group
 int CheckSignificance(Options &opt, const Int_t nsubset, Particle *Partsubset, Int_t &numgroups, Int_t *numingroups, Int_t *pfof, Int_t **pglist);
 ///Search for Baryonic structures associated with dark matter structures in phase-space

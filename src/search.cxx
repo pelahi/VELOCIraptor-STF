@@ -66,8 +66,10 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     minsize=opt.HaloMinSize;
 #ifdef USEMPI
     //if using MPI, lower minimum number
-    if (NProcs>1) minsize=MinNumMPI;
-    iorder = 0;
+    if (NProcs>1) {
+        minsize=MinNumMPI;
+        iorder = 0;
+    }
 #endif
 
     time1=MyGetTime();
@@ -347,9 +349,15 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     }
 #endif
     if (opt.iverbose>=2) {
-        Int_t sum=0;
-        for (i=0;i<Nlocal;i++) sum+=(pfof[i]>0);
+        minsize=opt.HaloMinSize;
+        Int_t sum=0, maxgroupsize=0;
+        for (i=0;i<Nlocal;i++) {
+            if (pfof[i]==0) continue;
+            sum++;
+            if (pfof[i]==1) maxgroupsize++;
+        }
         cout<<ThisTask<<" has found after full search "<<numgroups<<" with lower min size of "<<minsize<<", with  "<<sum<<" particles in all groups"<<endl;
+        cout<<ThisTask<<" with largest group of "<<maxgroupsize<<endl;
     }
     if (ThisTask==0) cout<<"Total number of groups found is "<<totalgroups<<endl;
     if (ThisTask==0) cout<<ThisTask<<": finished FOF search in total time of "<<MyGetTime()-time1<<endl;
@@ -378,7 +386,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
             }
         }
         for (i=0;i<Nlocal;i++) {numinstrucs+=(pfof[i]>0);}
-        if (opt.iverbose) cout<<ThisTask<<" has "<<numinstrucs<<" particles for which density must be calculated"<<endl;
+        if (opt.iverbose) cout<<ThisTask<<" has "<<numlocalden<<" particles for which density must be calculated"<<endl;
         cout<<ThisTask<<" Going to build tree "<<endl;
         tree=new KDTree(Part.data(),Nlocal,opt.Bsize,tree->TPHYS,tree->KEPAN,100,0,0,0,period);
         GetVelocityDensity(opt, Nlocal, Part.data(),tree);
@@ -447,7 +455,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
             vy+=Part[i].GetVelocity(1)*Part[i].GetMass();
             vz+=Part[i].GetVelocity(2)*Part[i].GetMass();
         }
-            mtotregion+=Part[i].GetMass();
+        mtotregion+=Part[i].GetMass();
         vmean[0]=vx/mtotregion;vmean[1]=vy/mtotregion;vmean[2]=vz/mtotregion;
         for (i=0;i<iend;i++) {
             for (int j=0;j<3;j++) vscale2+=pow(Part[i].GetVelocity(j)-vmean[j],2.0)*Part[i].GetMass();
@@ -557,10 +565,6 @@ private(i,tid,xscaling,vscaling)
 #endif
         //if adaptive 6dfof, set params
         if (opt.fofbgtype==FOF6DADAPTIVE) paramomp[2+tid*20]=paramomp[7+tid*20]=vscale2array[i];
-        /*
-        treeomp[tid]=new KDTree(&Part[noffset[i]],numingroup[i],opt.Bsize,treeomp[tid]->TPHYS,tree->KEPAN,100);
-        pfofomp[i]=treeomp[tid]->FOFCriterion(fofcmp,&paramomp[tid*20],ngomp[i],minsize,1,0,Pnocheck,&Head[noffset[i]],&Next[noffset[i]],&Tail[noffset[i]],&Len[noffset[i]]);
-        */
         //scale particle positions
         xscaling=1.0/sqrt(paramomp[1+tid*20]);vscaling=1.0/sqrt(paramomp[2+tid*20]);
         for (Int_t j=0;j<numingroup[i];j++) {
@@ -1699,7 +1703,7 @@ private(i,tid)
         delete[] pfofbg;
     }
     if (numgroups>0 && opt.coresubmergemindist>0 && nsubset>=MINSUBSIZE) MergeSubstructuresPhase(opt, nsubset, Partsubset, pfof, numgroups, numsubs, numgroupsbg);
-
+    RemoveSpuriousDynamicalSubstructures(opt,nsubset, pfof, numgroups, numsubs, numgroupsbg);
 
 #ifdef USEMPI
     //now if substructures are subsubstructures, then the region of interest has already been localized to a single MPI domain
@@ -2288,6 +2292,9 @@ void MergeSubstructuresCoresPhase(Options &opt, const Int_t nsubset, Particle *&
 ///Testing a merge of all substructures
 void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_t *&pfof, Int_t &numgroups, Int_t &numsubs, Int_t &numcores)
 {
+#ifndef USEMPI
+    int ThisTask=0;
+#endif
     //get the phase centres of objects and see if they overlap
     Int_t pfofval, newpfofval, imerge, newnumgroups, newnumcores, nummerged=0, index1, index2;
     Double_t disp, dist2, dist2sub1,dist2sub2, mindist2, fdist2=pow(opt.coresubmergemindist,2.0);
@@ -2316,7 +2323,6 @@ void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Parts
         Int_t index;
     };
     vector<indexfof> indexing;
-//cout<<ThisTask<<" entering merging "<<numgroups<<" "<<numsubs<<" "<<numcores<<endl;
     subs.resize(numgroups);
     minfo.resize(numgroups);
     numingroup.resize(numgroups+1);
@@ -2377,7 +2383,6 @@ void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Parts
         index1=subs[i].GetPID()-1;
         index1=subs[i].GetID();
         taggedsubs = tree->SearchBallPosTagged(i, sigXsubs[index1]*fdist2);
-//cout<<i<<" sub tagged "<<subs[i].GetPID()<<" "<<numingroup[subs[i].GetPID()]<<" "<<taggedsubs.size()<<endl;
         if (taggedsubs.size()<=1) continue;
         //if objects are within search window of core, get min phase distance
         imerge=-1;
@@ -2387,16 +2392,13 @@ void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Parts
             if (subs[taggedsubs[j]].GetPID()==0) continue;
             //index2=subs[taggedsubs[j]].GetPID()-1;
             index2=subs[taggedsubs[j]].GetID();
-//double disp2;
             disp = 0; for (auto k=0;k<3;k++) disp+=pow(subs[taggedsubs[j]].GetPosition(k)-subs[i].GetPosition(k),2.0);
-//disp2=disp;
             dist2sub1 = disp/sigXsubs[index1];
             dist2sub2 = disp/sigXsubs[index2];
             disp = 0; for (auto k=0;k<3;k++) disp+=pow(subs[taggedsubs[j]].GetVelocity(k)-subs[i].GetVelocity(k),2.0);
             dist2sub1 += disp/sigVsubs[index1];
             dist2sub2 = disp/sigVsubs[index2];
             dist2 = 0.5*(dist2sub1+dist2sub2);
-//cout<<" dist "<<subs[i].GetPID()<<" "<<subs[taggedsubs[j]].GetPID()<<" "<<numingroup[subs[i].GetPID()]<<" "<<numingroup[subs[taggedsubs[j]].GetPID()]<<" "<<sqrt(dist2)<<" || "<<sqrt(disp2)<<" "<<sqrt(disp)<<" "<<sqrt(sigXsubs[index1])<<" "<<sqrt(sigVsubs[index1])<<" "<<sqrt(sigXsubs[index2])<<" "<<sqrt(sigVsubs[index2])<<endl;
             if (dist2sub1<fdist2 && dist2sub2<fdist2 && dist2<mindist2){
                 imerge=taggedsubs[j];
                 mindist2=dist2;
@@ -2413,13 +2415,12 @@ void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Parts
             minfo[index1].numingroup+=minfo[index2].numingroup;
             minfo[index1].mergedlist.push_back(pfofval);
             for (auto j=0;j<minfo[index2].nummerged;j++) minfo[index1].mergedlist.push_back(minfo[index2].mergedlist[j]);
-//cout<<"merging "<<subs[i].GetPID()<<" "<<pfofval<<" "<<minfo[index1].nummerged<<endl;
         }
     }
     delete tree;
     //if nothing has changed, do nothing
     if (nummerged==0) return;
-//cout<<" merging subs has given  "<<nummerged<<" mergers "<<numgroups<<" "<<numcores<<endl;
+    if (opt.iverbose>=2) cout<<ThisTask<<": merging phase-space structures which overlap significantly. Number of mergers "<<nummerged<<" of " <<numgroups<<endl;
     sort(minfo.begin(), minfo.end(), [](mergeinfo &a, mergeinfo &b){
         if (a.type<b.type) return true;
         else if (a.type==b.type) return (a.numingroup > b.numingroup);
@@ -2428,34 +2429,48 @@ void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Parts
     newnumgroups=0;
     newnumcores=0;
     for (auto i=0;i<numgroups;i++) {
-//cout<<i<<" "<<minfo[i].numingroup<<" "<<minfo[i].type<<" and before "<<numingroup[minfo[i].pfofval]<<endl;
         //if object has mergered do nothing
         if (minfo[i].ismerged==true) continue;
         newnumgroups++;
         if (minfo[i].type == 1) newnumcores++;
         //if object is still in same order and has not mergered with anything, do nothing
         if (minfo[i].pfofval == newnumgroups && minfo[i].nummerged==0) continue;
-//cout<<"altering  "<<minfo[i].pfofval<<" to "<<newnumgroups<<endl;
         pfofval=minfo[i].pfofval;
         for (auto j=noffset[pfofval];j<noffset[pfofval]+numingroup[pfofval];j++) {
             pfof[Partsubset[indexing[j].index].GetID()]=newnumgroups;
         }
         if (minfo[i].nummerged==0) continue;
-//cout<<"altering merged objects"<<minfo[i].nummerged<<" to "<<newnumgroups<<endl;
         for (auto &mergedgroup:minfo[i].mergedlist) {
-//cout<<" halo that is merging "<<mergedgroup<<" "<<numingroup[mergedgroup]<<endl;
             for (auto j=noffset[mergedgroup];j<noffset[mergedgroup]+numingroup[mergedgroup];j++) {
                 pfof[Partsubset[indexing[j].index].GetID()]=newnumgroups;
             }
         }
     }
-//    for (auto i=0;i<nsubset;i++) if (pfof[Partsubset[i].GetID()]>newnumgroups) cout<<"WTF incorrect pfof value "<<i<<" "<<pfof[Partsubset[i].GetID()]<<" "<<newnumgroups<<endl;
-//cout<<"new is "<<newnumgroups<<" "<<newnumcores<<endl;
-    //exit(9);
     numcores=newnumcores;
     numgroups=newnumgroups;
     numsubs=numgroups-numcores;
-//    cout<<ThisTask<<" after merging "<<numgroups<<" "<<numsubs<<" "<<numcores<<endl;
+}
+
+///Remove spurious dynamical substructures that comprise most of host (this could happen in VERY rare cases of a multitude of radial shells)
+void RemoveSpuriousDynamicalSubstructures(Options &opt, const Int_t nsubset, Int_t *&pfof, Int_t &numgroups, Int_t &numsubs, Int_t &numcores)
+{
+#ifndef USEMPI
+    int ThisTask=0;
+#endif
+    if (numgroups == 0 || numsubs==0) return;
+    Int_t numinsub=0, numinlargest=0;
+    for (auto i=0;i<nsubset;i++) {
+        if (pfof[i]==0) continue;
+        numinlargest+=(pfof[i]==1);
+        numinsub++;
+    }
+    //if most of the object is in substructures and largest object is most of host then take the largest dynamical substructure
+    if (numinsub>=nsubset*opt.minfracsubsizeforremoval && numinlargest>=nsubset*opt.minfracsubsizeforremoval) {
+        if (opt.iverbose>=2) cout<<ThisTask<<": removing a large substructure "<<nsubset<<" "<<numgroups<<" "<<numsubs<<" "<<numcores<<" and size is "<<numinsub<<" "<<numinlargest<<endl;
+        numgroups--;
+        numsubs--;
+        for (auto i=0;i<nsubset;i++) if (pfof[i]>0) pfof[i]--;
+    }
 }
 
 /*!
@@ -2500,6 +2515,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
     StrucLevelData *pcsld;
     //use to store total number in sublevel;
     Int_t ns;
+    int minsizeforsubsearch = opt.MinSize*2;
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
 #endif
@@ -2528,7 +2544,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
         pcsld=psldata->nextlevel;
         nsubsearch=ngroup-opt.num3dfof;
     }
-    for (Int_t i=firstgroup;i<=ngroup;i++) if (numingroup[i]<opt.MinSize*2) {nsubsearch=i-firstgroup;break;}
+    for (Int_t i=firstgroup;i<=ngroup;i++) if (numingroup[i]<minsizeforsubsearch) {nsubsearch=i-firstgroup;break;}
     iflag=(nsubsearch>0);
 
     if (iflag) {
@@ -2623,6 +2639,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
 }
 #endif
             }
+            if (opt.iverbose>=2) cout<<ThisTask<<" searching for substructure "<<i<< " at sublevel "<<sublevel<<" in object composed of "<<subnumingroup[i]<<endl;
             if (subnumingroup[i]>=MINSUBSIZE&&opt.foftype!=FOF6DCORE) {
                 //now if object is large enough for phase-space decomposition and search, compare local field to bg field
                 opt.Ncell=opt.Ncellfac*subnumingroup[i];
@@ -2630,7 +2647,6 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
                 while (opt.Ncell<MINCELLSIZE && subnumingroup[i]/4.0>opt.Ncell) opt.Ncell*=2;
                 tree=InitializeTreeGrid(opt,subnumingroup[i],subPart);
                 ngrid=tree->GetNumLeafNodes();
-                if (opt.iverbose) cout<<ThisTask<<" Substructure "<<i<< " at sublevel "<<sublevel<<" with "<<subnumingroup[i]<<" particles split into are "<<ngrid<<" grid cells, with each node containing ~"<<subnumingroup[i]/ngrid<<" particles"<<endl;
                 grid=new GridCell[ngrid];
                 FillTreeGrid(opt, subnumingroup[i], ngrid, tree, subPart, grid);
                 gvel=GetCellVel(opt,subnumingroup[i],subPart,ngrid,grid);
@@ -2792,13 +2808,14 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
         }
         if (opt.iverbose) cout<<ThisTask<<"Finished searching substructures to sublevel "<<sublevel<<endl;
         sublevel++;
+        minsizeforsubsearch=min(minsizeforsubsearch*2,MINSUBSIZE);
         for (Int_t i=1;i<=oldnsubsearch;i++) delete[] subpglist[i];
         delete[] subpglist;
         delete[] subnumingroup;
         nsubsearch=0;
         //after looping over all level sublevel substructures adjust nsubsearch, set subpglist subnumingroup, so that can move to next level.
         for (Int_t i=1;i<=oldnsubsearch;i++)
-            for (Int_t j=1;j<=subngroup[i];j++) if (subsubnumingroup[i][j]>MINSUBSIZE)
+            for (Int_t j=1;j<=subngroup[i];j++) if (subsubnumingroup[i][j]>=minsizeforsubsearch)
                 nsubsearch++;
         if (nsubsearch>0) {
             subnumingroup=new Int_t[nsubsearch+1];
@@ -2806,7 +2823,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
             nsubsearch=1;
             for (Int_t i=1;i<=oldnsubsearch;i++) {
                 for (Int_t j=1;j<=subngroup[i];j++)
-                    if (subsubnumingroup[i][j]>MINSUBSIZE) {
+                    if (subsubnumingroup[i][j]>=minsizeforsubsearch) {
                         subnumingroup[nsubsearch]=subsubnumingroup[i][j];
                         subpglist[nsubsearch]=new Int_t[subnumingroup[nsubsearch]];
                         for (Int_t k=0;k<subnumingroup[nsubsearch];k++) subpglist[nsubsearch][k]=subsubpglist[i][j][k];
