@@ -438,6 +438,7 @@ int main(int argc,char **argv)
         numingroup=BuildNumInGroup(Nlocal, ngroup, pfof);
         CalculateHaloProperties(opt,Nlocal,Part.data(),ngroup,pfof,numingroup,pdata);
         WriteProperties(opt,ngroup,pdata);
+        if (opt.iprofilecalc) WriteProfiles(opt, ngroup, pdata);
         delete[] numingroup;
         delete[] pdata;
 #ifdef USEMPI
