@@ -1875,7 +1875,6 @@ struct PropData
 #endif
 #if defined(BHON)
     BHProperties bhprop;
-
 #endif
     //@}
 

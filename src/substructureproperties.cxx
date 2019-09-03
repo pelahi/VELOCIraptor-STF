@@ -931,6 +931,16 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
             }
         }
 #endif
+#ifdef GASON
+        if (pdata[i].n_gas>0) GetExtraHydroProperties(opt, pdata[i], numingroup[i], &Part[noffset[i]]);
+#endif
+#ifdef STARON
+        if (pdata[i].n_star>0) GetExtraStarProperties(opt, pdata[i], numingroup[i], &Part[noffset[i]]);
+#endif
+#ifdef BHON
+        if (pdata[i].n_bh>0) GetExtraBHProperties(opt, pdata[i], numingroup[i], &Part[noffset[i]]);
+#endif
+
 #ifdef HIGHRES
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
@@ -1702,6 +1712,17 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
             }
         }
 #endif
+
+#ifdef GASON
+        if (pdata[i].n_gas>0) GetExtraHydroProperties(opt, pdata[i], numingroup[i], &Part[noffset[i]]);
+#endif
+#ifdef STARON
+        if (pdata[i].n_star>0) GetExtraStarProperties(opt, pdata[i], numingroup[i], &Part[noffset[i]]);
+#endif
+#ifdef BHON
+        if (pdata[i].n_bh>0) GetExtraBHProperties(opt, pdata[i], numingroup[i], &Part[noffset[i]]);
+#endif
+
 #ifdef HIGHRES
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
@@ -5210,6 +5231,168 @@ void AddDataToRadialBinInclusive(Options &opt, Double_t rval, Double_t massval,
 #endif
 }
 
+//@}
+
+/// \name Extra Hydro/Star/BH property calculations
+//@{
+///Calculate the average mass weighted value of a chemical and how it was produced
+///based on gas particles of an object
+void GetExtraHydroProperties(Options &opt, PropData &pdata, Int_t n, Particle *Pval)
+{
+    if (opt.gas_chem_names.size() + opt.gas_chemproduction_names.size() == 0) return;
+    map<string, float> value;
+    string extrafield;
+    HydroProperties x;
+    double weight, sum;
+    for (auto iextra=0;iextra<opt.gas_chem_names.size();iextra++)
+    {
+        extrafield = opt.gas_chem_names[iextra];
+        value[extrafield]=0;
+    }
+    for (auto iextra=0;iextra<opt.gas_chemproduction_names.size();iextra++)
+    {
+        extrafield = opt.gas_chemproduction_names[iextra];
+        value[extrafield]=0;
+    }
+    sum = 0;
+    for (auto i=0;i<n;i++)
+    {
+        if (Pval[i].GetType()!=GASTYPE) continue;
+        x = Pval[i].GetHydroProperties();
+        weight = Pval[i].GetMass();
+        sum += weight;
+        for (auto iextra=0;iextra<opt.gas_chem_names.size();iextra++)
+        {
+            extrafield = opt.gas_chem_names[iextra];
+            value[extrafield]+=x.GetChemistry(extrafield)*weight;
+        }
+        for (auto iextra=0;iextra<opt.gas_chemproduction_names.size();iextra++)
+        {
+            extrafield = opt.gas_chemproduction_names[iextra];
+            value[extrafield]+=x.GetChemistryProduction(extrafield)*weight;
+        }
+    }
+    if (sum > 0)
+    {
+        sum = 1.0/sum;
+        for (auto iextra=0;iextra<opt.gas_chem_names.size();iextra++)
+        {
+            extrafield = opt.gas_chem_names[iextra];
+            pdata.hydroprop.SetChemistry(extrafield, value[extrafield] * sum);
+        }
+        for (auto iextra=0;iextra<opt.gas_chemproduction_names.size();iextra++)
+        {
+            extrafield = opt.gas_chemproduction_names[iextra];
+            pdata.hydroprop.SetChemistryProduction(extrafield, value[extrafield] * sum);
+        }
+    }
+}
+
+///Calculate the average mass weighted value of a chemical and how it was produced
+///based on star particles of an object
+void GetExtraStarProperties(Options &opt, PropData &pdata, Int_t n, Particle *Pval)
+{
+    if (opt.star_chem_names.size() + opt.star_chemproduction_names.size() == 0) return;
+    map<string, float> value;
+    string extrafield;
+    StarProperties x;
+    double weight, sum;
+    for (auto iextra=0;iextra<opt.star_chem_names.size();iextra++)
+    {
+        extrafield = opt.star_chem_names[iextra];
+        value[extrafield]=0;
+    }
+    for (auto iextra=0;iextra<opt.star_chemproduction_names.size();iextra++)
+    {
+        extrafield = opt.star_chemproduction_names[iextra];
+        value[extrafield]=0;
+    }
+    sum = 0;
+    for (auto i=0;i<n;i++)
+    {
+        if (Pval[i].GetType()!=STARTYPE) continue;
+        x = Pval[i].GetStarProperties();
+        weight = Pval[i].GetMass();
+        sum += weight;
+        for (auto iextra=0;iextra<opt.star_chem_names.size();iextra++)
+        {
+            extrafield = opt.star_chem_names[iextra];
+            value[extrafield]+=x.GetChemistry(extrafield)*weight;
+        }
+        for (auto iextra=0;iextra<opt.star_chemproduction_names.size();iextra++)
+        {
+            extrafield = opt.star_chemproduction_names[iextra];
+            value[extrafield]+=x.GetChemistryProduction(extrafield)*weight;
+        }
+    }
+    if (sum > 0)
+    {
+        sum = 1.0/sum;
+        for (auto iextra=0;iextra<opt.star_chem_names.size();iextra++)
+        {
+            extrafield = opt.star_chem_names[iextra];
+            pdata.starprop.SetChemistry(extrafield, value[extrafield] * sum);
+        }
+        for (auto iextra=0;iextra<opt.star_chemproduction_names.size();iextra++)
+        {
+            extrafield = opt.star_chemproduction_names[iextra];
+            pdata.starprop.SetChemistryProduction(extrafield, value[extrafield] * sum);
+        }
+    }
+}
+
+///Calculate the average mass weighted value of a chemical and how it was produced
+///based on bh particles of an object
+void GetExtraBHProperties(Options &opt, PropData &pdata, Int_t n, Particle *Pval)
+{
+    if (opt.bh_chem_names.size() + opt.bh_chemproduction_names.size() == 0) return;
+    map<string, float> value;
+    string extrafield;
+    BHProperties x;
+    double weight, sum;
+    for (auto iextra=0;iextra<opt.bh_chem_names.size();iextra++)
+    {
+        extrafield = opt.bh_chem_names[iextra];
+        value[extrafield]=0;
+    }
+    for (auto iextra=0;iextra<opt.bh_chemproduction_names.size();iextra++)
+    {
+        extrafield = opt.bh_chemproduction_names[iextra];
+        value[extrafield]=0;
+    }
+    sum = 0;
+    for (auto i=0;i<n;i++)
+    {
+        if (Pval[i].GetType()!=BHTYPE) continue;
+        x = Pval[i].GetBHProperties();
+        weight = Pval[i].GetMass();
+        sum += weight;
+        for (auto iextra=0;iextra<opt.bh_chem_names.size();iextra++)
+        {
+            extrafield = opt.bh_chem_names[iextra];
+            value[extrafield]+=x.GetChemistry(extrafield)*weight;
+        }
+        for (auto iextra=0;iextra<opt.bh_chemproduction_names.size();iextra++)
+        {
+            extrafield = opt.bh_chemproduction_names[iextra];
+            value[extrafield]+=x.GetChemistryProduction(extrafield)*weight;
+        }
+    }
+    if (sum > 0)
+    {
+        sum = 1.0/sum;
+        for (auto iextra=0;iextra<opt.bh_chem_names.size();iextra++)
+        {
+            extrafield = opt.bh_chem_names[iextra];
+            pdata.bhprop.SetChemistry(extrafield, value[extrafield] * sum);
+        }
+        for (auto iextra=0;iextra<opt.bh_chemproduction_names.size();iextra++)
+        {
+            extrafield = opt.bh_chemproduction_names[iextra];
+            pdata.bhprop.SetChemistryProduction(extrafield, value[extrafield] * sum);
+        }
+    }
+}
 //@}
 
 /// \ name Spherical Overdensity related function calls

@@ -383,6 +383,14 @@ void AddDataToRadialBinInclusive(Options &opt, Double_t rval, Double_t massval,
     Double_t srfval, int typeval,
 #endif
     Double_t irnorm, int &ibin, PropData &pdata);
+
+///calculate extra hydro properties
+void GetExtraHydroProperties(Options &opt, PropData &pdata, Int_t n, Particle *Pval);
+///calculate extra star properties
+void GetExtraStarProperties(Options &opt, PropData &pdata, Int_t n, Particle *Pval);
+///calculate extra bh properties
+void GetExtraBHProperties(Options &opt, PropData &pdata, Int_t n, Particle *Pval);
+
 ///calculate spherical overdensity from vector of radii, masses and indices
 Int_t CalculateSphericalOverdensity(Options &opt, PropData &pdata,
     vector<Double_t> &radii, vector<Double_t> &masses, vector<Int_t> &indices,
