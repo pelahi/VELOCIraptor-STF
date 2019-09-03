@@ -1897,6 +1897,63 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
     }
 #endif
 
+        //output extra hydro/star/bh props
+#ifdef GASON
+        if (opt.gas_chem_names.size()+opt.gas_chemproduction_names.size()>0) {
+            for (auto &extrafield:opt.gas_chem_names)
+            {
+                for (Int_t i=0;i<ngroups;i++)
+                    ((Double_t*)data)[i]=pdata[i+1].hydroprop.GetChemistry(extrafield);
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);
+                itemp++;
+            }
+            for (auto &extrafield:opt.gas_chemproduction_names)
+            {
+                for (Int_t i=0;i<ngroups;i++)
+                    ((Double_t*)data)[i]=pdata[i+1].hydroprop.GetChemistryProduction(extrafield);
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);
+                itemp++;
+            }
+        }
+#endif
+#ifdef STARON
+        if (opt.star_chem_names.size()+opt.star_chemproduction_names.size()>0) {
+            for (auto &extrafield:opt.star_chem_names)
+            {
+                for (Int_t i=0;i<ngroups;i++)
+                    ((Double_t*)data)[i]=pdata[i+1].starprop.GetChemistry(extrafield);
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);
+                itemp++;
+            }
+            for (auto &extrafield:opt.star_chemproduction_names)
+            {
+                for (Int_t i=0;i<ngroups;i++)
+                    ((Double_t*)data)[i]=pdata[i+1].starprop.GetChemistryProduction(extrafield);
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);
+                itemp++;
+            }
+        }
+#endif
+#ifdef BHON
+        if (opt.bh_chem_names.size()+opt.bh_chemproduction_names.size()>0) {
+            for (auto &extrafield:opt.bh_chem_names)
+            {
+                for (Int_t i=0;i<ngroups;i++)
+                    ((Double_t*)data)[i]=pdata[i+1].bhprop.GetChemistry(extrafield);
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);
+                itemp++;
+            }
+            for (auto &extrafield:opt.star_chemproduction_names)
+            {
+                for (Int_t i=0;i<ngroups;i++)
+                    ((Double_t*)data)[i]=pdata[i+1].bhprop.GetChemistryProduction(extrafield);
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);
+                itemp++;
+            }
+        }
+#endif
+
+
         //output apertures
         if (opt.iaperturecalc && opt.aperturenum>0){
             for (auto j=0;j<opt.aperturenum;j++) {
