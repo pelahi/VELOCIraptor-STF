@@ -5239,6 +5239,7 @@ void AddDataToRadialBinInclusive(Options &opt, Double_t rval, Double_t massval,
 ///based on gas particles of an object
 void GetExtraHydroProperties(Options &opt, PropData &pdata, Int_t n, Particle *Pval)
 {
+#ifdef GASON
     if (opt.gas_chem_names.size() + opt.gas_chemproduction_names.size() == 0) return;
     map<string, float> value;
     string extrafield;
@@ -5286,12 +5287,14 @@ void GetExtraHydroProperties(Options &opt, PropData &pdata, Int_t n, Particle *P
             pdata.hydroprop.SetChemistryProduction(extrafield, value[extrafield] * sum);
         }
     }
+#endif
 }
 
 ///Calculate the average mass weighted value of a chemical and how it was produced
 ///based on star particles of an object
 void GetExtraStarProperties(Options &opt, PropData &pdata, Int_t n, Particle *Pval)
 {
+#ifdef STARON
     if (opt.star_chem_names.size() + opt.star_chemproduction_names.size() == 0) return;
     map<string, float> value;
     string extrafield;
@@ -5339,12 +5342,14 @@ void GetExtraStarProperties(Options &opt, PropData &pdata, Int_t n, Particle *Pv
             pdata.starprop.SetChemistryProduction(extrafield, value[extrafield] * sum);
         }
     }
+#endif
 }
 
 ///Calculate the average mass weighted value of a chemical and how it was produced
 ///based on bh particles of an object
 void GetExtraBHProperties(Options &opt, PropData &pdata, Int_t n, Particle *Pval)
 {
+#ifdef BHON
     if (opt.bh_chem_names.size() + opt.bh_chemproduction_names.size() == 0) return;
     map<string, float> value;
     string extrafield;
@@ -5392,6 +5397,7 @@ void GetExtraBHProperties(Options &opt, PropData &pdata, Int_t n, Particle *Pval
             pdata.bhprop.SetChemistryProduction(extrafield, value[extrafield] * sum);
         }
     }
+#endif
 }
 //@}
 
