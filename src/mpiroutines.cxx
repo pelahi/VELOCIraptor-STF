@@ -413,7 +413,7 @@ void MPIISendStarInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int dst, i
 
 void MPIISendBHInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int dst, int tag, MPI_Request &rqst)
 {
-#ifdef STARON
+#ifdef BHON
     MPI_Status status;
     vector<Int_t> indices;
     Int_t num = 0, numextrafields = 0, index, offset = 0;
@@ -1848,9 +1848,9 @@ void MPIBuildParticleExportListUsingMesh(Options &opt, const Int_t nbodies, Part
                             MPI_BYTE, dst, (int)(TAG_FOF_A*maxnbuffers+numBuffersToSend[dst]), MPI_COMM_WORLD, &rqst);
                 MPI_Isend (&PartDataIn[noffset[dst] + buffOffset], sizeof(Particle)*size,
                             MPI_BYTE, dst, (int)(TAG_FOF_B*maxnbuffers*3+numBuffersToSend[dst]), MPI_COMM_WORLD, &rqst);
-                MPIReceiveHydroInfo(opt, numInBuffer, &PartDataGet[nbuffer[src] + buffOffset], src, (int)(TAG_FOF_B_HYDRO*maxnbuffers*3+jj+1));
-                MPIReceiveStarInfo(opt, numInBuffer, &PartDataGet[nbuffer[src] + buffOffset], src, (int)(TAG_FOF_B_STAR*maxnbuffers*3+jj+1));
-                MPIReceiveBHInfo(opt, numInBuffer, &PartDataGet[nbuffer[src] + buffOffset], src, (int)(TAG_FOF_B_HYDRO*maxnbuffers*3+jj+1));
+                MPIISendHydroInfo(opt, size, &PartDataIn[noffset[dst] + buffOffset], dst, (int)(TAG_FOF_B_HYDRO*maxnbuffers*3+numBuffersToSend[dst]), rqst);
+                MPIISendStarInfo(opt, size, &PartDataIn[noffset[dst] + buffOffset], dst, (int)(TAG_FOF_B_STAR*maxnbuffers*3+numBuffersToSend[dst]), rqst);
+                MPIISendBHInfo(opt, size, &PartDataIn[noffset[dst] + buffOffset], dst, (int)(TAG_FOF_B_BH*maxnbuffers*3+numBuffersToSend[dst]), rqst);
             }
             // Receive Buffers
             buffOffset = 0;
