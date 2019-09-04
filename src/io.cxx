@@ -103,6 +103,10 @@ void ReadData(Options &opt, vector<Particle> &Part, const Int_t nbodies, Particl
 //Adjust particle data to appropriate units
 void AdjustHydroQuantities(Options &opt, vector<Particle> &Part, const Int_t nbodies) {
     #ifdef GASON
+    for (auto &p:Part) {
+        if (p.GetType()!=GASTYPE) continue;
+        p.SetU(p.GetU()*opt.internalenergyinputconversion);
+    }
     #ifdef STARON
     if (opt.metallicityinputconversion!=1.0) {
         for (auto &p:Part) {

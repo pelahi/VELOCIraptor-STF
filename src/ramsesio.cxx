@@ -1340,6 +1340,9 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
     MPI_Bcast(&(Ntotal),sizeof(Ntotal),MPI_BYTE,0,MPI_COMM_WORLD);
     MPI_Bcast(&opt.zoomlowmassdm,sizeof(opt.zoomlowmassdm),MPI_BYTE,0,MPI_COMM_WORLD);
 #endif
+    //store how to convert input internal energies to physical output internal energies
+    //as we already convert ramses units to sensible output units, nothing to do.
+    opt.internalenergyinputconversion = 1.0;
 
     //a bit of clean up
 #ifdef USEMPI
