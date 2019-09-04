@@ -291,7 +291,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
 #ifdef SWIFTINTERFACE
     MPIBuildParticleExportListUsingMesh(libvelociraptorOpt, nbodies, Part.data(), pfof, Len, sqrt(param[1]));
 #else
-    MPIBuildParticleExportList(nbodies, Part.data(), pfof, Len, sqrt(param[1]));
+    MPIBuildParticleExportList(opt, nbodies, Part.data(), pfof, Len, sqrt(param[1]));
 #endif
     MPI_Barrier(MPI_COMM_WORLD);
     //Now that have FoFDataGet (the exported particles) must search local volume using said particles
@@ -1749,7 +1749,7 @@ private(i,tid)
 #ifdef SWIFTINTERFACE
     MPIBuildParticleExportListUsingMesh(libvelociraptorOpt, nsubset, Partsubset, pfof, Len, sqrt(param[1]));
 #else
-    MPIBuildParticleExportList(nsubset, Partsubset, pfof, Len, sqrt(param[1]));
+    MPIBuildParticleExportList(opt, nsubset, Partsubset, pfof, Len, sqrt(param[1]));
 #endif
     //Now that have FoFDataGet (the exported particles) must search local volume using said particles
     //This is done by finding all particles in the search volume and then checking if those particles meet the FoF criterion
@@ -3301,7 +3301,7 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
         FoFDataGet = new fofdata_in[NImport+1];
         //exchange particles
 
-        MPIBuildParticleExportBaryonSearchList(npartingroups, Part.data(), pfofdark, ids, numingroup, sqrt(param[1]));
+        MPIBuildParticleExportBaryonSearchList(opt, npartingroups, Part.data(), pfofdark, ids, numingroup, sqrt(param[1]));
 
         //now dark matter particles associated with a group existing on another mpi domain are local and can be searched.
         NExport=MPISearchBaryons(nbaryons, Pbaryons, pfofbaryons, numingroup, localdist, nsearch, param, period);
