@@ -1734,6 +1734,7 @@ void MPIBuildParticleExportListUsingMesh(Options &opt, const Int_t nbodies, Part
     Double_t xsearch[3][2];
     Int_t sendTask,recvTask;
     MPI_Status status;
+    MPI_Comm mpi_comm = MPI_COMM_WORLD;
     vector<int>sent_mpi_domain(NProcs);
 
     ///\todo would like to add openmp to this code. In particular, loop over nbodies but issue is nexport.
