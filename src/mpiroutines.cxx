@@ -1026,7 +1026,10 @@ void MPIReceiveHydroInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle
     if (numextrafields == 0) return;
     MPI_Recv(&num,sizeof(Int_t),MPI_BYTE,readtaskID,ThisTask, MPI_COMM_WORLD,&status);
     if (num == 0) return;
-    for (auto i=0;i<nlocalbuff;i++) Part[i].SetHydroProperties();
+    //explicitly NULLing copied information which was done with a BYTE copy
+    //The unique pointers will have meaningless info so NULL them (by relasing ownership)
+    //and then setting the released pointer to null via in built function.
+    for (auto i=0;i<nlocalbuff;i++) Part[i].NullHydroProperties();
     indices.resize(num);
     propbuff.resize(numextrafields*num);
     MPI_Recv(indices.data(),sizeof(Int_t)*num,MPI_BYTE,readtaskID,ThisTask, MPI_COMM_WORLD,&status);
@@ -1064,7 +1067,10 @@ void MPIReceiveStarInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle 
     if (numextrafields == 0) return;
     MPI_Recv(&num,sizeof(Int_t),MPI_BYTE,readtaskID,ThisTask, MPI_COMM_WORLD,&status);
     if (num == 0) return;
-    for (auto i=0;i<nlocalbuff;i++) Part[i].SetStarProperties();
+    //explicitly NULLing copied information which was done with a BYTE copy
+    //The unique pointers will have meaningless info so NULL them (by relasing ownership)
+    //and then setting the released pointer to null via in built function.
+    for (auto i=0;i<nlocalbuff;i++) Part[i].NullStarProperties();
     indices.resize(num);
     propbuff.resize(numextrafields*num);
     MPI_Recv(indices.data(),sizeof(Int_t)*num,MPI_BYTE,readtaskID,ThisTask, MPI_COMM_WORLD,&status);
@@ -1102,7 +1108,10 @@ void MPIReceiveBHInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle *P
     if (numextrafields == 0) return;
     MPI_Recv(&num,sizeof(Int_t),MPI_BYTE,readtaskID,ThisTask, MPI_COMM_WORLD,&status);
     if (num == 0) return;
-    for (auto i=0;i<nlocalbuff;i++) Part[i].SetBHProperties();
+    //explicitly NULLing copied information which was done with a BYTE copy
+    //The unique pointers will have meaningless info so NULL them (by relasing ownership)
+    //and then setting the released pointer to null via in built function.
+    for (auto i=0;i<nlocalbuff;i++) Part[i].NullBHProperties();
     indices.resize(num);
     propbuff.resize(numextrafields*num);
     MPI_Recv(indices.data(),sizeof(Int_t)*num,MPI_BYTE,readtaskID,ThisTask, MPI_COMM_WORLD,&status);
@@ -1140,7 +1149,10 @@ void MPIReceiveHydroInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int sou
     if (numextrafields == 0) return;
     MPI_Recv(&num,sizeof(Int_t),MPI_BYTE, sourceTaskID, tag, MPI_COMM_WORLD,&status);
     if (num == 0) return;
-    for (auto i=0;i<nlocalbuff;i++) Part[i].SetHydroProperties();
+    //explicitly NULLing copied information which was done with a BYTE copy
+    //The unique pointers will have meaningless info so NULL them (by relasing ownership)
+    //and then setting the released pointer to null via in built function.
+    for (auto i=0;i<nlocalbuff;i++) Part[i].NullHydroProperties();
     indices.resize(num);
     propbuff.resize(numextrafields*num);
     MPI_Recv(indices.data(), sizeof(Int_t)*num, MPI_BYTE, sourceTaskID, tag, MPI_COMM_WORLD, &status);
@@ -1178,7 +1190,10 @@ void MPIReceiveStarInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int sour
     if (numextrafields == 0) return;
     MPI_Recv(&num, sizeof(Int_t), MPI_BYTE, sourceTaskID, tag, MPI_COMM_WORLD, &status);
     if (num == 0) return;
-    for (auto i=0;i<nlocalbuff;i++) Part[i].SetStarProperties();
+    //explicitly NULLing copied information which was done with a BYTE copy
+    //The unique pointers will have meaningless info so NULL them (by relasing ownership)
+    //and then setting the released pointer to null via in built function.
+    for (auto i=0;i<nlocalbuff;i++) Part[i].NullStarProperties();
     indices.resize(num);
     propbuff.resize(numextrafields*num);
     MPI_Recv(indices.data(), sizeof(Int_t)*num, MPI_BYTE, sourceTaskID, tag, MPI_COMM_WORLD, &status);
@@ -1216,7 +1231,10 @@ void MPIReceiveBHInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int source
     if (numextrafields == 0) return;
     MPI_Recv(&num, sizeof(Int_t), MPI_BYTE, sourceTaskID, tag, MPI_COMM_WORLD, &status);
     if (num == 0) return;
-    for (auto i=0;i<nlocalbuff;i++) Part[i].SetBHProperties();
+    //explicitly NULLing copied information which was done with a BYTE copy
+    //The unique pointers will have meaningless info so NULL them (by relasing ownership)
+    //and then setting the released pointer to null via in built function.
+    for (auto i=0;i<nlocalbuff;i++) Part[i].NullBHProperties();
     indices.resize(num);
     propbuff.resize(numextrafields*num);
     MPI_Recv(indices.data(), sizeof(Int_t)*num, MPI_BYTE, sourceTaskID, tag, MPI_COMM_WORLD, &status);
@@ -1354,7 +1372,10 @@ void MPISendReceiveHydroInfoBetweenThreads(Options &opt, Int_t nlocalbuff, Parti
 
     if (numrecv == 0) return;
     //and then update the local information
-    for (auto i=0;i<nlocal;i++) Part[i].SetHydroProperties();
+    //explicitly NULLing copied information which was done with a BYTE copy
+    //The unique pointers will have meaningless info so NULL them (by relasing ownership)
+    //and then setting the released pointer to null via in built function.
+    for (auto i=0;i<nlocal;i++) Part[i].NullHydroProperties();
     for (auto i=0;i<numrecv;i++)
     {
         index=indicesrecv[i];
@@ -1426,7 +1447,10 @@ void MPISendReceiveStarInfoBetweenThreads(Options &opt, Int_t nlocalbuff, Partic
 
     if (numrecv == 0) return;
     //and then update the local information
-    for (auto i=0;i<nlocal;i++) Part[i].SetHydroProperties();
+    //explicitly NULLing copied information which was done with a BYTE copy
+    //The unique pointers will have meaningless info so NULL them (by relasing ownership)
+    //and then setting the released pointer to null via in built function.
+    for (auto i=0;i<nlocal;i++) Part[i].NullStarProperties();
     for (auto i=0;i<numrecv;i++)
     {
         index=indicesrecv[i];
@@ -1498,7 +1522,10 @@ void MPISendReceiveBHInfoBetweenThreads(Options &opt, Int_t nlocalbuff, Particle
 
     if (numrecv == 0) return;
     //and then update the local information
-    for (auto i=0;i<nlocal;i++) Part[i].SetHydroProperties();
+    //explicitly NULLing copied information which was done with a BYTE copy
+    //The unique pointers will have meaningless info so NULL them (by relasing ownership)
+    //and then setting the released pointer to null via in built function.
+    for (auto i=0;i<nlocal;i++) Part[i].NullBHProperties();
     for (auto i=0;i<numrecv;i++)
     {
         index=indicesrecv[i];
