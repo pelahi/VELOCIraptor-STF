@@ -1155,8 +1155,8 @@ void MPIReceiveHydroInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int sou
     for (auto i=0;i<nlocalbuff;i++) Part[i].NullHydroProperties();
     indices.resize(num);
     propbuff.resize(numextrafields*num);
-    MPI_Recv(indices.data(), sizeof(Int_t)*num, MPI_BYTE, sourceTaskID, tag, MPI_COMM_WORLD, &status);
-    MPI_Recv(propbuff.data(), sizeof(float)*num*numextrafields, MPI_BYTE, sourceTaskID, tag, MPI_COMM_WORLD,&status);
+    MPI_Recv(indices.data(), sizeof(Int_t)*num, MPI_BYTE, sourceTaskID, tag*2, MPI_COMM_WORLD, &status);
+    MPI_Recv(propbuff.data(), sizeof(float)*num*numextrafields, MPI_BYTE, sourceTaskID, tag*3, MPI_COMM_WORLD,&status);
     for (auto i=0;i<num;i++)
     {
         index=indices[i];
@@ -1196,8 +1196,8 @@ void MPIReceiveStarInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int sour
     for (auto i=0;i<nlocalbuff;i++) Part[i].NullStarProperties();
     indices.resize(num);
     propbuff.resize(numextrafields*num);
-    MPI_Recv(indices.data(), sizeof(Int_t)*num, MPI_BYTE, sourceTaskID, tag, MPI_COMM_WORLD, &status);
-    MPI_Recv(propbuff.data(), sizeof(float)*num*numextrafields, MPI_BYTE, sourceTaskID, tag, MPI_COMM_WORLD,&status);
+    MPI_Recv(indices.data(), sizeof(Int_t)*num, MPI_BYTE, sourceTaskID, tag*2, MPI_COMM_WORLD, &status);
+    MPI_Recv(propbuff.data(), sizeof(float)*num*numextrafields, MPI_BYTE, sourceTaskID, tag*3, MPI_COMM_WORLD,&status);
     for (auto i=0;i<num;i++)
     {
         index=indices[i];
@@ -1237,8 +1237,8 @@ void MPIReceiveBHInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int source
     for (auto i=0;i<nlocalbuff;i++) Part[i].NullBHProperties();
     indices.resize(num);
     propbuff.resize(numextrafields*num);
-    MPI_Recv(indices.data(), sizeof(Int_t)*num, MPI_BYTE, sourceTaskID, tag, MPI_COMM_WORLD, &status);
-    MPI_Recv(propbuff.data(), sizeof(float)*num*numextrafields, MPI_BYTE, sourceTaskID, tag, MPI_COMM_WORLD,&status);
+    MPI_Recv(indices.data(), sizeof(Int_t)*num, MPI_BYTE, sourceTaskID, tag*2, MPI_COMM_WORLD, &status);
+    MPI_Recv(propbuff.data(), sizeof(float)*num*numextrafields, MPI_BYTE, sourceTaskID, tag*3, MPI_COMM_WORLD,&status);
     for (auto i=0;i<num;i++)
     {
         index=indices[i];
@@ -1366,9 +1366,9 @@ void MPISendReceiveHydroInfoBetweenThreads(Options &opt, Int_t nlocalbuff, Parti
     }
     //send the information
     MPI_Sendrecv(indicessend.data(),sizeof(Int_t)*indicessend.size(), MPI_BYTE, recvTask,
-        tag, indicesrecv.data(),sizeof(float)*indicesrecv.size(), MPI_BYTE, recvTask, tag, mpi_comm, &status);
+        tag, indicesrecv.data(),sizeof(float)*indicesrecv.size(), MPI_BYTE, recvTask, tag*2, mpi_comm, &status);
     MPI_Sendrecv(propsendbuff.data(),sizeof(float)*propsendbuff.size(), MPI_BYTE, recvTask,
-        tag, proprecvbuff.data(),sizeof(float)*proprecvbuff.size(), MPI_BYTE, recvTask, tag, mpi_comm, &status);
+        tag, proprecvbuff.data(),sizeof(float)*proprecvbuff.size(), MPI_BYTE, recvTask, tag*3, mpi_comm, &status);
 
     if (numrecv == 0) return;
     //and then update the local information
@@ -1441,9 +1441,9 @@ void MPISendReceiveStarInfoBetweenThreads(Options &opt, Int_t nlocalbuff, Partic
     }
     //send the information
     MPI_Sendrecv(indicessend.data(),sizeof(Int_t)*indicessend.size(), MPI_BYTE, recvTask,
-        tag, indicesrecv.data(),sizeof(float)*indicesrecv.size(), MPI_BYTE, recvTask, tag, mpi_comm, &status);
+        tag, indicesrecv.data(),sizeof(float)*indicesrecv.size(), MPI_BYTE, recvTask, tag*2, mpi_comm, &status);
     MPI_Sendrecv(propsendbuff.data(),sizeof(float)*propsendbuff.size(), MPI_BYTE, recvTask,
-        tag, proprecvbuff.data(),sizeof(float)*proprecvbuff.size(), MPI_BYTE, recvTask, tag, mpi_comm, &status);
+        tag, proprecvbuff.data(),sizeof(float)*proprecvbuff.size(), MPI_BYTE, recvTask, tag*3, mpi_comm, &status);
 
     if (numrecv == 0) return;
     //and then update the local information
@@ -1516,9 +1516,9 @@ void MPISendReceiveBHInfoBetweenThreads(Options &opt, Int_t nlocalbuff, Particle
     }
     //send the information
     MPI_Sendrecv(indicessend.data(),sizeof(Int_t)*indicessend.size(), MPI_BYTE, recvTask,
-        tag, indicesrecv.data(),sizeof(float)*indicesrecv.size(), MPI_BYTE, recvTask, tag, mpi_comm, &status);
+        tag, indicesrecv.data(),sizeof(float)*indicesrecv.size(), MPI_BYTE, recvTask, tag*2, mpi_comm, &status);
     MPI_Sendrecv(propsendbuff.data(),sizeof(float)*propsendbuff.size(), MPI_BYTE, recvTask,
-        tag, proprecvbuff.data(),sizeof(float)*proprecvbuff.size(), MPI_BYTE, recvTask, tag, mpi_comm, &status);
+        tag, proprecvbuff.data(),sizeof(float)*proprecvbuff.size(), MPI_BYTE, recvTask, tag*3, mpi_comm, &status);
 
     if (numrecv == 0) return;
     //and then update the local information
