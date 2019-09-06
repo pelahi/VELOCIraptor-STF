@@ -568,6 +568,8 @@ vector<int> MPIGetCellListInSearchUsingMesh(Options &opt, Double_t xsearch[3][2]
 
 ///adds particles to appropriate send buffers and initiates sends if necessary.
 void MPIAddParticletoAppropriateBuffer(Options &opt, const int &ibuf, Int_t ibufindex, int *&ireadtask, const Int_t &Bufsize, Int_t *&Nbuf, Particle *&Pbuf, Int_t &numpart, Particle *Part, Int_t *&Nreadbuf, vector<Particle>*&Preadbuf);
+///Send particle information from read threads to non read threads using MPI_COMM_WORLD
+void MPISendParticlesFromReadThreads(Options &opt, Int_t nlocalbuff, Particle *Part, int taskID);
 ///recv particle data from read threads
 void MPIReceiveParticlesFromReadThreads(Options &opt, Particle *&Pbuf, Particle *Part, int *&readtaskID, int *&irecv, int *&mpi_irecvflag, Int_t *&Nlocalthreadbuf, MPI_Request *&mpi_request, Particle *&Pbaryons);
 ///Send/recv particle data read from input files between the various read threads;
@@ -575,12 +577,18 @@ void MPISendParticlesBetweenReadThreads(Options &opt, Particle *&Pbuf, Particle 
 ///Send/recv particle data stored in vector using the read thread communication domain
 void MPISendParticlesBetweenReadThreads(Options &opt, vector<Particle> *&Pbuf, Particle *Part, int *&ireadtask, int *&readtaskID, Particle *&Pbaryons, MPI_Comm &mpi_read_comm, Int_t *&mpi_nsend_readthread, Int_t *&mpi_nsend_readthread_baryon);
 
+///Interrupt send of particle information to destination taskID using MPI_COMM_WORLD
+void MPIISendParticleInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int taskID, int tag, MPI_Request &rqst);
+///Receive Particle information send with specific tag
+void MPIReceiveParticleInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int sendingTaskID, int tag);
+
 ///Send hydro information from read threads to non read threads using MPI_COMM_WORLD
 void MPISendHydroInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle *Part, int taskID);
 ///Send star information from read threads to non read threads using MPI_COMM_WORLD
 void MPISendStarInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle *Part, int taskID);
 ///Send bh information from read threads to non read threads using MPI_COMM_WORLD
 void MPISendBHInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle *Part, int taskID);
+
 ///Receive hydro information from read threads using MPI_COMM_WORLD
 void MPIReceiveHydroInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle *Part, int readtaskID);
 ///Receive star information from read threads using MPI_COMM_WORLD
@@ -597,6 +605,10 @@ void MPIISendBHInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int taskID, 
 
 ///Receive Hydro information send with specific tag
 void MPIReceiveHydroInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int sendingTaskID, int tag);
+///Receive star information send with specific tag
+void MPIReceiveStarInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int sendingTaskID, int tag);
+///Receive BH information send with specific tag
+void MPIReceiveBHInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int sendingTaskID, int tag);
 
 ///Send/Receive hydro information between read threads using the MPI communicator
 void MPISendReceiveHydroInfoBetweenThreads(Options &opt, Int_t nlocalbuff, Particle *Pbuf, Int_t nlocal, Particle *Part, int recvTask, int tag, MPI_Comm &mpi_comm);

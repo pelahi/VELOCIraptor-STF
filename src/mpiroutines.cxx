@@ -228,6 +228,248 @@ int MPIGetParticlesProcessor(Double_t x,Double_t y, Double_t z){
     MPI_Abort(MPI_COMM_WORLD,9);
 }
 
+void MPIFillBuffWithHydroInfo(Options &opt, Int_t nlocalbuff, Particle *Part, vector<Int_t> &indices, vector<float> &propbuff, bool resetbuff=false)
+{
+#ifdef GASON
+    Int_t num = 0, numextrafields = 0, index, offset = 0;
+    string field;
+    indices.resize(0);
+    propbuff.resize(0);
+
+    numextrafields = opt.gas_chem_names.size()+opt.gas_chemproduction_names.size();
+    if (numextrafields == 0) return;
+    for (auto i=0;i<nlocalbuff;i++) if (Part[i].HasHydroProperties()) indices.push_back(i);
+    num = indices.size();
+
+    if (num == 0) return;
+    propbuff.resize(numextrafields*num);
+    for (auto i=0;i<num;i++)
+    {
+        index = indices[i];
+        offset = 0;
+        for (auto iextra=0;iextra<opt.gas_chem_names.size();iextra++)
+        {
+            field = opt.gas_chem_names[iextra];
+            propbuff[i*numextrafields + iextra + offset] = Part[index].GetHydroProperties().GetChemistry(field);
+        }
+        offset += opt.gas_chem_names.size();
+        for (auto iextra=0;iextra<opt.gas_chemproduction_names.size();iextra++)
+        {
+            field = opt.gas_chemproduction_names[iextra];
+            propbuff[i*numextrafields + iextra + offset] = Part[index].GetHydroProperties().GetChemistryProduction(field);
+        }
+        if (resetbuff) Part[index].SetHydroProperties();
+    }
+#endif
+}
+
+void MPIFillBuffWithStarInfo(Options &opt, Int_t nlocalbuff, Particle *Part, vector<Int_t> &indices, vector<float> &propbuff, bool resetbuff=false)
+{
+#ifdef STARON
+    Int_t num = 0, numextrafields = 0, index, offset = 0;
+    string field;
+    indices.resize(0);
+    propbuff.resize(0);
+
+    numextrafields = opt.star_chem_names.size()+opt.star_chemproduction_names.size();
+    if (numextrafields == 0) return;
+    for (auto i=0;i<nlocalbuff;i++) if (Part[i].HasStarProperties()) indices.push_back(i);
+    num = indices.size();
+
+    if (num == 0) return;
+    propbuff.resize(numextrafields*num);
+    for (auto i=0;i<num;i++)
+    {
+        index = indices[i];
+        offset = 0;
+        for (auto iextra=0;iextra<opt.star_chem_names.size();iextra++)
+        {
+            field = opt.star_chem_names[iextra];
+            propbuff[i*numextrafields + iextra + offset] = Part[index].GetStarProperties().GetChemistry(field);
+        }
+        offset += opt.star_chem_names.size();
+        for (auto iextra=0;iextra<opt.star_chemproduction_names.size();iextra++)
+        {
+            field = opt.star_chemproduction_names[iextra];
+            propbuff[i*numextrafields + iextra + offset] = Part[index].GetStarProperties().GetChemistryProduction(field);
+        }
+        if (resetbuff) Part[index].SetStarProperties();
+    }
+#endif
+}
+
+void MPIFillBuffWithBHInfo(Options &opt, Int_t nlocalbuff, Particle *Part, vector<Int_t> &indices, vector<float> &propbuff, bool resetbuff=false)
+{
+#ifdef BHON
+    Int_t num = 0, numextrafields = 0, index, offset = 0;
+    string field;
+    indices.resize(0);
+    propbuff.resize(0);
+
+    numextrafields = opt.bh_chem_names.size()+opt.bh_chemproduction_names.size();
+    if (numextrafields == 0) return;
+    for (auto i=0;i<nlocalbuff;i++) if (Part[i].HasBHProperties()) indices.push_back(i);
+    num = indices.size();
+
+    if (num == 0) return;
+    propbuff.resize(numextrafields*num);
+    for (auto i=0;i<num;i++)
+    {
+        index = indices[i];
+        offset = 0;
+        for (auto iextra=0;iextra<opt.bh_chem_names.size();iextra++)
+        {
+            field = opt.bh_chem_names[iextra];
+            propbuff[i*numextrafields + iextra + offset] = Part[index].GetBHProperties().GetChemistry(field);
+        }
+        offset += opt.bh_chem_names.size();
+        for (auto iextra=0;iextra<opt.bh_chemproduction_names.size();iextra++)
+        {
+            field = opt.bh_chemproduction_names[iextra];
+            propbuff[i*numextrafields + iextra + offset] = Part[index].GetBHProperties().GetChemistryProduction(field);
+        }
+        if (resetbuff) Part[index].SetBHProperties();
+    }
+#endif
+}
+
+void MPISendParticleInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle *Part, int taskID)
+{
+    MPI_Status status;
+    vector<Int_t> indices_gas, indices_star, indices_bh, indices_extradm;
+    Int_t num = 0, numextrafields = 0, index, offset = 0;
+    vector<float> propbuff_gas, propbuff_star, propbuff_bh, propbuff_extradm;
+    string field;
+
+#ifdef GASON
+    numextrafields = opt.gas_chem_names.size()+opt.gas_chemproduction_names.size();
+    if (numextrafields > 0)
+    {
+        for (auto i=0;i<nlocalbuff;i++) if (Part[i].HasHydroProperties()) indices_gas.push_back(i);
+        num = indices_gas.size();
+        if (num>0) {
+            propbuff_gas.resize(numextrafields*num);
+            for (auto i=0;i<num;i++)
+            {
+                index = indices_gas[i];
+                offset = 0;
+                for (auto iextra=0;iextra<opt.gas_chem_names.size();iextra++)
+                {
+                    field = opt.gas_chem_names[iextra];
+                    propbuff_gas[i*numextrafields + iextra + offset] = Part[index].GetHydroProperties().GetChemistry(field);
+                }
+                offset += opt.gas_chem_names.size();
+                for (auto iextra=0;iextra<opt.gas_chemproduction_names.size();iextra++)
+                {
+                    field = opt.gas_chemproduction_names[iextra];
+                    propbuff_gas[i*numextrafields + iextra + offset] = Part[index].GetHydroProperties().GetChemistryProduction(field);
+                }
+                Part[index].SetHydroProperties();
+            }
+        }
+    }
+#endif
+#ifdef STARON
+    numextrafields = opt.star_chem_names.size()+opt.star_chemproduction_names.size();
+    if (numextrafields > 0)
+    {
+        for (auto i=0;i<nlocalbuff;i++) if (Part[i].HasStarProperties()) indices_star.push_back(i);
+        num = indices_star.size();
+        if (num > 0)
+        {
+            propbuff_star.resize(numextrafields*num);
+            for (auto i=0;i<num;i++)
+            {
+                index = indices_star[i];
+                offset = 0;
+                for (auto iextra=0;iextra<opt.star_chem_names.size();iextra++)
+                {
+                    field = opt.star_chem_names[iextra];
+                    propbuff_star[i*numextrafields + iextra + offset] = Part[index].GetStarProperties().GetChemistry(field);
+                }
+                offset += opt.star_chem_names.size();
+                for (auto iextra=0;iextra<opt.star_chemproduction_names.size();iextra++)
+                {
+                    field = opt.star_chemproduction_names[iextra];
+                    propbuff_star[i*numextrafields + iextra + offset] = Part[index].GetStarProperties().GetChemistryProduction(field);
+                }
+                Part[index].SetStarProperties();
+            }
+        }
+    }
+#endif
+#ifdef BHON
+    numextrafields = opt.bh_chem_names.size()+opt.bh_chemproduction_names.size();
+    if (numextrafields > 0)
+    {
+        for (auto i=0;i<nlocalbuff;i++) if (Part[i].HasBHProperties()) indices_bh.push_back(i);
+        num = indices_bh.size();
+        if (num > 0)
+        {
+            propbuff_bh.resize(numextrafields*num);
+            for (auto i=0;i<num;i++)
+            {
+                index = indices_bh[i];
+                offset = 0;
+                for (auto iextra=0;iextra<opt.bh_chem_names.size();iextra++)
+                {
+                    field = opt.bh_chem_names[iextra];
+                    propbuff_bh[i*numextrafields + iextra + offset] = Part[index].GetBHProperties().GetChemistry(field);
+                }
+                offset += opt.bh_chem_names.size();
+                for (auto iextra=0;iextra<opt.bh_chemproduction_names.size();iextra++)
+                {
+                    field = opt.bh_chemproduction_names[iextra];
+                    propbuff_bh[i*numextrafields + iextra + offset] = Part[index].GetBHProperties().GetChemistryProduction(field);
+                }
+                Part[index].SetBHProperties();
+            }
+        }
+    }
+#endif
+    MPI_Ssend(Part, sizeof(Particle)*nlocalbuff, MPI_BYTE, taskID, taskID, MPI_COMM_WORLD);
+#ifdef GASON
+    numextrafields = opt.gas_chem_names.size()+opt.gas_chemproduction_names.size();
+    if (numextrafields > 0)
+    {
+        num = indices_gas.size();
+        MPI_Send(&num,sizeof(Int_t),MPI_BYTE,taskID,taskID,MPI_COMM_WORLD);
+        if (num > 0)
+        {
+            MPI_Send(indices_gas.data(),sizeof(Int_t)*num,MPI_BYTE,taskID,taskID,MPI_COMM_WORLD);
+            MPI_Send(propbuff_gas.data(),sizeof(float)*num*numextrafields,MPI_BYTE,taskID,taskID,MPI_COMM_WORLD);
+        }
+    }
+#endif
+#ifdef STARON
+    numextrafields = opt.star_chem_names.size()+opt.star_chemproduction_names.size();
+    if (numextrafields > 0)
+    {
+        num = indices_star.size();
+        MPI_Send(&num,sizeof(Int_t),MPI_BYTE,taskID,taskID,MPI_COMM_WORLD);
+        if (num > 0)
+        {
+            MPI_Send(indices_star.data(),sizeof(Int_t)*num,MPI_BYTE,taskID,taskID,MPI_COMM_WORLD);
+            MPI_Send(propbuff_star.data(),sizeof(float)*num*numextrafields,MPI_BYTE,taskID,taskID,MPI_COMM_WORLD);
+        }
+    }
+#endif
+#ifdef BHON
+    numextrafields = opt.bh_chem_names.size()+opt.bh_chemproduction_names.size();
+    if (numextrafields > 0)
+    {
+        num = indices_bh.size();
+        MPI_Send(&num,sizeof(Int_t),MPI_BYTE,taskID,taskID,MPI_COMM_WORLD);
+        if (num > 0)
+        {
+            MPI_Send(indices_bh.data(),sizeof(Int_t)*num,MPI_BYTE,taskID,taskID,MPI_COMM_WORLD);
+            MPI_Send(propbuff_bh.data(),sizeof(float)*num*numextrafields,MPI_BYTE,taskID,taskID,MPI_COMM_WORLD);
+        }
+    }
+#endif
+}
+
+
 void MPISendHydroInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle *Part, int taskID)
 {
 #ifdef GASON
