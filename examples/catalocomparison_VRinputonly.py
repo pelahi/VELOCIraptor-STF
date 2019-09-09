@@ -36,13 +36,14 @@ def PerfectCrossMatch(VRdata):
     print("VRdata['comp']['particles']['Npart'].size", cmp_particles_npart.size)
 
     iflag1 = (ref_properties_num != cmp_properties_num)
-    iflag2 = (ref_particles_npart != ref_particles_npart.size)
+    iflag2 = (ref_particles_npart.size != cmp_particles_npart.size)
     if (iflag1):
         print('Catalog contains different number of objects ... Not perfect match')
     if (iflag2):
         print('Particle catalog contains different number of particles ... Not perfect match')
     if (iflag1 or iflag2):
         return 0
+    
     num = VRdata['ref']['particles']['Npart'].size
     ref = np.concatenate(VRdata['ref']['particles']['Particle_IDs'])
     comp = np.concatenate(VRdata['comp']['particles']['Particle_IDs'])
