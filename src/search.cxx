@@ -373,7 +373,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
             numingroup=BuildNumInGroupTyped(Nlocal,numgroups,pfof,Part.data(),DARKTYPE);
             for (i=0;i<Nlocal;i++) {
                 if (Part[i].GetType()==DARKTYPE) Part[i].SetType(numingroup[pfof[Part[i].GetID()]]>=MINSUBSIZE);
-                else Part[i].SetType(0);
+                else Part[i].SetType(-1);
                 numlocalden += (Part[i].GetType()>0);
             }
         }
@@ -2141,23 +2141,6 @@ private(i,tid,Pval,x1,D2,dval,mval,pid,pidcore)
     }
 }
 
-// ENCAPSULATED: ECAPSULATION-01
-void AdjustSubPartToPhaseCM(Int_t num, Particle *subPart, GMatrix &cmphase)
-{
-    int nthreads = 1;
-#ifdef USEOPENMP
-    nthreads = max(1, (int)(num/(float)ompsearchnum));
-    nthreads = min(nthreads,omp_get_max_threads());
-#pragma omp parallel for \
-default(shared)  \
-num_threads(nthreads)
-#endif
-    for (auto j=0;j<num;j++)
-    {
-        for (int k=0;k<6;k++) subPart[j].SetPhase(k,subPart[j].GetPhase(k)-cmphase(k,0));
-    }
-}
-
 
 //Merge any groups that overlap in phase-space
 void MergeSubstructuresCoresPhase(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_t *&pfof, Int_t &numsubs, Int_t &numcores)
@@ -2490,12 +2473,9 @@ void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Parts
     NOTE: if the code is altered and generalized to outliers in say the entropy distribution when searching for gas shocks,
     it might be possible to lower the cuts imposed.
 
-    \todo ADACS optimisation request. Here the function could be altered to employ better parallelisation. Specifically, the loop over
-    substructures at a given level could be parallelized (see for loop commented with ENCAPSULATE-01). Currently, at a given level in the substructure hierarchy
-    each object is searched sequentially but this does not need to be the case. It would require restructureing the loop and some of calls within
-    the loop so that the available pool of threads over which to run in parallel for the callled subroutines is adaptive. (Or it might be
-    simply more useful to not have the functions called within this loop parallelised. This loop invokes a few routines that have OpenMP
-    parallelisation: InitializeTreeGrid, GetCellVel, GetCellVelDisp, CalcVelSigmaTensor, etc.
+    \todo To account for major mergers, the mininmum size of object searched for substructure is now the smallest allowed cell
+    \ref MINCELLSIZE (order 100 particles). However, for objects smaller than \ref MINSUBSIZE, only can search effectively for
+    major mergers, very hard to identify substructures
 */
 void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubset, Int_t *&pfof, Int_t &ngroup, Int_t &nhalos, PropData *pdata)
 {
@@ -2578,127 +2558,71 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
         numcores=new Int_t[nsubsearch+1];
         subpfofold=new Int_t[nsubsearch+1];
         ns=0;
-        // START: ENCAPSULATE-01
-        /* - If the whole for loop is to be encapsulated,
-        **   the following variables are in consideration to be parametised:
-        **      oldnsubsearch
-        **      subpglist
-        **      pfof
-        **      subnumingroup
-        **      opt.icmrefadjust
-        **      ompsearchnum
-        */
         //here loop over all sublevel groups that need to be searched for substructure
-        // ADACS: this loop proceses halos (that are independent) sequentially. This is unecessary.
         for (Int_t i=1;i<=oldnsubsearch;i++) {
             subpfofold[i]=pfof[subpglist[i][0]];
             subPart=new Particle[subnumingroup[i]];
             for (Int_t j=0;j<subnumingroup[i];j++) subPart[j]=Partsubset[subpglist[i][j]];
-
-            //suggested encapsulation by PJE
-            // if (opt.icmrefadjust) {
-            //     //this routine is in substructureproperties.cxx. Has internal parallelisation
-            //     GMatrix cmphase = CalcPhaseCM(subnumingroup[i], subPart);
-            //     //this routine is within this file, also has internal parallelisation
-            //     AdjustSubPartToPhaseCM(subnumingroup[i], subPart, cmphase);
-            // }
             //now if low statistics, then possible that very central regions of subhalo will be higher due to cell size used and Nv search
             //so first determine centre of subregion
-            // ADACS: here is an example of unecessary parallelisation in most cases
-            // ADACS: (save for very high res zooms of individual objects containing billions of particles
+            Double_t cmx=0.,cmy=0.,cmz=0.,cmvelx=0.,cmvely=0.,cmvelz=0.;
+            Double_t mtotregion=0.0;
+            Int_t j;
             if (opt.icmrefadjust) {
-                Double_t cmx=0.,cmy=0.,cmz=0.,cmvelx=0.,cmvely=0.,cmvelz=0.;
-                Double_t mtotregion=0.0;
-//#ifdef USEOPENMP
-//                if (subnumingroup[i]>ompsearchnum)
-//                {
-//#pragma omp parallel default(shared)
-//{
-//#pragma omp for reduction(+:mtotregion,cmx,cmy,cmz,cmvelx,cmvely,cmvelz)
-//                    for (Int_t j=0;j<subnumingroup[i];j++)
-//                    {
-//                        cmx+=subPart[j].X()*subPart[j].GetMass();
-//                        cmy+=subPart[j].Y()*subPart[j].GetMass();
-//                        cmz+=subPart[j].Z()*subPart[j].GetMass();
-//                        cmvelx+=subPart[j].Vx()*subPart[j].GetMass();
-//                        cmvely+=subPart[j].Vy()*subPart[j].GetMass();
-//                        cmvelz+=subPart[j].Vz()*subPart[j].GetMass();
-//                        mtotregion+=subPart[j].GetMass();
-//                    }
-//}
-//                }
-//                else
-//                {
-//#endif
-//                    for (Int_t j=0;j<subnumingroup[i];j++) {
-//                        cmx+=subPart[j].X()*subPart[j].GetMass();
-//                        cmy+=subPart[j].Y()*subPart[j].GetMass();
-//                        cmz+=subPart[j].Z()*subPart[j].GetMass();
-//                        cmvelx+=subPart[j].Vx()*subPart[j].GetMass();
-//                        cmvely+=subPart[j].Vy()*subPart[j].GetMass();
-//                        cmvelz+=subPart[j].Vz()*subPart[j].GetMass();
-//                        mtotregion+=subPart[j].GetMass();
-//                    }
-//#ifdef USEOPENMP
-//                }
-//#endif
-//                cm[0]=cmx;cm[1]=cmy;cm[2]=cmz;
-//                cmvel[0]=cmvelx;cmvel[1]=cmvely;cmvel[2]=cmvelz;
-
-                //this routine is in substructureproperties.cxx. Has internal parallelisation
-                GMatrix cmphase = CalcPhaseCM(subnumingroup[i], subPart);
-                //this routine is within this file, also has internal parallelisation
-                AdjustSubPartToPhaseCM(subnumingroup[i], subPart, cmphase);
-                //populates cm and cmvel respectively
-                for (int k=0;k<3;k++) {
-                    cm[k]/=cmphase(k,0);
-                    cmvel[k]=cmphase(k+3,0);
-                    // sanity check
-                    cout << "CM: " << cm[k] << endl;
-                    cout << "CMVEL: " << cmvel[k] << endl;
-                }
-
-                for (int k=0;k<3;k++) {cm[k]/=mtotregion;cmvel[k]/=mtotregion;}
-                //ADACS: once phase-space CM calculated reset reference but again maybe unecessary parallelisation
 #ifdef USEOPENMP
-                if (subnumingroup[i]>ompsearchnum)
-                {
+            if (subnumingroup[i]>ompsearchnum) {
 #pragma omp parallel default(shared)
 {
-#pragma omp for
-                    for (Int_t j=0;j<subnumingroup[i];j++)
-                    {
-                        for (int k=0;k<3;k++)
-                        {
-                            // subPart[j].SetPosition(k,subPart[j].GetPosition(k)-cm[k]);
-                            //subPart[j].SetVelocity(k,subPart[j].GetVelocity(k)-cmvel[k]);
-                            subPart[j].SetPosition(k,subPart[j].GetPosition(k)-cm[k,0]);
-                            subPart[j].SetVelocity(k,subPart[j].GetVelocity(k)-cm[k+3,0]);
-                        }
-                    }
+#pragma omp for private(j) reduction(+:mtotregion,cmx,cmy,cmz,cmvelx,cmvely,cmvelz)
+            for (j=0;j<subnumingroup[i];j++) {
+                cmx+=subPart[j].X()*subPart[j].GetMass();
+                cmy+=subPart[j].Y()*subPart[j].GetMass();
+                cmz+=subPart[j].Z()*subPart[j].GetMass();
+                cmvelx+=subPart[j].Vx()*subPart[j].GetMass();
+                cmvely+=subPart[j].Vy()*subPart[j].GetMass();
+                cmvelz+=subPart[j].Vz()*subPart[j].GetMass();
+                mtotregion+=subPart[j].GetMass();
+            }
 }
-                }
-                else
-                {
+            }
+            else {
 #endif
-                    for (Int_t j=0;j<subnumingroup[i];j++)
-                    {
-                        for (int k=0;k<3;k++)
-                        {
-                            //subPart[j].SetPosition(k,subPart[j].GetPosition(k)-cm[k]);
-                            //subPart[j].SetVelocity(k,subPart[j].GetVelocity(k)-cmvel[k]);
-                            subPart[j].SetPosition(k,subPart[j].GetPosition(k)-cm[k,0]);
-                            subPart[j].SetVelocity(k,subPart[j].GetVelocity(k)-cm[k+3,0]);
-                        }
-                    }
+            for (j=0;j<subnumingroup[i];j++) {
+                cmx+=subPart[j].X()*subPart[j].GetMass();
+                cmy+=subPart[j].Y()*subPart[j].GetMass();
+                cmz+=subPart[j].Z()*subPart[j].GetMass();
+                cmvelx+=subPart[j].Vx()*subPart[j].GetMass();
+                cmvely+=subPart[j].Vy()*subPart[j].GetMass();
+                cmvelz+=subPart[j].Vz()*subPart[j].GetMass();
+                mtotregion+=subPart[j].GetMass();
+            }
 #ifdef USEOPENMP
+}
+#endif
+            cm[0]=cmx;cm[1]=cmy;cm[2]=cmz;
+            cmvel[0]=cmvelx;cmvel[1]=cmvely;cmvel[2]=cmvelz;
+            for (int k=0;k<3;k++) {cm[k]/=mtotregion;cmvel[k]/=mtotregion;}
+#ifdef USEOPENMP
+            if (subnumingroup[i]>ompsearchnum) {
+#pragma omp parallel default(shared)
+{
+#pragma omp for private(j)
+            for (j=0;j<subnumingroup[i];j++)
+                for (int k=0;k<3;k++) {
+                    subPart[j].SetPosition(k,subPart[j].GetPosition(k)-cm[k]);subPart[j].SetVelocity(k,subPart[j].GetVelocity(k)-cmvel[k]);
                 }
+}
+            }
+            else {
+#endif
+            for (j=0;j<subnumingroup[i];j++)
+                for (int k=0;k<3;k++) {
+                    subPart[j].SetPosition(k,subPart[j].GetPosition(k)-cm[k]);subPart[j].SetVelocity(k,subPart[j].GetVelocity(k)-cmvel[k]);
+                }
+#ifdef USEOPENMP
+}
 #endif
             }
-
-            //ADACS: for large objects, extra processing steps are requried
-            //ADACS: Some of these subroutines make use of OpenMP. For this to continue
-		    //ADACS: the pool of threads would have to be changed
             if (subnumingroup[i]>=MINSUBSIZE&&opt.foftype!=FOF6DCORE) {
                 //now if object is large enough for phase-space decomposition and search, compare local field to bg field
                 opt.Ncell=opt.Ncellfac*subnumingroup[i];
@@ -2732,8 +2656,6 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
                 CalcVelSigmaTensor(subnumingroup[i], subPart, sigma2x, sigma2y, sigma2z, eigvec, I);
                 opt.HaloLocalSigmaV=opt.HaloSigmaV=pow(sigma2x*sigma2y*sigma2z,1.0/3.0);
             }
-            //ADACS: Here the object is searched. Not much of this uses OpenMP but there are
-		    //  one or two subroutines called within SearchSubset that do make use of OpenMP.
             subpfof=SearchSubset(opt,subnumingroup[i],subnumingroup[i],subPart,subngroup[i],sublevel,&numcores[i]);
             //now if subngroup>0 change the pfof ids of these particles in question and see if there are any substrucures that can be searched again.
             //the group ids must be stored along with the number of groups in this substructure that will be searched at next level.
@@ -2766,18 +2688,16 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
                         }
                     }
                 }
-                for (Int_t j=0;j<subnumingroup[i];j++) if (subpfof[j]>0) pfof[subpglist[i][j]]=ngroup+ngroupidoffset+subpfof[j];
+                for (j=0;j<subnumingroup[i];j++) if (subpfof[j]>0) pfof[subpglist[i][j]]=ngroup+ngroupidoffset+subpfof[j];
                 ngroupidoffset+=subngroup[i];
                 //now alter subsubpglist so that index pointed is global subset index as global subset is used to get the particles to be searched for subsubstructure
-                for (Int_t j=1;j<=subngroup[i];j++) for (Int_t k=0;k<subsubnumingroup[i][j];k++) subsubpglist[i][j][k]=subpglist[i][subsubpglist[i][j][k]];
+                for (j=1;j<=subngroup[i];j++) for (Int_t k=0;k<subsubnumingroup[i][j];k++) subsubpglist[i][j][k]=subpglist[i][subsubpglist[i][j][k]];
             }
             delete[] subpfof;
             delete[] subPart;
             //increase tot num of objects at sublevel
-            //ADACS: this would need a reduction at the end.
             ns+=subngroup[i];
         }
-        // END: ENCAPSULATE-01
         //if objects have been found adjust the StrucLevelData
         //this stores the address of the parent particle and pfof along with child substructure particle and pfof
         if (ns>0) {
@@ -3612,7 +3532,7 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
             map<Int_t, Int_t> remap;
             Int_t newng=0, oldpid, newpid;
             remap[0]=0;
-            for (auto i=1;i<=ng;i++) {
+            for (i=1;i<=ng;i++) {
                 if (ningall[i]>0) {
                     newng++;
                     remap[i]=newng;
