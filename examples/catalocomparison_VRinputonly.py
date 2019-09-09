@@ -23,20 +23,20 @@ import velociraptor_python_tools as vpt
 
 def PerfectCrossMatch(VRdata):
     ref_properties_num = VRdata['ref']['properties']['num']
-    cmp_particles_npart = VRdata['comp']['properties']['num']
-    ref_properties_num = VRdata['ref']['particles']['Npart']
-    ref_particles_npart = VRdata['comp']['particles']['Npart']
+    cmp_properties_num = VRdata['comp']['properties']['num']
+    ref_particles_npart = VRdata['ref']['particles']['Npart']
+    cmp_particles_npart = VRdata['comp']['particles']['Npart']
     print("")
     print("==========================")
     print("VRdata['ref']['properties']['num']", ref_properties_num)
-    print("VRdata['comp']['properties']['num']", cmp_particles_npart)
-    print("VRdata['ref']['particles']['Npart']", ref_properties_num)
+    print("VRdata['comp']['properties']['num']", cmp_properties_num)
     print("VRdata['ref']['particles']['Npart']", ref_particles_npart)
-    print("VRdata['ref']['particles']['Npart'].size", ref_properties_num.size)
+    print("VRdata['comp']['particles']['Npart']", cmp_particles_npart)
     print("VRdata['ref']['particles']['Npart'].size", ref_particles_npart.size)
+    print("VRdata['comp']['particles']['Npart'].size", cmp_particles_npart.size)
 
-    iflag1 = (ref_properties_num != cmp_particles_npart)
-    iflag2 = (ref_properties_num != ref_particles_npart.size)
+    iflag1 = (ref_properties_num != cmp_properties_num)
+    iflag2 = (ref_particles_npart != ref_particles_npart.size)
     if (iflag1):
         print('Catalog contains different number of objects ... Not perfect match')
     if (iflag2):
