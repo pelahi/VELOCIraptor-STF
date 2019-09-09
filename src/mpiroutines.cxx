@@ -333,6 +333,56 @@ void MPIFillBuffWithBHInfo(Options &opt, Int_t nlocalbuff, Particle *Part, vecto
 #endif
 }
 
+
+void MPIFillFOFBuffWithHydroInfo(Options &opt, Int_t *numbuff, Int_t *numoffset, Particle *&Part, fofid_in *&FoFGroupData, vector<Int_t> &indices, vector<float> &propbuff, bool iforexport)
+{
+#ifdef GASON
+    Int_t num = 0, numextrafields = 0, index, offset = 0;
+    string field;
+    vector<Int_t> npertask(NProcs);
+    indices.resize(0);
+    propbuff.resize(0);
+
+    numextrafields = opt.gas_chem_names.size()+opt.gas_chemproduction_names.size();
+    if (numextrafields == 0) return;
+    for (auto itask=0;itask<NProcs;itask++)
+    {
+        npertask[itask] = 0;
+        for (auto i=0;i<numbuff[itask];i++)
+        {
+            if (FoFGroupData[i+numoffset[itask]].p.HasHydroProperties())
+            {
+                indices.push_back(i);
+                npertask[itask]++;
+            }
+        }
+    }
+    num = indices.size();
+    if (num == 0) return;
+
+    propbuff.resize(numextrafields*num);
+    for (auto i=0;i<num;i++)
+    {
+        index = indices[i];
+        offset = 0;
+        for (auto iextra=0;iextra<opt.gas_chem_names.size();iextra++)
+        {
+            field = opt.gas_chem_names[iextra];
+            propbuff[i*numextrafields + iextra + offset] = FoFGroupData[index].p.GetHydroProperties().GetChemistry(field);
+        }
+        offset += opt.gas_chem_names.size();
+        for (auto iextra=0;iextra<opt.gas_chemproduction_names.size();iextra++)
+        {
+            field = opt.gas_chemproduction_names[iextra];
+            propbuff[i*numextrafields + iextra + offset] = FoFGroupData[index].p.GetHydroProperties().GetChemistryProduction(field);
+        }
+        FoFGroupData[index].p.SetHydroProperties();
+        if (iforexport) Part[FoFGroupData[index].Index].SetHydroProperties();
+    }
+#endif
+}
+
+
 void MPISendParticleInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle *Part, int taskID)
 {
     MPI_Status status;
@@ -1362,13 +1412,13 @@ void MPISendReceiveHydroInfoBetweenThreads(Options &opt, Int_t nlocalbuff, Parti
         &numrecv,sizeof(Int_t), MPI_BYTE, recvTask, tag, mpi_comm, &status);
     if (numrecv>0) {
         indicesrecv.resize(numrecv);
-        proprecvbuff.resize(numrecv);
+        proprecvbuff.resize(numrecv*numextrafields);
     }
     //send the information
     MPI_Sendrecv(indicessend.data(),sizeof(Int_t)*indicessend.size(), MPI_BYTE, recvTask,
-        tag, indicesrecv.data(),sizeof(float)*indicesrecv.size(), MPI_BYTE, recvTask, tag*2, mpi_comm, &status);
+        tag*2, indicesrecv.data(),sizeof(float)*indicesrecv.size(), MPI_BYTE, recvTask, tag*2, mpi_comm, &status);
     MPI_Sendrecv(propsendbuff.data(),sizeof(float)*propsendbuff.size(), MPI_BYTE, recvTask,
-        tag, proprecvbuff.data(),sizeof(float)*proprecvbuff.size(), MPI_BYTE, recvTask, tag*3, mpi_comm, &status);
+        tag*3, proprecvbuff.data(),sizeof(float)*proprecvbuff.size(), MPI_BYTE, recvTask, tag*3, mpi_comm, &status);
 
     if (numrecv == 0) return;
     //and then update the local information
@@ -1437,13 +1487,13 @@ void MPISendReceiveStarInfoBetweenThreads(Options &opt, Int_t nlocalbuff, Partic
         &numrecv,sizeof(Int_t), MPI_BYTE, recvTask, tag, mpi_comm, &status);
     if (numrecv>0) {
         indicesrecv.resize(numrecv);
-        proprecvbuff.resize(numrecv);
+        proprecvbuff.resize(numrecv*numextrafields);
     }
     //send the information
     MPI_Sendrecv(indicessend.data(),sizeof(Int_t)*indicessend.size(), MPI_BYTE, recvTask,
-        tag, indicesrecv.data(),sizeof(float)*indicesrecv.size(), MPI_BYTE, recvTask, tag*2, mpi_comm, &status);
+        tag*2, indicesrecv.data(),sizeof(float)*indicesrecv.size(), MPI_BYTE, recvTask, tag*2, mpi_comm, &status);
     MPI_Sendrecv(propsendbuff.data(),sizeof(float)*propsendbuff.size(), MPI_BYTE, recvTask,
-        tag, proprecvbuff.data(),sizeof(float)*proprecvbuff.size(), MPI_BYTE, recvTask, tag*3, mpi_comm, &status);
+        tag*3, proprecvbuff.data(),sizeof(float)*proprecvbuff.size(), MPI_BYTE, recvTask, tag*3, mpi_comm, &status);
 
     if (numrecv == 0) return;
     //and then update the local information
@@ -1512,13 +1562,13 @@ void MPISendReceiveBHInfoBetweenThreads(Options &opt, Int_t nlocalbuff, Particle
         &numrecv,sizeof(Int_t), MPI_BYTE, recvTask, tag, mpi_comm, &status);
     if (numrecv>0) {
         indicesrecv.resize(numrecv);
-        proprecvbuff.resize(numrecv);
+        proprecvbuff.resize(numrecv*numextrafields);
     }
     //send the information
     MPI_Sendrecv(indicessend.data(),sizeof(Int_t)*indicessend.size(), MPI_BYTE, recvTask,
-        tag, indicesrecv.data(),sizeof(float)*indicesrecv.size(), MPI_BYTE, recvTask, tag*2, mpi_comm, &status);
+        tag*2, indicesrecv.data(),sizeof(float)*indicesrecv.size(), MPI_BYTE, recvTask, tag*2, mpi_comm, &status);
     MPI_Sendrecv(propsendbuff.data(),sizeof(float)*propsendbuff.size(), MPI_BYTE, recvTask,
-        tag, proprecvbuff.data(),sizeof(float)*proprecvbuff.size(), MPI_BYTE, recvTask, tag*3, mpi_comm, &status);
+        tag*3, proprecvbuff.data(),sizeof(float)*proprecvbuff.size(), MPI_BYTE, recvTask, tag*3, mpi_comm, &status);
 
     if (numrecv == 0) return;
     //and then update the local information
@@ -1545,6 +1595,87 @@ void MPISendReceiveBHInfoBetweenThreads(Options &opt, Int_t nlocalbuff, Particle
     }
 #endif
 }
+
+void MPISendReceiveFOFHydroInfoBetweenThreads(Options &opt, Int_t nexport, fofid_in *FoFGroupDataExport, Int_t nlocal, fofid_in *FoFGroupDataLocal, Particle *&Part, int recvTask, int tag, MPI_Comm &mpi_comm)
+{
+#ifdef GASON
+    MPI_Status status;
+    vector<Int_t> indicessend(0), indicesrecv(0);
+    Int_t numsend, numrecv, numextrafields = 0, index, offset = 0;
+    vector<float> propsendbuff(0), proprecvbuff(0);
+    string field;
+    HydroProperties x;
+
+    numextrafields = opt.gas_chem_names.size()+opt.gas_chemproduction_names.size();
+    if (numextrafields == 0) return;
+    for (auto i=0;i<nexport;i++) if (FoFGroupDataExport[i].p.HasHydroProperties()) indicessend.push_back(i);
+    numsend = indicessend.size();
+    MPI_Sendrecv(&numsend,sizeof(Int_t), MPI_BYTE, recvTask, tag,
+        &numrecv,sizeof(Int_t), MPI_BYTE, recvTask, tag, mpi_comm, &status);
+cout<<ThisTask<<" have send received info "<<numsend<<" "<<numrecv<<endl;
+    if (numrecv>0) {
+        indicesrecv.resize(numrecv);
+        proprecvbuff.resize(numrecv*numextrafields);
+    }
+    if (numsend >0) {
+        propsendbuff.resize(numextrafields*numsend);
+        for (auto i=0;i<numsend;i++)
+        {
+            index = indicessend[i];
+            offset = 0;
+            for (auto iextra=0;iextra<opt.gas_chem_names.size();iextra++)
+            {
+                field = opt.gas_chem_names[iextra];
+                propsendbuff[i*numextrafields + iextra + offset] = FoFGroupDataExport[index].p.GetHydroProperties().GetChemistry(field);
+            }
+            offset += opt.gas_chem_names.size();
+            for (auto iextra=0;iextra<opt.gas_chemproduction_names.size();iextra++)
+            {
+                field = opt.gas_chemproduction_names[iextra];
+                propsendbuff[i*numextrafields + iextra + offset] = FoFGroupDataExport[index].p.GetHydroProperties().GetChemistryProduction(field);
+            }
+            FoFGroupDataExport[index].p.SetHydroProperties();
+            Part[FoFGroupDataExport[index].Index].SetHydroProperties();
+        }
+    }
+cout<<ThisTask<<" has filled local prop buff using FoFGroupDataExport "<<numsend<<endl;
+cout<<ThisTask<<" "<<indicessend.data()<<" "<<indicesrecv.data()<<endl;
+cout<<ThisTask<<" "<<indicessend.size()<<" "<<indicesrecv.size()<<endl;
+if (ThisTask==0) MPI_Barrier(MPI_COMM_WORLD);
+
+    //send the information
+    MPI_Sendrecv(indicessend.data(),sizeof(Int_t)*indicessend.size(), MPI_BYTE, recvTask,
+        tag*2, indicesrecv.data(),sizeof(float)*indicesrecv.size(), MPI_BYTE, recvTask, tag*2, mpi_comm, &status);
+    MPI_Sendrecv(propsendbuff.data(),sizeof(float)*propsendbuff.size(), MPI_BYTE, recvTask,
+        tag*3, proprecvbuff.data(),sizeof(float)*proprecvbuff.size(), MPI_BYTE, recvTask, tag*3, mpi_comm, &status);
+cout<<ThisTask<<" now has received info and will update FoFlocal"<<endl;
+
+    if (numrecv == 0) return;
+    //and then update the local information
+    //explicitly NULLing copied information which was done with a BYTE copy
+    //The unique pointers will have meaningless info so NULL them (by relasing ownership)
+    //and then setting the released pointer to null via in built function.
+    for (auto i=0;i<nlocal;i++) FoFGroupDataLocal[i].p.NullHydroProperties();
+    for (auto i=0;i<numrecv;i++)
+    {
+        index=indicesrecv[i];
+        FoFGroupDataLocal[index].p.SetHydroProperties(x);
+        offset = 0;
+        for (auto iextra=0;iextra<opt.gas_chem_names.size();iextra++)
+        {
+            field = opt.gas_chem_names[iextra];
+            FoFGroupDataLocal[index].p.GetHydroProperties().SetChemistry(field,proprecvbuff[i*numextrafields+iextra+offset]);
+        }
+        offset += opt.gas_chem_names.size();
+        for (auto iextra=0;iextra<opt.gas_chemproduction_names.size();iextra++)
+        {
+            field = opt.gas_chemproduction_names[iextra];
+            FoFGroupDataLocal[index].p.GetHydroProperties().SetChemistryProduction(field,proprecvbuff[i*numextrafields+iextra+offset]);
+        }
+    }
+#endif
+}
+
 
 /*! Final send between read threads of input particle data
 */
@@ -3465,7 +3596,7 @@ Int_t MPILinkAcross(const Int_t nbodies, KDTree *&tree, Particle *Part, Int_t *&
     the maximum group size and reoder the group ids according to descending group size.
     return the new local number of particles
 */
-Int_t MPIGroupExchange(const Int_t nbodies, Particle *Part, Int_t *&pfof){
+Int_t MPIGroupExchange(Options &opt, const Int_t nbodies, Particle *Part, Int_t *&pfof){
     Int_t i, j,nthreads,nexport,nimport,nlocal,n;
     Int_t nsend_local[NProcs],noffset_import[NProcs],noffset_export[NProcs],nbuffer[NProcs];
     int sendTask,recvTask;
@@ -3474,6 +3605,8 @@ Int_t MPIGroupExchange(const Int_t nbodies, Particle *Part, Int_t *&pfof){
     int sendoffset,recvoffset;
     int cursendchunksize,currecvchunksize;
     MPI_Status status;
+    MPI_Comm mpi_comm = MPI_COMM_WORLD;
+
 
     int task;
     FoFGroupDataExport=NULL;
@@ -3495,16 +3628,13 @@ Int_t MPIGroupExchange(const Int_t nbodies, Particle *Part, Int_t *&pfof){
     nlocal=nbodies-nexport+nimport;
     NImport=nimport;
     if (nexport >0) FoFGroupDataExport=new fofid_in[nexport];
-    else FoFGroupDataExport=new fofid_in[1];
 
     Int_t *storeval=new Int_t[nbodies];
     Noldlocal=nbodies-nexport;
-    //for (i=0;i<nbodies;i++) Part[i].SetID(i);
     //store type in temporary array, then use type to store what task particle belongs to and sort values
     for (i=0;i<nbodies;i++) storeval[i]=Part[i].GetType();
     for (i=0;i<nbodies;i++) Part[i].SetType((mpi_foftask[i]!=ThisTask));
     qsort(Part,nbodies,sizeof(Particle),TypeCompare);
-    //sort(Part.begin(),Part.begin()+nbodies,TypeCompareVec);
     for (i=0;i<nbodies;i++) Part[i].SetType(storeval[Part[i].GetID()]);
     //now use array to rearrange data
     for (i=0;i<nbodies;i++) storeval[i]=mpi_foftask[Part[i].GetID()];
@@ -3537,9 +3667,15 @@ Int_t MPIGroupExchange(const Int_t nbodies, Particle *Part, Int_t *&pfof){
             FoFGroupDataExport[noffset_export[task]+nbuffer[task]].Index = i;
             FoFGroupDataExport[noffset_export[task]+nbuffer[task]].Task = task;
             FoFGroupDataExport[noffset_export[task]+nbuffer[task]].iGroup = pfof[i];
+            //now that have all the particles that need broacasting, if extra information stored
+            //then must also fill up appropriate hydro/star/bh buffers for communication.
         }
         nbuffer[task]++;
     }
+    //fill an export buffer for communication of extra hydro information
+    //MPIFillFOFBuffWithHydroInfo(opt, nbuffer, noffset_export, Part, FoFGroupDataExport, indices_gas_send, propbuff_gas_send, true);
+
+
     //now send the data.
     ///\todo In determination of particle export for FOF routines, eventually need to place a check for the communication buffer so that if exported number
     ///is larger than the size of the buffer, iterate over the number exported
@@ -3577,6 +3713,8 @@ Int_t MPIGroupExchange(const Int_t nbodies, Particle *Part, Int_t *&pfof){
                         &FoFGroupDataLocal[noffset_import[recvTask]+recvoffset],
                         currecvchunksize * sizeof(struct fofid_in),
                         MPI_BYTE, recvTask, TAG_FOF_C+ichunk, MPI_COMM_WORLD, &status);
+                    MPISendReceiveFOFHydroInfoBetweenThreads(opt, cursendchunksize, &FoFGroupDataExport[noffset_export[recvTask]+sendoffset], currecvchunksize, &FoFGroupDataLocal[noffset_import[recvTask]+recvoffset], Part, recvTask, TAG_FOF_C+ichunk, mpi_comm);
+
                     sendoffset+=cursendchunksize;
                     recvoffset+=currecvchunksize;
                     if (cursendchunksize>mpi_nsend[recvTask+ThisTask * NProcs]-sendoffset)cursendchunksize=mpi_nsend[recvTask+ThisTask * NProcs]-sendoffset;
@@ -3592,7 +3730,7 @@ Int_t MPIGroupExchange(const Int_t nbodies, Particle *Part, Int_t *&pfof){
 /*!
     The baryon equivalent of \ref MPIGroupExchange. Here assume baryons are searched afterwards
 */
-Int_t MPIBaryonGroupExchange(const Int_t nbodies, Particle *Part, Int_t *&pfof){
+Int_t MPIBaryonGroupExchange(Options &opt, const Int_t nbodies, Particle *Part, Int_t *&pfof){
     Int_t i, j,nthreads,nexport,nimport,nlocal,n;
     Int_t nsend_local[NProcs],noffset_import[NProcs],noffset_export[NProcs],nbuffer[NProcs];
     int sendTask,recvTask;
@@ -3735,7 +3873,7 @@ Int_t MPIBaryonGroupExchange(const Int_t nbodies, Particle *Part, Int_t *&pfof){
 }
 
 ///Determine the local number of groups and their sizes (groups must be local to an mpi thread)
-Int_t MPICompileGroups(const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_t minsize){
+Int_t MPICompileGroups(Options &opt, const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_t minsize){
     Int_t i,j,start,ngroups;
     Int_t *numingroup,*groupid,**plist;
     ngroups=0;
@@ -3790,7 +3928,7 @@ Int_t MPICompileGroups(const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_t 
 
 ///Similar to \ref MPICompileGroups but optimised for separate baryon search
 ///\todo need to update to reflect vector implementation
-Int_t MPIBaryonCompileGroups(const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_t minsize, int iorder){
+Int_t MPIBaryonCompileGroups(Options &opt, const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_t minsize, int iorder){
     Int_t i,j,start,ngroups;
     Int_t *numingroup,*groupid,**plist;
     ngroups=0;
@@ -3948,7 +4086,7 @@ private(i,j,k,tid,p1,pindex,x1,D2,dval,rval,nnID,dist2)
     return nexport;
 }
 
-Int_t MPIBaryonExchange(const Int_t nbaryons, Particle *Pbaryons, Int_t *pfofbaryons){
+Int_t MPIBaryonExchange(Options &opt, const Int_t nbaryons, Particle *Pbaryons, Int_t *pfofbaryons){
     Int_t i, j,nthreads,nexport,nimport,nlocal,n;
     Int_t nsend_local[NProcs],noffset_import[NProcs],noffset_export[NProcs],nbuffer[NProcs];
     int sendTask,recvTask;

@@ -327,7 +327,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     delete[] Len;
     //Now redistribute groups so that they are local to a processor (also orders the group ids according to size
     opt.HaloMinSize=MinNumOld;//reset minimum size
-    Int_t newnbodies=MPIGroupExchange(nbodies,Part.data(),pfof);
+    Int_t newnbodies=MPIGroupExchange(opt, nbodies, Part.data(), pfof);
     //once groups are local, can free up memory. Might need to increase size
     //of vector
     if (Nmemlocal<Nlocal) {
@@ -338,7 +338,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     delete[] pfof;
     pfof=new Int_t[newnbodies];
     //And compile the information and remove groups smaller than minsize
-    numgroups=MPICompileGroups(newnbodies,Part.data(),pfof,opt.HaloMinSize);
+    numgroups=MPICompileGroups(opt, newnbodies, Part.data(), pfof, opt.HaloMinSize);
     //and free up some memory if vector doesn't need to be as big
     if (Nmemlocal>Nlocal) {Part.resize(Nlocal);Nmemlocal=Nlocal;}
     cout<<"MPI thread "<<ThisTask<<" has found "<<numgroups<<endl;
@@ -1775,7 +1775,7 @@ private(i,tid)
 
     //Now redistribute groups so that they are local to a processor (also orders the group ids according to size
     if (opt.iSingleHalo) opt.MinSize=MinNumOld;//reset minimum size
-    Int_t newnbodies=MPIGroupExchange(nsubset,Partsubset,pfof);
+    Int_t newnbodies=MPIGroupExchange(opt, nsubset,Partsubset,pfof);
     ///\todo need to clean up this mpi section for single halo
 /*
 #ifndef MPIREDUCEMEM
@@ -1793,7 +1793,7 @@ private(i,tid)
     ///\todo Before final compilation of data, should have unbind here but must adjust unbind so it
     ///does not call reordergroupids in it though it might be okay.
     //And compile the information and remove groups smaller than minsize
-    numgroups=MPICompileGroups(newnbodies,Partsubset,pfof,opt.MinSize);
+    numgroups=MPICompileGroups(opt, newnbodies,Partsubset,pfof,opt.MinSize);
     MPI_Barrier(MPI_COMM_WORLD);
     cout<<"MPI thread "<<ThisTask<<" has found "<<numgroups<<endl;
     //free up memory now that only need to store pfof and global ids
@@ -3319,7 +3319,7 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
         delete[] PartDataIn;
         delete[] PartDataGet;
 
-        Int_t newnbaryons=MPIBaryonGroupExchange(nbaryons,Pbaryons,pfofbaryons);
+        Int_t newnbaryons=MPIBaryonGroupExchange(opt, nbaryons,Pbaryons,pfofbaryons);
         //once baryons are correctly associated to the appropriate mpi domain and are local (either in Pbaryons or in the \ref fofid_in structure, specifically FOFGroupData arrays) must then copy info correctly.
 //#ifdef MPIREDUCEMEM
         if (Nmemlocalbaryon<newnbaryons)
@@ -3332,7 +3332,7 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
             pfofbaryons=new Int_t[newnbaryons];
         }
         //then compile groups and if inclusive halo masses not calculated, reorder group ids
-        MPIBaryonCompileGroups(newnbaryons,Pbaryons,pfofbaryons,opt.MinSize,(opt.iInclusiveHalo==0));
+        MPIBaryonCompileGroups(opt, newnbaryons,Pbaryons,pfofbaryons,opt.MinSize,(opt.iInclusiveHalo==0));
         delete[] mpi_foftask;
         if (opt.iverbose) cout<<ThisTask<<" finished search across domains"<<endl;
         //now allocate pfofall and store info
