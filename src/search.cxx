@@ -2602,7 +2602,14 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
             Double_t cmx=0.,cmy=0.,cmz=0.,cmvelx=0.,cmvely=0.,cmvelz=0.;
             Double_t mtotregion=0.0;
             Int_t j;
+            //suggested encapsulation by PJE
             if (opt.icmrefadjust) {
+                //this routine is in substructureproperties.cxx. Has internal parallelisation
+                GMatrix cmphase = CalcPhaseCM(subnumingroup[i], subPart);
+                //this routine is within this file, also has internal parallelisation
+                AdjustSubPartToPhaseCM(subnumingroup[i], subPart, cmphase);
+            }
+ /*           if (opt.icmrefadjust) {
 #ifdef USEOPENMP
             if (subnumingroup[i]>ompsearchnum) {
 #pragma omp parallel default(shared)
@@ -2657,7 +2664,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
 #ifdef USEOPENMP
 }
 #endif
-            }
+            } //*/
             //ADACS: for large objects, extra processing steps are requried
             //ADACS: Some of these subroutines make use of OpenMP. For this to continue
 		    //ADACS: the pool of threads would have to be changed
