@@ -1414,11 +1414,13 @@ void MPISendReceiveHydroInfoBetweenThreads(Options &opt, Int_t nlocalbuff, Parti
         indicesrecv.resize(numrecv);
         proprecvbuff.resize(numrecv*numextrafields);
     }
-    //send the information
-    MPI_Sendrecv(indicessend.data(),sizeof(Int_t)*indicessend.size(), MPI_BYTE, recvTask,
-        tag*2, indicesrecv.data(),sizeof(float)*indicesrecv.size(), MPI_BYTE, recvTask, tag*2, mpi_comm, &status);
-    MPI_Sendrecv(propsendbuff.data(),sizeof(float)*propsendbuff.size(), MPI_BYTE, recvTask,
-        tag*3, proprecvbuff.data(),sizeof(float)*proprecvbuff.size(), MPI_BYTE, recvTask, tag*3, mpi_comm, &status);
+    //send the information. If size is zero, resize vector so .data() points to valid address 
+    if (numsend == 0) {indicessend.resize(1);propsendbuff.resize(1);}
+    if (numrecv == 0) {indicesrecv.resize(1);proprecvbuff.resize(1);}
+    MPI_Sendrecv(indicessend.data(),numsend, MPI_FLOAT, recvTask,
+        tag*2, indicesrecv.data(),numrecv, MPI_FLOAT, recvTask, tag*2, mpi_comm, &status);
+    MPI_Sendrecv(propsendbuff.data(),numsend, MPI_FLOAT, recvTask,
+        tag*3, proprecvbuff.data(),numrecv, MPI_FLOAT, recvTask, tag*3, mpi_comm, &status);
 
     if (numrecv == 0) return;
     //and then update the local information
@@ -1489,11 +1491,13 @@ void MPISendReceiveStarInfoBetweenThreads(Options &opt, Int_t nlocalbuff, Partic
         indicesrecv.resize(numrecv);
         proprecvbuff.resize(numrecv*numextrafields);
     }
-    //send the information
-    MPI_Sendrecv(indicessend.data(),sizeof(Int_t)*indicessend.size(), MPI_BYTE, recvTask,
-        tag*2, indicesrecv.data(),sizeof(float)*indicesrecv.size(), MPI_BYTE, recvTask, tag*2, mpi_comm, &status);
-    MPI_Sendrecv(propsendbuff.data(),sizeof(float)*propsendbuff.size(), MPI_BYTE, recvTask,
-        tag*3, proprecvbuff.data(),sizeof(float)*proprecvbuff.size(), MPI_BYTE, recvTask, tag*3, mpi_comm, &status);
+    //send the information. If size is zero, resize vector so .data() points to valid address 
+    if (numsend == 0) {indicessend.resize(1);propsendbuff.resize(1);}
+    if (numrecv == 0) {indicesrecv.resize(1);proprecvbuff.resize(1);}
+    MPI_Sendrecv(indicessend.data(),numsend, MPI_FLOAT, recvTask,
+        tag*2, indicesrecv.data(),numrecv, MPI_FLOAT, recvTask, tag*2, mpi_comm, &status);
+    MPI_Sendrecv(propsendbuff.data(),numsend, MPI_FLOAT, recvTask,
+        tag*3, proprecvbuff.data(),numrecv, MPI_FLOAT, recvTask, tag*3, mpi_comm, &status);
 
     if (numrecv == 0) return;
     //and then update the local information
@@ -1564,11 +1568,13 @@ void MPISendReceiveBHInfoBetweenThreads(Options &opt, Int_t nlocalbuff, Particle
         indicesrecv.resize(numrecv);
         proprecvbuff.resize(numrecv*numextrafields);
     }
-    //send the information
-    MPI_Sendrecv(indicessend.data(),sizeof(Int_t)*indicessend.size(), MPI_BYTE, recvTask,
-        tag*2, indicesrecv.data(),sizeof(float)*indicesrecv.size(), MPI_BYTE, recvTask, tag*2, mpi_comm, &status);
-    MPI_Sendrecv(propsendbuff.data(),sizeof(float)*propsendbuff.size(), MPI_BYTE, recvTask,
-        tag*3, proprecvbuff.data(),sizeof(float)*proprecvbuff.size(), MPI_BYTE, recvTask, tag*3, mpi_comm, &status);
+    //send the information. If size is zero, resize vector so .data() points to valid address 
+    if (numsend == 0) {indicessend.resize(1);propsendbuff.resize(1);}
+    if (numrecv == 0) {indicesrecv.resize(1);proprecvbuff.resize(1);}
+    MPI_Sendrecv(indicessend.data(),numsend, MPI_FLOAT, recvTask,
+        tag*2, indicesrecv.data(),numrecv, MPI_FLOAT, recvTask, tag*2, mpi_comm, &status);
+    MPI_Sendrecv(propsendbuff.data(),numsend, MPI_FLOAT, recvTask,
+        tag*3, proprecvbuff.data(),numrecv, MPI_FLOAT, recvTask, tag*3, mpi_comm, &status);
 
     if (numrecv == 0) return;
     //and then update the local information
@@ -1612,7 +1618,6 @@ void MPISendReceiveFOFHydroInfoBetweenThreads(Options &opt, Int_t nexport, fofid
     numsend = indicessend.size();
     MPI_Sendrecv(&numsend,sizeof(Int_t), MPI_BYTE, recvTask, tag,
         &numrecv,sizeof(Int_t), MPI_BYTE, recvTask, tag, mpi_comm, &status);
-cout<<ThisTask<<" have send received info "<<numsend<<" "<<numrecv<<endl;
     if (numrecv>0) {
         indicesrecv.resize(numrecv);
         proprecvbuff.resize(numrecv*numextrafields);
@@ -1638,17 +1643,14 @@ cout<<ThisTask<<" have send received info "<<numsend<<" "<<numrecv<<endl;
             Part[FoFGroupDataExport[index].Index].SetHydroProperties();
         }
     }
-cout<<ThisTask<<" has filled local prop buff using FoFGroupDataExport "<<numsend<<endl;
-cout<<ThisTask<<" "<<indicessend.data()<<" "<<indicesrecv.data()<<endl;
-cout<<ThisTask<<" "<<indicessend.size()<<" "<<indicesrecv.size()<<endl;
-if (ThisTask==0) MPI_Barrier(MPI_COMM_WORLD);
 
-    //send the information
-    MPI_Sendrecv(indicessend.data(),sizeof(Int_t)*indicessend.size(), MPI_BYTE, recvTask,
-        tag*2, indicesrecv.data(),sizeof(float)*indicesrecv.size(), MPI_BYTE, recvTask, tag*2, mpi_comm, &status);
-    MPI_Sendrecv(propsendbuff.data(),sizeof(float)*propsendbuff.size(), MPI_BYTE, recvTask,
-        tag*3, proprecvbuff.data(),sizeof(float)*proprecvbuff.size(), MPI_BYTE, recvTask, tag*3, mpi_comm, &status);
-cout<<ThisTask<<" now has received info and will update FoFlocal"<<endl;
+    //send the information. If vectors are of zero size, must increase size so .data() points to a valid address
+    if (numsend==0) {indicessend.resize(1);propsendbuff.resize(1);}
+    if (numrecv==0) {indicesrecv.resize(1);proprecvbuff.resize(1);}
+    MPI_Sendrecv(indicessend.data(),numsend, MPI_FLOAT, recvTask,
+        tag*2, indicesrecv.data(),numrecv, MPI_FLOAT, recvTask, tag*2, mpi_comm, &status);
+    MPI_Sendrecv(propsendbuff.data(),numsend*numextrafields, MPI_FLOAT, recvTask,
+        tag*3, proprecvbuff.data(),numrecv*numextrafields, MPI_FLOAT, recvTask, tag*3, mpi_comm, &status);
 
     if (numrecv == 0) return;
     //and then update the local information
