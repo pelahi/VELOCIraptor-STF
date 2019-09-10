@@ -623,6 +623,12 @@ void MPIFillFOFBuffWithHydroInfo(Options &opt, Int_t *numbuff, Int_t *numoffset,
 ///Send/Receive hydro information between read threads using the MPI communicator
 ///Using a FOF filled buffer
 void MPISendReceiveFOFHydroInfoBetweenThreads(Options &opt, Int_t nexport, fofid_in *FoFGroupDataExport, Int_t nlocal, fofid_in *FoFGroupDataLocal, Particle *&Part, int recvTask, int tag, MPI_Comm &mpi_comm);
+///Send/Receive star information between read threads using the MPI communicator
+///Using a FOF filled buffer
+void MPISendReceiveFOFStarInfoBetweenThreads(Options &opt, Int_t nexport, fofid_in *FoFGroupDataExport, Int_t nlocal, fofid_in *FoFGroupDataLocal, Particle *&Part, int recvTask, int tag, MPI_Comm &mpi_comm);
+///Send/Receive BH information between read threads using the MPI communicator
+///Using a FOF filled buffer
+void MPISendReceiveFOFBHInfoBetweenThreads(Options &opt, Int_t nexport, fofid_in *FoFGroupDataExport, Int_t nlocal, fofid_in *FoFGroupDataLocal, Particle *&Part, int recvTask, int tag, MPI_Comm &mpi_comm);
 //@}
 
 /// \name MPI search related routines
