@@ -53,7 +53,9 @@
 #define HDFSTARIMETAL 40
 #define HDFSTARIAGE 41
 
-#define HDFBHIMDOT 50
+#define HDFBHIMETAL 50
+#define HDFBHIAGE 51
+#define HDFBHIMDOT 52
 //@}
 
 ///number of luminosity bands for stars
@@ -72,7 +74,7 @@
 
 ///\defgroup HDFNAMES labels for HDF naming conventions
 //@{
-#define HDFNUMNAMETYPES  8
+#define HDFNUMNAMETYPES  9
 #define HDFILLUSTISNAMES 0
 #define HDFGADGETXNAMES  1
 #define HDFEAGLENAMES    2
@@ -80,6 +82,7 @@
 #define HDFSIMBANAMES    4
 #define HDFMUFASANAMES   5
 #define HDFSWIFTEAGLENAMES    6
+#define HDFOLDSWIFTEAGLENAMES    8
 #define HDFEAGLEVERSION2NAMES    7
 //@}
 
@@ -710,6 +713,20 @@ struct HDF_Header {
             names[itemp++]=string("Cosmology/h");
             names[itemp++]=string("Cosmology/Cosmological run");
             break;
+          case HDFOLDSWIFTEAGLENAMES:
+            names[itemp++]=string("Header/BoxSize");
+            names[itemp++]=string("Header/MassTable");
+            names[itemp++]=string("Header/NumPart_ThisFile");
+            names[itemp++]=string("Header/NumPart_Total");
+            names[itemp++]=string("Header/NumPart_Total_HighWord");
+            names[itemp++]=string("Cosmology/Omega_m");
+            names[itemp++]=string("Cosmology/Omega_lambda");
+            names[itemp++]=string("Header/Redshift");
+            names[itemp++]=string("Header/Time");
+            names[itemp++]=string("Header/NumFilesPerSnapshot");
+            names[itemp++]=string("Cosmology/h");
+            names[itemp++]=string("Cosmology/Cosmological run");
+            break;
 
           default:
             names[itemp++]=string("Header/BoxSize");
@@ -767,6 +784,7 @@ struct HDF_Part_Info {
 
             // SFR
             if(hdfnametype==HDFSWIFTEAGLENAMES) names[itemp++]=string("StarFormationRates");
+            else if(hdfnametype==HDFOLDSWIFTEAGLENAMES) names[itemp++]=string("SFR");
             else names[itemp++]=string("StarFormationRate");
 
             //Metallicity. Note always place at position 7 in naming array
@@ -834,6 +852,11 @@ struct HDF_Part_Info {
               propindex[HDFGASIMETAL]=itemp;
               names[itemp++]=string("MetalMassFractions");
             }
+            else if(hdfnametype==HDFOLDSWIFTEAGLENAMES) {
+              propindex[HDFGASIMETAL]=itemp;
+              names[itemp++]=string("Metallicity");
+            }
+
         }
         //dark matter
         if (ptype==HDFDMTYPE) {
@@ -850,7 +873,7 @@ struct HDF_Part_Info {
 
             // Masses
             if (hdfnametype==HDFSWIFTEAGLENAMES || hdfnametype==HDFSIMBANAMES ||
-                hdfnametype==HDFMUFASANAMES) {
+                hdfnametype==HDFMUFASANAMES || hdfnametype==HDFOLDSWIFTEAGLENAMES) {
                 names[itemp++]=string("Masses");
             }
 
@@ -973,6 +996,7 @@ struct HDF_Part_Info {
 
             // Masses
             if(hdfnametype==HDFEAGLENAMES) names[itemp++]=string("Mass");
+            if(hdfnametype==HDFSWIFTEAGLENAMES) names[itemp++]=string("DynamicalMasses");
             else names[itemp++]=string("Masses");
 
             if (hdfnametype==HDFILLUSTISNAMES) {
@@ -1010,6 +1034,28 @@ struct HDF_Part_Info {
             else if (hdfnametype==HDFEAGLENAMES) {
                 //names[itemp++]=string("StellarFormationTime");
                 //names[itemp++]=string("Metallicity");
+            }
+            else if (hdfnametype==HDFSWIFTEAGLENAMES) {
+                propindex[HDFBHIAGE]=itemp;
+                names[itemp++]=string("FormationScaleFactors");
+                propindex[HDFBHIMETAL]=itemp;
+                names[itemp++]=string("MetalMasses");
+                propindex[HDFBHIMDOT]=itemp;
+                names[itemp++]=string("AccretionRates");
+
+                names[itemp++]=string("SubgridMasses");
+                names[itemp++]=string("ElementMasses");
+                names[itemp++]=string("MetalMassFromSNIa");
+                names[itemp++]=string("MetalMassFromSNII");
+                names[itemp++]=string("MetalMassFromAGB");
+                names[itemp++]=string("MassesFromSNIa");
+                names[itemp++]=string("MassesFromSNII");
+                names[itemp++]=string("MassesFromAGB");
+                names[itemp++]=string("IronMassFromSNIa");
+                names[itemp++]=string("GasDensities");
+                names[itemp++]=string("GasSoundSpeeds");
+                names[itemp++]=string("EnergyReservoirs");
+                names[itemp++]=string("TotalAccretedMasses");
             }
         }
         nentries=itemp;
@@ -1110,7 +1156,7 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
 		Fhdf = H5Fopen(buf, H5F_ACC_RDONLY, H5P_DEFAULT);
         cout<<"Loading HDF header info in header group: "<<hdf_gnames.Header_name<<endl;
 
-        if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES) {
+        if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES) {
 
           // Check if it is a SWIFT snapshot.
           //headerattribs=get_attribute(Fhdf, "Header/Code");

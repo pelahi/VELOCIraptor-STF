@@ -800,6 +800,7 @@ void ReadNchilada(Options &opt, vector<Particle> &Part, const Int_t nbodies,Part
 #ifdef USEMPI
     MPI_Bcast(&LN, 1, MPI_Real_t, 0, MPI_COMM_WORLD);
 #endif
+    opt.internalenergyinputconversion = opt.velocityinputconversion*opt.velocityinputconversion;
     ///if not an individual halo, assume cosmological and store scale of the highest resolution interparticle spacing to scale the physical FOF linking length
     if (opt.iSingleHalo==0)
     {
@@ -814,9 +815,6 @@ void ReadNchilada(Options &opt, vector<Particle> &Part, const Int_t nbodies,Part
         Part[i].SetMass(Part[i].GetMass()*mscale);
         for (int j=0;j<3;j++) Part[i].SetVelocity(j,Part[i].GetVelocity(j)*opt.velocityinputconversion*sqrt(opt.a)+Hubbleflow*Part[i].GetPosition(j));
         for (int j=0;j<3;j++) Part[i].SetPosition(j,Part[i].GetPosition(j)*lscale);
-#ifdef GASON
-        if (Part[i].GetType()==GASTYPE) Part[i].SetU(Part[i].GetU()*opt.velocityinputconversion*opt.velocityinputconversion);
-#endif
     }
     if (Pbaryons!=NULL && opt.iBaryonSearch==1) {
     for (i=0;i<Nlocalbaryon[0];i++)
@@ -824,9 +822,6 @@ void ReadNchilada(Options &opt, vector<Particle> &Part, const Int_t nbodies,Part
         Pbaryons[i].SetMass(Pbaryons[i].GetMass()*mscale);
         for (int j=0;j<3;j++) Pbaryons[i].SetVelocity(j,Pbaryons[i].GetVelocity(j)*opt.velocityinputconversion*sqrt(opt.a)+Hubbleflow*Pbaryons[i].GetPosition(j));
         for (int j=0;j<3;j++) Pbaryons[i].SetPosition(j,Pbaryons[i].GetPosition(j)*lscale);
-#ifdef GASON
-        Pbaryons[i].SetU(Pbaryons[i].GetU()*opt.velocityinputconversion*opt.velocityinputconversion);
-#endif
     }
     }
 #endif

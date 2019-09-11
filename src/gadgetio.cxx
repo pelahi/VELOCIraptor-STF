@@ -775,9 +775,6 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
         Pbaryons[i].SetMass(Pbaryons[i].GetMass()*mscale);
         for (int j=0;j<3;j++) Pbaryons[i].SetVelocity(j,Pbaryons[i].GetVelocity(j)*opt.velocityinputconversion*sqrt(opt.a)+Hubbleflow*Pbaryons[i].GetPosition(j));
         for (int j=0;j<3;j++) Pbaryons[i].SetPosition(j,Pbaryons[i].GetPosition(j)*lscale);
-#ifdef GASON
-        Pbaryons[i].SetU(Pbaryons[i].GetU()*opt.velocityinputconversion*opt.velocityinputconversion);
-#endif
     }
     }
 
@@ -1390,6 +1387,8 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
     MPI_Bcast(&(Ntotal),sizeof(Ntotal),MPI_BYTE,0,MPI_COMM_WORLD);
     MPI_Bcast(&opt.zoomlowmassdm,sizeof(opt.zoomlowmassdm),MPI_BYTE,0,MPI_COMM_WORLD);
 #endif
+    //store how to convert input internal energies to physical output internal energies
+    opt.internalenergyinputconversion = opt.velocityinputconversion*opt.velocityinputconversion;
     ///If compiled with HIGHRES, the code assumes that the gadget data is a multi-resolution simulation
     ///with the lowest mass dark matter particle corresponding to the highest resolution and
     ///thus the physical linking length is assumed to be in fraction of interparticle spacing
