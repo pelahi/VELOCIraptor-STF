@@ -660,6 +660,10 @@ struct Options
 
     /// \name options related to calculating detailed hydro/star/bh properties related to chemistry/feedbac, etc
     //@{
+    vector<string> gas_internalprop_names;
+    vector<string> star_internalprop_names;
+    vector<string> bh_internalprop_names;
+
     vector<string> gas_chem_names;
     vector<string> star_chem_names;
     vector<string> bh_chem_names;
@@ -1241,6 +1245,60 @@ struct ConfigInfo{
             datastring=string("");for (auto &x:opt.SOthresholds_names_crit) {datastring+=x;datastring+=string(",");}
             datainfo.push_back(datastring);
             datatype.push_back(python_type_string(opt.SOthresholds_values_crit[0]));
+        }
+        if (opt.gas_internalprop_names.size()>0){
+            nameinfo.push_back("Gas_internal_property_names");
+            datastring=string("");for (auto &x:opt.gas_internalprop_names) {datastring+=x;datastring+=string(",");}
+            datainfo.push_back(datastring);
+            datatype.push_back("float32");
+        }
+        if (opt.gas_chem_names.size()>0){
+            nameinfo.push_back("Gas_chemistry_names");
+            datastring=string("");for (auto &x:opt.gas_chem_names) {datastring+=x;datastring+=string(",");}
+            datainfo.push_back(datastring);
+            datatype.push_back("float32");
+        }
+        if (opt.gas_chemproduction_names.size()>0){
+            nameinfo.push_back("Gas_chemistry_production_names");
+            datastring=string("");for (auto &x:opt.gas_chemproduction_names) {datastring+=x;datastring+=string(",");}
+            datainfo.push_back(datastring);
+            datatype.push_back("float32");
+        }
+        if (opt.star_internalprop_names.size()>0){
+            nameinfo.push_back("Star_internal_property_names");
+            datastring=string("");for (auto &x:opt.star_internalprop_names) {datastring+=x;datastring+=string(",");}
+            datainfo.push_back(datastring);
+            datatype.push_back("float32");
+        }
+        if (opt.star_chem_names.size()>0){
+            nameinfo.push_back("Star_chemistry_names");
+            datastring=string("");for (auto &x:opt.star_chem_names) {datastring+=x;datastring+=string(",");}
+            datainfo.push_back(datastring);
+            datatype.push_back("float32");
+        }
+        if (opt.star_chemproduction_names.size()>0){
+            nameinfo.push_back("Star_chemistry_production_names");
+            datastring=string("");for (auto &x:opt.star_chemproduction_names) {datastring+=x;datastring+=string(",");}
+            datainfo.push_back(datastring);
+            datatype.push_back("float32");
+        }
+        if (opt.bh_internalprop_names.size()>0){
+            nameinfo.push_back("BH_internal_property_names");
+            datastring=string("");for (auto &x:opt.star_internalprop_names) {datastring+=x;datastring+=string(",");}
+            datainfo.push_back(datastring);
+            datatype.push_back("float32");
+        }
+        if (opt.bh_chem_names.size()>0){
+            nameinfo.push_back("BH_chemistry_names");
+            datastring=string("");for (auto &x:opt.star_chem_names) {datastring+=x;datastring+=string(",");}
+            datainfo.push_back(datastring);
+            datatype.push_back("float32");
+        }
+        if (opt.bh_chemproduction_names.size()>0){
+            nameinfo.push_back("BH_chemistry_production_names");
+            datastring=string("");for (auto &x:opt.bh_chemproduction_names) {datastring+=x;datastring+=string(",");}
+            datainfo.push_back(datastring);
+            datatype.push_back("float32");
         }
 
         //other options
@@ -4208,8 +4266,9 @@ struct PropDataHeader{
 
         //if extra hydro properties are calculated
 #ifdef GASON
-        if (opt.gas_chem_names.size()+opt.gas_chemproduction_names.size() > 0)
+        if (opt.gas_internalprop_names.size()+opt.gas_chem_names.size()+opt.gas_chemproduction_names.size() > 0)
         {
+            for (auto x:opt.gas_internalprop_names) headerdatainfo.push_back(x+string("_gas"));
             for (auto x:opt.gas_chem_names) headerdatainfo.push_back(x+string("_gas"));
             for (auto x:opt.gas_chemproduction_names) headerdatainfo.push_back(x+string("_gas"));
 #ifdef USEHDF
@@ -4219,8 +4278,9 @@ struct PropDataHeader{
         }
 #endif
 #ifdef STARON
-        if (opt.star_chem_names.size()+opt.star_chemproduction_names.size() > 0)
+        if (opt.star_internalprop_names.size()+opt.star_chem_names.size()+opt.star_chemproduction_names.size() > 0)
         {
+            for (auto x:opt.star_internalprop_names) headerdatainfo.push_back(x+string("_star"));
             for (auto x:opt.star_chem_names) headerdatainfo.push_back(x+string("_star"));
             for (auto x:opt.star_chemproduction_names) headerdatainfo.push_back(x+string("_star"));
 #ifdef USEHDF
@@ -4230,8 +4290,9 @@ struct PropDataHeader{
         }
 #endif
 #ifdef BHON
-        if (opt.bh_chem_names.size()+opt.bh_chemproduction_names.size() > 0)
+        if (opt.bh_internalprop_names.size()+opt.bh_chem_names.size()+opt.bh_chemproduction_names.size() > 0)
         {
+            for (auto x:opt.bh_internalprop_names) headerdatainfo.push_back(x+string("_bh"));
             for (auto x:opt.bh_chem_names) headerdatainfo.push_back(x+string("_bh"));
             for (auto x:opt.bh_chemproduction_names) headerdatainfo.push_back(x+string("_bh"));
 #ifdef USEHDF
