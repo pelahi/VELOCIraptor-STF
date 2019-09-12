@@ -724,6 +724,34 @@ int GetMillSpan(int );
 int CompareInt(const void *, const void *);
 ///get a time
 double MyGetTime();
+
+//@}
+
+/// \name Compilation functions
+/// Functions defined when certain compilation options enabled. Allows easy check
+///of a library file produced. see \ref utilities.cxx for implementation
+//@{
+#ifdef NOMASS
+extern "C" void VR_NOMASS();
+#endif
+#ifdef GASON
+extern "C" void VR_GASON();
+#endif
+#ifdef STARON
+extern "C" void VR_STARON();
+#endif
+#ifdef BHON
+extern "C" void VR_BHON();
+#endif
+#ifdef USEMPI
+extern "C" void VR_MPION();
+#endif
+#ifdef USEOPENMP
+extern "C" void VR_OPENMPON();
+#endif
+#ifdef HIGHRES
+extern "C" void VR_ZOOMSIMON();
+#endif
 //@}
 
 #endif
