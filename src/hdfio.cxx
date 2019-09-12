@@ -1948,7 +1948,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                             {
                                 for (auto iextra=0;iextra<opt.bh_internalprop_names.size();iextra++)
                                 {
-                                    Pbuf[ibufindex].GetBHProperties().SetInternalProperties(opt.bh_bh_internalprop_names[iextra], extrafieldbuff[iextraoffset*chunksize+nn]);
+                                    Pbuf[ibufindex].GetBHProperties().SetInternalProperties(opt.bh_internalprop_names[iextra], extrafieldbuff[iextraoffset*chunksize+nn]);
                                 }
                             }
                             iextraoffset += opt.bh_internalprop_names.size();
