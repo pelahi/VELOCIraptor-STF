@@ -5044,8 +5044,8 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
         #ifdef GASON
         pdata.aperture_mass_proj_gas[j]*=opt.MassValue;
         #ifdef STARON
-        pdata.aperture_mass_gas_proj_sf[j]*=opt.MassValue;
-        pdata.aperture_mass_gas_proj_nsf[j]*=opt.MassValue;
+        pdata.aperture_mass_proj_gas_sf[j]*=opt.MassValue;
+        pdata.aperture_mass_proj_gas_nsf[j]*=opt.MassValue;
         #endif
         #endif
         #ifdef STARON

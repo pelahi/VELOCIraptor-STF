@@ -732,25 +732,25 @@ double MyGetTime();
 ///of a library file produced. see \ref utilities.cxx for implementation
 //@{
 #ifdef NOMASS
-void VR_NOMASS();
+extern "C" void VR_NOMASS();
 #endif
 #ifdef GASON
-void VR_GASON();
+extern "C" void VR_GASON();
 #endif
 #ifdef STARON
-void VR_STARON();
+extern "C" void VR_STARON();
 #endif
 #ifdef BHON
-void VR_BHON();
+extern "C" void VR_BHON();
 #endif
 #ifdef USEMPI
-void VR_MPION();
+extern "C" void VR_MPION();
 #endif
 #ifdef USEOPENMP
-void VR_OPENMPON();
+extern "C" void VR_OPENMPON();
 #endif
 #ifdef HIGHRES
-void VR_ZOOMSIMON();
+extern "C" void VR_ZOOMSIMON();
 #endif
 //@}
 
