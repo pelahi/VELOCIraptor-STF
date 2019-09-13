@@ -171,8 +171,14 @@ int InitVelociraptor(char* configname, unitinfo u, siminfo s, const int numthrea
     //set if cosmological
     libvelociraptorOpt.icosmologicalin = s.icosmologicalsim;
 
+    //store a general mass unit, useful if running uniform box with single mass
+    //and saving memory by not storing mass per particle.
+    libvelociraptorOpt.MassValue = s.mass_uniform_box;
+
     //write velociraptor configuration info, appending .configuration to the input config file and writing every config option
     libvelociraptorOpt.outname = configname;
+
+    //store list of names that
     WriteVELOCIraptorConfig(libvelociraptorOpt);
 
     cout<<"Finished initialising VELOCIraptor"<<endl;
@@ -272,11 +278,15 @@ void SetVelociraptorSimulationState(cosmoinfo c, siminfo s)
 ///\todo interface with swift is comoving positions, period, peculiar velocities and physical self-energy
 groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
     cosmoinfo c, siminfo s,
-    const size_t num_gravity_parts, const size_t num_hydro_parts, const size_t num_star_parts,
+    const size_t num_gravity_parts, const size_t num_hydro_parts, const size_t num_star_parts, const size_t num_bh_parts,
     struct swift_vel_part *swift_parts, int *cell_node_ids,
     const int numthreads,
     const int ireturngroupinfoflag,
-    int * const numpartingroups)
+    int * const numpartingroups,
+    struct swift_vel_gas_part *swift_gas_parts,
+    struct swift_vel_star_part *swift_star_parts,
+    struct swift_vel_bh_part *swift_bh_parts
+)
 {
 #ifndef GASON
     cout<<"Gas has not been turned on in VELOCIraptor. Set GASON in Makefile.config and recompile VELOCIraptor."<<endl;
@@ -311,9 +321,18 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
     WriteUnitInfo(libvelociraptorOpt);
 
     vector<Particle> parts;
+    #ifdef GASON
+    HydroProperties hydro;
+    #endif
+    #ifdef STARON
+    StarProperties star;
+    #endif
+    #ifdef BHON
+    BHProperties bh;
+    #endif
     Particle *pbaryons;
     Int_t *pfof, *pfofall, *pfofbaryons, *numingroup,**pglist;
-    Int_t nbaryons, ndark;
+    Int_t nbaryons, ndark, index;
     Int_t ngroup, nhalos;
     groupinfo *group_info;
     //KDTree *tree;
@@ -337,7 +356,8 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
     cout<<"Copying particle data..."<< endl;
     time1=MyGetTime();
 
-    ndark = num_gravity_parts - num_hydro_parts - num_star_parts, nbaryons = num_hydro_parts+num_star_parts;
+    ndark = num_gravity_parts - num_hydro_parts - num_star_parts - num_bh_parts;
+    nbaryons = num_hydro_parts + num_star_parts + num_bh_parts;
     Nlocalbaryon[0]=nbaryons;
     Nmemlocalbaryon=Nlocalbaryon[0];
 
@@ -401,6 +421,40 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
             parts[i] = Particle(swift_parts[i]);
         }
     }
+    //if extra information has been passed then store it
+    #ifdef GASON
+    if (swift_gas_parts != NULL)
+    {
+        for (auto i=0; i<num_hydro_parts; i++)
+        {
+            index = swift_gas_parts[i].index;
+            parts[index].SetHydroProperties(hydro);
+        }
+        free(swift_gas_parts);
+    }
+    #endif
+    #ifdef STARON
+    if (swift_star_parts != NULL)
+    {
+        for (auto i=0; i<num_star_parts; i++)
+        {
+            index = swift_star_parts[i].index;
+            parts[index].SetStarProperties(star);
+        }
+        free(swift_star_parts);
+    }
+    #endif
+    #ifdef BHON
+    if (swift_bh_parts != NULL)
+    {
+        for (auto i=0; i<num_bh_parts; i++)
+        {
+            index = swift_bh_parts[i].index;
+            parts[index].SetBHProperties(bh);
+        }
+        free(swift_bh_parts);
+    }
+    #endif
 
     //lets free the memory of swift_parts
     free(swift_parts);
