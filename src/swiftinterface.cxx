@@ -173,7 +173,9 @@ int InitVelociraptor(char* configname, unitinfo u, siminfo s, const int numthrea
 
     //store a general mass unit, useful if running uniform box with single mass
     //and saving memory by not storing mass per particle.
+    #ifdef NOMASS
     libvelociraptorOpt.MassValue = s.mass_uniform_box;
+    #endif
 
     //write velociraptor configuration info, appending .configuration to the input config file and writing every config option
     libvelociraptorOpt.outname = configname;
