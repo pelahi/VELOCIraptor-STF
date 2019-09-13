@@ -1,5 +1,5 @@
 /*! \file utilities.cxx
- *  \brief this file contains an assortment of utilities 
+ *  \brief this file contains an assortment of utilities
  */
 
 #include "stf.h"
@@ -41,4 +41,24 @@ double MyGetTime(){
 #endif
 }
 
-
+#ifdef NOMASS
+void VR_NOMASS(){};
+#endif
+#ifdef GASON
+void VR_GASON(){};
+#endif
+#ifdef STARON
+void VR_STARON(){};
+#endif
+#ifdef BHON
+void VR_BHON(){};
+#endif
+#ifdef USEMPI
+void VR_MPION(){};
+#endif
+#ifdef USEOPENMP
+void VR_OPENMPON(){};
+#endif
+#ifdef HIGHRES
+void VR_ZOOMSIMON(){};
+#endif
