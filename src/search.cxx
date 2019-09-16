@@ -1690,7 +1690,6 @@ private(i,tid)
                 if (numgroupsbg>=bgoffset+1) {
                     for (i=0;i<nsubset;i++) if (pfofbg[i]>bgoffset) pfof[i]=numgroups+(pfofbg[i]-bgoffset);
                     numgroupsbg-=bgoffset;
-                    //if (numgroups>0 && opt.coresubmergemindist>0) MergeSubstructuresCoresPhase(opt, nsubset, Partsubset, pfof, numgroups, numgroupsbg);
                     numgroups+=numgroupsbg;
                 }
                 if (opt.iverbose>=2) cout<<ThisTask<<": After 6dfof core search and assignment there are "<<numgroups<<" groups"<<endl;
@@ -2315,18 +2314,19 @@ void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Parts
         int type;
         int nummerged;
         bool ismerged;
+        int mergeindex;
         vector<Int_t> mergedlist;
         mergeinfo(){
-            nummerged=0;
-            ismerged=false;
+            nummerged = 0;
+            ismerged = false;
+            mergeindex = -1;
         };
     };
-    //map<Int_t, Int_t> oldtonewpfof;
     vector<Particle> subs;
     vector<mergeinfo> minfo;
     KDTree *tree;
-    //vector<GMatrix> phasetensorsubs(numsubs,GMatrix(6,6)), phasetensorcores(numcores,GMatrix(6,6));
-    vector<Double_t> sigXsubs(numgroups), sigVsubs(numgroups), sigXcores(numgroups), sigVcores(numgroups);
+    //vector<GMatrix> phasetensorsubs(numgroups+1,GMatrix(6,6));
+    vector<Double_t> sigXsubs(numgroups+1), sigVsubs(numgroups+1);
     Double_t searchdist;
     struct indexfof {
         Int_t fofval;
@@ -2341,13 +2341,11 @@ void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Parts
     idtagged = -1;
     numingroup.resize(numgroups+1);
     noffset.resize(numgroups+1);
-
     indexing.resize(nsubset);
 
     for (auto &x:sigXsubs) x=0;
     for (auto &x:sigVsubs) x=0;
     for (auto &x:numingroup) x=0;
-    //for (auto i=0;i<=numgroups;i++) oldtonewpfof[i]=i;
 
     //get center of mass in phase-space
     for (auto i=0;i<nsubset;i++) {
@@ -2367,6 +2365,8 @@ void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Parts
     {
         if (i == 0) subs[i].SetType(-1);
         else subs[i].SetType((i>numsubs));
+        subs[i].SetPID(i);
+        subs[i].SetID(i);
         minfo[i].originalpfofval = i;
         minfo[i].pfofval = i;
         minfo[i].type = subs[i].GetType();
@@ -2470,37 +2470,68 @@ void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Parts
         if (imerge!=-1)
         {
             nummerged++;
-            pfofval=subs[imerge].GetPID();
-            index2=subs[imerge].GetID();
+            index1 = subs[imerge].GetID();
+            index2 = subs[i].GetID();
+            minfo[index1].ismerged = true;
+            minfo[index1].mergeindex = index2;
+            minfo[index2].nummerged = minfo[index1].nummerged+1;
+            minfo[index2].numingroup += minfo[index1].numingroup;
+            //minfo[index1].numingroup = 0;
             subs[imerge].SetPID(idtagged);
-            minfo[index2].ismerged=true;
-            minfo[index1].nummerged = minfo[index2].nummerged+1;
-            minfo[index1].numingroup += minfo[index2].numingroup;
-            minfo[index1].mergedlist.push_back(pfofval);
-            for (auto j=0;j<minfo[index2].nummerged;j++) minfo[index1].mergedlist.push_back(minfo[index2].mergedlist[j]);
+            minfo[index2].mergedlist.push_back(index1);
+            for (auto j=0;j<minfo[index1].nummerged;j++) {
+                minfo[index2].mergedlist.push_back(minfo[index1].mergedlist[j]);
+                minfo[minfo[index1].mergedlist[j]].mergeindex = index2;
+            }
+
         }
     }
     delete tree;
+
     //if nothing has changed, do nothing
     if (nummerged==0) return;
 
     //otherwise start merging groups
     if (opt.iverbose>=2) cout<<ThisTask<<": merging phase-space structures which overlap significantly. Number of mergers "<<nummerged<<" of " <<numgroups<<endl;
-    //sort merger info by type, which would be (background if present), subs, cores, individually arranged by size
+    //sort merger info by type, which would be (background if present), subs, cores, individually arranged by size, keeping original order if possible
     sort(minfo.begin(), minfo.end(), [](mergeinfo &a, mergeinfo &b){
         if (a.type<b.type) return true;
-        else if (a.type==b.type) return (a.numingroup > b.numingroup);
+        else if (a.type==b.type) {
+            if (a.numingroup > b.numingroup) return true;
+            else if (a.numingroup < b.numingroup) return false;
+            else {
+                return (a.originalpfofval < b.originalpfofval);
+            }
+        }
         else return false;
     });
+    //store old to new pfof values 
+    map<Int_t, Int_t> oldtonewindex;
+    for (auto i=0;i<minfo.size();i++)
+    {
+        oldtonewindex[minfo[i].originalpfofval] = i;
+    }
+
     newnumgroups=0;
     newnumcores=0;
     //having sorted groups based on type and size, update the pfof values;
-    for (auto i=0;i<minfo.size();i++) {
+    for (auto i=0;i<minfo.size();i++) 
+    {
         //if object has mergered, leave its pfofval unchanged.
         if (minfo[i].ismerged == true) continue;
         if (minfo[i].type >= 0) newnumgroups++;
         minfo[i].pfofval = newnumgroups;
         if (minfo[i].type == 1) newnumcores++;
+    }
+    //update the values to new pfof values 
+    for (auto i=0;i<minfo.size();i++)
+    {
+        if (minfo[i].ismerged == true) {
+            minfo[i].mergeindex = oldtonewindex[minfo[i].mergeindex] = i;
+        }
+        else if (minfo[i].nummerged > 0) {
+            for (auto &mergedgroup:minfo[i].mergedlist) mergedgroup = oldtonewindex[mergedgroup];
+        }
     }
 
     for (auto i=0;i<minfo.size();i++) {
@@ -2525,34 +2556,9 @@ void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Parts
             }
         }
     }
-
-    /*
-    for (auto i=0;i<minfo.size();i++) {
-        //if object has mergered do nothing
-        if (minfo[i].ismerged==true) continue;
-        if (minfo[i].type >= 0) newnumgroups++;
-        if (minfo[i].type == 1) newnumcores++;
-        //if object is still in same order and has not mergered with anything, do nothing
-        if (minfo[i].pfofval == newnumgroups && minfo[i].nummerged==0) continue;
-        //now have found either object that has merged or current pfovalue not in order, update ids.
-        //get its original position and update the
-        pfofval=minfo[i].pfofval;
-        for (auto j=noffset[pfofval];j<noffset[pfofval]+numingroup[pfofval];j++) {
-            pfof[Partsubset[indexing[j].index].GetID()]=newnumgroups;
-        }
-        //if object doesn't have any merged objects, don't need to update those ids.
-        if (minfo[i].nummerged==0) continue;
-        for (auto &mergedgroup:minfo[i].mergedlist) {
-            for (auto j=noffset[mergedgroup];j<noffset[mergedgroup]+numingroup[mergedgroup];j++) {
-                pfof[Partsubset[indexing[j].index].GetID()]=newnumgroups;
-            }
-        }
-    }
-    */
     numcores=newnumcores;
     numgroups=newnumgroups;
     numsubs=numgroups-numcores;
-
 }
 
 ///Remove spurious dynamical substructures that comprise most of host (this could happen in VERY rare cases of a multitude of radial shells)
