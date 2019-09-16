@@ -3084,9 +3084,15 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
                 ///\todo need to update to allow for star forming/non-star forming profiles
                 ///by storing the star forming value.
                 double sfrval = 0;
+                int typeval = DARKTYPE;
+#if defined(GASON) || defined(STARON) || defined(BHON)
+                if (opt.iextragasoutput || opt.iextrastaroutput || opt.iextrainterloperoutput || opt.iSphericalOverdensityPartList)
+                    typeval = typeparts[indices[j]];
+#endif
+
                 AddDataToRadialBinInclusive(opt, radii[indices[j]], masses[indices[j]],
 #if defined(GASON) || defined(STARON) || defined(BHON)
-                    sfrval, typeparts[indices[j]],
+                    sfrval, typeval,
 #endif
                     irnorm, ibin, pdata[i]);
             }
