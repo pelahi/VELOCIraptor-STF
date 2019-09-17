@@ -2426,18 +2426,18 @@ void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Parts
     //substructures. Since cores are after subs in id value, this removes a core
     //and adds particles to a substructure
     for (auto i=0;i<numgroups;i++) {
+        //if only looking at core 
+        if (opt.icoresubmergewithbg == 2 && subs[i].GetType() != -1) continue;
         //ignore if already merged
         if (subs[i].GetPID()==idtagged) continue;
         //don't search cores, which have type 1, to see if objects should merge with them
         if (subs[i].GetType()==1) continue;
         //if not searching background, ignore;
         if (opt.icoresubmergewithbg == 0 && subs[i].GetType() == -1) continue;
-
+        index1 = subs[i].GetID();
         searchdist = sigXsubs[index1]*fdist2;
-        //if object is background halo of type -1, decrease search distance^2 by 1/2^2
-        if (subs[i].GetType() == -1) searchdist *= 0.25;
-
-        index1=subs[i].GetPID()-idoffset;
+        ////if object is background halo of type -1, decrease search distance^2 by 1/2^2
+        //if (subs[i].GetType() == -1) searchdist *= 0.25;
         taggedsubs = tree->SearchBallPosTagged(i, searchdist);
         if (taggedsubs.size()<=1) continue;
         //if objects are within search window of core, get min phase distance
@@ -2451,18 +2451,22 @@ void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Parts
             if (subs[taggedsubs[j]].GetPID() == idtagged) continue;
             //skip background
             if (subs[taggedsubs[j]].GetType() == -1) continue;
-            //index2=subs[taggedsubs[j]].GetPID()-1;
             index2=subs[taggedsubs[j]].GetID();
             disp = 0; for (auto k=0;k<3;k++) disp+=pow(subs[taggedsubs[j]].GetPosition(k)-subs[i].GetPosition(k),2.0);
             dist2sub1 = disp/sigXsubs[index1];
             dist2sub2 = disp/sigXsubs[index2];
             disp = 0; for (auto k=0;k<3;k++) disp+=pow(subs[taggedsubs[j]].GetVelocity(k)-subs[i].GetVelocity(k),2.0);
             dist2sub1 += disp/sigVsubs[index1];
-            dist2sub2 = disp/sigVsubs[index2];
+            dist2sub2 += disp/sigVsubs[index2];
             dist2 = 0.5*(dist2sub1+dist2sub2);
+
+//if (subs[i].GetType() == -1 ) cout<<ThisTask<<" merging bg with "<<index1<<" at "<<mindist2<<" of size "<<minfo[index2].numingroup<<" "<<minfo[index1].numingroup<<" and type "<<minfo[index1].type<<endl;
+
             if (dist2sub1<fdist2 && dist2sub2<fdist2 && dist2<mindist2){
+            //if (dist2sub1<fdist2 && dist2sub2<fdist2){
                 imerge=taggedsubs[j];
                 mindist2=dist2;
+//cout<<ThisTask<<" "<<index1<<" could merge with "<<index2<<" "<<dist2sub1<<" "<<dist2sub2<<" at "<<mindist2<<" of size "<<minfo[index1].numingroup<<" "<<minfo[index2].numingroup<<" and type "<<minfo[index2].type<<endl;
             }
         }
 
@@ -2470,21 +2474,22 @@ void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Parts
         if (imerge!=-1)
         {
             nummerged++;
-            index1 = subs[imerge].GetID();
-            index2 = subs[i].GetID();
-            minfo[index1].ismerged = true;
-            minfo[index1].mergeindex = index2;
-            minfo[index2].nummerged = minfo[index1].nummerged+1;
-            minfo[index2].numingroup += minfo[index1].numingroup;
-            //minfo[index1].numingroup = 0;
+            index1 = subs[i].GetID();
+            index2 = subs[imerge].GetID();
+//cout<<ThisTask<<" "<<index1<<" merging with "<<index2<<" "<<dist2sub1<<" "<<dist2sub2<<" at "<<mindist2<<" of size "<<minfo[index1].numingroup<<" "<<minfo[index2].numingroup<<" and type "<<minfo[index2].type<<endl;
+            minfo[index2].ismerged = true;
+            minfo[index2].mergeindex = index2;
             subs[imerge].SetPID(idtagged);
-            minfo[index2].mergedlist.push_back(index1);
-            for (auto j=0;j<minfo[index1].nummerged;j++) {
-                minfo[index2].mergedlist.push_back(minfo[index1].mergedlist[j]);
-                minfo[minfo[index1].mergedlist[j]].mergeindex = index2;
+            minfo[index1].numingroup += minfo[index2].numingroup;
+            minfo[index1].nummerged = minfo[index2].nummerged+1;
+            minfo[index1].mergedlist.push_back(index2);
+            for (auto j=0;j<minfo[index2].nummerged;j++) {
+                minfo[index1].mergedlist.push_back(minfo[index2].mergedlist[j]);
+                minfo[minfo[index2].mergedlist[j]].mergeindex = index1;
             }
 
         }
+
     }
     delete tree;
 
