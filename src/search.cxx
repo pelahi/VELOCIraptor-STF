@@ -2352,9 +2352,8 @@ void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Parts
         pfofval = pfof[Partsubset[i].GetID()];
         indexing[i].fofval = pfofval;
         indexing[i].index = i;
-        //if ignoring background host when checking whether to merge
         numingroup[pfofval]++;
-        if (opt.icoresubmergewithbg == 0 && pfofval==0) continue;
+        //if (opt.icoresubmergewithbg == 0 && pfofval==0) continue;
         subs[pfofval].SetMass(subs[pfofval].GetMass()+Partsubset[i].GetMass());
         for (auto k=0;k<6;k++) subs[pfofval].SetPhase(k,subs[pfofval].GetPhase(k)+Partsubset[i].GetPhase(k)*Partsubset[i].GetMass());
     }
@@ -2371,12 +2370,10 @@ void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Parts
         minfo[i].pfofval = i;
         minfo[i].type = subs[i].GetType();
         minfo[i].numingroup = numingroup[i];
-        //if ignoring background, nothing to do.
-        if (opt.icoresubmergewithbg == 0 && i == 0) continue;
         for (auto k=0;k<6;k++) subs[i].SetPhase(k,subs[i].GetPhase(k)/subs[i].GetMass());
     }
 
-    //sort indices by fof value
+    //sort indices by original fof value
     sort(indexing.begin(), indexing.end(), [](indexfof &a, indexfof &b){
     return a.fofval < b.fofval;
     });
@@ -2384,6 +2381,7 @@ void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Parts
     //get the dispersions
     for (auto i=0;i<nsubset;i++) {
         pfofval = pfof[Partsubset[i].GetID()];
+        //if ignoring background host when checking whether to merge, then leave it as zero dispersion
         if (pfofval == 0 && opt.icoresubmergewithbg == 0) continue;
         disp=0; for (auto k=0;k<3;k++) disp+=pow(Partsubset[i].GetPosition(k)-subs[pfofval].GetPosition(k),2.0);
         sigXsubs[pfofval]+=disp*Partsubset[i].GetMass();
@@ -2398,27 +2396,6 @@ void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Parts
         sigVsubs[i]*=1.0/subs[i].GetMass();
     }
 
-    //if not interested in core, determine most distance position, largest dispersion, place bg artificially there
-    if (opt.icoresubmergewithbg == 0) {
-        vector<Double_t> maxpos(6);
-        Double_t maxsigX, maxsigV;
-        for (auto k=0;k<6;k++) maxpos[k] = subs[1].GetPhase(k);
-        maxsigX = sigXsubs[1];
-        maxsigV = sigVsubs[1];
-        for (auto i=2;i<subs.size();i++)
-        {
-            for (auto k=0;k<6;k++)
-            {
-                if (maxpos[k] < subs[i].GetPhase(k)) maxpos[k] = subs[i].GetPhase(k);
-            }
-            if (maxsigX < sigXsubs[i]) maxsigX = sigXsubs[i];
-            if (maxsigV < sigVsubs[i]) maxsigV = sigVsubs[i];
-        }
-        for (auto k=0;k<3;k++) maxpos[k] += maxsigX*fdist2;
-        for (auto k=3;k<6;k++) maxpos[k] += maxsigV*fdist2;
-        for (auto k=0;k<6;k++) subs[0].SetPhase(k,maxpos[k]);
-    }
-
     //now built tree on substructures
     tree = new KDTree(subs.data(),subs.size(),1,tree->TPHYS,tree->KEPAN,100,0,0,0);
 
@@ -2426,7 +2403,7 @@ void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Parts
     //substructures. Since cores are after subs in id value, this removes a core
     //and adds particles to a substructure
     for (auto i=0;i<numgroups;i++) {
-        //if only looking at core 
+        //if only looking at core
         if (opt.icoresubmergewithbg == 2 && subs[i].GetType() != -1) continue;
         //ignore if already merged
         if (subs[i].GetPID()==idtagged) continue;
@@ -2460,42 +2437,29 @@ void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Parts
             dist2sub2 += disp/sigVsubs[index2];
             dist2 = 0.5*(dist2sub1+dist2sub2);
 
-//if (subs[i].GetType() == -1 ) cout<<ThisTask<<" merging bg with "<<index1<<" at "<<mindist2<<" of size "<<minfo[index2].numingroup<<" "<<minfo[index1].numingroup<<" and type "<<minfo[index1].type<<endl;
-
-            if (dist2sub1<fdist2 && dist2sub2<fdist2 && dist2<mindist2){
-            //if (dist2sub1<fdist2 && dist2sub2<fdist2){
+            if (dist2sub1<fdist2 && dist2sub2<fdist2){
                 imerge=taggedsubs[j];
                 mindist2=dist2;
-//cout<<ThisTask<<" "<<index1<<" could merge with "<<index2<<" "<<dist2sub1<<" "<<dist2sub2<<" at "<<mindist2<<" of size "<<minfo[index1].numingroup<<" "<<minfo[index2].numingroup<<" and type "<<minfo[index2].type<<endl;
+                nummerged++;
+                //cout<<ThisTask<<" "<<index1<<" could merge with "<<index2<<" "<<dist2sub1<<" "<<dist2sub2<<" at "<<mindist2<<" of size "<<minfo[index1].numingroup<<" "<<minfo[index2].numingroup<<" and type "<<minfo[index2].type<<endl;
+                minfo[index2].ismerged = true;
+                minfo[index2].mergeindex = index1;
+                subs[imerge].SetPID(idtagged);
+                minfo[index1].numingroup += minfo[index2].numingroup;
+                minfo[index1].nummerged = minfo[index2].nummerged+1;
+                minfo[index1].mergedlist.push_back(index2);
+                for (auto j=0;j<minfo[index2].nummerged;j++) {
+                    minfo[index1].mergedlist.push_back(minfo[index2].mergedlist[j]);
+                    minfo[minfo[index2].mergedlist[j]].ismerged = true;
+                    minfo[minfo[index2].mergedlist[j]].mergeindex = index1;
+                }
             }
         }
-
-        //merge overlapping objects stored in taggedsubs with object i.
-        if (imerge!=-1)
-        {
-            nummerged++;
-            index1 = subs[i].GetID();
-            index2 = subs[imerge].GetID();
-//cout<<ThisTask<<" "<<index1<<" merging with "<<index2<<" "<<dist2sub1<<" "<<dist2sub2<<" at "<<mindist2<<" of size "<<minfo[index1].numingroup<<" "<<minfo[index2].numingroup<<" and type "<<minfo[index2].type<<endl;
-            minfo[index2].ismerged = true;
-            minfo[index2].mergeindex = index2;
-            subs[imerge].SetPID(idtagged);
-            minfo[index1].numingroup += minfo[index2].numingroup;
-            minfo[index1].nummerged = minfo[index2].nummerged+1;
-            minfo[index1].mergedlist.push_back(index2);
-            for (auto j=0;j<minfo[index2].nummerged;j++) {
-                minfo[index1].mergedlist.push_back(minfo[index2].mergedlist[j]);
-                minfo[minfo[index2].mergedlist[j]].mergeindex = index1;
-            }
-
-        }
-
     }
     delete tree;
 
     //if nothing has changed, do nothing
     if (nummerged==0) return;
-
     //otherwise start merging groups
     if (opt.iverbose>=2) cout<<ThisTask<<": merging phase-space structures which overlap significantly. Number of mergers "<<nummerged<<" of " <<numgroups<<endl;
     //sort merger info by type, which would be (background if present), subs, cores, individually arranged by size, keeping original order if possible
@@ -2510,7 +2474,7 @@ void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Parts
         }
         else return false;
     });
-    //store old to new pfof values 
+    //store old to new pfof values
     map<Int_t, Int_t> oldtonewindex;
     for (auto i=0;i<minfo.size();i++)
     {
@@ -2520,7 +2484,7 @@ void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Parts
     newnumgroups=0;
     newnumcores=0;
     //having sorted groups based on type and size, update the pfof values;
-    for (auto i=0;i<minfo.size();i++) 
+    for (auto i=0;i<minfo.size();i++)
     {
         //if object has mergered, leave its pfofval unchanged.
         if (minfo[i].ismerged == true) continue;
@@ -2528,17 +2492,18 @@ void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Parts
         minfo[i].pfofval = newnumgroups;
         if (minfo[i].type == 1) newnumcores++;
     }
-    //update the values to new pfof values 
+    //update the values to new pfof values
     for (auto i=0;i<minfo.size();i++)
     {
         if (minfo[i].ismerged == true) {
-            minfo[i].mergeindex = oldtonewindex[minfo[i].mergeindex] = i;
+            minfo[i].mergeindex = oldtonewindex[minfo[i].mergeindex];
         }
         else if (minfo[i].nummerged > 0) {
             for (auto &mergedgroup:minfo[i].mergedlist) mergedgroup = oldtonewindex[mergedgroup];
         }
     }
 
+    //now update the pfof array as necessary
     for (auto i=0;i<minfo.size();i++) {
         //if object is still in same order and has not mergered with anything, do nothing
         if (minfo[i].ismerged == true) continue;
@@ -2548,7 +2513,8 @@ void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Parts
         if (minfo[i].nummerged>0) {
             pfofval = minfo[i].pfofval;
             for (auto &mergedgroup:minfo[i].mergedlist) {
-                for (auto j=noffset[mergedgroup];j<noffset[mergedgroup]+numingroup[mergedgroup];j++) {
+                index1 = minfo[mergedgroup].originalpfofval;
+                for (auto j=noffset[index1];j<noffset[index1]+numingroup[index1];j++) {
                     pfof[Partsubset[indexing[j].index].GetID()] = pfofval;
                 }
             }
@@ -2561,6 +2527,7 @@ void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Parts
             }
         }
     }
+
     numcores=newnumcores;
     numgroups=newnumgroups;
     numsubs=numgroups-numcores;
