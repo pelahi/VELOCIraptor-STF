@@ -302,7 +302,13 @@ void MPINumInDomainHDF(Options &opt)
         MPI_Allreduce(Nbaryonbuf,mpi_nlocal,NProcs,MPI_Int_t,MPI_SUM,MPI_COMM_WORLD);
         Nlocalbaryon[0]=mpi_nlocal[ThisTask];
     }
+
+    delete[] ireadtask;
+    delete[] readtaskID;
+    delete[] ireadfile;
     delete[] doublebuff;
+    delete[] Nbuf;
+    delete[] Nbaryonbuf;
 
 }
 
