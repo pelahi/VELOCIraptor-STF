@@ -540,6 +540,12 @@ int main(int argc,char **argv)
     delete[] pdata;
     delete psldata;
 
+
+    delete[] nsub;
+    delete[] parentgid;
+    delete[] uparentgid;
+    delete[] stype;
+
     tottime=MyGetTime()-tottime;
     cout<<"TIME::"<<ThisTask<<" took "<<tottime<<" in all"<<endl;
 

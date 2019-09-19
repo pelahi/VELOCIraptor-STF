@@ -461,6 +461,8 @@ private(i,tid)
     //rbin=NULL;
     for (int j=0;j<nthreads;j++) delete[] omp_rbin[j];
     delete[] omp_rbin;
+    for (int i=0;i<8;i++) delete[] fixp[i];
+    delete[] fixp;
 }
 
 /*! Calculates the normalized deviations from the mean of the dominated population.
