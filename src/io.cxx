@@ -407,6 +407,7 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     os << opt.outname << ".catalog_groups";
 #ifdef USEMPI
     os<<"."<<ThisTask;
+#endif
     fname = os.str();
 
     cout<<"saving group catalog to "<<fname<<endl;
