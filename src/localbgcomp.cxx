@@ -123,6 +123,10 @@ private(i,w,wsum,sv,vsv,fbg,vp,maxdist,vmweighted,isvweighted,tid,tempdenv)
 }
 #endif
     if (opt.iverbose>=2) cout<<ThisTask<<" Done"<<endl;
+    for (int j=0;j<nthreads;j++) delete[] dist[j];
+    delete[] dist;
+    for (int j=0;j<nthreads;j++) delete[] nn[j];
+    delete[] nn;
     delete[] gvel;
     delete[] gveldisp;
     delete tree;
@@ -461,6 +465,8 @@ private(i,tid)
     //rbin=NULL;
     for (int j=0;j<nthreads;j++) delete[] omp_rbin[j];
     delete[] omp_rbin;
+    for (int i=0;i<8;i++) delete[] fixp[i];
+    delete[] fixp;
 }
 
 /*! Calculates the normalized deviations from the mean of the dominated population.

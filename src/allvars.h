@@ -1569,7 +1569,7 @@ struct GridCell
         den=0;
     }
     ~GridCell(){
-        if (nparts>0)delete nindex;
+        if (nparts>0)delete[] nindex;
     }
 };
 

@@ -71,7 +71,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     char buf[2000];
     HDF_Group_Names hdf_gnames (opt.ihdfnameconvention);
     //structures store names in groups
-    HDF_Header *hdf_header_info;
+    vector<HDF_Header> hdf_header_info;
     HDF_Part_Info hdf_gas_info(HDFGASTYPE,opt.ihdfnameconvention);
     HDF_Part_Info hdf_dm_info(HDFDMTYPE,opt.ihdfnameconvention);
     HDF_Part_Info hdf_extradm_info(HDFDM1TYPE,opt.ihdfnameconvention);
@@ -272,7 +272,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     if (ireadtask[ThisTask]>=0) {
 #endif
     //read the header
-    hdf_header_info=new HDF_Header[opt.num_files];
+    hdf_header_info.resize(opt.num_files);
     for (i=0; i<opt.num_files; i++) hdf_header_info[i] = HDF_Header(opt.ihdfnameconvention);
     Fhdf.resize(opt.num_files);
     headerdataspace.resize(opt.num_files);
@@ -2350,7 +2350,6 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     delete[] Tagedoublebuff;
 #endif
 #endif
-
 }
 
 #endif

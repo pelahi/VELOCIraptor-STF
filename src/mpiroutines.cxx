@@ -3515,6 +3515,8 @@ void MPIGetHaloSearchImportNum(const Int_t nbodies, KDTree *tree, Particle *Part
     for (j=0;j<NProcs;j++)NImport+=mpi_nsend[ThisTask+j*NProcs];
     NExport=nexport;
     for (j=0;j<NProcs;j++) for (int k=0;k<NProcs;k++) mpi_nsend[k+j*NProcs]=oldnsend[k+j*NProcs];
+    delete[] nn;
+    delete[] nnr2;
 }
 /*! Mirror to \ref MPIBuildHaloSearchExportList, use exported particles, run ball search to find all local particles that need to be
     imported back to exported particle's thread so that a proper NN search can be made.
@@ -3621,6 +3623,8 @@ Int_t MPIBuildHaloSearchImportList(Options &opt, const Int_t nbodies, KDTree *tr
         }
     }
     ncount=0;for (int k=0;k<NProcs;k++)ncount+=mpi_nsend[ThisTask+k*NProcs];
+    delete[] nn;
+    delete[] nnr2;
     return ncount;
 }
 
@@ -3763,6 +3767,7 @@ void MPIAdjustLocalGroupIDs(const Int_t nbodies, Int_t *pfof){
     for (int j=0;j<NProcs;j++){mpi_maxgid+=mpi_nlocal[rankorder[j]];}
     mpi_gidoffset=0;
     for (int j=0;j<NProcs;j++){if(rankorder[j]==ThisTask) break; mpi_gidoffset+=mpi_ngroups[rankorder[j]];}
+    delete pq;
 }
 
 //My idea is this for doing the stiching. First generate export list of particle data and another seperate data structure for the FOF data
@@ -3913,6 +3918,7 @@ Int_t MPILinkAcross(const Int_t nbodies, KDTree *&tree, Particle *Part, Int_t *&
             }
         }
     }
+    delete[] nn;
     return links;
 }
 ///link particles belonging to the same group across mpi domains using comparison function
@@ -3958,6 +3964,7 @@ Int_t MPILinkAcross(const Int_t nbodies, KDTree *&tree, Particle *Part, Int_t *&
             }
         }
     }
+    delete[] nn;
     return links;
 }
 
@@ -4004,6 +4011,7 @@ Int_t MPILinkAcross(const Int_t nbodies, KDTree *&tree, Particle *Part, Int_t *&
             }
         }
     }
+    delete[] nn;
     return links;
 }
 /*!
