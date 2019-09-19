@@ -382,12 +382,13 @@ private(i,tid)
     //now have initial estimates of paramters, try nonlinear ls fit to data below prob and above
     Int_t iflag,iit=0,nparams=4;
     Double_t chi2,oldchi2;
-    Double_t *params=new Double_t[nparams];
+    vector<Double_t> params(nparams);
     //five sets of fix parameter choices so that get optimal fit given bad data.
-    int **fixp,nfix,itemp;
+    vector<vector<int>> fixp;
+    int nfix,itemp;
     int nfits=8;
-    fixp= new int*[nfits];
-    for (int i=0;i<8;i++) fixp[i]=new int[nparams];
+    fixp.resize(nfits);
+    for (int i=0;i<8;i++) fixp[i].resize(nparams);
     struct math_function fitfunc,*difffuncs;
     difffuncs=new math_function[nparams];
 
@@ -416,7 +417,7 @@ private(i,tid)
     nfits=8;
     oldchi2=MAXVALUE;
     for (int i=0;i<nfits;i++) {
-        chi2=FitNonLinLS(fitfunc, difffuncs, nparams, params, covar, nbins, xbin.data(), rbin.data(), &W,  1e-2, 0.95, fixp[i],1,20);
+        chi2=FitNonLinLS(fitfunc, difffuncs, nparams, params.data(), covar, nbins, xbin.data(), rbin.data(), &W,  1e-2, 0.95, fixp[i].data(),1,20);
         int ifitfail=0;
         for (int j=0;j<nparams;j++) ifitfail+=std::isnan(params[j]);
         ifitfail+=(params[2]<=0);
@@ -435,8 +436,6 @@ private(i,tid)
     }
 
     if (opt.iverbose>=2) printf("Using meanr=%e sdlow=%e sdhigh=%e\n",meanr,sdlow,sdhigh);
-    for (int i=0;i<8;i++) delete[] fixp[i];
-    delete[] fixp;
 }
 
 /*! Calculates the normalized deviations from the mean of the dominated population.
