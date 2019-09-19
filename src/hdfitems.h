@@ -504,7 +504,7 @@ class H5OutputFile
 			H5Pset_layout(prop_id, H5D_CHUNKED);
 			H5Pset_chunk(prop_id, rank, chunks);
 			H5Pset_deflate(prop_id, HDFDEFLATE);
-			delete chunks;
+			delete[] chunks;
 		}
 
 		// Create the dataset
@@ -555,7 +555,7 @@ class H5OutputFile
 			H5Pset_layout(prop_id, H5D_CHUNKED);
 			H5Pset_chunk(prop_id, rank, chunks);
 			H5Pset_deflate(prop_id, HDFDEFLATE);
-			delete chunks;
+			delete[] chunks;
 		}
 
 		// Create the dataset

@@ -2097,8 +2097,8 @@ private(i,tid,Pval,x1,D2,dval,mval,pid,pidcore)
             delete tcore;
             delete[] Pcore;
             for (i=0;i<nthreads;i++) {
-                delete [] nnID[i];
-                delete [] dist2[i];
+                delete[] nnID[i];
+                delete[] dist2[i];
             }
             delete[] nnID;
             delete[] dist2;
