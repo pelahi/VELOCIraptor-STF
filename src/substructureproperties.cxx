@@ -2797,7 +2797,7 @@ void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup
     vector<Double_t> maxrdist(ngroup+1);
     //to store particle ids of those in SO volume.
     vector<Int_t> SOpids;
-    vector<Int_t> *SOpartlist=new vector<Int_t>[ngroup+1];
+    vector<Int_t> *SOpartlist = new vector<Int_t>[ngroup+1];
     vector<int> *SOparttypelist = NULL;
 
 #if defined(GASON) || defined(STARON) || defined(BHON) || defined(HIGHRES)
@@ -3063,9 +3063,15 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
                 ///\todo need to update to allow for star forming/non-star forming profiles
                 ///by storing the star forming value.
                 double sfrval = 0;
+                int typeval = DARKTYPE;
+#if defined(GASON) || defined(STARON) || defined(BHON)
+                if (opt.iextragasoutput || opt.iextrastaroutput || opt.iextrainterloperoutput || opt.iSphericalOverdensityPartList)
+                    typeval = typeparts[indices[j]];
+#endif
+
                 AddDataToRadialBinInclusive(opt, radii[indices[j]], masses[indices[j]],
 #if defined(GASON) || defined(STARON) || defined(BHON)
-                    sfrval, typeparts[indices[j]],
+                    sfrval, typeval,
 #endif
                     irnorm, ibin, pdata[i]);
             }
@@ -3105,11 +3111,9 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
     //write the particle lists
     if (opt.iSphericalOverdensityPartList) {
         WriteSOCatalog(opt, nhalos, SOpartlist, SOparttypelist);
-        delete[] SOpartlist;
-#if defined(GASON) || defined(STARON) || defined(BHON) || defined(HIGHRES)
-        delete[] SOparttypelist;
-#endif
     }
+    delete[] SOpartlist;
+    delete[] SOparttypelist;
 #ifdef USEMPI
     mpi_period=0;
     if (NProcs>1) {

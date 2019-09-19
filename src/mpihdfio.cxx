@@ -50,14 +50,14 @@ void MPIDomainExtentHDF(Options &opt){
             Fhdf = H5Fopen(buf, H5F_ACC_RDONLY, H5P_DEFAULT);
             cout<<"Loading HDF header info in header group: "<<hdf_gnames.Header_name<<endl;
 
-            if (opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES) 
+            if (opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES)
             {
                 /* SWIFT can have non-cubic boxes; but for cosmological runs they will always be cubes.
                 * This makes the BoxSize a vector attribute, with it containing three values, but they
                 * will always be the same. */
                 hdf_header_info.BoxSize = read_attribute_v<double>(Fhdf, hdf_header_info.names[hdf_header_info.IBoxSize])[0];
-            } 
-            else 
+            }
+            else
             {
                 hdf_header_info.BoxSize = read_attribute<double>(Fhdf, hdf_header_info.names[hdf_header_info.IBoxSize]);
             }
@@ -158,7 +158,7 @@ void MPINumInDomainHDF(Options &opt)
     hdf_parts[5]=&hdf_bh_info;
 
     //to store the groups, data sets and their associated data spaces
-    HDF_Header *hdf_header_info;
+    vector<HDF_Header> hdf_header_info;
     vector<hid_t>Fhdf;
     vector<hid_t>headerattribs;
     vector<hid_t>headerdataspace;
@@ -195,7 +195,7 @@ void MPINumInDomainHDF(Options &opt)
     int usetypes[NHDFTYPE];
     if (ireadtask[ThisTask]>=0) {
         HDFSetUsedParticleTypes(opt,nusetypes,nbusetypes,usetypes);
-        hdf_header_info=new HDF_Header[opt.num_files];
+        hdf_header_info.resize(opt.num_files);
         Fhdf.resize(opt.num_files);
         headerdataspace.resize(opt.num_files);
         headerattribs.resize(opt.num_files);

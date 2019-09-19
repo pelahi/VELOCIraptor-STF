@@ -71,7 +71,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     char buf[2000];
     HDF_Group_Names hdf_gnames (opt.ihdfnameconvention);
     //structures store names in groups
-    HDF_Header *hdf_header_info;
+    vector<HDF_Header> hdf_header_info;
     HDF_Part_Info hdf_gas_info(HDFGASTYPE,opt.ihdfnameconvention);
     HDF_Part_Info hdf_dm_info(HDFDMTYPE,opt.ihdfnameconvention);
     HDF_Part_Info hdf_extradm_info(HDFDM1TYPE,opt.ihdfnameconvention);
@@ -271,7 +271,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     if (ireadtask[ThisTask]>=0) {
 #endif
     //read the header
-    hdf_header_info=new HDF_Header[opt.num_files];
+    hdf_header_info.resize(opt.num_files);
     for (i=0; i<opt.num_files; i++) hdf_header_info[i] = HDF_Header(opt.ihdfnameconvention);
     // Fhdf=new H5File[opt.num_files];
     // headerdataspace=new DataSpace[opt.num_files];
@@ -848,7 +848,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                     if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
                     //setup hyperslab so that it is loaded into the buffer
                     HDF5ReadHyperSlabReal(doublebuff,partsdataset[i*NHDFTYPE+k], partsdataspace[i*NHDFTYPE+k], 1, 1, nchunk, n);
-                    for (int nn=0;nn<nchunk;nn++) Part[count++].SetSFR(doublebuff[nn]);
+                    for (int nn=0;nn<nchunk;nn++) Part[count++].SetSFR(doublebuff[nn] > 0. ? doublebuff[nn] : 0.);
                   }
                 }
                 else {
@@ -1324,7 +1324,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                       if (k==HDFGASTYPE) {
                         Pbuf[ibufindex].SetU(udoublebuff[nn]);
 #ifdef STARON
-                        Pbuf[ibufindex].SetSFR(SFRdoublebuff[nn]);
+                        Pbuf[ibufindex].SetSFR(SFRdoublebuff[nn] > 0. ? SFRdoublebuff[nn]: 0.);
                         Pbuf[ibufindex].SetZmet(Zdoublebuff[nn]);
 #endif
                     }
@@ -1439,7 +1439,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         if (k==HDFGASTYPE) {
                           Pbuf[ibufindex].SetU(udoublebuff[nn]);
 #ifdef STARON
-                          Pbuf[ibufindex].SetSFR(SFRdoublebuff[nn]);
+                          Pbuf[ibufindex].SetSFR(SFRdoublebuff[nn] > 0. ? SFRdoublebuff[nn] : 0.);
                           Pbuf[ibufindex].SetZmet(Zdoublebuff[nn]);
 #endif
                         }
@@ -1710,7 +1710,6 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     delete[] Tagedoublebuff;
 #endif
 #endif
-
 }
 
 #endif
