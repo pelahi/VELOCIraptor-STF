@@ -123,6 +123,10 @@ private(i,w,wsum,sv,vsv,fbg,vp,maxdist,vmweighted,isvweighted,tid,tempdenv)
 }
 #endif
     if (opt.iverbose>=2) cout<<ThisTask<<" Done"<<endl;
+    for (int j=0;j<nthreads;j++) delete[] dist[j];
+    delete[] dist;
+    for (int j=0;j<nthreads;j++) delete[] nn[j];
+    delete[] nn;
     delete[] gvel;
     delete[] gveldisp;
     delete tree;
