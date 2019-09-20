@@ -1908,6 +1908,7 @@ void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *&Partsubset, In
             if (nactive==0) {
                 delete[] mcore;
                 delete[] ncore;
+                delete[] noffset;
                 numgroupsbg=0;
                 return;
             }
@@ -2129,6 +2130,7 @@ private(i,tid,Pval,x1,D2,dval,mval,pid,pidcore)
             delete[] mcore;
             delete[] ncore;
             delete[] newcore;
+            delete[] noffset;
             return;
         }
         newnumgroupsbg=0;
@@ -2770,11 +2772,11 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
                 subsubpglist[i]=BuildPGList(subnumingroup[i], subngroup[i], subsubnumingroup[i], subpfof);
                 if (opt.uinfo.unbindflag&&subngroup[i]>0) {
                     //if also keeping track of cores then must allocate coreflag
+                    coreflag = NULL;
                     if (numcores[i]>0 && opt.iHaloCoreSearch>=1) {
-                        coreflag=new Int_t[ng+1];
+                        coreflag = new Int_t[ng+1];
                         for (int icore=1;icore<=ng;icore++) coreflag[icore]=1+(icore>ng-numcores[i]);
                     }
-                    else {coreflag=NULL;}
                     iunbindflag=CheckUnboundGroups(opt,subnumingroup[i],subPart,subngroup[i],subpfof,subsubnumingroup[i],subsubpglist[i],1, coreflag);
                     if (iunbindflag) {
                         for (int j=1;j<=ng;j++) delete[] subsubpglist[i][j];
@@ -2788,9 +2790,9 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
                         if (numcores[i]>0 && opt.iHaloCoreSearch>=1) {
                             numcores[i]=0;
                             for (int icore=1;icore<=subngroup[i];icore++)numcores[i]+=(coreflag[icore]==2);
-                            delete[] coreflag;
                         }
                     }
+                    delete[] coreflag;
                 }
                 for (j=0;j<subnumingroup[i];j++) if (subpfof[j]>0) pfof[subpglist[i][j]]=ngroup+ngroupidoffset+subpfof[j];
                 ngroupidoffset+=subngroup[i];
