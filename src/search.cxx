@@ -1909,6 +1909,7 @@ void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *&Partsubset, In
             if (nactive==0) {
                 delete[] mcore;
                 delete[] ncore;
+                delete[] noffset;
                 numgroupsbg=0;
                 return;
             }
@@ -2130,6 +2131,7 @@ private(i,tid,Pval,x1,D2,dval,mval,pid,pidcore)
             delete[] mcore;
             delete[] ncore;
             delete[] newcore;
+            delete[] noffset;
             return;
         }
         newnumgroupsbg=0;
