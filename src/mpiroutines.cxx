@@ -574,7 +574,7 @@ void MPISendHydroInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle *P
     if (numextrafields == 0) return;
     for (auto i=0;i<nlocalbuff;i++) if (Part[i].HasHydroProperties()) indices.push_back(i);
     num = indices.size();
-    MPI_Send(&num,sizeof(Int_t),MPI_BYTE,taskID,taskID,MPI_COMM_WORLD);
+    MPI_Send(&num,1,MPI_Int_t,taskID,taskID,MPI_COMM_WORLD);
     if (num == 0) return;
     propbuff.resize(numextrafields*num);
     for (auto i=0;i<num;i++)
@@ -599,8 +599,8 @@ void MPISendHydroInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle *P
             propbuff[i*numextrafields + iextra + offset] = Part[index].GetHydroProperties().GetChemistryProduction(field);
         }
     }
-    MPI_Send(indices.data(),sizeof(Int_t)*num,MPI_BYTE,taskID,taskID,MPI_COMM_WORLD);
-    MPI_Send(propbuff.data(),sizeof(float)*num*numextrafields,MPI_BYTE,taskID,taskID,MPI_COMM_WORLD);
+    MPI_Send(indices.data(),num,MPI_Int_t,taskID,taskID,MPI_COMM_WORLD);
+    MPI_Send(propbuff.data(),num*numextrafields,MPI_FLOAT,taskID,taskID,MPI_COMM_WORLD);
 #endif
 }
 
@@ -616,7 +616,7 @@ void MPISendStarInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle *Pa
     if (numextrafields == 0) return;
     for (auto i=0;i<nlocalbuff;i++) if (Part[i].HasStarProperties()) indices.push_back(i);
     num = indices.size();
-    MPI_Send(&num,sizeof(Int_t),MPI_BYTE,taskID,taskID,MPI_COMM_WORLD);
+    MPI_Send(&num,1,MPI_Int_t,taskID,taskID,MPI_COMM_WORLD);
     if (num == 0) return;
     propbuff.resize(numextrafields*num);
     for (auto i=0;i<num;i++)
@@ -641,8 +641,8 @@ void MPISendStarInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle *Pa
             propbuff[i*numextrafields + iextra + offset] = Part[index].GetStarProperties().GetChemistryProduction(field);
         }
     }
-    MPI_Send(indices.data(),sizeof(Int_t)*num,MPI_BYTE,taskID,taskID,MPI_COMM_WORLD);
-    MPI_Send(propbuff.data(),sizeof(float)*num*numextrafields,MPI_BYTE,taskID,taskID,MPI_COMM_WORLD);
+    MPI_Send(indices.data(),num,MPI_Int_t,taskID,taskID,MPI_COMM_WORLD);
+    MPI_Send(propbuff.data(),num*numextrafields,MPI_FLOAT,taskID,taskID,MPI_COMM_WORLD);
 #endif
 }
 
@@ -658,7 +658,7 @@ void MPISendBHInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle *Part
     if (numextrafields == 0) return;
     for (auto i=0;i<nlocalbuff;i++) if (Part[i].HasBHProperties()) indices.push_back(i);
     num = indices.size();
-    MPI_Send(&num,sizeof(Int_t),MPI_BYTE,taskID,taskID,MPI_COMM_WORLD);
+    MPI_Send(&num,1,MPI_Int_t,taskID,taskID,MPI_COMM_WORLD);
     if (num == 0) return;
     propbuff.resize(numextrafields*num);
     for (auto i=0;i<num;i++)
@@ -683,8 +683,8 @@ void MPISendBHInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle *Part
             propbuff[i*numextrafields + iextra + offset] = Part[index].GetBHProperties().GetChemistryProduction(field);
         }
     }
-    MPI_Send(indices.data(),sizeof(Int_t)*num,MPI_BYTE,taskID,taskID,MPI_COMM_WORLD);
-    MPI_Send(propbuff.data(),sizeof(float)*num*numextrafields,MPI_BYTE,taskID,taskID,MPI_COMM_WORLD);
+    MPI_Send(indices.data(),num,MPI_Int_t,taskID,taskID,MPI_COMM_WORLD);
+    MPI_Send(propbuff.data(),num*numextrafields,MPI_FLOAT,taskID,taskID,MPI_COMM_WORLD);
 #endif
 }
 
@@ -702,7 +702,6 @@ void MPIISendHydroInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int dst, 
     for (auto i=0;i<nlocalbuff;i++) if (Part[i].HasHydroProperties()) indices.push_back(i);
     num = indices.size();
     MPI_Isend(&num, 1, MPI_Int_t, dst, tag, MPI_COMM_WORLD, &rqst);
-cout<<ThisTask<<" ISend hydro stuff ??? "<<num<<" to "<<dst<<endl;
     if (num == 0) return;
     propbuff.resize(numextrafields*num);
     for (auto i=0;i<num;i++)
@@ -727,9 +726,7 @@ cout<<ThisTask<<" ISend hydro stuff ??? "<<num<<" to "<<dst<<endl;
             propbuff[i*numextrafields + iextra + offset] = Part[index].GetHydroProperties().GetChemistryProduction(field);
         }
     }
-cout<<ThisTask<<" ISend hydro stuff indices ??? "<<num<<" to "<<dst<<endl;
     MPI_Isend(indices.data(), num, MPI_Int_t, dst, tag*2, MPI_COMM_WORLD, &rqst);
-cout<<ThisTask<<" ISend hydro stuff props ??? "<<num<<" to "<<dst<<endl;
     MPI_Isend(propbuff.data(), num*numextrafields, MPI_FLOAT, dst, tag*3, MPI_COMM_WORLD, &rqst);
 #endif
 }
@@ -1296,7 +1293,6 @@ void MPIReceiveHydroInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int sou
     numextrafields = opt.gas_internalprop_names.size() + opt.gas_chem_names.size() + opt.gas_chemproduction_names.size();
     if (numextrafields == 0) return;
     MPI_Recv(&num, 1, MPI_Int_t, sourceTaskID, tag, MPI_COMM_WORLD,&status);
-cout<<ThisTask<<" Recv hydro stuff ??? "<<num<<" from "<<sourceTaskID<<endl;
     if (num == 0) return;
     //explicitly NULLing copied information which was done with a BYTE copy
     //The unique pointers will have meaningless info so NULL them (by relasing ownership)
@@ -1304,11 +1300,8 @@ cout<<ThisTask<<" Recv hydro stuff ??? "<<num<<" from "<<sourceTaskID<<endl;
     for (auto i=0;i<nlocalbuff;i++) Part[i].NullHydroProperties();
     indices.resize(num);
     propbuff.resize(numextrafields*num);
-cout<<ThisTask<<" Recv hydro indicies ??? "<<num<<" from "<<sourceTaskID<<endl;
     MPI_Recv(indices.data(), num, MPI_Int_t, sourceTaskID, tag*2, MPI_COMM_WORLD, &status);
-cout<<ThisTask<<" Recv hydro props ??? "<<propbuff.size()<<" from "<<sourceTaskID<<endl;
     MPI_Recv(propbuff.data(), propbuff.size(), MPI_FLOAT, sourceTaskID, tag*3, MPI_COMM_WORLD,&status);
-cout<<ThisTask<<" Have received hydro stuff ??? "<<num<<" from "<<sourceTaskID<<endl;
     for (auto i=0;i<num;i++)
     {
         index=indices[i];
@@ -1534,8 +1527,8 @@ void MPISendReceiveHydroInfoBetweenThreads(Options &opt, Int_t nlocalbuff, Parti
     }
 
     //send/recv the numbers that are sent.
-    MPI_Sendrecv(&numsend,sizeof(Int_t), MPI_BYTE, recvTask, tag,
-        &numrecv,sizeof(Int_t), MPI_BYTE, recvTask, tag, mpi_comm, &status);
+    MPI_Sendrecv(&numsend,1, MPI_Int_t, recvTask, tag,
+        &numrecv,1, MPI_Int_t, recvTask, tag, mpi_comm, &status);
     if (numrecv>0) {
         indicesrecv.resize(numrecv);
         proprecvbuff.resize(numrecv*numextrafields);
@@ -1623,8 +1616,8 @@ void MPISendReceiveStarInfoBetweenThreads(Options &opt, Int_t nlocalbuff, Partic
     }
 
     //send/recv the numbers that are sent.
-    MPI_Sendrecv(&numsend,sizeof(Int_t), MPI_BYTE, recvTask, tag,
-        &numrecv,sizeof(Int_t), MPI_BYTE, recvTask, tag, mpi_comm, &status);
+    MPI_Sendrecv(&numsend,1, MPI_Int_t, recvTask, tag,
+        &numrecv,1, MPI_Int_t, recvTask, tag, mpi_comm, &status);
     if (numrecv>0) {
         indicesrecv.resize(numrecv);
         proprecvbuff.resize(numrecv*numextrafields);
@@ -1712,8 +1705,8 @@ void MPISendReceiveBHInfoBetweenThreads(Options &opt, Int_t nlocalbuff, Particle
     }
 
     //send/recv the numbers that are sent.
-    MPI_Sendrecv(&numsend,sizeof(Int_t), MPI_BYTE, recvTask, tag,
-        &numrecv,sizeof(Int_t), MPI_BYTE, recvTask, tag, mpi_comm, &status);
+    MPI_Sendrecv(&numsend,1, MPI_Int_t, recvTask, tag,
+        &numrecv,1, MPI_Int_t, recvTask, tag, mpi_comm, &status);
     if (numrecv>0) {
         indicesrecv.resize(numrecv);
         proprecvbuff.resize(numrecv*numextrafields);
@@ -1772,8 +1765,8 @@ void MPISendReceiveFOFHydroInfoBetweenThreads(Options &opt, Int_t nexport, fofid
     if (numextrafields == 0) return;
     for (auto i=0;i<nexport;i++) if (FoFGroupDataExport[i].p.HasHydroProperties()) indicessend.push_back(i);
     numsend = indicessend.size();
-    MPI_Sendrecv(&numsend,sizeof(Int_t), MPI_BYTE, recvTask, tag,
-        &numrecv,sizeof(Int_t), MPI_BYTE, recvTask, tag, mpi_comm, &status);
+    MPI_Sendrecv(&numsend,1, MPI_Int_t, recvTask, tag,
+        &numrecv,1, MPI_Int_t, recvTask, tag, mpi_comm, &status);
     if (numrecv>0) {
         indicesrecv.resize(numrecv);
         proprecvbuff.resize(numrecv*numextrafields);
@@ -1859,8 +1852,8 @@ void MPISendReceiveFOFStarInfoBetweenThreads(Options &opt, Int_t nexport, fofid_
     if (numextrafields == 0) return;
     for (auto i=0;i<nexport;i++) if (FoFGroupDataExport[i].p.HasStarProperties()) indicessend.push_back(i);
     numsend = indicessend.size();
-    MPI_Sendrecv(&numsend,sizeof(Int_t), MPI_BYTE, recvTask, tag,
-        &numrecv,sizeof(Int_t), MPI_BYTE, recvTask, tag, mpi_comm, &status);
+    MPI_Sendrecv(&numsend,1, MPI_Int_t, recvTask, tag,
+        &numrecv,1, MPI_Int_t, recvTask, tag, mpi_comm, &status);
     if (numrecv>0) {
         indicesrecv.resize(numrecv);
         proprecvbuff.resize(numrecv*numextrafields);
@@ -1946,8 +1939,8 @@ void MPISendReceiveFOFBHInfoBetweenThreads(Options &opt, Int_t nexport, fofid_in
     if (numextrafields == 0) return;
     for (auto i=0;i<nexport;i++) if (FoFGroupDataExport[i].p.HasBHProperties()) indicessend.push_back(i);
     numsend = indicessend.size();
-    MPI_Sendrecv(&numsend,sizeof(Int_t), MPI_BYTE, recvTask, tag,
-        &numrecv,sizeof(Int_t), MPI_BYTE, recvTask, tag, mpi_comm, &status);
+    MPI_Sendrecv(&numsend,1, MPI_Int_t, recvTask, tag,
+        &numrecv,1, MPI_Int_t, recvTask, tag, mpi_comm, &status);
     if (numrecv>0) {
         indicesrecv.resize(numrecv);
         proprecvbuff.resize(numrecv*numextrafields);
@@ -2318,7 +2311,6 @@ void MPIBuildParticleExportList(Options &opt, const Int_t nbodies, Particle *Par
                 //determine if search region is not outside of this processors domain
                 if(MPIInDomain(xsearch,mpi_domain[j].bnd))
                 {
-                    //FoFDataIn[nexport].Part=Part[i];
                     FoFDataIn[nexport].Index = i;
                     FoFDataIn[nexport].Task = j;
                     FoFDataIn[nexport].iGroup = pfof[Part[i].GetID()];//set group id
@@ -2331,9 +2323,20 @@ void MPIBuildParticleExportList(Options &opt, const Int_t nbodies, Particle *Par
         }
     }
     if (nexport>0) {
-    //sort the export data such that all particles to be passed to thread j are together in ascending thread number
-    qsort(FoFDataIn, nexport, sizeof(struct fofdata_in), fof_export_cmp);
-    for (i=0;i<nexport;i++) PartDataIn[i] = Part[FoFDataIn[i].Index];
+        //sort the export data such that all particles to be passed to thread j are together in ascending thread number
+        qsort(FoFDataIn, nexport, sizeof(struct fofdata_in), fof_export_cmp);
+        for (i=0;i<nexport;i++) {
+            PartDataIn[i] = Part[FoFDataIn[i].Index];
+#ifdef GASON
+            PartDataIn[i].SetHydroProperties();
+#endif
+#ifdef STARON
+            PartDataIn[i].SetStarProperties();
+#endif
+#ifdef BHON
+            PartDataIn[i].SetBHProperties();
+#endif
+        }
     }
     //then store the offset in the export particle data for the jth Task in order to send data.
     for(j = 1, noffset[0] = 0; j < NProcs; j++) noffset[j]=noffset[j-1] + nsend_local[j-1];
@@ -2342,147 +2345,6 @@ void MPIBuildParticleExportList(Options &opt, const Int_t nbodies, Particle *Par
     NImport=0;for (j=0;j<NProcs;j++)NImport+=mpi_nsend[ThisTask+j*NProcs];
     //now send the data.
     for (j=0;j<NProcs;j++)nimport+=mpi_nsend[ThisTask+j*NProcs];
-
-    // //check if buffer that needs to be send is too large and must be sent in chunks
-    // int bufferFlag = 1;
-    // long int maxNumPart = LOCAL_MAX_MSGSIZE / (long int) sizeof(Particle);
-    // for (j = 0; j < NProcs; j++)
-    // {
-    //     if (j != ThisTask)
-    //     {
-    //         sendTask = ThisTask;
-    //         recvTask = j;
-    //         if (mpi_nsend[ThisTask+recvTask*NProcs] >= maxNumPart || nsend_local[recvTask] >= maxNumPart ) bufferFlag++;
-    //     }
-    // }
-    // //if buffer is too large, split sends
-    // if (bufferFlag)
-    // {
-    //     MPI_Request rqst;
-    //     int numBuffersToSend [NProcs];
-    //     int numBuffersToRecv [NProcs];
-    //     int numPartInBuffer = maxNumPart * 0.9;
-    //     int maxnbufferslocal=0,maxnbuffers;
-    //     for (j = 0; j < NProcs; j++)
-    //     {
-    //         numBuffersToSend[j] = 0;
-    //         numBuffersToRecv[j] = 0;
-    //         if (nsend_local[j] > 0)
-    //         numBuffersToSend[j] = (nsend_local[j]/numPartInBuffer) + 1;
-    //     }
-    //     for (int i = 1; i < NProcs; i++)
-    //     {
-    //         int src = (ThisTask + NProcs - i) % NProcs;
-    //         int dst = (ThisTask + i) % NProcs;
-    //         MPI_Isend (&numBuffersToSend[dst], 1, MPI_INT, dst, 0, MPI_COMM_WORLD, &rqst);
-    //         MPI_Recv  (&numBuffersToRecv[src], 1, MPI_INT, src, 0, MPI_COMM_WORLD, &status);
-    //     }
-    //     MPI_Barrier (MPI_COMM_WORLD);
-    //     //find max to be transfer, allows appropriate tagging of messages
-    //     for (int i=0;i<NProcs;i++) if (numBuffersToRecv[i]>maxnbufferslocal) maxnbufferslocal=numBuffersToRecv[i];
-    //     for (int i=0;i<NProcs;i++) if (numBuffersToSend[i]>maxnbufferslocal) maxnbufferslocal=numBuffersToSend[i];
-    //     MPI_Allreduce (&maxnbufferslocal, &maxnbuffers, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-    //
-    //     for (int i = 1; i < NProcs; i++)
-    //     {
-    //         int src = (ThisTask + NProcs - i) % NProcs;
-    //         int dst = (ThisTask + i) % NProcs;
-    //         Int_t size = numPartInBuffer;
-    //         nbuffer[src] = 0;
-    //         int buffOffset = 0;
-    //
-    //         for (int jj = 0; jj < src; jj++)  nbuffer[src] += mpi_nsend[ThisTask + jj*NProcs];
-    //         // Send Buffers
-    //         for (int jj = 0; jj < numBuffersToSend[dst]; jj++)
-    //         {
-    //             if (jj == numBuffersToSend[dst]-1) size = nsend_local[dst] % numPartInBuffer;
-    //             mpi_tag_offset = 0;
-    //             mpi_tag = (jj+1);
-    //             MPI_Isend (&size, 1, MPI_Int_t, dst, mpi_tag+mpi_tag_offset, MPI_COMM_WORLD, &rqst);
-    //             mpi_tag_offset = numBuffersToSend[dst];
-    //             mpi_tag = TAG_FOF_A*(jj+1);
-    //             MPI_Isend (&FoFDataIn[noffset[dst] + buffOffset], sizeof(struct fofdata_in)*size,
-    //                 MPI_BYTE, dst, mpi_tag+mpi_tag_offset, MPI_COMM_WORLD, &rqst);
-    //             mpi_tag_offset = (TAG_FOF_A+1)*numBuffersToSend[dst];
-    //             mpi_tag = TAG_FOF_B*(jj+1);
-    //             MPI_Isend (&PartDataIn[noffset[dst] + buffOffset], sizeof(Particle)*size,
-    //                 MPI_BYTE, dst, mpi_tag+mpi_tag_offset, MPI_COMM_WORLD, &rqst);
-    //             mpi_tag_offset = (TAG_FOF_B+TAG_FOF_A+1)*numBuffersToSend[dst];
-    //             mpi_tag =TAG_FOF_B_HYDRO*(jj+1);
-    //             MPIISendHydroInfo(opt, size, &PartDataIn[noffset[dst] + buffOffset], dst, mpi_tag+mpi_tag_offset, rqst);
-    //             mpi_tag_offset = (TAG_FOF_B_HYDRO+TAG_FOF_B+TAG_FOF_A+1)*numBuffersToSend[dst];
-    //             mpi_tag =TAG_FOF_B_STAR*(jj+1);
-    //             MPIISendStarInfo(opt, size, &PartDataIn[noffset[dst] + buffOffset], dst, mpi_tag+mpi_tag_offset, rqst);
-    //             mpi_tag_offset = (TAG_FOF_B_STAR+TAG_FOF_B_HYDRO+TAG_FOF_B+TAG_FOF_A+1)*numBuffersToSend[dst];
-    //             mpi_tag = TAG_FOF_B_BH*(jj+1);
-    //             MPIISendBHInfo(opt, size, &PartDataIn[noffset[dst] + buffOffset], dst, mpi_tag+mpi_tag_offset, rqst);
-    //             buffOffset += size;
-    //         }
-    //         // Receive Buffers
-    //         buffOffset = 0;
-    //         for (int jj = 0; jj < numBuffersToRecv[src]; jj++)
-    //         {
-    //             Int_t numInBuffer = 0;
-    //             mpi_tag_offset = 0;
-    //             mpi_tag = jj+1;
-    //             MPI_Recv (&numInBuffer, 1, MPI_Int_t, src, mpi_tag+mpi_tag_offset, MPI_COMM_WORLD, &status);
-    //             mpi_tag_offset = numBuffersToRecv[src];
-    //             mpi_tag = TAG_FOF_A*(jj+1);
-    //             MPI_Recv (&FoFDataGet[nbuffer[src] + buffOffset], sizeof(struct fofdata_in)*numInBuffer,
-    //                 MPI_BYTE, src, mpi_tag+mpi_tag_offset, MPI_COMM_WORLD, &status);
-    //             mpi_tag_offset = (TAG_FOF_A+1)*numBuffersToRecv[src];
-    //             mpi_tag = TAG_FOF_B*(jj+1);
-    //             MPI_Recv (&PartDataGet[nbuffer[src] + buffOffset], sizeof(Particle)*numInBuffer,
-    //                 MPI_BYTE, src, mpi_tag+mpi_tag_offset, MPI_COMM_WORLD, &status);
-    //             mpi_tag_offset = (TAG_FOF_B+TAG_FOF_A+1)*numBuffersToRecv[src];
-    //             mpi_tag = TAG_FOF_B_HYDRO*(jj+1);
-    //             MPIReceiveHydroInfo(opt, numInBuffer, &PartDataGet[nbuffer[src] + buffOffset], src, mpi_tag+mpi_tag_offset);
-    //             mpi_tag_offset = (TAG_FOF_B_HYDRO+TAG_FOF_B+TAG_FOF_A+1)*numBuffersToRecv[src];
-    //             mpi_tag = TAG_FOF_B_STAR*(jj+1);
-    //             MPIReceiveStarInfo(opt, numInBuffer, &PartDataGet[nbuffer[src] + buffOffset], src, mpi_tag+mpi_tag_offset);
-    //             mpi_tag_offset = (TAG_FOF_B_STAR+TAG_FOF_B_HYDRO+TAG_FOF_B+TAG_FOF_A+1)*numBuffersToRecv[src];
-    //             mpi_tag = TAG_FOF_B_BH*(jj+1);
-    //             MPIReceiveBHInfo(opt, numInBuffer, &PartDataGet[nbuffer[src] + buffOffset], src, mpi_tag+mpi_tag_offset);
-    //             buffOffset += numInBuffer;
-    //         }
-    //     }
-    // }
-    // else
-    // {
-    //     if (nexport>0||nimport>0) {
-    //         for(j=0;j<NProcs;j++)//for(j=1;j<NProcs;j++)
-    //         {
-    //             if (j!=ThisTask)
-    //             {
-    //                 sendTask = ThisTask;
-    //                 recvTask = j;//ThisTask^j;//bitwise XOR ensures that recvTask cycles around sendTask
-    //                 nbuffer[recvTask]=0;
-    //                 for (int k=0;k<recvTask;k++)nbuffer[recvTask]+=mpi_nsend[ThisTask+k*NProcs];//offset on local receiving buffer
-    //                 if(mpi_nsend[ThisTask * NProcs + recvTask] > 0 || mpi_nsend[recvTask * NProcs + ThisTask] > 0)
-    //                 {
-    //                     //blocking point-to-point send and receive. Here must determine the appropriate offset point in the local export buffer
-    //                     //for sending data and also the local appropriate offset in the local the receive buffer for information sent from the local receiving buffer
-    //                     //first send FOF data and then particle data
-    //                     MPI_Sendrecv(&FoFDataIn[noffset[recvTask]],
-    //                         nsend_local[recvTask] * sizeof(struct fofdata_in), MPI_BYTE,
-    //                         recvTask, TAG_FOF_A,
-    //                         &FoFDataGet[nbuffer[recvTask]],
-    //                         mpi_nsend[ThisTask+recvTask * NProcs] * sizeof(struct fofdata_in),
-    //                         MPI_BYTE, recvTask, TAG_FOF_A, MPI_COMM_WORLD, &status);
-    //                     MPI_Sendrecv(&PartDataIn[noffset[recvTask]],
-    //                         nsend_local[recvTask] * sizeof(Particle), MPI_BYTE,
-    //                         recvTask, TAG_FOF_B,
-    //                         &PartDataGet[nbuffer[recvTask]],
-    //                         mpi_nsend[ThisTask+recvTask * NProcs] * sizeof(Particle),
-    //                         MPI_BYTE, recvTask, TAG_FOF_B, MPI_COMM_WORLD, &status);
-    //                     MPISendReceiveHydroInfoBetweenThreads(opt, nsend_local[recvTask],  &PartDataIn[noffset[recvTask]], mpi_nsend[ThisTask+recvTask * NProcs], &PartDataGet[nbuffer[recvTask]], recvTask, TAG_FOF_B_HYDRO, mpi_comm);
-    //                     MPISendReceiveStarInfoBetweenThreads(opt, nsend_local[recvTask],  &PartDataIn[noffset[recvTask]], mpi_nsend[ThisTask+recvTask * NProcs], &PartDataGet[nbuffer[recvTask]], recvTask, TAG_FOF_B_STAR, mpi_comm);
-    //                     MPISendReceiveBHInfoBetweenThreads(opt, nsend_local[recvTask],  &PartDataIn[noffset[recvTask]], mpi_nsend[ThisTask+recvTask * NProcs], &PartDataGet[nbuffer[recvTask]], recvTask, TAG_FOF_B_BH, mpi_comm);
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
 
     if (nexport>0||nimport>0) {
         for(j=0;j<NProcs;j++)//for(j=1;j<NProcs;j++)
@@ -2568,7 +2430,6 @@ void MPIBuildParticleExportListUsingMesh(Options &opt, const Int_t nbodies, Part
             const int cellnodeID = opt.cellnodeids[j];
             /// Only check if particles have overlap with neighbouring cells that are on another MPI domain and have not already been sent to
             if (sent_mpi_domain[cellnodeID] == 1) continue;
-            //FoFDataIn[nexport].Part=Part[i];
             FoFDataIn[nexport].Index = i;
             FoFDataIn[nexport].Task = cellnodeID;
             FoFDataIn[nexport].iGroup = pfof[Part[i].GetID()];//set group id
@@ -2581,9 +2442,20 @@ void MPIBuildParticleExportListUsingMesh(Options &opt, const Int_t nbodies, Part
     }
 
     if (nexport>0) {
-    //sort the export data such that all particles to be passed to thread j are together in ascending thread number
-    qsort(FoFDataIn, nexport, sizeof(struct fofdata_in), fof_export_cmp);
-    for (i=0;i<nexport;i++) PartDataIn[i] = Part[FoFDataIn[i].Index];
+        //sort the export data such that all particles to be passed to thread j are together in ascending thread number
+        qsort(FoFDataIn, nexport, sizeof(struct fofdata_in), fof_export_cmp);
+        for (i=0;i<nexport;i++) {
+            PartDataIn[i] = Part[FoFDataIn[i].Index];
+#ifdef GASON
+            PartDataIn[i].SetHydroProperties();
+#endif
+#ifdef STARON
+            PartDataIn[i].SetStarProperties();
+#endif
+#ifdef BHON
+            PartDataIn[i].SetBHProperties();
+#endif
+        }
     }
     //then store the offset in the export particle data for the jth Task in order to send data.
     for(j = 1, noffset[0] = 0; j < NProcs; j++) noffset[j]=noffset[j-1] + nsend_local[j-1];
@@ -3515,6 +3387,8 @@ void MPIGetHaloSearchImportNum(const Int_t nbodies, KDTree *tree, Particle *Part
     for (j=0;j<NProcs;j++)NImport+=mpi_nsend[ThisTask+j*NProcs];
     NExport=nexport;
     for (j=0;j<NProcs;j++) for (int k=0;k<NProcs;k++) mpi_nsend[k+j*NProcs]=oldnsend[k+j*NProcs];
+    delete[] nn;
+    delete[] nnr2;
 }
 /*! Mirror to \ref MPIBuildHaloSearchExportList, use exported particles, run ball search to find all local particles that need to be
     imported back to exported particle's thread so that a proper NN search can be made.
@@ -3621,6 +3495,8 @@ Int_t MPIBuildHaloSearchImportList(Options &opt, const Int_t nbodies, KDTree *tr
         }
     }
     ncount=0;for (int k=0;k<NProcs;k++)ncount+=mpi_nsend[ThisTask+k*NProcs];
+    delete[] nn;
+    delete[] nnr2;
     return ncount;
 }
 
@@ -3763,6 +3639,7 @@ void MPIAdjustLocalGroupIDs(const Int_t nbodies, Int_t *pfof){
     for (int j=0;j<NProcs;j++){mpi_maxgid+=mpi_nlocal[rankorder[j]];}
     mpi_gidoffset=0;
     for (int j=0;j<NProcs;j++){if(rankorder[j]==ThisTask) break; mpi_gidoffset+=mpi_ngroups[rankorder[j]];}
+    delete pq;
 }
 
 //My idea is this for doing the stiching. First generate export list of particle data and another seperate data structure for the FOF data
@@ -3913,6 +3790,7 @@ Int_t MPILinkAcross(const Int_t nbodies, KDTree *&tree, Particle *Part, Int_t *&
             }
         }
     }
+    delete[] nn;
     return links;
 }
 ///link particles belonging to the same group across mpi domains using comparison function
@@ -3958,6 +3836,7 @@ Int_t MPILinkAcross(const Int_t nbodies, KDTree *&tree, Particle *Part, Int_t *&
             }
         }
     }
+    delete[] nn;
     return links;
 }
 
@@ -4004,6 +3883,7 @@ Int_t MPILinkAcross(const Int_t nbodies, KDTree *&tree, Particle *Part, Int_t *&
             }
         }
     }
+    delete[] nn;
     return links;
 }
 /*!

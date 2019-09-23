@@ -379,7 +379,7 @@ int main(int argc,char **argv)
         cout<<"Searching subset"<<endl;
         time1=MyGetTime();
         //if groups have been found (and localized to single MPI thread) then proceed to search for subsubstructures
-        SearchSubSub(opt, nbodies, Part, pfof,ngroup,nhalos,pdatahalos);
+        SearchSubSub(opt, nbodies, Part, pfof,ngroup,nhalos, pdatahalos);
         time1=MyGetTime()-time1;
         cout<<"TIME::"<<ThisTask<<" took "<<time1<<" to search for substructures "<<Nlocal<<" with "<<nthreads<<endl;
     }
@@ -473,7 +473,7 @@ int main(int argc,char **argv)
             WriteProperties(opt,nhalos,pdata);
             WriteGroupCatalog(opt, nhalos, numingroup, pglist, Part,ngroup-nhalos);
             //if baryons have been searched output related gas baryon catalogue
-            if (opt.iBaryonSearch>0 || opt.partsearchtype==PSTALL){
+            if (opt.partsearchtype==PSTALL){
                 WriteGroupPartType(opt, nhalos, numingroup, pglist, Part);
             }
             WriteHierarchy(opt,ngroup,nhierarchy,psldata->nsinlevel,nsub,parentgid,stype);
@@ -488,7 +488,7 @@ int main(int argc,char **argv)
 #endif
             WriteGroupCatalog(opt,nhalos,numingroup,NULL,Part);
             WriteHierarchy(opt,nhalos,nhierarchy,psldata->nsinlevel,nsub,parentgid,stype);
-            if (opt.iBaryonSearch>0 || opt.partsearchtype==PSTALL){
+            if (opt.partsearchtype==PSTALL){
                 WriteGroupPartType(opt, nhalos, numingroup, NULL, Part);
             }
         }
@@ -510,7 +510,7 @@ int main(int argc,char **argv)
         WriteGroupCatalog(opt, ng, &numingroup[indexii], pglist, Part);
         if (opt.iseparatefiles) WriteHierarchy(opt,ngroup,nhierarchy,psldata->nsinlevel,nsub,parentgid,stype,1);
         else WriteHierarchy(opt,ngroup,nhierarchy,psldata->nsinlevel,nsub,parentgid,stype,-1);
-        if (opt.iBaryonSearch>0 || opt.partsearchtype==PSTALL){
+        if (opt.partsearchtype==PSTALL){
             WriteGroupPartType(opt, ng, &numingroup[indexii], pglist, Part);
         }
         for (Int_t i=1;i<=ng;i++) delete[] pglist[i];
@@ -526,7 +526,7 @@ int main(int argc,char **argv)
         WriteGroupCatalog(opt,ng,&numingroup[indexii],NULL,Part);
         if (opt.iseparatefiles) WriteHierarchy(opt,ngroup,nhierarchy,psldata->nsinlevel,nsub,parentgid,stype,1);
         else WriteHierarchy(opt,ngroup,nhierarchy,psldata->nsinlevel,nsub,parentgid,stype,-1);
-        if (opt.iBaryonSearch>0 || opt.partsearchtype==PSTALL){
+        if (opt.partsearchtype==PSTALL){
             WriteGroupPartType(opt, ng, &numingroup[indexii], NULL, Part);
         }
     }
@@ -537,9 +537,16 @@ int main(int argc,char **argv)
     if (opt.iExtendedOutput) WriteExtendedOutput (opt, ngroup, Nlocal, pdata, Part, pfof);
 #endif
 
+    delete[] pfof;
     delete[] numingroup;
     delete[] pdata;
     delete psldata;
+
+
+    delete[] nsub;
+    delete[] parentgid;
+    delete[] uparentgid;
+    delete[] stype;
 
     tottime=MyGetTime()-tottime;
     cout<<"TIME::"<<ThisTask<<" took "<<tottime<<" in all"<<endl;

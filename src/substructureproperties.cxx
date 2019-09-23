@@ -2818,7 +2818,7 @@ void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup
     vector<Double_t> maxrdist(ngroup+1);
     //to store particle ids of those in SO volume.
     vector<Int_t> SOpids;
-    vector<Int_t> *SOpartlist=new vector<Int_t>[ngroup+1];
+    vector<Int_t> *SOpartlist = new vector<Int_t>[ngroup+1];
     vector<int> *SOparttypelist = NULL;
 
 #if defined(GASON) || defined(STARON) || defined(BHON) || defined(HIGHRES)
@@ -3132,11 +3132,9 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
     //write the particle lists
     if (opt.iSphericalOverdensityPartList) {
         WriteSOCatalog(opt, nhalos, SOpartlist, SOparttypelist);
-        delete[] SOpartlist;
-#if defined(GASON) || defined(STARON) || defined(BHON) || defined(HIGHRES)
-        delete[] SOparttypelist;
-#endif
     }
+    delete[] SOpartlist;
+    delete[] SOparttypelist;
 #ifdef USEMPI
     mpi_period=0;
     if (NProcs>1) {

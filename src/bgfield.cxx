@@ -128,6 +128,7 @@ void FillTreeGrid(Options &opt, const Int_t nbodies, const Int_t ngrid, KDTree *
     }
     //resets particle order
     delete tree;
+    delete[] ptemp;
     if (opt.iverbose>=2) cout<<"Done."<<endl;
 }
 

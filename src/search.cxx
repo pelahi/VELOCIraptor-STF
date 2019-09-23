@@ -375,6 +375,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
                 Part[i].SetType((numingroup[pfof[i]]>=MINSUBSIZE));
                 numlocalden += (Part[i].GetType()>0);
             }
+            delete[] numingroup;
         }
         //otherwise set type to group value for dark matter
         else {
@@ -384,6 +385,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
                 else Part[i].SetType(-1);
                 numlocalden += (Part[i].GetType()>0);
             }
+            delete[] numingroup;
         }
         for (i=0;i<Nlocal;i++) {numinstrucs+=(pfof[i]>0);}
         if (opt.iverbose) cout<<ThisTask<<" has "<<numlocalden<<" particles for which density must be calculated"<<endl;
@@ -1263,6 +1265,7 @@ private(i,tid)
         delete[] newlinksIndex;
         delete[] numgrouplinksIndex;
         delete[] newIndex;
+        delete[] oldnumingroup;
         delete[] igflag;
         delete[] nnID[0];
         delete[] nnID;
@@ -1837,6 +1840,8 @@ void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *&Partsubset, In
     Double_t **dist2;
     PriorityQueue *pq;
     Int_t nactivepart=nsubset;
+    Int_t *noffset = NULL;
+
 
     for (i=0;i<=numgroupsbg;i++)ncore[i]=mcore[i]=0;
     //determine the weights for the cores dispersions factors
@@ -1854,7 +1859,7 @@ void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *&Partsubset, In
     }
     //if number of particles in core less than number in subset then start assigning particles
     if (nincore<nsubset) {
-        Int_t *noffset=new Int_t[numgroupsbg+1];
+        noffset=new Int_t[numgroupsbg+1];
         //if running fully adaptive core linking, then need to calculate phase-space dispersions for each core
         //about their centres and use this to determine distances
         if (opt.iPhaseCoreGrowth) {
@@ -1904,6 +1909,7 @@ void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *&Partsubset, In
             if (nactive==0) {
                 delete[] mcore;
                 delete[] ncore;
+                delete[] noffset;
                 numgroupsbg=0;
                 return;
             }
@@ -2097,8 +2103,8 @@ private(i,tid,Pval,x1,D2,dval,mval,pid,pidcore)
             delete tcore;
             delete[] Pcore;
             for (i=0;i<nthreads;i++) {
-                delete [] nnID[i];
-                delete [] dist2[i];
+                delete[] nnID[i];
+                delete[] dist2[i];
             }
             delete[] nnID;
             delete[] dist2;
@@ -2125,6 +2131,7 @@ private(i,tid,Pval,x1,D2,dval,mval,pid,pidcore)
             delete[] mcore;
             delete[] ncore;
             delete[] newcore;
+            delete[] noffset;
             return;
         }
         newnumgroupsbg=0;
@@ -2142,6 +2149,7 @@ private(i,tid,Pval,x1,D2,dval,mval,pid,pidcore)
         delete[] mcore;
         delete[] ncore;
         delete[] newcore;
+        delete[] noffset;
     }
 }
 
@@ -2682,11 +2690,11 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
                 subsubpglist[i]=BuildPGList(subnumingroup[i], subngroup[i], subsubnumingroup[i], subpfof);
                 if (opt.uinfo.unbindflag&&subngroup[i]>0) {
                     //if also keeping track of cores then must allocate coreflag
+                    coreflag = NULL;
                     if (numcores[i]>0 && opt.iHaloCoreSearch>=1) {
-                        coreflag=new Int_t[ng+1];
+                        coreflag = new Int_t[ng+1];
                         for (int icore=1;icore<=ng;icore++) coreflag[icore]=1+(icore>ng-numcores[i]);
                     }
-                    else {coreflag=NULL;}
                     iunbindflag=CheckUnboundGroups(opt,subnumingroup[i],subPart,subngroup[i],subpfof,subsubnumingroup[i],subsubpglist[i],1, coreflag);
                     if (iunbindflag) {
                         for (int j=1;j<=ng;j++) delete[] subsubpglist[i][j];
@@ -2700,9 +2708,9 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
                         if (numcores[i]>0 && opt.iHaloCoreSearch>=1) {
                             numcores[i]=0;
                             for (int icore=1;icore<=subngroup[i];icore++)numcores[i]+=(coreflag[icore]==2);
-                            delete[] coreflag;
                         }
                     }
+                    delete[] coreflag;
                 }
                 for (j=0;j<subnumingroup[i];j++) if (subpfof[j]>0) pfof[subpglist[i][j]]=ngroup+ngroupidoffset+subpfof[j];
                 ngroupidoffset+=subngroup[i];
