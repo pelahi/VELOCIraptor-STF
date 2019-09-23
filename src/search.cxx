@@ -2311,6 +2311,7 @@ void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Parts
     //get the phase centres of objects and see if they overlap
     Int_t pfofval, newpfofval, imerge, newnumgroups, newnumcores, nummerged=0, index1, index2;
     Double_t disp, dist2, dist2sub1,dist2sub2, mindist2, fdist2=pow(opt.coresubmergemindist,2.0);
+    Double_t xsub1, xsub2, vsub1, vsub2;
     Coordinate pos;
     vector<Int_t> numingroup, noffset, taggedsubs;
     struct mergeinfo {
@@ -2436,18 +2437,24 @@ void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Parts
             if (subs[taggedsubs[j]].GetType() == -1) continue;
             index2=subs[taggedsubs[j]].GetID();
             disp = 0; for (auto k=0;k<3;k++) disp+=pow(subs[taggedsubs[j]].GetPosition(k)-subs[i].GetPosition(k),2.0);
-            dist2sub1 = disp/sigXsubs[index1];
-            dist2sub2 = disp/sigXsubs[index2];
+            xsub1=disp/sigXsubs[index1];
+            xsub2=disp/sigXsubs[index2];
+            dist2sub1 = xsub1;
+            dist2sub2 = xsub2;
+
             disp = 0; for (auto k=0;k<3;k++) disp+=pow(subs[taggedsubs[j]].GetVelocity(k)-subs[i].GetVelocity(k),2.0);
-            dist2sub1 += disp/sigVsubs[index1];
-            dist2sub2 += disp/sigVsubs[index2];
+            vsub1=disp/sigVsubs[index1];
+            vsub2=disp/sigVsubs[index2];
+            dist2sub1 += vsub1;
+            dist2sub2 += vsub2;
             dist2 = 0.5*(dist2sub1+dist2sub2);
 
-            if (dist2sub1<fdist2 && dist2sub2<fdist2){
+//if (index1 == 0) cout<<ThisTask<<" "<<index1<<" could merge with "<<index2<<" "<<xsub1<<" "<<xsub2<<" "<<vsub1<<" "<<vsub2<<" |"<<dist2sub1<<" "<<dist2sub2<<"| of size "<<minfo[index1].numingroup<<" "<<minfo[index2].numingroup<<" and type "<<minfo[index2].type<<endl;
+            if ((dist2sub1<fdist2 && dist2sub2<fdist2) || (xsub1<0.05 && vsub1<0.1 && vsub2<0.1 && index1 ==0)){
+cout<<ThisTask<<" merging "<<index1<<" could merge with "<<index2<<" "<<xsub1<<" "<<xsub2<<" "<<vsub1<<" "<<vsub2<<" |"<<dist2sub1<<" "<<dist2sub2<<"| of size "<<minfo[index1].numingroup<<" "<<minfo[index2].numingroup<<" and type "<<minfo[index2].type<<endl;
                 imerge=taggedsubs[j];
                 mindist2=dist2;
                 nummerged++;
-                //cout<<ThisTask<<" "<<index1<<" could merge with "<<index2<<" "<<dist2sub1<<" "<<dist2sub2<<" at "<<mindist2<<" of size "<<minfo[index1].numingroup<<" "<<minfo[index2].numingroup<<" and type "<<minfo[index2].type<<endl;
                 minfo[index2].ismerged = true;
                 minfo[index2].mergeindex = index1;
                 subs[imerge].SetPID(idtagged);
