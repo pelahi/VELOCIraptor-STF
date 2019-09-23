@@ -146,6 +146,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 
     //for extra fields related to chemistry, feedback etc
     int numextrafields = 0;
+    vector<int> numextrafieldsvec(NHDFTYPE);
     string extrafield;
     int iextraoffset;
     double *extrafieldbuff = NULL;
@@ -290,10 +291,18 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 
     //handle any extra fields that should be loaded related to chemistry
     numextrafields = 0;
-    #if defined(GASON) || defined(STARON) || defined(BHON)
-    numextrafields += opt.gas_internalprop_names.size() + opt.gas_chem_names.size() + opt.gas_chemproduction_names.size();
-    numextrafields += opt.star_internalprop_names.size() + opt.star_chem_names.size() + opt.star_chemproduction_names.size();
-    numextrafields += opt.bh_internalprop_names.size() + opt.bh_chem_names.size() + opt.bh_chemproduction_names.size();
+    for (auto &nf:numextrafieldsvec) nf=0;
+    #if defined(GASON)
+    numextrafieldsvec[HDFGASTYPE] = opt.gas_internalprop_names.size() + opt.gas_chem_names.size() + opt.gas_chemproduction_names.size();
+    numextrafields += numextrafieldsvec[HDFGASTYPE];
+    #endif
+    #if defined(STARON)
+    numextrafieldsvec[HDFSTARTYPE] = opt.star_internalprop_names.size() + opt.star_chem_names.size() + opt.star_chemproduction_names.size();
+    numextrafields += numextrafieldsvec[HDFSTARTYPE];
+    #endif
+    #if defined(BHON)
+    numextrafieldsvec[HDFBHTYPE] = opt.bh_internalprop_names.size() + opt.bh_chem_names.size() + opt.bh_chemproduction_names.size();
+    numextrafields += numextrafieldsvec[HDFBHTYPE];
     #endif
     if (numextrafields>0) {
         partsdataset_extra.resize(opt.num_files*numextrafields);
@@ -1884,7 +1893,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                     if (numextrafields>0) {
                         iextraoffset = 0;
 #ifdef GASON
-                        if (k==HDFGASTYPE) {
+                        if (k==HDFGASTYPE && numextrafieldsvec[HDFGASTYPE]) {
                             if (!Pbuf[ibufindex].HasHydroProperties()) Pbuf[ibufindex].InitHydroProperties();
                             if (opt.gas_internalprop_names.size()>0)
                             {
@@ -1913,7 +1922,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         }
 #endif
 #ifdef STARON
-                        if (k==HDFSTARTYPE) {
+                        if (k==HDFSTARTYPE && numextrafieldsvec[HDFSTARTYPE]) {
                             if (!Pbuf[ibufindex].HasStarProperties()) Pbuf[ibufindex].InitStarProperties();
                             if (opt.star_internalprop_names.size()>0)
                             {
@@ -1942,7 +1951,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         }
 #endif
 #ifdef BHON
-                        if (k==HDFBHTYPE) {
+                        if (k==HDFBHTYPE && numextrafieldsvec[HDFBHTYPE]) {
                             if (!Pbuf[ibufindex].HasBHProperties()) Pbuf[ibufindex].InitBHProperties();
                             if (opt.bh_internalprop_names.size()>0)
                             {
