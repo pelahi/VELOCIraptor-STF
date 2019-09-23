@@ -380,17 +380,11 @@ void WritePGList(Options &opt, const Int_t ngroups, const Int_t ng, Int_t *numin
 
 void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int_t **pglist, vector<Particle> &Part, Int_t nadditional){
     fstream Fout,Fout2,Fout3;
-    char fname[500];
-    char fname2[500];
-    char fname3[500];
+    string fname, fname2, fname3;
+    ostringstream os;
     unsigned long noffset=0,ngtot=0,nids=0,nidstot,nuids=0,nuidstot,ng=0;
     Int_t *offset;
 #ifdef USEHDF
-    // H5File Fhdf,Fhdf3;
-    // H5std_string datasetname;
-    // DataSpace dataspace;
-    // DataSet dataset;
-    // DSetCreatPropList hdfdatasetproplist;
     H5OutputFile Fhdf, Fhdf3;
     int itemp=0;
 #endif
@@ -410,20 +404,17 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     int ThisTask=0,NProcs=1;
 #endif
 
+    os << opt.outname << ".catalog_groups";
 #ifdef USEMPI
-    sprintf(fname,"%s.catalog_groups.%d",opt.outname,ThisTask);
-#else
-    sprintf(fname,"%s.catalog_groups",opt.outname);
+    os<<"."<<ThisTask;
 #endif
+    fname = os.str();
 
     cout<<"saving group catalog to "<<fname<<endl;
     if (opt.ibinaryout==OUTBINARY) Fout.open(fname,ios::out|ios::binary);
 #ifdef USEHDF
         //create file
         else if (opt.ibinaryout==OUTHDF) {
-        //Fhdf=H5File(fname,H5F_ACC_TRUNC);
-        //Fhdf.H5Fcreate(fname,H5F_ACC_TRUNC,H5P_DEFAULT,H5P_DEFAULT);
-        //Fhdf=HDF5OpenFile(string(fname),H5F_ACC_TRUNC);
         Fhdf.create(string(fname),H5F_ACC_TRUNC);
     }
 #endif
@@ -592,13 +583,19 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
 #endif
 
     //now write pid files
+    os.str(string());
+    os <<opt.outname<< ".catalog_particles";
 #ifdef USEMPI
-    sprintf(fname,"%s.catalog_particles.%d",opt.outname,ThisTask);
-    sprintf(fname3,"%s.catalog_particles.unbound.%d",opt.outname,ThisTask);
-#else
-    sprintf(fname,"%s.catalog_particles",opt.outname);
-    sprintf(fname3,"%s.catalog_particles.unbound",opt.outname);
+    os <<"." << ThisTask;
 #endif
+    fname = os.str();
+    os.str(string());
+    os <<opt.outname<< ".catalog_particles.unbound";
+#ifdef USEMPI
+    os <<"." << ThisTask;
+#endif
+    fname3 = os.str();
+
     cout<<"saving particle catalog to "<<fname<<endl;
 
     if (opt.ibinaryout==OUTBINARY) {
@@ -800,38 +797,31 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
 ///if particles are separately searched (i.e. \ref Options.iBaryonSearch is set) then produce list of particle types
 void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, Int_t **pglist, vector<Particle> &Part){
     fstream Fout,Fout2;
-    char fname[2000];
-    char fname2[2000];
+    string fname, fname2;
+    ostringstream os, os2;
     Int_t noffset=0,ngtot=0,nids=0,nidstot,nuids=0,nuidstot=0;
     Int_t *offset;
     int *typeval;
 
 #ifdef USEHDF
-    // H5File Fhdf,Fhdf2;
-    // H5std_string datasetname;
-    // DataSpace dataspace;
-    // DataSet dataset;
-    // DSetCreatPropList hdfdatasetproplist;
-    // hsize_t *dims,*chunk_dims;
-    // hsize_t rank;
     H5OutputFile Fhdf,Fhdf2;
     int itemp;
 #endif
 #if defined(USEHDF)||defined(USEADIOS)
     DataGroupNames datagroupnames;
 #endif
-
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
 #endif
 
+    os << opt.outname << ".catalog_partypes";
+    os2 << opt.outname << ".catalog_partypes.unbound";
 #ifdef USEMPI
-    sprintf(fname,"%s.catalog_parttypes.%d",opt.outname,ThisTask);
-    sprintf(fname2,"%s.catalog_parttypes.unbound.%d",opt.outname,ThisTask);
-#else
-    sprintf(fname,"%s.catalog_parttypes",opt.outname);
-    sprintf(fname2,"%s.catalog_parttypes.unbound",opt.outname);
+    os << "." << ThisTask;
+    os2 << "." << ThisTask;
 #endif
+    fname = os.str();
+    fname2 = os2.str();
     cout<<"saving particle type info to "<<fname<<endl;
 
 
@@ -842,9 +832,6 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
         //create file
-        // Fhdf=H5File(fname,H5F_ACC_TRUNC);
-        // //Fhdf.H5Fcreate(fname,H5F_ACC_TRUNC,H5P_DEFAULT,H5P_DEFAULT);
-        // Fhdf2=H5File(fname2,H5F_ACC_TRUNC);
         Fhdf.create(string(fname),H5F_ACC_TRUNC);
         Fhdf2.create(string(fname2),H5F_ACC_TRUNC);
     }
@@ -958,7 +945,8 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
 ///to store all ids and then copying info from the array of vectors into it.
 void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids, vector<int> *SOtypes){
     fstream Fout;
-    char fname[500];
+    string fname;
+    ostringstream os;
     unsigned long ng,noffset=0,ngtot=0,nSOids=0,nSOidstot=0;
     unsigned long *offset;
     long long *idval;
@@ -966,13 +954,6 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids, ve
     Int_t *numingroup;
 
 #ifdef USEHDF
-    // H5File Fhdf;
-    // H5std_string datasetname;
-    // DataSpace dataspace;
-    // DataSet dataset;
-    // DSetCreatPropList hdfdatasetproplist;
-    // hsize_t *dims,*chunk_dims;
-    // hsize_t rank;
     H5OutputFile Fhdf;
     int itemp=0;
 #endif
@@ -1005,11 +986,11 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids, ve
     nSOidstot=nSOids;
 #endif
 
+    os << opt.outname <<".catalog_SOlist";
 #ifdef USEMPI
-    sprintf(fname,"%s.catalog_SOlist.%d",opt.outname,ThisTask);
-#else
-    sprintf(fname,"%s.catalog_SOlist",opt.outname);
+    os << "." << ThisTask;
 #endif
+    fname = os.str();
 
     if (opt.iverbose) cout<<"saving SO particle lists to "<<fname<<endl;
     if (opt.ibinaryout==OUTBINARY) Fout.open(fname,ios::out|ios::binary);
@@ -1250,7 +1231,8 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids, ve
 ///\todo need to add in 500crit mass and radial output in here and in \ref allvars.h
 void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
     fstream Fout;
-    char fname[1000];
+    string fname;
+    ostringstream os;
     char buf[40];
     long unsigned ngtot=0, noffset=0, ng=ngroups;
 
@@ -1261,19 +1243,6 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
     }
 
 #ifdef USEHDF
-    // H5File Fhdf;
-    // H5std_string datasetname;
-    // DataSpace dataspace;
-    // DataSet dataset;
-    // DataSpace attrspace;
-    // Attribute attr;
-    // float attrvalue;
-    // hsize_t *dims, *chunk_dims;
-    //
-    // int rank;
-    // DataSpace *propdataspace;
-    // DataSet *propdataset;
-    // DSetCreatPropList  *hdfdatasetproplist;
     H5OutputFile Fhdf;
     int itemp=0;
 #endif
@@ -1283,15 +1252,16 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
 
     PropDataHeader head(opt);
 
+    os << opt.outname <<".properties";
 #ifdef USEMPI
-    sprintf(fname,"%s.properties.%d",opt.outname,ThisTask);
+    os << "." << ThisTask;
     for (int j=0;j<NProcs;j++) ngtot+=mpi_ngroups[j];
     for (int j=0;j<ThisTask;j++)noffset+=mpi_ngroups[j];
 #else
-    sprintf(fname,"%s.properties",opt.outname);
     int ThisTask=0,NProcs=1;
     ngtot=ngroups;
 #endif
+    fname = os.str();
     cout<<"saving property data to "<<fname<<endl;
 
     //write header
@@ -2174,7 +2144,8 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
 
 void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
     fstream Fout;
-    char fname[1000];
+    string fname;
+    ostringstream os;
     char buf[40];
     long unsigned ngtot=0, noffset=0, ng=ngroups, nhalos=0, nhalostot;
     //void pointer to hold data
@@ -2188,19 +2159,6 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
     }
     if (opt.iInclusiveHalo>0) for (auto i=1;i<=ng;i++) nhalos += (pdata[i].hostid == -1);
 #ifdef USEHDF
-    // H5File Fhdf;
-    // H5std_string datasetname;
-    // DataSpace dataspace;
-    // DataSet dataset;
-    // DataSpace attrspace;
-    // Attribute attr;
-    // float attrvalue;
-    // hsize_t *dims, *chunk_dims;
-    //
-    // int rank;
-    // DataSpace *profiledataspace;
-    // DataSet *profiledataset;
-    // DSetCreatPropList  *hdfdatasetprofilelist;
     H5OutputFile Fhdf;
     vector<hsize_t> dims;
 #endif
@@ -2209,17 +2167,18 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
 #endif
     ProfileDataHeader head(opt);
 
+    os << opt.outname << ".profiles";
 #ifdef USEMPI
-    sprintf(fname,"%s.profiles.%d",opt.outname,ThisTask);
+    os << "." << ThisTask;
     for (int j=0;j<NProcs;j++) ngtot+=mpi_ngroups[j];
     for (int j=0;j<ThisTask;j++)noffset+=mpi_ngroups[j];
     for (int j=0;j<NProcs;j++) nhalostot+=mpi_nhalos[j];
 #else
-    sprintf(fname,"%s.profiles",opt.outname);
     int ThisTask=0,NProcs=1;
     ngtot=ngroups;
     nhalostot=nhalos;
 #endif
+    fname = os.str();
     cout<<"saving profiles "<<fname<<endl;
     //allocate enough memory to store largest data type
     data= ::operator new(sizeof(long long)*(opt.profilenbins+1));
@@ -2423,15 +2382,10 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
 void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy, const Int_t &nfield, Int_t *nsub, Int_t *parentgid, Int_t *stype, int subflag){
     fstream Fout;
     fstream Fout2;
-    char fname[500],fname2[500];
+    string fname;
+    ostringstream os;
     unsigned long ng=ngroups,ngtot=0,noffset=0;
 #ifdef USEHDF
-    // H5File Fhdf;
-    // H5std_string datasetname;
-    // DataSpace dataspace;
-    // DataSet dataset;
-    // DSetCreatPropList hdfdatasetproplist;
-    // hsize_t *dims, *chunk_dims;
     H5OutputFile Fhdf;
     int rank;
     int itemp=0;
@@ -2439,19 +2393,20 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
 #if defined(USEHDF)||defined(USEADIOS)
     DataGroupNames datagroupnames;
 #endif
-
-    #ifdef USEMPI
-    sprintf(fname,"%s.catalog_groups.%d",opt.outname,ThisTask);
-#else
+#ifndef USEMPI
     int ThisTask=0,NProcs=1;
-    sprintf(fname,"%s.catalog_groups",opt.outname);
 #endif
+
+    os << opt.outname << ".catalog_groups";
+#ifdef USEMPI
+    os << "." << ThisTask;
+#endif
+    fname = os.str();
     cout<<"saving hierarchy data to "<<fname<<endl;
 
     if (opt.ibinaryout==OUTBINARY) Fout.open(fname,ios::out|ios::binary|ios::app);
 #ifdef USEHDF
     if (opt.ibinaryout==OUTHDF) {
-        // Fhdf=H5File(fname,H5F_ACC_RDWR);
         Fhdf.append(string(fname),H5F_ACC_RDWR);
     }
 #endif
@@ -2532,11 +2487,12 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
 #endif
 
     //now write a completely separate hierarchy file which I find more intuitive to parse
+    os.str(string());
+    os << opt.outname << ".hierarchy";
 #ifdef USEMPI
-    sprintf(fname,"%s.hierarchy.%d",opt.outname,ThisTask);
-#else
-    sprintf(fname,"%s.hierarchy",opt.outname);
+    os << "." << ThisTask;
 #endif
+    fname = os.str();
     if (opt.ibinaryout==OUTBINARY) Fout.open(fname,ios::out|ios::binary);
     else Fout.open(fname,ios::out);
 

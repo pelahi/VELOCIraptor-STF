@@ -1500,7 +1500,7 @@ struct GridCell
         den=0;
     }
     ~GridCell(){
-        if (nparts>0)delete nindex;
+        if (nparts>0)delete[] nindex;
     }
 };
 
@@ -4582,10 +4582,11 @@ struct StrucLevelData
     void Allocate(Int_t numgroups){
         nsinlevel=numgroups;
         Phead=new Particle*[numgroups+1];
+        Pparenthead=new Particle*[numgroups+1];
         gidhead=new Int_t*[numgroups+1];
-        stypeinlevel=new Int_t[numgroups+1];
         gidparenthead=new Int_t*[numgroups+1];
         giduberparenthead=new Int_t*[numgroups+1];
+        stypeinlevel=new Int_t[numgroups+1];
         nextlevel=NULL;
     }
     ///initialize
@@ -4597,10 +4598,11 @@ struct StrucLevelData
         nextlevel=NULL;
         if (nsinlevel>0) {
             delete[] Phead;
+            delete[] Pparenthead;
             delete[] gidhead;
-            delete[] stypeinlevel;
             delete[] gidparenthead;
             delete[] giduberparenthead;
+            delete[] stypeinlevel;
         }
     }
 };

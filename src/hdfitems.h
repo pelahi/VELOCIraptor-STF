@@ -116,9 +116,11 @@ ReturnT safe_hdf5(F function, Ts ... args)
 // Overloaded function to return HDF5 type given a C type
 static inline hid_t hdf5_type(float dummy)              {return H5T_NATIVE_FLOAT;}
 static inline hid_t hdf5_type(double dummy)             {return H5T_NATIVE_DOUBLE;}
+static inline hid_t hdf5_type(short dummy)              {return H5T_NATIVE_SHORT;}
 static inline hid_t hdf5_type(int dummy)                {return H5T_NATIVE_INT;}
 static inline hid_t hdf5_type(long dummy)               {return H5T_NATIVE_LONG;}
 static inline hid_t hdf5_type(long long dummy)          {return H5T_NATIVE_LLONG;}
+static inline hid_t hdf5_type(unsigned short dummy)     {return H5T_NATIVE_USHORT;}
 static inline hid_t hdf5_type(unsigned int dummy)       {return H5T_NATIVE_UINT;}
 static inline hid_t hdf5_type(unsigned long dummy)      {return H5T_NATIVE_ULONG;}
 static inline hid_t hdf5_type(unsigned long long dummy) {return H5T_NATIVE_ULLONG;}
@@ -504,7 +506,7 @@ class H5OutputFile
 			H5Pset_layout(prop_id, H5D_CHUNKED);
 			H5Pset_chunk(prop_id, rank, chunks);
 			H5Pset_deflate(prop_id, HDFDEFLATE);
-			delete chunks;
+			delete[] chunks;
 		}
 
 		// Create the dataset
@@ -555,7 +557,7 @@ class H5OutputFile
 			H5Pset_layout(prop_id, H5D_CHUNKED);
 			H5Pset_chunk(prop_id, rank, chunks);
 			H5Pset_deflate(prop_id, HDFDEFLATE);
-			delete chunks;
+			delete[] chunks;
 		}
 
 		// Create the dataset
