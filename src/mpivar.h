@@ -177,8 +177,6 @@ extern Int_t mpi_maxgid,mpi_gidoffset;
 ///structure facilitates linking across mpi threads
 extern struct fofdata_in
 {
-    //Particle Part();
-    //FLOAT Hsml;
     Int_t iGroup;
     short_mpi_t iGroupTask;
     Int_t iLen;
