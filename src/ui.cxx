@@ -690,6 +690,8 @@ void GetParamFile(Options &opt)
                         opt.iSortByBindingEnergy = atoi(vbuff);
                     else if (strcmp(tbuff, "SUBFIND_like_output")==0)
                         opt.isubfindoutput = atoi(vbuff);
+                    else if (strcmp(tbuff, "No_particle_ID_list_output")==0)
+                        opt.inoidoutput = atoi(vbuff);
 
                     //gadget io related to extra info for sph, stars, bhs,
                     else if (strcmp(tbuff, "NSPH_extra_blocks")==0)
