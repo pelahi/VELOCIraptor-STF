@@ -345,10 +345,6 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
     const int ireturngroupinfoflag,
     int * const numpartingroups)
 {
-#ifndef GASON
-    cout<<"Gas has not been turned on in VELOCIraptor. Set GASON in Makefile.config and recompile VELOCIraptor."<<endl;
-    return 0;
-#endif
 #ifdef USEMPI
     if (ThisTask==0) cout<<"VELOCIraptor/STF running with MPI. Number of mpi threads: "<<NProcs<<endl;
 #else
