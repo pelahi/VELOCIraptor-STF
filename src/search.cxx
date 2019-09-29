@@ -562,8 +562,8 @@ private(i,vscale2,mtotregion,vx,vy,vz,vmean)
         for (int j=0;j<20;j++) paramomp[j+i*20]=param[j];
 
     pfofomp=new Int_t*[iend+1];
-    for (i=0;i<=iend;i++) pfofomp=NULL;
     ngomp=new Int_t[iend+1];
+    for (i=0;i<=iend;i++) {pfofomp[i]=NULL;ngomp[i]=0;}
     Double_t xscaling, vscaling;
     //run search if 3DFOF found
     if (numgroups > 0)
