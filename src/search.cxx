@@ -376,6 +376,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
                 numlocalden += (Part[i].GetType()>0);
             }
             delete[] numingroup;
+            numingroup=NULL;
         }
         //otherwise set type to group value for dark matter
         else {
@@ -386,6 +387,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
                 numlocalden += (Part[i].GetType()>0);
             }
             delete[] numingroup;
+            numingroup=NULL;
         }
         for (i=0;i<Nlocal;i++) {numinstrucs+=(pfof[i]>0);}
         Int_t numlocalden_total;
@@ -457,6 +459,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     else {
         storetype = NULL;
         ids = NULL;
+        noffset = NULL;
     }
     //if only using single velocity scale, use the largest "halo" to determine an appropriate velocity scale
     if (opt.fofbgtype==FOF6D && opt.iKeepFOF==0) {
