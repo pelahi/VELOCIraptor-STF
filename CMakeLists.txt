@@ -189,15 +189,21 @@ macro(find_hdf5)
 	if (HDF5_ROOT)
 		set(ENV{HDF5_ROOT} ${HDF5_ROOT})
 	endif()
-	#find_package(HDF5 COMPONENTS CXX)
 	find_package(HDF5 COMPONENTS C)
 	if (HDF5_FOUND)
+		#check if parallel hdf present
 		list(APPEND VR_INCLUDE_DIRS ${HDF5_INCLUDE_DIRS})
 		list(APPEND VR_LIBS ${HDF5_LIBRARIES})
 		list(APPEND VR_DEFINES USEHDF)
 		set(VR_HAS_HDF5 Yes)
+		if (HDF5_PREFER_PARALLEL AND VR_HAS_MPI)
+			set (ENV{HDF5_PREFER_PARALLEL} true)
+			set(VR_HAS_PARALLEL_HDF5 Yes)
+			list(APPEND VR_DEFINES USEPARALLEHDF)
+		endif()
   endif()
 endmacro()
+
 
 #
 # How we find MPI and set it up
@@ -248,15 +254,17 @@ endmacro()
 ensure_git_submodules()
 find_gsl()
 
-set(VR_HAS_HDF5 No)
-if (VR_HDF5)
-	find_hdf5()
-endif()
-
 set(VR_HAS_MPI No)
 if (VR_MPI)
 	find_mpi()
 endif()
+
+set(VR_HAS_HDF5 No)
+set(VR_HAS_PARALLEL_HDF5 No)
+if (VR_HDF5)
+	find_hdf5()
+endif()
+
 
 
 # This provides us with the nbodylib library
@@ -309,6 +317,7 @@ endmacro()
 message("\nVELOCIraptor successfully configured with the following settings:")
 vr_report("File formats"
           "HDF5" HDF5
+		  "Parallel HDF5" PARALLEL_HDF5
           "nchilada" XDR)
 vr_report("Precision-specifics"
         "Long Integers" LONG_INT
