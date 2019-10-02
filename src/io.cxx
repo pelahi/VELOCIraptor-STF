@@ -407,7 +407,9 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
 
     os << opt.outname << ".catalog_groups";
 #ifdef USEMPI
+#ifndef USEPARALLELHDF
     os<<"."<<ThisTask;
+#endif
 #endif
     fname = os.str();
 
@@ -601,13 +603,17 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     os.str(string());
     os <<opt.outname<< ".catalog_particles";
 #ifdef USEMPI
+#ifndef USEPARALLELHDF
     os <<"." << ThisTask;
+#endif
 #endif
     fname = os.str();
     os.str(string());
     os <<opt.outname<< ".catalog_particles.unbound";
 #ifdef USEMPI
+#ifndef USEPARALLELHDF
     os <<"." << ThisTask;
+#endif
 #endif
     fname3 = os.str();
 
@@ -852,8 +858,10 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
     os << opt.outname << ".catalog_partypes";
     os2 << opt.outname << ".catalog_partypes.unbound";
 #ifdef USEMPI
+#ifndef USEPARALLELHDF
     os << "." << ThisTask;
     os2 << "." << ThisTask;
+#endif
 #endif
     fname = os.str();
     fname2 = os2.str();
@@ -1042,7 +1050,9 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids, ve
 
     os << opt.outname <<".catalog_SOlist";
 #ifdef USEMPI
+#ifndef USEPARALLELHDF
     os << "." << ThisTask;
+#endif
 #endif
     fname = os.str();
 
@@ -1327,7 +1337,9 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
 
     os << opt.outname <<".properties";
 #ifdef USEMPI
+#ifndef USEPARALLELHDF
     os << "." << ThisTask;
+#endif
     for (int j=0;j<NProcs;j++) ngtot+=mpi_ngroups[j];
     for (int j=0;j<ThisTask;j++)noffset+=mpi_ngroups[j];
 #else
@@ -2252,7 +2264,9 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
 
     os << opt.outname << ".profiles";
 #ifdef USEMPI
+#ifndef USEPARALLELHDF
     os << "." << ThisTask;
+#endif
     for (int j=0;j<NProcs;j++) ngtot+=mpi_ngroups[j];
     for (int j=0;j<ThisTask;j++)noffset+=mpi_ngroups[j];
     for (int j=0;j<NProcs;j++) nhalostot+=mpi_nhalos[j];
@@ -2494,7 +2508,9 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
 
     os << opt.outname << ".catalog_groups";
 #ifdef USEMPI
+#ifndef USEPARALLELHDF
     os << "." << ThisTask;
+#endif
 #endif
     fname = os.str();
     cout<<"saving hierarchy data to "<<fname<<endl;
@@ -2585,7 +2601,9 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
     os.str(string());
     os << opt.outname << ".hierarchy";
 #ifdef USEMPI
+#ifndef USEPARALLELHDF
     os << "." << ThisTask;
+#endif
 #endif
     fname = os.str();
     if (opt.ibinaryout==OUTBINARY) Fout.open(fname,ios::out|ios::binary);
