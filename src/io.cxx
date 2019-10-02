@@ -442,7 +442,7 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     }
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
-#ifdef PARALLEL_HDF5
+#ifdef USEPARALLELHDF
         itemp=0;
         ival = 0;
         Fhdf.write_dataset(datagroupnames.group[itemp], 1, &ival);
@@ -661,7 +661,7 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     }
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
-#ifdef PARALLEL_HDF5
+#ifdef USEPARALLELHDF
         itemp=0;
         ival = 0;
         Fhdf.write_dataset(datagroupnames.part[itemp], 1, &ival);
@@ -904,7 +904,7 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
     }
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
-#ifdef PARALLEL_HDF5
+#ifdef USEPARALLELHDF
         itemp=0;
         ival = 0;
         Fhdf.write_dataset(datagroupnames.types[itemp], 1, &ival);
@@ -1074,7 +1074,7 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids, ve
     }
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
-#ifdef PARALLEL_HDF5
+#ifdef USEPARALLELHDF
         itemp=0;
         ival = 0;
         Fhdf.write_dataset(datagroupnames.SO[itemp], 1, &ival);
@@ -1317,6 +1317,7 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
 #ifdef USEHDF
     H5OutputFile Fhdf;
     int itemp=0;
+    int ival;
 #endif
 #if defined(USEHDF)||defined(USEADIOS)
     DataGroupNames datagroupnames;
@@ -1356,7 +1357,7 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         // Fhdf=H5File(fname,H5F_ACC_TRUNC);
         Fhdf.create(string(fname),H5F_ACC_TRUNC);
         itemp=0;
-#ifdef PARALLEL_HDF5
+#ifdef USEPARALLELHDF
         ival=0;
         Fhdf.write_dataset(datagroupnames.prop[itemp++], 1, &ival);
         ival=1;
@@ -2295,7 +2296,7 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
         //Fhdf=H5File(fname,H5F_ACC_TRUNC);
         Fhdf.create(string(fname),H5F_ACC_TRUNC);
         itemp=0;
-#ifdef PARALLEL_HDF5
+#ifdef USEPARALLELHDF
         ival=0;
         Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, &ival);
         ival=1;
@@ -2602,7 +2603,7 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
         // Fhdf=H5File(fname,H5F_ACC_TRUNC);
         Fhdf.create(string(fname),H5F_ACC_TRUNC);
         itemp=0;
-#ifdef PARALLEL_HDF5
+#ifdef USEPARALLELHDF
         ival=0;
         Fhdf.write_dataset(datagroupnames.hierarchy[itemp++], 1, &ival);
         ival=1;

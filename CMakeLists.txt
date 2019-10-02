@@ -37,6 +37,7 @@ endmacro()
 
 # Input formats
 vr_option(HDF5 "Attempt to include HDF5 support in VELOCIraptor" ON)
+vr_option(ALLOWPARALLELHDF5 "Attempt to include parallel HDF5 support in VELOCIraptor" ON)
 vr_option(XDR  "XDR input support (used by nchilada)" OFF)
 
 # Precision options
@@ -196,10 +197,10 @@ macro(find_hdf5)
 		list(APPEND VR_LIBS ${HDF5_LIBRARIES})
 		list(APPEND VR_DEFINES USEHDF)
 		set(VR_HAS_HDF5 Yes)
-		if (HDF5_IS_PARALLEL AND VR_HAS_MPI)
+		if (HDF5_IS_PARALLEL AND VR_HAS_MPI AND VR_ALLOWPARALLELHDF5)
 			set (ENV{HDF5_PREFER_PARALLEL} true)
 			set(VR_HAS_PARALLEL_HDF5 Yes)
-			list(APPEND VR_DEFINES USEPARALLEHDF)
+			list(APPEND VR_DEFINES USEPARALLELHDF)
 		endif()
   endif()
 endmacro()

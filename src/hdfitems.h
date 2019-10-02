@@ -372,9 +372,9 @@ class H5OutputFile
 	protected:
 
 	hid_t file_id;
-    #ifdef PARALLEL_HDF5
+#ifdef USEPARALLELHDF
     hid_t parallel_access_id;
-    #endif
+#endif
 
 	// Called if a HDF5 call fails (might need to MPI_Abort)
 	void io_error(std::string message) {
@@ -396,8 +396,8 @@ class H5OutputFile
 	void create(std::string filename, unsigned int flag)
 	{
         if(file_id >= 0)io_error("Attempted to create file when already open!");
-#ifdef PARALLEL_HDF5
-        MPI_Comm mpi_comm = MPI_COMM_WORLD;
+#ifdef USEPARALLELHDF
+        MPI_Comm comm = MPI_COMM_WORLD;
         MPI_Info info = MPI_INFO_NULL;
         if(file_id >= 0)io_error("Attempted to create file when already open!");
 
@@ -406,12 +406,12 @@ class H5OutputFile
         hid_t ret = H5Pset_fapl_mpio(parallel_access_id, comm, info);
         if (ret < 0) io_error("Parallel access failed");
         // create the file collectively
-        file_id = H5Fcreate(filename.c_str(), H5F_ACC_TRUNC,H5P_DEFAULT, parallel_access_id);
+        file_id = H5Fcreate(filename.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, parallel_access_id);
 #else
-		file_id = H5Fcreate(filename.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+        file_id = H5Fcreate(filename.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
 #endif
         if(file_id < 0)io_error(string("Failed to create output file: ")+filename);
-#ifdef PARALLEL_HDF5
+#ifdef USEPARALLELHDF
         ret = H5Pclose(parallel_access_id);
         if (ret < 0) io_error("Parallel release failed");
 #endif
@@ -420,8 +420,8 @@ class H5OutputFile
     void append(std::string filename, unsigned int flag)
 	{
         if(file_id >= 0)io_error("Attempted to open and append to file when already open!");
-#ifdef PARALLEL_HDF5
-        MPI_Comm mpi_comm = MPI_COMM_WORLD;
+#ifdef USEPARALLELHDF
+        MPI_Comm comm = MPI_COMM_WORLD;
         MPI_Info info = MPI_INFO_NULL;
 
         parallel_access_id = H5Pcreate (H5P_FILE_ACCESS);
@@ -429,12 +429,12 @@ class H5OutputFile
         hid_t ret = H5Pset_fapl_mpio(parallel_access_id, comm, info);
         if (ret < 0) io_error("Parallel access failed");
         // create the file collectively
-        file_id = H5Fopen(filename.c_str(), H5F_ACC_RDWR,H5P_DEFAULT, parallel_access_id);
+        file_id = H5Fopen(filename.c_str(), H5F_ACC_RDWR, parallel_access_id);
 #else
-		file_id = H5Fopen(filename.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+	file_id = H5Fopen(filename.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
 #endif
         if(file_id < 0)io_error(string("Failed to create output file: ")+filename);
-#ifdef PARALLEL_HDF5
+#ifdef USEPARALLELHDF
         ret = H5Pclose(parallel_access_id);
         if (ret < 0) io_error("Parallel release failed");
 #endif
@@ -469,8 +469,8 @@ class H5OutputFile
     }
 	void write_dataset(string name, hsize_t len, string data)
     {
-#ifdef PARALLEL_HDF5
-        MPI_Comm mpi_comm = MPI_COMM_WORLD;
+#ifdef USEPARALLELHDF
+        MPI_Comm comm = MPI_COMM_WORLD;
         MPI_Info info = MPI_INFO_NULL;
 #endif
 		int rank = 1;
@@ -489,7 +489,7 @@ class H5OutputFile
 		// Create the dataset
 		dset_id = H5Dcreate(file_id, name.c_str(), filetype_id, dspace_id,
 		                        H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-#ifdef PARALLEL_HDF5
+#ifdef USEPARALLELHDF
         // set up the collective transfer properties list
         hid_t xfer_plist = H5Pcreate(H5P_DATASET_XFER);
         if (xfer_plist < 0) io_error(string("Failed to set up parallel transfer: ")+name);
@@ -505,7 +505,7 @@ class H5OutputFile
 		// Clean up (note that dtype_id is NOT a new object so don't need to close it)
 		H5Sclose(dspace_id);
 		H5Dclose(dset_id);
-#ifdef PARALLEL_HDF5
+#ifdef USEPARALLELHDF
         H5Pclose(xfer_plist);
 #endif
     }
@@ -527,8 +527,8 @@ class H5OutputFile
 	                                          hid_t memtype_id = -1, hid_t filetype_id=-1,
                                             bool flag_collective = true)
     {
-#ifdef PARALLEL_HDF5
-        MPI_Comm mpi_comm = MPI_COMM_WORLD;
+#ifdef USEPARALLELHDF
+        MPI_Comm comm = MPI_COMM_WORLD;
         MPI_Info info = MPI_INFO_NULL;
 #endif
         hid_t dspace_id, dset_id, prop_id, memspace_id, ret;
@@ -542,14 +542,14 @@ class H5OutputFile
 		// Determine type of the dataset to create
 		if(filetype_id < 0)filetype_id = memtype_id;
 
-#ifdef PARALLEL_HDF5
+#ifdef USEPARALLELHDF
         //if parallel hdf5 get the full extent of the data
         //this bit of code communicating information can probably be done elsewhere
         //minimize number of mpi communications
         vector<unsigned long long> mpi_hdf_dims(rank*NProcs), mpi_hdf_dims_tot(rank), dims_single(rank), dims_offset(rank);
         for (auto i=0;i<rank;i++) dims_single[i]=dims[i];
-        MPI_Allgather(dims_single.data(), rank, MPI_UNSIGNED_LONG_LONG, mpi_hdf_dims.data() rank, MPI_UNSIGNED_LONG_LONG, mpi_comm);
-        MPI_Allreduce(dims_single.data(), mpi_hdf_dims_tot.data() rank, MPI_UNSIGNED_LONG_LONG, MPI_SUM, mpi_comm);
+        MPI_Allgather(dims_single.data(), rank, MPI_UNSIGNED_LONG_LONG, mpi_hdf_dims.data(), rank, MPI_UNSIGNED_LONG_LONG, comm);
+        MPI_Allreduce(dims_single.data(), mpi_hdf_dims_tot.data(), rank, MPI_UNSIGNED_LONG_LONG, MPI_SUM, comm);
         for (auto i=1;i<rank;i++) {
             dims_offset[i] = 0;
             for (auto j=1;j<ThisTask;j++) {
@@ -563,7 +563,7 @@ class H5OutputFile
         int nonzero_size = 1;
         for(int i=0; i<rank; i++)
         {
-#ifdef PARALLEL_HDF5
+#ifdef USEPARALLELHDF
             if(mpi_hdf_dims_tot[i]==0) nonzero_size = 0;
 #else
             if(dims[i]==0) nonzero_size = 0;
@@ -573,7 +573,7 @@ class H5OutputFile
         int large_dataset = 0;
         for(int i=0; i<rank; i++)
         {
-#ifdef PARALLEL_HDF5
+#ifdef USEPARALLELHDF
             if(mpi_hdf_dims_tot[i] > HDFOUTPUTCHUNKSIZE) large_dataset = 1;
 #else
             if(dims[i] > HDFOUTPUTCHUNKSIZE) large_dataset = 1;
@@ -581,7 +581,7 @@ class H5OutputFile
         }
         if(nonzero_size && large_dataset)
 		{
-#ifdef PARALLEL_HDF5
+#ifdef USEPARALLELHDF
             for(auto i=0; i<rank; i++) chunks[i] = min((hsize_t) HDFOUTPUTCHUNKSIZE, mpi_hdf_dims_tot[i]);
 #else
             for(auto i=0; i<rank; i++) chunks[i] = min((hsize_t) HDFOUTPUTCHUNKSIZE, dims[i]);
@@ -589,10 +589,10 @@ class H5OutputFile
 		}
 
 		// Create the dataspace
-#ifdef PARALLEL_HDF5
+#ifdef USEPARALLELHDF
         //then all threads create the same simple data space
         //so the meta information is the same
-        dspace_id = H5Screate_simple(rank, mpi_hdf_dims_tot, NULL);
+        dspace_id = H5Screate_simple(rank, mpi_hdf_dims_tot.data(), NULL);
 #else
 		dspace_id = H5Screate_simple(rank, dims, NULL);
 #endif
@@ -615,11 +615,11 @@ class H5OutputFile
 
         H5Pclose(prop_id);
 
-#ifdef PARALLEL_HDF5
+#ifdef USEPARALLELHDF
         //access the memory space
         memspace_id = H5Screate_simple(rank, dims, NULL);
         dspace_id = H5Dget_space(dset_id);
-        H5Sselect_hyperslab(dspace_id, H5S_SELECT_SET, dims_offset, NULL, dims, NULL);
+        H5Sselect_hyperslab(dspace_id, H5S_SELECT_SET, dims_offset.data(), NULL, dims, NULL);
 
         // set up the collective transfer properties list
         prop_id = H5Pcreate(H5P_DATASET_XFER);
@@ -633,7 +633,7 @@ class H5OutputFile
         }
 #endif
         // Write the data
-#ifdef PARALLEL_HDF5
+#ifdef USEPARALLELHDF
         ret = H5Dwrite(dset_id, memtype_id, memspace_id, H5S_ALL, H5P_DEFAULT, data);
 #else
         ret = H5Dwrite(dset_id, memtype_id, dspace_id, H5S_ALL, H5P_DEFAULT, data);
@@ -641,9 +641,9 @@ class H5OutputFile
         if (ret < 0) io_error(string("Failed to write dataset: ")+name);
 
 		// Clean up (note that dtype_id is NOT a new object so don't need to close it)
-#ifdef PARALLEL_HDF5
+#ifdef USEPARALLELHDF
         H5Pclose(prop_id);
-        H5Sclose(memoryspace_id);
+        H5Sclose(memspace_id);
 #endif
         H5Sclose(dspace_id);
         H5Dclose(dset_id);
@@ -652,8 +652,8 @@ class H5OutputFile
 	                                          hid_t memtype_id = -1, hid_t filetype_id=-1,
                                               bool flag_collective = true)
     {
-#ifdef PARALLEL_HDF5
-        MPI_Comm mpi_comm = MPI_COMM_WORLD;
+#ifdef USEPARALLELHDF
+        MPI_Comm comm = MPI_COMM_WORLD;
         MPI_Info info = MPI_INFO_NULL;
 #endif
         hid_t dspace_id, dset_id, prop_id, memspace_id, ret;
@@ -666,14 +666,14 @@ class H5OutputFile
 		// Determine type of the dataset to create
 		if(filetype_id < 0)filetype_id = memtype_id;
 
-#ifdef PARALLEL_HDF5
+#ifdef USEPARALLELHDF
         //if parallel hdf5 get the full extent of the data
         //this bit of code communicating information can probably be done elsewhere
         //minimize number of mpi communications
         vector<unsigned long long> mpi_hdf_dims(rank*NProcs), mpi_hdf_dims_tot(rank), dims_single(rank), dims_offset(rank);
         for (auto i=0;i<rank;i++) dims_single[i]=dims[i];
-        MPI_Allgather(dims_single.data(), rank, MPI_UNSIGNED_LONG_LONG, mpi_hdf_dims.data() rank, MPI_UNSIGNED_LONG_LONG, mpi_comm);
-        MPI_Allreduce(dims_single.data(), mpi_hdf_dims_tot.data() rank, MPI_UNSIGNED_LONG_LONG, MPI_SUM, mpi_comm);
+        MPI_Allgather(dims_single.data(), rank, MPI_UNSIGNED_LONG_LONG, mpi_hdf_dims.data(), rank, MPI_UNSIGNED_LONG_LONG, comm);
+        MPI_Allreduce(dims_single.data(), mpi_hdf_dims_tot.data(), rank, MPI_UNSIGNED_LONG_LONG, MPI_SUM, comm);
         for (auto i=1;i<rank;i++) {
             dims_offset[i] = 0;
             for (auto j=1;j<ThisTask;j++) {
@@ -687,7 +687,7 @@ class H5OutputFile
         int nonzero_size = 1;
         for(int i=0; i<rank; i++)
         {
-#ifdef PARALLEL_HDF5
+#ifdef USEPARALLELHDF
             if(mpi_hdf_dims_tot[i]==0) nonzero_size = 0;
 #else
             if(dims[i]==0) nonzero_size = 0;
@@ -697,7 +697,7 @@ class H5OutputFile
         int large_dataset = 0;
         for(int i=0; i<rank; i++)
         {
-#ifdef PARALLEL_HDF5
+#ifdef USEPARALLELHDF
             if(mpi_hdf_dims_tot[i] > HDFOUTPUTCHUNKSIZE) large_dataset = 1;
 #else
             if(dims[i] > HDFOUTPUTCHUNKSIZE) large_dataset = 1;
@@ -705,7 +705,7 @@ class H5OutputFile
         }
         if(nonzero_size && large_dataset)
         {
-#ifdef PARALLEL_HDF5
+#ifdef USEPARALLELHDF
             for(auto i=0; i<rank; i++) chunks[i] = min((hsize_t) HDFOUTPUTCHUNKSIZE, mpi_hdf_dims_tot[i]);
 #else
             for(auto i=0; i<rank; i++) chunks[i] = min((hsize_t) HDFOUTPUTCHUNKSIZE, dims[i]);
@@ -713,10 +713,10 @@ class H5OutputFile
         }
 
         // Create the dataspace
-#ifdef PARALLEL_HDF5
+#ifdef USEPARALLELHDF
         //then all threads create the same simple data space
         //so the meta information is the same
-        dspace_id = H5Screate_simple(rank, mpi_hdf_dims_tot, NULL);
+        dspace_id = H5Screate_simple(rank, mpi_hdf_dims_tot.data(), NULL);
 #else
 		dspace_id = H5Screate_simple(rank, dims, NULL);
 #endif
@@ -739,11 +739,11 @@ class H5OutputFile
 
         H5Pclose(prop_id);
 
-#ifdef PARALLEL_HDF5
+#ifdef USEPARALLELHDF
         //access the memory space
         memspace_id = H5Screate_simple(rank, dims, NULL);
         dspace_id = H5Dget_space(dset_id);
-        H5Sselect_hyperslab(dspace_id, H5S_SELECT_SET, dims_offset, NULL, dims, NULL);
+        H5Sselect_hyperslab(dspace_id, H5S_SELECT_SET, dims_offset.data(), NULL, dims, NULL);
 
         // set up the collective transfer properties list
         prop_id = H5Pcreate(H5P_DATASET_XFER);
@@ -757,7 +757,7 @@ class H5OutputFile
         }
 #endif
         // Write the data
-#ifdef PARALLEL_HDF5
+#ifdef USEPARALLELHDF
         ret = H5Dwrite(dset_id, memtype_id, memspace_id, H5S_ALL, H5P_DEFAULT, data);
 #else
         ret = H5Dwrite(dset_id, memtype_id, dspace_id, H5S_ALL, H5P_DEFAULT, data);
@@ -766,10 +766,10 @@ class H5OutputFile
         if (ret < 0) io_error(string("Failed to write dataset: ")+name);
 
         // Clean up (note that dtype_id is NOT a new object so don't need to close it)
-        #ifdef PARALLEL_HDF5
+#ifdef USEPARALLELHDF
         H5Pclose(prop_id);
-        H5Sclose(memoryspace_id);
-        #endif
+        H5Sclose(memspace_id);
+#endif
         H5Sclose(dspace_id);
         H5Dclose(dset_id);
     }
