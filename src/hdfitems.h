@@ -456,14 +456,14 @@ class H5OutputFile
     /// Write a new 1D dataset. Data type of the new dataset is taken to be the type of
     /// the input data if not explicitly specified with the filetype_id parameter.
     template <typename T> void write_dataset(std::string name, hsize_t len, T *data,
-                                           hid_t memtype_id = -1, hid_t filetype_id=-1)
+       hid_t memtype_id = -1, hid_t filetype_id=-1, bool flag_hyperslab = true, bool flag_collective = true)
     {
         int rank = 1;
       	hsize_t dims[1] = {len};
         if (memtype_id == -1) memtype_id = hdf5_type(T{});
-      	write_dataset_nd(name, rank, dims, data, memtype_id, filetype_id);
+      	write_dataset_nd(name, rank, dims, data, memtype_id, filetype_id, flag_hyperslab, flag_collective);
     }
-    void write_dataset(string name, hsize_t len, string data)
+    void write_dataset(string name, hsize_t len, string data, bool flag_collective = true)
     {
 #ifdef USEPARALLELHDF
         MPI_Comm comm = MPI_COMM_WORLD;
@@ -472,7 +472,7 @@ class H5OutputFile
         int rank = 1;
       	hsize_t dims[1] = {len};
 
-        hid_t memtype_id, filetype_id, dspace_id, dset_id;
+        hid_t memtype_id, filetype_id, dspace_id, dset_id, ret;
         herr_t status;
         memtype_id = H5Tcopy (H5T_C_S1);
         status = H5Tset_size (memtype_id, data.size());
@@ -489,7 +489,8 @@ class H5OutputFile
         // set up the collective transfer properties list
         hid_t xfer_plist = H5Pcreate(H5P_DATASET_XFER);
         if (xfer_plist < 0) io_error(string("Failed to set up parallel transfer: ")+name);
-        hid_t ret = H5Pset_dxpl_mpio(parallel_access_id, H5FD_MPIO_COLLECTIVE);
+        if (flag_collective) ret = H5Pset_dxpl_mpio(xfer_plist, H5FD_MPIO_COLLECTIVE);
+        else ret = H5Pset_dxpl_mpio(xfer_plist, H5FD_MPIO_INDEPENDENT);
         if (ret < 0) io_error(string("Failed to set up parallel transfer: ")+name);
         // the result of above should be that all processors write to the same
         // point of the hdf file.
@@ -499,21 +500,21 @@ class H5OutputFile
         io_error(string("Failed to write dataset: ")+name);
 
         // Clean up (note that dtype_id is NOT a new object so don't need to close it)
+#ifdef USEPARALLELHDF
+        H5Pclose(xfer_plist);
+#endif
         H5Sclose(dspace_id);
         H5Dclose(dset_id);
-#ifdef USEPARALLELHDF
-            H5Pclose(xfer_plist);
-#endif
     }
     void write_dataset(string name, hsize_t len, void *data,
-                                           hid_t memtype_id=-1, hid_t filetype_id=-1)
+       hid_t memtype_id=-1, hid_t filetype_id=-1, bool flag_hyperslab = true, bool flag_collective = true)
     {
         int rank = 1;
       	hsize_t dims[1] = {len};
         if (memtype_id == -1) {
             throw std::runtime_error("Write data set called with void pointer but no type info passed.");
         }
-      	write_dataset_nd(name, rank, dims, data, memtype_id, filetype_id);
+      	write_dataset_nd(name, rank, dims, data, memtype_id, filetype_id, flag_hyperslab, flag_collective);
     }
 
 
@@ -533,7 +534,7 @@ class H5OutputFile
         if (memtype_id == -1) memtype_id = hdf5_type(T{});
 
         // Determine type of the dataset to create
-        if(filetype_id < 0)filetype_id = memtype_id;
+        if(filetype_id < 0) filetype_id = memtype_id;
 
 #ifdef USEPARALLELHDF
         //if parallel hdf5 get the full extent of the data
@@ -543,7 +544,7 @@ class H5OutputFile
         for (auto i=0;i<rank;i++) dims_single[i]=dims[i];
         MPI_Allgather(dims_single.data(), rank, MPI_UNSIGNED_LONG_LONG, mpi_hdf_dims.data(), rank, MPI_UNSIGNED_LONG_LONG, comm);
         MPI_Allreduce(dims_single.data(), mpi_hdf_dims_tot.data(), rank, MPI_UNSIGNED_LONG_LONG, MPI_SUM, comm);
-        for (auto i=1;i<rank;i++) {
+        for (auto i=0;i<rank;i++) {
             dims_offset[i] = 0;
             for (auto j=1;j<ThisTask;j++) {
                 dims_offset[i] += mpi_hdf_dims[i*NProcs+j];
@@ -585,20 +586,28 @@ class H5OutputFile
 #ifdef USEPARALLELHDF
         //then all threads create the same simple data space
         //so the meta information is the same
-        if (flag_hyperslab)
+        if (flag_hyperslab) {
+            //allocate the space spanning the file
             dspace_id = H5Screate_simple(rank, mpi_hdf_dims_tot.data(), NULL);
-        else
+            //allocate the memory space
+            memspace_id = H5Screate_simple(rank, dims, NULL);
+        }
+        else {
             dspace_id = H5Screate_simple(rank, dims, NULL);
+            memspace_id = dspace_id;
+        }
 #else
         dspace_id = H5Screate_simple(rank, dims, NULL);
+        memspace_id = dspace_id;
 #endif
 
         // Dataset creation properties
+        prop_id = H5P_DEFAULT;
         // this defines compression
         // not certain if this will work in parallel hdf5
-        prop_id = H5Pcreate(H5P_DATASET_CREATE);
         if(nonzero_size && large_dataset)
         {
+            prop_id = H5Pcreate(H5P_DATASET_CREATE);
             H5Pset_layout(prop_id, H5D_CHUNKED);
             H5Pset_chunk(prop_id, rank, chunks.data());
             H5Pset_deflate(prop_id, HDFDEFLATE);
@@ -606,11 +615,16 @@ class H5OutputFile
 
         // Create the dataset
         dset_id = H5Dcreate(file_id, name.c_str(), filetype_id, dspace_id,
-            H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+            H5P_DEFAULT, prop_id, H5P_DEFAULT);
         if(dset_id < 0) io_error(string("Failed to create dataset: ")+name);
-
         H5Pclose(prop_id);
+
 #ifdef USEPARALLELHDF
+        // set up the collective transfer properties list
+        prop_id = H5Pcreate(H5P_DATASET_XFER);
+        if (flag_collective) ret = H5Pset_dxpl_mpio(prop_id, H5FD_MPIO_COLLECTIVE);
+        else ret = H5Pset_dxpl_mpio(prop_id, H5FD_MPIO_INDEPENDENT);
+
         if (flag_hyperslab) {
             //access the memory space
             memspace_id = H5Screate_simple(rank, dims, NULL);
@@ -620,29 +634,16 @@ class H5OutputFile
         else {
             memspace_id = dspace_id;
         }
-
-        // set up the collective transfer properties list
-        prop_id = H5Pcreate(H5P_DATASET_XFER);
-        if (flag_collective)
-        {
-            ret = H5Pset_dxpl_mpio(parallel_access_id, H5FD_MPIO_COLLECTIVE);
-        }
-        else
-        {
-            ret = H5Pset_dxpl_mpio(parallel_access_id, H5FD_MPIO_INDEPENDENT);
-        }
+#else
+        prop_id = H5P_DEFAULT;
 #endif
         // Write the data
-#ifdef USEPARALLELHDF
-        ret = H5Dwrite(dset_id, memtype_id, memspace_id, H5S_ALL, H5P_DEFAULT, data);
-#else
-        ret = H5Dwrite(dset_id, memtype_id, dspace_id, H5S_ALL, H5P_DEFAULT, data);
-#endif
+        ret = H5Dwrite(dset_id, memtype_id, memspace_id, dspace_id, prop_id, data);
         if (ret < 0) io_error(string("Failed to write dataset: ")+name);
 
         // Clean up (note that dtype_id is NOT a new object so don't need to close it)
-#ifdef USEPARALLELHDF
         H5Pclose(prop_id);
+#ifdef USEPARALLELHDF
         if (flag_hyperslab) H5Sclose(memspace_id);
 #endif
         H5Sclose(dspace_id);
@@ -672,7 +673,7 @@ class H5OutputFile
         for (auto i=0;i<rank;i++) dims_single[i]=dims[i];
         MPI_Allgather(dims_single.data(), rank, MPI_UNSIGNED_LONG_LONG, mpi_hdf_dims.data(), rank, MPI_UNSIGNED_LONG_LONG, comm);
         MPI_Allreduce(dims_single.data(), mpi_hdf_dims_tot.data(), rank, MPI_UNSIGNED_LONG_LONG, MPI_SUM, comm);
-        for (auto i=1;i<rank;i++) {
+        for (auto i=0;i<rank;i++) {
             dims_offset[i] = 0;
             for (auto j=1;j<ThisTask;j++) {
                 dims_offset[i] += mpi_hdf_dims[i*NProcs+j];
@@ -714,20 +715,28 @@ class H5OutputFile
 #ifdef USEPARALLELHDF
         //then all threads create the same simple data space
         //so the meta information is the same
-        if (flag_hyperslab)
+        if (flag_hyperslab) {
+            //allocate the space spanning the file
             dspace_id = H5Screate_simple(rank, mpi_hdf_dims_tot.data(), NULL);
-        else
+            //allocate the memory space
+            memspace_id = H5Screate_simple(rank, dims, NULL);
+        }
+        else {
             dspace_id = H5Screate_simple(rank, dims, NULL);
+            memspace_id = dspace_id;
+        }
 #else
         dspace_id = H5Screate_simple(rank, dims, NULL);
+        memspace_id = dspace_id;
 #endif
 
         // Dataset creation properties
+        prop_id = H5P_DEFAULT;
         // this defines compression
         // not certain if this will work in parallel hdf5
-        prop_id = H5Pcreate(H5P_DATASET_CREATE);
         if(nonzero_size && large_dataset)
         {
+            prop_id = H5Pcreate(H5P_DATASET_CREATE);
             H5Pset_layout(prop_id, H5D_CHUNKED);
             H5Pset_chunk(prop_id, rank, chunks.data());
             H5Pset_deflate(prop_id, HDFDEFLATE);
@@ -735,12 +744,16 @@ class H5OutputFile
 
         // Create the dataset
         dset_id = H5Dcreate(file_id, name.c_str(), filetype_id, dspace_id,
-            H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+            H5P_DEFAULT, prop_id, H5P_DEFAULT);
         if(dset_id < 0) io_error(string("Failed to create dataset: ")+name);
-
         H5Pclose(prop_id);
 
 #ifdef USEPARALLELHDF
+        // set up the collective transfer properties list
+        prop_id = H5Pcreate(H5P_DATASET_XFER);
+        if (flag_collective) ret = H5Pset_dxpl_mpio(prop_id, H5FD_MPIO_COLLECTIVE);
+        else ret = H5Pset_dxpl_mpio(prop_id, H5FD_MPIO_INDEPENDENT);
+
         if (flag_hyperslab) {
             //access the memory space
             memspace_id = H5Screate_simple(rank, dims, NULL);
@@ -750,29 +763,16 @@ class H5OutputFile
         else {
             memspace_id = dspace_id;
         }
-        // set up the collective transfer properties list
-        prop_id = H5Pcreate(H5P_DATASET_XFER);
-        if (flag_collective)
-        {
-            ret = H5Pset_dxpl_mpio(parallel_access_id, H5FD_MPIO_COLLECTIVE);
-        }
-        else
-        {
-            ret = H5Pset_dxpl_mpio(parallel_access_id, H5FD_MPIO_INDEPENDENT);
-        }
+#else
+        prop_id = H5P_DEFAULT;
 #endif
         // Write the data
-#ifdef USEPARALLELHDF
-        ret = H5Dwrite(dset_id, memtype_id, memspace_id, H5S_ALL, H5P_DEFAULT, data);
-#else
-        ret = H5Dwrite(dset_id, memtype_id, dspace_id, H5S_ALL, H5P_DEFAULT, data);
-#endif
-
+        ret = H5Dwrite(dset_id, memtype_id, memspace_id, dspace_id, prop_id, data);
         if (ret < 0) io_error(string("Failed to write dataset: ")+name);
 
         // Clean up (note that dtype_id is NOT a new object so don't need to close it)
-#ifdef USEPARALLELHDF
         H5Pclose(prop_id);
+#ifdef USEPARALLELHDF
         if (flag_hyperslab) H5Sclose(memspace_id);
 #endif
         H5Sclose(dspace_id);
