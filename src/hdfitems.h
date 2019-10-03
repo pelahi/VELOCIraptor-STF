@@ -649,7 +649,7 @@ class H5OutputFile
         H5Dclose(dset_id);
     }
     void write_dataset_nd(std::string name, int rank, hsize_t *dims, void *data,
-        hid_t memtype_id = -1, hid_t filetype_id=-1, bool flag_hyperslab = true, ool flag_collective = true)
+        hid_t memtype_id = -1, hid_t filetype_id=-1, bool flag_hyperslab = true, bool flag_collective = true)
     {
 #ifdef USEPARALLELHDF
         MPI_Comm comm = MPI_COMM_WORLD;
