@@ -7,6 +7,8 @@
 #ifdef SWIFTINTERFACE
 
 Options libvelociraptorOpt;
+Options libvelociraptorOptbackup;
+Options libvelociraptorOptextra[10];
 //KDTree *mpimeshtree;
 //Particle *mpimeshinfo;
 
@@ -190,6 +192,71 @@ int InitVelociraptor(char* configname, unitinfo u, siminfo s, const int numthrea
 
 }
 
+int InitVelociraptorExtra(const int iextra, char* configname, unitinfo u, siminfo s, const int numthreads)
+{
+    cout<<"Initialising VELOCIraptor..."<< endl;
+    // if mpi invokved, init the velociraptor tasks and openmp threads
+#ifdef USEMPI
+    //find out how big the SPMD world is
+    MPI_Comm_size(MPI_COMM_WORLD,&NProcs);
+    //mpi_domain=new MPI_Domain[NProcs];
+    mpi_nlocal=new Int_t[NProcs];
+    mpi_nsend=new Int_t[NProcs*NProcs];
+    mpi_ngroups=new Int_t[NProcs];
+    mpi_nhalos=new Int_t[NProcs];
+    //and this processes' rank is
+    MPI_Comm_rank(MPI_COMM_WORLD,&ThisTask);
+    //store MinSize as when using mpi prior to stitching use min of 2;
+    MinNumMPI=2;
+#endif
+#ifdef USEOPENMP
+    omp_set_num_threads(numthreads);
+#endif
+    int iconfigflag;
+    ///read the parameter file
+    libvelociraptorOptextra[iextra].pname = configname;
+    cout<<"Reading VELOCIraptor config file..."<< endl;
+    GetParamFile(libvelociraptorOptextra[iextra]);
+    ///check configuration
+    iconfigflag = ConfigCheckSwift(libvelociraptorOptextra[iextra], s);
+    if (iconfigflag != 1) return iconfigflag;
+
+    cout<<"Setting cosmology, units, sim stuff "<<endl;
+    ///set units, here idea is to convert internal units so that have kpc, km/s, solar mass
+    ///\todo switch this so run in reasonable swift units and store conversion
+    libvelociraptorOptextra[iextra].lengthtokpc=u.lengthtokpc;
+    libvelociraptorOptextra[iextra].velocitytokms=u.velocitytokms;
+    libvelociraptorOptextra[iextra].masstosolarmass=u.masstosolarmass;
+    libvelociraptorOptextra[iextra].energyperunitmass=u.energyperunitmass;
+
+    //run in swift internal units, don't convert units
+    libvelociraptorOptextra[iextra].lengthinputconversion=1.0;
+    libvelociraptorOptextra[iextra].massinputconversion=1.0;
+    libvelociraptorOptextra[iextra].velocityinputconversion=1.0;
+    libvelociraptorOptextra[iextra].energyinputconversion=1.0;
+    libvelociraptorOptextra[iextra].SFRinputconversion=1.0;
+    libvelociraptorOptextra[iextra].metallicityinputconversion=1.0;
+    libvelociraptorOptextra[iextra].istellaragescalefactor = 1;
+
+    //set cosmological parameters that do not change
+    ///these should be in units of kpc, km/s, and solar mass
+    libvelociraptorOptextra[iextra].G=u.gravity;
+    libvelociraptorOptextra[iextra].H=u.hubbleunit;
+
+    //set if cosmological
+    libvelociraptorOptextra[iextra].icosmologicalin = s.icosmologicalsim;
+
+    //write velociraptor configuration info, appending .configuration to the input config file and writing every config option
+    libvelociraptorOptextra[iextra].outname = configname;
+    WriteVELOCIraptorConfig(libvelociraptorOptextra[iextra]);
+
+    cout<<"Finished initialising VELOCIraptor"<<endl;
+
+    //return the configuration flag value
+    return iconfigflag;
+
+}
+
 void SetVelociraptorCosmology(cosmoinfo c)
 {
     ///set cosmology
@@ -278,7 +345,23 @@ void SetVelociraptorSimulationState(cosmoinfo c, siminfo s)
 }
 
 ///\todo interface with swift is comoving positions, period, peculiar velocities and physical self-energy
-groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
+extern "C" Swift::groupinfo * InvokeVelociraptor(const int snapnum, char* outputname,
+    cosmoinfo c, siminfo s,
+    const size_t num_gravity_parts, const size_t num_hydro_parts, const size_t num_star_parts,
+    struct swift_vel_part *swift_parts, int *cell_node_ids,
+    const int numthreads, const int ireturngroupinfoflag, int *const numpartingroups
+)
+{
+    groupinfo *group_info = NULL;
+    const size_t num_bh_parts = 0;
+    group_info = InvokeVelociraptorHydro(snapnum, outputname, c, s,
+        num_gravity_parts, num_hydro_parts, num_star_parts, num_bh_parts,
+        swift_parts, cell_node_ids,
+        numthreads, ireturngroupinfoflag,
+        numpartingroups);
+    return group_info;
+}
+groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
     cosmoinfo c, siminfo s,
     const size_t num_gravity_parts, const size_t num_hydro_parts, const size_t num_star_parts, const size_t num_bh_parts,
     struct swift_vel_part *swift_parts, int *cell_node_ids,
@@ -290,10 +373,6 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
     struct swift_vel_bh_part *swift_bh_parts
 )
 {
-#ifndef GASON
-    cout<<"Gas has not been turned on in VELOCIraptor. Set GASON in Makefile.config and recompile VELOCIraptor."<<endl;
-    return 0;
-#endif
 #ifdef USEMPI
     if (ThisTask==0) cout<<"VELOCIraptor/STF running with MPI. Number of mpi threads: "<<NProcs<<endl;
 #else
@@ -652,6 +731,55 @@ groupinfo *InvokeVelociraptor(const int snapnum, char* outputname,
     free(s.cellloc);
     free(cell_node_ids);
 
+    return group_info;
+}
+
+
+///\todo interface with swift is comoving positions, period, peculiar velocities and physical self-energy
+groupinfo *InvokeVelociraptorExtra(const int iextra, const int snapnum, char* outputname,
+    cosmoinfo c, siminfo s,
+    const size_t num_gravity_parts, const size_t num_hydro_parts, const size_t num_star_parts,
+    struct swift_vel_part *swift_parts, int *cell_node_ids,
+    const int numthreads,
+    const int ireturngroupinfoflag,
+    int * const numpartingroups)
+{
+    groupinfo *group_info = NULL;
+    //store backup of the libvelociraptorOpt
+    libvelociraptorOptbackup = libvelociraptorOpt;
+    libvelociraptorOpt = libvelociraptorOptextra[iextra];
+    group_info = InvokeVelociraptor(snapnum, outputname, c, s,
+        num_gravity_parts, num_hydro_parts, num_star_parts,
+        swift_parts, cell_node_ids,
+        numthreads,
+        ireturngroupinfoflag,
+        numpartingroups);
+    libvelociraptorOpt = libvelociraptorOptbackup;
+    return group_info;
+}
+
+groupinfo *InvokeVelociraptorHydroExtra(const int iextra, const int snapnum, char* outputname,
+    cosmoinfo c, siminfo s,
+    const size_t num_gravity_parts, const size_t num_hydro_parts, const size_t num_star_parts, const size_t num_bh_parts,
+    struct swift_vel_part *swift_parts, int *cell_node_ids,
+    const int numthreads,
+    const int ireturngroupinfoflag,
+    int * const numpartingroups,
+    struct swift_vel_gas_part *swift_gas_parts,
+    struct swift_vel_star_part *swift_star_parts,
+    struct swift_vel_bh_part *swift_bh_parts
+)
+{
+    groupinfo *group_info = NULL;
+    //store backup of the libvelociraptorOpt
+    libvelociraptorOptbackup = libvelociraptorOpt;
+    libvelociraptorOpt = libvelociraptorOptextra[iextra];
+    group_info = InvokeVelociraptorHydro(snapnum, outputname, c, s,
+        num_gravity_parts, num_hydro_parts, num_star_parts, num_bh_parts,
+        swift_parts, cell_node_ids, numthreads, ireturngroupinfoflag,
+        numpartingroups,
+        swift_gas_parts, swift_star_parts, swift_bh_parts);
+    libvelociraptorOpt = libvelociraptorOptbackup;
     return group_info;
 }
 
