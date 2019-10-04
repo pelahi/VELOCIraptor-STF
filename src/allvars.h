@@ -555,6 +555,8 @@ struct Options
     Double_t halocorephasedistsig;
     ///factor by which a substructure s must be closer than in phase-space to merger with another substructure in sigma units
     Double_t coresubmergemindist;
+    ///whether substructure phase-space distance merge check is applied to background host halo as well.
+    int icoresubmergewithbg;
     ///fraction of size a substructure must be of host to be considered a spurious dynamical substructure
     Double_t minfracsubsizeforremoval;
     ///Maximum allowed mean local velocity density ratio above which structure is considered highly unrelaxed.
@@ -768,6 +770,7 @@ struct Options
         halocorenumfaciter=1.0;
         halocorephasedistsig=2.0;
         coresubmergemindist=0.0;
+        icoresubmergewithbg=0;
         minfracsubsizeforremoval=0.75;
         maxmeanlocalvelratio=0.5;
 
