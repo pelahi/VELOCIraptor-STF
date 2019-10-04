@@ -525,14 +525,16 @@ class H5OutputFile
         dset_id = H5Dcreate(file_id, name.c_str(), filetype_id, dspace_id,
             H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 #ifdef USEPARALLELHDF
-        // set up the collective transfer properties list
-        hid_t xfer_plist = H5Pcreate(H5P_DATASET_XFER);
-        if (xfer_plist < 0) io_error(string("Failed to set up parallel transfer: ")+name);
-        if (flag_collective) ret = H5Pset_dxpl_mpio(xfer_plist, H5FD_MPIO_COLLECTIVE);
-        else ret = H5Pset_dxpl_mpio(xfer_plist, H5FD_MPIO_INDEPENDENT);
-        if (ret < 0) io_error(string("Failed to set up parallel transfer: ")+name);
-        // the result of above should be that all processors write to the same
-        // point of the hdf file.
+        if (flag_parallel) {
+            // set up the collective transfer properties list
+            hid_t xfer_plist = H5Pcreate(H5P_DATASET_XFER);
+            if (xfer_plist < 0) io_error(string("Failed to set up parallel transfer: ")+name);
+            if (flag_collective) ret = H5Pset_dxpl_mpio(xfer_plist, H5FD_MPIO_COLLECTIVE);
+            else ret = H5Pset_dxpl_mpio(xfer_plist, H5FD_MPIO_INDEPENDENT);
+            if (ret < 0) io_error(string("Failed to set up parallel transfer: ")+name);
+            // the result of above should be that all processors write to the same
+            // point of the hdf file.
+        }
 #endif
         // Write the data
         if(H5Dwrite(dset_id, memtype_id, dspace_id, H5S_ALL, H5P_DEFAULT, data.c_str()) < 0)
@@ -540,7 +542,7 @@ class H5OutputFile
 
         // Clean up (note that dtype_id is NOT a new object so don't need to close it)
 #ifdef USEPARALLELHDF
-        H5Pclose(xfer_plist);
+        if (flag_parallel) H5Pclose(xfer_plist);
 #endif
         H5Sclose(dspace_id);
         H5Dclose(dset_id);
