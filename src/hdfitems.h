@@ -8,9 +8,10 @@
 #define HDFITEMS_H
 
 
-#include "H5Cpp.h"
+//#include "H5Cpp.h"
+//using namespace H5;
+#include "hdf5.h"
 
-using namespace H5;
 
 ///\name ILLUSTRIS specific constants
 //@{
@@ -52,7 +53,9 @@ using namespace H5;
 #define HDFSTARIMETAL 40
 #define HDFSTARIAGE 41
 
-#define HDFBHIMDOT 50
+#define HDFBHIMETAL 50
+#define HDFBHIAGE 51
+#define HDFBHIMDOT 52
 //@}
 
 ///number of luminosity bands for stars
@@ -71,7 +74,7 @@ using namespace H5;
 
 ///\defgroup HDFNAMES labels for HDF naming conventions
 //@{
-#define HDFNUMNAMETYPES  8
+#define HDFNUMNAMETYPES  9
 #define HDFILLUSTISNAMES 0
 #define HDFGADGETXNAMES  1
 #define HDFEAGLENAMES    2
@@ -79,11 +82,14 @@ using namespace H5;
 #define HDFSIMBANAMES    4
 #define HDFMUFASANAMES   5
 #define HDFSWIFTEAGLENAMES    6
+#define HDFOLDSWIFTEAGLENAMES    8
 #define HDFEAGLEVERSION2NAMES    7
 //@}
 
 ///size of chunks in hdf files for Compression
 #define HDFOUTPUTCHUNKSIZE 8192
+#define HDFDEFLATE    6
+
 
 #if H5_VERSION_GE(1,10,1)
 #define HDF5_FILE_GROUP_COMMON_BASE H5::Group
@@ -91,54 +97,80 @@ using namespace H5;
 #define HDF5_FILE_GROUP_COMMON_BASE H5::CommonFG
 #endif
 
-template <typename AttributeHolder>
-static inline
-H5::Attribute get_attribute(const AttributeHolder &l, const std::string attr_name)
+template <typename ReturnT, typename F, typename ... Ts>
+ReturnT safe_hdf5(F function, Ts ... args)
 {
-	auto exists = H5Aexists(l.getId(), attr_name.c_str());
+       ReturnT status = function(std::forward<Ts>(args)...);
+       if (status < 0) {
+           cerr<<"Error in HDF routine "<<endl;//<<function.__PRETTY_FUNCTION__
+           //throw std::runtime_error("Error in HDF routine.");
+           #ifdef USEMPI
+           MPI_Abort(MPI_COMM_WORLD,1);
+           #else
+           exit(1);
+           #endif
+       }
+       return status;
+}
+
+// Overloaded function to return HDF5 type given a C type
+static inline hid_t hdf5_type(float dummy)              {return H5T_NATIVE_FLOAT;}
+static inline hid_t hdf5_type(double dummy)             {return H5T_NATIVE_DOUBLE;}
+static inline hid_t hdf5_type(short dummy)              {return H5T_NATIVE_SHORT;}
+static inline hid_t hdf5_type(int dummy)                {return H5T_NATIVE_INT;}
+static inline hid_t hdf5_type(long dummy)               {return H5T_NATIVE_LONG;}
+static inline hid_t hdf5_type(long long dummy)          {return H5T_NATIVE_LLONG;}
+static inline hid_t hdf5_type(unsigned short dummy)     {return H5T_NATIVE_USHORT;}
+static inline hid_t hdf5_type(unsigned int dummy)       {return H5T_NATIVE_UINT;}
+static inline hid_t hdf5_type(unsigned long dummy)      {return H5T_NATIVE_ULONG;}
+static inline hid_t hdf5_type(unsigned long long dummy) {return H5T_NATIVE_ULLONG;}
+static inline hid_t hdf5_type(std::string dummy)        {return H5T_C_S1;}
+
+//template <typename AttributeHolder>
+//static inline H5::Attribute get_attribute(const AttributeHolder &l, const std::string attr_name)
+static inline void get_attribute(vector<hid_t> &ids, const std::string attr_name)
+{
+	//can use H5Aexists as it is the C interface but how to access it?
+	//auto exists = H5Aexists(l.getId(), attr_name.c_str());
+	auto exists = H5Aexists(ids.back(), attr_name.c_str());
 	if (exists == 0) {
 		throw invalid_argument(std::string("attribute not found ") + attr_name);
 	}
 	else if (exists < 0) {
 		throw std::runtime_error("Error on H5Aexists");
 	}
-	return l.openAttribute(attr_name);
+	auto attr = H5Aopen(ids.back(), attr_name.c_str(), H5P_DEFAULT);
+	ids.push_back(attr);
 }
 
-static inline
-H5::Attribute get_attribute(const HDF5_FILE_GROUP_COMMON_BASE &file_or_group, const std::vector<std::string> &parts)
+
+static inline void get_attribute(vector<hid_t> &ids, const std::vector<std::string> &parts)
 {
-	// This is the attribute name
+	// This is the attribute name, so open it and store the id
 	if (parts.size() == 1) {
-		return get_attribute(static_cast<const H5::Group &>(file_or_group), parts[0]);
+		get_attribute(ids, parts[0]);
 	}
-
-	auto n_groups = file_or_group.getNumObjs();
-
-	const auto path = parts.front();
-	for(hsize_t i = 0; i < n_groups; i++) {
-
-		auto objname = file_or_group.getObjnameByIdx(i);
-		if (objname != path) {
-			continue;
+	else {
+		H5O_info_t object_info;
+		hid_t newid;
+		H5Oget_info_by_name(ids.back(), parts[0].c_str(), &object_info, H5P_DEFAULT);
+		if (object_info.type == H5O_TYPE_GROUP) {
+			newid = H5Gopen2(ids.back(),parts[0].c_str(),H5P_DEFAULT);
 		}
+		else if (object_info.type == H5O_TYPE_DATASET) {
+			newid = H5Dopen2(ids.back(),parts[0].c_str(),H5P_DEFAULT);
+		}
+		ids.push_back(newid);
+		//get the substring
+		vector<string> subparts(parts.begin() + 1, parts.end());
+		//call function again
+		get_attribute(ids, subparts);
 
-		auto objtype = file_or_group.getObjTypeByIdx(i);
-		if (objtype == H5G_GROUP) {
-			std::vector<std::string> subparts(parts.begin() + 1, parts.end());
-			return get_attribute(file_or_group.openGroup(objname), subparts);
-		}
-		else if (objtype == H5G_DATASET) {
-			std::vector<std::string> subparts(parts.begin() + 1, parts.end());
-			return get_attribute(file_or_group.openDataSet(objname), parts.back());
-		}
 	}
-
-	throw invalid_argument("attribute name not found");
+	//throw invalid_argument("attribute name not found");
 }
 
-static inline
-vector<string> tokenize(const string &s, const string &delims)
+static inline vector<string> tokenize(const string &s, const string &delims)
 {
 	string::size_type lastPos = s.find_first_not_of(delims, 0);
 	string::size_type pos     = s.find_first_of(delims, lastPos);
@@ -152,94 +184,464 @@ vector<string> tokenize(const string &s, const string &delims)
 	return tokens;
 }
 
-static inline
-H5::Attribute get_attribute(const H5::H5File &file, const string &name)
+static inline void get_attribute(const hid_t &file_id, vector<hid_t> &ids, const string &name)
 {
 	std::vector<std::string> parts = tokenize(name, "/");
-	return get_attribute(file, parts);
+	ids.push_back(file_id);
+	get_attribute(ids, parts);
 }
 
-template<typename T>
-static inline
-void _do_read(const H5::Attribute &attr, const H5::DataType type, T &val)
+static inline void close_hdf_ids(vector<hid_t> &ids)
 {
-	attr.read(type, &val);
+	H5O_info_t object_info;
+	for (auto &id:ids)
+	{
+		H5Oget_info(id, &object_info);
+		if (object_info.type == H5O_TYPE_GROUP) {
+			H5Gclose(id);
+		}
+		else if (object_info.type == H5O_TYPE_GROUP) {
+			H5Dclose(id);
+		}
+	}
 }
 
-template<>
-void _do_read<std::string>(const H5::Attribute &attr, const H5::DataType type, std::string &val)
+template<typename T> static inline void _do_read(const hid_t &attr, const hid_t &type, T &val)
 {
-	attr.read(type, val);
+	H5Aread(attr, type, &val);
 }
 
-template<typename T>
-const T read_attribute(const H5::H5File &filename, const std::string &name) {
+template<> void _do_read<std::string>(const hid_t &attr, const hid_t &type, std::string &val)
+{
+	vector<char> buf;
+        hid_t type_in_file = H5Aget_type(attr);
+        hid_t type_in_memory = H5Tcopy(type); // copy memory type because we'll need to modify it
+        size_t length = H5Tget_size(type_in_file); // get length of the string in the file
+	buf.resize(length+1); // resize buffer in memory, allowing for null terminator
+        H5Tset_size(type_in_memory, length+1); // tell HDF5 the length of the buffer in memory
+        H5Tset_strpad(type_in_memory, H5T_STR_NULLTERM); // specify that we want a null terminated string
+	H5Aread(attr, type_in_memory, buf.data());
+        H5Tclose(type_in_memory);
+        H5Tclose(type_in_file);
+	val=string(buf.data());
+}
+
+template<typename T> static inline void _do_read_v(const hid_t &attr, const hid_t &type, vector<T> &val)
+{
+	hid_t space = H5Aget_space (attr);
+	int npoints = H5Sget_simple_extent_npoints(space);
+	val.resize(npoints);
+	H5Aread(attr, type, val.data());
+	H5Sclose(space);
+}
+
+template<typename T> const T read_attribute(const hid_t &file_id, const std::string &name) {
 	std::string attr_name;
-	H5::Attribute attr = get_attribute(filename, name);
-	H5::DataType type = attr.getDataType();
 	T val;
-	_do_read(attr, type, val);
-	attr.close();
+	hid_t type;
+	H5O_info_t object_info;
+	vector <hid_t> ids;
+	//traverse the file to get to the attribute, storing the ids of the
+	//groups, data spaces, etc that have been opened.
+	get_attribute(file_id, ids, name);
+	//now reverse ids and load attribute
+	reverse(ids.begin(),ids.end());
+	//determine hdf5 type of the array in memory
+        type = hdf5_type(T{});
+        // read the data
+	_do_read<T>(ids[0], type, val);
+	H5Aclose(ids[0]);
+	//remove file id from id list
+	ids.pop_back();
+	ids.erase(ids.begin());
+	//now have hdf5 ids traversed to get to desired attribute so move along to close all
+	//based on their object type
+	close_hdf_ids(ids);
 	return val;
 }
 
-template<typename T>
-const T read_attribute(const std::string &filename, const std::string &name) {
-	H5::H5File file(filename, H5F_ACC_RDONLY);
-	return read_attribute<T>(file, name);
+//read vector attribute
+template<typename T> const vector<T> read_attribute_v(const hid_t &file_id, const std::string &name) {
+	std::string attr_name;
+	vector<T> val;
+	hid_t type;
+	H5O_info_t object_info;
+	vector <hid_t> ids;
+	//traverse the file to get to the attribute, storing the ids of the
+	//groups, data spaces, etc that have been opened.
+	get_attribute(file_id, ids, name);
+	//now reverse ids and load attribute
+	reverse(ids.begin(),ids.end());
+	//determine hdf5 type of the array in memory
+        type = hdf5_type(T{});
+        // read the data
+	_do_read_v<T>(ids[0], type, val);
+	H5Aclose(ids[0]);
+	//remove file id from id list
+	ids.pop_back();
+	ids.erase(ids.begin());
+	//now have hdf5 ids traversed to get to desired attribute so move along to close all
+	//based on their object type
+	close_hdf_ids(ids);
+	return val;
 }
 
-static inline void HDF5PrintError(const H5::Exception &error) {
-#if H5_VERSION_GE(1,10,1)
-	error.printErrorStack();
-#else
-	error.printError();
-#endif
+
+template<typename T> const T read_attribute(const std::string &filename, const std::string &name) {
+	safe_hdf5<herr_t>(H5Fopen, filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
+	hid_t file_id = H5Fopen(filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
+	T attr = read_attribute<T>(file_id, name);
+	safe_hdf5<herr_t>(H5Fclose,file_id);
+	return attr;
 }
 
-inline
-H5::DataType _datatype_string(const std::string &val)
+static inline hid_t HDF5OpenFile(string name, unsigned int flags){
+	hid_t Fhdf;
+	return H5Fopen(name.c_str(),flags, H5P_DEFAULT);
+}
+
+static inline hid_t HDF5OpenGroup(const hid_t &file, string name){
+	return H5Gopen2(file,name.c_str(),H5P_DEFAULT);
+}
+static inline hid_t HDF5OpenDataSet(const hid_t &id, string name){
+    hid_t idval = H5Dopen2(id,name.c_str(),H5P_DEFAULT);
+	return idval;
+}
+static inline hid_t HDF5OpenDataSpace(const hid_t &id){
+    hid_t idval=H5Dget_space(id);
+	return idval;
+}
+
+static inline void HDF5CloseFile(hid_t &id){
+	if (id>=0) H5Fclose(id);
+	id = -1;
+}
+static inline void HDF5CloseGroup(hid_t &id){
+	if (id>=0) H5Gclose(id);
+	id = -1;
+}
+static inline void HDF5CloseDataSet(hid_t &id){
+	if (id>=0) H5Dclose(id);
+	id = -1;
+}
+static inline void HDF5CloseDataSpace(hid_t &id){
+	if (id>=0) H5Sclose(id);
+	id = -1;
+}
+
+static inline void HDF5ReadHyperSlabReal(double *buffer,
+	const hid_t &dataset, const hid_t &dataspace,
+	const hsize_t datarank, const hsize_t ndim, int nchunk, int noffset
+)
 {
-    return H5::StrType(H5::PredType::C_S1, val.size());
+	//setup hyperslab so that it is loaded into the buffer
+	vector<hsize_t> start, count, stride, block, memdims;
+	hid_t memspace;
+	start.push_back(noffset);start.push_back(0);
+	count.push_back(nchunk);count.push_back(ndim);
+	stride.push_back(1);stride.push_back(1);
+	block.push_back(1);block.push_back(1);
+	memdims.push_back(nchunk*ndim);
+	H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, start.data(), stride.data(), count.data(), block.data());
+	memspace = H5Screate_simple (1, memdims.data(), NULL);
+	safe_hdf5<herr_t>(H5Dread, dataset, H5T_NATIVE_DOUBLE, memspace, dataspace, H5P_DEFAULT, buffer);
+
 }
+
+static inline void HDF5ReadHyperSlabInteger(long long *buffer,
+	const hid_t &dataset, const hid_t &dataspace,
+	const hsize_t datarank, const hsize_t ndim, int nchunk, int noffset
+)
+{
+	//setup hyperslab so that it is loaded into the buffer
+	vector<hsize_t> start, count, stride, block, memdims;
+	hid_t memspace;
+	start.push_back(noffset);start.push_back(0);
+	count.push_back(nchunk);count.push_back(ndim);
+	stride.push_back(1);stride.push_back(1);
+	block.push_back(1);block.push_back(1);
+	memdims.push_back(nchunk*ndim);
+	H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, start.data(), stride.data(), count.data(), block.data());
+    memspace = H5Screate_simple (1, memdims.data(), NULL);
+	safe_hdf5<herr_t>(H5Dread, dataset, H5T_NATIVE_LONG, memspace, dataspace, H5P_DEFAULT, buffer);
+}
+
+///\name HDF class to manage writing information
+class H5OutputFile
+{
+	protected:
+
+	hid_t file_id;
+
+	// Called if a HDF5 call fails (might need to MPI_Abort)
+	void io_error(std::string message) {
+		std::cerr << message << std::endl;
+#ifdef USEMPI
+		MPI_Abort(MPI_COMM_WORLD, 1);
+#endif
+		abort();
+	}
+
+	public:
+
+	// Constructor
+	H5OutputFile() {
+		file_id = -1;
+	}
+
+	// Create a new file
+	void create(std::string filename, unsigned int flag)
+	{
+		if(file_id >= 0)io_error("Attempted to create file when already open!");
+		file_id = H5Fcreate(filename.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+		if(file_id < 0)io_error(string("Failed to create output file: ")+filename);
+	}
+
+    void append(std::string filename, unsigned int flag)
+	{
+		if(file_id >= 0)io_error("Attempted to create file when already open!");
+		file_id = H5Fopen(filename.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+		if(file_id < 0)io_error(string("Failed to create output file: ")+filename);
+	}
+
+	// Close the file
+	void close()
+	{
+		if(file_id < 0)io_error("Attempted to close file which is not open!");
+		H5Fclose(file_id);
+		file_id = -1;
+	}
+
+  	// Destructor closes the file if it's open
+	~H5OutputFile()
+	{
+	  if(file_id >= 0)
+	    close();
+	}
+
+	/// Write a new 1D dataset. Data type of the new dataset is taken to be the type of
+	/// the input data if not explicitly specified with the filetype_id parameter.
+	template <typename T> void write_dataset(std::string name, hsize_t len, T *data,
+	                                       hid_t memtype_id = -1, hid_t filetype_id=-1)
+    {
+		int rank = 1;
+      	hsize_t dims[1] = {len};
+		if (memtype_id == -1) {
+    		memtype_id = hdf5_type(T{});
+	 	}
+      	write_dataset_nd(name, rank, dims, data, memtype_id, filetype_id);
+    }
+	void write_dataset(string name, hsize_t len, string data)
+    {
+		int rank = 1;
+      	hsize_t dims[1] = {len};
+
+		hid_t memtype_id, filetype_id, dspace_id, dset_id;
+		herr_t status;
+		memtype_id = H5Tcopy (H5T_C_S1);
+		status = H5Tset_size (memtype_id, data.size());
+		//status = H5Tset_size (memtype_id, H5T_VARIABLE);
+		filetype_id = H5Tcopy (H5T_C_S1);
+		//status = H5Tset_size (filetype_id, H5T_VARIABLE);
+		status = H5Tset_size (filetype_id, data.size());
+
+		// Create the dataspace
+		dspace_id = H5Screate_simple(rank, dims, NULL);
+
+		// Create the dataset
+		dset_id = H5Dcreate(file_id, name.c_str(), filetype_id, dspace_id,
+		                        H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+		// Write the data
+		if(H5Dwrite(dset_id, memtype_id, dspace_id, H5S_ALL, H5P_DEFAULT, data.c_str()) < 0)
+		io_error(string("Failed to write dataset: ")+name);
+
+		// Clean up (note that dtype_id is NOT a new object so don't need to close it)
+		H5Sclose(dspace_id);
+		H5Dclose(dset_id);
+    }
+	void write_dataset(string name, hsize_t len, void *data,
+	                                       hid_t memtype_id=-1, hid_t filetype_id=-1)
+    {
+		int rank = 1;
+      	hsize_t dims[1] = {len};
+		if (memtype_id == -1) {
+			throw std::runtime_error("Write data set called with void pointer but no type info passed.");
+        }
+      	write_dataset_nd(name, rank, dims, data, memtype_id, filetype_id);
+    }
+
+
+	/// Write a multidimensional dataset. Data type of the new dataset is taken to be the type of
+	/// the input data if not explicitly specified with the filetype_id parameter.
+	template <typename T> void write_dataset_nd(std::string name, int rank, hsize_t *dims, T *data,
+	                                          hid_t memtype_id = -1, hid_t filetype_id=-1)
+    {
+		// Get HDF5 data type of the array in memory
+		if (memtype_id == -1) {
+			memtype_id = hdf5_type(T{});
+		}
+
+		// Determine type of the dataset to create
+		if(filetype_id < 0)filetype_id = memtype_id;
+
+		// Create the dataspace
+		hid_t dspace_id = H5Screate_simple(rank, dims, NULL);
+
+		// Only chunk non-zero size datasets
+		int nonzero_size = 1;
+		for(int i=0; i<rank; i+=1)
+		if(dims[i]==0)nonzero_size = 0;
+
+		// Only chunk datasets where we would have >1 chunk
+		int large_dataset = 0;
+		for(int i=0; i<rank; i+=1)
+		if(dims[i] > HDFOUTPUTCHUNKSIZE)large_dataset = 1;
+
+		// Dataset creation properties
+		hid_t prop_id = H5Pcreate(H5P_DATASET_CREATE);
+		if(nonzero_size && large_dataset)
+		{
+			hsize_t *chunks = new hsize_t[rank];
+			for(auto i=0; i<rank; i++) chunks[i] = min((hsize_t) HDFOUTPUTCHUNKSIZE, dims[i]);
+			H5Pset_layout(prop_id, H5D_CHUNKED);
+			H5Pset_chunk(prop_id, rank, chunks);
+			H5Pset_deflate(prop_id, HDFDEFLATE);
+			delete[] chunks;
+		}
+
+		// Create the dataset
+		hid_t dset_id = H5Dcreate(file_id, name.c_str(), filetype_id, dspace_id,
+		                        H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+		if(dset_id < 0)io_error(string("Failed to create dataset: ")+name);
+
+		// Write the data
+		if(H5Dwrite(dset_id, memtype_id, dspace_id, H5S_ALL, H5P_DEFAULT, data) < 0)
+		io_error(string("Failed to write dataset: ")+name);
+
+		// Clean up (note that dtype_id is NOT a new object so don't need to close it)
+		H5Sclose(dspace_id);
+		H5Dclose(dset_id);
+		H5Pclose(prop_id);
+
+    }
+	void write_dataset_nd(std::string name, int rank, hsize_t *dims, void *data,
+	                                          hid_t memtype_id = -1, hid_t filetype_id=-1)
+    {
+		// Get HDF5 data type of the array in memory
+		if (memtype_id == -1) {
+			throw std::runtime_error("Write data set called with void pointer but no type info passed.");
+		}
+
+		// Determine type of the dataset to create
+		if(filetype_id < 0)filetype_id = memtype_id;
+
+		// Create the dataspace
+		hid_t dspace_id = H5Screate_simple(rank, dims, NULL);
+
+		// Only chunk non-zero size datasets
+		int nonzero_size = 1;
+		for(int i=0; i<rank; i+=1)
+		if(dims[i]==0)nonzero_size = 0;
+
+		// Only chunk datasets where we would have >1 chunk
+		int large_dataset = 0;
+		for(int i=0; i<rank; i+=1)
+		if(dims[i] > HDFOUTPUTCHUNKSIZE)large_dataset = 1;
+
+		// Dataset creation properties
+		hid_t prop_id = H5Pcreate(H5P_DATASET_CREATE);
+		if(nonzero_size && large_dataset)
+		{
+			hsize_t *chunks = new hsize_t[rank];
+			for(auto i=0; i<rank; i++) chunks[i] = min((hsize_t) HDFOUTPUTCHUNKSIZE, dims[i]);
+			H5Pset_layout(prop_id, H5D_CHUNKED);
+			H5Pset_chunk(prop_id, rank, chunks);
+			H5Pset_deflate(prop_id, HDFDEFLATE);
+			delete[] chunks;
+		}
+
+		// Create the dataset
+		hid_t dset_id = H5Dcreate(file_id, name.c_str(), filetype_id, dspace_id,
+		                        H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+		if(dset_id < 0)io_error(string("Failed to create dataset: ")+name);
+
+		// Write the data
+		if(H5Dwrite(dset_id, memtype_id, dspace_id, H5S_ALL, H5P_DEFAULT, data) < 0)
+		io_error(string("Failed to write dataset: ")+name);
+
+		// Clean up (note that dtype_id is NOT a new object so don't need to close it)
+		H5Sclose(dspace_id);
+		H5Dclose(dset_id);
+		H5Pclose(prop_id);
+
+    }
+
+	/// write an attribute
+    template <typename T> void write_attribute(std::string parent, std::string name, T data)
+    {
+		// Get HDF5 data type of the value to write
+		hid_t dtype_id = hdf5_type(data);
+
+		// Open the parent object
+		hid_t parent_id = H5Oopen(file_id, parent.c_str(), H5P_DEFAULT);
+		if(parent_id < 0)io_error(string("Unable to open object to write attribute: ")+name);
+
+		// Create dataspace
+		hid_t dspace_id = H5Screate(H5S_SCALAR);
+
+		// Create attribute
+		hid_t attr_id = H5Acreate(file_id, name.c_str(), dtype_id, dspace_id, H5P_DEFAULT, H5P_DEFAULT);
+		if(attr_id < 0)io_error(string("Unable to create attribute ")+name+string(" on object ")+parent);
+
+		// Write the attribute
+		if(H5Awrite(attr_id, dtype_id, &data) < 0)
+		io_error(string("Unable to write attribute ")+name+string(" on object ")+parent);
+
+		// Clean up
+		H5Aclose(attr_id);
+		H5Sclose(dspace_id);
+		H5Oclose(parent_id);
+    }
+};
+
 
 ///This structures stores the strings defining the groups of data in the hdf input. NOTE: HERE I show the strings for Illustris format
 struct HDF_Group_Names {
     //define the strings associated with the types of structures contained in the hdf file.
-    H5std_string Header_name;
-    H5std_string GASpart_name;
-    H5std_string DMpart_name;
-	H5std_string EXTRADMpart_name;
-    H5std_string EXTRApart_name;
-    H5std_string TRACERpart_name;
-    H5std_string STARpart_name;
-    H5std_string BHpart_name;
-    H5std_string part_names[NHDFTYPE];
-    H5std_string names[NHDFTYPE+1];
+    string Header_name;
+    string GASpart_name;
+    string DMpart_name;
+	string EXTRADMpart_name;
+    string EXTRApart_name;
+    string TRACERpart_name;
+    string STARpart_name;
+    string BHpart_name;
+    string part_names[NHDFTYPE];
+    string names[NHDFTYPE+1];
 
     ///constructor
     HDF_Group_Names(int hdfnametype=HDFEAGLENAMES){
         switch (hdfnametype) {
           case HDFSWIFTEAGLENAMES:
-            Header_name=H5std_string("Header");
-            GASpart_name=H5std_string("PartType0");
-            DMpart_name=H5std_string("PartType1");
-			EXTRADMpart_name=H5std_string("PartType2");
-			EXTRApart_name=H5std_string("PartType2");
-            TRACERpart_name=H5std_string("PartType3");
-            STARpart_name=H5std_string("PartType4");
-            BHpart_name=H5std_string("PartType5");
+            Header_name=string("Header");
+            GASpart_name=string("PartType0");
+            DMpart_name=string("PartType1");
+			EXTRADMpart_name=string("PartType2");
+			EXTRApart_name=string("PartType2");
+            TRACERpart_name=string("PartType3");
+            STARpart_name=string("PartType4");
+            BHpart_name=string("PartType5");
           break;
 
           default:
-            Header_name=H5std_string("Header");
-            GASpart_name=H5std_string("PartType0");
-            DMpart_name=H5std_string("PartType1");
-			EXTRADMpart_name=H5std_string("PartType2");
-            EXTRApart_name=H5std_string("PartType2");
-            TRACERpart_name=H5std_string("PartType3");
-            STARpart_name=H5std_string("PartType4");
-            BHpart_name=H5std_string("PartType5");
+            Header_name=string("Header");
+            GASpart_name=string("PartType0");
+            DMpart_name=string("PartType1");
+			EXTRADMpart_name=string("PartType2");
+            EXTRApart_name=string("PartType2");
+            TRACERpart_name=string("PartType3");
+            STARpart_name=string("PartType4");
+            BHpart_name=string("PartType5");
           break;
         }
 
@@ -272,7 +674,7 @@ struct HDF_Group_Names {
 struct HDF_Header {
 
     double      BoxSize;
-    unsigned long int npart[NHDFTYPE];
+    unsigned long long npart[NHDFTYPE];
     unsigned int npartTotal[NHDFTYPE];
     unsigned int npartTotalHW[NHDFTYPE];
     double      mass[NHDFTYPE];
@@ -281,7 +683,7 @@ struct HDF_Header {
     int         iscosmological;
     int         num_files;
 
-    H5std_string names[HDFHEADNINFO];
+    string names[HDFHEADNINFO];
     const static int IBoxSize  =0;
     const static int IMass     =1;
     const static int INuminFile=2;
@@ -300,39 +702,53 @@ struct HDF_Header {
         int itemp=0;
         switch (hdfnametype) {
           case HDFSWIFTEAGLENAMES:
-            names[itemp++]=H5std_string("Header/BoxSize");
-            names[itemp++]=H5std_string("Header/MassTable");
-            names[itemp++]=H5std_string("Header/NumPart_ThisFile");
-            names[itemp++]=H5std_string("Header/NumPart_Total");
-            names[itemp++]=H5std_string("Header/NumPart_Total_HighWord");
-            names[itemp++]=H5std_string("Cosmology/Omega_m");
-            names[itemp++]=H5std_string("Cosmology/Omega_lambda");
-            names[itemp++]=H5std_string("Header/Redshift");
-            names[itemp++]=H5std_string("Header/Time");
-            names[itemp++]=H5std_string("Header/NumFilesPerSnapshot");
-            names[itemp++]=H5std_string("Cosmology/h");
-            names[itemp++]=H5std_string("Cosmology/Cosmological run");
+            names[itemp++]=string("Header/BoxSize");
+            names[itemp++]=string("Header/MassTable");
+            names[itemp++]=string("Header/NumPart_ThisFile");
+            names[itemp++]=string("Header/NumPart_Total");
+            names[itemp++]=string("Header/NumPart_Total_HighWord");
+            names[itemp++]=string("Cosmology/Omega_m");
+            names[itemp++]=string("Cosmology/Omega_lambda");
+            names[itemp++]=string("Header/Redshift");
+            names[itemp++]=string("Header/Time");
+            names[itemp++]=string("Header/NumFilesPerSnapshot");
+            names[itemp++]=string("Cosmology/h");
+            names[itemp++]=string("Cosmology/Cosmological run");
+            break;
+          case HDFOLDSWIFTEAGLENAMES:
+            names[itemp++]=string("Header/BoxSize");
+            names[itemp++]=string("Header/MassTable");
+            names[itemp++]=string("Header/NumPart_ThisFile");
+            names[itemp++]=string("Header/NumPart_Total");
+            names[itemp++]=string("Header/NumPart_Total_HighWord");
+            names[itemp++]=string("Cosmology/Omega_m");
+            names[itemp++]=string("Cosmology/Omega_lambda");
+            names[itemp++]=string("Header/Redshift");
+            names[itemp++]=string("Header/Time");
+            names[itemp++]=string("Header/NumFilesPerSnapshot");
+            names[itemp++]=string("Cosmology/h");
+            names[itemp++]=string("Cosmology/Cosmological run");
             break;
 
           default:
-            names[itemp++]=H5std_string("Header/BoxSize");
-            names[itemp++]=H5std_string("Header/MassTable");
-            names[itemp++]=H5std_string("Header/NumPart_ThisFile");
-            names[itemp++]=H5std_string("Header/NumPart_Total");
-            names[itemp++]=H5std_string("Header/NumPart_Total_HighWord");
-            names[itemp++]=H5std_string("Header/Omega0");
-            names[itemp++]=H5std_string("Header/OmegaLambda");
-            names[itemp++]=H5std_string("Header/Redshift");
-            names[itemp++]=H5std_string("Header/Time");
-            names[itemp++]=H5std_string("Header/NumFilesPerSnapshot");
-            names[itemp++]=H5std_string("Header/HubbleParam");
+            names[itemp++]=string("Header/BoxSize");
+            names[itemp++]=string("Header/MassTable");
+            names[itemp++]=string("Header/NumPart_ThisFile");
+            names[itemp++]=string("Header/NumPart_Total");
+            names[itemp++]=string("Header/NumPart_Total_HighWord");
+            names[itemp++]=string("Header/Omega0");
+            names[itemp++]=string("Header/OmegaLambda");
+            names[itemp++]=string("Header/Redshift");
+            names[itemp++]=string("Header/Time");
+            names[itemp++]=string("Header/NumFilesPerSnapshot");
+            names[itemp++]=string("Header/HubbleParam");
             break;
         }
     }
 };
 
 struct HDF_Part_Info {
-    H5std_string names[HDFMAXPINFO];
+    string names[HDFMAXPINFO];
     int ptype;
     int nentries;
     //store where properties are located
@@ -345,203 +761,303 @@ struct HDF_Part_Info {
         int itemp=0;
         //gas
         if (ptype==HDFGASTYPE) {
-            names[itemp++]=H5std_string("Coordinates");
-            if(hdfnametype==HDFEAGLENAMES) names[itemp++]=H5std_string("Velocity");
-            else names[itemp++]=H5std_string("Velocities");
-            names[itemp++]=H5std_string("ParticleIDs");
-            if(hdfnametype==HDFEAGLENAMES) names[itemp++]=H5std_string("Mass");
-            else names[itemp++]=H5std_string("Masses");
-            names[itemp++]=H5std_string("Density");
-            names[itemp++]=H5std_string("InternalEnergy");
-            names[itemp++]=H5std_string("StarFormationRate");
-            //always place the metacallity at position 7 in naming array
+
+            // Positions
+            names[itemp++]=string("Coordinates");
+
+            // Velocities
+            if(hdfnametype==HDFEAGLENAMES) names[itemp++]=string("Velocity");
+            else names[itemp++]=string("Velocities");
+
+            // IDs
+            names[itemp++]=string("ParticleIDs");
+
+            // Masses
+            if(hdfnametype==HDFEAGLENAMES) names[itemp++]=string("Mass");
+            else names[itemp++]=string("Masses");
+
+            // Density
+            if(hdfnametype==HDFSWIFTEAGLENAMES) names[itemp++]=string("Densities");
+            else names[itemp++]=string("Density");
+
+            // Internal energies
+            if(hdfnametype==HDFSWIFTEAGLENAMES) names[itemp++]=string("InternalEnergies");
+            else names[itemp++]=string("InternalEnergy");
+
+            // SFR
+            if(hdfnametype==HDFSWIFTEAGLENAMES) names[itemp++]=string("StarFormationRates");
+            else if(hdfnametype==HDFOLDSWIFTEAGLENAMES) names[itemp++]=string("SFR");
+            else names[itemp++]=string("StarFormationRate");
+
+            //Metallicity. Note always place at position 7 in naming array
             if (hdfnametype==HDFILLUSTISNAMES) {
                 propindex[HDFGASIMETAL]=itemp;
-                names[itemp++]=H5std_string("GFM_Metallicity");
-                names[itemp++]=H5std_string("ElectronAbundance");
-                names[itemp++]=H5std_string("NeutralHydrogenAbundance");
-                names[itemp++]=H5std_string("Volume");
-                names[itemp++]=H5std_string("SmoothingLength");
-                names[itemp++]=H5std_string("Potential");
-                names[itemp++]=H5std_string("SubfindDensity");
-                names[itemp++]=H5std_string("SubfindHsml");
-                names[itemp++]=H5std_string("SubfindVelDisp");
-                names[itemp++]=H5std_string("GFM_AGNRadiation");
-                names[itemp++]=H5std_string("GFM_CoolingRate");
-                names[itemp++]=H5std_string("GFM_WindDMVelDisp");
-                names[itemp++]=H5std_string("NumTracers");
+                names[itemp++]=string("GFM_Metallicity");
+                names[itemp++]=string("ElectronAbundance");
+                names[itemp++]=string("NeutralHydrogenAbundance");
+                names[itemp++]=string("Volume");
+                names[itemp++]=string("SmoothingLength");
+                names[itemp++]=string("Potential");
+                names[itemp++]=string("SubfindDensity");
+                names[itemp++]=string("SubfindHsml");
+                names[itemp++]=string("SubfindVelDisp");
+                names[itemp++]=string("GFM_AGNRadiation");
+                names[itemp++]=string("GFM_CoolingRate");
+                names[itemp++]=string("GFM_WindDMVelDisp");
+                names[itemp++]=string("NumTracers");
             }
             else if (hdfnametype==HDFGIZMONAMES) {
                 propindex[HDFGASIMETAL]=itemp;
-                //names[itemp++]=H5std_string("Metallicity");//11 metals stored in this data set
-                names[itemp++]=H5std_string("Metallicity_00");//only grab the first of the 11, which is total
-                names[itemp++]=H5std_string("ElectronAbundance");
-                names[itemp++]=H5std_string("FractionH2");
-                names[itemp++]=H5std_string("GrackleHI");
-                names[itemp++]=H5std_string("GrackleHII");
-                names[itemp++]=H5std_string("GrackleHM");
-                names[itemp++]=H5std_string("GrackleHeI");
-                names[itemp++]=H5std_string("GrackleHeII");
-                names[itemp++]=H5std_string("GrackleHeIII");
-                names[itemp++]=H5std_string("NWindLaunches");
-                names[itemp++]=H5std_string("NeutralHydrogenAbundance");
-                names[itemp++]=H5std_string("ParticleChildIDsNumber");
-                names[itemp++]=H5std_string("ParticleIDGenerationNumber");
-                names[itemp++]=H5std_string("Potential");
-                names[itemp++]=H5std_string("Sigma");
-                names[itemp++]=H5std_string("SmoothingLength");
+                //names[itemp++]=string("Metallicity");//11 metals stored in this data set
+                names[itemp++]=string("Metallicity_00");//only grab the first of the 11, which is total
+                names[itemp++]=string("ElectronAbundance");
+                names[itemp++]=string("FractionH2");
+                names[itemp++]=string("GrackleHI");
+                names[itemp++]=string("GrackleHII");
+                names[itemp++]=string("GrackleHM");
+                names[itemp++]=string("GrackleHeI");
+                names[itemp++]=string("GrackleHeII");
+                names[itemp++]=string("GrackleHeIII");
+                names[itemp++]=string("NWindLaunches");
+                names[itemp++]=string("NeutralHydrogenAbundance");
+                names[itemp++]=string("ParticleChildIDsNumber");
+                names[itemp++]=string("ParticleIDGenerationNumber");
+                names[itemp++]=string("Potential");
+                names[itemp++]=string("Sigma");
+                names[itemp++]=string("SmoothingLength");
             }
             else if (hdfnametype==HDFSIMBANAMES || hdfnametype==HDFMUFASANAMES) {
                 propindex[HDFGASIMETAL]=itemp;
-                names[itemp++]=H5std_string("Metallicity");//11 metals stored in this data set
-                names[itemp++]=H5std_string("ElectronAbundance");
-                names[itemp++]=H5std_string("FractionH2");
-                names[itemp++]=H5std_string("GrackleHI");
-                names[itemp++]=H5std_string("GrackleHII");
-                names[itemp++]=H5std_string("GrackleHM");
-                names[itemp++]=H5std_string("GrackleHeI");
-                names[itemp++]=H5std_string("GrackleHeII");
-                names[itemp++]=H5std_string("GrackleHeIII");
-                names[itemp++]=H5std_string("NWindLaunches");
-                names[itemp++]=H5std_string("NeutralHydrogenAbundance");
-                names[itemp++]=H5std_string("Potential");
-                names[itemp++]=H5std_string("Sigma");
-                names[itemp++]=H5std_string("SmoothingLength");
-                names[itemp++]=H5std_string("DelayTime");
-                names[itemp++]=H5std_string("Dust_Masses");
-                names[itemp++]=H5std_string("Dust_Metallicity");//11 metals stored in this data set
+                names[itemp++]=string("Metallicity");//11 metals stored in this data set
+                names[itemp++]=string("ElectronAbundance");
+                names[itemp++]=string("FractionH2");
+                names[itemp++]=string("GrackleHI");
+                names[itemp++]=string("GrackleHII");
+                names[itemp++]=string("GrackleHM");
+                names[itemp++]=string("GrackleHeI");
+                names[itemp++]=string("GrackleHeII");
+                names[itemp++]=string("GrackleHeIII");
+                names[itemp++]=string("NWindLaunches");
+                names[itemp++]=string("NeutralHydrogenAbundance");
+                names[itemp++]=string("Potential");
+                names[itemp++]=string("Sigma");
+                names[itemp++]=string("SmoothingLength");
+                names[itemp++]=string("DelayTime");
+                names[itemp++]=string("Dust_Masses");
+                names[itemp++]=string("Dust_Metallicity");//11 metals stored in this data set
             }
-            else if (hdfnametype==HDFEAGLENAMES || hdfnametype==HDFSWIFTEAGLENAMES) {
+            else if (hdfnametype==HDFEAGLENAMES) {
                 propindex[HDFGASIMETAL]=itemp;
-                names[itemp++]=H5std_string("Metallicity");
+                names[itemp++]=string("Metallicity");
             }
+            else if(hdfnametype==HDFSWIFTEAGLENAMES) {
+              propindex[HDFGASIMETAL]=itemp;
+              names[itemp++]=string("MetalMassFractions");
+            }
+            else if(hdfnametype==HDFOLDSWIFTEAGLENAMES) {
+              propindex[HDFGASIMETAL]=itemp;
+              names[itemp++]=string("Metallicity");
+            }
+
         }
         //dark matter
         if (ptype==HDFDMTYPE) {
-            names[itemp++]=H5std_string("Coordinates");
-            if(hdfnametype==HDFEAGLENAMES) names[itemp++]=H5std_string("Velocity");
-            else names[itemp++]=H5std_string("Velocities");
-            names[itemp++]=H5std_string("ParticleIDs");
-            if (hdfnametype==HDFSWIFTEAGLENAMES) {
-                names[itemp++]=H5std_string("Masses");
+
+            // Positions
+            names[itemp++]=string("Coordinates");
+
+            // Velocities
+            if(hdfnametype==HDFEAGLENAMES) names[itemp++]=string("Velocity");
+            else names[itemp++]=string("Velocities");
+
+            // IDs
+            names[itemp++]=string("ParticleIDs");
+
+            // Masses
+            if (hdfnametype==HDFSWIFTEAGLENAMES || hdfnametype==HDFSIMBANAMES ||
+                hdfnametype==HDFMUFASANAMES || hdfnametype==HDFOLDSWIFTEAGLENAMES) {
+                names[itemp++]=string("Masses");
             }
+
+            // Potential
             if (hdfnametype==HDFSIMBANAMES||hdfnametype==HDFMUFASANAMES) {
-                names[itemp++]=H5std_string("Masses");
-                names[itemp++]=H5std_string("Potential");
+                names[itemp++]=string("Potential");
             }
+            else if (hdfnametype==HDFILLUSTISNAMES) {
+                names[itemp++]=string("Potential");
+            }
+
+            // Subfind properties
             if (hdfnametype==HDFILLUSTISNAMES) {
-                names[itemp++]=H5std_string("Potential");
-                names[itemp++]=H5std_string("SubfindDensity");
-                names[itemp++]=H5std_string("SubfindHsml");
-                names[itemp++]=H5std_string("SubfindVelDisp");
+                names[itemp++]=string("SubfindDensity");
+                names[itemp++]=string("SubfindHsml");
+                names[itemp++]=string("SubfindVelDisp");
             }
         }
+
         //also dark matter particles
         if (ptype==HDFDM1TYPE ||ptype==HDFDM2TYPE) {
-            names[itemp++]=H5std_string("Coordinates");
-            if(hdfnametype==HDFEAGLENAMES) names[itemp++]=H5std_string("Velocity");
-            else names[itemp++]=H5std_string("Velocities");
-            names[itemp++]=H5std_string("ParticleIDs");
-            names[itemp++]=H5std_string("Masses");
+
+            // Positions
+            names[itemp++]=string("Coordinates");
+
+            // Velocities
+            if(hdfnametype==HDFEAGLENAMES) names[itemp++]=string("Velocity");
+            else names[itemp++]=string("Velocities");
+
+            // IDs
+            names[itemp++]=string("ParticleIDs");
+
+            // Masses
+            names[itemp++]=string("Masses");
+
+            // Potential
             if (hdfnametype==HDFSIMBANAMES||hdfnametype==HDFMUFASANAMES) {
-                names[itemp++]=H5std_string("Potential");
+                names[itemp++]=string("Potential");
             }
         }
         if (ptype==HDFTRACERTYPE) {
-            names[itemp++]=H5std_string("FluidQuantities");
-            names[itemp++]=H5std_string("ParentID");
-            names[itemp++]=H5std_string("TracerID");
+            names[itemp++]=string("FluidQuantities");
+            names[itemp++]=string("ParentID");
+            names[itemp++]=string("TracerID");
         }
         if (ptype==HDFSTARTYPE) {
-            names[itemp++]=H5std_string("Coordinates");
-            if(hdfnametype==HDFEAGLENAMES) names[itemp++]=H5std_string("Velocity");
-            else names[itemp++]=H5std_string("Velocities");
-            names[itemp++]=H5std_string("ParticleIDs");
-            if(hdfnametype==HDFEAGLENAMES) names[itemp++]=H5std_string("Mass");
-            else names[itemp++]=H5std_string("Masses");
+
+            // Positions
+            names[itemp++]=string("Coordinates");
+
+            // Velocities
+            if(hdfnametype==HDFEAGLENAMES) names[itemp++]=string("Velocity");
+            else names[itemp++]=string("Velocities");
+
+            // IDs
+            names[itemp++]=string("ParticleIDs");
+
+            // Masses
+            if(hdfnametype==HDFEAGLENAMES) names[itemp++]=string("Mass");
+            else names[itemp++]=string("Masses");
+
             //for stars assume star formation and metallicy are position 4, 5 in name array
             if (hdfnametype==HDFILLUSTISNAMES) {
                 propindex[HDFSTARIAGE]=itemp;
-                names[itemp++]=H5std_string("GFM_StellarFormationTime");
+                names[itemp++]=string("GFM_StellarFormationTime");
                 propindex[HDFSTARIMETAL]=itemp;
-                names[itemp++]=H5std_string("GFM_Metallicity");
-                names[itemp++]=H5std_string("Potential");
-                names[itemp++]=H5std_string("SubfindDensity");
-                names[itemp++]=H5std_string("SubfindHsml");
-                names[itemp++]=H5std_string("SubfindVelDisp");
-                names[itemp++]=H5std_string("GFM_InitialMass");
-                names[itemp++]=H5std_string("GFM_StellarPhotometrics");
-                names[itemp++]=H5std_string("NumTracers");
+                names[itemp++]=string("GFM_Metallicity");
+                names[itemp++]=string("Potential");
+                names[itemp++]=string("SubfindDensity");
+                names[itemp++]=string("SubfindHsml");
+                names[itemp++]=string("SubfindVelDisp");
+                names[itemp++]=string("GFM_InitialMass");
+                names[itemp++]=string("GFM_StellarPhotometrics");
+                names[itemp++]=string("NumTracers");
             }
             else if (hdfnametype==HDFGIZMONAMES) {
                 propindex[HDFSTARIAGE]=itemp;
-                names[itemp++]=H5std_string("StellarFormationTime");
+                names[itemp++]=string("StellarFormationTime");
                 propindex[HDFSTARIMETAL]=itemp;
-                //names[itemp++]=H5std_string("Metallicity");//11 metals stored in this data set
-                names[itemp++]=H5std_string("Metallicity_00");//only grab the first of the 11, which is total
-                names[itemp++]=H5std_string("AGS-Softening Dataset");
-                names[itemp++]=H5std_string("ParticleChildIDsNumber");
-                names[itemp++]=H5std_string("ParticleIDGenerationNumber");
-                names[itemp++]=H5std_string("Potential");
+                //names[itemp++]=string("Metallicity");//11 metals stored in this data set
+                names[itemp++]=string("Metallicity_00");//only grab the first of the 11, which is total
+                names[itemp++]=string("AGS-Softening Dataset");
+                names[itemp++]=string("ParticleChildIDsNumber");
+                names[itemp++]=string("ParticleIDGenerationNumber");
+                names[itemp++]=string("Potential");
             }
             else if (hdfnametype==HDFGIZMONAMES) {
                 propindex[HDFSTARIAGE]=itemp;
-                names[itemp++]=H5std_string("StellarFormationTime");
+                names[itemp++]=string("StellarFormationTime");
                 propindex[HDFSTARIMETAL]=itemp;
-                names[itemp++]=H5std_string("Metallicity");
-                names[itemp++]=H5std_string("Potential");
-                names[itemp++]=H5std_string("Dust_Masses");
-                names[itemp++]=H5std_string("Dust_Metallicity");//11 metals stored in this data set
+                names[itemp++]=string("Metallicity");
+                names[itemp++]=string("Potential");
+                names[itemp++]=string("Dust_Masses");
+                names[itemp++]=string("Dust_Metallicity");//11 metals stored in this data set
             }
             else if (hdfnametype==HDFEAGLENAMES) {
                 propindex[HDFSTARIAGE]=itemp;
-                names[itemp++]=H5std_string("StellarFormationTime");
+                names[itemp++]=string("StellarFormationTime");
                 propindex[HDFSTARIMETAL]=itemp;
-                names[itemp++]=H5std_string("Metallicity");
+                names[itemp++]=string("Metallicity");
+            }
+            else if (hdfnametype==HDFSWIFTEAGLENAMES) {
+                propindex[HDFSTARIAGE]=itemp;
+                names[itemp++]=string("BirthScaleFactors");
+                propindex[HDFSTARIMETAL]=itemp;
+                names[itemp++]=string("MetalMassFractions");
             }
         }
         if (ptype==HDFBHTYPE) {
-            names[itemp++]=H5std_string("Coordinates");
-            if(hdfnametype==HDFEAGLENAMES) names[itemp++]=H5std_string("Velocity");
-            else names[itemp++]=H5std_string("Velocities");
-            names[itemp++]=H5std_string("ParticleIDs");
-            if(hdfnametype==HDFEAGLENAMES) names[itemp++]=H5std_string("Mass");
-            else names[itemp++]=H5std_string("Masses");
+
+            // Positions
+            names[itemp++]=string("Coordinates");
+
+            // Velocities
+            if(hdfnametype==HDFEAGLENAMES) names[itemp++]=string("Velocity");
+            else names[itemp++]=string("Velocities");
+
+            // IDs
+            names[itemp++]=string("ParticleIDs");
+
+            // Masses
+            if(hdfnametype==HDFEAGLENAMES) names[itemp++]=string("Mass");
+            if(hdfnametype==HDFSWIFTEAGLENAMES) names[itemp++]=string("DynamicalMasses");
+            else names[itemp++]=string("Masses");
+
             if (hdfnametype==HDFILLUSTISNAMES) {
-                names[itemp++]=H5std_string("HostHaloMass");
-                names[itemp++]=H5std_string("Potential");
-                names[itemp++]=H5std_string("SubfindDensity");
-                names[itemp++]=H5std_string("SubfindHsml");
-                names[itemp++]=H5std_string("SubfindVelDisp");
-                names[itemp++]=H5std_string("BH_CumEgyInjection_QM");
-                names[itemp++]=H5std_string("BH_CumMassGrowth_QM");
-                names[itemp++]=H5std_string("BH_Density");
-                names[itemp++]=H5std_string("BH_Hsml");
-                names[itemp++]=H5std_string("BH_Mass");
-                names[itemp++]=H5std_string("BH_Mass_bubbles");
-                names[itemp++]=H5std_string("BH_Mass_ini");
-                names[itemp++]=H5std_string("BH_Mdot");
-                names[itemp++]=H5std_string("BH_Pressure");
-                names[itemp++]=H5std_string("BH_Progs");
-                names[itemp++]=H5std_string("BH_U");
-                names[itemp++]=H5std_string("NumTracers");
+                names[itemp++]=string("HostHaloMass");
+                names[itemp++]=string("Potential");
+                names[itemp++]=string("SubfindDensity");
+                names[itemp++]=string("SubfindHsml");
+                names[itemp++]=string("SubfindVelDisp");
+                names[itemp++]=string("BH_CumEgyInjection_QM");
+                names[itemp++]=string("BH_CumMassGrowth_QM");
+                names[itemp++]=string("BH_Density");
+                names[itemp++]=string("BH_Hsml");
+                names[itemp++]=string("BH_Mass");
+                names[itemp++]=string("BH_Mass_bubbles");
+                names[itemp++]=string("BH_Mass_ini");
+                names[itemp++]=string("BH_Mdot");
+                names[itemp++]=string("BH_Pressure");
+                names[itemp++]=string("BH_Progs");
+                names[itemp++]=string("BH_U");
+                names[itemp++]=string("NumTracers");
             }
             else if (hdfnametype==HDFGIZMONAMES) {
-                names[itemp++]=H5std_string("AGS-Softening");
-                names[itemp++]=H5std_string("Potential");
+                names[itemp++]=string("AGS-Softening");
+                names[itemp++]=string("Potential");
             }
             else if (hdfnametype==HDFMUFASANAMES) {
-                names[itemp++]=H5std_string("StellarFormationTime");
-                names[itemp++]=H5std_string("BH_AccretionLength");
-                names[itemp++]=H5std_string("BH_Mass");
-                names[itemp++]=H5std_string("BH_Mass_AlphaDisk");
-                names[itemp++]=H5std_string("BH_Mass_Mdot");
-                names[itemp++]=H5std_string("BH_NProgs");
-                names[itemp++]=H5std_string("Potential");
+                names[itemp++]=string("StellarFormationTime");
+                names[itemp++]=string("BH_AccretionLength");
+                names[itemp++]=string("BH_Mass");
+                names[itemp++]=string("BH_Mass_AlphaDisk");
+                names[itemp++]=string("BH_Mass_Mdot");
+                names[itemp++]=string("BH_NProgs");
+                names[itemp++]=string("Potential");
             }
             else if (hdfnametype==HDFEAGLENAMES) {
-                //names[itemp++]=H5std_string("StellarFormationTime");
-                //names[itemp++]=H5std_string("Metallicity");
+                //names[itemp++]=string("StellarFormationTime");
+                //names[itemp++]=string("Metallicity");
+            }
+            else if (hdfnametype==HDFSWIFTEAGLENAMES) {
+                propindex[HDFBHIAGE]=itemp;
+                names[itemp++]=string("FormationScaleFactors");
+                propindex[HDFBHIMETAL]=itemp;
+                names[itemp++]=string("MetalMasses");
+                propindex[HDFBHIMDOT]=itemp;
+                names[itemp++]=string("AccretionRates");
+
+                names[itemp++]=string("SubgridMasses");
+                names[itemp++]=string("ElementMasses");
+                names[itemp++]=string("MetalMassFromSNIa");
+                names[itemp++]=string("MetalMassFromSNII");
+                names[itemp++]=string("MetalMassFromAGB");
+                names[itemp++]=string("MassesFromSNIa");
+                names[itemp++]=string("MassesFromSNII");
+                names[itemp++]=string("MassesFromAGB");
+                names[itemp++]=string("IronMassFromSNIa");
+                names[itemp++]=string("GasDensities");
+                names[itemp++]=string("GasSoundSpeeds");
+                names[itemp++]=string("EnergyReservoirs");
+                names[itemp++]=string("TotalAccretedMasses");
             }
         }
         nentries=itemp;
@@ -605,61 +1121,55 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
         exit(9);
     }
 
-    H5File Fhdf;
+    //H5File Fhdf;
+	hid_t Fhdf;
     HDF_Group_Names hdf_gnames;
     //to store the groups, data sets and their associated data spaces
-    Attribute headerattribs;
+    //Attribute headerattribs;
+	hid_t headerattribs;
     HDF_Header hdf_header_info = HDF_Header(opt.ihdfnameconvention);
     //buffers to load data
-    string stringbuff;
+    string stringbuff, dataname;
     string swift_str = "SWIFT";
     int intbuff[NHDFTYPE];
     long long longbuff[NHDFTYPE];
     unsigned int uintbuff[NHDFTYPE];
+	vector<unsigned int> vuintbuff;
     int j,k,ireaderror=0;
     Int_t nbodies=0;
-    DataSpace headerdataspace;
+    //DataSpace headerdataspace;
+	hid_t headerdataspace;
 
     //to determine types
-    IntType inttype;
-    StrType stringtype;
+    //IntType inttype;
+    //StrType stringtype;
     int nusetypes,usetypes[NHDFTYPE],nbusetypes;
 	HDFSetUsedParticleTypes(opt,nusetypes,nbusetypes,usetypes);
 
     //Try block to detect exceptions raised by any of the calls inside it
-    try
+    //try
     {
         //turn off the auto-printing when failure occurs so that we can
         //handle the errors appropriately
-        Exception::dontPrint();
+        //Exception::dontPrint();
 
         //Open the specified file and the specified dataset in the file.
-        Fhdf.openFile(buf, H5F_ACC_RDONLY);
+        //Fhdf.openFile(buf, H5F_ACC_RDONLY);
+		Fhdf = H5Fopen(buf, H5F_ACC_RDONLY, H5P_DEFAULT);
         cout<<"Loading HDF header info in header group: "<<hdf_gnames.Header_name<<endl;
 
-        if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES) {
+        if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES) {
 
           // Check if it is a SWIFT snapshot.
-          headerattribs=get_attribute(Fhdf, "Header/Code");
-          stringtype = headerattribs.getStrType();
-          headerattribs.read(stringtype, stringbuff);
+          //headerattribs=get_attribute(Fhdf, "Header/Code");
+          //stringtype = headerattribs.getStrType();
+          //headerattribs.read(stringtype, stringbuff);
+		  dataname = string("Header/Code");
+		  stringbuff = read_attribute<string>(Fhdf, dataname);
 
           // Read SWIFT parameters
           if(!swift_str.compare(stringbuff)) {
-            // Is it a cosmological simulation?
-            headerattribs=get_attribute(Fhdf, hdf_header_info.names[hdf_header_info.IIsCosmological]);
-            headerdataspace=headerattribs.getSpace();
-
-            if (headerdataspace.getSimpleExtentNdims()!=1) ireaderror=1;
-            inttype=headerattribs.getIntType();
-            if (inttype.getSize()==sizeof(int)) {
-              headerattribs.read(PredType::NATIVE_INT,&intbuff[0]);
-              hdf_header_info.iscosmological = intbuff[0];
-            }
-            if (inttype.getSize()==sizeof(long long)) {
-              headerattribs.read(PredType::NATIVE_LONG,&longbuff[0]);
-              hdf_header_info.iscosmological = longbuff[0];
-            }
+			hdf_header_info.iscosmological=read_attribute<int>(Fhdf, hdf_header_info.names[hdf_header_info.IIsCosmological]);
 
             if (!hdf_header_info.iscosmological && opt.icosmologicalin) {
               cout<<"Error: cosmology is turned on in the config file but the snaphot provided is a non-cosmological run."<<endl;
@@ -691,15 +1201,11 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
           }
         }
 
-        headerattribs=get_attribute(Fhdf, hdf_header_info.names[hdf_header_info.INumTot]);
+		vuintbuff=read_attribute_v<unsigned int>(Fhdf, hdf_header_info.names[hdf_header_info.INumTot]);
+		for (j=0;j<NHDFTYPE;j++) hdf_header_info.npartTotal[j]=vuintbuff[j];
+		vuintbuff=read_attribute_v<unsigned int>(Fhdf, hdf_header_info.names[hdf_header_info.INumTotHW]);
+		for (j=0;j<NHDFTYPE;j++) hdf_header_info.npartTotalHW[j]=vuintbuff[j];
 
-        headerattribs.read(PredType::NATIVE_UINT,&uintbuff);
-        for (j=0;j<NHDFTYPE;j++) hdf_header_info.npartTotal[j]=uintbuff[j];
-
-        headerattribs=get_attribute(Fhdf, hdf_header_info.names[hdf_header_info.INumTotHW]);
-        headerattribs.read(PredType::NATIVE_UINT,&uintbuff);
-        for (j=0;j<NHDFTYPE;j++) hdf_header_info.npartTotalHW[j]=uintbuff[j];
-		//check to see if VR configured to load a particle type but none present in data.
 
 		if (opt.partsearchtype==PSTALL) {
 			if (opt.iusestarparticles && hdf_header_info.npartTotalHW[HDFSTARTYPE] == 0 && hdf_header_info.npartTotal[HDFSTARTYPE] == 0)
@@ -732,6 +1238,7 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
 			#endif
 		}
     }
+	/*
     catch(GroupIException &error)
     {
         HDF5PrintError(error);
@@ -807,6 +1314,8 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
       }
     }
     Fhdf.close();
+	*/
+	HDF5CloseFile(Fhdf);
 
     for(j=0, nbodies=0; j<nusetypes; j++) {
         k=usetypes[j];
@@ -833,42 +1342,34 @@ inline Int_t HDF_get_nfiles(char *fname, int ptype)
         exit(9);
     }
 
-    H5File Fhdf;
+    //H5File Fhdf;
+	hid_t Fhdf;
     HDF_Group_Names hdf_gnames;
     //to store the groups, data sets and their associated data spaces
-    Attribute headerattribs;
+    //Attribute headerattribs;
+	hid_t headerattribs;
     HDF_Header hdf_header_info;
     //buffers to load data
     int intbuff;
     long long longbuff;
     int ireaderror=0;
     Int_t nfiles = 0;
-    IntType inttype;
+    //IntType inttype;
 
     //Try block to detect exceptions raised by any of the calls inside it
-    try
+    //try
     {
         //turn off the auto-printing when failure occurs so that we can
         //handle the errors appropriately
-        Exception::dontPrint();
+        //Exception::dontPrint();
 
         //Open the specified file and the specified dataset in the file.
-        Fhdf.openFile(buf, H5F_ACC_RDONLY);
+        //Fhdf.openFile(buf, H5F_ACC_RDONLY);
+		Fhdf = H5Fopen(buf, H5F_ACC_RDONLY, H5P_DEFAULT);
         //get header group
-
-        headerattribs = get_attribute(Fhdf, hdf_header_info.names[hdf_header_info.INumFiles]);
-        inttype = headerattribs.getIntType();
-        if (inttype.getSize() == sizeof(int))
-        {
-          headerattribs.read(PredType::NATIVE_INT,&intbuff);
-          hdf_header_info.num_files = intbuff;
-        }
-        if (inttype.getSize() == sizeof(long long))
-        {
-          headerattribs.read(PredType::NATIVE_LONG,&longbuff);
-          hdf_header_info.num_files = longbuff;
-        }
+		hdf_header_info.num_files = read_attribute<int>(Fhdf, hdf_header_info.names[hdf_header_info.INumFiles]);
     }
+	/*
     catch(GroupIException &error)
     {
         HDF5PrintError(error);
@@ -897,6 +1398,8 @@ inline Int_t HDF_get_nfiles(char *fname, int ptype)
         ireaderror=1;
     }
     Fhdf.close();
+	*/
+	HDF5CloseFile(Fhdf);
 
     return nfiles = hdf_header_info.num_files;
 

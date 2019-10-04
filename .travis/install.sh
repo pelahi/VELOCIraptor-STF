@@ -44,6 +44,9 @@ fi
 if [ "$USESWIFT" = 1 ]; then
 	VR_CMAKE_OPTIONS+=" -DVR_USE_SWIFT_INTERFACE=ON "
 fi
+if [ "$NOMASS" = 1 ]; then
+	VR_CMAKE_OPTIONS+=" -DVR_NO_MASS=ON "
+fi
 
 # Go, go, go!
 cmake .. ${VR_CMAKE_OPTIONS} || fail "cmake failed"

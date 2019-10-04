@@ -28,7 +28,7 @@ void GetDenVRatio(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngrid
     Particle *ptemp;
     KDTree *tree;
 
-    if (opt.iverbose) cout<<ThisTask<<" Now calculate denvratios using grid"<<endl;
+    if (opt.iverbose>=2) cout<<ThisTask<<" Now calculate denvratios using grid"<<endl;
     //take inverse for interpolation
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
@@ -41,7 +41,7 @@ private(i)
 }
 #endif
 
-    //build grid tree so that one can find nearest cells for each particle 
+    //build grid tree so that one can find nearest cells for each particle
     //if using MPI since number of cells is far fewer than number of particles, simple gather collect all the data so that each processor has access to it
 #ifdef USEMPI
     if(opt.iSingleHalo) {
@@ -59,15 +59,15 @@ private(i)
     gvel=mpi_gvel;
     gveldisp=mpi_gveldisp;
     }
-#endif 
+#endif
     ptemp=new Particle[ngrid];
     for (i=0;i<ngrid;i++) ptemp[i]=Particle(1.0,grid[i].xm[0],grid[i].xm[1],grid[i].xm[2],0.0,0.0,0.0,i);
     tree=new KDTree(ptemp,ngrid,1,tree->TPHYS);
-    
+
 #ifndef USEOPENMP
     nthreads=1;
 #else
-#pragma omp parallel 
+#pragma omp parallel
     {
             if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
     }
@@ -122,7 +122,11 @@ private(i,w,wsum,sv,vsv,fbg,vp,maxdist,vmweighted,isvweighted,tid,tempdenv)
 #ifdef USEOPENMP
 }
 #endif
-    if (opt.iverbose) cout<<ThisTask<<" Done"<<endl;
+    if (opt.iverbose>=2) cout<<ThisTask<<" Done"<<endl;
+    for (int j=0;j<nthreads;j++) delete[] dist[j];
+    delete[] dist;
+    for (int j=0;j<nthreads;j++) delete[] nn[j];
+    delete[] nn;
     delete[] gvel;
     delete[] gveldisp;
     delete tree;
@@ -134,26 +138,23 @@ private(i,w,wsum,sv,vsv,fbg,vp,maxdist,vmweighted,isvweighted,tid,tempdenv)
 void DetermineDenVRatioDistribution(Options &opt,const Int_t nbodies, Particle *Part, Double_t &meanr,Double_t &sdlow,Double_t &sdhigh, int sublevel)
 {
     Int_t i,nbins,iprob,jprob;
-    Double_t mtot,mtotpeak,*rbin,deltar,maxprob, minprob,rmin,rmax;
-    Double_t *xbin;
-    Double_t **omp_rbin;//, **omp_xbin;
+    Double_t mtot,mtotpeak,deltar,maxprob,minprob,rmin,rmax;
+    vector<Double_t> rbin;
+    vector<Double_t> xbin;
+    vector<vector<Double_t>> omp_rbin;
     int nthreads=1,tid;
     Double_t w;
     Int_t ir;
 #ifdef USEOPENMP
-#pragma omp parallel 
+#pragma omp parallel
     {
         if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
     }
 #endif
     //to determine initial number of bins using modified Sturges' formula
     nbins = ceil(log10((Double_t)nbodies)/log10(2.0)+1)*4;
-    //rbin=new Double_t[nbins];
-    //xbin=new Double_t[nbins];
-    omp_rbin=new Double_t*[nthreads];
-    for (i=0;i<nthreads;i++) {
-        omp_rbin[i]=new Double_t[nbins];
-    }
+    omp_rbin.resize(nthreads);
+    for (i=0;i<nthreads;i++) omp_rbin[i].resize(nbins);
 
     //deterrmine average, rmin,rmax and variance about mean
     rmin=rmax=Part[0].GetPotential();
@@ -167,7 +168,7 @@ void DetermineDenVRatioDistribution(Options &opt,const Int_t nbodies, Particle *
 #pragma omp parallel default(shared) \
 private(i,tid)
 {
-#pragma omp for 
+#pragma omp for
     for (i=1;i<nbodies;i++) {
         tid=omp_get_thread_num();
         if (rmina[tid]>Part[i].GetPotential())rmina[tid]=Part[i].GetPotential();
@@ -186,7 +187,7 @@ private(i,tid)
         if (rmax<Part[i].GetPotential())rmax=Part[i].GetPotential();
     }
     }
-#else 
+#else
     for (i=1;i<nbodies;i++) {
         if (rmin>Part[i].GetPotential())rmin=Part[i].GetPotential();
         if (rmax<Part[i].GetPotential())rmax=Part[i].GetPotential();
@@ -203,7 +204,7 @@ private(i,tid)
     mtot=0;
 #ifdef USEOPENMP
     if (nbodies>ompperiodnum) {
-#pragma omp parallel default(shared) 
+#pragma omp parallel default(shared)
 {
 #pragma omp for private(i,tid,w,ir) reduction(+:mtot)
     for (i=0;i<nbodies;i++) {
@@ -256,7 +257,7 @@ private(i,tid)
     }
 #endif
     for (int j=1;j<nthreads;j++) for (i=0;i<nbins;i++) omp_rbin[0][i]+=omp_rbin[j][i];
-    rbin=&omp_rbin[0][0];
+    rbin = omp_rbin[0];
 
     maxprob=0.;
     for (i=0;i<nbins;i++) {
@@ -289,13 +290,13 @@ private(i,tid)
     }
     //if object is small or bg search (ie sublevel==-1, then to keep statistics high, use preliminary determination of the variance and mean.
     if (nbodies<2*MINSUBSIZE) {
-        if (opt.iverbose) printf("Using meanr=%e sdlow=%e sdhigh=%e\n",meanr,sdlow,sdhigh);
+        if (opt.iverbose>=2) printf("Using meanr=%e sdlow=%e sdhigh=%e\n",meanr,sdlow,sdhigh);
         return;
     }
-    //now rebin around most probable over sl in either direction to be used to estimate dispersion 
+    //now rebin around most probable over sl in either direction to be used to estimate dispersion
     //and gradually increase region till region encompases over 50% of the mass or particle numbers
     GMatrix W(nbins,nbins);
-    rbin=new Double_t[nbins];
+    rbin.resize(nbins);
     do {
         mtotpeak=0;
         rmin=(meanr-sl*sdlow);
@@ -310,24 +311,10 @@ private(i,tid)
         deltar=3.5*sqrt(sdlow*sdlow+sdhigh*sdhigh)/pow(npeak,1./3.);
         nbins=ceil((rmax-rmin)/deltar+1);
         W=GMatrix(nbins,nbins);
-		delete[] rbin;
-        rbin=new Double_t[nbins];
-        //for (i=0;i<nthreads;i++) omp_rbin[i]=new Double_t[nbins];
-        //xbin=new Double_t[nbins];
+        rbin.resize(nbins);
         for (i=0;i<nbins;i++)rbin[i]=0;
-        //for (int j=0;j<nthreads;j++) for (i=0;i<nbins;i++) omp_rbin[j][i]=0;
         for (int j=0;j<nbins;j++) for (int k=0;k<nbins;k++) W(j,k)=0.;
-/*#ifdef USEOPENMP
-#pragma omp parallel default(shared) 
-{
-#pragma omp for private(i) reduction(+ : mtotpeak)
-#endif
-*/
         for (i=0;i<nbodies;i++) {
-//            int tid=0;
-//#ifdef USEOPENMP
-//            tid=omp_get_thread_num();
-//#endif
             if (Part[i].GetPotential()>=rmin&&Part[i].GetPotential()<rmax) {
                 ir=(Int_t)((Part[i].GetPotential()-rmin)/deltar);
 #ifdef NOMASSWEIGHT
@@ -337,25 +324,18 @@ private(i,tid)
 #endif
                 rbin[ir]+=w;
                 W(ir,ir)+=w*w;
-                //omp_rbin[tid][ir]+=w;
                 mtotpeak+=w;
             }
         }
-/*#ifdef USEOPENMP
-}
-#endif*/
         sl*=1.25;
     }while (mtotpeak/mtot<0.2);
     GMatrix covar(nbins,nbins);
     //add bins together
-    //for (int j=1;j<nthreads;j++) for (i=0;i<nbins;i++) omp_rbin[0][i]+=omp_rbin[j][i];
-    //rbin=omp_rbin[0];
-    xbin=new Double_t[nbins];
+    xbin.resize(nbins);
     maxprob=0.;
     minprob=MAXVALUE;
     for (i=0;i<nbins;i++) {
         if (rbin[i]>maxprob)maxprob=rbin[iprob=i];
-        //if (rbin[i]<minprob&&rbin[i]>0.)minprob=rbin[i];
         if (W(i,i)<minprob&&rbin[i]>0.) minprob=W(i,i);
         xbin[i]=(i+0.5)*deltar+rmin;
     }
@@ -392,7 +372,7 @@ private(i,tid)
     sdhigh=sdlow;
     //again, if number of particles is low (and so bin statisitics is poor) use initial estimate
     if (nbodies<16*MINSUBSIZE||sublevel==-1) {
-        if (opt.iverbose) printf("Using meanr=%e sdlow=%e sdhigh=%e\n",meanr,sdlow,sdhigh);
+        if (opt.iverbose>=2) printf("Using meanr=%e sdlow=%e sdhigh=%e\n",meanr,sdlow,sdhigh);
         return;
     }
 
@@ -402,12 +382,13 @@ private(i,tid)
     //now have initial estimates of paramters, try nonlinear ls fit to data below prob and above
     Int_t iflag,iit=0,nparams=4;
     Double_t chi2,oldchi2;
-    Double_t *params=new Double_t[nparams];
+    vector<Double_t> params(nparams);
     //five sets of fix parameter choices so that get optimal fit given bad data.
-    int **fixp,nfix,itemp;
+    vector<vector<int>> fixp;
+    int nfix,itemp;
     int nfits=8;
-    fixp= new int*[nfits];
-    for (int i=0;i<8;i++) fixp[i]=new int[nparams];
+    fixp.resize(nfits);
+    for (int i=0;i<8;i++) fixp[i].resize(nparams);
     struct math_function fitfunc,*difffuncs;
     difffuncs=new math_function[nparams];
 
@@ -419,7 +400,7 @@ private(i,tid)
     difffuncs[3].function=DiffSkewGaussSkew;
     params[0]=maxprob;
     params[1]=meanr;
-    params[2]=sdhigh*sdhigh*0.8;//assume conservative dispersion 
+    params[2]=sdhigh*sdhigh*0.8;//assume conservative dispersion
     params[3]=1.0;
 
     itemp=0;
@@ -432,11 +413,11 @@ private(i,tid)
     fixp[itemp][0]=1;fixp[itemp][1]=0;fixp[itemp][2]=0;fixp[itemp][3]=0;itemp++;
     fixp[itemp][0]=0;fixp[itemp][1]=0;fixp[itemp][2]=0;fixp[itemp][3]=0;itemp++;
 
-    if (opt.iverbose>1) printf("Initial estimate: mu=%e var=%e \n",params[1],sqrt(params[2]));
+    if (opt.iverbose>=2) printf("Initial estimate: mu=%e var=%e \n",params[1],sqrt(params[2]));
     nfits=8;
     oldchi2=MAXVALUE;
     for (int i=0;i<nfits;i++) {
-        chi2=FitNonLinLS(fitfunc, difffuncs, nparams, params, covar, nbins, xbin, rbin, &W,  1e-2, 0.95, fixp[i],1,20);
+        chi2=FitNonLinLS(fitfunc, difffuncs, nparams, params.data(), covar, nbins, xbin.data(), rbin.data(), &W,  1e-2, 0.95, fixp[i].data(),1,20);
         int ifitfail=0;
         for (int j=0;j<nparams;j++) ifitfail+=std::isnan(params[j]);
         ifitfail+=(params[2]<=0);
@@ -445,25 +426,19 @@ private(i,tid)
             meanr=params[1];sdlow=sqrt(params[2]*params[3]);sdhigh=sqrt(params[2]);
             nfix=0;for (int j=0;j<nparams;j++) nfix+=(fixp[i][j]==1);
             oldchi2=chi2;
-            if(opt.iverbose>1) printf("chi2/dof=%e/%d, A=%e mu=%e var=%e s=%e\n",chi2,nbins-(nparams-nfix)-1,params[0],params[1],sqrt(params[2]),sqrt(params[3]));
+            if(opt.iverbose>2) printf("chi2/dof=%e/%d, A=%e mu=%e var=%e s=%e\n",chi2,nbins-(nparams-nfix)-1,params[0],params[1],sqrt(params[2]),sqrt(params[3]));
         }
         else if (oldchi2<chi2) break;
         else {
-            if (opt.iverbose>1)printf("fit failed, using previous values\n");
+            if (opt.iverbose>2)printf("fit failed, using previous values\n");
             params[0]=maxprob;params[1]=meanr;params[2]=sdhigh*sdhigh;params[3]=(sdlow*sdlow)/(sdhigh*sdhigh);
         }
     }
-
-    if (opt.iverbose) printf("Using meanr=%e sdlow=%e sdhigh=%e\n",meanr,sdlow,sdhigh);
-    //free memory
-    delete[] xbin;
-    delete[] rbin;
-    //rbin=NULL;
-    for (int j=0;j<nthreads;j++) delete[] omp_rbin[j];
-    delete[] omp_rbin;
+    delete[] difffuncs;
+    if (opt.iverbose>=2) printf("Using meanr=%e sdlow=%e sdhigh=%e\n",meanr,sdlow,sdhigh);
 }
 
-/*! Calculates the normalized deviations from the mean of the dominated population. 
+/*! Calculates the normalized deviations from the mean of the dominated population.
     \todo note that before had FOFSTPROB set density to probability, but here set to ell, the normalized logaritmic "distance" from predicted maxwellian velocity density)
     but could add routine that transforms these values to probablity if necessary.
 
@@ -476,7 +451,7 @@ Int_t GetOutliersValues(Options &opt, const Int_t nbodies, Particle *Part, int s
 #ifndef USEMPI
     int ThisTask=0;
 #endif
-    if (opt.iverbose) cout<<ThisTask<<" Now get average in grid cell and find outliers"<<endl;
+    if (opt.iverbose>=2) cout<<ThisTask<<" Now get average in grid cell and find outliers"<<endl;
     //printf("Using GLOBAL values to characterize the distribution and determine the normalized values used to determine outlier likelihood\n");
     Double_t globalave,globalvar,globalmostprob,globalsdlow,globalsdhigh;
 
@@ -503,6 +478,6 @@ firstprivate(temp1,temp2,temp3)
 #ifdef USEOPENMP
 }
 #endif
-    if (opt.iverbose) cout<<ThisTask<<" Done"<<endl;
+    if (opt.iverbose>=2) cout<<ThisTask<<" Done"<<endl;
     return nsubset;
 }
