@@ -463,6 +463,8 @@ void GetParamFile(Options &opt)
                         opt.halocorephasedistsig = atof(vbuff);
                     else if (strcmp(tbuff, "Halo_core_phase_merge_dist")==0)
                         opt.coresubmergemindist = atof(vbuff);
+                    else if (strcmp(tbuff, "Apply_phase_merge_to_host")==0)
+                        opt.icoresubmergewithbg = atoi(vbuff);
 
                     //for changing factors used in iterative search
                     else if (strcmp(tbuff, "Iterative_threshold_factor")==0)
