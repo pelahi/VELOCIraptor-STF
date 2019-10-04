@@ -1366,22 +1366,44 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
     }
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
-        // Fhdf=H5File(fname,H5F_ACC_TRUNC);
-        Fhdf.create(string(fname),H5F_ACC_TRUNC);
+#ifdef USEPARALLELHDF
+        //if parallel then open file in serial so task 0 writes header
+        Fhdf.create(string(fname),H5F_ACC_TRUNC, 0, false);
+#else
+        Fhdf.create(string(fname));
+#endif
         itemp=0;
 #ifdef USEPARALLELHDF
-        ival=0;
-        Fhdf.write_dataset(datagroupnames.prop[itemp++], 1, &ival, -1, -1, false);
-        ival=1;
-        Fhdf.write_dataset(datagroupnames.prop[itemp++], 1, &ival, -1, -1, false);
-        Fhdf.write_dataset(datagroupnames.prop[itemp++], 1, &ngtot, -1, -1, false);
-        Fhdf.write_dataset(datagroupnames.prop[itemp++], 1, &ngtot, -1, -1, false);
+        //if parallel HDF then only
+        if (ThisTask==0) {
+            ival=0;
+            Fhdf.write_dataset(datagroupnames.prop[itemp++], 1, &ival, -1, -1, false);
+            ival=1;
+            Fhdf.write_dataset(datagroupnames.prop[itemp++], 1, &ival, -1, -1, false);
+            Fhdf.write_dataset(datagroupnames.prop[itemp++], 1, &ngtot, -1, -1, false);
+            Fhdf.write_dataset(datagroupnames.prop[itemp++], 1, &ngtot, -1, -1, false);
+            Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.icosmologicalin);
+            Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.icomoveunit);
+            Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.p);
+            Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.a);
+            Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.lengthtokpc);
+            Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.velocitytokms);
+            Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.masstosolarmass);
+            #if defined(GASON) || defined(STARON) || defined(BHON)
+            Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.metallicitytosolar);
+            Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.SFRtosolarmassperyear);
+            Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.stellaragetoyrs);
+            #endif
+        }
+        Fhdf.close();
+        MPI_Barrier(MPI_COMM_WORLD);
+        //reopen for parallel write
+        Fhdf.create(string(fname));
 #else
         Fhdf.write_dataset(datagroupnames.prop[itemp++], 1, &ThisTask);
         Fhdf.write_dataset(datagroupnames.prop[itemp++], 1, &NProcs);
         Fhdf.write_dataset(datagroupnames.prop[itemp++], 1, &ng);
         Fhdf.write_dataset(datagroupnames.prop[itemp++], 1, &ngtot);
-#endif
         Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.icosmologicalin);
         Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.icomoveunit);
         Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.p);
@@ -1394,6 +1416,7 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.SFRtosolarmassperyear);
         Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.stellaragetoyrs);
         #endif
+#endif
     }
 #endif
     else {
