@@ -546,8 +546,8 @@ class H5OutputFile
         MPI_Allreduce(dims_single.data(), mpi_hdf_dims_tot.data(), rank, MPI_UNSIGNED_LONG_LONG, MPI_SUM, comm);
         for (auto i=0;i<rank;i++) {
             dims_offset[i] = 0;
-            for (auto j=1;j<ThisTask;j++) {
-                dims_offset[i] += mpi_hdf_dims[i*NProcs+j];
+            for (auto j=1;j<=ThisTask;j++) {
+                dims_offset[i] += mpi_hdf_dims[i*NProcs+j-1];
             }
         }
 #endif
@@ -603,6 +603,7 @@ class H5OutputFile
 
         // Dataset creation properties
         prop_id = H5P_DEFAULT;
+#ifndef USEPARALLELHDF
         // this defines compression
         // not certain if this will work in parallel hdf5
         if(nonzero_size && large_dataset)
@@ -612,7 +613,7 @@ class H5OutputFile
             H5Pset_chunk(prop_id, rank, chunks.data());
             H5Pset_deflate(prop_id, HDFDEFLATE);
         }
-
+#endif
         // Create the dataset
         dset_id = H5Dcreate(file_id, name.c_str(), filetype_id, dspace_id,
             H5P_DEFAULT, prop_id, H5P_DEFAULT);
@@ -626,13 +627,7 @@ class H5OutputFile
         else ret = H5Pset_dxpl_mpio(prop_id, H5FD_MPIO_INDEPENDENT);
 
         if (flag_hyperslab) {
-            //access the memory space
-            memspace_id = H5Screate_simple(rank, dims, NULL);
-            //dspace_id = H5Dget_space(dset_id);
             H5Sselect_hyperslab(dspace_id, H5S_SELECT_SET, dims_offset.data(), NULL, dims, NULL);
-        }
-        else {
-            memspace_id = dspace_id;
         }
 #else
         prop_id = H5P_DEFAULT;
@@ -675,8 +670,8 @@ class H5OutputFile
         MPI_Allreduce(dims_single.data(), mpi_hdf_dims_tot.data(), rank, MPI_UNSIGNED_LONG_LONG, MPI_SUM, comm);
         for (auto i=0;i<rank;i++) {
             dims_offset[i] = 0;
-            for (auto j=1;j<ThisTask;j++) {
-                dims_offset[i] += mpi_hdf_dims[i*NProcs+j];
+            for (auto j=1;j<=ThisTask;j++) {
+                dims_offset[i] += mpi_hdf_dims[i*NProcs+j-1];
             }
         }
 #endif
@@ -732,6 +727,7 @@ class H5OutputFile
 
         // Dataset creation properties
         prop_id = H5P_DEFAULT;
+#ifdef USEPARALLELHDF
         // this defines compression
         // not certain if this will work in parallel hdf5
         if(nonzero_size && large_dataset)
@@ -741,6 +737,7 @@ class H5OutputFile
             H5Pset_chunk(prop_id, rank, chunks.data());
             H5Pset_deflate(prop_id, HDFDEFLATE);
         }
+#endif
 
         // Create the dataset
         dset_id = H5Dcreate(file_id, name.c_str(), filetype_id, dspace_id,
@@ -755,13 +752,7 @@ class H5OutputFile
         else ret = H5Pset_dxpl_mpio(prop_id, H5FD_MPIO_INDEPENDENT);
 
         if (flag_hyperslab) {
-            //access the memory space
-            memspace_id = H5Screate_simple(rank, dims, NULL);
-            //dspace_id = H5Dget_space(dset_id);
             H5Sselect_hyperslab(dspace_id, H5S_SELECT_SET, dims_offset.data(), NULL, dims, NULL);
-        }
-        else {
-            memspace_id = dspace_id;
         }
 #else
         prop_id = H5P_DEFAULT;

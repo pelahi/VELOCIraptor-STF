@@ -1371,11 +1371,11 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         itemp=0;
 #ifdef USEPARALLELHDF
         ival=0;
-        Fhdf.write_dataset(datagroupnames.prop[itemp++], 1, &ival);
+        Fhdf.write_dataset(datagroupnames.prop[itemp++], 1, &ival, -1, -1, false);
         ival=1;
-        Fhdf.write_dataset(datagroupnames.prop[itemp++], 1, &ival);
-        Fhdf.write_dataset(datagroupnames.prop[itemp++], 1, &ngtot);
-        Fhdf.write_dataset(datagroupnames.prop[itemp++], 1, &ngtot);
+        Fhdf.write_dataset(datagroupnames.prop[itemp++], 1, &ival, -1, -1, false);
+        Fhdf.write_dataset(datagroupnames.prop[itemp++], 1, &ngtot, -1, -1, false);
+        Fhdf.write_dataset(datagroupnames.prop[itemp++], 1, &ngtot, -1, -1, false);
 #else
         Fhdf.write_dataset(datagroupnames.prop[itemp++], 1, &ThisTask);
         Fhdf.write_dataset(datagroupnames.prop[itemp++], 1, &NProcs);
