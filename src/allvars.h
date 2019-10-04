@@ -1644,11 +1644,13 @@ struct PropData
     vector<float> aperture_veldisp_gas;
     vector<float> aperture_vrdisp_gas;
     vector<float> aperture_SFR_gas;
+    vector<float> aperture_Z_gas;
     vector<float> aperture_rhalfmass_gas;
+    vector<Coordinate> aperture_L_gas;
     vector<Coordinate> aperture_mass_proj_gas;
     vector<Coordinate> aperture_rhalfmass_proj_gas;
     vector<Coordinate> aperture_SFR_proj_gas;
-    vector<Coordinate> aperture_L_gas;
+    vector<Coordinate> aperture_Z_proj_gas;
     vector<unsigned int> profile_npart_gas;
     vector<unsigned int> profile_npart_inclusive_gas;
     vector<float> profile_mass_gas;
@@ -1693,9 +1695,11 @@ struct PropData
     vector<float> aperture_veldisp_gas_sf;
     vector<float> aperture_vrdisp_gas_sf;
     vector<float> aperture_rhalfmass_gas_sf;
+    vector<float> aperture_Z_gas_sf;
+    vector<Coordinate> aperture_L_gas_sf;
     vector<Coordinate> aperture_mass_proj_gas_sf;
     vector<Coordinate> aperture_rhalfmass_proj_gas_sf;
-    vector<Coordinate> aperture_L_gas_sf;
+    vector<Coordinate> aperture_Z_proj_gas_sf;
     vector<unsigned int> profile_npart_gas_sf;
     vector<unsigned int> profile_npart_inclusive_gas_sf;
     vector<float> profile_mass_gas_sf;
@@ -1740,9 +1744,11 @@ struct PropData
     vector<float> aperture_veldisp_gas_nsf;
     vector<float> aperture_vrdisp_gas_nsf;
     vector<float> aperture_rhalfmass_gas_nsf;
+    vector<float> aperture_Z_gas_nsf;
+    vector<Coordinate> aperture_L_gas_nsf;
     vector<Coordinate> aperture_mass_proj_gas_nsf;
     vector<Coordinate> aperture_rhalfmass_proj_gas_nsf;
-    vector<Coordinate> aperture_L_gas_nsf;
+    vector<Coordinate> aperture_Z_proj_gas_nsf;
     vector<unsigned int> profile_npart_gas_nsf;
     vector<unsigned int> profile_npart_inclusive_gas_nsf;
     vector<float> profile_mass_gas_nsf;
@@ -1794,9 +1800,11 @@ struct PropData
     vector<float> aperture_veldisp_star;
     vector<float> aperture_vrdisp_star;
     vector<float> aperture_rhalfmass_star;
+    vector<float> aperture_Z_star;
+    vector<Coordinate> aperture_L_star;
     vector<Coordinate> aperture_mass_proj_star;
     vector<Coordinate> aperture_rhalfmass_proj_star;
-    vector<Coordinate> aperture_L_star;
+    vector<Coordinate> aperture_Z_proj_star;
     vector<unsigned int> profile_npart_star;
     vector<unsigned int> profile_npart_inclusive_star;
     vector<float> profile_mass_star;
@@ -2058,7 +2066,7 @@ struct PropData
         aperture_veldisp=p.aperture_veldisp;
         aperture_vrdisp=p.aperture_vrdisp;
         aperture_rhalfmass=p.aperture_rhalfmass;
-        #if defined(GASON) || defined(STARON) || defined(BHON)
+#if defined(GASON) || defined(STARON) || defined(BHON)
         aperture_npart_dm=p.aperture_npart_dm;
         aperture_mass_dm=p.aperture_mass_dm;
         aperture_veldisp_dm=p.aperture_veldisp_dm;
@@ -2072,6 +2080,7 @@ struct PropData
         aperture_rhalfmass_gas=p.aperture_rhalfmass_gas;
 #ifdef STARON
         aperture_SFR_gas=p.aperture_SFR_gas;
+        aperture_Z_gas=p.aperture_Z_gas;
         aperture_npart_gas_sf=p.aperture_npart_gas_sf;
         aperture_npart_gas_nsf=p.aperture_npart_gas_nsf;
         aperture_mass_gas_sf=p.aperture_mass_gas_sf;
@@ -2082,6 +2091,8 @@ struct PropData
         aperture_vrdisp_gas_nsf=p.aperture_vrdisp_gas_nsf;
         aperture_rhalfmass_gas_sf=p.aperture_rhalfmass_gas_sf;
         aperture_rhalfmass_gas_nsf=p.aperture_rhalfmass_gas_nsf;
+        aperture_Z_gas_sf=p.aperture_Z_gas_sf;
+        aperture_Z_gas_nsf=p.aperture_Z_gas_nsf;
 #endif
 #endif
 #ifdef STARON
@@ -2090,6 +2101,7 @@ struct PropData
         aperture_veldisp_star=p.aperture_veldisp_star;
         aperture_vrdisp_star=p.aperture_vrdisp_star;
         aperture_rhalfmass_star=p.aperture_rhalfmass_star;
+        aperture_Z_star=p.aperture_Z_star;
 #endif
         aperture_mass_proj=p.aperture_mass_proj;
         aperture_rhalfmass_proj=p.aperture_rhalfmass_proj;
@@ -2097,13 +2109,20 @@ struct PropData
         aperture_mass_proj_gas=p.aperture_mass_proj_gas;
         aperture_rhalfmass_proj_gas=p.aperture_rhalfmass_proj_gas;
 #ifdef STARON
+        aperture_SFR_proj_gas=p.aperture_SFR_proj_gas;
+        aperture_Z_proj_gas=p.aperture_Z_proj_gas;
         aperture_mass_proj_gas_sf=p.aperture_mass_proj_gas_sf;
+        aperture_mass_proj_gas_nsf=p.aperture_mass_proj_gas_nsf;
+        aperture_rhalfmass_proj_gas_sf=p.aperture_rhalfmass_proj_gas_sf;
         aperture_rhalfmass_proj_gas_nsf=p.aperture_rhalfmass_proj_gas_nsf;
+        aperture_Z_proj_gas_sf=p.aperture_Z_proj_gas_sf;
+        aperture_Z_proj_gas_nsf=p.aperture_Z_proj_gas_nsf;
 #endif
 #endif
 #ifdef STARON
         aperture_mass_proj_star=p.aperture_mass_proj_star;
         aperture_rhalfmass_proj_star=p.aperture_rhalfmass_proj_star;
+        aperture_Z_proj_star=p.aperture_Z_proj_star;
 #endif
         profile_npart=p.profile_npart;
         profile_mass=p.profile_mass;
@@ -2156,6 +2175,7 @@ struct PropData
             aperture_rhalfmass_gas.resize(opt.aperturenum);
 #ifdef STARON
             aperture_SFR_gas.resize(opt.aperturenum);
+            aperture_Z_gas.resize(opt.aperturenum);
             aperture_npart_gas_sf.resize(opt.aperturenum);
             aperture_npart_gas_nsf.resize(opt.aperturenum);
             aperture_mass_gas_sf.resize(opt.aperturenum);
@@ -2166,6 +2186,8 @@ struct PropData
             aperture_vrdisp_gas_nsf.resize(opt.aperturenum);
             aperture_rhalfmass_gas_sf.resize(opt.aperturenum);
             aperture_rhalfmass_gas_nsf.resize(opt.aperturenum);
+            aperture_Z_gas_sf.resize(opt.aperturenum);
+            aperture_Z_gas_nsf.resize(opt.aperturenum);
 #endif
 #endif
 #ifdef STARON
@@ -2174,6 +2196,7 @@ struct PropData
             aperture_veldisp_star.resize(opt.aperturenum);
             aperture_vrdisp_star.resize(opt.aperturenum);
             aperture_rhalfmass_star.resize(opt.aperturenum);
+            aperture_Z_star.resize(opt.aperturenum);
 #endif
 #ifdef HIGHRES
             aperture_npart_interloper.resize(opt.aperturenum);
@@ -2200,6 +2223,7 @@ struct PropData
             for (auto &x:aperture_rhalfmass_gas) x=-1;
 #ifdef STARON
             for (auto &x:aperture_SFR_gas) x=0;
+            for (auto &x:aperture_Z_gas) x=0;
             for (auto &x:aperture_npart_gas_sf) x=0;
             for (auto &x:aperture_mass_gas_sf) x=-1;
             for (auto &x:aperture_npart_gas_nsf) x=0;
@@ -2208,6 +2232,8 @@ struct PropData
             for (auto &x:aperture_veldisp_gas_nsf) x=0;
             for (auto &x:aperture_rhalfmass_gas_sf) x=-1;
             for (auto &x:aperture_rhalfmass_gas_nsf) x=-1;
+            for (auto &x:aperture_Z_gas_sf) x=0;
+            for (auto &x:aperture_Z_gas_nsf) x=0;
 #endif
 #endif
 #ifdef STARON
@@ -2215,6 +2241,7 @@ struct PropData
             for (auto &x:aperture_mass_star) x=-1;
             for (auto &x:aperture_veldisp_star) x=0;
             for (auto &x:aperture_rhalfmass_star) x=-1;
+            for (auto &x:aperture_Z_star) x=0;
 #endif
 #ifdef HIGHRES
             for (auto &x:aperture_npart_interloper) x=0;
@@ -2239,15 +2266,19 @@ struct PropData
             aperture_rhalfmass_proj_gas.resize(opt.apertureprojnum);
 #ifdef STARON
             aperture_SFR_proj_gas.resize(opt.apertureprojnum);
+            aperture_Z_proj_gas.resize(opt.apertureprojnum);
             aperture_mass_proj_gas_sf.resize(opt.apertureprojnum);
             aperture_mass_proj_gas_nsf.resize(opt.apertureprojnum);
             aperture_rhalfmass_proj_gas_sf.resize(opt.apertureprojnum);
             aperture_rhalfmass_proj_gas_nsf.resize(opt.apertureprojnum);
+            aperture_Z_proj_gas_sf.resize(opt.apertureprojnum);
+            aperture_Z_proj_gas_nsf.resize(opt.apertureprojnum);
 #endif
 #endif
 #ifdef STARON
             aperture_mass_proj_star.resize(opt.apertureprojnum);
             aperture_rhalfmass_proj_star.resize(opt.apertureprojnum);
+            aperture_Z_proj_star.resize(opt.apertureprojnum);
 #endif
 
             for (auto &x:aperture_mass_proj) x[0]=x[1]=x[2]=-1;
@@ -2257,15 +2288,19 @@ struct PropData
             for (auto &x:aperture_rhalfmass_proj_gas) x[0]=x[1]=x[2]=-1;
 #ifdef STARON
             for (auto &x:aperture_SFR_proj_gas) x[0]=x[1]=x[2]=0;
+            for (auto &x:aperture_Z_proj_gas) x[0]=x[1]=x[2]=0;
             for (auto &x:aperture_mass_proj_gas_sf) x[0]=x[1]=x[2]=-1;
             for (auto &x:aperture_rhalfmass_proj_gas_sf) x[0]=x[1]=x[2]=-1;
             for (auto &x:aperture_mass_proj_gas_nsf) x[0]=x[1]=x[2]=-1;
             for (auto &x:aperture_rhalfmass_proj_gas_nsf) x[0]=x[1]=x[2]=-1;
+            for (auto &x:aperture_Z_proj_gas_sf) x[0]=x[1]=x[2]=-1;
+            for (auto &x:aperture_Z_proj_gas_nsf) x[0]=x[1]=x[2]=-1;
 #endif
 #endif
 #ifdef STARON
             for (auto &x:aperture_mass_proj_star) x[0]=x[1]=x[2]=-1;
             for (auto &x:aperture_rhalfmass_proj_star) x[0]=x[1]=x[2]=-1;
+            for (auto &x:aperture_Z_proj_star) x[0]=x[1]=x[2]=-1;
 #endif
         }
     }
@@ -3066,6 +3101,18 @@ struct PropData
             for (auto j=0;j<opt.aperturenum;j++) {
                 Fout.write((char*)&aperture_SFR_gas[j],sizeof(val));
             }
+            for (auto j=0;j<opt.aperturenum;j++) {
+                Fout.write((char*)&aperture_Z_gas[j],sizeof(val));
+            }
+            for (auto j=0;j<opt.aperturenum;j++) {
+                Fout.write((char*)&aperture_Z_gas_sf[j],sizeof(val));
+            }
+            for (auto j=0;j<opt.aperturenum;j++) {
+                Fout.write((char*)&aperture_Z_gas_nsf[j],sizeof(val));
+            }
+            for (auto j=0;j<opt.aperturenum;j++) {
+                Fout.write((char*)&aperture_Z_star[j],sizeof(val));
+            }
 #endif
         }
         if (opt.iaperturecalc && opt.apertureprojnum>0){
@@ -3115,6 +3162,18 @@ struct PropData
 #if defined(GASON) && defined(STARON)
             for (auto j=0;j<opt.apertureprojnum;j++) {
                 Fout.write((char*)&aperture_SFR_proj_gas[j][k],sizeof(val));
+            }
+            for (auto j=0;j<opt.apertureprojnum;j++) {
+                Fout.write((char*)&aperture_Z_proj_gas[j][k],sizeof(val));
+            }
+            for (auto j=0;j<opt.apertureprojnum;j++) {
+                Fout.write((char*)&aperture_Z_proj_gas_sf[j][k],sizeof(val));
+            }
+            for (auto j=0;j<opt.apertureprojnum;j++) {
+                Fout.write((char*)&aperture_Z_proj_gas_nsf[j][k],sizeof(val));
+            }
+            for (auto j=0;j<opt.apertureprojnum;j++) {
+                Fout.write((char*)&aperture_Z_proj_star[j][k],sizeof(val));
             }
 #endif
             }
@@ -3478,6 +3537,18 @@ struct PropData
             for (auto j=0;j<opt.aperturenum;j++) {
                 Fout<<aperture_SFR_gas[j]<<" ";
             }
+            for (auto j=0;j<opt.aperturenum;j++) {
+                Fout<<aperture_Z_gas[j]<<" ";
+            }
+            for (auto j=0;j<opt.aperturenum;j++) {
+                Fout<<aperture_Z_gas_sf[j]<<" ";
+            }
+            for (auto j=0;j<opt.aperturenum;j++) {
+                Fout<<aperture_Z_gas_nsf[j]<<" ";
+            }
+            for (auto j=0;j<opt.aperturenum;j++) {
+                Fout<<aperture_Z_star[j]<<" ";
+            }
 #endif
         }
         if (opt.iaperturecalc && opt.apertureprojnum>0) {
@@ -3527,6 +3598,18 @@ struct PropData
             #if defined(GASON) && defined(STARON)
             for (auto j=0;j<opt.apertureprojnum;j++) {
                 Fout<<aperture_SFR_proj_gas[j][k]<<" ";
+            }
+            for (auto j=0;j<opt.apertureprojnum;j++) {
+                Fout<<aperture_Z_proj_gas[j][k]<<" ";
+            }
+            for (auto j=0;j<opt.apertureprojnum;j++) {
+                Fout<<aperture_Z_proj_gas_sf[j][k]<<" ";
+            }
+            for (auto j=0;j<opt.apertureprojnum;j++) {
+                Fout<<aperture_Z_proj_gas_nsf[j][k]<<" ";
+            }
+            for (auto j=0;j<opt.apertureprojnum;j++) {
+                Fout<<aperture_Z_proj_star[j][k]<<" ";
             }
             #endif
             }
@@ -3605,8 +3688,6 @@ struct PropDataHeader{
 #ifdef USEHDF
         // vector<PredType> desiredproprealtype;
         vector<hid_t> hdfdesiredproprealtype;
-        // if (sizeof(Double_t)==sizeof(double)) desiredproprealtype.push_back(PredType::NATIVE_DOUBLE);
-        // else desiredproprealtype.push_back(PredType::NATIVE_FLOAT);
         if (sizeof(Double_t)==sizeof(double)) hdfdesiredproprealtype.push_back(H5T_NATIVE_DOUBLE);
         else hdfdesiredproprealtype.push_back(H5T_NATIVE_FLOAT);
 
@@ -3631,17 +3712,6 @@ struct PropDataHeader{
 
         //if using hdf, store the type
 #ifdef USEHDF
-        // predtypeinfo.push_back(PredType::STD_U64LE);
-        // predtypeinfo.push_back(PredType::STD_I64LE);
-        // predtypeinfo.push_back(PredType::STD_I64LE);
-        // predtypeinfo.push_back(PredType::STD_I64LE);
-        // predtypeinfo.push_back(PredType::STD_U64LE);
-        // predtypeinfo.push_back(PredType::STD_U64LE);
-        // predtypeinfo.push_back(PredType::STD_I32LE);
-        // if (opt.iKeepFOF==1){
-        //     predtypeinfo.push_back(PredType::STD_I64LE);
-        //     predtypeinfo.push_back(PredType::STD_I64LE);
-        // }
         hdfpredtypeinfo.push_back(H5T_NATIVE_ULONG);
         hdfpredtypeinfo.push_back(H5T_NATIVE_LONG);
         hdfpredtypeinfo.push_back(H5T_NATIVE_LONG);
@@ -4201,6 +4271,14 @@ struct PropDataHeader{
 #if defined(GASON) && defined(STARON)
             for (auto i=0; i<opt.aperturenum;i++)
                 headerdatainfo.push_back((string("Aperture_SFR_gas_")+opt.aperture_names_kpc[i]+string("_kpc")));
+            for (auto i=0; i<opt.aperturenum;i++)
+                headerdatainfo.push_back((string("Aperture_Zmet_gas_")+opt.aperture_names_kpc[i]+string("_kpc")));
+            for (auto i=0; i<opt.aperturenum;i++)
+                headerdatainfo.push_back((string("Aperture_Zmet_gas_sf_")+opt.aperture_names_kpc[i]+string("_kpc")));
+            for (auto i=0; i<opt.aperturenum;i++)
+                headerdatainfo.push_back((string("Aperture_Zmet_gas_nsf_")+opt.aperture_names_kpc[i]+string("_kpc")));
+            for (auto i=0; i<opt.aperturenum;i++)
+                headerdatainfo.push_back((string("Aperture_Zmet_star_")+opt.aperture_names_kpc[i]+string("_kpc")));
 #endif
 
 #ifdef USEHDF
@@ -4252,6 +4330,14 @@ struct PropDataHeader{
 #if defined(GASON) && defined(STARON)
             for (auto i=0; i<opt.apertureprojnum;i++)
                 headerdatainfo.push_back(projname+string("SFR_gas_")+opt.aperture_proj_names_kpc[i]+string("_kpc"));
+            for (auto i=0; i<opt.apertureprojnum;i++)
+                headerdatainfo.push_back(projname+string("Zmet_gas_")+opt.aperture_proj_names_kpc[i]+string("_kpc"));
+            for (auto i=0; i<opt.apertureprojnum;i++)
+                headerdatainfo.push_back(projname+string("Zmet_gas_sf_")+opt.aperture_proj_names_kpc[i]+string("_kpc"));
+            for (auto i=0; i<opt.apertureprojnum;i++)
+                headerdatainfo.push_back(projname+string("Zmet_gas_nsf_")+opt.aperture_proj_names_kpc[i]+string("_kpc"));
+            for (auto i=0; i<opt.apertureprojnum;i++)
+                headerdatainfo.push_back(projname+string("Zmet_star_")+opt.aperture_proj_names_kpc[i]+string("_kpc"));
 #endif
             }
 #ifdef USEHDF
@@ -4684,9 +4770,6 @@ struct DataGroupNames {
 
     DataGroupNames(){
 #ifdef USEHDF
-        // vector<PredType> desiredproprealtype;
-        // if (sizeof(Double_t)==sizeof(double)) desiredproprealtype.push_back(PredType::NATIVE_DOUBLE);
-        // else desiredproprealtype.push_back(PredType::NATIVE_FLOAT);
         vector<hid_t> hdfdesiredproprealtype;
         if (sizeof(Double_t)==sizeof(double)) hdfdesiredproprealtype.push_back(H5T_NATIVE_DOUBLE);
         else hdfdesiredproprealtype.push_back(H5T_NATIVE_FLOAT);
@@ -4713,23 +4796,6 @@ struct DataGroupNames {
         prop.push_back("Stellar_age_unit_to_yr");
 #endif
 #ifdef USEHDF
-//         propdatatype.push_back(PredType::STD_I32LE);
-//         propdatatype.push_back(PredType::STD_I32LE);
-//         propdatatype.push_back(PredType::STD_U64LE);
-//         propdatatype.push_back(PredType::STD_U64LE);
-//         propdatatype.push_back(PredType::STD_U32LE);
-//         propdatatype.push_back(PredType::STD_U32LE);
-//         propdatatype.push_back(desiredproprealtype[0]);
-//         propdatatype.push_back(desiredproprealtype[0]);
-//         propdatatype.push_back(desiredproprealtype[0]);
-//         propdatatype.push_back(desiredproprealtype[0]);
-//         propdatatype.push_back(desiredproprealtype[0]);
-// #if defined(GASON) || defined(STARON) || defined(BHON)
-//         propdatatype.push_back(desiredproprealtype[0]);
-//         propdatatype.push_back(desiredproprealtype[0]);
-//         propdatatype.push_back(desiredproprealtype[0]);
-// #endif
-
         hdfpropdatatype.push_back(H5T_NATIVE_INT);
         hdfpropdatatype.push_back(H5T_NATIVE_INT);
         hdfpropdatatype.push_back(H5T_NATIVE_ULONG);
@@ -4775,14 +4841,6 @@ struct DataGroupNames {
         group.push_back("Offset");
         group.push_back("Offset_unbound");
 #ifdef USEHDF
-        // groupdatatype.push_back(PredType::STD_I32LE);
-        // groupdatatype.push_back(PredType::STD_I32LE);
-        // groupdatatype.push_back(PredType::STD_U64LE);
-        // groupdatatype.push_back(PredType::STD_U64LE);
-        // groupdatatype.push_back(PredType::STD_U32LE);
-        // groupdatatype.push_back(PredType::STD_U64LE);
-        // groupdatatype.push_back(PredType::STD_U64LE);
-
         hdfgroupdatatype.push_back(H5T_NATIVE_INT);
         hdfgroupdatatype.push_back(H5T_NATIVE_INT);
         hdfgroupdatatype.push_back(H5T_NATIVE_ULONG);
@@ -4808,12 +4866,6 @@ struct DataGroupNames {
         part.push_back("Total_num_of_particles_in_all_groups");
         part.push_back("Particle_IDs");
 #ifdef USEHDF
-        // partdatatype.push_back(PredType::STD_I32LE);
-        // partdatatype.push_back(PredType::STD_I32LE);
-        // partdatatype.push_back(PredType::STD_U64LE);
-        // partdatatype.push_back(PredType::STD_U64LE);
-        // partdatatype.push_back(PredType::STD_I64LE);
-
         hdfpartdatatype.push_back(H5T_NATIVE_INT);
         hdfpartdatatype.push_back(H5T_NATIVE_INT);
         hdfpartdatatype.push_back(H5T_NATIVE_ULONG);
@@ -4835,11 +4887,6 @@ struct DataGroupNames {
         types.push_back("Total_num_of_particles_in_all_groups");
         types.push_back("Particle_types");
 #ifdef USEHDF
-        // typesdatatype.push_back(PredType::STD_I32LE);
-        // typesdatatype.push_back(PredType::STD_I32LE);
-        // typesdatatype.push_back(PredType::STD_U64LE);
-        // typesdatatype.push_back(PredType::STD_U64LE);
-        // typesdatatype.push_back(PredType::STD_U16LE);
 
         hdftypesdatatype.push_back(H5T_NATIVE_INT);
         hdftypesdatatype.push_back(H5T_NATIVE_INT);
@@ -4862,13 +4909,6 @@ struct DataGroupNames {
         hierarchy.push_back("Number_of_substructures_in_halo");
         hierarchy.push_back("Parent_halo_ID");
 #ifdef USEHDF
-        // hierarchydatatype.push_back(PredType::STD_I32LE);
-        // hierarchydatatype.push_back(PredType::STD_I32LE);
-        // hierarchydatatype.push_back(PredType::STD_U64LE);
-        // hierarchydatatype.push_back(PredType::STD_U64LE);
-        // hierarchydatatype.push_back(PredType::STD_U32LE);
-        // hierarchydatatype.push_back(PredType::STD_I64LE);
-
         hdfhierarchydatatype.push_back(H5T_NATIVE_INT);
         hdfhierarchydatatype.push_back(H5T_NATIVE_INT);
         hdfhierarchydatatype.push_back(H5T_NATIVE_ULONG);
@@ -4899,18 +4939,6 @@ struct DataGroupNames {
 #endif
 
 #ifdef USEHDF
-//         SOdatatype.push_back(PredType::STD_I32LE);
-//         SOdatatype.push_back(PredType::STD_I32LE);
-//         SOdatatype.push_back(PredType::STD_U64LE);
-//         SOdatatype.push_back(PredType::STD_U64LE);
-//         SOdatatype.push_back(PredType::STD_U64LE);
-//         SOdatatype.push_back(PredType::STD_U64LE);
-//         SOdatatype.push_back(PredType::STD_U32LE);
-//         SOdatatype.push_back(PredType::STD_U64LE);
-//         SOdatatype.push_back(PredType::STD_I64LE);
-// #if defined(GASON) || defined(STARON) || defined(BHON)
-//         SOdatatype.push_back(PredType::STD_I32LE);
-// #endif
         hdfSOdatatype.push_back(H5T_NATIVE_INT);
         hdfSOdatatype.push_back(H5T_NATIVE_INT);
         hdfSOdatatype.push_back(H5T_NATIVE_ULONG);
@@ -4951,17 +4979,6 @@ struct DataGroupNames {
         profile.push_back("Num_of_bin_edges");
         profile.push_back("Radial_bin_edges");
 #ifdef USEHDF
-        // profiledatatype.push_back(PredType::STD_I32LE);
-        // profiledatatype.push_back(PredType::STD_I32LE);
-        // profiledatatype.push_back(PredType::STD_U64LE);
-        // profiledatatype.push_back(PredType::STD_U64LE);
-        // profiledatatype.push_back(PredType::STD_U64LE);
-        // profiledatatype.push_back(PredType::STD_U64LE);
-        // profiledatatype.push_back(PredType::C_S1);
-        // profiledatatype.push_back(PredType::STD_I32LE);
-        // profiledatatype.push_back(PredType::STD_I32LE);
-        // profiledatatype.push_back(desiredproprealtype[0]);
-
         hdfprofiledatatype.push_back(H5T_NATIVE_INT);
         hdfprofiledatatype.push_back(H5T_NATIVE_INT);
         hdfprofiledatatype.push_back(H5T_NATIVE_ULONG);
