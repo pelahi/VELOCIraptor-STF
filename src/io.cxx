@@ -2393,7 +2393,7 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
         //reopen for parallel write
         Fhdf.append(string(fname));
 #else
-        Fhdf.create(string(fname);
+        Fhdf.create(string(fname));
         itemp=0;
         Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, &ThisTask);
         Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, &NProcs);
