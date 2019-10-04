@@ -1851,7 +1851,7 @@ void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *&Partsubset, In
     Particle *Pcore,*Pval;
     KDTree *tcore;
     Coordinate x1;
-    Double_t D2,dval,mval;
+    Double_t D2, dval, mval, weight;
     Double_t *mcore=new Double_t[numgroupsbg+1];
     Int_t *ncore=new Int_t[numgroupsbg+1];
     Int_t newnumgroupsbg=0,*newcore=new Int_t[numgroupsbg+1];
@@ -1946,7 +1946,7 @@ void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *&Partsubset, In
             if (nactivepart>ompperiodnum) {
             int nreduce=0;
 #pragma omp parallel default(shared) \
-private(i,tid,Pval,D2,dval,mval,pid)
+private(i,tid,Pval,D2,dval,mval,pid,weight)
 {
 #pragma omp for reduction(+:nreduce)
             for (i=0;i<nsubset;i++)
@@ -1960,10 +1960,17 @@ private(i,tid,Pval,D2,dval,mval,pid)
                     for (int k=0;k<6;k++) dist[tid](k,0)=Pval->GetPhase(k)-cmphase[1](k,0);
                     dval=(dist[tid].Transpose()*invdisp[1]*dist[tid])(0,0);
                     pfofbg[pid]=1;
-                    for (int j=2;j<=numgroupsbg;j++) if (mcore[j]>0 && corelevel[j]>=iloop){
-                        for (int k=0;k<6;k++) dist[tid](k,0)=Pval->GetPhase(k)-cmphase[j](k,0);
-                        D2=(dist[tid].Transpose()*invdisp[j]*dist[tid])(0,0);
-                        if (dval*dispfac[pfofbg[pid]]>D2*dispfac[j]) {dval=D2;mval=mcore[j];pfofbg[pid]=j;}
+                    for (int j=2;j<=numgroupsbg;j++) {
+                        if (mcore[j]>0 && corelevel[j]>=iloop){
+                            weight = log(mcore[j]/mval);
+                            for (int k=0;k<6;k++) dist[tid](k,0)=Pval->GetPhase(k)-cmphase[j](k,0);
+                            D2=(dist[tid].Transpose()*invdisp[j]*dist[tid])(0,0) * weight;
+                            if (dval*dispfac[pfofbg[pid]]>D2*dispfac[j]) {
+                                dval=D2;
+                                mval=mcore[j];
+                                pfofbg[pid]=j;
+                            }
+                        }
                     }
                     //if particle assigned to a core remove from search
                     Pval->SetType(-1);
@@ -1986,10 +1993,17 @@ private(i,tid,Pval,D2,dval,mval,pid)
                     for (int k=0;k<6;k++) dist[tid](k,0)=Pval->GetPhase(k)-cmphase[1](k,0);
                     dval=(dist[tid].Transpose()*invdisp[1]*dist[tid])(0,0);
                     pfofbg[pid]=1;
-                    for (int j=2;j<=numgroupsbg;j++) if (mcore[j]>0 && corelevel[j]>=iloop){
-                        for (int k=0;k<6;k++) dist[tid](k,0)=Pval->GetPhase(k)-cmphase[j](k,0);
-                        D2=(dist[tid].Transpose()*invdisp[j]*dist[tid])(0,0);
-                        if (dval*dispfac[pfofbg[pid]]>D2*dispfac[j]) {dval=D2;mval=mcore[j];pfofbg[pid]=j;}
+                    for (int j=2;j<=numgroupsbg;j++) {
+                        if (mcore[j]>0 && corelevel[j]>=iloop){
+                            weight = log(mcore[j]/mval);
+                            for (int k=0;k<6;k++) dist[tid](k,0)=Pval->GetPhase(k)-cmphase[j](k,0);
+                            D2=(dist[tid].Transpose()*invdisp[j]*dist[tid])(0,0) * weight;
+                            if (dval*dispfac[pfofbg[pid]]>D2*dispfac[j]) {
+                                dval=D2;
+                                mval=mcore[j];
+                                pfofbg[pid]=j;
+                            }
+                        }
                     }
                     Pval->SetType(-1);
                     nactivepart--;
