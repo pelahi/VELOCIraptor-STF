@@ -2695,7 +2695,7 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
 #ifdef USEPARALLELHDF
-Fhdf.create(string(fname),H5F_ACC_TRUNC);
+        Fhdf.create(string(fname),H5F_ACC_TRUNC, 0, false);
         if (ThisTask == 0) {
             itemp=0;
             ival=0;
