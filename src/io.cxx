@@ -460,6 +460,9 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
             Fhdf.write_dataset(datagroupnames.group[itemp++], 1, &ngtot, -1, -1, false);
             Fhdf.write_dataset(datagroupnames.group[itemp++], 1, &ngtot, -1, -1, false);
         }
+        else {
+            itmep=4;
+        }
         Fhdf.close();
         MPI_Barrier(MPI_COMM_WORLD);
         //reopen for parallel write
