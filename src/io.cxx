@@ -2380,7 +2380,7 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
             Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, &ngtot, -1, -1, false);
             Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, &nhalostot, -1, -1, false);
             Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, &nhalostot, -1, -1, false);
-            Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, opt.profileradnormstring, -1, -1, false);
+            Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, opt.profileradnormstring, false);
             Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, &opt.iInclusiveHalo, -1, -1, false);
             Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, &nbinsedges, -1, -1, false);
             Fhdf.write_dataset(datagroupnames.profile[itemp++], nbinsedges, data, H5T_NATIVE_DOUBLE, -1, -1, false);

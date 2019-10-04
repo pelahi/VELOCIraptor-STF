@@ -511,7 +511,7 @@ class H5OutputFile
         int rank = 1;
       	hsize_t dims[1] = {len};
 
-        hid_t memtype_id, filetype_id, dspace_id, dset_id;
+        hid_t memtype_id, filetype_id, dspace_id, dset_id, xfer_plist;
         herr_t status, ret;
         memtype_id = H5Tcopy (H5T_C_S1);
         status = H5Tset_size (memtype_id, data.size());
@@ -527,7 +527,7 @@ class H5OutputFile
 #ifdef USEPARALLELHDF
         if (flag_parallel) {
             // set up the collective transfer properties list
-            hid_t xfer_plist = H5Pcreate(H5P_DATASET_XFER);
+            xfer_plist = H5Pcreate(H5P_DATASET_XFER);
             if (xfer_plist < 0) io_error(string("Failed to set up parallel transfer: ")+name);
             if (flag_collective) ret = H5Pset_dxpl_mpio(xfer_plist, H5FD_MPIO_COLLECTIVE);
             else ret = H5Pset_dxpl_mpio(xfer_plist, H5FD_MPIO_INDEPENDENT);
