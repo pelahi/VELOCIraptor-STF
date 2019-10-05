@@ -7,9 +7,6 @@
 #ifndef HDFITEMS_H
 #define HDFITEMS_H
 
-
-//#include "H5Cpp.h"
-//using namespace H5;
 #include "hdf5.h"
 
 
@@ -95,6 +92,14 @@
 #define HDF5_FILE_GROUP_COMMON_BASE H5::Group
 #else
 #define HDF5_FILE_GROUP_COMMON_BASE H5::CommonFG
+#endif
+
+#ifdef USEPARALLELHDF
+#if H5_VERSION_GE(1,10,2)
+#define USEHDFCOMPRESSOIN
+#endif
+#else
+#define USEHDFCOMPRESSOIN
 #endif
 
 template <typename ReturnT, typename F, typename ... Ts>
@@ -673,8 +678,8 @@ class H5OutputFile
 
         // Dataset creation properties
         prop_id = H5P_DEFAULT;
+#ifdef USEHDFCOMPRESSOIN
         // this defines compression
-        // not certain if this will work in parallel hdf5
         if(nonzero_size && large_dataset)
         {
             prop_id = H5Pcreate(H5P_DATASET_CREATE);
@@ -682,6 +687,7 @@ class H5OutputFile
             H5Pset_chunk(prop_id, rank, chunks.data());
             H5Pset_deflate(prop_id, HDFDEFLATE);
         }
+#endif
         // Create the dataset
         dset_id = H5Dcreate(file_id, name.c_str(), filetype_id, dspace_id,
             H5P_DEFAULT, prop_id, H5P_DEFAULT);
@@ -716,7 +722,7 @@ class H5OutputFile
     }
     void write_dataset_nd(std::string name, int rank, hsize_t *dims, void *data,
         hid_t memtype_id = -1, hid_t filetype_id=-1,
-        bool flag_parallel = true, bool flag_first_dim_parallel = true, 
+        bool flag_parallel = true, bool flag_first_dim_parallel = true,
         bool flag_hyperslab = true, bool flag_collective = true)
     {
 #ifdef USEPARALLELHDF
@@ -829,8 +835,8 @@ class H5OutputFile
 
         // Dataset creation properties
         prop_id = H5P_DEFAULT;
+#ifdef USEHDFCOMPRESSOIN
         // this defines compression
-        // not certain if this will work in parallel hdf5
         if(nonzero_size && large_dataset)
         {
             prop_id = H5Pcreate(H5P_DATASET_CREATE);
@@ -838,6 +844,7 @@ class H5OutputFile
             H5Pset_chunk(prop_id, rank, chunks.data());
             H5Pset_deflate(prop_id, HDFDEFLATE);
         }
+#endif
 
         // Create the dataset
         dset_id = H5Dcreate(file_id, name.c_str(), filetype_id, dspace_id,
