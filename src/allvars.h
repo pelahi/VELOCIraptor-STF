@@ -4400,7 +4400,6 @@ struct ProfileDataHeader{
     //list the header info
     vector<string> headerdatainfo;
 #ifdef USEHDF
-    // vector<PredType> predtypeinfo;
     vector<hid_t> hdfpredtypeinfo;
 #endif
 #ifdef USEADIOS
@@ -4412,9 +4411,6 @@ struct ProfileDataHeader{
     ProfileDataHeader(Options&opt){
         int sizeval;
 #ifdef USEHDF
-        // vector<PredType> desiredproprealtype;
-        // if (sizeof(Double_t)==sizeof(double)) desiredproprealtype.push_back(PredType::NATIVE_DOUBLE);
-        // else desiredproprealtype.push_back(PredType::NATIVE_FLOAT);
         vector<hid_t> hdfdesiredproprealtype;
         if (sizeof(Double_t)==sizeof(double)) hdfdesiredproprealtype.push_back(H5T_NATIVE_DOUBLE);
         else hdfdesiredproprealtype.push_back(H5T_NATIVE_FLOAT);
@@ -4428,7 +4424,6 @@ struct ProfileDataHeader{
         offsetscalarentries=0;
         headerdatainfo.push_back("ID");
 #ifdef USEHDF
-        // predtypeinfo.push_back(PredType::STD_U64LE);
         hdfpredtypeinfo.push_back(H5T_NATIVE_ULONG);
 #endif
 #ifdef USEADIOS
@@ -4438,7 +4433,6 @@ struct ProfileDataHeader{
         if (opt.iprofilenorm != PROFILERNORMPHYS) {
         headerdatainfo.push_back(opt.profileradnormstring);
 #ifdef USEHDF
-        // predtypeinfo.push_back(desiredproprealtype[0]);
         hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS

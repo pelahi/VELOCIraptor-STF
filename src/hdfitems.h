@@ -562,7 +562,9 @@ class H5OutputFile
     /// Write a multidimensional dataset. Data type of the new dataset is taken to be the type of
     /// the input data if not explicitly specified with the filetype_id parameter.
     template <typename T> void write_dataset_nd(std::string name, int rank, hsize_t *dims, T *data,
-        hid_t memtype_id = -1, hid_t filetype_id = -1, bool flag_parallel = true, bool flag_hyperslab = true, bool flag_collective = true)
+        hid_t memtype_id = -1, hid_t filetype_id = -1,
+        bool flag_parallel = true, bool flag_first_dim_parallel = true,
+        bool flag_hyperslab = true, bool flag_collective = true)
     {
 #ifdef USEPARALLELHDF
         MPI_Comm comm = MPI_COMM_WORLD;
@@ -588,9 +590,13 @@ class H5OutputFile
             MPI_Allreduce(dims_single.data(), mpi_hdf_dims_tot.data(), rank, MPI_UNSIGNED_LONG_LONG, MPI_SUM, comm);
             for (auto i=0;i<rank;i++) {
                 dims_offset[i] = 0;
+                if (flag_first_dim_parallel && rank > 0) continue;
                 for (auto j=1;j<=ThisTask;j++) {
                     dims_offset[i] += mpi_hdf_dims[i*NProcs+j-1];
                 }
+            }
+            if (flag_first_dim_parallel && rank > 1) {
+                for (auto i=1; i<rank;i++) mpi_hdf_dims_tot[i] = dims[i];
             }
         }
 #endif
@@ -730,14 +736,21 @@ class H5OutputFile
         //this bit of code communicating information can probably be done elsewhere
         //minimize number of mpi communications
         if (flag_parallel) {
+            //if parallel hdf5 get the full extent of the data
+            //this bit of code communicating information can probably be done elsewhere
+            //minimize number of mpi communications
             for (auto i=0;i<rank;i++) dims_single[i]=dims[i];
             MPI_Allgather(dims_single.data(), rank, MPI_UNSIGNED_LONG_LONG, mpi_hdf_dims.data(), rank, MPI_UNSIGNED_LONG_LONG, comm);
             MPI_Allreduce(dims_single.data(), mpi_hdf_dims_tot.data(), rank, MPI_UNSIGNED_LONG_LONG, MPI_SUM, comm);
             for (auto i=0;i<rank;i++) {
                 dims_offset[i] = 0;
+                if (flag_first_dim_parallel && rank > 0) continue;
                 for (auto j=1;j<=ThisTask;j++) {
                     dims_offset[i] += mpi_hdf_dims[i*NProcs+j-1];
                 }
+            }
+            if (flag_first_dim_parallel && rank > 1) {
+                for (auto i=1; i<rank;i++) mpi_hdf_dims_tot[i] = dims[i];
             }
         }
 #endif

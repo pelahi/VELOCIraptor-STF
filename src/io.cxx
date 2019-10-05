@@ -2386,7 +2386,7 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
             Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, opt.profileradnormstring, false);
             Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, &opt.iInclusiveHalo, -1, -1, false);
             Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, &nbinsedges, -1, -1, false);
-            Fhdf.write_dataset(datagroupnames.profile[itemp++], nbinsedges, data, H5T_NATIVE_DOUBLE, -1, -1, false);
+            Fhdf.write_dataset(datagroupnames.profile[itemp++], nbinsedges, data, H5T_NATIVE_DOUBLE, -1, false);
         }
         else {
             itemp=10;
@@ -2427,24 +2427,14 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
         Fout<<endl;
     }
     ::operator delete(data);
-
-    for (Int_t i=1;i<=ngroups;i++) {
-        if (opt.ibinaryout==OUTBINARY) {
-            //pdata[i].WriteProfileBinary(Fout,opt);
-        }
-#ifdef USEHDF
-        else if (opt.ibinaryout==OUTHDF) {
-            //pdata[i].WriteHDF(Fhdf);
-            //for hdf may be more useful to produce an array of the appropriate size and write each data set in one go
-            //requires allocating memory
-        }
-#endif
-        else if (opt.ibinaryout==OUTASCII){
-            //pdata[i].WriteProfileAscii(Fout,opt);
-        }
+    if (opt.ibinaryout==OUTBINARY) {
+        //for (Int_t i=1;i<=ngroups;i++) pdata[i].WriteProfileBinary(Fout,opt);
+    }
+    else if (opt.ibinaryout==OUTASCII){
+        //for (Int_t i=1;i<=ngroups;i++) pdata[i].WriteProfileAscii(Fout,opt);
     }
 #ifdef USEHDF
-    if (opt.ibinaryout==OUTHDF) {
+    else if (opt.ibinaryout==OUTHDF) {
         itemp=0;
         data= ::operator new(sizeof(long long)*(ng));
         //first is halo ids, then normalisation
