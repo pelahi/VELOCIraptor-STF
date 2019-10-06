@@ -84,6 +84,7 @@ These can be passed to ``cmake``
     * Enable input/output formats
         * For HDF
             | ``VR_HDF5``: boolean on whether to include HDF support
+            | ``VR_ALLOWPARALLELHDF5``: boolean on whether to allow for parallel HDF support (if available)
             | ``HDF5_ROOT``: specify a local directory containing HDF library.
         * for XDR (nchilada) input
             | ``VR_XDR``: boolean on whether to include XDR support
@@ -141,3 +142,7 @@ These can be passed to ``cmake``
         ``VR_USE_SWIFT_INTERFACE=ON``
     * Enable debugging
         ``DEBUG=ON``
+
+
+.. note:: For integration into swift, the code must also be compiled with ``-fPIC``
+which can be set with ``-DCMAKE_CXX_FLAGS=-fPIC``
