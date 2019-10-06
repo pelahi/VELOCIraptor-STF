@@ -463,6 +463,8 @@ void GetParamFile(Options &opt)
                         opt.halocorephasedistsig = atof(vbuff);
                     else if (strcmp(tbuff, "Halo_core_phase_merge_dist")==0)
                         opt.coresubmergemindist = atof(vbuff);
+                    else if (strcmp(tbuff, "Apply_phase_merge_to_host")==0)
+                        opt.icoresubmergewithbg = atoi(vbuff);
 
                     //for changing factors used in iterative search
                     else if (strcmp(tbuff, "Iterative_threshold_factor")==0)
@@ -673,6 +675,87 @@ void GetParamFile(Options &opt)
                         opt.iopenmpfof = atoi(vbuff);
                     else if (strcmp(tbuff, "OMP_fof_region_size")==0)
                         opt.openmpfofsize = atoi(vbuff);
+                    else if (strcmp(tbuff, "Gas_internal_property_names")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            opt.gas_internalprop_names.push_back(token);
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                    }
+                    else if (strcmp(tbuff, "Star_internal_property_names")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            opt.star_internalprop_names.push_back(token);
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                    }
+                    else if (strcmp(tbuff, "BH_internal_property_names")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            opt.bh_internalprop_names.push_back(token);
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                    }
+                    else if (strcmp(tbuff, "Gas_chemistry_names")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            opt.gas_chem_names.push_back(token);
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                    }
+                    else if (strcmp(tbuff, "Star_chemistry_names")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            opt.star_chem_names.push_back(token);
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                    }
+                    else if (strcmp(tbuff, "BH_chemistry_names")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            opt.bh_chem_names.push_back(token);
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                    }
+                    else if (strcmp(tbuff, "Gas_chemistry_production_names")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            opt.gas_chem_names.push_back(token);
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                    }
+                    else if (strcmp(tbuff, "Star_chemistry_production_names")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            opt.star_chem_names.push_back(token);
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                    }
+                    else if (strcmp(tbuff, "BH_chemistry_production_names")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            opt.bh_chem_names.push_back(token);
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                    }
 
 
                     //output related
