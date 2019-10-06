@@ -62,3 +62,9 @@ void VR_OPENMPON(){};
 #ifdef HIGHRES
 void VR_ZOOMSIMON(){};
 #endif
+#ifdef USEHDF
+void VR_HDFON(){};
+#ifdef USEPARALLELHDF
+void VR_PARALLELHDFON(){};
+#endif
+#endif

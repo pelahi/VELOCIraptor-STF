@@ -816,6 +816,12 @@ extern "C" void VR_OPENMPON();
 #ifdef HIGHRES
 extern "C" void VR_ZOOMSIMON();
 #endif
+#ifdef USEHDF
+extern "C" void VR_HDFON();
+#ifdef USEPARALLELHDF
+extern "C" void VR_PARALLELHDFON();
+#endif
+#endif
 //@}
 
 #endif
