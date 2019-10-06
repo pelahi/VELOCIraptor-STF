@@ -388,6 +388,8 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     H5OutputFile Fhdf, Fhdf3;
     int itemp=0;
     int ival;
+    vector<Int_t> mpi_ngoffset(NProcs);
+    Int_t ngoffset;
 #endif
 #ifdef USEADIOS
     int adios_err;
@@ -558,6 +560,15 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     else if (opt.ibinaryout==OUTHDF) {
         unsigned int *data=new unsigned int[ng];
         for (Int_t i=1;i<=ng;i++) data[i-1]=offset[i];
+#ifdef USEPARALLELHDF
+        nids = 0; for (Int_t i=1; i<=ng; i++) nids+=pglist[i][numingroup[i]];
+        MPI_Allgather(nids, 1, MPI_Int_t, mpi_ngoffset.data(), 1, MPI_Int_t, MPI_COMM_WORLD);
+        if (ThisTask > 0)
+        {
+            ngoffset = 0; for (auto itask = 0; itask < ThisTask; itask++) ngoffset += mpi_ngoffset[itask];
+            for (Int_t i=1; i<=ng; i++) data[i-1] += ngoffset;
+        }
+#endif
         Fhdf.write_dataset(datagroupnames.group[itemp], ng, data);
         itemp++;
         delete[] data;
@@ -583,6 +594,15 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     else if (opt.ibinaryout==OUTHDF) {
         unsigned int *data=new unsigned int[ng];
         for (Int_t i=1;i<=ng;i++) data[i-1]=offset[i];
+#ifdef USEPARALLELHDF
+        nuids = 0; for (Int_t i=1; i<=ng; i++) nuids+=numingroup[i]-pglist[i][numingroup[i]];
+        MPI_Allgather(nuids, 1, MPI_Int_t, mpi_ngoffset.data(), 1, MPI_Int_t, MPI_COMM_WORLD);
+        if (ThisTask > 0)
+        {
+            ngoffset = 0; for (auto itask = 0; itask < ThisTask; itask++) ngoffset += mpi_ngoffset[itask];
+            for (Int_t i=1; i<=ng; i++) data[i-1] += ngoffset;
+        }
+#endif
         Fhdf.write_dataset(datagroupnames.group[itemp], ng, data);
         itemp++;
         delete[] data;
