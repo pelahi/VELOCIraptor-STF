@@ -32,12 +32,15 @@ The output produced by VELOCIraptor will typically consist of several files cont
 bulk properties of structures found; particles belonging to these structures; and several
 additional files containing configuration information.
 
-When running in MPI, currently each mpi thread writes its own output.
+When running in MPI, currently each mpi thread writes its own output unless
+the code has been compiled with a parallel HDF5 library and HDF5 output is requested.
+In that case, a single file is written containing data from all threads for each type
+of output requested.
 
-.. note:: At the moment, mpirun assumes that a single structure can fit onto the memory local to the mpi thread. If larger field objects (haloes) are to be analyzed such that they are unlikely to fit into local memory, it is suggested another machine be used. Revision is in the works to use the Singlehalo_search option after field halos have been identified.
-
-.. note:: Certain compilation options rename the executable to reflect compile time options (see :ref:`compileoptions` for a list). Examples are using gas or star particles, which appends `-gas`, `-star`, to the executable name.
-
+.. note:: At the moment, mpirun assumes that a single structure can fit onto
+the memory local to the mpi thread. If larger field objects (haloes) are to be
+analyzed such that they are unlikely to fit into local memory, it is suggested another machine be used.
+Revision is in the works to use the Singlehalo_search option after field halos have been identified.
 
 .. _cmdargs:
 
@@ -87,15 +90,30 @@ Output
 Here we provide a *brief* description of the standard data products provided by **VELOCIraptor**.
 For a more detailed discussion and some sample analysis using these data products see :ref:`output`.
 
-When operating in a typical configuration with typical compile time options, the executable (or each mpi thread)
-will produce several files (with the mpi threads appending their rank to the end of the file name):
+When operating in a typical configuration with typical compile time options,
+the executable (or each mpi thread) will produce several files (with the mpi
+threads appending their rank to the end of the file name, unless parallel HDF5 output is requested).
+The files typically produced are :
 
 .. topic:: Output files
 
     * ``.properties``: a file containing the bulk properties of all structures identified.
-    * ``.catalog_groups``: a file containing the size of the structures (in number of particles associated) & information need to read particle information produced by velociraptor
-    * ``.catalog_particles``: a file containing a list of particle IDs of those in structures. Information contained in ``.catalog_groups`` is used to parse this data.
-    * ``.catalog_particles.unbound``: similar to ``catalog_particles`` but lists particles in structures but are formally unbound. Information contained in ``.catalog_groups`` is used to parse this data.
+    * ``.catalog_groups``: a file containing the size of the structures
+    (in number of particles associated) & information need to read particle information
+    produced by velociraptor
+    * ``.catalog_particles``: a file containing a list of particle IDs of those in structures.
+    Information contained in ``.catalog_groups`` is used to parse this data.
+    * ``.catalog_particles.unbound``: similar to ``catalog_particles`` but lists particles
+    in structures but are formally unbound. Information contained in ``.catalog_groups``
+    is used to parse this data.
+
+.. topic:: Extra output files
+
+    * ``.profiles``: a file containing the radial mass profiles of (sub)halos
+    * ``.catalog_parttypes``: a file similar to ``.catalog_particles`` but stores
+    particle type instead of paricle id.
+    * ``.catalog_parttypes.unbound``: a file similar to ``.catalog_parttypes`` but
+    for unbound particles.
 
 .. _configoptions:
 
@@ -110,7 +128,6 @@ your base output filename.
 
 .. warning:: Note that if misspell a keyword it will not be used.
 .. warning:: Since this file is always written **DO NOT** name your input configuration file **foo.configuration**.
-
 
 There are numerous key words that can be passed. Here we list them, grouped into several categories:
 :ref:`Outputs <config_output>`,
@@ -296,6 +313,16 @@ There are numerous key words that can be passed. Here we list them, grouped into
     ``Halo_core_phase_significance = 2.0``
         * Significance a core must be in terms of phase-space distance scaled by dispersions (sigma). Typical values are order unity & > 1.
 
+.. topic:: Configuration for cleaning up substructuers that overlap in phase-space.
+
+    Substructures can be merged together if they overlap in phase space.
+
+    ``Structure_phase_merge_dist = 0.25``
+        * Phase-distance normalised by dispersions below which structures are merged together. Typical valuse are < 1.
+    ``Apply_phase_merge_to_host = 1``
+        * Flag whether to also check substructures can be merged with the host background. 1 is on.
+
+
 .. _config_unbinding:
 
 .. topic:: Unbinding Parameters
@@ -320,6 +347,13 @@ There are numerous key words that can be passed. Here we list them, grouped into
         * The minimum number of particles used to calculate the velocity of the minimum of the potential (default is 10).
     ``Frac_pot_ref = 0.1``
         * Fraction of particles used to calculate the velocity of the minimum of the potential (0.1). If smaller than ``Min_npot_ref``, that is used.
+    ``Unbinding_max_unbound_removal_fraction_per_iteration = 0.5``
+        * Maximum fraction of unbound particles removed per iteration in unbinding process.
+    ``Unbinding_max_unbound_fraction = 0.95``
+        * Maximum fraction of particles that can be considered unbound before group removed entirely and is not processed iteratively.
+    ``Unbinding_max_unbound_fraction_allowed = 0.005``
+        * Maximum fraction of unbound particles allowed after unbinding. If set to zero, all unbound particles removed.
+
 
 .. _config_units:
 
@@ -353,7 +387,7 @@ There are numerous key words that can be passed. Here we list them, grouped into
     If input is cosmological, then for some input formats (gadget, HDF), these quantites can be read from the input file. Tipsy formats require that these be set in the configuration file.
 
     ``Period =``
-        * Period of the box in input units. \n
+        * Period of the box in input units.
     ``Scale_factor =``
         * Scale factor time
     ``h_val =``
@@ -373,6 +407,19 @@ There are numerous key words that can be passed. Here we list them, grouped into
     ``Critical_density =``
         * Critical density in input units used in cosmological simulations.
 
+.. _config_properties:
+
+.. topic:: Configuration for properties calculated.
+
+    Configuration options related to the bulk properties calculated.
+
+    ``Inclusive_halo_mass = 3/2/1/0``
+        * Flag indicating whether inclusive masses are calculated for field objects.
+        3: indicates inclusive SO masses are calculated after substructure is found.
+        2: indicates inclusive SO masses are calculated before substructure is found.
+        1: indicates inclusive SO masses are calculated before substructure is found but limited to particles in the halo.
+        0: indicates masses exclusive.
+
 .. _config_misc:
 
 .. topic:: Miscellaneous
@@ -385,8 +432,6 @@ There are numerous key words that can be passed. Here we list them, grouped into
         * If running a multiple resolution zoom simulation, simple method of scaling the linking length by using the period and this effective resolution, ie: :math:`p/N_{\rm eff}`
     ``Verbose = 0/1/2``
         * Integer indicating how talkative the code is (2 very verbose, 1 verbose, 0 quiet).
-    ``Inclusive_halo_mass = 1/0``
-        * Flag indicating whether inclusive masses are calculated for field objects.
 
 
 .. _config_mpi:
