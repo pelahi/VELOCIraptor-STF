@@ -1,15 +1,15 @@
 .. _getting:
 
-Getting **VELOCIraptor**
+Getting |vr|
 ########################
 
 **VELOCIraptor** is currently hosted in `GitHub <https://github.com/pelahi/VELOCIraptor-STF>`_.
-To get a copy you can clone the repository
-::
-    git clone https://github.com/pelahi/VELOCIraptor-STF
+To get a copy you can clone the repository::
+
+  git clone https://github.com/pelahi/VELOCIraptor-STF
 
 **VELOCIraptor**'s compilation system is based on `cmake <https://www.cmake.org/>`_. ``cmake`` will
-check that you have a proper compiler (anything supporting C++14 or later should do),
+check that you have a proper compiler (anything supporting C++11 or later should do),
 and scan the system for all required dependencies.
 
 To compile **VELOCIraptor** run (assuming you are inside the ``VELOCIraptor-STF/`` directory already)::
@@ -132,17 +132,15 @@ These can be passed to ``cmake``
 
     * only calculate local density distribution for particles residing in field objects (but using all particles to estimate quantity). Default.
         ``VR_STRUCTURE_DEN=ON``
-    * or just use particles inside field objects, reducing cpu cycles but will bias estimates for particle in outer region of field structures, overrides STRUCTUREDEN |
+    * or just use particles inside field objects, reducing cpu cycles but will bias estimates for particle in outer region of field structures, overrides STRUCTUREDEN
         ``VR_HALO_DEN=ON``
     * flag useful for zoom simulations with a high resolution region
         ``VR_ZOOM_SIM=ON``
 
 .. topic:: Executable flags
+
     * Produce SWIFTSIM compatible library (executable still produced but does simply returns warning)
-        ``VR_USE_SWIFT_INTERFACE=ON``
+        | ``VR_USE_SWIFT_INTERFACE=ON``
+        | ``CMAKE_CXX_FLAGS=-fPIC``
     * Enable debugging
         ``DEBUG=ON``
-
-
-.. note:: For integration into swift, the code must also be compiled with ``-fPIC``
-which can be set with ``-DCMAKE_CXX_FLAGS=-fPIC``
