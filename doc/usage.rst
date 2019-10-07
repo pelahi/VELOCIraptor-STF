@@ -79,6 +79,17 @@ A more typical command for a large cosmological simulation might be something li
     export OMP_NUM_THREADS=4
     mpirun -np 64 ./stf -i somehdfbasename -s 128 -I 2 -Z 64 -o output -C configfile.txt > stf.log
 
+.. _swiftintegration:
+
+Running within swiftsim
+-----------------------
+
+|vr| is also able to be called from within an N-body/Hydrodynamnical code as a library.
+Currently the code has been integrated in to **swifsim**. Details can be found
+in the **swiftsim** `documentation <http://icc.dur.ac.uk/swift/docs/index.html>`_.
+The key is that the **swiftsim** code's configuration file  lists the |vr| configuration file
+used to run |vr|.
+
 .. _briefoutput:
 
 Output
@@ -105,6 +116,7 @@ The files typically produced are :
     * ``.catalog_parttypes``: a file similar to ``.catalog_particles`` but stores particle type instead of paricle id.
     * ``.catalog_parttypes.unbound``: a file similar to ``.catalog_parttypes`` but for unbound particles.
     * ``.extendedinfo``: a file containing extra information on where particles are located in the input file for quick extraction from said input file of particles within groups. Still in alpha
+    * ``.catalog_SOlist``: a file containing particle IDs within the spherical overdensity region of halos.
 
 .. _configoptions:
 
@@ -125,44 +137,43 @@ We suggest the following files as a basis:
 .. warning:: Since this file is always written **DO NOT** name your input configuration file **foo.configuration**.
 
 There are numerous key words that can be passed. Here we list them, grouped into several categories:
-    :ref:`Outputs <config_output>`
-    :ref:`Inputs <config_input>`
-    :ref:`Parameters related to type of search <config_search_type>`
-    :ref:`Field search <config_field_search>`
-    :ref:`Substructure search <config_sub_search>`
-    :ref:`Local Velocity Density <config_local_vden>`
-    :ref:`Core search <config_core_search>`
-    :ref:`Unbinding <config_unbinding>`
-    :ref:`Properties <config_properties>`
-    :ref:`Units <config_units>`
-    :ref:`Cosmology <config_cosmology>`
-    :ref:`Miscellaneous <config_misc>`
-    :ref:`MPI <config_mpi>`
 
-.. _config_output:
+    - :ref:`IO <config_io>`
 
-.. topic:: Output related
+        - :ref:`Outputs <config_output>`
+        - :ref:`Inputs <config_input>`
 
-    ``Output = filename``
-        * Output base name. Overrides the name passed with the command line argument **-o**. Only implemented for completeness.
-    ``Output_den = filename``
-        * A filename for storing the intermediate step of calculating local densities. This is particularly useful if the code is not compiled with **STRUCDEN** & **HALOONLYDEN** (see :ref:`compileoptions`).
-    ``Separate_output_files = 1/0``
-        * Flag indicating whether separate files are written for field and subhalo groups.
-    ``Write_group_array_file = 1/0``
-        * Flag indicating whether to producing a file which lists for every particle the group they belong to. Can be used with **tipsy** format or to tag every particle.
-    ``Binary_output = 3/2/1/0``
-        * Integer indicating whether output is hdf (2), binary (1), ascii (0) or adios (3). HDF and ADIOS formats require external libraries (see :ref:'compileoptions')
-    ``Extensive_halo_properties_output = 1/0``
-        * Flag indicating whether to calculate/output even more halo properties.
-    ``Extended_output = 1/0``
-        * Flag indicating whether produce extended output for quick particle extraction from input catalog of particles in structures
-    ``Comoving_units = 1/0``
-        * Flag indicating whether the properties output is in physical or comoving little h units.
+    - :ref:`Parameters related to type of search <config_search>`
+
+        - :ref:`Field search <config_field_search>`
+        - :ref:`Substructure search <config_sub_search>`
+        - :ref:`Local Velocity Density <config_local_vden>`
+        - :ref:`Core search <config_core_search>`
+
+    - :ref:`Unbinding <config_unbinding>`
+    - :ref:`Properties <config_properties>`
+    - :ref:`Units/Cosmology <config_siminfo>`
+
+        - :ref:`Units <config_units>`
+        - :ref:`Cosmology <config_cosmology>`
+
+    - :ref:`Parallel <config_parallel>`
+
+        - :ref:`MPI <config_mpi>`
+        - :ref:`OpenMP <config_openmp>`
+
+    - :ref:`Miscellaneous <config_misc>`
+
+
+.. _config_io:
+
+I/O
+^^^
+Input and output related options
 
 .. _config_input:
 
-.. topic:: Input related
+_topic:: Input related
 
     ``Cosmological_input = 1/0``
         * Flag indicating that input simulation is cosmological or not. With cosmological input, a variety of length/velocity scales are set to determine such things as the virial overdensity, linking length.
@@ -187,18 +198,63 @@ There are numerous key words that can be passed. Here we list them, grouped into
     Gas related input
         ``Gas_internal_property_names = ,``
             * Comma separated list of strings listing extra gas properties to be read from HDF file for which bulk mean/total properties are calculated for objects. Useful way of passing properties like molecular H2 fraction, etc.
-        ``Gas_internal_property_names = ,``
-            * Comma separated list of strings listing extra gas properties to be read from HDF file for which bulk mean/total properties are calculated for objects. Useful way of passing properties like molecular H2 fraction, etc.
-    ``NSPH_extra_blocks =``
-        * Integer inticading  the number of extra **SPH** blocks are read in the file if gadget input.
-    ``NStar_extra_blocks =``
-        * Integer inticading  the number of extra **star** blocks are read in the file if gadget input.
-    ``NBH_extra_blocks =``
-        * Integer inticading  the number of extra **BH** blocks are read in the file if gadget input.
+        ``Gas_chemistry_names = ,``
+            * Comma separated list of strings listing extra chemical properties to be read from HDF file for which bulk mean/total properties are calculated for objects. Useful way of passing properties like molecular H2 fraction, etc.
+        ``Gas_chemistry_production_names = ,``
+            * Comma separated list of strings listing extra production channels for metals to be read from HDF file for which bulk mean/total properties are calculated for objects. Useful way of passing properties like molecular H2 fraction, etc.
+    Star related input
+        ``Star_internal_property_names = ,``
+            * Comma separated list of strings listing extra star properties to be read from HDF file for which bulk mean/total properties are calculated for objects. Useful way of passing properties like molecular H2 fraction, etc.
+        ``Star_chemistry_names = ,``
+            * Comma separated list of strings listing extra chemical properties to be read from HDF file for which bulk mean/total properties are calculated for objects. Useful way of passing properties like molecular H2 fraction, etc.
+        ``Star_chemistry_production_names = ,``
+            * Comma separated list of strings listing extra production channels for metals to be read from HDF file for which bulk mean/total properties are calculated for objects. Useful way of passing properties like molecular H2 fraction, etc.
+    Black hole related input
+        ``BH_internal_property_names = ,``
+            * Comma separated list of strings listing extra black properties to be read from HDF file for which bulk mean/total properties are calculated for objects. Useful way of passing properties like molecular H2 fraction, etc.
+        ``BH_chemistry_names = ,``
+            * Comma separated list of strings listing extra chemical properties to be read from HDF file for which bulk mean/total properties are calculated for objects. Useful way of passing properties like molecular H2 fraction, etc.
+        ``BH_chemistry_production_names = ,``
+            * Comma separated list of strings listing extra production channels for metals to be read from HDF file for which bulk mean/total properties are calculated for objects. Useful way of passing properties like molecular H2 fraction, etc.
+    Gadget related input
+        ``NSPH_extra_blocks =``
+            * Integer inticading  the number of extra **SPH** blocks are read in the file if gadget input.
+        ``NStar_extra_blocks =``
+            * Integer inticading  the number of extra **star** blocks are read in the file if gadget input.
+        ``NBH_extra_blocks =``
+            * Integer inticading  the number of extra **BH** blocks are read in the file if gadget input.
 
-.. _config_search_type:
+.. _config_output:
 
-.. topic:: Parameters related to type of search
+_topic:: Output related
+
+    ``Output = filename``
+        * Output base name. Overrides the name passed with the command line argument **-o**. Only implemented for completeness.
+    ``Output_den = filename``
+        * A filename for storing the intermediate step of calculating local densities. This is particularly useful if the code is not compiled with **STRUCDEN** & **HALOONLYDEN** (see :ref:`compileoptions`).
+    ``Separate_output_files = 1/0``
+        * Flag indicating whether separate files are written for field and subhalo groups.
+    ``Write_group_array_file = 1/0``
+        * Flag indicating whether to producing a file which lists for every particle the group they belong to. Can be used with **tipsy** format or to tag every particle.
+    ``Binary_output = 2/1/0``
+        * Integer flag indicating type of output.
+            - **2** self-describing binar format of HDF5. **Recommended**.
+            - **1** raw binary.
+            - **0** ASCII.
+    ``Extended_output = 1/0``
+        * Flag indicating whether produce extended output for quick particle extraction from input catalog of particles in structures
+    ``Spherical_overdensity_halo_particle_list_output = 1/0``
+        * Flag indicating whether particle IDs identified within the spherical overdensity of field halos is written (to a .catalog_SOlist). Useful if looking at evolution of particles within spherical overdensities.
+    ``Sort_by_binding_energy = 1/0``
+        * Flag indicating whether particle IDs written in .catalog_particles are sorted by binding energy (1) or potential energy (0).
+    ``No_particle_ID_list_output = 1/0``
+        * Flag indicating whether particle IDs written (i.e., write the .catalog_\* files). Default is 1. Particle ID files are necessary for constructing merger trees but if just properties of (sub)halos, then turn off.
+
+.. _config_search:
+
+Searching for Structures
+^^^^^^^^^^^^^^^^^^^^^^^^
+Options related to searching for (sub)halos. General search parameters set particles to be search and the overall type of search.
 
     ``Particle_search_type = 1/2/3/4``
         * An integer describing what types of particles are searched. A full list of options is in :ref:`subsection_searchtypes`. Typical options are:
@@ -208,8 +264,8 @@ There are numerous key words that can be passed. Here we list them, grouped into
             - **4** Gas particles (which are typically defined as type 0 for gadget) are searched
     ``Baryon_searchflag = 0/1/2``
         * An integer indicating gas/stellar search done separately from DM search.
+            - **2** field search also altered to treat baryons differently, allowing only DM particles to be used as head links (ie link dm-dm, dm-baryon, but not baryon-baryon nor baryon-dm). Then DM substructure search with baryons associated to closest DM particle in phase-space. **Recommended**.
             - **1** field search run as normal and then substructure search for baryons run using baryons identified in field search.
-            - **2** field search also altered to treat baryons differently, allowing only DM particles to be used as head links (ie link dm-dm, dm-baryon, but not baryon-baryon nor baryon-dm). Then DM substructure search with baryons associated to closest DM particle in phase-space.
             - **0** do nothing special for baryon particles.
     ``Search_for_substructure = 1/0``
         * Flag indicating whether field objects are searched for internal substructures. Default is 1 (on)
@@ -225,9 +281,9 @@ There are numerous key words that can be passed. Here we list them, grouped into
             - **5** standard 3D FOF based algorithm
             - **4** standard 3D FOF based algorithm :strong:`FOLLOWED` by 6D FOF search using the velocity scale defined by the largest halo on particles in 3DFOF groups
             - **3** standard 3D FOF based algorithm :strong:`FOLLOWED` by 6D FOF search using :emphasis:`adaptive` velocity scale for each 3DFOF group on particles in these groups.
-    ``Halo_linking_length_factor = 2.0``
-        * Multiplicative factor of order unity that allows one to use different physical linking lengths between field objects and substructures. :strong:`Note`: substructure search defines the base linking length via ```Physical_linking_length``. Typically for standard 3DFOF searches of dark matter haloes, set to 2.0, as typical base linking length is 0.1 times the interparticle spacing when examining cosmological simulations.
-    ``Halo_velocity_linking_length_factor =``
+    ``Halo_3D_linking_length = 0.2``
+        * Linking length used to find configuration space 3D FOF halos. If cosmological file then assumed to be in units of inter particle spacing, if loading in a single halo then can be based on average interparticle spacing calculated, otherwise in input units. Default is 0.2 in interpaticle spacing units.
+    ``Halo_velocity_linking_length_factor = 1.0``
         * Multiplicative factor of order unity for the dispersions used in 6D searches. Typical values are order unity as velocity dispersions are used to define the velocity linking length scale.
     ``Halo_6D_linking_length_factor = 1.0``
         * Multiplicative factor of order unity that allows one to use different configuration space linking lengths between 3DFOF and 6DFOF field search. Typically this is 1.0
@@ -254,8 +310,8 @@ There are numerous key words that can be passed. Here we list them, grouped into
         * Speed ratio used in linking particles which should be order unity and > 1 (default is 2)
     ``Velocity_opening_angle = 0.10``
         * Angle between velocities when linking (in units of :math:`\pi`) (default is 0.10)
-    ``Physical_linking_length = 0.1``
-        * Physical linking length used in FOF. If cosmological gadget file then assumed to be in units of inter particle spacing, if loading in a single halo then can be based on average interparticle spacing calculated, otherwise in input units. Default is 0.1 in interpaticle spacing units.
+    ``Substructure_physical_linking_length = 0.1``
+        * Physical linking length used in phase-space substructure FOF. If cosmological file then assumed to be in units of inter particle spacing, if loading in a single halo then can be based on average interparticle spacing calculated, otherwise in input units. Default is 0.1 in interpaticle spacing units.
     ``CMrefadjustsubsearch_flag = 1/0``
         * Flag indicating whether particles are moved to the rough CM velocity frame of the background before substructures are searched for (default is on)
     ``Iterative_searchflag = 1/0``
@@ -273,10 +329,15 @@ There are numerous key words that can be passed. Here we list them, grouped into
 
 .. _config_local_vden:
 
-.. topic:: Parameters related to local density estimator used to identify particles in substructures.
+_topic:: Configuration for local density calculation used to identify substructures
 
     **Note**: default values are fine and typically do not need to be set in the configuration file.
 
+    ``Local_velocity_density_approximate_calculation = 2/1/0``
+        * Flag indicating how to calculate computationally expensive local velocity densities.
+            - **2** approximative search limited to particles in halos (requires no mpi communication). **Recommended**.
+            - **1** approximative search, group particles in leaf nodes of tree
+            - **0** full search per particle.
     ``Nsearch_velocity = 32``
         * Number of velocity neighbours used to calculate velocity density (suggested value is 32)
     ``Nsearch_physical = 32``
@@ -285,7 +346,7 @@ There are numerous key words that can be passed. Here we list them, grouped into
         * Fraction of a halo contained in a subvolume used to characterize the background (suggested value is 0.01)
     ``Grid_type = 1``
         * Integer describing type of grid used to decompose volume for substructure search (suggested value is 1)
-            - **1** standard physical shannon entropy, balanced KD tree volume decomposition into cells
+            - **1** standard physical shannon entropy, balanced KD tree volume decomposition into cells. **Recommended**
             - **2** phase phase-space shannon entropy, balanced KD tree volume decomposition into cells
             - **3** simple simple physical balanced KD tree decomposition of volume into cells
 
@@ -297,6 +358,9 @@ There are numerous key words that can be passed. Here we list them, grouped into
 
     ``Halo_core_search = 0/1/2``
         * Integer allows one to explicitly search for large 6D FOF cores that are indicative of a recent major merger. Since substructure is defined on the scale of the maximum cell size and major mergers typically result two or more phase-space dense regions that are *larger* than the cell size used in reasonable substructure searches, one can identify them using this search. The overall goal is to treat these objects differently than a substructure. However, if 2 is set, then smaller core is treated as substruture and all particles within the FOF envelop are assigned to the cores based on their phase-space distance to core particles.
+            - **2** search for cores and growth them. **Recommended**.
+            - **1**
+            - **0** do not search cores.
     ``Use_adaptive_core_search = 0/1``
         * Flag allows one to run complex adaptive phase-space search for large 6D FOF cores and then use these linking lengths to separate mergers. 0 is simple high density dispersively cold cores with velocity scale adaptive, 1 is adaptive in both configuration & velocity.
     ``Use_phase_tensor_core_growth = 0/1``
@@ -332,9 +396,10 @@ There are numerous key words that can be passed. Here we list them, grouped into
 
 .. _config_unbinding:
 
-.. topic:: Unbinding Parameters
-
-    Particles in strutures can be checked to see if they are bound relative to a kinetic reference frame (CM of the structure).
+Unbinding
+^^^^^^^^^
+Particles in strutures can be checked to see if they are bound relative to a kinetic reference frame (CM of the structure).
+This cleans the (sub)structures of spurious objects and particles.
 
     ``Unbind_flag = 1/0``
         * Flag indciating whether substructures passed through an unbinding routine.
@@ -364,9 +429,9 @@ There are numerous key words that can be passed. Here we list them, grouped into
 
 .. _config_properties:
 
-.. topic:: Properties
-
-    Configuration options related to the bulk properties calculated.
+Properties
+^^^^^^^^^^
+Configuration options related to the bulk properties calculated.
 
     ``Inclusive_halo_mass = 3/2/1/0``
         * Flag indicating whether inclusive masses are calculated for field objects.
@@ -376,8 +441,6 @@ There are numerous key words that can be passed. Here we list them, grouped into
             - **0** indicates masses exclusive.
     ``Iterate_cm_flag = 0``
         * Flag indicating whether to iteratively find the centre-of-mass of an object (1) or simply deterine bulk centre of mass and centre of mass velocity (0). Calculation is based on all particles exclusively belonging to the object.
-    ``Sort_by_binding_energy = 1``
-        * Flag indicating whether particles are sorted by binding energy (1) or potential energy (0).
     ``Reference_frame_for_properties = 2``
         * Flag indicating what reference position to use when calculating radially dependent properties.
             - **2** use the position of the particle with the minimum potential.
@@ -415,6 +478,11 @@ There are numerous key words that can be passed. Here we list them, grouped into
         ``Radial_profile_bin_edges = -2.,-1.50,-1.00,-0.50,0.00,0.50,1.00,1.50,2.00``
             * Comma separated list of (log) r bin edges. Here example is for log r in proper kpc binning so values are log(r).
 
+.. _config_siminfo:
+
+Simulation Info
+^^^^^^^^^^^^^^^
+Options related to the input and output units and cosmology.
 
 .. _config_units:
 
@@ -440,6 +508,8 @@ There are numerous key words that can be passed. Here we list them, grouped into
         * Specify the conversion factor from the output unit to km/s
     ``Mass_unit_to_solarmass =``
         * Specify the conversion factor from the output unit to solar masses
+    ``Comoving_units = 1/0``
+        * Flag indicating whether the properties output is in physical or comoving little h units.
 
 .. _config_cosmology:
 
@@ -476,19 +546,11 @@ There are numerous key words that can be passed. Here we list them, grouped into
     ``Critical_density = 1.0``
         * Critical density in input units used in cosmological simulations.
 
-.. _config_misc:
+.. _config_parallel:
 
-.. topic:: Miscellaneous
-
-    Other configuration options
-
-    ``Snapshot_value =``
-        * If halo ids need to be offset to some starting value based on the snapshot of the output (say to make temporally unique halo ids that are useful for some halo merger tree codes), one can specific a snapshot number. All halo ids will be listed as internal haloid + snapnum * :math:`10^{12}` (or if using 32 bit integers and 64 bit integers, then ids offset by :math:`10^{6}`).
-    ``Effective_Resolution =``
-        * If running a multiple resolution zoom simulation, simple method of scaling the linking length by using the period and this effective resolution, ie: :math:`p/N_{\rm eff}`
-    ``Verbose = 0/1/2``
-        * Integer indicating how talkative the code is (2 very verbose, 1 verbose, 0 quiet).
-
+Parallel
+^^^^^^^^
+Options related to MPI/OpenMP/Pthread parallelisation.
 
 .. _config_mpi:
 
@@ -500,6 +562,30 @@ There are numerous key words that can be passed. Here we list them, grouped into
         * Factor used in memory allocated in mpi mode to store particles is (1+factor)* the memory need for the initial mpi decomposition. This factor should be >0 and is mean to allow a little room for particles to be exchanged between mpi threads withouth having to require new memory allocations and copying of data.
     ``MPI_particle_total_buf_size =``
         * Total memory size in bytes used to store particles in temporary buffer such that particles are sent to non-reading mpi processes in chunks of size buffer_size/NProcs/sizeof(Particle).
+
+.. _config_openmp:
+
+.. topic:: OpenMP specific parallelisation options
+
+        ``OMP_run_fof = 1``
+            * Flag indicating whether to run FOF searches with OpenMP threads.
+        ``OMP_fof_region_size = 100000000``
+            * Number of particles per OpenMP region.
+
+.. _config_misc:
+
+Miscellaneous
+^^^^^^^^^^^^^
+
+    Other configuration options
+
+    ``Snapshot_value =``
+        * If halo ids need to be offset to some starting value based on the snapshot of the output (say to make temporally unique halo ids that are useful for some halo merger tree codes), one can specific a snapshot number. All halo ids will be listed as internal haloid + snapnum * :math:`10^{12}` (or if using 32 bit integers and 64 bit integers, then ids offset by :math:`10^{6}`).
+    ``Effective_Resolution =``
+        * If running a multiple resolution zoom simulation, simple method of scaling the linking length by using the period and this effective resolution, ie: :math:`p/N_{\rm eff}`
+    ``Verbose = 0/1/2``
+        * Integer indicating how talkative the code is (2 very verbose, 1 verbose, 0 quiet).
+
 
 .. _subsection_searchtypes:
 

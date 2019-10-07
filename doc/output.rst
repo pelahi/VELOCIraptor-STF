@@ -1,9 +1,9 @@
 .. _output:
 
-Understanding and Analysing **VELOCIraptor** Output
+Understanding and Analysing |vr| Output
 ###################################################
 
-**VELOCIraptor** produces several different types of output files.
+|vr| produces several different types of output files.
 
 (with the mpi threads appending their rank to the end of the file name unless not compiled with MPI or if Parallel HDF5 is used.):
 
@@ -20,10 +20,10 @@ Properties
 There are a variety of properties calculated for each object found. Some are typical of all halo finders
 such as the mass of an object (which can be a halo, subhalo, tidal debris), along with more complex properties
 such as the eigenvectors and eigenvalues of the mass distribution defined by the reduced inertia tensor.
-The number of properties also varies with the type of run. For hydrodynamic simulations where **VELOCIraptor**
+The number of properties also varies with the type of run. For hydrodynamic simulations where |vr|
 has been compiled to use gas properties and star properties, gas masses, temperatures, etc are also calculated.
 
-We give an almost complete list of properties and the keyword associate with the property (in ASCII, HDF5 and ADIOS outputs).
+We give an almost complete list of properties and the keyword associate with the property (in ASCII and HDF5).
 
 +-------------------+-------------------------------------------------------------------------------------------------------+
 | Name              | Comments                                                                                              |
