@@ -1139,6 +1139,9 @@ struct ConfigInfo{
         nameinfo.push_back("Omega_nu");
         datainfo.push_back(to_string(opt.Omega_nu));
         datatype.push_back(python_type_string(opt.Omega_nu));
+        nameinfo.push_back("Omega_k");
+        datainfo.push_back(to_string(opt.Omega_k));
+        datatype.push_back(python_type_string(opt.Omega_k));
         nameinfo.push_back("Omega_DE");
         datainfo.push_back(to_string(opt.Omega_de));
         datatype.push_back(python_type_string(opt.Omega_de));

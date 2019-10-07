@@ -512,6 +512,8 @@ void GetParamFile(Options &opt)
                         opt.Omega_Lambda = atof(vbuff);
                     else if (strcmp(tbuff, "Omega_DE")==0)
                         opt.Omega_de = atof(vbuff);
+                    else if (strcmp(tbuff, "Omega_k")==0)
+                        opt.Omega_k = atof(vbuff);
                     else if (strcmp(tbuff, "Omega_cdm")==0)
                         opt.Omega_cdm= atof(vbuff);
                     else if (strcmp(tbuff, "Omega_b")==0)
