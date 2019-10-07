@@ -730,7 +730,7 @@ struct Options
         iBaryonSearch=0;
         icmrefadjust=1;
         iIterateCM = 1;
-        iLocalVelDenApproxCalcFlag = 1 ;
+        iLocalVelDenApproxCalcFlag = 2 ;
 
         Neff=-1;
 
