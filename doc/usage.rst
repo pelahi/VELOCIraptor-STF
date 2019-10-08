@@ -140,8 +140,8 @@ There are numerous key words that can be passed. Here we list them, grouped into
 
     - :ref:`IO <config_io>`
 
-        - :ref:`Outputs <config_output>`
         - :ref:`Inputs <config_input>`
+        - :ref:`Outputs <config_output>`
 
     - :ref:`Parameters related to type of search <config_search>`
 
@@ -169,11 +169,12 @@ There are numerous key words that can be passed. Here we list them, grouped into
 
 I/O
 ^^^
+
 Input and output related options
 
 .. _config_input:
 
-_topic:: Input related
+.. topic:: Input related
 
     ``Cosmological_input = 1/0``
         * Flag indicating that input simulation is cosmological or not. With cosmological input, a variety of length/velocity scales are set to determine such things as the virial overdensity, linking length.
@@ -226,7 +227,7 @@ _topic:: Input related
 
 .. _config_output:
 
-_topic:: Output related
+.. topic:: Output related
 
     ``Output = filename``
         * Output base name. Overrides the name passed with the command line argument **-o**. Only implemented for completeness.
@@ -254,6 +255,7 @@ _topic:: Output related
 
 Searching for Structures
 ^^^^^^^^^^^^^^^^^^^^^^^^
+
 Options related to searching for (sub)halos. General search parameters set particles to be search and the overall type of search.
 
     ``Particle_search_type = 1/2/3/4``
@@ -329,7 +331,7 @@ Options related to searching for (sub)halos. General search parameters set parti
 
 .. _config_local_vden:
 
-_topic:: Configuration for local density calculation used to identify substructures
+.. topic:: Configuration for local density calculation used to identify substructures
 
     **Note**: default values are fine and typically do not need to be set in the configuration file.
 
@@ -398,6 +400,7 @@ _topic:: Configuration for local density calculation used to identify substructu
 
 Unbinding
 ^^^^^^^^^
+
 Particles in strutures can be checked to see if they are bound relative to a kinetic reference frame (CM of the structure).
 This cleans the (sub)structures of spurious objects and particles.
 
@@ -431,6 +434,7 @@ This cleans the (sub)structures of spurious objects and particles.
 
 Properties
 ^^^^^^^^^^
+
 Configuration options related to the bulk properties calculated.
 
     ``Inclusive_halo_mass = 3/2/1/0``
@@ -482,6 +486,7 @@ Configuration options related to the bulk properties calculated.
 
 Simulation Info
 ^^^^^^^^^^^^^^^
+
 Options related to the input and output units and cosmology.
 
 .. _config_units:
@@ -550,6 +555,7 @@ Options related to the input and output units and cosmology.
 
 Parallel
 ^^^^^^^^
+
 Options related to MPI/OpenMP/Pthread parallelisation.
 
 .. _config_mpi:
