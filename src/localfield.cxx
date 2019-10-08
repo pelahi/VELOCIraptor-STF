@@ -158,7 +158,7 @@ private(i,j,k,tid,id,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,pqx,pqv
     PartDataGet = new Particle[NImport];
     MPI_Barrier(MPI_COMM_WORLD);
     //run search on exported particles and determine which local particles need to be exported back (or imported)
-    nimport=MPIBuildParticleNNImportList(nbodies, tree, Part, (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)));
+    nimport=MPIBuildParticleNNImportList(opt, nbodies, tree, Part, (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)));
     int nimportsearch=opt.Nsearch;
     if (nimportsearch>nimport) nimportsearch=nimport;
     if (opt.iverbose) cout<<ThisTask<<" Searching particles in other domains "<<nimport<<endl;
@@ -614,7 +614,7 @@ private(i,j,k,tid,id,v2,nnids,nnr2,weight,pqv)
     PartDataGet = new Particle[NImport];
     MPI_Barrier(MPI_COMM_WORLD);
     //run search on exported particles and determine which local particles need to be exported back (or imported)
-    nimport=MPIBuildParticleNNImportList(nbodies, tree, Part,(!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)));
+    nimport=MPIBuildParticleNNImportList(opt, nbodies, tree, Part,(!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)));
     int nimportsearch=opt.Nsearch;
     if (nimportsearch>nimport) nimportsearch=nimport;
     if (opt.iverbose) cout<<ThisTask<<" Searching particles in other domains "<<nimport<<endl;
@@ -933,7 +933,7 @@ reduction(+:nprocessed,ntot)
     if (NExport>0) PartDataIn = new Particle[NExport];
     if (NImport>0) PartDataGet = new Particle[NImport];
     //run search on exported particles and determine which local particles need to be exported back (or imported)
-    nimport=MPIBuildParticleNNImportList(nbodies, tree, Part, (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)));
+    nimport=MPIBuildParticleNNImportList(opt, nbodies, tree, Part, (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)));
     int nimportsearch=opt.Nsearch;
     if (nimportsearch>nimport) nimportsearch=nimport;
     if (opt.iverbose) cout<<ThisTask<<" Searching particles in other domains "<<nimport<<endl;

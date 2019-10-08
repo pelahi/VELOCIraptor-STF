@@ -98,6 +98,18 @@ typedef short short_mpi_t;
 #define TAG_FOF_D 13
 #define TAG_FOF_E 14
 #define TAG_FOF_F 15
+#define TAG_FOF_B_HYDRO 111
+#define TAG_FOF_B_STAR 112
+#define TAG_FOF_B_BH 113
+#define TAG_FOF_C_HYDRO 121
+#define TAG_FOF_C_STAR 122
+#define TAG_FOF_C_BH 123
+#define TAG_FOF_D_HYDRO 131
+#define TAG_FOF_D_STAR 132
+#define TAG_FOF_D_BH 133
+#define TAG_FOF_E_HYDRO 141
+#define TAG_FOF_E_STAR 142
+#define TAG_FOF_E_BH 143
 
 ///flag for NN particle exchange
 #define TAG_NN_A 20
@@ -165,8 +177,6 @@ extern Int_t mpi_maxgid,mpi_gidoffset;
 ///structure facilitates linking across mpi threads
 extern struct fofdata_in
 {
-    //Particle Part();
-    //FLOAT Hsml;
     Int_t iGroup;
     short_mpi_t iGroupTask;
     Int_t iLen;
