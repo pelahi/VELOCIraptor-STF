@@ -730,7 +730,7 @@ struct Options
         iBaryonSearch=0;
         icmrefadjust=1;
         iIterateCM = 1;
-        iLocalVelDenApproxCalcFlag = 1 ;
+        iLocalVelDenApproxCalcFlag = 2 ;
 
         Neff=-1;
 
@@ -1015,6 +1015,13 @@ struct ConfigInfo{
         datainfo.push_back(to_string(opt.halocorephasedistsig));
         datatype.push_back(python_type_string(opt.halocorephasedistsig));
 
+        //for merging structures together
+        nameinfo.push_back("Structure_phase_merge_dist");
+        datainfo.push_back(to_string(opt.coresubmergemindist));
+        datatype.push_back(python_type_string(opt.coresubmergemindist));
+        nameinfo.push_back("Apply_phase_merge_to_host");
+        datainfo.push_back(to_string(opt.icoresubmergewithbg));
+        datatype.push_back(python_type_string(opt.icoresubmergewithbg));
 
         //for changing factors used in iterative search
         nameinfo.push_back("Iterative_threshold_factor");
@@ -1098,6 +1105,7 @@ struct ConfigInfo{
         datainfo.push_back(to_string(opt.stellaragetoyrs));
         datatype.push_back(python_type_string(opt.stellaragetoyrs));
 
+        // simulation/cosmology info
         nameinfo.push_back("Period");
         datainfo.push_back(to_string(opt.p));
         datatype.push_back(python_type_string(opt.p));
@@ -1131,6 +1139,9 @@ struct ConfigInfo{
         nameinfo.push_back("Omega_nu");
         datainfo.push_back(to_string(opt.Omega_nu));
         datatype.push_back(python_type_string(opt.Omega_nu));
+        nameinfo.push_back("Omega_k");
+        datainfo.push_back(to_string(opt.Omega_k));
+        datatype.push_back(python_type_string(opt.Omega_k));
         nameinfo.push_back("Omega_DE");
         datainfo.push_back(to_string(opt.Omega_de));
         datatype.push_back(python_type_string(opt.Omega_de));
@@ -1337,7 +1348,6 @@ struct ConfigInfo{
         nameinfo.push_back("Extended_output");
         datainfo.push_back(to_string(opt.iextendedoutput));
         datatype.push_back(python_type_string(opt.iextendedoutput));
-
 
         //HDF io related info
         nameinfo.push_back("HDF_name_convention");

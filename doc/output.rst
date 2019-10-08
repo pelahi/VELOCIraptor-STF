@@ -1,11 +1,11 @@
 .. _output:
 
-Understanding and Analysing **VELOCIraptor** Output
+Understanding and Analysing |vr| Output
 ###################################################
 
-**VELOCIraptor** produces several different types of output files.
+|vr| produces several different types of output files.
 
-(with the mpi threads appending their rank to the end of the file name):
+(with the mpi threads appending their rank to the end of the file name unless not compiled with MPI or if Parallel HDF5 is used.):
 
 .. topic:: Standard files
 
@@ -20,10 +20,10 @@ Properties
 There are a variety of properties calculated for each object found. Some are typical of all halo finders
 such as the mass of an object (which can be a halo, subhalo, tidal debris), along with more complex properties
 such as the eigenvectors and eigenvalues of the mass distribution defined by the reduced inertia tensor.
-The number of properties also varies with the type of run. For hydrodynamic simulations where **VELOCIraptor**
+The number of properties also varies with the type of run. For hydrodynamic simulations where |vr|
 has been compiled to use gas properties and star properties, gas masses, temperatures, etc are also calculated.
 
-We give an almost complete list of properties and the keyword associate with the property (in ASCII, HDF5 and ADIOS outputs).
+We give an almost complete list of properties and the keyword associate with the property (in ASCII and HDF5).
 
 +-------------------+-------------------------------------------------------------------------------------------------------+
 | Name              | Comments                                                                                              |
@@ -37,6 +37,7 @@ We give an almost complete list of properties and the keyword associate with the
 | ID_mbp            | Particle ID of the most bound particle in the group.                                                  |
 +-------------------+-------------------------------------------------------------------------------------------------------+
 | hostHaloID        | ID of the host field halo. If an object is a field halo, this is -1.                                  |
++-------------------+-------------------------------------------------------------------------------------------------------+
 | Structuretype     | Structure types contain information on how the object was found and at                                |
 |                   | what level in the subhalo hierarchy. Field halos are 10. Substructures                                |
 |                   | identified using the local velocity field are type 10+10=20,                                          |
@@ -87,8 +88,11 @@ We give an almost complete list of properties and the keyword associate with the
 +-------------------+-------------------------------------------------------------------------------------------------------+
 | R_HalfMass        | Half mass radius based on the Mass_tot.                                                               |
 +-------------------+-------------------------------------------------------------------------------------------------------+
+| `Additional mass/size quantities if config options are set : All properties are in output units.`                         |
++-------------------+-------------------------------------------------------------------------------------------------------+
++-------------------+-------------------------------------------------------------------------------------------------------+
 | `Position and Velocity : All properties are in output units.`                                                             |
-| `Objects need not have positions periodically wrapped.`                                                                   |
+| `Objects have positions periodically wrapped.`                                                                            |
 +-------------------+-------------------------------------------------------------------------------------------------------+
 | Xc                | :math:`x` coordinate of centre-of-mass.                                                               |
 +-------------------+-------------------------------------------------------------------------------------------------------+

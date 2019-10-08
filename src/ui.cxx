@@ -461,7 +461,8 @@ void GetParamFile(Options &opt)
                         opt.halocorenumfaciter = atof(vbuff);
                     else if (strcmp(tbuff, "Halo_core_phase_significance")==0)
                         opt.halocorephasedistsig = atof(vbuff);
-                    else if (strcmp(tbuff, "Halo_core_phase_merge_dist")==0)
+                    //cleaning up substructures by merging if phase distance is small
+                    else if (strcmp(tbuff, "Structure_phase_merge_dist")==0)
                         opt.coresubmergemindist = atof(vbuff);
                     else if (strcmp(tbuff, "Apply_phase_merge_to_host")==0)
                         opt.icoresubmergewithbg = atoi(vbuff);
@@ -511,6 +512,8 @@ void GetParamFile(Options &opt)
                         opt.Omega_Lambda = atof(vbuff);
                     else if (strcmp(tbuff, "Omega_DE")==0)
                         opt.Omega_de = atof(vbuff);
+                    else if (strcmp(tbuff, "Omega_k")==0)
+                        opt.Omega_k = atof(vbuff);
                     else if (strcmp(tbuff, "Omega_cdm")==0)
                         opt.Omega_cdm= atof(vbuff);
                     else if (strcmp(tbuff, "Omega_b")==0)
