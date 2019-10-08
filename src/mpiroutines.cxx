@@ -1137,6 +1137,30 @@ int MPISetFilesRead(Options&opt, int *&ireadfile, int *&ireadtask){
 }
 //@}
 
+/// \name MPI Write related routines
+//@{
+void MPIInitWriteComm(){
+    ThisWriteTask = ThisTask;
+    NProcsWrite = NProcs;
+    mpi_comm_write = MPI_COMM_WORLD;
+}
+/// define the write comm
+void MPIBuildWriteComm(Options &opt){
+#ifdef USEPARALLELHDF
+    if (init_for_parallel) {
+        int color = (int)(floor(ThisTask/(float)opt.mpinprocswritesize));
+        MPI_Comm_split(MPI_COMM_WORLD, color, ThisTask, &mpi_comm_write);
+        MPI_Comm_rank(mpi_comm_write, &ThisWriteTask);
+        MPI_Comm_size(mpi_comm_write, &NProcsWrite);
+    }
+#endif
+}
+void MPIBuildWriteComm(){
+    if (mpi_comm_write != MPI_COMM_WORLD) MPI_Comm_free(&mpi_comm_write);
+    mpi_comm_write = MPI_COMM_WORLD;
+}
+//@}
+
 /// \name Routines involved in exporting particles
 //@{
 

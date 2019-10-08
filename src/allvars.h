@@ -396,6 +396,8 @@ struct Options
     /// mpi factor by which to multiple the memory allocated, ie: buffer region
     /// to reduce likelihood of having to expand/allocate new memory
     Double_t mpipartfac;
+    /// if using parallel output, number of mpi threads to group together
+    int mpinprocswritesize;
 
     /// run FOF using OpenMP
     int iopenmpfof;
@@ -829,6 +831,7 @@ struct Options
 
         mpiparticletotbufsize=-1;
         mpiparticlebufsize=-1;
+        mpinprocswritesize=1;
 
         lengthtokpc=-1.0;
         velocitytokms=-1.0;

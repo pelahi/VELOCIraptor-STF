@@ -94,13 +94,13 @@
 #define HDF5_FILE_GROUP_COMMON_BASE H5::CommonFG
 #endif
 
-#ifdef USEPARALLELHDF
-#if H5_VERSION_GE(1,10,2)
-#define USEHDFCOMPRESSOIN
-#endif
-#else
-#define USEHDFCOMPRESSOIN
-#endif
+// #ifdef USEPARALLELHDF
+// // #if H5_VERSION_GE(1,10,2)
+// // #define USEHDFCOMPRESSOIN
+// // #endif
+// // #else
+// // #define USEHDFCOMPRESSOIN
+// #endif
 
 template <typename ReturnT, typename F, typename ... Ts>
 ReturnT safe_hdf5(F function, Ts ... args)
@@ -405,7 +405,7 @@ class H5OutputFile
     {
         if(file_id >= 0)io_error("Attempted to create file when already open!");
 #ifdef USEPARALLELHDF
-        MPI_Comm comm = MPI_COMM_WORLD;
+        MPI_Comm comm = mpi_comm_write;
         MPI_Info info = MPI_INFO_NULL;
         if (iparallelopen && taskID ==-1) {
             parallel_access_id = H5Pcreate (H5P_FILE_ACCESS);
@@ -420,8 +420,8 @@ class H5OutputFile
             parallel_access_id = -1;
         }
         else {
-            if (taskID <0 || taskID > NProcs) io_error(string("MPI Task ID asked to create file out of range. Task ID is ")+to_string(taskID));
-            if (ThisTask == taskID) {
+            if (taskID <0 || taskID > NProcsWrite) io_error(string("MPI Task ID asked to create file out of range. Task ID is ")+to_string(taskID));
+            if (ThisWriteTask == taskID) {
                 file_id = H5Fcreate(filename.c_str(), flag, H5P_DEFAULT, H5P_DEFAULT);
                 if (file_id < 0) io_error(string("Failed to create output file: ")+filename);
                 parallel_access_id = -1;
@@ -443,7 +443,7 @@ class H5OutputFile
     {
         if(file_id >= 0)io_error("Attempted to open and append to file when already open!");
 #ifdef USEPARALLELHDF
-        MPI_Comm comm = MPI_COMM_WORLD;
+        MPI_Comm comm = mpi_comm_write;
         MPI_Info info = MPI_INFO_NULL;
         if (iparallelopen && taskID ==-1) {
             parallel_access_id = H5Pcreate (H5P_FILE_ACCESS);
@@ -458,8 +458,8 @@ class H5OutputFile
             parallel_access_id = -1;
         }
         else {
-            if (taskID <0 || taskID > NProcs) io_error(string("MPI Task ID asked to create file out of range. Task ID is ")+to_string(taskID));
-            if (ThisTask == taskID) {
+            if (taskID <0 || taskID > NProcsWrite) io_error(string("MPI Task ID asked to create file out of range. Task ID is ")+to_string(taskID));
+            if (ThisWriteTask == taskID) {
                 file_id = H5Fopen(filename.c_str(),flag, H5P_DEFAULT);
                 if (file_id < 0) io_error(string("Failed to create output file: ")+filename);
                 parallel_access_id = -1;
@@ -510,7 +510,7 @@ class H5OutputFile
     void write_dataset(string name, hsize_t len, string data, bool flag_parallel = true, bool flag_collective = true)
     {
 #ifdef USEPARALLELHDF
-        MPI_Comm comm = MPI_COMM_WORLD;
+        MPI_Comm comm = mpi_comm_write;
         MPI_Info info = MPI_INFO_NULL;
 #endif
         int rank = 1;
@@ -572,7 +572,7 @@ class H5OutputFile
         bool flag_hyperslab = true, bool flag_collective = true)
     {
 #ifdef USEPARALLELHDF
-        MPI_Comm comm = MPI_COMM_WORLD;
+        MPI_Comm comm = mpi_comm_write;
         MPI_Info info = MPI_INFO_NULL;
 #endif
         hid_t dspace_id, dset_id, prop_id, memspace_id, ret;
@@ -585,7 +585,7 @@ class H5OutputFile
         if(filetype_id < 0) filetype_id = memtype_id;
 
 #ifdef USEPARALLELHDF
-        vector<unsigned long long> mpi_hdf_dims(rank*NProcs), mpi_hdf_dims_tot(rank), dims_single(rank), dims_offset(rank);
+        vector<unsigned long long> mpi_hdf_dims(rank*NProcsWrite), mpi_hdf_dims_tot(rank), dims_single(rank), dims_offset(rank);
         if (flag_parallel) {
             //if parallel hdf5 get the full extent of the data
             //this bit of code communicating information can probably be done elsewhere
@@ -596,7 +596,7 @@ class H5OutputFile
             for (auto i=0;i<rank;i++) {
                 dims_offset[i] = 0;
                 if (flag_first_dim_parallel && i > 0) continue;
-                for (auto j=1;j<=ThisTask;j++) {
+                for (auto j=1;j<=ThisWriteTask;j++) {
                     dims_offset[i] += mpi_hdf_dims[i*NProcs+j-1];
                 }
             }
@@ -726,7 +726,7 @@ class H5OutputFile
         bool flag_hyperslab = true, bool flag_collective = true)
     {
 #ifdef USEPARALLELHDF
-        MPI_Comm comm = MPI_COMM_WORLD;
+        MPI_Comm comm = mpi_comm_write;
         MPI_Info info = MPI_INFO_NULL;
 #endif
         hid_t dspace_id, dset_id, prop_id, memspace_id, ret;
@@ -739,7 +739,7 @@ class H5OutputFile
         if(filetype_id < 0) filetype_id = memtype_id;
 
 #ifdef USEPARALLELHDF
-        vector<unsigned long long> mpi_hdf_dims(rank*NProcs), mpi_hdf_dims_tot(rank), dims_single(rank), dims_offset(rank);
+        vector<unsigned long long> mpi_hdf_dims(rank*NProcsWrite), mpi_hdf_dims_tot(rank), dims_single(rank), dims_offset(rank);
         //if parallel hdf5 get the full extent of the data
         //this bit of code communicating information can probably be done elsewhere
         //minimize number of mpi communications
@@ -753,7 +753,7 @@ class H5OutputFile
             for (auto i=0;i<rank;i++) {
                 dims_offset[i] = 0;
                 if (flag_first_dim_parallel && i > 0) continue;
-                for (auto j=1;j<=ThisTask;j++) {
+                for (auto j=1;j<=ThisWriteTask;j++) {
                     dims_offset[i] += mpi_hdf_dims[i*NProcs+j-1];
                 }
             }

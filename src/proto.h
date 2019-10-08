@@ -524,6 +524,13 @@ void MPIDistributeReadTasks(Options&opt, int *&ireadtask, int*&readtaskID);
 ///set which file a given task will read
 int MPISetFilesRead(Options&opt, int *&ireadfile, int *&ireadtask);
 
+///generic init of write communicator to mpi world;
+void MPIInitWriteComm();
+///determine how to group mpi threads together when writing
+void MPIBuildWriteComm(Options &opt);
+///free communicator if needed 
+void MPIFreeWriteComm();
+
 /// Determine number of local particles for tipsy
 void MPINumInDomainTipsy(Options &opt);
 /// Determine number of local particles for gadget

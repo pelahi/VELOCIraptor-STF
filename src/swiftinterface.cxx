@@ -185,6 +185,11 @@ int InitVelociraptor(char* configname, unitinfo u, siminfo s, const int numthrea
     //store list of names that
     WriteVELOCIraptorConfig(libvelociraptorOpt);
 
+#ifdef USEMPI
+    //initialize the mpi write communicator to comm world;
+    MPIInitWriteComm();
+#endif
+
     cout<<"Finished initialising VELOCIraptor"<<endl;
 
     //return the configuration flag value
