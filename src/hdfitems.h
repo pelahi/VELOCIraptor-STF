@@ -553,14 +553,14 @@ class H5OutputFile
         H5Dclose(dset_id);
     }
     void write_dataset(string name, hsize_t len, void *data,
-       hid_t memtype_id=-1, hid_t filetype_id=-1, bool flag_parallel = true, bool flag_hyperslab = true, bool flag_collective = true)
+       hid_t memtype_id=-1, hid_t filetype_id=-1, bool flag_parallel = true, bool flag_first_dim_parallel = true, bool flag_hyperslab = true, bool flag_collective = true)
     {
         int rank = 1;
       	hsize_t dims[1] = {len};
         if (memtype_id == -1) {
             throw std::runtime_error("Write data set called with void pointer but no type info passed.");
         }
-      	write_dataset_nd(name, rank, dims, data, memtype_id, filetype_id, flag_parallel, flag_hyperslab, flag_collective);
+      	write_dataset_nd(name, rank, dims, data, memtype_id, filetype_id, flag_parallel, flag_first_dim_parallel, flag_hyperslab, flag_collective);
     }
 
 
@@ -595,7 +595,7 @@ class H5OutputFile
             MPI_Allreduce(dims_single.data(), mpi_hdf_dims_tot.data(), rank, MPI_UNSIGNED_LONG_LONG, MPI_SUM, comm);
             for (auto i=0;i<rank;i++) {
                 dims_offset[i] = 0;
-                if (flag_first_dim_parallel && rank > 0) continue;
+                if (flag_first_dim_parallel && i > 0) continue;
                 for (auto j=1;j<=ThisTask;j++) {
                     dims_offset[i] += mpi_hdf_dims[i*NProcs+j-1];
                 }
@@ -752,7 +752,7 @@ class H5OutputFile
             MPI_Allreduce(dims_single.data(), mpi_hdf_dims_tot.data(), rank, MPI_UNSIGNED_LONG_LONG, MPI_SUM, comm);
             for (auto i=0;i<rank;i++) {
                 dims_offset[i] = 0;
-                if (flag_first_dim_parallel && rank > 0) continue;
+                if (flag_first_dim_parallel && i > 0) continue;
                 for (auto j=1;j<=ThisTask;j++) {
                     dims_offset[i] += mpi_hdf_dims[i*NProcs+j-1];
                 }
