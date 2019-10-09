@@ -48,7 +48,7 @@ ___________.__            .___
 ## Content
 
     This is brief description of the package. For details please see online documentation at
-    https://velociraptor-stf.readthedocs.io/
+    [readthedocs](https://velociraptor-stf.readthedocs.io/)
 
     The repo contains the following directories
 
