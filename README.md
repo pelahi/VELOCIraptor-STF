@@ -46,13 +46,16 @@ ___________.__            .___
 ================================================================================================
 
 ## Content
-    (for more information type make doc in main dir and in NBodylib dir and
-    see documents in the doc directory)
+
+    This is brief description of the package. For details please see online documentation at
+    https://velociraptor-stf.readthedocs.io/
+
+    The repo contains the following directories
 
     src/        contains main source code for the algorithm
     doc/        contains Doxygen generated latex and html file of code
     examples/   contains examples of configuration files and how to run the code
-    NBodylib/   submodule:contains library of objects and routines used by algorithm
+    NBodylib/   submodule: contains library of objects and routines used by algorithm
     tools/      submodule: contains python tools of manipulating/reading output
 
 
@@ -143,7 +146,7 @@ ___________.__            .___
     Contains the substructure hierarchy information, such as the hostID (which is -1 if it is a field structure)
     an objects ID, number of direct substructures.
 
-    The code can also output a simple list which is particle id ordered that simply has the (sub)halo of a paritcle
+    The code can also output a simple list which is particle id ordered that simply has the (sub)halo of a particle
     (and is zero if particle doesn't belong to a list.) These outputs are outname.fof.grp. Note that the fof.grp
     format is collected from all MPI threads and is only ascii output.
 
