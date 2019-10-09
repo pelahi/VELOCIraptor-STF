@@ -406,6 +406,9 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
                 }
             }
             Ekin+=Pval->GetMass()*(vx*vx+vy*vy+vz*vz);
+#ifdef GASON
+            if (Pval->GetType()==GASTYPE) Ekin+=Pval->GetU()*Pval->GetMass();
+#endif
             pdata[i].gveldisp(0,0)+=vx*vx*Pval->GetMass();
             pdata[i].gveldisp(1,1)+=vy*vy*Pval->GetMass();
             pdata[i].gveldisp(2,2)+=vz*vz*Pval->GetMass();
@@ -469,6 +472,9 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
             vy = (*Pval).Vy()-pdata[i].gcmvel[1];
             vz = (*Pval).Vz()-pdata[i].gcmvel[2];
             RV_Ekin+=Pval->GetMass()*(vx*vx+vy*vy+vz*vz);
+#ifdef GASON
+            if (Pval->GetType()==GASTYPE) RV_Ekin+=Pval->GetU()*Pval->GetMass();
+#endif
             pdata[i].RV_J=pdata[i].RV_J+Coordinate(Pval->GetPosition()).Cross(Coordinate(vx,vy,vz))*Pval->GetMass();
             pdata[i].RV_veldisp(0,0)+=vx*vx*Pval->GetMass();
             pdata[i].RV_veldisp(1,1)+=vy*vy*Pval->GetMass();
@@ -695,6 +701,7 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
                     if (EncMass>0.5*pdata[i].M_gas && pdata[i].Rhalfmass_gas==0) pdata[i].Rhalfmass_gas=rc;
                     if (Rdist>0) pdata[i].Krot_gas+=mval*(jzval*jzval/(Rdist*Rdist));
                     Ekin+=mval*(vx*vx+vy*vy+vz*vz);
+                    Ekin+=mval*Pval->GetU();
                     if (opt.iextragasoutput) {
                         if (rc<=pdata[i].gR200c_excl) {
                             pdata[i].M_200crit_excl_gas+=mval;
@@ -716,6 +723,7 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
                         if (EncMassSF>0.5*pdata[i].M_gas_sf && pdata[i].Rhalfmass_gas_sf==0) pdata[i].Rhalfmass_gas_sf=rc;
                         if (Rdist>0)pdata[i].Krot_gas_sf+=mval*(jzval*jzval/(Rdist*Rdist));
                         Ekin_sf+=mval*(vx*vx+vy*vy+vz*vz);
+                        Ekin_sf+=mval*Pval->GetU();
                         if (opt.iextragasoutput) {
                             if (rc<=pdata[i].gR200c_excl) {
                                 pdata[i].M_200crit_excl_gas_sf+=mval;
@@ -736,6 +744,7 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
                         if (EncMassNSF>0.5*pdata[i].M_gas_nsf && pdata[i].Rhalfmass_gas_nsf==0) pdata[i].Rhalfmass_gas_nsf=rc;
                         if (Rdist>0)pdata[i].Krot_gas_nsf+=mval*(jzval*jzval/(Rdist*Rdist));
                         Ekin_nsf+=mval*(vx*vx+vy*vy+vz*vz);
+                        Ekin_nsf+=mval*Pval->GetU();
                         if (opt.iextragasoutput) {
                             if (rc<=pdata[i].gR200c_excl) {
                                 pdata[i].M_200crit_excl_gas_nsf+=mval;
@@ -1035,6 +1044,9 @@ private(j,Pval,rc,x,y,z,vx,vy,vz,J,mval)
             sxz+=vx*vz*mval;
             syz+=vy*vz*mval;
             Ekin+=(vx*vx+vy*vy+vz*vz)*mval;
+            #ifdef GASON
+            if (Pval->GetType()==GASTYPE) Ekin+=mval*Pval->GetU();
+            #endif
         }
 #ifdef USEOPENMP
 }
@@ -1164,6 +1176,9 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval)
             sxz+=vx*vz*mval;
             syz+=vy*vz*mval;
             Ekin+=(vx*vx+vy*vy+vz*vz)*mval;
+            #ifdef GASON
+            if (Pval->GetType()==GASTYPE) Ekin+=mval*Pval->GetU();
+            #endif
         }
 #ifdef USEOPENMP
 }
@@ -1456,7 +1471,7 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval,SFR)
         Krot_sf=Krot_nsf=Ekin_sf=Ekin_nsf=0;
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
-private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
+private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist,mval)
 {
     #pragma omp for reduction(+:Krot,Ekin,Krot_sf,Ekin_sf,Krot_nsf,Ekin_nsf)
 #endif
@@ -1469,22 +1484,25 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
             vx = (*Pval).Vx()-pdata[i].gcmvel[0];//-pdata[i].cmvel_gas[0];
             vy = (*Pval).Vy()-pdata[i].gcmvel[1];//-pdata[i].cmvel_gas[1];
             vz = (*Pval).Vz()-pdata[i].gcmvel[2];//-pdata[i].cmvel_gas[2];
+            mval  = Pval->GetMass();
             jval=Coordinate(x,y,z).Cross(Coordinate(vx,vy,vz));
             jzval=(jval*pdata[i].L_gas)/pdata[i].L_gas.Length();
             zdist=(Coordinate(x,y,z)*pdata[i].L_gas)/pdata[i].L_gas.Length();
             Rdist=sqrt(x*x+y*y+z*z-zdist*zdist);
             if (Rdist>0)Krot+=Pval->GetMass()*(jzval*jzval/(Rdist*Rdist));
-            Ekin+=Pval->GetMass()*(vx*vx+vy*vy+vz*vz);
-            #ifdef STARON
+            Ekin+=mval*(vx*vx+vy*vy+vz*vz);
+            Ekin+=mval*Pval->GetU();
+        #ifdef STARON
             SFR = Pval->GetSFR();
             if (SFR>opt.gas_sfr_threshold) {
                 if (Rdist>0)Krot_sf+=Pval->GetMass()*(jzval*jzval/(Rdist*Rdist));
-                Ekin_sf+=Pval->GetMass()*(vx*vx+vy*vy+vz*vz);
+                Ekin_sf+=mval*(vx*vx+vy*vy+vz*vz);
+                Ekin_sf+=mval*Pval->GetU();
             }
             else {
                 if (Rdist>0)Krot_nsf+=Pval->GetMass()*(jzval*jzval/(Rdist*Rdist));
-                Ekin_nsf+=Pval->GetMass()*(vx*vx+vy*vy+vz*vz);
-
+                Ekin_nsf+=mval*(vx*vx+vy*vy+vz*vz);
+                Ekin_nsf+=mval*Pval->GetU();
             }
             #endif
         }
