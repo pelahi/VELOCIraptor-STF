@@ -3,21 +3,24 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
+
 VELOCIraptor
 ============
 
-
-.. |logo_png| image:: velociraptoricon.png
+.. image:: velociraptoricon.png
+  :scale:  100 %
+  :align:  left
 
 |vr| is a C++ halo finder using MPI and OpenMP APIs.
 The repository also contains several associated analysis tools in python,
 example configuration files and analysis python scripts (and sample jupyter notebooks).
 The code can also be compiled as a library for on-the-fly halo finding within an
-N-body/hydrodynamnical code. Currently integration is limited to swift but extensions are
-in the works. There is an associated halo merger tree code **TreeFrog** (also C++ MPI+OpenMP).
+N-body/hydrodynamnical code. Currently integration is limited to `**swiftsim** <http://icc.dur.ac.uk/swift/>`_
+but extensions are in the works for other codes.
 
-If you are using |vr| please cite the following paper,
-which describe the code in full::
+There is an associated halo merger tree code **TreeFrog** (also C++ MPI+OpenMP).
+
+If you are using |vr| please cite the following paper, which describe the code in full::
 
   @ARTICLE{doi:10.1017/pasa.2019.12,
     author = {{Elahi}, Pascal J. and {Ca{\~n}as}, Rodrigo and {Poulton}, Rhys J.~J. and {Tobar}, Rodrigo J. and {Willis}, James S. and {Lagos}, Claudia del P. and {Power}, Chris and {Robotham}, Aaron S.~G.},

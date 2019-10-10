@@ -2488,9 +2488,7 @@ void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Parts
             dist2sub2 += vsub2;
             dist2 = 0.5*(dist2sub1+dist2sub2);
 
-//if (index1 == 0) cout<<ThisTask<<" "<<index1<<" could merge with "<<index2<<" "<<xsub1<<" "<<xsub2<<" "<<vsub1<<" "<<vsub2<<" |"<<dist2sub1<<" "<<dist2sub2<<"| of size "<<minfo[index1].numingroup<<" "<<minfo[index2].numingroup<<" and type "<<minfo[index2].type<<endl;
             if ((dist2sub1<fdist2 && dist2sub2<fdist2) || (xsub1<0.05 && vsub1<0.1 && vsub2<0.1 && index1 ==0)){
-cout<<ThisTask<<" merging "<<index1<<" could merge with "<<index2<<" "<<xsub1<<" "<<xsub2<<" "<<vsub1<<" "<<vsub2<<" |"<<dist2sub1<<" "<<dist2sub2<<"| of size "<<minfo[index1].numingroup<<" "<<minfo[index2].numingroup<<" and type "<<minfo[index2].type<<endl;
                 imerge=taggedsubs[j];
                 mindist2=dist2;
                 nummerged++;
