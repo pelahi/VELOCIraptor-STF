@@ -647,6 +647,9 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
     //if returning to swift as swift is writing a snapshot, then write for the groups where the particles are found in a file
     //assuming that the swift task and swift index can be used to determine where a particle will be written.
     if (ireturngroupinfoflag == 0 ) WriteSwiftExtendedOutput (libvelociraptorOpt, ngroup, numingroup, pglist, parts);
+#ifdef USEMPI
+    MPIFreeWriteComm();
+#endif
 
     for (Int_t i=1;i<=ngroup;i++) delete[] pglist[i];
     delete[] pglist;

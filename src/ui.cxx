@@ -11,6 +11,9 @@ void GetArgs(int argc, char *argv[], Options &opt)
 #ifndef USEMPI
     int ThisTask =0, NProcs =1;
 #endif
+#if defined(USEMPI) && defined(USEPARALLELHDF)
+    opt.mpinprocswritesize=NProcs;
+#endif
     int option;
     int NumArgs = 0;
     int configflag=0;

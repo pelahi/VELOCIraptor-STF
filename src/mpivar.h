@@ -228,7 +228,7 @@ extern Matrix *mpi_gveldisp;
 extern Int_t MinNumMPI,MinNumOld;
 
 extern MPI_Comm mpi_comm_write;
-extern int ThisWriteTask, NProcsWrite;
+extern int ThisWriteTask, NProcsWrite, ThisWriteComm, NWriteComms;
 //@}
 
 
