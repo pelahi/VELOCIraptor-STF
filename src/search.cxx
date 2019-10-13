@@ -2476,6 +2476,45 @@ num_threads(nthreads)
     }
 }
 
+void PreCalcSearchSubSet(Int_t *subnumingroup, Int_t i, Options &opt, Particle *subPart, 
+    Int_t sublevel, KDTree *tree, Int_t ngrid, int ThisTask, GridCell *grid, Coordinate *gvel, Matrix *gveldisp)
+{
+    if (subnumingroup[i]>=MINSUBSIZE&&opt.foftype!=FOF6DCORE) {
+        //now if object is large enough for phase-space decomposition and search, compare local field to bg field
+        opt.Ncell=opt.Ncellfac*subnumingroup[i];
+        //if ncell is such that uncertainty would be greater than 0.5% based on Poisson noise, increase ncell till above unless cell would contain >25%
+        while (opt.Ncell<MINCELLSIZE && subnumingroup[i]/4.0>opt.Ncell) opt.Ncell*=2;
+        tree=InitializeTreeGrid(opt,subnumingroup[i],subPart);
+        ngrid=tree->GetNumLeafNodes();
+        if (opt.iverbose) cout<<ThisTask<<" Substructure "<<i<< " at sublevel "<<sublevel<<" with "<<subnumingroup[i]
+            <<" particles split into are "<<ngrid<<" grid cells, with each node containing ~"<<subnumingroup[i]/ngrid<<" particles"<<endl;
+        grid=new GridCell[ngrid];
+        FillTreeGrid(opt, subnumingroup[i], ngrid, tree, subPart, grid);
+        gvel=GetCellVel(opt,subnumingroup[i],subPart,ngrid,grid);
+        gveldisp=GetCellVelDisp(opt,subnumingroup[i],subPart,ngrid,grid,gvel);
+        opt.HaloLocalSigmaV=0;for (int j=0;j<ngrid;j++) opt.HaloLocalSigmaV+=pow(gveldisp[j].Det(),1./3.);opt.HaloLocalSigmaV/=(double)ngrid;
+
+        Matrix eigvec(0.),I(0.);
+        Double_t sigma2x,sigma2y,sigma2z;
+        CalcVelSigmaTensor(subnumingroup[i], subPart, sigma2x, sigma2y, sigma2z, eigvec, I);
+        opt.HaloSigmaV=pow(sigma2x*sigma2y*sigma2z,1.0/3.0);
+        if (opt.HaloSigmaV>opt.HaloVelDispScale) opt.HaloVelDispScale=opt.HaloSigmaV;
+#ifdef HALOONLYDEN
+            GetVelocityDensity(opt,subnumingroup[i],subPart);
+#endif
+        GetDenVRatio(opt,subnumingroup[i],subPart,ngrid,grid,gvel,gveldisp);
+        GetOutliersValues(opt,subnumingroup[i],subPart,sublevel);
+        opt.idenvflag++;//largest field halo used to deteremine statistics of ratio
+    }
+    //otherwise only need to calculate a velocity scale for merger separation
+    else {
+        Matrix eigvec(0.),I(0.);
+        Double_t sigma2x,sigma2y,sigma2z;
+        CalcVelSigmaTensor(subnumingroup[i], subPart, sigma2x, sigma2y, sigma2z, eigvec, I);
+        opt.HaloLocalSigmaV=opt.HaloSigmaV=pow(sigma2x*sigma2y*sigma2z,1.0/3.0);
+    }
+}
+
 /*!
     Given a initial ordered candidate list of substructures, find all substructures that are large enough to be searched.
     These substructures are used as a mean background velocity field and a new outlier list is found and searched.
@@ -2613,39 +2652,9 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
             //ADACS: for large objects, extra processing steps are requried
             //ADACS: Some of these subroutines make use of OpenMP. For this to continue
 		    //ADACS: the pool of threads would have to be changed
-            if (subnumingroup[i]>=MINSUBSIZE&&opt.foftype!=FOF6DCORE) {
-                //now if object is large enough for phase-space decomposition and search, compare local field to bg field
-                opt.Ncell=opt.Ncellfac*subnumingroup[i];
-                //if ncell is such that uncertainty would be greater than 0.5% based on Poisson noise, increase ncell till above unless cell would contain >25%
-                while (opt.Ncell<MINCELLSIZE && subnumingroup[i]/4.0>opt.Ncell) opt.Ncell*=2;
-                tree=InitializeTreeGrid(opt,subnumingroup[i],subPart);
-                ngrid=tree->GetNumLeafNodes();
-                if (opt.iverbose) cout<<ThisTask<<" Substructure "<<i<< " at sublevel "<<sublevel<<" with "<<subnumingroup[i]<<" particles split into are "<<ngrid<<" grid cells, with each node containing ~"<<subnumingroup[i]/ngrid<<" particles"<<endl;
-                grid=new GridCell[ngrid];
-                FillTreeGrid(opt, subnumingroup[i], ngrid, tree, subPart, grid);
-                gvel=GetCellVel(opt,subnumingroup[i],subPart,ngrid,grid);
-                gveldisp=GetCellVelDisp(opt,subnumingroup[i],subPart,ngrid,grid,gvel);
-                opt.HaloLocalSigmaV=0;for (int j=0;j<ngrid;j++) opt.HaloLocalSigmaV+=pow(gveldisp[j].Det(),1./3.);opt.HaloLocalSigmaV/=(double)ngrid;
-
-                Matrix eigvec(0.),I(0.);
-                Double_t sigma2x,sigma2y,sigma2z;
-                CalcVelSigmaTensor(subnumingroup[i], subPart, sigma2x, sigma2y, sigma2z, eigvec, I);
-                opt.HaloSigmaV=pow(sigma2x*sigma2y*sigma2z,1.0/3.0);
-                if (opt.HaloSigmaV>opt.HaloVelDispScale) opt.HaloVelDispScale=opt.HaloSigmaV;
-#ifdef HALOONLYDEN
-                GetVelocityDensity(opt,subnumingroup[i],subPart);
-#endif
-                GetDenVRatio(opt,subnumingroup[i],subPart,ngrid,grid,gvel,gveldisp);
-                GetOutliersValues(opt,subnumingroup[i],subPart,sublevel);
-                opt.idenvflag++;//largest field halo used to deteremine statistics of ratio
-            }
-            //otherwise only need to calculate a velocity scale for merger separation
-            else {
-                Matrix eigvec(0.),I(0.);
-                Double_t sigma2x,sigma2y,sigma2z;
-                CalcVelSigmaTensor(subnumingroup[i], subPart, sigma2x, sigma2y, sigma2z, eigvec, I);
-                opt.HaloLocalSigmaV=opt.HaloSigmaV=pow(sigma2x*sigma2y*sigma2z,1.0/3.0);
-            }
+            // PreCalcSearchSubSet()
+            // subnumingroup, opt, subpart, sublevel, tree, ngrid, thistask, grid, gvel, gveldisp
+            PreCalcSearchSubSet(subnumingroup, i, opt, subPart, sublevel, tree, ngrid, ThisTask, grid, gvel, gveldisp);
             //ADACS: Here the object is searched. Not much of this uses OpenMP but there are 
 		    //  one or two subroutines called within SearchSubset that do make use of OpenMP. 
             subpfof=SearchSubset(opt,subnumingroup[i],subnumingroup[i],subPart,subngroup[i],sublevel,&numcores[i]);
