@@ -673,6 +673,9 @@ struct Options
     vector<string> gas_chemproduction_names;
     vector<string> star_chemproduction_names;
     vector<string> bh_chemproduction_names;
+
+
+    vector<string> extra_dm_internalprop_names;
     //@}
 
     Options()
@@ -1314,6 +1317,12 @@ struct ConfigInfo{
             datainfo.push_back(datastring);
             datatype.push_back("float32");
         }
+        if (opt.extra_dm_internalprop_names.size()>0){
+            nameinfo.push_back("Extra_DM_internal_property_names");
+            datastring=string("");for (auto &x:opt.extra_dm_internalprop_names) {datastring+=x;datastring+=string(",");}
+            datainfo.push_back(datastring);
+            datatype.push_back("float32");
+        }
 
         //other options
         nameinfo.push_back("Verbose");
@@ -1416,6 +1425,11 @@ struct ConfigInfo{
         #endif
         #ifdef BHON
         nameinfo.push_back("#USEBH");
+        datainfo.push_back("");
+        datatype.push_back("");
+        #endif
+        #ifdef EXTRADMON
+        nameinfo.push_back("#USEEXTRADMPROPERTIES");
         datainfo.push_back("");
         datatype.push_back("");
         #endif
@@ -4378,6 +4392,16 @@ struct PropDataHeader{
             for (auto x:opt.bh_internalprop_names) headerdatainfo.push_back(x+string("_bh"));
             for (auto x:opt.bh_chem_names) headerdatainfo.push_back(x+string("_bh"));
             for (auto x:opt.bh_chemproduction_names) headerdatainfo.push_back(x+string("_bh"));
+#ifdef USEHDF
+            sizeval=hdfpredtypeinfo.size();
+            for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
+#endif
+        }
+#endif
+#ifdef EXTRADMN
+        if (opt.extra_dm_internalprop_names.size() > 0)
+        {
+            for (auto x:opt.extra_dm_internalprop_names) headerdatainfo.push_back(x+string("_extra_dm"));
 #ifdef USEHDF
             sizeval=hdfpredtypeinfo.size();
             for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
