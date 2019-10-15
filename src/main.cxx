@@ -436,9 +436,6 @@ int main(int argc,char **argv)
     //which might be useful for runs where not interested in tracking just halo catalogues (save for
     //approximate methods like PICOLA. Here it writes desired output and exits
     if(opt.inoidoutput){
-#ifdef USEMPI
-        MPIBuildWriteComm(opt);
-#endif
         numingroup=BuildNumInGroup(Nlocal, ngroup, pfof);
         CalculateHaloProperties(opt,Nlocal,Part.data(),ngroup,pfof,numingroup,pdata);
         WriteProperties(opt,ngroup,pdata);
@@ -449,7 +446,6 @@ int main(int argc,char **argv)
 #ifdef USEADIOS
         adios_finalize(ThisTask);
 #endif
-        MPIFreeWriteComm();
         MPI_Finalize();
 #endif
         return 0;
@@ -471,9 +467,6 @@ int main(int argc,char **argv)
     }
     numingroup=BuildNumInGroup(Nlocal, ngroup, pfof);
 
-#ifdef USEMPI
-    MPIBuildWriteComm(opt);
-#endif
     //if separate files explicitly save halos, associated baryons, and subhalos separately
     if (opt.iseparatefiles) {
         if (nhalos>0) {
@@ -563,7 +556,6 @@ int main(int argc,char **argv)
 #ifdef USEADIOS
     adios_finalize(ThisTask);
 #endif
-    MPIFreeWriteComm();
     MPI_Finalize();
 #endif
 

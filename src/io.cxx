@@ -384,6 +384,9 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     ostringstream os;
     unsigned long long noffset=0,ngtot=0,nids=0,nidstot,nuids=0,nuidstot,ng=0;
     Int_t *offset;
+#ifdef USEMPI
+    MPIBuildWriteComm(opt);
+#endif
 #ifdef USEHDF
     H5OutputFile Fhdf, Fhdf3;
     int itemp=0;
@@ -898,7 +901,7 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
 #endif
 
 #ifdef USEMPI
-    MPI_Barrier(MPI_COMM_WORLD);
+    MPIBuildWriteComm(opt);
 #endif
 }
 
@@ -911,6 +914,9 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
     Int_t *offset;
     int *typeval;
 
+#ifdef USEMPI
+    MPIBuildWriteComm(opt);
+#endif
 #ifdef USEHDF
     H5OutputFile Fhdf,Fhdf2;
     int itemp;
@@ -1089,7 +1095,7 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
 #endif
 
 #ifdef USEMPI
-    MPI_Barrier(MPI_COMM_WORLD);
+    MPIBuildWriteComm(opt);
 #endif
 }
 
@@ -1107,6 +1113,9 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids, ve
     int *typeval;
     Int_t *numingroup;
 
+#ifdef USEMPI
+    MPIBuildWriteComm(opt);
+#endif
 #ifdef USEHDF
     H5OutputFile Fhdf;
     int itemp=0;
@@ -1403,6 +1412,9 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids, ve
     else if (opt.ibinaryout==OUTADIOS) adios_err=adios_close(adios_file_handle);
 #endif
 
+#ifdef USEMPI
+    MPIFreeWriteComm();
+#endif
 }
 
 //@}
@@ -1423,6 +1435,9 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         opt.p*=opt.h/opt.a;
         for (Int_t i=1;i<=ngroups;i++) pdata[i].ConverttoComove(opt);
     }
+#ifdef USEMPI
+    MPIBuildWriteComm(opt);
+#endif
 
 #ifdef USEHDF
     H5OutputFile Fhdf;
@@ -2474,6 +2489,9 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
     else Fhdf.close();
 #endif
 
+#ifdef USEMPI
+    MPIFreeWriteComm();
+#endif
 }
 
 void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
@@ -2493,6 +2511,9 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
         for (Int_t i=1;i<=ngroups;i++) pdata[i].ConvertProfilestoComove(opt);
     }
     if (opt.iInclusiveHalo>0) for (auto i=1;i<=ng;i++) nhalos += (pdata[i].hostid == -1);
+#ifdef USEMPI
+    MPIBuildWriteComm(opt);
+#endif
 #ifdef USEHDF
     H5OutputFile Fhdf;
     vector<hsize_t> dims;
@@ -2551,9 +2572,9 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
         Fhdf.create(string(fname),H5F_ACC_TRUNC, 0, false);
         if (ThisTask == 0) {
             itemp=0;
-            ival=0;
+            ival=ThisWriteTask;
             Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, &ival, -1, -1, false);
-            ival=1;
+            ival=NWriteComms;
             Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, &ival, -1, -1, false);
             Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, &ngtot, -1, -1, false);
             Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, &ngtot, -1, -1, false);
@@ -2724,6 +2745,9 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
     else Fhdf.close();
 #endif
 
+#ifdef USEMPI
+    MPIFreeWriteComm();
+#endif
 }
 
 //@}
@@ -2735,6 +2759,9 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
     string fname;
     ostringstream os;
     unsigned long ng=ngroups,ngtot=0,noffset=0;
+#ifdef USEMPI
+    MPIBuildWriteComm(opt);
+#endif
 #ifdef USEHDF
     H5OutputFile Fhdf;
     int rank;
@@ -2973,6 +3000,9 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
     if (opt.ibinaryout!=OUTHDF) Fout.close();
 #ifdef USEHDF
     else Fhdf.close();
+#endif
+#ifdef USEMPI
+    MPIFreeWriteComm();
 #endif
     cout<<"Done saving hierarchy"<<endl;
 }
