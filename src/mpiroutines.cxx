@@ -519,6 +519,28 @@ void MPISendParticleInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle
         }
     }
 #endif
+#ifdef EXTRADMON
+    numextrafields = opt.extra_dm_internalprop_names.size();
+    if (numextrafields > 0)
+    {
+        for (auto i=0;i<nlocalbuff;i++) if (Part[i].HasExtraDMProperties()) indices_extradm.push_back(i);
+        num = indices_extradm.size();
+        if (num>0) {
+            propbuff_extradm.resize(numextrafields*num);
+            for (auto i=0;i<num;i++)
+            {
+                index = indices_extradm[i];
+                offset = 0;
+                for (auto iextra=0;iextra<opt.extra_dm_internalprop_names.size();iextra++)
+                {
+                    field = opt.extra_dm_internalprop_names[iextra];
+                    propbuff_extradm[i*numextrafields + iextra + offset] = Part[index].GetExtraDMProperties().GetExtraProperties(field);
+                }
+                Part[index].SetExtraDMProperties();
+            }
+        }
+    }
+#endif
     MPI_Ssend(Part, sizeof(Particle)*nlocalbuff, MPI_BYTE, taskID, taskID, MPI_COMM_WORLD);
 #ifdef GASON
     numextrafields = opt.gas_internalprop_names.size() + opt.gas_chem_names.size() + opt.gas_chemproduction_names.size();
@@ -556,6 +578,19 @@ void MPISendParticleInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle
         {
             MPI_Send(indices_bh.data(),sizeof(Int_t)*num,MPI_BYTE,taskID,taskID,MPI_COMM_WORLD);
             MPI_Send(propbuff_bh.data(),sizeof(float)*num*numextrafields,MPI_BYTE,taskID,taskID,MPI_COMM_WORLD);
+        }
+    }
+#endif
+#ifdef EXTRADMON
+    numextrafields = opt.extra_dm_internalprop_names.size();
+    if (numextrafields > 0)
+    {
+        num = indices_gas.size();
+        MPI_Send(&num,sizeof(Int_t),MPI_BYTE,taskID,taskID,MPI_COMM_WORLD);
+        if (num > 0)
+        {
+            MPI_Send(indices_extradm.data(),sizeof(Int_t)*num,MPI_BYTE,taskID,taskID,MPI_COMM_WORLD);
+            MPI_Send(propbuff_extradm.data(),sizeof(float)*num*numextrafields,MPI_BYTE,taskID,taskID,MPI_COMM_WORLD);
         }
     }
 #endif
@@ -1460,7 +1495,7 @@ void MPIReceiveBHInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int source
 
 void MPIReceiveExtraDMInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int sourceTaskID, int tag)
 {
-#ifdef GASON
+#ifdef EXTRADMON
     MPI_Status status;
     vector<Int_t> indices;
     Int_t num, numextrafields = 0, index, offset = 0;
@@ -2665,7 +2700,7 @@ void MPIBuildParticleExportListUsingMesh(Options &opt, const Int_t nbodies, Part
 #ifdef BHON
             PartDataIn[i].SetBHProperties();
 #endif
-#ifdef BHON
+#ifdef EXTRADMON
             PartDataIn[i].SetExtraDMProperties();
 #endif
         }
