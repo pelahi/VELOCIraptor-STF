@@ -1522,7 +1522,7 @@ void MPIReceiveExtraDMInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int s
         for (auto iextra=0;iextra<opt.extra_dm_internalprop_names.size();iextra++)
         {
             field = opt.extra_dm_internalprop_names[iextra];
-            Part[index].GetExtraProperties().SetInternalProperties(field,propbuff[i*numextrafields+iextra+offset]);
+            Part[index].GetExtraDMProperties().SetExtraProperties(field,propbuff[i*numextrafields+iextra+offset]);
         }
     }
 #endif
