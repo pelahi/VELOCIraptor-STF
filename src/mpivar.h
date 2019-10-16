@@ -227,6 +227,8 @@ extern Matrix *mpi_gveldisp;
 //store MinSize as when using mpi prior to stitching use min of 2;
 extern Int_t MinNumMPI,MinNumOld;
 
+extern MPI_Comm mpi_comm_write;
+extern int ThisWriteTask, NProcsWrite, ThisWriteComm, NWriteComms;
 //@}
 
 

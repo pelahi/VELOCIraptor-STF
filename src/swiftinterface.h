@@ -115,6 +115,10 @@ namespace Swift {
         int izoomsim;
         /// flags indicating what types of particles are present
         int idarkmatter, igas, istar, ibh, iother;
+        #ifdef NOMASS
+        /// store mass as a option if saving memory by not storing masses as running uniform box
+        double mass_uniform_box;
+        #endif
     };
 
     struct groupinfo {
@@ -131,21 +135,51 @@ using namespace Swift;
 //extern "C" int InitVelociraptor(char* configname, char* outputname, Swift::cosmoinfo, Swift::unitinfo, Swift::siminfo, const int numthreads);
 ///initialize velociraptor, check configuration options,
 extern "C" int InitVelociraptor(char* configname, Swift::unitinfo, Swift::siminfo, const int numthreads);
+///initialize velociraptor based on extra possible outputs requested by swift in addition to standard invocation, check configuration options,
+extern "C" int InitVelociraptorExtra(const int iextra, char* configname, Swift::unitinfo, Swift::siminfo, const int numthreads);
 ///actually run velociraptor
 extern "C" Swift::groupinfo * InvokeVelociraptor(const int snapnum, char* outputname,
     Swift::cosmoinfo, Swift::siminfo,
     const size_t num_gravity_parts, const size_t num_hydro_parts, const size_t num_star_parts,
     struct swift_vel_part *swift_parts, int *cell_node_ids,
-    const int numthreads, const int ireturngroupinfoflag, int *const numingroups);
+    const int numthreads, const int ireturngroupinfoflag, int *const numingroups
+);
+extern "C" Swift::groupinfo * InvokeVelociraptorHydro(const int snapnum, char* outputname,
+    Swift::cosmoinfo, Swift::siminfo,
+    const size_t num_gravity_parts, const size_t num_hydro_parts, const size_t num_star_parts, const size_t num_bh_parts,
+    struct swift_vel_part *swift_parts, int *cell_node_ids,
+    const int numthreads, const int ireturngroupinfoflag, int *const numingroups,
+    struct swift_vel_gas_part *swift_gas_parts = NULL,
+    struct swift_vel_star_part *swift_star_parts = NULL,
+    struct swift_vel_bh_part *swift_bh_parts = NULL
+);
+extern "C" Swift::groupinfo * InvokeVelociraptorExtra(const int iextra,
+    const int snapnum, char* outputname,
+    Swift::cosmoinfo, Swift::siminfo,
+    const size_t num_gravity_parts, const size_t num_hydro_parts, const size_t num_star_parts,
+    struct swift_vel_part *swift_parts, int *cell_node_ids,
+    const int numthreads, const int ireturngroupinfoflag, int *const numingroups
+);
+extern "C" Swift::groupinfo * InvokeVelociraptorHydroExtra(const int iextra,
+    const int snapnum, char* outputname,
+    Swift::cosmoinfo, Swift::siminfo,
+    const size_t num_gravity_parts, const size_t num_hydro_parts,
+    const size_t num_star_parts, const size_t num_bh_parts,
+    struct swift_vel_part *swift_parts, int *cell_node_ids,
+    const int numthreads, const int ireturngroupinfoflag, int *const numingroups,
+    struct swift_vel_gas_part *swift_gas_parts = NULL,
+    struct swift_vel_star_part *swift_star_parts = NULL,
+    struct swift_vel_bh_part *swift_bh_parts = NULL
+);
 ///set simulation information
 void SetVelociraptorSimulationState(Swift::cosmoinfo, Swift::siminfo);
 //@}
 
-//extern KDTree *mpimeshtree;
-//extern Particle *mpimeshinfo;
 
 ///global libvelociraptorOptions structure that is used when calling library velociraptor from swift
 extern Options libvelociraptorOpt;
+extern Options libvelociraptorOptbackup;
+extern Options libvelociraptorOptextra[10];
 
 void CheckSwiftTasks(string message, const Int_t n, Particle *p);
 #endif

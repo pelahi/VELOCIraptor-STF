@@ -396,6 +396,8 @@ struct Options
     /// mpi factor by which to multiple the memory allocated, ie: buffer region
     /// to reduce likelihood of having to expand/allocate new memory
     Double_t mpipartfac;
+    /// if using parallel output, number of mpi threads to group together
+    int mpinprocswritesize;
 
     /// run FOF using OpenMP
     int iopenmpfof;
@@ -829,6 +831,7 @@ struct Options
 
         mpiparticletotbufsize=-1;
         mpiparticlebufsize=-1;
+        mpinprocswritesize=1;
 
         lengthtokpc=-1.0;
         velocitytokms=-1.0;
@@ -4688,7 +4691,6 @@ struct ProfileDataHeader{
     //list the header info
     vector<string> headerdatainfo;
 #ifdef USEHDF
-    // vector<PredType> predtypeinfo;
     vector<hid_t> hdfpredtypeinfo;
 #endif
 #ifdef USEADIOS
@@ -4700,9 +4702,6 @@ struct ProfileDataHeader{
     ProfileDataHeader(Options&opt){
         int sizeval;
 #ifdef USEHDF
-        // vector<PredType> desiredproprealtype;
-        // if (sizeof(Double_t)==sizeof(double)) desiredproprealtype.push_back(PredType::NATIVE_DOUBLE);
-        // else desiredproprealtype.push_back(PredType::NATIVE_FLOAT);
         vector<hid_t> hdfdesiredproprealtype;
         if (sizeof(Double_t)==sizeof(double)) hdfdesiredproprealtype.push_back(H5T_NATIVE_DOUBLE);
         else hdfdesiredproprealtype.push_back(H5T_NATIVE_FLOAT);
@@ -4716,7 +4715,6 @@ struct ProfileDataHeader{
         offsetscalarentries=0;
         headerdatainfo.push_back("ID");
 #ifdef USEHDF
-        // predtypeinfo.push_back(PredType::STD_U64LE);
         hdfpredtypeinfo.push_back(H5T_NATIVE_ULONG);
 #endif
 #ifdef USEADIOS
@@ -4726,7 +4724,6 @@ struct ProfileDataHeader{
         if (opt.iprofilenorm != PROFILERNORMPHYS) {
         headerdatainfo.push_back(opt.profileradnormstring);
 #ifdef USEHDF
-        // predtypeinfo.push_back(desiredproprealtype[0]);
         hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS

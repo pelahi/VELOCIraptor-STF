@@ -37,6 +37,9 @@ endmacro()
 
 # Input formats
 vr_option(HDF5 "Attempt to include HDF5 support in VELOCIraptor" ON)
+vr_option(ENABLECOMPRESSIONHDF5 "Attempt to include HDF5 compression support in VELOCIraptor" ON)
+vr_option(ENABLEPARALLELHDF5 "Attempt to include parallel HDF5 support in VELOCIraptor" ON)
+vr_option(ENABLEPARALLELHDF5COMPRESSION "Attempt to include parallel HDF5 compression support in VELOCIraptor" OFF)
 vr_option(XDR  "XDR input support (used by nchilada)" OFF)
 
 # Precision options
@@ -189,15 +192,29 @@ macro(find_hdf5)
 	if (HDF5_ROOT)
 		set(ENV{HDF5_ROOT} ${HDF5_ROOT})
 	endif()
-	#find_package(HDF5 COMPONENTS CXX)
 	find_package(HDF5 COMPONENTS C)
 	if (HDF5_FOUND)
+		#
 		list(APPEND VR_INCLUDE_DIRS ${HDF5_INCLUDE_DIRS})
 		list(APPEND VR_LIBS ${HDF5_LIBRARIES})
 		list(APPEND VR_DEFINES USEHDF)
 		set(VR_HAS_HDF5 Yes)
-  endif()
+		#check if parallel hdf present
+		if (HDF5_IS_PARALLEL AND VR_HAS_MPI AND VR_ENABLEPARALLELHDF5)
+			set (ENV{HDF5_PREFER_PARALLEL} true)
+			set(VR_HAS_PARALLEL_HDF5 Yes)
+			list(APPEND VR_DEFINES USEPARALLELHDF)
+			if (HDF5_VERSION VERSION_GREATER "1.10.1" AND VR_ENABLEPARALLELHDF5COMPRESSION)
+				set(VR_HAS_COMPRESSED_HDF5 Yes)
+				list(APPEND VR_DEFINES USEHDFCOMPRESSION)
+			endif()
+		else()
+			set(VR_HAS_COMPRESSED_HDF5 Yes)
+			list(APPEND VR_DEFINES USEHDFCOMPRESSION)
+		endif()
+    endif()
 endmacro()
+
 
 #
 # How we find MPI and set it up
@@ -248,15 +265,18 @@ endmacro()
 ensure_git_submodules()
 find_gsl()
 
-set(VR_HAS_HDF5 No)
-if (VR_HDF5)
-	find_hdf5()
-endif()
-
 set(VR_HAS_MPI No)
 if (VR_MPI)
 	find_mpi()
 endif()
+
+set(VR_HAS_HDF5 No)
+set(VR_HAS_COMPRESSED_HDF5 No)
+set(VR_HAS_PARALLEL_HDF5 No)
+if (VR_HDF5)
+	find_hdf5()
+endif()
+
 
 
 # This provides us with the nbodylib library
@@ -309,6 +329,8 @@ endmacro()
 message("\nVELOCIraptor successfully configured with the following settings:")
 vr_report("File formats"
           "HDF5" HDF5
+		  "Compressed HDF5" COMPRESSED_HDF5
+		  "Parallel HDF5" PARALLEL_HDF5
           "nchilada" XDR)
 vr_report("Precision-specifics"
         "Long Integers" LONG_INT
