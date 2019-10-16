@@ -723,6 +723,37 @@ void MPISendBHInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle *Part
 #endif
 }
 
+void MPISendExtraDMInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle *Part, int taskID)
+{
+#ifdef EXTRADMON
+    MPI_Status status;
+    vector<Int_t> indices;
+    Int_t num = 0, numextrafields = 0, index, offset = 0;
+    vector<float> propbuff;
+    string field;
+
+    numextrafields = opt.extra_dm_internalprop_names.size();
+    if (numextrafields == 0) return;
+    for (auto i=0;i<nlocalbuff;i++) if (Part[i].HasExtraDMProperties()) indices.push_back(i);
+    num = indices.size();
+    MPI_Send(&num,1,MPI_Int_t,taskID,taskID,MPI_COMM_WORLD);
+    if (num == 0) return;
+    propbuff.resize(numextrafields*num);
+    for (auto i=0;i<num;i++)
+    {
+        index = indices[i];
+        offset = 0;
+        for (auto iextra=0;iextra<opt.extra_dm_internalprop_names.size();iextra++)
+        {
+            field = opt.extra_dm_internalprop_names[iextra];
+            propbuff[i*numextrafields + iextra + offset] = Part[index].GetExtraDMProperties().GetExtraProperties(field);
+        }
+    }
+    MPI_Send(indices.data(),num,MPI_Int_t,taskID,taskID,MPI_COMM_WORLD);
+    MPI_Send(propbuff.data(),num*numextrafields,MPI_FLOAT,taskID,taskID,MPI_COMM_WORLD);
+#endif
+}
+
 void MPIISendHydroInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int dst, int tag, MPI_Request &rqst)
 {
 #ifdef GASON
@@ -845,6 +876,37 @@ void MPIISendBHInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int dst, int
         {
             field = opt.bh_chemproduction_names[iextra];
             propbuff[i*numextrafields + iextra + offset] = Part[index].GetBHProperties().GetChemistryProduction(field);
+        }
+    }
+    MPI_Isend(indices.data(), num, MPI_Int_t, dst, tag*2, MPI_COMM_WORLD, &rqst);
+    MPI_Isend(propbuff.data(), num*numextrafields, MPI_FLOAT, dst, tag*3, MPI_COMM_WORLD, &rqst);
+#endif
+}
+
+void MPIISendExtraDMInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int dst, int tag, MPI_Request &rqst)
+{
+#ifdef EXTRADMON
+    MPI_Status status;
+    vector<Int_t> indices;
+    Int_t num = 0, numextrafields = 0, index, offset = 0;
+    vector<float> propbuff;
+    string field;
+
+    numextrafields = opt.extra_dm_internalprop_names.size();
+    if (numextrafields == 0) return;
+    for (auto i=0;i<nlocalbuff;i++) if (Part[i].HasExtraDMProperties()) indices.push_back(i);
+    num = indices.size();
+    MPI_Isend(&num, 1, MPI_Int_t, dst, tag, MPI_COMM_WORLD, &rqst);
+    if (num == 0) return;
+    propbuff.resize(numextrafields*num);
+    for (auto i=0;i<num;i++)
+    {
+        index = indices[i];
+        offset = 0;
+        for (auto iextra=0;iextra<opt.extra_dm_internalprop_names.size();iextra++)
+        {
+            field = opt.extra_dm_internalprop_names[iextra];
+            propbuff[i*numextrafields + iextra + offset] = Part[index].GetExtraDMProperties().GetExtraProperties(field);
         }
     }
     MPI_Isend(indices.data(), num, MPI_Int_t, dst, tag*2, MPI_COMM_WORLD, &rqst);
