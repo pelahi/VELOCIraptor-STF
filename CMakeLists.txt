@@ -69,6 +69,7 @@ vr_option(GADGET_BH_INFO    "Support for extra black hole information in Gadget"
 vr_option(USE_STAR      "Use star particles" OFF)
 vr_option(USE_GAS       "Use gas particles" OFF)
 vr_option(USE_BH        "Use black holes" OFF)
+vr_option(USE_EXTRA_DM_PROPERTIES "Store extra dark matter properties" OFF)
 vr_option(USE_HYDRO     "Use all particle types, (gas, star, bh, etc)" OFF)
 vr_option(NO_MASS       "Particles do not store mass (useful for pure N-body sims and reducing memory footprint)" OFF)
 vr_option(USE_EXTRA_INPUT_INFO     "Store where particles are located in the input file" OFF)
@@ -102,6 +103,9 @@ if (VR_USE_GAS)
 endif()
 if (VR_USE_BH)
 	set(NBODY_USE_BH ON)
+endif()
+if (VR_USE_EXTRA_DM_PROPERTIES)
+	set(NBODY_USE_EXTRA_DM_PROPERTIES ON)
 endif()
 if (VR_USE_EXTRA_INPUT_INFO)
 	set(NBODY_USE_EXTRA_INPUT_INFO ON)
@@ -162,6 +166,7 @@ vr_option_defines(GADGET_BH_INFO            EXTRABHINFO)
 vr_option_defines(USE_GAS                   GASON)
 vr_option_defines(USE_STAR                  STARON)
 vr_option_defines(USE_BH                    BHON)
+vr_option_defines(USE_EXTRA_DM_PROPERTIES   EXTRADMON)
 vr_option_defines(NO_MASS                   NOMASS)
 vr_option_defines(USE_EXTRA_INPUT_INFO      EXTRAINPUTINFO)
 vr_option_defines(USE_EXTRA_FOF_INFO        EXTRAFOFINFO)
@@ -350,6 +355,7 @@ vr_report("Particle-specifics"
           "Activate gas (& associated physics, properties calculated)" USE_GAS
 		  "Activate stars (& associated physics, properties calculated)" USE_STAR
 		  "Activate black holes (& associated physics, properties calculated)" USE_BH
+		  "Activate extra dark matter properties (& associated properties)" USE_EXTRA_DM_PROPERTIES
 		  "Mass not stored (for uniform N-Body sims, reduce mem footprint)" NO_MASS
 		  "Large memory KDTree to handle > max 32-bit integer entries per tree" USE_LARGE_KDTREE
 	  )

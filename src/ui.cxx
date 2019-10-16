@@ -710,6 +710,15 @@ void GetParamFile(Options &opt)
                             dataline.erase(0, pos + delimiter.length());
                         }
                     }
+                    else if (strcmp(tbuff, "Extra_DM_internal_property_names")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            opt.extra_dm_internalprop_names.push_back(token);
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                    }
                     else if (strcmp(tbuff, "Gas_chemistry_names")==0) {
                         pos=0;
                         dataline=string(vbuff);

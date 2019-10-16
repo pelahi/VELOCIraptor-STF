@@ -101,15 +101,19 @@ typedef short short_mpi_t;
 #define TAG_FOF_B_HYDRO 111
 #define TAG_FOF_B_STAR 112
 #define TAG_FOF_B_BH 113
+#define TAG_FOF_B_EXTRA_DM 114
 #define TAG_FOF_C_HYDRO 121
 #define TAG_FOF_C_STAR 122
 #define TAG_FOF_C_BH 123
+#define TAG_FOF_C_EXTRA_DM 124
 #define TAG_FOF_D_HYDRO 131
 #define TAG_FOF_D_STAR 132
 #define TAG_FOF_D_BH 133
+#define TAG_FOF_D_EXTRA_DM 134
 #define TAG_FOF_E_HYDRO 141
 #define TAG_FOF_E_STAR 142
 #define TAG_FOF_E_BH 143
+#define TAG_FOF_E_EXTRA_DM 143
 
 ///flag for NN particle exchange
 #define TAG_NN_A 20
