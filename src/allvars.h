@@ -1969,6 +1969,10 @@ struct PropData
 #if defined(BHON)
     BHProperties bhprop;
 #endif
+#if defined(EXTRADMON)
+    Int_t n_dm;
+    ExtraDMProperties extradmprop;
+#endif
     //@}
 
     PropData()
@@ -2089,7 +2093,9 @@ struct PropData
 #endif
     }
     ///equals operator, useful if want inclusive information before substructure search
-    PropData& operator=(const PropData &p){
+    PropData& operator=(const PropData &p) = default;
+    /*
+    PropData& operator=(const PropData &p) {
         num=p.num;
         gcm=p.gcm;gcmvel=p.gcmvel;
         gposmbp=p.gposmbp;gvelmbp=p.gvelmbp;
@@ -2262,6 +2268,7 @@ struct PropData
 #endif
         return *this;
     }
+    */
 
     //allocate memory for profiles
     void Allocate(Options &opt) {
@@ -3124,7 +3131,12 @@ struct PropData
 #endif
 
 #ifdef GASON
-        if (opt.gas_chem_names.size()+opt.gas_chemproduction_names.size()>0) {
+        if (opt.gas_internalprop_names.size()+ opt.gas_chem_names.size()+opt.gas_chemproduction_names.size()>0) {
+            for (auto &extrafield:opt.gas_internalprop_names)
+            {
+                val = hydroprop.GetInternalProperties(extrafield);
+                Fout.write((char*)&val,sizeof(val));
+            }
             for (auto &extrafield:opt.gas_chem_names)
             {
                 val = hydroprop.GetChemistry(extrafield);
@@ -3138,7 +3150,12 @@ struct PropData
         }
 #endif
 #ifdef STARON
-        if (opt.star_chem_names.size()+opt.star_chemproduction_names.size()>0) {
+        if (opt.star_internalprop_names.size()+opt.star_chem_names.size()+opt.star_chemproduction_names.size()>0) {
+            for (auto &extrafield:opt.star_internalprop_names)
+            {
+                val = starprop.GetInternalProperties(extrafield);
+                Fout.write((char*)&val,sizeof(val));
+            }
             for (auto &extrafield:opt.star_chem_names)
             {
                 val = starprop.GetChemistry(extrafield);
@@ -3152,7 +3169,12 @@ struct PropData
         }
 #endif
 #ifdef BHON
-        if (opt.bh_chem_names.size()+opt.bh_chemproduction_names.size()>0) {
+        if (opt.bh_internalprop_names.size()+opt.bh_chem_names.size()+opt.bh_chemproduction_names.size()>0) {
+            for (auto &extrafield:opt.bh_internalprop_names)
+            {
+                val = bhprop.GetInternalProperties(extrafield);
+                Fout.write((char*)&val,sizeof(val));
+            }
             for (auto &extrafield:opt.bh_chem_names)
             {
                 val = bhprop.GetChemistry(extrafield);
@@ -3161,6 +3183,15 @@ struct PropData
             for (auto &extrafield:opt.bh_chemproduction_names)
             {
                 val = bhprop.GetChemistryProduction(extrafield);
+                Fout.write((char*)&val,sizeof(val));
+            }
+        }
+#endif
+#ifdef EXTRADMON
+        if (opt.extra_dm_internalprop_names.size()>0) {
+            for (auto &extrafield:opt.extra_dm_internalprop_names)
+            {
+                val = extradmprop.GetExtraProperties(extrafield);
                 Fout.write((char*)&val,sizeof(val));
             }
         }
@@ -3592,7 +3623,9 @@ struct PropData
         }
 #endif
 #ifdef GASON
-        if (opt.gas_chem_names.size()+opt.gas_chemproduction_names.size()>0) {
+        if (opt.gas_internalprop_names.size()+opt.gas_chem_names.size()+opt.gas_chemproduction_names.size()>0) {
+            for (auto &extrafield:opt.gas_internalprop_names)
+                Fout<<hydroprop.GetInternalProperties(extrafield)<<" ";
             for (auto &extrafield:opt.gas_chem_names)
                 Fout<<hydroprop.GetChemistry(extrafield)<<" ";
             for (auto &extrafield:opt.gas_chemproduction_names)
@@ -3600,7 +3633,9 @@ struct PropData
         }
 #endif
 #ifdef STARON
-        if (opt.star_chem_names.size()+opt.star_chemproduction_names.size()>0) {
+        if (opt.star_internalprop_names.size()+opt.star_chem_names.size()+opt.star_chemproduction_names.size()>0) {
+            for (auto &extrafield:opt.star_internalprop_names)
+                Fout<<starprop.GetInternalProperties(extrafield)<<" ";
             for (auto &extrafield:opt.star_chem_names)
                 Fout<<starprop.GetChemistry(extrafield)<<" ";
             for (auto &extrafield:opt.star_chemproduction_names)
@@ -3608,11 +3643,19 @@ struct PropData
         }
 #endif
 #ifdef BHON
-        if (opt.bh_chem_names.size()+opt.bh_chemproduction_names.size()>0) {
+        if (opt.bh_internalprop_names.size()+opt.bh_chem_names.size()+opt.bh_chemproduction_names.size()>0) {
+            for (auto &extrafield:opt.bh_internalprop_names)
+                Fout<<bhprop.GetInternalProperties(extrafield)<<" ";
             for (auto &extrafield:opt.bh_chem_names)
                 Fout<<bhprop.GetChemistry(extrafield)<<" ";
             for (auto &extrafield:opt.bh_chemproduction_names)
                 Fout<<bhprop.GetChemistryProduction(extrafield)<<" ";
+        }
+#endif
+#ifdef EXTRADMON
+        if (opt.extra_dm_internalprop_names.size()>0) {
+            for (auto &extrafield:opt.extra_dm_internalprop_names)
+                Fout<<extradmprop.GetExtraProperties(extrafield)<<" ";
         }
 #endif
 

@@ -1943,6 +1943,17 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
             }
         }
 #endif
+#ifdef EXTRADMON
+        if (opt.extra_dm_internalprop_names.size()>0) {
+            for (auto &extrafield:opt.extra_dm_internalprop_names)
+            {
+                for (Int_t i=0;i<ngroups;i++)
+                    ((Double_t*)data)[i]=pdata[i+1].extradmprop.GetExtraProperties(extrafield);
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);
+                itemp++;
+            }
+        }
+#endif
 
 
         //output apertures
