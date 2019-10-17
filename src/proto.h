@@ -390,6 +390,8 @@ void GetExtraHydroProperties(Options &opt, PropData &pdata, Int_t n, Particle *P
 void GetExtraStarProperties(Options &opt, PropData &pdata, Int_t n, Particle *Pval);
 ///calculate extra bh properties
 void GetExtraBHProperties(Options &opt, PropData &pdata, Int_t n, Particle *Pval);
+///calculate extra dm properties
+void GetExtraDMProperties(Options &opt, PropData &pdata, Int_t n, Particle *Pval);
 
 ///calculate spherical overdensity from vector of radii, masses and indices
 Int_t CalculateSphericalOverdensity(Options &opt, PropData &pdata,
