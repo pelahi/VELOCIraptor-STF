@@ -37,6 +37,9 @@ endmacro()
 
 # Input formats
 vr_option(HDF5 "Attempt to include HDF5 support in VELOCIraptor" ON)
+vr_option(ENABLECOMPRESSIONHDF5 "Attempt to include HDF5 compression support in VELOCIraptor" ON)
+vr_option(ENABLEPARALLELHDF5 "Attempt to include parallel HDF5 support in VELOCIraptor" ON)
+vr_option(ENABLEPARALLELHDF5COMPRESSION "Attempt to include parallel HDF5 compression support in VELOCIraptor" OFF)
 vr_option(XDR  "XDR input support (used by nchilada)" OFF)
 
 # Precision options
@@ -66,6 +69,7 @@ vr_option(GADGET_BH_INFO    "Support for extra black hole information in Gadget"
 vr_option(USE_STAR      "Use star particles" OFF)
 vr_option(USE_GAS       "Use gas particles" OFF)
 vr_option(USE_BH        "Use black holes" OFF)
+vr_option(USE_EXTRA_DM_PROPERTIES "Store extra dark matter properties" OFF)
 vr_option(USE_HYDRO     "Use all particle types, (gas, star, bh, etc)" OFF)
 vr_option(NO_MASS       "Particles do not store mass (useful for pure N-body sims and reducing memory footprint)" OFF)
 vr_option(USE_EXTRA_INPUT_INFO     "Store where particles are located in the input file" OFF)
@@ -99,6 +103,9 @@ if (VR_USE_GAS)
 endif()
 if (VR_USE_BH)
 	set(NBODY_USE_BH ON)
+endif()
+if (VR_USE_EXTRA_DM_PROPERTIES)
+	set(NBODY_USE_EXTRA_DM_PROPERTIES ON)
 endif()
 if (VR_USE_EXTRA_INPUT_INFO)
 	set(NBODY_USE_EXTRA_INPUT_INFO ON)
@@ -159,6 +166,7 @@ vr_option_defines(GADGET_BH_INFO            EXTRABHINFO)
 vr_option_defines(USE_GAS                   GASON)
 vr_option_defines(USE_STAR                  STARON)
 vr_option_defines(USE_BH                    BHON)
+vr_option_defines(USE_EXTRA_DM_PROPERTIES   EXTRADMON)
 vr_option_defines(NO_MASS                   NOMASS)
 vr_option_defines(USE_EXTRA_INPUT_INFO      EXTRAINPUTINFO)
 vr_option_defines(USE_EXTRA_FOF_INFO        EXTRAFOFINFO)
@@ -189,15 +197,29 @@ macro(find_hdf5)
 	if (HDF5_ROOT)
 		set(ENV{HDF5_ROOT} ${HDF5_ROOT})
 	endif()
-	#find_package(HDF5 COMPONENTS CXX)
 	find_package(HDF5 COMPONENTS C)
 	if (HDF5_FOUND)
+		#
 		list(APPEND VR_INCLUDE_DIRS ${HDF5_INCLUDE_DIRS})
 		list(APPEND VR_LIBS ${HDF5_LIBRARIES})
 		list(APPEND VR_DEFINES USEHDF)
 		set(VR_HAS_HDF5 Yes)
-  endif()
+		#check if parallel hdf present
+		if (HDF5_IS_PARALLEL AND VR_HAS_MPI AND VR_ENABLEPARALLELHDF5)
+			set (ENV{HDF5_PREFER_PARALLEL} true)
+			set(VR_HAS_PARALLEL_HDF5 Yes)
+			list(APPEND VR_DEFINES USEPARALLELHDF)
+			if (HDF5_VERSION VERSION_GREATER "1.10.1" AND VR_ENABLEPARALLELHDF5COMPRESSION)
+				set(VR_HAS_COMPRESSED_HDF5 Yes)
+				list(APPEND VR_DEFINES USEHDFCOMPRESSION)
+			endif()
+		else()
+			set(VR_HAS_COMPRESSED_HDF5 Yes)
+			list(APPEND VR_DEFINES USEHDFCOMPRESSION)
+		endif()
+    endif()
 endmacro()
+
 
 #
 # How we find MPI and set it up
@@ -248,15 +270,18 @@ endmacro()
 ensure_git_submodules()
 find_gsl()
 
-set(VR_HAS_HDF5 No)
-if (VR_HDF5)
-	find_hdf5()
-endif()
-
 set(VR_HAS_MPI No)
 if (VR_MPI)
 	find_mpi()
 endif()
+
+set(VR_HAS_HDF5 No)
+set(VR_HAS_COMPRESSED_HDF5 No)
+set(VR_HAS_PARALLEL_HDF5 No)
+if (VR_HDF5)
+	find_hdf5()
+endif()
+
 
 
 # This provides us with the nbodylib library
@@ -309,6 +334,8 @@ endmacro()
 message("\nVELOCIraptor successfully configured with the following settings:")
 vr_report("File formats"
           "HDF5" HDF5
+		  "Compressed HDF5" COMPRESSED_HDF5
+		  "Parallel HDF5" PARALLEL_HDF5
           "nchilada" XDR)
 vr_report("Precision-specifics"
         "Long Integers" LONG_INT
@@ -328,6 +355,7 @@ vr_report("Particle-specifics"
           "Activate gas (& associated physics, properties calculated)" USE_GAS
 		  "Activate stars (& associated physics, properties calculated)" USE_STAR
 		  "Activate black holes (& associated physics, properties calculated)" USE_BH
+		  "Activate extra dark matter properties (& associated properties)" USE_EXTRA_DM_PROPERTIES
 		  "Mass not stored (for uniform N-Body sims, reduce mem footprint)" NO_MASS
 		  "Large memory KDTree to handle > max 32-bit integer entries per tree" USE_LARGE_KDTREE
 	  )

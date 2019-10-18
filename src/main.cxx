@@ -76,6 +76,7 @@ int main(int argc,char **argv)
     cout.precision(10);
 
 #ifdef USEMPI
+    MPIInitWriteComm();
 #ifdef USEADIOS
     //init adios
     adios_init_noxml(MPI_COMM_WORLD);

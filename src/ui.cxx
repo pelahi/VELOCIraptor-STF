@@ -11,6 +11,9 @@ void GetArgs(int argc, char *argv[], Options &opt)
 #ifndef USEMPI
     int ThisTask =0, NProcs =1;
 #endif
+#if defined(USEMPI) && defined(USEPARALLELHDF)
+    opt.mpinprocswritesize=NProcs;
+#endif
     int option;
     int NumArgs = 0;
     int configflag=0;
@@ -673,6 +676,8 @@ void GetParamFile(Options &opt)
                     //mpi memory related
                     else if (strcmp(tbuff, "MPI_part_allocation_fac")==0)
                         opt.mpipartfac = atof(vbuff);
+                    else if (strcmp(tbuff, "MPI_number_of_tasks_per_write")==0)
+                        opt.mpinprocswritesize = atoi(vbuff);
                     ///OpenMP related
                     else if (strcmp(tbuff, "OMP_run_fof")==0)
                         opt.iopenmpfof = atoi(vbuff);
@@ -702,6 +707,15 @@ void GetParamFile(Options &opt)
                         while ((pos = dataline.find(delimiter)) != string::npos) {
                             token = dataline.substr(0, pos);
                             opt.bh_internalprop_names.push_back(token);
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                    }
+                    else if (strcmp(tbuff, "Extra_DM_internal_property_names")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            opt.extra_dm_internalprop_names.push_back(token);
                             dataline.erase(0, pos + delimiter.length());
                         }
                     }
@@ -919,6 +933,18 @@ inline void ConfigCheck(Options &opt)
     }
     else if (opt.mpipartfac>1){
         errormessage("WARNING: MPI Particle allocation factor is high (>1).");
+    }
+    if (opt.mpinprocswritesize<1){
+        #ifdef USEPARALLELHDF
+        errormessage("WARNING: Number of MPI task writing collectively < 1. Setting to 1 .");
+        opt.mpinprocswritesize = 1;
+        #endif
+    }
+    if (opt.mpinprocswritesize>NProcs){
+        #ifdef USEPARALLELHDF
+        errormessage("WARNING: Number of MPI task writing collectively > NProcs. Setting to NProcs.");
+        opt.mpinprocswritesize = NProcs;
+        #endif
     }
 #endif
 

@@ -174,7 +174,7 @@ Input and output related options
 
 .. _config_input:
 
-.. topic:: Input related
+_topic:: Input related
 
     ``Cosmological_input = 1/0``
         * Flag indicating that input simulation is cosmological or not. With cosmological input, a variety of length/velocity scales are set to determine such things as the virial overdensity, linking length.

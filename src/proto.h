@@ -390,6 +390,8 @@ void GetExtraHydroProperties(Options &opt, PropData &pdata, Int_t n, Particle *P
 void GetExtraStarProperties(Options &opt, PropData &pdata, Int_t n, Particle *Pval);
 ///calculate extra bh properties
 void GetExtraBHProperties(Options &opt, PropData &pdata, Int_t n, Particle *Pval);
+///calculate extra dm properties
+void GetExtraDMProperties(Options &opt, PropData &pdata, Int_t n, Particle *Pval);
 
 ///calculate spherical overdensity from vector of radii, masses and indices
 Int_t CalculateSphericalOverdensity(Options &opt, PropData &pdata,
@@ -524,6 +526,13 @@ void MPIDistributeReadTasks(Options&opt, int *&ireadtask, int*&readtaskID);
 ///set which file a given task will read
 int MPISetFilesRead(Options&opt, int *&ireadfile, int *&ireadtask);
 
+///generic init of write communicator to mpi world;
+void MPIInitWriteComm();
+///determine how to group mpi threads together when writing
+void MPIBuildWriteComm(Options &opt);
+///free communicator if needed 
+void MPIFreeWriteComm();
+
 /// Determine number of local particles for tipsy
 void MPINumInDomainTipsy(Options &opt);
 /// Determine number of local particles for gadget
@@ -588,6 +597,8 @@ void MPISendHydroInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle *P
 void MPISendStarInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle *Part, int taskID);
 ///Send bh information from read threads to non read threads using MPI_COMM_WORLD
 void MPISendBHInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle *Part, int taskID);
+///Send extra dm information from read threads to non read threads using MPI_COMM_WORLD
+void MPISendExtraDMInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle *Part, int taskID);
 
 ///Receive hydro information from read threads using MPI_COMM_WORLD
 void MPIReceiveHydroInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle *Part, int readtaskID);
@@ -595,6 +606,8 @@ void MPIReceiveHydroInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle
 void MPIReceiveStarInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle *Part, int readtaskID);
 ///Receive bh information from read threads using MPI_COMM_WORLD
 void MPIReceiveBHInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle *Part, int readtaskID);
+///Receive extra dm information from read threads using MPI_COMM_WORLD
+void MPIReceiveExtraDMInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle *Part, int readtaskID);
 
 ///Interrupt send of hydro information to destination taskID using MPI_COMM_WORLD
 void MPIISendHydroInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int taskID, int tag, MPI_Request &rqst);
@@ -602,6 +615,8 @@ void MPIISendHydroInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int taskI
 void MPIISendStarInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int taskID, int tag, MPI_Request &rqst);
 ///Interrupt send of BH information to destination taskID using MPI_COMM_WORLD
 void MPIISendBHInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int taskID, int tag, MPI_Request &rqst);
+///Interrupt send of extra dm information to destination taskID using MPI_COMM_WORLD
+void MPIISendExtraDMInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int taskID, int tag, MPI_Request &rqst);
 
 ///Receive Hydro information send with specific tag
 void MPIReceiveHydroInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int sendingTaskID, int tag);
@@ -609,6 +624,8 @@ void MPIReceiveHydroInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int sen
 void MPIReceiveStarInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int sendingTaskID, int tag);
 ///Receive BH information send with specific tag
 void MPIReceiveBHInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int sendingTaskID, int tag);
+///Receive Extra DM information send with specific tag
+void MPIReceiveExtraDMInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int sendingTaskID, int tag);
 
 ///Send/Receive hydro information between read threads using the MPI communicator
 void MPISendReceiveHydroInfoBetweenThreads(Options &opt, Int_t nlocalbuff, Particle *Pbuf, Int_t nlocal, Particle *Part, int recvTask, int tag, MPI_Comm &mpi_comm);
@@ -616,6 +633,8 @@ void MPISendReceiveHydroInfoBetweenThreads(Options &opt, Int_t nlocalbuff, Parti
 void MPISendReceiveStarInfoBetweenThreads(Options &opt, Int_t nlocalbuff, Particle *Pbuf, Int_t nlocal, Particle *Part, int recvTask, int tag, MPI_Comm &mpi_comm);
 ///Send/Receive BH information between read threads using the MPI communicator
 void MPISendReceiveBHInfoBetweenThreads(Options &opt, Int_t nlocalbuff, Particle *Pbuf, Int_t nlocal, Particle *Part, int recvTask, int tag, MPI_Comm &mpi_comm);
+///Send/Receive BH information between read threads using the MPI communicator
+void MPISendReceiveExtraDMInfoBetweenThreads(Options &opt, Int_t nlocalbuff, Particle *Pbuf, Int_t nlocal, Particle *Part, int recvTask, int tag, MPI_Comm &mpi_comm);
 
 ///Filling extra buffers with hydro data for particles that are to be exported as part of
 ///a FOF group.
@@ -629,6 +648,9 @@ void MPISendReceiveFOFStarInfoBetweenThreads(Options &opt, Int_t nexport, fofid_
 ///Send/Receive BH information between read threads using the MPI communicator
 ///Using a FOF filled buffer
 void MPISendReceiveFOFBHInfoBetweenThreads(Options &opt, Int_t nexport, fofid_in *FoFGroupDataExport, Int_t nlocal, fofid_in *FoFGroupDataLocal, Particle *&Part, int recvTask, int tag, MPI_Comm &mpi_comm);
+///Send/Receive ExtraDM information between read threads using the MPI communicator
+///Using a FOF filled buffer
+void MPISendReceiveFOFExtraDMInfoBetweenThreads(Options &opt, Int_t nexport, fofid_in *FoFGroupDataExport, Int_t nlocal, fofid_in *FoFGroupDataLocal, Particle *&Part, int recvTask, int tag, MPI_Comm &mpi_comm);
 //@}
 
 /// \name MPI search related routines

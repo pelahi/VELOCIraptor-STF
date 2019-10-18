@@ -396,6 +396,8 @@ struct Options
     /// mpi factor by which to multiple the memory allocated, ie: buffer region
     /// to reduce likelihood of having to expand/allocate new memory
     Double_t mpipartfac;
+    /// if using parallel output, number of mpi threads to group together
+    int mpinprocswritesize;
 
     /// run FOF using OpenMP
     int iopenmpfof;
@@ -673,6 +675,9 @@ struct Options
     vector<string> gas_chemproduction_names;
     vector<string> star_chemproduction_names;
     vector<string> bh_chemproduction_names;
+
+
+    vector<string> extra_dm_internalprop_names;
     //@}
 
     Options()
@@ -829,6 +834,7 @@ struct Options
 
         mpiparticletotbufsize=-1;
         mpiparticlebufsize=-1;
+        mpinprocswritesize=1;
 
         lengthtokpc=-1.0;
         velocitytokms=-1.0;
@@ -1314,6 +1320,12 @@ struct ConfigInfo{
             datainfo.push_back(datastring);
             datatype.push_back("float32");
         }
+        if (opt.extra_dm_internalprop_names.size()>0){
+            nameinfo.push_back("Extra_DM_internal_property_names");
+            datastring=string("");for (auto &x:opt.extra_dm_internalprop_names) {datastring+=x;datastring+=string(",");}
+            datainfo.push_back(datastring);
+            datatype.push_back("float32");
+        }
 
         //other options
         nameinfo.push_back("Verbose");
@@ -1416,6 +1428,11 @@ struct ConfigInfo{
         #endif
         #ifdef BHON
         nameinfo.push_back("#USEBH");
+        datainfo.push_back("");
+        datatype.push_back("");
+        #endif
+        #ifdef EXTRADMON
+        nameinfo.push_back("#USEEXTRADMPROPERTIES");
         datainfo.push_back("");
         datatype.push_back("");
         #endif
@@ -1955,6 +1972,10 @@ struct PropData
 #if defined(BHON)
     BHProperties bhprop;
 #endif
+#if defined(EXTRADMON)
+    Int_t n_dm;
+    ExtraDMProperties extradmprop;
+#endif
     //@}
 
     PropData()
@@ -2075,7 +2096,9 @@ struct PropData
 #endif
     }
     ///equals operator, useful if want inclusive information before substructure search
-    PropData& operator=(const PropData &p){
+    PropData& operator=(const PropData &p) = default;
+    /*
+    PropData& operator=(const PropData &p) {
         num=p.num;
         gcm=p.gcm;gcmvel=p.gcmvel;
         gposmbp=p.gposmbp;gvelmbp=p.gvelmbp;
@@ -2248,6 +2271,7 @@ struct PropData
 #endif
         return *this;
     }
+    */
 
     //allocate memory for profiles
     void Allocate(Options &opt) {
@@ -3110,7 +3134,12 @@ struct PropData
 #endif
 
 #ifdef GASON
-        if (opt.gas_chem_names.size()+opt.gas_chemproduction_names.size()>0) {
+        if (opt.gas_internalprop_names.size()+ opt.gas_chem_names.size()+opt.gas_chemproduction_names.size()>0) {
+            for (auto &extrafield:opt.gas_internalprop_names)
+            {
+                val = hydroprop.GetInternalProperties(extrafield);
+                Fout.write((char*)&val,sizeof(val));
+            }
             for (auto &extrafield:opt.gas_chem_names)
             {
                 val = hydroprop.GetChemistry(extrafield);
@@ -3124,7 +3153,12 @@ struct PropData
         }
 #endif
 #ifdef STARON
-        if (opt.star_chem_names.size()+opt.star_chemproduction_names.size()>0) {
+        if (opt.star_internalprop_names.size()+opt.star_chem_names.size()+opt.star_chemproduction_names.size()>0) {
+            for (auto &extrafield:opt.star_internalprop_names)
+            {
+                val = starprop.GetInternalProperties(extrafield);
+                Fout.write((char*)&val,sizeof(val));
+            }
             for (auto &extrafield:opt.star_chem_names)
             {
                 val = starprop.GetChemistry(extrafield);
@@ -3138,7 +3172,12 @@ struct PropData
         }
 #endif
 #ifdef BHON
-        if (opt.bh_chem_names.size()+opt.bh_chemproduction_names.size()>0) {
+        if (opt.bh_internalprop_names.size()+opt.bh_chem_names.size()+opt.bh_chemproduction_names.size()>0) {
+            for (auto &extrafield:opt.bh_internalprop_names)
+            {
+                val = bhprop.GetInternalProperties(extrafield);
+                Fout.write((char*)&val,sizeof(val));
+            }
             for (auto &extrafield:opt.bh_chem_names)
             {
                 val = bhprop.GetChemistry(extrafield);
@@ -3147,6 +3186,15 @@ struct PropData
             for (auto &extrafield:opt.bh_chemproduction_names)
             {
                 val = bhprop.GetChemistryProduction(extrafield);
+                Fout.write((char*)&val,sizeof(val));
+            }
+        }
+#endif
+#ifdef EXTRADMON
+        if (opt.extra_dm_internalprop_names.size()>0) {
+            for (auto &extrafield:opt.extra_dm_internalprop_names)
+            {
+                val = extradmprop.GetExtraProperties(extrafield);
                 Fout.write((char*)&val,sizeof(val));
             }
         }
@@ -3578,7 +3626,9 @@ struct PropData
         }
 #endif
 #ifdef GASON
-        if (opt.gas_chem_names.size()+opt.gas_chemproduction_names.size()>0) {
+        if (opt.gas_internalprop_names.size()+opt.gas_chem_names.size()+opt.gas_chemproduction_names.size()>0) {
+            for (auto &extrafield:opt.gas_internalprop_names)
+                Fout<<hydroprop.GetInternalProperties(extrafield)<<" ";
             for (auto &extrafield:opt.gas_chem_names)
                 Fout<<hydroprop.GetChemistry(extrafield)<<" ";
             for (auto &extrafield:opt.gas_chemproduction_names)
@@ -3586,7 +3636,9 @@ struct PropData
         }
 #endif
 #ifdef STARON
-        if (opt.star_chem_names.size()+opt.star_chemproduction_names.size()>0) {
+        if (opt.star_internalprop_names.size()+opt.star_chem_names.size()+opt.star_chemproduction_names.size()>0) {
+            for (auto &extrafield:opt.star_internalprop_names)
+                Fout<<starprop.GetInternalProperties(extrafield)<<" ";
             for (auto &extrafield:opt.star_chem_names)
                 Fout<<starprop.GetChemistry(extrafield)<<" ";
             for (auto &extrafield:opt.star_chemproduction_names)
@@ -3594,11 +3646,19 @@ struct PropData
         }
 #endif
 #ifdef BHON
-        if (opt.bh_chem_names.size()+opt.bh_chemproduction_names.size()>0) {
+        if (opt.bh_internalprop_names.size()+opt.bh_chem_names.size()+opt.bh_chemproduction_names.size()>0) {
+            for (auto &extrafield:opt.bh_internalprop_names)
+                Fout<<bhprop.GetInternalProperties(extrafield)<<" ";
             for (auto &extrafield:opt.bh_chem_names)
                 Fout<<bhprop.GetChemistry(extrafield)<<" ";
             for (auto &extrafield:opt.bh_chemproduction_names)
                 Fout<<bhprop.GetChemistryProduction(extrafield)<<" ";
+        }
+#endif
+#ifdef EXTRADMON
+        if (opt.extra_dm_internalprop_names.size()>0) {
+            for (auto &extrafield:opt.extra_dm_internalprop_names)
+                Fout<<extradmprop.GetExtraProperties(extrafield)<<" ";
         }
 #endif
 
@@ -4384,6 +4444,16 @@ struct PropDataHeader{
 #endif
         }
 #endif
+#ifdef EXTRADMN
+        if (opt.extra_dm_internalprop_names.size() > 0)
+        {
+            for (auto x:opt.extra_dm_internalprop_names) headerdatainfo.push_back(x+string("_extra_dm"));
+#ifdef USEHDF
+            sizeval=hdfpredtypeinfo.size();
+            for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
+#endif
+        }
+#endif
 
         //if aperture information calculated also include
         if (opt.iaperturecalc>0 && opt.aperturenum>0) {
@@ -4688,7 +4758,6 @@ struct ProfileDataHeader{
     //list the header info
     vector<string> headerdatainfo;
 #ifdef USEHDF
-    // vector<PredType> predtypeinfo;
     vector<hid_t> hdfpredtypeinfo;
 #endif
 #ifdef USEADIOS
@@ -4700,9 +4769,6 @@ struct ProfileDataHeader{
     ProfileDataHeader(Options&opt){
         int sizeval;
 #ifdef USEHDF
-        // vector<PredType> desiredproprealtype;
-        // if (sizeof(Double_t)==sizeof(double)) desiredproprealtype.push_back(PredType::NATIVE_DOUBLE);
-        // else desiredproprealtype.push_back(PredType::NATIVE_FLOAT);
         vector<hid_t> hdfdesiredproprealtype;
         if (sizeof(Double_t)==sizeof(double)) hdfdesiredproprealtype.push_back(H5T_NATIVE_DOUBLE);
         else hdfdesiredproprealtype.push_back(H5T_NATIVE_FLOAT);
@@ -4716,7 +4782,6 @@ struct ProfileDataHeader{
         offsetscalarentries=0;
         headerdatainfo.push_back("ID");
 #ifdef USEHDF
-        // predtypeinfo.push_back(PredType::STD_U64LE);
         hdfpredtypeinfo.push_back(H5T_NATIVE_ULONG);
 #endif
 #ifdef USEADIOS
@@ -4726,7 +4791,6 @@ struct ProfileDataHeader{
         if (opt.iprofilenorm != PROFILERNORMPHYS) {
         headerdatainfo.push_back(opt.profileradnormstring);
 #ifdef USEHDF
-        // predtypeinfo.push_back(desiredproprealtype[0]);
         hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS

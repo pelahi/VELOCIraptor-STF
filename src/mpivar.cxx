@@ -43,6 +43,8 @@ GridCell *mpi_grid;
 Coordinate *mpi_gvel;
 Matrix *mpi_gveldisp;
 
+MPI_Comm mpi_comm_write;
+int ThisWriteTask, NProcsWrite, ThisWriteComm, NWriteComms;
 //@}
 
 
