@@ -1270,61 +1270,61 @@ struct ConfigInfo{
             nameinfo.push_back("Gas_internal_property_names");
             datastring=string("");for (auto &x:opt.gas_internalprop_names) {datastring+=x;datastring+=string(",");}
             datainfo.push_back(datastring);
-            datatype.push_back("float32");
+            datatype.push_back("str");
         }
         if (opt.gas_chem_names.size()>0){
             nameinfo.push_back("Gas_chemistry_names");
             datastring=string("");for (auto &x:opt.gas_chem_names) {datastring+=x;datastring+=string(",");}
             datainfo.push_back(datastring);
-            datatype.push_back("float32");
+            datatype.push_back("str");
         }
         if (opt.gas_chemproduction_names.size()>0){
             nameinfo.push_back("Gas_chemistry_production_names");
             datastring=string("");for (auto &x:opt.gas_chemproduction_names) {datastring+=x;datastring+=string(",");}
             datainfo.push_back(datastring);
-            datatype.push_back("float32");
+            datatype.push_back("str");
         }
         if (opt.star_internalprop_names.size()>0){
             nameinfo.push_back("Star_internal_property_names");
             datastring=string("");for (auto &x:opt.star_internalprop_names) {datastring+=x;datastring+=string(",");}
             datainfo.push_back(datastring);
-            datatype.push_back("float32");
+            datatype.push_back("str");
         }
         if (opt.star_chem_names.size()>0){
             nameinfo.push_back("Star_chemistry_names");
             datastring=string("");for (auto &x:opt.star_chem_names) {datastring+=x;datastring+=string(",");}
             datainfo.push_back(datastring);
-            datatype.push_back("float32");
+            datatype.push_back("str");
         }
         if (opt.star_chemproduction_names.size()>0){
             nameinfo.push_back("Star_chemistry_production_names");
             datastring=string("");for (auto &x:opt.star_chemproduction_names) {datastring+=x;datastring+=string(",");}
             datainfo.push_back(datastring);
-            datatype.push_back("float32");
+            datatype.push_back("str");
         }
         if (opt.bh_internalprop_names.size()>0){
             nameinfo.push_back("BH_internal_property_names");
             datastring=string("");for (auto &x:opt.star_internalprop_names) {datastring+=x;datastring+=string(",");}
             datainfo.push_back(datastring);
-            datatype.push_back("float32");
+            datatype.push_back("str");
         }
         if (opt.bh_chem_names.size()>0){
             nameinfo.push_back("BH_chemistry_names");
             datastring=string("");for (auto &x:opt.star_chem_names) {datastring+=x;datastring+=string(",");}
             datainfo.push_back(datastring);
-            datatype.push_back("float32");
+            datatype.push_back("str");
         }
         if (opt.bh_chemproduction_names.size()>0){
             nameinfo.push_back("BH_chemistry_production_names");
             datastring=string("");for (auto &x:opt.bh_chemproduction_names) {datastring+=x;datastring+=string(",");}
             datainfo.push_back(datastring);
-            datatype.push_back("float32");
+            datatype.push_back("str");
         }
         if (opt.extra_dm_internalprop_names.size()>0){
             nameinfo.push_back("Extra_DM_internal_property_names");
             datastring=string("");for (auto &x:opt.extra_dm_internalprop_names) {datastring+=x;datastring+=string(",");}
             datainfo.push_back(datastring);
-            datatype.push_back("float32");
+            datatype.push_back("str");
         }
 
         //other options
