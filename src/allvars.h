@@ -4444,7 +4444,7 @@ struct PropDataHeader{
 #endif
         }
 #endif
-#ifdef EXTRADMN
+#ifdef EXTRADMON
         if (opt.extra_dm_internalprop_names.size() > 0)
         {
             for (auto x:opt.extra_dm_internalprop_names) headerdatainfo.push_back(x+string("_extra_dm"));

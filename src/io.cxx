@@ -2173,7 +2173,7 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
                 Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);
                 itemp++;
             }
-            for (auto &extrafield:opt.star_chemproduction_names)
+            for (auto &extrafield:opt.bh_chemproduction_names)
             {
                 for (Int_t i=0;i<ngroups;i++)
                     ((Double_t*)data)[i]=pdata[i+1].bhprop.GetChemistryProduction(extrafield);
@@ -2536,9 +2536,16 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
 
     os << opt.outname << ".profiles";
 #ifdef USEMPI
-#ifndef USEPARALLELHDF
-    os << "." << ThisTask;
+    if (opt.ibinaryout==OUTHDF) {
+#ifdef USEPARALLELHDF
+        os<<"."<<ThisWriteComm;
+#else
+        os<<"."<<ThisTask;
 #endif
+    }
+    else {
+        os<<"."<<ThisTask;
+    }
     for (int j=0;j<NProcs;j++) ngtot+=mpi_ngroups[j];
     for (int j=0;j<ThisTask;j++)noffset+=mpi_ngroups[j];
     for (int j=0;j<NProcs;j++) nhalostot+=mpi_nhalos[j];
@@ -2743,8 +2750,8 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
             for (Int_t i=0;i<nhalos;i++) for (auto j=0;j<opt.profilenbins;j++) ((float*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_mass_inclusive_star[j];
             Fhdf.write_dataset_nd(head.headerdatainfo[itemp], 2, dims.data(), data, head.hdfpredtypeinfo[itemp]);itemp++;
     #endif
+            ::operator delete(data);
         }
-        ::operator delete(data);
         //delete memory associated with void pointer
         // delete[] profiledataspace;
         // delete[] profiledataset;

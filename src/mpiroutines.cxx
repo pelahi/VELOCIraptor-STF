@@ -1247,11 +1247,13 @@ void MPIInitWriteComm(){
 /// define the write comm
 void MPIBuildWriteComm(Options &opt){
 #ifdef USEPARALLELHDF
-    ThisWriteComm = (int)(floor(ThisTask/(float)opt.mpinprocswritesize));
-    NWriteComms = (int)(ceil(NProcs/(float)opt.mpinprocswritesize));
-    MPI_Comm_split(MPI_COMM_WORLD, ThisWriteComm, ThisTask, &mpi_comm_write);
-    MPI_Comm_rank(mpi_comm_write, &ThisWriteTask);
-    MPI_Comm_size(mpi_comm_write, &NProcsWrite);
+    if (opt.mpinprocswritesize > 1) {
+        ThisWriteComm = (int)(floor(ThisTask/(float)opt.mpinprocswritesize));
+        NWriteComms = (int)(ceil(NProcs/(float)opt.mpinprocswritesize));
+        MPI_Comm_split(MPI_COMM_WORLD, ThisWriteComm, ThisTask, &mpi_comm_write);
+        MPI_Comm_rank(mpi_comm_write, &ThisWriteTask);
+        MPI_Comm_size(mpi_comm_write, &NProcsWrite);
+    }
 #endif
 }
 void MPIFreeWriteComm(){
