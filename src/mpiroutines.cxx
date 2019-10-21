@@ -927,6 +927,7 @@ void MPIAddParticletoAppropriateBuffer(Options &opt, const int &ibuf, Int_t ibuf
             MPISendHydroInfoFromReadThreads(opt, Nbuf[ibuf], &Pbuf[ibuf*BufSize], ibuf);
             MPISendStarInfoFromReadThreads(opt, Nbuf[ibuf], &Pbuf[ibuf*BufSize], ibuf);
             MPISendBHInfoFromReadThreads(opt, Nbuf[ibuf], &Pbuf[ibuf*BufSize], ibuf);
+            MPISendExtraDMInfoFromReadThreads(opt, Nbuf[ibuf], &Pbuf[ibuf*BufSize], ibuf);
             Nbuf[ibuf]=0;
         }
         else if (ireadtask[ibuf]>=0) {
