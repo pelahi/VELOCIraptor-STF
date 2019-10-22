@@ -513,7 +513,7 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
 
 #if defined(EXTRADMON)
         for (j=0;j<numingroup[i];j++) {
-            if (Part[j+noffset[i]] != DARKTYPE) continue;
+            if (Part[j+noffset[i]].GetType() != DARKTYPE) continue;
             pdata[i].n_dm++;
         }
 #endif
@@ -1236,7 +1236,7 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
 #endif
 #if defined(EXTRADMON)
         for (j=0;j<numingroup[i];j++) {
-            if (Part[j+noffset[i]] != DARKTYPE) continue;
+            if (Part[j+noffset[i]].GetType() != DARKTYPE) continue;
             pdata[i].n_dm++;
         }
 #endif
@@ -5551,6 +5551,9 @@ void GetExtraDMProperties(Options &opt, PropData &pdata, Int_t n, Particle *Pval
     for (auto i=0;i<n;i++)
     {
         if (Pval[i].GetType()!=DARKTYPE) continue;
+#ifdef HIGHRES
+        if (!Pval[i].HasExtraDMProperties()) continue;
+#endif
         x = Pval[i].GetExtraDMProperties();
         weight = Pval[i].GetMass();
         sum += weight;

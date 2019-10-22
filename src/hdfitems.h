@@ -660,6 +660,7 @@ class H5OutputFile
                 //allocate the space spanning the file
                 dspace_id = H5Screate_simple(rank, mpi_hdf_dims_tot.data(), NULL);
                 //allocate the memory space
+                //allocate the memory space
                 memspace_id = H5Screate_simple(rank, dims, NULL);
             }
             else {
@@ -702,15 +703,34 @@ class H5OutputFile
             //if all tasks are participating in the writes
             if (flag_collective) ret = H5Pset_dxpl_mpio(prop_id, H5FD_MPIO_COLLECTIVE);
             else ret = H5Pset_dxpl_mpio(prop_id, H5FD_MPIO_INDEPENDENT);
-
             if (flag_hyperslab) {
                 H5Sselect_hyperslab(dspace_id, H5S_SELECT_SET, dims_offset.data(), NULL, dims, NULL);
+                if (dims[0] == 0) {
+                    H5Sselect_none(dspace_id);
+                    H5Sselect_none(memspace_id);
+                }
+
+            }
+            if (mpi_hdf_dims_tot[0] > 0) {
+                // Write the data
+                ret = H5Dwrite(dset_id, memtype_id, memspace_id, dspace_id, prop_id, data);
+                if (ret < 0) io_error(string("Failed to write dataset: ")+name);
             }
         }
-#endif
+        else if (dims[0] > 0) 
+        {
+            // Write the data
+            ret = H5Dwrite(dset_id, memtype_id, memspace_id, dspace_id, prop_id, data);
+            if (ret < 0) io_error(string("Failed to write dataset: ")+name);
+        }
+
+#else 
         // Write the data
-        ret = H5Dwrite(dset_id, memtype_id, memspace_id, dspace_id, prop_id, data);
-        if (ret < 0) io_error(string("Failed to write dataset: ")+name);
+        if (dims[0] > 0) {
+            ret = H5Dwrite(dset_id, memtype_id, memspace_id, dspace_id, prop_id, data);
+            if (ret < 0) io_error(string("Failed to write dataset: ")+name);
+        }
+#endif
 
         // Clean up (note that dtype_id is NOT a new object so don't need to close it)
         H5Pclose(prop_id);
@@ -853,6 +873,7 @@ class H5OutputFile
         H5Pclose(prop_id);
 
         prop_id = H5P_DEFAULT;
+
 #ifdef USEPARALLELHDF
         if (flag_parallel) {
             // set up the collective transfer properties list
@@ -860,15 +881,34 @@ class H5OutputFile
             //if all tasks are participating in the writes
             if (flag_collective) ret = H5Pset_dxpl_mpio(prop_id, H5FD_MPIO_COLLECTIVE);
             else ret = H5Pset_dxpl_mpio(prop_id, H5FD_MPIO_INDEPENDENT);
-
             if (flag_hyperslab) {
                 H5Sselect_hyperslab(dspace_id, H5S_SELECT_SET, dims_offset.data(), NULL, dims, NULL);
+                if (dims[0] == 0) {
+                    H5Sselect_none(dspace_id);
+                    H5Sselect_none(memspace_id);
+                }
+
+            }
+            if (mpi_hdf_dims_tot[0] > 0) {
+                // Write the data
+                ret = H5Dwrite(dset_id, memtype_id, memspace_id, dspace_id, prop_id, data);
+                if (ret < 0) io_error(string("Failed to write dataset: ")+name);
             }
         }
-#endif
+        else if (dims[0] > 0) 
+        {
+            // Write the data
+            ret = H5Dwrite(dset_id, memtype_id, memspace_id, dspace_id, prop_id, data);
+            if (ret < 0) io_error(string("Failed to write dataset: ")+name);
+        }
+
+#else 
         // Write the data
-        ret = H5Dwrite(dset_id, memtype_id, memspace_id, dspace_id, prop_id, data);
-        if (ret < 0) io_error(string("Failed to write dataset: ")+name);
+        if (dims[0] > 0) {
+            ret = H5Dwrite(dset_id, memtype_id, memspace_id, dspace_id, prop_id, data);
+            if (ret < 0) io_error(string("Failed to write dataset: ")+name);
+        }
+#endif
 
         // Clean up (note that dtype_id is NOT a new object so don't need to close it)
         H5Pclose(prop_id);

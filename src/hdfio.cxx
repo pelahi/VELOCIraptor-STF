@@ -2314,9 +2314,11 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     }
 #endif
 #ifdef USEMPI
+#ifdef HIGHRES
     if (opt.nsnapread>1) {
-        MPI_Allreduce(&MP_DM,&MP_DM, 1, MPI_DOUBLE, MPI_MIN,mpi_comm_read);
+        MPI_Allreduce(MPI_IN_PLACE,&MP_DM, 1, MPI_DOUBLE, MPI_MIN,mpi_comm_read);
     }
+#endif
     MPI_Barrier(MPI_COMM_WORLD);
     //update cosmological data and boundary in code units
     MPI_Bcast(&(opt.p),sizeof(opt.p),MPI_BYTE,0,MPI_COMM_WORLD);
