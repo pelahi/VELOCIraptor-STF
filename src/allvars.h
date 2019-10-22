@@ -2029,7 +2029,7 @@ struct PropData
         L_200mean_excl_gas[0]=L_200mean_excl_gas[1]=L_200mean_excl_gas[2]=0;
         L_BN98_excl_gas[0]=L_BN98_excl_gas[1]=L_BN98_excl_gas[2]=0;
 #ifdef STARON
-        n_gas_sf = n_gas_nfs = 0;
+        n_gas_sf = n_gas_nsf = 0;
         M_gas_sf=M_gas_sf_rvmax=M_gas_sf_30kpc=M_gas_sf_50kpc=0;
         L_gas_sf[0]=L_gas_sf[1]=L_gas_sf[2]=0;
         q_gas_sf=s_gas_sf=1.0;
