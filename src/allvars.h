@@ -2095,7 +2095,9 @@ struct PropData
 #ifdef HIGHRES
         n_interloper=M_interloper=0;
 #endif
+#ifdef EXTRADMON
         n_dm = 0;
+#endif
     }
     ///equals operator, useful if want inclusive information before substructure search
     PropData& operator=(const PropData &p) = default;
