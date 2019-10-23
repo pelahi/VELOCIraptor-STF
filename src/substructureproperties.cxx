@@ -956,7 +956,7 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
 #ifdef BHON
         GetExtraBHProperties(opt, pdata[i], numingroup[i], &Part[noffset[i]]);
 #endif
-#ifdef BHON
+#ifdef EXTRADMON
         GetExtraDMProperties(opt, pdata[i], numingroup[i], &Part[noffset[i]]);
 #endif
 
