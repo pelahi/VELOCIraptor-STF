@@ -382,7 +382,7 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     fstream Fout,Fout2,Fout3;
     string fname, fname2, fname3;
     ostringstream os;
-    unsigned long long noffset=0,ngtot=0,nids=0,nidstot,nuids=0,nuidstot,ng=0, nwritecommtot=0, nuwritecommtot=0;
+    unsigned long long noffset=0,ngtot=0,nids=0,nidstot=0,nuids=0,nuidstot=0, ng=0, nwritecommtot=0, nuwritecommtot=0;
     Int_t *offset;
 #ifdef USEMPI
     MPIBuildWriteComm(opt);
@@ -705,8 +705,8 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     //for (Int_t i=1;i<=ngroups;i++) nids+=numingroup[i];
     for (Int_t i=1;i<=ngroups;i++) {nids+=pglist[i][numingroup[i]];nuids+=numingroup[i]-pglist[i][numingroup[i]];}
 #ifdef USEMPI
-    MPI_Allreduce(&nids, &nidstot, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
-    MPI_Allreduce(&nuids, &nuidstot, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(&nids, &nidstot, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(&nuids, &nuidstot, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
 #else
     nidstot=nids;
     nuidstot=nuids;
@@ -909,7 +909,7 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
     fstream Fout,Fout2;
     string fname, fname2;
     ostringstream os, os2;
-    Int_t noffset=0,ngtot=0,nids=0,nidstot,nuids=0,nuidstot=0, nwritecommtot=0, nuwritecommtot=0;
+    unsigned long long noffset=0,ngtot=0,nids=0,nidstot,nuids=0,nuidstot=0, nwritecommtot=0, nuwritecommtot=0;
     Int_t *offset;
     int *typeval;
 
@@ -973,13 +973,8 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
 
     for (Int_t i=1;i<=ngroups;i++) {nids+=pglist[i][numingroup[i]];nuids+=numingroup[i]-pglist[i][numingroup[i]];}
 #ifdef USEMPI
-#ifdef LONGINT
-    MPI_Allreduce(&nids, &nidstot, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
-    MPI_Allreduce(&nuids, &nuidstot, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
-#else
-    MPI_Allreduce(&nids, &nidstot, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-    MPI_Allreduce(&nuids, &nuidstot, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-#endif
+    MPI_Allreduce(&nids, &nidstot, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(&nuids, &nuidstot, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
 #else
     nidstot=nids;
     nuidstot=nuids;
