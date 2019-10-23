@@ -2052,7 +2052,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                             iextraoffset += opt.bh_chemproduction_names.size();
                         }
 #endif
-#ifdef EXTRAON
+#ifdef EXTRADMON
                         if (k==HDFDMTYPE && numextrafieldsvec[HDFDMTYPE]) {
                             if (!Pbuf[ibufindex].HasExtraDMProperties()) Pbuf[ibufindex].InitExtraDMProperties();
                             if (opt.extra_dm_internalprop_names.size()>0)
