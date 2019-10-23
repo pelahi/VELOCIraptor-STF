@@ -703,6 +703,7 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
 
     //see above regarding unbound particle
     //for (Int_t i=1;i<=ngroups;i++) nids+=numingroup[i];
+    nids = nuids = 0;
     for (Int_t i=1;i<=ngroups;i++) {nids+=pglist[i][numingroup[i]];nuids+=numingroup[i]-pglist[i][numingroup[i]];}
 #ifdef USEMPI
     MPI_Allreduce(&nids, &nidstot, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
