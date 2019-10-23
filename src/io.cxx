@@ -928,8 +928,8 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
     int ThisTask=0,NProcs=1;
 #endif
 
-    os << opt.outname << ".catalog_partypes";
-    os2 << opt.outname << ".catalog_partypes.unbound";
+    os << opt.outname << ".catalog_parttypes";
+    os2 << opt.outname << ".catalog_parttypes.unbound";
 #ifdef USEMPI
     if (opt.ibinaryout==OUTHDF) {
 #ifdef USEPARALLELHDF
