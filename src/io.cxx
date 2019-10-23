@@ -468,8 +468,8 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
 #ifdef USEPARALLELHDF
         MPI_Allreduce(&ng, &nwritecommtot, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, mpi_comm_write);
         if (ThisWriteTask==0) {
-            Fhdf.write_dataset(datagroupnames.group[itemp++], 1, &ThisWriteComm;, -1, -1, false);
-            Fhdf.write_dataset(datagroupnames.group[itemp++], 1, &NWriteComms;, -1, -1, false);
+            Fhdf.write_dataset(datagroupnames.group[itemp++], 1, &ThisWriteComm, -1, -1, false);
+            Fhdf.write_dataset(datagroupnames.group[itemp++], 1, &NWriteComms, -1, -1, false);
             Fhdf.write_dataset(datagroupnames.group[itemp++], 1, &nwritecommtot, -1, -1, false);
             Fhdf.write_dataset(datagroupnames.group[itemp++], 1, &ngtot, -1, -1, false);
         }
