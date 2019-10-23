@@ -37,9 +37,9 @@ endmacro()
 
 # Input formats
 vr_option(HDF5 "Attempt to include HDF5 support in VELOCIraptor" ON)
-vr_option(ENABLECOMPRESSIONHDF5 "Attempt to include HDF5 compression support in VELOCIraptor" ON)
-vr_option(ENABLEPARALLELHDF5 "Attempt to include parallel HDF5 support in VELOCIraptor" ON)
-vr_option(ENABLEPARALLELHDF5COMPRESSION "Attempt to include parallel HDF5 compression support in VELOCIraptor" OFF)
+vr_option(ALLOWCOMPRESSIONHDF5 "Attempt to include HDF5 compression support in VELOCIraptor" ON)
+vr_option(ALLOWPARALLELHDF5 "Attempt to include parallel HDF5 support in VELOCIraptor" ON)
+vr_option(ALLOWPARALLELHDF5COMPRESSION "Attempt to include parallel HDF5 compression support in VELOCIraptor" OFF)
 vr_option(XDR  "XDR input support (used by nchilada)" OFF)
 
 # Precision options
@@ -205,11 +205,11 @@ macro(find_hdf5)
 		list(APPEND VR_DEFINES USEHDF)
 		set(VR_HAS_HDF5 Yes)
 		#check if parallel hdf present
-		if (HDF5_IS_PARALLEL AND VR_HAS_MPI AND VR_ENABLEPARALLELHDF5)
+		if (HDF5_IS_PARALLEL AND VR_HAS_MPI AND VR_ALLOWPARALLELHDF5)
 			set (ENV{HDF5_PREFER_PARALLEL} true)
 			set(VR_HAS_PARALLEL_HDF5 Yes)
 			list(APPEND VR_DEFINES USEPARALLELHDF)
-			if (HDF5_VERSION VERSION_GREATER "1.10.1" AND VR_ENABLEPARALLELHDF5COMPRESSION)
+			if (HDF5_VERSION VERSION_GREATER "1.10.1" AND VR_ALLOWPARALLELHDF5COMPRESSION)
 				set(VR_HAS_COMPRESSED_HDF5 Yes)
 				list(APPEND VR_DEFINES USEHDFCOMPRESSION)
 			endif()

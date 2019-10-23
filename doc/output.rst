@@ -403,11 +403,26 @@ We give an almost complete list of properties and the keyword associate with the
 | rhalfmass         | Radius enclosing half the mass within the aperture.                                                   |
 +-------------------+-------------------------------------------------------------------------------------------------------+
 | **Extra Gas Properties**: `If extra gas fields are loaded by listing them using` Gas_internal_property_names              |
-| Gas_chemistry_names `and/or` Gas_chemistry_production_names                                                               |
+| Gas_chemistry_names `and/or` Gas_chemistry_production_names. `The output will follow the following naming convention:`    |
+| nameoffield_parttype `e.g.``, AlphaElements_gas.                                                                          |
+| `Also requires that code is compiled with the` **USE_GAS** `flag`                                                         |
+| `As an example we show the fields if` Gas_internal_property_names=Pressure,MetalFromSNIa                                  |
 +-------------------+-------------------------------------------------------------------------------------------------------+
-| mass              | Total mass in aperture.                                                                               |
+| Pressure_gas      | Mass weighted average of this field.                                                                  |
 +-------------------+-------------------------------------------------------------------------------------------------------+
-| rhalfmass         | Radius enclosing half the mass within the aperture.                                                   |
+| MetalFromSNIa_gas | Mass weighted average of this field.                                                                  |
++-------------------+-------------------------------------------------------------------------------------------------------+
+| **Extra Star Properties**: `Like the extra gas properties but calculated if ` Star_internal_property_names                |
+| Star_chemistry_names `and/or` Star_chemistry_production_names.                                                            |
+| `Also requires that code is compiled with the` **USE_STAR** `flag`                                                        |
++-------------------+-------------------------------------------------------------------------------------------------------+
+| **Extra Black hole Properties**: `Like the extra gas properties but calculated if ` BH_internal_property_names            |
+| BH_chemistry_names `and/or` BH_chemistry_production_names.                                                                |
+| `Also requires that code is compiled with the` **USE_BH** `flag`                                                          |
++-------------------+-------------------------------------------------------------------------------------------------------+
+| **Extra DM Properties**: `Like the extra gas properties but calculated if ` Extra_DM_internal_property_names              |
+| `has fields specified. Useful for nonstandard dark matter runs, such as annihilating or interacting dark matter.`         |
+| `Also requires that code is compiled with the` **USE_EXTRADM** `flag`                                                     |
 +-------------------+-------------------------------------------------------------------------------------------------------+
 
 .. |ditto| unicode:: U+03003 .. ditto mark
