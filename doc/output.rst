@@ -14,21 +14,51 @@ Understanding and Analysing |vr| Output
     * ``.catalog_particles``: a file containing a list of particle IDs of those in structures. Information contained in ``.catalog_groups`` is used to parse this data.
     * ``.catalog_particles.unbound``: similar to ``catalog_particles`` but lists particles in structures but are formally unbound. Information contained in ``.catalog_groups`` is used to parse this data.
 
+.. topic:: Extra files
+
+    * ``.catalog_parttypes``: a file similar to ``.catalog_particles`` but containing a list of particle types of those in structures. Information contained in ``.catalog_groups`` is used to parse this data. Produced if multiple particle types are processed by |vr|.
+    * ``.catalog_parttypes.unbound``: similar to ``catalog_parttypes`` but lists particles in structures but are formally unbound.
+    * ``.profiles``  : a file containing the radial profiles of groups. Produced if radial profiles are requested.
+    * ``.catalog_SOlist`` : a file containing the a list of particle IDs of particles found within a large Spherical region around Field halos. Produced if a list of paritcles wihtin so regions is requested. 
+
 Properties
 ==========
 
-There are a variety of properties calculated for each object found. Some are typical of all halo finders
-such as the mass of an object (which can be a halo, subhalo, tidal debris), along with more complex properties
-such as the eigenvectors and eigenvalues of the mass distribution defined by the reduced inertia tensor.
-The number of properties also varies with the type of run. For hydrodynamic simulations where |vr|
-has been compiled to use gas properties and star properties, gas masses, temperatures, etc are also calculated.
+There are a variety of properties calculated for each object found. Some are
+typical of all halo finders such as the mass of an object (which can be a halo,
+subhalo, tidal debris), along with more complex properties such as the
+eigenvectors and eigenvalues of the mass distribution defined by the reduced
+inertia tensor. The number of properties also varies with the type of run. For
+hydrodynamic simulations where |vr| has been compiled to use gas, star and black hole
+properties, such as masses, temperatures, etc are also calculated. The code
+will also calculate properties based on loading specific extra fields associated
+with particle types (this interface requires HDF5 input or on the fly invocation
+and outputs properties with the same name as the loaded property, see :ref:`usage`).
 
 We give an almost complete list of properties and the keyword associate with the property (in ASCII and HDF5).
+For clarity we list properties in several tables corresponding to
+
+    - :ref:`standardhaloprops`,
+    - :ref:`gasprops`,
+    - :ref:`starprops`,
+    - :ref:`bhprops`,
+    - :ref:`interloperprops`,
+    - :ref:`extradmprops`,
+
+.. _standardhaloprops:
+
+Standard Properties
+-------------------
+
+This is a list of standard properties that are alwas calculated unless indicated
+otherwise (some require an extra configuration option).
+
+.. _standardhalopropstable:
 
 +-------------------+-------------------------------------------------------------------------------------------------------+
 | Name              | Comments                                                                                              |
 +===================+=======================================================================================================+
-| `ID and Type information`                                                                                                 |
+| **ID and Type information**                                                                                               |
 +-------------------+-------------------------------------------------------------------------------------------------------+
 | ID                | Halo ID. ID = index of halo + 1 + TEMPORALHALOIDVAL * Snapshot_value,                                 |
 |                   | giving a temporally unique halo id that can be quickly parsed for an                                  |
@@ -47,7 +77,7 @@ We give an almost complete list of properties and the keyword associate with the
 +-------------------+-------------------------------------------------------------------------------------------------------+
 | numSubStruct      | Number of substructures. Subhalos can have subsubhalos.                                               |
 +-------------------+-------------------------------------------------------------------------------------------------------+
-| `Mass and radius properties: All properties are in output units.`                                                         |
+| **Mass and radius properties**: `All properties are in output units.`                                                     |
 +-------------------+-------------------------------------------------------------------------------------------------------+
 | npart             | Number of particles belonging exclusively to the object.                                              |
 +-------------------+-------------------------------------------------------------------------------------------------------+
@@ -88,10 +118,29 @@ We give an almost complete list of properties and the keyword associate with the
 +-------------------+-------------------------------------------------------------------------------------------------------+
 | R_HalfMass        | Half mass radius based on the Mass_tot.                                                               |
 +-------------------+-------------------------------------------------------------------------------------------------------+
-| `Additional mass/size quantities if config options are set : All properties are in output units.`                         |
+| **Angular Momentum in Spherical Overdensity**: `Calculate if extra halo properties are requested`                         |
+| `by setting the config option ` **Extensive_halo_properties_output=1**                                                    |
+| `Also calculates inclusive spherical overdensity and also exclusive to halo as _exclusive.`                               |
 +-------------------+-------------------------------------------------------------------------------------------------------+
+| Lx_200c           | :math:`x` component of the total angular momentum all the mass within :math:`R_{200\rho_c}`.          |
 +-------------------+-------------------------------------------------------------------------------------------------------+
-| `Position and Velocity : All properties are in output units.`                                                             |
+| Ly_200c           | |ditto|                                                                                               |
++-------------------+-------------------------------------------------------------------------------------------------------+
+| Lz_200c           | |ditto|                                                                                               |
++-------------------+-------------------------------------------------------------------------------------------------------+
+| Lx_200m           | :math:`x` component of the total angular momentum all the mass within :math:`R_{200\rho_m}`.          |
++-------------------+-------------------------------------------------------------------------------------------------------+
+| Ly_200m           | |ditto|                                                                                               |
++-------------------+-------------------------------------------------------------------------------------------------------+
+| Lz_200m           | |ditto|                                                                                               |
++-------------------+-------------------------------------------------------------------------------------------------------+
+| Lx_BN98           | :math:`x` component of the total angular momentum all the mass within :math:`R_{BN98}`.               |
++-------------------+-------------------------------------------------------------------------------------------------------+
+| Ly_BN98           | |ditto|                                                                                               |
++-------------------+-------------------------------------------------------------------------------------------------------+
+| Lz_BN98           | |ditto|                                                                                               |
++-------------------+-------------------------------------------------------------------------------------------------------+
+| **Position and Velocity**: `All properties are in output units.`                                                          |
 | `Objects have positions periodically wrapped.`                                                                            |
 +-------------------+-------------------------------------------------------------------------------------------------------+
 | Xc                | :math:`x` coordinate of centre-of-mass.                                                               |
@@ -106,6 +155,12 @@ We give an almost complete list of properties and the keyword associate with the
 +-------------------+-------------------------------------------------------------------------------------------------------+
 | Zcmbp             | |ditto|                                                                                               |
 +-------------------+-------------------------------------------------------------------------------------------------------+
+| Xcminpot          | :math:`x` coordinate of the minimum potential.                                                        |
++-------------------+-------------------------------------------------------------------------------------------------------+
+| Ycminpot          | |ditto|                                                                                               |
++-------------------+-------------------------------------------------------------------------------------------------------+
+| Zcminpot          | |ditto|                                                                                               |
++-------------------+-------------------------------------------------------------------------------------------------------+
 | VXc               | :math:`v_x` velocity of centre-of-mass.                                                               |
 +-------------------+-------------------------------------------------------------------------------------------------------+
 | VYc               | |ditto|                                                                                               |
@@ -118,7 +173,13 @@ We give an almost complete list of properties and the keyword associate with the
 +-------------------+-------------------------------------------------------------------------------------------------------+
 | VZcmbp            | |ditto|                                                                                               |
 +-------------------+-------------------------------------------------------------------------------------------------------+
-| `Velocity and Angular Momentum : All properties are in output units.`                                                     |
+| VXcminpot         | :math:`v_x` velocity of the particle with the minimum potential.                                      |
++-------------------+-------------------------------------------------------------------------------------------------------+
+| VYcminpot         | |ditto|                                                                                               |
++-------------------+-------------------------------------------------------------------------------------------------------+
+| VZcminpot         | |ditto|                                                                                               |
++-------------------+-------------------------------------------------------------------------------------------------------+
+| **Velocity and Angular Momentum**: `All properties are in output units.`                                                  |
 +-------------------+-------------------------------------------------------------------------------------------------------+
 | Vmax              | Maximum circular velocity based on particles belonging exclusively to                                 |
 |                   | the object, where circular velocities are defined by                                                  |
@@ -165,7 +226,7 @@ We give an almost complete list of properties and the keyword associate with the
 |                   | momentum axis and the second sum is over kinetic energies                                             |
 |                   | (see Sales et al (2010)).                                                                             |
 +-------------------+-------------------------------------------------------------------------------------------------------+
-| `Morphology : All properties are in output units.`                                                                        |
+| **Morphology**: `All properties are in output units.`                                                                     |
 +-------------------+-------------------------------------------------------------------------------------------------------+
 |                   | following Prada et al, (2012a) where we solve                                                         |
 | cNFW              | Calculated assuming an NFW profile (Navarro, Frenk, & White 1997)                                     |
@@ -201,7 +262,7 @@ We give an almost complete list of properties and the keyword associate with the
 +-------------------+-------------------------------------------------------------------------------------------------------+
 | eig_zz            | |ditto|                                                                                               |
 +-------------------+-------------------------------------------------------------------------------------------------------+
-| `Energy: All properties are in output units.`                                                                             |
+| **Energy**: `All properties are in output units.`                                                                         |
 +-------------------+-------------------------------------------------------------------------------------------------------+
 | Ekin              | The total kinetic energy, :math:`\sum T_i`.                                                           |
 +-------------------+-------------------------------------------------------------------------------------------------------+
@@ -209,7 +270,7 @@ We give an almost complete list of properties and the keyword associate with the
 +-------------------+-------------------------------------------------------------------------------------------------------+
 | Efrac             | The fraction of particles that are formally bound (i.e., have :math:`W_i+T_i<0`).                     |
 +-------------------+-------------------------------------------------------------------------------------------------------+
-| Quantities within :math:`R(V_{\rm max})`. Variety of properties based on particles within :math:`r\leq R(V_{\rm max})`.   |
+| **Quantities within** :math:`R(V_{\rm max})`: Properties based on particles within :math:`r\leq R(V_{\rm max})`.          |
 +-------------------+-------------------------------------------------------------------------------------------------------+
 | RVmax_sigV        | Dispersion, like sigV for :math:`r\leq R(V_{\rm max})`.                                               |
 +-------------------+-------------------------------------------------------------------------------------------------------+
@@ -261,8 +322,63 @@ We give an almost complete list of properties and the keyword associate with the
 +-------------------+-------------------------------------------------------------------------------------------------------+
 | RVmax_eig_zz      | |ditto|                                                                                               |
 +-------------------+-------------------------------------------------------------------------------------------------------+
-| `Gas quantities: Bulk properties of gas particles/tracers when compiled to process gas properties. Properties unique to`  |
-| `gas are T_gas and SFR_gas.`                                                                                              |
++-------------------+-------------------------------------------------------------------------------------------------------+
+| **Additional Spherical Overdensity Mass/radius**: `If extra spherical overdensity values are requested via`               |
+| Overdensity_values_in_critical_density `config option, code calculates masses/radii/angular momentum following`           |
+| `a naming convention of` SO_property_rhocrivalue_rhocrit `where rhocritvalue is the overdensity value in units of the`    |
+| `critical density, e.g.,` SO_mass_100_rhocrit.                                                                            |
+| `The code will also calculate quantities based on particle type: gas, star, interloper, following`                        |
+| SO_property_parttype_rhocrivalue_rhocrit                                                                                  |
++-------------------+-------------------------------------------------------------------------------------------------------+
+| mass              | Mass enclosing a average density of the associated SO value.                                          |
++-------------------+-------------------------------------------------------------------------------------------------------+
+| Lx                | Angular momentum of enclosed mass in x-direction                                                      |
++-------------------+-------------------------------------------------------------------------------------------------------+
+| Ly                | |ditto| in y-direction                                                                                |
++-------------------+-------------------------------------------------------------------------------------------------------+
+| Lz                | |ditto| in z-direction                                                                                |
++-------------------+-------------------------------------------------------------------------------------------------------+
+| **Aperture quantities**: `If aperture quantities are requested code calculates a variety of properties`                   |
+| `within spherical aperture in pkpc.`                                                                                      |
+| `Naming convention is` Aperture_quantity_radiusvalue_kpc, `or for a specific` `particle type`                             |
+| Aperture_quantity_parttype_radiusvalue_kpc, `e.g.` Aperture_mass_10_kpc.                                                  |
+| `Particle types where individual quantities are calculated: gas, star, bh, interloper.`                                   |
+| `We list the property names here.`                                                                                        |
++-------------------+-------------------------------------------------------------------------------------------------------+
+| mass              | Total mass in aperture.                                                                               |
++-------------------+-------------------------------------------------------------------------------------------------------+
+| npart             | Total number of particles.                                                                            |
++-------------------+-------------------------------------------------------------------------------------------------------+
+| rhalfmass         | Radius enclosing half the mass within the aperture.                                                   |
++-------------------+-------------------------------------------------------------------------------------------------------+
+| veldisp           | Velocity disperion                                                                                    |
++-------------------+-------------------------------------------------------------------------------------------------------+
+| **Projected aperture quantities**: `Similar to aperture quantitites but for 3 different projections based on particles`   |
+| `within a projected radius in pkpc. Naming convention is` Projected_aperture_i_quantity_radiusvalue_kpc, `where`          |
+| `i is from 0, 1, 2 for a x,y,z projection.`                                                                               |
++-------------------+-------------------------------------------------------------------------------------------------------+
+| mass              | Total mass in aperture.                                                                               |
++-------------------+-------------------------------------------------------------------------------------------------------+
+| rhalfmass         | Radius enclosing half the mass within the aperture.                                                   |
++-------------------+-------------------------------------------------------------------------------------------------------+
+
+.. _gasprops:
+
+Gas Properties
+--------------
+
+This is a list of gas properties that are calculated if code is compiled with
+**USE_GAS**. Some require an extra configuration option. Also, Spherical overdensity
+masses + angular momentum, aperture properties, projected aperture properties are calculated
+for gas particles along along with some extra gas only properties.
+
+.. _gaspropstable:
+
++-------------------+-------------------------------------------------------------------------------------------------------+
+| Name              | Comments                                                                                              |
++===================+=======================================================================================================+
+| **Gas quantities**: `Bulk properties of gas particles/tracers when compiled to process gas properties. Properties unique` |
+| `to gas are T_gas and SFR_gas.`                                                                                           |
 +-------------------+-------------------------------------------------------------------------------------------------------+
 | n_gas             | Number of gas particles.                                                                              |
 +-------------------+-------------------------------------------------------------------------------------------------------+
@@ -342,25 +458,162 @@ We give an almost complete list of properties and the keyword associate with the
 +-------------------+-------------------------------------------------------------------------------------------------------+
 | Zmet_gas          | Average metallicity of gas.                                                                           |
 +-------------------+-------------------------------------------------------------------------------------------------------+
-| SFR_gas           | Average star formation rate of gas.                                                                   |
+| SFR_gas           | Total star formation rate of gas.                                                                     |
 +-------------------+-------------------------------------------------------------------------------------------------------+
-| `Star quantities. Bulk properties of star particles when compiled to process star properties. Similar to gas properties`  |
+| **Star Forming (sf)/Non Star Forming (nsf) Gas quantities**: `Similar to gas properties but split by sf/nsf gas.`         |
+| `For brevity, we list only quantities unique to sf, as the nsf gas is similar but with _nsf naming convention.`           |
+| `Only calculated if` **USE_GAS** `and` **USE_STAR** `flags on.`                                                           |
++-------------------+-------------------------------------------------------------------------------------------------------+
+| M_gas_sf          | Total gas mass :math:`M_{\rm gas}`.                                                                   |
++-------------------+-------------------------------------------------------------------------------------------------------+
+| R_HalfMass_gas_sf | Half mass radii.                                                                                      |
++-------------------+-------------------------------------------------------------------------------------------------------+
+| sigV_gas_sf       | Velocity dispersion of the gas.                                                                       |
++-------------------+-------------------------------------------------------------------------------------------------------+
+| Lx_gas_sf         | Like Lx_gas but for star forming gas.                                                                 |
++-------------------+-------------------------------------------------------------------------------------------------------+
+| Ly_gas_sf         | |ditto|                                                                                               |
++-------------------+-------------------------------------------------------------------------------------------------------+
+| Lz_gas_sf         | |ditto|                                                                                               |
++-------------------+-------------------------------------------------------------------------------------------------------+
+| Krot_gas_sf       | Like Krot_gas but for star forming gas                                                                |
++-------------------+-------------------------------------------------------------------------------------------------------+
+| T_gas_sf          | Average temperature of star forming gas.                                                              |
++-------------------+-------------------------------------------------------------------------------------------------------+
+| Zmet_gas_sf       | Average metallicity of star forming gas.                                                              |
++-------------------+-------------------------------------------------------------------------------------------------------+
+| **Aperture quantities**: `If aperture quantities are requested code calculates a variety of properties`                   |
+| `within spherical aperture in pkpc.`                                                                                      |
+| `Naming convention is` Aperture_quantity_gas_radiusvalue_kpc.                                                             |
+| `We list the additional properties calculated for gas here (which are in addition to mass,rhalfmass, etc).`               |
++-------------------+-------------------------------------------------------------------------------------------------------+
+| Zmet              | Average gas metallicity in aperture.                                                                  |
++-------------------+-------------------------------------------------------------------------------------------------------+
+| SFR               | Total star formation rate of gas in aperture.                                                         |
++-------------------+-------------------------------------------------------------------------------------------------------+
+| **Projected aperture quantities**: `Similar to aperture quantitites but for 3 different projections based on particles`   |
+| `within a projected radius in pkpc. Naming convention is` Projected_aperture_i_quantity_gas_radiusvalue_kpc, `where`      |
+| `i is from 0, 1, 2 for a x,y,z projection.`                                                                               |
+| `We list the additional properties calculated for gas here (which are in addition to mass,rhalfmass, etc).`               |
++-------------------+-------------------------------------------------------------------------------------------------------+
+| Zmet              | Average gas metallicity in projected aperture.                                                        |
++-------------------+-------------------------------------------------------------------------------------------------------+
+| SFR               | Total star formation rate of gas in projected aperture.                                               |
++-------------------+-------------------------------------------------------------------------------------------------------+
+| **Extra Gas Properties**: `If extra gas fields are loaded by listing them using` Gas_internal_property_names              |
+| Gas_chemistry_names `and/or` Gas_chemistry_production_names. `The output will follow the following naming convention:`    |
+| nameoffield_gas `e.g.``, AlphaElements_gas.                                                                               |
+| `Also requires that code is compiled with the` **USE_GAS** `flag`                                                         |
+| `As an example we show the fields if` Gas_internal_property_names=Pressure,MetalFromSNIa                                  |
++-------------------+-------------------------------------------------------------------------------------------------------+
+| Pressure_gas      | Mass weighted average of this field.                                                                  |
++-------------------+-------------------------------------------------------------------------------------------------------+
+| MetalFromSNIa_gas | Mass weighted average of this field.                                                                  |
++-------------------+-------------------------------------------------------------------------------------------------------+
+
+.. _starprops:
+
+Star Properties
+---------------
+
+This is a list of stellar properties that are calculated if code is compiled with
+**USE_STAR**. Some require an extra configuration option.
+
+.. _starpropstable:
+
++-------------------+-------------------------------------------------------------------------------------------------------+
+| Name              | Comments                                                                                              |
++===================+=======================================================================================================+
+| **Star quantities**: `Bulk stellar properties when compiled to process star properties. Similar to gas properties`        |
 | `but has _star instead of _ gas. For brevity, we list only quantities unique to star particles.`                          |
 +-------------------+-------------------------------------------------------------------------------------------------------+
-| tage_gas          | Average stellar age.                                                                                  |
+| tage_star          | Average stellar age.                                                                                 |
 +-------------------+-------------------------------------------------------------------------------------------------------+
-| `Black hole quantities. Bulk properties of black hole particles when compiled to process black hole properties.`          |
+| **Aperture quantities**: `If aperture quantities are requested code calculates a variety of properties`                   |
+| `within spherical aperture in pkpc.`                                                                                      |
+| `Naming convention is` Aperture_quantity_star_radiusvalue_kpc.                                                            |
+| `We list the additional properties calculated for star here (which are in addition to mass,rhalfmass, etc).`              |
++-------------------+-------------------------------------------------------------------------------------------------------+
+| Zmet              | Average stellar metallicity in aperture.                                                              |
++-------------------+-------------------------------------------------------------------------------------------------------+
+| **Projected aperture quantities**: `Similar to aperture quantitites but for 3 different projections based on particles`   |
+| `within a projected radius in pkpc. Naming convention is` Projected_aperture_i_quantity_star_radiusvalue_kpc, `where`     |
+| `i is from 0, 1, 2 for a x,y,z projection.`                                                                               |
+| `We list the additional properties calculated for gas here (which are in addition to mass,rhalfmass, etc).`               |
++-------------------+-------------------------------------------------------------------------------------------------------+
+| Zmet              | Average stellar metallicity in projected aperture.                                                    |
++-------------------+-------------------------------------------------------------------------------------------------------+
+| **Extra Star Properties**: `Like the extra gas properties but calculated if ` Star_internal_property_names                |
+| Star_chemistry_names `and/or` Star_chemistry_production_names.                                                            |
+| `Naming convention is nameoffield_star`                                                                                   |
+| `Also requires that code is compiled with the` **USE_STAR** `flag`                                                        |
++-------------------+-------------------------------------------------------------------------------------------------------+
+
+.. _bhprops:
+
+Black Hole Properties
+---------------------
+
+This is a list of black hole properties that are calculated if code is compiled with
+**USE_BH**. Some require an extra configuration option.
+
+.. _bhpropstable:
+
++-------------------+-------------------------------------------------------------------------------------------------------+
+| Name              | Comments                                                                                              |
++===================+=======================================================================================================+
+| **Black hole quantities**: `Bulk properties of black hole particles when compiled to process black hole properties.`      |
 +-------------------+-------------------------------------------------------------------------------------------------------+
 | n_bh              | Number of black hole particles.                                                                       |
 +-------------------+-------------------------------------------------------------------------------------------------------+
 | Mass_bh           | Total mass of black hole particles.                                                                   |
 +-------------------+-------------------------------------------------------------------------------------------------------+
-| `Interloper particles. If analysing multi-resolution simulations, low resolution particles are often treated as`          |
+| **Extra Black hole Properties**: `Like the extra gas properties but calculated if ` BH_internal_property_names            |
+| BH_chemistry_names `and/or` BH_chemistry_production_names.                                                                |
+| `Naming convention is nameoffield_bh`                                                                                     |
+| `Also requires that code is compiled with the` **USE_BH** `flag`                                                          |
++-------------------+-------------------------------------------------------------------------------------------------------+
+
+.. _interloperprops:
+
+Interloper Properties
+---------------------
+
+This is a list of interloper DM properties that are calculated if code is compiled with
+**ZOOM_SIM**. These properties are based on low resolution particles and can be
+used to gauge the level of contamination
+
+.. _interloperpropstable:
+
++-------------------+-------------------------------------------------------------------------------------------------------+
+| Name              | Comments                                                                                              |
++===================+=======================================================================================================+
+| **Interloper particles**: `If analysing multi-resolution simulations, low resolution particles are often treated as`      |
 | `contaminants. These are bulk properties of low resolution contaminant particles.`                                        |
 +-------------------+-------------------------------------------------------------------------------------------------------+
 | n_interloper      | Number of low resolution, interloper particles.                                                       |
 +-------------------+-------------------------------------------------------------------------------------------------------+
 | Mass_interloper   | Total mass of low resolution, interloper particles.                                                   |
++-------------------+-------------------------------------------------------------------------------------------------------+
+
+
+.. _extradmprops:
+
+Extra DM Properties
+-------------------
+
+This is a list of Extra DM properties that are calculated if code is compiled with
+**USE_EXTRADM**. These properties are useful if running on standard dark matter.
+
+.. _extradmpropstable:
+
++-------------------+-------------------------------------------------------------------------------------------------------+
+| Name              | Comments                                                                                              |
++===================+=======================================================================================================+
+| **Extra DM Properties**: `Like the extra gas properties but calculated if ` Extra_DM_internal_property_names              |
+| `has fields specified. Useful for nonstandard dark matter runs, such as annihilating or interacting dark matter.`         |
+| `Naming convention is nameoffield_extra_dm`                                                                               |
+| `Also requires that code is compiled with the` **USE_EXTRADM** `flag`                                                     |
 +-------------------+-------------------------------------------------------------------------------------------------------+
 
 .. |ditto| unicode:: U+03003 .. ditto mark

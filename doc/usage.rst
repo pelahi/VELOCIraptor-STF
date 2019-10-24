@@ -217,6 +217,9 @@ _topic:: Input related
             * Comma separated list of strings listing extra chemical properties to be read from HDF file for which bulk mean/total properties are calculated for objects. Useful way of passing properties like molecular H2 fraction, etc.
         ``BH_chemistry_production_names = ,``
             * Comma separated list of strings listing extra production channels for metals to be read from HDF file for which bulk mean/total properties are calculated for objects. Useful way of passing properties like molecular H2 fraction, etc.
+    Extra DM related input
+        ``Extra_dm_internal_property_names = ,``
+            * Comma separated list of strings listing extra dm properties to be read from HDF file for which bulk mean/total properties are calculated for objects. Useful for modified dark matter simulations, such as annihilating and self-interactive dark matter.
     Gadget related input
         ``NSPH_extra_blocks =``
             * Integer inticading  the number of extra **SPH** blocks are read in the file if gadget input.
@@ -568,6 +571,8 @@ Options related to MPI/OpenMP/Pthread parallelisation.
         * Factor used in memory allocated in mpi mode to store particles is (1+factor)* the memory need for the initial mpi decomposition. This factor should be >0 and is mean to allow a little room for particles to be exchanged between mpi threads withouth having to require new memory allocations and copying of data.
     ``MPI_particle_total_buf_size =``
         * Total memory size in bytes used to store particles in temporary buffer such that particles are sent to non-reading mpi processes in chunks of size buffer_size/NProcs/sizeof(Particle).
+    ``MPI_number_of_tasks_per_write =``
+        * Number of mpi tasks that are grouped for collective HDF5 writes is parallel HDF5 is enabled. Net result is that the total number of files written is ceiling(Number of MPI tasks)/(Number of tasks per write)
 
 .. _config_openmp:
 

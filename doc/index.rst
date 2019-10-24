@@ -15,10 +15,10 @@ VELOCIraptor
 The repository also contains several associated analysis tools in python,
 example configuration files and analysis python scripts (and sample jupyter notebooks).
 The code can also be compiled as a library for on-the-fly halo finding within an
-N-body/hydrodynamnical code. Currently integration is limited to `**swiftsim** <http://icc.dur.ac.uk/swift/>`_
+N-body/hydrodynamnical code. Currently integration is limited to `SWIFTSIM <http://icc.dur.ac.uk/swift/>`_
 but extensions are in the works for other codes.
 
-There is an associated halo merger tree code **TreeFrog** (also C++ MPI+OpenMP).
+There is an associated halo merger tree code `TreeFrog <https://www.github.com/pelahi/TreeFrog/>`_ (also C++ MPI+OpenMP).
 
 If you are using |vr| please cite the following paper, which describe the code in full::
 
