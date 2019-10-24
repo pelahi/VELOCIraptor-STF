@@ -85,6 +85,7 @@ These can be passed to ``cmake``
         * For HDF
             | ``VR_HDF5``: boolean on whether to include HDF support
             | ``VR_ALLOWPARALLELHDF5``: boolean on whether to allow for parallel HDF support (if available)
+            | ``VR_ALLOWPARALLELHDF5COMPRESSIONHDF5``: boolean on whether to allow for compression parallel HDF support (THIS IS UNSTABLE, USE WITH CAUTION)
             | ``HDF5_ROOT``: specify a local directory containing HDF library.
         * for XDR (nchilada) input
             | ``VR_XDR``: boolean on whether to include XDR support
