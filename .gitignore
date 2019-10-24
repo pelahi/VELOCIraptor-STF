@@ -25,3 +25,5 @@ stf/Makefile.config
 *.tag
 
 build/
+
+doc/_build/
