@@ -2469,7 +2469,7 @@ void AdjustSubPartToPhaseCM(Int_t num, Particle *subPart, GMatrix &cmphase)
 #ifdef USEOPENMP
     nthreads = max(1, (int)(num/(float)ompsearchnum));
     nthreads = min(nthreads,omp_get_max_threads());
-    cout << "OPTIMISATION-01: Total allocated threads: " << nthreads;
+    cout << "OPTIMISATION-01: Total allocated threads: " << nthreads << endl;
 #pragma omp parallel for \
 default(shared)  \
 num_threads(nthreads)
