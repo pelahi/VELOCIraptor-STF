@@ -2458,6 +2458,9 @@ void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Parts
 //    cout<<ThisTask<<" after merging "<<numgroups<<" "<<numsubs<<" "<<numcores<<endl;
 }
 
+int setNthreads(){
+    return 0;
+}
 
 // ENCAPSULATED: ENCAPSULATION-01
 void AdjustSubPartToPhaseCM(Int_t num, Particle *subPart, GMatrix &cmphase)
@@ -2476,6 +2479,7 @@ num_threads(nthreads)
     }
 }
 
+// ENCAPSULATED: ENCAPSULATION-02
 void PreCalcSearchSubSet(Int_t *subnumingroup, Int_t i, Options &opt, Particle *subPart, 
     Int_t sublevel, KDTree *tree, Int_t ngrid, int ThisTask, GridCell *grid, Coordinate *gvel, Matrix *gveldisp)
 {
@@ -2515,6 +2519,43 @@ void PreCalcSearchSubSet(Int_t *subnumingroup, Int_t i, Options &opt, Particle *
     }
 }
 
+// ENCAPSULATED: ENCAPSULATION-03
+void SearchSubStruct(Int_t *subngroup, Int_t i, Int_t ng, Int_t **subsubnumingroup, Int_t *subnumingroup,
+    Int_t *subpfof, Int_t ***subsubpglist, Options &opt, Int_t *numcores, Int_t *coreflag, bool iunbindflag,
+    Particle *subPart, Int_t *&pfof, Int_t **subpglist, Int_t &ngroup, Int_t ngroupidoffset) {
+    Int_t j;
+    ng=subngroup[i];
+    subsubnumingroup[i]=BuildNumInGroup(subnumingroup[i], subngroup[i], subpfof);
+    subsubpglist[i]=BuildPGList(subnumingroup[i], subngroup[i], subsubnumingroup[i], subpfof);
+    if (opt.uinfo.unbindflag&&subngroup[i]>0) {
+        //if also keeping track of cores then must allocate coreflag
+        if (numcores[i]>0 && opt.iHaloCoreSearch>=1) {
+            coreflag=new Int_t[ng+1];
+            for (int icore=1;icore<=ng;icore++) coreflag[icore]=1+(icore>ng-numcores[i]);
+        }
+        else {coreflag=NULL;}
+        iunbindflag=CheckUnboundGroups(opt,subnumingroup[i],subPart,subngroup[i],subpfof,subsubnumingroup[i],subsubpglist[i],1, coreflag);
+        if (iunbindflag) {
+            for (int j=1;j<=ng;j++) delete[] subsubpglist[i][j];
+            delete[] subsubnumingroup[i];
+            delete[] subsubpglist[i];
+            if (subngroup[i]>0) {
+                subsubnumingroup[i]=BuildNumInGroup(subnumingroup[i], subngroup[i], subpfof);
+                subsubpglist[i]=BuildPGList(subnumingroup[i], subngroup[i], subsubnumingroup[i], subpfof);
+            }
+            //if need to update number of cores,
+            if (numcores[i]>0 && opt.iHaloCoreSearch>=1) {
+                numcores[i]=0;
+                for (int icore=1;icore<=subngroup[i];icore++)numcores[i]+=(coreflag[icore]==2);
+                delete[] coreflag;
+            }
+        }
+    }
+    for (j=0;j<subnumingroup[i];j++) if (subpfof[j]>0) pfof[subpglist[i][j]]=ngroup+ngroupidoffset+subpfof[j];
+    ngroupidoffset+=subngroup[i];
+    //now alter subsubpglist so that index pointed is global subset index as global subset is used to get the particles to be searched for subsubstructure
+    for (j=1;j<=subngroup[i];j++) for (Int_t k=0;k<subsubnumingroup[i][j];k++) subsubpglist[i][j][k]=subpglist[i][subsubpglist[i][j][k]];
+}
 /*!
     Given a initial ordered candidate list of substructures, find all substructures that are large enough to be searched.
     These substructures are used as a mean background velocity field and a new outlier list is found and searched.
@@ -2630,6 +2671,9 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
         */
         //here loop over all sublevel groups that need to be searched for substructure
         // ADACS: this loop proceses halos (that are independent) sequentially. This is unecessary.
+        // #pragma omp parallel for...
+        // parallelise loop, collection, and/or calculations per collection
+        // TODO: give a collection a pool of threads thread_pool
         for (Int_t i=1;i<=oldnsubsearch;i++) {
             subpfofold[i]=pfof[subpglist[i][0]];
             subPart=new Particle[subnumingroup[i]];
@@ -2657,10 +2701,13 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
             PreCalcSearchSubSet(subnumingroup, i, opt, subPart, sublevel, tree, ngrid, ThisTask, grid, gvel, gveldisp);
             //ADACS: Here the object is searched. Not much of this uses OpenMP but there are 
 		    //  one or two subroutines called within SearchSubset that do make use of OpenMP. 
+
             subpfof=SearchSubset(opt,subnumingroup[i],subnumingroup[i],subPart,subngroup[i],sublevel,&numcores[i]);
             //now if subngroup>0 change the pfof ids of these particles in question and see if there are any substrucures that can be searched again.
             //the group ids must be stored along with the number of groups in this substructure that will be searched at next level.
             //now check if self bound and if not, id doesn't change from original subhalo,ie: subpfof[j]=0
+            // SearchSubStruct(subngroup, i, ng, subsubnumingroup, subnumingroup, subpfof, subsubpglist, opt, 
+            //     numcores, coreflag, iunbindflag, subPart, pfof, subpglist, ngroup, ngroupidoffset);
             if (subngroup[i]) {
                 ng=subngroup[i];
                 subsubnumingroup[i]=BuildNumInGroup(subnumingroup[i], subngroup[i], subpfof);
@@ -2694,11 +2741,12 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
                 //now alter subsubpglist so that index pointed is global subset index as global subset is used to get the particles to be searched for subsubstructure
                 for (j=1;j<=subngroup[i];j++) for (Int_t k=0;k<subsubnumingroup[i][j];k++) subsubpglist[i][j][k]=subpglist[i][subsubpglist[i][j][k]];
             }
-            delete[] subpfof;
-            delete[] subPart;
+            
+            delete[] subpfof; // freeze
+            delete[] subPart; // freeze
             //increase tot num of objects at sublevel
             //ADACS: this would need a reduction at the end.
-            ns+=subngroup[i];
+            ns+=subngroup[i]; // reduction
         }
         // END: ENCAPSULATE-01
         //if objects have been found adjust the StrucLevelData
