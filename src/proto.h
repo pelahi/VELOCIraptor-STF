@@ -92,6 +92,7 @@ void WriteVELOCIraptorConfig(Options &opt);
 void WriteSimulationInfo(Options &opt);
 ///Write the unit info
 void WriteUnitInfo(Options &opt);
+
 ///Write particle ids of those within spherical overdensity of a field halo
 void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids, vector<int> *SOtypes=NULL);
 ///Write profiles
@@ -530,7 +531,7 @@ int MPISetFilesRead(Options&opt, int *&ireadfile, int *&ireadtask);
 void MPIInitWriteComm();
 ///determine how to group mpi threads together when writing
 void MPIBuildWriteComm(Options &opt);
-///free communicator if needed 
+///free communicator if needed
 void MPIFreeWriteComm();
 
 /// Determine number of local particles for tipsy
