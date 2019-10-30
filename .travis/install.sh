@@ -41,8 +41,17 @@ fi
 if [ "$USESTARS" = 1 ]; then
 	VR_CMAKE_OPTIONS+=" -DVR_USE_STAR=ON "
 fi
+if [ "$USEBH" = 1 ]; then
+	VR_CMAKE_OPTIONS+=" -DVR_USE_BH=ON "
+fi
+if [ "$USEEXTRADM" = 1 ]; then
+	VR_CMAKE_OPTIONS+=" -DVR_USE_EXTRA_DM_PROPERTIES=ON "
+fi
 if [ "$USESWIFT" = 1 ]; then
-	VR_CMAKE_OPTIONS+=" -DVR_USE_SWIFT_INTERFACE=ON "
+	VR_CMAKE_OPTIONS+=" -DVR_USE_SWIFT_INTERFACE=ON -DCMAKE_CXX_FLAGS=-fPIC "
+fi
+if [ "$NOMASS" = 1 ]; then
+	VR_CMAKE_OPTIONS+=" -DVR_NO_MASS=ON "
 fi
 
 # Go, go, go!

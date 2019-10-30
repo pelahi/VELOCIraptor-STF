@@ -123,6 +123,10 @@ private(i,w,wsum,sv,vsv,fbg,vp,maxdist,vmweighted,isvweighted,tid,tempdenv)
 }
 #endif
     if (opt.iverbose>=2) cout<<ThisTask<<" Done"<<endl;
+    for (int j=0;j<nthreads;j++) delete[] dist[j];
+    delete[] dist;
+    for (int j=0;j<nthreads;j++) delete[] nn[j];
+    delete[] nn;
     delete[] gvel;
     delete[] gveldisp;
     delete tree;
@@ -134,9 +138,10 @@ private(i,w,wsum,sv,vsv,fbg,vp,maxdist,vmweighted,isvweighted,tid,tempdenv)
 void DetermineDenVRatioDistribution(Options &opt,const Int_t nbodies, Particle *Part, Double_t &meanr,Double_t &sdlow,Double_t &sdhigh, int sublevel)
 {
     Int_t i,nbins,iprob,jprob;
-    Double_t mtot,mtotpeak,*rbin,deltar,maxprob, minprob,rmin,rmax;
-    Double_t *xbin;
-    Double_t **omp_rbin;//, **omp_xbin;
+    Double_t mtot,mtotpeak,deltar,maxprob,minprob,rmin,rmax;
+    vector<Double_t> rbin;
+    vector<Double_t> xbin;
+    vector<vector<Double_t>> omp_rbin;
     int nthreads=1,tid;
     Double_t w;
     Int_t ir;
@@ -148,12 +153,8 @@ void DetermineDenVRatioDistribution(Options &opt,const Int_t nbodies, Particle *
 #endif
     //to determine initial number of bins using modified Sturges' formula
     nbins = ceil(log10((Double_t)nbodies)/log10(2.0)+1)*4;
-    //rbin=new Double_t[nbins];
-    //xbin=new Double_t[nbins];
-    omp_rbin=new Double_t*[nthreads];
-    for (i=0;i<nthreads;i++) {
-        omp_rbin[i]=new Double_t[nbins];
-    }
+    omp_rbin.resize(nthreads);
+    for (i=0;i<nthreads;i++) omp_rbin[i].resize(nbins);
 
     //deterrmine average, rmin,rmax and variance about mean
     rmin=rmax=Part[0].GetPotential();
@@ -256,7 +257,7 @@ private(i,tid)
     }
 #endif
     for (int j=1;j<nthreads;j++) for (i=0;i<nbins;i++) omp_rbin[0][i]+=omp_rbin[j][i];
-    rbin=&omp_rbin[0][0];
+    rbin = omp_rbin[0];
 
     maxprob=0.;
     for (i=0;i<nbins;i++) {
@@ -295,7 +296,7 @@ private(i,tid)
     //now rebin around most probable over sl in either direction to be used to estimate dispersion
     //and gradually increase region till region encompases over 50% of the mass or particle numbers
     GMatrix W(nbins,nbins);
-    rbin=new Double_t[nbins];
+    rbin.resize(nbins);
     do {
         mtotpeak=0;
         rmin=(meanr-sl*sdlow);
@@ -310,24 +311,10 @@ private(i,tid)
         deltar=3.5*sqrt(sdlow*sdlow+sdhigh*sdhigh)/pow(npeak,1./3.);
         nbins=ceil((rmax-rmin)/deltar+1);
         W=GMatrix(nbins,nbins);
-		delete[] rbin;
-        rbin=new Double_t[nbins];
-        //for (i=0;i<nthreads;i++) omp_rbin[i]=new Double_t[nbins];
-        //xbin=new Double_t[nbins];
+        rbin.resize(nbins);
         for (i=0;i<nbins;i++)rbin[i]=0;
-        //for (int j=0;j<nthreads;j++) for (i=0;i<nbins;i++) omp_rbin[j][i]=0;
         for (int j=0;j<nbins;j++) for (int k=0;k<nbins;k++) W(j,k)=0.;
-/*#ifdef USEOPENMP
-#pragma omp parallel default(shared)
-{
-#pragma omp for private(i) reduction(+ : mtotpeak)
-#endif
-*/
         for (i=0;i<nbodies;i++) {
-//            int tid=0;
-//#ifdef USEOPENMP
-//            tid=omp_get_thread_num();
-//#endif
             if (Part[i].GetPotential()>=rmin&&Part[i].GetPotential()<rmax) {
                 ir=(Int_t)((Part[i].GetPotential()-rmin)/deltar);
 #ifdef NOMASSWEIGHT
@@ -337,25 +324,18 @@ private(i,tid)
 #endif
                 rbin[ir]+=w;
                 W(ir,ir)+=w*w;
-                //omp_rbin[tid][ir]+=w;
                 mtotpeak+=w;
             }
         }
-/*#ifdef USEOPENMP
-}
-#endif*/
         sl*=1.25;
     }while (mtotpeak/mtot<0.2);
     GMatrix covar(nbins,nbins);
     //add bins together
-    //for (int j=1;j<nthreads;j++) for (i=0;i<nbins;i++) omp_rbin[0][i]+=omp_rbin[j][i];
-    //rbin=omp_rbin[0];
-    xbin=new Double_t[nbins];
+    xbin.resize(nbins);
     maxprob=0.;
     minprob=MAXVALUE;
     for (i=0;i<nbins;i++) {
         if (rbin[i]>maxprob)maxprob=rbin[iprob=i];
-        //if (rbin[i]<minprob&&rbin[i]>0.)minprob=rbin[i];
         if (W(i,i)<minprob&&rbin[i]>0.) minprob=W(i,i);
         xbin[i]=(i+0.5)*deltar+rmin;
     }
@@ -402,12 +382,13 @@ private(i,tid)
     //now have initial estimates of paramters, try nonlinear ls fit to data below prob and above
     Int_t iflag,iit=0,nparams=4;
     Double_t chi2,oldchi2;
-    Double_t *params=new Double_t[nparams];
+    vector<Double_t> params(nparams);
     //five sets of fix parameter choices so that get optimal fit given bad data.
-    int **fixp,nfix,itemp;
+    vector<vector<int>> fixp;
+    int nfix,itemp;
     int nfits=8;
-    fixp= new int*[nfits];
-    for (int i=0;i<8;i++) fixp[i]=new int[nparams];
+    fixp.resize(nfits);
+    for (int i=0;i<8;i++) fixp[i].resize(nparams);
     struct math_function fitfunc,*difffuncs;
     difffuncs=new math_function[nparams];
 
@@ -436,7 +417,7 @@ private(i,tid)
     nfits=8;
     oldchi2=MAXVALUE;
     for (int i=0;i<nfits;i++) {
-        chi2=FitNonLinLS(fitfunc, difffuncs, nparams, params, covar, nbins, xbin, rbin, &W,  1e-2, 0.95, fixp[i],1,20);
+        chi2=FitNonLinLS(fitfunc, difffuncs, nparams, params.data(), covar, nbins, xbin.data(), rbin.data(), &W,  1e-2, 0.95, fixp[i].data(),1,20);
         int ifitfail=0;
         for (int j=0;j<nparams;j++) ifitfail+=std::isnan(params[j]);
         ifitfail+=(params[2]<=0);
@@ -453,14 +434,8 @@ private(i,tid)
             params[0]=maxprob;params[1]=meanr;params[2]=sdhigh*sdhigh;params[3]=(sdlow*sdlow)/(sdhigh*sdhigh);
         }
     }
-
+    delete[] difffuncs;
     if (opt.iverbose>=2) printf("Using meanr=%e sdlow=%e sdhigh=%e\n",meanr,sdlow,sdhigh);
-    //free memory
-    delete[] xbin;
-    delete[] rbin;
-    //rbin=NULL;
-    for (int j=0;j<nthreads;j++) delete[] omp_rbin[j];
-    delete[] omp_rbin;
 }
 
 /*! Calculates the normalized deviations from the mean of the dominated population.

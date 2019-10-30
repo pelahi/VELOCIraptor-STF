@@ -7,10 +7,8 @@
 #ifndef HDFITEMS_H
 #define HDFITEMS_H
 
-
-//#include "H5Cpp.h"
-//using namespace H5;
 #include "hdf5.h"
+
 
 ///\name ILLUSTRIS specific constants
 //@{
@@ -52,7 +50,9 @@
 #define HDFSTARIMETAL 40
 #define HDFSTARIAGE 41
 
-#define HDFBHIMDOT 50
+#define HDFBHIMETAL 50
+#define HDFBHIAGE 51
+#define HDFBHIMDOT 52
 //@}
 
 ///number of luminosity bands for stars
@@ -71,7 +71,7 @@
 
 ///\defgroup HDFNAMES labels for HDF naming conventions
 //@{
-#define HDFNUMNAMETYPES  8
+#define HDFNUMNAMETYPES  9
 #define HDFILLUSTISNAMES 0
 #define HDFGADGETXNAMES  1
 #define HDFEAGLENAMES    2
@@ -79,6 +79,7 @@
 #define HDFSIMBANAMES    4
 #define HDFMUFASANAMES   5
 #define HDFSWIFTEAGLENAMES    6
+#define HDFOLDSWIFTEAGLENAMES    8
 #define HDFEAGLEVERSION2NAMES    7
 //@}
 
@@ -92,6 +93,14 @@
 #else
 #define HDF5_FILE_GROUP_COMMON_BASE H5::CommonFG
 #endif
+
+// #ifdef USEPARALLELHDF
+// // #if H5_VERSION_GE(1,10,2)
+// // #define USEHDFCOMPRESSOIN
+// // #endif
+// // #else
+// // #define USEHDFCOMPRESSOIN
+// #endif
 
 template <typename ReturnT, typename F, typename ... Ts>
 ReturnT safe_hdf5(F function, Ts ... args)
@@ -109,487 +118,832 @@ ReturnT safe_hdf5(F function, Ts ... args)
        return status;
 }
 
+// Overloaded function to return HDF5 type given a C type
+static inline hid_t hdf5_type(float dummy)              {return H5T_NATIVE_FLOAT;}
+static inline hid_t hdf5_type(double dummy)             {return H5T_NATIVE_DOUBLE;}
+static inline hid_t hdf5_type(short dummy)              {return H5T_NATIVE_SHORT;}
+static inline hid_t hdf5_type(int dummy)                {return H5T_NATIVE_INT;}
+static inline hid_t hdf5_type(long dummy)               {return H5T_NATIVE_LONG;}
+static inline hid_t hdf5_type(long long dummy)          {return H5T_NATIVE_LLONG;}
+static inline hid_t hdf5_type(unsigned short dummy)     {return H5T_NATIVE_USHORT;}
+static inline hid_t hdf5_type(unsigned int dummy)       {return H5T_NATIVE_UINT;}
+static inline hid_t hdf5_type(unsigned long dummy)      {return H5T_NATIVE_ULONG;}
+static inline hid_t hdf5_type(unsigned long long dummy) {return H5T_NATIVE_ULLONG;}
+static inline hid_t hdf5_type(std::string dummy)        {return H5T_C_S1;}
+
 //template <typename AttributeHolder>
 //static inline H5::Attribute get_attribute(const AttributeHolder &l, const std::string attr_name)
 static inline void get_attribute(vector<hid_t> &ids, const std::string attr_name)
 {
-	//can use H5Aexists as it is the C interface but how to access it?
-	//auto exists = H5Aexists(l.getId(), attr_name.c_str());
-	auto exists = H5Aexists(ids.back(), attr_name.c_str());
-	if (exists == 0) {
-		throw invalid_argument(std::string("attribute not found ") + attr_name);
-	}
-	else if (exists < 0) {
-		throw std::runtime_error("Error on H5Aexists");
-	}
-	auto attr = H5Aopen(ids.back(), attr_name.c_str(), H5P_DEFAULT);
-	ids.push_back(attr);
+    //can use H5Aexists as it is the C interface but how to access it?
+    //auto exists = H5Aexists(l.getId(), attr_name.c_str());
+    auto exists = H5Aexists(ids.back(), attr_name.c_str());
+    if (exists == 0) {
+        throw invalid_argument(std::string("attribute not found ") + attr_name);
+    }
+    else if (exists < 0) {
+        throw std::runtime_error("Error on H5Aexists");
+    }
+    auto attr = H5Aopen(ids.back(), attr_name.c_str(), H5P_DEFAULT);
+    ids.push_back(attr);
 }
 
 
 static inline void get_attribute(vector<hid_t> &ids, const std::vector<std::string> &parts)
 {
-	// This is the attribute name, so open it and store the id
-	if (parts.size() == 1) {
-		get_attribute(ids, parts[0]);
-	}
-	else {
-		H5O_info_t object_info;
-		hid_t newid;
-		H5Oget_info_by_name(ids.back(), parts[0].c_str(), &object_info, H5P_DEFAULT);
-		if (object_info.type == H5O_TYPE_GROUP) {
-			newid = H5Gopen2(ids.back(),parts[0].c_str(),H5P_DEFAULT);
-		}
-		else if (object_info.type == H5O_TYPE_DATASET) {
-			newid = H5Dopen2(ids.back(),parts[0].c_str(),H5P_DEFAULT);
-		}
-		ids.push_back(newid);
-		//get the substring
-		vector<string> subparts(parts.begin() + 1, parts.end());
-		//call function again
-		get_attribute(ids, subparts);
-
-	}
-	//throw invalid_argument("attribute name not found");
+    // This is the attribute name, so open it and store the id
+    if (parts.size() == 1) {
+        get_attribute(ids, parts[0]);
+    }
+    else {
+        H5O_info_t object_info;
+        hid_t newid;
+        H5Oget_info_by_name(ids.back(), parts[0].c_str(), &object_info, H5P_DEFAULT);
+        if (object_info.type == H5O_TYPE_GROUP) {
+            newid = H5Gopen2(ids.back(),parts[0].c_str(),H5P_DEFAULT);
+        }
+        else if (object_info.type == H5O_TYPE_DATASET) {
+            newid = H5Dopen2(ids.back(),parts[0].c_str(),H5P_DEFAULT);
+        }
+        ids.push_back(newid);
+        //get the substring
+        vector<string> subparts(parts.begin() + 1, parts.end());
+        //call function again
+        get_attribute(ids, subparts);
+    }
+    //throw invalid_argument("attribute name not found");
 }
 
 static inline vector<string> tokenize(const string &s, const string &delims)
 {
-	string::size_type lastPos = s.find_first_not_of(delims, 0);
-	string::size_type pos     = s.find_first_of(delims, lastPos);
+    string::size_type lastPos = s.find_first_not_of(delims, 0);
+    string::size_type pos     = s.find_first_of(delims, lastPos);
 
-	vector<string> tokens;
-	while (string::npos != pos || string::npos != lastPos) {
-		tokens.push_back(s.substr(lastPos, pos - lastPos));
-		lastPos = s.find_first_not_of(delims, pos);
-		pos = s.find_first_of(delims, lastPos);
-	}
-	return tokens;
+    vector<string> tokens;
+    while (string::npos != pos || string::npos != lastPos) {
+        tokens.push_back(s.substr(lastPos, pos - lastPos));
+        lastPos = s.find_first_not_of(delims, pos);
+        pos = s.find_first_of(delims, lastPos);
+    }
+    return tokens;
 }
 
 static inline void get_attribute(const hid_t &file_id, vector<hid_t> &ids, const string &name)
 {
-	std::vector<std::string> parts = tokenize(name, "/");
-	ids.push_back(file_id);
-	get_attribute(ids, parts);
+    std::vector<std::string> parts = tokenize(name, "/");
+    ids.push_back(file_id);
+    get_attribute(ids, parts);
 }
 
 static inline void close_hdf_ids(vector<hid_t> &ids)
 {
-	H5O_info_t object_info;
-	for (auto &id:ids)
-	{
-		H5Oget_info(id, &object_info);
-		if (object_info.type == H5O_TYPE_GROUP) {
-			H5Gclose(id);
-		}
-		else if (object_info.type == H5O_TYPE_GROUP) {
-			H5Dclose(id);
-		}
-	}
+    H5O_info_t object_info;
+    for (auto &id:ids)
+    {
+        H5Oget_info(id, &object_info);
+        if (object_info.type == H5O_TYPE_GROUP) {
+            H5Gclose(id);
+        }
+        else if (object_info.type == H5O_TYPE_GROUP) {
+            H5Dclose(id);
+        }
+    }
 }
 
 template<typename T> static inline void _do_read(const hid_t &attr, const hid_t &type, T &val)
 {
-	H5Aread(attr, type, &val);
+    H5Aread(attr, type, &val);
 }
 
 template<> void _do_read<std::string>(const hid_t &attr, const hid_t &type, std::string &val)
 {
-	vector<char> buf;
-	hid_t space = H5Aget_space (attr);
-	hsize_t ndims=1, dims[1], maxdims[1];
-	//ndims = H5Sget_simple_extent_dims (space, dims, maxdims);
-	buf.resize(H5Tget_size (type));
-	H5Aread(attr, type, buf.data());
-	H5Sclose(space);
-	val=string(buf.data());
+    vector<char> buf;
+    hid_t type_in_file = H5Aget_type(attr);
+    hid_t type_in_memory = H5Tcopy(type); // copy memory type because we'll need to modify it
+    size_t length = H5Tget_size(type_in_file); // get length of the string in the file
+    buf.resize(length+1); // resize buffer in memory, allowing for null terminator
+    H5Tset_size(type_in_memory, length+1); // tell HDF5 the length of the buffer in memory
+    H5Tset_strpad(type_in_memory, H5T_STR_NULLTERM); // specify that we want a null terminated string
+    H5Aread(attr, type_in_memory, buf.data());
+    H5Tclose(type_in_memory);
+    H5Tclose(type_in_file);
+    val=string(buf.data());
 }
 
 template<typename T> static inline void _do_read_v(const hid_t &attr, const hid_t &type, vector<T> &val)
 {
-	hid_t space = H5Aget_space (attr);
-	int npoints = H5Sget_simple_extent_npoints(space);
-	val.resize(npoints);
-	H5Aread(attr, type, val.data());
-	H5Sclose(space);
+    hid_t space = H5Aget_space (attr);
+    int npoints = H5Sget_simple_extent_npoints(space);
+    val.resize(npoints);
+    H5Aread(attr, type, val.data());
+    H5Sclose(space);
 }
 
 template<typename T> const T read_attribute(const hid_t &file_id, const std::string &name) {
-	std::string attr_name;
-	T val;
-	hid_t type;
-	H5O_info_t object_info;
-	vector <hid_t> ids;
-	//traverse the file to get to the attribute, storing the ids of the
-	//groups, data spaces, etc that have been opened.
-	get_attribute(file_id, ids, name);
-	//now reverse ids and load attribute
-	reverse(ids.begin(),ids.end());
-	//read the appropriate type
-	type = H5Aget_type(ids[0]);
-	_do_read<T>(ids[0], type, val);
-	H5Aclose(ids[0]);
-	//remove file id from id list
-	ids.pop_back();
-	ids.erase(ids.begin());
-	//now have hdf5 ids traversed to get to desired attribute so move along to close all
-	//based on their object type
-	close_hdf_ids(ids);
-	return val;
+    std::string attr_name;
+    T val;
+    hid_t type;
+    H5O_info_t object_info;
+    vector <hid_t> ids;
+    //traverse the file to get to the attribute, storing the ids of the
+    //groups, data spaces, etc that have been opened.
+    get_attribute(file_id, ids, name);
+    //now reverse ids and load attribute
+    reverse(ids.begin(),ids.end());
+    //determine hdf5 type of the array in memory
+    type = hdf5_type(T{});
+    // read the data
+    _do_read<T>(ids[0], type, val);
+    H5Aclose(ids[0]);
+    //remove file id from id list
+    ids.pop_back();
+    ids.erase(ids.begin());
+    //now have hdf5 ids traversed to get to desired attribute so move along to close all
+    //based on their object type
+    close_hdf_ids(ids);
+    return val;
 }
 
 //read vector attribute
 template<typename T> const vector<T> read_attribute_v(const hid_t &file_id, const std::string &name) {
-	std::string attr_name;
-	vector<T> val;
-	hid_t type;
-	H5O_info_t object_info;
-	vector <hid_t> ids;
-	//traverse the file to get to the attribute, storing the ids of the
-	//groups, data spaces, etc that have been opened.
-	get_attribute(file_id, ids, name);
-	//now reverse ids and load attribute
-	reverse(ids.begin(),ids.end());
-	//read the appropriate type
-	type = H5Aget_type(ids[0]);
-	_do_read_v<T>(ids[0], type, val);
-	H5Aclose(ids[0]);
-	//remove file id from id list
-	ids.pop_back();
-	ids.erase(ids.begin());
-	//now have hdf5 ids traversed to get to desired attribute so move along to close all
-	//based on their object type
-	close_hdf_ids(ids);
-	return val;
+    std::string attr_name;
+    vector<T> val;
+    hid_t type;
+    H5O_info_t object_info;
+    vector <hid_t> ids;
+    //traverse the file to get to the attribute, storing the ids of the
+    //groups, data spaces, etc that have been opened.
+    get_attribute(file_id, ids, name);
+    //now reverse ids and load attribute
+    reverse(ids.begin(),ids.end());
+    //determine hdf5 type of the array in memory
+    type = hdf5_type(T{});
+    // read the data
+    _do_read_v<T>(ids[0], type, val);
+    H5Aclose(ids[0]);
+    //remove file id from id list
+    ids.pop_back();
+    ids.erase(ids.begin());
+    //now have hdf5 ids traversed to get to desired attribute so move along to close all
+    //based on their object type
+    close_hdf_ids(ids);
+    return val;
 }
 
 
 template<typename T> const T read_attribute(const std::string &filename, const std::string &name) {
-	safe_hdf5<herr_t>(H5Fopen, filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
-	hid_t file_id = H5Fopen(filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
-	T attr = read_attribute<T>(file_id, name);
-	safe_hdf5<herr_t>(H5Fclose,file_id);
-	return attr;
+    safe_hdf5<herr_t>(H5Fopen, filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
+    hid_t file_id = H5Fopen(filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
+    T attr = read_attribute<T>(file_id, name);
+    safe_hdf5<herr_t>(H5Fclose,file_id);
+    return attr;
 }
 
 static inline hid_t HDF5OpenFile(string name, unsigned int flags){
-	hid_t Fhdf;
-	return H5Fopen(name.c_str(),flags, H5P_DEFAULT);
+    hid_t Fhdf;
+    return H5Fopen(name.c_str(),flags, H5P_DEFAULT);
 }
 
 static inline hid_t HDF5OpenGroup(const hid_t &file, string name){
-	return H5Gopen2(file,name.c_str(),H5P_DEFAULT);
+    return H5Gopen2(file,name.c_str(),H5P_DEFAULT);
 }
 static inline hid_t HDF5OpenDataSet(const hid_t &id, string name){
     hid_t idval = H5Dopen2(id,name.c_str(),H5P_DEFAULT);
-	return idval;
+    return idval;
 }
 static inline hid_t HDF5OpenDataSpace(const hid_t &id){
     hid_t idval=H5Dget_space(id);
-	return idval;
+    return idval;
 }
 
 static inline void HDF5CloseFile(hid_t &id){
-	if (id>=0) H5Fclose(id);
-	id = -1;
+    if (id>=0) H5Fclose(id);
+    id = -1;
 }
 static inline void HDF5CloseGroup(hid_t &id){
-	if (id>=0) H5Gclose(id);
-	id = -1;
+    if (id>=0) H5Gclose(id);
+    id = -1;
 }
 static inline void HDF5CloseDataSet(hid_t &id){
-	if (id>=0) H5Dclose(id);
-	id = -1;
+    if (id>=0) H5Dclose(id);
+    id = -1;
 }
 static inline void HDF5CloseDataSpace(hid_t &id){
-	if (id>=0) H5Sclose(id);
-	id = -1;
+    if (id>=0) H5Sclose(id);
+    id = -1;
 }
 
 static inline void HDF5ReadHyperSlabReal(double *buffer,
-	const hid_t &dataset, const hid_t &dataspace,
-	const hsize_t datarank, const hsize_t ndim, int nchunk, int noffset
+    const hid_t &dataset, const hid_t &dataspace,
+    const hsize_t datarank, const hsize_t ndim, int nchunk, int noffset
 )
 {
-	//setup hyperslab so that it is loaded into the buffer
-	vector<hsize_t> start, count, stride, block, memdims;
-	hid_t memspace;
-	start.push_back(noffset);start.push_back(0);
-	count.push_back(nchunk);count.push_back(ndim);
-	stride.push_back(1);stride.push_back(1);
-	block.push_back(1);block.push_back(1);
-	memdims.push_back(nchunk*ndim);
-	H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, start.data(), stride.data(), count.data(), block.data());
-	memspace = H5Screate_simple (1, memdims.data(), NULL);
-	safe_hdf5<herr_t>(H5Dread, dataset, H5T_NATIVE_DOUBLE, memspace, dataspace, H5P_DEFAULT, buffer);
+    //setup hyperslab so that it is loaded into the buffer
+    vector<hsize_t> start, count, stride, block, memdims;
+    hid_t memspace;
+    start.push_back(noffset);start.push_back(0);
+    count.push_back(nchunk);count.push_back(ndim);
+    stride.push_back(1);stride.push_back(1);
+    block.push_back(1);block.push_back(1);
+    memdims.push_back(nchunk*ndim);
+    H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, start.data(), stride.data(), count.data(), block.data());
+    memspace = H5Screate_simple (1, memdims.data(), NULL);
+    safe_hdf5<herr_t>(H5Dread, dataset, H5T_NATIVE_DOUBLE, memspace, dataspace, H5P_DEFAULT, buffer);
 
 }
 
 static inline void HDF5ReadHyperSlabInteger(long long *buffer,
-	const hid_t &dataset, const hid_t &dataspace,
-	const hsize_t datarank, const hsize_t ndim, int nchunk, int noffset
+    const hid_t &dataset, const hid_t &dataspace,
+    const hsize_t datarank, const hsize_t ndim, int nchunk, int noffset
 )
 {
-	//setup hyperslab so that it is loaded into the buffer
-	vector<hsize_t> start, count, stride, block, memdims;
-	hid_t memspace;
-	start.push_back(noffset);start.push_back(0);
-	count.push_back(nchunk);count.push_back(ndim);
-	stride.push_back(1);stride.push_back(1);
-	block.push_back(1);block.push_back(1);
-	memdims.push_back(nchunk*ndim);
-	H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, start.data(), stride.data(), count.data(), block.data());
+    //setup hyperslab so that it is loaded into the buffer
+    vector<hsize_t> start, count, stride, block, memdims;
+    hid_t memspace;
+    start.push_back(noffset);start.push_back(0);
+    count.push_back(nchunk);count.push_back(ndim);
+    stride.push_back(1);stride.push_back(1);
+    block.push_back(1);block.push_back(1);
+    memdims.push_back(nchunk*ndim);
+    H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, start.data(), stride.data(), count.data(), block.data());
     memspace = H5Screate_simple (1, memdims.data(), NULL);
-	safe_hdf5<herr_t>(H5Dread, dataset, H5T_NATIVE_LONG, memspace, dataspace, H5P_DEFAULT, buffer);
+    safe_hdf5<herr_t>(H5Dread, dataset, H5T_NATIVE_LONG, memspace, dataspace, H5P_DEFAULT, buffer);
 }
 
 ///\name HDF class to manage writing information
 class H5OutputFile
 {
-	protected:
+    protected:
 
-	hid_t file_id;
-
-	// Called if a HDF5 call fails (might need to MPI_Abort)
-	void io_error(std::string message) {
-		std::cerr << message << std::endl;
-#ifdef USEMPI
-		MPI_Abort(MPI_COMM_WORLD, 1);
+    hid_t file_id;
+#ifdef USEPARALLELHDF
+    hid_t parallel_access_id;
 #endif
-		abort();
-	}
 
-	public:
+    // Called if a HDF5 call fails (might need to MPI_Abort)
+    void io_error(std::string message) {
+    std::cerr << message << std::endl;
+#ifdef USEMPI
+    MPI_Abort(MPI_COMM_WORLD, 1);
+#endif
+    abort();
+    }
 
-	// Constructor
-	H5OutputFile() {
-		file_id = -1;
-	}
+    public:
 
-	// Create a new file
-	void create(std::string filename, unsigned int flag)
-	{
-		if(file_id >= 0)io_error("Attempted to create file when already open!");
-		file_id = H5Fcreate(filename.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
-		if(file_id < 0)io_error(string("Failed to create output file: ")+filename);
-	}
+    // Constructor
+    H5OutputFile() {
+        file_id = -1;
+#ifdef USEPARALLELHDF
+        parallel_access_id = -1;
+#endif
+    }
 
-    void append(std::string filename, unsigned int flag)
-	{
-		if(file_id >= 0)io_error("Attempted to create file when already open!");
-		file_id = H5Fopen(filename.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-		if(file_id < 0)io_error(string("Failed to create output file: ")+filename);
-	}
+    // Create a new file
+    void create(std::string filename, hid_t flag = H5F_ACC_TRUNC,
+        int taskID = -1, bool iparallelopen = true)
+    {
+        if(file_id >= 0)io_error("Attempted to create file when already open!");
+#ifdef USEPARALLELHDF
+        MPI_Comm comm = mpi_comm_write;
+        MPI_Info info = MPI_INFO_NULL;
+        if (iparallelopen && taskID ==-1) {
+            parallel_access_id = H5Pcreate (H5P_FILE_ACCESS);
+            if (parallel_access_id < 0) io_error("Parallel access creation failed");
+            herr_t ret = H5Pset_fapl_mpio(parallel_access_id, comm, info);
+            if (ret < 0) io_error("Parallel access failed");
+            // create the file collectively
+            file_id = H5Fcreate(filename.c_str(), flag, H5P_DEFAULT, parallel_access_id);
+            if (file_id < 0) io_error(string("Failed to create output file: ")+filename);
+            ret = H5Pclose(parallel_access_id);
+            if (ret < 0) io_error("Parallel release failed");
+            parallel_access_id = -1;
+        }
+        else {
+            if (taskID <0 || taskID > NProcsWrite) io_error(string("MPI Task ID asked to create file out of range. Task ID is ")+to_string(taskID));
+            if (ThisWriteTask == taskID) {
+                file_id = H5Fcreate(filename.c_str(), flag, H5P_DEFAULT, H5P_DEFAULT);
+                if (file_id < 0) io_error(string("Failed to create output file: ")+filename);
+                parallel_access_id = -1;
+            }
+            else {
+                parallel_access_id = -2;
+            }
+            MPI_Barrier(comm);
+        }
+#else
+        file_id = H5Fcreate(filename.c_str(), flag, H5P_DEFAULT, H5P_DEFAULT);
+        if(file_id < 0)io_error(string("Failed to create output file: ")+filename);
+#endif
 
-	// Close the file
-	void close()
-	{
-		if(file_id < 0)io_error("Attempted to close file which is not open!");
-		H5Fclose(file_id);
-		file_id = -1;
-	}
+    }
+
+    void append(std::string filename, hid_t flag = H5F_ACC_RDWR,
+        int taskID = -1, bool iparallelopen = true)
+    {
+        if(file_id >= 0)io_error("Attempted to open and append to file when already open!");
+#ifdef USEPARALLELHDF
+        MPI_Comm comm = mpi_comm_write;
+        MPI_Info info = MPI_INFO_NULL;
+        if (iparallelopen && taskID ==-1) {
+            parallel_access_id = H5Pcreate (H5P_FILE_ACCESS);
+            if (parallel_access_id < 0) io_error("Parallel access creation failed");
+            herr_t ret = H5Pset_fapl_mpio(parallel_access_id, comm, info);
+            if (ret < 0) io_error("Parallel access failed");
+            // create the file collectively
+            file_id = H5Fopen(filename.c_str(), flag, parallel_access_id);
+            if (file_id < 0) io_error(string("Failed to create output file: ")+filename);
+            ret = H5Pclose(parallel_access_id);
+            if (ret < 0) io_error("Parallel release failed");
+            parallel_access_id = -1;
+        }
+        else {
+            if (taskID <0 || taskID > NProcsWrite) io_error(string("MPI Task ID asked to create file out of range. Task ID is ")+to_string(taskID));
+            if (ThisWriteTask == taskID) {
+                file_id = H5Fopen(filename.c_str(),flag, H5P_DEFAULT);
+                if (file_id < 0) io_error(string("Failed to create output file: ")+filename);
+                parallel_access_id = -1;
+            }
+            else {
+                parallel_access_id = -2;
+            }
+            MPI_Barrier(comm);
+        }
+#else
+        file_id = H5Fopen(filename.c_str(), flag, H5P_DEFAULT);
+        if (file_id < 0) io_error(string("Failed to create output file: ")+filename);
+#endif
+    }
+
+    // Close the file
+    void close()
+    {
+#ifdef USEPARALLELHDF
+        if(file_id < 0 && parallel_access_id == -1) io_error("Attempted to close file which is not open!");
+        if (parallel_access_id == -1) H5Fclose(file_id);
+#else
+        if(file_id < 0) io_error("Attempted to close file which is not open!");
+        H5Fclose(file_id);
+#endif
+        file_id = -1;
+#ifdef USEPARALLELHDF
+        parallel_access_id = -1;
+#endif
+    }
 
   	// Destructor closes the file if it's open
-	~H5OutputFile()
-	{
-	  if(file_id >= 0)
-	    close();
-	}
-
-	// Functions to return corresponding HDF5 type for C types
-	hid_t hdf5_type(float dummy)              {return H5T_NATIVE_FLOAT;}
-	hid_t hdf5_type(double dummy)             {return H5T_NATIVE_DOUBLE;}
-	hid_t hdf5_type(int dummy)                {return H5T_NATIVE_INT;}
-	hid_t hdf5_type(long dummy)               {return H5T_NATIVE_LONG;}
-	hid_t hdf5_type(long long dummy)          {return H5T_NATIVE_LLONG;}
-	hid_t hdf5_type(unsigned int dummy)       {return H5T_NATIVE_UINT;}
-	hid_t hdf5_type(unsigned long dummy)      {return H5T_NATIVE_ULONG;}
-	hid_t hdf5_type(unsigned long long dummy) {return H5T_NATIVE_ULLONG;}
-
-
-	/// Write a new 1D dataset. Data type of the new dataset is taken to be the type of
-	/// the input data if not explicitly specified with the filetype_id parameter.
-	template <typename T> void write_dataset(std::string name, hsize_t len, T *data,
-	                                       hid_t memtype_id = -1, hid_t filetype_id=-1)
+    ~H5OutputFile()
     {
-		int rank = 1;
-      	hsize_t dims[1] = {len};
-		if (memtype_id == -1) {
-    		memtype_id = hdf5_type(T{});
-	 	}
-      	write_dataset_nd(name, rank, dims, data, memtype_id, filetype_id);
+        if(file_id >= 0) close();
     }
-	void write_dataset(string name, hsize_t len, string data)
+
+    /// Write a new 1D dataset. Data type of the new dataset is taken to be the type of
+    /// the input data if not explicitly specified with the filetype_id parameter.
+    template <typename T> void write_dataset(std::string name, hsize_t len, T *data,
+       hid_t memtype_id = -1, hid_t filetype_id=-1, bool flag_parallel = true, bool flag_hyperslab = true, bool flag_collective = true)
     {
-		int rank = 1;
+        int rank = 1;
       	hsize_t dims[1] = {len};
-
-		hid_t memtype_id, filetype_id, dspace_id, dset_id;
-		herr_t status;
-		memtype_id = H5Tcopy (H5T_C_S1);
-		status = H5Tset_size (memtype_id, data.size());
-		//status = H5Tset_size (memtype_id, H5T_VARIABLE);
-		filetype_id = H5Tcopy (H5T_C_S1);
-		//status = H5Tset_size (filetype_id, H5T_VARIABLE);
-		status = H5Tset_size (filetype_id, data.size());
-
-		// Create the dataspace
-		dspace_id = H5Screate_simple(rank, dims, NULL);
-
-		// Create the dataset
-		dset_id = H5Dcreate(file_id, name.c_str(), filetype_id, dspace_id,
-		                        H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-		// Write the data
-		if(H5Dwrite(dset_id, memtype_id, dspace_id, H5S_ALL, H5P_DEFAULT, data.c_str()) < 0)
-		io_error(string("Failed to write dataset: ")+name);
-
-		// Clean up (note that dtype_id is NOT a new object so don't need to close it)
-		H5Sclose(dspace_id);
-		H5Dclose(dset_id);
+        if (memtype_id == -1) memtype_id = hdf5_type(T{});
+      	write_dataset_nd(name, rank, dims, data, memtype_id, filetype_id, flag_parallel, flag_hyperslab, flag_collective);
     }
-	void write_dataset(string name, hsize_t len, void *data,
-	                                       hid_t memtype_id=-1, hid_t filetype_id=-1)
+    void write_dataset(string name, hsize_t len, string data, bool flag_parallel = true, bool flag_collective = true)
     {
-		int rank = 1;
+#ifdef USEPARALLELHDF
+        MPI_Comm comm = mpi_comm_write;
+        MPI_Info info = MPI_INFO_NULL;
+#endif
+        int rank = 1;
       	hsize_t dims[1] = {len};
-		if (memtype_id == -1) {
-			throw std::runtime_error("Write data set called with void pointer but no type info passed.");
+
+        hid_t memtype_id, filetype_id, dspace_id, dset_id, xfer_plist;
+        herr_t status, ret;
+        memtype_id = H5Tcopy (H5T_C_S1);
+        status = H5Tset_size (memtype_id, data.size());
+        filetype_id = H5Tcopy (H5T_C_S1);
+        status = H5Tset_size (filetype_id, data.size());
+
+        // Create the dataspace
+        dspace_id = H5Screate_simple(rank, dims, NULL);
+
+        // Create the dataset
+        dset_id = H5Dcreate(file_id, name.c_str(), filetype_id, dspace_id,
+            H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+#ifdef USEPARALLELHDF
+        if (flag_parallel) {
+            // set up the collective transfer properties list
+            xfer_plist = H5Pcreate(H5P_DATASET_XFER);
+            if (xfer_plist < 0) io_error(string("Failed to set up parallel transfer: ")+name);
+            if (flag_collective) ret = H5Pset_dxpl_mpio(xfer_plist, H5FD_MPIO_COLLECTIVE);
+            else ret = H5Pset_dxpl_mpio(xfer_plist, H5FD_MPIO_INDEPENDENT);
+            if (ret < 0) io_error(string("Failed to set up parallel transfer: ")+name);
+            // the result of above should be that all processors write to the same
+            // point of the hdf file.
         }
-      	write_dataset_nd(name, rank, dims, data, memtype_id, filetype_id);
+#endif
+        // Write the data
+        if(H5Dwrite(dset_id, memtype_id, dspace_id, H5S_ALL, H5P_DEFAULT, data.c_str()) < 0)
+        io_error(string("Failed to write dataset: ")+name);
+
+        // Clean up (note that dtype_id is NOT a new object so don't need to close it)
+#ifdef USEPARALLELHDF
+        if (flag_parallel) H5Pclose(xfer_plist);
+#endif
+        H5Sclose(dspace_id);
+        H5Dclose(dset_id);
     }
-
-
-	/// Write a multidimensional dataset. Data type of the new dataset is taken to be the type of
-	/// the input data if not explicitly specified with the filetype_id parameter.
-	template <typename T> void write_dataset_nd(std::string name, int rank, hsize_t *dims, T *data,
-	                                          hid_t memtype_id = -1, hid_t filetype_id=-1)
+    void write_dataset(string name, hsize_t len, void *data,
+       hid_t memtype_id=-1, hid_t filetype_id=-1, bool flag_parallel = true, bool flag_first_dim_parallel = true, bool flag_hyperslab = true, bool flag_collective = true)
     {
-		// Get HDF5 data type of the array in memory
-		if (memtype_id == -1) {
-			memtype_id = hdf5_type(T{});
-		}
-
-		// Determine type of the dataset to create
-		if(filetype_id < 0)filetype_id = memtype_id;
-
-		// Create the dataspace
-		hid_t dspace_id = H5Screate_simple(rank, dims, NULL);
-
-		// Only chunk non-zero size datasets
-		int nonzero_size = 1;
-		for(int i=0; i<rank; i+=1)
-		if(dims[i]==0)nonzero_size = 0;
-
-		// Only chunk datasets where we would have >1 chunk
-		int large_dataset = 0;
-		for(int i=0; i<rank; i+=1)
-		if(dims[i] > HDFOUTPUTCHUNKSIZE)large_dataset = 1;
-
-		// Dataset creation properties
-		hid_t prop_id = H5Pcreate(H5P_DATASET_CREATE);
-		if(nonzero_size && large_dataset)
-		{
-			hsize_t *chunks = new hsize_t[rank];
-			for(auto i=0; i<rank; i++) chunks[i] = min((hsize_t) HDFOUTPUTCHUNKSIZE, dims[i]);
-			H5Pset_layout(prop_id, H5D_CHUNKED);
-			H5Pset_chunk(prop_id, rank, chunks);
-			H5Pset_deflate(prop_id, HDFDEFLATE);
-			delete chunks;
-		}
-
-		// Create the dataset
-		hid_t dset_id = H5Dcreate(file_id, name.c_str(), filetype_id, dspace_id,
-		                        H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-		if(dset_id < 0)io_error(string("Failed to create dataset: ")+name);
-
-		// Write the data
-		if(H5Dwrite(dset_id, memtype_id, dspace_id, H5S_ALL, H5P_DEFAULT, data) < 0)
-		io_error(string("Failed to write dataset: ")+name);
-
-		// Clean up (note that dtype_id is NOT a new object so don't need to close it)
-		H5Sclose(dspace_id);
-		H5Dclose(dset_id);
-		H5Pclose(prop_id);
-
+        int rank = 1;
+      	hsize_t dims[1] = {len};
+        if (memtype_id == -1) {
+            throw std::runtime_error("Write data set called with void pointer but no type info passed.");
+        }
+      	write_dataset_nd(name, rank, dims, data, memtype_id, filetype_id, flag_parallel, flag_first_dim_parallel, flag_hyperslab, flag_collective);
     }
-	void write_dataset_nd(std::string name, int rank, hsize_t *dims, void *data,
-	                                          hid_t memtype_id = -1, hid_t filetype_id=-1)
+
+
+    /// Write a multidimensional dataset. Data type of the new dataset is taken to be the type of
+    /// the input data if not explicitly specified with the filetype_id parameter.
+    template <typename T> void write_dataset_nd(std::string name, int rank, hsize_t *dims, T *data,
+        hid_t memtype_id = -1, hid_t filetype_id = -1,
+        bool flag_parallel = true, bool flag_first_dim_parallel = true,
+        bool flag_hyperslab = true, bool flag_collective = true)
     {
-		// Get HDF5 data type of the array in memory
-		if (memtype_id == -1) {
-			throw std::runtime_error("Write data set called with void pointer but no type info passed.");
-		}
+#ifdef USEPARALLELHDF
+        MPI_Comm comm = mpi_comm_write;
+        MPI_Info info = MPI_INFO_NULL;
+#endif
+        hid_t dspace_id, dset_id, prop_id, memspace_id, ret;
+        vector<hsize_t> chunks(rank);
 
-		// Determine type of the dataset to create
-		if(filetype_id < 0)filetype_id = memtype_id;
+        // Get HDF5 data type of the array in memory
+        if (memtype_id == -1) memtype_id = hdf5_type(T{});
 
-		// Create the dataspace
-		hid_t dspace_id = H5Screate_simple(rank, dims, NULL);
+        // Determine type of the dataset to create
+        if(filetype_id < 0) filetype_id = memtype_id;
 
-		// Only chunk non-zero size datasets
-		int nonzero_size = 1;
-		for(int i=0; i<rank; i+=1)
-		if(dims[i]==0)nonzero_size = 0;
+#ifdef USEPARALLELHDF
+        vector<unsigned long long> mpi_hdf_dims(rank*NProcsWrite), mpi_hdf_dims_tot(rank), dims_single(rank), dims_offset(rank);
+        if (flag_parallel) {
+            //if parallel hdf5 get the full extent of the data
+            //this bit of code communicating information can probably be done elsewhere
+            //minimize number of mpi communications
+            for (auto i=0;i<rank;i++) dims_single[i]=dims[i];
+            MPI_Allgather(dims_single.data(), rank, MPI_UNSIGNED_LONG_LONG, mpi_hdf_dims.data(), rank, MPI_UNSIGNED_LONG_LONG, comm);
+            MPI_Allreduce(dims_single.data(), mpi_hdf_dims_tot.data(), rank, MPI_UNSIGNED_LONG_LONG, MPI_SUM, comm);
+            for (auto i=0;i<rank;i++) {
+                dims_offset[i] = 0;
+                if (flag_first_dim_parallel && i > 0) continue;
+                for (auto j=1;j<=ThisWriteTask;j++) {
+                    dims_offset[i] += mpi_hdf_dims[i*NProcs+j-1];
+                }
+            }
+            if (flag_first_dim_parallel && rank > 1) {
+                for (auto i=1; i<rank;i++) mpi_hdf_dims_tot[i] = dims[i];
+            }
+        }
+#endif
 
-		// Only chunk datasets where we would have >1 chunk
-		int large_dataset = 0;
-		for(int i=0; i<rank; i+=1)
-		if(dims[i] > HDFOUTPUTCHUNKSIZE)large_dataset = 1;
+        // Determine if going to compress data in chunks
+        // Only chunk non-zero size datasets
+        int nonzero_size = 1;
+        for(int i=0; i<rank; i++)
+        {
+#ifdef USEPARALLELHDF
+            if (flag_parallel) {
+                if(mpi_hdf_dims_tot[i]==0) nonzero_size = 0;
+            }
+            else {
+                if(dims[i]==0) nonzero_size = 0;
+            }
+#else
+            if(dims[i]==0) nonzero_size = 0;
+#endif
+        }
+        // Only chunk datasets where we would have >1 chunk
+        int large_dataset = 0;
+        for(int i=0; i<rank; i++)
+        {
+#ifdef USEPARALLELHDF
+            if (flag_parallel) {
+                if(mpi_hdf_dims_tot[i] > HDFOUTPUTCHUNKSIZE) large_dataset = 1;
+            }
+            else {
+                if(dims[i] > HDFOUTPUTCHUNKSIZE) large_dataset = 1;
+            }
+#else
+            if(dims[i] > HDFOUTPUTCHUNKSIZE) large_dataset = 1;
+#endif
+        }
+        if(nonzero_size && large_dataset)
+        {
+#ifdef USEPARALLELHDF
+            if (flag_parallel) {
+                for(auto i=0; i<rank; i++) chunks[i] = min((hsize_t) HDFOUTPUTCHUNKSIZE, mpi_hdf_dims_tot[i]);
+            }
+            else {
+                for(auto i=0; i<rank; i++) chunks[i] = min((hsize_t) HDFOUTPUTCHUNKSIZE, dims[i]);
+            }
+#else
+            for(auto i=0; i<rank; i++) chunks[i] = min((hsize_t) HDFOUTPUTCHUNKSIZE, dims[i]);
+#endif
+        }
 
-		// Dataset creation properties
-		hid_t prop_id = H5Pcreate(H5P_DATASET_CREATE);
-		if(nonzero_size && large_dataset)
-		{
-			hsize_t *chunks = new hsize_t[rank];
-			for(auto i=0; i<rank; i++) chunks[i] = min((hsize_t) HDFOUTPUTCHUNKSIZE, dims[i]);
-			H5Pset_layout(prop_id, H5D_CHUNKED);
-			H5Pset_chunk(prop_id, rank, chunks);
-			H5Pset_deflate(prop_id, HDFDEFLATE);
-			delete chunks;
-		}
+        // Create the dataspace
+#ifdef USEPARALLELHDF
+        if (flag_parallel) {
+            //then all threads create the same simple data space
+            //so the meta information is the same
+            if (flag_hyperslab) {
+                //allocate the space spanning the file
+                dspace_id = H5Screate_simple(rank, mpi_hdf_dims_tot.data(), NULL);
+                //allocate the memory space
+                //allocate the memory space
+                memspace_id = H5Screate_simple(rank, dims, NULL);
+            }
+            else {
+                dspace_id = H5Screate_simple(rank, dims, NULL);
+                memspace_id = dspace_id;
+            }
+        }
+        else {
+            dspace_id = H5Screate_simple(rank, dims, NULL);
+            memspace_id = dspace_id;
+        }
+#else
+        dspace_id = H5Screate_simple(rank, dims, NULL);
+        memspace_id = dspace_id;
+#endif
 
-		// Create the dataset
-		hid_t dset_id = H5Dcreate(file_id, name.c_str(), filetype_id, dspace_id,
-		                        H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-		if(dset_id < 0)io_error(string("Failed to create dataset: ")+name);
+        // Dataset creation properties
+        prop_id = H5P_DEFAULT;
+#ifdef USEHDFCOMPRESSOIN
+        // this defines compression
+        if(nonzero_size && large_dataset)
+        {
+            prop_id = H5Pcreate(H5P_DATASET_CREATE);
+            H5Pset_layout(prop_id, H5D_CHUNKED);
+            H5Pset_chunk(prop_id, rank, chunks.data());
+            H5Pset_deflate(prop_id, HDFDEFLATE);
+        }
+#endif
+        // Create the dataset
+        dset_id = H5Dcreate(file_id, name.c_str(), filetype_id, dspace_id,
+            H5P_DEFAULT, prop_id, H5P_DEFAULT);
+        if(dset_id < 0) io_error(string("Failed to create dataset: ")+name);
+        H5Pclose(prop_id);
 
-		// Write the data
-		if(H5Dwrite(dset_id, memtype_id, dspace_id, H5S_ALL, H5P_DEFAULT, data) < 0)
-		io_error(string("Failed to write dataset: ")+name);
+        prop_id = H5P_DEFAULT;
+#ifdef USEPARALLELHDF
+        if (flag_parallel) {
+            // set up the collective transfer properties list
+            prop_id = H5Pcreate(H5P_DATASET_XFER);
+            //if all tasks are participating in the writes
+            if (flag_collective) ret = H5Pset_dxpl_mpio(prop_id, H5FD_MPIO_COLLECTIVE);
+            else ret = H5Pset_dxpl_mpio(prop_id, H5FD_MPIO_INDEPENDENT);
+            if (flag_hyperslab) {
+                H5Sselect_hyperslab(dspace_id, H5S_SELECT_SET, dims_offset.data(), NULL, dims, NULL);
+                if (dims[0] == 0) {
+                    H5Sselect_none(dspace_id);
+                    H5Sselect_none(memspace_id);
+                }
 
-		// Clean up (note that dtype_id is NOT a new object so don't need to close it)
-		H5Sclose(dspace_id);
-		H5Dclose(dset_id);
-		H5Pclose(prop_id);
+            }
+            if (mpi_hdf_dims_tot[0] > 0) {
+                // Write the data
+                ret = H5Dwrite(dset_id, memtype_id, memspace_id, dspace_id, prop_id, data);
+                if (ret < 0) io_error(string("Failed to write dataset: ")+name);
+            }
+        }
+        else if (dims[0] > 0) 
+        {
+            // Write the data
+            ret = H5Dwrite(dset_id, memtype_id, memspace_id, dspace_id, prop_id, data);
+            if (ret < 0) io_error(string("Failed to write dataset: ")+name);
+        }
 
+#else 
+        // Write the data
+        if (dims[0] > 0) {
+            ret = H5Dwrite(dset_id, memtype_id, memspace_id, dspace_id, prop_id, data);
+            if (ret < 0) io_error(string("Failed to write dataset: ")+name);
+        }
+#endif
+
+        // Clean up (note that dtype_id is NOT a new object so don't need to close it)
+        H5Pclose(prop_id);
+#ifdef USEPARALLELHDF
+        if (flag_hyperslab && flag_parallel) H5Sclose(memspace_id);
+#endif
+        H5Sclose(dspace_id);
+        H5Dclose(dset_id);
+    }
+    void write_dataset_nd(std::string name, int rank, hsize_t *dims, void *data,
+        hid_t memtype_id = -1, hid_t filetype_id=-1,
+        bool flag_parallel = true, bool flag_first_dim_parallel = true,
+        bool flag_hyperslab = true, bool flag_collective = true)
+    {
+#ifdef USEPARALLELHDF
+        MPI_Comm comm = mpi_comm_write;
+        MPI_Info info = MPI_INFO_NULL;
+#endif
+        hid_t dspace_id, dset_id, prop_id, memspace_id, ret;
+        vector<hsize_t> chunks(rank);
+        // Get HDF5 data type of the array in memory
+        if (memtype_id == -1) {
+            throw std::runtime_error("Write data set called with void pointer but no type info passed.");
+        }
+        // Determine type of the dataset to create
+        if(filetype_id < 0) filetype_id = memtype_id;
+
+#ifdef USEPARALLELHDF
+        vector<unsigned long long> mpi_hdf_dims(rank*NProcsWrite), mpi_hdf_dims_tot(rank), dims_single(rank), dims_offset(rank);
+        //if parallel hdf5 get the full extent of the data
+        //this bit of code communicating information can probably be done elsewhere
+        //minimize number of mpi communications
+        if (flag_parallel) {
+            //if parallel hdf5 get the full extent of the data
+            //this bit of code communicating information can probably be done elsewhere
+            //minimize number of mpi communications
+            for (auto i=0;i<rank;i++) dims_single[i]=dims[i];
+            MPI_Allgather(dims_single.data(), rank, MPI_UNSIGNED_LONG_LONG, mpi_hdf_dims.data(), rank, MPI_UNSIGNED_LONG_LONG, comm);
+            MPI_Allreduce(dims_single.data(), mpi_hdf_dims_tot.data(), rank, MPI_UNSIGNED_LONG_LONG, MPI_SUM, comm);
+            for (auto i=0;i<rank;i++) {
+                dims_offset[i] = 0;
+                if (flag_first_dim_parallel && i > 0) continue;
+                for (auto j=1;j<=ThisWriteTask;j++) {
+                    dims_offset[i] += mpi_hdf_dims[i*NProcs+j-1];
+                }
+            }
+            if (flag_first_dim_parallel && rank > 1) {
+                for (auto i=1; i<rank;i++) mpi_hdf_dims_tot[i] = dims[i];
+            }
+        }
+#endif
+
+        // Determine if going to compress data in chunks
+        // Only chunk non-zero size datasets
+        int nonzero_size = 1;
+        for(int i=0; i<rank; i++)
+        {
+#ifdef USEPARALLELHDF
+            if (flag_parallel) {
+                if(mpi_hdf_dims_tot[i]==0) nonzero_size = 0;
+            }
+            else {
+                if(dims[i]==0) nonzero_size = 0;
+            }
+#else
+            if(dims[i]==0) nonzero_size = 0;
+#endif
+        }
+        // Only chunk datasets where we would have >1 chunk
+        int large_dataset = 0;
+        for(int i=0; i<rank; i++)
+        {
+#ifdef USEPARALLELHDF
+            if (flag_parallel) {
+                if(mpi_hdf_dims_tot[i] > HDFOUTPUTCHUNKSIZE) large_dataset = 1;
+            }
+            else {
+                if(dims[i] > HDFOUTPUTCHUNKSIZE) large_dataset = 1;
+            }
+#else
+            if(dims[i] > HDFOUTPUTCHUNKSIZE) large_dataset = 1;
+#endif
+        }
+        if(nonzero_size && large_dataset)
+        {
+#ifdef USEPARALLELHDF
+            if (flag_parallel) {
+                for(auto i=0; i<rank; i++) chunks[i] = min((hsize_t) HDFOUTPUTCHUNKSIZE, mpi_hdf_dims_tot[i]);
+            }
+            else {
+                for(auto i=0; i<rank; i++) chunks[i] = min((hsize_t) HDFOUTPUTCHUNKSIZE, dims[i]);
+            }
+#else
+            for(auto i=0; i<rank; i++) chunks[i] = min((hsize_t) HDFOUTPUTCHUNKSIZE, dims[i]);
+#endif
+        }
+
+        // Create the dataspace
+#ifdef USEPARALLELHDF
+        if (flag_parallel) {
+            //then all threads create the same simple data space
+            //so the meta information is the same
+            if (flag_hyperslab) {
+                //allocate the space spanning the file
+                dspace_id = H5Screate_simple(rank, mpi_hdf_dims_tot.data(), NULL);
+                //allocate the memory space
+                memspace_id = H5Screate_simple(rank, dims, NULL);
+            }
+            else {
+                dspace_id = H5Screate_simple(rank, dims, NULL);
+                memspace_id = dspace_id;
+            }
+        }
+        else {
+            dspace_id = H5Screate_simple(rank, dims, NULL);
+            memspace_id = dspace_id;
+        }
+#else
+        dspace_id = H5Screate_simple(rank, dims, NULL);
+        memspace_id = dspace_id;
+#endif
+
+        // Dataset creation properties
+        prop_id = H5P_DEFAULT;
+#ifdef USEHDFCOMPRESSOIN
+        // this defines compression
+        if(nonzero_size && large_dataset)
+        {
+            prop_id = H5Pcreate(H5P_DATASET_CREATE);
+            H5Pset_layout(prop_id, H5D_CHUNKED);
+            H5Pset_chunk(prop_id, rank, chunks.data());
+            H5Pset_deflate(prop_id, HDFDEFLATE);
+        }
+#endif
+
+        // Create the dataset
+        dset_id = H5Dcreate(file_id, name.c_str(), filetype_id, dspace_id,
+            H5P_DEFAULT, prop_id, H5P_DEFAULT);
+        if(dset_id < 0) io_error(string("Failed to create dataset: ")+name);
+        H5Pclose(prop_id);
+
+        prop_id = H5P_DEFAULT;
+
+#ifdef USEPARALLELHDF
+        if (flag_parallel) {
+            // set up the collective transfer properties list
+            prop_id = H5Pcreate(H5P_DATASET_XFER);
+            //if all tasks are participating in the writes
+            if (flag_collective) ret = H5Pset_dxpl_mpio(prop_id, H5FD_MPIO_COLLECTIVE);
+            else ret = H5Pset_dxpl_mpio(prop_id, H5FD_MPIO_INDEPENDENT);
+            if (flag_hyperslab) {
+                H5Sselect_hyperslab(dspace_id, H5S_SELECT_SET, dims_offset.data(), NULL, dims, NULL);
+                if (dims[0] == 0) {
+                    H5Sselect_none(dspace_id);
+                    H5Sselect_none(memspace_id);
+                }
+
+            }
+            if (mpi_hdf_dims_tot[0] > 0) {
+                // Write the data
+                ret = H5Dwrite(dset_id, memtype_id, memspace_id, dspace_id, prop_id, data);
+                if (ret < 0) io_error(string("Failed to write dataset: ")+name);
+            }
+        }
+        else if (dims[0] > 0) 
+        {
+            // Write the data
+            ret = H5Dwrite(dset_id, memtype_id, memspace_id, dspace_id, prop_id, data);
+            if (ret < 0) io_error(string("Failed to write dataset: ")+name);
+        }
+
+#else 
+        // Write the data
+        if (dims[0] > 0) {
+            ret = H5Dwrite(dset_id, memtype_id, memspace_id, dspace_id, prop_id, data);
+            if (ret < 0) io_error(string("Failed to write dataset: ")+name);
+        }
+#endif
+
+        // Clean up (note that dtype_id is NOT a new object so don't need to close it)
+        H5Pclose(prop_id);
+#ifdef USEPARALLELHDF
+        if (flag_hyperslab && flag_parallel) H5Sclose(memspace_id);
+#endif
+        H5Sclose(dspace_id);
+        H5Dclose(dset_id);
     }
 
-	/// write an attribute
+    /// write an attribute
     template <typename T> void write_attribute(std::string parent, std::string name, T data)
     {
-		// Get HDF5 data type of the value to write
-		hid_t dtype_id = hdf5_type(data);
+        // Get HDF5 data type of the value to write
+        hid_t dtype_id = hdf5_type(data);
 
-		// Open the parent object
-		hid_t parent_id = H5Oopen(file_id, parent.c_str(), H5P_DEFAULT);
-		if(parent_id < 0)io_error(string("Unable to open object to write attribute: ")+name);
+        // Open the parent object
+        hid_t parent_id = H5Oopen(file_id, parent.c_str(), H5P_DEFAULT);
+        if(parent_id < 0)io_error(string("Unable to open object to write attribute: ")+name);
 
-		// Create dataspace
-		hid_t dspace_id = H5Screate(H5S_SCALAR);
+        // Create dataspace
+        hid_t dspace_id = H5Screate(H5S_SCALAR);
 
-		// Create attribute
-		hid_t attr_id = H5Acreate(file_id, name.c_str(), dtype_id, dspace_id, H5P_DEFAULT, H5P_DEFAULT);
-		if(attr_id < 0)io_error(string("Unable to create attribute ")+name+string(" on object ")+parent);
+        // Create attribute
+        hid_t attr_id = H5Acreate(file_id, name.c_str(), dtype_id, dspace_id, H5P_DEFAULT, H5P_DEFAULT);
+        if(attr_id < 0)io_error(string("Unable to create attribute ")+name+string(" on object ")+parent);
 
-		// Write the attribute
-		if(H5Awrite(attr_id, dtype_id, &data) < 0)
-		io_error(string("Unable to write attribute ")+name+string(" on object ")+parent);
+        // Write the attribute
+        if(H5Awrite(attr_id, dtype_id, &data) < 0)
+        io_error(string("Unable to write attribute ")+name+string(" on object ")+parent);
 
-		// Clean up
-		H5Aclose(attr_id);
-		H5Sclose(dspace_id);
-		H5Oclose(parent_id);
+        // Clean up
+        H5Aclose(attr_id);
+        H5Sclose(dspace_id);
+        H5Oclose(parent_id);
     }
 };
 
@@ -600,7 +954,7 @@ struct HDF_Group_Names {
     string Header_name;
     string GASpart_name;
     string DMpart_name;
-	string EXTRADMpart_name;
+    string EXTRADMpart_name;
     string EXTRApart_name;
     string TRACERpart_name;
     string STARpart_name;
@@ -615,8 +969,8 @@ struct HDF_Group_Names {
             Header_name=string("Header");
             GASpart_name=string("PartType0");
             DMpart_name=string("PartType1");
-			EXTRADMpart_name=string("PartType2");
-			EXTRApart_name=string("PartType2");
+            EXTRADMpart_name=string("PartType2");
+            EXTRApart_name=string("PartType2");
             TRACERpart_name=string("PartType3");
             STARpart_name=string("PartType4");
             BHpart_name=string("PartType5");
@@ -626,7 +980,7 @@ struct HDF_Group_Names {
             Header_name=string("Header");
             GASpart_name=string("PartType0");
             DMpart_name=string("PartType1");
-			EXTRADMpart_name=string("PartType2");
+            EXTRADMpart_name=string("PartType2");
             EXTRApart_name=string("PartType2");
             TRACERpart_name=string("PartType3");
             STARpart_name=string("PartType4");
@@ -636,24 +990,24 @@ struct HDF_Group_Names {
 
         part_names[0]=GASpart_name;
         part_names[1]=DMpart_name;
-		#ifdef HIGHRES
+#ifdef HIGHRES
         part_names[2]=EXTRADMpart_name;
-		#else
-		part_names[2]=EXTRApart_name;
-		#endif
-		part_names[3]=TRACERpart_name;
+#else
+        part_names[2]=EXTRApart_name;
+#endif
+        part_names[3]=TRACERpart_name;
         part_names[4]=STARpart_name;
         part_names[5]=BHpart_name;
 
         names[0]=Header_name;
         names[1]=GASpart_name;
         names[2]=DMpart_name;
-		#ifdef HIGHRES
-		names[3]=EXTRADMpart_name;
-		#else
+#ifdef HIGHRES
+        names[3]=EXTRADMpart_name;
+#else
         names[3]=EXTRApart_name;
-		#endif
-		names[4]=TRACERpart_name;
+#endif
+        names[4]=TRACERpart_name;
         names[5]=STARpart_name;
         names[6]=BHpart_name;
     }
@@ -704,6 +1058,20 @@ struct HDF_Header {
             names[itemp++]=string("Cosmology/h");
             names[itemp++]=string("Cosmology/Cosmological run");
             break;
+          case HDFOLDSWIFTEAGLENAMES:
+            names[itemp++]=string("Header/BoxSize");
+            names[itemp++]=string("Header/MassTable");
+            names[itemp++]=string("Header/NumPart_ThisFile");
+            names[itemp++]=string("Header/NumPart_Total");
+            names[itemp++]=string("Header/NumPart_Total_HighWord");
+            names[itemp++]=string("Cosmology/Omega_m");
+            names[itemp++]=string("Cosmology/Omega_lambda");
+            names[itemp++]=string("Header/Redshift");
+            names[itemp++]=string("Header/Time");
+            names[itemp++]=string("Header/NumFilesPerSnapshot");
+            names[itemp++]=string("Cosmology/h");
+            names[itemp++]=string("Cosmology/Cosmological run");
+            break;
 
           default:
             names[itemp++]=string("Header/BoxSize");
@@ -736,16 +1104,35 @@ struct HDF_Part_Info {
         int itemp=0;
         //gas
         if (ptype==HDFGASTYPE) {
+
+            // Positions
             names[itemp++]=string("Coordinates");
+
+            // Velocities
             if(hdfnametype==HDFEAGLENAMES) names[itemp++]=string("Velocity");
             else names[itemp++]=string("Velocities");
+
+            // IDs
             names[itemp++]=string("ParticleIDs");
+
+            // Masses
             if(hdfnametype==HDFEAGLENAMES) names[itemp++]=string("Mass");
             else names[itemp++]=string("Masses");
-            names[itemp++]=string("Density");
-            names[itemp++]=string("InternalEnergy");
-            names[itemp++]=string("StarFormationRate");
-            //always place the metacallity at position 7 in naming array
+
+            // Density
+            if(hdfnametype==HDFSWIFTEAGLENAMES) names[itemp++]=string("Densities");
+            else names[itemp++]=string("Density");
+
+            // Internal energies
+            if(hdfnametype==HDFSWIFTEAGLENAMES) names[itemp++]=string("InternalEnergies");
+            else names[itemp++]=string("InternalEnergy");
+
+            // SFR
+            if(hdfnametype==HDFSWIFTEAGLENAMES) names[itemp++]=string("StarFormationRates");
+            else if(hdfnametype==HDFOLDSWIFTEAGLENAMES) names[itemp++]=string("SFR");
+            else names[itemp++]=string("StarFormationRate");
+
+            //Metallicity. Note always place at position 7 in naming array
             if (hdfnametype==HDFILLUSTISNAMES) {
                 propindex[HDFGASIMETAL]=itemp;
                 names[itemp++]=string("GFM_Metallicity");
@@ -802,38 +1189,72 @@ struct HDF_Part_Info {
                 names[itemp++]=string("Dust_Masses");
                 names[itemp++]=string("Dust_Metallicity");//11 metals stored in this data set
             }
-            else if (hdfnametype==HDFEAGLENAMES || hdfnametype==HDFSWIFTEAGLENAMES) {
+            else if (hdfnametype==HDFEAGLENAMES) {
                 propindex[HDFGASIMETAL]=itemp;
                 names[itemp++]=string("Metallicity");
             }
+            else if(hdfnametype==HDFSWIFTEAGLENAMES) {
+              propindex[HDFGASIMETAL]=itemp;
+              names[itemp++]=string("MetalMassFractions");
+            }
+            else if(hdfnametype==HDFOLDSWIFTEAGLENAMES) {
+              propindex[HDFGASIMETAL]=itemp;
+              names[itemp++]=string("Metallicity");
+            }
+
         }
         //dark matter
         if (ptype==HDFDMTYPE) {
+
+            // Positions
             names[itemp++]=string("Coordinates");
+
+            // Velocities
             if(hdfnametype==HDFEAGLENAMES) names[itemp++]=string("Velocity");
             else names[itemp++]=string("Velocities");
+
+            // IDs
             names[itemp++]=string("ParticleIDs");
-            if (hdfnametype==HDFSWIFTEAGLENAMES) {
+
+            // Masses
+            if (hdfnametype==HDFSWIFTEAGLENAMES || hdfnametype==HDFSIMBANAMES ||
+                hdfnametype==HDFMUFASANAMES || hdfnametype==HDFOLDSWIFTEAGLENAMES) {
                 names[itemp++]=string("Masses");
             }
+
+            // Potential
             if (hdfnametype==HDFSIMBANAMES||hdfnametype==HDFMUFASANAMES) {
-                names[itemp++]=string("Masses");
                 names[itemp++]=string("Potential");
             }
-            if (hdfnametype==HDFILLUSTISNAMES) {
+            else if (hdfnametype==HDFILLUSTISNAMES) {
                 names[itemp++]=string("Potential");
+            }
+
+            // Subfind properties
+            if (hdfnametype==HDFILLUSTISNAMES) {
                 names[itemp++]=string("SubfindDensity");
                 names[itemp++]=string("SubfindHsml");
                 names[itemp++]=string("SubfindVelDisp");
             }
         }
+
         //also dark matter particles
         if (ptype==HDFDM1TYPE ||ptype==HDFDM2TYPE) {
+
+            // Positions
             names[itemp++]=string("Coordinates");
+
+            // Velocities
             if(hdfnametype==HDFEAGLENAMES) names[itemp++]=string("Velocity");
             else names[itemp++]=string("Velocities");
+
+            // IDs
             names[itemp++]=string("ParticleIDs");
+
+            // Masses
             names[itemp++]=string("Masses");
+
+            // Potential
             if (hdfnametype==HDFSIMBANAMES||hdfnametype==HDFMUFASANAMES) {
                 names[itemp++]=string("Potential");
             }
@@ -844,12 +1265,21 @@ struct HDF_Part_Info {
             names[itemp++]=string("TracerID");
         }
         if (ptype==HDFSTARTYPE) {
+
+            // Positions
             names[itemp++]=string("Coordinates");
+
+            // Velocities
             if(hdfnametype==HDFEAGLENAMES) names[itemp++]=string("Velocity");
             else names[itemp++]=string("Velocities");
+
+            // IDs
             names[itemp++]=string("ParticleIDs");
+
+            // Masses
             if(hdfnametype==HDFEAGLENAMES) names[itemp++]=string("Mass");
             else names[itemp++]=string("Masses");
+
             //for stars assume star formation and metallicy are position 4, 5 in name array
             if (hdfnametype==HDFILLUSTISNAMES) {
                 propindex[HDFSTARIAGE]=itemp;
@@ -890,14 +1320,30 @@ struct HDF_Part_Info {
                 propindex[HDFSTARIMETAL]=itemp;
                 names[itemp++]=string("Metallicity");
             }
+            else if (hdfnametype==HDFSWIFTEAGLENAMES) {
+                propindex[HDFSTARIAGE]=itemp;
+                names[itemp++]=string("BirthScaleFactors");
+                propindex[HDFSTARIMETAL]=itemp;
+                names[itemp++]=string("MetalMassFractions");
+            }
         }
         if (ptype==HDFBHTYPE) {
+
+            // Positions
             names[itemp++]=string("Coordinates");
+
+            // Velocities
             if(hdfnametype==HDFEAGLENAMES) names[itemp++]=string("Velocity");
             else names[itemp++]=string("Velocities");
+
+            // IDs
             names[itemp++]=string("ParticleIDs");
+
+            // Masses
             if(hdfnametype==HDFEAGLENAMES) names[itemp++]=string("Mass");
+            if(hdfnametype==HDFSWIFTEAGLENAMES) names[itemp++]=string("DynamicalMasses");
             else names[itemp++]=string("Masses");
+
             if (hdfnametype==HDFILLUSTISNAMES) {
                 names[itemp++]=string("HostHaloMass");
                 names[itemp++]=string("Potential");
@@ -934,6 +1380,28 @@ struct HDF_Part_Info {
                 //names[itemp++]=string("StellarFormationTime");
                 //names[itemp++]=string("Metallicity");
             }
+            else if (hdfnametype==HDFSWIFTEAGLENAMES) {
+                propindex[HDFBHIAGE]=itemp;
+                names[itemp++]=string("FormationScaleFactors");
+                propindex[HDFBHIMETAL]=itemp;
+                names[itemp++]=string("MetalMasses");
+                propindex[HDFBHIMDOT]=itemp;
+                names[itemp++]=string("AccretionRates");
+
+                names[itemp++]=string("SubgridMasses");
+                names[itemp++]=string("ElementMasses");
+                names[itemp++]=string("MetalMassFromSNIa");
+                names[itemp++]=string("MetalMassFromSNII");
+                names[itemp++]=string("MetalMassFromAGB");
+                names[itemp++]=string("MassesFromSNIa");
+                names[itemp++]=string("MassesFromSNII");
+                names[itemp++]=string("MassesFromAGB");
+                names[itemp++]=string("IronMassFromSNIa");
+                names[itemp++]=string("GasDensities");
+                names[itemp++]=string("GasSoundSpeeds");
+                names[itemp++]=string("EnergyReservoirs");
+                names[itemp++]=string("TotalAccretedMasses");
+            }
         }
         nentries=itemp;
     }
@@ -944,41 +1412,41 @@ struct HDF_Part_Info {
 //@{
 inline void HDFSetUsedParticleTypes(Options &opt, int &nusetypes, int &nbusetypes, int usetypes[])
 {
-	nusetypes=0;
-	if (opt.partsearchtype==PSTALL) {
-		nusetypes=0;
+    nusetypes=0;
+    if (opt.partsearchtype==PSTALL) {
+        nusetypes=0;
         if (opt.iusegasparticles) usetypes[nusetypes++]=HDFGASTYPE;
-		if (opt.iusedmparticles) usetypes[nusetypes++]=HDFDMTYPE;
+        if (opt.iusedmparticles) usetypes[nusetypes++]=HDFDMTYPE;
         if (opt.iuseextradarkparticles) {
-			usetypes[nusetypes++]=HDFDM1TYPE;
-			if (opt.ihdfnameconvention!=HDFSWIFTEAGLENAMES)
-			{
-				usetypes[nusetypes++]=HDFDM2TYPE;
-			}
-		}
+            usetypes[nusetypes++]=HDFDM1TYPE;
+            if (opt.ihdfnameconvention!=HDFSWIFTEAGLENAMES)
+            {
+                usetypes[nusetypes++]=HDFDM2TYPE;
+            }
+        }
         if (opt.iusestarparticles) usetypes[nusetypes++]=HDFSTARTYPE;
         if (opt.iusesinkparticles) usetypes[nusetypes++]=HDFBHTYPE;
         if (opt.iusewindparticles) usetypes[nusetypes++]=HDFWINDTYPE;
         if (opt.iusetracerparticles) usetypes[nusetypes++]=HDFTRACERTYPE;
-	}
-	else if (opt.partsearchtype==PSTDARK) {
-		nusetypes=1;usetypes[0]=HDFDMTYPE;
-		if (opt.iuseextradarkparticles) {
-			usetypes[nusetypes++]=HDFDM1TYPE;
-			if (opt.ihdfnameconvention!=HDFSWIFTEAGLENAMES)
-			{
-				usetypes[nusetypes++]=HDFDM2TYPE;
-			}
-		}
-		if (opt.iBaryonSearch) {
-			nbusetypes=1;usetypes[nusetypes+nbusetypes++]=HDFGASTYPE;
-			if (opt.iusestarparticles) usetypes[nusetypes+nbusetypes++]=HDFSTARTYPE;
-			if (opt.iusesinkparticles) usetypes[nusetypes+nbusetypes++]=HDFBHTYPE;
-		}
-	}
-	else if (opt.partsearchtype==PSTGAS) {nusetypes=1;usetypes[0]=HDFGASTYPE;}
-	else if (opt.partsearchtype==PSTSTAR) {nusetypes=1;usetypes[0]=HDFSTARTYPE;}
-	else if (opt.partsearchtype==PSTBH) {nusetypes=1;usetypes[0]=HDFBHTYPE;}
+    }
+    else if (opt.partsearchtype==PSTDARK) {
+        nusetypes=1;usetypes[0]=HDFDMTYPE;
+        if (opt.iuseextradarkparticles) {
+            usetypes[nusetypes++]=HDFDM1TYPE;
+            if (opt.ihdfnameconvention!=HDFSWIFTEAGLENAMES)
+            {
+                usetypes[nusetypes++]=HDFDM2TYPE;
+            }
+        }
+        if (opt.iBaryonSearch) {
+            nbusetypes=1;usetypes[nusetypes+nbusetypes++]=HDFGASTYPE;
+            if (opt.iusestarparticles) usetypes[nusetypes+nbusetypes++]=HDFSTARTYPE;
+            if (opt.iusesinkparticles) usetypes[nusetypes+nbusetypes++]=HDFBHTYPE;
+        }
+    }
+    else if (opt.partsearchtype==PSTGAS) {nusetypes=1;usetypes[0]=HDFGASTYPE;}
+    else if (opt.partsearchtype==PSTSTAR) {nusetypes=1;usetypes[0]=HDFSTARTYPE;}
+    else if (opt.partsearchtype==PSTBH) {nusetypes=1;usetypes[0]=HDFBHTYPE;}
 }
 //@}
 
@@ -997,11 +1465,11 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
     }
 
     //H5File Fhdf;
-	hid_t Fhdf;
+    hid_t Fhdf;
     HDF_Group_Names hdf_gnames;
     //to store the groups, data sets and their associated data spaces
     //Attribute headerattribs;
-	hid_t headerattribs;
+    hid_t headerattribs;
     HDF_Header hdf_header_info = HDF_Header(opt.ihdfnameconvention);
     //buffers to load data
     string stringbuff, dataname;
@@ -1009,17 +1477,17 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
     int intbuff[NHDFTYPE];
     long long longbuff[NHDFTYPE];
     unsigned int uintbuff[NHDFTYPE];
-	vector<unsigned int> vuintbuff;
+    vector<unsigned int> vuintbuff;
     int j,k,ireaderror=0;
     Int_t nbodies=0;
     //DataSpace headerdataspace;
-	hid_t headerdataspace;
+    hid_t headerdataspace;
 
     //to determine types
     //IntType inttype;
     //StrType stringtype;
     int nusetypes,usetypes[NHDFTYPE],nbusetypes;
-	HDFSetUsedParticleTypes(opt,nusetypes,nbusetypes,usetypes);
+    HDFSetUsedParticleTypes(opt,nusetypes,nbusetypes,usetypes);
 
     //Try block to detect exceptions raised by any of the calls inside it
     //try
@@ -1030,90 +1498,86 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
 
         //Open the specified file and the specified dataset in the file.
         //Fhdf.openFile(buf, H5F_ACC_RDONLY);
-		Fhdf = H5Fopen(buf, H5F_ACC_RDONLY, H5P_DEFAULT);
+        Fhdf = H5Fopen(buf, H5F_ACC_RDONLY, H5P_DEFAULT);
         cout<<"Loading HDF header info in header group: "<<hdf_gnames.Header_name<<endl;
 
-        if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES) {
+        if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES) {
 
-          // Check if it is a SWIFT snapshot.
-          //headerattribs=get_attribute(Fhdf, "Header/Code");
-          //stringtype = headerattribs.getStrType();
-          //headerattribs.read(stringtype, stringbuff);
-		  dataname = string("Header/Code");
-		  stringbuff = read_attribute<string>(Fhdf, dataname);
+            // Check if it is a SWIFT snapshot.
+            //headerattribs=get_attribute(Fhdf, "Header/Code");
+            //stringtype = headerattribs.getStrType();
+            //headerattribs.read(stringtype, stringbuff);
+            dataname = string("Header/Code");
+            stringbuff = read_attribute<string>(Fhdf, dataname);
 
-          // Read SWIFT parameters
-          if(!swift_str.compare(stringbuff)) {
-			hdf_header_info.iscosmological=read_attribute<int>(Fhdf, hdf_header_info.names[hdf_header_info.IIsCosmological]);
-
-            if (!hdf_header_info.iscosmological && opt.icosmologicalin) {
-              cout<<"Error: cosmology is turned on in the config file but the snaphot provided is a non-cosmological run."<<endl;
+            // Read SWIFT parameters
+            if(!swift_str.compare(stringbuff)) {
+                hdf_header_info.iscosmological=read_attribute<int>(Fhdf, hdf_header_info.names[hdf_header_info.IIsCosmological]);
+                if (!hdf_header_info.iscosmological && opt.icosmologicalin) {
+                    cout<<"Error: cosmology is turned on in the config file but the snaphot provided is a non-cosmological run."<<endl;
 #ifdef USEMPI
-              MPI_Abort(MPI_COMM_WORLD, 8);
+                    MPI_Abort(MPI_COMM_WORLD, 8);
 #else
-              exit(0);
+                    exit(0);
 #endif
-
+                }
+                else if (hdf_header_info.iscosmological && !opt.icosmologicalin) {
+                    cout<<"Error: cosmology is turned off in the config file but the snaphot provided is a cosmological run."<<endl;
+#ifdef USEMPI
+                    MPI_Abort(MPI_COMM_WORLD, 8);
+#else
+                    exit(0);
+#endif
+                }
             }
-            else if (hdf_header_info.iscosmological && !opt.icosmologicalin) {
-              cout<<"Error: cosmology is turned off in the config file but the snaphot provided is a cosmological run."<<endl;
+            // If the code is not SWIFT
+            else {
+                cout<<"SWIFT EAGLE HDF5 naming convention chosen in config file but the snapshot was not produced by SWIFT. The string read was: "<<stringbuff<<endl;
 #ifdef USEMPI
-              MPI_Abort(MPI_COMM_WORLD, 8);
+                MPI_Abort(MPI_COMM_WORLD, 8);
 #else
-              exit(0);
+                exit(0);
 #endif
-
             }
-          }
-          // If the code is not SWIFT
-          else {
-            cout<<"SWIFT EAGLE HDF5 naming convention chosen in config file but the snapshot was not produced by SWIFT. The string read was: "<<stringbuff<<endl;
-#ifdef USEMPI
-            MPI_Abort(MPI_COMM_WORLD, 8);
-#else
-            exit(0);
-#endif
-          }
         }
 
-		vuintbuff=read_attribute_v<unsigned int>(Fhdf, hdf_header_info.names[hdf_header_info.INumTot]);
-		for (j=0;j<NHDFTYPE;j++) hdf_header_info.npartTotal[j]=vuintbuff[j];
-		vuintbuff=read_attribute_v<unsigned int>(Fhdf, hdf_header_info.names[hdf_header_info.INumTotHW]);
-		for (j=0;j<NHDFTYPE;j++) hdf_header_info.npartTotalHW[j]=vuintbuff[j];
+        vuintbuff=read_attribute_v<unsigned int>(Fhdf, hdf_header_info.names[hdf_header_info.INumTot]);
+        for (j=0;j<NHDFTYPE;j++) hdf_header_info.npartTotal[j]=vuintbuff[j];
+        vuintbuff=read_attribute_v<unsigned int>(Fhdf, hdf_header_info.names[hdf_header_info.INumTotHW]);
+        for (j=0;j<NHDFTYPE;j++) hdf_header_info.npartTotalHW[j]=vuintbuff[j];
 
-
-		if (opt.partsearchtype==PSTALL) {
-			if (opt.iusestarparticles && hdf_header_info.npartTotalHW[HDFSTARTYPE] == 0 && hdf_header_info.npartTotal[HDFSTARTYPE] == 0)
-			{
-				cerr<<"Warning: Configured to load star particles but none present"<<endl;
-				opt.iusestarparticles=0;
-			}
-			if (opt.iusesinkparticles && hdf_header_info.npartTotalHW[HDFBHTYPE] == 0 && hdf_header_info.npartTotal[HDFBHTYPE] == 0)
-			{
-				cerr<<"Warning: Configured to load black hole particles but none present"<<endl;
-				opt.iusesinkparticles=0;
-			}
-			if (opt.iusewindparticles && hdf_header_info.npartTotalHW[HDFWINDTYPE] == 0 && hdf_header_info.npartTotal[HDFWINDTYPE] == 0)
-			{
-				cerr<<"Warning: Configured to load wind particles but none present"<<endl;
-				opt.iusewindparticles=0;
-			}
-			if (opt.iusetracerparticles && hdf_header_info.npartTotalHW[HDFTRACERTYPE] == 0 && hdf_header_info.npartTotal[HDFTRACERTYPE] == 0)
-			{
-				cerr<<"Warning: Configured to load tracer particles but none present"<<endl;
-				opt.iusetracerparticles=0;
-			}
-			#ifdef HIGHRES
-			if (opt.iuseextradarkparticles && hdf_header_info.npartTotalHW[HDFDM1TYPE] == 0 && hdf_header_info.npartTotal[HDFDM1TYPE] == 0
-			&& hdf_header_info.npartTotalHW[HDFDM2TYPE] == 0 && hdf_header_info.npartTotal[HDFDM2TYPE] == 0)
-			{
-				cerr<<"Warning: Configured to load extra low res dark matter particles but none present"<<endl;
-				opt.iuseextradarkparticles=0;
-			}
-			#endif
-		}
+        if (opt.partsearchtype==PSTALL) {
+            if (opt.iusestarparticles && hdf_header_info.npartTotalHW[HDFSTARTYPE] == 0 && hdf_header_info.npartTotal[HDFSTARTYPE] == 0)
+            {
+                cerr<<"Warning: Configured to load star particles but none present"<<endl;
+                opt.iusestarparticles=0;
+            }
+            if (opt.iusesinkparticles && hdf_header_info.npartTotalHW[HDFBHTYPE] == 0 && hdf_header_info.npartTotal[HDFBHTYPE] == 0)
+            {
+                cerr<<"Warning: Configured to load black hole particles but none present"<<endl;
+                opt.iusesinkparticles=0;
+            }
+            if (opt.iusewindparticles && hdf_header_info.npartTotalHW[HDFWINDTYPE] == 0 && hdf_header_info.npartTotal[HDFWINDTYPE] == 0)
+            {
+                cerr<<"Warning: Configured to load wind particles but none present"<<endl;
+                opt.iusewindparticles=0;
+            }
+            if (opt.iusetracerparticles && hdf_header_info.npartTotalHW[HDFTRACERTYPE] == 0 && hdf_header_info.npartTotal[HDFTRACERTYPE] == 0)
+            {
+                cerr<<"Warning: Configured to load tracer particles but none present"<<endl;
+                opt.iusetracerparticles=0;
+            }
+#ifdef HIGHRES
+            if (opt.iuseextradarkparticles && hdf_header_info.npartTotalHW[HDFDM1TYPE] == 0 && hdf_header_info.npartTotal[HDFDM1TYPE] == 0
+                && hdf_header_info.npartTotalHW[HDFDM2TYPE] == 0 && hdf_header_info.npartTotal[HDFDM2TYPE] == 0)
+            {
+                cerr<<"Warning: Configured to load extra low res dark matter particles but none present"<<endl;
+                opt.iuseextradarkparticles=0;
+            }
+#endif
+        }
     }
-	/*
+    /*
     catch(GroupIException &error)
     {
         HDF5PrintError(error);
@@ -1189,8 +1653,8 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
       }
     }
     Fhdf.close();
-	*/
-	HDF5CloseFile(Fhdf);
+    */
+    HDF5CloseFile(Fhdf);
 
     for(j=0, nbodies=0; j<nusetypes; j++) {
         k=usetypes[j];
@@ -1199,7 +1663,8 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
     }
     return nbodies;
 
-}//@}
+}
+//@}
 
 
 
@@ -1218,11 +1683,11 @@ inline Int_t HDF_get_nfiles(char *fname, int ptype)
     }
 
     //H5File Fhdf;
-	hid_t Fhdf;
+    hid_t Fhdf;
     HDF_Group_Names hdf_gnames;
     //to store the groups, data sets and their associated data spaces
     //Attribute headerattribs;
-	hid_t headerattribs;
+    hid_t headerattribs;
     HDF_Header hdf_header_info;
     //buffers to load data
     int intbuff;
@@ -1240,11 +1705,11 @@ inline Int_t HDF_get_nfiles(char *fname, int ptype)
 
         //Open the specified file and the specified dataset in the file.
         //Fhdf.openFile(buf, H5F_ACC_RDONLY);
-		Fhdf = H5Fopen(buf, H5F_ACC_RDONLY, H5P_DEFAULT);
+        Fhdf = H5Fopen(buf, H5F_ACC_RDONLY, H5P_DEFAULT);
         //get header group
-		hdf_header_info.num_files = read_attribute<int>(Fhdf, hdf_header_info.names[hdf_header_info.INumFiles]);
+        hdf_header_info.num_files = read_attribute<int>(Fhdf, hdf_header_info.names[hdf_header_info.INumFiles]);
     }
-	/*
+    /*
     catch(GroupIException &error)
     {
         HDF5PrintError(error);
@@ -1273,8 +1738,8 @@ inline Int_t HDF_get_nfiles(char *fname, int ptype)
         ireaderror=1;
     }
     Fhdf.close();
-	*/
-	HDF5CloseFile(Fhdf);
+    */
+    HDF5CloseFile(Fhdf);
 
     return nfiles = hdf_header_info.num_files;
 

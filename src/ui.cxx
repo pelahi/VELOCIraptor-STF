@@ -11,6 +11,9 @@ void GetArgs(int argc, char *argv[], Options &opt)
 #ifndef USEMPI
     int ThisTask =0, NProcs =1;
 #endif
+#if defined(USEMPI) && defined(USEPARALLELHDF)
+    opt.mpinprocswritesize=NProcs;
+#endif
     int option;
     int NumArgs = 0;
     int configflag=0;
@@ -461,8 +464,11 @@ void GetParamFile(Options &opt)
                         opt.halocorenumfaciter = atof(vbuff);
                     else if (strcmp(tbuff, "Halo_core_phase_significance")==0)
                         opt.halocorephasedistsig = atof(vbuff);
-                    else if (strcmp(tbuff, "Halo_core_phase_merge_dist")==0)
+                    //cleaning up substructures by merging if phase distance is small
+                    else if (strcmp(tbuff, "Structure_phase_merge_dist")==0)
                         opt.coresubmergemindist = atof(vbuff);
+                    else if (strcmp(tbuff, "Apply_phase_merge_to_host")==0)
+                        opt.icoresubmergewithbg = atoi(vbuff);
 
                     //for changing factors used in iterative search
                     else if (strcmp(tbuff, "Iterative_threshold_factor")==0)
@@ -509,6 +515,8 @@ void GetParamFile(Options &opt)
                         opt.Omega_Lambda = atof(vbuff);
                     else if (strcmp(tbuff, "Omega_DE")==0)
                         opt.Omega_de = atof(vbuff);
+                    else if (strcmp(tbuff, "Omega_k")==0)
+                        opt.Omega_k = atof(vbuff);
                     else if (strcmp(tbuff, "Omega_cdm")==0)
                         opt.Omega_cdm= atof(vbuff);
                     else if (strcmp(tbuff, "Omega_b")==0)
@@ -668,11 +676,103 @@ void GetParamFile(Options &opt)
                     //mpi memory related
                     else if (strcmp(tbuff, "MPI_part_allocation_fac")==0)
                         opt.mpipartfac = atof(vbuff);
+                    else if (strcmp(tbuff, "MPI_number_of_tasks_per_write")==0)
+                        opt.mpinprocswritesize = atoi(vbuff);
                     ///OpenMP related
                     else if (strcmp(tbuff, "OMP_run_fof")==0)
                         opt.iopenmpfof = atoi(vbuff);
                     else if (strcmp(tbuff, "OMP_fof_region_size")==0)
                         opt.openmpfofsize = atoi(vbuff);
+                    else if (strcmp(tbuff, "Gas_internal_property_names")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            opt.gas_internalprop_names.push_back(token);
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                    }
+                    else if (strcmp(tbuff, "Star_internal_property_names")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            opt.star_internalprop_names.push_back(token);
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                    }
+                    else if (strcmp(tbuff, "BH_internal_property_names")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            opt.bh_internalprop_names.push_back(token);
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                    }
+                    else if (strcmp(tbuff, "Extra_DM_internal_property_names")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            opt.extra_dm_internalprop_names.push_back(token);
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                    }
+                    else if (strcmp(tbuff, "Gas_chemistry_names")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            opt.gas_chem_names.push_back(token);
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                    }
+                    else if (strcmp(tbuff, "Star_chemistry_names")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            opt.star_chem_names.push_back(token);
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                    }
+                    else if (strcmp(tbuff, "BH_chemistry_names")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            opt.bh_chem_names.push_back(token);
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                    }
+                    else if (strcmp(tbuff, "Gas_chemistry_production_names")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            opt.gas_chem_names.push_back(token);
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                    }
+                    else if (strcmp(tbuff, "Star_chemistry_production_names")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            opt.star_chem_names.push_back(token);
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                    }
+                    else if (strcmp(tbuff, "BH_chemistry_production_names")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            opt.bh_chem_names.push_back(token);
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                    }
 
 
                     //output related
@@ -690,6 +790,8 @@ void GetParamFile(Options &opt)
                         opt.iSortByBindingEnergy = atoi(vbuff);
                     else if (strcmp(tbuff, "SUBFIND_like_output")==0)
                         opt.isubfindoutput = atoi(vbuff);
+                    else if (strcmp(tbuff, "No_particle_ID_list_output")==0)
+                        opt.inoidoutput = atoi(vbuff);
 
                     //gadget io related to extra info for sph, stars, bhs,
                     else if (strcmp(tbuff, "NSPH_extra_blocks")==0)
@@ -831,6 +933,18 @@ inline void ConfigCheck(Options &opt)
     }
     else if (opt.mpipartfac>1){
         errormessage("WARNING: MPI Particle allocation factor is high (>1).");
+    }
+    if (opt.mpinprocswritesize<1){
+        #ifdef USEPARALLELHDF
+        errormessage("WARNING: Number of MPI task writing collectively < 1. Setting to 1 .");
+        opt.mpinprocswritesize = 1;
+        #endif
+    }
+    if (opt.mpinprocswritesize>NProcs){
+        #ifdef USEPARALLELHDF
+        errormessage("WARNING: Number of MPI task writing collectively > NProcs. Setting to NProcs.");
+        opt.mpinprocswritesize = NProcs;
+        #endif
     }
 #endif
 

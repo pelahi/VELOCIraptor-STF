@@ -103,6 +103,10 @@ void ReadData(Options &opt, vector<Particle> &Part, const Int_t nbodies, Particl
 //Adjust particle data to appropriate units
 void AdjustHydroQuantities(Options &opt, vector<Particle> &Part, const Int_t nbodies) {
     #ifdef GASON
+    for (auto &p:Part) {
+        if (p.GetType()!=GASTYPE) continue;
+        p.SetU(p.GetU()*opt.internalenergyinputconversion);
+    }
     #ifdef STARON
     if (opt.metallicityinputconversion!=1.0) {
         for (auto &p:Part) {
@@ -376,19 +380,21 @@ void WritePGList(Options &opt, const Int_t ngroups, const Int_t ng, Int_t *numin
 
 void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int_t **pglist, vector<Particle> &Part, Int_t nadditional){
     fstream Fout,Fout2,Fout3;
-    char fname[500];
-    char fname2[500];
-    char fname3[500];
-    unsigned long noffset=0,ngtot=0,nids=0,nidstot,nuids=0,nuidstot,ng=0;
+    string fname, fname2, fname3;
+    ostringstream os;
+    unsigned long long noffset=0,ngtot=0,nids=0,nidstot=0,nuids=0,nuidstot=0, ng=0, nwritecommtot=0, nuwritecommtot=0;
     Int_t *offset;
+#ifdef USEMPI
+    MPIBuildWriteComm(opt);
+#endif
 #ifdef USEHDF
-    // H5File Fhdf,Fhdf3;
-    // H5std_string datasetname;
-    // DataSpace dataspace;
-    // DataSet dataset;
-    // DSetCreatPropList hdfdatasetproplist;
     H5OutputFile Fhdf, Fhdf3;
     int itemp=0;
+    int ival;
+#if defined(USEMPI) && defined(USEPARALLELHDF)
+    vector<Int_t> mpi_ngoffset(NProcs);
+    Int_t ngoffset;
+#endif
 #endif
 #ifdef USEADIOS
     int adios_err;
@@ -406,22 +412,35 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     int ThisTask=0,NProcs=1;
 #endif
 
+    os << opt.outname << ".catalog_groups";
 #ifdef USEMPI
-    sprintf(fname,"%s.catalog_groups.%d",opt.outname,ThisTask);
+    if (opt.ibinaryout==OUTHDF) {
+#ifdef USEPARALLELHDF
+        os<<"."<<ThisWriteComm;
 #else
-    sprintf(fname,"%s.catalog_groups",opt.outname);
+        os<<"."<<ThisTask;
 #endif
+    }
+    else {
+        os<<"."<<ThisTask;
+    }
+#endif
+    fname = os.str();
 
     cout<<"saving group catalog to "<<fname<<endl;
     if (opt.ibinaryout==OUTBINARY) Fout.open(fname,ios::out|ios::binary);
 #ifdef USEHDF
-        //create file
-        else if (opt.ibinaryout==OUTHDF) {
-        //Fhdf=H5File(fname,H5F_ACC_TRUNC);
-        //Fhdf.H5Fcreate(fname,H5F_ACC_TRUNC,H5P_DEFAULT,H5P_DEFAULT);
-        //Fhdf=HDF5OpenFile(string(fname),H5F_ACC_TRUNC);
-        Fhdf.create(string(fname),H5F_ACC_TRUNC);
+#ifdef USEPARALLELHDF
+    else if (opt.ibinaryout==OUTHDF) {
+        //if parallel then open file in serial so task 0 writes header
+        Fhdf.create(string(fname),H5F_ACC_TRUNC, 0, false);
     }
+#else
+    //create file
+    else if (opt.ibinaryout==OUTHDF) {
+        Fhdf.create(string(fname));
+    }
+#endif
 #endif
 #ifdef USEADIOS
     else if (opt.ibinaryout==OUTADIOS) {
@@ -446,6 +465,22 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     }
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
+#ifdef USEPARALLELHDF
+        MPI_Allreduce(&ng, &nwritecommtot, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, mpi_comm_write);
+        if (ThisWriteTask==0) {
+            Fhdf.write_dataset(datagroupnames.group[itemp++], 1, &ThisWriteComm, -1, -1, false);
+            Fhdf.write_dataset(datagroupnames.group[itemp++], 1, &NWriteComms, -1, -1, false);
+            Fhdf.write_dataset(datagroupnames.group[itemp++], 1, &nwritecommtot, -1, -1, false);
+            Fhdf.write_dataset(datagroupnames.group[itemp++], 1, &ngtot, -1, -1, false);
+        }
+        else {
+            itemp=4;
+        }
+        Fhdf.close();
+        MPI_Barrier(MPI_COMM_WORLD);
+        //reopen for parallel write
+        Fhdf.append(string(fname));
+#else
         itemp=0;
         Fhdf.write_dataset(datagroupnames.group[itemp], 1, &ThisTask);
         itemp++;
@@ -455,6 +490,7 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
         itemp++;
         Fhdf.write_dataset(datagroupnames.group[itemp], 1, &ngtot);
         itemp++;
+#endif
     }
 #endif
 #ifdef USEADIOS
@@ -535,6 +571,15 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     else if (opt.ibinaryout==OUTHDF) {
         unsigned int *data=new unsigned int[ng];
         for (Int_t i=1;i<=ng;i++) data[i-1]=offset[i];
+#ifdef USEPARALLELHDF
+        nids = 0; for (Int_t i=1; i<=ng; i++) nids+=pglist[i][numingroup[i]];
+        MPI_Allgather(&nids, 1, MPI_Int_t, mpi_ngoffset.data(), 1, MPI_Int_t, mpi_comm_write);
+        if (ThisWriteTask > 0)
+        {
+            ngoffset = 0; for (auto itask = 0; itask < ThisWriteTask; itask++) ngoffset += mpi_ngoffset[itask];
+            for (Int_t i=1; i<=ng; i++) data[i-1] += ngoffset;
+        }
+#endif
         Fhdf.write_dataset(datagroupnames.group[itemp], ng, data);
         itemp++;
         delete[] data;
@@ -559,7 +604,16 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
         unsigned int *data=new unsigned int[ng];
-        for (Int_t i=1;i<=ng;i++) data[i-1]=numingroup[i];
+        for (Int_t i=1;i<=ng;i++) data[i-1]=offset[i];
+#ifdef USEPARALLELHDF
+        nuids = 0; for (Int_t i=1; i<=ng; i++) nuids+=numingroup[i]-pglist[i][numingroup[i]];
+        MPI_Allgather(&nuids, 1, MPI_Int_t, mpi_ngoffset.data(), 1, MPI_Int_t, mpi_comm_write);
+        if (ThisWriteTask > 0)
+        {
+            ngoffset = 0; for (auto itask = 0; itask < ThisWriteTask; itask++) ngoffset += mpi_ngoffset[itask];
+            for (Int_t i=1; i<=ng; i++) data[i-1] += ngoffset;
+        }
+#endif
         Fhdf.write_dataset(datagroupnames.group[itemp], ng, data);
         itemp++;
         delete[] data;
@@ -588,13 +642,37 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
 #endif
 
     //now write pid files
+    os.str(string());
+    os <<opt.outname<< ".catalog_particles";
 #ifdef USEMPI
-    sprintf(fname,"%s.catalog_particles.%d",opt.outname,ThisTask);
-    sprintf(fname3,"%s.catalog_particles.unbound.%d",opt.outname,ThisTask);
+    if (opt.ibinaryout==OUTHDF) {
+#ifdef USEPARALLELHDF
+        os<<"."<<ThisWriteComm;
 #else
-    sprintf(fname,"%s.catalog_particles",opt.outname);
-    sprintf(fname3,"%s.catalog_particles.unbound",opt.outname);
+        os<<"."<<ThisTask;
 #endif
+    }
+    else {
+        os<<"."<<ThisTask;
+    }
+#endif
+    fname = os.str();
+    os.str(string());
+    os <<opt.outname<< ".catalog_particles.unbound";
+#ifdef USEMPI
+    if (opt.ibinaryout==OUTHDF) {
+#ifdef USEPARALLELHDF
+        os<<"."<<ThisWriteComm;
+#else
+        os<<"."<<ThisTask;
+#endif
+    }
+    else {
+        os<<"."<<ThisTask;
+    }
+#endif
+    fname3 = os.str();
+
     cout<<"saving particle catalog to "<<fname<<endl;
 
     if (opt.ibinaryout==OUTBINARY) {
@@ -603,10 +681,13 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     }
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
-        //Fhdf=H5File(fname,H5F_ACC_TRUNC);
-        //Fhdf3=H5File(fname3,H5F_ACC_TRUNC);
-        Fhdf.create(string(fname),H5F_ACC_TRUNC);
-        Fhdf3.create(string(fname3),H5F_ACC_TRUNC);
+#ifdef USEPARALLELHDF
+        Fhdf.create(string(fname),H5F_ACC_TRUNC, 0, false);
+        Fhdf3.create(string(fname3),H5F_ACC_TRUNC, 0, false);
+#else
+        Fhdf.create(string(fname));
+        Fhdf3.create(string(fname3));
+#endif
     }
 #endif
 #ifdef USEADIOS
@@ -622,10 +703,11 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
 
     //see above regarding unbound particle
     //for (Int_t i=1;i<=ngroups;i++) nids+=numingroup[i];
+    nids = nuids = 0;
     for (Int_t i=1;i<=ngroups;i++) {nids+=pglist[i][numingroup[i]];nuids+=numingroup[i]-pglist[i][numingroup[i]];}
 #ifdef USEMPI
-    MPI_Allreduce(&nids, &nidstot, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
-    MPI_Allreduce(&nuids, &nuidstot, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(&nids, &nidstot, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(&nuids, &nuidstot, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
 #else
     nidstot=nids;
     nuidstot=nuids;
@@ -645,6 +727,34 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     }
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
+#ifdef USEPARALLELHDF
+        MPI_Allreduce(&nids, &nwritecommtot, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, mpi_comm_write);
+        MPI_Allreduce(&nuids, &nuwritecommtot, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, mpi_comm_write);
+        if (ThisWriteTask == 0) {
+            itemp=0;
+            Fhdf.write_dataset(datagroupnames.part[itemp], 1, &ThisWriteComm, -1, -1, false);
+            Fhdf3.write_dataset(datagroupnames.part[itemp], 1, &ThisWriteComm, -1, -1, false);
+            itemp++;
+            Fhdf.write_dataset(datagroupnames.part[itemp], 1, &NWriteComms, -1, -1, false);
+            Fhdf3.write_dataset(datagroupnames.part[itemp], 1, &NWriteComms, -1, -1, false);
+            itemp++;
+            Fhdf.write_dataset(datagroupnames.part[itemp], 1, &nwritecommtot, -1, -1, false);
+            Fhdf3.write_dataset(datagroupnames.part[itemp], 1, &nuwritecommtot, -1, -1, false);
+            itemp++;
+            Fhdf.write_dataset(datagroupnames.part[itemp], 1, &nidstot, -1, -1, false);
+            Fhdf3.write_dataset(datagroupnames.part[itemp], 1, &nuidstot, -1, -1, false);
+            itemp++;
+        }
+        else {
+            itemp=4;
+        }
+        Fhdf.close();
+        Fhdf3.close();
+        MPI_Barrier(MPI_COMM_WORLD);
+        //reopen for parallel write
+        Fhdf.append(string(fname));
+        Fhdf3.append(string(fname3));
+#else
         itemp=0;
         Fhdf.write_dataset(datagroupnames.part[itemp], 1, &ThisTask);
         Fhdf3.write_dataset(datagroupnames.part[itemp], 1, &ThisTask);
@@ -658,6 +768,8 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
         Fhdf.write_dataset(datagroupnames.part[itemp], 1, &nidstot);
         Fhdf3.write_dataset(datagroupnames.part[itemp], 1, &nuidstot);
         itemp++;
+#endif
+
     }
 #endif
 #ifdef USEADIOS
@@ -789,45 +901,53 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
 #endif
 
 #ifdef USEMPI
-    MPI_Barrier(MPI_COMM_WORLD);
+    MPIBuildWriteComm(opt);
 #endif
 }
 
 ///if particles are separately searched (i.e. \ref Options.iBaryonSearch is set) then produce list of particle types
 void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, Int_t **pglist, vector<Particle> &Part){
     fstream Fout,Fout2;
-    char fname[2000];
-    char fname2[2000];
-    Int_t noffset=0,ngtot=0,nids=0,nidstot,nuids=0,nuidstot=0;
+    string fname, fname2;
+    ostringstream os, os2;
+    unsigned long long noffset=0,ngtot=0,nids=0,nidstot,nuids=0,nuidstot=0, nwritecommtot=0, nuwritecommtot=0;
     Int_t *offset;
     int *typeval;
 
+#ifdef USEMPI
+    MPIBuildWriteComm(opt);
+#endif
 #ifdef USEHDF
-    // H5File Fhdf,Fhdf2;
-    // H5std_string datasetname;
-    // DataSpace dataspace;
-    // DataSet dataset;
-    // DSetCreatPropList hdfdatasetproplist;
-    // hsize_t *dims,*chunk_dims;
-    // hsize_t rank;
     H5OutputFile Fhdf,Fhdf2;
     int itemp;
+    int ival;
 #endif
 #if defined(USEHDF)||defined(USEADIOS)
     DataGroupNames datagroupnames;
 #endif
-
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
 #endif
 
+    os << opt.outname << ".catalog_parttypes";
+    os2 << opt.outname << ".catalog_parttypes.unbound";
 #ifdef USEMPI
-    sprintf(fname,"%s.catalog_parttypes.%d",opt.outname,ThisTask);
-    sprintf(fname2,"%s.catalog_parttypes.unbound.%d",opt.outname,ThisTask);
+    if (opt.ibinaryout==OUTHDF) {
+#ifdef USEPARALLELHDF
+        os<<"."<<ThisWriteComm;
+        os2 << "." << ThisWriteComm;
 #else
-    sprintf(fname,"%s.catalog_parttypes",opt.outname);
-    sprintf(fname2,"%s.catalog_parttypes.unbound",opt.outname);
+        os<<"."<<ThisTask;
+        os2 << "." << ThisTask;
 #endif
+    }
+    else {
+        os<<"."<<ThisTask;
+        os2 << "." << ThisTask;
+    }
+#endif
+    fname = os.str();
+    fname2 = os2.str();
     cout<<"saving particle type info to "<<fname<<endl;
 
 
@@ -837,12 +957,14 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
     }
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
+#ifdef USEPARALLELHDF
+        Fhdf.create(string(fname),H5F_ACC_TRUNC, 0, false);
+        Fhdf2.create(string(fname2),H5F_ACC_TRUNC, 0, false);
+#else
         //create file
-        // Fhdf=H5File(fname,H5F_ACC_TRUNC);
-        // //Fhdf.H5Fcreate(fname,H5F_ACC_TRUNC,H5P_DEFAULT,H5P_DEFAULT);
-        // Fhdf2=H5File(fname2,H5F_ACC_TRUNC);
-        Fhdf.create(string(fname),H5F_ACC_TRUNC);
-        Fhdf2.create(string(fname2),H5F_ACC_TRUNC);
+        Fhdf.create(string(fname));
+        Fhdf2.create(string(fname2));
+#endif
     }
 #endif
     else {
@@ -852,13 +974,8 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
 
     for (Int_t i=1;i<=ngroups;i++) {nids+=pglist[i][numingroup[i]];nuids+=numingroup[i]-pglist[i][numingroup[i]];}
 #ifdef USEMPI
-#ifdef LONGINT
-    MPI_Allreduce(&nids, &nidstot, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
-    MPI_Allreduce(&nuids, &nuidstot, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
-#else
-    MPI_Allreduce(&nids, &nidstot, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-    MPI_Allreduce(&nuids, &nuidstot, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-#endif
+    MPI_Allreduce(&nids, &nidstot, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(&nuids, &nuidstot, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
 #else
     nidstot=nids;
     nuidstot=nuids;
@@ -878,6 +995,34 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
     }
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
+#ifdef USEPARALLELHDF
+        MPI_Allreduce(&nids, &nwritecommtot, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, mpi_comm_write);
+        MPI_Allreduce(&nuids, &nuwritecommtot, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, mpi_comm_write);
+        if (ThisWriteTask == 0) {
+            itemp=0;
+            Fhdf.write_dataset(datagroupnames.types[itemp], 1, &ThisWriteComm, -1, -1, false);
+            Fhdf2.write_dataset(datagroupnames.types[itemp], 1, &ThisWriteComm, -1, -1, false);
+            itemp++;
+            Fhdf.write_dataset(datagroupnames.types[itemp], 1, &NWriteComms, -1, -1, false);
+            Fhdf2.write_dataset(datagroupnames.types[itemp], 1, &NWriteComms, -1, -1, false);
+            itemp++;
+            Fhdf.write_dataset(datagroupnames.types[itemp], 1, &nwritecommtot, -1, -1, false);
+            Fhdf2.write_dataset(datagroupnames.types[itemp], 1, &nuwritecommtot, -1, -1, false);
+            itemp++;
+            Fhdf.write_dataset(datagroupnames.types[itemp], 1, &nidstot, -1, -1, false);
+            Fhdf2.write_dataset(datagroupnames.types[itemp], 1, &nuidstot, -1, -1, false);
+            itemp++;
+        }
+        else {
+            itemp=4;
+        }
+        Fhdf.close();
+        Fhdf2.close();
+        MPI_Barrier(MPI_COMM_WORLD);
+        //reopen for parallel write
+        Fhdf.append(string(fname));
+        Fhdf2.append(string(fname2));
+#else
         itemp=0;
         Fhdf.write_dataset(datagroupnames.types[itemp], 1, &ThisTask);
         Fhdf2.write_dataset(datagroupnames.types[itemp], 1, &ThisTask);
@@ -891,6 +1036,7 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
         Fhdf.write_dataset(datagroupnames.types[itemp], 1, &nidstot);
         Fhdf2.write_dataset(datagroupnames.types[itemp], 1, &nuidstot);
         itemp++;
+#endif
     }
 #endif
     else {
@@ -944,7 +1090,7 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
 #endif
 
 #ifdef USEMPI
-    MPI_Barrier(MPI_COMM_WORLD);
+    MPIBuildWriteComm(opt);
 #endif
 }
 
@@ -954,23 +1100,25 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
 ///to store all ids and then copying info from the array of vectors into it.
 void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids, vector<int> *SOtypes){
     fstream Fout;
-    char fname[500];
-    unsigned long ng,noffset=0,ngtot=0,nSOids=0,nSOidstot=0;
+    string fname;
+    ostringstream os;
+    unsigned long ng,noffset=0,ngtot=0,nSOids=0,nSOidstot=0, nwritecommtot=0, nSOwritecommtot=0;
     unsigned long *offset;
     long long *idval;
     int *typeval;
     Int_t *numingroup;
 
+#ifdef USEMPI
+    MPIBuildWriteComm(opt);
+#endif
 #ifdef USEHDF
-    // H5File Fhdf;
-    // H5std_string datasetname;
-    // DataSpace dataspace;
-    // DataSet dataset;
-    // DSetCreatPropList hdfdatasetproplist;
-    // hsize_t *dims,*chunk_dims;
-    // hsize_t rank;
     H5OutputFile Fhdf;
     int itemp=0;
+    int ival;
+#if defined(USEMPI) && defined(USEPARALLELHDF)
+    vector<Int_t> mpi_offset(NProcs);
+    Int_t nSOidoffset;
+#endif
 #endif
 #ifdef USEADIOS
     int adios_err;
@@ -1001,19 +1149,31 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids, ve
     nSOidstot=nSOids;
 #endif
 
+    os << opt.outname <<".catalog_SOlist";
 #ifdef USEMPI
-    sprintf(fname,"%s.catalog_SOlist.%d",opt.outname,ThisTask);
+    if (opt.ibinaryout==OUTHDF) {
+#ifdef USEPARALLELHDF
+        os<<"."<<ThisWriteComm;
 #else
-    sprintf(fname,"%s.catalog_SOlist",opt.outname);
+        os<<"."<<ThisTask;
 #endif
+    }
+    else {
+        os<<"."<<ThisTask;
+    }
+#endif
+    fname = os.str();
 
     if (opt.iverbose) cout<<"saving SO particle lists to "<<fname<<endl;
     if (opt.ibinaryout==OUTBINARY) Fout.open(fname,ios::out|ios::binary);
 #ifdef USEHDF
     //create file
     else if (opt.ibinaryout==OUTHDF) {
-        // Fhdf=H5File(fname,H5F_ACC_TRUNC);
-        Fhdf.create(string(fname),H5F_ACC_TRUNC);
+#ifdef USEPARALLELHDF
+        Fhdf.create(string(fname),H5F_ACC_TRUNC, 0, false);
+#else
+        Fhdf.create(string(fname));
+#endif
     }
 #endif
 #ifdef USEADIOS
@@ -1035,19 +1195,34 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids, ve
     }
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
+#ifdef USEPARALLELHDF
+        MPI_Allreduce(&ng, &nwritecommtot, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, mpi_comm_write);
+        MPI_Allreduce(&nSOids, &nSOwritecommtot, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, mpi_comm_write);
+        if (ThisWriteTask == 0) {
+            itemp=0;
+            Fhdf.write_dataset(datagroupnames.SO[itemp++], 1, &ThisWriteComm, -1, -1, false);
+            Fhdf.write_dataset(datagroupnames.SO[itemp++], 1, &NWriteComms, -1, -1, false);
+            Fhdf.write_dataset(datagroupnames.SO[itemp++], 1, &nwritecommtot, -1, -1, false);
+            Fhdf.write_dataset(datagroupnames.SO[itemp++], 1, &ngtot, -1, -1, false);
+            Fhdf.write_dataset(datagroupnames.SO[itemp++], 1, &nSOwritecommtot, -1, -1, false);
+            Fhdf.write_dataset(datagroupnames.SO[itemp++], 1, &nSOidstot, -1, -1, false);
+        }
+        else {
+            itemp=6;
+        }
+        Fhdf.close();
+        MPI_Barrier(MPI_COMM_WORLD);
+        //reopen for parallel write
+        Fhdf.append(string(fname));
+#else
         itemp=0;
-        Fhdf.write_dataset(datagroupnames.SO[itemp], 1, &ThisTask);
-        itemp++;
-        Fhdf.write_dataset(datagroupnames.SO[itemp], 1, &NProcs);
-        itemp++;
-        Fhdf.write_dataset(datagroupnames.SO[itemp], 1, &ng);
-        itemp++;
-        Fhdf.write_dataset(datagroupnames.SO[itemp], 1, &ngtot);
-        itemp++;
-        Fhdf.write_dataset(datagroupnames.SO[itemp], 1, &nSOids);
-        itemp++;
-        Fhdf.write_dataset(datagroupnames.SO[itemp], 1, &nSOidstot);
-        itemp++;
+        Fhdf.write_dataset(datagroupnames.SO[itemp++], 1, &ThisTask);
+        Fhdf.write_dataset(datagroupnames.SO[itemp++], 1, &NProcs);
+        Fhdf.write_dataset(datagroupnames.SO[itemp++], 1, &ng);
+        Fhdf.write_dataset(datagroupnames.SO[itemp++], 1, &ngtot);
+        Fhdf.write_dataset(datagroupnames.SO[itemp++], 1, &nSOids);
+        Fhdf.write_dataset(datagroupnames.SO[itemp++], 1, &nSOidstot);
+#endif
     }
 #endif
 #ifdef USEADIOS
@@ -1141,6 +1316,14 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids, ve
     else if (opt.ibinaryout==OUTHDF) {
         unsigned long *data=new unsigned long[ng];
         for (Int_t i=1;i<=ng;i++) data[i-1]=offset[i];
+#ifdef USEPARALLELHDF
+        MPI_Allgather(&nSOids, 1, MPI_Int_t, mpi_offset.data(), 1, MPI_Int_t, mpi_comm_write);
+        if (ThisWriteTask > 0)
+        {
+            nSOidoffset = 0; for (auto itask = 0; itask < ThisWriteTask; itask++) nSOidoffset += mpi_offset[itask];
+            for (Int_t i=1; i<=ng; i++) data[i-1] += nSOidoffset;
+        }
+#endif
         Fhdf.write_dataset(datagroupnames.SO[itemp], ng, data);
         itemp++;
         delete[] data;
@@ -1236,6 +1419,9 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids, ve
     else if (opt.ibinaryout==OUTADIOS) adios_err=adios_close(adios_file_handle);
 #endif
 
+#ifdef USEMPI
+    MPIFreeWriteComm();
+#endif
 }
 
 //@}
@@ -1246,32 +1432,24 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids, ve
 ///\todo need to add in 500crit mass and radial output in here and in \ref allvars.h
 void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
     fstream Fout;
-    char fname[1000];
+    string fname;
+    ostringstream os;
     char buf[40];
-    long unsigned ngtot=0, noffset=0, ng=ngroups;
+    long unsigned ngtot=0, noffset=0, ng=ngroups, nwritecommtot=0;
 
     //if need to convert from physical back to comoving
     if (opt.icomoveunit) {
         opt.p*=opt.h/opt.a;
         for (Int_t i=1;i<=ngroups;i++) pdata[i].ConverttoComove(opt);
     }
+#ifdef USEMPI
+    MPIBuildWriteComm(opt);
+#endif
 
 #ifdef USEHDF
-    // H5File Fhdf;
-    // H5std_string datasetname;
-    // DataSpace dataspace;
-    // DataSet dataset;
-    // DataSpace attrspace;
-    // Attribute attr;
-    // float attrvalue;
-    // hsize_t *dims, *chunk_dims;
-    //
-    // int rank;
-    // DataSpace *propdataspace;
-    // DataSet *propdataset;
-    // DSetCreatPropList  *hdfdatasetproplist;
     H5OutputFile Fhdf;
     int itemp=0;
+    int ival;
 #endif
 #if defined(USEHDF)||defined(USEADIOS)
     DataGroupNames datagroupnames;
@@ -1279,15 +1457,25 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
 
     PropDataHeader head(opt);
 
+    os << opt.outname <<".properties";
 #ifdef USEMPI
-    sprintf(fname,"%s.properties.%d",opt.outname,ThisTask);
+    if (opt.ibinaryout==OUTHDF) {
+#ifdef USEPARALLELHDF
+        os<<"."<<ThisWriteComm;
+#else
+        os<<"."<<ThisTask;
+#endif
+    }
+    else {
+        os<<"."<<ThisTask;
+    }
     for (int j=0;j<NProcs;j++) ngtot+=mpi_ngroups[j];
     for (int j=0;j<ThisTask;j++)noffset+=mpi_ngroups[j];
 #else
-    sprintf(fname,"%s.properties",opt.outname);
     int ThisTask=0,NProcs=1;
     ngtot=ngroups;
 #endif
+    fname = os.str();
     cout<<"saving property data to "<<fname<<endl;
 
     //write header
@@ -1307,9 +1495,39 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
     }
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
-        // Fhdf=H5File(fname,H5F_ACC_TRUNC);
-        Fhdf.create(string(fname),H5F_ACC_TRUNC);
+#ifdef USEPARALLELHDF
+        //if parallel then open file in serial so task 0 writes header
+        Fhdf.create(string(fname),H5F_ACC_TRUNC, 0, false);
+#else
+        Fhdf.create(string(fname));
+#endif
         itemp=0;
+#ifdef USEPARALLELHDF
+        MPI_Allreduce(&ng, &nwritecommtot, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, mpi_comm_write);
+        //if parallel HDF then only
+        if (ThisWriteTask==0) {
+            Fhdf.write_dataset(datagroupnames.prop[itemp++], 1, &ThisWriteComm, -1, -1, false);
+            Fhdf.write_dataset(datagroupnames.prop[itemp++], 1, &NWriteComms, -1, -1, false);
+            Fhdf.write_dataset(datagroupnames.prop[itemp++], 1, &nwritecommtot, -1, -1, false);
+            Fhdf.write_dataset(datagroupnames.prop[itemp++], 1, &ngtot, -1, -1, false);
+            Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.icosmologicalin);
+            Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.icomoveunit);
+            Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.p);
+            Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.a);
+            Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.lengthtokpc);
+            Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.velocitytokms);
+            Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.masstosolarmass);
+            #if defined(GASON) || defined(STARON) || defined(BHON)
+            Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.metallicitytosolar);
+            Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.SFRtosolarmassperyear);
+            Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.stellaragetoyrs);
+            #endif
+        }
+        Fhdf.close();
+        MPI_Barrier(MPI_COMM_WORLD);
+        //reopen for parallel write
+        Fhdf.append(string(fname));
+#else
         Fhdf.write_dataset(datagroupnames.prop[itemp++], 1, &ThisTask);
         Fhdf.write_dataset(datagroupnames.prop[itemp++], 1, &NProcs);
         Fhdf.write_dataset(datagroupnames.prop[itemp++], 1, &ng);
@@ -1326,6 +1544,7 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.SFRtosolarmassperyear);
         Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.stellaragetoyrs);
         #endif
+#endif
     }
 #endif
     else {
@@ -1893,6 +2112,95 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
     }
 #endif
 
+        //output extra hydro/star/bh props
+#ifdef GASON
+        if (opt.gas_internalprop_names.size() + opt.gas_chem_names.size() + opt.gas_chemproduction_names.size()>0) {
+            for (auto &extrafield:opt.gas_internalprop_names)
+            {
+                for (Int_t i=0;i<ngroups;i++)
+                    ((Double_t*)data)[i]=pdata[i+1].hydroprop.GetInternalProperties(extrafield);
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);
+                itemp++;
+            }
+            for (auto &extrafield:opt.gas_chem_names)
+            {
+                for (Int_t i=0;i<ngroups;i++)
+                    ((Double_t*)data)[i]=pdata[i+1].hydroprop.GetChemistry(extrafield);
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);
+                itemp++;
+            }
+            for (auto &extrafield:opt.gas_chemproduction_names)
+            {
+                for (Int_t i=0;i<ngroups;i++)
+                    ((Double_t*)data)[i]=pdata[i+1].hydroprop.GetChemistryProduction(extrafield);
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);
+                itemp++;
+            }
+        }
+#endif
+#ifdef STARON
+        if (opt.star_internalprop_names.size() + opt.star_chem_names.size() + opt.star_chemproduction_names.size()>0) {
+            for (auto &extrafield:opt.star_internalprop_names)
+            {
+                for (Int_t i=0;i<ngroups;i++)
+                    ((Double_t*)data)[i]=pdata[i+1].starprop.GetInternalProperties(extrafield);
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);
+                itemp++;
+            }
+            for (auto &extrafield:opt.star_chem_names)
+            {
+                for (Int_t i=0;i<ngroups;i++)
+                    ((Double_t*)data)[i]=pdata[i+1].starprop.GetChemistry(extrafield);
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);
+                itemp++;
+            }
+            for (auto &extrafield:opt.star_chemproduction_names)
+            {
+                for (Int_t i=0;i<ngroups;i++)
+                    ((Double_t*)data)[i]=pdata[i+1].starprop.GetChemistryProduction(extrafield);
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);
+                itemp++;
+            }
+        }
+#endif
+#ifdef BHON
+        if (opt.bh_internalprop_names.size() + opt.bh_chem_names.size() + opt.bh_chemproduction_names.size()>0) {
+            for (auto &extrafield:opt.bh_internalprop_names)
+            {
+                for (Int_t i=0;i<ngroups;i++)
+                    ((Double_t*)data)[i]=pdata[i+1].bhprop.GetInternalProperties(extrafield);
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);
+                itemp++;
+            }
+            for (auto &extrafield:opt.bh_chem_names)
+            {
+                for (Int_t i=0;i<ngroups;i++)
+                    ((Double_t*)data)[i]=pdata[i+1].bhprop.GetChemistry(extrafield);
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);
+                itemp++;
+            }
+            for (auto &extrafield:opt.bh_chemproduction_names)
+            {
+                for (Int_t i=0;i<ngroups;i++)
+                    ((Double_t*)data)[i]=pdata[i+1].bhprop.GetChemistryProduction(extrafield);
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);
+                itemp++;
+            }
+        }
+#endif
+#ifdef EXTRADMON
+        if (opt.extra_dm_internalprop_names.size()>0) {
+            for (auto &extrafield:opt.extra_dm_internalprop_names)
+            {
+                for (Int_t i=0;i<ngroups;i++)
+                    ((Double_t*)data)[i]=pdata[i+1].extradmprop.GetExtraProperties(extrafield);
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);
+                itemp++;
+            }
+        }
+#endif
+
+
         //output apertures
         if (opt.iaperturecalc && opt.aperturenum>0){
             for (auto j=0;j<opt.aperturenum;j++) {
@@ -2017,6 +2325,22 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_SFR_gas[j];
                 Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
+            for (auto j=0;j<opt.aperturenum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_Z_gas[j];
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
+            }
+            for (auto j=0;j<opt.aperturenum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_Z_gas_sf[j];
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
+            }
+            for (auto j=0;j<opt.aperturenum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_Z_gas_nsf[j];
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
+            }
+            for (auto j=0;j<opt.aperturenum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_Z_star[j];
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
+            }
 #endif
         }
         //output apertures
@@ -2077,6 +2401,22 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
             #if defined(GASON) && defined(STARON)
             for (auto j=0;j<opt.apertureprojnum;j++) {
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_SFR_proj_gas[j][k];
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
+            }
+            for (auto j=0;j<opt.apertureprojnum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_Z_proj_gas[j][k];
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
+            }
+            for (auto j=0;j<opt.apertureprojnum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_Z_proj_gas_sf[j][k];
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
+            }
+            for (auto j=0;j<opt.apertureprojnum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_Z_proj_gas_nsf[j][k];
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
+            }
+            for (auto j=0;j<opt.apertureprojnum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_Z_proj_star[j][k];
                 Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
             #endif
@@ -2166,16 +2506,21 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
     else Fhdf.close();
 #endif
 
+#ifdef USEMPI
+    MPIFreeWriteComm();
+#endif
 }
 
 void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
     fstream Fout;
-    char fname[1000];
+    string fname;
+    ostringstream os;
     char buf[40];
-    long unsigned ngtot=0, noffset=0, ng=ngroups, nhalos=0, nhalostot;
+    long unsigned ngtot=0, noffset=0, ng=ngroups, nhalos=0, nhalostot, nwritecommtot=0, nhalowritecommtot=0;
     //void pointer to hold data
     void *data;
     int itemp=0, nbinsedges = opt.profilenbins+1;
+    int ival;
 
     //if need to convert from physical back to comoving
     if (opt.icomoveunit) {
@@ -2183,20 +2528,10 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
         for (Int_t i=1;i<=ngroups;i++) pdata[i].ConvertProfilestoComove(opt);
     }
     if (opt.iInclusiveHalo>0) for (auto i=1;i<=ng;i++) nhalos += (pdata[i].hostid == -1);
+#ifdef USEMPI
+    MPIBuildWriteComm(opt);
+#endif
 #ifdef USEHDF
-    // H5File Fhdf;
-    // H5std_string datasetname;
-    // DataSpace dataspace;
-    // DataSet dataset;
-    // DataSpace attrspace;
-    // Attribute attr;
-    // float attrvalue;
-    // hsize_t *dims, *chunk_dims;
-    //
-    // int rank;
-    // DataSpace *profiledataspace;
-    // DataSet *profiledataset;
-    // DSetCreatPropList  *hdfdatasetprofilelist;
     H5OutputFile Fhdf;
     vector<hsize_t> dims;
 #endif
@@ -2205,17 +2540,27 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
 #endif
     ProfileDataHeader head(opt);
 
+    os << opt.outname << ".profiles";
 #ifdef USEMPI
-    sprintf(fname,"%s.profiles.%d",opt.outname,ThisTask);
+    if (opt.ibinaryout==OUTHDF) {
+#ifdef USEPARALLELHDF
+        os<<"."<<ThisWriteComm;
+#else
+        os<<"."<<ThisTask;
+#endif
+    }
+    else {
+        os<<"."<<ThisTask;
+    }
     for (int j=0;j<NProcs;j++) ngtot+=mpi_ngroups[j];
     for (int j=0;j<ThisTask;j++)noffset+=mpi_ngroups[j];
     for (int j=0;j<NProcs;j++) nhalostot+=mpi_nhalos[j];
 #else
-    sprintf(fname,"%s.profiles",opt.outname);
     int ThisTask=0,NProcs=1;
     ngtot=ngroups;
     nhalostot=nhalos;
 #endif
+    fname = os.str();
     cout<<"saving profiles "<<fname<<endl;
     //allocate enough memory to store largest data type
     data= ::operator new(sizeof(long long)*(opt.profilenbins+1));
@@ -2247,8 +2592,32 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
     }
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
-        //Fhdf=H5File(fname,H5F_ACC_TRUNC);
-        Fhdf.create(string(fname),H5F_ACC_TRUNC);
+#ifdef USEPARALLELHDF
+        Fhdf.create(string(fname),H5F_ACC_TRUNC, 0, false);
+        MPI_Allreduce(&ng, &nwritecommtot, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, mpi_comm_write);
+        MPI_Allreduce(&nhalos, &nhalowritecommtot, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, mpi_comm_write);
+        if (ThisTask == 0) {
+            itemp=0;
+            Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, &ThisWriteTask, -1, -1, false);
+            Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, &NWriteComms, -1, -1, false);
+            Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, &nwritecommtot, -1, -1, false);
+            Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, &ngtot, -1, -1, false);
+            Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, &nhalowritecommtot, -1, -1, false);
+            Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, &nhalostot, -1, -1, false);
+            Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, opt.profileradnormstring, false);
+            Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, &opt.iInclusiveHalo, -1, -1, false);
+            Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, &nbinsedges, -1, -1, false);
+            Fhdf.write_dataset(datagroupnames.profile[itemp++], nbinsedges, data, H5T_NATIVE_DOUBLE, -1, false);
+        }
+        else {
+            itemp=10;
+        }
+        Fhdf.close();
+        MPI_Barrier(MPI_COMM_WORLD);
+        //reopen for parallel write
+        Fhdf.append(string(fname));
+#else
+        Fhdf.create(string(fname));
         itemp=0;
         Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, &ThisTask);
         Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, &NProcs);
@@ -2256,12 +2625,11 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
         Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, &ngtot);
         Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, &nhalos);
         Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, &nhalostot);
-
         Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, opt.profileradnormstring);
-        //Fhdf.write_dataset(datagroupnames.profile[itemp++], opt.profileradnormstring.size(), opt.profileradnormstring);
         Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, &opt.iInclusiveHalo);
         Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, &nbinsedges);
         Fhdf.write_dataset(datagroupnames.profile[itemp++], nbinsedges, data, H5T_NATIVE_DOUBLE);
+#endif
 
     }
 #endif
@@ -2280,24 +2648,14 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
         Fout<<endl;
     }
     ::operator delete(data);
-
-    for (Int_t i=1;i<=ngroups;i++) {
-        if (opt.ibinaryout==OUTBINARY) {
-            //pdata[i].WriteProfileBinary(Fout,opt);
-        }
-#ifdef USEHDF
-        else if (opt.ibinaryout==OUTHDF) {
-            //pdata[i].WriteHDF(Fhdf);
-            //for hdf may be more useful to produce an array of the appropriate size and write each data set in one go
-            //requires allocating memory
-        }
-#endif
-        else if (opt.ibinaryout==OUTASCII){
-            //pdata[i].WriteProfileAscii(Fout,opt);
-        }
+    if (opt.ibinaryout==OUTBINARY) {
+        //for (Int_t i=1;i<=ngroups;i++) pdata[i].WriteProfileBinary(Fout,opt);
+    }
+    else if (opt.ibinaryout==OUTASCII){
+        //for (Int_t i=1;i<=ngroups;i++) pdata[i].WriteProfileAscii(Fout,opt);
     }
 #ifdef USEHDF
-    if (opt.ibinaryout==OUTHDF) {
+    else if (opt.ibinaryout==OUTHDF) {
         itemp=0;
         data= ::operator new(sizeof(long long)*(ng));
         //first is halo ids, then normalisation
@@ -2398,8 +2756,8 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
             for (Int_t i=0;i<nhalos;i++) for (auto j=0;j<opt.profilenbins;j++) ((float*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_mass_inclusive_star[j];
             Fhdf.write_dataset_nd(head.headerdatainfo[itemp], 2, dims.data(), data, head.hdfpredtypeinfo[itemp]);itemp++;
     #endif
+            ::operator delete(data);
         }
-        ::operator delete(data);
         //delete memory associated with void pointer
         // delete[] profiledataspace;
         // delete[] profiledataset;
@@ -2411,6 +2769,9 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
     else Fhdf.close();
 #endif
 
+#ifdef USEMPI
+    MPIFreeWriteComm();
+#endif
 }
 
 //@}
@@ -2419,35 +2780,44 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
 void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy, const Int_t &nfield, Int_t *nsub, Int_t *parentgid, Int_t *stype, int subflag){
     fstream Fout;
     fstream Fout2;
-    char fname[500],fname2[500];
-    unsigned long ng=ngroups,ngtot=0,noffset=0;
+    string fname;
+    ostringstream os;
+    unsigned long ng=ngroups,ngtot=0,noffset=0, nwritecommtot = 0;
+#ifdef USEMPI
+    MPIBuildWriteComm(opt);
+#endif
 #ifdef USEHDF
-    // H5File Fhdf;
-    // H5std_string datasetname;
-    // DataSpace dataspace;
-    // DataSet dataset;
-    // DSetCreatPropList hdfdatasetproplist;
-    // hsize_t *dims, *chunk_dims;
     H5OutputFile Fhdf;
     int rank;
     int itemp=0;
+    int ival;
 #endif
 #if defined(USEHDF)||defined(USEADIOS)
     DataGroupNames datagroupnames;
 #endif
-
-    #ifdef USEMPI
-    sprintf(fname,"%s.catalog_groups.%d",opt.outname,ThisTask);
-#else
+#ifndef USEMPI
     int ThisTask=0,NProcs=1;
-    sprintf(fname,"%s.catalog_groups",opt.outname);
 #endif
+
+    os << opt.outname << ".catalog_groups";
+#ifdef USEMPI
+    if (opt.ibinaryout==OUTHDF) {
+#ifdef USEPARALLELHDF
+        os<<"."<<ThisWriteComm;
+#else
+        os<<"."<<ThisTask;
+#endif
+    }
+    else {
+        os<<"."<<ThisTask;
+    }
+    #endif
+    fname = os.str();
     cout<<"saving hierarchy data to "<<fname<<endl;
 
     if (opt.ibinaryout==OUTBINARY) Fout.open(fname,ios::out|ios::binary|ios::app);
 #ifdef USEHDF
     if (opt.ibinaryout==OUTHDF) {
-        // Fhdf=H5File(fname,H5F_ACC_RDWR);
         Fhdf.append(string(fname),H5F_ACC_RDWR);
     }
 #endif
@@ -2528,11 +2898,21 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
 #endif
 
     //now write a completely separate hierarchy file which I find more intuitive to parse
+    os.str(string());
+    os << opt.outname << ".hierarchy";
 #ifdef USEMPI
-    sprintf(fname,"%s.hierarchy.%d",opt.outname,ThisTask);
+    if (opt.ibinaryout==OUTHDF) {
+#ifdef USEPARALLELHDF
+        os<<"."<<ThisWriteComm;
 #else
-    sprintf(fname,"%s.hierarchy",opt.outname);
+        os<<"."<<ThisTask;
 #endif
+    }
+    else {
+        os<<"."<<ThisTask;
+    }
+#endif
+    fname = os.str();
     if (opt.ibinaryout==OUTBINARY) Fout.open(fname,ios::out|ios::binary);
     else Fout.open(fname,ios::out);
 
@@ -2545,13 +2925,31 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
     }
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
-        // Fhdf=H5File(fname,H5F_ACC_TRUNC);
-        Fhdf.create(string(fname),H5F_ACC_TRUNC);
+#ifdef USEPARALLELHDF
+        Fhdf.create(string(fname),H5F_ACC_TRUNC, 0, false);
+        MPI_Allreduce(&ng, &nwritecommtot, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, mpi_comm_write);
+        if (ThisWriteTask == 0) {
+            itemp=0;
+            Fhdf.write_dataset(datagroupnames.hierarchy[itemp++], 1, &ThisWriteComm, -1, -1, false);
+            Fhdf.write_dataset(datagroupnames.hierarchy[itemp++], 1, &NWriteComms, -1, -1, false);
+            Fhdf.write_dataset(datagroupnames.hierarchy[itemp++], 1, &nwritecommtot, -1, -1, false);
+            Fhdf.write_dataset(datagroupnames.hierarchy[itemp++], 1, &ngtot, -1, -1, false);
+        }
+        else {
+            itemp = 4;
+        }
+        Fhdf.close();
+        MPI_Barrier(MPI_COMM_WORLD);
+        //reopen for parallel write
+        Fhdf.append(string(fname));
+#else
+        Fhdf.create(string(fname));
         itemp=0;
         Fhdf.write_dataset(datagroupnames.hierarchy[itemp++], 1, &ThisTask);
         Fhdf.write_dataset(datagroupnames.hierarchy[itemp++], 1, &NProcs);
         Fhdf.write_dataset(datagroupnames.hierarchy[itemp++], 1, &ng);
         Fhdf.write_dataset(datagroupnames.hierarchy[itemp++], 1, &ngtot);
+#endif
     }
 #endif
     else {
@@ -2626,6 +3024,9 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
 #ifdef USEHDF
     else Fhdf.close();
 #endif
+#ifdef USEMPI
+    MPIFreeWriteComm();
+#endif
     cout<<"Done saving hierarchy"<<endl;
 }
 
@@ -2644,22 +3045,6 @@ void WriteSUBFINDProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         for (Int_t i=1;i<=ngroups;i++) pdata[i].ConverttoComove(opt);
     }
 #ifdef USEHDF
-    // H5File Fhdf;
-    // H5std_string datasetname;
-    // DataSpace dataspace;
-    // DataSet dataset;
-    // DataSpace attrspace;
-    // Attribute attr;
-    // float attrvalue;
-    // hsize_t *dims, *chunk_dims;
-    //
-    // int rank;
-    // DataSpace *propdataspace;
-    // DataSet *propdataset;
-    // DSetCreatPropList  *hdfdatasetproplist;
-    // int itemp=0;
-    // DataGroupNames datagroupnames;
-
     PropDataHeader head(opt);
 
 #ifdef USEMPI
@@ -2815,14 +3200,6 @@ void WriteVELOCIraptorConfig(Options &opt){
 #endif
 
 #ifdef USEHDF
-    // H5File Fhdf;
-    // H5std_string datasetname;
-    // DataSpace dataspace;
-    // DataSet dataset;
-    // hsize_t *dims;
-    // int rank;
-    // DataSpace *propdataspace;
-    // DataSet *propdataset;
     int itemp=0;
 #endif
 #if defined(USEHDF)||defined(USEADIOS)
@@ -2856,14 +3233,6 @@ void WriteSimulationInfo(Options &opt){
 #endif
 
 #ifdef USEHDF
-    // H5File Fhdf;
-    // H5std_string datasetname;
-    // DataSpace dataspace;
-    // DataSet dataset;
-    // hsize_t *dims;
-    // int rank;
-    // DataSpace *propdataspace;
-    // DataSet *propdataset;
     int itemp=0;
 #endif
 #if defined(USEHDF)||defined(USEADIOS)
@@ -2896,14 +3265,6 @@ void WriteUnitInfo(Options &opt){
 #endif
 
 #ifdef USEHDF
-    // H5File Fhdf;
-    // H5std_string datasetname;
-    // DataSpace dataspace;
-    // DataSet dataset;
-    // hsize_t *dims;
-    // int rank;
-    // DataSpace *propdataspace;
-    // DataSet *propdataset;
     int itemp=0;
 #endif
 #if defined(USEHDF)||defined(USEADIOS)
