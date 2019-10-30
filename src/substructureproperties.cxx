@@ -3990,7 +3990,7 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin)
 {
     #pragma omp for schedule(dynamic) nowait
 #endif
-    for (i=1;i<=ngroup;i++) if (numingroup[i]<ompunbindnum) {
+    for (i=1;i<=ngroup;i++) if (numingroup[i]<POTPPCALCNUM) {
         for (j=0;j<numingroup[i];j++) {
             for (k=j+1;k<numingroup[i];k++) {
                 r2=0.;for (int n=0;n<3;n++) r2+=pow(Part[j+noffset[i]].GetPosition(n)-Part[k+noffset[i]].GetPosition(n),2.0);
@@ -4010,10 +4010,25 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin)
 #ifdef USEOPENMP
 }
 #endif
+        //loop for large groups with tree calculation
+        for (i=1;i<=ngroup;i++) if (numingroup[i]>=POTPPCALCNUM) {
+            storepid=new Int_t[numingroup[i]];
+            for (j=0;j<numingroup[i];j++) {
+                storepid[j]=Part[noffset[i]+j].GetPID();
+                Part[noffset[i]+j].SetPID(Part[noffset[i]+j].GetID());
+            }
+            //calculate potential
+            Potential(opt,numingroup[i],&Part[noffset[i]]);
+            for (j=0;j<numingroup[i];j++) {
+                Part[noffset[i]+j].SetID(Part[noffset[i]+j].GetPID());
+                Part[noffset[i]+j].SetPID(storepid[j]);
+            }
+            delete[] storepid;
+        }
     }//end of if calculate potential
 #ifdef SWIFTINTERFACE
     else {
-        for (i=1;i<=ngroup;i++) if (numingroup[i]<ompunbindnum) for (j=0;j<numingroup[i];j++) Part[j+noffset[i]].SetPotential(Part[j+noffset[i]].GetGravityPotential());
+        for (i=1;i<=ngroup;i++) for (j=0;j<numingroup[i];j++) Part[j+noffset[i]].SetPotential(Part[j+noffset[i]].GetGravityPotential());
     }
 #endif
 
@@ -4094,7 +4109,7 @@ private(i,j,k,potmin,ipotmin)
     //then calculate binding energy and store in density
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
-private(i,j,k,r2,v2,mval,poti,Ti,pot,Eval,npot,storepid)
+private(i,j,k,r2,v2,mval,poti,Ti)
 {
     #pragma omp for schedule(dynamic) nowait
 #endif
@@ -4132,28 +4147,6 @@ private(i,j,k,r2,v2,mval,poti,Ti,pot,Eval,npot,storepid)
 #endif
 
     //begin large groups
-    if (opt.uinfo.icalculatepotential) {
-    //loop for large groups with tree calculation
-    for (i=1;i<=ngroup;i++) if (numingroup[i]>=ompunbindnum) {
-        storepid=new Int_t[numingroup[i]];
-        for (j=0;j<numingroup[i];j++) {
-            storepid[j]=Part[noffset[i]+j].GetPID();
-            Part[noffset[i]+j].SetPID(Part[noffset[i]+j].GetID());
-        }
-        //calculate potential
-        Potential(opt,numingroup[i],&Part[noffset[i]]);
-        for (j=0;j<numingroup[i];j++) {
-            Part[noffset[i]+j].SetID(Part[noffset[i]+j].GetPID());
-            Part[noffset[i]+j].SetPID(storepid[j]);
-        }
-        delete[] storepid;
-    }
-    }//end of if calculate potential
-    #ifdef SWIFTINTERFACE
-        else {
-            for (i=1;i<=ngroup;i++) if (numingroup[i]>=ompunbindnum) for (j=0;j<numingroup[i];j++) Part[j+noffset[i]].SetPotential(Part[j+noffset[i]].GetGravityPotential());
-        }
-    #endif
 
     //if using POTREF, most computations involve sorts, so parallize over groups
     if (opt.uinfo.cmvelreftype==POTREF) {
