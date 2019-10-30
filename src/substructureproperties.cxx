@@ -3968,7 +3968,7 @@ void GetBindingEnergy(Options &opt, const Int_t nbodies, Particle *Part, Int_t n
     Double_t eps2=opt.uinfo.eps*opt.uinfo.eps;
 
     //useful variables to store temporary results
-    Double_t r2,v2,Ti,poti,pot,Ei;
+    Double_t r2,v2,Ti,poti,pot,Ei,mval;
     Double_t Tval,Potval,Efracval,Eval,Emostbound,Eunbound;
     Int_t imostbound,iunbound;
     Double_t Efracval_gas,Efracval_star;
@@ -4094,30 +4094,23 @@ private(i,j,k,potmin,ipotmin)
     //then calculate binding energy and store in density
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
-private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid)
+private(i,j,k,r2,v2,mval,poti,Ti,pot,Eval,npot,storepid)
 {
     #pragma omp for schedule(dynamic) nowait
 #endif
     for (i=1;i<=ngroup;i++) if (numingroup[i]<ompunbindnum) {
         for (j=0;j<numingroup[i];j++) {
             v2=0.;for (int n=0;n<3;n++) v2+=pow(Part[j+noffset[i]].GetVelocity(n)-pdata[i].gcmvel[n],2.0);
+            mval = Part[j+noffset[i]].GetMass();
 #ifdef NOMASS
-            Ti=0.5*v2*opt.MassValue;
-#ifdef GASON
-            Ti+=opt.MassValue*Part[j+noffset[i]].GetU();
+            mval *= opt.MassValue;
 #endif
-#else
-            Ti=0.5*Part[j+noffset[i]].GetMass()*v2;
+            Ti=0.5*mval*v2;
 #ifdef GASON
-            Ti+=Part[j+noffset[i]].GetMass()*Part[j+noffset[i]].GetU();
-#endif
+            Ti+=mval*Part[j+noffset[i]].GetU();
 #endif
             pdata[i].T+=Ti;
-#ifdef NOMASS
-            Part[j+noffset[i]].SetDensity(Ti+Part[j+noffset[i]].GetPotential()*mw2);
-#else
             Part[j+noffset[i]].SetDensity(Ti+Part[j+noffset[i]].GetPotential());
-#endif
             if(Part[j+noffset[i]].GetDensity()<0) pdata[i].Efrac+=1.0;
 #ifdef GASON
             if(Part[j+noffset[i]].GetDensity()<0&&Part[j+noffset[i]].GetType()==GASTYPE) pdata[i].Efrac_gas+=1.0;
@@ -4243,27 +4236,23 @@ private(i,j,k,potmin,ipotmin)
 #endif
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
-private(j,v2,Ti,Ei)
+private(j,v2,Ti,Ei,mval)
 {
     #pragma omp for reduction(+:Tval,Efracval,Potval,Efracval_gas,Efracval_star)
 #endif
         for (j=0;j<numingroup[i];j++) {
             v2=0.;for (int n=0;n<3;n++) v2+=pow(Part[j+noffset[i]].GetVelocity(n)-pdata[i].gcmvel[n],2.0);
+            mval = Part[j+noffset[i]].GetMass();
 #ifdef NOMASS
-            Ti=0.5*v2*opt.MassValue;
-#ifdef GASON
-            Ti+=opt.MassValue*Part[j+noffset[i]].GetU();
+            mval *= opt.MassValue;
 #endif
-            Potval+=Part[j+noffset[i]].GetPotential()*mw2;
-            Part[j+noffset[i]].SetDensity(Part[j+noffset[i]].GetPotential()*mw2+Ti);
-#else
-            Ti=0.5*Part[j+noffset[i]].GetMass()*v2;
+            Ti=0.5*mval*v2;
 #ifdef GASON
-            Ti+=Part[j+noffset[i]].GetMass()*Part[j+noffset[i]].GetU();
+            Ti+=mval*Part[j+noffset[i]].GetU();
 #endif
             Potval+=Part[j+noffset[i]].GetPotential();
             Part[j+noffset[i]].SetDensity(Part[j+noffset[i]].GetPotential()+Ti);
-#endif
+
             Tval+=Ti;
             if(Part[j+noffset[i]].GetDensity()<0.0) Efracval+=1.0;
 #ifdef GASON
