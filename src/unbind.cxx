@@ -157,7 +157,7 @@ inline void GetBoundFractionAndMaxE(Options &opt,
     nthreads = max((int)(ning/(float)ompunbindnum),1);
     nthreads = min(nthreads,omp_get_max_threads());
     #pragma omp parallel for \
-    default(shared) private(v2,Ti) schedule(dynamic) \
+    default(shared) private(v2,Ti,mass) schedule(dynamic) \
     reduction(+:totT,Efrac,nunbound) reduction(max:maxE) num_threads(nthreads)
 #endif
     for (auto j=0;j<ning;j++) {
@@ -397,7 +397,7 @@ private(i,j,k,n,r2,poti)
 #endif
     for (i=1;i<=numgroups;i++)
     {
-        if (numingroup[i]<=UNBINDNUM) {
+        if (numingroup[i]<=POTPPCALCNUM) {
             if (numingroup[i]<0) continue;
             for (j=0;j<numingroup[i];j++) {
                 for (k=j+1;k<numingroup[i];k++) {
@@ -428,7 +428,7 @@ private(i,j,k,n,r2,poti)
     for (i=1;i<=numgroups;i++)
     {
         if (numingroup[i]<0) continue;
-        if (numingroup[i]>UNBINDNUM) {
+        if (numingroup[i]>POTPPCALCNUM) {
             Potential(opt, numingroup[i], gPart[i]);
         }
     }
