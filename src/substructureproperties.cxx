@@ -4205,7 +4205,7 @@ private(i,j,k,r2,v2,mval,poti,Ti)
             if(Part[j+noffset[i]].GetDensity()<0&&Part[j+noffset[i]].GetType()==STARTYPE) pdata[i].Efrac_star+=1.0;
 #endif
         }
-        pdata[i].Pot = 0.5;
+        pdata[i].Pot *= 0.5;
         pdata[i].Efrac/=(Double_t)numingroup[i];
 #ifdef GASON
         if (pdata[i].n_gas>0)pdata[i].Efrac_gas/=(Double_t)pdata[i].n_gas;

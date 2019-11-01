@@ -588,11 +588,10 @@ private(i,j,k,n,maxE,maxunbindsize,nEplus,nEplusid,Eplusflag,v2,Ti,unbindcheck,E
                                 r2=0.;for (n=0;n<3;n++) r2+=pow(gPart[i][nEplusid[k]].GetPosition(n)-gPart[i][j].GetPosition(n),2.0);
                                 r2+=eps2;
                                 r2=1.0/sqrt(r2);
-    #ifdef NOMASS
-                                poti=gPart[i][j].GetPotential()+opt.G*(gPart[i][nEplusid[k]].GetMass()*gPart[i][j].GetMass())*r2*mv2;
-    #else
                                 poti=gPart[i][j].GetPotential()+opt.G*(gPart[i][nEplusid[k]].GetMass()*gPart[i][j].GetMass())*r2;
-    #endif
+#ifdef NOMASS
+                                poti*=mw2;
+#endif
                                 gPart[i][j].SetPotential(poti);
                             }
                         }
@@ -665,27 +664,27 @@ private(i,j,k,n,maxE,maxunbindsize,nEplus,nEplusid,Eplusflag,v2,Ti,unbindcheck,E
                     if (iunbindsizeflag==0) Potential(opt, numingroup[i], gPart[i]);
                     else {
                         for (k=0;k<nEplus;k++) {
-    #ifdef USEOPENMP
-    #pragma omp parallel default(shared)  \
-    private(j,r2,poti)
-    {
-    #pragma omp for schedule(dynamic) nowait
-    #endif
+#ifdef USEOPENMP
+#pragma omp parallel default(shared)  \
+private(j,r2,poti)
+{
+#pragma omp for schedule(dynamic) nowait
+#endif
                             for (j=0;j<numingroup[i];j++) {
                                 if (j!=nEplusid[k]) {
                                     r2=0.;for (n=0;n<3;n++) r2+=pow(gPart[i][nEplusid[k]].GetPosition(n)-gPart[i][j].GetPosition(n),2.0);
                                     r2+=eps2;
                                     r2=1.0/sqrt(r2);
                                     poti=gPart[i][j].GetPotential()+opt.G*(gPart[i][nEplusid[k]].GetMass()*gPart[i][j].GetMass())*r2;
-    #ifdef NOMASS
+#ifdef NOMASS
                                     poti*=mv2;
-    #endif
+#endif
                                     gPart[i][j].SetPotential(poti);
                                 }
                             }
-    #ifdef USEOPENMP
-    }
-    #endif
+#ifdef USEOPENMP
+}
+#endif
                         }
                     }
                 }
