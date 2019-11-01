@@ -268,8 +268,8 @@ int CheckUnboundGroups(Options opt, const Int_t nbodies, Particle *Part, Int_t &
 #else
 
     //if groupflags are provided then explicitly reorder here if required, otherwise internal reordering within unbind.
-    if (groupflag!=NULL) iflag=Unbind(opt, gPart, ngroup, numingroup,pfof,pglist,0);
-    else iflag=Unbind(opt, gPart, ngroup, numingroup,pfof,pglist,ireorder);
+    if (groupflag!=NULL) iflag = Unbind(opt, gPart, ngroup, numingroup,pfof,pglist,0);
+    else iflag = Unbind(opt, gPart, ngroup, numingroup,pfof,pglist,ireorder);
 
     //if keeping track of a flag, set flag to 0 if group no longer present
     if (ireorder==1 && iflag&&ngroup>0) {
@@ -590,7 +590,7 @@ private(i,j,k,n,maxE,maxunbindsize,nEplus,nEplusid,Eplusflag,v2,Ti,unbindcheck,E
                                 r2=1.0/sqrt(r2);
                                 poti=gPart[i][j].GetPotential()+opt.G*(gPart[i][nEplusid[k]].GetMass()*gPart[i][j].GetMass())*r2;
 #ifdef NOMASS
-                                poti*=mw2;
+                                poti*=mv2;
 #endif
                                 gPart[i][j].SetPotential(poti);
                             }
