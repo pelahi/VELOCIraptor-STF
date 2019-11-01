@@ -3229,8 +3229,8 @@ Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, const I
     MPI_Allreduce(&nparts, &nparts_tot, 1, MPI_Int_t, MPI_SUM, MPI_COMM_WORLD);
     MPI_Allreduce(&ndark, &ndark_tot, 1, MPI_Int_t, MPI_SUM, MPI_COMM_WORLD);
 #else
-    npartstot = nparts;
-    ndarktot = ndark;
+    nparts_tot = nparts;
+    ndark_tot = ndark;
 #endif
     if (nparts_tot == ndark_tot) {
         if (ThisTask == 0) cout<<"Requested baryon search but no baryons loaded. Skipping."<<endl;
