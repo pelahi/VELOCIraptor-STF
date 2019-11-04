@@ -2458,10 +2458,6 @@ void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Parts
 //    cout<<ThisTask<<" after merging "<<numgroups<<" "<<numsubs<<" "<<numcores<<endl;
 }
 
-int setNthreads(){
-    return 0;
-}
-
 // ENCAPSULATED: ENCAPSULATION-01
 void AdjustSubPartToPhaseCM(Int_t num, Particle *subPart, GMatrix &cmphase)
 {
