@@ -2665,16 +2665,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
         numcores=new Int_t[nsubsearch+1];
         subpfofold=new Int_t[nsubsearch+1];
         ns=0;
-        // START: ENCAPSULATE-01
-        /* - If the whole for loop is to be encapsulated,
-        **   the following variables are in consideration to be parametised:
-        **      oldnsubsearch
-        **      subpglist
-        **      pfof
-        **      subnumingroup
-        **      opt.icmrefadjust
-        **      ompsearchnum
-        */
+        // START: ENCAPSULATE
         //here loop over all sublevel groups that need to be searched for substructure
         // ADACS: this loop proceses halos (that are independent) sequentially. This is unecessary.
         // #pragma omp parallel for...
@@ -2726,7 +2717,8 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
             //ADACS: this would need a reduction at the end.
             ns+=subngroup[i]; // reduction
         }
-        // END: ENCAPSULATE-01
+        // END: ENCAPSULATE
+
         //if objects have been found adjust the StrucLevelData
         //this stores the address of the parent particle and pfof along with child substructure particle and pfof
         if (ns>0) {
