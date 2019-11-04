@@ -330,7 +330,7 @@ int Unbind(Options &opt, Particle **gPart, Int_t &numgroups, Int_t *numingroup, 
     Int_t i,j,k,ng=numgroups, oldnumingroup;
     int unbindloops;
     bool sortflag;
-    Double_t maxE,v2,r2,poti,Ti,eps2=opt.uinfo.eps*opt.uinfo.eps,mv2=opt.MassValue*opt.MassValue,Efrac;
+    Double_t maxE,v2,r2,poti,Ti,eps2=opt.uinfo.eps*opt.uinfo.eps,mv2=opt.MassValue*opt.MassValue,Efrac, pot;
     Double_t *gmass;
     Int_t nEplus,maxunbindsize, nEfrac, nunbound;
     Int_t *nEplusid;
@@ -391,7 +391,7 @@ int Unbind(Options &opt, Particle **gPart, Int_t &numgroups, Int_t *numingroup, 
     //here openmp is over groups since each group is small
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
-private(i,j,k,n,r2,poti)
+private(i,j,k,n,r2,poti, pot)
 {
     #pragma omp for schedule(dynamic,1) nowait
 #endif
@@ -404,7 +404,10 @@ private(i,j,k,n,r2,poti)
                     r2=0.;for (n=0;n<3;n++) r2+=pow(gPart[i][j].GetPosition(n)-gPart[i][k].GetPosition(n),2.0);
                     r2+=eps2;
                     r2=1.0/sqrt(r2);
-                    Double_t pot=-opt.G*(gPart[i][j].GetMass()*gPart[i][k].GetMass())*r2;
+                    pot=-opt.G*(gPart[i][j].GetMass()*gPart[i][k].GetMass())*r2;
+                    #ifdef NOMASS
+                    pot *= mv2;
+                    #endif
                     poti=gPart[i][j].GetPotential()+pot;gPart[i][j].SetPotential(poti);
                     poti=gPart[i][k].GetPotential()+pot;gPart[i][k].SetPotential(poti);
                 }
@@ -542,7 +545,6 @@ private(i,j,k,npot,menc,potmin,ipotmin,potpos,storeval)
 }
 #endif
     }
-
 
     //now go through groups and begin unbinding by finding least bound particle
     //again for small groups multithread over groups
@@ -727,6 +729,7 @@ private(j,r2,poti)
     else return 0;
 }
 
+/*
 ///Similar to unbind algorithm but assumes particles are ordered. saves memory but more computations
 int Unbind(Options &opt, Particle *&gPart, Int_t &numgroups, Int_t *&numingroup, Int_t *&noffset, Int_t *&pfof)
 {
@@ -1473,6 +1476,7 @@ private(i,j,k,maxE,pq,pqsize,nEplus,nEplusid,Eplusflag,totT,v2,Ti,unbindcheck,Ef
     if (iunbindflag) return 1;
     else return 0;
 }
+*/
 
 /// Calculates the gravitational potential using a kd-tree and monopole expansion
 ///\todo need ewald correction for periodic systems and also use more than monopole.
@@ -1480,7 +1484,7 @@ void Potential(Options &opt, Int_t nbodies, Particle *Part, Double_t *potV)
 {
     int maxnthreads,nthreads,l,n;
     Int_t i,j,k,ntreecell,nleafcell;
-    Double_t v2,r2,Ti,eps2=opt.uinfo.eps*opt.uinfo.eps;
+    Double_t v2,r2,Ti,eps2=opt.uinfo.eps*opt.uinfo.eps, mv2=opt.MassValue*opt.MassValue;
     //for tree code potential calculation
     Int_t ncell;
     Int_t *start,*end;
@@ -1607,7 +1611,7 @@ void Potential(Options &opt, Int_t nbodies, Particle *Part)
 {
     int maxnthreads,nthreads,l,n;
     Int_t i,j,k,ntreecell,nleafcell;
-    Double_t v2,r2,Ti,eps2=opt.uinfo.eps*opt.uinfo.eps;
+    Double_t v2,r2,Ti,eps2=opt.uinfo.eps*opt.uinfo.eps, mv2=opt.MassValue*opt.MassValue;
     //for tree code potential calculation
     Int_t ncell;
     Int_t *start,*end;
@@ -1720,6 +1724,9 @@ private(j,k,l,n,ntreecell,nleafcell,r2)
             }
         }
         Part[j].SetPotential(Part[j].GetPotential()*opt.G);
+        #ifdef NOMASS
+        Part[j].SetPotential(Part[j].GetPotential()*mv2);
+        #endif
     }
 #ifdef USEOPENMP
 }
