@@ -1945,6 +1945,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 
 #ifdef HIGHRES
                         if (k==HDFDMTYPE && MP_DM>Pbuf[ibufindex].GetMass()) MP_DM=Pbuf[ibufindex].GetMass();
+                        if (k==HDFGASTYPE && MP_B<Pbuf[ibufindex].GetMass()) MP_B=Pbuf[ibufindex].GetMass();
 #endif
 #ifdef GASON
                       if (k==HDFGASTYPE) {
@@ -2291,7 +2292,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
       ///if gas found and Omega_b not set correctly (ie: ==0), assumes that
       ///lowest mass gas particle found corresponds to Omega_b
       ///Note that if there is mass evolution this WILL NOT WORK!
-      if (opt.Omega_b==0 && MP_B==MAXVALUE){
+      if (opt.Omega_b==0 && MP_B>0){
         opt.Omega_b=MP_B/(MP_DM+MP_B)*opt.Omega_m;
         opt.Omega_cdm=opt.Omega_m-opt.Omega_b;
       }
