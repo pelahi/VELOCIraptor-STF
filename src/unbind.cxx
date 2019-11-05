@@ -303,6 +303,353 @@ int CheckUnboundGroups(Options opt, const Int_t nbodies, Particle *Part, Int_t &
     return iflag;
 }
 
+///Calculate potential of groups
+inline void CalculatePotentials(Options &opt, Particle **gPart, Int_t &numgroups, Int_t *numingroup)
+{
+    int maxnthreads,nthreads=1;
+
+#ifndef USEMPI
+    int ThisTask=0,NProcs=1;
+#endif
+
+    //for parallel environment store maximum number of threads
+    nthreads=1;
+#ifdef USEOPENMP
+#pragma omp parallel
+    {
+    if (omp_get_thread_num()==0) maxnthreads=nthreads=omp_get_num_threads();
+    }
+#endif
+
+    //for each group calculate potential
+    //if group is small calculate potentials using PP
+    //here openmp is over groups since each group is small
+#ifdef USEOPENMP
+#pragma omp parallel default(shared)
+{
+    #pragma omp for schedule(dynamic,1) nowait
+#endif
+    for (auto i=1;i<=numgroups;i++)
+    {
+        if (numingroup[i]<=POTPPCALCNUM) {
+            if (numingroup[i]<0) continue;
+            PotentialPP(opt, numingroup[i], gPart[i]);
+        }
+    }
+#ifdef USEOPENMP
+}
+#endif
+    //reset number of threads to maximum number
+#ifdef USEOPENMP
+#pragma omp master
+    {
+        omp_set_num_threads(maxnthreads);
+    }
+    nthreads=maxnthreads;
+#endif
+    for (auto i=1;i<=numgroups;i++)
+    {
+        if (numingroup[i]<0) continue;
+        if (numingroup[i]>POTPPCALCNUM) {
+            Potential(opt, numingroup[i], gPart[i]);
+        }
+    }
+}
+
+///Calculate potential of groups, assumes particle list is ordered by group
+///and accessed by numingroup and noffset;
+inline void CalculatePotentials(Options &opt, Particle *gPart, Int_t &numgroups, Int_t *numingroup, Int_t *noffset)
+{
+    int maxnthreads,nthreads=1;
+#ifndef USEMPI
+    int ThisTask=0,NProcs=1;
+#endif
+
+    //for parallel environment store maximum number of threads
+    nthreads=1;
+#ifdef USEOPENMP
+#pragma omp parallel
+    {
+    if (omp_get_thread_num()==0) maxnthreads=nthreads=omp_get_num_threads();
+    }
+#endif
+
+    //for each group calculate potential
+    //if group is small calculate potentials using PP
+    //here openmp is over groups since each group is small
+#ifdef USEOPENMP
+#pragma omp parallel default(shared)
+{
+    #pragma omp for schedule(dynamic,1) nowait
+#endif
+    for (auto i=1;i<=numgroups;i++)
+    {
+        if (numingroup[i]<=POTPPCALCNUM) {
+            if (numingroup[i]<0) continue;
+            PotentialPP(opt, numingroup[i], &gPart[noffset[i]]);
+        }
+    }
+#ifdef USEOPENMP
+}
+#endif
+    //reset number of threads to maximum number
+#ifdef USEOPENMP
+#pragma omp master
+    {
+        omp_set_num_threads(maxnthreads);
+    }
+    nthreads=maxnthreads;
+#endif
+    for (auto i=1;i<=numgroups;i++)
+    {
+        if (numingroup[i]<0) continue;
+        if (numingroup[i]>POTPPCALCNUM) {
+            Potential(opt, numingroup[i], &gPart[noffset[i]]);
+        }
+    }
+}
+
+///loop over groups and get velocity frame
+inline void GetBindingReferenceFrame(Options &opt,
+    Particle **gPart, Int_t &numgroups, Int_t *numingroup,
+    Double_t *&gmass, Coordinate *&cmvel)
+{
+    Double_t potmin,menc;
+    Int_t npot,ipotmin;
+    Coordinate potpos;
+    Int_t *storeval;
+
+    //if using standard frame, then using CMVEL of the entire structure
+    if (opt.uinfo.fracpotref==1.0) {
+#ifdef USEOPENMP
+#pragma omp parallel default(shared)
+{
+#pragma omp for schedule(dynamic,1) nowait
+#endif
+            for (auto i=1;i<=numgroups;i++)
+            {
+                for (auto k=0;k<3;k++) cmvel[i][k]=0;
+                for (auto j=0;j<numingroup[i];j++) {
+                    gmass[i]+=gPart[i][j].GetMass();
+                    for (auto k=0;k<3;k++) cmvel[i][k]+=gPart[i][j].GetVelocity(k)*gPart[i][j].GetMass();
+                }
+                cmvel[i] *= 1.0/gmass[i];
+            }
+#ifdef USEOPENMP
+}
+#endif
+    }
+    else {
+        if (opt.uinfo.cmvelreftype==CMVELREF) {
+#ifdef USEOPENMP
+#pragma omp parallel default(shared)  \
+private(npot,menc,potpos,storeval)
+{
+#pragma omp for schedule(dynamic,1) nowait
+#endif
+            for (auto i=1;i<=numgroups;i++)
+            {
+                if (numingroup[i]<0) continue;
+                for (auto k=0;k<3;k++) potpos[k]=cmvel[i][k]=0;
+                for (auto j=0;j<numingroup[i];j++) {
+                    gmass[i]+=gPart[i][j].GetMass();
+                    for (auto k=0;k<3;k++) potpos[k]+=gPart[i][j].GetPosition(k)*gPart[i][j].GetMass();
+                }
+                potpos*=(1.0/gmass[i]);
+                //now sort by radius, first store original position in array
+                storeval=new Int_t[numingroup[i]];
+                for (auto j=0;j<numingroup[i];j++) {
+                    for (auto k=0;k<3;k++) gPart[i][j].SetPosition(k,gPart[i][j].GetPosition(k)-potpos[k]);
+                    storeval[i] = gPart[i][j].GetID();
+                    gPart[i][j].SetID(j);
+                }
+                //sort by radius
+                gsl_heapsort(gPart[i],numingroup[i],sizeof(Particle),RadCompare);
+                //use central regions to define centre of mass velocity
+                //determine how many particles to use
+                npot=max(opt.uinfo.Npotref,Int_t(opt.uinfo.fracpotref*numingroup[i]));
+                npot=min(npot,numingroup[i]);
+                cmvel[i][0]=cmvel[i][1]=cmvel[i][2]=menc=0.;
+                for (auto j=0;j<npot;j++) {
+                    for (auto k=0;k<3;k++) cmvel[i][k]+=gPart[i][j].GetVelocity(k)*gPart[i][j].GetMass();
+                    menc+=gPart[i][j].GetMass();
+                }
+                for (auto j=0;j<3;j++) {cmvel[i][j]/=menc;}
+                gsl_heapsort(gPart[i],numingroup[i],sizeof(Particle),IDCompare);
+                for (auto j=0;j<numingroup[i];j++) {
+                    gPart[i][j].SetID(storeval[j]);
+                    for (auto k=0;k<3;k++) gPart[i][j].SetPosition(k,gPart[i][j].GetPosition(k)+potpos[k]);
+                }
+                delete[] storeval;
+            }
+#ifdef USEOPENMP
+}
+#endif
+        }
+        //if using potential then must identify minimum potential.
+        //Note that  most computations involve sorts, so parallize over groups
+        else if (opt.uinfo.cmvelreftype==POTREF) {
+#ifdef USEOPENMP
+#pragma omp parallel default(shared)  \
+private(npot,menc,potmin,ipotmin,potpos,storeval)
+{
+#pragma omp for schedule(dynamic,1) nowait
+#endif
+            for (auto i=1;i<=numgroups;i++) {
+                if (numingroup[i]<0) continue;
+                //determine how many particles to use
+                npot=max(opt.uinfo.Npotref,Int_t(opt.uinfo.fracpotref*numingroup[i]));
+                npot=min(npot,numingroup[i]);
+
+                storeval=new Int_t[numingroup[i]];
+                for (auto j=0;j<numingroup[i];j++) {storeval[j]=gPart[i][j].GetID();gPart[i][j].SetID(j);}
+                //determine position of minimum potential and by radius around this position
+                potmin=gPart[i][0].GetPotential();ipotmin=0;
+                for (auto j=1;j<numingroup[i];j++) if (gPart[i][j].GetPotential()<potmin) {potmin=gPart[i][j].GetPotential();ipotmin=j;}
+                for (auto k=0;k<3;k++) potpos[k]=gPart[i][ipotmin].GetPosition(k);
+
+                for (auto j=0;j<numingroup[i];j++) {
+                    for (auto k=0;k<3;k++) gPart[i][j].SetPosition(k,gPart[i][j].GetPosition(k)-potpos[k]);
+                }
+                gsl_heapsort(gPart[i],numingroup[i],sizeof(Particle),RadCompare);
+                //now determine kinetic frame
+                cmvel[i][0]=cmvel[i][1]=cmvel[i][2]=menc=0.;
+                for (auto j=0;j<npot;j++) {
+                    for (auto k=0;k<3;k++) cmvel[i][k]+=gPart[i][j].GetVelocity(k)*gPart[i][j].GetMass();
+                    menc+=gPart[i][j].GetMass();
+                }
+                for (auto j=0;j<3;j++) {cmvel[i][j]/=menc;}
+                gsl_heapsort(gPart[i],numingroup[i],sizeof(Particle),IDCompare);
+                for (auto j=0;j<numingroup[i];j++) gPart[i][j].SetID(storeval[j]);
+                delete[] storeval;
+            }
+#ifdef USEOPENMP
+}
+#endif
+        }
+    }
+}
+
+///loop over groups and get velocity frame
+inline void GetBindingReferenceFrame(Options &opt,
+    Particle *gPart, Int_t &numgroups, Int_t *numingroup, Int_t *noffset,
+    Double_t *&gmass, Coordinate *&cmvel)
+{
+    Double_t potmin,menc;
+    Int_t npot,ipotmin;
+    Coordinate potpos;
+    Int_t *storeval;
+    //if using standard frame, then using CMVEL of the entire structure
+    if (opt.uinfo.fracpotref==1.0) {
+#ifdef USEOPENMP
+#pragma omp parallel default(shared)
+{
+#pragma omp for schedule(dynamic,1) nowait
+#endif
+            for (auto i=1;i<=numgroups;i++)
+            {
+                for (auto k=0;k<3;k++) cmvel[i][k]=0;
+                for (auto j=0;j<numingroup[i];j++) {
+                    gmass[i]+=gPart[noffset[i]+j].GetMass();
+                    for (auto k=0;k<3;k++) cmvel[i][k]+=gPart[noffset[i]+j].GetVelocity(k)*gPart[noffset[i]+j].GetMass();
+                }
+                cmvel[i] *= 1.0/gmass[i];
+            }
+#ifdef USEOPENMP
+}
+#endif
+    }
+    else {
+        if (opt.uinfo.cmvelreftype==CMVELREF) {
+#ifdef USEOPENMP
+#pragma omp parallel default(shared)  \
+private(npot,menc,potpos,storeval)
+{
+#pragma omp for schedule(dynamic,1) nowait
+#endif
+            for (auto i=1;i<=numgroups;i++)
+            {
+                if (numingroup[i]<0) continue;
+                for (auto k=0;k<3;k++) potpos[k]=cmvel[i][k]=0;
+                for (auto j=0;j<numingroup[i];j++) {
+                    gmass[i]+=gPart[noffset[i]+j].GetMass();
+                    for (auto k=0;k<3;k++) potpos[k]+=gPart[noffset[i]+j].GetPosition(k)*gPart[noffset[i]+j].GetMass();
+                }
+                potpos*=(1.0/gmass[i]);
+                //now sort by radius, first store original position in array
+                storeval=new Int_t[numingroup[i]];
+                for (auto j=0;j<numingroup[i];j++) {
+                    for (auto k=0;k<3;k++) gPart[noffset[i]+j].SetPosition(k,gPart[noffset[i]+j].GetPosition(k)-potpos[k]);
+                    storeval[i] = gPart[noffset[i]+j].GetID();
+                    gPart[noffset[i]+j].SetID(j);
+                }
+                //sort by radius
+                gsl_heapsort(&gPart[noffset[i]],numingroup[i],sizeof(Particle),RadCompare);
+                //use central regions to define centre of mass velocity
+                //determine how many particles to use
+                npot=max(opt.uinfo.Npotref,Int_t(opt.uinfo.fracpotref*numingroup[i]));
+                npot=min(npot,numingroup[i]);
+                cmvel[i][0]=cmvel[i][1]=cmvel[i][2]=menc=0.;
+                for (auto j=0;j<npot;j++) {
+                    for (auto k=0;k<3;k++) cmvel[i][k]+=gPart[noffset[i]+j].GetVelocity(k)*gPart[noffset[i]+j].GetMass();
+                    menc+=gPart[noffset[i]+j].GetMass();
+                }
+                for (auto j=0;j<3;j++) {cmvel[i][j]/=menc;}
+                gsl_heapsort(&gPart[noffset[i]],numingroup[i],sizeof(Particle),IDCompare);
+                for (auto j=0;j<numingroup[i];j++) {
+                    gPart[noffset[i]+j].SetID(storeval[j]);
+                    for (auto k=0;k<3;k++) gPart[noffset[i]+j].SetPosition(k,gPart[noffset[i]+j].GetPosition(k)+potpos[k]);
+                }
+                delete[] storeval;
+            }
+#ifdef USEOPENMP
+}
+#endif
+        }
+        //if using potential then must identify minimum potential.
+        //Note that  most computations involve sorts, so parallize over groups
+        else if (opt.uinfo.cmvelreftype==POTREF) {
+#ifdef USEOPENMP
+#pragma omp parallel default(shared)  \
+private(npot,menc,potmin,ipotmin,potpos,storeval)
+{
+#pragma omp for schedule(dynamic,1) nowait
+#endif
+            for (auto i=1;i<=numgroups;i++) {
+                if (numingroup[i]<0) continue;
+                //determine how many particles to use
+                npot=max(opt.uinfo.Npotref,Int_t(opt.uinfo.fracpotref*numingroup[i]));
+                npot=min(npot,numingroup[i]);
+
+                storeval=new Int_t[numingroup[i]];
+                for (auto j=0;j<numingroup[i];j++) {storeval[j]=gPart[noffset[i]+j].GetID();gPart[noffset[i]+j].SetID(j);}
+                //determine position of minimum potential and by radius around this position
+                potmin=gPart[noffset[i]+0].GetPotential();ipotmin=0;
+                for (auto j=1;j<numingroup[i];j++) if (gPart[noffset[i]+j].GetPotential()<potmin) {potmin=gPart[noffset[i]+j].GetPotential();ipotmin=j;}
+                for (auto k=0;k<3;k++) potpos[k]=gPart[noffset[i]+ipotmin].GetPosition(k);
+
+                for (auto j=0;j<numingroup[i];j++) {
+                    for (auto k=0;k<3;k++) gPart[noffset[i]+j].SetPosition(k,gPart[noffset[i]+j].GetPosition(k)-potpos[k]);
+                }
+                gsl_heapsort(&gPart[noffset[i]],numingroup[i],sizeof(Particle),RadCompare);
+                //now determine kinetic frame
+                cmvel[i][0]=cmvel[i][1]=cmvel[i][2]=menc=0.;
+                for (auto j=0;j<npot;j++) {
+                    for (auto k=0;k<3;k++) cmvel[i][k]+=gPart[noffset[i]+j].GetVelocity(k)*gPart[noffset[i]+j].GetMass();
+                    menc+=gPart[noffset[i]+j].GetMass();
+                }
+                for (auto j=0;j<3;j++) {cmvel[i][j]/=menc;}
+                gsl_heapsort(&gPart[noffset[i]],numingroup[i],sizeof(Particle),IDCompare);
+                for (auto j=0;j<numingroup[i];j++) gPart[noffset[i]+j].SetID(storeval[j]);
+                delete[] storeval;
+            }
+#ifdef USEOPENMP
+}
+#endif
+        }
+    }
+}
+
 
 /*!
     Unbinding algorithm that checks to see if a group is self-bound. For small groups the potential is calculated using a PP algorithm, for large groups a tree-potential using kd-tree and monopole is calculated. \n
@@ -337,14 +684,6 @@ int Unbind(Options &opt, Particle **gPart, Int_t &numgroups, Int_t *numingroup, 
     int *Eplusflag;
     bool unbindcheck;
     Coordinate *cmvel;
-    //for tree code potential calculation
-    KDTree *tree;
-    Int_t ncell,ntreecell,nleafcell;
-    Int_t *start,*end;
-    Double_t *cmtot,*cBmax,*cR2max, **r2val;
-    Coordinate *cellcm;
-    Node *root,**nodelist, **npomp;
-    Int_t **marktreecell,**markleafcell;
 
     //used to determine potential based reference velocity frame
     Double_t potmin,menc;
@@ -376,175 +715,9 @@ int Unbind(Options &opt, Particle **gPart, Int_t &numgroups, Int_t *numingroup, 
     }
 
     //if calculate potential
-    if (opt.uinfo.icalculatepotential) {
-    //for parallel environment store maximum number of threads
-    nthreads=1;
-#ifdef USEOPENMP
-#pragma omp parallel
-    {
-    if (omp_get_thread_num()==0) maxnthreads=nthreads=omp_get_num_threads();
-    }
-#endif
-
-    //for each group calculate potential
-    //if group is small calculate potentials using PP
-    //here openmp is over groups since each group is small
-#ifdef USEOPENMP
-#pragma omp parallel default(shared)  \
-private(i,j,k,n,r2,poti, pot)
-{
-    #pragma omp for schedule(dynamic,1) nowait
-#endif
-    for (i=1;i<=numgroups;i++)
-    {
-        if (numingroup[i]<=POTPPCALCNUM) {
-            if (numingroup[i]<0) continue;
-            for (j=0;j<numingroup[i];j++) {
-                for (k=j+1;k<numingroup[i];k++) {
-                    r2=0.;for (n=0;n<3;n++) r2+=pow(gPart[i][j].GetPosition(n)-gPart[i][k].GetPosition(n),2.0);
-                    r2+=eps2;
-                    r2=1.0/sqrt(r2);
-                    pot=-opt.G*(gPart[i][j].GetMass()*gPart[i][k].GetMass())*r2;
-                    #ifdef NOMASS
-                    pot *= mv2;
-                    #endif
-                    poti=gPart[i][j].GetPotential()+pot;gPart[i][j].SetPotential(poti);
-                    poti=gPart[i][k].GetPotential()+pot;gPart[i][k].SetPotential(poti);
-                }
-            }
-#ifdef NOMASS
-        for (j=0;j<numingroup[i];j++) gPart[i][j].SetPotential(gPart[i][j].GetPotential()*mv2);
-#endif
-        }
-    }
-#ifdef USEOPENMP
-}
-#endif
-    //reset number of threads to maximum number
-#ifdef USEOPENMP
-#pragma omp master
-    {
-        omp_set_num_threads(maxnthreads);
-    }
-    nthreads=maxnthreads;
-#endif
-    for (i=1;i<=numgroups;i++)
-    {
-        if (numingroup[i]<0) continue;
-        if (numingroup[i]>POTPPCALCNUM) {
-            Potential(opt, numingroup[i], gPart[i]);
-        }
-    }
-
-    }//end of check whether we calculate potential
+    if (opt.uinfo.icalculatepotential) CalculatePotentials(opt, gPart, numgroups, numingroup);
 
     //Now set the kinetic reference frame
-    //if using standard frame, then using CMVEL of the entire structure
-    if (opt.uinfo.fracpotref==1.0) {
-#ifdef USEOPENMP
-#pragma omp parallel default(shared)  \
-private(i,j,k)
-{
-    #pragma omp for schedule(dynamic,1) nowait
-#endif
-        for (i=1;i<=numgroups;i++)
-        {
-            for (k=0;k<3;k++) cmvel[i][k]=0;
-            for (j=0;j<numingroup[i];j++) {
-                gmass[i]+=gPart[i][j].GetMass();
-                for (k=0;k<3;k++) cmvel[i][k]+=gPart[i][j].GetVelocity(k)*gPart[i][j].GetMass();
-            }
-            cmvel[i] *= 1.0/gmass[i];
-        }
-#ifdef USEOPENMP
-}
-#endif
-    }
-    else if (opt.uinfo.cmvelreftype==CMVELREF) {
-#ifdef USEOPENMP
-#pragma omp parallel default(shared)  \
-private(i,j,k,npot,menc,potpos,storeval)
-{
-    #pragma omp for schedule(dynamic,1) nowait
-#endif
-    for (i=1;i<=numgroups;i++)
-    {
-        if (numingroup[i]<0) continue;
-        for (k=0;k<3;k++) potpos[k]=cmvel[i][k]=0;
-        for (j=0;j<numingroup[i];j++) {
-            gmass[i]+=gPart[i][j].GetMass();
-            for (k=0;k<3;k++) potpos[k]+=gPart[i][j].GetPosition(k)*gPart[i][j].GetMass();
-        }
-        potpos*=(1.0/gmass[i]);
-        //now sort by radius, first store original position in array
-        storeval=new Int_t[numingroup[i]];
-        for (j=0;j<numingroup[i];j++) {
-            for (k=0;k<3;k++) gPart[i][j].SetPosition(k,gPart[i][j].GetPosition(k)-potpos[k]);
-        }
-        //sort by radius
-        gsl_heapsort(gPart[i],numingroup[i],sizeof(Particle),RadCompare);
-        //use central regions to define centre of mass velocity
-        //determine how many particles to use
-        npot=max(opt.uinfo.Npotref,Int_t(opt.uinfo.fracpotref*numingroup[i]));
-        npot=min(npot,numingroup[i]);
-        cmvel[i][0]=cmvel[i][1]=cmvel[i][2]=menc=0.;
-        for (j=0;j<npot;j++) {
-            for (k=0;k<3;k++) cmvel[i][k]+=gPart[i][j].GetVelocity(k)*gPart[i][j].GetMass();
-            menc+=gPart[i][j].GetMass();
-        }
-        for (j=0;j<3;j++) {cmvel[i][j]/=menc;}
-        gsl_heapsort(gPart[i],numingroup[i],sizeof(Particle),IDCompare);
-        for (j=0;j<numingroup[i];j++) {
-            gPart[i][j].SetID(storeval[j]);
-            for (k=0;k<3;k++) gPart[i][j].SetPosition(k,gPart[i][j].GetPosition(k)+potpos[k]);
-        }
-        delete[] storeval;
-    }
-#ifdef USEOPENMP
-}
-#endif
-    }
-    //if using potential then must identify minimum potential.
-    //Note that  most computations involve sorts, so parallize over groups
-    else if (opt.uinfo.cmvelreftype==POTREF) {
-#ifdef USEOPENMP
-#pragma omp parallel default(shared)  \
-private(i,j,k,npot,menc,potmin,ipotmin,potpos,storeval)
-{
-    #pragma omp for schedule(dynamic,1) nowait
-#endif
-        for (i=1;i<=numgroups;i++) {
-            if (numingroup[i]<0) continue;
-            //determine how many particles to use
-            npot=max(opt.uinfo.Npotref,Int_t(opt.uinfo.fracpotref*numingroup[i]));
-            npot=min(npot,numingroup[i]);
-
-            storeval=new Int_t[numingroup[i]];
-            for (j=0;j<numingroup[i];j++) {storeval[j]=gPart[i][j].GetID();gPart[i][j].SetID(j);}
-            //determine position of minimum potential and by radius around this position
-            potmin=gPart[i][0].GetPotential();ipotmin=0;
-            for (j=1;j<numingroup[i];j++) if (gPart[i][j].GetPotential()<potmin) {potmin=gPart[i][j].GetPotential();ipotmin=j;}
-            for (k=0;k<3;k++) potpos[k]=gPart[i][ipotmin].GetPosition(k);
-
-            for (j=0;j<numingroup[i];j++) {
-                for (k=0;k<3;k++) gPart[i][j].SetPosition(k,gPart[i][j].GetPosition(k)-potpos[k]);
-            }
-            gsl_heapsort(gPart[i],numingroup[i],sizeof(Particle),RadCompare);
-            //now determine kinetic frame
-            cmvel[i][0]=cmvel[i][1]=cmvel[i][2]=menc=0.;
-            for (j=0;j<npot;j++) {
-                for (k=0;k<3;k++) cmvel[i][k]+=gPart[i][j].GetVelocity(k)*gPart[i][j].GetMass();
-                menc+=gPart[i][j].GetMass();
-            }
-            for (j=0;j<3;j++) {cmvel[i][j]/=menc;}
-            gsl_heapsort(gPart[i],numingroup[i],sizeof(Particle),IDCompare);
-            for (j=0;j<numingroup[i];j++) gPart[i][j].SetID(storeval[j]);
-            delete[] storeval;
-        }
-#ifdef USEOPENMP
-}
-#endif
-    }
 
     //now go through groups and begin unbinding by finding least bound particle
     //again for small groups multithread over groups
@@ -1599,6 +1772,9 @@ private(j,k,l,n,ntreecell,nleafcell,r2)
             }
         }
         potV[Part[j].GetID()]*=opt.G;
+        #ifdef NOMASS
+        potV[Part[j].GetID()]*=mv2;
+        #endif
     }
 #ifdef USEOPENMP
 }
@@ -1744,4 +1920,25 @@ private(j,k,l,n,ntreecell,nleafcell,r2)
     delete[] markleafcell;
     delete[] r2val;
     delete[] npomp;
+}
+
+void PotentialPP(Options &opt, Int_t nbodies, Particle *Part)
+{
+    Double_t r2, pot, poti, eps2=opt.uinfo.eps*opt.uinfo.eps, mv2=opt.MassValue*opt.MassValue;
+    for (auto j=0;j<nbodies;j++) {
+        for (auto k=j+1;k<nbodies;k++) {
+            r2=0.;for (auto n=0;n<3;n++) r2+=pow(Part[j].GetPosition(n)-Part[k].GetPosition(n),2.0);
+            r2+=eps2;
+            r2=1.0/sqrt(r2);
+            pot=-opt.G*(Part[j].GetMass()*Part[k].GetMass())*r2;
+            #ifdef NOMASS
+            pot *= mv2;
+            #endif
+            poti=Part[j].GetPotential()+pot;Part[j].SetPotential(poti);
+            poti=Part[k].GetPotential()+pot;Part[k].SetPotential(poti);
+        }
+    }
+    #ifdef NOMASS
+    for (auto j=0;j<nbodies;j++) Part[j].SetPotential(Part[j].GetPotential()*mv2);
+    #endif
 }
