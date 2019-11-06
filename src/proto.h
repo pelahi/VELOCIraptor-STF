@@ -279,6 +279,7 @@ int Unbind(Options &opt, Particle *Part, Int_t &numgroups, Int_t *&numingroup, I
 ///calculate the potential of an array of particles
 void Potential(Options &opt, Int_t nbodies, Particle *Part, Double_t *potV);
 void Potential(Options &opt, Int_t nbodies, Particle *Part);
+void PotentialPP(Options &opt, Int_t nbodies, Particle *Part);
 //@}
 
 /// \name Routines to determine bulk quantities of halo and adjust halo
@@ -530,7 +531,7 @@ int MPISetFilesRead(Options&opt, int *&ireadfile, int *&ireadtask);
 void MPIInitWriteComm();
 ///determine how to group mpi threads together when writing
 void MPIBuildWriteComm(Options &opt);
-///free communicator if needed 
+///free communicator if needed
 void MPIFreeWriteComm();
 
 /// Determine number of local particles for tipsy
