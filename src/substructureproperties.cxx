@@ -4284,11 +4284,6 @@ private(j,v2,Ti,Ei,mval)
 #endif
     }
 
-    for (i=1;i<=ngroup;i++) {
-        cout<<i<<" "<<pdata[i].num<<" "<<pdata[i].n_gas<<" ";
-        cout<<pdata[i].Pot<<" "<<pdata[i].Efrac<<" "<<pdata[i].Efrac_gas<<endl;
-    }
-
     //get most bound particle
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
