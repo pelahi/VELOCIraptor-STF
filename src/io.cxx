@@ -2516,7 +2516,7 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
     string fname;
     ostringstream os;
     char buf[40];
-    long unsigned ngtot=0, noffset=0, ng=ngroups, nhalos=0, nhalostot, nwritecommtot=0, nhalowritecommtot=0;
+    long unsigned ngtot=0, noffset=0, ng=ngroups, nhalos=0, nhalostot=0, nwritecommtot=0, nhalowritecommtot=0;
     //void pointer to hold data
     void *data;
     int itemp=0, nbinsedges = opt.profilenbins+1;
