@@ -407,7 +407,7 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
             }
             Ekin+=Pval->GetMass()*(vx*vx+vy*vy+vz*vz);
 #ifdef GASON
-            if (Pval->GetType()==GASTYPE) Ekin+=Pval->GetU()*Pval->GetMass();
+            if (Pval->GetType()==GASTYPE) Ekin+=2.0*Pval->GetU()*Pval->GetMass();
 #endif
             pdata[i].gveldisp(0,0)+=vx*vx*Pval->GetMass();
             pdata[i].gveldisp(1,1)+=vy*vy*Pval->GetMass();
@@ -473,7 +473,7 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
             vz = (*Pval).Vz()-pdata[i].gcmvel[2];
             RV_Ekin+=Pval->GetMass()*(vx*vx+vy*vy+vz*vz);
 #ifdef GASON
-            if (Pval->GetType()==GASTYPE) RV_Ekin+=Pval->GetU()*Pval->GetMass();
+            if (Pval->GetType()==GASTYPE) RV_Ekin+=2.0*Pval->GetU()*Pval->GetMass();
 #endif
             pdata[i].RV_J=pdata[i].RV_J+Coordinate(Pval->GetPosition()).Cross(Coordinate(vx,vy,vz))*Pval->GetMass();
             pdata[i].RV_veldisp(0,0)+=vx*vx*Pval->GetMass();
@@ -687,12 +687,12 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
             for (j=0;j<numingroup[i];j++) {
                 Pval=&Part[j+noffset[i]];
                 if (Pval->GetType()==GASTYPE) {
-                    x = (*Pval).X();//-pdata[i].cm_gas[0];
-                    y = (*Pval).Y();//-pdata[i].cm_gas[1];
-                    z = (*Pval).Z();//-pdata[i].cm_gas[2];
-                    vx = (*Pval).Vx()-pdata[i].gcmvel[0];//-pdata[i].cmvel_gas[0];
-                    vy = (*Pval).Vy()-pdata[i].gcmvel[1];//-pdata[i].cmvel_gas[1];
-                    vz = (*Pval).Vz()-pdata[i].gcmvel[2];//-pdata[i].cmvel_gas[2];
+                    x = (*Pval).X();
+                    y = (*Pval).Y();
+                    z = (*Pval).Z();
+                    vx = (*Pval).Vx()-pdata[i].gcmvel[0];
+                    vy = (*Pval).Vy()-pdata[i].gcmvel[1];
+                    vz = (*Pval).Vz()-pdata[i].gcmvel[2];
                     mval=Pval->GetMass();
                     EncMass+=mval;
                     r2=x*x+y*y+z*z;
@@ -706,9 +706,13 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
                     if (r2<=opt.lengthtokpc50pow2) pdata[i].M_gas_50kpc+=mval;
                     if (r2<=pdata[i].gR500c*pdata[i].gR500c) pdata[i].M_gas_500c+=mval;
                     if (EncMass>0.5*pdata[i].M_gas && pdata[i].Rhalfmass_gas==0) pdata[i].Rhalfmass_gas=rc;
-                    if (Rdist>0) pdata[i].Krot_gas+=mval*(jzval*jzval/(Rdist*Rdist));
-                    Ekin+=mval*(vx*vx+vy*vy+vz*vz);
-                    Ekin+=mval*Pval->GetU();
+                    double ekin_i, ethermal_i, krot_i;
+                    ekin_i = mval*(vx*vx+vy*vy+vz*vz);
+                    ethermal_i = 2.0*mval*Pval->GetU();
+                    krot_i = mval*(jzval*jzval/(Rdist*Rdist));
+                    if (Rdist>0) pdata[i].Krot_gas+=krot_i;
+                    Ekin+=ekin_i;
+                    Ekin+=ethermal_i;
                     if (opt.iextragasoutput) {
                         if (rc<=pdata[i].gR200c_excl) {
                             pdata[i].M_200crit_excl_gas+=mval;
@@ -728,9 +732,9 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
                     if (SFR>opt.gas_sfr_threshold){
                         EncMassSF+=mval;
                         if (EncMassSF>0.5*pdata[i].M_gas_sf && pdata[i].Rhalfmass_gas_sf==0) pdata[i].Rhalfmass_gas_sf=rc;
-                        if (Rdist>0)pdata[i].Krot_gas_sf+=mval*(jzval*jzval/(Rdist*Rdist));
-                        Ekin_sf+=mval*(vx*vx+vy*vy+vz*vz);
-                        Ekin_sf+=mval*Pval->GetU();
+                        if (Rdist>0)pdata[i].Krot_gas_sf+=krot_i;
+                        Ekin_sf+=ekin_i;
+                        Ekin_sf+=ethermal_i;
                         if (opt.iextragasoutput) {
                             if (rc<=pdata[i].gR200c_excl) {
                                 pdata[i].M_200crit_excl_gas_sf+=mval;
@@ -749,9 +753,9 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
                     else {
                         EncMassNSF+=mval;
                         if (EncMassNSF>0.5*pdata[i].M_gas_nsf && pdata[i].Rhalfmass_gas_nsf==0) pdata[i].Rhalfmass_gas_nsf=rc;
-                        if (Rdist>0)pdata[i].Krot_gas_nsf+=mval*(jzval*jzval/(Rdist*Rdist));
-                        Ekin_nsf+=mval*(vx*vx+vy*vy+vz*vz);
-                        Ekin_nsf+=mval*Pval->GetU();
+                        if (Rdist>0)pdata[i].Krot_gas_nsf+=krot_i;
+                        Ekin_nsf+=ekin_i;
+                        Ekin_nsf+=ethermal_i;
                         if (opt.iextragasoutput) {
                             if (rc<=pdata[i].gR200c_excl) {
                                 pdata[i].M_200crit_excl_gas_nsf+=mval;
@@ -770,11 +774,11 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
                     #endif
                 }
             }
-            pdata[i].Krot_gas*=0.5/Ekin;
+            pdata[i].Krot_gas/=Ekin;
             pdata[i].T_gas=0.5*Ekin;
 #ifdef STARON
-            if (pdata[i].M_gas_sf>0) pdata[i].Krot_gas_sf*=0.5/Ekin_sf;
-            if (pdata[i].M_gas_nsf>0) pdata[i].Krot_gas_nsf*=0.5/Ekin_nsf;
+            if (pdata[i].M_gas_sf>0) pdata[i].Krot_gas_sf/=Ekin_sf;
+            if (pdata[i].M_gas_nsf>0) pdata[i].Krot_gas_nsf/=Ekin_nsf;
 #endif
         }
         if (pdata[i].n_gas>=PROPMORPHMINNUM) GetGlobalSpatialMorphology(numingroup[i], &Part[noffset[i]], pdata[i].q_gas, pdata[i].s_gas, 1e-2, pdata[i].eigvec_gas,0,GASTYPE,0);
@@ -895,12 +899,12 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
             for (j=0;j<numingroup[i];j++) {
                 Pval=&Part[j+noffset[i]];
                 if (Pval->GetType()==STARTYPE) {
-                    x = (*Pval).X();//-pdata[i].cm_star[0];
-                    y = (*Pval).Y();//-pdata[i].cm_star[1];
-                    z = (*Pval).Z();//-pdata[i].cm_star[2];
-                    vx = (*Pval).Vx()-pdata[i].gcmvel[0];//-pdata[i].cmvel_star[0];
-                    vy = (*Pval).Vy()-pdata[i].gcmvel[1];//-pdata[i].cmvel_star[1];
-                    vz = (*Pval).Vz()-pdata[i].gcmvel[2];//-pdata[i].cmvel_star[2];
+                    x = (*Pval).X();
+                    y = (*Pval).Y();
+                    z = (*Pval).Z();
+                    vx = (*Pval).Vx()-pdata[i].gcmvel[0];
+                    vy = (*Pval).Vy()-pdata[i].gcmvel[1];
+                    vz = (*Pval).Vz()-pdata[i].gcmvel[2];
                     mval=Pval->GetMass();
                     EncMass+=mval;
                     r2=x*x+y*y+z*z;
@@ -932,8 +936,9 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
                     }
                 }
             }
-            pdata[i].Krot_star/=Ekin;
-            pdata[i].T_star=0.5*Ekin;
+            Ekin *= 0.5;
+            pdata[i].Krot_star /= Ekin;
+            pdata[i].T_star = Ekin;
         }
         if (pdata[i].n_star>=PROPMORPHMINNUM) GetGlobalSpatialMorphology(numingroup[i], &Part[noffset[i]], pdata[i].q_star, pdata[i].s_star, 1e-2, pdata[i].eigvec_star,0,STARTYPE,0);
 #endif
@@ -1055,7 +1060,7 @@ private(j,Pval,rc,x,y,z,vx,vy,vz,J,mval)
             syz+=vy*vz*mval;
             Ekin+=(vx*vx+vy*vy+vz*vz)*mval;
             #ifdef GASON
-            if (Pval->GetType()==GASTYPE) Ekin+=mval*Pval->GetU();
+            //if (Pval->GetType()==GASTYPE) Ekin+=mval*Pval->GetU();
             #endif
         }
 #ifdef USEOPENMP
@@ -1187,7 +1192,7 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval)
             syz+=vy*vz*mval;
             Ekin+=(vx*vx+vy*vy+vz*vz)*mval;
             #ifdef GASON
-            if (Pval->GetType()==GASTYPE) Ekin+=mval*Pval->GetU();
+            if (Pval->GetType()==GASTYPE) Ekin+=2.0*mval*Pval->GetU();
             #endif
         }
 #ifdef USEOPENMP
@@ -1455,9 +1460,9 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval,SFR)
             for (j=0;j<numingroup[i];j++) {
                 Pval=&Part[j+noffset[i]];
                 if (Pval->GetType()==GASTYPE) {
-                    x = (*Pval).X();//-pdata[i].cm_gas[0];
-                    y = (*Pval).Y();//-pdata[i].cm_gas[1];
-                    z = (*Pval).Z();//-pdata[i].cm_gas[2];
+                    x = (*Pval).X();
+                    y = (*Pval).Y();
+                    z = (*Pval).Z();
                     r2=x*x+y*y+z*z;
                     rc=sqrt(r2);
                     mval = Pval->GetMass();
@@ -1494,31 +1499,35 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist,mval)
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
             if (Pval->GetType()!=GASTYPE) continue;
-            x = (*Pval).X();//-pdata[i].cm_gas[0];
-            y = (*Pval).Y();//-pdata[i].cm_gas[1];
-            z = (*Pval).Z();//-pdata[i].cm_gas[2];
-            vx = (*Pval).Vx()-pdata[i].gcmvel[0];//-pdata[i].cmvel_gas[0];
-            vy = (*Pval).Vy()-pdata[i].gcmvel[1];//-pdata[i].cmvel_gas[1];
-            vz = (*Pval).Vz()-pdata[i].gcmvel[2];//-pdata[i].cmvel_gas[2];
+            x = (*Pval).X();
+            y = (*Pval).Y();
+            z = (*Pval).Z();
+            vx = (*Pval).Vx()-pdata[i].gcmvel[0];
+            vy = (*Pval).Vy()-pdata[i].gcmvel[1];
+            vz = (*Pval).Vz()-pdata[i].gcmvel[2];
             mval  = Pval->GetMass();
             jval=Coordinate(x,y,z).Cross(Coordinate(vx,vy,vz));
             jzval=(jval*pdata[i].L_gas)/pdata[i].L_gas.Length();
             zdist=(Coordinate(x,y,z)*pdata[i].L_gas)/pdata[i].L_gas.Length();
             Rdist=sqrt(x*x+y*y+z*z-zdist*zdist);
-            if (Rdist>0)Krot+=Pval->GetMass()*(jzval*jzval/(Rdist*Rdist));
-            Ekin+=mval*(vx*vx+vy*vy+vz*vz);
-            Ekin+=mval*Pval->GetU();
-#ifdef STARON
+            double ekin_i, ethermal_i, krot_i;
+            ekin_i = mval*(vx*vx+vy*vy+vz*vz);
+            ethermal_i = 2.0*mval*Pval->GetU();
+            krot_i = mval*(jzval*jzval/(Rdist*Rdist));
+            if (Rdist>0)Krot+=krot_i;
+            Ekin+=ekin_i;
+            Ekin+=ethermal_i;
+        #ifdef STARON
             SFR = Pval->GetSFR();
             if (SFR>opt.gas_sfr_threshold) {
-                if (Rdist>0)Krot_sf+=Pval->GetMass()*(jzval*jzval/(Rdist*Rdist));
-                Ekin_sf+=mval*(vx*vx+vy*vy+vz*vz);
-                Ekin_sf+=mval*Pval->GetU();
+                if (Rdist>0)Krot_sf+=krot_i;
+                Ekin_sf+=ekin_i;
+                Ekin_sf+=ethermal_i;
             }
             else {
-                if (Rdist>0)Krot_nsf+=Pval->GetMass()*(jzval*jzval/(Rdist*Rdist));
-                Ekin_nsf+=mval*(vx*vx+vy*vy+vz*vz);
-                Ekin_nsf+=mval*Pval->GetU();
+                if (Rdist>0)Krot_nsf+=krot_i;
+                Ekin_nsf+=ekin_i;
+                Ekin_nsf+=ethermal_i;
             }
 #endif
         }
@@ -1527,10 +1536,10 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist,mval)
 #endif
         pdata[i].Krot_gas=Krot/Ekin;
         pdata[i].T_gas=0.5*Ekin;
-#ifdef STARON
-        if (pdata[i].M_gas_sf>0) pdata[i].Krot_gas_sf*=0.5/Ekin_sf;
-        if (pdata[i].M_gas_nsf>0) pdata[i].Krot_gas_nsf*=0.5/Ekin_nsf;
-#endif
+        #ifdef STARON
+        if (pdata[i].M_gas_sf>0) pdata[i].Krot_gas_sf=Krot_sf/Ekin_sf;
+        if (pdata[i].M_gas_nsf>0) pdata[i].Krot_gas_nsf=Krot_nsf/Ekin_nsf;
+        #endif
         }
         if (pdata[i].n_gas>=PROPMORPHMINNUM) GetGlobalSpatialMorphology(numingroup[i], &Part[noffset[i]], pdata[i].q_gas, pdata[i].s_gas, 1e-2, pdata[i].eigvec_gas,0,GASTYPE,0);
 #ifdef NOMASS
@@ -3976,6 +3985,8 @@ void GetBindingEnergy(Options &opt, const Int_t nbodies, Particle *Part, Int_t n
     Double_t potmin,menc;
     Int_t npot,ipotmin;
     Coordinate cmpotmin;
+    vector<Int_t> npartspertype(NPARTTYPES);
+    Int_t n_gas, n_star, n_interloper, n_bh, n_dm;
 
     //used to temporarily store pids. Needed for large groups as the tree code used to calculate potential overwrites the id of particles so that once
     //finished it puts the particles back into the input order. Therefore store id values in PID  value (which can be over written)
@@ -3991,21 +4002,7 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin)
     #pragma omp for schedule(dynamic) nowait
 #endif
     for (i=1;i<=ngroup;i++) if (numingroup[i]<POTPPCALCNUM) {
-        for (j=0;j<numingroup[i];j++) {
-            for (k=j+1;k<numingroup[i];k++) {
-                r2=0.;for (int n=0;n<3;n++) r2+=pow(Part[j+noffset[i]].GetPosition(n)-Part[k+noffset[i]].GetPosition(n),2.0);
-                r2+=eps2;
-                r2=1.0/sqrt(r2);
-#ifdef NOMASS
-                pot=-opt.G*r2*mw2;
-#else
-                pot=-opt.G*(Part[j+noffset[i]].GetMass()*Part[k+noffset[i]].GetMass())*r2;
-#endif
-                pdata[i].Pot+=pot;
-                poti=Part[j+noffset[i]].GetPotential()+pot;Part[j+noffset[i]].SetPotential(poti);
-                poti=Part[k+noffset[i]].GetPotential()+pot;Part[k+noffset[i]].SetPotential(poti);
-            }
-        }
+        PotentialPP(opt,numingroup[i],&Part[noffset[i]]);
     }
 #ifdef USEOPENMP
 }
@@ -4106,48 +4103,6 @@ private(i,j,k,potmin,ipotmin)
 #endif
     }
 
-    //then calculate binding energy and store in density
-#ifdef USEOPENMP
-#pragma omp parallel default(shared)  \
-private(i,j,k,r2,v2,mval,poti,Ti)
-{
-    #pragma omp for schedule(dynamic) nowait
-#endif
-    for (i=1;i<=ngroup;i++) if (numingroup[i]<ompunbindnum) {
-        for (j=0;j<numingroup[i];j++) {
-            v2=0.;for (int n=0;n<3;n++) v2+=pow(Part[j+noffset[i]].GetVelocity(n)-pdata[i].gcmvel[n],2.0);
-            mval = Part[j+noffset[i]].GetMass();
-#ifdef NOMASS
-            mval *= opt.MassValue;
-#endif
-            Ti=0.5*mval*v2;
-#ifdef GASON
-            Ti+=mval*Part[j+noffset[i]].GetU();
-#endif
-            pdata[i].T+=Ti;
-            Part[j+noffset[i]].SetDensity(Ti+Part[j+noffset[i]].GetPotential());
-            if(Part[j+noffset[i]].GetDensity()<0) pdata[i].Efrac+=1.0;
-#ifdef GASON
-            if(Part[j+noffset[i]].GetDensity()<0&&Part[j+noffset[i]].GetType()==GASTYPE) pdata[i].Efrac_gas+=1.0;
-#endif
-#ifdef STARON
-            if(Part[j+noffset[i]].GetDensity()<0&&Part[j+noffset[i]].GetType()==STARTYPE) pdata[i].Efrac_star+=1.0;
-#endif
-        }
-        pdata[i].Efrac/=(Double_t)numingroup[i];
-#ifdef GASON
-        if (pdata[i].n_gas>0)pdata[i].Efrac_gas/=(Double_t)pdata[i].n_gas;
-#endif
-#ifdef STARON
-        if (pdata[i].n_star>0)pdata[i].Efrac_star/=(Double_t)pdata[i].n_star;
-#endif
-    }
-#ifdef USEOPENMP
-}
-#endif
-
-    //begin large groups
-
     //if using POTREF, most computations involve sorts, so parallize over groups
     if (opt.uinfo.cmvelreftype==POTREF) {
 #ifdef USEOPENMP
@@ -4218,20 +4173,72 @@ private(i,j,k,potmin,ipotmin)
 }
 #endif
     }
+
     //finally calculate binding energy
+#ifdef USEOPENMP
+#pragma omp parallel default(shared)  \
+private(i,j,k,r2,v2,mval,poti,Ti,n_gas,n_star,n_interloper,n_bh,n_dm)
+{
+    #pragma omp for schedule(dynamic) nowait
+#endif
+    for (i=1;i<=ngroup;i++) if (numingroup[i]<ompunbindnum) {
+        n_gas=n_star=n_bh=n_interloper=n_dm=0;
+        for (j=0;j<numingroup[i];j++) {
+            v2=0.;for (int n=0;n<3;n++) v2+=pow(Part[j+noffset[i]].GetVelocity(n)-pdata[i].gcmvel[n],2.0);
+            mval = Part[j+noffset[i]].GetMass();
+#ifdef NOMASS
+            mval *= opt.MassValue;
+#endif
+            Ti=0.5*mval*v2;
+#ifdef GASON
+            Ti+=mval*Part[j+noffset[i]].GetU();
+#endif
+            pdata[i].Pot+=Part[j+noffset[i]].GetPotential();
+            pdata[i].T+=Ti;
+            Part[j+noffset[i]].SetDensity(Ti+Part[j+noffset[i]].GetPotential());
+            if(Part[j+noffset[i]].GetDensity()<0) pdata[i].Efrac+=1.0;
+#ifdef GASON
+            if (Part[j+noffset[i]].GetType()==GASTYPE) {
+                n_gas++;
+                if(Part[j+noffset[i]].GetDensity()<0) pdata[i].Efrac_gas+=1.0;
+            }
+#endif
+#ifdef STARON
+            if (Part[j+noffset[i]].GetType()==STARTYPE) {
+                n_star++;
+                if(Part[j+noffset[i]].GetDensity()<0) pdata[i].Efrac_star+=1.0;
+            }
+#endif
+        }
+        pdata[i].Pot *= 0.5;
+        pdata[i].Efrac/=(Double_t)numingroup[i];
+#ifdef GASON
+        if (n_gas) pdata[i].Efrac_gas/=(Double_t)n_gas;
+#endif
+#ifdef STARON
+        if (n_star) pdata[i].Efrac_star/=(Double_t)n_star;
+#endif
+    }
+#ifdef USEOPENMP
+}
+#endif
+
+    //begin large groups
     for (i=1;i<=ngroup;i++) if (numingroup[i]>=ompunbindnum) {
         Tval=0;Potval=0;Efracval=0;
 #ifdef GASON
         Efracval_gas=0.;
+        n_gas = 0;
 #endif
 #ifdef STARON
         Efracval_star=0.;
+        n_star = 0;
 #endif
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
 private(j,v2,Ti,Ei,mval)
 {
-    #pragma omp for reduction(+:Tval,Efracval,Potval,Efracval_gas,Efracval_star)
+    #pragma omp for reduction(+:Tval,Efracval,Potval,Efracval_gas,Efracval_star,n_star,n_gas)
 #endif
         for (j=0;j<numingroup[i];j++) {
             v2=0.;for (int n=0;n<3;n++) v2+=pow(Part[j+noffset[i]].GetVelocity(n)-pdata[i].gcmvel[n],2.0);
@@ -4249,26 +4256,33 @@ private(j,v2,Ti,Ei,mval)
             Tval+=Ti;
             if(Part[j+noffset[i]].GetDensity()<0.0) Efracval+=1.0;
 #ifdef GASON
-            if(Part[j+noffset[i]].GetDensity()<0&&Part[j+noffset[i]].GetType()==GASTYPE) Efracval_gas+=1.0;
+            if (Part[j+noffset[i]].GetType()==GASTYPE) {
+                n_gas++;
+                if(Part[j+noffset[i]].GetDensity()<0)Efracval_gas+=1.0;
+            }
 #endif
 #ifdef STARON
-            if(Part[j+noffset[i]].GetDensity()<0&&Part[j+noffset[i]].GetType()==STARTYPE) Efracval_star+=1.0;
+            if (Part[j+noffset[i]].GetType()==STARTYPE) {
+                n_star++;
+                if(Part[j+noffset[i]].GetDensity()<0)Efracval_star+=1.0;
+            }
 #endif
         }
 #ifdef USEOPENMP
 }
 #endif
         //get potential, fraction bound, etc
-        pdata[i].T=Tval;pdata[i].Efrac=Efracval;pdata[i].Pot=Potval;
+        pdata[i].T = Tval;
+        pdata[i].Efrac = Efracval;
+        pdata[i].Pot = 0.5*Potval;
         pdata[i].Efrac/=(Double_t)numingroup[i];
 #ifdef GASON
-        if (pdata[i].n_gas>0)pdata[i].Efrac_gas=Efracval_gas/(Double_t)pdata[i].n_gas;
+        if (n_gas>0)pdata[i].Efrac_gas=Efracval_gas/(Double_t)n_gas;
 #endif
 #ifdef STARON
-        if (pdata[i].n_star>0)pdata[i].Efrac_star=Efracval_star/(Double_t)pdata[i].n_star;
+        if (n_star>0)pdata[i].Efrac_star=Efracval_star/(Double_t)n_star;
 #endif
     }
-
 
     //get most bound particle
 #ifdef USEOPENMP

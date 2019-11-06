@@ -3263,9 +3263,42 @@ Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, const I
     Int_t nparts=ndark+nbaryons;
     Int_t nhierarchy=1,gidval;
     StrucLevelData *ppsldata,**papsldata;
+    int nparts_tot, ndark_tot;
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
 #endif
+
+#ifdef USEMPI
+    MPI_Allreduce(&nparts, &nparts_tot, 1, MPI_Int_t, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(&ndark, &ndark_tot, 1, MPI_Int_t, MPI_SUM, MPI_COMM_WORLD);
+#else
+    nparts_tot = nparts;
+    ndark_tot = ndark;
+#endif
+    if (nparts_tot == ndark_tot) {
+        if (ThisTask == 0) cout<<"Requested baryon search but no baryons loaded. Skipping."<<endl;
+        pfofall=pfofdark;
+        return pfofall;
+    }
+    if (opt.partsearchtype==PSTALL && nparts == ndark){
+        cout<<ThisTask<<" has no local baryons to assign. Skipping search."<<endl;
+#ifdef USEMPI
+        // if MPI and also unbinding then there is all gather that is invoked.
+        //as number of groups could have changed has due to unbinding.
+        if (opt.uinfo.unbindflag) {
+            cout<<"MPI thread "<<ThisTask<<" has found "<<ngroupdark<<endl;
+            MPI_Allgather(&ngroupdark, 1, MPI_Int_t, mpi_ngroups, 1, MPI_Int_t, MPI_COMM_WORLD);
+            //free up memory now that only need to store pfof and global ids
+            if (ThisTask==0) {
+                int totalgroups=0;
+                for (int j=0;j<NProcs;j++) totalgroups+=mpi_ngroups[j];
+                cout<<"Total number of groups found is "<<totalgroups<<endl;
+            }
+        }
+#endif
+        pfofall=pfofdark;
+        return pfofall;
+    }
 
     cout<<ThisTask<<" search baryons "<<nparts<<" "<<ndark<<endl;
     //if searched all particles in FOF, reorder particles and also the pfof group id array
