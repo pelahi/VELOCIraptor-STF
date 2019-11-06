@@ -3985,6 +3985,8 @@ void GetBindingEnergy(Options &opt, const Int_t nbodies, Particle *Part, Int_t n
     Double_t potmin,menc;
     Int_t npot,ipotmin;
     Coordinate cmpotmin;
+    vector<Int_t> npartspertype(NPARTTYPES);
+    Int_t n_gas, n_star, n_interloper, n_bh, n_dm;
 
     //used to temporarily store pids. Needed for large groups as the tree code used to calculate potential overwrites the id of particles so that once
     //finished it puts the particles back into the input order. Therefore store id values in PID  value (which can be over written)
@@ -4000,20 +4002,7 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin)
     #pragma omp for schedule(dynamic) nowait
 #endif
     for (i=1;i<=ngroup;i++) if (numingroup[i]<POTPPCALCNUM) {
-        for (j=0;j<numingroup[i];j++) {
-            for (k=j+1;k<numingroup[i];k++) {
-                r2=0.;for (int n=0;n<3;n++) r2+=pow(Part[j+noffset[i]].GetPosition(n)-Part[k+noffset[i]].GetPosition(n),2.0);
-                r2+=eps2;
-                r2=1.0/sqrt(r2);
-#ifdef NOMASS
-                pot=-opt.G*r2*mw2;
-#else
-                pot=-opt.G*(Part[j+noffset[i]].GetMass()*Part[k+noffset[i]].GetMass())*r2;
-#endif
-                poti=Part[j+noffset[i]].GetPotential()+pot;Part[j+noffset[i]].SetPotential(poti);
-                poti=Part[k+noffset[i]].GetPotential()+pot;Part[k+noffset[i]].SetPotential(poti);
-            }
-        }
+        PotentialPP(opt,numingroup[i],&Part[noffset[i]]);
     }
 #ifdef USEOPENMP
 }
@@ -4188,11 +4177,12 @@ private(i,j,k,potmin,ipotmin)
     //finally calculate binding energy
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
-private(i,j,k,r2,v2,mval,poti,Ti)
+private(i,j,k,r2,v2,mval,poti,Ti,n_gas,n_star,n_interloper,n_bh,n_dm)
 {
     #pragma omp for schedule(dynamic) nowait
 #endif
     for (i=1;i<=ngroup;i++) if (numingroup[i]<ompunbindnum) {
+        n_gas=n_star=n_bh=n_interloper=n_dm=0;
         for (j=0;j<numingroup[i];j++) {
             v2=0.;for (int n=0;n<3;n++) v2+=pow(Part[j+noffset[i]].GetVelocity(n)-pdata[i].gcmvel[n],2.0);
             mval = Part[j+noffset[i]].GetMass();
@@ -4208,19 +4198,25 @@ private(i,j,k,r2,v2,mval,poti,Ti)
             Part[j+noffset[i]].SetDensity(Ti+Part[j+noffset[i]].GetPotential());
             if(Part[j+noffset[i]].GetDensity()<0) pdata[i].Efrac+=1.0;
 #ifdef GASON
-            if(Part[j+noffset[i]].GetDensity()<0&&Part[j+noffset[i]].GetType()==GASTYPE) pdata[i].Efrac_gas+=1.0;
+            if (Part[j+noffset[i]].GetType()==GASTYPE) {
+                n_gas++;
+                if(Part[j+noffset[i]].GetDensity()<0) pdata[i].Efrac_gas+=1.0;
+            }
 #endif
 #ifdef STARON
-            if(Part[j+noffset[i]].GetDensity()<0&&Part[j+noffset[i]].GetType()==STARTYPE) pdata[i].Efrac_star+=1.0;
+            if (Part[j+noffset[i]].GetType()==STARTYPE) {
+                n_star++;
+                if(Part[j+noffset[i]].GetDensity()<0) pdata[i].Efrac_star+=1.0;
+            }
 #endif
         }
         pdata[i].Pot *= 0.5;
         pdata[i].Efrac/=(Double_t)numingroup[i];
 #ifdef GASON
-        if (pdata[i].n_gas>0)pdata[i].Efrac_gas/=(Double_t)pdata[i].n_gas;
+        if (n_gas) pdata[i].Efrac_gas/=(Double_t)n_gas;
 #endif
 #ifdef STARON
-        if (pdata[i].n_star>0)pdata[i].Efrac_star/=(Double_t)pdata[i].n_star;
+        if (n_star) pdata[i].Efrac_star/=(Double_t)n_star;
 #endif
     }
 #ifdef USEOPENMP
@@ -4232,15 +4228,17 @@ private(i,j,k,r2,v2,mval,poti,Ti)
         Tval=0;Potval=0;Efracval=0;
 #ifdef GASON
         Efracval_gas=0.;
+        n_gas = 0;
 #endif
 #ifdef STARON
         Efracval_star=0.;
+        n_star = 0;
 #endif
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
 private(j,v2,Ti,Ei,mval)
 {
-    #pragma omp for reduction(+:Tval,Efracval,Potval,Efracval_gas,Efracval_star)
+    #pragma omp for reduction(+:Tval,Efracval,Potval,Efracval_gas,Efracval_star,n_star,n_gas)
 #endif
         for (j=0;j<numingroup[i];j++) {
             v2=0.;for (int n=0;n<3;n++) v2+=pow(Part[j+noffset[i]].GetVelocity(n)-pdata[i].gcmvel[n],2.0);
@@ -4258,10 +4256,16 @@ private(j,v2,Ti,Ei,mval)
             Tval+=Ti;
             if(Part[j+noffset[i]].GetDensity()<0.0) Efracval+=1.0;
 #ifdef GASON
-            if(Part[j+noffset[i]].GetDensity()<0&&Part[j+noffset[i]].GetType()==GASTYPE) Efracval_gas+=1.0;
+            if (Part[j+noffset[i]].GetType()==GASTYPE) {
+                n_gas++;
+                if(Part[j+noffset[i]].GetDensity()<0)Efracval_gas+=1.0;
+            }
 #endif
 #ifdef STARON
-            if(Part[j+noffset[i]].GetDensity()<0&&Part[j+noffset[i]].GetType()==STARTYPE) Efracval_star+=1.0;
+            if (Part[j+noffset[i]].GetType()==STARTYPE) {
+                n_star++;
+                if(Part[j+noffset[i]].GetDensity()<0)Efracval_star+=1.0;
+            }
 #endif
         }
 #ifdef USEOPENMP
@@ -4273,10 +4277,10 @@ private(j,v2,Ti,Ei,mval)
         pdata[i].Pot = 0.5*Potval;
         pdata[i].Efrac/=(Double_t)numingroup[i];
 #ifdef GASON
-        if (pdata[i].n_gas>0)pdata[i].Efrac_gas=Efracval_gas/(Double_t)pdata[i].n_gas;
+        if (n_gas>0)pdata[i].Efrac_gas=Efracval_gas/(Double_t)n_gas;
 #endif
 #ifdef STARON
-        if (pdata[i].n_star>0)pdata[i].Efrac_star=Efracval_star/(Double_t)pdata[i].n_star;
+        if (n_star>0)pdata[i].Efrac_star=Efracval_star/(Double_t)n_star;
 #endif
     }
 
