@@ -929,7 +929,7 @@ private(i,j,k,n,maxE,maxunbindsize,nEplus,nEplusid,Eplusflag,v2,Ti,unbindcheck,E
 }
 
 
-///\todo need to update to handle absence of pglist 
+///\todo need to update to handle absence of pglist
 //
 // int Unbind(Options &opt, Particle *gPart, Int_t &numgroups, Int_t *numingroup, Int_t *noffset, Int_t *pfof, int ireorder)
 // {
@@ -2140,6 +2140,7 @@ private(j,k,l,n,ntreecell,nleafcell,r2)
 void PotentialPP(Options &opt, Int_t nbodies, Particle *Part)
 {
     Double_t r2, pot, poti, eps2=opt.uinfo.eps*opt.uinfo.eps, mv2=opt.MassValue*opt.MassValue;
+    for (auto j=0;j<nbodies;j++) Part[j].SetPotential(0.);
     for (auto j=0;j<nbodies;j++) {
         for (auto k=j+1;k<nbodies;k++) {
             r2=0.;for (auto n=0;n<3;n++) r2+=pow(Part[j].GetPosition(n)-Part[k].GetPosition(n),2.0);

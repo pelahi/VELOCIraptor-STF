@@ -4000,20 +4000,7 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin)
     #pragma omp for schedule(dynamic) nowait
 #endif
     for (i=1;i<=ngroup;i++) if (numingroup[i]<POTPPCALCNUM) {
-        for (j=0;j<numingroup[i];j++) {
-            for (k=j+1;k<numingroup[i];k++) {
-                r2=0.;for (int n=0;n<3;n++) r2+=pow(Part[j+noffset[i]].GetPosition(n)-Part[k+noffset[i]].GetPosition(n),2.0);
-                r2+=eps2;
-                r2=1.0/sqrt(r2);
-#ifdef NOMASS
-                pot=-opt.G*r2*mw2;
-#else
-                pot=-opt.G*(Part[j+noffset[i]].GetMass()*Part[k+noffset[i]].GetMass())*r2;
-#endif
-                poti=Part[j+noffset[i]].GetPotential()+pot;Part[j+noffset[i]].SetPotential(poti);
-                poti=Part[k+noffset[i]].GetPotential()+pot;Part[k+noffset[i]].SetPotential(poti);
-            }
-        }
+        PotentialPP(opt,numingroup[i],&Part[noffset[i]]);
     }
 #ifdef USEOPENMP
 }
