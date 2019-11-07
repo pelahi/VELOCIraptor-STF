@@ -54,8 +54,8 @@
 ///if using OpenMP API
 #ifdef USEOPENMP
 #include <omp.h>
-#include "ompvar.h"
 #endif
+#include "ompvar.h"
 
 ///if using HDF API
 #ifdef USEHDF
@@ -233,16 +233,6 @@ using namespace NBody;
 ///cellflag means a node that is not necessarily a leaf node can be approximated by mono-pole
 #define cellflag 0
 
-//@}
-
-/// \defgroup OMPLIMS For determining whether loop contains enough for openm to be worthwhile.
-//@{
-#ifndef USEOPENMP
-#define ompsearchnum 50000
-#define ompunbindnum 1000
-#define ompperiodnum 50000
-#define omppropnum 50000
-#endif
 //@}
 
 /// \defgroup PROPLIMS Particle limits for calculating properties
