@@ -2833,6 +2833,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
     Int_t *numcores,*coreflag;
     Int_t *subpfofold;
     vector<Int_t> ngroupidoffset_old, ngroupidoffset_new;
+    vector<Int_t> ompactivesubgroups;
     //variables to keep track of structure level, pfof values (ie group ids) and their parent structure
     //use to point to current level
     StrucLevelData *pcsld;
@@ -2902,12 +2903,20 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
         ngroupidoffset_new[1] = ngroupidoffset;
         ngroupidoffset_old[1] = ngroupidoffset;
         for (auto i=2;i<=oldnsubsearch;i++) ngroupidoffset_old[i] = ngroupidoffset_old[i-1]+ceil(subnumingroup[i-1]/opt.MinSize)+1;
+#ifdef USEOPENMP
+        //vector that will store the subgroups that are small
+        //enough to be searched fully in parallel.
+        ompactivesubgroups.resize(0);
+#endif
 
         for (Int_t i=1;i<=oldnsubsearch;i++) {
             // try running loop over largest objects in serial with parallel inside calls
             // so skip of group is small enough and running with openmp
 #ifdef USEOPENMP
-            if (subnumingroup[i] < ompsubsearchnum) continue;
+            if (subnumingroup[i] < ompsubsearchnum) {
+                ompactivesubgroups.push_back(i);
+                continue;
+            }
 #endif
             subpfofold[i]=pfof[subpglist[i][0]];
             subPart=new Particle[subnumingroup[i]];
@@ -2932,39 +2941,42 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
 
 
 #ifdef USEOPENMP
-        cout<<"finished large groups "<<ns<<endl;
-        Int_t oldns = ns;
-        ns = 0;
-        Options opt2;
-        #pragma omp parallel for \
-        default(shared) private(subPart, subpfof, opt2) schedule(dynamic) \
-        reduction(+:ns)
-        for (Int_t i=1;i<=oldnsubsearch;i++) {
-            opt2 = opt;
-            //ignore small groups
-            if (subnumingroup[i] >= ompsubsearchnum) continue;
-            int omptid = omp_get_thread_num();
-            subpfofold[i] = pfof[subpglist[i][0]];
-            subPart = new Particle[subnumingroup[i]];
-            for (Int_t j=0;j<subnumingroup[i];j++) subPart[j] = Partsubset[subpglist[i][j]];
-            if (opt.icmrefadjust) {
-                //this routine is in substructureproperties.cxx. Has internal parallelisation
-                GMatrix cmphase = CalcPhaseCM(subnumingroup[i], subPart);
-                //this routine is within this file, also has internal parallelisation
-                AdjustSubPartToPhaseCM(subnumingroup[i], subPart, cmphase);
+        if (ompactivesubgroups.size()>0) {
+            cout<<"finished large groups "<<ns<<endl;
+            Int_t oldns = ns;
+            ns = 0;
+            Options opt2;
+            #pragma omp parallel for \
+            default(shared) private(subPart, subpfof, opt2) schedule(dynamic) \
+            reduction(+:ns)
+            for (auto iomp=0;iomp<ompactivesubgroups.size();iomp++) {
+                Int_t i=ompactivesubgroups[iomp];
+                opt2 = opt;
+                //ignore small groups
+                if (subnumingroup[i] >= ompsubsearchnum) continue;
+                int omptid = omp_get_thread_num();
+                subpfofold[i] = pfof[subpglist[i][0]];
+                subPart = new Particle[subnumingroup[i]];
+                for (Int_t j=0;j<subnumingroup[i];j++) subPart[j] = Partsubset[subpglist[i][j]];
+                if (opt.icmrefadjust) {
+                    //this routine is in substructureproperties.cxx. Has internal parallelisation
+                    GMatrix cmphase = CalcPhaseCM(subnumingroup[i], subPart);
+                    //this routine is within this file, also has internal parallelisation
+                    AdjustSubPartToPhaseCM(subnumingroup[i], subPart, cmphase);
+                }
+                PreCalcSearchSubSet(opt2, subnumingroup[i], subPart, sublevel);
+                subpfof = SearchSubset(opt2, subnumingroup[i], subnumingroup[i], subPart,
+                    subngroup[i], sublevel, &numcores[i]);
+                CleanAndUpdateGroupsFromSubSearch(opt2, subnumingroup[i], subPart, subpfof,
+                        subngroup[i], subsubnumingroup[i], subsubpglist[i], numcores[i],
+                        subpglist[i], pfof, ngroup, ngroupidoffset_old[i]);
+                delete[] subpfof;
+                delete[] subPart;
+                ns += subngroup[i];
             }
-            PreCalcSearchSubSet(opt2, subnumingroup[i], subPart, sublevel);
-            subpfof = SearchSubset(opt2, subnumingroup[i], subnumingroup[i], subPart,
-                subngroup[i], sublevel, &numcores[i]);
-            CleanAndUpdateGroupsFromSubSearch(opt, subnumingroup[i], subPart, subpfof,
-                    subngroup[i], subsubnumingroup[i], subsubpglist[i], numcores[i],
-                    subpglist[i], pfof, ngroup, ngroupidoffset_old[i]);
-            delete[] subpfof;
-            delete[] subPart;
-            ns += subngroup[i];
+            cout<<"Done small groups "<<ns<<endl;
+            ns += oldns;
         }
-        cout<<"Done small groups "<<ns<<endl;
-        ns += oldns;
 #endif
         UpdateGroupIDsFromSubstructure(oldnsubsearch, ngroup,
             pfof, subngroup, subnumingroup, subpglist,
