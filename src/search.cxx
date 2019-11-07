@@ -2952,9 +2952,6 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
             for (auto iomp=0;iomp<ompactivesubgroups.size();iomp++) {
                 Int_t i=ompactivesubgroups[iomp];
                 opt2 = opt;
-                //ignore small groups
-                if (subnumingroup[i] >= ompsubsearchnum) continue;
-                int omptid = omp_get_thread_num();
                 subpfofold[i] = pfof[subpglist[i][0]];
                 subPart = new Particle[subnumingroup[i]];
                 for (Int_t j=0;j<subnumingroup[i];j++) subPart[j] = Partsubset[subpglist[i][j]];
