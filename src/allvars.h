@@ -873,6 +873,9 @@ struct Options
         openmpfofsize = ompfofsearchnum;
 #endif
     }
+    Options(Options &opt) = default;
+    Options& operator=(const Options&) = default;
+    Options& operator=(Options&&) = default;
 };
 
 struct ConfigInfo{
