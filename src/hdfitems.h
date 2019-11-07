@@ -943,7 +943,7 @@ class H5OutputFile
         hid_t dspace_id = H5Screate(H5S_SCALAR);
 
         // Create attribute
-        hid_t attr_id = H5Acreate(file_id, name.c_str(), dtype_id, dspace_id, H5P_DEFAULT, H5P_DEFAULT);
+        hid_t attr_id = H5Acreate(parent_id, name.c_str(), dtype_id, dspace_id, H5P_DEFAULT, H5P_DEFAULT);
         if(attr_id < 0)io_error(string("Unable to create attribute ")+name+string(" on object ")+parent);
 
         // Write the attribute

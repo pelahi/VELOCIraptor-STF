@@ -3279,8 +3279,7 @@ void WriteSimulationInfoToHDF(Options &opt, H5OutputFile &Fhdf){
     hid_t group_id = Fhdf.create_group("SimulationInfo");
     SimInfo siminfo(opt);
     for (auto i=0;i<siminfo.nameinfo.size();i++) {
-        Fhdf.write_attribute(string("/SimulationInfo"),
-            siminfo.nameinfo[i], siminfo.datainfo[i]);
+        Fhdf.write_attribute(string("/SimulationInfo"), siminfo.nameinfo[i], siminfo.datainfo[i]);
     }
     Fhdf.close_group(group_id);
 }
@@ -3323,8 +3322,7 @@ void WriteUnitInfoToHDF(Options &opt, H5OutputFile &Fhdf){
     hid_t group_id = Fhdf.create_group("UnitInfo");
     UnitInfo unitinfo(opt);
     for (auto i=0;i<unitinfo.nameinfo.size();i++) {
-        Fhdf.write_attribute(string("/UnitInfo"),
-            unitinfo.nameinfo[i], unitinfo.datainfo[i]);
+        Fhdf.write_attribute(string("/UnitInfo"), unitinfo.nameinfo[i], unitinfo.datainfo[i]);
     }
     Fhdf.close_group(group_id);
 }
