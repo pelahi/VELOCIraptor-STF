@@ -3220,7 +3220,7 @@ Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, const I
     Int_t nparts=ndark+nbaryons;
     Int_t nhierarchy=1,gidval;
     StrucLevelData *ppsldata,**papsldata;
-    int nparts_tot, ndark_tot;
+    Int_t nparts_tot, ndark_tot;
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
 #endif
