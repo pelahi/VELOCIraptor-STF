@@ -491,6 +491,16 @@ class H5OutputFile
 #endif
     }
 
+    hid_t create_group(string groupname) {
+        hid_t group_id = H5Gcreate(file_id, groupname.c_str(),
+            H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+        return group_id;
+    }
+    herr_t close_group(hid_t gid) {
+        herr_t status = H5Gclose(gid);
+        return status;
+    }
+
   	// Destructor closes the file if it's open
     ~H5OutputFile()
     {
@@ -717,14 +727,14 @@ class H5OutputFile
                 if (ret < 0) io_error(string("Failed to write dataset: ")+name);
             }
         }
-        else if (dims[0] > 0) 
+        else if (dims[0] > 0)
         {
             // Write the data
             ret = H5Dwrite(dset_id, memtype_id, memspace_id, dspace_id, prop_id, data);
             if (ret < 0) io_error(string("Failed to write dataset: ")+name);
         }
 
-#else 
+#else
         // Write the data
         if (dims[0] > 0) {
             ret = H5Dwrite(dset_id, memtype_id, memspace_id, dspace_id, prop_id, data);
@@ -895,14 +905,14 @@ class H5OutputFile
                 if (ret < 0) io_error(string("Failed to write dataset: ")+name);
             }
         }
-        else if (dims[0] > 0) 
+        else if (dims[0] > 0)
         {
             // Write the data
             ret = H5Dwrite(dset_id, memtype_id, memspace_id, dspace_id, prop_id, data);
             if (ret < 0) io_error(string("Failed to write dataset: ")+name);
         }
 
-#else 
+#else
         // Write the data
         if (dims[0] > 0) {
             ret = H5Dwrite(dset_id, memtype_id, memspace_id, dspace_id, prop_id, data);
@@ -933,7 +943,7 @@ class H5OutputFile
         hid_t dspace_id = H5Screate(H5S_SCALAR);
 
         // Create attribute
-        hid_t attr_id = H5Acreate(file_id, name.c_str(), dtype_id, dspace_id, H5P_DEFAULT, H5P_DEFAULT);
+        hid_t attr_id = H5Acreate(parent_id, name.c_str(), dtype_id, dspace_id, H5P_DEFAULT, H5P_DEFAULT);
         if(attr_id < 0)io_error(string("Unable to create attribute ")+name+string(" on object ")+parent);
 
         // Write the attribute
@@ -1746,4 +1756,12 @@ inline Int_t HDF_get_nfiles(char *fname, int ptype)
 }
 //@}
 
+/// \name Wrappers to write attributes to HDF file
+//@{
+void WriteVELOCIraptorConfigToHDF(Options &opt, H5OutputFile &Fhdf);
+///Write the simulation info (which could use input files to overwrite passed configuration options)
+void WriteSimulationInfoToHDF(Options &opt, H5OutputFile &Fhdf);
+///Write the unit info
+void WriteUnitInfoToHDF(Options &opt, H5OutputFile &Fhdf);
+//@}
 #endif

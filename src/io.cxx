@@ -1522,6 +1522,9 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
             Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.SFRtosolarmassperyear);
             Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.stellaragetoyrs);
             #endif
+            WriteVELOCIraptorConfigToHDF(opt,Fhdf);
+            WriteSimulationInfoToHDF(opt,Fhdf);
+            WriteUnitInfoToHDF(opt,Fhdf);
         }
         Fhdf.close();
         MPI_Barrier(MPI_COMM_WORLD);
@@ -1544,6 +1547,9 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.SFRtosolarmassperyear);
         Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.stellaragetoyrs);
         #endif
+        WriteVELOCIraptorConfigToHDF(opt,Fhdf);
+        WriteSimulationInfoToHDF(opt,Fhdf);
+        WriteUnitInfoToHDF(opt,Fhdf);
 #endif
     }
 #endif
@@ -3222,8 +3228,20 @@ void WriteVELOCIraptorConfig(Options &opt){
 #endif
         Fout.close();
     }
-
 }
+
+
+#ifdef USEHDF
+void WriteVELOCIraptorConfigToHDF(Options &opt, H5OutputFile &Fhdf){
+    hid_t group_id = Fhdf.create_group("Configuration");
+    ConfigInfo config(opt);
+    for (auto i=0;i<config.nameinfo.size();i++) {
+        Fhdf.write_attribute(string("/Configuration"), config.nameinfo[i], config.datainfo[i]);
+    }
+    Fhdf.close_group(group_id);
+}
+#endif
+
 
 void WriteSimulationInfo(Options &opt){
     fstream Fout;
@@ -3254,8 +3272,18 @@ void WriteSimulationInfo(Options &opt){
 #endif
         Fout.close();
     }
-
 }
+
+#ifdef USEHDF
+void WriteSimulationInfoToHDF(Options &opt, H5OutputFile &Fhdf){
+    hid_t group_id = Fhdf.create_group("SimulationInfo");
+    SimInfo siminfo(opt);
+    for (auto i=0;i<siminfo.nameinfo.size();i++) {
+        Fhdf.write_attribute(string("/SimulationInfo"), siminfo.nameinfo[i], siminfo.datainfo[i]);
+    }
+    Fhdf.close_group(group_id);
+}
+#endif
 
 void WriteUnitInfo(Options &opt){
     fstream Fout;
@@ -3287,8 +3315,19 @@ void WriteUnitInfo(Options &opt){
 #endif
         Fout.close();
     }
-
 }
+
+#ifdef USEHDF
+void WriteUnitInfoToHDF(Options &opt, H5OutputFile &Fhdf){
+    hid_t group_id = Fhdf.create_group("UnitInfo");
+    UnitInfo unitinfo(opt);
+    for (auto i=0;i<unitinfo.nameinfo.size();i++) {
+        Fhdf.write_attribute(string("/UnitInfo"), unitinfo.nameinfo[i], unitinfo.datainfo[i]);
+    }
+    Fhdf.close_group(group_id);
+}
+#endif
+
 //@}
 
 ///\name output simulation state
