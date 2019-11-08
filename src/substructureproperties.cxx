@@ -3061,16 +3061,11 @@ void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup
         nhalos++;
         radfac=max(1.0,exp(1.0/3.0*(log(pdata[i].gmass)-3.0*log(pdata[i].gsize)+fac)));
         maxrdist[i]=pdata[i].gsize*opt.SphericalOverdensitySeachFac*radfac;
-if (i<3) cout<<ThisTask<<" ??? "<<i<<" "<<pdata[i].gmass<<" "<<pdata[i].gsize<<" "<<maxrdist[i]<<endl;
     }
-    //if (opt.iverbose >= 2) {
-        int iblah =0;
-        for (i=1;i<=ngroup;i++) if (maxsearchdist < maxrdist[i]) {maxsearchdist = maxrdist[i];iblah=i;}
-        //for (i=1;i<=ngroup;i++) if (maxsearchdist < maxrdist[i]) maxsearchdist = maxrdist[i];
+    if (opt.iverbose >= 2) {
+        for (i=1;i<=ngroup;i++) if (maxsearchdist < maxrdist[i]) maxsearchdist = maxrdist[i];
         cout<<ThisTask<<" max search distance is "<<maxsearchdist<<" in period fraction "<<maxsearchdist/opt.p<<endl;
-        cout<<ThisTask<<" ||| "<<iblah<<" "<<pdata[iblah].gmass<<" "<<pdata[iblah].gsize<<endl;
-
-    //}
+    }
 #ifdef USEMPI
     //if using mpi then determine if halo's search radius overlaps another mpi domain
     vector<bool> halooverlap;
