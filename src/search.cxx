@@ -2685,6 +2685,7 @@ inline void CleanAndUpdateGroupsFromSubSearch(Options &opt,
     bool iunbindflag;
     Int_t ng=subngroup;
     Int_t *coreflag;
+    if (subngroup == 0) return;
 
     subsubnumingroup = BuildNumInGroup(subnumingroup, subngroup, subpfof);
     subsubpglist = BuildPGList(subnumingroup, subngroup, subsubnumingroup, subpfof);
@@ -2753,49 +2754,6 @@ void UpdateGroupIDsFromSubstructure(Int_t activenumgroups, Int_t oldnumgroups,
         }
     }
 }
-
-
-//
-// inline void CleanAndUpdateGroupsFromSubSearch(Options &opt, Int_t *subngroup, Int_t i, Int_t ng, Int_t **subsubnumingroup, Int_t *subnumingroup,
-//     Int_t *subpfof, Int_t ***subsubpglist, Int_t *numcores, Int_t *coreflag, bool iunbindflag,
-//     Particle *subPart, Int_t *&pfof, Int_t **subpglist, Int_t &ngroup, Int_t &ngroupidoffset)
-// {
-//     Int_t j;
-//     ng=subngroup[i];
-//     subsubnumingroup[i]=BuildNumInGroup(subnumingroup[i], subngroup[i], subpfof);
-//     subsubpglist[i]=BuildPGList(subnumingroup[i], subngroup[i], subsubnumingroup[i], subpfof);
-//     if (opt.uinfo.unbindflag&&subngroup[i]>0) {
-//         //if also keeping track of cores then must allocate coreflag
-//         if (numcores[i]>0 && opt.iHaloCoreSearch>=1) {
-//             coreflag=new Int_t[ng+1];
-//             for (int icore=1;icore<=ng;icore++) coreflag[icore]=1+(icore>ng-numcores[i]);
-//         }
-//         else {coreflag=NULL;}
-//         iunbindflag=CheckUnboundGroups(opt,subnumingroup[i],subPart,subngroup[i],subpfof,subsubnumingroup[i],subsubpglist[i],1, coreflag);
-//         if (iunbindflag) {
-//             for (int j=1;j<=ng;j++) delete[] subsubpglist[i][j];
-//             delete[] subsubnumingroup[i];
-//             delete[] subsubpglist[i];
-//             if (subngroup[i]>0) {
-//                 subsubnumingroup[i]=BuildNumInGroup(subnumingroup[i], subngroup[i], subpfof);
-//                 subsubpglist[i]=BuildPGList(subnumingroup[i], subngroup[i], subsubnumingroup[i], subpfof);
-//             }
-//             //if need to update number of cores,
-//             if (numcores[i]>0 && opt.iHaloCoreSearch>=1) {
-//                 numcores[i]=0;
-//                 for (int icore=1;icore<=subngroup[i];icore++)numcores[i]+=(coreflag[icore]==2);
-//                 delete[] coreflag;
-//             }
-//         }
-//     }
-//
-//     // ///\todo issue here with ngroupidoffset that must be dealt with. Currently
-//     // ///will not work as this is steadily increased.
-//     // for (j=0;j<subnumingroup[i];j++) if (subpfof[j]>0) pfof[subpglist[i][j]]=ngroup+ngroupidoffset+subpfof[j];
-//     // ngroupidoffset+=subngroup[i];
-//     // //now alter subsubpglist so that index pointed is global subset index as global subset is used to get the particles to be searched for subsubstructure
-//     // for (j=1;j<=subngroup[i];j++) for (Int_t k=0;k<subsubnumingroup[i][j];k++) subsubpglist[i][j][k]=subpglist[i][subsubpglist[i][j][k]];
-// }
 
 /*!
     Given a initial ordered candidate list of substructures, find all substructures that are large enough to be searched.
