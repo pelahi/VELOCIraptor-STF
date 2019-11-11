@@ -656,6 +656,7 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
     delete[] parentgid;
     delete[] stype;
     delete psldata;
+    delete[] numingroup;
 
     //store group information to return information to swift if required
     //otherwise, return NULL as pointer
@@ -667,7 +668,6 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
         free(s.cellloc);
         free(cell_node_ids);
         delete[] pfof;
-        delete[] numingroup;
         *numpartingroups=0;
         return NULL;
     }
@@ -694,7 +694,6 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
         free(s.cellloc);
         free(cell_node_ids);
         delete[] pfof;
-        delete[] numingroup;
         *numpartingroups=nig;
         return NULL;
     }
