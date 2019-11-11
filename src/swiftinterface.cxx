@@ -704,6 +704,7 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
         if (pfof[i]>0) parts[i].SetPID((pfof[i]+ngoffset)+libvelociraptorOpt.snapshotvalue);
         else parts[i].SetPID(0);
     }
+    delete [] pfof;
 #ifdef USEMPI
     if (NProcs > 1) {
     for (auto i=0;i<Nlocal; i++) parts[i].SetID((parts[i].GetSwiftTask()==ThisTask));
