@@ -2807,7 +2807,7 @@ void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup
 {
     Particle *Pval;
     KDTree *tree;
-    Double_t *period=NULL;
+    Double_t period[3];
     Int_t i,j,k, nhalos = 0;
     if (opt.iverbose) {
         cout<<"Get inclusive masses"<<endl;
@@ -2873,7 +2873,6 @@ void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup
 
     //set period
     if (opt.p>0) {
-        period=new Double_t[3];
         for (int j=0;j<3;j++) period[j]=opt.p;
 #ifdef USEMPI
         mpi_period=opt.p;
