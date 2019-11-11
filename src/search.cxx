@@ -2458,6 +2458,7 @@ void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Parts
 //    cout<<ThisTask<<" after merging "<<numgroups<<" "<<numsubs<<" "<<numcores<<endl;
 }
 
+
 // ENCAPSULATED: ENCAPSULATION-01
 void AdjustSubPartToPhaseCM(Int_t num, Particle *subPart, GMatrix &cmphase)
 {
@@ -2699,8 +2700,6 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
             //now if subngroup>0 change the pfof ids of these particles in question and see if there are any substrucures that can be searched again.
             //the group ids must be stored along with the number of groups in this substructure that will be searched at next level.
             //now check if self bound and if not, id doesn't change from original subhalo,ie: subpfof[j]=0
-            // SearchSubStruct(subngroup, i, ng, subsubnumingroup, subnumingroup, subpfof, subsubpglist, opt, 
-            //     numcores, coreflag, iunbindflag, subPart, pfof, subpglist, ngroup, ngroupidoffset);
             if (subngroup[i]) {
                 SearchSubStruct(numcores, i, opt, ng, iunbindflag, subnumingroup,
                     subPart, subngroup, subpfof, subsubnumingroup, subsubpglist,
@@ -3551,7 +3550,7 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
             map<Int_t, Int_t> remap;
             Int_t newng=0, oldpid, newpid;
             remap[0]=0;
-            for (i=1;i<=ng;i++) {
+            for (auto i=1;i<=ng;i++) {
                 if (ningall[i]>0) {
                     newng++;
                     remap[i]=newng;
