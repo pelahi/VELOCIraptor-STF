@@ -1852,9 +1852,9 @@ void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *&Partsubset, In
     KDTree *tcore;
     Coordinate x1;
     Double_t D2, dval, mval, weight;
-    std::vector<Double_t> mcore(numgroupsbg+1, 0.0);
-    std::vector<Int_t> ncore(numgroupsbg+1, 0);
-    std::vector<Int_t> newcore(numgroupsbg+1, 0);
+    vector<Double_t> mcore(numgroupsbg+1, 0.0);
+    vector<Int_t> ncore(numgroupsbg+1, 0);
+    vector<Int_t> newcore(numgroupsbg+1, 0);
     Int_t newnumgroupsbg=0;
     int nsearch=opt.Nvel;
     int mincoresize;
@@ -1863,7 +1863,7 @@ void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *&Partsubset, In
     Double_t **dist2;
     PriorityQueue *pq;
     Int_t nactivepart=nsubset;
-    Int_t *noffset = NULL;
+    vector<Int_t> noffset(numgroupsbg+1,0);
 
     //determine the weights for the cores dispersions factors
     for (i=0;i<nsubset;i++) {
@@ -1880,7 +1880,6 @@ void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *&Partsubset, In
     }
     //if number of particles in core less than number in subset then start assigning particles
     if (nincore<nsubset) {
-        noffset=new Int_t[numgroupsbg+1];
         //if running fully adaptive core linking, then need to calculate phase-space dispersions for each core
         //about their centres and use this to determine distances
         if (opt.iPhaseCoreGrowth) {
@@ -1928,7 +1927,6 @@ void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *&Partsubset, In
 
             //if there are no active cores then return nothing
             if (nactive==0) {
-                delete[] noffset;
                 numgroupsbg=0;
                 return;
             }
@@ -2161,7 +2159,6 @@ private(i,tid,Pval,x1,D2,dval,mval,pid,pidcore)
         if (newnumgroupsbg<=1) {
             numgroupsbg=0;
             delete pq;
-            delete[] noffset;
             return;
         }
         newnumgroupsbg=0;
@@ -2176,7 +2173,6 @@ private(i,tid,Pval,x1,D2,dval,mval,pid,pidcore)
         }
         numgroupsbg=newnumgroupsbg;
         delete pq;
-        delete[] noffset;
     }
 }
 
@@ -2862,7 +2858,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
             // try running loop over largest objects in serial with parallel inside calls
             // so skip of group is small enough and running with openmp
 #ifdef USEOPENMP
-            if (subnumingroup[i] < ompsubsearchnum) {
+            if (subnumingroup[i] < ompsplitsubsearchnum) {
                 ompactivesubgroups.push_back(i);
                 continue;
             }
@@ -2891,7 +2887,6 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
 
 #ifdef USEOPENMP
         if (ompactivesubgroups.size()>0) {
-            cout<<"finished large groups "<<ns<<endl;
             Int_t oldns = ns;
             ns = 0;
             Options opt2;
@@ -2920,7 +2915,6 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
                 delete[] subPart;
                 ns += subngroup[i];
             }
-            cout<<"Done small groups "<<ns<<endl;
             ns += oldns;
         }
 #endif
