@@ -1852,9 +1852,10 @@ void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *&Partsubset, In
     KDTree *tcore;
     Coordinate x1;
     Double_t D2, dval, mval, weight;
-    Double_t *mcore=new Double_t[numgroupsbg+1];
-    Int_t *ncore=new Int_t[numgroupsbg+1];
-    Int_t newnumgroupsbg=0,*newcore=new Int_t[numgroupsbg+1];
+    std::vector<Double_t> mcore(numgroupsbg+1, 0.0);
+    std::vector<Int_t> ncore(numgroupsbg+1, 0);
+    std::vector<Int_t> newcore(numgroupsbg+1, 0);
+    Int_t newnumgroupsbg=0;
     int nsearch=opt.Nvel;
     int mincoresize;
     int tid,i;
@@ -1864,8 +1865,6 @@ void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *&Partsubset, In
     Int_t nactivepart=nsubset;
     Int_t *noffset = NULL;
 
-
-    for (i=0;i<=numgroupsbg;i++)ncore[i]=mcore[i]=0;
     //determine the weights for the cores dispersions factors
     for (i=0;i<nsubset;i++) {
         if (pfofbg[i]>0) {
@@ -1929,8 +1928,6 @@ void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *&Partsubset, In
 
             //if there are no active cores then return nothing
             if (nactive==0) {
-                delete[] mcore;
-                delete[] ncore;
                 delete[] noffset;
                 numgroupsbg=0;
                 return;
@@ -2164,9 +2161,6 @@ private(i,tid,Pval,x1,D2,dval,mval,pid,pidcore)
         if (newnumgroupsbg<=1) {
             numgroupsbg=0;
             delete pq;
-            delete[] mcore;
-            delete[] ncore;
-            delete[] newcore;
             delete[] noffset;
             return;
         }
@@ -2182,9 +2176,6 @@ private(i,tid,Pval,x1,D2,dval,mval,pid,pidcore)
         }
         numgroupsbg=newnumgroupsbg;
         delete pq;
-        delete[] mcore;
-        delete[] ncore;
-        delete[] newcore;
         delete[] noffset;
     }
 }
