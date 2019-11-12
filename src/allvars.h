@@ -59,10 +59,7 @@
 
 ///if using HDF API
 #ifdef USEHDF
-#include "H5Cpp.h"
-#ifndef H5_NO_NAMESPACE
-using namespace H5;
-#endif
+#include "hdf5.h"
 #endif
 
 ///if using ADIOS API
@@ -393,9 +390,9 @@ struct Options
     /// input is a cosmological simulation so can use box sizes, cosmological parameters, etc to set scales
     int icosmologicalin;
     /// input buffer size when reading data
-    long int inputbufsize;
+    long long inputbufsize;
     /// mpi paritcle buffer size when sending input particle information
-    long int mpiparticletotbufsize,mpiparticlebufsize;
+    long long mpiparticletotbufsize,mpiparticlebufsize;
     /// mpi factor by which to multiple the memory allocated, ie: buffer region
     /// to reduce likelihood of having to expand/allocate new memory
     Double_t mpipartfac;
@@ -850,256 +847,501 @@ struct Options
 struct ConfigInfo{
     //list the name of the info
     vector<string> nameinfo;
-    //vector<float> datainfo;
     vector<string> datainfo;
-    //vector<int> datatype;
+    vector<string> datatype;
+
+    string python_type_string(bool &x){return string("bool");}
+    string python_type_string(int &x){return string("int32");}
+    string python_type_string(unsigned int &x){return string("uint32");}
+    string python_type_string(long long &x){return string("int64");}
+    string python_type_string(unsigned long long &x){return string("uint64");}
+    string python_type_string(float &x){return string("float32");}
+    string python_type_string(double &x){return string("float64");}
+
     ConfigInfo(Options &opt){
+        string datastring;
         //if compiler is super old and does not have at least std 11 implementation to_string does not exist
 #ifndef OLDCCOMPILER
         //general search operations
         nameinfo.push_back("Particle_search_type");
         datainfo.push_back(to_string(opt.partsearchtype));
+        datatype.push_back(python_type_string(opt.partsearchtype));
         nameinfo.push_back("FoF_search_type");
         datainfo.push_back(to_string(opt.foftype));
+        datatype.push_back(python_type_string(opt.foftype));
         nameinfo.push_back("FoF_Field_search_type");
         datainfo.push_back(to_string(opt.fofbgtype));
+        datatype.push_back(python_type_string(opt.fofbgtype));
         nameinfo.push_back("Search_for_substructure");
         datainfo.push_back(to_string(opt.iSubSearch));
+        datatype.push_back(python_type_string(opt.iSubSearch));
         nameinfo.push_back("Keep_FOF");
         datainfo.push_back(to_string(opt.iKeepFOF));
+        datatype.push_back(python_type_string(opt.iKeepFOF));
         nameinfo.push_back("Iterative_searchflag");
         datainfo.push_back(to_string(opt.iiterflag));
-        nameinfo.push_back("Unbind_flag");
-        datainfo.push_back(to_string(opt.uinfo.unbindflag));
+        datatype.push_back(python_type_string(opt.iiterflag));
         nameinfo.push_back("Baryon_searchflag");
         datainfo.push_back(to_string(opt.iBaryonSearch));
+        datatype.push_back(python_type_string(opt.iBaryonSearch));
         nameinfo.push_back("CMrefadjustsubsearch_flag");
         datainfo.push_back(to_string(opt.icmrefadjust));
+        datatype.push_back(python_type_string(opt.icmrefadjust));
         nameinfo.push_back("Halo_core_search");
         datainfo.push_back(to_string(opt.iHaloCoreSearch));
+        datatype.push_back(python_type_string(opt.iHaloCoreSearch));
         nameinfo.push_back("Use_adaptive_core_search");
         datainfo.push_back(to_string(opt.iAdaptiveCoreLinking));
+        datatype.push_back(python_type_string(opt.iAdaptiveCoreLinking));
         nameinfo.push_back("Use_phase_tensor_core_growth");
         datainfo.push_back(to_string(opt.iPhaseCoreGrowth));
+        datatype.push_back(python_type_string(opt.iPhaseCoreGrowth));
 
         //local field parameters
+        nameinfo.push_back("Local_velocity_density_approximate_calculation");
+        datainfo.push_back(to_string(opt.iLocalVelDenApproxCalcFlag));
+        datatype.push_back(python_type_string(opt.iLocalVelDenApproxCalcFlag));
         nameinfo.push_back("Cell_fraction");
         datainfo.push_back(to_string(opt.Ncellfac));
+        datatype.push_back(python_type_string(opt.Ncellfac));
         nameinfo.push_back("Grid_type");
         datainfo.push_back(to_string(opt.gridtype));
+        datatype.push_back(python_type_string(opt.gridtype));
         nameinfo.push_back("Nsearch_velocity");
         datainfo.push_back(to_string(opt.Nvel));
+        datatype.push_back(python_type_string(opt.Nvel));
         nameinfo.push_back("Nsearch_physical");
         datainfo.push_back(to_string(opt.Nsearch));
+        datatype.push_back(python_type_string(opt.Nsearch));
 
         //substructure search parameters
         nameinfo.push_back("Outlier_threshold");
         datainfo.push_back(to_string(opt.ellthreshold));
+        datatype.push_back(python_type_string(opt.ellthreshold));
         nameinfo.push_back("Significance_level");
         datainfo.push_back(to_string(opt.siglevel));
+        datatype.push_back(python_type_string(opt.siglevel));
         nameinfo.push_back("Velocity_ratio");
         datainfo.push_back(to_string(opt.Vratio));
+        datatype.push_back(python_type_string(opt.Vratio));
         nameinfo.push_back("Velocity_opening_angle");
         datainfo.push_back(to_string(opt.thetaopen));
+        datatype.push_back(python_type_string(opt.thetaopen));
         ///\todo this configuration option will be deprecated. Replaced by Substructure_physical_linking_length
         //nameinfo.push_back("Physical_linking_length");
         //datainfo.push_back(to_string(opt.ellphys));
         nameinfo.push_back("Substructure_physical_linking_length");
         datainfo.push_back(to_string(opt.ellphys));
+        datatype.push_back(python_type_string(opt.ellphys));
         nameinfo.push_back("Velocity_linking_length");
         datainfo.push_back(to_string(opt.ellvel));
+        datatype.push_back(python_type_string(opt.ellvel));
         nameinfo.push_back("Minimum_size");
         datainfo.push_back(to_string(opt.MinSize));
+        datatype.push_back(python_type_string(opt.MinSize));
 
         //field object specific searches
         nameinfo.push_back("Minimum_halo_size");
         datainfo.push_back(to_string(opt.HaloMinSize));
+        datatype.push_back(python_type_string(opt.HaloMinSize));
         ///\todo this configuration option will be deprecated. Replaced by Halo_3D_physical_linking_length
         //nameinfo.push_back("Halo_linking_length_factor");
         //datainfo.push_back(to_string(opt.ellhalophysfac));
         nameinfo.push_back("Halo_3D_linking_length");
         datainfo.push_back(to_string(opt.ellhalo3dxfac));
+        datatype.push_back(python_type_string(opt.ellhalo3dxfac));
         nameinfo.push_back("Halo_velocity_linking_length_factor");
         datainfo.push_back(to_string(opt.ellhalovelfac));
+        datatype.push_back(python_type_string(opt.ellhalovelfac));
 
         //specific to 6DFOF field search
         nameinfo.push_back("Halo_6D_linking_length_factor");
         datainfo.push_back(to_string(opt.ellhalo6dxfac));
+        datatype.push_back(python_type_string(opt.ellhalo6dxfac));
         nameinfo.push_back("Halo_6D_vel_linking_length_factor");
         datainfo.push_back(to_string(opt.ellhalo6dvfac));
+        datatype.push_back(python_type_string(opt.ellhalo6dvfac));
 
         //specific search for 6d fof core searches
         nameinfo.push_back("Halo_core_ellx_fac");
         datainfo.push_back(to_string(opt.halocorexfac));
+        datatype.push_back(python_type_string(opt.halocorexfac));
         nameinfo.push_back("Halo_core_ellv_fac");
         datainfo.push_back(to_string(opt.halocorevfac));
+        datatype.push_back(python_type_string(opt.halocorevfac));
         nameinfo.push_back("Halo_core_ncellfac");
         datainfo.push_back(to_string(opt.halocorenfac));
+        datatype.push_back(python_type_string(opt.halocorenfac));
         nameinfo.push_back("Halo_core_adaptive_sigma_fac");
         datainfo.push_back(to_string(opt.halocoresigmafac));
+        datatype.push_back(python_type_string(opt.halocoresigmafac));
         nameinfo.push_back("Halo_core_num_loops");
         datainfo.push_back(to_string(opt.halocorenumloops));
+        datatype.push_back(python_type_string(opt.halocorenumloops));
         nameinfo.push_back("Halo_core_loop_ellx_fac");
         datainfo.push_back(to_string(opt.halocorexfaciter));
+        datatype.push_back(python_type_string(opt.halocorexfaciter));
         nameinfo.push_back("Halo_core_loop_ellv_fac");
         datainfo.push_back(to_string(opt.halocorevfaciter));
+        datatype.push_back(python_type_string(opt.halocorevfaciter));
         nameinfo.push_back("Halo_core_loop_elln_fac");
         datainfo.push_back(to_string(opt.halocorenumfaciter));
+        datatype.push_back(python_type_string(opt.halocorenumfaciter));
         nameinfo.push_back("Halo_core_phase_significance");
         datainfo.push_back(to_string(opt.halocorephasedistsig));
+        datatype.push_back(python_type_string(opt.halocorephasedistsig));
 
 
         //for changing factors used in iterative search
         nameinfo.push_back("Iterative_threshold_factor");
         datainfo.push_back(to_string(opt.ellfac));
+        datatype.push_back(python_type_string(opt.ellfac));
         nameinfo.push_back("Iterative_linking_length_factor");
+        datatype.push_back(python_type_string(opt.ellxfac));
         datainfo.push_back(to_string(opt.ellxfac));
         nameinfo.push_back("Iterative_Vratio_factor");
         datainfo.push_back(to_string(opt.vfac));
+        datatype.push_back(python_type_string(opt.vfac));
         nameinfo.push_back("Iterative_ThetaOp_factor");
         datainfo.push_back(to_string(opt.thetafac));
+        datatype.push_back(python_type_string(opt.thetafac));
 
         //for changing effective resolution when rescaling linking lengh
+        #ifdef HIGHRES
         nameinfo.push_back("Effective_resolution");
         datainfo.push_back(to_string(opt.Neff));
+        datatype.push_back(python_type_string(opt.Neff));
+        #endif
 
         //for changing effective resolution when rescaling linking lengh
         nameinfo.push_back("Singlehalo_search");
         datainfo.push_back(to_string(opt.iSingleHalo));
+        datatype.push_back(python_type_string(opt.iSingleHalo));
 
         //units, cosmology
         nameinfo.push_back("Length_unit");
         datainfo.push_back(to_string(opt.lengthinputconversion));
+        datatype.push_back(python_type_string(opt.lengthinputconversion));
         nameinfo.push_back("Velocity_unit");
         datainfo.push_back(to_string(opt.velocityinputconversion));
+        datatype.push_back(python_type_string(opt.velocityinputconversion));
         nameinfo.push_back("Mass_unit");
         datainfo.push_back(to_string(opt.massinputconversion));
+        datatype.push_back(python_type_string(opt.massinputconversion));
         nameinfo.push_back("Length_input_unit_conversion_to_output_unit");
         datainfo.push_back(to_string(opt.lengthinputconversion));
+        datatype.push_back(python_type_string(opt.lengthinputconversion));
         nameinfo.push_back("Velocity_input_unit_conversion_to_output_unit");
         datainfo.push_back(to_string(opt.velocityinputconversion));
+        datatype.push_back(python_type_string(opt.velocityinputconversion));
         nameinfo.push_back("Mass_input_unit_conversion_to_output_unit");
         datainfo.push_back(to_string(opt.massinputconversion));
+        datatype.push_back(python_type_string(opt.massinputconversion));
         nameinfo.push_back("Star_formation_rate_input_unit_conversion_to_output_unit");
         datainfo.push_back(to_string(opt.SFRinputconversion));
+        datatype.push_back(python_type_string(opt.SFRinputconversion));
         nameinfo.push_back("Metallicity_input_unit_conversion_to_output_unit");
         datainfo.push_back(to_string(opt.metallicityinputconversion));
+        datatype.push_back(python_type_string(opt.metallicityinputconversion));
         nameinfo.push_back("Stellar_age_input_is_cosmological_scalefactor");
         datainfo.push_back(to_string(opt.istellaragescalefactor));
+        datatype.push_back(python_type_string(opt.istellaragescalefactor));
         nameinfo.push_back("Hubble_unit");
         datainfo.push_back(to_string(opt.H));
+        datatype.push_back(python_type_string(opt.H));
         nameinfo.push_back("Gravity");
         datainfo.push_back(to_string(opt.G));
+        datatype.push_back(python_type_string(opt.G));
         nameinfo.push_back("Mass_value");
         datainfo.push_back(to_string(opt.MassValue));
+        datatype.push_back(python_type_string(opt.MassValue));
         nameinfo.push_back("Length_unit_to_kpc");
         datainfo.push_back(to_string(opt.lengthtokpc));
+        datatype.push_back(python_type_string(opt.lengthtokpc));
         nameinfo.push_back("Velocity_to_kms");
         datainfo.push_back(to_string(opt.velocitytokms));
+        datatype.push_back(python_type_string(opt.velocitytokms));
         nameinfo.push_back("Mass_to_solarmass");
         datainfo.push_back(to_string(opt.masstosolarmass));
+        datatype.push_back(python_type_string(opt.masstosolarmass));
         nameinfo.push_back("Star_formation_rate_to_solarmassperyear");
         datainfo.push_back(to_string(opt.SFRtosolarmassperyear));
+        datatype.push_back(python_type_string(opt.SFRtosolarmassperyear));
         nameinfo.push_back("Metallicity_to_solarmetallicity");
         datainfo.push_back(to_string(opt.metallicitytosolar));
+        datatype.push_back(python_type_string(opt.metallicitytosolar));
         nameinfo.push_back("Stellar_age_to_yr");
         datainfo.push_back(to_string(opt.stellaragetoyrs));
+        datatype.push_back(python_type_string(opt.stellaragetoyrs));
 
         nameinfo.push_back("Period");
         datainfo.push_back(to_string(opt.p));
+        datatype.push_back(python_type_string(opt.p));
         nameinfo.push_back("Scale_factor");
         datainfo.push_back(to_string(opt.a));
+        datatype.push_back(python_type_string(opt.a));
         nameinfo.push_back("h_val");
         datainfo.push_back(to_string(opt.h));
+        datatype.push_back(python_type_string(opt.h));
         nameinfo.push_back("Omega_m");
         datainfo.push_back(to_string(opt.Omega_m));
+        datatype.push_back(python_type_string(opt.Omega_m));
         nameinfo.push_back("Omega_Lambda");
         datainfo.push_back(to_string(opt.Omega_Lambda));
+        datatype.push_back(python_type_string(opt.Omega_Lambda));
         nameinfo.push_back("Critical_density");
         datainfo.push_back(to_string(opt.rhobg));
+        datatype.push_back(python_type_string(opt.rhobg));
         nameinfo.push_back("Virial_density");
         datainfo.push_back(to_string(opt.virlevel));
+        datatype.push_back(python_type_string(opt.virlevel));
         nameinfo.push_back("Omega_cdm");
         datainfo.push_back(to_string(opt.Omega_cdm));
+        datatype.push_back(python_type_string(opt.Omega_cdm));
         nameinfo.push_back("Omega_b");
         datainfo.push_back(to_string(opt.Omega_b));
+        datatype.push_back(python_type_string(opt.Omega_b));
         nameinfo.push_back("Omega_r");
         datainfo.push_back(to_string(opt.Omega_r));
+        datatype.push_back(python_type_string(opt.Omega_r));
         nameinfo.push_back("Omega_nu");
         datainfo.push_back(to_string(opt.Omega_nu));
+        datatype.push_back(python_type_string(opt.Omega_nu));
         nameinfo.push_back("Omega_DE");
         datainfo.push_back(to_string(opt.Omega_de));
+        datatype.push_back(python_type_string(opt.Omega_de));
         nameinfo.push_back("w_of_DE");
         datainfo.push_back(to_string(opt.w_de));
+        datatype.push_back(python_type_string(opt.w_de));
 
         //unbinding
-        nameinfo.push_back("Softening_length");
-        datainfo.push_back(to_string(opt.uinfo.eps));
-        nameinfo.push_back("Allowed_kinetic_potential_ratio");
-        datainfo.push_back(to_string(opt.uinfo.Eratio));
-        nameinfo.push_back("Min_bound_mass_frac");
-        datainfo.push_back(to_string(opt.uinfo.minEfrac));
-        nameinfo.push_back("Bound_halos");
-        datainfo.push_back(to_string(opt.iBoundHalos));
-        nameinfo.push_back("Keep_background_potential");
-        datainfo.push_back(to_string(opt.uinfo.bgpot));
-        nameinfo.push_back("Kinetic_reference_frame_type");
-        datainfo.push_back(to_string(opt.uinfo.cmvelreftype));
-        nameinfo.push_back("Min_npot_ref");
-        datainfo.push_back(to_string(opt.uinfo.Npotref));
-        nameinfo.push_back("Frac_pot_ref");
-        datainfo.push_back(to_string(opt.uinfo.fracpotref));
+        nameinfo.push_back("Unbind_flag");
+        datainfo.push_back(to_string(opt.uinfo.unbindflag));
+        datatype.push_back(python_type_string(opt.uinfo.unbindflag));
         nameinfo.push_back("Unbinding_type");
         datainfo.push_back(to_string(opt.uinfo.unbindtype));
+        datatype.push_back(python_type_string(opt.uinfo.unbindtype));
+        nameinfo.push_back("Bound_halos");
+        datainfo.push_back(to_string(opt.iBoundHalos));
+        datatype.push_back(python_type_string(opt.iBoundHalos));
+        nameinfo.push_back("Allowed_kinetic_potential_ratio");
+        datainfo.push_back(to_string(opt.uinfo.Eratio));
+        datatype.push_back(python_type_string(opt.uinfo.Eratio));
+        nameinfo.push_back("Min_bound_mass_frac");
+        datainfo.push_back(to_string(opt.uinfo.minEfrac));
+        datatype.push_back(python_type_string(opt.uinfo.minEfrac));
+        nameinfo.push_back("Keep_background_potential");
+        datainfo.push_back(to_string(opt.uinfo.bgpot));
+        datatype.push_back(python_type_string(opt.uinfo.bgpot));
+        nameinfo.push_back("Kinetic_reference_frame_type");
+        datainfo.push_back(to_string(opt.uinfo.cmvelreftype));
+        datatype.push_back(python_type_string(opt.uinfo.cmvelreftype));
+        nameinfo.push_back("Min_npot_ref");
+        datainfo.push_back(to_string(opt.uinfo.Npotref));
+        datatype.push_back(python_type_string(opt.uinfo.Npotref));
+        nameinfo.push_back("Frac_pot_ref");
+        datainfo.push_back(to_string(opt.uinfo.fracpotref));
+        datatype.push_back(python_type_string(opt.uinfo.fracpotref));
+        nameinfo.push_back("Unbinding_max_unbound_removal_fraction_per_iteration");
+        datainfo.push_back(to_string(opt.uinfo.maxunbindfrac));
+        datatype.push_back(python_type_string(opt.uinfo.maxunbindfrac));
+        nameinfo.push_back("Unbinding_max_unbound_fraction");
+        datainfo.push_back(to_string(opt.uinfo.maxunboundfracforiterativeunbind));
+        datatype.push_back(python_type_string(opt.uinfo.maxunboundfracforiterativeunbind));
+        nameinfo.push_back("Unbinding_max_unbound_fraction_allowed");
+        datainfo.push_back(to_string(opt.uinfo.maxallowedunboundfrac));
+        datatype.push_back(python_type_string(opt.uinfo.maxallowedunboundfrac));
+        nameinfo.push_back("Softening_length");
+        datainfo.push_back(to_string(opt.uinfo.eps));
+        datatype.push_back(python_type_string(opt.uinfo.eps));
 
         //property related
         nameinfo.push_back("Inclusive_halo_masses");
         datainfo.push_back(to_string(opt.iInclusiveHalo));
+        datatype.push_back(python_type_string(opt.iInclusiveHalo));
         nameinfo.push_back("Extensive_halo_properties_output");
         datainfo.push_back(to_string(opt.iextrahalooutput));
+        datatype.push_back(python_type_string(opt.iextrahalooutput));
         nameinfo.push_back("Extensive_gas_properties_output");
         datainfo.push_back(to_string(opt.iextragasoutput));
+        datatype.push_back(python_type_string(opt.iextragasoutput));
+        nameinfo.push_back("Extensive_star_properties_output");
+        datainfo.push_back(to_string(opt.iextrastaroutput));
+        datatype.push_back(python_type_string(opt.iextrastaroutput));
+        nameinfo.push_back("Extensive_interloper_properties_output");
+        datainfo.push_back(to_string(opt.iextrainterloperoutput));
+        datatype.push_back(python_type_string(opt.iextrainterloperoutput));
         nameinfo.push_back("Iterate_cm_flag");
         datainfo.push_back(to_string(opt.iIterateCM));
+        datatype.push_back(python_type_string(opt.iIterateCM));
         nameinfo.push_back("Sort_by_binding_energy");
         datainfo.push_back(to_string(opt.iSortByBindingEnergy));
+        datatype.push_back(python_type_string(opt.iSortByBindingEnergy));
+        nameinfo.push_back("Reference_frame_for_properties");
+        datainfo.push_back(to_string(opt.iPropertyReferencePosition));
+        datatype.push_back(python_type_string(opt.iPropertyReferencePosition));
+        nameinfo.push_back("Calculate_aperture_quantities");
+        datainfo.push_back(to_string(opt.iaperturecalc));
+        datatype.push_back(python_type_string(opt.iaperturecalc));
+        nameinfo.push_back("Number_of_apertures");
+        datainfo.push_back(to_string(opt.aperturenum));
+        datatype.push_back(python_type_string(opt.aperturenum));
+        if (opt.aperturenum>0){
+            nameinfo.push_back("Aperture_values_in_kpc");
+            datastring=string("");for (auto &x:opt.aperture_names_kpc) {datastring+=x;datastring+=string(",");}
+            datainfo.push_back(datastring);
+            datatype.push_back(python_type_string(opt.aperture_values_kpc[0]));
+        }
+        nameinfo.push_back("Number_of_projected_apertures");
+        datainfo.push_back(to_string(opt.apertureprojnum));
+        datatype.push_back(python_type_string(opt.apertureprojnum));
+        if (opt.apertureprojnum>0){
+            nameinfo.push_back("Projected_aperture_values_in_kpc");
+            datastring=string("");for (auto &x:opt.aperture_proj_names_kpc) {datastring+=x;datastring+=string(",");}
+            datainfo.push_back(datastring);
+            datatype.push_back(python_type_string(opt.aperture_proj_values_kpc[0]));
+        }
+        nameinfo.push_back("Calculate_radial_profiles");
+        datainfo.push_back(to_string(opt.iprofilecalc));
+        datatype.push_back(python_type_string(opt.iprofilecalc));
+        if(opt.iprofilecalc) {
+            nameinfo.push_back("Number_of_radial_profile_bin_edges");
+            datainfo.push_back(to_string(opt.profilenbins));
+            datatype.push_back(python_type_string(opt.profilenbins));
+            nameinfo.push_back("Radial_profile_norm");
+            datainfo.push_back(to_string(opt.iprofilenorm));
+            datatype.push_back(python_type_string(opt.iprofilenorm));
+            nameinfo.push_back("Radial_profile_bin_edges");
+            datastring=string("");for (auto &x:opt.profile_bin_edges) {datastring+=to_string(x);datastring+=string(",");}
+            datainfo.push_back(datastring);
+            datatype.push_back(python_type_string(opt.profile_bin_edges[0]));
+        }
+        nameinfo.push_back("Number_of_overdensities");
+        datainfo.push_back(to_string(opt.SOnum));
+        datatype.push_back(python_type_string(opt.SOnum));
+        if (opt.SOnum>0) {
+            nameinfo.push_back("Overdensity_values_in_critical_density");
+            datastring=string("");for (auto &x:opt.SOthresholds_names_crit) {datastring+=x;datastring+=string(",");}
+            datainfo.push_back(datastring);
+            datatype.push_back(python_type_string(opt.SOthresholds_values_crit[0]));
+        }
 
         //other options
         nameinfo.push_back("Verbose");
         datainfo.push_back(to_string(opt.iverbose));
+        datatype.push_back(python_type_string(opt.iverbose));
         nameinfo.push_back("Write_group_array_file");
         datainfo.push_back(to_string(opt.iwritefof));
+        datatype.push_back(python_type_string(opt.iwritefof));
         nameinfo.push_back("Snapshot_value");
         datainfo.push_back(to_string(opt.snapshotvalue));
+        datatype.push_back(python_type_string(opt.snapshotvalue));
 
         //io related
         nameinfo.push_back("Cosmological_input");
         datainfo.push_back(to_string(opt.icosmologicalin));
+        datatype.push_back(python_type_string(opt.icosmologicalin));
         nameinfo.push_back("Input_chunk_size");
         datainfo.push_back(to_string(opt.inputbufsize));
+        datatype.push_back(python_type_string(opt.inputbufsize));
         nameinfo.push_back("MPI_particle_total_buf_size");
         datainfo.push_back(to_string(opt.mpiparticletotbufsize));
+        datatype.push_back(python_type_string(opt.mpiparticletotbufsize));
         nameinfo.push_back("Separate_output_files");
         datainfo.push_back(to_string(opt.iseparatefiles));
+        datatype.push_back(python_type_string(opt.iseparatefiles));
         nameinfo.push_back("Binary_output");
         datainfo.push_back(to_string(opt.ibinaryout));
+        datatype.push_back(python_type_string(opt.ibinaryout));
         nameinfo.push_back("Comoving_units");
         datainfo.push_back(to_string(opt.icomoveunit));
+        datatype.push_back(python_type_string(opt.icomoveunit));
         nameinfo.push_back("Extended_output");
         datainfo.push_back(to_string(opt.iextendedoutput));
+        datatype.push_back(python_type_string(opt.iextendedoutput));
+
+
+        //HDF io related info
+        nameinfo.push_back("HDF_name_convention");
+        datainfo.push_back(to_string(opt.ihdfnameconvention));
+        datatype.push_back(python_type_string(opt.ihdfnameconvention));
+        nameinfo.push_back("Input_includes_dm_particle");
+        datainfo.push_back(to_string(opt.iusedmparticles));
+        datatype.push_back(python_type_string(opt.iusedmparticles));
+        nameinfo.push_back("Input_includes_gas_particle");
+        datainfo.push_back(to_string(opt.iusegasparticles));
+        datatype.push_back(python_type_string(opt.iusegasparticles));
+        nameinfo.push_back("Input_includes_star_particle");
+        datainfo.push_back(to_string(opt.iusestarparticles));
+        datatype.push_back(python_type_string(opt.iusestarparticles));
+        nameinfo.push_back("Input_includes_bh_particle");
+        datainfo.push_back(to_string(opt.iusesinkparticles));
+        datatype.push_back(python_type_string(opt.iusesinkparticles));
+        nameinfo.push_back("Input_includes_extradm_particle");
+        datainfo.push_back(to_string(opt.iuseextradarkparticles));
+        datatype.push_back(python_type_string(opt.iuseextradarkparticles));
+        nameinfo.push_back("Input_includes_wind_particle");
+        datainfo.push_back(to_string(opt.iusewindparticles));
+        datatype.push_back(python_type_string(opt.iusewindparticles));
+        nameinfo.push_back("Input_includes_tracer_particle");
+        datainfo.push_back(to_string(opt.iusetracerparticles));
+        datatype.push_back(python_type_string(opt.iusetracerparticles));
 
         //gadget io related to extra info for sph, stars, bhs,
         nameinfo.push_back("NSPH_extra_blocks");
         datainfo.push_back(to_string(opt.gnsphblocks));
+        datatype.push_back(python_type_string(opt.gnsphblocks));
         nameinfo.push_back("NStar_extra_blocks");
         datainfo.push_back(to_string(opt.gnstarblocks));
+        datatype.push_back(python_type_string(opt.gnstarblocks));
         nameinfo.push_back("NBH_extra_blocks");
         datainfo.push_back(to_string(opt.gnbhblocks));
+        datatype.push_back(python_type_string(opt.gnbhblocks));
 
         //mpi related configuration
         nameinfo.push_back("MPI_part_allocation_fac");
-        datainfo.push_back(to_string(opt.mpiparticletotbufsize));
+        datainfo.push_back(to_string(opt.mpipartfac));
+        datatype.push_back(python_type_string(opt.mpipartfac));
 #endif
+        nameinfo.push_back("#Compilation Info");
+        datainfo.push_back("");
+        datatype.push_back("");
+        #ifdef USEMPI
+        nameinfo.push_back("#USEMPI");
+        datainfo.push_back("");
+        datatype.push_back("");
+        #endif
+        #ifdef USEOPENMP
+        nameinfo.push_back("#USEOPENMP");
+        datainfo.push_back("");
+        datatype.push_back("");
+        #endif
+        #ifdef GASON
+        nameinfo.push_back("#USEGAS");
+        datainfo.push_back("");
+        datatype.push_back("");
+        #endif
+        #ifdef STARON
+        nameinfo.push_back("#USESTAR");
+        datainfo.push_back("");
+        datatype.push_back("");
+        #endif
+        #ifdef BHON
+        nameinfo.push_back("#USEBH");
+        datainfo.push_back("");
+        datatype.push_back("");
+        #endif
+        #ifdef HIGHRES
+        nameinfo.push_back("#ZOOMSIM");
+        datainfo.push_back("");
+        datatype.push_back("");
+        #endif
+        #ifdef SWIFTINTERFACE
+        nameinfo.push_back("#SWIFTINTERFACE");
+        datainfo.push_back("");
+        datatype.push_back("");
+        #endif
+
     }
 };
 
@@ -1107,51 +1349,76 @@ struct SimInfo{
     //list the name of the info
     vector<string> nameinfo;
     vector<string> datainfo;
+    vector<string> datatype;
+
+    string python_type_string(int &x){return string("int32");}
+    string python_type_string(unsigned int &x){return string("uint32");}
+    string python_type_string(long &x){return string("int64");}
+    string python_type_string(unsigned long &x){return string("uint64");}
+    string python_type_string(float &x){return string("float32");}
+    string python_type_string(double &x){return string("float64");}
 
     SimInfo(Options &opt){
         //if compiler is super old and does not have at least std 11 implementation to_string does not exist
 #ifndef OLDCCOMPILER
         nameinfo.push_back("Cosmological_Sim");
         datainfo.push_back(to_string(opt.icosmologicalin));
+        datatype.push_back(python_type_string(opt.icosmologicalin));
         if (opt.icosmologicalin) {
             nameinfo.push_back("ScaleFactor");
             datainfo.push_back(to_string(opt.a));
+            datatype.push_back(python_type_string(opt.a));
             nameinfo.push_back("h_val");
             datainfo.push_back(to_string(opt.h));
+            datatype.push_back(python_type_string(opt.h));
             nameinfo.push_back("Omega_m");
             datainfo.push_back(to_string(opt.Omega_m));
+            datatype.push_back(python_type_string(opt.Omega_m));
             nameinfo.push_back("Omega_Lambda");
             datainfo.push_back(to_string(opt.Omega_Lambda));
+            datatype.push_back(python_type_string(opt.Omega_Lambda));
             nameinfo.push_back("Omega_cdm");
             datainfo.push_back(to_string(opt.Omega_cdm));
+            datatype.push_back(python_type_string(opt.Omega_cdm));
             nameinfo.push_back("Omega_b");
             datainfo.push_back(to_string(opt.Omega_b));
+            datatype.push_back(python_type_string(opt.Omega_b));
             nameinfo.push_back("w_of_DE");
             datainfo.push_back(to_string(opt.w_de));
+            datatype.push_back(python_type_string(opt.w_de));
             nameinfo.push_back("Period");
             datainfo.push_back(to_string(opt.p));
+            datatype.push_back(python_type_string(opt.p));
             nameinfo.push_back("Hubble_unit");
             datainfo.push_back(to_string(opt.H));
+            datatype.push_back(python_type_string(opt.H));
         }
         else{
             nameinfo.push_back("Time");
             datainfo.push_back(to_string(opt.a));
+            datatype.push_back(python_type_string(opt.a));
             nameinfo.push_back("Period");
             datainfo.push_back(to_string(opt.p));
+            datatype.push_back(python_type_string(opt.p));
         }
 
         //units
         nameinfo.push_back("Length_unit");
         datainfo.push_back(to_string(opt.lengthinputconversion));
+        datatype.push_back(python_type_string(opt.lengthinputconversion));
         nameinfo.push_back("Velocity_unit");
         datainfo.push_back(to_string(opt.velocityinputconversion));
+        datatype.push_back(python_type_string(opt.velocityinputconversion));
         nameinfo.push_back("Mass_unit");
         datainfo.push_back(to_string(opt.massinputconversion));
+        datatype.push_back(python_type_string(opt.massinputconversion));
         nameinfo.push_back("Gravity");
         datainfo.push_back(to_string(opt.G));
+        datatype.push_back(python_type_string(opt.G));
 #ifdef NOMASS
         nameinfo.push_back("Mass_value");
         datainfo.push_back(to_string(opt.MassValue));
+        datatype.push_back(python_type_string(opt.MassValue));
 #endif
 
 #endif
@@ -1163,28 +1430,44 @@ struct UnitInfo{
     //list the name of the info
     vector<string> nameinfo;
     vector<string> datainfo;
+    vector<string> datatype;
+
+    string python_type_string(int &x){return string("int32");}
+    string python_type_string(unsigned int &x){return string("uint32");}
+    string python_type_string(long &x){return string("int64");}
+    string python_type_string(unsigned long &x){return string("uint64");}
+    string python_type_string(float &x){return string("float32");}
+    string python_type_string(double &x){return string("float64");}
 
     UnitInfo(Options &opt){
         //if compiler is super old and does not have at least std 11 implementation to_string does not exist
 #ifndef OLDCCOMPILER
         nameinfo.push_back("Cosmological_Sim");
         datainfo.push_back(to_string(opt.icosmologicalin));
+        datatype.push_back(python_type_string(opt.icosmologicalin));
         nameinfo.push_back("Comoving_or_Physical");
         datainfo.push_back(to_string(opt.icomoveunit));
+        datatype.push_back(python_type_string(opt.icomoveunit));
         //units
         nameinfo.push_back("Length_unit_to_kpc");
         datainfo.push_back(to_string(opt.lengthtokpc));
+        datatype.push_back(python_type_string(opt.lengthtokpc));
         nameinfo.push_back("Velocity_unit_to_kms");
         datainfo.push_back(to_string(opt.velocitytokms));
+        datatype.push_back(python_type_string(opt.velocitytokms));
         nameinfo.push_back("Mass_unit_to_solarmass");
         datainfo.push_back(to_string(opt.masstosolarmass));
+        datatype.push_back(python_type_string(opt.masstosolarmass));
 #if defined(GASON) || defined(STARON) || defined(BHON)
         nameinfo.push_back("Metallicity_unit_to_solar");
         datainfo.push_back(to_string(opt.metallicitytosolar));
+        datatype.push_back(python_type_string(opt.metallicitytosolar));
         nameinfo.push_back("SFR_unit_to_solarmassperyear");
         datainfo.push_back(to_string(opt.SFRtosolarmassperyear));
+        datatype.push_back(python_type_string(opt.SFRtosolarmassperyear));
         nameinfo.push_back("Stellar_age_unit_to_yr");
         datainfo.push_back(to_string(opt.stellaragetoyrs));
+        datatype.push_back(python_type_string(opt.stellaragetoyrs));
 #endif
 #endif
     }
@@ -3293,8 +3576,7 @@ struct PropData
     }
 #ifdef USEHDF
     ///write (append) the properties data to an already open hdf file
-    void WriteHDF(H5File &Fhdf, DataSpace *&dataspaces, DataSet *&datasets, Options&opt){
-    };
+    //void WriteHDF(H5File &Fhdf, DataSpace *&dataspaces, DataSet *&datasets, Options&opt){};
 #endif
 };
 
@@ -3306,7 +3588,8 @@ struct PropDataHeader{
     //list the header info
     vector<string> headerdatainfo;
 #ifdef USEHDF
-    vector<PredType> predtypeinfo;
+    // vector<PredType> predtypeinfo;
+    vector<hid_t> hdfpredtypeinfo;
 #endif
 #ifdef USEADIOS
     vector<ADIOS_DATATYPES> adiospredtypeinfo;
@@ -3314,9 +3597,13 @@ struct PropDataHeader{
     PropDataHeader(Options&opt){
         int sizeval;
 #ifdef USEHDF
-        vector<PredType> desiredproprealtype;
-        if (sizeof(Double_t)==sizeof(double)) desiredproprealtype.push_back(PredType::NATIVE_DOUBLE);
-        else desiredproprealtype.push_back(PredType::NATIVE_FLOAT);
+        // vector<PredType> desiredproprealtype;
+        vector<hid_t> hdfdesiredproprealtype;
+        // if (sizeof(Double_t)==sizeof(double)) desiredproprealtype.push_back(PredType::NATIVE_DOUBLE);
+        // else desiredproprealtype.push_back(PredType::NATIVE_FLOAT);
+        if (sizeof(Double_t)==sizeof(double)) hdfdesiredproprealtype.push_back(H5T_NATIVE_DOUBLE);
+        else hdfdesiredproprealtype.push_back(H5T_NATIVE_FLOAT);
+
 #endif
 #ifdef USEADIOS
         vector<ADIOS_DATATYPES> desiredadiosproprealtype;
@@ -3338,16 +3625,27 @@ struct PropDataHeader{
 
         //if using hdf, store the type
 #ifdef USEHDF
-        predtypeinfo.push_back(PredType::STD_U64LE);
-        predtypeinfo.push_back(PredType::STD_I64LE);
-        predtypeinfo.push_back(PredType::STD_I64LE);
-        predtypeinfo.push_back(PredType::STD_I64LE);
-        predtypeinfo.push_back(PredType::STD_U64LE);
-        predtypeinfo.push_back(PredType::STD_U64LE);
-        predtypeinfo.push_back(PredType::STD_I32LE);
+        // predtypeinfo.push_back(PredType::STD_U64LE);
+        // predtypeinfo.push_back(PredType::STD_I64LE);
+        // predtypeinfo.push_back(PredType::STD_I64LE);
+        // predtypeinfo.push_back(PredType::STD_I64LE);
+        // predtypeinfo.push_back(PredType::STD_U64LE);
+        // predtypeinfo.push_back(PredType::STD_U64LE);
+        // predtypeinfo.push_back(PredType::STD_I32LE);
+        // if (opt.iKeepFOF==1){
+        //     predtypeinfo.push_back(PredType::STD_I64LE);
+        //     predtypeinfo.push_back(PredType::STD_I64LE);
+        // }
+        hdfpredtypeinfo.push_back(H5T_NATIVE_ULONG);
+        hdfpredtypeinfo.push_back(H5T_NATIVE_LONG);
+        hdfpredtypeinfo.push_back(H5T_NATIVE_LONG);
+        hdfpredtypeinfo.push_back(H5T_NATIVE_LONG);
+        hdfpredtypeinfo.push_back(H5T_NATIVE_ULONG);
+        hdfpredtypeinfo.push_back(H5T_NATIVE_ULONG);
+        hdfpredtypeinfo.push_back(H5T_NATIVE_INT);
         if (opt.iKeepFOF==1){
-            predtypeinfo.push_back(PredType::STD_I64LE);
-            predtypeinfo.push_back(PredType::STD_I64LE);
+            hdfpredtypeinfo.push_back(H5T_NATIVE_LONG);
+            hdfpredtypeinfo.push_back(H5T_NATIVE_LONG);
         }
 #endif
 #ifdef USEADIOS
@@ -3484,8 +3782,9 @@ struct PropDataHeader{
         }
 
 #ifdef USEHDF
-        sizeval=predtypeinfo.size();
-        for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
+        sizeval=hdfpredtypeinfo.size();
+        // for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
+        for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
         sizeval=adiospredtypeinfo.size();
@@ -3495,7 +3794,8 @@ struct PropDataHeader{
 #ifdef GASON
         headerdatainfo.push_back("n_gas");
 #ifdef USEHDF
-        predtypeinfo.push_back(PredType::STD_U64LE);
+        // predtypeinfo.push_back(PredType::STD_U64LE);
+        hdfpredtypeinfo.push_back(H5T_NATIVE_ULONG);
 #endif
 #ifdef USEADIOS
         adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
@@ -3571,8 +3871,9 @@ struct PropDataHeader{
         }
     }
 #ifdef USEHDF
-        sizeval=predtypeinfo.size();
-        for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
+        sizeval=hdfpredtypeinfo.size();
+        // for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
+        for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
         sizeval=adiospredtypeinfo.size();
@@ -3583,7 +3884,8 @@ struct PropDataHeader{
 #ifdef STARON
         headerdatainfo.push_back("n_star");
 #ifdef USEHDF
-        predtypeinfo.push_back(PredType::STD_U64LE);
+        // predtypeinfo.push_back(PredType::STD_U64LE);
+        hdfpredtypeinfo.push_back(H5T_NATIVE_ULONG);
 #endif
 #ifdef USEADIOS
         adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
@@ -3656,8 +3958,9 @@ struct PropDataHeader{
             }
         }
 #ifdef USEHDF
-        sizeval=predtypeinfo.size();
-        for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
+        sizeval=hdfpredtypeinfo.size();
+        // for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
+        for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
         sizeval=adiospredtypeinfo.size();
@@ -3668,15 +3971,17 @@ struct PropDataHeader{
 #ifdef BHON
         headerdatainfo.push_back("n_bh");
 #ifdef USEHDF
-        predtypeinfo.push_back(PredType::STD_U64LE);
+        // predtypeinfo.push_back(PredType::STD_U64LE);
+        hdfpredtypeinfo.push_back(H5T_NATIVE_ULONG);
 #endif
 #ifdef USEADIOS
         adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
 #endif
         headerdatainfo.push_back("M_bh");
 #ifdef USEHDF
-        sizeval=predtypeinfo.size();
-        for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
+        sizeval=hdfpredtypeinfo.size();
+        // for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
+        for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
         sizeval=adiospredtypeinfo.size();
@@ -3688,7 +3993,8 @@ struct PropDataHeader{
 #ifdef HIGHRES
         headerdatainfo.push_back("n_interloper");
 #ifdef USEHDF
-        predtypeinfo.push_back(PredType::STD_U64LE);
+        // predtypeinfo.push_back(PredType::STD_U64LE);
+        hdfpredtypeinfo.push_back(H5T_NATIVE_ULONG);
 #endif
 #ifdef USEADIOS
         adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
@@ -3705,8 +4011,9 @@ struct PropDataHeader{
             }
         }
 #ifdef USEHDF
-        sizeval=predtypeinfo.size();
-        for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
+        sizeval=hdfpredtypeinfo.size();
+        // for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
+        for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
         sizeval=adiospredtypeinfo.size();
@@ -3790,8 +4097,9 @@ struct PropDataHeader{
             }
         }
 #ifdef USEHDF
-        sizeval=predtypeinfo.size();
-        for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
+        sizeval=hdfpredtypeinfo.size();
+        // for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
+        for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
         sizeval=adiospredtypeinfo.size();
@@ -3822,8 +4130,9 @@ struct PropDataHeader{
                 headerdatainfo.push_back((string("Aperture_npart_interloper_")+opt.aperture_names_kpc[i]+string("_kpc")));
 #endif
 #ifdef USEHDF
-            sizeval=predtypeinfo.size();
-            for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(PredType::STD_U32LE);
+            sizeval=hdfpredtypeinfo.size();
+            // for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(PredType::STD_U32LE);
+            for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(H5T_NATIVE_UINT);
 #endif
 #ifdef USEADIOS
             sizeval=adiospredtypeinfo.size();
@@ -3889,8 +4198,9 @@ struct PropDataHeader{
 #endif
 
 #ifdef USEHDF
-            sizeval=predtypeinfo.size();
-            for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
+            sizeval=hdfpredtypeinfo.size();
+            // for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
+            for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
             sizeval=adiospredtypeinfo.size();
@@ -3939,8 +4249,9 @@ struct PropDataHeader{
 #endif
             }
 #ifdef USEHDF
-            sizeval=predtypeinfo.size();
-            for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
+            sizeval=hdfpredtypeinfo.size();
+            // for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
+            for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
             sizeval=adiospredtypeinfo.size();
@@ -3953,7 +4264,8 @@ struct PropDataHeader{
             for (auto i=0; i<opt.SOnum;i++) {
                 headerdatainfo.push_back((string("SO_Mass_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
 #ifdef USEHDF
-                predtypeinfo.push_back(desiredproprealtype[0]);
+                // predtypeinfo.push_back(desiredproprealtype[0]);
+                hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
                 adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
@@ -3962,7 +4274,8 @@ struct PropDataHeader{
             for (auto i=0; i<opt.SOnum;i++) {
                 headerdatainfo.push_back((string("SO_R_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
 #ifdef USEHDF
-                predtypeinfo.push_back(desiredproprealtype[0]);
+                // predtypeinfo.push_back(desiredproprealtype[0]);
+                hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
                 adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
@@ -3973,7 +4286,8 @@ struct PropDataHeader{
                 for (auto i=0; i<opt.SOnum;i++) {
                     headerdatainfo.push_back((string("SO_Mass_gas_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
 #ifdef USEHDF
-                    predtypeinfo.push_back(desiredproprealtype[0]);
+                    // predtypeinfo.push_back(desiredproprealtype[0]);
+                    hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
                     adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
@@ -3989,7 +4303,8 @@ struct PropDataHeader{
                 for (auto i=0; i<opt.SOnum;i++) {
                     headerdatainfo.push_back((string("SO_Mass_star_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
 #ifdef USEHDF
-                    predtypeinfo.push_back(desiredproprealtype[0]);
+                    // predtypeinfo.push_back(desiredproprealtype[0]);
+                    hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
                     adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
@@ -4002,7 +4317,8 @@ struct PropDataHeader{
                 for (auto i=0; i<opt.SOnum;i++) {
                     headerdatainfo.push_back((string("SO_Mass_interloper_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
 #ifdef USEHDF
-                    predtypeinfo.push_back(desiredproprealtype[0]);
+                    // predtypeinfo.push_back(desiredproprealtype[0]);
+                    hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
                     adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
@@ -4018,7 +4334,8 @@ struct PropDataHeader{
                 headerdatainfo.push_back((string("SO_Lz_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
                 for (auto k=0;k<3;k++) {
 #ifdef USEHDF
-                    predtypeinfo.push_back(desiredproprealtype[0]);
+                    // predtypeinfo.push_back(desiredproprealtype[0]);
+                    hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
                     adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
@@ -4033,7 +4350,8 @@ struct PropDataHeader{
                     headerdatainfo.push_back((string("SO_Lz_gas_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
                     for (auto k=0;k<3;k++) {
 #ifdef USEHDF
-                        predtypeinfo.push_back(desiredproprealtype[0]);
+                        // predtypeinfo.push_back(desiredproprealtype[0]);
+                        hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
                         adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
@@ -4053,7 +4371,8 @@ struct PropDataHeader{
                     headerdatainfo.push_back((string("SO_Lz_star_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
                     for (auto k=0;k<3;k++) {
 #ifdef USEHDF
-                        predtypeinfo.push_back(desiredproprealtype[0]);
+                        // predtypeinfo.push_back(desiredproprealtype[0]);
+                        hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
                         adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
@@ -4075,7 +4394,8 @@ struct ProfileDataHeader{
     //list the header info
     vector<string> headerdatainfo;
 #ifdef USEHDF
-    vector<PredType> predtypeinfo;
+    // vector<PredType> predtypeinfo;
+    vector<hid_t> hdfpredtypeinfo;
 #endif
 #ifdef USEADIOS
     vector<ADIOS_DATATYPES> adiospredtypeinfo;
@@ -4086,9 +4406,12 @@ struct ProfileDataHeader{
     ProfileDataHeader(Options&opt){
         int sizeval;
 #ifdef USEHDF
-        vector<PredType> desiredproprealtype;
-        if (sizeof(Double_t)==sizeof(double)) desiredproprealtype.push_back(PredType::NATIVE_DOUBLE);
-        else desiredproprealtype.push_back(PredType::NATIVE_FLOAT);
+        // vector<PredType> desiredproprealtype;
+        // if (sizeof(Double_t)==sizeof(double)) desiredproprealtype.push_back(PredType::NATIVE_DOUBLE);
+        // else desiredproprealtype.push_back(PredType::NATIVE_FLOAT);
+        vector<hid_t> hdfdesiredproprealtype;
+        if (sizeof(Double_t)==sizeof(double)) hdfdesiredproprealtype.push_back(H5T_NATIVE_DOUBLE);
+        else hdfdesiredproprealtype.push_back(H5T_NATIVE_FLOAT);
 #endif
 #ifdef USEADIOS
         vector<ADIOS_DATATYPES> desiredadiosproprealtype;
@@ -4099,7 +4422,8 @@ struct ProfileDataHeader{
         offsetscalarentries=0;
         headerdatainfo.push_back("ID");
 #ifdef USEHDF
-        predtypeinfo.push_back(PredType::STD_U64LE);
+        // predtypeinfo.push_back(PredType::STD_U64LE);
+        hdfpredtypeinfo.push_back(H5T_NATIVE_ULONG);
 #endif
 #ifdef USEADIOS
         adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
@@ -4108,7 +4432,8 @@ struct ProfileDataHeader{
         if (opt.iprofilenorm != PROFILERNORMPHYS) {
         headerdatainfo.push_back(opt.profileradnormstring);
 #ifdef USEHDF
-        predtypeinfo.push_back(desiredproprealtype[0]);
+        // predtypeinfo.push_back(desiredproprealtype[0]);
+        hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
         adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
@@ -4116,7 +4441,7 @@ struct ProfileDataHeader{
         }
         numberscalarentries=headerdatainfo.size();
 
-	offsetarrayallgroupentries=headerdatainfo.size();
+	    offsetarrayallgroupentries=headerdatainfo.size();
         headerdatainfo.push_back("Npart_profile");
 #ifdef GASON
         headerdatainfo.push_back("Npart_profile_gas");
@@ -4129,8 +4454,9 @@ struct ProfileDataHeader{
         headerdatainfo.push_back("Npart_profile_star");
 #endif
 #ifdef USEHDF
-        sizeval=predtypeinfo.size();
-        for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(PredType::STD_U32LE);
+        sizeval=hdfpredtypeinfo.size();
+        // for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(PredType::STD_U32LE);
+        for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(H5T_NATIVE_UINT);
 #endif
 #ifdef USEADIOS
         sizeval=adiospredtypeinfo.size();
@@ -4150,8 +4476,9 @@ struct ProfileDataHeader{
 #endif
 
 #ifdef USEHDF
-        sizeval=predtypeinfo.size();
-        for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(PredType::NATIVE_FLOAT);
+        sizeval=hdfpredtypeinfo.size();
+        // for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(PredType::NATIVE_FLOAT);
+        for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(H5T_NATIVE_FLOAT);
 #endif
 #ifdef USEADIOS
         sizeval=adiospredtypeinfo.size();
@@ -4174,8 +4501,9 @@ struct ProfileDataHeader{
         headerdatainfo.push_back("Npart_inclusive_profile_star");
 #endif
 #ifdef USEHDF
-        sizeval=predtypeinfo.size();
-        for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(PredType::STD_U32LE);
+        sizeval=hdfpredtypeinfo.size();
+        // for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(PredType::STD_U32LE);
+        for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(H5T_NATIVE_UINT);
 #endif
 #ifdef USEADIOS
         sizeval=adiospredtypeinfo.size();
@@ -4194,8 +4522,9 @@ struct ProfileDataHeader{
         headerdatainfo.push_back("Mass_inclusive_profile_star");
 #endif
 #ifdef USEHDF
-        sizeval=predtypeinfo.size();
-        for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(PredType::NATIVE_FLOAT);
+        sizeval=hdfpredtypeinfo.size();
+        // for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(PredType::NATIVE_FLOAT);
+        for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(H5T_NATIVE_FLOAT);
 #endif
 #ifdef USEADIOS
         sizeval=adiospredtypeinfo.size();
@@ -4277,7 +4606,8 @@ struct DataGroupNames {
     vector<string> prop;
 #ifdef USEHDF
     //store the data type
-    vector<PredType> propdatatype;
+    // vector<PredType> propdatatype;
+    vector<hid_t> hdfpropdatatype;
 #endif
 #ifdef USEADIOS
     vector<ADIOS_DATATYPES> adiospropdatatype;
@@ -4286,7 +4616,8 @@ struct DataGroupNames {
     ///store names of catalog group files
     vector<string> group;
 #ifdef USEHDF
-    vector<PredType> groupdatatype;
+    // vector<PredType> groupdatatype;
+    vector<hid_t> hdfgroupdatatype;
 #endif
 #ifdef USEADIOS
     vector<ADIOS_DATATYPES> adiosgroupdatatype;
@@ -4295,7 +4626,8 @@ struct DataGroupNames {
     ///store the names of catalog particle files
     vector<string> part;
 #ifdef USEHDF
-    vector<PredType> partdatatype;
+    // vector<PredType> partdatatype;
+    vector<hid_t> hdfpartdatatype;
 #endif
 #ifdef USEADIOS
     vector<ADIOS_DATATYPES> adiospartdatatype;
@@ -4304,7 +4636,8 @@ struct DataGroupNames {
     ///store the names of catalog particle type files
     vector<string> types;
 #ifdef USEHDF
-    vector<PredType> typesdatatype;
+    // vector<PredType> typesdatatype;
+    vector<hid_t> hdftypesdatatype;
 #endif
 #ifdef USEADIOS
     vector<ADIOS_DATATYPES> adiostypesdatatype;
@@ -4313,7 +4646,8 @@ struct DataGroupNames {
     ///store the names of hierarchy files
     vector<string> hierarchy;
 #ifdef USEHDF
-    vector<PredType> hierarchydatatype;
+    // vector<PredType> hierarchydatatype;
+    vector<hid_t> hdfhierarchydatatype;
 #endif
 #ifdef USEADIOS
     vector<ADIOS_DATATYPES> adioshierarchydatatype;
@@ -4322,7 +4656,8 @@ struct DataGroupNames {
     ///store names of SO files
     vector<string> SO;
 #ifdef USEHDF
-    vector<PredType> SOdatatype;
+    // vector<PredType> SOdatatype;
+    vector<hid_t> hdfSOdatatype;
 #endif
 #ifdef USEADIOS
     vector<ADIOS_DATATYPES> SOdatatype;
@@ -4332,7 +4667,8 @@ struct DataGroupNames {
     vector<string> profile;
 #ifdef USEHDF
     //store the data type
-    vector<PredType> profiledatatype;
+    // vector<PredType> profiledatatype;
+    vector<hid_t> hdfprofiledatatype;
 #endif
 #ifdef USEADIOS
     vector<ADIOS_DATATYPES> adiosprofiledatatype;
@@ -4340,9 +4676,12 @@ struct DataGroupNames {
 
     DataGroupNames(){
 #ifdef USEHDF
-        vector<PredType> desiredproprealtype;
-        if (sizeof(Double_t)==sizeof(double)) desiredproprealtype.push_back(PredType::NATIVE_DOUBLE);
-        else desiredproprealtype.push_back(PredType::NATIVE_FLOAT);
+        // vector<PredType> desiredproprealtype;
+        // if (sizeof(Double_t)==sizeof(double)) desiredproprealtype.push_back(PredType::NATIVE_DOUBLE);
+        // else desiredproprealtype.push_back(PredType::NATIVE_FLOAT);
+        vector<hid_t> hdfdesiredproprealtype;
+        if (sizeof(Double_t)==sizeof(double)) hdfdesiredproprealtype.push_back(H5T_NATIVE_DOUBLE);
+        else hdfdesiredproprealtype.push_back(H5T_NATIVE_FLOAT);
 #endif
 #ifdef USEADIOS
         vector<ADIOS_DATATYPES> desiredadiosproprealtype;
@@ -4366,22 +4705,40 @@ struct DataGroupNames {
         prop.push_back("Stellar_age_unit_to_yr");
 #endif
 #ifdef USEHDF
-        propdatatype.push_back(PredType::STD_I32LE);
-        propdatatype.push_back(PredType::STD_I32LE);
-        propdatatype.push_back(PredType::STD_U64LE);
-        propdatatype.push_back(PredType::STD_U64LE);
-        propdatatype.push_back(PredType::STD_U32LE);
-        propdatatype.push_back(PredType::STD_U32LE);
-        propdatatype.push_back(desiredproprealtype[0]);
-        propdatatype.push_back(desiredproprealtype[0]);
-        propdatatype.push_back(desiredproprealtype[0]);
-        propdatatype.push_back(desiredproprealtype[0]);
-        propdatatype.push_back(desiredproprealtype[0]);
+//         propdatatype.push_back(PredType::STD_I32LE);
+//         propdatatype.push_back(PredType::STD_I32LE);
+//         propdatatype.push_back(PredType::STD_U64LE);
+//         propdatatype.push_back(PredType::STD_U64LE);
+//         propdatatype.push_back(PredType::STD_U32LE);
+//         propdatatype.push_back(PredType::STD_U32LE);
+//         propdatatype.push_back(desiredproprealtype[0]);
+//         propdatatype.push_back(desiredproprealtype[0]);
+//         propdatatype.push_back(desiredproprealtype[0]);
+//         propdatatype.push_back(desiredproprealtype[0]);
+//         propdatatype.push_back(desiredproprealtype[0]);
+// #if defined(GASON) || defined(STARON) || defined(BHON)
+//         propdatatype.push_back(desiredproprealtype[0]);
+//         propdatatype.push_back(desiredproprealtype[0]);
+//         propdatatype.push_back(desiredproprealtype[0]);
+// #endif
+
+        hdfpropdatatype.push_back(H5T_NATIVE_INT);
+        hdfpropdatatype.push_back(H5T_NATIVE_INT);
+        hdfpropdatatype.push_back(H5T_NATIVE_ULONG);
+        hdfpropdatatype.push_back(H5T_NATIVE_ULONG);
+        hdfpropdatatype.push_back(H5T_NATIVE_UINT);
+        hdfpropdatatype.push_back(H5T_NATIVE_UINT);
+        hdfpropdatatype.push_back(hdfdesiredproprealtype[0]);
+        hdfpropdatatype.push_back(hdfdesiredproprealtype[0]);
+        hdfpropdatatype.push_back(hdfdesiredproprealtype[0]);
+        hdfpropdatatype.push_back(hdfdesiredproprealtype[0]);
+        hdfpropdatatype.push_back(hdfdesiredproprealtype[0]);
 #if defined(GASON) || defined(STARON) || defined(BHON)
-        propdatatype.push_back(desiredproprealtype[0]);
-        propdatatype.push_back(desiredproprealtype[0]);
-        propdatatype.push_back(desiredproprealtype[0]);
+        hdfpropdatatype.push_back(hdfdesiredproprealtype[0]);
+        hdfpropdatatype.push_back(hdfdesiredproprealtype[0]);
+        hdfpropdatatype.push_back(hdfdesiredproprealtype[0]);
 #endif
+
 #endif
 #ifdef USEADIOS
         adiospropdatatype.push_back(ADIOS_DATATYPES::adios_integer);
@@ -4410,13 +4767,22 @@ struct DataGroupNames {
         group.push_back("Offset");
         group.push_back("Offset_unbound");
 #ifdef USEHDF
-        groupdatatype.push_back(PredType::STD_I32LE);
-        groupdatatype.push_back(PredType::STD_I32LE);
-        groupdatatype.push_back(PredType::STD_U64LE);
-        groupdatatype.push_back(PredType::STD_U64LE);
-        groupdatatype.push_back(PredType::STD_U32LE);
-        groupdatatype.push_back(PredType::STD_U64LE);
-        groupdatatype.push_back(PredType::STD_U64LE);
+        // groupdatatype.push_back(PredType::STD_I32LE);
+        // groupdatatype.push_back(PredType::STD_I32LE);
+        // groupdatatype.push_back(PredType::STD_U64LE);
+        // groupdatatype.push_back(PredType::STD_U64LE);
+        // groupdatatype.push_back(PredType::STD_U32LE);
+        // groupdatatype.push_back(PredType::STD_U64LE);
+        // groupdatatype.push_back(PredType::STD_U64LE);
+
+        hdfgroupdatatype.push_back(H5T_NATIVE_INT);
+        hdfgroupdatatype.push_back(H5T_NATIVE_INT);
+        hdfgroupdatatype.push_back(H5T_NATIVE_ULONG);
+        hdfgroupdatatype.push_back(H5T_NATIVE_ULONG);
+        hdfgroupdatatype.push_back(H5T_NATIVE_UINT);
+        hdfgroupdatatype.push_back(H5T_NATIVE_ULONG);
+        hdfgroupdatatype.push_back(H5T_NATIVE_ULONG);
+
 #endif
 #ifdef USEADIOS
         adiosgroupdatatype.push_back(ADIOS_DATATYPES::adios_integer);
@@ -4434,11 +4800,18 @@ struct DataGroupNames {
         part.push_back("Total_num_of_particles_in_all_groups");
         part.push_back("Particle_IDs");
 #ifdef USEHDF
-        partdatatype.push_back(PredType::STD_I32LE);
-        partdatatype.push_back(PredType::STD_I32LE);
-        partdatatype.push_back(PredType::STD_U64LE);
-        partdatatype.push_back(PredType::STD_U64LE);
-        partdatatype.push_back(PredType::STD_I64LE);
+        // partdatatype.push_back(PredType::STD_I32LE);
+        // partdatatype.push_back(PredType::STD_I32LE);
+        // partdatatype.push_back(PredType::STD_U64LE);
+        // partdatatype.push_back(PredType::STD_U64LE);
+        // partdatatype.push_back(PredType::STD_I64LE);
+
+        hdfpartdatatype.push_back(H5T_NATIVE_INT);
+        hdfpartdatatype.push_back(H5T_NATIVE_INT);
+        hdfpartdatatype.push_back(H5T_NATIVE_ULONG);
+        hdfpartdatatype.push_back(H5T_NATIVE_ULONG);
+        hdfpartdatatype.push_back(H5T_NATIVE_LONG);
+
 #endif
 #ifdef USEADIOS
         adiospartdatatype.push_back(ADIOS_DATATYPES::adios_integer);
@@ -4454,11 +4827,17 @@ struct DataGroupNames {
         types.push_back("Total_num_of_particles_in_all_groups");
         types.push_back("Particle_types");
 #ifdef USEHDF
-        typesdatatype.push_back(PredType::STD_I32LE);
-        typesdatatype.push_back(PredType::STD_I32LE);
-        typesdatatype.push_back(PredType::STD_U64LE);
-        typesdatatype.push_back(PredType::STD_U64LE);
-        typesdatatype.push_back(PredType::STD_U16LE);
+        // typesdatatype.push_back(PredType::STD_I32LE);
+        // typesdatatype.push_back(PredType::STD_I32LE);
+        // typesdatatype.push_back(PredType::STD_U64LE);
+        // typesdatatype.push_back(PredType::STD_U64LE);
+        // typesdatatype.push_back(PredType::STD_U16LE);
+
+        hdftypesdatatype.push_back(H5T_NATIVE_INT);
+        hdftypesdatatype.push_back(H5T_NATIVE_INT);
+        hdftypesdatatype.push_back(H5T_NATIVE_ULONG);
+        hdftypesdatatype.push_back(H5T_NATIVE_ULONG);
+        hdftypesdatatype.push_back(H5T_NATIVE_USHORT);
 #endif
 #ifdef USEADIOS
         adiostypesdatatype.push_back(ADIOS_DATATYPES::adios_integer);
@@ -4475,12 +4854,20 @@ struct DataGroupNames {
         hierarchy.push_back("Number_of_substructures_in_halo");
         hierarchy.push_back("Parent_halo_ID");
 #ifdef USEHDF
-        hierarchydatatype.push_back(PredType::STD_I32LE);
-        hierarchydatatype.push_back(PredType::STD_I32LE);
-        hierarchydatatype.push_back(PredType::STD_U64LE);
-        hierarchydatatype.push_back(PredType::STD_U64LE);
-        hierarchydatatype.push_back(PredType::STD_U32LE);
-        hierarchydatatype.push_back(PredType::STD_I64LE);
+        // hierarchydatatype.push_back(PredType::STD_I32LE);
+        // hierarchydatatype.push_back(PredType::STD_I32LE);
+        // hierarchydatatype.push_back(PredType::STD_U64LE);
+        // hierarchydatatype.push_back(PredType::STD_U64LE);
+        // hierarchydatatype.push_back(PredType::STD_U32LE);
+        // hierarchydatatype.push_back(PredType::STD_I64LE);
+
+        hdfhierarchydatatype.push_back(H5T_NATIVE_INT);
+        hdfhierarchydatatype.push_back(H5T_NATIVE_INT);
+        hdfhierarchydatatype.push_back(H5T_NATIVE_ULONG);
+        hdfhierarchydatatype.push_back(H5T_NATIVE_ULONG);
+        hdfhierarchydatatype.push_back(H5T_NATIVE_UINT);
+        hdfhierarchydatatype.push_back(H5T_NATIVE_LONG);
+
 #endif
 #ifdef USEADIOS
         adioshierarchydatatype.push_back(ADIOS_DATATYPES::adios_integer);
@@ -4504,18 +4891,31 @@ struct DataGroupNames {
 #endif
 
 #ifdef USEHDF
-        SOdatatype.push_back(PredType::STD_I32LE);
-        SOdatatype.push_back(PredType::STD_I32LE);
-        SOdatatype.push_back(PredType::STD_U64LE);
-        SOdatatype.push_back(PredType::STD_U64LE);
-        SOdatatype.push_back(PredType::STD_U64LE);
-        SOdatatype.push_back(PredType::STD_U64LE);
-        SOdatatype.push_back(PredType::STD_U32LE);
-        SOdatatype.push_back(PredType::STD_U64LE);
-        SOdatatype.push_back(PredType::STD_I64LE);
-#if defined(GASON) || defined(STARON) || defined(BHON)
-        SOdatatype.push_back(PredType::STD_I32LE);
-#endif
+//         SOdatatype.push_back(PredType::STD_I32LE);
+//         SOdatatype.push_back(PredType::STD_I32LE);
+//         SOdatatype.push_back(PredType::STD_U64LE);
+//         SOdatatype.push_back(PredType::STD_U64LE);
+//         SOdatatype.push_back(PredType::STD_U64LE);
+//         SOdatatype.push_back(PredType::STD_U64LE);
+//         SOdatatype.push_back(PredType::STD_U32LE);
+//         SOdatatype.push_back(PredType::STD_U64LE);
+//         SOdatatype.push_back(PredType::STD_I64LE);
+// #if defined(GASON) || defined(STARON) || defined(BHON)
+//         SOdatatype.push_back(PredType::STD_I32LE);
+// #endif
+        hdfSOdatatype.push_back(H5T_NATIVE_INT);
+        hdfSOdatatype.push_back(H5T_NATIVE_INT);
+        hdfSOdatatype.push_back(H5T_NATIVE_ULONG);
+        hdfSOdatatype.push_back(H5T_NATIVE_ULONG);
+        hdfSOdatatype.push_back(H5T_NATIVE_ULONG);
+        hdfSOdatatype.push_back(H5T_NATIVE_ULONG);
+        hdfSOdatatype.push_back(H5T_NATIVE_UINT);
+        hdfSOdatatype.push_back(H5T_NATIVE_ULONG);
+        hdfSOdatatype.push_back(H5T_NATIVE_LONG);
+        #if defined(GASON) || defined(STARON) || defined(BHON)
+        hdfSOdatatype.push_back(H5T_NATIVE_INT);
+        #endif
+
 #endif
 #ifdef USEADIOS
         adiosSOdatatype.push_back(ADIOS_DATATYPES::adios_integer);
@@ -4543,16 +4943,27 @@ struct DataGroupNames {
         profile.push_back("Num_of_bin_edges");
         profile.push_back("Radial_bin_edges");
 #ifdef USEHDF
-        profiledatatype.push_back(PredType::STD_I32LE);
-        profiledatatype.push_back(PredType::STD_I32LE);
-        profiledatatype.push_back(PredType::STD_U64LE);
-        profiledatatype.push_back(PredType::STD_U64LE);
-        profiledatatype.push_back(PredType::STD_U64LE);
-        profiledatatype.push_back(PredType::STD_U64LE);
-        profiledatatype.push_back(PredType::C_S1);
-        profiledatatype.push_back(PredType::STD_I32LE);
-        profiledatatype.push_back(PredType::STD_I32LE);
-        profiledatatype.push_back(desiredproprealtype[0]);
+        // profiledatatype.push_back(PredType::STD_I32LE);
+        // profiledatatype.push_back(PredType::STD_I32LE);
+        // profiledatatype.push_back(PredType::STD_U64LE);
+        // profiledatatype.push_back(PredType::STD_U64LE);
+        // profiledatatype.push_back(PredType::STD_U64LE);
+        // profiledatatype.push_back(PredType::STD_U64LE);
+        // profiledatatype.push_back(PredType::C_S1);
+        // profiledatatype.push_back(PredType::STD_I32LE);
+        // profiledatatype.push_back(PredType::STD_I32LE);
+        // profiledatatype.push_back(desiredproprealtype[0]);
+
+        hdfprofiledatatype.push_back(H5T_NATIVE_INT);
+        hdfprofiledatatype.push_back(H5T_NATIVE_INT);
+        hdfprofiledatatype.push_back(H5T_NATIVE_ULONG);
+        hdfprofiledatatype.push_back(H5T_NATIVE_ULONG);
+        hdfprofiledatatype.push_back(H5T_NATIVE_ULONG);
+        hdfprofiledatatype.push_back(H5T_NATIVE_ULONG);
+        hdfprofiledatatype.push_back(H5T_C_S1);
+        hdfprofiledatatype.push_back(H5T_NATIVE_INT);
+        hdfprofiledatatype.push_back(H5T_NATIVE_INT);
+        hdfprofiledatatype.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
         adiosprofiledatatype.push_back(ADIOS_DATATYPES::adios_integer);

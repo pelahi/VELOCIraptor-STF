@@ -382,13 +382,12 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     unsigned long noffset=0,ngtot=0,nids=0,nidstot,nuids=0,nuidstot,ng=0;
     Int_t *offset;
 #ifdef USEHDF
-    H5File Fhdf,Fhdf3;
-    H5std_string datasetname;
-    DataSpace dataspace;
-    DataSet dataset;
-    DSetCreatPropList hdfdatasetproplist;
-    hsize_t *dims,*chunk_dims;
-    hsize_t rank;
+    // H5File Fhdf,Fhdf3;
+    // H5std_string datasetname;
+    // DataSpace dataspace;
+    // DataSet dataset;
+    // DSetCreatPropList hdfdatasetproplist;
+    H5OutputFile Fhdf, Fhdf3;
     int itemp=0;
 #endif
 #ifdef USEADIOS
@@ -418,8 +417,10 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
 #ifdef USEHDF
         //create file
         else if (opt.ibinaryout==OUTHDF) {
-        Fhdf=H5File(fname,H5F_ACC_TRUNC);
+        //Fhdf=H5File(fname,H5F_ACC_TRUNC);
         //Fhdf.H5Fcreate(fname,H5F_ACC_TRUNC,H5P_DEFAULT,H5P_DEFAULT);
+        //Fhdf=HDF5OpenFile(string(fname),H5F_ACC_TRUNC);
+        Fhdf.create(string(fname),H5F_ACC_TRUNC);
     }
 #endif
 #ifdef USEADIOS
@@ -445,35 +446,15 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     }
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
-        //set file info
-        dims=new hsize_t[1];
-        dims[0]=1;
-        rank=1;
         itemp=0;
-        //datasetname=H5std_string("File_id");
-        dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.group[itemp], datagroupnames.groupdatatype[itemp], dataspace);
-        dataset.write(&ThisTask,datagroupnames.groupdatatype[itemp]);
+        Fhdf.write_dataset(datagroupnames.group[itemp], 1, &ThisTask);
         itemp++;
-
-        //datasetname=H5std_string("Num_of_files");
-        dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.group[itemp], datagroupnames.groupdatatype[itemp], dataspace);
-        dataset.write(&NProcs,datagroupnames.groupdatatype[itemp]);
+        Fhdf.write_dataset(datagroupnames.group[itemp], 1, &NProcs);
         itemp++;
-
-        //datasetname=H5std_string("Num_of_groups");
-        dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.group[itemp], datagroupnames.groupdatatype[itemp], dataspace);
-        dataset.write(&ng,datagroupnames.groupdatatype[itemp]);
+        Fhdf.write_dataset(datagroupnames.group[itemp], 1, &ng);
         itemp++;
-
-        //datasetname=H5std_string("Total_num_of_groups");
-        dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.group[itemp], datagroupnames.groupdatatype[itemp], dataspace);
-        dataset.write(&ngtot,datagroupnames.groupdatatype[itemp]);
+        Fhdf.write_dataset(datagroupnames.group[itemp], 1, &ngtot);
         itemp++;
-        delete[] dims;
     }
 #endif
 #ifdef USEADIOS
@@ -503,29 +484,11 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     if (opt.ibinaryout==OUTBINARY) Fout.write((char*)&numingroup[1],sizeof(Int_t)*ngroups);
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
-        dims=new hsize_t[1];
-        chunk_dims=new hsize_t[1];
-        dims[0]=ng;
-        rank=1;
-        dataspace=DataSpace(rank,dims);
-        chunk_dims[0]=min((unsigned long)HDFOUTPUTCHUNKSIZE,ng);
-        if (chunk_dims[0]>0) {
-            // Modify dataset creation property to enable chunking
-            hdfdatasetproplist.setChunk(rank, chunk_dims);
-            // Set ZLIB (DEFLATE) Compression using level 6.
-            hdfdatasetproplist.setDeflate(6);
-            dataset = Fhdf.createDataSet(datagroupnames.group[itemp], datagroupnames.groupdatatype[itemp], dataspace, hdfdatasetproplist);
-        }
-        else {
-            dataset = Fhdf.createDataSet(datagroupnames.group[itemp], datagroupnames.groupdatatype[itemp], dataspace);
-        }
         unsigned int *data=new unsigned int[ng];
         for (Int_t i=1;i<=ng;i++) data[i-1]=numingroup[i];
-        dataset.write(data,datagroupnames.groupdatatype[itemp]);
+        Fhdf.write_dataset(datagroupnames.group[itemp], ng, data);
         itemp++;
         delete[] data;
-        delete[] dims;
-        delete[] chunk_dims;
     }
 #endif
 #ifdef USEADIOS
@@ -570,30 +533,11 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     if (opt.ibinaryout==OUTBINARY) Fout.write((char*)&offset[1],sizeof(Int_t)*ngroups);
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
-        dims=new hsize_t[1];
-        chunk_dims=new hsize_t[1];
-        dims[0]=ng;
-        rank=1;
-        // Modify dataset creation property to enable chunking
-        chunk_dims[0]=min((unsigned long)HDFOUTPUTCHUNKSIZE,ng);
-        if (chunk_dims[0]>0) {
-            hdfdatasetproplist=DSetCreatPropList();
-            hdfdatasetproplist.setChunk(rank, chunk_dims);
-            // Set ZLIB (DEFLATE) Compression using level 6.
-            hdfdatasetproplist.setDeflate(6);
-            dataspace=DataSpace(rank,dims);
-            dataset = Fhdf.createDataSet(datagroupnames.group[itemp], datagroupnames.groupdatatype[itemp], dataspace,hdfdatasetproplist);
-        }
-        else {
-            dataset = Fhdf.createDataSet(datagroupnames.group[itemp], datagroupnames.groupdatatype[itemp], dataspace);
-        }
-        unsigned long *data=new unsigned long[ng];
+        unsigned int *data=new unsigned int[ng];
         for (Int_t i=1;i<=ng;i++) data[i-1]=offset[i];
-        dataset.write(data,datagroupnames.groupdatatype[itemp]);
+        Fhdf.write_dataset(datagroupnames.group[itemp], ng, data);
         itemp++;
         delete[] data;
-        delete[] dims;
-        delete[] chunk_dims;
     }
 #endif
 #ifdef USEADIOS
@@ -614,30 +558,11 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     if (opt.ibinaryout==OUTBINARY) Fout.write((char*)&offset[1],sizeof(Int_t)*ngroups);
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
-        dims=new hsize_t[1];
-        chunk_dims=new hsize_t[1];
-        dims[0]=ng;
-        rank=1;
-        chunk_dims[0]=min((unsigned long)HDFOUTPUTCHUNKSIZE,ng);
-        if (chunk_dims[0]>0) {
-            hdfdatasetproplist=DSetCreatPropList();
-            // Modify dataset creation property to enable chunking
-            hdfdatasetproplist.setChunk(rank, chunk_dims);
-            // Set ZLIB (DEFLATE) Compression using level 6.
-            hdfdatasetproplist.setDeflate(6);
-            dataspace=DataSpace(rank,dims);
-            dataset = Fhdf.createDataSet(datagroupnames.group[itemp], datagroupnames.groupdatatype[itemp], dataspace, hdfdatasetproplist);
-        }
-        else {
-            dataset = Fhdf.createDataSet(datagroupnames.group[itemp], datagroupnames.groupdatatype[itemp], dataspace);
-        }
-        unsigned long *data=new unsigned long[ng];
-        for (Int_t i=1;i<=ng;i++) data[i-1]=offset[i];
-        dataset.write(data,datagroupnames.groupdatatype[itemp]);
+        unsigned int *data=new unsigned int[ng];
+        for (Int_t i=1;i<=ng;i++) data[i-1]=numingroup[i];
+        Fhdf.write_dataset(datagroupnames.group[itemp], ng, data);
         itemp++;
         delete[] data;
-        delete[] dims;
-        delete[] chunk_dims;
     }
 #endif
 #ifdef USEADIOS
@@ -678,8 +603,10 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     }
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
-        Fhdf=H5File(fname,H5F_ACC_TRUNC);
-        Fhdf3=H5File(fname3,H5F_ACC_TRUNC);
+        //Fhdf=H5File(fname,H5F_ACC_TRUNC);
+        //Fhdf3=H5File(fname3,H5F_ACC_TRUNC);
+        Fhdf.create(string(fname),H5F_ACC_TRUNC);
+        Fhdf3.create(string(fname3),H5F_ACC_TRUNC);
     }
 #endif
 #ifdef USEADIOS
@@ -718,43 +645,19 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     }
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
-        //set file info
-        dims=new hsize_t[1];
-        dims[0]=1;
-        rank=1;
         itemp=0;
-        //datasetname=H5std_string("File_id");
-        dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.part[itemp], datagroupnames.partdatatype[itemp], dataspace);
-        dataset.write(&ThisTask,datagroupnames.partdatatype[itemp]);
-        dataset = Fhdf3.createDataSet(datagroupnames.part[itemp], datagroupnames.partdatatype[itemp], dataspace);
-        dataset.write(&ThisTask,datagroupnames.partdatatype[itemp]);
+        Fhdf.write_dataset(datagroupnames.part[itemp], 1, &ThisTask);
+        Fhdf3.write_dataset(datagroupnames.part[itemp], 1, &ThisTask);
         itemp++;
-
-        //datasetname=H5std_string("Num_of_files");
-        dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.part[itemp], datagroupnames.partdatatype[itemp], dataspace);
-        dataset.write(&NProcs,datagroupnames.partdatatype[itemp]);
-        dataset = Fhdf3.createDataSet(datagroupnames.part[itemp], datagroupnames.partdatatype[itemp], dataspace);
-        dataset.write(&NProcs,datagroupnames.partdatatype[itemp]);
+        Fhdf.write_dataset(datagroupnames.part[itemp], 1, &NProcs);
+        Fhdf3.write_dataset(datagroupnames.part[itemp], 1, &NProcs);
         itemp++;
-
-        //datasetname=H5std_string("Num_of_particles_in_groups");
-        dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.part[itemp], datagroupnames.partdatatype[itemp], dataspace);
-        dataset.write(&nids,datagroupnames.partdatatype[itemp]);
-        dataset = Fhdf3.createDataSet(datagroupnames.part[itemp], datagroupnames.partdatatype[itemp], dataspace);
-        dataset.write(&nuids,datagroupnames.partdatatype[itemp]);
+        Fhdf.write_dataset(datagroupnames.part[itemp], 1, &nids);
+        Fhdf3.write_dataset(datagroupnames.part[itemp], 1, &nuids);
         itemp++;
-
-        //datasetname=H5std_string("Total_num_of_particles_in_all_groups");
-        dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.part[itemp], datagroupnames.partdatatype[itemp], dataspace);
-        dataset.write(&nidstot,datagroupnames.partdatatype[itemp]);
-        dataset = Fhdf3.createDataSet(datagroupnames.part[itemp], datagroupnames.partdatatype[itemp], dataspace);
-        dataset.write(&nuidstot,datagroupnames.partdatatype[itemp]);
+        Fhdf.write_dataset(datagroupnames.part[itemp], 1, &nidstot);
+        Fhdf3.write_dataset(datagroupnames.part[itemp], 1, &nuidstot);
         itemp++;
-        delete[] dims;
     }
 #endif
 #ifdef USEADIOS
@@ -796,31 +699,10 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     if (opt.ibinaryout==OUTBINARY) Fout.write((char*)idval,sizeof(Int_t)*nids);
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
-        dims=new hsize_t[1];
-        chunk_dims=new hsize_t[1];
-        dims[0]=nids;
-        rank=1;
-        chunk_dims[0]=min((unsigned long)HDFOUTPUTCHUNKSIZE,nids);
-        if (chunk_dims[0]>0) {
-            hdfdatasetproplist=DSetCreatPropList();
-            // Modify dataset creation property to enable chunking
-            hdfdatasetproplist.setChunk(rank, chunk_dims);
-            // Set ZLIB (DEFLATE) Compression using level 6.
-            hdfdatasetproplist.setDeflate(6);
-            dataspace=DataSpace(rank,dims);
-            dataset = Fhdf.createDataSet(datagroupnames.part[itemp], datagroupnames.partdatatype[itemp], dataspace, hdfdatasetproplist);
-        }
-        else {
-            dataset = Fhdf.createDataSet(datagroupnames.part[itemp], datagroupnames.partdatatype[itemp], dataspace);
-        }
-        if (nids > 0){
-            long long *data=new long long[nids];
-            for (Int_t i=0;i<nids;i++) data[i]=idval[i];
-            dataset.write(data,datagroupnames.partdatatype[itemp]);
-            delete[] data;
-        }
-        delete[] dims;
-        delete[] chunk_dims;
+        long long *data=new long long[nids];
+        for (Int_t i=0;i<nids;i++) data[i]=idval[i];
+        Fhdf.write_dataset(datagroupnames.part[itemp], nids, data);
+        delete[] data;
     }
 #endif
 #ifdef USEADIOS
@@ -865,31 +747,10 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     if (opt.ibinaryout==OUTBINARY) Fout3.write((char*)idval,sizeof(Int_t)*nuids);
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
-        dims=new hsize_t[1];
-        chunk_dims=new hsize_t[1];
-        dims[0]=nuids;
-        rank=1;
-        chunk_dims[0]=min((unsigned long)HDFOUTPUTCHUNKSIZE,nuids);
-        if (chunk_dims[0]>0) {
-            hdfdatasetproplist=DSetCreatPropList();
-            // Modify dataset creation property to enable chunking
-            hdfdatasetproplist.setChunk(rank, chunk_dims);
-            // Set ZLIB (DEFLATE) Compression using level 6.
-            hdfdatasetproplist.setDeflate(6);
-            dataspace=DataSpace(rank,dims);
-            dataset = Fhdf3.createDataSet(datagroupnames.part[itemp], datagroupnames.partdatatype[itemp], dataspace,hdfdatasetproplist);
-        }
-        else {
-            dataset = Fhdf3.createDataSet(datagroupnames.part[itemp], datagroupnames.partdatatype[itemp], dataspace);
-        }
-        if (nuids > 0) {
-            long long *data=new long long[nuids];
-            for (Int_t i=0;i<nuids;i++) data[i]=idval[i];
-            dataset.write(data,datagroupnames.partdatatype[itemp]);
-            delete[] data;
-        }
-        delete[] dims;
-        delete[] chunk_dims;
+        long long *data=new long long[nuids];
+        for (Int_t i=0;i<nuids;i++) data[i]=idval[i];
+        Fhdf3.write_dataset(datagroupnames.part[itemp], nuids, data);
+        delete[] data;
     }
 #endif
 #ifdef USEADIOS
@@ -942,13 +803,14 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
     int *typeval;
 
 #ifdef USEHDF
-    H5File Fhdf,Fhdf2;
-    H5std_string datasetname;
-    DataSpace dataspace;
-    DataSet dataset;
-    DSetCreatPropList hdfdatasetproplist;
-    hsize_t *dims,*chunk_dims;
-    hsize_t rank;
+    // H5File Fhdf,Fhdf2;
+    // H5std_string datasetname;
+    // DataSpace dataspace;
+    // DataSet dataset;
+    // DSetCreatPropList hdfdatasetproplist;
+    // hsize_t *dims,*chunk_dims;
+    // hsize_t rank;
+    H5OutputFile Fhdf,Fhdf2;
     int itemp;
 #endif
 #if defined(USEHDF)||defined(USEADIOS)
@@ -976,9 +838,11 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
         //create file
-        Fhdf=H5File(fname,H5F_ACC_TRUNC);
-        //Fhdf.H5Fcreate(fname,H5F_ACC_TRUNC,H5P_DEFAULT,H5P_DEFAULT);
-        Fhdf2=H5File(fname2,H5F_ACC_TRUNC);
+        // Fhdf=H5File(fname,H5F_ACC_TRUNC);
+        // //Fhdf.H5Fcreate(fname,H5F_ACC_TRUNC,H5P_DEFAULT,H5P_DEFAULT);
+        // Fhdf2=H5File(fname2,H5F_ACC_TRUNC);
+        Fhdf.create(string(fname),H5F_ACC_TRUNC);
+        Fhdf2.create(string(fname2),H5F_ACC_TRUNC);
     }
 #endif
     else {
@@ -1014,44 +878,19 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
     }
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
-        //set file info
-        dims=new hsize_t[1];
-        dims[0]=1;
-        rank=1;
         itemp=0;
-
-        //datasetname=H5std_string("File_id");
-        dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.types[itemp], datagroupnames.typesdatatype[itemp], dataspace);
-        dataset.write(&ThisTask,datagroupnames.typesdatatype[itemp]);
-        dataset = Fhdf2.createDataSet(datagroupnames.types[itemp], datagroupnames.typesdatatype[itemp], dataspace);
-        dataset.write(&ThisTask,datagroupnames.typesdatatype[itemp]);
+        Fhdf.write_dataset(datagroupnames.types[itemp], 1, &ThisTask);
+        Fhdf2.write_dataset(datagroupnames.types[itemp], 1, &ThisTask);
         itemp++;
-
-        //datasetname=H5std_string("Num_of_files");
-        dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.types[itemp], datagroupnames.typesdatatype[itemp], dataspace);
-        dataset.write(&NProcs,datagroupnames.typesdatatype[itemp]);
-        dataset = Fhdf2.createDataSet(datagroupnames.types[itemp], datagroupnames.typesdatatype[itemp], dataspace);
-        dataset.write(&NProcs,datagroupnames.typesdatatype[itemp]);
+        Fhdf.write_dataset(datagroupnames.types[itemp], 1, &NProcs);
+        Fhdf2.write_dataset(datagroupnames.types[itemp], 1, &NProcs);
         itemp++;
-
-        //datasetname=H5std_string("Num_of_particles_in_groups");
-        dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.types[itemp], datagroupnames.typesdatatype[itemp], dataspace);
-        dataset.write(&nids,datagroupnames.typesdatatype[itemp]);
-        dataset = Fhdf2.createDataSet(datagroupnames.types[itemp], datagroupnames.typesdatatype[itemp], dataspace);
-        dataset.write(&nuids,datagroupnames.typesdatatype[itemp]);
+        Fhdf.write_dataset(datagroupnames.types[itemp], 1, &nids);
+        Fhdf2.write_dataset(datagroupnames.types[itemp], 1, &nuids);
         itemp++;
-
-        //datasetname=H5std_string("Total_num_of_particles_in_all_groups");
-        dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.types[itemp], datagroupnames.typesdatatype[itemp], dataspace);
-        dataset.write(&nidstot,datagroupnames.typesdatatype[itemp]);
-        dataset = Fhdf2.createDataSet(datagroupnames.types[itemp], datagroupnames.typesdatatype[itemp], dataspace);
-        dataset.write(&nuidstot,datagroupnames.typesdatatype[itemp]);
+        Fhdf.write_dataset(datagroupnames.types[itemp], 1, &nidstot);
+        Fhdf2.write_dataset(datagroupnames.types[itemp], 1, &nuidstot);
         itemp++;
-        delete[] dims;
     }
 #endif
     else {
@@ -1070,31 +909,10 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
     if (opt.ibinaryout==OUTBINARY) Fout.write((char*)typeval,sizeof(int)*nids);
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
-        dims=new hsize_t[1];
-        chunk_dims=new hsize_t[1];
-        dims[0]=nids;
-        rank=1;
-        chunk_dims[0]=min((Int_t)HDFOUTPUTCHUNKSIZE,nids);
-        if (chunk_dims[0]>0) {
-            hdfdatasetproplist=DSetCreatPropList();
-            // Modify dataset creation property to enable chunking
-            hdfdatasetproplist.setChunk(rank, chunk_dims);
-            // Set ZLIB (DEFLATE) Compression using level 6.
-            hdfdatasetproplist.setDeflate(6);
-            dataspace=DataSpace(rank,dims);
-            dataset = Fhdf.createDataSet(datagroupnames.types[itemp], datagroupnames.typesdatatype[itemp], dataspace, hdfdatasetproplist);
-        }
-        else {
-            dataset = Fhdf.createDataSet(datagroupnames.types[itemp], datagroupnames.typesdatatype[itemp], dataspace);
-        }
-        if (nids>0) {
-            unsigned short *data=new unsigned short[nids];
-            for (Int_t i=0;i<nids;i++) data[i]=typeval[i];
-            dataset.write(data,datagroupnames.typesdatatype[itemp]);
-            delete[] data;
-        }
-        delete[] dims;
-        delete[] chunk_dims;
+        unsigned short *data=new unsigned short[nids];
+        for (Int_t i=0;i<nids;i++) data[i]=typeval[i];
+        Fhdf.write_dataset(datagroupnames.types[itemp], nids, data);
+        delete[] data;
     }
 #endif
     else for (Int_t i=0;i<nids;i++) Fout<<typeval[i]<<endl;
@@ -1112,30 +930,10 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
     if (opt.ibinaryout==OUTBINARY) Fout2.write((char*)typeval,sizeof(int)*nuids);
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
-        dims=new hsize_t[1];
-        chunk_dims=new hsize_t[1];
-        dims[0]=nuids;
-        rank=1;
-        chunk_dims[0]=min((Int_t)HDFOUTPUTCHUNKSIZE,nuids);
-        if (chunk_dims[0]>0) {
-            hdfdatasetproplist=DSetCreatPropList();
-            // Modify dataset creation property to enable chunking
-            hdfdatasetproplist.setChunk(rank, chunk_dims);
-            // Set ZLIB (DEFLATE) Compression using level 6.
-            hdfdatasetproplist.setDeflate(6);
-            dataspace=DataSpace(rank,dims);
-            dataset = Fhdf2.createDataSet(datagroupnames.types[itemp], datagroupnames.typesdatatype[itemp], dataspace,hdfdatasetproplist);
-        }
-        else {
-            dataset = Fhdf2.createDataSet(datagroupnames.types[itemp], datagroupnames.typesdatatype[itemp], dataspace);
-        }
-        if (nuids>0) {
-            unsigned short *data=new unsigned short[nuids];
-            for (Int_t i=0;i<nuids;i++) data[i]=typeval[i];
-            dataset.write(data,datagroupnames.typesdatatype[itemp]);
-            delete[] data;
-        }
-        delete[] dims;
+        unsigned short *data=new unsigned short[nuids];
+        for (Int_t i=0;i<nuids;i++) data[i]=typeval[i];
+        Fhdf2.write_dataset(datagroupnames.types[itemp], nuids, data);
+        delete[] data;
     }
 #endif
     else for (Int_t i=0;i<nuids;i++) Fout2<<typeval[i]<<endl;
@@ -1164,13 +962,14 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids, ve
     Int_t *numingroup;
 
 #ifdef USEHDF
-    H5File Fhdf;
-    H5std_string datasetname;
-    DataSpace dataspace;
-    DataSet dataset;
-    DSetCreatPropList hdfdatasetproplist;
-    hsize_t *dims,*chunk_dims;
-    hsize_t rank;
+    // H5File Fhdf;
+    // H5std_string datasetname;
+    // DataSpace dataspace;
+    // DataSet dataset;
+    // DSetCreatPropList hdfdatasetproplist;
+    // hsize_t *dims,*chunk_dims;
+    // hsize_t rank;
+    H5OutputFile Fhdf;
     int itemp=0;
 #endif
 #ifdef USEADIOS
@@ -1213,7 +1012,8 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids, ve
 #ifdef USEHDF
     //create file
     else if (opt.ibinaryout==OUTHDF) {
-        Fhdf=H5File(fname,H5F_ACC_TRUNC);
+        // Fhdf=H5File(fname,H5F_ACC_TRUNC);
+        Fhdf.create(string(fname),H5F_ACC_TRUNC);
     }
 #endif
 #ifdef USEADIOS
@@ -1235,42 +1035,19 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids, ve
     }
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
-        //set file info
-        dims=new hsize_t[1];
-        dims[0]=1;
-        rank=1;
         itemp=0;
-        dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.SO[itemp], datagroupnames.SOdatatype[itemp], dataspace);
-        dataset.write(&ThisTask,datagroupnames.SOdatatype[itemp]);
+        Fhdf.write_dataset(datagroupnames.SO[itemp], 1, &ThisTask);
         itemp++;
-
-        dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.SO[itemp], datagroupnames.SOdatatype[itemp], dataspace);
-        dataset.write(&NProcs,datagroupnames.groupdatatype[itemp]);
+        Fhdf.write_dataset(datagroupnames.SO[itemp], 1, &NProcs);
         itemp++;
-
-        dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.SO[itemp], datagroupnames.SOdatatype[itemp], dataspace);
-        dataset.write(&ng,datagroupnames.SOdatatype[itemp]);
+        Fhdf.write_dataset(datagroupnames.SO[itemp], 1, &ng);
         itemp++;
-
-        dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.SO[itemp], datagroupnames.SOdatatype[itemp], dataspace);
-        dataset.write(&ngtot,datagroupnames.SOdatatype[itemp]);
+        Fhdf.write_dataset(datagroupnames.SO[itemp], 1, &ngtot);
         itemp++;
-
-        dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.SO[itemp], datagroupnames.SOdatatype[itemp], dataspace);
-        dataset.write(&nSOids,datagroupnames.SOdatatype[itemp]);
+        Fhdf.write_dataset(datagroupnames.SO[itemp], 1, &nSOids);
         itemp++;
-
-        dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.SO[itemp], datagroupnames.SOdatatype[itemp], dataspace);
-        dataset.write(&nSOidstot,datagroupnames.SOdatatype[itemp]);
+        Fhdf.write_dataset(datagroupnames.SO[itemp], 1, &nSOidstot);
         itemp++;
-
-        delete[] dims;
     }
 #endif
 #ifdef USEADIOS
@@ -1312,29 +1089,11 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids, ve
     }
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
-        dims=new hsize_t[1];
-        chunk_dims=new hsize_t[1];
-        dims[0]=ng;
-        rank=1;
-        dataspace=DataSpace(rank,dims);
-        chunk_dims[0]=min((unsigned long)HDFOUTPUTCHUNKSIZE,ng);
-        if (chunk_dims[0]>0) {
-            // Modify dataset creation property to enable chunking
-            hdfdatasetproplist.setChunk(rank, chunk_dims);
-            // Set ZLIB (DEFLATE) Compression using level 6.
-            hdfdatasetproplist.setDeflate(6);
-            dataset = Fhdf.createDataSet(datagroupnames.SO[itemp], datagroupnames.SOdatatype[itemp], dataspace, hdfdatasetproplist);
-        }
-        else {
-            dataset = Fhdf.createDataSet(datagroupnames.SO[itemp], datagroupnames.SOdatatype[itemp], dataspace);
-        }
         unsigned int *data=new unsigned int[ng];
         for (Int_t i=1;i<=ng;i++) data[i-1]=SOpids[i].size();
-        dataset.write(data,datagroupnames.SOdatatype[itemp]);
+        Fhdf.write_dataset(datagroupnames.SO[itemp], ng, data);
         itemp++;
         delete[] data;
-        delete[] dims;
-        delete[] chunk_dims;
     }
 #endif
 #ifdef USEADIOS
@@ -1380,30 +1139,11 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids, ve
     if (opt.ibinaryout==OUTBINARY) Fout.write((char*)&offset[1],sizeof(Int_t)*ngroups);
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
-        dims=new hsize_t[1];
-        chunk_dims=new hsize_t[1];
-        dims[0]=ng;
-        rank=1;
-        // Modify dataset creation property to enable chunking
-        chunk_dims[0]=min((unsigned long)HDFOUTPUTCHUNKSIZE,ng);
-        if (chunk_dims[0]>0) {
-            hdfdatasetproplist=DSetCreatPropList();
-            hdfdatasetproplist.setChunk(rank, chunk_dims);
-            // Set ZLIB (DEFLATE) Compression using level 6.
-            hdfdatasetproplist.setDeflate(6);
-            dataspace=DataSpace(rank,dims);
-            dataset = Fhdf.createDataSet(datagroupnames.SO[itemp], datagroupnames.SOdatatype[itemp], dataspace,hdfdatasetproplist);
-        }
-        else {
-            dataset = Fhdf.createDataSet(datagroupnames.SO[itemp], datagroupnames.SOdatatype[itemp], dataspace);
-        }
         unsigned long *data=new unsigned long[ng];
         for (Int_t i=1;i<=ng;i++) data[i-1]=offset[i];
-        dataset.write(data,datagroupnames.SOdatatype[itemp]);
+        Fhdf.write_dataset(datagroupnames.SO[itemp], ng, data);
         itemp++;
         delete[] data;
-        delete[] dims;
-        delete[] chunk_dims;
     }
 #endif
 #ifdef USEADIOS
@@ -1448,43 +1188,11 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids, ve
     }
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
-        dims=new hsize_t[1];
-        chunk_dims=new hsize_t[1];
-        dims[0]=nSOids;
-        rank=1;
-        chunk_dims[0]=min((unsigned long)HDFOUTPUTCHUNKSIZE,nSOids);
-        if (chunk_dims[0]>0) {
-            hdfdatasetproplist=DSetCreatPropList();
-            // Modify dataset creation property to enable chunking
-            hdfdatasetproplist.setChunk(rank, chunk_dims);
-            // Set ZLIB (DEFLATE) Compression using level 6.
-            hdfdatasetproplist.setDeflate(6);
-            dataspace=DataSpace(rank,dims);
-            dataset = Fhdf.createDataSet(datagroupnames.SO[itemp], datagroupnames.SOdatatype[itemp], dataspace, hdfdatasetproplist);
-        }
-        else {
-            dataset = Fhdf.createDataSet(datagroupnames.SO[itemp], datagroupnames.SOdatatype[itemp], dataspace);
-        }
-        dataset.write(idval,datagroupnames.SOdatatype[itemp]);
-        //if need to store particle types
-#if defined(GASON) || defined(STARON) || defined(BHON)
+        Fhdf.write_dataset(datagroupnames.SO[itemp], nSOids, idval);
+        #if defined(GASON) || defined(STARON) || defined(BHON)
         itemp++;
-        if (chunk_dims[0]>0) {
-            hdfdatasetproplist=DSetCreatPropList();
-            // Modify dataset creation property to enable chunking
-            hdfdatasetproplist.setChunk(rank, chunk_dims);
-            // Set ZLIB (DEFLATE) Compression using level 6.
-            hdfdatasetproplist.setDeflate(6);
-            dataspace=DataSpace(rank,dims);
-            dataset = Fhdf.createDataSet(datagroupnames.SO[itemp], datagroupnames.SOdatatype[itemp], dataspace, hdfdatasetproplist);
-        }
-        else {
-            dataset = Fhdf.createDataSet(datagroupnames.SO[itemp], datagroupnames.SOdatatype[itemp], dataspace);
-        }
-        dataset.write(typeval,datagroupnames.SOdatatype[itemp]);
-#endif
-        delete[] dims;
-        delete[] chunk_dims;
+        Fhdf.write_dataset(datagroupnames.SO[itemp], nSOids, typeval);
+        #endif
     }
 #endif
 #ifdef USEADIOS
@@ -1532,37 +1240,6 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids, ve
 
 //@}
 
-#ifdef USEHDF
-template <typename ReturnT, typename F, typename ... Ts>
-ReturnT safe_hdf5(F function, Ts ... args)
-{
-       ReturnT status = function(std::forward<Ts>(args)...);
-       if (status < 0) {
-           cerr<<"Error in HDF routine "<<endl;//<<function.__PRETTY_FUNCTION__
-           //throw std::runtime_error("Error in HDF routine.");
-           #ifdef USEMPI
-           MPI_Abort(MPI_COMM_WORLD,9);
-           #else
-           exit(9);
-           #endif
-       }
-       return status;
-}
-
-template <typename T>
-static void write_scalar_attr(const H5::H5File &file, const DataGroupNames &dgnames, int idx, const T value)
-{
-    DataSpace space(H5S_SCALAR);
-    auto attr_id = safe_hdf5<hid_t>(H5Acreate2, file.getId(), dgnames.prop[idx].c_str(),
-               dgnames.propdatatype[idx].getId(), space.getId(),
-               PropList::DEFAULT.getId(), H5P_DEFAULT);
-    //Attribute attr(attr_id);
-    //attr.write(dgnames.propdatatype[idx], &value);
-    safe_hdf5<herr_t>(H5Awrite, attr_id, dgnames.propdatatype[idx].getId(), &value);
-    safe_hdf5<herr_t>(H5Aclose, attr_id);
-}
-#endif
-
 ///\name Final outputs such as properties and output that can be used to construct merger trees and substructure hierarchy
 //@{
 ///Writes the bulk properties of the substructures
@@ -1580,19 +1257,20 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
     }
 
 #ifdef USEHDF
-    H5File Fhdf;
-    H5std_string datasetname;
-    DataSpace dataspace;
-    DataSet dataset;
-    DataSpace attrspace;
-    Attribute attr;
-    float attrvalue;
-    hsize_t *dims, *chunk_dims;
-
-    int rank;
-    DataSpace *propdataspace;
-    DataSet *propdataset;
-    DSetCreatPropList  *hdfdatasetproplist;
+    // H5File Fhdf;
+    // H5std_string datasetname;
+    // DataSpace dataspace;
+    // DataSet dataset;
+    // DataSpace attrspace;
+    // Attribute attr;
+    // float attrvalue;
+    // hsize_t *dims, *chunk_dims;
+    //
+    // int rank;
+    // DataSpace *propdataspace;
+    // DataSet *propdataset;
+    // DSetCreatPropList  *hdfdatasetproplist;
+    H5OutputFile Fhdf;
     int itemp=0;
 #endif
 #if defined(USEHDF)||defined(USEADIOS)
@@ -1629,73 +1307,25 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
     }
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
-        Fhdf=H5File(fname,H5F_ACC_TRUNC);
-        //set file info
-        dims=new hsize_t[1];
-        dims[0]=1;
-        rank=1;
+        // Fhdf=H5File(fname,H5F_ACC_TRUNC);
+        Fhdf.create(string(fname),H5F_ACC_TRUNC);
         itemp=0;
-        //datasetname=H5std_string("File_id");
-        dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.prop[itemp], datagroupnames.propdatatype[itemp], dataspace);
-        dataset.write(&ThisTask,datagroupnames.propdatatype[itemp]);
-        itemp++;
-
-        //datasetname=H5std_string("Num_of_files");
-        dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.prop[itemp], datagroupnames.propdatatype[itemp], dataspace);
-        dataset.write(&NProcs,datagroupnames.propdatatype[itemp]);
-        itemp++;
-
-        //datasetname=H5std_string("Num_of_groups");
-        dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.prop[itemp], datagroupnames.propdatatype[itemp], dataspace);
-        dataset.write(&ng,datagroupnames.propdatatype[itemp]);
-        itemp++;
-
-        //datasetname=H5std_string("Total_num_of_groups");
-        dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.prop[itemp], datagroupnames.propdatatype[itemp], dataspace);
-        dataset.write(&ngtot,datagroupnames.propdatatype[itemp]);
-        itemp++;
-
-        //add unit/simulation information as attributes
-        write_scalar_attr(Fhdf, datagroupnames, itemp++, opt.icosmologicalin);
-        write_scalar_attr(Fhdf, datagroupnames, itemp++, opt.icomoveunit);
-        write_scalar_attr(Fhdf, datagroupnames, itemp++, opt.p);
-        write_scalar_attr(Fhdf, datagroupnames, itemp++, opt.a);
-        write_scalar_attr(Fhdf, datagroupnames, itemp++, opt.lengthtokpc);
-        write_scalar_attr(Fhdf, datagroupnames, itemp++, opt.velocitytokms);
-        write_scalar_attr(Fhdf, datagroupnames, itemp++, opt.masstosolarmass);
-#if defined(GASON) || defined(STARON) || defined(BHON)
-        write_scalar_attr(Fhdf, datagroupnames, itemp++, opt.metallicitytosolar);
-        write_scalar_attr(Fhdf, datagroupnames, itemp++, opt.SFRtosolarmassperyear);
-        write_scalar_attr(Fhdf, datagroupnames, itemp++, opt.stellaragetoyrs);
-#endif
-        //load data spaces
-        propdataspace=new DataSpace[head.headerdatainfo.size()];
-        propdataset=new DataSet[head.headerdatainfo.size()];
-        dims[0]=ng;
-        //size of chunks in compression
-        chunk_dims=new hsize_t[1];
-        chunk_dims[0]=min((unsigned long)HDFOUTPUTCHUNKSIZE,ng);
-        rank=1;
-        // Modify dataset creation property to enable chunking
-        if (ng>0) {
-        	hdfdatasetproplist = new  DSetCreatPropList;
-        	hdfdatasetproplist->setChunk(rank, chunk_dims);
-        	// Set ZLIB (DEFLATE) Compression using level 6.
-        	hdfdatasetproplist->setDeflate(6);
-        }
-        dataspace=DataSpace(rank,dims);
-        for (Int_t i=0;i<head.headerdatainfo.size();i++) {
-            datasetname=H5std_string(head.headerdatainfo[i]);
-            propdataspace[i]=DataSpace(rank,dims);
-            if (ng>0) propdataset[i] = Fhdf.createDataSet(datasetname, head.predtypeinfo[i], propdataspace[i],*hdfdatasetproplist);
-            else propdataset[i] = Fhdf.createDataSet(datasetname, head.predtypeinfo[i], propdataspace[i]);
-        }
-        delete[] dims;
-        delete[] chunk_dims;
+        Fhdf.write_dataset(datagroupnames.prop[itemp++], 1, &ThisTask);
+        Fhdf.write_dataset(datagroupnames.prop[itemp++], 1, &NProcs);
+        Fhdf.write_dataset(datagroupnames.prop[itemp++], 1, &ng);
+        Fhdf.write_dataset(datagroupnames.prop[itemp++], 1, &ngtot);
+        Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.icosmologicalin);
+        Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.icomoveunit);
+        Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.p);
+        Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.a);
+        Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.lengthtokpc);
+        Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.velocitytokms);
+        Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.masstosolarmass);
+        #if defined(GASON) || defined(STARON) || defined(BHON)
+        Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.metallicitytosolar);
+        Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.SFRtosolarmassperyear);
+        Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.stellaragetoyrs);
+        #endif
     }
 #endif
     else {
@@ -1742,364 +1372,274 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
 
         //first is halo ids, then id of most bound particle, host halo id, number of direct subhaloes, number of particles
         for (Int_t i=0;i<ngroups;i++) ((unsigned long*)data)[i]=pdata[i+1].haloid;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (Int_t i=0;i<ngroups;i++) ((long long*)data)[i]=pdata[i+1].ibound;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (Int_t i=0;i<ngroups;i++) ((long long*)data)[i]=pdata[i+1].iminpot;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (Int_t i=0;i<ngroups;i++) ((long long*)data)[i]=pdata[i+1].hostid;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (Int_t i=0;i<ngroups;i++) ((unsigned long*)data)[i]=pdata[i+1].numsubs;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (Int_t i=0;i<ngroups;i++) ((unsigned long*)data)[i]=pdata[i+1].num;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (Int_t i=0;i<ngroups;i++) ((int*)data)[i]=pdata[i+1].stype;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         if (opt.iKeepFOF==1){
             for (Int_t i=0;i<ngroups;i++) ((unsigned long*)data)[i]=pdata[i+1].directhostid;
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
+            Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             for (Int_t i=0;i<ngroups;i++) ((unsigned long*)data)[i]=pdata[i+1].hostfofid;
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
+            Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         }
 
         //now halo properties that are doubles
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gMvir;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gcm[k];
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gcm[k];
+            Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         }
         for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gposmbp[k];
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gposmbp[k];
+            Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         }
         for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gposminpot[k];
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gposminpot[k];
+            Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         }
         for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gcmvel[k];
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gcmvel[k];
+            Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         }
         for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gvelmbp[k];
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gvelmbp[k];
+            Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         }
         for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gvelminpot[k];
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gvelminpot[k];
+            Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         }
 
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gmass;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gMFOF;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gM200m;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gM200c;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gMBN98;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Efrac;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
 
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gRvir;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gsize;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gR200m;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gR200c;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gRBN98;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gRhalfmass;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gRmaxvel;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
 
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gmaxvel;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gsigma_v;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (int k=0;k<3;k++) for (int n=0;n<3;n++) {
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gveldisp(k,n);
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gveldisp(k,n);
+            Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         }
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].glambda_B;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gJ[k];
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gJ[k];
+            Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         }
 
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gq;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gs;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (int k=0;k<3;k++) for (int n=0;n<3;n++) {
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].geigvec(k,n);
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].geigvec(k,n);
+            Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         }
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].cNFW;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
 
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Krot;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].T;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Pot;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
 
 
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].RV_sigma_v;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (int k=0;k<3;k++) for (int n=0;n<3;n++) {
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].RV_veldisp(k,n);
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].RV_veldisp(k,n);
+            Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         }
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].RV_lambda_B;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].RV_J[k];
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].RV_J[k];
+            Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         }
 
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].RV_q;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].RV_s;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (int k=0;k<3;k++) for (int n=0;n<3;n++) {
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].RV_eigvec(k,n);
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].RV_eigvec(k,n);
+            Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         }
 
         if (opt.iextrahalooutput) {
             for (int k=0;k<3;k++){
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gJ200m[k];
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gJ200m[k];
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
             for (int k=0;k<3;k++){
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gJ200c[k];
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gJ200c[k];
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
             for (int k=0;k<3;k++){
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gJBN98[k];
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gJBN98[k];
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
             if (opt.iInclusiveHalo>0) {
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gM200m_excl;
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gM200c_excl;
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gMBN98_excl;
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gR200m_excl;
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gR200c_excl;
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gRBN98_excl;
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
 
                 for (int k=0;k<3;k++){
-                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gJ200m_excl[k];
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gJ200m_excl[k];
+                    Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
                 }
                 for (int k=0;k<3;k++){
-                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gJ200c_excl[k];
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gJ200c_excl[k];
+                    Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
                 }
                 for (int k=0;k<3;k++){
-                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gJBN98_excl[k];
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gJBN98_excl[k];
+                    Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
                 }
             }
         }
 
 #ifdef GASON
         for (Int_t i=0;i<ngroups;i++) ((unsigned long*)data)[i]=pdata[i+1].n_gas;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
 
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_gas;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_gas_rvmax;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_gas_30kpc;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_gas_500c;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
 
         for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].cm_gas[k];
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].cm_gas[k];
+            Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         }
         for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].cmvel_gas[k];
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].cmvel_gas[k];
+            Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         }
 
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Efrac_gas;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Rhalfmass_gas;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (int k=0;k<3;k++) for (int n=0;n<3;n++) {
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].veldisp_gas(k,n);
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].veldisp_gas(k,n);
+            Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         }
         for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_gas[k];
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_gas[k];
+            Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         }
 
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].q_gas;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].s_gas;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (int k=0;k<3;k++) for (int n=0;n<3;n++) {
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].eigvec_gas(k,n);
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].eigvec_gas(k,n);
+            Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         }
 
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Krot_gas;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Temp_mean_gas;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
 #ifdef STARON
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Z_mean_gas;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SFR_gas;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
 #endif
     if (opt.iextragasoutput) {
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200mean_gas;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200crit_gas;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_BN98_gas;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
 
         for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200mean_gas[k];
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200mean_gas[k];
+            Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         }
         for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200crit_gas[k];
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200crit_gas[k];
+            Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         }
         for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_BN98_gas[k];
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_BN98_gas[k];
+            Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         }
 
         if (opt.iInclusiveHalo>0) {
             for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200mean_excl_gas;
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
+            Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200crit_excl_gas;
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
+            Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_BN98_excl_gas;
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
+            Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
 
             for (int k=0;k<3;k++){
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200mean_excl_gas[k];
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200mean_excl_gas[k];
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
             for (int k=0;k<3;k++){
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200crit_excl_gas[k];
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200crit_excl_gas[k];
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
             for (int k=0;k<3;k++){
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_BN98_excl_gas[k];
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_BN98_excl_gas[k];
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
         }
     }
@@ -2107,324 +1647,247 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
 
 #ifdef STARON
         for (Int_t i=0;i<ngroups;i++) ((unsigned long*)data)[i]=pdata[i+1].n_star;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
 
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_star;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_star_rvmax;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_star_30kpc;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_star_500c;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
 
         for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].cm_star[k];
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].cm_star[k];
+            Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         }
         for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].cmvel_star[k];
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].cmvel_star[k];
+            Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         }
 
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Efrac_star;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Rhalfmass_star;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (int k=0;k<3;k++) for (int n=0;n<3;n++) {
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].veldisp_star(k,n);
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].veldisp_star(k,n);
+            Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         }
         for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_star[k];
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_star[k];
+            Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         }
 
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].q_star;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].s_star;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (int k=0;k<3;k++) for (int n=0;n<3;n++) {
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].eigvec_star(k,n);
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].eigvec_star(k,n);
+            Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         }
 
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Krot_star;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].t_mean_star;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Z_mean_star;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         if (opt.iextrastaroutput) {
             for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200mean_star;
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
+            Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200crit_star;
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
+            Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_BN98_star;
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
+            Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
 
             for (int k=0;k<3;k++){
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200mean_star[k];
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200mean_star[k];
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
             for (int k=0;k<3;k++){
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200crit_star[k];
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200crit_star[k];
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
             for (int k=0;k<3;k++){
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_BN98_star[k];
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_BN98_star[k];
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
 
             if (opt.iInclusiveHalo>0) {
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200mean_excl_star;
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200crit_excl_star;
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_BN98_excl_star;
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
 
                 for (int k=0;k<3;k++){
-                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200mean_excl_star[k];
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200mean_excl_star[k];
+                    Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
                 }
                 for (int k=0;k<3;k++){
-                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200crit_excl_star[k];
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200crit_excl_star[k];
+                    Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
                 }
                 for (int k=0;k<3;k++){
-                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_BN98_excl_star[k];
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_BN98_excl_star[k];
+                    Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
                 }
             }
         }
 #endif
 #ifdef BHON
         for (Int_t i=0;i<ngroups;i++) ((unsigned long*)data)[i]=pdata[i+1].n_bh;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
 
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_bh;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
 #endif
 #ifdef HIGHRES
         for (Int_t i=0;i<ngroups;i++) ((unsigned long*)data)[i]=pdata[i+1].n_interloper;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
 
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_interloper;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         if (opt.iextrainterloperoutput) {
             for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200mean_interloper;
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
+            Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200crit_interloper;
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
+            Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_BN98_interloper;
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
+            Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             if (opt.iInclusiveHalo>0) {
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200mean_excl_interloper;
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200crit_excl_interloper;
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_BN98_excl_interloper;
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
         }
 #endif
 
 #if defined(GASON) && defined(STARON)
     for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_gas_sf;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
+    Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
     for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Rhalfmass_gas_sf;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
+    Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
     for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].sigV_gas_sf;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
+    Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
     for (int k=0;k<3;k++){
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_gas_sf[k];
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_gas_sf[k];
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
     }
 
     for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Krot_gas_sf;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
+    Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
     for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Temp_mean_gas_sf;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
+    Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
     for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Z_mean_gas_sf;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
+    Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
     if (opt.iextrastaroutput) {
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200mean_gas_sf;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200crit_gas_sf;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_BN98_gas_sf;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
 
         for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200mean_gas_sf[k];
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200mean_gas_sf[k];
+            Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         }
         for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200crit_gas_sf[k];
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200crit_gas_sf[k];
+            Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         }
         for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_BN98_gas_sf[k];
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_BN98_gas_sf[k];
+            Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         }
 
         if (opt.iInclusiveHalo>0) {
             for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200mean_excl_gas_sf;
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
+            Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200crit_excl_gas_sf;
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
+            Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_BN98_excl_gas_sf;
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
+            Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
 
             for (int k=0;k<3;k++){
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200mean_excl_gas_sf[k];
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200mean_excl_gas_sf[k];
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
             for (int k=0;k<3;k++){
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200crit_excl_gas_sf[k];
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200crit_excl_gas_sf[k];
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
             for (int k=0;k<3;k++){
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_BN98_excl_gas_sf[k];
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_BN98_excl_gas_sf[k];
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
         }
     }
     for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_gas_nsf;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
+    Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
     for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Rhalfmass_gas_nsf;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
+    Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
     for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].sigV_gas_nsf;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
+    Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
     for (int k=0;k<3;k++){
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_gas_nsf[k];
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_gas_nsf[k];
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
     }
 
     for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Krot_gas_nsf;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
+    Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
     for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Temp_mean_gas_nsf;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
+    Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
     for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Z_mean_gas_nsf;
-    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-    itemp++;
+    Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
     if (opt.iextrastaroutput) {
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200mean_gas_nsf;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200crit_gas_nsf;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_BN98_gas_nsf;
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
 
         for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200mean_gas_nsf[k];
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200mean_gas_nsf[k];
+            Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         }
         for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200crit_gas_nsf[k];
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200crit_gas_nsf[k];
+            Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         }
         for (int k=0;k<3;k++){
-        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_BN98_gas_nsf[k];
-        propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_BN98_gas_nsf[k];
+            Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         }
 
         if (opt.iInclusiveHalo>0) {
             for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200mean_excl_gas_nsf;
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
+            Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200crit_excl_gas_nsf;
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
+            Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_BN98_excl_gas_nsf;
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
+            Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
 
             for (int k=0;k<3;k++){
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200mean_excl_gas_nsf[k];
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200mean_excl_gas_nsf[k];
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
             for (int k=0;k<3;k++){
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200crit_excl_gas_nsf[k];
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_200crit_excl_gas_nsf[k];
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
             for (int k=0;k<3;k++){
-            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_BN98_excl_gas_nsf[k];
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].L_BN98_excl_gas_nsf[k];
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
         }
     }
@@ -2434,148 +1897,125 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         if (opt.iaperturecalc && opt.aperturenum>0){
             for (auto j=0;j<opt.aperturenum;j++) {
                 for (Int_t i=0;i<ngroups;i++) ((unsigned int*)data)[i]=pdata[i+1].aperture_npart[j];
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
 #ifdef GASON
             for (auto j=0;j<opt.aperturenum;j++) {
                 for (Int_t i=0;i<ngroups;i++) ((unsigned int*)data)[i]=pdata[i+1].aperture_npart_gas[j];
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
 #ifdef STARON
             for (auto j=0;j<opt.aperturenum;j++) {
                 for (Int_t i=0;i<ngroups;i++) ((unsigned int*)data)[i]=pdata[i+1].aperture_npart_gas_sf[j];
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
             for (auto j=0;j<opt.aperturenum;j++) {
                 for (Int_t i=0;i<ngroups;i++) ((unsigned int*)data)[i]=pdata[i+1].aperture_npart_gas_nsf[j];
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
 #endif
 #endif
 #ifdef STARON
             for (auto j=0;j<opt.aperturenum;j++) {
                 for (Int_t i=0;i<ngroups;i++) ((unsigned int*)data)[i]=pdata[i+1].aperture_npart_star[j];
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
 #endif
 #ifdef HIGHRES
             for (auto j=0;j<opt.aperturenum;j++) {
                 for (Int_t i=0;i<ngroups;i++) ((unsigned int*)data)[i]=pdata[i+1].aperture_npart_interloper[j];
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
 #endif
 
             for (auto j=0;j<opt.aperturenum;j++) {
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_mass[j];
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
 #ifdef GASON
             for (auto j=0;j<opt.aperturenum;j++) {
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_mass_gas[j];
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
 #ifdef STARON
             for (auto j=0;j<opt.aperturenum;j++) {
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_mass_gas_sf[j];
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
             for (auto j=0;j<opt.aperturenum;j++) {
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_mass_gas_nsf[j];
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
 #endif
 #endif
 #ifdef STARON
             for (auto j=0;j<opt.aperturenum;j++) {
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_mass_star[j];
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
 #endif
 #ifdef HIGHRES
             for (auto j=0;j<opt.aperturenum;j++) {
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_mass_interloper[j];
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
 #endif
             for (auto j=0;j<opt.aperturenum;j++) {
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_rhalfmass[j];
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
             #ifdef GASON
             for (auto j=0;j<opt.aperturenum;j++) {
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_rhalfmass_gas[j];
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
             #ifdef STARON
             for (auto j=0;j<opt.aperturenum;j++) {
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_rhalfmass_gas_sf[j];
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
             for (auto j=0;j<opt.aperturenum;j++) {
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_rhalfmass_gas_nsf[j];
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
             #endif
             #endif
             #ifdef STARON
             for (auto j=0;j<opt.aperturenum;j++) {
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_rhalfmass_star[j];
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
             #endif
             for (auto j=0;j<opt.aperturenum;j++) {
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_veldisp[j];
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
 #ifdef GASON
             for (auto j=0;j<opt.aperturenum;j++) {
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_veldisp_gas[j];
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
 #ifdef STARON
             for (auto j=0;j<opt.aperturenum;j++) {
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_veldisp_gas_sf[j];
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
             for (auto j=0;j<opt.aperturenum;j++) {
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_veldisp_gas_nsf[j];
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
 #endif
 #endif
 #ifdef STARON
             for (auto j=0;j<opt.aperturenum;j++) {
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_veldisp_star[j];
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
 #endif
 #if defined(GASON) && defined(STARON)
             for (auto j=0;j<opt.aperturenum;j++) {
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_SFR_gas[j];
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
 #endif
         }
@@ -2584,71 +2024,60 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
             for (auto k=0;k<3;k++) {
             for (auto j=0;j<opt.apertureprojnum;j++) {
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_mass_proj[j][k];
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
             #ifdef GASON
             for (auto j=0;j<opt.apertureprojnum;j++) {
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_mass_proj_gas[j][k];
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
             #ifdef STARON
             for (auto j=0;j<opt.apertureprojnum;j++) {
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_mass_proj_gas_sf[j][k];
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
             for (auto j=0;j<opt.apertureprojnum;j++) {
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_mass_proj_gas_nsf[j][k];
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
             #endif
             #endif
             #ifdef STARON
             for (auto j=0;j<opt.apertureprojnum;j++) {
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_mass_proj_star[j][k];
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
             #endif
             for (auto j=0;j<opt.apertureprojnum;j++) {
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_rhalfmass_proj[j][k];
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
             #ifdef GASON
             for (auto j=0;j<opt.apertureprojnum;j++) {
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_rhalfmass_proj_gas[j][k];
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
             #ifdef STARON
             for (auto j=0;j<opt.apertureprojnum;j++) {
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_rhalfmass_proj_gas_sf[j][k];
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
             for (auto j=0;j<opt.apertureprojnum;j++) {
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_rhalfmass_proj_gas_nsf[j][k];
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
             #endif
             #endif
             #ifdef STARON
             for (auto j=0;j<opt.apertureprojnum;j++) {
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_rhalfmass_proj_star[j][k];
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
             #endif
             #if defined(GASON) && defined(STARON)
             for (auto j=0;j<opt.apertureprojnum;j++) {
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_SFR_proj_gas[j][k];
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
             #endif
             }
@@ -2656,20 +2085,17 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         if (opt.SOnum>0) {
             for (auto j=0;j<opt.SOnum;j++) {
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_mass[j];
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
             for (auto j=0;j<opt.SOnum;j++) {
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_radius[j];
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
 #ifdef GASON
             if (opt.iextragasoutput && opt.iextrahalooutput) {
                 for (auto j=0;j<opt.SOnum;j++) {
                     for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_mass_gas[j];
-                    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                    itemp++;
+                    Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
                 }
 #ifdef STARON
 #endif
@@ -2679,8 +2105,7 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
             if (opt.iextrastaroutput && opt.iextrahalooutput) {
                 for (auto j=0;j<opt.SOnum;j++) {
                     for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_mass_star[j];
-                    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                    itemp++;
+                    Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
                 }
             }
 #endif
@@ -2688,8 +2113,7 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
             if (opt.iextrainterloperoutput && opt.iextrahalooutput) {
                 for (auto j=0;j<opt.SOnum;j++) {
                     for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_mass_interloper[j];
-                    propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                    itemp++;
+                    Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
                 }
             }
 #endif
@@ -2697,27 +2121,21 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         if (opt.SOnum>0 && opt.iextrahalooutput) {
         for (auto j=0;j<opt.SOnum;j++) {
             for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_angularmomentum[j][0];
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
+            Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_angularmomentum[j][1];
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
+            Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_angularmomentum[j][2];
-            propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
+            Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         }
 #ifdef GASON
         if (opt.iextragasoutput) {
             for (auto j=0;j<opt.SOnum;j++) {
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_angularmomentum_gas[j][0];
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_angularmomentum_gas[j][1];
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_angularmomentum_gas[j][2];
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
 #ifdef STARON
 #endif
@@ -2727,22 +2145,19 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         if (opt.iextrastaroutput) {
             for (auto j=0;j<opt.SOnum;j++) {
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_angularmomentum_star[j][0];
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_angularmomentum_star[j][1];
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_angularmomentum_star[j][2];
-                propdataset[itemp].write(data,head.predtypeinfo[itemp]);
-                itemp++;
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
         }
 #endif
         }
         //delete memory associated with void pointer
         ::operator delete(data);
-        delete[] propdataspace;
-        delete[] propdataset;
+        // delete[] propdataspace;
+        // delete[] propdataset;
     }
 #endif
     cout<<"Done"<<endl;
@@ -2769,19 +2184,21 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
     }
     if (opt.iInclusiveHalo>0) for (auto i=1;i<=ng;i++) nhalos += (pdata[i].hostid == -1);
 #ifdef USEHDF
-    H5File Fhdf;
-    H5std_string datasetname;
-    DataSpace dataspace;
-    DataSet dataset;
-    DataSpace attrspace;
-    Attribute attr;
-    float attrvalue;
-    hsize_t *dims, *chunk_dims;
-
-    int rank;
-    DataSpace *profiledataspace;
-    DataSet *profiledataset;
-    DSetCreatPropList  *hdfdatasetprofilelist;
+    // H5File Fhdf;
+    // H5std_string datasetname;
+    // DataSpace dataspace;
+    // DataSet dataset;
+    // DataSpace attrspace;
+    // Attribute attr;
+    // float attrvalue;
+    // hsize_t *dims, *chunk_dims;
+    //
+    // int rank;
+    // DataSpace *profiledataspace;
+    // DataSet *profiledataset;
+    // DSetCreatPropList  *hdfdatasetprofilelist;
+    H5OutputFile Fhdf;
+    vector<hsize_t> dims;
 #endif
 #if defined(USEHDF)||defined(USEADIOS)
     DataGroupNames datagroupnames;
@@ -2830,134 +2247,22 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
     }
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
-        Fhdf=H5File(fname,H5F_ACC_TRUNC);
-        //set file info
-        dims=new hsize_t[1];
-        dims[0]=1;
-        rank=1;
+        //Fhdf=H5File(fname,H5F_ACC_TRUNC);
+        Fhdf.create(string(fname),H5F_ACC_TRUNC);
         itemp=0;
-        dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.profile[itemp], datagroupnames.profiledatatype[itemp], dataspace);
-        dataset.write(&ThisTask,datagroupnames.profiledatatype[itemp]);
-        itemp++;
+        Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, &ThisTask);
+        Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, &NProcs);
+        Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, &ng);
+        Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, &ngtot);
+        Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, &nhalos);
+        Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, &nhalostot);
 
-        dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.profile[itemp], datagroupnames.profiledatatype[itemp], dataspace);
-        dataset.write(&NProcs,datagroupnames.profiledatatype[itemp]);
-        itemp++;
+        Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, opt.profileradnormstring);
+        //Fhdf.write_dataset(datagroupnames.profile[itemp++], opt.profileradnormstring.size(), opt.profileradnormstring);
+        Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, &opt.iInclusiveHalo);
+        Fhdf.write_dataset(datagroupnames.profile[itemp++], 1, &nbinsedges);
+        Fhdf.write_dataset(datagroupnames.profile[itemp++], nbinsedges, data, H5T_NATIVE_DOUBLE);
 
-        dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.profile[itemp], datagroupnames.profiledatatype[itemp], dataspace);
-        dataset.write(&ng,datagroupnames.profiledatatype[itemp]);
-        itemp++;
-
-        dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.profile[itemp], datagroupnames.profiledatatype[itemp], dataspace);
-        dataset.write(&ngtot,datagroupnames.profiledatatype[itemp]);
-        itemp++;
-
-        dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.profile[itemp], datagroupnames.profiledatatype[itemp], dataspace);
-        dataset.write(&nhalos,datagroupnames.profiledatatype[itemp]);
-        itemp++;
-
-        dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.profile[itemp], datagroupnames.profiledatatype[itemp], dataspace);
-        dataset.write(&nhalostot,datagroupnames.profiledatatype[itemp]);
-        itemp++;
-
-        //write the radial bin information
-        dataspace=DataSpace(H5S_SCALAR);
-        DataType stype = _datatype_string(opt.profileradnormstring);
-        dataset = Fhdf.createDataSet(datagroupnames.profile[itemp], stype, dataspace);
-        dataset.write(opt.profileradnormstring,stype);
-        itemp++;
-
-        dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.profile[itemp], datagroupnames.profiledatatype[itemp], dataspace);
-        dataset.write(&opt.iInclusiveHalo,datagroupnames.profiledatatype[itemp]);
-        itemp++;
-
-        dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.profile[itemp], datagroupnames.profiledatatype[itemp], dataspace);
-        dataset.write(&nbinsedges,datagroupnames.profiledatatype[itemp]);
-        itemp++;
-        dims[0]=nbinsedges;
-        dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.profile[itemp], datagroupnames.profiledatatype[itemp], dataspace);
-        dataset.write((Double_t*)data,datagroupnames.profiledatatype[itemp]);
-        itemp++;
-
-        //load data spaces, first scalars then the arrays
-        profiledataspace=new DataSpace[head.headerdatainfo.size()];
-        profiledataset=new DataSet[head.headerdatainfo.size()];
-        dims[0]=ng;
-        //size of chunks in compression
-        chunk_dims=new hsize_t[1];
-        chunk_dims[0]=min((unsigned long)HDFOUTPUTCHUNKSIZE,ng);
-        rank=1;
-        // Modify dataset creation property to enable chunking
-        if (ng>0) {
-            hdfdatasetprofilelist = new  DSetCreatPropList;
-            hdfdatasetprofilelist->setChunk(rank, chunk_dims);
-            // Set ZLIB (DEFLATE) Compression using level 6.
-            hdfdatasetprofilelist->setDeflate(6);
-        }
-        dataspace=DataSpace(rank,dims);
-        for (Int_t i=0;i<head.numberscalarentries;i++) {
-            datasetname=H5std_string(head.headerdatainfo[i]);
-            profiledataspace[i]=DataSpace(rank,dims);
-            if (ng>0) profiledataset[i] = Fhdf.createDataSet(datasetname, head.predtypeinfo[i], profiledataspace[i],*hdfdatasetprofilelist);
-            else profiledataset[i] = Fhdf.createDataSet(datasetname, head.predtypeinfo[i], profiledataspace[i]);
-        }
-        delete[] dims;
-        delete[] chunk_dims;
-
-        dims=new hsize_t[2];
-        dims[0]=ng;dims[1]=opt.profilenbins;
-        rank=2;
-        chunk_dims=new hsize_t[2];
-        chunk_dims[0]=min((unsigned long)HDFOUTPUTCHUNKSIZE,ng);
-        chunk_dims[1]=opt.profilenbins;
-        // Modify dataset creation property to enable chunking
-        if (ng>0) {
-            hdfdatasetprofilelist = new  DSetCreatPropList;
-            hdfdatasetprofilelist->setChunk(rank, chunk_dims);
-            // Set ZLIB (DEFLATE) Compression using level 6.
-            hdfdatasetprofilelist->setDeflate(6);
-        }
-        dataspace=DataSpace(rank,dims);
-        for (Int_t i=head.offsetarrayallgroupentries;i<head.numberarrayallgroupentries+head.offsetarrayallgroupentries;i++) {
-            datasetname=H5std_string(head.headerdatainfo[i]);
-            profiledataspace[i]=DataSpace(rank,dims);
-            if (ng>0) profiledataset[i] = Fhdf.createDataSet(datasetname, head.predtypeinfo[i], profiledataspace[i],*hdfdatasetprofilelist);
-            else profiledataset[i] = Fhdf.createDataSet(datasetname, head.predtypeinfo[i], profiledataspace[i]);
-        }
-
-        if (opt.iInclusiveHalo > 0) {
-        dims[0]=nhalos;dims[1]=opt.profilenbins;
-        rank=2;
-        chunk_dims=new hsize_t[2];
-        chunk_dims[0]=min((unsigned long)HDFOUTPUTCHUNKSIZE,nhalos);
-        chunk_dims[1]=opt.profilenbins;
-        // Modify dataset creation property to enable chunking
-        if (nhalos>0) {
-            hdfdatasetprofilelist = new  DSetCreatPropList;
-            hdfdatasetprofilelist->setChunk(rank, chunk_dims);
-            // Set ZLIB (DEFLATE) Compression using level 6.
-            hdfdatasetprofilelist->setDeflate(6);
-        }
-        dataspace=DataSpace(rank,dims);
-        for (Int_t i=head.offsetarrayhaloentries;i<head.numberarrayhaloentries+head.offsetarrayhaloentries;i++) {
-            datasetname=H5std_string(head.headerdatainfo[i]);
-            profiledataspace[i]=DataSpace(rank,dims);
-            if (nhalos>0) profiledataset[i] = Fhdf.createDataSet(datasetname, head.predtypeinfo[i], profiledataspace[i],*hdfdatasetprofilelist);
-            else profiledataset[i] = Fhdf.createDataSet(datasetname, head.predtypeinfo[i], profiledataspace[i]);
-        }
-        }
-
-        delete[] dims;
-        delete[] chunk_dims;
     }
 #endif
     else {
@@ -2997,8 +2302,7 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
         data= ::operator new(sizeof(long long)*(ng));
         //first is halo ids, then normalisation
         for (Int_t i=0;i<ngroups;i++) ((unsigned long*)data)[i]=pdata[i+1].haloid;
-        profiledataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp], ngroups, data, head.hdfpredtypeinfo[itemp]);itemp++;
         if (opt.iprofilenorm == PROFILERNORMR200CRIT) {
             for (Int_t i=0;i<ngroups;i++) {
                 if (opt.iInclusiveHalo >0){
@@ -3007,111 +2311,98 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
                 }
                 else ((Double_t*)data)[i]=pdata[i+1].gR200c;
             }
-            profiledataset[itemp].write(data,head.predtypeinfo[itemp]);
-            itemp++;
+            Fhdf.write_dataset(head.headerdatainfo[itemp], ngroups, data, head.hdfpredtypeinfo[itemp]);itemp++;
         }
         //otherwise no normalisation and don't need to write data block
         ::operator delete(data);
+
         //now move onto 2d arrays;
         data= ::operator new(sizeof(int)*(ng)*(opt.profilenbins));
+        dims.resize(2);dims[0]=ngroups;dims[1]=opt.profilenbins;
         //write all the npart arrays
-        for (Int_t i=0;i<ngroups;i++) for (auto j=0;j<opt.profilenbins;j++) ((unsigned int*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_npart[j];
-        profiledataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        for (Int_t i=0;i<ngroups;i++) {
+            for (auto j=0;j<opt.profilenbins;j++) {
+                ((unsigned int*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_npart[j];
+            }
+        }
+        Fhdf.write_dataset_nd(head.headerdatainfo[itemp], 2, dims.data(), data, head.hdfpredtypeinfo[itemp]);itemp++;
+
 #ifdef GASON
         for (Int_t i=0;i<ngroups;i++) for (auto j=0;j<opt.profilenbins;j++) ((unsigned int*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_npart_gas[j];
-        profiledataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset_nd(head.headerdatainfo[itemp], 2, dims.data(), data, head.hdfpredtypeinfo[itemp]);itemp++;
 #ifdef STARON
         for (Int_t i=0;i<ngroups;i++) for (auto j=0;j<opt.profilenbins;j++) ((unsigned int*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_npart_gas_sf[j];
-        profiledataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset_nd(head.headerdatainfo[itemp], 2, dims.data(), data, head.hdfpredtypeinfo[itemp]);itemp++;
         for (Int_t i=0;i<ngroups;i++) for (auto j=0;j<opt.profilenbins;j++) ((unsigned int*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_npart_gas_nsf[j];
-        profiledataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset_nd(head.headerdatainfo[itemp], 2, dims.data(), data, head.hdfpredtypeinfo[itemp]);itemp++;
 #endif
 #endif
 #ifdef STARON
         for (Int_t i=0;i<ngroups;i++) for (auto j=0;j<opt.profilenbins;j++) ((unsigned int*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_npart_star[j];
-        profiledataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset_nd(head.headerdatainfo[itemp], 2, dims.data(), data, head.hdfpredtypeinfo[itemp]);itemp++;
 #endif
 
         for (Int_t i=0;i<ngroups;i++) for (auto j=0;j<opt.profilenbins;j++) ((float*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_mass[j];
-        profiledataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset_nd(head.headerdatainfo[itemp], 2, dims.data(), data, head.hdfpredtypeinfo[itemp]);itemp++;
 #ifdef GASON
         for (Int_t i=0;i<ngroups;i++) for (auto j=0;j<opt.profilenbins;j++) ((float*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_mass_gas[j];
-        profiledataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset_nd(head.headerdatainfo[itemp], 2, dims.data(), data, head.hdfpredtypeinfo[itemp]);itemp++;
 #ifdef STARON
         for (Int_t i=0;i<ngroups;i++) for (auto j=0;j<opt.profilenbins;j++) ((float*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_mass_gas_sf[j];
-        profiledataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset_nd(head.headerdatainfo[itemp], 2, dims.data(), data, head.hdfpredtypeinfo[itemp]);itemp++;
         for (Int_t i=0;i<ngroups;i++) for (auto j=0;j<opt.profilenbins;j++) ((float*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_mass_gas_nsf[j];
-        profiledataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset_nd(head.headerdatainfo[itemp], 2, dims.data(), data, head.hdfpredtypeinfo[itemp]);itemp++;
 #endif
 #endif
 #ifdef STARON
         for (Int_t i=0;i<ngroups;i++) for (auto j=0;j<opt.profilenbins;j++) ((float*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_mass_star[j];
-        profiledataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
+        Fhdf.write_dataset_nd(head.headerdatainfo[itemp], 2, dims.data(), data, head.hdfpredtypeinfo[itemp]);itemp++;
 #endif
         ::operator delete(data);
 
         //write all the npart arrays for halos only if inclusive masses calculated
         if (opt.iInclusiveHalo >0) {
-        data= ::operator new(sizeof(int)*(nhalos)*(opt.profilenbins));
-        for (Int_t i=0;i<nhalos;i++) for (auto j=0;j<opt.profilenbins;j++) ((unsigned int*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_npart_inclusive[j];
-        profiledataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-#ifdef GASON
-        for (Int_t i=0;i<nhalos;i++) for (auto j=0;j<opt.profilenbins;j++) ((unsigned int*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_npart_inclusive_gas[j];
-        profiledataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-#ifdef STARON
-        for (Int_t i=0;i<nhalos;i++) for (auto j=0;j<opt.profilenbins;j++) ((unsigned int*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_npart_inclusive_gas_sf[j];
-        profiledataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-        for (Int_t i=0;i<nhalos;i++) for (auto j=0;j<opt.profilenbins;j++) ((unsigned int*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_npart_inclusive_gas_nsf[j];
-        profiledataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-#endif
-#endif
-#ifdef STARON
-        for (Int_t i=0;i<nhalos;i++) for (auto j=0;j<opt.profilenbins;j++) ((unsigned int*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_npart_inclusive_star[j];
-        profiledataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-#endif
+            data= ::operator new(sizeof(int)*(nhalos)*(opt.profilenbins));
+            dims.resize(2);dims[0]=nhalos;dims[1]=opt.profilenbins;
 
-        for (Int_t i=0;i<nhalos;i++) for (auto j=0;j<opt.profilenbins;j++) ((float*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_mass_inclusive[j];
-        profiledataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-#ifdef GASON
-        for (Int_t i=0;i<nhalos;i++) for (auto j=0;j<opt.profilenbins;j++) ((float*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_mass_inclusive_gas[j];
-        profiledataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-#ifdef STARON
-        for (Int_t i=0;i<nhalos;i++) for (auto j=0;j<opt.profilenbins;j++) ((float*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_mass_inclusive_gas_sf[j];
-        profiledataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-        for (Int_t i=0;i<nhalos;i++) for (auto j=0;j<opt.profilenbins;j++) ((float*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_mass_inclusive_gas_nsf[j];
-        profiledataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-#endif
-#endif
-#ifdef STARON
-        for (Int_t i=0;i<nhalos;i++) for (auto j=0;j<opt.profilenbins;j++) ((float*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_mass_inclusive_star[j];
-        profiledataset[itemp].write(data,head.predtypeinfo[itemp]);
-        itemp++;
-#endif
+            for (Int_t i=0;i<nhalos;i++) for (auto j=0;j<opt.profilenbins;j++) ((unsigned int*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_npart_inclusive[j];
+            Fhdf.write_dataset_nd(head.headerdatainfo[itemp], 2, dims.data(), data, head.hdfpredtypeinfo[itemp]);itemp++;
+    #ifdef GASON
+            for (Int_t i=0;i<nhalos;i++) for (auto j=0;j<opt.profilenbins;j++) ((unsigned int*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_npart_inclusive_gas[j];
+            Fhdf.write_dataset_nd(head.headerdatainfo[itemp], 2, dims.data(), data, head.hdfpredtypeinfo[itemp]);itemp++;
+    #ifdef STARON
+            for (Int_t i=0;i<nhalos;i++) for (auto j=0;j<opt.profilenbins;j++) ((unsigned int*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_npart_inclusive_gas_sf[j];
+            Fhdf.write_dataset_nd(head.headerdatainfo[itemp], 2, dims.data(), data, head.hdfpredtypeinfo[itemp]);itemp++;
+            for (Int_t i=0;i<nhalos;i++) for (auto j=0;j<opt.profilenbins;j++) ((unsigned int*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_npart_inclusive_gas_nsf[j];
+            Fhdf.write_dataset_nd(head.headerdatainfo[itemp], 2, dims.data(), data, head.hdfpredtypeinfo[itemp]);itemp++;
+    #endif
+    #endif
+    #ifdef STARON
+            for (Int_t i=0;i<nhalos;i++) for (auto j=0;j<opt.profilenbins;j++) ((unsigned int*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_npart_inclusive_star[j];
+            Fhdf.write_dataset_nd(head.headerdatainfo[itemp], 2, dims.data(), data, head.hdfpredtypeinfo[itemp]);itemp++;
+    #endif
+
+            for (Int_t i=0;i<nhalos;i++) for (auto j=0;j<opt.profilenbins;j++) ((float*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_mass_inclusive[j];
+            Fhdf.write_dataset_nd(head.headerdatainfo[itemp], 2, dims.data(), data, head.hdfpredtypeinfo[itemp]);itemp++;
+    #ifdef GASON
+            for (Int_t i=0;i<nhalos;i++) for (auto j=0;j<opt.profilenbins;j++) ((float*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_mass_inclusive_gas[j];
+            Fhdf.write_dataset_nd(head.headerdatainfo[itemp], 2, dims.data(), data, head.hdfpredtypeinfo[itemp]);itemp++;
+    #ifdef STARON
+            for (Int_t i=0;i<nhalos;i++) for (auto j=0;j<opt.profilenbins;j++) ((float*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_mass_inclusive_gas_sf[j];
+            Fhdf.write_dataset_nd(head.headerdatainfo[itemp], 2, dims.data(), data, head.hdfpredtypeinfo[itemp]);itemp++;
+            for (Int_t i=0;i<nhalos;i++) for (auto j=0;j<opt.profilenbins;j++) ((float*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_mass_inclusive_gas_nsf[j];
+            Fhdf.write_dataset_nd(head.headerdatainfo[itemp], 2, dims.data(), data, head.hdfpredtypeinfo[itemp]);itemp++;
+    #endif
+    #endif
+    #ifdef STARON
+            for (Int_t i=0;i<nhalos;i++) for (auto j=0;j<opt.profilenbins;j++) ((float*)data)[i*opt.profilenbins+j]=pdata[i+1].profile_mass_inclusive_star[j];
+            Fhdf.write_dataset_nd(head.headerdatainfo[itemp], 2, dims.data(), data, head.hdfpredtypeinfo[itemp]);itemp++;
+    #endif
         }
-
         ::operator delete(data);
         //delete memory associated with void pointer
-        delete[] profiledataspace;
-        delete[] profiledataset;
+        // delete[] profiledataspace;
+        // delete[] profiledataset;
     }
 #endif
     cout<<"Done"<<endl;
@@ -3131,12 +2422,13 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
     char fname[500],fname2[500];
     unsigned long ng=ngroups,ngtot=0,noffset=0;
 #ifdef USEHDF
-    H5File Fhdf;
-    H5std_string datasetname;
-    DataSpace dataspace;
-    DataSet dataset;
-    DSetCreatPropList hdfdatasetproplist;
-    hsize_t *dims, *chunk_dims;
+    // H5File Fhdf;
+    // H5std_string datasetname;
+    // DataSpace dataspace;
+    // DataSet dataset;
+    // DSetCreatPropList hdfdatasetproplist;
+    // hsize_t *dims, *chunk_dims;
+    H5OutputFile Fhdf;
     int rank;
     int itemp=0;
 #endif
@@ -3155,7 +2447,8 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
     if (opt.ibinaryout==OUTBINARY) Fout.open(fname,ios::out|ios::binary|ios::app);
 #ifdef USEHDF
     if (opt.ibinaryout==OUTHDF) {
-        Fhdf=H5File(fname,H5F_ACC_RDWR);
+        // Fhdf=H5File(fname,H5F_ACC_RDWR);
+        Fhdf.append(string(fname),H5F_ACC_RDWR);
     }
 #endif
     else Fout.open(fname,ios::out|ios::app);
@@ -3173,28 +2466,11 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
         if (opt.ibinaryout==OUTBINARY) Fout.write((char*)&nsub[1],sizeof(Int_t)*nfield);
 #ifdef USEHDF
         else if (opt.ibinaryout==OUTHDF) {
-            dims=new hsize_t[1];
-            chunk_dims=new hsize_t[1];
-            dims[0]=nfield;
-            chunk_dims[0]=min((Int_t)HDFOUTPUTCHUNKSIZE,nfield);
-
-            rank=1;
             itemp=4;
-            if (nfield>0){
-            	hdfdatasetproplist.setChunk(rank, chunk_dims);
-            	hdfdatasetproplist.setDeflate(6);
-                dataspace=DataSpace(rank,dims);
-                dataset = Fhdf.createDataSet(datagroupnames.hierarchy[itemp], datagroupnames.hierarchydatatype[itemp], dataspace,hdfdatasetproplist);
-            }
-            else {
-                dataset = Fhdf.createDataSet(datagroupnames.hierarchy[itemp], datagroupnames.hierarchydatatype[itemp], dataspace);
-            }
             unsigned int *data=new unsigned int[nfield];
             for (Int_t i=1;i<=nfield;i++) data[i-1]=nsub[i];
-            dataset.write(data,datagroupnames.hierarchydatatype[itemp]);
+            Fhdf.write_dataset(datagroupnames.hierarchy[itemp], nfield, data);
             delete[] data;
-            delete[] dims;
-            delete[] chunk_dims;
         }
 #endif
         else for (Int_t i=1;i<=nfield;i++)Fout<<nsub[i]<<endl;
@@ -3206,41 +2482,15 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
         }
 #ifdef USEHDF
         else if (opt.ibinaryout==OUTHDF) {
-            dims=new hsize_t[1];
-            chunk_dims=new hsize_t[1];
-            dims[0]=ngroups-nfield;
-            chunk_dims[0]=min((Int_t)HDFOUTPUTCHUNKSIZE,ngroups-nfield);
-            rank=1;
             itemp=4;
-            if (ngroups-nfield>0) {
-                hdfdatasetproplist.setChunk(rank, chunk_dims);
-                hdfdatasetproplist.setDeflate(6);
-                dataspace=DataSpace(rank,dims);
-                dataset = Fhdf.createDataSet(datagroupnames.hierarchy[itemp], datagroupnames.hierarchydatatype[itemp], dataspace, hdfdatasetproplist);
-            }
-            else {
-                dataset = Fhdf.createDataSet(datagroupnames.hierarchy[itemp], datagroupnames.hierarchydatatype[itemp], dataspace);
-            }
             unsigned int *data=new unsigned int[ngroups-nfield];
             for (Int_t i=nfield+1;i<=ngroups;i++) data[i-nfield-1]=nsub[i];
-            dataset.write(data,datagroupnames.hierarchydatatype[itemp]);
+            Fhdf.write_dataset(datagroupnames.hierarchy[itemp++], ngroups-nfield, data);
             delete[] data;
-            itemp++;
-            if (chunk_dims[0]>0) {
-                hdfdatasetproplist.setChunk(rank, chunk_dims);
-                hdfdatasetproplist.setDeflate(6);
-                dataspace=DataSpace(rank,dims);
-                dataset = Fhdf.createDataSet(datagroupnames.hierarchy[itemp], datagroupnames.hierarchydatatype[itemp], dataspace, hdfdatasetproplist);
-            }
-            else {
-                dataset = Fhdf.createDataSet(datagroupnames.hierarchy[itemp], datagroupnames.hierarchydatatype[itemp], dataspace);
-            }
             long long *data2=new long long[ngroups-nfield];
             for (Int_t i=nfield+1;i<=ngroups;i++) data2[i-nfield-1]=parentgid[i];
-            dataset.write(data2,datagroupnames.hierarchydatatype[itemp]);
+            Fhdf.write_dataset(datagroupnames.hierarchy[itemp++], ngroups-nfield, data2);
             delete[] data2;
-            delete[] dims;
-            delete[] chunk_dims;
         }
 #endif
         else {
@@ -3256,35 +2506,15 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
         }
 #ifdef USEHDF
         else if (opt.ibinaryout==OUTHDF) {
-            dims=new hsize_t[1];
-            chunk_dims=new hsize_t[1];
-            dims[0]=ngroups;
-            chunk_dims[0]=min((Int_t)HDFOUTPUTCHUNKSIZE,ngroups);
-            rank=1;
             itemp=4;
-            if (chunk_dims[0]>0){
-                hdfdatasetproplist.setChunk(rank, chunk_dims);
-            	hdfdatasetproplist.setDeflate(6);
-                dataspace=DataSpace(rank,dims);
-                dataset = Fhdf.createDataSet(datagroupnames.hierarchy[itemp], datagroupnames.hierarchydatatype[itemp], dataspace, hdfdatasetproplist);
-            }
-            else {
-                dataset = Fhdf.createDataSet(datagroupnames.hierarchy[itemp], datagroupnames.hierarchydatatype[itemp], dataspace);
-            }
             unsigned int *data=new unsigned int[ngroups];
             for (Int_t i=1;i<=ngroups;i++) data[i-1]=nsub[i];
-            dataset.write(data,datagroupnames.hierarchydatatype[itemp]);
+            Fhdf.write_dataset(datagroupnames.hierarchy[itemp++], ngroups, data);
             delete[] data;
-            itemp++;
-            dataspace=DataSpace(rank,dims);
-            if (chunk_dims[0]>0) dataset = Fhdf.createDataSet(datagroupnames.hierarchy[itemp], datagroupnames.hierarchydatatype[itemp], dataspace, hdfdatasetproplist);
-            else dataset = Fhdf.createDataSet(datagroupnames.hierarchy[itemp], datagroupnames.hierarchydatatype[itemp], dataspace);
             long long *data2=new long long[ngroups];
             for (Int_t i=1;i<=ngroups;i++) data2[i-1]=parentgid[i];
-            dataset.write(data2,datagroupnames.hierarchydatatype[itemp]);
+            Fhdf.write_dataset(datagroupnames.hierarchy[itemp++], ngroups, data2);
             delete[] data2;
-            delete[] dims;
-            delete[] chunk_dims;
         }
 #endif
         else {
@@ -3315,32 +2545,13 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
     }
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
-        Fhdf=H5File(fname,H5F_ACC_TRUNC);
-        //set file info
-        dims=new hsize_t[1];
-        dims[0]=1;
-        rank=1;
+        // Fhdf=H5File(fname,H5F_ACC_TRUNC);
+        Fhdf.create(string(fname),H5F_ACC_TRUNC);
         itemp=0;
-        dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.hierarchy[itemp], datagroupnames.hierarchydatatype[itemp], dataspace);
-        dataset.write(&ThisTask,datagroupnames.hierarchydatatype[itemp]);
-        itemp++;
-
-        dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.hierarchy[itemp], datagroupnames.hierarchydatatype[itemp], dataspace);
-        dataset.write(&NProcs,datagroupnames.hierarchydatatype[itemp]);
-        itemp++;
-
-        dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.hierarchy[itemp], datagroupnames.hierarchydatatype[itemp], dataspace);
-        dataset.write(&ng,datagroupnames.hierarchydatatype[itemp]);
-        itemp++;
-
-        dataspace=DataSpace(rank,dims);
-        dataset = Fhdf.createDataSet(datagroupnames.hierarchy[itemp], datagroupnames.hierarchydatatype[itemp], dataspace);
-        dataset.write(&ngtot,datagroupnames.hierarchydatatype[itemp]);
-        itemp++;
-        delete[] dims;
+        Fhdf.write_dataset(datagroupnames.hierarchy[itemp++], 1, &ThisTask);
+        Fhdf.write_dataset(datagroupnames.hierarchy[itemp++], 1, &NProcs);
+        Fhdf.write_dataset(datagroupnames.hierarchy[itemp++], 1, &ng);
+        Fhdf.write_dataset(datagroupnames.hierarchy[itemp++], 1, &ngtot);
     }
 #endif
     else {
@@ -3356,34 +2567,15 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
         }
 #ifdef USEHDF
         else if (opt.ibinaryout==OUTHDF) {
-            dims=new hsize_t[1];
-            chunk_dims=new hsize_t[1];
-            dims[0]=nfield;
-            chunk_dims[0]=min((Int_t)HDFOUTPUTCHUNKSIZE,nfield);
-            rank=1;
-            if (chunk_dims[0]>0) {
-                hdfdatasetproplist.setChunk(rank, chunk_dims);
-                hdfdatasetproplist.setDeflate(6);
-                dataspace=DataSpace(rank,dims);
-                dataset = Fhdf.createDataSet(datagroupnames.hierarchy[itemp], datagroupnames.hierarchydatatype[itemp], dataspace, hdfdatasetproplist);
-            }
-            else {
-                dataset = Fhdf.createDataSet(datagroupnames.hierarchy[itemp], datagroupnames.hierarchydatatype[itemp], dataspace);
-            }
+            itemp=4;
             unsigned int *data=new unsigned int[nfield];
             for (Int_t i=1;i<=nfield;i++) data[i-1]=nsub[i];
-            dataset.write(data,datagroupnames.hierarchydatatype[itemp]);
+            Fhdf.write_dataset(datagroupnames.hierarchy[itemp++], nfield, data);
             delete[] data;
-            itemp++;
-            dataspace=DataSpace(rank,dims);
-            if (chunk_dims[0]>0) dataset = Fhdf.createDataSet(datagroupnames.hierarchy[itemp], datagroupnames.hierarchydatatype[itemp], dataspace, hdfdatasetproplist);
-            else dataset = Fhdf.createDataSet(datagroupnames.hierarchy[itemp], datagroupnames.hierarchydatatype[itemp], dataspace);
             long long *data2=new long long[nfield];
             for (Int_t i=1;i<=nfield;i++) data2[i-1]=parentgid[i];
-            dataset.write(data2,datagroupnames.hierarchydatatype[itemp]);
+            Fhdf.write_dataset(datagroupnames.hierarchy[itemp++], nfield, data2);
             delete[] data2;
-            delete[] dims;
-            delete[] chunk_dims;
         }
 #endif
         else for (Int_t i=1;i<=nfield;i++)Fout<<parentgid[i]<<" "<<nsub[i]<<endl;
@@ -3395,34 +2587,14 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
         }
 #ifdef USEHDF
         else if (opt.ibinaryout==OUTHDF) {
-            dims=new hsize_t[1];
-            chunk_dims=new hsize_t[1];
-            dims[0]=ngroups-nfield;
-            chunk_dims[0]=min((Int_t)HDFOUTPUTCHUNKSIZE,ngroups-nfield);
-            rank=1;
-            if (chunk_dims[0]>0){
-                hdfdatasetproplist.setChunk(rank, chunk_dims);
-                hdfdatasetproplist.setDeflate(6);
-                dataspace=DataSpace(rank,dims);
-                dataset = Fhdf.createDataSet(datagroupnames.hierarchy[itemp], datagroupnames.hierarchydatatype[itemp], dataspace, hdfdatasetproplist);
-            }
-            else {
-                dataset = Fhdf.createDataSet(datagroupnames.hierarchy[itemp], datagroupnames.hierarchydatatype[itemp], dataspace);
-            }
             unsigned int *data=new unsigned int[ngroups-nfield];
             for (Int_t i=nfield+1;i<=ngroups;i++) data[i-nfield-1]=nsub[i];
-            dataset.write(data,datagroupnames.hierarchydatatype[itemp]);
+            Fhdf.write_dataset(datagroupnames.hierarchy[itemp++], ngroups-nfield, data);
             delete[] data;
-            itemp++;
-            dataspace=DataSpace(rank,dims);
-            if (chunk_dims[0]>0) dataset = Fhdf.createDataSet(datagroupnames.hierarchy[itemp], datagroupnames.hierarchydatatype[itemp], dataspace, hdfdatasetproplist);
-            else dataset = Fhdf.createDataSet(datagroupnames.hierarchy[itemp], datagroupnames.hierarchydatatype[itemp], dataspace);
             long long *data2=new long long[ngroups-nfield];
             for (Int_t i=nfield+1;i<=ngroups;i++) data2[i-nfield-1]=parentgid[i];
-            dataset.write(data2,datagroupnames.hierarchydatatype[itemp]);
+            Fhdf.write_dataset(datagroupnames.hierarchy[itemp++], ngroups-nfield, data2);
             delete[] data2;
-            delete[] dims;
-            delete[] chunk_dims;
         }
 #endif
         else for (Int_t i=nfield+1;i<=ngroups;i++)Fout<<parentgid[i]<<" "<<nsub[i]<<endl;
@@ -3435,34 +2607,14 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
         }
 #ifdef USEHDF
         else if (opt.ibinaryout==OUTHDF) {
-            dims=new hsize_t[1];
-            chunk_dims=new hsize_t[1];
-            dims[0]=ngroups;
-            chunk_dims[0]=min((Int_t)HDFOUTPUTCHUNKSIZE,ngroups);
-            rank=1;
-            if (chunk_dims[0]>0) {
-                hdfdatasetproplist.setChunk(rank, chunk_dims);
-                hdfdatasetproplist.setDeflate(6);
-                dataspace=DataSpace(rank,dims);
-                dataset = Fhdf.createDataSet(datagroupnames.hierarchy[itemp], datagroupnames.hierarchydatatype[itemp], dataspace, hdfdatasetproplist);
-            }
-            else {
-                dataset = Fhdf.createDataSet(datagroupnames.hierarchy[itemp], datagroupnames.hierarchydatatype[itemp], dataspace);
-            }
             unsigned int *data=new unsigned int[ngroups];
             for (Int_t i=1;i<=ngroups;i++) data[i-1]=nsub[i];
-            dataset.write(data,datagroupnames.hierarchydatatype[itemp]);
+            Fhdf.write_dataset(datagroupnames.hierarchy[itemp++], ngroups, data);
             delete[] data;
-            itemp++;
-            dataspace=DataSpace(rank,dims);
-            if (chunk_dims[0]>0) dataset = Fhdf.createDataSet(datagroupnames.hierarchy[itemp], datagroupnames.hierarchydatatype[itemp], dataspace, hdfdatasetproplist);
-            else dataset = Fhdf.createDataSet(datagroupnames.hierarchy[itemp], datagroupnames.hierarchydatatype[itemp], dataspace);
             long long *data2=new long long[ngroups];
             for (Int_t i=1;i<=ngroups;i++) data2[i-1]=parentgid[i];
-            dataset.write(data2,datagroupnames.hierarchydatatype[itemp]);
+            Fhdf.write_dataset(datagroupnames.hierarchy[itemp++], ngroups, data2);
             delete[] data2;
-            delete[] dims;
-            delete[] chunk_dims;
         }
 #endif
         else {
@@ -3492,21 +2644,21 @@ void WriteSUBFINDProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         for (Int_t i=1;i<=ngroups;i++) pdata[i].ConverttoComove(opt);
     }
 #ifdef USEHDF
-    H5File Fhdf;
-    H5std_string datasetname;
-    DataSpace dataspace;
-    DataSet dataset;
-    DataSpace attrspace;
-    Attribute attr;
-    float attrvalue;
-    hsize_t *dims, *chunk_dims;
-
-    int rank;
-    DataSpace *propdataspace;
-    DataSet *propdataset;
-    DSetCreatPropList  *hdfdatasetproplist;
-    int itemp=0;
-    DataGroupNames datagroupnames;
+    // H5File Fhdf;
+    // H5std_string datasetname;
+    // DataSpace dataspace;
+    // DataSet dataset;
+    // DataSpace attrspace;
+    // Attribute attr;
+    // float attrvalue;
+    // hsize_t *dims, *chunk_dims;
+    //
+    // int rank;
+    // DataSpace *propdataspace;
+    // DataSet *propdataset;
+    // DSetCreatPropList  *hdfdatasetproplist;
+    // int itemp=0;
+    // DataGroupNames datagroupnames;
 
     PropDataHeader head(opt);
 
@@ -3663,14 +2815,14 @@ void WriteVELOCIraptorConfig(Options &opt){
 #endif
 
 #ifdef USEHDF
-    H5File Fhdf;
-    H5std_string datasetname;
-    DataSpace dataspace;
-    DataSet dataset;
-    hsize_t *dims;
-    int rank;
-    DataSpace *propdataspace;
-    DataSet *propdataset;
+    // H5File Fhdf;
+    // H5std_string datasetname;
+    // DataSpace dataspace;
+    // DataSet dataset;
+    // hsize_t *dims;
+    // int rank;
+    // DataSpace *propdataspace;
+    // DataSet *propdataset;
     int itemp=0;
 #endif
 #if defined(USEHDF)||defined(USEADIOS)
@@ -3683,8 +2835,9 @@ void WriteVELOCIraptorConfig(Options &opt){
         Fout.open(fname,ios::out);
 #ifndef OLDCCOMPILER
         for (Int_t i=0;i<config.nameinfo.size();i++) {
-            Fout<<config.nameinfo[i]<<" : ";
-            Fout<<config.datainfo[i]<<" ";
+            Fout<<config.nameinfo[i]<<"=";
+            Fout<<config.datainfo[i]<<" # ";
+            Fout<<config.datatype[i]<<" ";
             Fout<<endl;
         }
 #else
@@ -3703,14 +2856,14 @@ void WriteSimulationInfo(Options &opt){
 #endif
 
 #ifdef USEHDF
-    H5File Fhdf;
-    H5std_string datasetname;
-    DataSpace dataspace;
-    DataSet dataset;
-    hsize_t *dims;
-    int rank;
-    DataSpace *propdataspace;
-    DataSet *propdataset;
+    // H5File Fhdf;
+    // H5std_string datasetname;
+    // DataSpace dataspace;
+    // DataSet dataset;
+    // hsize_t *dims;
+    // int rank;
+    // DataSpace *propdataspace;
+    // DataSet *propdataset;
     int itemp=0;
 #endif
 #if defined(USEHDF)||defined(USEADIOS)
@@ -3723,7 +2876,8 @@ void WriteSimulationInfo(Options &opt){
 #ifndef OLDCCOMPILER
         for (Int_t i=0;i<siminfo.nameinfo.size();i++) {
             Fout<<siminfo.nameinfo[i]<<" : ";
-            Fout<<siminfo.datainfo[i]<<" ";
+            Fout<<siminfo.datainfo[i]<<" # ";
+            Fout<<siminfo.datatype[i]<<" ";
             Fout<<endl;
         }
 #else
@@ -3742,14 +2896,14 @@ void WriteUnitInfo(Options &opt){
 #endif
 
 #ifdef USEHDF
-    H5File Fhdf;
-    H5std_string datasetname;
-    DataSpace dataspace;
-    DataSet dataset;
-    hsize_t *dims;
-    int rank;
-    DataSpace *propdataspace;
-    DataSet *propdataset;
+    // H5File Fhdf;
+    // H5std_string datasetname;
+    // DataSpace dataspace;
+    // DataSet dataset;
+    // hsize_t *dims;
+    // int rank;
+    // DataSpace *propdataspace;
+    // DataSet *propdataset;
     int itemp=0;
 #endif
 #if defined(USEHDF)||defined(USEADIOS)
@@ -3763,7 +2917,8 @@ void WriteUnitInfo(Options &opt){
 #ifndef OLDCCOMPILER
         for (Int_t i=0;i<unitinfo.nameinfo.size();i++) {
             Fout<<unitinfo.nameinfo[i]<<" : ";
-            Fout<<unitinfo.datainfo[i]<<" ";
+            Fout<<unitinfo.datainfo[i]<<" # ";
+            Fout<<unitinfo.datatype[i]<<" ";
             Fout<<endl;
         }
 #else
