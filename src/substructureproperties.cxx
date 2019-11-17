@@ -373,6 +373,7 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
         Ekin=0.;
         pdata[i].gJ[0]=pdata[i].gJ[1]=pdata[i].gJ[2]=0.;
         Coordinate J;
+        vc = 0;
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
 #ifdef NOMASS
@@ -1152,6 +1153,7 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
 #ifdef NOMASS
         pdata[i].Krot*=opt.MassValue;
 #endif
+        vc = 0;
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
             EncMass+=Pval->GetMass();
