@@ -850,7 +850,7 @@ inline void errormessage(string message) {
     if (ThisTask==0)  cerr<<message<<endl;
 }
 
-inline void ConfigCheck(Options &opt)
+void ConfigCheck(Options &opt)
 {
 #ifndef USEMPI
     int ThisTask =0;
