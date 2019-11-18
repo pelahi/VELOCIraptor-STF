@@ -147,6 +147,8 @@ int InitVelociraptor(char* configname, unitinfo u, siminfo s, const int numthrea
     libvelociraptorOpt.pname = configname;
     cout<<"Reading VELOCIraptor config file..."<< endl;
     GetParamFile(libvelociraptorOpt);
+    //on the fly finding
+    libvelociraptorOpt.iontheflyfinding = true;
     ///check configuration
     iconfigflag = ConfigCheckSwift(libvelociraptorOpt, s);
     if (iconfigflag != 1) return iconfigflag;
@@ -181,9 +183,6 @@ int InitVelociraptor(char* configname, unitinfo u, siminfo s, const int numthrea
     #ifdef NOMASS
     libvelociraptorOpt.MassValue = s.mass_uniform_box;
     #endif
-
-    //on the fly finding
-    libvelociraptorOpt.iontheflyfinding = true;
 
     //write velociraptor configuration info, appending .configuration to the input config file and writing every config option
     libvelociraptorOpt.outname = configname;
@@ -228,6 +227,8 @@ int InitVelociraptorExtra(const int iextra, char* configname, unitinfo u, siminf
     libvelociraptorOptextra[iextra].pname = configname;
     cout<<"Reading VELOCIraptor config file..."<< endl;
     GetParamFile(libvelociraptorOptextra[iextra]);
+    //on the fly finding
+    libvelociraptorOptextra[iextra].iontheflyfinding = true;
     ///check configuration
     iconfigflag = ConfigCheckSwift(libvelociraptorOptextra[iextra], s);
     if (iconfigflag != 1) return iconfigflag;
@@ -262,9 +263,6 @@ int InitVelociraptorExtra(const int iextra, char* configname, unitinfo u, siminf
     #ifdef NOMASS
     libvelociraptorOptextra[iextra].MassValue = s.mass_uniform_box;
     #endif
-
-    //on the fly finding
-    libvelociraptorOptextra[iextra].iontheflyfinding = true;
 
     //write velociraptor configuration info, appending .configuration to the input config file and writing every config option
     libvelociraptorOptextra[iextra].outname = configname;
