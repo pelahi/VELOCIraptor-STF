@@ -67,6 +67,9 @@ inline int ConfigCheckSwift(Options &opt, Swift::siminfo &s)
     }
 #endif
 
+    //call the general ConfigCheck now
+    ConfigCheck(opt);
+
     if (ThisTask==0) {
     cout<<"CONFIG INFO SUMMARY -------------------------- "<<endl;
     switch(opt.partsearchtype)
