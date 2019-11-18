@@ -855,6 +855,9 @@ void ConfigCheck(Options &opt)
 #ifndef USEMPI
     int ThisTask =0;
 #endif
+    //if code is on the fly, no point in checking fname
+    // input type, number of input files, etc
+    if (opt.iontheflyfinding == false) {
     if (opt.fname==NULL||opt.outname==NULL){
         errormessage("Must provide input and output file names");
         ConfigExit();
@@ -863,26 +866,27 @@ void ConfigCheck(Options &opt)
         errormessage("HDF input passed but the naming convention is not set in the config file. Please set HDF_name_convetion.");
         ConfigExit();
     }
-    if (opt.iBaryonSearch && !(opt.partsearchtype==PSTALL || opt.partsearchtype==PSTDARK)) {
-        errormessage("Conflict in config file: both gas/star/etc particle type search AND the separate baryonic (gas,star,etc) search flag are on. Check config");
-        ConfigExit();
-    }
-    if (opt.iBoundHalos && opt.iKeepFOF) {
-
-        errormessage("Conflict in config file: Asking for Bound Field objects but also asking to keep the 3DFOF/then run 6DFOF. This is incompatible. Check config");
-        ConfigExit();
-    }
-    if (opt.HaloMinSize==-1) opt.HaloMinSize=opt.MinSize;
-
     if (opt.num_files<1){
         errormessage("Invalid number of input files (<1)");
         ConfigExit();
     }
-
     if (opt.inputbufsize<1){
         errormessage("Invalid read buf size (<1)");
         ConfigExit();
     }
+    }
+
+    if (opt.iBaryonSearch && !(opt.partsearchtype==PSTALL || opt.partsearchtype==PSTDARK))
+    {
+        errormessage("Conflict in config file: both gas/star/etc particle type search AND the separate baryonic (gas,star,etc) search flag are on. Check config");
+        ConfigExit();
+    }
+    if (opt.iBoundHalos && opt.iKeepFOF)
+    {
+        errormessage("Conflict in config file: Asking for Bound Field objects but also asking to keep the 3DFOF/then run 6DFOF. This is incompatible. Check config");
+        ConfigExit();
+    }
+    if (opt.HaloMinSize==-1) opt.HaloMinSize=opt.MinSize;
 
     if (opt.lengthtokpc<=0){
         errormessage("Invalid unit conversion, length unit to kpc is <=0 or was not set. Update config file");

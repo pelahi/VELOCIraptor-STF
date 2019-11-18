@@ -182,6 +182,9 @@ int InitVelociraptor(char* configname, unitinfo u, siminfo s, const int numthrea
     libvelociraptorOpt.MassValue = s.mass_uniform_box;
     #endif
 
+    //on the fly finding
+    libvelociraptorOpt.iontheflyfinding = true;
+
     //write velociraptor configuration info, appending .configuration to the input config file and writing every config option
     libvelociraptorOpt.outname = configname;
 
@@ -253,6 +256,15 @@ int InitVelociraptorExtra(const int iextra, char* configname, unitinfo u, siminf
 
     //set if cosmological
     libvelociraptorOptextra[iextra].icosmologicalin = s.icosmologicalsim;
+
+    //store a general mass unit, useful if running uniform box with single mass
+    //and saving memory by not storing mass per particle.
+    #ifdef NOMASS
+    libvelociraptorOptextra[iextra].MassValue = s.mass_uniform_box;
+    #endif
+
+    //on the fly finding
+    libvelociraptorOptextra[iextra].iontheflyfinding = true;
 
     //write velociraptor configuration info, appending .configuration to the input config file and writing every config option
     libvelociraptorOptextra[iextra].outname = configname;
