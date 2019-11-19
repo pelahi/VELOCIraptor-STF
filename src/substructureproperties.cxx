@@ -396,6 +396,7 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
         Ekin=0.;
         pdata[i].gJ[0]=pdata[i].gJ[1]=pdata[i].gJ[2]=0.;
         Coordinate J;
+        vc = 0;
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
 
@@ -1239,6 +1240,7 @@ private(j,Pval,mval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
 }
 #endif
         pdata[i].Krot=0.5*Krot/Ekin;
+        vc = 0;
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
             #ifndef NOMASS
@@ -2970,7 +2972,7 @@ void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup
 {
     Particle *Pval;
     KDTree *tree;
-    Double_t *period=NULL;
+    Double_t period[3];
     Int_t i,j,k, nhalos = 0;
     if (opt.iverbose) {
         cout<<"Get inclusive masses"<<endl;
@@ -3036,7 +3038,6 @@ void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup
 
     //set period
     if (opt.p>0) {
-        period=new Double_t[3];
         for (int j=0;j<3;j++) period[j]=opt.p;
 #ifdef USEMPI
         mpi_period=opt.p;

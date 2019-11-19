@@ -67,6 +67,9 @@ inline int ConfigCheckSwift(Options &opt, Swift::siminfo &s)
     }
 #endif
 
+    //call the general ConfigCheck now
+    ConfigCheck(opt);
+
     if (ThisTask==0) {
     cout<<"CONFIG INFO SUMMARY -------------------------- "<<endl;
     switch(opt.partsearchtype)
@@ -144,6 +147,8 @@ int InitVelociraptor(char* configname, unitinfo u, siminfo s, const int numthrea
     libvelociraptorOpt.pname = configname;
     cout<<"Reading VELOCIraptor config file..."<< endl;
     GetParamFile(libvelociraptorOpt);
+    //on the fly finding
+    libvelociraptorOpt.iontheflyfinding = true;
     ///check configuration
     iconfigflag = ConfigCheckSwift(libvelociraptorOpt, s);
     if (iconfigflag != 1) return iconfigflag;
@@ -222,6 +227,8 @@ int InitVelociraptorExtra(const int iextra, char* configname, unitinfo u, siminf
     libvelociraptorOptextra[iextra].pname = configname;
     cout<<"Reading VELOCIraptor config file..."<< endl;
     GetParamFile(libvelociraptorOptextra[iextra]);
+    //on the fly finding
+    libvelociraptorOptextra[iextra].iontheflyfinding = true;
     ///check configuration
     iconfigflag = ConfigCheckSwift(libvelociraptorOptextra[iextra], s);
     if (iconfigflag != 1) return iconfigflag;
@@ -250,6 +257,12 @@ int InitVelociraptorExtra(const int iextra, char* configname, unitinfo u, siminf
 
     //set if cosmological
     libvelociraptorOptextra[iextra].icosmologicalin = s.icosmologicalsim;
+
+    //store a general mass unit, useful if running uniform box with single mass
+    //and saving memory by not storing mass per particle.
+    #ifdef NOMASS
+    libvelociraptorOptextra[iextra].MassValue = s.mass_uniform_box;
+    #endif
 
     //write velociraptor configuration info, appending .configuration to the input config file and writing every config option
     libvelociraptorOptextra[iextra].outname = configname;
@@ -656,6 +669,7 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
     delete[] parentgid;
     delete[] stype;
     delete psldata;
+    delete[] numingroup;
 
     //store group information to return information to swift if required
     //otherwise, return NULL as pointer
@@ -667,7 +681,6 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
         free(s.cellloc);
         free(cell_node_ids);
         delete[] pfof;
-        delete[] numingroup;
         *numpartingroups=0;
         return NULL;
     }
@@ -694,7 +707,6 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
         free(s.cellloc);
         free(cell_node_ids);
         delete[] pfof;
-        delete[] numingroup;
         *numpartingroups=nig;
         return NULL;
     }
@@ -704,6 +716,7 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
         if (pfof[i]>0) parts[i].SetPID((pfof[i]+ngoffset)+libvelociraptorOpt.snapshotvalue);
         else parts[i].SetPID(0);
     }
+    delete [] pfof;
 #ifdef USEMPI
     if (NProcs > 1) {
     for (auto i=0;i<Nlocal; i++) parts[i].SetID((parts[i].GetSwiftTask()==ThisTask));
