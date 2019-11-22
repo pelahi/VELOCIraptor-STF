@@ -383,7 +383,9 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     string fname, fname2, fname3;
     ostringstream os;
     unsigned long long noffset=0,ngtot=0,nids=0,nidstot=0,nuids=0,nuidstot=0, ng=0, nwritecommtot=0, nuwritecommtot=0;
-    Int_t *offset;
+    vector<unsigned long long> groupdata;
+    vector<unsigned long long> offset;
+    vector<long long> partdata; 
 #ifdef USEMPI
     MPIBuildWriteComm(opt);
 #endif
@@ -520,11 +522,10 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     if (opt.ibinaryout==OUTBINARY) Fout.write((char*)&numingroup[1],sizeof(Int_t)*ngroups);
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
-        unsigned int *data=new unsigned int[ng];
-        for (Int_t i=1;i<=ng;i++) data[i-1]=numingroup[i];
-        Fhdf.write_dataset(datagroupnames.group[itemp], ng, data);
+        groupdata.resize(ng+1,0);
+        for (Int_t i=1;i<=ng;i++) groupdata[i-1]=numingroup[i];
+        Fhdf.write_dataset(datagroupnames.group[itemp], ng, groupdata.data());
         itemp++;
-        delete[] data;
     }
 #endif
 #ifdef USEADIOS
@@ -550,89 +551,80 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
         Int_t mpioffset=0;
         for (Int_t itask=0;itask<ThisTask;itask++)mpioffset+=mpi_ngroups[itask];
         adios_err=adios_write(adios_file_handle,"ngmpioffset",&mpioffset);
-        unsigned int *data=new unsigned int[ng];
-        for (Int_t i=1;i<=ng;i++) data[i-1]=numingroup[i];
-        adios_err=adios_write(adios_file_handle,datagroupnames.group[itemp].c_str(),data);
-        delete[] data;
+        groupdata.resize(ng+1);
+        for (Int_t i=1;i<=ng;i++) groupdata[i-1]=numingroup[i];
+        adios_err=adios_write(adios_file_handle,datagroupnames.group[itemp].c_str(),groupdata.data());
         itemp++;
     }
 #endif
     else for (Int_t i=1;i<=ngroups;i++) Fout<<numingroup[i]<<endl;
 
-
     //Write offsets for bound and unbound particles
-    offset=new Int_t[ngroups+1];
-    offset[1]=0;
+    offset.resize(ngroups+1,0);
     //note before had offsets at numingroup but to account for unbound particles use value of pglist at numingroup
-    for (Int_t i=2;i<=ngroups;i++) offset[i]=offset[i-1]+pglist[i-1][numingroup[i-1]];
-
-    if (opt.ibinaryout==OUTBINARY) Fout.write((char*)&offset[1],sizeof(Int_t)*ngroups);
+    if (ngroups >1) for (Int_t i=2;i<=ngroups;i++) offset[i]=offset[i-1]+pglist[i-1][numingroup[i-1]];
+    if (opt.ibinaryout==OUTBINARY) Fout.write((char*)&(offset.data())[1],sizeof(Int_t)*ngroups);
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
-        unsigned int *data=new unsigned int[ng];
-        for (Int_t i=1;i<=ng;i++) data[i-1]=offset[i];
+	groupdata.resize(ng+1,0);
+        if (ng > 1) for (Int_t i=1;i<=ng;i++) groupdata[i-1]=offset[i];
 #ifdef USEPARALLELHDF
         nids = 0; for (Int_t i=1; i<=ng; i++) nids+=pglist[i][numingroup[i]];
         MPI_Allgather(&nids, 1, MPI_Int_t, mpi_ngoffset.data(), 1, MPI_Int_t, mpi_comm_write);
         if (ThisWriteTask > 0)
         {
             ngoffset = 0; for (auto itask = 0; itask < ThisWriteTask; itask++) ngoffset += mpi_ngoffset[itask];
-            for (Int_t i=1; i<=ng; i++) data[i-1] += ngoffset;
+            if (ng > 1) for (Int_t i=1; i<=ng; i++) groupdata[i-1] += ngoffset;
         }
 #endif
-        Fhdf.write_dataset(datagroupnames.group[itemp], ng, data);
+        Fhdf.write_dataset(datagroupnames.group[itemp], ng, groupdata.data());
         itemp++;
-        delete[] data;
     }
 #endif
 #ifdef USEADIOS
     else if (opt.ibinaryout==OUTADIOS) {
         //don't delcare new group, just add data
         adios_err=adios_define_var(adios_grp_handle,datagroupnames.group[itemp].c_str(),"",datagroupnames.adiosgroupdatatype[itemp],"ng","ngtot","ngmpioffset");
-        unsigned long *data=new unsigned long[ng];
-        for (Int_t i=1;i<=ng;i++) data[i-1]=offset[i];
-        adios_err=adios_write(adios_file_handle,datagroupnames.group[itemp].c_str(),data);
-        delete[] data;
+        for (Int_t i=1;i<=ng;i++) groupdata[i-1]=offset[i];
+        adios_err=adios_write(adios_file_handle,datagroupnames.group[itemp].c_str(),groupdata.data());
         itemp++;
     }
 #endif
     else for (Int_t i=1;i<=ngroups;i++) Fout<<offset[i]<<endl;
 
     //position of unbound particle
-    for (Int_t i=2;i<=ngroups;i++) offset[i]=offset[i-1]+numingroup[i-1]-pglist[i-1][numingroup[i-1]];
-    if (opt.ibinaryout==OUTBINARY) Fout.write((char*)&offset[1],sizeof(Int_t)*ngroups);
+    if (ngroups >1) for (Int_t i=2;i<=ngroups;i++) offset[i]=offset[i-1]+numingroup[i-1]-pglist[i-1][numingroup[i-1]];
+    if (opt.ibinaryout==OUTBINARY) Fout.write((char*)&(offset.data())[1],sizeof(Int_t)*ngroups);
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
-        unsigned int *data=new unsigned int[ng];
-        for (Int_t i=1;i<=ng;i++) data[i-1]=offset[i];
+        groupdata.resize(ng+1,0);
+        if (ng > 1) for (Int_t i=1;i<=ng;i++) groupdata[i-1]=offset[i];
 #ifdef USEPARALLELHDF
         nuids = 0; for (Int_t i=1; i<=ng; i++) nuids+=numingroup[i]-pglist[i][numingroup[i]];
         MPI_Allgather(&nuids, 1, MPI_Int_t, mpi_ngoffset.data(), 1, MPI_Int_t, mpi_comm_write);
         if (ThisWriteTask > 0)
         {
             ngoffset = 0; for (auto itask = 0; itask < ThisWriteTask; itask++) ngoffset += mpi_ngoffset[itask];
-            for (Int_t i=1; i<=ng; i++) data[i-1] += ngoffset;
+            for (Int_t i=1; i<=ng; i++) groupdata[i-1] += ngoffset;
         }
 #endif
-        Fhdf.write_dataset(datagroupnames.group[itemp], ng, data);
+        Fhdf.write_dataset(datagroupnames.group[itemp], ng, groupdata.data());
         itemp++;
-        delete[] data;
     }
 #endif
 #ifdef USEADIOS
     else if (opt.ibinaryout==OUTADIOS) {
         //don't delcare new group, just add data
         adios_err=adios_define_var(adios_grp_handle,datagroupnames.group[itemp].c_str(),"",datagroupnames.adiosgroupdatatype[itemp],"ng","ngtot","ngmpioffset");
-        unsigned long *data=new unsigned long[ng];
-        for (Int_t i=1;i<=ng;i++) data[i-1]=offset[i];
-        adios_err=adios_write(adios_file_handle,datagroupnames.group[itemp].c_str(),data);
-        delete[] data;
+        groupdata.resize(ng+1,0);
+        for (Int_t i=1;i<=ng;i++) groupdata[i-1]=offset[i];
+        adios_err=adios_write(adios_file_handle,datagroupnames.group[itemp].c_str(),groupdata.data());
         itemp++;
     }
 #endif
     else for (Int_t i=1;i<=ngroups;i++) Fout<<offset[i]<<endl;
+    offset.resize(0);
 
-    delete[] offset;
     if (opt.ibinaryout==OUTASCII || opt.ibinaryout==OUTBINARY) Fout.close();
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) Fhdf.close();
@@ -811,10 +803,9 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     if (opt.ibinaryout==OUTBINARY) Fout.write((char*)idval,sizeof(Int_t)*nids);
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
-        long long *data=new long long[nids];
-        for (Int_t i=0;i<nids;i++) data[i]=idval[i];
-        Fhdf.write_dataset(datagroupnames.part[itemp], nids, data);
-        delete[] data;
+        partdata.resize(nids+1);
+        for (Int_t i=0;i<nids;i++) partdata[i]=idval[i];
+        Fhdf.write_dataset(datagroupnames.part[itemp], nids, partdata.data());
     }
 #endif
 #ifdef USEADIOS
@@ -834,10 +825,9 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
         //for (Int_t itask=0;itask<ThisTask;itask++)mpioffset+=mpi_ngroups[itask];
         adios_err=adios_write(adios_file_handle,"nidsmpioffset",&mpioffset);
         if (nids > 0) {
-            long long *data=new long long[nids];
-            for (Int_t i=0;i<nids;i++) data[i-1]=idval[i];
-            adios_err=adios_write(adios_file_handle,datagroupnames.group[itemp].c_str(),data);
-            delete[] data;
+            partdata.resize(nids+1);
+            for (Int_t i=0;i<nids;i++) partdata[i-1]=idval[i];
+            adios_err=adios_write(adios_file_handle,datagroupnames.group[itemp].c_str(),partdata.data());
         }
     }
 #endif
@@ -859,10 +849,9 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     if (opt.ibinaryout==OUTBINARY) Fout3.write((char*)idval,sizeof(Int_t)*nuids);
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
-        long long *data=new long long[nuids];
-        for (Int_t i=0;i<nuids;i++) data[i]=idval[i];
-        Fhdf3.write_dataset(datagroupnames.part[itemp], nuids, data);
-        delete[] data;
+        partdata.resize(nuids+1);
+        for (Int_t i=0;i<nuids;i++) partdata[i]=idval[i];
+        Fhdf3.write_dataset(datagroupnames.part[itemp], nuids, partdata.data());
     }
 #endif
 #ifdef USEADIOS
@@ -882,9 +871,9 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
         //for (Int_t itask=0;itask<ThisTask;itask++)mpioffset+=mpi_ngroups[itask];
         adios_err=adios_write(adios_file_handle3,"nidsmpioffset",&mpioffset);
         if (nuids > 0) {
-            long long *data=new long long[nuids];
-            for (Int_t i=0;i<nuids;i++) data[i-1]=idval[i];
-            adios_err=adios_write(adios_file_handle3,datagroupnames.group[itemp].c_str(),data);
+            partdata.resize(nuids+1);
+            for (Int_t i=0;i<nuids;i++) partdata[i-1]=idval[i];
+            adios_err=adios_write(adios_file_handle3,datagroupnames.group[itemp].c_str(),partdata.data());
             delete[] data;
         }
     }

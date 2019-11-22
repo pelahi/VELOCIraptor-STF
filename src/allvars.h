@@ -372,6 +372,8 @@ struct Options
     int isubfindproperties;
     ///for output, produce subfind like format
     int isubfindoutput;
+    ///flag indicating that VR is running on the fly
+    bool iontheflyfinding;
 
     ///disable particle id related output like fof.grp or catalog_group data. Useful if just want halo properties
     ///and not interested in tracking. Code writes halo properties catalog and exits.
@@ -667,7 +669,6 @@ struct Options
     vector<string> star_chemproduction_names;
     vector<string> bh_chemproduction_names;
 
-
     vector<string> extra_dm_internalprop_names;
     //@}
 
@@ -862,6 +863,8 @@ struct Options
         iopenmpfof = 1;
         openmpfofsize = ompfofsearchnum;
 #endif
+
+        iontheflyfinding = false;
     }
     Options(Options &opt) = default;
     Options& operator=(const Options&) = default;
@@ -5109,7 +5112,7 @@ struct DataGroupNames {
         hdfgroupdatatype.push_back(H5T_NATIVE_INT);
         hdfgroupdatatype.push_back(H5T_NATIVE_ULONG);
         hdfgroupdatatype.push_back(H5T_NATIVE_ULONG);
-        hdfgroupdatatype.push_back(H5T_NATIVE_UINT);
+        hdfgroupdatatype.push_back(H5T_NATIVE_ULONG);
         hdfgroupdatatype.push_back(H5T_NATIVE_ULONG);
         hdfgroupdatatype.push_back(H5T_NATIVE_ULONG);
 
