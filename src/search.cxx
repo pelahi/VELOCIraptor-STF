@@ -201,13 +201,23 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     }
     else {
         //posible alteration for all particle search
-        if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) pfof=tree->FOFCriterionSetBasisForLinks(fofcmp,param,numgroups,minsize,iorder,0,FOFchecktype,Head,Next);
-        else pfof=tree->FOF(sqrt(param[1]),numgroups,minsize,iorder,Head,Next);
+        if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) {
+            pfof=tree->FOFCriterionSetBasisForLinks(fofcmp,param,numgroups,minsize,
+                iorder,0,FOFchecktype,Head,Next);
+        }
+        else {
+            pfof=tree->FOF(sqrt(param[1]),numgroups,minsize,iorder,Head,Next);
+        }
     }
 #else
     //posible alteration for all particle search
-    if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) pfof=tree->FOFCriterionSetBasisForLinks(fofcmp,param,numgroups,minsize,iorder,0,FOFchecktype,Head,Next);
-    else pfof=tree->FOF(sqrt(param[1]),numgroups,minsize,iorder,Head,Next);
+    if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) {
+        pfof=tree->FOFCriterionSetBasisForLinks(fofcmp,param,numgroups,minsize,
+            iorder,0,FOFchecktype,Head,Next);
+    }
+    else {
+        pfof=tree->FOF(sqrt(param[1]),numgroups,minsize,iorder,Head,Next);
+    }
 #endif
 
 #ifndef USEMPI
@@ -215,27 +225,33 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     //if this flag is set, calculate localfield value here for particles possibly resident in a field structure
 #ifdef STRUCDEN
     if (numgroups>0 && (opt.iSubSearch==1&&opt.foftype!=FOF6DCORE)) {
-    numingroup=BuildNumInGroup(nbodies, numgroups, pfof);
-    storetype=new Int_t[nbodies];
-    for (i=0;i<nbodies;i++) storetype[i]=Part[i].GetType();
-    Int_t numinstrucs=0;
-    //if not searching all particle then searching for baryons associated with substructures, then set type to group value
-    //so that velocity density just calculated for particles in groups (type>0)
-    if (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)) for (i=0;i<nbodies;i++) Part[i].SetType(numingroup[pfof[Part[i].GetID()]]>=MINSUBSIZE);
-    //otherwise set type to group value for dark matter
-    else {
-        for (i=0;i<nbodies;i++) {
-            if (Part[i].GetType()==DARKTYPE) Part[i].SetType(numingroup[pfof[Part[i].GetID()]]>=MINSUBSIZE);
-            else Part[i].SetType(-1);
+        numingroup=BuildNumInGroup(nbodies, numgroups, pfof);
+        storetype=new Int_t[nbodies];
+        for (i=0;i<nbodies;i++) storetype[i]=Part[i].GetType();
+        Int_t numinstrucs=0;
+        //if not searching all particle then searching for baryons associated with substructures, then set type to group value
+        //so that velocity density just calculated for particles in groups (type>0)
+        if (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)) {
+            for (i=0;i<nbodies;i++) {
+                Part[i].SetType(numingroup[pfof[Part[i].GetID()]]>=MINSUBSIZE);
+            }
         }
-    }
-    for (i=0;i<nbodies;i++) if (Part[i].GetType()>0) numinstrucs++;
-    if (opt.iverbose) cout<<"Number of particles in large subhalo searchable structures "<<numinstrucs<<endl;
-    if (numinstrucs>0) GetVelocityDensity(opt, nbodies, Part.data(), tree);
+        //otherwise set type to group value for dark matter
+        else {
+            for (i=0;i<nbodies;i++) {
+                if (Part[i].GetType()==DARKTYPE) Part[i].SetType(numingroup[pfof[Part[i].GetID()]]>=MINSUBSIZE);
+                else Part[i].SetType(-1);
+            }
+        }
+        for (i=0;i<nbodies;i++) if (Part[i].GetType()>0) numinstrucs++;
+        if (opt.iverbose) {
+            cout<<"Number of particles in large subhalo searchable structures "<<numinstrucs<<endl;
+        }
+        if (numinstrucs>0) GetVelocityDensity(opt, nbodies, Part.data(), tree);
 
-    for (i=0;i<nbodies;i++) Part[i].SetType(storetype[i]);
-    delete[] storetype;
-    if (opt.fofbgtype>FOF6D) delete[] numingroup;
+        for (i=0;i<nbodies;i++) Part[i].SetType(storetype[i]);
+        delete[] storetype;
+        if (opt.fofbgtype>FOF6D) delete[] numingroup;
     }
 #endif
     delete tree;
@@ -469,8 +485,8 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
                 vx+=Part[i].GetVelocity(0)*Part[i].GetMass();
                 vy+=Part[i].GetVelocity(1)*Part[i].GetMass();
                 vz+=Part[i].GetVelocity(2)*Part[i].GetMass();
+                mtotregion+=Part[i].GetMass();
             }
-            mtotregion+=Part[i].GetMass();
             vmean[0]=vx/mtotregion;vmean[1]=vy/mtotregion;vmean[2]=vz/mtotregion;
             for (i=0;i<iend;i++) {
                 for (int j=0;j<3;j++) vscale2+=pow(Part[i].GetVelocity(j)-vmean[j],2.0)*Part[i].GetMass();
@@ -544,7 +560,10 @@ private(i,vscale2,mtotregion,vx,vy,vz,vmean)
 #endif
     }
 
-    Head=new Int_tree_t[Nlocal];Next=new Int_tree_t[Nlocal];Tail=new Int_tree_t[Nlocal];Len=new Int_tree_t[Nlocal];
+    Head=new Int_tree_t[Nlocal];
+    Next=new Int_tree_t[Nlocal];
+    Tail=new Int_tree_t[Nlocal];
+    Len=new Int_tree_t[Nlocal];
     KDTree *treeomp[nthreads];
     Double_t *paramomp=new Double_t[nthreads*20];
     Int_t **pfofomp;
@@ -586,7 +605,8 @@ private(i,tid,xscaling,vscaling)
             //if adaptive 6dfof, set params
             if (opt.fofbgtype==FOF6DADAPTIVE) paramomp[2+tid*20]=paramomp[7+tid*20]=vscale2array[i];
             //scale particle positions
-            xscaling=1.0/sqrt(paramomp[1+tid*20]);vscaling=1.0/sqrt(paramomp[2+tid*20]);
+            xscaling=1.0/sqrt(paramomp[1+tid*20]);
+            vscaling=1.0/sqrt(paramomp[2+tid*20]);
             for (Int_t j=0;j<numingroup[i];j++) {
                 Part[noffset[i]+j].ScalePhase(xscaling,vscaling);
             }
@@ -602,6 +622,7 @@ private(i,tid,xscaling,vscaling)
 }
 #endif
     }
+    if(opt.fofbgtype==FOF6DADAPTIVE || opt.iKeepFOF) delete[] vscale2array;
     //now get new num groups
     ng = 0; for (i=1;i<=iend;i++) ng += ngomp[i];
 
@@ -749,15 +770,15 @@ private(i,tid,xscaling,vscaling)
 #ifdef USEMPI
     //update number of groups if extra secondary search done
     if (opt.fofbgtype<=FOF6D) {
-    cout<<"MPI thread "<<ThisTask<<" has found "<<numgroups<<endl;
-    MPI_Allgather(&numgroups, 1, MPI_Int_t, mpi_ngroups, 1, MPI_Int_t, MPI_COMM_WORLD);
-    //free up memory now that only need to store pfof and global ids
-    if (ThisTask==0) {
-        int totalgroups=0;
-        for (int j=0;j<NProcs;j++) totalgroups+=mpi_ngroups[j];
-        cout<<"Total number of groups found is "<<totalgroups<<endl;
-    }
-    if (ThisTask==0) cout<<ThisTask<<" finished 6d/phase-space fof search in "<<MyGetTime()-time2<<endl;
+        cout<<"MPI thread "<<ThisTask<<" has found "<<numgroups<<endl;
+        MPI_Allgather(&numgroups, 1, MPI_Int_t, mpi_ngroups, 1, MPI_Int_t, MPI_COMM_WORLD);
+        //free up memory now that only need to store pfof and global ids
+        if (ThisTask==0) {
+            int totalgroups=0;
+            for (int j=0;j<NProcs;j++) totalgroups+=mpi_ngroups[j];
+            cout<<"Total number of groups found is "<<totalgroups<<endl;
+        }
+        if (ThisTask==0) cout<<ThisTask<<" finished 6d/phase-space fof search in "<<MyGetTime()-time2<<endl;
     }
     MPI_Allgather(&numgroups, 1, MPI_Int_t, mpi_nhalos, 1, MPI_Int_t, MPI_COMM_WORLD);
 #endif

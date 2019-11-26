@@ -5119,7 +5119,7 @@ struct DataGroupNames {
         hdfgroupdatatype.push_back(H5T_NATIVE_INT);
         hdfgroupdatatype.push_back(H5T_NATIVE_ULONG);
         hdfgroupdatatype.push_back(H5T_NATIVE_ULONG);
-        hdfgroupdatatype.push_back(H5T_NATIVE_UINT);
+        hdfgroupdatatype.push_back(H5T_NATIVE_ULONG);
         hdfgroupdatatype.push_back(H5T_NATIVE_ULONG);
         hdfgroupdatatype.push_back(H5T_NATIVE_ULONG);
 
