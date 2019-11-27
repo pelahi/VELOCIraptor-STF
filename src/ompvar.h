@@ -23,6 +23,8 @@ using namespace NBody;
 
 /// \defgroup OMPLIMS For determining whether loop contains enough for openm to be worthwhile.
 //@{
+#define ompsplitsubsearchnum 10000
+#define ompsubsearchnum 5000
 #define ompsearchnum 50000
 #define ompunbindnum 1000
 #define ompperiodnum 100000
