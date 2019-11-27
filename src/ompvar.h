@@ -27,7 +27,8 @@ using namespace NBody;
 #define ompunbindnum 1000
 #define ompperiodnum 100000
 #define omppropnum 50000
-#define ompfofsearchnum 2000000
+#define ompfofsearchnum 5000000
+#define ompsortsize 1000000
 //@}
 
 ///structure to store relevant info for searching openmp domains

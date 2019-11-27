@@ -56,6 +56,8 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
     }
     OMP_Domain *ompdomain;
+    int numompregions = ceil(nbodies/(float)opt.openmpfofsize);
+    bool runompfof = (numompregions>=2 && nthreads > 1 && opt.iopenmpfof == 1);
 #endif
     if (opt.p>0) {
         period=new Double_t[3];
@@ -82,12 +84,12 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
 #ifdef USEOPENMP
     //if using openmp produce tree with large buckets as a decomposition of the local mpi domain
     //to then run local fof searches on each domain before stitching
-    int numompregions = ceil(nbodies/(float)opt.openmpfofsize);
-    if (numompregions >= 4 && nthreads > 1 && opt.iopenmpfof == 1) {
+    if (runompfof) {
         time3=MyGetTime();
         Double_t rdist = sqrt(param[1]);
         //determine the omp regions;
         tree = new KDTree(Part.data(),nbodies,opt.openmpfofsize,tree->TPHYS,tree->KEPAN,100);
+        tree->OverWriteInputOrder();
         numompregions=tree->GetNumLeafNodes();
         ompdomain = OpenMPBuildDomains(opt, numompregions, tree, rdist);
         storeorgIndex = new Int_t[nbodies];
@@ -99,11 +101,13 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     else {
         time3=MyGetTime();
         tree = new KDTree(Part.data(),nbodies,opt.Bsize,tree->TPHYS,tree->KEPAN,1000,0,0,0,period);
+        tree->OverWriteInputOrder();
         if (opt.iverbose) cout<<ThisTask<<": finished building single tree with single OpenMP "<<MyGetTime()-time3<<endl;
     }
 
 #else
     tree=new KDTree(Part.data(),nbodies,opt.Bsize,tree->TPHYS,tree->KEPAN,1000,0,0,0,period);
+    tree->OverWriteInputOrder();
 #endif
     cout<<"Done"<<endl;
     cout<<ThisTask<<" Search particles using 3DFOF in physical space"<<endl;
@@ -123,7 +127,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     //if enough regions then search each individually
     //then link across omp domains
     Int_t ompminsize = 2;
-    if (numompregions>=4 && nthreads > 1 && opt.iopenmpfof == 1){
+    if (runompfof){
         time3=MyGetTime();
         Int_t orgIndex, omp_import_total;
         int omptask;
@@ -261,6 +265,8 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     if (NProcs==1) {
         totalgroups=numgroups;
         if (tree != NULL) delete tree;
+        delete[] Head;
+        delete[] Next;
     }
     else {
     mpi_foftask=MPISetTaskID(Nlocal);
