@@ -62,7 +62,7 @@ private(i) if (nbodies > ompsubsearchnum)
 #endif
     ptemp=new Particle[ngrid];
     for (i=0;i<ngrid;i++) ptemp[i]=Particle(1.0,grid[i].xm[0],grid[i].xm[1],grid[i].xm[2],0.0,0.0,0.0,i);
-    tree=new KDTree(ptemp,ngrid,1,tree->TPHYS, tree->KEPAN,100,0,0,NULL,NULL,false);
+    tree=new KDTree(ptemp,ngrid,1,tree->TPHYS, tree->KEPAN,100,0,0,0,NULL,NULL,false);
 
 #ifndef USEOPENMP
     nthreads=1;
