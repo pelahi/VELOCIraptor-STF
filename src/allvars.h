@@ -207,6 +207,7 @@ using namespace NBody;
 ///for extra overhead in producing tree. For reasonable values of n (>100) this occurs at ~100. Here to account for extra memory need for tree, we use n=3*log(n) or 150
 #define UNBINDNUM 150
 #define POTPPCALCNUM 150
+#define POTOMPCALCNUM 1000
 ///when unbinding check to see if system is bound and least bound particle is also bound
 #define USYSANDPART 0
 ///when unbinding check to see if least bound particle is also bound
