@@ -32,9 +32,9 @@ void GetDenVRatio(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngrid
     //take inverse for interpolation
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
-private(i)
+private(i) if (nbodies > ompsubsearchnum)
 {
-#pragma omp for schedule(dynamic) nowait
+#pragma omp for schedule(static)
 #endif
     for (i=0;i<ngrid;i++) gveldisp[i]=gveldisp[i].Inverse();
 #ifdef USEOPENMP
@@ -62,7 +62,7 @@ private(i)
 #endif
     ptemp=new Particle[ngrid];
     for (i=0;i<ngrid;i++) ptemp[i]=Particle(1.0,grid[i].xm[0],grid[i].xm[1],grid[i].xm[2],0.0,0.0,0.0,i);
-    tree=new KDTree(ptemp,ngrid,1,tree->TPHYS);
+    tree=new KDTree(ptemp,ngrid,1,tree->TPHYS, tree->KEPAN,100,0,0,NULL,NULL,false);
 
 #ifndef USEOPENMP
     nthreads=1;
@@ -79,9 +79,10 @@ private(i)
 
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
-private(i,w,wsum,sv,vsv,fbg,vp,maxdist,vmweighted,isvweighted,tid,tempdenv)
+private(i,w,wsum,sv,vsv,fbg,vp,maxdist,vmweighted,isvweighted,tid,tempdenv) \
+if (nbodies > ompsubsearchnum)
 {
-#pragma omp for schedule(dynamic) nowait
+#pragma omp for schedule(static)
 #endif
     for (i=0;i<nbodies;i++)
     {
@@ -464,7 +465,7 @@ Int_t GetOutliersValues(Options &opt, const Int_t nbodies, Particle *Part, int s
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
 private(i,tempell) \
-firstprivate(temp1,temp2,temp3)
+firstprivate(temp1,temp2,temp3) if (nbodies > ompsubsearchnum)
 {
 #pragma omp for reduction(+:nsubset)
 #endif

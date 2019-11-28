@@ -2630,7 +2630,7 @@ inline void AdjustSubPartToPhaseCM(Int_t num, Particle *subPart, GMatrix &cmphas
 #ifdef USEOPENMP
 #pragma omp parallel for \
 default(shared)  \
-num_threads(nthreads)
+num_threads(nthreads) if (num > ompperiodnum)
 #endif
     for (auto j=0;j<num;j++)
     {
@@ -2758,7 +2758,7 @@ void UpdateGroupIDsFromSubstructure(Int_t activenumgroups, Int_t oldnumgroups,
 
 #ifdef USEOPENMP
         #pragma omp parallel for \
-        default(shared) schedule(dynamic)
+        default(shared) schedule(static) if (activenumgroups > 2)
 #endif
     for (auto i=1;i<=activenumgroups;i++) {
         if (subngroup[i]==0) continue;
