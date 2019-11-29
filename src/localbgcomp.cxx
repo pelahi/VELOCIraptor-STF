@@ -133,6 +133,8 @@ if (nbodies > ompsubsearchnum)
     delete tree;
     delete[] ptemp;
     delete[] grid;
+
+for (auto j = 0;j<10;j++) cout<<ThisTask<<" "<<nbodies<<" "<<Part[j].GetPID()<<" "<<Part[j].GetPotential()<<endl;
 }
 
 
@@ -165,7 +167,7 @@ void DetermineDenVRatioDistribution(Options &opt,const Int_t nbodies, Particle *
     deltar=(4.0*fabs(rmin))/(Double_t)nbins;
     rmin-=deltar*0.025;
     deltar*=1.05;
-    //for (i=0;i<nbins;i++) rbin[i]=0;
+    rbin.resize(nbins);
     mtot=0;
     for (i=0;i<nbodies;i++) {
         ir=(unsigned int)((Part[i].GetPotential()-rmin)/deltar);
@@ -386,5 +388,7 @@ Int_t GetOutliersValues(Options &opt, const Int_t nbodies, Particle *Part, int s
         nsubset+=(Part[i].GetPotential()>opt.ellthreshold);
     }
     if (opt.iverbose>=2) cout<<ThisTask<<" Done"<<endl;
+for (auto j = 0;j<10;j++) cout<<ThisTask<<" normalised potential "<<nbodies<<" "<<Part[j].GetPID()<<" "<<Part[j].GetPotential()<<endl;
+cout<<ThisTask<<" "<<nbodies<<" "<<nsubset<<endl;
     return nsubset;
 }
