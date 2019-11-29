@@ -142,58 +142,23 @@ void DetermineDenVRatioDistribution(Options &opt,const Int_t nbodies, Particle *
     Double_t mtot,mtotpeak,deltar,maxprob,minprob,rmin,rmax;
     vector<Double_t> rbin;
     vector<Double_t> xbin;
-    vector<vector<Double_t>> omp_rbin;
     int nthreads=1,tid;
     Double_t w;
-    Int_t ir;
-#ifdef USEOPENMP
-#pragma omp parallel
-    {
-        if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
-    }
-#endif
+    unsigned int ir;
     //to determine initial number of bins using modified Sturges' formula
     nbins = ceil(log10((Double_t)nbodies)/log10(2.0)+1)*4;
-    omp_rbin.resize(nthreads);
-    for (i=0;i<nthreads;i++) omp_rbin[i].resize(nbins);
 
     //deterrmine average, rmin,rmax and variance about mean
     rmin=rmax=Part[0].GetPotential();
 #ifdef USEOPENMP
-    Double_t rmina[nthreads],rmaxa[nthreads];
-    for (int j=0;j<nthreads;j++) rmina[j]=rmaxa[j]=Part[0].GetPotential();
+    #pragma omp parallel for default(shared) \
+    private(i,tid) schedule(static) \
+    reduction(min:rmin) reduction(max:rmax) if (nbodies > ompperiodnum)
 #endif
-
-#ifdef USEOPENMP
-    if (nbodies>ompperiodnum) {
-#pragma omp parallel default(shared) \
-private(i,tid)
-{
-#pragma omp for
-    for (i=1;i<nbodies;i++) {
-        tid=omp_get_thread_num();
-        if (rmina[tid]>Part[i].GetPotential())rmina[tid]=Part[i].GetPotential();
-        if (rmaxa[tid]<Part[i].GetPotential())rmaxa[tid]=Part[i].GetPotential();
-    }
-}
-    rmin=rmina[0];rmax=rmaxa[0];
-    for (int j=1;j<nthreads;j++) {
-        if (rmin>rmina[j])rmin=rmina[j];
-        if (rmax<rmaxa[j])rmax=rmaxa[j];
-    }
-    }
-    else {
     for (i=1;i<nbodies;i++) {
         if (rmin>Part[i].GetPotential())rmin=Part[i].GetPotential();
         if (rmax<Part[i].GetPotential())rmax=Part[i].GetPotential();
     }
-    }
-#else
-    for (i=1;i<nbodies;i++) {
-        if (rmin>Part[i].GetPotential())rmin=Part[i].GetPotential();
-        if (rmax<Part[i].GetPotential())rmax=Part[i].GetPotential();
-    }
-#endif
 
     //now bin data and find initial estimates for most probable value and the FWHM on either side of the most probable value
     //deltar=(rmax-rmin)/(Double_t)nbins;
@@ -201,70 +166,24 @@ private(i,tid)
     rmin-=deltar*0.025;
     deltar*=1.05;
     //for (i=0;i<nbins;i++) rbin[i]=0;
-    for (int j=0;j<nthreads;j++) for (i=0;i<nbins;i++) omp_rbin[j][i]=0;
     mtot=0;
-#ifdef USEOPENMP
-    if (nbodies>ompperiodnum) {
-#pragma omp parallel default(shared)
-{
-#pragma omp for private(i,tid,w,ir) reduction(+:mtot)
     for (i=0;i<nbodies;i++) {
-        tid=omp_get_thread_num();
-        ir=(Int_t)((Part[i].GetPotential()-rmin)/deltar);
+        ir=(unsigned int)((Part[i].GetPotential()-rmin)/deltar);
+        if (ir >= nbins) continue;
         //mass weighted
 #ifdef NOMASSWEIGHT
         w=1.0;
 #else
         w=Part[i].GetMass();
 #endif
-        if (ir<nbins) {
-            omp_rbin[tid][ir]+=w;
-            //rbin[ir]+=w;
-            mtot+=w;
-        }
+        rbin[ir]+=w;
+        mtot+=w;
     }
-}
-    }
-    else {
-    for (i=0;i<nbodies;i++) {
-        tid=0;
-        ir=(Int_t)((Part[i].GetPotential()-rmin)/deltar);
-        //mass weighted
-#ifdef NOMASSWEIGHT
-        w=1.0;
-#else
-        w=Part[i].GetMass();
-#endif
-        if (ir<nbins) {
-            omp_rbin[tid][ir]+=w;
-            mtot+=w;
-        }
-    }
-    }
-#else
-    for (i=0;i<nbodies;i++) {
-        tid=0;
-        ir=(Int_t)((Part[i].GetPotential()-rmin)/deltar);
-        //mass weighted
-#ifdef NOMASSWEIGHT
-        w=1.0;
-#else
-        w=Part[i].GetMass();
-#endif
-        if (ir<nbins) {
-            omp_rbin[tid][ir]+=w;
-            mtot+=w;
-        }
-    }
-#endif
-    for (int j=1;j<nthreads;j++) for (i=0;i<nbins;i++) omp_rbin[0][i]+=omp_rbin[j][i];
-    rbin = omp_rbin[0];
 
     maxprob=0.;
     for (i=0;i<nbins;i++) {
         if (rbin[i]>maxprob) maxprob=rbin[iprob=i];
     }
-
     meanr=(iprob+0.5)*deltar+rmin;
     //find first estimate of sdlow by going from rmin to prob and when have some expect fraction of the probability
     Double_t sl=1.0;
@@ -304,9 +223,6 @@ private(i,tid)
         rmax=(meanr+sl*sdhigh);
         int npeak=0;
         for (i=0;i<nbodies;i++) if (Part[i].GetPotential()>=rmin&&Part[i].GetPotential()<rmax) npeak++;
-        //delete[] rbin;
-        //delete[] xbin;
-        //for (i=0;i<nthreads;i++) delete[] omp_rbin[i];
         //once have initial estimates of variance bin using Scott's formula
         //deltar=3.5*sdlow/pow(nbodies,1./3.);
         deltar=3.5*sqrt(sdlow*sdlow+sdhigh*sdhigh)/pow(npeak,1./3.);
@@ -330,6 +246,7 @@ private(i,tid)
         }
         sl*=1.25;
     }while (mtotpeak/mtot<0.2);
+
     GMatrix covar(nbins,nbins);
     //add bins together
     xbin.resize(nbins);
@@ -352,11 +269,6 @@ private(i,tid)
             sdlow=(meanr-(((exp(-0.5*sl*sl)*rbin[iprob]-rbin[jprob])/(rbin[jprob+1]-rbin[jprob])+jprob+0.5)*deltar+rmin))/sl;
             break;
         }
-        /*
-        if (i==0) {
-            sdlow=iprob*deltar/sl;
-        }
-        */
     }
     for (i=iprob;i<nbins;i++){
         if (rbin[i]<=exp(-0.5*sl*sl)*rbin[iprob]) {
@@ -446,7 +358,7 @@ private(i,tid)
 */
 Int_t GetOutliersValues(Options &opt, const Int_t nbodies, Particle *Part, int sublevel)
 {
-    Int_t i,nsubset;
+    Int_t nsubset = 0;
     int nthreads;
     Double_t temp, mtot=0.0;
 #ifndef USEMPI
@@ -458,27 +370,21 @@ Int_t GetOutliersValues(Options &opt, const Int_t nbodies, Particle *Part, int s
 
     DetermineDenVRatioDistribution(opt,nbodies,Part,globalmostprob,globalsdlow,globalsdhigh, sublevel);
 
-    Double_t temp1,temp2,temp3, tempell;
-    temp1=globalmostprob;
+    Double_t temp2,temp3, tempell;
     temp2=1.0/(globalsdhigh);
     temp3=1.0/(globalsdlow);
 #ifdef USEOPENMP
-#pragma omp parallel default(shared) \
-private(i,tempell) \
-firstprivate(temp1,temp2,temp3) if (nbodies > ompsubsearchnum)
-{
-#pragma omp for reduction(+:nsubset)
+    #pragma omp parallel for default(shared) \
+    private(tempell) \
+    reduction(+:nsubset) if (nbodies > ompsubsearchnum)
 #endif
-    for (i=0;i<nbodies;i++) {
+    for (auto i=0;i<nbodies;i++) {
         tempell=(Part[i].GetPotential()-globalmostprob);
         if (tempell>0) tempell*=temp2;
         else tempell*=temp3;
         Part[i].SetPotential(tempell);
         nsubset+=(Part[i].GetPotential()>opt.ellthreshold);
     }
-#ifdef USEOPENMP
-}
-#endif
     if (opt.iverbose>=2) cout<<ThisTask<<" Done"<<endl;
     return nsubset;
 }
