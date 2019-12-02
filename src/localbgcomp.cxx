@@ -308,6 +308,8 @@ void DetermineDenVRatioDistribution(Options &opt,const Int_t nbodies, Particle *
 
     nparams=4;
     fitfunc.function=SkewGauss;
+    fitfunc.gsl_function=SkewGaussGSL;
+    fitfunc.gsl_function_df=DiffSkewGaussGSL;
     difffuncs[0].function=DiffSkewGaussAmp;
     difffuncs[1].function=DiffSkewGaussMean;
     difffuncs[2].function=DiffSkewGaussVar;
