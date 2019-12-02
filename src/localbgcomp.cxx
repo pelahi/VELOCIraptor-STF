@@ -134,7 +134,6 @@ if (nbodies > ompsubsearchnum)
     delete[] ptemp;
     delete[] grid;
 
-for (auto j = 0;j<10;j++) cout<<ThisTask<<" "<<nbodies<<" "<<Part[j].GetPID()<<" "<<Part[j].GetPotential()<<endl;
 }
 
 
@@ -388,7 +387,5 @@ Int_t GetOutliersValues(Options &opt, const Int_t nbodies, Particle *Part, int s
         nsubset+=(Part[i].GetPotential()>opt.ellthreshold);
     }
     if (opt.iverbose>=2) cout<<ThisTask<<" Done"<<endl;
-for (auto j = 0;j<10;j++) cout<<ThisTask<<" normalised potential "<<nbodies<<" "<<Part[j].GetPID()<<" "<<Part[j].GetPotential()<<endl;
-cout<<ThisTask<<" "<<nbodies<<" "<<nsubset<<endl;
     return nsubset;
 }
