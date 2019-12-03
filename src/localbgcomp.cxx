@@ -133,7 +133,6 @@ if (nbodies > ompsubsearchnum)
     delete tree;
     delete[] ptemp;
     delete[] grid;
-
 }
 
 
@@ -166,6 +165,7 @@ void DetermineDenVRatioDistribution(Options &opt,const Int_t nbodies, Particle *
     deltar=(4.0*fabs(rmin))/(Double_t)nbins;
     rmin-=deltar*0.025;
     deltar*=1.05;
+
     rbin.resize(nbins);
     mtot=0;
     for (i=0;i<nbodies;i++) {
@@ -188,20 +188,22 @@ void DetermineDenVRatioDistribution(Options &opt,const Int_t nbodies, Particle *
     meanr=(iprob+0.5)*deltar+rmin;
     //find first estimate of sdlow by going from rmin to prob and when have some expect fraction of the probability
     Double_t sl=1.0;
+    Double_t ampfac = exp(-0.5*sl*sl);
     for (i=iprob;i>=0;i--) {
-        if (rbin[i]<=exp(-0.5*sl*sl)*rbin[iprob]) {
+        if (rbin[i]<=ampfac*rbin[iprob]) {
             jprob=i;
-            sdlow=(meanr-(((exp(-0.5*sl*sl)*rbin[iprob]-rbin[jprob])/(rbin[jprob+1]-rbin[jprob])+jprob+0.5)*deltar+rmin))/sl;
+            sdlow=(meanr-(((ampfac*rbin[iprob]-rbin[jprob])/(rbin[jprob+1]-rbin[jprob])+jprob+0.5)*deltar+rmin))/sl;
             break;
         }
         if (i==0) {
-            sdlow=(iprob-jprob)*deltar/sl;
+            jprob=i;
+            sdlow=iprob*deltar/sl;
         }
     }
     for (i=iprob;i<nbins;i++){
-        if (rbin[i]<=exp(-0.5*sl*sl)*rbin[iprob]) {
+        if (rbin[i]<=ampfac*rbin[iprob]) {
             jprob=i;
-            sdhigh=((((exp(-0.5*sl*sl)*rbin[iprob]-rbin[jprob-1])/(rbin[jprob]-rbin[jprob-1])+jprob+0.5)*deltar+rmin)-meanr)/sl;
+            sdhigh=((((ampfac*rbin[iprob]-rbin[jprob-1])/(rbin[jprob]-rbin[jprob-1])+jprob+0.5)*deltar+rmin)-meanr)/sl;
             break;
         }
         if (i==nbins-1) {
@@ -209,6 +211,7 @@ void DetermineDenVRatioDistribution(Options &opt,const Int_t nbodies, Particle *
             sdhigh=(jprob-iprob)*deltar/sl;
         }
     }
+
     //if object is small or bg search (ie sublevel==-1, then to keep statistics high, use preliminary determination of the variance and mean.
     if (nbodies<2*MINSUBSIZE) {
         if (opt.iverbose>=2) printf("Using meanr=%e sdlow=%e sdhigh=%e\n",meanr,sdlow,sdhigh);
@@ -227,14 +230,15 @@ void DetermineDenVRatioDistribution(Options &opt,const Int_t nbodies, Particle *
         //once have initial estimates of variance bin using Scott's formula
         //deltar=3.5*sdlow/pow(nbodies,1./3.);
         deltar=3.5*sqrt(sdlow*sdlow+sdhigh*sdhigh)/pow(npeak,1./3.);
-        nbins=ceil((rmax-rmin)/deltar+1);
+        //nbins=ceil((rmax-rmin)/deltar+1);
+        nbins=round((rmax-rmin)/deltar+1);
         W=GMatrix(nbins,nbins);
         rbin.resize(nbins);
         for (i=0;i<nbins;i++)rbin[i]=0;
         for (int j=0;j<nbins;j++) for (int k=0;k<nbins;k++) W(j,k)=0.;
         for (i=0;i<nbodies;i++) {
-            if (Part[i].GetPotential()>=rmin&&Part[i].GetPotential()<rmax) {
-                ir=(Int_t)((Part[i].GetPotential()-rmin)/deltar);
+            if (Part[i].GetPotential()>=rmin && Part[i].GetPotential()<rmax) {
+                ir=(unsigned int)((Part[i].GetPotential()-rmin)/deltar);
 #ifdef NOMASSWEIGHT
                 w=1.0;
 #else
@@ -264,17 +268,18 @@ void DetermineDenVRatioDistribution(Options &opt,const Int_t nbodies, Particle *
     }
     meanr=(iprob+0.5)*deltar+rmin;
     sl=0.9;
+    ampfac = exp(-0.5*sl*sl);
     for (i=iprob;i>=0;i--) {
-        if (rbin[i]<=exp(-0.5*sl*sl)*rbin[iprob]) {
+        if (rbin[i]<=ampfac*rbin[iprob]) {
             jprob=i;
-            sdlow=(meanr-(((exp(-0.5*sl*sl)*rbin[iprob]-rbin[jprob])/(rbin[jprob+1]-rbin[jprob])+jprob+0.5)*deltar+rmin))/sl;
+            sdlow=(meanr-(((ampfac*rbin[iprob]-rbin[jprob])/(rbin[jprob+1]-rbin[jprob])+jprob+0.5)*deltar+rmin))/sl;
             break;
         }
     }
     for (i=iprob;i<nbins;i++){
-        if (rbin[i]<=exp(-0.5*sl*sl)*rbin[iprob]) {
+        if (rbin[i]<=ampfac*rbin[iprob]) {
             jprob=i;
-            sdhigh=((((exp(-0.5*sl*sl)*rbin[iprob]-rbin[jprob-1])/(rbin[jprob]-rbin[jprob-1])+jprob+0.5)*deltar+rmin)-meanr)/sl;
+            sdhigh=((((ampfac*rbin[iprob]-rbin[jprob-1])/(rbin[jprob]-rbin[jprob-1])+jprob+0.5)*deltar+rmin)-meanr)/sl;
             break;
         }
         if (i==nbins-1) {
@@ -289,9 +294,6 @@ void DetermineDenVRatioDistribution(Options &opt,const Int_t nbodies, Particle *
         if (opt.iverbose>=2) printf("Using meanr=%e sdlow=%e sdhigh=%e\n",meanr,sdlow,sdhigh);
         return;
     }
-
-    //check if mean consistent with zero, then set to zero for fitting
-    //if ((meanr-sdlow)*(meanr+sdhigh)<0) meanr=0;
 
     //now have initial estimates of paramters, try nonlinear ls fit to data below prob and above
     Int_t iflag,iit=0,nparams=4;
@@ -344,7 +346,7 @@ void DetermineDenVRatioDistribution(Options &opt,const Int_t nbodies, Particle *
             oldchi2=chi2;
             if(opt.iverbose>2) printf("chi2/dof=%e/%d, A=%e mu=%e var=%e s=%e\n",chi2,nbins-(nparams-nfix)-1,params[0],params[1],sqrt(params[2]),sqrt(params[3]));
         }
-        else if (oldchi2<chi2) break;
+        //else if (oldchi2<chi2 && i>0) break;
         else {
             if (opt.iverbose>2)printf("fit failed, using previous values\n");
             params[0]=maxprob;params[1]=meanr;params[2]=sdhigh*sdhigh;params[3]=(sdlow*sdlow)/(sdhigh*sdhigh);
