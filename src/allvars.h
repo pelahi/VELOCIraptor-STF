@@ -26,6 +26,7 @@
 #include <vector>
 #include <algorithm>
 #include <map>
+#include <unordered_map>
 #include <getopt.h>
 #include <sys/stat.h>
 #include <sys/timeb.h>
@@ -54,8 +55,8 @@
 ///if using OpenMP API
 #ifdef USEOPENMP
 #include <omp.h>
-#include "ompvar.h"
 #endif
+#include "ompvar.h"
 
 ///if using HDF API
 #ifdef USEHDF
@@ -206,6 +207,7 @@ using namespace NBody;
 ///for extra overhead in producing tree. For reasonable values of n (>100) this occurs at ~100. Here to account for extra memory need for tree, we use n=3*log(n) or 150
 #define UNBINDNUM 150
 #define POTPPCALCNUM 150
+#define POTOMPCALCNUM 1000
 ///when unbinding check to see if system is bound and least bound particle is also bound
 #define USYSANDPART 0
 ///when unbinding check to see if least bound particle is also bound
@@ -233,16 +235,6 @@ using namespace NBody;
 ///cellflag means a node that is not necessarily a leaf node can be approximated by mono-pole
 #define cellflag 0
 
-//@}
-
-/// \defgroup OMPLIMS For determining whether loop contains enough for openm to be worthwhile.
-//@{
-#ifndef USEOPENMP
-#define ompsearchnum 50000
-#define ompunbindnum 1000
-#define ompperiodnum 50000
-#define omppropnum 50000
-#endif
 //@}
 
 /// \defgroup PROPLIMS Particle limits for calculating properties
@@ -876,6 +868,9 @@ struct Options
 
         iontheflyfinding = false;
     }
+    Options(Options &opt) = default;
+    Options& operator=(const Options&) = default;
+    Options& operator=(Options&&) = default;
 };
 
 struct ConfigInfo{

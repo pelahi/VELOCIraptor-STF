@@ -4173,6 +4173,8 @@ void GetBindingEnergy(Options &opt, const Int_t nbodies, Particle *Part, Int_t n
     //also if wish to use the deepest potential as a reference, then used to store original order
     Int_t *storepid;
 
+    double time2 = MyGetTime();
+
     if (opt.uinfo.icalculatepotential) {
     //small groups with PP calculations of potential.
 #ifdef USEOPENMP
@@ -4181,9 +4183,9 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin)
 {
     #pragma omp for schedule(dynamic) nowait
 #endif
-    for (i=1;i<=ngroup;i++)  {
-        if (numingroup[i]<POTPPCALCNUM) PotentialPP(opt,numingroup[i],&Part[noffset[i]]);
-        if (numingroup[i]>=POTPPCALCNUM && numingroup[i] < ompunbindnum) {
+    for (i=1;i<=ngroup;i++) if (numingroup[i]<POTOMPCALCNUM) {
+        if (numingroup[i]<=POTPPCALCNUM) PotentialPP(opt,numingroup[i],&Part[noffset[i]]);
+        else {
             storepid=new Int_t[numingroup[i]];
             for (j=0;j<numingroup[i];j++) {
                 storepid[j]=Part[noffset[i]+j].GetPID();
@@ -4202,7 +4204,7 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin)
 }
 #endif
         //loop for large groups with tree calculation
-        for (i=1;i<=ngroup;i++) if (numingroup[i] >= ompunbindnum) {
+        for (i=1;i<=ngroup;i++) if (numingroup[i]>=POTOMPCALCNUM) {
             storepid=new Int_t[numingroup[i]];
             for (j=0;j<numingroup[i];j++) {
                 storepid[j]=Part[noffset[i]+j].GetPID();
@@ -4222,8 +4224,10 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin)
         for (i=1;i<=ngroup;i++) for (j=0;j<numingroup[i];j++) Part[j+noffset[i]].SetPotential(Part[j+noffset[i]].GetGravityPotential());
     }
 #endif
+    cout<<" Have calculated potentials "<<MyGetTime()-time2<<endl;
+    time2 = MyGetTime();
 
-        //once potential is calculated, iff using velocity around deepest potential well NOT cm
+    //once potential is calculated, iff using velocity around deepest potential well NOT cm
     if (opt.uinfo.cmvelreftype==POTREF) {
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \

@@ -385,7 +385,7 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     unsigned long long noffset=0,ngtot=0,nids=0,nidstot=0,nuids=0,nuidstot=0, ng=0, nwritecommtot=0, nuwritecommtot=0;
     vector<unsigned long long> groupdata;
     vector<unsigned long long> offset;
-    vector<long long> partdata; 
+    vector<long long> partdata;
 #ifdef USEMPI
     MPIBuildWriteComm(opt);
 #endif
@@ -454,7 +454,13 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     ng=ngroups;
 
 #ifdef USEMPI
-    for (int j=0;j<NProcs;j++) ngtot+=mpi_ngroups[j];
+    if (NProcs > 1) {
+        for (int j=0;j<NProcs;j++) ngtot+=mpi_ngroups[j];
+    }
+    else {
+        ngtot = ngroups;
+    }
+
 #else
     ngtot=ngroups+nadditional;//useful if outputing field halos
 #endif
@@ -698,8 +704,14 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     nids = nuids = 0;
     for (Int_t i=1;i<=ngroups;i++) {nids+=pglist[i][numingroup[i]];nuids+=numingroup[i]-pglist[i][numingroup[i]];}
 #ifdef USEMPI
-    MPI_Allreduce(&nids, &nidstot, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
-    MPI_Allreduce(&nuids, &nuidstot, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
+    if (NProcs > 1) {
+        MPI_Allreduce(&nids, &nidstot, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(&nuids, &nuidstot, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
+    }
+    else {
+        nidstot=nids;
+        nuidstot=nuids;
+    }
 #else
     nidstot=nids;
     nuidstot=nuids;
@@ -963,8 +975,14 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
 
     for (Int_t i=1;i<=ngroups;i++) {nids+=pglist[i][numingroup[i]];nuids+=numingroup[i]-pglist[i][numingroup[i]];}
 #ifdef USEMPI
-    MPI_Allreduce(&nids, &nidstot, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
-    MPI_Allreduce(&nuids, &nuidstot, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
+    if(NProcs > 1) {
+        MPI_Allreduce(&nids, &nidstot, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(&nuids, &nuidstot, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
+    }
+    else {
+        nidstot=nids;
+        nuidstot=nuids;
+    }
 #else
     nidstot=nids;
     nuidstot=nuids;
@@ -1127,15 +1145,25 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids, ve
 
     ng=ngroups;
 #ifdef USEMPI
-    MPI_Allreduce(&ng, &ngtot, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
+    if (NProcs >1) {
+        MPI_Allreduce(&ng, &ngtot, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
+    }
+    else {
+        ngtot = ng;
+    }
 #else
     ngtot=ng;
 #endif
     for (Int_t i=1;i<=ngroups;i++) nSOids+=SOpids[i].size();
 #ifdef USEMPI
-    MPI_Allreduce(&nSOids, &nSOidstot, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
+    if (NProcs > 1) {
+        MPI_Allreduce(&nSOids, &nSOidstot, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
+    }
+    else {
+        nSOidstot = nSOids;
+    }
 #else
-    nSOidstot=nSOids;
+    nSOidstot = nSOids;
 #endif
 
     os << opt.outname <<".catalog_SOlist";
@@ -1458,8 +1486,14 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
     else {
         os<<"."<<ThisTask;
     }
-    for (int j=0;j<NProcs;j++) ngtot+=mpi_ngroups[j];
-    for (int j=0;j<ThisTask;j++)noffset+=mpi_ngroups[j];
+    if (NProcs > 1) {
+        for (int j=0;j<NProcs;j++) ngtot+=mpi_ngroups[j];
+        for (int j=0;j<ThisTask;j++)noffset+=mpi_ngroups[j];
+    }
+    else {
+        ngtot = ngroups;
+        noffset = 0;
+    }
 #else
     int ThisTask=0,NProcs=1;
     ngtot=ngroups;
@@ -2547,9 +2581,16 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
     else {
         os<<"."<<ThisTask;
     }
-    for (int j=0;j<NProcs;j++) ngtot+=mpi_ngroups[j];
-    for (int j=0;j<ThisTask;j++)noffset+=mpi_ngroups[j];
-    for (int j=0;j<NProcs;j++) nhalostot+=mpi_nhalos[j];
+    if (NProcs > 1) {
+        for (int j=0;j<NProcs;j++) ngtot+=mpi_ngroups[j];
+        for (int j=0;j<ThisTask;j++)noffset+=mpi_ngroups[j];
+        for (int j=0;j<NProcs;j++) nhalostot+=mpi_nhalos[j];
+    }
+    else {
+        ngtot = ngroups;
+        noffset = 0;
+        nhalostot = nhalos;
+    }
 #else
     int ThisTask=0,NProcs=1;
     ngtot=ngroups;
@@ -2820,8 +2861,14 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
 
     //since the hierarchy file is appended to the catalog_groups files, no header written
 #ifdef USEMPI
-    for (int j=0;j<NProcs;j++) ngtot+=mpi_ngroups[j];
-    for (int j=0;j<ThisTask;j++)noffset+=mpi_ngroups[j];
+    if (NProcs > 1) {
+        for (int j=0;j<NProcs;j++) ngtot+=mpi_ngroups[j];
+        for (int j=0;j<ThisTask;j++)noffset+=mpi_ngroups[j];
+    }
+    else {
+        ngtot = ngroups;
+        noffset = 0;
+    }
 #else
     ngtot=ngroups;
 #endif
