@@ -26,6 +26,7 @@ Int_t *BuildNumInGroupTyped(const Int_t nbodies, const Int_t numgroups, Int_t *p
 Int_t **BuildPGList(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t *pfof){
     Int_t **pglist=new Int_t*[numgroups+1];
     Int_t pid;
+    pglist[0]=NULL;
     for (Int_t i=1;i<=numgroups;i++) {
         pglist[i] = NULL;
         if (numingroup[i]<=0) continue;
@@ -44,6 +45,7 @@ Int_t **BuildPGList(const Int_t nbodies, const Int_t numgroups, Int_t *numingrou
 Int_t **BuildPGListTyped(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t *pfof, Particle *P, int type){
     Int_t **pglist=new Int_t*[numgroups+1];
     Int_t pid;
+    pglist[0]=NULL;
     for (Int_t i=1;i<=numgroups;i++) {
         pglist[i] = NULL;
         if (numingroup[i]<=0) continue;
@@ -62,6 +64,7 @@ Int_t **BuildPGListTyped(const Int_t nbodies, const Int_t numgroups, Int_t *numi
 Int_t **BuildPGList(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t *pfof, Particle *Part){
     Int_t **pglist=new Int_t*[numgroups+1];
     Int_t pid, index;
+    pglist[0]=NULL;
     for (Int_t i=1;i<=numgroups;i++) {
         pglist[i] = NULL;
         if (numingroup[i]<=0) continue;
@@ -81,6 +84,7 @@ Int_t **BuildPGList(const Int_t nbodies, const Int_t numgroups, Int_t *numingrou
 Int_t **BuildPGList(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t *pfof, Int_t *ids){
     Int_t **pglist=new Int_t*[numgroups+1];
     Int_t pid;
+    pglist[0]=NULL;
     for (Int_t i=1;i<=numgroups;i++) {
         pglist[i] = NULL;
         if (numingroup[i]<=0) continue;
@@ -133,6 +137,7 @@ Int_tree_t *BuildGroupTailArray(const Int_t nbodies, const Int_t numgroups, Int_
 ///build the group particle arrays need for unbinding procedure
 Particle **BuildPartList(Int_t numgroups, Int_t *numingroup, Int_t **pglist, Particle* Part){
     Particle **gPart=new Particle*[numgroups+1];
+    gPart[0] = NULL;
     for (Int_t i=1;i<=numgroups;i++) {
         gPart[i] = NULL;
         if (numingroup[i]<=0) continue;
