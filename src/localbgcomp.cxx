@@ -32,9 +32,9 @@ void GetDenVRatio(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngrid
     //take inverse for interpolation
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
-private(i)
+private(i) if (nbodies > ompsubsearchnum)
 {
-#pragma omp for schedule(dynamic) nowait
+#pragma omp for schedule(static)
 #endif
     for (i=0;i<ngrid;i++) gveldisp[i]=gveldisp[i].Inverse();
 #ifdef USEOPENMP
@@ -62,7 +62,7 @@ private(i)
 #endif
     ptemp=new Particle[ngrid];
     for (i=0;i<ngrid;i++) ptemp[i]=Particle(1.0,grid[i].xm[0],grid[i].xm[1],grid[i].xm[2],0.0,0.0,0.0,i);
-    tree=new KDTree(ptemp,ngrid,1,tree->TPHYS);
+    tree=new KDTree(ptemp,ngrid,1,tree->TPHYS, tree->KEPAN,100,0,0,0,NULL,NULL,false);
 
 #ifndef USEOPENMP
     nthreads=1;
@@ -79,9 +79,10 @@ private(i)
 
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
-private(i,w,wsum,sv,vsv,fbg,vp,maxdist,vmweighted,isvweighted,tid,tempdenv)
+private(i,w,wsum,sv,vsv,fbg,vp,maxdist,vmweighted,isvweighted,tid,tempdenv) \
+if (nbodies > ompsubsearchnum)
 {
-#pragma omp for schedule(dynamic) nowait
+#pragma omp for schedule(static)
 #endif
     for (i=0;i<nbodies;i++)
     {
@@ -141,146 +142,68 @@ void DetermineDenVRatioDistribution(Options &opt,const Int_t nbodies, Particle *
     Double_t mtot,mtotpeak,deltar,maxprob,minprob,rmin,rmax;
     vector<Double_t> rbin;
     vector<Double_t> xbin;
-    vector<vector<Double_t>> omp_rbin;
     int nthreads=1,tid;
     Double_t w;
-    Int_t ir;
-#ifdef USEOPENMP
-#pragma omp parallel
-    {
-        if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
-    }
-#endif
+    unsigned int ir;
     //to determine initial number of bins using modified Sturges' formula
     nbins = ceil(log10((Double_t)nbodies)/log10(2.0)+1)*4;
-    omp_rbin.resize(nthreads);
-    for (i=0;i<nthreads;i++) omp_rbin[i].resize(nbins);
 
     //deterrmine average, rmin,rmax and variance about mean
     rmin=rmax=Part[0].GetPotential();
 #ifdef USEOPENMP
-    Double_t rmina[nthreads],rmaxa[nthreads];
-    for (int j=0;j<nthreads;j++) rmina[j]=rmaxa[j]=Part[0].GetPotential();
+    #pragma omp parallel for default(shared) \
+    private(i,tid) schedule(static) \
+    reduction(min:rmin) reduction(max:rmax) if (nbodies > ompperiodnum)
 #endif
-
-#ifdef USEOPENMP
-    if (nbodies>ompperiodnum) {
-#pragma omp parallel default(shared) \
-private(i,tid)
-{
-#pragma omp for
-    for (i=1;i<nbodies;i++) {
-        tid=omp_get_thread_num();
-        if (rmina[tid]>Part[i].GetPotential())rmina[tid]=Part[i].GetPotential();
-        if (rmaxa[tid]<Part[i].GetPotential())rmaxa[tid]=Part[i].GetPotential();
-    }
-}
-    rmin=rmina[0];rmax=rmaxa[0];
-    for (int j=1;j<nthreads;j++) {
-        if (rmin>rmina[j])rmin=rmina[j];
-        if (rmax<rmaxa[j])rmax=rmaxa[j];
-    }
-    }
-    else {
     for (i=1;i<nbodies;i++) {
         if (rmin>Part[i].GetPotential())rmin=Part[i].GetPotential();
         if (rmax<Part[i].GetPotential())rmax=Part[i].GetPotential();
     }
-    }
-#else
-    for (i=1;i<nbodies;i++) {
-        if (rmin>Part[i].GetPotential())rmin=Part[i].GetPotential();
-        if (rmax<Part[i].GetPotential())rmax=Part[i].GetPotential();
-    }
-#endif
 
     //now bin data and find initial estimates for most probable value and the FWHM on either side of the most probable value
     //deltar=(rmax-rmin)/(Double_t)nbins;
     deltar=(4.0*fabs(rmin))/(Double_t)nbins;
     rmin-=deltar*0.025;
     deltar*=1.05;
-    //for (i=0;i<nbins;i++) rbin[i]=0;
-    for (int j=0;j<nthreads;j++) for (i=0;i<nbins;i++) omp_rbin[j][i]=0;
+
+    rbin.resize(nbins);
     mtot=0;
-#ifdef USEOPENMP
-    if (nbodies>ompperiodnum) {
-#pragma omp parallel default(shared)
-{
-#pragma omp for private(i,tid,w,ir) reduction(+:mtot)
     for (i=0;i<nbodies;i++) {
-        tid=omp_get_thread_num();
-        ir=(Int_t)((Part[i].GetPotential()-rmin)/deltar);
+        ir=(unsigned int)((Part[i].GetPotential()-rmin)/deltar);
+        if (ir >= nbins) continue;
         //mass weighted
 #ifdef NOMASSWEIGHT
         w=1.0;
 #else
         w=Part[i].GetMass();
 #endif
-        if (ir<nbins) {
-            omp_rbin[tid][ir]+=w;
-            //rbin[ir]+=w;
-            mtot+=w;
-        }
+        rbin[ir]+=w;
+        mtot+=w;
     }
-}
-    }
-    else {
-    for (i=0;i<nbodies;i++) {
-        tid=0;
-        ir=(Int_t)((Part[i].GetPotential()-rmin)/deltar);
-        //mass weighted
-#ifdef NOMASSWEIGHT
-        w=1.0;
-#else
-        w=Part[i].GetMass();
-#endif
-        if (ir<nbins) {
-            omp_rbin[tid][ir]+=w;
-            mtot+=w;
-        }
-    }
-    }
-#else
-    for (i=0;i<nbodies;i++) {
-        tid=0;
-        ir=(Int_t)((Part[i].GetPotential()-rmin)/deltar);
-        //mass weighted
-#ifdef NOMASSWEIGHT
-        w=1.0;
-#else
-        w=Part[i].GetMass();
-#endif
-        if (ir<nbins) {
-            omp_rbin[tid][ir]+=w;
-            mtot+=w;
-        }
-    }
-#endif
-    for (int j=1;j<nthreads;j++) for (i=0;i<nbins;i++) omp_rbin[0][i]+=omp_rbin[j][i];
-    rbin = omp_rbin[0];
 
     maxprob=0.;
     for (i=0;i<nbins;i++) {
         if (rbin[i]>maxprob) maxprob=rbin[iprob=i];
     }
-
     meanr=(iprob+0.5)*deltar+rmin;
     //find first estimate of sdlow by going from rmin to prob and when have some expect fraction of the probability
     Double_t sl=1.0;
+    Double_t ampfac = exp(-0.5*sl*sl);
     for (i=iprob;i>=0;i--) {
-        if (rbin[i]<=exp(-0.5*sl*sl)*rbin[iprob]) {
+        if (rbin[i]<=ampfac*rbin[iprob]) {
             jprob=i;
-            sdlow=(meanr-(((exp(-0.5*sl*sl)*rbin[iprob]-rbin[jprob])/(rbin[jprob+1]-rbin[jprob])+jprob+0.5)*deltar+rmin))/sl;
+            sdlow=(meanr-(((ampfac*rbin[iprob]-rbin[jprob])/(rbin[jprob+1]-rbin[jprob])+jprob+0.5)*deltar+rmin))/sl;
             break;
         }
         if (i==0) {
-            sdlow=(iprob-jprob)*deltar/sl;
+            jprob=i;
+            sdlow=iprob*deltar/sl;
         }
     }
     for (i=iprob;i<nbins;i++){
-        if (rbin[i]<=exp(-0.5*sl*sl)*rbin[iprob]) {
+        if (rbin[i]<=ampfac*rbin[iprob]) {
             jprob=i;
-            sdhigh=((((exp(-0.5*sl*sl)*rbin[iprob]-rbin[jprob-1])/(rbin[jprob]-rbin[jprob-1])+jprob+0.5)*deltar+rmin)-meanr)/sl;
+            sdhigh=((((ampfac*rbin[iprob]-rbin[jprob-1])/(rbin[jprob]-rbin[jprob-1])+jprob+0.5)*deltar+rmin)-meanr)/sl;
             break;
         }
         if (i==nbins-1) {
@@ -288,6 +211,7 @@ private(i,tid)
             sdhigh=(jprob-iprob)*deltar/sl;
         }
     }
+
     //if object is small or bg search (ie sublevel==-1, then to keep statistics high, use preliminary determination of the variance and mean.
     if (nbodies<2*MINSUBSIZE) {
         if (opt.iverbose>=2) printf("Using meanr=%e sdlow=%e sdhigh=%e\n",meanr,sdlow,sdhigh);
@@ -303,20 +227,18 @@ private(i,tid)
         rmax=(meanr+sl*sdhigh);
         int npeak=0;
         for (i=0;i<nbodies;i++) if (Part[i].GetPotential()>=rmin&&Part[i].GetPotential()<rmax) npeak++;
-        //delete[] rbin;
-        //delete[] xbin;
-        //for (i=0;i<nthreads;i++) delete[] omp_rbin[i];
         //once have initial estimates of variance bin using Scott's formula
         //deltar=3.5*sdlow/pow(nbodies,1./3.);
         deltar=3.5*sqrt(sdlow*sdlow+sdhigh*sdhigh)/pow(npeak,1./3.);
-        nbins=ceil((rmax-rmin)/deltar+1);
+        //nbins=ceil((rmax-rmin)/deltar+1);
+        nbins=round((rmax-rmin)/deltar+1);
         W=GMatrix(nbins,nbins);
         rbin.resize(nbins);
         for (i=0;i<nbins;i++)rbin[i]=0;
         for (int j=0;j<nbins;j++) for (int k=0;k<nbins;k++) W(j,k)=0.;
         for (i=0;i<nbodies;i++) {
-            if (Part[i].GetPotential()>=rmin&&Part[i].GetPotential()<rmax) {
-                ir=(Int_t)((Part[i].GetPotential()-rmin)/deltar);
+            if (Part[i].GetPotential()>=rmin && Part[i].GetPotential()<rmax) {
+                ir=(unsigned int)((Part[i].GetPotential()-rmin)/deltar);
 #ifdef NOMASSWEIGHT
                 w=1.0;
 #else
@@ -329,6 +251,7 @@ private(i,tid)
         }
         sl*=1.25;
     }while (mtotpeak/mtot<0.2);
+
     GMatrix covar(nbins,nbins);
     //add bins together
     xbin.resize(nbins);
@@ -345,22 +268,18 @@ private(i,tid)
     }
     meanr=(iprob+0.5)*deltar+rmin;
     sl=0.9;
+    ampfac = exp(-0.5*sl*sl);
     for (i=iprob;i>=0;i--) {
-        if (rbin[i]<=exp(-0.5*sl*sl)*rbin[iprob]) {
+        if (rbin[i]<=ampfac*rbin[iprob]) {
             jprob=i;
-            sdlow=(meanr-(((exp(-0.5*sl*sl)*rbin[iprob]-rbin[jprob])/(rbin[jprob+1]-rbin[jprob])+jprob+0.5)*deltar+rmin))/sl;
+            sdlow=(meanr-(((ampfac*rbin[iprob]-rbin[jprob])/(rbin[jprob+1]-rbin[jprob])+jprob+0.5)*deltar+rmin))/sl;
             break;
         }
-        /*
-        if (i==0) {
-            sdlow=iprob*deltar/sl;
-        }
-        */
     }
     for (i=iprob;i<nbins;i++){
-        if (rbin[i]<=exp(-0.5*sl*sl)*rbin[iprob]) {
+        if (rbin[i]<=ampfac*rbin[iprob]) {
             jprob=i;
-            sdhigh=((((exp(-0.5*sl*sl)*rbin[iprob]-rbin[jprob-1])/(rbin[jprob]-rbin[jprob-1])+jprob+0.5)*deltar+rmin)-meanr)/sl;
+            sdhigh=((((ampfac*rbin[iprob]-rbin[jprob-1])/(rbin[jprob]-rbin[jprob-1])+jprob+0.5)*deltar+rmin)-meanr)/sl;
             break;
         }
         if (i==nbins-1) {
@@ -375,9 +294,6 @@ private(i,tid)
         if (opt.iverbose>=2) printf("Using meanr=%e sdlow=%e sdhigh=%e\n",meanr,sdlow,sdhigh);
         return;
     }
-
-    //check if mean consistent with zero, then set to zero for fitting
-    //if ((meanr-sdlow)*(meanr+sdhigh)<0) meanr=0;
 
     //now have initial estimates of paramters, try nonlinear ls fit to data below prob and above
     Int_t iflag,iit=0,nparams=4;
@@ -394,6 +310,8 @@ private(i,tid)
 
     nparams=4;
     fitfunc.function=SkewGauss;
+    fitfunc.gsl_function=SkewGaussGSL;
+    fitfunc.gsl_function_df=DiffSkewGaussGSL;
     difffuncs[0].function=DiffSkewGaussAmp;
     difffuncs[1].function=DiffSkewGaussMean;
     difffuncs[2].function=DiffSkewGaussVar;
@@ -428,7 +346,7 @@ private(i,tid)
             oldchi2=chi2;
             if(opt.iverbose>2) printf("chi2/dof=%e/%d, A=%e mu=%e var=%e s=%e\n",chi2,nbins-(nparams-nfix)-1,params[0],params[1],sqrt(params[2]),sqrt(params[3]));
         }
-        else if (oldchi2<chi2) break;
+        //else if (oldchi2<chi2 && i>0) break;
         else {
             if (opt.iverbose>2)printf("fit failed, using previous values\n");
             params[0]=maxprob;params[1]=meanr;params[2]=sdhigh*sdhigh;params[3]=(sdlow*sdlow)/(sdhigh*sdhigh);
@@ -445,7 +363,7 @@ private(i,tid)
 */
 Int_t GetOutliersValues(Options &opt, const Int_t nbodies, Particle *Part, int sublevel)
 {
-    Int_t i,nsubset;
+    Int_t nsubset = 0;
     int nthreads;
     Double_t temp, mtot=0.0;
 #ifndef USEMPI
@@ -457,27 +375,21 @@ Int_t GetOutliersValues(Options &opt, const Int_t nbodies, Particle *Part, int s
 
     DetermineDenVRatioDistribution(opt,nbodies,Part,globalmostprob,globalsdlow,globalsdhigh, sublevel);
 
-    Double_t temp1,temp2,temp3, tempell;
-    temp1=globalmostprob;
+    Double_t temp2,temp3, tempell;
     temp2=1.0/(globalsdhigh);
     temp3=1.0/(globalsdlow);
 #ifdef USEOPENMP
-#pragma omp parallel default(shared) \
-private(i,tempell) \
-firstprivate(temp1,temp2,temp3)
-{
-#pragma omp for reduction(+:nsubset)
+    #pragma omp parallel for default(shared) \
+    private(tempell) \
+    reduction(+:nsubset) if (nbodies > ompsubsearchnum)
 #endif
-    for (i=0;i<nbodies;i++) {
+    for (auto i=0;i<nbodies;i++) {
         tempell=(Part[i].GetPotential()-globalmostprob);
         if (tempell>0) tempell*=temp2;
         else tempell*=temp3;
         Part[i].SetPotential(tempell);
         nsubset+=(Part[i].GetPotential()>opt.ellthreshold);
     }
-#ifdef USEOPENMP
-}
-#endif
     if (opt.iverbose>=2) cout<<ThisTask<<" Done"<<endl;
     return nsubset;
 }
