@@ -102,7 +102,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     vector<hid_t> partsdataset_extra;
     vector<hid_t> partsdataspace_extra;
     hid_t chunkspace;
-    int chunksize=opt.inputbufsize;
+    unsigned long long chunksize=opt.inputbufsize;
     //buffers to load data
     int *intbuff=new int[chunksize];
     long long *longbuff=new long long[chunksize];
@@ -133,8 +133,10 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     ///Since Illustris contains an unused type of particles (2) and tracer particles (3) really not useful to iterate over all particle types in loops
     int nusetypes,nbusetypes;
     int usetypes[NHDFTYPE];
-    Int_t i,j,k,n,nchunk,count,bcount,itemp,count2,bcount2;
-
+    Int_t i,j,k,n;
+    unsigned long long nchunk,count,bcount count2,bcount2;
+    Int_t itemp;
+    
     //store cosmology
     double z,aadjust,Hubble,Hubbleflow;
 

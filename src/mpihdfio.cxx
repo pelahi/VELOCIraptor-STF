@@ -130,7 +130,8 @@ void MPINumInDomainHDF(Options &opt)
     MPIInitialDomainDecomposition();
     MPIDomainDecompositionHDF(opt);
 
-    Int_t i,j,k,n,nchunk;
+    Int_t i,j,k;
+    unsigned long long nchunk;
     char buf[2000];
     MPI_Status status;
 
@@ -166,7 +167,7 @@ void MPINumInDomainHDF(Options &opt)
     vector<hid_t>partsdataset;
     vector<hid_t>partsdataspace;
     hid_t chunkspace;
-    int chunksize=opt.inputbufsize;
+    unsigned long long chunksize=opt.inputbufsize;
     //buffers to load data
     double *doublebuff=new double[chunksize*3];
     vector<int> vintbuff;
@@ -243,12 +244,12 @@ void MPINumInDomainHDF(Options &opt)
                 //data loaded into memory in chunks
                 if (hdf_header_info[i].npart[k]<chunksize)nchunk=hdf_header_info[i].npart[k];
                 else nchunk=chunksize;
-                for(n=0;n<hdf_header_info[i].npart[k];n+=nchunk)
+                for(auto n=0;n<hdf_header_info[i].npart[k];n+=nchunk)
                 {
                     if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
                     //setup hyperslab so that it is loaded into the buffer
                     HDF5ReadHyperSlabReal(doublebuff,partsdataset[i*NHDFTYPE+k], partsdataspace[i*NHDFTYPE+k], 1, 3, nchunk, n);
-                    for (int nn=0;nn<nchunk;nn++) {
+                    for (auto nn=0;nn<nchunk;nn++) {
                         ibuf=MPIGetParticlesProcessor(doublebuff[nn*3],doublebuff[nn*3+1],doublebuff[nn*3+2]);
                         Nbuf[ibuf]++;
                     }
@@ -260,13 +261,13 @@ void MPINumInDomainHDF(Options &opt)
                     //data loaded into memory in chunks
                     if (hdf_header_info[i].npart[k]<chunksize)nchunk=hdf_header_info[i].npart[k];
                     else nchunk=chunksize;
-                    for(n=0;n<hdf_header_info[i].npart[k];n+=nchunk)
+                    for(auto n=0;n<hdf_header_info[i].npart[k];n+=nchunk)
                     {
                         if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
                         // setup hyperslab so that it is loaded into the buffer
                         HDF5ReadHyperSlabReal(doublebuff, partsdataset[i*NHDFTYPE+k], partsdataspace[i*NHDFTYPE+k], 1, 3, nchunk, n);
 
-                        for (int nn=0;nn<nchunk;nn++) {
+                        for (auto nn=0;nn<nchunk;nn++) {
                             ibuf=MPIGetParticlesProcessor(doublebuff[nn*3],doublebuff[nn*3+1],doublebuff[nn*3+2]);
                             Nbaryonbuf[ibuf]++;
                         }
