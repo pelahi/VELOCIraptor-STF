@@ -134,9 +134,9 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     int nusetypes,nbusetypes;
     int usetypes[NHDFTYPE];
     Int_t i,j,k,n;
-    unsigned long long nchunk,count,bcount count2,bcount2;
+    unsigned long long nchunk,count,bcount,count2,bcount2;
     Int_t itemp;
-    
+
     //store cosmology
     double z,aadjust,Hubble,Hubbleflow;
 
