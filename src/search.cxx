@@ -2619,10 +2619,6 @@ void RemoveSpuriousDynamicalSubstructures(Options &opt, const Int_t nsubset, Int
     }
 }
 
-int setNthreads(){
-    return 0;
-}
-
 ///adjust to phase centre
 inline void AdjustSubPartToPhaseCM(Int_t num, Particle *subPart, GMatrix &cmphase)
 {
