@@ -2896,6 +2896,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
                 //this routine is within this file, also has internal parallelisation
                 AdjustSubPartToPhaseCM(subnumingroup[i], subPart, cmphase);
             }
+            // TODO: Optimise bottleneck
             PreCalcSearchSubSet(opt, subnumingroup[i], subPart, sublevel);
             subpfof = SearchSubset(opt, subnumingroup[i], subnumingroup[i], subPart,
                 subngroup[i], sublevel, &numcores[i]);
