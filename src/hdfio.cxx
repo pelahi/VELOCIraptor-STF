@@ -520,25 +520,6 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     LN=(opt.p*lscale/pow(N_DM,1.0/3.0));
 #ifdef USEMPI
     }
-#ifdef USEPARALLELHDF
-    //if using parallel hdf5 and reading snapshots where number of read tasks
-    //greater than number of files set the offsets in the file for that task
-    //first load the number of particles in the file for current read task
-    if (opt.nsnapread > opt.num_files) {
-        if (ireadtask[ThisTask]) {
-            for(i=0; i<opt.num_files; i++) if (ireadfile[i]) {
-                for (j=0;j<nusetypes;j++) {
-                k=usetypes[j];
-                readtasknumpartinfile[ThisTask]+=hdf_header_info[i].npart[k];
-                }
-            }
-            int ntaskread = ceiling(opt.nsnapread/opt.num_files);
-            int ifile = floor(ireadtask[ThisTask]/ntaskread);
-            ireadfile[ifile] = 1;
-
-        }
-    }
-#endif
 #endif
     //after finished reading the header, start on the actual particle information
 
@@ -2433,7 +2414,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     //a bit of clean up
 #ifdef USEMPI
 #ifdef USEPARALLELHDF
-    MPI_Comm_free(&mpi_comm_parallel_read);
+    if (opt.nsnapread > opt.num_files) MPI_Comm_free(&mpi_comm_parallel_read);
 #endif
     MPI_Comm_free(&mpi_comm_read);
     if (opt.iBaryonSearch) delete[] mpi_nsend_baryon;

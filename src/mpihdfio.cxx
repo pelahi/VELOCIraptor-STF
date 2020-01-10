@@ -131,7 +131,7 @@ void MPINumInDomainHDF(Options &opt)
     MPIDomainDecompositionHDF(opt);
 
     Int_t i,j,k;
-    unsigned long long nchunk;
+    unsigned long long n,nchunk;
     char buf[2000];
     MPI_Status status;
 
@@ -180,10 +180,26 @@ void MPINumInDomainHDF(Options &opt)
     hsize_t datadim[5];
     Int_t Nlocalbuf,ibuf=0,*Nbuf, *Nbaryonbuf;
     int *ireadfile,*ireadtask,*readtaskID;
+    hid_t plist_id = H5P_DEFAULT;
     ireadtask=new int[NProcs];
     readtaskID=new int[opt.nsnapread];
     ireadfile=new int[opt.num_files];
     MPIDistributeReadTasks(opt,ireadtask,readtaskID);
+#ifdef USEPARALLELHDF
+    MPI_Comm mpi_comm_read;
+    MPI_Comm mpi_comm_parallel_read;
+    int ThisParallelReadTask, NProcsParallelReadTask;
+    if (opt.nsnapread > opt.num_files) {
+        MPI_Comm_split(MPI_COMM_WORLD, (ireadtask[ThisTask]>=0), ThisTask, &mpi_comm_read);
+        int ntaskread = ceiling(opt.nsnapread/opt.num_files);
+        int ifile = floor(ireadtask[ThisTask]/ntaskread);
+        MPI_Comm_split(mpi_comm_read, ifile, ireadtask[ThisTask], &mpi_comm_read);
+        MPI_Comm_rank(mpi_comm_parallel_read, &ThisParallelReadTask);
+        MPI_Comm_size(mpi_comm_parallel_read, &NProcsParallelReadTask);
+        plist_id = H5Pcreate(H5P_FILE_ACCESS);
+        H5Pset_fapl_mpio(plist_id, mpi_comm_parallel_read, MPI_INFO_NULL);
+    }
+#endif
 
     Nbuf=new Int_t[NProcs];
     Nbaryonbuf=new Int_t[NProcs];
@@ -210,8 +226,7 @@ void MPINumInDomainHDF(Options &opt)
             if(opt.num_files>1) sprintf(buf,"%s.%d.hdf5",opt.fname,i);
             else sprintf(buf,"%s.hdf5",opt.fname);
             //Open the specified file and the specified dataset in the file.
-            // Fhdf[i].openFile(buf, H5F_ACC_RDONLY);
-            Fhdf[i]=H5Fopen(buf, H5F_ACC_RDONLY, H5P_DEFAULT);
+            Fhdf[i]=H5Fopen(buf, H5F_ACC_RDONLY, plist_id);
             //get number in file
             if (opt.ihdfnameconvention==HDFSWIFTEAGLENAMES || opt.ihdfnameconvention==HDFOLDSWIFTEAGLENAMES) {
                 vlongbuff = read_attribute_v<long long>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].INuminFile]);
@@ -241,12 +256,20 @@ void MPINumInDomainHDF(Options &opt)
             }
             for (j=0;j<nusetypes;j++) {
                 k=usetypes[j];
-                //data loaded into memory in chunks
-                if (hdf_header_info[i].npart[k]<chunksize)nchunk=hdf_header_info[i].npart[k];
-                else nchunk=chunksize;
-                for(auto n=0;n<hdf_header_info[i].npart[k];n+=nchunk)
+                unsigned long long nstart = 0, nend = hdf_header_info[i].npart[k];
+#ifdef USEPARALLELHDF
+                if (opt.num_files<opt.nsnapread) {
+                    unsigned long long nlocalsize = nend / NProcsParallelReadTask;
+                    nstart = nlocalsize*ThisParallelReadTask;
+                    if (ThisParallelReadTask < NProcsParallelReadTask -1)
+                        nend = nlocalsize + nstart;
+                }
+#endif
+                if (nend-nstart<chunksize)nchunk=nend-nstart;
+                else nchunk=nend-nstart;
+                for(n=nstart;n<nend;n+=nchunk)
                 {
-                    if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
+                    if (nend - n < chunksize && nend - n > 0) nchunk=nend-n;
                     //setup hyperslab so that it is loaded into the buffer
                     HDF5ReadHyperSlabReal(doublebuff,partsdataset[i*NHDFTYPE+k], partsdataspace[i*NHDFTYPE+k], 1, 3, nchunk, n);
                     for (auto nn=0;nn<nchunk;nn++) {
@@ -258,12 +281,20 @@ void MPINumInDomainHDF(Options &opt)
             if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) {
                 for (j=1;j<=nbusetypes;j++) {
                     k=usetypes[j];
-                    //data loaded into memory in chunks
-                    if (hdf_header_info[i].npart[k]<chunksize)nchunk=hdf_header_info[i].npart[k];
-                    else nchunk=chunksize;
-                    for(auto n=0;n<hdf_header_info[i].npart[k];n+=nchunk)
+                    unsigned long long nstart = 0, nend = hdf_header_info[i].npart[k];
+#ifdef USEPARALLELHDF
+                    if (opt.num_files<opt.nsnapread) {
+                        unsigned long long nlocalsize = nend / NProcsParallelReadTask;
+                        nstart = nlocalsize*ThisParallelReadTask;
+                        if (ThisParallelReadTask < NProcsParallelReadTask -1)
+                            nend = nlocalsize + nstart;
+                    }
+#endif
+                    if (nend-nstart<chunksize)nchunk=nend-nstart;
+                    else nchunk=nend-nstart;
+                    for(n=nstart;n<nend;n+=nchunk)
                     {
-                        if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
+                        if (nend - n < chunksize && nend - n > 0) nchunk=nend-n;
                         // setup hyperslab so that it is loaded into the buffer
                         HDF5ReadHyperSlabReal(doublebuff, partsdataset[i*NHDFTYPE+k], partsdataspace[i*NHDFTYPE+k], 1, 3, nchunk, n);
 
@@ -293,6 +324,7 @@ void MPINumInDomainHDF(Options &opt)
                 HDF5CloseGroup(partsdataspace[i*NHDFTYPE+k]);
             }
             H5Fclose(Fhdf[i]);
+            H5Pclose(plist_id);
 	   }
     }
     //now having read number of particles, run all gather
@@ -303,7 +335,12 @@ void MPINumInDomainHDF(Options &opt)
         MPI_Allreduce(Nbaryonbuf,mpi_nlocal,NProcs,MPI_Int_t,MPI_SUM,MPI_COMM_WORLD);
         Nlocalbaryon[0]=mpi_nlocal[ThisTask];
     }
-
+#ifdef USEPARALLELHDF
+    if (opt.nsnapread > opt.num_files) {
+        MPI_Comm_free(&mpi_comm_read);
+        MPI_Comm_free(&mpi_comm_parallel_read);
+    }
+#endif
     delete[] ireadtask;
     delete[] readtaskID;
     delete[] ireadfile;
