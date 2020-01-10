@@ -102,6 +102,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     vector<hid_t> partsdataset_extra;
     vector<hid_t> partsdataspace_extra;
     hid_t chunkspace;
+    hid_t plist_id = H5P_DEFAULT;
     unsigned long long chunksize=opt.inputbufsize;
     //buffers to load data
     int *intbuff=new int[chunksize];
@@ -210,7 +211,6 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
         mpi_nsend_readthread=new Int_t[opt.nsnapread*opt.nsnapread];
         if (opt.iBaryonSearch) mpi_nsend_readthread_baryon=new Int_t[opt.nsnapread*opt.nsnapread];
     }
-    hid_t plist_id = H5P_DEFAULT;
 
     //used in mpi to load access to all the data blocks of interest
     vector<hid_t> partsdatasetall;
