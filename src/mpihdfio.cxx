@@ -191,7 +191,7 @@ void MPINumInDomainHDF(Options &opt)
     int ThisParallelReadTask, NProcsParallelReadTask;
     if (opt.nsnapread > opt.num_files) {
         MPI_Comm_split(MPI_COMM_WORLD, (ireadtask[ThisTask]>=0), ThisTask, &mpi_comm_read);
-        int ntaskread = ceiling(opt.nsnapread/opt.num_files);
+        int ntaskread = ceil(opt.nsnapread/opt.num_files);
         int ifile = floor(ireadtask[ThisTask]/ntaskread);
         MPI_Comm_split(mpi_comm_read, ifile, ireadtask[ThisTask], &mpi_comm_read);
         MPI_Comm_rank(mpi_comm_parallel_read, &ThisParallelReadTask);

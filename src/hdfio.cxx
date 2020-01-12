@@ -265,7 +265,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
         MPI_Allreduce(&inreadsend,&totreadsend,1,MPI_Int_t,MPI_MIN,mpi_comm_read);
 #ifdef USEPARALLELHDF
         if (opt.nsnapread > opt.num_files) {
-            int ntaskread = ceiling(opt.nsnapread/opt.num_files);
+            int ntaskread = ceil(opt.nsnapread/opt.num_files);
             int ifile = floor(ireadtask[ThisTask]/ntaskread);
             MPI_Comm_split(mpi_comm_read, ifile, ireadtask[ThisTask], &mpi_comm_read);
             MPI_Comm_rank(mpi_comm_parallel_read, &ThisParallelReadTask);
