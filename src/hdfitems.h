@@ -335,7 +335,7 @@ static inline void HDF5CloseDataSpace(hid_t &id){
 
 static inline void HDF5ReadHyperSlabReal(double *buffer,
     const hid_t &dataset, const hid_t &dataspace,
-    const hsize_t datarank, const hsize_t ndim, int nchunk, int noffset
+    const hsize_t datarank, const hsize_t ndim, unsigned long long nchunk, unsigned long long noffset
 )
 {
     //setup hyperslab so that it is loaded into the buffer
@@ -354,7 +354,7 @@ static inline void HDF5ReadHyperSlabReal(double *buffer,
 
 static inline void HDF5ReadHyperSlabInteger(long long *buffer,
     const hid_t &dataset, const hid_t &dataspace,
-    const hsize_t datarank, const hsize_t ndim, int nchunk, int noffset
+    const hsize_t datarank, const hsize_t ndim, unsigned long long nchunk, unsigned long long noffset
 )
 {
     //setup hyperslab so that it is loaded into the buffer

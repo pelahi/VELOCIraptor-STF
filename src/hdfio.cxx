@@ -134,8 +134,8 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     ///Since Illustris contains an unused type of particles (2) and tracer particles (3) really not useful to iterate over all particle types in loops
     int nusetypes,nbusetypes;
     int usetypes[NHDFTYPE];
-    Int_t i,j,k,n;
-    unsigned long long nchunk,count,bcount,count2,bcount2;
+    Int_t i,j,k;
+    unsigned long long n,nchunk,count,bcount,count2,bcount2;
     Int_t itemp;
 
     //store cosmology
@@ -267,7 +267,10 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
         if (opt.nsnapread > opt.num_files) {
             int ntaskread = ceil(opt.nsnapread/opt.num_files);
             int ifile = floor(ireadtask[ThisTask]/ntaskread);
-            MPI_Comm_split(mpi_comm_read, ifile, ireadtask[ThisTask], &mpi_comm_read);
+	    int ThisReadTask, NProcsReadTask;
+            MPI_Comm_rank(mpi_comm_read, &ThisReadTask);
+            MPI_Comm_size(mpi_comm_read, &NProcsReadTask);
+            MPI_Comm_split(mpi_comm_read, ifile, ThisReadTask, &mpi_comm_parallel_read);
             MPI_Comm_rank(mpi_comm_parallel_read, &ThisParallelReadTask);
             MPI_Comm_size(mpi_comm_parallel_read, &NProcsParallelReadTask);
             plist_id = H5Pcreate(H5P_FILE_ACCESS);
@@ -355,6 +358,9 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 
             //Open the specified file and the specified dataset in the file.
             Fhdf[i] = H5Fopen(buf, H5F_ACC_RDONLY, plist_id);
+#ifdef USEPARALLELHDF
+            H5Pclose(plist_id);
+#endif
             if (ThisTask==0 && i==0) {
                 cout<<buf<<endl;
                 cout<<"HDF file contains the following group structures "<<endl;
@@ -1764,20 +1770,20 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 
                 for (j=0;j<nusetypes;j++)
                 {
-                    k=usetypes[j];
-                    //data loaded into memory in chunks
-                    //if one task per file
                     unsigned long long nstart = 0, nend = hdf_header_info[i].npart[k];
+                    unsigned long long nlocalsize;
 #ifdef USEPARALLELHDF
                     if (opt.num_files<opt.nsnapread) {
-                        unsigned long long nlocalsize = nend / NProcsParallelReadTask;
+                        plist_id = H5Pcreate(H5P_DATASET_XFER);
+                        H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_INDEPENDENT);
+                        nlocalsize = nend / NProcsParallelReadTask;
                         nstart = nlocalsize*ThisParallelReadTask;
                         if (ThisParallelReadTask < NProcsParallelReadTask -1)
                             nend = nlocalsize + nstart;
                     }
 #endif
                     if (nend-nstart<chunksize)nchunk=nend-nstart;
-                    else nchunk=nend-nstart;
+                    else nchunk=chunksize;
                     ninputoffset = 0;
                     for(n=nstart;n<nend;n+=nchunk)
                     {
@@ -2110,16 +2116,19 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                   for (j=1;j<=nbusetypes;j++) {
                     k=usetypes[j];
                     unsigned long long nstart = 0, nend = hdf_header_info[i].npart[k];
+                    unsigned long long nlocalsize;
 #ifdef USEPARALLELHDF
                     if (opt.num_files<opt.nsnapread) {
-                        unsigned long long nlocalsize = nend / NProcsParallelReadTask;
+                        plist_id = H5Pcreate(H5P_DATASET_XFER);
+                        H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_INDEPENDENT);
+                        nlocalsize = nend / NProcsParallelReadTask;
                         nstart = nlocalsize*ThisParallelReadTask;
                         if (ThisParallelReadTask < NProcsParallelReadTask -1)
                             nend = nlocalsize + nstart;
                     }
 #endif
                     if (nend-nstart<chunksize)nchunk=nend-nstart;
-                    else nchunk=nend-nstart;
+                    else nchunk=chunksize;
                     ninputoffset = 0;
                     for(n=nstart;n<nend;n+=nchunk)
                     {
@@ -2281,6 +2290,9 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
         		MPI_Abort(MPI_COMM_WORLD,8);
             }
             */
+#ifdef USEPARALLELHDF
+            MPI_Barrier(mpi_comm_parallel_read);
+#endif
             HDF5CloseFile(Fhdf[i]);
             H5Pclose(plist_id);
             //send info between read threads

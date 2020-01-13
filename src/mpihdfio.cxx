@@ -188,12 +188,14 @@ void MPINumInDomainHDF(Options &opt)
 #ifdef USEPARALLELHDF
     MPI_Comm mpi_comm_read;
     MPI_Comm mpi_comm_parallel_read;
-    int ThisParallelReadTask, NProcsParallelReadTask;
+    int ThisReadTask, NProcsReadTask, ThisParallelReadTask, NProcsParallelReadTask;
     if (opt.nsnapread > opt.num_files) {
         MPI_Comm_split(MPI_COMM_WORLD, (ireadtask[ThisTask]>=0), ThisTask, &mpi_comm_read);
         int ntaskread = ceil(opt.nsnapread/opt.num_files);
         int ifile = floor(ireadtask[ThisTask]/ntaskread);
-        MPI_Comm_split(mpi_comm_read, ifile, ireadtask[ThisTask], &mpi_comm_read);
+        MPI_Comm_rank(mpi_comm_read, &ThisReadTask);
+        MPI_Comm_size(mpi_comm_read, &NProcsReadTask);
+        MPI_Comm_split(mpi_comm_read, ifile, ThisReadTask, &mpi_comm_parallel_read);
         MPI_Comm_rank(mpi_comm_parallel_read, &ThisParallelReadTask);
         MPI_Comm_size(mpi_comm_parallel_read, &NProcsParallelReadTask);
         plist_id = H5Pcreate(H5P_FILE_ACCESS);
@@ -227,6 +229,9 @@ void MPINumInDomainHDF(Options &opt)
             else sprintf(buf,"%s.hdf5",opt.fname);
             //Open the specified file and the specified dataset in the file.
             Fhdf[i]=H5Fopen(buf, H5F_ACC_RDONLY, plist_id);
+#ifdef USEPARALLELHDF
+            H5Pclose(plist_id);
+#endif
             //get number in file
             if (opt.ihdfnameconvention==HDFSWIFTEAGLENAMES || opt.ihdfnameconvention==HDFOLDSWIFTEAGLENAMES) {
                 vlongbuff = read_attribute_v<long long>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].INuminFile]);
@@ -236,7 +241,6 @@ void MPINumInDomainHDF(Options &opt)
                 vintbuff = read_attribute_v<int>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].INuminFile]);
                 for (k=0;k<NHDFTYPE;k++) hdf_header_info[i].npart[k]=vintbuff[k];
             }
-
             //open particle group structures
             for (j=0;j<nusetypes;j++) {k=usetypes[j]; partsgroup[i*NHDFTYPE+k]=HDF5OpenGroup(Fhdf[i],hdf_gnames.part_names[k]);}
             if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) {
@@ -257,16 +261,19 @@ void MPINumInDomainHDF(Options &opt)
             for (j=0;j<nusetypes;j++) {
                 k=usetypes[j];
                 unsigned long long nstart = 0, nend = hdf_header_info[i].npart[k];
+                unsigned long long nlocalsize;
 #ifdef USEPARALLELHDF
                 if (opt.num_files<opt.nsnapread) {
-                    unsigned long long nlocalsize = nend / NProcsParallelReadTask;
+                    plist_id = H5Pcreate(H5P_DATASET_XFER);
+                    H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_INDEPENDENT);
+                    nlocalsize = nend / NProcsParallelReadTask;
                     nstart = nlocalsize*ThisParallelReadTask;
                     if (ThisParallelReadTask < NProcsParallelReadTask -1)
                         nend = nlocalsize + nstart;
                 }
 #endif
                 if (nend-nstart<chunksize)nchunk=nend-nstart;
-                else nchunk=nend-nstart;
+                else nchunk=chunksize;
                 for(n=nstart;n<nend;n+=nchunk)
                 {
                     if (nend - n < chunksize && nend - n > 0) nchunk=nend-n;
@@ -291,7 +298,7 @@ void MPINumInDomainHDF(Options &opt)
                     }
 #endif
                     if (nend-nstart<chunksize)nchunk=nend-nstart;
-                    else nchunk=nend-nstart;
+                    else nchunk=chunksize;
                     for(n=nstart;n<nend;n+=nchunk)
                     {
                         if (nend - n < chunksize && nend - n > 0) nchunk=nend-n;
@@ -337,8 +344,8 @@ void MPINumInDomainHDF(Options &opt)
     }
 #ifdef USEPARALLELHDF
     if (opt.nsnapread > opt.num_files) {
-        MPI_Comm_free(&mpi_comm_read);
         MPI_Comm_free(&mpi_comm_parallel_read);
+        MPI_Comm_free(&mpi_comm_read);
     }
 #endif
     delete[] ireadtask;

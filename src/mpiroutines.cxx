@@ -171,7 +171,7 @@ void MPINumInDomain(Options &opt)
     return;
     }
     int nsnapread=opt.nsnapread;
-    opt.nsnapread=min(NProcs,opt.num_files);
+    //opt.nsnapread=min(NProcs,opt.num_files);
     if(opt.inputtype==IOTIPSY) MPINumInDomainTipsy(opt);
     else if (opt.inputtype==IOGADGET) MPINumInDomainGadget(opt);
     else if (opt.inputtype==IORAMSES) MPINumInDomainRAMSES(opt);
