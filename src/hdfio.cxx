@@ -1768,14 +1768,18 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 #endif
                 }
 
+#ifdef USEPARALLELHDF
+                if (opt.num_files<opt.nsnapread) {
+                    plist_id = H5Pcreate(H5P_DATASET_XFER);
+                    H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_INDEPENDENT);
+                }
+#endif
                 for (j=0;j<nusetypes;j++)
                 {
                     unsigned long long nstart = 0, nend = hdf_header_info[i].npart[k];
                     unsigned long long nlocalsize;
 #ifdef USEPARALLELHDF
                     if (opt.num_files<opt.nsnapread) {
-                        plist_id = H5Pcreate(H5P_DATASET_XFER);
-                        H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_INDEPENDENT);
                         nlocalsize = nend / NProcsParallelReadTask;
                         nstart = nlocalsize*ThisParallelReadTask;
                         if (ThisParallelReadTask < NProcsParallelReadTask -1)
@@ -1934,8 +1938,9 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                             iextraoffset += opt.extra_dm_internalprop_names.size();
 #endif
                         }
+cout<<ThisTask<<" | "<<ThisParallelReadTask<<" has loaded hyperslab starting at  "<<n<<" of size "<<nchunk<<" of ("<<nstart<<","<<nend<<")"<<endl;
 
-                    for (int nn=0;nn<nchunk;nn++) {
+                    for (unsigned long long nn=0;nn<nchunk;nn++) {
                         ibuf=MPIGetParticlesProcessor(doublebuff[nn*3],doublebuff[nn*3+1],doublebuff[nn*3+2]);
                         ibufindex=ibuf*BufSize+Nbuf[ibuf];
                         //reset hydro quantities of buffer
@@ -2110,6 +2115,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                       MPIAddParticletoAppropriateBuffer(opt, ibuf, ibufindex, ireadtask, BufSize, Nbuf, Pbuf, Nlocal, Part.data(), Nreadbuf, Preadbuf);
                     }
                     ninputoffset += nchunk;
+cout<<ThisTask<<" | "<<ThisParallelReadTask<<" is at "<<n<<" of "<<nend<<endl;
                   }
                 }
                 if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) {
@@ -2119,8 +2125,6 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                     unsigned long long nlocalsize;
 #ifdef USEPARALLELHDF
                     if (opt.num_files<opt.nsnapread) {
-                        plist_id = H5Pcreate(H5P_DATASET_XFER);
-                        H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_INDEPENDENT);
                         nlocalsize = nend / NProcsParallelReadTask;
                         nstart = nlocalsize*ThisParallelReadTask;
                         if (ThisParallelReadTask < NProcsParallelReadTask -1)
@@ -2242,9 +2246,12 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                   }//end of part type
                 }//end of baryon if
                 //close data spaces
+		//close property 
+	        H5Pclose(plist_id);
                 for (auto &hidval:partsdataspace) HDF5CloseDataSpace(hidval);
                 for (auto &hidval:partsdataset) HDF5CloseDataSet(hidval);
                 for (auto &hidval:partsgroup) HDF5CloseGroup(hidval);
+cout<<ThisTask<<" now finished reading data and trying to send"<<endl;
             }//end of try block
             /*
             catch(GroupIException error)
@@ -2290,11 +2297,10 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
         		MPI_Abort(MPI_COMM_WORLD,8);
             }
             */
-#ifdef USEPARALLELHDF
-            MPI_Barrier(mpi_comm_parallel_read);
-#endif
+//#ifdef USEPARALLELHDF
+//            MPI_Barrier(mpi_comm_parallel_read);
+//#endif
             HDF5CloseFile(Fhdf[i]);
-            H5Pclose(plist_id);
             //send info between read threads
             if (opt.nsnapread>1&&inreadsend<totreadsend){
                 MPI_Allgather(Nreadbuf, opt.nsnapread, MPI_Int_t, mpi_nsend_readthread, opt.nsnapread, MPI_Int_t, mpi_comm_read);

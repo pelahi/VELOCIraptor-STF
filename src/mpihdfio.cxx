@@ -312,6 +312,7 @@ void MPINumInDomainHDF(Options &opt)
                     }
                 }
             }
+            H5Pclose(plist_id);
             for (j=0;j<nusetypes;j++) {
                 k=usetypes[j];
                 HDF5CloseDataSpace(partsdataspace[i*NHDFTYPE+k]);
@@ -331,7 +332,6 @@ void MPINumInDomainHDF(Options &opt)
                 HDF5CloseGroup(partsdataspace[i*NHDFTYPE+k]);
             }
             H5Fclose(Fhdf[i]);
-            H5Pclose(plist_id);
 	   }
     }
     //now having read number of particles, run all gather
