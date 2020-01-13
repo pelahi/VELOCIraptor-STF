@@ -2650,6 +2650,8 @@ inline void PreCalcSearchSubSet(Options &opt, Int_t subnumingroup,  Particle *&s
     Coordinate *gvel;
     Matrix *gveldisp;
 
+    if (opt.iverbose) cout<< ThisTask<<" Substructure at sublevel "<<sublevel<<" with "<<subnumingroup
+        <<" particles"<<endl;
     if (subnumingroup>=MINSUBSIZE&&opt.foftype!=FOF6DCORE) {
         //now if object is large enough for phase-space decomposition and search, compare local field to bg field
         opt.Ncell=opt.Ncellfac*subnumingroup;
@@ -2657,8 +2659,6 @@ inline void PreCalcSearchSubSet(Options &opt, Int_t subnumingroup,  Particle *&s
         while (opt.Ncell<MINCELLSIZE && subnumingroup/4.0>opt.Ncell) opt.Ncell*=2;
         tree=InitializeTreeGrid(opt,subnumingroup,subPart);
         ngrid=tree->GetNumLeafNodes();
-        if (opt.iverbose) cout<< ThisTask<<" Substructure at sublevel "<<sublevel<<" with "<<subnumingroup
-            <<" particles split into are "<<ngrid<<" grid cells, with each node containing ~"<<subnumingroup/ngrid<<" particles"<<endl;
         grid=new GridCell[ngrid];
         FillTreeGrid(opt, subnumingroup, ngrid, tree, subPart, grid);
         gvel=GetCellVel(opt,subnumingroup,subPart,ngrid,grid);
