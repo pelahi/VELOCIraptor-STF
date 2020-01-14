@@ -2243,8 +2243,8 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                   }//end of part type
                 }//end of baryon if
                 //close data spaces
-		//close property 
-	        H5Pclose(plist_id);
+	              //close property
+	              H5Pclose(plist_id);
                 for (auto &hidval:partsdataspaceall) HDF5CloseDataSpace(hidval);
                 for (auto &hidval:partsdatasetall) HDF5CloseDataSet(hidval);
                 for (auto &hidval:partsdataspaceall_extra) HDF5CloseDataSpace(hidval);
