@@ -659,7 +659,7 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
 #endif
     //if returning to swift as swift is writing a snapshot, then write for the groups where the particles are found in a file
     //assuming that the swift task and swift index can be used to determine where a particle will be written.
-    if (ireturngroupinfoflag == 0 ) WriteSwiftExtendedOutput (libvelociraptorOpt, ngroup, numingroup, pglist, parts);
+    if (ireturngroupinfoflag != 1 ) WriteSwiftExtendedOutput (libvelociraptorOpt, ngroup, numingroup, pglist, parts);
 
     for (Int_t i=1;i<=ngroup;i++) delete[] pglist[i];
     delete[] pglist;
@@ -673,7 +673,7 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
 
     //store group information to return information to swift if required
     //otherwise, return NULL as pointer
-    if (ireturngroupinfoflag == 0 ) {
+    if (ireturngroupinfoflag != 1 ) {
         cout<<"VELOCIraptor returning, no group info returned to swift as requested."<< endl;
         //free mem associate with mpi cell node ides
         libvelociraptorOpt.cellnodeids = NULL;
