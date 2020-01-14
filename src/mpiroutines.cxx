@@ -922,6 +922,7 @@ void MPIAddParticletoAppropriateBuffer(Options &opt, const int &ibuf, Int_t ibuf
     }
     else {
         if(Nbuf[ibuf]==BufSize&&ireadtask[ibuf]<0) {
+//cout<<ThisTask<<" sending info to non-read task "<<ibuf<<" "<<Nbuf[ibuf]<<endl;
             MPI_Send(&Nbuf[ibuf], 1, MPI_Int_t, ibuf, ibuf+NProcs, MPI_COMM_WORLD);
             MPI_Send(&Pbuf[ibuf*BufSize],sizeof(Particle)*Nbuf[ibuf],MPI_BYTE,ibuf,ibuf,MPI_COMM_WORLD);
             MPISendHydroInfoFromReadThreads(opt, Nbuf[ibuf], &Pbuf[ibuf*BufSize], ibuf);
@@ -932,6 +933,7 @@ void MPIAddParticletoAppropriateBuffer(Options &opt, const int &ibuf, Int_t ibuf
         }
         else if (ireadtask[ibuf]>=0) {
             if (ibuf!=ThisTask) {
+//cout<<ThisTask<<" storing info for read task "<<ibuf<<" | "<<ireadtask[ibuf]<<" "<<Nreadbuf[ireadtask[ibuf]]<<" "<<Preadbuf[ireadtask[ibuf]].size()<<endl;
                 if (Nreadbuf[ireadtask[ibuf]]==Preadbuf[ireadtask[ibuf]].size()) Preadbuf[ireadtask[ibuf]].resize(Preadbuf[ireadtask[ibuf]].size()+BufSize);
                 Preadbuf[ireadtask[ibuf]][Nreadbuf[ireadtask[ibuf]]]=Pbuf[ibufindex];
                 Nreadbuf[ireadtask[ibuf]]++;

@@ -251,8 +251,8 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     {
         //to temporarily store data from gadget file
         Pbuf=new Particle[BufSize*NProcs];
-        Nreadbuf=new Int_t[opt.num_files];
-        for (int j=0;j<opt.num_files;j++) Nreadbuf[j]=0;
+        Nreadbuf=new Int_t[opt.nsnapread];
+        for (int j=0;j<opt.nsnapread;j++) Nreadbuf[j]=0;
         if (opt.nsnapread>1){
             Preadbuf=new vector<Particle>[opt.nsnapread];
             for (int j=0;j<opt.nsnapread;j++) Preadbuf[j].reserve(BufSize);
@@ -1938,8 +1938,6 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                             iextraoffset += opt.extra_dm_internalprop_names.size();
 #endif
                         }
-cout<<ThisTask<<" | "<<ThisParallelReadTask<<" has loaded hyperslab starting at  "<<n<<" of size "<<nchunk<<" of ("<<nstart<<","<<nend<<")"<<endl;
-
                     for (unsigned long long nn=0;nn<nchunk;nn++) {
                         ibuf=MPIGetParticlesProcessor(doublebuff[nn*3],doublebuff[nn*3+1],doublebuff[nn*3+2]);
                         ibufindex=ibuf*BufSize+Nbuf[ibuf];
@@ -2115,7 +2113,6 @@ cout<<ThisTask<<" | "<<ThisParallelReadTask<<" has loaded hyperslab starting at 
                       MPIAddParticletoAppropriateBuffer(opt, ibuf, ibufindex, ireadtask, BufSize, Nbuf, Pbuf, Nlocal, Part.data(), Nreadbuf, Preadbuf);
                     }
                     ninputoffset += nchunk;
-cout<<ThisTask<<" | "<<ThisParallelReadTask<<" is at "<<n<<" of "<<nend<<endl;
                   }
                 }
                 if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) {
@@ -2251,7 +2248,6 @@ cout<<ThisTask<<" | "<<ThisParallelReadTask<<" is at "<<n<<" of "<<nend<<endl;
                 for (auto &hidval:partsdataspace) HDF5CloseDataSpace(hidval);
                 for (auto &hidval:partsdataset) HDF5CloseDataSet(hidval);
                 for (auto &hidval:partsgroup) HDF5CloseGroup(hidval);
-cout<<ThisTask<<" now finished reading data and trying to send"<<endl;
             }//end of try block
             /*
             catch(GroupIException error)
@@ -2297,9 +2293,9 @@ cout<<ThisTask<<" now finished reading data and trying to send"<<endl;
         		MPI_Abort(MPI_COMM_WORLD,8);
             }
             */
-//#ifdef USEPARALLELHDF
-//            MPI_Barrier(mpi_comm_parallel_read);
-//#endif
+#ifdef USEPARALLELHDF
+            MPI_Barrier(mpi_comm_parallel_read);
+#endif
             HDF5CloseFile(Fhdf[i]);
             //send info between read threads
             if (opt.nsnapread>1&&inreadsend<totreadsend){
