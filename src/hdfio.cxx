@@ -2245,8 +2245,10 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                 //close data spaces
 		//close property 
 	        H5Pclose(plist_id);
-                for (auto &hidval:partsdataspace) HDF5CloseDataSpace(hidval);
-                for (auto &hidval:partsdataset) HDF5CloseDataSet(hidval);
+                for (auto &hidval:partsdataspaceall) HDF5CloseDataSpace(hidval);
+                for (auto &hidval:partsdatasetall) HDF5CloseDataSet(hidval);
+                for (auto &hidval:partsdataspaceall_extra) HDF5CloseDataSpace(hidval);
+                for (auto &hidval:partsdatasetall_extra) HDF5CloseDataSet(hidval);
                 for (auto &hidval:partsgroup) HDF5CloseGroup(hidval);
             }//end of try block
             /*
@@ -2293,9 +2295,6 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
         		MPI_Abort(MPI_COMM_WORLD,8);
             }
             */
-#ifdef USEPARALLELHDF
-            MPI_Barrier(mpi_comm_parallel_read);
-#endif
             HDF5CloseFile(Fhdf[i]);
             //send info between read threads
             if (opt.nsnapread>1&&inreadsend<totreadsend){
