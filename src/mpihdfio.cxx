@@ -278,7 +278,7 @@ void MPINumInDomainHDF(Options &opt)
                 {
                     if (nend - n < chunksize && nend - n > 0) nchunk=nend-n;
                     //setup hyperslab so that it is loaded into the buffer
-                    HDF5ReadHyperSlabReal(doublebuff,partsdataset[i*NHDFTYPE+k], partsdataspace[i*NHDFTYPE+k], 1, 3, nchunk, n);
+                    HDF5ReadHyperSlabReal(doublebuff,partsdataset[i*NHDFTYPE+k], partsdataspace[i*NHDFTYPE+k], 1, 3, nchunk, n, plist_id);
                     for (auto nn=0;nn<nchunk;nn++) {
                         ibuf=MPIGetParticlesProcessor(doublebuff[nn*3],doublebuff[nn*3+1],doublebuff[nn*3+2]);
                         Nbuf[ibuf]++;
@@ -312,7 +312,9 @@ void MPINumInDomainHDF(Options &opt)
                     }
                 }
             }
+#ifdef USEPARALLELHDF
             H5Pclose(plist_id);
+#endif
             for (j=0;j<nusetypes;j++) {
                 k=usetypes[j];
                 HDF5CloseDataSpace(partsdataspace[i*NHDFTYPE+k]);
