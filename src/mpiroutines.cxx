@@ -171,7 +171,7 @@ void MPINumInDomain(Options &opt)
     return;
     }
     int nsnapread=opt.nsnapread;
-    opt.nsnapread=min(NProcs,opt.num_files);
+    //opt.nsnapread=min(NProcs,opt.num_files);
     if(opt.inputtype==IOTIPSY) MPINumInDomainTipsy(opt);
     else if (opt.inputtype==IOGADGET) MPINumInDomainGadget(opt);
     else if (opt.inputtype==IORAMSES) MPINumInDomainRAMSES(opt);
@@ -922,6 +922,7 @@ void MPIAddParticletoAppropriateBuffer(Options &opt, const int &ibuf, Int_t ibuf
     }
     else {
         if(Nbuf[ibuf]==BufSize&&ireadtask[ibuf]<0) {
+//cout<<ThisTask<<" sending info to non-read task "<<ibuf<<" "<<Nbuf[ibuf]<<endl;
             MPI_Send(&Nbuf[ibuf], 1, MPI_Int_t, ibuf, ibuf+NProcs, MPI_COMM_WORLD);
             MPI_Send(&Pbuf[ibuf*BufSize],sizeof(Particle)*Nbuf[ibuf],MPI_BYTE,ibuf,ibuf,MPI_COMM_WORLD);
             MPISendHydroInfoFromReadThreads(opt, Nbuf[ibuf], &Pbuf[ibuf*BufSize], ibuf);
@@ -932,6 +933,7 @@ void MPIAddParticletoAppropriateBuffer(Options &opt, const int &ibuf, Int_t ibuf
         }
         else if (ireadtask[ibuf]>=0) {
             if (ibuf!=ThisTask) {
+//cout<<ThisTask<<" storing info for read task "<<ibuf<<" | "<<ireadtask[ibuf]<<" "<<Nreadbuf[ireadtask[ibuf]]<<" "<<Preadbuf[ireadtask[ibuf]].size()<<endl;
                 if (Nreadbuf[ireadtask[ibuf]]==Preadbuf[ireadtask[ibuf]].size()) Preadbuf[ireadtask[ibuf]].resize(Preadbuf[ireadtask[ibuf]].size()+BufSize);
                 Preadbuf[ireadtask[ibuf]][Nreadbuf[ireadtask[ibuf]]]=Pbuf[ibufindex];
                 Nreadbuf[ireadtask[ibuf]]++;
@@ -1217,7 +1219,13 @@ int MPISearchForOverlapUsingMesh(Options &opt, Double_t xsearch[3][2]){
 void MPIDistributeReadTasks(Options&opt, int *&ireadtask, int*&readtaskID){
     //initialize
     if (opt.nsnapread>NProcs) opt.nsnapread=NProcs;
+#ifndef USEPARALLELHDF
+    //if not using parallel hdf5, allow only one task per file
     if (opt.num_files<opt.nsnapread) opt.nsnapread=opt.num_files;
+#else
+    //if parallel hdf5 but not reading hdf then again, max one task per file
+    if (opt.inputtype!=IOHDF) if (opt.num_files<opt.nsnapread) opt.nsnapread=opt.num_files;
+#endif
     for (int i=0;i<NProcs;i++) ireadtask[i]=-1;
     int spacing=max(1,(int)floor(NProcs/opt.nsnapread));
     for (int i=0;i<opt.nsnapread;i++) {ireadtask[i*spacing]=i;readtaskID[i]=i*spacing;}
@@ -1226,13 +1234,34 @@ void MPIDistributeReadTasks(Options&opt, int *&ireadtask, int*&readtaskID){
 int MPISetFilesRead(Options&opt, int *&ireadfile, int *&ireadtask){
     //to determine which files the thread should read
     ireadfile=new int[opt.num_files];
+    int nread, niread, nfread;
     for (int i=0;i<opt.num_files;i++) ireadfile[i]=0;
-    int nread=opt.num_files/opt.nsnapread;
-    int niread=ireadtask[ThisTask]*nread,nfread=(ireadtask[ThisTask]+1)*nread;
+#ifndef USEPARALLELHDF
+    nread=opt.num_files/opt.nsnapread;
+    niread=ireadtask[ThisTask]*nread;
+    nfread=(ireadtask[ThisTask]+1)*nread;
     if (ireadtask[ThisTask]==opt.nsnapread-1) nfread=opt.num_files;
     for (int i=niread;i<nfread;i++) ireadfile[i]=1;
+#else
+    //for parallel hdf, multiple tasks can be set to read the same file
+    //but if nfiles >= nsnapread, proceed as always.
+    if (opt.num_files>=opt.nsnapread) {
+        nread=opt.num_files/opt.nsnapread;
+        niread=ireadtask[ThisTask]*nread,nfread=(ireadtask[ThisTask]+1)*nread;
+        if (ireadtask[ThisTask]==opt.nsnapread-1) nfread=opt.num_files;
+        for (int i=niread;i<nfread;i++) ireadfile[i]=1;
+    }
+    else {
+        int ntaskread = ceil(opt.nsnapread/opt.num_files);
+        int ifile = floor(ireadtask[ThisTask]/ntaskread);
+        ireadfile[ifile] = 1;
+        niread = ifile;
+    }
+#endif
     return niread;
 }
+
+
 //@}
 
 /// \name MPI Write related routines

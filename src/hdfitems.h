@@ -316,6 +316,40 @@ static inline hid_t HDF5OpenDataSpace(const hid_t &id){
     return idval;
 }
 
+
+static inline int whatisopen(hid_t fid) {
+        ssize_t cnt;
+        int howmany;
+        int i;
+        H5I_type_t ot;
+        hid_t anobj;
+        hid_t *objs;
+        char name[1024];
+        herr_t status;
+
+        cnt = H5Fget_obj_count(fid, H5F_OBJ_ALL);
+
+        if (cnt <= 0) return cnt;
+
+        printf("%d object(s) open\n", cnt);
+
+        objs = new hid_t[cnt];
+
+        howmany = H5Fget_obj_ids(fid, H5F_OBJ_ALL, cnt, objs);
+
+        printf("open objects:\n");
+
+        for (i = 0; i < howmany; i++ ) {
+             anobj = objs[i];
+             ot = H5Iget_type(anobj);
+             status = H5Iget_name(anobj, name, 1024);
+             printf(" %d: type %d, name %s\n",i,ot,name);
+        }
+	delete[] objs;
+        return howmany;
+}
+
+
 static inline void HDF5CloseFile(hid_t &id){
     if (id>=0) H5Fclose(id);
     id = -1;
@@ -335,7 +369,8 @@ static inline void HDF5CloseDataSpace(hid_t &id){
 
 static inline void HDF5ReadHyperSlabReal(double *buffer,
     const hid_t &dataset, const hid_t &dataspace,
-    const hsize_t datarank, const hsize_t ndim, int nchunk, int noffset
+    const hsize_t datarank, const hsize_t ndim, unsigned long long nchunk, unsigned long long noffset,
+    hid_t plist_id = H5P_DEFAULT
 )
 {
     //setup hyperslab so that it is loaded into the buffer
@@ -348,13 +383,14 @@ static inline void HDF5ReadHyperSlabReal(double *buffer,
     memdims.push_back(nchunk*ndim);
     H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, start.data(), stride.data(), count.data(), block.data());
     memspace = H5Screate_simple (1, memdims.data(), NULL);
-    safe_hdf5<herr_t>(H5Dread, dataset, H5T_NATIVE_DOUBLE, memspace, dataspace, H5P_DEFAULT, buffer);
+    safe_hdf5<herr_t>(H5Dread, dataset, H5T_NATIVE_DOUBLE, memspace, dataspace, plist_id, buffer);
 
 }
 
 static inline void HDF5ReadHyperSlabInteger(long long *buffer,
     const hid_t &dataset, const hid_t &dataspace,
-    const hsize_t datarank, const hsize_t ndim, int nchunk, int noffset
+    const hsize_t datarank, const hsize_t ndim, unsigned long long nchunk, unsigned long long noffset,
+    hid_t plist_id = H5P_DEFAULT
 )
 {
     //setup hyperslab so that it is loaded into the buffer
@@ -367,7 +403,7 @@ static inline void HDF5ReadHyperSlabInteger(long long *buffer,
     memdims.push_back(nchunk*ndim);
     H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, start.data(), stride.data(), count.data(), block.data());
     memspace = H5Screate_simple (1, memdims.data(), NULL);
-    safe_hdf5<herr_t>(H5Dread, dataset, H5T_NATIVE_LONG, memspace, dataspace, H5P_DEFAULT, buffer);
+    safe_hdf5<herr_t>(H5Dread, dataset, H5T_NATIVE_LONG, memspace, dataspace, plist_id, buffer);
 }
 
 ///\name HDF class to manage writing information
