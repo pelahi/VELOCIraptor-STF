@@ -566,21 +566,22 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     else for (Int_t i=1;i<=ngroups;i++) Fout<<numingroup[i]<<endl;
 
     //Write offsets for bound and unbound particles
-    offset.resize(ngroups+1,0);
+    offset.resize(ngroups+2,0);
     //note before had offsets at numingroup but to account for unbound particles use value of pglist at numingroup
     if (ngroups >1) for (Int_t i=2;i<=ngroups;i++) offset[i]=offset[i-1]+pglist[i-1][numingroup[i-1]];
     if (opt.ibinaryout==OUTBINARY) Fout.write((char*)&(offset.data())[1],sizeof(Int_t)*ngroups);
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
-	groupdata.resize(ng+1,0);
+        groupdata.resize(ng+1,0);
         if (ng > 1) for (Int_t i=1;i<=ng;i++) groupdata[i-1]=offset[i];
 #ifdef USEPARALLELHDF
         nids = 0; for (Int_t i=1; i<=ng; i++) nids+=pglist[i][numingroup[i]];
         MPI_Allgather(&nids, 1, MPI_Int_t, mpi_ngoffset.data(), 1, MPI_Int_t, mpi_comm_write);
+        ngoffset = 0;
         if (ThisWriteTask > 0)
         {
-            ngoffset = 0; for (auto itask = 0; itask < ThisWriteTask; itask++) ngoffset += mpi_ngoffset[itask];
-            if (ng > 1) for (Int_t i=1; i<=ng; i++) groupdata[i-1] += ngoffset;
+            for (auto itask = 0; itask < ThisWriteTask; itask++) ngoffset += mpi_ngoffset[itask];
+            for (Int_t i=1; i<=ng; i++) groupdata[i-1] += ngoffset;
         }
 #endif
         Fhdf.write_dataset(datagroupnames.group[itemp], ng, groupdata.data());
@@ -599,6 +600,7 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     else for (Int_t i=1;i<=ngroups;i++) Fout<<offset[i]<<endl;
 
     //position of unbound particle
+    for (auto &x:offset) x=0;
     if (ngroups >1) for (Int_t i=2;i<=ngroups;i++) offset[i]=offset[i-1]+numingroup[i-1]-pglist[i-1][numingroup[i-1]];
     if (opt.ibinaryout==OUTBINARY) Fout.write((char*)&(offset.data())[1],sizeof(Int_t)*ngroups);
 #ifdef USEHDF
@@ -608,9 +610,10 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
 #ifdef USEPARALLELHDF
         nuids = 0; for (Int_t i=1; i<=ng; i++) nuids+=numingroup[i]-pglist[i][numingroup[i]];
         MPI_Allgather(&nuids, 1, MPI_Int_t, mpi_ngoffset.data(), 1, MPI_Int_t, mpi_comm_write);
+        ngoffset = 0;
         if (ThisWriteTask > 0)
         {
-            ngoffset = 0; for (auto itask = 0; itask < ThisWriteTask; itask++) ngoffset += mpi_ngoffset[itask];
+            for (auto itask = 0; itask < ThisWriteTask; itask++) ngoffset += mpi_ngoffset[itask];
             for (Int_t i=1; i<=ng; i++) groupdata[i-1] += ngoffset;
         }
 #endif

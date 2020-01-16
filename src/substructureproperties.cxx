@@ -21,7 +21,7 @@ void GetCM(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_
     Particle *Pval;
     Int_t i,j,k;
     Coordinate cmold;
-    Double_t ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside;
+    Double_t massval, ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside;
     Double_t cmvx,cmvy,cmvz;
     Double_t vc,rc,x,y,z,vx,vy,vz,mval;
     Double_t change=MAXVALUE,tol=1e-2;
@@ -30,7 +30,7 @@ void GetCM(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_
     //for small groups loop over groups
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
-private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z,vx,vy,vz,vc,rc)
+private(i,j,k,Pval,ri,massval,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z,vx,vy,vz,vc,rc)
 {
     #pragma omp for schedule(dynamic) nowait
 #endif
@@ -40,10 +40,15 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
         pdata[i].gmass=pdata[i].gmaxvel=0.0;
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
-            pdata[i].gmass+=(*Pval).GetMass();
+            massval = (*Pval).GetMass();
+#ifdef NOMASS
+            massval = opt.MassValue;
+#endif
+            pdata[i].gmass+=massval;
+
             for (k=0;k<3;k++) {
-                pdata[i].gcm[k]+=(*Pval).GetPosition(k)*(*Pval).GetMass();
-                pdata[i].gcmvel[k]+=(*Pval).GetVelocity(k)*(*Pval).GetMass();
+                pdata[i].gcm[k]+=(*Pval).GetPosition(k)*massval;
+                pdata[i].gcmvel[k]+=(*Pval).GetVelocity(k)*massval;
             }
         }
         for (k=0;k<3;k++){pdata[i].gcm[k]*=(1.0/pdata[i].gmass);pdata[i].gcmvel[k]*=(1.0/pdata[i].gmass);}
@@ -79,10 +84,14 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
                     z = (*Pval).Z() - cmold[2];
                     if ((x*x + y*y + z*z) <= ri)
                     {
-                        cmx += (*Pval).GetMass()*(*Pval).X();
-                        cmy += (*Pval).GetMass()*(*Pval).Y();
-                        cmz += (*Pval).GetMass()*(*Pval).Z();
-                        EncMass += (*Pval).GetMass();
+                        massval = (*Pval).GetMass();
+#ifdef NOMASS
+                        massval = opt.MassValue;
+#endif
+                        cmx += massval*(*Pval).X();
+                        cmy += massval*(*Pval).Y();
+                        cmz += massval*(*Pval).Z();
+                        EncMass += massval;
                         Ninside++;
                     }
                 }
@@ -103,18 +112,19 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
                 z = (*Pval).Z() - pdata[i].gcm[2];
                 if ((x*x + y*y + z*z) <= rcmv)
                 {
-                    cmx += (*Pval).GetMass()*(*Pval).Vx();
-                    cmy += (*Pval).GetMass()*(*Pval).Vy();
-                    cmz += (*Pval).GetMass()*(*Pval).Vz();
-                    EncMass += (*Pval).GetMass();
+                    massval = (*Pval).GetMass();
+                    #ifdef NOMASS
+                    massval = opt.MassValue;
+                    #endif
+                    cmx += massval*(*Pval).Vx();
+                    cmy += massval*(*Pval).Vy();
+                    cmz += massval*(*Pval).Vz();
+                    EncMass += massval;
                 }
             }
             pdata[i].gcmvel[0]=cmx;pdata[i].gcmvel[1]=cmy;pdata[i].gcmvel[2]=cmz;
             for (k=0;k<3;k++) pdata[i].gcmvel[k] /= EncMass;
         }
-#ifdef NOMASS
-        pdata[i].gmass*=opt.MassValue;
-#endif
     }
 #ifdef USEOPENMP
 }
@@ -128,16 +138,20 @@ private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol,x,y,z
         EncMass=cmx=cmy=cmz=0.;
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
-private(j,Pval)
+private(j,Pval,massval)
 {
     #pragma omp for reduction(+:EncMass,cmx,cmy,cmz)
 #endif
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
-            EncMass+=(*Pval).GetMass();
-            cmx+=(*Pval).X()*(*Pval).GetMass();
-            cmy+=(*Pval).Y()*(*Pval).GetMass();
-            cmz+=(*Pval).Z()*(*Pval).GetMass();
+            massval = (*Pval).GetMass();
+#ifdef NOMASS
+            massval = opt.MassValue;
+#endif
+            EncMass+=massval ;
+            cmx+=(*Pval).X()*massval;
+            cmy+=(*Pval).Y()*massval;
+            cmz+=(*Pval).Z()*massval;
         }
 #ifdef USEOPENMP
 }
@@ -148,15 +162,19 @@ private(j,Pval)
         cmx=cmy=cmz=0.;
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
-private(j,Pval)
+private(j,Pval,massval)
 {
     #pragma omp for reduction(+:cmx,cmy,cmz)
 #endif
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
-            cmx+=(*Pval).Vx()*(*Pval).GetMass();
-            cmy+=(*Pval).Vy()*(*Pval).GetMass();
-            cmz+=(*Pval).Vz()*(*Pval).GetMass();
+            massval = (*Pval).GetMass();
+#ifdef NOMASS
+            massval = opt.MassValue;
+#endif
+            cmx+=(*Pval).Vx()*massval;
+            cmy+=(*Pval).Vy()*massval;
+            cmz+=(*Pval).Vz()*massval;
         }
 #ifdef USEOPENMP
 }
@@ -187,7 +205,7 @@ private(j,Pval)
             Ninside=0;
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
-private(j,Pval,x,y,z)
+private(j,Pval,x,y,z,massval)
 {
 #pragma omp for reduction(+:EncMass,Ninside,cmx,cmy,cmz)
 #endif
@@ -199,10 +217,14 @@ private(j,Pval,x,y,z)
                 z = (*Pval).Z() - cmold[2];
                 if ((x*x + y*y + z*z) <= ri)
                 {
-                    cmx += (*Pval).GetMass()*(*Pval).X();
-                    cmy += (*Pval).GetMass()*(*Pval).Y();
-                    cmz += (*Pval).GetMass()*(*Pval).Z();
-                    EncMass += (*Pval).GetMass();
+                    massval = (*Pval).GetMass();
+#ifdef NOMASS
+                    massval = opt.MassValue;
+#endif
+                    cmx += massval*(*Pval).X();
+                    cmy += massval*(*Pval).Y();
+                    cmz += massval*(*Pval).Z();
+                    EncMass += massval;
                     Ninside++;
                 }
             }
@@ -224,7 +246,7 @@ private(j,Pval,x,y,z)
         cmx=cmy=cmz=EncMass=0.;
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
-private(j,Pval,x,y,z)
+private(j,Pval,x,y,z,massval)
 {
     #pragma omp for reduction(+:EncMass,cmx,cmy,cmz)
 #endif
@@ -236,10 +258,14 @@ private(j,Pval,x,y,z)
             z = (*Pval).Z() - cmold[2];
             if ((x*x + y*y + z*z) <= rcmv)
             {
-                cmx += (*Pval).GetMass()*(*Pval).Vx();
-                cmy += (*Pval).GetMass()*(*Pval).Vy();
-                cmz += (*Pval).GetMass()*(*Pval).Vz();
-                EncMass += (*Pval).GetMass();
+                massval = (*Pval).GetMass();
+                #ifdef NOMASS
+                massval = opt.MassValue;
+                #endif
+                cmx += massval*(*Pval).Vx();
+                cmy += massval*(*Pval).Vy();
+                cmz += massval*(*Pval).Vz();
+                EncMass += massval;
             }
         }
 #ifdef USEOPENMP
@@ -247,9 +273,6 @@ private(j,Pval,x,y,z)
 #endif
         pdata[i].gcmvel[0]=cmx;pdata[i].gcmvel[1]=cmy;pdata[i].gcmvel[2]=cmz;
         for (k=0;k<3;k++) pdata[i].gcmvel[k] /= EncMass;
-#ifdef NOMASS
-        pdata[i].gmass*=opt.MassValue;
-#endif
     }
     if (opt.iverbose) cout<<ThisTask<<" Done getting CM in "<<MyGetTime()-time1<<endl;
 }
@@ -376,16 +399,18 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
         vc = 0;
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
-#ifdef NOMASS
-            EncMass+=opt.MassValue;
+
+#ifndef NOMASS
+            mval = Pval->GetMass();
 #else
-            EncMass+=Pval->GetMass();
+            mval = opt.MassValue;
 #endif
+            EncMass+=mval;
             rc=Pval->Radius();
             vx = (*Pval).Vx()-pdata[i].gcmvel[0];
             vy = (*Pval).Vy()-pdata[i].gcmvel[1];
             vz = (*Pval).Vz()-pdata[i].gcmvel[2];
-            J=Coordinate(Pval->GetPosition()).Cross(Coordinate(vx,vy,vz))*Pval->GetMass();
+            J=Coordinate(Pval->GetPosition()).Cross(Coordinate(vx,vy,vz))*mval;
             pdata[i].gJ=pdata[i].gJ+J;
             if (opt.iextrahalooutput) {
                 if (opt.iInclusiveHalo==0) {
@@ -406,18 +431,18 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
                     }
                 }
             }
-            Ekin+=Pval->GetMass()*(vx*vx+vy*vy+vz*vz);
+            Ekin+=mval*(vx*vx+vy*vy+vz*vz);
 #ifdef GASON
-            if (Pval->GetType()==GASTYPE) Ekin+=2.0*Pval->GetU()*Pval->GetMass();
+            if (Pval->GetType()==GASTYPE) Ekin+=2.0*Pval->GetU()*mval;
 #endif
-            pdata[i].gveldisp(0,0)+=vx*vx*Pval->GetMass();
-            pdata[i].gveldisp(1,1)+=vy*vy*Pval->GetMass();
-            pdata[i].gveldisp(2,2)+=vz*vz*Pval->GetMass();
-            pdata[i].gveldisp(0,1)+=vx*vy*Pval->GetMass();
-            pdata[i].gveldisp(0,2)+=vx*vz*Pval->GetMass();
-            pdata[i].gveldisp(1,2)+=vy*vz*Pval->GetMass();
+            pdata[i].gveldisp(0,0)+=vx*vx*mval;
+            pdata[i].gveldisp(1,1)+=vy*vy*mval;
+            pdata[i].gveldisp(2,2)+=vz*vz*mval;
+            pdata[i].gveldisp(0,1)+=vx*vy*mval;
+            pdata[i].gveldisp(0,2)+=vx*vz*mval;
+            pdata[i].gveldisp(1,2)+=vy*vz*mval;
             //calculate vc
-            if (rc>0) if (EncMass>0) vc=sqrt(opt.G*EncMass*opt.MassValue/rc);
+            if (rc>0) if (EncMass>0) vc=sqrt(opt.G*EncMass/rc);
             //max circ and then vir data
             if (vc>pdata[i].gmaxvel && EncMass>=1.0/sqrt(numingroup[i])*pdata[i].gmass) {pdata[i].gmaxvel=vc;pdata[i].gRmaxvel=rc;pdata[i].gMmaxvel=EncMass;RV_num=j+1;}
             if (EncMass>0.5*pdata[i].gmass && pdata[i].gRhalfmass==0) pdata[i].gRhalfmass=rc;
@@ -430,11 +455,6 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
         pdata[i].gveldisp=pdata[i].gveldisp*(1.0/pdata[i].gmass);
         pdata[i].gsigma_v=pow(pdata[i].gveldisp.Det(),1.0/6.0);
         Ekin*=0.5;
-#ifdef NOMASS
-        pdata[i].gJ=pdata[i].gJ*opt.MassValue;
-        pdata[i].gMmaxvel*=opt.MassValue;
-        Ekin*=opt.MassValue;
-#endif
         if (opt.iextrahalooutput && pdata[i].hostid == -1) {
             pdata[i].glambda_B=pdata[i].gJ200c.Length()/(pdata[i].gM200c*sqrt(2.0*opt.G*pdata[i].gM200c*pdata[i].gR200c));
         }
@@ -451,6 +471,11 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
         RV_Ekin=0;
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
+            #ifndef NOMASS
+            mval = Pval->GetMass();
+            #else
+            mval = opt.MassValue;
+            #endif
             vx = (*Pval).Vx()-pdata[i].gcmvel[0];
             vy = (*Pval).Vy()-pdata[i].gcmvel[1];
             vz = (*Pval).Vz()-pdata[i].gcmvel[2];
@@ -458,31 +483,33 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
             jzval=(jval*pdata[i].gJ)/pdata[i].gJ.Length();
             zdist=(Coordinate(Pval->GetPosition())*pdata[i].gJ)/pdata[i].gJ.Length();
             Rdist=sqrt(Pval->Radius2()-zdist*zdist);
-            if (Rdist>0) pdata[i].Krot+=Pval->GetMass()*(jzval*jzval/(Rdist*Rdist));
+            if (Rdist>0) pdata[i].Krot+=mval*(jzval*jzval/(Rdist*Rdist));
         }
         pdata[i].Krot*=0.5/Ekin;
-#ifdef NOMASS
-        pdata[i].Krot*=opt.MassValue;
-#endif
 
         //now calculate stuff within RV knowing particle array sorted according to radius
         for (j=0;j<RV_num;j++) {
             Pval=&Part[j+noffset[i]];
             rc=Pval->Radius();
+            #ifndef NOMASS
+            mval = Pval->GetMass();
+            #else
+            mval = opt.MassValue;
+            #endif
             vx = (*Pval).Vx()-pdata[i].gcmvel[0];
             vy = (*Pval).Vy()-pdata[i].gcmvel[1];
             vz = (*Pval).Vz()-pdata[i].gcmvel[2];
-            RV_Ekin+=Pval->GetMass()*(vx*vx+vy*vy+vz*vz);
+            RV_Ekin+=mval*(vx*vx+vy*vy+vz*vz);
 #ifdef GASON
-            if (Pval->GetType()==GASTYPE) RV_Ekin+=2.0*Pval->GetU()*Pval->GetMass();
+            if (Pval->GetType()==GASTYPE) RV_Ekin+=2.0*Pval->GetU()*mval;
 #endif
-            pdata[i].RV_J=pdata[i].RV_J+Coordinate(Pval->GetPosition()).Cross(Coordinate(vx,vy,vz))*Pval->GetMass();
-            pdata[i].RV_veldisp(0,0)+=vx*vx*Pval->GetMass();
-            pdata[i].RV_veldisp(1,1)+=vy*vy*Pval->GetMass();
-            pdata[i].RV_veldisp(2,2)+=vz*vz*Pval->GetMass();
-            pdata[i].RV_veldisp(0,1)+=vx*vy*Pval->GetMass();
-            pdata[i].RV_veldisp(0,2)+=vx*vz*Pval->GetMass();
-            pdata[i].RV_veldisp(1,2)+=vy*vz*Pval->GetMass();
+            pdata[i].RV_J=pdata[i].RV_J+Coordinate(Pval->GetPosition()).Cross(Coordinate(vx,vy,vz))*mval;
+            pdata[i].RV_veldisp(0,0)+=vx*vx*mval;
+            pdata[i].RV_veldisp(1,1)+=vy*vy*mval;
+            pdata[i].RV_veldisp(2,2)+=vz*vz*mval;
+            pdata[i].RV_veldisp(0,1)+=vx*vy*mval;
+            pdata[i].RV_veldisp(0,2)+=vx*vz*mval;
+            pdata[i].RV_veldisp(1,2)+=vy*vz*mval;
         }
         //adjust RVmax values
         pdata[i].RV_veldisp(1,0)=pdata[i].RV_veldisp(0,1);
@@ -491,12 +518,13 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
         pdata[i].RV_veldisp=pdata[i].RV_veldisp*(1.0/pdata[i].gMmaxvel);
         pdata[i].RV_sigma_v=pow(pdata[i].RV_veldisp.Det(),1.0/6.0);
         RV_Ekin*=0.5;
-#ifdef NOMASS
-        pdata[i].RV_J=pdata[i].RV_J*opt.MassValue;
-        RV_Ekin*=opt.MassValue;
-#endif
         pdata[i].RV_lambda_B=pdata[i].RV_J.Length()/(pdata[i].gMmaxvel*sqrt(2.0*opt.G*pdata[i].gMmaxvel*pdata[i].gRmaxvel));
         for (j=0;j<RV_num;j++) {
+            #ifndef NOMASS
+            mval = Pval->GetMass();
+            #else
+            mval = opt.MassValue;
+            #endif
             Pval=&Part[j+noffset[i]];
             vx = (*Pval).Vx()-pdata[i].gcmvel[0];
             vy = (*Pval).Vy()-pdata[i].gcmvel[1];
@@ -505,12 +533,9 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
             jzval=(jval*pdata[i].RV_J)/pdata[i].RV_J.Length();
             zdist=(Coordinate(Pval->GetPosition())*pdata[i].RV_J)/pdata[i].RV_J.Length();
             Rdist=sqrt(Pval->Radius2()-zdist*zdist);
-            if (Rdist>0) pdata[i].RV_Krot+=Pval->GetMass()*(jzval*jzval/(Rdist*Rdist));
+            if (Rdist>0) pdata[i].RV_Krot+=mval*(jzval*jzval/(Rdist*Rdist));
         }
         pdata[i].RV_Krot*=0.5/RV_Ekin;
-#ifdef NOMASS
-        pdata[i].RV_Krot*=opt.MassValue;
-#endif
 
 #if defined(EXTRADMON)
         for (j=0;j<numingroup[i];j++) {
@@ -524,11 +549,16 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
             Pval=&Part[j+noffset[i]];
             if (Pval->GetType()==GASTYPE) {
                 pdata[i].n_gas++;
-                pdata[i].M_gas+=Pval->GetMass();
+                #ifndef NOMASS
+                mval = Pval->GetMass();
+                #else
+                mval = opt.MassValue;
+                #endif
+                pdata[i].M_gas+=mval;
                 #ifdef STARON
                 SFR=Pval->GetSFR();
-                if (SFR>opt.gas_sfr_threshold) pdata[i].M_gas_sf+=Pval->GetMass();
-                else pdata[i].M_gas_nsf+=Pval->GetMass();
+                if (SFR>opt.gas_sfr_threshold) pdata[i].M_gas_sf+=mval;
+                else pdata[i].M_gas_nsf+=mval;
                 #endif
             }
         }
@@ -536,7 +566,11 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
             if (Pval->GetType()==GASTYPE) {
-                mval=Pval->GetMass();
+                #ifndef NOMASS
+                mval = Pval->GetMass();
+                #else
+                mval = opt.MassValue;
+                #endif
                 //store temperature in units of internal energy
                 pdata[i].Temp_gas+=Pval->GetU();
                 pdata[i].Temp_mean_gas+=mval*Pval->GetU();
@@ -646,10 +680,15 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
                     z = (*Pval).Z() - cmold[2];
                     if ((x*x + y*y + z*z) <= ri)
                     {
-                        cmx += (*Pval).GetMass()*(*Pval).X();
-                        cmy += (*Pval).GetMass()*(*Pval).Y();
-                        cmz += (*Pval).GetMass()*(*Pval).Z();
-                        EncMass += (*Pval).GetMass();
+                        #ifndef NOMASS
+                        mval = Pval->GetMass();
+                        #else
+                        mval = opt.MassValue;
+                        #endif
+                        cmx += mval*(*Pval).X();
+                        cmy += mval*(*Pval).Y();
+                        cmz += mval*(*Pval).Z();
+                        EncMass += mval;
                         Ninside++;
                     }
                 }
@@ -672,10 +711,15 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
                 z = (*Pval).Z() - pdata[i].cm_gas[2];
                 if ((x*x + y*y + z*z) <= rcmv)
                 {
-                    cmx += (*Pval).GetMass()*(*Pval).Vx();
-                    cmy += (*Pval).GetMass()*(*Pval).Vy();
-                    cmz += (*Pval).GetMass()*(*Pval).Vz();
-                    EncMass += (*Pval).GetMass();
+                    #ifndef NOMASS
+                    mval = Pval->GetMass();
+                    #else
+                    mval = opt.MassValue;
+                    #endif
+                    cmx += mval*(*Pval).Vx();
+                    cmy += mval*(*Pval).Vy();
+                    cmz += mval*(*Pval).Vz();
+                    EncMass += mval;
                 }
             }
             }
@@ -694,7 +738,11 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
                     vx = (*Pval).Vx()-pdata[i].gcmvel[0];
                     vy = (*Pval).Vy()-pdata[i].gcmvel[1];
                     vz = (*Pval).Vz()-pdata[i].gcmvel[2];
-                    mval=Pval->GetMass();
+                    #ifndef NOMASS
+                    mval = Pval->GetMass();
+                    #else
+                    mval = opt.MassValue;
+                    #endif
                     EncMass+=mval;
                     r2=x*x+y*y+z*z;
                     rc=sqrt(r2);
@@ -789,14 +837,23 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
             Pval=&Part[j+noffset[i]];
             if (Pval->GetType()==STARTYPE) {
                 pdata[i].n_star++;
-                pdata[i].M_star+=Pval->GetMass();
+                #ifndef NOMASS
+                mval = Pval->GetMass();
+                #else
+                mval = opt.MassValue;
+                #endif
+                pdata[i].M_star+=mval;
             }
         }
         Ekin=0;
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
             if (Pval->GetType()==STARTYPE) {
-                mval=Pval->GetMass();
+                #ifndef NOMASS
+                mval = Pval->GetMass();
+                #else
+                mval = opt.MassValue;
+                #endif
                 pdata[i].t_star+=Pval->GetTage();
                 pdata[i].t_mean_star+=mval*Pval->GetTage();
                 pdata[i].Z_star+=Pval->GetZmet();
@@ -804,9 +861,9 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
                 x = (*Pval).X();
                 y = (*Pval).Y();
                 z = (*Pval).Z();
-                pdata[i].cm_star[0]+=x*Pval->GetMass();
-                pdata[i].cm_star[1]+=y*Pval->GetMass();
-                pdata[i].cm_star[2]+=z*Pval->GetMass();
+                pdata[i].cm_star[0]+=x*mval;
+                pdata[i].cm_star[1]+=y*mval;
+                pdata[i].cm_star[2]+=z*mval;
 
                 vx = (*Pval).Vx()-pdata[i].gcmvel[0];
                 vy = (*Pval).Vy()-pdata[i].gcmvel[1];
@@ -860,10 +917,15 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
                     z = (*Pval).Z() - cmold[2];
                     if ((x*x + y*y + z*z) <= ri)
                     {
-                        cmx += (*Pval).GetMass()*(*Pval).X();
-                        cmy += (*Pval).GetMass()*(*Pval).Y();
-                        cmz += (*Pval).GetMass()*(*Pval).Z();
-                        EncMass += (*Pval).GetMass();
+                        #ifndef NOMASS
+                        mval = Pval->GetMass();
+                        #else
+                        mval = opt.MassValue;
+                        #endif
+                        cmx += mval*(*Pval).X();
+                        cmy += mval*(*Pval).Y();
+                        cmz += mval*(*Pval).Z();
+                        EncMass += mval;
                         Ninside++;
                     }
                 }
@@ -886,10 +948,15 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
                 z = (*Pval).Z() - pdata[i].cm_star[2];
                 if ((x*x + y*y + z*z) <= rcmv)
                 {
-                    cmx += (*Pval).GetMass()*(*Pval).Vx();
-                    cmy += (*Pval).GetMass()*(*Pval).Vy();
-                    cmz += (*Pval).GetMass()*(*Pval).Vz();
-                    EncMass += (*Pval).GetMass();
+                    #ifndef NOMASS
+                    mval = Pval->GetMass();
+                    #else
+                    mval = opt.MassValue;
+                    #endif
+                    cmx += mval*(*Pval).Vx();
+                    cmy += mval*(*Pval).Vy();
+                    cmz += mval*(*Pval).Vz();
+                    EncMass += mval;
                 }
             }
             }
@@ -906,7 +973,11 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
                     vx = (*Pval).Vx()-pdata[i].gcmvel[0];
                     vy = (*Pval).Vy()-pdata[i].gcmvel[1];
                     vz = (*Pval).Vz()-pdata[i].gcmvel[2];
-                    mval=Pval->GetMass();
+                    #ifndef NOMASS
+                    mval = Pval->GetMass();
+                    #else
+                    mval = opt.MassValue;
+                    #endif
                     EncMass+=mval;
                     r2=x*x+y*y+z*z;
                     rc=sqrt(r2);
@@ -914,10 +985,10 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
                     jzval=(jval*pdata[i].L_star)/pdata[i].L_star.Length();
                     zdist=(Coordinate(x,y,z)*pdata[i].L_star)/pdata[i].L_star.Length();
                     Rdist=sqrt(x*x+y*y+z*z-zdist*zdist);
-                    if (r2<=pdata[i].gRmaxvel*pdata[i].gRmaxvel) pdata[i].M_star_rvmax+=Pval->GetMass();
-                    if (r2<=opt.lengthtokpc30pow2) pdata[i].M_star_30kpc+=Pval->GetMass();
-                    if (r2<=opt.lengthtokpc50pow2) pdata[i].M_star_50kpc+=Pval->GetMass();
-                    if (r2<=pdata[i].gR500c*pdata[i].gR500c) pdata[i].M_star_500c+=Pval->GetMass();
+                    if (r2<=pdata[i].gRmaxvel*pdata[i].gRmaxvel) pdata[i].M_star_rvmax+=mval;
+                    if (r2<=opt.lengthtokpc30pow2) pdata[i].M_star_30kpc+=mval;
+                    if (r2<=opt.lengthtokpc50pow2) pdata[i].M_star_50kpc+=mval;
+                    if (r2<=pdata[i].gR500c*pdata[i].gR500c) pdata[i].M_star_500c+=mval;
                     if (EncMass>0.5*pdata[i].M_star && pdata[i].Rhalfmass_star==0) pdata[i].Rhalfmass_star=sqrt(x*x+y*y+z*z);
                     if (Rdist>0)pdata[i].Krot_star+=mval*(jzval*jzval/(Rdist*Rdist));
                     Ekin+=mval*(vx*vx+vy*vy+vz*vz);
@@ -949,7 +1020,12 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
             Pval=&Part[j+noffset[i]];
             if (Pval->GetType()==BHTYPE) {
                 pdata[i].n_bh++;
-                pdata[i].M_bh+=Pval->GetMass();
+                #ifndef NOMASS
+                mval = Pval->GetMass();
+                #else
+                mval = opt.MassValue;
+                #endif
+                pdata[i].M_bh+=mval;
             }
         }
 #endif
@@ -972,7 +1048,12 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
             if (Pval->GetType() == DARK2TYPE || Pval->GetType() == DARK3TYPE || (Pval->GetType()==DARKTYPE&&Pval->GetMass()>opt.zoomlowmassdm))
             {
                 pdata[i].n_interloper++;
-                pdata[i].M_interloper+=Pval->GetMass();
+                #ifndef NOMASS
+                mval = Pval->GetMass();
+                #else
+                mval = opt.MassValue;
+                #endif
+                pdata[i].M_interloper+=mval;
             }
         }
 #endif
@@ -1040,10 +1121,14 @@ private(j,Pval,rc,x,y,z,vx,vy,vz,J,mval)
 #endif
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
-            mval=Pval->GetMass();
+            #ifndef NOMASS
+            mval = Pval->GetMass();
+            #else
+            mval = opt.MassValue;
+            #endif
             rc=(*Pval).Radius();
 #ifdef NOMASS
-            mval*=opt.MassValue;
+            mval=opt.MassValue;
 #endif
             vx = (*Pval).Vx()-pdata[i].gcmvel[0];
             vy = (*Pval).Vy()-pdata[i].gcmvel[1];
@@ -1128,12 +1213,17 @@ private(j,Pval,rc,x,y,z,vx,vy,vz,J,mval)
         //rotational support calculation
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
-private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
+private(j,Pval,mval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
 {
     #pragma omp for reduction(+:Krot)
 #endif
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
+            #ifndef NOMASS
+            mval = Pval->GetMass();
+            #else
+            mval = opt.MassValue;
+            #endif
             x = (*Pval).X();
             y = (*Pval).Y();
             z = (*Pval).Z();
@@ -1144,28 +1234,27 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
             jzval=(jval*pdata[i].gJ)/pdata[i].gJ.Length();
             zdist=(Coordinate(x,y,z)*pdata[i].gJ)/pdata[i].gJ.Length();
             Rdist=sqrt(x*x+y*y+z*z-zdist*zdist);
-            if (Rdist>0)Krot+=Pval->GetMass()*(jzval*jzval/(Rdist*Rdist));
+            if (Rdist>0)Krot+=mval*(jzval*jzval/(Rdist*Rdist));
         }
 #ifdef USEOPENMP
 }
 #endif
         pdata[i].Krot=0.5*Krot/Ekin;
-#ifdef NOMASS
-        pdata[i].Krot*=opt.MassValue;
-#endif
         vc = 0;
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
-            EncMass+=Pval->GetMass();
+            #ifndef NOMASS
+            mval = Pval->GetMass();
+            #else
+            mval = opt.MassValue;
+            #endif
+            EncMass+=mval;
             rc=Pval->Radius();
-            if (rc>0) if (EncMass>0) vc=sqrt(opt.G*EncMass*opt.MassValue/rc);
+            if (rc>0) if (EncMass>0) vc=sqrt(opt.G*EncMass/rc);
             if (vc>pdata[i].gmaxvel) {pdata[i].gmaxvel=vc;pdata[i].gRmaxvel=rc;pdata[i].gMmaxvel=EncMass;RV_num=j+1;}
             if (EncMass>0.5*pdata[i].gmass && pdata[i].gRhalfmass==0) pdata[i].gRhalfmass=rc;
         }
         if (pdata[i].gRvir==0) {pdata[i].gMvir=pdata[i].gmass;pdata[i].gRvir=pdata[i].gsize;}
-#ifdef NOMASS
-        pdata[i].gMmaxvel*=opt.MassValue;
-#endif
 
         //now that we have radius of maximum circular velocity, lets calculate properties internal to this radius
         Ekin=Jx=Jy=Jz=sxx=sxy=sxz=syy=syz=szz=Krot=0.;
@@ -1179,7 +1268,7 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval)
             Pval=&Part[j+noffset[i]];
             mval=Pval->GetMass();
 #ifdef NOMASS
-            mval*=opt.MassValue;
+            mval = opt.MassValue;
 #endif
             vx = (*Pval).Vx()-pdata[i].gcmvel[0];
             vy = (*Pval).Vy()-pdata[i].gcmvel[1];
@@ -1216,12 +1305,17 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval)
         Krot=0;
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
-private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
+private(j,Pval,mval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
 {
     #pragma omp for reduction(+:Krot)
 #endif
         for (j=0;j<RV_num;j++) {
             Pval=&Part[j+noffset[i]];
+            #ifndef NOMASS
+            mval = Pval->GetMass();
+            #else
+            mval = opt.MassValue;
+            #endif
             x = (*Pval).X();
             y = (*Pval).Y();
             z = (*Pval).Z();
@@ -1232,15 +1326,12 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
             jzval=(jval*pdata[i].RV_J)/pdata[i].RV_J.Length();
             zdist=(Coordinate(x,y,z)*pdata[i].RV_J)/pdata[i].RV_J.Length();
             Rdist=sqrt(x*x+y*y+z*z-zdist*zdist);
-            if (Rdist>0)Krot+=Pval->GetMass()*(jzval*jzval/(Rdist*Rdist));
+            if (Rdist>0)Krot+=mval*(jzval*jzval/(Rdist*Rdist));
         }
 #ifdef USEOPENMP
 }
 #endif
         pdata[i].RV_Krot=0.5*Krot/Ekin;
-#ifdef NOMASS
-        pdata[i].RV_Krot*=opt.MassValue;
-#endif
 #if defined(EXTRADMON)
         for (j=0;j<numingroup[i];j++) {
             if (Part[j+noffset[i]].GetType() != DARKTYPE) continue;
@@ -1253,11 +1344,16 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
             Pval=&Part[j+noffset[i]];
             if (Pval->GetType()==GASTYPE) {
                 pdata[i].n_gas++;
-                pdata[i].M_gas+=Pval->GetMass();
+                #ifndef NOMASS
+                mval = Pval->GetMass();
+                #else
+                mval = opt.MassValue;
+                #endif
+                pdata[i].M_gas+=mval;
                 #ifdef STARON
                 SFR = Pval->GetSFR();
-                if (SFR>opt.gas_sfr_threshold) pdata[i].M_gas_sf+=Pval->GetMass();
-                else pdata[i].M_gas_nsf+=Pval->GetMass();
+                if (SFR>opt.gas_sfr_threshold) pdata[i].M_gas_sf+=mval;
+                else pdata[i].M_gas_nsf+=mval;
                 #endif
             }
         }
@@ -1281,7 +1377,11 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval,SFR)
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
             if (Pval->GetType()==GASTYPE) {
-                mval=Pval->GetMass();
+                #ifndef NOMASS
+                mval = Pval->GetMass();
+                #else
+                mval = opt.MassValue;
+                #endif
                 #ifdef STARON
                 SFR=Pval->GetSFR();
                 #endif
@@ -1419,10 +1519,15 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval,SFR)
                     z = (*Pval).Z() - cmold[2];
                     if ((x*x + y*y + z*z) <= ri)
                     {
-                        cmx += (*Pval).GetMass()*(*Pval).X();
-                        cmy += (*Pval).GetMass()*(*Pval).Y();
-                        cmz += (*Pval).GetMass()*(*Pval).Z();
-                        EncMass += (*Pval).GetMass();
+                        #ifndef NOMASS
+                        mval = Pval->GetMass();
+                        #else
+                        mval = opt.MassValue;
+                        #endif
+                        cmx += mval*(*Pval).X();
+                        cmy += mval*(*Pval).Y();
+                        cmz += mval*(*Pval).Z();
+                        EncMass += mval;
                         Ninside++;
                     }
                 }
@@ -1445,10 +1550,15 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval,SFR)
                 z = (*Pval).Z() - pdata[i].cm_gas[2];
                 if ((x*x + y*y + z*z) <= rcmv)
                 {
-                    cmx += (*Pval).GetMass()*(*Pval).Vx();
-                    cmy += (*Pval).GetMass()*(*Pval).Vy();
-                    cmz += (*Pval).GetMass()*(*Pval).Vz();
-                    EncMass += (*Pval).GetMass();
+                    #ifndef NOMASS
+                    mval = Pval->GetMass();
+                    #else
+                    mval = opt.MassValue;
+                    #endif
+                    cmx += mval*(*Pval).Vx();
+                    cmy += mval*(*Pval).Vy();
+                    cmz += mval*(*Pval).Vz();
+                    EncMass += mval;
                 }
             }
             }
@@ -1467,7 +1577,11 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval,SFR)
                     z = (*Pval).Z();
                     r2=x*x+y*y+z*z;
                     rc=sqrt(r2);
+                    #ifndef NOMASS
                     mval = Pval->GetMass();
+                    #else
+                    mval = opt.MassValue;
+                    #endif
                     EncMass+=mval;
                     if (r2<=pdata[i].gRmaxvel*pdata[i].gRmaxvel) pdata[i].M_gas_rvmax+=mval;
                     if (r2<=opt.lengthtokpc30pow2) pdata[i].M_gas_30kpc+=mval;
@@ -1507,7 +1621,11 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist,mval)
             vx = (*Pval).Vx()-pdata[i].gcmvel[0];
             vy = (*Pval).Vy()-pdata[i].gcmvel[1];
             vz = (*Pval).Vz()-pdata[i].gcmvel[2];
-            mval  = Pval->GetMass();
+            #ifndef NOMASS
+            mval = Pval->GetMass();
+            #else
+            mval = opt.MassValue;
+            #endif
             jval=Coordinate(x,y,z).Cross(Coordinate(vx,vy,vz));
             jzval=(jval*pdata[i].L_gas)/pdata[i].L_gas.Length();
             zdist=(Coordinate(x,y,z)*pdata[i].L_gas)/pdata[i].L_gas.Length();
@@ -1544,9 +1662,6 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist,mval)
         #endif
         }
         if (pdata[i].n_gas>=PROPMORPHMINNUM) GetGlobalSpatialMorphology(numingroup[i], &Part[noffset[i]], pdata[i].q_gas, pdata[i].s_gas, 1e-2, pdata[i].eigvec_gas,0,GASTYPE,0);
-#ifdef NOMASS
-        pdata[i].M_gas*=opt.MassValue;
-#endif
         }//end of if statement checking that there are gas particles
 #endif
 
@@ -1555,7 +1670,12 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist,mval)
             Pval=&Part[j+noffset[i]];
             if (Pval->GetType()==STARTYPE) {
                 pdata[i].n_star++;
-                pdata[i].M_star+=Pval->GetMass();
+                #ifndef NOMASS
+                mval = Pval->GetMass();
+                #else
+                mval = opt.MassValue;
+                #endif
+                pdata[i].M_star+=mval;
             }
         }
         if (pdata[i].n_star>0) {
@@ -1572,7 +1692,11 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval)
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
             if (Pval->GetType()==STARTYPE) {
-                mval=Pval->GetMass();
+                #ifndef NOMASS
+                mval = Pval->GetMass();
+                #else
+                mval = opt.MassValue;
+                #endif
 
                 x = (*Pval).X();
                 y = (*Pval).Y();
@@ -1655,10 +1779,15 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval)
                     z = (*Pval).Z() - cmold[2];
                     if ((x*x + y*y + z*z) <= ri)
                     {
-                        cmx += (*Pval).GetMass()*(*Pval).X();
-                        cmy += (*Pval).GetMass()*(*Pval).Y();
-                        cmz += (*Pval).GetMass()*(*Pval).Z();
-                        EncMass += (*Pval).GetMass();
+                        #ifndef NOMASS
+                        mval = Pval->GetMass();
+                        #else
+                        mval = opt.MassValue;
+                        #endif
+                        cmx += mval*(*Pval).X();
+                        cmy += mval*(*Pval).Y();
+                        cmz += mval*(*Pval).Z();
+                        EncMass += mval;
                         Ninside++;
                     }
                 }
@@ -1681,10 +1810,15 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval)
                 z = (*Pval).Z() - pdata[i].cm_star[2];
                 if ((x*x + y*y + z*z) <= rcmv)
                 {
-                    cmx += (*Pval).GetMass()*(*Pval).Vx();
-                    cmy += (*Pval).GetMass()*(*Pval).Vy();
-                    cmz += (*Pval).GetMass()*(*Pval).Vz();
-                    EncMass += (*Pval).GetMass();
+                    #ifndef NOMASS
+                    mval = Pval->GetMass();
+                    #else
+                    mval = opt.MassValue;
+                    #endif
+                    cmx += mval*(*Pval).Vx();
+                    cmy += mval*(*Pval).Vy();
+                    cmz += mval*(*Pval).Vz();
+                    EncMass += mval;
                 }
             }
             }
@@ -1700,7 +1834,11 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval)
                     x = (*Pval).X();//-pdata[i].cm_star[0];
                     y = (*Pval).Y();//-pdata[i].cm_star[1];
                     z = (*Pval).Z();//-pdata[i].cm_star[2];
-                    mval=Pval->GetMass();
+                    #ifndef NOMASS
+                    mval = Pval->GetMass();
+                    #else
+                    mval = opt.MassValue;
+                    #endif
                     EncMass+=mval;
                     r2=x*x+y*y+z*z;
                     rc=sqrt(r2);
@@ -1720,6 +1858,11 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
             if (Pval->GetType()==STARTYPE) {
+            #ifndef NOMASS
+            mval = Pval->GetMass();
+            #else
+            mval = opt.MassValue;
+            #endif
             x = (*Pval).X();//-pdata[i].cm_star[0];
             y = (*Pval).Y();//-pdata[i].cm_star[1];
             z = (*Pval).Z();//-pdata[i].cm_star[2];
@@ -1730,8 +1873,8 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
             jzval=(jval*pdata[i].L_star)/pdata[i].L_star.Length();
             zdist=(Coordinate(x,y,z)*pdata[i].L_star)/pdata[i].L_star.Length();
             Rdist=sqrt(x*x+y*y+z*z-zdist*zdist);
-            if (Rdist>0)Krot+=Pval->GetMass()*(jzval*jzval/(Rdist*Rdist));
-            Ekin+=Pval->GetMass()*(vx*vx+vy*vy+vz*vz);
+            if (Rdist>0)Krot+=mval*(jzval*jzval/(Rdist*Rdist));
+            Ekin+=mval*(vx*vx+vy*vy+vz*vz);
             }
         }
 #ifdef USEOPENMP
@@ -1742,9 +1885,6 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
         }
 
         if (pdata[i].n_star>=PROPMORPHMINNUM) GetGlobalSpatialMorphology(numingroup[i], &Part[noffset[i]], pdata[i].q_star, pdata[i].s_star, 1e-2, pdata[i].eigvec_star,0,STARTYPE,0);
-#ifdef NOMASS
-        pdata[i].M_star*=opt.MassValue;
-#endif
         }//end of calculations if stars are present
 #endif
 
@@ -1753,7 +1893,12 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
             Pval=&Part[j+noffset[i]];
             if (Pval->GetType()==BHTYPE) {
                 pdata[i].n_bh++;
-                pdata[i].M_bh+=Pval->GetMass();
+                #ifndef NOMASS
+                mval = Pval->GetMass();
+                #else
+                mval = opt.MassValue;
+                #endif
+                pdata[i].M_bh+=mval;
             }
         }
 #endif
@@ -1777,7 +1922,12 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
             if (Pval->GetType() == DARK2TYPE || Pval->GetType() == DARK3TYPE || (Pval->GetType()==DARKTYPE&&Pval->GetMass()>opt.zoomlowmassdm))
             {
                 pdata[i].n_interloper++;
-                pdata[i].M_interloper+=Pval->GetMass();
+                #ifndef NOMASS
+                mval = Pval->GetMass();
+                #else
+                mval = opt.MassValue;
+                #endif
+                pdata[i].M_interloper+=mval;
             }
         }
 #endif
@@ -2086,6 +2236,9 @@ private(i,j,k,Pval,ri,rcmv,ri2,r2,cmx,cmy,cmz,EncMass,Ninside,icmv,cmold,x,y,z,v
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
             massval=(*Pval).GetMass();
+            #ifdef NOMASS
+            massval = opt.MassValue;
+            #endif
             pdata[i].gmass+=massval;
             for (k=0;k<3;k++) {
                 pdata[i].gcm[k]+=(*Pval).GetPosition(k)*massval;
@@ -2121,10 +2274,14 @@ private(i,j,k,Pval,ri,rcmv,ri2,r2,cmx,cmy,cmz,EncMass,Ninside,icmv,cmold,x,y,z,v
                 z = (*Pval).Z() - cmold[2];
                 if ((x*x + y*y + z*z) <= ri2)
                 {
-                    cmx += (*Pval).GetMass()*(*Pval).X();
-                    cmy += (*Pval).GetMass()*(*Pval).Y();
-                    cmz += (*Pval).GetMass()*(*Pval).Z();
-                    EncMass += (*Pval).GetMass();
+                    massval = (*Pval).GetMass();
+                    #ifdef NOMASS
+                    massval = opt.MassValue;
+                    #endif
+                    cmx += massval*(*Pval).X();
+                    cmy += massval*(*Pval).Y();
+                    cmz += massval*(*Pval).Z();
+                    EncMass += massval;
                     Ninside++;
                 }
             }
@@ -2147,9 +2304,6 @@ private(i,j,k,Pval,ri,rcmv,ri2,r2,cmx,cmy,cmz,EncMass,Ninside,icmv,cmold,x,y,z,v
         gsl_heapsort(&Part[noffset[i]], numingroup[i], sizeof(Particle), RadCompare);
         pdata[i].gsize=Part[noffset[i]+numingroup[i]-1].Radius();
         pdata[i].gRhalfmass=Part[noffset[i]+(numingroup[i]/2)].Radius();
-#ifdef NOMASS
-        pdata[i].gmass*=opt.MassValue;
-#endif
         //then get cmvel if extra output is desired as will need angular momentum
         if (opt.iextrahalooutput) {
             cmx=cmy=cmz=EncMass=0.;
@@ -2157,6 +2311,9 @@ private(i,j,k,Pval,ri,rcmv,ri2,r2,cmx,cmy,cmz,EncMass,Ninside,icmv,cmold,x,y,z,v
             {
                 Pval = &Part[noffset[i] + j];
                 massval = Pval->GetMass() ;
+                #ifdef NOMASS
+                massval = opt.MassValue;
+                #endif
                 cmx += massval* Pval->Vx();
                 cmy += massval* Pval->Vy();
                 cmz += massval* Pval->Vz();
@@ -2184,6 +2341,9 @@ private(j,Pval,massval)
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
             massval=(*Pval).GetMass();
+            #ifdef NOMASS
+            massval = opt.MassValue;
+            #endif
             EncMass+=massval;
             cmx+=(*Pval).X()*massval;
             cmy+=(*Pval).Y()*massval;
@@ -2228,6 +2388,9 @@ private(j,Pval,x,y,z,massval)
                 y = (*Pval).Y() - cmold[1];
                 z = (*Pval).Z() - cmold[2];
                 massval=(*Pval).GetMass();
+                #ifdef NOMASS
+                massval = opt.MassValue;
+                #endif
                 if ((x*x + y*y + z*z) <= ri2)
                 {
                     EncMass+=massval;
@@ -2257,9 +2420,6 @@ private(j,Pval,x,y,z,massval)
         qsort(&Part[noffset[i]], numingroup[i], sizeof(Particle), RadCompare);
         pdata[i].gsize=Part[noffset[i]+numingroup[i]-1].Radius();
         pdata[i].gRhalfmass=Part[noffset[i]+(numingroup[i]/2)].Radius();
-#ifdef NOMASS
-        pdata[i].gmass*=opt.MassValue;
-#endif
         //then get cmvel if extra output is desired as will need angular momentum
         if (opt.iextrahalooutput) {
             cmx=cmy=cmz=EncMass=0.;
@@ -2301,6 +2461,9 @@ firstprivate(virval,m200val,m200mval,mBN98val,iSOfound)
             for (j=0;j<numingroup[i];j++) {
                 Pval = &Part[noffset[i] + j];
                 massval = Pval->GetMass() ;
+                #ifdef NOMASS
+                massval = opt.MassValue;
+                #endif
                 vx = Pval->Vx()-pdata[i].gcmvel[0];
                 vy = Pval->Vy()-pdata[i].gcmvel[1];
                 vz = Pval->Vz()-pdata[i].gcmvel[2];
@@ -2951,7 +3114,9 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
 
         taggedparts=tree->SearchBallPosTagged(posref,pow(maxrdist[i],2.0));
         radii.resize(taggedparts.size());
+#ifndef NOMASS
         masses.resize(taggedparts.size());
+#endif
         if (opt.iextrahalooutput) {
             posparts.resize(taggedparts.size());
             velparts.resize(taggedparts.size());
@@ -2961,7 +3126,9 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
 #endif
         if (opt.iSphericalOverdensityPartList) SOpids.resize(taggedparts.size());
         for (j=0;j<taggedparts.size();j++) {
+#ifndef NOMASS
             masses[j]=Part[taggedparts[j]].GetMass();
+#endif
             if (opt.iSphericalOverdensityPartList) SOpids[j]=Part[taggedparts[j]].GetPID();
             radii[j]=0;
 #if defined(GASON) || defined(STARON) || defined(BHON) || defined(HIGHRES)
@@ -2991,7 +3158,9 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
                 if (taggedparts.size() > 0) {
                     Int_t offset=radii.size();
                     radii.resize(radii.size()+taggedparts.size());
+#ifndef NOMASS
                     masses.resize(masses.size()+taggedparts.size());
+#endif
                     if (opt.iextrahalooutput) {
                         posparts.resize(posparts.size()+taggedparts.size());
                         velparts.resize(velparts.size()+taggedparts.size());
@@ -3001,7 +3170,9 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
 #endif
                     if (opt.iSphericalOverdensityPartList) SOpids.resize(SOpids.size()+taggedparts.size());
                     for (j=0;j<taggedparts.size();j++) {
+#ifndef NOMASS
                         masses[offset+j]=PartDataGet[taggedparts[j]].GetMass();
+#endif
                         if (opt.iSphericalOverdensityPartList) SOpids[j+offset]=PartDataGet[taggedparts[j]].GetPID();
 #if defined(GASON) || defined(STARON) || defined(BHON) || defined(HIGHRES)
                         if (opt.iextragasoutput || opt.iextrastaroutput || opt.iextrainterloperoutput || opt.iSphericalOverdensityPartList) typeparts[offset+j]=PartDataGet[taggedparts[j]].GetType();
@@ -3038,7 +3209,11 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
         //calculate angular momentum if necessary
         if (opt.iextrahalooutput) {
             for (j=0;j<radii.size();j++) {
+#ifndef NOMASS
                 massval = masses[indices[j]];
+#else
+                massval = opt.MassValue;
+#endif
                 J=Coordinate(posparts[indices[j]]).Cross(velparts[indices[j]])*massval;
                 rc=posparts[indices[j]].Length();
                 if (rc<=pdata[i].gR200c) pdata[i].gJ200c+=J;
@@ -3136,8 +3311,12 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
                 if (opt.iextragasoutput || opt.iextrastaroutput || opt.iextrainterloperoutput || opt.iSphericalOverdensityPartList)
                     typeval = typeparts[indices[j]];
 #endif
-
-                AddDataToRadialBinInclusive(opt, radii[indices[j]], masses[indices[j]],
+#ifndef NOMASS
+                massval = masses[indices[j]];
+#else
+                massval = opt.MassValue;
+#endif
+                AddDataToRadialBinInclusive(opt, radii[indices[j]], massval,
 #if defined(GASON) || defined(STARON) || defined(BHON)
                     sfrval, typeval,
 #endif
@@ -4000,7 +4179,7 @@ void GetBindingEnergy(Options &opt, const Int_t nbodies, Particle *Part, Int_t n
     //small groups with PP calculations of potential.
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
-private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin)
+private(i,j,k,storepid)
 {
     #pragma omp for schedule(dynamic) nowait
 #endif
@@ -4045,7 +4224,7 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin)
         for (i=1;i<=ngroup;i++) for (j=0;j<numingroup[i];j++) Part[j+noffset[i]].SetPotential(Part[j+noffset[i]].GetGravityPotential());
     }
 #endif
-    cout<<" Have calculated potentials "<<MyGetTime()-time2<<endl;
+    if (opt.iverbose) cout<<ThisTask<<" Have calculated potentials "<<MyGetTime()-time2<<endl;
     time2 = MyGetTime();
 
     //once potential is calculated, iff using velocity around deepest potential well NOT cm
@@ -4656,7 +4835,11 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
     for (auto j=0;j<ning;j++) {
         Pval=&Part[j];
         rc=Pval->Radius();
+        #ifndef NOMASS
         mass = Pval->GetMass();
+        #else
+        mass = opt.MassValue;
+        #endif
         type = Pval->GetType();
         #if defined(GASON) && defined(STARON)
         SFR = Pval->GetSFR();
@@ -4834,7 +5017,11 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
     for (auto j=0;j<ning;j++) {
         Pval=&Part[j];
         rc=Pval->Radius();
+        #ifndef NOMASS
         mass = Pval->GetMass();
+        #else
+        mass = opt.MassValue;
+        #endif
         type = Pval->GetType();
         EncMass+=mass;
         #ifdef GASON
@@ -4924,7 +5111,11 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
     if (opt.apertureprojnum>0) {
     for (auto j=0;j<ning;j++) {
         Pval=&Part[j];
+        #ifndef NOMASS
         proj[j].mass = Pval->GetMass();
+        #else
+        proj[j].mass = opt.MassValue;
+        #endif
         proj[j].type = Pval->GetType();
         #if defined(GASON) && defined(STARON)
         proj[j].SFR = Pval->GetSFR();
@@ -5187,6 +5378,9 @@ void AddParticleToRadialBin(Options &opt, Particle *Pval, Double_t irnorm, int &
     ibin = GetRadialBin(opt,Pval->Radius()*irnorm, ibin);
     if (ibin == -1) return;
     Double_t massval = Pval->GetMass();
+    #ifdef NOMASS
+    massval = opt.MassValue;
+    #endif
     pdata.profile_mass[ibin] += massval;
     pdata.profile_npart[ibin] += 1;
 #ifdef GASON
@@ -5255,6 +5449,9 @@ void AddParticleToRadialBinInclusive(Options &opt, Particle *Pval, Double_t irno
     ibin = GetRadialBin(opt,Pval->Radius()*irnorm, ibin);
     if (ibin == -1) return;
     Double_t massval = Pval->GetMass();
+    #ifdef NOMASS
+    massval = opt.MassValue;
+    #endif
     pdata.profile_mass_inclusive[ibin] += massval;
     pdata.profile_npart_inclusive[ibin] += 1;
 #ifdef GASON
@@ -5603,7 +5800,7 @@ Int_t CalculateSphericalOverdensity(Options &opt, PropData &pdata,
     int iindex=radii.size();
     //if the lowest overdensity threshold is below the density at the outer
     //edge then extrapolate density based on average slope using 10% of radial bins
-    double EncMass, rc, rhoval, MinMass;
+    double massval, EncMass, rc, rhoval, MinMass;
     double rc2, EncMass2, rhoval2;
     double delta, gamma1, gamma2, gamma1lin, gamma2lin;
     double fac, lgrhoedge, deltalgrhodeltalgr, MassEdge;
@@ -5613,15 +5810,25 @@ Int_t CalculateSphericalOverdensity(Options &opt, PropData &pdata,
 
     MassEdge=EncMass=0;
     for (auto j=0;j<iindex;j++) {
-        MassEdge+=masses[indices[j]];
-        if (j<lindex) EncMass+=masses[indices[j]];
+#ifndef NOMASS
+        massval = masses[indices[j]];
+#else
+        massval = opt.MassValue;
+#endif
+        MassEdge+=massval;
+        if (j<lindex) EncMass+=massval;
     }
     fac=-log(4.0*M_PI/3.0);
     lgrhoedge = log(MassEdge)-3.0*log(radii[indices[iindex-1]])+fac;
     deltalgrhodeltalgr = log(EncMass/MassEdge)/log(radii[indices[lindex]]/radii[indices[iindex-1]])-3.0;
     //now find radii matching SO density thresholds
+    #ifndef NOMASS
     EncMass=0;for (auto j=0;j<minnum;j++) EncMass+=masses[indices[j]];
     MinMass=masses[indices[0]];
+    #else
+    EncMass=0;for (auto j=0;j<minnum;j++) EncMass+=opt.MassValue;
+    MinMass=opt.MassValue;
+    #endif
     rc=radii[indices[minnum-1]];
     llindex=radii.size();
     //store old radius, old enclosed mass and ln density
@@ -5630,11 +5837,11 @@ Int_t CalculateSphericalOverdensity(Options &opt, PropData &pdata,
     rhoval2=log(EncMass2)-3.0*log(rc2)+fac;
     for (auto j=minnum;j<radii.size();j++) {
         rc=radii[indices[j]];
-    #ifdef NOMASS
-        EncMass+=opt.MassValue;
-    #else
+#ifndef NOMASS
         EncMass+=masses[indices[j]];
-    #endif
+#else
+        EncMass+=opt.MassValue;
+#endif
         //after moving foward one particle, calculate new enclosed average ln density
         rhoval=log(EncMass)-3.0*log(rc)+fac;
         //and associated slopes
@@ -5722,9 +5929,9 @@ Int_t CalculateSphericalOverdensity(Options &opt, PropData &pdata,
     EncMass=0;
     for (auto j=0;j<minnum;j++) {
         massval=Part[j].GetMass();
-    #ifdef NOMASS
+#ifdef NOMASS
         massval=opt.MassValue;
-    #endif
+#endif
         EncMass+=massval;
     }
     MinMass=Part[0].GetMass();
@@ -5737,9 +5944,9 @@ Int_t CalculateSphericalOverdensity(Options &opt, PropData &pdata,
     for (auto j=minnum;j<numingroup;j++) {
         rc=Part[j].Radius();
         massval=Part[j].GetMass();
-    #ifdef NOMASS
+#ifdef NOMASS
         massval=opt.MassValue;
-    #endif
+#endif
         EncMass+=massval;
         rhoval=log(EncMass)-3.0*log(rc)+fac;
         //and associated slopes

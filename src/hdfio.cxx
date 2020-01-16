@@ -756,10 +756,16 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                   if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
                   //setup hyperslab so that it is loaded into the buffer
                   HDF5ReadHyperSlabReal(doublebuff,partsdataset[i*NHDFTYPE+k], partsdataspace[i*NHDFTYPE+k], 1, 1, nchunk, n);
+#ifdef NOMASS
+                  if (k==HDFDMTYPE) opt.MassValue = doublebuff[0];
+#endif
                   for (int nn=0;nn<nchunk;nn++) Part[count++].SetMass(doublebuff[nn]);
                 }
               }
               else {
+#ifdef NOMASS
+                  if (k==HDFDMTYPE) opt.MassValue = hdf_header_info[i].mass[k]
+#endif
                 for (int nn=0;nn<hdf_header_info[i].npart[k];nn++) Part[count++].SetMass(hdf_header_info[i].mass[k]);
               }
             }
@@ -1481,6 +1487,9 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
         for (int j=0;j<3;j++) Pbaryons[i].SetPosition(j,Pbaryons[i].GetPosition(j)*lscale);
       }
     }
+#ifdef NOMASS
+    opt.MassValue *= mscale;
+#endif
 
 #else
     //for all mpi threads that are reading input data, open file load access to data structures and begin loading into either local buffer or temporary buffer to be send to
@@ -1964,6 +1973,12 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 
                         Pbuf[ibufindex].SetPosition(doublebuff[nn*3],doublebuff[nn*3+1],doublebuff[nn*3+2]);
                         Pbuf[ibufindex].SetVelocity(veldoublebuff[nn*3],veldoublebuff[nn*3+1],veldoublebuff[nn*3+2]);
+#ifdef NOMASS
+                        if (k==HDFDMTYPE) {
+                            if (hdf_header_info[i].mass[k]==0) opt.MassValue = massdoublebuff[0];
+                            else opt.MassValue = hdf_header_info[i].mass[k];
+                        }
+#endif
                         if (hdf_header_info[i].mass[k]==0)Pbuf[ibufindex].SetMass(massdoublebuff[nn]);
                         else Pbuf[ibufindex].SetMass(hdf_header_info[i].mass[k]);
                         Pbuf[ibufindex].SetPID(longbuff[nn]);
@@ -2385,6 +2400,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     MPI_Bcast(&(opt.virlevel),sizeof(opt.virlevel),MPI_BYTE,0,MPI_COMM_WORLD);
     MPI_Bcast(&(opt.virBN98),sizeof(opt.virBN98),MPI_BYTE,0,MPI_COMM_WORLD);
 #ifdef NOMASS
+    opt.MassValue *= mscale;
     MPI_Bcast(&(opt.MassValue),sizeof(opt.MassValue),MPI_BYTE,0,MPI_COMM_WORLD);
 #endif
     MPI_Bcast(&(Ntotal),sizeof(Ntotal),MPI_BYTE,0,MPI_COMM_WORLD);
