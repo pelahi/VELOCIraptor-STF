@@ -4224,7 +4224,7 @@ private(i,j,k,storepid)
         for (i=1;i<=ngroup;i++) for (j=0;j<numingroup[i];j++) Part[j+noffset[i]].SetPotential(Part[j+noffset[i]].GetGravityPotential());
     }
 #endif
-    if (iverbose) cout<<ThisTask<<" Have calculated potentials "<<MyGetTime()-time2<<endl;
+    if (opt.iverbose) cout<<ThisTask<<" Have calculated potentials "<<MyGetTime()-time2<<endl;
     time2 = MyGetTime();
 
     //once potential is calculated, iff using velocity around deepest potential well NOT cm
