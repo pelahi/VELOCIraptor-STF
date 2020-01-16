@@ -50,7 +50,7 @@ using namespace Math;
 using namespace NBody;
 
 ///default buffer size (here in number of particles to send in one go)
-#define MPIPartBufSize 100000
+#define MPIPartBufSize 10000000
 ///size of largest MPI chunck in bytes that can be sent in one go (here set by MPI count argument, which is max int)
 #define LOCAL_MAX_MSGSIZE 2147483647L
 ///Nlocal maximum initially set to nbodies/NProc*MPProcFac, represents maximum load imbalance

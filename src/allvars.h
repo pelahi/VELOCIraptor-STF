@@ -824,7 +824,7 @@ struct Options
 
         iScaleLengths=0;
 
-        inputbufsize=100000;
+        inputbufsize=1000000;
 
         mpiparticletotbufsize=-1;
         mpiparticlebufsize=-1;
