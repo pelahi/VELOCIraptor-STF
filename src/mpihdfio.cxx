@@ -218,9 +218,9 @@ void MPINumInDomainHDF(Options &opt)
         Fhdf.resize(opt.num_files);
         headerdataspace.resize(opt.num_files);
         headerattribs.resize(opt.num_files);
-        partsgroup.resize(opt.num_files*NHDFTYPE);
-        partsdataset.resize(opt.num_files*NHDFTYPE);
-        partsdataspace.resize(opt.num_files*NHDFTYPE);
+        partsgroup.resize(opt.num_files*NHDFTYPE,-1);
+        partsdataset.resize(opt.num_files*NHDFTYPE,-1);
+        partsdataspace.resize(opt.num_files*NHDFTYPE,-1);
 
         MPISetFilesRead(opt,ireadfile,ireadtask);
         for(i=0; i<opt.num_files; i++) {
@@ -303,7 +303,7 @@ void MPINumInDomainHDF(Options &opt)
                     {
                         if (nend - n < chunksize && nend - n > 0) nchunk=nend-n;
                         // setup hyperslab so that it is loaded into the buffer
-                        HDF5ReadHyperSlabReal(doublebuff, partsdataset[i*NHDFTYPE+k], partsdataspace[i*NHDFTYPE+k], 1, 3, nchunk, n);
+                        HDF5ReadHyperSlabReal(doublebuff, partsdataset[i*NHDFTYPE+k], partsdataspace[i*NHDFTYPE+k], 1, 3, nchunk, n, plist_id);
 
                         for (auto nn=0;nn<nchunk;nn++) {
                             ibuf=MPIGetParticlesProcessor(doublebuff[nn*3],doublebuff[nn*3+1],doublebuff[nn*3+2]);
@@ -315,24 +315,10 @@ void MPINumInDomainHDF(Options &opt)
 #ifdef USEPARALLELHDF
             H5Pclose(plist_id);
 #endif
-            for (j=0;j<nusetypes;j++) {
-                k=usetypes[j];
-                HDF5CloseDataSpace(partsdataspace[i*NHDFTYPE+k]);
-                HDF5CloseDataSet(partsdataset[i*NHDFTYPE+k]);
-            }
-            if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) for (j=1;j<=nbusetypes;j++) {
-                k=usetypes[j];
-                HDF5CloseDataSpace(partsdataspace[i*NHDFTYPE+k]);
-                HDF5CloseDataSet(partsdataset[i*NHDFTYPE+k]);
-            }
-            for (j=0;j<nusetypes;j++) {
-                k=usetypes[j];
-                HDF5CloseGroup(partsdataspace[i*NHDFTYPE+k]);
-            }
-            if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) for (j=1;j<=nbusetypes;j++) {
-                k=usetypes[j];
-                HDF5CloseGroup(partsdataspace[i*NHDFTYPE+k]);
-            }
+            //close data spaces
+            for (auto &hidval:partsdataspace) HDF5CloseDataSpace(hidval);
+            for (auto &hidval:partsdataset) HDF5CloseDataSet(hidval);
+            for (auto &hidval:partsgroup) HDF5CloseGroup(hidval);
             H5Fclose(Fhdf[i]);
 	   }
     }
