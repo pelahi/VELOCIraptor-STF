@@ -4179,7 +4179,7 @@ void GetBindingEnergy(Options &opt, const Int_t nbodies, Particle *Part, Int_t n
     //small groups with PP calculations of potential.
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
-private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin)
+private(i,j,k,storepid)
 {
     #pragma omp for schedule(dynamic) nowait
 #endif
@@ -4224,7 +4224,7 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin)
         for (i=1;i<=ngroup;i++) for (j=0;j<numingroup[i];j++) Part[j+noffset[i]].SetPotential(Part[j+noffset[i]].GetGravityPotential());
     }
 #endif
-    cout<<" Have calculated potentials "<<MyGetTime()-time2<<endl;
+    if (iverbose) cout<<ThisTask<<" Have calculated potentials "<<MyGetTime()-time2<<endl;
     time2 = MyGetTime();
 
     //once potential is calculated, iff using velocity around deepest potential well NOT cm
