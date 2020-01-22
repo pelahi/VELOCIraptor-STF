@@ -2701,8 +2701,8 @@ inline void CleanAndUpdateGroupsFromSubSearch(Options &opt,
     subsubnumingroup = BuildNumInGroup(subnumingroup, subngroup, subpfof);
     subsubpglist = BuildPGList(subnumingroup, subngroup, subsubnumingroup, subpfof);
 
+    time_temp = MyGetTime();
     if (opt.uinfo.unbindflag&&subngroup>0) {
-        time_temp = MyGetTime();
         cout<<"TIME[CleanAndUpdateGroupsFromSubSearch] - opt.uinfo.unbindflag&&subngroup>0"<<endl;
         cout<<"BEGIN: "<<time_temp<<endl;
         //if also keeping track of cores then must allocate coreflag
@@ -2730,9 +2730,9 @@ inline void CleanAndUpdateGroupsFromSubSearch(Options &opt,
                 delete[] coreflag;
             }
         }
-    }
     cout<<"END: TIME[CleanAndUpdateGroupsFromSubSearch] - opt.uinfo.unbindflag&&subngroup>0"<<endl;
     cout<<"DURATION: "<<MyGetTime()-time_temp<<endl;
+    }
 
     cout<<"TIME[CleanAndUpdateGroupsFromSubSearch] - loop1"<<endl;
     time_temp = MyGetTime();
