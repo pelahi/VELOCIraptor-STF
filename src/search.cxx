@@ -2695,12 +2695,16 @@ inline void CleanAndUpdateGroupsFromSubSearch(Options &opt,
     bool iunbindflag;
     Int_t ng=subngroup;
     Int_t *coreflag;
+    Double_t time_temp, time_1;
     if (subngroup == 0) return;
 
     subsubnumingroup = BuildNumInGroup(subnumingroup, subngroup, subpfof);
     subsubpglist = BuildPGList(subnumingroup, subngroup, subsubnumingroup, subpfof);
 
     if (opt.uinfo.unbindflag&&subngroup>0) {
+        time_temp = MyGetTime();
+        cout<<"TIME[CleanAndUpdateGroupsFromSubSearch] - opt.uinfo.unbindflag&&subngroup>0"<<endl;
+        cout<<"BEGIN: "<<time_temp<<endl;
         //if also keeping track of cores then must allocate coreflag
         if (numcores>0 && opt.iHaloCoreSearch>=1) {
             coreflag=new Int_t[subngroup+1];
@@ -2727,11 +2731,23 @@ inline void CleanAndUpdateGroupsFromSubSearch(Options &opt,
             }
         }
     }
+    cout<<"END: TIME[CleanAndUpdateGroupsFromSubSearch] - opt.uinfo.unbindflag&&subngroup>0"<<endl;
+    cout<<"DURATION: "<<MyGetTime()-time_temp<<endl;
 
+    cout<<"TIME[CleanAndUpdateGroupsFromSubSearch] - loop1"<<endl;
+    time_temp = MyGetTime();
+    cout<<"BEGIN: "<<time_temp<<endl;
     for (auto j=0;j<subnumingroup;j++)
     {
         if (subpfof[j]>0) pfof[subpglist[j]]=ngroup+ngroupidoffset+subpfof[j];
     }
+    cout<<"END: TIME[CleanAndUpdateGroupsFromSubSearch] - loop1"<<endl;
+    cout<<"DURATION: "<<MyGetTime()-time_temp<<endl;
+
+
+    cout<<"TIME[CleanAndUpdateGroupsFromSubSearch] - loop2"<<endl;
+    time_temp = MyGetTime();
+    cout<<"BEGIN: "<<time_temp<<endl;
     //ngroupidoffset+=subngroup;
     //now alter subsubpglist so that index pointed is global subset index as global subset is used to get the particles to be searched for subsubstructure
     for (auto j=1;j<=subngroup;j++)
@@ -2741,6 +2757,8 @@ inline void CleanAndUpdateGroupsFromSubSearch(Options &opt,
             subsubpglist[j][k]=subpglist[subsubpglist[j][k]];
         }
     }
+    cout<<"END: TIME[CleanAndUpdateGroupsFromSubSearch] - loop2"<<endl;
+    cout<<"DURATION: "<<MyGetTime()-time_temp<<endl;
 }
 
 void UpdateGroupIDsFromSubstructure(Int_t activenumgroups, Int_t oldnumgroups,
