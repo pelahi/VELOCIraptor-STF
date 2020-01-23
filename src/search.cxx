@@ -2701,7 +2701,7 @@ inline void CleanAndUpdateGroupsFromSubSearch(Options &opt,
     subsubnumingroup = BuildNumInGroup(subnumingroup, subngroup, subpfof);
     subsubpglist = BuildPGList(subnumingroup, subngroup, subsubnumingroup, subpfof);
 
-    time_temp = new MyGetTime();
+    time_temp = MyGetTime();
     if (opt.uinfo.unbindflag&&subngroup>0) {
         cout<<"TIME[CleanAndUpdateGroupsFromSubSearch] - opt.uinfo.unbindflag&&subngroup>0"<<endl;
         cout<<"BEGIN: "<<time_temp<<endl;
