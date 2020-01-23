@@ -2695,16 +2695,12 @@ inline void CleanAndUpdateGroupsFromSubSearch(Options &opt,
     bool iunbindflag;
     Int_t ng=subngroup;
     Int_t *coreflag;
-    Double_t time_temp, time_1;
     if (subngroup == 0) return;
 
     subsubnumingroup = BuildNumInGroup(subnumingroup, subngroup, subpfof);
     subsubpglist = BuildPGList(subnumingroup, subngroup, subsubnumingroup, subpfof);
 
-    time_temp = MyGetTime()/1000000;
     if (opt.uinfo.unbindflag&&subngroup>0) {
-        cout<<"TIME[CleanAndUpdateGroupsFromSubSearch] - opt.uinfo.unbindflag&&subngroup>0"<<endl;
-        cout<<"BEGIN: "<<time_temp<<endl;
         //if also keeping track of cores then must allocate coreflag
         if (numcores>0 && opt.iHaloCoreSearch>=1) {
             coreflag=new Int_t[subngroup+1];
@@ -2730,24 +2726,13 @@ inline void CleanAndUpdateGroupsFromSubSearch(Options &opt,
                 delete[] coreflag;
             }
         }
-    cout<<"END: TIME[CleanAndUpdateGroupsFromSubSearch] - opt.uinfo.unbindflag&&subngroup>0"<<endl;
-    cout<<"DURATION: "<<MyGetTime()/1000000-time_temp<<endl;
     }
-
-    cout<<"TIME[CleanAndUpdateGroupsFromSubSearch] - loop1"<<endl;
-    time_temp = MyGetTime()/1000000;
-    cout<<"BEGIN: "<<time_temp<<endl;
+    
     for (auto j=0;j<subnumingroup;j++)
     {
         if (subpfof[j]>0) pfof[subpglist[j]]=ngroup+ngroupidoffset+subpfof[j];
     }
-    cout<<"END: TIME[CleanAndUpdateGroupsFromSubSearch] - loop1"<<endl;
-    cout<<"DURATION: "<<MyGetTime()/1000000-time_temp<<endl;
 
-
-    cout<<"TIME[CleanAndUpdateGroupsFromSubSearch] - loop2"<<endl;
-    time_temp = MyGetTime()/1000000;
-    cout<<"BEGIN: "<<time_temp<<endl;
     //ngroupidoffset+=subngroup;
     //now alter subsubpglist so that index pointed is global subset index as global subset is used to get the particles to be searched for subsubstructure
     for (auto j=1;j<=subngroup;j++)
@@ -2757,8 +2742,6 @@ inline void CleanAndUpdateGroupsFromSubSearch(Options &opt,
             subsubpglist[j][k]=subpglist[subsubpglist[j][k]];
         }
     }
-    cout<<"END: TIME[CleanAndUpdateGroupsFromSubSearch] - loop2"<<endl;
-    cout<<"DURATION: "<<MyGetTime()/1000000-time_temp<<endl;
 }
 
 void UpdateGroupIDsFromSubstructure(Int_t activenumgroups, Int_t oldnumgroups,
@@ -2915,12 +2898,25 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
                 AdjustSubPartToPhaseCM(subnumingroup[i], subPart, cmphase);
             }
             // TODO: Optimise bottleneck
+            Double_t time_temp;
+            cout<<"TIME[PreCalcSearchSubSet]"<<endl;
+            time_temp = MyGetTime()/1000000;
+            cout<<"BEGIN: "<<time_temp<<endl;
             PreCalcSearchSubSet(opt, subnumingroup[i], subPart, sublevel);
+            cout<<"DURATION: "<<MyGetTime()/1000000-time_temp<<endl;
+            cout<<"TIME[SearchSubset]"<<endl;
+            time_temp = MyGetTime()/1000000;
+            cout<<"BEGIN: "<<time_temp<<endl;
             subpfof = SearchSubset(opt, subnumingroup[i], subnumingroup[i], subPart,
                 subngroup[i], sublevel, &numcores[i]);
+            cout<<"DURATION: "<<MyGetTime()/1000000-time_temp<<endl;
+            cout<<"TIME[CleanAndUpdateGroupsFromSubSearch]"<<endl;
+            time_temp = MyGetTime()/1000000;
+            cout<<"BEGIN: "<<time_temp<<endl;
             CleanAndUpdateGroupsFromSubSearch(opt, subnumingroup[i], subPart, subpfof,
                     subngroup[i], subsubnumingroup[i], subsubpglist[i], numcores[i],
                     subpglist[i], pfof, ngroup, ngroupidoffset_old[i]);
+            cout<<"DURATION: "<<MyGetTime()/1000000-time_temp<<endl;
             delete[] subpfof;
             delete[] subPart;
             ns+=subngroup[i];
