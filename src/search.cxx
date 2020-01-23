@@ -2898,7 +2898,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
                 AdjustSubPartToPhaseCM(subnumingroup[i], subPart, cmphase);
             }
             // TODO: Optimise bottleneck
-            Double_t time_temp;
+            double time_temp;
             cout<<"TIME[PreCalcSearchSubSet]"<<endl;
             time_temp = MyGetTime();
             cout<<"BEGIN: "<<time_temp<<endl;
