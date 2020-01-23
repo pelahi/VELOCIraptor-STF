@@ -2701,7 +2701,7 @@ inline void CleanAndUpdateGroupsFromSubSearch(Options &opt,
     subsubnumingroup = BuildNumInGroup(subnumingroup, subngroup, subpfof);
     subsubpglist = BuildPGList(subnumingroup, subngroup, subsubnumingroup, subpfof);
 
-    time_temp = MyGetTime();
+    time_temp = MyGetTime()/1000000;
     if (opt.uinfo.unbindflag&&subngroup>0) {
         cout<<"TIME[CleanAndUpdateGroupsFromSubSearch] - opt.uinfo.unbindflag&&subngroup>0"<<endl;
         cout<<"BEGIN: "<<time_temp<<endl;
@@ -2731,22 +2731,22 @@ inline void CleanAndUpdateGroupsFromSubSearch(Options &opt,
             }
         }
     cout<<"END: TIME[CleanAndUpdateGroupsFromSubSearch] - opt.uinfo.unbindflag&&subngroup>0"<<endl;
-    cout<<"DURATION: "<<MyGetTime()-time_temp<<endl;
+    cout<<"DURATION: "<<MyGetTime()/1000000-time_temp<<endl;
     }
 
     cout<<"TIME[CleanAndUpdateGroupsFromSubSearch] - loop1"<<endl;
-    time_temp = MyGetTime();
+    time_temp = MyGetTime()/1000000;
     cout<<"BEGIN: "<<time_temp<<endl;
     for (auto j=0;j<subnumingroup;j++)
     {
         if (subpfof[j]>0) pfof[subpglist[j]]=ngroup+ngroupidoffset+subpfof[j];
     }
     cout<<"END: TIME[CleanAndUpdateGroupsFromSubSearch] - loop1"<<endl;
-    cout<<"DURATION: "<<MyGetTime()-time_temp<<endl;
+    cout<<"DURATION: "<<MyGetTime()/1000000-time_temp<<endl;
 
 
     cout<<"TIME[CleanAndUpdateGroupsFromSubSearch] - loop2"<<endl;
-    time_temp = MyGetTime();
+    time_temp = MyGetTime()/1000000;
     cout<<"BEGIN: "<<time_temp<<endl;
     //ngroupidoffset+=subngroup;
     //now alter subsubpglist so that index pointed is global subset index as global subset is used to get the particles to be searched for subsubstructure
@@ -2758,7 +2758,7 @@ inline void CleanAndUpdateGroupsFromSubSearch(Options &opt,
         }
     }
     cout<<"END: TIME[CleanAndUpdateGroupsFromSubSearch] - loop2"<<endl;
-    cout<<"DURATION: "<<MyGetTime()-time_temp<<endl;
+    cout<<"DURATION: "<<MyGetTime()/1000000-time_temp<<endl;
 }
 
 void UpdateGroupIDsFromSubstructure(Int_t activenumgroups, Int_t oldnumgroups,
