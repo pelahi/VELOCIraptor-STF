@@ -2901,18 +2901,15 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
             double time_temp;
             cout<<"TIME[PreCalcSearchSubSet]"<<endl;
             time_temp = MyGetTime();
-            cout<<"BEGIN: "<<time_temp<<endl;
             PreCalcSearchSubSet(opt, subnumingroup[i], subPart, sublevel);
             cout<<"DURATION: "<<MyGetTime()-time_temp<<endl;
             cout<<"TIME[SearchSubset]"<<endl;
             time_temp = MyGetTime();
-            cout<<"BEGIN: "<<time_temp<<endl;
             subpfof = SearchSubset(opt, subnumingroup[i], subnumingroup[i], subPart,
                 subngroup[i], sublevel, &numcores[i]);
             cout<<"DURATION: "<<MyGetTime()-time_temp<<endl;
             cout<<"TIME[CleanAndUpdateGroupsFromSubSearch]"<<endl;
             time_temp = MyGetTime();
-            cout<<"BEGIN: "<<time_temp<<endl;
             CleanAndUpdateGroupsFromSubSearch(opt, subnumingroup[i], subPart, subpfof,
                     subngroup[i], subsubnumingroup[i], subsubpglist[i], numcores[i],
                     subpglist[i], pfof, ngroup, ngroupidoffset_old[i]);
