@@ -1785,6 +1785,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 #endif
                 for (j=0;j<nusetypes;j++)
                 {
+                    k=usetypes[j];
                     unsigned long long nstart = 0, nend = hdf_header_info[i].npart[k];
                     unsigned long long nlocalsize;
 #ifdef USEPARALLELHDF
