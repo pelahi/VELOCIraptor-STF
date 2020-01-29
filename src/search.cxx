@@ -2899,21 +2899,17 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
             }
             // TODO: Optimise bottleneck
             double time_temp;
-            cout<<"TIME[PreCalcSearchSubSet]"<<endl;
             time_temp = MyGetTime();
             PreCalcSearchSubSet(opt, subnumingroup[i], subPart, sublevel);
-            cout<<"DURATION: "<<MyGetTime()-time_temp<<endl;
-            cout<<"TIME[SearchSubset]"<<endl;
-            time_temp = MyGetTime();
+            cout<<"DURATION[PreCalcSearchSubSet]: "<<MyGetTime()-time_temp<<endl;
             subpfof = SearchSubset(opt, subnumingroup[i], subnumingroup[i], subPart,
                 subngroup[i], sublevel, &numcores[i]);
-            cout<<"DURATION: "<<MyGetTime()-time_temp<<endl;
-            cout<<"TIME[CleanAndUpdateGroupsFromSubSearch]"<<endl;
+            cout<<"DURATION[SearchSubset]: "<<MyGetTime()-time_temp<<endl;
             time_temp = MyGetTime();
             CleanAndUpdateGroupsFromSubSearch(opt, subnumingroup[i], subPart, subpfof,
                     subngroup[i], subsubnumingroup[i], subsubpglist[i], numcores[i],
                     subpglist[i], pfof, ngroup, ngroupidoffset_old[i]);
-            cout<<"DURATION: "<<MyGetTime()-time_temp<<endl;
+            cout<<"DURATION[CleanAndUpdateGroupsFromSubSearch]: "<<MyGetTime()-time_temp<<endl;
             delete[] subpfof;
             delete[] subPart;
             ns+=subngroup[i];
@@ -2940,6 +2936,9 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
                     //this routine is within this file, also has internal parallelisation
                     AdjustSubPartToPhaseCM(subnumingroup[i], subPart, cmphase);
                 }
+                // TODO: Optimise bottleneck
+                double time_temp;
+                time_temp = MyGetTime();
                 PreCalcSearchSubSet(opt2, subnumingroup[i], subPart, sublevel);
                 subpfof = SearchSubset(opt2, subnumingroup[i], subnumingroup[i], subPart,
                     subngroup[i], sublevel, &numcores[i]);
