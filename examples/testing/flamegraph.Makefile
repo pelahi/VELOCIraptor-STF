@@ -19,8 +19,9 @@ _FLAMEGRAPH_SCRIPT_MAIN=$(_FLAMEGRAPH_PATH)/flamegraph.pl
 _FLAMEGRAPH_FILE_SVG=$(_PERF_PATH_ROOT)
 
 # STF
+# Dynamic stf input parameters through environment variables to be set in an input payload "./payloadname.env "
 _STF_PARAMETERS="DEFAULT"
-include ./payloadname.env
+include ./payloadname.env 
 
 record_prereq:
     @mkdir -p $(_PERF_PATH_ROOT)
