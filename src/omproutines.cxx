@@ -49,9 +49,10 @@ KDTree **OpenMPBuildLocalTrees(Options &opt, const Int_t numompregions, vector<P
     #pragma omp parallel default(shared) \
     private(i)
     {
-    #pragma omp for schedule(dynamic) nowait
+    #pragma omp for schedule(static) nowait
     for (i=0;i<numompregions;i++) {
-        tree3dfofomp[i] = new KDTree(&Part.data()[ompdomain[i].noffset],ompdomain[i].ncount,opt.Bsize,tree3dfofomp[i]->TPHYS,tree3dfofomp[i]->KEPAN,100,0,0,0,period);
+        tree3dfofomp[i] = new KDTree(&Part.data()[ompdomain[i].noffset],ompdomain[i].ncount,opt.Bsize,tree3dfofomp[i]->TPHYS,tree3dfofomp[i]->KEPAN,100,0,0,0,period,NULL,false);
+        tree3dfofomp[i]->OverWriteInputOrder();
     }
     }
     return tree3dfofomp;
@@ -287,48 +288,55 @@ Int_t OpenMPResortParticleandGroups(Int_t nbodies, vector<Particle> &Part, Int_t
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
 #endif
-    Int_t start, ngroups=0;
-    Int_t *numingroup, **plist;
-    //now get number of groups and reorder group ids
-    for (auto i=0;i<nbodies;i++) Part[i].SetID(-pfof[i]);
-    //used to use ID store store group id info
-    qsort(Part.data(),nbodies,sizeof(Particle),IDCompare);
+    Int_t ngroups = 0, newnumgroups = 0;;
+    vector<Int_t> numingroup, index;
+    unordered_map<Int_t, Int_t> pfofoldtonew;
+    PriorityQueue *pq;
 
-    //determine the # of groups, their size and the current group ID
-    for (auto i=0,start=0;i<nbodies;i++) {
-        if (Part[i].GetID()!=Part[start].GetID()) {
-            //if group is too small set type to zero, which currently is used to store the group id
-            if ((i-start)<minsize) for (Int_t j=start;j<i;j++) Part[j].SetID(0);
-            else ngroups++;
-            start=i;
-        }
-        if (Part[i].GetID()==0) break;
+    //init data
+    for (auto i=0;i<nbodies;i++) if (ngroups < pfof[i]) ngroups = pfof[i];
+    numingroup.resize(ngroups+1,0);
+    index.resize(ngroups+1);
+    for (auto i=0;i<=ngroups;i++) index[i] = i;
+    for (auto i=0;i<nbodies;i++) if (pfof[i]>0) numingroup[pfof[i]]++;
+    for (auto i=1;i<=ngroups;i++) {
+        if (numingroup[i]<minsize) numingroup[i] = 0;
+        else newnumgroups++;
     }
-    //again resort to move untagged particles to the end.
-    qsort(Part.data(),nbodies,sizeof(Particle),IDCompare);
-
-    //now adjust pfof and ids.
-    for (auto i=0;i<nbodies;i++) {pfof[i]=-Part[i].GetID();Part[i].SetID(i);}
-    numingroup=new Int_t[ngroups+1];
-    plist=new Int_t*[ngroups+1];
-    ngroups=1;//offset as group zero is untagged
-    for (auto i=0,start=0;i<nbodies;i++) {
-        if (pfof[i]!=pfof[start]) {
-            numingroup[ngroups]=i-start;
-            plist[ngroups]=new Int_t[numingroup[ngroups]];
-            for (auto j=start,count=0;j<i;j++) plist[ngroups][count++]=j;
-            ngroups++;
-            start=i;
+    //if no groups are large enough, zero and return
+    if (newnumgroups == 0) {
+        #pragma omp parallel for default(shared)
+        for (auto i=0;i<nbodies;i++) {
+            pfof[i] = 0;
         }
-        if (pfof[i]==0) break;
+        ngroups = newnumgroups;
+        return ngroups;
     }
-    ngroups--;
 
-    //reorder groups ids according to size
-    ReorderGroupIDs(ngroups,ngroups,numingroup,pfof,plist);
-    for (auto i=1;i<=ngroups;i++) delete[] plist[i];
-    delete[] plist;
-    delete[] numingroup;
+    //otherwise, remap group ids so as to be in decreasing group size
+    //first set all pfof values for all groups below minsize to zero
+    for (auto i=0;i<nbodies;i++) {
+        if (pfof[i] == 0) continue;
+        if (numingroup[pfof[i]]<minsize) pfof[i] = 0;
+    }
+    pq = new PriorityQueue(newnumgroups);
+    for (auto i=1;i<=ngroups;i++) {
+        if (numingroup[i] == 0) continue;
+        pq->Push(index[i],numingroup[i]);
+    }
+    ngroups = newnumgroups;
+    newnumgroups = 0;
+    //generate map
+    for (auto i=0;i<ngroups;i++) {
+        pfofoldtonew[pq->TopQueue()] = ++newnumgroups;
+        pq->Pop();
+    }
+    delete pq;
+    //set new group id values stored in pfof
+    for (auto i=0;i<nbodies;i++) {
+        if (pfof[i] == 0) continue;
+        pfof[i]=pfofoldtonew[pfof[i]];
+    }
     return ngroups;
 }
 

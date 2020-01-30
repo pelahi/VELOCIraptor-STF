@@ -54,7 +54,25 @@ matrix:
      apt:
       sources: ubuntu-toolchain-r-test
       packages: [g++-5, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
+    env: COMPILER=g++-5 USEGAS=1 USESTARS=1 USEBH=1
+  - compiler: gcc
+    addons:
+     apt:
+      sources: ubuntu-toolchain-r-test
+      packages: [g++-5, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
+    env: COMPILER=g++-5 USEEXTRADM=1
+  - compiler: gcc
+    addons:
+     apt:
+      sources: ubuntu-toolchain-r-test
+      packages: [g++-5, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
     env: COMPILER=g++-5 USESWIFT=1
+  - compiler: gcc
+    addons:
+     apt:
+      sources: ubuntu-toolchain-r-test
+      packages: [g++-5, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
+    env: COMPILER=g++-5 NOMASS=1
   - compiler: gcc
     addons:
      apt:
