@@ -7,13 +7,12 @@ ENV BRANCH=feature/threadpool-struct
 RUN apt update && \
     apt install -y g++ libomp-dev libgsl-dev libhdf5-serial-dev git cmake
 
-WORKDIR /home/ubuntu/
+WORKDIR /home/ubuntu/VELOCIraptor-STF
 
 # INITIALISE PROJECT DIRECTORY
-RUN git clone https://github.com/pelahi/VELOCIraptor-STF.git && \
-    cd VELOCIraptor-STF && git checkout ${BRANCH} && git submodule update --init --recursive
-
-WORKDIR /home/ubuntu/VELOCIraptor-STF
+# RUN git clone https://github.com/pelahi/VELOCIraptor-STF.git && \
+#     cd VELOCIraptor-STF && git checkout ${BRANCH} && git submodule update --init --recursive
+COPY . .
 
 # BUILD BINARY
 RUN mkdir build && cd build && cmake .. && make all
