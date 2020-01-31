@@ -200,6 +200,15 @@ using namespace NBody;
 #define OUTADIOS 3
 //@}
 
+///\defgroup CALCULATIONTYPES defining what is calculated
+//@{
+#define CALCAVERAGEMASSWEIGHT 1
+#define CALCTOTALMASSWEIGHT 2
+#define CALCAVERAGE 3
+#define CALCTOTAL 4
+#define CALCMEDIAN 5
+//@}
+
 /// \name For Unbinding
 //@{
 
@@ -659,19 +668,47 @@ struct Options
 
     /// \name options related to calculating detailed hydro/star/bh properties related to chemistry/feedbac, etc
     //@{
+    ///stores the name of the field
     vector<string> gas_internalprop_names;
     vector<string> star_internalprop_names;
     vector<string> bh_internalprop_names;
 
+    ///can also store the dimensional index of the field, useful when single data
+    ///set contains many related but different properties
+    vector<unsigned int> gas_internalprop_index;
+    vector<unsigned int> star_internalprop_index;
+    vector<unsigned int> bh_internalprop_index;
+    ///stores what is calculated
+    ///(1 is mass weighted average, 2 mass weighted total,
+    ///3 average, 4 total)
+    ///5 median
+    vector<unsigned int> gas_internalprop_function;
+    vector<unsigned int> star_internalprop_function;
+    vector<unsigned int> bh_internalprop_function;
+
     vector<string> gas_chem_names;
     vector<string> star_chem_names;
     vector<string> bh_chem_names;
+    vector<unsigned int> gas_chem_index;
+    vector<unsigned int> star_chem_index;
+    vector<unsigned int> bh_chem_index;
+    vector<unsigned int> gas_chem_function;
+    vector<unsigned int> star_chem_function;
+    vector<unsigned int> bh_chem_function;
 
     vector<string> gas_chemproduction_names;
     vector<string> star_chemproduction_names;
     vector<string> bh_chemproduction_names;
+    vector<unsigned int> gas_chemproduction_index;
+    vector<unsigned int> star_chemproduction_index;
+    vector<unsigned int> bh_chemproduction_index;
+    vector<unsigned int> gas_chemproduction_function;
+    vector<unsigned int> star_chemproduction_function;
+    vector<unsigned int> bh_chemproduction_function;
 
     vector<string> extra_dm_internalprop_names;
+    vector<unsigned int> extra_dm_internalprop_index;
+    vector<unsigned int> extra_dm_internalprop_function;
     //@}
 
     Options()

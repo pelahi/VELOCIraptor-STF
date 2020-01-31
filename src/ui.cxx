@@ -691,6 +691,34 @@ void GetParamFile(Options &opt)
                             opt.gas_internalprop_names.push_back(token);
                             dataline.erase(0, pos + delimiter.length());
                         }
+                        if (opt.gas_internalprop_index.size() == 0) {
+                            opt.gas_internalprop_index.resize(opt.gas_internalprop_names.size(),0);
+                        }
+                        if (opt.gas_internalprop_function.size() == 0) {
+                            opt.gas_internalprop_function.resize(opt.gas_internalprop_names.size(),CALCAVERAGEMASSWEIGHT);
+                        }
+                    }
+                    else if (strcmp(tbuff, "Gas_internal_property_index_in_file")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<unsigned int> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(stoi(token));
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.gas_internalprop_index = tempvec;
+                    }
+                    else if (strcmp(tbuff, "Gas_internal_property_calculation_type")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<unsigned int> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(stoi(token));
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.gas_internalprop_function = tempvec;
                     }
                     else if (strcmp(tbuff, "Star_internal_property_names")==0) {
                         pos=0;
@@ -700,6 +728,34 @@ void GetParamFile(Options &opt)
                             opt.star_internalprop_names.push_back(token);
                             dataline.erase(0, pos + delimiter.length());
                         }
+                        if (opt.star_internalprop_index.size() == 0) {
+                            opt.star_internalprop_index.resize(opt.star_internalprop_names.size(),0);
+                        }
+                        if (opt.gas_internalprop_function.size() == 0) {
+                            opt.star_internalprop_function.resize(opt.star_internalprop_names.size(),CALCAVERAGEMASSWEIGHT);
+                        }
+                    }
+                    else if (strcmp(tbuff, "Star_internal_property_index_in_file")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<unsigned int> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(stoi(token));
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.star_internalprop_index = tempvec;
+                    }
+                    else if (strcmp(tbuff, "Star_internal_property_calculation_type")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<unsigned int> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(stoi(token));
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.star_internalprop_function = tempvec;
                     }
                     else if (strcmp(tbuff, "BH_internal_property_names")==0) {
                         pos=0;
@@ -709,6 +765,34 @@ void GetParamFile(Options &opt)
                             opt.bh_internalprop_names.push_back(token);
                             dataline.erase(0, pos + delimiter.length());
                         }
+                        if (opt.bh_internalprop_index.size() == 0) {
+                            opt.bh_internalprop_index.resize(opt.bh_internalprop_names.size(),0);
+                        }
+                        if (opt.bh_internalprop_function.size() == 0) {
+                            opt.bh_internalprop_function.resize(opt.bh_internalprop_names.size(),CALCAVERAGEMASSWEIGHT);
+                        }
+                    }
+                    else if (strcmp(tbuff, "BH_internal_property_index_in_file")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<unsigned int> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(stoi(token));
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.bh_internalprop_index = tempvec;
+                    }
+                    else if (strcmp(tbuff, "BH_internal_property_calculation_type")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<unsigned int> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(stoi(token));
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.bh_internalprop_function = tempvec;
                     }
                     else if (strcmp(tbuff, "Extra_DM_internal_property_names")==0) {
                         pos=0;
@@ -718,6 +802,34 @@ void GetParamFile(Options &opt)
                             opt.extra_dm_internalprop_names.push_back(token);
                             dataline.erase(0, pos + delimiter.length());
                         }
+                        if (opt.extra_dm_internalprop_index.size() == 0) {
+                            opt.extra_dm_internalprop_index.resize(opt.extra_dm_internalprop_names.size(),0);
+                        }
+                        if (opt.extra_dm_internalprop_function.size() == 0) {
+                            opt.extra_dm_internalprop_function.resize(opt.extra_dm_internalprop_names.size(),CALCAVERAGEMASSWEIGHT);
+                        }
+                    }
+                    else if (strcmp(tbuff, "Extra_DM_internal_property_index_in_file")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<unsigned int> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(stoi(token));
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.extra_dm_internalprop_index = tempvec;
+                    }
+                    else if (strcmp(tbuff, "Extra_DM_internal_property_calculation_type")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<unsigned int> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(stoi(token));
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.extra_dm_internalprop_function = tempvec;
                     }
                     else if (strcmp(tbuff, "Gas_chemistry_names")==0) {
                         pos=0;
@@ -727,6 +839,34 @@ void GetParamFile(Options &opt)
                             opt.gas_chem_names.push_back(token);
                             dataline.erase(0, pos + delimiter.length());
                         }
+                        if (opt.gas_chem_index.size() == 0) {
+                            opt.gas_chem_index.resize(opt.gas_chem_names.size(),0);
+                        }
+                        if (opt.gas_chem_function.size() == 0) {
+                            opt.gas_chem_function.resize(opt.gas_chem_names.size(),CALCAVERAGEMASSWEIGHT);
+                        }
+                    }
+                    else if (strcmp(tbuff, "Gas_chemistry_index_in_file")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<unsigned int> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(stoi(token));
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.gas_chem_index = tempvec;
+                    }
+                    else if (strcmp(tbuff, "Gas_chemistry_calculation_type")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<unsigned int> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(stoi(token));
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.gas_chem_function = tempvec;
                     }
                     else if (strcmp(tbuff, "Star_chemistry_names")==0) {
                         pos=0;
@@ -736,6 +876,34 @@ void GetParamFile(Options &opt)
                             opt.star_chem_names.push_back(token);
                             dataline.erase(0, pos + delimiter.length());
                         }
+                        if (opt.star_chem_index.size() == 0) {
+                            opt.star_chem_index.resize(opt.star_chem_names.size(),0);
+                        }
+                        if (opt.star_chem_function.size() == 0) {
+                            opt.star_chem_function.resize(opt.star_chem_names.size(),CALCAVERAGEMASSWEIGHT);
+                        }
+                    }
+                    else if (strcmp(tbuff, "Star_chemistry_index_in_file")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<unsigned int> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(stoi(token));
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.star_chem_index = tempvec;
+                    }
+                    else if (strcmp(tbuff, "Star_chemistry_calculation_type")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<unsigned int> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(stoi(token));
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.star_chem_function = tempvec;
                     }
                     else if (strcmp(tbuff, "BH_chemistry_names")==0) {
                         pos=0;
@@ -745,33 +913,145 @@ void GetParamFile(Options &opt)
                             opt.bh_chem_names.push_back(token);
                             dataline.erase(0, pos + delimiter.length());
                         }
+                        if (opt.bh_chem_index.size() == 0) {
+                            opt.bh_chem_index.resize(opt.bh_chem_names.size(),0);
+                        }
+                        if (opt.bh_chem_function.size() == 0) {
+                            opt.bh_chem_function.resize(opt.bh_chem_names.size(),CALCAVERAGEMASSWEIGHT);
+                        }
+                    }
+                    else if (strcmp(tbuff, "BH_chemistry_index_in_file")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<unsigned int> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(stoi(token));
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.bh_chem_index = tempvec;
+                    }
+                    else if (strcmp(tbuff, "BH_chemistry_calculation_type")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<unsigned int> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(stoi(token));
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.bh_chem_function = tempvec;
                     }
                     else if (strcmp(tbuff, "Gas_chemistry_production_names")==0) {
                         pos=0;
                         dataline=string(vbuff);
                         while ((pos = dataline.find(delimiter)) != string::npos) {
                             token = dataline.substr(0, pos);
-                            opt.gas_chem_names.push_back(token);
+                            opt.gas_chemproduction_names.push_back(token);
                             dataline.erase(0, pos + delimiter.length());
                         }
+                        if (opt.gas_chemproduction_index.size() == 0) {
+                            opt.gas_chemproduction_index.resize(opt.gas_chemproduction_names.size(),0);
+                        }
+                        if (opt.gas_chemproduction_function.size() == 0) {
+                            opt.gas_chemproduction_function.resize(opt.gas_chemproduction_names.size(),CALCAVERAGEMASSWEIGHT);
+                        }
+                    }
+                    else if (strcmp(tbuff, "Gas_chemistry_production_index_in_file")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<unsigned int> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(stoi(token));
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.gas_chemproduction_index = tempvec;
+                    }
+                    else if (strcmp(tbuff, "Gas_chemistry_prodution_calculation_type")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<unsigned int> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(stoi(token));
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.gas_chemproduction_function = tempvec;
                     }
                     else if (strcmp(tbuff, "Star_chemistry_production_names")==0) {
                         pos=0;
                         dataline=string(vbuff);
                         while ((pos = dataline.find(delimiter)) != string::npos) {
                             token = dataline.substr(0, pos);
-                            opt.star_chem_names.push_back(token);
+                            opt.star_chemproduction_names.push_back(token);
                             dataline.erase(0, pos + delimiter.length());
                         }
+                        if (opt.star_chemproduction_index.size() == 0) {
+                            opt.star_chemproduction_index.resize(opt.star_chemproduction_names.size(),0);
+                        }
+                        if (opt.star_chemproduction_function.size() == 0) {
+                            opt.star_chemproduction_function.resize(opt.star_chemproduction_names.size(),CALCAVERAGEMASSWEIGHT);
+                        }
+                    }
+                    else if (strcmp(tbuff, "Star_chemistry_production_index_in_file")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<unsigned int> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(stoi(token));
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.star_chemproduction_index = tempvec;
+                    }
+                    else if (strcmp(tbuff, "Star_chemistry_prodution_calculation_type")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<unsigned int> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(stoi(token));
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.star_chemproduction_function = tempvec;
                     }
                     else if (strcmp(tbuff, "BH_chemistry_production_names")==0) {
                         pos=0;
                         dataline=string(vbuff);
                         while ((pos = dataline.find(delimiter)) != string::npos) {
                             token = dataline.substr(0, pos);
-                            opt.bh_chem_names.push_back(token);
+                            opt.bh_chemproduction_names.push_back(token);
                             dataline.erase(0, pos + delimiter.length());
                         }
+                        if (opt.bh_chemproduction_index.size() == 0) {
+                            opt.bh_chemproduction_index.resize(opt.bh_chemproduction_names.size(),0);
+                        }
+                        if (opt.bh_chemproduction_function.size() == 0) {
+                            opt.bh_chemproduction_function.resize(opt.bh_chemproduction_names.size(),CALCAVERAGEMASSWEIGHT);
+                        }
+                    }
+                    else if (strcmp(tbuff, "BH_chemistry_production_index_in_file")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<unsigned int> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(stoi(token));
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.bh_chemproduction_index = tempvec;
+                    }
+                    else if (strcmp(tbuff, "BH_chemistry_prodution_calculation_type")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<unsigned int> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(stoi(token));
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.bh_chemproduction_function = tempvec;
                     }
 
 
@@ -1015,6 +1295,91 @@ void ConfigCheck(Options &opt)
         if (opt.iprofilenorm == PROFILERNORMR200CRIT) opt.profileradnormstring = "R_200crit";
         else if (opt.iprofilenorm == PROFILERNORMPHYS) opt.profileradnormstring = "Physical";
     }
+
+    if (opt.gas_internalprop_names.size() != opt.gas_internalprop_function.size()){
+        errormessage("GAS: # of Internal Property does not the # of function type entries. Check config.");
+        ConfigExit();
+    }
+    if (opt.gas_internalprop_names.size() != opt.gas_internalprop_index.size()){
+        errormessage("GAS: # of Internal Property names does not the # of index in file entries. Check config.");
+        ConfigExit();
+    }
+    if (opt.gas_chem_names.size() != opt.gas_chem_function.size()){
+        errormessage("GAS: # of Chemistry names does not the # of function type entries. Check config.");
+        ConfigExit();
+    }
+    if (opt.gas_chem_names.size() != opt.gas_chem_index.size()){
+        errormessage("GAS: # of Chemistry Production names does not the # of index in file entries. Check config.");
+        ConfigExit();
+    }
+    if (opt.gas_chemproduction_names.size() != opt.gas_chemproduction_function.size()){
+        errormessage("GAS: # of Chemistry Production names does not the # of function type entries. Check config.");
+        ConfigExit();
+    }
+    if (opt.gas_chemproduction_names.size() != opt.gas_chemproduction_index.size()){
+        errormessage("GAS: # of Chemistry Production names does not the # of index in file entries. Check config.");
+        ConfigExit();
+    }
+
+    if (opt.star_internalprop_names.size() != opt.star_internalprop_function.size()){
+        errormessage("STAR: # of Internal Property does not the # of function type entries. Check config.");
+        ConfigExit();
+    }
+    if (opt.star_internalprop_names.size() != opt.star_internalprop_index.size()){
+        errormessage("STAR: # of Internal Property names does not the # of index in file entries. Check config.");
+        ConfigExit();
+    }
+    if (opt.star_chem_names.size() != opt.star_chem_function.size()){
+        errormessage("STAR: # of Chemistry names does not the # of function type entries. Check config.");
+        ConfigExit();
+    }
+    if (opt.star_chem_names.size() != opt.star_chem_index.size()){
+        errormessage("STAR: # of Chemistry Production names does not the # of index in file entries. Check config.");
+        ConfigExit();
+    }
+    if (opt.star_chemproduction_names.size() != opt.star_chemproduction_function.size()){
+        errormessage("STAR: # of Chemistry Production names does not the # of function type entries. Check config.");
+        ConfigExit();
+    }
+    if (opt.star_chemproduction_names.size() != opt.star_chemproduction_index.size()){
+        errormessage("STAR: # of Chemistry Production names does not the # of index in file entries. Check config.");
+        ConfigExit();
+    }
+
+    if (opt.bh_internalprop_names.size() != opt.bh_internalprop_function.size()){
+        errormessage("BH: # of Internal Property does not the # of function type entries. Check config.");
+        ConfigExit();
+    }
+    if (opt.bh_internalprop_names.size() != opt.bh_internalprop_index.size()){
+        errormessage("BH: # of Internal Property names does not the # of index in file entries. Check config.");
+        ConfigExit();
+    }
+    if (opt.bh_chem_names.size() != opt.bh_chem_function.size()){
+        errormessage("BH: # of Chemistry names does not the # of function type entries. Check config.");
+        ConfigExit();
+    }
+    if (opt.bh_chem_names.size() != opt.bh_chem_index.size()){
+        errormessage("BH: # of Chemistry Production names does not the # of index in file entries. Check config.");
+        ConfigExit();
+    }
+    if (opt.bh_chemproduction_names.size() != opt.bh_chemproduction_function.size()){
+        errormessage("BH: # of Chemistry Production names does not the # of function type entries. Check config.");
+        ConfigExit();
+    }
+    if (opt.bh_chemproduction_names.size() != opt.bh_chemproduction_index.size()){
+        errormessage("BH: # of Chemistry Production names does not the # of index in file entries. Check config.");
+        ConfigExit();
+    }
+
+    if (opt.extra_dm_internalprop_names.size() != opt.extra_dm_internalprop_function.size()){
+        errormessage("Extra_DM: # of Internal Property does not the # of function type entries. Check config.");
+        ConfigExit();
+    }
+    if (opt.extra_dm_internalprop_names.size() != opt.extra_dm_internalprop_index.size()){
+        errormessage("Extra_DM: # of Internal Property names does not the # of index in file entries. Check config.");
+        ConfigExit();
+    }
+
     //set halo 3d fof linking length if necessary
     if (opt.ellhalo3dxfac == -1) {
         opt.ellhalo3dxfac = opt.ellhalophysfac * opt.ellphys;
