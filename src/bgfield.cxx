@@ -30,7 +30,7 @@ KDTree* InitializeTreeGrid(Options &opt, const Int_t nbodies, Particle *Part){
     //and rotate velocities to new frame
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
-private(i,vel)
+private(i,vel) if (nbodies > ompsubsearchnum)
 {
 #pragma omp for
 #endif
@@ -48,22 +48,29 @@ private(i,vel)
 
     //then build tree
     KDTree *tree;
+    int itreetype = tree->TPHYS, ikerntype = tree->KEPAN, isplittingcriterion = 0, ianiso = 0 , iscale = 0;
+    bool runomp = (nbodies > ompsubsearchnum);
     if (opt.iverbose>=2) cout<<"Grid system using leaf nodes with maximum size of "<<opt.Ncell<<endl;
     if (opt.gridtype==PHYSGRID) {
         if (opt.iverbose>=2) cout<<"Building Physical Tree using simple spatial extend as splitting criterion"<<endl;
-        tree=new KDTree(Part,nbodies,opt.Ncell,tree->TPHYS);
+        //tree=new KDTree(Part,nbodies,opt.Ncell,tree->TPHYS);
     }
     else if (opt.gridtype==PHYSENGRID) {
         if (opt.iverbose>=2) cout<<"Building physical Tree using minimum shannon entropy as splitting criterion"<<endl;
+        isplittingcriterion = 1;
         //tree=new KDTree(*S,opt.Ncell,tree->TPHYS,tree->KEPAN,100,1);
-        tree=new KDTree(Part,nbodies,opt.Ncell,tree->TPHYS,tree->KEPAN,100,1);
+        //tree=new KDTree(Part,nbodies,opt.Ncell,tree->TPHYS,tree->KEPAN,100,1);
     }
     else if (opt.gridtype==PHASEENGRID) {
         if (opt.iverbose>=2) cout<<"Building Phase-space Tree using minimum shannon entropy as splitting criterion"<<endl;
+        itreetype = tree->TPHS;
+        isplittingcriterion = 1;
+        ianiso = 1;
         //tree=new KDTree(*S,opt.Ncell,tree->TPHS,tree->KEPAN,100,1,1);//if phase tree, use entropy criterion with anisotropic kernel
         //if phase tree, use entropy criterion with anisotropic kernel
-        tree=new KDTree(Part,nbodies,opt.Ncell,tree->TPHS,tree->KEPAN,100,1,1);
+        //tree=new KDTree(Part,nbodies,opt.Ncell,tree->TPHS,tree->KEPAN,100,1,1);
     }
+    tree=new KDTree(Part,nbodies,opt.Ncell,itreetype,ikerntype,100,isplittingcriterion,ianiso,iscale,NULL,NULL,runomp);
     return tree;
 }
 
@@ -128,6 +135,7 @@ void FillTreeGrid(Options &opt, const Int_t nbodies, const Int_t ngrid, KDTree *
     }
     //resets particle order
     delete tree;
+    delete[] ptemp;
     if (opt.iverbose>=2) cout<<"Done."<<endl;
 }
 
@@ -146,7 +154,7 @@ Coordinate* GetCellVel(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
     if (opt.iverbose>=2) cout<<"Calculating Grid Mean Velocity"<<endl;
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
-private(i,mtot)
+private(i,mtot) if (nbodies > ompsubsearchnum)
 {
 #pragma omp for
 #endif
@@ -175,7 +183,7 @@ Matrix* GetCellVelDisp(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
     if (opt.iverbose>=2) cout<<"Calculating Grid Velocity Dispersion"<<endl;
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
-private(i,mtot)
+private(i,mtot) if (nbodies > ompsubsearchnum)
 {
 #pragma omp for
 #endif
