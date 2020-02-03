@@ -879,7 +879,11 @@ reduction(+:nprocessed,ntot)
                 v2=0;
                 id=nnids[k];
                 if (id == j) continue;
-                for (auto n=0;n<3;n++) v2+=(Part[j].GetVelocity(n)-Part[id].GetVelocity(n))*(Part[j].GetVelocity(n)-Part[id].GetVelocity(n));
+                {
+                    auto ParticleJ=Part[j];
+                    auto ParticleID=Part[id];
+                    for (auto n=0;n<3;n++) v2+=(ParticleJ.GetVelocity(n)-ParticleID.GetVelocity(n))*(ParticleJ.GetVelocity(n)-ParticleID.GetVelocity(n));
+                }
                 if (v2 < pqv->TopPriority()){
                     pqv->Pop();
                     pqv->Push(id, v2);
