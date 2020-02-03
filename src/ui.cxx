@@ -1122,6 +1122,40 @@ inline void ConfigExit() {
 #endif
 }
 
+inline string ExtraFieldIndexName(unsigned int i){
+    string s = "";
+    if (i>0) s ="_index_"+to_string(i);
+    return s;
+}
+
+inline string ExtraFieldFuncName(unsigned int i){
+    string s;
+    switch(i)
+    {
+        case CALCAVERAGEMASSWEIGHT:
+            s="_average_mass_weighted";
+            break;
+        case CALCAVERAGE:
+            s="_average";
+            break;
+        case CALCTOTALMASSWEIGHT:
+            s="_total_mass_weighted";
+            break;
+        case CALCTOTAL:
+            s="_total";
+            break;
+        case CALCMEDIAN:
+            s="_median";
+            break;
+        case CALCSTDMASSWEIGHT:
+            s="_std_mass_weighted";
+            break;
+        case CALCSTD:
+            s="_std";
+            break;
+    }
+    return s;
+}
 
 inline void errormessage(string message) {
 #ifndef USEMPI
@@ -1378,6 +1412,52 @@ void ConfigCheck(Options &opt)
     if (opt.extra_dm_internalprop_names.size() != opt.extra_dm_internalprop_index.size()){
         errormessage("Extra_DM: # of Internal Property names does not the # of index in file entries. Check config.");
         ConfigExit();
+    }
+
+    //set output field names for extra properties
+    //set output field names for extra properties
+    for (auto i=0;i<opt.gas_internalprop_names.size();i++ )
+    {
+        opt.gas_internalprop_output_names[i]=opt.gas_internalprop_names[i]+ExtraFieldIndexName(opt.gas_internalprop_index[i])+ExtraFieldFuncName(opt.gas_internalprop_function[i]);
+    }
+    for (auto i=0;i<opt.gas_chem_names.size();i++ )
+    {
+        opt.gas_chem_output_names[i]=opt.gas_chem_names[i]+ExtraFieldIndexName(opt.gas_chem_index[i])+ExtraFieldFuncName(opt.gas_chem_function[i]);
+    }
+    for (auto i=0;i<opt.gas_chemproduction_names.size();i++ )
+    {
+        opt.gas_chemproduction_output_names[i]=opt.gas_chemproduction_names[i]+ExtraFieldIndexName(opt.gas_chemproduction_index[i])+ExtraFieldFuncName(opt.gas_chemproduction_function[i]);
+    }
+
+    for (auto i=0;i<opt.star_internalprop_names.size();i++ )
+    {
+        opt.star_internalprop_output_names[i]=opt.star_internalprop_names[i]+ExtraFieldIndexName(opt.star_internalprop_index[i])+ExtraFieldFuncName(opt.star_internalprop_function[i]);
+    }
+    for (auto i=0;i<opt.star_chem_names.size();i++ )
+    {
+        opt.star_chem_output_names[i]=opt.star_chem_names[i]+ExtraFieldIndexName(opt.star_chem_index[i])+ExtraFieldFuncName(opt.star_chem_function[i]);
+    }
+    for (auto i=0;i<opt.star_chemproduction_names.size();i++ )
+    {
+        opt.star_chemproduction_output_names[i]=opt.star_chemproduction_names[i]+ExtraFieldIndexName(opt.star_chemproduction_index[i])+ExtraFieldFuncName(opt.star_chemproduction_function[i]);
+    }
+
+    for (auto i=0;i<opt.bh_internalprop_names.size();i++ )
+    {
+        opt.bh_internalprop_output_names[i]=opt.bh_internalprop_names[i]+ExtraFieldIndexName(opt.bh_internalprop_index[i])+ExtraFieldFuncName(opt.bh_internalprop_function[i]);
+    }
+    for (auto i=0;i<opt.bh_chem_names.size();i++ )
+    {
+        opt.bh_chem_output_names[i]=opt.bh_chem_names[i]+ExtraFieldIndexName(opt.bh_chem_index[i])+ExtraFieldFuncName(opt.bh_chem_function[i]);
+    }
+    for (auto i=0;i<opt.bh_chemproduction_names.size();i++ )
+    {
+        opt.bh_chemproduction_output_names[i]=opt.bh_chemproduction_names[i]+ExtraFieldIndexName(opt.bh_chemproduction_index[i])+ExtraFieldFuncName(opt.bh_chemproduction_function[i]);
+    }
+
+    for (auto i=0;i<opt.extra_dm_internalprop_names.size();i++ )
+    {
+        opt.extra_dm_internalprop_output_names[i]=opt.extra_dm_internalprop_names[i]+ExtraFieldIndexName(opt.extra_dm_internalprop_index[i])+ExtraFieldFuncName(opt.extra_dm_internalprop_function[i]);
     }
 
     //set halo 3d fof linking length if necessary
