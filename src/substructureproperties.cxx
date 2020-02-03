@@ -5791,14 +5791,14 @@ void GetExtraDMProperties(Options &opt, PropData &pdata, Int_t n, Particle *Pval
             extrafield = opt.extra_dm_internalprop_names[iextra];
             weight = ExtraPropGetWeight(opt.extra_dm_internalprop_function[iextra], oldweight);
             sum[extrafield] += weight;
-            value[extrafield]+= x.GetInternalProperties(extrafield)* weight;
+            value[extrafield]+= x.GetExtraProperties(extrafield)* weight;
         }
     }
     for (auto iextra=0;iextra<opt.extra_dm_internalprop_names.size();iextra++)
     {
         extrafield = opt.extra_dm_internalprop_names[iextra];
         result = ExtraPropNormalizeValue(opt.extra_dm_internalprop_function[iextra], value[extrafield], sum[extrafield]);
-        pdata.extradmprop.SetInternalProperties(extrafield, result);
+        pdata.extradmprop.SetExtraProperties(extrafield, result);
     }
 #endif
 }
