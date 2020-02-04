@@ -1415,49 +1415,48 @@ void ConfigCheck(Options &opt)
     }
 
     //set output field names for extra properties
-    //set output field names for extra properties
     for (auto i=0;i<opt.gas_internalprop_names.size();i++ )
     {
-        opt.gas_internalprop_output_names[i]=opt.gas_internalprop_names[i]+ExtraFieldIndexName(opt.gas_internalprop_index[i])+ExtraFieldFuncName(opt.gas_internalprop_function[i]);
+        opt.gas_internalprop_output_names.push_back(opt.gas_internalprop_names[i]+ExtraFieldIndexName(opt.gas_internalprop_index[i])+ExtraFieldFuncName(opt.gas_internalprop_function[i]));
     }
     for (auto i=0;i<opt.gas_chem_names.size();i++ )
     {
-        opt.gas_chem_output_names[i]=opt.gas_chem_names[i]+ExtraFieldIndexName(opt.gas_chem_index[i])+ExtraFieldFuncName(opt.gas_chem_function[i]);
+        opt.gas_chem_output_names.push_back(opt.gas_chem_names[i]+ExtraFieldIndexName(opt.gas_chem_index[i])+ExtraFieldFuncName(opt.gas_chem_function[i]));
     }
     for (auto i=0;i<opt.gas_chemproduction_names.size();i++ )
     {
-        opt.gas_chemproduction_output_names[i]=opt.gas_chemproduction_names[i]+ExtraFieldIndexName(opt.gas_chemproduction_index[i])+ExtraFieldFuncName(opt.gas_chemproduction_function[i]);
+        opt.gas_chemproduction_output_names.push_back(opt.gas_chemproduction_names[i]+ExtraFieldIndexName(opt.gas_chemproduction_index[i])+ExtraFieldFuncName(opt.gas_chemproduction_function[i]));
     }
 
     for (auto i=0;i<opt.star_internalprop_names.size();i++ )
     {
-        opt.star_internalprop_output_names[i]=opt.star_internalprop_names[i]+ExtraFieldIndexName(opt.star_internalprop_index[i])+ExtraFieldFuncName(opt.star_internalprop_function[i]);
+        opt.star_internalprop_output_names.push_back(opt.star_internalprop_names[i]+ExtraFieldIndexName(opt.star_internalprop_index[i])+ExtraFieldFuncName(opt.star_internalprop_function[i]));
     }
     for (auto i=0;i<opt.star_chem_names.size();i++ )
     {
-        opt.star_chem_output_names[i]=opt.star_chem_names[i]+ExtraFieldIndexName(opt.star_chem_index[i])+ExtraFieldFuncName(opt.star_chem_function[i]);
+        opt.star_chem_output_names.push_back(opt.star_chem_names[i]+ExtraFieldIndexName(opt.star_chem_index[i])+ExtraFieldFuncName(opt.star_chem_function[i]));
     }
     for (auto i=0;i<opt.star_chemproduction_names.size();i++ )
     {
-        opt.star_chemproduction_output_names[i]=opt.star_chemproduction_names[i]+ExtraFieldIndexName(opt.star_chemproduction_index[i])+ExtraFieldFuncName(opt.star_chemproduction_function[i]);
+        opt.star_chemproduction_output_names.push_back(opt.star_chemproduction_names[i]+ExtraFieldIndexName(opt.star_chemproduction_index[i])+ExtraFieldFuncName(opt.star_chemproduction_function[i]));
     }
 
     for (auto i=0;i<opt.bh_internalprop_names.size();i++ )
     {
-        opt.bh_internalprop_output_names[i]=opt.bh_internalprop_names[i]+ExtraFieldIndexName(opt.bh_internalprop_index[i])+ExtraFieldFuncName(opt.bh_internalprop_function[i]);
+        opt.bh_internalprop_output_names.push_back(opt.bh_internalprop_names[i]+ExtraFieldIndexName(opt.bh_internalprop_index[i])+ExtraFieldFuncName(opt.bh_internalprop_function[i]));
     }
     for (auto i=0;i<opt.bh_chem_names.size();i++ )
     {
-        opt.bh_chem_output_names[i]=opt.bh_chem_names[i]+ExtraFieldIndexName(opt.bh_chem_index[i])+ExtraFieldFuncName(opt.bh_chem_function[i]);
+        opt.bh_chem_output_names.push_back(opt.bh_chem_names[i]+ExtraFieldIndexName(opt.bh_chem_index[i])+ExtraFieldFuncName(opt.bh_chem_function[i]));
     }
     for (auto i=0;i<opt.bh_chemproduction_names.size();i++ )
     {
-        opt.bh_chemproduction_output_names[i]=opt.bh_chemproduction_names[i]+ExtraFieldIndexName(opt.bh_chemproduction_index[i])+ExtraFieldFuncName(opt.bh_chemproduction_function[i]);
+        opt.bh_chemproduction_output_names.push_back(opt.bh_chemproduction_names[i]+ExtraFieldIndexName(opt.bh_chemproduction_index[i])+ExtraFieldFuncName(opt.bh_chemproduction_function[i]));
     }
 
     for (auto i=0;i<opt.extra_dm_internalprop_names.size();i++ )
     {
-        opt.extra_dm_internalprop_output_names[i]=opt.extra_dm_internalprop_names[i]+ExtraFieldIndexName(opt.extra_dm_internalprop_index[i])+ExtraFieldFuncName(opt.extra_dm_internalprop_function[i]);
+        opt.extra_dm_internalprop_output_names.push_back(opt.extra_dm_internalprop_names[i]+ExtraFieldIndexName(opt.extra_dm_internalprop_index[i])+ExtraFieldFuncName(opt.extra_dm_internalprop_function[i]));
     }
 
     //set halo 3d fof linking length if necessary
