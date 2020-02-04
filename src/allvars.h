@@ -206,10 +206,16 @@ using namespace NBody;
 #define CALCAVERAGEMASSWEIGHT 11
 #define CALCTOTALMASSWEIGHT 12
 #define CALCSTDMASSWEIGHT 13
+#define CALCMEDIANMASSWEIGHT 14
+#define CALCMINMASSWEIGHT 15
+#define CALCMAXMASSWEIGHT 16
 #define CALCAVERAGE 1
 #define CALCTOTAL 2
 #define CALCSTD 3
 #define CALCMEDIAN 4
+#define CALCMIN 5
+#define CALCMAX 6
+typedef float (*ExtraPropFunc)(float, float, float&);
 //@}
 
 /// \name For Unbinding
