@@ -1426,10 +1426,72 @@ void ConfigCheck(Options &opt)
         ConfigExit();
     }
 
-    //set output field names for extra properties
+    set<string> uniqueval;
     set<string> outputset;
     string configentryname, outputfieldname, mainname;
-    unsigned int entryindex, calctype;
+    unsigned int entryindex, calctype, iduplicates;
+
+    //clean up aperture list and spherical overdensity list to remove duplicates
+    uniqueval.clear();
+    configentryname = "Overdensity_values_in_critical_density";
+    iduplicates = 0;
+    for (auto &val:opt.SOthresholds_names_crit) uniqueval.insert(val);
+    for (auto &val:opt.SOthresholds_names_crit) {
+        if(uniqueval.count(val)) {
+            errormessage("Dupplicate entry(ies) found in "+configentryname);
+            errormessage("Removing duplicate entries");
+            iduplicates = 1;
+            break;
+        }
+    }
+    if (iduplicates) {
+        opt.SOthresholds_names_crit = vector<string>(uniqueval.begin(),uniqueval.end());
+        opt.SOthresholds_values_crit.resize(0);
+        for (auto &val:opt.SOthresholds_names_crit) opt.SOthresholds_values_crit.push_back(stof(val));
+        opt.SOnum = opt.SOthresholds_values_crit.size();
+
+    }
+
+    uniqueval.clear();
+    configentryname = "Aperture_values_in_kpc";
+    iduplicates = 0;
+    for (auto &val:opt.aperture_names_kpc) uniqueval.insert(val);
+    for (auto &val:opt.aperture_names_kpc) {
+        if(uniqueval.count(val)) {
+            errormessage("Dupplicate entry(ies) found in "+configentryname);
+            errormessage("Removing duplicate entries");
+            iduplicates = 1;
+            break;
+        }
+    }
+    if (iduplicates) {
+        opt.aperture_names_kpc = vector<string>(uniqueval.begin(),uniqueval.end());
+        opt.aperture_values_kpc.resize(0);
+        for (auto &val:opt.aperture_names_kpc) opt.aperture_values_kpc.push_back(stof(val));
+        opt.aperturenum = opt.aperture_values_kpc.size();
+    }
+
+    uniqueval.clear();
+    configentryname = "Projected_aperture_values_in_kpc";
+    iduplicates = 0;
+    for (auto &val:opt.aperture_proj_names_kpc) uniqueval.insert(val);
+    for (auto &val:opt.aperture_proj_names_kpc) {
+        if(uniqueval.count(val)) {
+            errormessage("Dupplicate entry(ies) found in "+configentryname);
+            errormessage("Removing duplicate entries");
+            iduplicates = 1;
+            break;
+        }
+    }
+    if (iduplicates) {
+        opt.aperture_proj_names_kpc = vector<string>(uniqueval.begin(),uniqueval.end());
+        opt.aperture_proj_values_kpc.resize(0);
+        for (auto &val:opt.aperture_proj_names_kpc) opt.aperture_proj_values_kpc.push_back(stof(val));
+        opt.apertureprojnum = opt.aperture_proj_values_kpc.size();
+    }
+
+    //set output field names for extra properties
+    outputset.clear();
     configentryname = "Gas_internal_property_names";
     for (auto i=0;i<opt.gas_internalprop_names.size();i++ )
     {
@@ -1448,48 +1510,180 @@ void ConfigCheck(Options &opt)
             ConfigExit();
         }
     }
+    outputset.clear();
     configentryname = "Gas_chemistry_names";
     for (auto i=0;i<opt.gas_chem_names.size();i++ )
     {
         entryindex = opt.gas_chem_index[i];
         calctype = opt.gas_chem_function[i];
         outputfieldname = opt.gas_chem_names[i]+ExtraFieldIndexName(entryindex)+ExtraFieldFuncName(calctype);
-        opt.gas_chem_output_names.push_back(outputfieldname);
+        if (outputset.count(outputfieldname) == 0) {
+            opt.gas_chem_output_names.push_back(outputfieldname);
+            outputset.insert(outputfieldname);
+        }
+        else {
+            errormessage("Dupplicate entry for desired extra calculation invovling "+configentryname);
+            errormessage("This is entry " +to_string(i)+" config options " + opt.gas_chem_names[i]+","+ to_string(entryindex)+","+to_string(calctype));
+            errormessage("Giving and output of "+outputfieldname);
+            errormessage("Check config.");
+            ConfigExit();
+        }
     }
+    outputset.clear();
+    configentryname = "Gas_chemistry_production_names";
     for (auto i=0;i<opt.gas_chemproduction_names.size();i++ )
     {
-        opt.gas_chemproduction_output_names.push_back(opt.gas_chemproduction_names[i]+ExtraFieldIndexName(opt.gas_chemproduction_index[i])+ExtraFieldFuncName(opt.gas_chemproduction_function[i]));
+        entryindex = opt.gas_chemproduction_index[i];
+        calctype = opt.gas_chemproduction_function[i];
+        outputfieldname = opt.gas_chemproduction_names[i]+ExtraFieldIndexName(entryindex)+ExtraFieldFuncName(calctype);
+        if (outputset.count(outputfieldname) == 0) {
+            opt.gas_chemproduction_output_names.push_back(outputfieldname);
+            outputset.insert(outputfieldname);
+        }
+        else {
+            errormessage("Dupplicate entry for desired extra calculation invovling "+configentryname);
+            errormessage("This is entry " +to_string(i)+" config options " + opt.gas_chemproduction_names[i]+","+ to_string(entryindex)+","+to_string(calctype));
+            errormessage("Giving and output of "+outputfieldname);
+            errormessage("Check config.");
+            ConfigExit();
+        }
     }
 
+    outputset.clear();
+    configentryname = "Star_internal_property_names";
     for (auto i=0;i<opt.star_internalprop_names.size();i++ )
     {
-        opt.star_internalprop_output_names.push_back(opt.star_internalprop_names[i]+ExtraFieldIndexName(opt.star_internalprop_index[i])+ExtraFieldFuncName(opt.star_internalprop_function[i]));
+        entryindex = opt.star_internalprop_index[i];
+        calctype = opt.star_internalprop_function[i];
+        outputfieldname = opt.star_internalprop_names[i]+ExtraFieldIndexName(entryindex)+ExtraFieldFuncName(calctype);
+        if (outputset.count(outputfieldname) == 0) {
+            opt.star_internalprop_output_names.push_back(outputfieldname);
+            outputset.insert(outputfieldname);
+        }
+        else {
+            errormessage("Dupplicate entry for desired extra calculation invovling "+configentryname);
+            errormessage("This is entry " +to_string(i)+" config options " + opt.star_internalprop_names[i]+","+ to_string(entryindex)+","+to_string(calctype));
+            errormessage("Giving and output of "+outputfieldname);
+            errormessage("Check config.");
+            ConfigExit();
+        }
     }
+    outputset.clear();
+    configentryname = "Star_chemistry_names";
     for (auto i=0;i<opt.star_chem_names.size();i++ )
     {
-        opt.star_chem_output_names.push_back(opt.star_chem_names[i]+ExtraFieldIndexName(opt.star_chem_index[i])+ExtraFieldFuncName(opt.star_chem_function[i]));
+        entryindex = opt.star_chem_index[i];
+        calctype = opt.star_chem_function[i];
+        outputfieldname = opt.star_chem_names[i]+ExtraFieldIndexName(entryindex)+ExtraFieldFuncName(calctype);
+        if (outputset.count(outputfieldname) == 0) {
+            opt.star_chem_output_names.push_back(outputfieldname);
+            outputset.insert(outputfieldname);
+        }
+        else {
+            errormessage("Dupplicate entry for desired extra calculation invovling "+configentryname);
+            errormessage("This is entry " +to_string(i)+" config options " + opt.star_chem_names[i]+","+ to_string(entryindex)+","+to_string(calctype));
+            errormessage("Giving and output of "+outputfieldname);
+            errormessage("Check config.");
+            ConfigExit();
+        }
     }
+    outputset.clear();
+    configentryname = "Star_chemistry_production_names";
     for (auto i=0;i<opt.star_chemproduction_names.size();i++ )
     {
-        opt.star_chemproduction_output_names.push_back(opt.star_chemproduction_names[i]+ExtraFieldIndexName(opt.star_chemproduction_index[i])+ExtraFieldFuncName(opt.star_chemproduction_function[i]));
+        entryindex = opt.star_chemproduction_index[i];
+        calctype = opt.star_chemproduction_function[i];
+        outputfieldname = opt.star_chemproduction_names[i]+ExtraFieldIndexName(entryindex)+ExtraFieldFuncName(calctype);
+        if (outputset.count(outputfieldname) == 0) {
+            opt.star_chemproduction_output_names.push_back(outputfieldname);
+            outputset.insert(outputfieldname);
+        }
+        else {
+            errormessage("Dupplicate entry for desired extra calculation invovling "+configentryname);
+            errormessage("This is entry " +to_string(i)+" config options " + opt.star_chemproduction_names[i]+","+ to_string(entryindex)+","+to_string(calctype));
+            errormessage("Giving and output of "+outputfieldname);
+            errormessage("Check config.");
+            ConfigExit();
+        }
     }
 
+    outputset.clear();
+    configentryname = "BH_internal_property_names";
     for (auto i=0;i<opt.bh_internalprop_names.size();i++ )
     {
-        opt.bh_internalprop_output_names.push_back(opt.bh_internalprop_names[i]+ExtraFieldIndexName(opt.bh_internalprop_index[i])+ExtraFieldFuncName(opt.bh_internalprop_function[i]));
+        entryindex = opt.bh_internalprop_index[i];
+        calctype = opt.bh_internalprop_function[i];
+        outputfieldname = opt.bh_internalprop_names[i]+ExtraFieldIndexName(entryindex)+ExtraFieldFuncName(calctype);
+        if (outputset.count(outputfieldname) == 0) {
+            opt.bh_internalprop_output_names.push_back(outputfieldname);
+            outputset.insert(outputfieldname);
+        }
+        else {
+            errormessage("Dupplicate entry for desired extra calculation invovling "+configentryname);
+            errormessage("This is entry " +to_string(i)+" config options " + opt.bh_internalprop_names[i]+","+ to_string(entryindex)+","+to_string(calctype));
+            errormessage("Giving and output of "+outputfieldname);
+            errormessage("Check config.");
+            ConfigExit();
+        }
     }
+    outputset.clear();
+    configentryname = "BH_chemistry_names";
     for (auto i=0;i<opt.bh_chem_names.size();i++ )
     {
-        opt.bh_chem_output_names.push_back(opt.bh_chem_names[i]+ExtraFieldIndexName(opt.bh_chem_index[i])+ExtraFieldFuncName(opt.bh_chem_function[i]));
+        entryindex = opt.bh_chem_index[i];
+        calctype = opt.bh_chem_function[i];
+        outputfieldname = opt.bh_chem_names[i]+ExtraFieldIndexName(entryindex)+ExtraFieldFuncName(calctype);
+        if (outputset.count(outputfieldname) == 0) {
+            opt.bh_chem_output_names.push_back(outputfieldname);
+            outputset.insert(outputfieldname);
+        }
+        else {
+            errormessage("Dupplicate entry for desired extra calculation invovling "+configentryname);
+            errormessage("This is entry " +to_string(i)+" config options " + opt.bh_chem_names[i]+","+ to_string(entryindex)+","+to_string(calctype));
+            errormessage("Giving and output of "+outputfieldname);
+            errormessage("Check config.");
+            ConfigExit();
+        }
     }
+    outputset.clear();
+    configentryname = "BH_chemistry_production_names";
     for (auto i=0;i<opt.bh_chemproduction_names.size();i++ )
     {
-        opt.bh_chemproduction_output_names.push_back(opt.bh_chemproduction_names[i]+ExtraFieldIndexName(opt.bh_chemproduction_index[i])+ExtraFieldFuncName(opt.bh_chemproduction_function[i]));
+        entryindex = opt.bh_chemproduction_index[i];
+        calctype = opt.bh_chemproduction_function[i];
+        outputfieldname = opt.bh_chemproduction_names[i]+ExtraFieldIndexName(entryindex)+ExtraFieldFuncName(calctype);
+        if (outputset.count(outputfieldname) == 0) {
+            opt.bh_chemproduction_output_names.push_back(outputfieldname);
+            outputset.insert(outputfieldname);
+        }
+        else {
+            errormessage("Dupplicate entry for desired extra calculation invovling "+configentryname);
+            errormessage("This is entry " +to_string(i)+" config options " + opt.bh_chemproduction_names[i]+","+ to_string(entryindex)+","+to_string(calctype));
+            errormessage("Giving and output of "+outputfieldname);
+            errormessage("Check config.");
+            ConfigExit();
+        }
     }
 
+
+    outputset.clear();
+    configentryname = "Extra_DM_internal_property_names";
     for (auto i=0;i<opt.extra_dm_internalprop_names.size();i++ )
     {
-        opt.extra_dm_internalprop_output_names.push_back(opt.extra_dm_internalprop_names[i]+ExtraFieldIndexName(opt.extra_dm_internalprop_index[i])+ExtraFieldFuncName(opt.extra_dm_internalprop_function[i]));
+        entryindex = opt.extra_dm_internalprop_index[i];
+        calctype = opt.extra_dm_internalprop_function[i];
+        outputfieldname = opt.extra_dm_internalprop_names[i]+ExtraFieldIndexName(entryindex)+ExtraFieldFuncName(calctype);
+        if (outputset.count(outputfieldname) == 0) {
+            opt.extra_dm_internalprop_output_names.push_back(outputfieldname);
+            outputset.insert(outputfieldname);
+        }
+        else {
+            errormessage("Dupplicate entry for desired extra calculation invovling "+configentryname);
+            errormessage("This is entry " +to_string(i)+" config options " + opt.extra_dm_internalprop_names[i]+","+ to_string(entryindex)+","+to_string(calctype));
+            errormessage("Giving and output of "+outputfieldname);
+            errormessage("Check config.");
+            ConfigExit();
+        }
     }
 
     //set halo 3d fof linking length if necessary
