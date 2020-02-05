@@ -1128,9 +1128,9 @@ inline string ExtraFieldIndexName(unsigned int i){
     return s;
 }
 
-inline string ExtraFieldFuncName(unsigned int i){
+inline string ExtraFieldFuncName(unsigned int calctype){
     string s;
-    switch(i)
+    switch(calctype)
     {
         case CALCAVERAGEMASSWEIGHT:
             s="_average_mass_weighted";
@@ -1152,6 +1152,18 @@ inline string ExtraFieldFuncName(unsigned int i){
             break;
         case CALCSTD:
             s="_std";
+            break;
+        case CALCMINMASSWEIGHT:
+            s="_min_mass_weighted";
+            break;
+        case CALCMIN:
+            s="_min";
+            break;
+        case CALCMAXMASSWEIGHT:
+            s="_max_mass_weighted";
+            break;
+        case CALCMAX:
+            s="_max";
             break;
     }
     return s;
@@ -1415,13 +1427,34 @@ void ConfigCheck(Options &opt)
     }
 
     //set output field names for extra properties
+    set<string> outputset;
+    string configentryname, outputfieldname, mainname;
+    unsigned int entryindex, calctype;
+    configentryname = "Gas_internal_property_names";
     for (auto i=0;i<opt.gas_internalprop_names.size();i++ )
     {
-        opt.gas_internalprop_output_names.push_back(opt.gas_internalprop_names[i]+ExtraFieldIndexName(opt.gas_internalprop_index[i])+ExtraFieldFuncName(opt.gas_internalprop_function[i]));
+        entryindex = opt.gas_internalprop_index[i];
+        calctype = opt.gas_internalprop_function[i];
+        outputfieldname = opt.gas_internalprop_names[i]+ExtraFieldIndexName(entryindex)+ExtraFieldFuncName(calctype);
+        if (outputset.count(outputfieldname) == 0) {
+            opt.gas_internalprop_output_names.push_back(outputfieldname);
+            outputset.insert(outputfieldname);
+        }
+        else {
+            errormessage("Dupplicate entry for desired extra calculation invovling "+configentryname);
+            errormessage("This is entry " +to_string(i)+" config options " + opt.gas_internalprop_names[i]+","+ to_string(entryindex)+","+to_string(calctype));
+            errormessage("Giving and output of "+outputfieldname);
+            errormessage("Check config.");
+            ConfigExit();
+        }
     }
+    configentryname = "Gas_chemistry_names";
     for (auto i=0;i<opt.gas_chem_names.size();i++ )
     {
-        opt.gas_chem_output_names.push_back(opt.gas_chem_names[i]+ExtraFieldIndexName(opt.gas_chem_index[i])+ExtraFieldFuncName(opt.gas_chem_function[i]));
+        entryindex = opt.gas_chem_index[i];
+        calctype = opt.gas_chem_function[i];
+        outputfieldname = opt.gas_chem_names[i]+ExtraFieldIndexName(entryindex)+ExtraFieldFuncName(calctype);
+        opt.gas_chem_output_names.push_back(outputfieldname);
     }
     for (auto i=0;i<opt.gas_chemproduction_names.size();i++ )
     {
