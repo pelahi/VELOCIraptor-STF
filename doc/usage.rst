@@ -512,9 +512,19 @@ Configuration options related to the bulk properties calculated.
     * The entries are
         * ``_names``
         * ``_index_in_file``
-        * ``_calculation_type``,
+        * ``_calculation_type``
         * ``_input_output_unit_conversion_factors``
-        * ``_output_units``.
+        * ``_output_units``
+
+    Calculations allowed are as follows (where can also have mass weighted values by adding 10 to any of these values)
+        * 1 Average
+        * 2 Total
+        * 3 Standard deviation
+        * 4 Median (not fully implmented yet)
+        * 5 Min
+        * 6 Max
+        * 7 Average(log(x))
+        * 8 STD(log(x))
 
     Example extra hydro Properties related config options
         ``Gas_internal_property_names = ,``
