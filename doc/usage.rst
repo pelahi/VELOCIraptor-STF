@@ -174,7 +174,7 @@ Input and output related options
 
 .. _config_input:
 
-_topic:: Input related
+..topic:: Input related
 
     ``Cosmological_input = 1/0``
         * Flag indicating that input simulation is cosmological or not. With cosmological input, a variety of length/velocity scales are set to determine such things as the virial overdensity, linking length.
@@ -362,7 +362,7 @@ Options related to searching for (sub)halos. General search parameters set parti
     This either identifies major mergers in DM simulations or used to find galaxies when searching for stars.
 
     ``Halo_core_search = 0/1/2``
-        * Integer allows one to explicitly search for large 6D FOF cores that are indicative of a recent major merger. Since substructure is defined on the scale of the maximum cell size and major mergers typically result two or more phase-space dense regions that are *larger* than the cell size used in reasonable substructure searches, one can identify them using this search. The overall goal is to treat these objects differently than a substructure. However, if 2 is set, then smaller core is treated as substruture and all particles within the FOF envelop are assigned to the cores based on their phase-space distance to core particles.
+        * Integer allows one to explicitly search for large 6D FOF cores that are indicative of a recent major merger. Since substructure is defined on the scale of the maximum cell size and major mergers typically result two or more phase-space dense regions that are *larger* than the cell size used in reasonable substructure searches, one can identify them using this search. The overall goal is to treat these objects differently than a substructure. However, if 2 is set, then smaller core is treated as substructure and all particles within the FOF envelop are assigned to the cores based on their phase-space distance to core particles.
             - **2** search for cores and growth them. **Recommended**.
             - **1**
             - **0** do not search cores.
@@ -497,13 +497,24 @@ Configuration options related to the bulk properties calculated.
     set an index. The result is sorted in an output field that contains the name of the input field,
     the index (if >0), and a simple string describing the function along with the units and ending with particle type,
     ie: ``Turbulence_average_km/s^2_gas``
-    The field can be specified a number of times with different desired calculations to be run.
-    These fields come as ``_names``, ``_index_in_file``, ``_calculation_type``,
-    ``_input_output_unit_conversion_factors``, ``_output_units``.
-    Currently implemented are options for ``Gas``, ``Stars``, and ``BH``, and properties categorized by
-    ``_internal_property``, ``_chemistry``, ``_chemistry_production``. Also available are
-    ``Extra_DM_internal_property`` options.
-    These config options must be provided in a comma separated list and terminate in a comma.
+    These config options are combinations of particle type, categories and entry types.
+    A full entry must be provided in a comma separated list and terminate in a comma.
+
+    * Currently implemented are options for
+        * ``Gas_``
+        * ``Stars_``
+        * ``BH_``
+        *  ``Extra_DM_``
+    * The currently catagories of properties are (except for ``Extra_DM`` which only has the first listed). An input field can be specified a number of times with different desired calculations to be run.
+        * ``_internal_property``
+        * ``_chemistry``
+        * ``_chemistry_production``
+    * The entries are
+        * ``_names``
+        * ``_index_in_file``
+        * ``_calculation_type``,
+        * ``_input_output_unit_conversion_factors``
+        * ``_output_units``.
 
     Example extra hydro Properties related config options
         ``Gas_internal_property_names = ,``
@@ -516,8 +527,6 @@ Configuration options related to the bulk properties calculated.
             * Float storing the conversion factor (if not 1.0) to take input units to output units.
         ``Gas_internal_property_output_units = ,``
             * String storing the units of the output.
-
-
 
 .. _config_siminfo:
 
