@@ -5552,11 +5552,11 @@ inline float ExtraPropNormalizeValue(unsigned int calctype, float value, float n
         calctype == CALCLOGAVERAGE || calctype == CALCLOGSTD) value/=norm;
     return value;
 }
-// inline float ExtraPropSTDAverage(unsigned int calctype, float value, float average){
-//     calctype = calctype % CALCQUANTITYMASSWEIGHT;
-//     if (!(calctype == CALCSTD || calctype == CALCLOGSTD)) return value;
-//     return sqrt(value - average*average);
-// }
+inline float ExtraPropAdjustForPairedValue(unsigned int calctype, float value, float value2){
+    calctype = calctype % CALCQUANTITYMASSWEIGHT;
+    if ((calctype == CALCSTD || calctype == CALCLOGSTD)) return sqrt(value - value2*value2);
+    else return value;
+}
 
 inline float ExtraPropInitValue(unsigned int calctype){
     calctype = calctype % CALCQUANTITYMASSWEIGHT;
@@ -5623,7 +5623,7 @@ void GetExtraHydroProperties(Options &opt, PropData &pdata, Int_t n, Particle *P
     if (opt.gas_internalprop_names.size() + opt.gas_chem_names.size() + opt.gas_chemproduction_names.size() == 0) return;
     HydroProperties x;
     map<string, float> value, weightsum;
-    string extrafield;
+    string extrafield, outputfield, outputfield2;
     double oldweight, weight, curvalue, result;
     map<string, ExtraPropFunc> funcs;
 
@@ -5631,26 +5631,29 @@ void GetExtraHydroProperties(Options &opt, PropData &pdata, Int_t n, Particle *P
     for (auto iextra=0;iextra<opt.gas_internalprop_names.size();iextra++)
     {
         extrafield = opt.gas_internalprop_names[iextra];
-        value[extrafield] = ExtraPropInitValue(opt.gas_internalprop_function[iextra]);
-        weightsum[extrafield] = 0;
-        funcs[extrafield] = ExtraPropSetCalc(opt.gas_internalprop_function[iextra]);
-        pdata.hydroprop.SetInternalProperties(extrafield, 0);
+        outputfield = opt.gas_internalprop_output_names[iextra];
+        value[outputfield] = ExtraPropInitValue(opt.gas_internalprop_function[iextra]);
+        weightsum[outputfield] = 0;
+        funcs[outputfield] = ExtraPropSetCalc(opt.gas_internalprop_function[iextra]);
+        pdata.hydroprop.SetInternalProperties(outputfield, 0);
     }
     for (auto iextra=0;iextra<opt.gas_chem_names.size();iextra++)
     {
         extrafield = opt.gas_chem_names[iextra];
-        value[extrafield] = ExtraPropInitValue(opt.gas_chem_function[iextra]);
-        weightsum[extrafield] = 0;
-        funcs[extrafield] = ExtraPropSetCalc(opt.gas_chem_function[iextra]);
-        pdata.hydroprop.SetChemistry(extrafield, 0);
+        outputfield = opt.gas_chem_output_names[iextra];
+        value[outputfield] = ExtraPropInitValue(opt.gas_chem_function[iextra]);
+        weightsum[outputfield] = 0;
+        funcs[outputfield] = ExtraPropSetCalc(opt.gas_chem_function[iextra]);
+        pdata.hydroprop.SetChemistry(outputfield, 0);
     }
     for (auto iextra=0;iextra<opt.gas_chemproduction_names.size();iextra++)
     {
         extrafield = opt.gas_chemproduction_names[iextra];
-        value[extrafield] = ExtraPropInitValue(opt.gas_chemproduction_function[iextra]);
-        weightsum[extrafield] = 0;
-        funcs[extrafield] = ExtraPropSetCalc(opt.gas_chemproduction_function[iextra]);
-        pdata.hydroprop.SetChemistryProduction(extrafield, 0);
+        outputfield = opt.gas_chemproduction_output_names[iextra];
+        value[outputfield] = ExtraPropInitValue(opt.gas_chemproduction_function[iextra]);
+        weightsum[outputfield] = 0;
+        funcs[outputfield] = ExtraPropSetCalc(opt.gas_chemproduction_function[iextra]);
+        pdata.hydroprop.SetChemistryProduction(outputfield, 0);
     }
     if (pdata.n_gas == 0 ) return;
     for (auto i=0;i<n;i++)
@@ -5661,45 +5664,98 @@ void GetExtraHydroProperties(Options &opt, PropData &pdata, Int_t n, Particle *P
         for (auto iextra=0;iextra<opt.gas_internalprop_names.size();iextra++)
         {
             extrafield = opt.gas_internalprop_names[iextra];
+            outputfield = opt.gas_internalprop_output_names[iextra];
             weight = ExtraPropGetWeight(opt.gas_internalprop_function[iextra], oldweight);
             curvalue = x.GetInternalProperties(extrafield);
-            weightsum[extrafield] += weight;
-            funcs[extrafield](weight, curvalue, value[extrafield]);
+            weightsum[outputfield] += weight;
+            funcs[outputfield](weight, curvalue, value[outputfield]);
         }
         for (auto iextra=0;iextra<opt.gas_chem_names.size();iextra++)
         {
             extrafield = opt.gas_chem_names[iextra];
+            outputfield = opt.gas_chem_output_names[iextra];
             weight = ExtraPropGetWeight(opt.gas_chem_function[iextra], oldweight);
             curvalue = x.GetChemistry(extrafield);
-            weightsum[extrafield] += weight;
-            funcs[extrafield](weight, curvalue, value[extrafield]);
+            weightsum[outputfield] += weight;
+            funcs[outputfield](weight, curvalue, value[outputfield]);
         }
         for (auto iextra=0;iextra<opt.gas_chemproduction_names.size();iextra++)
         {
             extrafield = opt.gas_chemproduction_names[iextra];
+            outputfield = opt.gas_chemproduction_output_names[iextra];
             weight = ExtraPropGetWeight(opt.gas_chemproduction_function[iextra], oldweight);
             curvalue = x.GetChemistryProduction(extrafield);
-            weightsum[extrafield] += weight;
-            funcs[extrafield](weight, curvalue, value[extrafield]);
+            weightsum[outputfield] += weight;
+            funcs[outputfield](weight, curvalue, value[outputfield]);
         }
     }
+
+    //normalize as necessary
     for (auto iextra=0;iextra<opt.gas_internalprop_names.size();iextra++)
     {
         extrafield = opt.gas_internalprop_names[iextra];
-        result = ExtraPropNormalizeValue(opt.gas_internalprop_function[iextra], value[extrafield], weightsum[extrafield]);
-        pdata.hydroprop.SetInternalProperties(extrafield, result);
+        outputfield = opt.gas_internalprop_output_names[iextra];
+        result = ExtraPropNormalizeValue(opt.gas_internalprop_function[iextra], value[outputfield], weightsum[outputfield]);
+        value[outputfield] = result;
     }
     for (auto iextra=0;iextra<opt.gas_chem_names.size();iextra++)
     {
         extrafield = opt.gas_chem_names[iextra];
-        result = ExtraPropNormalizeValue(opt.gas_chem_function[iextra], value[extrafield], weightsum[extrafield]);
-        pdata.hydroprop.SetChemistry(extrafield, result);
+        outputfield = opt.gas_chem_output_names[iextra];
+        result = ExtraPropNormalizeValue(opt.gas_chem_function[iextra], value[outputfield], weightsum[outputfield]);
+        value[outputfield] = result;
     }
     for (auto iextra=0;iextra<opt.gas_chemproduction_names.size();iextra++)
     {
         extrafield = opt.gas_chemproduction_names[iextra];
-        result = ExtraPropNormalizeValue(opt.gas_chemproduction_function[iextra], value[extrafield], weightsum[extrafield]);
-        pdata.hydroprop.SetChemistryProduction(extrafield, result);
+        outputfield = opt.gas_chemproduction_output_names[iextra];
+        result = ExtraPropNormalizeValue(opt.gas_chemproduction_function[iextra], value[outputfield], weightsum[outputfield]);
+        value[outputfield] = result;
+    }
+
+    //for calculations that depend on other values
+    for (auto iextra=0;iextra<opt.gas_internalprop_names.size();iextra++)
+    {
+        if (opt.gas_internalprop_index_paired_calc[iextra] == iextra) continue;
+        int iextra2 = opt.gas_internalprop_index_paired_calc[iextra];
+        outputfield = opt.gas_internalprop_output_names[iextra];
+        outputfield2 = opt.gas_internalprop_output_names[iextra2];
+        result = ExtraPropAdjustForPairedValue(opt.gas_internalprop_function[iextra], value[outputfield], value[outputfield2]);
+        value[outputfield] = result;
+    }
+    for (auto iextra=0;iextra<opt.gas_chem_names.size();iextra++)
+    {
+        if (opt.gas_chem_index_paired_calc[iextra] == iextra) continue;
+        int iextra2 = opt.gas_chem_index_paired_calc[iextra];
+        outputfield = opt.gas_chem_output_names[iextra];
+        outputfield2 = opt.gas_chem_output_names[iextra2];
+        result = ExtraPropAdjustForPairedValue(opt.gas_chem_function[iextra], value[outputfield], value[outputfield2]);
+        value[outputfield] = result;
+    }
+    for (auto iextra=0;iextra<opt.gas_chemproduction_names.size();iextra++)
+    {
+        if (opt.gas_chemproduction_index_paired_calc[iextra] == iextra) continue;
+        int iextra2 = opt.gas_chemproduction_index_paired_calc[iextra];
+        outputfield = opt.gas_chemproduction_output_names[iextra];
+        outputfield2 = opt.gas_chemproduction_output_names[iextra2];
+        result = ExtraPropAdjustForPairedValue(opt.gas_chemproduction_function[iextra], value[outputfield], value[outputfield2]);
+        value[outputfield] = result;
+    }
+
+    for (auto iextra=0;iextra<opt.gas_internalprop_names.size();iextra++)
+    {
+        outputfield = opt.gas_internalprop_output_names[iextra];
+        pdata.hydroprop.SetInternalProperties(outputfield, value[outputfield]);
+    }
+    for (auto iextra=0;iextra<opt.gas_chem_names.size();iextra++)
+    {
+        outputfield = opt.gas_chem_output_names[iextra];
+        pdata.hydroprop.SetChemistry(outputfield, value[outputfield]);
+    }
+    for (auto iextra=0;iextra<opt.gas_chemproduction_names.size();iextra++)
+    {
+        outputfield = opt.gas_chemproduction_output_names[iextra];
+        pdata.hydroprop.SetChemistryProduction(outputfield, value[outputfield]);
     }
 #endif
 }
@@ -5712,33 +5768,37 @@ void GetExtraStarProperties(Options &opt, PropData &pdata, Int_t n, Particle *Pv
     if (opt.star_internalprop_names.size() + opt.star_chem_names.size() + opt.star_chemproduction_names.size() == 0) return;
     StarProperties x;
     map<string, float> value, weightsum;
-    string extrafield;
+    string extrafield, outputfield, outputfield2;
     double oldweight, weight, curvalue, result;
     map<string, ExtraPropFunc> funcs;
+
     //initialize map stored in the properties data
     for (auto iextra=0;iextra<opt.star_internalprop_names.size();iextra++)
     {
         extrafield = opt.star_internalprop_names[iextra];
-        value[extrafield] = ExtraPropInitValue(opt.star_internalprop_function[iextra]);
-        weightsum[extrafield] = 0;
-        funcs[extrafield] = ExtraPropSetCalc(opt.star_internalprop_function[iextra]);
-        pdata.starprop.SetInternalProperties(extrafield, 0);
+        outputfield = opt.star_internalprop_output_names[iextra];
+        value[outputfield] = ExtraPropInitValue(opt.star_internalprop_function[iextra]);
+        weightsum[outputfield] = 0;
+        funcs[outputfield] = ExtraPropSetCalc(opt.star_internalprop_function[iextra]);
+        pdata.starprop.SetInternalProperties(outputfield, 0);
     }
     for (auto iextra=0;iextra<opt.star_chem_names.size();iextra++)
     {
         extrafield = opt.star_chem_names[iextra];
-        value[extrafield] = ExtraPropInitValue(opt.star_chem_function[iextra]);
-        weightsum[extrafield] = 0;
-        funcs[extrafield] = ExtraPropSetCalc(opt.star_chem_function[iextra]);
-        pdata.starprop.SetChemistry(extrafield, 0);
+        outputfield = opt.star_chem_output_names[iextra];
+        value[outputfield] = ExtraPropInitValue(opt.star_chem_function[iextra]);
+        weightsum[outputfield] = 0;
+        funcs[outputfield] = ExtraPropSetCalc(opt.star_chem_function[iextra]);
+        pdata.starprop.SetChemistry(outputfield, 0);
     }
     for (auto iextra=0;iextra<opt.star_chemproduction_names.size();iextra++)
     {
         extrafield = opt.star_chemproduction_names[iextra];
-        value[extrafield] = ExtraPropInitValue(opt.star_chemproduction_function[iextra]);
-        weightsum[extrafield] = 0;
-        funcs[extrafield] = ExtraPropSetCalc(opt.star_chemproduction_function[iextra]);
-        pdata.starprop.SetChemistryProduction(extrafield, 0);
+        outputfield = opt.star_chemproduction_output_names[iextra];
+        value[outputfield] = ExtraPropInitValue(opt.star_chemproduction_function[iextra]);
+        weightsum[outputfield] = 0;
+        funcs[outputfield] = ExtraPropSetCalc(opt.star_chemproduction_function[iextra]);
+        pdata.starprop.SetChemistryProduction(outputfield, 0);
     }
     if (pdata.n_star == 0 ) return;
     for (auto i=0;i<n;i++)
@@ -5749,45 +5809,98 @@ void GetExtraStarProperties(Options &opt, PropData &pdata, Int_t n, Particle *Pv
         for (auto iextra=0;iextra<opt.star_internalprop_names.size();iextra++)
         {
             extrafield = opt.star_internalprop_names[iextra];
+            outputfield = opt.star_internalprop_output_names[iextra];
             weight = ExtraPropGetWeight(opt.star_internalprop_function[iextra], oldweight);
             curvalue = x.GetInternalProperties(extrafield);
-            weightsum[extrafield] += weight;
-            funcs[extrafield](weight, curvalue, value[extrafield]);
+            weightsum[outputfield] += weight;
+            funcs[outputfield](weight, curvalue, value[outputfield]);
         }
         for (auto iextra=0;iextra<opt.star_chem_names.size();iextra++)
         {
             extrafield = opt.star_chem_names[iextra];
+            outputfield = opt.star_chem_output_names[iextra];
             weight = ExtraPropGetWeight(opt.star_chem_function[iextra], oldweight);
             curvalue = x.GetChemistry(extrafield);
-            weightsum[extrafield] += weight;
-            funcs[extrafield](weight, curvalue, value[extrafield]);
+            weightsum[outputfield] += weight;
+            funcs[outputfield](weight, curvalue, value[outputfield]);
         }
         for (auto iextra=0;iextra<opt.star_chemproduction_names.size();iextra++)
         {
             extrafield = opt.star_chemproduction_names[iextra];
+            outputfield = opt.star_chemproduction_output_names[iextra];
             weight = ExtraPropGetWeight(opt.star_chemproduction_function[iextra], oldweight);
             curvalue = x.GetChemistryProduction(extrafield);
-            weightsum[extrafield] += weight;
-            funcs[extrafield](weight, curvalue, value[extrafield]);
+            weightsum[outputfield] += weight;
+            funcs[outputfield](weight, curvalue, value[outputfield]);
         }
     }
+
+    //normalize as necessary
     for (auto iextra=0;iextra<opt.star_internalprop_names.size();iextra++)
     {
         extrafield = opt.star_internalprop_names[iextra];
-        result = ExtraPropNormalizeValue(opt.star_internalprop_function[iextra], value[extrafield], weightsum[extrafield]);
-        pdata.starprop.SetInternalProperties(extrafield, result);
+        outputfield = opt.star_internalprop_output_names[iextra];
+        result = ExtraPropNormalizeValue(opt.star_internalprop_function[iextra], value[outputfield], weightsum[outputfield]);
+        value[outputfield] = result;
     }
     for (auto iextra=0;iextra<opt.star_chem_names.size();iextra++)
     {
         extrafield = opt.star_chem_names[iextra];
-        result = ExtraPropNormalizeValue(opt.star_chem_function[iextra], value[extrafield], weightsum[extrafield]);
-        pdata.starprop.SetChemistry(extrafield, result);
+        outputfield = opt.star_chem_output_names[iextra];
+        result = ExtraPropNormalizeValue(opt.star_chem_function[iextra], value[outputfield], weightsum[outputfield]);
+        value[outputfield] = result;
     }
     for (auto iextra=0;iextra<opt.star_chemproduction_names.size();iextra++)
     {
         extrafield = opt.star_chemproduction_names[iextra];
-        result = ExtraPropNormalizeValue(opt.star_chemproduction_function[iextra], value[extrafield], weightsum[extrafield]);
-        pdata.starprop.SetChemistryProduction(extrafield, result);
+        outputfield = opt.star_chemproduction_output_names[iextra];
+        result = ExtraPropNormalizeValue(opt.star_chemproduction_function[iextra], value[outputfield], weightsum[outputfield]);
+        value[outputfield] = result;
+    }
+
+    //for calculations that depend on other values
+    for (auto iextra=0;iextra<opt.star_internalprop_names.size();iextra++)
+    {
+        if (opt.star_internalprop_index_paired_calc[iextra] == iextra) continue;
+        int iextra2 = opt.star_internalprop_index_paired_calc[iextra];
+        outputfield = opt.star_internalprop_output_names[iextra];
+        outputfield2 = opt.star_internalprop_output_names[iextra2];
+        result = ExtraPropAdjustForPairedValue(opt.star_internalprop_function[iextra], value[outputfield], value[outputfield2]);
+        value[outputfield] = result;
+    }
+    for (auto iextra=0;iextra<opt.star_chem_names.size();iextra++)
+    {
+        if (opt.star_chem_index_paired_calc[iextra] == iextra) continue;
+        int iextra2 = opt.star_chem_index_paired_calc[iextra];
+        outputfield = opt.star_chem_output_names[iextra];
+        outputfield2 = opt.star_chem_output_names[iextra2];
+        result = ExtraPropAdjustForPairedValue(opt.star_chem_function[iextra], value[outputfield], value[outputfield2]);
+        value[outputfield] = result;
+    }
+    for (auto iextra=0;iextra<opt.star_chemproduction_names.size();iextra++)
+    {
+        if (opt.star_chemproduction_index_paired_calc[iextra] == iextra) continue;
+        int iextra2 = opt.star_chemproduction_index_paired_calc[iextra];
+        outputfield = opt.star_chemproduction_output_names[iextra];
+        outputfield2 = opt.star_chemproduction_output_names[iextra2];
+        result = ExtraPropAdjustForPairedValue(opt.star_chemproduction_function[iextra], value[outputfield], value[outputfield2]);
+        value[outputfield] = result;
+    }
+
+    for (auto iextra=0;iextra<opt.star_internalprop_names.size();iextra++)
+    {
+        outputfield = opt.star_internalprop_output_names[iextra];
+        pdata.starprop.SetInternalProperties(outputfield, value[outputfield]);
+    }
+    for (auto iextra=0;iextra<opt.star_chem_names.size();iextra++)
+    {
+        outputfield = opt.star_chem_output_names[iextra];
+        pdata.starprop.SetChemistry(outputfield, value[outputfield]);
+    }
+    for (auto iextra=0;iextra<opt.star_chemproduction_names.size();iextra++)
+    {
+        outputfield = opt.star_chemproduction_output_names[iextra];
+        pdata.starprop.SetChemistryProduction(outputfield, value[outputfield]);
     }
 #endif
 }
@@ -5800,33 +5913,37 @@ void GetExtraBHProperties(Options &opt, PropData &pdata, Int_t n, Particle *Pval
     if (opt.bh_internalprop_names.size() + opt.bh_chem_names.size() + opt.bh_chemproduction_names.size() == 0) return;
     BHProperties x;
     map<string, float> value, weightsum;
-    string extrafield;
+    string extrafield, outputfield, outputfield2;
     double oldweight, weight, curvalue, result;
     map<string, ExtraPropFunc> funcs;
+
     //initialize map stored in the properties data
     for (auto iextra=0;iextra<opt.bh_internalprop_names.size();iextra++)
     {
         extrafield = opt.bh_internalprop_names[iextra];
-        value[extrafield] = ExtraPropInitValue(opt.bh_internalprop_function[iextra]);
-        weightsum[extrafield] = 0;
-        funcs[extrafield] = ExtraPropSetCalc(opt.bh_internalprop_function[iextra]);
-        pdata.bhprop.SetInternalProperties(extrafield, 0);
+        outputfield = opt.bh_internalprop_output_names[iextra];
+        value[outputfield] = ExtraPropInitValue(opt.bh_internalprop_function[iextra]);
+        weightsum[outputfield] = 0;
+        funcs[outputfield] = ExtraPropSetCalc(opt.bh_internalprop_function[iextra]);
+        pdata.bhprop.SetInternalProperties(outputfield, 0);
     }
     for (auto iextra=0;iextra<opt.bh_chem_names.size();iextra++)
     {
         extrafield = opt.bh_chem_names[iextra];
-        value[extrafield] = ExtraPropInitValue(opt.bh_chem_function[iextra]);
-        weightsum[extrafield] = 0;
-        funcs[extrafield] = ExtraPropSetCalc(opt.bh_chem_function[iextra]);
-        pdata.bhprop.SetChemistry(extrafield, 0);
+        outputfield = opt.bh_chem_output_names[iextra];
+        value[outputfield] = ExtraPropInitValue(opt.bh_chem_function[iextra]);
+        weightsum[outputfield] = 0;
+        funcs[outputfield] = ExtraPropSetCalc(opt.bh_chem_function[iextra]);
+        pdata.bhprop.SetChemistry(outputfield, 0);
     }
     for (auto iextra=0;iextra<opt.bh_chemproduction_names.size();iextra++)
     {
         extrafield = opt.bh_chemproduction_names[iextra];
-        value[extrafield] = ExtraPropInitValue(opt.bh_chemproduction_function[iextra]);
-        weightsum[extrafield] = 0;
-        funcs[extrafield] = ExtraPropSetCalc(opt.bh_chemproduction_function[iextra]);
-        pdata.bhprop.SetChemistryProduction(extrafield, 0);
+        outputfield = opt.bh_chemproduction_output_names[iextra];
+        value[outputfield] = ExtraPropInitValue(opt.bh_chemproduction_function[iextra]);
+        weightsum[outputfield] = 0;
+        funcs[outputfield] = ExtraPropSetCalc(opt.bh_chemproduction_function[iextra]);
+        pdata.bhprop.SetChemistryProduction(outputfield, 0);
     }
     if (pdata.n_bh == 0 ) return;
     for (auto i=0;i<n;i++)
@@ -5837,45 +5954,98 @@ void GetExtraBHProperties(Options &opt, PropData &pdata, Int_t n, Particle *Pval
         for (auto iextra=0;iextra<opt.bh_internalprop_names.size();iextra++)
         {
             extrafield = opt.bh_internalprop_names[iextra];
+            outputfield = opt.bh_internalprop_output_names[iextra];
             weight = ExtraPropGetWeight(opt.bh_internalprop_function[iextra], oldweight);
             curvalue = x.GetInternalProperties(extrafield);
-            weightsum[extrafield] += weight;
-            funcs[extrafield](weight, curvalue, value[extrafield]);
+            weightsum[outputfield] += weight;
+            funcs[outputfield](weight, curvalue, value[outputfield]);
         }
         for (auto iextra=0;iextra<opt.bh_chem_names.size();iextra++)
         {
             extrafield = opt.bh_chem_names[iextra];
+            outputfield = opt.bh_chem_output_names[iextra];
             weight = ExtraPropGetWeight(opt.bh_chem_function[iextra], oldweight);
             curvalue = x.GetChemistry(extrafield);
-            weightsum[extrafield] += weight;
-            funcs[extrafield](weight, curvalue, value[extrafield]);
+            weightsum[outputfield] += weight;
+            funcs[outputfield](weight, curvalue, value[outputfield]);
         }
         for (auto iextra=0;iextra<opt.bh_chemproduction_names.size();iextra++)
         {
             extrafield = opt.bh_chemproduction_names[iextra];
+            outputfield = opt.bh_chemproduction_output_names[iextra];
             weight = ExtraPropGetWeight(opt.bh_chemproduction_function[iextra], oldweight);
             curvalue = x.GetChemistryProduction(extrafield);
-            weightsum[extrafield] += weight;
-            funcs[extrafield](weight, curvalue, value[extrafield]);
+            weightsum[outputfield] += weight;
+            funcs[outputfield](weight, curvalue, value[outputfield]);
         }
     }
+
+    //normalize as necessary
     for (auto iextra=0;iextra<opt.bh_internalprop_names.size();iextra++)
     {
         extrafield = opt.bh_internalprop_names[iextra];
-        result = ExtraPropNormalizeValue(opt.bh_internalprop_function[iextra], value[extrafield], weightsum[extrafield]);
-        pdata.bhprop.SetInternalProperties(extrafield, result);
+        outputfield = opt.bh_internalprop_output_names[iextra];
+        result = ExtraPropNormalizeValue(opt.bh_internalprop_function[iextra], value[outputfield], weightsum[outputfield]);
+        value[outputfield] = result;
     }
     for (auto iextra=0;iextra<opt.bh_chem_names.size();iextra++)
     {
         extrafield = opt.bh_chem_names[iextra];
-        result = ExtraPropNormalizeValue(opt.bh_chem_function[iextra], value[extrafield], weightsum[extrafield]);
-        pdata.bhprop.SetChemistry(extrafield, result);
+        outputfield = opt.bh_chem_output_names[iextra];
+        result = ExtraPropNormalizeValue(opt.bh_chem_function[iextra], value[outputfield], weightsum[outputfield]);
+        value[outputfield] = result;
     }
     for (auto iextra=0;iextra<opt.bh_chemproduction_names.size();iextra++)
     {
         extrafield = opt.bh_chemproduction_names[iextra];
-        result = ExtraPropNormalizeValue(opt.bh_chemproduction_function[iextra], value[extrafield], weightsum[extrafield]);
-        pdata.bhprop.SetChemistryProduction(extrafield, result);
+        outputfield = opt.bh_chemproduction_output_names[iextra];
+        result = ExtraPropNormalizeValue(opt.bh_chemproduction_function[iextra], value[outputfield], weightsum[outputfield]);
+        value[outputfield] = result;
+    }
+
+    //for calculations that depend on other values
+    for (auto iextra=0;iextra<opt.bh_internalprop_names.size();iextra++)
+    {
+        if (opt.bh_internalprop_index_paired_calc[iextra] == iextra) continue;
+        int iextra2 = opt.bh_internalprop_index_paired_calc[iextra];
+        outputfield = opt.bh_internalprop_output_names[iextra];
+        outputfield2 = opt.bh_internalprop_output_names[iextra2];
+        result = ExtraPropAdjustForPairedValue(opt.bh_internalprop_function[iextra], value[outputfield], value[outputfield2]);
+        value[outputfield] = result;
+    }
+    for (auto iextra=0;iextra<opt.bh_chem_names.size();iextra++)
+    {
+        if (opt.bh_chem_index_paired_calc[iextra] == iextra) continue;
+        int iextra2 = opt.bh_chem_index_paired_calc[iextra];
+        outputfield = opt.bh_chem_output_names[iextra];
+        outputfield2 = opt.bh_chem_output_names[iextra2];
+        result = ExtraPropAdjustForPairedValue(opt.bh_chem_function[iextra], value[outputfield], value[outputfield2]);
+        value[outputfield] = result;
+    }
+    for (auto iextra=0;iextra<opt.bh_chemproduction_names.size();iextra++)
+    {
+        if (opt.bh_chemproduction_index_paired_calc[iextra] == iextra) continue;
+        int iextra2 = opt.bh_chemproduction_index_paired_calc[iextra];
+        outputfield = opt.bh_chemproduction_output_names[iextra];
+        outputfield2 = opt.bh_chemproduction_output_names[iextra2];
+        result = ExtraPropAdjustForPairedValue(opt.bh_chemproduction_function[iextra], value[outputfield], value[outputfield2]);
+        value[outputfield] = result;
+    }
+
+    for (auto iextra=0;iextra<opt.bh_internalprop_names.size();iextra++)
+    {
+        outputfield = opt.bh_internalprop_output_names[iextra];
+        pdata.bhprop.SetInternalProperties(outputfield, value[outputfield]);
+    }
+    for (auto iextra=0;iextra<opt.bh_chem_names.size();iextra++)
+    {
+        outputfield = opt.bh_chem_output_names[iextra];
+        pdata.bhprop.SetChemistry(outputfield, value[outputfield]);
+    }
+    for (auto iextra=0;iextra<opt.bh_chemproduction_names.size();iextra++)
+    {
+        outputfield = opt.bh_chemproduction_output_names[iextra];
+        pdata.bhprop.SetChemistryProduction(outputfield, value[outputfield]);
     }
 #endif
 }
@@ -5886,16 +6056,19 @@ void GetExtraDMProperties(Options &opt, PropData &pdata, Int_t n, Particle *Pval
     if (opt.extra_dm_internalprop_names.size() == 0) return;
     ExtraDMProperties x;
     map<string, float> value, weightsum;
-    string extrafield;
+    string extrafield, outputfield, outputfield2;
     double oldweight, weight, curvalue, result;
     map<string, ExtraPropFunc> funcs;
+
+    //initialize map stored in the properties data
     for (auto iextra=0;iextra<opt.extra_dm_internalprop_names.size();iextra++)
     {
         extrafield = opt.extra_dm_internalprop_names[iextra];
-        value[extrafield] = ExtraPropInitValue(opt.extra_dm_internalprop_function[iextra]);
-        weightsum[extrafield] = 0;
-        funcs[extrafield] = ExtraPropSetCalc(opt.bh_internalprop_function[iextra]);
-        pdata.extradmprop.SetExtraProperties(extrafield, 0);
+        outputfield = opt.extra_dm_internalprop_output_names[iextra];
+        value[outputfield] = ExtraPropInitValue(opt.extra_dm_internalprop_function[iextra]);
+        weightsum[outputfield] = 0;
+        funcs[outputfield] = ExtraPropSetCalc(opt.extra_dm_internalprop_function[iextra]);
+        pdata.extradmprop.SetExtraProperties(outputfield, 0);
     }
     if (pdata.n_dm == 0) return;
     for (auto i=0;i<n;i++)
@@ -5909,17 +6082,35 @@ void GetExtraDMProperties(Options &opt, PropData &pdata, Int_t n, Particle *Pval
         for (auto iextra=0;iextra<opt.extra_dm_internalprop_names.size();iextra++)
         {
             extrafield = opt.extra_dm_internalprop_names[iextra];
+            outputfield = opt.extra_dm_internalprop_output_names[iextra];
             weight = ExtraPropGetWeight(opt.extra_dm_internalprop_function[iextra], oldweight);
-            curvalue = x.GetExtraProperties(extrafield);
-            weightsum[extrafield] += weight;
-            funcs[extrafield](weight, curvalue, value[extrafield]);
+            curvalue = x.GetInternalProperties(extrafield);
+            weightsum[outputfield] += weight;
+            funcs[outputfield](weight, curvalue, value[outputfield]);
         }
     }
+    //normalize as necessary
     for (auto iextra=0;iextra<opt.extra_dm_internalprop_names.size();iextra++)
     {
         extrafield = opt.extra_dm_internalprop_names[iextra];
-        result = ExtraPropNormalizeValue(opt.extra_dm_internalprop_function[iextra], value[extrafield], weightsum[extrafield]);
-        pdata.extradmprop.SetExtraProperties(extrafield, result);
+        outputfield = opt.extra_dm_internalprop_output_names[iextra];
+        result = ExtraPropNormalizeValue(opt.extra_dm_internalprop_function[iextra], value[outputfield], weightsum[outputfield]);
+        value[outputfield] = result;
+    }
+    //for calculations that depend on other values
+    for (auto iextra=0;iextra<opt.extra_dm_internalprop_names.size();iextra++)
+    {
+        if (opt.extra_dm_internalprop_index_paired_calc[iextra] == iextra) continue;
+        int iextra2 = opt.extra_dm_internalprop_index_paired_calc[iextra];
+        outputfield = opt.extra_dm_internalprop_output_names[iextra];
+        outputfield2 = opt.extra_dm_internalprop_output_names[iextra2];
+        result = ExtraPropAdjustForPairedValue(opt.extra_dm_internalprop_function[iextra], value[outputfield], value[outputfield2]);
+        value[outputfield] = result;
+    }
+    for (auto iextra=0;iextra<opt.extra_dm_internalprop_names.size();iextra++)
+    {
+        outputfield = opt.extra_dm_internalprop_output_names[iextra];
+        pdata.extradmprop.SetExtraProperties(outputfield, value[outputfield]);
     }
 #endif
 }

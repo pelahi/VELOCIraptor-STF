@@ -2147,21 +2147,21 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         //output extra hydro/star/bh props
 #ifdef GASON
         if (opt.gas_internalprop_names.size() + opt.gas_chem_names.size() + opt.gas_chemproduction_names.size()>0) {
-            for (auto &extrafield:opt.gas_internalprop_names)
+            for (auto &extrafield:opt.gas_internalprop_output_names)
             {
                 for (Int_t i=0;i<ngroups;i++)
                     ((Double_t*)data)[i]=pdata[i+1].hydroprop.GetInternalProperties(extrafield);
                 Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);
                 itemp++;
             }
-            for (auto &extrafield:opt.gas_chem_names)
+            for (auto &extrafield:opt.gas_chem_output_names)
             {
                 for (Int_t i=0;i<ngroups;i++)
                     ((Double_t*)data)[i]=pdata[i+1].hydroprop.GetChemistry(extrafield);
                 Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);
                 itemp++;
             }
-            for (auto &extrafield:opt.gas_chemproduction_names)
+            for (auto &extrafield:opt.gas_chemproduction_output_names)
             {
                 for (Int_t i=0;i<ngroups;i++)
                     ((Double_t*)data)[i]=pdata[i+1].hydroprop.GetChemistryProduction(extrafield);
@@ -2172,21 +2172,21 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
 #endif
 #ifdef STARON
         if (opt.star_internalprop_names.size() + opt.star_chem_names.size() + opt.star_chemproduction_names.size()>0) {
-            for (auto &extrafield:opt.star_internalprop_names)
+            for (auto &extrafield:opt.star_internalprop_output_names)
             {
                 for (Int_t i=0;i<ngroups;i++)
                     ((Double_t*)data)[i]=pdata[i+1].starprop.GetInternalProperties(extrafield);
                 Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);
                 itemp++;
             }
-            for (auto &extrafield:opt.star_chem_names)
+            for (auto &extrafield:opt.star_chem_output_names)
             {
                 for (Int_t i=0;i<ngroups;i++)
                     ((Double_t*)data)[i]=pdata[i+1].starprop.GetChemistry(extrafield);
                 Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);
                 itemp++;
             }
-            for (auto &extrafield:opt.star_chemproduction_names)
+            for (auto &extrafield:opt.star_chemproduction_output_names)
             {
                 for (Int_t i=0;i<ngroups;i++)
                     ((Double_t*)data)[i]=pdata[i+1].starprop.GetChemistryProduction(extrafield);
@@ -2197,21 +2197,21 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
 #endif
 #ifdef BHON
         if (opt.bh_internalprop_names.size() + opt.bh_chem_names.size() + opt.bh_chemproduction_names.size()>0) {
-            for (auto &extrafield:opt.bh_internalprop_names)
+            for (auto &extrafield:opt.bh_internalprop_output_names)
             {
                 for (Int_t i=0;i<ngroups;i++)
                     ((Double_t*)data)[i]=pdata[i+1].bhprop.GetInternalProperties(extrafield);
                 Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);
                 itemp++;
             }
-            for (auto &extrafield:opt.bh_chem_names)
+            for (auto &extrafield:opt.bh_chem_output_names)
             {
                 for (Int_t i=0;i<ngroups;i++)
                     ((Double_t*)data)[i]=pdata[i+1].bhprop.GetChemistry(extrafield);
                 Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);
                 itemp++;
             }
-            for (auto &extrafield:opt.bh_chemproduction_names)
+            for (auto &extrafield:opt.bh_chemproduction_output_names)
             {
                 for (Int_t i=0;i<ngroups;i++)
                     ((Double_t*)data)[i]=pdata[i+1].bhprop.GetChemistryProduction(extrafield);
@@ -2222,7 +2222,7 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
 #endif
 #ifdef EXTRADMON
         if (opt.extra_dm_internalprop_names.size()>0) {
-            for (auto &extrafield:opt.extra_dm_internalprop_names)
+            for (auto &extrafield:opt.extra_dm_internalprop_output_names)
             {
                 for (Int_t i=0;i<ngroups;i++)
                     ((Double_t*)data)[i]=pdata[i+1].extradmprop.GetExtraProperties(extrafield);
