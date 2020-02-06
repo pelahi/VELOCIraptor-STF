@@ -6084,7 +6084,7 @@ void GetExtraDMProperties(Options &opt, PropData &pdata, Int_t n, Particle *Pval
             extrafield = opt.extra_dm_internalprop_names[iextra];
             outputfield = opt.extra_dm_internalprop_output_names[iextra];
             weight = ExtraPropGetWeight(opt.extra_dm_internalprop_function[iextra], oldweight);
-            curvalue = x.GetInternalProperties(extrafield);
+            curvalue = x.GetExtraProperties(extrafield);
             weightsum[outputfield] += weight;
             funcs[outputfield](weight, curvalue, value[outputfield]);
         }
