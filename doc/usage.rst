@@ -485,6 +485,40 @@ Configuration options related to the bulk properties calculated.
         ``Radial_profile_bin_edges = -2.,-1.50,-1.00,-0.50,0.00,0.50,1.00,1.50,2.00``
             * Comma separated list of (log) r bin edges. Here example is for log r in proper kpc binning so values are log(r).
 
+.. topic:: Configuration for Extra Properties
+
+    These are configuration options related to the bulk properties calculated based on extra
+    properties of the particles. For instance, if hydro particles have a field called ``Turbulence``
+    that contains some quantity of the internal turbulent energy and one wanted to calculate the
+    average of this value for an object, one would use these options to load data from an HDF5 file
+    (other inputs are not so easily parsed, making this not an option). One needs to provide what calculation
+    to do (in the form of an integer flag specifying the calculation) and a string indicating the units.
+    If the input is in the form of a 2D array from which a particular column is to be used, one can also
+    set an index. The result is sorted in an output field that contains the name of the input field,
+    the index (if >0), and a simple string describing the function along with the units and ending with particle type,
+    ie: ``Turbulence_average_km/s^2_gas``
+    The field can be specified a number of times with different desired calculations to be run.
+    These fields come as ``_names``, ``_index_in_file``, ``_calculation_type``,
+    ``_input_output_unit_conversion_factors``, ``_output_units``.
+    Currently implemented are options for ``Gas``, ``Stars``, and ``BH``, and properties categorized by
+    ``_internal_property``, ``_chemistry``, ``_chemistry_production``. Also available are
+    ``Extra_DM_internal_property`` options.
+    These config options must be provided in a comma separated list and terminate in a comma.
+
+    Example extra hydro Properties related config options
+        ``Gas_internal_property_names = ,``
+            * Names of fields to be read from an input HDF5 file that relate to hydro quantities, for which calculations can be done
+        ``Gas_internal_property_index_in_file = ,``
+            * Index in 2d array to be read from an input HDF5, useful for fields like metallicity where it is common to have an entry for each element
+        ``Gas_internal_property_calculation_type = ,``
+            * Integer flag indicating what calculation is to be done.
+        ``Gas_internal_property_input_output_unit_conversion_factors = ,``
+            * Float storing the conversion factor (if not 1.0) to take input units to output units.
+        ``Gas_internal_property_output_units = ,``
+            * String storing the units of the output.
+
+
+
 .. _config_siminfo:
 
 Simulation Info
