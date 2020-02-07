@@ -2000,7 +2000,6 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                                 {
                                     if (k == HDFGASTYPE)
                                         HDF5ReadHyperSlabReal(&extrafieldbuff[(iextraoffset+iextra)*chunksize],partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 1, 1, nchunk, n, plist_id, 1, opt.gas_internalprop_index[iextra]);
-                                    );
                                 }
                             }
                             iextraoffset += opt.gas_internalprop_names.size();
