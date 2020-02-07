@@ -220,7 +220,7 @@ using namespace NBody;
 #define CALCMAXMASSWEIGHT 16
 #define CALCLOGAVERAGEMASSWEIGHT 17
 #define CALCLOGSTDMASSWEIGHT 18
-typedef float (*ExtraPropFunc)(float, float, float&);
+typedef double (*ExtraPropFunc)(double, double, double&);
 
 //@}
 

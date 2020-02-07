@@ -5520,47 +5520,47 @@ void AddDataToRadialBinInclusive(Options &opt, Double_t rval, Double_t massval,
 /// \name Extra Hydro/Star/BH property calculations
 //@{
 
-inline float ExtraPropGetWeight(unsigned int calctype, float weight){
+inline double ExtraPropGetWeight(unsigned int calctype, double weight){
     if (calctype < CALCQUANTITYMASSWEIGHT) weight = 1.0;
     return weight;
 }
-inline float ExtraPropCalcAverage(float weight, float value, float &result){
+inline double ExtraPropCalcAverage(double weight, double value, double &result){
     result += value * weight;
 }
-inline float ExtraPropCalcTotal(float weight, float value, float &result){
+inline double ExtraPropCalcTotal(double weight, double value, double &result){
     result += value * weight;
 }
-inline float ExtraPropCalcSTD(float weight, float value, float &result){
+inline double ExtraPropCalcSTD(double weight, double value, double &result){
     result += value * value * weight;
 }
-inline float ExtraPropCalcLogAverage(float weight, float value, float &result){
+inline double ExtraPropCalcLogAverage(double weight, double value, double &result){
     result += log(value) * weight;
 }
-inline float ExtraPropCalcLogSTD(float weight, float value, float &result){
+inline double ExtraPropCalcLogSTD(double weight, double value, double &result){
     value = log(value);
     result += value * value * weight;
 }
-inline float ExtraPropCalcMin(float weight, float value, float &result){
+inline double ExtraPropCalcMin(double weight, double value, double &result){
     if (value*weight < result) result = value * weight;
 }
-inline float ExtraPropCalcMax(float weight, float value, float &result){
+inline double ExtraPropCalcMax(double weight, double value, double &result){
     if (value*weight > result) result = value * weight;
 }
-inline float ExtraPropNormalizeValue(unsigned int calctype, float value, float norm){
+inline double ExtraPropNormalizeValue(unsigned int calctype, double value, double norm){
     calctype = calctype % CALCQUANTITYMASSWEIGHT;
     if (calctype == CALCAVERAGE || calctype == CALCSTD ||
         calctype == CALCLOGAVERAGE || calctype == CALCLOGSTD) value/=norm;
     return value;
 }
-inline float ExtraPropAdjustForPairedValue(unsigned int calctype, float value, float value2){
+inline double ExtraPropAdjustForPairedValue(unsigned int calctype, double value, double value2){
     calctype = calctype % CALCQUANTITYMASSWEIGHT;
     if ((calctype == CALCSTD || calctype == CALCLOGSTD)) return sqrt(value - value2*value2);
     else return value;
 }
 
-inline float ExtraPropInitValue(unsigned int calctype){
+inline double ExtraPropInitValue(unsigned int calctype){
     calctype = calctype % CALCQUANTITYMASSWEIGHT;
-    float result;
+    double result;
     switch(calctype){
         case CALCAVERAGE:
             result = 0;
@@ -5578,10 +5578,10 @@ inline float ExtraPropInitValue(unsigned int calctype){
             result = 0;
             break;
         case CALCMIN:
-            result = 1e16;
+            result = 1e32;
             break;
         case CALCMAX:
-            result = -1e16;
+            result = -1e32;
             break;
     }
     return result;
@@ -5622,7 +5622,7 @@ void GetExtraHydroProperties(Options &opt, PropData &pdata, Int_t n, Particle *P
 #ifdef GASON
     if (opt.gas_internalprop_names.size() + opt.gas_chem_names.size() + opt.gas_chemproduction_names.size() == 0) return;
     HydroProperties x;
-    map<string, float> value, weightsum;
+    map<string, double> value, weightsum;
     string extrafield, outputfield, outputfield2;
     double oldweight, weight, curvalue, result;
     map<string, ExtraPropFunc> funcs;
@@ -5767,7 +5767,7 @@ void GetExtraStarProperties(Options &opt, PropData &pdata, Int_t n, Particle *Pv
 #ifdef STARON
     if (opt.star_internalprop_names.size() + opt.star_chem_names.size() + opt.star_chemproduction_names.size() == 0) return;
     StarProperties x;
-    map<string, float> value, weightsum;
+    map<string, double> value, weightsum;
     string extrafield, outputfield, outputfield2;
     double oldweight, weight, curvalue, result;
     map<string, ExtraPropFunc> funcs;
@@ -5912,7 +5912,7 @@ void GetExtraBHProperties(Options &opt, PropData &pdata, Int_t n, Particle *Pval
 #ifdef BHON
     if (opt.bh_internalprop_names.size() + opt.bh_chem_names.size() + opt.bh_chemproduction_names.size() == 0) return;
     BHProperties x;
-    map<string, float> value, weightsum;
+    map<string, double> value, weightsum;
     string extrafield, outputfield, outputfield2;
     double oldweight, weight, curvalue, result;
     map<string, ExtraPropFunc> funcs;
@@ -6055,7 +6055,7 @@ void GetExtraDMProperties(Options &opt, PropData &pdata, Int_t n, Particle *Pval
 #ifdef EXTRADMON
     if (opt.extra_dm_internalprop_names.size() == 0) return;
     ExtraDMProperties x;
-    map<string, float> value, weightsum;
+    map<string, double> value, weightsum;
     string extrafield, outputfield, outputfield2;
     double oldweight, weight, curvalue, result;
     map<string, ExtraPropFunc> funcs;

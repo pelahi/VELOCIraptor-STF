@@ -1585,7 +1585,7 @@ inline void ExtraFieldCheck(string configentryname, vector<string> &names, vecto
             for (auto k=0;k<calctypes.size();k++) {
                 if (names[k] != names[i] || indices[k] != indices[i]) continue;
                 if (calctypes[k] == avefuncs[j]) {
-                    pairindices[i] == k;
+                    pairindices[i] = k;
                     break;
                 }
             }
