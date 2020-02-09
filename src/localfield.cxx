@@ -90,7 +90,7 @@ private(i,j,k,tid,id,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,pqx,pqv
 #pragma omp for schedule(dynamic)
 #endif
     for (i=0;i<nbodies;i++) {
-        Part_i=Part[i];
+       Particle Part_i=Part[i];
         //if strucden compile flag set then only calculate velocity density for particles in groups
 #ifdef STRUCDEN
         if (Part_i.GetType()>0) {
@@ -184,7 +184,7 @@ private(i,j,k,tid,pid,pid2,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,p
 #pragma omp for
 #endif
     for (i=0;i<nbodies;i++) {
-        Part_i=Part[i];
+       Particle Part_i=Part[i];
 #ifdef STRUCDEN
         if (Part_i.GetType()>0) {
 #endif
@@ -270,7 +270,7 @@ private(i,j,k,tid,pid,pid2,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,p
     //NO MPI invoked
 #ifndef USEOPENMP
     for (i=0;i<nbodies;i++) {
-        Part_i=Part[i];
+       Particle Part_i=Part[i];
 #ifdef STRUCDEN
         if (Part_i.GetType()>0)
         {
@@ -311,7 +311,7 @@ private(i,tid)
 {
 #pragma omp for schedule(dynamic,minamount) nowait
     for (i=0;i<nbodies;i++) {
-        Part_i=Part[i];
+       Particle Part_i=Part[i];
 #ifdef STRUCDEN
         if (Part_i.GetType()>0) {
 #endif
@@ -396,7 +396,7 @@ private(i,tid)
 #pragma omp for schedule(dynamic,minamount) nowait
 #endif
     for (i=0;i<nbodies;i++) {
-        Part_i=Part[i];
+       Particle Part_i=Part[i];
 #ifdef USEOPENMP
         tid=omp_get_thread_num();
 #else
@@ -464,7 +464,7 @@ private(i,tid)
 #pragma omp for schedule(dynamic) nowait
 #endif
     for (i=0;i<nbodies;i++) {
-        Part_i=Part[i];
+       Particle Part_i=Part[i];
 #ifdef USEOPENMP
         tid=omp_get_thread_num();
 #else
@@ -546,7 +546,7 @@ private(i,j,k,tid,id,v2,nnids,nnr2,weight,pqv)
 #pragma omp for schedule(dynamic)
 #endif
     for (i=0;i<nbodies;i++) {
-        Part_i=Part[i];
+       Particle Part_i=Part[i];
         //if strucden compile flag set then only calculate velocity density for particles in groups
 #ifdef STRUCDEN
         if (Part_i.GetType()<=0) continue;
@@ -646,7 +646,7 @@ private(i,j,k,tid,pid,pid2,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,p
 #pragma omp for
 #endif
     for (i=0;i<nbodies;i++) {
-        Part_i=Part[i];
+       Particle Part_i=Part[i];
 #ifdef STRUCDEN
         if (Part_i.GetType()<=0) continue;
 #endif
