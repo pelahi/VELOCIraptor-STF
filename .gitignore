@@ -27,3 +27,14 @@ stf/Makefile.config
 build/
 
 doc/_build/
+
+CMakeFiles/
+src/CMakeFiles/
+src/Makefile
+Makefile
+CMakeCache.txt
+cmake_install.cmake
+
+
+stf
+src/libvelociraptor.a

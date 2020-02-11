@@ -24,6 +24,7 @@
 #include <cmath>
 #include <string>
 #include <vector>
+#include <set>
 #include <algorithm>
 #include <map>
 #include <unordered_map>
@@ -198,6 +199,24 @@ using namespace NBody;
 #define OUTBINARY 1
 #define OUTHDF 2
 #define OUTADIOS 3
+//@}
+
+///\defgroup CALCULATIONTYPES defining what is calculated
+//@{
+#define CALCQUANTITYMASSWEIGHT 10
+#define CALCAVERAGEMASSWEIGHT 11
+#define CALCTOTALMASSWEIGHT 12
+#define CALCSTDMASSWEIGHT 13
+#define CALCMEDIANMASSWEIGHT 14
+#define CALCMINMASSWEIGHT 15
+#define CALCMAXMASSWEIGHT 16
+#define CALCAVERAGE 1
+#define CALCTOTAL 2
+#define CALCSTD 3
+#define CALCMEDIAN 4
+#define CALCMIN 5
+#define CALCMAX 6
+typedef float (*ExtraPropFunc)(float, float, float&);
 //@}
 
 /// \name For Unbinding
@@ -659,19 +678,59 @@ struct Options
 
     /// \name options related to calculating detailed hydro/star/bh properties related to chemistry/feedbac, etc
     //@{
+    ///stores the name of the field
     vector<string> gas_internalprop_names;
     vector<string> star_internalprop_names;
     vector<string> bh_internalprop_names;
 
+    ///can also store the dimensional index of the field, useful when single data
+    ///set contains many related but different properties
+    vector<unsigned int> gas_internalprop_index;
+    vector<unsigned int> star_internalprop_index;
+    vector<unsigned int> bh_internalprop_index;
+    ///stores what is calculated
+    ///(1 is mass weighted average, 2 mass weighted total,
+    ///3 average, 4 total)
+    ///5 median
+    vector<unsigned int> gas_internalprop_function;
+    vector<unsigned int> star_internalprop_function;
+    vector<unsigned int> bh_internalprop_function;
+
     vector<string> gas_chem_names;
     vector<string> star_chem_names;
     vector<string> bh_chem_names;
+    vector<unsigned int> gas_chem_index;
+    vector<unsigned int> star_chem_index;
+    vector<unsigned int> bh_chem_index;
+    vector<unsigned int> gas_chem_function;
+    vector<unsigned int> star_chem_function;
+    vector<unsigned int> bh_chem_function;
 
     vector<string> gas_chemproduction_names;
     vector<string> star_chemproduction_names;
     vector<string> bh_chemproduction_names;
+    vector<unsigned int> gas_chemproduction_index;
+    vector<unsigned int> star_chemproduction_index;
+    vector<unsigned int> bh_chemproduction_index;
+    vector<unsigned int> gas_chemproduction_function;
+    vector<unsigned int> star_chemproduction_function;
+    vector<unsigned int> bh_chemproduction_function;
 
     vector<string> extra_dm_internalprop_names;
+    vector<unsigned int> extra_dm_internalprop_index;
+    vector<unsigned int> extra_dm_internalprop_function;
+
+    ///store the output field name
+    vector<string> gas_internalprop_output_names;
+    vector<string> star_internalprop_output_names;
+    vector<string> bh_internalprop_output_names;
+    vector<string> gas_chem_output_names;
+    vector<string> star_chem_output_names;
+    vector<string> bh_chem_output_names;
+    vector<string> gas_chemproduction_output_names;
+    vector<string> star_chemproduction_output_names;
+    vector<string> bh_chemproduction_output_names;
+    vector<string> extra_dm_internalprop_output_names;
     //@}
 
     Options()
@@ -4414,9 +4473,9 @@ struct PropDataHeader{
 #ifdef GASON
         if (opt.gas_internalprop_names.size()+opt.gas_chem_names.size()+opt.gas_chemproduction_names.size() > 0)
         {
-            for (auto x:opt.gas_internalprop_names) headerdatainfo.push_back(x+string("_gas"));
-            for (auto x:opt.gas_chem_names) headerdatainfo.push_back(x+string("_gas"));
-            for (auto x:opt.gas_chemproduction_names) headerdatainfo.push_back(x+string("_gas"));
+            for (auto x:opt.gas_internalprop_output_names) headerdatainfo.push_back(x+string("_gas"));
+            for (auto x:opt.gas_chem_output_names) headerdatainfo.push_back(x+string("_gas"));
+            for (auto x:opt.gas_chemproduction_output_names) headerdatainfo.push_back(x+string("_gas"));
 #ifdef USEHDF
             sizeval=hdfpredtypeinfo.size();
             for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
@@ -4426,9 +4485,9 @@ struct PropDataHeader{
 #ifdef STARON
         if (opt.star_internalprop_names.size()+opt.star_chem_names.size()+opt.star_chemproduction_names.size() > 0)
         {
-            for (auto x:opt.star_internalprop_names) headerdatainfo.push_back(x+string("_star"));
-            for (auto x:opt.star_chem_names) headerdatainfo.push_back(x+string("_star"));
-            for (auto x:opt.star_chemproduction_names) headerdatainfo.push_back(x+string("_star"));
+            for (auto x:opt.star_internalprop_output_names) headerdatainfo.push_back(x+string("_star"));
+            for (auto x:opt.star_chem_output_names) headerdatainfo.push_back(x+string("_star"));
+            for (auto x:opt.star_chemproduction_output_names) headerdatainfo.push_back(x+string("_star"));
 #ifdef USEHDF
             sizeval=hdfpredtypeinfo.size();
             for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
@@ -4438,9 +4497,9 @@ struct PropDataHeader{
 #ifdef BHON
         if (opt.bh_internalprop_names.size()+opt.bh_chem_names.size()+opt.bh_chemproduction_names.size() > 0)
         {
-            for (auto x:opt.bh_internalprop_names) headerdatainfo.push_back(x+string("_bh"));
-            for (auto x:opt.bh_chem_names) headerdatainfo.push_back(x+string("_bh"));
-            for (auto x:opt.bh_chemproduction_names) headerdatainfo.push_back(x+string("_bh"));
+            for (auto x:opt.bh_internalprop_output_names) headerdatainfo.push_back(x+string("_bh"));
+            for (auto x:opt.bh_chem_output_names) headerdatainfo.push_back(x+string("_bh"));
+            for (auto x:opt.bh_chemproduction_output_names) headerdatainfo.push_back(x+string("_bh"));
 #ifdef USEHDF
             sizeval=hdfpredtypeinfo.size();
             for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
@@ -4450,7 +4509,7 @@ struct PropDataHeader{
 #ifdef EXTRADMON
         if (opt.extra_dm_internalprop_names.size() > 0)
         {
-            for (auto x:opt.extra_dm_internalprop_names) headerdatainfo.push_back(x+string("_extra_dm"));
+            for (auto x:opt.extra_dm_internalprop_output_names) headerdatainfo.push_back(x+string("_extra_dm"));
 #ifdef USEHDF
             sizeval=hdfpredtypeinfo.size();
             for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);

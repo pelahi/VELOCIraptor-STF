@@ -677,6 +677,10 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                     Part[count].SetID(count);
                     if (k==HDFGASTYPE) Part[count].SetType(GASTYPE);
                     else if (k==HDFDMTYPE) Part[count].SetType(DARKTYPE);
+#ifdef HIGHRES
+                    else if (k==HDFDM1TYPE) Part[count].SetType(DARKTYPE);
+                    else if (k==HDFDM2TYPE) Part[count].SetType(DARKTYPE);
+#endif
                     else if (k==HDFSTARTYPE) Part[count].SetType(STARTYPE);
                     else if (k==HDFBHTYPE) Part[count].SetType(BHTYPE);
 #ifdef EXTRAINPUTINFO
@@ -1047,6 +1051,22 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
             if (numextrafields>0)
             {
 #if defined(GASON)
+                if (opt.gas_internalprop_names.size() + opt.gas_chem_names.size() +
+                    opt.gas_chemproduction_names.size()>0) {
+                    count=count2;
+                    bcount=bcount2;
+                    for (j=0;j<nusetypes;j++)
+                    {
+                        k=usetypes[j];
+                        if (k != HDFGASTYPE) {
+                            count+=hdf_header_info[i].npart[k];
+                            continue;
+                        }
+                        for(n=0;n<hdf_header_info[i].npart[k];n++) {
+                            Part[count++].InitHydroProperties();
+                        }
+                    }
+                }
                 if (opt.gas_internalprop_names.size()>0)
                 {
                     count=count2;
@@ -1058,6 +1078,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         {
                             for (auto iextra=0;iextra<opt.gas_internalprop_names.size();iextra++)
                             {
+                                unsigned long long count3=count;
                                 extrafield = opt.gas_internalprop_names[iextra];
                                 if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield<<endl;
                                 partsdataset_extra[i*numextrafields+iextra] = HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],extrafield);
@@ -1070,7 +1091,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                                     if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
                                     //setup hyperslab so that it is loaded into the buffer
                                     HDF5ReadHyperSlabReal(doublebuff,partsdataset_extra[i*numextrafields+iextra], partsdataspace_extra[i*numextrafields+iextra], 1, 1, nchunk, n);
-                                    for (int nn=0;nn<nchunk;nn++) Part[count++].GetHydroProperties().SetInternalProperties(extrafield,doublebuff[nn]);
+                                    for (int nn=0;nn<nchunk;nn++) Part[count3++].GetHydroProperties().SetInternalProperties(extrafield,doublebuff[nn]);
                                 }
                                 //close data spaces
                                 for (auto &hidval:partsdataspace_extra) HDF5CloseDataSpace(hidval);
@@ -1094,6 +1115,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         {
                             for (auto iextra=0;iextra<opt.gas_chem_names.size();iextra++)
                             {
+                                unsigned long long count3=count;
                                 extrafield = opt.gas_chem_names[iextra];
                                 if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield<<endl;
                                 partsdataset_extra[i*numextrafields+iextra] = HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],extrafield);
@@ -1106,7 +1128,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                                     if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
                                     //setup hyperslab so that it is loaded into the buffer
                                     HDF5ReadHyperSlabReal(doublebuff,partsdataset_extra[i*numextrafields+iextra], partsdataspace_extra[i*numextrafields+iextra], 1, 1, nchunk, n);
-                                    for (int nn=0;nn<nchunk;nn++) Part[count++].GetHydroProperties().SetChemistry(extrafield,doublebuff[nn]);
+                                    for (int nn=0;nn<nchunk;nn++) Part[count3++].GetHydroProperties().SetChemistry(extrafield,doublebuff[nn]);
                                 }
                                 //close data spaces
                                 for (auto &hidval:partsdataspace_extra) HDF5CloseDataSpace(hidval);
@@ -1129,6 +1151,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         {
                             for (auto iextra=0;iextra<opt.gas_chemproduction_names.size();iextra++)
                             {
+                                unsigned long long count3=count;
                                 extrafield = opt.gas_chemproduction_names[iextra];
                                 if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield<<endl;
                                 partsdataset_extra[i*numextrafields+iextra] = HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],extrafield);
@@ -1141,7 +1164,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                                     if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
                                     //setup hyperslab so that it is loaded into the buffer
                                     HDF5ReadHyperSlabReal(doublebuff,partsdataset_extra[i*numextrafields+iextra], partsdataspace_extra[i*numextrafields+iextra], 1, 1, nchunk, n);
-                                    for (int nn=0;nn<nchunk;nn++) Part[count++].GetHydroProperties().SetChemistryProduction(extrafield,doublebuff[nn]);
+                                    for (int nn=0;nn<nchunk;nn++) Part[count3++].GetHydroProperties().SetChemistryProduction(extrafield,doublebuff[nn]);
                                 }
                             }
                             //close data spaces
@@ -1155,6 +1178,22 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                 }
 #endif
 #if defined(STARON)
+                if (opt.star_internalprop_names.size() + opt.star_chem_names.size() +
+                    opt.star_chemproduction_names.size()>0) {
+                    count=count2;
+                    bcount=bcount2;
+                    for (j=0;j<nusetypes;j++)
+                    {
+                        k=usetypes[j];
+                        if (k != HDFSTARTYPE) {
+                            count+=hdf_header_info[i].npart[k];
+                            continue;
+                        }
+                        for(n=0;n<hdf_header_info[i].npart[k];n++) {
+                            Part[count++].InitStarProperties();
+                        }
+                    }
+                }
                 if (opt.star_internalprop_names.size()>0)
                 {
                     count=count2;
@@ -1166,6 +1205,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         {
                             for (auto iextra=0;iextra<opt.star_internalprop_names.size();iextra++)
                             {
+                                unsigned long long count3=count;
                                 extrafield = opt.star_internalprop_names[iextra];
                                 if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield<<endl;
                                 partsdataset_extra[i*numextrafields+iextra] = HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],extrafield);
@@ -1178,7 +1218,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                                     if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
                                     //setup hyperslab so that it is loaded into the buffer
                                     HDF5ReadHyperSlabReal(doublebuff,partsdataset_extra[i*numextrafields+iextra], partsdataspace_extra[i*numextrafields+iextra], 1, 1, nchunk, n);
-                                    for (int nn=0;nn<nchunk;nn++) Part[count++].GetStarProperties().SetInternalProperties(extrafield,doublebuff[nn]);
+                                    for (int nn=0;nn<nchunk;nn++) Part[count3++].GetStarProperties().SetInternalProperties(extrafield,doublebuff[nn]);
                                 }
                             }
                             //close data spaces
@@ -1201,6 +1241,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         {
                             for (auto iextra=0;iextra<opt.star_chem_names.size();iextra++)
                             {
+                                unsigned long long count3=count;
                                 extrafield = opt.star_chem_names[iextra];
                                 if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield<<endl;
                                 partsdataset_extra[i*numextrafields+iextra] = HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],extrafield);
@@ -1213,7 +1254,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                                     if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
                                     //setup hyperslab so that it is loaded into the buffer
                                     HDF5ReadHyperSlabReal(doublebuff,partsdataset_extra[i*numextrafields+iextra], partsdataspace_extra[i*numextrafields+iextra], 1, 1, nchunk, n);
-                                    for (int nn=0;nn<nchunk;nn++) Part[count++].GetStarProperties().SetChemistry(extrafield,doublebuff[nn]);
+                                    for (int nn=0;nn<nchunk;nn++) Part[count3++].GetStarProperties().SetChemistry(extrafield,doublebuff[nn]);
                                 }
                             }
                             //close data spaces
@@ -1236,6 +1277,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         {
                             for (auto iextra=0;iextra<opt.star_chemproduction_names.size();iextra++)
                             {
+                                unsigned long long count3=count;
                                 extrafield = opt.star_chemproduction_names[iextra];
                                 if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield<<endl;
                                 partsdataset_extra[i*numextrafields+iextra] = HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],extrafield);
@@ -1248,7 +1290,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                                     if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
                                     //setup hyperslab so that it is loaded into the buffer
                                     HDF5ReadHyperSlabReal(doublebuff,partsdataset_extra[i*numextrafields+iextra], partsdataspace_extra[i*numextrafields+iextra], 1, 1, nchunk, n);
-                                    for (int nn=0;nn<nchunk;nn++) Part[count++].GetStarProperties().SetChemistryProduction(extrafield,doublebuff[nn]);
+                                    for (int nn=0;nn<nchunk;nn++) Part[count3++].GetStarProperties().SetChemistryProduction(extrafield,doublebuff[nn]);
                                 }
                             }
                             //close data spaces
@@ -1262,6 +1304,22 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                 }
 #endif
 #if defined(BHON)
+                if (opt.bh_internalprop_names.size() + opt.bh_chem_names.size() +
+                    opt.bh_chemproduction_names.size()>0) {
+                    count=count2;
+                    bcount=bcount2;
+                    for (j=0;j<nusetypes;j++)
+                    {
+                        k=usetypes[j];
+                        if (k != HDFBHTYPE) {
+                            count+=hdf_header_info[i].npart[k];
+                            continue;
+                        }
+                        for(n=0;n<hdf_header_info[i].npart[k];n++) {
+                            Part[count++].InitBHProperties();
+                        }
+                    }
+                }
                 if (opt.bh_internalprop_names.size()>0)
                 {
                     count=count2;
@@ -1273,6 +1331,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         {
                             for (auto iextra=0;iextra<opt.bh_internalprop_names.size();iextra++)
                             {
+                                unsigned long long count3=count;
                                 extrafield = opt.bh_internalprop_names[iextra];
                                 if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield<<endl;
                                 partsdataset_extra[i*numextrafields+iextra] = HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],extrafield);
@@ -1285,7 +1344,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                                     if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
                                     //setup hyperslab so that it is loaded into the buffer
                                     HDF5ReadHyperSlabReal(doublebuff,partsdataset_extra[i*numextrafields+iextra], partsdataspace_extra[i*numextrafields+iextra], 1, 1, nchunk, n);
-                                    for (int nn=0;nn<nchunk;nn++) Part[count++].GetBHProperties().SetInternalProperties(extrafield,doublebuff[nn]);
+                                    for (int nn=0;nn<nchunk;nn++) Part[count3++].GetBHProperties().SetInternalProperties(extrafield,doublebuff[nn]);
                                 }
                             }
                             //close data spaces
@@ -1308,6 +1367,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         {
                             for (auto iextra=0;iextra<opt.bh_chem_names.size();iextra++)
                             {
+                                unsigned long long count3=count;
                                 extrafield = opt.bh_chem_names[iextra];
                                 if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield<<endl;
                                 partsdataset_extra[i*numextrafields+iextra] = HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],extrafield);
@@ -1320,7 +1380,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                                     if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
                                     //setup hyperslab so that it is loaded into the buffer
                                     HDF5ReadHyperSlabReal(doublebuff,partsdataset_extra[i*numextrafields+iextra], partsdataspace_extra[i*numextrafields+iextra], 1, 1, nchunk, n);
-                                    for (int nn=0;nn<nchunk;nn++) Part[count++].GetBHProperties().SetChemistry(extrafield,doublebuff[nn]);
+                                    for (int nn=0;nn<nchunk;nn++) Part[count3++].GetBHProperties().SetChemistry(extrafield,doublebuff[nn]);
                                 }
                             }
                             //close data spaces
@@ -1343,6 +1403,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         {
                             for (auto iextra=0;iextra<opt.bh_chemproduction_names.size();iextra++)
                             {
+                                unsigned long long count3=count;
                                 extrafield = opt.bh_chemproduction_names[iextra];
                                 if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield<<endl;
                                 partsdataset_extra[i*numextrafields+iextra] = HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],extrafield);
@@ -1355,7 +1416,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                                     if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
                                     //setup hyperslab so that it is loaded into the buffer
                                     HDF5ReadHyperSlabReal(doublebuff,partsdataset_extra[i*numextrafields+iextra], partsdataspace_extra[i*numextrafields+iextra], 1, 1, nchunk, n);
-                                    for (int nn=0;nn<nchunk;nn++) Part[count++].GetBHProperties().SetChemistryProduction(extrafield,doublebuff[nn]);
+                                    for (int nn=0;nn<nchunk;nn++) Part[count3++].GetBHProperties().SetChemistryProduction(extrafield,doublebuff[nn]);
                                 }
                             }
                             //close data spaces
@@ -1369,6 +1430,21 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                 }
 #endif
 #if defined(EXTRADMON)
+                if (opt.extra_dm_internalprop_names.size()>0) {
+                    count=count2;
+                    bcount=bcount2;
+                    for (j=0;j<nusetypes;j++)
+                    {
+                        k=usetypes[j];
+                        if (k != HDFDMTYPE) {
+                            count+=hdf_header_info[i].npart[k];
+                            continue;
+                        }
+                        for(n=0;n<hdf_header_info[i].npart[k];n++) {
+                            Part[count++].InitExtraDMProperties();
+                        }
+                    }
+                }
                 if (opt.extra_dm_internalprop_names.size()>0)
                 {
                     count=count2;
@@ -1380,6 +1456,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         {
                             for (auto iextra=0;iextra<opt.extra_dm_internalprop_names.size();iextra++)
                             {
+                                unsigned long long count3=count;
                                 extrafield = opt.extra_dm_internalprop_names[iextra];
                                 if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield<<endl;
                                 partsdataset_extra[i*numextrafields+iextra] = HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],extrafield);
@@ -1392,7 +1469,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                                     if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
                                     //setup hyperslab so that it is loaded into the buffer
                                     HDF5ReadHyperSlabReal(doublebuff,partsdataset_extra[i*numextrafields+iextra], partsdataspace_extra[i*numextrafields+iextra], 1, 1, nchunk, n);
-                                    for (int nn=0;nn<nchunk;nn++) Part[count++].GetExtraDMProperties().SetExtraProperties(extrafield,doublebuff[nn]);
+                                    for (int nn=0;nn<nchunk;nn++) Part[count3++].GetExtraDMProperties().SetExtraProperties(extrafield,doublebuff[nn]);
                                 }
                                 //close data spaces
                                 for (auto &hidval:partsdataspace_extra) HDF5CloseDataSpace(hidval);
@@ -1855,7 +1932,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                                 for (auto iextra=0;iextra<opt.gas_internalprop_names.size();iextra++)
                                 {
                                     if (k == HDFGASTYPE)
-                                        HDF5ReadHyperSlabReal(&extrafieldbuff[iextraoffset*chunksize],partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 1, 1, nchunk, n, plist_id);
+                                        HDF5ReadHyperSlabReal(&extrafieldbuff[(iextraoffset+iextra)*chunksize],partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 1, 1, nchunk, n, plist_id);
                                 }
                             }
                             iextraoffset += opt.gas_internalprop_names.size();
@@ -1864,7 +1941,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                                 for (auto iextra=0;iextra<opt.gas_chem_names.size();iextra++)
                                 {
                                     if (k == HDFGASTYPE)
-                                        HDF5ReadHyperSlabReal(&extrafieldbuff[iextraoffset*chunksize],partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 1, 1, nchunk, n, plist_id);
+                                        HDF5ReadHyperSlabReal(&extrafieldbuff[(iextraoffset+iextra)*chunksize],partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 1, 1, nchunk, n, plist_id);
                                 }
                             }
                             iextraoffset += opt.gas_chem_names.size();
@@ -1873,7 +1950,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                                 for (auto iextra=0;iextra<opt.gas_chemproduction_names.size();iextra++)
                                 {
                                     if (k == HDFGASTYPE)
-                                        HDF5ReadHyperSlabReal(&extrafieldbuff[iextraoffset*chunksize],partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 1, 1, nchunk, n, plist_id);
+                                        HDF5ReadHyperSlabReal(&extrafieldbuff[(iextraoffset+iextra)*chunksize],partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 1, 1, nchunk, n, plist_id);
                                 }
                             }
                             iextraoffset += opt.gas_chemproduction_names.size();
@@ -1884,7 +1961,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                                 for (auto iextra=0;iextra<opt.star_internalprop_names.size();iextra++)
                                 {
                                     if (k == HDFSTARTYPE)
-                                        HDF5ReadHyperSlabReal(&extrafieldbuff[iextraoffset*chunksize],partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 1, 1, nchunk, n, plist_id);
+                                        HDF5ReadHyperSlabReal(&extrafieldbuff[(iextraoffset+iextra)*chunksize],partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 1, 1, nchunk, n, plist_id);
                                 }
                             }
                             iextraoffset += opt.star_internalprop_names.size();
@@ -1893,7 +1970,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                                 for (auto iextra=0;iextra<opt.star_chem_names.size();iextra++)
                                 {
                                     if (k == HDFSTARTYPE)
-                                        HDF5ReadHyperSlabReal(&extrafieldbuff[iextraoffset*chunksize],partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 1, 1, nchunk, n, plist_id);
+                                        HDF5ReadHyperSlabReal(&extrafieldbuff[(iextraoffset+iextra)*chunksize],partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 1, 1, nchunk, n, plist_id);
                                 }
                             }
                             iextraoffset += opt.star_chem_names.size();
@@ -1902,7 +1979,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                                 for (auto iextra=0;iextra<opt.star_chemproduction_names.size();iextra++)
                                 {
                                     if (k == HDFSTARTYPE)
-                                        HDF5ReadHyperSlabReal(&extrafieldbuff[iextraoffset*chunksize],partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 1, 1, nchunk, n, plist_id);
+                                        HDF5ReadHyperSlabReal(&extrafieldbuff[(iextraoffset+iextra)*chunksize],partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 1, 1, nchunk, n, plist_id);
                                 }
                             }
                             iextraoffset += opt.star_chemproduction_names.size();
@@ -1913,7 +1990,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                                 for (auto iextra=0;iextra<opt.bh_internalprop_names.size();iextra++)
                                 {
                                     if (k == HDFBHTYPE)
-                                        HDF5ReadHyperSlabReal(&extrafieldbuff[iextraoffset*chunksize],partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 1, 1, nchunk, n, plist_id);
+                                        HDF5ReadHyperSlabReal(&extrafieldbuff[(iextraoffset+iextra)*chunksize],partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 1, 1, nchunk, n, plist_id);
                                 }
                             }
                             iextraoffset += opt.bh_internalprop_names.size();
@@ -1922,7 +1999,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                                 for (auto iextra=0;iextra<opt.bh_chem_names.size();iextra++)
                                 {
                                     if (k == HDFBHTYPE)
-                                        HDF5ReadHyperSlabReal(&extrafieldbuff[iextraoffset*chunksize],partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 1, 1, nchunk, n, plist_id);
+                                        HDF5ReadHyperSlabReal(&extrafieldbuff[(iextraoffset+iextra)*chunksize],partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 1, 1, nchunk, n, plist_id);
                                 }
                             }
                             iextraoffset += opt.bh_chem_names.size();
@@ -1931,7 +2008,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                                 for (auto iextra=0;iextra<opt.bh_chemproduction_names.size();iextra++)
                                 {
                                     if (k == HDFBHTYPE)
-                                        HDF5ReadHyperSlabReal(&extrafieldbuff[iextraoffset*chunksize],partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 1, 1, nchunk, n, plist_id);
+                                        HDF5ReadHyperSlabReal(&extrafieldbuff[(iextraoffset+iextra)*chunksize],partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 1, 1, nchunk, n, plist_id);
                                 }
                             }
                             iextraoffset += opt.bh_chemproduction_names.size();
@@ -1942,7 +2019,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                                 for (auto iextra=0;iextra<opt.extra_dm_internalprop_names.size();iextra++)
                                 {
                                     if (k == HDFDMTYPE)
-                                        HDF5ReadHyperSlabReal(&extrafieldbuff[iextraoffset*chunksize],partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 1, 1, nchunk, n, plist_id);
+                                        HDF5ReadHyperSlabReal(&extrafieldbuff[(iextraoffset+iextra)*chunksize],partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 1, 1, nchunk, n, plist_id);
                                 }
                             }
                             iextraoffset += opt.extra_dm_internalprop_names.size();
@@ -2023,7 +2100,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                             {
                                 for (auto iextra=0;iextra<opt.gas_internalprop_names.size();iextra++)
                                 {
-                                    Pbuf[ibufindex].GetHydroProperties().SetInternalProperties(opt.gas_internalprop_names[iextra], extrafieldbuff[iextraoffset*chunksize+nn]);
+                                    Pbuf[ibufindex].GetHydroProperties().SetInternalProperties(opt.gas_internalprop_names[iextra], extrafieldbuff[(iextraoffset+iextra)*chunksize+nn]);
                                 }
                             }
                             iextraoffset += opt.gas_internalprop_names.size();
@@ -2031,7 +2108,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                             {
                                 for (auto iextra=0;iextra<opt.gas_chem_names.size();iextra++)
                                 {
-                                    Pbuf[ibufindex].GetHydroProperties().SetChemistry(opt.gas_chem_names[iextra], extrafieldbuff[iextraoffset*chunksize+nn]);
+                                    Pbuf[ibufindex].GetHydroProperties().SetChemistry(opt.gas_chem_names[iextra], extrafieldbuff[(iextraoffset+iextra)*chunksize+nn]);
                                 }
                             }
                             iextraoffset += opt.gas_chem_names.size();
@@ -2039,7 +2116,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                             {
                                 for (auto iextra=0;iextra<opt.gas_chemproduction_names.size();iextra++)
                                 {
-                                    Pbuf[ibufindex].GetHydroProperties().SetChemistryProduction(opt.gas_chemproduction_names[iextra], extrafieldbuff[iextraoffset*chunksize+nn]);
+                                    Pbuf[ibufindex].GetHydroProperties().SetChemistryProduction(opt.gas_chemproduction_names[iextra], extrafieldbuff[(iextraoffset+iextra)*chunksize+nn]);
                                 }
                             }
                             iextraoffset += opt.gas_chemproduction_names.size();
@@ -2052,7 +2129,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                             {
                                 for (auto iextra=0;iextra<opt.star_internalprop_names.size();iextra++)
                                 {
-                                    Pbuf[ibufindex].GetStarProperties().SetInternalProperties(opt.star_internalprop_names[iextra], extrafieldbuff[iextraoffset*chunksize+nn]);
+                                    Pbuf[ibufindex].GetStarProperties().SetInternalProperties(opt.star_internalprop_names[iextra], extrafieldbuff[(iextraoffset+iextra)*chunksize+nn]);
                                 }
                             }
                             iextraoffset += opt.star_internalprop_names.size();
@@ -2060,7 +2137,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                             {
                                 for (auto iextra=0;iextra<opt.star_chem_names.size();iextra++)
                                 {
-                                    Pbuf[ibufindex].GetStarProperties().SetChemistry(opt.star_chem_names[iextra], extrafieldbuff[iextraoffset*chunksize+nn]);
+                                    Pbuf[ibufindex].GetStarProperties().SetChemistry(opt.star_chem_names[iextra], extrafieldbuff[(iextraoffset+iextra)*chunksize+nn]);
                                 }
                             }
                             iextraoffset += opt.star_chem_names.size();
@@ -2068,7 +2145,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                             {
                                 for (auto iextra=0;iextra<opt.star_chemproduction_names.size();iextra++)
                                 {
-                                    Pbuf[ibufindex].GetStarProperties().SetChemistryProduction(opt.star_chemproduction_names[iextra], extrafieldbuff[iextraoffset*chunksize+nn]);
+                                    Pbuf[ibufindex].GetStarProperties().SetChemistryProduction(opt.star_chemproduction_names[iextra], extrafieldbuff[(iextraoffset+iextra)*chunksize+nn]);
                                 }
                             }
                             iextraoffset += opt.star_chemproduction_names.size();
@@ -2081,7 +2158,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                             {
                                 for (auto iextra=0;iextra<opt.bh_internalprop_names.size();iextra++)
                                 {
-                                    Pbuf[ibufindex].GetBHProperties().SetInternalProperties(opt.bh_internalprop_names[iextra], extrafieldbuff[iextraoffset*chunksize+nn]);
+                                    Pbuf[ibufindex].GetBHProperties().SetInternalProperties(opt.bh_internalprop_names[iextra], extrafieldbuff[(iextraoffset+iextra)*chunksize+nn]);
                                 }
                             }
                             iextraoffset += opt.bh_internalprop_names.size();
@@ -2089,7 +2166,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                             {
                                 for (auto iextra=0;iextra<opt.bh_chem_names.size();iextra++)
                                 {
-                                    Pbuf[ibufindex].GetBHProperties().SetChemistry(opt.bh_chem_names[iextra], extrafieldbuff[iextraoffset*chunksize+nn]);
+                                    Pbuf[ibufindex].GetBHProperties().SetChemistry(opt.bh_chem_names[iextra], extrafieldbuff[(iextraoffset+iextra)*chunksize+nn]);
                                 }
                             }
                             iextraoffset += opt.bh_chem_names.size();
@@ -2097,7 +2174,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                             {
                                 for (auto iextra=0;iextra<opt.bh_chemproduction_names.size();iextra++)
                                 {
-                                    Pbuf[ibufindex].GetBHProperties().SetChemistryProduction(opt.bh_chemproduction_names[iextra], extrafieldbuff[iextraoffset*chunksize+nn]);
+                                    Pbuf[ibufindex].GetBHProperties().SetChemistryProduction(opt.bh_chemproduction_names[iextra], extrafieldbuff[(iextraoffset+iextra)*chunksize+nn]);
                                 }
                             }
                             iextraoffset += opt.bh_chemproduction_names.size();
@@ -2110,7 +2187,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                             {
                                 for (auto iextra=0;iextra<opt.extra_dm_internalprop_names.size();iextra++)
                                 {
-                                    Pbuf[ibufindex].GetExtraDMProperties().SetExtraProperties(opt.extra_dm_internalprop_names[iextra], extrafieldbuff[iextraoffset*chunksize+nn]);
+                                    Pbuf[ibufindex].GetExtraDMProperties().SetExtraProperties(opt.extra_dm_internalprop_names[iextra], extrafieldbuff[(iextraoffset+iextra)*chunksize+nn]);
                                 }
                             }
                             iextraoffset += opt.extra_dm_internalprop_names.size();
