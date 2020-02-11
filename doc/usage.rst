@@ -516,15 +516,15 @@ Configuration options related to the bulk properties calculated.
         * ``_input_output_unit_conversion_factors``
         * ``_output_units``
 
-    Calculations allowed are as follows (where can also have mass weighted values by adding 10 to any of these values)
-        * 1 Average
-        * 2 Total
-        * 3 Standard deviation
-        * 4 Median (not fully implmented yet)
-        * 5 Min
-        * 6 Max
-        * 7 Average(log(x))
-        * 8 STD(log(x))
+    Calculations allowed are as follows. You can add **massweighted** to any
+    entry to calculate the mass weighted quantity. Note at entries should be lower case.
+        * average
+        * total
+        * std (standard deviation)
+        * min
+        * max
+        * logaverage (average(log(x)))
+        * logstd (std(log(x)))
 
     Example extra hydro Properties related config options
         ``Gas_internal_property_names = ,``

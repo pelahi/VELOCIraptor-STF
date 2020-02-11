@@ -293,6 +293,242 @@ void usage(void)
 
     */
 
+inline void ConfigMessage(char *c) {
+#ifndef USEMPI
+    int ThisTask = 0;
+#endif
+    if (ThisTask==0) cerr<<c<<endl;
+}
+
+inline void errormessage(string message) {
+#ifndef USEMPI
+    int ThisTask =0;
+#endif
+    if (ThisTask==0)  cerr<<message<<endl;
+}
+
+inline void ConfigExit() {
+#ifdef USEMPI
+            MPI_Abort(MPI_COMM_WORLD,8);
+#else
+            exit(8);
+#endif
+}
+
+inline string ExtraFieldIndexName(unsigned int i){
+    string s = "";
+    if (i>0) s ="_index_"+to_string(i);
+    return s;
+}
+
+inline vector<string> ExtraFieldCalculationsAllowedOptions()
+{
+    vector<string> list;
+    list.push_back(("averagemassweighted"));
+    list.push_back(("average"));
+    list.push_back(("logaveragemassweighted"));
+    list.push_back(("logaverage"));
+    list.push_back(("totalmassweighted"));
+    list.push_back(("total"));
+    list.push_back(("stdmassweighted"));
+    list.push_back(("std"));
+    list.push_back(("logstdmassweighted"));
+    list.push_back(("logstd"));
+    list.push_back(("minmassweighted"));
+    list.push_back(("min"));
+    list.push_back(("maxmassweighted"));
+    list.push_back(("max"));
+    return list;
+}
+
+inline map<string,unsigned int> ExtraFieldCalculationsStringtoIntFlag()
+{
+    map<string, unsigned int> list;
+    list[string("averagemassweighted")] = CALCAVERAGEMASSWEIGHT;
+    list[string("average")] = CALCAVERAGE;
+    list[string("logaveragemassweighted")] = CALCLOGAVERAGEMASSWEIGHT;
+    list[string("logaverage")] = CALCLOGAVERAGE;
+    list[string("totalmassweighted")] = CALCTOTALMASSWEIGHT;
+    list[string("total")] = CALCTOTAL;
+    list[string("stdmassweighted")] = CALCSTDMASSWEIGHT;
+    list[string("std")] = CALCSTD;
+    list[string("logstdmassweighted")] = CALCLOGSTDMASSWEIGHT;
+    list[string("logstd")] = CALCLOGSTD;
+    list[string("minmassweighted")] = CALCMINMASSWEIGHT;
+    list[string("min")] = CALCMIN;
+    list[string("maxmassweighted")] = CALCMAXMASSWEIGHT;
+    list[string("max")] = CALCMAX;
+    list[string("unkown")] = 0;
+    return list;
+}
+
+inline map<unsigned int,string> ExtraFieldCalculationsIntFlagToString()
+{
+    map<unsigned int, string> list;
+    list[CALCAVERAGEMASSWEIGHT] = string("averagemassweighted");;
+    list[CALCAVERAGE] = string("average");
+    list[CALCLOGAVERAGEMASSWEIGHT] = string("logaveragemassweighted");
+    list[CALCLOGAVERAGE] = string("logaverage");
+    list[CALCTOTALMASSWEIGHT] = string("totalmassweighted");
+    list[CALCTOTAL] = string("total");
+    list[CALCSTDMASSWEIGHT] = string("stdmassweighted");
+    list[CALCSTD] = string("std");
+    list[CALCLOGSTDMASSWEIGHT] = string("logstdmassweighted");
+    list[CALCLOGSTD] = string("logstd");
+    list[CALCMINMASSWEIGHT] = string("minmassweighted");
+    list[CALCMIN] = string("min");
+    list[CALCMAXMASSWEIGHT] = string("maxmassweighted");
+    list[CALCMAX] = string("max");
+    list[0] = string("unkown");
+    return list;
+}
+
+
+inline void ExtraFieldCheck(string configentryname, vector<string> &names, vector<string>&output_names,
+    vector<unsigned int> &calctypes, vector<unsigned int> &indices,
+    vector<float> &conversions, vector<string> units, vector<int> &pairindices)
+{
+    if (names.size()==0) return;
+    set<unsigned int> unique_int;
+    set<string> unique_name, outputset;
+    string outputfieldname;
+    unsigned int entryindex, calctype;
+    string scalctype;
+    vector<unsigned int> stdfuncs, avefuncs;
+    stdfuncs.push_back(CALCSTD);avefuncs.push_back(CALCAVERAGE);
+    stdfuncs.push_back(CALCSTDMASSWEIGHT);avefuncs.push_back(CALCAVERAGEMASSWEIGHT);
+    stdfuncs.push_back(CALCLOGSTD);avefuncs.push_back(CALCLOGAVERAGE);
+    stdfuncs.push_back(CALCLOGSTDMASSWEIGHT);avefuncs.push_back(CALCLOGAVERAGEMASSWEIGHT);
+
+    vector<string> newnames(names), newunits(units);
+    vector<unsigned int> newcalctypes(calctypes), newindices(indices);
+    vector<float> newconversions(conversions);
+    vector<string> allowedlist = ExtraFieldCalculationsAllowedOptions();
+    string list;
+    for (auto &x:allowedlist) list+= x+string(", ");
+    map<string, unsigned int> calcstringtoint = ExtraFieldCalculationsStringtoIntFlag();
+    map<unsigned int, string> calcinttostring = ExtraFieldCalculationsIntFlagToString();
+
+
+    //check for unacceptable entries
+    for (auto i=0;i<names.size();i++)
+    {
+        entryindex = indices[i];
+        calctype = calctypes[i];
+        scalctype = calcinttostring[calctype];
+        outputfieldname = names[i]+ExtraFieldIndexName(entryindex)+string("_")+scalctype;
+        if (calctype == 0) {
+            errormessage("Unknown calculation requested for "+configentryname);
+            errormessage("This is entry " + to_string(i)+" config options " + names[i] + "," + to_string(entryindex) + "," + scalctype);
+            errormessage("Please refer to documentation for list of calculations. Currently allowed:");
+            errormessage(list);
+            ConfigExit();
+        }
+        if (outputset.count(outputfieldname) == 0) {
+            outputset.insert(outputfieldname);
+        }
+        else{
+            errormessage("Duplicate entry found for "+configentryname);
+            errormessage("This is entry " +to_string(i)+" config options " + names[i]+","+ to_string(entryindex)+","+to_string(calctype));
+            errormessage("This will be removed");
+        }
+    }
+
+    //if standard deviation in list and average not, add it
+    for (auto i=0;i<calctypes.size();i++) {
+        for (auto j=0;j<stdfuncs.size();j++) {
+            if (calctypes[i] == stdfuncs[j])
+            {
+                newnames.push_back(names[i]);
+                newindices.push_back(indices[i]);
+                newconversions.push_back(conversions[i]);
+                newunits.push_back(units[i]);
+                newcalctypes.push_back(avefuncs[j]);
+            }
+        }
+    }
+    if (names.size() != newnames.size()) {
+        names = newnames;
+        indices = newindices;
+        units = newunits;
+        conversions = newconversions;
+        calctypes = newcalctypes;
+    }
+    newnames.resize(0);
+    newindices.resize(0);
+    newunits.resize(0);
+    newconversions.resize(0);
+    newcalctypes.resize(0);
+
+    //remove duplicate entries
+    outputset.clear();
+    for (auto i=0;i<names.size();i++)
+    {
+        entryindex = indices[i];
+        calctype = calctypes[i];
+        scalctype = calcinttostring[calctype];
+        outputfieldname = names[i]+ExtraFieldIndexName(entryindex)+scalctype;
+        if (outputset.count(outputfieldname) == 0) {
+            outputset.insert(outputfieldname);
+            newnames.push_back(names[i]);
+            newindices.push_back(indices[i]);
+            newconversions.push_back(conversions[i]);
+            newunits.push_back(units[i]);
+            newcalctypes.push_back(calctypes[i]);
+        }
+    }
+    names = newnames;
+    indices = newindices;
+    units = newunits;
+    conversions = newconversions;
+    calctypes = newcalctypes;
+    pairindices.resize(names.size());
+    for (auto i=0;i<names.size();i++)
+    {
+        entryindex = indices[i];
+        calctype = calctypes[i];
+        pairindices[i] = i;
+        outputfieldname = names[i]+ExtraFieldIndexName(entryindex)
+            +string("_")+calcinttostring[calctype]+string("_")+units[i];
+        output_names.push_back(outputfieldname);
+    }
+    for (auto i=0;i<calctypes.size();i++) {
+        for (auto j=0;j<stdfuncs.size();j++) if (calctypes[i] == stdfuncs[j]) {
+            for (auto k=0;k<calctypes.size();k++) {
+                if (names[k] != names[i] || indices[k] != indices[i]) continue;
+                if (calctypes[k] == avefuncs[j]) {
+                    pairindices[i] = k;
+                    break;
+                }
+            }
+        }
+    }
+}
+
+inline void ListDuplicateEntryCheck(string configentryname, int &num,
+    vector<string> &names, vector<Double_t> &values)
+{
+    set<string> unique;
+    if (num ==0) return;
+    int iduplicates = 0;
+    for (auto &val:names) {
+        if(unique.count(val)) {
+            errormessage("Dupplicate entry(ies) found in "+configentryname);
+            errormessage("Removing duplicate entries");
+            iduplicates += 1;
+        }
+        else unique.insert(val);
+    }
+    if (iduplicates) {
+        names = vector<string>(unique.begin(),unique.end());
+        values.resize(0);
+        for (auto &val:names) values.push_back(stof(val));
+        num = values.size();
+
+    }
+}
+
+
 ///Read parameters from a parameter file. For list of currently implemented options see \ref configopt
 ///\todo still more parameters that can be adjusted
 void GetParamFile(Options &opt)
@@ -306,6 +542,8 @@ void GetParamFile(Options &opt)
     fstream paramfile,cfgfile;
     size_t pos;
     string dataline, token, delimiter = ",";
+    map<string, unsigned int> calcstringtoint = ExtraFieldCalculationsStringtoIntFlag();
+    map<unsigned int, string> calcinttostring = ExtraFieldCalculationsIntFlagToString();
     if (!FileExists(opt.pname)){
         if (ThisTask==0)
             cerr<<"Config file: "<<opt.pname <<" does not exist or can't be read, terminating"<<endl;
@@ -722,7 +960,7 @@ void GetParamFile(Options &opt)
                         vector<unsigned int> tempvec;
                         while ((pos = dataline.find(delimiter)) != string::npos) {
                             token = dataline.substr(0, pos);
-                            tempvec.push_back(stoi(token));
+                            tempvec.push_back(calcstringtoint[token]);
                             dataline.erase(0, pos + delimiter.length());
                         }
                         opt.gas_internalprop_function = tempvec;
@@ -788,7 +1026,7 @@ void GetParamFile(Options &opt)
                         vector<unsigned int> tempvec;
                         while ((pos = dataline.find(delimiter)) != string::npos) {
                             token = dataline.substr(0, pos);
-                            tempvec.push_back(stoi(token));
+                            tempvec.push_back(calcstringtoint[token]);
                             dataline.erase(0, pos + delimiter.length());
                         }
                         opt.star_internalprop_function = tempvec;
@@ -854,7 +1092,7 @@ void GetParamFile(Options &opt)
                         vector<unsigned int> tempvec;
                         while ((pos = dataline.find(delimiter)) != string::npos) {
                             token = dataline.substr(0, pos);
-                            tempvec.push_back(stoi(token));
+                            tempvec.push_back(calcstringtoint[token]);
                             dataline.erase(0, pos + delimiter.length());
                         }
                         opt.bh_internalprop_function = tempvec;
@@ -920,7 +1158,7 @@ void GetParamFile(Options &opt)
                         vector<unsigned int> tempvec;
                         while ((pos = dataline.find(delimiter)) != string::npos) {
                             token = dataline.substr(0, pos);
-                            tempvec.push_back(stoi(token));
+                            tempvec.push_back(calcstringtoint[token]);
                             dataline.erase(0, pos + delimiter.length());
                         }
                         opt.extra_dm_internalprop_function = tempvec;
@@ -986,7 +1224,7 @@ void GetParamFile(Options &opt)
                         vector<unsigned int> tempvec;
                         while ((pos = dataline.find(delimiter)) != string::npos) {
                             token = dataline.substr(0, pos);
-                            tempvec.push_back(stoi(token));
+                            tempvec.push_back(calcstringtoint[token]);
                             dataline.erase(0, pos + delimiter.length());
                         }
                         opt.gas_chem_function = tempvec;
@@ -1052,7 +1290,7 @@ void GetParamFile(Options &opt)
                         vector<unsigned int> tempvec;
                         while ((pos = dataline.find(delimiter)) != string::npos) {
                             token = dataline.substr(0, pos);
-                            tempvec.push_back(stoi(token));
+                            tempvec.push_back(calcstringtoint[token]);
                             dataline.erase(0, pos + delimiter.length());
                         }
                         opt.star_chem_function = tempvec;
@@ -1118,7 +1356,7 @@ void GetParamFile(Options &opt)
                         vector<unsigned int> tempvec;
                         while ((pos = dataline.find(delimiter)) != string::npos) {
                             token = dataline.substr(0, pos);
-                            tempvec.push_back(stoi(token));
+                            tempvec.push_back(calcstringtoint[token]);
                             dataline.erase(0, pos + delimiter.length());
                         }
                         opt.bh_chem_function = tempvec;
@@ -1184,7 +1422,7 @@ void GetParamFile(Options &opt)
                         vector<unsigned int> tempvec;
                         while ((pos = dataline.find(delimiter)) != string::npos) {
                             token = dataline.substr(0, pos);
-                            tempvec.push_back(stoi(token));
+                            tempvec.push_back(calcstringtoint[token]);
                             dataline.erase(0, pos + delimiter.length());
                         }
                         opt.gas_chemproduction_function = tempvec;
@@ -1250,7 +1488,7 @@ void GetParamFile(Options &opt)
                         vector<unsigned int> tempvec;
                         while ((pos = dataline.find(delimiter)) != string::npos) {
                             token = dataline.substr(0, pos);
-                            tempvec.push_back(stoi(token));
+                            tempvec.push_back(calcstringtoint[token]);
                             dataline.erase(0, pos + delimiter.length());
                         }
                         opt.star_chemproduction_function = tempvec;
@@ -1316,7 +1554,7 @@ void GetParamFile(Options &opt)
                         vector<unsigned int> tempvec;
                         while ((pos = dataline.find(delimiter)) != string::npos) {
                             token = dataline.substr(0, pos);
-                            tempvec.push_back(stoi(token));
+                            tempvec.push_back(calcstringtoint[token]);
                             dataline.erase(0, pos + delimiter.length());
                         }
                         opt.bh_chemproduction_function = tempvec;
@@ -1395,227 +1633,6 @@ void GetParamFile(Options &opt)
         //cfgfile.close();
     }
 }
-
-inline void ConfigMessage(char *c) {
-#ifndef USEMPI
-    int ThisTask = 0;
-#endif
-    if (ThisTask==0) cerr<<c<<endl;
-}
-
-inline void errormessage(string message) {
-#ifndef USEMPI
-    int ThisTask =0;
-#endif
-    if (ThisTask==0)  cerr<<message<<endl;
-}
-
-inline void ConfigExit() {
-#ifdef USEMPI
-            MPI_Abort(MPI_COMM_WORLD,8);
-#else
-            exit(8);
-#endif
-}
-
-inline string ExtraFieldIndexName(unsigned int i){
-    string s = "";
-    if (i>0) s ="_index_"+to_string(i);
-    return s;
-}
-
-inline string ExtraFieldFuncName(unsigned int calctype){
-    string s;
-    switch(calctype)
-    {
-        case CALCAVERAGEMASSWEIGHT:
-            s="_average_mass_weighted";
-            break;
-        case CALCAVERAGE:
-            s="_average";
-            break;
-        case CALCLOGAVERAGEMASSWEIGHT:
-            s="_log_average_mass_weighted";
-            break;
-        case CALCLOGAVERAGE:
-            s="_log_average";
-            break;
-        case CALCTOTALMASSWEIGHT:
-            s="_total_mass_weighted";
-            break;
-        case CALCTOTAL:
-            s="_total";
-            break;
-        case CALCMEDIAN:
-            s="_median";
-            break;
-        case CALCSTDMASSWEIGHT:
-            s="_std_mass_weighted";
-            break;
-        case CALCSTD:
-            s="_std";
-            break;
-        case CALCLOGSTDMASSWEIGHT:
-            s="_log_std_mass_weighted";
-            break;
-        case CALCLOGSTD:
-            s="_log_std";
-            break;
-        case CALCMINMASSWEIGHT:
-            s="_min_mass_weighted";
-            break;
-        case CALCMIN:
-            s="_min";
-            break;
-        case CALCMAXMASSWEIGHT:
-            s="_max_mass_weighted";
-            break;
-        case CALCMAX:
-            s="_max";
-            break;
-        default:
-            s="_unknown";
-            break;
-    }
-    return s;
-}
-
-inline void ExtraFieldCheck(string configentryname, vector<string> &names, vector<string>&output_names,
-    vector<unsigned int> &calctypes, vector<unsigned int> &indices,
-    vector<float> &conversions, vector<string> units, vector<int> &pairindices)
-{
-    if (names.size()==0) return;
-    set<unsigned int> unique_int;
-    set<string> unique_name, outputset;
-    string outputfieldname;
-    unsigned int entryindex, calctype;
-    string scalctype;
-    vector<unsigned int> stdfuncs, avefuncs;
-    stdfuncs.push_back(CALCSTD);avefuncs.push_back(CALCAVERAGE);
-    stdfuncs.push_back(CALCSTDMASSWEIGHT);avefuncs.push_back(CALCAVERAGEMASSWEIGHT);
-    stdfuncs.push_back(CALCLOGSTD);avefuncs.push_back(CALCLOGAVERAGE);
-    stdfuncs.push_back(CALCLOGSTDMASSWEIGHT);avefuncs.push_back(CALCLOGAVERAGEMASSWEIGHT);
-
-    vector<string> newnames(names), newunits(units);
-    vector<unsigned int> newcalctypes(calctypes), newindices(indices);
-    vector<float> newconversions(conversions);
-
-    //check for unacceptable entries
-    for (auto i=0;i<names.size();i++)
-    {
-        entryindex = indices[i];
-        calctype = calctypes[i];
-        scalctype = ExtraFieldFuncName(calctype);
-        outputfieldname = names[i]+ExtraFieldIndexName(entryindex)+scalctype;
-        if (scalctype == string("_unkown")) {
-            errormessage("Unknown calculation requested for "+configentryname);
-            errormessage("This is entry " +to_string(i)+" config options " + names[i]+","+ to_string(entryindex)+","+to_string(calctype));
-            errormessage("Please refer to documentation for list of calculations");
-            ConfigExit();
-        }
-        if (outputset.count(outputfieldname) == 0) {
-            outputset.insert(outputfieldname);
-        }
-        else{
-            errormessage("Duplicate entry found for "+configentryname);
-            errormessage("This is entry " +to_string(i)+" config options " + names[i]+","+ to_string(entryindex)+","+to_string(calctype));
-            errormessage("This will be removed");
-        }
-    }
-
-    //if standard deviation in list and average not, add it
-    for (auto i=0;i<calctypes.size();i++) {
-        for (auto j=0;j<stdfuncs.size();j++) {
-            if (calctypes[i] == stdfuncs[j])
-            {
-                newnames.push_back(names[i]);
-                newindices.push_back(indices[i]);
-                newconversions.push_back(conversions[i]);
-                newunits.push_back(units[i]);
-                newcalctypes.push_back(avefuncs[j]);
-            }
-        }
-    }
-    if (names.size() != newnames.size()) {
-        names = newnames;
-        indices = newindices;
-        units = newunits;
-        conversions = newconversions;
-        calctypes = newcalctypes;
-    }
-    newnames.resize(0);
-    newindices.resize(0);
-    newunits.resize(0);
-    newconversions.resize(0);
-    newcalctypes.resize(0);
-
-    //remove duplicate entries
-    outputset.clear();
-    for (auto i=0;i<names.size();i++)
-    {
-        entryindex = indices[i];
-        calctype = calctypes[i];
-        scalctype = ExtraFieldFuncName(calctype);
-        outputfieldname = names[i]+ExtraFieldIndexName(entryindex)+scalctype;
-        if (outputset.count(outputfieldname) == 0) {
-            outputset.insert(outputfieldname);
-            newnames.push_back(names[i]);
-            newindices.push_back(indices[i]);
-            newconversions.push_back(conversions[i]);
-            newunits.push_back(units[i]);
-            newcalctypes.push_back(calctypes[i]);
-        }
-    }
-    names = newnames;
-    indices = newindices;
-    units = newunits;
-    conversions = newconversions;
-    calctypes = newcalctypes;
-    pairindices.resize(names.size());
-    for (auto i=0;i<names.size();i++)
-    {
-        entryindex = indices[i];
-        calctype = calctypes[i];
-        pairindices[i] = i;
-        outputfieldname = names[i]+ExtraFieldIndexName(entryindex)+ExtraFieldFuncName(calctype)+string("_")+units[i];
-        output_names.push_back(outputfieldname);
-    }
-    for (auto i=0;i<calctypes.size();i++) {
-        for (auto j=0;j<stdfuncs.size();j++) if (calctypes[i] == stdfuncs[j]) {
-            for (auto k=0;k<calctypes.size();k++) {
-                if (names[k] != names[i] || indices[k] != indices[i]) continue;
-                if (calctypes[k] == avefuncs[j]) {
-                    pairindices[i] = k;
-                    break;
-                }
-            }
-        }
-    }
-}
-
-inline void ListDuplicateEntryCheck(string configentryname, int &num,
-    vector<string> &names, vector<Double_t> &values)
-{
-    set<string> unique;
-    if (num ==0) return;
-    int iduplicates = 0;
-    for (auto &val:names) {
-        if(unique.count(val)) {
-            errormessage("Dupplicate entry(ies) found in "+configentryname);
-            errormessage("Removing duplicate entries");
-            iduplicates += 1;
-        }
-        else unique.insert(val);
-    }
-    if (iduplicates) {
-        names = vector<string>(unique.begin(),unique.end());
-        values.resize(0);
-        for (auto &val:names) values.push_back(stof(val));
-        num = values.size();
-
-    }
-}
-
 
 void ConfigCheck(Options &opt)
 {
