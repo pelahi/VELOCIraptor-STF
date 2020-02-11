@@ -174,7 +174,7 @@ Input and output related options
 
 .. _config_input:
 
-_topic:: Input related
+..topic:: Input related
 
     ``Cosmological_input = 1/0``
         * Flag indicating that input simulation is cosmological or not. With cosmological input, a variety of length/velocity scales are set to determine such things as the virial overdensity, linking length.
@@ -362,7 +362,7 @@ Options related to searching for (sub)halos. General search parameters set parti
     This either identifies major mergers in DM simulations or used to find galaxies when searching for stars.
 
     ``Halo_core_search = 0/1/2``
-        * Integer allows one to explicitly search for large 6D FOF cores that are indicative of a recent major merger. Since substructure is defined on the scale of the maximum cell size and major mergers typically result two or more phase-space dense regions that are *larger* than the cell size used in reasonable substructure searches, one can identify them using this search. The overall goal is to treat these objects differently than a substructure. However, if 2 is set, then smaller core is treated as substruture and all particles within the FOF envelop are assigned to the cores based on their phase-space distance to core particles.
+        * Integer allows one to explicitly search for large 6D FOF cores that are indicative of a recent major merger. Since substructure is defined on the scale of the maximum cell size and major mergers typically result two or more phase-space dense regions that are *larger* than the cell size used in reasonable substructure searches, one can identify them using this search. The overall goal is to treat these objects differently than a substructure. However, if 2 is set, then smaller core is treated as substructure and all particles within the FOF envelop are assigned to the cores based on their phase-space distance to core particles.
             - **2** search for cores and growth them. **Recommended**.
             - **1**
             - **0** do not search cores.
@@ -484,6 +484,59 @@ Configuration options related to the bulk properties calculated.
             * Number of bin edges listed. Assumes lowest bin edge is r=0.
         ``Radial_profile_bin_edges = -2.,-1.50,-1.00,-0.50,0.00,0.50,1.00,1.50,2.00``
             * Comma separated list of (log) r bin edges. Here example is for log r in proper kpc binning so values are log(r).
+
+.. topic:: Configuration for Extra Properties
+
+    These are configuration options related to the bulk properties calculated based on extra
+    properties of the particles. For instance, if hydro particles have a field called ``Turbulence``
+    that contains some quantity of the internal turbulent energy and one wanted to calculate the
+    average of this value for an object, one would use these options to load data from an HDF5 file
+    (other inputs are not so easily parsed, making this not an option). One needs to provide what calculation
+    to do (in the form of an integer flag specifying the calculation) and a string indicating the units.
+    If the input is in the form of a 2D array from which a particular column is to be used, one can also
+    set an index. The result is sorted in an output field that contains the name of the input field,
+    the index (if >0), and a simple string describing the function along with the units and ending with particle type,
+    ie: ``Turbulence_average_km/s^2_gas``
+    These config options are combinations of particle type, categories and entry types.
+    A full entry must be provided in a comma separated list and terminate in a comma.
+
+    * Currently implemented are options for
+        * ``Gas_``
+        * ``Stars_``
+        * ``BH_``
+        *  ``Extra_DM_``
+    * The currently catagories of properties are (except for ``Extra_DM`` which only has the first listed). An input field can be specified a number of times with different desired calculations to be run.
+        * ``_internal_property``
+        * ``_chemistry``
+        * ``_chemistry_production``
+    * The entries are
+        * ``_names``
+        * ``_index_in_file``
+        * ``_calculation_type``
+        * ``_input_output_unit_conversion_factors``
+        * ``_output_units``
+
+    Calculations allowed are as follows. You can add **massweighted** to any
+    entry to calculate the mass weighted quantity. Note at entries should be lower case.
+        * average
+        * total
+        * std (standard deviation)
+        * min
+        * max
+        * logaverage (average(log(x)))
+        * logstd (std(log(x)))
+
+    Example extra hydro Properties related config options
+        ``Gas_internal_property_names = ,``
+            * Names of fields to be read from an input HDF5 file that relate to hydro quantities, for which calculations can be done
+        ``Gas_internal_property_index_in_file = ,``
+            * Index in 2d array to be read from an input HDF5, useful for fields like metallicity where it is common to have an entry for each element
+        ``Gas_internal_property_calculation_type = ,``
+            * Integer flag indicating what calculation is to be done.
+        ``Gas_internal_property_input_output_unit_conversion_factors = ,``
+            * Float storing the conversion factor (if not 1.0) to take input units to output units.
+        ``Gas_internal_property_output_units = ,``
+            * String storing the units of the output.
 
 .. _config_siminfo:
 
