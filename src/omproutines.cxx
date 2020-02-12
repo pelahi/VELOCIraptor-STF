@@ -123,6 +123,7 @@ Int_t OpenMPLocalSearch(Options &opt,
     #pragma omp for schedule(dynamic) nowait reduction(+:ngtot)
     for (i=0;i<numompregions;i++) {
         if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) p3dfofomp=tree3dfofomp[i]->FOFCriterionSetBasisForLinks(fofcmp,param,ng,ompminsize,0,0,FOFchecktype, &Head[ompdomain[i].noffset], &Next[ompdomain[i].noffset]);
+        else if (opt.partsearchtype==PSTGALAXY) p3dfofomp=tree3dfofomp[i]->FOFCriterionSetBasisForLinks(fofcmp,param,ng,ompminsize,0,0,FOFchecktype, &Head[ompdomain[i].noffset], &Next[ompdomain[i].noffset]);
         else p3dfofomp=tree3dfofomp[i]->FOF(rdist,ng,ompminsize,0, &Head[ompdomain[i].noffset], &Next[ompdomain[i].noffset]);
         if (ng > 0) {
             for (int j=ompdomain[i].noffset;j<ompdomain[i].noffset+ompdomain[i].ncount;j++)
@@ -231,16 +232,24 @@ void OpenMPLinkAcross(Options &opt,
                 for (auto k=0;k<nt;k++) {
                     curIndex=nn[k+ompdomain[i].noffset]+ompdomain[i].noffset;
                     //check that at least on of the particles meets the type criterion if necessary
-                    if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1)
+                    if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) {
                         if (fofcheck(Part[curIndex],param)!=0 && fofcheck(*Pval,param)!=0) continue;
+                    }
+                    else if (opt.partsearchtype==PSTGALAXY) {
+                        if (fofcheck(Part[curIndex],param)!=0 && fofcheck(*Pval,param)!=0) continue;
+                    }
 
                     orgIndex = storeorgIndex[Part[curIndex].GetID()+ompdomain[i].noffset];
                     //otherwise, change these particles to local group id if local group id smaller
                     //if local particle in a group
                     if (pfof[orgIndex]>0)  {
                         //only change if both particles are appropriate type and group ids indicate local needs to be exported
-                        if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1)
+                        if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) {
                             if (!(fofcheck(Part[curIndex],param)==0 && fofcheck(*Pval,param)==0)) continue;
+                        }
+                        else if (opt.partsearchtype==PSTGALAXY) {
+                            if (!(fofcheck(Part[curIndex],param)==0 && fofcheck(*Pval,param)==0)) continue;
+                        }
                         //if local group id is larger, change locally
                         if (pfof[orgIndex] > pfofcomp) {
                             Int_t ss = Head[nn[k+ompdomain[i].noffset]+ompdomain[i].noffset];
@@ -253,8 +262,12 @@ void OpenMPLinkAcross(Options &opt,
                     }
                     //if local particle not in a group and export is appropriate type, link
                     else {
-                        if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1)
+                        if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) {
                             if (fofcheck(*Pval,param)!=0) continue;
+                        }
+                        else if (opt.partsearchtype==PSTGALAXY) {
+                            if (fofcheck(*Pval,param)!=0) continue;
+                        }
                         pfof[orgIndex]=pfofcomp;
                         omp_links_across_total++;
                     }

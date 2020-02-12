@@ -1583,6 +1583,22 @@ inline void HDFSetUsedParticleTypes(Options &opt, int &nusetypes, int &nbusetype
     else if (opt.partsearchtype==PSTGAS) {nusetypes=1;usetypes[0]=HDFGASTYPE;}
     else if (opt.partsearchtype==PSTSTAR) {nusetypes=1;usetypes[0]=HDFSTARTYPE;}
     else if (opt.partsearchtype==PSTBH) {nusetypes=1;usetypes[0]=HDFBHTYPE;}
+    else if (opt.partsearchtype==PSTGALAXY) {
+        nusetypes=0;
+        usetypes[nusetypes++]=HDFSTARTYPE;
+        if (opt.iusedmparticles) usetypes[nusetypes++]=HDFDMTYPE;
+        if (opt.iusegasparticles) usetypes[nusetypes++]=HDFGASTYPE;
+        if (opt.iuseextradarkparticles) {
+            usetypes[nusetypes++]=HDFDM1TYPE;
+            if (opt.ihdfnameconvention!=HDFSWIFTEAGLENAMES)
+            {
+                usetypes[nusetypes++]=HDFDM2TYPE;
+            }
+        }
+        if (opt.iusesinkparticles) usetypes[nusetypes++]=HDFBHTYPE;
+        if (opt.iusewindparticles) usetypes[nusetypes++]=HDFWINDTYPE;
+        if (opt.iusetracerparticles) usetypes[nusetypes++]=HDFTRACERTYPE;
+    }
 }
 //@}
 

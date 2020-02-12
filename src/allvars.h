@@ -100,6 +100,7 @@ using namespace NBody;
 #define  PSTGAS 4
 #define  PSTBH 5
 #define  PSTNOBH 6
+#define  PSTGALAXY 7
 //@}
 
 /// \defgroup STRUCTURETYPES Specific structure type, allow for other types beside HALO
