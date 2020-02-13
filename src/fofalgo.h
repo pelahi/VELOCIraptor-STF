@@ -36,6 +36,8 @@ int FOF6d_opt(Particle &a, Particle &b, Double_t *params);
 int FOF6dbgup(Particle &a, Particle &b, Double_t *params);
 ///checks to see if particles have positive types (useful for \ref GetVelocityDensity calculation with \ref STRUCDEN flag)
 int FOFPositivetypes(Particle &a, Particle &b, Double_t *params);
+/// optimised 6d phase where assume particles positions are normed already. 
+int FOF6DPhaseNormed(Particle &a, Particle &b, Double_t *params);
 
 ///3D FOF algorithm that requires one of the particles to be dark matter for a link to occur
 int FOF3dDM(Particle &a, Particle &b, Double_t *params);

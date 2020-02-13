@@ -1653,11 +1653,31 @@ private(i,tid)
         fofcmp=&FOF6d;
         //here search for 6dfof groups, return ordered list. Also pass function check to ignore already tagged particles
         int iorder=1,icheck=1,numloops=0,numactiveloops=0;
-        //for ignoring already tagged particles can just use the oultier potential and FOFcheckbg
-        for (i=0;i<nsubset;i++) Partsubset[i].SetPotential(pfof[Partsubset[i].GetID()]);
-        for (i=0;i<nsubset;i++) Partsubset[i].SetType(-1);
-        param[9]=0.5;
-        pfofbg=tree->FOFCriterion(fofcmp,param,numgroupsbg,minsize,iorder,icheck,FOFcheckbg);
+        // for (i=0;i<nsubset;i++) Partsubset[i].SetPotential(pfof[Partsubset[i].GetID()]);
+        // for (i=0;i<nsubset;i++) Partsubset[i].SetType(-1);
+        // param[9]=0.5;
+        // pfofbg=tree->FOFCriterion(fofcmp,param,numgroupsbg,minsize,iorder,icheck,FOFcheckbg);
+
+        delete tree;
+        double xscaling, vscaling;
+        //scale particle positions
+        xscaling=1.0/sqrt(param[1]);
+        vscaling=1.0/sqrt(param[2]);
+        for (i=0;i<nsubset;i++) Partsubset[i].ScalePhase(xscaling,vscaling);
+        tree=new KDTree(Partsubset,nsubset,opt.Bsize,tree->TPHS,tree->KEPAN,100);
+        if (opt.foftype!=FOF6DCORE) {
+            //for ignoring already tagged particles can just use the oultier potential and FOFcheckbg
+            for (i=0;i<nsubset;i++) Partsubset[i].SetPotential(pfof[Partsubset[i].GetID()]);
+            for (i=0;i<nsubset;i++) Partsubset[i].SetType(-1);
+            param[9]=0.5;
+            fofcmp=&FOF6DPhaseNormed;
+            pfofbg=tree->FOFCriterion(fofcmp,param,numgroupsbg,minsize,iorder,icheck,FOFcheckbg);
+        }
+        else {
+            //pfofbg=tree->FOFCriterion(fofcmp,param,numgroupsbg,minsize,iorder);
+            pfofbg=tree->FOF(1.0,numgroupsbg,minsize,iorder);
+        }
+        delete tree;
 
         for (i=0;i<nsubset;i++) if (pfofbg[Partsubset[i].GetID()]<=1 && pfof[Partsubset[i].GetID()]==0) Partsubset[i].SetType(numactiveloops);
 
@@ -1701,10 +1721,26 @@ private(i,tid)
                 minsize*=opt.halocorenumfaciter;
                 if (minsize<opt.MinSize) minsize=opt.MinSize;
                 dispvaltot*=dispval;
+
+// cout<<"???"<<nsubset<<" "<<numgroupsbg<<" "<<numloops<<" "<<dispval<<" "<<param[6]<<" "<<param[7]<<endl;
+                xscaling=1.0/opt.halocorexfaciter;
+                vscaling=1.0/opt.halocorevfaciter;
+                for (i=0;i<nsubset;i++) Partsubset[i].ScalePhase(xscaling,vscaling);
+                tree=new KDTree(Partsubset,nsubset,opt.Bsize,tree->TPHS,tree->KEPAN,100);
+
+
                 //we adjust the particles potentials so as to ignore already tagged particles using FOFcheckbg
                 //here since loop just iterates to search the largest core, we just set all previously tagged particles not belonging to main core as 1
                 for (i=0;i<nsubset;i++) Partsubset[i].SetPotential((pfofbgnew[Partsubset[i].GetID()]!=1)+(pfof[Partsubset[i].GetID()]>0));
-                pfofbg=tree->FOFCriterion(fofcmp,param,numgroupsbg,minsize,iorder,icheck,FOFcheckbg);
+                //pfofbg=tree->FOFCriterion(fofcmp,param,numgroupsbg,minsize,iorder,icheck,FOFcheckbg);
+                if (opt.foftype!=FOF6DCORE) {
+                    param[9]=0.5;
+                    fofcmp=&FOF6DPhaseNormed;
+                    pfofbg=tree->FOFCriterion(fofcmp,param,numgroupsbg,minsize,iorder,icheck,FOFcheckbg);
+                }
+                else {
+                    pfofbg=tree->FOF(1.0,numgroupsbg,minsize,iorder);
+                }
                 //now if numgroupsbg is greater than one, need to update the pfofbgnew array
                 if (numgroupsbg>1) {
                     numactiveloops++;
@@ -1723,6 +1759,8 @@ private(i,tid)
                     newnumgroupsbg+=numgroupsbg-1;
 
                 }
+                delete tree;
+                tree = NULL;
             }while (numgroupsbg > 0 && numloops<opt.halocorenumloops && minsize*opt.halocorenumfaciter<nsubset);
             //once the loop is finished, update info
             numgroupsbg=newnumgroupsbg;
@@ -1730,6 +1768,9 @@ private(i,tid)
             delete[] pfofbgnew;
             param[7]=halocoreveldisp;
         }
+        xscaling=1.0/xscaling;
+        vscaling=1.0/vscaling;
+        for (i=0;i<nsubset;i++) Partsubset[i].ScalePhase(xscaling,vscaling);
 
         if (numgroupsbg>=bgoffset+1) {
             if (opt.iverbose>=2) cout<<"Number of cores: "<<numgroupsbg<<endl;
@@ -2843,7 +2884,11 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
         pcsld=psldata->nextlevel;
         nsubsearch=ngroup-opt.num3dfof;
     }
-    for (Int_t i=firstgroup;i<=ngroup;i++) if (numingroup[i]<minsizeforsubsearch) {nsubsearch=i-firstgroup;break;}
+    cout<<firstgroup<<" to be searched "<<endl;
+    vector<Int_t> indicestosearch;
+    //for (Int_t i=firstgroup;i<=ngroup;i++) if (numingroup[i]<minsizeforsubsearch) {nsubsearch=i-firstgroup;break;}
+    for (Int_t i=firstgroup;i<=ngroup;i++) if (numingroup[i]>=minsizeforsubsearch) {indicestosearch.push_back(i);}
+    nsubsearch = indicestosearch.size();
     iflag=(nsubsearch>0);
 
     if (iflag) {
@@ -2855,9 +2900,9 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
     subnumingroup=new Int_t[nsubsearch+1];
     subpglist=new Int_t*[nsubsearch+1];
     for (Int_t i=1;i<=nsubsearch;i++) {
-        subnumingroup[i]=numingroup[i+firstgroupoffset];
+        subnumingroup[i]=numingroup[indicestosearch[i-1]+firstgroupoffset];
         subpglist[i]=new Int_t[subnumingroup[i]];
-        for (Int_t j=0;j<subnumingroup[i];j++) subpglist[i][j]=pglist[i+firstgroupoffset][j];
+        for (Int_t j=0;j<subnumingroup[i];j++) subpglist[i][j]=pglist[indicestosearch[i-1]+firstgroupoffset][j];
     }
     for (Int_t i=1;i<=ngroup;i++) delete[] pglist[i];
     delete[] pglist;

@@ -185,6 +185,14 @@ int FOF6d_opt(Particle &a, Particle &b, Double_t *params){
     return (total_x + total_v < params[7] * params[6]);
 }
 
+int FOF6DPhaseNormed(Particle &a, Particle &b, Double_t *params){
+    Double_t total=0;
+    for (int j=0;j<6;j++){
+        total+=(a.GetPhase(j)-b.GetPhase(j))*(a.GetPhase(j)-b.GetPhase(j));
+    }
+    return total<1;
+}
+
 ///stream FOF algorithm that requires the primary particle to be dark matter for a link to occur
 int FOF3dDM(Particle &a, Particle &b, Double_t *params){
     if (a.GetType()!=int(params[7])) return 0;
