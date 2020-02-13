@@ -1589,7 +1589,6 @@ private(i,tid)
     if((opt.iHaloCoreSearch>0&&((!opt.iSingleHalo&&sublevel<=maxhalocoresublevel)||(opt.iSingleHalo&&sublevel==0)))||opt.foftype==FOF6DCORE)
     {
 
-// double timeblah = MyGetTime();
         if (opt.iverbose>=2) cout<<ThisTask<<" beginning 6dfof core search to find multiple cores"<<endl;
         bgoffset=1;
         //if adaptive core linking then need to calculate dispersion tensors in configuration and velocity space
@@ -1721,18 +1720,18 @@ private(i,tid)
                 if (minsize<opt.MinSize) minsize=opt.MinSize;
                 dispvaltot*=dispval;
 
-// cout<<"???"<<nsubset<<" "<<numgroupsbg<<" "<<numloops<<" "<<dispval<<" "<<param[6]<<" "<<param[7]<<endl;
+
+                //we adjust the particles potentials so as to ignore already tagged particles using FOFcheckbg
+                //here since loop just iterates to search the largest core, we just set all previously tagged particles not belonging to main core as 1
                 xscaling=1.0/opt.halocorexfaciter;
                 vscaling=1.0/opt.halocorevfaciter;
                 xtotalscaling *= xscaling;
                 vtotalscaling *= vscaling;
-                for (i=0;i<nsubset;i++) Partsubset[i].ScalePhase(xscaling,vscaling);
+                for (i=0;i<nsubset;i++) {
+                    Partsubset[i].ScalePhase(xscaling,vscaling);
+                    Partsubset[i].SetPotential((pfofbgnew[Partsubset[i].GetID()]!=1)+(pfof[Partsubset[i].GetID()]>0));
+                }
                 tree=new KDTree(Partsubset,nsubset,opt.Bsize,tree->TPHS,tree->KEPAN,100);
-
-
-                //we adjust the particles potentials so as to ignore already tagged particles using FOFcheckbg
-                //here since loop just iterates to search the largest core, we just set all previously tagged particles not belonging to main core as 1
-                for (i=0;i<nsubset;i++) Partsubset[i].SetPotential((pfofbgnew[Partsubset[i].GetID()]!=1)+(pfof[Partsubset[i].GetID()]>0));
                 pfofbg=tree->FOF(1.0,numgroupsbg,minsize,iorder, NULL, NULL, NULL, NULL, icheck, FOFcheckbg,param);
 
                 //now if numgroupsbg is greater than one, need to update the pfofbgnew array
@@ -1788,7 +1787,6 @@ private(i,tid)
             if (opt.iverbose>=2) cout<<ThisTask<<": has found no excess cores indicating mergers"<<endl;
         }
         delete[] pfofbg;
-// cout<<" Halo core search took "<<nsubset<<" "<<MyGetTime()-timeblah<<endl;
     }
     if (numgroups>0 && opt.coresubmergemindist>0 && nsubset>=MINSUBSIZE) MergeSubstructuresPhase(opt, nsubset, Partsubset, pfof, numgroups, numsubs, numgroupsbg);
     RemoveSpuriousDynamicalSubstructures(opt,nsubset, pfof, numgroups, numsubs, numgroupsbg);
