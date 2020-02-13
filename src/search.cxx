@@ -1588,6 +1588,8 @@ private(i,tid)
     //for missing large substructure cores
     if((opt.iHaloCoreSearch>0&&((!opt.iSingleHalo&&sublevel<=maxhalocoresublevel)||(opt.iSingleHalo&&sublevel==0)))||opt.foftype==FOF6DCORE)
     {
+
+// double timeblah = MyGetTime();
         if (opt.iverbose>=2) cout<<ThisTask<<" beginning 6dfof core search to find multiple cores"<<endl;
         bgoffset=1;
         //if adaptive core linking then need to calculate dispersion tensors in configuration and velocity space
@@ -1649,32 +1651,29 @@ private(i,tid)
             cout<<ThisTask<<" "<<"Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits, ellvel="<<sqrt(param[7])<<" Vunits"<<endl;
             cout<<"with minimum size of "<<minsize<<endl;
         }
-        //start first 6d search
-        fofcmp=&FOF6d;
+        param[9]=0.5;
+
         //here search for 6dfof groups, return ordered list. Also pass function check to ignore already tagged particles
         int iorder=1,icheck=1,numloops=0,numactiveloops=0;
-        // for (i=0;i<nsubset;i++) Partsubset[i].SetPotential(pfof[Partsubset[i].GetID()]);
-        // for (i=0;i<nsubset;i++) Partsubset[i].SetType(-1);
-        // param[9]=0.5;
-        // pfofbg=tree->FOFCriterion(fofcmp,param,numgroupsbg,minsize,iorder,icheck,FOFcheckbg);
-
+        double xscaling, vscaling, xtotalscaling, vtotalscaling;
+        //delete tree if it exists and rescale particles to produce
+        //phase-space tree for quick search
         delete tree;
-        double xscaling, vscaling;
-        //scale particle positions
-        xscaling=1.0/sqrt(param[1]);
-        vscaling=1.0/sqrt(param[2]);
-        for (i=0;i<nsubset;i++) Partsubset[i].ScalePhase(xscaling,vscaling);
-        tree=new KDTree(Partsubset,nsubset,opt.Bsize,tree->TPHS,tree->KEPAN,100);
         if (opt.foftype!=FOF6DCORE) {
             //for ignoring already tagged particles can just use the oultier potential and FOFcheckbg
             for (i=0;i<nsubset;i++) Partsubset[i].SetPotential(pfof[Partsubset[i].GetID()]);
             for (i=0;i<nsubset;i++) Partsubset[i].SetType(-1);
-            param[9]=0.5;
-            fofcmp=&FOF6DPhaseNormed;
-            pfofbg=tree->FOFCriterion(fofcmp,param,numgroupsbg,minsize,iorder,icheck,FOFcheckbg);
+        }
+        //scale particle positions
+        xtotalscaling = xscaling=1.0/sqrt(param[1]);
+        vtotalscaling = vscaling=1.0/sqrt(param[2]);
+        for (i=0;i<nsubset;i++) Partsubset[i].ScalePhase(xscaling,vscaling);
+        tree=new KDTree(Partsubset,nsubset,opt.Bsize,tree->TPHS,tree->KEPAN,100);
+        if (opt.foftype!=FOF6DCORE) {
+            //for ignoring already tagged particles can just use the oultier potential and FOFcheckbg
+            pfofbg=tree->FOF(1.0,numgroupsbg,minsize,iorder, NULL, NULL, NULL, NULL, icheck,FOFcheckbg, param);
         }
         else {
-            //pfofbg=tree->FOFCriterion(fofcmp,param,numgroupsbg,minsize,iorder);
             pfofbg=tree->FOF(1.0,numgroupsbg,minsize,iorder);
         }
         delete tree;
@@ -1725,6 +1724,8 @@ private(i,tid)
 // cout<<"???"<<nsubset<<" "<<numgroupsbg<<" "<<numloops<<" "<<dispval<<" "<<param[6]<<" "<<param[7]<<endl;
                 xscaling=1.0/opt.halocorexfaciter;
                 vscaling=1.0/opt.halocorevfaciter;
+                xtotalscaling *= xscaling;
+                vtotalscaling *= vscaling;
                 for (i=0;i<nsubset;i++) Partsubset[i].ScalePhase(xscaling,vscaling);
                 tree=new KDTree(Partsubset,nsubset,opt.Bsize,tree->TPHS,tree->KEPAN,100);
 
@@ -1732,15 +1733,8 @@ private(i,tid)
                 //we adjust the particles potentials so as to ignore already tagged particles using FOFcheckbg
                 //here since loop just iterates to search the largest core, we just set all previously tagged particles not belonging to main core as 1
                 for (i=0;i<nsubset;i++) Partsubset[i].SetPotential((pfofbgnew[Partsubset[i].GetID()]!=1)+(pfof[Partsubset[i].GetID()]>0));
-                //pfofbg=tree->FOFCriterion(fofcmp,param,numgroupsbg,minsize,iorder,icheck,FOFcheckbg);
-                if (opt.foftype!=FOF6DCORE) {
-                    param[9]=0.5;
-                    fofcmp=&FOF6DPhaseNormed;
-                    pfofbg=tree->FOFCriterion(fofcmp,param,numgroupsbg,minsize,iorder,icheck,FOFcheckbg);
-                }
-                else {
-                    pfofbg=tree->FOF(1.0,numgroupsbg,minsize,iorder);
-                }
+                pfofbg=tree->FOF(1.0,numgroupsbg,minsize,iorder, NULL, NULL, NULL, NULL, icheck, FOFcheckbg,param);
+
                 //now if numgroupsbg is greater than one, need to update the pfofbgnew array
                 if (numgroupsbg>1) {
                     numactiveloops++;
@@ -1768,8 +1762,8 @@ private(i,tid)
             delete[] pfofbgnew;
             param[7]=halocoreveldisp;
         }
-        xscaling=1.0/xscaling;
-        vscaling=1.0/vscaling;
+        xscaling=1.0/xtotalscaling;
+        vscaling=1.0/vtotalscaling;
         for (i=0;i<nsubset;i++) Partsubset[i].ScalePhase(xscaling,vscaling);
 
         if (numgroupsbg>=bgoffset+1) {
@@ -1793,8 +1787,8 @@ private(i,tid)
         else {
             if (opt.iverbose>=2) cout<<ThisTask<<": has found no excess cores indicating mergers"<<endl;
         }
-
         delete[] pfofbg;
+// cout<<" Halo core search took "<<nsubset<<" "<<MyGetTime()-timeblah<<endl;
     }
     if (numgroups>0 && opt.coresubmergemindist>0 && nsubset>=MINSUBSIZE) MergeSubstructuresPhase(opt, nsubset, Partsubset, pfof, numgroups, numsubs, numgroupsbg);
     RemoveSpuriousDynamicalSubstructures(opt,nsubset, pfof, numgroups, numsubs, numgroupsbg);
@@ -2872,8 +2866,6 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
     if (opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL) numingroup=BuildNumInGroupTyped(nsubset, ngroup, pfof, Partsubset.data(), DARKTYPE);
     else numingroup=BuildNumInGroup(nsubset, ngroup, pfof);
     //since initially groups in order find index of smallest group that can be searched for substructure
-    //for (Int_t i=1;i<=ngroup;i++) if (numingroup[i]<MINSUBSIZE) {nsubsearch=i-1;break;}
-    //for (Int_t i=1;i<=ngroup;i++) if (numingroup[i]<MINCELLSIZE) {nsubsearch=i-1;break;}
     firstgroup=1;
     firstgroupoffset=0;
     //if keeping fof as a leve, then don't start substructure for all 3dfof halos and move the structure level pointer upwards
@@ -2884,9 +2876,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
         pcsld=psldata->nextlevel;
         nsubsearch=ngroup-opt.num3dfof;
     }
-    cout<<firstgroup<<" to be searched "<<endl;
     vector<Int_t> indicestosearch;
-    //for (Int_t i=firstgroup;i<=ngroup;i++) if (numingroup[i]<minsizeforsubsearch) {nsubsearch=i-firstgroup;break;}
     for (Int_t i=firstgroup;i<=ngroup;i++) if (numingroup[i]>=minsizeforsubsearch) {indicestosearch.push_back(i);}
     nsubsearch = indicestosearch.size();
     iflag=(nsubsearch>0);
