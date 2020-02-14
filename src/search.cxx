@@ -1087,17 +1087,21 @@ Int_t* SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Part
     //@{
     if (!(opt.foftype==FOFSTPROBNN||opt.foftype==FOFSTPROBNNLX||opt.foftype==FOFSTPROBNNNODIST||opt.foftype==FOF6DCORE)) {
         if (opt.iverbose>=2) cout<<"Building tree ... "<<endl;
-        tree=new KDTree(Partsubset,nsubset,opt.Bsize,tree->TPHYS);
-        param[0]=tree->GetTreeType();
         //if large enough for statistically significant structures to be found then search. This is a robust search
         if (nsubset>=MINSUBSIZE) {
+            tree=new KDTree(Partsubset,nsubset,opt.Bsize,tree->TPHYS);
+            param[0]=tree->GetTreeType();
             if (opt.iverbose>=2) cout<<"Now search ... "<<endl;
             pfof=tree->FOFCriterion(fofcmp,param,numgroups,minsize,1,1,FOFchecksub);
         }
         else {
             numgroups=0;
             pfof=new Int_t[nsubset];
-            for (i=0;i<nsubset;i++) pfof[i]=0;
+            for (i=0;i<nsubset;i++){
+                pfof[i]=0;
+                Partsubset[i].SetID(i);
+            }
+            tree = NULL;
         }
         if (opt.iverbose>=2) cout<<"Done"<<endl;
     }
@@ -1588,7 +1592,6 @@ private(i,tid)
     //for missing large substructure cores
     if((opt.iHaloCoreSearch>0&&((!opt.iSingleHalo&&sublevel<=maxhalocoresublevel)||(opt.iSingleHalo&&sublevel==0)))||opt.foftype==FOF6DCORE)
     {
-
         if (opt.iverbose>=2) cout<<ThisTask<<" beginning 6dfof core search to find multiple cores"<<endl;
         bgoffset=1;
         //if adaptive core linking then need to calculate dispersion tensors in configuration and velocity space
@@ -1653,15 +1656,17 @@ private(i,tid)
         param[9]=0.5;
 
         //here search for 6dfof groups, return ordered list. Also pass function check to ignore already tagged particles
-        int iorder=1,icheck=1,numloops=0,numactiveloops=0;
+        int iorder=1,icheck=1,numloops=0,numactiveloops=0,largestsize=0;
         double xscaling, vscaling, xtotalscaling, vtotalscaling;
         //delete tree if it exists and rescale particles to produce
         //phase-space tree for quick search
         delete tree;
         if (opt.foftype!=FOF6DCORE) {
             //for ignoring already tagged particles can just use the oultier potential and FOFcheckbg
-            for (i=0;i<nsubset;i++) Partsubset[i].SetPotential(pfof[Partsubset[i].GetID()]);
-            for (i=0;i<nsubset;i++) Partsubset[i].SetType(-1);
+            for (i=0;i<nsubset;i++) {
+                Partsubset[i].SetPotential(pfof[Partsubset[i].GetID()]);
+                Partsubset[i].SetType(-1);
+            }
         }
         //scale particle positions
         xtotalscaling = xscaling=1.0/sqrt(param[1]);
@@ -1676,8 +1681,14 @@ private(i,tid)
             pfofbg=tree->FOF(1.0,numgroupsbg,minsize,iorder);
         }
         delete tree;
-
-        for (i=0;i<nsubset;i++) if (pfofbg[Partsubset[i].GetID()]<=1 && pfof[Partsubset[i].GetID()]==0) Partsubset[i].SetType(numactiveloops);
+        tree = NULL;
+        if (numgroupsbg > 0) {
+            for (i=0;i<nsubset;i++) {
+                if (pfofbg[Partsubset[i].GetID()]<=1 && pfof[Partsubset[i].GetID()]==0)
+                    Partsubset[i].SetType(numactiveloops);
+                if (pfofbg[Partsubset[i].GetID()]==1) largestsize++;
+            }
+        }
 
         //store the dispersion limit factor, which depends on level of the loop at which cores are found as the disperions criterion limits how large a dispersion a core can have when measured
         vector<Double_t> dispfac(numgroupsbg+1);
@@ -1688,7 +1699,7 @@ private(i,tid)
         //no cores are found
         for (i=1;i<=numgroupsbg;i++) dispfac[i]=1.0;
         for (i=1;i<=numgroupsbg;i++) corelevel[i]=numactiveloops;
-        if (opt.halocorenumloops>1)
+        if (opt.halocorenumloops>1 && largestsize>=2*minsize)
         {
             //store the old velocity dispersion
             Double_t halocoreveldisp = param[7];
