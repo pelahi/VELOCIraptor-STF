@@ -1654,6 +1654,7 @@ private(i,tid)
             cout<<"with minimum size of "<<minsize<<endl;
         }
         param[9]=0.5;
+        fofcmp = &FOF6d;
 
         //here search for 6dfof groups, return ordered list. Also pass function check to ignore already tagged particles
         int iorder=1,icheck=1,numloops=0,numactiveloops=0,largestsize=0;
@@ -1673,6 +1674,8 @@ private(i,tid)
         vtotalscaling = vscaling=1.0/sqrt(param[2]);
         for (i=0;i<nsubset;i++) Partsubset[i].ScalePhase(xscaling,vscaling);
         tree=new KDTree(Partsubset,nsubset,opt.Bsize,tree->TPHS,tree->KEPAN,100);
+        param[0]=tree->GetTreeType();
+        param[1] = param[2] = param[6] = param[7] = 1.0;
         if (opt.foftype!=FOF6DCORE) {
             //for ignoring already tagged particles can just use the oultier potential and FOFcheckbg
             pfofbg=tree->FOF(1.0,numgroupsbg,minsize,iorder, NULL, NULL, NULL, NULL, icheck,FOFcheckbg, param);
@@ -1680,8 +1683,6 @@ private(i,tid)
         else {
             pfofbg=tree->FOF(1.0,numgroupsbg,minsize,iorder);
         }
-        delete tree;
-        tree = NULL;
         if (numgroupsbg > 0) {
             for (i=0;i<nsubset;i++) {
                 if (pfofbg[Partsubset[i].GetID()]<=1 && pfof[Partsubset[i].GetID()]==0)
@@ -1719,6 +1720,7 @@ private(i,tid)
             Double_t dispvaltot=1.0;
             do {
                 numloops++;
+                largestsize = 0;
                 //free memory
                 delete[] pfofbg;
                 param[1]*=opt.halocorexfaciter*opt.halocorexfaciter;
@@ -1736,19 +1738,21 @@ private(i,tid)
                 //here since loop just iterates to search the largest core, we just set all previously tagged particles not belonging to main core as 1
                 xscaling=1.0/opt.halocorexfaciter;
                 vscaling=1.0/opt.halocorevfaciter;
-                xtotalscaling *= xscaling;
-                vtotalscaling *= vscaling;
                 for (i=0;i<nsubset;i++) {
-                    Partsubset[i].ScalePhase(xscaling,vscaling);
                     Partsubset[i].SetPotential((pfofbgnew[Partsubset[i].GetID()]!=1)+(pfof[Partsubset[i].GetID()]>0));
                 }
-                tree=new KDTree(Partsubset,nsubset,opt.Bsize,tree->TPHS,tree->KEPAN,100);
-                pfofbg=tree->FOF(1.0,numgroupsbg,minsize,iorder, NULL, NULL, NULL, NULL, icheck, FOFcheckbg,param);
+                pfofbg=tree->FOFCriterion(fofcmp,param,numgroupsbg,minsize,iorder,icheck,FOFcheckbg);
 
                 //now if numgroupsbg is greater than one, need to update the pfofbgnew array
                 if (numgroupsbg>1) {
                     numactiveloops++;
-                    for (i=0;i<nsubset;i++) if (pfofbg[Partsubset[i].GetID()]==1 && pfofbgnew[Partsubset[i].GetID()]<=1 && pfof[Partsubset[i].GetID()]==0) Partsubset[i].SetType(numactiveloops);
+                    for (i=0;i<nsubset;i++) {
+                        if (pfofbg[Partsubset[i].GetID()]==1 &&
+                        pfofbgnew[Partsubset[i].GetID()]<=1 &&
+                        pfof[Partsubset[i].GetID()]==0)
+                            Partsubset[i].SetType(numactiveloops);
+                        if (pfofbg[Partsubset[i].GetID()]==1) largestsize++;
+                    }
                     dispfac[1]=dispvaltot;
                     corelevel[1]=numactiveloops;
                     for (i=2;i<=numgroupsbg;i++) dispfac.push_back(dispvaltot);
@@ -1763,9 +1767,7 @@ private(i,tid)
                     newnumgroupsbg+=numgroupsbg-1;
 
                 }
-                delete tree;
-                tree = NULL;
-            }while (numgroupsbg > 0 && numloops<opt.halocorenumloops && minsize*opt.halocorenumfaciter<nsubset);
+            }while (numgroupsbg > 0 && largestsize >= 2*minsize*opt.halocorenumfaciter && numloops<opt.halocorenumloops && minsize*opt.halocorenumfaciter<nsubset);
             //once the loop is finished, update info
             numgroupsbg=newnumgroupsbg;
             for (i=0;i<nsubset;i++) pfofbg[i]=pfofbgnew[i];
