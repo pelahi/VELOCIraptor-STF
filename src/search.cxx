@@ -2899,9 +2899,9 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
     subnumingroup=new Int_t[nsubsearch+1];
     subpglist=new Int_t*[nsubsearch+1];
     for (Int_t i=1;i<=nsubsearch;i++) {
-        subnumingroup[i]=numingroup[indicestosearch[i-1]+firstgroupoffset];
+        subnumingroup[i]=numingroup[indicestosearch[i-1]];
         subpglist[i]=new Int_t[subnumingroup[i]];
-        for (Int_t j=0;j<subnumingroup[i];j++) subpglist[i][j]=pglist[indicestosearch[i-1]+firstgroupoffset][j];
+        for (Int_t j=0;j<subnumingroup[i];j++) subpglist[i][j]=pglist[indicestosearch[i-1]][j];
     }
     for (Int_t i=1;i<=ngroup;i++) delete[] pglist[i];
     delete[] pglist;
