@@ -473,27 +473,27 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
     int nusetypes;
     vector<int> usetypes;
 
-    if (ptype==PSTALL) {
+    if (opt.partsearchtype==PSTALL) {
         usetypes.push_back(GASTYPE);
-        usetypes.push_back(DMTYPE);
+        usetypes.push_back(DARKTYPE);
         usetypes.push_back(STARTYPE);
         if (opt.iusesinkparticles) usetypes.push_back(BHTYPE);
     }
-    else if (ptype==PSTDARK) {
-        usetypes.push_back(DMTYPE);
+    else if (opt.partsearchtype==PSTDARK) {
+        usetypes.push_back(DARKTYPE);
     }
-    else if (ptype==PSTGAS) {
+    else if (opt.partsearchtype==PSTGAS) {
         usetypes.push_back(GASTYPE);
     }
-    else if (ptype==PSTSTAR) {
+    else if (opt.partsearchtype==PSTSTAR) {
         usetypes.push_back(STARTYPE);
     }
-    else if (ptype==PSTBH) {
+    else if (opt.partsearchtype==PSTBH) {
         usetypes.push_back(BHTYPE);
     }
-    else if (ptype==PSTGALAXY) {
+    else if (opt.partsearchtype==PSTGALAXY) {
         usetypes.push_back(GASTYPE);
-        usetypes.push_back(DMTYPE);
+        usetypes.push_back(DARKTYPE);
         usetypes.push_back(STARTYPE);
         if (opt.iusesinkparticles) usetypes.push_back(BHTYPE);
     }
@@ -529,7 +529,7 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
     Fpartmet   = new fstream[opt.num_files];
     header     = new RAMSES_Header[opt.num_files];
 
-    Particle *Pbuf;
+    Particle *Pbuf, *Pactive;
 #ifdef USEMPI
     MPI_Status status;
     MPI_Comm mpi_comm_read;
@@ -800,23 +800,19 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
         RAMSES_fortran_read(Fpartid[i],idvalchunk);
         for (int nn=0;nn<nchunk;nn++)
         {
-            if (fabs((mtempchunk[nn]-dmp_mass)/dmp_mass) > 1e-5 && (agetempchunk[nn] == 0.0))
-            {
-              //  GHOST PARTIRCLE!!!
-            }
-            else
-            {
-                xtemp[0] = xtempchunk[nn];
-                xtemp[1] = xtempchunk[nn+nchunk];
-                xtemp[2] = xtempchunk[nn+2*nchunk];
+            //  GHOST PARTIRCLE!!! Don't load
+            if (fabs((mtempchunk[nn]-dmp_mass)/dmp_mass) > 1e-5 && (agetempchunk[nn] == 0.0)) continue;
+            xtemp[0] = xtempchunk[nn];
+            xtemp[1] = xtempchunk[nn+nchunk];
+            xtemp[2] = xtempchunk[nn+2*nchunk];
 
-                vtemp[0] = vtempchunk[nn];
-                vtemp[1] = vtempchunk[nn+nchunk];
-                vtemp[2] = vtempchunk[nn+2*nchunk];
+            vtemp[0] = vtempchunk[nn];
+            vtemp[1] = vtempchunk[nn+nchunk];
+            vtemp[2] = vtempchunk[nn+2*nchunk];
 
-                idval = idvalchunk[nn];
+            idval = idvalchunk[nn];
 
-                ///Need to check this for correct 'endianness'
+            ///Need to check this for correct 'endianness'
 //             for (int kk=0;kk<3;kk++) {xtemp[kk]=LittleRAMSESFLOAT(xtemp[kk]);vtemp[kk]=LittleRAMSESFLOAT(vtemp[kk]);}
 #ifndef NOMASS
             mtemp=mtempchunk[nn];
@@ -825,7 +821,10 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
 #endif
             ageval = agetempchunk[nn];
             if (fabs((mtemp-dmp_mass)/dmp_mass) < 1e-5) typeval = DARKTYPE;
-            else typeval = STARTYPE;
+            else {
+                if (idval>0) typeval=STARTYPE;
+                else typeval=BHTYPE;
+            }
 /*
             if (ageval==0 && idval>0) typeval=DARKTYPE;
             else if (idval>0) typeval=STARTYPE;
@@ -936,7 +935,6 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
 #endif
                 bcount2++;
             }
-        }//end of ghost particle check
         }//end of loop over chunk
         delete[] xtempchunk;
         delete[] vtempchunk;
@@ -1122,116 +1120,63 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
                                         utemp=hydrotempchunk[idim*chunksize*header[i].nvarh+4*chunksize+igrid]/hydrotempchunk[idim*chunksize*header[i].nvarh+0*chunksize+igrid]/(header[i].gamma_index-1.0);
                                         rhotemp=hydrotempchunk[idim*chunksize*header[i].nvarh+0*chunksize+igrid]*rhoscale;
                                         Ztemp=hydrotempchunk[idim*chunksize*header[i].nvarh+5*chunksize+igrid];
-                                        //???
-                                        bool typeflag=false;
-                                        for (auto &itype:usetypes) if (typeval==itype) typeflag = true;
-                                        if (opt.partsearchtype==PSTALL) {
 #ifdef USEMPI
-                                            Pbuf[ibufindex]=Particle(mtemp*mscale,
-                                                xpos[0]*lscale,xpos[1]*lscale,xpos[2]*lscale,
-                                                vpos[0]*opt.velocityinputconversion+Hubbleflow*xpos[0],
-                                                vpos[1]*opt.velocityinputconversion+Hubbleflow*xpos[1],
-                                                vpos[2]*opt.velocityinputconversion+Hubbleflow*xpos[2],
-                                                count2,GASTYPE);
-                                            Pbuf[ibufindex].SetPID(idval);
+                                        Pbuf[ibufindex]=Particle(mtemp*mscale,
+                                            xpos[0]*lscale,xpos[1]*lscale,xpos[2]*lscale,
+                                            vpos[0]*opt.velocityinputconversion+Hubbleflow*xpos[0],
+                                            vpos[1]*opt.velocityinputconversion+Hubbleflow*xpos[1],
+                                            vpos[2]*opt.velocityinputconversion+Hubbleflow*xpos[2],
+                                            count2,GASTYPE);
+                                        Pbuf[ibufindex].SetPID(idval);
 #ifdef GASON
-                                            Pbuf[ibufindex].SetU(utemp);
-                                            Pbuf[ibufindex].SetSPHDen(rhotemp);
+                                        Pbuf[ibufindex].SetU(utemp);
+                                        Pbuf[ibufindex].SetSPHDen(rhotemp);
 #ifdef STARON
-                                            Pbuf[ibufindex].SetZmet(Ztemp);
+                                        Pbuf[ibufindex].SetZmet(Ztemp);
 #endif
 #endif
 #ifdef EXTRAINPUTINFO
-                                            if (opt.iextendedoutput)
-                                            {
-                                                Pbuf[ibufindex].SetInputFileID(i);
-                                                Pbuf[ibufindex].SetInputIndexInFile(idim*chunksize*header[i].nvarh+0*chunksize+igrid+ninputoffset);
-                                            }
-#endif
-                                            //ensure that store number of particles to be sent to the threads involved with reading snapshot files
-                                            Nbuf[ibuf]++;
-                                            MPIAddParticletoAppropriateBuffer(opt, ibuf, ibufindex, ireadtask, BufSize, Nbuf, Pbuf, Nlocal, Part.data(), Nreadbuf, Preadbuf);
-#else
-                                            Part[count2]=Particle(mtemp*mscale,
-                                                xpos[0]*lscale,xpos[1]*lscale,xpos[2]*lscale,
-                                                vpos[0]*opt.velocityinputconversion+Hubbleflow*xpos[0],
-                                                vpos[1]*opt.velocityinputconversion+Hubbleflow*xpos[1],
-                                                vpos[2]*opt.velocityinputconversion+Hubbleflow*xpos[2],
-                                                count2,GASTYPE);
-                                            Part[count2].SetPID(idval);
-#ifdef GASON
-                                            Part[count2].SetU(utemp);
-                                            Part[count2].SetSPHDen(rhotemp);
-#ifdef STARON
-                                            Part[count2].SetZmet(Ztemp);
-#endif
-#endif
-#ifdef EXTRAINPUTINFO
-                                            if (opt.iextendedoutput)
-                                            {
-                                                Part[count2].SetInputFileID(i);
-                                                Part[count2].SetInputIndexInFile(idim*chunksize*header[i].nvarh+0*chunksize+igrid+ninputoffset);
-                                            }
-#endif
-
-#endif
-                                            count2++;
+                                        if (opt.iextendedoutput)
+                                        {
+                                            Pbuf[ibufindex].SetInputFileID(i);
+                                            Pbuf[ibufindex].SetInputIndexInFile(idim*chunksize*header[i].nvarh+0*chunksize+igrid+ninputoffset);
                                         }
-                                        else if (opt.partsearchtype==PSTDARK&&opt.iBaryonSearch) {
-#ifdef USEMPI
-                                            Pbuf[ibufindex]=Particle(mtemp*mscale,
-                                                xpos[0]*lscale,xpos[1]*lscale,xpos[2]*lscale,
-                                                vpos[0]*opt.velocityinputconversion+Hubbleflow*xpos[0],
-                                                vpos[1]*opt.velocityinputconversion+Hubbleflow*xpos[1],
-                                                vpos[2]*opt.velocityinputconversion+Hubbleflow*xpos[2],
-                                                count2,GASTYPE);
-                                            Pbuf[ibufindex].SetPID(idval);
-#ifdef GASON
-                                            Pbuf[ibufindex].SetU(utemp);
-                                            Pbuf[ibufindex].SetSPHDen(rhotemp);
-#ifdef STARON
-                                            Pbuf[ibufindex].SetZmet(Ztemp);
 #endif
-#endif
-#ifdef EXTRAINPUTINFO
-                                            if (opt.iextendedoutput)
-                                            {
-                                                Pbuf[ibufindex].SetInputFileID(i);
-                                                Pbuf[ibufindex].SetInputIndexInFile(idim*chunksize*header[i].nvarh+0*chunksize+igrid+ninputoffset);
-                                            }
-#endif
-                                            //ensure that store number of particles to be sent to the reading threads
-                                            if (ibuf==ThisTask) {
-                                                Nlocalbaryon[1]++;
-                                            }
-                                            MPIAddParticletoAppropriateBuffer(opt, ibuf, ibufindex, ireadtask, BufSize, Nbuf, Pbuf, Nlocalbaryon[0], Pbaryons, Nreadbuf, Preadbuf);
+                                        //ensure that store number of particles to be sent to the threads involved with reading snapshot files
+                                        if (opt.partsearchtype==PSTDARK&&opt.iBaryonSearch) {
+                                            if (ibuf==ThisTask) Nlocalbaryon[1]++;
+                                        }
+                                        Nbuf[ibuf]++;
+                                        MPIAddParticletoAppropriateBuffer(opt, ibuf, ibufindex, ireadtask, BufSize, Nbuf, Pbuf, Nlocal, Part.data(), Nreadbuf, Preadbuf);
 #else
-                                            Pbaryons[bcount2]=Particle(mtemp*mscale,
-                                                xpos[0]*lscale,xpos[1]*lscale,xpos[2]*lscale,
-                                                vpos[0]*opt.velocityinputconversion+Hubbleflow*xpos[0],
-                                                vpos[1]*opt.velocityinputconversion+Hubbleflow*xpos[1],
-                                                vpos[2]*opt.velocityinputconversion+Hubbleflow*xpos[2],
-                                                count2,GASTYPE);
-                                            Pbaryons[bcount2].SetPID(idval);
+                                        if (opt.partsearchtype==PSTDARK&&opt.iBaryonSearch) Pactive = Pbaryons[bcount2];
+                                        else Pactive = Part[count2];
+
+                                        (*Pactive)=Particle(mtemp*mscale,
+                                            xpos[0]*lscale,xpos[1]*lscale,xpos[2]*lscale,
+                                            vpos[0]*opt.velocityinputconversion+Hubbleflow*xpos[0],
+                                            vpos[1]*opt.velocityinputconversion+Hubbleflow*xpos[1],
+                                            vpos[2]*opt.velocityinputconversion+Hubbleflow*xpos[2],
+                                            count2,GASTYPE);
+                                        (*Pactive).SetPID(idval);
 #ifdef GASON
-                                            Pbaryons[bcount2].SetU(utemp);
-                                            Pbaryons[bcount2].SetSPHDen(rhotemp);
+                                        (*Pactive).SetU(utemp);
+                                        (*Pactive).SetSPHDen(rhotemp);
 #ifdef STARON
-                                            Pbaryons[bcount2].SetZmet(Ztemp);
+                                        (*Pactive).SetZmet(Ztemp);
 #endif
 #endif
 #ifdef EXTRAINPUTINFO
-                                            if (opt.iextendedoutput)
-                                            {
-                                                Pbaryons[bcount2].SetInputFileID(i);
-                                                Pbaryons[bcount2].SetInputIndexInFile(idim*chunksize*header[i].nvarh+0*chunksize+igrid+ninputoffset);
-                                            }
+                                        if (opt.iextendedoutput)
+                                        {
+                                            (*Pactive).SetInputFileID(i);
+                                            (*Pactive).SetInputIndexInFile(idim*chunksize*header[i].nvarh+0*chunksize+igrid+ninputoffset);
+                                        }
 #endif
-
 #endif
-                                        bcount2++;
+                                        if (opt.partsearchtype==PSTDARK&&opt.iBaryonSearch) count2++;
+                                        else bcount2++;
                                     }
-                                }
                                 }
                             }
                         }
