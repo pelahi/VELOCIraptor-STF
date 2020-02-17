@@ -98,7 +98,8 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
         exit(9);
     }
     //if gas searched in some fashion then load amr/hydro data
-    if (opt.partsearchtype==PSTGAS||opt.partsearchtype==PSTALL||(opt.partsearchtype==PSTDARK&&opt.iBaryonSearch)) {
+    if (opt.partsearchtype==PSTGAS||opt.partsearchtype==PSTALL||(opt.partsearchtype==PSTDARK&&opt.iBaryonSearch)
+    ||opt.partsearchtype==PSTGALAXY) {
     sprintf(buf1,"%s/hydro_%s.out00001",fname,opt.ramsessnapname);
     sprintf(buf2,"%s/hydro_%s.out",fname,opt.ramsessnapname);
     if (FileExists(buf1)) sprintf(buf,"%s",buf1);
@@ -129,11 +130,24 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
 
     int nusetypes,usetypes[NRAMSESTYPE];
 
-    if (ptype==PSTALL) {nusetypes=4;usetypes[0]=RAMSESGASTYPE;usetypes[1]=RAMSESDMTYPE;usetypes[2]=RAMSESSTARTYPE;usetypes[3]=RAMSESBHTYPE;}
+    if (ptype==PSTALL) {
+        nusetypes=0;
+        usetypes[nusetypes++]=RAMSESGASTYPE;
+        usetypes[nusetypes++]=RAMSESDMTYPE;
+        usetypes[nusetypes++]=RAMSESSTARTYPE;
+        if (opt.iusesinkparticles) usetypes[nusetypes++]=RAMSESBHTYPE;
+    }
     else if (ptype==PSTDARK) {nusetypes=1;usetypes[0]=RAMSESDMTYPE;}
     else if (ptype==PSTGAS) {nusetypes=1;usetypes[0]=RAMSESGASTYPE;}
     else if (ptype==PSTSTAR) {nusetypes=1;usetypes[0]=RAMSESSTARTYPE;}
     else if (ptype==PSTBH) {nusetypes=1;usetypes[0]=RAMSESBHTYPE;}
+    else if (ptype==PSTGALAXY) {
+        nusetypes=0;
+        usetypes[nusetypes++]=RAMSESGASTYPE;
+        usetypes[nusetypes++]=RAMSESDMTYPE;
+        usetypes[nusetypes++]=RAMSESSTARTYPE;
+        if (opt.iusesinkparticles) usetypes[nusetypes++]=RAMSESBHTYPE;
+    }
 
 
     for (j = 0; j < NRAMSESTYPE; j++) ramses_header_info.npartTotal[j] = 0;
@@ -227,7 +241,8 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
     Framses.close();
 
     //reopen to get number of amr cells might need to alter to read grid information and what cells have no so-called son cells
-    if (opt.partsearchtype==PSTGAS||opt.partsearchtype==PSTALL||(opt.partsearchtype==PSTDARK&&opt.iBaryonSearch)) {
+    if (opt.partsearchtype==PSTGAS||opt.partsearchtype==PSTALL||(opt.partsearchtype==PSTDARK&&opt.iBaryonSearch)
+    || opt.partsearchtype == PSTGALAXY) {
     for (i=0;i<ramses_header_info.num_files;i++) {
         sprintf(buf1,"%s/amr_%s.out%05d",fname,opt.ramsessnapname,i+1);
         sprintf(buf2,"%s/amr_%s.out",fname,opt.ramsessnapname);
@@ -415,10 +430,10 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
     }
 
     for (j=0;j<NPARTTYPES;j++) opt.numpart[j]=0;
-    if (ptype==PSTALL || ptype==PSTDARK) opt.numpart[DARKTYPE]=ramses_header_info.npartTotal[RAMSESDMTYPE];
-    if (ptype==PSTALL || ptype==PSTGAS) opt.numpart[GASTYPE]=ramses_header_info.npartTotal[RAMSESGASTYPE];
-    if (ptype==PSTALL || ptype==PSTSTAR) opt.numpart[STARTYPE]=ramses_header_info.npartTotal[RAMSESSTARTYPE];
-    if (ptype==PSTALL || ptype==PSTBH) opt.numpart[BHTYPE]=ramses_header_info.npartTotal[RAMSESSINKTYPE];
+    if (ptype==PSTALL || ptype==PSTGALAXY || ptype==PSTDARK) opt.numpart[DARKTYPE]=ramses_header_info.npartTotal[RAMSESDMTYPE];
+    if (ptype==PSTALL || ptype==PSTGALAXY || ptype==PSTGAS) opt.numpart[GASTYPE]=ramses_header_info.npartTotal[RAMSESGASTYPE];
+    if (ptype==PSTALL || ptype==PSTGALAXY || ptype==PSTSTAR) opt.numpart[STARTYPE]=ramses_header_info.npartTotal[RAMSESSTARTYPE];
+    if (ptype==PSTALL || ptype==PSTGALAXY || ptype==PSTBH) opt.numpart[BHTYPE]=ramses_header_info.npartTotal[RAMSESSINKTYPE];
     return nbodies;
 
 }
@@ -454,6 +469,35 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
     int *ngridlevel,*ngridbound,*ngridfile;
     int lmin=1000000,lmax=0;
     double dmp_mass;
+
+    int nusetypes;
+    vector<int> usetypes;
+
+    if (ptype==PSTALL) {
+        usetypes.push_back(GASTYPE);
+        usetypes.push_back(DMTYPE);
+        usetypes.push_back(STARTYPE);
+        if (opt.iusesinkparticles) usetypes.push_back(BHTYPE);
+    }
+    else if (ptype==PSTDARK) {
+        usetypes.push_back(DMTYPE);
+    }
+    else if (ptype==PSTGAS) {
+        usetypes.push_back(GASTYPE);
+    }
+    else if (ptype==PSTSTAR) {
+        usetypes.push_back(STARTYPE);
+    }
+    else if (ptype==PSTBH) {
+        usetypes.push_back(BHTYPE);
+    }
+    else if (ptype==PSTGALAXY) {
+        usetypes.push_back(GASTYPE);
+        usetypes.push_back(DMTYPE);
+        usetypes.push_back(STARTYPE);
+        if (opt.iusesinkparticles) usetypes.push_back(BHTYPE);
+    }
+    nusetypes = usetypes.size();
 
     int ninputoffset = 0;
     int ifirstfile=0,*ireadfile,ibuf=0;
@@ -808,8 +852,12 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
 #ifdef BHON
 #endif
 #endif
-
-            if (opt.partsearchtype==PSTALL) {
+            bool typeflag=false;
+            for (auto &itype:usetypes) if (typeval==itype) {
+                typeflag = true;
+                break;
+            }
+            if (typeflag) {
 #ifdef USEMPI
                 Pbuf[ibufindex]=Particle(mtemp*mscale,
                     xtemp[0]*lscale,xtemp[1]*lscale,xtemp[2]*lscale,
@@ -845,128 +893,48 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
 #endif
                 count2++;
             }
-            else if (opt.partsearchtype==PSTDARK) {
-                if (!(typeval==STARTYPE||typeval==BHTYPE)) {
+            if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch && typeval !=DARKTYPE) {
 #ifdef USEMPI
-                    Pbuf[ibufindex]=Particle(mtemp*mscale,
-                        xtemp[0]*lscale,xtemp[1]*lscale,xtemp[2]*lscale,
-                        vtemp[0]*opt.velocityinputconversion+Hubbleflow*xtemp[0],
-                        vtemp[1]*opt.velocityinputconversion+Hubbleflow*xtemp[1],
-                        vtemp[2]*opt.velocityinputconversion+Hubbleflow*xtemp[2],
-                        count2,DARKTYPE);
-                    Pbuf[ibufindex].SetPID(idval);
+                Pbuf[ibufindex]=Particle(mtemp*mscale,
+                    xtemp[0]*lscale,xtemp[1]*lscale,xtemp[2]*lscale,
+                    vtemp[0]*opt.velocityinputconversion+Hubbleflow*xtemp[0],
+                    vtemp[1]*opt.velocityinputconversion+Hubbleflow*xtemp[1],
+                    vtemp[2]*opt.velocityinputconversion+Hubbleflow*xtemp[2],
+                    count2);
+                Pbuf[ibufindex].SetPID(idval);
 #ifdef EXTRAINPUTINFO
-                    if (opt.iextendedoutput)
-                    {
-                        Pbuf[ibufindex].SetInputFileID(i);
-                        Pbuf[ibufindex].SetInputIndexInFile(nn+ninputoffset);
-                    }
-#endif
-                    //ensure that store number of particles to be sent to other reading threads
-                    Nbuf[ibuf]++;
-                    MPIAddParticletoAppropriateBuffer(opt, ibuf, ibufindex, ireadtask, BufSize, Nbuf, Pbuf, Nlocal, Part.data(), Nreadbuf, Preadbuf);
-#else
-                    Part[count2]=Particle(mtemp*mscale,
-                        xtemp[0]*lscale,xtemp[1]*lscale,xtemp[2]*lscale,
-                        vtemp[0]*opt.velocityinputconversion+Hubbleflow*xtemp[0],
-                        vtemp[1]*opt.velocityinputconversion+Hubbleflow*xtemp[1],
-                        vtemp[2]*opt.velocityinputconversion+Hubbleflow*xtemp[2],
-                        count2,typeval);
-                    Part[count2].SetPID(idval);
-#ifdef EXTRAINPUTINFO
-                    if (opt.iextendedoutput)
-                    {
-                        Part[count2].SetInputFileID(i);
-                        Part[count2].SetInputIndexInFile(nn+ninputoffset);
-                    }
-#endif
-#endif
-                    count2++;
+                if (opt.iextendedoutput)
+                {
+                    Pbuf[ibufindex].SetInputFileID(i);
+                    Pbuf[ibufindex].SetInputIndexInFile(nn+ninputoffset);
                 }
-                else if (opt.iBaryonSearch) {
-#ifdef USEMPI
-                    Pbuf[ibufindex]=Particle(mtemp*mscale,
-                        xtemp[0]*lscale,xtemp[1]*lscale,xtemp[2]*lscale,
-                        vtemp[0]*opt.velocityinputconversion+Hubbleflow*xtemp[0],
-                        vtemp[1]*opt.velocityinputconversion+Hubbleflow*xtemp[1],
-                        vtemp[2]*opt.velocityinputconversion+Hubbleflow*xtemp[2],
-                        count2);
-                    Pbuf[ibufindex].SetPID(idval);
-#ifdef EXTRAINPUTINFO
-                    if (opt.iextendedoutput)
-                    {
-                        Pbuf[ibufindex].SetInputFileID(i);
-                        Pbuf[ibufindex].SetInputIndexInFile(nn+ninputoffset);
-                    }
 #endif
-                    if (typeval==STARTYPE) Pbuf[ibufindex].SetType(STARTYPE);
-                    else if (typeval==BHTYPE) Pbuf[ibufindex].SetType(BHTYPE);
-                    //ensure that store number of particles to be sent to the reading threads
-                    Nbuf[ibuf]++;
-                    if (ibuf==ThisTask) {
-                        if (k==RAMSESSTARTYPE) Nlocalbaryon[2]++;
-                        else if (k==RAMSESSINKTYPE) Nlocalbaryon[3]++;
-                    }
-                    MPIAddParticletoAppropriateBuffer(opt, ibuf, ibufindex, ireadtask, BufSize, Nbuf, Pbuf, Nlocalbaryon[0], Pbaryons, Nreadbuf, Preadbuf);
-#else
-                    Pbaryons[bcount2]=Particle(mtemp*mscale,
-                        xtemp[0]*lscale,xtemp[1]*lscale,xtemp[2]*lscale,
-                        vtemp[0]*opt.velocityinputconversion+Hubbleflow*xtemp[0],
-                        vtemp[1]*opt.velocityinputconversion+Hubbleflow*xtemp[1],
-                        vtemp[2]*opt.velocityinputconversion+Hubbleflow*xtemp[2],
-                        count2,typeval);
-                    Pbaryons[bcount2].SetPID(idval);
-#ifdef EXTRAINPUTINFO
-                    if (opt.iextendedoutput)
-                    {
-                        Part[bcount2].SetInputFileID(i);
-                        Part[bcount2].SetInputIndexInFile(nn+ninputoffset);
-                    }
-#endif
-#endif
-                    bcount2++;
+                if (typeval==STARTYPE) Pbuf[ibufindex].SetType(STARTYPE);
+                else if (typeval==BHTYPE) Pbuf[ibufindex].SetType(BHTYPE);
+                //ensure that store number of particles to be sent to the reading threads
+                Nbuf[ibuf]++;
+                if (ibuf==ThisTask) {
+                    if (k==RAMSESSTARTYPE) Nlocalbaryon[2]++;
+                    else if (k==RAMSESSINKTYPE) Nlocalbaryon[3]++;
                 }
-            }
-            else if (opt.partsearchtype==PSTSTAR) {
-                if (typeval==STARTYPE) {
-#ifdef USEMPI
-                    //if using MPI, determine proccessor and place in ibuf, store particle in particle buffer and if buffer full, broadcast data
-                    //unless ibuf is 0, then just store locally
-                    Pbuf[ibufindex]=Particle(mtemp*mscale,
-                        xtemp[0]*lscale,xtemp[1]*lscale,xtemp[2]*lscale,
-                        vtemp[0]*opt.velocityinputconversion+Hubbleflow*xtemp[0],
-                        vtemp[1]*opt.velocityinputconversion+Hubbleflow*xtemp[1],
-                        vtemp[2]*opt.velocityinputconversion+Hubbleflow*xtemp[2],
-                        count2,STARTYPE);
-                    //ensure that store number of particles to be sent to the reading threads
-                    Pbuf[ibufindex].SetPID(idval);
-#ifdef EXTRAINPUTINFO
-                    if (opt.iextendedoutput)
-                    {
-                        Pbuf[ibufindex].SetInputFileID(i);
-                        Pbuf[ibufindex].SetInputIndexInFile(nn+ninputoffset);
-                    }
-#endif
-                    Nbuf[ibuf]++;
-                    MPIAddParticletoAppropriateBuffer(opt, ibuf, ibufindex, ireadtask, BufSize, Nbuf, Pbuf, Nlocal, Part.data(), Nreadbuf, Preadbuf);
+                MPIAddParticletoAppropriateBuffer(opt, ibuf, ibufindex, ireadtask, BufSize, Nbuf, Pbuf, Nlocalbaryon[0], Pbaryons, Nreadbuf, Preadbuf);
 #else
-                Part[count2]=Particle(mtemp*mscale,
+                Pbaryons[bcount2]=Particle(mtemp*mscale,
                     xtemp[0]*lscale,xtemp[1]*lscale,xtemp[2]*lscale,
                     vtemp[0]*opt.velocityinputconversion+Hubbleflow*xtemp[0],
                     vtemp[1]*opt.velocityinputconversion+Hubbleflow*xtemp[1],
                     vtemp[2]*opt.velocityinputconversion+Hubbleflow*xtemp[2],
                     count2,typeval);
-                Part[count2].SetPID(idval);
+                Pbaryons[bcount2].SetPID(idval);
 #ifdef EXTRAINPUTINFO
-                  if (opt.iextendedoutput)
-                  {
-                      Part[count2].SetInputFileID(i);
-                      Part[count2].SetInputIndexInFile(nn+ninputoffset);
-	              }
-#endif
-#endif
-                    count2++;
+                if (opt.iextendedoutput)
+                {
+                    Part[bcount2].SetInputFileID(i);
+                    Part[bcount2].SetInputIndexInFile(nn+ninputoffset);
                 }
+#endif
+#endif
+                bcount2++;
             }
         }//end of ghost particle check
         }//end of loop over chunk
@@ -985,7 +953,6 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
         Fpartage[i].close();
         Fpartmet[i].close();
 #ifdef USEMPI
-
         //send information between read threads
         if (opt.nsnapread>1&&inreadsend<totreadsend){
             MPI_Allgather(Nreadbuf, opt.nsnapread, MPI_Int_t, mpi_nsend_readthread, opt.nsnapread, MPI_Int_t, mpi_comm_read);
@@ -1022,7 +989,8 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
     }
 
     //if gas searched in some fashion then load amr/hydro data
-    if (opt.partsearchtype==PSTGAS||opt.partsearchtype==PSTALL||(opt.partsearchtype==PSTDARK&&opt.iBaryonSearch)) {
+    if (opt.partsearchtype==PSTGAS||opt.partsearchtype==PSTALL||(opt.partsearchtype==PSTDARK&&opt.iBaryonSearch)
+    || opt.partsearchtype == PSTGALAXY) {
 #ifdef USEMPI
     if (ireadtask[ThisTask]>=0) {
     inreadsend=0;
@@ -1154,6 +1122,9 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
                                         utemp=hydrotempchunk[idim*chunksize*header[i].nvarh+4*chunksize+igrid]/hydrotempchunk[idim*chunksize*header[i].nvarh+0*chunksize+igrid]/(header[i].gamma_index-1.0);
                                         rhotemp=hydrotempchunk[idim*chunksize*header[i].nvarh+0*chunksize+igrid]*rhoscale;
                                         Ztemp=hydrotempchunk[idim*chunksize*header[i].nvarh+5*chunksize+igrid];
+                                        //???
+                                        bool typeflag=false;
+                                        for (auto &itype:usetypes) if (typeval==itype) typeflag = true;
                                         if (opt.partsearchtype==PSTALL) {
 #ifdef USEMPI
                                             Pbuf[ibufindex]=Particle(mtemp*mscale,
