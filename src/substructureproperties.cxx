@@ -1135,9 +1135,9 @@ private(j,Pval,rc,x,y,z,vx,vy,vz,J,mval)
             vz = (*Pval).Vz()-pdata[i].gcmvel[2];
             J=Coordinate(Pval->GetPosition()).Cross(Coordinate(vx,vy,vz))*mval;
             Jx+=J[0];Jy+=J[1];Jz+=J[2];
-            if (rc<pdata[i].gR200m) Jx200m+=J[0];Jy200m+=J[1];Jz200m+=J[2];
-            if (rc<pdata[i].gR200c) Jx200c+=J[0];Jy200c+=J[1];Jz200c+=J[2];
-            if (rc<pdata[i].gRBN98) JxBN98+=J[0];JyBN98+=J[1];JzBN98+=J[2];
+            if (rc<pdata[i].gR200m) {Jx200m+=J[0];Jy200m+=J[1];Jz200m+=J[2];}
+            if (rc<pdata[i].gR200c) {Jx200c+=J[0];Jy200c+=J[1];Jz200c+=J[2];}
+            if (rc<pdata[i].gRBN98) {JxBN98+=J[0];JyBN98+=J[1];JzBN98+=J[2];}
             sxx+=vx*vx*mval;
             syy+=vy*vy*mval;
             szz+=vz*vz*mval;
