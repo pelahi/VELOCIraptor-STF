@@ -1028,8 +1028,8 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
     inreadsend=0;
 #endif
     for (i=0;i<opt.num_files;i++) if (ireadfile[i]) {
-        sprintf(buf1,"%s/amr_%s.out%s%05d",opt.fname,opt.ramsessnapname,i+1);
-        sprintf(buf2,"%s/amr_%s.out%s",opt.fname,opt.ramsessnapname);
+        sprintf(buf1,"%s/amr_%s.out%05d",opt.fname,opt.ramsessnapname,i+1);
+        sprintf(buf2,"%s/amr_%s.out",opt.fname,opt.ramsessnapname);
         if (FileExists(buf1)) sprintf(buf,"%s",buf1);
         else if (FileExists(buf2)) sprintf(buf,"%s",buf2);
         Famr[i].open(buf, ios::binary|ios::in);

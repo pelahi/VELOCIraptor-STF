@@ -143,7 +143,7 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
     //if(i==ThisTask)
     if(ireadfile[i])
     {
-        if(opt.num_files>1) sprintf(buf,"%s.%d",opt.fname,i);
+        if(opt.num_files>1) sprintf(buf,"%s.%lld",opt.fname,i);
         else sprintf(buf,"%s",opt.fname);
         Fgad[i].open(buf,ios::in);
         if(!Fgad[i]) {
