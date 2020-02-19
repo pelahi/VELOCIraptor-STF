@@ -1665,6 +1665,17 @@ void ConfigCheck(Options &opt)
         errormessage("Conflict in config file: both gas/star/etc particle type search AND the separate baryonic (gas,star,etc) search flag are on. Check config");
         ConfigExit();
     }
+    if (opt.iBaryonSearch==0 && opt.partsearchtype==PSTGALAXY)
+    {
+        errormessage("Conflict in config file: running galaxy search which is a star based search where other particle types are associated with galaxies and the separate baryonic (gas,star,etc) search flag off. Galaxy search should be run with Baryon_searchflag=2. Check config");
+        ConfigExit();
+    }
+    if (opt.partsearchtype==PSTGALAXY && opt.foftype != FOF6DCORE)
+    {
+        errormessage("Conflict in config file: running galaxy search which is meant to use phase-space tensor search but requesting a different satellite search. Check config");
+        errormessage("See Particle_search_type and FoF_search_type.");
+        ConfigExit();
+    }
     if (opt.iBoundHalos && opt.iKeepFOF)
     {
         errormessage("Conflict in config file: Asking for Bound Field objects but also asking to keep the 3DFOF/then run 6DFOF. This is incompatible. Check config");
