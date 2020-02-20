@@ -3705,6 +3705,111 @@ private(i,weight)
     I=I*(1.0/mtot);
 }
 
+void CalcPhaseSigmaTensor(const Int_t n, Particle *p, GMatrix &cm, GMatrix &I, int itype) {
+    Double_t det,weight;
+    Double_t x,y,z,vx,vy,vz;
+    Double_t Ixx,Iyy,Izz,Ixy,Ixz,Iyz;
+    Double_t Ivxvx,Ivyvy,Ivzvz,Ivxvy,Ivxvz,Ivyvz;
+    Double_t Ixvx,Iyvx,Izvx,Ixvy,Iyvy,Izvy,Ixvz,Iyvz,Izvz;
+    I=GMatrix(6,6);
+    Int_t i;
+    Ixx=Iyy=Izz=Ixy=Ixz=Iyz=0.;
+    Ivxvx=Ivyvy=Ivzvz=Ivxvy=Ivxvz=Ivyvz=0.;
+    Ixvx=Iyvx=Izvx=Ixvy=Iyvy=Izvy=Ixvz=Iyvz=Izvz=0;
+    Double_t mtot=0;
+#ifdef USEOPENMP
+    if (n>=ompunbindnum) {
+#pragma omp parallel default(shared) \
+private(i,weight,x,y,z,vx,vy,vz)
+{
+#pragma omp for schedule(dynamic) reduction(+:Ixx,Iyy,Izz,Ixy,Ixz,Iyz,Ivxvx,Ivyvy,Ivzvz,Ivxvy,Ivxvz,Ivyvz,Ixvx,Iyvx,Izvx,Ixvy,Iyvy,Izvy,Ixvz,Iyvz,Izvz,mtot)
+    for (i = 0; i < n; i++)
+    {
+        if (itype==-1) weight=p[i].GetMass();
+        else if (p[i].GetType()==itype) weight=p[i].GetMass();
+        else weight=0.;
+        x = p[i].X()-cm(0,0);
+        y = p[i].Y()-cm(1,0);
+        z = p[i].Z()-cm(2,0);
+        vx = p[i].Vx()-cm(3,0);
+        vy = p[i].Vy()-cm(4,0);
+        vz = p[i].Vz()-cm(5,0);
+        Ixx+=x*x*weight;
+        Iyy+=y*y*weight;
+        Izz+=z*z*weight;
+        Ixy+=x*y*weight;
+        Ixz+=x*z*weight;
+        Iyz+=y*z*weight;
+        Ivxvx+=vx*vx*weight;
+        Ivyvy+=vy*vy*weight;
+        Ivzvz+=vz*vz*weight;
+        Ivxvy+=vx*vy*weight;
+        Ivxvz+=vx*vz*weight;
+        Ivyvz+=vy*vz*weight;
+
+        Ixvx+=x*vx*weight;
+        Iyvx+=y*vx*weight;
+        Izvx+=z*vx*weight;
+        Ixvy+=x*vy*weight;
+        Iyvy+=y*vy*weight;
+        Izvy+=z*vy*weight;
+        Ixvz+=x*vz*weight;
+        Iyvz+=y*vz*weight;
+        Izvz+=z*vz*weight;
+
+        mtot+=weight;
+    }
+}
+    I(0,0)=Ixx;I(1,1)=Iyy;I(2,2)=Izz;
+    I(0,1)=I(1,0)=Ixy;
+    I(0,2)=I(2,0)=Ixz;
+    I(1,2)=I(2,1)=Iyz;
+
+    I(3,3)=Ivxvx;I(4,4)=Ivyvy;I(5,5)=Ivzvz;
+    I(3,4)=I(4,3)=Ivxvy;
+    I(3,5)=I(5,3)=Ivxvz;
+    I(4,5)=I(5,4)=Ivyvz;
+
+    I(0,3)=I(3,0)=Ixvx;
+    I(1,3)=I(3,1)=Iyvx;
+    I(2,3)=I(3,2)=Izvx;
+    I(0,4)=I(4,0)=Ixvy;
+    I(1,4)=I(4,1)=Iyvy;
+    I(2,4)=I(4,2)=Izvy;
+    I(0,5)=I(5,0)=Ixvz;
+    I(1,5)=I(5,1)=Iyvz;
+    I(2,5)=I(5,2)=Izvz;
+
+    }
+    else {
+#endif
+    for (i = 0; i < n; i++)
+    {
+        if (itype==-1) weight=p[i].GetMass();
+        else if (p[i].GetType()==itype) weight=p[i].GetMass();
+        else weight=0.;
+        for (int j = 0; j < 6; j++)
+        {
+            for (int k = j; k < 6; k++)
+            {
+                I(j, k) += (p[i].GetPhase(j)-cm(j,0)) *(p[i].GetPhase(k)-cm(k,0))*weight;
+            }
+        }
+        mtot+=weight;
+    }
+#ifdef USEOPENMP
+    }
+#endif
+    for (int j = 0; j < 6; j++)
+    {
+        for (int k = j+1; k < 6; k++)
+        {
+            I(k,j) = I(j,k);
+        }
+    }
+    I=I*(1.0/mtot);
+}
+
 ///calculate the weighted reduced inertia tensor assuming particles are the same mass
 void CalcMTensor(Matrix& M, const Double_t q, const Double_t s, const Int_t n, Particle *p, int itype)
 {

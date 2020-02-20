@@ -113,7 +113,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     cout<<ThisTask<<" Search particles using 3DFOF in physical space"<<endl;
     cout<<ThisTask<<" Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits (ell^2="<<param[6]<<" and likely "<<sqrt(param[6])/opt.ellxscale<<" in interparticle spacing"<<endl;
     if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) {fofcmp=&FOF3dDM;param[7]=DARKTYPE;fofcheck=FOFchecktype;}
-    else if (opt.partsearchtype==PSTGALAXY) {fofcmp=&FOF3dDM;param[7]=DARKTYPE;fofcheck=FOFchecktype;}
+    else if (opt.partsearchtype==PSTGALAXY) {fofcmp=&FOF3dTyped;param[7]=STARTYPE;fofcheck=FOFchecktype;}
     else fofcmp=&FOF3d;
 
 
@@ -210,6 +210,10 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
             pfof=tree->FOFCriterionSetBasisForLinks(fofcmp,param,numgroups,minsize,
                 iorder,0,FOFchecktype,Head,Next);
         }
+        else if (opt.partsearchtype==PSTGALAXY) {
+            pfof=tree->FOFCriterionSetBasisForLinks(fofcmp,param,numgroups,minsize,
+                iorder,0,FOFchecktype,Head,Next);
+        }
         else {
             pfof=tree->FOF(sqrt(param[1]),numgroups,minsize,iorder,Head,Next);
         }
@@ -217,6 +221,10 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
 #else
     //posible alteration for all particle search
     if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) {
+        pfof=tree->FOFCriterionSetBasisForLinks(fofcmp,param,numgroups,minsize,
+            iorder,0,FOFchecktype,Head,Next);
+    }
+    else if (opt.partsearchtype==PSTGALAXY) {
         pfof=tree->FOFCriterionSetBasisForLinks(fofcmp,param,numgroups,minsize,
             iorder,0,FOFchecktype,Head,Next);
     }
@@ -325,6 +333,9 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     cout<<ThisTask<<": Starting to linking across MPI domains"<<endl;
     do {
         if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) {
+            links_across=MPILinkAcross(nbodies, tree, Part.data(), pfof, Len, Head, Next, param[1], fofcheck, param);
+        }
+        if (opt.partsearchtype==PSTGALAXY) {
             links_across=MPILinkAcross(nbodies, tree, Part.data(), pfof, Len, Head, Next, param[1], fofcheck, param);
         }
         else {
@@ -1917,9 +1928,11 @@ private(i,tid)
 }
 
 //search for unassigned background particles if cores have been found.
-void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_t *&pfof, Int_t *&pfofbg, Int_t &numgroupsbg, Double_t param[], vector<Double_t> &dispfac,
+void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *&Partsubset,
+    Int_t *&pfof, Int_t *&pfofbg, Int_t &numgroupsbg, Double_t param[], vector<Double_t> &dispfac,
     int numactiveloops, vector<int> &corelevel,
-    int nthreads){
+    int nthreads)
+{
     //for simplicity make a new particle array storing core particles
     Int_t nincore=0,nbucket=opt.Bsize,pid, pidcore;
     Particle *Pcore,*Pval;
@@ -3384,6 +3397,7 @@ Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, const I
     nparts_tot = nparts;
     ndark_tot = ndark;
 #endif
+
     if (nparts_tot == ndark_tot) {
         if (ThisTask == 0) cout<<"Requested baryon search but no baryons loaded. Skipping."<<endl;
         pfofall=pfofdark;
@@ -3915,6 +3929,236 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
 #endif
 
     return pfofall;
+}
+
+
+/*!
+ * Searches other other particles that were not basis for links
+ * separately to see if they are associated with any subhalo/satelltie object inside a halo/central galaxy
+ *
+ * Assumes particles that could be associated with subhalos located in MPI's domain, requiring no communication.
+*/
+void SearchOtherParticlesToAssignToSubstructuresInPhaseSpace(Options &opt,
+    Int_t &notherparticles, const Int_t nmaintypeinobjects, vector<Particle> &Part,
+    Int_t *&pfofmaintype, Int_t &nallobjects, Int_t &ncentralobjects)
+{
+    KDTree *tree;
+    Particle *Pother;
+    Int_t nparts = nmaintypeinobjects + notherparticles;
+    Int_t nparts_tot, nmaintypeinobjects_tot, npartingroups, pfofval;
+    vector<Int_t> numingroup, noffset;
+    Int_t *pfofother, *pfofall;
+    vector<Int_t> storeval;
+    int nsearch;
+    Double_t mval;
+    StrucLevelData *ppsldata,**papsldata;
+    vector<Int_t> nsub, parentgid,  uparentgid, stype;
+    int particletype;
+    if (opt.partsearchtype == PSTALL) particletype = DARKTYPE;
+    else if (opt.partsearchtype == PSTGALAXY) particletype = STARTYPE;
+
+    int nthreads=1,maxnthreads,tid;
+#ifndef USEMPI
+    int ThisTask=0,NProcs=1;
+#endif
+#ifdef USEOPENMP
+#pragma omp parallel
+    {
+    if (omp_get_thread_num()==0) maxnthreads=omp_get_num_threads();
+    if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
+    }
+#endif
+
+#ifdef USEMPI
+    MPI_Allreduce(&nparts, &nparts_tot, 1, MPI_Int_t, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(&nmaintypeinobjects, &nmaintypeinobjects_tot, 1, MPI_Int_t, MPI_SUM, MPI_COMM_WORLD);
+#else
+    nparts_tot = nparts;
+    nmaintypeinobjects_tot = nmaintypeinobjects;
+#endif
+
+    if (nparts_tot == nmaintypeinobjects_tot)
+    {
+        if (ThisTask == 0) cout<<"Requested subsequent satellite galaxy search but no particles to assign. Skipping."<<endl;
+        return;
+    }
+    if (nparts == nmaintypeinobjects)
+    {
+        cout<<ThisTask<<" has no local particles to assign. Skipping search."<<endl;
+#ifdef USEMPI
+        // if MPI and also unbinding then there is all gather that is invoked.
+        //as number of groups could have changed has due to unbinding.
+        if (opt.uinfo.unbindflag) {
+            cout<<"MPI thread "<<ThisTask<<" has found "<<nallobjects<<endl;
+            MPI_Allgather(&nallobjects, 1, MPI_Int_t, mpi_ngroups, 1, MPI_Int_t, MPI_COMM_WORLD);
+            //free up memory now that only need to store pfof and global ids
+            if (ThisTask==0) {
+                int totalgroups=0;
+                for (int j=0;j<NProcs;j++) totalgroups+=mpi_ngroups[j];
+                cout<<"Total number of groups found is "<<totalgroups<<endl;
+            }
+        }
+#endif
+        return;
+    }
+
+    cout<<ThisTask<<" searching other particles to assign to objects"<<endl;
+    cout<<"Total number of other particles to look at "<<notherparticles<<endl;
+
+    //store original pfof value
+    pfofall=pfofmaintype;
+#ifndef USEMPI
+    //if no objects are found then stop (or if no substructures found as baryons won't change association)
+    if (nallobjects==0 || nallobjects==ncentralobjects) return;
+#endif
+    //sort particles so stars are all at the beginning
+    pfofother=&pfofall[nmaintypeinobjects];
+    storeval.resize(nparts);
+    numingroup.resize(nallobjects+1,0);
+    noffset.resize(nallobjects+1,0);
+    for (auto i=0;i<nparts;i++) {
+        storeval[i]=Part[i].GetID();
+        if (Part[i].GetType()==particletype) {
+            pfofval = pfofall[i];
+            if (pfofval == 0) pfofval = nparts;
+            if (pfofval > 0) numingroup[pfofval]++;
+        }
+        else {
+            pfofval = pfofall[i] + 2 * nparts;
+        }
+        Part[i].SetPID(pfofval);
+    }
+    for (auto i=2;i<=nallobjects;i++) {
+        noffset[i] = noffset[i-1]+numingroup[i-1];
+    }
+    qsort(Part.data(),nparts,sizeof(Particle),PIDCompare);
+    Pother = &Part[nmaintypeinobjects];
+    pfofother = &pfofall[nmaintypeinobjects];
+    for (auto i=0;i<nparts;i++) {
+        if (Part[i].GetType() == particletype) {
+            pfofall[i] = Part[i].GetPID();
+            if (pfofall[i] == nparts) pfofall[i] = 0;
+        }
+        else {
+            pfofall[i] = Part[i].GetPID() - 2 * nparts;
+        }
+    }
+
+    //get hierarchy information
+    nsub.resize(nallobjects+1);
+    parentgid.resize(nallobjects+1);
+    uparentgid.resize(nallobjects+1);
+    stype.resize(nallobjects+1);
+    Int_t nhierarchy=GetHierarchy(opt,nallobjects,
+        nsub.data(), parentgid.data(), uparentgid.data(), stype.data());
+    if (nallobjects <= 5) nsearch = nallobjects;
+    else nsearch = 5;
+
+    if (opt.iverbose) {
+        cout<<"Getting phase-space distributions."<<endl;
+    }
+    //get phase-space centres and dispersions for all objects
+    vector<GMatrix> cmphase(nallobjects,GMatrix(6,1));
+    vector<GMatrix> invdisp(nallobjects,GMatrix(6,6));
+    vector<Particle> Pobject(nallobjects);
+#ifdef USEOPENMP
+#pragma omp parallel for \
+default(none) shared(Part, numingroup, noffset, nallobjects, cmphase, invdisp, Pobject, mval) schedule(dynamic)
+#endif
+    for (auto i=1;i<=nallobjects;i++)
+    {
+        cmphase[i] = CalcPhaseCM(numingroup[i], &(Part.data())[noffset[i]]);
+        CalcPhaseSigmaTensor(numingroup[i], &(Part.data())[noffset[i]], cmphase[i], invdisp[i]);
+        invdisp[i]=invdisp[i].Inverse();
+        Pobject[i].SetMass(0);
+        for (auto j=0;j<numingroup[i];j++) mval+=Part[noffset[i]+j].GetMass();
+        for (auto j=0;j<6;j++) Pobject[i].SetPhase(j,cmphase[i](j,0));
+        Pobject[i].SetMass(mval);
+    }
+
+    //build tree of galaxy centres
+    tree = new KDTree(Pobject.data(), nallobjects, nsearch, tree->TPHYS);
+
+    if (opt.iverbose) cout<<"Searching ..."<<endl;
+
+    //for each particle find the phase-space distance to nearest galaxy core
+#ifdef USEOPENMP
+#pragma omp parallel \
+default(shared) private(mval)
+{
+#endif
+    Int_t *nnID = new Int_t[nsearch];
+    Double_t *dist2 = new Double_t[nsearch];
+    Particle *Pval;
+    Coordinate pos;
+    GMatrix phasedist(6,1);
+    int objectindex, objectid, pfofold, pfofnew, nactivesearch;
+    Double_t dval, D2;
+#ifdef USEOPENMP
+#pragma omp parallel for schedule(dynamic)
+#endif
+    for (auto i=0;i<notherparticles;i++)
+    {
+        Pval=&Pother[i];
+        pfofold = pfofother[i];
+        //skip if other particle, which should at this point only belong
+        //to an central object and its envelope, has no substructure, nothing to do.
+        if (nsub[pfofold] == 0) continue;
+        //otherwise find, the closest object in phase-space using a max search
+        //of number min(nsearch,nsub+1)
+        pos=Coordinate(Pval->GetPosition());
+        nactivesearch = min(nsearch, (int)nsub[pfofold]+1);
+        tree->FindNearestPos(pos, nnID, dist2, nactivesearch);
+        objectindex = nnID[0];
+        objectid = Pobject[objectindex].GetID();
+        for (auto k=0;k<6;k++) phasedist(k,0) = Pval->GetPhase(k)-Pobject[objectindex].GetPhase(k);
+        dval = (phasedist.Transpose()*invdisp[objectid]*phasedist)(0,0);
+        mval = Pobject[objectindex].GetMass();
+        pfofnew = objectid;
+        for (auto j=1;j<nactivesearch;j++) {
+            objectindex = nnID[j];
+            objectid = Pobject[objectindex].GetID();
+            for (auto k=0;k<6;k++) phasedist(k,0) = Pval->GetPhase(k)-Pobject[objectindex].GetPhase(k);
+            D2 = (phasedist.Transpose()*invdisp[objectid]*phasedist)(0,0);
+            if (dval>D2*Pobject[objectindex].GetMass()/mval) {
+                dval=D2;
+                mval=Pobject[objectindex].GetMass();
+                pfofnew = objectid;
+            }
+        }
+        pfofother[i] = pfofnew;
+    }
+#ifdef USEOPENMP
+    delete[] nnID;
+    delete[] dist2;
+}
+#endif
+    delete tree;
+    //now sort back in to input order
+    qsort(Part.data(),nparts,sizeof(Particle),IDCompare);
+    for (auto i=0;i<nparts;i++) Part[i].SetPID(storeval[i]);
+
+    cout<<"Done"<<endl;
+
+    //if unbinding go back and redo full unbinding after including baryons
+    //note that here if all particles are searched, the particle array has been reorderd from the input order
+    //to dark matter first followed by baryons as has the pfofall array
+    if (opt.uinfo.unbindflag&&nallobjects>0) {
+    }
+
+#ifdef USEMPI
+    //if number of groups has changed then update
+    if (opt.uinfo.unbindflag) {
+        cout<<"MPI thread "<<ThisTask<<" has found "<<nallobjects<<endl;
+        MPI_Allgather(&nallobjects, 1, MPI_Int_t, mpi_ngroups, 1, MPI_Int_t, MPI_COMM_WORLD);
+        //free up memory now that only need to store pfof and global ids
+        if (ThisTask==0) {
+            int totalgroups=0;
+            for (int j=0;j<NProcs;j++) totalgroups+=mpi_ngroups[j];
+            cout<<"Total number of groups found is "<<totalgroups<<endl;
+        }
+    }
+#endif
 }
 //@}
 

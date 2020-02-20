@@ -219,6 +219,10 @@ void RemoveSpuriousDynamicalSubstructures(Options &opt, const Int_t nsubset, Int
 int CheckSignificance(Options &opt, const Int_t nsubset, Particle *Partsubset, Int_t &numgroups, Int_t *numingroups, Int_t *pfof, Int_t **pglist);
 ///Search for Baryonic structures associated with dark matter structures in phase-space
 Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, const Int_t ndark, vector<Particle> &Partsubset, Int_t *&pfofdark, Int_t &ngroupdark, Int_t &nhalos, int ihaloflag=0, int iinclusive=0, PropData *phalos=NULL);
+///Search other particles other than main particle used to search for substructures to assign them based on phase-space
+void SearchOtherParticlesToAssignToSubstructuresInPhaseSpace(Options &opt,
+    Int_t &notherparticles, const Int_t nmaintypeinobjects, vector<Particle> &Part,
+    Int_t *&pfofmaintype, Int_t &nallobjects, Int_t &ncentralobjects);
 ///Get the hierarchy of structures found
 Int_t GetHierarchy(Options &opt, Int_t ngroups, Int_t *nsub, Int_t *parentgid, Int_t *uparentgid, Int_t *stype);
 ///Copy hierarchy to PropData structure
@@ -349,6 +353,8 @@ void CalcVelSigmaTensor(const Int_t n, Particle *p, Double_t &a, Double_t &b, Do
 void CalcPhaseSigmaTensor(const Int_t n, Particle *p, GMatrix &eigenvalues, GMatrix& eigenvec, GMatrix &I, int itype=-1);
 ///Calculate phase-space dispersion tensor
 void CalcPhaseSigmaTensor(const Int_t n, Particle *p, GMatrix &I, int itype=-1);
+///Calculate phase-space dispersion tensor about a centre of mass
+void CalcPhaseSigmaTensor(const Int_t n, Particle *p, GMatrix &cm, GMatrix &I, int itype =-1);
 ///Calculate the reduced weighted inertia tensor used to determine the spatial morphology
 void CalcMTensor(Matrix& M, const Double_t q, const Double_t s, const Int_t n, Particle *p, int itype);
 ///Same as \ref CalcMTensor but include mass
