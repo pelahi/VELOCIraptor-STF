@@ -1211,9 +1211,6 @@ void PotentialPP(Options &opt, Int_t nbodies, Particle *Part)
             r2+=eps2;
             r2=1.0/sqrt(r2);
             pot=-opt.G*(Part[j].GetMass()*Part[k].GetMass())*r2;
-            #ifdef NOMASS
-            pot *= mv2;
-            #endif
             poti=Part[j].GetPotential()+pot;Part[j].SetPotential(poti);
             poti=Part[k].GetPotential()+pot;Part[k].SetPotential(poti);
         }

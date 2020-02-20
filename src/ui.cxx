@@ -293,6 +293,242 @@ void usage(void)
 
     */
 
+inline void ConfigMessage(char *c) {
+#ifndef USEMPI
+    int ThisTask = 0;
+#endif
+    if (ThisTask==0) cerr<<c<<endl;
+}
+
+inline void errormessage(string message) {
+#ifndef USEMPI
+    int ThisTask =0;
+#endif
+    if (ThisTask==0)  cerr<<message<<endl;
+}
+
+inline void ConfigExit() {
+#ifdef USEMPI
+            MPI_Abort(MPI_COMM_WORLD,8);
+#else
+            exit(8);
+#endif
+}
+
+inline string ExtraFieldIndexName(unsigned int i){
+    string s = "";
+    if (i>0) s ="_index_"+to_string(i);
+    return s;
+}
+
+inline vector<string> ExtraFieldCalculationsAllowedOptions()
+{
+    vector<string> list;
+    list.push_back(("averagemassweighted"));
+    list.push_back(("average"));
+    list.push_back(("logaveragemassweighted"));
+    list.push_back(("logaverage"));
+    list.push_back(("totalmassweighted"));
+    list.push_back(("total"));
+    list.push_back(("stdmassweighted"));
+    list.push_back(("std"));
+    list.push_back(("logstdmassweighted"));
+    list.push_back(("logstd"));
+    list.push_back(("minmassweighted"));
+    list.push_back(("min"));
+    list.push_back(("maxmassweighted"));
+    list.push_back(("max"));
+    return list;
+}
+
+inline map<string,unsigned int> ExtraFieldCalculationsStringtoIntFlag()
+{
+    map<string, unsigned int> list;
+    list[string("averagemassweighted")] = CALCAVERAGEMASSWEIGHT;
+    list[string("average")] = CALCAVERAGE;
+    list[string("logaveragemassweighted")] = CALCLOGAVERAGEMASSWEIGHT;
+    list[string("logaverage")] = CALCLOGAVERAGE;
+    list[string("totalmassweighted")] = CALCTOTALMASSWEIGHT;
+    list[string("total")] = CALCTOTAL;
+    list[string("stdmassweighted")] = CALCSTDMASSWEIGHT;
+    list[string("std")] = CALCSTD;
+    list[string("logstdmassweighted")] = CALCLOGSTDMASSWEIGHT;
+    list[string("logstd")] = CALCLOGSTD;
+    list[string("minmassweighted")] = CALCMINMASSWEIGHT;
+    list[string("min")] = CALCMIN;
+    list[string("maxmassweighted")] = CALCMAXMASSWEIGHT;
+    list[string("max")] = CALCMAX;
+    list[string("unkown")] = 0;
+    return list;
+}
+
+inline map<unsigned int,string> ExtraFieldCalculationsIntFlagToString()
+{
+    map<unsigned int, string> list;
+    list[CALCAVERAGEMASSWEIGHT] = string("averagemassweighted");;
+    list[CALCAVERAGE] = string("average");
+    list[CALCLOGAVERAGEMASSWEIGHT] = string("logaveragemassweighted");
+    list[CALCLOGAVERAGE] = string("logaverage");
+    list[CALCTOTALMASSWEIGHT] = string("totalmassweighted");
+    list[CALCTOTAL] = string("total");
+    list[CALCSTDMASSWEIGHT] = string("stdmassweighted");
+    list[CALCSTD] = string("std");
+    list[CALCLOGSTDMASSWEIGHT] = string("logstdmassweighted");
+    list[CALCLOGSTD] = string("logstd");
+    list[CALCMINMASSWEIGHT] = string("minmassweighted");
+    list[CALCMIN] = string("min");
+    list[CALCMAXMASSWEIGHT] = string("maxmassweighted");
+    list[CALCMAX] = string("max");
+    list[0] = string("unkown");
+    return list;
+}
+
+
+inline void ExtraFieldCheck(string configentryname, vector<string> &names, vector<string>&output_names,
+    vector<unsigned int> &calctypes, vector<unsigned int> &indices,
+    vector<float> &conversions, vector<string> units, vector<int> &pairindices)
+{
+    if (names.size()==0) return;
+    set<unsigned int> unique_int;
+    set<string> unique_name, outputset;
+    string outputfieldname;
+    unsigned int entryindex, calctype;
+    string scalctype;
+    vector<unsigned int> stdfuncs, avefuncs;
+    stdfuncs.push_back(CALCSTD);avefuncs.push_back(CALCAVERAGE);
+    stdfuncs.push_back(CALCSTDMASSWEIGHT);avefuncs.push_back(CALCAVERAGEMASSWEIGHT);
+    stdfuncs.push_back(CALCLOGSTD);avefuncs.push_back(CALCLOGAVERAGE);
+    stdfuncs.push_back(CALCLOGSTDMASSWEIGHT);avefuncs.push_back(CALCLOGAVERAGEMASSWEIGHT);
+
+    vector<string> newnames(names), newunits(units);
+    vector<unsigned int> newcalctypes(calctypes), newindices(indices);
+    vector<float> newconversions(conversions);
+    vector<string> allowedlist = ExtraFieldCalculationsAllowedOptions();
+    string list;
+    for (auto &x:allowedlist) list+= x+string(", ");
+    map<string, unsigned int> calcstringtoint = ExtraFieldCalculationsStringtoIntFlag();
+    map<unsigned int, string> calcinttostring = ExtraFieldCalculationsIntFlagToString();
+
+
+    //check for unacceptable entries
+    for (auto i=0;i<names.size();i++)
+    {
+        entryindex = indices[i];
+        calctype = calctypes[i];
+        scalctype = calcinttostring[calctype];
+        outputfieldname = names[i]+ExtraFieldIndexName(entryindex)+string("_")+scalctype;
+        if (calctype == 0) {
+            errormessage("Unknown calculation requested for "+configentryname);
+            errormessage("This is entry " + to_string(i)+" config options " + names[i] + "," + to_string(entryindex) + "," + scalctype);
+            errormessage("Please refer to documentation for list of calculations. Currently allowed:");
+            errormessage(list);
+            ConfigExit();
+        }
+        if (outputset.count(outputfieldname) == 0) {
+            outputset.insert(outputfieldname);
+        }
+        else{
+            errormessage("Duplicate entry found for "+configentryname);
+            errormessage("This is entry " +to_string(i)+" config options " + names[i]+","+ to_string(entryindex)+","+to_string(calctype));
+            errormessage("This will be removed");
+        }
+    }
+
+    //if standard deviation in list and average not, add it
+    for (auto i=0;i<calctypes.size();i++) {
+        for (auto j=0;j<stdfuncs.size();j++) {
+            if (calctypes[i] == stdfuncs[j])
+            {
+                newnames.push_back(names[i]);
+                newindices.push_back(indices[i]);
+                newconversions.push_back(conversions[i]);
+                newunits.push_back(units[i]);
+                newcalctypes.push_back(avefuncs[j]);
+            }
+        }
+    }
+    if (names.size() != newnames.size()) {
+        names = newnames;
+        indices = newindices;
+        units = newunits;
+        conversions = newconversions;
+        calctypes = newcalctypes;
+    }
+    newnames.resize(0);
+    newindices.resize(0);
+    newunits.resize(0);
+    newconversions.resize(0);
+    newcalctypes.resize(0);
+
+    //remove duplicate entries
+    outputset.clear();
+    for (auto i=0;i<names.size();i++)
+    {
+        entryindex = indices[i];
+        calctype = calctypes[i];
+        scalctype = calcinttostring[calctype];
+        outputfieldname = names[i]+ExtraFieldIndexName(entryindex)+scalctype;
+        if (outputset.count(outputfieldname) == 0) {
+            outputset.insert(outputfieldname);
+            newnames.push_back(names[i]);
+            newindices.push_back(indices[i]);
+            newconversions.push_back(conversions[i]);
+            newunits.push_back(units[i]);
+            newcalctypes.push_back(calctypes[i]);
+        }
+    }
+    names = newnames;
+    indices = newindices;
+    units = newunits;
+    conversions = newconversions;
+    calctypes = newcalctypes;
+    pairindices.resize(names.size());
+    for (auto i=0;i<names.size();i++)
+    {
+        entryindex = indices[i];
+        calctype = calctypes[i];
+        pairindices[i] = i;
+        outputfieldname = names[i]+ExtraFieldIndexName(entryindex)
+            +string("_")+calcinttostring[calctype]+string("_")+units[i];
+        output_names.push_back(outputfieldname);
+    }
+    for (auto i=0;i<calctypes.size();i++) {
+        for (auto j=0;j<stdfuncs.size();j++) if (calctypes[i] == stdfuncs[j]) {
+            for (auto k=0;k<calctypes.size();k++) {
+                if (names[k] != names[i] || indices[k] != indices[i]) continue;
+                if (calctypes[k] == avefuncs[j]) {
+                    pairindices[i] = k;
+                    break;
+                }
+            }
+        }
+    }
+}
+
+inline void ListDuplicateEntryCheck(string configentryname, int &num,
+    vector<string> &names, vector<Double_t> &values)
+{
+    set<string> unique;
+    if (num ==0) return;
+    int iduplicates = 0;
+    for (auto &val:names) {
+        if(unique.count(val)) {
+            errormessage("Dupplicate entry(ies) found in "+configentryname);
+            errormessage("Removing duplicate entries");
+            iduplicates += 1;
+        }
+        else unique.insert(val);
+    }
+    if (iduplicates) {
+        names = vector<string>(unique.begin(),unique.end());
+        values.resize(0);
+        for (auto &val:names) values.push_back(stof(val));
+        num = values.size();
+
+    }
+}
+
+
 ///Read parameters from a parameter file. For list of currently implemented options see \ref configopt
 ///\todo still more parameters that can be adjusted
 void GetParamFile(Options &opt)
@@ -306,6 +542,8 @@ void GetParamFile(Options &opt)
     fstream paramfile,cfgfile;
     size_t pos;
     string dataline, token, delimiter = ",";
+    map<string, unsigned int> calcstringtoint = ExtraFieldCalculationsStringtoIntFlag();
+    map<unsigned int, string> calcinttostring = ExtraFieldCalculationsIntFlagToString();
     if (!FileExists(opt.pname)){
         if (ThisTask==0)
             cerr<<"Config file: "<<opt.pname <<" does not exist or can't be read, terminating"<<endl;
@@ -691,6 +929,63 @@ void GetParamFile(Options &opt)
                             opt.gas_internalprop_names.push_back(token);
                             dataline.erase(0, pos + delimiter.length());
                         }
+                        if (opt.gas_internalprop_index.size() == 0) {
+                            opt.gas_internalprop_index.resize(opt.gas_internalprop_names.size(),0);
+                        }
+                        if (opt.gas_internalprop_function.size() == 0) {
+                            opt.gas_internalprop_function.resize(opt.gas_internalprop_names.size(),CALCAVERAGEMASSWEIGHT);
+                        }
+                        if (opt.gas_internalprop_input_output_unit_conversion_factors.size() == 0) {
+                            opt.gas_internalprop_input_output_unit_conversion_factors.resize(
+                                opt.gas_internalprop_names.size(),1.0);
+                        }
+                        if (opt.gas_internalprop_output_units.size() == 0) {
+                            opt.gas_internalprop_output_units.resize(opt.gas_internalprop_names.size(),string("unknownunits"));
+                        }
+                    }
+                    else if (strcmp(tbuff, "Gas_internal_property_index_in_file")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<unsigned int> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(stoi(token));
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.gas_internalprop_index = tempvec;
+                    }
+                    else if (strcmp(tbuff, "Gas_internal_property_calculation_type")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<unsigned int> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(calcstringtoint[token]);
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.gas_internalprop_function = tempvec;
+                    }
+                    else if (strcmp(tbuff, "Gas_internal_property_output_units")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<string> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(token);
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.gas_internalprop_output_units = tempvec;
+                    }
+                    else if (strcmp(tbuff, "Gas_internal_property_input_output_unit_conversion_factors")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<float> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(stof(token));
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.gas_internalprop_input_output_unit_conversion_factors = tempvec;
                     }
                     else if (strcmp(tbuff, "Star_internal_property_names")==0) {
                         pos=0;
@@ -700,6 +995,63 @@ void GetParamFile(Options &opt)
                             opt.star_internalprop_names.push_back(token);
                             dataline.erase(0, pos + delimiter.length());
                         }
+                        if (opt.star_internalprop_index.size() == 0) {
+                            opt.star_internalprop_index.resize(opt.star_internalprop_names.size(),0);
+                        }
+                        if (opt.gas_internalprop_function.size() == 0) {
+                            opt.star_internalprop_function.resize(opt.star_internalprop_names.size(),CALCAVERAGEMASSWEIGHT);
+                        }
+                        if (opt.star_internalprop_input_output_unit_conversion_factors.size() == 0) {
+                            opt.star_internalprop_input_output_unit_conversion_factors.resize(
+                                opt.star_internalprop_names.size(),1.0);
+                        }
+                        if (opt.star_internalprop_output_units.size() == 0) {
+                            opt.star_internalprop_output_units.resize(opt.star_internalprop_names.size(),string("unknownunits"));
+                        }
+                    }
+                    else if (strcmp(tbuff, "Star_internal_property_index_in_file")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<unsigned int> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(stoi(token));
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.star_internalprop_index = tempvec;
+                    }
+                    else if (strcmp(tbuff, "Star_internal_property_calculation_type")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<unsigned int> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(calcstringtoint[token]);
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.star_internalprop_function = tempvec;
+                    }
+                    else if (strcmp(tbuff, "Star_internal_property_output_units")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<string> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(token);
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.star_internalprop_output_units = tempvec;
+                    }
+                    else if (strcmp(tbuff, "Star_internal_property_input_output_unit_conversion_factors")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<float> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(stof(token));
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.star_internalprop_input_output_unit_conversion_factors = tempvec;
                     }
                     else if (strcmp(tbuff, "BH_internal_property_names")==0) {
                         pos=0;
@@ -709,6 +1061,63 @@ void GetParamFile(Options &opt)
                             opt.bh_internalprop_names.push_back(token);
                             dataline.erase(0, pos + delimiter.length());
                         }
+                        if (opt.bh_internalprop_index.size() == 0) {
+                            opt.bh_internalprop_index.resize(opt.bh_internalprop_names.size(),0);
+                        }
+                        if (opt.bh_internalprop_function.size() == 0) {
+                            opt.bh_internalprop_function.resize(opt.bh_internalprop_names.size(),CALCAVERAGEMASSWEIGHT);
+                        }
+                        if (opt.bh_internalprop_input_output_unit_conversion_factors.size() == 0) {
+                            opt.bh_internalprop_input_output_unit_conversion_factors.resize(
+                                opt.bh_internalprop_names.size(),1.0);
+                        }
+                        if (opt.bh_internalprop_output_units.size() == 0) {
+                            opt.bh_internalprop_output_units.resize(opt.bh_internalprop_names.size(),string("unknownunits"));
+                        }
+                    }
+                    else if (strcmp(tbuff, "BH_internal_property_index_in_file")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<unsigned int> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(stoi(token));
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.bh_internalprop_index = tempvec;
+                    }
+                    else if (strcmp(tbuff, "BH_internal_property_calculation_type")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<unsigned int> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(calcstringtoint[token]);
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.bh_internalprop_function = tempvec;
+                    }
+                    else if (strcmp(tbuff, "BH_internal_property_output_units")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<string> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(token);
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.bh_internalprop_output_units = tempvec;
+                    }
+                    else if (strcmp(tbuff, "BH_internal_property_input_output_unit_conversion_factors")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<float> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(stof(token));
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.bh_internalprop_input_output_unit_conversion_factors = tempvec;
                     }
                     else if (strcmp(tbuff, "Extra_DM_internal_property_names")==0) {
                         pos=0;
@@ -718,6 +1127,63 @@ void GetParamFile(Options &opt)
                             opt.extra_dm_internalprop_names.push_back(token);
                             dataline.erase(0, pos + delimiter.length());
                         }
+                        if (opt.extra_dm_internalprop_index.size() == 0) {
+                            opt.extra_dm_internalprop_index.resize(opt.extra_dm_internalprop_names.size(),0);
+                        }
+                        if (opt.extra_dm_internalprop_function.size() == 0) {
+                            opt.extra_dm_internalprop_function.resize(opt.extra_dm_internalprop_names.size(),CALCAVERAGEMASSWEIGHT);
+                        }
+                        if (opt.extra_dm_internalprop_input_output_unit_conversion_factors.size() == 0) {
+                            opt.extra_dm_internalprop_input_output_unit_conversion_factors.resize(
+                                opt.extra_dm_internalprop_names.size(),1.0);
+                        }
+                        if (opt.extra_dm_internalprop_output_units.size() == 0) {
+                            opt.extra_dm_internalprop_output_units.resize(opt.extra_dm_internalprop_names.size(),string("unknownunits"));
+                        }
+                    }
+                    else if (strcmp(tbuff, "Extra_DM_internal_property_index_in_file")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<unsigned int> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(stoi(token));
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.extra_dm_internalprop_index = tempvec;
+                    }
+                    else if (strcmp(tbuff, "Extra_DM_internal_property_calculation_type")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<unsigned int> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(calcstringtoint[token]);
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.extra_dm_internalprop_function = tempvec;
+                    }
+                    else if (strcmp(tbuff, "Extra_DM_internal_property_output_units")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<string> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(token);
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.extra_dm_internalprop_output_units = tempvec;
+                    }
+                    else if (strcmp(tbuff, "Extra_DM_internal_property_input_output_unit_conversion_factors")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<float> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(stof(token));
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.extra_dm_internalprop_input_output_unit_conversion_factors = tempvec;
                     }
                     else if (strcmp(tbuff, "Gas_chemistry_names")==0) {
                         pos=0;
@@ -727,6 +1193,63 @@ void GetParamFile(Options &opt)
                             opt.gas_chem_names.push_back(token);
                             dataline.erase(0, pos + delimiter.length());
                         }
+                        if (opt.gas_chem_index.size() == 0) {
+                            opt.gas_chem_index.resize(opt.gas_chem_names.size(),0);
+                        }
+                        if (opt.gas_chem_function.size() == 0) {
+                            opt.gas_chem_function.resize(opt.gas_chem_names.size(),CALCAVERAGEMASSWEIGHT);
+                        }
+                        if (opt.gas_chem_input_output_unit_conversion_factors.size() == 0) {
+                            opt.gas_chem_input_output_unit_conversion_factors.resize(
+                                opt.gas_chem_names.size(),1.0);
+                        }
+                        if (opt.gas_chem_output_units.size() == 0) {
+                            opt.gas_chem_output_units.resize(opt.gas_chem_names.size(),string("unknownunits"));
+                        }
+                    }
+                    else if (strcmp(tbuff, "Gas_chemistry_index_in_file")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<unsigned int> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(stoi(token));
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.gas_chem_index = tempvec;
+                    }
+                    else if (strcmp(tbuff, "Gas_chemistry_calculation_type")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<unsigned int> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(calcstringtoint[token]);
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.gas_chem_function = tempvec;
+                    }
+                    else if (strcmp(tbuff, "Gas_chemistry_output_units")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<string> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(token);
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.gas_chem_output_units = tempvec;
+                    }
+                    else if (strcmp(tbuff, "Gas_chemistry_input_output_unit_conversion_factors")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<float> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(stof(token));
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.gas_chem_input_output_unit_conversion_factors = tempvec;
                     }
                     else if (strcmp(tbuff, "Star_chemistry_names")==0) {
                         pos=0;
@@ -736,6 +1259,63 @@ void GetParamFile(Options &opt)
                             opt.star_chem_names.push_back(token);
                             dataline.erase(0, pos + delimiter.length());
                         }
+                        if (opt.star_chem_index.size() == 0) {
+                            opt.star_chem_index.resize(opt.star_chem_names.size(),0);
+                        }
+                        if (opt.star_chem_function.size() == 0) {
+                            opt.star_chem_function.resize(opt.star_chem_names.size(),CALCAVERAGEMASSWEIGHT);
+                        }
+                        if (opt.star_chem_input_output_unit_conversion_factors.size() == 0) {
+                            opt.star_chem_input_output_unit_conversion_factors.resize(
+                                opt.star_chem_names.size(),1.0);
+                        }
+                        if (opt.star_chem_output_units.size() == 0) {
+                            opt.star_chem_output_units.resize(opt.star_chem_names.size(),string("unknownunits"));
+                        }
+                    }
+                    else if (strcmp(tbuff, "Star_chemistry_index_in_file")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<unsigned int> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(stoi(token));
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.star_chem_index = tempvec;
+                    }
+                    else if (strcmp(tbuff, "Star_chemistry_calculation_type")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<unsigned int> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(calcstringtoint[token]);
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.star_chem_function = tempvec;
+                    }
+                    else if (strcmp(tbuff, "Star_chemistry_output_units")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<string> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(token);
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.star_chem_output_units = tempvec;
+                    }
+                    else if (strcmp(tbuff, "Star_chemistry_input_output_unit_conversion_factors")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<float> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(stof(token));
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.star_chem_input_output_unit_conversion_factors = tempvec;
                     }
                     else if (strcmp(tbuff, "BH_chemistry_names")==0) {
                         pos=0;
@@ -745,35 +1325,262 @@ void GetParamFile(Options &opt)
                             opt.bh_chem_names.push_back(token);
                             dataline.erase(0, pos + delimiter.length());
                         }
+                        if (opt.bh_chem_index.size() == 0) {
+                            opt.bh_chem_index.resize(opt.bh_chem_names.size(),0);
+                        }
+                        if (opt.bh_chem_function.size() == 0) {
+                            opt.bh_chem_function.resize(opt.bh_chem_names.size(),CALCAVERAGEMASSWEIGHT);
+                        }
+                        if (opt.bh_chem_input_output_unit_conversion_factors.size() == 0) {
+                            opt.bh_chem_input_output_unit_conversion_factors.resize(
+                                opt.bh_chem_names.size(),1.0);
+                        }
+                        if (opt.bh_chem_output_units.size() == 0) {
+                            opt.bh_chem_output_units.resize(opt.bh_chem_names.size(),string("unknownunits"));
+                        }
+                    }
+                    else if (strcmp(tbuff, "BH_chemistry_index_in_file")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<unsigned int> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(stoi(token));
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.bh_chem_index = tempvec;
+                    }
+                    else if (strcmp(tbuff, "BH_chemistry_calculation_type")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<unsigned int> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(calcstringtoint[token]);
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.bh_chem_function = tempvec;
+                    }
+                    else if (strcmp(tbuff, "BH_chemistry_output_units")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<string> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(token);
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.bh_chem_output_units = tempvec;
+                    }
+                    else if (strcmp(tbuff, "BH_chemistry_input_output_unit_conversion_factors")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<float> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(stof(token));
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.bh_chem_input_output_unit_conversion_factors = tempvec;
                     }
                     else if (strcmp(tbuff, "Gas_chemistry_production_names")==0) {
                         pos=0;
                         dataline=string(vbuff);
                         while ((pos = dataline.find(delimiter)) != string::npos) {
                             token = dataline.substr(0, pos);
-                            opt.gas_chem_names.push_back(token);
+                            opt.gas_chemproduction_names.push_back(token);
                             dataline.erase(0, pos + delimiter.length());
                         }
+                        if (opt.gas_chemproduction_index.size() == 0) {
+                            opt.gas_chemproduction_index.resize(opt.gas_chemproduction_names.size(),0);
+                        }
+                        if (opt.gas_chemproduction_function.size() == 0) {
+                            opt.gas_chemproduction_function.resize(opt.gas_chemproduction_names.size(),CALCAVERAGEMASSWEIGHT);
+                        }
+                        if (opt.gas_chemproduction_input_output_unit_conversion_factors.size() == 0) {
+                            opt.gas_chemproduction_input_output_unit_conversion_factors.resize(
+                                opt.gas_chemproduction_names.size(),1.0);
+                        }
+                        if (opt.gas_chemproduction_output_units.size() == 0) {
+                            opt.gas_chemproduction_output_units.resize(opt.gas_chemproduction_names.size(),string("unknownunits"));
+                        }
+                    }
+                    else if (strcmp(tbuff, "Gas_chemistry_production_index_in_file")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<unsigned int> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(stoi(token));
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.gas_chemproduction_index = tempvec;
+                    }
+                    else if (strcmp(tbuff, "Gas_chemistry_prodution_calculation_type")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<unsigned int> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(calcstringtoint[token]);
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.gas_chemproduction_function = tempvec;
+                    }
+                    else if (strcmp(tbuff, "Gas_chemistry_production_output_units")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<string> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(token);
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.gas_chemproduction_output_units = tempvec;
+                    }
+                    else if (strcmp(tbuff, "Gas_chemistry_production_input_output_unit_conversion_factors")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<float> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(stof(token));
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.gas_chemproduction_input_output_unit_conversion_factors = tempvec;
                     }
                     else if (strcmp(tbuff, "Star_chemistry_production_names")==0) {
                         pos=0;
                         dataline=string(vbuff);
                         while ((pos = dataline.find(delimiter)) != string::npos) {
                             token = dataline.substr(0, pos);
-                            opt.star_chem_names.push_back(token);
+                            opt.star_chemproduction_names.push_back(token);
                             dataline.erase(0, pos + delimiter.length());
                         }
+                        if (opt.star_chemproduction_index.size() == 0) {
+                            opt.star_chemproduction_index.resize(opt.star_chemproduction_names.size(),0);
+                        }
+                        if (opt.star_chemproduction_function.size() == 0) {
+                            opt.star_chemproduction_function.resize(opt.star_chemproduction_names.size(),CALCAVERAGEMASSWEIGHT);
+                        }
+                        if (opt.star_chemproduction_input_output_unit_conversion_factors.size() == 0) {
+                            opt.star_chemproduction_input_output_unit_conversion_factors.resize(
+                                opt.star_chemproduction_names.size(),1.0);
+                        }
+                        if (opt.star_chemproduction_output_units.size() == 0) {
+                            opt.star_chemproduction_output_units.resize(opt.star_chemproduction_names.size(),string("unknownunits"));
+                        }
+                    }
+                    else if (strcmp(tbuff, "Star_chemistry_production_index_in_file")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<unsigned int> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(stoi(token));
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.star_chemproduction_index = tempvec;
+                    }
+                    else if (strcmp(tbuff, "Star_chemistry_prodution_calculation_type")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<unsigned int> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(calcstringtoint[token]);
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.star_chemproduction_function = tempvec;
+                    }
+                    else if (strcmp(tbuff, "Star_chemistry_production_output_units")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<string> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(token);
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.star_chemproduction_output_units = tempvec;
+                    }
+                    else if (strcmp(tbuff, "Star_chemistry_production_input_output_unit_conversion_factors")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<float> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(stof(token));
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.star_chemproduction_input_output_unit_conversion_factors = tempvec;
                     }
                     else if (strcmp(tbuff, "BH_chemistry_production_names")==0) {
                         pos=0;
                         dataline=string(vbuff);
                         while ((pos = dataline.find(delimiter)) != string::npos) {
                             token = dataline.substr(0, pos);
-                            opt.bh_chem_names.push_back(token);
+                            opt.bh_chemproduction_names.push_back(token);
                             dataline.erase(0, pos + delimiter.length());
                         }
+                        if (opt.bh_chemproduction_index.size() == 0) {
+                            opt.bh_chemproduction_index.resize(opt.bh_chemproduction_names.size(),0);
+                        }
+                        if (opt.bh_chemproduction_function.size() == 0) {
+                            opt.bh_chemproduction_function.resize(opt.bh_chemproduction_names.size(),CALCAVERAGEMASSWEIGHT);
+                        }
+                        if (opt.bh_chemproduction_input_output_unit_conversion_factors.size() == 0) {
+                            opt.bh_chemproduction_input_output_unit_conversion_factors.resize(
+                                opt.bh_chemproduction_names.size(),1.0);
+                        }
+                        if (opt.bh_chemproduction_output_units.size() == 0) {
+                            opt.bh_chemproduction_output_units.resize(opt.bh_chemproduction_names.size(),string("unknownunits"));
+                        }
                     }
-
+                    else if (strcmp(tbuff, "BH_chemistry_production_index_in_file")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<unsigned int> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(stoi(token));
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.bh_chemproduction_index = tempvec;
+                    }
+                    else if (strcmp(tbuff, "BH_chemistry_prodution_calculation_type")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<unsigned int> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(calcstringtoint[token]);
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.bh_chemproduction_function = tempvec;
+                    }
+                    else if (strcmp(tbuff, "BH_chemistry_production_output_units")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<string> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(token);
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.bh_chemproduction_output_units = tempvec;
+                    }
+                    else if (strcmp(tbuff, "BH_chemistry_production_input_output_unit_conversion_factors")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<float> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(stof(token));
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.bh_chemproduction_input_output_unit_conversion_factors = tempvec;
+                    }
 
                     //output related
                     else if (strcmp(tbuff, "Separate_output_files")==0)
@@ -825,29 +1632,6 @@ void GetParamFile(Options &opt)
         paramfile.close();
         //cfgfile.close();
     }
-}
-
-inline void ConfigMessage(char *c) {
-#ifndef USEMPI
-    int ThisTask = 0;
-#endif
-    if (ThisTask==0) cerr<<c<<endl;
-}
-
-inline void ConfigExit() {
-#ifdef USEMPI
-            MPI_Abort(MPI_COMM_WORLD,8);
-#else
-            exit(8);
-#endif
-}
-
-
-inline void errormessage(string message) {
-#ifndef USEMPI
-    int ThisTask =0;
-#endif
-    if (ThisTask==0)  cerr<<message<<endl;
 }
 
 void ConfigCheck(Options &opt)
@@ -1015,6 +1799,172 @@ void ConfigCheck(Options &opt)
         if (opt.iprofilenorm == PROFILERNORMR200CRIT) opt.profileradnormstring = "R_200crit";
         else if (opt.iprofilenorm == PROFILERNORMPHYS) opt.profileradnormstring = "Physical";
     }
+
+    if (opt.gas_internalprop_names.size() != opt.gas_internalprop_function.size()){
+        errormessage("GAS: # of Internal Property does not the # of function type entries. Check config.");
+        ConfigExit();
+    }
+    if (opt.gas_internalprop_names.size() != opt.gas_internalprop_index.size()){
+        errormessage("GAS: # of Internal Property names does not the # of index in file entries. Check config.");
+        ConfigExit();
+    }
+    if (opt.gas_chem_names.size() != opt.gas_chem_function.size()){
+        errormessage("GAS: # of Chemistry names does not the # of function type entries. Check config.");
+        ConfigExit();
+    }
+    if (opt.gas_chem_names.size() != opt.gas_chem_index.size()){
+        errormessage("GAS: # of Chemistry Production names does not the # of index in file entries. Check config.");
+        ConfigExit();
+    }
+    if (opt.gas_chemproduction_names.size() != opt.gas_chemproduction_function.size()){
+        errormessage("GAS: # of Chemistry Production names does not the # of function type entries. Check config.");
+        ConfigExit();
+    }
+    if (opt.gas_chemproduction_names.size() != opt.gas_chemproduction_index.size()){
+        errormessage("GAS: # of Chemistry Production names does not the # of index in file entries. Check config.");
+        ConfigExit();
+    }
+
+    if (opt.star_internalprop_names.size() != opt.star_internalprop_function.size()){
+        errormessage("STAR: # of Internal Property does not the # of function type entries. Check config.");
+        ConfigExit();
+    }
+    if (opt.star_internalprop_names.size() != opt.star_internalprop_index.size()){
+        errormessage("STAR: # of Internal Property names does not the # of index in file entries. Check config.");
+        ConfigExit();
+    }
+    if (opt.star_chem_names.size() != opt.star_chem_function.size()){
+        errormessage("STAR: # of Chemistry names does not the # of function type entries. Check config.");
+        ConfigExit();
+    }
+    if (opt.star_chem_names.size() != opt.star_chem_index.size()){
+        errormessage("STAR: # of Chemistry Production names does not the # of index in file entries. Check config.");
+        ConfigExit();
+    }
+    if (opt.star_chemproduction_names.size() != opt.star_chemproduction_function.size()){
+        errormessage("STAR: # of Chemistry Production names does not the # of function type entries. Check config.");
+        ConfigExit();
+    }
+    if (opt.star_chemproduction_names.size() != opt.star_chemproduction_index.size()){
+        errormessage("STAR: # of Chemistry Production names does not the # of index in file entries. Check config.");
+        ConfigExit();
+    }
+
+    if (opt.bh_internalprop_names.size() != opt.bh_internalprop_function.size()){
+        errormessage("BH: # of Internal Property does not the # of function type entries. Check config.");
+        ConfigExit();
+    }
+    if (opt.bh_internalprop_names.size() != opt.bh_internalprop_index.size()){
+        errormessage("BH: # of Internal Property names does not the # of index in file entries. Check config.");
+        ConfigExit();
+    }
+    if (opt.bh_chem_names.size() != opt.bh_chem_function.size()){
+        errormessage("BH: # of Chemistry names does not the # of function type entries. Check config.");
+        ConfigExit();
+    }
+    if (opt.bh_chem_names.size() != opt.bh_chem_index.size()){
+        errormessage("BH: # of Chemistry Production names does not the # of index in file entries. Check config.");
+        ConfigExit();
+    }
+    if (opt.bh_chemproduction_names.size() != opt.bh_chemproduction_function.size()){
+        errormessage("BH: # of Chemistry Production names does not the # of function type entries. Check config.");
+        ConfigExit();
+    }
+    if (opt.bh_chemproduction_names.size() != opt.bh_chemproduction_index.size()){
+        errormessage("BH: # of Chemistry Production names does not the # of index in file entries. Check config.");
+        ConfigExit();
+    }
+
+    if (opt.extra_dm_internalprop_names.size() != opt.extra_dm_internalprop_function.size()){
+        errormessage("Extra_DM: # of Internal Property does not the # of function type entries. Check config.");
+        ConfigExit();
+    }
+    if (opt.extra_dm_internalprop_names.size() != opt.extra_dm_internalprop_index.size()){
+        errormessage("Extra_DM: # of Internal Property names does not the # of index in file entries. Check config.");
+        ConfigExit();
+    }
+
+    set<string> uniqueval;
+    set<string> outputset;
+    string configentryname, outputfieldname, mainname;
+    unsigned int entryindex, calctype, iduplicates;
+
+    //clean up aperture list and spherical overdensity list to remove duplicates
+    configentryname = "Overdensity_values_in_critical_density";
+    ListDuplicateEntryCheck(configentryname, opt.SOnum,
+        opt.SOthresholds_names_crit, opt.SOthresholds_values_crit);
+    configentryname = "Aperture_values_in_kpc";
+    ListDuplicateEntryCheck(configentryname, opt.aperturenum,
+        opt.aperture_names_kpc, opt.aperture_values_kpc);
+    configentryname = "Projected_aperture_values_in_kpc";
+    ListDuplicateEntryCheck(configentryname, opt.apertureprojnum,
+        opt.aperture_proj_names_kpc, opt.aperture_proj_values_kpc);
+
+    //set output field names for extra properties
+    configentryname = "Gas_internal_property_names";
+    ExtraFieldCheck(configentryname, opt.gas_internalprop_names, opt.gas_internalprop_output_names,
+        opt.gas_internalprop_function, opt.gas_internalprop_index,
+        opt.gas_internalprop_input_output_unit_conversion_factors, opt.gas_internalprop_output_units,
+        opt.gas_internalprop_index_paired_calc
+    );
+    configentryname = "Gas_chemistry_names";
+    ExtraFieldCheck(configentryname, opt.gas_chem_names, opt.gas_chem_output_names,
+        opt.gas_chem_function, opt.gas_chem_index,
+        opt.gas_chem_input_output_unit_conversion_factors, opt.gas_chem_output_units,
+        opt.gas_chem_index_paired_calc
+    );
+    configentryname = "Gas_chemistry_production_names";
+    ExtraFieldCheck(configentryname, opt.gas_chemproduction_names, opt.gas_chemproduction_output_names,
+        opt.gas_chemproduction_function, opt.gas_chemproduction_index,
+        opt.gas_chemproduction_input_output_unit_conversion_factors, opt.gas_chemproduction_output_units,
+        opt.gas_chemproduction_index_paired_calc
+    );
+
+    configentryname = "Star_internal_property_names";
+    ExtraFieldCheck(configentryname, opt.star_internalprop_names, opt.star_internalprop_output_names,
+        opt.star_internalprop_function, opt.star_internalprop_index,
+        opt.star_internalprop_input_output_unit_conversion_factors, opt.star_internalprop_output_units,
+        opt.star_internalprop_index_paired_calc
+    );
+    configentryname = "Star_chemistry_names";
+    ExtraFieldCheck(configentryname, opt.star_chem_names, opt.star_chem_output_names,
+        opt.star_chem_function, opt.star_chem_index,
+        opt.star_chem_input_output_unit_conversion_factors, opt.star_chem_output_units,
+        opt.star_chem_index_paired_calc
+    );
+    configentryname = "Star_chemistry_production_names";
+    ExtraFieldCheck(configentryname, opt.star_chemproduction_names, opt.star_chemproduction_output_names,
+        opt.star_chemproduction_function, opt.star_chemproduction_index,
+        opt.star_chemproduction_input_output_unit_conversion_factors, opt.star_chemproduction_output_units,
+        opt.star_chemproduction_index_paired_calc
+    );
+
+    configentryname = "BH_internal_property_names";
+    ExtraFieldCheck(configentryname, opt.bh_internalprop_names, opt.bh_internalprop_output_names,
+        opt.bh_internalprop_function, opt.bh_internalprop_index,
+        opt.bh_internalprop_input_output_unit_conversion_factors, opt.bh_internalprop_output_units,
+        opt.bh_internalprop_index_paired_calc
+    );
+    configentryname = "BH_chemistry_names";
+    ExtraFieldCheck(configentryname, opt.bh_chem_names, opt.bh_chem_output_names,
+        opt.bh_chem_function, opt.bh_chem_index,
+        opt.bh_chem_input_output_unit_conversion_factors, opt.bh_chem_output_units,
+        opt.bh_chem_index_paired_calc
+    );
+    configentryname = "BH_chemistry_production_names";
+    ExtraFieldCheck(configentryname, opt.bh_chemproduction_names, opt.bh_chemproduction_output_names,
+        opt.bh_chemproduction_function, opt.bh_chemproduction_index,
+        opt.bh_chemproduction_input_output_unit_conversion_factors, opt.bh_chemproduction_output_units,
+        opt.bh_chemproduction_index_paired_calc
+    );
+
+    configentryname = "Extra_DM_internal_property_names";
+    ExtraFieldCheck(configentryname, opt.extra_dm_internalprop_names, opt.extra_dm_internalprop_output_names,
+        opt.extra_dm_internalprop_function, opt.extra_dm_internalprop_index,
+        opt.extra_dm_internalprop_input_output_unit_conversion_factors, opt.extra_dm_internalprop_output_units,
+        opt.extra_dm_internalprop_index_paired_calc
+    );
+
     //set halo 3d fof linking length if necessary
     if (opt.ellhalo3dxfac == -1) {
         opt.ellhalo3dxfac = opt.ellhalophysfac * opt.ellphys;
