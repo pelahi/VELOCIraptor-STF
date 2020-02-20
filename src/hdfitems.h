@@ -316,6 +316,40 @@ static inline hid_t HDF5OpenDataSpace(const hid_t &id){
     return idval;
 }
 
+
+static inline int whatisopen(hid_t fid) {
+        ssize_t cnt;
+        int howmany;
+        int i;
+        H5I_type_t ot;
+        hid_t anobj;
+        hid_t *objs;
+        char name[1024];
+        herr_t status;
+
+        cnt = H5Fget_obj_count(fid, H5F_OBJ_ALL);
+
+        if (cnt <= 0) return cnt;
+
+        printf("%d object(s) open\n", cnt);
+
+        objs = new hid_t[cnt];
+
+        howmany = H5Fget_obj_ids(fid, H5F_OBJ_ALL, cnt, objs);
+
+        printf("open objects:\n");
+
+        for (i = 0; i < howmany; i++ ) {
+             anobj = objs[i];
+             ot = H5Iget_type(anobj);
+             status = H5Iget_name(anobj, name, 1024);
+             printf(" %d: type %d, name %s\n",i,ot,name);
+        }
+	delete[] objs;
+        return howmany;
+}
+
+
 static inline void HDF5CloseFile(hid_t &id){
     if (id>=0) H5Fclose(id);
     id = -1;
@@ -335,39 +369,131 @@ static inline void HDF5CloseDataSpace(hid_t &id){
 
 static inline void HDF5ReadHyperSlabReal(double *buffer,
     const hid_t &dataset, const hid_t &dataspace,
-    const hsize_t datarank, const hsize_t ndim, int nchunk, int noffset
+    const hsize_t datarank, const hsize_t dummy,
+    unsigned long long nchunk, unsigned long long noffset,
+    hid_t plist_id = H5P_DEFAULT,
+    unsigned long long nchunk2 = 0, unsigned long long noffset2 = 0,
+    vector<hsize_t> nchunkvec = vector<hsize_t>(),
+    vector<hsize_t> noffsetvec = vector<hsize_t>()
 )
 {
     //setup hyperslab so that it is loaded into the buffer
-    vector<hsize_t> start, count, stride, block, memdims;
+    vector<hsize_t> start, count, stride, block, memdims, dims;
+    hsize_t ndim, memsize = 1;
     hid_t memspace;
-    start.push_back(noffset);start.push_back(0);
-    count.push_back(nchunk);count.push_back(ndim);
-    stride.push_back(1);stride.push_back(1);
-    block.push_back(1);block.push_back(1);
-    memdims.push_back(nchunk*ndim);
+
+    //init for 1d array
+    start.push_back(noffset);
+    count.push_back(nchunk);
+    stride.push_back(1);
+    block.push_back(1);
+
+    //get dimensions of data set
+    ndim = H5Sget_simple_extent_ndims(dataspace);
+    dims.resize(ndim);
+    //get extent in each dimension
+    H5Sget_simple_extent_dims(dataspace, dims.data(), NULL);
+    //if offsets not explicilty provided
+    //then assume offset is zero for any higher dimensions
+    if (noffsetvec.size() == 0) {
+        noffsetvec.resize(ndim,0);
+    }
+    //if chunksize vector not provided, assume extent
+    if (nchunkvec.size() == 0) {
+        nchunkvec = dims;
+    }
+    if (ndim==2) {
+        if (nchunk2 == 0) nchunk2 = dims[1];
+        start.push_back(noffset2);
+        count.push_back(nchunk2);
+        stride.push_back(1);
+        block.push_back(1);
+    }
+    else if (ndim>2) {
+        for (auto i=1;i<ndim;i++) {
+            start.push_back(noffsetvec[i]);
+            count.push_back(nchunkvec[i]);
+            stride.push_back(1);
+            block.push_back(1);
+        }
+    }
+    for (auto x:count) memsize *= x;
+    //if the return data rank is 1, then all data stored in 1d array
+    if (datarank > 1) {
+        //not implemented yet, still map everything to 1d array
+        memdims.push_back(memsize);
+    }
+    else {
+        memdims.push_back(memsize);
+    }
     H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, start.data(), stride.data(), count.data(), block.data());
     memspace = H5Screate_simple (1, memdims.data(), NULL);
-    safe_hdf5<herr_t>(H5Dread, dataset, H5T_NATIVE_DOUBLE, memspace, dataspace, H5P_DEFAULT, buffer);
+    safe_hdf5<herr_t>(H5Dread, dataset, H5T_NATIVE_DOUBLE, memspace, dataspace, plist_id, buffer);
 
 }
 
 static inline void HDF5ReadHyperSlabInteger(long long *buffer,
     const hid_t &dataset, const hid_t &dataspace,
-    const hsize_t datarank, const hsize_t ndim, int nchunk, int noffset
+    const hsize_t datarank, const hsize_t dummy,
+    unsigned long long nchunk, unsigned long long noffset,
+    hid_t plist_id = H5P_DEFAULT,
+    unsigned long long nchunk2 = 0, unsigned long long noffset2 = 0,
+    vector<hsize_t> nchunkvec = vector<hsize_t>(),
+    vector<hsize_t> noffsetvec = vector<hsize_t>()
 )
 {
     //setup hyperslab so that it is loaded into the buffer
-    vector<hsize_t> start, count, stride, block, memdims;
+    vector<hsize_t> start, count, stride, block, memdims, dims;
+    hsize_t ndim, memsize = 1;
     hid_t memspace;
-    start.push_back(noffset);start.push_back(0);
-    count.push_back(nchunk);count.push_back(ndim);
-    stride.push_back(1);stride.push_back(1);
-    block.push_back(1);block.push_back(1);
-    memdims.push_back(nchunk*ndim);
+
+    //init for 1d array
+    start.push_back(noffset);
+    count.push_back(nchunk);
+    stride.push_back(1);
+    block.push_back(1);
+
+    //get dimensions of data set
+    ndim = H5Sget_simple_extent_ndims(dataspace);
+    dims.resize(ndim);
+    //get extent in each dimension
+    H5Sget_simple_extent_dims(dataspace, dims.data(), NULL);
+    //if offsets not explicilty provided
+    //then assume offset is zero for any higher dimensions
+    if (noffsetvec.size() == 0) {
+        noffsetvec.resize(ndim,0);
+    }
+    //if chunksize vector not provided, assume extent
+    if (nchunkvec.size() == 0) {
+        nchunkvec = dims;
+    }
+    if (ndim==2) {
+        if (nchunk2 == 0) nchunk2 = dims[1];
+        start.push_back(nchunk2);
+        count.push_back(noffset2);
+        stride.push_back(1);
+        block.push_back(1);
+    }
+    else if (ndim>2) {
+        for (auto i=1;i<ndim;i++) {
+            start.push_back(noffsetvec[i]);
+            count.push_back(nchunkvec[i]);
+            stride.push_back(1);
+            block.push_back(1);
+        }
+    }
+    for (auto x:count) memsize *= x;
+    //if the return data rank is 1, then all data stored in 1d array
+    if (datarank > 1) {
+        //not implemented yet, still map everything to 1d array
+        memdims.push_back(memsize);
+    }
+    else {
+        memdims.push_back(memsize);
+    }
     H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, start.data(), stride.data(), count.data(), block.data());
     memspace = H5Screate_simple (1, memdims.data(), NULL);
-    safe_hdf5<herr_t>(H5Dread, dataset, H5T_NATIVE_LONG, memspace, dataspace, H5P_DEFAULT, buffer);
+    safe_hdf5<herr_t>(H5Dread, dataset, H5T_NATIVE_LONG, memspace, dataspace, plist_id, buffer);
 }
 
 ///\name HDF class to manage writing information

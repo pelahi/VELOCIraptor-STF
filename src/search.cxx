@@ -2240,12 +2240,13 @@ void MergeSubstructuresCoresPhase(Options &opt, const Int_t nsubset, Particle *&
         if (pfofval==0 && opt.icoresubmergewithbg) continue;
         if (pfofval<=numsubs) {
             pfofval-=1;
-            subs[pfofval].SetMass(subs[pfofval].GetMass()+Partsubset[i].GetMass());
+            //store total mass in potential (to ensure compatability with NOMASS option)
+            subs[pfofval].SetPotential(subs[pfofval].GetPotential()+Partsubset[i].GetMass());
             for (auto k=0;k<6;k++) subs[pfofval].SetPhase(k,subs[pfofval].GetPhase(k)+Partsubset[i].GetPhase(k)*Partsubset[i].GetMass());
         }
         else {
             pfofval-=numsubs+1;
-            cores[pfofval].SetMass(cores[pfofval].GetMass()+Partsubset[i].GetMass());
+            cores[pfofval].SetPotential(cores[pfofval].GetPotential()+Partsubset[i].GetMass());
             for (auto k=0;k<6;k++) cores[pfofval].SetPhase(k,cores[pfofval].GetPhase(k)+Partsubset[i].GetPhase(k)*Partsubset[i].GetMass());
         }
     }
@@ -2255,13 +2256,13 @@ void MergeSubstructuresCoresPhase(Options &opt, const Int_t nsubset, Particle *&
         x.SetPID(pfofval);
         x.SetID(pfofval);
         pfofval++;
-        for (auto k=0;k<6;k++) x.SetPhase(k,x.GetPhase(k)/x.GetMass());
+        for (auto k=0;k<6;k++) x.SetPhase(k,x.GetPhase(k)/x.GetPotential());
     }
     for (auto &x:cores) {
         x.SetPID(pfofval);
         x.SetID(pfofval);
         pfofval++;
-        for (auto k=0;k<6;k++) x.SetPhase(k,x.GetPhase(k)/x.GetMass());
+        for (auto k=0;k<6;k++) x.SetPhase(k,x.GetPhase(k)/x.GetPotential());
     }
     //sort indices by fof value
     sort(indexing.begin(), indexing.end(), [](indexfof &a, indexfof &b){
@@ -2287,12 +2288,12 @@ void MergeSubstructuresCoresPhase(Options &opt, const Int_t nsubset, Particle *&
         }
     }
     for (auto i=0;i<numsubs;i++) {
-        sigXsubs[i]*=1.0/subs[i].GetMass();
-        sigVsubs[i]*=1.0/subs[i].GetMass();
+        sigXsubs[i]*=1.0/subs[i].GetPotential();
+        sigVsubs[i]*=1.0/subs[i].GetPotential();
     }
     for (auto i=0;i<numcores;i++) {
-        sigXcores[i]*=1.0/cores[i].GetMass();
-        sigVcores[i]*=1.0/cores[i].GetMass();
+        sigXcores[i]*=1.0/cores[i].GetPotential();
+        sigVcores[i]*=1.0/cores[i].GetPotential();
     }
     //now built tree on substructures
     tree = new KDTree(subs.data(),numsubs,1,tree->TPHYS,tree->KEPAN,100,0,0,0);
@@ -2414,7 +2415,8 @@ void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Parts
         indexing[i].index = i;
         numingroup[pfofval]++;
         //if (opt.icoresubmergewithbg == 0 && pfofval==0) continue;
-        subs[pfofval].SetMass(subs[pfofval].GetMass()+Partsubset[i].GetMass());
+        //store total mass in potential (to ensure compatability with NOMASS option)
+        subs[pfofval].SetPotential(subs[pfofval].GetPotential()+Partsubset[i].GetMass());
         for (auto k=0;k<6;k++) subs[pfofval].SetPhase(k,subs[pfofval].GetPhase(k)+Partsubset[i].GetPhase(k)*Partsubset[i].GetMass());
     }
     noffset[0]=0; for (auto i=1;i<=numgroups;i++) noffset[i]=numingroup[i-1]+noffset[i-1];
@@ -2430,7 +2432,7 @@ void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Parts
         minfo[i].pfofval = i;
         minfo[i].type = subs[i].GetType();
         minfo[i].numingroup = numingroup[i];
-        for (auto k=0;k<6;k++) subs[i].SetPhase(k,subs[i].GetPhase(k)/subs[i].GetMass());
+        for (auto k=0;k<6;k++) subs[i].SetPhase(k,subs[i].GetPhase(k)/subs[i].GetPotential());
     }
 
     //sort indices by original fof value
@@ -2452,8 +2454,8 @@ void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Parts
     if (opt.icoresubmergewithbg == 0) index1 = 1;
     else index1 = 0;
     for (auto i=index1;i<subs.size();i++) {
-        sigXsubs[i]*=1.0/subs[i].GetMass();
-        sigVsubs[i]*=1.0/subs[i].GetMass();
+        sigXsubs[i]*=1.0/subs[i].GetPotential();
+        sigVsubs[i]*=1.0/subs[i].GetPotential();
     }
 
     //now built tree on substructures
@@ -2646,6 +2648,8 @@ inline void PreCalcSearchSubSet(Options &opt, Int_t subnumingroup,  Particle *&s
     Coordinate *gvel;
     Matrix *gveldisp;
 
+    if (opt.iverbose) cout<< ThisTask<<" Substructure at sublevel "<<sublevel<<" with "<<subnumingroup
+        <<" particles"<<endl;
     if (subnumingroup>=MINSUBSIZE&&opt.foftype!=FOF6DCORE) {
         //now if object is large enough for phase-space decomposition and search, compare local field to bg field
         opt.Ncell=opt.Ncellfac*subnumingroup;
@@ -2653,8 +2657,6 @@ inline void PreCalcSearchSubSet(Options &opt, Int_t subnumingroup,  Particle *&s
         while (opt.Ncell<MINCELLSIZE && subnumingroup/4.0>opt.Ncell) opt.Ncell*=2;
         tree=InitializeTreeGrid(opt,subnumingroup,subPart);
         ngrid=tree->GetNumLeafNodes();
-        if (opt.iverbose) cout<< ThisTask<<" Substructure at sublevel "<<sublevel<<" with "<<subnumingroup
-            <<" particles split into are "<<ngrid<<" grid cells, with each node containing ~"<<subnumingroup/ngrid<<" particles"<<endl;
         grid=new GridCell[ngrid];
         FillTreeGrid(opt, subnumingroup, ngrid, tree, subPart, grid);
         gvel=GetCellVel(opt,subnumingroup,subPart,ngrid,grid);

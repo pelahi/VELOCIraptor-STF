@@ -130,7 +130,8 @@ void MPINumInDomainHDF(Options &opt)
     MPIInitialDomainDecomposition();
     MPIDomainDecompositionHDF(opt);
 
-    Int_t i,j,k,n,nchunk;
+    Int_t i,j,k;
+    unsigned long long n,nchunk;
     char buf[2000];
     MPI_Status status;
 
@@ -166,7 +167,7 @@ void MPINumInDomainHDF(Options &opt)
     vector<hid_t>partsdataset;
     vector<hid_t>partsdataspace;
     hid_t chunkspace;
-    int chunksize=opt.inputbufsize;
+    unsigned long long chunksize=opt.inputbufsize;
     //buffers to load data
     double *doublebuff=new double[chunksize*3];
     vector<int> vintbuff;
@@ -179,10 +180,28 @@ void MPINumInDomainHDF(Options &opt)
     hsize_t datadim[5];
     Int_t Nlocalbuf,ibuf=0,*Nbuf, *Nbaryonbuf;
     int *ireadfile,*ireadtask,*readtaskID;
+    hid_t plist_id = H5P_DEFAULT;
     ireadtask=new int[NProcs];
     readtaskID=new int[opt.nsnapread];
     ireadfile=new int[opt.num_files];
     MPIDistributeReadTasks(opt,ireadtask,readtaskID);
+#ifdef USEPARALLELHDF
+    MPI_Comm mpi_comm_read;
+    MPI_Comm mpi_comm_parallel_read;
+    int ThisReadTask, NProcsReadTask, ThisParallelReadTask, NProcsParallelReadTask;
+    if (opt.nsnapread > opt.num_files) {
+        MPI_Comm_split(MPI_COMM_WORLD, (ireadtask[ThisTask]>=0), ThisTask, &mpi_comm_read);
+        int ntaskread = ceil(opt.nsnapread/opt.num_files);
+        int ifile = floor(ireadtask[ThisTask]/ntaskread);
+        MPI_Comm_rank(mpi_comm_read, &ThisReadTask);
+        MPI_Comm_size(mpi_comm_read, &NProcsReadTask);
+        MPI_Comm_split(mpi_comm_read, ifile, ThisReadTask, &mpi_comm_parallel_read);
+        MPI_Comm_rank(mpi_comm_parallel_read, &ThisParallelReadTask);
+        MPI_Comm_size(mpi_comm_parallel_read, &NProcsParallelReadTask);
+        plist_id = H5Pcreate(H5P_FILE_ACCESS);
+        H5Pset_fapl_mpio(plist_id, mpi_comm_parallel_read, MPI_INFO_NULL);
+    }
+#endif
 
     Nbuf=new Int_t[NProcs];
     Nbaryonbuf=new Int_t[NProcs];
@@ -199,9 +218,9 @@ void MPINumInDomainHDF(Options &opt)
         Fhdf.resize(opt.num_files);
         headerdataspace.resize(opt.num_files);
         headerattribs.resize(opt.num_files);
-        partsgroup.resize(opt.num_files*NHDFTYPE);
-        partsdataset.resize(opt.num_files*NHDFTYPE);
-        partsdataspace.resize(opt.num_files*NHDFTYPE);
+        partsgroup.resize(opt.num_files*NHDFTYPE,-1);
+        partsdataset.resize(opt.num_files*NHDFTYPE,-1);
+        partsdataspace.resize(opt.num_files*NHDFTYPE,-1);
 
         MPISetFilesRead(opt,ireadfile,ireadtask);
         for(i=0; i<opt.num_files; i++) {
@@ -209,8 +228,10 @@ void MPINumInDomainHDF(Options &opt)
             if(opt.num_files>1) sprintf(buf,"%s.%d.hdf5",opt.fname,i);
             else sprintf(buf,"%s.hdf5",opt.fname);
             //Open the specified file and the specified dataset in the file.
-            // Fhdf[i].openFile(buf, H5F_ACC_RDONLY);
-            Fhdf[i]=H5Fopen(buf, H5F_ACC_RDONLY, H5P_DEFAULT);
+            Fhdf[i]=H5Fopen(buf, H5F_ACC_RDONLY, plist_id);
+#ifdef USEPARALLELHDF
+            H5Pclose(plist_id);
+#endif
             //get number in file
             if (opt.ihdfnameconvention==HDFSWIFTEAGLENAMES || opt.ihdfnameconvention==HDFOLDSWIFTEAGLENAMES) {
                 vlongbuff = read_attribute_v<long long>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].INuminFile]);
@@ -220,7 +241,6 @@ void MPINumInDomainHDF(Options &opt)
                 vintbuff = read_attribute_v<int>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].INuminFile]);
                 for (k=0;k<NHDFTYPE;k++) hdf_header_info[i].npart[k]=vintbuff[k];
             }
-
             //open particle group structures
             for (j=0;j<nusetypes;j++) {k=usetypes[j]; partsgroup[i*NHDFTYPE+k]=HDF5OpenGroup(Fhdf[i],hdf_gnames.part_names[k]);}
             if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) {
@@ -240,15 +260,26 @@ void MPINumInDomainHDF(Options &opt)
             }
             for (j=0;j<nusetypes;j++) {
                 k=usetypes[j];
-                //data loaded into memory in chunks
-                if (hdf_header_info[i].npart[k]<chunksize)nchunk=hdf_header_info[i].npart[k];
+                unsigned long long nstart = 0, nend = hdf_header_info[i].npart[k];
+                unsigned long long nlocalsize;
+#ifdef USEPARALLELHDF
+                if (opt.num_files<opt.nsnapread) {
+                    plist_id = H5Pcreate(H5P_DATASET_XFER);
+                    H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_INDEPENDENT);
+                    nlocalsize = nend / NProcsParallelReadTask;
+                    nstart = nlocalsize*ThisParallelReadTask;
+                    if (ThisParallelReadTask < NProcsParallelReadTask -1)
+                        nend = nlocalsize + nstart;
+                }
+#endif
+                if (nend-nstart<chunksize)nchunk=nend-nstart;
                 else nchunk=chunksize;
-                for(n=0;n<hdf_header_info[i].npart[k];n+=nchunk)
+                for(n=nstart;n<nend;n+=nchunk)
                 {
-                    if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
+                    if (nend - n < chunksize && nend - n > 0) nchunk=nend-n;
                     //setup hyperslab so that it is loaded into the buffer
-                    HDF5ReadHyperSlabReal(doublebuff,partsdataset[i*NHDFTYPE+k], partsdataspace[i*NHDFTYPE+k], 1, 3, nchunk, n);
-                    for (int nn=0;nn<nchunk;nn++) {
+                    HDF5ReadHyperSlabReal(doublebuff,partsdataset[i*NHDFTYPE+k], partsdataspace[i*NHDFTYPE+k], 1, 3, nchunk, n, plist_id);
+                    for (auto nn=0;nn<nchunk;nn++) {
                         ibuf=MPIGetParticlesProcessor(doublebuff[nn*3],doublebuff[nn*3+1],doublebuff[nn*3+2]);
                         Nbuf[ibuf]++;
                     }
@@ -257,40 +288,37 @@ void MPINumInDomainHDF(Options &opt)
             if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) {
                 for (j=1;j<=nbusetypes;j++) {
                     k=usetypes[j];
-                    //data loaded into memory in chunks
-                    if (hdf_header_info[i].npart[k]<chunksize)nchunk=hdf_header_info[i].npart[k];
+                    unsigned long long nstart = 0, nend = hdf_header_info[i].npart[k];
+#ifdef USEPARALLELHDF
+                    if (opt.num_files<opt.nsnapread) {
+                        unsigned long long nlocalsize = nend / NProcsParallelReadTask;
+                        nstart = nlocalsize*ThisParallelReadTask;
+                        if (ThisParallelReadTask < NProcsParallelReadTask -1)
+                            nend = nlocalsize + nstart;
+                    }
+#endif
+                    if (nend-nstart<chunksize)nchunk=nend-nstart;
                     else nchunk=chunksize;
-                    for(n=0;n<hdf_header_info[i].npart[k];n+=nchunk)
+                    for(n=nstart;n<nend;n+=nchunk)
                     {
-                        if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
+                        if (nend - n < chunksize && nend - n > 0) nchunk=nend-n;
                         // setup hyperslab so that it is loaded into the buffer
-                        HDF5ReadHyperSlabReal(doublebuff, partsdataset[i*NHDFTYPE+k], partsdataspace[i*NHDFTYPE+k], 1, 3, nchunk, n);
+                        HDF5ReadHyperSlabReal(doublebuff, partsdataset[i*NHDFTYPE+k], partsdataspace[i*NHDFTYPE+k], 1, 3, nchunk, n, plist_id);
 
-                        for (int nn=0;nn<nchunk;nn++) {
+                        for (auto nn=0;nn<nchunk;nn++) {
                             ibuf=MPIGetParticlesProcessor(doublebuff[nn*3],doublebuff[nn*3+1],doublebuff[nn*3+2]);
                             Nbaryonbuf[ibuf]++;
                         }
                     }
                 }
             }
-            for (j=0;j<nusetypes;j++) {
-                k=usetypes[j];
-                HDF5CloseDataSpace(partsdataspace[i*NHDFTYPE+k]);
-                HDF5CloseDataSet(partsdataset[i*NHDFTYPE+k]);
-            }
-            if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) for (j=1;j<=nbusetypes;j++) {
-                k=usetypes[j];
-                HDF5CloseDataSpace(partsdataspace[i*NHDFTYPE+k]);
-                HDF5CloseDataSet(partsdataset[i*NHDFTYPE+k]);
-            }
-            for (j=0;j<nusetypes;j++) {
-                k=usetypes[j];
-                HDF5CloseGroup(partsdataspace[i*NHDFTYPE+k]);
-            }
-            if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) for (j=1;j<=nbusetypes;j++) {
-                k=usetypes[j];
-                HDF5CloseGroup(partsdataspace[i*NHDFTYPE+k]);
-            }
+#ifdef USEPARALLELHDF
+            H5Pclose(plist_id);
+#endif
+            //close data spaces
+            for (auto &hidval:partsdataspace) HDF5CloseDataSpace(hidval);
+            for (auto &hidval:partsdataset) HDF5CloseDataSet(hidval);
+            for (auto &hidval:partsgroup) HDF5CloseGroup(hidval);
             H5Fclose(Fhdf[i]);
 	   }
     }
@@ -302,7 +330,12 @@ void MPINumInDomainHDF(Options &opt)
         MPI_Allreduce(Nbaryonbuf,mpi_nlocal,NProcs,MPI_Int_t,MPI_SUM,MPI_COMM_WORLD);
         Nlocalbaryon[0]=mpi_nlocal[ThisTask];
     }
-
+#ifdef USEPARALLELHDF
+    if (opt.nsnapread > opt.num_files) {
+        MPI_Comm_free(&mpi_comm_parallel_read);
+        MPI_Comm_free(&mpi_comm_read);
+    }
+#endif
     delete[] ireadtask;
     delete[] readtaskID;
     delete[] ireadfile;
