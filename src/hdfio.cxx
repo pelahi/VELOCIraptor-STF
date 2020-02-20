@@ -805,7 +805,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
               }
               else {
 #ifdef NOMASS
-                  if (k==HDFDMTYPE) opt.MassValue = hdf_header_info[i].mass[k]
+		if (k==HDFDMTYPE) opt.MassValue = hdf_header_info[i].mass[k];
 #endif
                 for (int nn=0;nn<hdf_header_info[i].npart[k];nn++) Part[count++].SetMass(hdf_header_info[i].mass[k]);
               }

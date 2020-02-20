@@ -344,7 +344,7 @@ void DetermineDenVRatioDistribution(Options &opt,const Int_t nbodies, Particle *
             meanr=params[1];sdlow=sqrt(params[2]*params[3]);sdhigh=sqrt(params[2]);
             nfix=0;for (int j=0;j<nparams;j++) nfix+=(fixp[i][j]==1);
             oldchi2=chi2;
-            if(opt.iverbose>2) printf("chi2/dof=%e/%d, A=%e mu=%e var=%e s=%e\n",chi2,nbins-(nparams-nfix)-1,params[0],params[1],sqrt(params[2]),sqrt(params[3]));
+            if(opt.iverbose>2) printf("chi2/dof=%e/%lld, A=%e mu=%e var=%e s=%e\n",chi2,nbins-(nparams-nfix)-1,params[0],params[1],sqrt(params[2]),sqrt(params[3]));
         }
         //else if (oldchi2<chi2 && i>0) break;
         else {
