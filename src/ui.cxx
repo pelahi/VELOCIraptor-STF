@@ -1676,6 +1676,11 @@ void ConfigCheck(Options &opt)
         errormessage("See Particle_search_type and FoF_search_type.");
         ConfigExit();
     }
+    if (opt.fofbgtype == FOF3D && opt.iKeepFOF)
+    {
+        errormessage("Conflict in config file: Asking to keep 3DFOF objects but not running further 6DFOF searches. This is incompatible. Check config");
+        ConfigExit();
+    }
     if (opt.iBoundHalos && opt.iKeepFOF)
     {
         errormessage("Conflict in config file: Asking for Bound Field objects but also asking to keep the 3DFOF/then run 6DFOF. This is incompatible. Check config");
