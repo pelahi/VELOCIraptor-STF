@@ -256,23 +256,27 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     vector<hid_t> partsdataspaceall_extra;
 
     //extra blocks to store info
-    float *velfloatbuff=new float[chunksize*3];
+    //float *velfloatbuff=new float[chunksize*3];
     double *veldoublebuff=new double[chunksize*3];
-    float *massfloatbuff=new float[chunksize];
+    //float *massfloatbuff=new float[chunksize];
     double *massdoublebuff=new double[chunksize];
 #ifdef GASON
-    float *ufloatbuff=new float[chunksize];
+    //float *ufloatbuff=new float[chunksize];
     double *udoublebuff=new double[chunksize];
+    for (auto i=0;i<chunksize;i++) udoublebuff[i] = 0.;
 #endif
 #if defined(GASON)&&defined(STARON)
-    float *Zfloatbuff=new float[chunksize];
+    //float *Zfloatbuff=new float[chunksize];
     double *Zdoublebuff=new double[chunksize];
-    float *SFRfloatbuff=new float[chunksize];
+    //float *SFRfloatbuff=new float[chunksize];
     double *SFRdoublebuff=new double[chunksize];
+    for (auto i=0;i<chunksize;i++) Zdoublebuff[i] = SFRdoublebuff[i] = 0.;
+
 #endif
 #ifdef STARON
-    float *Tagefloatbuff=new float[chunksize];
+    //float *Tagefloatbuff=new float[chunksize];
     double *Tagedoublebuff=new double[chunksize];
+    for (auto i=0;i<chunksize;i++) Tagedoublebuff[i] = 0.;
 #endif
     Pbuf = NULL; /* Keep Pbuf NULL or allocated so we can check its status later */
 
@@ -896,6 +900,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
               for (auto &hidval:partsdataset) HDF5CloseDataSet(hidval);
 #ifdef STARON
               //if star forming get star formation rate
+              if (opt.iusegasstarformationrate) {
               for (j=0;j<nusetypes;j++) {
                 k=usetypes[j];
                 if (k==HDFGASTYPE){
@@ -950,6 +955,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                     count+=hdf_header_info[i].npart[k];
                   }
                 }
+              }
               }
               //close data spaces
               for (auto &hidval:partsdataspace) HDF5CloseDataSpace(hidval);
@@ -1715,6 +1721,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 #ifdef STARON
                   //if star forming get star formation rate
                   itemp++;
+                  if (opt.iusegasstarformationrate) {
                   for (j=0;j<nusetypes;j++) {
                     k=usetypes[j];
                     if (k==HDFGASTYPE){
@@ -1729,6 +1736,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                       partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],hdf_parts[k]->names[6]);
                       partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=HDF5OpenDataSpace(partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
                     }
+                  }
                   }
                   //then metallicity
                   itemp++;
@@ -1972,8 +1980,10 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 #ifdef STARON
                         //star formation rate
                         itemp++;
+                        if (opt.iusegasstarformationrate) {
                         if (k == HDFGASTYPE) {
                             HDF5ReadHyperSlabReal(SFRdoublebuff,partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp], partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp], 1, 1, nchunk, n, plist_id);
+                        }
                         }
 
                         //metallicity
@@ -2665,22 +2675,22 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     delete[] doublebuff;
     delete[] extrafieldbuff;
 #ifdef USEMPI
-    delete[] velfloatbuff;
+    //delete[] velfloatbuff;
     delete[] veldoublebuff;
-    delete[] massfloatbuff;
+    //delete[] massfloatbuff;
     delete[] massdoublebuff;
 #ifdef GASON
-    delete[] ufloatbuff;
+    //delete[] ufloatbuff;
     delete[] udoublebuff;
 #endif
 #if defined(GASON)&&defined(STARON)
-    delete[] Zfloatbuff;
+    //delete[] Zfloatbuff;
     delete[] Zdoublebuff;
-    delete[] SFRfloatbuff;
+    //delete[] SFRfloatbuff;
     delete[] SFRdoublebuff;
 #endif
 #ifdef STARON
-    delete[] Tagefloatbuff;
+    //delete[] Tagefloatbuff;
     delete[] Tagedoublebuff;
 #endif
 #endif

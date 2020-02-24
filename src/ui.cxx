@@ -1626,6 +1626,8 @@ void GetParamFile(Options &opt)
                         opt.iusetracerparticles = atoi(vbuff);
                     else if (strcmp(tbuff, "Input_includes_extradm_particle")==0)
                         opt.iuseextradarkparticles = atoi(vbuff);
+                    else if (strcmp(tbuff, "Input_includes_gas_particle_star_formation_rate")==0)
+                        opt.iusegasstarformationrate = atoi(vbuff);
                 }
             }
         }

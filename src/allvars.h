@@ -609,6 +609,8 @@ struct Options
     int iusetracerparticles;
     /// input contains extra dark type particles
     int iuseextradarkparticles;
+    /// whether gas has star formation field
+    int iusegasstarformationrate;
     //@}
 
     /// if want full spherical overdensity, factor by which size is multiplied to get
@@ -917,6 +919,7 @@ struct Options
 #else
         iuseextradarkparticles=0;
 #endif
+        iusegasstarformationrate=1;
 
         snapshotvalue=0;
 
@@ -1729,6 +1732,9 @@ struct ConfigInfo{
         nameinfo.push_back("Input_includes_tracer_particle");
         datainfo.push_back(to_string(opt.iusetracerparticles));
         datatype.push_back(python_type_string(opt.iusetracerparticles));
+        nameinfo.push_back("Input_includes_gas_particle_star_formation_rate");
+        datainfo.push_back(to_string(opt.iusegasstarformationrate));
+        datatype.push_back(python_type_string(opt.iusegasstarformationrate));
 
         //gadget io related to extra info for sph, stars, bhs,
         nameinfo.push_back("NSPH_extra_blocks");
