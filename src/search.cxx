@@ -228,7 +228,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
             pfof=tree->FOFCriterionSetBasisForLinks(fofcmp,param,numgroups,minsize,
                 iorder,0,FOFchecktype,Head,Next);
         }
-#ifdef
+#ifdef GASON
         else if (opt.fofbgtype == FOFGASSTRUCTURE) {
             pfof=tree->FOFCriterion(fofcmp,param,numgroups,minsize,
                 iorder,0,Pnocheck,Head,Next);
