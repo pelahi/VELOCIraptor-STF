@@ -193,6 +193,32 @@ int FOF3dDM(Particle &a, Particle &b, Double_t *params){
     return (total<1);
 }
 
+///gas search 
+#ifdef GASON
+int FOFGasSearch(Particle &a, Particle &b, Double_t *params){
+    //search assumes that gas particles must be close in phase-space and also must be
+    //similar temperatures/metallicities while aslo being within some min and max
+    //here for simplicity, using self-energy 
+    if (a.GetU()<params[10]||b.GetU()<params[10]) return 0;
+    if (a.GetU()>params[11]||b.GetU()>params[11]) return 0;
+    if (a.GetZmet()<params[13]||b.GetZmet()<params[13]) return 0;
+    if (a.GetZmet()>params[14]||b.GetZmet()>params[14]) return 0;
+    Double_t total=0, ratioU, ratioZ;
+    ratioU = a.GetU()/b.GetU();
+    if (ratioU>params[12] || 1.0/ratioU > params[12]) return 0;
+    ratioZ = a.GetZmet()/b.GetZmet();
+    if (ratioZ>params[15] || 1.0/ratioZ > params[15]) return 0;
+
+    for (int j=0;j<3;j++){
+        total+=(a.GetPosition(j)-b.GetPosition(j))*(a.GetPosition(j)-b.GetPosition(j))/params[6];
+        total+=(a.GetVelocity(j)-b.GetVelocity(j))*(a.GetVelocity(j)-b.GetVelocity(j))/params[7];
+    }
+
+    return (total<1);
+}
+#endif
+
+
 int FOFPositivetypes(Particle &a, Particle &b, Double_t *params){
     return (a.GetType()>=0 && b.GetType()>=0);
 }

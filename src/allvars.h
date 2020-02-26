@@ -151,6 +151,10 @@ using namespace NBody;
 #define FOFBARYON6D 0
 ///baryon phase tensor search
 #define FOFBARYONPHASETENSOR 1
+
+///New gas search where must provide metallicty and temperature links 
+#define FOFGASSTRUCTURE 20
+
 //@}
 
 /// \defgroup INTERATIVESEARCHPARAMS for iterative subsubstructure search
@@ -774,6 +778,13 @@ struct Options
     vector<int> bh_chemproduction_index_paired_calc;
     vector<int> extra_dm_internalprop_index_paired_calc;
 
+    //@}
+
+    /// \name Gas search parameters
+    //@{
+    float gassearch_ellx, gassearch_ellv;
+    float gassearch_uratio, gassearch_umin, gassearch_umax;
+    float gassearch_Zratio, gassearch_Zmin, gassearch_Zmax;
     //@}
 
     Options()

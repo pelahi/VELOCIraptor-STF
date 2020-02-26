@@ -58,6 +58,10 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     OMP_Domain *ompdomain;
     int numompregions = ceil(nbodies/(float)opt.openmpfofsize);
     bool runompfof = (numompregions>=2 && nthreads > 1 && opt.iopenmpfof == 1);
+    //turn off openmp fof if using gas search 
+    #ifdef GASON 
+    if (opt.fofbgtype == FOFGASSTRUCTURE) runompfof = 0;
+    #endif 
 #endif
     if (opt.p>0) {
         period=new Double_t[3];
@@ -112,7 +116,20 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     cout<<"Done"<<endl;
     cout<<ThisTask<<" Search particles using 3DFOF in physical space"<<endl;
     cout<<ThisTask<<" Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits (ell^2="<<param[6]<<" and likely "<<sqrt(param[6])/opt.ellxscale<<" in interparticle spacing"<<endl;
-    if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) {fofcmp=&FOF3dDM;param[7]=DARKTYPE;fofcheck=FOFchecktype;}
+    if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) {
+        fofcmp=&FOF3dDM;param[7]=DARKTYPE;fofcheck=FOFchecktype;
+    }
+    else if (opt.fofbgtype == FOFGASSTRUCTURE) {
+        fofcmp=&FOFGasSearch;
+        param[0] = opt.gassearch_ellx*opt.gassearch_ellx;
+        param[6] = opt.gassearch_ellv*opt.gassearch_ellv;
+        param[10] = opt.gassearch_umin;
+        param[11] = opt.gassearch_umax;
+        param[12] = opt.gassearch_uratio;
+        param[13] = opt.gassearch_Zmin;
+        param[14] = opt.gassearch_Zmax;
+        param[15] = opt.gassearch_Zratio;
+    }
     else fofcmp=&FOF3d;
 
 
@@ -209,6 +226,10 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
             pfof=tree->FOFCriterionSetBasisForLinks(fofcmp,param,numgroups,minsize,
                 iorder,0,FOFchecktype,Head,Next);
         }
+        else if (opt.fofbgtype == FOFGASSTRUCTURE) {
+            pfof=tree->FOFCriterion(fofcmp,param,numgroups,minsize,
+                iorder,0,Pnocheck,Head,Next);
+        }
         else {
             pfof=tree->FOF(sqrt(param[1]),numgroups,minsize,iorder,Head,Next);
         }
@@ -218,6 +239,10 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) {
         pfof=tree->FOFCriterionSetBasisForLinks(fofcmp,param,numgroups,minsize,
             iorder,0,FOFchecktype,Head,Next);
+    }
+    else if (opt.fofbgtype == FOFGASSTRUCTURE) {
+        pfof=tree->FOFCriterion(fofcmp,param,numgroups,minsize,
+            iorder,0,Pnocheck,Head,Next);
     }
     else {
         pfof=tree->FOF(sqrt(param[1]),numgroups,minsize,iorder,Head,Next);
@@ -325,6 +350,9 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     do {
         if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) {
             links_across=MPILinkAcross(nbodies, tree, Part.data(), pfof, Len, Head, Next, param[1], fofcheck, param);
+        }
+        else if (opt.fofbgtype == FOFGASSTRUCTURE) {
+            links_across=MPILinkAcross(nbodies, tree, Part.data(), pfof, Len, Head, Next, param[1], fofcmp, param);
         }
         else {
             links_across=MPILinkAcross(nbodies, tree, Part.data(), pfof, Len, Head, Next, param[1]);

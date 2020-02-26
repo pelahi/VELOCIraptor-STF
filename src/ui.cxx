@@ -724,6 +724,24 @@ void GetParamFile(Options &opt)
                     else if (strcmp(tbuff, "Singlehalo_search")==0)
                         opt.iSingleHalo = atoi(vbuff);
 
+                    //specific search for gas searches
+                    else if (strcmp(tbuff, "Gas_search_linking_ellx_in_kpc")==0)
+                        opt.gassearch_ellx = atof(vbuff);
+                    else if (strcmp(tbuff, "Gas_search_linking_ellv_in_km/s")==0)
+                        opt.gassearch_ellv = atof(vbuff);
+                    else if (strcmp(tbuff, "Gas_search_specificinternalenergy_min_in_km^2/s^2")==0)
+                        opt.gassearch_umin = atof(vbuff);
+                    else if (strcmp(tbuff, "Gas_search_specificinternalenergy_max_in_km^2/s^2")==0)
+                        opt.gassearch_umax = atof(vbuff);
+                    else if (strcmp(tbuff, "Gas_search_specificinternalenergy_ratio")==0)
+                        opt.gassearch_uratio = atof(vbuff);
+                    else if (strcmp(tbuff, "Gas_search_metallicity_min")==0)
+                        opt.gassearch_Zmin = atof(vbuff);
+                    else if (strcmp(tbuff, "Gas_search_metallicity_max")==0)
+                        opt.gassearch_Zmax = atof(vbuff);
+                    else if (strcmp(tbuff, "Gas_search_metallicity_ratio")==0)
+                        opt.gassearch_Zratio = atof(vbuff);
+
                     //units, cosmology
                     else if (strcmp(tbuff, "Length_unit")==0)
                         opt.lengthinputconversion = atof(vbuff);

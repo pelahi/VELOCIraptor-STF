@@ -39,6 +39,12 @@ int FOFPositivetypes(Particle &a, Particle &b, Double_t *params);
 
 ///stream FOF algorithm that requires one of the particles to be dark matter for a link to occur
 int FOF3dDM(Particle &a, Particle &b, Double_t *params);
+
+/// gas structure search where gas particles must be a specific temperature or metallicty 
+#ifdef GASON
+int FOFGasSearch(Particle &a, Particle &b, Double_t *params);
+#endif
+
 //@}
 
 /// \name FOF precheck algorithms
@@ -52,5 +58,6 @@ int FOFchecktype(Particle &a, Double_t *params);
 ///checks to see if particle has a positive type
 int FOFcheckpositivetype(Particle &a, Double_t *params);
 //@}
+
 
 #endif
