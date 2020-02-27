@@ -2842,7 +2842,10 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
         pcsld=psldata->nextlevel;
         nsubsearch=ngroup-opt.num3dfof;
     }
-    for (Int_t i=firstgroup;i<=ngroup;i++) if (numingroup[i]<minsizeforsubsearch) {nsubsearch=i-firstgroup;break;}
+
+    vector<Int_t> indicestosearch;
+    for (Int_t i=firstgroup;i<=ngroup;i++) if (numingroup[i]>=minsizeforsubsearch) {indicestosearch.push_back(i);}
+    nsubsearch = indicestosearch.size();
     iflag=(nsubsearch>0);
 
     if (iflag) {
@@ -2854,9 +2857,9 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
     subnumingroup=new Int_t[nsubsearch+1];
     subpglist=new Int_t*[nsubsearch+1];
     for (Int_t i=1;i<=nsubsearch;i++) {
-        subnumingroup[i]=numingroup[i+firstgroupoffset];
+        subnumingroup[i]=numingroup[indicestosearch[i-1]];
         subpglist[i]=new Int_t[subnumingroup[i]];
-        for (Int_t j=0;j<subnumingroup[i];j++) subpglist[i][j]=pglist[i+firstgroupoffset][j];
+        for (Int_t j=0;j<subnumingroup[i];j++) subpglist[i][j]=pglist[indicestosearch[i-1]][j];
     }
     for (Int_t i=1;i<=ngroup;i++) delete[] pglist[i];
     delete[] pglist;
