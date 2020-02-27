@@ -2965,7 +2965,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
             pcsld->nextlevel->gidparenthead=new Int_t*[ns+1];
             pcsld->nextlevel->giduberparenthead=new Int_t*[ns+1];
             pcsld->nextlevel->stypeinlevel=new Int_t[ns+1];
-            pcsld->nextlevel->stype=HALOSTYPE+10*sublevel;
+            pcsld->nextlevel->stype=HALOSTYPE+SUBSTYPE*sublevel;
             pcsld->nextlevel->nsinlevel=ns;
             Int_t nscount=1;
             for (Int_t i=1;i<=oldnsubsearch;i++) {

@@ -107,6 +107,7 @@ using namespace NBody;
 /// \todo note that here I have set background group type to a halo structure type but that can be changed
 #define HALOSTYPE 10
 #define HALOCORESTYPE 5
+#define SUBSTYPE 10
 #define WALLSTYPE 1
 #define VOIDSTYPE 2
 #define FILAMENTSTYPE 3
@@ -618,6 +619,8 @@ struct Options
     Double_t SphericalOverdensityMinHaloFac;
     ///if want to the particle IDs that are within the SO overdensity of a halo
     int iSphericalOverdensityPartList;
+    /// if want to include more than just field objects (halos) in full SO calculations
+    int SphericalOverdensitySeachMaxStructLevel;
     /// \name Extra variables to store information useful in zoom simluations
     //@{
     /// store the lowest dark matter particle mass
@@ -948,6 +951,7 @@ struct Options
         SphericalOverdensitySeachFac=2.5;
         SphericalOverdensityMinHaloFac=0.05;
         iSphericalOverdensityPartList=0;
+        SphericalOverdensitySeachMaxStructLevel = HALOSTYPE;
 
         mpipartfac=0.1;
 #if USEHDF
@@ -1367,6 +1371,9 @@ struct ConfigInfo{
             datainfo.push_back(datastring);
             datatype.push_back(python_type_string(opt.SOthresholds_values_crit[0]));
         }
+        nameinfo.push_back("Spherical_overdenisty_calculation_limited_to_structure_types");
+        datainfo.push_back(to_string(opt.SphericalOverdensitySeachMaxStructLevel));
+        datatype.push_back(python_type_string(opt.SphericalOverdensitySeachMaxStructLevel));
         if (opt.gas_internalprop_names.size()>0){
             nameinfo.push_back("Gas_internal_property_names");
             datastring=string("");for (auto &x:opt.gas_internalprop_names) {datastring+=x;datastring+=string(",");}
