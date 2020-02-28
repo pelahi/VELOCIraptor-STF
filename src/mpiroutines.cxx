@@ -233,8 +233,8 @@ void MPIFillBuffWithHydroInfo(Options &opt, Int_t nlocalbuff, Particle *Part, ve
 #ifdef GASON
     Int_t num = 0, numextrafields = 0, index, offset = 0;
     string field;
-    indices.resize(0);
-    propbuff.resize(0);
+    indices.clear();
+    propbuff.clear();
 
     numextrafields = opt.gas_internalprop_names.size() + opt.gas_chem_names.size() + opt.gas_chemproduction_names.size();
     if (numextrafields == 0) return;
@@ -274,8 +274,8 @@ void MPIFillBuffWithStarInfo(Options &opt, Int_t nlocalbuff, Particle *Part, vec
 #ifdef STARON
     Int_t num = 0, numextrafields = 0, index, offset = 0;
     string field;
-    indices.resize(0);
-    propbuff.resize(0);
+    indices.clear();
+    propbuff.clear();
 
     numextrafields = opt.star_internalprop_names.size() + opt.star_chem_names.size() + opt.star_chemproduction_names.size();
     if (numextrafields == 0) return;
@@ -315,8 +315,8 @@ void MPIFillBuffWithBHInfo(Options &opt, Int_t nlocalbuff, Particle *Part, vecto
 #ifdef BHON
     Int_t num = 0, numextrafields = 0, index, offset = 0;
     string field;
-    indices.resize(0);
-    propbuff.resize(0);
+    indices.clear();
+    propbuff.clear();
 
     numextrafields = opt.bh_internalprop_names.size() + opt.bh_chem_names.size() + opt.bh_chemproduction_names.size();
     if (numextrafields == 0) return;
@@ -358,8 +358,8 @@ void MPIFillFOFBuffWithHydroInfo(Options &opt, Int_t *numbuff, Int_t *numoffset,
     Int_t num = 0, numextrafields = 0, index, offset = 0;
     string field;
     vector<Int_t> npertask(NProcs);
-    indices.resize(0);
-    propbuff.resize(0);
+    indices.clear();
+    propbuff.clear();
 
     numextrafields = opt.gas_internalprop_names.size() + opt.gas_chem_names.size() + opt.gas_chemproduction_names.size();
     if (numextrafields == 0) return;

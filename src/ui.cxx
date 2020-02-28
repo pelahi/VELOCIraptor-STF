@@ -454,11 +454,11 @@ inline void ExtraFieldCheck(string configentryname, vector<string> &names, vecto
         conversions = newconversions;
         calctypes = newcalctypes;
     }
-    newnames.resize(0);
-    newindices.resize(0);
-    newunits.resize(0);
-    newconversions.resize(0);
-    newcalctypes.resize(0);
+    newnames.clear();
+    newindices.clear();
+    newunits.clear();
+    newconversions.clear();
+    newcalctypes.clear();
 
     //remove duplicate entries
     outputset.clear();
@@ -521,7 +521,7 @@ inline void ListDuplicateEntryCheck(string configentryname, int &num,
     }
     if (iduplicates) {
         names = vector<string>(unique.begin(),unique.end());
-        values.resize(0);
+        values.clear();
         for (auto &val:names) values.push_back(stof(val));
         num = values.size();
 

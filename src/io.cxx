@@ -632,7 +632,7 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     }
 #endif
     else for (Int_t i=1;i<=ng;i++) Fout<<offset[i]<<endl;
-    offset.resize(0);
+    offset.clear();
 
     if (opt.ibinaryout==OUTASCII || opt.ibinaryout==OUTBINARY) Fout.close();
 #ifdef USEHDF
@@ -1113,10 +1113,10 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids, ve
     string fname;
     ostringstream os;
     unsigned long ng,noffset=0,ngtot=0,nSOids=0,nSOidstot=0, nwritecommtot=0, nSOwritecommtot=0;
-    unsigned long *offset;
-    long long *idval;
-    int *typeval;
-    Int_t *numingroup;
+    vector<unsigned long> offset;
+    vector<long long> idval;
+    vector<int> typeval;
+    vector<Int_t> numingroup;
 
 #ifdef USEMPI
     MPIBuildWriteComm(opt);
@@ -1277,15 +1277,18 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids, ve
 
     //write group size
     if (opt.ibinaryout==OUTBINARY) {
-        numingroup=new Int_t[ngroups+1];
-        for (auto i=1;i<=ngroups;i++) numingroup[i]=SOpids[i].size();
-        Fout.write((char*)&numingroup[1],sizeof(Int_t)*ngroups);
-        delete[] numingroup;
+        numingroup.resize(ngroups+1,0);
+        for (auto i=1;i<=ngroups;i++) numingroup[i] = SOpids[i].size();
+        if (ngroups > 0 ) Fout.write((char*)&(numingroup.data())[1],sizeof(Int_t)*ngroups);
+        numingroup.clear();
     }
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
-        unsigned int *data=new unsigned int[ng];
-        for (Int_t i=1;i<=ng;i++) data[i-1]=SOpids[i].size();
+        unsigned int *data=NULL;
+        if (ng > 0) {
+	        data=new unsigned int[ng];
+        	for (Int_t i=1;i<=ng;i++) data[i-1]=SOpids[i].size();
+        }
         Fhdf.write_dataset(datagroupnames.SO[itemp], ng, data);
         itemp++;
         delete[] data;
@@ -1314,8 +1317,11 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids, ve
         Int_t mpioffset=0;
         for (Int_t itask=0;itask<ThisTask;itask++)mpioffset+=mpi_ngroups[itask];
         adios_err=adios_write(adios_file_handle,"ngmpioffset",&mpioffset);
-        unsigned int *data=new unsigned int[ng];
-        for (Int_t i=1;i<=ng;i++) data[i-1]=SOpids[i].size();
+        unsigned int *data = NULL;
+        if (ng > 0){
+            data = new unsigned int[ng];
+            for (Int_t i=1;i<=ng;i++) data[i-1]=SOpids[i].size();
+        }
         adios_err=adios_write(adios_file_handle,datagroupnames.SO[itemp].c_str(),data);
         delete[] data;
         itemp++;
@@ -1327,15 +1333,20 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids, ve
 
 
     //Write offsets
-    offset=new unsigned long[ngroups+1];
-    offset[1]=0;
-    for (Int_t i=2;i<=ngroups;i++) offset[i]=offset[i-1]+SOpids[i].size();
+    offset.resize(ngroups+1,0);
+    if (ngroups > 0) {
+       offset[0] = offset[1] = 0;
+       for (Int_t i=2;i<=ngroups;i++) offset[i]=offset[i-1]+SOpids[i].size();
+    }
 
-    if (opt.ibinaryout==OUTBINARY) Fout.write((char*)&offset[1],sizeof(Int_t)*ngroups);
+    if (opt.ibinaryout==OUTBINARY) Fout.write((char*)&(offset.data())[1],sizeof(Int_t)*ngroups);
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
-        unsigned long *data=new unsigned long[ng];
-        for (Int_t i=1;i<=ng;i++) data[i-1]=offset[i];
+        unsigned long *data = NULL;
+        if (ng > 0) {
+            data = new unsigned long[ng];
+            for (Int_t i=1;i<=ng;i++) data[i-1]=offset[i];
+        }
 #ifdef USEPARALLELHDF
         MPI_Allgather(&nSOids, 1, MPI_Int_t, mpi_offset.data(), 1, MPI_Int_t, mpi_comm_write);
         if (ThisWriteTask > 0)
@@ -1353,8 +1364,11 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids, ve
     else if (opt.ibinaryout==OUTADIOS) {
         //don't delcare new group, just add data
         adios_err=adios_define_var(adios_grp_handle,datagroupnames.SO[itemp].c_str(),"",datagroupnames.adiosSOdatatype[itemp],"ng","ngtot","ngmpioffset");
-        unsigned long *data=new unsigned long[ng];
-        for (Int_t i=1;i<=ng;i++) data[i-1]=offset[i];
+        unsigned long *data = NULL;
+        if (ng > 0) {
+            data = new unsigned long[ng];
+            for (Int_t i=1;i<=ng;i++) data[i-1]=offset[i];
+        }
         adios_err=adios_write(adios_file_handle,datagroupnames.SO[itemp].c_str(),data);
         delete[] data;
         itemp++;
@@ -1363,38 +1377,40 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids, ve
     else {
         for (Int_t i=1;i<=ngroups;i++) Fout<<offset[i]<<endl;
     }
-    delete[] offset;
+    offset.clear();
 
     if (nSOids>0) {
-        idval=new long long[nSOids];
+        idval.resize(nSOids,0);
         nSOids=0;
         for (Int_t i=1;i<=ngroups;i++) {
-            for (Int_t j=0;j<SOpids[i].size();j++)
+            for (Int_t j=0;j<SOpids[i].size();j++) {
                 idval[nSOids++]=SOpids[i][j];
-            SOpids[i].resize(0);
+            }
+            SOpids[i].clear();
         }
 #if defined(GASON) || defined(STARON) || defined(BHON)
-        typeval=new int[nSOids];
+        typeval.resize(nSOids,0);
         nSOids=0;
         for (Int_t i=1;i<=ngroups;i++) {
-            for (Int_t j=0;j<SOtypes[i].size();j++)
+            for (Int_t j=0;j<SOtypes[i].size();j++) {
                 typeval[nSOids++]=SOtypes[i][j];
-            SOtypes[i].resize(0);
+            }
+            SOtypes[i].clear();
         }
 #endif
     }
     if (opt.ibinaryout==OUTBINARY) {
-        if (nSOids>0) Fout.write((char*)idval,sizeof(Int_t)*nSOids);
+        if (nSOids>0) Fout.write((char*)idval.data(),sizeof(Int_t)*nSOids);
 #if defined(GASON) || defined(STARON) || defined(BHON)
-        if (nSOids>0) Fout.write((char*)typeval,sizeof(int)*nSOids);
+        if (nSOids>0) Fout.write((char*)typeval.data(),sizeof(int)*nSOids);
 #endif
     }
 #ifdef USEHDF
     else if (opt.ibinaryout==OUTHDF) {
-        Fhdf.write_dataset(datagroupnames.SO[itemp], nSOids, idval);
+        Fhdf.write_dataset(datagroupnames.SO[itemp], nSOids, idval.data());
         #if defined(GASON) || defined(STARON) || defined(BHON)
         itemp++;
-        Fhdf.write_dataset(datagroupnames.SO[itemp], nSOids, typeval);
+        Fhdf.write_dataset(datagroupnames.SO[itemp], nSOids, typeval.data());
         #endif
     }
 #endif
@@ -1426,9 +1442,9 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids, ve
         for (Int_t i=0;i<nSOids;i++) Fout<<typeval[i]<<endl;
 #endif
     }
-    if (nSOids>0) delete[] idval;
+    if (nSOids>0) idval.clear();
 #if defined(GASON) || defined(STARON) || defined(BHON)
-    if (nSOids>0) delete[] typeval;
+    if (nSOids>0) typeval.clear();
 #endif
 
     if (opt.ibinaryout==OUTASCII || opt.ibinaryout==OUTBINARY) Fout.close();

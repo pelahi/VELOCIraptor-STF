@@ -23,7 +23,7 @@
 */
 Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, Int_t &numgroups)
 {
-    Int_t i, *pfof,*pfoftemp, minsize;
+    Int_t i, *pfof = NULL, *pfoftemp = NULL, minsize;
     FOFcompfunc fofcmp;
     FOFcheckfunc fofcheck;
     fstream Fout;
@@ -31,19 +31,19 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     Double_t param[20];
     Double_t *period=NULL;
     Double_t vscale2,mtotregion,vx,vy,vz;
-    Double_t *vscale2array;
+    Double_t *vscale2array = NULL;
     Coordinate vmean(0,0,0);
     int maxnthreads,nthreads=1,tid;
-    Int_tree_t *Len,*Head,*Next,*Tail;
-    Int_t *storetype,*storeorgIndex;
-    Int_t *ids, *numingroup=NULL, *noffset;
-    Int_t *id_3dfof_of_6dfof;
+    Int_tree_t *Len = NULL, *Head =NULL, *Next = NULL, *Tail = NULL;
+    Int_t *storetype = NULL,*storeorgIndex = NULL;
+    Int_t *ids, *numingroup=NULL, *noffset = NULL;
+    Int_t *id_3dfof_of_6dfof = NULL;
     Int_t ng,npartingroups;
     Int_t totalgroups;
     Double_t time1,time2, time3;
-    KDTree *tree;
-    KDTree **tree3dfofomp;
-    Int_t *p3dfofomp;
+    KDTree *tree = NULL;
+    KDTree **tree3dfofomp = NULL;
+    Int_t *p3dfofomp = NULL;
     int iorder = 1;
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
@@ -430,8 +430,8 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     //periodic
     if (opt.p>0&&numgroups>0) {
         if (numgroups>0)AdjustStructureForPeriod(opt,Nlocal,Part,numgroups,pfof);
-        delete[] period;
     }
+    delete[] period;
 
     //have now 3dfof groups local to a MPI thread and particles are back in index order that will be used from now on
     //note that from on, use Nlocal, which is altered in mpi but set to nbodies in non-mpi
