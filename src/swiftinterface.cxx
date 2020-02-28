@@ -424,13 +424,14 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
     BHProperties bh;
     #endif
     Particle *pbaryons;
-    Int_t *pfof, *pfofall, *pfofbaryons, *numingroup,**pglist;
+    Int_t *pfof = NULL, *pfofall = NULL, *pfofbaryons = NULL, *numingroup = NULL, **pglist = NULL;
+    Int_t *nsub = NULL, *parentgid = NULL, *uparentgid =NULL, *stype = NULL;
     Int_t nbaryons, ndark, index;
     Int_t ngroup, nhalos;
-    groupinfo *group_info;
+    groupinfo *group_info = NULL;
     //KDTree *tree;
     //to store information about the group
-    PropData *pdata=NULL,*pdatahalos=NULL;
+    PropData *pdata = NULL,*pdatahalos = NULL;
     double time1;
 
     /// Set pointer to cell node IDs
@@ -631,7 +632,6 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
     }
 
     //get mpi local hierarchy
-    Int_t *nsub,*parentgid, *uparentgid,*stype;
     nsub=new Int_t[ngroup+1];
     parentgid=new Int_t[ngroup+1];
     uparentgid=new Int_t[ngroup+1];
