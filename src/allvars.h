@@ -5295,14 +5295,12 @@ struct StrucLevelData
     ~StrucLevelData(){
         if (nextlevel!=NULL) delete nextlevel;
         nextlevel=NULL;
-        if (nsinlevel>0) {
-            delete[] Phead;
-            delete[] Pparenthead;
-            delete[] gidhead;
-            delete[] gidparenthead;
-            delete[] giduberparenthead;
-            delete[] stypeinlevel;
-        }
+        delete[] Phead;
+        delete[] Pparenthead;
+        delete[] gidhead;
+        delete[] gidparenthead;
+        delete[] giduberparenthead;
+        delete[] stypeinlevel;
     }
 };
 
