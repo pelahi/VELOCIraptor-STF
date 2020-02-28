@@ -2977,6 +2977,13 @@ void GetFOFMass(Options &opt, Int_t ngroup, Int_t *&numingroup, PropData *&pdata
 /// of all host halos using there centre of masses
 void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&numingroup, PropData *&pdata)
 {
+#ifdef USEMPI
+    Int_t ngrouptotal = 0;
+    MPI_Allreduce (&ngroup, &ngrouptotal, 1, MPI_Int_t, MPI_SUM, MPI_COMM_WORLD);
+    if (ngrouptotal == 0) return;
+#else
+    if (ngroup ==0 )return;
+#endif
     Particle *Pval;
     KDTree *tree;
     Double_t period[3];
@@ -3014,7 +3021,7 @@ void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup
 #ifdef USEOPENMP
 #pragma omp parallel
     {
-            if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
+        if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
     }
 #endif
 
