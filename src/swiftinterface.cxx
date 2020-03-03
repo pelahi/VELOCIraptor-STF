@@ -564,7 +564,7 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
     cout<<ThisTask<<" will also require additional memory for FOF algorithms and substructure search. Largest mem needed for preliminary FOF search. Rough estimate is "<<Nlocal*(sizeof(Int_tree_t)*8)/1024./1024./1024.<<"GB of memory"<<endl;
 
     //get memory usage
-    GetMemUseage(libvelociraptorOpt, __func__, true);
+    GetMemUsage(libvelociraptorOpt, __func__+string("--line--")+to_string(__LINE__), true);
 
     //
     // Perform FOF search.
@@ -672,7 +672,7 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
     delete[] numingroup;
 
     //get memory usage
-    GetMemUseage(libvelociraptorOpt, __func__, true);
+    GetMemUsage(libvelociraptorOpt, __func__+string("--line--")+to_string(__LINE__), true);
 
     //store group information to return information to swift if required
     //otherwise, return NULL as pointer

@@ -454,7 +454,7 @@ void GetVelocityDensityHaloOnlyDen(Options &opt, const Int_t nbodies, Particle *
     }
 
     //get memory useage
-    GetMemUseage(opt, __func__, (opt.iverbose>=1));
+    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
 
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
@@ -529,7 +529,7 @@ void GetVelocityDensityExact(Options &opt, const Int_t nbodies, Particle *Part, 
 
     time2=MyGetTime();
     //get memory useage
-    GetMemUseage(opt, __func__, (opt.iverbose>=1));
+    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
 
     //In loop determine if particles NN search radius overlaps another mpi threads domain.
     //If not, then proceed as usually to determine velocity density.
@@ -631,7 +631,7 @@ private(i,j,k,tid,id,v2,nnids,nnr2,weight,pqv)
     if (nimport>0) treeneighbours=new KDTree(PartDataGet,nimport,1,tree->TPHYS,tree->KEPAN,100,0,0,0,period);
 
     //get memory useage
-    GetMemUseage(opt, __func__, (opt.iverbose>=1));
+    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
 
     //then run search
 #ifdef USEOPENMP
@@ -801,7 +801,7 @@ void GetVelocityDensityApproximative(Options &opt, const Int_t nbodies, Particle
     node=NULL;
 
     //get memory useage
-    GetMemUseage(opt, __func__, (opt.iverbose>=1));
+    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
 
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)
@@ -962,7 +962,7 @@ reduction(+:nprocessed,ntot)
     }
 
     //get memory useage
-    GetMemUseage(opt, __func__, (opt.iverbose>=1));
+    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
 
     if (nimport>0) {
 #ifdef USEOPENMP

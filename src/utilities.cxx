@@ -34,7 +34,7 @@ int CompareInt(const void *p1, const void *p2) {
 }
 
 /// get the memory use looking at the task
-void GetMemUseage(Options &opt, string funcname, bool printreport){
+void GetMemUsage(Options &opt, string funcname, bool printreport){
 #ifndef USEMPI
     int ThisTask=0;
 #endif
@@ -45,6 +45,7 @@ void GetMemUseage(Options &opt, string funcname, bool printreport){
     bool iflag = true;
     char buffer[2500];
     string memreport, temp, delimiter1("VmPeak:"), delimiter2("kB");
+    ofstream Fmem;
     // Open the file storing memory information associated with the process;
     f.open("/proc/self/statm");
     if (f.is_open()) {
@@ -109,6 +110,10 @@ void GetMemUseage(Options &opt, string funcname, bool printreport){
     else{
         memreport+= string(" unable to open or scane system file storing memory use");
     }
+    sprintf(buffer,"%s.memlog.%d",opt.outname,ThisTask);
+    Fmem.open(buffer,ios::app);
+    Fmem<<memreport<<endl;
+    Fmem.close();
     if (printreport) cout<<memreport<<endl;
 }
 
