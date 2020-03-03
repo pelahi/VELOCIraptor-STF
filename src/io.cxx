@@ -74,13 +74,17 @@ void ReadData(Options &opt, vector<Particle> &Part, const Int_t nbodies, Particl
 {
     InitEndian();
 #ifndef USEMPI
-    int ThisTask = 0;
+    int ThisTask = 0, NProcs = 1;
+    Int_t Nlocal = nbodies;
 #endif
     if (ThisTask==0) {
+        cout<<"Reading input ... "<<endl;
+#ifdef USEMPI
         cout<<"Each MPI read thread, of which there are "<<opt.nsnapread<<", will allocate ";
         cout<<opt.mpiparticlebufsize*NProcs*sizeof(Particle)/1024.0/1024.0/1024.0<<" of memory to store particle data"<<endl;
         cout<<"Sending information to non-read threads in chunks of "<<opt.mpiparticlebufsize<<" particles "<<endl;
         cout<<"This requires approximately "<<(int)(Nlocal/(double)opt.mpiparticlebufsize)<<" receives"<<endl;
+#endif
     }
 
     if(opt.inputtype==IOTIPSY) ReadTipsy(opt,Part,nbodies, Pbaryons, nbaryons);
