@@ -9,11 +9,14 @@ RUN apt update && \
 
 WORKDIR /home/ubuntu/
 
-# INITIALISE PROJECT DIRECTORY
-RUN git clone https://github.com/pelahi/VELOCIraptor-STF.git && \
-    cd VELOCIraptor-STF && git checkout ${BRANCH} && git submodule update --init --recursive
+# COPY PROJECT DIRECTORY
+# RUN git clone https://github.com/pelahi/VELOCIraptor-STF.git 
+COPY . /home/ubuntu/VELOCIraptor-STF
 
 WORKDIR /home/ubuntu/VELOCIraptor-STF
+
+#RUN git checkout ${BRANCH} 
+#&& git submodule update --init --recursive
 
 # BUILD BINARY
 RUN mkdir build && cd build && cmake .. && make all
