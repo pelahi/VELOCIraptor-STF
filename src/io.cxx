@@ -103,7 +103,7 @@ void ReadData(Options &opt, vector<Particle> &Part, const Int_t nbodies, Particl
     MPIAdjustDomain(opt);
 #endif
     if (ThisTask==0) cout<<"Done loading input data"<<endl;
-    GetMemUseage(opt,__func__, (opt.iverbose>=0));
+    GetMemUsage(opt,__func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
 }
 
 
