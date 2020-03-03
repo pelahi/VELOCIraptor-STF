@@ -5,7 +5,9 @@
 #ifndef OMPVAR_H
 #define OMPVAR_H
 
+#ifdef USEOPENMP
 #include <omp.h>
+#endif
 
 ///\name Include for NBodyFramework library.
 //@{
@@ -32,6 +34,8 @@ using namespace NBody;
 #define ompfofsearchnum 2000000
 #define ompsortsize 1000000
 //@}
+
+#ifdef USEOPENMP 
 
 ///structure to store relevant info for searching openmp domains
 struct OMP_Domain {

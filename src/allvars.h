@@ -31,6 +31,8 @@
 #include <getopt.h>
 #include <sys/stat.h>
 #include <sys/timeb.h>
+#include <sys/time.h>
+#include <unistd.h>
 
 #include <gsl/gsl_heapsort.h>
 #include <gsl/gsl_errno.h>
@@ -776,6 +778,13 @@ struct Options
 
     //@}
 
+    /// \name memory related info
+    //@{
+    unsigned long long memuse_peak;
+    unsigned long long memuse_ave;
+    int memuse_nsamples;
+    //@}
+
     Options()
     {
         lengthinputconversion = 1.0;
@@ -969,6 +978,10 @@ struct Options
 #endif
 
         iontheflyfinding = false;
+
+        memuse_peak = 0;
+        memuse_ave = 0;
+        memuse_nsamples = 0;
     }
     Options(Options &opt) = default;
     Options& operator=(const Options&) = default;
@@ -5295,14 +5308,12 @@ struct StrucLevelData
     ~StrucLevelData(){
         if (nextlevel!=NULL) delete nextlevel;
         nextlevel=NULL;
-        if (nsinlevel>0) {
-            delete[] Phead;
-            delete[] Pparenthead;
-            delete[] gidhead;
-            delete[] gidparenthead;
-            delete[] giduberparenthead;
-            delete[] stypeinlevel;
-        }
+        delete[] Phead;
+        delete[] Pparenthead;
+        delete[] gidhead;
+        delete[] gidparenthead;
+        delete[] giduberparenthead;
+        delete[] stypeinlevel;
     }
 };
 

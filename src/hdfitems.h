@@ -331,7 +331,7 @@ static inline int whatisopen(hid_t fid) {
 
         if (cnt <= 0) return cnt;
 
-        printf("%d object(s) open\n", cnt);
+        printf("%zd object(s) open\n", cnt);
 
         objs = new hid_t[cnt];
 
