@@ -4624,6 +4624,10 @@ private(i,j)
             else pglist[i][0]=0;
         }
     }
+
+    //get memory useage
+    GetMemUseage(opt, __func__, (opt.iverbose>=1));
+
     delete[] noffset;
     //reset particles back to id order
     if (opt.iseparatefiles) {
@@ -4676,6 +4680,9 @@ void CalculateHaloProperties(Options &opt, const Int_t nbodies, Particle *Part, 
 
     for (i=1;i<=ngroup;i++) pdata[i].ibound=Part[noffset[i]].GetPID();
     for (i=1;i<=ngroup;i++) pdata[i].iunbound=Part[noffset[i]+numingroup[i]-1].GetPID();
+
+    //get memory useage
+    GetMemUseage(opt, __func__, (opt.iverbose>=1));
     delete[] noffset;
 }
 

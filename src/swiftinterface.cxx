@@ -401,6 +401,9 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
 
     libvelociraptorOpt.outname = outputname;
     libvelociraptorOpt.snapshotvalue = HALOIDSNVAL* snapnum;
+    libvelociraptorOpt.memuse_peak = 0;
+    libvelociraptorOpt.memuse_ave = 0;
+    libvelociraptorOpt.memuse_nsamples = 0;
 
     //store a general mass unit, useful if running uniform box with single mass
     //and saving memory by not storing mass per particle.
@@ -560,6 +563,9 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
     if (libvelociraptorOpt.iBaryonSearch>0) cout<<ThisTask<<"There are "<<Nlocalbaryon[0]<<" baryon particles and have allocated enough memory for "<<Nmemlocalbaryon<<" requiring "<<Nmemlocalbaryon*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
     cout<<ThisTask<<" will also require additional memory for FOF algorithms and substructure search. Largest mem needed for preliminary FOF search. Rough estimate is "<<Nlocal*(sizeof(Int_tree_t)*8)/1024./1024./1024.<<"GB of memory"<<endl;
 
+    //get memory usage
+    GetMemUseage(libvelociraptorOpt, __func__, true);
+
     //
     // Perform FOF search.
     //
@@ -664,6 +670,9 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
     delete[] stype;
     delete psldata;
     delete[] numingroup;
+
+    //get memory usage
+    GetMemUseage(libvelociraptorOpt, __func__, true);
 
     //store group information to return information to swift if required
     //otherwise, return NULL as pointer
