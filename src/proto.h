@@ -811,7 +811,7 @@ int GetMilliCount();
 int GetMillSpan(int );
 int CompareInt(const void *, const void *);
 ///Get memory use
-void GetMemUseage(Options &opt, string callingfunction, bool printreport);
+void GetMemUsage(Options &opt, string callingfunction, bool printreport);
 ///get a time
 double MyGetTime();
 

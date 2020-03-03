@@ -444,7 +444,7 @@ int main(int argc,char **argv)
 
         //get memory useage
         cout<<ThisTask<<" : finished running VR "<<endl;
-        GetMemUseage(opt, __func__, (opt.iverbose>=0));
+        GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=0));
 
 #ifdef USEMPI
 #ifdef USEADIOS
@@ -558,7 +558,7 @@ int main(int argc,char **argv)
 
     //get memory useage
     cout<<ThisTask<<" : finished running VR "<<endl;
-    GetMemUseage(opt, __func__, (opt.iverbose>=0));
+    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=0));
 
 #ifdef USEMPI
 #ifdef USEADIOS
