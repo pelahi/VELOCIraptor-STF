@@ -73,14 +73,15 @@ Int_t ReadHeader(Options &opt){
 void ReadData(Options &opt, vector<Particle> &Part, const Int_t nbodies, Particle *&Pbaryons, Int_t nbaryons)
 {
     InitEndian();
-#ifdef USEMPI
+#ifndef USEMPI
+    int ThisTask = 0;
+#endif
     if (ThisTask==0) {
         cout<<"Each MPI read thread, of which there are "<<opt.nsnapread<<", will allocate ";
         cout<<opt.mpiparticlebufsize*NProcs*sizeof(Particle)/1024.0/1024.0/1024.0<<" of memory to store particle data"<<endl;
         cout<<"Sending information to non-read threads in chunks of "<<opt.mpiparticlebufsize<<" particles "<<endl;
         cout<<"This requires approximately "<<(int)(Nlocal/(double)opt.mpiparticlebufsize)<<" receives"<<endl;
     }
-#endif
 
     if(opt.inputtype==IOTIPSY) ReadTipsy(opt,Part,nbodies, Pbaryons, nbaryons);
     else if (opt.inputtype==IOGADGET) ReadGadget(opt,Part,nbodies, Pbaryons, nbaryons);
@@ -97,6 +98,8 @@ void ReadData(Options &opt, vector<Particle> &Part, const Int_t nbodies, Particl
 #ifdef USEMPI
     MPIAdjustDomain(opt);
 #endif
+    if (ThisTask==0) cout<<"Done loading input data"<<endl;
+    GetMemUseage(opt,__func__, (opt.iverbose>=0));
 }
 
 
