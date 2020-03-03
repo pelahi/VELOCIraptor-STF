@@ -49,7 +49,6 @@ struct OMP_ImportInfo {
     Int_t index, pfof;
     int task;
 };
-#endif
 
 /*
  * OMP_Threadpool_datastructure
@@ -122,3 +121,5 @@ struct OMP_Threadpool {
         printf("Active Threads: %d\n", active_threads);
     }
 };
+#endif
+#endif
