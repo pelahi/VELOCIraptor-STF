@@ -178,12 +178,6 @@ int InitVelociraptor(char* configname, unitinfo u, siminfo s, const int numthrea
     //set if cosmological
     libvelociraptorOpt.icosmologicalin = s.icosmologicalsim;
 
-    //store a general mass unit, useful if running uniform box with single mass
-    //and saving memory by not storing mass per particle.
-    #ifdef NOMASS
-    libvelociraptorOpt.MassValue = s.mass_uniform_box;
-    #endif
-
     //write velociraptor configuration info, appending .configuration to the input config file and writing every config option
     libvelociraptorOpt.outname = configname;
 
@@ -257,12 +251,6 @@ int InitVelociraptorExtra(const int iextra, char* configname, unitinfo u, siminf
 
     //set if cosmological
     libvelociraptorOptextra[iextra].icosmologicalin = s.icosmologicalsim;
-
-    //store a general mass unit, useful if running uniform box with single mass
-    //and saving memory by not storing mass per particle.
-    #ifdef NOMASS
-    libvelociraptorOptextra[iextra].MassValue = s.mass_uniform_box;
-    #endif
 
     //write velociraptor configuration info, appending .configuration to the input config file and writing every config option
     libvelociraptorOptextra[iextra].outname = configname;
@@ -413,6 +401,15 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
 
     libvelociraptorOpt.outname = outputname;
     libvelociraptorOpt.snapshotvalue = HALOIDSNVAL* snapnum;
+    libvelociraptorOpt.memuse_peak = 0;
+    libvelociraptorOpt.memuse_ave = 0;
+    libvelociraptorOpt.memuse_nsamples = 0;
+
+    //store a general mass unit, useful if running uniform box with single mass
+    //and saving memory by not storing mass per particle.
+#ifdef NOMASS
+    libvelociraptorOpt.MassValue = s.mass_uniform_box;
+#endif
 
     //write associated units and simulation details (which contains scale factor/time information)
     SetVelociraptorSimulationState(c, s);
@@ -430,13 +427,14 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
     BHProperties bh;
     #endif
     Particle *pbaryons;
-    Int_t *pfof, *pfofall, *pfofbaryons, *numingroup,**pglist;
+    Int_t *pfof = NULL, *pfofall = NULL, *pfofbaryons = NULL, *numingroup = NULL, **pglist = NULL;
+    Int_t *nsub = NULL, *parentgid = NULL, *uparentgid =NULL, *stype = NULL;
     Int_t nbaryons, ndark, index;
     Int_t ngroup, nhalos;
-    groupinfo *group_info;
+    groupinfo *group_info = NULL;
     //KDTree *tree;
     //to store information about the group
-    PropData *pdata=NULL,*pdatahalos=NULL;
+    PropData *pdata = NULL,*pdatahalos = NULL;
     double time1;
 
     /// Set pointer to cell node IDs
@@ -565,6 +563,9 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
     if (libvelociraptorOpt.iBaryonSearch>0) cout<<ThisTask<<"There are "<<Nlocalbaryon[0]<<" baryon particles and have allocated enough memory for "<<Nmemlocalbaryon<<" requiring "<<Nmemlocalbaryon*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
     cout<<ThisTask<<" will also require additional memory for FOF algorithms and substructure search. Largest mem needed for preliminary FOF search. Rough estimate is "<<Nlocal*(sizeof(Int_tree_t)*8)/1024./1024./1024.<<"GB of memory"<<endl;
 
+    //get memory usage
+    GetMemUseage(libvelociraptorOpt, __func__, true);
+
     //
     // Perform FOF search.
     //
@@ -637,7 +638,6 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
     }
 
     //get mpi local hierarchy
-    Int_t *nsub,*parentgid, *uparentgid,*stype;
     nsub=new Int_t[ngroup+1];
     parentgid=new Int_t[ngroup+1];
     uparentgid=new Int_t[ngroup+1];
@@ -670,6 +670,9 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
     delete[] stype;
     delete psldata;
     delete[] numingroup;
+
+    //get memory usage
+    GetMemUseage(libvelociraptorOpt, __func__, true);
 
     //store group information to return information to swift if required
     //otherwise, return NULL as pointer
