@@ -416,7 +416,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
             numingroup=BuildNumInGroupTyped(Nlocal,numgroups,pfof,Part.data(),DARKTYPE);
             for (i=0;i<Nlocal;i++) {
                 if (Part[i].GetType()==DARKTYPE) Part[i].SetType(numingroup[pfof[Part[i].GetID()]]>=MINSUBSIZE);
-                else Part[i].SetType(-1);
+                else Part[i].SetType(0);
                 numlocalden += (Part[i].GetType()>0);
             }
             delete[] numingroup;
@@ -2634,10 +2634,6 @@ void RemoveSpuriousDynamicalSubstructures(Options &opt, const Int_t nsubset, Int
     }
 }
 
-int setNthreads(){
-    return 0;
-}
-
 ///adjust to phase centre
 inline void AdjustSubPartToPhaseCM(Int_t num, Particle *subPart, GMatrix &cmphase)
 {
@@ -2746,11 +2742,12 @@ inline void CleanAndUpdateGroupsFromSubSearch(Options &opt,
             }
         }
     }
-
+    
     for (auto j=0;j<subnumingroup;j++)
     {
         if (subpfof[j]>0) pfof[subpglist[j]]=ngroup+ngroupidoffset+subpfof[j];
     }
+
     //ngroupidoffset+=subngroup;
     //now alter subsubpglist so that index pointed is global subset index as global subset is used to get the particles to be searched for subsubstructure
     for (auto j=1;j<=subngroup;j++)
@@ -2920,12 +2917,19 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
                 //this routine is within this file, also has internal parallelisation
                 AdjustSubPartToPhaseCM(subnumingroup[i], subPart, cmphase);
             }
+            // TODO: Optimise bottleneck
+            double time_temp;
+            time_temp = MyGetTime();
             PreCalcSearchSubSet(opt, subnumingroup[i], subPart, sublevel);
+            cout<<"DURATION[PreCalcSearchSubSet]: "<<MyGetTime()-time_temp<<endl;
             subpfof = SearchSubset(opt, subnumingroup[i], subnumingroup[i], subPart,
                 subngroup[i], sublevel, &numcores[i]);
+            cout<<"DURATION[SearchSubset]: "<<MyGetTime()-time_temp<<endl;
+            time_temp = MyGetTime();
             CleanAndUpdateGroupsFromSubSearch(opt, subnumingroup[i], subPart, subpfof,
                     subngroup[i], subsubnumingroup[i], subsubpglist[i], numcores[i],
                     subpglist[i], pfof, ngroup, ngroupidoffset_old[i]);
+            cout<<"DURATION[CleanAndUpdateGroupsFromSubSearch]: "<<MyGetTime()-time_temp<<endl;
             delete[] subpfof;
             delete[] subPart;
             ns+=subngroup[i];
@@ -2952,6 +2956,9 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
                     //this routine is within this file, also has internal parallelisation
                     AdjustSubPartToPhaseCM(subnumingroup[i], subPart, cmphase);
                 }
+                // TODO: Optimise bottleneck
+                double time_temp;
+                time_temp = MyGetTime();
                 PreCalcSearchSubSet(opt2, subnumingroup[i], subPart, sublevel);
                 subpfof = SearchSubset(opt2, subnumingroup[i], subnumingroup[i], subPart,
                     subngroup[i], sublevel, &numcores[i]);
@@ -3843,7 +3850,7 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
             map<Int_t, Int_t> remap;
             Int_t newng=0, oldpid, newpid;
             remap[0]=0;
-            for (i=1;i<=ng;i++) {
+            for (auto i=1;i<=ng;i++) {
                 if (ningall[i]>0) {
                     newng++;
                     remap[i]=newng;

@@ -50,4 +50,75 @@ struct OMP_ImportInfo {
     int task;
 };
 #endif
-#endif
+
+/*
+ * OMP_Threadpool_datastructure
+ * - coupled to OMP_Threadpool
+ * - structure to store threadpool information
+ * - captures the following:
+ *      thread state active(True)/inactive(false)
+ *      total number of particles
+ */
+struct OMP_Threadpool_datastructure {
+    bool active;
+    Int_t particle_total;
+};
+
+/*
+ * OMP_Threadpool
+ * - contains routines used for optimised parallel computing/processing
+ *      throttle_up - increase number of active threads
+ *      throttle_down - decrease number of active threads
+ * - captures the following:
+ *      specific threadpool information stored to OMP_Threadpool_datastructure
+ *      total thread size
+ *      number of active threads
+ */
+struct OMP_Threadpool {
+    // Total thread available
+    // Active threads
+    // Unsigned long long for number of particles
+    // omp thread class - 
+    // omp retrieve active threads
+    // specify offset of thread
+
+    /* Private block */
+    private:
+    map<int, OMP_Threadpool_datastructure> details;
+    int thread_count, active_threads;
+
+    /* Public block */
+    public:
+    void throttle_up(){
+        // TODO: add the following logic:
+        //      OMP_Threadpool_datastructure update state of thread from inactive to active
+        active_threads += 1;
+    }
+
+    void throttle_down(){
+        // TODO: add the following logic:
+        //      OMP_Threadpool_datastructure update state of thread from active to inactive
+        active_threads -= 1;
+    }
+
+    void set_total_threads(int thread_count){
+        thread_count = thread_count;
+    }
+
+    int get_total_threads(){
+        return thread_count;
+    }
+
+    int get_active_threads(){
+        return active_threads;
+    }
+
+    /* Confirmation Functions */
+    void print_total_threads(){
+        printf("Total Threads: %d\n", thread_count);
+    }
+
+    void print_active_threads(){
+        printf("Active Threads: %d\n", active_threads);
+    }
+};
