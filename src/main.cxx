@@ -85,6 +85,8 @@ int main(int argc,char **argv)
 #endif
 #endif
 
+    InitMemUsageLog(opt);
+
     //variables
     //number of particles, (also number of baryons if use dm+baryon search)
     //to store (point to) particle data

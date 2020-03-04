@@ -902,6 +902,8 @@ void GetParamFile(Options &opt)
                         opt.iwritefof = atoi(vbuff);
                     else if (strcmp(tbuff, "Snapshot_value")==0)
                         opt.snapshotvalue = HALOIDSNVAL*atoi(vbuff);
+                    else if (strcmp(tbuff, "Memory_log")==0)
+                        opt.memuse_log = atoi(vbuff);
 
                     //input related
                     else if (strcmp(tbuff, "Cosmological_input")==0)

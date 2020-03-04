@@ -38,6 +38,7 @@ void GetMemUsage(Options &opt, string funcname, bool printreport){
 #ifndef USEMPI
     int ThisTask=0;
 #endif
+    if (!opt.memuse_log) return;
     ifstream f;
     size_t pos1, pos2;
     unsigned long long size, resident, shared, text, data, library, dirty, peak;
@@ -115,6 +116,19 @@ void GetMemUsage(Options &opt, string funcname, bool printreport){
     Fmem<<memreport<<endl;
     Fmem.close();
     if (printreport) cout<<memreport<<endl;
+}
+
+void InitMemUsageLog(Options &opt){
+#ifndef USEMPI
+    int ThisTask=0;
+#endif
+    if (!opt.memuse_log) return;
+    ofstream Fmem;
+    char buffer[2500];
+    sprintf(buffer,"%s.memlog.%d",opt.outname,ThisTask);
+    Fmem.open(buffer);
+    Fmem<<"Memory Log"<<endl;
+    Fmem.close();
 }
 
 double MyGetTime(){

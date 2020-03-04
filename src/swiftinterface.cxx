@@ -415,6 +415,7 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
     SetVelociraptorSimulationState(c, s);
     WriteSimulationInfo(libvelociraptorOpt);
     WriteUnitInfo(libvelociraptorOpt);
+    InitMemUsageLog(opt);
 
     vector<Particle> parts;
     #ifdef GASON
