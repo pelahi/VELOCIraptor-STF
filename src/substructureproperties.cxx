@@ -4569,6 +4569,9 @@ Int_t **SortAccordingtoBindingEnergy(Options &opt, const Int_t nbodies, Particle
         for (i=1;i<=ngroup;i++) pdata[i].num=numingroup[i];
     }
 
+    //get memory usage
+    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+
     GetCM(opt, nbodies, Part, ngroup, pfof, numingroup, pdata, noffset);
     GetFOFMass(opt, ngroup, numingroup, pdata);
     if (opt.iPropertyReferencePosition == PROPREFCM) {

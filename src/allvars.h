@@ -783,6 +783,7 @@ struct Options
     unsigned long long memuse_peak;
     unsigned long long memuse_ave;
     int memuse_nsamples;
+    bool memuse_log;
     //@}
 
     Options()
@@ -982,6 +983,7 @@ struct Options
         memuse_peak = 0;
         memuse_ave = 0;
         memuse_nsamples = 0;
+        memuse_log = false;
     }
     Options(Options &opt) = default;
     Options& operator=(const Options&) = default;
@@ -1693,6 +1695,9 @@ struct ConfigInfo{
         nameinfo.push_back("Snapshot_value");
         datainfo.push_back(to_string(opt.snapshotvalue));
         datatype.push_back(python_type_string(opt.snapshotvalue));
+        nameinfo.push_back("Memory_log");
+        datainfo.push_back(to_string(opt.memuse_log));
+        datatype.push_back(python_type_string(opt.memuse_log));
 
         //io related
         nameinfo.push_back("Cosmological_input");
