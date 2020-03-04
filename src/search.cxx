@@ -74,6 +74,9 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     }
 #endif
 
+    //get memory usage
+    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+
     time1=MyGetTime();
     time2=MyGetTime();
     cout<<"Begin FOF search  of entire particle data set ... "<<endl;
@@ -2900,6 +2903,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
         //enough to be searched fully in parallel.
         ompactivesubgroups.resize(0);
 #endif
+        GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__)+string("--subelvel--")+to_string(sublevel), (opt.iverbose>=1));
 
         for (Int_t i=1;i<=oldnsubsearch;i++) {
             // try running loop over largest objects in serial with parallel inside calls
