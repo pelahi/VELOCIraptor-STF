@@ -2918,7 +2918,6 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
         pcsld=psldata->nextlevel;
         nsubsearch=ngroup-opt.num3dfof;
     }
-
     vector<Int_t> indicestosearch;
     for (Int_t i=firstgroup;i<=ngroup;i++) if (numingroup[i]>=minsizeforsubsearch) {indicestosearch.push_back(i);}
     nsubsearch = indicestosearch.size();
