@@ -452,6 +452,10 @@ void GetVelocityDensityHaloOnlyDen(Options &opt, const Int_t nbodies, Particle *
         pqx[j]=new PriorityQueue(opt.Nsearch);
         pqv[j]=new PriorityQueue(opt.Nvel);
     }
+
+    //get memory useage
+    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
 private(i,tid)
@@ -524,6 +528,9 @@ void GetVelocityDensityExact(Options &opt, const Int_t nbodies, Particle *Part, 
 #endif
 
     time2=MyGetTime();
+    //get memory useage
+    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+
     //In loop determine if particles NN search radius overlaps another mpi threads domain.
     //If not, then proceed as usually to determine velocity density.
     //If so, do not calculate local velocity density and set its velocity density to -1 as a flag
@@ -622,6 +629,10 @@ private(i,j,k,tid,id,v2,nnids,nnr2,weight,pqv)
     //first build neighbouring tree
     KDTree *treeneighbours=NULL;
     if (nimport>0) treeneighbours=new KDTree(PartDataGet,nimport,1,tree->TPHYS,tree->KEPAN,100,0,0,0,period);
+
+    //get memory useage
+    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+
     //then run search
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
@@ -789,6 +800,9 @@ void GetVelocityDensityApproximative(Options &opt, const Int_t nbodies, Particle
     }
     node=NULL;
 
+    //get memory useage
+    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)
 {
@@ -937,6 +951,7 @@ reduction(+:nprocessed,ntot)
     int nimportsearch=opt.Nsearch;
     if (nimportsearch>nimport) nimportsearch=nimport;
     if (opt.iverbose) cout<<ThisTask<<" Searching particles in other domains "<<nimport<<endl;
+
     //now with imported particle list and local particle list can run proper NN search
     //first build neighbouring tree
     KDTree *treeneighbours=NULL;
@@ -944,7 +959,12 @@ reduction(+:nprocessed,ntot)
         treeneighbours=new KDTree(PartDataGet,nimport,1,tree->TPHYS,tree->KEPAN,100,0,0,0,period);
         treeneighbours->SetResetOrder(false);
         nprocessed=0;
+    }
 
+    //get memory useage
+    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+
+    if (nimport>0) {
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
 private(id,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,pqx,pqv,Pval,pid2)

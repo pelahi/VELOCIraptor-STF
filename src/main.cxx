@@ -85,6 +85,8 @@ int main(int argc,char **argv)
 #endif
 #endif
 
+    InitMemUsageLog(opt);
+
     //variables
     //number of particles, (also number of baryons if use dm+baryon search)
     //to store (point to) particle data
@@ -236,7 +238,6 @@ int main(int argc,char **argv)
 #ifdef USEMPI
     if (ThisTask==0)
 #endif
-    cout<<"Done Loading"<<endl;
     time1=MyGetTime()-time1;
 #ifdef USEMPI
     Ntotal=nbodies;
@@ -442,6 +443,11 @@ int main(int argc,char **argv)
         if (opt.iprofilecalc) WriteProfiles(opt, ngroup, pdata);
         delete[] numingroup;
         delete[] pdata;
+
+        //get memory useage
+        cout<<ThisTask<<" : finished running VR "<<endl;
+        GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=0));
+
 #ifdef USEMPI
 #ifdef USEADIOS
         adios_finalize(ThisTask);
@@ -551,6 +557,10 @@ int main(int argc,char **argv)
 
     tottime=MyGetTime()-tottime;
     cout<<"TIME::"<<ThisTask<<" took "<<tottime<<" in all"<<endl;
+
+    //get memory useage
+    cout<<ThisTask<<" : finished running VR "<<endl;
+    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=0));
 
 #ifdef USEMPI
 #ifdef USEADIOS

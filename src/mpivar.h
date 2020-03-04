@@ -183,9 +183,9 @@ extern struct fofdata_in
 {
     Int_t iGroup;
     short_mpi_t iGroupTask;
-    Int_t iLen;
-    Int_t Index;
-    Int_t Task;
+    Int_tree_t iLen;
+    Int_tree_t Index;
+    short_mpi_t Task;
 }
 *FoFDataIn, *FoFDataGet;
 ///Particle arrays used for transmitting data between mpi threads
@@ -199,8 +199,8 @@ extern struct fofid_in {
     Particle p;
     Int_t iGroup;
     Int_t ID;
-    Int_t Task;
-    Int_t Index;
+    short_mpi_t Task;
+    Int_tree_t Index;
 } *FoFGroupDataLocal, *FoFGroupDataExport;
 
 ///structure facilitates NN search across mpi threads

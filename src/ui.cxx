@@ -454,11 +454,11 @@ inline void ExtraFieldCheck(string configentryname, vector<string> &names, vecto
         conversions = newconversions;
         calctypes = newcalctypes;
     }
-    newnames.resize(0);
-    newindices.resize(0);
-    newunits.resize(0);
-    newconversions.resize(0);
-    newcalctypes.resize(0);
+    newnames.clear();
+    newindices.clear();
+    newunits.clear();
+    newconversions.clear();
+    newcalctypes.clear();
 
     //remove duplicate entries
     outputset.clear();
@@ -521,7 +521,7 @@ inline void ListDuplicateEntryCheck(string configentryname, int &num,
     }
     if (iduplicates) {
         names = vector<string>(unique.begin(),unique.end());
-        values.resize(0);
+        values.clear();
         for (auto &val:names) values.push_back(stof(val));
         num = values.size();
 
@@ -902,6 +902,8 @@ void GetParamFile(Options &opt)
                         opt.iwritefof = atoi(vbuff);
                     else if (strcmp(tbuff, "Snapshot_value")==0)
                         opt.snapshotvalue = HALOIDSNVAL*atoi(vbuff);
+                    else if (strcmp(tbuff, "Memory_log")==0)
+                        opt.memuse_log = atoi(vbuff);
 
                     //input related
                     else if (strcmp(tbuff, "Cosmological_input")==0)
