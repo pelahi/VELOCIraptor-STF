@@ -983,7 +983,7 @@ struct Options
         memuse_peak = 0;
         memuse_ave = 0;
         memuse_nsamples = 0;
-        memuse_log = true;
+        memuse_log = false;
     }
     Options(Options &opt) = default;
     Options& operator=(const Options&) = default;
