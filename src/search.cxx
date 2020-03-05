@@ -23,7 +23,7 @@
 */
 Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, Int_t &numgroups)
 {
-    Int_t i, *pfof,*pfoftemp, minsize;
+    Int_t i, *pfof = NULL, *pfoftemp = NULL, minsize;
     FOFcompfunc fofcmp;
     FOFcheckfunc fofcheck;
     fstream Fout;
@@ -31,19 +31,19 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     Double_t param[20];
     Double_t *period=NULL;
     Double_t vscale2,mtotregion,vx,vy,vz;
-    Double_t *vscale2array;
+    Double_t *vscale2array = NULL;
     Coordinate vmean(0,0,0);
     int maxnthreads,nthreads=1,tid;
-    Int_tree_t *Len,*Head,*Next,*Tail;
-    Int_t *storetype,*storeorgIndex;
-    Int_t *ids, *numingroup=NULL, *noffset;
-    Int_t *id_3dfof_of_6dfof;
+    Int_tree_t *Len = NULL, *Head =NULL, *Next = NULL, *Tail = NULL;
+    Int_t *storetype = NULL,*storeorgIndex = NULL;
+    Int_t *ids, *numingroup=NULL, *noffset = NULL;
+    Int_t *id_3dfof_of_6dfof = NULL;
     Int_t ng,npartingroups;
     Int_t totalgroups;
     Double_t time1,time2, time3;
-    KDTree *tree;
-    KDTree **tree3dfofomp;
-    Int_t *p3dfofomp;
+    KDTree *tree = NULL;
+    KDTree **tree3dfofomp = NULL;
+    Int_t *p3dfofomp = NULL;
     int iorder = 1;
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
@@ -73,6 +73,9 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         iorder = 0;
     }
 #endif
+
+    //get memory usage
+    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
 
     time1=MyGetTime();
     time2=MyGetTime();
@@ -122,6 +125,9 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
 #else
     Head=NULL;Next=NULL;
 #endif
+
+    //get memory usage
+    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
 
 #ifdef USEOPENMP
     //if enough regions then search each individually
@@ -224,6 +230,9 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     }
 #endif
 
+    //get memory usage
+    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+
 #ifndef USEMPI
     totalgroups=numgroups;
     //if this flag is set, calculate localfield value here for particles possibly resident in a field structure
@@ -298,6 +307,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
 #endif
     //allocate memory to store info
     cout<<ThisTask<<": Finished local search, nexport/nimport = "<<NExport<<" "<<NImport<<" in "<<MyGetTime()-time2<<endl;
+    cout<<ThisTask<<": MPI search will require extra memory of "<<(sizeof(Particle)+sizeof(fofdata_in))*(NExport+NImport)/pow(1024.0,3.0)<<" GB"<<endl;
 
     PartDataIn = new Particle[NExport];
     PartDataGet = new Particle[NImport];
@@ -321,6 +331,10 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     //One must keep iterating till there are no new links.
     //Wonder if i don't need another loop and a final check
     Int_t links_across,links_across_total;
+
+    //get memory usage
+    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+
     cout<<ThisTask<<": Starting to linking across MPI domains"<<endl;
     do {
         if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) {
@@ -430,8 +444,8 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     //periodic
     if (opt.p>0&&numgroups>0) {
         if (numgroups>0)AdjustStructureForPeriod(opt,Nlocal,Part,numgroups,pfof);
-        delete[] period;
     }
+    delete[] period;
 
     //have now 3dfof groups local to a MPI thread and particles are back in index order that will be used from now on
     //note that from on, use Nlocal, which is altered in mpi but set to nbodies in non-mpi
@@ -905,6 +919,8 @@ private(i,tid,xscaling,vscaling)
         }//end of ng>0 check
     }
 
+    //get memory usage
+    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
     if (opt.iverbose) cout<<ThisTask<<" Done storing halo substructre level data"<<endl;
     return pfof;
 }
@@ -2818,6 +2834,8 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
     int ThisTask=0,NProcs=1;
 #endif
     cout<<ThisTask<<" Beginning substructure search "<<endl;
+    //get memory usage
+    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
     if (ngroup>0) {
     //point to current structure level
     pcsld=psldata;
@@ -2885,6 +2903,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
         //enough to be searched fully in parallel.
         ompactivesubgroups.resize(0);
 #endif
+        GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__)+string("--subelvel--")+to_string(sublevel), (opt.iverbose>=1));
 
         for (Int_t i=1;i<=oldnsubsearch;i++) {
             // try running loop over largest objects in serial with parallel inside calls
@@ -3193,8 +3212,11 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
 #ifdef USEMPI
     MPI_Barrier(MPI_COMM_WORLD);
     MPI_Allgather(&ngroup, 1, MPI_Int_t, mpi_ngroups, 1, MPI_Int_t, MPI_COMM_WORLD);
-    cout<<ThisTask<<" has found a total of "<<ngroup<<endl;
 #endif
+
+    //get memory usage
+    cout<<ThisTask<<" has found a total of "<<ngroup<<endl;
+    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
 }
 
 /*!
@@ -3366,6 +3388,9 @@ Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, const I
     }
 
     cout<<ThisTask<<" search baryons "<<nparts<<" "<<ndark<<endl;
+    //get memory usage
+    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+
     //if searched all particles in FOF, reorder particles and also the pfof group id array
     if (opt.partsearchtype==PSTALL) {
         cout<<" of only baryons in FOF structures as baryons have already been grouped in FOF search "<<endl;
@@ -3855,6 +3880,9 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
         delete[] uparentgid;
         delete[] stype;
     }
+
+    //get memory usage
+    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
 
 #ifdef USEMPI
     //if number of groups has changed then update

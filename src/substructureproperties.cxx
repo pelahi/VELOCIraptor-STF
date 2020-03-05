@@ -16,6 +16,8 @@ void GetCM(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_
 #ifndef USEMPI
     int ThisTask = 0, NProcs = 1;
 #endif
+
+    if (ngroup == 0) return;
     if (opt.iverbose) cout<<ThisTask<<" getting CM"<<endl;
     double time1 = MyGetTime();
     Particle *Pval;
@@ -291,6 +293,7 @@ void GetProperties(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngro
 #ifndef USEMPI
     int ThisTask = 0, NProcs = 1;
 #endif
+    if (ngroup == 0) return;
     if (opt.iverbose) cout<<ThisTask<<" getting bulk properties"<<endl;
     double time1 = MyGetTime();
     Particle *Pval;
@@ -2078,6 +2081,7 @@ private(i)
 void AdjustHaloPositionForPeriod(Options &opt, Int_t ngroup, Int_t *&numingroup, PropData *&pdata)
 {
     if (opt.p==0) return;
+    if (ngroup == 0) return;
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)
 {
@@ -2102,6 +2106,7 @@ void AdjustHaloPositionForPeriod(Options &opt, Int_t ngroup, Int_t *&numingroup,
 
 ///calculate max distance from reference positions
 void GetMaximumSizes(Options &opt, Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&numingroup, PropData *&pdata, Int_t *&noffset) {
+    if (ngroup == 0) return;
     Int_t i;
     Double_t rcm,rmbp,rminpot;
     Particle *Pval;
@@ -2137,6 +2142,7 @@ private(i, Pval, rcm,rmbp,rminpot)
 ///Calculate concentration parameter based on assuming NFW profile
 void GetNFWConcentrations(Options &opt, Int_t ngroup, Int_t *&numingroup, PropData *&pdata)
 {
+    if (ngroup == 0) return;
     Int_t i;
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
@@ -2901,6 +2907,7 @@ private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,
 /// Calculate FOF mass looping over particles and invoking inclusive halo flag 1 or 2
 void GetFOFMass(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&pfof, Int_t *&numingroup, PropData *&pdata, Int_t *&noffset)
 {
+    if (ngroup == 0) return;
     Particle *Pval;
     Int_t i,j,k;
     Double_t time1=MyGetTime(), massval;
@@ -2970,6 +2977,13 @@ void GetFOFMass(Options &opt, Int_t ngroup, Int_t *&numingroup, PropData *&pdata
 /// of all host halos using there centre of masses
 void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&numingroup, PropData *&pdata)
 {
+#ifdef USEMPI
+    Int_t ngrouptotal = 0;
+    MPI_Allreduce (&ngroup, &ngrouptotal, 1, MPI_Int_t, MPI_SUM, MPI_COMM_WORLD);
+    if (ngrouptotal == 0) return;
+#else
+    if (ngroup ==0 )return;
+#endif
     Particle *Pval;
     KDTree *tree;
     Double_t period[3];
@@ -3007,7 +3021,7 @@ void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup
 #ifdef USEOPENMP
 #pragma omp parallel
     {
-            if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
+        if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
     }
 #endif
 
@@ -4146,6 +4160,7 @@ void GetBindingEnergy(Options &opt, const Int_t nbodies, Particle *Part, Int_t n
     int ThisTask=0,NProcs=1;
 #endif
     double time1 = MyGetTime();
+    if (ngroup == 0) return;
     if (opt.iverbose) cout<<ThisTask<<" getting energy"<<endl;
     if (opt.uinfo.cmvelreftype==POTREF && opt.iverbose==1) cout<<"Using minimum potential reference"<<endl;
 
@@ -4524,8 +4539,9 @@ Int_t **SortAccordingtoBindingEnergy(Options &opt, const Int_t nbodies, Particle
 #endif
     cout<<ThisTask<<" Sort particles and compute properties of "<<ngroup<<" objects "<<endl;
     Int_t i,j,k;
-    Int_t *noffset=new Int_t[ngroup+1];
-    Int_t *storepid;
+    Int_t **pglist = NULL;
+    Int_t *noffset = new Int_t[ngroup+1];
+
     if (opt.iverbose) {
         if (opt.iPropertyReferencePosition == PROPREFCM) cout<<ThisTask<<" Calculate properties using CM as reference "<<endl;
         else if (opt.iPropertyReferencePosition == PROPREFMBP) cout<<ThisTask<<" Calculate properties using most bound particle as reference "<<endl;
@@ -4536,20 +4552,25 @@ Int_t **SortAccordingtoBindingEnergy(Options &opt, const Int_t nbodies, Particle
 
     //sort the particle data according to their group id so that one can then sort particle data
     //of a group however one sees fit.
-    storepid=new Int_t[nbodies];
-    for (i=0;i<nbodies;i++) {
-        storepid[i]=Part[i].GetPID();
-        if (pfof[Part[i].GetID()]>ioffset) Part[i].SetPID(pfof[Part[i].GetID()]);
-        else Part[i].SetPID(nbodies+1);//here move all particles not in groups to the back of the particle array
-    }
-    qsort(Part, nbodies, sizeof(Particle), PIDCompare);
-    //sort(Part.begin(),Part.end(), PIDCompareVec);
-    for (i=0;i<nbodies;i++) Part[i].SetPID(storepid[Part[i].GetID()]);
-    delete[] storepid;
+    if (ngroup > 0) {
+        vector<Int_t> storepid(nbodies);
+        //storepid = new Int_t[nbodies];
+        for (i=0;i<nbodies;i++) {
+            storepid[i]=Part[i].GetPID();
+            if (pfof[Part[i].GetID()]>ioffset) Part[i].SetPID(pfof[Part[i].GetID()]);
+            else Part[i].SetPID(nbodies+1);//here move all particles not in groups to the back of the particle array
+        }
+        qsort(Part, nbodies, sizeof(Particle), PIDCompare);
+        for (i=0;i<nbodies;i++) Part[i].SetPID(storepid[Part[i].GetID()]);
+        storepid.clear();
 
-    if (ngroup >= 1) noffset[0]=noffset[1]=0;
-    for (i=2;i<=ngroup;i++) noffset[i]=noffset[i-1]+numingroup[i-1];
-    for (i=1;i<=ngroup;i++) pdata[i].num=numingroup[i];
+        noffset[0]=noffset[1]=0;
+        for (i=2;i<=ngroup;i++) noffset[i]=noffset[i-1]+numingroup[i-1];
+        for (i=1;i<=ngroup;i++) pdata[i].num=numingroup[i];
+    }
+
+    //get memory usage
+    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
 
     GetCM(opt, nbodies, Part, ngroup, pfof, numingroup, pdata, noffset);
     GetFOFMass(opt, ngroup, numingroup, pdata);
@@ -4582,6 +4603,7 @@ private(i,j)
 #ifdef USEOPENMP
 }
 #endif
+
     GetMaximumSizes(opt, nbodies, Part, ngroup, numingroup, pdata, noffset);
     //calculate spherical masses after substructures identified if using InclusiveHalo = 3
     if (opt.iInclusiveHalo == 3) GetSOMasses(opt, nbodies, Part, ngroup,  numingroup, pdata);
@@ -4593,9 +4615,6 @@ private(i,j)
     //before used to store the id in pglist and then have to reset particle order so that Ids correspond to indices
     //but to reduce computing time could just store index and leave particle array unchanged but only really necessary
     //if want to have separate field and subhalo files
-
-    Int_t **pglist;
-    pglist=NULL;
     if (ngroup>0) {
         pglist = new Int_t*[ngroup+1];
         pglist[0] = NULL;
@@ -4608,12 +4627,15 @@ private(i,j)
             else pglist[i][0]=0;
         }
     }
+
+    //get memory useage
+    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+
     delete[] noffset;
     //reset particles back to id order
     if (opt.iseparatefiles) {
         cout<<"Reset particles to original order"<<endl;
         qsort(Part, nbodies, sizeof(Particle), IDCompare);
-        //sort(Part.begin(), Part.end(), IDCompareVec);
     }
     cout<<"Done"<<endl;
     return pglist;
@@ -4661,6 +4683,9 @@ void CalculateHaloProperties(Options &opt, const Int_t nbodies, Particle *Part, 
 
     for (i=1;i<=ngroup;i++) pdata[i].ibound=Part[noffset[i]].GetPID();
     for (i=1;i<=ngroup;i++) pdata[i].iunbound=Part[noffset[i]+numingroup[i]-1].GetPID();
+
+    //get memory useage
+    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
     delete[] noffset;
 }
 
