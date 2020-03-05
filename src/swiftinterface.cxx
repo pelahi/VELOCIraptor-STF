@@ -401,6 +401,9 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
 
     libvelociraptorOpt.outname = outputname;
     libvelociraptorOpt.snapshotvalue = HALOIDSNVAL* snapnum;
+    libvelociraptorOpt.memuse_peak = 0;
+    libvelociraptorOpt.memuse_ave = 0;
+    libvelociraptorOpt.memuse_nsamples = 0;
 
     //store a general mass unit, useful if running uniform box with single mass
     //and saving memory by not storing mass per particle.
@@ -412,6 +415,7 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
     SetVelociraptorSimulationState(c, s);
     WriteSimulationInfo(libvelociraptorOpt);
     WriteUnitInfo(libvelociraptorOpt);
+    InitMemUsageLog(libvelociraptorOpt);
 
     vector<Particle> parts;
     #ifdef GASON
@@ -424,13 +428,14 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
     BHProperties bh;
     #endif
     Particle *pbaryons;
-    Int_t *pfof, *pfofall, *pfofbaryons, *numingroup,**pglist;
+    Int_t *pfof = NULL, *pfofall = NULL, *pfofbaryons = NULL, *numingroup = NULL, **pglist = NULL;
+    Int_t *nsub = NULL, *parentgid = NULL, *uparentgid =NULL, *stype = NULL;
     Int_t nbaryons, ndark, index;
     Int_t ngroup, nhalos;
-    groupinfo *group_info;
+    groupinfo *group_info = NULL;
     //KDTree *tree;
     //to store information about the group
-    PropData *pdata=NULL,*pdatahalos=NULL;
+    PropData *pdata = NULL,*pdatahalos = NULL;
     double time1;
 
     /// Set pointer to cell node IDs
@@ -559,6 +564,9 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
     if (libvelociraptorOpt.iBaryonSearch>0) cout<<ThisTask<<"There are "<<Nlocalbaryon[0]<<" baryon particles and have allocated enough memory for "<<Nmemlocalbaryon<<" requiring "<<Nmemlocalbaryon*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
     cout<<ThisTask<<" will also require additional memory for FOF algorithms and substructure search. Largest mem needed for preliminary FOF search. Rough estimate is "<<Nlocal*(sizeof(Int_tree_t)*8)/1024./1024./1024.<<"GB of memory"<<endl;
 
+    //get memory usage
+    GetMemUsage(libvelociraptorOpt, __func__+string("--line--")+to_string(__LINE__), true);
+
     //
     // Perform FOF search.
     //
@@ -631,7 +639,6 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
     }
 
     //get mpi local hierarchy
-    Int_t *nsub,*parentgid, *uparentgid,*stype;
     nsub=new Int_t[ngroup+1];
     parentgid=new Int_t[ngroup+1];
     uparentgid=new Int_t[ngroup+1];
@@ -664,6 +671,9 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
     delete[] stype;
     delete psldata;
     delete[] numingroup;
+
+    //get memory usage
+    GetMemUsage(libvelociraptorOpt, __func__+string("--line--")+to_string(__LINE__), true);
 
     //store group information to return information to swift if required
     //otherwise, return NULL as pointer

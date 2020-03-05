@@ -810,6 +810,10 @@ int GetMilliCount();
 ///Get span in milliseconds
 int GetMillSpan(int );
 int CompareInt(const void *, const void *);
+///Get memory use
+void GetMemUsage(Options &opt, string callingfunction, bool printreport);
+///Init memory log
+void InitMemUsageLog(Options &opt);
 ///get a time
 double MyGetTime();
 
