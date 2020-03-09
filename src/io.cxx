@@ -2813,7 +2813,7 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
             data= ::operator new(sizeof(int)*(nhalos)*(opt.profilenbins));
             dims.resize(2);dims[0]=nhalos;dims[1]=opt.profilenbins;
 
-            for (Int_t i=0;i<nhalos;i++) for (auto j=0;j<opt.profilenbins;j++) ((unsigned int*)data)[i*opt.profilenbins+j]=pdata[haloindcies[i]].profile_npart_inclusive[j];
+            for (Int_t i=0;i<nhalos;i++) for (auto j=0;j<opt.profilenbins;j++) ((unsigned int*)data)[i*opt.profilenbins+j]=pdata[haloindices[i]].profile_npart_inclusive[j];
             Fhdf.write_dataset_nd(head.headerdatainfo[itemp], 2, dims.data(), data, head.hdfpredtypeinfo[itemp]);itemp++;
     #ifdef GASON
             for (Int_t i=0;i<nhalos;i++) for (auto j=0;j<opt.profilenbins;j++) ((unsigned int*)data)[i*opt.profilenbins+j]=pdata[haloindices[i]].profile_npart_inclusive_gas[j];
