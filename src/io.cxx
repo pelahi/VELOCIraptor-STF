@@ -2597,7 +2597,9 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
                 haloindices[nhalos++] = i;
             }
         }
+#ifdef USEMPI
         MPI_Allgather(&nhalos, 1, MPI_UNSIGNED_LONG_LONG, mpi_nhalos, 1, MPI_UNSIGNED_LONG_LONG, MPI_COMM_WORLD);
+#endif
     }
 #ifdef USEMPI
     MPIBuildWriteComm(opt);
@@ -2617,7 +2619,9 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
         for (auto i=1;i<=ngroups;i++) if (pdata[i].gNFOF >= opt.profileminsize) {
             indices[ng++] = i;
         }
+#ifdef USEMPI
         MPI_Allgather(&ng, 1, MPI_UNSIGNED_LONG_LONG, mpi_ngroups, 1, MPI_UNSIGNED_LONG_LONG, MPI_COMM_WORLD);
+#endif
     }
     else {
         for (auto i=1;i<=ngroups;i++) indices[i-1] = i;
