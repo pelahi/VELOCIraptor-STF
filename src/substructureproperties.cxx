@@ -5400,6 +5400,7 @@ int GetRadialBin(Options &opt, Double_t rc, int &ibin) {
 
 void AddParticleToRadialBin(Options &opt, Particle *Pval, Double_t irnorm, int &ibin, PropData &pdata)
 {
+    if (pdata.gNFOF < opt.profileminsize) return;
     ibin = GetRadialBin(opt,Pval->Radius()*irnorm, ibin);
     if (ibin == -1) return;
     Double_t massval = Pval->GetMass();
@@ -5433,13 +5434,13 @@ void AddParticleToRadialBin(Options &opt, Particle *Pval, Double_t irnorm, int &
 #endif
 }
 
-
 void AddDataToRadialBin(Options &opt, Double_t rval, Double_t massval,
 #if defined(GASON) || defined(STARON) || defined(BHON)
     Double_t sfrval, int typeval,
 #endif
     Double_t irnorm, int &ibin, PropData &pdata)
 {
+    if (pdata.gNFOF < opt.profileminsize) return;
     ibin = GetRadialBin(opt,rval*irnorm, ibin);
     if (ibin == -1) return;
     pdata.profile_mass[ibin] += massval;
@@ -5471,6 +5472,7 @@ void AddDataToRadialBin(Options &opt, Double_t rval, Double_t massval,
 
 void AddParticleToRadialBinInclusive(Options &opt, Particle *Pval, Double_t irnorm, int &ibin, PropData &pdata)
 {
+    if (pdata.gNFOF < opt.profileminsize) return;
     ibin = GetRadialBin(opt,Pval->Radius()*irnorm, ibin);
     if (ibin == -1) return;
     Double_t massval = Pval->GetMass();
@@ -5511,6 +5513,7 @@ void AddDataToRadialBinInclusive(Options &opt, Double_t rval, Double_t massval,
 #endif
     Double_t irnorm, int &ibin, PropData &pdata)
 {
+    if (pdata.gNFOF < opt.profileminsize) return;
     ibin = GetRadialBin(opt,rval*irnorm, ibin);
     if (ibin == -1) return;
     pdata.profile_mass_inclusive[ibin] += massval;

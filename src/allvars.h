@@ -669,6 +669,7 @@ struct Options
     int iprofilecumulative;
     string profileradnormstring;
     vector<Double_t> profile_bin_edges;
+    int profileminsize;
     //@}
 
     /// \name options related to calculation of arbitrary overdensities masses, radii, angular momentum
@@ -973,6 +974,7 @@ struct Options
         iprofilebintype=PROFILERBINTYPELOG;
         iprofilecumulative=0;
         profilenbins=0;
+        profileminsize=0;
 #ifdef USEOPENMP
         iopenmpfof = 1;
         openmpfofsize = ompfofsearchnum;
@@ -2791,7 +2793,7 @@ struct PropData
     }
     void AllocateProfiles(Options &opt)
     {
-        if (opt.iprofilecalc) {
+        if (opt.iprofilecalc && gNFOF>=opt.profileminsize) {
             profile_npart.resize(opt.profilenbins);
             profile_mass.resize(opt.profilenbins);
             for (auto i=0;i<opt.profilenbins;i++) profile_npart[i]=profile_mass[i]=0;
