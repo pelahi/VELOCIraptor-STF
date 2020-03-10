@@ -324,6 +324,10 @@ struct UnbindInfo
     Double_t TreeThetaOpen;
     ///softening length
     Double_t eps;
+    ///whether to calculate approximate potential energy
+    int iapproxpot;
+    ///fraction of particles to subsample
+    Double_t approxfrac;
     //@}
     UnbindInfo(){
         icalculatepotential=true;
@@ -342,6 +346,8 @@ struct UnbindInfo
         maxunbindfrac=0.5;
         maxunboundfracforiterativeunbind=0.95;
         maxallowedunboundfrac=0.025;
+        iapproxpot = 0;
+        approxfrac = 0.05;
     }
 };
 

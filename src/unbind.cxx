@@ -1063,8 +1063,9 @@ private(j,k,l,n,ntreecell,nleafcell,r2)
 void Potential(Options &opt, Int_t nbodies, Particle *Part)
 {
     int maxnthreads,nthreads,l,n;
+    Int_t oldnbodies;
     Int_t i,j,k,ntreecell,nleafcell;
-    Double_t v2,r2,Ti,eps2=opt.uinfo.eps*opt.uinfo.eps, mv2=opt.MassValue*opt.MassValue;
+    Double_t r2, eps2=opt.uinfo.eps*opt.uinfo.eps, mv2=opt.MassValue*opt.MassValue;
     //for tree code potential calculation
     Int_t ncell;
     Int_t *start,*end;
@@ -1075,7 +1076,32 @@ void Potential(Options &opt, Int_t nbodies, Particle *Part)
     Int_t **marktreecell,**markleafcell;
     //Double_t **nnr2;
     KDTree *tree;
+    Particle *part;
     bool runomp = false;
+    vector<Int_t> indices;
+
+    //if approximate potential calculated, subsample partile distribution
+    if (opt.uinfo.iapproxpot) {
+        oldnbodies = nbodies;
+        nbodies = opt.uinfo.approxfrac*nbodies;
+        //randomly sample particle distribution
+        double mr = 1.0/opt.uinfo.approxfrac;
+        mv2 *= mr*mr;
+        part = new Particle[nbodies];
+        indices.resize(oldnbodies);
+        for (auto i=0;i<oldnbodies;i++) indices[i] = i;
+        random_shuffle( indices.begin(), indices.end());
+        for (auto i=0;i<nbodies;i++) {
+            Int_t index = indices[i];
+            part[i] = Part[index];
+            part[i].SetMass(part[i].GetMass()*mr);
+            part[i].SetPID(index);
+        }
+        indices.clear();
+    }
+    else {
+        part = Part;
+    }
 
     //for parallel environment store maximum number of threads
     nthreads=1;
@@ -1089,7 +1115,7 @@ void Potential(Options &opt, Int_t nbodies, Particle *Part)
     //otherwise use tree tree gravity calculation
     //here openmp is per group since each group is large
     //to make this memory efficient really need just KDTree that uses Coordinates
-    tree=new KDTree(Part,nbodies,opt.uinfo.BucketSize,tree->TPHYS, tree->KEPAN,100,0,0,0,NULL,NULL,runomp);
+    tree=new KDTree(part,nbodies,opt.uinfo.BucketSize,tree->TPHYS, tree->KEPAN,100,0,0,0,NULL,NULL,runomp);
     ncell=tree->GetNumNodes();
     root=tree->GetRoot();
     //to store particles in a given node
@@ -1128,14 +1154,14 @@ private(j,k,n) if (runomp)
         cellcm[j][0]=cellcm[j][1]=cellcm[j][2]=0.;
         cmtot[j]=0;
         for (k=start[j];k<end[j];k++) {
-            for (n=0;n<3;n++) cellcm[j][n]+=Part[k].GetPosition(n)*Part[k].GetMass();
+            for (n=0;n<3;n++) cellcm[j][n]+=part[k].GetPosition(n)*part[k].GetMass();
             cmtot[j]+=Part[k].GetMass();
         }
         for (n=0;n<3;n++) cellcm[j][n]/=cmtot[j];
         Double_t xdiff,xdiff1;
-        xdiff=(cellcm[j]-Coordinate(Part[start[j]].GetPosition())).Length();
+        xdiff=(cellcm[j]-Coordinate(part[start[j]].GetPosition())).Length();
         for (k=start[j]+1;k<end[j];k++) {
-            xdiff1=(cellcm[j]-Coordinate(Part[k].GetPosition())).Length();
+            xdiff1=(cellcm[j]-Coordinate(part[k].GetPosition())).Length();
             if (xdiff<xdiff1) xdiff=xdiff1;
         }
         cBmax[j]=xdiff;
@@ -1161,31 +1187,54 @@ private(j,k,l,n,ntreecell,nleafcell,r2) if (runomp)
         tid=0;
 #endif
         npomp[tid]=tree->GetRoot();
-        Part[j].SetPotential(0.);
+        part[j].SetPotential(0.);
         ntreecell=nleafcell=0;
         Coordinate xpos(Part[j].GetPosition());
         MarkCell(npomp[tid],marktreecell[tid], markleafcell[tid],ntreecell,nleafcell,r2val[tid],opt.uinfo.BucketSize, cR2max, cellcm, cmtot, xpos, eps2);
         for (k=0;k<ntreecell;k++) {
-          Part[j].SetPotential(Part[j].GetPotential()-Part[j].GetMass()*r2val[tid][k]);
+          part[j].SetPotential(part[j].GetPotential()-part[j].GetMass()*r2val[tid][k]);
         }
         for (k=0;k<nleafcell;k++) {
             for (l=start[markleafcell[tid][k]];l<end[markleafcell[tid][k]];l++) {
                 if (j!=l) {
-                    r2=0.;for (n=0;n<3;n++) r2+=pow(Part[j].GetPosition(n)-Part[l].GetPosition(n),(Double_t)2.0);
+                    r2=0.;for (n=0;n<3;n++) r2+=pow(part[j].GetPosition(n)-part[l].GetPosition(n),(Double_t)2.0);
                     r2+=eps2;
                     r2=1.0/sqrt(r2);
-                    Part[j].SetPotential(Part[j].GetPotential()-(Part[j].GetMass()*Part[l].GetMass())*r2);
+                    part[j].SetPotential(part[j].GetPotential()-(part[j].GetMass()*part[l].GetMass())*r2);
                 }
             }
         }
-        Part[j].SetPotential(Part[j].GetPotential()*opt.G);
+        part[j].SetPotential(part[j].GetPotential()*opt.G);
 #ifdef NOMASS
-        Part[j].SetPotential(Part[j].GetPotential()*mv2);
+        part[j].SetPotential(part[j].GetPotential()*mv2);
 #endif
     }
 #ifdef USEOPENMP
 }
 #endif
+
+    //and assign potentials back
+    if (opt.uinfo.iapproxpot) {
+        int nsearch = ceil(1.0/opt.uinfo.approxfrac+1);
+        vector<Int_t> nn(nsearch);
+        vector<Double_t> dist2(nsearch);
+        Double_t pot, wsum;
+#ifdef USEOPENMP
+#pragma omp parallel for default(shared) private(nn, dist2, wsum, pot, j) if (runomp)
+#endif
+        for (auto i=0; i<oldnbodies;i++) {
+            tree->FindNearestPos(Part[i].GetPosition(), nn.data(), dist2.data(), nsearch);
+            pot = 0;
+            wsum = 0;
+            for (j=0;j<nsearch;j++) {
+                pot = nn[i]/dist2[j];
+                wsum += 1.0/dist2[j];
+            }
+            pot /= wsum;
+            Part[i].SetPotential(pot);
+        }
+    }
+
     delete tree;
     delete[] start;
     delete[] end;
@@ -1199,6 +1248,12 @@ private(j,k,l,n,ntreecell,nleafcell,r2) if (runomp)
     delete[] markleafcell;
     delete[] r2val;
     delete[] npomp;
+    if (opt.uinfo.iapproxpot) {
+        delete[] part;
+    }
+    else {
+        part = NULL;
+    }
 }
 
 void PotentialPP(Options &opt, Int_t nbodies, Particle *Part)
