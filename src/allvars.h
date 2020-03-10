@@ -669,7 +669,7 @@ struct Options
     int iprofilecumulative;
     string profileradnormstring;
     vector<Double_t> profile_bin_edges;
-    int profileminsize;
+    Int_t profileminsize, profileminFOFsize;
     //@}
 
     /// \name options related to calculation of arbitrary overdensities masses, radii, angular momentum
@@ -974,7 +974,7 @@ struct Options
         iprofilebintype=PROFILERBINTYPELOG;
         iprofilecumulative=0;
         profilenbins=0;
-        profileminsize=0;
+        profileminsize = profileminFOFsize = 0;
 #ifdef USEOPENMP
         iopenmpfof = 1;
         openmpfofsize = ompfofsearchnum;
@@ -1364,6 +1364,10 @@ struct ConfigInfo{
         datainfo.push_back(to_string(opt.iprofilecalc));
         datatype.push_back(python_type_string(opt.iprofilecalc));
         if(opt.iprofilecalc) {
+            nameinfo.push_back("Radial_profile_min_FOF_size");
+            datainfo.push_back(python_type_string(opt.profileminFOFsize));
+            nameinfo.push_back("Radial_profile_min_size");
+            datainfo.push_back(python_type_string(opt.profileminsize));
             nameinfo.push_back("Number_of_radial_profile_bin_edges");
             datainfo.push_back(to_string(opt.profilenbins));
             datatype.push_back(python_type_string(opt.profilenbins));
@@ -2793,7 +2797,7 @@ struct PropData
     }
     void AllocateProfiles(Options &opt)
     {
-        if (opt.iprofilecalc && gNFOF>=opt.profileminsize) {
+        if (opt.iprofilecalc && gNFOF>=opt.profileminFOFsize && num>=opt.profileminsize) {
             profile_npart.resize(opt.profilenbins);
             profile_mass.resize(opt.profilenbins);
             for (auto i=0;i<opt.profilenbins;i++) profile_npart[i]=profile_mass[i]=0;

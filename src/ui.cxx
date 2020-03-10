@@ -869,8 +869,10 @@ void GetParamFile(Options &opt)
                     }
                     else if (strcmp(tbuff, "Calculate_radial_profiles")==0)
                         opt.iprofilecalc = atoi(vbuff);
+                    else if (strcmp(tbuff, "Radial_profile_min_FOF_size")==0)
+                        opt.profileminFOFsize = atoi(vbuff);
                     else if (strcmp(tbuff, "Radial_profile_min_size")==0)
-                        opt.iprofilecalc = atoi(vbuff);
+                        opt.profileminsize = atoi(vbuff);
                     else if (strcmp(tbuff, "Number_of_radial_profile_bin_edges")==0)
                         opt.profilenbins = atoi(vbuff);
                     else if (strcmp(tbuff, "Radial_profile_norm")==0)
@@ -1792,6 +1794,10 @@ void ConfigCheck(Options &opt)
         if (opt.profileminsize < 0) {
             errormessage("Radial profile calculations limited to objects of < 0 size! Ignoring and setting to 0. ");
             opt.profileminsize = 0;
+        }
+        if (opt.profileminFOFsize < 0) {
+            errormessage("Radial profile calculations limited to FOF objects of < 0 size! Ignoring and setting to 0. ");
+            opt.profileminFOFsize = 0;
         }
         if (opt.profilenbins != opt.profile_bin_edges.size()) {
             errormessage("Radial profile calculations requested but mismatch between number of edges stated and number provided. Check config.");

@@ -2583,7 +2583,7 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
     if (opt.icomoveunit) {
         opt.p*=opt.h/opt.a;
         for (Int_t i=1;i<=ngroups;i++) {
-            if (pdata[i].gNFOF >= opt.profileminsize) {
+            if (pdata[i].gNFOF >= opt.profileminFOFsize && pdata[i].num >= opt.profileminsize) {
                 pdata[i].ConvertProfilestoComove(opt);
             }
         }
@@ -2592,7 +2592,7 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
         nhalos = 0;
         haloindices.resize(ngroups);
         for (auto i=1;i<=ngroups;i++){
-            if (pdata[i].gNFOF >= opt.profileminsize && pdata[i].hostid == -1) {
+            if (pdata[i].gNFOF >= opt.profileminFOFsize && pdata[i].num >= opt.profileminsize && pdata[i].hostid == -1) {
                 nhalos++;
                 haloindices[nhalos++] = i;
             }
@@ -2616,7 +2616,7 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
     //since profiles can be called for a subset of objects, get the total number to be written
     if (opt.profileminsize > 0) {
         ng = 0;
-        for (auto i=1;i<=ngroups;i++) if (pdata[i].gNFOF >= opt.profileminsize) {
+        for (auto i=1;i<=ngroups;i++) if (pdata[i].gNFOF >= opt.profileminFOFsize && pdata[i].num >= opt.profileminsize) {
             indices[ng++] = i;
         }
 #ifdef USEMPI
