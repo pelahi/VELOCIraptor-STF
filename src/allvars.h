@@ -327,7 +327,9 @@ struct UnbindInfo
     ///whether to calculate approximate potential energy
     int iapproxpot;
     ///fraction of particles to subsample
-    Double_t approxfrac;
+    Double_t approxpotnumfrac;
+    ///fraction of particles to subsample
+    Double_t approxpotminnum;
     //@}
     UnbindInfo(){
         icalculatepotential=true;
@@ -347,7 +349,8 @@ struct UnbindInfo
         maxunboundfracforiterativeunbind=0.95;
         maxallowedunboundfrac=0.025;
         iapproxpot = 0;
-        approxfrac = 0.05;
+        approxpotnumfrac = 0.1;
+        approxpotminnum = 100;
     }
 };
 
@@ -1287,6 +1290,13 @@ struct ConfigInfo{
         nameinfo.push_back("Bound_halos");
         datainfo.push_back(to_string(opt.iBoundHalos));
         datatype.push_back(python_type_string(opt.iBoundHalos));
+        nameinfo.push_back("Approximative_potential_calculation");
+        datainfo.push_back(to_string(opt.uinfo.iapproxpot));
+        nameinfo.push_back("Approximative_potential_calculation_particle_number_fraction");
+        datainfo.push_back(to_string(opt.uinfo.iapproxpot));
+        nameinfo.push_back("Approximative_potential_calculation_min_particle");
+        datainfo.push_back(to_string(opt.uinfo.approxpotminnum));
+        datatype.push_back(python_type_string(opt.uinfo.bgpot));
         nameinfo.push_back("Allowed_kinetic_potential_ratio");
         datainfo.push_back(to_string(opt.uinfo.Eratio));
         datatype.push_back(python_type_string(opt.uinfo.Eratio));

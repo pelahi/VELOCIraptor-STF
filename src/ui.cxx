@@ -823,6 +823,12 @@ void GetParamFile(Options &opt)
                         opt.uinfo.maxallowedunboundfrac = atof(vbuff);
                     else if (strcmp(tbuff, "Softening_length")==0)
                         opt.uinfo.eps = atof(vbuff);
+                    else if (strcmp(tbuff, "Approximative_potential_calculation")==0)
+                        opt.uinfo.iapproxpot = atoi(vbuff);
+                    else if (strcmp(tbuff, "Approximative_potential_calculation_particle_number_fraction")==0)
+                        opt.uinfo.approxpotnumfrac = atof(vbuff);
+                    else if (strcmp(tbuff, "Approximative_potential_calculation_min_particle_number")==0)
+                        opt.uinfo.approxpotminnum = atoi(vbuff);
 
                     //property related
                     else if (strcmp(tbuff, "Reference_frame_for_properties")==0)

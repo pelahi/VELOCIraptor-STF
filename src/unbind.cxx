@@ -932,132 +932,8 @@ private(i,j,k,n,maxE,maxunbindsize,nEplus,nEplusid,Eplusflag,v2,Ti,unbindcheck,E
 ///\todo need ewald correction for periodic systems and also use more than monopole.
 void Potential(Options &opt, Int_t nbodies, Particle *Part, Double_t *potV)
 {
-    int maxnthreads,nthreads,l,n;
-    Int_t i,j,k,ntreecell,nleafcell;
-    Double_t v2,r2,Ti,eps2=opt.uinfo.eps*opt.uinfo.eps, mv2=opt.MassValue*opt.MassValue;
-    //for tree code potential calculation
-    Int_t ncell;
-    Int_t *start,*end;
-    Double_t *cmtot,*cBmax,*cR2max, **r2val;
-    Coordinate *cellcm;
-    Node *root;
-    Node **nodelist, **npomp;
-    Int_t **marktreecell,**markleafcell;
-    //Double_t **nnr2;
-    KDTree *tree;
-
-    //for parallel environment store maximum number of threads
-    nthreads=1;
-#ifdef USEOPENMP
-#pragma omp parallel
-    {
-    if (omp_get_thread_num()==0) maxnthreads=nthreads=omp_get_num_threads();
-    }
-#endif
-
-    cout<<"Calculating potentials ..."<<endl;
-    //otherwise use tree tree gravity calculation
-    //here openmp is per group since each group is large
-    //to make this memory efficient really need just KDTree that uses Coordinates
-    tree=new KDTree(Part,nbodies,opt.uinfo.BucketSize,tree->TPHYS,tree->KEPAN,1000,1);
-    ncell=tree->GetNumNodes();
-    root=tree->GetRoot();
-    //to store particles in a given node
-    start=new Int_t[ncell];
-    end=new Int_t[ncell];
-    //distance calculations used to determine when one uses cell or when one uses particles
-    cmtot=new Double_t[ncell];
-    cBmax=new Double_t[ncell];
-    cR2max=new Double_t[ncell];
-    cellcm=new Coordinate[ncell];
-    //to store note list
-    nodelist=new Node*[ncell];
-
-    //search tree
-    marktreecell=new Int_t*[nthreads];
-    markleafcell=new Int_t*[nthreads];
-    r2val=new Double_t*[nthreads];
-    npomp=new Node*[nthreads];
-    for (j=0;j<nthreads;j++) {marktreecell[j]=new Int_t[ncell];markleafcell[j]=new Int_t[ncell];}
-    for (j=0;j<nthreads;j++) {r2val[j]=new Double_t[ncell];}
-    //from root node calculate cm for each node
-    //start at root node and recursively move through list
-    ncell=0;
-    GetNodeList(root,ncell,nodelist,opt.uinfo.BucketSize);
-    ncell++;
-    //determine cm for all cells and openings
-#ifdef USEOPENMP
-#pragma omp parallel default(shared)  \
-private(j,k,n)
-{
-    #pragma omp for schedule(dynamic,1) nowait
-#endif
-    for (j=0;j<ncell;j++) {
-        start[j]=(nodelist[j])->GetStart();
-        end[j]=(nodelist[j])->GetEnd();
-        cellcm[j][0]=cellcm[j][1]=cellcm[j][2]=0.;
-        cmtot[j]=0;
-        for (k=start[j];k<end[j];k++) {
-            for (n=0;n<3;n++) cellcm[j][n]+=Part[k].GetPosition(n)*Part[k].GetMass();
-            cmtot[j]+=Part[k].GetMass();
-        }
-        for (n=0;n<3;n++) cellcm[j][n]/=cmtot[j];
-        Double_t xdiff,xdiff1;
-        xdiff=(cellcm[j]-Coordinate(Part[start[j]].GetPosition())).Length();
-        for (k=start[j]+1;k<end[j];k++) {
-            xdiff1=(cellcm[j]-Coordinate(Part[k].GetPosition())).Length();
-            if (xdiff<xdiff1) xdiff=xdiff1;
-        }
-        cBmax[j]=xdiff;
-        cR2max[j]=4.0/3.0*xdiff*xdiff/(opt.uinfo.TreeThetaOpen*opt.uinfo.TreeThetaOpen);
-    }
-#ifdef USEOPENMP
-}
-#endif
-    //then for each cell find all other cells that contain particles within a cells gRmax and mark those
-    //and mark all cells for which one does not have to unfold
-    //for marked cells calculate pp, for every other cell just use the CM of the cell to calculate the potential.
-#ifdef USEOPENMP
-#pragma omp parallel default(shared)  \
-private(j,k,l,n,ntreecell,nleafcell,r2)
-{
-    #pragma omp for schedule(dynamic,1) nowait
-#endif
-    for (j=0;j<nbodies;j++) {
-        int tid;
-#ifdef USEOPENMP
-        tid=omp_get_thread_num();
-#else
-        tid=0;
-#endif
-        npomp[tid]=tree->GetRoot();
-        potV[Part[j].GetID()]=0.;
-        ntreecell=nleafcell=0;
-        Coordinate xpos(Part[j].GetPosition());
-        MarkCell(npomp[tid],marktreecell[tid], markleafcell[tid],ntreecell,nleafcell,r2val[tid],opt.uinfo.BucketSize, cR2max, cellcm, cmtot, xpos, eps2);
-        for (k=0;k<ntreecell;k++) {
-          potV[Part[j].GetID()]+=-Part[j].GetMass()*r2val[tid][k];
-        }
-        for (k=0;k<nleafcell;k++) {
-            for (l=start[markleafcell[tid][k]];l<end[markleafcell[tid][k]];l++) {
-                if (j!=l) {
-                    r2=0.;for (n=0;n<3;n++) r2+=pow(Part[j].GetPosition(n)-Part[l].GetPosition(n),(Double_t)2.0);
-                    r2+=eps2;
-                    r2=1.0/sqrt(r2);
-                    potV[Part[j].GetID()]+=-(Part[j].GetMass()*Part[l].GetMass())*r2;
-                }
-            }
-        }
-        potV[Part[j].GetID()]*=opt.G;
-        #ifdef NOMASS
-        potV[Part[j].GetID()]*=mv2;
-        #endif
-    }
-#ifdef USEOPENMP
-}
-#endif
-    delete tree;
-    cout<<"Done\n";
+    Potential(opt, nbodies, Part);
+    for (auto i=0;i<nbodies;i++) potV[i]=Part[i].GetPotential();
 }
 
 void Potential(Options &opt, Int_t nbodies, Particle *Part)
@@ -1066,6 +942,7 @@ void Potential(Options &opt, Int_t nbodies, Particle *Part)
     Int_t oldnbodies;
     Int_t i,j,k,ntreecell,nleafcell;
     Double_t r2, eps2=opt.uinfo.eps*opt.uinfo.eps, mv2=opt.MassValue*opt.MassValue;
+    int bsize = opt.uinfo.BucketSize;
     //for tree code potential calculation
     Int_t ncell;
     Int_t *start,*end;
@@ -1079,28 +956,41 @@ void Potential(Options &opt, Int_t nbodies, Particle *Part)
     Particle *part;
     bool runomp = false;
     vector<Int_t> indices;
+    double mr;
+
+    double time1 = MyGetTime();
 
     //if approximate potential calculated, subsample partile distribution
     if (opt.uinfo.iapproxpot) {
         oldnbodies = nbodies;
-        nbodies = opt.uinfo.approxfrac*nbodies;
-        //randomly sample particle distribution
-        double mr = 1.0/opt.uinfo.approxfrac;
-        mv2 *= mr*mr;
-        part = new Particle[nbodies];
-        indices.resize(oldnbodies);
-        for (auto i=0;i<oldnbodies;i++) indices[i] = i;
-        random_shuffle( indices.begin(), indices.end());
-        for (auto i=0;i<nbodies;i++) {
-            Int_t index = indices[i];
-            part[i] = Part[index];
-            part[i].SetMass(part[i].GetMass()*mr);
-            part[i].SetPID(index);
+        if (nbodies > opt.uinfo.approxpotminnum) {
+            nbodies = max((Int_t)(opt.uinfo.approxpotnumfrac*nbodies), (Int_t)opt.uinfo.approxpotminnum);
         }
-        indices.clear();
+        if (nbodies >= 0.5*oldnbodies) {
+            part = Part;
+            mr = 1.0;
+            nbodies = oldnbodies;
+        }
+        else {
+            //randomly sample particle distribution
+            mr = (double)oldnbodies/(double)nbodies;
+            mv2 *= mr*mr;
+            part = new Particle[nbodies];
+            indices.resize(oldnbodies);
+            for (auto i=0;i<oldnbodies;i++) indices[i] = i;
+            random_shuffle( indices.begin(), indices.end());
+            for (auto i=0;i<nbodies;i++) {
+                Int_t index = indices[i];
+                part[i] = Part[index];
+                part[i].SetMass(part[i].GetMass()*mr);
+                part[i].SetPID(index);
+            }
+            indices.clear();
+        }
     }
     else {
         part = Part;
+        mr = 1.0;
     }
 
     //for parallel environment store maximum number of threads
@@ -1115,7 +1005,10 @@ void Potential(Options &opt, Int_t nbodies, Particle *Part)
     //otherwise use tree tree gravity calculation
     //here openmp is per group since each group is large
     //to make this memory efficient really need just KDTree that uses Coordinates
-    tree=new KDTree(part,nbodies,opt.uinfo.BucketSize,tree->TPHYS, tree->KEPAN,100,0,0,0,NULL,NULL,runomp);
+    tree = new KDTree(part, nbodies, bsize, tree->TPHYS, tree->KEPAN,
+        100, 0, 0, 0, NULL, NULL, runomp);
+    if (part != Part) tree->OverWriteInputOrder();
+
     ncell=tree->GetNumNodes();
     root=tree->GetRoot();
     //to store particles in a given node
@@ -1136,11 +1029,13 @@ void Potential(Options &opt, Int_t nbodies, Particle *Part)
     npomp=new Node*[nthreads];
     for (j=0;j<nthreads;j++) {marktreecell[j]=new Int_t[ncell];markleafcell[j]=new Int_t[ncell];}
     for (j=0;j<nthreads;j++) {r2val[j]=new Double_t[ncell];}
+
     //from root node calculate cm for each node
     //start at root node and recursively move through list
     ncell=0;
-    GetNodeList(root,ncell,nodelist,opt.uinfo.BucketSize);
+    GetNodeList(root,ncell,nodelist,bsize);
     ncell++;
+
     //determine cm for all cells and openings
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
@@ -1155,7 +1050,7 @@ private(j,k,n) if (runomp)
         cmtot[j]=0;
         for (k=start[j];k<end[j];k++) {
             for (n=0;n<3;n++) cellcm[j][n]+=part[k].GetPosition(n)*part[k].GetMass();
-            cmtot[j]+=Part[k].GetMass();
+            cmtot[j]+=part[k].GetMass();
         }
         for (n=0;n<3;n++) cellcm[j][n]/=cmtot[j];
         Double_t xdiff,xdiff1;
@@ -1170,6 +1065,7 @@ private(j,k,n) if (runomp)
 #ifdef USEOPENMP
 }
 #endif
+
     //then for each cell find all other cells that contain particles within a cells gRmax and mark those
     //and mark all cells for which one does not have to unfold
     //for marked cells calculate pp, for every other cell just use the CM of the cell to calculate the potential.
@@ -1189,8 +1085,8 @@ private(j,k,l,n,ntreecell,nleafcell,r2) if (runomp)
         npomp[tid]=tree->GetRoot();
         part[j].SetPotential(0.);
         ntreecell=nleafcell=0;
-        Coordinate xpos(Part[j].GetPosition());
-        MarkCell(npomp[tid],marktreecell[tid], markleafcell[tid],ntreecell,nleafcell,r2val[tid],opt.uinfo.BucketSize, cR2max, cellcm, cmtot, xpos, eps2);
+        Coordinate xpos(part[j].GetPosition());
+        MarkCell(npomp[tid],marktreecell[tid], markleafcell[tid],ntreecell,nleafcell,r2val[tid],bsize, cR2max, cellcm, cmtot, xpos, eps2);
         for (k=0;k<ntreecell;k++) {
           part[j].SetPotential(part[j].GetPotential()-part[j].GetMass()*r2val[tid][k]);
         }
@@ -1214,25 +1110,46 @@ private(j,k,l,n,ntreecell,nleafcell,r2) if (runomp)
 #endif
 
     //and assign potentials back
-    if (opt.uinfo.iapproxpot) {
-        int nsearch = ceil(1.0/opt.uinfo.approxfrac+1);
-        vector<Int_t> nn(nsearch);
-        vector<Double_t> dist2(nsearch);
+    //if approximation run and particle pointer does not point to original particle pointer
+    if (part != Part) {
+        nbodies = oldnbodies;
+        int nsearch = min(32,(int)ceil(mr+4));
+        vector<Int_t> nn;
+        vector<Double_t> dist2;
         Double_t pot, wsum;
+        runomp = (nbodies > POTOMPCALCNUM);
 #ifdef USEOPENMP
-#pragma omp parallel for default(shared) private(nn, dist2, wsum, pot, j) if (runomp)
+#pragma omp parallel default(shared) private(nn, dist2, wsum, pot, j) \
+if (runomp)
+{
 #endif
-        for (auto i=0; i<oldnbodies;i++) {
+        nn.resize(nsearch);
+        dist2.resize(nsearch);
+#ifdef USEOPENMP
+#pragma omp for schedule(static)
+#endif
+        for (auto i=0; i<nbodies; i++)
+        {
             tree->FindNearestPos(Part[i].GetPosition(), nn.data(), dist2.data(), nsearch);
             pot = 0;
             wsum = 0;
-            for (j=0;j<nsearch;j++) {
-                pot = nn[i]/dist2[j];
-                wsum += 1.0/dist2[j];
+            if (dist2[0] == 0) {
+                pot = part[nn[0]].GetPotential();
             }
-            pot /= wsum;
-            Part[i].SetPotential(pot);
+            else {
+                for (j=0;j<nsearch;j++) {
+                    pot += part[nn[j]].GetPotential()/dist2[j];
+                    wsum += 1.0/dist2[j];
+                }
+                pot /= wsum;
+            }
+            Part[i].SetPotential(pot/mr);
         }
+        nn.clear();
+        dist2.clear();
+#ifdef USEOPENMP
+}
+#endif
     }
 
     delete tree;
@@ -1248,12 +1165,8 @@ private(j,k,l,n,ntreecell,nleafcell,r2) if (runomp)
     delete[] markleafcell;
     delete[] r2val;
     delete[] npomp;
-    if (opt.uinfo.iapproxpot) {
-        delete[] part;
-    }
-    else {
-        part = NULL;
-    }
+    if (part != Part) delete[] part;
+    else part = NULL;
 }
 
 void PotentialPP(Options &opt, Int_t nbodies, Particle *Part)
