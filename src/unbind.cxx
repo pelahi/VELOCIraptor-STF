@@ -1075,16 +1075,13 @@ void ParticleSubSample(Options &opt, const Int_t nbodies, Particle *&Part,
 {
     //if approximate potential calculated, subsample partile distribution
     newnbodies = nbodies;
+    newpart = Part;
+    mr = 1.0;
     if (opt.uinfo.iapproxpot) {
         if (newnbodies > opt.uinfo.approxpotminnum) {
             newnbodies = max((Int_t)(opt.uinfo.approxpotnumfrac*nbodies), (Int_t)opt.uinfo.approxpotminnum);
         }
-        if (newnbodies >= 0.5*nbodies) {
-            newpart = Part;
-            mr = 1.0;
-            newnbodies = nbodies;
-        }
-        else {
+        if (newnbodies < 0.5*nbodies) {
             if (opt.uinfo.approxpotmethod == POTAPPROXMETHODTREE) {
                 //build tree that contains leaf nodes containing the desired
                 //number of particles per leaf node
@@ -1141,10 +1138,7 @@ void ParticleSubSample(Options &opt, const Int_t nbodies, Particle *&Part,
                 indices.clear();
             }
         }
-    }
-    else {
-        newpart = Part;
-        mr = 1.0;
+        else newnbodies = nbodies;
     }
 }
 
