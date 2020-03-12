@@ -234,6 +234,10 @@ typedef double (*ExtraPropFunc)(double, double, double&);
 #define UNBINDNUM 150
 #define POTPPCALCNUM 150
 #define POTOMPCALCNUM 1000
+///diferent methods for calculating approximate potential
+#define POTAPPROXMETHODTREE 0
+#define POTAPPROXMETHODRAND 1
+
 ///when unbinding check to see if system is bound and least bound particle is also bound
 #define USYSANDPART 0
 ///when unbinding check to see if least bound particle is also bound
@@ -330,6 +334,8 @@ struct UnbindInfo
     Double_t approxpotnumfrac;
     ///fraction of particles to subsample
     Double_t approxpotminnum;
+    ///method of subsampling to calculate potential
+    int approxpotmethod;
     //@}
     UnbindInfo(){
         icalculatepotential=true;
@@ -350,7 +356,8 @@ struct UnbindInfo
         maxallowedunboundfrac=0.025;
         iapproxpot = 0;
         approxpotnumfrac = 0.1;
-        approxpotminnum = 100;
+        approxpotminnum = 5000;
+        approxpotmethod = POTAPPROXMETHODTREE;
     }
 };
 
@@ -1290,13 +1297,18 @@ struct ConfigInfo{
         nameinfo.push_back("Bound_halos");
         datainfo.push_back(to_string(opt.iBoundHalos));
         datatype.push_back(python_type_string(opt.iBoundHalos));
-        nameinfo.push_back("Approximative_potential_calculation");
+        nameinfo.push_back("Approximate_potential_calculation");
         datainfo.push_back(to_string(opt.uinfo.iapproxpot));
-        nameinfo.push_back("Approximative_potential_calculation_particle_number_fraction");
-        datainfo.push_back(to_string(opt.uinfo.iapproxpot));
-        nameinfo.push_back("Approximative_potential_calculation_min_particle");
+        datatype.push_back(python_type_string(opt.uinfo.iapproxpot));
+        nameinfo.push_back("Approximate_potential_calculation_particle_number_fraction");
+        datainfo.push_back(to_string(opt.uinfo.approxpotnumfrac));
+        datatype.push_back(python_type_string(opt.uinfo.approxpotnumfrac));
+        nameinfo.push_back("Approximate_potential_calculation_min_particle");
         datainfo.push_back(to_string(opt.uinfo.approxpotminnum));
-        datatype.push_back(python_type_string(opt.uinfo.bgpot));
+        datatype.push_back(python_type_string(opt.uinfo.approxpotminnum));
+        nameinfo.push_back("Approximate_potential_calculation_method");
+        datainfo.push_back(to_string(opt.uinfo.approxpotmethod));
+        datatype.push_back(python_type_string(opt.uinfo.approxpotmethod));
         nameinfo.push_back("Allowed_kinetic_potential_ratio");
         datainfo.push_back(to_string(opt.uinfo.Eratio));
         datatype.push_back(python_type_string(opt.uinfo.Eratio));

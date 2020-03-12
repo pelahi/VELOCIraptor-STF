@@ -938,11 +938,222 @@ void Potential(Options &opt, Int_t nbodies, Particle *Part, Double_t *potV)
 
 void Potential(Options &opt, Int_t nbodies, Particle *Part)
 {
-    int maxnthreads,nthreads,l,n;
     Int_t oldnbodies;
-    Int_t i,j,k,ntreecell,nleafcell;
+    KDTree *tree;
+    Particle *part;
+    bool runomp = false;
+    int nsearch;
+    double mr;
+    int bsize = opt.uinfo.BucketSize;
+
+    ///\todo need to get nomass stuff working
+
+    //if approximate potential calculated, subsample partile distribution
+    oldnbodies = nbodies;
+    ParticleSubSample(opt, oldnbodies, Part, nbodies, part, mr);
+    if (part != Part) bsize = ceil(bsize*opt.uinfo.approxpotnumfrac);
+
+    //build tree and calculate a tree based potential
+    tree = new KDTree(part, nbodies, bsize, tree->TPHYS, tree->KEPAN,
+        100, 0, 0, 0, NULL, NULL, runomp);
+    if (part != Part) tree->OverWriteInputOrder();
+    PotentialTree(opt, nbodies, part, tree);
+    //and assign potentials back if running approximate potential calculation
+    //i.e., particle pointer does not point to original particle pointer
+    if (part != Part) {
+        nsearch = min(4,(int)ceil(mr+1));
+        PotentialInterpolate(opt, oldnbodies, Part, part, tree, mr, nsearch);
+    }
+    delete tree;
+
+    //if iterating then run again but new shuffled indices
+    //to better sample low potential regions
+    // if (opt.uinfo.approxpotiterate > 0 && part != Part && nbodies<0.5*oldnbodies) {
+    //     int numloops = 0;
+    //     vector<indexpot> potindex(oldnbodies);
+    //     double newpotsum, oldpotsum, deltapot, oldminpot, newminpot, deltaminpot;
+    //     double oldsubpotsum, newsubpotsum;
+    //     // double deltapot2;
+    //     oldpotsum = 0;
+    //     oldminpot = newminpot = 0;
+    //     for (auto i=0;i<oldnbodies;i++) {
+    //         potindex[i].potval = Part[i].GetPotential();
+    //         potindex[i].index = i;
+    //         oldpotsum += potindex[i].potval;
+    //         if (potindex[i].potval<oldminpot) oldminpot = potindex[i].potval;
+    //     }
+    //     oldsubpotsum = 0; for (auto i=0;i<nbodies;i++) oldsubpotsum += part[i].GetPotential();
+    //
+    //     cout<<oldnbodies<<" "<<nbodies<<" beginning iteration "<<oldpotsum<<endl;
+    //     do {
+    //         //sort indices by pot value
+    //         sort(potindex.begin(), potindex.end(), [](indexpot &a, indexpot &b){
+    //         return a.potval < b.potval;
+    //         });
+    //         //take random sample of the region around the min potential
+    //         random_shuffle(potindex.begin(), potindex.begin()+oldnbodies/2);
+    //         for (auto i=0;i<nbodies/2;i++) {
+    //             Int_t index = potindex[i].index;
+    //             part[i] = Part[index];
+    //             part[i].SetMass(part[i].GetMass()*mr);
+    //         }
+    //         //and outer region
+    //         random_shuffle(potindex.begin()+oldnbodies/2, potindex.end());
+    //         for (auto i=nbodies/2;i<nbodies;i++) {
+    //             Int_t index = potindex[i+oldnbodies/2].index;
+    //             part[i] = Part[index];
+    //             part[i].SetMass(part[i].GetMass()*mr);
+    //         }
+    //
+    //         //build tree and calculate a tree based potential
+    //         tree = new KDTree(part, nbodies, bsize, tree->TPHYS, tree->KEPAN,
+    //             100, 0, 0, 0, NULL, NULL, runomp);
+    //         tree->OverWriteInputOrder();
+    //         PotentialTree(opt, nbodies, part, tree);
+    //         PotentialInterpolate(opt, oldnbodies, Part, part, tree, mr, nsearch);
+    //         delete tree;
+    //
+    //         // for (auto i=0;i<nbodies/2;i++) {
+    //         //     Int_t index = potindex[i].index;
+    //         //     part[i] = Part[index];
+    //         //     part[i].SetMass(part[i].GetMass());
+    //         // }
+    //         // //and outer region
+    //         // random_shuffle(potindex.begin()+nbodies/2, potindex.end());
+    //         // for (auto i=nbodies/2;i<nbodies;i++) {
+    //         //     Int_t index = potindex[i].index;
+    //         //     part[i] = Part[index];
+    //         //     part[i].SetMass(part[i].GetMass()*mr);
+    //         // }
+    //         //
+    //         // //build tree and calculate a tree based potential
+    //         // tree = new KDTree(part, nbodies, bsize, tree->TPHYS, tree->KEPAN,
+    //         //     100, 0, 0, 0, NULL, NULL, runomp);
+    //         // tree->OverWriteInputOrder();
+    //         // PotentialTree(opt, nbodies, part, tree);
+    //         // Particle *pblah = &Part[nbodies/2];
+    //         // PotentialInterpolate(opt, oldnbodies-nbodies/2, pblah, part, tree, mr, nsearch);
+    //         // pblah = NULL;
+    //         // delete tree;
+    //         // for (auto i=0;i<nbodies/2;i++) {
+    //         //     Int_t index = potindex[i].index;
+    //         //     Part[index].SetPotential(potindex[i].potval);
+    //         // }
+    //         //
+    //         // newsubpotsum = 0; for (auto i=0;i<nbodies;i++) newsubpotsum += part[i].GetPotential();
+    //         // cout<<oldnbodies<<" "<<nbodies<<" sub pot "<<oldsubpotsum<<" "<<newsubpotsum<<endl;
+    //
+    //         newpotsum = 0;
+    //         newminpot = 0;
+    //         for (auto i=0;i<oldnbodies;i++) {
+    //             potindex[i].potval = Part[i].GetPotential();
+    //             potindex[i].index = i;
+    //             newpotsum += potindex[i].potval;
+    //             if (potindex[i].potval<newminpot) newminpot = potindex[i].potval;
+    //         }
+    //         deltapot = (oldpotsum-newpotsum)/newpotsum;
+    //         deltapot = sqrt(deltapot*deltapot);
+    //         deltaminpot = (oldminpot-newminpot)/newminpot;
+    //         deltaminpot = sqrt(deltaminpot*deltaminpot);
+    //         numloops++;
+    //         // deltapot2 = (potfull-newpotsum)/potfull;
+    //         // deltapot2 = sqrt(deltapot2*deltapot2);
+    //         //
+    //         cout<<oldnbodies<<" "<<nbodies<<" Iterating "<<oldpotsum<<" "<<newpotsum<<" "<<deltapot<<" "<<numloops<<" "<<deltaminpot<<endl;
+    //         oldpotsum = newpotsum;
+    //         oldminpot = newminpot;
+    //     } while((deltapot>opt.uinfo.approxpotrelerr || deltaminpot>opt.uinfo.approxpotrelerr) && numloops<opt.uinfo.approxpotiterate);
+    // }
+
+    //free up memory
+    if (part != Part) delete[] part;
+    else part = NULL;
+}
+
+void ParticleSubSample(Options &opt, const Int_t nbodies, Particle *&Part,
+    Int_t &newnbodies, Particle *&newpart, double &mr)
+{
+    //if approximate potential calculated, subsample partile distribution
+    newnbodies = nbodies;
+    if (opt.uinfo.iapproxpot) {
+        if (newnbodies > opt.uinfo.approxpotminnum) {
+            newnbodies = max((Int_t)(opt.uinfo.approxpotnumfrac*nbodies), (Int_t)opt.uinfo.approxpotminnum);
+        }
+        if (newnbodies >= 0.5*nbodies) {
+            newpart = Part;
+            mr = 1.0;
+            newnbodies = nbodies;
+        }
+        else {
+            if (opt.uinfo.approxpotmethod == POTAPPROXMETHODTREE) {
+                //build tree that contains leaf nodes containing the desired
+                //number of particles per leaf node
+                Int_t bsize = ceil(nbodies/(float)newnbodies);
+                KDTree *tree = new KDTree(Part, nbodies, bsize, tree->TPHYS,tree->KEPAN,100);
+                //first get all local leaf nodes;
+                newnbodies = tree->GetNumLeafNodes();
+                newpart = new Particle[newnbodies];
+                mr = (double)nbodies/(double)newnbodies;
+                Node *node;
+                vector<leaf_node_info> leafnodes(newnbodies);
+                Int_t inode=0, ipart=0;
+                while (ipart<nbodies) {
+                    node=tree->FindLeafNode(ipart);
+                    leafnodes[inode].id = inode;
+                    leafnodes[inode].istart = node->GetStart();
+                    leafnodes[inode].iend = node->GetEnd();
+                    leafnodes[inode].numtot = node->GetCount();
+                    ipart+=leafnodes[inode].numtot;
+                    inode++;
+                }
+                node=NULL;
+
+#ifdef USEOPENMP
+#pragma omp parallel for default(shared) schedule(dynamic)
+#endif
+                for (auto i=0;i<newnbodies;i++)
+                {
+                    double mass = 0;
+                    leafnodes[i].cm[0]=leafnodes[i].cm[1]=leafnodes[i].cm[2]=0;
+                    for (auto j=leafnodes[i].istart;j<leafnodes[i].iend;j++)
+                    {
+                        mass += Part[j].GetMass();
+                        for (auto k=0;k<3;k++) leafnodes[i].cm[k] += Part[j].GetPosition(k)*Part[j].GetMass();
+                    }
+                    for (auto k=0;k<3;k++) newpart[i].SetPosition(k, leafnodes[i].cm[k]/mass);
+                    newpart[i].SetMass(mass);
+                }
+                leafnodes.clear();
+                delete tree;
+            }
+            else if (opt.uinfo.approxpotmethod == POTAPPROXMETHODRAND) {
+                //randomly sample particle distribution
+                mr = (double)nbodies/(double)newnbodies;
+                newpart = new Particle[newnbodies];
+                vector<Int_t> indices(nbodies);
+                for (auto i=0;i<nbodies;i++) indices[i] = i;
+                random_shuffle(indices.begin(), indices.end());
+                for (auto i=0;i<newnbodies;i++) {
+                    Int_t index = indices[i];
+                    newpart[i] = Part[index];
+                    newpart[i].SetMass(newpart[i].GetMass()*mr);
+                }
+                indices.clear();
+            }
+        }
+    }
+    else {
+        newpart = Part;
+        mr = 1.0;
+    }
+}
+
+void PotentialTree(Options &opt, Int_t nbodies, Particle *&Part, KDTree* &tree)
+{
+    Int_t ntreecell, nleafcell;
     Double_t r2, eps2=opt.uinfo.eps*opt.uinfo.eps, mv2=opt.MassValue*opt.MassValue;
     int bsize = opt.uinfo.BucketSize;
+    int maxnthreads, nthreads;
     //for tree code potential calculation
     Int_t ncell;
     Int_t *start,*end;
@@ -951,63 +1162,14 @@ void Potential(Options &opt, Int_t nbodies, Particle *Part)
     Node *root;
     Node **nodelist, **npomp;
     Int_t **marktreecell,**markleafcell;
-    //Double_t **nnr2;
-    KDTree *tree;
-    Particle *part;
     bool runomp = false;
-    vector<Int_t> indices;
-    double mr;
-
-    double time1 = MyGetTime();
-
-    //if approximate potential calculated, subsample partile distribution
-    if (opt.uinfo.iapproxpot) {
-        oldnbodies = nbodies;
-        if (nbodies > opt.uinfo.approxpotminnum) {
-            nbodies = max((Int_t)(opt.uinfo.approxpotnumfrac*nbodies), (Int_t)opt.uinfo.approxpotminnum);
-        }
-        if (nbodies >= 0.5*oldnbodies) {
-            part = Part;
-            mr = 1.0;
-            nbodies = oldnbodies;
-        }
-        else {
-            //randomly sample particle distribution
-            mr = (double)oldnbodies/(double)nbodies;
-            mv2 *= mr*mr;
-            part = new Particle[nbodies];
-            indices.resize(oldnbodies);
-            for (auto i=0;i<oldnbodies;i++) indices[i] = i;
-            random_shuffle( indices.begin(), indices.end());
-            for (auto i=0;i<nbodies;i++) {
-                Int_t index = indices[i];
-                part[i] = Part[index];
-                part[i].SetMass(part[i].GetMass()*mr);
-                part[i].SetPID(index);
-            }
-            indices.clear();
-        }
-    }
-    else {
-        part = Part;
-        mr = 1.0;
-    }
-
-    //for parallel environment store maximum number of threads
-    nthreads=1;
 #ifdef USEOPENMP
     runomp = (nbodies > POTOMPCALCNUM);
-#pragma omp parallel
-    {
-    if (omp_get_thread_num()==0) maxnthreads=nthreads=omp_get_num_threads();
-    }
+    #pragma omp parallel
+        {
+        if (omp_get_thread_num()==0) maxnthreads=nthreads=omp_get_num_threads();
+        }
 #endif
-    //otherwise use tree tree gravity calculation
-    //here openmp is per group since each group is large
-    //to make this memory efficient really need just KDTree that uses Coordinates
-    tree = new KDTree(part, nbodies, bsize, tree->TPHYS, tree->KEPAN,
-        100, 0, 0, 0, NULL, NULL, runomp);
-    if (part != Part) tree->OverWriteInputOrder();
 
     ncell=tree->GetNumNodes();
     root=tree->GetRoot();
@@ -1027,8 +1189,8 @@ void Potential(Options &opt, Int_t nbodies, Particle *Part)
     markleafcell=new Int_t*[nthreads];
     r2val=new Double_t*[nthreads];
     npomp=new Node*[nthreads];
-    for (j=0;j<nthreads;j++) {marktreecell[j]=new Int_t[ncell];markleafcell[j]=new Int_t[ncell];}
-    for (j=0;j<nthreads;j++) {r2val[j]=new Double_t[ncell];}
+    for (auto j=0;j<nthreads;j++) {marktreecell[j]=new Int_t[ncell];markleafcell[j]=new Int_t[ncell];}
+    for (auto j=0;j<nthreads;j++) {r2val[j]=new Double_t[ncell];}
 
     //from root node calculate cm for each node
     //start at root node and recursively move through list
@@ -1038,25 +1200,24 @@ void Potential(Options &opt, Int_t nbodies, Particle *Part)
 
     //determine cm for all cells and openings
 #ifdef USEOPENMP
-#pragma omp parallel default(shared)  \
-private(j,k,n) if (runomp)
+#pragma omp parallel default(shared) if (runomp)
 {
     #pragma omp for schedule(static)
 #endif
-    for (j=0;j<ncell;j++) {
+    for (auto j=0;j<ncell;j++) {
         start[j]=(nodelist[j])->GetStart();
         end[j]=(nodelist[j])->GetEnd();
         cellcm[j][0]=cellcm[j][1]=cellcm[j][2]=0.;
         cmtot[j]=0;
-        for (k=start[j];k<end[j];k++) {
-            for (n=0;n<3;n++) cellcm[j][n]+=part[k].GetPosition(n)*part[k].GetMass();
-            cmtot[j]+=part[k].GetMass();
+        for (auto k=start[j];k<end[j];k++) {
+            for (auto n=0;n<3;n++) cellcm[j][n]+=Part[k].GetPosition(n)*Part[k].GetMass();
+            cmtot[j]+=Part[k].GetMass();
         }
-        for (n=0;n<3;n++) cellcm[j][n]/=cmtot[j];
+        for (auto n=0;n<3;n++) cellcm[j][n]/=cmtot[j];
         Double_t xdiff,xdiff1;
-        xdiff=(cellcm[j]-Coordinate(part[start[j]].GetPosition())).Length();
-        for (k=start[j]+1;k<end[j];k++) {
-            xdiff1=(cellcm[j]-Coordinate(part[k].GetPosition())).Length();
+        xdiff=(cellcm[j]-Coordinate(Part[start[j]].GetPosition())).Length();
+        for (auto k=start[j]+1;k<end[j];k++) {
+            xdiff1=(cellcm[j]-Coordinate(Part[k].GetPosition())).Length();
             if (xdiff<xdiff1) xdiff=xdiff1;
         }
         cBmax[j]=xdiff;
@@ -1066,16 +1227,16 @@ private(j,k,n) if (runomp)
 }
 #endif
 
-    //then for each cell find all other cells that contain particles within a cells gRmax and mark those
+    //then for each cell find all other cells that contain Particles within a cells gRmax and mark those
     //and mark all cells for which one does not have to unfold
     //for marked cells calculate pp, for every other cell just use the CM of the cell to calculate the potential.
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
-private(j,k,l,n,ntreecell,nleafcell,r2) if (runomp)
+private(ntreecell,nleafcell,r2) if (runomp)
 {
     #pragma omp for schedule(static)
 #endif
-    for (j=0;j<nbodies;j++) {
+    for (auto j=0;j<nbodies;j++) {
         int tid;
 #ifdef USEOPENMP
         tid=omp_get_thread_num();
@@ -1083,76 +1244,33 @@ private(j,k,l,n,ntreecell,nleafcell,r2) if (runomp)
         tid=0;
 #endif
         npomp[tid]=tree->GetRoot();
-        part[j].SetPotential(0.);
+        Part[j].SetPotential(0.);
         ntreecell=nleafcell=0;
-        Coordinate xpos(part[j].GetPosition());
+        Coordinate xpos(Part[j].GetPosition());
         MarkCell(npomp[tid],marktreecell[tid], markleafcell[tid],ntreecell,nleafcell,r2val[tid],bsize, cR2max, cellcm, cmtot, xpos, eps2);
-        for (k=0;k<ntreecell;k++) {
-          part[j].SetPotential(part[j].GetPotential()-part[j].GetMass()*r2val[tid][k]);
+        for (auto k=0;k<ntreecell;k++) {
+          Part[j].SetPotential(Part[j].GetPotential()-Part[j].GetMass()*r2val[tid][k]);
         }
-        for (k=0;k<nleafcell;k++) {
-            for (l=start[markleafcell[tid][k]];l<end[markleafcell[tid][k]];l++) {
+        for (auto k=0;k<nleafcell;k++) {
+            for (auto l=start[markleafcell[tid][k]];l<end[markleafcell[tid][k]];l++) {
                 if (j!=l) {
-                    r2=0.;for (n=0;n<3;n++) r2+=pow(part[j].GetPosition(n)-part[l].GetPosition(n),(Double_t)2.0);
+                    r2=0.;
+                    for (auto n=0;n<3;n++) r2+=pow(Part[j].GetPosition(n)-Part[l].GetPosition(n),(Double_t)2.0);
                     r2+=eps2;
                     r2=1.0/sqrt(r2);
-                    part[j].SetPotential(part[j].GetPotential()-(part[j].GetMass()*part[l].GetMass())*r2);
+                    Part[j].SetPotential(Part[j].GetPotential()-(Part[j].GetMass()*Part[l].GetMass())*r2);
                 }
             }
         }
-        part[j].SetPotential(part[j].GetPotential()*opt.G);
+        Part[j].SetPotential(Part[j].GetPotential()*opt.G);
 #ifdef NOMASS
-        part[j].SetPotential(part[j].GetPotential()*mv2);
+        Part[j].SetPotential(Part[j].GetPotential()*mv2);
 #endif
     }
 #ifdef USEOPENMP
 }
 #endif
 
-    //and assign potentials back
-    //if approximation run and particle pointer does not point to original particle pointer
-    if (part != Part) {
-        nbodies = oldnbodies;
-        int nsearch = min(32,(int)ceil(mr+4));
-        vector<Int_t> nn;
-        vector<Double_t> dist2;
-        Double_t pot, wsum;
-        runomp = (nbodies > POTOMPCALCNUM);
-#ifdef USEOPENMP
-#pragma omp parallel default(shared) private(nn, dist2, wsum, pot, j) \
-if (runomp)
-{
-#endif
-        nn.resize(nsearch);
-        dist2.resize(nsearch);
-#ifdef USEOPENMP
-#pragma omp for schedule(static)
-#endif
-        for (auto i=0; i<nbodies; i++)
-        {
-            tree->FindNearestPos(Part[i].GetPosition(), nn.data(), dist2.data(), nsearch);
-            pot = 0;
-            wsum = 0;
-            if (dist2[0] == 0) {
-                pot = part[nn[0]].GetPotential();
-            }
-            else {
-                for (j=0;j<nsearch;j++) {
-                    pot += part[nn[j]].GetPotential()/dist2[j];
-                    wsum += 1.0/dist2[j];
-                }
-                pot /= wsum;
-            }
-            Part[i].SetPotential(pot/mr);
-        }
-        nn.clear();
-        dist2.clear();
-#ifdef USEOPENMP
-}
-#endif
-    }
-
-    delete tree;
     delete[] start;
     delete[] end;
     delete[] cmtot;
@@ -1160,14 +1278,55 @@ if (runomp)
     delete[] cR2max;
     delete[] cellcm;
     delete[] nodelist;
-    for (j=0;j<nthreads;j++) {delete[] marktreecell[j]; delete[] markleafcell[j]; delete[] r2val[j];}
+    for (auto j=0;j<nthreads;j++) {delete[] marktreecell[j]; delete[] markleafcell[j]; delete[] r2val[j];}
     delete[] marktreecell;
     delete[] markleafcell;
     delete[] r2val;
     delete[] npomp;
-    if (part != Part) delete[] part;
-    else part = NULL;
 }
+
+void PotentialInterpolate(Options &opt, const Int_t nbodies, Particle *&Part, Particle *&interpolatepart, KDTree *&tree, double massratio, int nsearch)
+{
+    bool runomp = false;
+    vector<Int_t> nn;
+    vector<Double_t> dist2;
+    Double_t pot, wsum, w;
+    runomp = (nbodies > POTOMPCALCNUM);
+#ifdef USEOPENMP
+#pragma omp parallel default(shared) private(nn, dist2, wsum, pot) \
+if (runomp)
+{
+#endif
+    nn.resize(nsearch);
+    dist2.resize(nsearch);
+#ifdef USEOPENMP
+#pragma omp for schedule(static)
+#endif
+    for (auto i=0; i<nbodies; i++)
+    {
+        tree->FindNearestPos(Part[i].GetPosition(), nn.data(), dist2.data(), nsearch);
+        pot = 0;
+        wsum = 0;
+        if (dist2[0] == 0) {
+            pot = interpolatepart[nn[0]].GetPotential();
+        }
+        else {
+            for (auto j=0;j<nsearch;j++) {
+                w = 1.0/sqrt(dist2[j]);
+                pot += interpolatepart[nn[j]].GetPotential()*w;
+                wsum += w;
+            }
+            pot /= wsum;
+        }
+        Part[i].SetPotential(pot/massratio);
+    }
+    nn.clear();
+    dist2.clear();
+#ifdef USEOPENMP
+}
+#endif
+}
+
 
 void PotentialPP(Options &opt, Int_t nbodies, Particle *Part)
 {

@@ -4194,7 +4194,7 @@ void GetBindingEnergy(Options &opt, const Int_t nbodies, Particle *Part, Int_t n
     //if approximative calculations, run all calculations in parallel
     //as halos take less time individually.
     if (opt.uinfo.iapproxpot) {
-        //small groups with PP calculations of potential.
+        //run all pot calculations in parallel as using fast approximate potential
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
 private(i,j,k,storepid)

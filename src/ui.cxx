@@ -823,12 +823,14 @@ void GetParamFile(Options &opt)
                         opt.uinfo.maxallowedunboundfrac = atof(vbuff);
                     else if (strcmp(tbuff, "Softening_length")==0)
                         opt.uinfo.eps = atof(vbuff);
-                    else if (strcmp(tbuff, "Approximative_potential_calculation")==0)
+                    else if (strcmp(tbuff, "Approximate_potential_calculation")==0)
                         opt.uinfo.iapproxpot = atoi(vbuff);
-                    else if (strcmp(tbuff, "Approximative_potential_calculation_particle_number_fraction")==0)
+                    else if (strcmp(tbuff, "Approximate_potential_calculation_particle_number_fraction")==0)
                         opt.uinfo.approxpotnumfrac = atof(vbuff);
-                    else if (strcmp(tbuff, "Approximative_potential_calculation_min_particle_number")==0)
+                    else if (strcmp(tbuff, "Approximate_potential_calculation_min_particle_number")==0)
                         opt.uinfo.approxpotminnum = atoi(vbuff);
+                    else if (strcmp(tbuff, "Approximate_potential_calculation_method")==0)
+                        opt.uinfo.approxpotmethod = atoi(vbuff);
 
                     //property related
                     else if (strcmp(tbuff, "Reference_frame_for_properties")==0)
@@ -1890,6 +1892,20 @@ void ConfigCheck(Options &opt)
     if (opt.extra_dm_internalprop_names.size() != opt.extra_dm_internalprop_index.size()){
         errormessage("Extra_DM: # of Internal Property names does not the # of index in file entries. Check config.");
         ConfigExit();
+    }
+    if (opt.uinfo.iapproxpot) {
+        if (opt.uinfo.approxpotnumfrac <=0) {
+            errormessage("Calculating approximate potential but fraction of particles <=0. Check config.");
+            ConfigExit();
+        }
+        if (opt.uinfo.approxpotminnum <=0) {
+            errormessage("Calculating approximate potential but min number of particles to use <=0. Check config.");
+            ConfigExit();
+        }
+        if (opt.uinfo.approxpotmethod < POTAPPROXMETHODTREE || opt.uinfo.approxpotmethod > POTAPPROXMETHODRAND) {
+            errormessage("In approximate potential but using invalid method for sampling particles. Use 0 for Tree and 1 for Rand. Check config.");
+            ConfigExit();
+        }
     }
 
     set<string> uniqueval;
