@@ -3072,7 +3072,8 @@ void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup
     fac=-log(4.0*M_PI/3.0)-minlgrhoval;
     Double_t radfac, maxsearchdist=0;
     for (i=1;i<=ngroup;i++) {
-        if (pdata[i].hostid != -1) continue;
+        if (opt.SphericalOverdensitySeachMaxStructLevel == HALOSTYPE && pdata[i].hostid != -1) continue;
+        else if (pdata[i].stype > opt.SphericalOverdensitySeachMaxStructLevel) continue;
         nhalos++;
         radfac=max(1.0,exp(1.0/3.0*(log(pdata[i].gmass)-3.0*log(pdata[i].gsize)+fac)));
         maxrdist[i]=pdata[i].gsize*opt.SphericalOverdensitySeachFac*radfac;
@@ -3120,7 +3121,8 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
 #endif
     for (i=1;i<=ngroup;i++)
     {
-        if (pdata[i].hostid != -1) continue;
+        if (opt.SphericalOverdensitySeachMaxStructLevel == HALOSTYPE && pdata[i].hostid != -1) continue;
+        else if (pdata[i].stype > opt.SphericalOverdensitySeachMaxStructLevel) continue;
         if (opt.iPropertyReferencePosition == PROPREFCM) posref=pdata[i].gcm;
         else if (opt.iPropertyReferencePosition == PROPREFMBP) posref=pdata[i].gposmbp;
         else if (opt.iPropertyReferencePosition == PROPREFMINPOT) posref=pdata[i].gposminpot;

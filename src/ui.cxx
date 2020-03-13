@@ -833,6 +833,11 @@ void GetParamFile(Options &opt)
                         opt.iIterateCM = atoi(vbuff);
                     else if (strcmp(tbuff, "Inclusive_halo_masses")==0)
                         opt.iInclusiveHalo = atoi(vbuff);
+                    else if (strcmp(tbuff, "Spherical_overdenisty_calculation_limited_to_structure_types")==0) {
+                        int stype = atoi(vbuff);
+                        opt.SphericalOverdensitySeachMaxStructLevel = HALOSTYPE;
+                        opt.SphericalOverdensitySeachMaxStructLevel += HALOCORESTYPE*stype;
+                    }
                     else if (strcmp(tbuff, "Extensive_halo_properties_output")==0)
                         opt.iextrahalooutput = atoi(vbuff);
                     else if (strcmp(tbuff, "Extensive_gas_properties_output")==0)
