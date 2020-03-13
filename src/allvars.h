@@ -1396,7 +1396,7 @@ struct ConfigInfo{
             datatype.push_back(python_type_string(opt.SOthresholds_values_crit[0]));
         }
         nameinfo.push_back("Spherical_overdenisty_calculation_limited_to_structure_types");
-        datainfo.push_back(to_string(opt.SphericalOverdensitySeachMaxStructLevel));
+        datainfo.push_back(to_string((opt.SphericalOverdensitySeachMaxStructLevel-HALOSTYPE)/HALOCORESTYPE));
         datatype.push_back(python_type_string(opt.SphericalOverdensitySeachMaxStructLevel));
         if (opt.gas_internalprop_names.size()>0){
             nameinfo.push_back("Gas_internal_property_names");
