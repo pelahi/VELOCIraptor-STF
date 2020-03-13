@@ -1365,8 +1365,10 @@ struct ConfigInfo{
         datatype.push_back(python_type_string(opt.iprofilecalc));
         if(opt.iprofilecalc) {
             nameinfo.push_back("Radial_profile_min_FOF_size");
+            datainfo.push_back(to_string(opt.profileminFOFsize));
             datainfo.push_back(python_type_string(opt.profileminFOFsize));
             nameinfo.push_back("Radial_profile_min_size");
+            datainfo.push_back(to_string(opt.profileminsize));
             datainfo.push_back(python_type_string(opt.profileminsize));
             nameinfo.push_back("Number_of_radial_profile_bin_edges");
             datainfo.push_back(to_string(opt.profilenbins));
