@@ -2571,7 +2571,7 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
     string fname;
     ostringstream os;
     char buf[40];
-    unsigned long long ngtot=0, noffset=0, ng=ngroups, nhalos=0, nhalostot=0, nwritecommtot=0, nhalowritecommtot=0;
+    Int_t ngtot=0, noffset=0, ng=ngroups, nhalos=0, nhalostot=0, nwritecommtot=0, nhalowritecommtot=0;
     vector<unsigned long long> indices(ngroups), haloindices;
 
     //void pointer to hold data
@@ -2593,12 +2593,11 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
         haloindices.resize(ngroups);
         for (auto i=1;i<=ngroups;i++){
             if (pdata[i].gNFOF >= opt.profileminFOFsize && pdata[i].num >= opt.profileminsize && pdata[i].hostid == -1) {
-                nhalos++;
                 haloindices[nhalos++] = i;
             }
         }
 #ifdef USEMPI
-        MPI_Allgather(&nhalos, 1, MPI_UNSIGNED_LONG_LONG, mpi_nhalos, 1, MPI_UNSIGNED_LONG_LONG, MPI_COMM_WORLD);
+        MPI_Allgather(&nhalos, 1, MPI_Int_t, mpi_nhalos, 1, MPI_Int_t, MPI_COMM_WORLD);
 #endif
     }
 #ifdef USEMPI
@@ -2614,13 +2613,13 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
     ProfileDataHeader head(opt);
 
     //since profiles can be called for a subset of objects, get the total number to be written
-    if (opt.profileminsize > 0) {
+    if (opt.profileminsize > 0 || opt.profileminFOFsize > 0) {
         ng = 0;
         for (auto i=1;i<=ngroups;i++) if (pdata[i].gNFOF >= opt.profileminFOFsize && pdata[i].num >= opt.profileminsize) {
             indices[ng++] = i;
         }
 #ifdef USEMPI
-        MPI_Allgather(&ng, 1, MPI_UNSIGNED_LONG_LONG, mpi_ngroups, 1, MPI_UNSIGNED_LONG_LONG, MPI_COMM_WORLD);
+        MPI_Allgather(&ng, 1, MPI_Int_t, mpi_ngroups, 1, MPI_Int_t, MPI_COMM_WORLD);
 #endif
     }
     else {
@@ -2754,7 +2753,7 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
         data= ::operator new(sizeof(long long)*(ng));
         //first is halo ids, then normalisation
         for (auto i=0;i<ng;i++) ((unsigned long*)data)[i]=pdata[indices[i]].haloid;
-        Fhdf.write_dataset(head.headerdatainfo[itemp], ngroups, data, head.hdfpredtypeinfo[itemp]);itemp++;
+        Fhdf.write_dataset(head.headerdatainfo[itemp], ng, data, head.hdfpredtypeinfo[itemp]);itemp++;
         if (opt.iprofilenorm == PROFILERNORMR200CRIT) {
             for (Int_t i=0;i<ng;i++) {
                 if (opt.iInclusiveHalo >0){
