@@ -8,6 +8,23 @@
 ///\name Routines calculating numerous properties of groups
 //@{
 
+inline bool CheckForSOSubCalc(Options &opt, PropData &pdata) {
+    return (opt.iInclusiveHalo==0 || opt.iInclusiveHalo!=0 && pdata.hostid!=-1 &&
+        pdata.stype > opt.SphericalOverdensitySeachMaxStructLevel);
+}
+
+inline bool CheckForSOExclCalc(Options &opt, PropData &pdata) {
+    if (opt.iextrahalooutput)
+        return (opt.iInclusiveHalo>0 &&
+        (pdata.hostid ==-1 || pdata.stype <= opt.SphericalOverdensitySeachMaxStructLevel));
+    else return false;
+}
+
+inline bool CheckForSOInclCalc(Options &opt, PropData &pdata) {
+    return (pdata.hostid==-1 ||
+        pdata.stype <= opt.SphericalOverdensitySeachMaxStructLevel);
+}
+
 /*!
     The routine is used to calculate CM of groups.
  */
@@ -381,16 +398,13 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
         //determine overdensity mass and radii. AGAIN REMEMBER THAT THESE ARE NOT MEANINGFUL FOR TIDAL DEBRIS
         //HERE MASSES ARE EXCLUSIVE!
         EncMass=pdata[i].gmass;
-        if (opt.iInclusiveHalo==0 || opt.iInclusiveHalo>0 && pdata[i].hostid!=-1) {
-            //CalculateSphericalOverdensity(opt, pdata[i], numingroup[i], &Part[noffset[i]], m200val, m200mval, mBN98val, virval, m500val, SOlgrhovals);
+        if (CheckForSOSubCalc(opt,pdata[i])) {
             CalculateSphericalOverdensitySubhalo(opt, pdata[i], numingroup[i], &Part[noffset[i]], m200val, m200mval, mBN98val, virval, m500val, SOlgrhovals);
             SetSphericalOverdensityMasstoTotalMass(opt, pdata[i]);
         }
-        if (opt.iextrahalooutput) {
-            if (opt.iInclusiveHalo>0 && pdata[i].hostid==-1) {
-                CalculateSphericalOverdensityExclusive(opt, pdata[i], numingroup[i], &Part[noffset[i]], m200val, m200mval, mBN98val, virval, m500val, SOlgrhovals);
-                SetSphericalOverdensityMasstoTotalMassExclusive(opt, pdata[i]);
-            }
+        if (CheckForSOExclCalc(opt,pdata[i])){
+            CalculateSphericalOverdensityExclusive(opt, pdata[i], numingroup[i], &Part[noffset[i]], m200val, m200mval, mBN98val, virval, m500val, SOlgrhovals);
+            SetSphericalOverdensityMasstoTotalMassExclusive(opt, pdata[i]);
         }
 
         //determine properties like maximum circular velocity, velocity dispersion, angular momentum, etc
@@ -1097,16 +1111,13 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
         //determine overdensity mass and radii. AGAIN REMEMBER THAT THESE ARE NOT MEANINGFUL FOR TIDAL DEBRIS
         //HERE MASSES ARE EXCLUSIVE!
         EncMass=pdata[i].gmass;
-        if (opt.iInclusiveHalo==0 || opt.iInclusiveHalo!=0 && pdata[i].hostid!=-1) {
-            //CalculateSphericalOverdensity(opt, pdata[i], numingroup[i], &Part[noffset[i]], m200val, m200mval, mBN98val, virval, m500val, SOlgrhovals);
+        if (CheckForSOSubCalc(opt,pdata[i])) {
             CalculateSphericalOverdensitySubhalo(opt, pdata[i], numingroup[i], &Part[noffset[i]], m200val, m200mval, mBN98val, virval, m500val, SOlgrhovals);
             SetSphericalOverdensityMasstoTotalMass(opt, pdata[i]);
         }
-        if (opt.iextrahalooutput) {
-            if (opt.iInclusiveHalo>0 && pdata[i].hostid==-1) {
-                CalculateSphericalOverdensityExclusive(opt, pdata[i], numingroup[i], &Part[noffset[i]], m200val, m200mval, mBN98val, virval, m500val, SOlgrhovals);
-                SetSphericalOverdensityMasstoTotalMassExclusive(opt, pdata[i]);
-            }
+        if (CheckForSOExclCalc(opt,pdata[i])) {
+            CalculateSphericalOverdensityExclusive(opt, pdata[i], numingroup[i], &Part[noffset[i]], m200val, m200mval, mBN98val, virval, m500val, SOlgrhovals);
+            SetSphericalOverdensityMasstoTotalMassExclusive(opt, pdata[i]);
         }
 
         EncMass=0;
@@ -3072,8 +3083,7 @@ void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup
     fac=-log(4.0*M_PI/3.0)-minlgrhoval;
     Double_t radfac, maxsearchdist=0;
     for (i=1;i<=ngroup;i++) {
-        if (opt.SphericalOverdensitySeachMaxStructLevel == HALOSTYPE && pdata[i].hostid != -1) continue;
-        else if (pdata[i].stype > opt.SphericalOverdensitySeachMaxStructLevel) continue;
+        if (!CheckForSOInclCalc(opt,pdata[i])) continue;
         nhalos++;
         radfac=max(1.0,exp(1.0/3.0*(log(pdata[i].gmass)-3.0*log(pdata[i].gsize)+fac)));
         maxrdist[i]=pdata[i].gsize*opt.SphericalOverdensitySeachFac*radfac;
@@ -3121,8 +3131,7 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
 #endif
     for (i=1;i<=ngroup;i++)
     {
-        if (opt.SphericalOverdensitySeachMaxStructLevel == HALOSTYPE && pdata[i].hostid != -1) continue;
-        else if (pdata[i].stype > opt.SphericalOverdensitySeachMaxStructLevel) continue;
+        if (!CheckForSOInclCalc(opt,pdata[i])) continue;
         if (opt.iPropertyReferencePosition == PROPREFCM) posref=pdata[i].gcm;
         else if (opt.iPropertyReferencePosition == PROPREFMBP) posref=pdata[i].gposmbp;
         else if (opt.iPropertyReferencePosition == PROPREFMINPOT) posref=pdata[i].gposminpot;
