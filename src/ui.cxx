@@ -2508,62 +2508,23 @@ ConfigInfo::ConfigInfo(Options &opt){
     nameinfo.push_back("Reference_frame_for_properties");
     datainfo.push_back(to_string(opt.iPropertyReferencePosition));
     datatype.push_back(python_type_string(opt.iPropertyReferencePosition));
-    nameinfo.push_back("Calculate_aperture_quantities");
-    datainfo.push_back(to_string(opt.iaperturecalc));
-    datatype.push_back(python_type_string(opt.iaperturecalc));
-    nameinfo.push_back("Number_of_apertures");
-    datainfo.push_back(to_string(opt.aperturenum));
-    datatype.push_back(python_type_string(opt.aperturenum));
-    if (opt.aperturenum>0){
-        nameinfo.push_back("Aperture_values_in_kpc");
-        datastring=string("");for (auto &x:opt.aperture_names_kpc) {datastring+=x;datastring+=string(",");}
-        datainfo.push_back(datastring);
-        datatype.push_back(python_type_string(opt.aperture_values_kpc[0]));
-    }
-    nameinfo.push_back("Number_of_projected_apertures");
-    datainfo.push_back(to_string(opt.apertureprojnum));
-    datatype.push_back(python_type_string(opt.apertureprojnum));
-    if (opt.apertureprojnum>0){
-        nameinfo.push_back("Projected_aperture_values_in_kpc");
-        datastring=string("");for (auto &x:opt.aperture_proj_names_kpc) {datastring+=x;datastring+=string(",");}
-        datainfo.push_back(datastring);
-        datatype.push_back(python_type_string(opt.aperture_proj_values_kpc[0]));
-    }
-    nameinfo.push_back("Calculate_radial_profiles");
-    datainfo.push_back(to_string(opt.iprofilecalc));
-    datatype.push_back(python_type_string(opt.iprofilecalc));
+
+    AddEntry("Calculate_aperture_quantities", opt.iaperturecalc);
+    AddEntry("Number_of_apertures", opt.aperturenum);
+    AddEntry("Aperture_values_in_kpc", opt.aperture_values_kpc);
+    AddEntry("Number_of_projected_apertures", opt.apertureprojnum);
+    AddEntry("Projected_aperture_values_in_kpc", opt.aperture_proj_values_kpc);
+    AddEntry("Calculate_radial_profiles", opt.iprofilecalc);
     if(opt.iprofilecalc) {
-        nameinfo.push_back("Radial_profile_min_FOF_size");
-        datainfo.push_back(to_string(opt.profileminFOFsize));
-        datatype.push_back(python_type_string(opt.profileminFOFsize));
-        nameinfo.push_back("Radial_profile_min_size");
-        datainfo.push_back(to_string(opt.profileminsize));
-        datatype.push_back(python_type_string(opt.profileminsize));
-        nameinfo.push_back("Number_of_radial_profile_bin_edges");
-        datainfo.push_back(to_string(opt.profilenbins));
-        datatype.push_back(python_type_string(opt.profilenbins));
-        nameinfo.push_back("Radial_profile_norm");
-        datainfo.push_back(to_string(opt.iprofilenorm));
-        datatype.push_back(python_type_string(opt.iprofilenorm));
+        AddEntry("Radial_profile_min_FOF_size", opt.profileminFOFsize);
+        AddEntry("Radial_profile_min_size", opt.profileminsize);
+        AddEntry("Number_of_radial_profile_bin_edges", opt.profilenbins);
+        AddEntry("Radial_profile_norm", opt.iprofilenorm);
         AddEntry("Radial_profile_bin_edges", opt.profile_bin_edges);
-        // nameinfo.push_back("Radial_profile_bin_edges");
-        // datastring=string("");for (auto &x:opt.profile_bin_edges) {datastring+=to_string(x);datastring+=string(",");}
-        // datainfo.push_back(datastring);
-        // datatype.push_back(python_type_string(opt.profile_bin_edges[0]));
     }
-    nameinfo.push_back("Number_of_overdensities");
-    datainfo.push_back(to_string(opt.SOnum));
-    datatype.push_back(python_type_string(opt.SOnum));
+    AddEntry("Number_of_overdensities", opt.SOnum);
     AddEntry("Overdensity_values_in_critical_density", opt.SOthresholds_values_crit);
-    // if (opt.SOnum>0) {
-    //     nameinfo.push_back("Overdensity_values_in_critical_density");
-    //     datastring=string("");for (auto &x:opt.SOthresholds_names_crit) {datastring+=x;datastring+=string(",");}
-    //     datainfo.push_back(datastring);
-    //     datatype.push_back(python_type_string(opt.SOthresholds_values_crit[0]));
-    // }
-    nameinfo.push_back("Spherical_overdenisty_calculation_limited_to_structure_types");
-    datainfo.push_back(to_string((opt.SphericalOverdensitySeachMaxStructLevel-HALOSTYPE)/HALOCORESTYPE));
-    datatype.push_back(python_type_string(opt.SphericalOverdensitySeachMaxStructLevel));
+    AddEntry("Spherical_overdenisty_calculation_limited_to_structure_types", (opt.SphericalOverdensitySeachMaxStructLevel-HALOSTYPE)/HALOCORESTYPE);
 
     AddEntry("Gas_internal_property_names", opt.gas_internalprop_names, opt.gas_internalprop_names_aperture);
     AddEntry("Gas_chemsitry_names", opt.gas_chem_names, opt.gas_chem_names_aperture);
@@ -2656,389 +2617,38 @@ ConfigInfo::ConfigInfo(Options &opt){
     AddEntry("BH_chemsitry_production_input_output_unit_conversion_factors", opt.bh_chemproduction_input_output_unit_conversion_factors, opt.bh_chemproduction_input_output_unit_conversion_factors_aperture);
     AddEntry("Extra_DM_internal_property_input_output_unit_conversion_factors", opt.extra_dm_internalprop_input_output_unit_conversion_factors, opt.extra_dm_internalprop_input_output_unit_conversion_factors_aperture);
 
-    // if (opt.gas_internalprop_names.size()+opt.gas_internalprop_names_aperture.size()>0){
-    //     nameinfo.push_back("Gas_internal_property_names");
-    //     datastring=string("");
-    //     for (auto &x:opt.gas_internalprop_names) {datastring+=x;datastring+=string(",");}
-    //     for (auto &x:opt.gas_internalprop_names_aperture) {datastring+=x;datastring+=string(",");}
-    //     datainfo.push_back(datastring);
-    //     datatype.push_back("str");
-    // }
-    // if (opt.gas_chem_names.size()>0){
-    //     nameinfo.push_back("Gas_chemistry_names");
-    //     datastring=string("");for (auto &x:opt.gas_chem_names) {datastring+=x;datastring+=string(",");}
-    //     datainfo.push_back(datastring);
-    //     datatype.push_back("str");
-    // }
-    // if (opt.gas_chemproduction_names.size()>0){
-    //     nameinfo.push_back("Gas_chemistry_production_names");
-    //     datastring=string("");for (auto &x:opt.gas_chemproduction_names) {datastring+=x;datastring+=string(",");}
-    //     datainfo.push_back(datastring);
-    //     datatype.push_back("str");
-    // }
-    // if (opt.star_internalprop_names.size()>0){
-    //     nameinfo.push_back("Star_internal_property_names");
-    //     datastring=string("");for (auto &x:opt.star_internalprop_names) {datastring+=x;datastring+=string(",");}
-    //     datainfo.push_back(datastring);
-    //     datatype.push_back("str");
-    // }
-    // if (opt.star_chem_names.size()>0){
-    //     nameinfo.push_back("Star_chemistry_names");
-    //     datastring=string("");for (auto &x:opt.star_chem_names) {datastring+=x;datastring+=string(",");}
-    //     datainfo.push_back(datastring);
-    //     datatype.push_back("str");
-    // }
-    // if (opt.star_chemproduction_names.size()>0){
-    //     nameinfo.push_back("Star_chemistry_production_names");
-    //     datastring=string("");for (auto &x:opt.star_chemproduction_names) {datastring+=x;datastring+=string(",");}
-    //     datainfo.push_back(datastring);
-    //     datatype.push_back("str");
-    // }
-    // if (opt.bh_internalprop_names.size()>0){
-    //     nameinfo.push_back("BH_internal_property_names");
-    //     datastring=string("");for (auto &x:opt.star_internalprop_names) {datastring+=x;datastring+=string(",");}
-    //     datainfo.push_back(datastring);
-    //     datatype.push_back("str");
-    // }
-    // if (opt.bh_chem_names.size()>0){
-    //     nameinfo.push_back("BH_chemistry_names");
-    //     datastring=string("");for (auto &x:opt.star_chem_names) {datastring+=x;datastring+=string(",");}
-    //     datainfo.push_back(datastring);
-    //     datatype.push_back("str");
-    // }
-    // if (opt.bh_chemproduction_names.size()>0){
-    //     nameinfo.push_back("BH_chemistry_production_names");
-    //     datastring=string("");for (auto &x:opt.bh_chemproduction_names) {datastring+=x;datastring+=string(",");}
-    //     datainfo.push_back(datastring);
-    //     datatype.push_back("str");
-    // }
-    // if (opt.extra_dm_internalprop_names.size()>0){
-    //     nameinfo.push_back("Extra_DM_internal_property_names");
-    //     datastring=string("");for (auto &x:opt.extra_dm_internalprop_names) {datastring+=x;datastring+=string(",");}
-    //     datainfo.push_back(datastring);
-    //     datatype.push_back("str");
-    // }
-
-    // if (opt.gas_internalprop_index.size()>0){
-    //     nameinfo.push_back("Gas_internal_property_index");
-    //     datastring=string("");for (auto &x:opt.gas_internalprop_index) {datastring+=to_string(x);datastring+=string(",");}
-    //     datainfo.push_back(datastring);
-    //     datatype.push_back("uint32");
-    // }
-    // if (opt.gas_chem_index.size()>0){
-    //     nameinfo.push_back("Gas_chemistry_index");
-    //     datastring=string("");for (auto &x:opt.gas_chem_index) {datastring+=to_string(x);datastring+=string(",");}
-    //     datainfo.push_back(datastring);
-    //     datatype.push_back("uint32");
-    // }
-    // if (opt.gas_chemproduction_index.size()>0){
-    //     nameinfo.push_back("Gas_chemistry_production_index");
-    //     datastring=string("");for (auto &x:opt.gas_chemproduction_index) {datastring+=to_string(x);datastring+=string(",");}
-    //     datainfo.push_back(datastring);
-    //     datatype.push_back("uint32");
-    // }
-    // if (opt.star_internalprop_index.size()>0){
-    //     nameinfo.push_back("Star_internal_property_index");
-    //     datastring=string("");for (auto &x:opt.star_internalprop_index) {datastring+=to_string(x);datastring+=string(",");}
-    //     datainfo.push_back(datastring);
-    //     datatype.push_back("uint32");
-    // }
-    // if (opt.star_chem_index.size()>0){
-    //     nameinfo.push_back("Star_chemistry_index");
-    //     datastring=string("");for (auto &x:opt.star_chem_index) {datastring+=to_string(x);datastring+=string(",");}
-    //     datainfo.push_back(datastring);
-    //     datatype.push_back("uint32");
-    // }
-    // if (opt.star_chemproduction_index.size()>0){
-    //     nameinfo.push_back("Star_chemistry_production_index");
-    //     datastring=string("");for (auto &x:opt.star_chemproduction_index) {datastring+=to_string(x);datastring+=string(",");}
-    //     datainfo.push_back(datastring);
-    //     datatype.push_back("uint32");
-    // }
-    // if (opt.bh_internalprop_index.size()>0){
-    //     nameinfo.push_back("BH_internal_property_index");
-    //     datastring=string("");for (auto &x:opt.star_internalprop_index) {datastring+=to_string(x);datastring+=string(",");}
-    //     datainfo.push_back(datastring);
-    //     datatype.push_back("uint32");
-    // }
-    // if (opt.bh_chem_index.size()>0){
-    //     nameinfo.push_back("BH_chemistry_index");
-    //     datastring=string("");for (auto &x:opt.star_chem_index) {datastring+=to_string(x);datastring+=string(",");}
-    //     datainfo.push_back(datastring);
-    //     datatype.push_back("uint32");
-    // }
-    // if (opt.bh_chemproduction_index.size()>0){
-    //     nameinfo.push_back("BH_chemistry_production_index");
-    //     datastring=string("");for (auto &x:opt.bh_chemproduction_index) {datastring+=to_string(x);datastring+=string(",");}
-    //     datainfo.push_back(datastring);
-    //     datatype.push_back("uint32");
-    // }
-    // if (opt.extra_dm_internalprop_index.size()>0){
-    //     nameinfo.push_back("Extra_DM_internal_property_index");
-    //     datastring=string("");for (auto &x:opt.extra_dm_internalprop_index) {datastring+=to_string(x);datastring+=string(",");}
-    //     datainfo.push_back(datastring);
-    //     datatype.push_back("uint32");
-    // }
-    //
-    // if (opt.gas_internalprop_function.size()>0){
-    //     nameinfo.push_back("Gas_internal_property_calculation_type");
-    //     datastring=string("");for (auto &x:opt.gas_internalprop_function) {datastring+=to_string(x);datastring+=string(",");}
-    //     datainfo.push_back(datastring);
-    //     datatype.push_back("uint32");
-    // }
-    // if (opt.gas_chem_function.size()>0){
-    //     nameinfo.push_back("Gas_chemistry_calculation_type");
-    //     datastring=string("");for (auto &x:opt.gas_chem_function) {datastring+=to_string(x);datastring+=string(",");}
-    //     datainfo.push_back(datastring);
-    //     datatype.push_back("uint32");
-    // }
-    // if (opt.gas_chemproduction_function.size()>0){
-    //     nameinfo.push_back("Gas_chemistry_production_calculation_type");
-    //     datastring=string("");for (auto &x:opt.gas_chemproduction_function) {datastring+=to_string(x);datastring+=string(",");}
-    //     datainfo.push_back(datastring);
-    //     datatype.push_back("uint32");
-    // }
-    // if (opt.star_internalprop_function.size()>0){
-    //     nameinfo.push_back("Star_internal_property_calculation_type");
-    //     datastring=string("");for (auto &x:opt.star_internalprop_function) {datastring+=to_string(x);datastring+=string(",");}
-    //     datainfo.push_back(datastring);
-    //     datatype.push_back("uint32");
-    // }
-    // if (opt.star_chem_function.size()>0){
-    //     nameinfo.push_back("Star_chemistry_calculation_type");
-    //     datastring=string("");for (auto &x:opt.star_chem_function) {datastring+=to_string(x);datastring+=string(",");}
-    //     datainfo.push_back(datastring);
-    //     datatype.push_back("uint32");
-    // }
-    // if (opt.star_chemproduction_function.size()>0){
-    //     nameinfo.push_back("Star_chemistry_production_calculation_type");
-    //     datastring=string("");for (auto &x:opt.star_chemproduction_function) {datastring+=to_string(x);datastring+=string(",");}
-    //     datainfo.push_back(datastring);
-    //     datatype.push_back("uint32");
-    // }
-    // if (opt.bh_internalprop_function.size()>0){
-    //     nameinfo.push_back("BH_internal_property_calculation_type");
-    //     datastring=string("");for (auto &x:opt.star_internalprop_function) {datastring+=to_string(x);datastring+=string(",");}
-    //     datainfo.push_back(datastring);
-    //     datatype.push_back("uint32");
-    // }
-    // if (opt.bh_chem_function.size()>0){
-    //     nameinfo.push_back("BH_chemistry_calculation_type");
-    //     datastring=string("");for (auto &x:opt.star_chem_function) {datastring+=to_string(x);datastring+=string(",");}
-    //     datainfo.push_back(datastring);
-    //     datatype.push_back("uint32");
-    // }
-    // if (opt.bh_chemproduction_function.size()>0){
-    //     nameinfo.push_back("BH_chemistry_production_calculation_type");
-    //     datastring=string("");for (auto &x:opt.bh_chemproduction_function) {datastring+=to_string(x);datastring+=string(",");}
-    //     datainfo.push_back(datastring);
-    //     datatype.push_back("uint32");
-    // }
-    // if (opt.extra_dm_internalprop_function.size()>0){
-    //     nameinfo.push_back("Extra_DM_internal_property_calculation_type");
-    //     datastring=string("");for (auto &x:opt.extra_dm_internalprop_function) {datastring+=to_string(x);datastring+=string(",");}
-    //     datainfo.push_back(datastring);
-    //     datatype.push_back("uint32");
-    // }
-    // if (opt.gas_internalprop_output_units.size()>0){
-    //     nameinfo.push_back("Gas_internal_property_output_units");
-    //     datastring=string("");for (auto &x:opt.gas_internalprop_output_units) {datastring+=x;datastring+=string(",");}
-    //     datainfo.push_back(datastring);
-    //     datatype.push_back("str");
-    // }
-    // if (opt.gas_chem_output_units.size()>0){
-    //     nameinfo.push_back("Gas_chemistry_output_units");
-    //     datastring=string("");for (auto &x:opt.gas_chem_output_units) {datastring+=x;datastring+=string(",");}
-    //     datainfo.push_back(datastring);
-    //     datatype.push_back("str");
-    // }
-    // if (opt.gas_chemproduction_output_units.size()>0){
-    //     nameinfo.push_back("Gas_chemistry_production_output_units");
-    //     datastring=string("");for (auto &x:opt.gas_chemproduction_output_units) {datastring+=x;datastring+=string(",");}
-    //     datainfo.push_back(datastring);
-    //     datatype.push_back("str");
-    // }
-    // if (opt.star_internalprop_output_units.size()>0){
-    //     nameinfo.push_back("Star_internal_property_output_units");
-    //     datastring=string("");for (auto &x:opt.star_internalprop_output_units) {datastring+=x;datastring+=string(",");}
-    //     datainfo.push_back(datastring);
-    //     datatype.push_back("str");
-    // }
-    // if (opt.star_chem_output_units.size()>0){
-    //     nameinfo.push_back("Star_chemistry_output_units");
-    //     datastring=string("");for (auto &x:opt.star_chem_output_units) {datastring+=x;datastring+=string(",");}
-    //     datainfo.push_back(datastring);
-    //     datatype.push_back("str");
-    // }
-    // if (opt.star_chemproduction_output_units.size()>0){
-    //     nameinfo.push_back("Star_chemistry_production_output_units");
-    //     datastring=string("");for (auto &x:opt.star_chemproduction_output_units) {datastring+=x;datastring+=string(",");}
-    //     datainfo.push_back(datastring);
-    //     datatype.push_back("str");
-    // }
-    // if (opt.bh_internalprop_output_units.size()>0){
-    //     nameinfo.push_back("BH_internal_property_output_units");
-    //     datastring=string("");for (auto &x:opt.star_internalprop_output_units) {datastring+=x;datastring+=string(",");}
-    //     datainfo.push_back(datastring);
-    //     datatype.push_back("str");
-    // }
-    // if (opt.bh_chem_output_units.size()>0){
-    //     nameinfo.push_back("BH_chemistry_output_units");
-    //     datastring=string("");for (auto &x:opt.star_chem_output_units) {datastring+=x;datastring+=string(",");}
-    //     datainfo.push_back(datastring);
-    //     datatype.push_back("str");
-    // }
-    // if (opt.bh_chemproduction_output_units.size()>0){
-    //     nameinfo.push_back("BH_chemistry_production_output_units");
-    //     datastring=string("");for (auto &x:opt.bh_chemproduction_output_units) {datastring+=x;datastring+=string(",");}
-    //     datainfo.push_back(datastring);
-    //     datatype.push_back("str");
-    // }
-    // if (opt.extra_dm_internalprop_output_units.size()>0){
-    //     nameinfo.push_back("Extra_DM_internal_property_output_units");
-    //     datastring=string("");for (auto &x:opt.extra_dm_internalprop_output_units) {datastring+=x;datastring+=string(",");}
-    //     datainfo.push_back(datastring);
-    //     datatype.push_back("str");
-    // }
-    // if (opt.gas_internalprop_input_output_unit_conversion_factors.size()>0){
-    //     nameinfo.push_back("Gas_internal_property_input_output_unit_conversion_factors");
-    //     datastring=string("");for (auto &x:opt.gas_internalprop_input_output_unit_conversion_factors) {datastring+=to_string(x);datastring+=string(",");}
-    //     datainfo.push_back(datastring);
-    //     datatype.push_back("float32");
-    // }
-    // if (opt.gas_chem_input_output_unit_conversion_factors.size()>0){
-    //     nameinfo.push_back("Gas_chemistry_input_output_unit_conversion_factors");
-    //     datastring=string("");for (auto &x:opt.gas_chem_input_output_unit_conversion_factors) {datastring+=to_string(x);datastring+=string(",");}
-    //     datainfo.push_back(datastring);
-    //     datatype.push_back("float32");
-    // }
-    // if (opt.gas_chemproduction_input_output_unit_conversion_factors.size()>0){
-    //     nameinfo.push_back("Gas_chemistry_production_input_output_unit_conversion_factors");
-    //     datastring=string("");for (auto &x:opt.gas_chemproduction_input_output_unit_conversion_factors) {datastring+=to_string(x);datastring+=string(",");}
-    //     datainfo.push_back(datastring);
-    //     datatype.push_back("float32");
-    // }
-    // if (opt.star_internalprop_input_output_unit_conversion_factors.size()>0){
-    //     nameinfo.push_back("Star_internal_property_input_output_unit_conversion_factors");
-    //     datastring=string("");for (auto &x:opt.star_internalprop_input_output_unit_conversion_factors) {datastring+=to_string(x);datastring+=string(",");}
-    //     datainfo.push_back(datastring);
-    //     datatype.push_back("float32");
-    // }
-    // if (opt.star_chem_input_output_unit_conversion_factors.size()>0){
-    //     nameinfo.push_back("Star_chemistry_input_output_unit_conversion_factors");
-    //     datastring=string("");for (auto &x:opt.star_chem_input_output_unit_conversion_factors) {datastring+=to_string(x);datastring+=string(",");}
-    //     datainfo.push_back(datastring);
-    //     datatype.push_back("float32");
-    // }
-    // if (opt.star_chemproduction_input_output_unit_conversion_factors.size()>0){
-    //     nameinfo.push_back("Star_chemistry_production_input_output_unit_conversion_factors");
-    //     datastring=string("");for (auto &x:opt.star_chemproduction_input_output_unit_conversion_factors) {datastring+=to_string(x);datastring+=string(",");}
-    //     datainfo.push_back(datastring);
-    //     datatype.push_back("float32");
-    // }
-    // if (opt.bh_internalprop_input_output_unit_conversion_factors.size()>0){
-    //     nameinfo.push_back("BH_internal_property_input_output_unit_conversion_factors");
-    //     datastring=string("");for (auto &x:opt.star_internalprop_input_output_unit_conversion_factors) {datastring+=to_string(x);datastring+=string(",");}
-    //     datainfo.push_back(datastring);
-    //     datatype.push_back("float32");
-    // }
-    // if (opt.bh_chem_input_output_unit_conversion_factors.size()>0){
-    //     nameinfo.push_back("BH_chemistry_input_output_unit_conversion_factors");
-    //     datastring=string("");for (auto &x:opt.star_chem_input_output_unit_conversion_factors) {datastring+=to_string(x);datastring+=string(",");}
-    //     datainfo.push_back(datastring);
-    //     datatype.push_back("float32");
-    // }
-    // if (opt.bh_chemproduction_input_output_unit_conversion_factors.size()>0){
-    //     nameinfo.push_back("BH_chemistry_production_input_output_unit_conversion_factors");
-    //     datastring=string("");for (auto &x:opt.bh_chemproduction_input_output_unit_conversion_factors) {datastring+=to_string(x);datastring+=string(",");}
-    //     datainfo.push_back(datastring);
-    //     datatype.push_back("float32");
-    // }
-    // if (opt.extra_dm_internalprop_input_output_unit_conversion_factors.size()>0){
-    //     nameinfo.push_back("Extra_DM_internal_property_input_output_unit_conversion_factors");
-    //     datastring=string("");for (auto &x:opt.extra_dm_internalprop_input_output_unit_conversion_factors) {datastring+=to_string(x);datastring+=string(",");}
-    //     datainfo.push_back(datastring);
-    //     datatype.push_back("float32");
-    // }
-
     //other options
-    nameinfo.push_back("Verbose");
-    datainfo.push_back(to_string(opt.iverbose));
-    datatype.push_back(python_type_string(opt.iverbose));
-    nameinfo.push_back("Write_group_array_file");
-    datainfo.push_back(to_string(opt.iwritefof));
-    datatype.push_back(python_type_string(opt.iwritefof));
-    nameinfo.push_back("Snapshot_value");
-    datainfo.push_back(to_string(opt.snapshotvalue));
-    datatype.push_back(python_type_string(opt.snapshotvalue));
-    nameinfo.push_back("Memory_log");
-    datainfo.push_back(to_string(opt.memuse_log));
-    datatype.push_back(python_type_string(opt.memuse_log));
+    AddEntry("Verbose", opt.iverbose);
+    AddEntry("Write_group_array_file",opt.iwritefof);
+    AddEntry("Snapshot_value",opt.snapshotvalue);
+    AddEntry("Memory_log",opt.memuse_log);
 
     //io related
-    nameinfo.push_back("Cosmological_input");
-    datainfo.push_back(to_string(opt.icosmologicalin));
-    datatype.push_back(python_type_string(opt.icosmologicalin));
-    nameinfo.push_back("Input_chunk_size");
-    datainfo.push_back(to_string(opt.inputbufsize));
-    datatype.push_back(python_type_string(opt.inputbufsize));
-    nameinfo.push_back("MPI_particle_total_buf_size");
-    datainfo.push_back(to_string(opt.mpiparticletotbufsize));
-    datatype.push_back(python_type_string(opt.mpiparticletotbufsize));
-    nameinfo.push_back("Separate_output_files");
-    datainfo.push_back(to_string(opt.iseparatefiles));
-    datatype.push_back(python_type_string(opt.iseparatefiles));
-    nameinfo.push_back("Binary_output");
-    datainfo.push_back(to_string(opt.ibinaryout));
-    datatype.push_back(python_type_string(opt.ibinaryout));
-    nameinfo.push_back("Comoving_units");
-    datainfo.push_back(to_string(opt.icomoveunit));
-    datatype.push_back(python_type_string(opt.icomoveunit));
-    nameinfo.push_back("Extended_output");
-    datainfo.push_back(to_string(opt.iextendedoutput));
-    datatype.push_back(python_type_string(opt.iextendedoutput));
+    AddEntry("Cosmological_input",opt.icosmologicalin);
+    AddEntry("Input_chunk_size",opt.inputbufsize);
+    AddEntry("MPI_particle_total_buf_size",opt.mpiparticletotbufsize);
+    AddEntry("Separate_output_files", opt.iseparatefiles);
+    AddEntry("Binary_output", opt.ibinaryout);
+    AddEntry("Comoving_units", opt.icomoveunit);
+    AddEntry("Extended_output", opt.iextendedoutput);
 
     //HDF io related info
-    nameinfo.push_back("HDF_name_convention");
-    datainfo.push_back(to_string(opt.ihdfnameconvention));
-    datatype.push_back(python_type_string(opt.ihdfnameconvention));
-    nameinfo.push_back("Input_includes_dm_particle");
-    datainfo.push_back(to_string(opt.iusedmparticles));
-    datatype.push_back(python_type_string(opt.iusedmparticles));
-    nameinfo.push_back("Input_includes_gas_particle");
-    datainfo.push_back(to_string(opt.iusegasparticles));
-    datatype.push_back(python_type_string(opt.iusegasparticles));
-    nameinfo.push_back("Input_includes_star_particle");
-    datainfo.push_back(to_string(opt.iusestarparticles));
-    datatype.push_back(python_type_string(opt.iusestarparticles));
-    nameinfo.push_back("Input_includes_bh_particle");
-    datainfo.push_back(to_string(opt.iusesinkparticles));
-    datatype.push_back(python_type_string(opt.iusesinkparticles));
-    nameinfo.push_back("Input_includes_extradm_particle");
-    datainfo.push_back(to_string(opt.iuseextradarkparticles));
-    datatype.push_back(python_type_string(opt.iuseextradarkparticles));
-    nameinfo.push_back("Input_includes_wind_particle");
-    datainfo.push_back(to_string(opt.iusewindparticles));
-    datatype.push_back(python_type_string(opt.iusewindparticles));
-    nameinfo.push_back("Input_includes_tracer_particle");
-    datainfo.push_back(to_string(opt.iusetracerparticles));
-    datatype.push_back(python_type_string(opt.iusetracerparticles));
+    AddEntry("HDF_name_convention", opt.ihdfnameconvention);
+    AddEntry("Input_includes_dm_particle", opt.iusedmparticles);
+    AddEntry("Input_includes_gas_particle",opt.iusegasparticles);
+    AddEntry("Input_includes_star_particle", opt.iusestarparticles);
+    AddEntry("Input_includes_bh_particle", opt.iusesinkparticles);
+    AddEntry("Input_includes_extradm_particle", opt.iuseextradarkparticles);
+    AddEntry("Input_includes_wind_particle", opt.iusewindparticles);
+    AddEntry("Input_includes_tracer_particle", opt.iusetracerparticles);
 
     //gadget io related to extra info for sph, stars, bhs,
-    nameinfo.push_back("NSPH_extra_blocks");
-    datainfo.push_back(to_string(opt.gnsphblocks));
-    datatype.push_back(python_type_string(opt.gnsphblocks));
-    nameinfo.push_back("NStar_extra_blocks");
-    datainfo.push_back(to_string(opt.gnstarblocks));
-    datatype.push_back(python_type_string(opt.gnstarblocks));
-    nameinfo.push_back("NBH_extra_blocks");
-    datainfo.push_back(to_string(opt.gnbhblocks));
-    datatype.push_back(python_type_string(opt.gnbhblocks));
+    AddEntry("NSPH_extra_blocks", opt.gnsphblocks);
+    AddEntry("NStar_extra_blocks", opt.gnstarblocks);
+    AddEntry("NBH_extra_blocks", opt.gnbhblocks);
 
     //mpi related configuration
-    nameinfo.push_back("MPI_part_allocation_fac");
-    datainfo.push_back(to_string(opt.mpipartfac));
-    datatype.push_back(python_type_string(opt.mpipartfac));
+    AddEntry("MPI_part_allocation_fac", opt.mpipartfac);
 #endif
     nameinfo.push_back("#Compilation Info");
     datainfo.push_back("");
