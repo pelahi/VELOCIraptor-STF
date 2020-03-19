@@ -854,6 +854,18 @@ struct Options
     vector<string> bh_chemproduction_output_names_aperture;
     vector<string> extra_dm_internalprop_output_names_aperture;
 
+    //to store the unique names that are going to be loaded from the input
+    vector<string> gas_internalprop_unique_input_names;
+    vector<string> gas_chem_unique_input_names;
+    vector<string> gas_chemproduction_unique_input_names;
+    vector<string> star_internalprop_unique_input_names;
+    vector<string> star_chem_unique_input_names;
+    vector<string> star_chemproduction_unique_input_names;
+    vector<string> bh_internalprop_unique_input_names;
+    vector<string> bh_chem_unique_input_names;
+    vector<string> bh_chemproduction_unique_input_names;
+    vector<string> extra_dm_internalprop_unique_input_names;
+
     //@}
 
     /// \name memory related info

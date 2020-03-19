@@ -192,7 +192,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     double *extrafieldbuff = NULL;
 
 #ifdef GASON
-    unordered_set<string> unique_gas_internalprop_names, unique_gas_chem_names, unique_gas_chemproduction_names;
+    set<string> unique_gas_internalprop_names, unique_gas_chem_names, unique_gas_chemproduction_names;
     vector<short> unique_gas_internalprop_indexlist, unique_gas_chem_indexlist, unique_gas_chemproduction_indexlist;
     for (auto iextra=0;iextra<opt.gas_internalprop_names.size();iextra++) {
         string s = opt.gas_internalprop_names[iextra]+to_string(opt.gas_internalprop_index[iextra]);
@@ -236,9 +236,12 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
             unique_gas_chemproduction_indexlist.push_back(iextra);
         }
     }
+    opt.gas_internalprop_unique_input_names.assign(unique_gas_internalprop_names.begin(), unique_gas_internalprop_names.end());
+    opt.gas_chem_unique_input_names.assign(unique_gas_chem_names.begin(), unique_gas_chem_names.end());
+    opt.gas_chemproduction_unique_input_names.assign(unique_gas_chemproduction_names.begin(), unique_gas_chemproduction_names.end());
 #endif
 #ifdef STARON
-    unordered_set<string> unique_star_internalprop_names, unique_star_chem_names, unique_star_chemproduction_names;
+    set<string> unique_star_internalprop_names, unique_star_chem_names, unique_star_chemproduction_names;
     vector<short> unique_star_internalprop_indexlist, unique_star_chem_indexlist, unique_star_chemproduction_indexlist;
     for (auto iextra=0;iextra<opt.star_internalprop_names.size();iextra++) {
         string s = opt.star_internalprop_names[iextra]+to_string(opt.star_internalprop_index[iextra]);
@@ -282,9 +285,12 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
             unique_star_chemproduction_indexlist.push_back(iextra);
         }
     }
+    opt.star_internalprop_unique_input_names.assign(unique_star_internalprop_names.begin(), unique_star_internalprop_names.end());
+    opt.star_chem_unique_input_names.assign(unique_star_chem_names.begin(), unique_star_chem_names.end());
+    opt.star_chemproduction_unique_input_names.assign(unique_star_chemproduction_names.begin(), unique_star_chemproduction_names.end());
 #endif
 #ifdef BHON
-    unordered_set<string> unique_bh_internalprop_names, unique_bh_chem_names, unique_bh_chemproduction_names;
+    set<string> unique_bh_internalprop_names, unique_bh_chem_names, unique_bh_chemproduction_names;
     vector<short> unique_bh_internalprop_indexlist, unique_bh_chem_indexlist, unique_bh_chemproduction_indexlist;
     for (auto iextra=0;iextra<opt.bh_internalprop_names.size();iextra++) {
         string s = opt.bh_internalprop_names[iextra]+to_string(opt.bh_internalprop_index[iextra]);
@@ -328,9 +334,12 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
             unique_bh_chemproduction_indexlist.push_back(iextra);
         }
     }
+    opt.bh_internalprop_unique_input_names.assign(unique_bh_internalprop_names.begin(), unique_bh_internalprop_names.end());
+    opt.bh_chem_unique_input_names.assign(unique_bh_chem_names.begin(), unique_bh_chem_names.end());
+    opt.bh_chemproduction_unique_input_names.assign(unique_bh_chemproduction_names.begin(), unique_bh_chemproduction_names.end());
 #endif
 #ifdef EXTRADMON
-    unordered_set<string> unique_extra_dm_internalprop_names;
+    set<string> unique_extra_dm_internalprop_names;
     vector<short> unique_extra_dm_internalprop_indexlist;
     for (auto iextra=0;iextra<opt.extra_dm_internalprop_names.size();iextra++) {
         string s = opt.extra_dm_internalprop_names[iextra]+to_string(opt.extra_dm_internalprop_index[iextra]);
@@ -346,6 +355,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
             unique_extra_dm_internalprop_indexlist.push_back(iextra);
         }
     }
+    opt.extra_dm_internalprop_unique_input_names.assign(unique_extra_dm_internalprop_names.begin(), unique_extra_dm_internalprop_names.end());
 #endif
 
 #ifdef USEMPI
