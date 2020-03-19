@@ -4859,16 +4859,30 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
     Coordinate x2;
 
 #ifdef GASON
-    HydroProperties hydro;
+    HydroProperties gas;
+    vector<float> gasdata;
+    for (auto &s:opt.gas_internalprop_names_aperture) {gas.SetInternalProperties(s,0.0);gasdata.push_back(0);}
+    for (auto &s:opt.gas_chem_names_aperture) {gas.SetChemistry(s,0.0);gasdata.push_back(0);}
+    for (auto &s:opt.gas_chemproduction_names_aperture) {gas.SetChemistryProduction(s,0.0);gasdata.push_back(0);}
 #endif
 #ifdef STARON
     StarProperties star;
+    vector<float> stardata;
+    for (auto &s:opt.star_internalprop_names_aperture) {star.SetInternalProperties(s,0.0);stardata.push_back(0);}
+    for (auto &s:opt.star_chem_names_aperture) {star.SetChemistry(s,0.0);stardata.push_back(0);}
+    for (auto &s:opt.star_chemproduction_names_aperture) {star.SetChemistryProduction(s,0.0);stardata.push_back(0);}
 #endif
 #ifdef BHON
     BHProperties bh;
+    vector<float> bhdata;
+    for (auto &s:opt.bh_internalprop_names_aperture) {bh.SetInternalProperties(s,0.0);bhdata.push_back(0);}
+    for (auto &s:opt.bh_chem_names_aperture) {bh.SetChemistry(s,0.0);bhdata.push_back(0);}
+    for (auto &s:opt.bh_chemproduction_names_aperture) {bh.SetChemistryProduction(s,0.0);bhdata.push_back(0);}
 #endif
 #ifdef EXTRADMON
     ExtraDMProperties extradm;
+    vector<float> extradmdata;
+    for (auto &s:opt.extra_dm_internalprop_names_aperture) {extradm.SetExtraProperties(s,0.0);extradmdata.push_back(0);}
 #endif
 
     struct projectedmass {
