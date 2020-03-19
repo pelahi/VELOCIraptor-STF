@@ -98,6 +98,36 @@ inline void UpdateExtraFieldNames(Options &opt)
     for (auto i=0;i<opt.extra_dm_internalprop_names.size();i++) {
         opt.extra_dm_internalprop_names[i]+= to_string(opt.extra_dm_internalprop_index[i]);
     }
+    for (auto i=0;i<opt.gas_internalprop_names_aperture.size();i++) {
+        opt.gas_internalprop_names_aperture[i]+= to_string(opt.gas_internalprop_index_aperture[i]);
+    }
+    for (auto i=0;i<opt.gas_chem_names_aperture.size();i++) {
+        opt.gas_chem_names_aperture[i]+= to_string(opt.gas_chem_index_aperture[i]);
+    }
+    for (auto i=0;i<opt.gas_chemproduction_names_aperture.size();i++) {
+        opt.gas_chemproduction_names_aperture[i]+= to_string(opt.gas_chemproduction_index_aperture[i]);
+    }
+    for (auto i=0;i<opt.star_internalprop_names_aperture.size();i++) {
+        opt.star_internalprop_names_aperture[i]+= to_string(opt.star_internalprop_index_aperture[i]);
+    }
+    for (auto i=0;i<opt.star_chem_names_aperture.size();i++) {
+        opt.star_chem_names_aperture[i]+= to_string(opt.star_chem_index_aperture[i]);
+    }
+    for (auto i=0;i<opt.star_chemproduction_names_aperture.size();i++) {
+        opt.star_chemproduction_names_aperture[i]+= to_string(opt.star_chemproduction_index_aperture[i]);
+    }
+    for (auto i=0;i<opt.bh_internalprop_names_aperture.size();i++) {
+        opt.bh_internalprop_names_aperture[i]+= to_string(opt.bh_internalprop_index_aperture[i]);
+    }
+    for (auto i=0;i<opt.bh_chem_names_aperture.size();i++) {
+        opt.bh_chem_names_aperture[i]+= to_string(opt.bh_chem_index_aperture[i]);
+    }
+    for (auto i=0;i<opt.bh_chemproduction_names_aperture.size();i++) {
+        opt.bh_chemproduction_names_aperture[i]+= to_string(opt.bh_chemproduction_index_aperture[i]);
+    }
+    for (auto i=0;i<opt.extra_dm_internalprop_names_aperture.size();i++) {
+        opt.extra_dm_internalprop_names_aperture[i]+= to_string(opt.extra_dm_internalprop_index_aperture[i]);
+    }
 }
 
 
