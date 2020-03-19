@@ -1566,11 +1566,11 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
             Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.lengthtokpc);
             Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.velocitytokms);
             Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.masstosolarmass);
-            #if defined(GASON) || defined(STARON) || defined(BHON)
+#if defined(GASON) || defined(STARON) || defined(BHON)
             Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.metallicitytosolar);
             Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.SFRtosolarmassperyear);
             Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.stellaragetoyrs);
-            #endif
+#endif
             WriteVELOCIraptorConfigToHDF(opt,Fhdf);
             WriteSimulationInfoToHDF(opt,Fhdf);
             WriteUnitInfoToHDF(opt,Fhdf);
@@ -1591,11 +1591,11 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.lengthtokpc);
         Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.velocitytokms);
         Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.masstosolarmass);
-        #if defined(GASON) || defined(STARON) || defined(BHON)
+#if defined(GASON) || defined(STARON) || defined(BHON)
         Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.metallicitytosolar);
         Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.SFRtosolarmassperyear);
         Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.stellaragetoyrs);
-        #endif
+#endif
         WriteVELOCIraptorConfigToHDF(opt,Fhdf);
         WriteSimulationInfoToHDF(opt,Fhdf);
         WriteUnitInfoToHDF(opt,Fhdf);
