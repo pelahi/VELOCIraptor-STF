@@ -201,6 +201,13 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
             unique_gas_internalprop_indexlist.push_back(iextra);
         }
     }
+    for (auto iextra=0;iextra<opt.gas_internalprop_names_aperture.size();iextra++) {
+        string s = opt.gas_internalprop_names_aperture[iextra]+to_string(opt.gas_internalprop_index_aperture[iextra]);
+        if (unique_gas_internalprop_names.count(s)==0) {
+            unique_gas_internalprop_names.insert(s);
+            unique_gas_internalprop_indexlist.push_back(iextra);
+        }
+    }
     for (auto iextra=0;iextra<opt.gas_chem_names.size();iextra++) {
         string s = opt.gas_chem_names[iextra]+to_string(opt.gas_chem_index[iextra]);
         if (unique_gas_chem_names.count(s)==0) {
@@ -208,8 +215,22 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
             unique_gas_chem_indexlist.push_back(iextra);
         }
     }
+    for (auto iextra=0;iextra<opt.gas_chem_names_aperture.size();iextra++) {
+        string s = opt.gas_chem_names_aperture[iextra]+to_string(opt.gas_chem_index_aperture[iextra]);
+        if (unique_gas_chem_names.count(s)==0) {
+            unique_gas_chem_names.insert(s);
+            unique_gas_chem_indexlist.push_back(iextra);
+        }
+    }
     for (auto iextra=0;iextra<opt.gas_chemproduction_names.size();iextra++) {
         string s = opt.gas_chemproduction_names[iextra]+to_string(opt.gas_chemproduction_index[iextra]);
+        if (unique_gas_chemproduction_names.count(s)==0) {
+            unique_gas_chemproduction_names.insert(s);
+            unique_gas_chemproduction_indexlist.push_back(iextra);
+        }
+    }
+    for (auto iextra=0;iextra<opt.gas_chemproduction_names_aperture.size();iextra++) {
+        string s = opt.gas_chemproduction_names_aperture[iextra]+to_string(opt.gas_chemproduction_index_aperture[iextra]);
         if (unique_gas_chemproduction_names.count(s)==0) {
             unique_gas_chemproduction_names.insert(s);
             unique_gas_chemproduction_indexlist.push_back(iextra);
@@ -226,6 +247,13 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
             unique_star_internalprop_indexlist.push_back(iextra);
         }
     }
+    for (auto iextra=0;iextra<opt.star_internalprop_names_aperture.size();iextra++) {
+        string s = opt.star_internalprop_names_aperture[iextra]+to_string(opt.star_internalprop_index_aperture[iextra]);
+        if (unique_star_internalprop_names.count(s)==0) {
+            unique_star_internalprop_names.insert(s);
+            unique_star_internalprop_indexlist.push_back(iextra);
+        }
+    }
     for (auto iextra=0;iextra<opt.star_chem_names.size();iextra++) {
         string s = opt.star_chem_names[iextra]+to_string(opt.star_chem_index[iextra]);
         if (unique_star_chem_names.count(s)==0) {
@@ -233,8 +261,22 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
             unique_star_chem_indexlist.push_back(iextra);
         }
     }
+    for (auto iextra=0;iextra<opt.star_chem_names_aperture.size();iextra++) {
+        string s = opt.star_chem_names_aperture[iextra]+to_string(opt.star_chem_index_aperture[iextra]);
+        if (unique_star_chem_names.count(s)==0) {
+            unique_star_chem_names.insert(s);
+            unique_star_chem_indexlist.push_back(iextra);
+        }
+    }
     for (auto iextra=0;iextra<opt.star_chemproduction_names.size();iextra++) {
         string s = opt.star_chemproduction_names[iextra]+to_string(opt.star_chemproduction_index[iextra]);
+        if (unique_star_chemproduction_names.count(s)==0) {
+            unique_star_chemproduction_names.insert(s);
+            unique_star_chemproduction_indexlist.push_back(iextra);
+        }
+    }
+    for (auto iextra=0;iextra<opt.star_chemproduction_names_aperture.size();iextra++) {
+        string s = opt.star_chemproduction_names_aperture[iextra]+to_string(opt.star_chemproduction_index_aperture[iextra]);
         if (unique_star_chemproduction_names.count(s)==0) {
             unique_star_chemproduction_names.insert(s);
             unique_star_chemproduction_indexlist.push_back(iextra);
@@ -251,8 +293,22 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
             unique_bh_internalprop_indexlist.push_back(iextra);
         }
     }
+    for (auto iextra=0;iextra<opt.bh_internalprop_names_aperture.size();iextra++) {
+        string s = opt.bh_internalprop_names_aperture[iextra]+to_string(opt.bh_internalprop_index_aperture[iextra]);
+        if (unique_bh_internalprop_names.count(s)==0) {
+            unique_bh_internalprop_names.insert(s);
+            unique_bh_internalprop_indexlist.push_back(iextra);
+        }
+    }
     for (auto iextra=0;iextra<opt.bh_chem_names.size();iextra++) {
         string s = opt.bh_chem_names[iextra]+to_string(opt.bh_chem_index[iextra]);
+        if (unique_bh_chem_names.count(s)==0) {
+            unique_bh_chem_names.insert(s);
+            unique_bh_chem_indexlist.push_back(iextra);
+        }
+    }
+    for (auto iextra=0;iextra<opt.bh_chem_names_aperture.size();iextra++) {
+        string s = opt.bh_chem_names_aperture[iextra]+to_string(opt.bh_chem_index_aperture[iextra]);
         if (unique_bh_chem_names.count(s)==0) {
             unique_bh_chem_names.insert(s);
             unique_bh_chem_indexlist.push_back(iextra);
@@ -265,12 +321,26 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
             unique_bh_chemproduction_indexlist.push_back(iextra);
         }
     }
+    for (auto iextra=0;iextra<opt.bh_chemproduction_names_aperture.size();iextra++) {
+        string s = opt.bh_chemproduction_names_aperture[iextra]+to_string(opt.bh_chemproduction_index_aperture[iextra]);
+        if (unique_bh_chemproduction_names.count(s)==0) {
+            unique_bh_chemproduction_names.insert(s);
+            unique_bh_chemproduction_indexlist.push_back(iextra);
+        }
+    }
 #endif
 #ifdef EXTRADMON
     unordered_set<string> unique_extra_dm_internalprop_names;
     vector<short> unique_extra_dm_internalprop_indexlist;
     for (auto iextra=0;iextra<opt.extra_dm_internalprop_names.size();iextra++) {
         string s = opt.extra_dm_internalprop_names[iextra]+to_string(opt.extra_dm_internalprop_index[iextra]);
+        if (unique_extra_dm_internalprop_names.count(s)==0) {
+            unique_extra_dm_internalprop_names.insert(s);
+            unique_extra_dm_internalprop_indexlist.push_back(iextra);
+        }
+    }
+    for (auto iextra=0;iextra<opt.extra_dm_internalprop_names_aperture.size();iextra++) {
+        string s = opt.extra_dm_internalprop_names_aperture[iextra]+to_string(opt.extra_dm_internalprop_index_aperture[iextra]);
         if (unique_extra_dm_internalprop_names.count(s)==0) {
             unique_extra_dm_internalprop_names.insert(s);
             unique_extra_dm_internalprop_indexlist.push_back(iextra);
