@@ -2032,7 +2032,7 @@ struct PropData
             aperture_mass_interloper.resize(opt.aperturenum);
 #endif
 #ifdef EXTRADMON
-            if (opt.extradm_extraprop_aperture_calc) aperture_properties_extra_dm.resize(opt.aperturenum);
+            if (opt.extra_dm_extraprop_aperture_calc) aperture_properties_extra_dm.resize(opt.aperturenum);
 #endif
 #if defined(GASON) || defined(STARON) || defined(BHON)
             //if searching all types, also store dm only aperture quantities
