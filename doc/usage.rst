@@ -526,6 +526,11 @@ Configuration options related to the bulk properties calculated.
         * logaverage (average(log(x)))
         * logstd (std(log(x)))
 
+    One can also calculate total or average in aperutures provided aperture
+    quantitites are being calculated.
+        * aperture_total
+        * aperture_average
+
     Example extra hydro Properties related config options
         ``Gas_internal_property_names = ,``
             * Names of fields to be read from an input HDF5 file that relate to hydro quantities, for which calculations can be done
