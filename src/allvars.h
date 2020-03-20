@@ -866,6 +866,17 @@ struct Options
     vector<string> bh_chemproduction_unique_input_names;
     vector<string> extra_dm_internalprop_unique_input_names;
 
+    vector<unsigned short> gas_internalprop_unique_input_indexlist;
+    vector<unsigned short> gas_chem_unique_input_indexlist;
+    vector<unsigned short> gas_chemproduction_unique_input_indexlist;
+    vector<unsigned short> star_internalprop_unique_input_indexlist;
+    vector<unsigned short> star_chem_unique_input_indexlist;
+    vector<unsigned short> star_chemproduction_unique_input_indexlist;
+    vector<unsigned short> bh_internalprop_unique_input_indexlist;
+    vector<unsigned short> bh_chem_unique_input_indexlist;
+    vector<unsigned short> bh_chemproduction_unique_input_indexlist;
+    vector<unsigned short> extra_dm_internalprop_unique_input_indexlist;
+
     //@}
 
     /// \name memory related info
