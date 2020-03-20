@@ -4843,11 +4843,111 @@ Double_t CalcCosmicTime(Options &opt, Double_t a1, Double_t a2){
 inline Double_t GetApertureRadiusInterpolation(const Double_t &oldrc, const Double_t &rc, const Double_t &EncMass, const Double_t &mass, const Double_t refmass){
     return (EncMass-refmass)*(rc-oldrc)/(mass)+oldrc;
 }
+
+template<typename T> inline void SetApertureExtraPropertiesInternalProp(
+    vector<string> &names, vector<int> &functions,
+    map<string, float> &data, Int_t norm,
+    T &aperture_properties
+)
+{
+    for (auto iextra=0;iextra<names.size();iextra++) {
+        auto field = names[iextra];
+        if (functions[iextra] == CALCQUANTITYAPERTUREAVERAGE) data[field] /= float(norm);
+        aperture_properties.SetInternalProperties(field, data[field]);
+    }
+}
+template<typename T> inline void SetApertureExtraPropertiesChemistry(
+    vector<string> &names, vector<int> &functions,
+    map<string, float> &data, Int_t norm,
+    T &aperture_properties
+)
+{
+    for (auto iextra=0;iextra<names.size();iextra++) {
+        auto field = names[iextra];
+        if (functions[iextra] == CALCQUANTITYAPERTUREAVERAGE) data[field] /= float(norm);
+        aperture_properties.SetChemistry(field, data[field]);
+    }
+}
+template<typename T> inline void SetApertureExtraPropertiesChemistryProduction(
+    vector<string> &names, vector<int> &functions,
+    map<string, float> &data, Int_t norm,
+    T &aperture_properties
+)
+{
+    for (auto iextra=0;iextra<names.size();iextra++) {
+        auto field = names[iextra];
+        if (functions[iextra] == CALCQUANTITYAPERTUREAVERAGE) data[field] /= float(norm);
+        aperture_properties.SetChemistryProduction(field, data[field]);
+    }
+}
+template<typename T> inline void SetApertureExtraProperties(bool &calc,
+    vector<string> &names1, vector<string> &names2, vector<string> &names3,
+    vector<int> &functions1, vector<int> &functions2, vector<int> &functions3,
+    map<string, float> &data, Int_t norm,
+    T &aperture_properties
+)
+{
+    if (!calc) return;
+    SetApertureExtraPropertiesInternalProp(names1, functions1, data, norm, aperture_properties);
+    SetApertureExtraPropertiesChemistry(names2, functions2, data, norm, aperture_properties);
+    SetApertureExtraPropertiesChemistryProduction(names3, functions3, data, norm, aperture_properties);
+}
+
+inline void SetApertureExtraProperties(bool &calc,
+    vector<string> &names, vector<int> &functions,
+    map<string, float> &data, Int_t norm,
+    ExtraDMProperties &aperture_properties
+)
+{
+    if (!calc) return;
+    for (auto iextra=0;iextra<names.size();iextra++) {
+        auto field = names[iextra];
+        if (functions[iextra] == CALCQUANTITYAPERTUREAVERAGE) data[field] /= float(norm);
+        aperture_properties.SetExtraProperties(field, data[field]);
+    }
+}
+
+template<typename T> inline void AddToApertureExtraProperties(vector<string> &names1,
+    vector<string> &names2, vector<string> &names3,
+    map<string, float> &data,
+    T &localprop, float w = 1.0
+)
+{
+    for (auto &field:names1) data[field] += localprop.GetInternalProperties(field);
+    for (auto &field:names2) data[field] += localprop.GetChemistry(field);
+    for (auto &field:names3) data[field] += localprop.GetChemistryProduction(field);
+}
+inline void AddToApertureExtraProperties(vector<string> &names1,
+    map<string, float> &data,
+    ExtraDMProperties &localprop, float w = 1.0
+)
+{
+    for (auto &field:names1) data[field] += localprop.GetExtraProperties(field);
+}
+
+inline void InitApertureExtraProperties(bool &calc,
+    vector<string> &names1,vector<string> &names2,vector<string> &names3,
+    map<string, float> &data)
+{
+    if (!calc) return;
+    for (auto &s:names1) data[s]=0;
+    for (auto &s:names2) data[s]=0;
+    for (auto &s:names3) data[s]=0;
+}
+inline void InitApertureExtraProperties(bool &calc,
+    vector<string> &names1,
+    map<string, float> &data)
+{
+    if (!calc) return;
+    for (auto &s:names1) data[s]=0;
+}
+
+
 void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, PropData &pdata)
 {
 
     if (opt.iaperturecalc==0)  return;
-    unsigned int Ninside=0, NinsideGas=0, NinsideGasSF=0, NinsideGasNSF=0, NinsideStar=0, NinsideBH=0, NinsideInterloper=0;
+    unsigned int Ninside=0, NinsideGas=0, NinsideGasSF=0, NinsideGasNSF=0, NinsideStar=0, NinsideBH=0, NinsideInterloper=0, NinsideDM=0;
     Double_t EncMass=0, EncMassGas=0, EncMassGasSF=0, EncMassGasNSF=0, EncMassStar=0, EncMassBH=0, EncMassInterloper=0;
     Double_t EncVelDisp=0, EncVelDispGas=0, EncVelDispGasSF=0, EncVelDispGasNSF=0, EncVelDispStar=0, EncVelDispBH=0, EncVelDispInterloper=0;
     Double_t EncVRDisp=0, EncVRDispGas=0, EncVRDispGasSF=0, EncVRDispGasNSF=0, EncVRDispStar=0, EncVRDispBH=0, EncVRDispInterloper=0;
@@ -4860,29 +4960,41 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
 
 #ifdef GASON
     HydroProperties gas;
-    vector<float> gasdata;
-    for (auto &s:opt.gas_internalprop_names_aperture) {gas.SetInternalProperties(s,0.0);gasdata.push_back(0);}
-    for (auto &s:opt.gas_chem_names_aperture) {gas.SetChemistry(s,0.0);gasdata.push_back(0);}
-    for (auto &s:opt.gas_chemproduction_names_aperture) {gas.SetChemistryProduction(s,0.0);gasdata.push_back(0);}
+    map<string,float> gasdata;
+    InitApertureExtraProperties(opt.gas_extraprop_aperture_calc,
+        opt.gas_internalprop_names_aperture,
+        opt.gas_chem_names_aperture,
+        opt.gas_chemproduction_names_aperture,
+        gasdata
+    );
 #endif
 #ifdef STARON
     StarProperties star;
-    vector<float> stardata;
-    for (auto &s:opt.star_internalprop_names_aperture) {star.SetInternalProperties(s,0.0);stardata.push_back(0);}
-    for (auto &s:opt.star_chem_names_aperture) {star.SetChemistry(s,0.0);stardata.push_back(0);}
-    for (auto &s:opt.star_chemproduction_names_aperture) {star.SetChemistryProduction(s,0.0);stardata.push_back(0);}
+    map<string,float> stardata;
+    InitApertureExtraProperties(opt.star_extraprop_aperture_calc,
+        opt.star_internalprop_names_aperture,
+        opt.star_chem_names_aperture,
+        opt.star_chemproduction_names_aperture,
+        stardata
+    );
 #endif
 #ifdef BHON
     BHProperties bh;
-    vector<float> bhdata;
-    for (auto &s:opt.bh_internalprop_names_aperture) {bh.SetInternalProperties(s,0.0);bhdata.push_back(0);}
-    for (auto &s:opt.bh_chem_names_aperture) {bh.SetChemistry(s,0.0);bhdata.push_back(0);}
-    for (auto &s:opt.bh_chemproduction_names_aperture) {bh.SetChemistryProduction(s,0.0);bhdata.push_back(0);}
+    map<string,float> bhdata;
+    InitApertureExtraProperties(opt.bh_extraprop_aperture_calc,
+        opt.bh_internalprop_names_aperture,
+        opt.bh_chem_names_aperture,
+        opt.bh_chemproduction_names_aperture,
+        bhdata
+    );
 #endif
 #ifdef EXTRADMON
     ExtraDMProperties extradm;
-    vector<float> extradmdata;
-    for (auto &s:opt.extra_dm_internalprop_names_aperture) {extradm.SetExtraProperties(s,0.0);extradmdata.push_back(0);}
+    map<string,float> extradmdata;
+    InitApertureExtraProperties(opt.extra_dm_extraprop_aperture_calc,
+        opt.extra_dm_internalprop_names_aperture,
+        extradmdata
+    );
 #endif
 
     struct projectedmass {
@@ -4935,6 +5047,14 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
             if (EncMassGasSF>0) pdata.aperture_vrdisp_gas_sf[iaptindex]=EncVRDispGasSF/EncMassGasSF;
             if (EncMassGasNSF>0) pdata.aperture_vrdisp_gas_nsf[iaptindex]=EncVRDispGasNSF/EncMassGasNSF;
 #endif
+            SetApertureExtraProperties(opt.gas_extraprop_aperture_calc,
+                opt.gas_internalprop_names_aperture,
+                opt.gas_chem_names_aperture,
+                opt.gas_chemproduction_names_aperture,
+                opt.gas_internalprop_function_aperture,
+                opt.gas_chem_function_aperture,
+                opt.gas_chemproduction_function_aperture,
+                gasdata, NinsideGas, pdata.aperture_properties_gas[iaptindex]);
 #endif
 #ifdef STARON
             pdata.aperture_npart_star[iaptindex]=NinsideStar;
@@ -4942,20 +5062,43 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
             if (EncMassStar>0) pdata.aperture_Z_star[iaptindex]=EncZmetStar/EncMassStar;
             if (EncMassStar>0) pdata.aperture_veldisp_star[iaptindex]=EncVelDispStar/EncMassStar;
             if (EncMassStar>0) pdata.aperture_vrdisp_star[iaptindex]=EncVRDispStar/EncMassStar;
+            SetApertureExtraProperties(opt.star_extraprop_aperture_calc,
+                opt.star_internalprop_names_aperture,
+                opt.star_chem_names_aperture,
+                opt.star_chemproduction_names_aperture,
+                opt.star_internalprop_function_aperture,
+                opt.star_chem_function_aperture,
+                opt.star_chemproduction_function_aperture,
+                stardata, NinsideStar, pdata.aperture_properties_star[iaptindex]);
 #endif
 #ifdef BHON
             pdata.aperture_npart_bh[iaptindex]=NinsideBH;
             pdata.aperture_mass_bh[iaptindex]=EncMassBH;
+            SetApertureExtraProperties(opt.bh_extraprop_aperture_calc,
+                opt.bh_internalprop_names_aperture,
+                opt.bh_chem_names_aperture,
+                opt.bh_chemproduction_names_aperture,
+                opt.bh_internalprop_function_aperture,
+                opt.bh_chem_function_aperture,
+                opt.bh_chemproduction_function_aperture,
+                bhdata, NinsideBH, pdata.aperture_properties_bh[iaptindex]);
 #endif
 #ifdef HIGHRES
             pdata.aperture_npart_interloper[iaptindex]=NinsideInterloper;
             pdata.aperture_mass_interloper[iaptindex]=EncMassInterloper;
+#endif
+#ifdef EXTRADMON
+            SetApertureExtraProperties(opt.extra_dm_extraprop_aperture_calc,
+                opt.extra_dm_internalprop_names_aperture,
+                opt.extra_dm_internalprop_function_aperture,
+                extradmdata, NinsideDM, pdata.aperture_properties_extra_dm[iaptindex]);
 #endif
             iaptindex++;
         }
         if (iaptindex==opt.aperturenum) break;
         EncMass+=mass;
         Ninside++;
+        if (type == DARKTYPE) NinsideDM++;
         EncVelDisp += veldisp;
         EncVRDisp += vrdisp;
 #ifdef GASON
@@ -4982,6 +5125,14 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
                 EncZmetGasNSF += Zmet;
             }
 #endif
+            if (opt.gas_extraprop_aperture_calc) {
+                gas = Pval->GetHydroProperties();
+                AddToApertureExtraProperties(
+                    opt.gas_internalprop_names_aperture,
+                    opt.gas_chem_names_aperture,
+                    opt.gas_chemproduction_names_aperture,
+                    gasdata, gas);
+            }
         }
 #endif
 #ifdef STARON
@@ -4991,6 +5142,14 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
             EncVelDispStar += veldisp;
             EncVRDispStar += vrdisp;
             EncZmetStar += Zmet;
+            if (opt.star_extraprop_aperture_calc) {
+                star = Pval->GetStarProperties();
+                AddToApertureExtraProperties(
+                    opt.star_internalprop_names_aperture,
+                    opt.star_chem_names_aperture,
+                    opt.star_chemproduction_names_aperture,
+                    stardata, star);
+            }
         }
 #endif
 #ifdef HIGHRES
@@ -5006,73 +5165,165 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
             EncMassBH+=mass;
             EncVelDispBH += veldisp;
             EncVRDispBH += vrdisp;
+            if (opt.bh_extraprop_aperture_calc) {
+                bh = Pval->GetBHProperties();
+                AddToApertureExtraProperties(
+                    opt.bh_internalprop_names_aperture,
+                    opt.bh_chem_names_aperture,
+                    opt.bh_chemproduction_names_aperture,
+                    bhdata, bh);
+            }
+        }
+#endif
+#ifdef EXTRADMON
+        if (opt.extra_dm_extraprop_aperture_calc) {
+            extradm = Pval->GetExtraDMProperties();
+            AddToApertureExtraProperties(opt.extra_dm_internalprop_names_aperture,
+                extradmdata, extradm);
         }
 #endif
     }
-    for (auto j=0;j<opt.aperturenum;j++)
+
+    for (auto j=iaptindex;j<opt.aperturenum;j++)
     {
-        if (pdata.aperture_mass[j]==-1) {
-            pdata.aperture_npart[j]=Ninside;
-            pdata.aperture_mass[j]=EncMass;
-            if (EncMass>0) pdata.aperture_veldisp[j]=EncVelDisp/EncMass;
-            if (EncMass>0) pdata.aperture_vrdisp[j]=EncVRDisp/EncMass;
-        }
+        pdata.aperture_npart[j]=Ninside;
+        pdata.aperture_mass[j]=EncMass;
+        if (EncMass>0) pdata.aperture_veldisp[j]=EncVelDisp/EncMass;
+        if (EncMass>0) pdata.aperture_vrdisp[j]=EncVRDisp/EncMass;
 #ifdef GASON
-        if (pdata.aperture_mass_gas[j]==-1)
-        {
-            pdata.aperture_npart_gas[j]=NinsideGas;
-            pdata.aperture_mass_gas[j]=EncMassGas;
-            if (EncMassGas>0) pdata.aperture_veldisp_gas[j]=EncVelDispGas/EncMassGas;
-            if (EncMassGas>0) pdata.aperture_vrdisp_gas[j]=EncVRDispGas/EncMassGas;
+        pdata.aperture_npart_gas[j]=NinsideGas;
+        pdata.aperture_mass_gas[j]=EncMassGas;
+        if (EncMassGas>0) pdata.aperture_veldisp_gas[j]=EncVelDispGas/EncMassGas;
+        if (EncMassGas>0) pdata.aperture_vrdisp_gas[j]=EncVRDispGas/EncMassGas;
 #ifdef STARON
-            pdata.aperture_SFR_gas[j]=EncSFR;
-            if (EncMassGas>0) pdata.aperture_Z_gas[j]=EncZmetGas/EncMassGas;
-#endif
-        }
-#ifdef STARON
-        if (pdata.aperture_mass_gas_sf[j]==-1)
-        {
-            pdata.aperture_npart_gas_sf[j]=NinsideGasSF;
-            pdata.aperture_mass_gas_sf[j]=EncMassGasSF;
-            if (EncMassGasSF>0) pdata.aperture_veldisp_gas_sf[j]=EncVelDispGasSF/EncMassGasSF;
-            if (EncMassGasSF>0) pdata.aperture_vrdisp_gas_sf[j]=EncVRDispGasSF/EncMassGasSF;
-            if (EncMassGasSF>0) pdata.aperture_Z_gas_sf[j]=EncZmetGasSF/EncMassGasSF;
-        }
-        if (pdata.aperture_mass_gas_nsf[j]==-1)
-        {
-            pdata.aperture_mass_gas_nsf[j]=EncMassGasNSF;
-            pdata.aperture_npart_gas_nsf[j]=NinsideGasNSF;
-            if (EncMassGasNSF>0) pdata.aperture_veldisp_gas_nsf[j]=EncVelDispGasNSF/EncMassGasNSF;
-            if (EncMassGasNSF>0) pdata.aperture_vrdisp_gas_nsf[j]=EncVRDispGasNSF/EncMassGasNSF;
-            if (EncMassGasNSF>0) pdata.aperture_Z_gas_nsf[j]=EncZmetGasNSF/EncMassGasNSF;
-        }
-#endif
+        pdata.aperture_SFR_gas[j]=EncSFR;
+        if (EncMassGas>0) pdata.aperture_Z_gas[j]=EncZmetGas/EncMassGas;
 #endif
 #ifdef STARON
-        if (pdata.aperture_mass_star[j]==-1)
-        {
-            pdata.aperture_npart_star[j]=NinsideStar;
-            pdata.aperture_mass_star[j]=EncMassStar;
-            if (EncMassStar>0) pdata.aperture_veldisp_star[j]=EncVelDispStar/EncMassStar;
-            if (EncMassStar>0) pdata.aperture_vrdisp_star[j]=EncVRDispStar/EncMassStar;
-            if (EncMassStar>0) pdata.aperture_Z_star[j]=EncZmetStar/EncMassStar;
-        }
+        pdata.aperture_npart_gas_sf[j]=NinsideGasSF;
+        pdata.aperture_mass_gas_sf[j]=EncMassGasSF;
+        if (EncMassGasSF>0) pdata.aperture_veldisp_gas_sf[j]=EncVelDispGasSF/EncMassGasSF;
+        if (EncMassGasSF>0) pdata.aperture_vrdisp_gas_sf[j]=EncVRDispGasSF/EncMassGasSF;
+        if (EncMassGasSF>0) pdata.aperture_Z_gas_sf[j]=EncZmetGasSF/EncMassGasSF;
+        pdata.aperture_mass_gas_nsf[j]=EncMassGasNSF;
+        pdata.aperture_npart_gas_nsf[j]=NinsideGasNSF;
+        if (EncMassGasNSF>0) pdata.aperture_veldisp_gas_nsf[j]=EncVelDispGasNSF/EncMassGasNSF;
+        if (EncMassGasNSF>0) pdata.aperture_vrdisp_gas_nsf[j]=EncVRDispGasNSF/EncMassGasNSF;
+        if (EncMassGasNSF>0) pdata.aperture_Z_gas_nsf[j]=EncZmetGasNSF/EncMassGasNSF;
+#endif
+        SetApertureExtraProperties(opt.gas_extraprop_aperture_calc,
+            opt.gas_internalprop_names_aperture,
+            opt.gas_chem_names_aperture,
+            opt.gas_chemproduction_names_aperture,
+            opt.gas_internalprop_function_aperture,
+            opt.gas_chem_function_aperture,
+            opt.gas_chemproduction_function_aperture,
+            gasdata, NinsideGas, pdata.aperture_properties_gas[iaptindex]);
+#endif
+#ifdef STARON
+        pdata.aperture_npart_star[j]=NinsideStar;
+        pdata.aperture_mass_star[j]=EncMassStar;
+        if (EncMassStar>0) pdata.aperture_veldisp_star[j]=EncVelDispStar/EncMassStar;
+        if (EncMassStar>0) pdata.aperture_vrdisp_star[j]=EncVRDispStar/EncMassStar;
+        if (EncMassStar>0) pdata.aperture_Z_star[j]=EncZmetStar/EncMassStar;
+        SetApertureExtraProperties(opt.star_extraprop_aperture_calc,
+            opt.star_internalprop_names_aperture,
+            opt.star_chem_names_aperture,
+            opt.star_chemproduction_names_aperture,
+            opt.star_internalprop_function_aperture,
+            opt.star_chem_function_aperture,
+            opt.star_chemproduction_function_aperture,
+            stardata, NinsideStar, pdata.aperture_properties_star[iaptindex]);
 #endif
 #ifdef BHON
-        if (pdata.aperture_mass_bh[j]==-1)
-        {
-            pdata.aperture_npart_bh[j]=NinsideBH;
-            pdata.aperture_mass_bh[j]=EncMassBH;
-        }
+        pdata.aperture_npart_bh[j]=NinsideBH;
+        pdata.aperture_mass_bh[j]=EncMassBH;
+        SetApertureExtraProperties(opt.bh_extraprop_aperture_calc,
+            opt.bh_internalprop_names_aperture,
+            opt.bh_chem_names_aperture,
+            opt.bh_chemproduction_names_aperture,
+            opt.bh_internalprop_function_aperture,
+            opt.bh_chem_function_aperture,
+            opt.bh_chemproduction_function_aperture,
+            bhdata, NinsideBH, pdata.aperture_properties_bh[iaptindex]);
 #endif
 #ifdef HIGHRES
-        if (pdata.aperture_mass_interloper[j]==-1)
-        {
-            pdata.aperture_npart_interloper[j]=NinsideInterloper;
-            pdata.aperture_mass_interloper[j]=EncMassInterloper;
-        }
+        pdata.aperture_npart_interloper[j]=NinsideInterloper;
+        pdata.aperture_mass_interloper[j]=EncMassInterloper;
+#endif
+#ifdef EXTRADMON
+        SetApertureExtraProperties(opt.extra_dm_extraprop_aperture_calc,
+            opt.extra_dm_internalprop_names_aperture,
+            opt.extra_dm_internalprop_function_aperture,
+            extradmdata, NinsideDM, pdata.aperture_properties_extra_dm[iaptindex]);
 #endif
     }
+
+//     for (auto j=0;j<opt.aperturenum;j++)
+//     {
+//         if (pdata.aperture_mass[j]==-1) {
+//             pdata.aperture_npart[j]=Ninside;
+//             pdata.aperture_mass[j]=EncMass;
+//             if (EncMass>0) pdata.aperture_veldisp[j]=EncVelDisp/EncMass;
+//             if (EncMass>0) pdata.aperture_vrdisp[j]=EncVRDisp/EncMass;
+//         }
+// #ifdef GASON
+//         if (pdata.aperture_mass_gas[j]==-1)
+//         {
+//             pdata.aperture_npart_gas[j]=NinsideGas;
+//             pdata.aperture_mass_gas[j]=EncMassGas;
+//             if (EncMassGas>0) pdata.aperture_veldisp_gas[j]=EncVelDispGas/EncMassGas;
+//             if (EncMassGas>0) pdata.aperture_vrdisp_gas[j]=EncVRDispGas/EncMassGas;
+// #ifdef STARON
+//             pdata.aperture_SFR_gas[j]=EncSFR;
+//             if (EncMassGas>0) pdata.aperture_Z_gas[j]=EncZmetGas/EncMassGas;
+// #endif
+//         }
+// #ifdef STARON
+//         if (pdata.aperture_mass_gas_sf[j]==-1)
+//         {
+//             pdata.aperture_npart_gas_sf[j]=NinsideGasSF;
+//             pdata.aperture_mass_gas_sf[j]=EncMassGasSF;
+//             if (EncMassGasSF>0) pdata.aperture_veldisp_gas_sf[j]=EncVelDispGasSF/EncMassGasSF;
+//             if (EncMassGasSF>0) pdata.aperture_vrdisp_gas_sf[j]=EncVRDispGasSF/EncMassGasSF;
+//             if (EncMassGasSF>0) pdata.aperture_Z_gas_sf[j]=EncZmetGasSF/EncMassGasSF;
+//         }
+//         if (pdata.aperture_mass_gas_nsf[j]==-1)
+//         {
+//             pdata.aperture_mass_gas_nsf[j]=EncMassGasNSF;
+//             pdata.aperture_npart_gas_nsf[j]=NinsideGasNSF;
+//             if (EncMassGasNSF>0) pdata.aperture_veldisp_gas_nsf[j]=EncVelDispGasNSF/EncMassGasNSF;
+//             if (EncMassGasNSF>0) pdata.aperture_vrdisp_gas_nsf[j]=EncVRDispGasNSF/EncMassGasNSF;
+//             if (EncMassGasNSF>0) pdata.aperture_Z_gas_nsf[j]=EncZmetGasNSF/EncMassGasNSF;
+//         }
+// #endif
+// #endif
+// #ifdef STARON
+//         if (pdata.aperture_mass_star[j]==-1)
+//         {
+//             pdata.aperture_npart_star[j]=NinsideStar;
+//             pdata.aperture_mass_star[j]=EncMassStar;
+//             if (EncMassStar>0) pdata.aperture_veldisp_star[j]=EncVelDispStar/EncMassStar;
+//             if (EncMassStar>0) pdata.aperture_vrdisp_star[j]=EncVRDispStar/EncMassStar;
+//             if (EncMassStar>0) pdata.aperture_Z_star[j]=EncZmetStar/EncMassStar;
+//         }
+// #endif
+// #ifdef BHON
+//         if (pdata.aperture_mass_bh[j]==-1)
+//         {
+//             pdata.aperture_npart_bh[j]=NinsideBH;
+//             pdata.aperture_mass_bh[j]=EncMassBH;
+//         }
+// #endif
+// #ifdef HIGHRES
+//         if (pdata.aperture_mass_interloper[j]==-1)
+//         {
+//             pdata.aperture_npart_interloper[j]=NinsideInterloper;
+//             pdata.aperture_mass_interloper[j]=EncMassInterloper;
+//         }
+// #endif
+//     }
+
     //then determine half mass radii for 3d apertures
     EncMass=EncMassGas=EncMassGasSF=EncMassGasNSF=EncMassStar=EncMassBH=EncMassInterloper=0;
     numapttotal=0;
