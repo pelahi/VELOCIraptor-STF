@@ -4895,7 +4895,7 @@ template<typename T> inline void SetApertureExtraProperties(bool &calc,
 }
 
 inline void SetApertureExtraProperties(bool &calc,
-    vector<string> &names, vector<int> &functions,
+    vector<string> &names, vector<int> &functions, vector<string> &outnames,
     map<string, float> &data, Int_t norm,
     ExtraDMProperties &aperture_properties
 )
@@ -4904,7 +4904,7 @@ inline void SetApertureExtraProperties(bool &calc,
     for (auto iextra=0;iextra<names.size();iextra++) {
         auto field = names[iextra];
         if (functions[iextra] == CALCQUANTITYAPERTUREAVERAGE) data[field] /= float(norm);
-        aperture_properties.SetExtraProperties(field, data[field]);
+        aperture_properties.SetExtraProperties(outnames[iextra], data[field]);
     }
 }
 
