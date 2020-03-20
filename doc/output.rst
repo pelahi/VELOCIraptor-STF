@@ -519,7 +519,7 @@ for gas particles along along with some extra gas only properties.
 +--------------------------------------------------------+------------------------------------------------------------------+
 | MetalMassFractionFromSNIa_index_1_average_unitless_gas | average of this field.                                           |
 +--------------------------------------------------------+------------------------------------------------------------------+
-| One can also specify `aperture_total` and `aperture_average` as functions if aperture quantities are calcualed.           |
+| `One can also specify` aperture_total `and` aperture_average `as functions if aperture quantities are calcualed.          |
 | The output will have a simlar naming convention to above but with` Aperture_ `at the start and ending with the aperture   |
 | aperture itself` #_kpc` for each aperture listed.                                                                         |
 +--------------------------------------------------------+------------------------------------------------------------------+
