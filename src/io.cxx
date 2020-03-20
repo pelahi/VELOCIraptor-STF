@@ -2284,6 +2284,12 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
                 Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
 #endif
+#ifdef BHON
+            for (auto j=0;j<opt.aperturenum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((unsigned int*)data)[i]=pdata[i+1].aperture_npart_bh[j];
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
+            }
+#endif
 #ifdef HIGHRES
             for (auto j=0;j<opt.aperturenum;j++) {
                 for (Int_t i=0;i<ngroups;i++) ((unsigned int*)data)[i]=pdata[i+1].aperture_npart_interloper[j];
@@ -2314,6 +2320,12 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
 #ifdef STARON
             for (auto j=0;j<opt.aperturenum;j++) {
                 for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_mass_star[j];
+                Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
+            }
+#endif
+#ifdef BHON
+            for (auto j=0;j<opt.aperturenum;j++) {
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_mass_bh[j];
                 Fhdf.write_dataset(head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
 #endif
