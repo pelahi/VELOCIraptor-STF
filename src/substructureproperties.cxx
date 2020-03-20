@@ -4845,7 +4845,7 @@ inline Double_t GetApertureRadiusInterpolation(const Double_t &oldrc, const Doub
 }
 
 template<typename T> inline void SetApertureExtraPropertiesInternalProp(
-    vector<string> &names, vector<int> &functions,
+    vector<string> &names, vector<int> &functions, vector<string> &outnames,
     map<string, float> &data, Int_t norm,
     T &aperture_properties
 )
@@ -4853,11 +4853,11 @@ template<typename T> inline void SetApertureExtraPropertiesInternalProp(
     for (auto iextra=0;iextra<names.size();iextra++) {
         auto field = names[iextra];
         if (functions[iextra] == CALCQUANTITYAPERTUREAVERAGE) data[field] /= float(norm);
-        aperture_properties.SetInternalProperties(field, data[field]);
+        aperture_properties.SetInternalProperties(outnames[iextra], data[field]);
     }
 }
 template<typename T> inline void SetApertureExtraPropertiesChemistry(
-    vector<string> &names, vector<int> &functions,
+    vector<string> &names, vector<int> &functions, vector<string> &outnames,
     map<string, float> &data, Int_t norm,
     T &aperture_properties
 )
@@ -4865,11 +4865,11 @@ template<typename T> inline void SetApertureExtraPropertiesChemistry(
     for (auto iextra=0;iextra<names.size();iextra++) {
         auto field = names[iextra];
         if (functions[iextra] == CALCQUANTITYAPERTUREAVERAGE) data[field] /= float(norm);
-        aperture_properties.SetChemistry(field, data[field]);
+        aperture_properties.SetChemistry(outnames[iextra], data[field]);
     }
 }
 template<typename T> inline void SetApertureExtraPropertiesChemistryProduction(
-    vector<string> &names, vector<int> &functions,
+    vector<string> &names, vector<int> &functions, vector<string> &outnames,
     map<string, float> &data, Int_t norm,
     T &aperture_properties
 )
@@ -4877,20 +4877,21 @@ template<typename T> inline void SetApertureExtraPropertiesChemistryProduction(
     for (auto iextra=0;iextra<names.size();iextra++) {
         auto field = names[iextra];
         if (functions[iextra] == CALCQUANTITYAPERTUREAVERAGE) data[field] /= float(norm);
-        aperture_properties.SetChemistryProduction(field, data[field]);
+        aperture_properties.SetChemistryProduction(outnames[iextra], data[field]);
     }
 }
 template<typename T> inline void SetApertureExtraProperties(bool &calc,
     vector<string> &names1, vector<string> &names2, vector<string> &names3,
     vector<int> &functions1, vector<int> &functions2, vector<int> &functions3,
+    vector<string> &outnames1, vector<string> &outnames2, vector<string> &outnames3,
     map<string, float> &data, Int_t norm,
     T &aperture_properties
 )
 {
     if (!calc) return;
-    SetApertureExtraPropertiesInternalProp(names1, functions1, data, norm, aperture_properties);
-    SetApertureExtraPropertiesChemistry(names2, functions2, data, norm, aperture_properties);
-    SetApertureExtraPropertiesChemistryProduction(names3, functions3, data, norm, aperture_properties);
+    SetApertureExtraPropertiesInternalProp(names1, functions1, outnames1, data, norm, aperture_properties);
+    SetApertureExtraPropertiesChemistry(names2, functions2, outnames2, data, norm, aperture_properties);
+    SetApertureExtraPropertiesChemistryProduction(names3, functions3, outnames3, data, norm, aperture_properties);
 }
 
 inline void SetApertureExtraProperties(bool &calc,
@@ -5054,6 +5055,9 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
                 opt.gas_internalprop_function_aperture,
                 opt.gas_chem_function_aperture,
                 opt.gas_chemproduction_function_aperture,
+                opt.gas_internalprop_output_names_aperture,
+                opt.gas_chem_output_names_aperture,
+                opt.gas_chemproduction_output_names_aperture,
                 gasdata, NinsideGas, pdata.aperture_properties_gas[iaptindex]);
 #endif
 #ifdef STARON
@@ -5069,6 +5073,9 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
                 opt.star_internalprop_function_aperture,
                 opt.star_chem_function_aperture,
                 opt.star_chemproduction_function_aperture,
+                opt.star_internalprop_output_names_aperture,
+                opt.star_chem_output_names_aperture,
+                opt.star_chemproduction_output_names_aperture,
                 stardata, NinsideStar, pdata.aperture_properties_star[iaptindex]);
 #endif
 #ifdef BHON
@@ -5081,6 +5088,9 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
                 opt.bh_internalprop_function_aperture,
                 opt.bh_chem_function_aperture,
                 opt.bh_chemproduction_function_aperture,
+                opt.bh_internalprop_output_names_aperture,
+                opt.bh_chem_output_names_aperture,
+                opt.bh_chemproduction_output_names_aperture,
                 bhdata, NinsideBH, pdata.aperture_properties_bh[iaptindex]);
 #endif
 #ifdef HIGHRES
@@ -5091,6 +5101,7 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
             SetApertureExtraProperties(opt.extra_dm_extraprop_aperture_calc,
                 opt.extra_dm_internalprop_names_aperture,
                 opt.extra_dm_internalprop_function_aperture,
+                opt.extra_dm_internalprop_output_names_aperture,
                 extradmdata, NinsideDM, pdata.aperture_properties_extra_dm[iaptindex]);
 #endif
             iaptindex++;
@@ -5218,6 +5229,9 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
             opt.gas_internalprop_function_aperture,
             opt.gas_chem_function_aperture,
             opt.gas_chemproduction_function_aperture,
+            opt.gas_internalprop_output_names_aperture,
+            opt.gas_chem_output_names_aperture,
+            opt.gas_chemproduction_output_names_aperture,
             gasdata, NinsideGas, pdata.aperture_properties_gas[iaptindex]);
 #endif
 #ifdef STARON
@@ -5233,6 +5247,9 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
             opt.star_internalprop_function_aperture,
             opt.star_chem_function_aperture,
             opt.star_chemproduction_function_aperture,
+            opt.star_internalprop_output_names_aperture,
+            opt.star_chem_output_names_aperture,
+            opt.star_chemproduction_output_names_aperture,
             stardata, NinsideStar, pdata.aperture_properties_star[iaptindex]);
 #endif
 #ifdef BHON
@@ -5245,6 +5262,9 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
             opt.bh_internalprop_function_aperture,
             opt.bh_chem_function_aperture,
             opt.bh_chemproduction_function_aperture,
+            opt.bh_internalprop_output_names_aperture,
+            opt.bh_chem_output_names_aperture,
+            opt.bh_chemproduction_output_names_aperture,
             bhdata, NinsideBH, pdata.aperture_properties_bh[iaptindex]);
 #endif
 #ifdef HIGHRES
@@ -5255,6 +5275,7 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
         SetApertureExtraProperties(opt.extra_dm_extraprop_aperture_calc,
             opt.extra_dm_internalprop_names_aperture,
             opt.extra_dm_internalprop_function_aperture,
+            opt.extra_dm_internalprop_output_names_aperture,
             extradmdata, NinsideDM, pdata.aperture_properties_extra_dm[iaptindex]);
 #endif
     }
