@@ -4852,7 +4852,7 @@ template<typename T> inline void SetApertureExtraPropertiesInternalProp(
 {
     for (auto iextra=0;iextra<names.size();iextra++) {
         auto field = names[iextra];
-        if (functions[iextra] == CALCQUANTITYAPERTUREAVERAGE) data[field] /= float(norm);
+        if (functions[iextra] == CALCQUANTITYAPERTUREAVERAGE && norm>0) data[field] /= float(norm);
         aperture_properties.SetInternalProperties(outnames[iextra], data[field]);
     }
 }
@@ -4864,7 +4864,7 @@ template<typename T> inline void SetApertureExtraPropertiesChemistry(
 {
     for (auto iextra=0;iextra<names.size();iextra++) {
         auto field = names[iextra];
-        if (functions[iextra] == CALCQUANTITYAPERTUREAVERAGE) data[field] /= float(norm);
+        if (functions[iextra] == CALCQUANTITYAPERTUREAVERAGE && norm>0) data[field] /= float(norm);
         aperture_properties.SetChemistry(outnames[iextra], data[field]);
     }
 }
@@ -4876,7 +4876,7 @@ template<typename T> inline void SetApertureExtraPropertiesChemistryProduction(
 {
     for (auto iextra=0;iextra<names.size();iextra++) {
         auto field = names[iextra];
-        if (functions[iextra] == CALCQUANTITYAPERTUREAVERAGE) data[field] /= float(norm);
+        if (functions[iextra] == CALCQUANTITYAPERTUREAVERAGE && norm>0) data[field] /= float(norm);
         aperture_properties.SetChemistryProduction(outnames[iextra], data[field]);
     }
 }
@@ -4903,7 +4903,7 @@ inline void SetApertureExtraProperties(bool &calc,
     if (!calc) return;
     for (auto iextra=0;iextra<names.size();iextra++) {
         auto field = names[iextra];
-        if (functions[iextra] == CALCQUANTITYAPERTUREAVERAGE) data[field] /= float(norm);
+        if (functions[iextra] == CALCQUANTITYAPERTUREAVERAGE && norm>0) data[field] /= float(norm);
         aperture_properties.SetExtraProperties(outnames[iextra], data[field]);
     }
 }
