@@ -5232,7 +5232,7 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
             opt.gas_internalprop_output_names_aperture,
             opt.gas_chem_output_names_aperture,
             opt.gas_chemproduction_output_names_aperture,
-            gasdata, NinsideGas, pdata.aperture_properties_gas[iaptindex]);
+            gasdata, NinsideGas, pdata.aperture_properties_gas[j]);
 #endif
 #ifdef STARON
         pdata.aperture_npart_star[j]=NinsideStar;
@@ -5250,7 +5250,7 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
             opt.star_internalprop_output_names_aperture,
             opt.star_chem_output_names_aperture,
             opt.star_chemproduction_output_names_aperture,
-            stardata, NinsideStar, pdata.aperture_properties_star[iaptindex]);
+            stardata, NinsideStar, pdata.aperture_properties_star[j]);
 #endif
 #ifdef BHON
         pdata.aperture_npart_bh[j]=NinsideBH;
@@ -5265,7 +5265,7 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
             opt.bh_internalprop_output_names_aperture,
             opt.bh_chem_output_names_aperture,
             opt.bh_chemproduction_output_names_aperture,
-            bhdata, NinsideBH, pdata.aperture_properties_bh[iaptindex]);
+            bhdata, NinsideBH, pdata.aperture_properties_bh[j]);
 #endif
 #ifdef HIGHRES
         pdata.aperture_npart_interloper[j]=NinsideInterloper;
@@ -5276,74 +5276,9 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
             opt.extra_dm_internalprop_names_aperture,
             opt.extra_dm_internalprop_function_aperture,
             opt.extra_dm_internalprop_output_names_aperture,
-            extradmdata, NinsideDM, pdata.aperture_properties_extra_dm[iaptindex]);
+            extradmdata, NinsideDM, pdata.aperture_properties_extra_dm[j]);
 #endif
     }
-
-//     for (auto j=0;j<opt.aperturenum;j++)
-//     {
-//         if (pdata.aperture_mass[j]==-1) {
-//             pdata.aperture_npart[j]=Ninside;
-//             pdata.aperture_mass[j]=EncMass;
-//             if (EncMass>0) pdata.aperture_veldisp[j]=EncVelDisp/EncMass;
-//             if (EncMass>0) pdata.aperture_vrdisp[j]=EncVRDisp/EncMass;
-//         }
-// #ifdef GASON
-//         if (pdata.aperture_mass_gas[j]==-1)
-//         {
-//             pdata.aperture_npart_gas[j]=NinsideGas;
-//             pdata.aperture_mass_gas[j]=EncMassGas;
-//             if (EncMassGas>0) pdata.aperture_veldisp_gas[j]=EncVelDispGas/EncMassGas;
-//             if (EncMassGas>0) pdata.aperture_vrdisp_gas[j]=EncVRDispGas/EncMassGas;
-// #ifdef STARON
-//             pdata.aperture_SFR_gas[j]=EncSFR;
-//             if (EncMassGas>0) pdata.aperture_Z_gas[j]=EncZmetGas/EncMassGas;
-// #endif
-//         }
-// #ifdef STARON
-//         if (pdata.aperture_mass_gas_sf[j]==-1)
-//         {
-//             pdata.aperture_npart_gas_sf[j]=NinsideGasSF;
-//             pdata.aperture_mass_gas_sf[j]=EncMassGasSF;
-//             if (EncMassGasSF>0) pdata.aperture_veldisp_gas_sf[j]=EncVelDispGasSF/EncMassGasSF;
-//             if (EncMassGasSF>0) pdata.aperture_vrdisp_gas_sf[j]=EncVRDispGasSF/EncMassGasSF;
-//             if (EncMassGasSF>0) pdata.aperture_Z_gas_sf[j]=EncZmetGasSF/EncMassGasSF;
-//         }
-//         if (pdata.aperture_mass_gas_nsf[j]==-1)
-//         {
-//             pdata.aperture_mass_gas_nsf[j]=EncMassGasNSF;
-//             pdata.aperture_npart_gas_nsf[j]=NinsideGasNSF;
-//             if (EncMassGasNSF>0) pdata.aperture_veldisp_gas_nsf[j]=EncVelDispGasNSF/EncMassGasNSF;
-//             if (EncMassGasNSF>0) pdata.aperture_vrdisp_gas_nsf[j]=EncVRDispGasNSF/EncMassGasNSF;
-//             if (EncMassGasNSF>0) pdata.aperture_Z_gas_nsf[j]=EncZmetGasNSF/EncMassGasNSF;
-//         }
-// #endif
-// #endif
-// #ifdef STARON
-//         if (pdata.aperture_mass_star[j]==-1)
-//         {
-//             pdata.aperture_npart_star[j]=NinsideStar;
-//             pdata.aperture_mass_star[j]=EncMassStar;
-//             if (EncMassStar>0) pdata.aperture_veldisp_star[j]=EncVelDispStar/EncMassStar;
-//             if (EncMassStar>0) pdata.aperture_vrdisp_star[j]=EncVRDispStar/EncMassStar;
-//             if (EncMassStar>0) pdata.aperture_Z_star[j]=EncZmetStar/EncMassStar;
-//         }
-// #endif
-// #ifdef BHON
-//         if (pdata.aperture_mass_bh[j]==-1)
-//         {
-//             pdata.aperture_npart_bh[j]=NinsideBH;
-//             pdata.aperture_mass_bh[j]=EncMassBH;
-//         }
-// #endif
-// #ifdef HIGHRES
-//         if (pdata.aperture_mass_interloper[j]==-1)
-//         {
-//             pdata.aperture_npart_interloper[j]=NinsideInterloper;
-//             pdata.aperture_mass_interloper[j]=EncMassInterloper;
-//         }
-// #endif
-//     }
 
     //then determine half mass radii for 3d apertures
     EncMass=EncMassGas=EncMassGasSF=EncMassGasNSF=EncMassStar=EncMassBH=EncMassInterloper=0;
