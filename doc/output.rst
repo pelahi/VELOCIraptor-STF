@@ -19,7 +19,7 @@ Understanding and Analysing |vr| Output
     * ``.catalog_parttypes``: a file similar to ``.catalog_particles`` but containing a list of particle types of those in structures. Information contained in ``.catalog_groups`` is used to parse this data. Produced if multiple particle types are processed by |vr|.
     * ``.catalog_parttypes.unbound``: similar to ``catalog_parttypes`` but lists particles in structures but are formally unbound.
     * ``.profiles``  : a file containing the radial profiles of groups. Produced if radial profiles are requested.
-    * ``.catalog_SOlist`` : a file containing the a list of particle IDs of particles found within a large Spherical region around Field halos. Produced if a list of paritcles wihtin so regions is requested. 
+    * ``.catalog_SOlist`` : a file containing the a list of particle IDs of particles found within a large Spherical region around Field halos. Produced if a list of paritcles wihtin so regions is requested.
 
 Properties
 ==========
@@ -500,16 +500,29 @@ for gas particles along along with some extra gas only properties.
 +-------------------+-------------------------------------------------------------------------------------------------------+
 | SFR               | Total star formation rate of gas in projected aperture.                                               |
 +-------------------+-------------------------------------------------------------------------------------------------------+
+
++--------------------------------------------------------+------------------------------------------------------------------+
+| Name                                                   | Comments                                                         |
++========================================================+==================================================================+
 | **Extra Gas Properties**: `If extra gas fields are loaded by listing them using` Gas_internal_property_names              |
-| Gas_chemistry_names `and/or` Gas_chemistry_production_names. `The output will follow the following naming convention:`    |
-| nameoffield_gas `e.g.``, AlphaElements_gas.                                                                               |
+| Gas_chemistry_names `and/or` Gas_chemistry_production_names. `The are associated input options related to the input index |
+| calclation type done and output units. The output will have the following naming convention:`                             |
+| nameoffield_index_#_calculation_units_gas `e.g.``, AlphaElements_index_0_average_unitless_gas.                            |
 | `Also requires that code is compiled with the` **USE_GAS** `flag`                                                         |
-| `As an example we show the fields if` Gas_internal_property_names=Pressure,MetalFromSNIa                                  |
-+-------------------+-------------------------------------------------------------------------------------------------------+
-| Pressure_gas      | Mass weighted average of this field.                                                                  |
-+-------------------+-------------------------------------------------------------------------------------------------------+
-| MetalFromSNIa_gas | Mass weighted average of this field.                                                                  |
-+-------------------+-------------------------------------------------------------------------------------------------------+
+| `As an example we show the fields if`                                                                                     |
+| Gas_internal_property_names=Pressure,MetalMassFractionFromSNIa,                                                           |
+| Gas_internal_property_index=0,1,                                                                                          |
+| Gas_internal_property_output_units=kPa,unitless,                                                                          |
+| Gas_internal_property_calculation_type=max,average,                                                                       |
++--------------------------------------------------------+------------------------------------------------------------------+
+| Pressure_index_0_max_kPa_gas                           | maximum pressure of gas in object.                               |
++--------------------------------------------------------+------------------------------------------------------------------+
+| MetalMassFractionFromSNIa_index_1_average_unitless_gas | average of this field.                                           |
++--------------------------------------------------------+------------------------------------------------------------------+
+| `One can also specify` aperture_total `and` aperture_average `as functions if aperture quantities are calcualed.          |
+| The output will have a simlar naming convention to above but with` Aperture_ `at the start and ending with the aperture   |
+| aperture itself` #_kpc` for each aperture listed.                                                                         |
++--------------------------------------------------------+------------------------------------------------------------------+
 
 .. _starprops:
 
@@ -545,7 +558,7 @@ This is a list of stellar properties that are calculated if code is compiled wit
 +-------------------+-------------------------------------------------------------------------------------------------------+
 | **Extra Star Properties**: `Like the extra gas properties but calculated if ` Star_internal_property_names                |
 | Star_chemistry_names `and/or` Star_chemistry_production_names.                                                            |
-| `Naming convention is nameoffield_star`                                                                                   |
+| `Naming convention is the same but ends with _star`                                                                       |
 | `Also requires that code is compiled with the` **USE_STAR** `flag`                                                        |
 +-------------------+-------------------------------------------------------------------------------------------------------+
 
@@ -570,7 +583,7 @@ This is a list of black hole properties that are calculated if code is compiled 
 +-------------------+-------------------------------------------------------------------------------------------------------+
 | **Extra Black hole Properties**: `Like the extra gas properties but calculated if ` BH_internal_property_names            |
 | BH_chemistry_names `and/or` BH_chemistry_production_names.                                                                |
-| `Naming convention is nameoffield_bh`                                                                                     |
+| `Naming convention is simialr save ends with _bh`                                                                         |
 | `Also requires that code is compiled with the` **USE_BH** `flag`                                                          |
 +-------------------+-------------------------------------------------------------------------------------------------------+
 

@@ -338,12 +338,14 @@ inline vector<string> ExtraFieldCalculationsAllowedOptions()
     list.push_back(("min"));
     list.push_back(("maxmassweighted"));
     list.push_back(("max"));
+    list.push_back(("aperture_total"));
+    list.push_back(("aperture_average"));
     return list;
 }
 
-inline map<string,unsigned int> ExtraFieldCalculationsStringtoIntFlag()
+inline map<string,int> ExtraFieldCalculationsStringtoIntFlag()
 {
-    map<string, unsigned int> list;
+    map<string, int> list;
     list[string("averagemassweighted")] = CALCAVERAGEMASSWEIGHT;
     list[string("average")] = CALCAVERAGE;
     list[string("logaveragemassweighted")] = CALCLOGAVERAGEMASSWEIGHT;
@@ -358,13 +360,15 @@ inline map<string,unsigned int> ExtraFieldCalculationsStringtoIntFlag()
     list[string("min")] = CALCMIN;
     list[string("maxmassweighted")] = CALCMAXMASSWEIGHT;
     list[string("max")] = CALCMAX;
+    list[string("aperture_total")] = CALCQUANTITYAPERTURETOTAL;
+    list[string("aperture_average")] = CALCQUANTITYAPERTUREAVERAGE;
     list[string("unkown")] = 0;
     return list;
 }
 
-inline map<unsigned int,string> ExtraFieldCalculationsIntFlagToString()
+inline map<int,string> ExtraFieldCalculationsIntFlagToString()
 {
-    map<unsigned int, string> list;
+    map<int, string> list;
     list[CALCAVERAGEMASSWEIGHT] = string("averagemassweighted");;
     list[CALCAVERAGE] = string("average");
     list[CALCLOGAVERAGEMASSWEIGHT] = string("logaveragemassweighted");
@@ -379,14 +383,22 @@ inline map<unsigned int,string> ExtraFieldCalculationsIntFlagToString()
     list[CALCMIN] = string("min");
     list[CALCMAXMASSWEIGHT] = string("maxmassweighted");
     list[CALCMAX] = string("max");
+    list[CALCQUANTITYAPERTURETOTAL] = string("aperture_total");
+    list[CALCQUANTITYAPERTUREAVERAGE] = string("aperture_average");
     list[0] = string("unkown");
     return list;
 }
 
 
-inline void ExtraFieldCheck(string configentryname, vector<string> &names, vector<string>&output_names,
-    vector<unsigned int> &calctypes, vector<unsigned int> &indices,
-    vector<float> &conversions, vector<string> units, vector<int> &pairindices)
+inline void ExtraFieldCheck(string configentryname,
+    vector<string> &names, vector<string>&output_names,
+    vector<int> &calctypes, vector<unsigned int> &indices,
+    vector<float> &conversions, vector<string> &units,
+    vector<int> &pairindices,
+    vector<string> &names_aperture, vector<string> &output_names_aperture,
+    vector<int> &calctypes_aperture, vector<unsigned int> &indices_aperture,
+    vector<float> &conversions_aperture, vector<string> &units_aperture
+)
 {
     if (names.size()==0) return;
     set<unsigned int> unique_int;
@@ -394,20 +406,21 @@ inline void ExtraFieldCheck(string configentryname, vector<string> &names, vecto
     string outputfieldname;
     unsigned int entryindex, calctype;
     string scalctype;
-    vector<unsigned int> stdfuncs, avefuncs;
+    vector<int> stdfuncs, avefuncs;
     stdfuncs.push_back(CALCSTD);avefuncs.push_back(CALCAVERAGE);
     stdfuncs.push_back(CALCSTDMASSWEIGHT);avefuncs.push_back(CALCAVERAGEMASSWEIGHT);
     stdfuncs.push_back(CALCLOGSTD);avefuncs.push_back(CALCLOGAVERAGE);
     stdfuncs.push_back(CALCLOGSTDMASSWEIGHT);avefuncs.push_back(CALCLOGAVERAGEMASSWEIGHT);
 
     vector<string> newnames(names), newunits(units);
-    vector<unsigned int> newcalctypes(calctypes), newindices(indices);
+    vector<int> newcalctypes(calctypes);
+    vector<unsigned int> newindices(indices);
     vector<float> newconversions(conversions);
     vector<string> allowedlist = ExtraFieldCalculationsAllowedOptions();
     string list;
     for (auto &x:allowedlist) list+= x+string(", ");
-    map<string, unsigned int> calcstringtoint = ExtraFieldCalculationsStringtoIntFlag();
-    map<unsigned int, string> calcinttostring = ExtraFieldCalculationsIntFlagToString();
+    map<string, int> calcstringtoint = ExtraFieldCalculationsStringtoIntFlag();
+    map<int, string> calcinttostring = ExtraFieldCalculationsIntFlagToString();
 
 
     //check for unacceptable entries
@@ -477,11 +490,30 @@ inline void ExtraFieldCheck(string configentryname, vector<string> &names, vecto
             newcalctypes.push_back(calctypes[i]);
         }
     }
-    names = newnames;
-    indices = newindices;
-    units = newunits;
-    conversions = newconversions;
-    calctypes = newcalctypes;
+    //strip out aperture calculations and store them separately
+    auto nentries = newnames.size();
+    names.clear();
+    calctypes.clear();
+    indices.clear();
+    units.clear();
+    conversions.clear();
+    cout<<nentries<<endl;
+    for (auto i=0;i<nentries;i++) {
+        if (newcalctypes[i] >0) {
+            names.push_back(newnames[i]);
+            indices.push_back(newindices[i]);
+            units.push_back(newunits[i]);
+            calctypes.push_back(newcalctypes[i]);
+            conversions.push_back(newconversions[i]);
+        }
+        else {
+            names_aperture.push_back(newnames[i]);
+            indices_aperture.push_back(newindices[i]);
+            units_aperture.push_back(newunits[i]);
+            calctypes_aperture.push_back(newcalctypes[i]);
+            conversions_aperture.push_back(newconversions[i]);
+        }
+    }
     pairindices.resize(names.size());
     for (auto i=0;i<names.size();i++)
     {
@@ -502,6 +534,14 @@ inline void ExtraFieldCheck(string configentryname, vector<string> &names, vecto
                 }
             }
         }
+    }
+    for (auto i=0;i<names_aperture.size();i++)
+    {
+        entryindex = indices_aperture[i];
+        calctype = calctypes_aperture[i];
+        outputfieldname = names_aperture[i]+ExtraFieldIndexName(entryindex)
+            +string("_")+calcinttostring[calctype]+string("_")+units[i];
+        output_names_aperture.push_back(outputfieldname);
     }
 }
 
@@ -528,6 +568,22 @@ inline void ListDuplicateEntryCheck(string configentryname, int &num,
     }
 }
 
+inline vector<string> StripIndexOffName(
+    vector<string> names1, vector<string> names2,
+    vector<unsigned int> indices1, vector<unsigned int> indices2
+)
+{
+    vector<string> result;
+    for (auto iextra=0;iextra<names1.size();iextra++) {
+        result.push_back(names1[iextra].substr(0,
+            names1[iextra].size()-to_string(indices1[iextra]).size()));
+    }
+    for (auto iextra=0;iextra<names2.size();iextra++) {
+        result.push_back(names2[iextra].substr(0,
+            names2[iextra].size()-to_string(indices2[iextra]).size()));
+    }
+    return result;
+}
 
 ///Read parameters from a parameter file. For list of currently implemented options see \ref configopt
 ///\todo still more parameters that can be adjusted
@@ -542,8 +598,8 @@ void GetParamFile(Options &opt)
     fstream paramfile,cfgfile;
     size_t pos;
     string dataline, token, delimiter = ",";
-    map<string, unsigned int> calcstringtoint = ExtraFieldCalculationsStringtoIntFlag();
-    map<unsigned int, string> calcinttostring = ExtraFieldCalculationsIntFlagToString();
+    map<string, int> calcstringtoint = ExtraFieldCalculationsStringtoIntFlag();
+    map<int, string> calcinttostring = ExtraFieldCalculationsIntFlagToString();
     if (!FileExists(opt.pname)){
         if (ThisTask==0)
             cerr<<"Config file: "<<opt.pname <<" does not exist or can't be read, terminating"<<endl;
@@ -833,6 +889,11 @@ void GetParamFile(Options &opt)
                         opt.iIterateCM = atoi(vbuff);
                     else if (strcmp(tbuff, "Inclusive_halo_masses")==0)
                         opt.iInclusiveHalo = atoi(vbuff);
+                    else if (strcmp(tbuff, "Spherical_overdenisty_calculation_limited_to_structure_types")==0) {
+                        int stype = atoi(vbuff);
+                        opt.SphericalOverdensitySeachMaxStructLevel = HALOSTYPE;
+                        opt.SphericalOverdensitySeachMaxStructLevel += HALOCORESTYPE*stype;
+                    }
                     else if (strcmp(tbuff, "Extensive_halo_properties_output")==0)
                         opt.iextrahalooutput = atoi(vbuff);
                     else if (strcmp(tbuff, "Extensive_gas_properties_output")==0)
@@ -869,6 +930,10 @@ void GetParamFile(Options &opt)
                     }
                     else if (strcmp(tbuff, "Calculate_radial_profiles")==0)
                         opt.iprofilecalc = atoi(vbuff);
+                    else if (strcmp(tbuff, "Radial_profile_min_FOF_size")==0)
+                        opt.profileminFOFsize = atoi(vbuff);
+                    else if (strcmp(tbuff, "Radial_profile_min_size")==0)
+                        opt.profileminsize = atoi(vbuff);
                     else if (strcmp(tbuff, "Number_of_radial_profile_bin_edges")==0)
                         opt.profilenbins = atoi(vbuff);
                     else if (strcmp(tbuff, "Radial_profile_norm")==0)
@@ -959,7 +1024,7 @@ void GetParamFile(Options &opt)
                     else if (strcmp(tbuff, "Gas_internal_property_calculation_type")==0) {
                         pos=0;
                         dataline=string(vbuff);
-                        vector<unsigned int> tempvec;
+                        vector<int> tempvec;
                         while ((pos = dataline.find(delimiter)) != string::npos) {
                             token = dataline.substr(0, pos);
                             tempvec.push_back(calcstringtoint[token]);
@@ -1025,7 +1090,7 @@ void GetParamFile(Options &opt)
                     else if (strcmp(tbuff, "Star_internal_property_calculation_type")==0) {
                         pos=0;
                         dataline=string(vbuff);
-                        vector<unsigned int> tempvec;
+                        vector<int> tempvec;
                         while ((pos = dataline.find(delimiter)) != string::npos) {
                             token = dataline.substr(0, pos);
                             tempvec.push_back(calcstringtoint[token]);
@@ -1091,7 +1156,7 @@ void GetParamFile(Options &opt)
                     else if (strcmp(tbuff, "BH_internal_property_calculation_type")==0) {
                         pos=0;
                         dataline=string(vbuff);
-                        vector<unsigned int> tempvec;
+                        vector<int> tempvec;
                         while ((pos = dataline.find(delimiter)) != string::npos) {
                             token = dataline.substr(0, pos);
                             tempvec.push_back(calcstringtoint[token]);
@@ -1157,7 +1222,7 @@ void GetParamFile(Options &opt)
                     else if (strcmp(tbuff, "Extra_DM_internal_property_calculation_type")==0) {
                         pos=0;
                         dataline=string(vbuff);
-                        vector<unsigned int> tempvec;
+                        vector<int> tempvec;
                         while ((pos = dataline.find(delimiter)) != string::npos) {
                             token = dataline.substr(0, pos);
                             tempvec.push_back(calcstringtoint[token]);
@@ -1223,7 +1288,7 @@ void GetParamFile(Options &opt)
                     else if (strcmp(tbuff, "Gas_chemistry_calculation_type")==0) {
                         pos=0;
                         dataline=string(vbuff);
-                        vector<unsigned int> tempvec;
+                        vector<int> tempvec;
                         while ((pos = dataline.find(delimiter)) != string::npos) {
                             token = dataline.substr(0, pos);
                             tempvec.push_back(calcstringtoint[token]);
@@ -1289,7 +1354,7 @@ void GetParamFile(Options &opt)
                     else if (strcmp(tbuff, "Star_chemistry_calculation_type")==0) {
                         pos=0;
                         dataline=string(vbuff);
-                        vector<unsigned int> tempvec;
+                        vector<int> tempvec;
                         while ((pos = dataline.find(delimiter)) != string::npos) {
                             token = dataline.substr(0, pos);
                             tempvec.push_back(calcstringtoint[token]);
@@ -1355,7 +1420,7 @@ void GetParamFile(Options &opt)
                     else if (strcmp(tbuff, "BH_chemistry_calculation_type")==0) {
                         pos=0;
                         dataline=string(vbuff);
-                        vector<unsigned int> tempvec;
+                        vector<int> tempvec;
                         while ((pos = dataline.find(delimiter)) != string::npos) {
                             token = dataline.substr(0, pos);
                             tempvec.push_back(calcstringtoint[token]);
@@ -1421,7 +1486,7 @@ void GetParamFile(Options &opt)
                     else if (strcmp(tbuff, "Gas_chemistry_prodution_calculation_type")==0) {
                         pos=0;
                         dataline=string(vbuff);
-                        vector<unsigned int> tempvec;
+                        vector<int> tempvec;
                         while ((pos = dataline.find(delimiter)) != string::npos) {
                             token = dataline.substr(0, pos);
                             tempvec.push_back(calcstringtoint[token]);
@@ -1487,7 +1552,7 @@ void GetParamFile(Options &opt)
                     else if (strcmp(tbuff, "Star_chemistry_prodution_calculation_type")==0) {
                         pos=0;
                         dataline=string(vbuff);
-                        vector<unsigned int> tempvec;
+                        vector<int> tempvec;
                         while ((pos = dataline.find(delimiter)) != string::npos) {
                             token = dataline.substr(0, pos);
                             tempvec.push_back(calcstringtoint[token]);
@@ -1553,7 +1618,7 @@ void GetParamFile(Options &opt)
                     else if (strcmp(tbuff, "BH_chemistry_prodution_calculation_type")==0) {
                         pos=0;
                         dataline=string(vbuff);
-                        vector<unsigned int> tempvec;
+                        vector<int> tempvec;
                         while ((pos = dataline.find(delimiter)) != string::npos) {
                             token = dataline.substr(0, pos);
                             tempvec.push_back(calcstringtoint[token]);
@@ -1787,6 +1852,14 @@ void ConfigCheck(Options &opt)
         }
     }
     if (opt.iprofilecalc>0) {
+        if (opt.profileminsize < 0) {
+            errormessage("Radial profile calculations limited to objects of < 0 size! Ignoring and setting to 0. ");
+            opt.profileminsize = 0;
+        }
+        if (opt.profileminFOFsize < 0) {
+            errormessage("Radial profile calculations limited to FOF objects of < 0 size! Ignoring and setting to 0. ");
+            opt.profileminFOFsize = 0;
+        }
         if (opt.profilenbins != opt.profile_bin_edges.size()) {
             errormessage("Radial profile calculations requested but mismatch between number of edges stated and number provided. Check config.");
             ConfigExit();
@@ -1904,68 +1977,137 @@ void ConfigCheck(Options &opt)
 
     //set output field names for extra properties
     configentryname = "Gas_internal_property_names";
-    ExtraFieldCheck(configentryname, opt.gas_internalprop_names, opt.gas_internalprop_output_names,
+    ExtraFieldCheck(configentryname,
+        opt.gas_internalprop_names, opt.gas_internalprop_output_names,
         opt.gas_internalprop_function, opt.gas_internalprop_index,
         opt.gas_internalprop_input_output_unit_conversion_factors, opt.gas_internalprop_output_units,
-        opt.gas_internalprop_index_paired_calc
+        opt.gas_internalprop_index_paired_calc,
+        opt.gas_internalprop_names_aperture, opt.gas_internalprop_output_names_aperture,
+        opt.gas_internalprop_function_aperture, opt.gas_internalprop_index_aperture,
+        opt.gas_internalprop_input_output_unit_conversion_factors_aperture, opt.gas_internalprop_output_units_aperture
     );
     configentryname = "Gas_chemistry_names";
-    ExtraFieldCheck(configentryname, opt.gas_chem_names, opt.gas_chem_output_names,
+    ExtraFieldCheck(configentryname,
+        opt.gas_chem_names, opt.gas_chem_output_names,
         opt.gas_chem_function, opt.gas_chem_index,
         opt.gas_chem_input_output_unit_conversion_factors, opt.gas_chem_output_units,
-        opt.gas_chem_index_paired_calc
+        opt.gas_chem_index_paired_calc,
+        opt.gas_chem_names_aperture, opt.gas_chem_output_names_aperture,
+        opt.gas_chem_function_aperture, opt.gas_chem_index_aperture,
+        opt.gas_chem_input_output_unit_conversion_factors_aperture, opt.gas_chem_output_units_aperture
     );
     configentryname = "Gas_chemistry_production_names";
-    ExtraFieldCheck(configentryname, opt.gas_chemproduction_names, opt.gas_chemproduction_output_names,
+    ExtraFieldCheck(configentryname,
+        opt.gas_chemproduction_names, opt.gas_chemproduction_output_names,
         opt.gas_chemproduction_function, opt.gas_chemproduction_index,
         opt.gas_chemproduction_input_output_unit_conversion_factors, opt.gas_chemproduction_output_units,
-        opt.gas_chemproduction_index_paired_calc
+        opt.gas_chemproduction_index_paired_calc,
+        opt.gas_chemproduction_names_aperture, opt.gas_chemproduction_output_names_aperture,
+        opt.gas_chemproduction_function_aperture, opt.gas_chemproduction_index_aperture,
+        opt.gas_chemproduction_input_output_unit_conversion_factors_aperture, opt.gas_chemproduction_output_units_aperture
     );
+    opt.gas_extraprop_aperture_calc = (opt.gas_internalprop_names_aperture.size() +
+        opt.gas_chem_names_aperture.size()+opt.gas_chemproduction_names_aperture.size()>0);
 
     configentryname = "Star_internal_property_names";
-    ExtraFieldCheck(configentryname, opt.star_internalprop_names, opt.star_internalprop_output_names,
+    ExtraFieldCheck(configentryname,
+        opt.star_internalprop_names, opt.star_internalprop_output_names,
         opt.star_internalprop_function, opt.star_internalprop_index,
         opt.star_internalprop_input_output_unit_conversion_factors, opt.star_internalprop_output_units,
-        opt.star_internalprop_index_paired_calc
+        opt.star_internalprop_index_paired_calc,
+        opt.star_internalprop_names_aperture, opt.star_internalprop_output_names_aperture,
+        opt.star_internalprop_function_aperture, opt.star_internalprop_index_aperture,
+        opt.star_internalprop_input_output_unit_conversion_factors_aperture, opt.star_internalprop_output_units_aperture
     );
     configentryname = "Star_chemistry_names";
-    ExtraFieldCheck(configentryname, opt.star_chem_names, opt.star_chem_output_names,
+    ExtraFieldCheck(configentryname,
+        opt.star_chem_names, opt.star_chem_output_names,
         opt.star_chem_function, opt.star_chem_index,
         opt.star_chem_input_output_unit_conversion_factors, opt.star_chem_output_units,
-        opt.star_chem_index_paired_calc
+        opt.star_chem_index_paired_calc,
+        opt.star_chem_names_aperture, opt.star_chem_output_names_aperture,
+        opt.star_chem_function_aperture, opt.star_chem_index_aperture,
+        opt.star_chem_input_output_unit_conversion_factors_aperture, opt.star_chem_output_units_aperture
     );
     configentryname = "Star_chemistry_production_names";
-    ExtraFieldCheck(configentryname, opt.star_chemproduction_names, opt.star_chemproduction_output_names,
+    ExtraFieldCheck(configentryname,
+        opt.star_chemproduction_names, opt.star_chemproduction_output_names,
         opt.star_chemproduction_function, opt.star_chemproduction_index,
         opt.star_chemproduction_input_output_unit_conversion_factors, opt.star_chemproduction_output_units,
-        opt.star_chemproduction_index_paired_calc
+        opt.star_chemproduction_index_paired_calc,
+        opt.star_chemproduction_names_aperture, opt.star_chemproduction_output_names_aperture,
+        opt.star_chemproduction_function_aperture, opt.star_chemproduction_index_aperture,
+        opt.star_chemproduction_input_output_unit_conversion_factors_aperture, opt.star_chemproduction_output_units_aperture
     );
+    opt.star_extraprop_aperture_calc = (opt.star_internalprop_names_aperture.size() +
+        opt.star_chem_names_aperture.size()+opt.star_chemproduction_names_aperture.size()>0);
 
     configentryname = "BH_internal_property_names";
-    ExtraFieldCheck(configentryname, opt.bh_internalprop_names, opt.bh_internalprop_output_names,
+    ExtraFieldCheck(configentryname,
+        opt.bh_internalprop_names, opt.bh_internalprop_output_names,
         opt.bh_internalprop_function, opt.bh_internalprop_index,
         opt.bh_internalprop_input_output_unit_conversion_factors, opt.bh_internalprop_output_units,
-        opt.bh_internalprop_index_paired_calc
+        opt.bh_internalprop_index_paired_calc,
+        opt.bh_internalprop_names_aperture, opt.bh_internalprop_output_names_aperture,
+        opt.bh_internalprop_function_aperture, opt.bh_internalprop_index_aperture,
+        opt.bh_internalprop_input_output_unit_conversion_factors_aperture, opt.bh_internalprop_output_units_aperture
     );
     configentryname = "BH_chemistry_names";
-    ExtraFieldCheck(configentryname, opt.bh_chem_names, opt.bh_chem_output_names,
+    ExtraFieldCheck(configentryname,
+        opt.bh_chem_names, opt.bh_chem_output_names,
         opt.bh_chem_function, opt.bh_chem_index,
         opt.bh_chem_input_output_unit_conversion_factors, opt.bh_chem_output_units,
-        opt.bh_chem_index_paired_calc
+        opt.bh_chem_index_paired_calc,
+        opt.bh_chem_names_aperture, opt.bh_chem_output_names_aperture,
+        opt.bh_chem_function_aperture, opt.bh_chem_index_aperture,
+        opt.bh_chem_input_output_unit_conversion_factors_aperture, opt.bh_chem_output_units_aperture
     );
     configentryname = "BH_chemistry_production_names";
-    ExtraFieldCheck(configentryname, opt.bh_chemproduction_names, opt.bh_chemproduction_output_names,
+    ExtraFieldCheck(configentryname,
+        opt.bh_chemproduction_names, opt.bh_chemproduction_output_names,
         opt.bh_chemproduction_function, opt.bh_chemproduction_index,
         opt.bh_chemproduction_input_output_unit_conversion_factors, opt.bh_chemproduction_output_units,
-        opt.bh_chemproduction_index_paired_calc
+        opt.bh_chemproduction_index_paired_calc,
+        opt.bh_chemproduction_names_aperture, opt.bh_chemproduction_output_names_aperture,
+        opt.bh_chemproduction_function_aperture, opt.bh_chemproduction_index_aperture,
+        opt.bh_chemproduction_input_output_unit_conversion_factors_aperture, opt.bh_chemproduction_output_units_aperture
     );
+    opt.bh_extraprop_aperture_calc = (opt.bh_internalprop_names_aperture.size() +
+        opt.bh_chem_names_aperture.size()+opt.bh_chemproduction_names_aperture.size()>0);
 
     configentryname = "Extra_DM_internal_property_names";
-    ExtraFieldCheck(configentryname, opt.extra_dm_internalprop_names, opt.extra_dm_internalprop_output_names,
+    ExtraFieldCheck(configentryname,
+        opt.extra_dm_internalprop_names, opt.extra_dm_internalprop_output_names,
         opt.extra_dm_internalprop_function, opt.extra_dm_internalprop_index,
         opt.extra_dm_internalprop_input_output_unit_conversion_factors, opt.extra_dm_internalprop_output_units,
-        opt.extra_dm_internalprop_index_paired_calc
+        opt.extra_dm_internalprop_index_paired_calc,
+        opt.extra_dm_internalprop_names_aperture, opt.extra_dm_internalprop_output_names_aperture,
+        opt.extra_dm_internalprop_function_aperture, opt.extra_dm_internalprop_index_aperture,
+        opt.extra_dm_internalprop_input_output_unit_conversion_factors_aperture, opt.extra_dm_internalprop_output_units_aperture
     );
+    opt.extra_dm_extraprop_aperture_calc = (opt.extra_dm_internalprop_names_aperture.size() >0);
+
+    if (opt.gas_extraprop_aperture_calc && opt.iaperturecalc == 0){
+        errormessage("Requesting extra gas properties to be calculated in apertures but apertures not set");
+        errormessage("Enable aperture calculations and provide apertures or change the calculations requested for extra properties. Check config.");
+        ConfigExit();
+    }
+    if (opt.star_extraprop_aperture_calc && opt.iaperturecalc == 0){
+        errormessage("Requesting extra star properties to be calculated in apertures but apertures not set");
+        errormessage("Enable aperture calculations and provide apertures or change the calculations requested for extra properties. Check config.");
+        ConfigExit();
+    }
+    if (opt.bh_extraprop_aperture_calc && opt.iaperturecalc == 0){
+        errormessage("Requesting extra BH properties to be calculated in apertures but apertures not set");
+        errormessage("Enable aperture calculations and provide apertures or change the calculations requested for extra properties. Check config.");
+        ConfigExit();
+    }
+    if (opt.extra_dm_extraprop_aperture_calc && opt.iaperturecalc == 0){
+        errormessage("Requesting extra dm properties to be calculated in apertures but apertures not set");
+        errormessage("Enable aperture calculations and provide apertures or change the calculations requested for extra properties. Check config.");
+        ConfigExit();
+    }
+
 
     //set halo 3d fof linking length if necessary
     if (opt.ellhalo3dxfac == -1) {
@@ -2046,4 +2188,332 @@ void ConfigCheck(Options &opt)
 #ifdef USEMPI
     MPI_Barrier(MPI_COMM_WORLD);
 #endif
+}
+
+///define the configuration constructor so all input options are stored.
+ConfigInfo::ConfigInfo(Options &opt){
+    string datastring;
+    //if compiler is super old and does not have at least std 11 implementation to_string does not exist
+#ifndef OLDCCOMPILER
+    //general search operations
+    AddEntry("Particle_search_type", opt.partsearchtype);
+    AddEntry("FoF_search_type", opt.foftype);
+    AddEntry("FoF_Field_search_type", opt.fofbgtype);
+    AddEntry("Search_for_substructure", opt.iSubSearch);
+    AddEntry("Keep_FOF", opt.iKeepFOF);
+    AddEntry("Iterative_searchflag", opt.iiterflag);
+    AddEntry("Baryon_searchflag", opt.iBaryonSearch);
+    AddEntry("CMrefadjustsubsearch_flag", opt.icmrefadjust);
+    AddEntry("Halo_core_search", opt.iHaloCoreSearch);
+    AddEntry("Use_adaptive_core_search", opt.iAdaptiveCoreLinking);
+    AddEntry("Use_phase_tensor_core_growth", opt.iPhaseCoreGrowth);
+
+    //local field parameters
+    AddEntry("Local_velocity_density_approximate_calculation", opt.iLocalVelDenApproxCalcFlag);
+    AddEntry("Cell_fraction", opt.Ncellfac);
+    AddEntry("Grid_type", opt.gridtype);
+    AddEntry("Nsearch_velocity", opt.Nvel);
+    AddEntry("Nsearch_physical", opt.Nsearch);
+
+    //substructure search parameters
+    AddEntry("Outlier_threshold", opt.ellthreshold);
+    AddEntry("Significance_level", opt.siglevel);
+    AddEntry("Velocity_ratio", opt.Vratio);
+    AddEntry("Velocity_opening_angle", opt.thetaopen);
+    ///\todo this configuration option will be deprecated. Replaced by Substructure_physical_linking_length
+    //AddEntry("Physical_linking_length", opt.ellphys);
+    AddEntry("Substructure_physical_linking_length", opt.ellphys);
+    AddEntry("Velocity_linking_length", opt.ellvel);
+    AddEntry("Minimum_size", opt.MinSize);
+
+    //field object specific searches
+    AddEntry("Minimum_halo_size", opt.HaloMinSize);
+    ///\todo this configuration option will be deprecated. Replaced by Halo_3D_physical_linking_length
+    //AddEntry("Halo_linking_length_factor", opt.ellhalophysfac);
+    AddEntry("Halo_3D_linking_length", opt.ellhalo3dxfac);
+    AddEntry("Halo_velocity_linking_length_factor", opt.ellhalovelfac);
+
+    //specific to 6DFOF field search
+    AddEntry("Halo_6D_linking_length_factor", opt.ellhalo6dxfac);
+    AddEntry("Halo_6D_vel_linking_length_factor", opt.ellhalo6dvfac);
+
+    //specific search for 6d fof core searches
+    AddEntry("Halo_core_ellx_fac", opt.halocorexfac);
+    AddEntry("Halo_core_ellv_fac", opt.halocorevfac);
+    AddEntry("Halo_core_ncellfac", opt.halocorenfac);
+    AddEntry("Halo_core_adaptive_sigma_fac", opt.halocoresigmafac);
+    AddEntry("Halo_core_num_loops", opt.halocorenumloops);
+    AddEntry("Halo_core_loop_ellx_fac", opt.halocorexfaciter);
+    AddEntry("Halo_core_loop_ellv_fac", opt.halocorevfaciter);
+    AddEntry("Halo_core_loop_elln_fac", opt.halocorenumfaciter);
+    AddEntry("Halo_core_phase_significance", opt.halocorephasedistsig);
+
+    //for merging structures together
+    AddEntry("Structure_phase_merge_dist", opt.coresubmergemindist);
+    AddEntry("Apply_phase_merge_to_host", opt.icoresubmergewithbg);
+
+    //for changing factors used in iterative search
+    AddEntry("Iterative_threshold_factor", opt.ellfac);
+    AddEntry("Iterative_linking_length_factor", opt.ellxfac);
+    AddEntry("Iterative_Vratio_factor", opt.vfac);
+    AddEntry("Iterative_ThetaOp_factor", opt.thetafac);
+
+    //for changing effective resolution when rescaling linking lengh
+    #ifdef HIGHRES
+    AddEntry("Effective_resolution", opt.Neff);
+    #endif
+
+    //for changing effective resolution when rescaling linking lengh
+    AddEntry("Singlehalo_search", opt.iSingleHalo);
+
+    //units, cosmology
+    AddEntry("Length_unit", opt.lengthinputconversion);
+    AddEntry("Velocity_unit", opt.velocityinputconversion);
+    AddEntry("Mass_unit", opt.massinputconversion);
+    AddEntry("Length_input_unit_conversion_to_output_unit", opt.lengthinputconversion);
+    AddEntry("Velocity_input_unit_conversion_to_output_unit", opt.velocityinputconversion);
+    AddEntry("Mass_input_unit_conversion_to_output_unit", opt.massinputconversion);
+    AddEntry("Star_formation_rate_input_unit_conversion_to_output_unit", opt.SFRinputconversion);
+    AddEntry("Metallicity_input_unit_conversion_to_output_unit", opt.metallicityinputconversion);
+    AddEntry("Stellar_age_input_is_cosmological_scalefactor", opt.istellaragescalefactor);
+    AddEntry("Hubble_unit", opt.H);
+    AddEntry("Gravity", opt.G);
+    AddEntry("Mass_value", opt.MassValue);
+    AddEntry("Length_unit_to_kpc", opt.lengthtokpc);
+    AddEntry("Velocity_to_kms", opt.velocitytokms);
+    AddEntry("Mass_to_solarmass", opt.masstosolarmass);
+    AddEntry("Star_formation_rate_to_solarmassperyear", opt.SFRtosolarmassperyear);
+    AddEntry("Metallicity_to_solarmetallicity", opt.metallicitytosolar);
+    AddEntry("Stellar_age_to_yr", opt.stellaragetoyrs);
+
+    // simulation/cosmology info
+    AddEntry("Period", opt.p);
+    AddEntry("Scale_factor", opt.a);
+    AddEntry("h_val", opt.h);
+    AddEntry("Omega_m", opt.Omega_m);
+    AddEntry("Omega_Lambda", opt.Omega_Lambda);
+    AddEntry("Critical_density", opt.rhobg);
+    AddEntry("Virial_density", opt.virlevel);
+    AddEntry("Omega_cdm", opt.Omega_cdm);
+    AddEntry("Omega_b", opt.Omega_b);
+    AddEntry("Omega_r", opt.Omega_r);
+    AddEntry("Omega_nu", opt.Omega_nu);
+    AddEntry("Omega_k", opt.Omega_k);
+    AddEntry("Omega_DE", opt.Omega_de);
+    AddEntry("w_of_DE", opt.w_de);
+
+    //unbinding
+    AddEntry("Unbind_flag", opt.uinfo.unbindflag);
+    AddEntry("Unbinding_type", opt.uinfo.unbindtype);
+    AddEntry("Bound_halos", opt.iBoundHalos);
+    AddEntry("Allowed_kinetic_potential_ratio", opt.uinfo.Eratio);
+    AddEntry("Min_bound_mass_frac", opt.uinfo.minEfrac);
+    AddEntry("Keep_background_potential", opt.uinfo.bgpot);
+    AddEntry("Kinetic_reference_frame_type", opt.uinfo.cmvelreftype);
+    AddEntry("Min_npot_ref", opt.uinfo.Npotref);
+    AddEntry("Frac_pot_ref", opt.uinfo.fracpotref);
+    AddEntry("Unbinding_max_unbound_removal_fraction_per_iteration", opt.uinfo.maxunbindfrac);
+    AddEntry("Unbinding_max_unbound_fraction", opt.uinfo.maxunboundfracforiterativeunbind);
+    AddEntry("Unbinding_max_unbound_fraction_allowed", opt.uinfo.maxallowedunboundfrac);
+    AddEntry("Softening_length", opt.uinfo.eps);
+
+    //property related
+    AddEntry("Inclusive_halo_masses", opt.iInclusiveHalo);
+    AddEntry("Extensive_halo_properties_output", opt.iextrahalooutput);
+    AddEntry("Extensive_gas_properties_output", opt.iextragasoutput);
+    AddEntry("Extensive_star_properties_output", opt.iextrastaroutput);
+    AddEntry("Extensive_interloper_properties_output", opt.iextrainterloperoutput);
+    AddEntry("Iterate_cm_flag", opt.iIterateCM);
+    AddEntry("Sort_by_binding_energy", opt.iSortByBindingEnergy);
+    AddEntry("Reference_frame_for_properties", opt.iPropertyReferencePosition);
+
+    AddEntry("Calculate_aperture_quantities", opt.iaperturecalc);
+    AddEntry("Number_of_apertures", opt.aperturenum);
+    AddEntry("Aperture_values_in_kpc", opt.aperture_values_kpc);
+    AddEntry("Number_of_projected_apertures", opt.apertureprojnum);
+    AddEntry("Projected_aperture_values_in_kpc", opt.aperture_proj_values_kpc);
+    AddEntry("Calculate_radial_profiles", opt.iprofilecalc);
+    if(opt.iprofilecalc) {
+        AddEntry("Radial_profile_min_FOF_size", opt.profileminFOFsize);
+        AddEntry("Radial_profile_min_size", opt.profileminsize);
+        AddEntry("Number_of_radial_profile_bin_edges", opt.profilenbins);
+        AddEntry("Radial_profile_norm", opt.iprofilenorm);
+        AddEntry("Radial_profile_bin_edges", opt.profile_bin_edges);
+    }
+    AddEntry("Number_of_overdensities", opt.SOnum);
+    AddEntry("Overdensity_values_in_critical_density", opt.SOthresholds_values_crit);
+    AddEntry("Spherical_overdenisty_calculation_limited_to_structure_types", (opt.SphericalOverdensitySeachMaxStructLevel-HALOSTYPE)/HALOCORESTYPE);
+
+    //try removing index that is now stored in
+    vector<string> name;
+    name = StripIndexOffName(opt.gas_internalprop_names, opt.gas_internalprop_names_aperture,
+        opt.gas_internalprop_index, opt.gas_internalprop_index_aperture);
+    AddEntry("Gas_internal_property_names", name);
+    name = StripIndexOffName(opt.gas_chem_names, opt.gas_chem_names_aperture,
+        opt.gas_chem_index, opt.gas_chem_index_aperture);
+    AddEntry("Gas_chemsitry_names", name);
+    name = StripIndexOffName(opt.gas_chemproduction_names, opt.gas_chemproduction_names_aperture,
+        opt.gas_chemproduction_index, opt.gas_chemproduction_index_aperture);
+    AddEntry("Gas_chemsitry_production_names", name);
+    name = StripIndexOffName(opt.star_internalprop_names, opt.star_internalprop_names_aperture,
+        opt.star_internalprop_index, opt.star_internalprop_index_aperture);
+    AddEntry("Star_internal_property_names", name);
+    name = StripIndexOffName(opt.star_chem_names, opt.star_chem_names_aperture,
+        opt.star_chem_index, opt.star_chem_index_aperture);
+    AddEntry("Star_chemsitry_names", name);
+    name = StripIndexOffName(opt.star_chemproduction_names, opt.star_chemproduction_names_aperture,
+        opt.star_chemproduction_index, opt.star_chemproduction_index_aperture);
+    AddEntry("Star_chemsitry_production_names", name);
+    name = StripIndexOffName(opt.bh_internalprop_names, opt.bh_internalprop_names_aperture,
+        opt.bh_internalprop_index, opt.bh_internalprop_index_aperture);
+    AddEntry("BH_internal_property_names", name);
+    name = StripIndexOffName(opt.bh_chem_names, opt.bh_chem_names_aperture,
+        opt.bh_chem_index, opt.bh_chem_index_aperture);
+    AddEntry("BH_chemsitry_names", name);
+    name = StripIndexOffName(opt.bh_chemproduction_names, opt.bh_chemproduction_names_aperture,
+        opt.bh_chemproduction_index, opt.bh_chemproduction_index_aperture);
+    AddEntry("BH_chemsitry_production_names", name);
+    name = StripIndexOffName(opt.extra_dm_internalprop_names, opt.extra_dm_internalprop_names_aperture,
+        opt.extra_dm_internalprop_index, opt.extra_dm_internalprop_index_aperture);
+    AddEntry("Extra_DM_internal_property_names", name);
+
+
+    map<int, string> calcinttostring = ExtraFieldCalculationsIntFlagToString();
+    vector<string> funcname;
+    for (auto &x:opt.gas_internalprop_function) funcname.push_back(calcinttostring[x]);
+    for (auto &x:opt.gas_internalprop_function_aperture) funcname.push_back(calcinttostring[x]);
+    AddEntry("Gas_internal_property_calculation_type", funcname);
+    funcname.clear();
+    for (auto &x:opt.gas_chem_function) funcname.push_back(calcinttostring[x]);
+    for (auto &x:opt.gas_chem_function_aperture) funcname.push_back(calcinttostring[x]);
+    AddEntry("Gas_chemsitry_calculation_type", funcname);
+    funcname.clear();
+    for (auto &x:opt.gas_chemproduction_function) funcname.push_back(calcinttostring[x]);
+    for (auto &x:opt.gas_chemproduction_function_aperture) funcname.push_back(calcinttostring[x]);
+    AddEntry("Gas_chemsitry_production_calculation_type", funcname);
+    funcname.clear();
+
+    for (auto &x:opt.star_internalprop_function) funcname.push_back(calcinttostring[x]);
+    for (auto &x:opt.star_internalprop_function_aperture) funcname.push_back(calcinttostring[x]);
+    AddEntry("Star_internal_property_calculation_type", funcname);
+    funcname.clear();
+    for (auto &x:opt.star_chem_function) funcname.push_back(calcinttostring[x]);
+    for (auto &x:opt.star_chem_function_aperture) funcname.push_back(calcinttostring[x]);
+    AddEntry("Star_chemsitry_calculation_type", funcname);
+    funcname.clear();
+    for (auto &x:opt.star_chemproduction_function) funcname.push_back(calcinttostring[x]);
+    for (auto &x:opt.star_chemproduction_function_aperture) funcname.push_back(calcinttostring[x]);
+    AddEntry("Star_chemsitry_production_calculation_type", funcname);
+    funcname.clear();
+
+    for (auto &x:opt.bh_internalprop_function) funcname.push_back(calcinttostring[x]);
+    for (auto &x:opt.bh_internalprop_function_aperture) funcname.push_back(calcinttostring[x]);
+    AddEntry("BH_internal_property_calculation_type", funcname);
+    funcname.clear();
+    for (auto &x:opt.bh_chem_function) funcname.push_back(calcinttostring[x]);
+    for (auto &x:opt.bh_chem_function_aperture) funcname.push_back(calcinttostring[x]);
+    AddEntry("BH_chemsitry_calculation_type", funcname);
+    funcname.clear();
+    for (auto &x:opt.bh_chemproduction_function) funcname.push_back(calcinttostring[x]);
+    for (auto &x:opt.bh_chemproduction_function_aperture) funcname.push_back(calcinttostring[x]);
+    AddEntry("BH_chemsitry_production_calculation_type", funcname);
+    funcname.clear();
+
+    for (auto &x:opt.extra_dm_internalprop_function) funcname.push_back(calcinttostring[x]);
+    for (auto &x:opt.extra_dm_internalprop_function_aperture) funcname.push_back(calcinttostring[x]);
+    AddEntry("Extra_DM_internal_property_calculation_type", funcname);
+    funcname.clear();
+
+    AddEntry("Gas_internal_property_index", opt.gas_internalprop_index, opt.gas_internalprop_index_aperture);
+    AddEntry("Gas_chemsitry_index", opt.gas_chem_index, opt.gas_chem_index_aperture);
+    AddEntry("Gas_chemsitry_production_index", opt.gas_chemproduction_index, opt.gas_chemproduction_index_aperture);
+    AddEntry("Star_internal_property_index", opt.star_internalprop_index, opt.star_internalprop_index_aperture);
+    AddEntry("Star_chemsitry_index", opt.star_chem_index, opt.star_chem_index_aperture);
+    AddEntry("Star_chemsitry_production_index", opt.star_chemproduction_index, opt.star_chemproduction_index_aperture);
+    AddEntry("BH_internal_property_index", opt.bh_internalprop_index, opt.bh_internalprop_index_aperture);
+    AddEntry("BH_chemsitry_index", opt.bh_chem_index, opt.bh_chem_index_aperture);
+    AddEntry("BH_chemsitry_production_index", opt.bh_chemproduction_index, opt.bh_chemproduction_index_aperture);
+    AddEntry("Extra_DM_internal_property_index", opt.extra_dm_internalprop_index, opt.extra_dm_internalprop_index_aperture);
+
+    AddEntry("Gas_internal_property_output_units", opt.gas_internalprop_output_units, opt.gas_internalprop_output_units_aperture);
+    AddEntry("Gas_chemsitry_output_units", opt.gas_chem_output_units, opt.gas_chem_output_units_aperture);
+    AddEntry("Gas_chemsitry_production_output_units", opt.gas_chemproduction_output_units, opt.gas_chemproduction_output_units_aperture);
+    AddEntry("Star_internal_property_output_units", opt.star_internalprop_output_units, opt.star_internalprop_output_units_aperture);
+    AddEntry("Star_chemsitry_output_units", opt.star_chem_output_units, opt.star_chem_output_units_aperture);
+    AddEntry("Star_chemsitry_production_output_units", opt.star_chemproduction_output_units, opt.star_chemproduction_output_units_aperture);
+    AddEntry("BH_internal_property_output_units", opt.bh_internalprop_output_units, opt.bh_internalprop_output_units_aperture);
+    AddEntry("BH_chemsitry_output_units", opt.bh_chem_output_units, opt.bh_chem_output_units_aperture);
+    AddEntry("BH_chemsitry_production_output_units", opt.bh_chemproduction_output_units, opt.bh_chemproduction_output_units_aperture);
+    AddEntry("Extra_DM_internal_property_output_units", opt.extra_dm_internalprop_output_units, opt.extra_dm_internalprop_output_units_aperture);
+
+    AddEntry("Gas_internal_property_input_output_unit_conversion_factors", opt.gas_internalprop_input_output_unit_conversion_factors, opt.gas_internalprop_input_output_unit_conversion_factors_aperture);
+    AddEntry("Gas_chemsitry_input_output_unit_conversion_factors", opt.gas_chem_input_output_unit_conversion_factors, opt.gas_chem_input_output_unit_conversion_factors_aperture);
+    AddEntry("Gas_chemsitry_production_input_output_unit_conversion_factors", opt.gas_chemproduction_input_output_unit_conversion_factors, opt.gas_chemproduction_input_output_unit_conversion_factors_aperture);
+    AddEntry("Star_internal_property_input_output_unit_conversion_factors", opt.star_internalprop_input_output_unit_conversion_factors, opt.star_internalprop_input_output_unit_conversion_factors_aperture);
+    AddEntry("Star_chemsitry_input_output_unit_conversion_factors", opt.star_chem_input_output_unit_conversion_factors, opt.star_chem_input_output_unit_conversion_factors_aperture);
+    AddEntry("Star_chemsitry_production_input_output_unit_conversion_factors", opt.star_chemproduction_input_output_unit_conversion_factors, opt.star_chemproduction_input_output_unit_conversion_factors_aperture);
+    AddEntry("BH_internal_property_input_output_unit_conversion_factors", opt.bh_internalprop_input_output_unit_conversion_factors, opt.bh_internalprop_input_output_unit_conversion_factors_aperture);
+    AddEntry("BH_chemsitry_input_output_unit_conversion_factors", opt.bh_chem_input_output_unit_conversion_factors, opt.bh_chem_input_output_unit_conversion_factors_aperture);
+    AddEntry("BH_chemsitry_production_input_output_unit_conversion_factors", opt.bh_chemproduction_input_output_unit_conversion_factors, opt.bh_chemproduction_input_output_unit_conversion_factors_aperture);
+    AddEntry("Extra_DM_internal_property_input_output_unit_conversion_factors", opt.extra_dm_internalprop_input_output_unit_conversion_factors, opt.extra_dm_internalprop_input_output_unit_conversion_factors_aperture);
+
+    //other options
+    AddEntry("Verbose", opt.iverbose);
+    AddEntry("Write_group_array_file",opt.iwritefof);
+    AddEntry("Snapshot_value",opt.snapshotvalue);
+    AddEntry("Memory_log",opt.memuse_log);
+
+    //io related
+    AddEntry("Cosmological_input",opt.icosmologicalin);
+    AddEntry("Input_chunk_size",opt.inputbufsize);
+    AddEntry("MPI_particle_total_buf_size",opt.mpiparticletotbufsize);
+    AddEntry("Separate_output_files", opt.iseparatefiles);
+    AddEntry("Binary_output", opt.ibinaryout);
+    AddEntry("Comoving_units", opt.icomoveunit);
+    AddEntry("Extended_output", opt.iextendedoutput);
+
+    //HDF io related info
+    AddEntry("HDF_name_convention", opt.ihdfnameconvention);
+    AddEntry("Input_includes_dm_particle", opt.iusedmparticles);
+    AddEntry("Input_includes_gas_particle",opt.iusegasparticles);
+    AddEntry("Input_includes_star_particle", opt.iusestarparticles);
+    AddEntry("Input_includes_bh_particle", opt.iusesinkparticles);
+    AddEntry("Input_includes_extradm_particle", opt.iuseextradarkparticles);
+    AddEntry("Input_includes_wind_particle", opt.iusewindparticles);
+    AddEntry("Input_includes_tracer_particle", opt.iusetracerparticles);
+
+    //gadget io related to extra info for sph, stars, bhs,
+    AddEntry("NSPH_extra_blocks", opt.gnsphblocks);
+    AddEntry("NStar_extra_blocks", opt.gnstarblocks);
+    AddEntry("NBH_extra_blocks", opt.gnbhblocks);
+
+    //mpi related configuration
+    AddEntry("MPI_part_allocation_fac", opt.mpipartfac);
+#endif
+    AddEntry("#Compilation Info");
+#ifdef USEMPI
+    AddEntry("#USEMPI");
+#endif
+#ifdef USEOPENMP
+    AddEntry("#USEOPENMP");
+#endif
+#ifdef GASON
+    AddEntry("#USEGAS");
+#endif
+#ifdef STARON
+    AddEntry("#USESTAR");
+#endif
+#ifdef BHON
+    AddEntry("#USEBH");
+#endif
+#ifdef EXTRADMON
+    AddEntry("#USEEXTRADMPROPERTIES");
+#endif
+#ifdef HIGHRES
+    AddEntry("#ZOOMSIM");
+#endif
+#ifdef SWIFTINTERFACE
+    AddEntry("#SWIFTINTERFACE");
+#endif
+
 }
