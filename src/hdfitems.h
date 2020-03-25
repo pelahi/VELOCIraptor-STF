@@ -1081,6 +1081,35 @@ class H5OutputFile
         H5Sclose(dspace_id);
         H5Oclose(parent_id);
     }
+
+    void write_attribute(string parent, string name, string data)
+    {
+        // Get HDF5 data type of the value to write
+        hid_t dtype_id = H5Tcopy(H5T_C_S1);
+        if (data.size() == 0) data=" ";
+        H5Tset_size(dtype_id, data.size());
+        H5Tset_strpad(dtype_id, H5T_STR_NULLTERM);
+
+        // Open the parent object
+        hid_t parent_id = H5Oopen(file_id, parent.c_str(), H5P_DEFAULT);
+        if(parent_id < 0)io_error(string("Unable to open object to write attribute: ")+name);
+
+        // Create dataspace
+        hid_t dspace_id = H5Screate(H5S_SCALAR);
+
+        // Create attribute
+        hid_t attr_id = H5Acreate(parent_id, name.c_str(), dtype_id, dspace_id, H5P_DEFAULT, H5P_DEFAULT);
+        if(attr_id < 0)io_error(string("Unable to create attribute ")+name+string(" on object ")+parent);
+
+        // Write the attribute
+        if(H5Awrite(attr_id, dtype_id, data.c_str()) < 0)
+        io_error(string("Unable to write attribute ")+name+string(" on object ")+parent);
+
+        // Clean up
+        H5Aclose(attr_id);
+        H5Sclose(dspace_id);
+        H5Oclose(parent_id);
+    }
 };
 
 

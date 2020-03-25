@@ -98,8 +98,202 @@ inline void UpdateExtraFieldNames(Options &opt)
     for (auto i=0;i<opt.extra_dm_internalprop_names.size();i++) {
         opt.extra_dm_internalprop_names[i]+= to_string(opt.extra_dm_internalprop_index[i]);
     }
+    for (auto i=0;i<opt.gas_internalprop_names_aperture.size();i++) {
+        opt.gas_internalprop_names_aperture[i]+= to_string(opt.gas_internalprop_index_aperture[i]);
+    }
+    for (auto i=0;i<opt.gas_chem_names_aperture.size();i++) {
+        opt.gas_chem_names_aperture[i]+= to_string(opt.gas_chem_index_aperture[i]);
+    }
+    for (auto i=0;i<opt.gas_chemproduction_names_aperture.size();i++) {
+        opt.gas_chemproduction_names_aperture[i]+= to_string(opt.gas_chemproduction_index_aperture[i]);
+    }
+    for (auto i=0;i<opt.star_internalprop_names_aperture.size();i++) {
+        opt.star_internalprop_names_aperture[i]+= to_string(opt.star_internalprop_index_aperture[i]);
+    }
+    for (auto i=0;i<opt.star_chem_names_aperture.size();i++) {
+        opt.star_chem_names_aperture[i]+= to_string(opt.star_chem_index_aperture[i]);
+    }
+    for (auto i=0;i<opt.star_chemproduction_names_aperture.size();i++) {
+        opt.star_chemproduction_names_aperture[i]+= to_string(opt.star_chemproduction_index_aperture[i]);
+    }
+    for (auto i=0;i<opt.bh_internalprop_names_aperture.size();i++) {
+        opt.bh_internalprop_names_aperture[i]+= to_string(opt.bh_internalprop_index_aperture[i]);
+    }
+    for (auto i=0;i<opt.bh_chem_names_aperture.size();i++) {
+        opt.bh_chem_names_aperture[i]+= to_string(opt.bh_chem_index_aperture[i]);
+    }
+    for (auto i=0;i<opt.bh_chemproduction_names_aperture.size();i++) {
+        opt.bh_chemproduction_names_aperture[i]+= to_string(opt.bh_chemproduction_index_aperture[i]);
+    }
+    for (auto i=0;i<opt.extra_dm_internalprop_names_aperture.size();i++) {
+        opt.extra_dm_internalprop_names_aperture[i]+= to_string(opt.extra_dm_internalprop_index_aperture[i]);
+    }
 }
 
+inline void SetUniqueInputNames(Options & opt){
+#ifdef GASON
+        set<string> unique_gas_internalprop_names, unique_gas_chem_names, unique_gas_chemproduction_names;
+        for (auto iextra=0;iextra<opt.gas_internalprop_names.size();iextra++) {
+            string s = opt.gas_internalprop_names[iextra]+to_string(opt.gas_internalprop_index[iextra]);
+            if (unique_gas_internalprop_names.count(s)==0) {
+                unique_gas_internalprop_names.insert(s);
+                opt.gas_internalprop_unique_input_indexlist.push_back(iextra);
+            }
+        }
+        for (auto iextra=0;iextra<opt.gas_internalprop_names_aperture.size();iextra++) {
+            string s = opt.gas_internalprop_names_aperture[iextra]+to_string(opt.gas_internalprop_index_aperture[iextra]);
+            if (unique_gas_internalprop_names.count(s)==0) {
+                unique_gas_internalprop_names.insert(s);
+                opt.gas_internalprop_unique_input_indexlist.push_back(iextra);
+            }
+        }
+        for (auto iextra=0;iextra<opt.gas_chem_names.size();iextra++) {
+            string s = opt.gas_chem_names[iextra]+to_string(opt.gas_chem_index[iextra]);
+            if (unique_gas_chem_names.count(s)==0) {
+                unique_gas_chem_names.insert(s);
+                opt.gas_chem_unique_input_indexlist.push_back(iextra);
+            }
+        }
+        for (auto iextra=0;iextra<opt.gas_chem_names_aperture.size();iextra++) {
+            string s = opt.gas_chem_names_aperture[iextra]+to_string(opt.gas_chem_index_aperture[iextra]);
+            if (unique_gas_chem_names.count(s)==0) {
+                unique_gas_chem_names.insert(s);
+                opt.gas_chem_unique_input_indexlist.push_back(iextra);
+            }
+        }
+        for (auto iextra=0;iextra<opt.gas_chemproduction_names.size();iextra++) {
+            string s = opt.gas_chemproduction_names[iextra]+to_string(opt.gas_chemproduction_index[iextra]);
+            if (unique_gas_chemproduction_names.count(s)==0) {
+                unique_gas_chemproduction_names.insert(s);
+                opt.gas_chemproduction_unique_input_indexlist.push_back(iextra);
+            }
+        }
+        for (auto iextra=0;iextra<opt.gas_chemproduction_names_aperture.size();iextra++) {
+            string s = opt.gas_chemproduction_names_aperture[iextra]+to_string(opt.gas_chemproduction_index_aperture[iextra]);
+            if (unique_gas_chemproduction_names.count(s)==0) {
+                unique_gas_chemproduction_names.insert(s);
+                opt.gas_chemproduction_unique_input_indexlist.push_back(iextra);
+            }
+        }
+        opt.gas_internalprop_unique_input_names.assign(unique_gas_internalprop_names.begin(), unique_gas_internalprop_names.end());
+        opt.gas_chem_unique_input_names.assign(unique_gas_chem_names.begin(), unique_gas_chem_names.end());
+        opt.gas_chemproduction_unique_input_names.assign(unique_gas_chemproduction_names.begin(), unique_gas_chemproduction_names.end());
+#endif
+#ifdef STARON
+        set<string> unique_star_internalprop_names, unique_star_chem_names, unique_star_chemproduction_names;
+        for (auto iextra=0;iextra<opt.star_internalprop_names.size();iextra++) {
+            string s = opt.star_internalprop_names[iextra]+to_string(opt.star_internalprop_index[iextra]);
+            if (unique_star_internalprop_names.count(s)==0) {
+                unique_star_internalprop_names.insert(s);
+                opt.star_internalprop_unique_input_indexlist.push_back(iextra);
+            }
+        }
+        for (auto iextra=0;iextra<opt.star_internalprop_names_aperture.size();iextra++) {
+            string s = opt.star_internalprop_names_aperture[iextra]+to_string(opt.star_internalprop_index_aperture[iextra]);
+            if (unique_star_internalprop_names.count(s)==0) {
+                unique_star_internalprop_names.insert(s);
+                opt.star_internalprop_unique_input_indexlist.push_back(iextra);
+            }
+        }
+        for (auto iextra=0;iextra<opt.star_chem_names.size();iextra++) {
+            string s = opt.star_chem_names[iextra]+to_string(opt.star_chem_index[iextra]);
+            if (unique_star_chem_names.count(s)==0) {
+                unique_star_chem_names.insert(s);
+                opt.star_chem_unique_input_indexlist.push_back(iextra);
+            }
+        }
+        for (auto iextra=0;iextra<opt.star_chem_names_aperture.size();iextra++) {
+            string s = opt.star_chem_names_aperture[iextra]+to_string(opt.star_chem_index_aperture[iextra]);
+            if (unique_star_chem_names.count(s)==0) {
+                unique_star_chem_names.insert(s);
+                opt.star_chem_unique_input_indexlist.push_back(iextra);
+            }
+        }
+        for (auto iextra=0;iextra<opt.star_chemproduction_names.size();iextra++) {
+            string s = opt.star_chemproduction_names[iextra]+to_string(opt.star_chemproduction_index[iextra]);
+            if (unique_star_chemproduction_names.count(s)==0) {
+                unique_star_chemproduction_names.insert(s);
+                opt.star_chemproduction_unique_input_indexlist.push_back(iextra);
+            }
+        }
+        for (auto iextra=0;iextra<opt.star_chemproduction_names_aperture.size();iextra++) {
+            string s = opt.star_chemproduction_names_aperture[iextra]+to_string(opt.star_chemproduction_index_aperture[iextra]);
+            if (unique_star_chemproduction_names.count(s)==0) {
+                unique_star_chemproduction_names.insert(s);
+                opt.star_chemproduction_unique_input_indexlist.push_back(iextra);
+            }
+        }
+        opt.star_internalprop_unique_input_names.assign(unique_star_internalprop_names.begin(), unique_star_internalprop_names.end());
+        opt.star_chem_unique_input_names.assign(unique_star_chem_names.begin(), unique_star_chem_names.end());
+        opt.star_chemproduction_unique_input_names.assign(unique_star_chemproduction_names.begin(), unique_star_chemproduction_names.end());
+#endif
+#ifdef BHON
+        set<string> unique_bh_internalprop_names, unique_bh_chem_names, unique_bh_chemproduction_names;
+        for (auto iextra=0;iextra<opt.bh_internalprop_names.size();iextra++) {
+            string s = opt.bh_internalprop_names[iextra]+to_string(opt.bh_internalprop_index[iextra]);
+            if (unique_bh_internalprop_names.count(s)==0) {
+                unique_bh_internalprop_names.insert(s);
+                opt.bh_internalprop_unique_input_indexlist.push_back(iextra);
+            }
+        }
+        for (auto iextra=0;iextra<opt.bh_internalprop_names_aperture.size();iextra++) {
+            string s = opt.bh_internalprop_names_aperture[iextra]+to_string(opt.bh_internalprop_index_aperture[iextra]);
+            if (unique_bh_internalprop_names.count(s)==0) {
+                unique_bh_internalprop_names.insert(s);
+                opt.bh_internalprop_unique_input_indexlist.push_back(iextra);
+            }
+        }
+        for (auto iextra=0;iextra<opt.bh_chem_names.size();iextra++) {
+            string s = opt.bh_chem_names[iextra]+to_string(opt.bh_chem_index[iextra]);
+            if (unique_bh_chem_names.count(s)==0) {
+                unique_bh_chem_names.insert(s);
+                opt.bh_chem_unique_input_indexlist.push_back(iextra);
+            }
+        }
+        for (auto iextra=0;iextra<opt.bh_chem_names_aperture.size();iextra++) {
+            string s = opt.bh_chem_names_aperture[iextra]+to_string(opt.bh_chem_index_aperture[iextra]);
+            if (unique_bh_chem_names.count(s)==0) {
+                unique_bh_chem_names.insert(s);
+                opt.bh_chem_unique_input_indexlist.push_back(iextra);
+            }
+        }
+        for (auto iextra=0;iextra<opt.bh_chemproduction_names.size();iextra++) {
+            string s = opt.bh_chemproduction_names[iextra]+to_string(opt.bh_chemproduction_index[iextra]);
+            if (unique_bh_chemproduction_names.count(s)==0) {
+                unique_bh_chemproduction_names.insert(s);
+                opt.bh_chemproduction_unique_input_indexlist.push_back(iextra);
+            }
+        }
+        for (auto iextra=0;iextra<opt.bh_chemproduction_names_aperture.size();iextra++) {
+            string s = opt.bh_chemproduction_names_aperture[iextra]+to_string(opt.bh_chemproduction_index_aperture[iextra]);
+            if (unique_bh_chemproduction_names.count(s)==0) {
+                unique_bh_chemproduction_names.insert(s);
+                opt.bh_chemproduction_unique_input_indexlist.push_back(iextra);
+            }
+        }
+        opt.bh_internalprop_unique_input_names.assign(unique_bh_internalprop_names.begin(), unique_bh_internalprop_names.end());
+        opt.bh_chem_unique_input_names.assign(unique_bh_chem_names.begin(), unique_bh_chem_names.end());
+        opt.bh_chemproduction_unique_input_names.assign(unique_bh_chemproduction_names.begin(), unique_bh_chemproduction_names.end());
+#endif
+#ifdef EXTRADMON
+        set<string> unique_extra_dm_internalprop_names, unique_extra_dm_chem_names, unique_extra_dm_chemproduction_names;
+        for (auto iextra=0;iextra<opt.extra_dm_internalprop_names.size();iextra++) {
+            string s = opt.extra_dm_internalprop_names[iextra]+to_string(opt.extra_dm_internalprop_index[iextra]);
+            if (unique_extra_dm_internalprop_names.count(s)==0) {
+                unique_extra_dm_internalprop_names.insert(s);
+                opt.extra_dm_internalprop_unique_input_indexlist.push_back(iextra);
+            }
+        }
+        for (auto iextra=0;iextra<opt.extra_dm_internalprop_names_aperture.size();iextra++) {
+            string s = opt.extra_dm_internalprop_names_aperture[iextra]+to_string(opt.extra_dm_internalprop_index_aperture[iextra]);
+            if (unique_extra_dm_internalprop_names.count(s)==0) {
+                unique_extra_dm_internalprop_names.insert(s);
+                opt.extra_dm_internalprop_unique_input_indexlist.push_back(iextra);
+            }
+        }
+        opt.extra_dm_internalprop_unique_input_names.assign(unique_extra_dm_internalprop_names.begin(), unique_extra_dm_internalprop_names.end());
+#endif
+}
 
 ///reads an hdf5 formatted file.
 void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle *&Pbaryons, Int_t nbaryons)
@@ -190,6 +384,8 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     string extrafield, extrafield2;
     int iextraoffset;
     double *extrafieldbuff = NULL;
+
+    SetUniqueInputNames(opt);
 
 #ifdef USEMPI
     if (ThisTask == 0)
@@ -1113,7 +1309,8 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         k=usetypes[j];
                         if (k == HDFGASTYPE)
                         {
-                            for (auto iextra=0;iextra<opt.gas_internalprop_names.size();iextra++)
+                            // for (auto iextra=0;iextra<opt.gas_internalprop_names.size();iextra++)
+                            for (auto &iextra:opt.gas_internalprop_unique_input_indexlist)
                             {
                                 unsigned long long count3=count;
                                 extrafield = opt.gas_internalprop_names[iextra];
@@ -1153,7 +1350,8 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         k=usetypes[j];
                         if (k == HDFGASTYPE)
                         {
-                            for (auto iextra=0;iextra<opt.gas_chem_names.size();iextra++)
+                            // for (auto iextra=0;iextra<opt.gas_chem_names.size();iextra++)
+                            for (auto &iextra:opt.gas_chem_unique_input_indexlist)
                             {
                                 unsigned long long count3=count;
                                 extrafield = opt.gas_chem_names[iextra];
@@ -1192,7 +1390,8 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         k=usetypes[j];
                         if (k == HDFGASTYPE)
                         {
-                            for (auto iextra=0;iextra<opt.gas_chemproduction_names.size();iextra++)
+                            // for (auto iextra=0;iextra<opt.gas_chemproduction_names.size();iextra++)
+                            for (auto &iextra:opt.gas_chemproduction_unique_input_indexlist)
                             {
                                 unsigned long long count3=count;
                                 extrafield = opt.gas_chemproduction_names[iextra];
@@ -1249,7 +1448,8 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         k=usetypes[j];
                         if (k == HDFSTARTYPE)
                         {
-                            for (auto iextra=0;iextra<opt.star_internalprop_names.size();iextra++)
+                            // for (auto iextra=0;iextra<opt.star_internalprop_names.size();iextra++)
+                            for (auto &iextra:opt.star_internalprop_unique_input_indexlist)
                             {
                                 unsigned long long count3=count;
                                 extrafield = opt.star_internalprop_names[iextra];
@@ -1288,7 +1488,8 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         k=usetypes[j];
                         if (k == HDFSTARTYPE)
                         {
-                            for (auto iextra=0;iextra<opt.star_chem_names.size();iextra++)
+                            // for (auto iextra=0;iextra<opt.star_chem_names.size();iextra++)
+                            for (auto &iextra:opt.star_chem_unique_input_indexlist)
                             {
                                 unsigned long long count3=count;
                                 extrafield = opt.star_chem_names[iextra];
@@ -1327,7 +1528,8 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         k=usetypes[j];
                         if (k == HDFSTARTYPE)
                         {
-                            for (auto iextra=0;iextra<opt.star_chemproduction_names.size();iextra++)
+                            // for (auto iextra=0;iextra<opt.star_chemproduction_names.size();iextra++)
+                            for (auto &iextra:opt.star_chemproduction_unique_input_indexlist)
                             {
                                 unsigned long long count3=count;
                                 extrafield = opt.star_chemproduction_names[iextra];
@@ -1384,7 +1586,8 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         k=usetypes[j];
                         if (k == HDFBHTYPE)
                         {
-                            for (auto iextra=0;iextra<opt.bh_internalprop_names.size();iextra++)
+                            // for (auto iextra=0;iextra<opt.bh_internalprop_names.size();iextra++)
+                            for (auto &iextra:opt.bh_internalprop_unique_input_indexlist)
                             {
                                 unsigned long long count3=count;
                                 extrafield = opt.bh_internalprop_names[iextra];
@@ -1423,7 +1626,8 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         k=usetypes[j];
                         if (k == HDFBHTYPE)
                         {
-                            for (auto iextra=0;iextra<opt.bh_chem_names.size();iextra++)
+                            // for (auto iextra=0;iextra<opt.bh_chem_names.size();iextra++)
+                            for (auto &iextra:opt.bh_chem_unique_input_indexlist)
                             {
                                 unsigned long long count3=count;
                                 extrafield = opt.bh_chem_names[iextra];
@@ -1462,7 +1666,8 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         k=usetypes[j];
                         if (k == HDFBHTYPE)
                         {
-                            for (auto iextra=0;iextra<opt.bh_chemproduction_names.size();iextra++)
+                            // for (auto iextra=0;iextra<opt.bh_chemproduction_names.size();iextra++)
+                            for (auto &iextra:opt.bh_chemproduction_unique_input_indexlist)
                             {
                                 unsigned long long count3=count;
                                 extrafield = opt.bh_chemproduction_names[iextra];
@@ -1518,7 +1723,8 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         k=usetypes[j];
                         if (k == HDFDMTYPE)
                         {
-                            for (auto iextra=0;iextra<opt.extra_dm_internalprop_names.size();iextra++)
+                            // for (auto iextra=0;iextra<opt.extra_dm_internalprop_names.size();iextra++)
+                            for (auto &iextra:opt.extra_dm_internalprop_unique_input_indexlist)
                             {
                                 unsigned long long count3=count;
                                 extrafield = opt.extra_dm_internalprop_names[iextra];
@@ -1788,7 +1994,8 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         if (k!=HDFGASTYPE) continue;
                         if (opt.gas_internalprop_names.size()>0)
                         {
-                            for (auto iextra=0;iextra<opt.gas_internalprop_names.size();iextra++)
+                            // for (auto iextra=0;iextra<opt.gas_internalprop_names.size();iextra++)
+                            for (auto &iextra:opt.gas_internalprop_unique_input_indexlist)
                             {
                                 extrafield = opt.gas_internalprop_names[iextra];
                                 if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield<<endl;
@@ -1799,7 +2006,8 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         iextraoffset += opt.gas_internalprop_names.size();
                         if (opt.gas_chem_names.size()>0)
                         {
-                            for (auto iextra=0;iextra<opt.gas_chem_names.size();iextra++)
+                            // for (auto iextra=0;iextra<opt.gas_chem_names.size();iextra++)
+                            for (auto &iextra:opt.gas_chem_unique_input_indexlist)
                             {
                                 extrafield = opt.gas_chem_names[iextra];
                                 if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield<<endl;
@@ -1810,7 +2018,8 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         iextraoffset += opt.gas_chem_names.size();
                         if (opt.gas_chemproduction_names.size()>0)
                         {
-                            for (auto iextra=0;iextra<opt.gas_chemproduction_names.size();iextra++)
+                            // for (auto iextra=0;iextra<opt.gas_chemproduction_names.size();iextra++)
+                            for (auto &iextra:opt.gas_chemproduction_unique_input_indexlist)
                             {
                                 extrafield = opt.gas_chemproduction_names[iextra];
                                 if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield<<endl;
@@ -1828,7 +2037,8 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         if (k!=HDFSTARTYPE) continue;
                         if (opt.star_internalprop_names.size()>0)
                         {
-                            for (auto iextra=0;iextra<opt.star_internalprop_names.size();iextra++)
+                            // for (auto iextra=0;iextra<opt.star_internalprop_names.size();iextra++)
+                            for (auto &iextra:opt.star_internalprop_unique_input_indexlist)
                             {
                                 extrafield = opt.star_internalprop_names[iextra];
                                 if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield<<endl;
@@ -1839,7 +2049,8 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         iextraoffset += opt.star_internalprop_names.size();
                         if (opt.star_chem_names.size()>0)
                         {
-                            for (auto iextra=0;iextra<opt.star_chem_names.size();iextra++)
+                            // for (auto iextra=0;iextra<opt.star_chem_names.size();iextra++)
+                            for (auto &iextra:opt.star_chem_unique_input_indexlist)
                             {
                                 extrafield = opt.star_chem_names[iextra];
                                 if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield<<endl;
@@ -1850,7 +2061,8 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         iextraoffset += opt.star_chem_names.size();
                         if (opt.star_chemproduction_names.size()>0)
                         {
-                            for (auto iextra=0;iextra<opt.star_chemproduction_names.size();iextra++)
+                            // for (auto iextra=0;iextra<opt.star_chemproduction_names.size();iextra++)
+                            for (auto &iextra:opt.star_chemproduction_unique_input_indexlist)
                             {
                                 extrafield = opt.star_chemproduction_names[iextra];
                                 if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield<<endl;
@@ -1868,7 +2080,8 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         if (k!=HDFBHTYPE) continue;
                         if (opt.bh_internalprop_names.size()>0)
                         {
-                            for (auto iextra=0;iextra<opt.bh_internalprop_names.size();iextra++)
+                            // for (auto iextra=0;iextra<opt.bh_internalprop_names.size();iextra++)
+                            for (auto &iextra:opt.bh_internalprop_unique_input_indexlist)
                             {
                                 extrafield = opt.bh_internalprop_names[iextra];
                                 if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield<<endl;
@@ -1879,7 +2092,8 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         iextraoffset += opt.bh_internalprop_names.size();
                         if (opt.bh_chem_names.size()>0)
                         {
-                            for (auto iextra=0;iextra<opt.bh_chem_names.size();iextra++)
+                            // for (auto iextra=0;iextra<opt.bh_chem_names.size();iextra++)
+                            for (auto &iextra:opt.bh_chem_unique_input_indexlist)
                             {
                                 extrafield = opt.bh_chem_names[iextra];
                                 if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield<<endl;
@@ -1890,7 +2104,8 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         iextraoffset += opt.bh_chem_names.size();
                         if (opt.bh_chemproduction_names.size()>0)
                         {
-                            for (auto iextra=0;iextra<opt.bh_chemproduction_names.size();iextra++)
+                            // for (auto iextra=0;iextra<opt.bh_chemproduction_names.size();iextra++)
+                            for (auto &iextra:opt.bh_chemproduction_unique_input_indexlist)
                             {
                                 extrafield = opt.bh_chemproduction_names[iextra];
                                 if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield<<endl;
@@ -1908,7 +2123,8 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         if (k!=HDFDMTYPE) continue;
                         if (opt.extra_dm_internalprop_names.size()>0)
                         {
-                            for (auto iextra=0;iextra<opt.extra_dm_internalprop_names.size();iextra++)
+                            // for (auto iextra=0;iextra<opt.extra_dm_internalprop_names.size();iextra++)
+                            for (auto &iextra:opt.extra_dm_internalprop_unique_input_indexlist)
                             {
                                 extrafield = opt.extra_dm_internalprop_names[iextra];
                                 if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield<<endl;
@@ -1996,7 +2212,8 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 #if defined(GASON)
                             if (opt.gas_internalprop_names.size()>0)
                             {
-                                for (auto iextra=0;iextra<opt.gas_internalprop_names.size();iextra++)
+                                // for (auto iextra=0;iextra<opt.gas_internalprop_names.size();iextra++)
+                                for (auto &iextra:opt.gas_internalprop_unique_input_indexlist)
                                 {
                                     if (k == HDFGASTYPE)
                                         HDF5ReadHyperSlabReal(&extrafieldbuff[(iextraoffset+iextra)*chunksize],partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 1, 1, nchunk, n, plist_id, 1, opt.gas_internalprop_index[iextra]);
@@ -2005,7 +2222,8 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                             iextraoffset += opt.gas_internalprop_names.size();
                             if (opt.gas_chem_names.size()>0)
                             {
-                                for (auto iextra=0;iextra<opt.gas_chem_names.size();iextra++)
+                                // for (auto iextra=0;iextra<opt.gas_chem_names.size();iextra++)
+                                for (auto &iextra:opt.gas_chem_unique_input_indexlist)
                                 {
                                     if (k == HDFGASTYPE)
                                         HDF5ReadHyperSlabReal(&extrafieldbuff[(iextraoffset+iextra)*chunksize],partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 1, 1, nchunk, n, plist_id, 1, opt.gas_chem_index[iextra]);
@@ -2014,7 +2232,8 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                             iextraoffset += opt.gas_chem_names.size();
                             if (opt.gas_chemproduction_names.size()>0)
                             {
-                                for (auto iextra=0;iextra<opt.gas_chemproduction_names.size();iextra++)
+                                // for (auto iextra=0;iextra<opt.gas_chemproduction_names.size();iextra++)
+                                for (auto &iextra:opt.gas_chemproduction_unique_input_indexlist)
                                 {
                                     if (k == HDFGASTYPE)
                                         HDF5ReadHyperSlabReal(&extrafieldbuff[(iextraoffset+iextra)*chunksize],partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 1, 1, nchunk, n, plist_id, 1, opt.gas_chemproduction_index[iextra]);
@@ -2025,7 +2244,8 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 #if defined(STARON)
                             if (opt.star_internalprop_names.size()>0)
                             {
-                                for (auto iextra=0;iextra<opt.star_internalprop_names.size();iextra++)
+                                // for (auto iextra=0;iextra<opt.star_internalprop_names.size();iextra++)
+                                for (auto &iextra:opt.star_internalprop_unique_input_indexlist)
                                 {
                                     if (k == HDFSTARTYPE)
                                         HDF5ReadHyperSlabReal(&extrafieldbuff[(iextraoffset+iextra)*chunksize],partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 1, 1, nchunk, n, plist_id, 1, opt.star_internalprop_index[iextra]);
@@ -2034,7 +2254,8 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                             iextraoffset += opt.star_internalprop_names.size();
                             if (opt.star_chem_names.size()>0)
                             {
-                                for (auto iextra=0;iextra<opt.star_chem_names.size();iextra++)
+                                // for (auto iextra=0;iextra<opt.star_chem_names.size();iextra++)
+                                for (auto &iextra:opt.star_chem_unique_input_indexlist)
                                 {
                                     if (k == HDFSTARTYPE)
                                         HDF5ReadHyperSlabReal(&extrafieldbuff[(iextraoffset+iextra)*chunksize],partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 1, 1, nchunk, n, plist_id, 1, opt.star_chem_index[iextra]);
@@ -2043,7 +2264,8 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                             iextraoffset += opt.star_chem_names.size();
                             if (opt.star_chemproduction_names.size()>0)
                             {
-                                for (auto iextra=0;iextra<opt.star_chemproduction_names.size();iextra++)
+                                // for (auto iextra=0;iextra<opt.star_chemproduction_names.size();iextra++)
+                                for (auto &iextra:opt.star_chemproduction_unique_input_indexlist)
                                 {
                                     if (k == HDFSTARTYPE)
                                         HDF5ReadHyperSlabReal(&extrafieldbuff[(iextraoffset+iextra)*chunksize],partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 1, 1, nchunk, n, plist_id, 1, opt.star_chemproduction_index[iextra]);
@@ -2054,7 +2276,8 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 #if defined(BHON)
                             if (opt.bh_internalprop_names.size()>0)
                             {
-                                for (auto iextra=0;iextra<opt.bh_internalprop_names.size();iextra++)
+                                // for (auto iextra=0;iextra<opt.bh_internalprop_names.size();iextra++)
+                                for (auto &iextra:opt.bh_internalprop_unique_input_indexlist)
                                 {
                                     if (k == HDFBHTYPE)
                                         HDF5ReadHyperSlabReal(&extrafieldbuff[(iextraoffset+iextra)*chunksize],partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 1, 1, nchunk, n, plist_id, 1, opt.bh_internalprop_index[iextra]);
@@ -2063,7 +2286,8 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                             iextraoffset += opt.bh_internalprop_names.size();
                             if (opt.bh_chem_names.size()>0)
                             {
-                                for (auto iextra=0;iextra<opt.bh_chem_names.size();iextra++)
+                                // for (auto iextra=0;iextra<opt.bh_chem_names.size();iextra++)
+                                for (auto &iextra:opt.bh_chem_unique_input_indexlist)
                                 {
                                     if (k == HDFBHTYPE)
                                         HDF5ReadHyperSlabReal(&extrafieldbuff[(iextraoffset+iextra)*chunksize],partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 1, 1, nchunk, n, plist_id, 1, opt.bh_chem_index[iextra]);
@@ -2072,7 +2296,8 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                             iextraoffset += opt.bh_chem_names.size();
                             if (opt.bh_chemproduction_names.size()>0)
                             {
-                                for (auto iextra=0;iextra<opt.bh_chemproduction_names.size();iextra++)
+                                // for (auto iextra=0;iextra<opt.bh_chemproduction_names.size();iextra++)
+                                for (auto &iextra:opt.bh_chemproduction_unique_input_indexlist)
                                 {
                                     if (k == HDFBHTYPE)
                                         HDF5ReadHyperSlabReal(&extrafieldbuff[(iextraoffset+iextra)*chunksize],partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 1, 1, nchunk, n, plist_id, 1, opt.bh_chemproduction_index[iextra]);
@@ -2083,7 +2308,8 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 #if defined(EXTRADMON)
                             if (opt.extra_dm_internalprop_names.size()>0)
                             {
-                                for (auto iextra=0;iextra<opt.extra_dm_internalprop_names.size();iextra++)
+                                // for (auto iextra=0;iextra<opt.extra_dm_internalprop_names.size();iextra++)
+                                for (auto &iextra:opt.extra_dm_internalprop_unique_input_indexlist)
                                 {
                                     if (k == HDFDMTYPE)
                                         HDF5ReadHyperSlabReal(&extrafieldbuff[(iextraoffset+iextra)*chunksize],partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 1, 1, nchunk, n, plist_id, 1, opt.extra_dm_internalprop_index[iextra]);
