@@ -27,6 +27,8 @@ endif()
 
 project(VELOCIraptor VERSION ${VR_VERSION} LANGUAGES ${VR_LANGS})
 set(CMAKE_CXX_STANDARD 11)
+# Set the code to always produce position independent code by default 
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 #
 # Options users can give on the command line via -D

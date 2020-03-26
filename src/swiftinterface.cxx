@@ -470,14 +470,18 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
             for (auto j=0;j<3;j++) swift_parts[i].x[j]*=libvelociraptorOpt.a;
             if(swift_parts[i].type == DARKTYPE) {
                 parts[dmOffset] = Particle(swift_parts[i]);
+#ifdef HIGHRES
+                if (dmOffset==0) libvelociraptorOpt.zoomlowmassdm = parts[dmOffset].GetMass();
+#endif
                 dmOffset++;
             }
-            #ifdef HIGHRES
+#ifdef HIGHRES
             else if(swift_parts[i].type == DARK2TYPE) {
                 parts[dmOffset] = Particle(swift_parts[i]);
+                parts[dmOffset].SetType(DARK2TYPE);
                 dmOffset++;
             }
-            #endif
+#endif
             else {
                 if(swift_parts[i].type == GASTYPE) {
                     pbaryons[baryonOffset] = Particle(swift_parts[i]);
@@ -506,21 +510,21 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
             if(swift_parts[i].type != DARKTYPE && swift_parts[i].type != GASTYPE && swift_parts[i].type != STARTYPE && swift_parts[i].type != BHTYPE)
             {
                 //if high res then particle is also allowed to be type 2, a DARK2TYPE
-                #ifdef HIGHRES
+#ifdef HIGHRES
                 if (swift_parts[i].type != DARK2TYPE) {
-                #endif
+#endif
                 cout<<"Unknown particle type found: index="<<i<<" type="<<swift_parts[i].type<<" when loading particles. Exiting..."<<endl;
                 return NULL;
-                #ifdef HIGHRES
+#ifdef HIGHRES
                 }
-                #endif
+#endif
             }
             for (auto j=0;j<3;j++) swift_parts[i].x[j]*=libvelociraptorOpt.a;
             parts[i] = Particle(swift_parts[i]);
         }
     }
     //if extra information has been passed then store it
-    #ifdef GASON
+#ifdef GASON
     if (swift_gas_parts != NULL)
     {
         for (auto i=0; i<num_hydro_parts; i++)
@@ -530,8 +534,8 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
         }
         free(swift_gas_parts);
     }
-    #endif
-    #ifdef STARON
+#endif
+#ifdef STARON
     if (swift_star_parts != NULL)
     {
         for (auto i=0; i<num_star_parts; i++)
@@ -541,8 +545,8 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
         }
         free(swift_star_parts);
     }
-    #endif
-    #ifdef BHON
+#endif
+#ifdef BHON
     if (swift_bh_parts != NULL)
     {
         for (auto i=0; i<num_bh_parts; i++)
@@ -552,7 +556,7 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
         }
         free(swift_bh_parts);
     }
-    #endif
+#endif
 
     //lets free the memory of swift_parts
     free(swift_parts);
