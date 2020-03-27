@@ -19,6 +19,17 @@ using namespace NBody;
 
 int main(int argc,char **argv)
 {
+    //
+    // // Options testopt;
+    // GetMemUsage(__func__, true);
+    // HydroProperties h;
+    // vector<HydroProperties> harray;
+    // cout<<sizeof(h)<<" "<<sizeof(harray)<<endl;
+    // // testopt.iverbose=1;
+    // GetMemUsage(__func__, true);
+    // harray.resize(1000);
+    // GetMemUsage( __func__, true);
+    // exit(9);
 #ifdef SWIFTINTERFACE
   cout<<"Built with SWIFT interface enabled when running standalone VELOCIraptor. Should only be enabled when running VELOCIraptor as a library from SWIFT. Exiting..."<<endl;
   exit(0);
@@ -84,6 +95,8 @@ int main(int argc,char **argv)
     adios_set_max_buffer_size(opt.mpiparticletotbufsize/1024/1024);
 #endif
 #endif
+
+    InitMemUsageLog(opt);
 
     //variables
     //number of particles, (also number of baryons if use dm+baryon search)
