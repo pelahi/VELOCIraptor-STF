@@ -2846,6 +2846,10 @@ void MPIBuildParticleExportListUsingMesh(Options &opt, const Int_t nbodies, Part
             if (mpi_nsend[ThisTask+recvTask*NProcs] >= maxNumPart || nsend_local[recvTask] >= maxNumPart ) bufferFlag++;
         }
     }
+
+    // Ensure bufferflag is the same over all ranks
+    MPI_Allreduce(MPI_IN_PLACE, &bufferFlag, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+
     //if buffer is too large, split sends
     if (bufferFlag)
     {
