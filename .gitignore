@@ -38,3 +38,5 @@ cmake_install.cmake
 
 stf
 src/libvelociraptor.a
+
+buildswift/
