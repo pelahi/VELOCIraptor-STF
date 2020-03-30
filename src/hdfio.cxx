@@ -2836,7 +2836,9 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     //a bit of clean up
 #ifdef USEMPI
 #ifdef USEPARALLELHDF
-    if (opt.nsnapread > opt.num_files) MPI_Comm_free(&mpi_comm_parallel_read);
+    if (opt.nsnapread > opt.num_files) {
+        if (ireadtask[ThisTask] >= 0) MPI_Comm_free(&mpi_comm_parallel_read);
+    }
 #endif
     MPI_Comm_free(&mpi_comm_read);
     if (opt.iBaryonSearch) delete[] mpi_nsend_baryon;
