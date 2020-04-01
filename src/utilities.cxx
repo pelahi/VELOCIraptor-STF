@@ -90,8 +90,9 @@ void GetMemUsage(Options &opt, string funcname, bool printreport){
         library *= sz ;
         data *=  sz ;
         dirty *= sz ;
-        // float bytestoGB = 1.0/(1024.0*1024.*1024.);
-        float bytestoGB = 1.0;
+        float bytestoGB;
+        bytestoGB = 1.0/(1024.0*1024.*1024.);
+        // bytestoGB = 1.0;
         if (opt.memuse_peak < peak) opt.memuse_peak = peak;
         opt.memuse_nsamples++;
         opt.memuse_ave += size;
@@ -175,21 +176,18 @@ void GetMemUsage(string funcname, bool printreport){
         library *= sz ;
         data *=  sz ;
         dirty *= sz ;
-        // float bytestoGB = 1.0/(1024.0*1024.*1024.);
-        float bytestoGB = 1.0;
+        float bytestoGB;
+        bytestoGB = 1.0/(1024.0*1024.*1024.);
+        // float bytestoGB = 1.0;
         // if (opt.memuse_peak < peak) opt.memuse_peak = peak;
         // opt.memuse_nsamples++;
         // opt.memuse_ave += size;
         memuse["Size"] = size*bytestoGB;
         memuse["Resident"] = resident*bytestoGB;
         memuse["Shared"] = shared*bytestoGB;
-        // memuse["Text"] = text*bytestoGB;
-        // memuse["Library"] = library*bytestoGB;
+        memuse["Text"] = text*bytestoGB;
         memuse["Data"] = data*bytestoGB;
-        // memuse["Dirty"] = dirty*bytestoGB;
         memuse["Peak"] = peak*bytestoGB;
-        // memuse["Average"] = opt.memuse_ave/(float)opt.memuse_nsamples*bytestoGB;
-
         for (map<string,float>::iterator it=memuse.begin(); it!=memuse.end(); ++it) {
             memreport += it->first + string(" = ") + to_string(it->second) + string(" GB, ");
         }
