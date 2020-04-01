@@ -121,7 +121,7 @@ inline int ConfigCheckSwift(Options &opt, Swift::siminfo &s)
     return 1;
 }
 
-inline bool CheckSwiftPartType(int &type)
+inline bool CheckSwiftPartType(int type)
 {
 #ifdef HIGHRES
     return (type != DARKTYPE && type != DARK2TYPE && type != GASTYPE && type != STARTYPE && type != BHTYPE);
