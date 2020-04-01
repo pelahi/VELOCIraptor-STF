@@ -121,6 +121,15 @@ inline int ConfigCheckSwift(Options &opt, Swift::siminfo &s)
     return 1;
 }
 
+inline bool CheckSwiftPartType(int type)
+{
+#ifdef HIGHRES
+    return (type != DARKTYPE && type != DARK2TYPE && type != GASTYPE && type != STARTYPE && type != BHTYPE);
+#else
+    return (type != DARKTYPE && type != GASTYPE && type != STARTYPE && type != BHTYPE);
+#endif
+}
+
 
 int InitVelociraptor(char* configname, unitinfo u, siminfo s, const int numthreads)
 {
@@ -459,6 +468,10 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
     Nlocalbaryon[0]=nbaryons;
     Nmemlocalbaryon=Nlocalbaryon[0];
 
+#ifdef HIGHRES
+    Int_t ninterloper = 0, n_dm = 0;
+#endif
+
     /// If we are performing a baryon search, sort the particles so that the DM particles are at the start of the array followed by the gas particles.
     // note that we explicitly convert positions from comoving to physical as swift_vel_parts is in
     if (libvelociraptorOpt.iBaryonSearch>0 && libvelociraptorOpt.partsearchtype!=PSTALL) {
@@ -479,6 +492,7 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
             else if(swift_parts[i].type == DARK2TYPE) {
                 parts[dmOffset] = Particle(swift_parts[i]);
                 parts[dmOffset].SetType(DARK2TYPE);
+                ninterloper++;
                 dmOffset++;
             }
 #endif
@@ -507,20 +521,19 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
     }
     else {
         for(auto i=0; i<Nlocal; i++) {
-            if(swift_parts[i].type != DARKTYPE && swift_parts[i].type != GASTYPE && swift_parts[i].type != STARTYPE && swift_parts[i].type != BHTYPE)
-            {
-                //if high res then particle is also allowed to be type 2, a DARK2TYPE
-#ifdef HIGHRES
-                if (swift_parts[i].type != DARK2TYPE) {
-#endif
-                cout<<"Unknown particle type found: index="<<i<<" type="<<swift_parts[i].type<<" when loading particles. Exiting..."<<endl;
+            if (CheckSwiftPartType(swift_parts[i].type)){
+                cout<<ThisTask<< "Unknown particle type found: index="<<i<<" type="<<swift_parts[i].type<<" when loading particles. Exiting..."<<endl;
                 return NULL;
-#ifdef HIGHRES
-                }
-#endif
             }
             for (auto j=0;j<3;j++) swift_parts[i].x[j]*=libvelociraptorOpt.a;
             parts[i] = Particle(swift_parts[i]);
+#ifdef HIGHRES
+            if (swift_parts[i].type == DARKTYPE) libvelociraptorOpt.zoomlowmassdm = parts[i].GetMass();
+            else if (swift_parts[i].type == DARK2TYPE) {
+                parts[i].SetType(DARK2TYPE);
+                ninterloper++;
+            }
+#endif
         }
     }
     //if extra information has been passed then store it
@@ -562,8 +575,11 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
     free(swift_parts);
 
     time1=MyGetTime()-time1;
-    cout<<"Finished copying particle data."<< endl;
-    cout<<"TIME::"<<ThisTask<<" took "<<time1<<" to copy "<<Nlocal<<" particles from SWIFT to a local format. Out of "<<Ntotal<<endl;
+    cout<<ThisTask<<" Finished copying particle data."<< endl;
+#ifdef HIGHRES
+    cout<<ThisTask<<" zoom simulation where there are "<<ninterloper<<" low resolution interloper particles "<<endl;
+#endif
+    cout<<ThisTask<<" took "<<time1<<" to copy "<<Nlocal<<" particles from SWIFT to a local format. Out of "<<Ntotal<<endl;
     cout<<ThisTask<<" There are "<<Nlocal<<" particles and have allocated enough memory for "<<Nmemlocal<<" requiring "<<Nmemlocal*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
     if (libvelociraptorOpt.iBaryonSearch>0) cout<<ThisTask<<"There are "<<Nlocalbaryon[0]<<" baryon particles and have allocated enough memory for "<<Nmemlocalbaryon<<" requiring "<<Nmemlocalbaryon*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
     cout<<ThisTask<<" will also require additional memory for FOF algorithms and substructure search. Largest mem needed for preliminary FOF search. Rough estimate is "<<Nlocal*(sizeof(Int_tree_t)*8)/1024./1024./1024.<<"GB of memory"<<endl;
@@ -697,14 +713,13 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
     Int_t ngoffset=0,ngtot=0;
     Int_t nig=0;
 
+    ngtot=ngroup;
 #ifdef USEMPI
     if (NProcs > 1) {
-    for (auto j=0;j<ThisTask;j++)ngoffset+=mpi_ngroups[j];
-    for (auto j=0;j<NProcs;j++)ngtot+=mpi_ngroups[j];
+        ngtot = 0;
+        for (auto j=0;j<ThisTask;j++)ngoffset+=mpi_ngroups[j];
+        for (auto j=0;j<NProcs;j++)ngtot+=mpi_ngroups[j];
     }
-    else ngtot=ngroup;
-#else
-    ngtot=ngroup;
 #endif
     cout<<"VELOCIraptor sorting info to return group ids to swift"<<endl;
     if (ngtot == 0) {
@@ -715,6 +730,7 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
         free(s.cellloc);
         free(cell_node_ids);
         delete[] pfof;
+        parts.clear();
         *numpartingroups=nig;
         return NULL;
     }
@@ -727,12 +743,12 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
     delete [] pfof;
 #ifdef USEMPI
     if (NProcs > 1) {
-    for (auto i=0;i<Nlocal; i++) parts[i].SetID((parts[i].GetSwiftTask()==ThisTask));
-    //now sort items according to whether local swift task
-    qsort(parts.data(), nig, sizeof(Particle), IDCompare);
-    //communicate information
-    MPISwiftExchange(parts);
-    Nlocal = parts.size();
+        for (auto i=0;i<Nlocal; i++) parts[i].SetID((parts[i].GetSwiftTask()==ThisTask));
+        //now sort items according to whether local swift task
+        qsort(parts.data(), nig, sizeof(Particle), IDCompare);
+        //communicate information
+        MPISwiftExchange(parts);
+        Nlocal = parts.size();
     }
 #endif
     qsort(parts.data(), Nlocal, sizeof(Particle), PIDCompare);
@@ -756,6 +772,7 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
     libvelociraptorOpt.cellloc = NULL;
     free(s.cellloc);
     free(cell_node_ids);
+    parts.clear();
 
     return group_info;
 }
@@ -826,11 +843,11 @@ void CheckSwiftTasks(string message, const Int_t n, Particle *p){
     }
     cout<<ThisTask<<" has "<<numnonlocal<<" swift particles "<<endl;
     if (numbad>0) {
-        #ifdef USEMPI
+#ifdef USEMPI
         MPI_Abort(MPI_COMM_WORLD,9);
-        #else
+#else
         exit(9);
-        #endif
+#endif
     }
 }
 #endif
