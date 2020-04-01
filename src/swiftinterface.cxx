@@ -121,15 +121,12 @@ inline int ConfigCheckSwift(Options &opt, Swift::siminfo &s)
     return 1;
 }
 
-inline bool CheckSwiftPartType(swift_vel_part &swift_part)
+inline bool CheckSwiftPartType(int &type)
 {
-#ifndef USEMPI
-    int ThisTask = 0;
-#endif
 #ifdef HIGHRES
-    return (swift_parts[i].type != DARKTYPE && swift_parts[i].type != DARK2TYPE && swift_parts[i].type != GASTYPE && swift_parts[i].type != STARTYPE && swift_parts[i].type != BHTYPE);
+    return (type != DARKTYPE && type != DARK2TYPE && type != GASTYPE && type != STARTYPE && type != BHTYPE);
 #else
-    return (swift_parts[i].type != DARKTYPE && swift_parts[i].type != GASTYPE && swift_parts[i].type != STARTYPE && swift_parts[i].type != BHTYPE);
+    return (type != DARKTYPE && type != GASTYPE && type != STARTYPE && type != BHTYPE);
 #endif
 }
 
@@ -524,7 +521,7 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
     }
     else {
         for(auto i=0; i<Nlocal; i++) {
-            if (!CheckSwiftPartType(swift_parts[i])){
+            if (!CheckSwiftPartType(swift_parts[i].type)){
                 cout<<ThisTask<< "Unknown particle type found: index="<<i<<" type="<<swift_parts[i].type<<" when loading particles. Exiting..."<<endl;
                 return NULL;
             }
