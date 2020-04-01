@@ -521,7 +521,7 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
     }
     else {
         for(auto i=0; i<Nlocal; i++) {
-            if (!CheckSwiftPartType(swift_parts[i].type)){
+            if (CheckSwiftPartType(swift_parts[i].type)){
                 cout<<ThisTask<< "Unknown particle type found: index="<<i<<" type="<<swift_parts[i].type<<" when loading particles. Exiting..."<<endl;
                 return NULL;
             }
