@@ -34,7 +34,7 @@
 
 ///\name number of entries in various data groups
 //@{
-#define HDFHEADNINFO 12
+#define HDFHEADNINFO 20
 #define HDFGASNINFO 20
 #define HDFDMNINFO 7
 #define HDFTRACERNINFO 3
