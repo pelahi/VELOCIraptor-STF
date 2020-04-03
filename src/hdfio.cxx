@@ -633,6 +633,14 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
             hdf_header_info[i].time = read_attribute<double>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].ITime]);
             hdf_header_info[i].HubbleParam = read_attribute<double>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].IHubbleParam]);
             hdf_header_info[i].num_files = read_attribute<int>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].INumFiles]);
+            //now if swift read extra information
+            if (opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES) {
+                hdf_header_info[i].Omegab = read_attribute<double>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].IOmegab]);
+                hdf_header_info[i].Omegar = read_attribute<double>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].IOmegar]);
+                hdf_header_info[i].Omegak = read_attribute<double>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].IOmegak]);
+                hdf_header_info[i].Omegab = read_attribute<double>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].IOmegab]);
+            }
+
         }
         /*catch(GroupIException &error)
         {
@@ -706,6 +714,11 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
         opt.Omega_m=hdf_header_info[ifirstfile].Omega0;
         opt.Omega_Lambda=hdf_header_info[ifirstfile].OmegaLambda;
         opt.h=hdf_header_info[ifirstfile].HubbleParam;
+        if (opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES) {
+            opt.Omega_b=hdf_header_info[ifirstfile].Omegab;
+            opt.Omega_r=hdf_header_info[ifirstfile].Omegar;
+            opt.Omega_k=hdf_header_info[ifirstfile].Omegak;
+        }
         opt.Omega_cdm=opt.Omega_m-opt.Omega_b;
         CalcOmegak(opt);
         //Hubble flow
