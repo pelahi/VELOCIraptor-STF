@@ -317,7 +317,7 @@ inline void ConfigExit() {
 
 inline string ExtraFieldIndexName(unsigned int i){
     string s = "";
-    if (i>0) s ="_index_"+to_string(i);
+    s ="_index_"+to_string(i);
     return s;
 }
 

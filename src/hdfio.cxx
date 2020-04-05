@@ -295,6 +295,118 @@ inline void SetUniqueInputNames(Options & opt){
 #endif
 }
 
+inline void UpdateExtraFieldOutputNames(vector<string> &names,
+    vector<unsigned int> &indices,
+    vector<string> &outnames, hid_t &pgroup)
+{
+    for (auto iextra=0;iextra<names.size();iextra++)
+    {
+        auto extrafield = names[iextra];
+        auto extrafield2 = extrafield + to_string(indices[iextra]);
+        hid_t dset = HDF5OpenDataSet(pgroup, extrafield);
+        hid_t dspace = H5Dget_space(dset);
+        int ndims = H5Sget_simple_extent_ndims(dspace);
+        //check number of dimensions of dataset
+        if (ndims == 1 && indices[iextra] > 0) {
+            cerr<<"Asking to load extra field index > 0 and field is single dimension. "<<endl;
+            cerr<<"Field is "<<extrafield<<" and index "<<indices[iextra]<<endl;
+            cerr<<"Exiting. Check config."<<endl;
+    #ifdef USEMPI
+            MPI_Abort(MPI_COMM_WORLD,8);
+    #else
+            exit(8);
+    #endif
+        }
+        // if dataset is single dimension, update the output name to remove
+        // explicit mention of index
+        else if (ndims == 1) {
+            auto outname = outnames[iextra];
+            auto delimiter = "_index_" + to_string(indices[iextra]);
+            auto pos = outname.find(delimiter);
+            outname = outname.substr(0, pos) + outname.substr(pos+delimiter.size(),outname.size());
+            outnames[iextra] = outname;
+        }
+        HDF5CloseDataSpace(dspace);
+        HDF5CloseDataSet(dset);
+    }
+}
+
+inline void CheckDimensionsOfExtraFieldNames(Options &opt,
+    const int nusetypes, int usetypes[],
+    hid_t &Fhdf, HDF_Group_Names &hdf_gnames,
+    int numextrafields)
+{
+    if (numextrafields==0) return;
+#if defined(GASON)
+    if (opt.gas_internalprop_names.size() + opt.gas_chem_names.size() + opt.gas_chemproduction_names.size() > 0)
+    {
+        for (auto j=0;j<nusetypes;j++)
+        {
+            auto k=usetypes[j];
+            if (k != HDFGASTYPE) continue;
+            hid_t group = HDF5OpenGroup(Fhdf, hdf_gnames.part_names[k]);
+            UpdateExtraFieldOutputNames(opt.gas_internalprop_names, opt.gas_internalprop_index,
+                opt.gas_internalprop_output_names, group);
+            UpdateExtraFieldOutputNames(opt.gas_chem_names, opt.gas_chem_index,
+                opt.gas_chem_output_names, group);
+            UpdateExtraFieldOutputNames(opt.gas_chemproduction_names, opt.gas_chemproduction_index,
+                opt.gas_chemproduction_output_names, group);
+            HDF5CloseGroup(group);
+        }
+    }
+#endif
+#if defined(STARON)
+    if (opt.star_internalprop_names.size() + opt.star_chem_names.size() + opt.star_chemproduction_names.size() > 0)
+    {
+        for (auto j=0;j<nusetypes;j++)
+        {
+            auto k=usetypes[j];
+            if (k != HDFSTARTYPE) continue;
+            hid_t group = HDF5OpenGroup(Fhdf, hdf_gnames.part_names[k]);
+            UpdateExtraFieldOutputNames(opt.star_internalprop_names, opt.star_internalprop_index,
+                opt.star_internalprop_output_names, group);
+            UpdateExtraFieldOutputNames(opt.star_chem_names, opt.star_chem_index,
+                opt.star_chem_output_names, group);
+            UpdateExtraFieldOutputNames(opt.star_chemproduction_names, opt.star_chemproduction_index,
+                opt.star_chemproduction_output_names, group);
+            HDF5CloseGroup(group);
+        }
+    }
+#endif
+#if defined(BHON)
+    if (opt.bh_internalprop_names.size() + opt.bh_chem_names.size() + opt.bh_chemproduction_names.size() > 0)
+    {
+        for (auto j=0;j<nusetypes;j++)
+        {
+            auto k=usetypes[j];
+            if (k != HDFBHTYPE) continue;
+            hid_t group = HDF5OpenGroup(Fhdf, hdf_gnames.part_names[k]);
+            UpdateExtraFieldOutputNames(opt.bh_internalprop_names, opt.bh_internalprop_index,
+                opt.bh_internalprop_output_names, group);
+            UpdateExtraFieldOutputNames(opt.bh_chem_names, opt.bh_chem_index,
+                opt.bh_chem_output_names, group);
+            UpdateExtraFieldOutputNames(opt.bh_chemproduction_names, opt.bh_chemproduction_index,
+                opt.bh_chemproduction_output_names, group);
+            HDF5CloseGroup(group);
+        }
+    }
+#endif
+#if defined(EXTRADMON)
+    if (opt.extra_dm_internalprop_names.size() + opt.extra_dm_chem_names.size() + opt.extra_dm_chemproduction_names.size() > 0)
+    {
+        for (auto j=0;j<nusetypes;j++)
+        {
+            auto k=usetypes[j];
+            if (k != HDFDMTYPE) continue;
+            hid_t group = HDF5OpenGroup(Fhdf, hdf_gnames.part_names[k]);
+            UpdateExtraFieldOutputNames(opt.extra_dm_internalprop_names, opt.extra_dm_internalprop_index,
+                opt.extra_dm_internalprop_output_names, group);
+            HDF5CloseGroup(group);
+        }
+    }
+#endif
+}
+
 ///reads an hdf5 formatted file.
 void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle *&Pbaryons, Int_t nbaryons)
 {
@@ -640,7 +752,8 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                 hdf_header_info[i].Omegak = read_attribute<double>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].IOmegak]);
                 hdf_header_info[i].Omegab = read_attribute<double>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].IOmegab]);
             }
-
+            //check extra fields dimensions and also update output names as necessary
+            CheckDimensionsOfExtraFieldNames(opt, nusetypes, usetypes, Fhdf[i], hdf_gnames,  numextrafields);
         }
         /*catch(GroupIException &error)
         {
