@@ -392,7 +392,7 @@ inline void CheckDimensionsOfExtraFieldNames(Options &opt,
     }
 #endif
 #if defined(EXTRADMON)
-    if (opt.extra_dm_internalprop_names.size() + opt.extra_dm_chem_names.size() + opt.extra_dm_chemproduction_names.size() > 0)
+    if (opt.extra_dm_internalprop_names.size() > 0)
     {
         for (auto j=0;j<nusetypes;j++)
         {
@@ -655,22 +655,22 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     //handle any extra fields that should be loaded related to chemistry
     numextrafields = 0;
     for (auto &nf:numextrafieldsvec) nf=0;
-    #if defined(GASON)
+#if defined(GASON)
     numextrafieldsvec[HDFGASTYPE] = opt.gas_internalprop_names.size() + opt.gas_chem_names.size() + opt.gas_chemproduction_names.size();
     numextrafields += numextrafieldsvec[HDFGASTYPE];
-    #endif
-    #if defined(STARON)
+#endif
+#if defined(STARON)
     numextrafieldsvec[HDFSTARTYPE] = opt.star_internalprop_names.size() + opt.star_chem_names.size() + opt.star_chemproduction_names.size();
     numextrafields += numextrafieldsvec[HDFSTARTYPE];
-    #endif
-    #if defined(BHON)
+#endif
+#if defined(BHON)
     numextrafieldsvec[HDFBHTYPE] = opt.bh_internalprop_names.size() + opt.bh_chem_names.size() + opt.bh_chemproduction_names.size();
     numextrafields += numextrafieldsvec[HDFBHTYPE];
-    #endif
-    #if defined(EXTRADMON)
+#endif
+#if defined(EXTRADMON)
     numextrafieldsvec[HDFDMTYPE] = opt.extra_dm_internalprop_names.size();
     numextrafields += numextrafieldsvec[HDFDMTYPE];
-    #endif
+#endif
     if (numextrafields>0) {
         partsdataset_extra.resize(opt.num_files*numextrafields);
         partsdataspace_extra.resize(opt.num_files*numextrafields);
