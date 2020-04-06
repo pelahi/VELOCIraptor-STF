@@ -2939,7 +2939,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     if (opt.Neff==-1) {
       //Once smallest mass particle is found (which should correspond to highest resolution area,
       if (opt.Omega_b==0) MP_B=0;
-      LN=pow((MP_DM+MP_B)*mscale/opt.rhobg,1.0/3.0);
+      LN=pow((MP_DM)*mscale/(opt.rhobg*(opt.Omega_cdm/opt.Omega_m),1.0/3.0);
     }
     else {
       LN=opt.p/(Double_t)opt.Neff;
