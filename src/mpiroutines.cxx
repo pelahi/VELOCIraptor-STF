@@ -1305,7 +1305,7 @@ void MPIReceiveHydroInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle
     vector<float> propbuff;
     string field;
     HydroProperties x;
-    numextrafields = opt.gas_internalprop_names.size() + opt.gas_chem_names.size() + opt.gas_chemproduction_names.size();
+    numextrafields = opt.gas_internalprop_unique_input_names.size() + opt.gas_chem_unique_input_names.size() + opt.gas_chemproduction_unique_input_names.size();
     if (numextrafields == 0) return;
     MPI_Recv(&num, 1, MPI_Int_t, readtaskID, ThisTask, MPI_COMM_WORLD, &status);
     if (num == 0) return;
@@ -1322,21 +1322,21 @@ void MPIReceiveHydroInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle
         index=indices[i];
         Part[index].SetHydroProperties(x);
         offset = 0;
-        for (auto iextra=0;iextra<opt.gas_internalprop_names.size();iextra++)
+        for (auto iextra=0;iextra<opt.gas_internalprop_unique_input_names.size();iextra++)
         {
-            field = opt.gas_internalprop_names[iextra];
+            field = opt.gas_internalprop_unique_input_names[iextra];
             Part[index].GetHydroProperties().SetInternalProperties(field,propbuff[i*numextrafields+iextra+offset]);
         }
-        offset += opt.gas_internalprop_names.size();
+        offset += opt.gas_internalprop_unique_input_names.size();
         for (auto iextra=0;iextra<opt.gas_chem_names.size();iextra++)
         {
-            field = opt.gas_chem_names[iextra];
+            field = opt.gas_chem_unique_input_names[iextra];
             Part[index].GetHydroProperties().SetChemistry(field,propbuff[i*numextrafields+iextra+offset]);
         }
-        offset += opt.gas_chem_names.size();
-        for (auto iextra=0;iextra<opt.gas_chemproduction_names.size();iextra++)
+        offset += opt.gas_chem_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.gas_chemproduction_unique_input_names.size();iextra++)
         {
-            field = opt.gas_chemproduction_names[iextra];
+            field = opt.gas_chemproduction_unique_input_names[iextra];
             Part[index].GetHydroProperties().SetChemistryProduction(field,propbuff[i*numextrafields+iextra+offset]);
         }
     }
@@ -1352,7 +1352,7 @@ void MPIReceiveStarInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle 
     vector<float> propbuff;
     string field;
     StarProperties x;
-    numextrafields = opt.star_internalprop_names.size() + opt.star_chem_names.size() + opt.star_chemproduction_names.size();
+    numextrafields = opt.star_internalprop_unique_input_names.size() + opt.star_chem_unique_input_names.size() + opt.star_chemproduction_unique_input_names.size();
     if (numextrafields == 0) return;
     MPI_Recv(&num, 1, MPI_Int_t, readtaskID, ThisTask, MPI_COMM_WORLD, &status);
     if (num == 0) return;
@@ -1369,21 +1369,21 @@ void MPIReceiveStarInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle 
         index=indices[i];
         Part[index].SetStarProperties(x);
         offset = 0;
-        for (auto iextra=0;iextra<opt.star_internalprop_names.size();iextra++)
+        for (auto iextra=0;iextra<opt.star_internalprop_unique_input_names.size();iextra++)
         {
-            field = opt.star_internalprop_names[iextra];
+            field = opt.star_internalprop_unique_input_names[iextra];
             Part[index].GetStarProperties().SetInternalProperties(field,propbuff[i*numextrafields+iextra+offset]);
         }
-        offset += opt.star_internalprop_names.size();
-        for (auto iextra=0;iextra<opt.star_chem_names.size();iextra++)
+        offset += opt.star_internalprop_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.star_chem_unique_input_names.size();iextra++)
         {
-            field = opt.star_chem_names[iextra];
+            field = opt.star_chem_unique_input_names[iextra];
             Part[index].GetStarProperties().SetChemistry(field,propbuff[i*numextrafields+iextra+offset]);
         }
-        offset += opt.star_chem_names.size();
-        for (auto iextra=0;iextra<opt.star_chemproduction_names.size();iextra++)
+        offset += opt.star_chem_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.star_chemproduction_unique_input_names.size();iextra++)
         {
-            field = opt.star_chemproduction_names[iextra];
+            field = opt.star_chemproduction_unique_input_names[iextra];
             Part[index].GetStarProperties().SetChemistryProduction(field,propbuff[i*numextrafields+iextra+offset]);
         }
     }
@@ -1399,7 +1399,7 @@ void MPIReceiveBHInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle *P
     vector<float> propbuff;
     string field;
     BHProperties x;
-    numextrafields = opt.bh_internalprop_names.size() +opt.bh_chem_names.size() + opt.bh_chemproduction_names.size();
+    numextrafields = opt.bh_internalprop_unique_input_names.size() +opt.bh_chem_unique_input_names.size() + opt.bh_chemproduction_unique_input_names.size();
     if (numextrafields == 0) return;
     MPI_Recv(&num, 1, MPI_Int_t, readtaskID, ThisTask, MPI_COMM_WORLD, &status);
     if (num == 0) return;
@@ -1416,21 +1416,21 @@ void MPIReceiveBHInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle *P
         index=indices[i];
         Part[index].SetBHProperties(x);
         offset = 0;
-        for (auto iextra=0;iextra<opt.bh_internalprop_names.size();iextra++)
+        for (auto iextra=0;iextra<opt.bh_internalprop_unique_input_names.size();iextra++)
         {
-            field = opt.bh_internalprop_names[iextra];
+            field = opt.bh_internalprop_unique_input_names[iextra];
             Part[index].GetBHProperties().SetInternalProperties(field,propbuff[i*numextrafields+iextra+offset]);
         }
-        offset += opt.bh_internalprop_names.size();
-        for (auto iextra=0;iextra<opt.bh_chem_names.size();iextra++)
+        offset += opt.bh_internalprop_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.bh_chem_unique_input_names.size();iextra++)
         {
-            field = opt.bh_chem_names[iextra];
+            field = opt.bh_chem_unique_input_names[iextra];
             Part[index].GetBHProperties().SetChemistry(field,propbuff[i*numextrafields+iextra+offset]);
         }
-        offset += opt.bh_chem_names.size();
-        for (auto iextra=0;iextra<opt.bh_chemproduction_names.size();iextra++)
+        offset += opt.bh_chem_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.bh_chemproduction_unique_input_names.size();iextra++)
         {
-            field = opt.bh_chemproduction_names[iextra];
+            field = opt.bh_chemproduction_unique_input_names[iextra];
             Part[index].GetBHProperties().SetChemistryProduction(field,propbuff[i*numextrafields+iextra+offset]);
         }
     }
@@ -1446,7 +1446,7 @@ void MPIReceiveExtraDMInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Partic
     vector<float> propbuff;
     string field;
     ExtraDMProperties x;
-    numextrafields = opt.extra_dm_internalprop_names.size();
+    numextrafields = opt.extra_dm_internalprop_unique_input_names.size();
     if (numextrafields == 0) return;
     MPI_Recv(&num, 1, MPI_Int_t, readtaskID, ThisTask, MPI_COMM_WORLD, &status);
     if (num == 0) return;
@@ -1463,9 +1463,9 @@ void MPIReceiveExtraDMInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Partic
         index=indices[i];
         Part[index].SetExtraDMProperties(x);
         offset = 0;
-        for (auto iextra=0;iextra<opt.extra_dm_internalprop_names.size();iextra++)
+        for (auto iextra=0;iextra<opt.extra_dm_internalprop_unique_input_names.size();iextra++)
         {
-            field = opt.extra_dm_internalprop_names[iextra];
+            field = opt.extra_dm_internalprop_unique_input_names[iextra];
             Part[index].GetExtraDMProperties().SetExtraProperties(field,propbuff[i*numextrafields+iextra+offset]);
         }
     }
@@ -1482,7 +1482,7 @@ void MPIReceiveHydroInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int sou
     vector<float> propbuff;
     string field;
     HydroProperties x;
-    numextrafields = opt.gas_internalprop_names.size() + opt.gas_chem_names.size() + opt.gas_chemproduction_names.size();
+    numextrafields = opt.gas_internalprop_unique_input_names.size() + opt.gas_chem_unique_input_names.size() + opt.gas_chemproduction_unique_input_names.size();
     if (numextrafields == 0) return;
     MPI_Recv(&num, 1, MPI_Int_t, sourceTaskID, tag, MPI_COMM_WORLD,&status);
     if (num == 0) return;
@@ -1499,21 +1499,21 @@ void MPIReceiveHydroInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int sou
         index=indices[i];
         Part[index].SetHydroProperties(x);
         offset = 0;
-        for (auto iextra=0;iextra<opt.gas_internalprop_names.size();iextra++)
+        for (auto iextra=0;iextra<opt.gas_internalprop_unique_input_names.size();iextra++)
         {
-            field = opt.gas_internalprop_names[iextra];
+            field = opt.gas_internalprop_unique_input_names[iextra];
             Part[index].GetHydroProperties().SetInternalProperties(field,propbuff[i*numextrafields+iextra+offset]);
         }
-        offset += opt.gas_internalprop_names.size();
-        for (auto iextra=0;iextra<opt.gas_chem_names.size();iextra++)
+        offset += opt.gas_internalprop_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.gas_chem_unique_input_names.size();iextra++)
         {
-            field = opt.gas_chem_names[iextra];
+            field = opt.gas_chem_unique_input_names[iextra];
             Part[index].GetHydroProperties().SetChemistry(field,propbuff[i*numextrafields+iextra+offset]);
         }
-        offset += opt.gas_chem_names.size();
-        for (auto iextra=0;iextra<opt.gas_chemproduction_names.size();iextra++)
+        offset += opt.gas_chem_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.gas_chemproduction_unique_input_names.size();iextra++)
         {
-            field = opt.gas_chemproduction_names[iextra];
+            field = opt.gas_chemproduction_unique_input_names[iextra];
             Part[index].GetHydroProperties().SetChemistryProduction(field,propbuff[i*numextrafields+iextra+offset]);
         }
     }
@@ -1529,7 +1529,7 @@ void MPIReceiveStarInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int sour
     vector<float> propbuff;
     string field;
     StarProperties x;
-    numextrafields = opt.star_internalprop_names.size() + opt.star_chem_names.size() + opt.star_chemproduction_names.size();
+    numextrafields = opt.star_internalprop_unique_input_names.size() + opt.star_chem_unique_input_names.size() + opt.star_chemproduction_unique_input_names.size();
     if (numextrafields == 0) return;
     MPI_Recv(&num, 1, MPI_Int_t, sourceTaskID, tag, MPI_COMM_WORLD,&status);
     if (num == 0) return;
@@ -1546,21 +1546,21 @@ void MPIReceiveStarInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int sour
         index=indices[i];
         Part[index].SetStarProperties(x);
         offset = 0;
-        for (auto iextra=0;iextra<opt.star_internalprop_names.size();iextra++)
+        for (auto iextra=0;iextra<opt.star_internalprop_unique_input_names.size();iextra++)
         {
-            field = opt.star_internalprop_names[iextra];
+            field = opt.star_internalprop_unique_input_names[iextra];
             Part[index].GetStarProperties().SetInternalProperties(field,propbuff[i*numextrafields+iextra+offset]);
         }
-        offset += opt.star_internalprop_names.size();
-        for (auto iextra=0;iextra<opt.star_chem_names.size();iextra++)
+        offset += opt.star_internalprop_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.star_chem_unique_input_names.size();iextra++)
         {
-            field = opt.star_chem_names[iextra];
+            field = opt.star_chem_unique_input_names[iextra];
             Part[index].GetStarProperties().SetChemistry(field,propbuff[i*numextrafields+iextra+offset]);
         }
-        offset += opt.star_chem_names.size();
-        for (auto iextra=0;iextra<opt.star_chemproduction_names.size();iextra++)
+        offset += opt.star_chem_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.star_chemproduction_unique_input_names.size();iextra++)
         {
-            field = opt.star_chemproduction_names[iextra];
+            field = opt.star_chemproduction_unique_input_names[iextra];
             Part[index].GetStarProperties().SetChemistryProduction(field,propbuff[i*numextrafields+iextra+offset]);
         }
     }
@@ -1576,7 +1576,7 @@ void MPIReceiveBHInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int source
     vector<float> propbuff;
     string field;
     BHProperties x;
-    numextrafields = opt.bh_internalprop_names.size() + opt.bh_chem_names.size() + opt.bh_chemproduction_names.size();
+    numextrafields = opt.bh_internalprop_unique_input_names.size() + opt.bh_chem_unique_input_names.size() + opt.bh_chemproduction_unique_input_names.size();
     if (numextrafields == 0) return;
     MPI_Recv(&num, 1, MPI_Int_t, sourceTaskID, tag, MPI_COMM_WORLD,&status);
     if (num == 0) return;
@@ -1593,21 +1593,21 @@ void MPIReceiveBHInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int source
         index=indices[i];
         Part[index].SetBHProperties(x);
         offset = 0;
-        for (auto iextra=0;iextra<opt.bh_internalprop_names.size();iextra++)
+        for (auto iextra=0;iextra<opt.bh_internalprop_unique_input_names.size();iextra++)
         {
-            field = opt.bh_internalprop_names[iextra];
+            field = opt.bh_internalprop_unique_input_names[iextra];
             Part[index].GetBHProperties().SetInternalProperties(field,propbuff[i*numextrafields+iextra+offset]);
         }
-        offset += opt.bh_internalprop_names.size();
-        for (auto iextra=0;iextra<opt.bh_chem_names.size();iextra++)
+        offset += opt.bh_internalprop_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.bh_chem_unique_input_names.size();iextra++)
         {
-            field = opt.bh_chem_names[iextra];
+            field = opt.bh_chem_unique_input_names[iextra];
             Part[index].GetBHProperties().SetChemistry(field,propbuff[i*numextrafields+iextra+offset]);
         }
-        offset += opt.bh_chem_names.size();
-        for (auto iextra=0;iextra<opt.bh_chemproduction_names.size();iextra++)
+        offset += opt.bh_chem_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.bh_chemproduction_unique_input_names.size();iextra++)
         {
-            field = opt.bh_chemproduction_names[iextra];
+            field = opt.bh_chemproduction_unique_input_names[iextra];
             Part[index].GetBHProperties().SetChemistryProduction(field,propbuff[i*numextrafields+iextra+offset]);
         }
     }
@@ -1623,7 +1623,7 @@ void MPIReceiveExtraDMInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int s
     vector<float> propbuff;
     string field;
     ExtraDMProperties x;
-    numextrafields = opt.extra_dm_internalprop_names.size();
+    numextrafields = opt.extra_dm_internalprop_unique_input_names.size();
     if (numextrafields == 0) return;
     MPI_Recv(&num, 1, MPI_Int_t, sourceTaskID, tag, MPI_COMM_WORLD,&status);
     if (num == 0) return;
@@ -1640,9 +1640,9 @@ void MPIReceiveExtraDMInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int s
         index=indices[i];
         Part[index].SetExtraDMProperties(x);
         offset = 0;
-        for (auto iextra=0;iextra<opt.extra_dm_internalprop_names.size();iextra++)
+        for (auto iextra=0;iextra<opt.extra_dm_internalprop_unique_input_names.size();iextra++)
         {
-            field = opt.extra_dm_internalprop_names[iextra];
+            field = opt.extra_dm_internalprop_unique_input_names[iextra];
             Part[index].GetExtraDMProperties().SetExtraProperties(field,propbuff[i*numextrafields+iextra+offset]);
         }
     }
