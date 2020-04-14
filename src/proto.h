@@ -769,9 +769,9 @@ Int_t **BuildPGList(const Int_t nbodies, const Int_t numgroups, Int_t *numingrou
 ///build pglist but doesn't assume particles are in ID order
 Int_t **BuildPGList(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t *pfof, Int_t *ids);
 ///build the group particle arrays need for unbinding procedure
-Particle **BuildPartList(const Int_t numgroups, Int_t *numingroup, Int_t **pglist, Particle* Part);
+Particle **BuildPartList(const Int_t numgroups, Int_t *numingroup, Int_t **pglist, Particle* Part, bool ikeepextrainfo = false);
 ///build a particle list subset using array of indices
-Particle *BuildPart(Int_t numingroup, Int_t *pglist, Particle* Part);
+Particle *BuildPart(Int_t numingroup, Int_t *pglist, Particle* Part, bool ikeepextrainfo = false);
 ///build the Head array which points to the head of the group a particle belongs to
 Int_tree_t *BuildHeadArray(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t **pglist);
 ///build the Next array which points to the next particle in the group
