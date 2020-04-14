@@ -238,33 +238,49 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     //if this flag is set, calculate localfield value here for particles possibly resident in a field structure
 #ifdef STRUCDEN
     if (numgroups>0 && (opt.iSubSearch==1&&opt.foftype!=FOF6DCORE)) {
-        numingroup=BuildNumInGroup(nbodies, numgroups, pfof);
         storetype=new Int_t[nbodies];
+        Int_t numinstrucs=0,numlocalden=0;
         for (i=0;i<nbodies;i++) storetype[i]=Part[i].GetType();
-        Int_t numinstrucs=0;
-        //if not searching all particle then searching for baryons associated with substructures, then set type to group value
-        //so that velocity density just calculated for particles in groups (type>0)
         if (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)) {
-            for (i=0;i<nbodies;i++) {
-                Part[i].SetType(numingroup[pfof[Part[i].GetID()]]>=MINSUBSIZE);
-            }
-        }
-        //otherwise set type to group value for dark matter
-        else {
+#ifdef HIGHRES
+            numingroup=BuildNumInGroupTyped(nbodies,numgroups,pfof,Part.data(),DARKTYPE);
             for (i=0;i<nbodies;i++) {
                 if (Part[i].GetType()==DARKTYPE) Part[i].SetType(numingroup[pfof[Part[i].GetID()]]>=MINSUBSIZE);
                 else Part[i].SetType(-1);
+                numlocalden += (Part[i].GetType()>0);
             }
+            delete[] numingroup;
+            numingroup = NULL;
+#else
+            numingroup=BuildNumInGroup(nbodies, numgroups, pfof);
+            for (i=0;i<nbodies;i++) {
+                Part[i].SetType((numingroup[pfof[i]]>=MINSUBSIZE));
+                numlocalden += (Part[i].GetType()>0);
+            }
+            if (opt.fofbgtype>FOF6D) {
+                delete[] numingroup;
+                numingroup = NULL;
+            }
+#endif
         }
-        for (i=0;i<nbodies;i++) if (Part[i].GetType()>0) numinstrucs++;
+        //otherwise set type to group value for dark matter
+        else {
+            numingroup=BuildNumInGroupTyped(nbodies,numgroups,pfof,Part.data(),DARKTYPE);
+            for (i=0;i<nbodies;i++) {
+                if (Part[i].GetType()==DARKTYPE) Part[i].SetType(numingroup[pfof[Part[i].GetID()]]>=MINSUBSIZE);
+                else Part[i].SetType(-1);
+                numlocalden += (Part[i].GetType()>0);
+            }
+            delete[] numingroup;
+            numingroup = NULL;
+        }
+        for (i=0;i<nbodies;i++) {numinstrucs+=(pfof[i]>0);}
         if (opt.iverbose) {
             cout<<"Number of particles in large subhalo searchable structures "<<numinstrucs<<endl;
         }
-        if (numinstrucs>0) GetVelocityDensity(opt, nbodies, Part.data(), tree);
-
+        if (numlocalden>0) GetVelocityDensity(opt, nbodies, Part.data(), tree);
         for (i=0;i<nbodies;i++) Part[i].SetType(storetype[i]);
         delete[] storetype;
-        if (opt.fofbgtype>FOF6D) delete[] numingroup;
     }
 #endif
     delete tree;
@@ -406,11 +422,20 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         Int_t numinstrucs=0,numlocalden=0;
         for (i=0;i<Nlocal;i++) storetype[i]=Part[i].GetType();
         if (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)) {
+#ifdef HIGHRES
+            numingroup=BuildNumInGroupTyped(Nlocal,numgroups,pfof,Part.data(),DARKTYPE);
+            for (i=0;i<Nlocal;i++) {
+                if (Part[i].GetType()==DARKTYPE) Part[i].SetType(numingroup[pfof[Part[i].GetID()]]>=MINSUBSIZE);
+                else Part[i].SetType(-1);
+                numlocalden += (Part[i].GetType()>0);
+            }
+#else
             numingroup=BuildNumInGroup(Nlocal, numgroups, pfof);
             for (i=0;i<Nlocal;i++) {
                 Part[i].SetType((numingroup[pfof[i]]>=MINSUBSIZE));
                 numlocalden += (Part[i].GetType()>0);
             }
+#endif
             delete[] numingroup;
             numingroup=NULL;
         }
