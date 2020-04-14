@@ -2055,7 +2055,7 @@ void MPISendReceiveFOFHydroInfoBetweenThreads(Options &opt, Int_t nexport, fofid
     string field;
     HydroProperties x;
 
-    numextrafields = opt.gas_internalprop_names.size() + opt.gas_chem_names.size() + opt.gas_chemproduction_names.size();
+    numextrafields = opt.gas_internalprop_unique_input_names.size() + opt.gas_chem_unique_input_names.size() + opt.gas_chemproduction_unique_input_names.size();
     if (numextrafields == 0) return;
     for (auto i=0;i<nexport;i++) if (FoFGroupDataExport[i].p.HasHydroProperties()) indicessend.push_back(i);
     numsend = indicessend.size();
@@ -2071,21 +2071,21 @@ void MPISendReceiveFOFHydroInfoBetweenThreads(Options &opt, Int_t nexport, fofid
         {
             index = indicessend[i];
             offset = 0;
-            for (auto iextra=0;iextra<opt.gas_internalprop_names.size();iextra++)
+            for (auto iextra=0;iextra<opt.gas_internalprop_unique_input_names.size();iextra++)
             {
-                field = opt.gas_internalprop_names[iextra];
+                field = opt.gas_internalprop_unique_input_names[iextra];
                 propsendbuff[i*numextrafields + iextra + offset] = FoFGroupDataExport[index].p.GetHydroProperties().GetInternalProperties(field);
             }
-            offset += opt.gas_internalprop_names.size();
-            for (auto iextra=0;iextra<opt.gas_chem_names.size();iextra++)
+            offset += opt.gas_internalprop_unique_input_names.size();
+            for (auto iextra=0;iextra<opt.gas_chem_unique_input_names.size();iextra++)
             {
-                field = opt.gas_chem_names[iextra];
+                field = opt.gas_chem_unique_input_names[iextra];
                 propsendbuff[i*numextrafields + iextra + offset] = FoFGroupDataExport[index].p.GetHydroProperties().GetChemistry(field);
             }
-            offset += opt.gas_chem_names.size();
-            for (auto iextra=0;iextra<opt.gas_chemproduction_names.size();iextra++)
+            offset += opt.gas_chem_unique_input_names.size();
+            for (auto iextra=0;iextra<opt.gas_chemproduction_unique_input_names.size();iextra++)
             {
-                field = opt.gas_chemproduction_names[iextra];
+                field = opt.gas_chemproduction_unique_input_names[iextra];
                 propsendbuff[i*numextrafields + iextra + offset] = FoFGroupDataExport[index].p.GetHydroProperties().GetChemistryProduction(field);
             }
             FoFGroupDataExport[index].p.SetHydroProperties();
@@ -2111,21 +2111,21 @@ void MPISendReceiveFOFHydroInfoBetweenThreads(Options &opt, Int_t nexport, fofid
         index=indicesrecv[i];
         FoFGroupDataLocal[index].p.SetHydroProperties(x);
         offset = 0;
-        for (auto iextra=0;iextra<opt.gas_internalprop_names.size();iextra++)
+        for (auto iextra=0;iextra<opt.gas_internalprop_unique_input_names.size();iextra++)
         {
-            field = opt.gas_internalprop_names[iextra];
+            field = opt.gas_internalprop_unique_input_names[iextra];
             FoFGroupDataLocal[index].p.GetHydroProperties().SetInternalProperties(field,proprecvbuff[i*numextrafields+iextra+offset]);
         }
-        offset += opt.gas_internalprop_names.size();
-        for (auto iextra=0;iextra<opt.gas_chem_names.size();iextra++)
+        offset += opt.gas_internalprop_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.gas_chem_unique_input_names.size();iextra++)
         {
-            field = opt.gas_chem_names[iextra];
+            field = opt.gas_chem_unique_input_names[iextra];
             FoFGroupDataLocal[index].p.GetHydroProperties().SetChemistry(field,proprecvbuff[i*numextrafields+iextra+offset]);
         }
-        offset += opt.gas_chem_names.size();
-        for (auto iextra=0;iextra<opt.gas_chemproduction_names.size();iextra++)
+        offset += opt.gas_chem_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.gas_chemproduction_unique_input_names.size();iextra++)
         {
-            field = opt.gas_chemproduction_names[iextra];
+            field = opt.gas_chemproduction_unique_input_names[iextra];
             FoFGroupDataLocal[index].p.GetHydroProperties().SetChemistryProduction(field,proprecvbuff[i*numextrafields+iextra+offset]);
         }
     }
@@ -2142,7 +2142,7 @@ void MPISendReceiveFOFStarInfoBetweenThreads(Options &opt, Int_t nexport, fofid_
     string field;
     StarProperties x;
 
-    numextrafields = opt.star_internalprop_names.size() + opt.star_chem_names.size() + opt.star_chemproduction_names.size();
+    numextrafields = opt.star_internalprop_unique_input_names.size() + opt.star_chem_unique_input_names.size() + opt.star_chemproduction_unique_input_names.size();
     if (numextrafields == 0) return;
     for (auto i=0;i<nexport;i++) if (FoFGroupDataExport[i].p.HasStarProperties()) indicessend.push_back(i);
     numsend = indicessend.size();
@@ -2158,21 +2158,21 @@ void MPISendReceiveFOFStarInfoBetweenThreads(Options &opt, Int_t nexport, fofid_
         {
             index = indicessend[i];
             offset = 0;
-            for (auto iextra=0;iextra<opt.star_internalprop_names.size();iextra++)
+            for (auto iextra=0;iextra<opt.star_internalprop_unique_input_names.size();iextra++)
             {
-                field = opt.star_internalprop_names[iextra];
+                field = opt.star_internalprop_unique_input_names[iextra];
                 propsendbuff[i*numextrafields + iextra + offset] = FoFGroupDataExport[index].p.GetStarProperties().GetInternalProperties(field);
             }
-            offset += opt.star_internalprop_names.size();
-            for (auto iextra=0;iextra<opt.star_chem_names.size();iextra++)
+            offset += opt.star_internalprop_unique_input_names.size();
+            for (auto iextra=0;iextra<opt.star_chem_unique_input_names.size();iextra++)
             {
-                field = opt.star_chem_names[iextra];
+                field = opt.star_chem_unique_input_names[iextra];
                 propsendbuff[i*numextrafields + iextra + offset] = FoFGroupDataExport[index].p.GetStarProperties().GetChemistry(field);
             }
-            offset += opt.star_chem_names.size();
-            for (auto iextra=0;iextra<opt.star_chemproduction_names.size();iextra++)
+            offset += opt.star_chem_unique_input_names.size();
+            for (auto iextra=0;iextra<opt.star_chemproduction_unique_input_names.size();iextra++)
             {
-                field = opt.star_chemproduction_names[iextra];
+                field = opt.star_chemproduction_unique_input_names[iextra];
                 propsendbuff[i*numextrafields + iextra + offset] = FoFGroupDataExport[index].p.GetStarProperties().GetChemistryProduction(field);
             }
             FoFGroupDataExport[index].p.SetStarProperties();
@@ -2198,21 +2198,21 @@ void MPISendReceiveFOFStarInfoBetweenThreads(Options &opt, Int_t nexport, fofid_
         index=indicesrecv[i];
         FoFGroupDataLocal[index].p.SetStarProperties(x);
         offset = 0;
-        for (auto iextra=0;iextra<opt.star_internalprop_names.size();iextra++)
+        for (auto iextra=0;iextra<opt.star_internalprop_unique_input_names.size();iextra++)
         {
-            field = opt.star_internalprop_names[iextra];
+            field = opt.star_internalprop_unique_input_names[iextra];
             FoFGroupDataLocal[index].p.GetStarProperties().SetInternalProperties(field,proprecvbuff[i*numextrafields+iextra+offset]);
         }
-        offset += opt.star_internalprop_names.size();
-        for (auto iextra=0;iextra<opt.star_chem_names.size();iextra++)
+        offset += opt.star_internalprop_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.star_chem_unique_input_names.size();iextra++)
         {
-            field = opt.star_chem_names[iextra];
+            field = opt.star_chem_unique_input_names[iextra];
             FoFGroupDataLocal[index].p.GetStarProperties().SetChemistry(field,proprecvbuff[i*numextrafields+iextra+offset]);
         }
-        offset += opt.star_chem_names.size();
-        for (auto iextra=0;iextra<opt.star_chemproduction_names.size();iextra++)
+        offset += opt.star_chem_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.star_chemproduction_unique_input_names.size();iextra++)
         {
-            field = opt.star_chemproduction_names[iextra];
+            field = opt.star_chemproduction_unique_input_names[iextra];
             FoFGroupDataLocal[index].p.GetStarProperties().SetChemistryProduction(field,proprecvbuff[i*numextrafields+iextra+offset]);
         }
     }
@@ -2229,7 +2229,7 @@ void MPISendReceiveFOFBHInfoBetweenThreads(Options &opt, Int_t nexport, fofid_in
     string field;
     BHProperties x;
 
-    numextrafields = opt.bh_internalprop_names.size() + opt.bh_chem_names.size() + opt.bh_chemproduction_names.size();
+    numextrafields = opt.bh_internalprop_unique_input_names.size() + opt.bh_chem_unique_input_names.size() + opt.bh_chemproduction_unique_input_names.size();
     if (numextrafields == 0) return;
     for (auto i=0;i<nexport;i++) if (FoFGroupDataExport[i].p.HasBHProperties()) indicessend.push_back(i);
     numsend = indicessend.size();
@@ -2245,21 +2245,21 @@ void MPISendReceiveFOFBHInfoBetweenThreads(Options &opt, Int_t nexport, fofid_in
         {
             index = indicessend[i];
             offset = 0;
-            for (auto iextra=0;iextra<opt.bh_internalprop_names.size();iextra++)
+            for (auto iextra=0;iextra<opt.bh_internalprop_unique_input_names.size();iextra++)
             {
-                field = opt.bh_internalprop_names[iextra];
+                field = opt.bh_internalprop_unique_input_names[iextra];
                 propsendbuff[i*numextrafields + iextra + offset] = FoFGroupDataExport[index].p.GetBHProperties().GetInternalProperties(field);
             }
-            offset += opt.bh_internalprop_names.size();
-            for (auto iextra=0;iextra<opt.bh_chem_names.size();iextra++)
+            offset += opt.bh_internalprop_unique_input_names.size();
+            for (auto iextra=0;iextra<opt.bh_chem_unique_input_names.size();iextra++)
             {
-                field = opt.bh_chem_names[iextra];
+                field = opt.bh_chem_unique_input_names[iextra];
                 propsendbuff[i*numextrafields + iextra + offset] = FoFGroupDataExport[index].p.GetBHProperties().GetChemistry(field);
             }
-            offset += opt.bh_chem_names.size();
-            for (auto iextra=0;iextra<opt.bh_chemproduction_names.size();iextra++)
+            offset += opt.bh_chem_unique_input_names.size();
+            for (auto iextra=0;iextra<opt.bh_chemproduction_unique_input_names.size();iextra++)
             {
-                field = opt.bh_chemproduction_names[iextra];
+                field = opt.bh_chemproduction_unique_input_names[iextra];
                 propsendbuff[i*numextrafields + iextra + offset] = FoFGroupDataExport[index].p.GetBHProperties().GetChemistryProduction(field);
             }
             FoFGroupDataExport[index].p.SetBHProperties();
@@ -2285,21 +2285,21 @@ void MPISendReceiveFOFBHInfoBetweenThreads(Options &opt, Int_t nexport, fofid_in
         index=indicesrecv[i];
         FoFGroupDataLocal[index].p.SetBHProperties(x);
         offset = 0;
-        for (auto iextra=0;iextra<opt.bh_internalprop_names.size();iextra++)
+        for (auto iextra=0;iextra<opt.bh_internalprop_unique_input_names.size();iextra++)
         {
-            field = opt.bh_internalprop_names[iextra];
+            field = opt.bh_internalprop_unique_input_names[iextra];
             FoFGroupDataLocal[index].p.GetBHProperties().SetInternalProperties(field,proprecvbuff[i*numextrafields+iextra+offset]);
         }
-        offset += opt.bh_internalprop_names.size();
-        for (auto iextra=0;iextra<opt.bh_chem_names.size();iextra++)
+        offset += opt.bh_internalprop_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.bh_chem_unique_input_names.size();iextra++)
         {
-            field = opt.bh_chem_names[iextra];
+            field = opt.bh_chem_unique_input_names[iextra];
             FoFGroupDataLocal[index].p.GetBHProperties().SetChemistry(field,proprecvbuff[i*numextrafields+iextra+offset]);
         }
-        offset += opt.bh_chem_names.size();
-        for (auto iextra=0;iextra<opt.bh_chemproduction_names.size();iextra++)
+        offset += opt.bh_chem_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.bh_chemproduction_unique_input_names.size();iextra++)
         {
-            field = opt.bh_chemproduction_names[iextra];
+            field = opt.bh_chemproduction_unique_input_names[iextra];
             FoFGroupDataLocal[index].p.GetBHProperties().SetChemistryProduction(field,proprecvbuff[i*numextrafields+iextra+offset]);
         }
     }
@@ -2317,7 +2317,7 @@ void MPISendReceiveFOFExtraDMInfoBetweenThreads(Options &opt, Int_t nexport, fof
     string field;
     ExtraDMProperties x;
 
-    numextrafields = opt.extra_dm_internalprop_names.size();
+    numextrafields = opt.extra_dm_internalprop_unique_input_names.size();
     if (numextrafields == 0) return;
     for (auto i=0;i<nexport;i++) if (FoFGroupDataExport[i].p.HasExtraDMProperties()) indicessend.push_back(i);
     numsend = indicessend.size();
@@ -2333,9 +2333,9 @@ void MPISendReceiveFOFExtraDMInfoBetweenThreads(Options &opt, Int_t nexport, fof
         {
             index = indicessend[i];
             offset = 0;
-            for (auto iextra=0;iextra<opt.extra_dm_internalprop_names.size();iextra++)
+            for (auto iextra=0;iextra<opt.extra_dm_internalprop_unique_input_names.size();iextra++)
             {
-                field = opt.extra_dm_internalprop_names[iextra];
+                field = opt.extra_dm_internalprop_unique_input_names[iextra];
                 propsendbuff[i*numextrafields + iextra + offset] = FoFGroupDataExport[index].p.GetExtraDMProperties().GetExtraProperties(field);
             }
             FoFGroupDataExport[index].p.SetExtraDMProperties();
@@ -2361,9 +2361,9 @@ void MPISendReceiveFOFExtraDMInfoBetweenThreads(Options &opt, Int_t nexport, fof
         index=indicesrecv[i];
         FoFGroupDataLocal[index].p.SetExtraDMProperties(x);
         offset = 0;
-        for (auto iextra=0;iextra<opt.extra_dm_internalprop_names.size();iextra++)
+        for (auto iextra=0;iextra<opt.extra_dm_internalprop_unique_input_names.size();iextra++)
         {
-            field = opt.extra_dm_internalprop_names[iextra];
+            field = opt.extra_dm_internalprop_unique_input_names[iextra];
             FoFGroupDataLocal[index].p.GetExtraDMProperties().SetExtraProperties(field,proprecvbuff[i*numextrafields+iextra+offset]);
         }
     }

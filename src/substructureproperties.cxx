@@ -1037,11 +1037,11 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
             Pval=&Part[j+noffset[i]];
             if (Pval->GetType()==BHTYPE) {
                 pdata[i].n_bh++;
-                #ifndef NOMASS
+#ifndef NOMASS
                 mval = Pval->GetMass();
-                #else
+#else
                 mval = opt.MassValue;
-                #endif
+#endif
                 pdata[i].M_bh+=mval;
             }
         }

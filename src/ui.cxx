@@ -497,7 +497,6 @@ inline void ExtraFieldCheck(string configentryname,
     indices.clear();
     units.clear();
     conversions.clear();
-    cout<<nentries<<endl;
     for (auto i=0;i<nentries;i++) {
         if (newcalctypes[i] >0) {
             names.push_back(newnames[i]);
