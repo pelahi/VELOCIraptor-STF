@@ -238,20 +238,21 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     //if this flag is set, calculate localfield value here for particles possibly resident in a field structure
 #ifdef STRUCDEN
     if (numgroups>0 && (opt.iSubSearch==1&&opt.foftype!=FOF6DCORE)) {
+
         storetype=new Int_t[nbodies];
         Int_t numinstrucs=0,numlocalden=0;
         for (i=0;i<nbodies;i++) storetype[i]=Part[i].GetType();
         if (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)) {
-#ifdef HIGHRES
-            numingroup=BuildNumInGroupTyped(nbodies,numgroups,pfof,Part.data(),DARKTYPE);
-            for (i=0;i<nbodies;i++) {
-                if (Part[i].GetType()==DARKTYPE) Part[i].SetType(numingroup[pfof[Part[i].GetID()]]>=MINSUBSIZE);
-                else Part[i].SetType(-1);
-                numlocalden += (Part[i].GetType()>0);
-            }
-            delete[] numingroup;
-            numingroup = NULL;
-#else
+// #ifdef HIGHRES
+//             numingroup=BuildNumInGroupTyped(nbodies,numgroups,pfof,Part.data(),DARKTYPE);
+//             for (i=0;i<nbodies;i++) {
+//                 if (Part[i].GetType()==DARKTYPE) Part[i].SetType(numingroup[pfof[Part[i].GetID()]]>=MINSUBSIZE);
+//                 else Part[i].SetType(-1);
+//                 numlocalden += (Part[i].GetType()>0);
+//             }
+//             delete[] numingroup;
+//             numingroup = NULL;
+// #else
             numingroup=BuildNumInGroup(nbodies, numgroups, pfof);
             for (i=0;i<nbodies;i++) {
                 Part[i].SetType((numingroup[pfof[i]]>=MINSUBSIZE));
@@ -261,7 +262,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
                 delete[] numingroup;
                 numingroup = NULL;
             }
-#endif
+// #endif
         }
         //otherwise set type to group value for dark matter
         else {
@@ -422,20 +423,20 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         Int_t numinstrucs=0,numlocalden=0;
         for (i=0;i<Nlocal;i++) storetype[i]=Part[i].GetType();
         if (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)) {
-#ifdef HIGHRES
-            numingroup=BuildNumInGroupTyped(Nlocal,numgroups,pfof,Part.data(),DARKTYPE);
-            for (i=0;i<Nlocal;i++) {
-                if (Part[i].GetType()==DARKTYPE) Part[i].SetType(numingroup[pfof[Part[i].GetID()]]>=MINSUBSIZE);
-                else Part[i].SetType(-1);
-                numlocalden += (Part[i].GetType()>0);
-            }
-#else
+// #ifdef HIGHRES
+//             numingroup=BuildNumInGroupTyped(Nlocal,numgroups,pfof,Part.data(),DARKTYPE);
+//             for (i=0;i<Nlocal;i++) {
+//                 if (Part[i].GetType()==DARKTYPE) Part[i].SetType(numingroup[pfof[Part[i].GetID()]]>=MINSUBSIZE);
+//                 else Part[i].SetType(-1);
+//                 numlocalden += (Part[i].GetType()>0);
+//             }
+// #else
             numingroup=BuildNumInGroup(Nlocal, numgroups, pfof);
             for (i=0;i<Nlocal;i++) {
                 Part[i].SetType((numingroup[pfof[i]]>=MINSUBSIZE));
                 numlocalden += (Part[i].GetType()>0);
             }
-#endif
+// #endif
             delete[] numingroup;
             numingroup=NULL;
         }
@@ -2893,7 +2894,12 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
 
     if (iflag) {
     if (opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL) pglist=BuildPGListTyped(nsubset, ngroup, numingroup, pfof,Partsubset.data(),DARKTYPE);
+// #ifdef HIGHRES
+//     else pglist=BuildPGListTyped(nsubset, ngroup, numingroup, pfof,Partsubset.data(),DARKTYPE);
+// #else
     else pglist=BuildPGList(nsubset, ngroup, numingroup, pfof);
+// #endif
+
     //now store group ids of (sub)structures that will be searched for (sub)substructure.
     //since at level zero, the particle group list that is going to be used to calculate the background, outliers and searched through is simple pglist here
     //also the group size is simple numingroup

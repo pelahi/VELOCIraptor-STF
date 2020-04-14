@@ -177,6 +177,9 @@ void DetermineDenVRatioDistribution(Options &opt,const Int_t nbodies, Particle *
 #else
         w=Part[i].GetMass();
 #endif
+#ifdef HIGHRES
+        w = 1.0;
+#endif
         rbin[ir]+=w;
         mtot+=w;
     }
@@ -243,6 +246,9 @@ void DetermineDenVRatioDistribution(Options &opt,const Int_t nbodies, Particle *
                 w=1.0;
 #else
                 w=Part[i].GetMass();
+#endif
+#ifdef HIGHRES
+                w = 1.0;
 #endif
                 rbin[ir]+=w;
                 W(ir,ir)+=w*w;
