@@ -2181,9 +2181,9 @@ void MPISendReceiveFOFHydroInfoBetweenThreads(Options &opt, fofid_in *FoFGroupDa
     if (numsend==0) {indicessend.resize(1);propsendbuff.resize(1);}
     if (numrecv==0) {indicesrecv.resize(1);proprecvbuff.resize(1);}
     MPI_Sendrecv(indicessend.data(),numsend, MPI_Int_t, recvTask,
-        tag*3, indicesrecv.data(),numrecv, MPI_Int_t, recvTask, tag*2, mpi_comm, &status);
+        tag*3, indicesrecv.data(),numrecv, MPI_Int_t, recvTask, tag*3, mpi_comm, &status);
     MPI_Sendrecv(propsendbuff.data(),numsend*numextrafields, MPI_FLOAT, recvTask,
-        tag*4, proprecvbuff.data(),numrecv*numextrafields, MPI_FLOAT, recvTask, tag*3, mpi_comm, &status);
+        tag*4, proprecvbuff.data(),numrecv*numextrafields, MPI_FLOAT, recvTask, tag*4, mpi_comm, &status);
     if (numrecv == 0) return;
     for (auto i=0;i<numrecv;i++)
     {
@@ -2232,9 +2232,9 @@ void MPISendReceiveFOFStarInfoBetweenThreads(Options &opt, fofid_in *FoFGroupDat
     if (numsend==0) {indicessend.resize(1);propsendbuff.resize(1);}
     if (numrecv==0) {indicesrecv.resize(1);proprecvbuff.resize(1);}
     MPI_Sendrecv(indicessend.data(),numsend, MPI_Int_t, recvTask,
-        tag*3, indicesrecv.data(),numrecv, MPI_Int_t, recvTask, tag*2, mpi_comm, &status);
+        tag*3, indicesrecv.data(),numrecv, MPI_Int_t, recvTask, tag*3, mpi_comm, &status);
     MPI_Sendrecv(propsendbuff.data(),numsend*numextrafields, MPI_FLOAT, recvTask,
-        tag*4, proprecvbuff.data(),numrecv*numextrafields, MPI_FLOAT, recvTask, tag*3, mpi_comm, &status);
+        tag*4, proprecvbuff.data(),numrecv*numextrafields, MPI_FLOAT, recvTask, tag*4, mpi_comm, &status);
     if (numrecv == 0) return;
     for (auto i=0;i<numrecv;i++)
     {
@@ -2283,9 +2283,9 @@ void MPISendReceiveFOFBHInfoBetweenThreads(Options &opt, fofid_in *FoFGroupDataL
     if (numsend==0) {indicessend.resize(1);propsendbuff.resize(1);}
     if (numrecv==0) {indicesrecv.resize(1);proprecvbuff.resize(1);}
     MPI_Sendrecv(indicessend.data(),numsend, MPI_Int_t, recvTask,
-        tag*3, indicesrecv.data(),numrecv, MPI_Int_t, recvTask, tag*2, mpi_comm, &status);
+        tag*3, indicesrecv.data(),numrecv, MPI_Int_t, recvTask, tag*3, mpi_comm, &status);
     MPI_Sendrecv(propsendbuff.data(),numsend*numextrafields, MPI_FLOAT, recvTask,
-        tag*4, proprecvbuff.data(),numrecv*numextrafields, MPI_FLOAT, recvTask, tag*3, mpi_comm, &status);
+        tag*4, proprecvbuff.data(),numrecv*numextrafields, MPI_FLOAT, recvTask, tag*4, mpi_comm, &status);
     if (numrecv == 0) return;
     for (auto i=0;i<numrecv;i++)
     {
@@ -2334,9 +2334,9 @@ void MPISendReceiveFOFExtraDMInfoBetweenThreads(Options &opt, fofid_in *FoFGroup
     if (numsend==0) {indicessend.resize(1);propsendbuff.resize(1);}
     if (numrecv==0) {indicesrecv.resize(1);proprecvbuff.resize(1);}
     MPI_Sendrecv(indicessend.data(),numsend, MPI_Int_t, recvTask,
-        tag*3, indicesrecv.data(),numrecv, MPI_Int_t, recvTask, tag*2, mpi_comm, &status);
+        tag*3, indicesrecv.data(),numrecv, MPI_Int_t, recvTask, tag*3, mpi_comm, &status);
     MPI_Sendrecv(propsendbuff.data(),numsend*numextrafields, MPI_FLOAT, recvTask,
-        tag*4, proprecvbuff.data(),numrecv*numextrafields, MPI_FLOAT, recvTask, tag*3, mpi_comm, &status);
+        tag*4, proprecvbuff.data(),numrecv*numextrafields, MPI_FLOAT, recvTask, tag*4, mpi_comm, &status);
     if (numrecv == 0) return;
     for (auto i=0;i<numrecv;i++)
     {
