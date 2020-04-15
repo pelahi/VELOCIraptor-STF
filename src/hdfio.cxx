@@ -306,6 +306,7 @@ inline void UpdateExtraFieldOutputNames(vector<string> &names,
         hid_t dset = HDF5OpenDataSet(pgroup, extrafield);
         hid_t dspace = H5Dget_space(dset);
         int ndims = H5Sget_simple_extent_ndims(dspace);
+        cout<<iextra<<" "<<extrafield<<" "<<extrafield2<<" "<<outnames[iextra]<<" "<<ndims<<endl;
         //check number of dimensions of dataset
         if (ndims == 1 && indices[iextra] > 0) {
             cerr<<"Asking to load extra field index > 0 and field is single dimension. "<<endl;
@@ -2517,7 +2518,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                             if (!Pbuf[ibufindex].HasHydroProperties()) Pbuf[ibufindex].InitHydroProperties();
                             if (opt.gas_internalprop_names.size()>0)
                             {
-                                for (auto iextra=0;iextra<opt.gas_internalprop_names.size();iextra++)
+                                for (auto &iextra:opt.gas_internalprop_unique_input_indexlist)
                                 {
                                     extrafield = opt.gas_internalprop_names[iextra] +
                                         to_string(opt.gas_internalprop_index[iextra]);
@@ -2527,7 +2528,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                             iextraoffset += opt.gas_internalprop_names.size();
                             if (opt.gas_chem_names.size()>0)
                             {
-                                for (auto iextra=0;iextra<opt.gas_chem_names.size();iextra++)
+                                for (auto &iextra:opt.gas_chem_unique_input_indexlist)
                                 {
                                     extrafield = opt.gas_chem_names[iextra] +
                                         to_string(opt.gas_chem_index[iextra]);
@@ -2537,7 +2538,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                             iextraoffset += opt.gas_chem_names.size();
                             if (opt.gas_chemproduction_names.size()>0)
                             {
-                                for (auto iextra=0;iextra<opt.gas_chemproduction_names.size();iextra++)
+                                for (auto &iextra:opt.gas_chemproduction_unique_input_indexlist)
                                 {
                                     extrafield = opt.gas_chemproduction_names[iextra] +
                                         to_string(opt.gas_chemproduction_index[iextra]);
@@ -2552,7 +2553,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                             if (!Pbuf[ibufindex].HasStarProperties()) Pbuf[ibufindex].InitStarProperties();
                             if (opt.star_internalprop_names.size()>0)
                             {
-                                for (auto iextra=0;iextra<opt.star_internalprop_names.size();iextra++)
+                                for (auto &iextra:opt.star_internalprop_unique_input_indexlist)
                                 {
                                     extrafield = opt.star_internalprop_names[iextra] +
                                         to_string(opt.star_internalprop_index[iextra]);
@@ -2562,7 +2563,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                             iextraoffset += opt.star_internalprop_names.size();
                             if (opt.star_chem_names.size()>0)
                             {
-                                for (auto iextra=0;iextra<opt.star_chem_names.size();iextra++)
+                                for (auto &iextra:opt.star_chem_unique_input_indexlist)
                                 {
                                     extrafield = opt.star_chem_names[iextra] +
                                         to_string(opt.star_chem_index[iextra]);
@@ -2572,7 +2573,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                             iextraoffset += opt.star_chem_names.size();
                             if (opt.star_chemproduction_names.size()>0)
                             {
-                                for (auto iextra=0;iextra<opt.star_chemproduction_names.size();iextra++)
+                                for (auto &iextra:opt.star_chemproduction_unique_input_indexlist)
                                 {
                                     extrafield = opt.star_chemproduction_names[iextra] +
                                         to_string(opt.star_chemproduction_index[iextra]);
@@ -2587,7 +2588,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                             if (!Pbuf[ibufindex].HasBHProperties()) Pbuf[ibufindex].InitBHProperties();
                             if (opt.bh_internalprop_names.size()>0)
                             {
-                                for (auto iextra=0;iextra<opt.bh_internalprop_names.size();iextra++)
+                                for (auto &iextra:opt.bh_internalprop_unique_input_indexlist)
                                 {
                                     extrafield = opt.bh_internalprop_names[iextra] +
                                         to_string(opt.bh_internalprop_index[iextra]);
@@ -2597,7 +2598,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                             iextraoffset += opt.bh_internalprop_names.size();
                             if (opt.bh_chem_names.size()>0)
                             {
-                                for (auto iextra=0;iextra<opt.bh_chem_names.size();iextra++)
+                                for (auto &iextra:opt.bh_chem_unique_input_indexlist)
                                 {
                                     extrafield = opt.bh_chem_names[iextra] +
                                         to_string(opt.bh_chem_index[iextra]);
@@ -2607,7 +2608,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                             iextraoffset += opt.bh_chem_names.size();
                             if (opt.bh_chemproduction_names.size()>0)
                             {
-                                for (auto iextra=0;iextra<opt.bh_chemproduction_names.size();iextra++)
+                                for (auto &iextra:opt.bh_chemproduction_unique_input_indexlist)
                                 {
                                     extrafield = opt.bh_chemproduction_names[iextra] +
                                         to_string(opt.bh_chemproduction_index[iextra]);
@@ -2622,7 +2623,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                             if (!Pbuf[ibufindex].HasExtraDMProperties()) Pbuf[ibufindex].InitExtraDMProperties();
                             if (opt.extra_dm_internalprop_names.size()>0)
                             {
-                                for (auto iextra=0;iextra<opt.extra_dm_internalprop_names.size();iextra++)
+                                for (auto &iextra:opt.extra_dm_internalprop_unique_input_indexlist)
                                 {
                                     extrafield = opt.extra_dm_internalprop_names[iextra] +
                                         to_string(opt.extra_dm_internalprop_index[iextra]);
