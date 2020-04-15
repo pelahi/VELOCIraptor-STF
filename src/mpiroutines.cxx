@@ -2180,6 +2180,7 @@ void MPISendReceiveFOFHydroInfoBetweenThreads(Options &opt, fofid_in *FoFGroupDa
     //send the information. If vectors are of zero size, must increase size so .data() points to a valid address
     if (numsend==0) {indicessend.resize(1);propsendbuff.resize(1);}
     if (numrecv==0) {indicesrecv.resize(1);proprecvbuff.resize(1);}
+    else {indicesrecv.resize(numrecv);proprecvbuff.resize(numrecv);}
     MPI_Sendrecv(indicessend.data(),numsend, MPI_Int_t, recvTask,
         tag*3, indicesrecv.data(),numrecv, MPI_Int_t, recvTask, tag*3, mpi_comm, &status);
     MPI_Sendrecv(propsendbuff.data(),numsend*numextrafields, MPI_FLOAT, recvTask,
@@ -2231,6 +2232,7 @@ void MPISendReceiveFOFStarInfoBetweenThreads(Options &opt, fofid_in *FoFGroupDat
     //send the information. If vectors are of zero size, must increase size so .data() points to a valid address
     if (numsend==0) {indicessend.resize(1);propsendbuff.resize(1);}
     if (numrecv==0) {indicesrecv.resize(1);proprecvbuff.resize(1);}
+    else {indicesrecv.resize(numrecv);proprecvbuff.resize(numrecv);}
     MPI_Sendrecv(indicessend.data(),numsend, MPI_Int_t, recvTask,
         tag*3, indicesrecv.data(),numrecv, MPI_Int_t, recvTask, tag*3, mpi_comm, &status);
     MPI_Sendrecv(propsendbuff.data(),numsend*numextrafields, MPI_FLOAT, recvTask,
@@ -2282,6 +2284,7 @@ void MPISendReceiveFOFBHInfoBetweenThreads(Options &opt, fofid_in *FoFGroupDataL
     //send the information. If vectors are of zero size, must increase size so .data() points to a valid address
     if (numsend==0) {indicessend.resize(1);propsendbuff.resize(1);}
     if (numrecv==0) {indicesrecv.resize(1);proprecvbuff.resize(1);}
+    else {indicesrecv.resize(numrecv);proprecvbuff.resize(numrecv);}
     MPI_Sendrecv(indicessend.data(),numsend, MPI_Int_t, recvTask,
         tag*3, indicesrecv.data(),numrecv, MPI_Int_t, recvTask, tag*3, mpi_comm, &status);
     MPI_Sendrecv(propsendbuff.data(),numsend*numextrafields, MPI_FLOAT, recvTask,
@@ -2333,6 +2336,7 @@ void MPISendReceiveFOFExtraDMInfoBetweenThreads(Options &opt, fofid_in *FoFGroup
     //send the information. If vectors are of zero size, must increase size so .data() points to a valid address
     if (numsend==0) {indicessend.resize(1);propsendbuff.resize(1);}
     if (numrecv==0) {indicesrecv.resize(1);proprecvbuff.resize(1);}
+    else {indicesrecv.resize(numrecv);proprecvbuff.resize(numrecv);}
     MPI_Sendrecv(indicessend.data(),numsend, MPI_Int_t, recvTask,
         tag*3, indicesrecv.data(),numrecv, MPI_Int_t, recvTask, tag*3, mpi_comm, &status);
     MPI_Sendrecv(propsendbuff.data(),numsend*numextrafields, MPI_FLOAT, recvTask,
