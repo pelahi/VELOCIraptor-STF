@@ -207,7 +207,7 @@ int InitVelociraptor(char* configname, unitinfo u, siminfo s, const int numthrea
 
 int InitVelociraptorExtra(const int iextra, char* configname, unitinfo u, siminfo s, const int numthreads)
 {
-    cout<<"Initialising VELOCIraptor..."<< endl;
+    cout<<"Initialising VELOCIraptor git revision "<<velociraptor::git_sha1()<<" ..."<< endl;
     // if mpi invokved, init the velociraptor tasks and openmp threads
 #ifdef USEMPI
     //find out how big the SPMD world is
