@@ -2184,6 +2184,9 @@ void ConfigCheck(Options &opt)
 #endif
     cout<<" -------------------------- "<<endl;
     }
+
+    //store the git hash
+    opt.git_sha1 = velociraptor::git_sha1();
 #ifdef USEMPI
     MPI_Barrier(MPI_COMM_WORLD);
 #endif
@@ -2194,6 +2197,9 @@ ConfigInfo::ConfigInfo(Options &opt){
     string datastring;
     //if compiler is super old and does not have at least std 11 implementation to_string does not exist
 #ifndef OLDCCOMPILER
+    //Add version
+    AddEntry("Git_revision", opt.git_sha1);
+
     //general search operations
     AddEntry("Particle_search_type", opt.partsearchtype);
     AddEntry("FoF_search_type", opt.foftype);

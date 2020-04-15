@@ -72,6 +72,8 @@
 #include "adios.h"
 #endif
 
+#include "git_revision.h"
+
 //#include "swiftinterface.h"
 //
 //using namespace Swift;
@@ -373,6 +375,11 @@ struct cell_loc {
 /// Options structure stores useful variables that have user determined values which are altered by \ref GetArgs in \ref ui.cxx
 struct Options
 {
+
+    ///\name git related info
+    //@{
+    string git_sha1;
+    //@}
     ///\name filenames
     //@{
     char *fname,*outname,*smname,*pname,*gname;
