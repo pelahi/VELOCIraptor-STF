@@ -640,19 +640,33 @@ void MPISendReceiveExtraDMInfoBetweenThreads(Options &opt, Int_t nlocalbuff, Par
 
 ///Filling extra buffers with hydro data for particles that are to be exported as part of
 ///a FOF group.
-void MPIFillFOFBuffWithHydroInfo(Options &opt, Int_t *numbuff, Int_t *numoffset, Particle *&Part, fofid_in *&FoFGroupData, vector<Int_t> &indices, vector<float> &propbuff, bool iforexport=false);
+// void MPIFillFOFBuffWithHydroInfo(Options &opt, Int_t *numbuff, Int_t *numoffset, Particle *&Part, fofid_in *&FoFGroupData, vector<Int_t> &indices, vector<float> &propbuff, bool iforexport=false);
+// void MPIFillFOFBuffWithStarInfo(Options &opt, Int_t *numbuff, Int_t *numoffset, Particle *&Part, fofid_in *&FoFGroupData, vector<Int_t> &indices, vector<float> &propbuff, bool iforexport=false);
+// void MPIFillFOFBuffWithBHInfo(Options &opt, Int_t *numbuff, Int_t *numoffset, Particle *&Part, fofid_in *&FoFGroupData, vector<Int_t> &indices, vector<float> &propbuff, bool iforexport=false);
+// void MPIFillFOFBuffWithExtraDMInfo(Options &opt, Int_t *numbuff, Int_t *numoffset, Particle *&Part, fofid_in *&FoFGroupData, vector<Int_t> &indices, vector<float> &propbuff, bool iforexport=false);
+
+///Filling extra buffers with hydro data for particles that are to be exported as part of
+///a FOF group.
+void MPIFillFOFBuffWithHydroInfo(Options &opt, Int_t numexport, fofid_in *FoFGroupData, Particle *&Part, vector<Int_t> &indices, vector<float> &propbuff, bool iforexport = true);
+///Filling extra buffers with hydro data for particles that are to be exported as part of
+///a Star group.
+void MPIFillFOFBuffWithStarInfo(Options &opt, Int_t numexport, fofid_in *FoFGroupData, Particle *&Part, vector<Int_t> &indices, vector<float> &propbuff, bool iforexport = true);
+///Filling extra buffers with hydro data for particles that are to be exported as part of
+///a BH group.
+void MPIFillFOFBuffWithBHInfo(Options &opt, Int_t numexport, fofid_in *FoFGroupData, Particle *&Part, vector<Int_t> &indices, vector<float> &propbuff, bool iforexport = true);
+///Filling extra buffers with hydro data for particles that are to be exported as part of
+///a Extra DM group.
+void MPIFillFOFBuffWithExtraDMInfo(Options &opt, Int_t numexport, fofid_in *FoFGroupData, Particle *&Part, vector<Int_t> &indices, vector<float> &propbuff, bool iforexport = true);
+
 ///Send/Receive hydro information between read threads using the MPI communicator
 ///Using a FOF filled buffer
-void MPISendReceiveFOFHydroInfoBetweenThreads(Options &opt, Int_t nexport, fofid_in *FoFGroupDataExport, Int_t nlocal, fofid_in *FoFGroupDataLocal, Particle *&Part, int recvTask, int tag, MPI_Comm &mpi_comm);
+void MPISendReceiveFOFHydroInfoBetweenThreads(Options &opt, fofid_in *FoFGroupDataLocal, vector<Int_t> &indices, vector<float> &propbuff, int recvTask, int tag, MPI_Comm &mpi_comm);
 ///Send/Receive star information between read threads using the MPI communicator
-///Using a FOF filled buffer
-void MPISendReceiveFOFStarInfoBetweenThreads(Options &opt, Int_t nexport, fofid_in *FoFGroupDataExport, Int_t nlocal, fofid_in *FoFGroupDataLocal, Particle *&Part, int recvTask, int tag, MPI_Comm &mpi_comm);
-///Send/Receive BH information between read threads using the MPI communicator
-///Using a FOF filled buffer
-void MPISendReceiveFOFBHInfoBetweenThreads(Options &opt, Int_t nexport, fofid_in *FoFGroupDataExport, Int_t nlocal, fofid_in *FoFGroupDataLocal, Particle *&Part, int recvTask, int tag, MPI_Comm &mpi_comm);
-///Send/Receive ExtraDM information between read threads using the MPI communicator
-///Using a FOF filled buffer
-void MPISendReceiveFOFExtraDMInfoBetweenThreads(Options &opt, Int_t nexport, fofid_in *FoFGroupDataExport, Int_t nlocal, fofid_in *FoFGroupDataLocal, Particle *&Part, int recvTask, int tag, MPI_Comm &mpi_comm);
+void MPISendReceiveFOFStarInfoBetweenThreads(Options &opt, fofid_in *FoFGroupDataLocal, vector<Int_t> &indices, vector<float> &propbuff, int recvTask, int tag, MPI_Comm &mpi_comm);
+///Send/Receive bh information between read threads using the MPI communicator
+void MPISendReceiveFOFBHInfoBetweenThreads(Options &opt, fofid_in *FoFGroupDataLocal, vector<Int_t> &indices, vector<float> &propbuff, int recvTask, int tag, MPI_Comm &mpi_comm);
+///Send/Receive extra dm information between read threads using the MPI communicator
+void MPISendReceiveFOFExtraDMInfoBetweenThreads(Options &opt, fofid_in *FoFGroupDataLocal, vector<Int_t> &indices, vector<float> &propbuff, int recvTask, int tag, MPI_Comm &mpi_comm);
 //@}
 
 /// \name MPI search related routines
