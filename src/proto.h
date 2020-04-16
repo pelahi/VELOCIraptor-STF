@@ -648,7 +648,7 @@ void MPIFillBuffWithStarInfo(Options &opt, Int_t nlocalbuff, Particle *Part, vec
 ///Filling extra buffers with bh data for particles that are to be exported
 void MPIFillBuffWithBHInfo(Options &opt, Int_t nlocalbuff, Particle *Part, vector<Int_t> &indices, vector<float> &propbuff, bool resetbuff=false);
 ///Filling extra buffers with extra dm data for particles that are to be exported
-void MPIFillBuffWithExtraInfo(Options &opt, Int_t nlocalbuff, Particle *Part, vector<Int_t> &indices, vector<float> &propbuff, bool resetbuff=false);
+void MPIFillBuffWithExtraDMInfo(Options &opt, Int_t nlocalbuff, Particle *Part, vector<Int_t> &indices, vector<float> &propbuff, bool resetbuff=false);
 
 ///Send/Receive hydro information between read threads using the MPI communicator
 void MPISendReceiveBuffWithHydroInfoBetweenThreads(Options &opt, Particle *PartLocal, vector<Int_t> &indices, vector<float> &propbuff, int recvTask, int tag, MPI_Comm &mpi_comm);

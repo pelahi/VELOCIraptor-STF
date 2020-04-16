@@ -399,7 +399,7 @@ void MPIFillBuffWithBHInfo(Options &opt, Int_t nlocalbuff, Particle *Part, vecto
 #endif
 }
 
-void MPIFillBuffWithExtraInfo(Options &opt, Int_t nlocalbuff, Particle *Part, vector<Int_t> &indices, vector<float> &propbuff, bool resetbuff)
+void MPIFillBuffWithExtraDMInfo(Options &opt, Int_t nlocalbuff, Particle *Part, vector<Int_t> &indices, vector<float> &propbuff, bool resetbuff)
 {
 #ifdef EXTRADMON
     Int_t num = 0, numextrafields = 0, index, offset = 0;
@@ -2343,7 +2343,7 @@ void MPISendReceiveBuffWithStarInfoBetweenThreads(Options &opt, Particle *PartLo
 #endif
 }
 
-void MPISendReceiveFOFBHInfoBetweenThreads(Options &opt, Particle *PartLocal, vector<Int_t> &indicessend,  vector<float> &propsendbuff, int recvTask, int tag, MPI_Comm &mpi_comm)
+void MPISendReceiveBuffWithBHInfoBetweenThreads(Options &opt, Particle *PartLocal, vector<Int_t> &indicessend,  vector<float> &propsendbuff, int recvTask, int tag, MPI_Comm &mpi_comm)
 {
 #ifdef BHON
     MPI_Status status;
@@ -2395,7 +2395,7 @@ void MPISendReceiveFOFBHInfoBetweenThreads(Options &opt, Particle *PartLocal, ve
 #endif
 }
 
-void MPISendReceiveFOFExtraDMInfoBetweenThreads(Options &opt, Particle *PartLocal, vector<Int_t> &indicessend,  vector<float> &propsendbuff, int recvTask, int tag, MPI_Comm &mpi_comm)
+void MPISendReceiveBuffWithExtraDMInfoBetweenThreads(Options &opt, Particle *PartLocal, vector<Int_t> &indicessend,  vector<float> &propsendbuff, int recvTask, int tag, MPI_Comm &mpi_comm)
 {
 #ifdef EXTRADMON
     MPI_Status status;
@@ -3687,10 +3687,10 @@ Int_t MPIBuildParticleNNImportList(Options &opt, const Int_t nbodies, KDTree *tr
 
 #if defined(GASON) || defined(STARON) || defined(BHON) || defined(EXTRADMON)
                     if (iSOcalc) {
-                        MPIFillBuffWithHydroInfo(opt, cursendchunksize, &PartDataIn[noffset_export[recvTask]+sendoffset], indices_gas_send, propbuff_gas_send, true);
-                        MPIFillBuffWithStarInfo(opt, cursendchunksize, &PartDataIn[noffset_export[recvTask]+sendoffset], indices_star_send, propbuff_star_send, true);
-                        MPIFillBuffWithBHInfo(opt, cursendchunksize, &PartDataIn[noffset_export[recvTask]+sendoffset], indices_bh_send, propbuff_bh_send, true);
-                        MPIFillBuffWithExtraDMInfo(opt, cursendchunksize, &PartDataIn[noffset_export[recvTask]+sendoffset], indices_extra_dm_send, propbuff_extra_dm_send, true);
+                        MPIFillBuffWithHydroInfo(opt, cursendchunksize, &PartDataIn[noffset[recvTask]+sendoffset], indices_gas_send, propbuff_gas_send, true);
+                        MPIFillBuffWithStarInfo(opt, cursendchunksize, &PartDataIn[noffset[recvTask]+sendoffset], indices_star_send, propbuff_star_send, true);
+                        MPIFillBuffWithBHInfo(opt, cursendchunksize, &PartDataIn[noffset[recvTask]+sendoffset], indices_bh_send, propbuff_bh_send, true);
+                        MPIFillBuffWithExtraDMInfo(opt, cursendchunksize, &PartDataIn[noffset[recvTask]+sendoffset], indices_extra_dm_send, propbuff_extra_dm_send, true);
                     }
 #endif
                     MPI_Sendrecv(&PartDataIn[noffset[recvTask]+sendoffset],
@@ -3704,7 +3704,7 @@ Int_t MPIBuildParticleNNImportList(Options &opt, const Int_t nbodies, KDTree *tr
                         MPISendReceiveBuffWithHydroInfoBetweenThreads(opt, &PartDataGet[nbuffer[recvTask]+recvoffset], indices_gas_send, propbuff_gas_send, recvTask, TAG_NN_B+ichunk, mpi_comm);
                         MPISendReceiveBuffWithStarInfoBetweenThreads(opt, &PartDataGet[nbuffer[recvTask]+recvoffset], indices_star_send, propbuff_star_send, recvTask, TAG_NN_B+ichunk, mpi_comm);
                         MPISendReceiveBuffWithBHInfoBetweenThreads(opt, &PartDataGet[nbuffer[recvTask]+recvoffset], indices_bh_send, propbuff_bh_send, recvTask, TAG_NN_B+ichunk, mpi_comm);
-                        MPISendReceiveBuffWIthExtraDMInfoBetweenThreads(opt, &PartDataGet[nbuffer[recvTask]+recvoffset], indices_extra_dm_send, propbuff_extra_dm_send, recvTask, TAG_NN_B+ichunk, mpi_comm);
+                        MPISendReceiveBuffWithExtraDMInfoBetweenThreads(opt, &PartDataGet[nbuffer[recvTask]+recvoffset], indices_extra_dm_send, propbuff_extra_dm_send, recvTask, TAG_NN_B+ichunk, mpi_comm);
                     }
 #endif
                     sendoffset+=cursendchunksize;
