@@ -633,6 +633,8 @@ struct Options
     int iSphericalOverdensityPartList;
     /// if want to include more than just field objects (halos) in full SO calculations
     int SphericalOverdensitySeachMaxStructLevel;
+    /// flag to store whether SO calculations need extra properties
+    bool iSphericalOverdensityExtraFieldCalculations;
     /// \name Extra variables to store information useful in zoom simluations
     //@{
     /// store the lowest dark matter particle mass
@@ -1067,6 +1069,7 @@ struct Options
         SphericalOverdensityMinHaloFac=0.05;
         iSphericalOverdensityPartList=0;
         SphericalOverdensitySeachMaxStructLevel = HALOSTYPE;
+        iSphericalOverdensityExtraFieldCalculations = false;
 
         mpipartfac=0.1;
 #if USEHDF

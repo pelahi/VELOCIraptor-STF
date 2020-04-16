@@ -306,7 +306,6 @@ inline void UpdateExtraFieldOutputNames(vector<string> &names,
         hid_t dset = HDF5OpenDataSet(pgroup, extrafield);
         hid_t dspace = H5Dget_space(dset);
         int ndims = H5Sget_simple_extent_ndims(dspace);
-        cout<<iextra<<" "<<extrafield<<" "<<extrafield2<<" "<<outnames[iextra]<<" "<<ndims<<endl;
         //check number of dimensions of dataset
         if (ndims == 1 && indices[iextra] > 0) {
             cerr<<"Asking to load extra field index > 0 and field is single dimension. "<<endl;

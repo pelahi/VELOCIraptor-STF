@@ -50,8 +50,10 @@ For clarity we list properties in several tables corresponding to
 Standard Properties
 -------------------
 
-This is a list of standard properties that are alwas calculated unless indicated
-otherwise (some require an extra configuration option).
+This is a list of standard properties that are always calculated unless indicated
+otherwise (some require an extra configuration option). Properties are calculated
+relative to the object's centre, which can be either the position of the particle
+with the minimum potential, or centre-of-mass, or position of most bound particle. 
 
 .. _standardhalopropstable:
 
@@ -106,7 +108,7 @@ otherwise (some require an extra configuration option).
 |                   | Mass_200mean.                                                                                         |
 +-------------------+-------------------------------------------------------------------------------------------------------+
 | R_size            | Maximum distance of particles belonging exclusively to the object and                                 |
-|                   | the centre-of-mass.                                                                                   |
+|                   | the object's centre.                                                                                  |
 +-------------------+-------------------------------------------------------------------------------------------------------+
 | R_200mean         | Radius related to overdensity mass Mass_200mean.                                                      |
 +-------------------+-------------------------------------------------------------------------------------------------------+
@@ -209,8 +211,8 @@ otherwise (some require an extra configuration option).
 +-------------------+-------------------------------------------------------------------------------------------------------+
 | veldisp_zz        | |ditto|                                                                                               |
 +-------------------+-------------------------------------------------------------------------------------------------------+
-| Lx                | :math:`x` component of the total angular momentum about the                                           |
-|                   | centre-of-mass using particles belonging exclusively to the object.                                   |
+| Lx                | :math:`x` component of the total angular momentum about the object's centre                           |
+|                   | and centre-of-mass-velocity using particles belonging exclusively to the object.                      |
 +-------------------+-------------------------------------------------------------------------------------------------------+
 | Ly                | |ditto|                                                                                               |
 +-------------------+-------------------------------------------------------------------------------------------------------+
@@ -236,7 +238,7 @@ otherwise (some require an extra configuration option).
 |                   | :math:`\tilde{I}_{j,k}=\sum\limits_n \frac{m_n x^\prime_{j,n} x^\prime_{k,n}}{(r^\prime_{n})^2}`      |
 |                   | where the sum is over particles exclusively belonging to the object                                   |
 |                   | and, :math:`(r^\prime_n)^2=(x^\prime_n)^2+(y^\prime_n/q)^2+(z^\prime_n/s)^2`                          |
-|                   | is the ellipsoidal distance between the halo's centre-of-mass and the                                 |
+|                   | is the ellipsoidal distance between the halo's centre and the                                         |
 |                   | :math:`n_{\rm th}` particle, primed coordinates are in the eigenvector                                |
 |                   | frame of the reduced inertia tensor and :math:`q` & :math:`s` are the                                 |
 |                   | semi-major and minor axis ratios respectively. Thus :math:`q` is the                                  |
@@ -452,7 +454,7 @@ for gas particles along along with some extra gas only properties.
 +-------------------+-------------------------------------------------------------------------------------------------------+
 | eig_zz_gas        | |ditto|                                                                                               |
 +-------------------+-------------------------------------------------------------------------------------------------------+
-| Krot_gas          | Like Krot but for gas particles only and relative to the centre-of-mass.                              |
+| Krot_gas          | Like Krot but for gas particles only and relative to the halo's centre.                               |
 +-------------------+-------------------------------------------------------------------------------------------------------+
 | T_gas             | Average temperature of gas.                                                                           |
 +-------------------+-------------------------------------------------------------------------------------------------------+
