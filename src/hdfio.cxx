@@ -322,7 +322,7 @@ inline void SetUniqueInputNames(Options & opt){
         // explicit mention of index
         else if (ndims == 1) {
             auto outname = outnames[iextra];
-            auto delimiter = "index_" + to_string(indices[iextra]);
+            auto delimiter = "_index_" + to_string(indices[iextra]);
             size_t pos = outname.find(delimiter);
             //if index_0 still in string remove it
             if (pos != string::npos)
@@ -358,6 +358,12 @@ inline void CheckDimensionsOfExtraFieldNames(Options &opt,
                 opt.gas_chem_output_names, group);
             UpdateExtraFieldOutputNames(opt.gas_chemproduction_names, opt.gas_chemproduction_index,
                 opt.gas_chemproduction_output_names, group);
+            UpdateExtraFieldOutputNames(opt.gas_internalprop_names_aperture, opt.gas_internalprop_index_aperture,
+                opt.gas_internalprop_output_names_aperture, group);
+            UpdateExtraFieldOutputNames(opt.gas_chem_names_aperture, opt.gas_chem_index_aperture,
+                opt.gas_chem_output_names_aperture, group);
+            UpdateExtraFieldOutputNames(opt.gas_chemproduction_names_aperture, opt.gas_chemproduction_index_aperture,
+                opt.gas_chemproduction_output_names_aperture, group);
             HDF5CloseGroup(group);
         }
     }
@@ -376,6 +382,12 @@ inline void CheckDimensionsOfExtraFieldNames(Options &opt,
                 opt.star_chem_output_names, group);
             UpdateExtraFieldOutputNames(opt.star_chemproduction_names, opt.star_chemproduction_index,
                 opt.star_chemproduction_output_names, group);
+            UpdateExtraFieldOutputNames(opt.star_internalprop_names_aperture, opt.star_internalprop_index_aperture,
+                opt.star_internalprop_output_names_aperture, group);
+            UpdateExtraFieldOutputNames(opt.star_chem_names_aperture, opt.star_chem_index_aperture,
+                opt.star_chem_output_names_aperture, group);
+            UpdateExtraFieldOutputNames(opt.star_chemproduction_names_aperture, opt.star_chemproduction_index_aperture,
+                opt.star_chemproduction_output_names_aperture, group);
             HDF5CloseGroup(group);
         }
     }
@@ -394,6 +406,12 @@ inline void CheckDimensionsOfExtraFieldNames(Options &opt,
                 opt.bh_chem_output_names, group);
             UpdateExtraFieldOutputNames(opt.bh_chemproduction_names, opt.bh_chemproduction_index,
                 opt.bh_chemproduction_output_names, group);
+            UpdateExtraFieldOutputNames(opt.bh_internalprop_names_aperture, opt.bh_internalprop_index_aperture,
+                opt.bh_internalprop_output_names_aperture, group);
+            UpdateExtraFieldOutputNames(opt.bh_chem_names_aperture, opt.bh_chem_index_aperture,
+                opt.bh_chem_output_names_aperture, group);
+            UpdateExtraFieldOutputNames(opt.bh_chemproduction_names_aperture, opt.bh_chemproduction_index_aperture,
+                opt.bh_chemproduction_output_names_aperture, group);
             HDF5CloseGroup(group);
         }
     }
@@ -408,6 +426,8 @@ inline void CheckDimensionsOfExtraFieldNames(Options &opt,
             hid_t group = HDF5OpenGroup(Fhdf, hdf_gnames.part_names[k]);
             UpdateExtraFieldOutputNames(opt.extra_dm_internalprop_names, opt.extra_dm_internalprop_index,
                 opt.extra_dm_internalprop_output_names, group);
+            UpdateExtraFieldOutputNames(opt.extra_dm_internalprop_names_aperture, opt.extra_dm_internalprop_index_aperture,
+                opt.extra_dm_internalprop_output_names_aperture, group);
             HDF5CloseGroup(group);
         }
     }
@@ -448,6 +468,34 @@ inline void MPIUpdateExtraFieldOutputNames(Options &opt)
             if (ThisTask > 0) x=string(char_array);
         }
     }
+
+    if (opt.gas_internalprop_names_aperture.size()>0){
+        for (auto &x:opt.gas_internalprop_output_names_aperture) {
+             size_t n = x.size();
+             char char_array[n+1];
+             strcpy(char_array, x.c_str());
+             MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
+             if (ThisTask > 0) x=string(char_array);
+        }
+    }
+    if (opt.gas_chem_names_aperture.size()>0){
+        for (auto &x:opt.gas_chem_output_names_aperture) {
+            size_t n = x.size();
+            char char_array[n+1];
+            strcpy(char_array, x.c_str());
+            MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
+            if (ThisTask > 0) x=string(char_array);
+        }
+    }
+    if (opt.gas_chemproduction_names_aperture.size()>0){
+        for (auto &x:opt.gas_chemproduction_output_names_aperture) {
+            size_t n = x.size();
+            char char_array[n+1];
+            strcpy(char_array, x.c_str());
+            MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
+            if (ThisTask > 0) x=string(char_array);
+        }
+    }
 #endif
 #ifdef STARON
     if (opt.star_internalprop_names.size()>0){
@@ -470,6 +518,34 @@ inline void MPIUpdateExtraFieldOutputNames(Options &opt)
     }
     if (opt.star_chemproduction_names.size()>0){
         for (auto &x:opt.star_chemproduction_output_names) {
+            size_t n = x.size();
+            char char_array[n+1];
+            strcpy(char_array, x.c_str());
+            MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
+            if (ThisTask > 0) x=string(char_array);
+        }
+    }
+
+    if (opt.star_internalprop_names_aperture.size()>0){
+        for (auto &x:opt.star_internalprop_output_names_aperture) {
+             size_t n = x.size();
+             char char_array[n+1];
+             strcpy(char_array, x.c_str());
+             MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
+             if (ThisTask > 0) x=string(char_array);
+        }
+    }
+    if (opt.star_chem_names_aperture.size()>0){
+        for (auto &x:opt.star_chem_output_names_aperture) {
+            size_t n = x.size();
+            char char_array[n+1];
+            strcpy(char_array, x.c_str());
+            MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
+            if (ThisTask > 0) x=string(char_array);
+        }
+    }
+    if (opt.star_chemproduction_names_aperture.size()>0){
+        for (auto &x:opt.star_chemproduction_output_names_aperture) {
             size_t n = x.size();
             char char_array[n+1];
             strcpy(char_array, x.c_str());
@@ -506,10 +582,47 @@ inline void MPIUpdateExtraFieldOutputNames(Options &opt)
             if (ThisTask > 0) x=string(char_array);
         }
     }
+
+    if (opt.bh_internalprop_names_aperture.size()>0){
+        for (auto &x:opt.bh_internalprop_output_names_aperture) {
+             size_t n = x.size();
+             char char_array[n+1];
+             strcpy(char_array, x.c_str());
+             MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
+             if (ThisTask > 0) x=string(char_array);
+        }
+    }
+    if (opt.bh_chem_names_aperture.size()>0){
+        for (auto &x:opt.bh_chem_output_names_aperture) {
+            size_t n = x.size();
+            char char_array[n+1];
+            strcpy(char_array, x.c_str());
+            MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
+            if (ThisTask > 0) x=string(char_array);
+        }
+    }
+    if (opt.bh_chemproduction_names_aperture.size()>0){
+        for (auto &x:opt.bh_chemproduction_output_names_aperture) {
+            size_t n = x.size();
+            char char_array[n+1];
+            strcpy(char_array, x.c_str());
+            MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
+            if (ThisTask > 0) x=string(char_array);
+        }
+    }
 #endif
 #ifdef EXTRADMON
     if (opt.extra_dm_internalprop_names.size()>0){
         for (auto &x:opt.extra_dm_internalprop_output_names) {
+            size_t n = x.size();
+            char char_array[n+1];
+            strcpy(char_array, x.c_str());
+            MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
+            if (ThisTask > 0) x=string(char_array);
+        }
+    }
+    if (opt.extra_dm_internalprop_names_aperture.size()>0){
+        for (auto &x:opt.extra_dm_internalprop_output_names_aperture) {
             size_t n = x.size();
             char char_array[n+1];
             strcpy(char_array, x.c_str());
@@ -3155,7 +3268,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     delete[] Tagedoublebuff;
 #endif
 #endif
-
+    //at the end, update all the extra property field names
     UpdateExtraFieldNames(opt);
 }
 
