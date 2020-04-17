@@ -295,42 +295,49 @@ inline void SetUniqueInputNames(Options & opt){
 #endif
 }
 
-inline void UpdateExtraFieldOutputNames(vector<string> &names,
-    vector<unsigned int> &indices,
-    vector<string> &outnames, hid_t &pgroup)
-{
-    for (auto iextra=0;iextra<names.size();iextra++)
-    {
-        auto extrafield = names[iextra];
-        auto extrafield2 = extrafield + to_string(indices[iextra]);
-        hid_t dset = HDF5OpenDataSet(pgroup, extrafield);
-        hid_t dspace = H5Dget_space(dset);
-        int ndims = H5Sget_simple_extent_ndims(dspace);
-        //check number of dimensions of dataset
-        if (ndims == 1 && indices[iextra] > 0) {
-            cerr<<"Asking to load extra field index > 0 and field is single dimension. "<<endl;
-            cerr<<"Field is "<<extrafield<<" and index "<<indices[iextra]<<endl;
-            cerr<<"Exiting. Check config."<<endl;
-    #ifdef USEMPI
-            MPI_Abort(MPI_COMM_WORLD,8);
-    #else
-            exit(8);
-    #endif
-        }
+///remove index string from output string if only single dimension
+ inline void UpdateExtraFieldOutputNames(vector<string> &names,
+     vector<unsigned int> &indices,
+     vector<string> &outnames, hid_t &pgroup)
+ {
+     for (auto iextra=0;iextra<names.size();iextra++)
+     {
+         auto extrafield = names[iextra];
+         auto extrafield2 = extrafield + to_string(indices[iextra]);
+         hid_t dset = HDF5OpenDataSet(pgroup, extrafield);
+         hid_t dspace = H5Dget_space(dset);
+         int ndims = H5Sget_simple_extent_ndims(dspace);
+         //check number of dimensions of dataset
+         if (ndims == 1 && indices[iextra] > 0) {
+             cerr<<"Asking to load extra field index > 0 and field is single dimension. "<<endl;
+             cerr<<"Field is "<<extrafield<<" and index "<<indices[iextra]<<endl;
+             cerr<<"Exiting. Check config."<<endl;
+#ifdef USEMPI
+             MPI_Abort(MPI_COMM_WORLD,8);
+#else
+             exit(8);
+#endif
+         }
         // if dataset is single dimension, update the output name to remove
         // explicit mention of index
         else if (ndims == 1) {
             auto outname = outnames[iextra];
-            auto delimiter = "_index_" + to_string(indices[iextra]);
-            auto pos = outname.find(delimiter);
-            outname = outname.substr(0, pos) + outname.substr(pos+delimiter.size(),outname.size());
-            outnames[iextra] = outname;
+            auto delimiter = "index_" + to_string(indices[iextra]);
+            size_t pos = outname.find(delimiter);
+            //if index_0 still in string remove it
+            if (pos != string::npos)
+            {
+                outname.erase(pos, delimiter.length());
+                outnames[iextra] = outname;
+            }
         }
         HDF5CloseDataSpace(dspace);
         HDF5CloseDataSet(dset);
-    }
-}
+     }
+ }
 
+///because some extra fields only have one dimension, not useful to keep index_0
+///for these extra fields, so remove this from the output string
 inline void CheckDimensionsOfExtraFieldNames(Options &opt,
     const int nusetypes, int usetypes[],
     hid_t &Fhdf, HDF_Group_Names &hdf_gnames,
@@ -406,6 +413,74 @@ inline void CheckDimensionsOfExtraFieldNames(Options &opt,
     }
 #endif
 }
+
+#ifdef USEMPI
+///if running in MPI, it might be necessary to update the outnames associated
+///with extra fields. Therefore, just send all output names from task 0 (which
+///will always be a read task to all other tasks.
+inline void MPIUpdateExtraFieldOutputNames(Options &opt)
+{
+#ifdef GASON
+    if (opt.gas_internalprop_names.size()>0){
+        for (auto &x:opt.gas_internalprop_output_names) {
+            MPI_Bcast(&x,x.size(), MPI_CHAR, 0, MPI_COMM_WORLD);
+        }
+    }
+    if (opt.gas_chem_names.size()>0){
+        for (auto &x:opt.gas_chem_output_names) {
+            MPI_Bcast(&x,x.size(), MPI_CHAR, 0, MPI_COMM_WORLD);
+        }
+    }
+    if (opt.gas_chemproduction_names.size()>0){
+        for (auto &x:opt.gas_chemproduction_output_names) {
+            MPI_Bcast(&x,x.size(), MPI_CHAR, 0, MPI_COMM_WORLD);
+        }
+    }
+#endif
+#ifdef STARON
+    if (opt.star_internalprop_names.size()>0){
+        for (auto &x:opt.star_internalprop_output_names) {
+            MPI_Bcast(&x,x.size(), MPI_CHAR, 0, MPI_COMM_WORLD);
+        }
+    }
+    if (opt.star_chem_names.size()>0){
+        for (auto &x:opt.star_chem_output_names) {
+            MPI_Bcast(&x,x.size(), MPI_CHAR, 0, MPI_COMM_WORLD);
+        }
+    }
+    if (opt.star_chemproduction_names.size()>0){
+        for (auto &x:opt.star_chemproduction_output_names) {
+            MPI_Bcast(&x,x.size(), MPI_CHAR, 0, MPI_COMM_WORLD);
+        }
+    }
+#endif
+#ifdef BHON
+    if (opt.bh_internalprop_names.size()>0){
+        for (auto &x:opt.bh_internalprop_output_names) {
+            MPI_Bcast(&x,x.size(), MPI_CHAR, 0, MPI_COMM_WORLD);
+        }
+    }
+    if (opt.bh_chem_names.size()>0){
+        for (auto &x:opt.bh_chem_output_names) {
+            MPI_Bcast(&x,x.size(), MPI_CHAR, 0, MPI_COMM_WORLD);
+        }
+    }
+    if (opt.bh_chemproduction_names.size()>0){
+        for (auto &x:opt.bh_chemproduction_output_names) {
+            MPI_Bcast(&x,x.size(), MPI_CHAR, 0, MPI_COMM_WORLD);
+        }
+    }
+#endif
+#ifdef EXTRADMON
+    if (opt.extra_dm_internalprop_names.size()>0){
+        for (auto &x:opt.extra_dm_internalprop_output_names) {
+            MPI_Bcast(&x,x.size(), MPI_CHAR, 0, MPI_COMM_WORLD);
+        }
+    }
+#endif
+
+}
+#endif
 
 ///reads an hdf5 formatted file.
 void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle *&Pbaryons, Int_t nbaryons)
@@ -2904,6 +2979,8 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     }
 #endif
     MPI_Barrier(MPI_COMM_WORLD);
+    ///update output names of extra fields if necessary
+    MPIUpdateExtraFieldOutputNames(opt);
     //update cosmological data and boundary in code units
     MPI_Bcast(&(opt.p),sizeof(opt.p),MPI_BYTE,0,MPI_COMM_WORLD);
     MPI_Bcast(&(opt.a),sizeof(opt.a),MPI_BYTE,0,MPI_COMM_WORLD);
