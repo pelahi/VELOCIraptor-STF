@@ -423,58 +423,98 @@ inline void MPIUpdateExtraFieldOutputNames(Options &opt)
 #ifdef GASON
     if (opt.gas_internalprop_names.size()>0){
         for (auto &x:opt.gas_internalprop_output_names) {
-            MPI_Bcast(&x,x.size(), MPI_CHAR, 0, MPI_COMM_WORLD);
+             size_t n = x.size();
+             char char_array[n+1];
+             strcpy(char_array, x.c_str());
+             MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
+             if (ThisTask > 0) x=string(char_array);
         }
     }
     if (opt.gas_chem_names.size()>0){
         for (auto &x:opt.gas_chem_output_names) {
-            MPI_Bcast(&x,x.size(), MPI_CHAR, 0, MPI_COMM_WORLD);
+            size_t n = x.size();
+            char char_array[n+1];
+            strcpy(char_array, x.c_str());
+            MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
+            if (ThisTask > 0) x=string(char_array);
         }
     }
     if (opt.gas_chemproduction_names.size()>0){
         for (auto &x:opt.gas_chemproduction_output_names) {
-            MPI_Bcast(&x,x.size(), MPI_CHAR, 0, MPI_COMM_WORLD);
+            size_t n = x.size();
+            char char_array[n+1];
+            strcpy(char_array, x.c_str());
+            MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
+            if (ThisTask > 0) x=string(char_array);
         }
     }
 #endif
 #ifdef STARON
     if (opt.star_internalprop_names.size()>0){
         for (auto &x:opt.star_internalprop_output_names) {
-            MPI_Bcast(&x,x.size(), MPI_CHAR, 0, MPI_COMM_WORLD);
+            size_t n = x.size();
+            char char_array[n+1];
+            strcpy(char_array, x.c_str());
+            MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
+            if (ThisTask > 0) x=string(char_array);
         }
     }
     if (opt.star_chem_names.size()>0){
         for (auto &x:opt.star_chem_output_names) {
-            MPI_Bcast(&x,x.size(), MPI_CHAR, 0, MPI_COMM_WORLD);
+            size_t n = x.size();
+            char char_array[n+1];
+            strcpy(char_array, x.c_str());
+            MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
+            if (ThisTask > 0) x=string(char_array);
         }
     }
     if (opt.star_chemproduction_names.size()>0){
         for (auto &x:opt.star_chemproduction_output_names) {
-            MPI_Bcast(&x,x.size(), MPI_CHAR, 0, MPI_COMM_WORLD);
+            size_t n = x.size();
+            char char_array[n+1];
+            strcpy(char_array, x.c_str());
+            MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
+            if (ThisTask > 0) x=string(char_array);
         }
     }
 #endif
 #ifdef BHON
     if (opt.bh_internalprop_names.size()>0){
         for (auto &x:opt.bh_internalprop_output_names) {
-            MPI_Bcast(&x,x.size(), MPI_CHAR, 0, MPI_COMM_WORLD);
+            size_t n = x.size();
+            char char_array[n+1];
+            strcpy(char_array, x.c_str());
+            MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
+            if (ThisTask > 0) x=string(char_array);
         }
     }
     if (opt.bh_chem_names.size()>0){
         for (auto &x:opt.bh_chem_output_names) {
-            MPI_Bcast(&x,x.size(), MPI_CHAR, 0, MPI_COMM_WORLD);
+            size_t n = x.size();
+            char char_array[n+1];
+            strcpy(char_array, x.c_str());
+            MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
+            if (ThisTask > 0) x=string(char_array);
         }
     }
     if (opt.bh_chemproduction_names.size()>0){
         for (auto &x:opt.bh_chemproduction_output_names) {
-            MPI_Bcast(&x,x.size(), MPI_CHAR, 0, MPI_COMM_WORLD);
+            size_t n = x.size();
+            char char_array[n+1];
+            strcpy(char_array, x.c_str());
+            MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
+            if (ThisTask > 0) x=string(char_array);
         }
     }
 #endif
 #ifdef EXTRADMON
     if (opt.extra_dm_internalprop_names.size()>0){
         for (auto &x:opt.extra_dm_internalprop_output_names) {
-            MPI_Bcast(&x,x.size(), MPI_CHAR, 0, MPI_COMM_WORLD);
+            size_t n = x.size();
+            char char_array[n+1];
+            strcpy(char_array, x.c_str());
+            MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
+            if (ThisTask > 0) x=string(char_array);
         }
     }
 #endif
