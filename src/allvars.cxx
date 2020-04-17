@@ -1236,46 +1236,46 @@ if (opt.iextragasoutput) {
         for (auto j=0;j<opt.apertureprojnum;j++){
             Fout<<aperture_mass_proj[j][k]<<" ";
         }
-        #ifdef GASON
+#ifdef GASON
         for (auto j=0;j<opt.apertureprojnum;j++){
             Fout<<aperture_mass_proj_gas[j][k]<<" ";
         }
-        #ifdef STARON
+#ifdef STARON
         for (auto j=0;j<opt.apertureprojnum;j++){
             Fout<<aperture_mass_proj_gas_sf[j][k]<<" ";
         }
         for (auto j=0;j<opt.apertureprojnum;j++){
             Fout<<aperture_mass_proj_gas_nsf[j][k]<<" ";
         }
-        #endif
-        #endif
-        #ifdef STARON
+#endif
+#endif
+#ifdef STARON
         for (auto j=0;j<opt.apertureprojnum;j++){
             Fout<<aperture_mass_proj_star[j][k]<<" ";
         }
-        #endif
+#endif
         for (auto j=0;j<opt.apertureprojnum;j++){
             Fout<<aperture_rhalfmass_proj[j][k]<<" ";
         }
-        #ifdef GASON
+#ifdef GASON
         for (auto j=0;j<opt.apertureprojnum;j++){
             Fout<<aperture_rhalfmass_proj_gas[j][k]<<" ";
         }
-        #ifdef STARON
+#ifdef STARON
         for (auto j=0;j<opt.apertureprojnum;j++){
             Fout<<aperture_rhalfmass_proj_gas_sf[j][k]<<" ";
         }
         for (auto j=0;j<opt.apertureprojnum;j++){
             Fout<<aperture_rhalfmass_proj_gas_nsf[j][k]<<" ";
         }
-        #endif
-        #endif
-        #ifdef STARON
+#endif
+#endif
+#ifdef STARON
         for (auto j=0;j<opt.apertureprojnum;j++){
             Fout<<aperture_rhalfmass_proj_star[j][k]<<" ";
         }
-        #endif
-        #if defined(GASON) && defined(STARON)
+#endif
+#if defined(GASON) && defined(STARON)
         for (auto j=0;j<opt.apertureprojnum;j++) {
             Fout<<aperture_SFR_proj_gas[j][k]<<" ";
         }
@@ -1291,7 +1291,7 @@ if (opt.iextragasoutput) {
         for (auto j=0;j<opt.apertureprojnum;j++) {
             Fout<<aperture_Z_proj_star[j][k]<<" ";
         }
-        #endif
+#endif
         }
     }
     if (opt.SOnum>0){
@@ -1371,6 +1371,18 @@ PropDataHeader::PropDataHeader(Options&opt){
         headerdatainfo.push_back("hostFOFID");
     }
 
+    unitdatainfo.push_back(HeaderUnitInfo());
+    unitdatainfo.push_back(HeaderUnitInfo());
+    unitdatainfo.push_back(HeaderUnitInfo());
+    unitdatainfo.push_back(HeaderUnitInfo());
+    unitdatainfo.push_back(HeaderUnitInfo());
+    unitdatainfo.push_back(HeaderUnitInfo());
+    unitdatainfo.push_back(HeaderUnitInfo());
+
+    if (opt.iKeepFOF==1){
+        unitdatainfo.push_back(HeaderUnitInfo());
+        unitdatainfo.push_back(HeaderUnitInfo());
+    }
     //if using hdf, store the type
 #ifdef USEHDF
     hdfpredtypeinfo.push_back(H5T_NATIVE_ULONG);
@@ -1400,6 +1412,7 @@ PropDataHeader::PropDataHeader(Options&opt){
 #endif
 
     headerdatainfo.push_back("Mvir");
+    unitdatainfo.push_back(HeaderUnitInfo(1));
     headerdatainfo.push_back("Xc");
     headerdatainfo.push_back("Yc");
     headerdatainfo.push_back("Zc");
@@ -1409,6 +1422,8 @@ PropDataHeader::PropDataHeader(Options&opt){
     headerdatainfo.push_back("Xcminpot");
     headerdatainfo.push_back("Ycminpot");
     headerdatainfo.push_back("Zcminpot");
+    //indicate that the property is a length
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(0,1));
     headerdatainfo.push_back("VXc");
     headerdatainfo.push_back("VYc");
     headerdatainfo.push_back("VZc");
@@ -1418,12 +1433,18 @@ PropDataHeader::PropDataHeader(Options&opt){
     headerdatainfo.push_back("VXcminpot");
     headerdatainfo.push_back("VYcminpot");
     headerdatainfo.push_back("VZcminpot");
+    //indicate the property is a velocity
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(0,0,1));
     headerdatainfo.push_back("Mass_tot");
     headerdatainfo.push_back("Mass_FOF");
     headerdatainfo.push_back("Mass_200mean");
     headerdatainfo.push_back("Mass_200crit");
     headerdatainfo.push_back("Mass_BN98");
+    //indicate the property is mass
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1));
     headerdatainfo.push_back("Efrac");
+    //indicate property is unitless
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo());
     headerdatainfo.push_back("Rvir");
     headerdatainfo.push_back("R_size");
     headerdatainfo.push_back("R_200mean");
@@ -1431,7 +1452,10 @@ PropDataHeader::PropDataHeader(Options&opt){
     headerdatainfo.push_back("R_BN98");
     headerdatainfo.push_back("R_HalfMass");
     headerdatainfo.push_back("Rmax");
+    //length
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(0,1));
     headerdatainfo.push_back("Vmax");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(0,0,1));
     headerdatainfo.push_back("sigV");
     headerdatainfo.push_back("veldisp_xx");
     headerdatainfo.push_back("veldisp_xy");
@@ -1442,10 +1466,13 @@ PropDataHeader::PropDataHeader(Options&opt){
     headerdatainfo.push_back("veldisp_zx");
     headerdatainfo.push_back("veldisp_zy");
     headerdatainfo.push_back("veldisp_zz");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(0,0,2));
     headerdatainfo.push_back("lambda_B");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo());
     headerdatainfo.push_back("Lx");
     headerdatainfo.push_back("Ly");
     headerdatainfo.push_back("Lz");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1,1,1));
     headerdatainfo.push_back("q");
     headerdatainfo.push_back("s");
     headerdatainfo.push_back("eig_xx");
@@ -1459,8 +1486,10 @@ PropDataHeader::PropDataHeader(Options&opt){
     headerdatainfo.push_back("eig_zz");
     headerdatainfo.push_back("cNFW");
     headerdatainfo.push_back("Krot");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo());
     headerdatainfo.push_back("Ekin");
     headerdatainfo.push_back("Epot");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(0,0,0,0,1));
 
     //some properties within RVmax
     headerdatainfo.push_back("RVmax_sigV");
@@ -1473,10 +1502,13 @@ PropDataHeader::PropDataHeader(Options&opt){
     headerdatainfo.push_back("RVmax_veldisp_zx");
     headerdatainfo.push_back("RVmax_veldisp_zy");
     headerdatainfo.push_back("RVmax_veldisp_zz");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(0,0,2));
     headerdatainfo.push_back("RVmax_lambda_B");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo());
     headerdatainfo.push_back("RVmax_Lx");
     headerdatainfo.push_back("RVmax_Ly");
     headerdatainfo.push_back("RVmax_Lz");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1,1,1));
     headerdatainfo.push_back("RVmax_q");
     headerdatainfo.push_back("RVmax_s");
     headerdatainfo.push_back("RVmax_eig_xx");
@@ -1488,6 +1520,7 @@ PropDataHeader::PropDataHeader(Options&opt){
     headerdatainfo.push_back("RVmax_eig_zx");
     headerdatainfo.push_back("RVmax_eig_zy");
     headerdatainfo.push_back("RVmax_eig_zz");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo());
 
     if (opt.iextrahalooutput) {
         headerdatainfo.push_back("Lx_200mean");
@@ -1499,13 +1532,16 @@ PropDataHeader::PropDataHeader(Options&opt){
         headerdatainfo.push_back("Lx_BN98");
         headerdatainfo.push_back("Ly_BN98");
         headerdatainfo.push_back("Lz_BN98");
+        sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1,1,1));
         if (opt.iInclusiveHalo>0) {
             headerdatainfo.push_back("Mass_200mean_excl");
             headerdatainfo.push_back("Mass_200crit_excl");
             headerdatainfo.push_back("Mass_BN98_excl");
+            sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1));
             headerdatainfo.push_back("R_200mean_excl");
             headerdatainfo.push_back("R_200crit_excl");
             headerdatainfo.push_back("R_BN98_excl");
+            sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(0,1));
             headerdatainfo.push_back("Lx_200mean_excl");
             headerdatainfo.push_back("Ly_200mean_excl");
             headerdatainfo.push_back("Lz_200mean_excl");
@@ -1515,12 +1551,12 @@ PropDataHeader::PropDataHeader(Options&opt){
             headerdatainfo.push_back("Lx_BN98_excl");
             headerdatainfo.push_back("Ly_BN98_excl");
             headerdatainfo.push_back("Lz_BN98_excl");
+            sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1,1,1));
         }
     }
 
 #ifdef USEHDF
     sizeval=hdfpredtypeinfo.size();
-    // for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
     for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
@@ -1530,6 +1566,7 @@ PropDataHeader::PropDataHeader(Options&opt){
 
 #ifdef GASON
     headerdatainfo.push_back("n_gas");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo());
 #ifdef USEHDF
     // predtypeinfo.push_back(PredType::STD_U64LE);
     hdfpredtypeinfo.push_back(H5T_NATIVE_ULONG);
@@ -1542,14 +1579,19 @@ PropDataHeader::PropDataHeader(Options&opt){
     headerdatainfo.push_back("M_gas_30kpc");
     //headerdatainfo.push_back("M_gas_50kpc");
     headerdatainfo.push_back("M_gas_500c");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1));
     headerdatainfo.push_back("Xc_gas");
     headerdatainfo.push_back("Yc_gas");
     headerdatainfo.push_back("Zc_gas");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(0,1));
     headerdatainfo.push_back("VXc_gas");
     headerdatainfo.push_back("VYc_gas");
     headerdatainfo.push_back("VZc_gas");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(0,0,1));
     headerdatainfo.push_back("Efrac_gas");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo());
     headerdatainfo.push_back("R_HalfMass_gas");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(0,1));
     headerdatainfo.push_back("veldisp_xx_gas");
     headerdatainfo.push_back("veldisp_xy_gas");
     headerdatainfo.push_back("veldisp_xz_gas");
@@ -1559,9 +1601,11 @@ PropDataHeader::PropDataHeader(Options&opt){
     headerdatainfo.push_back("veldisp_zx_gas");
     headerdatainfo.push_back("veldisp_zy_gas");
     headerdatainfo.push_back("veldisp_zz_gas");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(0,0,2));
     headerdatainfo.push_back("Lx_gas");
     headerdatainfo.push_back("Ly_gas");
     headerdatainfo.push_back("Lz_gas");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1,1,1));
     headerdatainfo.push_back("q_gas");
     headerdatainfo.push_back("s_gas");
     headerdatainfo.push_back("eig_xx_gas");
@@ -1574,15 +1618,20 @@ PropDataHeader::PropDataHeader(Options&opt){
     headerdatainfo.push_back("eig_zy_gas");
     headerdatainfo.push_back("eig_zz_gas");
     headerdatainfo.push_back("Krot_gas");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo());
     headerdatainfo.push_back("T_gas");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(0,0,0,0,1));
 #ifdef STARON
     headerdatainfo.push_back("Zmet_gas");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo());
     headerdatainfo.push_back("SFR_gas");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1,0,0,-1));
 #endif
 if (opt.iextragasoutput) {
     headerdatainfo.push_back("Mass_200mean_gas");
     headerdatainfo.push_back("Mass_200crit_gas");
     headerdatainfo.push_back("Mass_BN98_gas");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1));
     headerdatainfo.push_back("Lx_200c_gas");
     headerdatainfo.push_back("Ly_200c_gas");
     headerdatainfo.push_back("Lz_200c_gas");
@@ -1592,10 +1641,12 @@ if (opt.iextragasoutput) {
     headerdatainfo.push_back("Lx_BN98_gas");
     headerdatainfo.push_back("Ly_BN98_gas");
     headerdatainfo.push_back("Lz_BN98_gas");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1,1,1));
     if (opt.iInclusiveHalo>0) {
         headerdatainfo.push_back("Mass_200mean_excl_gas");
         headerdatainfo.push_back("Mass_200crit_excl_gas");
         headerdatainfo.push_back("Mass_BN98_excl_gas");
+        sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1));
         headerdatainfo.push_back("Lx_200c_excl_gas");
         headerdatainfo.push_back("Ly_200c_excl_gas");
         headerdatainfo.push_back("Lz_200c_excl_gas");
@@ -1605,6 +1656,7 @@ if (opt.iextragasoutput) {
         headerdatainfo.push_back("Lx_BN98_excl_gas");
         headerdatainfo.push_back("Ly_BN98_excl_gas");
         headerdatainfo.push_back("Lz_BN98_excl_gas");
+        sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1,1,1));
     }
 }
 #ifdef USEHDF
@@ -1620,6 +1672,7 @@ if (opt.iextragasoutput) {
 
 #ifdef STARON
     headerdatainfo.push_back("n_star");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo());
 #ifdef USEHDF
     // predtypeinfo.push_back(PredType::STD_U64LE);
     hdfpredtypeinfo.push_back(H5T_NATIVE_ULONG);
@@ -1632,14 +1685,19 @@ if (opt.iextragasoutput) {
     headerdatainfo.push_back("M_star_30kpc");
     //headerdatainfo.push_back("M_star_50kpc");
     headerdatainfo.push_back("M_star_500c");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo());
     headerdatainfo.push_back("Xc_star");
     headerdatainfo.push_back("Yc_star");
     headerdatainfo.push_back("Zc_star");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(0,1));
     headerdatainfo.push_back("VXc_star");
     headerdatainfo.push_back("VYc_star");
     headerdatainfo.push_back("VZc_star");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(0,0,1));
     headerdatainfo.push_back("Efrac_star");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo());
     headerdatainfo.push_back("R_HalfMass_star");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(0,1));
     headerdatainfo.push_back("veldisp_xx_star");
     headerdatainfo.push_back("veldisp_xy_star");
     headerdatainfo.push_back("veldisp_xz_star");
@@ -1649,9 +1707,11 @@ if (opt.iextragasoutput) {
     headerdatainfo.push_back("veldisp_zx_star");
     headerdatainfo.push_back("veldisp_zy_star");
     headerdatainfo.push_back("veldisp_zz_star");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(0,0,2));
     headerdatainfo.push_back("Lx_star");
     headerdatainfo.push_back("Ly_star");
     headerdatainfo.push_back("Lz_star");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1,1,1));
     headerdatainfo.push_back("q_star");
     headerdatainfo.push_back("s_star");
     headerdatainfo.push_back("eig_xx_star");
@@ -1664,12 +1724,16 @@ if (opt.iextragasoutput) {
     headerdatainfo.push_back("eig_zy_star");
     headerdatainfo.push_back("eig_zz_star");
     headerdatainfo.push_back("Krot_star");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo());
     headerdatainfo.push_back("tage_star");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(0,0,-1));
     headerdatainfo.push_back("Zmet_star");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo());
     if (opt.iextrastaroutput) {
         headerdatainfo.push_back("Mass_200mean_star");
         headerdatainfo.push_back("Mass_200crit_star");
         headerdatainfo.push_back("Mass_BN98_star");
+        sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1));
         headerdatainfo.push_back("Lx_200c_star");
         headerdatainfo.push_back("Ly_200c_star");
         headerdatainfo.push_back("Lz_200c_star");
@@ -1679,10 +1743,12 @@ if (opt.iextragasoutput) {
         headerdatainfo.push_back("Lx_BN98_star");
         headerdatainfo.push_back("Ly_BN98_star");
         headerdatainfo.push_back("Lz_BN98_star");
+        sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1,1,1));
         if (opt.iInclusiveHalo>0) {
             headerdatainfo.push_back("Mass_200mean_excl_star");
             headerdatainfo.push_back("Mass_200crit_excl_star");
             headerdatainfo.push_back("Mass_BN98_excl_star");
+            sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1));
             headerdatainfo.push_back("Lx_200c_excl_star");
             headerdatainfo.push_back("Ly_200c_excl_star");
             headerdatainfo.push_back("Lz_200c_excl_star");
@@ -1692,6 +1758,7 @@ if (opt.iextragasoutput) {
             headerdatainfo.push_back("Lx_BN98_excl_star");
             headerdatainfo.push_back("Ly_BN98_excl_star");
             headerdatainfo.push_back("Lz_BN98_excl_star");
+            sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1,1,1));
         }
     }
 #ifdef USEHDF
@@ -1707,6 +1774,7 @@ if (opt.iextragasoutput) {
 
 #ifdef BHON
     headerdatainfo.push_back("n_bh");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo());
 #ifdef USEHDF
     // predtypeinfo.push_back(PredType::STD_U64LE);
     hdfpredtypeinfo.push_back(H5T_NATIVE_ULONG);
@@ -1715,6 +1783,7 @@ if (opt.iextragasoutput) {
     adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
 #endif
     headerdatainfo.push_back("M_bh");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1));
 #ifdef USEHDF
     sizeval=hdfpredtypeinfo.size();
     // for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
@@ -1729,6 +1798,7 @@ if (opt.iextragasoutput) {
 
 #ifdef HIGHRES
     headerdatainfo.push_back("n_interloper");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo());
 #ifdef USEHDF
     // predtypeinfo.push_back(PredType::STD_U64LE);
     hdfpredtypeinfo.push_back(H5T_NATIVE_ULONG);
@@ -1737,14 +1807,17 @@ if (opt.iextragasoutput) {
     adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
 #endif
     headerdatainfo.push_back("M_interloper");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1));
     if (opt.iextrainterloperoutput) {
         headerdatainfo.push_back("Mass_200mean_interloper");
         headerdatainfo.push_back("Mass_200crit_interloper");
         headerdatainfo.push_back("Mass_BN98_interloper");
+        sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1));
         if (opt.iInclusiveHalo>0) {
             headerdatainfo.push_back("Mass_200mean_excl_interloper");
             headerdatainfo.push_back("Mass_200crit_excl_interloper");
             headerdatainfo.push_back("Mass_BN98_excl_interloper");
+            sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1));
         }
     }
 #ifdef USEHDF
@@ -1760,18 +1833,26 @@ if (opt.iextragasoutput) {
 
 #if defined(GASON) && defined(STARON)
     headerdatainfo.push_back("M_gas_sf");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1));
     headerdatainfo.push_back("R_HalfMass_gas_sf");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(0,1));
     headerdatainfo.push_back("sigV_gas_sf");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(0,0,2));
     headerdatainfo.push_back("Lx_gas_sf");
     headerdatainfo.push_back("Ly_gas_sf");
     headerdatainfo.push_back("Lz_gas_sf");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1,1,1));
     headerdatainfo.push_back("Krot_gas_sf");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo());
     headerdatainfo.push_back("T_gas_sf");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(0,0,0,0,1));
     headerdatainfo.push_back("Zmet_gas_sf");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo());
     if (opt.iextragasoutput) {
         headerdatainfo.push_back("Mass_200mean_gas_sf");
         headerdatainfo.push_back("Mass_200crit_gas_sf");
         headerdatainfo.push_back("Mass_BN98_gas_sf");
+        sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1));
         headerdatainfo.push_back("Lx_200c_gas_sf");
         headerdatainfo.push_back("Ly_200c_gas_sf");
         headerdatainfo.push_back("Lz_200c_gas_sf");
@@ -1781,10 +1862,12 @@ if (opt.iextragasoutput) {
         headerdatainfo.push_back("Lx_BN98_gas_sf");
         headerdatainfo.push_back("Ly_BN98_gas_sf");
         headerdatainfo.push_back("Lz_BN98_gas_sf");
+        sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1,1,1));
         if (opt.iInclusiveHalo>0) {
             headerdatainfo.push_back("Mass_200mean_excl_gas_sf");
             headerdatainfo.push_back("Mass_200crit_excl_gas_sf");
             headerdatainfo.push_back("Mass_BN98_excl_gas_sf");
+            sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1));
             headerdatainfo.push_back("Lx_200c_excl_gas_sf");
             headerdatainfo.push_back("Ly_200c_excl_gas_sf");
             headerdatainfo.push_back("Lz_200c_excl_gas_sf");
@@ -1794,21 +1877,30 @@ if (opt.iextragasoutput) {
             headerdatainfo.push_back("Lx_BN98_excl_gas_sf");
             headerdatainfo.push_back("Ly_BN98_excl_gas_sf");
             headerdatainfo.push_back("Lz_BN98_excl_gas_sf");
+            sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1,1,1));
         }
     }
     headerdatainfo.push_back("M_gas_nsf");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1));
     headerdatainfo.push_back("R_HalfMass_gas_nsf");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(0,1));
     headerdatainfo.push_back("sigV_gas_nsf");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(0,0,2));
     headerdatainfo.push_back("Lx_gas_nsf");
     headerdatainfo.push_back("Ly_gas_nsf");
     headerdatainfo.push_back("Lz_gas_nsf");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1,1,1));
     headerdatainfo.push_back("Krot_gas_nsf");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo());
     headerdatainfo.push_back("T_gas_nsf");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(0,0,0,0,1));
     headerdatainfo.push_back("Zmet_gas_nsf");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo());
     if (opt.iextragasoutput) {
         headerdatainfo.push_back("Mass_200mean_gas_nsf");
         headerdatainfo.push_back("Mass_200crit_gas_nsf");
         headerdatainfo.push_back("Mass_BN98_gas_nsf");
+        sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1));
         headerdatainfo.push_back("Lx_200c_gas_nsf");
         headerdatainfo.push_back("Ly_200c_gas_nsf");
         headerdatainfo.push_back("Lz_200c_gas_nsf");
@@ -1818,10 +1910,12 @@ if (opt.iextragasoutput) {
         headerdatainfo.push_back("Lx_BN98_gas_nsf");
         headerdatainfo.push_back("Ly_BN98_gas_nsf");
         headerdatainfo.push_back("Lz_BN98_gas_nsf");
+        sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1,1,1));
         if (opt.iInclusiveHalo>0) {
             headerdatainfo.push_back("Mass_200mean_excl_gas_nsf");
             headerdatainfo.push_back("Mass_200crit_excl_gas_nsf");
             headerdatainfo.push_back("Mass_BN98_excl_gas_nsf");
+            sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1));
             headerdatainfo.push_back("Lx_200c_excl_gas_nsf");
             headerdatainfo.push_back("Ly_200c_excl_gas_nsf");
             headerdatainfo.push_back("Lz_200c_excl_gas_nsf");
@@ -1831,6 +1925,7 @@ if (opt.iextragasoutput) {
             headerdatainfo.push_back("Lx_BN98_excl_gas_nsf");
             headerdatainfo.push_back("Ly_BN98_excl_gas_nsf");
             headerdatainfo.push_back("Lz_BN98_excl_gas_nsf");
+            sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1,1,1));
         }
     }
 #ifdef USEHDF
@@ -1843,6 +1938,8 @@ if (opt.iextragasoutput) {
     for (int i=sizeval;i<headerdatainfo.size();i++) adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
 #endif
 #endif
+
+    //??? keep adding units from here
 
     //if extra hydro properties are calculated
 #ifdef GASON

@@ -109,11 +109,11 @@ ReturnT safe_hdf5(F function, Ts ... args)
        if (status < 0) {
            cerr<<"Error in HDF routine "<<endl;//<<function.__PRETTY_FUNCTION__
            //throw std::runtime_error("Error in HDF routine.");
-           #ifdef USEMPI
+#ifdef USEMPI
            MPI_Abort(MPI_COMM_WORLD,1);
-           #else
+#else
            exit(1);
-           #endif
+#endif
        }
        return status;
 }

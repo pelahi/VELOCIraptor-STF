@@ -1711,6 +1711,12 @@ struct PropData
 #endif
     //@}
 
+    ///\name standard units of physical properties
+    //@{
+    string massunit, velocityunit, lengthunit, energyunit;
+    //@}
+
+
     PropData()
     {
         num=gNFOF=gN6DFOF=0;
@@ -2488,6 +2494,34 @@ struct PropData
 #endif
 };
 
+
+//for storing the units of known fields
+struct HeaderUnitInfo{
+    float massdim, lengthdim, velocitydim, timedim, energydim;
+    string extrainfo;
+    HeaderUnitInfo(float md = 0, float ld = 0, float vd = 0, float td = 0, float ed = 0, string s = ""){
+        massdim = md;
+        lengthdim = ld;
+        velocitydim = vd;
+        timedim = td;
+        energydim = ed;
+        extrainfo = s;
+    };
+#ifdef USEHDF
+    ///\todo add a write attribute being passed the hdf class
+    void WriteAttribute(H5OutputFile &hfile, string dataspace) {
+        write_attribute(dataspace, "Dimension_Mass", massdim);
+        write_attribute(dataspace, "Dimension_Length", lengthdim);
+        write_attribute(dataspace, "Dimension_Velocity", velocitydim);
+        write_attribute(dataspace, "Dimension_Time", timedim);
+        write_attribute(dataspace, "Dimension_Energy", energydim);
+        if (extrainfo.size()>0){
+            write_attribute(dataspace, "Dimension_Extra_Info", extrainfo);
+        }
+    };
+#endif
+};
+
 /*! Structures stores header info of the data writen by the \ref PropData data structure,
     specifically the \ref PropData::WriteBinary, \ref PropData::WriteAscii, \ref PropData::WriteHDF routines
     Must ensure that these routines are all altered together so that the io makes sense.
@@ -2495,6 +2529,8 @@ struct PropData
 struct PropDataHeader{
     //list the header info
     vector<string> headerdatainfo;
+    vector<HeaderUnitInfo> unitdatainfo;
+
 #ifdef USEHDF
     // vector<PredType> predtypeinfo;
     vector<hid_t> hdfpredtypeinfo;
