@@ -317,7 +317,7 @@ inline void ConfigExit() {
 
 inline string ExtraFieldIndexName(unsigned int i){
     string s = "";
-    if (i>0) s ="_index_"+to_string(i);
+    s ="_index_"+to_string(i);
     return s;
 }
 
@@ -497,7 +497,6 @@ inline void ExtraFieldCheck(string configentryname,
     indices.clear();
     units.clear();
     conversions.clear();
-    cout<<nentries<<endl;
     for (auto i=0;i<nentries;i++) {
         if (newcalctypes[i] >0) {
             names.push_back(newnames[i]);
