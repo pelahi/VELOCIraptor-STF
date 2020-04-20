@@ -2677,21 +2677,17 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
 
     //write the units as metadata for each data set
 #ifdef USEHDF
-#ifdef USEPARALLELHDF
-    if (ThisWriteTask==0) Fhdf.append(string(fname), H5F_ACC_RDWR, ThisWriteTask, false);
-#else
-    Fhdf.append(string(fname));
-#endif
+    Fhdf.append(string(fname), H5F_ACC_RDWR, 0, false);
 #ifdef USEPARALLELHDF
     if (ThisWriteTask==0) {
 #endif
-    for (auto ientry=0;ientry<head.headerdatainfo.size();ientry++) {
-        WriteHeaderUnitEntry(opt, Fhdf, head.headerdatainfo[ientry], head.unitdatainfo[ientry]);
-    }
-    Fhdf.close();
+        for (auto ientry=0;ientry<head.headerdatainfo.size();ientry++) {
+            WriteHeaderUnitEntry(opt, Fhdf, head.headerdatainfo[ientry], head.unitdatainfo[ientry]);
+        }
 #ifdef USEPARALLELHDF
     }
 #endif
+    Fhdf.close();
 #endif
 
 #ifdef USEMPI
