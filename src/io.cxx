@@ -2680,7 +2680,7 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
 #ifdef USEPARALLELHDF
     if (ThisWriteTask==0) {
 #endif
-    Fhdf.append(string(fname));
+    Fhdf.append(string(fname), H5F_ACC_RDWR, ThisWriteTask, false);
     for (auto ientry=0;ientry<head.headerdatainfo.size();ientry++) {
         WriteHeaderUnitEntry(opt, Fhdf, head.headerdatainfo[ientry], head.unitdatainfo[ientry]);
     }
