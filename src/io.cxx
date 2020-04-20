@@ -2676,6 +2676,7 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
 #endif
 
     //write the units as metadata for each data set
+#ifdef USEHDF
 #ifdef USEPARALLELHDF
     if (ThisWriteTask==0) {
 #endif
@@ -2686,6 +2687,7 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
     Fhdf.close();
 #ifdef USEPARALLELHDF
     }
+#endif
 #endif
 
 #ifdef USEMPI
