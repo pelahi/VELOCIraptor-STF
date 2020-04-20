@@ -2507,19 +2507,14 @@ struct HeaderUnitInfo{
         energydim = ed;
         extrainfo = s;
     };
-#ifdef USEHDF
-    ///\todo add a write attribute being passed the hdf class
-    void WriteAttribute(H5OutputFile &hfile, string dataspace) {
-        write_attribute(dataspace, "Dimension_Mass", massdim);
-        write_attribute(dataspace, "Dimension_Length", lengthdim);
-        write_attribute(dataspace, "Dimension_Velocity", velocitydim);
-        write_attribute(dataspace, "Dimension_Time", timedim);
-        write_attribute(dataspace, "Dimension_Energy", energydim);
-        if (extrainfo.size()>0){
-            write_attribute(dataspace, "Dimension_Extra_Info", extrainfo);
-        }
+    HeaderUnitInfo(string s){
+        massdim = 0;
+        lengthdim = 0;
+        velocitydim = 0;
+        timedim = 0;
+        energydim = 0;
+        extrainfo = s;
     };
-#endif
 };
 
 /*! Structures stores header info of the data writen by the \ref PropData data structure,

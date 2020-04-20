@@ -20,6 +20,21 @@
 #include "adios.h"
 #endif
 
+///write the information stored in a unit struct as meta data into a HDF5 file
+inline void WriteHeaderUnitEntry(Options & opt, H5OutputFile & hfile, string datasetname, HeaderUnitInfo &u)
+{
+#ifdef USEHDF
+    hfile.write_attribute(datasetname, "Dimension_Mass", u.massdim);
+    hfile.write_attribute(datasetname, "Dimension_Length", u.lengthdim);
+    hfile.write_attribute(datasetname, "Dimension_Velocity", u.velocitydim);
+    hfile.write_attribute(datasetname, "Dimension_Time", u.timedim);
+    hfile.write_attribute(datasetname, "Dimension_Energy", u.energydim);
+    if (u.extrainfo.size()>0){
+        hfile.write_attribute(datasetname, "Dimension_Extra_Info", u.extrainfo);
+    }
+#endif
+}
+
 ///Checks if file exits by attempting to get the file attributes
 ///If success file obviously exists.
 ///If failure may mean that we don't have permission to access the folder which contains this file or doesn't exist.
@@ -2658,6 +2673,19 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
     if (opt.ibinaryout!=OUTHDF) Fout.close();
 #ifdef USEHDF
     else Fhdf.close();
+#endif
+
+    //write the units as metadata for each data set
+#ifdef USEPARALLELHDF
+    if (ThisWriteTask==0) {
+#endif
+    Fhdf.append(string(fname));
+    for (auto ientry=0;ientry<head.headerdatainfo.size();ientry++) {
+        WriteHeaderUnitEntry(opt, Fhdf, head.headerdatainfo[ientry], head.unitdatainfo[ientry]);
+    }
+    Fhdf.close();
+#ifdef USEPARALLELHDF
+    }
 #endif
 
 #ifdef USEMPI
