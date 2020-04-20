@@ -1457,6 +1457,7 @@ PropDataHeader::PropDataHeader(Options&opt){
     headerdatainfo.push_back("Vmax");
     sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(0,0,1));
     headerdatainfo.push_back("sigV");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(0,0,1));
     headerdatainfo.push_back("veldisp_xx");
     headerdatainfo.push_back("veldisp_xy");
     headerdatainfo.push_back("veldisp_xz");
@@ -1493,6 +1494,7 @@ PropDataHeader::PropDataHeader(Options&opt){
 
     //some properties within RVmax
     headerdatainfo.push_back("RVmax_sigV");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(0,0,1));
     headerdatainfo.push_back("RVmax_veldisp_xx");
     headerdatainfo.push_back("RVmax_veldisp_xy");
     headerdatainfo.push_back("RVmax_veldisp_xz");
@@ -1726,7 +1728,7 @@ if (opt.iextragasoutput) {
     headerdatainfo.push_back("Krot_star");
     sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo());
     headerdatainfo.push_back("tage_star");
-    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(0,0,-1));
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(0,0,0,1));
     headerdatainfo.push_back("Zmet_star");
     sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo());
     if (opt.iextrastaroutput) {
@@ -1837,7 +1839,7 @@ if (opt.iextragasoutput) {
     headerdatainfo.push_back("R_HalfMass_gas_sf");
     sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(0,1));
     headerdatainfo.push_back("sigV_gas_sf");
-    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(0,0,2));
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(0,0,1));
     headerdatainfo.push_back("Lx_gas_sf");
     headerdatainfo.push_back("Ly_gas_sf");
     headerdatainfo.push_back("Lz_gas_sf");
@@ -1885,7 +1887,7 @@ if (opt.iextragasoutput) {
     headerdatainfo.push_back("R_HalfMass_gas_nsf");
     sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(0,1));
     headerdatainfo.push_back("sigV_gas_nsf");
-    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(0,0,2));
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(0,0,1));
     headerdatainfo.push_back("Lx_gas_nsf");
     headerdatainfo.push_back("Ly_gas_nsf");
     headerdatainfo.push_back("Lz_gas_nsf");
