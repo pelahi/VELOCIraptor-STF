@@ -21,9 +21,9 @@
 #endif
 
 ///write the information stored in a unit struct as meta data into a HDF5 file
+#ifdef USEHDF
 inline void WriteHeaderUnitEntry(Options & opt, H5OutputFile & hfile, string datasetname, HeaderUnitInfo &u)
 {
-#ifdef USEHDF
     hfile.write_attribute(datasetname, "Dimension_Mass", u.massdim);
     hfile.write_attribute(datasetname, "Dimension_Length", u.lengthdim);
     hfile.write_attribute(datasetname, "Dimension_Velocity", u.velocitydim);
@@ -32,8 +32,8 @@ inline void WriteHeaderUnitEntry(Options & opt, H5OutputFile & hfile, string dat
     if (u.extrainfo.size()>0){
         hfile.write_attribute(datasetname, "Dimension_Extra_Info", u.extrainfo);
     }
-#endif
 }
+#endif
 
 ///Checks if file exits by attempting to get the file attributes
 ///If success file obviously exists.
