@@ -520,7 +520,7 @@ inline void ExtraFieldCheck(string configentryname,
         calctype = calctypes[i];
         pairindices[i] = i;
         outputfieldname = names[i]+ExtraFieldIndexName(entryindex)
-            +string("_")+calcinttostring[calctype]+string("_")+units[i];
+            +string("_")+calcinttostring[calctype];//+string("_")+units[i];
         output_names.push_back(outputfieldname);
     }
     for (auto i=0;i<calctypes.size();i++) {
@@ -539,7 +539,7 @@ inline void ExtraFieldCheck(string configentryname,
         entryindex = indices_aperture[i];
         calctype = calctypes_aperture[i];
         outputfieldname = names_aperture[i]+ExtraFieldIndexName(entryindex)
-            +string("_")+calcinttostring[calctype]+string("_")+units[i];
+            +string("_")+calcinttostring[calctype];//+string("_")+units_aperture[i];
         output_names_aperture.push_back(outputfieldname);
     }
 }
