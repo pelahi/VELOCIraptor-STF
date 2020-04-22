@@ -9,6 +9,36 @@
 StrucLevelData *psldata;
 
 
+///\name define routines for the HeaderUnitInfo
+HeaderUnitInfo::HeaderUnitInfo(string s)
+{
+    string delimiter(":"), token;
+    vector<string> units;
+    size_t pos;
+    while ((pos = s.find(delimiter)) != string::npos) {
+        token = s.substr(0, pos);
+        units.push_back(token);
+        s.erase(0, pos + delimiter.length());
+    }
+    if (units.size()==5) {
+        massdim = stof(units[0]);
+        lengthdim = stof(units[1]);
+        velocitydim = stof(units[2]);
+        timedim = stof(units[3]);
+        energydim = stof(units[4]);
+        extrainfo = string("");
+    }
+    else {
+        massdim = 0;
+        lengthdim = 0;
+        velocitydim = 0;
+        timedim = 0;
+        energydim = 0;
+        extrainfo = s;
+    }
+}
+
+
 ///\name define write routines for the property data structure
 //{@
 ///write (append) the properties data to an already open binary file

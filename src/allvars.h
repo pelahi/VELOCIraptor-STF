@@ -2507,14 +2507,9 @@ struct HeaderUnitInfo{
         energydim = ed;
         extrainfo = s;
     };
-    HeaderUnitInfo(string s){
-        massdim = 0;
-        lengthdim = 0;
-        velocitydim = 0;
-        timedim = 0;
-        energydim = 0;
-        extrainfo = s;
-    };
+    //Parse the string in the format massdim:lengthdim:velocitydim:timedim:energydim if only a string is passed
+    //if format does not match this then just store string
+    HeaderUnitInfo(string s);
 };
 
 /*! Structures stores header info of the data writen by the \ref PropData data structure,
