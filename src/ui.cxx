@@ -982,6 +982,8 @@ void GetParamFile(Options &opt)
                         opt.mpipartfac = atof(vbuff);
                     else if (strcmp(tbuff, "MPI_number_of_tasks_per_write")==0)
                         opt.mpinprocswritesize = atoi(vbuff);
+                    else if (strcmp(tbuff, "MPI_use_zcurve_mesh_decomposition")==0)
+                        opt.impiusemesh = (atoi(vbuff)>0);
                     ///OpenMP related
                     else if (strcmp(tbuff, "OMP_run_fof")==0)
                         opt.iopenmpfof = atoi(vbuff);
