@@ -27,7 +27,7 @@ endif()
 
 project(VELOCIraptor VERSION ${VR_VERSION} LANGUAGES ${VR_LANGS})
 set(CMAKE_CXX_STANDARD 11)
-# Set the code to always produce position independent code by default 
+# Set the code to always produce position independent code by default
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 #
@@ -266,6 +266,16 @@ macro(ensure_git_submodules)
 		endif()
 	endif()
 endmacro()
+
+#
+# Add git revision information in a generated .cxx file, which we then include
+# as part of the library
+#
+include(cmake/GetGitRevisionDescription.cmake)
+get_git_head_revision(GIT_REFSPEC GIT_SHA1)
+git_local_changes(GIT_HAS_LOCAL_CHANGES)
+set(git_revision_cxx "${CMAKE_CURRENT_BINARY_DIR}/git_revision.cxx")
+configure_file("src/git_revision.cxx.in" "${git_revision_cxx}" @ONLY)
 
 
 #

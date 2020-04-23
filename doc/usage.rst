@@ -128,10 +128,16 @@ An example configuration file can be found the examples directory within the rep
 This sample file lists all the options. *Only the keywords listed here will be used, all other words/characters are ignored*. One can check the options used by examining **foo.configuration**, where **foo** is your base output filename.
 
 We suggest the following files as a basis:
-    * :download:`N-body simulations configuration <../examples/sample_hydrocosmological_run.cfg>`
+    * :download:`N-body simulations configuration <../examples/sample_dmcosmological_6dfof_subhalo.cfg>`
+        * This config file is for running a pure N-body simulation, producing 6dfof halos, find substructure and then calculating a variety of properties for each object. The reference position about which quantities are calculated is the minimum potential of an object. Substructure are subhalos, required to be approximately self-bound (particles allowed to have potential energy 0.95 times that of the kinetic energy). There are also similar config files that use :download:`3dfof halos <../examples/sample_dmcosmological_3dfof_subhalo.cfg>`, one setup to also find :download:`unbound tidal debris <../examples/sample_dmcosmological_3dfof_subhalo_tidal_debris.cfg>`.
     * :download:`Hydro simulations configuration <../examples/sample_hydrocosmological_run.cfg>`
+        * This config is setup to load in all particles from a hydro sim and calculate a variety of quantities. It is similar to the N-body sample.
     * :download:`SWIFT N-body simulation configuration <../examples/sample_swiftdm_3dfof_subhalo.cfg>`
+        * This config is setup to load in a swift snapshot. It is similar to the N-body sample but here is using 3dfof halos.
     * :download:`SWIFT Hydro simulation configuration <../examples/sample_swifthydro_3dfof_subhalo_extra_properties.cfg>`
+        * This config is setup to load in a swift hydro snapshot and also load in extra information from the snapshot to calculate extra hydro/star/bh quantitites. Another example of such a config with specific black hole related quantities is also :download:`available <../examples/sample2_swifthydro_3dfof_subhalo_extra_properties.cfg>`.
+
+Also provided are config files for the :download:`SURFS <../examples/surfs2018_configuration.cfg>` and :download:GENESIS<../examples/genesis2019_configuration.cfg> simulations.
 
 .. warning:: Note that if misspell a keyword it will not be used.
 .. warning:: Since this file is always written **DO NOT** name your input configuration file **foo.configuration**.
