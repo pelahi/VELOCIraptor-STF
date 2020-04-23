@@ -127,7 +127,7 @@ void MPINumInDomainHDF(Options &opt)
 {
     if (NProcs==1) return;
     MPIDomainExtentHDF(opt);
-    MPIInitialDomainDecomposition();
+    MPIInitialDomainDecomposition(opt);
     MPIDomainDecompositionHDF(opt);
 
     Int_t i,j,k;

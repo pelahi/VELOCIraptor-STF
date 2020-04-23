@@ -46,7 +46,12 @@ using namespace Swift;
 
 ///determine the initial domains, ie: bisection distance mpi_dxsplit, which is used to determien what processor a particle is assigned to
 ///here the domains are constructured in data units
-void MPIInitialDomainDecomposition(){
+void MPIInitialDomainDecomposition(Options &opt)
+{
+    if (opt.impiusemesh) {
+        MPIInitialDomainDecompositionWithMesh(opt);
+        return;
+    }
     Int_t i,j,k,n,m,temp,count,count2,pc,pc_new, Ntot;
     int Nsplit,isplit;
     Int_t nbins1d,nbins3d, ibin[3];
@@ -159,6 +164,84 @@ void MPIInitialDomainDecomposition(){
     MPI_Bcast(mpi_domain, NProcs*sizeof(MPI_Domain), MPI_BYTE, 0, MPI_COMM_WORLD);
 }
 
+void MPIInitialDomainDecompositionWithMesh(Options &opt){
+    if (ThisTask==0) {
+        //each processor takes subsection of volume where use simple NProcs^(1/3) subdivision
+        opt.numcellsperdim = ceil(pow((double)NProcs*4.0,(double)(1.0/3.0)));
+        unsigned int n3 = opt.numcells = opt.numcellsperdim*opt.numcellsperdim*opt.numcellsperdim;
+        double idelta = 1.0/(double)opt.numcellsperdim;
+        for (auto i=0; i<3; i++) {
+            opt.spacedimension[i] = (mpi_xlim[i][1]  - mpi_xlim[i][0]);
+            opt.icellwidth[i] = opt.spacedimension[i] * idelta;
+            opt.cellwidth[i] = 1.0/opt.icellwidth[i];
+        }
+
+        //now order according to Z-curve or Morton curve
+        //first fill curve
+        vector<bitset<16>> zcurvevalue(3);
+        struct zcurvestruct{
+            unsigned int coord[3];
+            unsigned long long index;
+            bitset<48> zcurvevalue;
+        };
+        vector<zcurvestruct> zcurve(n3);
+        unsigned long long index;
+        for (auto ix=0;ix<opt.numcellsperdim;ix++) {
+            for (auto iy=0;iy<opt.numcellsperdim;iy++) {
+                for (auto iz=0;iz<opt.numcellsperdim;iz++) {
+                    index = ix*opt.numcellsperdim*opt.numcellsperdim + iy*opt.numcellsperdim + iz;
+                    zcurve[index].coord[0] = ix;
+                    zcurve[index].coord[1] = iy;
+                    zcurve[index].coord[2] = iz;
+                    zcurve[index].index = index;
+                    zcurvevalue[0] = bitset<16>(ix);
+                    zcurvevalue[1] = bitset<16>(iy);
+                    zcurvevalue[2] = bitset<16>(iz);
+                    for (auto j=0; j<16;j++)
+                    {
+                        for (auto i = 0; i<3; i++) {
+                            zcurve[index].zcurvevalue[j*3+i] = zcurvevalue[i][j];
+                        }
+                    }
+                }
+            }
+        }
+        //then sort index array based on the zcurvearray value
+        sort(zcurve.begin(), zcurve.end(), [](zcurvestruct &a, zcurvestruct &b){
+            return a.zcurvevalue.to_ullong() < b.zcurvevalue.to_ullong();
+        });
+        //finally assign cells to tasks
+        opt.cellnodeids = new int[n3];
+        opt.cellloc = new cell_loc[n3];
+        int nsub = floor(n3/(double)NProcs);
+        for (auto i=0;i<n3;i++)
+        {
+            auto itask = i/nsub;
+            if (itask == NProcs) itask -= 1;
+            opt.cellnodeids[zcurve[i].index] = itask;
+        }
+        cout<<"Z-curve Mesh MPI decomposition: "<<endl;
+    }
+    //broadcast data
+    MPI_Bcast(&opt.numcells, 1, MPI_INTEGER, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&opt.numcellsperdim, 1, MPI_INTEGER, 0, MPI_COMM_WORLD);
+    MPI_Bcast(opt.spacedimension, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(opt.cellwidth, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(opt.icellwidth, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    if (ThisTask != 0) opt.cellnodeids = new int[opt.numcells];
+    MPI_Bcast(opt.cellnodeids, opt.numcells, MPI_INTEGER, 0, MPI_COMM_WORLD);
+
+}
+
+void MPIUpdateDomainDecompositionWithMesh(Options &opt)
+{
+    //once data loaded update cell widths
+    for (auto i=0;i<3;i++) {
+        opt.spacedimension[i] *= opt.a*opt.lengthinputconversion;
+        opt.cellwidth[i] *= opt.a*opt.lengthinputconversion;
+        opt.icellwidth[i] /= opt.a*opt.lengthinputconversion;
+    }
+}
 
 void MPINumInDomain(Options &opt)
 {
@@ -197,7 +280,7 @@ void MPIDomainExtent(Options &opt)
 
 void MPIDomainDecomposition(Options &opt)
 {
-    MPIInitialDomainDecomposition();
+    MPIInitialDomainDecomposition(opt);
     if(opt.inputtype==IOTIPSY) MPIDomainDecompositionTipsy(opt);
     else if (opt.inputtype==IOGADGET) MPIDomainDecompositionGadget(opt);
     else if (opt.inputtype==IORAMSES) MPIDomainDecompositionRAMSES(opt);
@@ -1372,7 +1455,6 @@ int MPISearchForOverlap(Double_t xsearch[3][2]){
 
 ///\todo clean up memory allocation in these functions, no need to keep allocating xsearch,xsearchp,numoverlap,etc
 /// Determine if a particle needs to be exported to another mpi domain based on a physical search radius
-#ifdef SWIFTINTERFACE
 
 int MPISearchForOverlapUsingMesh(Options &opt, Particle &Part, Double_t &rdist){
     Double_t xsearch[3][2];
@@ -1402,7 +1484,6 @@ int MPISearchForOverlapUsingMesh(Options &opt, Double_t xsearch[3][2]){
     }
     return numoverlap;
 }
-#endif
 //@}
 
 /// \name Routines involved in reading input data
@@ -2857,7 +2938,6 @@ void MPIGetExportNum(const Int_t nbodies, Particle *Part, Double_t rdist){
     for (j=0;j<NProcs;j++)NImport+=mpi_nsend[ThisTask+j*NProcs];
 }
 
-#ifdef SWIFTINTERFACE
 void MPIGetExportNumUsingMesh(Options &opt, const Int_t nbodies, Particle *Part, Double_t rdist){
     Int_t i, j,nthreads,nexport=0,nimport=0;
     Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
@@ -2904,7 +2984,6 @@ void MPIGetExportNumUsingMesh(Options &opt, const Int_t nbodies, Particle *Part,
     NImport=0;
     for (j=0;j<NProcs;j++)NImport+=mpi_nsend[ThisTask+j*NProcs];
 }
-#endif
 
 /*! Determine which particles have a spatial linking length such that linking overlaps the domain of another processor store the necessary information to send that data
     and then send that information
@@ -3033,7 +3112,6 @@ void MPIBuildParticleExportList(Options &opt, const Int_t nbodies, Particle *Par
 
 /*! Similar to \ref MPIBuildParticleExportList but uses mesh of swift to determine when mpi's to search
 */
-#ifdef SWIFTINTERFACE
 void MPIBuildParticleExportListUsingMesh(Options &opt, const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_tree_t *&Len, Double_t rdist){
     Int_t i, j,nthreads,nexport=0,nimport=0;
     Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
@@ -3234,7 +3312,6 @@ void MPIBuildParticleExportListUsingMesh(Options &opt, const Int_t nbodies, Part
         }
     }
 }
-#endif
 
 /*! like \ref MPIGetExportNum but number based on NN search, useful for reducing memory costs at the expense of cpu cycles
 */
@@ -3279,7 +3356,6 @@ void MPIGetNNExportNum(const Int_t nbodies, Particle *Part, Double_t *rdist){
 
 /*! like \ref MPIGetExportNum but number based on NN search, useful for reducing memory costs at the expense of cpu cycles
 */
-#ifdef SWIFTINTERFACE
 void MPIGetNNExportNumUsingMesh(Options &opt, const Int_t nbodies, Particle *Part, Double_t *rdist){
     Int_t i, j,nthreads,nexport=0,nimport=0;
     Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
@@ -3319,8 +3395,6 @@ void MPIGetNNExportNumUsingMesh(Options &opt, const Int_t nbodies, Particle *Par
     for (j=0;j<NProcs;j++)NImport+=mpi_nsend[ThisTask+j*NProcs];
     NExport=nexport;
 }
-
-#endif
 
 /*! like \ref MPIBuildParticleExportList but each particle has a different distance stored in rdist used to find nearest neighbours
 */
@@ -3433,7 +3507,6 @@ void MPIBuildParticleNNExportList(const Int_t nbodies, Particle *Part, Double_t 
 }
 /*! like \ref MPIBuildParticleExportList but each particle has a different distance stored in rdist used to find nearest neighbours
 */
-#ifdef SWIFTINTERFACE
 void MPIBuildParticleNNExportListUsingMesh(Options &opt, const Int_t nbodies, Particle *Part, Double_t *rdist){
     Int_t i, j,nthreads,nexport=0,nimport=0;
     Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
@@ -3521,7 +3594,6 @@ void MPIBuildParticleNNExportListUsingMesh(Options &opt, const Int_t nbodies, Pa
     }
     MPI_Barrier(MPI_COMM_WORLD);
 }
-#endif
 
 /*! Mirror to \ref MPIGetNNExportNum, use exported particles, run ball search to find number of all local particles that need to be
     imported back to exported particle's thread so that a proper NN search can be made.
@@ -3762,7 +3834,6 @@ vector<bool> MPIGetHaloSearchExportNum(const Int_t ngroup, PropData *&pdata, vec
     return halooverlap;
 }
 
-#ifdef SWIFTINTERFACE
 /*! similar \ref MPIGetHaloSearchExportNum but using swift mesh mpi decomposition
 */
 vector<bool> MPIGetHaloSearchExportNumUsingMesh(Options &opt, const Int_t ngroup, PropData *&pdata, vector<Double_t> &rdist)
@@ -3805,7 +3876,6 @@ vector<bool> MPIGetHaloSearchExportNumUsingMesh(Options &opt, const Int_t ngroup
     NExport=nexport;
     return halooverlap;
 }
-#endif
 
 /*! like \ref MPIBuildParticleExportList but each particle has a different distance stored in rdist used to find nearest neighbours
 */
@@ -3907,7 +3977,6 @@ void MPIBuildHaloSearchExportList(const Int_t ngroup, PropData *&pdata, vector<D
     }
 }
 
-#ifdef SWIFTINTERFACE
 /*! similar \ref MPIBuildHaloSearchExportList but for swift mesh mpi decomposition
 */
 void MPIBuildHaloSearchExportListUsingMesh(Options &opt, const Int_t ngroup, PropData *&pdata, vector<Double_t> &rdist, vector<bool> &halooverlap)
@@ -4009,7 +4078,6 @@ void MPIBuildHaloSearchExportListUsingMesh(Options &opt, const Int_t ngroup, Pro
         }
     }
 }
-#endif
 
 /*! Mirror to \ref MPIGetHaloSearchExportNum, use exported positions, run ball search to find number of all local particles that need to be
     imported back to exported positions's thread so that a proper search can be made.

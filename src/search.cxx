@@ -299,11 +299,9 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     MPIAdjustLocalGroupIDs(nbodies, pfof);
     //then determine export particles, declare arrays used to export data
 #ifdef MPIREDUCEMEM
-#ifdef SWIFTINTERFACE
-    MPIGetExportNumUsingMesh(libvelociraptorOpt, nbodies, Part.data(), sqrt(param[1]));
-#else
-    MPIGetExportNum(nbodies, Part.data(), sqrt(param[1]));
-#endif
+
+    if (opt.impiusemesh) MPIGetExportNumUsingMesh(opt, nbodies, Part.data(), sqrt(param[1]));
+    else MPIGetExportNum(nbodies, Part.data(), sqrt(param[1]));
 #endif
     //allocate memory to store info
     cout<<ThisTask<<": Finished local search, nexport/nimport = "<<NExport<<" "<<NImport<<" in "<<MyGetTime()-time2<<endl;
@@ -320,11 +318,9 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
 
     //I have adjusted FOF data structure to have local group length and also seperated the export particles from export fof data
     //the reason is that will have to update fof data in iterative section but don't need to update particle information.
-#ifdef SWIFTINTERFACE
-    MPIBuildParticleExportListUsingMesh(libvelociraptorOpt, nbodies, Part.data(), pfof, Len, sqrt(param[1]));
-#else
-    MPIBuildParticleExportList(opt, nbodies, Part.data(), pfof, Len, sqrt(param[1]));
-#endif
+
+    if (opt.impiusemesh) MPIBuildParticleExportListUsingMesh(opt, nbodies, Part.data(), pfof, Len, sqrt(param[1]));
+    else MPIBuildParticleExportList(opt, nbodies, Part.data(), pfof, Len, sqrt(param[1]));
     MPI_Barrier(MPI_COMM_WORLD);
     //Now that have FoFDataGet (the exported particles) must search local volume using said particles
     //This is done by finding all particles in the search volume and then checking if those particles meet the FoF criterion
@@ -1801,11 +1797,8 @@ private(i,tid)
 
     //then determine export particles, declare arrays used to export data
 #ifdef MPIREDUCEMEM
-#ifdef SWIFTINTERFACE
-    MPIGetExportNumUsingMesh(libvelociraptorOpt, nbodies, Partsubset, sqrt(param[1]));
-#else
-    MPIGetExportNum(nbodies, Partsubset, sqrt(param[1]));
-#endif
+    if (opt.impiusemesh) MPIGetExportNumUsingMesh(opt, nbodies, Partsubset, sqrt(param[1]));
+    else MPIGetExportNum(nbodies, Partsubset, sqrt(param[1]));
 #endif
     //then determine export particles, declare arrays used to export data
     PartDataIn = new Particle[NExport];
@@ -1814,11 +1807,8 @@ private(i,tid)
     FoFDataGet = new fofdata_in[NExport];
     //I have adjusted FOF data structure to have local group length and also seperated the export particles from export fof data
     //the reason is that will have to update fof data in iterative section but don't need to update particle information.
-#ifdef SWIFTINTERFACE
-    MPIBuildParticleExportListUsingMesh(libvelociraptorOpt, nsubset, Partsubset, pfof, Len, sqrt(param[1]));
-#else
-    MPIBuildParticleExportList(opt, nsubset, Partsubset, pfof, Len, sqrt(param[1]));
-#endif
+    if (opt.impiusemesh) MPIBuildParticleExportListUsingMesh(opt, nsubset, Partsubset, pfof, Len, sqrt(param[1]));
+    else MPIBuildParticleExportList(opt, nsubset, Partsubset, pfof, Len, sqrt(param[1]));
     //Now that have FoFDataGet (the exported particles) must search local volume using said particles
     //This is done by finding all particles in the search volume and then checking if those particles meet the FoF criterion
     //One must keep iterating till there are no new links.
@@ -3614,11 +3604,8 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
         if (opt.iverbose) cout<<ThisTask<<" finished local search"<<endl;
         MPI_Barrier(MPI_COMM_WORLD);
         //determine all tagged dark matter particles that have search areas that overlap another mpi domain
-#ifdef SWIFTINTERFACE
-        MPIGetExportNumUsingMesh(libvelociraptorOpt, npartingroups, Part.data(), sqrt(param[1]));
-#else
-        MPIGetExportNum(npartingroups, Part.data(), sqrt(param[1]));
-#endif
+        if (opt.impiusemesh) MPIGetExportNumUsingMesh(opt, npartingroups, Part.data(), sqrt(param[1]));
+        else MPIGetExportNum(npartingroups, Part.data(), sqrt(param[1]));
         //to store local mpi task
         mpi_foftask=MPISetTaskID(nbaryons);
         //then determine export particles, declare arrays used to export data

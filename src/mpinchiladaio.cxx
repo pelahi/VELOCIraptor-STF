@@ -64,7 +64,7 @@ void MPINumInDomainNchilada(Options &opt)
 {
     if (NProcs>1) {
     MPIDomainExtentNchilada(opt);
-    MPIInitialDomainDecomposition();
+    MPIInitialDomainDecomposition(opt);
     MPIDomainDecompositionNchilada(opt);
 
     Int_t i,j,k,n,nchunk;

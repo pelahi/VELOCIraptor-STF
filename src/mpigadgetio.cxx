@@ -509,7 +509,7 @@ void MPINumInDomainGadget(Options &opt)
     InitEndian();
     if (NProcs>1) {
     MPIDomainExtentGadget(opt);
-    MPIInitialDomainDecomposition();
+    MPIInitialDomainDecomposition(opt);
     MPIDomainDecompositionGadget(opt);
     Int_t i,j,k,n,m,temp,pc,pc_new, Ntot,indark,ingas,instar;
     Int_t idval;

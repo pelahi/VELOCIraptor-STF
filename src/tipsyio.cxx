@@ -42,7 +42,7 @@ void ReadTipsy(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particl
     }
     Nlocal=0;
     MPIDomainExtentTipsy(opt);
-    MPIInitialDomainDecomposition();
+    MPIInitialDomainDecomposition(opt);
     if (ThisTask==0) {
 #endif
 

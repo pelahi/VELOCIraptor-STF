@@ -29,6 +29,7 @@
 #include <algorithm>
 #include <map>
 #include <unordered_map>
+#include <bitset>
 #include <getopt.h>
 #include <sys/stat.h>
 #include <sys/timeb.h>
@@ -431,6 +432,12 @@ struct Options
     /// if using parallel output, number of mpi threads to group together
     int mpinprocswritesize;
 
+    /// mpi number of top level cells used in decomposition
+    /// could be integrated into metis/parmetis eventually
+    /// here this is the number of cells in a singel dimension to total cells
+    /// is this to ^3
+    int mpinumtoplevelcells;
+
     /// run FOF using OpenMP
     int iopenmpfof;
     /// size of openmp FOF region
@@ -668,7 +675,10 @@ struct Options
     double icellwidth[3];
 
     /*! Holds the node ID of each top-level cell. */
-    const int *cellnodeids;
+    int *cellnodeids;
+
+    ///whether using mesh decomposition
+    bool impiusemesh;
     //@}
 
     /// \name options related to calculation of aperture/profile
@@ -1051,6 +1061,11 @@ struct Options
         mpiparticletotbufsize=-1;
         mpiparticlebufsize=-1;
         mpinprocswritesize=1;
+#ifdef SWIFTINTERFACE
+        impiusemesh = true;
+#else
+        impiusemesh = false;
+#endif
 
         lengthtokpc=-1.0;
         velocitytokms=-1.0;

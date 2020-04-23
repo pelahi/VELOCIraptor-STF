@@ -106,7 +106,7 @@ void MPINumInDomainRAMSES(Options &opt)
     if (NProcs > 1)
     {
         MPIDomainExtentRAMSES(opt);
-        MPIInitialDomainDecomposition();
+        MPIInitialDomainDecomposition(opt);
         MPIDomainDecompositionRAMSES(opt);
         Int_t i,j,k,n,m,temp,Ntot,indark,ingas,instar;
         int idim,ivar,igrid;
