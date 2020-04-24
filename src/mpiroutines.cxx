@@ -233,16 +233,6 @@ void MPIInitialDomainDecompositionWithMesh(Options &opt){
 
 }
 
-void MPIUpdateDomainDecompositionWithMesh(Options &opt)
-{
-    //once data loaded update cell widths
-    for (auto i=0;i<3;i++) {
-        opt.spacedimension[i] *= opt.a*opt.lengthinputconversion;
-        opt.cellwidth[i] *= opt.a*opt.lengthinputconversion;
-        opt.icellwidth[i] /= opt.a*opt.lengthinputconversion;
-    }
-}
-
 void MPINumInDomain(Options &opt)
 {
     //when reading number in domain, use all available threads to read all available files
@@ -290,13 +280,35 @@ void MPIDomainDecomposition(Options &opt)
 }
 
 ///adjust the domain boundaries to code units
-void MPIAdjustDomain(Options opt){
+void MPIAdjustDomain(Options &opt){
+    if (opt.impiusemesh) {
+        MPIAdjustDomainWithMesh(opt);
+        return;
+    }
     Double_t aadjust, lscale;
     if (opt.comove) aadjust=1.0;
     else aadjust=opt.a;
-    lscale=opt.lengthinputconversion/opt.h*aadjust;
+    lscale=opt.lengthinputconversion*aadjust;
+    if (opt.inputcontainslittleh) lscale /=opt.h;
     for (int j=0;j<NProcs;j++) for (int k=0;k<3;k++) {mpi_domain[j].bnd[k][0]*=lscale;mpi_domain[j].bnd[k][1]*=lscale;}
 }
+
+void MPIAdjustDomainWithMesh(Options &opt)
+{
+    //once data loaded update cell widths
+    Double_t aadjust, lscale;
+    if (opt.comove) aadjust=1.0;
+    else aadjust=opt.a;
+    lscale=opt.lengthinputconversion*aadjust;
+    if (opt.inputcontainslittleh) lscale /=opt.h;
+    for (auto i=0;i<3;i++) {
+        opt.spacedimension[i] *= lscale;
+        opt.cellwidth[i] *= lscale;
+        opt.icellwidth[i] /= lscale;
+    }
+}
+
+
 
 ///given a position and a mpi thread domain information, determine which processor a particle is assigned to
 int MPIGetParticlesProcessor(Double_t x,Double_t y, Double_t z){
