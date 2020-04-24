@@ -521,7 +521,7 @@ void MPIDomainExtentNchilada(Options &opt);
 void MPIDomainDecompositionNchilada(Options &opt);
 
 ///determine what processor a particle is sent to based on domain decomposition
-int MPIGetParticlesProcessor(const Double_t,const Double_t,const Double_t);
+int MPIGetParticlesProcessor(Options &opt, const Double_t,const Double_t,const Double_t);
 /// Determine number of local particles wrapper
 void MPINumInDomain(Options &opt);
 

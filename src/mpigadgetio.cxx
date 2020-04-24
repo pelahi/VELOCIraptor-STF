@@ -570,7 +570,7 @@ void MPINumInDomainGadget(Options &opt)
                 for(n=0;n<header[i].npart[k];n++)
                 {
                     Fgad[i].read((char*)&ctemp[0], sizeof(FLOAT)*3);
-                    ibuf=MPIGetParticlesProcessor(ctemp[0],ctemp[1],ctemp[2]);
+                    ibuf=MPIGetParticlesProcessor(opt, ctemp[0],ctemp[1],ctemp[2]);
                     if (opt.partsearchtype==PSTALL) {
                         Nbuf[ibuf]++;
                     }

@@ -789,7 +789,7 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
 */
 #ifdef USEMPI
             //determine processor this particle belongs on based on its spatial position
-            ibuf=MPIGetParticlesProcessor(xtemp[0],xtemp[1],xtemp[2]);
+            ibuf=MPIGetParticlesProcessor(opt, xtemp[0],xtemp[1],xtemp[2]);
             ibufindex=ibuf*BufSize+Nbuf[ibuf];
 #endif
             //reset hydro quantities of buffer
@@ -1142,7 +1142,7 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
                                         xpos[2] = ((((float)rand()/(float)RAND_MAX) * header[i].BoxSize * dx) +(header[i].BoxSize * (xtempchunk[igrid+2*chunksize] + (double(iz)-0.5) * dx )) - (header[i].BoxSize*dx/2.0)) ;
 #ifdef USEMPI
                                         //determine processor this particle belongs on based on its spatial position
-                                        ibuf=MPIGetParticlesProcessor(xpos[0],xpos[1],xpos[2]);
+                                        ibuf=MPIGetParticlesProcessor(opt, xpos[0],xpos[1],xpos[2]);
                                         ibufindex=ibuf*BufSize+Nbuf[ibuf];
 #endif
 

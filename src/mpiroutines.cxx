@@ -311,13 +311,24 @@ void MPIAdjustDomainWithMesh(Options &opt)
 
 
 ///given a position and a mpi thread domain information, determine which processor a particle is assigned to
-int MPIGetParticlesProcessor(Double_t x,Double_t y, Double_t z){
+int MPIGetParticlesProcessor(Options &opt, Double_t x, Double_t y, Double_t z){
     if (NProcs==1) return 0;
-    for (int j=0;j<NProcs;j++){
-        if( (mpi_domain[j].bnd[0][0]<=x) && (mpi_domain[j].bnd[0][1]>=x)&&
-            (mpi_domain[j].bnd[1][0]<=y) && (mpi_domain[j].bnd[1][1]>=y)&&
-            (mpi_domain[j].bnd[2][0]<=z) && (mpi_domain[j].bnd[2][1]>=z) )
-            return j;
+    if (opt.impiusemesh) {
+        unsigned int ix, iy, iz;
+        unsigned long long index;
+        ix=floor(x*opt.icellwidth[0]);
+        iy=floor(y*opt.icellwidth[1]);
+        iz=floor(z*opt.icellwidth[2]);
+        index = ix*opt.numcellsperdim*opt.numcellsperdim+iy*opt.numcellsperdim+iz;
+        if (index >= 0 && index < opt.numcells) return opt.cellnodeids[index];
+    }
+    else {
+        for (int j=0;j<NProcs;j++){
+            if( (mpi_domain[j].bnd[0][0]<=x) && (mpi_domain[j].bnd[0][1]>=x)&&
+                (mpi_domain[j].bnd[1][0]<=y) && (mpi_domain[j].bnd[1][1]>=y)&&
+                (mpi_domain[j].bnd[2][0]<=z) && (mpi_domain[j].bnd[2][1]>=z) )
+                return j;
+        }
     }
     cerr<<ThisTask<<" has particle outside the mpi domains of every process ("<<x<<","<<y<<","<<z<<")"<<endl;
     MPI_Abort(MPI_COMM_WORLD,9);
@@ -1452,15 +1463,14 @@ int MPISearchForOverlap(Double_t xsearch[3][2]){
                     xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]-mpi_period;
             }
         }
-
-    for (j=0;j<NProcs;j++) for (k=0;k<numreflecchoice;k++){
-        if (j!=ThisTask) {
-            if(!((mpi_domain[j].bnd[0][1] < xsearchp[k][0][0]) || (mpi_domain[j].bnd[0][0] > xsearchp[k][0][1]) ||
-            (mpi_domain[j].bnd[1][1] < xsearchp[k][1][0]) || (mpi_domain[j].bnd[1][0] > xsearchp[k][1][1]) ||
-            (mpi_domain[j].bnd[2][1] < xsearchp[k][2][0]) || (mpi_domain[j].bnd[2][0] > xsearchp[k][2][1])))
-            numoverlap++;
+        for (j=0;j<NProcs;j++) for (k=0;k<numreflecchoice;k++) {
+            if (j!=ThisTask) {
+                if(!((mpi_domain[j].bnd[0][1] < xsearchp[k][0][0]) || (mpi_domain[j].bnd[0][0] > xsearchp[k][0][1]) ||
+                (mpi_domain[j].bnd[1][1] < xsearchp[k][1][0]) || (mpi_domain[j].bnd[1][0] > xsearchp[k][1][1]) ||
+                (mpi_domain[j].bnd[2][1] < xsearchp[k][2][0]) || (mpi_domain[j].bnd[2][0] > xsearchp[k][2][1])))
+                numoverlap++;
+            }
         }
-    }
     }
     return numoverlap;
 }

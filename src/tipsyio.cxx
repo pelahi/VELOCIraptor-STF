@@ -165,7 +165,7 @@ void ReadTipsy(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particl
 #else
             //if using MPI, determine ibuf, store particle in particle buffer and if buffer full, broadcast data
             //unless ibuf is 0, then just store locally
-            ibuf=MPIGetParticlesProcessor(gas.pos[0],gas.pos[1],gas.pos[2]);
+            ibuf=MPIGetParticlesProcessor(opt, gas.pos[0],gas.pos[1],gas.pos[2]);
             Pbuf[ibuf*BufSize+Nbuf[ibuf]]=Particle(gas.mass*mscale,
                 gas.pos[0]*lscale,gas.pos[1]*lscale,gas.pos[2]*lscale,
                 gas.vel[0]*opt.velocityinputconversion+Hubbleflow*gas.pos[0],
@@ -205,7 +205,7 @@ void ReadTipsy(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particl
             dark.vel[2]*opt.velocityinputconversion+Hubbleflow*dark.pos[2],
             count,DARKTYPE);
 #else
-            ibuf=MPIGetParticlesProcessor(dark.pos[0],dark.pos[1],dark.pos[2]);
+            ibuf=MPIGetParticlesProcessor(opt, dark.pos[0],dark.pos[1],dark.pos[2]);
             Pbuf[ibuf*BufSize+Nbuf[ibuf]]=Particle(dark.mass*mscale,
                 dark.pos[0]*lscale,dark.pos[1]*lscale,dark.pos[2]*lscale,
                 dark.vel[0]*opt.velocityinputconversion+Hubbleflow*dark.pos[0],
@@ -251,7 +251,7 @@ void ReadTipsy(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particl
             star.vel[2]*opt.velocityinputconversion+Hubbleflow*star.pos[2],
             count,STARTYPE);
 #else
-            ibuf=MPIGetParticlesProcessor(star.pos[0],star.pos[1],star.pos[2]);
+            ibuf=MPIGetParticlesProcessor(opt, star.pos[0],star.pos[1],star.pos[2]);
             Pbuf[ibuf*BufSize+Nbuf[ibuf]]=Particle(star.mass*mscale,
                 star.pos[0]*lscale,star.pos[1]*lscale,star.pos[2]*lscale,
                 star.vel[0]*opt.velocityinputconversion+Hubbleflow*star.pos[0],
