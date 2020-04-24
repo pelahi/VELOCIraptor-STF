@@ -1709,7 +1709,7 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
 #endif
                 }
                 //swift does not have little h's in input so don't convert
-                opt.inputcontainslittleh = true;
+                opt.inputcontainslittleh = false;
 
             }
             // If the code is not SWIFT

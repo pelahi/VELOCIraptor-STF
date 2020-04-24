@@ -1101,7 +1101,7 @@ struct Options
         memuse_nsamples = 0;
         memuse_log = false;
 
-        inputcontainslittleh = false;
+        inputcontainslittleh = true;
 
     }
     Options(Options &opt) = default;
