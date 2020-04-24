@@ -1037,11 +1037,11 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
             Pval=&Part[j+noffset[i]];
             if (Pval->GetType()==BHTYPE) {
                 pdata[i].n_bh++;
-                #ifndef NOMASS
+#ifndef NOMASS
                 mval = Pval->GetMass();
-                #else
+#else
                 mval = opt.MassValue;
-                #endif
+#endif
                 pdata[i].M_bh+=mval;
             }
         }
@@ -3115,7 +3115,7 @@ void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup
         PartDataIn = new Particle[NExport+1];
         PartDataGet = new Particle[NImport+1];
         //run search on exported particles and determine which local particles need to be exported back (or imported)
-        nimport=MPIBuildParticleNNImportList(opt, nbodies, tree, Part);
+        nimport=MPIBuildParticleNNImportList(opt, nbodies, tree, Part, 1, opt.iSphericalOverdensityExtraFieldCalculations);
         if (nimport>0) treeimport=new KDTree(PartDataGet,nimport,opt.HaloMinSize,tree->TPHYS,tree->KEPAN,100,0,0,0,period);
     }
 #endif

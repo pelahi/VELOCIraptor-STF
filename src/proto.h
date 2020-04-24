@@ -554,7 +554,7 @@ void MPINumInDomainHDF(Options &opt);
 void MPINumInDomainNchilada(Options &opt);
 
 ///adjust the domain boundaries to code units
-void MPIAdjustDomain(Options opt);
+void MPIAdjustDomain(Options &opt);
 ///determine if the search domain of a particle overlaps another mpi domain
 int MPISearchForOverlap(Particle &Part, Double_t &rdist);
 ///determine if the search domain of a particle overlaps another mpi domain
@@ -643,21 +643,49 @@ void MPISendReceiveBHInfoBetweenThreads(Options &opt, Int_t nlocalbuff, Particle
 ///Send/Receive BH information between read threads using the MPI communicator
 void MPISendReceiveExtraDMInfoBetweenThreads(Options &opt, Int_t nlocalbuff, Particle *Pbuf, Int_t nlocal, Particle *Part, int recvTask, int tag, MPI_Comm &mpi_comm);
 
+///strip off extra information stored in unique pointers if not necessary to send info
+void MPIStripExportParticleOfExtraInfo(Options &opt, Int_t n, Particle *Part);
+
+///Filling extra buffers with hydro data for particles that are to be exported
+void MPIFillBuffWithHydroInfo(Options &opt, Int_t nlocalbuff, Particle *Part, vector<Int_t> &indices, vector<float> &propbuff, bool resetbuff=false);
+///Filling extra buffers with star data for particles that are to be exported
+void MPIFillBuffWithStarInfo(Options &opt, Int_t nlocalbuff, Particle *Part, vector<Int_t> &indices, vector<float> &propbuff, bool resetbuff=false);
+///Filling extra buffers with bh data for particles that are to be exported
+void MPIFillBuffWithBHInfo(Options &opt, Int_t nlocalbuff, Particle *Part, vector<Int_t> &indices, vector<float> &propbuff, bool resetbuff=false);
+///Filling extra buffers with extra dm data for particles that are to be exported
+void MPIFillBuffWithExtraDMInfo(Options &opt, Int_t nlocalbuff, Particle *Part, vector<Int_t> &indices, vector<float> &propbuff, bool resetbuff=false);
+
+///Send/Receive hydro information between read threads using the MPI communicator
+void MPISendReceiveBuffWithHydroInfoBetweenThreads(Options &opt, Particle *PartLocal, vector<Int_t> &indices, vector<float> &propbuff, int recvTask, int tag, MPI_Comm &mpi_comm);
+///Send/Receive star information between read threads using the MPI communicator
+void MPISendReceiveBuffWithStarInfoBetweenThreads(Options &opt, Particle *PartLocal, vector<Int_t> &indices, vector<float> &propbuff, int recvTask, int tag, MPI_Comm &mpi_comm);
+///Send/Receive bh information between read threads using the MPI communicator
+void MPISendReceiveBuffWithBHInfoBetweenThreads(Options &opt, Particle *PartLocal, vector<Int_t> &indices, vector<float> &propbuff, int recvTask, int tag, MPI_Comm &mpi_comm);
+///Send/Receive extra dm information between read threads using the MPI communicator
+void MPISendReceiveBuffWithExtraDMInfoBetweenThreads(Options &opt, Particle *PartLocal, vector<Int_t> &indices, vector<float> &propbuff, int recvTask, int tag, MPI_Comm &mpi_comm);
+
 ///Filling extra buffers with hydro data for particles that are to be exported as part of
 ///a FOF group.
-void MPIFillFOFBuffWithHydroInfo(Options &opt, Int_t *numbuff, Int_t *numoffset, Particle *&Part, fofid_in *&FoFGroupData, vector<Int_t> &indices, vector<float> &propbuff, bool iforexport=false);
+void MPIFillFOFBuffWithHydroInfo(Options &opt, Int_t numexport, fofid_in *FoFGroupData, Particle *&Part, vector<Int_t> &indices, vector<float> &propbuff, bool iforexport = true);
+///Filling extra buffers with hydro data for particles that are to be exported as part of
+///a Star group.
+void MPIFillFOFBuffWithStarInfo(Options &opt, Int_t numexport, fofid_in *FoFGroupData, Particle *&Part, vector<Int_t> &indices, vector<float> &propbuff, bool iforexport = true);
+///Filling extra buffers with hydro data for particles that are to be exported as part of
+///a BH group.
+void MPIFillFOFBuffWithBHInfo(Options &opt, Int_t numexport, fofid_in *FoFGroupData, Particle *&Part, vector<Int_t> &indices, vector<float> &propbuff, bool iforexport = true);
+///Filling extra buffers with hydro data for particles that are to be exported as part of
+///a Extra DM group.
+void MPIFillFOFBuffWithExtraDMInfo(Options &opt, Int_t numexport, fofid_in *FoFGroupData, Particle *&Part, vector<Int_t> &indices, vector<float> &propbuff, bool iforexport = true);
+
 ///Send/Receive hydro information between read threads using the MPI communicator
 ///Using a FOF filled buffer
-void MPISendReceiveFOFHydroInfoBetweenThreads(Options &opt, Int_t nexport, fofid_in *FoFGroupDataExport, Int_t nlocal, fofid_in *FoFGroupDataLocal, Particle *&Part, int recvTask, int tag, MPI_Comm &mpi_comm);
+void MPISendReceiveFOFHydroInfoBetweenThreads(Options &opt, fofid_in *FoFGroupDataLocal, vector<Int_t> &indices, vector<float> &propbuff, int recvTask, int tag, MPI_Comm &mpi_comm);
 ///Send/Receive star information between read threads using the MPI communicator
-///Using a FOF filled buffer
-void MPISendReceiveFOFStarInfoBetweenThreads(Options &opt, Int_t nexport, fofid_in *FoFGroupDataExport, Int_t nlocal, fofid_in *FoFGroupDataLocal, Particle *&Part, int recvTask, int tag, MPI_Comm &mpi_comm);
-///Send/Receive BH information between read threads using the MPI communicator
-///Using a FOF filled buffer
-void MPISendReceiveFOFBHInfoBetweenThreads(Options &opt, Int_t nexport, fofid_in *FoFGroupDataExport, Int_t nlocal, fofid_in *FoFGroupDataLocal, Particle *&Part, int recvTask, int tag, MPI_Comm &mpi_comm);
-///Send/Receive ExtraDM information between read threads using the MPI communicator
-///Using a FOF filled buffer
-void MPISendReceiveFOFExtraDMInfoBetweenThreads(Options &opt, Int_t nexport, fofid_in *FoFGroupDataExport, Int_t nlocal, fofid_in *FoFGroupDataLocal, Particle *&Part, int recvTask, int tag, MPI_Comm &mpi_comm);
+void MPISendReceiveFOFStarInfoBetweenThreads(Options &opt, fofid_in *FoFGroupDataLocal, vector<Int_t> &indices, vector<float> &propbuff, int recvTask, int tag, MPI_Comm &mpi_comm);
+///Send/Receive bh information between read threads using the MPI communicator
+void MPISendReceiveFOFBHInfoBetweenThreads(Options &opt, fofid_in *FoFGroupDataLocal, vector<Int_t> &indices, vector<float> &propbuff, int recvTask, int tag, MPI_Comm &mpi_comm);
+///Send/Receive extra dm information between read threads using the MPI communicator
+void MPISendReceiveFOFExtraDMInfoBetweenThreads(Options &opt, fofid_in *FoFGroupDataLocal, vector<Int_t> &indices, vector<float> &propbuff, int recvTask, int tag, MPI_Comm &mpi_comm);
 //@}
 
 /// \name MPI search related routines
@@ -730,7 +758,7 @@ void MPIBuildParticleNNExportListUsingMesh(Options &opt, const Int_t nbodies, Pa
 ///Determine number of local particles that need to be exported back based on ball search.
 void MPIGetNNImportNum(const Int_t nbodies, KDTree *tree, Particle *Part, int iallflag=1);
 ///Determine local particles that need to be exported back based on ball search.
-Int_t MPIBuildParticleNNImportList(Options &opt, const Int_t nbodies, KDTree *tree, Particle *Part, int iallflag=1);
+Int_t MPIBuildParticleNNImportList(Options &opt, const Int_t nbodies, KDTree *tree, Particle *Part, int iallflag=1, bool iSOcalc = false);
 ///comparison function to order particles for export
 int nn_export_cmp(const void *a, const void *b);
 ///Determine number of halos whose search regions overlap other mpi domains
@@ -774,9 +802,9 @@ Int_t **BuildPGList(const Int_t nbodies, const Int_t numgroups, Int_t *numingrou
 ///build pglist but doesn't assume particles are in ID order
 Int_t **BuildPGList(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t *pfof, Int_t *ids);
 ///build the group particle arrays need for unbinding procedure
-Particle **BuildPartList(const Int_t numgroups, Int_t *numingroup, Int_t **pglist, Particle* Part);
+Particle **BuildPartList(const Int_t numgroups, Int_t *numingroup, Int_t **pglist, Particle* Part, bool ikeepextrainfo = false);
 ///build a particle list subset using array of indices
-Particle *BuildPart(Int_t numingroup, Int_t *pglist, Particle* Part);
+Particle *BuildPart(Int_t numingroup, Int_t *pglist, Particle* Part, bool ikeepextrainfo = false);
 ///build the Head array which points to the head of the group a particle belongs to
 Int_tree_t *BuildHeadArray(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t **pglist);
 ///build the Next array which points to the next particle in the group

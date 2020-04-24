@@ -16,20 +16,10 @@
 using namespace std;
 using namespace Math;
 using namespace NBody;
+using namespace velociraptor;
 
 int main(int argc,char **argv)
 {
-    //
-    // // Options testopt;
-    // GetMemUsage(__func__, true);
-    // HydroProperties h;
-    // vector<HydroProperties> harray;
-    // cout<<sizeof(h)<<" "<<sizeof(harray)<<endl;
-    // // testopt.iverbose=1;
-    // GetMemUsage(__func__, true);
-    // harray.resize(1000);
-    // GetMemUsage( __func__, true);
-    // exit(9);
 #ifdef SWIFTINTERFACE
   cout<<"Built with SWIFT interface enabled when running standalone VELOCIraptor. Should only be enabled when running VELOCIraptor as a library from SWIFT. Exiting..."<<endl;
   exit(0);
@@ -50,6 +40,8 @@ int main(int argc,char **argv)
     MPI_Comm_size(MPI_COMM_WORLD,&NProcs);
     //and this processes' rank is
     MPI_Comm_rank(MPI_COMM_WORLD,&ThisTask);
+
+    if (ThisTask == 0) cout<<"Running VELOCIraptor "<<git_sha1()<<endl;
 #ifdef USEOPENMP
     // Check the threading support level
     if (provided < required)
