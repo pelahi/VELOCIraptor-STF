@@ -207,11 +207,12 @@ void MPIDomainDecomposition(Options &opt)
 }
 
 ///adjust the domain boundaries to code units
-void MPIAdjustDomain(Options opt){
+void MPIAdjustDomain(Options &opt){
     Double_t aadjust, lscale;
     if (opt.comove) aadjust=1.0;
     else aadjust=opt.a;
-    lscale=opt.lengthinputconversion/opt.h*aadjust;
+    lscale=opt.lengthinputconversion*aadjust;
+    if (opt.inputcontainslittleh) lscale /=opt.h;
     for (int j=0;j<NProcs;j++) for (int k=0;k<3;k++) {mpi_domain[j].bnd[k][0]*=lscale;mpi_domain[j].bnd[k][1]*=lscale;}
 }
 

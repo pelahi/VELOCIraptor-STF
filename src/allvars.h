@@ -896,6 +896,9 @@ struct Options
     bool memuse_log;
     //@}
 
+    //silly flag to store whether input has little h's in it.
+    bool inputcontainslittleh;
+
     Options()
     {
         lengthinputconversion = 1.0;
@@ -1097,6 +1100,9 @@ struct Options
         memuse_ave = 0;
         memuse_nsamples = 0;
         memuse_log = false;
+
+        inputcontainslittleh = false;
+
     }
     Options(Options &opt) = default;
     Options& operator=(const Options&) = default;
