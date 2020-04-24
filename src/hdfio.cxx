@@ -740,6 +740,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     for (i=0;i<opt.num_files;i++) ireadfile[i]=1;
 #else
     MPI_Bcast(&(opt.num_files), sizeof(opt.num_files), MPI_BYTE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&(opt.inputcontainslittleh),sizeof(opt.inputcontainslittleh), MPI_BYTE, 0, MPI_COMM_WORLD);
 #endif
 
     //if verbose spit out the types of particles that are going to be searched for
