@@ -133,7 +133,6 @@ inline bool CheckSwiftPartType(int type)
 
 int InitVelociraptor(char* configname, unitinfo u, siminfo s, const int numthreads)
 {
-    cout<<"Initialising VELOCIraptor..."<< endl;
     // if mpi invokved, init the velociraptor tasks and openmp threads
 #ifdef USEMPI
     //find out how big the SPMD world is
@@ -147,6 +146,8 @@ int InitVelociraptor(char* configname, unitinfo u, siminfo s, const int numthrea
     MPI_Comm_rank(MPI_COMM_WORLD,&ThisTask);
     //store MinSize as when using mpi prior to stitching use min of 2;
     MinNumMPI=2;
+#else
+    int ThisTask = 0;
 #endif
 #ifdef USEOPENMP
     omp_set_num_threads(numthreads);
@@ -154,7 +155,8 @@ int InitVelociraptor(char* configname, unitinfo u, siminfo s, const int numthrea
     int iconfigflag;
     ///read the parameter file
     libvelociraptorOpt.pname = configname;
-    cout<<"Reading VELOCIraptor config file..."<< endl;
+    if (ThisTask == 0) cout<<"Initialising VELOCIraptor git revision "<<velociraptor::git_sha1()<<" ..."<< endl;
+    if (ThisTask == 0) cout<<"Reading VELOCIraptor config file..."<< endl;
     GetParamFile(libvelociraptorOpt);
     //on the fly finding
     libvelociraptorOpt.iontheflyfinding = true;
@@ -162,7 +164,7 @@ int InitVelociraptor(char* configname, unitinfo u, siminfo s, const int numthrea
     iconfigflag = ConfigCheckSwift(libvelociraptorOpt, s);
     if (iconfigflag != 1) return iconfigflag;
 
-    cout<<"Setting cosmology, units, sim stuff "<<endl;
+    if (ThisTask == 0) cout<<"Setting cosmology, units, sim stuff "<<endl;
     ///set units, here idea is to convert internal units so that have kpc, km/s, solar mass
     ///\todo switch this so run in reasonable swift units and store conversion
     libvelociraptorOpt.lengthtokpc=u.lengthtokpc;
@@ -198,7 +200,7 @@ int InitVelociraptor(char* configname, unitinfo u, siminfo s, const int numthrea
     MPIInitWriteComm();
 #endif
 
-    cout<<"Finished initialising VELOCIraptor"<<endl;
+    if (ThisTask == 0) cout<<"Finished initialising VELOCIraptor"<<endl;
 
     //return the configuration flag value
     return iconfigflag;
@@ -207,7 +209,6 @@ int InitVelociraptor(char* configname, unitinfo u, siminfo s, const int numthrea
 
 int InitVelociraptorExtra(const int iextra, char* configname, unitinfo u, siminfo s, const int numthreads)
 {
-    cout<<"Initialising VELOCIraptor..."<< endl;
     // if mpi invokved, init the velociraptor tasks and openmp threads
 #ifdef USEMPI
     //find out how big the SPMD world is
@@ -221,6 +222,8 @@ int InitVelociraptorExtra(const int iextra, char* configname, unitinfo u, siminf
     MPI_Comm_rank(MPI_COMM_WORLD,&ThisTask);
     //store MinSize as when using mpi prior to stitching use min of 2;
     MinNumMPI=2;
+#else
+    int ThisTask = 0;
 #endif
 #ifdef USEOPENMP
     omp_set_num_threads(numthreads);
@@ -228,7 +231,8 @@ int InitVelociraptorExtra(const int iextra, char* configname, unitinfo u, siminf
     int iconfigflag;
     ///read the parameter file
     libvelociraptorOptextra[iextra].pname = configname;
-    cout<<"Reading VELOCIraptor config file..."<< endl;
+    if (ThisTask == 0) cout<<"Initialising VELOCIraptor git revision "<<velociraptor::git_sha1()<<" ..."<< endl;
+    if (ThisTask == 0) cout<<"Reading VELOCIraptor config file..."<< endl;
     GetParamFile(libvelociraptorOptextra[iextra]);
     //on the fly finding
     libvelociraptorOptextra[iextra].iontheflyfinding = true;
@@ -236,7 +240,7 @@ int InitVelociraptorExtra(const int iextra, char* configname, unitinfo u, siminf
     iconfigflag = ConfigCheckSwift(libvelociraptorOptextra[iextra], s);
     if (iconfigflag != 1) return iconfigflag;
 
-    cout<<"Setting cosmology, units, sim stuff "<<endl;
+    if (ThisTask == 0) cout<<"Setting cosmology, units, sim stuff "<<endl;
     ///set units, here idea is to convert internal units so that have kpc, km/s, solar mass
     ///\todo switch this so run in reasonable swift units and store conversion
     libvelociraptorOptextra[iextra].lengthtokpc=u.lengthtokpc;
@@ -265,7 +269,7 @@ int InitVelociraptorExtra(const int iextra, char* configname, unitinfo u, siminf
     libvelociraptorOptextra[iextra].outname = configname;
     WriteVELOCIraptorConfig(libvelociraptorOptextra[iextra]);
 
-    cout<<"Finished initialising VELOCIraptor"<<endl;
+    if (ThisTask == 0) cout<<"Finished initialising VELOCIraptor"<<endl;
 
     //return the configuration flag value
     return iconfigflag;

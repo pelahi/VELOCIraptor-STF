@@ -2973,7 +2973,21 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
 #endif
             subpfofold[i]=pfof[subpglist[i][0]];
             subPart=new Particle[subnumingroup[i]];
-            for (Int_t j=0;j<subnumingroup[i];j++) subPart[j]=Partsubset[subpglist[i][j]];
+            for (Int_t j=0;j<subnumingroup[i];j++) {
+                subPart[j]=Partsubset[subpglist[i][j]];
+#ifdef GASON
+                if (subPart[j].HasHydroProperties()) subPart[j].SetHydroProperties();
+#endif
+#ifdef STARON
+                if (subPart[j].HasStarProperties()) subPart[j].SetStarProperties();
+#endif
+#ifdef BHON
+                if (subPart[j].HasBHProperties()) subPart[j].SetBHProperties();
+#endif
+#ifdef EXTRADMON
+                if (subPart[j].HasExtraDMProperties()) subPart[j].SetExtraDMProperties();
+#endif
+            }
             //move to cm if desired
             if (opt.icmrefadjust) {
                 //this routine is in substructureproperties.cxx. Has internal parallelisation
@@ -3006,7 +3020,22 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
                 opt2 = opt;
                 subpfofold[i] = pfof[subpglist[i][0]];
                 subPart = new Particle[subnumingroup[i]];
-                for (Int_t j=0;j<subnumingroup[i];j++) subPart[j] = Partsubset[subpglist[i][j]];
+                for (Int_t j=0;j<subnumingroup[i];j++) {
+                    subPart[j] = Partsubset[subpglist[i][j]];
+#ifdef GASON
+                    if (subPart[j].HasHydroProperties()) subPart[j].SetHydroProperties();
+#endif
+#ifdef STARON
+                    if (subPart[j].HasStarProperties()) subPart[j].SetStarProperties();
+#endif
+#ifdef BHON
+                    if (subPart[j].HasBHProperties()) subPart[j].SetBHProperties();
+#endif
+#ifdef EXTRADMON
+                    if (subPart[j].HasExtraDMProperties()) subPart[j].SetExtraDMProperties();
+#endif
+                }
+
                 if (opt.icmrefadjust) {
                     //this routine is in substructureproperties.cxx. Has internal parallelisation
                     GMatrix cmphase = CalcPhaseCM(subnumingroup[i], subPart);

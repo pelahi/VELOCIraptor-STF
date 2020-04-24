@@ -34,7 +34,7 @@
 
 ///\name number of entries in various data groups
 //@{
-#define HDFHEADNINFO 12
+#define HDFHEADNINFO 20
 #define HDFGASNINFO 20
 #define HDFDMNINFO 7
 #define HDFTRACERNINFO 3
@@ -1190,6 +1190,8 @@ struct HDF_Header {
     double      redshift, time;
     int         iscosmological;
     int         num_files;
+    double Omegab, Omegacdm, Omegar, Omegade, Omegak;
+    double wde, wde0, wdea;
 
     string names[HDFHEADNINFO];
     const static int IBoxSize  =0;
@@ -1204,6 +1206,12 @@ struct HDF_Header {
     const static int INumFiles =9;
     const static int IHubbleParam =10;
     const static int IIsCosmological =11;
+    const static int IOmegab   =12;
+    const static int IOmegar   =13;
+    const static int IOmegak   =14;
+    const static int Iwde      =15;
+    const static int Iwde0     =16;
+    const static int Iwdea     =17;
 
     ///constructor
     HDF_Header(int hdfnametype=HDFEAGLENAMES) {
@@ -1222,6 +1230,12 @@ struct HDF_Header {
             names[itemp++]=string("Header/NumFilesPerSnapshot");
             names[itemp++]=string("Cosmology/h");
             names[itemp++]=string("Cosmology/Cosmological run");
+            names[itemp++]=string("Cosmology/Omega_b");
+            names[itemp++]=string("Cosmology/Omega_r");
+            names[itemp++]=string("Cosmology/Omega_k");
+            names[itemp++]=string("Cosmology/w");
+            names[itemp++]=string("Cosmology/w_0");
+            names[itemp++]=string("Cosmology/w_a");
             break;
           case HDFOLDSWIFTEAGLENAMES:
             names[itemp++]=string("Header/BoxSize");
@@ -1710,6 +1724,9 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
                     exit(0);
 #endif
                 }
+                //swift does not have little h's in input so don't convert
+                opt.inputcontainslittleh = false;
+
             }
             // If the code is not SWIFT
             else {

@@ -16,6 +16,7 @@ set(VR_SOURCES
     endianutils.cxx
     fofalgo.cxx
     gadgetio.cxx
+    "${git_revision_cxx}"
     haloproperties.cxx
     hdfio.cxx
     io.cxx
