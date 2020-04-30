@@ -90,9 +90,10 @@ private(i,j,k,tid,id,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,pqx,pqv
 #pragma omp for schedule(dynamic)
 #endif
     for (i=0;i<nbodies;i++) {
+       Particle Part_i=Part[i];
         //if strucden compile flag set then only calculate velocity density for particles in groups
 #ifdef STRUCDEN
-        if (Part[i].GetType()>0) {
+        if (Part_i.GetType()>0) {
         //if not searching all particles in FOF then also doing baryon search then just find nearest neighbours
         if (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)) tree->FindNearest(i,nnids,nnr2,opt.Nsearch);
         //otherwise distinction must be made so that only base calculation on dark matter particles
@@ -103,9 +104,9 @@ private(i,j,k,tid,id,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,pqx,pqv
         //once NN set is found, store maxrdist and see if particle's search radius overlaps with another mpi domain
         maxrdist[i]=sqrt(nnr2[opt.Nsearch-1]);
 #ifdef SWIFTINTERFACE
-        if (MPISearchForOverlapUsingMesh(libvelociraptorOpt,Part[i],maxrdist[i])==0) {
+        if (MPISearchForOverlapUsingMesh(libvelociraptorOpt,Part_i,maxrdist[i])==0) {
 #else
-        if (MPISearchForOverlap(Part[i],maxrdist[i])==0) {
+        if (MPISearchForOverlap(Part_i,maxrdist[i])==0) {
 #endif
             for (j=0;j<opt.Nvel;j++) {
                 pqv->Push(-1, MAXVALUE);
@@ -114,15 +115,15 @@ private(i,j,k,tid,id,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,pqx,pqv
             for (j=0;j<opt.Nsearch;j++) {
                 v2=0;
                 id=nnids[j];
-                for (k=0;k<3;k++) v2+=(Part[i].GetVelocity(k)-Part[id].GetVelocity(k))*(Part[i].GetVelocity(k)-Part[id].GetVelocity(k));
+                for (k=0;k<3;k++) v2+=(Part_i.GetVelocity(k)-Part[id].GetVelocity(k))*(Part_i.GetVelocity(k)-Part[id].GetVelocity(k));
                 if (v2 < pqv->TopPriority()){
                     pqv->Pop();
                     pqv->Push(id, v2);
                 }
             }
-            Part[i].SetDensity(tree->CalcSmoothLocalValue(opt.Nvel, pqv, weight));
+            Part_i.SetDensity(tree->CalcSmoothLocalValue(opt.Nvel, pqv, weight));
         }
-        else Part[i].SetDensity(-1.0);
+        else Part_i.SetDensity(-1.0);
 #ifdef STRUCDEN
         }
         else maxrdist[i]=0.0;
@@ -183,16 +184,17 @@ private(i,j,k,tid,pid,pid2,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,p
 #pragma omp for
 #endif
     for (i=0;i<nbodies;i++) {
+       Particle Part_i=Part[i];
 #ifdef STRUCDEN
-        if (Part[i].GetType()>0) {
+        if (Part_i.GetType()>0) {
 #endif
 #ifdef USEOPENMP
         tid=omp_get_thread_num();
 #else
         tid=0;
 #endif
-        pid=Part[i].GetID();
-        if (Part[i].GetDensity()==-1) {
+        pid=Part_i.GetID();
+        if (Part_i.GetDensity()==-1) {
             //search trees
 
             //if not searching all particles in FOF then also doing baryon search then just find nearest neighbours
@@ -210,7 +212,7 @@ private(i,j,k,tid,pid,pid2,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,p
             }
             //now search the export particle list and fill appropriately
             if (nimport>0) {
-                Coordinate x(Part[i].GetPosition());
+                Coordinate x(Part_i.GetPosition());
                 treeneighbours->FindNearestPos(x,nnidsneighbours,nnr2neighbours,nimportsearch);
                 for (j=0;j<nimportsearch;j++) {
                     if (nnr2neighbours[j] < pqx->TopPriority()){
@@ -227,11 +229,11 @@ private(i,j,k,tid,pid,pid2,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,p
                 v2=0;
                 if (pqx->TopQueue()<nbodies) {
                     pid2=pqx->TopQueue();
-                    for (k=0;k<3;k++) v2+=(Part[i].GetVelocity(k)-Part[pid2].GetVelocity(k))*(Part[i].GetVelocity(k)-Part[pid2].GetVelocity(k));
+                    for (k=0;k<3;k++) v2+=(Part_i.GetVelocity(k)-Part[pid2].GetVelocity(k))*(Part_i.GetVelocity(k)-Part[pid2].GetVelocity(k));
                 }
                 else {
                     pid2=pqx->TopQueue()-nbodies;
-                    for (k=0;k<3;k++) v2+=(Part[i].GetVelocity(k)-PartDataGet[pid2].GetVelocity(k))*(Part[i].GetVelocity(k)-PartDataGet[pid2].GetVelocity(k));
+                    for (k=0;k<3;k++) v2+=(Part_i.GetVelocity(k)-PartDataGet[pid2].GetVelocity(k))*(Part_i.GetVelocity(k)-PartDataGet[pid2].GetVelocity(k));
                 }
                 if (v2 < pqv->TopPriority()){
                     pqv->Pop();
@@ -240,7 +242,7 @@ private(i,j,k,tid,pid,pid2,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,p
                 pqx->Pop();
             }
             //and now calculate velocity density function
-            Part[i].SetDensity(tree->CalcSmoothLocalValue(opt.Nvel, pqv, weight));
+            Part_i.SetDensity(tree->CalcSmoothLocalValue(opt.Nvel, pqv, weight));
         }
 #ifdef STRUCDEN
         }
@@ -268,11 +270,12 @@ private(i,j,k,tid,pid,pid2,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,p
     //NO MPI invoked
 #ifndef USEOPENMP
     for (i=0;i<nbodies;i++) {
+       Particle Part_i=Part[i];
 #ifdef STRUCDEN
-        if (Part[i].GetType()>0)
+        if (Part_i.GetType()>0)
         {
 #endif
-            Part[i].SetDensity(tree->CalcVelDensityParticle(i,opt.Nvel,opt.Nsearch));
+            Part_i.SetDensity(tree->CalcVelDensityParticle(i,opt.Nvel,opt.Nsearch));
 #ifdef STRUCDEN
         }
 #endif
@@ -308,12 +311,13 @@ private(i,tid)
 {
 #pragma omp for schedule(dynamic,minamount) nowait
     for (i=0;i<nbodies;i++) {
+       Particle Part_i=Part[i];
 #ifdef STRUCDEN
-        if (Part[i].GetType()>0) {
+        if (Part_i.GetType()>0) {
 #endif
         tid=omp_get_thread_num();
         //if not searching all particles in FOF then also doing baryon search then just find nearest neighbours
-        if (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)) Part[i].SetDensity(tree->CalcVelDensityParticle(i,opt.Nvel,opt.Nsearch,1,pqx[tid],pqv[tid],&nnids[tid*opt.Nsearch],&nnr2[tid*opt.Nsearch]));
+        if (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)) Part_i.SetDensity(tree->CalcVelDensityParticle(i,opt.Nvel,opt.Nsearch,1,pqx[tid],pqv[tid],&nnids[tid*opt.Nsearch],&nnr2[tid*opt.Nsearch]));
         //otherwise distinction must be made so that only base calculation on dark matter particles
         else {
             tree->FindNearestCriterion(i,FOFPositivetypes,NULL,&nnids[tid*opt.Nsearch],&nnr2[tid*opt.Nsearch],opt.Nsearch);
@@ -324,13 +328,13 @@ private(i,tid)
             for (j=0;j<opt.Nsearch;j++) {
                 v2=0;
                 id=nnids[j+tid*opt.Nsearch];
-                for (k=0;k<3;k++) v2+=(Part[i].GetVelocity(k)-Part[id].GetVelocity(k))*(Part[i].GetVelocity(k)-Part[id].GetVelocity(k));
+                for (k=0;k<3;k++) v2+=(Part_i.GetVelocity(k)-Part[id].GetVelocity(k))*(Part_i.GetVelocity(k)-Part[id].GetVelocity(k));
                 if (v2 < pqv[tid]->TopPriority()){
                     pqv[tid]->Pop();
                     pqv[tid]->Push(id, v2);
                 }
             }
-            Part[i].SetDensity(tree->CalcSmoothLocalValue(opt.Nvel, pqv[tid], &weight[tid*opt.Nvel]));
+            Part_i.SetDensity(tree->CalcSmoothLocalValue(opt.Nvel, pqv[tid], &weight[tid*opt.Nvel]));
         }
 
         fracdone[tid]++;
@@ -392,12 +396,13 @@ private(i,tid)
 #pragma omp for schedule(dynamic,minamount) nowait
 #endif
     for (i=0;i<nbodies;i++) {
+       Particle Part_i=Part[i];
 #ifdef USEOPENMP
         tid=omp_get_thread_num();
 #else
         tid=0;
 #endif
-        Part[i].SetDensity(tree->CalcVelDensityParticle(i,opt.Nvel,opt.Nsearch,1,pqx[tid],pqv[tid],&nnids[tid*opt.Nsearch],&nnr2[tid*opt.Nsearch]));
+        Part_i.SetDensity(tree->CalcVelDensityParticle(i,opt.Nvel,opt.Nsearch,1,pqx[tid],pqv[tid],&nnids[tid*opt.Nsearch],&nnr2[tid*opt.Nsearch]));
         fracdone[tid]++;
         if (opt.iverbose) if (fracdone[tid]>fraclim[tid]) {printf("Task %d done %e of its share \n",tid,fracdone[tid]/((double)nbodies/(double)nthreads));fraclim[tid]+=addamount;}
     }
@@ -463,12 +468,13 @@ private(i,tid)
 #pragma omp for schedule(dynamic) nowait
 #endif
     for (i=0;i<nbodies;i++) {
+       Particle Part_i=Part[i];
 #ifdef USEOPENMP
         tid=omp_get_thread_num();
 #else
         tid=0;
 #endif
-        Part[i].SetDensity(tree->CalcVelDensityParticle(i,opt.Nvel,opt.Nsearch,1,pqx[tid],pqv[tid],&nnids[tid*opt.Nsearch],&nnr2[tid*opt.Nsearch]));
+        Part_i.SetDensity(tree->CalcVelDensityParticle(i,opt.Nvel,opt.Nsearch,1,pqx[tid],pqv[tid],&nnids[tid*opt.Nsearch],&nnr2[tid*opt.Nsearch]));
     }
 #ifdef USEOPENMP
 }
@@ -547,9 +553,10 @@ private(i,j,k,tid,id,v2,nnids,nnr2,weight,pqv)
 #pragma omp for schedule(dynamic)
 #endif
     for (i=0;i<nbodies;i++) {
+       Particle Part_i=Part[i];
         //if strucden compile flag set then only calculate velocity density for particles in groups
 #ifdef STRUCDEN
-        if (Part[i].GetType()<=0) continue;
+        if (Part_i.GetType()<=0) continue;
         //if not searching all particles in FOF then also doing baryon search then just find nearest neighbours
         if (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)) tree->FindNearest(i,nnids,nnr2,opt.Nsearch);
         //otherwise distinction must be made so that only base calculation on dark matter particles
@@ -562,13 +569,13 @@ private(i,j,k,tid,id,v2,nnids,nnr2,weight,pqv)
         //once NN set is found, store maxrdist and see if particle's search radius overlaps with another mpi domain
         maxrdist[i]=sqrt(nnr2[opt.Nsearch-1]);
 #ifdef SWIFTINTERFACE
-        if (MPISearchForOverlapUsingMesh(libvelociraptorOpt,Part[i],maxrdist[i])!=0) {
-            Part[i].SetDensity(-1.0);
+        if (MPISearchForOverlapUsingMesh(libvelociraptorOpt,Part_i,maxrdist[i])!=0) {
+            Part_i.SetDensity(-1.0);
             continue;
         }
 #else
-        if (MPISearchForOverlap(Part[i],maxrdist[i])!=0) {
-            Part[i].SetDensity(-1.0);
+        if (MPISearchForOverlap(Part_i,maxrdist[i])!=0) {
+            Part_i.SetDensity(-1.0);
             continue;
         }
 #endif
@@ -582,13 +589,13 @@ private(i,j,k,tid,id,v2,nnids,nnr2,weight,pqv)
         for (j=0;j<opt.Nsearch;j++) {
             v2=0;
             id=nnids[j];
-            for (k=0;k<3;k++) v2+=(Part[i].GetVelocity(k)-Part[id].GetVelocity(k))*(Part[i].GetVelocity(k)-Part[id].GetVelocity(k));
+            for (k=0;k<3;k++) v2+=(Part_i.GetVelocity(k)-Part[id].GetVelocity(k))*(Part_i.GetVelocity(k)-Part[id].GetVelocity(k));
             if (v2 < pqv->TopPriority()){
                 pqv->Pop();
                 pqv->Push(id, v2);
             }
         }
-        Part[i].SetDensity(tree->CalcSmoothLocalValue(opt.Nvel, pqv, weight));
+        Part_i.SetDensity(tree->CalcSmoothLocalValue(opt.Nvel, pqv, weight));
     }
     delete[] nnids;
     delete[] nnr2;
@@ -650,8 +657,9 @@ private(i,j,k,tid,pid,pid2,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,p
 #pragma omp for
 #endif
     for (i=0;i<nbodies;i++) {
+       Particle Part_i=Part[i];
 #ifdef STRUCDEN
-        if (Part[i].GetType()<=0) continue;
+        if (Part_i.GetType()<=0) continue;
 #endif
 
 #ifdef USEOPENMP
@@ -659,8 +667,8 @@ private(i,j,k,tid,pid,pid2,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,p
 #else
         tid=0;
 #endif
-        pid=Part[i].GetID();
-        if (Part[i].GetDensity()==-1) {
+        pid=Part_i.GetID();
+        if (Part_i.GetDensity()==-1) {
             //search trees
 
             //if not searching all particles in FOF then also doing baryon search then just find nearest neighbours
@@ -678,7 +686,7 @@ private(i,j,k,tid,pid,pid2,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,p
             }
             //now search the export particle list and fill appropriately
             if (nimport>0) {
-                Coordinate x(Part[i].GetPosition());
+                Coordinate x(Part_i.GetPosition());
                 treeneighbours->FindNearestPos(x,nnidsneighbours,nnr2neighbours,nimportsearch);
                 for (j=0;j<nimportsearch;j++) {
                     if (nnr2neighbours[j] < pqx->TopPriority()){
@@ -695,11 +703,11 @@ private(i,j,k,tid,pid,pid2,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,p
                 v2=0;
                 if (pqx->TopQueue()<nbodies) {
                     pid2=pqx->TopQueue();
-                    for (k=0;k<3;k++) v2+=(Part[i].GetVelocity(k)-Part[pid2].GetVelocity(k))*(Part[i].GetVelocity(k)-Part[pid2].GetVelocity(k));
+                    for (k=0;k<3;k++) v2+=(Part_i.GetVelocity(k)-Part[pid2].GetVelocity(k))*(Part_i.GetVelocity(k)-Part[pid2].GetVelocity(k));
                 }
                 else {
                     pid2=pqx->TopQueue()-nbodies;
-                    for (k=0;k<3;k++) v2+=(Part[i].GetVelocity(k)-PartDataGet[pid2].GetVelocity(k))*(Part[i].GetVelocity(k)-PartDataGet[pid2].GetVelocity(k));
+                    for (k=0;k<3;k++) v2+=(Part_i.GetVelocity(k)-PartDataGet[pid2].GetVelocity(k))*(Part_i.GetVelocity(k)-PartDataGet[pid2].GetVelocity(k));
                 }
                 if (v2 < pqv->TopPriority()){
                     pqv->Pop();
@@ -708,7 +716,7 @@ private(i,j,k,tid,pid,pid2,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,p
                 pqx->Pop();
             }
             //and now calculate velocity density function
-            Part[i].SetDensity(tree->CalcSmoothLocalValue(opt.Nvel, pqv, weight));
+            Part_i.SetDensity(tree->CalcSmoothLocalValue(opt.Nvel, pqv, weight));
         }
     }
     delete[] nnids;
@@ -893,7 +901,11 @@ reduction(+:nprocessed,ntot)
                 v2=0;
                 id=nnids[k];
                 if (id == j) continue;
-                for (auto n=0;n<3;n++) v2+=(Part[j].GetVelocity(n)-Part[id].GetVelocity(n))*(Part[j].GetVelocity(n)-Part[id].GetVelocity(n));
+                {
+                    auto ParticleJ=Part[j];
+                    auto ParticleID=Part[id];
+                    for (auto n=0;n<3;n++) v2+=(ParticleJ.GetVelocity(n)-ParticleID.GetVelocity(n))*(ParticleJ.GetVelocity(n)-ParticleID.GetVelocity(n));
+                }
                 if (v2 < pqv->TopPriority()){
                     pqv->Pop();
                     pqv->Push(id, v2);
