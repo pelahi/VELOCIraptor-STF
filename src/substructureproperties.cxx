@@ -4307,6 +4307,38 @@ void GetBindingEnergy(Options &opt, const Int_t nbodies, Particle *Part, Int_t n
     double time2 = MyGetTime();
 
     if (opt.uinfo.icalculatepotential) {
+    //if approximative calculations, run all calculations in parallel
+    //as halos take less time individually.
+    if (opt.uinfo.iapproxpot) {
+        //run all pot calculations in parallel as using fast approximate potential
+#ifdef USEOPENMP
+#pragma omp parallel default(shared)  \
+private(i,j,k,storepid)
+{
+    #pragma omp for schedule(dynamic) nowait
+#endif
+        for (i=1;i<=ngroup;i++) {
+            if (numingroup[i]<=POTPPCALCNUM) PotentialPP(opt,numingroup[i],&Part[noffset[i]]);
+            else {
+                storepid=new Int_t[numingroup[i]];
+                for (j=0;j<numingroup[i];j++) {
+                    storepid[j]=Part[noffset[i]+j].GetPID();
+                    Part[noffset[i]+j].SetPID(Part[noffset[i]+j].GetID());
+                }
+                //calculate potential
+                Potential(opt,numingroup[i],&Part[noffset[i]]);
+                for (j=0;j<numingroup[i];j++) {
+                    Part[noffset[i]+j].SetID(Part[noffset[i]+j].GetPID());
+                    Part[noffset[i]+j].SetPID(storepid[j]);
+                }
+                delete[] storepid;
+            }
+        }
+#ifdef USEOPENMP
+}
+#endif
+    }
+    else {
     //small groups with PP calculations of potential.
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
@@ -4349,6 +4381,8 @@ private(i,j,k,storepid)
             }
             delete[] storepid;
         }
+    }
+
     }//end of if calculate potential
 #ifdef SWIFTINTERFACE
     else {
