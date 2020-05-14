@@ -172,8 +172,8 @@ void MPIInitialDomainDecompositionWithMesh(Options &opt){
         double idelta = 1.0/(double)opt.numcellsperdim;
         for (auto i=0; i<3; i++) {
             opt.spacedimension[i] = (mpi_xlim[i][1]  - mpi_xlim[i][0]);
-            opt.icellwidth[i] = opt.spacedimension[i] * idelta;
-            opt.cellwidth[i] = 1.0/opt.icellwidth[i];
+            opt.cellwidth[i] = (opt.spacedimension[i] * idelta);
+            opt.icellwidth[i] = 1.0/opt.cellwidth[i];
         }
 
         //now order according to Z-curve or Morton curve
