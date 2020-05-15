@@ -740,6 +740,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     for (i=0;i<opt.num_files;i++) ireadfile[i]=1;
 #else
     MPI_Bcast(&(opt.num_files), sizeof(opt.num_files), MPI_BYTE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&(opt.inputcontainslittleh),sizeof(opt.inputcontainslittleh), MPI_BYTE, 0, MPI_COMM_WORLD);
 #endif
 
     //if verbose spit out the types of particles that are going to be searched for
@@ -3179,7 +3180,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     #endif
 #endif
 #ifdef USEMPI
-    MPI_Bcast(&LN, 1, MPI_Real_t, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&LN, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 #endif
     ///if not an individual halo and cosmological and store scale of the highest resolution interparticle spacing to scale the physical FOF linking length
     //if (opt.iSingleHalo==0 && opt.icosmologicalin==1)

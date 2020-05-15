@@ -549,7 +549,7 @@ void MPINumInDomainHDF(Options &opt);
 void MPINumInDomainNchilada(Options &opt);
 
 ///adjust the domain boundaries to code units
-void MPIAdjustDomain(Options opt);
+void MPIAdjustDomain(Options &opt);
 ///determine if the search domain of a particle overlaps another mpi domain
 int MPISearchForOverlap(Particle &Part, Double_t &rdist);
 ///determine if the search domain of a particle overlaps another mpi domain
