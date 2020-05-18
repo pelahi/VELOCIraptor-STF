@@ -167,7 +167,7 @@ void MPIInitialDomainDecomposition(Options &opt)
 void MPIInitialDomainDecompositionWithMesh(Options &opt){
     if (ThisTask==0) {
         //each processor takes subsection of volume where use simple NProcs^(1/3) subdivision
-        opt.numcellsperdim = ceil(pow((double)NProcs*4.0,(double)(1.0/3.0)));
+        opt.numcellsperdim = ceil(pow((double)NProcs,(double)(1.0/3.0)))*8;
         unsigned int n3 = opt.numcells = opt.numcellsperdim*opt.numcellsperdim*opt.numcellsperdim;
         double idelta = 1.0/(double)opt.numcellsperdim;
         for (auto i=0; i<3; i++) {
@@ -221,6 +221,12 @@ void MPIInitialDomainDecompositionWithMesh(Options &opt){
             opt.cellnodeids[zcurve[i].index] = itask;
         }
         cout<<"Z-curve Mesh MPI decomposition: "<<endl;
+        cout<<"Mesh has resolution of "<<opt.numcellsperdim<<" per spatial dim "<<endl;
+        cout<<"with each mesh spanning ("<<opt.cellwidth[0]<<", "<<opt.cellwidth[1]<<", "<<opt.cellwidth[2]<<")"<<endl;
+        cout<<"Decomposition : "<<endl;
+        for (auto i=0;i<n3;i++) {
+            cout<<"cell ("<<zcurve[i].coord[0]<<", "<<zcurve[i].coord[1]<<", "<<zcurve[i].coord[2]<<") on mpi task "<<opt.cellnodeids[zcurve[i].index]<<endl;
+        }
     }
     //broadcast data
     MPI_Bcast(&opt.numcells, 1, MPI_INTEGER, 0, MPI_COMM_WORLD);
@@ -229,8 +235,16 @@ void MPIInitialDomainDecompositionWithMesh(Options &opt){
     MPI_Bcast(opt.cellwidth, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     MPI_Bcast(opt.icellwidth, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     if (ThisTask != 0) opt.cellnodeids = new int[opt.numcells];
+    opt.cellnodenumparts.resize(n3,0);
     MPI_Bcast(opt.cellnodeids, opt.numcells, MPI_INTEGER, 0, MPI_COMM_WORLD);
 
+}
+
+void MPIRepartitionDomainDecompositionWithMesh(Options &opt){
+    //calculate imbalance
+    unsigned int n3 = opt.numcellsperdim*opt.numcellsperdim*opt.numcellsperdim;
+    vector<Int_t> mpi_numparts(NProcs);
+    //MPI_Allreduce(opt.cellnodenumparts.data(), n3, MPI_Int_t, mpi_numparts.data(), 1, MPI_Int_t, MPI_COMM_WORLD);
 }
 
 void MPINumInDomain(Options &opt)

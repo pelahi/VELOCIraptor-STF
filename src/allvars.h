@@ -677,6 +677,9 @@ struct Options
     /*! Holds the node ID of each top-level cell. */
     int *cellnodeids;
 
+    // holds the number of particles in a given top-level cell
+    vector<unsigned long long> cellnodenumparts;
+
     ///whether using mesh decomposition
     bool impiusemesh;
     //@}
@@ -1069,6 +1072,7 @@ struct Options
 #else
         impiusemesh = false;
 #endif
+        cellnodeids = NULL;
 
         lengthtokpc=-1.0;
         velocitytokms=-1.0;
