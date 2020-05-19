@@ -677,8 +677,14 @@ struct Options
     /*! Holds the node ID of each top-level cell. */
     int *cellnodeids;
 
-    // holds the number of particles in a given top-level cell
+    /// holds the order of cells based on z-curve decomposition;
+    vector<int> cellnodeorder;
+
+    /// holds the number of particles in a given top-level cell
     vector<unsigned long long> cellnodenumparts;
+
+    /// allowed mesh based mpi decomposition load imbalance
+    float mpimeshimbalancelimit;
 
     ///whether using mesh decomposition
     bool impiusemesh;
@@ -1071,6 +1077,7 @@ struct Options
         impiusemesh = true;
 #else
         impiusemesh = false;
+        mpimeshimbalancelimit = 0.1;
 #endif
         cellnodeids = NULL;
 

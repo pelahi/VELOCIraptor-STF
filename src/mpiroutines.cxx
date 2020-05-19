@@ -212,6 +212,7 @@ void MPIInitialDomainDecompositionWithMesh(Options &opt){
         });
         //finally assign cells to tasks
         opt.cellnodeids = new int[n3];
+        opt.cellnodeorder.resize(n3);
         opt.cellloc = new cell_loc[n3];
         int nsub = max((int)floor(n3/(double)NProcs), 1);
         int itask = 0, count = 0;
@@ -224,6 +225,7 @@ void MPIInitialDomainDecompositionWithMesh(Options &opt){
             }
             if (itask == NProcs) itask -= 1;
             opt.cellnodeids[zcurve[i].index] = itask;
+            opt.cellnodeorder[i] = zcurve[i].index;
             numcellspertask[itask]++;
             count++;
         }
@@ -243,17 +245,53 @@ void MPIInitialDomainDecompositionWithMesh(Options &opt){
     MPI_Bcast(opt.spacedimension, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     MPI_Bcast(opt.cellwidth, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     MPI_Bcast(opt.icellwidth, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-    if (ThisTask != 0) opt.cellnodeids = new int[opt.numcells];
+    if (ThisTask != 0) {
+        opt.cellnodeids = new int[opt.numcells];
+        opt.cellnodeorder.resize(opt.numcells);
+    }
     opt.cellnodenumparts.resize(opt.numcells,0);
     MPI_Bcast(opt.cellnodeids, opt.numcells, MPI_INTEGER, 0, MPI_COMM_WORLD);
+    MPI_Bcast(opt.cellnodeorder.data(), opt.numcells, MPI_INTEGER, 0, MPI_COMM_WORLD);
 
 }
 
 void MPIRepartitionDomainDecompositionWithMesh(Options &opt){
+    MPI_Allreduce(MPI_IN_PLACE, opt.cellnodenumparts.data(), NProcs, MPI_Int_t, MPI_SUM, MPI_COMM_WORLD);
     //calculate imbalance
-    unsigned int n3 = opt.numcellsperdim*opt.numcellsperdim*opt.numcellsperdim;
-    vector<Int_t> mpi_numparts(NProcs);
-    //MPI_Allreduce(opt.cellnodenumparts.data(), n3, MPI_Int_t, mpi_numparts.data(), 1, MPI_Int_t, MPI_COMM_WORLD);
+    vector<Int_t> mpinumparts(NProcs, 0);
+    for (auto i=0;i<opt.numcells;i++)
+    {
+        auto itask = opt.cellnodeids[i];
+        mpinumparts[itask] += opt.cellnodenumparts[i];
+    }
+    //find min/max, average and std
+    double minval, maxval, ave, std, sum;
+    minval = maxval = mpinumparts[0];
+    for (auto &x:mpinumparts) {
+        if (minval > x) minval = x;
+        if (maxval < x) maxval = x;
+        ave += x;
+        std += x*x;
+    }
+    ave /= (double)NProcs;
+    std /= (double)NProcs;
+    std = sqrt(std - ave*ave);
+    auto loadimbalance = (maxval-minval)/ave;
+    if ( loadimbalance > opt.mpimeshimbalancelimit) {
+        if (ThisTask == 0) cout<<"MPI imbalance of "<<loadimbalance<<" too large, repartitioning MPI domains ... "<<endl;
+        int itask = 0;
+        Int_t numparts = 0 ;
+        for (auto i=0;i<opt.numcells;i++)
+        {
+            auto index = opt.cellnodeorder[i];
+            opt.cellnodeids[index] = itask;
+            numparts += opt.cellnodenumparts[index];
+            if (numparts > ave) {
+                itask++;
+                numparts = 0;
+            }
+        }
+    }
 }
 
 void MPINumInDomain(Options &opt)
@@ -343,6 +381,7 @@ int MPIGetParticlesProcessor(Options &opt, Double_t x, Double_t y, Double_t z){
         iy=floor(y*opt.icellwidth[1]);
         iz=floor(z*opt.icellwidth[2]);
         index = ix*opt.numcellsperdim*opt.numcellsperdim+iy*opt.numcellsperdim+iz;
+        opt.cellnodenumparts[index]++;
         if (index >= 0 && index < opt.numcells) return opt.cellnodeids[index];
     }
     else {
