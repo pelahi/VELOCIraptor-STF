@@ -167,7 +167,7 @@ void MPIInitialDomainDecomposition(Options &opt)
 void MPIInitialDomainDecompositionWithMesh(Options &opt){
     if (ThisTask==0) {
         //each processor takes subsection of volume where use simple NProcs^(1/3) subdivision
-        opt.numcellsperdim = ceil(pow((double)NProcs,(double)(1.0/3.0)))*8;
+        opt.numcellsperdim = max((int)ceil(pow((double)NProcs,(double)(1.0/3.0)))*2, 8);
         unsigned int n3 = opt.numcells = opt.numcellsperdim*opt.numcellsperdim*opt.numcellsperdim;
         double idelta = 1.0/(double)opt.numcellsperdim;
         for (auto i=0; i<3; i++) {
@@ -213,20 +213,29 @@ void MPIInitialDomainDecompositionWithMesh(Options &opt){
         //finally assign cells to tasks
         opt.cellnodeids = new int[n3];
         opt.cellloc = new cell_loc[n3];
-        int nsub = floor(n3/(double)NProcs);
+        int nsub = max((int)floor(n3/(double)NProcs), 1);
+        int itask = 0, count = 0;
+        vector<int> numcellspertask(NProcs,0);
         for (auto i=0;i<n3;i++)
         {
-            auto itask = i/nsub;
+            if (count == nsub) {
+                count = 0;
+                itask++;
+            }
             if (itask == NProcs) itask -= 1;
             opt.cellnodeids[zcurve[i].index] = itask;
+            numcellspertask[itask]++;
+            count++;
         }
         cout<<"Z-curve Mesh MPI decomposition: "<<endl;
         cout<<"Mesh has resolution of "<<opt.numcellsperdim<<" per spatial dim "<<endl;
         cout<<"with each mesh spanning ("<<opt.cellwidth[0]<<", "<<opt.cellwidth[1]<<", "<<opt.cellwidth[2]<<")"<<endl;
-        cout<<"Decomposition : "<<endl;
-        for (auto i=0;i<n3;i++) {
-            cout<<"cell ("<<zcurve[i].coord[0]<<", "<<zcurve[i].coord[1]<<", "<<zcurve[i].coord[2]<<") on mpi task "<<opt.cellnodeids[zcurve[i].index]<<endl;
-        }
+        cout<<"MPI tasks :"<<endl;
+        for (auto i=0; i<NProcs; i++) cout<<"Task zero "<<i<<" has "<<numcellspertask[i]/double(n3)<<" of the volume"<<endl;
+        // cout<<"Decomposition : "<<endl;
+        // for (auto i=0;i<n3;i++) {
+        //     cout<<"cell ("<<zcurve[i].coord[0]<<", "<<zcurve[i].coord[1]<<", "<<zcurve[i].coord[2]<<") on mpi task "<<opt.cellnodeids[zcurve[i].index]<<endl;
+        // }
     }
     //broadcast data
     MPI_Bcast(&opt.numcells, 1, MPI_INTEGER, 0, MPI_COMM_WORLD);
@@ -235,7 +244,7 @@ void MPIInitialDomainDecompositionWithMesh(Options &opt){
     MPI_Bcast(opt.cellwidth, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     MPI_Bcast(opt.icellwidth, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     if (ThisTask != 0) opt.cellnodeids = new int[opt.numcells];
-    opt.cellnodenumparts.resize(n3,0);
+    opt.cellnodenumparts.resize(opt.numcells,0);
     MPI_Bcast(opt.cellnodeids, opt.numcells, MPI_INTEGER, 0, MPI_COMM_WORLD);
 
 }
