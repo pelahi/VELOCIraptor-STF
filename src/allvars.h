@@ -916,7 +916,7 @@ struct Options
         istellaragescalefactor = 1;
         isfrisssfr = 0;
 
-        G = 1.0;
+        G = 0.0;
         p = 0.0;
 
         a = 1.0;
