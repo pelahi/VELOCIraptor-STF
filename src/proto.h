@@ -493,7 +493,7 @@ void MPIDomainDecomposition(Options &opt);
 ///z-curve based mesh decomposition
 void MPIInitialDomainDecompositionWithMesh(Options &opt);
 ///z-curve repartitioning of cells
-void MPIRepartitionDomainDecompositionWithMesh(Options &opt);
+bool MPIRepartitionDomainDecompositionWithMesh(Options &opt);
 
 ///Determine Domain Extent for tipsy input
 void MPIDomainExtentTipsy(Options &opt);

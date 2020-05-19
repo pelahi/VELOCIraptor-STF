@@ -255,7 +255,7 @@ void MPIInitialDomainDecompositionWithMesh(Options &opt){
 
 }
 
-void MPIRepartitionDomainDecompositionWithMesh(Options &opt){
+bool MPIRepartitionDomainDecompositionWithMesh(Options &opt){
     MPI_Allreduce(MPI_IN_PLACE, opt.cellnodenumparts.data(), NProcs, MPI_Int_t, MPI_SUM, MPI_COMM_WORLD);
     //calculate imbalance
     vector<Int_t> mpinumparts(NProcs, 0);
@@ -291,7 +291,10 @@ void MPIRepartitionDomainDecompositionWithMesh(Options &opt){
                 numparts = 0;
             }
         }
+        for (auto &x:opt.cellnodenumparts) x=0;
+        return true;
     }
+    return false;
 }
 
 void MPINumInDomain(Options &opt)
@@ -312,6 +315,17 @@ void MPINumInDomain(Options &opt)
 #ifdef USEHDF
     else if (opt.inputtype==IOHDF) MPINumInDomainHDF(opt);
 #endif
+    //if using mesh, check load imbalance and also repartition
+    if (opt.impiusemesh) {
+        if (MPIRepartitionDomainDecompositionWithMesh(opt)){
+            if(opt.inputtype==IOTIPSY) MPINumInDomainTipsy(opt);
+            else if (opt.inputtype==IOGADGET) MPINumInDomainGadget(opt);
+            else if (opt.inputtype==IORAMSES) MPINumInDomainRAMSES(opt);
+#ifdef USEHDF
+            else if (opt.inputtype==IOHDF) MPINumInDomainHDF(opt);
+#endif
+        }
+    }
     opt.nsnapread=nsnapread;
     //adjust the memory allocated to allow some buffer room.
     Nmemlocal=Nlocal*(1.0+opt.mpipartfac);
