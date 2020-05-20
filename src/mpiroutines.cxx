@@ -233,7 +233,7 @@ void MPIInitialDomainDecompositionWithMesh(Options &opt){
         cout<<"Mesh has resolution of "<<opt.numcellsperdim<<" per spatial dim "<<endl;
         cout<<"with each mesh spanning ("<<opt.cellwidth[0]<<", "<<opt.cellwidth[1]<<", "<<opt.cellwidth[2]<<")"<<endl;
         cout<<"MPI tasks :"<<endl;
-        for (auto i=0; i<NProcs; i++) cout<<"Task zero "<<i<<" has "<<numcellspertask[i]/double(n3)<<" of the volume"<<endl;
+        for (auto i=0; i<NProcs; i++) cout<<"Task "<<i<<" has "<<numcellspertask[i]/double(n3)<<" of the volume"<<endl;
     }
     //broadcast data
     MPI_Bcast(&opt.numcells, 1, MPI_INTEGER, 0, MPI_COMM_WORLD);
@@ -251,20 +251,15 @@ void MPIInitialDomainDecompositionWithMesh(Options &opt){
 
 }
 
-bool MPIRepartitionDomainDecompositionWithMesh(Options &opt){
-    Int_t *buff = new Int_t[opt.numcells];
-    for (auto i=0;i<opt.numcells;i++) buff[i]=0;
-    MPI_Allreduce(opt.cellnodenumparts.data(), buff, opt.numcells, MPI_Int_t, MPI_SUM, MPI_COMM_WORLD);
-    for (auto i=0;i<opt.numcells;i++) opt.cellnodenumparts[i]=buff[i];
-
-    //calculate imbalance
+//find min/max, average and std
+inline double MPILoadBalanceWithMesh(Options &opt) {
+    //calculate imbalance based on min and max in mpi domains
     vector<Int_t> mpinumparts(NProcs, 0);
     for (auto i=0;i<opt.numcells;i++)
     {
         auto itask = opt.cellnodeids[i];
         mpinumparts[itask] += opt.cellnodenumparts[i];
     }
-    //find min/max, average and std
     double minval, maxval, ave, std, sum;
     minval = maxval = mpinumparts[0];
     ave = std = sum = 0;
@@ -273,48 +268,49 @@ bool MPIRepartitionDomainDecompositionWithMesh(Options &opt){
         if (maxval < x) maxval = x;
         ave += x;
         std += x*x;
-if (ThisTask == 0) cout<<x<<endl;
     }
     ave /= (double)NProcs;
     std /= (double)NProcs;
     std = sqrt(std - ave*ave);
-    auto loadimbalance = (maxval-minval)/ave;
-    if (ThisTask == 0) cout<<"MPI imbalance of "<<loadimbalance<<" "<<minval<<" "<<maxval<<" "<<ave<<" "<<std<<endl;
+    return (maxval-minval)/ave;
+}
+
+bool MPIRepartitionDomainDecompositionWithMesh(Options &opt){
+    Int_t *buff = new Int_t[opt.numcells];
+    for (auto i=0;i<opt.numcells;i++) buff[i]=0;
+    MPI_Allreduce(opt.cellnodenumparts.data(), buff, opt.numcells, MPI_Int_t, MPI_SUM, MPI_COMM_WORLD);
+    for (auto i=0;i<opt.numcells;i++) opt.cellnodenumparts[i]=buff[i];
+    delete[] buff;
+    double optimalave = 0; for (auto i=0;i<opt.numcells;i++) optimalave += opt.cellnodenumparts[i];
+    optimalave /= (double)NProcs;
+    auto loadimbalance = MPILoadBalanceWithMesh(opt);
+    if (ThisTask == 0) cout<<"MPI imbalance of "<<loadimbalance<<endl;
     if ( loadimbalance > opt.mpimeshimbalancelimit) {
-        if (ThisTask == 0) cout<<"Imbalance too large, repartitioning MPI domains ... "<<endl;
+        if (ThisTask == 0) cout<<"Imbalance too large, adjusting MPI domains ... "<<endl;
         int itask = 0;
         Int_t numparts = 0 ;
         vector<int> numcellspertask(NProcs,0);
+        vector<int> mpinumparts(NProcs,0);
         for (auto i=0;i<opt.numcells;i++)
         {
             auto index = opt.cellnodeorder[i];
             numcellspertask[itask]++;
             opt.cellnodeids[index] = itask;
             numparts += opt.cellnodenumparts[index];
-            if (numparts > ave) {
+            if (numparts > optimalave) {
                 mpinumparts[itask] = numparts;
                 itask++;
                 numparts = 0;
             }
         }
+        if (ThisTask == 0) cout<<"Now have MPI imbalance of "<<MPILoadBalanceWithMesh(opt)<<endl;
         for (auto &x:opt.cellnodenumparts) x=0;
-    minval = maxval = mpinumparts[0];
-    ave = std = sum = 0;
-    for (auto &x:mpinumparts) {
-        if (minval > x) minval = x;
-        if (maxval < x) maxval = x;
-        ave += x;
-        std += x*x;
-    }
-    ave /= (double)NProcs;
-    std /= (double)NProcs;
-    std = sqrt(std - ave*ave);
-    loadimbalance = (maxval-minval)/ave;
-    if (ThisTask == 0) cout<<"MPI imbalance of "<<loadimbalance<<" "<<minval<<" "<<maxval<<" "<<ave<<" "<<std<<endl;
-
-        cout<<ThisTask<<" MPI tasks :"<<endl;
-        for (auto i=0; i<NProcs; i++) cout<<ThisTask<<" Task zero "<<i<<" has "<<numcellspertask[i]/double(opt.numcells)<<" of the volume"<<endl;
-        return true;
+        cout<<"MPI tasks :"<<endl;
+        for (auto i=0; i<NProcs; i++) cout<<" Task "<<i<<" has "<<numcellspertask[i]/double(opt.numcells)<<" of the volume"<<endl;
+        Nlocal = mpinumparts[ThisTask];
+        //only need to reread file if baryon search active to determine number of
+        //baryons in local mpi domain. Otherwise, simple enough to update Nlocal
+        return (opt.iBaryonSearch>0);
     }
     return false;
 }
