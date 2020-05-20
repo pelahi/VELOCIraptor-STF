@@ -234,10 +234,6 @@ void MPIInitialDomainDecompositionWithMesh(Options &opt){
         cout<<"with each mesh spanning ("<<opt.cellwidth[0]<<", "<<opt.cellwidth[1]<<", "<<opt.cellwidth[2]<<")"<<endl;
         cout<<"MPI tasks :"<<endl;
         for (auto i=0; i<NProcs; i++) cout<<"Task zero "<<i<<" has "<<numcellspertask[i]/double(n3)<<" of the volume"<<endl;
-        // cout<<"Decomposition : "<<endl;
-        // for (auto i=0;i<n3;i++) {
-        //     cout<<"cell ("<<zcurve[i].coord[0]<<", "<<zcurve[i].coord[1]<<", "<<zcurve[i].coord[2]<<") on mpi task "<<opt.cellnodeids[zcurve[i].index]<<endl;
-        // }
     }
     //broadcast data
     MPI_Bcast(&opt.numcells, 1, MPI_INTEGER, 0, MPI_COMM_WORLD);
@@ -256,7 +252,11 @@ void MPIInitialDomainDecompositionWithMesh(Options &opt){
 }
 
 bool MPIRepartitionDomainDecompositionWithMesh(Options &opt){
-    MPI_Allreduce(MPI_IN_PLACE, opt.cellnodenumparts.data(), NProcs, MPI_Int_t, MPI_SUM, MPI_COMM_WORLD);
+    Int_t *buff = new Int_t[opt.numcells];
+    for (auto i=0;i<opt.numcells;i++) buff[i]=0;
+    MPI_Allreduce(opt.cellnodenumparts.data(), buff, opt.numcells, MPI_Int_t, MPI_SUM, MPI_COMM_WORLD);
+    for (auto i=0;i<opt.numcells;i++) opt.cellnodenumparts[i]=buff[i];
+
     //calculate imbalance
     vector<Int_t> mpinumparts(NProcs, 0);
     for (auto i=0;i<opt.numcells;i++)
@@ -267,6 +267,39 @@ bool MPIRepartitionDomainDecompositionWithMesh(Options &opt){
     //find min/max, average and std
     double minval, maxval, ave, std, sum;
     minval = maxval = mpinumparts[0];
+    ave = std = sum = 0;
+    for (auto &x:mpinumparts) {
+        if (minval > x) minval = x;
+        if (maxval < x) maxval = x;
+        ave += x;
+        std += x*x;
+if (ThisTask == 0) cout<<x<<endl;
+    }
+    ave /= (double)NProcs;
+    std /= (double)NProcs;
+    std = sqrt(std - ave*ave);
+    auto loadimbalance = (maxval-minval)/ave;
+    if (ThisTask == 0) cout<<"MPI imbalance of "<<loadimbalance<<" "<<minval<<" "<<maxval<<" "<<ave<<" "<<std<<endl;
+    if ( loadimbalance > opt.mpimeshimbalancelimit) {
+        if (ThisTask == 0) cout<<"Imbalance too large, repartitioning MPI domains ... "<<endl;
+        int itask = 0;
+        Int_t numparts = 0 ;
+        vector<int> numcellspertask(NProcs,0);
+        for (auto i=0;i<opt.numcells;i++)
+        {
+            auto index = opt.cellnodeorder[i];
+            numcellspertask[itask]++;
+            opt.cellnodeids[index] = itask;
+            numparts += opt.cellnodenumparts[index];
+            if (numparts > ave) {
+                mpinumparts[itask] = numparts;
+                itask++;
+                numparts = 0;
+            }
+        }
+        for (auto &x:opt.cellnodenumparts) x=0;
+    minval = maxval = mpinumparts[0];
+    ave = std = sum = 0;
     for (auto &x:mpinumparts) {
         if (minval > x) minval = x;
         if (maxval < x) maxval = x;
@@ -276,22 +309,11 @@ bool MPIRepartitionDomainDecompositionWithMesh(Options &opt){
     ave /= (double)NProcs;
     std /= (double)NProcs;
     std = sqrt(std - ave*ave);
-    auto loadimbalance = (maxval-minval)/ave;
-    if ( loadimbalance > opt.mpimeshimbalancelimit) {
-        if (ThisTask == 0) cout<<"MPI imbalance of "<<loadimbalance<<" too large, repartitioning MPI domains ... "<<endl;
-        int itask = 0;
-        Int_t numparts = 0 ;
-        for (auto i=0;i<opt.numcells;i++)
-        {
-            auto index = opt.cellnodeorder[i];
-            opt.cellnodeids[index] = itask;
-            numparts += opt.cellnodenumparts[index];
-            if (numparts > ave) {
-                itask++;
-                numparts = 0;
-            }
-        }
-        for (auto &x:opt.cellnodenumparts) x=0;
+    loadimbalance = (maxval-minval)/ave;
+    if (ThisTask == 0) cout<<"MPI imbalance of "<<loadimbalance<<" "<<minval<<" "<<maxval<<" "<<ave<<" "<<std<<endl;
+
+        cout<<ThisTask<<" MPI tasks :"<<endl;
+        for (auto i=0; i<NProcs; i++) cout<<ThisTask<<" Task zero "<<i<<" has "<<numcellspertask[i]/double(opt.numcells)<<" of the volume"<<endl;
         return true;
     }
     return false;
