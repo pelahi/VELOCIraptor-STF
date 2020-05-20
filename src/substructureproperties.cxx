@@ -4787,6 +4787,14 @@ void CalcCosmoParams(Options &opt, Double_t a){
     CalcVirBN98(opt,a);
 }
 
+double CalcGravitationalConstant(Options &opt) {
+    return Grav_in_kpc_kms_solarmasses /  opt.lengthtokpc / opt.velocitytokms / opt.velocitytokms * opt.masstosolarmass;
+
+}
+double CalcHubbleUnit(Options &opt) {
+    return 0.1 *  opt.lengthtokpc / opt.velocitytokms ;
+}
+
 Double_t GetHubble(Options &opt, Double_t a){
     return opt.h*opt.H*sqrt(opt.Omega_k*pow(a,-2.0)+opt.Omega_m*pow(a,-3.0)+opt.Omega_r*pow(a,-4.0)+opt.Omega_Lambda+opt.Omega_de*pow(a,-3.0*(1+opt.w_de)));
 }

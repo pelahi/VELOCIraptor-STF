@@ -1770,6 +1770,30 @@ void ConfigCheck(Options &opt)
     }
 #endif
 
+    //check gravity and hubble unit
+    double gravity, hubunit;
+    gravity = CalcGravitationalConstant(opt);
+    hubunit = CalcHubbleUnit(opt);
+    if (opt.G<=0) opt.G = gravity;
+    else {
+        auto diff = fabs(gravity-opt.G)/opt.G;
+        if (diff>1e-2) {
+            errormessage("WARNING: Configuration provides gravitational constant that differs from the default by more than 1%.");
+            errormessage("Expecation: "+to_string(gravity));
+            errormessage("Value passed: "+to_string(opt.G));
+        }
+    }
+    if (opt.H<=0) opt.H = hubunit;
+    else {
+        auto diff = fabs(hubunit-opt.H)/opt.H;
+        if (diff>1e-2) {
+            errormessage("WARNING: Configuration provides hubble units that differs from the default by more than 1%.");
+            errormessage("Expecation: "+to_string(hubunit));
+            errormessage("Value passed: "+to_string(opt.H));
+        }
+    }
+
+
 #ifdef USEMPI
     if (opt.mpiparticletotbufsize<(long int)(sizeof(Particle)*NProcs) && opt.mpiparticletotbufsize!=-1){
         errormessage("Invalid input particle buffer send size, mininmum input buffer size given paritcle byte size "+to_string(sizeof(Particle))+" and have "+to_string(NProcs)+" mpi processes is "+to_string(sizeof(Particle)*NProcs));
@@ -1791,16 +1815,16 @@ void ConfigCheck(Options &opt)
         errormessage("WARNING: MPI Particle allocation factor is high (>1).");
     }
     if (opt.mpinprocswritesize<1){
-        #ifdef USEPARALLELHDF
+#ifdef USEPARALLELHDF
         errormessage("WARNING: Number of MPI task writing collectively < 1. Setting to 1 .");
         opt.mpinprocswritesize = 1;
-        #endif
+#endif
     }
     if (opt.mpinprocswritesize>NProcs){
-        #ifdef USEPARALLELHDF
+#ifdef USEPARALLELHDF
         errormessage("WARNING: Number of MPI task writing collectively > NProcs. Setting to NProcs.");
         opt.mpinprocswritesize = NProcs;
-        #endif
+#endif
     }
 #endif
 

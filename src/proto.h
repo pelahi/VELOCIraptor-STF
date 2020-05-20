@@ -303,6 +303,8 @@ void CalcCriticalDensity(Options &opt, Double_t a);
 void CalcBackgroundDensity(Options &opt, Double_t a);
 void CalcVirBN98(Options &opt, Double_t a);
 void CalcCosmoParams(Options &opt, Double_t a);
+Double_t CalcGravitationalConstant(Options &opt);
+Double_t CalcHubbleUnit(Options &opt);
 Double_t GetHubble(Options &opt, Double_t a);
 double GetInvaH(double a, void * params);
 Double_t CalcCosmicTime(Options &opt, Double_t a1, Double_t a2);
