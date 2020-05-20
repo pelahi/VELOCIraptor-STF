@@ -285,7 +285,7 @@ bool MPIRepartitionDomainDecompositionWithMesh(Options &opt){
     optimalave /= (double)NProcs;
     auto loadimbalance = MPILoadBalanceWithMesh(opt);
     if (ThisTask == 0) cout<<"MPI imbalance of "<<loadimbalance<<endl;
-    if ( loadimbalance > opt.mpimeshimbalancelimit) {
+    if (loadimbalance > opt.mpimeshimbalancelimit) {
         if (ThisTask == 0) cout<<"Imbalance too large, adjusting MPI domains ... "<<endl;
         int itask = 0;
         Int_t numparts = 0 ;
@@ -297,16 +297,19 @@ bool MPIRepartitionDomainDecompositionWithMesh(Options &opt){
             numcellspertask[itask]++;
             opt.cellnodeids[index] = itask;
             numparts += opt.cellnodenumparts[index];
-            if (numparts > optimalave) {
+            if (numparts > optimalave && itask < NProcs-1) {
                 mpinumparts[itask] = numparts;
                 itask++;
                 numparts = 0;
             }
         }
-        if (ThisTask == 0) cout<<"Now have MPI imbalance of "<<MPILoadBalanceWithMesh(opt)<<endl;
+        mpinumparts[NProcs-1] = numparts;
+        if (ThisTask == 0) {
+            cout<<"Now have MPI imbalance of "<<MPILoadBalanceWithMesh(opt)<<endl;
+            cout<<"MPI tasks :"<<endl;
+            for (auto i=0; i<NProcs; i++) cout<<" Task "<<i<<" has "<<numcellspertask[i]/double(opt.numcells)<<" of the volume"<<endl;
+        }
         for (auto &x:opt.cellnodenumparts) x=0;
-        cout<<"MPI tasks :"<<endl;
-        for (auto i=0; i<NProcs; i++) cout<<" Task "<<i<<" has "<<numcellspertask[i]/double(opt.numcells)<<" of the volume"<<endl;
         Nlocal = mpinumparts[ThisTask];
         //only need to reread file if baryon search active to determine number of
         //baryons in local mpi domain. Otherwise, simple enough to update Nlocal
