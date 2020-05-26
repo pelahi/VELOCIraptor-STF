@@ -42,7 +42,7 @@ int main(int argc,char **argv)
     MPI_Comm_rank(MPI_COMM_WORLD,&ThisTask);
 
     //set the gsl handler
-    install_gsl_error_handler();
+    Math::install_gsl_error_handler();
 
     if (ThisTask == 0) cout<<"Running VELOCIraptor "<<git_sha1()<<endl;
 #ifdef USEOPENMP
