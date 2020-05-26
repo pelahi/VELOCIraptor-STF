@@ -223,8 +223,7 @@ int main(int argc,char **argv)
 #endif
 
     //now read particle data
-    if (ThisTask==0)
-    cout<<"Loading ... "<<endl;
+    if (ThisTask==0) cout<<"Loading ... "<<endl;
     ReadData(opt, Part, nbodies, Pbaryons, nbaryons);
 #ifdef USEMPI
     //if mpi and want separate baryon search then once particles are loaded into contigous block of memory and sorted according to type order,
@@ -238,9 +237,6 @@ int main(int argc,char **argv)
     }
 #endif
 
-#ifdef USEMPI
-    if (ThisTask==0)
-#endif
     time1=MyGetTime()-time1;
 #ifdef USEMPI
     Ntotal=nbodies;

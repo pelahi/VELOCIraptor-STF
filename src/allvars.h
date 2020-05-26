@@ -297,6 +297,11 @@ typedef double (*ExtraPropFunc)(double, double, double&);
 #define M_HetoM_H 4.0026
 //@}
 
+///\defgroup PhysConstants Useful physical constants
+//@{
+#define Grav_in_kpc_kms_solarmasses 4.3022682e-6
+//@}
+
 
 /// Structure stores unbinding information
 struct UnbindInfo
@@ -911,7 +916,7 @@ struct Options
         istellaragescalefactor = 1;
         isfrisssfr = 0;
 
-        G = 1.0;
+        G = 0.0;
         p = 0.0;
 
         a = 1.0;
