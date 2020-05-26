@@ -122,11 +122,19 @@ matrix:
       packages: [g++-7, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
     env: COMPILER=g++-7
   - compiler: gcc
+    dist: bionic
     addons:
      apt:
       sources: ubuntu-toolchain-r-test
       packages: [g++-7, libhdf5-dev, hdf5-tools, libgsl24-dev, libopenmpi-dev]
     env: COMPILER=GSL22
+- compiler: gcc
+  dist: bionic
+  addons:
+   apt:
+    sources: ubuntu-toolchain-r-test
+    packages: [g++-7, libhdf5-dev, hdf5-tools, libgsl24-dev, libopenmpi-dev]
+  env: COMPILER=GSL22 USESWIFT=1
 
 # We "source" it because it exports variables
 before_install:
