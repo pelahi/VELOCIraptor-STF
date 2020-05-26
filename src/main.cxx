@@ -21,8 +21,8 @@ using namespace velociraptor;
 int main(int argc,char **argv)
 {
 #ifdef SWIFTINTERFACE
-  cout<<"Built with SWIFT interface enabled when running standalone VELOCIraptor. Should only be enabled when running VELOCIraptor as a library from SWIFT. Exiting..."<<endl;
-  exit(0);
+    cout<<"Built with SWIFT interface enabled when running standalone VELOCIraptor. Should only be enabled when running VELOCIraptor as a library from SWIFT. Exiting..."<<endl;
+    exit(0);
 #endif
 #ifdef USEMPI
     //start MPI
@@ -40,6 +40,9 @@ int main(int argc,char **argv)
     MPI_Comm_size(MPI_COMM_WORLD,&NProcs);
     //and this processes' rank is
     MPI_Comm_rank(MPI_COMM_WORLD,&ThisTask);
+
+    //set the gsl handler
+    install_gsl_error_handler();
 
     if (ThisTask == 0) cout<<"Running VELOCIraptor "<<git_sha1()<<endl;
 #ifdef USEOPENMP

@@ -152,6 +152,10 @@ int InitVelociraptor(char* configname, unitinfo u, siminfo s, const int numthrea
 #ifdef USEOPENMP
     omp_set_num_threads(numthreads);
 #endif
+
+    //set the gsl handler
+    install_gsl_error_handler();
+
     int iconfigflag;
     ///read the parameter file
     libvelociraptorOpt.pname = configname;

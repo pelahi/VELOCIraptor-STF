@@ -848,6 +848,9 @@ void GetMemUsage(string callingfunction, bool printreport);
 void InitMemUsageLog(Options &opt);
 ///get a time
 double MyGetTime();
+/// exception handling for gsl
+void throw_exception_gsl_handler(const char *reason, const char *file, int line, int gsl_errno);
+void install_gsl_error_handler();
 
 //@}
 
