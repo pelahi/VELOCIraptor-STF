@@ -121,6 +121,12 @@ matrix:
       sources: ubuntu-toolchain-r-test
       packages: [g++-7, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
     env: COMPILER=g++-7
+  - compiler: gcc
+    addons:
+     apt:
+      sources: ubuntu-toolchain-r-test
+      packages: [g++-7, libhdf5-dev, hdf5-tools, libgsl24-dev, libopenmpi-dev]
+    env: COMPILER=GSL22
 
 # We "source" it because it exports variables
 before_install:
