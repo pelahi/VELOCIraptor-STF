@@ -154,7 +154,7 @@ int InitVelociraptor(char* configname, unitinfo u, siminfo s, const int numthrea
 #endif
 
     //set the gsl handler
-    Math::install_gsl_error_handler();
+    gsl_set_error_handler_off();
 
     int iconfigflag;
     ///read the parameter file

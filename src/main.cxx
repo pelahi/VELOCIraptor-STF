@@ -41,9 +41,6 @@ int main(int argc,char **argv)
     //and this processes' rank is
     MPI_Comm_rank(MPI_COMM_WORLD,&ThisTask);
 
-    //set the gsl handler
-    Math::install_gsl_error_handler();
-
     if (ThisTask == 0) cout<<"Running VELOCIraptor "<<git_sha1()<<endl;
 #ifdef USEOPENMP
     // Check the threading support level
@@ -75,6 +72,8 @@ int main(int argc,char **argv)
 #ifdef USEOPENMP
     if (ThisTask==0) cout<<"VELOCIraptor/STF running with OpenMP. Number of openmp threads: "<<nthreads<<endl;
 #endif
+
+    gsl_set_error_handler_off();
 
     Options opt;
     //get arguments
