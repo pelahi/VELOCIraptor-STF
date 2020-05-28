@@ -2672,19 +2672,13 @@ private(i,j,k,x,y,z,Pval)
         KDTree *treeimport=NULL;
         Int_t nimport,nexport;
         if (NProcs>1) {
-#ifdef SWIFTINTERFACE
-        halooverlap = MPIGetHaloSearchExportNumUsingMesh(opt, ngroup, pdata, maxrdist);
-#else
-        halooverlap= MPIGetHaloSearchExportNum(ngroup, pdata, maxrdist);
-#endif
+        if (opt.impiusemesh) halooverlap = MPIGetHaloSearchExportNumUsingMesh(opt, ngroup, pdata, maxrdist);
+        else halooverlap= MPIGetHaloSearchExportNum(ngroup, pdata, maxrdist);
         NNDataIn = new nndata_in[NExport];
         NNDataGet = new nndata_in[NImport];
         //build the exported halo group list using NNData structures
-#ifdef SWIFTINTERFACE
-        MPIBuildHaloSearchExportListUsingMesh(opt, ngroup, pdata, maxrdist,halooverlap);
-#else
-        MPIBuildHaloSearchExportList(ngroup, pdata, maxrdist,halooverlap);
-#endif
+        if (opt.impiusemesh) MPIBuildHaloSearchExportListUsingMesh(opt, ngroup, pdata, maxrdist,halooverlap);
+        else MPIBuildHaloSearchExportList(ngroup, pdata, maxrdist,halooverlap);
         MPIGetHaloSearchImportNum(nbodies, tree, Part);
         PartDataIn = new Particle[NExport+1];
         PartDataGet = new Particle[NImport+1];
@@ -3098,19 +3092,13 @@ void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup
     KDTree *treeimport=NULL;
     Int_t nimport,nexport;
     if (NProcs>1) {
-#ifdef SWIFTINTERFACE
-        halooverlap = MPIGetHaloSearchExportNumUsingMesh(opt, ngroup, pdata, maxrdist);
-#else
-        halooverlap= MPIGetHaloSearchExportNum(ngroup, pdata, maxrdist);
-#endif
+        if (opt.impiusemesh) halooverlap = MPIGetHaloSearchExportNumUsingMesh(opt, ngroup, pdata, maxrdist);
+        else halooverlap= MPIGetHaloSearchExportNum(ngroup, pdata, maxrdist);
         NNDataIn = new nndata_in[NExport];
         NNDataGet = new nndata_in[NImport];
         //build the exported halo group list using NNData structures
-#ifdef SWIFTINTERFACE
-        MPIBuildHaloSearchExportListUsingMesh(opt, ngroup, pdata, maxrdist,halooverlap);
-#else
-        MPIBuildHaloSearchExportList(ngroup, pdata, maxrdist,halooverlap);
-#endif
+        if (opt.impiusemesh) MPIBuildHaloSearchExportListUsingMesh(opt, ngroup, pdata, maxrdist,halooverlap);
+        else MPIBuildHaloSearchExportList(ngroup, pdata, maxrdist,halooverlap);
         MPIGetHaloSearchImportNum(nbodies, tree, Part);
         PartDataIn = new Particle[NExport+1];
         PartDataGet = new Particle[NImport+1];
@@ -4833,6 +4821,14 @@ void CalcCosmoParams(Options &opt, Double_t a){
     CalcVirBN98(opt,a);
 }
 
+double CalcGravitationalConstant(Options &opt) {
+    return Grav_in_kpc_kms_solarmasses /  opt.lengthtokpc / opt.velocitytokms / opt.velocitytokms * opt.masstosolarmass;
+
+}
+double CalcHubbleUnit(Options &opt) {
+    return 0.1 *  opt.lengthtokpc / opt.velocitytokms ;
+}
+
 Double_t GetHubble(Options &opt, Double_t a){
     return opt.h*opt.H*sqrt(opt.Omega_k*pow(a,-2.0)+opt.Omega_m*pow(a,-3.0)+opt.Omega_r*pow(a,-4.0)+opt.Omega_Lambda+opt.Omega_de*pow(a,-3.0*(1+opt.w_de)));
 }
@@ -6443,14 +6439,15 @@ Int_t CalculateSphericalOverdensity(Options &opt, PropData &pdata,
     Double_t &m200val, Double_t &m200mval, Double_t &mBN98val, Double_t &virval, Double_t &m500val,
     vector<Double_t> &SOlgrhovals)
 {
-    int minnum=max((int)(opt.SphericalOverdensityMinHaloFac*radii.size()+1),(int)(opt.HaloMinSize*opt.SphericalOverdensityMinHaloFac+1));
+    //Set the start point as the 3rd particle as the 1st particle can have a r=0
+    int minnum=2;
     int iindex=radii.size();
     //if the lowest overdensity threshold is below the density at the outer
     //edge then extrapolate density based on average slope using 10% of radial bins
     double massval, EncMass, rc, rhoval, MinMass;
     double rc2, EncMass2, rhoval2;
     double delta, gamma1, gamma2, gamma1lin, gamma2lin;
-    double fac, lgrhoedge, deltalgrhodeltalgr, MassEdge;
+    double fac, MassEdge;
     int lindex=0.9*iindex, llindex=iindex;
     int iSOfound = 0;
 
@@ -6466,8 +6463,6 @@ Int_t CalculateSphericalOverdensity(Options &opt, PropData &pdata,
         if (j<lindex) EncMass+=massval;
     }
     fac=-log(4.0*M_PI/3.0);
-    lgrhoedge = log(MassEdge)-3.0*log(radii[indices[iindex-1]])+fac;
-    deltalgrhodeltalgr = log(EncMass/MassEdge)/log(radii[indices[lindex]]/radii[indices[iindex-1]])-3.0;
     //now find radii matching SO density thresholds
     #ifndef NOMASS
     EncMass=0;for (auto j=0;j<minnum;j++) EncMass+=masses[indices[j]];
@@ -6562,14 +6557,15 @@ Int_t CalculateSphericalOverdensity(Options &opt, PropData &pdata,
     Double_t &m200val, Double_t &m200mval, Double_t &mBN98val, Double_t &virval, Double_t &m500val,
     vector<Double_t> &SOlgrhovals)
 {
-    int minnum=max((int)(opt.SphericalOverdensityMinHaloFac*numingroup+1),(int)(opt.HaloMinSize*opt.SphericalOverdensityMinHaloFac+1));
+    //Set the start point as the 3rd particle as the 1st particle can have a r=0
+    int minnum=2;
     int iindex=numingroup;
     //if the lowest overdensity threshold is below the density at the outer
     //edge then extrapolate density based on average slope using 10% of radial bins
     double EncMass, rc, rhoval, massval, MinMass;
     double rc2, EncMass2, rhoval2;
     double delta, gamma1, gamma2, gamma1lin, gamma2lin;
-    double fac, lgrhoedge, deltalgrhodeltalgr, MassEdge;
+    double fac, MassEdge;
     int lindex=0.9*iindex, llindex=iindex;
     int iSOfound = 0;
 

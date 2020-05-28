@@ -1137,7 +1137,7 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
                 if(k==GGASTYPE && dtemp<MP_B&&dtemp>0) MP_B=dtemp;
 
                 //determine processor this particle belongs on based on its spatial position
-                ibuf=MPIGetParticlesProcessor(ctemp[0],ctemp[1],ctemp[2]);
+                ibuf=MPIGetParticlesProcessor(opt, ctemp[0],ctemp[1],ctemp[2]);
                 ibufindex=ibuf*BufSize+Nbuf[ibuf];
                 //when running hydro runs, need to reset particle buffer quantities
                 //related to hydro info to zero

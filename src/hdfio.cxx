@@ -1266,8 +1266,8 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                     if (k==HDFGASTYPE) Part[count].SetType(GASTYPE);
                     else if (k==HDFDMTYPE) Part[count].SetType(DARKTYPE);
 #ifdef HIGHRES
-                    else if (k==HDFDM1TYPE) Part[count].SetType(DARKTYPE);
-                    else if (k==HDFDM2TYPE) Part[count].SetType(DARKTYPE);
+                    else if (k==HDFDM1TYPE) Part[count].SetType(DARK2TYPE);
+                    else if (k==HDFDM2TYPE) Part[count].SetType(DARK2TYPE);
 #endif
                     else if (k==HDFSTARTYPE) Part[count].SetType(STARTYPE);
                     else if (k==HDFBHTYPE) Part[count].SetType(BHTYPE);
@@ -2674,7 +2674,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 #endif
                         }
                     for (unsigned long long nn=0;nn<nchunk;nn++) {
-                        ibuf=MPIGetParticlesProcessor(doublebuff[nn*3],doublebuff[nn*3+1],doublebuff[nn*3+2]);
+                        ibuf=MPIGetParticlesProcessor(opt, doublebuff[nn*3],doublebuff[nn*3+1],doublebuff[nn*3+2]);
                         ibufindex=ibuf*BufSize+Nbuf[ibuf];
                         //reset hydro quantities of buffer
 #ifdef GASON
@@ -2938,8 +2938,8 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 #endif
 #endif
                       for (int nn=0;nn<nchunk;nn++) {
-                        if (ifloat_pos) ibuf=MPIGetParticlesProcessor(floatbuff[nn*3],floatbuff[nn*3+1],floatbuff[nn*3+2]);
-                        else ibuf=MPIGetParticlesProcessor(doublebuff[nn*3],doublebuff[nn*3+1],doublebuff[nn*3+2]);
+                        if (ifloat_pos) ibuf=MPIGetParticlesProcessor(opt, floatbuff[nn*3],floatbuff[nn*3+1],floatbuff[nn*3+2]);
+                        else ibuf=MPIGetParticlesProcessor(opt, doublebuff[nn*3],doublebuff[nn*3+1],doublebuff[nn*3+2]);
                         ibufindex=ibuf*BufSize+Nbuf[ibuf];
                         //reset hydro quantities of buffer
 #ifdef GASON
@@ -2965,8 +2965,8 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         if (k==HDFGASTYPE) Pbuf[ibufindex].SetType(GASTYPE);
                         else if (k==HDFDMTYPE) Pbuf[ibufindex].SetType(DARKTYPE);
 #ifdef HIGHRES
-                        else if (k==HDFDM1TYPE) Pbuf[ibufindex].SetType(DARKTYPE);
-                        else if (k==HDFDM2TYPE) Pbuf[ibufindex].SetType(DARKTYPE);
+                        else if (k==HDFDM1TYPE) Pbuf[ibufindex].SetType(DARK2TYPE);
+                        else if (k==HDFDM2TYPE) Pbuf[ibufindex].SetType(DARK2TYPE);
 #endif
                         else if (k==HDFSTARTYPE) Pbuf[ibufindex].SetType(STARTYPE);
                         else if (k==HDFBHTYPE) Pbuf[ibufindex].SetType(BHTYPE);

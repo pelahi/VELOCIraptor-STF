@@ -308,6 +308,8 @@ void CalcCriticalDensity(Options &opt, Double_t a);
 void CalcBackgroundDensity(Options &opt, Double_t a);
 void CalcVirBN98(Options &opt, Double_t a);
 void CalcCosmoParams(Options &opt, Double_t a);
+Double_t CalcGravitationalConstant(Options &opt);
+Double_t CalcHubbleUnit(Options &opt);
 Double_t GetHubble(Options &opt, Double_t a);
 double GetInvaH(double a, void * params);
 Double_t CalcCosmicTime(Options &opt, Double_t a1, Double_t a2);
@@ -490,11 +492,15 @@ void OpenMPHeadNextUpdate(const Int_t nbodies, vector<Particle> &Part, const Int
 void MPIUpdateUseParticleTypes(Options &opt);
 
 ///Domain decomposition of system
-void MPIInitialDomainDecomposition();
+void MPIInitialDomainDecomposition(Options &opt);
 ///Domain extent
 void MPIDomainExtent(Options &opt);
 ///domain decomposition
 void MPIDomainDecomposition(Options &opt);
+///z-curve based mesh decomposition
+void MPIInitialDomainDecompositionWithMesh(Options &opt);
+///z-curve repartitioning of cells
+bool MPIRepartitionDomainDecompositionWithMesh(Options &opt);
 
 ///Determine Domain Extent for tipsy input
 void MPIDomainExtentTipsy(Options &opt);
@@ -524,7 +530,7 @@ void MPIDomainExtentNchilada(Options &opt);
 void MPIDomainDecompositionNchilada(Options &opt);
 
 ///determine what processor a particle is sent to based on domain decomposition
-int MPIGetParticlesProcessor(const Double_t,const Double_t,const Double_t);
+int MPIGetParticlesProcessor(Options &opt, const Double_t,const Double_t,const Double_t);
 /// Determine number of local particles wrapper
 void MPINumInDomain(Options &opt);
 
@@ -555,21 +561,19 @@ void MPINumInDomainNchilada(Options &opt);
 
 ///adjust the domain boundaries to code units
 void MPIAdjustDomain(Options &opt);
+///adjust the domain boundaries to code units
+void MPIAdjustDomainWithMesh(Options &opt);
 ///determine if the search domain of a particle overlaps another mpi domain
 int MPISearchForOverlap(Particle &Part, Double_t &rdist);
 ///determine if the search domain of a particle overlaps another mpi domain
 int MPISearchForOverlap(Coordinate &x, Double_t &rdist);
-#ifdef SWIFTINTERFACE
 ///determine if the search domain of a particle overlaps another mpi domain using the SWIFT mesh
 int MPISearchForOverlapUsingMesh(Options &opt, Particle &Part, Double_t &rdist);
 ///determine if the search domain of a coordinate overlaps another mpi domain using the SWIFT mesh
 int MPISearchForOverlapUsingMesh(Options &opt, Coordinate &x, Double_t &rdist);
-#endif
 ///determine if the search domain overlaps another mpi domain
 int MPISearchForOverlap(Double_t xsearch[3][2]);
-#ifdef SWIFTINTERFACE
 int MPISearchForOverlapUsingMesh(Options &opt, Double_t xsearch[3][2]);
-#endif
 
 ///determine if search domain overlaps domain
 int MPIInDomain(Double_t xsearch[3][2], Double_t bnd[3][2]);
@@ -698,10 +702,8 @@ short_mpi_t *MPISetTaskID(const Int_t nbodies);
 void MPIAdjustLocalGroupIDs(const Int_t nbodies, Int_t *pfof);
 ///Determine number of particles that need to be exported to another mpi thread from local mpi thread based on rdist
 void MPIGetExportNum(const Int_t nbodies, Particle *Part, Double_t rdist);
-#ifdef SWIFTINTERFACE
 ///Determine number of particles that need to be exported to another mpi thread from local mpi thread based on rdist using the SWIFT mesh
 void MPIGetExportNumUsingMesh(Options &opt, const Int_t nbodies, Particle *Part, Double_t rdist);
-#endif
 ///Determine and send particles that need to be exported to another mpi thread from local mpi thread based on rdist
 void MPIBuildParticleExportList(Options &opt, const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_tree_t *&Len, Double_t rdist);
 ///Determine and send particles that need to be exported to another mpi thread from local mpi thread based on rdist using the SWIFT mesh
@@ -745,16 +747,12 @@ Int_t MPIBaryonExchange(const Int_t nbaryons, Particle *&Pbaryons, Int_t *&pfofb
 void MPIBuildGridData(const Int_t ngrid, GridCell *grid, Coordinate *gvel, Matrix *gveldisp);
 ///Determine number of particles that need to be exported to another mpi thread from local mpi thread based on array of distances for each particle for NN search
 void MPIGetNNExportNum(const Int_t nbodies, Particle *Part, Double_t *rdist);
-#ifdef SWIFTINTERFACE
 ///Determine number of particles that need to be exported to another mpi thread from local mpi thread based on array of distances for each particle for NN search
 void MPIGetNNExportNumUsingMesh(Options &opt, const Int_t nbodies, Particle *Part, Double_t *rdist);
-#endif
 ///Determine and send particles that need to be exported to another mpi thread from local mpi thread based on array of distances for each particle for NN search
 void MPIBuildParticleNNExportList(const Int_t nbodies, Particle *Part, Double_t *rdist);
-#ifdef SWIFTINTERFACE
 ///Determine and send particles that need to be exported to another mpi thread from local mpi thread based on array of distances for each particle for NN search
 void MPIBuildParticleNNExportListUsingMesh(Options &opt, const Int_t nbodies, Particle *Part, Double_t *rdist);
-#endif
 ///Determine number of local particles that need to be exported back based on ball search.
 void MPIGetNNImportNum(const Int_t nbodies, KDTree *tree, Particle *Part, int iallflag=1);
 ///Determine local particles that need to be exported back based on ball search.
@@ -763,16 +761,12 @@ Int_t MPIBuildParticleNNImportList(Options &opt, const Int_t nbodies, KDTree *tr
 int nn_export_cmp(const void *a, const void *b);
 ///Determine number of halos whose search regions overlap other mpi domains
 vector<bool> MPIGetHaloSearchExportNum(const Int_t ngroups, PropData *&pdata, vector<Double_t> &rdist);
-#ifdef SWIFTINTERFACE
 ///Determine number of halos whose search regions overlap other mpi domains using swift mesh mpi decomposition
 vector<bool> MPIGetHaloSearchExportNumUsingMesh(Options &opt, const Int_t ngroup, PropData *&pdata, vector<Double_t> &rdist);
-#endif
 ///Build the export list of halo positions and search distances
 void MPIBuildHaloSearchExportList(const Int_t ngroup, PropData *&pdata, vector<Double_t> &rdist, vector<bool> &halooverlap);
-#ifdef SWIFTINTERFACE
 ///Build the export list of halo positions and search distances using swift mesh mpi decomposition
 void MPIBuildHaloSearchExportListUsingMesh(Options &opt, const Int_t ngroup, PropData *&pdata, vector<Double_t> &rdist, vector<bool> &halooverlap);
-#endif
 ///Determine number of imported particles based on halo search regions
 void MPIGetHaloSearchImportNum(const Int_t nbodies, KDTree *tree, Particle *Part);
 ///Builds the import list of particles based on halo positions
