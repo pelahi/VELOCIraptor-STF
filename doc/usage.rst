@@ -501,8 +501,8 @@ Configuration options related to the bulk properties calculated.
     to do (in the form of an integer flag specifying the calculation) and a string indicating the units.
     If the input is in the form of a 2D array from which a particular column is to be used, one can also
     set an index. The result is sorted in an output field that contains the name of the input field,
-    the index (if >0), and a simple string describing the function along with the units and ending with particle type,
-    ie: ``Turbulence_average_km/s^2_gas``
+    the index (if >0), and a simple string describing the function and ending with particle type,
+    ie: ``Turbulence_average_gas``
     These config options are combinations of particle type, categories and entry types.
     A full entry must be provided in a comma separated list and terminate in a comma.
 
@@ -532,8 +532,23 @@ Configuration options related to the bulk properties calculated.
         * logaverage (average(log(x)))
         * logstd (std(log(x)))
 
-    One can also calculate total or average in aperutures provided aperture
-    quantitites are being calculated.
+    Output units are indices of standard units separated by colons along with any additional
+    extra units which are added as strings to the name of the output. The standard units
+    for which indices can be provided are
+        * Mass (where conversion to solar mass provided can be used to convert output to known units)
+        * Length (where conversion to kpc provided can be used to convert output to known units)
+        * Velocity (where conversion to km/s provided can be used to convert output to known units)
+        * Time (where conversion to Gyrs provided can be used to convert output to known units)
+
+    Thus to specify mass per unit time^2 and another entry with force, as an example, one would use a string of
+        * "1:0:0:-2:,1:0:1:-1:,"
+    This does require the input to be converted appropriately to match the units of mass, length, velocity, time.
+    This attribute information will be stored the attributes associated with the data set, similar to other fields. 
+    One can also provide complex units with a string that will be stored in a attribute **Dimension_Extra_Info**
+        * "cookies_per_person,"
+
+    One can also calculate total or average in apertures provided aperture
+    quantities are being calculated.
         * aperture_total
         * aperture_average
 
@@ -637,6 +652,12 @@ Options related to MPI/OpenMP/Pthread parallelisation.
         * Total memory size in bytes used to store particles in temporary buffer such that particles are sent to non-reading mpi processes in chunks of size buffer_size/NProcs/sizeof(Particle).
     ``MPI_number_of_tasks_per_write =``
         * Number of mpi tasks that are grouped for collective HDF5 writes is parallel HDF5 is enabled. Net result is that the total number of files written is ceiling(Number of MPI tasks)/(Number of tasks per write)
+    ``MPI_use_zcurve_mesh_decomposition = 1/0``
+        * Whether to use a z-curve spatial decomposition (advised). Default is true
+    ``MPI_zcurve_mesh_decomposition_min_num_cells_per_dim = ``
+        * Minimum number of cells per dimension from which to construct a mesh used in the z-curve decomposition. Min number is 8. Code does use
+        number of processors to scale mesh resolution using NProcs^(1/3)*2 if > 8. For zooms, advised to set this to a high value corresponding to
+        the order of a few times Lbox/Zoom_region_length. 
 
 .. _config_openmp:
 

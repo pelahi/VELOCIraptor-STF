@@ -106,7 +106,7 @@ void MPINumInDomainRAMSES(Options &opt)
     if (NProcs > 1)
     {
         MPIDomainExtentRAMSES(opt);
-        MPIInitialDomainDecomposition();
+        MPIInitialDomainDecomposition(opt);
         MPIDomainDecompositionRAMSES(opt);
         Int_t i,j,k,n,m,temp,Ntot,indark,ingas,instar;
         int idim,ivar,igrid;
@@ -262,7 +262,7 @@ void MPINumInDomainRAMSES(Options &opt)
                             }
 
                             //determine processor this particle belongs on based on its spatial position
-                            ibuf = MPIGetParticlesProcessor(xtemp[0],xtemp[1],xtemp[2]);
+                            ibuf = MPIGetParticlesProcessor(opt, xtemp[0],xtemp[1],xtemp[2]);
                             /// Count total number of DM particles, Baryons, etc
                             //@{
                             if (opt.partsearchtype == PSTALL)
@@ -422,7 +422,7 @@ void MPINumInDomainRAMSES(Options &opt)
                                                     xtemp[1] = ((((float)rand()/(float)RAND_MAX) * header[i].BoxSize * dx) +(header[i].BoxSize * (xtempchunk[igrid+1*chunksize] + (double(iy)-0.5) * dx )) - (header[i].BoxSize*dx/2.0)) ;
                                                     xtemp[2] = ((((float)rand()/(float)RAND_MAX) * header[i].BoxSize * dx) +(header[i].BoxSize * (xtempchunk[igrid+2*chunksize] + (double(iz)-0.5) * dx )) - (header[i].BoxSize*dx/2.0)) ;
                                                     //determine processor this particle belongs on based on its spatial position
-                                                    ibuf=MPIGetParticlesProcessor(xtemp[0],xtemp[1],xtemp[2]);
+                                                    ibuf=MPIGetParticlesProcessor(opt, xtemp[0],xtemp[1],xtemp[2]);
                                                     Nbuf[ibuf]++;
                                                 }
                                             }

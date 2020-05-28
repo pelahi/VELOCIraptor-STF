@@ -35,6 +35,12 @@ will also calculate properties based on loading specific extra fields associated
 with particle types (this interface requires HDF5 input or on the fly invocation
 and outputs properties with the same name as the loaded property, see :ref:`usage`).
 
+Note that if HDF5 output is produced, the properties will be in the form of data sets with specific names
+and each data set will have attributes describing the unit of the field in the form of
+**Dimension_Length**, **Dimension_Mass**, **Dimension_Velocity**, **Dimension_Time**, which indicate
+the index of the unit. Extra output from arbitrary input fields can also have unusual units stored in
+**Dimension_Extra_Info** as a string.
+
 We give an almost complete list of properties and the keyword associate with the property (in ASCII and HDF5).
 For clarity we list properties in several tables corresponding to
 
@@ -53,7 +59,7 @@ Standard Properties
 This is a list of standard properties that are always calculated unless indicated
 otherwise (some require an extra configuration option). Properties are calculated
 relative to the object's centre, which can be either the position of the particle
-with the minimum potential, or centre-of-mass, or position of most bound particle. 
+with the minimum potential, or centre-of-mass, or position of most bound particle.
 
 .. _standardhalopropstable:
 
