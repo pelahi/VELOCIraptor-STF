@@ -29,6 +29,7 @@
 #include <algorithm>
 #include <map>
 #include <unordered_map>
+#include <bitset>
 #include <getopt.h>
 #include <sys/stat.h>
 #include <sys/timeb.h>
@@ -302,6 +303,11 @@ typedef double (*ExtraPropFunc)(double, double, double&);
 #define M_HetoM_H 4.0026
 //@}
 
+///\defgroup PhysConstants Useful physical constants
+//@{
+#define Grav_in_kpc_kms_solarmasses 4.3022682e-6
+//@}
+
 
 /// Structure stores unbinding information
 struct UnbindInfo
@@ -447,6 +453,12 @@ struct Options
     Double_t mpipartfac;
     /// if using parallel output, number of mpi threads to group together
     int mpinprocswritesize;
+
+    /// mpi number of top level cells used in decomposition
+    /// could be integrated into metis/parmetis eventually
+    /// here this is the number of cells in a singel dimension to total cells
+    /// is this to ^3
+    int mpinumtoplevelcells;
 
     /// run FOF using OpenMP
     int iopenmpfof;
@@ -644,8 +656,6 @@ struct Options
     /// if want full spherical overdensity, factor by which size is multiplied to get
     ///bucket of particles
     Double_t SphericalOverdensitySeachFac;
-    ///minimum enclosed mass on which to base SO calculations, <1
-    Double_t SphericalOverdensityMinHaloFac;
     ///if want to the particle IDs that are within the SO overdensity of a halo
     int iSphericalOverdensityPartList;
     /// if want to include more than just field objects (halos) in full SO calculations
@@ -675,6 +685,9 @@ struct Options
     /* Number of top-level cells in each dimension. */
     int numcellsperdim;
 
+    /// minimum number of top-level cells
+    int minnumcellperdim;
+
     /* Locations of top-level cells. */
     cell_loc *cellloc;
 
@@ -685,7 +698,21 @@ struct Options
     double icellwidth[3];
 
     /*! Holds the node ID of each top-level cell. */
-    const int *cellnodeids;
+    int *cellnodeids;
+
+    /// holds the order of cells based on z-curve decomposition;
+    vector<int> cellnodeorder;
+
+    /// holds the number of particles in a given top-level cell
+    vector<unsigned long long> cellnodenumparts;
+
+    /// allowed mesh based mpi decomposition load imbalance
+    float mpimeshimbalancelimit;
+
+
+    ///whether using mesh decomposition
+    bool impiusemesh;
+
     //@}
 
     /// \name options related to calculation of aperture/profile
@@ -928,7 +955,7 @@ struct Options
         istellaragescalefactor = 1;
         isfrisssfr = 0;
 
-        G = 1.0;
+        G = 0.0;
         p = 0.0;
 
         a = 1.0;
@@ -1071,6 +1098,14 @@ struct Options
         mpiparticletotbufsize=-1;
         mpiparticlebufsize=-1;
         mpinprocswritesize=1;
+#ifdef SWIFTINTERFACE
+        impiusemesh = true;
+#else
+        impiusemesh = true;
+        mpimeshimbalancelimit = 0.1;
+        minnumcellperdim = 8;
+#endif
+        cellnodeids = NULL;
 
         lengthtokpc=-1.0;
         velocitytokms=-1.0;
@@ -1086,7 +1121,6 @@ struct Options
         lengthtokpc50pow2=50.0*50.0;
 
         SphericalOverdensitySeachFac=2.5;
-        SphericalOverdensityMinHaloFac=0.05;
         iSphericalOverdensityPartList=0;
         SphericalOverdensitySeachMaxStructLevel = HALOSTYPE;
         iSphericalOverdensityExtraFieldCalculations = false;
@@ -1733,6 +1767,12 @@ struct PropData
     vector<ExtraDMProperties> aperture_properties_extra_dm;
 #endif
     //@}
+
+    ///\name standard units of physical properties
+    //@{
+    string massunit, velocityunit, lengthunit, energyunit;
+    //@}
+
 
     PropData()
     {
@@ -2511,6 +2551,23 @@ struct PropData
 #endif
 };
 
+
+//for storing the units of known fields
+struct HeaderUnitInfo{
+    float massdim, lengthdim, velocitydim, timedim, energydim;
+    string extrainfo;
+    HeaderUnitInfo(float md = 0, float ld = 0, float vd = 0, float td = 0, string s = ""){
+        massdim = md;
+        lengthdim = ld;
+        velocitydim = vd;
+        timedim = td;
+        extrainfo = s;
+    };
+    //Parse the string in the format massdim:lengthdim:velocitydim:timedim:energydim if only a string is passed
+    //if format does not match this then just store string
+    HeaderUnitInfo(string s);
+};
+
 /*! Structures stores header info of the data writen by the \ref PropData data structure,
     specifically the \ref PropData::WriteBinary, \ref PropData::WriteAscii, \ref PropData::WriteHDF routines
     Must ensure that these routines are all altered together so that the io makes sense.
@@ -2518,6 +2575,8 @@ struct PropData
 struct PropDataHeader{
     //list the header info
     vector<string> headerdatainfo;
+    vector<HeaderUnitInfo> unitdatainfo;
+
 #ifdef USEHDF
     // vector<PredType> predtypeinfo;
     vector<hid_t> hdfpredtypeinfo;

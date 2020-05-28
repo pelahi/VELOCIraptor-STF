@@ -158,8 +158,9 @@ int InitVelociraptor(char* configname, unitinfo u, siminfo s, const int numthrea
     if (ThisTask == 0) cout<<"Initialising VELOCIraptor git revision "<<velociraptor::git_sha1()<<" ..."<< endl;
     if (ThisTask == 0) cout<<"Reading VELOCIraptor config file..."<< endl;
     GetParamFile(libvelociraptorOpt);
-    //on the fly finding
+    //on the fly finding and using swift's mesh mpi decomposition
     libvelociraptorOpt.iontheflyfinding = true;
+    libvelociraptorOpt.impiusemesh = true;
     ///check configuration
     iconfigflag = ConfigCheckSwift(libvelociraptorOpt, s);
     if (iconfigflag != 1) return iconfigflag;
@@ -236,6 +237,7 @@ int InitVelociraptorExtra(const int iextra, char* configname, unitinfo u, siminf
     GetParamFile(libvelociraptorOptextra[iextra]);
     //on the fly finding
     libvelociraptorOptextra[iextra].iontheflyfinding = true;
+    libvelociraptorOptextra[iextra].impiusemesh = true;
     ///check configuration
     iconfigflag = ConfigCheckSwift(libvelociraptorOptextra[iextra], s);
     if (iconfigflag != 1) return iconfigflag;
