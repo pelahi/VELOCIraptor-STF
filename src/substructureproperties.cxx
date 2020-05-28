@@ -2672,19 +2672,13 @@ private(i,j,k,x,y,z,Pval)
         KDTree *treeimport=NULL;
         Int_t nimport,nexport;
         if (NProcs>1) {
-#ifdef SWIFTINTERFACE
-        halooverlap = MPIGetHaloSearchExportNumUsingMesh(opt, ngroup, pdata, maxrdist);
-#else
-        halooverlap= MPIGetHaloSearchExportNum(ngroup, pdata, maxrdist);
-#endif
+        if (opt.impiusemesh) halooverlap = MPIGetHaloSearchExportNumUsingMesh(opt, ngroup, pdata, maxrdist);
+        else halooverlap= MPIGetHaloSearchExportNum(ngroup, pdata, maxrdist);
         NNDataIn = new nndata_in[NExport];
         NNDataGet = new nndata_in[NImport];
         //build the exported halo group list using NNData structures
-#ifdef SWIFTINTERFACE
-        MPIBuildHaloSearchExportListUsingMesh(opt, ngroup, pdata, maxrdist,halooverlap);
-#else
-        MPIBuildHaloSearchExportList(ngroup, pdata, maxrdist,halooverlap);
-#endif
+        if (opt.impiusemesh) MPIBuildHaloSearchExportListUsingMesh(opt, ngroup, pdata, maxrdist,halooverlap);
+        else MPIBuildHaloSearchExportList(ngroup, pdata, maxrdist,halooverlap);
         MPIGetHaloSearchImportNum(nbodies, tree, Part);
         PartDataIn = new Particle[NExport+1];
         PartDataGet = new Particle[NImport+1];
@@ -3098,19 +3092,13 @@ void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup
     KDTree *treeimport=NULL;
     Int_t nimport,nexport;
     if (NProcs>1) {
-#ifdef SWIFTINTERFACE
-        halooverlap = MPIGetHaloSearchExportNumUsingMesh(opt, ngroup, pdata, maxrdist);
-#else
-        halooverlap= MPIGetHaloSearchExportNum(ngroup, pdata, maxrdist);
-#endif
+        if (opt.impiusemesh) halooverlap = MPIGetHaloSearchExportNumUsingMesh(opt, ngroup, pdata, maxrdist);
+        else halooverlap= MPIGetHaloSearchExportNum(ngroup, pdata, maxrdist);
         NNDataIn = new nndata_in[NExport];
         NNDataGet = new nndata_in[NImport];
         //build the exported halo group list using NNData structures
-#ifdef SWIFTINTERFACE
-        MPIBuildHaloSearchExportListUsingMesh(opt, ngroup, pdata, maxrdist,halooverlap);
-#else
-        MPIBuildHaloSearchExportList(ngroup, pdata, maxrdist,halooverlap);
-#endif
+        if (opt.impiusemesh) MPIBuildHaloSearchExportListUsingMesh(opt, ngroup, pdata, maxrdist,halooverlap);
+        else MPIBuildHaloSearchExportList(ngroup, pdata, maxrdist,halooverlap);
         MPIGetHaloSearchImportNum(nbodies, tree, Part);
         PartDataIn = new Particle[NExport+1];
         PartDataGet = new Particle[NImport+1];

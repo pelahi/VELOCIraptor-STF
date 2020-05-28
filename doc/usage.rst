@@ -652,6 +652,12 @@ Options related to MPI/OpenMP/Pthread parallelisation.
         * Total memory size in bytes used to store particles in temporary buffer such that particles are sent to non-reading mpi processes in chunks of size buffer_size/NProcs/sizeof(Particle).
     ``MPI_number_of_tasks_per_write =``
         * Number of mpi tasks that are grouped for collective HDF5 writes is parallel HDF5 is enabled. Net result is that the total number of files written is ceiling(Number of MPI tasks)/(Number of tasks per write)
+    ``MPI_use_zcurve_mesh_decomposition = 1/0``
+        * Whether to use a z-curve spatial decomposition (advised). Default is true
+    ``MPI_zcurve_mesh_decomposition_min_num_cells_per_dim = ``
+        * Minimum number of cells per dimension from which to construct a mesh used in the z-curve decomposition. Min number is 8. Code does use
+        number of processors to scale mesh resolution using NProcs^(1/3)*2 if > 8. For zooms, advised to set this to a high value corresponding to
+        the order of a few times Lbox/Zoom_region_length. 
 
 .. _config_openmp:
 

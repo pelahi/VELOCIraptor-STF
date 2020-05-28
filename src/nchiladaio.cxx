@@ -540,8 +540,8 @@ void ReadNchilada(Options &opt, vector<Particle> &Part, const Int_t nbodies,Part
 #endif
         for (i=0;i<fhpos.nbodies;i++) {
 #ifdef USEMPI
-            if (fhpos.code==float32) ibuf=MPIGetParticlesProcessor(posfloatbuff[i],posfloatbuff[i+nbodies],posfloatbuff[i+nbodies*2]);
-            else ibuf=MPIGetParticlesProcessor(posdoublebuff[i],posdoublebuff[i+nbodies],posdoublebuff[i+nbodies*2]);
+            if (fhpos.code==float32) ibuf=MPIGetParticlesProcessor(opt, posfloatbuff[i],posfloatbuff[i+nbodies],posfloatbuff[i+nbodies*2]);
+            else ibuf=MPIGetParticlesProcessor(opt, posdoublebuff[i],posdoublebuff[i+nbodies],posdoublebuff[i+nbodies*2]);
             if (fhpos.code==float32) {
                 Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetPosition(posfloatbuff[i],posfloatbuff[i+nbodies],posfloatbuff[i+nbodies*2]);
                 Pbuf[ibuf*BufSize+Nbuf[ibuf]].SetVelocity(velfloatbuff[i],velfloatbuff[i+nbodies],velfloatbuff[i+nbodies*2]);
