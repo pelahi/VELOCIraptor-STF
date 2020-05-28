@@ -45,7 +45,6 @@ vr_option(ALLOWCOMPRESSIONPARALLELHDF5 "Attempt to include parallel HDF5 compres
 vr_option(XDR  "XDR input support (used by nchilada)" OFF)
 
 # Precision options
-vr_option(SINGLE_PRECISION  "Use single point precision to store all properties and perform all calculations" OFF)
 vr_option(LONG_INT          "Use long ints to represent all integers. Needed if dealing with more than MAXINT number of particles" ON)
 
 # OpenMP options
@@ -121,9 +120,6 @@ endif()
 if (VR_LONG_INT)
 	set(NBODY_LONG_INT ON)
 endif()
-if (VR_SINGLE_PRECISION)
-	set(NBODY_SINGLE_PRECISION ON)
-endif()
 if (VR_USE_LARGE_KDTREE)
 	set(NBODY_USE_LARGE_KDTREE ON)
 endif()
@@ -149,7 +145,6 @@ endmacro()
 
 vr_option_defines(XDR                       USEXDR)
 
-vr_option_defines(SINGLE_PRECISION          SINGLEPRECISION)
 vr_option_defines(LONG_INT                  LONGINT)
 
 vr_option_defines(OPENMP                    USEOPENMP)
@@ -356,8 +351,7 @@ if (VR_HAS_COMPRESSED_HDF5  AND VR_HAS_PARALLEL_HDF5)
 	message("\n WARNING: Parallel Compression HDF5 active, use with caution as it is unstable!\n")
 endif()
 vr_report("Precision-specifics"
-        "Long Integers" LONG_INT
-        "Single precision floats" SINGLE_PRECISION)
+        "Long Integers" LONG_INT)
 vr_report("OpenMP-specifics"
         "OpenMP support" OPENMP)
 vr_report("MPI-specifics"
