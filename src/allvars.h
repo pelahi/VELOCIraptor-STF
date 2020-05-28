@@ -1719,6 +1719,12 @@ struct PropData
 #endif
     //@}
 
+    ///\name standard units of physical properties
+    //@{
+    string massunit, velocityunit, lengthunit, energyunit;
+    //@}
+
+
     PropData()
     {
         num=gNFOF=gN6DFOF=0;
@@ -2496,6 +2502,23 @@ struct PropData
 #endif
 };
 
+
+//for storing the units of known fields
+struct HeaderUnitInfo{
+    float massdim, lengthdim, velocitydim, timedim, energydim;
+    string extrainfo;
+    HeaderUnitInfo(float md = 0, float ld = 0, float vd = 0, float td = 0, string s = ""){
+        massdim = md;
+        lengthdim = ld;
+        velocitydim = vd;
+        timedim = td;
+        extrainfo = s;
+    };
+    //Parse the string in the format massdim:lengthdim:velocitydim:timedim:energydim if only a string is passed
+    //if format does not match this then just store string
+    HeaderUnitInfo(string s);
+};
+
 /*! Structures stores header info of the data writen by the \ref PropData data structure,
     specifically the \ref PropData::WriteBinary, \ref PropData::WriteAscii, \ref PropData::WriteHDF routines
     Must ensure that these routines are all altered together so that the io makes sense.
@@ -2503,6 +2526,8 @@ struct PropData
 struct PropDataHeader{
     //list the header info
     vector<string> headerdatainfo;
+    vector<HeaderUnitInfo> unitdatainfo;
+
 #ifdef USEHDF
     // vector<PredType> predtypeinfo;
     vector<hid_t> hdfpredtypeinfo;
