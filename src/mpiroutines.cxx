@@ -1476,6 +1476,13 @@ void MPIBuildWriteComm(Options &opt){
         MPI_Comm_rank(mpi_comm_write, &ThisWriteTask);
         MPI_Comm_size(mpi_comm_write, &NProcsWrite);
     }
+    else{
+        ThisWriteTask = ThisTask;
+        ThisWriteComm = ThisTask;
+        NProcsWrite = NProcs;
+        NWriteComms = NProcs;
+        mpi_comm_write = MPI_COMM_WORLD;
+    }
 #endif
 }
 void MPIFreeWriteComm(){

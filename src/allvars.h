@@ -632,8 +632,6 @@ struct Options
     /// if want full spherical overdensity, factor by which size is multiplied to get
     ///bucket of particles
     Double_t SphericalOverdensitySeachFac;
-    ///minimum enclosed mass on which to base SO calculations, <1
-    Double_t SphericalOverdensityMinHaloFac;
     ///if want to the particle IDs that are within the SO overdensity of a halo
     int iSphericalOverdensityPartList;
     /// if want to include more than just field objects (halos) in full SO calculations
@@ -1074,7 +1072,6 @@ struct Options
         lengthtokpc50pow2=50.0*50.0;
 
         SphericalOverdensitySeachFac=2.5;
-        SphericalOverdensityMinHaloFac=0.05;
         iSphericalOverdensityPartList=0;
         SphericalOverdensitySeachMaxStructLevel = HALOSTYPE;
         iSphericalOverdensityExtraFieldCalculations = false;
