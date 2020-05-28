@@ -670,6 +670,9 @@ struct Options
     /* Number of top-level cells in each dimension. */
     int numcellsperdim;
 
+    /// minimum number of top-level cells
+    int minnumcellperdim;
+
     /* Locations of top-level cells. */
     cell_loc *cellloc;
 
@@ -691,8 +694,10 @@ struct Options
     /// allowed mesh based mpi decomposition load imbalance
     float mpimeshimbalancelimit;
 
+
     ///whether using mesh decomposition
     bool impiusemesh;
+
     //@}
 
     /// \name options related to calculation of aperture/profile
@@ -1081,8 +1086,9 @@ struct Options
 #ifdef SWIFTINTERFACE
         impiusemesh = true;
 #else
-        impiusemesh = false;
+        impiusemesh = true;
         mpimeshimbalancelimit = 0.1;
+        minnumcellperdim = 8;
 #endif
         cellnodeids = NULL;
 

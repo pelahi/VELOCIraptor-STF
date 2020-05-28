@@ -167,7 +167,7 @@ void MPIInitialDomainDecomposition(Options &opt)
 void MPIInitialDomainDecompositionWithMesh(Options &opt){
     if (ThisTask==0) {
         //each processor takes subsection of volume where use simple NProcs^(1/3) subdivision
-        opt.numcellsperdim = max((int)ceil(pow((double)NProcs,(double)(1.0/3.0)))*2, 8);
+        opt.numcellsperdim = max((int)ceil(pow((double)NProcs,(double)(1.0/3.0)))*2, opt.minnumcellperdim);
         unsigned int n3 = opt.numcells = opt.numcellsperdim*opt.numcellsperdim*opt.numcellsperdim;
         double idelta = 1.0/(double)opt.numcellsperdim;
         for (auto i=0; i<3; i++) {
