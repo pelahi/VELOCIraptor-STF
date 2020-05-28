@@ -28,7 +28,6 @@ inline void WriteHeaderUnitEntry(Options & opt, H5OutputFile & hfile, string dat
     hfile.write_attribute(datasetname, "Dimension_Length", u.lengthdim);
     hfile.write_attribute(datasetname, "Dimension_Velocity", u.velocitydim);
     hfile.write_attribute(datasetname, "Dimension_Time", u.timedim);
-    hfile.write_attribute(datasetname, "Dimension_Energy", u.energydim);
     if (u.extrainfo.size()>0){
         hfile.write_attribute(datasetname, "Dimension_Extra_Info", u.extrainfo);
     }

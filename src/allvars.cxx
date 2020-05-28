@@ -20,12 +20,11 @@ HeaderUnitInfo::HeaderUnitInfo(string s)
         units.push_back(token);
         s.erase(0, pos + delimiter.length());
     }
-    if (units.size()==5) {
+    if (units.size()==4) {
         massdim = stof(units[0]);
         lengthdim = stof(units[1]);
         velocitydim = stof(units[2]);
         timedim = stof(units[3]);
-        energydim = stof(units[4]);
         extrainfo = string("");
     }
     else {
@@ -33,7 +32,6 @@ HeaderUnitInfo::HeaderUnitInfo(string s)
         lengthdim = 0;
         velocitydim = 0;
         timedim = 0;
-        energydim = 0;
         extrainfo = s;
     }
 }
@@ -1962,7 +1960,7 @@ if (opt.iextragasoutput) {
     }
 #ifdef USEHDF
     sizeval=hdfpredtypeinfo.size();
-    // for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
+    // forHeaderUnitInfo (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
     for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS

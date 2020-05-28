@@ -2510,12 +2510,11 @@ struct PropData
 struct HeaderUnitInfo{
     float massdim, lengthdim, velocitydim, timedim, energydim;
     string extrainfo;
-    HeaderUnitInfo(float md = 0, float ld = 0, float vd = 0, float td = 0, float ed = 0, string s = ""){
+    HeaderUnitInfo(float md = 0, float ld = 0, float vd = 0, float td = 0, string s = ""){
         massdim = md;
         lengthdim = ld;
         velocitydim = vd;
         timedim = td;
-        energydim = ed;
         extrainfo = s;
     };
     //Parse the string in the format massdim:lengthdim:velocitydim:timedim:energydim if only a string is passed
