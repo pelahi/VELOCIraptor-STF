@@ -542,8 +542,9 @@ Configuration options related to the bulk properties calculated.
 
     Thus to specify mass per unit time^2 and another entry with force, as an example, one would use a string of
         * "1:0:0:-2:,1:0:1:-1:,"
+
     This does require the input to be converted appropriately to match the units of mass, length, velocity, time.
-    This attribute information will be stored the attributes associated with the data set, similar to other fields. 
+    This attribute information will be stored the attributes associated with the data set, similar to other fields.
     One can also provide complex units with a string that will be stored in a attribute **Dimension_Extra_Info**
         * "cookies_per_person,"
 
@@ -584,9 +585,9 @@ Options related to the input and output units and cosmology.
     ``Mass_unit =``
         * Factor by which input mass unit is scaled, setting the internal code and output unit
     ``Gravity =``
-        * Gravity in the internal output units, that is should be set such that :math:`v^2=Gm/r`, where v,m,r are the internal velocity, mass and length units.
+        * Gravity in the internal output units, that is should be set such that :math:`v^2=Gm/r`, where v,m,r are the internal velocity, mass and length units. Note that this does not have to be provided as it will be calculated based on the output units (that indicate how they are converted to kpc, km/s etc) and the gravitational constant of 6.67430e-11 kg^-1 m^3 / s^2. A warning will be given if the provided gravitational constant differs significantly from the expected value given the output.
     ``Hubble_unit =``
-        * Unit of Hubble expansion in internal output units (from normal km/s/Mpc use 100). This is ignored if non-cosmological input
+        * Unit of Hubble expansion in internal output units (from normal km/s/Mpc use 100). Like the gravitational constant, this does not have to be provided as it will be calculated from the output units. A warning will be given if provided value differs significantly from the expected value given the output. This is ignored if non-cosmological input
     ``Mass_value =``
         * If code is compiled not to store mass using the option **NOMASS** (see :ref:`compileoptions`) then set this value.
     ``Length_unit_to_kpc =``
@@ -654,10 +655,10 @@ Options related to MPI/OpenMP/Pthread parallelisation.
         * Number of mpi tasks that are grouped for collective HDF5 writes is parallel HDF5 is enabled. Net result is that the total number of files written is ceiling(Number of MPI tasks)/(Number of tasks per write)
     ``MPI_use_zcurve_mesh_decomposition = 1/0``
         * Whether to use a z-curve spatial decomposition (advised). Default is true
-    ``MPI_zcurve_mesh_decomposition_min_num_cells_per_dim = ``
+    ``MPI_zcurve_mesh_decomposition_min_num_cells_per_dim =``
         * Minimum number of cells per dimension from which to construct a mesh used in the z-curve decomposition. Min number is 8. Code does use
         number of processors to scale mesh resolution using NProcs^(1/3)*2 if > 8. For zooms, advised to set this to a high value corresponding to
-        the order of a few times Lbox/Zoom_region_length. 
+        the order of a few times Lbox/Zoom_region_length.
 
 .. _config_openmp:
 
