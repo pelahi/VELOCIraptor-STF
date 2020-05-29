@@ -76,12 +76,7 @@ typedef short short_mpi_t;
 #define MPI_Int_t MPI_INT
 #define MPI_UInt_t MPI_UNSIGNED
 #endif
-#ifdef SINGLEPRECISION
-#define MPI_Real_t MPI_FLOAT
-#else
 #define MPI_Real_t MPI_DOUBLE
-#endif
-
 //@}
 
 /// \name definitions for MPI message flags
