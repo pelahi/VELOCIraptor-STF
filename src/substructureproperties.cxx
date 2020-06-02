@@ -3936,14 +3936,14 @@ void CalcConcentration(PropData &p)
 
 double CalcConcentrationRootFinding(double rratio, double tol)
 {
-
+    if (rratio>=MAXNFWRHALFRATIO) return -1.0;
     int status;
     int iter = 0, max_iter = 100;
     const gsl_root_fsolver_type *T;
     gsl_root_fsolver *s;
     double cval = 2.3;
     //start point for concentration
-    double x_lo = 1.0, x_hi = 1000.0;
+    double x_lo = 0.0, x_hi = 1000.0;
     gsl_function F;
     F.function = &mycNFWRhalf;
     F.params = &rratio;
@@ -4768,8 +4768,8 @@ double mycNFWRhalf(double c, void *params)
 {
   double *p = (double*) params;
   Double_t RhalfRvir=*p;
-  Double_t b = c*RhalfRvir;
-  return log(1.0+b)-b/(1.0+b)-0.5*(log(1.0+c)-c/(1.0+c));
+  Double_t a = c*RhalfRvir;
+  return (log(1.0+a)-a/(1.0+a))-0.5*(log(1.0+c)-c/(1.0+c));
 }
 //@}
 

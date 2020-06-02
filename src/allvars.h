@@ -278,6 +278,14 @@ typedef double (*ExtraPropFunc)(double, double, double&);
 #define PROPMORPHMINNUM 10
 //@}
 
+/// \defgroup PROPERTYCONSTANTS Useful constants related to calculating properties
+//@{
+/// if halo follows NFW profile, maximum ratio of half mass to virial mass one might
+/// expect for R200 (assuming the scale radius is inside this radius, giving a c>=1) 
+#define MAXNFWRHALFRATIO 0.60668
+//@}
+
+
 ///\name halo id modifers used with current snapshot value to make temporally unique halo identifiers
 #ifdef LONGINT
 #define HALOIDSNVAL 1000000000000L
