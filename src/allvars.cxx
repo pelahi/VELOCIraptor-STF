@@ -112,6 +112,12 @@ void PropData::WriteBinary(fstream &Fout, Options&opt){
     Fout.write((char*)&val,sizeof(val));
     val=gRmaxvel;
     Fout.write((char*)&val,sizeof(val));
+    val=gRhalf200m;
+    Fout.write((char*)&val,sizeof(val));
+    val=gRhalf200c;
+    Fout.write((char*)&val,sizeof(val));
+    val=gRhalfBN98;
+    Fout.write((char*)&val,sizeof(val));
 
     val=gmaxvel;
     Fout.write((char*)&val,sizeof(val));
@@ -840,6 +846,9 @@ void PropData::WriteAscii(fstream &Fout, Options&opt){
     Fout<<gRBN98<<" ";
     Fout<<gRhalfmass<<" ";
     Fout<<gRmaxvel<<" ";
+    Fout<<gRhalf200m<<" ";
+    Fout<<gRhalf200c<<" ";
+    Fout<<gRhalfBN98<<" ";
     Fout<<gmaxvel<<" ";
     Fout<<gsigma_v<<" ";
     for (int k=0;k<3;k++) for (int n=0;n<3;n++) Fout<<gveldisp(k,n)<<" ";
@@ -1480,6 +1489,9 @@ PropDataHeader::PropDataHeader(Options&opt){
     headerdatainfo.push_back("R_BN98");
     headerdatainfo.push_back("R_HalfMass");
     headerdatainfo.push_back("Rmax");
+    headerdatainfo.push_back("R_HalfMass_200mean");
+    headerdatainfo.push_back("R_HalfMass_200crit");
+    headerdatainfo.push_back("R_HalfMass_BN98");
     //length
     sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(0,1));
     headerdatainfo.push_back("Vmax");

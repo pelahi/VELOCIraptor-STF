@@ -1396,6 +1396,9 @@ struct PropData
     Double_t gM200c,gR200c,gM200m,gR200m,gMFOF,gM6DFOF,gM500c,gR500c,gMBN98,gRBN98;
     //to store exclusive masses of halo ignoring substructure
     Double_t gMvir_excl,gRvir_excl,gM200c_excl,gR200c_excl,gM200m_excl,gR200m_excl,gMBN98_excl,gRBN98_excl;
+    //to store halfmass radii of overdensity masses
+    Double_t gRhalf200c,gRhalf200m,gRhalfBN98;
+
     //@}
     ///\name physical properties for shape/mass distribution
     //@{
@@ -1424,6 +1427,9 @@ struct PropData
     int stype;
     ///concentration (and related quantity used to calculate a concentration)
     Double_t cNFW, VmaxVvir2;
+    Double_t cNFW200c, cNFW200m, cNFWBN98;
+    /// if fitting mass profiles with generalized NFW
+    Double_t NFWfitrs, NFWfitalpha, NFWfitbeta;
     ///Bullock & Peebles spin parameters
     Double_t glambda_B,glambda_P;
     ///measure of rotational support
@@ -1764,6 +1770,8 @@ struct PropData
         gMFOF=gM6DFOF=0;
         gM500c=gR500c=0;
         gMBN98=gRBN98=0;
+        gRhalf200c = gRhalf200m = gRhalfBN98 = 0.;
+        cNFW200c = cNFW200c = cNFWBN98 = 0;
         gcm[0]=gcm[1]=gcm[2]=gcmvel[0]=gcmvel[1]=gcmvel[2]=0.;
         gJ[0]=gJ[1]=gJ[2]=0;
         gJ200m[0]=gJ200m[1]=gJ200m[2]=0;
@@ -2354,6 +2362,9 @@ struct PropData
         gR200m*=opt.h/opt.a;
         gR500c*=opt.h/opt.a;
         gRBN98*=opt.h/opt.a;
+        gRhalf200m*=opt.h/opt.a;
+        gRhalf200c*=opt.h/opt.a;
+        gRhalfBN98*=opt.h/opt.a;
         gMassTwiceRhalfmass*=opt.h;
         gRhalfmass*=opt.h/opt.a;
         gJ=gJ*opt.h*opt.h/opt.a;

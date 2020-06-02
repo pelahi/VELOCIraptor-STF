@@ -3928,19 +3928,25 @@ private(i,weight)
 ///calculate concentration. Note that we limit concentration to 1000 or so which means VmaxVvir2<=36
 void CalcConcentration(PropData &p)
 {
+    double tol = 1.0/sqrt((double)p.num);
+    p.cNFW = p.cNFW200c = CalcConcentrationRootFinding(p.gRhalf200c/p.gR200c, tol);
+    p.cNFW200m = CalcConcentrationRootFinding(p.gRhalf200m/p.gR200m, tol);
+    p.cNFWBN98 = CalcConcentrationRootFinding(p.gRhalfBN98/p.gRBN98, tol);
+}
+
+double CalcConcentrationRootFinding(double rratio, double tol)
+{
 
     int status;
     int iter = 0, max_iter = 100;
     const gsl_root_fsolver_type *T;
     gsl_root_fsolver *s;
     double cval = 2.3;
-    double VmaxVvir2= p.VmaxVvir2;
     //start point for concentration
-    double x_lo = 1.9, x_hi = 1000.0;
+    double x_lo = 1.0, x_hi = 1000.0;
     gsl_function F;
-    if (p.VmaxVvir2<=36) {
-    F.function = &mycNFW;
-    F.params = &VmaxVvir2;
+    F.function = &mycNFWRhalf;
+    F.params = &rratio;
     T = gsl_root_fsolver_brent;
     s = gsl_root_fsolver_alloc (T);
     gsl_root_fsolver_set (s, &F, x_lo, x_hi);
@@ -3951,15 +3957,11 @@ void CalcConcentration(PropData &p)
         cval = gsl_root_fsolver_root (s);
         x_lo = gsl_root_fsolver_x_lower (s);
         x_hi = gsl_root_fsolver_x_upper (s);
-        status = gsl_root_test_interval (x_lo, x_hi,1.0/sqrt((double)p.num),1.0/sqrt((double)p.num));
+        status = gsl_root_test_interval (x_lo, x_hi, tol, tol);
     }
     while (status == GSL_CONTINUE && iter < max_iter);
     gsl_root_fsolver_free (s);
-    p.cNFW=cval;
-    }
-    else {
-        p.cNFW=p.gR200c/p.gRmaxvel;
-    }
+    return cval;
 }
 
 //@}
@@ -4760,6 +4762,14 @@ double mycNFW_fdf(double c, void *params, double *y, double *dy)
   Double_t conec=c/(1.0+c);
   *y=(VmaxVvir2)-0.216*c/(log(1.0+c)-conec);
   *dy=0.216*conec*conec/c;
+}
+
+double mycNFWRhalf(double c, void *params)
+{
+  double *p = (double*) params;
+  Double_t RhalfRvir=*p;
+  Double_t b = c*RhalfRvir;
+  return log(1.0+b)-b/(1.0+b)-0.5*(log(1.0+c)-c/(1.0+c));
 }
 //@}
 
@@ -6430,13 +6440,13 @@ Int_t CalculateSphericalOverdensity(Options &opt, PropData &pdata,
     }
     fac=-log(4.0*M_PI/3.0);
     //now find radii matching SO density thresholds
-    #ifndef NOMASS
+#ifndef NOMASS
     EncMass=0;for (auto j=0;j<minnum;j++) EncMass+=masses[indices[j]];
     MinMass=masses[indices[0]];
-    #else
+#else
     EncMass=0;for (auto j=0;j<minnum;j++) EncMass+=opt.MassValue;
     MinMass=opt.MassValue;
-    #endif
+#endif
     rc=radii[indices[minnum-1]];
     llindex=radii.size();
     //store old radius, old enclosed mass and ln density
@@ -6515,6 +6525,27 @@ Int_t CalculateSphericalOverdensity(Options &opt, PropData &pdata,
     if (pdata.gM500c<MinMass) {pdata.gM500c=pdata.gR500c=0.0;}
     if (pdata.gMBN98<MinMass) {pdata.gMBN98=pdata.gRBN98=0.0;}
     for (auto iso=0;iso<opt.SOnum;iso++) if (pdata.SO_mass[iso]<MinMass) {pdata.SO_mass[iso]=pdata.SO_radius[iso]=0.0;}
+
+    // now that overdensity masses have been found, find half mass radii
+    for (auto j=0;j<radii.size();j++) {
+        rc=radii[indices[j]];
+#ifndef NOMASS
+        EncMass+=masses[indices[j]];
+#else
+        EncMass+=opt.MassValue;
+#endif
+        if (EncMass > 0.5*pdata.gM200c && pdata.gM200c > 0 && pdata.gRhalf200c == 0 ) {
+            pdata.gRhalf200c = rc;
+        }
+        if (EncMass > 0.5*pdata.gM200m && pdata.gM200m > 0 && pdata.gRhalf200m == 0 ) {
+            pdata.gRhalf200m = rc;
+        }
+        if (EncMass > 0.5*pdata.gMBN98 && pdata.gMBN98 > 0 && pdata.gRhalfBN98 == 0 ) {
+            pdata.gRhalfBN98 = rc;
+        }
+        if (pdata.gRhalf200c > 0 && pdata.gRhalf200m > 0 && pdata.gRhalfBN98 > 0) break;
+    }
+
     return llindex;
 }
 
@@ -6621,6 +6652,28 @@ Int_t CalculateSphericalOverdensity(Options &opt, PropData &pdata,
     if (pdata.gM500c<MinMass) {pdata.gM500c=pdata.gR500c=0.0;}
     if (pdata.gMBN98<MinMass) {pdata.gMBN98=pdata.gRBN98=0.0;}
     for (auto iso=0;iso<opt.SOnum;iso++) if (pdata.SO_mass[iso]<MinMass) {pdata.SO_mass[iso]=pdata.SO_radius[iso]=0.0;}
+
+    // now that overdensity masses have been found, find half mass radii
+    EncMass=0;
+    for (auto j=0;j<numingroup;j++) {
+        rc=Part[j].Radius();
+        massval=Part[j].GetMass();
+#ifdef NOMASS
+        massval=opt.MassValue;
+#endif
+        EncMass+=massval;
+        if (EncMass > 0.5*pdata.gM200c && pdata.gM200c > 0 && pdata.gRhalf200c == 0 ) {
+            pdata.gRhalf200c = rc;
+        }
+        if (EncMass > 0.5*pdata.gM200m && pdata.gM200m > 0 && pdata.gRhalf200m == 0 ) {
+            pdata.gRhalf200m = rc;
+        }
+        if (EncMass > 0.5*pdata.gMBN98 && pdata.gMBN98 > 0 && pdata.gRhalfBN98 == 0 ) {
+            pdata.gRhalfBN98 = rc;
+        }
+        if (pdata.gRhalf200c > 0 && pdata.gRhalf200m > 0 && pdata.gRhalfBN98 > 0) break;
+    }
+
     return llindex;
 }
 
@@ -6660,12 +6713,35 @@ void CalculateSphericalOverdensitySubhalo(Options &opt, PropData &pdata,
         if (pdata.gR200m!=0&& pdata.gR200c!=0&&pdata.gRvir!=0&&pdata.gR500c!=0&&pdata.gRBN98!=0&&iSOfound==opt.SOnum) {
             break;
         }
-    #ifdef NOMASS
+#ifdef NOMASS
         EncMass-=opt.MassValue;
-    #else
+#else
         EncMass-=Pval->GetMass();
-    #endif
+#endif
     }
+
+    // now that overdensity masses have been found, find half mass radii
+    EncMass=0;
+    for (auto j=0;j<numingroup;j++) {
+        Pval=&Part[j];
+        rc=Part[j].Radius();
+#ifdef NOMASS
+        EncMass+=opt.MassValue;
+#else
+        EncMass+=Pval->GetMass();
+#endif
+        if (EncMass > 0.5*pdata.gM200c && pdata.gM200c > 0 && pdata.gRhalf200c == 0 ) {
+            pdata.gRhalf200c = rc;
+        }
+        if (EncMass > 0.5*pdata.gM200m && pdata.gM200m > 0 && pdata.gRhalf200m == 0 ) {
+            pdata.gRhalf200m = rc;
+        }
+        if (EncMass > 0.5*pdata.gMBN98 && pdata.gMBN98 > 0 && pdata.gRhalfBN98 == 0 ) {
+            pdata.gRhalfBN98 = rc;
+        }
+        if (pdata.gRhalf200c > 0 && pdata.gRhalf200m > 0 && pdata.gRhalfBN98 > 0) break;
+    }
+
 }
 
 
