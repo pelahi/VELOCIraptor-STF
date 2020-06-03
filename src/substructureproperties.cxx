@@ -3937,7 +3937,7 @@ void CalcConcentration(PropData &p)
 double CalcConcentrationRootFinding(double rratio, double tol)
 {
     if (rratio >= NFWMAXRHALFRATIO) return -1.0;
-    else if (rratio <= NFWMINHALFRATIO) return -1.0;
+    else if (rratio <= NFWMINRHALFRATIO) return -1.0;
     int status;
     int iter = 0, max_iter = 100;
     const gsl_root_fsolver_type *T;
