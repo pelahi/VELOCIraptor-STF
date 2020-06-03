@@ -437,7 +437,12 @@ This cleans the (sub)structures of spurious objects and particles.
         * Maximum fraction of particles that can be considered unbound before group removed entirely and is not processed iteratively.
     ``Unbinding_max_unbound_fraction_allowed = 0.005``
         * Maximum fraction of unbound particles allowed after unbinding. If set to zero, all unbound particles removed.
-
+    ``Approximate_potential_calculation = 1/0``
+        * Calculate potentials using significantly faster approximate method (which with standard settings has an erorr 1e-3). Default is 0 (off).
+    ``Approximate_potential_calculation_particle_number_fraction = 0.1``
+        * Use 0.1 of all particles in object to calculate gravitational potential (values of <0.01 can lead to larger errors, values of >0.2 cause calculation to not be significantly faster than standard calculation).
+    ``Approximate_potential_calculation_min_particle = 5000``
+        * Use a minimum of 5000 particles in approximate method. Approximate method should only be used for well resolved objects as error increases with less well resolved objects and the speed up is not as significant.
 
 .. _config_properties:
 
@@ -539,7 +544,6 @@ Configuration options related to the bulk properties calculated.
         * Length (where conversion to kpc provided can be used to convert output to known units)
         * Velocity (where conversion to km/s provided can be used to convert output to known units)
         * Time (where conversion to Gyrs provided can be used to convert output to known units)
-
     Thus to specify mass per unit time^2 and another entry with force, as an example, one would use a string of
         * "1:0:0:-2:,1:0:1:-1:,"
 

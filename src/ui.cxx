@@ -878,6 +878,14 @@ void GetParamFile(Options &opt)
                         opt.uinfo.maxallowedunboundfrac = atof(vbuff);
                     else if (strcmp(tbuff, "Softening_length")==0)
                         opt.uinfo.eps = atof(vbuff);
+                    else if (strcmp(tbuff, "Approximate_potential_calculation")==0)
+                        opt.uinfo.iapproxpot = atoi(vbuff);
+                    else if (strcmp(tbuff, "Approximate_potential_calculation_particle_number_fraction")==0)
+                        opt.uinfo.approxpotnumfrac = atof(vbuff);
+                    else if (strcmp(tbuff, "Approximate_potential_calculation_min_particle_number")==0)
+                        opt.uinfo.approxpotminnum = atoi(vbuff);
+                    else if (strcmp(tbuff, "Approximate_potential_calculation_method")==0)
+                        opt.uinfo.approxpotmethod = atoi(vbuff);
 
                     //property related
                     else if (strcmp(tbuff, "Reference_frame_for_properties")==0)
@@ -1771,6 +1779,14 @@ void ConfigCheck(Options &opt)
         ConfigExit();
     }
 #endif
+#ifdef NOMASS
+    if (opt.MassValue<=0) {
+        errormessage("Code compiled to not store mass per particle. Valid Mass_value in the config must be passed. Currently value <=0. Update config file");
+        ConfigExit();
+    }
+#else
+    opt.MassValue = 1.0;
+#endif
 
     //check gravity and hubble unit
     double gravity, hubunit;
@@ -1794,7 +1810,6 @@ void ConfigCheck(Options &opt)
             errormessage("Value passed: "+to_string(opt.H));
         }
     }
-
 
 #ifdef USEMPI
     if (opt.minnumcellperdim<8){
@@ -1988,6 +2003,20 @@ void ConfigCheck(Options &opt)
     if (opt.extra_dm_internalprop_names.size() != opt.extra_dm_internalprop_index.size()){
         errormessage("Extra_DM: # of Internal Property names does not the # of index in file entries. Check config.");
         ConfigExit();
+    }
+    if (opt.uinfo.iapproxpot) {
+        if (opt.uinfo.approxpotnumfrac <=0) {
+            errormessage("Calculating approximate potential but fraction of particles <=0. Check config.");
+            ConfigExit();
+        }
+        if (opt.uinfo.approxpotminnum <=0) {
+            errormessage("Calculating approximate potential but min number of particles to use <=0. Check config.");
+            ConfigExit();
+        }
+        if (opt.uinfo.approxpotmethod < POTAPPROXMETHODTREE || opt.uinfo.approxpotmethod > POTAPPROXMETHODRAND) {
+            errormessage("In approximate potential but using invalid method for sampling particles. Use 0 for Tree and 1 for Rand. Check config.");
+            ConfigExit();
+        }
     }
 
     set<string> uniqueval;
@@ -2353,6 +2382,10 @@ ConfigInfo::ConfigInfo(Options &opt){
     AddEntry("Unbinding_max_unbound_fraction", opt.uinfo.maxunboundfracforiterativeunbind);
     AddEntry("Unbinding_max_unbound_fraction_allowed", opt.uinfo.maxallowedunboundfrac);
     AddEntry("Softening_length", opt.uinfo.eps);
+    AddEntry("Approximate_potential_calculation", opt.uinfo.iapproxpot);
+    AddEntry("Approximate_potential_calculation_particle_number_fraction", opt.uinfo.approxpotnumfrac);
+    AddEntry("Approximate_potential_calculation_min_particle", opt.uinfo.approxpotminnum);
+    AddEntry("Approximate_potential_calculation_method", opt.uinfo.approxpotmethod);
 
     //property related
     AddEntry("Inclusive_halo_masses", opt.iInclusiveHalo);

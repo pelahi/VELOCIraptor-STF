@@ -280,6 +280,11 @@ int Unbind(Options &opt, Particle *Part, Int_t &numgroups, Int_t *&numingroup, I
 ///calculate the potential of an array of particles
 void Potential(Options &opt, Int_t nbodies, Particle *Part, Double_t *potV);
 void Potential(Options &opt, Int_t nbodies, Particle *Part);
+void ParticleSubSample(Options &opt, const Int_t nbodies, Particle *&Part,
+    Int_t &newnbodies, Particle *&newpart, double &mr);
+void PotentialTree(Options &opt, Int_t nbodies, Particle *&Part, KDTree* &tree);
+void PotentialInterpolate(Options &opt, const Int_t nbodies, Particle *&Part, Particle *&interolateparts, KDTree *&tree, double massratio, int nsearch);
+
 void PotentialPP(Options &opt, Int_t nbodies, Particle *Part);
 //@}
 
