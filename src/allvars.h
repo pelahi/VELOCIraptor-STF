@@ -281,8 +281,9 @@ typedef double (*ExtraPropFunc)(double, double, double&);
 /// \defgroup PROPERTYCONSTANTS Useful constants related to calculating properties
 //@{
 /// if halo follows NFW profile, maximum ratio of half mass to virial mass one might
-/// expect for R200 (assuming the scale radius is inside this radius, giving a c>=1) 
-#define MAXNFWRHALFRATIO 0.60668
+/// expect for R200 (assuming the scale radius is inside this radius, giving a c>=1)
+#define NFWMAXRHALFRATIO 0.60668
+#define NFWMINRHALFRATIO 0.01
 //@}
 
 

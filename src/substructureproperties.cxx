@@ -3928,22 +3928,23 @@ private(i,weight)
 ///calculate concentration. Note that we limit concentration to 1000 or so which means VmaxVvir2<=36
 void CalcConcentration(PropData &p)
 {
-    // double tol = 1.0/sqrt((double)p.num);
-    // p.cNFW = p.cNFW200c = CalcConcentrationRootFinding(p.gRhalf200c/p.gR200c, tol);
-    // p.cNFW200m = CalcConcentrationRootFinding(p.gRhalf200m/p.gR200m, tol);
-    // p.cNFWBN98 = CalcConcentrationRootFinding(p.gRhalfBN98/p.gRBN98, tol);
+    double tol = 1.0/sqrt((double)p.num);
+    p.cNFW = p.cNFW200c = CalcConcentrationRootFinding(p.gRhalf200c/p.gR200c, tol);
+    p.cNFW200m = CalcConcentrationRootFinding(p.gRhalf200m/p.gR200m, tol);
+    p.cNFWBN98 = CalcConcentrationRootFinding(p.gRhalfBN98/p.gRBN98, tol);
 }
 
 double CalcConcentrationRootFinding(double rratio, double tol)
 {
-    if (rratio>=MAXNFWRHALFRATIO) return -1.0;
+    if (rratio >= NFWMAXRHALFRATIO) return -1.0;
+    else if (rratio <= NFWMINHALFRATIO) return -1.0;
     int status;
     int iter = 0, max_iter = 100;
     const gsl_root_fsolver_type *T;
     gsl_root_fsolver *s;
     double cval = 2.3;
     //start point for concentration
-    double x_lo = 0.1, x_hi = 1000.0;
+    double x_lo = 0.1, x_hi = 10000.0;
     gsl_function F;
     F.function = &mycNFWRhalf;
     F.params = &rratio;
