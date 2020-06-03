@@ -973,7 +973,7 @@ struct Options
         virlevel = -1;
         comove=0;
         H=100.0;//value of Hubble flow in h 1 km/s/Mpc
-        MassValue=1.0;
+        MassValue=-1.0;
 
         inputtype=IOGADGET;
 
