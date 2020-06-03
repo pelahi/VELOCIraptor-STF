@@ -6527,6 +6527,7 @@ Int_t CalculateSphericalOverdensity(Options &opt, PropData &pdata,
     for (auto iso=0;iso<opt.SOnum;iso++) if (pdata.SO_mass[iso]<MinMass) {pdata.SO_mass[iso]=pdata.SO_radius[iso]=0.0;}
 
     // now that overdensity masses have been found, find half mass radii
+    EncMass = 0;
     for (auto j=0;j<radii.size();j++) {
         rc=radii[indices[j]];
 #ifndef NOMASS
