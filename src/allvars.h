@@ -241,6 +241,10 @@ typedef double (*ExtraPropFunc)(double, double, double&);
 #define UNBINDNUM 150
 #define POTPPCALCNUM 150
 #define POTOMPCALCNUM 1000
+///diferent methods for calculating approximate potential
+#define POTAPPROXMETHODTREE 0
+#define POTAPPROXMETHODRAND 1
+
 ///when unbinding check to see if system is bound and least bound particle is also bound
 #define USYSANDPART 0
 ///when unbinding check to see if least bound particle is also bound
@@ -336,6 +340,14 @@ struct UnbindInfo
     Double_t TreeThetaOpen;
     ///softening length
     Double_t eps;
+    ///whether to calculate approximate potential energy
+    int iapproxpot;
+    ///fraction of particles to subsample
+    Double_t approxpotnumfrac;
+    ///fraction of particles to subsample
+    Double_t approxpotminnum;
+    ///method of subsampling to calculate potential
+    int approxpotmethod;
     //@}
     UnbindInfo(){
         icalculatepotential=true;
@@ -354,6 +366,10 @@ struct UnbindInfo
         maxunbindfrac=0.5;
         maxunboundfracforiterativeunbind=0.95;
         maxallowedunboundfrac=0.025;
+        iapproxpot = 0;
+        approxpotnumfrac = 0.1;
+        approxpotminnum = 5000;
+        approxpotmethod = POTAPPROXMETHODTREE;
     }
 };
 
