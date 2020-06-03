@@ -1694,6 +1694,7 @@ struct PropData
     //@{
     vector<int> aperture_npart_bh;
     vector<float> aperture_mass_bh;
+    vector<Coordinate> aperture_mass_proj_bh;
     vector<Coordinate> aperture_L_bh;
     //@}
 
@@ -1716,6 +1717,7 @@ struct PropData
 
     vector<unsigned int> aperture_npart_interloper;
     vector<float> aperture_mass_interloper;
+    vector<Coordinate> aperture_mass_proj_interloper;
     vector<unsigned int> profile_npart_interloper;
     vector<unsigned int> profile_npart_inclusive_interloper;
     vector<float> profile_mass_interloper;
@@ -2194,7 +2196,12 @@ struct PropData
             aperture_rhalfmass_proj_star.resize(opt.apertureprojnum);
             aperture_Z_proj_star.resize(opt.apertureprojnum);
 #endif
-
+#ifdef BHON
+            aperture_mass_proj_bh.resize(opt.apertureprojnum);
+#endif
+#ifdef HIGHRES
+            aperture_mass_proj_interloper.resize(opt.apertureprojnum);
+#endif
             for (auto &x:aperture_mass_proj) x[0]=x[1]=x[2]=-1;
             for (auto &x:aperture_rhalfmass_proj) x[0]=x[1]=x[2]=-1;
 #ifdef GASON
@@ -2215,6 +2222,12 @@ struct PropData
             for (auto &x:aperture_mass_proj_star) x[0]=x[1]=x[2]=-1;
             for (auto &x:aperture_rhalfmass_proj_star) x[0]=x[1]=x[2]=-1;
             for (auto &x:aperture_Z_proj_star) x[0]=x[1]=x[2]=-1;
+#endif
+#ifdef BHON
+            for (auto &x:aperture_mass_proj_bh) x[0]=x[1]=x[2]=-1;
+#endif
+#ifdef HIGHRES
+            for (auto &x:aperture_mass_proj_interloper) x[0]=x[1]=x[2]=-1;
 #endif
         }
     }
