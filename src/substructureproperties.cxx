@@ -6577,13 +6577,16 @@ Int_t CalculateSphericalOverdensity(Options &opt, PropData &pdata,
         EncMass += massval;
         gamma1 = (rc - oldrc)/massval;
         if (EncMass >= 0.5*pdata.gM200c && pdata.gM200c > 0 && pdata.gRhalf200c == 0 ) {
-            pdata.gRhalf200c = rc-gamma1*(EncMass - 0.5*pdata.gM200c);
+            pdata.gRhalf200c = rc - gamma1*(EncMass - 0.5*pdata.gM200c);
+            if (pdata.gRhalf200c <=0) pdata.gRhalf200c = rc;
         }
         if (EncMass >= 0.5*pdata.gM200m && pdata.gM200m > 0 && pdata.gRhalf200m == 0 ) {
-            pdata.gRhalf200m = rc-gamma1*(EncMass - 0.5*pdata.gM200m);
+            pdata.gRhalf200m = rc - gamma1*(EncMass - 0.5*pdata.gM200m);
+            if (pdata.gRhalf200m <=0) pdata.gRhalf200m = rc;
         }
         if (EncMass >= 0.5*pdata.gMBN98 && pdata.gMBN98 > 0 && pdata.gRhalfBN98 == 0 ) {
-            pdata.gRhalfBN98 = rc-gamma1*(EncMass - 0.5*pdata.gMBN98);
+            pdata.gRhalfBN98 = rc - gamma1*(EncMass - 0.5*pdata.gMBN98);
+            if (pdata.gRhalfBN98 <=0) pdata.gRhalfBN98 = rc;
         }
         oldrc = rc;
         if (pdata.gRhalf200c > 0 && pdata.gRhalf200m > 0 && pdata.gRhalfBN98 > 0) break;
@@ -6713,12 +6716,15 @@ Int_t CalculateSphericalOverdensity(Options &opt, PropData &pdata,
         gamma1 = (rc - oldrc)/massval;
         if (EncMass > 0.5*pdata.gM200c && pdata.gM200c > 0 && pdata.gRhalf200c == 0 ) {
             pdata.gRhalf200c = rc - gamma1*(EncMass - 0.5*pdata.gM200c);
+            if (pdata.gRhalf200c <=0) pdata.gRhalf200c = rc;
         }
         if (EncMass > 0.5*pdata.gM200m && pdata.gM200m > 0 && pdata.gRhalf200m == 0 ) {
             pdata.gRhalf200m = rc - gamma1*(EncMass - 0.5*pdata.gM200m);
+            if (pdata.gRhalf200m <=0) pdata.gRhalf200m = rc;
         }
         if (EncMass > 0.5*pdata.gMBN98 && pdata.gMBN98 > 0 && pdata.gRhalfBN98 == 0 ) {
             pdata.gRhalfBN98 = rc - gamma1*(EncMass - 0.5*pdata.gMBN98);
+            if (pdata.gRhalfBN98 <=0) pdata.gRhalfBN98 = rc;
         }
         oldrc = rc;
         if (pdata.gRhalf200c > 0 && pdata.gRhalf200m > 0 && pdata.gRhalfBN98 > 0) break;
@@ -6787,12 +6793,15 @@ void CalculateSphericalOverdensitySubhalo(Options &opt, PropData &pdata,
         gamma1 = (rc - oldrc)/massval;
         if (EncMass > 0.5*pdata.gM200c && pdata.gM200c > 0 && pdata.gRhalf200c == 0 ) {
             pdata.gRhalf200c = rc - gamma1*(EncMass - 0.5*pdata.gM200c);
+            if (pdata.gRhalf200c <=0) pdata.gRhalf200c = rc;
         }
         if (EncMass > 0.5*pdata.gM200m && pdata.gM200m > 0 && pdata.gRhalf200m == 0 ) {
             pdata.gRhalf200m = rc - gamma1*(EncMass - 0.5*pdata.gM200m);
+            if (pdata.gRhalf200m <=0) pdata.gRhalf200m = rc;
         }
         if (EncMass > 0.5*pdata.gMBN98 && pdata.gMBN98 > 0 && pdata.gRhalfBN98 == 0 ) {
             pdata.gRhalfBN98 = rc - gamma1*(EncMass - 0.5*pdata.gMBN98);
+            if (pdata.gRhalfBN98 <=0) pdata.gRhalfBN98 = rc;
         }
         oldrc = rc;
         if (pdata.gRhalf200c > 0 && pdata.gRhalf200m > 0 && pdata.gRhalfBN98 > 0) break;
