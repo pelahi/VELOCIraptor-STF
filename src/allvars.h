@@ -288,6 +288,7 @@ typedef double (*ExtraPropFunc)(double, double, double&);
 /// expect for R200 (assuming the scale radius is inside this radius, giving a c>=1)
 #define NFWMAXRHALFRATIO 0.60668
 #define NFWMINRHALFRATIO 0.01
+#define NFWMINVMAXVVIRRATIO 36.0
 //@}
 
 

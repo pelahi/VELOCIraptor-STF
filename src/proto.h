@@ -367,7 +367,10 @@ GMatrix CalcPhaseCM(const Int_t n, Particle *p, int itype=-1);
 
 ///get concentration routines associted with finding concentrations via root finding
 void CalcConcentration(PropData &p);
-double CalcConcentrationRootFinding(double , double);
+//root finding using half masses
+double CalcConcentrationRootFindingRhalf(double , double);
+//root finding using Vmax
+double CalcConcentrationRootFindingVmax(double , double);
 ///wrappers for root finding used to get concentration
 double mycNFW(double c, void *params);
 ///wrappers for root finding used to get concentration

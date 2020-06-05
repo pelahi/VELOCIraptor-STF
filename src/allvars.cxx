@@ -140,6 +140,12 @@ void PropData::WriteBinary(fstream &Fout, Options&opt){
 
     val=cNFW;
     Fout.write((char*)&val,sizeof(val));
+    val=cNFW200c;
+    Fout.write((char*)&val,sizeof(val));
+    val=cNFW200m;
+    Fout.write((char*)&val,sizeof(val));
+    val=cNFWBN98;
+    Fout.write((char*)&val,sizeof(val));
     val=Krot;
     Fout.write((char*)&val,sizeof(val));
     val=T;
@@ -858,6 +864,9 @@ void PropData::WriteAscii(fstream &Fout, Options&opt){
     Fout<<gs<<" ";
     for (int k=0;k<3;k++) for (int n=0;n<3;n++) Fout<<geigvec(k,n)<<" ";
     Fout<<cNFW<<" ";
+    Fout<<cNFW200c<<" ";
+    Fout<<cNFW200m<<" ";
+    Fout<<cNFWBN98<<" ";
     Fout<<Krot<<" ";
     Fout<<T<<" ";
     Fout<<Pot<<" ";
@@ -1526,6 +1535,9 @@ PropDataHeader::PropDataHeader(Options&opt){
     headerdatainfo.push_back("eig_zy");
     headerdatainfo.push_back("eig_zz");
     headerdatainfo.push_back("cNFW");
+    headerdatainfo.push_back("cNFW200c");
+    headerdatainfo.push_back("cNFW200m");
+    headerdatainfo.push_back("cNFWBN98");
     headerdatainfo.push_back("Krot");
     sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo());
     headerdatainfo.push_back("Ekin");
