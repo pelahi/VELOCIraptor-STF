@@ -1535,9 +1535,9 @@ PropDataHeader::PropDataHeader(Options&opt){
     headerdatainfo.push_back("eig_zy");
     headerdatainfo.push_back("eig_zz");
     headerdatainfo.push_back("cNFW");
-    headerdatainfo.push_back("cNFW200c");
-    headerdatainfo.push_back("cNFW200m");
-    headerdatainfo.push_back("cNFWBN98");
+    headerdatainfo.push_back("cNFW_200crit");
+    headerdatainfo.push_back("cNFW_200mean");
+    headerdatainfo.push_back("cNFW_BN98");
     headerdatainfo.push_back("Krot");
     sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo());
     headerdatainfo.push_back("Ekin");
