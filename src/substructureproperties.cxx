@@ -3975,7 +3975,7 @@ double CalcConcentrationRootFindingVmax(double VmaxVvir2, double tol)
     gsl_root_fsolver *s;
     double cval = 2.3;
     //start point for concentration
-    double x_lo = 1.01, x_hi = 1000.0;
+    double x_lo = 1.9, x_hi = 1000.0;
     gsl_function F;
     F.function = &mycNFW;
     F.params = &VmaxVvir2;
