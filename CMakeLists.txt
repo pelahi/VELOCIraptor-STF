@@ -292,7 +292,11 @@ if (VR_HDF5)
 	find_hdf5()
 endif()
 
-
+if (VR_ZOOM_SIM AND VR_NO_MASS)
+    message(FATAL_ERROR "VR compiled to not store mass and also compiled for zoom simulations.
+    These options are incompatible. Use one or the other.
+    Options are VR_ZOOM_SIM and VR_NO_MASS.")
+endif()
 
 # This provides us with the nbodylib library
 # We need to add it unless it was already added by somebody else
