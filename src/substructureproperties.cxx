@@ -3968,7 +3968,7 @@ double CalcConcentrationRootFindingRhalf(double rratio, double tol)
 
 double CalcConcentrationRootFindingVmax(double VmaxVvir2, double tol)
 {
-    if (VmaxVvir2 <= NFWMINVMAXVVIRRATIO) return -1;
+    if (VmaxVvir2 >= NFWMINVMAXVVIRRATIO) return -1;
     int status;
     int iter = 0, max_iter = 100;
     const gsl_root_fsolver_type *T;
