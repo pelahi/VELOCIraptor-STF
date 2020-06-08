@@ -3981,11 +3981,11 @@ double CalcConcentrationRootFindingVmax(double VmaxVvir2, double tol)
     F.params = &VmaxVvir2;
     T = gsl_root_fsolver_brent;
     s = gsl_root_fsolver_alloc (T);
-    gsl_root_fsolver_set (s, &F, x_lo, x_hi);
+    gsl_invoke(gsl_root_fsolver_set, s, &F, x_lo, x_hi);
     do
     {
         iter++;
-        status = gsl_root_fsolver_iterate (s);
+        gsl_invoke(gsl_root_fsolver_iterate, s);
         cval = gsl_root_fsolver_root (s);
         x_lo = gsl_root_fsolver_x_lower (s);
         x_hi = gsl_root_fsolver_x_upper (s);
@@ -4903,7 +4903,7 @@ Double_t CalcCosmicTime(Options &opt, Double_t a1, Double_t a2){
     params[6]=opt.w_de;
     F.function = &GetInvaH;
     F.params = (void*)params;
-    gsl_integration_qags (&F, a1, a2, 0, 1e-7, 1000, w, &result, &error);
+    gsl_invoke(gsl_integration_qags, &F, a1, a2, 0, 1e-7, 1000, w, &result, &error);
     gsl_integration_workspace_free (w);
     cosmictime = 1./(opt.h*opt.H*opt.velocitytokms/opt.lengthtokpc*1.02269032e-9)*result;
     return cosmictime;

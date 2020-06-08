@@ -851,7 +851,6 @@ void GetMemUsage(string callingfunction, bool printreport);
 void InitMemUsageLog(Options &opt);
 ///get a time
 double MyGetTime();
-
 //@}
 
 /// \name Compilation functions

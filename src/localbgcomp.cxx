@@ -145,8 +145,9 @@ void DetermineDenVRatioDistribution(Options &opt,const Int_t nbodies, Particle *
     int nthreads=1,tid;
     Double_t w;
     unsigned int ir;
+    const int MINBIN = 5;
     //to determine initial number of bins using modified Sturges' formula
-    nbins = ceil(log10((Double_t)nbodies)/log10(2.0)+1)*4;
+    nbins = max((int)ceil(log10((Double_t)nbodies)/log10(2.0)+1)*4, MINBIN);
 
     //deterrmine average, rmin,rmax and variance about mean
     rmin=rmax=Part[0].GetPotential();
@@ -234,7 +235,9 @@ void DetermineDenVRatioDistribution(Options &opt,const Int_t nbodies, Particle *
         //deltar=3.5*sdlow/pow(nbodies,1./3.);
         deltar=3.5*sqrt(sdlow*sdlow+sdhigh*sdhigh)/pow(npeak,1./3.);
         //nbins=ceil((rmax-rmin)/deltar+1);
-        nbins=round((rmax-rmin)/deltar+1);
+        nbins=round((rmax-rmin)/deltar+MINBIN);
+        //recalculate deltar
+        deltar = (rmax-rmin)/(double)nbins;
         W=GMatrix(nbins,nbins);
         rbin.resize(nbins);
         for (i=0;i<nbins;i++)rbin[i]=0;
