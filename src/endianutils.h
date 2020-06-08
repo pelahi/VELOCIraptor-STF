@@ -223,13 +223,8 @@ inline void InitEndian( void )
     LittleFloat = FloatNoSwap;
     BigDouble = DoubleSwap;
     LittleDouble = DoubleNoSwap;
-#ifdef SINGLEPRECISION
-    LittleDouble_t=FloatNoSwap;
-    BigDouble_t=FloatSwap;
-#else
     LittleDouble_t=DoubleNoSwap;
     BigDouble_t=DoubleSwap;
-#endif
 
 #ifdef GADGETDOUBLEPRECISION
     BigFLOAT= DoubleSwap;
@@ -270,13 +265,8 @@ inline void InitEndian( void )
     LittleFloat = FloatSwap;
     BigDouble = DoubleNoSwap;
     LittleDouble = DoubleSwap;
-#ifdef SINGLEPRECISION
-    LittleDouble_t=FloatSwap;
-    BigDouble_t=FloatNoSwap;
-#else
     LittleDouble_t=DoubleSwap;
     BigDouble_t=DoubleNoSwap;
-#endif
 #ifdef GADGETDOUBLEPRECISION
     BigFLOAT= DoubleNoSwap;
     LittleFLOAT = DoubleSwap;

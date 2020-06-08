@@ -373,12 +373,18 @@ GMatrix CalcPhaseCM(const Int_t n, Particle *p, int itype=-1);
 
 ///get concentration routines associted with finding concentrations via root finding
 void CalcConcentration(PropData &p);
+//root finding using half masses
+double CalcConcentrationRootFindingRhalf(double , double);
+//root finding using Vmax
+double CalcConcentrationRootFindingVmax(double , double);
 ///wrappers for root finding used to get concentration
 double mycNFW(double c, void *params);
 ///wrappers for root finding used to get concentration
 double mycNFW_deriv(double c, void *params);
 ///wrappers for root finding used to get concentration
 double mycNFW_fdf(double c, void *params, double*y,double *dy);
+///wrappers for root finding used to get concentration
+double mycNFWRhalf(double c, void *params);
 ///Calculate aperture quantities
 void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, PropData &pdata);
 ///determine the radial bin for calculating profiles
@@ -851,7 +857,6 @@ void GetMemUsage(string callingfunction, bool printreport);
 void InitMemUsageLog(Options &opt);
 ///get a time
 double MyGetTime();
-
 //@}
 
 /// \name Compilation functions

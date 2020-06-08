@@ -1795,6 +1795,14 @@ void ConfigCheck(Options &opt)
         ConfigExit();
     }
 #endif
+#ifdef NOMASS
+    if (opt.MassValue<=0) {
+        errormessage("Code compiled to not store mass per particle. Valid Mass_value in the config must be passed. Currently value <=0. Update config file");
+        ConfigExit();
+    }
+#else
+    opt.MassValue = 1.0;
+#endif
 
     //check gravity and hubble unit
     double gravity, hubunit;
@@ -1818,7 +1826,6 @@ void ConfigCheck(Options &opt)
             errormessage("Value passed: "+to_string(opt.H));
         }
     }
-
 
 #ifdef USEMPI
     if (opt.minnumcellperdim<8){
