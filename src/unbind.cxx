@@ -806,10 +806,8 @@ private(i,j,k,n,maxE,maxunbindsize,nEplus,nEplusid,Eplusflag,v2,Ti,unbindcheck,E
 #endif
     for (i=1;i<=numgroups;i++) if (numingroup[i]<ompunbindnum && numingroup[i]>0)
     {
-        maxE=-MAXVALUE;
-        nEplus=0;
-        Efrac=0.;
         unbindloops=0;
+        oldnumingroup = numingroup[i];
         GetBoundFractionAndMaxE(opt, numingroup[i], gPart[i], cmvel[i], Efrac, maxE,nunbound);
         if (nunbound>=opt.uinfo.maxunboundfracforiterativeunbind*numingroup[i]) {
             for (j=0;j<numingroup[i];j++) pfof[pglist[i][j]]=0;
