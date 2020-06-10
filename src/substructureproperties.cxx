@@ -3952,10 +3952,11 @@ double CalcConcentrationRootFindingRhalf(double rratio, double tol)
     T = gsl_root_fsolver_brent;
     s = gsl_root_fsolver_alloc (T);
     gsl_root_fsolver_set (s, &F, x_lo, x_hi);
+    gsl_invoke(gsl_root_fsolver_set, s, &F, x_lo, x_hi);
     do
     {
         iter++;
-        status = gsl_root_fsolver_iterate (s);
+        gsl_invoke(gsl_root_fsolver_iterate, s);
         cval = gsl_root_fsolver_root (s);
         x_lo = gsl_root_fsolver_x_lower (s);
         x_hi = gsl_root_fsolver_x_upper (s);
