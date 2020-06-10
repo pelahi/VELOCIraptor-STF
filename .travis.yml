@@ -60,7 +60,7 @@ matrix:
      apt:
       sources: ubuntu-toolchain-r-test
       packages: [g++-5, libhdf5-dev, hdf5-tools, libgsl0-dev]
-    env: COMPILER=g++-5 USEGAS=1 USESTARS=1 USEBH=1
+    env: COMPILER=g++-5 USEGAS=1 USESTARS=1 USEBH=1 NOMPI=1
   - compiler: gcc
     addons:
      apt:
@@ -71,14 +71,44 @@ matrix:
     addons:
      apt:
       sources: ubuntu-toolchain-r-test
+      packages: [g++-5, libhdf5-dev, hdf5-tools, libgsl0-dev]
+    env: COMPILER=g++-5 USEEXTRADM=1 NOMPI=1
+  - compiler: gcc
+    addons:
+     apt:
+      sources: ubuntu-toolchain-r-test
       packages: [g++-5, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
     env: COMPILER=g++-5 USESWIFT=1
   - compiler: gcc
     addons:
      apt:
       sources: ubuntu-toolchain-r-test
+      packages: [g++-5, libhdf5-dev, hdf5-tools, libgsl0-dev]
+    env: COMPILER=g++-5 USESWIFT=1 NOMPI=1
+  - compiler: gcc
+    addons:
+     apt:
+      sources: ubuntu-toolchain-r-test
       packages: [g++-5, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
     env: COMPILER=g++-5 NOMASS=1
+  - compiler: gcc
+    addons:
+     apt:
+      sources: ubuntu-toolchain-r-test
+      packages: [g++-5, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
+    env: COMPILER=g++-5 ZOOMSIM=1
+  - compiler: gcc
+    addons:
+     apt:
+      sources: ubuntu-toolchain-r-test
+      packages: [g++-5, libhdf5-dev, hdf5-tools, libgsl0-dev]
+    env: COMPILER=g++-5 NOMASS=1 NOMPI=1
+  - compiler: gcc
+    addons:
+     apt:
+      sources: ubuntu-toolchain-r-test
+      packages: [g++-5, libhdf5-dev, hdf5-tools, libgsl0-dev]
+    env: COMPILER=g++-5 ZOOMSIM=1 NOMPI=1
   - compiler: gcc
     addons:
      apt:
@@ -91,6 +121,20 @@ matrix:
       sources: ubuntu-toolchain-r-test
       packages: [g++-7, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
     env: COMPILER=g++-7
+  - compiler: gcc
+    dist: bionic
+    addons:
+     apt:
+      sources: ubuntu-toolchain-r-test
+      packages: [g++-7, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
+    env: COMPILER=g++-7 GSL22=1
+  - compiler: gcc
+    dist: bionic
+    addons:
+     apt:
+      sources: ubuntu-toolchain-r-test
+      packages: [g++-7, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
+    env: COMPILER=g++-7 GSL22=1 USESWIFT=1
 
 # We "source" it because it exports variables
 before_install:

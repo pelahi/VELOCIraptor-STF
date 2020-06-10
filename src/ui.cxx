@@ -317,7 +317,7 @@ inline void ConfigExit() {
 
 inline string ExtraFieldIndexName(unsigned int i){
     string s = "";
-    if (i>0) s ="_index_"+to_string(i);
+    s ="_index_"+to_string(i);
     return s;
 }
 
@@ -497,7 +497,6 @@ inline void ExtraFieldCheck(string configentryname,
     indices.clear();
     units.clear();
     conversions.clear();
-    cout<<nentries<<endl;
     for (auto i=0;i<nentries;i++) {
         if (newcalctypes[i] >0) {
             names.push_back(newnames[i]);
@@ -521,7 +520,7 @@ inline void ExtraFieldCheck(string configentryname,
         calctype = calctypes[i];
         pairindices[i] = i;
         outputfieldname = names[i]+ExtraFieldIndexName(entryindex)
-            +string("_")+calcinttostring[calctype]+string("_")+units[i];
+            +string("_")+calcinttostring[calctype];//+string("_")+units[i];
         output_names.push_back(outputfieldname);
     }
     for (auto i=0;i<calctypes.size();i++) {
@@ -540,7 +539,7 @@ inline void ExtraFieldCheck(string configentryname,
         entryindex = indices_aperture[i];
         calctype = calctypes_aperture[i];
         outputfieldname = names_aperture[i]+ExtraFieldIndexName(entryindex)
-            +string("_")+calcinttostring[calctype]+string("_")+units[i];
+            +string("_")+calcinttostring[calctype];//+string("_")+units_aperture[i];
         output_names_aperture.push_back(outputfieldname);
     }
 }
@@ -879,6 +878,14 @@ void GetParamFile(Options &opt)
                         opt.uinfo.maxallowedunboundfrac = atof(vbuff);
                     else if (strcmp(tbuff, "Softening_length")==0)
                         opt.uinfo.eps = atof(vbuff);
+                    else if (strcmp(tbuff, "Approximate_potential_calculation")==0)
+                        opt.uinfo.iapproxpot = atoi(vbuff);
+                    else if (strcmp(tbuff, "Approximate_potential_calculation_particle_number_fraction")==0)
+                        opt.uinfo.approxpotnumfrac = atof(vbuff);
+                    else if (strcmp(tbuff, "Approximate_potential_calculation_min_particle_number")==0)
+                        opt.uinfo.approxpotminnum = atoi(vbuff);
+                    else if (strcmp(tbuff, "Approximate_potential_calculation_method")==0)
+                        opt.uinfo.approxpotmethod = atoi(vbuff);
 
                     //property related
                     else if (strcmp(tbuff, "Reference_frame_for_properties")==0)
@@ -983,6 +990,10 @@ void GetParamFile(Options &opt)
                         opt.mpipartfac = atof(vbuff);
                     else if (strcmp(tbuff, "MPI_number_of_tasks_per_write")==0)
                         opt.mpinprocswritesize = atoi(vbuff);
+                    else if (strcmp(tbuff, "MPI_use_zcurve_mesh_decomposition")==0)
+                        opt.impiusemesh = (atoi(vbuff)>0);
+                    else if (strcmp(tbuff, "MPI_zcurve_mesh_decomposition_min_num_cells_per_dim")==0)
+                        opt.minnumcellperdim = atoi(vbuff);
                     ///OpenMP related
                     else if (strcmp(tbuff, "OMP_run_fof")==0)
                         opt.iopenmpfof = atoi(vbuff);
@@ -1768,8 +1779,43 @@ void ConfigCheck(Options &opt)
         ConfigExit();
     }
 #endif
+#ifdef NOMASS
+    if (opt.MassValue<=0) {
+        errormessage("Code compiled to not store mass per particle. Valid Mass_value in the config must be passed. Currently value <=0. Update config file");
+        ConfigExit();
+    }
+#else
+    opt.MassValue = 1.0;
+#endif
+
+    //check gravity and hubble unit
+    double gravity, hubunit;
+    gravity = CalcGravitationalConstant(opt);
+    hubunit = CalcHubbleUnit(opt);
+    if (opt.G<=0) opt.G = gravity;
+    else {
+        auto diff = fabs(gravity-opt.G)/opt.G;
+        if (diff>1e-2) {
+            errormessage("WARNING: Configuration provides gravitational constant that differs from the default by more than 1%.");
+            errormessage("Expecation: "+to_string(gravity));
+            errormessage("Value passed: "+to_string(opt.G));
+        }
+    }
+    if (opt.H<=0) opt.H = hubunit;
+    else {
+        auto diff = fabs(hubunit-opt.H)/opt.H;
+        if (diff>1e-2) {
+            errormessage("WARNING: Configuration provides hubble units that differs from the default by more than 1%.");
+            errormessage("Expecation: "+to_string(hubunit));
+            errormessage("Value passed: "+to_string(opt.H));
+        }
+    }
 
 #ifdef USEMPI
+    if (opt.minnumcellperdim<8){
+        errormessage("MPI mesh too coarse, minimum number of cells per dimension from which to produce z-curve decomposition is 8. Resetting to 8.");
+        opt.minnumcellperdim = 8;
+    }
     if (opt.mpiparticletotbufsize<(long int)(sizeof(Particle)*NProcs) && opt.mpiparticletotbufsize!=-1){
         errormessage("Invalid input particle buffer send size, mininmum input buffer size given paritcle byte size "+to_string(sizeof(Particle))+" and have "+to_string(NProcs)+" mpi processes is "+to_string(sizeof(Particle)*NProcs));
         ConfigExit();
@@ -1790,16 +1836,16 @@ void ConfigCheck(Options &opt)
         errormessage("WARNING: MPI Particle allocation factor is high (>1).");
     }
     if (opt.mpinprocswritesize<1){
-        #ifdef USEPARALLELHDF
+#ifdef USEPARALLELHDF
         errormessage("WARNING: Number of MPI task writing collectively < 1. Setting to 1 .");
         opt.mpinprocswritesize = 1;
-        #endif
+#endif
     }
     if (opt.mpinprocswritesize>NProcs){
-        #ifdef USEPARALLELHDF
+#ifdef USEPARALLELHDF
         errormessage("WARNING: Number of MPI task writing collectively > NProcs. Setting to NProcs.");
         opt.mpinprocswritesize = NProcs;
-        #endif
+#endif
     }
 #endif
 
@@ -1957,6 +2003,20 @@ void ConfigCheck(Options &opt)
     if (opt.extra_dm_internalprop_names.size() != opt.extra_dm_internalprop_index.size()){
         errormessage("Extra_DM: # of Internal Property names does not the # of index in file entries. Check config.");
         ConfigExit();
+    }
+    if (opt.uinfo.iapproxpot) {
+        if (opt.uinfo.approxpotnumfrac <=0) {
+            errormessage("Calculating approximate potential but fraction of particles <=0. Check config.");
+            ConfigExit();
+        }
+        if (opt.uinfo.approxpotminnum <=0) {
+            errormessage("Calculating approximate potential but min number of particles to use <=0. Check config.");
+            ConfigExit();
+        }
+        if (opt.uinfo.approxpotmethod < POTAPPROXMETHODTREE || opt.uinfo.approxpotmethod > POTAPPROXMETHODRAND) {
+            errormessage("In approximate potential but using invalid method for sampling particles. Use 0 for Tree and 1 for Rand. Check config.");
+            ConfigExit();
+        }
     }
 
     set<string> uniqueval;
@@ -2185,6 +2245,9 @@ void ConfigCheck(Options &opt)
 #endif
     cout<<" -------------------------- "<<endl;
     }
+
+    //store the git hash
+    opt.git_sha1 = velociraptor::git_sha1();
 #ifdef USEMPI
     MPI_Barrier(MPI_COMM_WORLD);
 #endif
@@ -2195,6 +2258,9 @@ ConfigInfo::ConfigInfo(Options &opt){
     string datastring;
     //if compiler is super old and does not have at least std 11 implementation to_string does not exist
 #ifndef OLDCCOMPILER
+    //Add version
+    AddEntry("Git_revision", opt.git_sha1);
+
     //general search operations
     AddEntry("Particle_search_type", opt.partsearchtype);
     AddEntry("FoF_search_type", opt.foftype);
@@ -2316,6 +2382,10 @@ ConfigInfo::ConfigInfo(Options &opt){
     AddEntry("Unbinding_max_unbound_fraction", opt.uinfo.maxunboundfracforiterativeunbind);
     AddEntry("Unbinding_max_unbound_fraction_allowed", opt.uinfo.maxallowedunboundfrac);
     AddEntry("Softening_length", opt.uinfo.eps);
+    AddEntry("Approximate_potential_calculation", opt.uinfo.iapproxpot);
+    AddEntry("Approximate_potential_calculation_particle_number_fraction", opt.uinfo.approxpotnumfrac);
+    AddEntry("Approximate_potential_calculation_min_particle", opt.uinfo.approxpotminnum);
+    AddEntry("Approximate_potential_calculation_method", opt.uinfo.approxpotmethod);
 
     //property related
     AddEntry("Inclusive_halo_masses", opt.iInclusiveHalo);

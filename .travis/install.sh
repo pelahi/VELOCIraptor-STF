@@ -53,6 +53,12 @@ fi
 if [ "$NOMASS" = 1 ]; then
 	VR_CMAKE_OPTIONS+=" -DVR_NO_MASS=ON "
 fi
+if [ "$ZOOMSIM" = 1 ]; then
+	VR_CMAKE_OPTIONS+=" -DVR_ZOOM_SIM=ON "
+fi
+if [ "$NOMPI" = 1 ]; then
+	VR_CMAKE_OPTIONS+=" -DVR_MPI=OFF "
+fi
 
 # Go, go, go!
 cmake .. ${VR_CMAKE_OPTIONS} || fail "cmake failed"

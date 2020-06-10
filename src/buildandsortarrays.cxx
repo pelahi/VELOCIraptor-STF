@@ -135,21 +135,59 @@ Int_tree_t *BuildGroupTailArray(const Int_t nbodies, const Int_t numgroups, Int_
     return GTail;
 }
 ///build the group particle arrays need for unbinding procedure
-Particle **BuildPartList(Int_t numgroups, Int_t *numingroup, Int_t **pglist, Particle* Part){
+Particle **BuildPartList(Int_t numgroups, Int_t *numingroup, Int_t **pglist, Particle* Part,
+    bool ikeepextrainfo)
+{
     Particle **gPart=new Particle*[numgroups+1];
     gPart[0] = NULL;
-    for (Int_t i=1;i<=numgroups;i++) {
+    for (auto i=1;i<=numgroups;i++) {
         gPart[i] = NULL;
         if (numingroup[i]<=0) continue;
         gPart[i]=new Particle[numingroup[i]];
-        for (Int_t j=0;j<numingroup[i];j++) gPart[i][j]=Part[pglist[i][j]];
+        for (auto j=0;j<numingroup[i];j++) {
+            gPart[i][j]=Part[pglist[i][j]];
+#if defined(GASON) || defined(STARON) || defined(BHON) || defined(EXTRADMON)
+            if (ikeepextrainfo) continue;
+#endif
+#ifdef GASON
+            if (gPart[i][j].HasHydroProperties()) gPart[i][j].SetHydroProperties();
+#endif
+#ifdef STARON
+            if (gPart[i][j].HasStarProperties()) gPart[i][j].SetStarProperties();
+#endif
+#ifdef BHON
+            if (gPart[i][j].HasBHProperties()) gPart[i][j].SetBHProperties();
+#endif
+#ifdef EXTRADMON
+            if (gPart[i][j].HasExtraDMProperties()) gPart[i][j].SetExtraDMProperties();
+#endif
+        }
     }
     return gPart;
 }
 ///build a particle list subset using array of indices
-Particle *BuildPart(Int_t numingroup, Int_t *pglist, Particle* Part){
+Particle *BuildPart(Int_t numingroup, Int_t *pglist, Particle* Part,
+    bool ikeepextrainfo)
+{
     Particle *gPart=new Particle[numingroup+1];
-    for (Int_t j=0;j<numingroup;j++) gPart[j]=Part[pglist[j]];
+    for (auto j=0;j<numingroup;j++) {
+        gPart[j]=Part[pglist[j]];
+#if defined(GASON) || defined(STARON) || defined(BHON) || defined(EXTRADMON)
+            if (ikeepextrainfo) continue;
+#endif
+#ifdef GASON
+        if (gPart[j].HasHydroProperties()) gPart[j].SetHydroProperties();
+#endif
+#ifdef STARON
+        if (gPart[j].HasStarProperties()) gPart[j].SetStarProperties();
+#endif
+#ifdef BHON
+        if (gPart[j].HasBHProperties()) gPart[j].SetBHProperties();
+#endif
+#ifdef EXTRADMON
+        if (gPart[j].HasExtraDMProperties()) gPart[j].SetExtraDMProperties();
+#endif
+    }
     return gPart;
 }
 

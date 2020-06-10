@@ -238,33 +238,50 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     //if this flag is set, calculate localfield value here for particles possibly resident in a field structure
 #ifdef STRUCDEN
     if (numgroups>0 && (opt.iSubSearch==1&&opt.foftype!=FOF6DCORE)) {
-        numingroup=BuildNumInGroup(nbodies, numgroups, pfof);
+
         storetype=new Int_t[nbodies];
+        Int_t numinstrucs=0,numlocalden=0;
         for (i=0;i<nbodies;i++) storetype[i]=Part[i].GetType();
-        Int_t numinstrucs=0;
-        //if not searching all particle then searching for baryons associated with substructures, then set type to group value
-        //so that velocity density just calculated for particles in groups (type>0)
         if (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)) {
+// #ifdef HIGHRES
+//             numingroup=BuildNumInGroupTyped(nbodies,numgroups,pfof,Part.data(),DARKTYPE);
+//             for (i=0;i<nbodies;i++) {
+//                 if (Part[i].GetType()==DARKTYPE) Part[i].SetType(numingroup[pfof[Part[i].GetID()]]>=MINSUBSIZE);
+//                 else Part[i].SetType(-1);
+//                 numlocalden += (Part[i].GetType()>0);
+//             }
+//             delete[] numingroup;
+//             numingroup = NULL;
+// #else
+            numingroup=BuildNumInGroup(nbodies, numgroups, pfof);
             for (i=0;i<nbodies;i++) {
-                Part[i].SetType(numingroup[pfof[Part[i].GetID()]]>=MINSUBSIZE);
+                Part[i].SetType((numingroup[pfof[i]]>=MINSUBSIZE));
+                numlocalden += (Part[i].GetType()>0);
             }
+            if (opt.fofbgtype>FOF6D) {
+                delete[] numingroup;
+                numingroup = NULL;
+            }
+// #endif
         }
         //otherwise set type to group value for dark matter
         else {
+            numingroup=BuildNumInGroupTyped(nbodies,numgroups,pfof,Part.data(),DARKTYPE);
             for (i=0;i<nbodies;i++) {
                 if (Part[i].GetType()==DARKTYPE) Part[i].SetType(numingroup[pfof[Part[i].GetID()]]>=MINSUBSIZE);
                 else Part[i].SetType(-1);
+                numlocalden += (Part[i].GetType()>0);
             }
+            delete[] numingroup;
+            numingroup = NULL;
         }
-        for (i=0;i<nbodies;i++) if (Part[i].GetType()>0) numinstrucs++;
+        for (i=0;i<nbodies;i++) {numinstrucs+=(pfof[i]>0);}
         if (opt.iverbose) {
             cout<<"Number of particles in large subhalo searchable structures "<<numinstrucs<<endl;
         }
-        if (numinstrucs>0) GetVelocityDensity(opt, nbodies, Part.data(), tree);
-
+        if (numlocalden>0) GetVelocityDensity(opt, nbodies, Part.data(), tree);
         for (i=0;i<nbodies;i++) Part[i].SetType(storetype[i]);
         delete[] storetype;
-        if (opt.fofbgtype>FOF6D) delete[] numingroup;
     }
 #endif
     delete tree;
@@ -299,11 +316,9 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     MPIAdjustLocalGroupIDs(nbodies, pfof);
     //then determine export particles, declare arrays used to export data
 #ifdef MPIREDUCEMEM
-#ifdef SWIFTINTERFACE
-    MPIGetExportNumUsingMesh(libvelociraptorOpt, nbodies, Part.data(), sqrt(param[1]));
-#else
-    MPIGetExportNum(nbodies, Part.data(), sqrt(param[1]));
-#endif
+
+    if (opt.impiusemesh) MPIGetExportNumUsingMesh(opt, nbodies, Part.data(), sqrt(param[1]));
+    else MPIGetExportNum(nbodies, Part.data(), sqrt(param[1]));
 #endif
     //allocate memory to store info
     cout<<ThisTask<<": Finished local search, nexport/nimport = "<<NExport<<" "<<NImport<<" in "<<MyGetTime()-time2<<endl;
@@ -320,11 +335,9 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
 
     //I have adjusted FOF data structure to have local group length and also seperated the export particles from export fof data
     //the reason is that will have to update fof data in iterative section but don't need to update particle information.
-#ifdef SWIFTINTERFACE
-    MPIBuildParticleExportListUsingMesh(libvelociraptorOpt, nbodies, Part.data(), pfof, Len, sqrt(param[1]));
-#else
-    MPIBuildParticleExportList(opt, nbodies, Part.data(), pfof, Len, sqrt(param[1]));
-#endif
+
+    if (opt.impiusemesh) MPIBuildParticleExportListUsingMesh(opt, nbodies, Part.data(), pfof, Len, sqrt(param[1]));
+    else MPIBuildParticleExportList(opt, nbodies, Part.data(), pfof, Len, sqrt(param[1]));
     MPI_Barrier(MPI_COMM_WORLD);
     //Now that have FoFDataGet (the exported particles) must search local volume using said particles
     //This is done by finding all particles in the search volume and then checking if those particles meet the FoF criterion
@@ -406,11 +419,20 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         Int_t numinstrucs=0,numlocalden=0;
         for (i=0;i<Nlocal;i++) storetype[i]=Part[i].GetType();
         if (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)) {
+// #ifdef HIGHRES
+//             numingroup=BuildNumInGroupTyped(Nlocal,numgroups,pfof,Part.data(),DARKTYPE);
+//             for (i=0;i<Nlocal;i++) {
+//                 if (Part[i].GetType()==DARKTYPE) Part[i].SetType(numingroup[pfof[Part[i].GetID()]]>=MINSUBSIZE);
+//                 else Part[i].SetType(-1);
+//                 numlocalden += (Part[i].GetType()>0);
+//             }
+// #else
             numingroup=BuildNumInGroup(Nlocal, numgroups, pfof);
             for (i=0;i<Nlocal;i++) {
                 Part[i].SetType((numingroup[pfof[i]]>=MINSUBSIZE));
                 numlocalden += (Part[i].GetType()>0);
             }
+// #endif
             delete[] numingroup;
             numingroup=NULL;
         }
@@ -1801,11 +1823,8 @@ private(i,tid)
 
     //then determine export particles, declare arrays used to export data
 #ifdef MPIREDUCEMEM
-#ifdef SWIFTINTERFACE
-    MPIGetExportNumUsingMesh(libvelociraptorOpt, nbodies, Partsubset, sqrt(param[1]));
-#else
-    MPIGetExportNum(nbodies, Partsubset, sqrt(param[1]));
-#endif
+    if (opt.impiusemesh) MPIGetExportNumUsingMesh(opt, nbodies, Partsubset, sqrt(param[1]));
+    else MPIGetExportNum(nbodies, Partsubset, sqrt(param[1]));
 #endif
     //then determine export particles, declare arrays used to export data
     PartDataIn = new Particle[NExport];
@@ -1814,11 +1833,8 @@ private(i,tid)
     FoFDataGet = new fofdata_in[NExport];
     //I have adjusted FOF data structure to have local group length and also seperated the export particles from export fof data
     //the reason is that will have to update fof data in iterative section but don't need to update particle information.
-#ifdef SWIFTINTERFACE
-    MPIBuildParticleExportListUsingMesh(libvelociraptorOpt, nsubset, Partsubset, pfof, Len, sqrt(param[1]));
-#else
-    MPIBuildParticleExportList(opt, nsubset, Partsubset, pfof, Len, sqrt(param[1]));
-#endif
+    if (opt.impiusemesh) MPIBuildParticleExportListUsingMesh(opt, nsubset, Partsubset, pfof, Len, sqrt(param[1]));
+    else MPIBuildParticleExportList(opt, nsubset, Partsubset, pfof, Len, sqrt(param[1]));
     //Now that have FoFDataGet (the exported particles) must search local volume using said particles
     //This is done by finding all particles in the search volume and then checking if those particles meet the FoF criterion
     //One must keep iterating till there are no new links.
@@ -2868,7 +2884,12 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
 
     if (iflag) {
     if (opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL) pglist=BuildPGListTyped(nsubset, ngroup, numingroup, pfof,Partsubset.data(),DARKTYPE);
+// #ifdef HIGHRES
+//     else pglist=BuildPGListTyped(nsubset, ngroup, numingroup, pfof,Partsubset.data(),DARKTYPE);
+// #else
     else pglist=BuildPGList(nsubset, ngroup, numingroup, pfof);
+// #endif
+
     //now store group ids of (sub)structures that will be searched for (sub)substructure.
     //since at level zero, the particle group list that is going to be used to calculate the background, outliers and searched through is simple pglist here
     //also the group size is simple numingroup
@@ -2916,7 +2937,21 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
 #endif
             subpfofold[i]=pfof[subpglist[i][0]];
             subPart=new Particle[subnumingroup[i]];
-            for (Int_t j=0;j<subnumingroup[i];j++) subPart[j]=Partsubset[subpglist[i][j]];
+            for (Int_t j=0;j<subnumingroup[i];j++) {
+                subPart[j]=Partsubset[subpglist[i][j]];
+#ifdef GASON
+                if (subPart[j].HasHydroProperties()) subPart[j].SetHydroProperties();
+#endif
+#ifdef STARON
+                if (subPart[j].HasStarProperties()) subPart[j].SetStarProperties();
+#endif
+#ifdef BHON
+                if (subPart[j].HasBHProperties()) subPart[j].SetBHProperties();
+#endif
+#ifdef EXTRADMON
+                if (subPart[j].HasExtraDMProperties()) subPart[j].SetExtraDMProperties();
+#endif
+            }
             //move to cm if desired
             if (opt.icmrefadjust) {
                 //this routine is in substructureproperties.cxx. Has internal parallelisation
@@ -2949,7 +2984,22 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
                 opt2 = opt;
                 subpfofold[i] = pfof[subpglist[i][0]];
                 subPart = new Particle[subnumingroup[i]];
-                for (Int_t j=0;j<subnumingroup[i];j++) subPart[j] = Partsubset[subpglist[i][j]];
+                for (Int_t j=0;j<subnumingroup[i];j++) {
+                    subPart[j] = Partsubset[subpglist[i][j]];
+#ifdef GASON
+                    if (subPart[j].HasHydroProperties()) subPart[j].SetHydroProperties();
+#endif
+#ifdef STARON
+                    if (subPart[j].HasStarProperties()) subPart[j].SetStarProperties();
+#endif
+#ifdef BHON
+                    if (subPart[j].HasBHProperties()) subPart[j].SetBHProperties();
+#endif
+#ifdef EXTRADMON
+                    if (subPart[j].HasExtraDMProperties()) subPart[j].SetExtraDMProperties();
+#endif
+                }
+
                 if (opt.icmrefadjust) {
                     //this routine is in substructureproperties.cxx. Has internal parallelisation
                     GMatrix cmphase = CalcPhaseCM(subnumingroup[i], subPart);
@@ -3585,11 +3635,8 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
         if (opt.iverbose) cout<<ThisTask<<" finished local search"<<endl;
         MPI_Barrier(MPI_COMM_WORLD);
         //determine all tagged dark matter particles that have search areas that overlap another mpi domain
-#ifdef SWIFTINTERFACE
-        MPIGetExportNumUsingMesh(libvelociraptorOpt, npartingroups, Part.data(), sqrt(param[1]));
-#else
-        MPIGetExportNum(npartingroups, Part.data(), sqrt(param[1]));
-#endif
+        if (opt.impiusemesh) MPIGetExportNumUsingMesh(opt, npartingroups, Part.data(), sqrt(param[1]));
+        else MPIGetExportNum(npartingroups, Part.data(), sqrt(param[1]));
         //to store local mpi task
         mpi_foftask=MPISetTaskID(nbaryons);
         //then determine export particles, declare arrays used to export data
