@@ -287,7 +287,7 @@ typedef double (*ExtraPropFunc)(double, double, double&);
 /// if halo follows NFW profile, maximum ratio of half mass to virial mass one might
 /// expect for R200 (assuming the scale radius is inside this radius, giving a c>=1)
 #define NFWMAXRHALFRATIO 0.60668
-#define NFWMINRHALFRATIO 0.01
+#define NFWMINRHALFRATIO 0.05
 #define NFWMINVMAXVVIRRATIO 36.0
 //@}
 

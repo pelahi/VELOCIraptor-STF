@@ -3928,7 +3928,7 @@ private(i,weight)
 ///calculate concentration. Note that we limit concentration to 1000 or so which means VmaxVvir2<=36
 void CalcConcentration(PropData &p)
 {
-    double tol = max(1.0/(double)p.num, 1e-6);
+    double tol = max(1.0/(double)p.num, 1e-3);
     p.cNFW = CalcConcentrationRootFindingVmax(p.VmaxVvir2, tol);
     p.cNFW200c = CalcConcentrationRootFindingRhalf(p.gRhalf200c/p.gR200c, tol);
     p.cNFW200m = CalcConcentrationRootFindingRhalf(p.gRhalf200m/p.gR200m, tol);
@@ -3945,17 +3945,19 @@ double CalcConcentrationRootFindingRhalf(double rratio, double tol)
     gsl_root_fsolver *s;
     double cval = 2.3;
     //start point for concentration
-    double x_lo = 0.1, x_hi = 5000.0;
+    double x_lo = 0.6, x_hi = 10000.0;
     gsl_function F;
     F.function = &mycNFWRhalf;
     F.params = &rratio;
     T = gsl_root_fsolver_brent;
     s = gsl_root_fsolver_alloc (T);
-    gsl_invoke(gsl_root_fsolver_set, s, &F, x_lo, x_hi);
+    //gsl_invoke(gsl_root_fsolver_set, s, &F, x_lo, x_hi);
+    gsl_root_fsolver_set (s, &F, x_lo, x_hi);
     do
     {
         iter++;
-        gsl_invoke(gsl_root_fsolver_iterate, s);
+        status = gsl_root_fsolver_iterate (s);
+        //gsl_invoke(gsl_root_fsolver_iterate, s);
         cval = gsl_root_fsolver_root (s);
         x_lo = gsl_root_fsolver_x_lower (s);
         x_hi = gsl_root_fsolver_x_upper (s);
@@ -3981,11 +3983,13 @@ double CalcConcentrationRootFindingVmax(double VmaxVvir2, double tol)
     F.params = &VmaxVvir2;
     T = gsl_root_fsolver_brent;
     s = gsl_root_fsolver_alloc (T);
-    gsl_invoke(gsl_root_fsolver_set, s, &F, x_lo, x_hi);
+    //gsl_invoke(gsl_root_fsolver_set, s, &F, x_lo, x_hi);
+    gsl_root_fsolver_set (s, &F, x_lo, x_hi);
     do
     {
         iter++;
-        gsl_invoke(gsl_root_fsolver_iterate, s);
+        status = gsl_root_fsolver_iterate (s);
+        //gsl_invoke(gsl_root_fsolver_iterate, s);
         cval = gsl_root_fsolver_root (s);
         x_lo = gsl_root_fsolver_x_lower (s);
         x_hi = gsl_root_fsolver_x_upper (s);
