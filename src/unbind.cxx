@@ -893,7 +893,7 @@ private(i,j,k,n,maxE,maxunbindsize,nEplus,nEplusid,Eplusflag,v2,Ti,unbindcheck,E
                 //if number of particles remove with positive energy is near to the number allowed to be removed
                 //must recalculate kinetic energies and check if maxE>0
                 //otherwise, end unbinding.
-                if (nEplus>opt.uinfo.maxallowedunboundfrac*numingroup[i]) {
+                if (nEplus<opt.uinfo.maxallowedunboundfrac*numingroup[i]) {
                     unbindcheck=false;
                     continue;
                 }
