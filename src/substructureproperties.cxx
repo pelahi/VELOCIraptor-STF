@@ -4325,12 +4325,12 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin,cmpotmin)
             //determine how many particles to use
             npot=max(opt.uinfo.Npotref,Int_t(opt.uinfo.fracpotref*numingroup[i]));
             //determine position of minimum potential and by radius around this position
-            potmin=Part[noffset[i]].GetPotential();
+            potmin=Part[noffset[i]].GetPotential()/Part[noffset[i]].GetMass();
             ipotmin=0;
-            for (j=0;j<numingroup[i];j++) if (Part[j+noffset[i]].GetPotential()<potmin)
+            for (j=0;j<numingroup[i];j++) if (Part[j+noffset[i]].GetPotential()/Part[j+noffset[i]].GetMass()<potmin)
             {
                 if (opt.ParticleTypeForRefenceFrame !=-1 && Part[noffset[i]+j].GetType() != opt.ParticleTypeForRefenceFrame) continue;
-                potmin=Part[j+noffset[i]].GetPotential();
+                potmin=Part[j+noffset[i]].GetPotential()/Part[j+noffset[i]].GetMass();
                 ipotmin=j;
             }
             pdata[i].iminpot=Part[ipotmin+noffset[i]].GetPID();
@@ -4368,11 +4368,12 @@ private(i,j,k,potmin,ipotmin)
     #pragma omp for schedule(dynamic) nowait
 #endif
     for (i=1;i<=ngroup;i++) if (numingroup[i]<ompunbindnum) {
-        potmin=Part[noffset[i]].GetPotential();ipotmin=0;
-        for (j=0;j<numingroup[i];j++) if (Part[j+noffset[i]].GetPotential()<potmin)
+        potmin=Part[noffset[i]].GetPotential()/Part[noffset[i]].GetMass();
+        ipotmin=0;
+        for (j=0;j<numingroup[i];j++) if (Part[j+noffset[i]].GetPotential()/Part[j+noffset[i]].GetMass()<potmin)
         {
             if (opt.ParticleTypeForRefenceFrame !=-1 && Part[noffset[i]+j].GetType() != opt.ParticleTypeForRefenceFrame) continue;
-            potmin=Part[j+noffset[i]].GetPotential();
+            potmin=Part[j+noffset[i]].GetPotential()/Part[j+noffset[i]].GetMass();
             ipotmin=j;
         }
         pdata[i].iminpot=Part[ipotmin+noffset[i]].GetPID();
@@ -4400,12 +4401,12 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin,cmpotmin)
             //determine how many particles to use
             npot=max(opt.uinfo.Npotref,Int_t(opt.uinfo.fracpotref*numingroup[i]));
             //determine position of minimum potential and by radius around this position
-            potmin=Part[noffset[i]].GetPotential();
+            potmin=Part[noffset[i]].GetPotential()/Part[noffset[i]].GetMass();
             ipotmin=0;
-            for (j=0;j<numingroup[i];j++) if (Part[j+noffset[i]].GetPotential()<potmin)
+            for (j=0;j<numingroup[i];j++) if (Part[j+noffset[i]].GetPotential()/Part[j+noffset[i]].GetMass()<potmin)
             {
                 if (opt.ParticleTypeForRefenceFrame !=-1 && Part[noffset[i]+j].GetType() != opt.ParticleTypeForRefenceFrame) continue;
-                potmin=Part[j+noffset[i]].GetPotential();
+                potmin=Part[j+noffset[i]].GetPotential()/Part[j+noffset[i]].GetMass();
                 ipotmin=j;
             }
             pdata[i].iminpot=Part[ipotmin+noffset[i]].GetPID();
@@ -4442,12 +4443,12 @@ private(i,j,k,potmin,ipotmin)
     #pragma omp for schedule(dynamic) nowait
 #endif
     for (i=1;i<=ngroup;i++) if (numingroup[i]>=ompunbindnum) {
-        potmin=Part[noffset[i]].GetPotential();
+        potmin=Part[noffset[i]].GetPotential()/Part[noffset[i]].GetMass();
         ipotmin=0;
-        for (j=0;j<numingroup[i];j++) if (Part[j+noffset[i]].GetPotential()<potmin)
+        for (j=0;j<numingroup[i];j++) if (Part[j+noffset[i]].GetPotential()/Part[j+noffset[i]].GetMass()<potmin)
         {
             if (opt.ParticleTypeForRefenceFrame !=-1 && Part[noffset[i]+j].GetType() != opt.ParticleTypeForRefenceFrame) continue;
-            potmin=Part[j+noffset[i]].GetPotential();
+            potmin=Part[j+noffset[i]].GetPotential()/Part[j+noffset[i]].GetMass();
             ipotmin=j;
         }
         pdata[i].iminpot=Part[ipotmin+noffset[i]].GetPID();
