@@ -6486,7 +6486,7 @@ Int_t CalculateSphericalOverdensity(Options &opt, PropData &pdata,
     vector<Double_t> &SOlgrhovals)
 {
     //Set the start point as the 3rd particle as the 1st particle can have a r=0
-    int minnum=1;
+    int minnum=2;
     int iindex=radii.size();
     //if the lowest overdensity threshold is below the density at the outer
     //edge then extrapolate density based on average slope using 10% of radial bins
@@ -6510,8 +6510,8 @@ Int_t CalculateSphericalOverdensity(Options &opt, PropData &pdata,
     }
     fac=-log(4.0*M_PI/3.0);
 
-    //Loop over particles to find the first non-central particle
-    while(radii[indices[minnum]]==0) minnum++;
+    //find first particle r>0
+    while(radii[indices[minnum-1]]==0) minnum++;
 
     //now find radii matching SO density thresholds
 #ifndef NOMASS
@@ -6522,7 +6522,7 @@ Int_t CalculateSphericalOverdensity(Options &opt, PropData &pdata,
     MinMass=opt.MassValue;
 #endif
 
-    rc=radii[indices[minnum]];
+    rc=radii[indices[minnum-1]];
     llindex=radii.size();
 
     //store old radius, old enclosed mass and ln density
@@ -6641,8 +6641,8 @@ Int_t CalculateSphericalOverdensity(Options &opt, PropData &pdata,
     Double_t &m200val, Double_t &m200mval, Double_t &mBN98val, Double_t &virval, Double_t &m500val,
     vector<Double_t> &SOlgrhovals)
 {
-    //Set the start point as the 2nd particle as the 1st particle can have a r=0
-    int minnum=1;
+    //Set the start point as the 3nd particle as the 1st particle can have a r=0
+    int minnum=2;
     int iindex=numingroup;
     //if the lowest overdensity threshold is below the density at the outer
     //edge then extrapolate density based on average slope using 10% of radial bins
@@ -6653,8 +6653,8 @@ Int_t CalculateSphericalOverdensity(Options &opt, PropData &pdata,
     int lindex=0.9*iindex, llindex=iindex;
     int iSOfound = 0;
 
-    //Loop over particles to find the first non-central particle
-    while(Part[minnum].Radius()==0) minnum++;
+    //find first particle r>0
+    while(Part[minnum-1].Radius()==0) minnum++;
 
     EncMass=0;
     for (auto j=0;j<minnum;j++) {
@@ -6665,7 +6665,7 @@ Int_t CalculateSphericalOverdensity(Options &opt, PropData &pdata,
         EncMass+=massval;
     }
     MinMass=Part[0].GetMass();
-    rc=Part[minnum].Radius();
+    rc=Part[minnum-1].Radius();
     llindex= numingroup;
     //store old radius, old enclosed mass and ln density
     rc2=rc;
