@@ -3928,7 +3928,7 @@ private(i,weight)
 ///calculate concentration. Note that we limit concentration to 1000 or so which means VmaxVvir2<=36
 void CalcConcentration(PropData &p)
 {
-    double tol = max(1.0/(double)p.num, 1e-6);
+    double tol = max(1.0/(double)p.num, 1e-3);
     p.cNFW = CalcConcentrationRootFindingVmax(p.VmaxVvir2, tol);
     p.cNFW200c = CalcConcentrationRootFindingRhalf(p.gRhalf200c/p.gR200c, tol);
     p.cNFW200m = CalcConcentrationRootFindingRhalf(p.gRhalf200m/p.gR200m, tol);
@@ -3945,18 +3945,19 @@ double CalcConcentrationRootFindingRhalf(double rratio, double tol)
     gsl_root_fsolver *s;
     double cval = 2.3;
     //start point for concentration
-    double x_lo = 0.1, x_hi = 10000.0;
+    double x_lo = 0.6, x_hi = 10000.0;
     gsl_function F;
     F.function = &mycNFWRhalf;
     F.params = &rratio;
     T = gsl_root_fsolver_brent;
     s = gsl_root_fsolver_alloc (T);
+    //gsl_invoke(gsl_root_fsolver_set, s, &F, x_lo, x_hi);
     gsl_root_fsolver_set (s, &F, x_lo, x_hi);
-    gsl_invoke(gsl_root_fsolver_set, s, &F, x_lo, x_hi);
     do
     {
         iter++;
-        gsl_invoke(gsl_root_fsolver_iterate, s);
+        status = gsl_root_fsolver_iterate (s);
+        //gsl_invoke(gsl_root_fsolver_iterate, s);
         cval = gsl_root_fsolver_root (s);
         x_lo = gsl_root_fsolver_x_lower (s);
         x_hi = gsl_root_fsolver_x_upper (s);
@@ -3976,17 +3977,19 @@ double CalcConcentrationRootFindingVmax(double VmaxVvir2, double tol)
     gsl_root_fsolver *s;
     double cval = 2.3;
     //start point for concentration
-    double x_lo = 1.9, x_hi = 1000.0;
+    double x_lo = 1.9, x_hi = 5000.0;
     gsl_function F;
     F.function = &mycNFW;
     F.params = &VmaxVvir2;
     T = gsl_root_fsolver_brent;
     s = gsl_root_fsolver_alloc (T);
-    gsl_invoke(gsl_root_fsolver_set, s, &F, x_lo, x_hi);
+    //gsl_invoke(gsl_root_fsolver_set, s, &F, x_lo, x_hi);
+    gsl_root_fsolver_set (s, &F, x_lo, x_hi);
     do
     {
         iter++;
-        gsl_invoke(gsl_root_fsolver_iterate, s);
+        status = gsl_root_fsolver_iterate (s);
+        //gsl_invoke(gsl_root_fsolver_iterate, s);
         cval = gsl_root_fsolver_root (s);
         x_lo = gsl_root_fsolver_x_lower (s);
         x_hi = gsl_root_fsolver_x_upper (s);
@@ -4322,12 +4325,12 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin,cmpotmin)
             //determine how many particles to use
             npot=max(opt.uinfo.Npotref,Int_t(opt.uinfo.fracpotref*numingroup[i]));
             //determine position of minimum potential and by radius around this position
-            potmin=Part[noffset[i]].GetPotential();
+            potmin=Part[noffset[i]].GetPotential()/Part[noffset[i]].GetMass();
             ipotmin=0;
-            for (j=0;j<numingroup[i];j++) if (Part[j+noffset[i]].GetPotential()<potmin)
+            for (j=0;j<numingroup[i];j++) if (Part[j+noffset[i]].GetPotential()/Part[j+noffset[i]].GetMass()<potmin)
             {
                 if (opt.ParticleTypeForRefenceFrame !=-1 && Part[noffset[i]+j].GetType() != opt.ParticleTypeForRefenceFrame) continue;
-                potmin=Part[j+noffset[i]].GetPotential();
+                potmin=Part[j+noffset[i]].GetPotential()/Part[j+noffset[i]].GetMass();
                 ipotmin=j;
             }
             pdata[i].iminpot=Part[ipotmin+noffset[i]].GetPID();
@@ -4365,11 +4368,12 @@ private(i,j,k,potmin,ipotmin)
     #pragma omp for schedule(dynamic) nowait
 #endif
     for (i=1;i<=ngroup;i++) if (numingroup[i]<ompunbindnum) {
-        potmin=Part[noffset[i]].GetPotential();ipotmin=0;
-        for (j=0;j<numingroup[i];j++) if (Part[j+noffset[i]].GetPotential()<potmin)
+        potmin=Part[noffset[i]].GetPotential()/Part[noffset[i]].GetMass();
+        ipotmin=0;
+        for (j=0;j<numingroup[i];j++) if (Part[j+noffset[i]].GetPotential()/Part[j+noffset[i]].GetMass()<potmin)
         {
             if (opt.ParticleTypeForRefenceFrame !=-1 && Part[noffset[i]+j].GetType() != opt.ParticleTypeForRefenceFrame) continue;
-            potmin=Part[j+noffset[i]].GetPotential();
+            potmin=Part[j+noffset[i]].GetPotential()/Part[j+noffset[i]].GetMass();
             ipotmin=j;
         }
         pdata[i].iminpot=Part[ipotmin+noffset[i]].GetPID();
@@ -4397,12 +4401,12 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin,cmpotmin)
             //determine how many particles to use
             npot=max(opt.uinfo.Npotref,Int_t(opt.uinfo.fracpotref*numingroup[i]));
             //determine position of minimum potential and by radius around this position
-            potmin=Part[noffset[i]].GetPotential();
+            potmin=Part[noffset[i]].GetPotential()/Part[noffset[i]].GetMass();
             ipotmin=0;
-            for (j=0;j<numingroup[i];j++) if (Part[j+noffset[i]].GetPotential()<potmin)
+            for (j=0;j<numingroup[i];j++) if (Part[j+noffset[i]].GetPotential()/Part[j+noffset[i]].GetMass()<potmin)
             {
                 if (opt.ParticleTypeForRefenceFrame !=-1 && Part[noffset[i]+j].GetType() != opt.ParticleTypeForRefenceFrame) continue;
-                potmin=Part[j+noffset[i]].GetPotential();
+                potmin=Part[j+noffset[i]].GetPotential()/Part[j+noffset[i]].GetMass();
                 ipotmin=j;
             }
             pdata[i].iminpot=Part[ipotmin+noffset[i]].GetPID();
@@ -4439,12 +4443,12 @@ private(i,j,k,potmin,ipotmin)
     #pragma omp for schedule(dynamic) nowait
 #endif
     for (i=1;i<=ngroup;i++) if (numingroup[i]>=ompunbindnum) {
-        potmin=Part[noffset[i]].GetPotential();
+        potmin=Part[noffset[i]].GetPotential()/Part[noffset[i]].GetMass();
         ipotmin=0;
-        for (j=0;j<numingroup[i];j++) if (Part[j+noffset[i]].GetPotential()<potmin)
+        for (j=0;j<numingroup[i];j++) if (Part[j+noffset[i]].GetPotential()/Part[j+noffset[i]].GetMass()<potmin)
         {
             if (opt.ParticleTypeForRefenceFrame !=-1 && Part[noffset[i]+j].GetType() != opt.ParticleTypeForRefenceFrame) continue;
-            potmin=Part[j+noffset[i]].GetPotential();
+            potmin=Part[j+noffset[i]].GetPotential()/Part[j+noffset[i]].GetMass();
             ipotmin=j;
         }
         pdata[i].iminpot=Part[ipotmin+noffset[i]].GetPID();
@@ -6506,6 +6510,10 @@ Int_t CalculateSphericalOverdensity(Options &opt, PropData &pdata,
         if (j<lindex) EncMass+=massval;
     }
     fac=-log(4.0*M_PI/3.0);
+
+    //find first particle r>0
+    while(radii[indices[minnum-1]]==0) minnum++;
+
     //now find radii matching SO density thresholds
 #ifndef NOMASS
     EncMass=0;for (auto j=0;j<minnum;j++) EncMass+=masses[indices[j]];
@@ -6514,8 +6522,10 @@ Int_t CalculateSphericalOverdensity(Options &opt, PropData &pdata,
     EncMass=0;for (auto j=0;j<minnum;j++) EncMass+=opt.MassValue;
     MinMass=opt.MassValue;
 #endif
+
     rc=radii[indices[minnum-1]];
     llindex=radii.size();
+
     //store old radius, old enclosed mass and ln density
     rc2=rc;
     EncMass2=EncMass;
@@ -6632,7 +6642,7 @@ Int_t CalculateSphericalOverdensity(Options &opt, PropData &pdata,
     Double_t &m200val, Double_t &m200mval, Double_t &mBN98val, Double_t &virval, Double_t &m500val,
     vector<Double_t> &SOlgrhovals)
 {
-    //Set the start point as the 3rd particle as the 1st particle can have a r=0
+    //Set the start point as the 3nd particle as the 1st particle can have a r=0
     int minnum=2;
     int iindex=numingroup;
     //if the lowest overdensity threshold is below the density at the outer
@@ -6644,6 +6654,9 @@ Int_t CalculateSphericalOverdensity(Options &opt, PropData &pdata,
     int lindex=0.9*iindex, llindex=iindex;
     int iSOfound = 0;
 
+    //find first particle r>0
+    while(Part[minnum-1].Radius()==0) minnum++;
+
     EncMass=0;
     for (auto j=0;j<minnum;j++) {
         massval=Part[j].GetMass();
@@ -6653,8 +6666,8 @@ Int_t CalculateSphericalOverdensity(Options &opt, PropData &pdata,
         EncMass+=massval;
     }
     MinMass=Part[0].GetMass();
-    rc=Part[minnum-1].GetMass();
-    llindex=numingroup;
+    rc=Part[minnum-1].Radius();
+    llindex= numingroup;
     //store old radius, old enclosed mass and ln density
     rc2=rc;
     EncMass2=EncMass;

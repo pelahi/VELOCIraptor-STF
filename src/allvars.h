@@ -287,7 +287,7 @@ typedef double (*ExtraPropFunc)(double, double, double&);
 /// if halo follows NFW profile, maximum ratio of half mass to virial mass one might
 /// expect for R200 (assuming the scale radius is inside this radius, giving a c>=1)
 #define NFWMAXRHALFRATIO 0.60668
-#define NFWMINRHALFRATIO 0.01
+#define NFWMINRHALFRATIO 0.05
 #define NFWMINVMAXVVIRRATIO 36.0
 //@}
 
@@ -982,7 +982,6 @@ struct Options
         rhobg = 1.0;
         virlevel = -1;
         comove=0;
-        H=100.0;//value of Hubble flow in h 1 km/s/Mpc
         MassValue=-1.0;
 
         inputtype=IOGADGET;
