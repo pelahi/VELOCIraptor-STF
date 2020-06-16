@@ -2775,6 +2775,9 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                             }
                             iextraoffset += opt.gas_chemproduction_names.size();
                         }
+                        else {
+                            iextraoffset += opt.gas_internalprop_names.size() + opt.gas_chem_names.size() + opt.gas_chemproduction_names.size();
+                        }
 #endif
 #ifdef STARON
                         if (k==HDFSTARTYPE && numextrafieldsvec[HDFSTARTYPE]) {
@@ -2810,6 +2813,9 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                             }
                             iextraoffset += opt.star_chemproduction_names.size();
                         }
+                        else {
+                            iextraoffset += opt.star_internalprop_names.size() + opt.star_chem_names.size() + opt.star_chemproduction_names.size();
+                        }
 #endif
 #ifdef BHON
                         if (k==HDFBHTYPE && numextrafieldsvec[HDFBHTYPE]) {
@@ -2844,6 +2850,9 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                                 }
                             }
                             iextraoffset += opt.bh_chemproduction_names.size();
+                        }
+                        else {
+                            iextraoffset += opt.bh_internalprop_names.size() + opt.bh_chem_names.size() + opt.bh_chemproduction_names.size();
                         }
 #endif
 #ifdef EXTRADMON
