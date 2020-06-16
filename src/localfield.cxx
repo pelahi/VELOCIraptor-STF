@@ -557,7 +557,7 @@ private(i,j,k,tid,id,v2,nnids,nnr2,weight,pqv)
         tree->FindNearest(i,nnids,nnr2,opt.Nsearch);
 #endif
 #ifdef USEMPI
-        if (opt.iLocalVelDenApproxCalcFlag==0) {
+        if (opt.iLocalVelDenApproxCalcFlag==0 && NProcs>1) {
             //once NN set is found, store maxrdist and see if particle's search radius overlaps with another mpi domain
             maxrdist[i]=sqrt(nnr2[opt.Nsearch-1]);
             bool ioverlap;
@@ -858,7 +858,7 @@ reduction(+:nprocessed,ntot)
         tree->FindNearestPos(leafnodes[i].cm,nnids,nnr2,opt.Nsearch);
 #endif
 #ifdef USEMPI
-        if (opt.iLocalVelDenApproxCalcFlag==1) {
+        if (opt.iLocalVelDenApproxCalcFlag==1 && NProcs > 1) {
         leafnodes[i].searchdist = sqrt(nnr2[opt.Nsearch-1]);
         //check if search region from Particle extends into other mpi domain, if so, skip particles
         bool ioverlap;
