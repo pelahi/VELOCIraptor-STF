@@ -349,6 +349,13 @@ void MPINumInDomain(Options &opt)
 #ifdef USEHDF
     else if (opt.inputtype==IOHDF) MPINumInDomainHDF(opt);
 #endif
+    if (ThisTask == 0) {
+        if (Ntotal/1e7 < NProcs) {
+            cout<<"WARNING: Suggested number of particles per mpi processes is roughly > 1e7"<<endl;
+            cout<<"Number of MPI tasks greater than this suggested number"<<endl;
+            cerr<<"May result in poor performance"<<endl;
+        }
+    }
     //if using mesh, check load imbalance and also repartition
     if (opt.impiusemesh) {
         if (MPIRepartitionDomainDecompositionWithMesh(opt)){
