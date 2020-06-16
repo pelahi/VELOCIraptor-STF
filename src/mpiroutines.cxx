@@ -303,19 +303,19 @@ bool MPIRepartitionDomainDecompositionWithMesh(Options &opt){
                 numparts = 0;
             }
         }
-        for (auto x:mpinumparts) if (x == 0) {
-            cerr<<"ERROR: MPI Process has zero particles associated with it, likely due to too many mpi tasks requested or too coarse a mesh used."<<endl;
-            cerr<<"Current number of tasks: "<<NProcs<<endl;
-            cerr<<"Current mesh resolution "<<opt.numcellsperdim<<"^3"<<endl;
-            Int_t sum = 0; for(auto x:opt.cellnodenumparts) sum +=x;
-            cerr<<"Total number of particles loaded "<<sum<<endl;
-            cerr<<"Suggested number of particles per mpi processes is > 1e7"<<endl;
-            cerr<<"Suggested number of mpi processes using 1e7 is "<<(int)ceil(sum/1e7)<<endl;
-            cerr<<"Increase mesh resolution or reduce MPI Processes "<<endl;
-            MPI_Abort(MPI_COMM_WORLD,8);
-        }
         mpinumparts[NProcs-1] = numparts;
         if (ThisTask == 0) {
+            for (auto x:mpinumparts) if (x == 0) {
+                cerr<<"ERROR: MPI Process has zero particles associated with it, likely due to too many mpi tasks requested or too coarse a mesh used."<<endl;
+                cerr<<"Current number of tasks: "<<NProcs<<endl;
+                cerr<<"Current mesh resolution "<<opt.numcellsperdim<<"^3"<<endl;
+                Int_t sum = 0; for(auto x:opt.cellnodenumparts) sum +=x;
+                cerr<<"Total number of particles loaded "<<sum<<endl;
+                cerr<<"Suggested number of particles per mpi processes is > 1e7"<<endl;
+                cerr<<"Suggested number of mpi processes using 1e7 is "<<(int)ceil(sum/1e7)<<endl;
+                cerr<<"Increase mesh resolution or reduce MPI Processes "<<endl;
+                MPI_Abort(MPI_COMM_WORLD,8);
+            }
             cout<<"Now have MPI imbalance of "<<MPILoadBalanceWithMesh(opt)<<endl;
             cout<<"MPI tasks :"<<endl;
             for (auto i=0; i<NProcs; i++) cout<<" Task "<<i<<" has "<<numcellspertask[i]/double(opt.numcells)<<" of the volume"<<endl;
