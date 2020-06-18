@@ -208,6 +208,9 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
         opt.numpart[j]+=((long long)header[ifirstfile].npartTotalHW[j]<<32);
         Ntotal+=((long long)header[ifirstfile].npartTotalHW[j]<<32);
     }
+#ifdef NOMASS
+    if (header[ifirstfile].mass[GDMTYPE] > 0) opt.MassValue = header[ifirstfile].mass[GDMTYPE]*mscale;
+#endif
     cout<<"File contains "<<Ntotal<<" particles at is at time "<<opt.a<<endl;
     cout<<"Particle system contains "<<nbodies<<" particles at is at time "<<opt.a<<" in a box of size "<<opt.p<<endl;
     //for cosmological box
