@@ -46,7 +46,12 @@ using namespace Swift;
 
 ///determine the initial domains, ie: bisection distance mpi_dxsplit, which is used to determien what processor a particle is assigned to
 ///here the domains are constructured in data units
-void MPIInitialDomainDecomposition(){
+void MPIInitialDomainDecomposition(Options &opt)
+{
+    if (opt.impiusemesh) {
+        MPIInitialDomainDecompositionWithMesh(opt);
+        return;
+    }
     Int_t i,j,k,n,m,temp,count,count2,pc,pc_new, Ntot;
     int Nsplit,isplit;
     Int_t nbins1d,nbins3d, ibin[3];
@@ -159,6 +164,172 @@ void MPIInitialDomainDecomposition(){
     MPI_Bcast(mpi_domain, NProcs*sizeof(MPI_Domain), MPI_BYTE, 0, MPI_COMM_WORLD);
 }
 
+void MPIInitialDomainDecompositionWithMesh(Options &opt){
+    if (ThisTask==0) {
+        //each processor takes subsection of volume where use simple 2^(ceil(log(NProcs)/log(2))) subdivision
+        opt.numcellsperdim = max((int)pow(2,(int)ceil(log((float)NProcs)/log(2.0))), opt.minnumcellperdim);
+        //each processor takes subsection of volume where use simple NProcs^(1/3) subdivision
+        // opt.numcellsperdim = max((int)ceil(pow((double)NProcs,(double)(1.0/3.0)))*8, opt.minnumcellperdim);
+        unsigned int n3 = opt.numcells = opt.numcellsperdim*opt.numcellsperdim*opt.numcellsperdim;
+        double idelta = 1.0/(double)opt.numcellsperdim;
+        for (auto i=0; i<3; i++) {
+            opt.spacedimension[i] = (mpi_xlim[i][1]  - mpi_xlim[i][0]);
+            opt.cellwidth[i] = (opt.spacedimension[i] * idelta);
+            opt.icellwidth[i] = 1.0/opt.cellwidth[i];
+        }
+
+        //now order according to Z-curve or Morton curve
+        //first fill curve
+        vector<bitset<16>> zcurvevalue(3);
+        struct zcurvestruct{
+            unsigned int coord[3];
+            unsigned long long index;
+            bitset<48> zcurvevalue;
+        };
+        vector<zcurvestruct> zcurve(n3);
+        unsigned long long index;
+        for (auto ix=0;ix<opt.numcellsperdim;ix++) {
+            for (auto iy=0;iy<opt.numcellsperdim;iy++) {
+                for (auto iz=0;iz<opt.numcellsperdim;iz++) {
+                    index = ix*opt.numcellsperdim*opt.numcellsperdim + iy*opt.numcellsperdim + iz;
+                    zcurve[index].coord[0] = ix;
+                    zcurve[index].coord[1] = iy;
+                    zcurve[index].coord[2] = iz;
+                    zcurve[index].index = index;
+                    zcurvevalue[0] = bitset<16>(ix);
+                    zcurvevalue[1] = bitset<16>(iy);
+                    zcurvevalue[2] = bitset<16>(iz);
+                    for (auto j=0; j<16;j++)
+                    {
+                        for (auto i = 0; i<3; i++) {
+                            zcurve[index].zcurvevalue[j*3+i] = zcurvevalue[i][j];
+                        }
+                    }
+                }
+            }
+        }
+        //then sort index array based on the zcurvearray value
+        sort(zcurve.begin(), zcurve.end(), [](zcurvestruct &a, zcurvestruct &b){
+            return a.zcurvevalue.to_ullong() < b.zcurvevalue.to_ullong();
+        });
+        //finally assign cells to tasks
+        opt.cellnodeids = new int[n3];
+        opt.cellnodeorder.resize(n3);
+        opt.cellloc = new cell_loc[n3];
+        int nsub = max((int)floor(n3/(double)NProcs), 1);
+        int itask = 0, count = 0;
+        vector<int> numcellspertask(NProcs,0);
+        for (auto i=0;i<n3;i++)
+        {
+            if (count == nsub) {
+                count = 0;
+                itask++;
+            }
+            if (itask == NProcs) itask -= 1;
+            opt.cellnodeids[zcurve[i].index] = itask;
+            opt.cellnodeorder[i] = zcurve[i].index;
+            numcellspertask[itask]++;
+            count++;
+        }
+        cout<<"Z-curve Mesh MPI decomposition: "<<endl;
+        cout<<"Mesh has resolution of "<<opt.numcellsperdim<<" per spatial dim "<<endl;
+        cout<<"with each mesh spanning ("<<opt.cellwidth[0]<<", "<<opt.cellwidth[1]<<", "<<opt.cellwidth[2]<<")"<<endl;
+        cout<<"MPI tasks :"<<endl;
+        for (auto i=0; i<NProcs; i++) cout<<"Task "<<i<<" has "<<numcellspertask[i]/double(n3)<<" of the volume"<<endl;
+    }
+    //broadcast data
+    MPI_Bcast(&opt.numcells, 1, MPI_INTEGER, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&opt.numcellsperdim, 1, MPI_INTEGER, 0, MPI_COMM_WORLD);
+    MPI_Bcast(opt.spacedimension, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(opt.cellwidth, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(opt.icellwidth, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    if (ThisTask != 0) {
+        opt.cellnodeids = new int[opt.numcells];
+        opt.cellnodeorder.resize(opt.numcells);
+    }
+    opt.cellnodenumparts.resize(opt.numcells,0);
+    MPI_Bcast(opt.cellnodeids, opt.numcells, MPI_INTEGER, 0, MPI_COMM_WORLD);
+    MPI_Bcast(opt.cellnodeorder.data(), opt.numcells, MPI_INTEGER, 0, MPI_COMM_WORLD);
+
+}
+
+//find min/max, average and std
+inline double MPILoadBalanceWithMesh(Options &opt) {
+    //calculate imbalance based on min and max in mpi domains
+    vector<Int_t> mpinumparts(NProcs, 0);
+    for (auto i=0;i<opt.numcells;i++)
+    {
+        auto itask = opt.cellnodeids[i];
+        mpinumparts[itask] += opt.cellnodenumparts[i];
+    }
+    double minval, maxval, ave, std, sum;
+    minval = maxval = mpinumparts[0];
+    ave = std = sum = 0;
+    for (auto &x:mpinumparts) {
+        if (minval > x) minval = x;
+        if (maxval < x) maxval = x;
+        ave += x;
+        std += x*x;
+    }
+    ave /= (double)NProcs;
+    std /= (double)NProcs;
+    std = sqrt(std - ave*ave);
+    return (maxval-minval)/ave;
+}
+
+bool MPIRepartitionDomainDecompositionWithMesh(Options &opt){
+    Int_t *buff = new Int_t[opt.numcells];
+    for (auto i=0;i<opt.numcells;i++) buff[i]=0;
+    MPI_Allreduce(opt.cellnodenumparts.data(), buff, opt.numcells, MPI_Int_t, MPI_SUM, MPI_COMM_WORLD);
+    for (auto i=0;i<opt.numcells;i++) opt.cellnodenumparts[i]=buff[i];
+    delete[] buff;
+    double optimalave = 0; for (auto i=0;i<opt.numcells;i++) optimalave += opt.cellnodenumparts[i];
+    optimalave /= (double)NProcs;
+    auto loadimbalance = MPILoadBalanceWithMesh(opt);
+    if (ThisTask == 0) cout<<"MPI imbalance of "<<loadimbalance<<endl;
+    if (loadimbalance > opt.mpimeshimbalancelimit) {
+        if (ThisTask == 0) cout<<"Imbalance too large, adjusting MPI domains ... "<<endl;
+        int itask = 0;
+        Int_t numparts = 0 ;
+        vector<int> numcellspertask(NProcs,0);
+        vector<int> mpinumparts(NProcs,0);
+        for (auto i=0;i<opt.numcells;i++)
+        {
+            auto index = opt.cellnodeorder[i];
+            numcellspertask[itask]++;
+            opt.cellnodeids[index] = itask;
+            numparts += opt.cellnodenumparts[index];
+            if (numparts > optimalave && itask < NProcs-1) {
+                mpinumparts[itask] = numparts;
+                itask++;
+                numparts = 0;
+            }
+        }
+        mpinumparts[NProcs-1] = numparts;
+        if (ThisTask == 0) {
+            for (auto x:mpinumparts) if (x == 0) {
+                cerr<<"ERROR: MPI Process has zero particles associated with it, likely due to too many mpi tasks requested or too coarse a mesh used."<<endl;
+                cerr<<"Current number of tasks: "<<NProcs<<endl;
+                cerr<<"Current mesh resolution "<<opt.numcellsperdim<<"^3"<<endl;
+                Int_t sum = 0; for(auto x:opt.cellnodenumparts) sum +=x;
+                cerr<<"Total number of particles loaded "<<sum<<endl;
+                cerr<<"Suggested number of particles per mpi processes is > 1e7"<<endl;
+                cerr<<"Suggested number of mpi processes using 1e7 is "<<(int)ceil(sum/1e7)<<endl;
+                cerr<<"Increase mesh resolution or reduce MPI Processes "<<endl;
+                MPI_Abort(MPI_COMM_WORLD,8);
+            }
+            cout<<"Now have MPI imbalance of "<<MPILoadBalanceWithMesh(opt)<<endl;
+            cout<<"MPI tasks :"<<endl;
+            for (auto i=0; i<NProcs; i++) cout<<" Task "<<i<<" has "<<numcellspertask[i]/double(opt.numcells)<<" of the volume"<<endl;
+        }
+        for (auto &x:opt.cellnodenumparts) x=0;
+        Nlocal = mpinumparts[ThisTask];
+        //only need to reread file if baryon search active to determine number of
+        //baryons in local mpi domain. Otherwise, simple enough to update Nlocal
+        return (opt.iBaryonSearch>0);
+    }
+    return false;
+}
 
 void MPINumInDomain(Options &opt)
 {
@@ -171,13 +342,31 @@ void MPINumInDomain(Options &opt)
     return;
     }
     int nsnapread=opt.nsnapread;
-    opt.nsnapread=min(NProcs,opt.num_files);
+    //opt.nsnapread=min(NProcs,opt.num_files);
     if(opt.inputtype==IOTIPSY) MPINumInDomainTipsy(opt);
     else if (opt.inputtype==IOGADGET) MPINumInDomainGadget(opt);
     else if (opt.inputtype==IORAMSES) MPINumInDomainRAMSES(opt);
 #ifdef USEHDF
     else if (opt.inputtype==IOHDF) MPINumInDomainHDF(opt);
 #endif
+    if (ThisTask == 0) {
+        if (Ntotal/1e7 < NProcs) {
+            cout<<"WARNING: Suggested number of particles per mpi processes is roughly > 1e7"<<endl;
+            cout<<"Number of MPI tasks greater than this suggested number"<<endl;
+            cerr<<"May result in poor performance"<<endl;
+        }
+    }
+    //if using mesh, check load imbalance and also repartition
+    if (opt.impiusemesh) {
+        if (MPIRepartitionDomainDecompositionWithMesh(opt)){
+            if(opt.inputtype==IOTIPSY) MPINumInDomainTipsy(opt);
+            else if (opt.inputtype==IOGADGET) MPINumInDomainGadget(opt);
+            else if (opt.inputtype==IORAMSES) MPINumInDomainRAMSES(opt);
+#ifdef USEHDF
+            else if (opt.inputtype==IOHDF) MPINumInDomainHDF(opt);
+#endif
+        }
+    }
     opt.nsnapread=nsnapread;
     //adjust the memory allocated to allow some buffer room.
     Nmemlocal=Nlocal*(1.0+opt.mpipartfac);
@@ -197,7 +386,7 @@ void MPIDomainExtent(Options &opt)
 
 void MPIDomainDecomposition(Options &opt)
 {
-    MPIInitialDomainDecomposition();
+    MPIInitialDomainDecomposition(opt);
     if(opt.inputtype==IOTIPSY) MPIDomainDecompositionTipsy(opt);
     else if (opt.inputtype==IOGADGET) MPIDomainDecompositionGadget(opt);
     else if (opt.inputtype==IORAMSES) MPIDomainDecompositionRAMSES(opt);
@@ -207,29 +396,943 @@ void MPIDomainDecomposition(Options &opt)
 }
 
 ///adjust the domain boundaries to code units
-void MPIAdjustDomain(Options opt){
+void MPIAdjustDomain(Options &opt){
+    if (opt.impiusemesh) {
+        MPIAdjustDomainWithMesh(opt);
+        return;
+    }
     Double_t aadjust, lscale;
     if (opt.comove) aadjust=1.0;
     else aadjust=opt.a;
-    lscale=opt.lengthinputconversion/opt.h*aadjust;
+    lscale=opt.lengthinputconversion*aadjust;
+    if (opt.inputcontainslittleh) lscale /=opt.h;
     for (int j=0;j<NProcs;j++) for (int k=0;k<3;k++) {mpi_domain[j].bnd[k][0]*=lscale;mpi_domain[j].bnd[k][1]*=lscale;}
 }
 
+void MPIAdjustDomainWithMesh(Options &opt)
+{
+    //once data loaded update cell widths
+    Double_t aadjust, lscale;
+    if (opt.comove) aadjust=1.0;
+    else aadjust=opt.a;
+    lscale=opt.lengthinputconversion*aadjust;
+    if (opt.inputcontainslittleh) lscale /=opt.h;
+    for (auto i=0;i<3;i++) {
+        opt.spacedimension[i] *= lscale;
+        opt.cellwidth[i] *= lscale;
+        opt.icellwidth[i] /= lscale;
+    }
+}
+
+
+
 ///given a position and a mpi thread domain information, determine which processor a particle is assigned to
-int MPIGetParticlesProcessor(Double_t x,Double_t y, Double_t z){
+int MPIGetParticlesProcessor(Options &opt, Double_t x, Double_t y, Double_t z){
     if (NProcs==1) return 0;
-    for (int j=0;j<NProcs;j++){
-        if( (mpi_domain[j].bnd[0][0]<=x) && (mpi_domain[j].bnd[0][1]>=x)&&
-            (mpi_domain[j].bnd[1][0]<=y) && (mpi_domain[j].bnd[1][1]>=y)&&
-            (mpi_domain[j].bnd[2][0]<=z) && (mpi_domain[j].bnd[2][1]>=z) )
-            return j;
+    if (opt.impiusemesh) {
+        unsigned int ix, iy, iz;
+        unsigned long long index;
+        ix=floor(x*opt.icellwidth[0]);
+        iy=floor(y*opt.icellwidth[1]);
+        iz=floor(z*opt.icellwidth[2]);
+        index = ix*opt.numcellsperdim*opt.numcellsperdim+iy*opt.numcellsperdim+iz;
+        opt.cellnodenumparts[index]++;
+        if (index >= 0 && index < opt.numcells) return opt.cellnodeids[index];
+    }
+    else {
+        for (int j=0;j<NProcs;j++){
+            if( (mpi_domain[j].bnd[0][0]<=x) && (mpi_domain[j].bnd[0][1]>=x)&&
+                (mpi_domain[j].bnd[1][0]<=y) && (mpi_domain[j].bnd[1][1]>=y)&&
+                (mpi_domain[j].bnd[2][0]<=z) && (mpi_domain[j].bnd[2][1]>=z) )
+                return j;
+        }
     }
     cerr<<ThisTask<<" has particle outside the mpi domains of every process ("<<x<<","<<y<<","<<z<<")"<<endl;
     MPI_Abort(MPI_COMM_WORLD,9);
 }
 
+
+void MPIStripExportParticleOfExtraInfo(Options &opt, Int_t n, Particle *Part)
+{
+#if defined(GASON) || defined(STARON) || defined(BHON) || defined(EXTRADMON)
+    Int_t numextrafields = 0;
+#ifdef GASON
+    numextrafields = opt.gas_internalprop_unique_input_names.size() + opt.gas_chem_unique_input_names.size() + opt.gas_chemproduction_unique_input_names.size();
+    if (numextrafields > 0)
+    {
+        for (auto i=0;i<n;i++)
+        {
+            if (Part[i].HasHydroProperties()) Part[i].SetHydroProperties();
+        }
+    }
+#endif
+#ifdef STARON
+    numextrafields = opt.star_internalprop_unique_input_names.size() + opt.star_chem_unique_input_names.size() + opt.star_chemproduction_unique_input_names.size();
+    if (numextrafields > 0)
+    {
+        for (auto i=0;i<n;i++)
+        {
+            if (Part[i].HasStarProperties()) Part[i].SetStarProperties();
+        }
+    }
+#endif
+#ifdef BHON
+    numextrafields = opt.bh_internalprop_unique_input_names.size() + opt.bh_chem_unique_input_names.size() + opt.bh_chemproduction_unique_input_names.size();
+    if (numextrafields > 0)
+    {
+        for (auto i=0;i<n;i++)
+        {
+            if (Part[i].HasBHProperties()) Part[i].SetBHProperties();
+        }
+    }
+#endif
+#ifdef EXTRADMON
+    numextrafields = opt.extra_dm_internalprop_unique_input_names.size();
+    if (numextrafields > 0)
+    {
+        for (auto i=0;i<n;i++)
+        {
+            if (Part[i].HasExtraDMProperties()) Part[i].SetExtraDMProperties();
+        }
+    }
+#endif
+#endif
+}
+
+void MPIFillBuffWithHydroInfo(Options &opt, Int_t nlocalbuff, Particle *Part, vector<Int_t> &indices, vector<float> &propbuff, bool resetbuff)
+{
+#ifdef GASON
+    Int_t num = 0, numextrafields = 0, index, offset = 0;
+    string field;
+    indices.clear();
+    propbuff.clear();
+
+    numextrafields = opt.gas_internalprop_unique_input_names.size() + opt.gas_chem_unique_input_names.size() + opt.gas_chemproduction_unique_input_names.size();
+    if (numextrafields == 0) return;
+    for (auto i=0;i<nlocalbuff;i++) if (Part[i].HasHydroProperties()) indices.push_back(i);
+    num = indices.size();
+
+    if (num == 0) return;
+    propbuff.resize(numextrafields*num);
+    for (auto i=0;i<num;i++)
+    {
+        index = indices[i];
+        offset = 0;
+        for (auto iextra=0;iextra<opt.gas_internalprop_unique_input_names.size();iextra++)
+        {
+            field = opt.gas_internalprop_unique_input_names[iextra];
+            propbuff[i*numextrafields + iextra + offset] = Part[index].GetHydroProperties().GetInternalProperties(field);
+        }
+        offset += opt.gas_internalprop_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.gas_chem_unique_input_names.size();iextra++)
+        {
+            field = opt.gas_chem_unique_input_names[iextra];
+            propbuff[i*numextrafields + iextra + offset] = Part[index].GetHydroProperties().GetChemistry(field);
+        }
+        offset += opt.gas_chem_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.gas_chemproduction_unique_input_names.size();iextra++)
+        {
+            field = opt.gas_chemproduction_unique_input_names[iextra];
+            propbuff[i*numextrafields + iextra + offset] = Part[index].GetHydroProperties().GetChemistryProduction(field);
+        }
+        if (resetbuff) Part[index].SetHydroProperties();
+    }
+#endif
+}
+
+void MPIFillBuffWithStarInfo(Options &opt, Int_t nlocalbuff, Particle *Part, vector<Int_t> &indices, vector<float> &propbuff, bool resetbuff)
+{
+#ifdef STARON
+    Int_t num = 0, numextrafields = 0, index, offset = 0;
+    string field;
+    indices.clear();
+    propbuff.clear();
+
+    numextrafields = opt.star_internalprop_unique_input_names.size() + opt.star_chem_unique_input_names.size() + opt.star_chemproduction_unique_input_names.size();
+    if (numextrafields == 0) return;
+    for (auto i=0;i<nlocalbuff;i++) if (Part[i].HasStarProperties()) indices.push_back(i);
+    num = indices.size();
+
+    if (num == 0) return;
+    propbuff.resize(numextrafields*num);
+    for (auto i=0;i<num;i++)
+    {
+        index = indices[i];
+        offset = 0;
+        for (auto iextra=0;iextra<opt.star_internalprop_unique_input_names.size();iextra++)
+        {
+            field = opt.star_internalprop_unique_input_names[iextra];
+            propbuff[i*numextrafields + iextra + offset] = Part[index].GetStarProperties().GetInternalProperties(field);
+        }
+        offset += opt.star_internalprop_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.star_chem_unique_input_names.size();iextra++)
+        {
+            field = opt.star_chem_unique_input_names[iextra];
+            propbuff[i*numextrafields + iextra + offset] = Part[index].GetStarProperties().GetChemistry(field);
+        }
+        offset += opt.star_chem_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.star_chemproduction_unique_input_names.size();iextra++)
+        {
+            field = opt.star_chemproduction_unique_input_names[iextra];
+            propbuff[i*numextrafields + iextra + offset] = Part[index].GetStarProperties().GetChemistryProduction(field);
+        }
+        if (resetbuff) Part[index].SetStarProperties();
+    }
+#endif
+}
+
+void MPIFillBuffWithBHInfo(Options &opt, Int_t nlocalbuff, Particle *Part, vector<Int_t> &indices, vector<float> &propbuff, bool resetbuff)
+{
+#ifdef BHON
+    Int_t num = 0, numextrafields = 0, index, offset = 0;
+    string field;
+    indices.clear();
+    propbuff.clear();
+
+    numextrafields = opt.bh_internalprop_unique_input_names.size() + opt.bh_chem_unique_input_names.size() + opt.bh_chemproduction_unique_input_names.size();
+    if (numextrafields == 0) return;
+    for (auto i=0;i<nlocalbuff;i++) if (Part[i].HasBHProperties()) indices.push_back(i);
+    num = indices.size();
+
+    if (num == 0) return;
+    propbuff.resize(numextrafields*num);
+    for (auto i=0;i<num;i++)
+    {
+        index = indices[i];
+        offset = 0;
+        for (auto iextra=0;iextra<opt.bh_internalprop_unique_input_names.size();iextra++)
+        {
+            field = opt.bh_internalprop_unique_input_names[iextra];
+            propbuff[i*numextrafields + iextra + offset] = Part[index].GetBHProperties().GetInternalProperties(field);
+        }
+        offset += opt.bh_internalprop_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.bh_chem_unique_input_names.size();iextra++)
+        {
+            field = opt.bh_chem_unique_input_names[iextra];
+            propbuff[i*numextrafields + iextra + offset] = Part[index].GetBHProperties().GetChemistry(field);
+        }
+        offset += opt.bh_chem_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.bh_chemproduction_unique_input_names.size();iextra++)
+        {
+            field = opt.bh_chemproduction_unique_input_names[iextra];
+            propbuff[i*numextrafields + iextra + offset] = Part[index].GetBHProperties().GetChemistryProduction(field);
+        }
+        if (resetbuff) Part[index].SetBHProperties();
+    }
+#endif
+}
+
+void MPIFillBuffWithExtraDMInfo(Options &opt, Int_t nlocalbuff, Particle *Part, vector<Int_t> &indices, vector<float> &propbuff, bool resetbuff)
+{
+#ifdef EXTRADMON
+    Int_t num = 0, numextrafields = 0, index, offset = 0;
+    string field;
+    indices.clear();
+    propbuff.clear();
+
+    numextrafields = opt.extra_dm_internalprop_unique_input_names.size();
+    if (numextrafields == 0) return;
+    for (auto i=0;i<nlocalbuff;i++) if (Part[i].HasExtraDMProperties()) indices.push_back(i);
+    num = indices.size();
+
+    if (num == 0) return;
+    propbuff.resize(numextrafields*num);
+    for (auto i=0;i<num;i++)
+    {
+        index = indices[i];
+        offset = 0;
+        for (auto iextra=0;iextra<opt.extra_dm_internalprop_unique_input_names.size();iextra++)
+        {
+            field = opt.extra_dm_internalprop_unique_input_names[iextra];
+            propbuff[i*numextrafields + iextra + offset] = Part[index].GetExtraDMProperties().GetExtraProperties(field);
+        }
+        if (resetbuff) Part[index].SetExtraDMProperties();
+    }
+#endif
+}
+
+void MPIFillFOFBuffWithHydroInfo(Options &opt, Int_t numexport, fofid_in *FoFGroupData, Particle *&Part, vector<Int_t> &indices, vector<float> &propbuff, bool iforexport)
+{
+#ifdef GASON
+    Int_t num = 0, numextrafields = 0, index, offset = 0;
+    string field;
+    indices.clear();
+    propbuff.clear();
+
+    numextrafields = opt.gas_internalprop_unique_input_names.size() + opt.gas_chem_unique_input_names.size() + opt.gas_chemproduction_unique_input_names.size();
+    if (numextrafields == 0) return;
+    for (auto i=0;i<numexport;i++)
+    {
+        if (!FoFGroupData[i].p.HasHydroProperties()) continue;
+        indices.push_back(i);
+    }
+    num = indices.size();
+    if (num == 0) return;
+
+    propbuff.resize(numextrafields*num);
+    for (auto i=0;i<num;i++)
+    {
+        index = indices[i];
+        offset = 0;
+        for (auto iextra=0;iextra<opt.gas_internalprop_unique_input_names.size();iextra++)
+        {
+            field = opt.gas_internalprop_unique_input_names[iextra];
+            propbuff[i*numextrafields + iextra + offset] = FoFGroupData[index].p.GetHydroProperties().GetInternalProperties(field);
+        }
+        offset += opt.gas_internalprop_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.gas_chem_unique_input_names.size();iextra++)
+        {
+            field = opt.gas_chem_unique_input_names[iextra];
+            propbuff[i*numextrafields + iextra + offset] = FoFGroupData[index].p.GetHydroProperties().GetChemistry(field);
+        }
+        offset += opt.gas_chem_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.gas_chemproduction_unique_input_names.size();iextra++)
+        {
+            field = opt.gas_chemproduction_unique_input_names[iextra];
+            propbuff[i*numextrafields + iextra + offset] = FoFGroupData[index].p.GetHydroProperties().GetChemistryProduction(field);
+        }
+        FoFGroupData[index].p.SetHydroProperties();
+        if (iforexport) Part[FoFGroupData[index].Index].SetHydroProperties();
+    }
+#endif
+}
+
+void MPIFillFOFBuffWithStarInfo(Options &opt, Int_t numexport, fofid_in *FoFGroupData, Particle *&Part, vector<Int_t> &indices, vector<float> &propbuff, bool iforexport)
+{
+#ifdef STARON
+    Int_t num = 0, numextrafields = 0, index, offset = 0;
+    string field;
+    indices.clear();
+    propbuff.clear();
+
+    numextrafields = opt.star_internalprop_unique_input_names.size() + opt.star_chem_unique_input_names.size() + opt.star_chemproduction_unique_input_names.size();
+    if (numextrafields == 0) return;
+    for (auto i=0;i<numexport;i++)
+    {
+        if (!FoFGroupData[i].p.HasStarProperties()) continue;
+        indices.push_back(i);
+    }
+    num = indices.size();
+    if (num == 0) return;
+
+    propbuff.resize(numextrafields*num);
+    for (auto i=0;i<num;i++)
+    {
+        index = indices[i];
+        offset = 0;
+        for (auto iextra=0;iextra<opt.star_internalprop_unique_input_names.size();iextra++)
+        {
+            field = opt.star_internalprop_unique_input_names[iextra];
+            propbuff[i*numextrafields + iextra + offset] = FoFGroupData[index].p.GetStarProperties().GetInternalProperties(field);
+        }
+        offset += opt.star_internalprop_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.star_chem_unique_input_names.size();iextra++)
+        {
+            field = opt.star_chem_unique_input_names[iextra];
+            propbuff[i*numextrafields + iextra + offset] = FoFGroupData[index].p.GetStarProperties().GetChemistry(field);
+        }
+        offset += opt.star_chem_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.star_chemproduction_unique_input_names.size();iextra++)
+        {
+            field = opt.star_chemproduction_unique_input_names[iextra];
+            propbuff[i*numextrafields + iextra + offset] = FoFGroupData[index].p.GetStarProperties().GetChemistryProduction(field);
+        }
+        FoFGroupData[index].p.SetStarProperties();
+        if (iforexport) Part[FoFGroupData[index].Index].SetStarProperties();
+    }
+#endif
+}
+
+void MPIFillFOFBuffWithBHInfo(Options &opt, Int_t numexport, fofid_in *FoFGroupData, Particle *&Part, vector<Int_t> &indices, vector<float> &propbuff, bool iforexport)
+{
+#ifdef BHON
+    Int_t num = 0, numextrafields = 0, index, offset = 0;
+    string field;
+    indices.clear();
+    propbuff.clear();
+
+    numextrafields = opt.bh_internalprop_unique_input_names.size() + opt.bh_chem_unique_input_names.size() + opt.bh_chemproduction_unique_input_names.size();
+    if (numextrafields == 0) return;
+    for (auto i=0;i<numexport;i++)
+    {
+        if (!FoFGroupData[i].p.HasBHProperties()) continue;
+        indices.push_back(i);
+    }
+    num = indices.size();
+    if (num == 0) return;
+
+    propbuff.resize(numextrafields*num);
+    for (auto i=0;i<num;i++)
+    {
+        index = indices[i];
+        offset = 0;
+        for (auto iextra=0;iextra<opt.bh_internalprop_unique_input_names.size();iextra++)
+        {
+            field = opt.bh_internalprop_unique_input_names[iextra];
+            propbuff[i*numextrafields + iextra + offset] = FoFGroupData[index].p.GetBHProperties().GetInternalProperties(field);
+        }
+        offset += opt.bh_internalprop_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.bh_chem_unique_input_names.size();iextra++)
+        {
+            field = opt.bh_chem_unique_input_names[iextra];
+            propbuff[i*numextrafields + iextra + offset] = FoFGroupData[index].p.GetBHProperties().GetChemistry(field);
+        }
+        offset += opt.bh_chem_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.bh_chemproduction_unique_input_names.size();iextra++)
+        {
+            field = opt.bh_chemproduction_unique_input_names[iextra];
+            propbuff[i*numextrafields + iextra + offset] = FoFGroupData[index].p.GetBHProperties().GetChemistryProduction(field);
+        }
+        FoFGroupData[index].p.SetBHProperties();
+        if (iforexport) Part[FoFGroupData[index].Index].SetBHProperties();
+    }
+#endif
+}
+
+void MPIFillFOFBuffWithExtraDMInfo(Options &opt, Int_t numexport, fofid_in *FoFGroupData, Particle *&Part, vector<Int_t> &indices, vector<float> &propbuff, bool iforexport)
+{
+#ifdef EXTRADMON
+    Int_t num = 0, numextrafields = 0, index, offset = 0;
+    string field;
+    indices.clear();
+    propbuff.clear();
+
+    numextrafields = opt.extra_dm_internalprop_unique_input_names.size();
+    if (numextrafields == 0) return;
+    for (auto i=0;i<numexport;i++)
+    {
+        if (!FoFGroupData[i].p.HasExtraDMProperties()) continue;
+        indices.push_back(i);
+    }
+    num = indices.size();
+    if (num == 0) return;
+
+    propbuff.resize(numextrafields*num);
+    for (auto i=0;i<num;i++)
+    {
+        index = indices[i];
+        offset = 0;
+        for (auto iextra=0;iextra<opt.extra_dm_internalprop_unique_input_names.size();iextra++)
+        {
+            field = opt.extra_dm_internalprop_unique_input_names[iextra];
+            propbuff[i*numextrafields + iextra + offset] = FoFGroupData[index].p.GetExtraDMProperties().GetExtraProperties(field);
+        }
+        FoFGroupData[index].p.SetExtraDMProperties();
+        if (iforexport) Part[FoFGroupData[index].Index].SetExtraDMProperties();
+    }
+#endif
+}
+
+
+void MPISendParticleInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle *Part, int taskID)
+{
+    MPI_Status status;
+    vector<Int_t> indices_gas, indices_star, indices_bh, indices_extradm;
+    Int_t num = 0, numextrafields = 0, index, offset = 0;
+    vector<float> propbuff_gas, propbuff_star, propbuff_bh, propbuff_extradm;
+    string field;
+
+#ifdef GASON
+    numextrafields = opt.gas_internalprop_names.size() + opt.gas_chem_names.size() + opt.gas_chemproduction_names.size();
+    if (numextrafields > 0)
+    {
+        for (auto i=0;i<nlocalbuff;i++) if (Part[i].HasHydroProperties()) indices_gas.push_back(i);
+        num = indices_gas.size();
+        if (num>0) {
+            propbuff_gas.resize(numextrafields*num);
+            for (auto i=0;i<num;i++)
+            {
+                index = indices_gas[i];
+                offset = 0;
+                for (auto iextra=0;iextra<opt.gas_internalprop_names.size();iextra++)
+                {
+                    field = opt.gas_internalprop_names[iextra];
+                    propbuff_gas[i*numextrafields + iextra + offset] = Part[index].GetHydroProperties().GetInternalProperties(field);
+                }
+                offset += opt.gas_internalprop_names.size();
+                for (auto iextra=0;iextra<opt.gas_chem_names.size();iextra++)
+                {
+                    field = opt.gas_chem_names[iextra];
+                    propbuff_gas[i*numextrafields + iextra + offset] = Part[index].GetHydroProperties().GetChemistry(field);
+                }
+                offset += opt.gas_chem_names.size();
+                for (auto iextra=0;iextra<opt.gas_chemproduction_names.size();iextra++)
+                {
+                    field = opt.gas_chemproduction_names[iextra];
+                    propbuff_gas[i*numextrafields + iextra + offset] = Part[index].GetHydroProperties().GetChemistryProduction(field);
+                }
+                Part[index].SetHydroProperties();
+            }
+        }
+    }
+#endif
+#ifdef STARON
+    numextrafields = opt.star_internalprop_names.size() + opt.star_chem_names.size() + opt.star_chemproduction_names.size();
+    if (numextrafields > 0)
+    {
+        for (auto i=0;i<nlocalbuff;i++) if (Part[i].HasStarProperties()) indices_star.push_back(i);
+        num = indices_star.size();
+        if (num > 0)
+        {
+            propbuff_star.resize(numextrafields*num);
+            for (auto i=0;i<num;i++)
+            {
+                index = indices_star[i];
+                offset = 0;
+                for (auto iextra=0;iextra<opt.star_internalprop_names.size();iextra++)
+                {
+                    field = opt.star_internalprop_names[iextra];
+                    propbuff_star[i*numextrafields + iextra + offset] = Part[index].GetStarProperties().GetInternalProperties(field);
+                }
+                offset += opt.star_internalprop_names.size();
+                for (auto iextra=0;iextra<opt.star_chem_names.size();iextra++)
+                {
+                    field = opt.star_chem_names[iextra];
+                    propbuff_star[i*numextrafields + iextra + offset] = Part[index].GetStarProperties().GetChemistry(field);
+                }
+                offset += opt.star_chem_names.size();
+                for (auto iextra=0;iextra<opt.star_chemproduction_names.size();iextra++)
+                {
+                    field = opt.star_chemproduction_names[iextra];
+                    propbuff_star[i*numextrafields + iextra + offset] = Part[index].GetStarProperties().GetChemistryProduction(field);
+                }
+                Part[index].SetStarProperties();
+            }
+        }
+    }
+#endif
+#ifdef BHON
+    numextrafields = opt.bh_internalprop_names.size() + opt.bh_chem_names.size() + opt.bh_chemproduction_names.size();
+    if (numextrafields > 0)
+    {
+        for (auto i=0;i<nlocalbuff;i++) if (Part[i].HasBHProperties()) indices_bh.push_back(i);
+        num = indices_bh.size();
+        if (num > 0)
+        {
+            propbuff_bh.resize(numextrafields*num);
+            for (auto i=0;i<num;i++)
+            {
+                index = indices_bh[i];
+                offset = 0;
+                for (auto iextra=0;iextra<opt.bh_internalprop_names.size();iextra++)
+                {
+                    field = opt.bh_internalprop_names[iextra];
+                    propbuff_bh[i*numextrafields + iextra + offset] = Part[index].GetBHProperties().GetInternalProperties(field);
+                }
+                offset += opt.bh_internalprop_names.size();
+                for (auto iextra=0;iextra<opt.bh_chem_names.size();iextra++)
+                {
+                    field = opt.bh_chem_names[iextra];
+                    propbuff_bh[i*numextrafields + iextra + offset] = Part[index].GetBHProperties().GetChemistry(field);
+                }
+                offset += opt.bh_chem_names.size();
+                for (auto iextra=0;iextra<opt.bh_chemproduction_names.size();iextra++)
+                {
+                    field = opt.bh_chemproduction_names[iextra];
+                    propbuff_bh[i*numextrafields + iextra + offset] = Part[index].GetBHProperties().GetChemistryProduction(field);
+                }
+                Part[index].SetBHProperties();
+            }
+        }
+    }
+#endif
+#ifdef EXTRADMON
+    numextrafields = opt.extra_dm_internalprop_names.size();
+    if (numextrafields > 0)
+    {
+        for (auto i=0;i<nlocalbuff;i++) if (Part[i].HasExtraDMProperties()) indices_extradm.push_back(i);
+        num = indices_extradm.size();
+        if (num>0) {
+            propbuff_extradm.resize(numextrafields*num);
+            for (auto i=0;i<num;i++)
+            {
+                index = indices_extradm[i];
+                offset = 0;
+                for (auto iextra=0;iextra<opt.extra_dm_internalprop_names.size();iextra++)
+                {
+                    field = opt.extra_dm_internalprop_names[iextra];
+                    propbuff_extradm[i*numextrafields + iextra + offset] = Part[index].GetExtraDMProperties().GetExtraProperties(field);
+                }
+                Part[index].SetExtraDMProperties();
+            }
+        }
+    }
+#endif
+    MPI_Ssend(Part, sizeof(Particle)*nlocalbuff, MPI_BYTE, taskID, taskID, MPI_COMM_WORLD);
+#ifdef GASON
+    numextrafields = opt.gas_internalprop_names.size() + opt.gas_chem_names.size() + opt.gas_chemproduction_names.size();
+    if (numextrafields > 0)
+    {
+        num = indices_gas.size();
+        MPI_Send(&num,sizeof(Int_t),MPI_BYTE,taskID,taskID,MPI_COMM_WORLD);
+        if (num > 0)
+        {
+            MPI_Send(indices_gas.data(),sizeof(Int_t)*num,MPI_BYTE,taskID,taskID,MPI_COMM_WORLD);
+            MPI_Send(propbuff_gas.data(),sizeof(float)*num*numextrafields,MPI_BYTE,taskID,taskID,MPI_COMM_WORLD);
+        }
+    }
+#endif
+#ifdef STARON
+    numextrafields = opt.star_internalprop_names.size() + opt.star_chem_names.size() + opt.star_chemproduction_names.size();
+    if (numextrafields > 0)
+    {
+        num = indices_star.size();
+        MPI_Send(&num,sizeof(Int_t),MPI_BYTE,taskID,taskID,MPI_COMM_WORLD);
+        if (num > 0)
+        {
+            MPI_Send(indices_star.data(),sizeof(Int_t)*num,MPI_BYTE,taskID,taskID,MPI_COMM_WORLD);
+            MPI_Send(propbuff_star.data(),sizeof(float)*num*numextrafields,MPI_BYTE,taskID,taskID,MPI_COMM_WORLD);
+        }
+    }
+#endif
+#ifdef BHON
+    numextrafields = opt.bh_internalprop_names.size() + opt.bh_chem_names.size() + opt.bh_chemproduction_names.size();
+    if (numextrafields > 0)
+    {
+        num = indices_bh.size();
+        MPI_Send(&num,sizeof(Int_t),MPI_BYTE,taskID,taskID,MPI_COMM_WORLD);
+        if (num > 0)
+        {
+            MPI_Send(indices_bh.data(),sizeof(Int_t)*num,MPI_BYTE,taskID,taskID,MPI_COMM_WORLD);
+            MPI_Send(propbuff_bh.data(),sizeof(float)*num*numextrafields,MPI_BYTE,taskID,taskID,MPI_COMM_WORLD);
+        }
+    }
+#endif
+#ifdef EXTRADMON
+    numextrafields = opt.extra_dm_internalprop_names.size();
+    if (numextrafields > 0)
+    {
+        num = indices_gas.size();
+        MPI_Send(&num,sizeof(Int_t),MPI_BYTE,taskID,taskID,MPI_COMM_WORLD);
+        if (num > 0)
+        {
+            MPI_Send(indices_extradm.data(),sizeof(Int_t)*num,MPI_BYTE,taskID,taskID,MPI_COMM_WORLD);
+            MPI_Send(propbuff_extradm.data(),sizeof(float)*num*numextrafields,MPI_BYTE,taskID,taskID,MPI_COMM_WORLD);
+        }
+    }
+#endif
+}
+
+void MPISendHydroInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle *Part, int taskID)
+{
+#ifdef GASON
+    MPI_Status status;
+    vector<Int_t> indices;
+    Int_t num = 0, numextrafields = 0, index, offset = 0;
+    vector<float> propbuff;
+    string field;
+
+    numextrafields = opt.gas_internalprop_unique_input_names.size() + opt.gas_chem_unique_input_names.size() + opt.gas_chemproduction_unique_input_names.size();
+    if (numextrafields == 0) return;
+    for (auto i=0;i<nlocalbuff;i++) if (Part[i].HasHydroProperties()) indices.push_back(i);
+    num = indices.size();
+    MPI_Send(&num,1,MPI_Int_t,taskID,taskID,MPI_COMM_WORLD);
+    if (num == 0) return;
+    propbuff.resize(numextrafields*num);
+    for (auto i=0;i<num;i++)
+    {
+        index = indices[i];
+        offset = 0;
+        for (auto iextra=0;iextra<opt.gas_internalprop_unique_input_names.size();iextra++)
+        {
+            field = opt.gas_internalprop_unique_input_names[iextra];
+            propbuff[i*numextrafields + iextra + offset] = Part[index].GetHydroProperties().GetInternalProperties(field);
+        }
+        offset += opt.gas_internalprop_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.gas_chem_unique_input_names.size();iextra++)
+        {
+            field = opt.gas_chem_unique_input_names[iextra];
+            propbuff[i*numextrafields + iextra + offset] = Part[index].GetHydroProperties().GetChemistry(field);
+        }
+        offset += opt.gas_chem_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.gas_chemproduction_unique_input_names.size();iextra++)
+        {
+            field = opt.gas_chemproduction_unique_input_names[iextra];
+            propbuff[i*numextrafields + iextra + offset] = Part[index].GetHydroProperties().GetChemistryProduction(field);
+        }
+    }
+    MPI_Send(indices.data(),num,MPI_Int_t,taskID,taskID,MPI_COMM_WORLD);
+    MPI_Send(propbuff.data(),num*numextrafields,MPI_FLOAT,taskID,taskID,MPI_COMM_WORLD);
+#endif
+}
+
+void MPISendStarInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle *Part, int taskID)
+{
+#ifdef STARON
+    vector<Int_t> indices;
+    Int_t num = 0, numextrafields = 0, index, offset = 0;
+    vector<float> propbuff;
+    string field;
+
+    numextrafields = opt.star_internalprop_unique_input_names.size() + opt.star_chem_unique_input_names.size()  +opt.star_chemproduction_unique_input_names.size();
+    if (numextrafields == 0) return;
+    for (auto i=0;i<nlocalbuff;i++) if (Part[i].HasStarProperties()) indices.push_back(i);
+    num = indices.size();
+    MPI_Send(&num,1,MPI_Int_t,taskID,taskID,MPI_COMM_WORLD);
+    if (num == 0) return;
+    propbuff.resize(numextrafields*num);
+    for (auto i=0;i<num;i++)
+    {
+        index = indices[i];
+        offset = 0;
+        for (auto iextra=0;iextra<opt.star_internalprop_unique_input_names.size();iextra++)
+        {
+            field = opt.star_internalprop_unique_input_names[iextra];
+            propbuff[i*numextrafields + iextra + offset] = Part[index].GetStarProperties().GetInternalProperties(field);
+        }
+        offset += opt.star_internalprop_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.star_chem_unique_input_names.size();iextra++)
+        {
+            field = opt.star_chem_unique_input_names[iextra];
+            propbuff[i*numextrafields + iextra + offset] = Part[index].GetStarProperties().GetChemistry(field);
+        }
+        offset += opt.star_chem_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.star_chemproduction_unique_input_names.size();iextra++)
+        {
+            field = opt.star_chemproduction_unique_input_names[iextra];
+            propbuff[i*numextrafields + iextra + offset] = Part[index].GetStarProperties().GetChemistryProduction(field);
+        }
+    }
+    MPI_Send(indices.data(),num,MPI_Int_t,taskID,taskID,MPI_COMM_WORLD);
+    MPI_Send(propbuff.data(),num*numextrafields,MPI_FLOAT,taskID,taskID,MPI_COMM_WORLD);
+#endif
+}
+
+void MPISendBHInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle *Part, int taskID)
+{
+#ifdef BHON
+    vector<Int_t> indices;
+    Int_t num = 0, numextrafields = 0, index, offset = 0;
+    vector<float> propbuff;
+    string field;
+
+    numextrafields = opt.bh_internalprop_unique_input_names.size() + opt.bh_chem_unique_input_names.size() + opt.bh_chemproduction_unique_input_names.size();
+    if (numextrafields == 0) return;
+    for (auto i=0;i<nlocalbuff;i++) if (Part[i].HasBHProperties()) indices.push_back(i);
+    num = indices.size();
+    MPI_Send(&num,1,MPI_Int_t,taskID,taskID,MPI_COMM_WORLD);
+    if (num == 0) return;
+    propbuff.resize(numextrafields*num);
+    for (auto i=0;i<num;i++)
+    {
+        index = indices[i];
+        offset = 0;
+        for (auto iextra=0;iextra<opt.bh_internalprop_unique_input_names.size();iextra++)
+        {
+            field = opt.bh_internalprop_unique_input_names[iextra];
+            propbuff[i*numextrafields + iextra + offset] = Part[index].GetBHProperties().GetInternalProperties(field);
+        }
+        offset += opt.bh_internalprop_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.bh_chem_unique_input_names.size();iextra++)
+        {
+            field = opt.bh_chem_unique_input_names[iextra];
+            propbuff[i*numextrafields + iextra + offset] = Part[index].GetBHProperties().GetChemistry(field);
+        }
+        offset += opt.bh_chem_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.bh_chemproduction_unique_input_names.size();iextra++)
+        {
+            field = opt.bh_chemproduction_unique_input_names[iextra];
+            propbuff[i*numextrafields + iextra + offset] = Part[index].GetBHProperties().GetChemistryProduction(field);
+        }
+    }
+    MPI_Send(indices.data(),num,MPI_Int_t,taskID,taskID,MPI_COMM_WORLD);
+    MPI_Send(propbuff.data(),num*numextrafields,MPI_FLOAT,taskID,taskID,MPI_COMM_WORLD);
+#endif
+}
+
+void MPISendExtraDMInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle *Part, int taskID)
+{
+#ifdef EXTRADMON
+    MPI_Status status;
+    vector<Int_t> indices;
+    Int_t num = 0, numextrafields = 0, index, offset = 0;
+    vector<float> propbuff;
+    string field;
+
+    numextrafields = opt.extra_dm_internalprop_unique_input_names.size();
+    if (numextrafields == 0) return;
+    for (auto i=0;i<nlocalbuff;i++) if (Part[i].HasExtraDMProperties()) indices.push_back(i);
+    num = indices.size();
+    MPI_Send(&num,1,MPI_Int_t,taskID,taskID,MPI_COMM_WORLD);
+    if (num == 0) return;
+    propbuff.resize(numextrafields*num);
+    for (auto i=0;i<num;i++)
+    {
+        index = indices[i];
+        offset = 0;
+        for (auto iextra=0;iextra<opt.extra_dm_internalprop_unique_input_names.size();iextra++)
+        {
+            field = opt.extra_dm_internalprop_unique_input_names[iextra];
+            propbuff[i*numextrafields + iextra + offset] = Part[index].GetExtraDMProperties().GetExtraProperties(field);
+        }
+    }
+    MPI_Send(indices.data(),num,MPI_Int_t,taskID,taskID,MPI_COMM_WORLD);
+    MPI_Send(propbuff.data(),num*numextrafields,MPI_FLOAT,taskID,taskID,MPI_COMM_WORLD);
+#endif
+}
+
+void MPIISendHydroInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int dst, int tag, MPI_Request &rqst)
+{
+#ifdef GASON
+    MPI_Status status;
+    vector<Int_t> indices;
+    Int_t num = 0, numextrafields = 0, index, offset = 0;
+    vector<float> propbuff;
+    string field;
+
+    numextrafields = opt.gas_internalprop_unique_input_names.size() + opt.gas_chem_unique_input_names.size() + opt.gas_chemproduction_unique_input_names.size();
+    if (numextrafields == 0) return;
+    for (auto i=0;i<nlocalbuff;i++) if (Part[i].HasHydroProperties()) indices.push_back(i);
+    num = indices.size();
+    MPI_Isend(&num, 1, MPI_Int_t, dst, tag, MPI_COMM_WORLD, &rqst);
+    if (num == 0) return;
+    propbuff.resize(numextrafields*num);
+    for (auto i=0;i<num;i++)
+    {
+        index = indices[i];
+        offset = 0;
+        for (auto iextra=0;iextra<opt.gas_internalprop_unique_input_names.size();iextra++)
+        {
+            field = opt.gas_internalprop_unique_input_names[iextra];
+            propbuff[i*numextrafields + iextra + offset] = Part[index].GetHydroProperties().GetInternalProperties(field);
+        }
+        offset += opt.gas_internalprop_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.gas_chem_unique_input_names.size();iextra++)
+        {
+            field = opt.gas_chem_unique_input_names[iextra];
+            propbuff[i*numextrafields + iextra + offset] = Part[index].GetHydroProperties().GetChemistry(field);
+        }
+        offset += opt.gas_chem_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.gas_chemproduction_unique_input_names.size();iextra++)
+        {
+            field = opt.gas_chemproduction_unique_input_names[iextra];
+            propbuff[i*numextrafields + iextra + offset] = Part[index].GetHydroProperties().GetChemistryProduction(field);
+        }
+    }
+    MPI_Isend(indices.data(), num, MPI_Int_t, dst, tag*2, MPI_COMM_WORLD, &rqst);
+    MPI_Isend(propbuff.data(), num*numextrafields, MPI_FLOAT, dst, tag*3, MPI_COMM_WORLD, &rqst);
+#endif
+}
+
+void MPIISendStarInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int dst, int tag, MPI_Request &rqst)
+{
+#ifdef STARON
+    MPI_Status status;
+    vector<Int_t> indices;
+    Int_t num = 0, numextrafields = 0, index, offset = 0;
+    vector<float> propbuff;
+    string field;
+
+    numextrafields = opt.star_internalprop_unique_input_names.size() + opt.star_chem_unique_input_names.size() + opt.star_chemproduction_unique_input_names.size();
+    if (numextrafields == 0) return;
+    for (auto i=0;i<nlocalbuff;i++) if (Part[i].HasStarProperties()) indices.push_back(i);
+    num = indices.size();
+    MPI_Isend(&num, 1, MPI_Int_t, dst, tag, MPI_COMM_WORLD, &rqst);
+    if (num == 0) return;
+    propbuff.resize(numextrafields*num);
+    for (auto i=0;i<num;i++)
+    {
+        index = indices[i];
+        offset = 0;
+        for (auto iextra=0;iextra<opt.star_internalprop_unique_input_names.size();iextra++)
+        {
+            field = opt.star_internalprop_unique_input_names[iextra];
+            propbuff[i*numextrafields + iextra + offset] = Part[index].GetStarProperties().GetInternalProperties(field);
+        }
+        offset += opt.star_internalprop_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.star_chem_unique_input_names.size();iextra++)
+        {
+            field = opt.star_chem_unique_input_names[iextra];
+            propbuff[i*numextrafields + iextra + offset] = Part[index].GetStarProperties().GetChemistry(field);
+        }
+        offset += opt.star_chem_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.star_chemproduction_unique_input_names.size();iextra++)
+        {
+            field = opt.star_chemproduction_unique_input_names[iextra];
+            propbuff[i*numextrafields + iextra + offset] = Part[index].GetStarProperties().GetChemistryProduction(field);
+        }
+    }
+    MPI_Isend(indices.data(), num, MPI_Int_t, dst, tag*2, MPI_COMM_WORLD, &rqst);
+    MPI_Isend(propbuff.data(), num*numextrafields, MPI_FLOAT, dst, tag*3, MPI_COMM_WORLD, &rqst);
+#endif
+}
+
+void MPIISendBHInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int dst, int tag, MPI_Request &rqst)
+{
+#ifdef BHON
+    MPI_Status status;
+    vector<Int_t> indices;
+    Int_t num = 0, numextrafields = 0, index, offset = 0;
+    vector<float> propbuff;
+    string field;
+
+    numextrafields = opt.bh_internalprop_unique_input_names.size() + opt.bh_chem_unique_input_names.size() + opt.bh_chemproduction_unique_input_names.size();
+    if (numextrafields == 0) return;
+    for (auto i=0;i<nlocalbuff;i++) if (Part[i].HasBHProperties()) indices.push_back(i);
+    num = indices.size();
+    MPI_Isend(&num, 1, MPI_Int_t, dst, tag, MPI_COMM_WORLD, &rqst);
+    if (num == 0) return;
+    propbuff.resize(numextrafields*num);
+    for (auto i=0;i<num;i++)
+    {
+        index = indices[i];
+        offset = 0;
+        for (auto iextra=0;iextra<opt.bh_internalprop_unique_input_names.size();iextra++)
+        {
+            field = opt.bh_internalprop_unique_input_names[iextra];
+            propbuff[i*numextrafields + iextra + offset] = Part[index].GetBHProperties().GetInternalProperties(field);
+        }
+        offset += opt.bh_internalprop_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.bh_chem_unique_input_names.size();iextra++)
+        {
+            field = opt.bh_chem_unique_input_names[iextra];
+            propbuff[i*numextrafields + iextra + offset] = Part[index].GetBHProperties().GetChemistry(field);
+        }
+        offset += opt.bh_chem_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.bh_chemproduction_unique_input_names.size();iextra++)
+        {
+            field = opt.bh_chemproduction_unique_input_names[iextra];
+            propbuff[i*numextrafields + iextra + offset] = Part[index].GetBHProperties().GetChemistryProduction(field);
+        }
+    }
+    MPI_Isend(indices.data(), num, MPI_Int_t, dst, tag*2, MPI_COMM_WORLD, &rqst);
+    MPI_Isend(propbuff.data(), num*numextrafields, MPI_FLOAT, dst, tag*3, MPI_COMM_WORLD, &rqst);
+#endif
+}
+
+void MPIISendExtraDMInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int dst, int tag, MPI_Request &rqst)
+{
+#ifdef EXTRADMON
+    MPI_Status status;
+    vector<Int_t> indices;
+    Int_t num = 0, numextrafields = 0, index, offset = 0;
+    vector<float> propbuff;
+    string field;
+
+    numextrafields = opt.extra_dm_internalprop_unique_input_names.size();
+    if (numextrafields == 0) return;
+    for (auto i=0;i<nlocalbuff;i++) if (Part[i].HasExtraDMProperties()) indices.push_back(i);
+    num = indices.size();
+    MPI_Isend(&num, 1, MPI_Int_t, dst, tag, MPI_COMM_WORLD, &rqst);
+    if (num == 0) return;
+    propbuff.resize(numextrafields*num);
+    for (auto i=0;i<num;i++)
+    {
+        index = indices[i];
+        offset = 0;
+        for (auto iextra=0;iextra<opt.extra_dm_internalprop_unique_input_names.size();iextra++)
+        {
+            field = opt.extra_dm_internalprop_unique_input_names[iextra];
+            propbuff[i*numextrafields + iextra + offset] = Part[index].GetExtraDMProperties().GetExtraProperties(field);
+        }
+    }
+    MPI_Isend(indices.data(), num, MPI_Int_t, dst, tag*2, MPI_COMM_WORLD, &rqst);
+    MPI_Isend(propbuff.data(), num*numextrafields, MPI_FLOAT, dst, tag*3, MPI_COMM_WORLD, &rqst);
+#endif
+}
+
 //adds a particle read from an input file to the appropriate buffers
-void MPIAddParticletoAppropriateBuffer(const int &ibuf, Int_t ibufindex, int *&ireadtask, const Int_t &BufSize, Int_t *&Nbuf, Particle *&Pbuf, Int_t &numpart, Particle *Part, Int_t *&Nreadbuf, vector<Particle>*&Preadbuf){
+void MPIAddParticletoAppropriateBuffer(Options &opt, const int &ibuf, Int_t ibufindex, int *&ireadtask, const Int_t &BufSize, Int_t *&Nbuf, Particle *&Pbuf, Int_t &numpart, Particle *Part, Int_t *&Nreadbuf, vector<Particle>*&Preadbuf){
     if (ibuf==ThisTask) {
         Nbuf[ibuf]--;
         Part[numpart++]=Pbuf[ibufindex];
@@ -238,6 +1341,10 @@ void MPIAddParticletoAppropriateBuffer(const int &ibuf, Int_t ibufindex, int *&i
         if(Nbuf[ibuf]==BufSize&&ireadtask[ibuf]<0) {
             MPI_Send(&Nbuf[ibuf], 1, MPI_Int_t, ibuf, ibuf+NProcs, MPI_COMM_WORLD);
             MPI_Send(&Pbuf[ibuf*BufSize],sizeof(Particle)*Nbuf[ibuf],MPI_BYTE,ibuf,ibuf,MPI_COMM_WORLD);
+            MPISendHydroInfoFromReadThreads(opt, Nbuf[ibuf], &Pbuf[ibuf*BufSize], ibuf);
+            MPISendStarInfoFromReadThreads(opt, Nbuf[ibuf], &Pbuf[ibuf*BufSize], ibuf);
+            MPISendBHInfoFromReadThreads(opt, Nbuf[ibuf], &Pbuf[ibuf*BufSize], ibuf);
+            MPISendExtraDMInfoFromReadThreads(opt, Nbuf[ibuf], &Pbuf[ibuf*BufSize], ibuf);
             Nbuf[ibuf]=0;
         }
         else if (ireadtask[ibuf]>=0) {
@@ -473,22 +1580,20 @@ int MPISearchForOverlap(Double_t xsearch[3][2]){
                     xsearchp[j][ireflec[k]][1]=xsearch[ireflec[k]][1]-mpi_period;
             }
         }
-
-    for (j=0;j<NProcs;j++) for (k=0;k<numreflecchoice;k++){
-        if (j!=ThisTask) {
-            if(!((mpi_domain[j].bnd[0][1] < xsearchp[k][0][0]) || (mpi_domain[j].bnd[0][0] > xsearchp[k][0][1]) ||
-            (mpi_domain[j].bnd[1][1] < xsearchp[k][1][0]) || (mpi_domain[j].bnd[1][0] > xsearchp[k][1][1]) ||
-            (mpi_domain[j].bnd[2][1] < xsearchp[k][2][0]) || (mpi_domain[j].bnd[2][0] > xsearchp[k][2][1])))
-            numoverlap++;
+        for (j=0;j<NProcs;j++) for (k=0;k<numreflecchoice;k++) {
+            if (j!=ThisTask) {
+                if(!((mpi_domain[j].bnd[0][1] < xsearchp[k][0][0]) || (mpi_domain[j].bnd[0][0] > xsearchp[k][0][1]) ||
+                (mpi_domain[j].bnd[1][1] < xsearchp[k][1][0]) || (mpi_domain[j].bnd[1][0] > xsearchp[k][1][1]) ||
+                (mpi_domain[j].bnd[2][1] < xsearchp[k][2][0]) || (mpi_domain[j].bnd[2][0] > xsearchp[k][2][1])))
+                numoverlap++;
+            }
         }
-    }
     }
     return numoverlap;
 }
 
 ///\todo clean up memory allocation in these functions, no need to keep allocating xsearch,xsearchp,numoverlap,etc
 /// Determine if a particle needs to be exported to another mpi domain based on a physical search radius
-#ifdef SWIFTINTERFACE
 
 int MPISearchForOverlapUsingMesh(Options &opt, Particle &Part, Double_t &rdist){
     Double_t xsearch[3][2];
@@ -518,7 +1623,6 @@ int MPISearchForOverlapUsingMesh(Options &opt, Double_t xsearch[3][2]){
     }
     return numoverlap;
 }
-#endif
 //@}
 
 /// \name Routines involved in reading input data
@@ -527,7 +1631,13 @@ int MPISearchForOverlapUsingMesh(Options &opt, Double_t xsearch[3][2]){
 void MPIDistributeReadTasks(Options&opt, int *&ireadtask, int*&readtaskID){
     //initialize
     if (opt.nsnapread>NProcs) opt.nsnapread=NProcs;
+#ifndef USEPARALLELHDF
+    //if not using parallel hdf5, allow only one task per file
     if (opt.num_files<opt.nsnapread) opt.nsnapread=opt.num_files;
+#else
+    //if parallel hdf5 but not reading hdf then again, max one task per file
+    if (opt.inputtype!=IOHDF) if (opt.num_files<opt.nsnapread) opt.nsnapread=opt.num_files;
+#endif
     for (int i=0;i<NProcs;i++) ireadtask[i]=-1;
     int spacing=max(1,(int)floor(NProcs/opt.nsnapread));
     for (int i=0;i<opt.nsnapread;i++) {ireadtask[i*spacing]=i;readtaskID[i]=i*spacing;}
@@ -536,23 +1646,437 @@ void MPIDistributeReadTasks(Options&opt, int *&ireadtask, int*&readtaskID){
 int MPISetFilesRead(Options&opt, int *&ireadfile, int *&ireadtask){
     //to determine which files the thread should read
     ireadfile=new int[opt.num_files];
+    int nread, niread, nfread;
     for (int i=0;i<opt.num_files;i++) ireadfile[i]=0;
-    int nread=opt.num_files/opt.nsnapread;
-    int niread=ireadtask[ThisTask]*nread,nfread=(ireadtask[ThisTask]+1)*nread;
+#ifndef USEPARALLELHDF
+    nread=opt.num_files/opt.nsnapread;
+    niread=ireadtask[ThisTask]*nread;
+    nfread=(ireadtask[ThisTask]+1)*nread;
     if (ireadtask[ThisTask]==opt.nsnapread-1) nfread=opt.num_files;
     for (int i=niread;i<nfread;i++) ireadfile[i]=1;
+#else
+    //for parallel hdf, multiple tasks can be set to read the same file
+    //but if nfiles >= nsnapread, proceed as always.
+    if (opt.num_files>=opt.nsnapread) {
+        nread=opt.num_files/opt.nsnapread;
+        niread=ireadtask[ThisTask]*nread,nfread=(ireadtask[ThisTask]+1)*nread;
+        if (ireadtask[ThisTask]==opt.nsnapread-1) nfread=opt.num_files;
+        for (int i=niread;i<nfread;i++) ireadfile[i]=1;
+    }
+    else {
+        int ntaskread = ceil(opt.nsnapread/opt.num_files);
+        int ifile = floor(ireadtask[ThisTask]/ntaskread);
+        ireadfile[ifile] = 1;
+        niread = ifile;
+    }
+#endif
     return niread;
+}
+
+
+//@}
+
+/// \name MPI Write related routines
+//@{
+void MPIInitWriteComm(){
+    ThisWriteTask = ThisTask;
+    ThisWriteComm = ThisTask;
+    NProcsWrite = NProcs;
+    NWriteComms = NProcs;
+    mpi_comm_write = MPI_COMM_WORLD;
+}
+/// define the write comm
+void MPIBuildWriteComm(Options &opt){
+#ifdef USEPARALLELHDF
+    if (opt.mpinprocswritesize > 1) {
+        ThisWriteComm = (int)(floor(ThisTask/(float)opt.mpinprocswritesize));
+        NWriteComms = (int)(ceil(NProcs/(float)opt.mpinprocswritesize));
+        MPI_Comm_split(MPI_COMM_WORLD, ThisWriteComm, ThisTask, &mpi_comm_write);
+        MPI_Comm_rank(mpi_comm_write, &ThisWriteTask);
+        MPI_Comm_size(mpi_comm_write, &NProcsWrite);
+    }
+    else{
+        ThisWriteTask = ThisTask;
+        ThisWriteComm = ThisTask;
+        NProcsWrite = NProcs;
+        NWriteComms = NProcs;
+        mpi_comm_write = MPI_COMM_WORLD;
+    }
+#endif
+}
+void MPIFreeWriteComm(){
+    if (mpi_comm_write != MPI_COMM_WORLD) MPI_Comm_free(&mpi_comm_write);
+    mpi_comm_write = MPI_COMM_WORLD;
+    ThisWriteTask = ThisTask;
+    ThisWriteComm = ThisTask;
+    NProcsWrite = NProcs;
+    NWriteComms = NProcs;
 }
 //@}
 
 /// \name Routines involved in exporting particles
 //@{
+
+void MPIReceiveHydroInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle *Part, int readtaskID)
+{
+#ifdef GASON
+    MPI_Status status;
+    vector<Int_t> indices;
+    Int_t num, numextrafields = 0, index, offset = 0;
+    vector<float> propbuff;
+    string field;
+    HydroProperties x;
+    numextrafields = opt.gas_internalprop_unique_input_names.size() + opt.gas_chem_unique_input_names.size() + opt.gas_chemproduction_unique_input_names.size();
+    if (numextrafields == 0) return;
+    MPI_Recv(&num, 1, MPI_Int_t, readtaskID, ThisTask, MPI_COMM_WORLD, &status);
+    if (num == 0) return;
+    //explicitly NULLing copied information which was done with a BYTE copy
+    //The unique pointers will have meaningless info so NULL them (by relasing ownership)
+    //and then setting the released pointer to null via in built function.
+    for (auto i=0;i<nlocalbuff;i++) Part[i].NullHydroProperties();
+    indices.resize(num);
+    propbuff.resize(numextrafields*num);
+    MPI_Recv(indices.data(), num, MPI_Int_t, readtaskID, ThisTask, MPI_COMM_WORLD, &status);
+    MPI_Recv(propbuff.data(), num*numextrafields, MPI_FLOAT, readtaskID, ThisTask, MPI_COMM_WORLD, &status);
+    for (auto i=0;i<num;i++)
+    {
+        index=indices[i];
+        Part[index].SetHydroProperties(x);
+        offset = 0;
+        for (auto iextra=0;iextra<opt.gas_internalprop_unique_input_names.size();iextra++)
+        {
+            field = opt.gas_internalprop_unique_input_names[iextra];
+            Part[index].GetHydroProperties().SetInternalProperties(field,propbuff[i*numextrafields+iextra+offset]);
+        }
+        offset += opt.gas_internalprop_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.gas_chem_names.size();iextra++)
+        {
+            field = opt.gas_chem_unique_input_names[iextra];
+            Part[index].GetHydroProperties().SetChemistry(field,propbuff[i*numextrafields+iextra+offset]);
+        }
+        offset += opt.gas_chem_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.gas_chemproduction_unique_input_names.size();iextra++)
+        {
+            field = opt.gas_chemproduction_unique_input_names[iextra];
+            Part[index].GetHydroProperties().SetChemistryProduction(field,propbuff[i*numextrafields+iextra+offset]);
+        }
+    }
+#endif
+}
+
+void MPIReceiveStarInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle *Part, int readtaskID)
+{
+#ifdef STARON
+    MPI_Status status;
+    vector<Int_t> indices;
+    Int_t num, numextrafields = 0, index, offset = 0;
+    vector<float> propbuff;
+    string field;
+    StarProperties x;
+    numextrafields = opt.star_internalprop_unique_input_names.size() + opt.star_chem_unique_input_names.size() + opt.star_chemproduction_unique_input_names.size();
+    if (numextrafields == 0) return;
+    MPI_Recv(&num, 1, MPI_Int_t, readtaskID, ThisTask, MPI_COMM_WORLD, &status);
+    if (num == 0) return;
+    //explicitly NULLing copied information which was done with a BYTE copy
+    //The unique pointers will have meaningless info so NULL them (by relasing ownership)
+    //and then setting the released pointer to null via in built function.
+    for (auto i=0;i<nlocalbuff;i++) Part[i].NullStarProperties();
+    indices.resize(num);
+    propbuff.resize(numextrafields*num);
+    MPI_Recv(indices.data(), num, MPI_Int_t, readtaskID, ThisTask, MPI_COMM_WORLD, &status);
+    MPI_Recv(propbuff.data(), num*numextrafields, MPI_FLOAT, readtaskID, ThisTask, MPI_COMM_WORLD, &status);
+    for (auto i=0;i<num;i++)
+    {
+        index=indices[i];
+        Part[index].SetStarProperties(x);
+        offset = 0;
+        for (auto iextra=0;iextra<opt.star_internalprop_unique_input_names.size();iextra++)
+        {
+            field = opt.star_internalprop_unique_input_names[iextra];
+            Part[index].GetStarProperties().SetInternalProperties(field,propbuff[i*numextrafields+iextra+offset]);
+        }
+        offset += opt.star_internalprop_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.star_chem_unique_input_names.size();iextra++)
+        {
+            field = opt.star_chem_unique_input_names[iextra];
+            Part[index].GetStarProperties().SetChemistry(field,propbuff[i*numextrafields+iextra+offset]);
+        }
+        offset += opt.star_chem_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.star_chemproduction_unique_input_names.size();iextra++)
+        {
+            field = opt.star_chemproduction_unique_input_names[iextra];
+            Part[index].GetStarProperties().SetChemistryProduction(field,propbuff[i*numextrafields+iextra+offset]);
+        }
+    }
+#endif
+}
+
+void MPIReceiveBHInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle *Part, int readtaskID)
+{
+#ifdef BHON
+    MPI_Status status;
+    vector<Int_t> indices;
+    Int_t num, numextrafields = 0, index, offset = 0;
+    vector<float> propbuff;
+    string field;
+    BHProperties x;
+    numextrafields = opt.bh_internalprop_unique_input_names.size() +opt.bh_chem_unique_input_names.size() + opt.bh_chemproduction_unique_input_names.size();
+    if (numextrafields == 0) return;
+    MPI_Recv(&num, 1, MPI_Int_t, readtaskID, ThisTask, MPI_COMM_WORLD, &status);
+    if (num == 0) return;
+    //explicitly NULLing copied information which was done with a BYTE copy
+    //The unique pointers will have meaningless info so NULL them (by relasing ownership)
+    //and then setting the released pointer to null via in built function.
+    for (auto i=0;i<nlocalbuff;i++) Part[i].NullBHProperties();
+    indices.resize(num);
+    propbuff.resize(numextrafields*num);
+    MPI_Recv(indices.data(), num, MPI_Int_t, readtaskID, ThisTask, MPI_COMM_WORLD, &status);
+    MPI_Recv(propbuff.data(), num*numextrafields, MPI_FLOAT, readtaskID, ThisTask, MPI_COMM_WORLD, &status);
+    for (auto i=0;i<num;i++)
+    {
+        index=indices[i];
+        Part[index].SetBHProperties(x);
+        offset = 0;
+        for (auto iextra=0;iextra<opt.bh_internalprop_unique_input_names.size();iextra++)
+        {
+            field = opt.bh_internalprop_unique_input_names[iextra];
+            Part[index].GetBHProperties().SetInternalProperties(field,propbuff[i*numextrafields+iextra+offset]);
+        }
+        offset += opt.bh_internalprop_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.bh_chem_unique_input_names.size();iextra++)
+        {
+            field = opt.bh_chem_unique_input_names[iextra];
+            Part[index].GetBHProperties().SetChemistry(field,propbuff[i*numextrafields+iextra+offset]);
+        }
+        offset += opt.bh_chem_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.bh_chemproduction_unique_input_names.size();iextra++)
+        {
+            field = opt.bh_chemproduction_unique_input_names[iextra];
+            Part[index].GetBHProperties().SetChemistryProduction(field,propbuff[i*numextrafields+iextra+offset]);
+        }
+    }
+#endif
+}
+
+void MPIReceiveExtraDMInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle *Part, int readtaskID)
+{
+#ifdef EXTRADMON
+    MPI_Status status;
+    vector<Int_t> indices;
+    Int_t num, numextrafields = 0, index, offset = 0;
+    vector<float> propbuff;
+    string field;
+    ExtraDMProperties x;
+    numextrafields = opt.extra_dm_internalprop_unique_input_names.size();
+    if (numextrafields == 0) return;
+    MPI_Recv(&num, 1, MPI_Int_t, readtaskID, ThisTask, MPI_COMM_WORLD, &status);
+    if (num == 0) return;
+    //explicitly NULLing copied information which was done with a BYTE copy
+    //The unique pointers will have meaningless info so NULL them (by relasing ownership)
+    //and then setting the released pointer to null via in built function.
+    for (auto i=0;i<nlocalbuff;i++) Part[i].NullExtraDMProperties();
+    indices.resize(num);
+    propbuff.resize(numextrafields*num);
+    MPI_Recv(indices.data(), num, MPI_Int_t, readtaskID, ThisTask, MPI_COMM_WORLD, &status);
+    MPI_Recv(propbuff.data(), num*numextrafields, MPI_FLOAT, readtaskID, ThisTask, MPI_COMM_WORLD, &status);
+    for (auto i=0;i<num;i++)
+    {
+        index=indices[i];
+        Part[index].SetExtraDMProperties(x);
+        offset = 0;
+        for (auto iextra=0;iextra<opt.extra_dm_internalprop_unique_input_names.size();iextra++)
+        {
+            field = opt.extra_dm_internalprop_unique_input_names[iextra];
+            Part[index].GetExtraDMProperties().SetExtraProperties(field,propbuff[i*numextrafields+iextra+offset]);
+        }
+    }
+#endif
+}
+
+
+void MPIReceiveHydroInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int sourceTaskID, int tag)
+{
+#ifdef GASON
+    MPI_Status status;
+    vector<Int_t> indices;
+    Int_t num, numextrafields = 0, index, offset = 0;
+    vector<float> propbuff;
+    string field;
+    HydroProperties x;
+    numextrafields = opt.gas_internalprop_unique_input_names.size() + opt.gas_chem_unique_input_names.size() + opt.gas_chemproduction_unique_input_names.size();
+    if (numextrafields == 0) return;
+    MPI_Recv(&num, 1, MPI_Int_t, sourceTaskID, tag, MPI_COMM_WORLD,&status);
+    if (num == 0) return;
+    //explicitly NULLing copied information which was done with a BYTE copy
+    //The unique pointers will have meaningless info so NULL them (by relasing ownership)
+    //and then setting the released pointer to null via in built function.
+    for (auto i=0;i<nlocalbuff;i++) Part[i].NullHydroProperties();
+    indices.resize(num);
+    propbuff.resize(numextrafields*num);
+    MPI_Recv(indices.data(), num, MPI_Int_t, sourceTaskID, tag*2, MPI_COMM_WORLD, &status);
+    MPI_Recv(propbuff.data(), propbuff.size(), MPI_FLOAT, sourceTaskID, tag*3, MPI_COMM_WORLD,&status);
+    for (auto i=0;i<num;i++)
+    {
+        index=indices[i];
+        Part[index].SetHydroProperties(x);
+        offset = 0;
+        for (auto iextra=0;iextra<opt.gas_internalprop_unique_input_names.size();iextra++)
+        {
+            field = opt.gas_internalprop_unique_input_names[iextra];
+            Part[index].GetHydroProperties().SetInternalProperties(field,propbuff[i*numextrafields+iextra+offset]);
+        }
+        offset += opt.gas_internalprop_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.gas_chem_unique_input_names.size();iextra++)
+        {
+            field = opt.gas_chem_unique_input_names[iextra];
+            Part[index].GetHydroProperties().SetChemistry(field,propbuff[i*numextrafields+iextra+offset]);
+        }
+        offset += opt.gas_chem_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.gas_chemproduction_unique_input_names.size();iextra++)
+        {
+            field = opt.gas_chemproduction_unique_input_names[iextra];
+            Part[index].GetHydroProperties().SetChemistryProduction(field,propbuff[i*numextrafields+iextra+offset]);
+        }
+    }
+#endif
+}
+
+void MPIReceiveStarInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int sourceTaskID, int tag)
+{
+#ifdef STARON
+    MPI_Status status;
+    vector<Int_t> indices;
+    Int_t num, numextrafields = 0, index, offset = 0;
+    vector<float> propbuff;
+    string field;
+    StarProperties x;
+    numextrafields = opt.star_internalprop_unique_input_names.size() + opt.star_chem_unique_input_names.size() + opt.star_chemproduction_unique_input_names.size();
+    if (numextrafields == 0) return;
+    MPI_Recv(&num, 1, MPI_Int_t, sourceTaskID, tag, MPI_COMM_WORLD,&status);
+    if (num == 0) return;
+    //explicitly NULLing copied information which was done with a BYTE copy
+    //The unique pointers will have meaningless info so NULL them (by relasing ownership)
+    //and then setting the released pointer to null via in built function.
+    for (auto i=0;i<nlocalbuff;i++) Part[i].NullStarProperties();
+    indices.resize(num);
+    propbuff.resize(numextrafields*num);
+    MPI_Recv(indices.data(), num, MPI_Int_t, sourceTaskID, tag*2, MPI_COMM_WORLD, &status);
+    MPI_Recv(propbuff.data(), num*numextrafields, MPI_FLOAT, sourceTaskID, tag*3, MPI_COMM_WORLD,&status);
+    for (auto i=0;i<num;i++)
+    {
+        index=indices[i];
+        Part[index].SetStarProperties(x);
+        offset = 0;
+        for (auto iextra=0;iextra<opt.star_internalprop_unique_input_names.size();iextra++)
+        {
+            field = opt.star_internalprop_unique_input_names[iextra];
+            Part[index].GetStarProperties().SetInternalProperties(field,propbuff[i*numextrafields+iextra+offset]);
+        }
+        offset += opt.star_internalprop_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.star_chem_unique_input_names.size();iextra++)
+        {
+            field = opt.star_chem_unique_input_names[iextra];
+            Part[index].GetStarProperties().SetChemistry(field,propbuff[i*numextrafields+iextra+offset]);
+        }
+        offset += opt.star_chem_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.star_chemproduction_unique_input_names.size();iextra++)
+        {
+            field = opt.star_chemproduction_unique_input_names[iextra];
+            Part[index].GetStarProperties().SetChemistryProduction(field,propbuff[i*numextrafields+iextra+offset]);
+        }
+    }
+#endif
+}
+
+void MPIReceiveBHInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int sourceTaskID, int tag)
+{
+#ifdef BHON
+    MPI_Status status;
+    vector<Int_t> indices;
+    Int_t num, numextrafields = 0, index, offset = 0;
+    vector<float> propbuff;
+    string field;
+    BHProperties x;
+    numextrafields = opt.bh_internalprop_unique_input_names.size() + opt.bh_chem_unique_input_names.size() + opt.bh_chemproduction_unique_input_names.size();
+    if (numextrafields == 0) return;
+    MPI_Recv(&num, 1, MPI_Int_t, sourceTaskID, tag, MPI_COMM_WORLD,&status);
+    if (num == 0) return;
+    //explicitly NULLing copied information which was done with a BYTE copy
+    //The unique pointers will have meaningless info so NULL them (by relasing ownership)
+    //and then setting the released pointer to null via in built function.
+    for (auto i=0;i<nlocalbuff;i++) Part[i].NullBHProperties();
+    indices.resize(num);
+    propbuff.resize(numextrafields*num);
+    MPI_Recv(indices.data(), num, MPI_Int_t, sourceTaskID, tag*2, MPI_COMM_WORLD, &status);
+    MPI_Recv(propbuff.data(), num*numextrafields, MPI_FLOAT, sourceTaskID, tag*3, MPI_COMM_WORLD,&status);
+    for (auto i=0;i<num;i++)
+    {
+        index=indices[i];
+        Part[index].SetBHProperties(x);
+        offset = 0;
+        for (auto iextra=0;iextra<opt.bh_internalprop_unique_input_names.size();iextra++)
+        {
+            field = opt.bh_internalprop_unique_input_names[iextra];
+            Part[index].GetBHProperties().SetInternalProperties(field,propbuff[i*numextrafields+iextra+offset]);
+        }
+        offset += opt.bh_internalprop_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.bh_chem_unique_input_names.size();iextra++)
+        {
+            field = opt.bh_chem_unique_input_names[iextra];
+            Part[index].GetBHProperties().SetChemistry(field,propbuff[i*numextrafields+iextra+offset]);
+        }
+        offset += opt.bh_chem_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.bh_chemproduction_unique_input_names.size();iextra++)
+        {
+            field = opt.bh_chemproduction_unique_input_names[iextra];
+            Part[index].GetBHProperties().SetChemistryProduction(field,propbuff[i*numextrafields+iextra+offset]);
+        }
+    }
+#endif
+}
+
+void MPIReceiveExtraDMInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int sourceTaskID, int tag)
+{
+#ifdef EXTRADMON
+    MPI_Status status;
+    vector<Int_t> indices;
+    Int_t num, numextrafields = 0, index, offset = 0;
+    vector<float> propbuff;
+    string field;
+    ExtraDMProperties x;
+    numextrafields = opt.extra_dm_internalprop_unique_input_names.size();
+    if (numextrafields == 0) return;
+    MPI_Recv(&num, 1, MPI_Int_t, sourceTaskID, tag, MPI_COMM_WORLD,&status);
+    if (num == 0) return;
+    //explicitly NULLing copied information which was done with a BYTE copy
+    //The unique pointers will have meaningless info so NULL them (by relasing ownership)
+    //and then setting the released pointer to null via in built function.
+    for (auto i=0;i<nlocalbuff;i++) Part[i].NullExtraDMProperties();
+    indices.resize(num);
+    propbuff.resize(numextrafields*num);
+    MPI_Recv(indices.data(), num, MPI_Int_t, sourceTaskID, tag*2, MPI_COMM_WORLD, &status);
+    MPI_Recv(propbuff.data(), propbuff.size(), MPI_FLOAT, sourceTaskID, tag*3, MPI_COMM_WORLD,&status);
+    for (auto i=0;i<num;i++)
+    {
+        index=indices[i];
+        Part[index].SetExtraDMProperties(x);
+        offset = 0;
+        for (auto iextra=0;iextra<opt.extra_dm_internalprop_unique_input_names.size();iextra++)
+        {
+            field = opt.extra_dm_internalprop_unique_input_names[iextra];
+            Part[index].GetExtraDMProperties().SetExtraProperties(field,propbuff[i*numextrafields+iextra+offset]);
+        }
+    }
+#endif
+}
+
 ///for all threads not reading snapshots, simply receive particles as necessary from all threads involved with reading the data
 void MPIReceiveParticlesFromReadThreads(Options &opt, Particle *&Pbuf, Particle *Part, int *&readtaskID, int *&irecv, int *&mpi_irecvflag, Int_t *&Nlocalthreadbuf, MPI_Request *&mpi_request, Particle *&Pbaryons)
 {
     int irecvflag;
     Int_t i,j,k,Nlocaltotalbuf;
     MPI_Status status;
+
     //for all threads not reading snapshots, simply receive particles as necessary from all threads involved with reading the data
     //first determine which threads are going to send information to this thread.
     for (i=0;i<opt.nsnapread;i++) if (irecv[i]) {
@@ -570,6 +2094,10 @@ void MPIReceiveParticlesFromReadThreads(Options &opt, Particle *&Pbuf, Particle 
                 if (mpi_irecvflag[i]) {
                     if (Nlocalthreadbuf[i]>0) {
                         MPI_Recv(&Part[Nlocal],sizeof(Particle)*Nlocalthreadbuf[i],MPI_BYTE,readtaskID[i],ThisTask, MPI_COMM_WORLD,&status);
+                        MPIReceiveHydroInfoFromReadThreads(opt, Nlocalthreadbuf[i], &Part[Nlocal], readtaskID[i]);
+                        MPIReceiveStarInfoFromReadThreads(opt, Nlocalthreadbuf[i], &Part[Nlocal], readtaskID[i]);
+                        MPIReceiveBHInfoFromReadThreads(opt, Nlocalthreadbuf[i], &Part[Nlocal], readtaskID[i]);
+                        MPIReceiveExtraDMInfoFromReadThreads(opt, Nlocalthreadbuf[i], &Part[Nlocal], readtaskID[i]);
                         Nlocal+=Nlocalthreadbuf[i];
                         Nlocaltotalbuf+=Nlocalthreadbuf[i];
                         mpi_irecvflag[i]=0;
@@ -605,10 +2133,738 @@ void MPIReceiveParticlesFromReadThreads(Options &opt, Particle *&Pbuf, Particle 
     }
 }
 
+void MPISendReceiveHydroInfoBetweenThreads(Options &opt, Int_t nlocalbuff, Particle *Pbuf, Int_t nlocal, Particle *Part, int recvTask, int tag, MPI_Comm &mpi_comm)
+{
+#ifdef GASON
+    MPI_Status status;
+    vector<Int_t> indicessend, indicesrecv;
+    Int_t numsend, numrecv, numextrafields = 0, index, offset = 0;
+    vector<float> propsendbuff, proprecvbuff;
+    string field;
+    HydroProperties x;
+
+    numextrafields = opt.gas_internalprop_unique_input_names.size()  + opt.gas_chem_unique_input_names.size() + opt.gas_chemproduction_unique_input_names.size();
+    if (numextrafields == 0) return;
+
+    //first determine what needs to be sent.
+    for (auto i=0;i<nlocalbuff;i++) if (Pbuf[i].HasHydroProperties()) indicessend.push_back(i);
+    numsend = indicessend.size();
+    if (numsend >0) {
+        propsendbuff.resize(numextrafields*numsend);
+        for (auto i=0;i<numsend;i++)
+        {
+            index = indicessend[i];
+            offset = 0;
+            for (auto iextra=0;iextra<opt.gas_internalprop_unique_input_names.size();iextra++)
+            {
+                field = opt.gas_internalprop_unique_input_names[iextra];
+                propsendbuff[i*numextrafields + iextra + offset] = Pbuf[index].GetHydroProperties().GetInternalProperties(field);
+            }
+            offset += opt.gas_internalprop_unique_input_names.size();
+            for (auto iextra=0;iextra<opt.gas_chem_unique_input_names.size();iextra++)
+            {
+                field = opt.gas_chem_unique_input_names[iextra];
+                propsendbuff[i*numextrafields + iextra + offset] = Pbuf[index].GetHydroProperties().GetChemistry(field);
+            }
+            offset += opt.gas_chem_unique_input_names.size();
+            for (auto iextra=0;iextra<opt.gas_chemproduction_unique_input_names.size();iextra++)
+            {
+                field = opt.gas_chemproduction_unique_input_names[iextra];
+                propsendbuff[i*numextrafields + iextra + offset] = Pbuf[index].GetHydroProperties().GetChemistryProduction(field);
+            }
+        }
+    }
+
+    //send/recv the numbers that are sent.
+    MPI_Sendrecv(&numsend,1, MPI_Int_t, recvTask, tag,
+        &numrecv,1, MPI_Int_t, recvTask, tag, mpi_comm, &status);
+    if (numrecv>0) {
+        indicesrecv.resize(numrecv);
+        proprecvbuff.resize(numrecv*numextrafields);
+    }
+    //send the information. If size is zero, resize vector so .data() points to valid address
+    if (numsend == 0) {indicessend.resize(1);propsendbuff.resize(1);}
+    if (numrecv == 0) {indicesrecv.resize(1);proprecvbuff.resize(1);}
+    MPI_Sendrecv(indicessend.data(),numsend, MPI_Int_t, recvTask,
+        tag*2, indicesrecv.data(),numrecv, MPI_Int_t, recvTask, tag*2, mpi_comm, &status);
+    MPI_Sendrecv(propsendbuff.data(),numsend, MPI_FLOAT, recvTask,
+        tag*3, proprecvbuff.data(),numrecv, MPI_FLOAT, recvTask, tag*3, mpi_comm, &status);
+
+    if (numrecv == 0) return;
+    //and then update the local information
+    //explicitly NULLing copied information which was done with a BYTE copy
+    //The unique pointers will have meaningless info so NULL them (by relasing ownership)
+    //and then setting the released pointer to null via in built function.
+    for (auto i=0;i<nlocal;i++) Part[i].NullHydroProperties();
+    for (auto i=0;i<numrecv;i++)
+    {
+        index=indicesrecv[i];
+        Part[index].SetHydroProperties(x);
+        offset = 0;
+        for (auto iextra=0;iextra<opt.gas_internalprop_unique_input_names.size();iextra++)
+        {
+            field = opt.gas_internalprop_unique_input_names[iextra];
+            Part[index].GetHydroProperties().SetInternalProperties(field,proprecvbuff[i*numextrafields+iextra+offset]);
+        }
+        offset += opt.gas_internalprop_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.gas_chem_unique_input_names.size();iextra++)
+        {
+            field = opt.gas_chem_unique_input_names[iextra];
+            Part[index].GetHydroProperties().SetChemistry(field,proprecvbuff[i*numextrafields+iextra+offset]);
+        }
+        offset += opt.gas_chem_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.gas_chemproduction_unique_input_names.size();iextra++)
+        {
+            field = opt.gas_chemproduction_unique_input_names[iextra];
+            Part[index].GetHydroProperties().SetChemistryProduction(field,proprecvbuff[i*numextrafields+iextra+offset]);
+        }
+    }
+#endif
+}
+
+void MPISendReceiveStarInfoBetweenThreads(Options &opt, Int_t nlocalbuff, Particle *Pbuf, Int_t nlocal, Particle *Part, int recvTask, int tag, MPI_Comm &mpi_comm)
+{
+#ifdef STARON
+    MPI_Status status;
+    vector<Int_t> indicessend, indicesrecv;
+    Int_t numsend, numrecv, numextrafields = 0, index, offset = 0;
+    vector<float> propsendbuff, proprecvbuff;
+    string field;
+    StarProperties x;
+
+    numextrafields = opt.star_internalprop_unique_input_names.size() + opt.star_chem_unique_input_names.size() + opt.star_chemproduction_unique_input_names.size();
+    if (numextrafields == 0) return;
+
+    //first determine what needs to be sent.
+    for (auto i=0;i<nlocalbuff;i++) if (Pbuf[i].HasStarProperties()) indicessend.push_back(i);
+    numsend = indicessend.size();
+    if (numsend >0) {
+        propsendbuff.resize(numextrafields*numsend);
+        for (auto i=0;i<numsend;i++)
+        {
+            index = indicessend[i];
+            offset = 0;
+            for (auto iextra=0;iextra<opt.star_internalprop_unique_input_names.size();iextra++)
+            {
+                field = opt.star_internalprop_unique_input_names[iextra];
+                propsendbuff[i*numextrafields + iextra + offset] = Pbuf[index].GetStarProperties().GetInternalProperties(field);
+            }
+            offset += opt.star_internalprop_unique_input_names.size();
+            for (auto iextra=0;iextra<opt.star_chem_unique_input_names.size();iextra++)
+            {
+                field = opt.star_chem_unique_input_names[iextra];
+                propsendbuff[i*numextrafields + iextra + offset] = Pbuf[index].GetStarProperties().GetChemistry(field);
+            }
+            offset += opt.star_chem_unique_input_names.size();
+            for (auto iextra=0;iextra<opt.star_chemproduction_unique_input_names.size();iextra++)
+            {
+                field = opt.star_chemproduction_unique_input_names[iextra];
+                propsendbuff[i*numextrafields + iextra + offset] = Pbuf[index].GetStarProperties().GetChemistryProduction(field);
+            }
+        }
+    }
+
+    //send/recv the numbers that are sent.
+    MPI_Sendrecv(&numsend,1, MPI_Int_t, recvTask, tag,
+        &numrecv,1, MPI_Int_t, recvTask, tag, mpi_comm, &status);
+    if (numrecv>0) {
+        indicesrecv.resize(numrecv);
+        proprecvbuff.resize(numrecv*numextrafields);
+    }
+    //send the information. If size is zero, resize vector so .data() points to valid address
+    if (numsend == 0) {indicessend.resize(1);propsendbuff.resize(1);}
+    if (numrecv == 0) {indicesrecv.resize(1);proprecvbuff.resize(1);}
+    MPI_Sendrecv(indicessend.data(),numsend, MPI_Int_t, recvTask,
+        tag*2, indicesrecv.data(),numrecv, MPI_Int_t, recvTask, tag*2, mpi_comm, &status);
+    MPI_Sendrecv(propsendbuff.data(),numsend, MPI_FLOAT, recvTask,
+        tag*3, proprecvbuff.data(),numrecv, MPI_FLOAT, recvTask, tag*3, mpi_comm, &status);
+
+    if (numrecv == 0) return;
+    //and then update the local information
+    //explicitly NULLing copied information which was done with a BYTE copy
+    //The unique pointers will have meaningless info so NULL them (by relasing ownership)
+    //and then setting the released pointer to null via in built function.
+    for (auto i=0;i<nlocal;i++) Part[i].NullStarProperties();
+    for (auto i=0;i<numrecv;i++)
+    {
+        index=indicesrecv[i];
+        Part[index].SetStarProperties(x);
+        offset = 0;
+        for (auto iextra=0;iextra<opt.star_internalprop_unique_input_names.size();iextra++)
+        {
+            field = opt.star_internalprop_unique_input_names[iextra];
+            Part[index].GetStarProperties().SetInternalProperties(field,proprecvbuff[i*numextrafields+iextra+offset]);
+        }
+        offset += opt.star_internalprop_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.star_chem_unique_input_names.size();iextra++)
+        {
+            field = opt.star_chem_unique_input_names[iextra];
+            Part[index].GetStarProperties().SetChemistry(field,proprecvbuff[i*numextrafields+iextra+offset]);
+        }
+        offset += opt.star_chem_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.star_chemproduction_unique_input_names.size();iextra++)
+        {
+            field = opt.star_chemproduction_unique_input_names[iextra];
+            Part[index].GetStarProperties().SetChemistryProduction(field,proprecvbuff[i*numextrafields+iextra+offset]);
+        }
+    }
+#endif
+}
+
+void MPISendReceiveBHInfoBetweenThreads(Options &opt, Int_t nlocalbuff, Particle *Pbuf, Int_t nlocal, Particle *Part, int recvTask, int tag, MPI_Comm &mpi_comm)
+{
+#ifdef BHON
+    MPI_Status status;
+    vector<Int_t> indicessend, indicesrecv;
+    Int_t numsend, numrecv, numextrafields = 0, index, offset = 0;
+    vector<float> propsendbuff, proprecvbuff;
+    string field;
+    BHProperties x;
+
+    numextrafields = opt.bh_internalprop_unique_input_names.size() + opt.bh_chem_unique_input_names.size() + opt.bh_chemproduction_unique_input_names.size();
+    if (numextrafields == 0) return;
+
+    //first determine what needs to be sent.
+    for (auto i=0;i<nlocalbuff;i++) if (Pbuf[i].HasBHProperties()) indicessend.push_back(i);
+    numsend = indicessend.size();
+    if (numsend >0) {
+        propsendbuff.resize(numextrafields*numsend);
+        for (auto i=0;i<numsend;i++)
+        {
+            index = indicessend[i];
+            offset = 0;
+            for (auto iextra=0;iextra<opt.bh_internalprop_unique_input_names.size();iextra++)
+            {
+                field = opt.bh_internalprop_unique_input_names[iextra];
+                propsendbuff[i*numextrafields + iextra + offset] = Pbuf[index].GetBHProperties().GetInternalProperties(field);
+            }
+            offset += opt.bh_internalprop_unique_input_names.size();
+            for (auto iextra=0;iextra<opt.bh_chem_unique_input_names.size();iextra++)
+            {
+                field = opt.bh_chem_unique_input_names[iextra];
+                propsendbuff[i*numextrafields + iextra + offset] = Pbuf[index].GetBHProperties().GetChemistry(field);
+            }
+            offset += opt.bh_chem_unique_input_names.size();
+            for (auto iextra=0;iextra<opt.bh_chemproduction_unique_input_names.size();iextra++)
+            {
+                field = opt.bh_chemproduction_unique_input_names[iextra];
+                propsendbuff[i*numextrafields + iextra + offset] = Pbuf[index].GetBHProperties().GetChemistryProduction(field);
+            }
+        }
+    }
+
+    //send/recv the numbers that are sent.
+    MPI_Sendrecv(&numsend,1, MPI_Int_t, recvTask, tag,
+        &numrecv,1, MPI_Int_t, recvTask, tag, mpi_comm, &status);
+    if (numrecv>0) {
+        indicesrecv.resize(numrecv);
+        proprecvbuff.resize(numrecv*numextrafields);
+    }
+    //send the information. If size is zero, resize vector so .data() points to valid address
+    if (numsend == 0) {indicessend.resize(1);propsendbuff.resize(1);}
+    if (numrecv == 0) {indicesrecv.resize(1);proprecvbuff.resize(1);}
+    MPI_Sendrecv(indicessend.data(),numsend, MPI_Int_t, recvTask,
+        tag*2, indicesrecv.data(),numrecv, MPI_Int_t, recvTask, tag*2, mpi_comm, &status);
+    MPI_Sendrecv(propsendbuff.data(),numsend, MPI_FLOAT, recvTask,
+        tag*3, proprecvbuff.data(),numrecv, MPI_FLOAT, recvTask, tag*3, mpi_comm, &status);
+
+    if (numrecv == 0) return;
+    //and then update the local information
+    //explicitly NULLing copied information which was done with a BYTE copy
+    //The unique pointers will have meaningless info so NULL them (by relasing ownership)
+    //and then setting the released pointer to null via in built function.
+    for (auto i=0;i<nlocal;i++) Part[i].NullBHProperties();
+    for (auto i=0;i<numrecv;i++)
+    {
+        index=indicesrecv[i];
+        Part[index].SetBHProperties(x);
+        offset = 0;
+        for (auto iextra=0;iextra<opt.bh_internalprop_unique_input_names.size();iextra++)
+        {
+            field = opt.bh_internalprop_unique_input_names[iextra];
+            Part[index].GetBHProperties().SetInternalProperties(field,proprecvbuff[i*numextrafields+iextra+offset]);
+        }
+        offset += opt.bh_internalprop_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.bh_chem_unique_input_names.size();iextra++)
+        {
+            field = opt.bh_chem_unique_input_names[iextra];
+            Part[index].GetBHProperties().SetChemistry(field,proprecvbuff[i*numextrafields+iextra+offset]);
+        }
+        offset += opt.bh_chem_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.bh_chemproduction_unique_input_names.size();iextra++)
+        {
+            field = opt.bh_chemproduction_unique_input_names[iextra];
+            Part[index].GetBHProperties().SetChemistryProduction(field,proprecvbuff[i*numextrafields+iextra+offset]);
+        }
+    }
+#endif
+}
+
+
+void MPISendReceiveExtraDMInfoBetweenThreads(Options &opt, Int_t nlocalbuff, Particle *Pbuf, Int_t nlocal, Particle *Part, int recvTask, int tag, MPI_Comm &mpi_comm)
+{
+#ifdef EXTRADMON
+    MPI_Status status;
+    vector<Int_t> indicessend, indicesrecv;
+    Int_t numsend, numrecv, numextrafields = 0, index, offset = 0;
+    vector<float> propsendbuff, proprecvbuff;
+    string field;
+    ExtraDMProperties x;
+
+    numextrafields = opt.extra_dm_internalprop_unique_input_names.size();
+    if (numextrafields == 0) return;
+
+    //first determine what needs to be sent.
+    for (auto i=0;i<nlocalbuff;i++) if (Pbuf[i].HasExtraDMProperties()) indicessend.push_back(i);
+    numsend = indicessend.size();
+    if (numsend >0) {
+        propsendbuff.resize(numextrafields*numsend);
+        for (auto i=0;i<numsend;i++)
+        {
+            index = indicessend[i];
+            offset = 0;
+            for (auto iextra=0;iextra<opt.extra_dm_internalprop_unique_input_names.size();iextra++)
+            {
+                field = opt.extra_dm_internalprop_unique_input_names[iextra];
+                propsendbuff[i*numextrafields + iextra + offset] = Pbuf[index].GetExtraDMProperties().GetExtraProperties(field);
+            }
+        }
+    }
+
+    //send/recv the numbers that are sent.
+    MPI_Sendrecv(&numsend,1, MPI_Int_t, recvTask, tag,
+        &numrecv,1, MPI_Int_t, recvTask, tag, mpi_comm, &status);
+    if (numrecv>0) {
+        indicesrecv.resize(numrecv);
+        proprecvbuff.resize(numrecv*numextrafields);
+    }
+    //send the information. If size is zero, resize vector so .data() points to valid address
+    if (numsend == 0) {indicessend.resize(1);propsendbuff.resize(1);}
+    if (numrecv == 0) {indicesrecv.resize(1);proprecvbuff.resize(1);}
+    MPI_Sendrecv(indicessend.data(),numsend, MPI_Int_t, recvTask,
+        tag*2, indicesrecv.data(),numrecv, MPI_Int_t, recvTask, tag*2, mpi_comm, &status);
+    MPI_Sendrecv(propsendbuff.data(),numsend, MPI_FLOAT, recvTask,
+        tag*3, proprecvbuff.data(),numrecv, MPI_FLOAT, recvTask, tag*3, mpi_comm, &status);
+
+    if (numrecv == 0) return;
+    //and then update the local information
+    //explicitly NULLing copied information which was done with a BYTE copy
+    //The unique pointers will have meaningless info so NULL them (by relasing ownership)
+    //and then setting the released pointer to null via in built function.
+    for (auto i=0;i<nlocal;i++) Part[i].NullExtraDMProperties();
+    for (auto i=0;i<numrecv;i++)
+    {
+        index=indicesrecv[i];
+        Part[index].SetExtraDMProperties(x);
+        offset = 0;
+        for (auto iextra=0;iextra<opt.extra_dm_internalprop_unique_input_names.size();iextra++)
+        {
+            field = opt.extra_dm_internalprop_unique_input_names[iextra];
+            Part[index].GetExtraDMProperties().SetExtraProperties(field,proprecvbuff[i*numextrafields+iextra+offset]);
+        }
+    }
+#endif
+}
+
+void MPISendReceiveBuffWithHydroInfoBetweenThreads(Options &opt, Particle *PartLocal, vector<Int_t> &indicessend,  vector<float> &propsendbuff, int recvTask, int tag, MPI_Comm &mpi_comm)
+{
+#ifdef GASON
+    MPI_Status status;
+    vector<Int_t> indicesrecv;
+    Int_t numsend, numrecv, numextrafields = 0, index, offset = 0;
+    vector<float> proprecvbuff(0);
+    string field;
+    HydroProperties x;
+
+    numextrafields = opt.gas_internalprop_unique_input_names.size() + opt.gas_chem_unique_input_names.size() + opt.gas_chemproduction_unique_input_names.size();
+    if (numextrafields == 0) return;
+    numsend = indicessend.size();
+    MPI_Sendrecv(&numsend, 1, MPI_Int_t, recvTask,
+        tag*2, &numrecv, 1, MPI_Int_t, recvTask, tag*2, mpi_comm, &status);
+    //send the information. If vectors are of zero size, must increase size so .data() points to a valid address
+    if (numsend==0) {indicessend.resize(1);propsendbuff.resize(1);}
+    if (numrecv==0) {indicesrecv.resize(1);proprecvbuff.resize(1);}
+    else {indicesrecv.resize(numrecv);proprecvbuff.resize(numrecv);}
+    MPI_Sendrecv(indicessend.data(),numsend, MPI_Int_t, recvTask,
+        tag*3, indicesrecv.data(),numrecv, MPI_Int_t, recvTask, tag*3, mpi_comm, &status);
+    MPI_Sendrecv(propsendbuff.data(),numsend*numextrafields, MPI_FLOAT, recvTask,
+        tag*4, proprecvbuff.data(),numrecv*numextrafields, MPI_FLOAT, recvTask, tag*4, mpi_comm, &status);
+    if (numrecv == 0) return;
+    for (auto i=0;i<numrecv;i++)
+    {
+        index=indicesrecv[i];
+        offset = 0;
+        for (auto iextra=0;iextra<opt.gas_internalprop_unique_input_names.size();iextra++)
+        {
+            field = opt.gas_internalprop_unique_input_names[iextra];
+            x.SetInternalProperties(field,proprecvbuff[i*numextrafields+iextra+offset]);
+        }
+        offset += opt.gas_internalprop_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.gas_chem_unique_input_names.size();iextra++)
+        {
+            field = opt.gas_chem_unique_input_names[iextra];
+            x.SetChemistry(field,proprecvbuff[i*numextrafields+iextra+offset]);
+        }
+        offset += opt.gas_chem_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.gas_chemproduction_unique_input_names.size();iextra++)
+        {
+            field = opt.gas_chemproduction_unique_input_names[iextra];
+            x.SetChemistryProduction(field,proprecvbuff[i*numextrafields+iextra+offset]);
+        }
+        PartLocal[index].SetHydroProperties(x);
+    }
+    indicessend.clear();
+    propsendbuff.clear();
+#endif
+}
+
+void MPISendReceiveBuffWithStarInfoBetweenThreads(Options &opt, Particle *PartLocal, vector<Int_t> &indicessend,  vector<float> &propsendbuff, int recvTask, int tag, MPI_Comm &mpi_comm)
+{
+#ifdef STARON
+    MPI_Status status;
+    vector<Int_t> indicesrecv;
+    Int_t numsend, numrecv, numextrafields = 0, index, offset = 0;
+    vector<float> proprecvbuff(0);
+    string field;
+    StarProperties x;
+
+    numextrafields = opt.star_internalprop_unique_input_names.size() + opt.star_chem_unique_input_names.size() + opt.star_chemproduction_unique_input_names.size();
+    if (numextrafields == 0) return;
+    numsend = indicessend.size();
+    MPI_Sendrecv(&numsend, 1, MPI_Int_t, recvTask,
+        tag*2, &numrecv, 1, MPI_Int_t, recvTask, tag*2, mpi_comm, &status);
+    //send the information. If vectors are of zero size, must increase size so .data() points to a valid address
+    if (numsend==0) {indicessend.resize(1);propsendbuff.resize(1);}
+    if (numrecv==0) {indicesrecv.resize(1);proprecvbuff.resize(1);}
+    else {indicesrecv.resize(numrecv);proprecvbuff.resize(numrecv);}
+    MPI_Sendrecv(indicessend.data(),numsend, MPI_Int_t, recvTask,
+        tag*3, indicesrecv.data(),numrecv, MPI_Int_t, recvTask, tag*3, mpi_comm, &status);
+    MPI_Sendrecv(propsendbuff.data(),numsend*numextrafields, MPI_FLOAT, recvTask,
+        tag*4, proprecvbuff.data(),numrecv*numextrafields, MPI_FLOAT, recvTask, tag*4, mpi_comm, &status);
+    if (numrecv == 0) return;
+    for (auto i=0;i<numrecv;i++)
+    {
+        index=indicesrecv[i];
+        offset = 0;
+        for (auto iextra=0;iextra<opt.star_internalprop_unique_input_names.size();iextra++)
+        {
+            field = opt.star_internalprop_unique_input_names[iextra];
+            x.SetInternalProperties(field,proprecvbuff[i*numextrafields+iextra+offset]);
+        }
+        offset += opt.star_internalprop_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.star_chem_unique_input_names.size();iextra++)
+        {
+            field = opt.star_chem_unique_input_names[iextra];
+            x.SetChemistry(field,proprecvbuff[i*numextrafields+iextra+offset]);
+        }
+        offset += opt.star_chem_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.star_chemproduction_unique_input_names.size();iextra++)
+        {
+            field = opt.star_chemproduction_unique_input_names[iextra];
+            x.SetChemistryProduction(field,proprecvbuff[i*numextrafields+iextra+offset]);
+        }
+        PartLocal[index].SetStarProperties(x);
+    }
+    indicessend.clear();
+    propsendbuff.clear();
+#endif
+}
+
+void MPISendReceiveBuffWithBHInfoBetweenThreads(Options &opt, Particle *PartLocal, vector<Int_t> &indicessend,  vector<float> &propsendbuff, int recvTask, int tag, MPI_Comm &mpi_comm)
+{
+#ifdef BHON
+    MPI_Status status;
+    vector<Int_t> indicesrecv;
+    Int_t numsend, numrecv, numextrafields = 0, index, offset = 0;
+    vector<float> proprecvbuff(0);
+    string field;
+    BHProperties x;
+
+    numextrafields = opt.bh_internalprop_unique_input_names.size() + opt.bh_chem_unique_input_names.size() + opt.bh_chemproduction_unique_input_names.size();
+    if (numextrafields == 0) return;
+    numsend = indicessend.size();
+    MPI_Sendrecv(&numsend, 1, MPI_Int_t, recvTask,
+        tag*2, &numrecv, 1, MPI_Int_t, recvTask, tag*2, mpi_comm, &status);
+    //send the information. If vectors are of zero size, must increase size so .data() points to a valid address
+    if (numsend==0) {indicessend.resize(1);propsendbuff.resize(1);}
+    if (numrecv==0) {indicesrecv.resize(1);proprecvbuff.resize(1);}
+    else {indicesrecv.resize(numrecv);proprecvbuff.resize(numrecv);}
+    MPI_Sendrecv(indicessend.data(),numsend, MPI_Int_t, recvTask,
+        tag*3, indicesrecv.data(),numrecv, MPI_Int_t, recvTask, tag*3, mpi_comm, &status);
+    MPI_Sendrecv(propsendbuff.data(),numsend*numextrafields, MPI_FLOAT, recvTask,
+        tag*4, proprecvbuff.data(),numrecv*numextrafields, MPI_FLOAT, recvTask, tag*4, mpi_comm, &status);
+    if (numrecv == 0) return;
+    for (auto i=0;i<numrecv;i++)
+    {
+        index=indicesrecv[i];
+        offset = 0;
+        for (auto iextra=0;iextra<opt.bh_internalprop_unique_input_names.size();iextra++)
+        {
+            field = opt.bh_internalprop_unique_input_names[iextra];
+            x.SetInternalProperties(field,proprecvbuff[i*numextrafields+iextra+offset]);
+        }
+        offset += opt.bh_internalprop_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.bh_chem_unique_input_names.size();iextra++)
+        {
+            field = opt.bh_chem_unique_input_names[iextra];
+            x.SetChemistry(field,proprecvbuff[i*numextrafields+iextra+offset]);
+        }
+        offset += opt.bh_chem_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.bh_chemproduction_unique_input_names.size();iextra++)
+        {
+            field = opt.bh_chemproduction_unique_input_names[iextra];
+            x.SetChemistryProduction(field,proprecvbuff[i*numextrafields+iextra+offset]);
+        }
+        PartLocal[index].SetBHProperties(x);
+    }
+    indicessend.clear();
+    propsendbuff.clear();
+#endif
+}
+
+void MPISendReceiveBuffWithExtraDMInfoBetweenThreads(Options &opt, Particle *PartLocal, vector<Int_t> &indicessend,  vector<float> &propsendbuff, int recvTask, int tag, MPI_Comm &mpi_comm)
+{
+#ifdef EXTRADMON
+    MPI_Status status;
+    vector<Int_t> indicesrecv;
+    Int_t numsend, numrecv, numextrafields = 0, index, offset = 0;
+    vector<float> proprecvbuff(0);
+    string field;
+    ExtraDMProperties x;
+
+    numextrafields = opt.extra_dm_internalprop_unique_input_names.size();
+    if (numextrafields == 0) return;
+    numsend = indicessend.size();
+    MPI_Sendrecv(&numsend, 1, MPI_Int_t, recvTask,
+        tag*2, &numrecv, 1, MPI_Int_t, recvTask, tag*2, mpi_comm, &status);
+    //send the information. If vectors are of zero size, must increase size so .data() points to a valid address
+    if (numsend==0) {indicessend.resize(1);propsendbuff.resize(1);}
+    if (numrecv==0) {indicesrecv.resize(1);proprecvbuff.resize(1);}
+    else {indicesrecv.resize(numrecv);proprecvbuff.resize(numrecv);}
+    MPI_Sendrecv(indicessend.data(),numsend, MPI_Int_t, recvTask,
+        tag*3, indicesrecv.data(),numrecv, MPI_Int_t, recvTask, tag*3, mpi_comm, &status);
+    MPI_Sendrecv(propsendbuff.data(),numsend*numextrafields, MPI_FLOAT, recvTask,
+        tag*4, proprecvbuff.data(),numrecv*numextrafields, MPI_FLOAT, recvTask, tag*4, mpi_comm, &status);
+    if (numrecv == 0) return;
+    for (auto i=0;i<numrecv;i++)
+    {
+        index=indicesrecv[i];
+        offset = 0;
+        for (auto iextra=0;iextra<opt.extra_dm_internalprop_unique_input_names.size();iextra++)
+        {
+            field = opt.extra_dm_internalprop_unique_input_names[iextra];
+            x.SetExtraProperties(field,proprecvbuff[i*numextrafields+iextra+offset]);
+        }
+        PartLocal[index].SetExtraDMProperties(x);
+    }
+    indicessend.clear();
+    propsendbuff.clear();
+#endif
+}
+
+
+void MPISendReceiveFOFHydroInfoBetweenThreads(Options &opt, fofid_in *FoFGroupDataLocal, vector<Int_t> &indicessend,  vector<float> &propsendbuff, int recvTask, int tag, MPI_Comm &mpi_comm)
+{
+#ifdef GASON
+    MPI_Status status;
+    vector<Int_t> indicesrecv;
+    Int_t numsend, numrecv, numextrafields = 0, index, offset = 0;
+    vector<float> proprecvbuff(0);
+    string field;
+    HydroProperties x;
+
+    numextrafields = opt.gas_internalprop_unique_input_names.size() + opt.gas_chem_unique_input_names.size() + opt.gas_chemproduction_unique_input_names.size();
+    if (numextrafields == 0) return;
+    numsend = indicessend.size();
+    MPI_Sendrecv(&numsend, 1, MPI_Int_t, recvTask,
+        tag*2, &numrecv, 1, MPI_Int_t, recvTask, tag*2, mpi_comm, &status);
+    //send the information. If vectors are of zero size, must increase size so .data() points to a valid address
+    if (numsend==0) {indicessend.resize(1);propsendbuff.resize(1);}
+    if (numrecv==0) {indicesrecv.resize(1);proprecvbuff.resize(1);}
+    else {indicesrecv.resize(numrecv);proprecvbuff.resize(numrecv);}
+    MPI_Sendrecv(indicessend.data(),numsend, MPI_Int_t, recvTask,
+        tag*3, indicesrecv.data(),numrecv, MPI_Int_t, recvTask, tag*3, mpi_comm, &status);
+    MPI_Sendrecv(propsendbuff.data(),numsend*numextrafields, MPI_FLOAT, recvTask,
+        tag*4, proprecvbuff.data(),numrecv*numextrafields, MPI_FLOAT, recvTask, tag*4, mpi_comm, &status);
+    if (numrecv == 0) return;
+    for (auto i=0;i<numrecv;i++)
+    {
+        index=indicesrecv[i];
+        FoFGroupDataLocal[index].p.SetHydroProperties(x);
+        offset = 0;
+        for (auto iextra=0;iextra<opt.gas_internalprop_unique_input_names.size();iextra++)
+        {
+            field = opt.gas_internalprop_unique_input_names[iextra];
+            FoFGroupDataLocal[index].p.GetHydroProperties().SetInternalProperties(field,proprecvbuff[i*numextrafields+iextra+offset]);
+        }
+        offset += opt.gas_internalprop_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.gas_chem_unique_input_names.size();iextra++)
+        {
+            field = opt.gas_chem_unique_input_names[iextra];
+            FoFGroupDataLocal[index].p.GetHydroProperties().SetChemistry(field,proprecvbuff[i*numextrafields+iextra+offset]);
+        }
+        offset += opt.gas_chem_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.gas_chemproduction_unique_input_names.size();iextra++)
+        {
+            field = opt.gas_chemproduction_unique_input_names[iextra];
+            FoFGroupDataLocal[index].p.GetHydroProperties().SetChemistryProduction(field,proprecvbuff[i*numextrafields+iextra+offset]);
+        }
+    }
+    indicessend.clear();
+    propsendbuff.clear();
+#endif
+}
+
+void MPISendReceiveFOFStarInfoBetweenThreads(Options &opt, fofid_in *FoFGroupDataLocal, vector<Int_t> &indicessend,  vector<float> &propsendbuff, int recvTask, int tag, MPI_Comm &mpi_comm)
+{
+#ifdef STARON
+    MPI_Status status;
+    vector<Int_t> indicesrecv;
+    Int_t numsend, numrecv, numextrafields = 0, index, offset = 0;
+    vector<float> proprecvbuff(0);
+    string field;
+    StarProperties x;
+
+    numextrafields = opt.star_internalprop_unique_input_names.size() + opt.star_chem_unique_input_names.size() + opt.star_chemproduction_unique_input_names.size();
+    if (numextrafields == 0) return;
+    numsend = indicessend.size();
+    MPI_Sendrecv(&numsend, 1, MPI_Int_t, recvTask,
+        tag*2, &numrecv, 1, MPI_Int_t, recvTask, tag*2, mpi_comm, &status);
+    //send the information. If vectors are of zero size, must increase size so .data() points to a valid address
+    if (numsend==0) {indicessend.resize(1);propsendbuff.resize(1);}
+    if (numrecv==0) {indicesrecv.resize(1);proprecvbuff.resize(1);}
+    else {indicesrecv.resize(numrecv);proprecvbuff.resize(numrecv);}
+    MPI_Sendrecv(indicessend.data(),numsend, MPI_Int_t, recvTask,
+        tag*3, indicesrecv.data(),numrecv, MPI_Int_t, recvTask, tag*3, mpi_comm, &status);
+    MPI_Sendrecv(propsendbuff.data(),numsend*numextrafields, MPI_FLOAT, recvTask,
+        tag*4, proprecvbuff.data(),numrecv*numextrafields, MPI_FLOAT, recvTask, tag*4, mpi_comm, &status);
+    if (numrecv == 0) return;
+    for (auto i=0;i<numrecv;i++)
+    {
+        index=indicesrecv[i];
+        FoFGroupDataLocal[index].p.SetStarProperties(x);
+        offset = 0;
+        for (auto iextra=0;iextra<opt.star_internalprop_unique_input_names.size();iextra++)
+        {
+            field = opt.star_internalprop_unique_input_names[iextra];
+            FoFGroupDataLocal[index].p.GetStarProperties().SetInternalProperties(field,proprecvbuff[i*numextrafields+iextra+offset]);
+        }
+        offset += opt.star_internalprop_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.star_chem_unique_input_names.size();iextra++)
+        {
+            field = opt.star_chem_unique_input_names[iextra];
+            FoFGroupDataLocal[index].p.GetStarProperties().SetChemistry(field,proprecvbuff[i*numextrafields+iextra+offset]);
+        }
+        offset += opt.star_chem_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.star_chemproduction_unique_input_names.size();iextra++)
+        {
+            field = opt.star_chemproduction_unique_input_names[iextra];
+            FoFGroupDataLocal[index].p.GetStarProperties().SetChemistryProduction(field,proprecvbuff[i*numextrafields+iextra+offset]);
+        }
+    }
+    indicessend.clear();
+    propsendbuff.clear();
+#endif
+}
+
+void MPISendReceiveFOFBHInfoBetweenThreads(Options &opt, fofid_in *FoFGroupDataLocal, vector<Int_t> &indicessend,  vector<float> &propsendbuff, int recvTask, int tag, MPI_Comm &mpi_comm)
+{
+#ifdef BHON
+    MPI_Status status;
+    vector<Int_t> indicesrecv;
+    Int_t numsend, numrecv, numextrafields = 0, index, offset = 0;
+    vector<float> proprecvbuff(0);
+    string field;
+    BHProperties x;
+
+    numextrafields = opt.bh_internalprop_unique_input_names.size() + opt.bh_chem_unique_input_names.size() + opt.bh_chemproduction_unique_input_names.size();
+    if (numextrafields == 0) return;
+    numsend = indicessend.size();
+    MPI_Sendrecv(&numsend, 1, MPI_Int_t, recvTask,
+        tag*2, &numrecv, 1, MPI_Int_t, recvTask, tag*2, mpi_comm, &status);
+    //send the information. If vectors are of zero size, must increase size so .data() points to a valid address
+    if (numsend==0) {indicessend.resize(1);propsendbuff.resize(1);}
+    if (numrecv==0) {indicesrecv.resize(1);proprecvbuff.resize(1);}
+    else {indicesrecv.resize(numrecv);proprecvbuff.resize(numrecv);}
+    MPI_Sendrecv(indicessend.data(),numsend, MPI_Int_t, recvTask,
+        tag*3, indicesrecv.data(),numrecv, MPI_Int_t, recvTask, tag*3, mpi_comm, &status);
+    MPI_Sendrecv(propsendbuff.data(),numsend*numextrafields, MPI_FLOAT, recvTask,
+        tag*4, proprecvbuff.data(),numrecv*numextrafields, MPI_FLOAT, recvTask, tag*4, mpi_comm, &status);
+    if (numrecv == 0) return;
+    for (auto i=0;i<numrecv;i++)
+    {
+        index=indicesrecv[i];
+        FoFGroupDataLocal[index].p.SetBHProperties(x);
+        offset = 0;
+        for (auto iextra=0;iextra<opt.bh_internalprop_unique_input_names.size();iextra++)
+        {
+            field = opt.bh_internalprop_unique_input_names[iextra];
+            FoFGroupDataLocal[index].p.GetBHProperties().SetInternalProperties(field,proprecvbuff[i*numextrafields+iextra+offset]);
+        }
+        offset += opt.bh_internalprop_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.bh_chem_unique_input_names.size();iextra++)
+        {
+            field = opt.bh_chem_unique_input_names[iextra];
+            FoFGroupDataLocal[index].p.GetBHProperties().SetChemistry(field,proprecvbuff[i*numextrafields+iextra+offset]);
+        }
+        offset += opt.bh_chem_unique_input_names.size();
+        for (auto iextra=0;iextra<opt.bh_chemproduction_unique_input_names.size();iextra++)
+        {
+            field = opt.bh_chemproduction_unique_input_names[iextra];
+            FoFGroupDataLocal[index].p.GetBHProperties().SetChemistryProduction(field,proprecvbuff[i*numextrafields+iextra+offset]);
+        }
+    }
+    indicessend.clear();
+    propsendbuff.clear();
+#endif
+}
+
+void MPISendReceiveFOFExtraDMInfoBetweenThreads(Options &opt, fofid_in *FoFGroupDataLocal, vector<Int_t> &indicessend,  vector<float> &propsendbuff, int recvTask, int tag, MPI_Comm &mpi_comm)
+{
+#ifdef EXTRADMON
+    MPI_Status status;
+    vector<Int_t> indicesrecv;
+    Int_t numsend, numrecv, numextrafields = 0, index, offset = 0;
+    vector<float> proprecvbuff(0);
+    string field;
+    ExtraDMProperties x;
+
+    numextrafields = opt.extra_dm_internalprop_unique_input_names.size();
+    if (numextrafields == 0) return;
+    numsend = indicessend.size();
+    MPI_Sendrecv(&numsend, 1, MPI_Int_t, recvTask,
+        tag*2, &numrecv, 1, MPI_Int_t, recvTask, tag*2, mpi_comm, &status);
+    //send the information. If vectors are of zero size, must increase size so .data() points to a valid address
+    if (numsend==0) {indicessend.resize(1);propsendbuff.resize(1);}
+    if (numrecv==0) {indicesrecv.resize(1);proprecvbuff.resize(1);}
+    else {indicesrecv.resize(numrecv);proprecvbuff.resize(numrecv);}
+    MPI_Sendrecv(indicessend.data(),numsend, MPI_Int_t, recvTask,
+        tag*3, indicesrecv.data(),numrecv, MPI_Int_t, recvTask, tag*3, mpi_comm, &status);
+    MPI_Sendrecv(propsendbuff.data(),numsend*numextrafields, MPI_FLOAT, recvTask,
+        tag*4, proprecvbuff.data(),numrecv*numextrafields, MPI_FLOAT, recvTask, tag*4, mpi_comm, &status);
+    if (numrecv == 0) return;
+    for (auto i=0;i<numrecv;i++)
+    {
+        index=indicesrecv[i];
+        FoFGroupDataLocal[index].p.SetExtraDMProperties(x);
+        offset = 0;
+        for (auto iextra=0;iextra<opt.extra_dm_internalprop_unique_input_names.size();iextra++)
+        {
+            field = opt.extra_dm_internalprop_unique_input_names[iextra];
+            FoFGroupDataLocal[index].p.GetExtraDMProperties().SetExtraProperties(field,proprecvbuff[i*numextrafields+iextra+offset]);
+        }
+    }
+    indicessend.clear();
+    propsendbuff.clear();
+#endif
+}
+
+
 /*! Final send between read threads of input particle data
 */
 void MPISendParticlesBetweenReadThreads(Options &opt, Particle *&Pbuf, Particle *Part, Int_t *&nreadoffset, int *&ireadtask, int *&readtaskID, Particle *&Pbaryons, Int_t *&mpi_nsend_baryon)
 {
+    MPI_Comm mpi_comm_read = MPI_COMM_WORLD;
     if (ireadtask[ThisTask]>=0) {
         //split the communication into small buffers
         int icycle=0,ibuf;
@@ -657,6 +2913,10 @@ void MPISendParticlesBetweenReadThreads(Options &opt, Particle *&Pbuf, Particle 
                     MPI_Sendrecv(&Pbuf[nreadoffset[ireadtask[recvTask]]+sendoffset],sizeof(Particle)*cursendchunksize, MPI_BYTE, recvTask, TAG_IO_A+isendrecv,
                         &Part[Nlocal],sizeof(Particle)*currecvchunksize, MPI_BYTE, recvTask, TAG_IO_A+isendrecv,
                                 MPI_COMM_WORLD, &status);
+                    MPISendReceiveHydroInfoBetweenThreads(opt, cursendchunksize,  &Pbuf[nreadoffset[ireadtask[recvTask]]+sendoffset], currecvchunksize, &Part[Nlocal], recvTask, TAG_IO_A+isendrecv, mpi_comm_read);
+                    MPISendReceiveStarInfoBetweenThreads(opt, cursendchunksize,  &Pbuf[nreadoffset[ireadtask[recvTask]]+sendoffset], currecvchunksize, &Part[Nlocal], recvTask, TAG_IO_A+isendrecv, mpi_comm_read);
+                    MPISendReceiveBHInfoBetweenThreads(opt, cursendchunksize,  &Pbuf[nreadoffset[ireadtask[recvTask]]+sendoffset], currecvchunksize, &Part[Nlocal], recvTask, TAG_IO_A+isendrecv, mpi_comm_read);
+                    MPISendReceiveExtraDMInfoBetweenThreads(opt, cursendchunksize,  &Pbuf[nreadoffset[ireadtask[recvTask]]+sendoffset], currecvchunksize, &Part[Nlocal], recvTask, TAG_IO_A+isendrecv, mpi_comm_read);
                     Nlocal+=currecvchunksize;
                     sendoffset+=cursendchunksize;
                     recvoffset+=currecvchunksize;
@@ -685,6 +2945,10 @@ void MPISendParticlesBetweenReadThreads(Options &opt, Particle *&Pbuf, Particle 
                     MPI_Sendrecv(&Pbuf[nreadoffset[ireadtask[recvTask]]+mpi_nsend[ThisTask * NProcs + recvTask]+sendoffset],sizeof(Particle)*cursendchunksize, MPI_BYTE, recvTask, TAG_IO_B+isendrecv,
                         &Pbaryons[Nlocalbaryon[0]],sizeof(Particle)*currecvchunksize, MPI_BYTE, recvTask, TAG_IO_B+isendrecv,
                                 MPI_COMM_WORLD, &status);
+                    MPISendReceiveHydroInfoBetweenThreads(opt, cursendchunksize,  &Pbuf[nreadoffset[ireadtask[recvTask]]+sendoffset], currecvchunksize, &Pbaryons[Nlocalbaryon[0]], recvTask, TAG_IO_B+isendrecv, mpi_comm_read);
+                    MPISendReceiveStarInfoBetweenThreads(opt, cursendchunksize,  &Pbuf[nreadoffset[ireadtask[recvTask]]+sendoffset], currecvchunksize, &Pbaryons[Nlocalbaryon[0]], recvTask, TAG_IO_B+isendrecv, mpi_comm_read);
+                    MPISendReceiveBHInfoBetweenThreads(opt, cursendchunksize,  &Pbuf[nreadoffset[ireadtask[recvTask]]+sendoffset], currecvchunksize, &Pbaryons[Nlocalbaryon[0]], recvTask, TAG_IO_B+isendrecv, mpi_comm_read);
+                    MPISendReceiveExtraDMInfoBetweenThreads(opt, cursendchunksize,  &Pbuf[nreadoffset[ireadtask[recvTask]]+sendoffset], currecvchunksize, &Pbaryons[Nlocalbaryon[0]], recvTask, TAG_IO_B+isendrecv, mpi_comm_read);
                     Nlocalbaryon[0]+=currecvchunksize;
                     sendoffset+=cursendchunksize;
                     recvoffset+=currecvchunksize;
@@ -742,6 +3006,10 @@ void MPISendParticlesBetweenReadThreads(Options &opt, vector<Particle> *&Preadbu
                     MPI_Sendrecv(&Preadbuf[recvTask][sendoffset],sizeof(Particle)*cursendchunksize, MPI_BYTE, recvTask, TAG_IO_A+isendrecv,
                         &(Part[Nlocal]),sizeof(Particle)*currecvchunksize, MPI_BYTE, recvTask, TAG_IO_A+isendrecv,
                                 mpi_comm_read, &status);
+                    MPISendReceiveHydroInfoBetweenThreads(opt, cursendchunksize,  &Preadbuf[recvTask][sendoffset], currecvchunksize, &Part[Nlocal], recvTask, TAG_IO_A+isendrecv, mpi_comm_read);
+                    MPISendReceiveStarInfoBetweenThreads(opt, cursendchunksize,  &Preadbuf[recvTask][sendoffset], currecvchunksize, &Part[Nlocal], recvTask, TAG_IO_A+isendrecv, mpi_comm_read);
+                    MPISendReceiveBHInfoBetweenThreads(opt, cursendchunksize,  &Preadbuf[recvTask][sendoffset], currecvchunksize, &Part[Nlocal], recvTask, TAG_IO_A+isendrecv, mpi_comm_read);
+                    MPISendReceiveExtraDMInfoBetweenThreads(opt, cursendchunksize,  &Preadbuf[recvTask][sendoffset], currecvchunksize, &Part[Nlocal], recvTask, TAG_IO_A+isendrecv, mpi_comm_read);
                     Nlocal+=currecvchunksize;
                     sendoffset+=cursendchunksize;
                     recvoffset+=currecvchunksize;
@@ -770,6 +3038,10 @@ void MPISendParticlesBetweenReadThreads(Options &opt, vector<Particle> *&Preadbu
                     MPI_Sendrecv(&Preadbuf[recvTask][mpi_nsend_readthread[sendTask * opt.nsnapread + recvTask]+sendoffset],sizeof(Particle)*cursendchunksize, MPI_BYTE, recvTask, TAG_IO_B+isendrecv,
                         &Pbaryons[Nlocalbaryon[0]],sizeof(Particle)*currecvchunksize, MPI_BYTE, recvTask, TAG_IO_B+isendrecv,
                                 mpi_comm_read, &status);
+                    MPISendReceiveHydroInfoBetweenThreads(opt, cursendchunksize,  &Preadbuf[recvTask][mpi_nsend_readthread[sendTask * opt.nsnapread + recvTask]+sendoffset], currecvchunksize, &Pbaryons[Nlocalbaryon[0]], recvTask, TAG_IO_B+isendrecv, mpi_comm_read);
+                    MPISendReceiveStarInfoBetweenThreads(opt, cursendchunksize,  &Preadbuf[recvTask][mpi_nsend_readthread[sendTask * opt.nsnapread + recvTask]+sendoffset], currecvchunksize, &Pbaryons[Nlocalbaryon[0]], recvTask, TAG_IO_B+isendrecv, mpi_comm_read);
+                    MPISendReceiveBHInfoBetweenThreads(opt, cursendchunksize,  &Preadbuf[recvTask][mpi_nsend_readthread[sendTask * opt.nsnapread + recvTask]+sendoffset], currecvchunksize, &Pbaryons[Nlocalbaryon[0]], recvTask, TAG_IO_B+isendrecv, mpi_comm_read);
+                    MPISendReceiveExtraDMInfoBetweenThreads(opt, cursendchunksize,  &Preadbuf[recvTask][mpi_nsend_readthread[sendTask * opt.nsnapread + recvTask]+sendoffset], currecvchunksize, &Pbaryons[Nlocalbaryon[0]], recvTask, TAG_IO_B+isendrecv, mpi_comm_read);
                     Nlocalbaryon[0]+=currecvchunksize;
                     sendoffset+=cursendchunksize;
                     recvoffset+=currecvchunksize;
@@ -812,7 +3084,6 @@ void MPIGetExportNum(const Int_t nbodies, Particle *Part, Double_t rdist){
     for (j=0;j<NProcs;j++)NImport+=mpi_nsend[ThisTask+j*NProcs];
 }
 
-#ifdef SWIFTINTERFACE
 void MPIGetExportNumUsingMesh(Options &opt, const Int_t nbodies, Particle *Part, Double_t rdist){
     Int_t i, j,nthreads,nexport=0,nimport=0;
     Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
@@ -859,17 +3130,23 @@ void MPIGetExportNumUsingMesh(Options &opt, const Int_t nbodies, Particle *Part,
     NImport=0;
     for (j=0;j<NProcs;j++)NImport+=mpi_nsend[ThisTask+j*NProcs];
 }
-#endif
 
 /*! Determine which particles have a spatial linking length such that linking overlaps the domain of another processor store the necessary information to send that data
     and then send that information
 */
-void MPIBuildParticleExportList(const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_tree_t *&Len, Double_t rdist){
+void MPIBuildParticleExportList(Options &opt, const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_tree_t *&Len, Double_t rdist){
     Int_t i, j,nthreads,nexport=0,nimport=0;
     Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
     Double_t xsearch[3][2];
     Int_t sendTask,recvTask;
+    int maxchunksize=LOCAL_MAX_MSGSIZE/NProcs/sizeof(Particle);
+    int nsend,nrecv,nsendchunks,nrecvchunks,numsendrecv;
+    int sendoffset,recvoffset;
+    int isendrecv;
+    int cursendchunksize,currecvchunksize;
     MPI_Status status;
+    MPI_Comm mpi_comm = MPI_COMM_WORLD;
+    int mpi_tag, mpi_tag_offset;
 
     ///\todo would like to add openmp to this code. In particular, loop over nbodies but issue is nexport.
     ///This would either require making a FoFDataIn[nthreads][NExport] structure so that each omp thread
@@ -884,7 +3161,6 @@ void MPIBuildParticleExportList(const Int_t nbodies, Particle *Part, Int_t *&pfo
                 //determine if search region is not outside of this processors domain
                 if(MPIInDomain(xsearch,mpi_domain[j].bnd))
                 {
-                    //FoFDataIn[nexport].Part=Part[i];
                     FoFDataIn[nexport].Index = i;
                     FoFDataIn[nexport].Task = j;
                     FoFDataIn[nexport].iGroup = pfof[Part[i].GetID()];//set group id
@@ -897,9 +3173,23 @@ void MPIBuildParticleExportList(const Int_t nbodies, Particle *Part, Int_t *&pfo
         }
     }
     if (nexport>0) {
-    //sort the export data such that all particles to be passed to thread j are together in ascending thread number
-    qsort(FoFDataIn, nexport, sizeof(struct fofdata_in), fof_export_cmp);
-    for (i=0;i<nexport;i++) PartDataIn[i] = Part[FoFDataIn[i].Index];
+        //sort the export data such that all particles to be passed to thread j are together in ascending thread number
+        qsort(FoFDataIn, nexport, sizeof(struct fofdata_in), fof_export_cmp);
+        for (i=0;i<nexport;i++) {
+            PartDataIn[i] = Part[FoFDataIn[i].Index];
+#ifdef GASON
+            PartDataIn[i].SetHydroProperties();
+#endif
+#ifdef STARON
+            PartDataIn[i].SetStarProperties();
+#endif
+#ifdef BHON
+            PartDataIn[i].SetBHProperties();
+#endif
+#ifdef EXTRADMON
+            PartDataIn[i].SetExtraDMProperties();
+#endif
+        }
     }
     //then store the offset in the export particle data for the jth Task in order to send data.
     for(j = 1, noffset[0] = 0; j < NProcs; j++) noffset[j]=noffset[j-1] + nsend_local[j-1];
@@ -909,118 +3199,57 @@ void MPIBuildParticleExportList(const Int_t nbodies, Particle *Part, Int_t *&pfo
     //now send the data.
     for (j=0;j<NProcs;j++)nimport+=mpi_nsend[ThisTask+j*NProcs];
 
-    //check if buffer that needs to be send is too large and must be sent in chunks
-    int bufferFlag = 1;
-    long int maxNumPart = LOCAL_MAX_MSGSIZE / (long int) sizeof(Particle);
-    for (j = 0; j < NProcs; j++)
-    {
-        if (j != ThisTask)
+    if (nexport>0||nimport>0) {
+        for(j=0;j<NProcs;j++)//for(j=1;j<NProcs;j++)
         {
-            sendTask = ThisTask;
-            recvTask = j;
-            if (mpi_nsend[ThisTask+recvTask*NProcs] >= maxNumPart || nsend_local[recvTask] >= maxNumPart ) bufferFlag++;
-        }
-    }
-    //if buffer is too large, split sends
-    if (bufferFlag)
-    {
-        MPI_Request rqst;
-        int numBuffersToSend [NProcs];
-        int numBuffersToRecv [NProcs];
-        int numPartInBuffer = maxNumPart * 0.9;
-        int maxnbufferslocal=0,maxnbuffers;
-        for (j = 0; j < NProcs; j++)
-        {
-            numBuffersToSend[j] = 0;
-            numBuffersToRecv[j] = 0;
-            if (nsend_local[j] > 0)
-            numBuffersToSend[j] = (nsend_local[j]/numPartInBuffer) + 1;
-        }
-        for (int i = 1; i < NProcs; i++)
-        {
-            int src = (ThisTask + NProcs - i) % NProcs;
-            int dst = (ThisTask + i) % NProcs;
-            MPI_Isend (&numBuffersToSend[dst], 1, MPI_INT, dst, 0, MPI_COMM_WORLD, &rqst);
-            MPI_Recv  (&numBuffersToRecv[src], 1, MPI_INT, src, 0, MPI_COMM_WORLD, &status);
-        }
-        MPI_Barrier (MPI_COMM_WORLD);
-        //find max to be transfer, allows appropriate tagging of messages
-        for (int i=0;i<NProcs;i++) if (numBuffersToRecv[i]>maxnbufferslocal) maxnbufferslocal=numBuffersToRecv[i];
-        for (int i=0;i<NProcs;i++) if (numBuffersToSend[i]>maxnbufferslocal) maxnbufferslocal=numBuffersToSend[i];
-        MPI_Allreduce (&maxnbufferslocal, &maxnbuffers, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-
-        for (int i = 1; i < NProcs; i++)
-        {
-            int src = (ThisTask + NProcs - i) % NProcs;
-            int dst = (ThisTask + i) % NProcs;
-            Int_t size = numPartInBuffer;
-            nbuffer[src] = 0;
-            int buffOffset = 0;
-
-            for (int jj = 0; jj < src; jj++)  nbuffer[src] += mpi_nsend[ThisTask + jj*NProcs];
-
-            // Send Buffers
-            for (int jj = 0; jj < numBuffersToSend[dst]-1; jj++)
+            if (j!=ThisTask)
             {
-                MPI_Isend (&size, 1, MPI_Int_t, dst, (int)(jj+1), MPI_COMM_WORLD, &rqst);
-                MPI_Isend (&FoFDataIn[noffset[dst] + buffOffset], sizeof(struct fofdata_in)*size,
-                            MPI_BYTE, dst, (int)(TAG_FOF_A*maxnbuffers+jj+1), MPI_COMM_WORLD, &rqst);
-                MPI_Isend (&PartDataIn[noffset[dst] + buffOffset], sizeof(Particle)*size,
-                            MPI_BYTE, dst, (int)(TAG_FOF_B*maxnbuffers*3+jj+1), MPI_COMM_WORLD, &rqst);
-                buffOffset += size;
-            }
-            size = nsend_local[dst] % numPartInBuffer;
-            if (size > 0 && numBuffersToSend[dst] > 0)
-            {
-                MPI_Isend (&size, 1, MPI_Int_t, dst, (int)(numBuffersToSend[dst]), MPI_COMM_WORLD, &rqst);
-                MPI_Isend (&FoFDataIn[noffset[dst] + buffOffset], sizeof(struct fofdata_in)*size,
-                            MPI_BYTE, dst, (int)(TAG_FOF_A*maxnbuffers+numBuffersToSend[dst]), MPI_COMM_WORLD, &rqst);
-                MPI_Isend (&PartDataIn[noffset[dst] + buffOffset], sizeof(Particle)*size,
-                            MPI_BYTE, dst, (int)(TAG_FOF_B*maxnbuffers*3+numBuffersToSend[dst]), MPI_COMM_WORLD, &rqst);
-            }
-            // Receive Buffers
-            buffOffset = 0;
-            for (int jj = 0; jj < numBuffersToRecv[src]; jj++)
-            {
-                Int_t numInBuffer = 0;
-                MPI_Recv (&numInBuffer, 1, MPI_Int_t, src, (int)(jj+1), MPI_COMM_WORLD, &status);
-                MPI_Recv (&FoFDataGet[nbuffer[src] + buffOffset], sizeof(struct fofdata_in)*numInBuffer,
-                            MPI_BYTE, src, (int)(TAG_FOF_A*maxnbuffers+jj+1), MPI_COMM_WORLD, &status);
-                MPI_Recv (&PartDataGet[nbuffer[src] + buffOffset], sizeof(Particle)*numInBuffer,
-                            MPI_BYTE, src, (int)(TAG_FOF_B*maxnbuffers*3+jj+1), MPI_COMM_WORLD, &status);
-                buffOffset += numInBuffer;
-            }
-        }
-    }
-    else
-    {
-        if (nexport>0||nimport>0) {
-            for(j=0;j<NProcs;j++)//for(j=1;j<NProcs;j++)
-            {
-                if (j!=ThisTask)
+                sendTask = ThisTask;
+                recvTask = j;//ThisTask^j;//bitwise XOR ensures that recvTask cycles around sendTask
+                nbuffer[recvTask]=0;
+                for (int k=0;k<recvTask;k++)nbuffer[recvTask]+=mpi_nsend[ThisTask+k*NProcs];//offset on local receiving buffer
+                if(mpi_nsend[ThisTask * NProcs + recvTask] > 0 || mpi_nsend[recvTask * NProcs + ThisTask] > 0)
                 {
-                    sendTask = ThisTask;
-                    recvTask = j;//ThisTask^j;//bitwise XOR ensures that recvTask cycles around sendTask
-                    nbuffer[recvTask]=0;
-                    for (int k=0;k<recvTask;k++)nbuffer[recvTask]+=mpi_nsend[ThisTask+k*NProcs];//offset on local receiving buffer
-                    if(mpi_nsend[ThisTask * NProcs + recvTask] > 0 || mpi_nsend[recvTask * NProcs + ThisTask] > 0)
+
+                    nsend=mpi_nsend[sendTask * NProcs + recvTask];
+                    nrecv=mpi_nsend[recvTask * NProcs + sendTask];
+                    //calculate how many send/recvs are needed
+                    nsendchunks=ceil((double)nsend/(double)maxchunksize);
+                    nrecvchunks=ceil((double)nrecv/(double)maxchunksize);
+                    numsendrecv=max(nsendchunks,nrecvchunks);
+                    //initialize the offset in the particle array
+                    sendoffset=0;
+                    recvoffset=0;
+                    isendrecv=1;
+                    do
                     {
+                        //determine amount to be sent
+                        cursendchunksize=min(maxchunksize,nsend-sendoffset);
+                        currecvchunksize=min(maxchunksize,nrecv-recvoffset);
+
                         //blocking point-to-point send and receive. Here must determine the appropriate offset point in the local export buffer
                         //for sending data and also the local appropriate offset in the local the receive buffer for information sent from the local receiving buffer
                         //first send FOF data and then particle data
-                        MPI_Sendrecv(&FoFDataIn[noffset[recvTask]],
-                            nsend_local[recvTask] * sizeof(struct fofdata_in), MPI_BYTE,
+                        MPI_Sendrecv(&FoFDataIn[noffset[recvTask]+sendoffset],
+                            cursendchunksize * sizeof(struct fofdata_in), MPI_BYTE,
                             recvTask, TAG_FOF_A,
-                            &FoFDataGet[nbuffer[recvTask]],
-                            mpi_nsend[ThisTask+recvTask * NProcs] * sizeof(struct fofdata_in),
+                            &FoFDataGet[nbuffer[recvTask]+recvoffset],
+                            currecvchunksize * sizeof(struct fofdata_in),
                             MPI_BYTE, recvTask, TAG_FOF_A, MPI_COMM_WORLD, &status);
-                        MPI_Sendrecv(&PartDataIn[noffset[recvTask]],
-                            nsend_local[recvTask] * sizeof(Particle), MPI_BYTE,
+                        MPI_Sendrecv(&PartDataIn[noffset[recvTask]+sendoffset],
+                            cursendchunksize * sizeof(Particle), MPI_BYTE,
                             recvTask, TAG_FOF_B,
-                            &PartDataGet[nbuffer[recvTask]],
-                            mpi_nsend[ThisTask+recvTask * NProcs] * sizeof(Particle),
+                            &PartDataGet[nbuffer[recvTask]+recvoffset],
+                            currecvchunksize * sizeof(Particle),
                             MPI_BYTE, recvTask, TAG_FOF_B, MPI_COMM_WORLD, &status);
-                    }
+                        MPISendReceiveHydroInfoBetweenThreads(opt, cursendchunksize,  &PartDataIn[noffset[recvTask]+sendoffset], currecvchunksize, &PartDataGet[nbuffer[recvTask]+recvoffset], recvTask, TAG_FOF_B_HYDRO, mpi_comm);
+                        MPISendReceiveStarInfoBetweenThreads(opt, cursendchunksize,  &PartDataIn[noffset[recvTask]+sendoffset], currecvchunksize, &PartDataGet[nbuffer[recvTask]+recvoffset], recvTask, TAG_FOF_B_STAR, mpi_comm);
+                        MPISendReceiveBHInfoBetweenThreads(opt, cursendchunksize,  &PartDataIn[noffset[recvTask]+sendoffset], currecvchunksize, &PartDataGet[nbuffer[recvTask]+recvoffset], recvTask, TAG_FOF_B_BH, mpi_comm);
+                        MPISendReceiveExtraDMInfoBetweenThreads(opt, cursendchunksize,  &PartDataIn[noffset[recvTask]+sendoffset], currecvchunksize, &PartDataGet[nbuffer[recvTask]+recvoffset], recvTask, TAG_FOF_B_EXTRA_DM, mpi_comm);
+                        sendoffset+=cursendchunksize;
+                        recvoffset+=currecvchunksize;
+                        isendrecv++;
+                    } while (isendrecv<=numsendrecv);
                 }
             }
         }
@@ -1029,13 +3258,13 @@ void MPIBuildParticleExportList(const Int_t nbodies, Particle *Part, Int_t *&pfo
 
 /*! Similar to \ref MPIBuildParticleExportList but uses mesh of swift to determine when mpi's to search
 */
-#ifdef SWIFTINTERFACE
 void MPIBuildParticleExportListUsingMesh(Options &opt, const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_tree_t *&Len, Double_t rdist){
     Int_t i, j,nthreads,nexport=0,nimport=0;
     Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
     Double_t xsearch[3][2];
     Int_t sendTask,recvTask;
     MPI_Status status;
+    MPI_Comm mpi_comm = MPI_COMM_WORLD;
     vector<int>sent_mpi_domain(NProcs);
 
     ///\todo would like to add openmp to this code. In particular, loop over nbodies but issue is nexport.
@@ -1054,7 +3283,6 @@ void MPIBuildParticleExportListUsingMesh(Options &opt, const Int_t nbodies, Part
             const int cellnodeID = opt.cellnodeids[j];
             /// Only check if particles have overlap with neighbouring cells that are on another MPI domain and have not already been sent to
             if (sent_mpi_domain[cellnodeID] == 1) continue;
-            //FoFDataIn[nexport].Part=Part[i];
             FoFDataIn[nexport].Index = i;
             FoFDataIn[nexport].Task = cellnodeID;
             FoFDataIn[nexport].iGroup = pfof[Part[i].GetID()];//set group id
@@ -1067,9 +3295,23 @@ void MPIBuildParticleExportListUsingMesh(Options &opt, const Int_t nbodies, Part
     }
 
     if (nexport>0) {
-    //sort the export data such that all particles to be passed to thread j are together in ascending thread number
-    qsort(FoFDataIn, nexport, sizeof(struct fofdata_in), fof_export_cmp);
-    for (i=0;i<nexport;i++) PartDataIn[i] = Part[FoFDataIn[i].Index];
+        //sort the export data such that all particles to be passed to thread j are together in ascending thread number
+        qsort(FoFDataIn, nexport, sizeof(struct fofdata_in), fof_export_cmp);
+        for (i=0;i<nexport;i++) {
+            PartDataIn[i] = Part[FoFDataIn[i].Index];
+#ifdef GASON
+            PartDataIn[i].SetHydroProperties();
+#endif
+#ifdef STARON
+            PartDataIn[i].SetStarProperties();
+#endif
+#ifdef BHON
+            PartDataIn[i].SetBHProperties();
+#endif
+#ifdef EXTRADMON
+            PartDataIn[i].SetExtraDMProperties();
+#endif
+        }
     }
     //then store the offset in the export particle data for the jth Task in order to send data.
     for(j = 1, noffset[0] = 0; j < NProcs; j++) noffset[j]=noffset[j-1] + nsend_local[j-1];
@@ -1080,7 +3322,7 @@ void MPIBuildParticleExportListUsingMesh(Options &opt, const Int_t nbodies, Part
     for (j=0;j<NProcs;j++)nimport+=mpi_nsend[ThisTask+j*NProcs];
 
     //check if buffer that needs to be send is too large and must be sent in chunks
-    int bufferFlag = 1;
+    int bufferFlag = 0;
     long int maxNumPart = LOCAL_MAX_MSGSIZE / (long int) sizeof(Particle);
     for (j = 0; j < NProcs; j++)
     {
@@ -1091,6 +3333,10 @@ void MPIBuildParticleExportListUsingMesh(Options &opt, const Int_t nbodies, Part
             if (mpi_nsend[ThisTask+recvTask*NProcs] >= maxNumPart || nsend_local[recvTask] >= maxNumPart ) bufferFlag++;
         }
     }
+
+    // Ensure bufferflag is the same over all ranks
+    MPI_Allreduce(MPI_IN_PLACE, &bufferFlag, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+
     //if buffer is too large, split sends
     if (bufferFlag)
     {
@@ -1137,6 +3383,10 @@ void MPIBuildParticleExportListUsingMesh(Options &opt, const Int_t nbodies, Part
                             MPI_BYTE, dst, (int)(TAG_FOF_A*maxnbuffers+jj+1), MPI_COMM_WORLD, &rqst);
                 MPI_Isend (&PartDataIn[noffset[dst] + buffOffset], sizeof(Particle)*size,
                             MPI_BYTE, dst, (int)(TAG_FOF_B*maxnbuffers*3+jj+1), MPI_COMM_WORLD, &rqst);
+                MPIISendHydroInfo(opt, size, &PartDataIn[noffset[dst] + buffOffset], dst, (int)(TAG_FOF_B_HYDRO*maxnbuffers*3+jj+1), rqst);
+                MPIISendStarInfo(opt, size, &PartDataIn[noffset[dst] + buffOffset], dst, (int)(TAG_FOF_B_STAR*maxnbuffers*3+jj+1), rqst);
+                MPIISendBHInfo(opt, size, &PartDataIn[noffset[dst] + buffOffset], dst, (int)(TAG_FOF_B_BH*maxnbuffers*3+jj+1), rqst);
+                MPIISendExtraDMInfo(opt, size, &PartDataIn[noffset[dst] + buffOffset], dst, (int)(TAG_FOF_B_EXTRA_DM*maxnbuffers*3+jj+1), rqst);
                 buffOffset += size;
             }
             size = nsend_local[dst] % numPartInBuffer;
@@ -1147,6 +3397,10 @@ void MPIBuildParticleExportListUsingMesh(Options &opt, const Int_t nbodies, Part
                             MPI_BYTE, dst, (int)(TAG_FOF_A*maxnbuffers+numBuffersToSend[dst]), MPI_COMM_WORLD, &rqst);
                 MPI_Isend (&PartDataIn[noffset[dst] + buffOffset], sizeof(Particle)*size,
                             MPI_BYTE, dst, (int)(TAG_FOF_B*maxnbuffers*3+numBuffersToSend[dst]), MPI_COMM_WORLD, &rqst);
+                MPIISendHydroInfo(opt, size, &PartDataIn[noffset[dst] + buffOffset], dst, (int)(TAG_FOF_B_HYDRO*maxnbuffers*3+numBuffersToSend[dst]), rqst);
+                MPIISendStarInfo(opt, size, &PartDataIn[noffset[dst] + buffOffset], dst, (int)(TAG_FOF_B_STAR*maxnbuffers*3+numBuffersToSend[dst]), rqst);
+                MPIISendBHInfo(opt, size, &PartDataIn[noffset[dst] + buffOffset], dst, (int)(TAG_FOF_B_BH*maxnbuffers*3+numBuffersToSend[dst]), rqst);
+                MPIISendExtraDMInfo(opt, size, &PartDataIn[noffset[dst] + buffOffset], dst, (int)(TAG_FOF_B_EXTRA_DM*maxnbuffers*3+numBuffersToSend[dst]), rqst);
             }
             // Receive Buffers
             buffOffset = 0;
@@ -1158,6 +3412,10 @@ void MPIBuildParticleExportListUsingMesh(Options &opt, const Int_t nbodies, Part
                             MPI_BYTE, src, (int)(TAG_FOF_A*maxnbuffers+jj+1), MPI_COMM_WORLD, &status);
                 MPI_Recv (&PartDataGet[nbuffer[src] + buffOffset], sizeof(Particle)*numInBuffer,
                             MPI_BYTE, src, (int)(TAG_FOF_B*maxnbuffers*3+jj+1), MPI_COMM_WORLD, &status);
+                MPIReceiveHydroInfo(opt, numInBuffer, &PartDataGet[nbuffer[src] + buffOffset], src, (int)(TAG_FOF_B_HYDRO*maxnbuffers*3+jj+1));
+                MPIReceiveStarInfo(opt, numInBuffer, &PartDataGet[nbuffer[src] + buffOffset], src, (int)(TAG_FOF_B_STAR*maxnbuffers*3+jj+1));
+                MPIReceiveBHInfo(opt, numInBuffer, &PartDataGet[nbuffer[src] + buffOffset], src, (int)(TAG_FOF_B_HYDRO*maxnbuffers*3+jj+1));
+                MPIReceiveExtraDMInfo(opt, numInBuffer, &PartDataGet[nbuffer[src] + buffOffset], src, (int)(TAG_FOF_B_HYDRO*maxnbuffers*3+jj+1));
                 buffOffset += numInBuffer;
             }
         }
@@ -1190,13 +3448,16 @@ void MPIBuildParticleExportListUsingMesh(Options &opt, const Int_t nbodies, Part
                             &PartDataGet[nbuffer[recvTask]],
                             mpi_nsend[ThisTask+recvTask * NProcs] * sizeof(Particle),
                             MPI_BYTE, recvTask, TAG_FOF_B, MPI_COMM_WORLD, &status);
+                        MPISendReceiveHydroInfoBetweenThreads(opt, nsend_local[recvTask],  &PartDataIn[noffset[recvTask]], mpi_nsend[ThisTask+recvTask * NProcs], &PartDataGet[nbuffer[recvTask]], recvTask, TAG_FOF_B_HYDRO, mpi_comm);
+                        MPISendReceiveStarInfoBetweenThreads(opt, nsend_local[recvTask],  &PartDataIn[noffset[recvTask]], mpi_nsend[ThisTask+recvTask * NProcs], &PartDataGet[nbuffer[recvTask]], recvTask, TAG_FOF_B_STAR, mpi_comm);
+                        MPISendReceiveBHInfoBetweenThreads(opt, nsend_local[recvTask],  &PartDataIn[noffset[recvTask]], mpi_nsend[ThisTask+recvTask * NProcs], &PartDataGet[nbuffer[recvTask]], recvTask, TAG_FOF_B_BH, mpi_comm);
+                        MPISendReceiveExtraDMInfoBetweenThreads(opt, nsend_local[recvTask],  &PartDataIn[noffset[recvTask]], mpi_nsend[ThisTask+recvTask * NProcs], &PartDataGet[nbuffer[recvTask]], recvTask, TAG_FOF_B_EXTRA_DM, mpi_comm);
                     }
                 }
             }
         }
     }
 }
-#endif
 
 /*! like \ref MPIGetExportNum but number based on NN search, useful for reducing memory costs at the expense of cpu cycles
 */
@@ -1241,7 +3502,6 @@ void MPIGetNNExportNum(const Int_t nbodies, Particle *Part, Double_t *rdist){
 
 /*! like \ref MPIGetExportNum but number based on NN search, useful for reducing memory costs at the expense of cpu cycles
 */
-#ifdef SWIFTINTERFACE
 void MPIGetNNExportNumUsingMesh(Options &opt, const Int_t nbodies, Particle *Part, Double_t *rdist){
     Int_t i, j,nthreads,nexport=0,nimport=0;
     Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
@@ -1281,56 +3541,6 @@ void MPIGetNNExportNumUsingMesh(Options &opt, const Int_t nbodies, Particle *Par
     for (j=0;j<NProcs;j++)NImport+=mpi_nsend[ThisTask+j*NProcs];
     NExport=nexport;
 }
-
-/*
-void MPIGetNNExportNumUsingMesh(Options &opt, const Int_t numleafnodes, vector<leaf_node_info> &leafnodes, KDTree *&tree){
-    Int_t i, j,nthreads,nexport=0,nimport=0;
-    Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
-    Double_t xsearch[3][2];
-    Int_t sendTask,recvTask;
-    MPI_Status status;
-    int indomain;
-    int *sent_mpi_domain = new int[NProcs];
-    int inode;
-
-    ///\todo would like to add openmp to this code. In particular, loop over nbodies but issue is nexport.
-    ///This would either require making a FoFDataIn[nthreads][NExport] structure so that each omp thread
-    ///can only access the appropriate memory and adjust nsend_local.\n
-    ///\em Or outer loop is over threads, inner loop over nbodies and just have a idlist of size Nlocal that tags particles
-    ///which must be exported. Then its a much quicker follow up loop (no if statement) that stores the data
-    for (j=0;j<NProcs;j++) nsend_local[j]=0;
-    for (i=0;i<nbodies;i++)
-    {
-#ifdef STRUCDEN
-        if (Part[i].GetType()==0) continue;
-#endif
-        for(int k=0; k<NProcs; k++) sent_mpi_domain[k] = 0;
-        inode = tree->FindLeafNode(i)
-        for(int k=0;k<3;k++) {xsearch[k][0]=Part[i].GetPosition(k)-leafnodes[inode].searchdist;xsearch[k][1]=Part[i].GetPosition(k)+leafnodes[inode].searchdist;}
-        vector<int> celllist=MPIGetCellListInSearchUsingMesh(opt,xsearch);
-        for (auto j:celllist) {
-            const int cellnodeID = opt.cellnodeids[j];
-            /// Only check if particles have overlap with neighbouring cells that are on another MPI domain and have not already been sent to
-            if (sent_mpi_domain[cellnodeID] == 1) continue;
-            vector<int> celllist=MPIGetCellListInSearchUsingMesh(opt,xsearch);
-            for (auto j:celllist) {
-                const int cellnodeID = opt.cellnodeids[j];
-                /// Only check if particles have overlap with neighbouring cells that are on another MPI domain and have not already been sent to
-                if (sent_mpi_domain[cellnodeID] == 1) continue;
-                nexport++;
-                nsend_local[cellnodeID]++;
-                sent_mpi_domain[cellnodeID]++;
-            }
-        }
-    }
-    //and then gather the number of particles to be sent from mpi thread m to mpi thread n in the mpi_nsend[NProcs*NProcs] array via [n+m*NProcs]
-    MPI_Allgather(nsend_local, NProcs, MPI_Int_t, mpi_nsend, NProcs, MPI_Int_t, MPI_COMM_WORLD);
-    NImport=0;
-    for (j=0;j<NProcs;j++)NImport+=mpi_nsend[ThisTask+j*NProcs];
-    NExport=nexport;
-}
-*/
-#endif
 
 /*! like \ref MPIBuildParticleExportList but each particle has a different distance stored in rdist used to find nearest neighbours
 */
@@ -1443,7 +3653,6 @@ void MPIBuildParticleNNExportList(const Int_t nbodies, Particle *Part, Double_t 
 }
 /*! like \ref MPIBuildParticleExportList but each particle has a different distance stored in rdist used to find nearest neighbours
 */
-#ifdef SWIFTINTERFACE
 void MPIBuildParticleNNExportListUsingMesh(Options &opt, const Int_t nbodies, Particle *Part, Double_t *rdist){
     Int_t i, j,nthreads,nexport=0,nimport=0;
     Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
@@ -1531,7 +3740,6 @@ void MPIBuildParticleNNExportListUsingMesh(Options &opt, const Int_t nbodies, Pa
     }
     MPI_Barrier(MPI_COMM_WORLD);
 }
-#endif
 
 /*! Mirror to \ref MPIGetNNExportNum, use exported particles, run ball search to find number of all local particles that need to be
     imported back to exported particle's thread so that a proper NN search can be made.
@@ -1589,8 +3797,9 @@ void MPIGetNNImportNum(const Int_t nbodies, KDTree *tree, Particle *Part, int ia
 
 /*! Mirror to \ref MPIBuildParticleNNExportList, use exported particles, run ball search to find all local particles that need to be
     imported back to exported particle's thread so that a proper NN search can be made.
+    Is also used for calculating spherical overdensity quantities, where iSOcalc = true
 */
-Int_t MPIBuildParticleNNImportList(const Int_t nbodies, KDTree *tree, Particle *Part, int iallflag){
+Int_t MPIBuildParticleNNImportList(Options &opt, const Int_t nbodies, KDTree *tree, Particle *Part, int iallflag, bool iSOcalc){
     Int_t i, j,nthreads,nexport=0,ncount;
     Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
     Double_t xsearch[3][2];
@@ -1603,6 +3812,7 @@ Int_t MPIBuildParticleNNImportList(const Int_t nbodies, KDTree *tree, Particle *
     int sendoffset,recvoffset;
     int cursendchunksize,currecvchunksize;
     MPI_Status status;
+    MPI_Comm mpi_comm = MPI_COMM_WORLD;
 #ifdef USEOPENMP
 #pragma omp parallel
     {
@@ -1625,9 +3835,9 @@ Int_t MPIBuildParticleNNImportList(const Int_t nbodies, KDTree *tree, Particle *
             if (taggedindex.size()==0) continue;
             for (auto &index:taggedindex) {
                 if (iflagged[index]) continue;
-                #ifdef STRUCDEN
+#ifdef STRUCDEN
                 if (iallflag==0 && Part[index].GetType()<0) continue;
-                #endif
+#endif
                 PartDataIn[nexport]=Part[index];
                 nexport++;
                 nsend_local[j]++;
@@ -1638,6 +3848,24 @@ Int_t MPIBuildParticleNNImportList(const Int_t nbodies, KDTree *tree, Particle *
     delete[] iflagged;
     //sort the export data such that all particles to be passed to thread j are together in ascending thread number
     //qsort(NNDataReturn, nexport, sizeof(struct nndata_in), nn_export_cmp);
+
+    //now if there is extra information, strip off the data from the particles to be sent to store in a separate buffer
+    //and store it explicitly into a buffer. Here are the buffers
+    vector<Int_t> indices_gas_send;
+    vector<float> propbuff_gas_send;
+    vector<Int_t> indices_star_send;
+    vector<float> propbuff_star_send;
+    vector<Int_t> indices_bh_send;
+    vector<float> propbuff_bh_send;
+    vector<Int_t> indices_extra_dm_send;
+    vector<float> propbuff_extra_dm_send;
+
+    //if no information stored in the extra fields will be used, then just remove it before sending
+    //now if this is not called for SO calculations, assume that particles do not need to be exported
+    //with extra information
+    if (!iSOcalc) {
+        MPIStripExportParticleOfExtraInfo(opt, nexport, PartDataIn);
+    }
 
     //then store the offset in the export particle data for the jth Task in order to send data.
     for(j = 1, noffset[0] = 0; j < NProcs; j++) noffset[j]=noffset[j-1] + nsend_local[j-1];
@@ -1673,12 +3901,30 @@ Int_t MPIBuildParticleNNImportList(const Int_t nbodies, KDTree *tree, Particle *
                 {
                     //blocking point-to-point send and receive. Here must determine the appropriate offset point in the local export buffer
                     //for sending data and also the local appropriate offset in the local the receive buffer for information sent from the local receiving buffer
+                    //send extra info only if required for some SO properties
+
+#if defined(GASON) || defined(STARON) || defined(BHON) || defined(EXTRADMON)
+                    if (iSOcalc) {
+                        MPIFillBuffWithHydroInfo(opt, cursendchunksize, &PartDataIn[noffset[recvTask]+sendoffset], indices_gas_send, propbuff_gas_send, true);
+                        MPIFillBuffWithStarInfo(opt, cursendchunksize, &PartDataIn[noffset[recvTask]+sendoffset], indices_star_send, propbuff_star_send, true);
+                        MPIFillBuffWithBHInfo(opt, cursendchunksize, &PartDataIn[noffset[recvTask]+sendoffset], indices_bh_send, propbuff_bh_send, true);
+                        MPIFillBuffWithExtraDMInfo(opt, cursendchunksize, &PartDataIn[noffset[recvTask]+sendoffset], indices_extra_dm_send, propbuff_extra_dm_send, true);
+                    }
+#endif
                     MPI_Sendrecv(&PartDataIn[noffset[recvTask]+sendoffset],
                         cursendchunksize * sizeof(Particle), MPI_BYTE,
                         recvTask, TAG_NN_B+ichunk,
                         &PartDataGet[nbuffer[recvTask]+recvoffset],
                         currecvchunksize * sizeof(Particle),
                         MPI_BYTE, recvTask, TAG_NN_B+ichunk, MPI_COMM_WORLD, &status);
+#if defined(GASON) || defined(STARON) || defined(BHON) || defined(EXTRADMON)
+                    if (iSOcalc) {
+                        MPISendReceiveBuffWithHydroInfoBetweenThreads(opt, &PartDataGet[nbuffer[recvTask]+recvoffset], indices_gas_send, propbuff_gas_send, recvTask, TAG_NN_B+ichunk, mpi_comm);
+                        MPISendReceiveBuffWithStarInfoBetweenThreads(opt, &PartDataGet[nbuffer[recvTask]+recvoffset], indices_star_send, propbuff_star_send, recvTask, TAG_NN_B+ichunk, mpi_comm);
+                        MPISendReceiveBuffWithBHInfoBetweenThreads(opt, &PartDataGet[nbuffer[recvTask]+recvoffset], indices_bh_send, propbuff_bh_send, recvTask, TAG_NN_B+ichunk, mpi_comm);
+                        MPISendReceiveBuffWithExtraDMInfoBetweenThreads(opt, &PartDataGet[nbuffer[recvTask]+recvoffset], indices_extra_dm_send, propbuff_extra_dm_send, recvTask, TAG_NN_B+ichunk, mpi_comm);
+                    }
+#endif
                     sendoffset+=cursendchunksize;
                     recvoffset+=currecvchunksize;
                     if (cursendchunksize>mpi_nsend[recvTask+ThisTask * NProcs]-sendoffset)cursendchunksize=mpi_nsend[recvTask+ThisTask * NProcs]-sendoffset;
@@ -1734,7 +3980,6 @@ vector<bool> MPIGetHaloSearchExportNum(const Int_t ngroup, PropData *&pdata, vec
     return halooverlap;
 }
 
-#ifdef SWIFTINTERFACE
 /*! similar \ref MPIGetHaloSearchExportNum but using swift mesh mpi decomposition
 */
 vector<bool> MPIGetHaloSearchExportNumUsingMesh(Options &opt, const Int_t ngroup, PropData *&pdata, vector<Double_t> &rdist)
@@ -1777,7 +4022,6 @@ vector<bool> MPIGetHaloSearchExportNumUsingMesh(Options &opt, const Int_t ngroup
     NExport=nexport;
     return halooverlap;
 }
-#endif
 
 /*! like \ref MPIBuildParticleExportList but each particle has a different distance stored in rdist used to find nearest neighbours
 */
@@ -1879,7 +4123,6 @@ void MPIBuildHaloSearchExportList(const Int_t ngroup, PropData *&pdata, vector<D
     }
 }
 
-#ifdef SWIFTINTERFACE
 /*! similar \ref MPIBuildHaloSearchExportList but for swift mesh mpi decomposition
 */
 void MPIBuildHaloSearchExportListUsingMesh(Options &opt, const Int_t ngroup, PropData *&pdata, vector<Double_t> &rdist, vector<bool> &halooverlap)
@@ -1981,7 +4224,6 @@ void MPIBuildHaloSearchExportListUsingMesh(Options &opt, const Int_t ngroup, Pro
         }
     }
 }
-#endif
 
 /*! Mirror to \ref MPIGetHaloSearchExportNum, use exported positions, run ball search to find number of all local particles that need to be
     imported back to exported positions's thread so that a proper search can be made.
@@ -2038,7 +4280,7 @@ void MPIGetHaloSearchImportNum(const Int_t nbodies, KDTree *tree, Particle *Part
 /*! Mirror to \ref MPIBuildHaloSearchExportList, use exported particles, run ball search to find all local particles that need to be
     imported back to exported particle's thread so that a proper NN search can be made.
 */
-Int_t MPIBuildHaloSearchImportList(const Int_t nbodies, KDTree *tree, Particle *Part){
+Int_t MPIBuildHaloSearchImportList(Options &opt, const Int_t nbodies, KDTree *tree, Particle *Part){
     Int_t i, j,nthreads,nexport=0,ncount;
     Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
     Double_t xsearch[3][2];
@@ -2051,6 +4293,7 @@ Int_t MPIBuildHaloSearchImportList(const Int_t nbodies, KDTree *tree, Particle *
     int sendoffset,recvoffset;
     int cursendchunksize,currecvchunksize;
     MPI_Status status;
+    MPI_Comm mpi_comm = MPI_COMM_WORLD;
 #ifdef USEOPENMP
 #pragma omp parallel
     {
@@ -2126,6 +4369,11 @@ Int_t MPIBuildHaloSearchImportList(const Int_t nbodies, KDTree *tree, Particle *
                         &PartDataGet[nbuffer[recvTask]+recvoffset],
                         currecvchunksize * sizeof(Particle),
                         MPI_BYTE, recvTask, TAG_NN_B+ichunk, MPI_COMM_WORLD, &status);
+                    // MPISendReceiveHydroInfoBetweenThreads(opt, cursendchunksize,  &PartDataIn[noffset[recvTask]+sendoffset], currecvchunksize, &PartDataGet[nbuffer[recvTask]+recvoffset], recvTask, TAG_FOF_B_HYDRO, mpi_comm);
+                    // MPISendReceiveStarInfoBetweenThreads(opt, cursendchunksize,  &PartDataIn[noffset[recvTask]+sendoffset], currecvchunksize, &PartDataGet[nbuffer[recvTask]+recvoffset], recvTask, TAG_FOF_B_STAR, mpi_comm);
+                    // MPISendReceiveBHInfoBetweenThreads(opt, cursendchunksize,  &PartDataIn[noffset[recvTask]+sendoffset], currecvchunksize, &PartDataGet[nbuffer[recvTask]+recvoffset], recvTask, TAG_FOF_B_BH, mpi_comm);
+                    // MPISendReceiveExtraDMInfoBetweenThreads(opt, cursendchunksize,  &PartDataIn[noffset[recvTask]+sendoffset], currecvchunksize, &PartDataGet[nbuffer[recvTask]+recvoffset], recvTask, TAG_FOF_B_EXTRA_DM, mpi_comm);
+
                     sendoffset+=cursendchunksize;
                     recvoffset+=currecvchunksize;
                     if (cursendchunksize>mpi_nsend[recvTask+ThisTask * NProcs]-sendoffset)cursendchunksize=mpi_nsend[recvTask+ThisTask * NProcs]-sendoffset;
@@ -2144,7 +4392,7 @@ Int_t MPIBuildHaloSearchImportList(const Int_t nbodies, KDTree *tree, Particle *
 /*! Similar to \ref MPIBuildParticleExportList, however this is for associated baryon search where particles have been moved from original
     mpi domains and their group id accessed through the id array and their stored id and length in numingroup
 */
-void MPIBuildParticleExportBaryonSearchList(const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_t *ids, Int_t *numingroup, Double_t rdist){
+void MPIBuildParticleExportBaryonSearchList(Options &opt, const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_t *ids, Int_t *numingroup, Double_t rdist){
     Int_t i, j,nthreads,nexport=0,nimport=0;
     Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
     Double_t xsearch[3][2];
@@ -2154,6 +4402,7 @@ void MPIBuildParticleExportBaryonSearchList(const Int_t nbodies, Particle *Part,
     int sendoffset,recvoffset;
     int cursendchunksize,currecvchunksize;
     MPI_Status status;
+    MPI_Comm mpi_comm = MPI_COMM_WORLD;
 
     ///\todo would like to add openmp to this code. In particular, loop over nbodies but issue is nexport.
     ///This would either require making a FoFDataIn[nthreads][NExport] structure so that each omp thread
@@ -2236,6 +4485,11 @@ void MPIBuildParticleExportBaryonSearchList(const Int_t nbodies, Particle *Part,
                             &PartDataGet[nbuffer[recvTask]+recvoffset],
                             currecvchunksize * sizeof(Particle),
                             MPI_BYTE, recvTask, TAG_FOF_B+ichunk, MPI_COMM_WORLD, &status);
+                        MPISendReceiveHydroInfoBetweenThreads(opt, cursendchunksize,  &PartDataIn[noffset[recvTask]+sendoffset], currecvchunksize, &PartDataGet[nbuffer[recvTask]+recvoffset], recvTask, TAG_FOF_B_HYDRO, mpi_comm);
+                        MPISendReceiveStarInfoBetweenThreads(opt, cursendchunksize,  &PartDataIn[noffset[recvTask]+sendoffset], currecvchunksize, &PartDataGet[nbuffer[recvTask]+recvoffset], recvTask, TAG_FOF_B_STAR, mpi_comm);
+                        MPISendReceiveBHInfoBetweenThreads(opt, cursendchunksize,  &PartDataIn[noffset[recvTask]+sendoffset], currecvchunksize, &PartDataGet[nbuffer[recvTask]+recvoffset], recvTask, TAG_FOF_B_BH, mpi_comm);
+                        MPISendReceiveExtraDMInfoBetweenThreads(opt, cursendchunksize,  &PartDataIn[noffset[recvTask]+sendoffset], currecvchunksize, &PartDataGet[nbuffer[recvTask]+recvoffset], recvTask, TAG_FOF_B_EXTRA_DM, mpi_comm);
+
                         sendoffset+=cursendchunksize;
                         recvoffset+=currecvchunksize;
                         if (cursendchunksize>mpi_nsend[recvTask+ThisTask * NProcs]-sendoffset)cursendchunksize=mpi_nsend[recvTask+ThisTask * NProcs]-sendoffset;
@@ -2526,7 +4780,7 @@ Int_t MPILinkAcross(const Int_t nbodies, KDTree *&tree, Particle *Part, Int_t *&
     the maximum group size and reoder the group ids according to descending group size.
     return the new local number of particles
 */
-Int_t MPIGroupExchange(const Int_t nbodies, Particle *Part, Int_t *&pfof){
+Int_t MPIGroupExchange(Options &opt, const Int_t nbodies, Particle *Part, Int_t *&pfof){
     Int_t i, j,nthreads,nexport,nimport,nlocal,n;
     Int_t nsend_local[NProcs],noffset_import[NProcs],noffset_export[NProcs],nbuffer[NProcs];
     int sendTask,recvTask;
@@ -2535,6 +4789,8 @@ Int_t MPIGroupExchange(const Int_t nbodies, Particle *Part, Int_t *&pfof){
     int sendoffset,recvoffset;
     int cursendchunksize,currecvchunksize;
     MPI_Status status;
+    MPI_Comm mpi_comm = MPI_COMM_WORLD;
+
 
     int task;
     FoFGroupDataExport=NULL;
@@ -2556,16 +4812,13 @@ Int_t MPIGroupExchange(const Int_t nbodies, Particle *Part, Int_t *&pfof){
     nlocal=nbodies-nexport+nimport;
     NImport=nimport;
     if (nexport >0) FoFGroupDataExport=new fofid_in[nexport];
-    else FoFGroupDataExport=new fofid_in[1];
 
     Int_t *storeval=new Int_t[nbodies];
     Noldlocal=nbodies-nexport;
-    //for (i=0;i<nbodies;i++) Part[i].SetID(i);
     //store type in temporary array, then use type to store what task particle belongs to and sort values
     for (i=0;i<nbodies;i++) storeval[i]=Part[i].GetType();
     for (i=0;i<nbodies;i++) Part[i].SetType((mpi_foftask[i]!=ThisTask));
     qsort(Part,nbodies,sizeof(Particle),TypeCompare);
-    //sort(Part.begin(),Part.begin()+nbodies,TypeCompareVec);
     for (i=0;i<nbodies;i++) Part[i].SetType(storeval[Part[i].GetID()]);
     //now use array to rearrange data
     for (i=0;i<nbodies;i++) storeval[i]=mpi_foftask[Part[i].GetID()];
@@ -2598,15 +4851,24 @@ Int_t MPIGroupExchange(const Int_t nbodies, Particle *Part, Int_t *&pfof){
             FoFGroupDataExport[noffset_export[task]+nbuffer[task]].Index = i;
             FoFGroupDataExport[noffset_export[task]+nbuffer[task]].Task = task;
             FoFGroupDataExport[noffset_export[task]+nbuffer[task]].iGroup = pfof[i];
+
+            //now that have all the particles that need broacasting, if extra information stored
+            //then must also fill up appropriate hydro/star/bh buffers for communication.
         }
         nbuffer[task]++;
     }
+    //now if there is extra information, strip off all the data from the FoFGroupDataExport
+    //and store it explicitly into a buffer. Here are the buffers
+    vector<Int_t> indices_gas_send;
+    vector<float> propbuff_gas_send;
+    vector<Int_t> indices_star_send;
+    vector<float> propbuff_star_send;
+    vector<Int_t> indices_bh_send;
+    vector<float> propbuff_bh_send;
+    vector<Int_t> indices_extra_dm_send;
+    vector<float> propbuff_extra_dm_send;
+
     //now send the data.
-    ///\todo In determination of particle export for FOF routines, eventually need to place a check for the communication buffer so that if exported number
-    ///is larger than the size of the buffer, iterate over the number exported
-    ///\todo ideally need to implement MPI Type defs and serialization using boost
-    //unsigned int chunksize,chunksize_send,chunksize_recv,nchunks,nchunks_send,nchunks_recv;
-    //unsigned long offset_send,offset_recv;
     for(j=0;j<NProcs;j++)
     {
         if (j!=ThisTask)
@@ -2632,12 +4894,21 @@ Int_t MPIGroupExchange(const Int_t nbodies, Particle *Part, Int_t *&pfof){
                 sendoffset=recvoffset=0;
                 for (auto ichunk=0;ichunk<numsendrecv;ichunk++)
                 {
+                    MPIFillFOFBuffWithHydroInfo(opt, cursendchunksize, &FoFGroupDataExport[noffset_export[recvTask]+sendoffset], Part, indices_gas_send, propbuff_gas_send);
+                    MPIFillFOFBuffWithStarInfo(opt, cursendchunksize, &FoFGroupDataExport[noffset_export[recvTask]+sendoffset], Part, indices_star_send, propbuff_star_send);
+                    MPIFillFOFBuffWithBHInfo(opt, cursendchunksize, &FoFGroupDataExport[noffset_export[recvTask]+sendoffset], Part, indices_bh_send, propbuff_bh_send);
+                    MPIFillFOFBuffWithExtraDMInfo(opt, cursendchunksize, &FoFGroupDataExport[noffset_export[recvTask]+sendoffset], Part, indices_extra_dm_send, propbuff_extra_dm_send);
                     MPI_Sendrecv(&FoFGroupDataExport[noffset_export[recvTask]+sendoffset],
                         cursendchunksize * sizeof(struct fofid_in), MPI_BYTE,
                         recvTask, TAG_FOF_C+ichunk,
                         &FoFGroupDataLocal[noffset_import[recvTask]+recvoffset],
                         currecvchunksize * sizeof(struct fofid_in),
                         MPI_BYTE, recvTask, TAG_FOF_C+ichunk, MPI_COMM_WORLD, &status);
+                    MPISendReceiveFOFHydroInfoBetweenThreads(opt, &FoFGroupDataLocal[noffset_import[recvTask]+recvoffset], indices_gas_send, propbuff_gas_send, recvTask, TAG_FOF_C+ichunk, mpi_comm);
+                    MPISendReceiveFOFStarInfoBetweenThreads(opt, &FoFGroupDataLocal[noffset_import[recvTask]+recvoffset], indices_star_send, propbuff_star_send, recvTask, TAG_FOF_C+ichunk, mpi_comm);
+                    MPISendReceiveFOFBHInfoBetweenThreads(opt, &FoFGroupDataLocal[noffset_import[recvTask]+recvoffset], indices_bh_send, propbuff_bh_send, recvTask, TAG_FOF_C+ichunk, mpi_comm);
+                    MPISendReceiveFOFExtraDMInfoBetweenThreads(opt, &FoFGroupDataLocal[noffset_import[recvTask]+recvoffset], indices_extra_dm_send, propbuff_extra_dm_send, recvTask, TAG_FOF_C+ichunk, mpi_comm);
+
                     sendoffset+=cursendchunksize;
                     recvoffset+=currecvchunksize;
                     if (cursendchunksize>mpi_nsend[recvTask+ThisTask * NProcs]-sendoffset)cursendchunksize=mpi_nsend[recvTask+ThisTask * NProcs]-sendoffset;
@@ -2653,7 +4924,7 @@ Int_t MPIGroupExchange(const Int_t nbodies, Particle *Part, Int_t *&pfof){
 /*!
     The baryon equivalent of \ref MPIGroupExchange. Here assume baryons are searched afterwards
 */
-Int_t MPIBaryonGroupExchange(const Int_t nbodies, Particle *Part, Int_t *&pfof){
+Int_t MPIBaryonGroupExchange(Options &opt, const Int_t nbodies, Particle *Part, Int_t *&pfof){
     Int_t i, j,nthreads,nexport,nimport,nlocal,n;
     Int_t nsend_local[NProcs],noffset_import[NProcs],noffset_export[NProcs],nbuffer[NProcs];
     int sendTask,recvTask;
@@ -2796,7 +5067,7 @@ Int_t MPIBaryonGroupExchange(const Int_t nbodies, Particle *Part, Int_t *&pfof){
 }
 
 ///Determine the local number of groups and their sizes (groups must be local to an mpi thread)
-Int_t MPICompileGroups(const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_t minsize){
+Int_t MPICompileGroups(Options &opt, const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_t minsize){
     Int_t i,j,start,ngroups;
     Int_t *numingroup,*groupid,**plist;
     ngroups=0;
@@ -2851,7 +5122,7 @@ Int_t MPICompileGroups(const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_t 
 
 ///Similar to \ref MPICompileGroups but optimised for separate baryon search
 ///\todo need to update to reflect vector implementation
-Int_t MPIBaryonCompileGroups(const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_t minsize, int iorder){
+Int_t MPIBaryonCompileGroups(Options &opt, const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_t minsize, int iorder){
     Int_t i,j,start,ngroups;
     Int_t *numingroup,*groupid,**plist;
     ngroups=0;
@@ -3009,7 +5280,7 @@ private(i,j,k,tid,p1,pindex,x1,D2,dval,rval,nnID,dist2)
     return nexport;
 }
 
-Int_t MPIBaryonExchange(const Int_t nbaryons, Particle *Pbaryons, Int_t *pfofbaryons){
+Int_t MPIBaryonExchange(Options &opt, const Int_t nbaryons, Particle *Pbaryons, Int_t *pfofbaryons){
     Int_t i, j,nthreads,nexport,nimport,nlocal,n;
     Int_t nsend_local[NProcs],noffset_import[NProcs],noffset_export[NProcs],nbuffer[NProcs];
     int sendTask,recvTask;
@@ -3391,6 +5662,18 @@ void MPISwiftExchange(vector<Particle> &Part){
     if (nexport >0) {
         PartBufSend=new Particle[nexport];
         for (i=0;i<nexport;i++) {
+            #ifdef GASON
+            Part[i].SetHydroProperties();
+            #endif
+            #ifdef STARON
+            Part[i].SetStarProperties();
+            #endif
+            #ifdef BHON
+            Part[i].SetBHProperties();
+            #endif
+            #ifdef EXTRADMON
+            Part[i].SetExtraDMProperties();
+            #endif
             PartBufSend[i]=Part[i+nbodies-nexport];
             PartBufSend[i].SetID(Part[i+nbodies-nexport].GetSwiftTask());
         }

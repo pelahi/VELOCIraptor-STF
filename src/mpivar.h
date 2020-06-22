@@ -50,7 +50,7 @@ using namespace Math;
 using namespace NBody;
 
 ///default buffer size (here in number of particles to send in one go)
-#define MPIPartBufSize 100000
+#define MPIPartBufSize 10000000
 ///size of largest MPI chunck in bytes that can be sent in one go (here set by MPI count argument, which is max int)
 #define LOCAL_MAX_MSGSIZE 2147483647L
 ///Nlocal maximum initially set to nbodies/NProc*MPProcFac, represents maximum load imbalance
@@ -76,12 +76,7 @@ typedef short short_mpi_t;
 #define MPI_Int_t MPI_INT
 #define MPI_UInt_t MPI_UNSIGNED
 #endif
-#ifdef SINGLEPRECISION
-#define MPI_Real_t MPI_FLOAT
-#else
 #define MPI_Real_t MPI_DOUBLE
-#endif
-
 //@}
 
 /// \name definitions for MPI message flags
@@ -98,6 +93,22 @@ typedef short short_mpi_t;
 #define TAG_FOF_D 13
 #define TAG_FOF_E 14
 #define TAG_FOF_F 15
+#define TAG_FOF_B_HYDRO 111
+#define TAG_FOF_B_STAR 112
+#define TAG_FOF_B_BH 113
+#define TAG_FOF_B_EXTRA_DM 114
+#define TAG_FOF_C_HYDRO 121
+#define TAG_FOF_C_STAR 122
+#define TAG_FOF_C_BH 123
+#define TAG_FOF_C_EXTRA_DM 124
+#define TAG_FOF_D_HYDRO 131
+#define TAG_FOF_D_STAR 132
+#define TAG_FOF_D_BH 133
+#define TAG_FOF_D_EXTRA_DM 134
+#define TAG_FOF_E_HYDRO 141
+#define TAG_FOF_E_STAR 142
+#define TAG_FOF_E_BH 143
+#define TAG_FOF_E_EXTRA_DM 143
 
 ///flag for NN particle exchange
 #define TAG_NN_A 20
@@ -165,13 +176,11 @@ extern Int_t mpi_maxgid,mpi_gidoffset;
 ///structure facilitates linking across mpi threads
 extern struct fofdata_in
 {
-    //Particle Part();
-    //FLOAT Hsml;
     Int_t iGroup;
     short_mpi_t iGroupTask;
-    Int_t iLen;
-    Int_t Index;
-    Int_t Task;
+    Int_tree_t iLen;
+    Int_tree_t Index;
+    short_mpi_t Task;
 }
 *FoFDataIn, *FoFDataGet;
 ///Particle arrays used for transmitting data between mpi threads
@@ -185,8 +194,8 @@ extern struct fofid_in {
     Particle p;
     Int_t iGroup;
     Int_t ID;
-    Int_t Task;
-    Int_t Index;
+    short_mpi_t Task;
+    Int_tree_t Index;
 } *FoFGroupDataLocal, *FoFGroupDataExport;
 
 ///structure facilitates NN search across mpi threads
@@ -217,6 +226,8 @@ extern Matrix *mpi_gveldisp;
 //store MinSize as when using mpi prior to stitching use min of 2;
 extern Int_t MinNumMPI,MinNumOld;
 
+extern MPI_Comm mpi_comm_write;
+extern int ThisWriteTask, NProcsWrite, ThisWriteComm, NWriteComms;
 //@}
 
 

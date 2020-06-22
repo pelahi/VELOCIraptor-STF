@@ -24,11 +24,17 @@
 #include <cmath>
 #include <string>
 #include <vector>
+#include <set>
+#include <unordered_set>
 #include <algorithm>
 #include <map>
+#include <unordered_map>
+#include <bitset>
 #include <getopt.h>
 #include <sys/stat.h>
 #include <sys/timeb.h>
+#include <sys/time.h>
+#include <unistd.h>
 
 #include <gsl/gsl_heapsort.h>
 #include <gsl/gsl_errno.h>
@@ -54,8 +60,8 @@
 ///if using OpenMP API
 #ifdef USEOPENMP
 #include <omp.h>
-#include "ompvar.h"
 #endif
+#include "ompvar.h"
 
 ///if using HDF API
 #ifdef USEHDF
@@ -66,6 +72,8 @@
 #ifdef USEADIOS
 #include "adios.h"
 #endif
+
+#include "git_revision.h"
 
 //#include "swiftinterface.h"
 //
@@ -105,6 +113,7 @@ using namespace NBody;
 /// \todo note that here I have set background group type to a halo structure type but that can be changed
 #define HALOSTYPE 10
 #define HALOCORESTYPE 5
+#define SUBSTYPE 10
 #define WALLSTYPE 1
 #define VOIDSTYPE 2
 #define FILAMENTSTYPE 3
@@ -199,12 +208,43 @@ using namespace NBody;
 #define OUTADIOS 3
 //@}
 
+///\defgroup CALCULATIONTYPES defining what is calculated
+//@{
+#define CALCAVERAGE 1
+#define CALCTOTAL 2
+#define CALCSTD 3
+#define CALCMEDIAN 4
+#define CALCMIN 5
+#define CALCMAX 6
+#define CALCLOGAVERAGE 7
+#define CALCLOGSTD 8
+#define CALCQUANTITYMASSWEIGHT 10
+#define CALCAVERAGEMASSWEIGHT 11
+#define CALCTOTALMASSWEIGHT 12
+#define CALCSTDMASSWEIGHT 13
+#define CALCMEDIANMASSWEIGHT 14
+#define CALCMINMASSWEIGHT 15
+#define CALCMAXMASSWEIGHT 16
+#define CALCLOGAVERAGEMASSWEIGHT 17
+#define CALCLOGSTDMASSWEIGHT 18
+#define CALCQUANTITYAPERTURETOTAL -1
+#define CALCQUANTITYAPERTUREAVERAGE -2
+typedef double (*ExtraPropFunc)(double, double, double&);
+
+//@}
+
 /// \name For Unbinding
 //@{
 
 ///number below which just use PP calculation for potential, which occurs roughly at when n~2*log(n) (from scaling of n^2 vs n ln(n) for PP vs tree and factor of 2 is
 ///for extra overhead in producing tree. For reasonable values of n (>100) this occurs at ~100. Here to account for extra memory need for tree, we use n=3*log(n) or 150
 #define UNBINDNUM 150
+#define POTPPCALCNUM 150
+#define POTOMPCALCNUM 1000
+///diferent methods for calculating approximate potential
+#define POTAPPROXMETHODTREE 0
+#define POTAPPROXMETHODRAND 1
+
 ///when unbinding check to see if system is bound and least bound particle is also bound
 #define USYSANDPART 0
 ///when unbinding check to see if least bound particle is also bound
@@ -234,16 +274,6 @@ using namespace NBody;
 
 //@}
 
-/// \defgroup OMPLIMS For determining whether loop contains enough for openm to be worthwhile.
-//@{
-#ifndef USEOPENMP
-#define ompsearchnum 50000
-#define ompunbindnum 1000
-#define ompperiodnum 50000
-#define omppropnum 50000
-#endif
-//@}
-
 /// \defgroup PROPLIMS Particle limits for calculating properties
 //@{
 #define PROPNFWMINNUM 100
@@ -251,6 +281,16 @@ using namespace NBody;
 #define PROPROTMINNUM 10
 #define PROPMORPHMINNUM 10
 //@}
+
+/// \defgroup PROPERTYCONSTANTS Useful constants related to calculating properties
+//@{
+/// if halo follows NFW profile, maximum ratio of half mass to virial mass one might
+/// expect for R200 (assuming the scale radius is inside this radius, giving a c>=1)
+#define NFWMAXRHALFRATIO 0.60668
+#define NFWMINRHALFRATIO 0.05
+#define NFWMINVMAXVVIRRATIO 36.0
+//@}
+
 
 ///\name halo id modifers used with current snapshot value to make temporally unique halo identifiers
 #ifdef LONGINT
@@ -270,6 +310,11 @@ using namespace NBody;
 //@{
 ///mass of helium relative to hydrogen
 #define M_HetoM_H 4.0026
+//@}
+
+///\defgroup PhysConstants Useful physical constants
+//@{
+#define Grav_in_kpc_kms_solarmasses 4.3022682e-6
 //@}
 
 
@@ -305,6 +350,14 @@ struct UnbindInfo
     Double_t TreeThetaOpen;
     ///softening length
     Double_t eps;
+    ///whether to calculate approximate potential energy
+    int iapproxpot;
+    ///fraction of particles to subsample
+    Double_t approxpotnumfrac;
+    ///fraction of particles to subsample
+    Double_t approxpotminnum;
+    ///method of subsampling to calculate potential
+    int approxpotmethod;
     //@}
     UnbindInfo(){
         icalculatepotential=true;
@@ -323,6 +376,10 @@ struct UnbindInfo
         maxunbindfrac=0.5;
         maxunboundfracforiterativeunbind=0.95;
         maxallowedunboundfrac=0.025;
+        iapproxpot = 0;
+        approxpotnumfrac = 0.1;
+        approxpotminnum = 5000;
+        approxpotmethod = POTAPPROXMETHODTREE;
     }
 };
 
@@ -350,6 +407,11 @@ struct cell_loc {
 /// Options structure stores useful variables that have user determined values which are altered by \ref GetArgs in \ref ui.cxx
 struct Options
 {
+
+    ///\name git related info
+    //@{
+    string git_sha1;
+    //@}
     ///\name filenames
     //@{
     char *fname,*outname,*smname,*pname,*gname;
@@ -381,6 +443,8 @@ struct Options
     int isubfindproperties;
     ///for output, produce subfind like format
     int isubfindoutput;
+    ///flag indicating that VR is running on the fly
+    bool iontheflyfinding;
 
     ///disable particle id related output like fof.grp or catalog_group data. Useful if just want halo properties
     ///and not interested in tracking. Code writes halo properties catalog and exits.
@@ -396,6 +460,14 @@ struct Options
     /// mpi factor by which to multiple the memory allocated, ie: buffer region
     /// to reduce likelihood of having to expand/allocate new memory
     Double_t mpipartfac;
+    /// if using parallel output, number of mpi threads to group together
+    int mpinprocswritesize;
+
+    /// mpi number of top level cells used in decomposition
+    /// could be integrated into metis/parmetis eventually
+    /// here this is the number of cells in a singel dimension to total cells
+    /// is this to ^3
+    int mpinumtoplevelcells;
 
     /// run FOF using OpenMP
     int iopenmpfof;
@@ -593,10 +665,12 @@ struct Options
     /// if want full spherical overdensity, factor by which size is multiplied to get
     ///bucket of particles
     Double_t SphericalOverdensitySeachFac;
-    ///minimum enclosed mass on which to base SO calculations, <1
-    Double_t SphericalOverdensityMinHaloFac;
     ///if want to the particle IDs that are within the SO overdensity of a halo
     int iSphericalOverdensityPartList;
+    /// if want to include more than just field objects (halos) in full SO calculations
+    int SphericalOverdensitySeachMaxStructLevel;
+    /// flag to store whether SO calculations need extra properties
+    bool iSphericalOverdensityExtraFieldCalculations;
     /// \name Extra variables to store information useful in zoom simluations
     //@{
     /// store the lowest dark matter particle mass
@@ -620,6 +694,9 @@ struct Options
     /* Number of top-level cells in each dimension. */
     int numcellsperdim;
 
+    /// minimum number of top-level cells
+    int minnumcellperdim;
+
     /* Locations of top-level cells. */
     cell_loc *cellloc;
 
@@ -630,7 +707,21 @@ struct Options
     double icellwidth[3];
 
     /*! Holds the node ID of each top-level cell. */
-    const int *cellnodeids;
+    int *cellnodeids;
+
+    /// holds the order of cells based on z-curve decomposition;
+    vector<int> cellnodeorder;
+
+    /// holds the number of particles in a given top-level cell
+    vector<unsigned long long> cellnodenumparts;
+
+    /// allowed mesh based mpi decomposition load imbalance
+    float mpimeshimbalancelimit;
+
+
+    ///whether using mesh decomposition
+    bool impiusemesh;
+
     //@}
 
     /// \name options related to calculation of aperture/profile
@@ -646,6 +737,7 @@ struct Options
     int iprofilecumulative;
     string profileradnormstring;
     vector<Double_t> profile_bin_edges;
+    Int_t profileminsize, profileminFOFsize;
     //@}
 
     /// \name options related to calculation of arbitrary overdensities masses, radii, angular momentum
@@ -660,6 +752,206 @@ struct Options
     Double_t gas_sfr_threshold;
     //@}
 
+    /// \name options related to calculating detailed hydro/star/bh properties related to chemistry/feedbac, etc
+    //@{
+    ///stores the name of the field
+    vector<string> gas_internalprop_names;
+    vector<string> star_internalprop_names;
+    vector<string> bh_internalprop_names;
+
+    ///can also store the dimensional index of the field, useful when single data
+    ///set contains many related but different properties
+    vector<unsigned int> gas_internalprop_index;
+    vector<unsigned int> star_internalprop_index;
+    vector<unsigned int> bh_internalprop_index;
+    ///stores what is calculated
+    ///(1 is mass weighted average, 2 mass weighted total, etc
+    vector<int> gas_internalprop_function;
+    vector<int> star_internalprop_function;
+    vector<int> bh_internalprop_function;
+
+    vector<string> gas_chem_names;
+    vector<string> star_chem_names;
+    vector<string> bh_chem_names;
+    vector<unsigned int> gas_chem_index;
+    vector<unsigned int> star_chem_index;
+    vector<unsigned int> bh_chem_index;
+    vector<int> gas_chem_function;
+    vector<int> star_chem_function;
+    vector<int> bh_chem_function;
+
+    vector<string> gas_chemproduction_names;
+    vector<string> star_chemproduction_names;
+    vector<string> bh_chemproduction_names;
+    vector<unsigned int> gas_chemproduction_index;
+    vector<unsigned int> star_chemproduction_index;
+    vector<unsigned int> bh_chemproduction_index;
+    vector<int> gas_chemproduction_function;
+    vector<int> star_chemproduction_function;
+    vector<int> bh_chemproduction_function;
+
+    vector<string> extra_dm_internalprop_names;
+    vector<unsigned int> extra_dm_internalprop_index;
+    vector<int> extra_dm_internalprop_function;
+
+    ///store the output field name
+    vector<string> gas_internalprop_output_names;
+    vector<string> star_internalprop_output_names;
+    vector<string> bh_internalprop_output_names;
+    vector<string> gas_chem_output_names;
+    vector<string> star_chem_output_names;
+    vector<string> bh_chem_output_names;
+    vector<string> gas_chemproduction_output_names;
+    vector<string> star_chemproduction_output_names;
+    vector<string> bh_chemproduction_output_names;
+    vector<string> extra_dm_internalprop_output_names;
+
+    ///store conversion factor from input unit to output unit
+    vector<float> gas_internalprop_input_output_unit_conversion_factors;
+    vector<float> star_internalprop_input_output_unit_conversion_factors;
+    vector<float> bh_internalprop_input_output_unit_conversion_factors;
+    vector<float> gas_chem_input_output_unit_conversion_factors;
+    vector<float> star_chem_input_output_unit_conversion_factors;
+    vector<float> bh_chem_input_output_unit_conversion_factors;
+    vector<float> gas_chemproduction_input_output_unit_conversion_factors;
+    vector<float> star_chemproduction_input_output_unit_conversion_factors;
+    vector<float> bh_chemproduction_input_output_unit_conversion_factors;
+    vector<float> extra_dm_internalprop_input_output_unit_conversion_factors;
+
+    ///store output units
+    vector<string> gas_internalprop_output_units;
+    vector<string> star_internalprop_output_units;
+    vector<string> bh_internalprop_output_units;
+    vector<string> gas_chem_output_units;
+    vector<string> star_chem_output_units;
+    vector<string> bh_chem_output_units;
+    vector<string> gas_chemproduction_output_units;
+    vector<string> star_chemproduction_output_units;
+    vector<string> bh_chemproduction_output_units;
+    vector<string> extra_dm_internalprop_output_units;
+
+    ///some calculations are multistage and must be paired with
+    ///another calculation in the list. This is true of standard deviations
+    vector<int> gas_internalprop_index_paired_calc;
+    vector<int> star_internalprop_index_paired_calc;
+    vector<int> bh_internalprop_index_paired_calc;
+    vector<int> gas_chem_index_paired_calc;
+    vector<int> star_chem_index_paired_calc;
+    vector<int> bh_chem_index_paired_calc;
+    vector<int> gas_chemproduction_index_paired_calc;
+    vector<int> star_chemproduction_index_paired_calc;
+    vector<int> bh_chemproduction_index_paired_calc;
+    vector<int> extra_dm_internalprop_index_paired_calc;
+
+    ///whether some calculations are for extra properties are aperture calculations
+    bool gas_extraprop_aperture_calc;
+    bool star_extraprop_aperture_calc;
+    bool bh_extraprop_aperture_calc;
+    bool extra_dm_extraprop_aperture_calc;
+
+    ///easier to store information separately internally
+    vector<string> gas_internalprop_names_aperture;
+    vector<string> gas_chem_names_aperture;
+    vector<string> gas_chemproduction_names_aperture;
+    vector<string> star_internalprop_names_aperture;
+    vector<string> star_chem_names_aperture;
+    vector<string> star_chemproduction_names_aperture;
+    vector<string> bh_internalprop_names_aperture;
+    vector<string> bh_chem_names_aperture;
+    vector<string> bh_chemproduction_names_aperture;
+    vector<string> extra_dm_internalprop_names_aperture;
+
+    vector<unsigned int> gas_internalprop_index_aperture;
+    vector<unsigned int> gas_chem_index_aperture;
+    vector<unsigned int> gas_chemproduction_index_aperture;
+    vector<unsigned int> star_internalprop_index_aperture;
+    vector<unsigned int> star_chem_index_aperture;
+    vector<unsigned int> star_chemproduction_index_aperture;
+    vector<unsigned int> bh_internalprop_index_aperture;
+    vector<unsigned int> bh_chem_index_aperture;
+    vector<unsigned int> bh_chemproduction_index_aperture;
+    vector<unsigned int> extra_dm_internalprop_index_aperture;
+
+    vector<int> gas_internalprop_function_aperture;
+    vector<int> gas_chem_function_aperture;
+    vector<int> gas_chemproduction_function_aperture;
+    vector<int> star_internalprop_function_aperture;
+    vector<int> star_chem_function_aperture;
+    vector<int> star_chemproduction_function_aperture;
+    vector<int> bh_internalprop_function_aperture;
+    vector<int> bh_chem_function_aperture;
+    vector<int> bh_chemproduction_function_aperture;
+    vector<int> extra_dm_internalprop_function_aperture;
+
+    vector<string> gas_internalprop_output_units_aperture;
+    vector<string> star_internalprop_output_units_aperture;
+    vector<string> bh_internalprop_output_units_aperture;
+    vector<string> gas_chem_output_units_aperture;
+    vector<string> star_chem_output_units_aperture;
+    vector<string> bh_chem_output_units_aperture;
+    vector<string> gas_chemproduction_output_units_aperture;
+    vector<string> star_chemproduction_output_units_aperture;
+    vector<string> bh_chemproduction_output_units_aperture;
+    vector<string> extra_dm_internalprop_output_units_aperture;
+
+    vector<float> gas_internalprop_input_output_unit_conversion_factors_aperture;
+    vector<float> star_internalprop_input_output_unit_conversion_factors_aperture;
+    vector<float> bh_internalprop_input_output_unit_conversion_factors_aperture;
+    vector<float> gas_chem_input_output_unit_conversion_factors_aperture;
+    vector<float> star_chem_input_output_unit_conversion_factors_aperture;
+    vector<float> bh_chem_input_output_unit_conversion_factors_aperture;
+    vector<float> gas_chemproduction_input_output_unit_conversion_factors_aperture;
+    vector<float> star_chemproduction_input_output_unit_conversion_factors_aperture;
+    vector<float> bh_chemproduction_input_output_unit_conversion_factors_aperture;
+    vector<float> extra_dm_internalprop_input_output_unit_conversion_factors_aperture;
+
+    vector<string> gas_internalprop_output_names_aperture;
+    vector<string> gas_chem_output_names_aperture;
+    vector<string> gas_chemproduction_output_names_aperture;
+    vector<string> star_internalprop_output_names_aperture;
+    vector<string> star_chem_output_names_aperture;
+    vector<string> star_chemproduction_output_names_aperture;
+    vector<string> bh_internalprop_output_names_aperture;
+    vector<string> bh_chem_output_names_aperture;
+    vector<string> bh_chemproduction_output_names_aperture;
+    vector<string> extra_dm_internalprop_output_names_aperture;
+
+    //to store the unique names that are going to be loaded from the input
+    vector<string> gas_internalprop_unique_input_names;
+    vector<string> gas_chem_unique_input_names;
+    vector<string> gas_chemproduction_unique_input_names;
+    vector<string> star_internalprop_unique_input_names;
+    vector<string> star_chem_unique_input_names;
+    vector<string> star_chemproduction_unique_input_names;
+    vector<string> bh_internalprop_unique_input_names;
+    vector<string> bh_chem_unique_input_names;
+    vector<string> bh_chemproduction_unique_input_names;
+    vector<string> extra_dm_internalprop_unique_input_names;
+
+    vector<unsigned short> gas_internalprop_unique_input_indexlist;
+    vector<unsigned short> gas_chem_unique_input_indexlist;
+    vector<unsigned short> gas_chemproduction_unique_input_indexlist;
+    vector<unsigned short> star_internalprop_unique_input_indexlist;
+    vector<unsigned short> star_chem_unique_input_indexlist;
+    vector<unsigned short> star_chemproduction_unique_input_indexlist;
+    vector<unsigned short> bh_internalprop_unique_input_indexlist;
+    vector<unsigned short> bh_chem_unique_input_indexlist;
+    vector<unsigned short> bh_chemproduction_unique_input_indexlist;
+    vector<unsigned short> extra_dm_internalprop_unique_input_indexlist;
+
+    //@}
+
+    /// \name memory related info
+    //@{
+    unsigned long long memuse_peak;
+    unsigned long long memuse_ave;
+    int memuse_nsamples;
+    bool memuse_log;
+    //@}
+
+    //silly flag to store whether input has little h's in it.
+    bool inputcontainslittleh;
+
     Options()
     {
         lengthinputconversion = 1.0;
@@ -672,7 +964,7 @@ struct Options
         istellaragescalefactor = 1;
         isfrisssfr = 0;
 
-        G = 1.0;
+        G = 0.0;
         p = 0.0;
 
         a = 1.0;
@@ -690,8 +982,7 @@ struct Options
         rhobg = 1.0;
         virlevel = -1;
         comove=0;
-        H=100.0;//value of Hubble flow in h 1 km/s/Mpc
-        MassValue=1.0;
+        MassValue=-1.0;
 
         inputtype=IOGADGET;
 
@@ -715,7 +1006,7 @@ struct Options
         iBaryonSearch=0;
         icmrefadjust=1;
         iIterateCM = 1;
-        iLocalVelDenApproxCalcFlag = 1 ;
+        iLocalVelDenApproxCalcFlag = 2 ;
 
         Neff=-1;
 
@@ -810,10 +1101,19 @@ struct Options
 
         iScaleLengths=0;
 
-        inputbufsize=100000;
+        inputbufsize=1000000;
 
         mpiparticletotbufsize=-1;
         mpiparticlebufsize=-1;
+        mpinprocswritesize=1;
+#ifdef SWIFTINTERFACE
+        impiusemesh = true;
+#else
+        impiusemesh = true;
+        mpimeshimbalancelimit = 0.1;
+        minnumcellperdim = 8;
+#endif
+        cellnodeids = NULL;
 
         lengthtokpc=-1.0;
         velocitytokms=-1.0;
@@ -829,8 +1129,9 @@ struct Options
         lengthtokpc50pow2=50.0*50.0;
 
         SphericalOverdensitySeachFac=2.5;
-        SphericalOverdensityMinHaloFac=0.05;
         iSphericalOverdensityPartList=0;
+        SphericalOverdensitySeachMaxStructLevel = HALOSTYPE;
+        iSphericalOverdensityExtraFieldCalculations = false;
 
         mpipartfac=0.1;
 #if USEHDF
@@ -846,11 +1147,25 @@ struct Options
         iprofilebintype=PROFILERBINTYPELOG;
         iprofilecumulative=0;
         profilenbins=0;
+        profileminsize = profileminFOFsize = 0;
 #ifdef USEOPENMP
         iopenmpfof = 1;
         openmpfofsize = ompfofsearchnum;
 #endif
+
+        iontheflyfinding = false;
+
+        memuse_peak = 0;
+        memuse_ave = 0;
+        memuse_nsamples = 0;
+        memuse_log = false;
+
+        inputcontainslittleh = true;
+
     }
+    Options(Options &opt) = default;
+    Options& operator=(const Options&) = default;
+    Options& operator=(Options&&) = default;
 };
 
 struct ConfigInfo{
@@ -866,492 +1181,63 @@ struct ConfigInfo{
     string python_type_string(unsigned long long &x){return string("uint64");}
     string python_type_string(float &x){return string("float32");}
     string python_type_string(double &x){return string("float64");}
+    string python_type_string(string &x){return string("str");}
 
-    ConfigInfo(Options &opt){
-        string datastring;
-        //if compiler is super old and does not have at least std 11 implementation to_string does not exist
-#ifndef OLDCCOMPILER
-        //general search operations
-        nameinfo.push_back("Particle_search_type");
-        datainfo.push_back(to_string(opt.partsearchtype));
-        datatype.push_back(python_type_string(opt.partsearchtype));
-        nameinfo.push_back("FoF_search_type");
-        datainfo.push_back(to_string(opt.foftype));
-        datatype.push_back(python_type_string(opt.foftype));
-        nameinfo.push_back("FoF_Field_search_type");
-        datainfo.push_back(to_string(opt.fofbgtype));
-        datatype.push_back(python_type_string(opt.fofbgtype));
-        nameinfo.push_back("Search_for_substructure");
-        datainfo.push_back(to_string(opt.iSubSearch));
-        datatype.push_back(python_type_string(opt.iSubSearch));
-        nameinfo.push_back("Keep_FOF");
-        datainfo.push_back(to_string(opt.iKeepFOF));
-        datatype.push_back(python_type_string(opt.iKeepFOF));
-        nameinfo.push_back("Iterative_searchflag");
-        datainfo.push_back(to_string(opt.iiterflag));
-        datatype.push_back(python_type_string(opt.iiterflag));
-        nameinfo.push_back("Baryon_searchflag");
-        datainfo.push_back(to_string(opt.iBaryonSearch));
-        datatype.push_back(python_type_string(opt.iBaryonSearch));
-        nameinfo.push_back("CMrefadjustsubsearch_flag");
-        datainfo.push_back(to_string(opt.icmrefadjust));
-        datatype.push_back(python_type_string(opt.icmrefadjust));
-        nameinfo.push_back("Halo_core_search");
-        datainfo.push_back(to_string(opt.iHaloCoreSearch));
-        datatype.push_back(python_type_string(opt.iHaloCoreSearch));
-        nameinfo.push_back("Use_adaptive_core_search");
-        datainfo.push_back(to_string(opt.iAdaptiveCoreLinking));
-        datatype.push_back(python_type_string(opt.iAdaptiveCoreLinking));
-        nameinfo.push_back("Use_phase_tensor_core_growth");
-        datainfo.push_back(to_string(opt.iPhaseCoreGrowth));
-        datatype.push_back(python_type_string(opt.iPhaseCoreGrowth));
-
-        //local field parameters
-        nameinfo.push_back("Local_velocity_density_approximate_calculation");
-        datainfo.push_back(to_string(opt.iLocalVelDenApproxCalcFlag));
-        datatype.push_back(python_type_string(opt.iLocalVelDenApproxCalcFlag));
-        nameinfo.push_back("Cell_fraction");
-        datainfo.push_back(to_string(opt.Ncellfac));
-        datatype.push_back(python_type_string(opt.Ncellfac));
-        nameinfo.push_back("Grid_type");
-        datainfo.push_back(to_string(opt.gridtype));
-        datatype.push_back(python_type_string(opt.gridtype));
-        nameinfo.push_back("Nsearch_velocity");
-        datainfo.push_back(to_string(opt.Nvel));
-        datatype.push_back(python_type_string(opt.Nvel));
-        nameinfo.push_back("Nsearch_physical");
-        datainfo.push_back(to_string(opt.Nsearch));
-        datatype.push_back(python_type_string(opt.Nsearch));
-
-        //substructure search parameters
-        nameinfo.push_back("Outlier_threshold");
-        datainfo.push_back(to_string(opt.ellthreshold));
-        datatype.push_back(python_type_string(opt.ellthreshold));
-        nameinfo.push_back("Significance_level");
-        datainfo.push_back(to_string(opt.siglevel));
-        datatype.push_back(python_type_string(opt.siglevel));
-        nameinfo.push_back("Velocity_ratio");
-        datainfo.push_back(to_string(opt.Vratio));
-        datatype.push_back(python_type_string(opt.Vratio));
-        nameinfo.push_back("Velocity_opening_angle");
-        datainfo.push_back(to_string(opt.thetaopen));
-        datatype.push_back(python_type_string(opt.thetaopen));
-        ///\todo this configuration option will be deprecated. Replaced by Substructure_physical_linking_length
-        //nameinfo.push_back("Physical_linking_length");
-        //datainfo.push_back(to_string(opt.ellphys));
-        nameinfo.push_back("Substructure_physical_linking_length");
-        datainfo.push_back(to_string(opt.ellphys));
-        datatype.push_back(python_type_string(opt.ellphys));
-        nameinfo.push_back("Velocity_linking_length");
-        datainfo.push_back(to_string(opt.ellvel));
-        datatype.push_back(python_type_string(opt.ellvel));
-        nameinfo.push_back("Minimum_size");
-        datainfo.push_back(to_string(opt.MinSize));
-        datatype.push_back(python_type_string(opt.MinSize));
-
-        //field object specific searches
-        nameinfo.push_back("Minimum_halo_size");
-        datainfo.push_back(to_string(opt.HaloMinSize));
-        datatype.push_back(python_type_string(opt.HaloMinSize));
-        ///\todo this configuration option will be deprecated. Replaced by Halo_3D_physical_linking_length
-        //nameinfo.push_back("Halo_linking_length_factor");
-        //datainfo.push_back(to_string(opt.ellhalophysfac));
-        nameinfo.push_back("Halo_3D_linking_length");
-        datainfo.push_back(to_string(opt.ellhalo3dxfac));
-        datatype.push_back(python_type_string(opt.ellhalo3dxfac));
-        nameinfo.push_back("Halo_velocity_linking_length_factor");
-        datainfo.push_back(to_string(opt.ellhalovelfac));
-        datatype.push_back(python_type_string(opt.ellhalovelfac));
-
-        //specific to 6DFOF field search
-        nameinfo.push_back("Halo_6D_linking_length_factor");
-        datainfo.push_back(to_string(opt.ellhalo6dxfac));
-        datatype.push_back(python_type_string(opt.ellhalo6dxfac));
-        nameinfo.push_back("Halo_6D_vel_linking_length_factor");
-        datainfo.push_back(to_string(opt.ellhalo6dvfac));
-        datatype.push_back(python_type_string(opt.ellhalo6dvfac));
-
-        //specific search for 6d fof core searches
-        nameinfo.push_back("Halo_core_ellx_fac");
-        datainfo.push_back(to_string(opt.halocorexfac));
-        datatype.push_back(python_type_string(opt.halocorexfac));
-        nameinfo.push_back("Halo_core_ellv_fac");
-        datainfo.push_back(to_string(opt.halocorevfac));
-        datatype.push_back(python_type_string(opt.halocorevfac));
-        nameinfo.push_back("Halo_core_ncellfac");
-        datainfo.push_back(to_string(opt.halocorenfac));
-        datatype.push_back(python_type_string(opt.halocorenfac));
-        nameinfo.push_back("Halo_core_adaptive_sigma_fac");
-        datainfo.push_back(to_string(opt.halocoresigmafac));
-        datatype.push_back(python_type_string(opt.halocoresigmafac));
-        nameinfo.push_back("Halo_core_num_loops");
-        datainfo.push_back(to_string(opt.halocorenumloops));
-        datatype.push_back(python_type_string(opt.halocorenumloops));
-        nameinfo.push_back("Halo_core_loop_ellx_fac");
-        datainfo.push_back(to_string(opt.halocorexfaciter));
-        datatype.push_back(python_type_string(opt.halocorexfaciter));
-        nameinfo.push_back("Halo_core_loop_ellv_fac");
-        datainfo.push_back(to_string(opt.halocorevfaciter));
-        datatype.push_back(python_type_string(opt.halocorevfaciter));
-        nameinfo.push_back("Halo_core_loop_elln_fac");
-        datainfo.push_back(to_string(opt.halocorenumfaciter));
-        datatype.push_back(python_type_string(opt.halocorenumfaciter));
-        nameinfo.push_back("Halo_core_phase_significance");
-        datainfo.push_back(to_string(opt.halocorephasedistsig));
-        datatype.push_back(python_type_string(opt.halocorephasedistsig));
-
-
-        //for changing factors used in iterative search
-        nameinfo.push_back("Iterative_threshold_factor");
-        datainfo.push_back(to_string(opt.ellfac));
-        datatype.push_back(python_type_string(opt.ellfac));
-        nameinfo.push_back("Iterative_linking_length_factor");
-        datatype.push_back(python_type_string(opt.ellxfac));
-        datainfo.push_back(to_string(opt.ellxfac));
-        nameinfo.push_back("Iterative_Vratio_factor");
-        datainfo.push_back(to_string(opt.vfac));
-        datatype.push_back(python_type_string(opt.vfac));
-        nameinfo.push_back("Iterative_ThetaOp_factor");
-        datainfo.push_back(to_string(opt.thetafac));
-        datatype.push_back(python_type_string(opt.thetafac));
-
-        //for changing effective resolution when rescaling linking lengh
-        #ifdef HIGHRES
-        nameinfo.push_back("Effective_resolution");
-        datainfo.push_back(to_string(opt.Neff));
-        datatype.push_back(python_type_string(opt.Neff));
-        #endif
-
-        //for changing effective resolution when rescaling linking lengh
-        nameinfo.push_back("Singlehalo_search");
-        datainfo.push_back(to_string(opt.iSingleHalo));
-        datatype.push_back(python_type_string(opt.iSingleHalo));
-
-        //units, cosmology
-        nameinfo.push_back("Length_unit");
-        datainfo.push_back(to_string(opt.lengthinputconversion));
-        datatype.push_back(python_type_string(opt.lengthinputconversion));
-        nameinfo.push_back("Velocity_unit");
-        datainfo.push_back(to_string(opt.velocityinputconversion));
-        datatype.push_back(python_type_string(opt.velocityinputconversion));
-        nameinfo.push_back("Mass_unit");
-        datainfo.push_back(to_string(opt.massinputconversion));
-        datatype.push_back(python_type_string(opt.massinputconversion));
-        nameinfo.push_back("Length_input_unit_conversion_to_output_unit");
-        datainfo.push_back(to_string(opt.lengthinputconversion));
-        datatype.push_back(python_type_string(opt.lengthinputconversion));
-        nameinfo.push_back("Velocity_input_unit_conversion_to_output_unit");
-        datainfo.push_back(to_string(opt.velocityinputconversion));
-        datatype.push_back(python_type_string(opt.velocityinputconversion));
-        nameinfo.push_back("Mass_input_unit_conversion_to_output_unit");
-        datainfo.push_back(to_string(opt.massinputconversion));
-        datatype.push_back(python_type_string(opt.massinputconversion));
-        nameinfo.push_back("Star_formation_rate_input_unit_conversion_to_output_unit");
-        datainfo.push_back(to_string(opt.SFRinputconversion));
-        datatype.push_back(python_type_string(opt.SFRinputconversion));
-        nameinfo.push_back("Metallicity_input_unit_conversion_to_output_unit");
-        datainfo.push_back(to_string(opt.metallicityinputconversion));
-        datatype.push_back(python_type_string(opt.metallicityinputconversion));
-        nameinfo.push_back("Stellar_age_input_is_cosmological_scalefactor");
-        datainfo.push_back(to_string(opt.istellaragescalefactor));
-        datatype.push_back(python_type_string(opt.istellaragescalefactor));
-        nameinfo.push_back("Hubble_unit");
-        datainfo.push_back(to_string(opt.H));
-        datatype.push_back(python_type_string(opt.H));
-        nameinfo.push_back("Gravity");
-        datainfo.push_back(to_string(opt.G));
-        datatype.push_back(python_type_string(opt.G));
-        nameinfo.push_back("Mass_value");
-        datainfo.push_back(to_string(opt.MassValue));
-        datatype.push_back(python_type_string(opt.MassValue));
-        nameinfo.push_back("Length_unit_to_kpc");
-        datainfo.push_back(to_string(opt.lengthtokpc));
-        datatype.push_back(python_type_string(opt.lengthtokpc));
-        nameinfo.push_back("Velocity_to_kms");
-        datainfo.push_back(to_string(opt.velocitytokms));
-        datatype.push_back(python_type_string(opt.velocitytokms));
-        nameinfo.push_back("Mass_to_solarmass");
-        datainfo.push_back(to_string(opt.masstosolarmass));
-        datatype.push_back(python_type_string(opt.masstosolarmass));
-        nameinfo.push_back("Star_formation_rate_to_solarmassperyear");
-        datainfo.push_back(to_string(opt.SFRtosolarmassperyear));
-        datatype.push_back(python_type_string(opt.SFRtosolarmassperyear));
-        nameinfo.push_back("Metallicity_to_solarmetallicity");
-        datainfo.push_back(to_string(opt.metallicitytosolar));
-        datatype.push_back(python_type_string(opt.metallicitytosolar));
-        nameinfo.push_back("Stellar_age_to_yr");
-        datainfo.push_back(to_string(opt.stellaragetoyrs));
-        datatype.push_back(python_type_string(opt.stellaragetoyrs));
-
-        nameinfo.push_back("Period");
-        datainfo.push_back(to_string(opt.p));
-        datatype.push_back(python_type_string(opt.p));
-        nameinfo.push_back("Scale_factor");
-        datainfo.push_back(to_string(opt.a));
-        datatype.push_back(python_type_string(opt.a));
-        nameinfo.push_back("h_val");
-        datainfo.push_back(to_string(opt.h));
-        datatype.push_back(python_type_string(opt.h));
-        nameinfo.push_back("Omega_m");
-        datainfo.push_back(to_string(opt.Omega_m));
-        datatype.push_back(python_type_string(opt.Omega_m));
-        nameinfo.push_back("Omega_Lambda");
-        datainfo.push_back(to_string(opt.Omega_Lambda));
-        datatype.push_back(python_type_string(opt.Omega_Lambda));
-        nameinfo.push_back("Critical_density");
-        datainfo.push_back(to_string(opt.rhobg));
-        datatype.push_back(python_type_string(opt.rhobg));
-        nameinfo.push_back("Virial_density");
-        datainfo.push_back(to_string(opt.virlevel));
-        datatype.push_back(python_type_string(opt.virlevel));
-        nameinfo.push_back("Omega_cdm");
-        datainfo.push_back(to_string(opt.Omega_cdm));
-        datatype.push_back(python_type_string(opt.Omega_cdm));
-        nameinfo.push_back("Omega_b");
-        datainfo.push_back(to_string(opt.Omega_b));
-        datatype.push_back(python_type_string(opt.Omega_b));
-        nameinfo.push_back("Omega_r");
-        datainfo.push_back(to_string(opt.Omega_r));
-        datatype.push_back(python_type_string(opt.Omega_r));
-        nameinfo.push_back("Omega_nu");
-        datainfo.push_back(to_string(opt.Omega_nu));
-        datatype.push_back(python_type_string(opt.Omega_nu));
-        nameinfo.push_back("Omega_DE");
-        datainfo.push_back(to_string(opt.Omega_de));
-        datatype.push_back(python_type_string(opt.Omega_de));
-        nameinfo.push_back("w_of_DE");
-        datainfo.push_back(to_string(opt.w_de));
-        datatype.push_back(python_type_string(opt.w_de));
-
-        //unbinding
-        nameinfo.push_back("Unbind_flag");
-        datainfo.push_back(to_string(opt.uinfo.unbindflag));
-        datatype.push_back(python_type_string(opt.uinfo.unbindflag));
-        nameinfo.push_back("Unbinding_type");
-        datainfo.push_back(to_string(opt.uinfo.unbindtype));
-        datatype.push_back(python_type_string(opt.uinfo.unbindtype));
-        nameinfo.push_back("Bound_halos");
-        datainfo.push_back(to_string(opt.iBoundHalos));
-        datatype.push_back(python_type_string(opt.iBoundHalos));
-        nameinfo.push_back("Allowed_kinetic_potential_ratio");
-        datainfo.push_back(to_string(opt.uinfo.Eratio));
-        datatype.push_back(python_type_string(opt.uinfo.Eratio));
-        nameinfo.push_back("Min_bound_mass_frac");
-        datainfo.push_back(to_string(opt.uinfo.minEfrac));
-        datatype.push_back(python_type_string(opt.uinfo.minEfrac));
-        nameinfo.push_back("Keep_background_potential");
-        datainfo.push_back(to_string(opt.uinfo.bgpot));
-        datatype.push_back(python_type_string(opt.uinfo.bgpot));
-        nameinfo.push_back("Kinetic_reference_frame_type");
-        datainfo.push_back(to_string(opt.uinfo.cmvelreftype));
-        datatype.push_back(python_type_string(opt.uinfo.cmvelreftype));
-        nameinfo.push_back("Min_npot_ref");
-        datainfo.push_back(to_string(opt.uinfo.Npotref));
-        datatype.push_back(python_type_string(opt.uinfo.Npotref));
-        nameinfo.push_back("Frac_pot_ref");
-        datainfo.push_back(to_string(opt.uinfo.fracpotref));
-        datatype.push_back(python_type_string(opt.uinfo.fracpotref));
-        nameinfo.push_back("Unbinding_max_unbound_removal_fraction_per_iteration");
-        datainfo.push_back(to_string(opt.uinfo.maxunbindfrac));
-        datatype.push_back(python_type_string(opt.uinfo.maxunbindfrac));
-        nameinfo.push_back("Unbinding_max_unbound_fraction");
-        datainfo.push_back(to_string(opt.uinfo.maxunboundfracforiterativeunbind));
-        datatype.push_back(python_type_string(opt.uinfo.maxunboundfracforiterativeunbind));
-        nameinfo.push_back("Unbinding_max_unbound_fraction_allowed");
-        datainfo.push_back(to_string(opt.uinfo.maxallowedunboundfrac));
-        datatype.push_back(python_type_string(opt.uinfo.maxallowedunboundfrac));
-        nameinfo.push_back("Softening_length");
-        datainfo.push_back(to_string(opt.uinfo.eps));
-        datatype.push_back(python_type_string(opt.uinfo.eps));
-
-        //property related
-        nameinfo.push_back("Inclusive_halo_masses");
-        datainfo.push_back(to_string(opt.iInclusiveHalo));
-        datatype.push_back(python_type_string(opt.iInclusiveHalo));
-        nameinfo.push_back("Extensive_halo_properties_output");
-        datainfo.push_back(to_string(opt.iextrahalooutput));
-        datatype.push_back(python_type_string(opt.iextrahalooutput));
-        nameinfo.push_back("Extensive_gas_properties_output");
-        datainfo.push_back(to_string(opt.iextragasoutput));
-        datatype.push_back(python_type_string(opt.iextragasoutput));
-        nameinfo.push_back("Extensive_star_properties_output");
-        datainfo.push_back(to_string(opt.iextrastaroutput));
-        datatype.push_back(python_type_string(opt.iextrastaroutput));
-        nameinfo.push_back("Extensive_interloper_properties_output");
-        datainfo.push_back(to_string(opt.iextrainterloperoutput));
-        datatype.push_back(python_type_string(opt.iextrainterloperoutput));
-        nameinfo.push_back("Iterate_cm_flag");
-        datainfo.push_back(to_string(opt.iIterateCM));
-        datatype.push_back(python_type_string(opt.iIterateCM));
-        nameinfo.push_back("Sort_by_binding_energy");
-        datainfo.push_back(to_string(opt.iSortByBindingEnergy));
-        datatype.push_back(python_type_string(opt.iSortByBindingEnergy));
-        nameinfo.push_back("Reference_frame_for_properties");
-        datainfo.push_back(to_string(opt.iPropertyReferencePosition));
-        datatype.push_back(python_type_string(opt.iPropertyReferencePosition));
-        nameinfo.push_back("Calculate_aperture_quantities");
-        datainfo.push_back(to_string(opt.iaperturecalc));
-        datatype.push_back(python_type_string(opt.iaperturecalc));
-        nameinfo.push_back("Number_of_apertures");
-        datainfo.push_back(to_string(opt.aperturenum));
-        datatype.push_back(python_type_string(opt.aperturenum));
-        if (opt.aperturenum>0){
-            nameinfo.push_back("Aperture_values_in_kpc");
-            datastring=string("");for (auto &x:opt.aperture_names_kpc) {datastring+=x;datastring+=string(",");}
-            datainfo.push_back(datastring);
-            datatype.push_back(python_type_string(opt.aperture_values_kpc[0]));
-        }
-        nameinfo.push_back("Number_of_projected_apertures");
-        datainfo.push_back(to_string(opt.apertureprojnum));
-        datatype.push_back(python_type_string(opt.apertureprojnum));
-        if (opt.apertureprojnum>0){
-            nameinfo.push_back("Projected_aperture_values_in_kpc");
-            datastring=string("");for (auto &x:opt.aperture_proj_names_kpc) {datastring+=x;datastring+=string(",");}
-            datainfo.push_back(datastring);
-            datatype.push_back(python_type_string(opt.aperture_proj_values_kpc[0]));
-        }
-        nameinfo.push_back("Calculate_radial_profiles");
-        datainfo.push_back(to_string(opt.iprofilecalc));
-        datatype.push_back(python_type_string(opt.iprofilecalc));
-        if(opt.iprofilecalc) {
-            nameinfo.push_back("Number_of_radial_profile_bin_edges");
-            datainfo.push_back(to_string(opt.profilenbins));
-            datatype.push_back(python_type_string(opt.profilenbins));
-            nameinfo.push_back("Radial_profile_norm");
-            datainfo.push_back(to_string(opt.iprofilenorm));
-            datatype.push_back(python_type_string(opt.iprofilenorm));
-            nameinfo.push_back("Radial_profile_bin_edges");
-            datastring=string("");for (auto &x:opt.profile_bin_edges) {datastring+=to_string(x);datastring+=string(",");}
-            datainfo.push_back(datastring);
-            datatype.push_back(python_type_string(opt.profile_bin_edges[0]));
-        }
-        nameinfo.push_back("Number_of_overdensities");
-        datainfo.push_back(to_string(opt.SOnum));
-        datatype.push_back(python_type_string(opt.SOnum));
-        if (opt.SOnum>0) {
-            nameinfo.push_back("Overdensity_values_in_critical_density");
-            datastring=string("");for (auto &x:opt.SOthresholds_names_crit) {datastring+=x;datastring+=string(",");}
-            datainfo.push_back(datastring);
-            datatype.push_back(python_type_string(opt.SOthresholds_values_crit[0]));
-        }
-
-        //other options
-        nameinfo.push_back("Verbose");
-        datainfo.push_back(to_string(opt.iverbose));
-        datatype.push_back(python_type_string(opt.iverbose));
-        nameinfo.push_back("Write_group_array_file");
-        datainfo.push_back(to_string(opt.iwritefof));
-        datatype.push_back(python_type_string(opt.iwritefof));
-        nameinfo.push_back("Snapshot_value");
-        datainfo.push_back(to_string(opt.snapshotvalue));
-        datatype.push_back(python_type_string(opt.snapshotvalue));
-
-        //io related
-        nameinfo.push_back("Cosmological_input");
-        datainfo.push_back(to_string(opt.icosmologicalin));
-        datatype.push_back(python_type_string(opt.icosmologicalin));
-        nameinfo.push_back("Input_chunk_size");
-        datainfo.push_back(to_string(opt.inputbufsize));
-        datatype.push_back(python_type_string(opt.inputbufsize));
-        nameinfo.push_back("MPI_particle_total_buf_size");
-        datainfo.push_back(to_string(opt.mpiparticletotbufsize));
-        datatype.push_back(python_type_string(opt.mpiparticletotbufsize));
-        nameinfo.push_back("Separate_output_files");
-        datainfo.push_back(to_string(opt.iseparatefiles));
-        datatype.push_back(python_type_string(opt.iseparatefiles));
-        nameinfo.push_back("Binary_output");
-        datainfo.push_back(to_string(opt.ibinaryout));
-        datatype.push_back(python_type_string(opt.ibinaryout));
-        nameinfo.push_back("Comoving_units");
-        datainfo.push_back(to_string(opt.icomoveunit));
-        datatype.push_back(python_type_string(opt.icomoveunit));
-        nameinfo.push_back("Extended_output");
-        datainfo.push_back(to_string(opt.iextendedoutput));
-        datatype.push_back(python_type_string(opt.iextendedoutput));
-
-
-        //HDF io related info
-        nameinfo.push_back("HDF_name_convention");
-        datainfo.push_back(to_string(opt.ihdfnameconvention));
-        datatype.push_back(python_type_string(opt.ihdfnameconvention));
-        nameinfo.push_back("Input_includes_dm_particle");
-        datainfo.push_back(to_string(opt.iusedmparticles));
-        datatype.push_back(python_type_string(opt.iusedmparticles));
-        nameinfo.push_back("Input_includes_gas_particle");
-        datainfo.push_back(to_string(opt.iusegasparticles));
-        datatype.push_back(python_type_string(opt.iusegasparticles));
-        nameinfo.push_back("Input_includes_star_particle");
-        datainfo.push_back(to_string(opt.iusestarparticles));
-        datatype.push_back(python_type_string(opt.iusestarparticles));
-        nameinfo.push_back("Input_includes_bh_particle");
-        datainfo.push_back(to_string(opt.iusesinkparticles));
-        datatype.push_back(python_type_string(opt.iusesinkparticles));
-        nameinfo.push_back("Input_includes_extradm_particle");
-        datainfo.push_back(to_string(opt.iuseextradarkparticles));
-        datatype.push_back(python_type_string(opt.iuseextradarkparticles));
-        nameinfo.push_back("Input_includes_wind_particle");
-        datainfo.push_back(to_string(opt.iusewindparticles));
-        datatype.push_back(python_type_string(opt.iusewindparticles));
-        nameinfo.push_back("Input_includes_tracer_particle");
-        datainfo.push_back(to_string(opt.iusetracerparticles));
-        datatype.push_back(python_type_string(opt.iusetracerparticles));
-
-        //gadget io related to extra info for sph, stars, bhs,
-        nameinfo.push_back("NSPH_extra_blocks");
-        datainfo.push_back(to_string(opt.gnsphblocks));
-        datatype.push_back(python_type_string(opt.gnsphblocks));
-        nameinfo.push_back("NStar_extra_blocks");
-        datainfo.push_back(to_string(opt.gnstarblocks));
-        datatype.push_back(python_type_string(opt.gnstarblocks));
-        nameinfo.push_back("NBH_extra_blocks");
-        datainfo.push_back(to_string(opt.gnbhblocks));
-        datatype.push_back(python_type_string(opt.gnbhblocks));
-
-        //mpi related configuration
-        nameinfo.push_back("MPI_part_allocation_fac");
-        datainfo.push_back(to_string(opt.mpipartfac));
-        datatype.push_back(python_type_string(opt.mpipartfac));
-#endif
-        nameinfo.push_back("#Compilation Info");
+    void AddEntry(string entryname){
+        nameinfo.push_back(entryname);
         datainfo.push_back("");
         datatype.push_back("");
-        #ifdef USEMPI
-        nameinfo.push_back("#USEMPI");
-        datainfo.push_back("");
-        datatype.push_back("");
-        #endif
-        #ifdef USEOPENMP
-        nameinfo.push_back("#USEOPENMP");
-        datainfo.push_back("");
-        datatype.push_back("");
-        #endif
-        #ifdef GASON
-        nameinfo.push_back("#USEGAS");
-        datainfo.push_back("");
-        datatype.push_back("");
-        #endif
-        #ifdef STARON
-        nameinfo.push_back("#USESTAR");
-        datainfo.push_back("");
-        datatype.push_back("");
-        #endif
-        #ifdef BHON
-        nameinfo.push_back("#USEBH");
-        datainfo.push_back("");
-        datatype.push_back("");
-        #endif
-        #ifdef HIGHRES
-        nameinfo.push_back("#ZOOMSIM");
-        datainfo.push_back("");
-        datatype.push_back("");
-        #endif
-        #ifdef SWIFTINTERFACE
-        nameinfo.push_back("#SWIFTINTERFACE");
-        datainfo.push_back("");
-        datatype.push_back("");
-        #endif
-
     }
+    template<typename T> void AddEntry(string entryname, T entry){
+        nameinfo.push_back(entryname);
+        datainfo.push_back(to_string(entry));
+        datatype.push_back(python_type_string(entry));
+    }
+    template<typename T> void AddEntry(string entryname, vector<T> entries){
+        if (entries.size() == 0) return;
+        T val = entries[0];
+        nameinfo.push_back(entryname);
+        string datastring=string("");
+        for (auto &x:entries) {datastring+=to_string(x);datastring+=string(",");}
+        datainfo.push_back(datastring);
+        datatype.push_back(python_type_string(val));
+    }
+    template<typename T> void AddEntry(string entryname, vector<T> entries1, vector<T> entries2){
+        if (entries1.size() + entries2.size() == 0) return;
+        T val = entries1[0];
+        nameinfo.push_back(entryname);
+        string datastring=string("");
+        for (auto &x:entries1) {datastring+=to_string(x);datastring+=string(",");}
+        for (auto &x:entries2) {datastring+=to_string(x);datastring+=string(",");}
+        datainfo.push_back(datastring);
+        datatype.push_back(python_type_string(val));
+    }
+    void AddEntry(string entryname, string entry){
+        nameinfo.push_back(entryname);
+        datainfo.push_back(entry);
+        datatype.push_back(python_type_string(entry));
+    }
+    void AddEntry(string entryname, vector<string> entries){
+        if (entries.size() == 0) return;
+        string val = entries[0];
+        nameinfo.push_back(entryname);
+        string datastring=string("");
+        for (auto &x:entries) {datastring+=x;datastring+=string(",");}
+        datainfo.push_back(datastring);
+        datatype.push_back(python_type_string(val));
+    }
+    void AddEntry(string entryname, vector<string> entries1, vector<string> entries2){
+        if (entries1.size() + entries2.size() == 0) return;
+        string val = entries1[0];
+        nameinfo.push_back(entryname);
+        string datastring=string("");
+        for (auto &x:entries1) {datastring+=x;datastring+=string(",");}
+        for (auto &x:entries2) {datastring+=x;datastring+=string(",");}
+        datainfo.push_back(datastring);
+        datatype.push_back(python_type_string(val));
+    }
+
+    ConfigInfo(Options &opt);
 };
 
 struct SimInfo{
@@ -1535,6 +1421,9 @@ struct PropData
     Double_t gM200c,gR200c,gM200m,gR200m,gMFOF,gM6DFOF,gM500c,gR500c,gMBN98,gRBN98;
     //to store exclusive masses of halo ignoring substructure
     Double_t gMvir_excl,gRvir_excl,gM200c_excl,gR200c_excl,gM200m_excl,gR200m_excl,gMBN98_excl,gRBN98_excl;
+    //to store halfmass radii of overdensity masses
+    Double_t gRhalf200c,gRhalf200m,gRhalfBN98;
+
     //@}
     ///\name physical properties for shape/mass distribution
     //@{
@@ -1563,6 +1452,9 @@ struct PropData
     int stype;
     ///concentration (and related quantity used to calculate a concentration)
     Double_t cNFW, VmaxVvir2;
+    Double_t cNFW200c, cNFW200m, cNFWBN98;
+    /// if fitting mass profiles with generalized NFW
+    Double_t NFWfitrs, NFWfitalpha, NFWfitbeta;
     ///Bullock & Peebles spin parameters
     Double_t glambda_B,glambda_P;
     ///measure of rotational support
@@ -1647,11 +1539,13 @@ struct PropData
     vector<float> aperture_veldisp_gas;
     vector<float> aperture_vrdisp_gas;
     vector<float> aperture_SFR_gas;
+    vector<float> aperture_Z_gas;
     vector<float> aperture_rhalfmass_gas;
+    vector<Coordinate> aperture_L_gas;
     vector<Coordinate> aperture_mass_proj_gas;
     vector<Coordinate> aperture_rhalfmass_proj_gas;
     vector<Coordinate> aperture_SFR_proj_gas;
-    vector<Coordinate> aperture_L_gas;
+    vector<Coordinate> aperture_Z_proj_gas;
     vector<unsigned int> profile_npart_gas;
     vector<unsigned int> profile_npart_inclusive_gas;
     vector<float> profile_mass_gas;
@@ -1696,9 +1590,11 @@ struct PropData
     vector<float> aperture_veldisp_gas_sf;
     vector<float> aperture_vrdisp_gas_sf;
     vector<float> aperture_rhalfmass_gas_sf;
+    vector<float> aperture_Z_gas_sf;
+    vector<Coordinate> aperture_L_gas_sf;
     vector<Coordinate> aperture_mass_proj_gas_sf;
     vector<Coordinate> aperture_rhalfmass_proj_gas_sf;
-    vector<Coordinate> aperture_L_gas_sf;
+    vector<Coordinate> aperture_Z_proj_gas_sf;
     vector<unsigned int> profile_npart_gas_sf;
     vector<unsigned int> profile_npart_inclusive_gas_sf;
     vector<float> profile_mass_gas_sf;
@@ -1743,9 +1639,11 @@ struct PropData
     vector<float> aperture_veldisp_gas_nsf;
     vector<float> aperture_vrdisp_gas_nsf;
     vector<float> aperture_rhalfmass_gas_nsf;
+    vector<float> aperture_Z_gas_nsf;
+    vector<Coordinate> aperture_L_gas_nsf;
     vector<Coordinate> aperture_mass_proj_gas_nsf;
     vector<Coordinate> aperture_rhalfmass_proj_gas_nsf;
-    vector<Coordinate> aperture_L_gas_nsf;
+    vector<Coordinate> aperture_Z_proj_gas_nsf;
     vector<unsigned int> profile_npart_gas_nsf;
     vector<unsigned int> profile_npart_inclusive_gas_nsf;
     vector<float> profile_mass_gas_nsf;
@@ -1797,9 +1695,11 @@ struct PropData
     vector<float> aperture_veldisp_star;
     vector<float> aperture_vrdisp_star;
     vector<float> aperture_rhalfmass_star;
+    vector<float> aperture_Z_star;
+    vector<Coordinate> aperture_L_star;
     vector<Coordinate> aperture_mass_proj_star;
     vector<Coordinate> aperture_rhalfmass_proj_star;
-    vector<Coordinate> aperture_L_star;
+    vector<Coordinate> aperture_Z_proj_star;
     vector<unsigned int> profile_npart_star;
     vector<unsigned int> profile_npart_inclusive_star;
     vector<float> profile_mass_star;
@@ -1825,6 +1725,7 @@ struct PropData
     //@{
     vector<int> aperture_npart_bh;
     vector<float> aperture_mass_bh;
+    vector<Coordinate> aperture_mass_proj_bh;
     vector<Coordinate> aperture_L_bh;
     //@}
 
@@ -1847,6 +1748,7 @@ struct PropData
 
     vector<unsigned int> aperture_npart_interloper;
     vector<float> aperture_mass_interloper;
+    vector<Coordinate> aperture_mass_proj_interloper;
     vector<unsigned int> profile_npart_interloper;
     vector<unsigned int> profile_npart_inclusive_interloper;
     vector<float> profile_mass_interloper;
@@ -1856,6 +1758,38 @@ struct PropData
     //@}
 #endif
 
+    /// \name extra hydro/star/bh properties such as chemistry/feedback/metal production
+
+    //@{
+#if defined(GASON)
+    HydroProperties hydroprop;
+    vector<HydroProperties> aperture_properties_gas;
+#if defined(STARON)
+    vector<HydroProperties> aperture_properties_gas_sf;
+    vector<HydroProperties> aperture_properties_gas_nsf;
+#endif
+#endif
+#if defined(STARON)
+    StarProperties starprop;
+    vector<StarProperties> aperture_properties_star;
+#endif
+#if defined(BHON)
+    BHProperties bhprop;
+    vector<BHProperties> aperture_properties_bh;
+#endif
+#if defined(EXTRADMON)
+    Int_t n_dm;
+    ExtraDMProperties extradmprop;
+    vector<ExtraDMProperties> aperture_properties_extra_dm;
+#endif
+    //@}
+
+    ///\name standard units of physical properties
+    //@{
+    string massunit, velocityunit, lengthunit, energyunit;
+    //@}
+
+
     PropData()
     {
         num=gNFOF=gN6DFOF=0;
@@ -1863,6 +1797,8 @@ struct PropData
         gMFOF=gM6DFOF=0;
         gM500c=gR500c=0;
         gMBN98=gRBN98=0;
+        gRhalf200c = gRhalf200m = gRhalfBN98 = 0.;
+        cNFW200c = cNFW200c = cNFWBN98 = 0;
         gcm[0]=gcm[1]=gcm[2]=gcmvel[0]=gcmvel[1]=gcmvel[2]=0.;
         gJ[0]=gJ[1]=gJ[2]=0;
         gJ200m[0]=gJ200m[1]=gJ200m[2]=0;
@@ -1907,6 +1843,7 @@ struct PropData
         L_200mean_excl_gas[0]=L_200mean_excl_gas[1]=L_200mean_excl_gas[2]=0;
         L_BN98_excl_gas[0]=L_BN98_excl_gas[1]=L_BN98_excl_gas[2]=0;
 #ifdef STARON
+        n_gas_sf = n_gas_nsf = 0;
         M_gas_sf=M_gas_sf_rvmax=M_gas_sf_30kpc=M_gas_sf_50kpc=0;
         L_gas_sf[0]=L_gas_sf[1]=L_gas_sf[2]=0;
         q_gas_sf=s_gas_sf=1.0;
@@ -1972,9 +1909,14 @@ struct PropData
 #ifdef HIGHRES
         n_interloper=M_interloper=0;
 #endif
+#ifdef EXTRADMON
+        n_dm = 0;
+#endif
     }
     ///equals operator, useful if want inclusive information before substructure search
-    PropData& operator=(const PropData &p){
+    PropData& operator=(const PropData &p) = default;
+    /*
+    PropData& operator=(const PropData &p) {
         num=p.num;
         gcm=p.gcm;gcmvel=p.gcmvel;
         gposmbp=p.gposmbp;gvelmbp=p.gvelmbp;
@@ -2061,7 +2003,7 @@ struct PropData
         aperture_veldisp=p.aperture_veldisp;
         aperture_vrdisp=p.aperture_vrdisp;
         aperture_rhalfmass=p.aperture_rhalfmass;
-        #if defined(GASON) || defined(STARON) || defined(BHON)
+#if defined(GASON) || defined(STARON) || defined(BHON)
         aperture_npart_dm=p.aperture_npart_dm;
         aperture_mass_dm=p.aperture_mass_dm;
         aperture_veldisp_dm=p.aperture_veldisp_dm;
@@ -2075,6 +2017,7 @@ struct PropData
         aperture_rhalfmass_gas=p.aperture_rhalfmass_gas;
 #ifdef STARON
         aperture_SFR_gas=p.aperture_SFR_gas;
+        aperture_Z_gas=p.aperture_Z_gas;
         aperture_npart_gas_sf=p.aperture_npart_gas_sf;
         aperture_npart_gas_nsf=p.aperture_npart_gas_nsf;
         aperture_mass_gas_sf=p.aperture_mass_gas_sf;
@@ -2085,6 +2028,8 @@ struct PropData
         aperture_vrdisp_gas_nsf=p.aperture_vrdisp_gas_nsf;
         aperture_rhalfmass_gas_sf=p.aperture_rhalfmass_gas_sf;
         aperture_rhalfmass_gas_nsf=p.aperture_rhalfmass_gas_nsf;
+        aperture_Z_gas_sf=p.aperture_Z_gas_sf;
+        aperture_Z_gas_nsf=p.aperture_Z_gas_nsf;
 #endif
 #endif
 #ifdef STARON
@@ -2093,6 +2038,7 @@ struct PropData
         aperture_veldisp_star=p.aperture_veldisp_star;
         aperture_vrdisp_star=p.aperture_vrdisp_star;
         aperture_rhalfmass_star=p.aperture_rhalfmass_star;
+        aperture_Z_star=p.aperture_Z_star;
 #endif
         aperture_mass_proj=p.aperture_mass_proj;
         aperture_rhalfmass_proj=p.aperture_rhalfmass_proj;
@@ -2100,13 +2046,20 @@ struct PropData
         aperture_mass_proj_gas=p.aperture_mass_proj_gas;
         aperture_rhalfmass_proj_gas=p.aperture_rhalfmass_proj_gas;
 #ifdef STARON
+        aperture_SFR_proj_gas=p.aperture_SFR_proj_gas;
+        aperture_Z_proj_gas=p.aperture_Z_proj_gas;
         aperture_mass_proj_gas_sf=p.aperture_mass_proj_gas_sf;
+        aperture_mass_proj_gas_nsf=p.aperture_mass_proj_gas_nsf;
+        aperture_rhalfmass_proj_gas_sf=p.aperture_rhalfmass_proj_gas_sf;
         aperture_rhalfmass_proj_gas_nsf=p.aperture_rhalfmass_proj_gas_nsf;
+        aperture_Z_proj_gas_sf=p.aperture_Z_proj_gas_sf;
+        aperture_Z_proj_gas_nsf=p.aperture_Z_proj_gas_nsf;
 #endif
 #endif
 #ifdef STARON
         aperture_mass_proj_star=p.aperture_mass_proj_star;
         aperture_rhalfmass_proj_star=p.aperture_rhalfmass_proj_star;
+        aperture_Z_proj_star=p.aperture_Z_proj_star;
 #endif
         profile_npart=p.profile_npart;
         profile_mass=p.profile_mass;
@@ -2136,6 +2089,7 @@ struct PropData
 #endif
         return *this;
     }
+    */
 
     //allocate memory for profiles
     void Allocate(Options &opt) {
@@ -2157,8 +2111,10 @@ struct PropData
             aperture_veldisp_gas.resize(opt.aperturenum);
             aperture_vrdisp_gas.resize(opt.aperturenum);
             aperture_rhalfmass_gas.resize(opt.aperturenum);
+            if (opt.gas_extraprop_aperture_calc) aperture_properties_gas.resize(opt.aperturenum);
 #ifdef STARON
             aperture_SFR_gas.resize(opt.aperturenum);
+            aperture_Z_gas.resize(opt.aperturenum);
             aperture_npart_gas_sf.resize(opt.aperturenum);
             aperture_npart_gas_nsf.resize(opt.aperturenum);
             aperture_mass_gas_sf.resize(opt.aperturenum);
@@ -2169,6 +2125,10 @@ struct PropData
             aperture_vrdisp_gas_nsf.resize(opt.aperturenum);
             aperture_rhalfmass_gas_sf.resize(opt.aperturenum);
             aperture_rhalfmass_gas_nsf.resize(opt.aperturenum);
+            aperture_Z_gas_sf.resize(opt.aperturenum);
+            aperture_Z_gas_nsf.resize(opt.aperturenum);
+            // if (opt.gas_extraprop_aperture_calc) aperture_properties_gas_sf.resize(opt.aperturenum);
+            // if (opt.gas_extraprop_aperture_calc) aperture_properties_gas_nsf.resize(opt.aperturenum);
 #endif
 #endif
 #ifdef STARON
@@ -2177,21 +2137,31 @@ struct PropData
             aperture_veldisp_star.resize(opt.aperturenum);
             aperture_vrdisp_star.resize(opt.aperturenum);
             aperture_rhalfmass_star.resize(opt.aperturenum);
+            aperture_Z_star.resize(opt.aperturenum);
+            if (opt.star_extraprop_aperture_calc) aperture_properties_star.resize(opt.aperturenum);
+#endif
+#ifdef BHON
+            aperture_npart_bh.resize(opt.aperturenum);
+            aperture_mass_bh.resize(opt.aperturenum);
+            if (opt.bh_extraprop_aperture_calc) aperture_properties_bh.resize(opt.aperturenum);
 #endif
 #ifdef HIGHRES
             aperture_npart_interloper.resize(opt.aperturenum);
             aperture_mass_interloper.resize(opt.aperturenum);
 #endif
-            #if defined(GASON) || defined(STARON) || defined(BHON)
+#ifdef EXTRADMON
+            if (opt.extra_dm_extraprop_aperture_calc) aperture_properties_extra_dm.resize(opt.aperturenum);
+#endif
+#if defined(GASON) || defined(STARON) || defined(BHON)
             //if searching all types, also store dm only aperture quantities
             if (opt.partsearchtype==PSTALL) {
-            aperture_npart_dm.resize(opt.aperturenum);
-            aperture_mass_dm.resize(opt.aperturenum);
-            aperture_veldisp_dm.resize(opt.aperturenum);
-            aperture_vrdisp_dm.resize(opt.aperturenum);
-            aperture_rhalfmass_dm.resize(opt.aperturenum);
+                aperture_npart_dm.resize(opt.aperturenum);
+                aperture_mass_dm.resize(opt.aperturenum);
+                aperture_veldisp_dm.resize(opt.aperturenum);
+                aperture_vrdisp_dm.resize(opt.aperturenum);
+                aperture_rhalfmass_dm.resize(opt.aperturenum);
             }
-            #endif
+#endif
             for (auto &x:aperture_npart) x=0;
             for (auto &x:aperture_mass) x=-1;
             for (auto &x:aperture_veldisp) x=0;
@@ -2203,6 +2173,7 @@ struct PropData
             for (auto &x:aperture_rhalfmass_gas) x=-1;
 #ifdef STARON
             for (auto &x:aperture_SFR_gas) x=0;
+            for (auto &x:aperture_Z_gas) x=0;
             for (auto &x:aperture_npart_gas_sf) x=0;
             for (auto &x:aperture_mass_gas_sf) x=-1;
             for (auto &x:aperture_npart_gas_nsf) x=0;
@@ -2211,6 +2182,8 @@ struct PropData
             for (auto &x:aperture_veldisp_gas_nsf) x=0;
             for (auto &x:aperture_rhalfmass_gas_sf) x=-1;
             for (auto &x:aperture_rhalfmass_gas_nsf) x=-1;
+            for (auto &x:aperture_Z_gas_sf) x=0;
+            for (auto &x:aperture_Z_gas_nsf) x=0;
 #endif
 #endif
 #ifdef STARON
@@ -2218,20 +2191,20 @@ struct PropData
             for (auto &x:aperture_mass_star) x=-1;
             for (auto &x:aperture_veldisp_star) x=0;
             for (auto &x:aperture_rhalfmass_star) x=-1;
+            for (auto &x:aperture_Z_star) x=0;
 #endif
 #ifdef HIGHRES
             for (auto &x:aperture_npart_interloper) x=0;
             for (auto &x:aperture_mass_interloper) x=-1;
 #endif
-            #if defined(GASON) || defined(STARON) || defined(BHON)
+#if defined(GASON) || defined(STARON) || defined(BHON)
             if (opt.partsearchtype==PSTALL) {
-            for (auto &x:aperture_npart_dm) x=0;
-            for (auto &x:aperture_mass_dm) x=-1;
-            for (auto &x:aperture_veldisp_dm) x=0;
-            for (auto &x:aperture_rhalfmass_dm) x=0;
+                for (auto &x:aperture_npart_dm) x=0;
+                for (auto &x:aperture_mass_dm) x=-1;
+                for (auto &x:aperture_veldisp_dm) x=0;
+                for (auto &x:aperture_rhalfmass_dm) x=0;
             }
-            #endif
-
+#endif
         }
 
         if (opt.iaperturecalc && opt.apertureprojnum>0) {
@@ -2242,17 +2215,26 @@ struct PropData
             aperture_rhalfmass_proj_gas.resize(opt.apertureprojnum);
 #ifdef STARON
             aperture_SFR_proj_gas.resize(opt.apertureprojnum);
+            aperture_Z_proj_gas.resize(opt.apertureprojnum);
             aperture_mass_proj_gas_sf.resize(opt.apertureprojnum);
             aperture_mass_proj_gas_nsf.resize(opt.apertureprojnum);
             aperture_rhalfmass_proj_gas_sf.resize(opt.apertureprojnum);
             aperture_rhalfmass_proj_gas_nsf.resize(opt.apertureprojnum);
+            aperture_Z_proj_gas_sf.resize(opt.apertureprojnum);
+            aperture_Z_proj_gas_nsf.resize(opt.apertureprojnum);
 #endif
 #endif
 #ifdef STARON
             aperture_mass_proj_star.resize(opt.apertureprojnum);
             aperture_rhalfmass_proj_star.resize(opt.apertureprojnum);
+            aperture_Z_proj_star.resize(opt.apertureprojnum);
 #endif
-
+#ifdef BHON
+            aperture_mass_proj_bh.resize(opt.apertureprojnum);
+#endif
+#ifdef HIGHRES
+            aperture_mass_proj_interloper.resize(opt.apertureprojnum);
+#endif
             for (auto &x:aperture_mass_proj) x[0]=x[1]=x[2]=-1;
             for (auto &x:aperture_rhalfmass_proj) x[0]=x[1]=x[2]=-1;
 #ifdef GASON
@@ -2260,21 +2242,31 @@ struct PropData
             for (auto &x:aperture_rhalfmass_proj_gas) x[0]=x[1]=x[2]=-1;
 #ifdef STARON
             for (auto &x:aperture_SFR_proj_gas) x[0]=x[1]=x[2]=0;
+            for (auto &x:aperture_Z_proj_gas) x[0]=x[1]=x[2]=0;
             for (auto &x:aperture_mass_proj_gas_sf) x[0]=x[1]=x[2]=-1;
             for (auto &x:aperture_rhalfmass_proj_gas_sf) x[0]=x[1]=x[2]=-1;
             for (auto &x:aperture_mass_proj_gas_nsf) x[0]=x[1]=x[2]=-1;
             for (auto &x:aperture_rhalfmass_proj_gas_nsf) x[0]=x[1]=x[2]=-1;
+            for (auto &x:aperture_Z_proj_gas_sf) x[0]=x[1]=x[2]=-1;
+            for (auto &x:aperture_Z_proj_gas_nsf) x[0]=x[1]=x[2]=-1;
 #endif
 #endif
 #ifdef STARON
             for (auto &x:aperture_mass_proj_star) x[0]=x[1]=x[2]=-1;
             for (auto &x:aperture_rhalfmass_proj_star) x[0]=x[1]=x[2]=-1;
+            for (auto &x:aperture_Z_proj_star) x[0]=x[1]=x[2]=-1;
+#endif
+#ifdef BHON
+            for (auto &x:aperture_mass_proj_bh) x[0]=x[1]=x[2]=-1;
+#endif
+#ifdef HIGHRES
+            for (auto &x:aperture_mass_proj_interloper) x[0]=x[1]=x[2]=-1;
 #endif
         }
     }
     void AllocateProfiles(Options &opt)
     {
-        if (opt.iprofilecalc) {
+        if (opt.iprofilecalc && gNFOF>=opt.profileminFOFsize && num>=opt.profileminsize) {
             profile_npart.resize(opt.profilenbins);
             profile_mass.resize(opt.profilenbins);
             for (auto i=0;i<opt.profilenbins;i++) profile_npart[i]=profile_mass[i]=0;
@@ -2408,6 +2400,9 @@ struct PropData
         gR200m*=opt.h/opt.a;
         gR500c*=opt.h/opt.a;
         gRBN98*=opt.h/opt.a;
+        gRhalf200m*=opt.h/opt.a;
+        gRhalf200c*=opt.h/opt.a;
+        gRhalfBN98*=opt.h/opt.a;
         gMassTwiceRhalfmass*=opt.h;
         gRhalfmass*=opt.h/opt.a;
         gJ=gJ*opt.h*opt.h/opt.a;
@@ -2579,1014 +2574,30 @@ struct PropData
         }
     }
 
-    ///write (append) the properties data to an already open binary file
-    void WriteBinary(fstream &Fout, Options&opt){
-        long long lval;
-        long unsigned idval;
-        unsigned int ival;
-        double val, val3[3],val9[9];
-        idval=haloid;
-        Fout.write((char*)&idval,sizeof(idval));
-        lval=ibound;
-        Fout.write((char*)&lval,sizeof(idval));
-        lval=iminpot;
-        Fout.write((char*)&lval,sizeof(idval));
-        lval=hostid;
-        Fout.write((char*)&lval,sizeof(idval));
-        idval=numsubs;
-        Fout.write((char*)&idval,sizeof(idval));
-        idval=num;
-        Fout.write((char*)&idval,sizeof(idval));
-        ival=stype;
-        Fout.write((char*)&ival,sizeof(ival));
-        if (opt.iKeepFOF==1) {
-            idval=directhostid;
-            Fout.write((char*)&idval,sizeof(idval));
-            idval=hostfofid;
-            Fout.write((char*)&idval,sizeof(idval));
-        }
-
-        val=gMvir;
-        Fout.write((char*)&val,sizeof(val));
-
-        for (int k=0;k<3;k++) val3[k]=gcm[k];
-        Fout.write((char*)val3,sizeof(val)*3);
-        for (int k=0;k<3;k++) val3[k]=gposmbp[k];
-        Fout.write((char*)val3,sizeof(val)*3);
-        for (int k=0;k<3;k++) val3[k]=gposminpot[k];
-        Fout.write((char*)val3,sizeof(val)*3);
-        for (int k=0;k<3;k++) val3[k]=gcmvel[k];
-        Fout.write((char*)val3,sizeof(val)*3);
-        for (int k=0;k<3;k++) val3[k]=gvelmbp[k];
-        Fout.write((char*)val3,sizeof(val)*3);
-        for (int k=0;k<3;k++) val3[k]=gvelminpot[k];
-        Fout.write((char*)val3,sizeof(val)*3);
-
-
-        val=gmass;
-        Fout.write((char*)&val,sizeof(val));
-        val=gMFOF;
-        Fout.write((char*)&val,sizeof(val));
-        val=gM200m;
-        Fout.write((char*)&val,sizeof(val));
-        val=gM200c;
-        Fout.write((char*)&val,sizeof(val));
-        val=gMBN98;
-        Fout.write((char*)&val,sizeof(val));
-
-        val=Efrac;
-        Fout.write((char*)&val,sizeof(val));
-
-        val=gRvir;
-        Fout.write((char*)&val,sizeof(val));
-        val=gsize;
-        Fout.write((char*)&val,sizeof(val));
-        val=gR200m;
-        Fout.write((char*)&val,sizeof(val));
-        val=gR200c;
-        Fout.write((char*)&val,sizeof(val));
-        val=gRBN98;
-        Fout.write((char*)&val,sizeof(val));
-        val=gRhalfmass;
-        Fout.write((char*)&val,sizeof(val));
-        val=gRmaxvel;
-        Fout.write((char*)&val,sizeof(val));
-
-        val=gmaxvel;
-        Fout.write((char*)&val,sizeof(val));
-        val=gsigma_v;
-        Fout.write((char*)&val,sizeof(val));
-        for (int k=0;k<3;k++) for (int n=0;n<3;n++) val9[k*3+n]=gveldisp(k,n);
-        Fout.write((char*)val9,sizeof(val)*9);
-
-        val=glambda_B;
-        Fout.write((char*)&val,sizeof(val));
-        for (int k=0;k<3;k++) val3[k]=gJ[k];
-        Fout.write((char*)val3,sizeof(val)*3);
-
-        val=gq;
-        Fout.write((char*)&val,sizeof(val));
-        val=gs;
-        Fout.write((char*)&val,sizeof(val));
-        for (int k=0;k<3;k++) for (int n=0;n<3;n++) val9[k*3+n]=geigvec(k,n);
-        Fout.write((char*)val9,sizeof(val)*9);
-
-        val=cNFW;
-        Fout.write((char*)&val,sizeof(val));
-        val=Krot;
-        Fout.write((char*)&val,sizeof(val));
-        val=T;
-        Fout.write((char*)&val,sizeof(val));
-        val=Pot;
-        Fout.write((char*)&val,sizeof(val));
-
-        val=RV_sigma_v;
-        Fout.write((char*)&val,sizeof(val));
-        for (int k=0;k<3;k++) for (int n=0;n<3;n++) val9[k*3+n]=RV_veldisp(k,n);
-        Fout.write((char*)val9,sizeof(val)*9);
-
-        val=RV_lambda_B;
-        Fout.write((char*)&val,sizeof(val));
-        for (int k=0;k<3;k++) val3[k]=RV_J[k];
-        Fout.write((char*)val3,sizeof(val)*3);
-
-        val=RV_q;
-        Fout.write((char*)&val,sizeof(val));
-        val=RV_s;
-        Fout.write((char*)&val,sizeof(val));
-        for (int k=0;k<3;k++) for (int n=0;n<3;n++) val9[k*3+n]=RV_eigvec(k,n);
-        Fout.write((char*)val9,sizeof(val)*9);
-
-        if (opt.iextrahalooutput) {
-            for (int k=0;k<3;k++) val3[k]=gJ200m[k];
-            Fout.write((char*)val3,sizeof(val)*3);
-            for (int k=0;k<3;k++) val3[k]=gJ200c[k];
-            Fout.write((char*)val3,sizeof(val)*3);
-            for (int k=0;k<3;k++) val3[k]=gJBN98[k];
-            Fout.write((char*)val3,sizeof(val)*3);
-            if (opt.iInclusiveHalo>0) {
-                val=gM200m_excl;
-                Fout.write((char*)&val,sizeof(val));
-                val=gM200c_excl;
-                Fout.write((char*)&val,sizeof(val));
-                val=gMBN98_excl;
-                Fout.write((char*)&val,sizeof(val));
-
-                val=gR200m_excl;
-                Fout.write((char*)&val,sizeof(val));
-                val=gR200c_excl;
-                Fout.write((char*)&val,sizeof(val));
-                val=gRBN98_excl;
-                Fout.write((char*)&val,sizeof(val));
-
-                for (int k=0;k<3;k++) val3[k]=gJ200m_excl[k];
-                Fout.write((char*)val3,sizeof(val)*3);
-                for (int k=0;k<3;k++) val3[k]=gJ200c_excl[k];
-                Fout.write((char*)val3,sizeof(val)*3);
-                for (int k=0;k<3;k++) val3[k]=gJBN98_excl[k];
-                Fout.write((char*)val3,sizeof(val)*3);
-            }
-        }
-#ifdef GASON
-        idval=n_gas;
-        Fout.write((char*)&idval,sizeof(idval));
-        val=M_gas;
-        Fout.write((char*)&val,sizeof(val));
-        val=M_gas_rvmax;
-        Fout.write((char*)&val,sizeof(val));
-        val=M_gas_30kpc;
-        Fout.write((char*)&val,sizeof(val));
-        val=M_gas_500c;
-        Fout.write((char*)&val,sizeof(val));
-
-        for (int k=0;k<3;k++) val3[k]=cm_gas[k];
-        Fout.write((char*)val3,sizeof(val)*3);
-        for (int k=0;k<3;k++) val3[k]=cmvel_gas[k];
-        Fout.write((char*)val3,sizeof(val)*3);
-
-        val=Efrac_gas;
-        Fout.write((char*)&val,sizeof(val));
-
-        val=Rhalfmass_gas;
-        Fout.write((char*)&val,sizeof(val));
-
-        for (int k=0;k<3;k++) for (int n=0;n<3;n++) val9[k*3+n]=veldisp_gas(k,n);
-        Fout.write((char*)val9,sizeof(val)*9);
-
-        for (int k=0;k<3;k++) val3[k]=L_gas[k];
-        Fout.write((char*)val3,sizeof(val)*3);
-
-        val=q_gas;
-        Fout.write((char*)&val,sizeof(val));
-        val=s_gas;
-        Fout.write((char*)&val,sizeof(val));
-        for (int k=0;k<3;k++) for (int n=0;n<3;n++) val9[k*3+n]=eigvec_gas(k,n);
-        Fout.write((char*)val9,sizeof(val)*9);
-
-        val=Krot_gas;
-        Fout.write((char*)&val,sizeof(val));
-        val=Temp_mean_gas;
-        Fout.write((char*)&val,sizeof(val));
-
-#ifdef STARON
-        val=Z_mean_gas;
-        Fout.write((char*)&val,sizeof(val));
-        val=SFR_gas;
-        Fout.write((char*)&val,sizeof(val));
-#endif
-
-    if (opt.iextragasoutput) {
-        val=M_200mean_gas;
-        Fout.write((char*)&val,sizeof(val));
-        val=M_200crit_gas;
-        Fout.write((char*)&val,sizeof(val));
-        val=M_BN98_gas;
-        Fout.write((char*)&val,sizeof(val));
-        for (int k=0;k<3;k++) val3[k]=L_200mean_gas[k];
-        Fout.write((char*)val3,sizeof(val)*3);
-        for (int k=0;k<3;k++) val3[k]=L_200crit_gas[k];
-        Fout.write((char*)val3,sizeof(val)*3);
-        for (int k=0;k<3;k++) val3[k]=L_BN98_gas[k];
-        Fout.write((char*)val3,sizeof(val)*3);
-        if (opt.iInclusiveHalo>0) {
-            val=M_200mean_excl_gas;
-            Fout.write((char*)&val,sizeof(val));
-            val=M_200crit_excl_gas;
-            Fout.write((char*)&val,sizeof(val));
-            val=M_BN98_excl_gas;
-            Fout.write((char*)&val,sizeof(val));
-            for (int k=0;k<3;k++) val3[k]=L_200mean_excl_gas[k];
-            Fout.write((char*)val3,sizeof(val)*3);
-            for (int k=0;k<3;k++) val3[k]=L_200crit_excl_gas[k];
-            Fout.write((char*)val3,sizeof(val)*3);
-            for (int k=0;k<3;k++) val3[k]=L_BN98_excl_gas[k];
-            Fout.write((char*)val3,sizeof(val)*3);
-        }
-    }
-#endif
-
-#ifdef STARON
-        idval=n_star;
-        Fout.write((char*)&idval,sizeof(idval));
-        val=M_star;
-        Fout.write((char*)&val,sizeof(val));
-        val=M_star_rvmax;
-        Fout.write((char*)&val,sizeof(val));
-        val=M_star_30kpc;
-        Fout.write((char*)&val,sizeof(val));
-        val=M_star_500c;
-        Fout.write((char*)&val,sizeof(val));
-
-        for (int k=0;k<3;k++) val3[k]=cm_star[k];
-        Fout.write((char*)val3,sizeof(val)*3);
-        for (int k=0;k<3;k++) val3[k]=cmvel_star[k];
-        Fout.write((char*)val3,sizeof(val)*3);
-
-        val=Efrac_star;
-        Fout.write((char*)&val,sizeof(val));
-
-        val=Rhalfmass_star;
-        Fout.write((char*)&val,sizeof(val));
-
-        for (int k=0;k<3;k++) for (int n=0;n<3;n++) val9[k*3+n]=veldisp_star(k,n);
-        Fout.write((char*)val9,sizeof(val)*9);
-
-        for (int k=0;k<3;k++) val3[k]=L_star[k];
-        Fout.write((char*)val3,sizeof(val)*3);
-
-        val=q_star;
-        Fout.write((char*)&val,sizeof(val));
-        val=s_star;
-        Fout.write((char*)&val,sizeof(val));
-        for (int k=0;k<3;k++) for (int n=0;n<3;n++) val9[k*3+n]=eigvec_star(k,n);
-        Fout.write((char*)val9,sizeof(val)*9);
-
-        val=Krot_star;
-        Fout.write((char*)&val,sizeof(val));
-        val=t_mean_star;
-        Fout.write((char*)&val,sizeof(val));
-        val=Z_mean_star;
-        Fout.write((char*)&val,sizeof(val));
-
-        if (opt.iextrastaroutput) {
-            val=M_200mean_star;
-            Fout.write((char*)&val,sizeof(val));
-            val=M_200crit_star;
-            Fout.write((char*)&val,sizeof(val));
-            val=M_BN98_star;
-            Fout.write((char*)&val,sizeof(val));
-            for (int k=0;k<3;k++) val3[k]=L_200mean_star[k];
-            Fout.write((char*)val3,sizeof(val)*3);
-            for (int k=0;k<3;k++) val3[k]=L_200crit_star[k];
-            Fout.write((char*)val3,sizeof(val)*3);
-            for (int k=0;k<3;k++) val3[k]=L_BN98_star[k];
-            Fout.write((char*)val3,sizeof(val)*3);
-            if (opt.iInclusiveHalo>0) {
-                val=M_200mean_excl_star;
-                Fout.write((char*)&val,sizeof(val));
-                val=M_200crit_excl_star;
-                Fout.write((char*)&val,sizeof(val));
-                val=M_BN98_excl_star;
-                Fout.write((char*)&val,sizeof(val));
-                for (int k=0;k<3;k++) val3[k]=L_200mean_excl_star[k];
-                Fout.write((char*)val3,sizeof(val)*3);
-                for (int k=0;k<3;k++) val3[k]=L_200crit_excl_star[k];
-                Fout.write((char*)val3,sizeof(val)*3);
-                for (int k=0;k<3;k++) val3[k]=L_BN98_excl_star[k];
-                Fout.write((char*)val3,sizeof(val)*3);
-            }
-        }
-#endif
-
-#ifdef BHON
-        idval=n_bh;
-        Fout.write((char*)&idval,sizeof(idval));
-        val=M_bh;
-        Fout.write((char*)&val,sizeof(val));
-#endif
-#ifdef HIGHRES
-        idval=n_interloper;
-        Fout.write((char*)&idval,sizeof(idval));
-        val=M_interloper;
-        Fout.write((char*)&val,sizeof(val));
-#endif
-
-#if defined(GASON) && defined(STARON)
-    val=M_gas_sf;
-    Fout.write((char*)&val,sizeof(val));
-    val=Rhalfmass_gas_sf;
-    Fout.write((char*)&val,sizeof(val));
-    val=sigV_gas_sf;
-    Fout.write((char*)&val,sizeof(val));
-    for (int k=0;k<3;k++) val3[k]=L_gas_sf[k];
-    Fout.write((char*)val3,sizeof(val)*3);
-    val=Krot_gas_sf;
-    Fout.write((char*)&val,sizeof(val));
-    val=Temp_mean_gas_sf;
-    Fout.write((char*)&val,sizeof(val));
-    val=Z_mean_gas_sf;
-    Fout.write((char*)&val,sizeof(val));
-
-    if (opt.iextragasoutput) {
-    val=M_200mean_gas_sf;
-    Fout.write((char*)&val,sizeof(val));
-    val=M_200crit_gas_sf;
-    Fout.write((char*)&val,sizeof(val));
-    val=M_BN98_gas_sf;
-    Fout.write((char*)&val,sizeof(val));
-    for (int k=0;k<3;k++) val3[k]=L_200mean_gas_sf[k];
-    Fout.write((char*)val3,sizeof(val)*3);
-    for (int k=0;k<3;k++) val3[k]=L_200crit_gas_sf[k];
-    Fout.write((char*)val3,sizeof(val)*3);
-    for (int k=0;k<3;k++) val3[k]=L_BN98_gas_sf[k];
-    Fout.write((char*)val3,sizeof(val)*3);
-    if (opt.iInclusiveHalo>0) {
-        val=M_200mean_excl_gas_sf;
-        Fout.write((char*)&val,sizeof(val));
-        val=M_200crit_excl_gas_sf;
-        Fout.write((char*)&val,sizeof(val));
-        val=M_BN98_excl_gas_sf;
-        Fout.write((char*)&val,sizeof(val));
-        for (int k=0;k<3;k++) val3[k]=L_200mean_excl_gas_sf[k];
-        Fout.write((char*)val3,sizeof(val)*3);
-        for (int k=0;k<3;k++) val3[k]=L_200crit_excl_gas_sf[k];
-        Fout.write((char*)val3,sizeof(val)*3);
-        for (int k=0;k<3;k++) val3[k]=L_BN98_excl_gas_sf[k];
-        Fout.write((char*)val3,sizeof(val)*3);
-    }
-    }
-
-    val=M_gas_nsf;
-    Fout.write((char*)&val,sizeof(val));
-    val=Rhalfmass_gas_nsf;
-    Fout.write((char*)&val,sizeof(val));
-    val=sigV_gas_nsf;
-    Fout.write((char*)&val,sizeof(val));
-    for (int k=0;k<3;k++) val3[k]=L_gas_nsf[k];
-    Fout.write((char*)val3,sizeof(val)*3);
-    val=Krot_gas_nsf;
-    Fout.write((char*)&val,sizeof(val));
-    val=Temp_mean_gas_nsf;
-    Fout.write((char*)&val,sizeof(val));
-    val=Z_mean_gas_nsf;
-    Fout.write((char*)&val,sizeof(val));
-
-    if (opt.iextragasoutput) {
-    val=M_200mean_gas_nsf;
-    Fout.write((char*)&val,sizeof(val));
-    val=M_200crit_gas_nsf;
-    Fout.write((char*)&val,sizeof(val));
-    val=M_BN98_gas_nsf;
-    Fout.write((char*)&val,sizeof(val));
-    for (int k=0;k<3;k++) val3[k]=L_200mean_gas_nsf[k];
-    Fout.write((char*)val3,sizeof(val)*3);
-    for (int k=0;k<3;k++) val3[k]=L_200crit_gas_nsf[k];
-    Fout.write((char*)val3,sizeof(val)*3);
-    for (int k=0;k<3;k++) val3[k]=L_BN98_gas_nsf[k];
-    Fout.write((char*)val3,sizeof(val)*3);
-    if (opt.iInclusiveHalo>0) {
-        val=M_200mean_excl_gas_nsf;
-        Fout.write((char*)&val,sizeof(val));
-        val=M_200crit_excl_gas_nsf;
-        Fout.write((char*)&val,sizeof(val));
-        val=M_BN98_excl_gas_nsf;
-        Fout.write((char*)&val,sizeof(val));
-        for (int k=0;k<3;k++) val3[k]=L_200mean_excl_gas_nsf[k];
-        Fout.write((char*)val3,sizeof(val)*3);
-        for (int k=0;k<3;k++) val3[k]=L_200crit_excl_gas_nsf[k];
-        Fout.write((char*)val3,sizeof(val)*3);
-        for (int k=0;k<3;k++) val3[k]=L_BN98_excl_gas_nsf[k];
-        Fout.write((char*)val3,sizeof(val)*3);
-    }
-    }
-#endif
-        if (opt.iaperturecalc && opt.aperturenum>0){
-            for (auto j=0;j<opt.aperturenum;j++) {
-                Fout.write((char*)&aperture_npart[j],sizeof(int));
-            }
-#ifdef GASON
-            for (auto j=0;j<opt.aperturenum;j++) {
-                Fout.write((char*)&aperture_npart_gas[j],sizeof(int));
-            }
-#ifdef STARON
-            for (auto j=0;j<opt.aperturenum;j++) {
-                Fout.write((char*)&aperture_npart_gas_sf[j],sizeof(int));
-            }
-            for (auto j=0;j<opt.aperturenum;j++) {
-                Fout.write((char*)&aperture_npart_gas_nsf[j],sizeof(int));
-            }
-#endif
-#endif
-#ifdef STARON
-            for (auto j=0;j<opt.aperturenum;j++) {
-                Fout.write((char*)&aperture_npart_star[j],sizeof(int));
-            }
-#endif
-            for (auto j=0;j<opt.aperturenum;j++) {
-                Fout.write((char*)&aperture_mass[j],sizeof(val));
-            }
-            #ifdef GASON
-            for (auto j=0;j<opt.aperturenum;j++) {
-                Fout.write((char*)&aperture_mass_gas[j],sizeof(val));
-            }
-            #ifdef STARON
-            for (auto j=0;j<opt.aperturenum;j++) {
-                Fout.write((char*)&aperture_mass_gas_sf[j],sizeof(val));
-            }
-            for (auto j=0;j<opt.aperturenum;j++) {
-                Fout.write((char*)&aperture_mass_gas_nsf[j],sizeof(val));
-            }
-            #endif
-            #endif
-            #ifdef STARON
-            for (auto j=0;j<opt.aperturenum;j++) {
-                Fout.write((char*)&aperture_mass_star[j],sizeof(val));
-            }
-            #endif
-            for (auto j=0;j<opt.aperturenum;j++) {
-                Fout.write((char*)&aperture_rhalfmass[j],sizeof(val));
-            }
-#ifdef GASON
-            for (auto j=0;j<opt.aperturenum;j++) {
-                Fout.write((char*)&aperture_rhalfmass_gas[j],sizeof(val));
-            }
-#ifdef STARON
-            for (auto j=0;j<opt.aperturenum;j++) {
-                Fout.write((char*)&aperture_rhalfmass_gas_sf[j],sizeof(val));
-            }
-            for (auto j=0;j<opt.aperturenum;j++) {
-                Fout.write((char*)&aperture_rhalfmass_gas_nsf[j],sizeof(val));
-            }
-#endif
-#endif
-#ifdef STARON
-            for (auto j=0;j<opt.aperturenum;j++) {
-                Fout.write((char*)&aperture_rhalfmass_star[j],sizeof(val));
-            }
-#endif
-            for (auto j=0;j<opt.aperturenum;j++) {
-                Fout.write((char*)&aperture_veldisp[j],sizeof(val));
-            }
-#ifdef GASON
-            for (auto j=0;j<opt.aperturenum;j++) {
-                Fout.write((char*)&aperture_veldisp_gas[j],sizeof(val));
-            }
-#ifdef STARON
-            for (auto j=0;j<opt.aperturenum;j++) {
-                Fout.write((char*)&aperture_veldisp_gas_sf[j],sizeof(val));
-            }
-            for (auto j=0;j<opt.aperturenum;j++) {
-                Fout.write((char*)&aperture_veldisp_gas_nsf[j],sizeof(val));
-            }
-#endif
-#endif
-#ifdef STARON
-            for (auto j=0;j<opt.aperturenum;j++) {
-                Fout.write((char*)&aperture_veldisp_star[j],sizeof(val));
-            }
-#endif
-#if defined(GASON) && defined(STARON)
-            for (auto j=0;j<opt.aperturenum;j++) {
-                Fout.write((char*)&aperture_SFR_gas[j],sizeof(val));
-            }
-#endif
-        }
-        if (opt.iaperturecalc && opt.apertureprojnum>0){
-            for (auto k=0;k<3;k++) {
-            for (auto j=0;j<opt.apertureprojnum;j++) {
-                Fout.write((char*)&aperture_mass_proj[j][k],sizeof(val));
-            }
-            #ifdef GASON
-            for (auto j=0;j<opt.apertureprojnum;j++) {
-                Fout.write((char*)&aperture_mass_proj_gas[j][k],sizeof(val));
-            }
-            #ifdef STARON
-            for (auto j=0;j<opt.apertureprojnum;j++) {
-                Fout.write((char*)&aperture_mass_proj_gas_sf[j][k],sizeof(val));
-            }
-            for (auto j=0;j<opt.apertureprojnum;j++) {
-                Fout.write((char*)&aperture_mass_proj_gas_nsf[j][k],sizeof(val));
-            }
-            #endif
-            #endif
-            #ifdef STARON
-            for (auto j=0;j<opt.apertureprojnum;j++) {
-                Fout.write((char*)&aperture_mass_proj_star[j][k],sizeof(val));
-            }
-            #endif
-            for (auto j=0;j<opt.apertureprojnum;j++) {
-                Fout.write((char*)&aperture_rhalfmass_proj[j][k],sizeof(val));
-            }
-            #ifdef GASON
-            for (auto j=0;j<opt.apertureprojnum;j++) {
-                Fout.write((char*)&aperture_rhalfmass_proj_gas[j][k],sizeof(val));
-            }
-            #ifdef STARON
-            for (auto j=0;j<opt.apertureprojnum;j++) {
-                Fout.write((char*)&aperture_rhalfmass_proj_gas_sf[j][k],sizeof(val));
-            }
-            for (auto j=0;j<opt.apertureprojnum;j++) {
-                Fout.write((char*)&aperture_rhalfmass_proj_gas_nsf[j][k],sizeof(val));
-            }
-            #endif
-            #endif
-            #ifdef STARON
-            for (auto j=0;j<opt.apertureprojnum;j++) {
-                Fout.write((char*)&aperture_rhalfmass_proj_star[j][k],sizeof(val));
-            }
-            #endif
-#if defined(GASON) && defined(STARON)
-            for (auto j=0;j<opt.apertureprojnum;j++) {
-                Fout.write((char*)&aperture_SFR_proj_gas[j][k],sizeof(val));
-            }
-#endif
-            }
-        }
-        if (opt.SOnum>0){
-            for (auto j=0;j<opt.SOnum;j++) {
-                Fout.write((char*)&SO_mass[j],sizeof(int));
-            }
-            for (auto j=0;j<opt.SOnum;j++) {
-                Fout.write((char*)&SO_radius[j],sizeof(int));
-            }
-#ifdef GASON
-            if (opt.iextragasoutput && opt.iextrahalooutput)
-            for (auto j=0;j<opt.SOnum;j++) {
-                Fout.write((char*)&SO_mass_gas[j],sizeof(int));
-            }
-#ifdef STARON
-#endif
-#endif
-#ifdef STARON
-            if (opt.iextrastaroutput && opt.iextrahalooutput)
-            for (auto j=0;j<opt.SOnum;j++) {
-                Fout.write((char*)&SO_mass_star[j],sizeof(int));
-            }
-#endif
-        }
-        if (opt.SOnum>0 && opt.iextrahalooutput){
-            for (auto j=0;j<opt.SOnum;j++) {
-                for (auto k=0;k<3;k++) Fout.write((char*)&SO_angularmomentum[j][k],sizeof(int));
-
-            }
-#ifdef GASON
-            if (opt.iextragasoutput)
-            for (auto j=0;j<opt.SOnum;j++) {
-                for (auto k=0;k<3;k++) Fout.write((char*)&SO_angularmomentum_gas[j][k],sizeof(int));
-            }
-#ifdef STARON
-#endif
-#endif
-#ifdef STARON
-            if (opt.iextrastaroutput)
-            for (auto j=0;j<opt.SOnum;j++) {
-                for (auto k=0;k<3;k++) Fout.write((char*)&SO_angularmomentum_star[j][k],sizeof(int));
-            }
-#endif
-        }
-    }
-
+    void WriteBinary(fstream &Fout, Options &opt);
+    void WriteAscii(fstream &Fout, Options &opt);
     ///write (append) the properties data to an already open ascii file
-    void WriteAscii(fstream &Fout, Options&opt){
-        Fout<<haloid<<" ";
-        Fout<<ibound<<" ";
-        Fout<<iminpot<<" ";
-        Fout<<hostid<<" ";
-        Fout<<numsubs<<" ";
-        Fout<<num<<" ";
-        Fout<<stype<<" ";
-        if (opt.iKeepFOF==1) {
-            Fout<<directhostid<<" ";
-            Fout<<hostfofid<<" ";
-        }
-        Fout<<gMvir<<" ";
-        for (int k=0;k<3;k++) Fout<<gcm[k]<<" ";
-        for (int k=0;k<3;k++) Fout<<gposmbp[k]<<" ";
-        for (int k=0;k<3;k++) Fout<<gposminpot[k]<<" ";
-        for (int k=0;k<3;k++) Fout<<gcmvel[k]<<" ";
-        for (int k=0;k<3;k++) Fout<<gvelmbp[k]<<" ";
-        for (int k=0;k<3;k++) Fout<<gvelminpot[k]<<" ";
-        Fout<<gmass<<" ";
-        Fout<<gMFOF<<" ";
-        Fout<<gM200m<<" ";
-        Fout<<gM200c<<" ";
-        Fout<<gMBN98<<" ";
-        Fout<<Efrac<<" ";
-        Fout<<gRvir<<" ";
-        Fout<<gsize<<" ";
-        Fout<<gR200m<<" ";
-        Fout<<gR200c<<" ";
-        Fout<<gRBN98<<" ";
-        Fout<<gRhalfmass<<" ";
-        Fout<<gRmaxvel<<" ";
-        Fout<<gmaxvel<<" ";
-        Fout<<gsigma_v<<" ";
-        for (int k=0;k<3;k++) for (int n=0;n<3;n++) Fout<<gveldisp(k,n)<<" ";
-        Fout<<glambda_B<<" ";
-        for (int k=0;k<3;k++) Fout<<gJ[k]<<" ";
-        Fout<<gq<<" ";
-        Fout<<gs<<" ";
-        for (int k=0;k<3;k++) for (int n=0;n<3;n++) Fout<<geigvec(k,n)<<" ";
-        Fout<<cNFW<<" ";
-        Fout<<Krot<<" ";
-        Fout<<T<<" ";
-        Fout<<Pot<<" ";
-
-        Fout<<RV_sigma_v<<" ";
-        for (int k=0;k<3;k++) for (int n=0;n<3;n++) Fout<<RV_veldisp(k,n)<<" ";
-        Fout<<RV_lambda_B<<" ";
-        for (int k=0;k<3;k++) Fout<<RV_J[k]<<" ";
-        Fout<<RV_q<<" ";
-        Fout<<RV_s<<" ";
-        for (int k=0;k<3;k++) for (int n=0;n<3;n++) Fout<<RV_eigvec(k,n)<<" ";
-
-        if (opt.iextrahalooutput) {
-            for (int k=0;k<3;k++) Fout<<gJ200m[k]<<" ";
-            for (int k=0;k<3;k++) Fout<<gJ200c[k]<<" ";
-            for (int k=0;k<3;k++) Fout<<gJBN98[k]<<" ";
-            if (opt.iInclusiveHalo>0) {
-                Fout<<gM200m_excl<<" ";
-                Fout<<gM200c_excl<<" ";
-                Fout<<gMBN98_excl<<" ";
-                Fout<<gR200m_excl<<" ";
-                Fout<<gR200c_excl<<" ";
-                Fout<<gRBN98_excl<<" ";
-                for (int k=0;k<3;k++) Fout<<gJ200m_excl[k]<<" ";
-                for (int k=0;k<3;k++) Fout<<gJ200c_excl[k]<<" ";
-                for (int k=0;k<3;k++) Fout<<gJBN98_excl[k]<<" ";
-            }
-        }
-
-#ifdef GASON
-        Fout<<n_gas<<" ";
-        Fout<<M_gas<<" ";
-        Fout<<M_gas_rvmax<<" ";
-        Fout<<M_gas_30kpc<<" ";
-        //Fout<<M_gas_50kpc<<" ";
-        Fout<<M_gas_500c<<" ";
-        for (int k=0;k<3;k++) Fout<<cm_gas[k]<<" ";
-        for (int k=0;k<3;k++) Fout<<cmvel_gas[k]<<" ";
-        Fout<<Efrac_gas<<" ";
-        Fout<<Rhalfmass_gas<<" ";
-        for (int k=0;k<3;k++) for (int n=0;n<3;n++) Fout<<veldisp_gas(k,n)<<" ";
-        for (int k=0;k<3;k++) Fout<<L_gas[k]<<" ";
-        Fout<<q_gas<<" ";
-        Fout<<s_gas<<" ";
-        for (int k=0;k<3;k++) for (int n=0;n<3;n++) Fout<<eigvec_gas(k,n)<<" ";
-        Fout<<Krot_gas<<" ";
-        Fout<<Temp_mean_gas<<" ";
-#ifdef STARON
-        Fout<<Z_mean_gas<<" ";
-        Fout<<SFR_gas<<" ";
-#endif
-    if (opt.iextragasoutput) {
-        Fout<<M_200mean_gas<<" ";
-        Fout<<M_200crit_gas<<" ";
-        Fout<<M_BN98_gas<<" ";
-        for (int k=0;k<3;k++) Fout<<L_200mean_gas[k]<<" ";
-        for (int k=0;k<3;k++) Fout<<L_200crit_gas[k]<<" ";
-        for (int k=0;k<3;k++) Fout<<L_BN98_gas[k]<<" ";
-        if (opt.iInclusiveHalo>0) {
-            Fout<<M_200mean_excl_gas<<" ";
-            Fout<<M_200crit_excl_gas<<" ";
-            Fout<<M_BN98_excl_gas<<" ";
-            for (int k=0;k<3;k++) Fout<<L_200mean_excl_gas[k]<<" ";
-            for (int k=0;k<3;k++) Fout<<L_200crit_excl_gas[k]<<" ";
-            for (int k=0;k<3;k++) Fout<<L_BN98_excl_gas[k]<<" ";
-        }
-    }
-#endif
-
-#ifdef STARON
-        Fout<<n_star<<" ";
-        Fout<<M_star<<" ";
-        Fout<<M_star_rvmax<<" ";
-        Fout<<M_star_30kpc<<" ";
-        //Fout<<M_star_50kpc<<" ";
-        Fout<<M_star_500c<<" ";
-        for (int k=0;k<3;k++) Fout<<cm_star[k]<<" ";
-        for (int k=0;k<3;k++) Fout<<cmvel_star[k]<<" ";
-        Fout<<Efrac_star<<" ";
-        Fout<<Rhalfmass_star<<" ";
-        for (int k=0;k<3;k++) for (int n=0;n<3;n++) Fout<<veldisp_star(k,n)<<" ";
-        for (int k=0;k<3;k++) Fout<<L_star[k]<<" ";
-        Fout<<q_star<<" ";
-        Fout<<s_star<<" ";
-        for (int k=0;k<3;k++) for (int n=0;n<3;n++) Fout<<eigvec_star(k,n)<<" ";
-        Fout<<Krot_star<<" ";
-        Fout<<t_mean_star<<" ";
-        Fout<<Z_mean_star<<" ";
-        if (opt.iextrastaroutput) {
-            Fout<<M_200mean_star<<" ";
-            Fout<<M_200crit_star<<" ";
-            Fout<<M_BN98_star<<" ";
-            for (int k=0;k<3;k++) Fout<<L_200mean_star[k]<<" ";
-            for (int k=0;k<3;k++) Fout<<L_200crit_star[k]<<" ";
-            for (int k=0;k<3;k++) Fout<<L_BN98_star[k]<<" ";
-            if (opt.iInclusiveHalo>0) {
-                Fout<<M_200mean_excl_star<<" ";
-                Fout<<M_200crit_excl_star<<" ";
-                Fout<<M_BN98_excl_star<<" ";
-                for (int k=0;k<3;k++) Fout<<L_200mean_excl_star[k]<<" ";
-                for (int k=0;k<3;k++) Fout<<L_200crit_excl_star[k]<<" ";
-                for (int k=0;k<3;k++) Fout<<L_BN98_excl_star[k]<<" ";
-            }
-        }
-#endif
-
-#ifdef BHON
-        Fout<<n_bh<<" ";
-        Fout<<M_bh<<" ";
-#endif
-#ifdef HIGHRES
-        Fout<<n_interloper<<" ";
-        Fout<<M_interloper<<" ";
-        if (opt.iextrainterloperoutput) {
-            Fout<<M_200mean_interloper<<" ";
-            Fout<<M_200crit_interloper<<" ";
-            Fout<<M_BN98_interloper<<" ";
-            if (opt.iInclusiveHalo>0) {
-                Fout<<M_200mean_excl_interloper<<" ";
-                Fout<<M_200crit_excl_interloper<<" ";
-                Fout<<M_BN98_excl_interloper<<" ";
-            }
-        }
-#endif
-
-#if defined(GASON) && defined(STARON)
-        Fout<<M_gas_sf<<" ";
-        Fout<<Rhalfmass_gas_sf<<" ";
-        Fout<<sigV_gas_sf<<" ";
-        for (int k=0;k<3;k++) Fout<<L_gas_sf[k]<<" ";
-        Fout<<Krot_gas_sf<<" ";
-        Fout<<Temp_mean_gas_sf<<" ";
-        Fout<<Z_mean_gas_sf<<" ";
-        if (opt.iextragasoutput) {
-            Fout<<M_200mean_gas_sf<<" ";
-            Fout<<M_200crit_gas_sf<<" ";
-            Fout<<M_BN98_gas_sf<<" ";
-            for (int k=0;k<3;k++) Fout<<L_200mean_gas_sf[k]<<" ";
-            for (int k=0;k<3;k++) Fout<<L_200crit_gas_sf[k]<<" ";
-            for (int k=0;k<3;k++) Fout<<L_BN98_gas_sf[k]<<" ";
-            if (opt.iInclusiveHalo>0) {
-                Fout<<M_200mean_excl_gas_sf<<" ";
-                Fout<<M_200crit_excl_gas_sf<<" ";
-                Fout<<M_BN98_excl_gas_sf<<" ";
-                for (int k=0;k<3;k++) Fout<<L_200mean_excl_gas_sf[k]<<" ";
-                for (int k=0;k<3;k++) Fout<<L_200crit_excl_gas_sf[k]<<" ";
-                for (int k=0;k<3;k++) Fout<<L_BN98_excl_gas_sf[k]<<" ";
-            }
-        }
-        Fout<<M_gas_nsf<<" ";
-        Fout<<Rhalfmass_gas_nsf<<" ";
-        Fout<<sigV_gas_nsf<<" ";
-        for (int k=0;k<3;k++) Fout<<L_gas_nsf[k]<<" ";
-        Fout<<Krot_gas_nsf<<" ";
-        Fout<<Temp_mean_gas_nsf<<" ";
-        Fout<<Z_mean_gas_nsf<<" ";
-        if (opt.iextragasoutput) {
-            Fout<<M_200mean_gas_nsf<<" ";
-            Fout<<M_200crit_gas_nsf<<" ";
-            Fout<<M_BN98_gas_nsf<<" ";
-            for (int k=0;k<3;k++) Fout<<L_200mean_gas_nsf[k]<<" ";
-            for (int k=0;k<3;k++) Fout<<L_200crit_gas_nsf[k]<<" ";
-            for (int k=0;k<3;k++) Fout<<L_BN98_gas_nsf[k]<<" ";
-            if (opt.iInclusiveHalo>0) {
-                Fout<<M_200mean_excl_gas_nsf<<" ";
-                Fout<<M_200crit_excl_gas_nsf<<" ";
-                Fout<<M_BN98_excl_gas_nsf<<" ";
-                for (int k=0;k<3;k++) Fout<<L_200mean_excl_gas_nsf[k]<<" ";
-                for (int k=0;k<3;k++) Fout<<L_200crit_excl_gas_nsf[k]<<" ";
-                for (int k=0;k<3;k++) Fout<<L_BN98_excl_gas_nsf[k]<<" ";
-            }
-        }
-#endif
-
-        if (opt.iaperturecalc && opt.aperturenum>0){
-            for (auto j=0;j<opt.aperturenum;j++) {
-                Fout<<aperture_npart[j]<<" ";
-            }
-#ifdef GASON
-            for (auto j=0;j<opt.aperturenum;j++) {
-                Fout<<aperture_npart_gas[j]<<" ";
-            }
-#ifdef STARON
-            for (auto j=0;j<opt.aperturenum;j++) {
-                Fout<<aperture_npart_gas_sf[j]<<" ";
-            }
-            for (auto j=0;j<opt.aperturenum;j++) {
-                Fout<<aperture_npart_gas_nsf[j]<<" ";
-            }
-#endif
-#endif
-#ifdef STARON
-            for (auto j=0;j<opt.aperturenum;j++) {
-                Fout<<aperture_npart_star[j]<<" ";
-            }
-#endif
-#ifdef HIGHRES
-            for (auto j=0;j<opt.aperturenum;j++) {
-                Fout<<aperture_npart_interloper[j]<<" ";
-            }
-#endif
-            for (auto j=0;j<opt.aperturenum;j++) {
-                Fout<<aperture_mass[j]<<" ";
-            }
-            #ifdef GASON
-            for (auto j=0;j<opt.aperturenum;j++) {
-                Fout<<aperture_mass_gas[j]<<" ";
-            }
-            #ifdef STARON
-            for (auto j=0;j<opt.aperturenum;j++) {
-                Fout<<aperture_mass_gas_sf[j]<<" ";
-            }
-            for (auto j=0;j<opt.aperturenum;j++) {
-                Fout<<aperture_mass_gas_nsf[j]<<" ";
-            }
-#endif
-#endif
-#ifdef STARON
-            for (auto j=0;j<opt.aperturenum;j++) {
-                Fout<<aperture_mass_star[j]<<" ";
-            }
-#endif
-#ifdef HIGHRES
-            for (auto j=0;j<opt.aperturenum;j++) {
-                Fout<<aperture_mass_interloper[j]<<" ";
-            }
-#endif
-            for (auto j=0;j<opt.aperturenum;j++) {
-                Fout<<aperture_rhalfmass[j]<<" ";
-            }
-            #ifdef GASON
-            for (auto j=0;j<opt.aperturenum;j++) {
-                Fout<<aperture_rhalfmass_gas[j]<<" ";
-            }
-            #ifdef STARON
-            for (auto j=0;j<opt.aperturenum;j++) {
-                Fout<<aperture_rhalfmass_gas_sf[j]<<" ";
-            }
-            for (auto j=0;j<opt.aperturenum;j++) {
-                Fout<<aperture_rhalfmass_gas_nsf[j]<<" ";
-            }
-            #endif
-            #endif
-            #ifdef STARON
-            for (auto j=0;j<opt.aperturenum;j++) {
-                Fout<<aperture_rhalfmass_star[j]<<" ";
-            }
-            #endif
-            for (auto j=0;j<opt.aperturenum;j++) {
-                Fout<<aperture_veldisp[j]<<" ";
-            }
-#ifdef GASON
-            for (auto j=0;j<opt.aperturenum;j++) {
-                Fout<<aperture_veldisp_gas[j]<<" ";
-            }
-#ifdef STARON
-            for (auto j=0;j<opt.aperturenum;j++) {
-                Fout<<aperture_veldisp_gas_sf[j]<<" ";
-            }
-            for (auto j=0;j<opt.aperturenum;j++) {
-                Fout<<aperture_veldisp_gas_nsf[j]<<" ";
-            }
-#endif
-#endif
-#ifdef STARON
-            for (auto j=0;j<opt.aperturenum;j++) {
-                Fout<<aperture_veldisp_star[j]<<" ";
-            }
-#endif
-#if defined(GASON) && defined(STARON)
-            for (auto j=0;j<opt.aperturenum;j++) {
-                Fout<<aperture_SFR_gas[j]<<" ";
-            }
-#endif
-        }
-        if (opt.iaperturecalc && opt.apertureprojnum>0) {
-            for (auto k=0;k<3;k++) {
-            for (auto j=0;j<opt.apertureprojnum;j++){
-                Fout<<aperture_mass_proj[j][k]<<" ";
-            }
-            #ifdef GASON
-            for (auto j=0;j<opt.apertureprojnum;j++){
-                Fout<<aperture_mass_proj_gas[j][k]<<" ";
-            }
-            #ifdef STARON
-            for (auto j=0;j<opt.apertureprojnum;j++){
-                Fout<<aperture_mass_proj_gas_sf[j][k]<<" ";
-            }
-            for (auto j=0;j<opt.apertureprojnum;j++){
-                Fout<<aperture_mass_proj_gas_nsf[j][k]<<" ";
-            }
-            #endif
-            #endif
-            #ifdef STARON
-            for (auto j=0;j<opt.apertureprojnum;j++){
-                Fout<<aperture_mass_proj_star[j][k]<<" ";
-            }
-            #endif
-            for (auto j=0;j<opt.apertureprojnum;j++){
-                Fout<<aperture_rhalfmass_proj[j][k]<<" ";
-            }
-            #ifdef GASON
-            for (auto j=0;j<opt.apertureprojnum;j++){
-                Fout<<aperture_rhalfmass_proj_gas[j][k]<<" ";
-            }
-            #ifdef STARON
-            for (auto j=0;j<opt.apertureprojnum;j++){
-                Fout<<aperture_rhalfmass_proj_gas_sf[j][k]<<" ";
-            }
-            for (auto j=0;j<opt.apertureprojnum;j++){
-                Fout<<aperture_rhalfmass_proj_gas_nsf[j][k]<<" ";
-            }
-            #endif
-            #endif
-            #ifdef STARON
-            for (auto j=0;j<opt.apertureprojnum;j++){
-                Fout<<aperture_rhalfmass_proj_star[j][k]<<" ";
-            }
-            #endif
-            #if defined(GASON) && defined(STARON)
-            for (auto j=0;j<opt.apertureprojnum;j++) {
-                Fout<<aperture_SFR_proj_gas[j][k]<<" ";
-            }
-            #endif
-            }
-        }
-        if (opt.SOnum>0){
-            for (auto j=0;j<opt.SOnum;j++) {
-                Fout<<SO_mass[j]<<" ";
-            }
-            for (auto j=0;j<opt.SOnum;j++) {
-                Fout<<SO_radius[j]<<" ";
-            }
-#ifdef GASON
-            if (opt.iextragasoutput && opt.iextrahalooutput)
-            for (auto j=0;j<opt.SOnum;j++) {
-                Fout<<SO_mass_gas[j]<<" ";
-            }
-#ifdef STARON
-#endif
-#endif
-#ifdef STARON
-            if (opt.iextrastaroutput && opt.iextrahalooutput)
-            for (auto j=0;j<opt.SOnum;j++) {
-                Fout<<SO_mass_star[j]<<" ";
-            }
-#endif
-#ifdef HIGHRES
-            if (opt.iextrainterloperoutput && opt.iextrahalooutput)
-            for (auto j=0;j<opt.SOnum;j++) {
-                Fout<<SO_mass_interloper[j]<<" ";
-            }
-#endif
-        }
-        if (opt.SOnum>0 && opt.iextrahalooutput){
-            for (auto j=0;j<opt.SOnum;j++) {
-                for (auto k=0;k<3;k++) Fout<<SO_angularmomentum[j][k]<<" ";
-            }
-#ifdef GASON
-            if (opt.iextragasoutput)
-            for (auto j=0;j<opt.SOnum;j++) {
-                for (auto k=0;k<3;k++) Fout<<SO_angularmomentum_gas[j][k]<<" ";
-            }
-#ifdef STARON
-#endif
-#endif
-#ifdef STARON
-            if (opt.iextrastaroutput)
-            for (auto j=0;j<opt.SOnum;j++) {
-                for (auto k=0;k<3;k++) Fout<<SO_angularmomentum_star[j][k]<<" ";
-            }
-#endif
-        }
-        Fout<<endl;
-    }
 #ifdef USEHDF
     ///write (append) the properties data to an already open hdf file
     //void WriteHDF(H5File &Fhdf, DataSpace *&dataspaces, DataSet *&datasets, Options&opt){};
 #endif
+};
+
+
+//for storing the units of known fields
+struct HeaderUnitInfo{
+    float massdim, lengthdim, velocitydim, timedim, energydim;
+    string extrainfo;
+    HeaderUnitInfo(float md = 0, float ld = 0, float vd = 0, float td = 0, string s = ""){
+        massdim = md;
+        lengthdim = ld;
+        velocitydim = vd;
+        timedim = td;
+        extrainfo = s;
+    };
+    //Parse the string in the format massdim:lengthdim:velocitydim:timedim:energydim if only a string is passed
+    //if format does not match this then just store string
+    HeaderUnitInfo(string s);
 };
 
 /*! Structures stores header info of the data writen by the \ref PropData data structure,
@@ -3596,6 +2607,8 @@ struct PropData
 struct PropDataHeader{
     //list the header info
     vector<string> headerdatainfo;
+    vector<HeaderUnitInfo> unitdatainfo;
+
 #ifdef USEHDF
     // vector<PredType> predtypeinfo;
     vector<hid_t> hdfpredtypeinfo;
@@ -3603,795 +2616,7 @@ struct PropDataHeader{
 #ifdef USEADIOS
     vector<ADIOS_DATATYPES> adiospredtypeinfo;
 #endif
-    PropDataHeader(Options&opt){
-        int sizeval;
-#ifdef USEHDF
-        // vector<PredType> desiredproprealtype;
-        vector<hid_t> hdfdesiredproprealtype;
-        // if (sizeof(Double_t)==sizeof(double)) desiredproprealtype.push_back(PredType::NATIVE_DOUBLE);
-        // else desiredproprealtype.push_back(PredType::NATIVE_FLOAT);
-        if (sizeof(Double_t)==sizeof(double)) hdfdesiredproprealtype.push_back(H5T_NATIVE_DOUBLE);
-        else hdfdesiredproprealtype.push_back(H5T_NATIVE_FLOAT);
-
-#endif
-#ifdef USEADIOS
-        vector<ADIOS_DATATYPES> desiredadiosproprealtype;
-        if (sizeof(Double_t)==sizeof(double)) desiredadiosproprealtype.push_back(ADIOS_DATATYPES::adios_double);
-        else desiredadiosproprealtype.push_back(ADIOS_DATATYPES::adios_real);
-#endif
-
-        headerdatainfo.push_back("ID");
-        headerdatainfo.push_back("ID_mbp");
-        headerdatainfo.push_back("ID_minpot");
-        headerdatainfo.push_back("hostHaloID");
-        headerdatainfo.push_back("numSubStruct");
-        headerdatainfo.push_back("npart");
-        headerdatainfo.push_back("Structuretype");
-        if (opt.iKeepFOF==1){
-            headerdatainfo.push_back("hostDirectHaloID");
-            headerdatainfo.push_back("hostFOFID");
-        }
-
-        //if using hdf, store the type
-#ifdef USEHDF
-        // predtypeinfo.push_back(PredType::STD_U64LE);
-        // predtypeinfo.push_back(PredType::STD_I64LE);
-        // predtypeinfo.push_back(PredType::STD_I64LE);
-        // predtypeinfo.push_back(PredType::STD_I64LE);
-        // predtypeinfo.push_back(PredType::STD_U64LE);
-        // predtypeinfo.push_back(PredType::STD_U64LE);
-        // predtypeinfo.push_back(PredType::STD_I32LE);
-        // if (opt.iKeepFOF==1){
-        //     predtypeinfo.push_back(PredType::STD_I64LE);
-        //     predtypeinfo.push_back(PredType::STD_I64LE);
-        // }
-        hdfpredtypeinfo.push_back(H5T_NATIVE_ULONG);
-        hdfpredtypeinfo.push_back(H5T_NATIVE_LONG);
-        hdfpredtypeinfo.push_back(H5T_NATIVE_LONG);
-        hdfpredtypeinfo.push_back(H5T_NATIVE_LONG);
-        hdfpredtypeinfo.push_back(H5T_NATIVE_ULONG);
-        hdfpredtypeinfo.push_back(H5T_NATIVE_ULONG);
-        hdfpredtypeinfo.push_back(H5T_NATIVE_INT);
-        if (opt.iKeepFOF==1){
-            hdfpredtypeinfo.push_back(H5T_NATIVE_LONG);
-            hdfpredtypeinfo.push_back(H5T_NATIVE_LONG);
-        }
-#endif
-#ifdef USEADIOS
-        adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
-        adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_long);
-        adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_long);
-        adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_long);
-        adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
-        adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
-        adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_integer);
-        if (opt.iKeepFOF==1){
-            adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_long);
-            adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_long);
-        }
-#endif
-
-        headerdatainfo.push_back("Mvir");
-        headerdatainfo.push_back("Xc");
-        headerdatainfo.push_back("Yc");
-        headerdatainfo.push_back("Zc");
-        headerdatainfo.push_back("Xcmbp");
-        headerdatainfo.push_back("Ycmbp");
-        headerdatainfo.push_back("Zcmbp");
-        headerdatainfo.push_back("Xcminpot");
-        headerdatainfo.push_back("Ycminpot");
-        headerdatainfo.push_back("Zcminpot");
-        headerdatainfo.push_back("VXc");
-        headerdatainfo.push_back("VYc");
-        headerdatainfo.push_back("VZc");
-        headerdatainfo.push_back("VXcmbp");
-        headerdatainfo.push_back("VYcmbp");
-        headerdatainfo.push_back("VZcmbp");
-        headerdatainfo.push_back("VXcminpot");
-        headerdatainfo.push_back("VYcminpot");
-        headerdatainfo.push_back("VZcminpot");
-        headerdatainfo.push_back("Mass_tot");
-        headerdatainfo.push_back("Mass_FOF");
-        headerdatainfo.push_back("Mass_200mean");
-        headerdatainfo.push_back("Mass_200crit");
-        headerdatainfo.push_back("Mass_BN98");
-        headerdatainfo.push_back("Efrac");
-        headerdatainfo.push_back("Rvir");
-        headerdatainfo.push_back("R_size");
-        headerdatainfo.push_back("R_200mean");
-        headerdatainfo.push_back("R_200crit");
-        headerdatainfo.push_back("R_BN98");
-        headerdatainfo.push_back("R_HalfMass");
-        headerdatainfo.push_back("Rmax");
-        headerdatainfo.push_back("Vmax");
-        headerdatainfo.push_back("sigV");
-        headerdatainfo.push_back("veldisp_xx");
-        headerdatainfo.push_back("veldisp_xy");
-        headerdatainfo.push_back("veldisp_xz");
-        headerdatainfo.push_back("veldisp_yx");
-        headerdatainfo.push_back("veldisp_yy");
-        headerdatainfo.push_back("veldisp_yz");
-        headerdatainfo.push_back("veldisp_zx");
-        headerdatainfo.push_back("veldisp_zy");
-        headerdatainfo.push_back("veldisp_zz");
-        headerdatainfo.push_back("lambda_B");
-        headerdatainfo.push_back("Lx");
-        headerdatainfo.push_back("Ly");
-        headerdatainfo.push_back("Lz");
-        headerdatainfo.push_back("q");
-        headerdatainfo.push_back("s");
-        headerdatainfo.push_back("eig_xx");
-        headerdatainfo.push_back("eig_xy");
-        headerdatainfo.push_back("eig_xz");
-        headerdatainfo.push_back("eig_yx");
-        headerdatainfo.push_back("eig_yy");
-        headerdatainfo.push_back("eig_yz");
-        headerdatainfo.push_back("eig_zx");
-        headerdatainfo.push_back("eig_zy");
-        headerdatainfo.push_back("eig_zz");
-        headerdatainfo.push_back("cNFW");
-        headerdatainfo.push_back("Krot");
-        headerdatainfo.push_back("Ekin");
-        headerdatainfo.push_back("Epot");
-
-        //some properties within RVmax
-        headerdatainfo.push_back("RVmax_sigV");
-        headerdatainfo.push_back("RVmax_veldisp_xx");
-        headerdatainfo.push_back("RVmax_veldisp_xy");
-        headerdatainfo.push_back("RVmax_veldisp_xz");
-        headerdatainfo.push_back("RVmax_veldisp_yx");
-        headerdatainfo.push_back("RVmax_veldisp_yy");
-        headerdatainfo.push_back("RVmax_veldisp_yz");
-        headerdatainfo.push_back("RVmax_veldisp_zx");
-        headerdatainfo.push_back("RVmax_veldisp_zy");
-        headerdatainfo.push_back("RVmax_veldisp_zz");
-        headerdatainfo.push_back("RVmax_lambda_B");
-        headerdatainfo.push_back("RVmax_Lx");
-        headerdatainfo.push_back("RVmax_Ly");
-        headerdatainfo.push_back("RVmax_Lz");
-        headerdatainfo.push_back("RVmax_q");
-        headerdatainfo.push_back("RVmax_s");
-        headerdatainfo.push_back("RVmax_eig_xx");
-        headerdatainfo.push_back("RVmax_eig_xy");
-        headerdatainfo.push_back("RVmax_eig_xz");
-        headerdatainfo.push_back("RVmax_eig_yx");
-        headerdatainfo.push_back("RVmax_eig_yy");
-        headerdatainfo.push_back("RVmax_eig_yz");
-        headerdatainfo.push_back("RVmax_eig_zx");
-        headerdatainfo.push_back("RVmax_eig_zy");
-        headerdatainfo.push_back("RVmax_eig_zz");
-
-        if (opt.iextrahalooutput) {
-            headerdatainfo.push_back("Lx_200mean");
-            headerdatainfo.push_back("Ly_200mean");
-            headerdatainfo.push_back("Lz_200mean");
-            headerdatainfo.push_back("Lx_200crit");
-            headerdatainfo.push_back("Ly_200crit");
-            headerdatainfo.push_back("Lz_200crit");
-            headerdatainfo.push_back("Lx_BN98");
-            headerdatainfo.push_back("Ly_BN98");
-            headerdatainfo.push_back("Lz_BN98");
-            if (opt.iInclusiveHalo>0) {
-                headerdatainfo.push_back("Mass_200mean_excl");
-                headerdatainfo.push_back("Mass_200crit_excl");
-                headerdatainfo.push_back("Mass_BN98_excl");
-                headerdatainfo.push_back("R_200mean_excl");
-                headerdatainfo.push_back("R_200crit_excl");
-                headerdatainfo.push_back("R_BN98_excl");
-                headerdatainfo.push_back("Lx_200mean_excl");
-                headerdatainfo.push_back("Ly_200mean_excl");
-                headerdatainfo.push_back("Lz_200mean_excl");
-                headerdatainfo.push_back("Lx_200crit_excl");
-                headerdatainfo.push_back("Ly_200crit_excl");
-                headerdatainfo.push_back("Lz_200crit_excl");
-                headerdatainfo.push_back("Lx_BN98_excl");
-                headerdatainfo.push_back("Ly_BN98_excl");
-                headerdatainfo.push_back("Lz_BN98_excl");
-            }
-        }
-
-#ifdef USEHDF
-        sizeval=hdfpredtypeinfo.size();
-        // for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
-        for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
-#endif
-#ifdef USEADIOS
-        sizeval=adiospredtypeinfo.size();
-        for (int i=sizeval;i<headerdatainfo.size();i++) adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
-#endif
-
-#ifdef GASON
-        headerdatainfo.push_back("n_gas");
-#ifdef USEHDF
-        // predtypeinfo.push_back(PredType::STD_U64LE);
-        hdfpredtypeinfo.push_back(H5T_NATIVE_ULONG);
-#endif
-#ifdef USEADIOS
-        adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
-#endif
-        headerdatainfo.push_back("M_gas");
-        headerdatainfo.push_back("M_gas_Rvmax");
-        headerdatainfo.push_back("M_gas_30kpc");
-        //headerdatainfo.push_back("M_gas_50kpc");
-        headerdatainfo.push_back("M_gas_500c");
-        headerdatainfo.push_back("Xc_gas");
-        headerdatainfo.push_back("Yc_gas");
-        headerdatainfo.push_back("Zc_gas");
-        headerdatainfo.push_back("VXc_gas");
-        headerdatainfo.push_back("VYc_gas");
-        headerdatainfo.push_back("VZc_gas");
-        headerdatainfo.push_back("Efrac_gas");
-        headerdatainfo.push_back("R_HalfMass_gas");
-        headerdatainfo.push_back("veldisp_xx_gas");
-        headerdatainfo.push_back("veldisp_xy_gas");
-        headerdatainfo.push_back("veldisp_xz_gas");
-        headerdatainfo.push_back("veldisp_yx_gas");
-        headerdatainfo.push_back("veldisp_yy_gas");
-        headerdatainfo.push_back("veldisp_yz_gas");
-        headerdatainfo.push_back("veldisp_zx_gas");
-        headerdatainfo.push_back("veldisp_zy_gas");
-        headerdatainfo.push_back("veldisp_zz_gas");
-        headerdatainfo.push_back("Lx_gas");
-        headerdatainfo.push_back("Ly_gas");
-        headerdatainfo.push_back("Lz_gas");
-        headerdatainfo.push_back("q_gas");
-        headerdatainfo.push_back("s_gas");
-        headerdatainfo.push_back("eig_xx_gas");
-        headerdatainfo.push_back("eig_xy_gas");
-        headerdatainfo.push_back("eig_xz_gas");
-        headerdatainfo.push_back("eig_yx_gas");
-        headerdatainfo.push_back("eig_yy_gas");
-        headerdatainfo.push_back("eig_yz_gas");
-        headerdatainfo.push_back("eig_zx_gas");
-        headerdatainfo.push_back("eig_zy_gas");
-        headerdatainfo.push_back("eig_zz_gas");
-        headerdatainfo.push_back("Krot_gas");
-        headerdatainfo.push_back("T_gas");
-#ifdef STARON
-        headerdatainfo.push_back("Zmet_gas");
-        headerdatainfo.push_back("SFR_gas");
-#endif
-    if (opt.iextragasoutput) {
-        headerdatainfo.push_back("Mass_200mean_gas");
-        headerdatainfo.push_back("Mass_200crit_gas");
-        headerdatainfo.push_back("Mass_BN98_gas");
-        headerdatainfo.push_back("Lx_200c_gas");
-        headerdatainfo.push_back("Ly_200c_gas");
-        headerdatainfo.push_back("Lz_200c_gas");
-        headerdatainfo.push_back("Lx_200m_gas");
-        headerdatainfo.push_back("Ly_200m_gas");
-        headerdatainfo.push_back("Lz_200m_gas");
-        headerdatainfo.push_back("Lx_BN98_gas");
-        headerdatainfo.push_back("Ly_BN98_gas");
-        headerdatainfo.push_back("Lz_BN98_gas");
-        if (opt.iInclusiveHalo>0) {
-            headerdatainfo.push_back("Mass_200mean_excl_gas");
-            headerdatainfo.push_back("Mass_200crit_excl_gas");
-            headerdatainfo.push_back("Mass_BN98_excl_gas");
-            headerdatainfo.push_back("Lx_200c_excl_gas");
-            headerdatainfo.push_back("Ly_200c_excl_gas");
-            headerdatainfo.push_back("Lz_200c_excl_gas");
-            headerdatainfo.push_back("Lx_200m_excl_gas");
-            headerdatainfo.push_back("Ly_200m_excl_gas");
-            headerdatainfo.push_back("Lz_200m_excl_gas");
-            headerdatainfo.push_back("Lx_BN98_excl_gas");
-            headerdatainfo.push_back("Ly_BN98_excl_gas");
-            headerdatainfo.push_back("Lz_BN98_excl_gas");
-        }
-    }
-#ifdef USEHDF
-        sizeval=hdfpredtypeinfo.size();
-        // for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
-        for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
-#endif
-#ifdef USEADIOS
-        sizeval=adiospredtypeinfo.size();
-        for (int i=sizeval;i<headerdatainfo.size();i++) adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
-#endif
-#endif
-
-#ifdef STARON
-        headerdatainfo.push_back("n_star");
-#ifdef USEHDF
-        // predtypeinfo.push_back(PredType::STD_U64LE);
-        hdfpredtypeinfo.push_back(H5T_NATIVE_ULONG);
-#endif
-#ifdef USEADIOS
-        adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
-#endif
-        headerdatainfo.push_back("M_star");
-        headerdatainfo.push_back("M_star_Rvmax");
-        headerdatainfo.push_back("M_star_30kpc");
-        //headerdatainfo.push_back("M_star_50kpc");
-        headerdatainfo.push_back("M_star_500c");
-        headerdatainfo.push_back("Xc_star");
-        headerdatainfo.push_back("Yc_star");
-        headerdatainfo.push_back("Zc_star");
-        headerdatainfo.push_back("VXc_star");
-        headerdatainfo.push_back("VYc_star");
-        headerdatainfo.push_back("VZc_star");
-        headerdatainfo.push_back("Efrac_star");
-        headerdatainfo.push_back("R_HalfMass_star");
-        headerdatainfo.push_back("veldisp_xx_star");
-        headerdatainfo.push_back("veldisp_xy_star");
-        headerdatainfo.push_back("veldisp_xz_star");
-        headerdatainfo.push_back("veldisp_yx_star");
-        headerdatainfo.push_back("veldisp_yy_star");
-        headerdatainfo.push_back("veldisp_yz_star");
-        headerdatainfo.push_back("veldisp_zx_star");
-        headerdatainfo.push_back("veldisp_zy_star");
-        headerdatainfo.push_back("veldisp_zz_star");
-        headerdatainfo.push_back("Lx_star");
-        headerdatainfo.push_back("Ly_star");
-        headerdatainfo.push_back("Lz_star");
-        headerdatainfo.push_back("q_star");
-        headerdatainfo.push_back("s_star");
-        headerdatainfo.push_back("eig_xx_star");
-        headerdatainfo.push_back("eig_xy_star");
-        headerdatainfo.push_back("eig_xz_star");
-        headerdatainfo.push_back("eig_yx_star");
-        headerdatainfo.push_back("eig_yy_star");
-        headerdatainfo.push_back("eig_yz_star");
-        headerdatainfo.push_back("eig_zx_star");
-        headerdatainfo.push_back("eig_zy_star");
-        headerdatainfo.push_back("eig_zz_star");
-        headerdatainfo.push_back("Krot_star");
-        headerdatainfo.push_back("tage_star");
-        headerdatainfo.push_back("Zmet_star");
-        if (opt.iextrastaroutput) {
-            headerdatainfo.push_back("Mass_200mean_star");
-            headerdatainfo.push_back("Mass_200crit_star");
-            headerdatainfo.push_back("Mass_BN98_star");
-            headerdatainfo.push_back("Lx_200c_star");
-            headerdatainfo.push_back("Ly_200c_star");
-            headerdatainfo.push_back("Lz_200c_star");
-            headerdatainfo.push_back("Lx_200m_star");
-            headerdatainfo.push_back("Ly_200m_star");
-            headerdatainfo.push_back("Lz_200m_star");
-            headerdatainfo.push_back("Lx_BN98_star");
-            headerdatainfo.push_back("Ly_BN98_star");
-            headerdatainfo.push_back("Lz_BN98_star");
-            if (opt.iInclusiveHalo>0) {
-                headerdatainfo.push_back("Mass_200mean_excl_star");
-                headerdatainfo.push_back("Mass_200crit_excl_star");
-                headerdatainfo.push_back("Mass_BN98_excl_star");
-                headerdatainfo.push_back("Lx_200c_excl_star");
-                headerdatainfo.push_back("Ly_200c_excl_star");
-                headerdatainfo.push_back("Lz_200c_excl_star");
-                headerdatainfo.push_back("Lx_200m_excl_star");
-                headerdatainfo.push_back("Ly_200m_excl_star");
-                headerdatainfo.push_back("Lz_200m_excl_star");
-                headerdatainfo.push_back("Lx_BN98_excl_star");
-                headerdatainfo.push_back("Ly_BN98_excl_star");
-                headerdatainfo.push_back("Lz_BN98_excl_star");
-            }
-        }
-#ifdef USEHDF
-        sizeval=hdfpredtypeinfo.size();
-        // for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
-        for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
-#endif
-#ifdef USEADIOS
-        sizeval=adiospredtypeinfo.size();
-        for (int i=sizeval;i<headerdatainfo.size();i++) adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
-#endif
-#endif
-
-#ifdef BHON
-        headerdatainfo.push_back("n_bh");
-#ifdef USEHDF
-        // predtypeinfo.push_back(PredType::STD_U64LE);
-        hdfpredtypeinfo.push_back(H5T_NATIVE_ULONG);
-#endif
-#ifdef USEADIOS
-        adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
-#endif
-        headerdatainfo.push_back("M_bh");
-#ifdef USEHDF
-        sizeval=hdfpredtypeinfo.size();
-        // for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
-        for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
-#endif
-#ifdef USEADIOS
-        sizeval=adiospredtypeinfo.size();
-        for (int i=sizeval;i<headerdatainfo.size();i++) adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
-#endif
-#endif
-
-
-#ifdef HIGHRES
-        headerdatainfo.push_back("n_interloper");
-#ifdef USEHDF
-        // predtypeinfo.push_back(PredType::STD_U64LE);
-        hdfpredtypeinfo.push_back(H5T_NATIVE_ULONG);
-#endif
-#ifdef USEADIOS
-        adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
-#endif
-        headerdatainfo.push_back("M_interloper");
-        if (opt.iextrainterloperoutput) {
-            headerdatainfo.push_back("Mass_200mean_interloper");
-            headerdatainfo.push_back("Mass_200crit_interloper");
-            headerdatainfo.push_back("Mass_BN98_interloper");
-            if (opt.iInclusiveHalo>0) {
-                headerdatainfo.push_back("Mass_200mean_excl_interloper");
-                headerdatainfo.push_back("Mass_200crit_excl_interloper");
-                headerdatainfo.push_back("Mass_BN98_excl_interloper");
-            }
-        }
-#ifdef USEHDF
-        sizeval=hdfpredtypeinfo.size();
-        // for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
-        for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
-#endif
-#ifdef USEADIOS
-        sizeval=adiospredtypeinfo.size();
-        for (int i=sizeval;i<headerdatainfo.size();i++) adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
-#endif
-#endif
-
-#if defined(GASON) && defined(STARON)
-        headerdatainfo.push_back("M_gas_sf");
-        headerdatainfo.push_back("R_HalfMass_gas_sf");
-        headerdatainfo.push_back("sigV_gas_sf");
-        headerdatainfo.push_back("Lx_gas_sf");
-        headerdatainfo.push_back("Ly_gas_sf");
-        headerdatainfo.push_back("Lz_gas_sf");
-        headerdatainfo.push_back("Krot_gas_sf");
-        headerdatainfo.push_back("T_gas_sf");
-        headerdatainfo.push_back("Zmet_gas_sf");
-        if (opt.iextragasoutput) {
-            headerdatainfo.push_back("Mass_200mean_gas_sf");
-            headerdatainfo.push_back("Mass_200crit_gas_sf");
-            headerdatainfo.push_back("Mass_BN98_gas_sf");
-            headerdatainfo.push_back("Lx_200c_gas_sf");
-            headerdatainfo.push_back("Ly_200c_gas_sf");
-            headerdatainfo.push_back("Lz_200c_gas_sf");
-            headerdatainfo.push_back("Lx_200m_gas_sf");
-            headerdatainfo.push_back("Ly_200m_gas_sf");
-            headerdatainfo.push_back("Lz_200m_gas_sf");
-            headerdatainfo.push_back("Lx_BN98_gas_sf");
-            headerdatainfo.push_back("Ly_BN98_gas_sf");
-            headerdatainfo.push_back("Lz_BN98_gas_sf");
-            if (opt.iInclusiveHalo>0) {
-                headerdatainfo.push_back("Mass_200mean_excl_gas_sf");
-                headerdatainfo.push_back("Mass_200crit_excl_gas_sf");
-                headerdatainfo.push_back("Mass_BN98_excl_gas_sf");
-                headerdatainfo.push_back("Lx_200c_excl_gas_sf");
-                headerdatainfo.push_back("Ly_200c_excl_gas_sf");
-                headerdatainfo.push_back("Lz_200c_excl_gas_sf");
-                headerdatainfo.push_back("Lx_200m_excl_gas_sf");
-                headerdatainfo.push_back("Ly_200m_excl_gas_sf");
-                headerdatainfo.push_back("Lz_200m_excl_gas_sf");
-                headerdatainfo.push_back("Lx_BN98_excl_gas_sf");
-                headerdatainfo.push_back("Ly_BN98_excl_gas_sf");
-                headerdatainfo.push_back("Lz_BN98_excl_gas_sf");
-            }
-        }
-        headerdatainfo.push_back("M_gas_nsf");
-        headerdatainfo.push_back("R_HalfMass_gas_nsf");
-        headerdatainfo.push_back("sigV_gas_nsf");
-        headerdatainfo.push_back("Lx_gas_nsf");
-        headerdatainfo.push_back("Ly_gas_nsf");
-        headerdatainfo.push_back("Lz_gas_nsf");
-        headerdatainfo.push_back("Krot_gas_nsf");
-        headerdatainfo.push_back("T_gas_nsf");
-        headerdatainfo.push_back("Zmet_gas_nsf");
-        if (opt.iextragasoutput) {
-            headerdatainfo.push_back("Mass_200mean_gas_nsf");
-            headerdatainfo.push_back("Mass_200crit_gas_nsf");
-            headerdatainfo.push_back("Mass_BN98_gas_nsf");
-            headerdatainfo.push_back("Lx_200c_gas_nsf");
-            headerdatainfo.push_back("Ly_200c_gas_nsf");
-            headerdatainfo.push_back("Lz_200c_gas_nsf");
-            headerdatainfo.push_back("Lx_200m_gas_nsf");
-            headerdatainfo.push_back("Ly_200m_gas_nsf");
-            headerdatainfo.push_back("Lz_200m_gas_nsf");
-            headerdatainfo.push_back("Lx_BN98_gas_nsf");
-            headerdatainfo.push_back("Ly_BN98_gas_nsf");
-            headerdatainfo.push_back("Lz_BN98_gas_nsf");
-            if (opt.iInclusiveHalo>0) {
-                headerdatainfo.push_back("Mass_200mean_excl_gas_nsf");
-                headerdatainfo.push_back("Mass_200crit_excl_gas_nsf");
-                headerdatainfo.push_back("Mass_BN98_excl_gas_nsf");
-                headerdatainfo.push_back("Lx_200c_excl_gas_nsf");
-                headerdatainfo.push_back("Ly_200c_excl_gas_nsf");
-                headerdatainfo.push_back("Lz_200c_excl_gas_nsf");
-                headerdatainfo.push_back("Lx_200m_excl_gas_nsf");
-                headerdatainfo.push_back("Ly_200m_excl_gas_nsf");
-                headerdatainfo.push_back("Lz_200m_excl_gas_nsf");
-                headerdatainfo.push_back("Lx_BN98_excl_gas_nsf");
-                headerdatainfo.push_back("Ly_BN98_excl_gas_nsf");
-                headerdatainfo.push_back("Lz_BN98_excl_gas_nsf");
-            }
-        }
-#ifdef USEHDF
-        sizeval=hdfpredtypeinfo.size();
-        // for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
-        for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
-#endif
-#ifdef USEADIOS
-        sizeval=adiospredtypeinfo.size();
-        for (int i=sizeval;i<headerdatainfo.size();i++) adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
-#endif
-#endif
-
-        //if aperture information calculated also include
-        if (opt.iaperturecalc>0 && opt.aperturenum>0) {
-            for (auto i=0; i<opt.aperturenum;i++)
-                headerdatainfo.push_back((string("Aperture_npart_")+opt.aperture_names_kpc[i]+string("_kpc")));
-#ifdef GASON
-            for (auto i=0; i<opt.aperturenum;i++)
-                headerdatainfo.push_back((string("Aperture_npart_gas_")+opt.aperture_names_kpc[i]+string("_kpc")));
-#ifdef STARON
-            for (auto i=0; i<opt.aperturenum;i++)
-                headerdatainfo.push_back((string("Aperture_npart_gas_sf_")+opt.aperture_names_kpc[i]+string("_kpc")));
-            for (auto i=0; i<opt.aperturenum;i++)
-                headerdatainfo.push_back((string("Aperture_npart_gas_nsf_")+opt.aperture_names_kpc[i]+string("_kpc")));
-#endif
-#endif
-#ifdef STARON
-            for (auto i=0; i<opt.aperturenum;i++)
-                headerdatainfo.push_back((string("Aperture_npart_star_")+opt.aperture_names_kpc[i]+string("_kpc")));
-#endif
-#ifdef HIGHRES
-            for (auto i=0; i<opt.aperturenum;i++)
-                headerdatainfo.push_back((string("Aperture_npart_interloper_")+opt.aperture_names_kpc[i]+string("_kpc")));
-#endif
-#ifdef USEHDF
-            sizeval=hdfpredtypeinfo.size();
-            // for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(PredType::STD_U32LE);
-            for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(H5T_NATIVE_UINT);
-#endif
-#ifdef USEADIOS
-            sizeval=adiospredtypeinfo.size();
-            for (int i=sizeval;i<headerdatainfo.size();i++) adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_int);
-#endif
-            for (auto i=0; i<opt.aperturenum;i++)
-                headerdatainfo.push_back((string("Aperture_mass_")+opt.aperture_names_kpc[i]+string("_kpc")));
-#ifdef GASON
-            for (auto i=0; i<opt.aperturenum;i++)
-                headerdatainfo.push_back((string("Aperture_mass_gas_")+opt.aperture_names_kpc[i]+string("_kpc")));
-#ifdef STARON
-            for (auto i=0; i<opt.aperturenum;i++)
-                headerdatainfo.push_back((string("Aperture_mass_gas_sf_")+opt.aperture_names_kpc[i]+string("_kpc")));
-            for (auto i=0; i<opt.aperturenum;i++)
-                headerdatainfo.push_back((string("Aperture_mass_gas_nsf_")+opt.aperture_names_kpc[i]+string("_kpc")));
-#endif
-#endif
-#ifdef STARON
-            for (auto i=0; i<opt.aperturenum;i++)
-                headerdatainfo.push_back((string("Aperture_mass_star_")+opt.aperture_names_kpc[i]+string("_kpc")));
-#endif
-#ifdef HIGHRES
-            for (auto i=0; i<opt.aperturenum;i++)
-                headerdatainfo.push_back((string("Aperture_mass_interloper_")+opt.aperture_names_kpc[i]+string("_kpc")));
-#endif
-
-            for (auto i=0; i<opt.aperturenum;i++)
-                headerdatainfo.push_back((string("Aperture_rhalfmass_")+opt.aperture_names_kpc[i]+string("_kpc")));
-#ifdef GASON
-            for (auto i=0; i<opt.aperturenum;i++)
-                headerdatainfo.push_back((string("Aperture_rhalfmass_gas_")+opt.aperture_names_kpc[i]+string("_kpc")));
-#ifdef STARON
-            for (auto i=0; i<opt.aperturenum;i++)
-                headerdatainfo.push_back((string("Aperture_rhalfmass_gas_sf_")+opt.aperture_names_kpc[i]+string("_kpc")));
-            for (auto i=0; i<opt.aperturenum;i++)
-                headerdatainfo.push_back((string("Aperture_rhalfmass_gas_nsf_")+opt.aperture_names_kpc[i]+string("_kpc")));
-#endif
-#endif
-#ifdef STARON
-            for (auto i=0; i<opt.aperturenum;i++)
-                headerdatainfo.push_back((string("Aperture_rhalfmass_star_")+opt.aperture_names_kpc[i]+string("_kpc")));
-#endif
-
-            for (auto i=0; i<opt.aperturenum;i++)
-                headerdatainfo.push_back((string("Aperture_veldisp_")+opt.aperture_names_kpc[i]+string("_kpc")));
-#ifdef GASON
-            for (auto i=0; i<opt.aperturenum;i++)
-                headerdatainfo.push_back((string("Aperture_veldisp_gas_")+opt.aperture_names_kpc[i]+string("_kpc")));
-#ifdef STARON
-            for (auto i=0; i<opt.aperturenum;i++)
-                headerdatainfo.push_back((string("Aperture_veldips_gas_sf_")+opt.aperture_names_kpc[i]+string("_kpc")));
-            for (auto i=0; i<opt.aperturenum;i++)
-                headerdatainfo.push_back((string("Aperture_veldisp_gas_nsf_")+opt.aperture_names_kpc[i]+string("_kpc")));
-#endif
-#endif
-#ifdef STARON
-            for (auto i=0; i<opt.aperturenum;i++)
-                headerdatainfo.push_back((string("Aperture_veldisp_star_")+opt.aperture_names_kpc[i]+string("_kpc")));
-#endif
-#if defined(GASON) && defined(STARON)
-            for (auto i=0; i<opt.aperturenum;i++)
-                headerdatainfo.push_back((string("Aperture_SFR_gas_")+opt.aperture_names_kpc[i]+string("_kpc")));
-#endif
-
-#ifdef USEHDF
-            sizeval=hdfpredtypeinfo.size();
-            // for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
-            for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
-#endif
-#ifdef USEADIOS
-            sizeval=adiospredtypeinfo.size();
-            for (int i=sizeval;i<headerdatainfo.size();i++) adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
-#endif
-        }
-        if (opt.iaperturecalc>0 && opt.apertureprojnum>0) {
-            for (auto k=0;k<3;k++) {
-            string projname = "Projected_aperture_"+to_string(k+1)+"_";
-            for (auto i=0; i<opt.apertureprojnum;i++)
-                headerdatainfo.push_back(projname+string("mass_")+opt.aperture_proj_names_kpc[i]+string("_kpc"));
-#ifdef GASON
-            for (auto i=0; i<opt.apertureprojnum;i++)
-                headerdatainfo.push_back(projname+string("mass_gas_")+opt.aperture_proj_names_kpc[i]+string("_kpc"));
-#ifdef STARON
-            for (auto i=0; i<opt.apertureprojnum;i++)
-                headerdatainfo.push_back(projname+string("mass_gas_sf_")+opt.aperture_proj_names_kpc[i]+string("_kpc"));
-            for (auto i=0; i<opt.apertureprojnum;i++)
-                headerdatainfo.push_back(projname+string("mass_gas_nsf_")+opt.aperture_proj_names_kpc[i]+string("_kpc"));
-#endif
-#endif
-#ifdef STARON
-            for (auto i=0; i<opt.apertureprojnum;i++)
-                headerdatainfo.push_back(projname+string("mass_star_")+opt.aperture_proj_names_kpc[i]+string("_kpc"));
-#endif
-
-            for (auto i=0; i<opt.apertureprojnum;i++)
-                headerdatainfo.push_back(projname+string("rhalfmass_")+opt.aperture_proj_names_kpc[i]+string("_kpc"));
-#ifdef GASON
-            for (auto i=0; i<opt.apertureprojnum;i++)
-                headerdatainfo.push_back(projname+string("rhalfmass_gas_")+opt.aperture_proj_names_kpc[i]+string("_kpc"));
-#ifdef STARON
-            for (auto i=0; i<opt.apertureprojnum;i++)
-                headerdatainfo.push_back(projname+string("rhalfmass_gas_sf_")+opt.aperture_proj_names_kpc[i]+string("_kpc"));
-            for (auto i=0; i<opt.apertureprojnum;i++)
-                headerdatainfo.push_back(projname+string("rhalfmass_gas_nsf_")+opt.aperture_proj_names_kpc[i]+string("_kpc"));
-#endif
-#endif
-#ifdef STARON
-            for (auto i=0; i<opt.apertureprojnum;i++)
-                headerdatainfo.push_back(projname+string("rhalfmass_star_")+opt.aperture_proj_names_kpc[i]+string("_kpc"));
-#endif
-#if defined(GASON) && defined(STARON)
-            for (auto i=0; i<opt.apertureprojnum;i++)
-                headerdatainfo.push_back(projname+string("SFR_gas_")+opt.aperture_proj_names_kpc[i]+string("_kpc"));
-#endif
-            }
-#ifdef USEHDF
-            sizeval=hdfpredtypeinfo.size();
-            // for (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);
-            for (int i=sizeval;i<headerdatainfo.size();i++) hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
-#endif
-#ifdef USEADIOS
-            sizeval=adiospredtypeinfo.size();
-            for (int i=sizeval;i<headerdatainfo.size();i++) adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
-#endif
-        }
-
-        //if aperture information calculated also include
-        if (opt.SOnum>0) {
-            for (auto i=0; i<opt.SOnum;i++) {
-                headerdatainfo.push_back((string("SO_Mass_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
-#ifdef USEHDF
-                // predtypeinfo.push_back(desiredproprealtype[0]);
-                hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
-#endif
-#ifdef USEADIOS
-                adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
-#endif
-            }
-            for (auto i=0; i<opt.SOnum;i++) {
-                headerdatainfo.push_back((string("SO_R_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
-#ifdef USEHDF
-                // predtypeinfo.push_back(desiredproprealtype[0]);
-                hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
-#endif
-#ifdef USEADIOS
-                adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
-#endif
-            }
-#ifdef GASON
-            if (opt.iextragasoutput && opt.iextrahalooutput) {
-                for (auto i=0; i<opt.SOnum;i++) {
-                    headerdatainfo.push_back((string("SO_Mass_gas_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
-#ifdef USEHDF
-                    // predtypeinfo.push_back(desiredproprealtype[0]);
-                    hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
-#endif
-#ifdef USEADIOS
-                    adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
-#endif
-                }
-#ifdef STARON
-#endif
-            }
-#endif
-
-#ifdef STARON
-            if (opt.iextrastaroutput && opt.iextrahalooutput) {
-                for (auto i=0; i<opt.SOnum;i++) {
-                    headerdatainfo.push_back((string("SO_Mass_star_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
-#ifdef USEHDF
-                    // predtypeinfo.push_back(desiredproprealtype[0]);
-                    hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
-#endif
-#ifdef USEADIOS
-                    adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
-#endif
-                }
-            }
-#endif
-#ifdef HIGHRES
-            if (opt.iextrainterloperoutput && opt.iextrahalooutput) {
-                for (auto i=0; i<opt.SOnum;i++) {
-                    headerdatainfo.push_back((string("SO_Mass_interloper_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
-#ifdef USEHDF
-                    // predtypeinfo.push_back(desiredproprealtype[0]);
-                    hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
-#endif
-#ifdef USEADIOS
-                    adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
-#endif
-                }
-            }
-#endif
-        }
-        if (opt.SOnum>0 && opt.iextrahalooutput) {
-            for (auto i=0; i<opt.SOnum;i++) {
-                headerdatainfo.push_back((string("SO_Lx_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
-                headerdatainfo.push_back((string("SO_Ly_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
-                headerdatainfo.push_back((string("SO_Lz_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
-                for (auto k=0;k<3;k++) {
-#ifdef USEHDF
-                    // predtypeinfo.push_back(desiredproprealtype[0]);
-                    hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
-#endif
-#ifdef USEADIOS
-                    adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
-#endif
-                }
-            }
-#ifdef GASON
-            if (opt.iextragasoutput) {
-                for (auto i=0; i<opt.SOnum;i++) {
-                    headerdatainfo.push_back((string("SO_Lx_gas_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
-                    headerdatainfo.push_back((string("SO_Ly_gas_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
-                    headerdatainfo.push_back((string("SO_Lz_gas_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
-                    for (auto k=0;k<3;k++) {
-#ifdef USEHDF
-                        // predtypeinfo.push_back(desiredproprealtype[0]);
-                        hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
-#endif
-#ifdef USEADIOS
-                        adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
-#endif
-                    }
-                }
-#ifdef STARON
-#endif
-            }
-#endif
-
-#ifdef STARON
-            if (opt.iextrastaroutput) {
-                for (auto i=0; i<opt.SOnum;i++) {
-                    headerdatainfo.push_back((string("SO_Lx_star_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
-                    headerdatainfo.push_back((string("SO_Ly_star_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
-                    headerdatainfo.push_back((string("SO_Lz_star_")+opt.SOthresholds_names_crit[i]+string("_rhocrit")));
-                    for (auto k=0;k<3;k++) {
-#ifdef USEHDF
-                        // predtypeinfo.push_back(desiredproprealtype[0]);
-                        hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
-#endif
-#ifdef USEADIOS
-                        adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
-#endif
-                    }
-                }
-            }
-#endif
-        }
-    }
+    PropDataHeader(Options&opt);
 };
 
 
@@ -4403,7 +2628,6 @@ struct ProfileDataHeader{
     //list the header info
     vector<string> headerdatainfo;
 #ifdef USEHDF
-    // vector<PredType> predtypeinfo;
     vector<hid_t> hdfpredtypeinfo;
 #endif
 #ifdef USEADIOS
@@ -4415,9 +2639,6 @@ struct ProfileDataHeader{
     ProfileDataHeader(Options&opt){
         int sizeval;
 #ifdef USEHDF
-        // vector<PredType> desiredproprealtype;
-        // if (sizeof(Double_t)==sizeof(double)) desiredproprealtype.push_back(PredType::NATIVE_DOUBLE);
-        // else desiredproprealtype.push_back(PredType::NATIVE_FLOAT);
         vector<hid_t> hdfdesiredproprealtype;
         if (sizeof(Double_t)==sizeof(double)) hdfdesiredproprealtype.push_back(H5T_NATIVE_DOUBLE);
         else hdfdesiredproprealtype.push_back(H5T_NATIVE_FLOAT);
@@ -4431,7 +2652,6 @@ struct ProfileDataHeader{
         offsetscalarentries=0;
         headerdatainfo.push_back("ID");
 #ifdef USEHDF
-        // predtypeinfo.push_back(PredType::STD_U64LE);
         hdfpredtypeinfo.push_back(H5T_NATIVE_ULONG);
 #endif
 #ifdef USEADIOS
@@ -4441,7 +2661,6 @@ struct ProfileDataHeader{
         if (opt.iprofilenorm != PROFILERNORMPHYS) {
         headerdatainfo.push_back(opt.profileradnormstring);
 #ifdef USEHDF
-        // predtypeinfo.push_back(desiredproprealtype[0]);
         hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
 #endif
 #ifdef USEADIOS
@@ -4599,14 +2818,12 @@ struct StrucLevelData
     ~StrucLevelData(){
         if (nextlevel!=NULL) delete nextlevel;
         nextlevel=NULL;
-        if (nsinlevel>0) {
-            delete[] Phead;
-            delete[] Pparenthead;
-            delete[] gidhead;
-            delete[] gidparenthead;
-            delete[] giduberparenthead;
-            delete[] stypeinlevel;
-        }
+        delete[] Phead;
+        delete[] Pparenthead;
+        delete[] gidhead;
+        delete[] gidparenthead;
+        delete[] giduberparenthead;
+        delete[] stypeinlevel;
     }
 };
 
@@ -4687,9 +2904,6 @@ struct DataGroupNames {
 
     DataGroupNames(){
 #ifdef USEHDF
-        // vector<PredType> desiredproprealtype;
-        // if (sizeof(Double_t)==sizeof(double)) desiredproprealtype.push_back(PredType::NATIVE_DOUBLE);
-        // else desiredproprealtype.push_back(PredType::NATIVE_FLOAT);
         vector<hid_t> hdfdesiredproprealtype;
         if (sizeof(Double_t)==sizeof(double)) hdfdesiredproprealtype.push_back(H5T_NATIVE_DOUBLE);
         else hdfdesiredproprealtype.push_back(H5T_NATIVE_FLOAT);
@@ -4716,23 +2930,6 @@ struct DataGroupNames {
         prop.push_back("Stellar_age_unit_to_yr");
 #endif
 #ifdef USEHDF
-//         propdatatype.push_back(PredType::STD_I32LE);
-//         propdatatype.push_back(PredType::STD_I32LE);
-//         propdatatype.push_back(PredType::STD_U64LE);
-//         propdatatype.push_back(PredType::STD_U64LE);
-//         propdatatype.push_back(PredType::STD_U32LE);
-//         propdatatype.push_back(PredType::STD_U32LE);
-//         propdatatype.push_back(desiredproprealtype[0]);
-//         propdatatype.push_back(desiredproprealtype[0]);
-//         propdatatype.push_back(desiredproprealtype[0]);
-//         propdatatype.push_back(desiredproprealtype[0]);
-//         propdatatype.push_back(desiredproprealtype[0]);
-// #if defined(GASON) || defined(STARON) || defined(BHON)
-//         propdatatype.push_back(desiredproprealtype[0]);
-//         propdatatype.push_back(desiredproprealtype[0]);
-//         propdatatype.push_back(desiredproprealtype[0]);
-// #endif
-
         hdfpropdatatype.push_back(H5T_NATIVE_INT);
         hdfpropdatatype.push_back(H5T_NATIVE_INT);
         hdfpropdatatype.push_back(H5T_NATIVE_ULONG);
@@ -4778,19 +2975,11 @@ struct DataGroupNames {
         group.push_back("Offset");
         group.push_back("Offset_unbound");
 #ifdef USEHDF
-        // groupdatatype.push_back(PredType::STD_I32LE);
-        // groupdatatype.push_back(PredType::STD_I32LE);
-        // groupdatatype.push_back(PredType::STD_U64LE);
-        // groupdatatype.push_back(PredType::STD_U64LE);
-        // groupdatatype.push_back(PredType::STD_U32LE);
-        // groupdatatype.push_back(PredType::STD_U64LE);
-        // groupdatatype.push_back(PredType::STD_U64LE);
-
         hdfgroupdatatype.push_back(H5T_NATIVE_INT);
         hdfgroupdatatype.push_back(H5T_NATIVE_INT);
         hdfgroupdatatype.push_back(H5T_NATIVE_ULONG);
         hdfgroupdatatype.push_back(H5T_NATIVE_ULONG);
-        hdfgroupdatatype.push_back(H5T_NATIVE_UINT);
+        hdfgroupdatatype.push_back(H5T_NATIVE_ULONG);
         hdfgroupdatatype.push_back(H5T_NATIVE_ULONG);
         hdfgroupdatatype.push_back(H5T_NATIVE_ULONG);
 
@@ -4811,12 +3000,6 @@ struct DataGroupNames {
         part.push_back("Total_num_of_particles_in_all_groups");
         part.push_back("Particle_IDs");
 #ifdef USEHDF
-        // partdatatype.push_back(PredType::STD_I32LE);
-        // partdatatype.push_back(PredType::STD_I32LE);
-        // partdatatype.push_back(PredType::STD_U64LE);
-        // partdatatype.push_back(PredType::STD_U64LE);
-        // partdatatype.push_back(PredType::STD_I64LE);
-
         hdfpartdatatype.push_back(H5T_NATIVE_INT);
         hdfpartdatatype.push_back(H5T_NATIVE_INT);
         hdfpartdatatype.push_back(H5T_NATIVE_ULONG);
@@ -4838,11 +3021,6 @@ struct DataGroupNames {
         types.push_back("Total_num_of_particles_in_all_groups");
         types.push_back("Particle_types");
 #ifdef USEHDF
-        // typesdatatype.push_back(PredType::STD_I32LE);
-        // typesdatatype.push_back(PredType::STD_I32LE);
-        // typesdatatype.push_back(PredType::STD_U64LE);
-        // typesdatatype.push_back(PredType::STD_U64LE);
-        // typesdatatype.push_back(PredType::STD_U16LE);
 
         hdftypesdatatype.push_back(H5T_NATIVE_INT);
         hdftypesdatatype.push_back(H5T_NATIVE_INT);
@@ -4865,13 +3043,6 @@ struct DataGroupNames {
         hierarchy.push_back("Number_of_substructures_in_halo");
         hierarchy.push_back("Parent_halo_ID");
 #ifdef USEHDF
-        // hierarchydatatype.push_back(PredType::STD_I32LE);
-        // hierarchydatatype.push_back(PredType::STD_I32LE);
-        // hierarchydatatype.push_back(PredType::STD_U64LE);
-        // hierarchydatatype.push_back(PredType::STD_U64LE);
-        // hierarchydatatype.push_back(PredType::STD_U32LE);
-        // hierarchydatatype.push_back(PredType::STD_I64LE);
-
         hdfhierarchydatatype.push_back(H5T_NATIVE_INT);
         hdfhierarchydatatype.push_back(H5T_NATIVE_INT);
         hdfhierarchydatatype.push_back(H5T_NATIVE_ULONG);
@@ -4902,18 +3073,6 @@ struct DataGroupNames {
 #endif
 
 #ifdef USEHDF
-//         SOdatatype.push_back(PredType::STD_I32LE);
-//         SOdatatype.push_back(PredType::STD_I32LE);
-//         SOdatatype.push_back(PredType::STD_U64LE);
-//         SOdatatype.push_back(PredType::STD_U64LE);
-//         SOdatatype.push_back(PredType::STD_U64LE);
-//         SOdatatype.push_back(PredType::STD_U64LE);
-//         SOdatatype.push_back(PredType::STD_U32LE);
-//         SOdatatype.push_back(PredType::STD_U64LE);
-//         SOdatatype.push_back(PredType::STD_I64LE);
-// #if defined(GASON) || defined(STARON) || defined(BHON)
-//         SOdatatype.push_back(PredType::STD_I32LE);
-// #endif
         hdfSOdatatype.push_back(H5T_NATIVE_INT);
         hdfSOdatatype.push_back(H5T_NATIVE_INT);
         hdfSOdatatype.push_back(H5T_NATIVE_ULONG);
@@ -4954,17 +3113,6 @@ struct DataGroupNames {
         profile.push_back("Num_of_bin_edges");
         profile.push_back("Radial_bin_edges");
 #ifdef USEHDF
-        // profiledatatype.push_back(PredType::STD_I32LE);
-        // profiledatatype.push_back(PredType::STD_I32LE);
-        // profiledatatype.push_back(PredType::STD_U64LE);
-        // profiledatatype.push_back(PredType::STD_U64LE);
-        // profiledatatype.push_back(PredType::STD_U64LE);
-        // profiledatatype.push_back(PredType::STD_U64LE);
-        // profiledatatype.push_back(PredType::C_S1);
-        // profiledatatype.push_back(PredType::STD_I32LE);
-        // profiledatatype.push_back(PredType::STD_I32LE);
-        // profiledatatype.push_back(desiredproprealtype[0]);
-
         hdfprofiledatatype.push_back(H5T_NATIVE_INT);
         hdfprofiledatatype.push_back(H5T_NATIVE_INT);
         hdfprofiledatatype.push_back(H5T_NATIVE_ULONG);

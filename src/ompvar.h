@@ -5,7 +5,9 @@
 #ifndef OMPVAR_H
 #define OMPVAR_H
 
+#ifdef USEOPENMP
 #include <omp.h>
+#endif
 
 ///\name Include for NBodyFramework library.
 //@{
@@ -23,12 +25,17 @@ using namespace NBody;
 
 /// \defgroup OMPLIMS For determining whether loop contains enough for openm to be worthwhile.
 //@{
+#define ompsplitsubsearchnum 10000000
+#define ompsubsearchnum 10000
 #define ompsearchnum 50000
 #define ompunbindnum 1000
-#define ompperiodnum 100000
+#define ompperiodnum 1000000
 #define omppropnum 50000
 #define ompfofsearchnum 2000000
+#define ompsortsize 1000000
 //@}
+
+#ifdef USEOPENMP 
 
 ///structure to store relevant info for searching openmp domains
 struct OMP_Domain {
@@ -42,4 +49,5 @@ struct OMP_ImportInfo {
     Int_t index, pfof;
     int task;
 };
+#endif
 #endif

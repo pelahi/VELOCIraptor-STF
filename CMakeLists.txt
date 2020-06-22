@@ -22,11 +22,13 @@ list(GET VERSION_LIST 1 VR_VERSION_MINOR)
 if( ${CMAKE_MAJOR_VERSION} EQUAL 3 AND ${CMAKE_MINOR_VERSION} LESS 4 )
 	set(VR_LANGS C CXX)
 else()
-	set(VR_LANGS C CXX)
+	set(VR_LANGS CXX C)
 endif()
 
 project(VELOCIraptor VERSION ${VR_VERSION} LANGUAGES ${VR_LANGS})
 set(CMAKE_CXX_STANDARD 11)
+# Set the code to always produce position independent code by default
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 #
 # Options users can give on the command line via -D
@@ -37,10 +39,12 @@ endmacro()
 
 # Input formats
 vr_option(HDF5 "Attempt to include HDF5 support in VELOCIraptor" ON)
+vr_option(ALLOWCOMPRESSIONHDF5 "Attempt to include HDF5 compression support in VELOCIraptor" ON)
+vr_option(ALLOWPARALLELHDF5 "Attempt to include parallel HDF5 support in VELOCIraptor" ON)
+vr_option(ALLOWCOMPRESSIONPARALLELHDF5 "Attempt to include parallel HDF5 compression support in VELOCIraptor" OFF)
 vr_option(XDR  "XDR input support (used by nchilada)" OFF)
 
 # Precision options
-vr_option(SINGLE_PRECISION  "Use single point precision to store all properties and perform all calculations" OFF)
 vr_option(LONG_INT          "Use long ints to represent all integers. Needed if dealing with more than MAXINT number of particles" ON)
 
 # OpenMP options
@@ -66,6 +70,7 @@ vr_option(GADGET_BH_INFO    "Support for extra black hole information in Gadget"
 vr_option(USE_STAR      "Use star particles" OFF)
 vr_option(USE_GAS       "Use gas particles" OFF)
 vr_option(USE_BH        "Use black holes" OFF)
+vr_option(USE_EXTRA_DM_PROPERTIES "Store extra dark matter properties" OFF)
 vr_option(USE_HYDRO     "Use all particle types, (gas, star, bh, etc)" OFF)
 vr_option(NO_MASS       "Particles do not store mass (useful for pure N-body sims and reducing memory footprint)" OFF)
 vr_option(USE_EXTRA_INPUT_INFO     "Store where particles are located in the input file" OFF)
@@ -100,6 +105,9 @@ endif()
 if (VR_USE_BH)
 	set(NBODY_USE_BH ON)
 endif()
+if (VR_USE_EXTRA_DM_PROPERTIES)
+	set(NBODY_USE_EXTRA_DM_PROPERTIES ON)
+endif()
 if (VR_USE_EXTRA_INPUT_INFO)
 	set(NBODY_USE_EXTRA_INPUT_INFO ON)
 endif()
@@ -111,9 +119,6 @@ if (VR_NO_MASS)
 endif()
 if (VR_LONG_INT)
 	set(NBODY_LONG_INT ON)
-endif()
-if (VR_SINGLE_PRECISION)
-	set(NBODY_SINGLE_PRECISION ON)
 endif()
 if (VR_USE_LARGE_KDTREE)
 	set(NBODY_USE_LARGE_KDTREE ON)
@@ -140,7 +145,6 @@ endmacro()
 
 vr_option_defines(XDR                       USEXDR)
 
-vr_option_defines(SINGLE_PRECISION          SINGLEPRECISION)
 vr_option_defines(LONG_INT                  LONGINT)
 
 vr_option_defines(OPENMP                    USEOPENMP)
@@ -159,6 +163,7 @@ vr_option_defines(GADGET_BH_INFO            EXTRABHINFO)
 vr_option_defines(USE_GAS                   GASON)
 vr_option_defines(USE_STAR                  STARON)
 vr_option_defines(USE_BH                    BHON)
+vr_option_defines(USE_EXTRA_DM_PROPERTIES   EXTRADMON)
 vr_option_defines(NO_MASS                   NOMASS)
 vr_option_defines(USE_EXTRA_INPUT_INFO      EXTRAINPUTINFO)
 vr_option_defines(USE_EXTRA_FOF_INFO        EXTRAFOFINFO)
@@ -189,15 +194,32 @@ macro(find_hdf5)
 	if (HDF5_ROOT)
 		set(ENV{HDF5_ROOT} ${HDF5_ROOT})
 	endif()
-	#find_package(HDF5 COMPONENTS CXX)
 	find_package(HDF5 COMPONENTS C)
 	if (HDF5_FOUND)
+		#
 		list(APPEND VR_INCLUDE_DIRS ${HDF5_INCLUDE_DIRS})
 		list(APPEND VR_LIBS ${HDF5_LIBRARIES})
 		list(APPEND VR_DEFINES USEHDF)
 		set(VR_HAS_HDF5 Yes)
-  endif()
+		#check if parallel hdf present
+		if (HDF5_IS_PARALLEL AND VR_HAS_MPI AND VR_ALLOWPARALLELHDF5)
+			set (ENV{HDF5_PREFER_PARALLEL} true)
+			set(VR_HAS_PARALLEL_HDF5 Yes)
+			list(APPEND VR_DEFINES USEPARALLELHDF)
+			if (HDF5_VERSION VERSION_GREATER "1.10.0" AND VR_ALLOWCOMPRESSIONPARALLELHDF5)
+				set(VR_HAS_COMPRESSED_HDF5 Yes)
+				list(APPEND VR_DEFINES USEHDFCOMPRESSION)
+				list(APPEND VR_DEFINES PARALLELCOMPRESSIONACTIVE)
+			endif()
+		else()
+			if (VR_ALLOWCOMPRESSIONHDF5)
+				set(VR_HAS_COMPRESSED_HDF5 Yes)
+				list(APPEND VR_DEFINES USEHDFCOMPRESSION)
+			endif()
+		endif()
+    endif()
 endmacro()
+
 
 #
 # How we find MPI and set it up
@@ -240,6 +262,16 @@ macro(ensure_git_submodules)
 	endif()
 endmacro()
 
+#
+# Add git revision information in a generated .cxx file, which we then include
+# as part of the library
+#
+include(cmake/GetGitRevisionDescription.cmake)
+get_git_head_revision(GIT_REFSPEC GIT_SHA1)
+git_local_changes(GIT_HAS_LOCAL_CHANGES)
+set(git_revision_cxx "${CMAKE_CURRENT_BINARY_DIR}/git_revision.cxx")
+configure_file("src/git_revision.cxx.in" "${git_revision_cxx}" @ONLY)
+
 
 #
 # Go and find our dependencies, depending on whether
@@ -248,24 +280,31 @@ endmacro()
 ensure_git_submodules()
 find_gsl()
 
-set(VR_HAS_HDF5 No)
-if (VR_HDF5)
-	find_hdf5()
-endif()
-
 set(VR_HAS_MPI No)
 if (VR_MPI)
 	find_mpi()
 endif()
 
+set(VR_HAS_HDF5 No)
+set(VR_HAS_COMPRESSED_HDF5 No)
+set(VR_HAS_PARALLEL_HDF5 No)
+if (VR_HDF5)
+	find_hdf5()
+endif()
+
+if (VR_ZOOM_SIM AND VR_NO_MASS)
+    message(FATAL_ERROR "VR compiled to not store mass and also compiled for zoom simulations.
+    These options are incompatible. Use one or the other.
+    Options are VR_ZOOM_SIM and VR_NO_MASS.")
+endif()
 
 # This provides us with the nbodylib library
 # We need to add it unless it was already added by somebody else
 if (NOT TARGET nbodylib)
 	add_subdirectory(NBodylib)
-	if (NBODYLIB_VERSION VERSION_LESS "1.16")
+	if (NBODYLIB_VERSION VERSION_LESS "1.28")
 		message(FATAL_ERROR "NBodyLib version ${NBODYLIB_VERSION} unsupported,
-		VELOCIraptor requires >= 1.16, try running git submodule update --recursive --remote")
+		VELOCIraptor requires >= 1.28, try running git submodule update --recursive --remote")
 	endif()
 	list(INSERT VR_DOC_DIRS 0 ${NBODYLIB_DOC_DIRS})
 endif()
@@ -309,10 +348,14 @@ endmacro()
 message("\nVELOCIraptor successfully configured with the following settings:")
 vr_report("File formats"
           "HDF5" HDF5
+		  "Compressed HDF5" COMPRESSED_HDF5
+		  "Parallel HDF5" PARALLEL_HDF5
           "nchilada" XDR)
+if (VR_HAS_COMPRESSED_HDF5  AND VR_HAS_PARALLEL_HDF5)
+	message("\n WARNING: Parallel Compression HDF5 active, use with caution as it is unstable!\n")
+endif()
 vr_report("Precision-specifics"
-        "Long Integers" LONG_INT
-        "Single precision floats" SINGLE_PRECISION)
+        "Long Integers" LONG_INT)
 vr_report("OpenMP-specifics"
         "OpenMP support" OPENMP)
 vr_report("MPI-specifics"
@@ -328,6 +371,7 @@ vr_report("Particle-specifics"
           "Activate gas (& associated physics, properties calculated)" USE_GAS
 		  "Activate stars (& associated physics, properties calculated)" USE_STAR
 		  "Activate black holes (& associated physics, properties calculated)" USE_BH
+		  "Activate extra dark matter properties (& associated properties)" USE_EXTRA_DM_PROPERTIES
 		  "Mass not stored (for uniform N-Body sims, reduce mem footprint)" NO_MASS
 		  "Large memory KDTree to handle > max 32-bit integer entries per tree" USE_LARGE_KDTREE
 	  )

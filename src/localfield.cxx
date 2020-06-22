@@ -102,11 +102,15 @@ private(i,j,k,tid,id,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,pqx,pqv
 #endif
         //once NN set is found, store maxrdist and see if particle's search radius overlaps with another mpi domain
         maxrdist[i]=sqrt(nnr2[opt.Nsearch-1]);
-#ifdef SWIFTINTERFACE
-        if (MPISearchForOverlapUsingMesh(libvelociraptorOpt,Part[i],maxrdist[i])==0) {
-#else
-        if (MPISearchForOverlap(Part[i],maxrdist[i])==0) {
-#endif
+        bool ioverlap;
+        if (opt.impiusemesh) {
+            ioverlap = (MPISearchForOverlapUsingMesh(opt,Part[i],maxrdist[i])==0);
+        }
+        else
+        {
+            ioverlap = (MPISearchForOverlap(Part[i],maxrdist[i])==0);
+        }
+        if (ioverlap) {
             for (j=0;j<opt.Nvel;j++) {
                 pqv->Push(-1, MAXVALUE);
                 weight[j]=1.0;
@@ -140,25 +144,20 @@ private(i,j,k,tid,id,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,pqx,pqv
     time2=MyGetTime();
 
     //determines export AND import numbers
-#ifdef SWIFTINTERFACE
-    MPIGetNNExportNumUsingMesh(libvelociraptorOpt, nbodies, Part, maxrdist);
-#else
-    MPIGetNNExportNum(nbodies, Part, maxrdist);
-#endif
+
+    if (opt.impiusemesh) MPIGetNNExportNumUsingMesh(opt, nbodies, Part, maxrdist);
+    else MPIGetNNExportNum(nbodies, Part, maxrdist);
     NNDataIn = new nndata_in[NExport];
     NNDataGet = new nndata_in[NImport];
     //build the exported particle list using NNData structures
-#ifdef SWIFTINTERFACE
-    MPIBuildParticleNNExportListUsingMesh(libvelociraptorOpt, nbodies, Part, maxrdist);
-#else
-    MPIBuildParticleNNExportList(nbodies, Part, maxrdist);
-#endif
+    if (opt.impiusemesh) MPIBuildParticleNNExportListUsingMesh(opt, nbodies, Part, maxrdist);
+    else MPIBuildParticleNNExportList(nbodies, Part, maxrdist);
     MPIGetNNImportNum(nbodies, tree, Part, (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)));
     PartDataIn = new Particle[NExport];
     PartDataGet = new Particle[NImport];
     MPI_Barrier(MPI_COMM_WORLD);
     //run search on exported particles and determine which local particles need to be exported back (or imported)
-    nimport=MPIBuildParticleNNImportList(nbodies, tree, Part, (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)));
+    nimport=MPIBuildParticleNNImportList(opt, nbodies, tree, Part, (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)));
     int nimportsearch=opt.Nsearch;
     if (nimportsearch>nimport) nimportsearch=nimport;
     if (opt.iverbose) cout<<ThisTask<<" Searching particles in other domains "<<nimport<<endl;
@@ -452,6 +451,10 @@ void GetVelocityDensityHaloOnlyDen(Options &opt, const Int_t nbodies, Particle *
         pqx[j]=new PriorityQueue(opt.Nsearch);
         pqv[j]=new PriorityQueue(opt.Nvel);
     }
+
+    //get memory useage
+    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
 private(i,tid)
@@ -524,6 +527,9 @@ void GetVelocityDensityExact(Options &opt, const Int_t nbodies, Particle *Part, 
 #endif
 
     time2=MyGetTime();
+    //get memory useage
+    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+
     //In loop determine if particles NN search radius overlaps another mpi threads domain.
     //If not, then proceed as usually to determine velocity density.
     //If so, do not calculate local velocity density and set its velocity density to -1 as a flag
@@ -551,21 +557,18 @@ private(i,j,k,tid,id,v2,nnids,nnr2,weight,pqv)
         tree->FindNearest(i,nnids,nnr2,opt.Nsearch);
 #endif
 #ifdef USEMPI
-        if (opt.iLocalVelDenApproxCalcFlag==0) {
-        //once NN set is found, store maxrdist and see if particle's search radius overlaps with another mpi domain
-        maxrdist[i]=sqrt(nnr2[opt.Nsearch-1]);
-#ifdef SWIFTINTERFACE
-        if (MPISearchForOverlapUsingMesh(libvelociraptorOpt,Part[i],maxrdist[i])!=0) {
-            Part[i].SetDensity(-1.0);
-            continue;
-        }
-#else
-        if (MPISearchForOverlap(Part[i],maxrdist[i])!=0) {
-            Part[i].SetDensity(-1.0);
-            continue;
-        }
-#endif
-        maxrdist[i]=0.0;
+        if (opt.iLocalVelDenApproxCalcFlag==0 && NProcs>1) {
+            //once NN set is found, store maxrdist and see if particle's search radius overlaps with another mpi domain
+            maxrdist[i]=sqrt(nnr2[opt.Nsearch-1]);
+            bool ioverlap;
+
+            if (opt.impiusemesh) ioverlap = (MPISearchForOverlapUsingMesh(opt,Part[i],maxrdist[i])!=0);
+            else (MPISearchForOverlap(Part[i],maxrdist[i])!=0);
+            if (ioverlap) {
+                Part[i].SetDensity(-1.0);
+                continue;
+            }
+            maxrdist[i]=0.0;
         }
 #endif
         for (j=0;j<opt.Nvel;j++) {
@@ -596,25 +599,19 @@ private(i,j,k,tid,id,v2,nnids,nnr2,weight,pqv)
     if (opt.iverbose) cout<<ThisTask<<" finished local calculation in "<<MyGetTime()-time2<<endl;
     time2=MyGetTime();
     //determines export AND import numbers
-#ifdef SWIFTINTERFACE
-    MPIGetNNExportNumUsingMesh(libvelociraptorOpt, nbodies, Part, maxrdist);
-#else
-    MPIGetNNExportNum(nbodies, Part, maxrdist);
-#endif
+    if (opt.impiusemesh) MPIGetNNExportNumUsingMesh(opt, nbodies, Part, maxrdist);
+    else MPIGetNNExportNum(nbodies, Part, maxrdist);
     NNDataIn = new nndata_in[NExport];
     NNDataGet = new nndata_in[NImport];
     //build the exported particle list using NNData structures
-#ifdef SWIFTINTERFACE
-    MPIBuildParticleNNExportListUsingMesh(libvelociraptorOpt, nbodies, Part, maxrdist);
-#else
-    MPIBuildParticleNNExportList(nbodies, Part, maxrdist);
-#endif
+    if (opt.impiusemesh) MPIBuildParticleNNExportListUsingMesh(opt, nbodies, Part, maxrdist);
+    else MPIBuildParticleNNExportList(nbodies, Part, maxrdist);
     MPIGetNNImportNum(nbodies, tree, Part, (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)));
     PartDataIn = new Particle[NExport];
     PartDataGet = new Particle[NImport];
     MPI_Barrier(MPI_COMM_WORLD);
     //run search on exported particles and determine which local particles need to be exported back (or imported)
-    nimport=MPIBuildParticleNNImportList(nbodies, tree, Part,(!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)));
+    nimport=MPIBuildParticleNNImportList(opt, nbodies, tree, Part,(!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)));
     int nimportsearch=opt.Nsearch;
     if (nimportsearch>nimport) nimportsearch=nimport;
     if (opt.iverbose) cout<<ThisTask<<" Searching particles in other domains "<<nimport<<endl;
@@ -622,6 +619,10 @@ private(i,j,k,tid,id,v2,nnids,nnr2,weight,pqv)
     //first build neighbouring tree
     KDTree *treeneighbours=NULL;
     if (nimport>0) treeneighbours=new KDTree(PartDataGet,nimport,1,tree->TPHYS,tree->KEPAN,100,0,0,0,period);
+
+    //get memory useage
+    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+
     //then run search
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
@@ -789,6 +790,9 @@ void GetVelocityDensityApproximative(Options &opt, const Int_t nbodies, Particle
     }
     node=NULL;
 
+    //get memory useage
+    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)
 {
@@ -854,14 +858,13 @@ reduction(+:nprocessed,ntot)
         tree->FindNearestPos(leafnodes[i].cm,nnids,nnr2,opt.Nsearch);
 #endif
 #ifdef USEMPI
-        if (opt.iLocalVelDenApproxCalcFlag==1) {
+        if (opt.iLocalVelDenApproxCalcFlag==1 && NProcs > 1) {
         leafnodes[i].searchdist = sqrt(nnr2[opt.Nsearch-1]);
         //check if search region from Particle extends into other mpi domain, if so, skip particles
-#ifdef SWIFTINTERFACE
-        if (MPISearchForOverlapUsingMesh(libvelociraptorOpt,leafnodes[i].cm,leafnodes[i].searchdist)!=0) continue;
-#else
-        if (MPISearchForOverlap(leafnodes[i].cm,leafnodes[i].searchdist)!=0) continue;
-#endif
+        bool ioverlap;
+        if (opt.impiusemesh) ioverlap = (MPISearchForOverlapUsingMesh(opt,leafnodes[i].cm,leafnodes[i].searchdist)!=0);
+        else ioverlap = (MPISearchForOverlap(leafnodes[i].cm,leafnodes[i].searchdist)!=0);
+        if (ioverlap) continue;
         leafnodes[i].searchdist = 0;
 	}
 #endif
@@ -912,31 +915,26 @@ reduction(+:nprocessed,ntot)
     }
 
     //determines export AND import numbers
-#ifdef SWIFTINTERFACE
-    MPIGetNNExportNumUsingMesh(libvelociraptorOpt, nbodies, Part, maxrdist);
-#else
-    MPIGetNNExportNum(nbodies, Part, maxrdist);
-#endif
+    if (opt.impiusemesh) MPIGetNNExportNumUsingMesh(opt, nbodies, Part, maxrdist);
+    else MPIGetNNExportNum(nbodies, Part, maxrdist);
 
     NNDataIn = NNDataGet = NULL;
     if (NExport>0) NNDataIn = new nndata_in[NExport];
     if (NImport>0) NNDataGet = new nndata_in[NImport];
     //build the exported particle list using NNData structures
-#ifdef SWIFTINTERFACE
-    MPIBuildParticleNNExportListUsingMesh(libvelociraptorOpt, nbodies, Part, maxrdist);
-#else
-    MPIBuildParticleNNExportList(nbodies, Part, maxrdist);
-#endif
+    if (opt.impiusemesh) MPIBuildParticleNNExportListUsingMesh(opt, nbodies, Part, maxrdist);
+    else MPIBuildParticleNNExportList(nbodies, Part, maxrdist);
     delete[] maxrdist;
     MPIGetNNImportNum(nbodies, tree, Part,(!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)));
     PartDataIn = PartDataGet = NULL;
     if (NExport>0) PartDataIn = new Particle[NExport];
     if (NImport>0) PartDataGet = new Particle[NImport];
     //run search on exported particles and determine which local particles need to be exported back (or imported)
-    nimport=MPIBuildParticleNNImportList(nbodies, tree, Part, (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)));
+    nimport=MPIBuildParticleNNImportList(opt, nbodies, tree, Part, (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)));
     int nimportsearch=opt.Nsearch;
     if (nimportsearch>nimport) nimportsearch=nimport;
     if (opt.iverbose) cout<<ThisTask<<" Searching particles in other domains "<<nimport<<endl;
+
     //now with imported particle list and local particle list can run proper NN search
     //first build neighbouring tree
     KDTree *treeneighbours=NULL;
@@ -944,7 +942,12 @@ reduction(+:nprocessed,ntot)
         treeneighbours=new KDTree(PartDataGet,nimport,1,tree->TPHYS,tree->KEPAN,100,0,0,0,period);
         treeneighbours->SetResetOrder(false);
         nprocessed=0;
+    }
 
+    //get memory useage
+    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+
+    if (nimport>0) {
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
 private(id,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,pqx,pqv,Pval,pid2)

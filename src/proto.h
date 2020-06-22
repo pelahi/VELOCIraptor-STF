@@ -21,7 +21,7 @@
 void usage(void);
 void GetArgs(const int argc, char *argv[], Options &opt);
 void GetParamFile(Options &opt);
-inline void ConfigCheck(Options &opt);
+void ConfigCheck(Options &opt);
 
 //@}
 
@@ -92,6 +92,7 @@ void WriteVELOCIraptorConfig(Options &opt);
 void WriteSimulationInfo(Options &opt);
 ///Write the unit info
 void WriteUnitInfo(Options &opt);
+
 ///Write particle ids of those within spherical overdensity of a field halo
 void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids, vector<int> *SOtypes=NULL);
 ///Write profiles
@@ -279,6 +280,12 @@ int Unbind(Options &opt, Particle *Part, Int_t &numgroups, Int_t *&numingroup, I
 ///calculate the potential of an array of particles
 void Potential(Options &opt, Int_t nbodies, Particle *Part, Double_t *potV);
 void Potential(Options &opt, Int_t nbodies, Particle *Part);
+void ParticleSubSample(Options &opt, const Int_t nbodies, Particle *&Part,
+    Int_t &newnbodies, Particle *&newpart, double &mr);
+void PotentialTree(Options &opt, Int_t nbodies, Particle *&Part, KDTree* &tree);
+void PotentialInterpolate(Options &opt, const Int_t nbodies, Particle *&Part, Particle *&interolateparts, KDTree *&tree, double massratio, int nsearch);
+
+void PotentialPP(Options &opt, Int_t nbodies, Particle *Part);
 //@}
 
 /// \name Routines to determine bulk quantities of halo and adjust halo
@@ -301,6 +308,8 @@ void CalcCriticalDensity(Options &opt, Double_t a);
 void CalcBackgroundDensity(Options &opt, Double_t a);
 void CalcVirBN98(Options &opt, Double_t a);
 void CalcCosmoParams(Options &opt, Double_t a);
+Double_t CalcGravitationalConstant(Options &opt);
+Double_t CalcHubbleUnit(Options &opt);
 Double_t GetHubble(Options &opt, Double_t a);
 double GetInvaH(double a, void * params);
 Double_t CalcCosmicTime(Options &opt, Double_t a1, Double_t a2);
@@ -358,12 +367,18 @@ GMatrix CalcPhaseCM(const Int_t n, Particle *p, int itype=-1);
 
 ///get concentration routines associted with finding concentrations via root finding
 void CalcConcentration(PropData &p);
+//root finding using half masses
+double CalcConcentrationRootFindingRhalf(double , double);
+//root finding using Vmax
+double CalcConcentrationRootFindingVmax(double , double);
 ///wrappers for root finding used to get concentration
 double mycNFW(double c, void *params);
 ///wrappers for root finding used to get concentration
 double mycNFW_deriv(double c, void *params);
 ///wrappers for root finding used to get concentration
 double mycNFW_fdf(double c, void *params, double*y,double *dy);
+///wrappers for root finding used to get concentration
+double mycNFWRhalf(double c, void *params);
 ///Calculate aperture quantities
 void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, PropData &pdata);
 ///determine the radial bin for calculating profiles
@@ -383,6 +398,16 @@ void AddDataToRadialBinInclusive(Options &opt, Double_t rval, Double_t massval,
     Double_t srfval, int typeval,
 #endif
     Double_t irnorm, int &ibin, PropData &pdata);
+
+///calculate extra hydro properties
+void GetExtraHydroProperties(Options &opt, PropData &pdata, Int_t n, Particle *Pval);
+///calculate extra star properties
+void GetExtraStarProperties(Options &opt, PropData &pdata, Int_t n, Particle *Pval);
+///calculate extra bh properties
+void GetExtraBHProperties(Options &opt, PropData &pdata, Int_t n, Particle *Pval);
+///calculate extra dm properties
+void GetExtraDMProperties(Options &opt, PropData &pdata, Int_t n, Particle *Pval);
+
 ///calculate spherical overdensity from vector of radii, masses and indices
 Int_t CalculateSphericalOverdensity(Options &opt, PropData &pdata,
     vector<Double_t> &radii, vector<Double_t> &masses, vector<Int_t> &indices,
@@ -473,11 +498,15 @@ void OpenMPHeadNextUpdate(const Int_t nbodies, vector<Particle> &Part, const Int
 void MPIUpdateUseParticleTypes(Options &opt);
 
 ///Domain decomposition of system
-void MPIInitialDomainDecomposition();
+void MPIInitialDomainDecomposition(Options &opt);
 ///Domain extent
 void MPIDomainExtent(Options &opt);
 ///domain decomposition
 void MPIDomainDecomposition(Options &opt);
+///z-curve based mesh decomposition
+void MPIInitialDomainDecompositionWithMesh(Options &opt);
+///z-curve repartitioning of cells
+bool MPIRepartitionDomainDecompositionWithMesh(Options &opt);
 
 ///Determine Domain Extent for tipsy input
 void MPIDomainExtentTipsy(Options &opt);
@@ -507,7 +536,7 @@ void MPIDomainExtentNchilada(Options &opt);
 void MPIDomainDecompositionNchilada(Options &opt);
 
 ///determine what processor a particle is sent to based on domain decomposition
-int MPIGetParticlesProcessor(const Double_t,const Double_t,const Double_t);
+int MPIGetParticlesProcessor(Options &opt, const Double_t,const Double_t,const Double_t);
 /// Determine number of local particles wrapper
 void MPINumInDomain(Options &opt);
 
@@ -515,6 +544,13 @@ void MPINumInDomain(Options &opt);
 void MPIDistributeReadTasks(Options&opt, int *&ireadtask, int*&readtaskID);
 ///set which file a given task will read
 int MPISetFilesRead(Options&opt, int *&ireadfile, int *&ireadtask);
+
+///generic init of write communicator to mpi world;
+void MPIInitWriteComm();
+///determine how to group mpi threads together when writing
+void MPIBuildWriteComm(Options &opt);
+///free communicator if needed
+void MPIFreeWriteComm();
 
 /// Determine number of local particles for tipsy
 void MPINumInDomainTipsy(Options &opt);
@@ -530,22 +566,20 @@ void MPINumInDomainHDF(Options &opt);
 void MPINumInDomainNchilada(Options &opt);
 
 ///adjust the domain boundaries to code units
-void MPIAdjustDomain(Options opt);
+void MPIAdjustDomain(Options &opt);
+///adjust the domain boundaries to code units
+void MPIAdjustDomainWithMesh(Options &opt);
 ///determine if the search domain of a particle overlaps another mpi domain
 int MPISearchForOverlap(Particle &Part, Double_t &rdist);
 ///determine if the search domain of a particle overlaps another mpi domain
 int MPISearchForOverlap(Coordinate &x, Double_t &rdist);
-#ifdef SWIFTINTERFACE
 ///determine if the search domain of a particle overlaps another mpi domain using the SWIFT mesh
 int MPISearchForOverlapUsingMesh(Options &opt, Particle &Part, Double_t &rdist);
 ///determine if the search domain of a coordinate overlaps another mpi domain using the SWIFT mesh
 int MPISearchForOverlapUsingMesh(Options &opt, Coordinate &x, Double_t &rdist);
-#endif
 ///determine if the search domain overlaps another mpi domain
 int MPISearchForOverlap(Double_t xsearch[3][2]);
-#ifdef SWIFTINTERFACE
 int MPISearchForOverlapUsingMesh(Options &opt, Double_t xsearch[3][2]);
-#endif
 
 ///determine if search domain overlaps domain
 int MPIInDomain(Double_t xsearch[3][2], Double_t bnd[3][2]);
@@ -557,14 +591,111 @@ vector<int> MPIGetCellListInSearchUsingMesh(Options &opt, Double_t xsearch[3][2]
 /// \name MPI send/recv related routines when reading input data
 /// see \ref mpiroutines.cxx for implementation
 //@{
+
 ///adds particles to appropriate send buffers and initiates sends if necessary.
-void MPIAddParticletoAppropriateBuffer(const int &ibuf, Int_t ibufindex, int *&ireadtask, const Int_t &Bufsize, Int_t *&Nbuf, Particle *&Pbuf, Int_t &numpart, Particle *Part, Int_t *&Nreadbuf, vector<Particle>*&Preadbuf);
+void MPIAddParticletoAppropriateBuffer(Options &opt, const int &ibuf, Int_t ibufindex, int *&ireadtask, const Int_t &Bufsize, Int_t *&Nbuf, Particle *&Pbuf, Int_t &numpart, Particle *Part, Int_t *&Nreadbuf, vector<Particle>*&Preadbuf);
+///Send particle information from read threads to non read threads using MPI_COMM_WORLD
+void MPISendParticlesFromReadThreads(Options &opt, Int_t nlocalbuff, Particle *Part, int taskID);
 ///recv particle data from read threads
 void MPIReceiveParticlesFromReadThreads(Options &opt, Particle *&Pbuf, Particle *Part, int *&readtaskID, int *&irecv, int *&mpi_irecvflag, Int_t *&Nlocalthreadbuf, MPI_Request *&mpi_request, Particle *&Pbaryons);
 ///Send/recv particle data read from input files between the various read threads;
 void MPISendParticlesBetweenReadThreads(Options &opt, Particle *&Pbuf, Particle *Part, Int_t *&nreadoffset, int *&ireadtask, int *&readtaskID, Particle *&Pbaryons, Int_t *&mpi_nsend_baryon);
 ///Send/recv particle data stored in vector using the read thread communication domain
 void MPISendParticlesBetweenReadThreads(Options &opt, vector<Particle> *&Pbuf, Particle *Part, int *&ireadtask, int *&readtaskID, Particle *&Pbaryons, MPI_Comm &mpi_read_comm, Int_t *&mpi_nsend_readthread, Int_t *&mpi_nsend_readthread_baryon);
+
+///Interrupt send of particle information to destination taskID using MPI_COMM_WORLD
+void MPIISendParticleInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int taskID, int tag, MPI_Request &rqst);
+///Receive Particle information send with specific tag
+void MPIReceiveParticleInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int sendingTaskID, int tag);
+
+///Send hydro information from read threads to non read threads using MPI_COMM_WORLD
+void MPISendHydroInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle *Part, int taskID);
+///Send star information from read threads to non read threads using MPI_COMM_WORLD
+void MPISendStarInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle *Part, int taskID);
+///Send bh information from read threads to non read threads using MPI_COMM_WORLD
+void MPISendBHInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle *Part, int taskID);
+///Send extra dm information from read threads to non read threads using MPI_COMM_WORLD
+void MPISendExtraDMInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle *Part, int taskID);
+
+///Receive hydro information from read threads using MPI_COMM_WORLD
+void MPIReceiveHydroInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle *Part, int readtaskID);
+///Receive star information from read threads using MPI_COMM_WORLD
+void MPIReceiveStarInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle *Part, int readtaskID);
+///Receive bh information from read threads using MPI_COMM_WORLD
+void MPIReceiveBHInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle *Part, int readtaskID);
+///Receive extra dm information from read threads using MPI_COMM_WORLD
+void MPIReceiveExtraDMInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle *Part, int readtaskID);
+
+///Interrupt send of hydro information to destination taskID using MPI_COMM_WORLD
+void MPIISendHydroInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int taskID, int tag, MPI_Request &rqst);
+///Interrupt send of star information to destination taskID using MPI_COMM_WORLD
+void MPIISendStarInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int taskID, int tag, MPI_Request &rqst);
+///Interrupt send of BH information to destination taskID using MPI_COMM_WORLD
+void MPIISendBHInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int taskID, int tag, MPI_Request &rqst);
+///Interrupt send of extra dm information to destination taskID using MPI_COMM_WORLD
+void MPIISendExtraDMInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int taskID, int tag, MPI_Request &rqst);
+
+///Receive Hydro information send with specific tag
+void MPIReceiveHydroInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int sendingTaskID, int tag);
+///Receive star information send with specific tag
+void MPIReceiveStarInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int sendingTaskID, int tag);
+///Receive BH information send with specific tag
+void MPIReceiveBHInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int sendingTaskID, int tag);
+///Receive Extra DM information send with specific tag
+void MPIReceiveExtraDMInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int sendingTaskID, int tag);
+
+///Send/Receive hydro information between read threads using the MPI communicator
+void MPISendReceiveHydroInfoBetweenThreads(Options &opt, Int_t nlocalbuff, Particle *Pbuf, Int_t nlocal, Particle *Part, int recvTask, int tag, MPI_Comm &mpi_comm);
+///Send/Receive star information between read threads using the MPI communicator
+void MPISendReceiveStarInfoBetweenThreads(Options &opt, Int_t nlocalbuff, Particle *Pbuf, Int_t nlocal, Particle *Part, int recvTask, int tag, MPI_Comm &mpi_comm);
+///Send/Receive BH information between read threads using the MPI communicator
+void MPISendReceiveBHInfoBetweenThreads(Options &opt, Int_t nlocalbuff, Particle *Pbuf, Int_t nlocal, Particle *Part, int recvTask, int tag, MPI_Comm &mpi_comm);
+///Send/Receive BH information between read threads using the MPI communicator
+void MPISendReceiveExtraDMInfoBetweenThreads(Options &opt, Int_t nlocalbuff, Particle *Pbuf, Int_t nlocal, Particle *Part, int recvTask, int tag, MPI_Comm &mpi_comm);
+
+///strip off extra information stored in unique pointers if not necessary to send info
+void MPIStripExportParticleOfExtraInfo(Options &opt, Int_t n, Particle *Part);
+
+///Filling extra buffers with hydro data for particles that are to be exported
+void MPIFillBuffWithHydroInfo(Options &opt, Int_t nlocalbuff, Particle *Part, vector<Int_t> &indices, vector<float> &propbuff, bool resetbuff=false);
+///Filling extra buffers with star data for particles that are to be exported
+void MPIFillBuffWithStarInfo(Options &opt, Int_t nlocalbuff, Particle *Part, vector<Int_t> &indices, vector<float> &propbuff, bool resetbuff=false);
+///Filling extra buffers with bh data for particles that are to be exported
+void MPIFillBuffWithBHInfo(Options &opt, Int_t nlocalbuff, Particle *Part, vector<Int_t> &indices, vector<float> &propbuff, bool resetbuff=false);
+///Filling extra buffers with extra dm data for particles that are to be exported
+void MPIFillBuffWithExtraDMInfo(Options &opt, Int_t nlocalbuff, Particle *Part, vector<Int_t> &indices, vector<float> &propbuff, bool resetbuff=false);
+
+///Send/Receive hydro information between read threads using the MPI communicator
+void MPISendReceiveBuffWithHydroInfoBetweenThreads(Options &opt, Particle *PartLocal, vector<Int_t> &indices, vector<float> &propbuff, int recvTask, int tag, MPI_Comm &mpi_comm);
+///Send/Receive star information between read threads using the MPI communicator
+void MPISendReceiveBuffWithStarInfoBetweenThreads(Options &opt, Particle *PartLocal, vector<Int_t> &indices, vector<float> &propbuff, int recvTask, int tag, MPI_Comm &mpi_comm);
+///Send/Receive bh information between read threads using the MPI communicator
+void MPISendReceiveBuffWithBHInfoBetweenThreads(Options &opt, Particle *PartLocal, vector<Int_t> &indices, vector<float> &propbuff, int recvTask, int tag, MPI_Comm &mpi_comm);
+///Send/Receive extra dm information between read threads using the MPI communicator
+void MPISendReceiveBuffWithExtraDMInfoBetweenThreads(Options &opt, Particle *PartLocal, vector<Int_t> &indices, vector<float> &propbuff, int recvTask, int tag, MPI_Comm &mpi_comm);
+
+///Filling extra buffers with hydro data for particles that are to be exported as part of
+///a FOF group.
+void MPIFillFOFBuffWithHydroInfo(Options &opt, Int_t numexport, fofid_in *FoFGroupData, Particle *&Part, vector<Int_t> &indices, vector<float> &propbuff, bool iforexport = true);
+///Filling extra buffers with hydro data for particles that are to be exported as part of
+///a Star group.
+void MPIFillFOFBuffWithStarInfo(Options &opt, Int_t numexport, fofid_in *FoFGroupData, Particle *&Part, vector<Int_t> &indices, vector<float> &propbuff, bool iforexport = true);
+///Filling extra buffers with hydro data for particles that are to be exported as part of
+///a BH group.
+void MPIFillFOFBuffWithBHInfo(Options &opt, Int_t numexport, fofid_in *FoFGroupData, Particle *&Part, vector<Int_t> &indices, vector<float> &propbuff, bool iforexport = true);
+///Filling extra buffers with hydro data for particles that are to be exported as part of
+///a Extra DM group.
+void MPIFillFOFBuffWithExtraDMInfo(Options &opt, Int_t numexport, fofid_in *FoFGroupData, Particle *&Part, vector<Int_t> &indices, vector<float> &propbuff, bool iforexport = true);
+
+///Send/Receive hydro information between read threads using the MPI communicator
+///Using a FOF filled buffer
+void MPISendReceiveFOFHydroInfoBetweenThreads(Options &opt, fofid_in *FoFGroupDataLocal, vector<Int_t> &indices, vector<float> &propbuff, int recvTask, int tag, MPI_Comm &mpi_comm);
+///Send/Receive star information between read threads using the MPI communicator
+void MPISendReceiveFOFStarInfoBetweenThreads(Options &opt, fofid_in *FoFGroupDataLocal, vector<Int_t> &indices, vector<float> &propbuff, int recvTask, int tag, MPI_Comm &mpi_comm);
+///Send/Receive bh information between read threads using the MPI communicator
+void MPISendReceiveFOFBHInfoBetweenThreads(Options &opt, fofid_in *FoFGroupDataLocal, vector<Int_t> &indices, vector<float> &propbuff, int recvTask, int tag, MPI_Comm &mpi_comm);
+///Send/Receive extra dm information between read threads using the MPI communicator
+void MPISendReceiveFOFExtraDMInfoBetweenThreads(Options &opt, fofid_in *FoFGroupDataLocal, vector<Int_t> &indices, vector<float> &propbuff, int recvTask, int tag, MPI_Comm &mpi_comm);
 //@}
 
 /// \name MPI search related routines
@@ -577,12 +708,10 @@ short_mpi_t *MPISetTaskID(const Int_t nbodies);
 void MPIAdjustLocalGroupIDs(const Int_t nbodies, Int_t *pfof);
 ///Determine number of particles that need to be exported to another mpi thread from local mpi thread based on rdist
 void MPIGetExportNum(const Int_t nbodies, Particle *Part, Double_t rdist);
-#ifdef SWIFTINTERFACE
 ///Determine number of particles that need to be exported to another mpi thread from local mpi thread based on rdist using the SWIFT mesh
 void MPIGetExportNumUsingMesh(Options &opt, const Int_t nbodies, Particle *Part, Double_t rdist);
-#endif
 ///Determine and send particles that need to be exported to another mpi thread from local mpi thread based on rdist
-void MPIBuildParticleExportList(const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_tree_t *&Len, Double_t rdist);
+void MPIBuildParticleExportList(Options &opt, const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_tree_t *&Len, Double_t rdist);
 ///Determine and send particles that need to be exported to another mpi thread from local mpi thread based on rdist using the SWIFT mesh
 void MPIBuildParticleExportListUsingMesh(Options &opt, const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_tree_t *&Len, Double_t rdist);
 ///Link groups across MPI threads using a physical search
@@ -594,13 +723,13 @@ Int_t MPILinkAcross(const Int_t nbodies, KDTree *&tree, Particle *Part, Int_t *&
 ///update export list after after linking across
 void MPIUpdateExportList(const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_tree_t *&Len);
 ///localize groups to a single mpi thread
-Int_t MPIGroupExchange(const Int_t nbodies, Particle *Part, Int_t *&pfof);
+Int_t MPIGroupExchange(Options &opt, const Int_t nbodies, Particle *Part, Int_t *&pfof);
 ///Determine the local number of groups and their sizes (groups must be local to an mpi thread)
-Int_t MPICompileGroups(const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_t minsize);
+Int_t MPICompileGroups(Options &opt, const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_t minsize);
 ///similar to \ref MPIGroupExchange but optimised for separate baryon search, assumes only looking at baryons
-Int_t MPIBaryonGroupExchange(const Int_t nbodies, Particle *Part, Int_t *&pfof);
+Int_t MPIBaryonGroupExchange(Options &opt, const Int_t nbodies, Particle *Part, Int_t *&pfof);
 ///similar to \ref MPICompileGroups but optimised for separate baryon search, assumes only looking at baryons
-Int_t MPIBaryonCompileGroups(const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_t minsize, int iorder=1);
+Int_t MPIBaryonCompileGroups(Options &opt, const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_t minsize, int iorder=1);
 ///localize baryons particle members of groups to a single mpi thread
 ///Collect FOF from all
 void MPICollectFOF(const Int_t nbodies, Int_t *&pfof);
@@ -609,7 +738,7 @@ int fof_export_cmp(const void *a, const void *b);
 ///comparison function to order particles for export and fof group localization.
 int fof_id_cmp(const void *a, const void *b);
 ///similar to \ref MPIBuildParticleExportList but specific interface for baryon search
-void MPIBuildParticleExportBaryonSearchList(const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_t *ids, Int_t *numingroup, Double_t rdist);
+void MPIBuildParticleExportBaryonSearchList(Options &opt, const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_t *ids, Int_t *numingroup, Double_t rdist);
 ///search local baryons with exported particle list.
 Int_t MPISearchBaryons(const Int_t nbaryons, Particle *&Pbaryons, Int_t *&pfofbaryons, Int_t *numingroup, Double_t *localdist, Int_t nsearch, Double_t *param, Double_t *period);
 ///localize the baryons to the mpi thread on which their associated DM group exists.
@@ -624,38 +753,30 @@ Int_t MPIBaryonExchange(const Int_t nbaryons, Particle *&Pbaryons, Int_t *&pfofb
 void MPIBuildGridData(const Int_t ngrid, GridCell *grid, Coordinate *gvel, Matrix *gveldisp);
 ///Determine number of particles that need to be exported to another mpi thread from local mpi thread based on array of distances for each particle for NN search
 void MPIGetNNExportNum(const Int_t nbodies, Particle *Part, Double_t *rdist);
-#ifdef SWIFTINTERFACE
 ///Determine number of particles that need to be exported to another mpi thread from local mpi thread based on array of distances for each particle for NN search
 void MPIGetNNExportNumUsingMesh(Options &opt, const Int_t nbodies, Particle *Part, Double_t *rdist);
-#endif
 ///Determine and send particles that need to be exported to another mpi thread from local mpi thread based on array of distances for each particle for NN search
 void MPIBuildParticleNNExportList(const Int_t nbodies, Particle *Part, Double_t *rdist);
-#ifdef SWIFTINTERFACE
 ///Determine and send particles that need to be exported to another mpi thread from local mpi thread based on array of distances for each particle for NN search
 void MPIBuildParticleNNExportListUsingMesh(Options &opt, const Int_t nbodies, Particle *Part, Double_t *rdist);
-#endif
 ///Determine number of local particles that need to be exported back based on ball search.
 void MPIGetNNImportNum(const Int_t nbodies, KDTree *tree, Particle *Part, int iallflag=1);
 ///Determine local particles that need to be exported back based on ball search.
-Int_t MPIBuildParticleNNImportList(const Int_t nbodies, KDTree *tree, Particle *Part, int iallflag=1);
+Int_t MPIBuildParticleNNImportList(Options &opt, const Int_t nbodies, KDTree *tree, Particle *Part, int iallflag=1, bool iSOcalc = false);
 ///comparison function to order particles for export
 int nn_export_cmp(const void *a, const void *b);
 ///Determine number of halos whose search regions overlap other mpi domains
 vector<bool> MPIGetHaloSearchExportNum(const Int_t ngroups, PropData *&pdata, vector<Double_t> &rdist);
-#ifdef SWIFTINTERFACE
 ///Determine number of halos whose search regions overlap other mpi domains using swift mesh mpi decomposition
 vector<bool> MPIGetHaloSearchExportNumUsingMesh(Options &opt, const Int_t ngroup, PropData *&pdata, vector<Double_t> &rdist);
-#endif
 ///Build the export list of halo positions and search distances
 void MPIBuildHaloSearchExportList(const Int_t ngroup, PropData *&pdata, vector<Double_t> &rdist, vector<bool> &halooverlap);
-#ifdef SWIFTINTERFACE
 ///Build the export list of halo positions and search distances using swift mesh mpi decomposition
 void MPIBuildHaloSearchExportListUsingMesh(Options &opt, const Int_t ngroup, PropData *&pdata, vector<Double_t> &rdist, vector<bool> &halooverlap);
-#endif
 ///Determine number of imported particles based on halo search regions
 void MPIGetHaloSearchImportNum(const Int_t nbodies, KDTree *tree, Particle *Part);
 ///Builds the import list of particles based on halo positions
-Int_t MPIBuildHaloSearchImportList(const Int_t nbodies, KDTree *tree, Particle *Part);
+Int_t MPIBuildHaloSearchImportList(Options &opt, const Int_t nbodies, KDTree *tree, Particle *Part);
 #ifdef SWIFTINTERFACE
 ///Exchange Particles so that particles in group are back original swift task
 void MPISwiftExchange(vector<Particle> &Part);
@@ -681,9 +802,9 @@ Int_t **BuildPGList(const Int_t nbodies, const Int_t numgroups, Int_t *numingrou
 ///build pglist but doesn't assume particles are in ID order
 Int_t **BuildPGList(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t *pfof, Int_t *ids);
 ///build the group particle arrays need for unbinding procedure
-Particle **BuildPartList(const Int_t numgroups, Int_t *numingroup, Int_t **pglist, Particle* Part);
+Particle **BuildPartList(const Int_t numgroups, Int_t *numingroup, Int_t **pglist, Particle* Part, bool ikeepextrainfo = false);
 ///build a particle list subset using array of indices
-Particle *BuildPart(Int_t numingroup, Int_t *pglist, Particle* Part);
+Particle *BuildPart(Int_t numingroup, Int_t *pglist, Particle* Part, bool ikeepextrainfo = false);
 ///build the Head array which points to the head of the group a particle belongs to
 Int_tree_t *BuildHeadArray(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t **pglist);
 ///build the Next array which points to the next particle in the group
@@ -722,9 +843,14 @@ int GetMilliCount();
 ///Get span in milliseconds
 int GetMillSpan(int );
 int CompareInt(const void *, const void *);
+///Get memory use
+void GetMemUsage(Options &opt, string callingfunction, bool printreport);
+///Get memory use
+void GetMemUsage(string callingfunction, bool printreport);
+///Init memory log
+void InitMemUsageLog(Options &opt);
 ///get a time
 double MyGetTime();
-
 //@}
 
 /// \name Compilation functions
@@ -751,6 +877,12 @@ extern "C" void VR_OPENMPON();
 #endif
 #ifdef HIGHRES
 extern "C" void VR_ZOOMSIMON();
+#endif
+#ifdef USEHDF
+extern "C" void VR_HDFON();
+#ifdef USEPARALLELHDF
+extern "C" void VR_PARALLELHDFON();
+#endif
 #endif
 //@}
 

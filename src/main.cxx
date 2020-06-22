@@ -16,12 +16,13 @@
 using namespace std;
 using namespace Math;
 using namespace NBody;
+using namespace velociraptor;
 
 int main(int argc,char **argv)
 {
 #ifdef SWIFTINTERFACE
-  cout<<"Built with SWIFT interface enabled when running standalone VELOCIraptor. Should only be enabled when running VELOCIraptor as a library from SWIFT. Exiting..."<<endl;
-  exit(0);
+    cout<<"Built with SWIFT interface enabled when running standalone VELOCIraptor. Should only be enabled when running VELOCIraptor as a library from SWIFT. Exiting..."<<endl;
+    exit(0);
 #endif
 #ifdef USEMPI
     //start MPI
@@ -39,6 +40,8 @@ int main(int argc,char **argv)
     MPI_Comm_size(MPI_COMM_WORLD,&NProcs);
     //and this processes' rank is
     MPI_Comm_rank(MPI_COMM_WORLD,&ThisTask);
+
+    if (ThisTask == 0) cout<<"Running VELOCIraptor "<<git_sha1()<<endl;
 #ifdef USEOPENMP
     // Check the threading support level
     if (provided < required)
@@ -70,12 +73,15 @@ int main(int argc,char **argv)
     if (ThisTask==0) cout<<"VELOCIraptor/STF running with OpenMP. Number of openmp threads: "<<nthreads<<endl;
 #endif
 
+    gsl_set_error_handler_off();
+
     Options opt;
     //get arguments
     GetArgs(argc, argv, opt);
     cout.precision(10);
 
 #ifdef USEMPI
+    MPIInitWriteComm();
 #ifdef USEADIOS
     //init adios
     adios_init_noxml(MPI_COMM_WORLD);
@@ -83,6 +89,8 @@ int main(int argc,char **argv)
     adios_set_max_buffer_size(opt.mpiparticletotbufsize/1024/1024);
 #endif
 #endif
+
+    InitMemUsageLog(opt);
 
     //variables
     //number of particles, (also number of baryons if use dm+baryon search)
@@ -217,8 +225,7 @@ int main(int argc,char **argv)
 #endif
 
     //now read particle data
-    if (ThisTask==0)
-    cout<<"Loading ... "<<endl;
+    if (ThisTask==0) cout<<"Loading ... "<<endl;
     ReadData(opt, Part, nbodies, Pbaryons, nbaryons);
 #ifdef USEMPI
     //if mpi and want separate baryon search then once particles are loaded into contigous block of memory and sorted according to type order,
@@ -232,10 +239,6 @@ int main(int argc,char **argv)
     }
 #endif
 
-#ifdef USEMPI
-    if (ThisTask==0)
-#endif
-    cout<<"Done Loading"<<endl;
     time1=MyGetTime()-time1;
 #ifdef USEMPI
     Ntotal=nbodies;
@@ -438,8 +441,14 @@ int main(int argc,char **argv)
         numingroup=BuildNumInGroup(Nlocal, ngroup, pfof);
         CalculateHaloProperties(opt,Nlocal,Part.data(),ngroup,pfof,numingroup,pdata);
         WriteProperties(opt,ngroup,pdata);
+        if (opt.iprofilecalc) WriteProfiles(opt, ngroup, pdata);
         delete[] numingroup;
         delete[] pdata;
+
+        //get memory useage
+        cout<<ThisTask<<" : finished running VR "<<endl;
+        GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=0));
+
 #ifdef USEMPI
 #ifdef USEADIOS
         adios_finalize(ThisTask);
@@ -549,6 +558,10 @@ int main(int argc,char **argv)
 
     tottime=MyGetTime()-tottime;
     cout<<"TIME::"<<ThisTask<<" took "<<tottime<<" in all"<<endl;
+
+    //get memory useage
+    cout<<ThisTask<<" : finished running VR "<<endl;
+    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=0));
 
 #ifdef USEMPI
 #ifdef USEADIOS
