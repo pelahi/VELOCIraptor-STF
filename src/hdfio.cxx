@@ -1103,6 +1103,9 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
       opt.numpart[j]+=((long long)hdf_header_info[ifirstfile].npartTotalHW[j]<<32);
       Ntotal+=((long long)hdf_header_info[ifirstfile].npartTotalHW[j]<<32);
     }
+#ifdef NOMASS
+    if (hdf_header_info[ifirstfile].mass[HDFDMTYPE] > 0) opt.MassValue = hdf_header_info[ifirstfile].mass[HDFDMTYPE]*mscale;
+#endif
     if (ThisTask==0) {
       cout<<"File contains "<<Ntotal<<" particles and is at time "<<opt.a<<endl;
       cout<<"Particle system contains "<<nbodies<<" particles and is at time "<<opt.a<<" in a box of size "<<opt.p<<endl;

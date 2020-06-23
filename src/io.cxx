@@ -110,6 +110,9 @@ void ReadData(Options &opt, vector<Particle> &Part, const Int_t nbodies, Particl
 #ifdef USEXDR
     else if (opt.inputtype==IONCHILADA) ReadNchilada(opt,Part,nbodies, Pbaryons, nbaryons);
 #endif
+#ifdef NOMASS
+    NOMASSCheck(opt);
+#endif
     AdjustHydroQuantities(opt,Part,nbodies);
     AdjustStarQuantities(opt,Part,nbodies);
     AdjustBHQuantities(opt,Part,nbodies);

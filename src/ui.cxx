@@ -1712,6 +1712,18 @@ void GetParamFile(Options &opt)
     }
 }
 
+void NOMASSCheck(Options &opt)
+{
+#ifdef NOMASS
+    if (opt.MassValue<=0) {
+        errormessage("Code compiled to not store mass per particle.");
+        errormessage("Valid value of particle mass must be extracted from input (HDF5, Gadget) or set in the config file through  Mass_value");
+        errormessage("Currently value <=0. Either input did not contain a valid value and update to config file needed");
+        ConfigExit();
+    }
+#endif
+}
+
 void ConfigCheck(Options &opt)
 {
 #ifndef USEMPI
@@ -1779,12 +1791,7 @@ void ConfigCheck(Options &opt)
         ConfigExit();
     }
 #endif
-#ifdef NOMASS
-    if (opt.MassValue<=0) {
-        errormessage("Code compiled to not store mass per particle. Valid Mass_value in the config must be passed. Currently value <=0. Update config file");
-        ConfigExit();
-    }
-#else
+#ifndef NOMASS
     opt.MassValue = 1.0;
 #endif
 
