@@ -29,6 +29,7 @@
 #include <algorithm>
 #include <map>
 #include <unordered_map>
+#include <bitset>
 #include <getopt.h>
 #include <sys/stat.h>
 #include <sys/timeb.h>
@@ -240,6 +241,10 @@ typedef double (*ExtraPropFunc)(double, double, double&);
 #define UNBINDNUM 150
 #define POTPPCALCNUM 150
 #define POTOMPCALCNUM 1000
+///diferent methods for calculating approximate potential
+#define POTAPPROXMETHODTREE 0
+#define POTAPPROXMETHODRAND 1
+
 ///when unbinding check to see if system is bound and least bound particle is also bound
 #define USYSANDPART 0
 ///when unbinding check to see if least bound particle is also bound
@@ -277,6 +282,16 @@ typedef double (*ExtraPropFunc)(double, double, double&);
 #define PROPMORPHMINNUM 10
 //@}
 
+/// \defgroup PROPERTYCONSTANTS Useful constants related to calculating properties
+//@{
+/// if halo follows NFW profile, maximum ratio of half mass to virial mass one might
+/// expect for R200 (assuming the scale radius is inside this radius, giving a c>=1)
+#define NFWMAXRHALFRATIO 0.60668
+#define NFWMINRHALFRATIO 0.05
+#define NFWMINVMAXVVIRRATIO 36.0
+//@}
+
+
 ///\name halo id modifers used with current snapshot value to make temporally unique halo identifiers
 #ifdef LONGINT
 #define HALOIDSNVAL 1000000000000L
@@ -295,6 +310,11 @@ typedef double (*ExtraPropFunc)(double, double, double&);
 //@{
 ///mass of helium relative to hydrogen
 #define M_HetoM_H 4.0026
+//@}
+
+///\defgroup PhysConstants Useful physical constants
+//@{
+#define Grav_in_kpc_kms_solarmasses 4.3022682e-6
 //@}
 
 
@@ -330,6 +350,14 @@ struct UnbindInfo
     Double_t TreeThetaOpen;
     ///softening length
     Double_t eps;
+    ///whether to calculate approximate potential energy
+    int iapproxpot;
+    ///fraction of particles to subsample
+    Double_t approxpotnumfrac;
+    ///fraction of particles to subsample
+    Double_t approxpotminnum;
+    ///method of subsampling to calculate potential
+    int approxpotmethod;
     //@}
     UnbindInfo(){
         icalculatepotential=true;
@@ -348,6 +376,10 @@ struct UnbindInfo
         maxunbindfrac=0.5;
         maxunboundfracforiterativeunbind=0.95;
         maxallowedunboundfrac=0.025;
+        iapproxpot = 0;
+        approxpotnumfrac = 0.1;
+        approxpotminnum = 5000;
+        approxpotmethod = POTAPPROXMETHODTREE;
     }
 };
 
@@ -430,6 +462,12 @@ struct Options
     Double_t mpipartfac;
     /// if using parallel output, number of mpi threads to group together
     int mpinprocswritesize;
+
+    /// mpi number of top level cells used in decomposition
+    /// could be integrated into metis/parmetis eventually
+    /// here this is the number of cells in a singel dimension to total cells
+    /// is this to ^3
+    int mpinumtoplevelcells;
 
     /// run FOF using OpenMP
     int iopenmpfof;
@@ -656,6 +694,9 @@ struct Options
     /* Number of top-level cells in each dimension. */
     int numcellsperdim;
 
+    /// minimum number of top-level cells
+    int minnumcellperdim;
+
     /* Locations of top-level cells. */
     cell_loc *cellloc;
 
@@ -666,7 +707,21 @@ struct Options
     double icellwidth[3];
 
     /*! Holds the node ID of each top-level cell. */
-    const int *cellnodeids;
+    int *cellnodeids;
+
+    /// holds the order of cells based on z-curve decomposition;
+    vector<int> cellnodeorder;
+
+    /// holds the number of particles in a given top-level cell
+    vector<unsigned long long> cellnodenumparts;
+
+    /// allowed mesh based mpi decomposition load imbalance
+    float mpimeshimbalancelimit;
+
+
+    ///whether using mesh decomposition
+    bool impiusemesh;
+
     //@}
 
     /// \name options related to calculation of aperture/profile
@@ -909,7 +964,7 @@ struct Options
         istellaragescalefactor = 1;
         isfrisssfr = 0;
 
-        G = 1.0;
+        G = 0.0;
         p = 0.0;
 
         a = 1.0;
@@ -927,8 +982,7 @@ struct Options
         rhobg = 1.0;
         virlevel = -1;
         comove=0;
-        H=100.0;//value of Hubble flow in h 1 km/s/Mpc
-        MassValue=1.0;
+        MassValue=-1.0;
 
         inputtype=IOGADGET;
 
@@ -1052,6 +1106,14 @@ struct Options
         mpiparticletotbufsize=-1;
         mpiparticlebufsize=-1;
         mpinprocswritesize=1;
+#ifdef SWIFTINTERFACE
+        impiusemesh = true;
+#else
+        impiusemesh = true;
+        mpimeshimbalancelimit = 0.1;
+        minnumcellperdim = 8;
+#endif
+        cellnodeids = NULL;
 
         lengthtokpc=-1.0;
         velocitytokms=-1.0;
@@ -1359,6 +1421,9 @@ struct PropData
     Double_t gM200c,gR200c,gM200m,gR200m,gMFOF,gM6DFOF,gM500c,gR500c,gMBN98,gRBN98;
     //to store exclusive masses of halo ignoring substructure
     Double_t gMvir_excl,gRvir_excl,gM200c_excl,gR200c_excl,gM200m_excl,gR200m_excl,gMBN98_excl,gRBN98_excl;
+    //to store halfmass radii of overdensity masses
+    Double_t gRhalf200c,gRhalf200m,gRhalfBN98;
+
     //@}
     ///\name physical properties for shape/mass distribution
     //@{
@@ -1387,6 +1452,9 @@ struct PropData
     int stype;
     ///concentration (and related quantity used to calculate a concentration)
     Double_t cNFW, VmaxVvir2;
+    Double_t cNFW200c, cNFW200m, cNFWBN98;
+    /// if fitting mass profiles with generalized NFW
+    Double_t NFWfitrs, NFWfitalpha, NFWfitbeta;
     ///Bullock & Peebles spin parameters
     Double_t glambda_B,glambda_P;
     ///measure of rotational support
@@ -1657,6 +1725,7 @@ struct PropData
     //@{
     vector<int> aperture_npart_bh;
     vector<float> aperture_mass_bh;
+    vector<Coordinate> aperture_mass_proj_bh;
     vector<Coordinate> aperture_L_bh;
     //@}
 
@@ -1679,6 +1748,7 @@ struct PropData
 
     vector<unsigned int> aperture_npart_interloper;
     vector<float> aperture_mass_interloper;
+    vector<Coordinate> aperture_mass_proj_interloper;
     vector<unsigned int> profile_npart_interloper;
     vector<unsigned int> profile_npart_inclusive_interloper;
     vector<float> profile_mass_interloper;
@@ -1714,6 +1784,12 @@ struct PropData
 #endif
     //@}
 
+    ///\name standard units of physical properties
+    //@{
+    string massunit, velocityunit, lengthunit, energyunit;
+    //@}
+
+
     PropData()
     {
         num=gNFOF=gN6DFOF=0;
@@ -1721,6 +1797,8 @@ struct PropData
         gMFOF=gM6DFOF=0;
         gM500c=gR500c=0;
         gMBN98=gRBN98=0;
+        gRhalf200c = gRhalf200m = gRhalfBN98 = 0.;
+        cNFW200c = cNFW200c = cNFWBN98 = 0;
         gcm[0]=gcm[1]=gcm[2]=gcmvel[0]=gcmvel[1]=gcmvel[2]=0.;
         gJ[0]=gJ[1]=gJ[2]=0;
         gJ200m[0]=gJ200m[1]=gJ200m[2]=0;
@@ -2151,7 +2229,12 @@ struct PropData
             aperture_rhalfmass_proj_star.resize(opt.apertureprojnum);
             aperture_Z_proj_star.resize(opt.apertureprojnum);
 #endif
-
+#ifdef BHON
+            aperture_mass_proj_bh.resize(opt.apertureprojnum);
+#endif
+#ifdef HIGHRES
+            aperture_mass_proj_interloper.resize(opt.apertureprojnum);
+#endif
             for (auto &x:aperture_mass_proj) x[0]=x[1]=x[2]=-1;
             for (auto &x:aperture_rhalfmass_proj) x[0]=x[1]=x[2]=-1;
 #ifdef GASON
@@ -2172,6 +2255,12 @@ struct PropData
             for (auto &x:aperture_mass_proj_star) x[0]=x[1]=x[2]=-1;
             for (auto &x:aperture_rhalfmass_proj_star) x[0]=x[1]=x[2]=-1;
             for (auto &x:aperture_Z_proj_star) x[0]=x[1]=x[2]=-1;
+#endif
+#ifdef BHON
+            for (auto &x:aperture_mass_proj_bh) x[0]=x[1]=x[2]=-1;
+#endif
+#ifdef HIGHRES
+            for (auto &x:aperture_mass_proj_interloper) x[0]=x[1]=x[2]=-1;
 #endif
         }
     }
@@ -2311,6 +2400,9 @@ struct PropData
         gR200m*=opt.h/opt.a;
         gR500c*=opt.h/opt.a;
         gRBN98*=opt.h/opt.a;
+        gRhalf200m*=opt.h/opt.a;
+        gRhalf200c*=opt.h/opt.a;
+        gRhalfBN98*=opt.h/opt.a;
         gMassTwiceRhalfmass*=opt.h;
         gRhalfmass*=opt.h/opt.a;
         gJ=gJ*opt.h*opt.h/opt.a;
@@ -2491,6 +2583,23 @@ struct PropData
 #endif
 };
 
+
+//for storing the units of known fields
+struct HeaderUnitInfo{
+    float massdim, lengthdim, velocitydim, timedim, energydim;
+    string extrainfo;
+    HeaderUnitInfo(float md = 0, float ld = 0, float vd = 0, float td = 0, string s = ""){
+        massdim = md;
+        lengthdim = ld;
+        velocitydim = vd;
+        timedim = td;
+        extrainfo = s;
+    };
+    //Parse the string in the format massdim:lengthdim:velocitydim:timedim:energydim if only a string is passed
+    //if format does not match this then just store string
+    HeaderUnitInfo(string s);
+};
+
 /*! Structures stores header info of the data writen by the \ref PropData data structure,
     specifically the \ref PropData::WriteBinary, \ref PropData::WriteAscii, \ref PropData::WriteHDF routines
     Must ensure that these routines are all altered together so that the io makes sense.
@@ -2498,6 +2607,8 @@ struct PropData
 struct PropDataHeader{
     //list the header info
     vector<string> headerdatainfo;
+    vector<HeaderUnitInfo> unitdatainfo;
+
 #ifdef USEHDF
     // vector<PredType> predtypeinfo;
     vector<hid_t> hdfpredtypeinfo;

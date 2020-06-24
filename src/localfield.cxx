@@ -102,11 +102,15 @@ private(i,j,k,tid,id,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,pqx,pqv
 #endif
         //once NN set is found, store maxrdist and see if particle's search radius overlaps with another mpi domain
         maxrdist[i]=sqrt(nnr2[opt.Nsearch-1]);
-#ifdef SWIFTINTERFACE
-        if (MPISearchForOverlapUsingMesh(libvelociraptorOpt,Part[i],maxrdist[i])==0) {
-#else
-        if (MPISearchForOverlap(Part[i],maxrdist[i])==0) {
-#endif
+        bool ioverlap;
+        if (opt.impiusemesh) {
+            ioverlap = (MPISearchForOverlapUsingMesh(opt,Part[i],maxrdist[i])==0);
+        }
+        else
+        {
+            ioverlap = (MPISearchForOverlap(Part[i],maxrdist[i])==0);
+        }
+        if (ioverlap) {
             for (j=0;j<opt.Nvel;j++) {
                 pqv->Push(-1, MAXVALUE);
                 weight[j]=1.0;
@@ -140,19 +144,14 @@ private(i,j,k,tid,id,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,pqx,pqv
     time2=MyGetTime();
 
     //determines export AND import numbers
-#ifdef SWIFTINTERFACE
-    MPIGetNNExportNumUsingMesh(libvelociraptorOpt, nbodies, Part, maxrdist);
-#else
-    MPIGetNNExportNum(nbodies, Part, maxrdist);
-#endif
+
+    if (opt.impiusemesh) MPIGetNNExportNumUsingMesh(opt, nbodies, Part, maxrdist);
+    else MPIGetNNExportNum(nbodies, Part, maxrdist);
     NNDataIn = new nndata_in[NExport];
     NNDataGet = new nndata_in[NImport];
     //build the exported particle list using NNData structures
-#ifdef SWIFTINTERFACE
-    MPIBuildParticleNNExportListUsingMesh(libvelociraptorOpt, nbodies, Part, maxrdist);
-#else
-    MPIBuildParticleNNExportList(nbodies, Part, maxrdist);
-#endif
+    if (opt.impiusemesh) MPIBuildParticleNNExportListUsingMesh(opt, nbodies, Part, maxrdist);
+    else MPIBuildParticleNNExportList(nbodies, Part, maxrdist);
     MPIGetNNImportNum(nbodies, tree, Part, (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)));
     PartDataIn = new Particle[NExport];
     PartDataGet = new Particle[NImport];
@@ -558,21 +557,18 @@ private(i,j,k,tid,id,v2,nnids,nnr2,weight,pqv)
         tree->FindNearest(i,nnids,nnr2,opt.Nsearch);
 #endif
 #ifdef USEMPI
-        if (opt.iLocalVelDenApproxCalcFlag==0) {
-        //once NN set is found, store maxrdist and see if particle's search radius overlaps with another mpi domain
-        maxrdist[i]=sqrt(nnr2[opt.Nsearch-1]);
-#ifdef SWIFTINTERFACE
-        if (MPISearchForOverlapUsingMesh(libvelociraptorOpt,Part[i],maxrdist[i])!=0) {
-            Part[i].SetDensity(-1.0);
-            continue;
-        }
-#else
-        if (MPISearchForOverlap(Part[i],maxrdist[i])!=0) {
-            Part[i].SetDensity(-1.0);
-            continue;
-        }
-#endif
-        maxrdist[i]=0.0;
+        if (opt.iLocalVelDenApproxCalcFlag==0 && NProcs>1) {
+            //once NN set is found, store maxrdist and see if particle's search radius overlaps with another mpi domain
+            maxrdist[i]=sqrt(nnr2[opt.Nsearch-1]);
+            bool ioverlap;
+
+            if (opt.impiusemesh) ioverlap = (MPISearchForOverlapUsingMesh(opt,Part[i],maxrdist[i])!=0);
+            else (MPISearchForOverlap(Part[i],maxrdist[i])!=0);
+            if (ioverlap) {
+                Part[i].SetDensity(-1.0);
+                continue;
+            }
+            maxrdist[i]=0.0;
         }
 #endif
         for (j=0;j<opt.Nvel;j++) {
@@ -603,19 +599,13 @@ private(i,j,k,tid,id,v2,nnids,nnr2,weight,pqv)
     if (opt.iverbose) cout<<ThisTask<<" finished local calculation in "<<MyGetTime()-time2<<endl;
     time2=MyGetTime();
     //determines export AND import numbers
-#ifdef SWIFTINTERFACE
-    MPIGetNNExportNumUsingMesh(libvelociraptorOpt, nbodies, Part, maxrdist);
-#else
-    MPIGetNNExportNum(nbodies, Part, maxrdist);
-#endif
+    if (opt.impiusemesh) MPIGetNNExportNumUsingMesh(opt, nbodies, Part, maxrdist);
+    else MPIGetNNExportNum(nbodies, Part, maxrdist);
     NNDataIn = new nndata_in[NExport];
     NNDataGet = new nndata_in[NImport];
     //build the exported particle list using NNData structures
-#ifdef SWIFTINTERFACE
-    MPIBuildParticleNNExportListUsingMesh(libvelociraptorOpt, nbodies, Part, maxrdist);
-#else
-    MPIBuildParticleNNExportList(nbodies, Part, maxrdist);
-#endif
+    if (opt.impiusemesh) MPIBuildParticleNNExportListUsingMesh(opt, nbodies, Part, maxrdist);
+    else MPIBuildParticleNNExportList(nbodies, Part, maxrdist);
     MPIGetNNImportNum(nbodies, tree, Part, (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)));
     PartDataIn = new Particle[NExport];
     PartDataGet = new Particle[NImport];
@@ -868,14 +858,13 @@ reduction(+:nprocessed,ntot)
         tree->FindNearestPos(leafnodes[i].cm,nnids,nnr2,opt.Nsearch);
 #endif
 #ifdef USEMPI
-        if (opt.iLocalVelDenApproxCalcFlag==1) {
+        if (opt.iLocalVelDenApproxCalcFlag==1 && NProcs > 1) {
         leafnodes[i].searchdist = sqrt(nnr2[opt.Nsearch-1]);
         //check if search region from Particle extends into other mpi domain, if so, skip particles
-#ifdef SWIFTINTERFACE
-        if (MPISearchForOverlapUsingMesh(libvelociraptorOpt,leafnodes[i].cm,leafnodes[i].searchdist)!=0) continue;
-#else
-        if (MPISearchForOverlap(leafnodes[i].cm,leafnodes[i].searchdist)!=0) continue;
-#endif
+        bool ioverlap;
+        if (opt.impiusemesh) ioverlap = (MPISearchForOverlapUsingMesh(opt,leafnodes[i].cm,leafnodes[i].searchdist)!=0);
+        else ioverlap = (MPISearchForOverlap(leafnodes[i].cm,leafnodes[i].searchdist)!=0);
+        if (ioverlap) continue;
         leafnodes[i].searchdist = 0;
 	}
 #endif
@@ -926,21 +915,15 @@ reduction(+:nprocessed,ntot)
     }
 
     //determines export AND import numbers
-#ifdef SWIFTINTERFACE
-    MPIGetNNExportNumUsingMesh(libvelociraptorOpt, nbodies, Part, maxrdist);
-#else
-    MPIGetNNExportNum(nbodies, Part, maxrdist);
-#endif
+    if (opt.impiusemesh) MPIGetNNExportNumUsingMesh(opt, nbodies, Part, maxrdist);
+    else MPIGetNNExportNum(nbodies, Part, maxrdist);
 
     NNDataIn = NNDataGet = NULL;
     if (NExport>0) NNDataIn = new nndata_in[NExport];
     if (NImport>0) NNDataGet = new nndata_in[NImport];
     //build the exported particle list using NNData structures
-#ifdef SWIFTINTERFACE
-    MPIBuildParticleNNExportListUsingMesh(libvelociraptorOpt, nbodies, Part, maxrdist);
-#else
-    MPIBuildParticleNNExportList(nbodies, Part, maxrdist);
-#endif
+    if (opt.impiusemesh) MPIBuildParticleNNExportListUsingMesh(opt, nbodies, Part, maxrdist);
+    else MPIBuildParticleNNExportList(nbodies, Part, maxrdist);
     delete[] maxrdist;
     MPIGetNNImportNum(nbodies, tree, Part,(!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)));
     PartDataIn = PartDataGet = NULL;

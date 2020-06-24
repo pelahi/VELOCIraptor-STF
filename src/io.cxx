@@ -20,6 +20,20 @@
 #include "adios.h"
 #endif
 
+///write the information stored in a unit struct as meta data into a HDF5 file
+#ifdef USEHDF
+inline void WriteHeaderUnitEntry(Options & opt, H5OutputFile & hfile, string datasetname, HeaderUnitInfo &u)
+{
+    hfile.write_attribute(datasetname, "Dimension_Mass", u.massdim);
+    hfile.write_attribute(datasetname, "Dimension_Length", u.lengthdim);
+    hfile.write_attribute(datasetname, "Dimension_Velocity", u.velocitydim);
+    hfile.write_attribute(datasetname, "Dimension_Time", u.timedim);
+    if (u.extrainfo.size()>0){
+        hfile.write_attribute(datasetname, "Dimension_Extra_Info", u.extrainfo);
+    }
+}
+#endif
+
 ///Checks if file exits by attempting to get the file attributes
 ///If success file obviously exists.
 ///If failure may mean that we don't have permission to access the folder which contains this file or doesn't exist.
@@ -95,6 +109,9 @@ void ReadData(Options &opt, vector<Particle> &Part, const Int_t nbodies, Particl
 #endif
 #ifdef USEXDR
     else if (opt.inputtype==IONCHILADA) ReadNchilada(opt,Part,nbodies, Pbaryons, nbaryons);
+#endif
+#ifdef NOMASS
+    NOMASSCheck(opt);
 #endif
     AdjustHydroQuantities(opt,Part,nbodies);
     AdjustStarQuantities(opt,Part,nbodies);
@@ -1838,6 +1855,12 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         Fhdf.write_dataset(opt, head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gRmaxvel;
         Fhdf.write_dataset(opt, head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gRhalf200m;
+        Fhdf.write_dataset(opt, head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gRhalf200c;
+        Fhdf.write_dataset(opt, head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gRhalfBN98;
+        Fhdf.write_dataset(opt, head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
 
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].gmaxvel;
         Fhdf.write_dataset(opt, head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
@@ -1863,6 +1886,12 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
             Fhdf.write_dataset(opt, head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         }
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].cNFW;
+        Fhdf.write_dataset(opt, head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].cNFW200c;
+        Fhdf.write_dataset(opt, head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].cNFW200m;
+        Fhdf.write_dataset(opt, head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
+        for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].cNFWBN98;
         Fhdf.write_dataset(opt, head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
 
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Krot;
@@ -2179,7 +2208,7 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
     Fhdf.write_dataset(opt, head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
     for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Z_mean_gas_sf;
     Fhdf.write_dataset(opt, head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
-    if (opt.iextrastaroutput) {
+    if (opt.iextragasoutput) {
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200mean_gas_sf;
         Fhdf.write_dataset(opt, head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200crit_gas_sf;
@@ -2239,7 +2268,7 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
     Fhdf.write_dataset(opt, head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
     for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Z_mean_gas_nsf;
     Fhdf.write_dataset(opt, head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
-    if (opt.iextrastaroutput) {
+    if (opt.iextragasoutput) {
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200mean_gas_nsf;
         Fhdf.write_dataset(opt, head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
         for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_200crit_gas_nsf;
@@ -2775,6 +2804,21 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
     if (opt.ibinaryout!=OUTHDF) Fout.close();
 #ifdef USEHDF
     else Fhdf.close();
+#endif
+
+    //write the units as metadata for each data set
+#ifdef USEHDF
+    Fhdf.append(string(fname), H5F_ACC_RDWR, 0, false);
+#ifdef USEPARALLELHDF
+    if (ThisWriteTask==0) {
+#endif
+        for (auto ientry=0;ientry<head.headerdatainfo.size();ientry++) {
+            WriteHeaderUnitEntry(opt, Fhdf, head.headerdatainfo[ientry], head.unitdatainfo[ientry]);
+        }
+#ifdef USEPARALLELHDF
+    }
+#endif
+    Fhdf.close();
 #endif
 
 #ifdef USEMPI
