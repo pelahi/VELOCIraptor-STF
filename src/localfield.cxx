@@ -563,7 +563,7 @@ private(i,j,k,tid,id,v2,nnids,nnr2,weight,pqv)
             bool ioverlap;
 
             if (opt.impiusemesh) ioverlap = (MPISearchForOverlapUsingMesh(opt,Part[i],maxrdist[i])!=0);
-            else (MPISearchForOverlap(Part[i],maxrdist[i])!=0);
+            else ioverlap = (MPISearchForOverlap(Part[i],maxrdist[i])!=0);
             if (ioverlap) {
                 Part[i].SetDensity(-1.0);
                 continue;
