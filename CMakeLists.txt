@@ -244,6 +244,18 @@ if (VR_USE_SWIFT_INTERFACE)
         list(APPEND VR_INCLUDE_DIRS ${SWIFT_INCLUDE_DIR})
 endif()
 
+# # How we find OpenMP and set it up
+# #
+macro(find_openmp)
+	find_package(OpenMP COMPONENTS CXX)
+	if (OPENMP_FOUND)
+		list(APPEND VR_CXX_FLAGS ${OpenMP_CXX_FLAGS})
+		list(APPEND VR_LINK_FLAGS ${OpenMP_CXX_FLAGS})
+		list(APPEND VR_DEFINES USEOPENMP USEOMP)
+		set(VR_HAS_OPENMP Yes)
+	endif()
+endmacro()
+
 # How we find OpenACC and set it up
 #
 macro(find_openacc)
@@ -251,10 +263,11 @@ macro(find_openacc)
 	if (OpenACC_CXX_FOUND)
 		list(APPEND VR_CXX_FLAGS ${OpenACC_CXX_FLAGS})
 		list(APPEND VR_LINK_FLAGS ${OpenACC_CXX_FLAGS})
-		list(APPEND VR_DEFINES USEOPENACC OPENACC)
+		list(APPEND VR_DEFINES USEOPENACC)
 		set(VR_HAS_OPENACC Yes)
 	endif()
 endmacro()
+
 
 #
 # Make sure we have the git submodules we need
@@ -295,16 +308,18 @@ configure_file("src/git_revision.cxx.in" "${git_revision_cxx}" @ONLY)
 #
 ensure_git_submodules()
 find_gsl()
-
-set(VR_HAS_MPI No)
-if (VR_MPI)
-	find_mpi()
-endif()
 set(VR_HAS_OPENACC No)
 if (VR_OPENACC)
 	find_openacc()
 endif()
-
+set(VR_HAS_OPENMP No)
+if (VR_OPENMP)
+	find_openmp()
+endif()
+set(VR_HAS_MPI No)
+if (VR_MPI)
+	find_mpi()
+endif()
 set(VR_HAS_HDF5 No)
 set(VR_HAS_COMPRESSED_HDF5 No)
 set(VR_HAS_PARALLEL_HDF5 No)
