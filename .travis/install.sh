@@ -59,6 +59,12 @@ fi
 if [ "$NOMPI" = 1 ]; then
 	VR_CMAKE_OPTIONS+=" -DVR_MPI=OFF "
 fi
+if [ "$NOMPENMP" = 1 ]; then
+	VR_CMAKE_OPTIONS+=" -DVR_OPENMP=OFF "
+fi
+if [ "$NOPENACC" = 1 ]; then
+	VR_CMAKE_OPTIONS+=" -DVR_OPENACC=OFF "
+fi
 
 # Go, go, go!
 cmake .. ${VR_CMAKE_OPTIONS} || fail "cmake failed"
