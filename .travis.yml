@@ -36,134 +36,134 @@ matrix:
     addons:
      apt:
       sources: ubuntu-toolchain-r-test
-      packages: [g++-5, libhdf5-dev, hdf5-tools, libgsl0-dev]
-    env: COMPILER=g++-5
-  - compiler: gcc
-    dist: focal
-    addons:
-     apt:
-      sources: ubuntu-toolchain-r-test
-      packages: [g++-5, cmake, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
-    env: COMPILER=g++-5
-  - compiler: gcc
-    dist: focal
-    addons:
-     apt:
-      sources: ubuntu-toolchain-r-test
-      packages: [g++-5, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
-    env: COMPILER=g++-5 USEGAS=1 USESTARS=1
-  - compiler: gcc
-    dist: focal
-    addons:
-     apt:
-      sources: ubuntu-toolchain-r-test
-      packages: [g++-5, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
-    env: COMPILER=g++-5 USEGAS=1 USESTARS=1 USEBH=1
-  - compiler: gcc
-    dist: focal
-    addons:
-     apt:
-      sources: ubuntu-toolchain-r-test
-      packages: [g++-5, libhdf5-dev, hdf5-tools, libgsl0-dev]
-    env: COMPILER=g++-5 USEGAS=1 USESTARS=1 USEBH=1 NOMPI=1
-  - compiler: gcc
-    dist: focal
-    addons:
-     apt:
-      sources: ubuntu-toolchain-r-test
-      packages: [g++-5, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
-    env: COMPILER=g++-5 USEEXTRADM=1
-  - compiler: gcc
-    dist: focal
-    addons:
-     apt:
-      sources: ubuntu-toolchain-r-test
-      packages: [g++-5, libhdf5-dev, hdf5-tools, libgsl0-dev]
-    env: COMPILER=g++-5 USEEXTRADM=1 NOMPI=1
-  - compiler: gcc
-    dist: focal
-    addons:
-     apt:
-      sources: ubuntu-toolchain-r-test
-      packages: [g++-5, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
-    env: COMPILER=g++-5 USESWIFT=1
-  - compiler: gcc
-    dist: focal
-    addons:
-     apt:
-      sources: ubuntu-toolchain-r-test
-      packages: [g++-5, libhdf5-dev, hdf5-tools, libgsl0-dev]
-    env: COMPILER=g++-5 USESWIFT=1 NOMPI=1
-  - compiler: gcc
-    dist: focal
-    addons:
-     apt:
-      sources: ubuntu-toolchain-r-test
-      packages: [g++-5, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
-    env: COMPILER=g++-5 NOMASS=1
-  - compiler: gcc
-    dist: focal
-    addons:
-     apt:
-      sources: ubuntu-toolchain-r-test
-      packages: [g++-5, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
-    env: COMPILER=g++-5 ZOOMSIM=1
-  - compiler: gcc
-    dist: focal
-    addons:
-     apt:
-      sources: ubuntu-toolchain-r-test
-      packages: [g++-5, libhdf5-dev, hdf5-tools, libgsl0-dev]
-    env: COMPILER=g++-5 NOMASS=1 NOMPI=1
-  - compiler: gcc
-    dist: focal
-    addons:
-     apt:
-      sources: ubuntu-toolchain-r-test
-      packages: [g++-5, libhdf5-dev, hdf5-tools, libgsl0-dev]
-    env: COMPILER=g++-5 ZOOMSIM=1 NOMPI=1
-  - compiler: gcc
-    dist: focal
-    addons:
-     apt:
-      sources: ubuntu-toolchain-r-test
-      packages: [g++-6, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
-    env: COMPILER=g++-6
-  - compiler: gcc
-    dist: focal
-    addons:
-     apt:
-      sources: ubuntu-toolchain-r-test
-      packages: [g++-7, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
+      packages: [g++-7, cmake, cmake-data, libhdf5-dev, hdf5-tools, libgsl0-dev]
     env: COMPILER=g++-7
   - compiler: gcc
     dist: focal
     addons:
      apt:
       sources: ubuntu-toolchain-r-test
-      packages: [g++-7, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
-    env: COMPILER=g++-7 GSL22=1
+      packages: [g++-7, cmake, cmake, cmake-data, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
+    env: COMPILER=g++-7
   - compiler: gcc
     dist: focal
     addons:
      apt:
       sources: ubuntu-toolchain-r-test
-      packages: [g++-7, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
-    env: COMPILER=g++-7 NOOPENMP=1 NOOPENACC=1
+      packages: [g++-7, cmake, cmake-data, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
+    env: COMPILER=g++-7 USEGAS=1 USESTARS=1
   - compiler: gcc
     dist: focal
     addons:
      apt:
       sources: ubuntu-toolchain-r-test
-      packages: [g++-7, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
-    env: COMPILER=g++-7 GSL22=1 USESWIFT=1
+      packages: [g++-7, cmake, cmake-data, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
+    env: COMPILER=g++-7 USEGAS=1 USESTARS=1 USEBH=1
   - compiler: gcc
     dist: focal
     addons:
      apt:
       sources: ubuntu-toolchain-r-test
-      packages: [g++-7, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
-    env: COMPILER=g++-7 GSL22=1 USESWIFT=1 NOMASS=1
+      packages: [g++-7, cmake, cmake-data, libhdf5-dev, hdf5-tools, libgsl0-dev]
+    env: COMPILER=g++-7 USEGAS=1 USESTARS=1 USEBH=1 NOMPI=1
+  - compiler: gcc
+    dist: focal
+    addons:
+     apt:
+      sources: ubuntu-toolchain-r-test
+      packages: [g++-7, cmake, cmake-data, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
+    env: COMPILER=g++-7 USEEXTRADM=1
+  - compiler: gcc
+    dist: focal
+    addons:
+     apt:
+      sources: ubuntu-toolchain-r-test
+      packages: [g++-7, cmake, cmake-data, libhdf5-dev, hdf5-tools, libgsl0-dev]
+    env: COMPILER=g++-7 USEEXTRADM=1 NOMPI=1
+  - compiler: gcc
+    dist: focal
+    addons:
+     apt:
+      sources: ubuntu-toolchain-r-test
+      packages: [g++-7, cmake, cmake-data, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
+    env: COMPILER=g++-7 USESWIFT=1
+  - compiler: gcc
+    dist: focal
+    addons:
+     apt:
+      sources: ubuntu-toolchain-r-test
+      packages: [g++-7, cmake, cmake-data, libhdf5-dev, hdf5-tools, libgsl0-dev]
+    env: COMPILER=g++-7 USESWIFT=1 NOMPI=1
+  - compiler: gcc
+    dist: focal
+    addons:
+     apt:
+      sources: ubuntu-toolchain-r-test
+      packages: [g++-7, cmake, cmake-data, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
+    env: COMPILER=g++-7 NOMASS=1
+  - compiler: gcc
+    dist: focal
+    addons:
+     apt:
+      sources: ubuntu-toolchain-r-test
+      packages: [g++-7, cmake, cmake-data, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
+    env: COMPILER=g++-7 ZOOMSIM=1
+  - compiler: gcc
+    dist: focal
+    addons:
+     apt:
+      sources: ubuntu-toolchain-r-test
+      packages: [g++-7, cmake, cmake-data, libhdf5-dev, hdf5-tools, libgsl0-dev]
+    env: COMPILER=g++-7 NOMASS=1 NOMPI=1
+  - compiler: gcc
+    dist: focal
+    addons:
+     apt:
+      sources: ubuntu-toolchain-r-test
+      packages: [g++-7, cmake, cmake-data, libhdf5-dev, hdf5-tools, libgsl0-dev]
+    env: COMPILER=g++-7 ZOOMSIM=1 NOMPI=1
+  - compiler: gcc
+    dist: focal
+    addons:
+     apt:
+      sources: ubuntu-toolchain-r-test
+      packages: [g++-8, cmake, cmake-data, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
+    env: COMPILER=g++-8
+  - compiler: gcc
+    dist: focal
+    addons:
+     apt:
+      sources: ubuntu-toolchain-r-test
+      packages: [g++-9, cmake, cmake-data, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
+    env: COMPILER=g++-9
+  - compiler: gcc
+    dist: focal
+    addons:
+     apt:
+      sources: ubuntu-toolchain-r-test
+      packages: [g++-9, cmake, cmake-data, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
+    env: COMPILER=g++-9 NOOPENMP=1 NOOPENACC=1
+  - compiler: gcc
+    dist: focal
+    addons:
+     apt:
+      sources: ubuntu-toolchain-r-test
+      packages: [g++-9, cmake, cmake-data, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
+    env: COMPILER=g++-9 GSL22=1
+  - compiler: gcc
+    dist: focal
+    addons:
+     apt:
+      sources: ubuntu-toolchain-r-test
+      packages: [g++-9, cmake, cmake-data, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
+    env: COMPILER=g++-9 GSL22=1 USESWIFT=1
+  - compiler: gcc
+    dist: focal
+    addons:
+     apt:
+      sources: ubuntu-toolchain-r-test
+      packages: [g++-9, cmake, cmake-data, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
+    env: COMPILER=g++-9 GSL22=1 USESWIFT=1 NOMASS=1
 
 # We "source" it because it exports variables
 before_install:

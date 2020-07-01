@@ -31,3 +31,4 @@ fail() {
 }
 
 cd ${TRAVIS_BUILD_DIR}
+sudo apt-get -y install libxml2-dev
