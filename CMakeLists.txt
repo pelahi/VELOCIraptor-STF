@@ -50,6 +50,9 @@ vr_option(LONG_INT          "Use long ints to represent all integers. Needed if 
 # OpenMP options
 vr_option(OPENMP           "Attempt to include OpenMP support in VELOCIraptor" ON)
 
+# OpenACC options
+vr_option(OPENACC           "Attempt to include OpenACC support in VELOCIraptor" ON)
+
 # MPI options
 vr_option(MPI               "Attempt to include MPI support in VELOCIraptor" ON)
 vr_option(MPI_REDUCE        "Reduce impact of MPI memory overhead at the cost of extra cpu cycles. Suggested this be turned on" ON)
@@ -149,6 +152,8 @@ vr_option_defines(LONG_INT                  LONGINT)
 
 vr_option_defines(OPENMP                    USEOPENMP)
 
+vr_option_defines(OPENACC                   USEOPENACC)
+
 vr_option_defines(MPI_REDUCE                MPIREDUCEMEM)
 vr_option_defines(LARGE_MPI_DOMAIN          HUGEMPI)
 
@@ -239,6 +244,17 @@ if (VR_USE_SWIFT_INTERFACE)
         list(APPEND VR_INCLUDE_DIRS ${SWIFT_INCLUDE_DIR})
 endif()
 
+# How we find OpenACC and set it up
+#
+macro(find_openacc)
+	find_package(OpenACC COMPONENTS CXX)
+	if (OpenACC_CXX_FOUND)
+		list(APPEND VR_CXX_FLAGS ${OpenACC_CXX_FLAGS})
+		list(APPEND VR_LINK_FLAGS ${OpenACC_CXX_FLAGS})
+		list(APPEND VR_DEFINES USEOPENACC OPENACC)
+		set(VR_HAS_OPENACC Yes)
+	endif()
+endmacro()
 
 #
 # Make sure we have the git submodules we need
@@ -283,6 +299,10 @@ find_gsl()
 set(VR_HAS_MPI No)
 if (VR_MPI)
 	find_mpi()
+endif()
+set(VR_HAS_OPENACC No)
+if (VR_OPENACC)
+	find_openacc()
 endif()
 
 set(VR_HAS_HDF5 No)
@@ -355,9 +375,11 @@ if (VR_HAS_COMPRESSED_HDF5  AND VR_HAS_PARALLEL_HDF5)
 	message("\n WARNING: Parallel Compression HDF5 active, use with caution as it is unstable!\n")
 endif()
 vr_report("Precision-specifics"
-        "Long Integers" LONG_INT)
+          "Long Integers" LONG_INT)
 vr_report("OpenMP-specifics"
-        "OpenMP support" OPENMP)
+          "OpenMP support" OPENMP)
+vr_report("OpenACC-specifics"
+          "OpenACC support" OPENACC)
 vr_report("MPI-specifics"
           "MPI support" MPI
           "Reduce MPI memory overhead at the cost of extra CPU cycles" MPI_REDUCE
