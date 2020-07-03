@@ -887,4 +887,10 @@ extern "C" void VR_PARALLELHDFON();
 #endif
 //@}
 
+/// \name Generation of input functions
+void GenerateInput(Options &opt, vector<Particle> &Part);
+vector<GaussianDistrib> ProduceGaussians(Options &opt);
+void ProduceBackground(Options &opt, vector<Particle> &Part, Int_t noffset);
+void PopulateGaussians(Options &opt, vector<Particle> &Part, vector<GaussianDistrib> &Gaus);
+void WriteGeneratedInput(Options &opt, vector<Particle> &Part, vector<GaussianDistrib> &Gaus);
 #endif

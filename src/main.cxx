@@ -135,6 +135,10 @@ int main(int argc,char **argv)
     else MinNumOld=opt.HaloMinSize;
 #endif
 
+    //generate input if necessary
+    GenerateInput(opt, Part);
+
+
     //read particle information and allocate memory
     time1=MyGetTime();
     //for MPI determine total number of particles AND the number of particles assigned to each processor

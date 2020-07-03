@@ -949,6 +949,14 @@ struct Options
     bool memuse_log;
     //@}
 
+    //@{ \name generate input
+    bool iGenerateInput;
+    Int_t Ngenerate, Nbackground;
+    Int_t Ngeneratehalos;
+    float fbackground;
+    double mpgenerate;
+    //@}
+
     //silly flag to store whether input has little h's in it.
     bool inputcontainslittleh;
 
@@ -1161,6 +1169,11 @@ struct Options
         memuse_log = false;
 
         inputcontainslittleh = true;
+
+        iGenerateInput = false;
+        Ngenerate = 0;
+        Ngeneratehalos = 0;
+        fbackground = 0;
 
     }
     Options(Options &opt) = default;
@@ -3160,5 +3173,11 @@ struct leaf_node_info{
 #endif
 
 extern StrucLevelData *psldata;
+
+struct GaussianDistrib {
+    Int_t npoints;
+    double mean[6];
+    double covar[36];
+};
 
 #endif

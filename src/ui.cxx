@@ -17,7 +17,7 @@ void GetArgs(int argc, char *argv[], Options &opt)
     int option;
     int NumArgs = 0;
     int configflag=0;
-    while ((option = getopt(argc, argv, ":C:I:i:s:Z:o:G:S:B:t:")) != EOF)
+    while ((option = getopt(argc, argv, ":C:I:i:s:Z:o:G:S:B:t:g:n:h:f:")) != EOF)
     {
         switch(option)
         {
@@ -60,6 +60,22 @@ void GetArgs(int argc, char *argv[], Options &opt)
                 break;
             case 't':
                 opt.ramsessnapname = optarg;
+                NumArgs += 2;
+                break;
+            case 'g':
+                opt.iGenerateInput = atoi(optarg);
+                NumArgs += 2;
+                break;
+            case 'n':
+                opt.Ngenerate = atol(optarg);
+                NumArgs += 2;
+                break;
+            case 'h':
+                opt.Ngeneratehalos = atol(optarg);
+                NumArgs += 2;
+                break;
+            case 'f':
+                opt.fbackground = atof(optarg);
                 NumArgs += 2;
                 break;
             case '?':
