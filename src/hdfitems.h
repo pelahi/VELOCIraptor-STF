@@ -96,10 +96,10 @@
 
 // #ifdef USEPARALLELHDF
 // // #if H5_VERSION_GE(1,10,2)
-// // #define USEHDFCOMPRESSOIN
+// // #define USEHDFCOMPRESSION
 // // #endif
 // // #else
-// // #define USEHDFCOMPRESSOIN
+// // #define USEHDFCOMPRESSION
 // #endif
 
 template <typename ReturnT, typename F, typename ... Ts>
@@ -815,7 +815,7 @@ class H5OutputFile
 
         // Dataset creation properties
         prop_id = H5P_DEFAULT;
-#ifdef USEHDFCOMPRESSOIN
+#ifdef USEHDFCOMPRESSION
         // this defines compression
         if(nonzero_size && large_dataset)
         {
@@ -991,7 +991,7 @@ class H5OutputFile
 
         // Dataset creation properties
         prop_id = H5P_DEFAULT;
-#ifdef USEHDFCOMPRESSOIN
+#ifdef USEHDFCOMPRESSION
         // this defines compression
         if(nonzero_size && large_dataset)
         {
