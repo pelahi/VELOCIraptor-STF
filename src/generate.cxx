@@ -379,7 +379,9 @@ void WriteGeneratedInput(Options &opt, vector<Particle> &Part, vector<GaussianDi
                 Fhdf.write_attribute(string("/Cosmology"), "Omega_lambda", opt.Omega_Lambda);
                 Fhdf.write_attribute(string("/Cosmology"), "Omega_b", opt.Omega_b);
                 Fhdf.write_attribute(string("/Cosmology"), "Omega_r", opt.Omega_r);
+                Fhdf.write_attribute(string("/Cosmology"), "Omega_k", opt.Omega_k);
                 Fhdf.write_attribute(string("/Cosmology"), "h", opt.h);
+                Fhdf.write_attribute(string("/Header"), "Code", string("SWIFT"));
             }
             Fhdf.close();
             MPI_Barrier(MPI_COMM_WORLD);
@@ -408,7 +410,9 @@ void WriteGeneratedInput(Options &opt, vector<Particle> &Part, vector<GaussianDi
             Fhdf.write_attribute(string("/Cosmology"), "Omega_lambda", opt.Omega_Lambda);
             Fhdf.write_attribute(string("/Cosmology"), "Omega_b", opt.Omega_b);
             Fhdf.write_attribute(string("/Cosmology"), "Omega_r", opt.Omega_r);
+            Fhdf.write_attribute(string("/Cosmology"), "Omega_k", opt.Omega_k);
             Fhdf.write_attribute(string("/Cosmology"), "h", opt.h);
+            Fhdf.write_attribute(string("/Header"), "Code", string("SWIFT"));
         }
 #else
         Fhdf.create_group("Header");
@@ -432,7 +436,9 @@ void WriteGeneratedInput(Options &opt, vector<Particle> &Part, vector<GaussianDi
         Fhdf.write_attribute(string("/Cosmology"), "Omega_lambda", opt.Omega_Lambda);
         Fhdf.write_attribute(string("/Cosmology"), "Omega_b", opt.Omega_b);
         Fhdf.write_attribute(string("/Cosmology"), "Omega_r", opt.Omega_r);
+        Fhdf.write_attribute(string("/Cosmology"), "Omega_k", opt.Omega_k);
         Fhdf.write_attribute(string("/Cosmology"), "h", opt.h);
+        Fhdf.write_attribute(string("/Header"), "Code", string("SWIFT"));
 #endif
         datatype = H5T_NATIVE_FLOAT;
         data= ::operator new(sizeof(float)*(3*Nlocal));
@@ -457,7 +463,7 @@ void WriteGeneratedInput(Options &opt, vector<Particle> &Part, vector<GaussianDi
         npart.clear();
         npart.resize(Nlocal);
         for (auto i=0; i<Nlocal; i++) npart[i] = i+1;
-        Fhdf.write_dataset(opt, "/PartType1/IDs", Nlocal, npart.data(), datatype);
+        Fhdf.write_dataset(opt, "/PartType1/ParticleIDs", Nlocal, npart.data(), datatype);
 
         datatype = H5T_NATIVE_FLOAT;
         data= ::operator new(sizeof(float)*(3*opt.Ngeneratehalos));
