@@ -135,7 +135,7 @@ inline Matrix NormalizeDisp(double sX[3], double ssX[3], double norm, uniform_re
     }
     for (auto j = 0; j < 3; j++) X(j,j) = sX[j]*sX[j];
     norm /= pow(X.Det(), 1.0/6.0);
-    X = X*norm;
+    X = X*norm*norm;
     return X;
 
 }
@@ -278,6 +278,7 @@ void PopulateGaussians(Options &opt, vector<Particle> &Part, vector<GaussianDist
         {
             for (auto k = 0; k < 6; k++) y(0,k) = rn[(noffset[i]+j)*6+k];
             x = eigenvec * eigenval * y;
+            for (auto k = 0; k < 6; k++) x(k,0) += Gaus[i].mean[k];
             for (auto k = 0; k < 3; k++) {
                 if (x(k,0)<0) x(k,0) += opt.p;
                 else if (x(k,0)>opt.p) x(k,0) -= opt.p;
