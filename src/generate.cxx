@@ -16,6 +16,8 @@ void GenerateInput(Options &opt, vector<Particle> &Part) {
     Int_t Nlocal;
 #endif
     if (opt.iGenerateInput == false) return;
+    double time1 = MyGetTime();
+    cout<<ThisTask<<" Generating Input ... "<<endl;
     opt.Ngenerate = pow(opt.Ngenerate, 3.0);
     //set some cosmology
     opt.h = 1;
@@ -49,6 +51,7 @@ void GenerateInput(Options &opt, vector<Particle> &Part) {
     opt.mpgenerate = opt.rhobg * pow(opt.p, 3.0)/opt.Ngenerate;
 
     Nlocal = opt.Ngenerate/NProcs;
+    opt.Ngeneratehalos = opt.Ngeneratehalos/(float)NProcs;
     if (NProcs > 1) {
         if (ThisTask == NProcs - 1)
         {
@@ -58,21 +61,38 @@ void GenerateInput(Options &opt, vector<Particle> &Part) {
     opt.Nbackground = opt.fbackground * opt.Ngenerate;
     Part.resize(Nlocal);
     for (auto p:Part) p.SetMass(opt.mpgenerate);
+    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
 
-    cout<<ThisTask<<" "<<opt.Ngenerate<<" "<<Nlocal<<endl;
-    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=0));
-
-    vector<GaussianDistrib> Gaus = ProduceGaussians(opt);
+    vector<GaussianDistrib> Gaus = ProduceGaussians(opt, Part);
+    Int_t npoints = 0;
+    for (auto &x:Gaus) npoints += x.npoints;
+    //update the background number of points
+    opt.Nbackground = Nlocal - npoints;
+    cout<<ThisTask<<" producing positions for "<<opt.Ngeneratehalos<<" locally containing "<<npoints<<" particles and a background of "<<opt.Nbackground<<endl;
+#ifdef USEMPI
+#endif
+    opt.fbackground = opt.Nbackground/(double)opt.Ngenerate;
     PopulateGaussians(opt, Part, Gaus);
-    ProduceBackground(opt, Part, opt.Nbackground);
+    ProduceBackground(opt, Part, npoints);
     WriteGeneratedInput(opt, Part, Gaus);
+    cout<<ThisTask<<" Generating input: Done "<<MyGetTime()-time1<<endl;
+#ifdef USEMPI
+    MPI_Finalize();
+#endif
+    exit(0);
 }
 
 /// produce a background uniform distribution of particles within the volume
 void ProduceBackground(Options &opt, vector<Particle> &Part, Int_t noffset)
 {
-    if (opt.fbackground == 0) return;
+#ifndef USEMPI
+    int ThisTask = 0, NProcs = 1;
+    unsigned long long Nlocal = Part.size();
+#endif
+    double time1 = MyGetTime();
+    cout<<ThisTask<<" Produce Background ... "<<endl;
 
+    if (opt.fbackground == 0) return;
     Int_t nbg = Nlocal - noffset;
 #if defined(USEOPENMP)
 #pragma omp parallel default(shared)
@@ -96,7 +116,8 @@ void ProduceBackground(Options &opt, vector<Particle> &Part, Int_t noffset)
 #if defined(USEOPENMP)
 }
 #endif
-    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=0));
+    cout<<ThisTask<<" Produce Background: Done "<<MyGetTime()-time1<<endl;
+    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
 }
 
 inline Matrix NormalizeDisp(double sX[3], double ssX[3], double norm, uniform_real_distribution<double> &disp, default_random_engine& generator){
@@ -104,7 +125,7 @@ inline Matrix NormalizeDisp(double sX[3], double ssX[3], double norm, uniform_re
         do {
             sX[j] = disp(generator);
         }while (sX[j]==0);
-        ssX[j] = pow(disp(generator),2.0);
+        ssX[j] = disp(generator) - 0.5;
     }
     Matrix X;
     for (auto j = 0; j < 3; j++) {
@@ -120,29 +141,48 @@ inline Matrix NormalizeDisp(double sX[3], double ssX[3], double norm, uniform_re
 }
 
 /// produce Gaussian
-vector<GaussianDistrib> ProduceGaussians(Options &opt)
+vector<GaussianDistrib> ProduceGaussians(Options &opt, vector<Particle> &Part)
 {
+#ifndef USEMPI
+    int ThisTask = 0, NProcs = 1;
+    unsigned long long Nlocal = Part.size();
+#endif
+    double time1 = MyGetTime();
+    cout<<ThisTask<<" Produce Gaussians ... "<<endl;
+
     vector<GaussianDistrib> Gaus;
     if (opt.fbackground == 1 || opt.Ngeneratehalos == 0) return Gaus;
     Gaus.resize(opt.Ngeneratehalos);
     Int_t maxnpart = max((opt.Ngenerate-opt.Nbackground)/(100.0*opt.Ngeneratehalos),100.0);
+    Int_t npoints = 0;
+    default_random_engine generator;
+    double mmin = log(20.0), mmax = log(maxnpart);
+    uniform_real_distribution<double> npart(mmin, mmax);
+    for (auto i = 0; i < opt.Ngeneratehalos; i++) {
+        if (npoints + exp(mmax)/2 > Nlocal) {
+            opt.Ngeneratehalos = i;
+            Gaus.resize(opt.Ngeneratehalos);
+            break;
+        }
+        do {
+            Gaus[i].npoints = exp(npart(generator));
+        } while (Gaus[i].npoints + npoints > Nlocal);
+        npoints += Gaus[i].npoints;
+    }
 
 #if defined(USEOPENMP)
-#pragma omp parallel default(shared)
+#pragma omp parallel default(shared) private(generator)
 {
 #endif
-    default_random_engine generator;
     uniform_real_distribution<double> pos(0.0, opt.p);
     uniform_real_distribution<double> vel(-opt.H, opt.H);
     uniform_real_distribution<double> scaling(0.1, 0.5);
-    uniform_real_distribution<double> disp(-1.0, 1.0);
-    double mmin = log(20.0), mmax = log(maxnpart);
-    uniform_real_distribution<double> npart(mmin, mmax);
+    uniform_real_distribution<double> disp(0, 1.0);
     Coordinate x,v;
     double mass, sigX, sigV, sX[3], ssX[3], sV[3], ssV[3];
     Matrix X, V;
 #if defined(USEOPENMP)
-    #pragma omp for schedule(static)
+    #pragma omp for schedule(static) reduction(+:npoints)
 #endif
     for (auto i = 0; i < opt.Ngeneratehalos; i++) {
         for (auto j = 0; j < 3; j++) {
@@ -150,12 +190,14 @@ vector<GaussianDistrib> ProduceGaussians(Options &opt)
             Gaus[i].mean[j+3] = vel(generator);
         }
         for (auto j = 0; j < 36; j++) Gaus[i].covar[j] = 0;
-        Gaus[i].npoints = exp(npart(generator));
         mass = Gaus[i].npoints*opt.mpgenerate;
         sigX = pow(mass/(200.0*4.0*M_PI/3.0*opt.rhocrit),1.0/3.0)*scaling(generator);
         sigV = sqrt(opt.G*mass/sigX);
         X = NormalizeDisp(sX, ssX, sigX, disp, generator);
         V = NormalizeDisp(sV, ssV, sigV, disp, generator);
+        Gaus[i].mass = mass;
+        Gaus[i].sigX = sigX;
+        Gaus[i].sigV = sigV;
         for (auto j = 0; j < 3; j++) {
             for (auto k = 0; k <3; k++) {
                 Gaus[i].covar[j*6+k] = X(j,k);
@@ -166,7 +208,8 @@ vector<GaussianDistrib> ProduceGaussians(Options &opt)
 #if defined(USEOPENMP)
 }
 #endif
-    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=0));
+    cout<<ThisTask<<" Produce Gaussians: Done "<<MyGetTime()-time1<<endl;
+    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
     return Gaus;
 
 }
@@ -175,6 +218,13 @@ vector<GaussianDistrib> ProduceGaussians(Options &opt)
 void PopulateGaussians(Options &opt, vector<Particle> &Part, vector<GaussianDistrib> &Gaus)
 {
     if (Gaus.size() == 0) return;
+#ifndef USEMPI
+    int ThisTask = 0, NProcs = 1;
+#endif
+    double time1 = MyGetTime();
+    cout<<ThisTask<<" Populate Gaussians ... "<<endl;
+    if (opt.Ngeneratehalos == 0) return;
+
     // get random numbers first then transform them as necessary
     Int_t npoints = 0;
     vector<Int_t> noffset(Gaus.size(),0);
@@ -228,6 +278,10 @@ void PopulateGaussians(Options &opt, vector<Particle> &Part, vector<GaussianDist
         {
             for (auto k = 0; k < 6; k++) y(0,k) = rn[(noffset[i]+j)*6+k];
             x = eigenvec * eigenval * y;
+            for (auto k = 0; k < 3; k++) {
+                if (x(k,0)<0) x(k,0) += opt.p;
+                else if (x(k,0)>opt.p) x(k,0) -= opt.p;
+            }
             for (auto k = 0; k < 6; k++)
             {
                 Part[noffset[i]+j].SetPhase(k, x(k,0));
@@ -238,9 +292,8 @@ void PopulateGaussians(Options &opt, vector<Particle> &Part, vector<GaussianDist
 }
 #endif
 // #endif
-    opt.Nbackground = opt.Ngenerate - npoints;
-    opt.fbackground = opt.Nbackground/(double)opt.Ngenerate;
-    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=0));
+    cout<<ThisTask<<" Populate Gaussians: Done "<<MyGetTime()-time1<<endl;
+    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
 }
 
 //write a file
@@ -251,6 +304,8 @@ void WriteGeneratedInput(Options &opt, vector<Particle> &Part, vector<GaussianDi
     int ThisTask=0,NProcs=1;
     unsigned long long Nlocal = Part.size();
 #endif
+    double time1 = MyGetTime();
+    cout<<ThisTask<<" Writing input ... "<<endl;
 
     fstream Fout;
     string fname;
@@ -259,6 +314,9 @@ void WriteGeneratedInput(Options &opt, vector<Particle> &Part, vector<GaussianDi
     long long unsigned nwritecommtot=0;
     vector<unsigned long long> npart(6,0);
     vector<double> mass(6,0);
+    void *data;
+    vector<hsize_t> dims;
+    hid_t datatype;
 
 #ifdef USEMPI
     MPIBuildWriteComm(opt);
@@ -292,25 +350,6 @@ void WriteGeneratedInput(Options &opt, vector<Particle> &Part, vector<GaussianDi
         Fhdf.create(string(fname));
 #endif
         itemp=0;
-        // names[itemp++]=string("Header/BoxSize");
-        // names[itemp++]=string("Header/MassTable");
-        // names[itemp++]=string("Header/NumPart_ThisFile");
-        // names[itemp++]=string("Header/NumPart_Total");
-        // names[itemp++]=string("Header/NumPart_Total_HighWord");
-        // names[itemp++]=string("Cosmology/Omega_m");
-        // names[itemp++]=string("Cosmology/Omega_lambda");
-        // names[itemp++]=string("Header/Redshift");
-        // names[itemp++]=string("Header/Time");
-        // names[itemp++]=string("Header/NumFilesPerSnapshot");
-        // names[itemp++]=string("Cosmology/h");
-        // names[itemp++]=string("Cosmology/Cosmological run");
-        // names[itemp++]=string("Cosmology/Omega_b");
-        // names[itemp++]=string("Cosmology/Omega_r");
-        // names[itemp++]=string("Cosmology/Omega_k");
-        // names[itemp++]=string("Cosmology/w");
-        // names[itemp++]=string("Cosmology/w_0");
-        // names[itemp++]=string("Cosmology/w_a");
-
 
 #ifdef USEPARALLELHDF
         if(opt.mpinprocswritesize>1){
@@ -318,14 +357,28 @@ void WriteGeneratedInput(Options &opt, vector<Particle> &Part, vector<GaussianDi
             npart[1] = nwritecommtot;
             //if parallel HDF then only
             if (ThisWriteTask==0) {
-                Fhdf.write_attribute(string("/Header/"), "BoxSize", opt.p);
-                Fhdf.write_attribute(string("/Header/"), "NumFilesPerSnapshot", NWriteComms);
+                Fhdf.create_group("Header");
+                Fhdf.create_group("Cosmology");
+                Fhdf.create_group("PartType1");
+                Fhdf.create_group("PartType1/Gaussians");
+                Fhdf.write_attribute(string("/Header"), "BoxSize", opt.p);
+                Fhdf.write_attribute(string("/Header"), "NumFilesPerSnapshot", NWriteComms);
                 npart[1] = nwritecommtot;
-                Fhdf.write_attribute(string("/Header/"), "NumPart_ThisFile", npart);
+                Fhdf.write_attribute(string("/Header"), "NumPart_ThisFile", npart);
                 npart[1] = opt.Ngenerate;
-                Fhdf.write_attribute(string("/Header/"), "NumPart_Total", npart);
+                Fhdf.write_attribute(string("/Header"), "NumPart_Total", npart);
                 npart[1] = 0;
-                Fhdf.write_attribute(string("/Header/"), "NumPart_Total_HighWord", npart);
+                Fhdf.write_attribute(string("/Header"), "NumPart_Total_HighWord", npart);
+                mass[1] = opt.mpgenerate;
+                Fhdf.write_attribute(string("/Header"), "MassTable", mass);
+                Fhdf.write_attribute(string("/Header"), "Redshift", opt.a);
+                Fhdf.write_attribute(string("/Header"), "Time", opt.a);
+                Fhdf.write_attribute(string("/Cosmology"), "Cosmological run", 1);
+                Fhdf.write_attribute(string("/Cosmology"), "Omega_m", opt.Omega_m);
+                Fhdf.write_attribute(string("/Cosmology"), "Omega_lambda", opt.Omega_Lambda);
+                Fhdf.write_attribute(string("/Cosmology"), "Omega_b", opt.Omega_b);
+                Fhdf.write_attribute(string("/Cosmology"), "Omega_r", opt.Omega_r);
+                Fhdf.write_attribute(string("/Cosmology"), "h", opt.h);
             }
             Fhdf.close();
             MPI_Barrier(MPI_COMM_WORLD);
@@ -333,37 +386,119 @@ void WriteGeneratedInput(Options &opt, vector<Particle> &Part, vector<GaussianDi
             Fhdf.append(string(fname));
         }
         else{
-            Fhdf.write_attribute(string("/Header/"), "BoxSize", opt.p);
-            Fhdf.write_attribute(string("/Header/"), "NumFilesPerSnapshot", NProcs);
+            Fhdf.create_group("Header");
+            Fhdf.create_group("Cosmology");
+            Fhdf.create_group("PartType1");
+            Fhdf.create_group("PartType1/Gaussians");
+            Fhdf.write_attribute(string("/Header"), "BoxSize", opt.p);
+            Fhdf.write_attribute(string("/Header"), "NumFilesPerSnapshot", NProcs);
             npart[1] = Nlocal;
-            Fhdf.write_attribute(string("/Header/"), "NumPart_ThisFile", npart);
+            Fhdf.write_attribute(string("/Header"), "NumPart_ThisFile", npart);
             npart[1] = opt.Ngenerate;
-            Fhdf.write_attribute(string("/Header/"), "NumPart_Total", npart);
+            Fhdf.write_attribute(string("/Header"), "NumPart_Total", npart);
             npart[1] = 0;
-            Fhdf.write_attribute(string("/Header/"), "NumPart_Total_HighWord", npart);
+            Fhdf.write_attribute(string("/Header"), "NumPart_Total_HighWord", npart);
+            mass[1] = opt.mpgenerate;
+            Fhdf.write_attribute(string("/Header"), "MassTable", mass);
+            Fhdf.write_attribute(string("/Header"), "Redshift", opt.a);
+            Fhdf.write_attribute(string("/Header"), "Time", opt.a);
+            Fhdf.write_attribute(string("/Cosmology"), "Cosmological run", 1);
+            Fhdf.write_attribute(string("/Cosmology"), "Omega_m", opt.Omega_m);
+            Fhdf.write_attribute(string("/Cosmology"), "Omega_lambda", opt.Omega_Lambda);
+            Fhdf.write_attribute(string("/Cosmology"), "Omega_b", opt.Omega_b);
+            Fhdf.write_attribute(string("/Cosmology"), "Omega_r", opt.Omega_r);
+            Fhdf.write_attribute(string("/Cosmology"), "h", opt.h);
         }
 #else
-        Fhdf.write_attribute(string("/Header/"), "BoxSize", opt.p);
-        Fhdf.write_attribute(string("/Header/"), "NumFilesPerSnapshot", NProcs);
+        Fhdf.create_group("Header");
+        Fhdf.create_group("Cosmology");
+        Fhdf.create_group("PartType1");
+        Fhdf.create_group("PartType1/Gaussians");
+        Fhdf.write_attribute(string("/Header"), "BoxSize", opt.p);
+        Fhdf.write_attribute(string("/Header"), "NumFilesPerSnapshot", NProcs);
         npart[1] = Nlocal;
-        Fhdf.write_attribute(string("/Header/"), "NumPart_ThisFile", npart);
+        Fhdf.write_attribute(string("/Header"), "NumPart_ThisFile", npart);
         npart[1] = opt.Ngenerate;
-        Fhdf.write_attribute(string("/Header/"), "NumPart_Total", npart);
+        Fhdf.write_attribute(string("/Header"), "NumPart_Total", npart);
         npart[1] = 0;
-        Fhdf.write_attribute(string("/Header/"), "NumPart_Total_HighWord", npart);
-        // Fhdf.write_dataset(opt, datagroupnames.prop[itemp++], 1, &ThisTask);
-        // Fhdf.write_dataset(opt, datagroupnames.prop[itemp++], 1, &NProcs);
-        // Fhdf.write_dataset(opt, datagroupnames.prop[itemp++], 1, &ng);
-        // Fhdf.write_dataset(opt, datagroupnames.prop[itemp++], 1, &ngtot);
-        // Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.icosmologicalin);
-        // Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.icomoveunit);
-        // Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.p);
-        // Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.a);
-        // Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.lengthtokpc);
-        // Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.velocitytokms);
-        // Fhdf.write_attribute(string("/"), datagroupnames.prop[itemp++], opt.masstosolarmass);
-        Fhdf.close();
+        Fhdf.write_attribute(string("/Header"), "NumPart_Total_HighWord", npart);
+        mass[1] = opt.mpgenerate;
+        Fhdf.write_attribute(string("/Header"), "MassTable", mass);
+        Fhdf.write_attribute(string("/Header"), "Redshift", opt.a);
+        Fhdf.write_attribute(string("/Header"), "Time", opt.a);
+        Fhdf.write_attribute(string("/Cosmology"), "Cosmological run", 1);
+        Fhdf.write_attribute(string("/Cosmology"), "Omega_m", opt.Omega_m);
+        Fhdf.write_attribute(string("/Cosmology"), "Omega_lambda", opt.Omega_Lambda);
+        Fhdf.write_attribute(string("/Cosmology"), "Omega_b", opt.Omega_b);
+        Fhdf.write_attribute(string("/Cosmology"), "Omega_r", opt.Omega_r);
+        Fhdf.write_attribute(string("/Cosmology"), "h", opt.h);
 #endif
+        datatype = H5T_NATIVE_FLOAT;
+        data= ::operator new(sizeof(float)*(3*Nlocal));
+        dims.resize(2);dims[0]=Nlocal;dims[1]=3;
+        for (auto i=0;i<Nlocal;i++) {
+            for (auto j=0;j<3;j++) {
+                ((float*)data)[i*3+j]=Part[i].GetPosition(j);
+            }
+        }
+        Fhdf.write_dataset_nd(opt, "/PartType1/Coordinates", 2, dims.data(), data, datatype);
+        for (auto i=0;i<Nlocal;i++) {
+            for (auto j=0;j<3;j++) {
+                ((float*)data)[i*3l+j]=Part[i].GetVelocity(j);
+            }
+        }
+        Fhdf.write_dataset_nd(opt, "/PartType1/Velocities", 2, dims.data(), data, datatype);
+        ::operator delete(data);
+        mass.clear();
+        mass.resize(Nlocal,opt.mpgenerate);
+        Fhdf.write_dataset(opt, "/PartType1/Masses", Nlocal, mass.data(), datatype);
+        datatype = H5T_NATIVE_ULLONG;
+        npart.clear();
+        npart.resize(Nlocal);
+        for (auto i=0; i<Nlocal; i++) npart[i] = i+1;
+        Fhdf.write_dataset(opt, "/PartType1/IDs", Nlocal, npart.data(), datatype);
 
+        datatype = H5T_NATIVE_FLOAT;
+        data= ::operator new(sizeof(float)*(3*opt.Ngeneratehalos));
+        dims.resize(2);dims[0]=opt.Ngeneratehalos;dims[1]=3;
+        for (auto i=0;i<opt.Ngeneratehalos;i++) {
+            for (auto j=0;j<3;j++) {
+                ((float*)data)[i*3+j]=Gaus[i].mean[j];
+            }
+        }
+        Fhdf.write_dataset_nd(opt, "/PartType1/Gaussians/Coordinates", 2, dims.data(), data, datatype);
+        for (auto i=0;i<opt.Ngeneratehalos;i++) {
+            for (auto j=0;j<3;j++) {
+                ((float*)data)[i*3+j]=Gaus[i].mean[j+3];
+            }
+        }
+        Fhdf.write_dataset_nd(opt, "/PartType1/Gaussians/Velocities", 2, dims.data(), data, datatype);
+        ::operator delete(data);
+
+        datatype = H5T_NATIVE_ULLONG;
+        data= ::operator new(sizeof(unsigned long long)*(opt.Ngeneratehalos));
+        dims.resize(1);dims[0]=opt.Ngeneratehalos;
+        for (auto i=0;i<opt.Ngeneratehalos;i++) {
+            ((unsigned long long*)data)[i]=Gaus[i].npoints;
+        }
+        Fhdf.write_dataset(opt, "/PartType1/Gaussians/N", opt.Ngeneratehalos, data, datatype);
+        ::operator delete(data);
+
+        datatype = H5T_NATIVE_FLOAT;
+        data= ::operator new(sizeof(float)*(opt.Ngeneratehalos));
+        dims.resize(1);dims[0]=opt.Ngeneratehalos;
+        for (auto i=0;i<opt.Ngeneratehalos;i++) {
+            ((float*)data)[i]=Gaus[i].sigX;
+        }
+        Fhdf.write_dataset(opt, "/PartType1/Gaussians/sigX", opt.Ngeneratehalos, data, datatype);
+        for (auto i=0;i<opt.Ngeneratehalos;i++) {
+            ((float*)data)[i]=Gaus[i].sigV;
+        }
+        Fhdf.write_dataset(opt, "/PartType1/Gaussians/sigV", opt.Ngeneratehalos, data, datatype);
+        ::operator delete(data);
+
+        Fhdf.close();
+
+        cout<<ThisTask<<" Done writing "<<MyGetTime()-time1<<endl;
 #endif
 }

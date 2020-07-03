@@ -1056,6 +1056,34 @@ class H5OutputFile
     }
 
     /// write an attribute
+    template <typename T> void write_attribute(std::string parent, std::string name, vector<T> data)
+    {
+        // Get HDF5 data type of the value to write
+        hid_t dtype_id = hdf5_type(data[0]);
+        hsize_t size = data.size();
+
+        // Open the parent object
+        hid_t parent_id = H5Oopen(file_id, parent.c_str(), H5P_DEFAULT);
+        if(parent_id < 0)io_error(string("Unable to open object to write attribute: ")+name);
+
+        // Create dataspace
+        hid_t dspace_id = H5Screate(H5S_SIMPLE);
+        hid_t dspace_extent  = H5Sset_extent_simple(dspace_id, 1, &size, NULL);
+
+        // Create attribute
+        hid_t attr_id = H5Acreate(parent_id, name.c_str(), dtype_id, dspace_id, H5P_DEFAULT, H5P_DEFAULT);
+        if(attr_id < 0)io_error(string("Unable to create attribute ")+name+string(" on object ")+parent);
+
+        // Write the attribute
+        if(H5Awrite(attr_id, dtype_id, data.data()) < 0)
+        io_error(string("Unable to write attribute ")+name+string(" on object ")+parent);
+
+        // Clean up
+        H5Aclose(attr_id);
+        H5Sclose(dspace_id);
+        H5Oclose(parent_id);
+    }
+
     template <typename T> void write_attribute(std::string parent, std::string name, T data)
     {
         // Get HDF5 data type of the value to write

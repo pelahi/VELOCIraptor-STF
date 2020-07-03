@@ -3176,6 +3176,7 @@ extern StrucLevelData *psldata;
 
 struct GaussianDistrib {
     Int_t npoints;
+    double mass, sigX, sigV;
     double mean[6];
     double covar[36];
 };
