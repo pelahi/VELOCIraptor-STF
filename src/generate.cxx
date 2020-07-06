@@ -277,7 +277,7 @@ void PopulateGaussians(Options &opt, vector<Particle> &Part, vector<GaussianDist
         for (auto j = 0; j < Gaus[i].npoints; j++)
         {
             for (auto k = 0; k < 6; k++) y(0,k) = rn[(noffset[i]+j)*6+k];
-            x = eigenvec * eigenval * y;
+            x = eigenvec.Inverse() * eigenval * y;
             for (auto k = 0; k < 6; k++) x(k,0) += Gaus[i].mean[k];
             for (auto k = 0; k < 3; k++) {
                 if (x(k,0)<0) x(k,0) += opt.p;
