@@ -251,14 +251,55 @@ void PopulateGaussians(Options &opt, vector<Particle> &Part, vector<GaussianDist
 #endif
     // now transform points based on mean and variance
     //
-// #if defined(USEOPENACC)
-// #else
-#if defined(USEOPENMP)
-#pragma omp parallel default(shared)
-{
-#endif
+#if defined(USEOPENACC)
+#else
+
+#if defined(USEOPENMP) && defined(USEOMPTARGET)
+    {
+    //compute first the eigenvectors and eigenvalues of all the halos
+    float *eigenvalarray, *eigenvecarray, *newphase;
+    for (auto i = 0; i < opt.Ngeneratehalos; i++) {
+        //get the eigenvalues and eigenvectors of the covariance matrix
+        //then take normal random numbers and scale by sqrt of eigen values
+        //transform with eigenvectors and then add mean
+        for (auto j = 0; j<6; j++)
+        {
+            for (auto k = j; k<6; k++)
+            {
+                s(k,j) = s(j, k) = Gaus[i].covar[j*6+k];
+            }
+        }
+        s.Eigenvalvec(eigenval, eigenvec);
+        for (auto j = 0; j < 6; j++) eigenval(j,0) = sqrt(eigenval(j,0));
+        eigenvec = eigenvec.Inverse();
+        //copy data to arrays
+    }
+    #pragma omp target map(eigenvalarray, eigenvecarray, newphase)
+    #pragma omp parallel for private(i)
+    for (auto i = 0; i < opt.Ngeneratehalos; i++) {
+        for (auto j = 0; j < Gaus[i].npoints; j++)
+        {
+            for (auto k = 0; k < 6; k++) y(0,k) = rn[(noffset[i]+j)*6+k];
+            x =  * eigenval * y;
+            for (auto k = 0; k < 6; k++) x(k,0) += Gaus[i].mean[k];
+            for (auto k = 0; k < 3; k++) {
+                if (x(k,0)<0) x(k,0) += opt.p;
+                else if (x(k,0)>opt.p) x(k,0) -= opt.p;
+            }
+
+            for (auto k = 0; k < 6; k++)
+            {
+                Part[noffset[i]+j].SetPhase(k, x(k,0));
+            }
+        }
+    }
+    }
+    //???
+#else
     GMatrix y(1,6), x(6,1), s(6,6), eigenval(6,1), eigenvec(6,6);
 #if defined(USEOPENMP)
+#pragma omp parallel default(shared) threadprivate(y,x,s,eigenval,eigenvec)
+{
     #pragma omp for schedule(static)
 #endif
     for (auto i = 0; i < opt.Ngeneratehalos; i++) {
@@ -274,10 +315,11 @@ void PopulateGaussians(Options &opt, vector<Particle> &Part, vector<GaussianDist
         }
         s.Eigenvalvec(eigenval, eigenvec);
         for (auto j = 0; j < 6; j++) eigenval(j,0) = sqrt(eigenval(j,0));
+        eigenvec = eigenvec.Inverse();
         for (auto j = 0; j < Gaus[i].npoints; j++)
         {
             for (auto k = 0; k < 6; k++) y(0,k) = rn[(noffset[i]+j)*6+k];
-            x = eigenvec.Inverse() * eigenval * y;
+            x = eigenvec * eigenval * y;
             for (auto k = 0; k < 6; k++) x(k,0) += Gaus[i].mean[k];
             for (auto k = 0; k < 3; k++) {
                 if (x(k,0)<0) x(k,0) += opt.p;
@@ -292,7 +334,9 @@ void PopulateGaussians(Options &opt, vector<Particle> &Part, vector<GaussianDist
 #ifdef USEOPENMP
 }
 #endif
-// #endif
+
+#endif
+#endif
     cout<<ThisTask<<" Populate Gaussians: Done "<<MyGetTime()-time1<<endl;
     GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
 }
