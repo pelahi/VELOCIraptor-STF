@@ -2992,22 +2992,6 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
             CleanAndUpdateGroupsFromSubSearch(opt, subnumingroup[i], subPart, subpfof,
                     subngroup[i], subsubnumingroup[i], subsubpglist[i], numcores[i],
                     subpglist[i], pfof, ngroup, ngroupidoffset_old[i]);
-//---
-if (subnumingroup[i] == 2539)
-{
- char bufff [1000];
- bufff[0] = '\0';
- char tmpbf [100];
- sprintf (tmpbf, "Nbodies %d  subngroup %d ningroups ", subnumingroup[i], subngroup[i]);
- strcat(bufff, tmpbf);
- for (int i = 0; i < subngroup[i]; i++)
- {
-  sprintf(tmpbf, "%d  ", subsubnumingroup[i]);
-  strcat(bufff, tmpbf);
- }
- printf ("ThisTask %d  %s\n", ThisTask, bufff);
-}
-//---
             delete[] subpfof;
             delete[] subPart;
             ns+=subngroup[i];
