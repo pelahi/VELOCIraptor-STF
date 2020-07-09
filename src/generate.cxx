@@ -221,19 +221,21 @@ void PopulateGaussians(Options &opt, vector<Particle> &Part, vector<GaussianDist
 #ifndef USEMPI
     int ThisTask = 0, NProcs = 1;
 #endif
+    int nthreads = 1;
     double time1 = MyGetTime();
     cout<<ThisTask<<" Populate Gaussians ... "<<endl;
     if (opt.Ngeneratehalos == 0) return;
 
     // get random numbers first then transform them as necessary
     Int_t npoints = 0;
-    vector<Int_t> noffset(Gaus.size(),0);
+    // vector<Int_t> noffset(Gaus.size(),0);
+    Int_t *noffset = new Int_t[Gaus.size()];
     for (auto i = 0; i < opt.Ngeneratehalos; i++)
     {
         noffset[i] = npoints;
         npoints += Gaus[i].npoints;
     }
-    vector<double> rn(npoints*6);
+    float *rn = new float[npoints*6];
 #if defined(USEOPENMP)
 #pragma omp parallel default(shared)
 {
@@ -243,22 +245,77 @@ void PopulateGaussians(Options &opt, vector<Particle> &Part, vector<GaussianDist
 #if defined(USEOPENMP)
     #pragma omp for schedule(static)
 #endif
-    for (auto i = 0; i < rn.size(); i++) {
+    for (auto i = 0; i < npoints*6; i++) {
         rn[i] = g(generator);
     }
 #if defined(USEOPENMP)
 }
 #endif
+
+cout<<npoints<<"FOOF "<<endl;
+
     // now transform points based on mean and variance
     //
 #if defined(USEOPENACC)
-#else
+{
+//if calculating with GPUS, then use float arrays to calc positions
+unsigned long long N = 1000000000;
+float *xx = new float[N];
+float *yy = new float[N];
+unsigned long long ii;
+for (ii=0;ii<N;ii++) xx[ii] = ii;
+#pragma acc kernels copyin(xx[0:N]), copyout(yy[0:N])
+for (ii = 0; ii < N; ii++)
+{
+    yy[ii] = xx[ii]*xx[ii];
+}
+delete[] xx;
+delete[] yy;
+}
+#endif
 
-#if defined(USEOPENMP) && defined(USEOMPTARGET)
-    {
-    //compute first the eigenvectors and eigenvalues of all the halos
+//
+#if defined(USEOPENMP) && defined(USEOPENMPGPU)
+{
+//if calculating with GPUS, then use float arrays to calc positions
+unsigned long long N = 1000000000;
+float *xx = new float[N];
+float *yy = new float[N];
+unsigned long long ii;
+for (ii=0;ii<N;ii++) xx[ii] = ii;
+#pragma omp target parallel for map(to: xx) map(from: yy)
+for (ii = 0; ii < N; ii++)
+{
+    yy[ii] = xx[ii]*xx[ii];
+}
+delete[] xx;
+delete[] yy;
+}
+#endif
+
+// #if defined(USEOPENACC)
+// #else
+
+#if defined(USEOPENMP) && defined(USEOPENMPGPU)
+    //with GPUS, need to store eigenvectors and eigenvalues of all the halos
     float *eigenvalarray, *eigenvecarray, *newphase;
-    for (auto i = 0; i < opt.Ngeneratehalos; i++) {
+    Int_t *eigoffset;
+    eigenvalarray = new float[opt.Ngeneratehalos * 6];
+    eigenvecarray = new float[opt.Ngeneratehalos * 6 * 6];
+    newphase = new float[npoints * 6];
+    eigoffset = new Int_t[npoints];
+#endif
+#ifdef USEOPENMP
+    int chunksize = 10;
+#pragma omp parallel if (opt.Ngeneratehalos>ompgeneratehalos && npoints > ompgeneratenum) default(shared)
+{
+#endif
+    GMatrix y(1,6), x(6,1), s(6,6), eigenval(6,1), eigenvec(6,6);
+#ifdef USEOPENMP
+    #pragma omp for schedule(dynamic,chunksize) nowait
+#endif
+    for (auto i = 0; i < opt.Ngeneratehalos; i++)
+    {
         //get the eigenvalues and eigenvectors of the covariance matrix
         //then take normal random numbers and scale by sqrt of eigen values
         //transform with eigenvectors and then add mean
@@ -272,50 +329,21 @@ void PopulateGaussians(Options &opt, vector<Particle> &Part, vector<GaussianDist
         s.Eigenvalvec(eigenval, eigenvec);
         for (auto j = 0; j < 6; j++) eigenval(j,0) = sqrt(eigenval(j,0));
         eigenvec = eigenvec.Inverse();
-        //copy data to arrays
-    }
-    #pragma omp target map(eigenvalarray, eigenvecarray, newphase)
-    #pragma omp parallel for private(i)
-    for (auto i = 0; i < opt.Ngeneratehalos; i++) {
+#if defined(USEOPENMP) && defined(USEOPENMPGPU)
+        //if calculating using GPU, need to copy data to arrays
+        for (auto j = 0; j < 6; j++) {
+            eigenvalarray[6*noffset[i]+j] = eigenval(j,0);
+            for (auto k = 0; k < 6; k++) {
+                eigenvecarray[36*noffset[i]+6*j+k] = eigenvec(j,k);
+            }
+        }
         for (auto j = 0; j < Gaus[i].npoints; j++)
         {
-            for (auto k = 0; k < 6; k++) y(0,k) = rn[(noffset[i]+j)*6+k];
-            x =  * eigenval * y;
-            for (auto k = 0; k < 6; k++) x(k,0) += Gaus[i].mean[k];
-            for (auto k = 0; k < 3; k++) {
-                if (x(k,0)<0) x(k,0) += opt.p;
-                else if (x(k,0)>opt.p) x(k,0) -= opt.p;
-            }
-
-            for (auto k = 0; k < 6; k++)
-            {
-                Part[noffset[i]+j].SetPhase(k, x(k,0));
-            }
+            eigoffset[noffset[i]+j] = i;
+            for (auto k = 0; k < 6; k++) newphase[(noffset[i]+j)*6+k] = Gaus[i].mean[k];
         }
-    }
-    }
-    //???
 #else
-    GMatrix y(1,6), x(6,1), s(6,6), eigenval(6,1), eigenvec(6,6);
-#if defined(USEOPENMP)
-#pragma omp parallel default(shared) threadprivate(y,x,s,eigenval,eigenvec)
-{
-    #pragma omp for schedule(static)
-#endif
-    for (auto i = 0; i < opt.Ngeneratehalos; i++) {
-        //get the eigenvalues and eigenvectors of the covariance matrix
-        //then take normal random numbers and scale by sqrt of eigen values
-        //transform with eigenvectors and then add mean
-        for (auto j = 0; j<6; j++)
-        {
-            for (auto k = 0; k<6; k++)
-            {
-                s(j, k) = Gaus[i].covar[j*6+k];
-            }
-        }
-        s.Eigenvalvec(eigenval, eigenvec);
-        for (auto j = 0; j < 6; j++) eigenval(j,0) = sqrt(eigenval(j,0));
-        eigenvec = eigenvec.Inverse();
+        //otherwise simply compute the position of the particles
         for (auto j = 0; j < Gaus[i].npoints; j++)
         {
             for (auto k = 0; k < 6; k++) y(0,k) = rn[(noffset[i]+j)*6+k];
@@ -325,18 +353,54 @@ void PopulateGaussians(Options &opt, vector<Particle> &Part, vector<GaussianDist
                 if (x(k,0)<0) x(k,0) += opt.p;
                 else if (x(k,0)>opt.p) x(k,0) -= opt.p;
             }
-            for (auto k = 0; k < 6; k++)
-            {
-                Part[noffset[i]+j].SetPhase(k, x(k,0));
-            }
+            for (auto k = 0; k < 6; k++) Part[noffset[i]+j].SetPhase(k, x(k,0));
         }
+#endif
     }
 #ifdef USEOPENMP
 }
 #endif
 
-#endif
-#endif
+
+    //if calculating with GPUS, then use float arrays to calc positions
+#if defined(USEOPENMP) && defined(USEOPENMPGPU)
+#pragma omp target if (npoints>ompgpunum) map(to: opt.p, rn, eigoffset, eigenvalarray, eigenvecarray) map(newphase)
+{
+#pragma omp parallel for
+    for (auto i = 0; i < npoints; i++)
+    {
+        Int_t index, eigindex1, eigindex2;
+        index = 6*i;
+        eigindex1 = eigoffset[i]*6;
+        eigindex2 = eigoffset[i]*36;
+        float val[6];
+        for (auto j = 0; j < 6; j++)
+        {
+            val[j] = rn[index+j];
+            for (auto k = 0; k<6; k++) {
+                newphase[index+j] += eigenvecarray[eigindex2+6*j+k]*eigenvalarray[eigindex1+j]*val[j];
+            }
+            if (j<3) {
+                if (newphase[index+j]>opt.p) newphase[index+j] -= opt.p;
+                else if (newphase[index+j]<0) newphase[index+j] += opt.p;
+            }
+        }
+    }
+}
+    delete[] eigoffset;
+    delete[] eigenvalarray;
+    delete[] eigenvecarray;
+#pragma omp parallel for schedule(static)
+    for (auto i = 0; i < npoints; i++)
+    {
+        Int_t index = 6*i;
+        for (auto k = 0; k < 6; k++) Part[i].SetPhase(k, newphase[index+k]);
+    }
+    delete[] newphase;
+#endif // end of if openmpgpu
+// #endif //end of if openacc else
+    delete[] rn;
+    delete[] noffset;
     cout<<ThisTask<<" Populate Gaussians: Done "<<MyGetTime()-time1<<endl;
     GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
 }

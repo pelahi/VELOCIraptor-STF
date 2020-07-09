@@ -697,11 +697,11 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
                     z = (*Pval).Z() - cmold[2];
                     if ((x*x + y*y + z*z) <= ri)
                     {
-                        #ifndef NOMASS
+#ifndef NOMASS
                         mval = Pval->GetMass();
-                        #else
+#else
                         mval = opt.MassValue;
-                        #endif
+#endif
                         cmx += mval*(*Pval).X();
                         cmy += mval*(*Pval).Y();
                         cmz += mval*(*Pval).Z();
@@ -854,11 +854,11 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
             Pval=&Part[j+noffset[i]];
             if (Pval->GetType()==STARTYPE) {
                 pdata[i].n_star++;
-                #ifndef NOMASS
+#ifndef NOMASS
                 mval = Pval->GetMass();
-                #else
+#else
                 mval = opt.MassValue;
-                #endif
+#endif
                 pdata[i].M_star+=mval;
             }
         }
@@ -866,11 +866,11 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
             if (Pval->GetType()==STARTYPE) {
-                #ifndef NOMASS
+#ifndef NOMASS
                 mval = Pval->GetMass();
-                #else
+#else
                 mval = opt.MassValue;
-                #endif
+#endif
                 pdata[i].t_star+=Pval->GetTage();
                 pdata[i].t_mean_star+=mval*Pval->GetTage();
                 pdata[i].Z_star+=Pval->GetZmet();
@@ -934,11 +934,11 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
                     z = (*Pval).Z() - cmold[2];
                     if ((x*x + y*y + z*z) <= ri)
                     {
-                        #ifndef NOMASS
+#ifndef NOMASS
                         mval = Pval->GetMass();
-                        #else
+#else
                         mval = opt.MassValue;
-                        #endif
+#endif
                         cmx += mval*(*Pval).X();
                         cmy += mval*(*Pval).Y();
                         cmz += mval*(*Pval).Z();

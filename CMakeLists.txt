@@ -49,9 +49,10 @@ vr_option(LONG_INT          "Use long ints to represent all integers. Needed if 
 
 # OpenMP options
 vr_option(OPENMP           "Attempt to include OpenMP support in VELOCIraptor" ON)
+vr_option(OPENMPGPU           "Attempt to include OpenMP GPU support in VELOCIraptor" ON)
 
 # OpenACC options
-vr_option(OPENACC           "Attempt to include OpenACC support in VELOCIraptor" ON)
+vr_option(OPENACC           "Attempt to include OpenACC support in VELOCIraptor" OFF)
 
 # MPI options
 vr_option(MPI               "Attempt to include MPI support in VELOCIraptor" ON)
@@ -127,6 +128,7 @@ if (VR_USE_LARGE_KDTREE)
 	set(NBODY_USE_LARGE_KDTREE ON)
 endif()
 set(NBODY_OPENMP ${VR_OPENMP})
+set(NBODY_OPENMPGPU ${VR_OPENMPGPU})
 set(NBODY_OPENACC ${VR_OPENMACC})
 
 set(VR_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/src")
@@ -151,6 +153,7 @@ vr_option_defines(XDR                       USEXDR)
 vr_option_defines(LONG_INT                  LONGINT)
 
 vr_option_defines(OPENMP                    USEOPENMP)
+vr_option_defines(OPENMPGPU                 USEOPENMPGPU)
 
 vr_option_defines(OPENACC                   USEOPENACC)
 
@@ -300,6 +303,12 @@ if (VR_ZOOM_SIM AND VR_NO_MASS)
     Options are VR_ZOOM_SIM and VR_NO_MASS.")
 endif()
 
+# check that either OpenMP or OpenACC enabled but not both
+if (VR_OPENMP AND VR_OPENACC)
+    message(FATAL_ERROR "VR configured to use both OpenMP and OpenACC. Use one or the other.")
+endif()
+
+
 # This provides us with the nbodylib library
 # We need to add it unless it was already added by somebody else
 if (NOT TARGET nbodylib)
@@ -359,7 +368,8 @@ endif()
 vr_report("Precision-specifics"
           "Long Integers" LONG_INT)
 vr_report("OpenMP-specifics"
-          "OpenMP support" OPENMP)
+          "OpenMP support" OPENMP
+          "OpenMP GPU support" OPENMPGPU)
 vr_report("OpenACC-specifics"
           "OpenACC support" OPENACC)
 vr_report("MPI-specifics"

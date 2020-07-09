@@ -33,9 +33,12 @@ using namespace NBody;
 #define omppropnum 50000
 #define ompfofsearchnum 2000000
 #define ompsortsize 1000000
+#define ompgpunum 1000000
+#define ompgeneratenum 50000
+#define ompgeneratehalos 100
 //@}
 
-#ifdef USEOPENMP 
+#ifdef USEOPENMP
 
 ///structure to store relevant info for searching openmp domains
 struct OMP_Domain {
