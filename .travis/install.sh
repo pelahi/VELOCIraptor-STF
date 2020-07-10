@@ -73,14 +73,17 @@ fi
 if [ "$NOMPI" = 1 ]; then
 	VR_CMAKE_OPTIONS+=" -DVR_MPI=OFF "
 fi
-if [ "$NOMPENMP" = 1 ]; then
+if [ "$NPOPENMP" = 1 ]; then
 	VR_CMAKE_OPTIONS+=" -DVR_OPENMP=OFF -DNBODY_OPENMP=OFF "
 fi
-if [ "$NOMPENMPGPU" = 1 ]; then
+if [ "$NOOPENMPGPU" = 1 ]; then
 	VR_CMAKE_OPTIONS+=" -DVR_OPENMPGPU=OFF -DNBODY_OPENMPGPU=OFF "
 fi
 if [ "$OPENACC" = 1 ]; then
 	VR_CMAKE_OPTIONS+=" -DVR_OPENACC=ON -DNBODY_OPENACC=ON "
+fi
+if [ "$CLANG" = 1 ]; then
+	VR_CMAKE_OPTIONS+=" -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_FLAGS=-std=c++11 "
 fi
 
 # Go, go, go!
