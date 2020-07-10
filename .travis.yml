@@ -176,7 +176,7 @@ matrix:
     addons:
      apt:
       sources: ubuntu-toolchain-r-test
-      packages: [clang-10, cmake, cmake-data, libhdf5-dev, hdf5-tools, libgsl0-dev]
+      packages: [clang-10, libomp-10-dev, cmake, cmake-data, libhdf5-dev, hdf5-tools, libgsl0-dev]
     env: COMPILER=clang-10 NOOPENMPGPU=1
 
   - compiler: clang
@@ -184,7 +184,7 @@ matrix:
     addons:
      apt:
       sources: ubuntu-toolchain-r-test
-      packages: [clang-10, cmake, cmake-data, libhdf5-dev, hdf5-tools, libgsl0-dev]
+      packages: [clang-10, libomp-9-dev, cmake, cmake-data, libhdf5-dev, hdf5-tools, libgsl0-dev]
     env: COMPILER=clang-10 NOOPENMP=1 OPENACC=1
 
   # - compiler: gcc
