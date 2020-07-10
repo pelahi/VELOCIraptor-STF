@@ -136,6 +136,13 @@ matrix:
       sources: ubuntu-toolchain-r-test
       packages: [g++-9, cmake, cmake-data, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
     env: COMPILER=g++-9
+  - compiler: clang
+    dist: focal
+    addons:
+     apt:
+      sources: ubuntu-toolchain-r-test
+      packages: [clang, cmake, cmake-data, libhdf5-dev, hdf5-tools, libgsl0-dev]
+    env: COMPILER=g++-9
   - compiler: gcc
     dist: focal
     addons:

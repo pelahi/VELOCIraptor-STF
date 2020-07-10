@@ -74,10 +74,10 @@ if [ "$NOMPI" = 1 ]; then
 	VR_CMAKE_OPTIONS+=" -DVR_MPI=OFF "
 fi
 if [ "$NOMPENMP" = 1 ]; then
-	VR_CMAKE_OPTIONS+=" -DVR_OPENMP=OFF "
+	VR_CMAKE_OPTIONS+=" -DVR_OPENMP=OFF -DNBODY_OPENMP=OFF"
 fi
-if [ "$NOPENACC" = 1 ]; then
-	VR_CMAKE_OPTIONS+=" -DVR_OPENACC=OFF "
+if [ "$OPENACC" = 1 ]; then
+	VR_CMAKE_OPTIONS+=" -DVR_OPENACC=ON -DNBODY_OPENACC=ON"
 fi
 
 # Go, go, go!
