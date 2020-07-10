@@ -49,7 +49,7 @@ vr_option(LONG_INT          "Use long ints to represent all integers. Needed if 
 
 # OpenMP options
 vr_option(OPENMP           "Attempt to include OpenMP support in VELOCIraptor" ON)
-vr_option(OPENMPGPU           "Attempt to include OpenMP GPU support in VELOCIraptor" ON)
+vr_option(OPENMPGPU        "Attempt to include OpenMP GPU support in VELOCIraptor" ON)
 
 # OpenACC options
 vr_option(OPENACC           "Attempt to include OpenACC support in VELOCIraptor" OFF)
@@ -127,7 +127,11 @@ endif()
 if (VR_USE_LARGE_KDTREE)
 	set(NBODY_USE_LARGE_KDTREE ON)
 endif()
+
 set(NBODY_OPENMP ${VR_OPENMP})
+if (NOT VR_OPENMP)
+    set(VR_OPENMPGPU OFF)
+endif()
 set(NBODY_OPENMPGPU ${VR_OPENMPGPU})
 set(NBODY_OPENACC ${VR_OPENMACC})
 

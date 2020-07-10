@@ -160,8 +160,16 @@ matrix:
     addons:
      apt:
       sources: ubuntu-toolchain-r-test
+      packages: [clang-9, cmake, cmake-data, libhdf5-dev, hdf5-tools, libgsl0-dev]
+    env: COMPILER=clang-9 CLANG9=1
+
+  - compiler: clang
+    dist: focal
+    addons:
+     apt:
+      sources: ubuntu-toolchain-r-test
       packages: [clang-10, cmake, cmake-data, libhdf5-dev, hdf5-tools, libgsl0-dev]
-    env: COMPILER=clang-10
+    env: COMPILER=clang-10 CLANG10=1
 
   - compiler: clang
     dist: focal
