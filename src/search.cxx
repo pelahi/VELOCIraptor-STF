@@ -1049,6 +1049,17 @@ Int_t* SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Part
     param[2]=(opt.ellvscale*opt.ellvscale)*(opt.ellvel*opt.ellvel);
     param[6]=(opt.ellxscale*opt.ellxscale)*(opt.ellphys*opt.ellphys);
     param[7]=(opt.Vratio);
+
+    // Need to sort particles as during MPI particle sendrecv the order
+    // might change and can produce sightly different results
+    int * storeval  = new int [nsubset];
+    for(int i = 0; i < nsubset; i++) 
+    {
+      storeval[i] = Partsubset[i].GetType();
+      Partsubset[i].SetType(i);
+    }
+    qsort(Partsubset, nsubset, sizeof(Particle), PIDCompare);
+
     if (opt.foftype==FOF6DSUBSET) {
         param[2] = opt.HaloSigmaV*(opt.halocorevfac * opt.halocorevfac);
         param[7] = param[2];
@@ -1402,7 +1413,7 @@ private(i,tid)
     }
     if (numgroups>0) if (opt.iverbose>=2) cout<<ThisTask<<": "<<numgroups<<" substructures found"<<endl;
     else {if (opt.iverbose>=2) cout<<ThisTask<<": "<<"NO SUBSTRUCTURES FOUND"<<endl;}
-
+    
     //now search particle list for large compact substructures that are considered part of the background when using smaller grids
     if (nsubset>=MINSUBSIZE && opt.iLargerCellSearch && opt.foftype!=FOF6DCORE)
     {
@@ -1897,7 +1908,23 @@ private(i,tid)
 #ifdef USEMPI
     }
 #endif
+    // Return particles to original order, so that the uber-pfof array is not
+    // affected
+    int * tmpfof = new int [nsubset];
+    for (i = 0; i < nsubset; i++)  tmpfof[Partsubset[i].GetType()] = pfof[i];
+    qsort(Partsubset, nsubset, sizeof(Particle), TypeCompare);
+
+    for (i = 0; i < nsubset; i++)
+    { 
+      pfof[i] = tmpfof[i];
+      Partsubset[i].SetType(storeval[i]);
+      Partsubset[i].SetID(i);
+    }
+    delete [] storeval;
+    delete [] tmpfof;
+
     if (opt.iverbose>=2) cout<<"Done search for substructure in this subset"<<endl;
+
     return pfof;
 }
 
@@ -2697,7 +2724,7 @@ inline void PreCalcSearchSubSet(Options &opt, Int_t subnumingroup,  Particle *&s
         FillTreeGrid(opt, subnumingroup, ngrid, tree, subPart, grid);
         gvel=GetCellVel(opt,subnumingroup,subPart,ngrid,grid);
         gveldisp=GetCellVelDisp(opt,subnumingroup,subPart,ngrid,grid,gvel);
-
+        
         opt.HaloLocalSigmaV=0;
         for (auto j=0;j<ngrid;j++) opt.HaloLocalSigmaV+=pow(gveldisp[j].Det(),1./3.);opt.HaloLocalSigmaV/=(double)ngrid;
 
@@ -3337,7 +3364,8 @@ private(i)
                         if(Partsubset[pglist[i][j]].GetPotential()>vminell&&Partsubset[pglist[i][j]].GetPotential()<minell[i])minell[i]=Partsubset[pglist[i][j]].GetPotential();
                         else if (Partsubset[pglist[i][j]].GetPotential()==vminell) iminell=j;
                     pfof[Partsubset[pglist[i][iminell]].GetID()]=0;
-                    if (iminell!=numingroup[i]-1)pglist[i][iminell]=pglist[i][--numingroup[i]];
+                    if (iminell!=numingroup[i]-1)pglist[i][iminell]=pglist[i][numingroup[i]-1];
+                    numingroup[i]--;
                     betaave[i]=(aveell[i]/ellaveexp-1.0)*sqrt((Double_t)numingroup[i]);
                 } while(betaave[i]<opt.siglevel);
             }
