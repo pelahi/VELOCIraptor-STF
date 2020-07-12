@@ -753,12 +753,20 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
     delete [] pfof;
 #ifdef USEMPI
     if (NProcs > 1) {
-        for (auto i=0;i<Nlocal; i++) parts[i].SetID((parts[i].GetSwiftTask()==ThisTask));
+        for (auto i=0;i<Nlocal; i++) parts[i].SetID((parts[i].GetSwiftTask()!=ThisTask));
         //now sort items according to whether local swift task
-        qsort(parts.data(), nig, sizeof(Particle), IDCompare);
+        qsort(parts.data(), Nlocal, sizeof(Particle), IDCompare);
         //communicate information
         MPISwiftExchange(parts);
         Nlocal = parts.size();
+
+        for (auto i=0;i<Nlocal; i++) {
+          if(parts[i].GetSwiftTask() != ThisTask) {
+            cout << "Particle on wrong task!";
+            MPI_Abort(MPI_COMM_WORLD, 1);
+          }
+        }
+
     }
 #endif
     qsort(parts.data(), Nlocal, sizeof(Particle), PIDCompare);
