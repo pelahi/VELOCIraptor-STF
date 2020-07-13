@@ -144,6 +144,14 @@ matrix:
     addons:
      apt:
       sources: ubuntu-toolchain-r-test
+      packages: [g++-10, cmake, cmake-data, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
+    env: COMPILER=g++-10
+
+  - compiler: gcc
+    dist: focal
+    addons:
+     apt:
+      sources: ubuntu-toolchain-r-test
       packages: [g++-9, cmake, cmake-data, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
     env: COMPILER=g++-9 NOOPENMP=1 OPENACC=1
 
