@@ -762,20 +762,6 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
         return NULL;
     }
 
-    // // Dump particle data for testing
-    // ofstream testfile;
-    // testfile.open ("particles.txt");
-    // for (auto i=0;i<Nlocal; i++) {
-    //   testfile << parts[i].GetPID() << ", " << (pfof[i]+ngoffset) << "\n";
-    // }
-    // testfile.close();
-
-    //move particles back to original swift task
-    //store group id
-    // for (auto i=0;i<Nlocal; i++) {
-    //     if (pfof[i]>0) parts[i].SetPID((pfof[i]+ngoffset)+libvelociraptorOpt.snapshotvalue);
-    //     else parts[i].SetPID(0);
-    // }
     delete [] pfof;
 #ifdef USEMPI
     if (NProcs > 1) {
