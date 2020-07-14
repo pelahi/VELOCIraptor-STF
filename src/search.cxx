@@ -1052,7 +1052,7 @@ Int_t* SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Part
 
     // Need to sort particles as during MPI particle sendrecv the order
     // might change and can produce sightly different results
-    int * storetype  = new int [nsubset];
+    vector<int> storetype(nsubset);
 
     //First store the index of this particle in the type data
     for(int i = 0; i < nsubset; i++) {
@@ -1064,7 +1064,7 @@ Int_t* SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Part
     qsort(Partsubset, nsubset, sizeof(Particle), PIDCompare);
 
     //Store the index in another array and reset the type data
-    int * storeindx = new int [nsubset];
+    vector<int> storeindx(nsubset);
     for(int i = 0; i < nsubset; i++){
         storeindx[i] = Partsubset[i].GetType();
         Partsubset[i].SetType(storetype[i]);
@@ -1921,7 +1921,7 @@ private(i,tid)
 #endif
     // Return particles to original order, so that the uber-pfof array is not
     // affected
-    int * tmpfof = new int [nsubset];
+    vector<int> tmpfof(nsubset);
     for (i = 0; i < nsubset; i++){
         tmpfof[storeindx[i]] = pfof[i];
         Partsubset[i].SetType(storeindx[i]);
@@ -1936,9 +1936,6 @@ private(i,tid)
       Partsubset[i].SetType(storetype[i]);
       Partsubset[i].SetID(i);
     }
-    delete[] storeindx;
-    delete[] storetype;
-    delete[] tmpfof;
 
     if (opt.iverbose>=2) cout<<"Done search for substructure in this subset"<<endl;
 
