@@ -700,6 +700,26 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
     //assuming that the swift task and swift index can be used to determine where a particle will be written.
     if (ireturngroupinfoflag != 1 ) WriteSwiftExtendedOutput (libvelociraptorOpt, ngroup, numingroup, pglist, parts);
 
+    // Find offset to first group on each MPI rank
+    Int_t ngoffset=0,ngtot=0;
+    Int_t nig=0;
+    ngtot=ngroup;
+#ifdef USEMPI
+    if (NProcs > 1) {
+        ngtot = 0;
+        for (auto j=0;j<ThisTask;j++)ngoffset+=mpi_ngroups[j];
+        for (auto j=0;j<NProcs;j++)ngtot+=mpi_ngroups[j];
+    }
+#endif
+
+    // Compute group membership for each particle and store in PID
+    for (auto i=0; i<Nlocal; i++)parts[i].SetPID(0);
+    for (auto i=1; i<=ngroup; i++) {
+      for (auto j=0;j<numingroup[i];j++) {
+        parts[pglist[i][j]].SetPID(i+ngoffset+libvelociraptorOpt.snapshotvalue);
+      }
+    }
+
     for (Int_t i=1;i<=ngroup;i++) delete[] pglist[i];
     delete[] pglist;
     delete[] pdata;
@@ -728,17 +748,6 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
     }
 
     //first sort so all particles in groups first
-    Int_t ngoffset=0,ngtot=0;
-    Int_t nig=0;
-
-    ngtot=ngroup;
-#ifdef USEMPI
-    if (NProcs > 1) {
-        ngtot = 0;
-        for (auto j=0;j<ThisTask;j++)ngoffset+=mpi_ngroups[j];
-        for (auto j=0;j<NProcs;j++)ngtot+=mpi_ngroups[j];
-    }
-#endif
     cout<<"VELOCIraptor sorting info to return group ids to swift"<<endl;
     if (ngtot == 0) {
         cout<<"No groups found"<<endl;
@@ -752,12 +761,7 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
         *numpartingroups=nig;
         return NULL;
     }
-    //move particles back to original swift task
-    //store group id
-    for (auto i=0;i<Nlocal; i++) {
-        if (pfof[i]>0) parts[i].SetPID((pfof[i]+ngoffset)+libvelociraptorOpt.snapshotvalue);
-        else parts[i].SetPID(0);
-    }
+
     delete [] pfof;
 #ifdef USEMPI
     if (NProcs > 1) {
