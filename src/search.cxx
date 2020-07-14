@@ -1067,7 +1067,7 @@ Int_t* SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Part
     vector<int> storeindx(nsubset);
     for(int i = 0; i < nsubset; i++){
         storeindx[i] = Partsubset[i].GetType();
-        Partsubset[i].SetType(storetype[i]);
+        Partsubset[i].SetType(storetype[storeindx[i]]);
     }
 
 
