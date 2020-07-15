@@ -1052,13 +1052,24 @@ Int_t* SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Part
 
     // Need to sort particles as during MPI particle sendrecv the order
     // might change and can produce sightly different results
-    int * storeval  = new int [nsubset];
-    for(int i = 0; i < nsubset; i++) 
-    {
-      storeval[i] = Partsubset[i].GetType();
+    vector<int> storetype(nsubset);
+
+    //First store the index of this particle in the type data
+    for(int i = 0; i < nsubset; i++) {
+      storetype[i] = Partsubset[i].GetType();
       Partsubset[i].SetType(i);
     }
+
+    //Sort the particle data based on the particle IDs
     qsort(Partsubset, nsubset, sizeof(Particle), PIDCompare);
+
+    //Store the index in another array and reset the type data
+    vector<int> storeindx(nsubset);
+    for(int i = 0; i < nsubset; i++){
+        storeindx[i] = Partsubset[i].GetType();
+        Partsubset[i].SetType(storetype[storeindx[i]]);
+    }
+
 
     if (opt.foftype==FOF6DSUBSET) {
         param[2] = opt.HaloSigmaV*(opt.halocorevfac * opt.halocorevfac);
@@ -1742,10 +1753,10 @@ private(i,tid)
                 delete[] pfofbg;
                 param[1]*=opt.halocorexfaciter*opt.halocorexfaciter;
                 param[6]=param[1];
-               	//adjust linking lengths in velocity space by the iterative factor, ~0.75
+                //adjust linking lengths in velocity space by the iterative factor, ~0.75
                 param[2]*=opt.halocorevfaciter*opt.halocorevfaciter;
                 param[7]=param[2];
-               	//and alter the minsize
+                //and alter the minsize
                 minsize*=opt.halocorenumfaciter;
                 if (minsize<opt.MinSize) minsize=opt.MinSize;
                 dispvaltot*=dispval;
@@ -1910,18 +1921,21 @@ private(i,tid)
 #endif
     // Return particles to original order, so that the uber-pfof array is not
     // affected
-    int * tmpfof = new int [nsubset];
-    for (i = 0; i < nsubset; i++)  tmpfof[Partsubset[i].GetType()] = pfof[i];
+    vector<int> tmpfof(nsubset);
+    for (i = 0; i < nsubset; i++){
+        tmpfof[storeindx[i]] = pfof[i];
+        Partsubset[i].SetType(storeindx[i]);
+    }
+
+    // Sort base on the type
     qsort(Partsubset, nsubset, sizeof(Particle), TypeCompare);
 
-    for (i = 0; i < nsubset; i++)
-    { 
+    //Reset the typedata and set the ID
+    for (i = 0; i < nsubset; i++){
       pfof[i] = tmpfof[i];
-      Partsubset[i].SetType(storeval[i]);
+      Partsubset[i].SetType(storetype[i]);
       Partsubset[i].SetID(i);
     }
-    delete [] storeval;
-    delete [] tmpfof;
 
     if (opt.iverbose>=2) cout<<"Done search for substructure in this subset"<<endl;
 
@@ -3996,11 +4010,11 @@ Int_t GetHierarchy(Options &opt,Int_t ngroups, Int_t *nsub, Int_t *parentgid, In
     for (int i=nhierarchy-1;i>=1;i--){
         //store number of substructures
         for (int j=1;j<=papsldata[i]->nsinlevel;j++) {
-	           if (papsldata[i]->gidparenthead[j]!=NULL&&papsldata[i]->gidparenthead[j]!=papsldata[i]->gidhead[j]) nsub[*(papsldata[i]->gidparenthead[j])]++;
+               if (papsldata[i]->gidparenthead[j]!=NULL&&papsldata[i]->gidparenthead[j]!=papsldata[i]->gidhead[j]) nsub[*(papsldata[i]->gidparenthead[j])]++;
         }
         //then add these to parent substructure
         for (int j=1;j<=papsldata[i]->nsinlevel;j++) {
-    	    if (papsldata[i]->gidparenthead[j]!=NULL&&papsldata[i]->gidparenthead[j]!=papsldata[i]->gidhead[j]){
+            if (papsldata[i]->gidparenthead[j]!=NULL&&papsldata[i]->gidparenthead[j]!=papsldata[i]->gidhead[j]){
                 nsub[*(papsldata[i]->gidparenthead[j])]+=nsub[*(papsldata[i]->gidhead[j])];
                 parentgid[*(papsldata[i]->gidhead[j])]=*(papsldata[i]->gidparenthead[j]);
             }
