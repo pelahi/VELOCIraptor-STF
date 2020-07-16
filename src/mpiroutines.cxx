@@ -4809,15 +4809,15 @@ Int_t MPIGroupExchange(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
         nexport+=mpi_nsend[j+ThisTask*NProcs];
     }
     //declare array for local storage of the appropriate size
-    //nlocal=nbodies-nexport+nimport;// <--- original
-    nlocal=nbodies+nimport; // NEW do not get rid of particles, might affect NN search
+    nlocal=nbodies-nexport+nimport;// <--- original
+    //nlocal=nbodies+nimport; // NEW do not get rid of particles, might affect NN search
     NImport=nimport; 
-    NExport=nexport; //NEW
+    //NExport=nexport; //NEW
     if (nexport >0) FoFGroupDataExport=new fofid_in[nexport];
 
     Int_t *storeval=new Int_t[nbodies];
-    //Noldlocal=nbodies-nexport; // <---original
-     Noldlocal=nbodies; //NEW
+    Noldlocal=nbodies-nexport; // <---original
+    // Noldlocal=nbodies; //NEW
     //store type in temporary array, then use type to store what task particle belongs to and sort values
     for (i=0;i<nbodies;i++) storeval[i]=Part[i].GetType();
     for (i=0;i<nbodies;i++) Part[i].SetType((mpi_foftask[i]!=ThisTask));
@@ -5074,8 +5074,8 @@ Int_t MPICompileGroups(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
     Int_t i,j,start,ngroups;
     Int_t *numingroup,*groupid,**plist;
     ngroups=0;
-    for (i=Noldlocal-NExport;i<Noldlocal;i++) 
-      Part[i].SetID(0);
+    //for (i=Noldlocal-NExport;i<Noldlocal;i++) 
+    //  Part[i].SetID(0);
     for (i=Noldlocal;i<nbodies;i++) {
         Part[i]=FoFGroupDataLocal[i-Noldlocal].p;
         //note that before used type to sort particles
