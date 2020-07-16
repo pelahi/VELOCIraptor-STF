@@ -152,41 +152,6 @@ macro(vr_option_defines varname define)
 	endif()
 endmacro()
 
-vr_option_defines(XDR                       USEXDR)
-
-vr_option_defines(LONG_INT                  LONGINT)
-
-vr_option_defines(OPENMP                    USEOPENMP)
-vr_option_defines(OPENMPGPU                 USEOPENMPGPU)
-
-vr_option_defines(OPENACC                   USEOPENACC)
-
-vr_option_defines(MPI_REDUCE                MPIREDUCEMEM)
-vr_option_defines(LARGE_MPI_DOMAIN          HUGEMPI)
-
-vr_option_defines(GADGET_LONGID             GADGETLONGID)
-vr_option_defines(GADGET_DPOS               GADGETDOUBLEPRECISION)
-vr_option_defines(GADGET_SMASS              GADGETSINGLEMASSPRECISION)
-vr_option_defines(GADGET_HEAD2              GADGET2FORMAT)
-vr_option_defines(GADGET_SPH_INFO           EXTRASPHINFO)
-vr_option_defines(GADGET_STAR_INFO          EXTRASTARINFO)
-vr_option_defines(GADGET_BH_INFO            EXTRABHINFO)
-
-vr_option_defines(USE_GAS                   GASON)
-vr_option_defines(USE_STAR                  STARON)
-vr_option_defines(USE_BH                    BHON)
-vr_option_defines(USE_EXTRA_DM_PROPERTIES   EXTRADMON)
-vr_option_defines(NO_MASS                   NOMASS)
-vr_option_defines(USE_EXTRA_INPUT_INFO      EXTRAINPUTINFO)
-vr_option_defines(USE_EXTRA_FOF_INFO        EXTRAFOFINFO)
-
-vr_option_defines(STRUCTURE_DEN             STRUCDEN)
-vr_option_defines(HALO_DEN                  HALOONLYDEN)
-vr_option_defines(ZOOM_SIM                  HIGHRES)
-vr_option_defines(USE_LARGE_KDTREE          LARGETREE)
-
-vr_option_defines(USE_SWIFT_INTERFACE       SWIFTINTERFACE)
-
 #
 # How we find GSL and set it up
 #
@@ -322,7 +287,58 @@ if (NOT TARGET nbodylib)
 		VELOCIraptor requires >= 1.28, try running git submodule update --recursive --remote")
 	endif()
 	list(INSERT VR_DOC_DIRS 0 ${NBODYLIB_DOC_DIRS})
+	if (NOT "USEOPENMP" IN_LIST NBODYLIB_DEFINES)
+		message(" help it should not evaluate")
+		set(VR_OPENMP OFF)
+		set(VR_HAS_OPENMP No)
+	endif()
+	if (NOT "USEOPENMPGPU" IN_LIST NBODYLIB_DEFINES)
+		set(VR_OPENMPGPU OFF)
+		set(VR_HAS_OPENMPGPU No)
+	endif()
+	if (NOT "USEOPENACC" IN_LIST NBODYLIB_DEFINES)
+		set(VR_OPENACC OFF)
+		set(VR_HAS_OPENMPACC No)
+	endif()
 endif()
+
+#defines based on environment variables
+
+vr_option_defines(XDR                       USEXDR)
+
+vr_option_defines(LONG_INT                  LONGINT)
+
+vr_option_defines(OPENMP                    USEOPENMP)
+vr_option_defines(OPENMPGPU                 USEOPENMPGPU)
+
+vr_option_defines(OPENACC                   USEOPENACC)
+
+vr_option_defines(MPI_REDUCE                MPIREDUCEMEM)
+vr_option_defines(LARGE_MPI_DOMAIN          HUGEMPI)
+
+vr_option_defines(GADGET_LONGID             GADGETLONGID)
+vr_option_defines(GADGET_DPOS               GADGETDOUBLEPRECISION)
+vr_option_defines(GADGET_SMASS              GADGETSINGLEMASSPRECISION)
+vr_option_defines(GADGET_HEAD2              GADGET2FORMAT)
+vr_option_defines(GADGET_SPH_INFO           EXTRASPHINFO)
+vr_option_defines(GADGET_STAR_INFO          EXTRASTARINFO)
+vr_option_defines(GADGET_BH_INFO            EXTRABHINFO)
+
+vr_option_defines(USE_GAS                   GASON)
+vr_option_defines(USE_STAR                  STARON)
+vr_option_defines(USE_BH                    BHON)
+vr_option_defines(USE_EXTRA_DM_PROPERTIES   EXTRADMON)
+vr_option_defines(NO_MASS                   NOMASS)
+vr_option_defines(USE_EXTRA_INPUT_INFO      EXTRAINPUTINFO)
+vr_option_defines(USE_EXTRA_FOF_INFO        EXTRAFOFINFO)
+
+vr_option_defines(STRUCTURE_DEN             STRUCDEN)
+vr_option_defines(HALO_DEN                  HALOONLYDEN)
+vr_option_defines(ZOOM_SIM                  HIGHRES)
+vr_option_defines(USE_LARGE_KDTREE          LARGETREE)
+
+vr_option_defines(USE_SWIFT_INTERFACE       SWIFTINTERFACE)
+
 list(APPEND VR_INCLUDE_DIRS ${NBODYLIB_INCLUDE_DIRS})
 list(APPEND VR_DEFINES "${NBODYLIB_DEFINES}")
 list(APPEND VR_CXX_FLAGS "${NBODYLIB_CXX_FLAGS}")
