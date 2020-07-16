@@ -87,6 +87,12 @@ if (nbodies > ompsubsearchnum)
     for (i=0;i<nbodies;i++)
     {
         tempdenv=Part[i].GetDensity()/opt.Nsearch;
+//---
+if (Part[i].GetPID() == 7596497374128)
+{
+ printf("PARTTRACK %ld  %f  %f  %f  %f\n", Part[i].GetPID(), Part[i].GetDensity(), Part[i].GetPotential(), Part[i].GetPosition(0), Part[i].GetVelocity(0));
+}
+//---
 #ifdef USEOPENMP
         tid=omp_get_thread_num();
 #else

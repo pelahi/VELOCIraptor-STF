@@ -65,6 +65,16 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     }
     psldata=new StrucLevelData;
 
+//---
+PARTPIDTYPE vvar;
+for (int i = 0; i < nbodies; i++)
+{
+ vvar = Part[i].GetPID();
+ if (vvar == 7487497347514 || vvar == 2080083413806 || vvar == 7596497374128 || vvar == 5633111496454 || vvar == 5670468127232 || vvar == 1234431045972 || vvar == 74433584668 || vvar == 1239546967980)
+   printf ("PID  %ld  Task  %d\n", Part[i].GetPID(), ThisTask);
+}
+
+//---
     minsize=opt.HaloMinSize;
 #ifdef USEMPI
     //if using MPI, lower minimum number
@@ -455,6 +465,21 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
             cout<<ThisTask<<" Going to build tree "<<endl;
             tree=new KDTree(Part.data(),Nlocal,opt.Bsize,tree->TPHYS,tree->KEPAN,100,0,0,0,period);
             GetVelocityDensity(opt, Nlocal, Part.data(),tree);
+//---
+int ffflag = 0;
+for (i=0; i<Nlocal; i++)
+  if (Part[i].GetPID() == 7596497374128)
+    ffflag = 1;
+if (ffflag)
+{
+  char bufff [100];
+  sprintf (bufff, "%s.partintree", opt.outname);
+  FILE * fff = fopen(bufff, "w");
+  for (i = 0; i< Nlocal; i++)
+    fprintf (fff, "%ld   %f\n", Part[i].GetPID(), Part[i].GetDensity());
+  fclose(fff);
+}
+//---
             delete tree;
         }
         for (i=0;i<Nlocal;i++) Part[i].SetType(storetype[i]);

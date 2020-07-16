@@ -564,6 +564,9 @@ private(i,j,k,tid,id,v2,nnids,nnr2,weight,pqv)
 
             if (opt.impiusemesh) ioverlap = (MPISearchForOverlapUsingMesh(opt,Part[i],maxrdist[i])!=0);
             else ioverlap = (MPISearchForOverlap(Part[i],maxrdist[i])!=0);
+//---
+if (Part[i].GetPID() == 7596497374128) printf("IOVERLAP  %d\n", ioverlap);
+//---
             if (ioverlap) {
                 Part[i].SetDensity(-1.0);
                 continue;
@@ -585,6 +588,18 @@ private(i,j,k,tid,id,v2,nnids,nnr2,weight,pqv)
             }
         }
         Part[i].SetDensity(tree->CalcSmoothLocalValue(opt.Nvel, pqv, weight));
+//---
+if (Part[i].GetPID() == 7596497374128)
+{
+  printf ("DENSITY1  Opt.icellwidth  %f  %f  %f\n", opt.icellwidth[0], opt.icellwidth[1], opt.icellwidth[2]); 
+  printf ("DENSITY1  maxrdist  %f  %f\n", Part[i].GetPosition(0)-maxrdist[i], Part[i].GetPosition(0)+maxrdist[i]); 
+  printf ("DENSITY1  maxrdist  %f  %f\n", Part[i].GetPosition(1)-maxrdist[i], Part[i].GetPosition(1)+maxrdist[i]); 
+  printf ("DENSITY1  maxrdist  %f  %f\n", Part[i].GetPosition(2)-maxrdist[i], Part[i].GetPosition(2)+maxrdist[i]); 
+  printf ("DENSITY1  %d  %d  %ld  %f  %f\n", i, Part[i].GetID(), Part[i].GetPID(), Part[i].GetDensity(), Part[i].GetPotential());
+  for (int j = 0; j < opt.Nsearch; j++)
+    printf ("NNID  %d  %ld  %f\n", j, Part[nnids[j]].GetPID(), nnr2[j]);
+}
+//---
     }
     delete[] nnids;
     delete[] nnr2;
@@ -593,7 +608,13 @@ private(i,j,k,tid,id,v2,nnids,nnr2,weight,pqv)
 #ifdef USEOPENMP
 }
 #endif
-
+//---
+int tmppp = 0;
+for (int i = 0; i < nbodies; i++)
+  if (Part[i].GetDensity() == -1)
+    tmppp++;
+printf ("NUMBEROFPARTMPIEX %d\n", tmppp);
+//---
 #ifdef USEMPI
     if (NProcs >1 && opt.iLocalVelDenApproxCalcFlag==0) {
     if (opt.iverbose) cout<<ThisTask<<" finished local calculation in "<<MyGetTime()-time2<<endl;
@@ -722,6 +743,11 @@ private(i,j,k,tid,pid,pid2,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,p
 #endif
     if (itreeflag) delete tree;
     if (period!=NULL) delete[] period;
+//---
+for (i = 0; i < nbodies; i++)
+if (Part[i].GetPID() == 7596497374128)
+ printf("DENSITY2  %d  %d  %d  %ld  %f  %f\n", i, nbodies, Part[i].GetID(), Part[i].GetPID(), Part[i].GetDensity(), Part[i].GetPotential());
+//---
 }
 
 void GetVelocityDensityApproximative(Options &opt, const Int_t nbodies, Particle *Part, KDTree *tree)
@@ -956,11 +982,6 @@ private(id,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,pqx,pqv,Pval,pid2
 
     nnids=new Int_t[opt.Nsearch];
     nnr2=new Double_t[opt.Nsearch];
-    nnidsneighbours=new Int_t[opt.Nsearch];
-    nnr2neighbours=new Double_t[opt.Nsearch];
-    weight=new Double_t[opt.Nvel];
-    pqx=new PriorityQueue(opt.Nsearch);
-    pqv=new PriorityQueue(opt.Nvel);
 #ifdef USEOPENMP
 #pragma omp for schedule(dynamic) \
 reduction(+:nprocessed)
