@@ -1077,13 +1077,13 @@ Int_t* SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Part
 
     // Need to sort particles as during MPI particle sendrecv the order
     // might change and can produce sightly different results
-    /*int * storeval  = new int [nsubset];
+    int * storeval  = new int [nsubset];
     for(int i = 0; i < nsubset; i++) 
     {
       storeval[i] = Partsubset[i].GetType();
       Partsubset[i].SetType(i);
     }
-    qsort(Partsubset, nsubset, sizeof(Particle), PIDCompare);*/
+    qsort(Partsubset, nsubset, sizeof(Particle), PIDCompare);
 
     if (opt.foftype==FOF6DSUBSET) {
         param[2] = opt.HaloSigmaV*(opt.halocorevfac * opt.halocorevfac);
@@ -1935,7 +1935,7 @@ private(i,tid)
 #endif
     // Return particles to original order, so that the uber-pfof array is not
     // affected
-    /*int * tmpfof = new int [nsubset];
+    int * tmpfof = new int [nsubset];
     for (i = 0; i < nsubset; i++)  tmpfof[Partsubset[i].GetType()] = pfof[i];
     qsort(Partsubset, nsubset, sizeof(Particle), TypeCompare);
 
@@ -1946,7 +1946,7 @@ private(i,tid)
       Partsubset[i].SetID(i);
     }
     delete [] storeval;
-    delete [] tmpfof;*/
+    delete [] tmpfof;
 
     if (opt.iverbose>=2) cout<<"Done search for substructure in this subset"<<endl;
 
