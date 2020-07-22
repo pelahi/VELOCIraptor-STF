@@ -549,6 +549,7 @@ private(i,j,k,tid,id,v2,nnids,nnr2,weight,pqv)
         //if strucden compile flag set then only calculate velocity density for particles in groups
 #ifdef STRUCDEN
         if (Part[i].GetType()<=0) continue;
+        if (Part[i].GetPotential() == 1.0) continue;
         //if not searching all particles in FOF then also doing baryon search then just find nearest neighbours
         if (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)) tree->FindNearest(i,nnids,nnr2,opt.Nsearch);
         //otherwise distinction must be made so that only base calculation on dark matter particles
@@ -591,10 +592,10 @@ if (Part[i].GetPID() == 7596497374128) printf("IOVERLAP  %d\n", ioverlap);
 //---
 if (Part[i].GetPID() == 7596497374128)
 {
-  printf ("DENSITY1  Opt.icellwidth  %f  %f  %f\n", opt.icellwidth[0], opt.icellwidth[1], opt.icellwidth[2]); 
-  printf ("DENSITY1  maxrdist  %f  %f\n", Part[i].GetPosition(0)-maxrdist[i], Part[i].GetPosition(0)+maxrdist[i]); 
-  printf ("DENSITY1  maxrdist  %f  %f\n", Part[i].GetPosition(1)-maxrdist[i], Part[i].GetPosition(1)+maxrdist[i]); 
-  printf ("DENSITY1  maxrdist  %f  %f\n", Part[i].GetPosition(2)-maxrdist[i], Part[i].GetPosition(2)+maxrdist[i]); 
+  printf ("DENSITY1  Opt.icellwidth  %f  %f  %f\n", opt.icellwidth[0], opt.icellwidth[1], opt.icellwidth[2]);
+  printf ("DENSITY1  maxrdist  %f  %f\n", Part[i].GetPosition(0)-maxrdist[i], Part[i].GetPosition(0)+maxrdist[i]);
+  printf ("DENSITY1  maxrdist  %f  %f\n", Part[i].GetPosition(1)-maxrdist[i], Part[i].GetPosition(1)+maxrdist[i]);
+  printf ("DENSITY1  maxrdist  %f  %f\n", Part[i].GetPosition(2)-maxrdist[i], Part[i].GetPosition(2)+maxrdist[i]);
   printf ("DENSITY1  %d  %d  %ld  %f  %f\n", i, Part[i].GetID(), Part[i].GetPID(), Part[i].GetDensity(), Part[i].GetPotential());
   for (int j = 0; j < opt.Nsearch; j++)
     printf ("NNID  %d  %ld  %f\n", j, Part[nnids[j]].GetPID(), nnr2[j]);
@@ -691,8 +692,23 @@ private(i,j,k,tid,pid,pid2,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,p
             if (nimport>0) {
                 Coordinate x(Part[i].GetPosition());
                 treeneighbours->FindNearestPos(x,nnidsneighbours,nnr2neighbours,nimportsearch);
-                for (j=0;j<nimportsearch;j++) {
-                    if (nnr2neighbours[j] < pqx->TopPriority()){
+                int irepeat;
+                for (j=0, int offst = 0;j<nimportsearch;j++) {
+                    irepeat = 0;
+                    for (int k = offst; k < opt.Nsearch; k++)
+                    {
+                      if (nnr2[k] == nnr2neighbours[j])
+                      {
+                        if (Part[nnids[k]].GetPID() == PartDataGet[nnidsneighbours[j]])
+                          irepeat = 1;
+                      }
+                      else if (nnr2[k] > nnr2neighbours[j])
+                      {
+                        offst = k;
+                        break;
+                      }
+                    }
+                    if (nnr2neighbours[j] < pqx->TopPriority() && irepeat == 0){
                         pqx->Pop();
                         pqx->Push(nnidsneighbours[j]+nbodies, nnr2neighbours[j]);
                     }

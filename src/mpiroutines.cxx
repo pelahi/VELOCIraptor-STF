@@ -3521,6 +3521,7 @@ void MPIGetNNExportNumUsingMesh(Options &opt, const Int_t nbodies, Particle *Par
     {
 #ifdef STRUCDEN
         if (Part[i].GetType() <= 0) continue;
+        if (Part[i].GetPotential() == 1.0) continue;
 #endif
         if (rdist[i] == 0) continue;
         for(int k=0; k<NProcs; k++) sent_mpi_domain[k] = 0;
@@ -3672,6 +3673,7 @@ void MPIBuildParticleNNExportListUsingMesh(Options &opt, const Int_t nbodies, Pa
     {
 #ifdef STRUCDEN
         if (Part[i].GetType()<=0) continue;
+        if (Part[i].GetPotential() == 1.0) continue;
 #endif
         if (rdist[i] == 0) continue;
         for (int k=0;k<3;k++) {xsearch[k][0]=Part[i].GetPosition(k)-rdist[i];xsearch[k][1]=Part[i].GetPosition(k)+rdist[i];}
@@ -4811,7 +4813,7 @@ Int_t MPIGroupExchange(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
     //declare array for local storage of the appropriate size
     //nlocal=nbodies-nexport+nimport;// <--- original
     nlocal=nbodies+nimport; // NEW do not get rid of particles, might affect NN search
-    NImport=nimport; 
+    NImport=nimport;
     NExport=nexport; //NEW
     if (nexport >0) FoFGroupDataExport=new fofid_in[nexport];
 
@@ -5074,8 +5076,14 @@ Int_t MPICompileGroups(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
     Int_t i,j,start,ngroups;
     Int_t *numingroup,*groupid,**plist;
     ngroups=0;
-    for (i=Noldlocal-NExport;i<Noldlocal;i++) 
+    for (i=Noldlocal-NExport;i<Noldlocal;i++)
+    {
       Part[i].SetID(0);
+      // This is meant to tag particles to avoid counting them twice when  NN is done.
+      // This will also be used to sort particles and 'trim' them from the Particle vector
+      // to save memory.
+      Part[i].SetPotential(1.0);
+    }
     for (i=Noldlocal;i<nbodies;i++) {
         Part[i]=FoFGroupDataLocal[i-Noldlocal].p;
         //note that before used type to sort particles

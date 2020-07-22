@@ -465,24 +465,20 @@ for (int i = 0; i < nbodies; i++)
             cout<<ThisTask<<" Going to build tree "<<endl;
             tree=new KDTree(Part.data(),Nlocal,opt.Bsize,tree->TPHYS,tree->KEPAN,100,0,0,0,period);
             GetVelocityDensity(opt, Nlocal, Part.data(),tree);
-//---
-int ffflag = 0;
-for (i=0; i<Nlocal; i++)
-  if (Part[i].GetPID() == 7596497374128)
-    ffflag = 1;
-if (ffflag)
-{
-  char bufff [100];
-  sprintf (bufff, "%s.partintree", opt.outname);
-  FILE * fff = fopen(bufff, "w");
-  for (i = 0; i< Nlocal; i++)
-    fprintf (fff, "%ld   %f\n", Part[i].GetPID(), Part[i].GetDensity());
-  fclose(fff);
-}
-//---
             delete tree;
         }
+        // Delete exported particles
+        for (i=0;i<Nlocal;i++) Part[i].SetType(i);
+        qsort(Part, Nlocal, sizeof(Particle), PotCompare);
+        for (i = Nlocal; i > 0; i--)
+          if (Part[i].GetPotential==1.0)
+            Part.push_back();
+          else
+            break;
+        Nlocal = Part.size();
+        qsort (Part, Nlocal, sizeof(Particle), TypeCompare);
         for (i=0;i<Nlocal;i++) Part[i].SetType(storetype[i]);
+
         delete[] storetype;
     }
 #endif
@@ -1078,7 +1074,7 @@ Int_t* SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Part
     // Need to sort particles as during MPI particle sendrecv the order
     // might change and can produce sightly different results
     int * storeval  = new int [nsubset];
-    for(int i = 0; i < nsubset; i++) 
+    for(int i = 0; i < nsubset; i++)
     {
       storeval[i] = Partsubset[i].GetType();
       Partsubset[i].SetType(i);
@@ -1438,7 +1434,7 @@ private(i,tid)
     }
     if (numgroups>0) if (opt.iverbose>=2) cout<<ThisTask<<": "<<numgroups<<" substructures found"<<endl;
     else {if (opt.iverbose>=2) cout<<ThisTask<<": "<<"NO SUBSTRUCTURES FOUND"<<endl;}
-    
+
     //now search particle list for large compact substructures that are considered part of the background when using smaller grids
     if (nsubset>=MINSUBSIZE && opt.iLargerCellSearch && opt.foftype!=FOF6DCORE)
     {
@@ -1940,7 +1936,7 @@ private(i,tid)
     qsort(Partsubset, nsubset, sizeof(Particle), TypeCompare);
 
     for (i = 0; i < nsubset; i++)
-    { 
+    {
       pfof[i] = tmpfof[i];
       Partsubset[i].SetType(storeval[i]);
       Partsubset[i].SetID(i);
@@ -2749,7 +2745,7 @@ inline void PreCalcSearchSubSet(Options &opt, Int_t subnumingroup,  Particle *&s
         FillTreeGrid(opt, subnumingroup, ngrid, tree, subPart, grid);
         gvel=GetCellVel(opt,subnumingroup,subPart,ngrid,grid);
         gveldisp=GetCellVelDisp(opt,subnumingroup,subPart,ngrid,grid,gvel);
-        
+
         opt.HaloLocalSigmaV=0;
         for (auto j=0;j<ngrid;j++) opt.HaloLocalSigmaV+=pow(gveldisp[j].Det(),1./3.);opt.HaloLocalSigmaV/=(double)ngrid;
 
