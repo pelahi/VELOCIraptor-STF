@@ -693,13 +693,14 @@ private(i,j,k,tid,pid,pid2,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,p
                 Coordinate x(Part[i].GetPosition());
                 treeneighbours->FindNearestPos(x,nnidsneighbours,nnr2neighbours,nimportsearch);
                 int irepeat;
-                for (j=0, int offst = 0;j<nimportsearch;j++) {
+                int offst;
+                for (j=0, offst = 0;j<nimportsearch;j++) {
                     irepeat = 0;
                     for (int k = offst; k < opt.Nsearch; k++)
                     {
                       if (nnr2[k] == nnr2neighbours[j])
                       {
-                        if (Part[nnids[k]].GetPID() == PartDataGet[nnidsneighbours[j]])
+                        if (Part[nnids[k]].GetPID() == PartDataGet[nnidsneighbours[j]].GetPID())
                           irepeat = 1;
                       }
                       else if (nnr2[k] > nnr2neighbours[j])

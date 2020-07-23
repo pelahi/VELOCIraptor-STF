@@ -351,8 +351,7 @@ for (int i = 0; i < nbodies; i++)
     MPI_Barrier(MPI_COMM_WORLD);
     //Now that have FoFDataGet (the exported particles) must search local volume using said particles
     //This is done by finding all particles in the search volume and then checking if those particles meet the FoF criterion
-    //One must keep iterating till there are no new links.
-    //Wonder if i don't need another loop and a final check
+
     Int_t links_across,links_across_total;
 
     //get memory usage
@@ -471,8 +470,8 @@ for (int i = 0; i < nbodies; i++)
         //for (i=0;i<Nlocal;i++) Part[i].SetType(i);
         //qsort(Part, Nlocal, sizeof(Particle), PotCompare);
         for (i = Nlocal; i > 0; i--)
-          if (Part[i].GetPotential==1.0)
-            Part.push_back();
+          if (Part[i].GetPotential() ==1.0)
+            Part.pop_back();
           else
             break;
         Nlocal = Part.size();

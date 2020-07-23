@@ -5104,6 +5104,8 @@ Int_t MPICompileGroups(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
     }
     //again resort to move untagged particles to the end.
     qsort(Part,nbodies,sizeof(Particle),IDCompare);
+    for (i=nbodies-NExport; i< nbodies; i++)
+    Part[i].SetID(0);
     //now adjust pfof and ids.
     for (i=0;i<nbodies;i++) {pfof[i]=-Part[i].GetID();Part[i].SetID(i);}
     numingroup=new Int_t[ngroups+1];
@@ -5117,8 +5119,8 @@ Int_t MPICompileGroups(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
             ngroups++;
             start=i;
         }
-        //if (pfof[i]<=0) break;
-        if (pfof[i]<=0) pfof[i] = 0; // This ensures that exportes particles are at the end.
+        if (pfof[i]<=0) break;
+        //if (pfof[i]<=0) pfof[i] = 0; // This ensures that exportes particles are at the end.
     }
     ngroups--;
 
