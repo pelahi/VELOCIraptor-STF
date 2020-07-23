@@ -664,6 +664,7 @@ private(i,j,k,tid,pid,pid2,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,p
     for (i=0;i<nbodies;i++) {
 #ifdef STRUCDEN
         if (Part[i].GetType()<=0) continue;
+        if (Part[i].GetPotential() == 1.0) continue;
 #endif
 
 #ifdef USEOPENMP
@@ -694,21 +695,32 @@ private(i,j,k,tid,pid,pid2,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,p
                 treeneighbours->FindNearestPos(x,nnidsneighbours,nnr2neighbours,nimportsearch);
                 int irepeat;
                 int offst;
-                for (j=0, offst = 0;j<nimportsearch;j++) {
+                for (j=0, offst = 0;j<nimportsearch;j++) 
+                {
                     irepeat = 0;
                     for (int k = offst; k < opt.Nsearch; k++)
                     {
-                      if (nnr2[k] == nnr2neighbours[j])
+                      if (nnr2[k] < nnr2neighbours[j]) continue;                     
+                      if (nnr2[k] == nnr2neighbours[j]) 
                       {
                         if (Part[nnids[k]].GetPID() == PartDataGet[nnidsneighbours[j]].GetPID())
+                        {
                           irepeat = 1;
+                          printf( "ThisTask %d  pid  %ld  irepeat  %d\n", ThisTask, Part[nnids[k]].GetPID(), irepeat);
+                          offst = k;
+                          break;
+                        }
+                        else 
+                          continue;
                       }
-                      else if (nnr2[k] > nnr2neighbours[j])
+
+                      if (nnr2[k] > nnr2neighbours[j])
                       {
                         offst = k;
                         break;
                       }
                     }
+
                     if (nnr2neighbours[j] < pqx->TopPriority() && irepeat == 0){
                         pqx->Pop();
                         pqx->Push(nnidsneighbours[j]+nbodies, nnr2neighbours[j]);

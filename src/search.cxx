@@ -427,6 +427,10 @@ for (int i = 0; i < nbodies; i++)
         storetype=new Int_t[Nlocal];
         Int_t numinstrucs=0,numlocalden=0;
         for (i=0;i<Nlocal;i++) storetype[i]=Part[i].GetType();
+//---
+for (i=Nlocal-10; i < Nlocal; i++)
+  printf ("ThisTask %d  %d  %ld  %f  %f  %f\n", ThisTask, i, Part[i].GetPID(), Part[i].GetPosition(0), Part[i].GetPotential(), Part[i].GetDensity());
+//---
         if (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)) {
 // #ifdef HIGHRES
 //             numingroup=BuildNumInGroupTyped(Nlocal,numgroups,pfof,Part.data(),DARKTYPE);
@@ -469,14 +473,23 @@ for (int i = 0; i < nbodies; i++)
         // Delete exported particles
         //for (i=0;i<Nlocal;i++) Part[i].SetType(i);
         //qsort(Part, Nlocal, sizeof(Particle), PotCompare);
-        for (i = Nlocal; i > 0; i--)
+       printf("ThisTask %d  Nlocal1 %d\n", ThisTask, Nlocal); 
+       for (i = Nlocal-1; i >= 0; i--)
           if (Part[i].GetPotential() ==1.0)
             Part.pop_back();
           else
             break;
         Nlocal = Part.size();
+        printf("ThisTask %d  Nlocal1 %d\n", ThisTask, Nlocal); 
+        printf ("Nexport  %d\n", NExport); 
         //qsort (Part, Nlocal, sizeof(Particle), TypeCompare);
-        for (i=0;i<Nlocal;i++) Part[i].SetType(storetype[i]);
+        for (i=0;i<Nlocal;i++){
+          Part[i].SetType(storetype[i]);
+          if (Part[i].GetPotential() ==1)
+            {
+             printf ("Part %d  %ld  has potential ==1 \n", i, Part[i].GetPID());
+            }
+         }
 
         delete[] storetype;
     }

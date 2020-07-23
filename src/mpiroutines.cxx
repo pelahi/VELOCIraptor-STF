@@ -3516,12 +3516,13 @@ void MPIGetNNExportNumUsingMesh(Options &opt, const Int_t nbodies, Particle *Par
     ///can only access the appropriate memory and adjust nsend_local.\n
     ///\em Or outer loop is over threads, inner loop over nbodies and just have a idlist of size Nlocal that tags particles
     ///which must be exported. Then its a much quicker follow up loop (no if statement) that stores the data
+    int cccount = 0;
     for (j=0;j<NProcs;j++) nsend_local[j]=0;
     for (i=0;i<nbodies;i++)
     {
 #ifdef STRUCDEN
         if (Part[i].GetType() <= 0) continue;
-        if (Part[i].GetPotential() == 1.0) continue;
+        if (Part[i].GetPotential() == 1.0) {cccount++; continue;} 
 #endif
         if (rdist[i] == 0) continue;
         for(int k=0; k<NProcs; k++) sent_mpi_domain[k] = 0;
@@ -3536,6 +3537,7 @@ void MPIGetNNExportNumUsingMesh(Options &opt, const Int_t nbodies, Particle *Par
             sent_mpi_domain[cellnodeID]++;
         }
     }
+printf("ThisTask %d  CCOUNT %d\n", ThisTask, cccount);
     //and then gather the number of particles to be sent from mpi thread m to mpi thread n in the mpi_nsend[NProcs*NProcs] array via [n+m*NProcs]
     MPI_Allgather(nsend_local, NProcs, MPI_Int_t, mpi_nsend, NProcs, MPI_Int_t, MPI_COMM_WORLD);
     NImport=0;
@@ -3668,12 +3670,13 @@ void MPIBuildParticleNNExportListUsingMesh(Options &opt, const Int_t nbodies, Pa
     ///can only access the appropriate memory and adjust nsend_local.\n
     ///\em Or outer loop is over threads, inner loop over nbodies and just have a idlist of size Nlocal that tags particles
     ///which must be exported. Then its a much quicker follow up loop (no if statement) that stores the data
+    int cccount = 0;
     for (j=0;j<NProcs;j++) nsend_local[j]=0;
     for (i=0;i<nbodies;i++)
     {
 #ifdef STRUCDEN
         if (Part[i].GetType()<=0) continue;
-        if (Part[i].GetPotential() == 1.0) continue;
+        if (Part[i].GetPotential() == 1.0){cccount++; continue;} 
 #endif
         if (rdist[i] == 0) continue;
         for (int k=0;k<3;k++) {xsearch[k][0]=Part[i].GetPosition(k)-rdist[i];xsearch[k][1]=Part[i].GetPosition(k)+rdist[i];}
@@ -3700,6 +3703,7 @@ void MPIBuildParticleNNExportListUsingMesh(Options &opt, const Int_t nbodies, Pa
             sent_mpi_domain[cellnodeID]++;
         }
     }
+printf("ThisTask %d CCOUNT %d\n", ThisTask, cccount);
     //sort the export data such that all particles to be passed to thread j are together in ascending thread number
     //if (nexport>0) qsort(NNDataIn, nexport, sizeof(struct nndata_in), nn_export_cmp);
     if (nexport>0) {
@@ -4819,7 +4823,8 @@ Int_t MPIGroupExchange(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
 
     Int_t *storeval=new Int_t[nbodies];
     //Noldlocal=nbodies-nexport; // <---original
-     Noldlocal=nbodies; //NEW
+    Noldlocal=nbodies; //NEW
+    printf ("ThisTask %d  nbodies  %d  nimport %d  nexport  %d  nlocal  %d   Noldlocal %d\n", ThisTask, nbodies, nimport, nexport, nlocal, Noldlocal);
     //store type in temporary array, then use type to store what task particle belongs to and sort values
     for (i=0;i<nbodies;i++) storeval[i]=Part[i].GetType();
     for (i=0;i<nbodies;i++) Part[i].SetType((mpi_foftask[i]!=ThisTask));
@@ -5076,6 +5081,7 @@ Int_t MPICompileGroups(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
     Int_t i,j,start,ngroups;
     Int_t *numingroup,*groupid,**plist;
     ngroups=0;
+    printf ("ThisTask %d  Noldlocal  %d  Nexport  %d  nbodies  %d\n", ThisTask, Noldlocal, NExport, nbodies);
     for (i=Noldlocal-NExport;i<Noldlocal;i++)
     {
       Part[i].SetID(1);
@@ -5104,8 +5110,14 @@ Int_t MPICompileGroups(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
     }
     //again resort to move untagged particles to the end.
     qsort(Part,nbodies,sizeof(Particle),IDCompare);
+    int cccount = 0;
     for (i=nbodies-NExport; i< nbodies; i++)
+    {
     Part[i].SetID(0);
+    if (Part[i].GetPotential() == 1.0)
+       cccount++;
+    }
+    printf("ThisTask  %d  NExport %d cccount   %d\n", ThisTask, NExport, cccount);
     //now adjust pfof and ids.
     for (i=0;i<nbodies;i++) {pfof[i]=-Part[i].GetID();Part[i].SetID(i);}
     numingroup=new Int_t[ngroups+1];
@@ -5119,8 +5131,7 @@ Int_t MPICompileGroups(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
             ngroups++;
             start=i;
         }
-        if (pfof[i]<=0) break;
-        //if (pfof[i]<=0) pfof[i] = 0; // This ensures that exportes particles are at the end.
+        if (pfof[i]==0) break;
     }
     ngroups--;
 
