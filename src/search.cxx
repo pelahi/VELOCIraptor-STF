@@ -468,15 +468,15 @@ for (int i = 0; i < nbodies; i++)
             delete tree;
         }
         // Delete exported particles
-        for (i=0;i<Nlocal;i++) Part[i].SetType(i);
-        qsort(Part, Nlocal, sizeof(Particle), PotCompare);
+        //for (i=0;i<Nlocal;i++) Part[i].SetType(i);
+        //qsort(Part, Nlocal, sizeof(Particle), PotCompare);
         for (i = Nlocal; i > 0; i--)
           if (Part[i].GetPotential==1.0)
             Part.push_back();
           else
             break;
         Nlocal = Part.size();
-        qsort (Part, Nlocal, sizeof(Particle), TypeCompare);
+        //qsort (Part, Nlocal, sizeof(Particle), TypeCompare);
         for (i=0;i<Nlocal;i++) Part[i].SetType(storetype[i]);
 
         delete[] storetype;

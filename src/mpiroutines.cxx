@@ -5078,7 +5078,7 @@ Int_t MPICompileGroups(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
     ngroups=0;
     for (i=Noldlocal-NExport;i<Noldlocal;i++)
     {
-      Part[i].SetID(0);
+      Part[i].SetID(1);
       // This is meant to tag particles to avoid counting them twice when  NN is done.
       // This will also be used to sort particles and 'trim' them from the Particle vector
       // to save memory.
@@ -5100,7 +5100,7 @@ Int_t MPICompileGroups(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
             else ngroups++;
             start=i;
         }
-        if (Part[i].GetID()==0) break;
+        if (Part[i].GetID()>=0) break;
     }
     //again resort to move untagged particles to the end.
     qsort(Part,nbodies,sizeof(Particle),IDCompare);
@@ -5117,7 +5117,8 @@ Int_t MPICompileGroups(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
             ngroups++;
             start=i;
         }
-        if (pfof[i]==0) break;
+        //if (pfof[i]<=0) break;
+        if (pfof[i]<=0) pfof[i] = 0; // This ensures that exportes particles are at the end.
     }
     ngroups--;
 
