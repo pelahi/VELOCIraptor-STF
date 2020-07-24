@@ -566,7 +566,8 @@ private(i,j,k,tid,id,v2,nnids,nnr2,weight,pqv)
             if (opt.impiusemesh) ioverlap = (MPISearchForOverlapUsingMesh(opt,Part[i],maxrdist[i])!=0);
             else ioverlap = (MPISearchForOverlap(Part[i],maxrdist[i])!=0);
 //---
-if (Part[i].GetPID() == 7596497374128) printf("IOVERLAP  %d\n", ioverlap);
+//if (Part[i].GetPID() == 7596497374128) printf("IOVERLAP  %d\n", ioverlap);
+if (Part[i].GetPID() == 809539913388) printf("IOVERLAP  %d\n", ioverlap);
 //---
             if (ioverlap) {
                 Part[i].SetDensity(-1.0);
@@ -590,7 +591,8 @@ if (Part[i].GetPID() == 7596497374128) printf("IOVERLAP  %d\n", ioverlap);
         }
         Part[i].SetDensity(tree->CalcSmoothLocalValue(opt.Nvel, pqv, weight));
 //---
-if (Part[i].GetPID() == 7596497374128)
+//if (Part[i].GetPID() == 7596497374128)
+if (Part[i].GetPID() == 809539913388)
 {
   printf ("DENSITY1  Opt.icellwidth  %f  %f  %f\n", opt.icellwidth[0], opt.icellwidth[1], opt.icellwidth[2]);
   printf ("DENSITY1  maxrdist  %f  %f\n", Part[i].GetPosition(0)-maxrdist[i], Part[i].GetPosition(0)+maxrdist[i]);
@@ -773,7 +775,8 @@ private(i,j,k,tid,pid,pid2,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,p
     if (period!=NULL) delete[] period;
 //---
 for (i = 0; i < nbodies; i++)
-if (Part[i].GetPID() == 7596497374128)
+//if (Part[i].GetPID() == 7596497374128)
+if (Part[i].GetPID() == 809539913388)
  printf("DENSITY2  %d  %d  %d  %ld  %f  %f\n", i, nbodies, Part[i].GetID(), Part[i].GetPID(), Part[i].GetDensity(), Part[i].GetPotential());
 //---
 }

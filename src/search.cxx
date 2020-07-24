@@ -480,18 +480,23 @@ for (i=Nlocal-10; i < Nlocal; i++)
           else
             break;
         Nlocal = Part.size();
+        Int_t * tmppfof = new Int_t [Nlocal];
         printf("ThisTask %d  Nlocal1 %d\n", ThisTask, Nlocal); 
         printf ("Nexport  %d\n", NExport); 
         //qsort (Part, Nlocal, sizeof(Particle), TypeCompare);
         for (i=0;i<Nlocal;i++){
           Part[i].SetType(storetype[i]);
+          tmppfof[i] = pfof[i];
           if (Part[i].GetPotential() ==1)
             {
              printf ("Part %d  %ld  has potential ==1 \n", i, Part[i].GetPID());
             }
          }
-
-        delete[] storetype;
+         delete[] storetype;
+         delete[] pfof;
+         pfof = new Int_t [Nlocal];
+         for (i=0;i<Nlocal;i++) pfof[i] = tmppfof[i];
+         delete [] tmppfof;
     }
 #endif
 
@@ -1220,7 +1225,17 @@ private(i,tid)
         if (opt.iverbose>=2) cout<<"Done"<<endl;
     }
     //@}
-
+//---
+if (nsubset == 2678)
+{
+  char bufff[1000];
+  sprintf(bufff, "%s.partden", opt.outname);
+  FILE * fff = fopen(bufff, "w");
+  for (i = 0; i < nsubset; i++)
+    fprintf (fff, "%d  %ld  %f  %f\n", i, Partsubset[i].GetPID(), Partsubset[i].GetDensity(), Partsubset[i].GetPotential());
+  fclose(fff);
+}
+//---
     //iteration to search region around streams using lower thresholds
     //determine number of groups
     if (opt.iiterflag&&numgroups>0 && opt.foftype!=FOF6DCORE) {
