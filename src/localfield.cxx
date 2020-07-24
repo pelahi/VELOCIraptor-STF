@@ -706,7 +706,6 @@ private(i,j,k,tid,pid,pid2,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,p
                         if (Part[nnids[k]].GetPID() == PartDataGet[nnidsneighbours[j]].GetPID())
                         {
                           irepeat = 1;
-                          printf( "ThisTask %d  pid  %ld  irepeat  %d\n", ThisTask, Part[nnids[k]].GetPID(), irepeat);
                           offst = k;
                           break;
                         }
