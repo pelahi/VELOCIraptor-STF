@@ -125,6 +125,16 @@ namespace Swift {
       int index;
       long long groupid;
     };
+
+    // Data returned when invoking Velociraptor
+    struct vr_return_data {
+      // Pointer to group information array, or NULL if not requested
+      struct groupinfo *groupinfo;
+      // Number of most bound particles returned
+      int num_most_bound;
+      // Swift gpart indexes of most bound particles, or NULL if not requested
+      int *most_bound_index;
+    };
 }
 
 
@@ -138,13 +148,13 @@ extern "C" int InitVelociraptor(char* configname, Swift::unitinfo, Swift::siminf
 ///initialize velociraptor based on extra possible outputs requested by swift in addition to standard invocation, check configuration options,
 extern "C" int InitVelociraptorExtra(const int iextra, char* configname, Swift::unitinfo, Swift::siminfo, const int numthreads);
 ///actually run velociraptor
-extern "C" Swift::groupinfo * InvokeVelociraptor(const int snapnum, char* outputname,
+extern "C" Swift::vr_return_data InvokeVelociraptor(const int snapnum, char* outputname,
     Swift::cosmoinfo, Swift::siminfo,
     const size_t num_gravity_parts, const size_t num_hydro_parts, const size_t num_star_parts,
     struct swift_vel_part *swift_parts, int *cell_node_ids,
     const int numthreads, const int ireturngroupinfoflag, int *const numingroups
 );
-extern "C" Swift::groupinfo * InvokeVelociraptorHydro(const int snapnum, char* outputname,
+extern "C" Swift::vr_return_data InvokeVelociraptorHydro(const int snapnum, char* outputname,
     Swift::cosmoinfo, Swift::siminfo,
     const size_t num_gravity_parts, const size_t num_hydro_parts, const size_t num_star_parts, const size_t num_bh_parts,
     struct swift_vel_part *swift_parts, int *cell_node_ids,
@@ -153,14 +163,14 @@ extern "C" Swift::groupinfo * InvokeVelociraptorHydro(const int snapnum, char* o
     struct swift_vel_star_part *swift_star_parts = NULL,
     struct swift_vel_bh_part *swift_bh_parts = NULL
 );
-extern "C" Swift::groupinfo * InvokeVelociraptorExtra(const int iextra,
+extern "C" Swift::vr_return_data InvokeVelociraptorExtra(const int iextra,
     const int snapnum, char* outputname,
     Swift::cosmoinfo, Swift::siminfo,
     const size_t num_gravity_parts, const size_t num_hydro_parts, const size_t num_star_parts,
     struct swift_vel_part *swift_parts, int *cell_node_ids,
     const int numthreads, const int ireturngroupinfoflag, int *const numingroups
 );
-extern "C" Swift::groupinfo * InvokeVelociraptorHydroExtra(const int iextra,
+extern "C" Swift::vr_return_data InvokeVelociraptorHydroExtra(const int iextra,
     const int snapnum, char* outputname,
     Swift::cosmoinfo, Swift::siminfo,
     const size_t num_gravity_parts, const size_t num_hydro_parts,
