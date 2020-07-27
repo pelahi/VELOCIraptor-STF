@@ -724,17 +724,54 @@ vr_return_data InvokeVelociraptorHydro(const int snapnum, char* outputname,
     }
 
     for (Int_t i=1;i<=ngroup;i++) delete[] pglist[i];
-    delete[] pglist;
     delete[] pdata;
     delete[] nsub;
     delete[] uparentgid;
     delete[] parentgid;
     delete[] stype;
     delete psldata;
-    delete[] numingroup;
 
     //get memory usage
     GetMemUsage(libvelociraptorOpt, __func__+string("--line--")+to_string(__LINE__), true);
+
+    // Make array of most bound particle indexes if we have groups and it was requested
+    Int_t num_most_bound = 0;
+    int *most_bound_index = NULL;
+    if(ireturnmostbound && ngtot > 0) {
+      
+      // Make a vector containing just the most bound particle from each non-zero size group
+      vector<Particle> most_bound_parts;
+      most_bound_parts.reserve(ngroup);
+      for (auto i=1; i<=ngroup; i++) {
+        if(numingroup[i] > 0)most_bound_parts.push_back(parts[pglist[i][0]]);
+      }
+      num_most_bound = most_bound_parts.size();
+
+      // Send each most bound particle to the MPI rank it was on in Swift
+#ifdef USEMPI
+      if (NProcs > 1) {
+        for (auto i=0;i<num_most_bound; i++) most_bound_parts[i].SetID((most_bound_parts[i].GetSwiftTask()!=ThisTask));
+        //now sort items according to whether local swift task
+        qsort(most_bound_parts.data(), num_most_bound, sizeof(Particle), IDCompare);
+        //communicate information
+        MPISwiftExchange(most_bound_parts);
+        num_most_bound = most_bound_parts.size();
+      }
+#endif
+      // Make an array with the Swift indexes of the most bound particles.
+      // This will be returned to Swift so it has to be allocated with malloc().
+      most_bound_index = (int *) malloc(sizeof(int)*num_most_bound);
+      for (auto i=0;i<num_most_bound; i++) {
+        most_bound_index[i] = most_bound_parts[i].GetSwiftIndex();
+      }
+      most_bound_parts.clear();
+    }
+    // Add most bound particles to struct to return
+    return_data.num_most_bound = num_most_bound;
+    return_data.most_bound_index = most_bound_index;
+
+    delete[] pglist;
+    delete[] numingroup;
 
     // Compute group_info array if we have groups and it was requested
     groupinfo *group_info = NULL;
@@ -749,14 +786,7 @@ vr_return_data InvokeVelociraptorHydro(const int snapnum, char* outputname,
         qsort(parts.data(), Nlocal, sizeof(Particle), IDCompare);
         //communicate information
         MPISwiftExchange(parts);
-        Nlocal = parts.size();
-        
-        for (auto i=0;i<Nlocal; i++) {
-          if(parts[i].GetSwiftTask() != ThisTask) {
-            cout << "Particle on wrong task!";
-            MPI_Abort(MPI_COMM_WORLD, 1);
-          }
-        } 
+        Nlocal = parts.size(); 
       }
 #endif
       qsort(parts.data(), Nlocal, sizeof(Particle), PIDCompare);
@@ -776,8 +806,6 @@ vr_return_data InvokeVelociraptorHydro(const int snapnum, char* outputname,
     return_data.num_gparts_in_groups=nig;
     return_data.group_info = group_info;
 
-    cout<<"VELOCIraptor returning."<< endl;
-
     //free mem associate with mpi cell node ides
     libvelociraptorOpt.cellnodeids = NULL;
     libvelociraptorOpt.cellloc = NULL;
@@ -785,6 +813,7 @@ vr_return_data InvokeVelociraptorHydro(const int snapnum, char* outputname,
     free(cell_node_ids);
     parts.clear();
 
+    cout<<"VELOCIraptor returning."<< endl;
     return return_data;
 }
 
