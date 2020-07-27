@@ -128,6 +128,8 @@ namespace Swift {
 
     // Data returned when invoking Velociraptor
     struct vr_return_data {
+      // Number of gparts in groups
+      int numingroups;
       // Pointer to group information array, or NULL if not requested
       struct groupinfo *groupinfo;
       // Number of most bound particles returned
@@ -152,13 +154,13 @@ extern "C" Swift::vr_return_data InvokeVelociraptor(const int snapnum, char* out
     Swift::cosmoinfo, Swift::siminfo,
     const size_t num_gravity_parts, const size_t num_hydro_parts, const size_t num_star_parts,
     struct swift_vel_part *swift_parts, int *cell_node_ids,
-    const int numthreads, const int ireturngroupinfoflag, int *const numingroups
+    const int numthreads, const int ireturngroupinfoflag
 );
 extern "C" Swift::vr_return_data InvokeVelociraptorHydro(const int snapnum, char* outputname,
     Swift::cosmoinfo, Swift::siminfo,
     const size_t num_gravity_parts, const size_t num_hydro_parts, const size_t num_star_parts, const size_t num_bh_parts,
     struct swift_vel_part *swift_parts, int *cell_node_ids,
-    const int numthreads, const int ireturngroupinfoflag, int *const numingroups,
+    const int numthreads, const int ireturngroupinfoflag,
     struct swift_vel_gas_part *swift_gas_parts = NULL,
     struct swift_vel_star_part *swift_star_parts = NULL,
     struct swift_vel_bh_part *swift_bh_parts = NULL
@@ -168,7 +170,7 @@ extern "C" Swift::vr_return_data InvokeVelociraptorExtra(const int iextra,
     Swift::cosmoinfo, Swift::siminfo,
     const size_t num_gravity_parts, const size_t num_hydro_parts, const size_t num_star_parts,
     struct swift_vel_part *swift_parts, int *cell_node_ids,
-    const int numthreads, const int ireturngroupinfoflag, int *const numingroups
+    const int numthreads, const int ireturngroupinfoflag
 );
 extern "C" Swift::vr_return_data InvokeVelociraptorHydroExtra(const int iextra,
     const int snapnum, char* outputname,
@@ -176,7 +178,7 @@ extern "C" Swift::vr_return_data InvokeVelociraptorHydroExtra(const int iextra,
     const size_t num_gravity_parts, const size_t num_hydro_parts,
     const size_t num_star_parts, const size_t num_bh_parts,
     struct swift_vel_part *swift_parts, int *cell_node_ids,
-    const int numthreads, const int ireturngroupinfoflag, int *const numingroups,
+    const int numthreads, const int ireturngroupinfoflag,
     struct swift_vel_gas_part *swift_gas_parts = NULL,
     struct swift_vel_star_part *swift_star_parts = NULL,
     struct swift_vel_bh_part *swift_bh_parts = NULL
