@@ -786,7 +786,7 @@ vr_return_data InvokeVelociraptorHydro(const int snapnum, char* outputname,
     group_info=NULL;
     if (nig>0)
     {
-      group_info = new groupinfo[nig];
+      group_info = (groupinfo *) malloc(nig*sizeof(struct groupinfo)); // Will be freed by Swift
         for (auto i=istart;i<Nlocal;i++) {
             group_info[i-istart].index=parts[i].GetSwiftIndex();
             group_info[i-istart].groupid=parts[i].GetPID();
