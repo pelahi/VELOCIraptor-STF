@@ -415,10 +415,10 @@ vr_return_data InvokeVelociraptorHydro(const int snapnum, char* outputname,
     nthreads=1;
 #endif
 
-    // Construct return value
+    // Construct default return value
     vr_return_data return_data;
-    return_data.numingroups = 0;
-    return_data.groupinfo = NULL;
+    return_data.num_gparts_in_groups = 0;
+    return_data.group_info = NULL;
     return_data.num_most_bound = 0;
     return_data.most_bound_index = NULL;
 
@@ -753,7 +753,7 @@ vr_return_data InvokeVelociraptorHydro(const int snapnum, char* outputname,
         free(cell_node_ids);
         delete[] pfof;
         parts.clear();
-        return_data.numingroups=nig;
+        return_data.num_gparts_in_groups=nig;
         return return_data;
     }
 
@@ -780,7 +780,7 @@ vr_return_data InvokeVelociraptorHydro(const int snapnum, char* outputname,
     nig=0;
     Int_t istart=0;
     for (auto i=0;i<Nlocal;i++) if (parts[i].GetPID()>0) {nig=Nlocal-i;istart=i;break;}
-    return_data.numingroups=nig;
+    return_data.num_gparts_in_groups=nig;
     group_info=NULL;
     if (nig>0)
     {
@@ -800,7 +800,7 @@ vr_return_data InvokeVelociraptorHydro(const int snapnum, char* outputname,
     parts.clear();
 
     // Add groupinfo to struct to return
-    return_data.groupinfo = group_info;
+    return_data.group_info = group_info;
 
     return return_data;
 }
