@@ -384,23 +384,22 @@ void SetVelociraptorSimulationState(cosmoinfo c, siminfo s)
 }
 
 ///\todo interface with swift is comoving positions, period, peculiar velocities and physical self-energy
-extern "C" Swift::groupinfo * InvokeVelociraptor(const int snapnum, char* outputname,
+extern "C" Swift::vr_return_data InvokeVelociraptor(const int snapnum, char* outputname,
     cosmoinfo c, siminfo s,
     const size_t num_gravity_parts, const size_t num_hydro_parts, const size_t num_star_parts,
     struct swift_vel_part *swift_parts, int *cell_node_ids,
     const int numthreads, const int ireturngroupinfoflag, int *const numpartingroups
 )
 {
-    groupinfo *group_info = NULL;
     const size_t num_bh_parts = 0;
-    group_info = InvokeVelociraptorHydro(snapnum, outputname, c, s,
+    vr_return_data return_data = InvokeVelociraptorHydro(snapnum, outputname, c, s,
         num_gravity_parts, num_hydro_parts, num_star_parts, num_bh_parts,
         swift_parts, cell_node_ids,
         numthreads, ireturngroupinfoflag,
         numpartingroups);
-    return group_info;
+    return return_data;
 }
-groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
+vr_return_data InvokeVelociraptorHydro(const int snapnum, char* outputname,
     cosmoinfo c, siminfo s,
     const size_t num_gravity_parts, const size_t num_hydro_parts, const size_t num_star_parts, const size_t num_bh_parts,
     struct swift_vel_part *swift_parts, int *cell_node_ids,
@@ -431,6 +430,12 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
 #else
     nthreads=1;
 #endif
+
+    // Construct return value
+    vr_return_data return_data;
+    return_data.groupinfo = NULL;
+    return_data.num_most_bound = 0;
+    return_data.most_bound_index = NULL;
 
     libvelociraptorOpt.outname = outputname;
     libvelociraptorOpt.snapshotvalue = HALOIDSNVAL* snapnum;
@@ -532,7 +537,7 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
                 }
                 else {
                     cout<<"Unknown particle type found: index="<<i<<" type="<<swift_parts[i].type<<" while treating baryons differently. Exiting..."<<endl;
-                    return NULL;
+                    return return_data;
                 }
             }
         }
@@ -541,7 +546,7 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
         for(auto i=0; i<Nlocal; i++) {
             if (CheckSwiftPartType(swift_parts[i].type)){
                 cout<<ThisTask<< "Unknown particle type found: index="<<i<<" type="<<swift_parts[i].type<<" when loading particles. Exiting..."<<endl;
-                return NULL;
+                return return_data;
             }
             for (auto j=0;j<3;j++) swift_parts[i].x[j]*=libvelociraptorOpt.a;
             parts[i] = Particle(swift_parts[i]);
@@ -744,7 +749,7 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
         free(cell_node_ids);
         delete[] pfof;
         *numpartingroups=0;
-        return NULL;
+        return return_data;
     }
 
     //first sort so all particles in groups first
@@ -759,7 +764,7 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
         delete[] pfof;
         parts.clear();
         *numpartingroups=nig;
-        return NULL;
+        return return_data;
     }
 
     delete [] pfof;
@@ -789,7 +794,7 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
     group_info=NULL;
     if (nig>0)
     {
-        group_info = new groupinfo[nig];
+      group_info = new groupinfo[nig];
         for (auto i=istart;i<Nlocal;i++) {
             group_info[i-istart].index=parts[i].GetSwiftIndex();
             group_info[i-istart].groupid=parts[i].GetPID();
@@ -804,12 +809,15 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
     free(cell_node_ids);
     parts.clear();
 
-    return group_info;
+    // Add groupinfo to struct to return
+    return_data.groupinfo = group_info;
+
+    return return_data;
 }
 
 
 ///\todo interface with swift is comoving positions, period, peculiar velocities and physical self-energy
-groupinfo *InvokeVelociraptorExtra(const int iextra, const int snapnum, char* outputname,
+vr_return_data InvokeVelociraptorExtra(const int iextra, const int snapnum, char* outputname,
     cosmoinfo c, siminfo s,
     const size_t num_gravity_parts, const size_t num_hydro_parts, const size_t num_star_parts,
     struct swift_vel_part *swift_parts, int *cell_node_ids,
@@ -817,21 +825,20 @@ groupinfo *InvokeVelociraptorExtra(const int iextra, const int snapnum, char* ou
     const int ireturngroupinfoflag,
     int * const numpartingroups)
 {
-    groupinfo *group_info = NULL;
     //store backup of the libvelociraptorOpt
     libvelociraptorOptbackup = libvelociraptorOpt;
     libvelociraptorOpt = libvelociraptorOptextra[iextra];
-    group_info = InvokeVelociraptor(snapnum, outputname, c, s,
+    vr_return_data return_data = InvokeVelociraptor(snapnum, outputname, c, s,
         num_gravity_parts, num_hydro_parts, num_star_parts,
         swift_parts, cell_node_ids,
         numthreads,
         ireturngroupinfoflag,
         numpartingroups);
     libvelociraptorOpt = libvelociraptorOptbackup;
-    return group_info;
+    return return_data;
 }
 
-groupinfo *InvokeVelociraptorHydroExtra(const int iextra, const int snapnum, char* outputname,
+vr_return_data InvokeVelociraptorHydroExtra(const int iextra, const int snapnum, char* outputname,
     cosmoinfo c, siminfo s,
     const size_t num_gravity_parts, const size_t num_hydro_parts, const size_t num_star_parts, const size_t num_bh_parts,
     struct swift_vel_part *swift_parts, int *cell_node_ids,
@@ -843,17 +850,16 @@ groupinfo *InvokeVelociraptorHydroExtra(const int iextra, const int snapnum, cha
     struct swift_vel_bh_part *swift_bh_parts
 )
 {
-    groupinfo *group_info = NULL;
     //store backup of the libvelociraptorOpt
     libvelociraptorOptbackup = libvelociraptorOpt;
     libvelociraptorOpt = libvelociraptorOptextra[iextra];
-    group_info = InvokeVelociraptorHydro(snapnum, outputname, c, s,
+    vr_return_data return_data = InvokeVelociraptorHydro(snapnum, outputname, c, s,
         num_gravity_parts, num_hydro_parts, num_star_parts, num_bh_parts,
         swift_parts, cell_node_ids, numthreads, ireturngroupinfoflag,
         numpartingroups,
         swift_gas_parts, swift_star_parts, swift_bh_parts);
     libvelociraptorOpt = libvelociraptorOptbackup;
-    return group_info;
+    return return_data;
 }
 
 void CheckSwiftTasks(string message, const Int_t n, Particle *p){
