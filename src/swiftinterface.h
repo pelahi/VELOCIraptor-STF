@@ -154,13 +154,13 @@ extern "C" Swift::vr_return_data InvokeVelociraptor(const int snapnum, char* out
     Swift::cosmoinfo, Swift::siminfo,
     const size_t num_gravity_parts, const size_t num_hydro_parts, const size_t num_star_parts,
     struct swift_vel_part *swift_parts, int *cell_node_ids,
-    const int numthreads, const int ireturngroupinfoflag
+    const int numthreads, const int ireturngroupinfoflag, const int ireturnmostbound
 );
 extern "C" Swift::vr_return_data InvokeVelociraptorHydro(const int snapnum, char* outputname,
     Swift::cosmoinfo, Swift::siminfo,
     const size_t num_gravity_parts, const size_t num_hydro_parts, const size_t num_star_parts, const size_t num_bh_parts,
     struct swift_vel_part *swift_parts, int *cell_node_ids,
-    const int numthreads, const int ireturngroupinfoflag,
+    const int numthreads, const int ireturngroupinfoflag, const int ireturnmostbound,
     struct swift_vel_gas_part *swift_gas_parts = NULL,
     struct swift_vel_star_part *swift_star_parts = NULL,
     struct swift_vel_bh_part *swift_bh_parts = NULL
@@ -170,7 +170,7 @@ extern "C" Swift::vr_return_data InvokeVelociraptorExtra(const int iextra,
     Swift::cosmoinfo, Swift::siminfo,
     const size_t num_gravity_parts, const size_t num_hydro_parts, const size_t num_star_parts,
     struct swift_vel_part *swift_parts, int *cell_node_ids,
-    const int numthreads, const int ireturngroupinfoflag
+    const int numthreads, const int ireturngroupinfoflag, const int ireturnmostbound
 );
 extern "C" Swift::vr_return_data InvokeVelociraptorHydroExtra(const int iextra,
     const int snapnum, char* outputname,
@@ -179,6 +179,7 @@ extern "C" Swift::vr_return_data InvokeVelociraptorHydroExtra(const int iextra,
     const size_t num_star_parts, const size_t num_bh_parts,
     struct swift_vel_part *swift_parts, int *cell_node_ids,
     const int numthreads, const int ireturngroupinfoflag,
+    const int ireturnmostbound,
     struct swift_vel_gas_part *swift_gas_parts = NULL,
     struct swift_vel_star_part *swift_star_parts = NULL,
     struct swift_vel_bh_part *swift_bh_parts = NULL

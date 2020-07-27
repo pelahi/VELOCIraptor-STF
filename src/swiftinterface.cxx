@@ -374,14 +374,14 @@ extern "C" Swift::vr_return_data InvokeVelociraptor(const int snapnum, char* out
     cosmoinfo c, siminfo s,
     const size_t num_gravity_parts, const size_t num_hydro_parts, const size_t num_star_parts,
     struct swift_vel_part *swift_parts, int *cell_node_ids,
-    const int numthreads, const int ireturngroupinfoflag
+    const int numthreads, const int ireturngroupinfoflag, const int ireturnmostbound
 )
 {
     const size_t num_bh_parts = 0;
     vr_return_data return_data = InvokeVelociraptorHydro(snapnum, outputname, c, s,
         num_gravity_parts, num_hydro_parts, num_star_parts, num_bh_parts,
         swift_parts, cell_node_ids,
-        numthreads, ireturngroupinfoflag);
+        numthreads, ireturngroupinfoflag, ireturnmostbound);
     return return_data;
 }
 vr_return_data InvokeVelociraptorHydro(const int snapnum, char* outputname,
@@ -389,7 +389,7 @@ vr_return_data InvokeVelociraptorHydro(const int snapnum, char* outputname,
     const size_t num_gravity_parts, const size_t num_hydro_parts, const size_t num_star_parts, const size_t num_bh_parts,
     struct swift_vel_part *swift_parts, int *cell_node_ids,
     const int numthreads,
-    const int ireturngroupinfoflag,
+    const int ireturngroupinfoflag, const int ireturnmostbound,
     struct swift_vel_gas_part *swift_gas_parts,
     struct swift_vel_star_part *swift_star_parts,
     struct swift_vel_bh_part *swift_bh_parts
@@ -812,7 +812,7 @@ vr_return_data InvokeVelociraptorExtra(const int iextra, const int snapnum, char
     const size_t num_gravity_parts, const size_t num_hydro_parts, const size_t num_star_parts,
     struct swift_vel_part *swift_parts, int *cell_node_ids,
     const int numthreads,
-    const int ireturngroupinfoflag)
+    const int ireturngroupinfoflag, const int ireturnmostbound)
 {
     //store backup of the libvelociraptorOpt
     libvelociraptorOptbackup = libvelociraptorOpt;
@@ -821,7 +821,7 @@ vr_return_data InvokeVelociraptorExtra(const int iextra, const int snapnum, char
         num_gravity_parts, num_hydro_parts, num_star_parts,
         swift_parts, cell_node_ids,
         numthreads,
-        ireturngroupinfoflag);
+        ireturngroupinfoflag, ireturnmostbound);
     libvelociraptorOpt = libvelociraptorOptbackup;
     return return_data;
 }
@@ -831,7 +831,7 @@ vr_return_data InvokeVelociraptorHydroExtra(const int iextra, const int snapnum,
     const size_t num_gravity_parts, const size_t num_hydro_parts, const size_t num_star_parts, const size_t num_bh_parts,
     struct swift_vel_part *swift_parts, int *cell_node_ids,
     const int numthreads,
-    const int ireturngroupinfoflag,
+    const int ireturngroupinfoflag, const int ireturnmostbound,
     struct swift_vel_gas_part *swift_gas_parts,
     struct swift_vel_star_part *swift_star_parts,
     struct swift_vel_bh_part *swift_bh_parts
@@ -842,7 +842,7 @@ vr_return_data InvokeVelociraptorHydroExtra(const int iextra, const int snapnum,
     libvelociraptorOpt = libvelociraptorOptextra[iextra];
     vr_return_data return_data = InvokeVelociraptorHydro(snapnum, outputname, c, s,
         num_gravity_parts, num_hydro_parts, num_star_parts, num_bh_parts,
-        swift_parts, cell_node_ids, numthreads, ireturngroupinfoflag,
+        swift_parts, cell_node_ids, numthreads, ireturngroupinfoflag, ireturnmostbound,
         swift_gas_parts, swift_star_parts, swift_bh_parts);
     libvelociraptorOpt = libvelociraptorOptbackup;
     return return_data;
