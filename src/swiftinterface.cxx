@@ -455,7 +455,6 @@ vr_return_data InvokeVelociraptorHydro(const int snapnum, char* outputname,
     Int_t *nsub = NULL, *parentgid = NULL, *uparentgid =NULL, *stype = NULL;
     Int_t nbaryons, ndark, index;
     Int_t ngroup, nhalos;
-    groupinfo *group_info = NULL;
     //KDTree *tree;
     //to store information about the group
     PropData *pdata = NULL,*pdatahalos = NULL;
@@ -692,13 +691,13 @@ vr_return_data InvokeVelociraptorHydro(const int snapnum, char* outputname,
 #ifdef EXTENDEDHALOOUTPUT
     if (opt.iExtendedOutput) WriteExtendedOutput (libvelociraptorOpt, ngroup, nbodies, pdata, parts, pfof);
 #endif
+    delete[] pfof;
     //if returning to swift as swift is writing a snapshot, then write for the groups where the particles are found in a file
     //assuming that the swift task and swift index can be used to determine where a particle will be written.
     if (ireturngroupinfoflag != 1 ) WriteSwiftExtendedOutput (libvelociraptorOpt, ngroup, numingroup, pglist, parts);
 
     // Find offset to first group on each MPI rank
     Int_t ngoffset=0,ngtot=0;
-    Int_t nig=0;
     ngtot=ngroup;
 #ifdef USEMPI
     if (NProcs > 1) {
@@ -729,67 +728,46 @@ vr_return_data InvokeVelociraptorHydro(const int snapnum, char* outputname,
     //get memory usage
     GetMemUsage(libvelociraptorOpt, __func__+string("--line--")+to_string(__LINE__), true);
 
-    //store group information to return information to swift if required
-    //otherwise, return NULL as pointer
-    if (ireturngroupinfoflag != 1 ) {
-        cout<<"VELOCIraptor returning, no group info returned to swift as requested."<< endl;
-        //free mem associate with mpi cell node ides
-        libvelociraptorOpt.cellnodeids = NULL;
-        libvelociraptorOpt.cellloc = NULL;
-        free(s.cellloc);
-        free(cell_node_ids);
-        delete[] pfof;
-        return return_data;
-    }
-
-    //first sort so all particles in groups first
-    cout<<"VELOCIraptor sorting info to return group ids to swift"<<endl;
-    if (ngtot == 0) {
-        cout<<"No groups found"<<endl;
-        //free mem associate with mpi cell node ides
-        libvelociraptorOpt.cellnodeids = NULL;
-        libvelociraptorOpt.cellloc = NULL;
-        free(s.cellloc);
-        free(cell_node_ids);
-        delete[] pfof;
-        parts.clear();
-        return_data.num_gparts_in_groups=nig;
-        return return_data;
-    }
-
-    delete [] pfof;
+    // Compute group_info array if we have groups and it was requested
+    groupinfo *group_info = NULL;
+    Int_t nig=0;
+    if(ireturngroupinfoflag && ngtot > 0) {
+      //first sort so all particles in groups first
+      cout<<"VELOCIraptor sorting info to return group ids to swift"<<endl;
 #ifdef USEMPI
-    if (NProcs > 1) {
+      if (NProcs > 1) {
         for (auto i=0;i<Nlocal; i++) parts[i].SetID((parts[i].GetSwiftTask()!=ThisTask));
         //now sort items according to whether local swift task
         qsort(parts.data(), Nlocal, sizeof(Particle), IDCompare);
         //communicate information
         MPISwiftExchange(parts);
         Nlocal = parts.size();
-
+        
         for (auto i=0;i<Nlocal; i++) {
           if(parts[i].GetSwiftTask() != ThisTask) {
             cout << "Particle on wrong task!";
             MPI_Abort(MPI_COMM_WORLD, 1);
           }
-        }
-
-    }
+        } 
+      }
 #endif
-    qsort(parts.data(), Nlocal, sizeof(Particle), PIDCompare);
-    nig=0;
-    Int_t istart=0;
-    for (auto i=0;i<Nlocal;i++) if (parts[i].GetPID()>0) {nig=Nlocal-i;istart=i;break;}
-    return_data.num_gparts_in_groups=nig;
-    group_info=NULL;
-    if (nig>0)
-    {
-      group_info = (groupinfo *) malloc(nig*sizeof(struct groupinfo)); // Will be freed by Swift
-        for (auto i=istart;i<Nlocal;i++) {
+      qsort(parts.data(), Nlocal, sizeof(Particle), PIDCompare);
+      nig=0;
+      Int_t istart=0;
+      for (auto i=0;i<Nlocal;i++) if (parts[i].GetPID()>0) {nig=Nlocal-i;istart=i;break;}
+      if (nig>0)
+        {
+          group_info = (groupinfo *) malloc(nig*sizeof(struct groupinfo)); // Will be freed by Swift
+          for (auto i=istart;i<Nlocal;i++) {
             group_info[i-istart].index=parts[i].GetSwiftIndex();
             group_info[i-istart].groupid=parts[i].GetPID();
+          }
         }
     }
+    // Add groupinfo to struct to return
+    return_data.num_gparts_in_groups=nig;
+    return_data.group_info = group_info;
+
     cout<<"VELOCIraptor returning."<< endl;
 
     //free mem associate with mpi cell node ides
@@ -798,9 +776,6 @@ vr_return_data InvokeVelociraptorHydro(const int snapnum, char* outputname,
     free(s.cellloc);
     free(cell_node_ids);
     parts.clear();
-
-    // Add groupinfo to struct to return
-    return_data.group_info = group_info;
 
     return return_data;
 }
