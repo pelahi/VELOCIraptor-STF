@@ -129,9 +129,9 @@ namespace Swift {
     // Data returned when invoking Velociraptor
     struct vr_return_data {
       // Number of gparts in groups
-      int numingroups;
+      int num_gparts_in_groups;
       // Pointer to group information array, or NULL if not requested
-      struct groupinfo *groupinfo;
+      struct groupinfo *group_info;
       // Number of most bound particles returned
       int num_most_bound;
       // Swift gpart indexes of most bound particles, or NULL if not requested
