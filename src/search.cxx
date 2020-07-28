@@ -65,16 +65,6 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     }
     psldata=new StrucLevelData;
 
-//---
-PARTPIDTYPE vvar;
-for (int i = 0; i < nbodies; i++)
-{
- vvar = Part[i].GetPID();
- if (vvar == 7487497347514 || vvar == 2080083413806 || vvar == 7596497374128 || vvar == 5633111496454 || vvar == 5670468127232 || vvar == 1234431045972 || vvar == 74433584668 || vvar == 1239546967980)
-   printf ("PID  %ld  Task  %d\n", Part[i].GetPID(), ThisTask);
-}
-
-//---
     minsize=opt.HaloMinSize;
 #ifdef USEMPI
     //if using MPI, lower minimum number
@@ -427,10 +417,6 @@ for (int i = 0; i < nbodies; i++)
         storetype=new Int_t[Nlocal];
         Int_t numinstrucs=0,numlocalden=0;
         for (i=0;i<Nlocal;i++) storetype[i]=Part[i].GetType();
-//---
-for (i=Nlocal-10; i < Nlocal; i++)
-  printf ("ThisTask %d  %d  %ld  %f  %f  %f\n", ThisTask, i, Part[i].GetPID(), Part[i].GetPosition(0), Part[i].GetPotential(), Part[i].GetDensity());
-//---
         if (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)) {
 // #ifdef HIGHRES
 //             numingroup=BuildNumInGroupTyped(Nlocal,numgroups,pfof,Part.data(),DARKTYPE);
@@ -471,32 +457,22 @@ for (i=Nlocal-10; i < Nlocal; i++)
             delete tree;
         }
         // Delete exported particles
-        //for (i=0;i<Nlocal;i++) Part[i].SetType(i);
-        //qsort(Part, Nlocal, sizeof(Particle), PotCompare);
-       printf("ThisTask %d  Nlocal1 %d\n", ThisTask, Nlocal); 
-       for (i = Nlocal-1; i >= 0; i--)
-          if (Part[i].GetPotential() ==1.0)
-            Part.pop_back();
-          else
-            break;
+        for (i = Nlocal-1; i >= 0; i--)
+          if (Part[i].GetPotential() ==1.0) Part.pop_back();
+          else break;
         Nlocal = Part.size();
+
         Int_t * tmppfof = new Int_t [Nlocal];
-        printf("ThisTask %d  Nlocal1 %d\n", ThisTask, Nlocal); 
-        printf ("Nexport  %d\n", NExport); 
-        //qsort (Part, Nlocal, sizeof(Particle), TypeCompare);
         for (i=0;i<Nlocal;i++){
           Part[i].SetType(storetype[i]);
           tmppfof[i] = pfof[i];
-          if (Part[i].GetPotential() ==1)
-            {
-             printf ("Part %d  %ld  has potential ==1 \n", i, Part[i].GetPID());
-            }
-         }
-         delete[] storetype;
-         delete[] pfof;
-         pfof = new Int_t [Nlocal];
-         for (i=0;i<Nlocal;i++) pfof[i] = tmppfof[i];
-         delete [] tmppfof;
+        }
+        delete[] storetype;
+        delete[] pfof;
+
+        pfof = new Int_t [Nlocal];
+        for (i=0;i<Nlocal;i++) pfof[i] = tmppfof[i];
+        delete [] tmppfof;
     }
 #endif
 
@@ -1225,17 +1201,6 @@ private(i,tid)
         if (opt.iverbose>=2) cout<<"Done"<<endl;
     }
     //@}
-//---
-if (nsubset == 2678)
-{
-  char bufff[1000];
-  sprintf(bufff, "%s.partden", opt.outname);
-  FILE * fff = fopen(bufff, "w");
-  for (i = 0; i < nsubset; i++)
-    fprintf (fff, "%d  %ld  %f  %f\n", i, Partsubset[i].GetPID(), Partsubset[i].GetDensity(), Partsubset[i].GetPotential());
-  fclose(fff);
-}
-//---
     //iteration to search region around streams using lower thresholds
     //determine number of groups
     if (opt.iiterflag&&numgroups>0 && opt.foftype!=FOF6DCORE) {
