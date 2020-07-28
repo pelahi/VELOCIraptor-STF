@@ -5730,12 +5730,12 @@ void MPISwiftExchange(vector<Particle> &Part){
     }
     }
     MPI_Barrier(MPI_COMM_WORLD);
+    Part.resize(nbodies-nexport+nimport);
     if (nexport > 0) delete[] PartBufSend;
     if (nimport > 0) {
         for (i=0;i<nimport;i++) Part[i+nbodies-nexport]=PartBufRecv[i];
         delete[] PartBufRecv;
     }
-    Part.resize(nbodies-nexport+nimport);
 }
 
 #endif
