@@ -3516,7 +3516,6 @@ void MPIGetNNExportNumUsingMesh(Options &opt, const Int_t nbodies, Particle *Par
     ///can only access the appropriate memory and adjust nsend_local.\n
     ///\em Or outer loop is over threads, inner loop over nbodies and just have a idlist of size Nlocal that tags particles
     ///which must be exported. Then its a much quicker follow up loop (no if statement) that stores the data
-    int cccount = 0;
     for (j=0;j<NProcs;j++) nsend_local[j]=0;
     for (i=0;i<nbodies;i++)
     {
@@ -3668,7 +3667,6 @@ void MPIBuildParticleNNExportListUsingMesh(Options &opt, const Int_t nbodies, Pa
     ///can only access the appropriate memory and adjust nsend_local.\n
     ///\em Or outer loop is over threads, inner loop over nbodies and just have a idlist of size Nlocal that tags particles
     ///which must be exported. Then its a much quicker follow up loop (no if statement) that stores the data
-    int cccount = 0;
     for (j=0;j<NProcs;j++) nsend_local[j]=0;
     for (i=0;i<nbodies;i++)
     {

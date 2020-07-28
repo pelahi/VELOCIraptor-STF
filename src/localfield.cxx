@@ -549,7 +549,6 @@ private(i,j,k,tid,id,v2,nnids,nnr2,weight,pqv)
         //if strucden compile flag set then only calculate velocity density for particles in groups
 #ifdef STRUCDEN
         if (Part[i].GetType()<=0) continue;
-        if (Part[i].GetPotential() == 1.0) continue;
         //if not searching all particles in FOF then also doing baryon search then just find nearest neighbours
         if (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)) tree->FindNearest(i,nnids,nnr2,opt.Nsearch);
         //otherwise distinction must be made so that only base calculation on dark matter particles
@@ -642,7 +641,6 @@ private(i,j,k,tid,pid,pid2,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,p
     for (i=0;i<nbodies;i++) {
 #ifdef STRUCDEN
         if (Part[i].GetType()<=0) continue;
-        if (Part[i].GetPotential() == 1.0) continue;
 #endif
 
 #ifdef USEOPENMP
