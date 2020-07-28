@@ -691,15 +691,31 @@ private(i,j,k,tid,pid,pid2,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,p
                     pqx->Push(nnids[j], nnr2[j]);
                 }
             }
+//---
+if (Part[i].GetPID() == 809539913388)
+{
+  for (j = 0; j < opt.Nsearch; j++)
+   printf("ThisTask  %d  i  %d  ID  %d  DENSITY NN   %d  %d  %f  %ld\n", ThisTask, i, Part[i].GetID(), j,  nnids[j], nnr2[j], Part[nnids[j]].GetPID());
+}
+//---
             //now search the export particle list and fill appropriately
             if (nimport>0) {
                 Coordinate x(Part[i].GetPosition());
                 treeneighbours->FindNearestPos(x,nnidsneighbours,nnr2neighbours,nimportsearch);
+//---
+if (Part[i].GetPID() == 809539913388)
+{
+  for (j = 0; j < nimportsearch; j++)
+   printf("ThisTask  %d  i  %d  ID  %d  DENSITY NN NEIGHBOURS   %d  %d  %f  %ld\n", ThisTask, i, Part[i].GetID(), j,  nnidsneighbours[j], nnr2neighbours[j], PartDataGet[nnidsneighbours[j]].GetPID());
+}
+//---
                 int irepeat;
                 int offst;
                 for (j=0, offst = 0;j<nimportsearch;j++) 
                 {
                     irepeat = 0;
+                    if (PartDataGet[nnidsneighbours[j]].GetPID() == Part[i].GetPID())
+                      continue;
                     for (int k = offst; k < opt.Nsearch; k++)
                     {
                       if (nnr2[k] < nnr2neighbours[j]) continue;                     
