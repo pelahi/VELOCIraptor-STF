@@ -723,7 +723,6 @@ vr_return_data InvokeVelociraptorHydro(const int snapnum, char* outputname,
       }
     }
 
-    for (Int_t i=1;i<=ngroup;i++) delete[] pglist[i];
     delete[] pdata;
     delete[] nsub;
     delete[] uparentgid;
@@ -770,6 +769,7 @@ vr_return_data InvokeVelociraptorHydro(const int snapnum, char* outputname,
     return_data.num_most_bound = num_most_bound;
     return_data.most_bound_index = most_bound_index;
 
+    for (Int_t i=1;i<=ngroup;i++) delete[] pglist[i];
     delete[] pglist;
     delete[] numingroup;
 
