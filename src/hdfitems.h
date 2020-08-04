@@ -157,9 +157,9 @@ static inline void get_attribute(vector<hid_t> &ids, const std::vector<std::stri
     else {
         H5O_info_t object_info;
         hid_t newid;
-        unsigned int fields = H5O_INFO_ALL;
         hid_t lapl_id = H5P_DEFAULT;
 #if H5_VERSION_GE(1,12,0)
+        unsigned int fields = H5O_INFO_ALL;
         H5Oget_info_by_name(ids.back(), parts[0].c_str(), &object_info, fields, lapl_id);
 #else
         H5Oget_info_by_name(ids.back(), parts[0].c_str(), &object_info, lapl_id);
