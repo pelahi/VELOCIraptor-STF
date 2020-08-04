@@ -205,7 +205,6 @@ static inline void close_hdf_ids(vector<hid_t> &ids)
     H5O_info_t object_info;
     for (auto &id:ids)
     {
-        unsigned int fields = H5O_INFO_ALL;
         hid_t lapl_id = H5P_DEFAULT;
 #if H5_VERSION_GE(1,12,0)
         H5Oget_info(id, &object_info, lapl_id);
