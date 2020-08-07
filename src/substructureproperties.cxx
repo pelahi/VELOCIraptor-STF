@@ -9,8 +9,8 @@
 //@{
 
 inline bool CheckForSOSubCalc(Options &opt, PropData &pdata) {
-    return (opt.iInclusiveHalo==0 || opt.iInclusiveHalo!=0 && pdata.hostid!=-1 &&
-        pdata.stype > opt.SphericalOverdensitySeachMaxStructLevel);
+    return (opt.iInclusiveHalo==0 || (opt.iInclusiveHalo!=0 && pdata.hostid!=-1 &&
+        pdata.stype > opt.SphericalOverdensitySeachMaxStructLevel));
 }
 
 inline bool CheckForSOExclCalc(Options &opt, PropData &pdata) {
@@ -4327,11 +4327,15 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin,cmpotmin)
             //determine position of minimum potential and by radius around this position
             potmin=Part[noffset[i]].GetPotential()/Part[noffset[i]].GetMass();
             ipotmin=0;
-            for (j=0;j<numingroup[i];j++) if (Part[j+noffset[i]].GetPotential()/Part[j+noffset[i]].GetMass()<potmin)
+            for (j=0;j<numingroup[i];j++)
             {
                 if (opt.ParticleTypeForRefenceFrame !=-1 && Part[noffset[i]+j].GetType() != opt.ParticleTypeForRefenceFrame) continue;
-                potmin=Part[j+noffset[i]].GetPotential()/Part[j+noffset[i]].GetMass();
-                ipotmin=j;
+                auto potcur = Part[j+noffset[i]].GetPotential()/Part[j+noffset[i]].GetMass();
+                if (potcur<potmin)
+                {
+                    potmin=potcur;
+                    ipotmin=j;
+                }
             }
             pdata[i].iminpot=Part[ipotmin+noffset[i]].GetPID();
             for (k=0;k<3;k++)
@@ -4370,11 +4374,15 @@ private(i,j,k,potmin,ipotmin)
     for (i=1;i<=ngroup;i++) if (numingroup[i]<ompunbindnum) {
         potmin=Part[noffset[i]].GetPotential()/Part[noffset[i]].GetMass();
         ipotmin=0;
-        for (j=0;j<numingroup[i];j++) if (Part[j+noffset[i]].GetPotential()/Part[j+noffset[i]].GetMass()<potmin)
+        for (j=0;j<numingroup[i];j++)
         {
             if (opt.ParticleTypeForRefenceFrame !=-1 && Part[noffset[i]+j].GetType() != opt.ParticleTypeForRefenceFrame) continue;
-            potmin=Part[j+noffset[i]].GetPotential()/Part[j+noffset[i]].GetMass();
-            ipotmin=j;
+            auto potcur = Part[j+noffset[i]].GetPotential()/Part[j+noffset[i]].GetMass();
+            if (potcur<potmin)
+            {
+                potmin=potcur;
+                ipotmin=j;
+            }
         }
         pdata[i].iminpot=Part[ipotmin+noffset[i]].GetPID();
         for (k=0;k<3;k++)
@@ -4403,11 +4411,15 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin,cmpotmin)
             //determine position of minimum potential and by radius around this position
             potmin=Part[noffset[i]].GetPotential()/Part[noffset[i]].GetMass();
             ipotmin=0;
-            for (j=0;j<numingroup[i];j++) if (Part[j+noffset[i]].GetPotential()/Part[j+noffset[i]].GetMass()<potmin)
+            for (j=0;j<numingroup[i];j++)
             {
                 if (opt.ParticleTypeForRefenceFrame !=-1 && Part[noffset[i]+j].GetType() != opt.ParticleTypeForRefenceFrame) continue;
-                potmin=Part[j+noffset[i]].GetPotential()/Part[j+noffset[i]].GetMass();
-                ipotmin=j;
+                auto potcur = Part[j+noffset[i]].GetPotential()/Part[j+noffset[i]].GetMass();
+                if (potcur < potmin)
+                {
+                    potmin=potcur;
+                    ipotmin=j;
+                }
             }
             pdata[i].iminpot=Part[ipotmin+noffset[i]].GetPID();
             for (k=0;k<3;k++)
@@ -4445,11 +4457,15 @@ private(i,j,k,potmin,ipotmin)
     for (i=1;i<=ngroup;i++) if (numingroup[i]>=ompunbindnum) {
         potmin=Part[noffset[i]].GetPotential()/Part[noffset[i]].GetMass();
         ipotmin=0;
-        for (j=0;j<numingroup[i];j++) if (Part[j+noffset[i]].GetPotential()/Part[j+noffset[i]].GetMass()<potmin)
+        for (j=0;j<numingroup[i];j++)
         {
             if (opt.ParticleTypeForRefenceFrame !=-1 && Part[noffset[i]+j].GetType() != opt.ParticleTypeForRefenceFrame) continue;
-            potmin=Part[j+noffset[i]].GetPotential()/Part[j+noffset[i]].GetMass();
-            ipotmin=j;
+            auto potcur = Part[j+noffset[i]].GetPotential()/Part[j+noffset[i]].GetMass();
+            if (potcur<potmin)
+            {
+                potmin=potcur;
+                ipotmin=j;
+            }
         }
         pdata[i].iminpot=Part[ipotmin+noffset[i]].GetPID();
         for (k=0;k<3;k++) {pdata[i].gposminpot[k]=Part[ipotmin+noffset[i]].GetPosition(k);pdata[i].gvelminpot[k]=Part[ipotmin+noffset[i]].GetVelocity(k);}

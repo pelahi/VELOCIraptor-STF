@@ -464,6 +464,10 @@ Configuration options related to the bulk properties calculated.
             - **2** use the position of the particle with the minimum potential.
             - **1** use the position of the most bound particle.
             - **0** use the centre-of-mass.
+    ``Particle_type_for_reference_frames = -1``
+        * Flag indicating what particle type is used to determine the minimum potential reference position.
+            - **-1** all particle types
+            - **0-6** other int correspond to a specific particle type. For instance 1 would be dark matter particles 
     ``Extensive_halo_properties_output = 1``
         * Flag indicating that one should calculate more properties for objects, such as angular momentum in spherical overdensity apertures.
     ``Extensive_gas_properties_output = 1``
