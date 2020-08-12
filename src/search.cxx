@@ -1049,6 +1049,28 @@ Int_t* SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Part
     param[2]=(opt.ellvscale*opt.ellvscale)*(opt.ellvel*opt.ellvel);
     param[6]=(opt.ellxscale*opt.ellxscale)*(opt.ellphys*opt.ellphys);
     param[7]=(opt.Vratio);
+
+    // Need to sort particles as during MPI particle sendrecv the order
+    // might change and can produce sightly different results
+    vector<int> storetype(nsubset);
+
+    //First store the index of this particle in the type data
+    for(int i = 0; i < nsubset; i++) {
+      storetype[i] = Partsubset[i].GetType();
+      Partsubset[i].SetType(i);
+    }
+
+    //Sort the particle data based on the particle IDs
+    qsort(Partsubset, nsubset, sizeof(Particle), PIDCompare);
+
+    //Store the index in another array and reset the type data
+    vector<int> storeindx(nsubset);
+    for(int i = 0; i < nsubset; i++){
+        storeindx[i] = Partsubset[i].GetType();
+        Partsubset[i].SetType(storetype[storeindx[i]]);
+    }
+
+
     if (opt.foftype==FOF6DSUBSET) {
         param[2] = opt.HaloSigmaV*(opt.halocorevfac * opt.halocorevfac);
         param[7] = param[2];
@@ -1402,7 +1424,7 @@ private(i,tid)
     }
     if (numgroups>0) if (opt.iverbose>=2) cout<<ThisTask<<": "<<numgroups<<" substructures found"<<endl;
     else {if (opt.iverbose>=2) cout<<ThisTask<<": "<<"NO SUBSTRUCTURES FOUND"<<endl;}
-
+    
     //now search particle list for large compact substructures that are considered part of the background when using smaller grids
     if (nsubset>=MINSUBSIZE && opt.iLargerCellSearch && opt.foftype!=FOF6DCORE)
     {
@@ -1731,10 +1753,10 @@ private(i,tid)
                 delete[] pfofbg;
                 param[1]*=opt.halocorexfaciter*opt.halocorexfaciter;
                 param[6]=param[1];
-               	//adjust linking lengths in velocity space by the iterative factor, ~0.75
+                //adjust linking lengths in velocity space by the iterative factor, ~0.75
                 param[2]*=opt.halocorevfaciter*opt.halocorevfaciter;
                 param[7]=param[2];
-               	//and alter the minsize
+                //and alter the minsize
                 minsize*=opt.halocorenumfaciter;
                 if (minsize<opt.MinSize) minsize=opt.MinSize;
                 dispvaltot*=dispval;
@@ -1897,7 +1919,26 @@ private(i,tid)
 #ifdef USEMPI
     }
 #endif
+    // Return particles to original order, so that the uber-pfof array is not
+    // affected
+    vector<int> tmpfof(nsubset);
+    for (i = 0; i < nsubset; i++){
+        tmpfof[storeindx[i]] = pfof[i];
+        Partsubset[i].SetType(storeindx[i]);
+    }
+
+    // Sort base on the type
+    qsort(Partsubset, nsubset, sizeof(Particle), TypeCompare);
+
+    //Reset the typedata and set the ID
+    for (i = 0; i < nsubset; i++){
+      pfof[i] = tmpfof[i];
+      Partsubset[i].SetType(storetype[i]);
+      Partsubset[i].SetID(i);
+    }
+
     if (opt.iverbose>=2) cout<<"Done search for substructure in this subset"<<endl;
+
     return pfof;
 }
 
@@ -2697,7 +2738,7 @@ inline void PreCalcSearchSubSet(Options &opt, Int_t subnumingroup,  Particle *&s
         FillTreeGrid(opt, subnumingroup, ngrid, tree, subPart, grid);
         gvel=GetCellVel(opt,subnumingroup,subPart,ngrid,grid);
         gveldisp=GetCellVelDisp(opt,subnumingroup,subPart,ngrid,grid,gvel);
-
+        
         opt.HaloLocalSigmaV=0;
         for (auto j=0;j<ngrid;j++) opt.HaloLocalSigmaV+=pow(gveldisp[j].Det(),1./3.);opt.HaloLocalSigmaV/=(double)ngrid;
 
@@ -3337,7 +3378,8 @@ private(i)
                         if(Partsubset[pglist[i][j]].GetPotential()>vminell&&Partsubset[pglist[i][j]].GetPotential()<minell[i])minell[i]=Partsubset[pglist[i][j]].GetPotential();
                         else if (Partsubset[pglist[i][j]].GetPotential()==vminell) iminell=j;
                     pfof[Partsubset[pglist[i][iminell]].GetID()]=0;
-                    if (iminell!=numingroup[i]-1)pglist[i][iminell]=pglist[i][--numingroup[i]];
+                    if (iminell!=numingroup[i]-1)pglist[i][iminell]=pglist[i][numingroup[i]-1];
+                    numingroup[i]--;
                     betaave[i]=(aveell[i]/ellaveexp-1.0)*sqrt((Double_t)numingroup[i]);
                 } while(betaave[i]<opt.siglevel);
             }
@@ -3968,11 +4010,11 @@ Int_t GetHierarchy(Options &opt,Int_t ngroups, Int_t *nsub, Int_t *parentgid, In
     for (int i=nhierarchy-1;i>=1;i--){
         //store number of substructures
         for (int j=1;j<=papsldata[i]->nsinlevel;j++) {
-	           if (papsldata[i]->gidparenthead[j]!=NULL&&papsldata[i]->gidparenthead[j]!=papsldata[i]->gidhead[j]) nsub[*(papsldata[i]->gidparenthead[j])]++;
+               if (papsldata[i]->gidparenthead[j]!=NULL&&papsldata[i]->gidparenthead[j]!=papsldata[i]->gidhead[j]) nsub[*(papsldata[i]->gidparenthead[j])]++;
         }
         //then add these to parent substructure
         for (int j=1;j<=papsldata[i]->nsinlevel;j++) {
-    	    if (papsldata[i]->gidparenthead[j]!=NULL&&papsldata[i]->gidparenthead[j]!=papsldata[i]->gidhead[j]){
+            if (papsldata[i]->gidparenthead[j]!=NULL&&papsldata[i]->gidparenthead[j]!=papsldata[i]->gidhead[j]){
                 nsub[*(papsldata[i]->gidparenthead[j])]+=nsub[*(papsldata[i]->gidhead[j])];
                 parentgid[*(papsldata[i]->gidhead[j])]=*(papsldata[i]->gidparenthead[j]);
             }
