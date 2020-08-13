@@ -5611,30 +5611,30 @@ int fof_id_cmp(const void *a, const void *b)
   return 0;
 }
 
-//??? what to do as this should just be bool, not the int comparator function of qsort
-int fof_export_cmp_vec(const fofdata_in &a, const fofdata_in &b)
+bool fof_export_cmp_vec(const fofdata_in &a, const fofdata_in &b)
 {
-  if(a.Task > b.Task) return +1;
-  if(a.Task < b.Task) return -1;
-  return 0;
+    if (a.Task > b.Task) return true;
+    else return false ;
 }
 
-int nn_export_cmp_vec(const nndata_in &a, const nndata_in &b)
+bool nn_export_cmp_vec(const nndata_in &a, const nndata_in &b)
 {
-  if(a.ToTask < b.ToTask) return -1;
-  if(a.ToTask > b.ToTask) return +1;
-  return 0;
+    if(a.ToTask > b.ToTask) return true;
+    else return false;
 }
 
-int fof_id_cmp_vec(const fofid_in &a, const fofid_in &b)
+bool fof_id_cmp_vec(const fofid_in &a, const fofid_in &b)
 {
-  if(a.iGroup > b.iGroup) return -1;
-  if(a.iGroup < b.iGroup) return +1;
-  if(a.p.GetType() < b.p.GetType()) return -1;
-  if(a.p.GetType() > b.p.GetType()) return +1;
-  if(a.p.GetID() < b.p.GetID()) return -1;
-  if(a.p.GetID() > b.p.GetID()) return +1;
-  return 0;
+    if (a.iGroup < b.iGroup) return true;
+    else if (a.iGroup > b.iGroup) return false ;
+    else {
+        if (a.p.GetType() > b.p.GetType()) return true;
+        else if (a.p.GetType() < b.p.GetType()) return false;
+        else {
+            if (a.p.GetID() > b.p.GetID()) return true;
+            else return false;
+        }
+    }
 }
 
 //@}

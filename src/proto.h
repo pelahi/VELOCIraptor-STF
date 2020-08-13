@@ -739,9 +739,9 @@ int fof_export_cmp(const void *a, const void *b);
 ///comparison function to order particles for export and fof group localization.
 int fof_id_cmp(const void *a, const void *b);
 ///comparison function to order particles for export
-int fof_export_cmp_vec(const fofdata_in &a, const fofdata_in &b);
+bool fof_export_cmp_vec(const fofdata_in &a, const fofdata_in &b);
 ///comparison function to order particles for export and fof group localization.
-int fof_id_cmp_vec(const fofid_in &a, const fofid_in &b);
+bool fof_id_cmp_vec(const fofid_in &a, const fofid_in &b);
 ///similar to \ref MPIBuildParticleExportList but specific interface for baryon search
 void MPIBuildParticleExportBaryonSearchList(Options &opt, const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_t *ids, Int_t *numingroup, Double_t rdist);
 ///search local baryons with exported particle list.
@@ -771,7 +771,7 @@ Int_t MPIBuildParticleNNImportList(Options &opt, const Int_t nbodies, KDTree *tr
 ///comparison function to order particles for export
 int nn_export_cmp(const void *a, const void *b);
 ///comparison function to order particles for export
-int nn_export_cmp_vec(const nndata_in &a, const nndata_in &b);
+bool nn_export_cmp_vec(const nndata_in &a, const nndata_in &b);
 ///Determine number of halos whose search regions overlap other mpi domains
 vector<bool> MPIGetHaloSearchExportNum(const Int_t ngroups, PropData *&pdata, vector<Double_t> &rdist);
 ///Determine number of halos whose search regions overlap other mpi domains using swift mesh mpi decomposition
