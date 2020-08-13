@@ -623,7 +623,8 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
         for (Int_t i=0;i<Nlocal;i++) {sortvalhalos[i]=pfof[i]*(pfof[i]>0)+Nlocal*(pfof[i]==0);originalID[i]=parts[i].GetID();parts[i].SetID(i);}
         Int_t *noffsethalos=BuildNoffset(Nlocal, parts.data(), nhalos, numinhalos, sortvalhalos);
         GetInclusiveMasses(libvelociraptorOpt, Nlocal, parts.data(), nhalos, pfof, numinhalos, pdatahalos, noffsethalos);
-        qsort(parts.data(),Nlocal,sizeof(Particle),IDCompare);
+        // qsort(parts.data(),Nlocal,sizeof(Particle),IDCompare);
+        std::sort(parts.data(), parts.data() + Nlocal, IDCompareVec);
         delete[] numinhalos;
         delete[] sortvalhalos;
         delete[] noffsethalos;
@@ -767,7 +768,8 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
     if (NProcs > 1) {
         for (auto i=0;i<Nlocal; i++) parts[i].SetID((parts[i].GetSwiftTask()!=ThisTask));
         //now sort items according to whether local swift task
-        qsort(parts.data(), Nlocal, sizeof(Particle), IDCompare);
+        // qsort(parts.data(), Nlocal, sizeof(Particle), IDCompare);
+        std::sort(parts.data(), parts.data() + Nlocal, IDCompareVec);
         //communicate information
         MPISwiftExchange(parts);
         Nlocal = parts.size();
@@ -781,7 +783,8 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
 
     }
 #endif
-    qsort(parts.data(), Nlocal, sizeof(Particle), PIDCompare);
+    // qsort(parts.data(), Nlocal, sizeof(Particle), PIDCompare);
+    std::sort(parts.data(), parts.data() + Nlocal, PIDCompareVec);
     nig=0;
     Int_t istart=0;
     for (auto i=0;i<Nlocal;i++) if (parts[i].GetPID()>0) {nig=Nlocal-i;istart=i;break;}

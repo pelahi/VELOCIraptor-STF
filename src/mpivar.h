@@ -174,15 +174,22 @@ extern int *mpi_part_send_domain;
 ///store the max group id across all threads and the group id offset to be used with unlinked particles
 extern Int_t mpi_maxgid,mpi_gidoffset;
 ///structure facilitates linking across mpi threads
-extern struct fofdata_in
+struct fofdata_in
 {
     Int_t iGroup;
     short_mpi_t iGroupTask;
     Int_tree_t iLen;
     Int_tree_t Index;
     short_mpi_t Task;
-}
-*FoFDataIn, *FoFDataGet;
+
+    fofdata_in() = default;
+    fofdata_in(const fofdata_in &f) = default;
+    fofdata_in(fofdata_in &&f) = default;
+    ~fofdata_in() = default;
+    fofdata_in& operator=(const fofdata_in &f) = default;
+    fofdata_in& operator=(fofdata_in &&f) = default;
+};
+extern struct fofdata_in *FoFDataIn, *FoFDataGet;
 ///Particle arrays used for transmitting data between mpi threads
 extern Particle *PartDataIn, *PartDataGet;
 ///Particle arrays that allow allocation of memory need when deallocating local particle arrays that then need to be reassigned
@@ -190,23 +197,36 @@ extern Particle *mpi_Part1,*mpi_Part2;
 
 ///structure facilitates passing ids across threads so that determine number of groups and reorder group
 ///ids so that reflects group size
-extern struct fofid_in {
+struct fofid_in {
     Particle p;
     Int_t iGroup;
     Int_t ID;
     short_mpi_t Task;
     Int_tree_t Index;
-} *FoFGroupDataLocal, *FoFGroupDataExport;
+    fofid_in() = default;
+    fofid_in(const fofid_in &f) = default;
+    fofid_in(fofid_in &&f) = default;
+    ~fofid_in() = default;
+    fofid_in& operator=(const fofid_in &f) = default;
+    fofid_in& operator=(fofid_in &&f) = default;
+};
+extern struct fofid_in *FoFGroupDataLocal, *FoFGroupDataExport;
 
 ///structure facilitates NN search across mpi threads
-extern struct nndata_in
+struct nndata_in
 {
     //Int_t Index;
     Int_t ToTask,FromTask;
     Coordinate Pos, Vel;
     Double_t R2,V2;//NNR2[MAXNNEXPORT],NNV2[MAXNNEXPORT];
-}
-*NNDataIn, *NNDataGet;
+    nndata_in() = default;
+    nndata_in(const nndata_in &nn) = default;
+    nndata_in(nndata_in &&nn) = default;
+    ~nndata_in() = default;
+    nndata_in& operator=(const nndata_in &n) = default;
+    nndata_in& operator=(nndata_in &&n) = default;
+};
+extern struct nndata_in *NNDataIn, *NNDataGet;
 //extern Particle *NNPartReturn, *NNPartReturnLocal;
 
 ///For transmitting grid data

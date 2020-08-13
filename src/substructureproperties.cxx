@@ -2434,7 +2434,8 @@ private(j,Pval,x,y,z,massval)
                 Pval->SetPosition(k,(*Pval).GetPosition(k)-pdata[i].gcm[k]);
             }
         }
-        qsort(&Part[noffset[i]], numingroup[i], sizeof(Particle), RadCompare);
+        // qsort(&Part[noffset[i]], numingroup[i], sizeof(Particle), RadCompare);
+        std::sort(&Part[noffset[i]], &Part[noffset[i]] + numingroup[i], RadCompareVec);
         pdata[i].gsize=Part[noffset[i]+numingroup[i]-1].Radius();
         pdata[i].gRhalfmass=Part[noffset[i]+(numingroup[i]/2)].Radius();
         //then get cmvel if extra output is desired as will need angular momentum
@@ -4632,7 +4633,8 @@ Int_t **SortAccordingtoBindingEnergy(Options &opt, const Int_t nbodies, Particle
             if (pfof[Part[i].GetID()]>ioffset) Part[i].SetPID(pfof[Part[i].GetID()]);
             else Part[i].SetPID(nbodies+1);//here move all particles not in groups to the back of the particle array
         }
-        qsort(Part, nbodies, sizeof(Particle), PIDCompare);
+        // qsort(Part, nbodies, sizeof(Particle), PIDCompare);
+        std::sort(Part, Part + nbodies, PIDCompareVec);
         for (i=0;i<nbodies;i++) Part[i].SetPID(storepid[Part[i].GetID()]);
         storepid.clear();
 
@@ -4663,10 +4665,12 @@ private(i,j)
     for (i=1;i<=ngroup;i++)
     {
         if (opt.iSortByBindingEnergy) {
-            qsort(&Part[noffset[i]], numingroup[i], sizeof(Particle), DenCompare);
+            // qsort(&Part[noffset[i]], numingroup[i], sizeof(Particle), DenCompare);
+            std::sort(&Part[noffset[i]], &Part[noffset[i]] + numingroup[i], DenCompareVec);
         }
         else {
-            qsort(&Part[noffset[i]], numingroup[i], sizeof(Particle), PotCompare);
+            // qsort(&Part[noffset[i]], numingroup[i], sizeof(Particle), PotCompare);
+            std::sort(&Part[noffset[i]], &Part[noffset[i]] + numingroup[i], PotCompareVec);
         }
         //having sorted particles get most bound, first unbound
         pdata[i].iunbound=numingroup[i];
@@ -4707,7 +4711,8 @@ private(i,j)
     //reset particles back to id order
     if (opt.iseparatefiles) {
         cout<<"Reset particles to original order"<<endl;
-        qsort(Part, nbodies, sizeof(Particle), IDCompare);
+        // qsort(Part, nbodies, sizeof(Particle), IDCompare);
+        std::sort(Part, Part + nbodies, IDCompareVec);
     }
     cout<<"Done"<<endl;
     return pglist;
@@ -4730,7 +4735,8 @@ void CalculateHaloProperties(Options &opt, const Int_t nbodies, Particle *Part, 
         if (pfof[Part[i].GetID()]>0) Part[i].SetPID(pfof[Part[i].GetID()]);
         else Part[i].SetPID(nbodies+1);//here move all particles not in groups to the back of the particle array
     }
-    qsort(Part, nbodies, sizeof(Particle), PIDCompare);
+    // qsort(Part, nbodies, sizeof(Particle), PIDCompare);
+    std::sort(Part, Part + nbodies, PIDCompareVec);
 
     noffset[0]=noffset[1]=0;
     for (i=2;i<=ngroup;i++) noffset[i]=noffset[i-1]+numingroup[i-1];
