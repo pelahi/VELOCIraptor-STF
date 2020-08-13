@@ -5229,7 +5229,7 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
                 EncZmetGasNSF += Zmet;
             }
 #endif
-            if (opt.gas_extraprop_aperture_calc) {
+            if (opt.gas_extraprop_aperture_calc && Pval->HasHydroProperties()) {
                 gas = Pval->GetHydroProperties();
                 AddToApertureExtraProperties(
                     opt.gas_internalprop_names_aperture,
@@ -5246,7 +5246,7 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
             EncVelDispStar += veldisp;
             EncVRDispStar += vrdisp;
             EncZmetStar += Zmet;
-            if (opt.star_extraprop_aperture_calc) {
+            if (opt.star_extraprop_aperture_calc && Pval->HasStarProperties()) {
                 star = Pval->GetStarProperties();
                 AddToApertureExtraProperties(
                     opt.star_internalprop_names_aperture,
@@ -5269,7 +5269,7 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
             EncMassBH+=mass;
             EncVelDispBH += veldisp;
             EncVRDispBH += vrdisp;
-            if (opt.bh_extraprop_aperture_calc) {
+            if (opt.bh_extraprop_aperture_calc && Pval->HasBHProperties()) {
                 bh = Pval->GetBHProperties();
                 AddToApertureExtraProperties(
                     opt.bh_internalprop_names_aperture,
@@ -5280,7 +5280,7 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
         }
 #endif
 #ifdef EXTRADMON
-        if (opt.extra_dm_extraprop_aperture_calc) {
+        if (opt.extra_dm_extraprop_aperture_calc && Pval->HasExtraDMProperties()) {
             extradm = Pval->GetExtraDMProperties();
             AddToApertureExtraProperties(opt.extra_dm_internalprop_names_aperture,
                 extradmdata, extradm);
@@ -6036,7 +6036,7 @@ void GetExtraHydroProperties(Options &opt, PropData &pdata, Int_t n, Particle *P
     if (pdata.n_gas == 0 ) return;
     for (auto i=0;i<n;i++)
     {
-        if (Pval[i].GetType()!=GASTYPE) continue;
+        if (Pval[i].GetType()!=GASTYPE || !Pval[i].HasHydroProperties()) continue;
         x = Pval[i].GetHydroProperties();
         oldweight = Pval[i].GetMass();
         for (auto iextra=0;iextra<opt.gas_internalprop_names.size();iextra++)
@@ -6181,7 +6181,7 @@ void GetExtraStarProperties(Options &opt, PropData &pdata, Int_t n, Particle *Pv
     if (pdata.n_star == 0 ) return;
     for (auto i=0;i<n;i++)
     {
-        if (Pval[i].GetType()!=STARTYPE) continue;
+        if (Pval[i].GetType()!=STARTYPE || !Pval[i].HasStarProperties()) continue;
         x = Pval[i].GetStarProperties();
         oldweight = Pval[i].GetMass();
         for (auto iextra=0;iextra<opt.star_internalprop_names.size();iextra++)
@@ -6326,7 +6326,7 @@ void GetExtraBHProperties(Options &opt, PropData &pdata, Int_t n, Particle *Pval
     if (pdata.n_bh == 0 ) return;
     for (auto i=0;i<n;i++)
     {
-        if (Pval[i].GetType()!=BHTYPE) continue;
+        if (Pval[i].GetType()!=BHTYPE || !Pval[i].HasBHProperties()) continue;
         x = Pval[i].GetBHProperties();
         oldweight = Pval[i].GetMass();
         for (auto iextra=0;iextra<opt.bh_internalprop_names.size();iextra++)
@@ -6451,10 +6451,7 @@ void GetExtraDMProperties(Options &opt, PropData &pdata, Int_t n, Particle *Pval
     if (pdata.n_dm == 0) return;
     for (auto i=0;i<n;i++)
     {
-        if (Pval[i].GetType()!=DARKTYPE) continue;
-#ifdef HIGHRES
-        if (!Pval[i].HasExtraDMProperties()) continue;
-#endif
+        if (Pval[i].GetType()!=DARKTYPE || !Pval[i].HasExtraDMProperties()) continue;
         x = Pval[i].GetExtraDMProperties();
         oldweight = Pval[i].GetMass();
         for (auto iextra=0;iextra<opt.extra_dm_internalprop_names.size();iextra++)
