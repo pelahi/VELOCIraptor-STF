@@ -5611,9 +5611,10 @@ int fof_id_cmp(const void *a, const void *b)
   return 0;
 }
 
+//??? what to do as this should just be bool, not the int comparator function of qsort
 int fof_export_cmp_vec(const fofdata_in &a, const fofdata_in &b)
 {
-  if(a.Task > b.Task) return true;
+  if(a.Task > b.Task) return +1;
   if(a.Task < b.Task) return -1;
   return 0;
 }
