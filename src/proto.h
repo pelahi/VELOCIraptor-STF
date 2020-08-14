@@ -851,7 +851,8 @@ void GetMemUsage(string callingfunction, bool printreport);
 ///Init memory log
 void InitMemUsageLog(Options &opt);
 ///get a time
-double MyGetTime();
+std::chrono::time_point<std::chrono::high_resolution_clock> MyGetTime();
+double MyElapsedTime(std::chrono::time_point<std::chrono::high_resolution_clock> before);
 //@}
 
 /// \name Compilation functions

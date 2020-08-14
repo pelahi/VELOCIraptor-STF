@@ -211,13 +211,18 @@ void InitMemUsageLog(Options &opt){
     Fmem.close();
 }
 
-double MyGetTime(){
-#ifdef USEOPENMP
-    return omp_get_wtime();
-#else
-    return (clock() /( (double)CLOCKS_PER_SEC));
-#endif
+std::chrono::time_point<std::chrono::high_resolution_clock> MyGetTime(){
+    auto now = std::chrono::high_resolution_clock::now();
+    return now;
 }
+
+double MyElapsedTime(std::chrono::time_point<std::chrono::high_resolution_clock> before)
+{
+    auto now = std::chrono::high_resolution_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(now - before);
+    return elapsed.count()*1e-9;
+}
+
 
 #ifdef NOMASS
 void VR_NOMASS(){};
