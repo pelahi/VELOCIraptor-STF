@@ -763,7 +763,7 @@ int Unbind(Options &opt, Particle **gPart, Int_t &numgroups, Int_t *numingroup, 
     bool sortflag;
     Double_t maxE,v2,r2,poti,Ti, Efrac;
 #ifdef NOMASS
-    Double_t mv2=opt.MassValue*opt.MassValue,
+    Double_t mv2=opt.MassValue*opt.MassValue;
 #endif
     Int_t nEplus,maxunbindsize, nEfrac, nunbound;
     Int_t *nEplusid;
@@ -1336,7 +1336,7 @@ if (runomp)
 void PotentialPP(Options &opt, Int_t nbodies, Particle *Part)
 {
     Double_t r2, pot, poti, eps2=opt.uinfo.eps*opt.uinfo.eps;
-#ifdef NOMASS 
+#ifdef NOMASS
     Double_t mv2=opt.MassValue*opt.MassValue;
 #endif
     for (auto j=0;j<nbodies;j++) Part[j].SetPotential(0.);
