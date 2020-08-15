@@ -90,9 +90,6 @@ void MPIDomainExtentRAMSES(Options &opt){
 }
 
 void MPIDomainDecompositionRAMSES(Options &opt){
-#define SKIP2 Fgad[i].read((char*)&dummy, sizeof(dummy));
-    Int_t i,j,k,n,m;
-    int Nsplit,isplit;
 
     if (ThisTask==0) {
     }
@@ -108,15 +105,12 @@ void MPINumInDomainRAMSES(Options &opt)
         MPIDomainExtentRAMSES(opt);
         MPIInitialDomainDecomposition(opt);
         MPIDomainDecompositionRAMSES(opt);
-        Int_t i,j,k,n,m,temp,Ntot,indark,ingas,instar;
+        Int_t i,j,k;
         int idim,ivar,igrid;
-        Int_t idval;
         int   typeval;
-        Int_t Nlocalold=Nlocal;
         RAMSESFLOAT xtemp[3], ageval;
         Double_t mtemp;
-        MPI_Status status;
-        Int_t Nlocalbuf,ibuf=0,*Nbuf, *Nbaryonbuf;
+        Int_t ibuf=0,*Nbuf, *Nbaryonbuf;
         int *ngridlevel,*ngridbound,*ngridfile;
         int lmin=1000000,lmax=0;
 
@@ -126,9 +120,6 @@ void MPINumInDomainRAMSES(Options &opt)
         fstream *Fpart, *Fpartmass, *Fpartage, *Famr, *Fhydro;
         fstream  Framses;
         RAMSES_Header *header;
-        int intbuff[NRAMSESTYPE];
-        long long longbuff[NRAMSESTYPE];
-        Int_t count2,bcount2;
         int dummy,byteoffset;
         Int_t chunksize = opt.inputbufsize, nchunk;
         RAMSESFLOAT *xtempchunk, *mtempchunk, *agetempchunk;
@@ -140,7 +131,6 @@ void MPINumInDomainRAMSES(Options &opt)
         Fhydro     = new fstream[opt.num_files];
         header     = new RAMSES_Header[opt.num_files];
         double dmp_mass,OmegaM, OmegaB;
-        int n_out_of_bounds = 0;
         int ndark  = 0;
         int nstar  = 0;
         int nghost = 0;

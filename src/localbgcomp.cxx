@@ -26,7 +26,7 @@ void GetDenVRatio(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngrid
     Coordinate vp,vmweighted;
     Matrix isvweighted;
     Particle *ptemp;
-    KDTree *tree;
+    KDTree *tree = nullptr;
 
     if (opt.iverbose>=2) cout<<ThisTask<<" Now calculate denvratios using grid"<<endl;
     //take inverse for interpolation
@@ -303,7 +303,7 @@ void DetermineDenVRatioDistribution(Options &opt,const Int_t nbodies, Particle *
     }
 
     //now have initial estimates of paramters, try nonlinear ls fit to data below prob and above
-    Int_t iflag,iit=0,nparams=4;
+    Int_t nparams=4;
     Double_t chi2,oldchi2;
     vector<Double_t> params(nparams);
     //five sets of fix parameter choices so that get optimal fit given bad data.
@@ -371,14 +371,13 @@ void DetermineDenVRatioDistribution(Options &opt,const Int_t nbodies, Particle *
 Int_t GetOutliersValues(Options &opt, const Int_t nbodies, Particle *Part, int sublevel)
 {
     Int_t nsubset = 0;
-    int nthreads;
-    Double_t temp, mtot=0.0;
+    int nthreads=1;
 #ifndef USEMPI
     int ThisTask=0;
 #endif
     if (opt.iverbose>=2) cout<<ThisTask<<" Now get average in grid cell and find outliers"<<endl;
     //printf("Using GLOBAL values to characterize the distribution and determine the normalized values used to determine outlier likelihood\n");
-    Double_t globalave,globalvar,globalmostprob,globalsdlow,globalsdhigh;
+    Double_t globalmostprob,globalsdlow,globalsdhigh;
 
     DetermineDenVRatioDistribution(opt,nbodies,Part,globalmostprob,globalsdlow,globalsdhigh, sublevel);
 

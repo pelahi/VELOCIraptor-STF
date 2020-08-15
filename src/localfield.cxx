@@ -422,10 +422,9 @@ private(i,tid)
 //start halo only density calculations, where particles are localized to single halo
 void GetVelocityDensityHaloOnlyDen(Options &opt, const Int_t nbodies, Particle *Part, KDTree *tree)
 {
-    Int_t i,j,k;
+    Int_t i,j;
     int nthreads;
-    int tid,id,pid,pid2;
-    Double_t v2;
+    int tid;
 #ifndef USEMPI
     int ThisTask=0, NProcs=1;
 #endif
@@ -729,7 +728,7 @@ void GetVelocityDensityApproximative(Options &opt, const Int_t nbodies, Particle
 #endif
     if (opt.iverbose) cout<<ThisTask<<" Calculating the local velocity density by finding APPROXIMATIVE nearest physical neighbour search for each particle "<<endl;
     int nthreads;
-    int tid,id,pid,pid2,itreeflag=0;
+    int id,pid2,itreeflag=0;
     Double_t v2;
     Int_t nprocessed=0, ntot=0;
     ///\todo alter period so arbitrary dimensions
@@ -738,7 +737,6 @@ void GetVelocityDensityApproximative(Options &opt, const Int_t nbodies, Particle
         period=new Double_t[3];
         for (int j=0;j<3;j++) period[j]=opt.p;
     }
-    auto time1=MyGetTime();
     //if using mpi run NN search store largest distance for each particle so that export list can be built.
     //if calculating using only particles IN a structure,
     Int_t nimport;

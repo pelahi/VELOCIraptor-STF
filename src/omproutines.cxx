@@ -147,8 +147,7 @@ OMP_ImportInfo *OpenMPImportParticles(Options &opt, const Int_t nbodies, vector<
     const Int_t numompregions, OMP_Domain *&ompdomain, const Double_t rdist,
     Int_t *&omp_nrecv_total, Int_t *&omp_nrecv_offset, Int_t &importtotal)
 {
-    Int_t i,j,orgIndex,sum;
-    int omptask;
+    Int_t i,j,orgIndex;
     importtotal=0;
     auto time1=MyGetTime();
     OMP_ImportInfo *ompimport;

@@ -29,11 +29,6 @@ void MPIDomainExtentHDF(Options &opt){
     HDF_Group_Names hdf_gnames;
     HDF_Header hdf_header_info;
     hid_t Fhdf;
-    float floatbuff;
-    double doublebuff;
-    //FloatType floattype;
-    //PredType HDFREALTYPE(PredType::NATIVE_FLOAT);
-    int ireaderror = 0;
 
     if (ThisTask==0) {
         if(opt.num_files>1) sprintf(buf,"%s.0.hdf5",opt.fname);
@@ -115,9 +110,6 @@ void MPIDomainExtentHDF(Options &opt){
 }
 
 void MPIDomainDecompositionHDF(Options &opt){
-    Int_t i,j,k,n,m;
-    int Nsplit,isplit;
-
     if (ThisTask==0) {
     }
 }
@@ -133,7 +125,6 @@ void MPINumInDomainHDF(Options &opt)
     Int_t i,j,k;
     unsigned long long n,nchunk;
     char buf[2000];
-    MPI_Status status;
 
     //structure stores the names of the groups in the hdf input
     HDF_Group_Names hdf_gnames (opt.ihdfnameconvention);
@@ -166,19 +157,12 @@ void MPINumInDomainHDF(Options &opt)
     vector<hid_t>partsgroup;
     vector<hid_t>partsdataset;
     vector<hid_t>partsdataspace;
-    hid_t chunkspace;
     unsigned long long chunksize=opt.inputbufsize;
     //buffers to load data
     double *doublebuff=new double[chunksize*3];
     vector<int> vintbuff;
     vector<long long> vlongbuff;
-    //arrays to store number of items to read and offsets when selecting hyperslabs
-    //at most one needs a dimensionality of 13 for the tracer particles in Illustris
-    hsize_t filespacecount[13],filespaceoffset[13];
-    int ifloat,iint;
-    int datarank;
-    hsize_t datadim[5];
-    Int_t Nlocalbuf,ibuf=0,*Nbuf, *Nbaryonbuf;
+    Int_t ibuf=0,*Nbuf, *Nbaryonbuf;
     int *ireadfile,*ireadtask,*readtaskID;
     hid_t plist_id = H5P_DEFAULT;
     ireadtask=new int[NProcs];
@@ -261,8 +245,8 @@ void MPINumInDomainHDF(Options &opt)
             for (j=0;j<nusetypes;j++) {
                 k=usetypes[j];
                 unsigned long long nstart = 0, nend = hdf_header_info[i].npart[k];
-                unsigned long long nlocalsize;
 #ifdef USEPARALLELHDF
+                unsigned long long nlocalsize;
                 if (opt.num_files<opt.nsnapread) {
                     plist_id = H5Pcreate(H5P_DATASET_XFER);
                     H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_INDEPENDENT);

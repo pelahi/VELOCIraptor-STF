@@ -47,7 +47,7 @@ inline void MarkCell(Node *np, Int_t *marktreecell, Int_t *markleafcell, Int_t &
 
 //@{
 inline bool CheckGroupForBoundness(Options &opt, Double_t &Efrac, Double_t &maxE, Int_t ning) {
-    bool unbindcheck;
+    bool unbindcheck=false;
     if (opt.uinfo.unbindtype==USYSANDPART) {
         if(((Efrac<opt.uinfo.minEfrac)||(maxE>0))&&(ning>=opt.MinSize)) unbindcheck=true;
         else unbindcheck=false;
@@ -141,7 +141,10 @@ inline void UpdatePotentialForUnboundParticlesPP(Options &opt,
 {
     //if keeping background then do nothing
     if (opt.uinfo.bgpot!=0) return;
-    Double_t r2, pot, poti, eps2=opt.uinfo.eps*opt.uinfo.eps,mv2=opt.MassValue*opt.MassValue;
+    Double_t r2, poti, eps2=opt.uinfo.eps*opt.uinfo.eps;
+#ifdef NOMASS
+    Double_t mv2=opt.MassValue*opt.MassValue;
+#endif
     for (auto k=0;k<nEplus;k++) {
         for (auto j=0;j<nig;j++) {
             if (j!=nEplusid[k]) {
@@ -164,7 +167,10 @@ inline void UpdatePotentialForUnboundParticles(Options &opt,
     Int_t &nEplus, Int_t *&nEplusid, int *&Eplusflag)
 {
     int iunbindsizeflag;
-    Double_t r2, pot, poti, eps2=opt.uinfo.eps*opt.uinfo.eps,mv2=opt.MassValue*opt.MassValue;
+    Double_t r2, poti, eps2=opt.uinfo.eps*opt.uinfo.eps;
+#ifdef NOMASS
+    Double_t mv2=opt.MassValue*opt.MassValue;
+#endif
 
     if (opt.uinfo.bgpot!=0) return;
     //if ignore the background then adjust the potential energy of the particles
@@ -751,11 +757,14 @@ int Unbind(Options &opt, Particle **gPart, Int_t &numgroups, Int_t *numingroup, 
     //if the amount of particles removed is large enough for large groups, it is more efficient to
     //recalculate the entire potential using a Tree code than it is removing the contribution of each removed particle from
     //all other particles
-    int maxnthreads,nthreads=1,l,n;
+    int maxnthreads,nthreads=1,n;
     Int_t i,j,k,ng=numgroups, oldnumingroup;
     int unbindloops;
     bool sortflag;
-    Double_t maxE,v2,r2,poti,Ti,eps2=opt.uinfo.eps*opt.uinfo.eps,mv2=opt.MassValue*opt.MassValue,Efrac, pot;
+    Double_t maxE,v2,r2,poti,Ti, Efrac;
+#ifdef NOMASS
+    Double_t mv2=opt.MassValue*opt.MassValue,
+#endif
     Int_t nEplus,maxunbindsize, nEfrac, nunbound;
     Int_t *nEplusid;
     int *Eplusflag;
@@ -937,7 +946,7 @@ void Potential(Options &opt, Int_t nbodies, Particle *Part, Double_t *potV)
 void Potential(Options &opt, Int_t nbodies, Particle *Part)
 {
     Int_t oldnbodies;
-    KDTree *tree;
+    KDTree *tree = nullptr;
     Particle *part;
     bool runomp = false;
     int nsearch;
@@ -1084,7 +1093,8 @@ void ParticleSubSample(Options &opt, const Int_t nbodies, Particle *&Part,
                 //build tree that contains leaf nodes containing the desired
                 //number of particles per leaf node
                 Int_t bsize = ceil(nbodies/(float)newnbodies);
-                KDTree *tree = new KDTree(Part, nbodies, bsize, tree->TPHYS,tree->KEPAN,100);
+                KDTree *tree = nullptr;
+                tree = new KDTree(Part, nbodies, bsize, tree->TPHYS,tree->KEPAN,100);
                 //first get all local leaf nodes;
                 newnbodies = tree->GetNumLeafNodes();
                 newpart = new Particle[newnbodies];
@@ -1143,9 +1153,12 @@ void ParticleSubSample(Options &opt, const Int_t nbodies, Particle *&Part,
 void PotentialTree(Options &opt, Int_t nbodies, Particle *&Part, KDTree* &tree)
 {
     Int_t ntreecell, nleafcell;
-    Double_t r2, eps2=opt.uinfo.eps*opt.uinfo.eps, mv2=opt.MassValue*opt.MassValue;
+    Double_t r2, eps2=opt.uinfo.eps*opt.uinfo.eps;
+#ifdef NOMASS
+    Double_t mv2=opt.MassValue*opt.MassValue;
+#endif
     int bsize = opt.uinfo.BucketSize;
-    int maxnthreads, nthreads;
+    int maxnthreads, nthreads = 1;
     //for tree code potential calculation
     Int_t ncell;
     Int_t *start,*end;
@@ -1322,7 +1335,10 @@ if (runomp)
 
 void PotentialPP(Options &opt, Int_t nbodies, Particle *Part)
 {
-    Double_t r2, pot, poti, eps2=opt.uinfo.eps*opt.uinfo.eps, mv2=opt.MassValue*opt.MassValue;
+    Double_t r2, pot, poti, eps2=opt.uinfo.eps*opt.uinfo.eps;
+#ifdef NOMASS 
+    Double_t mv2=opt.MassValue*opt.MassValue;
+#endif
     for (auto j=0;j<nbodies;j++) Part[j].SetPotential(0.);
     for (auto j=0;j<nbodies;j++) {
         for (auto k=j+1;k<nbodies;k++) {
