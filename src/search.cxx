@@ -40,7 +40,6 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     Int_t *id_3dfof_of_6dfof = NULL;
     Int_t ng,npartingroups;
     Int_t totalgroups;
-    Double_t time1,time2, time3;
     KDTree *tree = NULL;
     KDTree **tree3dfofomp = NULL;
     Int_t *p3dfofomp = NULL;
@@ -77,8 +76,8 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     //get memory usage
     GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
 
-    time1=MyGetTime();
-    time2=MyGetTime();
+    auto time1=MyGetTime();
+    auto time2=MyGetTime();
     cout<<"Begin FOF search  of entire particle data set ... "<<endl;
     param[0]=tree->TPHYS;
     param[1]=(opt.ellxscale*opt.ellxscale)*(opt.ellphys*opt.ellphys)*(opt.ellhalophysfac*opt.ellhalophysfac);
@@ -88,7 +87,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     //if using openmp produce tree with large buckets as a decomposition of the local mpi domain
     //to then run local fof searches on each domain before stitching
     if (runompfof) {
-        time3=MyGetTime();
+        auto time3=MyGetTime();
         Double_t rdist = sqrt(param[1]);
         //determine the omp regions;
         tree = new KDTree(Part.data(),nbodies,opt.openmpfofsize,tree->TPHYS,tree->KEPAN,100);
@@ -99,13 +98,13 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         for (i=0;i<nbodies;i++) storeorgIndex[i]=Part[i].GetID();
         //build local trees
         tree3dfofomp = OpenMPBuildLocalTrees(opt, numompregions, Part, ompdomain, period);
-        if (opt.iverbose) cout<<ThisTask<<": finished building "<<numompregions<<" domains and trees "<<MyGetTime()-time3<<endl;
+        if (opt.iverbose) cout<<ThisTask<<": finished building "<<numompregions<<" domains and trees "<<MyElapsedTime(time3)<<endl;
     }
     else {
-        time3=MyGetTime();
+        auto time3=MyGetTime();
         tree = new KDTree(Part.data(),nbodies,opt.Bsize,tree->TPHYS,tree->KEPAN,1000,0,0,0,period);
         tree->OverWriteInputOrder();
-        if (opt.iverbose) cout<<ThisTask<<": finished building single tree with single OpenMP "<<MyGetTime()-time3<<endl;
+        if (opt.iverbose) cout<<ThisTask<<": finished building single tree with single OpenMP "<<MyElapsedTime(time3)<<endl;
     }
 
 #else
@@ -134,10 +133,10 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     //then link across omp domains
     Int_t ompminsize = 2;
     if (runompfof){
-        time3=MyGetTime();
         Int_t orgIndex, omp_import_total;
         int omptask;
         Double_t rdist = sqrt(param[1]);
+        auto time3 = MyGetTime();
         pfof = new Int_t[nbodies];
         for (i=0;i<nbodies;i++)pfof[i]=0;
 #ifndef USEMPI
@@ -154,7 +153,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
             Head, Next,
             tree3dfofomp, param, rdist, ompminsize, fofcmp,
             numompregions, ompdomain);
-        if (opt.iverbose) cout<<ThisTask<<": finished omp local search of "<<numompregions<<" containing total of "<<numgroups<<" groups "<<MyGetTime()-time3<<endl;
+        if (opt.iverbose) cout<<ThisTask<<": finished omp local search of "<<numompregions<<" containing total of "<<numgroups<<" groups "<<MyElapsedTime(time3)<<endl;
         if (numgroups > 0) {
 
         //then for each omp region determine the particles to "import" from other omp regions
@@ -321,7 +320,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     else MPIGetExportNum(nbodies, Part.data(), sqrt(param[1]));
 #endif
     //allocate memory to store info
-    cout<<ThisTask<<": Finished local search, nexport/nimport = "<<NExport<<" "<<NImport<<" in "<<MyGetTime()-time2<<endl;
+    cout<<ThisTask<<": Finished local search, nexport/nimport = "<<NExport<<" "<<NImport<<" in "<<MyElapsedTime(time2)<<endl;
     cout<<ThisTask<<": MPI search will require extra memory of "<<(sizeof(Particle)+sizeof(fofdata_in))*(NExport+NImport)/pow(1024.0,3.0)<<" GB"<<endl;
 
     PartDataIn = new Particle[NExport];
@@ -362,7 +361,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         MPI_Allreduce(&links_across, &links_across_total, 1, MPI_Int_t, MPI_SUM, MPI_COMM_WORLD);
         MPIUpdateExportList(nbodies,Part.data(),pfof,Len);
     }while(links_across_total>0);
-    if (ThisTask==0) cout<<ThisTask<<": finished linking across MPI domains in "<<MyGetTime()-time2<<endl;
+    if (ThisTask==0) cout<<ThisTask<<": finished linking across MPI domains in "<<MyElapsedTime(time2)<<endl;
 
     delete[] FoFDataIn;
     delete[] FoFDataGet;
@@ -409,7 +408,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         cout<<ThisTask<<" with largest group of "<<maxgroupsize<<endl;
     }
     if (ThisTask==0) cout<<"Total number of groups found is "<<totalgroups<<endl;
-    if (ThisTask==0) cout<<ThisTask<<": finished FOF search in total time of "<<MyGetTime()-time1<<endl;
+    if (ThisTask==0) cout<<ThisTask<<": finished FOF search in total time of "<<MyElapsedTime(time1)<<endl;
 
     //if calculating velocity density only of particles resident in field structures large enough for substructure search
 #if defined(STRUCDEN) && defined(USEMPI)
@@ -820,7 +819,7 @@ private(i,tid,xscaling,vscaling)
             for (int j=0;j<NProcs;j++) totalgroups+=mpi_ngroups[j];
             cout<<"Total number of groups found is "<<totalgroups<<endl;
         }
-        if (ThisTask==0) cout<<ThisTask<<" finished 6d/phase-space fof search in "<<MyGetTime()-time2<<endl;
+        if (ThisTask==0) cout<<ThisTask<<" finished 6d/phase-space fof search in "<<MyElapsedTime(time2)<<endl;
     }
     MPI_Allgather(&numgroups, 1, MPI_Int_t, mpi_nhalos, 1, MPI_Int_t, MPI_COMM_WORLD);
 #endif
@@ -1424,7 +1423,7 @@ private(i,tid)
     }
     if (numgroups>0) if (opt.iverbose>=2) cout<<ThisTask<<": "<<numgroups<<" substructures found"<<endl;
     else {if (opt.iverbose>=2) cout<<ThisTask<<": "<<"NO SUBSTRUCTURES FOUND"<<endl;}
-    
+
     //now search particle list for large compact substructures that are considered part of the background when using smaller grids
     if (nsubset>=MINSUBSIZE && opt.iLargerCellSearch && opt.foftype!=FOF6DCORE)
     {
@@ -2738,7 +2737,7 @@ inline void PreCalcSearchSubSet(Options &opt, Int_t subnumingroup,  Particle *&s
         FillTreeGrid(opt, subnumingroup, ngrid, tree, subPart, grid);
         gvel=GetCellVel(opt,subnumingroup,subPart,ngrid,grid);
         gveldisp=GetCellVelDisp(opt,subnumingroup,subPart,ngrid,grid,gvel);
-        
+
         opt.HaloLocalSigmaV=0;
         for (auto j=0;j<ngrid;j++) opt.HaloLocalSigmaV+=pow(gveldisp[j].Det(),1./3.);opt.HaloLocalSigmaV/=(double)ngrid;
 

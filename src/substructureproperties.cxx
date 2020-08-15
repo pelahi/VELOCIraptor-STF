@@ -36,7 +36,7 @@ void GetCM(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_
 
     if (ngroup == 0) return;
     if (opt.iverbose) cout<<ThisTask<<" getting CM"<<endl;
-    double time1 = MyGetTime();
+    auto time1 = MyGetTime();
     Particle *Pval;
     Int_t i,j,k;
     Coordinate cmold;
@@ -293,7 +293,7 @@ private(j,Pval,x,y,z,massval)
         pdata[i].gcmvel[0]=cmx;pdata[i].gcmvel[1]=cmy;pdata[i].gcmvel[2]=cmz;
         for (k=0;k<3;k++) pdata[i].gcmvel[k] /= EncMass;
     }
-    if (opt.iverbose) cout<<ThisTask<<" Done getting CM in "<<MyGetTime()-time1<<endl;
+    if (opt.iverbose) cout<<ThisTask<<" Done getting CM in "<<MyElapsedTime(time1)<<endl;
 }
 
 /*!
@@ -312,7 +312,7 @@ void GetProperties(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngro
 #endif
     if (ngroup == 0) return;
     if (opt.iverbose) cout<<ThisTask<<" getting bulk properties"<<endl;
-    double time1 = MyGetTime();
+    auto time1 = MyGetTime();
     Particle *Pval;
     Int_t i,j,k;
     Coordinate cmold(0.),cmref;
@@ -2033,7 +2033,7 @@ private(i,j,k,Pval,cmref)
 }
 #endif
 
-    if (opt.iverbose) cout<<ThisTask<<" Done getting properties in "<<MyGetTime()-time1<<endl;
+    if (opt.iverbose) cout<<ThisTask<<" Done getting properties in "<<MyElapsedTime(time1)<<endl;
 }
 
 ///Adjust positions of bulk properties to desired reference
@@ -2220,7 +2220,7 @@ void GetInclusiveMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t
             minlgrhoval = min(minlgrhoval,SOlgrhovals[i]-(Double_t)log(2.0));
         }
     }
-    Double_t time1=MyGetTime(),time2;
+    auto time1=MyGetTime();
     int nthreads=1,tid;
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
@@ -2687,7 +2687,7 @@ private(i,j,k,x,y,z,Pval)
         if (nimport>0) treeimport=new KDTree(PartDataGet,nimport,opt.HaloMinSize,tree->TPHYS,tree->KEPAN,100,0,0,0,period);
         }
 #endif
-        time2=MyGetTime();
+        auto time2=MyGetTime();
         //now loop over groups and search for particles. This is probably fast if we build a tree
         fac=-log(4.0*M_PI/3.0);
 #ifdef USEOPENMP
@@ -2904,7 +2904,7 @@ private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,
         }
 #endif
     }
-    if (opt.iverbose) cout<<"Done inclusive masses for field objects in "<<MyGetTime()-time1<<endl;
+    if (opt.iverbose) cout<<"Done inclusive masses for field objects in "<<MyElapsedTime(time1)<<endl;
 }
 //@}
 
@@ -2915,7 +2915,8 @@ void GetFOFMass(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup,
     if (ngroup == 0) return;
     Particle *Pval;
     Int_t i,j,k;
-    Double_t time1=MyGetTime(), massval;
+    Double_t massval;
+    auto time1=MyGetTime();
     int nthreads=1,tid;
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
@@ -2944,14 +2945,15 @@ private(i,j,k,Pval,massval)
 #ifdef USEOPENMP
 }
 #endif
-    if (opt.iverbose) cout<<"Done FOF masses "<<MyGetTime()-time1<<endl;
+    if (opt.iverbose) cout<<"Done FOF masses "<<MyElapsedTime(time1)<<endl;
 }
 
 /// Calculate FOF mass looping over groups once substructure search and have calculated properties
 void GetFOFMass(Options &opt, Int_t ngroup, Int_t *&numingroup, PropData *&pdata)
 {
     Int_t i,j,k,haloidoffset=0, hostindex;
-    Double_t time1=MyGetTime(), massval;
+    Double_t massval;
+    auto time1=MyGetTime();
     int nthreads=1,tid;
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
@@ -2976,7 +2978,7 @@ void GetFOFMass(Options &opt, Int_t ngroup, Int_t *&numingroup, PropData *&pdata
 #ifdef NOMASS
     for (i=1;i<=ngroup;i++) pdata[i].gMFOF*=opt.MassValue;
 #endif
-    if (opt.iverbose) cout<<"Done FOF masses "<<MyGetTime()-time1<<endl;
+    if (opt.iverbose) cout<<"Done FOF masses "<<MyElapsedTime(time1)<<endl;
 }
 
 /// of all host halos using there centre of masses
@@ -3018,7 +3020,7 @@ void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup
         }
     }
     Double_t fac,rhoval,rhoval2;
-    Double_t time1=MyGetTime(),time2;
+    auto time1=MyGetTime();
     int nthreads=1,tid;
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
@@ -3107,7 +3109,7 @@ void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup
         if (nimport>0) treeimport=new KDTree(PartDataGet,nimport,opt.HaloMinSize,tree->TPHYS,tree->KEPAN,100,0,0,0,period);
     }
 #endif
-    time2=MyGetTime();
+    auto time2=MyGetTime();
     //now loop over groups and search for particles. This is probably fast if we build a tree
     fac=-log(4.0*M_PI/3.0);
 
@@ -3384,7 +3386,7 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
         delete[] NNDataIn;
     }
 #endif
-    if (opt.iverbose) cout<<"Done SO masses for field objects in "<<MyGetTime()-time1<<endl;
+    if (opt.iverbose) cout<<"Done SO masses for field objects in "<<MyElapsedTime(time1)<<endl;
 }
 
 ///\name Routines to calculate specific property of a set of particles
@@ -4196,7 +4198,7 @@ void GetBindingEnergy(Options &opt, const Int_t nbodies, Particle *Part, Int_t n
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
 #endif
-    double time1 = MyGetTime();
+    auto time1 = MyGetTime();
     if (ngroup == 0) return;
     if (opt.iverbose) cout<<ThisTask<<" getting energy"<<endl;
     if (opt.uinfo.cmvelreftype==POTREF && opt.iverbose==1) cout<<"Using minimum potential reference"<<endl;
@@ -4225,7 +4227,7 @@ void GetBindingEnergy(Options &opt, const Int_t nbodies, Particle *Part, Int_t n
     //also if wish to use the deepest potential as a reference, then used to store original order
     Int_t *storepid;
 
-    double time2 = MyGetTime();
+    auto time2 = MyGetTime();
 
     if (opt.uinfo.icalculatepotential) {
     //if approximative calculations, run all calculations in parallel
@@ -4310,7 +4312,7 @@ private(i,j,k,storepid)
         for (i=1;i<=ngroup;i++) for (j=0;j<numingroup[i];j++) Part[j+noffset[i]].SetPotential(Part[j+noffset[i]].GetGravityPotential());
     }
 #endif
-    if (opt.iverbose) cout<<ThisTask<<" Have calculated potentials "<<MyGetTime()-time2<<endl;
+    if (opt.iverbose) cout<<ThisTask<<" Have calculated potentials "<<MyElapsedTime(time2)<<endl;
     time2 = MyGetTime();
 
     //once potential is calculated, iff using velocity around deepest potential well NOT cm
@@ -4596,7 +4598,7 @@ private(i,j,Emostbound,imostbound)
 }
 #endif
 
-    if (opt.iverbose) cout<<ThisTask<<"Done getting energy in "<<MyGetTime()-time1<<endl;
+    if (opt.iverbose) cout<<ThisTask<<"Done getting energy in "<<MyElapsedTime(time1)<<endl;
 }
 
 

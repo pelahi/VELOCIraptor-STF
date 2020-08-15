@@ -274,7 +274,7 @@ int CheckUnboundGroups(Options opt, const Int_t nbodies, Particle *Part, Int_t &
     bool ningflag=false, pglistflag=false;
     int iflag;
     Int_t ng=ngroup;
-    Double_t time1=MyGetTime();
+    auto time1=MyGetTime();
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
 #endif
@@ -374,7 +374,7 @@ int CheckUnboundGroups(Options opt, const Int_t nbodies, Particle *Part, Int_t &
     if (pglistflag) {for (Int_t i=1;i<=ng;i++) delete[] pglist[i];delete[] pglist;}
     if (ningflag) delete[] numingroup;
 
-    if (opt.iverbose) cout<<ThisTask<<" Done. Number of groups remaining "<<ngroup<<" in"<<MyGetTime()-time1<<endl;
+    if (opt.iverbose) cout<<ThisTask<<" Done. Number of groups remaining "<<ngroup<<" in"<<MyElapsedTime(time1)<<endl;
 
     return iflag;
 }

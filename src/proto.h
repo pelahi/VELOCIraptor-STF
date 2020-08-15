@@ -839,10 +839,6 @@ void ReorderGroupIDsAndHaloDatabyValue(const Int_t numgroups, const Int_t newnum
 /// see \ref utilities.cxx for implementation
 //@{
 
-///Get current time in Milliseconds
-int GetMilliCount();
-///Get span in milliseconds
-int GetMillSpan(int );
 int CompareInt(const void *, const void *);
 ///Get memory use
 void GetMemUsage(Options &opt, string callingfunction, bool printreport);

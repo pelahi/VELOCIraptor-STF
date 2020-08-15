@@ -900,7 +900,7 @@ reduction(+:nprocessed,ntot)
     //if search is fully approximative, then since particles have been localized to mpi domains in FOF groups, don't search neighbour mpi domains
     if (NProcs >1 && opt.iLocalVelDenApproxCalcFlag==1) {
     if (opt.iverbose) {
-        cout<<ThisTask<<" finished local calculation in "<<MyGetTime()-time2<<endl;
+        cout<<ThisTask<<" finished local calculation in "<<MyElapsedTime(time2)<<endl;
         cout<<" fraction that is local"<<nprocessed/(float)ntot<<endl;
     }
     time2=MyGetTime();
@@ -1042,7 +1042,7 @@ reduction(+:nprocessed)
     delete[] NNDataIn;
     delete[] NNDataGet;
     if(opt.iverbose) {
-        cout<<ThisTask<<" finished other domain search "<<MyGetTime()-time2<<endl;
+        cout<<ThisTask<<" finished other domain search "<<MyElapsedTime(time2)<<endl;
         cout<<ThisTask<<" mpi processed fraction "<<nprocessed/(float)ntot<<endl;
     }
     }

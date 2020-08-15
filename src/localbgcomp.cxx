@@ -14,7 +14,7 @@
 void GetDenVRatio(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngrid, GridCell *grid, Coordinate *gvel, Matrix *gveldisp)
 {
     Int_t i;
-    int nthreads,tid;
+    int nthreads=1,tid;
 #ifndef USEMPI
     int ThisTask=0;
 #endif
@@ -45,31 +45,29 @@ private(i) if (nbodies > ompsubsearchnum)
     //if using MPI since number of cells is far fewer than number of particles, simple gather collect all the data so that each processor has access to it
 #ifdef USEMPI
     if(opt.iSingleHalo) {
-    Ngridlocal=ngrid;
-    MPI_Allreduce(&ngrid,&Ngridtotal,1,MPI_Int_t,MPI_SUM,MPI_COMM_WORLD);
-    mpi_grid=new GridCell[Ngridtotal];
-    mpi_gvel=new Coordinate[Ngridtotal];
-    mpi_gveldisp=new Matrix[Ngridtotal];
-    MPIBuildGridData(ngrid, grid, gvel, gveldisp);
-    delete[] grid;
-    delete[] gvel;
-    delete[] gveldisp;
-    ngrid=Ngridtotal;
-    grid=mpi_grid;
-    gvel=mpi_gvel;
-    gveldisp=mpi_gveldisp;
+        Ngridlocal=ngrid;
+        MPI_Allreduce(&ngrid,&Ngridtotal,1,MPI_Int_t,MPI_SUM,MPI_COMM_WORLD);
+        mpi_grid=new GridCell[Ngridtotal];
+        mpi_gvel=new Coordinate[Ngridtotal];
+        mpi_gveldisp=new Matrix[Ngridtotal];
+        MPIBuildGridData(ngrid, grid, gvel, gveldisp);
+        delete[] grid;
+        delete[] gvel;
+        delete[] gveldisp;
+        ngrid=Ngridtotal;
+        grid=mpi_grid;
+        gvel=mpi_gvel;
+        gveldisp=mpi_gveldisp;
     }
 #endif
     ptemp=new Particle[ngrid];
     for (i=0;i<ngrid;i++) ptemp[i]=Particle(1.0,grid[i].xm[0],grid[i].xm[1],grid[i].xm[2],0.0,0.0,0.0,i);
     tree=new KDTree(ptemp,ngrid,1,tree->TPHYS, tree->KEPAN,100,0,0,0,NULL,NULL,false);
 
-#ifndef USEOPENMP
-    nthreads=1;
-#else
+#ifdef USEOPENMP
 #pragma omp parallel
     {
-            if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
+        if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
     }
 #endif
     dist=new Double_t*[nthreads];
