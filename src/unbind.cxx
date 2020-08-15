@@ -946,7 +946,7 @@ void Potential(Options &opt, Int_t nbodies, Particle *Part, Double_t *potV)
 void Potential(Options &opt, Int_t nbodies, Particle *Part)
 {
     Int_t oldnbodies;
-    KDTree *tree = nullptr;
+    KDTree *tree;
     Particle *part;
     bool runomp = false;
     int nsearch;
@@ -1093,7 +1093,7 @@ void ParticleSubSample(Options &opt, const Int_t nbodies, Particle *&Part,
                 //build tree that contains leaf nodes containing the desired
                 //number of particles per leaf node
                 Int_t bsize = ceil(nbodies/(float)newnbodies);
-                KDTree *tree = nullptr;
+                KDTree *tree;
                 tree = new KDTree(Part, nbodies, bsize, tree->TPHYS,tree->KEPAN,100);
                 //first get all local leaf nodes;
                 newnbodies = tree->GetNumLeafNodes();

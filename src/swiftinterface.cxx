@@ -492,7 +492,7 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
     /// If we are performing a baryon search, sort the particles so that the DM particles are at the start of the array followed by the gas particles.
     // note that we explicitly convert positions from comoving to physical as swift_vel_parts is in
     if (libvelociraptorOpt.iBaryonSearch>0 && libvelociraptorOpt.partsearchtype!=PSTALL) {
-        size_t dmOffset = 0, baryonOffset = 0, gasOffset = 0, starOffset = 0, bhOffset = 0, otherparttype = 0;
+        size_t dmOffset = 0, baryonOffset = 0, gasOffset = 0, starOffset = 0, bhOffset = 0;
         pbaryons=&(parts.data()[ndark]);
         cout<<"There are "<<nbaryons<<" gas particles and "<<ndark<<" DM particles."<<endl;
         for(auto i=0; i<Nlocal; i++)

@@ -26,7 +26,7 @@ void GetDenVRatio(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngrid
     Coordinate vp,vmweighted;
     Matrix isvweighted;
     Particle *ptemp;
-    KDTree *tree = nullptr;
+    KDTree *tree;
 
     if (opt.iverbose>=2) cout<<ThisTask<<" Now calculate denvratios using grid"<<endl;
     //take inverse for interpolation

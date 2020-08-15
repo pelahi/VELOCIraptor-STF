@@ -47,7 +47,7 @@ private(i,vel) if (nbodies > ompsubsearchnum)
 #endif
 
     //then build tree
-    KDTree *tree = nullptr;
+    KDTree *tree;
     int itreetype = tree->TPHYS, ikerntype = tree->KEPAN, isplittingcriterion = 0, ianiso = 0 , iscale = 0;
     bool runomp = (nbodies > ompsubsearchnum);
     if (opt.iverbose>=2) cout<<"Grid system using leaf nodes with maximum size of "<<opt.Ncell<<endl;
