@@ -3159,7 +3159,7 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
     ostringstream os;
     unsigned long long ng=ngroups,ngtot=0,noffset=0;
 #ifdef USEPARALLELHDF
-     nwritecommtot = 0;
+     unsigned long long nwritecommtot = 0;
 #endif
 #ifdef USEMPI
     MPIBuildWriteComm(opt);
