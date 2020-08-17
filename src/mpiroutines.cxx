@@ -228,11 +228,13 @@ void MPIInitialDomainDecompositionWithMesh(Options &opt){
             numcellspertask[itask]++;
             count++;
         }
-        cout<<"Z-curve Mesh MPI decomposition: "<<endl;
-        cout<<"Mesh has resolution of "<<opt.numcellsperdim<<" per spatial dim "<<endl;
-        cout<<"with each mesh spanning ("<<opt.cellwidth[0]<<", "<<opt.cellwidth[1]<<", "<<opt.cellwidth[2]<<")"<<endl;
-        cout<<"MPI tasks :"<<endl;
-        for (auto i=0; i<NProcs; i++) cout<<"Task "<<i<<" has "<<numcellspertask[i]/double(n3)<<" of the volume"<<endl;
+        if (ThisTask == 0) {
+            cout<<"Z-curve Mesh MPI decomposition: "<<endl;
+            cout<<"Mesh has resolution of "<<opt.numcellsperdim<<" per spatial dim "<<endl;
+            cout<<"with each mesh spanning ("<<opt.cellwidth[0]<<", "<<opt.cellwidth[1]<<", "<<opt.cellwidth[2]<<")"<<endl;
+            cout<<"MPI tasks :"<<endl;
+            for (auto i=0; i<NProcs; i++) cout<<"Task "<<i<<" has "<<numcellspertask[i]/double(n3)<<" of the volume"<<endl;
+        }
     }
     //broadcast data
     MPI_Bcast(&opt.numcells, 1, MPI_INTEGER, 0, MPI_COMM_WORLD);
