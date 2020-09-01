@@ -4,29 +4,6 @@
 
 #include "stf.h"
 
-/// Time functions
-//@{
-int GetMilliCount()
-{
-  // Something like GetTickCount but portable
-  // It rolls over every ~ 12.1 days (0x100000/24/60/60)
-  // Use GetMilliSpan to correct for rollover
-  timeb tb;
-  ftime( &tb );
-  int nCount = tb.millitm + (tb.time & 0xfffff) * 1000;
-  return nCount;
-}
-
-int GetMilliSpan( int nTimeStart )
-{
-  int nSpan = GetMilliCount() - nTimeStart;
-  if ( nSpan < 0 )
-    nSpan += 0x100000 * 1000;
-  return nSpan;
-}
-
-//@}
-
 int CompareInt(const void *p1, const void *p2) {
       Int_t val1 = *(Int_t*)p1;
       Int_t val2 = *(Int_t*)p2;
@@ -211,13 +188,18 @@ void InitMemUsageLog(Options &opt){
     Fmem.close();
 }
 
-double MyGetTime(){
-#ifdef USEOPENMP
-    return omp_get_wtime();
-#else
-    return (clock() /( (double)CLOCKS_PER_SEC));
-#endif
+std::chrono::time_point<std::chrono::high_resolution_clock> MyGetTime(){
+    auto now = std::chrono::high_resolution_clock::now();
+    return now;
 }
+
+double MyElapsedTime(std::chrono::time_point<std::chrono::high_resolution_clock> before)
+{
+    auto now = std::chrono::high_resolution_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(now - before);
+    return elapsed.count()*1e-9;
+}
+
 
 #ifdef NOMASS
 void VR_NOMASS(){};

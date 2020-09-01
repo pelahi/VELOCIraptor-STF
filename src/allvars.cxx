@@ -45,7 +45,6 @@ void PropData::WriteBinary(fstream &Fout, Options&opt){
     long unsigned idval;
     unsigned int ival;
     double val, val3[3],val9[9];
-    float fval;
     idval=haloid;
     Fout.write((char*)&idval,sizeof(idval));
     lval=ibound;

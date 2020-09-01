@@ -609,7 +609,7 @@ void GetParamFile(Options &opt)
 #endif
     string line,sep="=";
     string tag,val;
-    char buff[1024],*pbuff,tbuff[1024],vbuff[1024],fname[1024];
+    char buff[1024],*pbuff,tbuff[1024],vbuff[1024];
     fstream paramfile,cfgfile;
     size_t pos;
     string dataline, token, delimiter = ",";
@@ -625,7 +625,7 @@ void GetParamFile(Options &opt)
 #endif
     }
     paramfile.open(opt.pname, ios::in);
-    unsigned j,k;
+    unsigned j;
     //first find output name, determine the number of valid entries in
     if (paramfile.is_open())
     {
@@ -633,7 +633,7 @@ void GetParamFile(Options &opt)
             getline(paramfile,line);
             //if line is not commented out or empty
             if (line[0]!='#'&&line.length()!=0) {
-                if (j=line.find(sep)){
+                if ((j=line.find(sep))){
                     //clean up string
                     tag=line.substr(0,j);
                     strcpy(buff, tag.c_str());
@@ -673,7 +673,7 @@ void GetParamFile(Options &opt)
             getline(paramfile,line);
             //if line is not commented out or empty
             if (line[0]!='#'&&line.length()!=0) {
-                if (j=line.find(sep)){
+                if ((j=line.find(sep))){
                     //clean up string
                     tag=line.substr(0,j);
                     strcpy(buff, tag.c_str());
@@ -2045,7 +2045,6 @@ void ConfigCheck(Options &opt)
     set<string> uniqueval;
     set<string> outputset;
     string configentryname, outputfieldname, mainname;
-    unsigned int entryindex, calctype, iduplicates;
 
     //clean up aperture list and spherical overdensity list to remove duplicates
     configentryname = "Overdensity_values_in_critical_density";
