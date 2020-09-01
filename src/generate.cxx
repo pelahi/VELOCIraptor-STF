@@ -16,7 +16,7 @@ void GenerateInput(Options &opt, vector<Particle> &Part) {
     Int_t Nlocal;
 #endif
     if (opt.iGenerateInput == false) return;
-    double time1 = MyGetTime();
+    auto time1 = MyGetTime();
     cout<<ThisTask<<" Generating Input ... "<<endl;
     opt.Ngenerate = pow(opt.Ngenerate, 3.0);
     //set some cosmology
@@ -75,7 +75,7 @@ void GenerateInput(Options &opt, vector<Particle> &Part) {
     PopulateGaussians(opt, Part, Gaus);
     ProduceBackground(opt, Part, npoints);
     WriteGeneratedInput(opt, Part, Gaus);
-    cout<<ThisTask<<" Generating input: Done "<<MyGetTime()-time1<<endl;
+    cout<<ThisTask<<" Generating input: Done "<<MyElapsedTime(time1)<<endl;
 #ifdef USEMPI
     MPI_Finalize();
 #endif
@@ -89,7 +89,7 @@ void ProduceBackground(Options &opt, vector<Particle> &Part, Int_t noffset)
     int ThisTask = 0, NProcs = 1;
     unsigned long long Nlocal = Part.size();
 #endif
-    double time1 = MyGetTime();
+    auto time1 = MyGetTime();
     cout<<ThisTask<<" Produce Background ... "<<endl;
 
     if (opt.fbackground == 0) return;
@@ -116,7 +116,7 @@ void ProduceBackground(Options &opt, vector<Particle> &Part, Int_t noffset)
 #if defined(USEOPENMP)
 }
 #endif
-    cout<<ThisTask<<" Produce Background: Done "<<MyGetTime()-time1<<endl;
+    cout<<ThisTask<<" Produce Background: Done "<<MyElapsedTime(time1)<<endl;
     GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
 }
 
@@ -147,7 +147,7 @@ vector<GaussianDistrib> ProduceGaussians(Options &opt, vector<Particle> &Part)
     int ThisTask = 0, NProcs = 1;
     unsigned long long Nlocal = Part.size();
 #endif
-    double time1 = MyGetTime();
+    auto time1 = MyGetTime();
     cout<<ThisTask<<" Produce Gaussians ... "<<endl;
 
     vector<GaussianDistrib> Gaus;
@@ -208,7 +208,7 @@ vector<GaussianDistrib> ProduceGaussians(Options &opt, vector<Particle> &Part)
 #if defined(USEOPENMP)
 }
 #endif
-    cout<<ThisTask<<" Produce Gaussians: Done "<<MyGetTime()-time1<<endl;
+    cout<<ThisTask<<" Produce Gaussians: Done "<<MyElapsedTime(time1)<<endl;
     GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
     return Gaus;
 
@@ -222,7 +222,7 @@ void PopulateGaussians(Options &opt, vector<Particle> &Part, vector<GaussianDist
     int ThisTask = 0, NProcs = 1;
 #endif
     int nthreads = 1;
-    double time1 = MyGetTime();
+    auto time1 = MyGetTime();
     cout<<ThisTask<<" Populate Gaussians ... "<<endl;
     if (opt.Ngeneratehalos == 0) return;
 
@@ -251,8 +251,6 @@ void PopulateGaussians(Options &opt, vector<Particle> &Part, vector<GaussianDist
 #if defined(USEOPENMP)
 }
 #endif
-
-cout<<npoints<<"FOOF "<<endl;
 
     // now transform points based on mean and variance
     //
@@ -401,7 +399,7 @@ delete[] yy;
 // #endif //end of if openacc else
     delete[] rn;
     delete[] noffset;
-    cout<<ThisTask<<" Populate Gaussians: Done "<<MyGetTime()-time1<<endl;
+    cout<<ThisTask<<" Populate Gaussians: Done "<<MyElapsedTime(time1)<<endl;
     GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
 }
 
@@ -413,7 +411,7 @@ void WriteGeneratedInput(Options &opt, vector<Particle> &Part, vector<GaussianDi
     int ThisTask=0,NProcs=1;
     unsigned long long Nlocal = Part.size();
 #endif
-    double time1 = MyGetTime();
+    auto time1 = MyGetTime();
     cout<<ThisTask<<" Writing input ... "<<endl;
 
     fstream Fout;
@@ -614,6 +612,6 @@ void WriteGeneratedInput(Options &opt, vector<Particle> &Part, vector<GaussianDi
 
         Fhdf.close();
 
-        cout<<ThisTask<<" Done writing "<<MyGetTime()-time1<<endl;
+        cout<<ThisTask<<" Done writing "<<MyElapsedTime(time1)<<endl;
 #endif
 }
