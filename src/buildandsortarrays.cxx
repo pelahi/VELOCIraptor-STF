@@ -283,7 +283,6 @@ void ReorderGroupIDsAndArraybyValue(const Int_t numgroups, const Int_t newnumgro
     PriorityQueue *pq=new PriorityQueue(newnumgroups);
     Double_t *gtemp=new Double_t[numgroups+1];
     Int_t groupid;
-    Int_t count=0;
     for (Int_t i = 1; i <= numgroups; i++) gtemp[i]=gdata[i];
     for (Int_t i = 1; i <= numgroups; i++) if (numingroup[i]>0) pq->Push(i, value[i]);
     for (Int_t i = 1; i <= newnumgroups; i++) {
@@ -299,7 +298,6 @@ void ReorderGroupIDsAndArraybyValue(const Int_t numgroups, const Int_t newnumgro
     PriorityQueue *pq=new PriorityQueue(newnumgroups);
     Double_t *gtemp=new Double_t[numgroups+1];
     Int_t groupid;
-    Int_t count=0;
     for (Int_t i = 1; i <= numgroups; i++) gtemp[i]=gdata[i];
     for (Int_t i = 1; i <= numgroups; i++) if (numingroup[i]>0) pq->Push(i, value[i]);
     for (Int_t i = 1; i <= newnumgroups; i++) {

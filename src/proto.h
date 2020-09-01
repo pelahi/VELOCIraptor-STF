@@ -845,10 +845,6 @@ void ReorderGroupIDsAndHaloDatabyValue(const Int_t numgroups, const Int_t newnum
 /// see \ref utilities.cxx for implementation
 //@{
 
-///Get current time in Milliseconds
-int GetMilliCount();
-///Get span in milliseconds
-int GetMillSpan(int );
 int CompareInt(const void *, const void *);
 ///Get memory use
 void GetMemUsage(Options &opt, string callingfunction, bool printreport);
@@ -857,7 +853,8 @@ void GetMemUsage(string callingfunction, bool printreport);
 ///Init memory log
 void InitMemUsageLog(Options &opt);
 ///get a time
-double MyGetTime();
+std::chrono::time_point<std::chrono::high_resolution_clock> MyGetTime();
+double MyElapsedTime(std::chrono::time_point<std::chrono::high_resolution_clock> before);
 //@}
 
 /// \name Compilation functions

@@ -114,8 +114,7 @@ int main(int argc,char **argv)
     PropData *pdata=NULL,*pdatahalos=NULL;
 
     //to store time and output time taken
-    double time1,tottime;
-    tottime=MyGetTime();
+    auto tottime=MyGetTime();
 
     Coordinate cm,cmvel;
     Double_t Mtot;
@@ -136,7 +135,7 @@ int main(int argc,char **argv)
 #endif
 
     //read particle information and allocate memory
-    time1=MyGetTime();
+    auto time1=MyGetTime();
     //for MPI determine total number of particles AND the number of particles assigned to each processor
     if (ThisTask==0) {
         cout<<"Read header ... "<<endl;
@@ -239,7 +238,6 @@ int main(int argc,char **argv)
     }
 #endif
 
-    time1=MyGetTime()-time1;
 #ifdef USEMPI
     Ntotal=nbodies;
     nbodies=Nlocal;
@@ -247,9 +245,9 @@ int main(int argc,char **argv)
     mpi_period=opt.p;
     MPI_Allgather(&nbodies, 1, MPI_Int_t, mpi_nlocal, 1, MPI_Int_t, MPI_COMM_WORLD);
     MPI_Allreduce(&nbodies, &Ntotal, 1, MPI_Int_t, MPI_SUM, MPI_COMM_WORLD);
-    cout<<"TIME::"<<ThisTask<<" took "<<time1<<" to load "<<Nlocal<<" of "<<Ntotal<<endl;
+    cout<<"TIME::"<<ThisTask<<" took "<<MyElapsedTime(time1)<<" to load "<<Nlocal<<" of "<<Ntotal<<endl;
 #else
-    cout<<"TIME::"<<ThisTask<<" took "<<time1<<" to load "<<nbodies<<endl;
+    cout<<"TIME::"<<ThisTask<<" took "<<MyElapsedTime(time1)<<" to load "<<nbodies<<endl;
 #endif
 
     //write out the configuration used by velociraptor having read in the data (as input data can contain cosmological information)
@@ -290,7 +288,7 @@ int main(int argc,char **argv)
         time1=MyGetTime();
         pfof=SearchFullSet(opt,nbodies,Part,ngroup);
         nhalos=ngroup;
-        cout<<"TIME:: took "<<time1<<" to search "<<nbodies<<" with "<<nthreads<<endl;
+        cout<<"TIME:: took "<<MyElapsedTime(time1)<<" to search "<<nbodies<<" with "<<nthreads<<endl;
 #else
         //nbodies=Ntotal;
         ///\todo Communication Buffer size determination and allocation. For example, eventually need something like FoFDataIn = (struct fofdata_in *) CommBuffer;
@@ -302,8 +300,7 @@ int main(int argc,char **argv)
         time1=MyGetTime();
 
         pfof=SearchFullSet(opt,Nlocal,Part,ngroup);
-        time1=MyGetTime()-time1;
-        cout<<"TIME::"<<ThisTask<<" took "<<time1<<" to search "<<Nlocal<<" with "<<nthreads<<endl;
+        cout<<"TIME::"<<ThisTask<<" took "<<MyElapsedTime(time1)<<" to search "<<Nlocal<<" with "<<nthreads<<endl;
         nbodies=Nlocal;
         nhalos=ngroup;
 #endif
@@ -382,8 +379,7 @@ int main(int argc,char **argv)
         time1=MyGetTime();
         //if groups have been found (and localized to single MPI thread) then proceed to search for subsubstructures
         SearchSubSub(opt, nbodies, Part, pfof,ngroup,nhalos, pdatahalos);
-        time1=MyGetTime()-time1;
-        cout<<"TIME::"<<ThisTask<<" took "<<time1<<" to search for substructures "<<Nlocal<<" with "<<nthreads<<endl;
+        cout<<"TIME::"<<ThisTask<<" took "<<MyElapsedTime(time1)<<" to search for substructures "<<Nlocal<<" with "<<nthreads<<endl;
     }
     pdata=new PropData[ngroup+1];
     //if inclusive halo mass required
@@ -411,8 +407,7 @@ int main(int argc,char **argv)
             Pbaryons=NULL;
             SearchBaryons(opt, nbaryons, Pbaryons, ndark, Part, pfof, ngroup,nhalos,opt.iseparatefiles,opt.iInclusiveHalo,pdata);
         }
-        time1=MyGetTime()-time1;
-        cout<<"TIME::"<<ThisTask<<" took "<<time1<<" to search baryons  with "<<nthreads<<endl;
+        cout<<"TIME::"<<ThisTask<<" took "<<MyElapsedTime(time1)<<" to search baryons  with "<<nthreads<<endl;
     }
 
     //get mpi local hierarchy
@@ -555,8 +550,7 @@ int main(int argc,char **argv)
     delete[] uparentgid;
     delete[] stype;
 
-    tottime=MyGetTime()-tottime;
-    cout<<"TIME::"<<ThisTask<<" took "<<tottime<<" in all"<<endl;
+    cout<<"TIME::"<<ThisTask<<" took "<<MyElapsedTime(tottime)<<" in all"<<endl;
 
     //get memory useage
     cout<<ThisTask<<" : finished running VR "<<endl;

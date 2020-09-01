@@ -14,7 +14,7 @@
 void GetDenVRatio(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngrid, GridCell *grid, Coordinate *gvel, Matrix *gveldisp)
 {
     Int_t i;
-    int nthreads,tid;
+    int nthreads=1,tid;
 #ifndef USEMPI
     int ThisTask=0;
 #endif
@@ -45,31 +45,29 @@ private(i) if (nbodies > ompsubsearchnum)
     //if using MPI since number of cells is far fewer than number of particles, simple gather collect all the data so that each processor has access to it
 #ifdef USEMPI
     if(opt.iSingleHalo) {
-    Ngridlocal=ngrid;
-    MPI_Allreduce(&ngrid,&Ngridtotal,1,MPI_Int_t,MPI_SUM,MPI_COMM_WORLD);
-    mpi_grid=new GridCell[Ngridtotal];
-    mpi_gvel=new Coordinate[Ngridtotal];
-    mpi_gveldisp=new Matrix[Ngridtotal];
-    MPIBuildGridData(ngrid, grid, gvel, gveldisp);
-    delete[] grid;
-    delete[] gvel;
-    delete[] gveldisp;
-    ngrid=Ngridtotal;
-    grid=mpi_grid;
-    gvel=mpi_gvel;
-    gveldisp=mpi_gveldisp;
+        Ngridlocal=ngrid;
+        MPI_Allreduce(&ngrid,&Ngridtotal,1,MPI_Int_t,MPI_SUM,MPI_COMM_WORLD);
+        mpi_grid=new GridCell[Ngridtotal];
+        mpi_gvel=new Coordinate[Ngridtotal];
+        mpi_gveldisp=new Matrix[Ngridtotal];
+        MPIBuildGridData(ngrid, grid, gvel, gveldisp);
+        delete[] grid;
+        delete[] gvel;
+        delete[] gveldisp;
+        ngrid=Ngridtotal;
+        grid=mpi_grid;
+        gvel=mpi_gvel;
+        gveldisp=mpi_gveldisp;
     }
 #endif
     ptemp=new Particle[ngrid];
     for (i=0;i<ngrid;i++) ptemp[i]=Particle(1.0,grid[i].xm[0],grid[i].xm[1],grid[i].xm[2],0.0,0.0,0.0,i);
     tree=new KDTree(ptemp,ngrid,1,tree->TPHYS, tree->KEPAN,100,0,0,0,NULL,NULL,false);
 
-#ifndef USEOPENMP
-    nthreads=1;
-#else
+#ifdef USEOPENMP
 #pragma omp parallel
     {
-            if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
+        if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
     }
 #endif
     dist=new Double_t*[nthreads];
@@ -305,7 +303,7 @@ void DetermineDenVRatioDistribution(Options &opt,const Int_t nbodies, Particle *
     }
 
     //now have initial estimates of paramters, try nonlinear ls fit to data below prob and above
-    Int_t iflag,iit=0,nparams=4;
+    Int_t nparams=4;
     Double_t chi2,oldchi2;
     vector<Double_t> params(nparams);
     //five sets of fix parameter choices so that get optimal fit given bad data.
@@ -373,14 +371,13 @@ void DetermineDenVRatioDistribution(Options &opt,const Int_t nbodies, Particle *
 Int_t GetOutliersValues(Options &opt, const Int_t nbodies, Particle *Part, int sublevel)
 {
     Int_t nsubset = 0;
-    int nthreads;
-    Double_t temp, mtot=0.0;
+    int nthreads=1;
 #ifndef USEMPI
     int ThisTask=0;
 #endif
     if (opt.iverbose>=2) cout<<ThisTask<<" Now get average in grid cell and find outliers"<<endl;
     //printf("Using GLOBAL values to characterize the distribution and determine the normalized values used to determine outlier likelihood\n");
-    Double_t globalave,globalvar,globalmostprob,globalsdlow,globalsdhigh;
+    Double_t globalmostprob,globalsdlow,globalsdhigh;
 
     DetermineDenVRatioDistribution(opt,nbodies,Part,globalmostprob,globalsdlow,globalsdhigh, sublevel);
 

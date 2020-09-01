@@ -23,11 +23,10 @@
 */
 Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, Int_t &numgroups)
 {
-    Int_t i, *pfof = NULL, *pfoftemp = NULL, minsize;
+    Int_t i, *pfof = NULL, minsize;
     FOFcompfunc fofcmp;
     FOFcheckfunc fofcheck;
     fstream Fout;
-    char fname[2000];
     Double_t param[20];
     Double_t *period=NULL;
     Double_t vscale2,mtotregion,vx,vy,vz;
@@ -40,10 +39,8 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     Int_t *id_3dfof_of_6dfof = NULL;
     Int_t ng,npartingroups;
     Int_t totalgroups;
-    Double_t time1,time2, time3;
     KDTree *tree = NULL;
     KDTree **tree3dfofomp = NULL;
-    Int_t *p3dfofomp = NULL;
     int iorder = 1;
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
@@ -77,8 +74,8 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     //get memory usage
     GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
 
-    time1=MyGetTime();
-    time2=MyGetTime();
+    auto time1=MyGetTime();
+    auto time2=MyGetTime();
     cout<<"Begin FOF search  of entire particle data set ... "<<endl;
     param[0]=tree->TPHYS;
     param[1]=(opt.ellxscale*opt.ellxscale)*(opt.ellphys*opt.ellphys)*(opt.ellhalophysfac*opt.ellhalophysfac);
@@ -88,7 +85,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     //if using openmp produce tree with large buckets as a decomposition of the local mpi domain
     //to then run local fof searches on each domain before stitching
     if (runompfof) {
-        time3=MyGetTime();
+        auto time3=MyGetTime();
         Double_t rdist = sqrt(param[1]);
         //determine the omp regions;
         tree = new KDTree(Part.data(),nbodies,opt.openmpfofsize,tree->TPHYS,tree->KEPAN,100);
@@ -99,13 +96,13 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         for (i=0;i<nbodies;i++) storeorgIndex[i]=Part[i].GetID();
         //build local trees
         tree3dfofomp = OpenMPBuildLocalTrees(opt, numompregions, Part, ompdomain, period);
-        if (opt.iverbose) cout<<ThisTask<<": finished building "<<numompregions<<" domains and trees "<<MyGetTime()-time3<<endl;
+        if (opt.iverbose) cout<<ThisTask<<": finished building "<<numompregions<<" domains and trees "<<MyElapsedTime(time3)<<endl;
     }
     else {
-        time3=MyGetTime();
+        auto time3=MyGetTime();
         tree = new KDTree(Part.data(),nbodies,opt.Bsize,tree->TPHYS,tree->KEPAN,1000,0,0,0,period);
         tree->OverWriteInputOrder();
-        if (opt.iverbose) cout<<ThisTask<<": finished building single tree with single OpenMP "<<MyGetTime()-time3<<endl;
+        if (opt.iverbose) cout<<ThisTask<<": finished building single tree with single OpenMP "<<MyElapsedTime(time3)<<endl;
     }
 
 #else
@@ -134,10 +131,9 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     //then link across omp domains
     Int_t ompminsize = 2;
     if (runompfof){
-        time3=MyGetTime();
-        Int_t orgIndex, omp_import_total;
-        int omptask;
+        Int_t omp_import_total;
         Double_t rdist = sqrt(param[1]);
+        auto time3 = MyGetTime();
         pfof = new Int_t[nbodies];
         for (i=0;i<nbodies;i++)pfof[i]=0;
 #ifndef USEMPI
@@ -154,7 +150,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
             Head, Next,
             tree3dfofomp, param, rdist, ompminsize, fofcmp,
             numompregions, ompdomain);
-        if (opt.iverbose) cout<<ThisTask<<": finished omp local search of "<<numompregions<<" containing total of "<<numgroups<<" groups "<<MyGetTime()-time3<<endl;
+        if (opt.iverbose) cout<<ThisTask<<": finished omp local search of "<<numompregions<<" containing total of "<<numgroups<<" groups "<<MyElapsedTime(time3)<<endl;
         if (numgroups > 0) {
 
         //then for each omp region determine the particles to "import" from other omp regions
@@ -321,7 +317,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     else MPIGetExportNum(nbodies, Part.data(), sqrt(param[1]));
 #endif
     //allocate memory to store info
-    cout<<ThisTask<<": Finished local search, nexport/nimport = "<<NExport<<" "<<NImport<<" in "<<MyGetTime()-time2<<endl;
+    cout<<ThisTask<<": Finished local search, nexport/nimport = "<<NExport<<" "<<NImport<<" in "<<MyElapsedTime(time2)<<endl;
     cout<<ThisTask<<": MPI search will require extra memory of "<<(sizeof(Particle)+sizeof(fofdata_in))*(NExport+NImport)/pow(1024.0,3.0)<<" GB"<<endl;
 
     PartDataIn = new Particle[NExport];
@@ -362,7 +358,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         MPI_Allreduce(&links_across, &links_across_total, 1, MPI_Int_t, MPI_SUM, MPI_COMM_WORLD);
         MPIUpdateExportList(nbodies,Part.data(),pfof,Len);
     }while(links_across_total>0);
-    if (ThisTask==0) cout<<ThisTask<<": finished linking across MPI domains in "<<MyGetTime()-time2<<endl;
+    if (ThisTask==0) cout<<ThisTask<<": finished linking across MPI domains in "<<MyElapsedTime(time2)<<endl;
 
     delete[] FoFDataIn;
     delete[] FoFDataGet;
@@ -409,7 +405,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         cout<<ThisTask<<" with largest group of "<<maxgroupsize<<endl;
     }
     if (ThisTask==0) cout<<"Total number of groups found is "<<totalgroups<<endl;
-    if (ThisTask==0) cout<<ThisTask<<": finished FOF search in total time of "<<MyGetTime()-time1<<endl;
+    if (ThisTask==0) cout<<ThisTask<<": finished FOF search in total time of "<<MyElapsedTime(time1)<<endl;
 
     //if calculating velocity density only of particles resident in field structures large enough for substructure search
 #if defined(STRUCDEN) && defined(USEMPI)
@@ -820,7 +816,7 @@ private(i,tid,xscaling,vscaling)
             for (int j=0;j<NProcs;j++) totalgroups+=mpi_ngroups[j];
             cout<<"Total number of groups found is "<<totalgroups<<endl;
         }
-        if (ThisTask==0) cout<<ThisTask<<" finished 6d/phase-space fof search in "<<MyGetTime()-time2<<endl;
+        if (ThisTask==0) cout<<ThisTask<<" finished 6d/phase-space fof search in "<<MyElapsedTime(time2)<<endl;
     }
     MPI_Allgather(&numgroups, 1, MPI_Int_t, mpi_nhalos, 1, MPI_Int_t, MPI_COMM_WORLD);
 #endif
@@ -1007,7 +1003,6 @@ Int_t* SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Part
     Int_t *pfof, i, ii;
     FOFcompfunc fofcmp;
     fstream Fout;
-    char fname[200];
     Double_t param[20];
     int nsearch=opt.Nvel;
     Int_t **nnID;
@@ -1206,9 +1201,9 @@ private(i,tid)
         Int_t ng=numgroups;
         int mergers;
         int *igflag,*ilflag;
-        Int_t newlinks, intergrouplinks,*newlinksIndex,*intergrouplinksIndex;
-        Int_t pid,ppid, ss,tail,startpoint;
-        Int_t numgrouplinks,*numgrouplinksIndex,**newIndex,*oldnumingroup,**newintergroupIndex,**intergroupgidIndex;
+        Int_t newlinks, *newlinksIndex,*intergrouplinksIndex;
+        Int_t ss, startpoint;
+        Int_t *numgrouplinksIndex,**newIndex,*oldnumingroup,**newintergroupIndex,**intergroupgidIndex;
 
         //to slowly expand search, must declare several arrays making it easier to move along a group.
         numingroup=BuildNumInGroup(nsubset, numgroups, pfof);
@@ -1423,8 +1418,12 @@ private(i,tid)
         delete[] pglist;
         delete[] numingroup;
     }
-    if (numgroups>0) if (opt.iverbose>=2) cout<<ThisTask<<": "<<numgroups<<" substructures found"<<endl;
-    else {if (opt.iverbose>=2) cout<<ThisTask<<": "<<"NO SUBSTRUCTURES FOUND"<<endl;}
+    if (numgroups>0) {
+        if (opt.iverbose>=2) cout<<ThisTask<<": "<<numgroups<<" substructures found"<<endl;
+    }
+    else {
+        if (opt.iverbose>=2) cout<<ThisTask<<": "<<"NO SUBSTRUCTURES FOUND"<<endl;
+    }
 
     //now search particle list for large compact substructures that are considered part of the background when using smaller grids
     if (nsubset>=MINSUBSIZE && opt.iLargerCellSearch && opt.foftype!=FOF6DCORE)
@@ -1487,9 +1486,9 @@ private(i,tid)
             if (numgroupsbg>=bgoffset+1) {
                 int mergers;
                 int *igflag,*ilflag;
-                Int_t newlinks, oldlinks,intergrouplinks,*newlinksIndex,*oldlinksIndex,*intergrouplinksIndex;
-                Int_t pid,ppid, ss,tail,startpoint;
-                Int_t numgrouplinks,*numgrouplinksIndex,**newIndex,**newintergroupIndex,**intergroupgidIndex;
+                Int_t newlinks, oldlinks,*newlinksIndex,*oldlinksIndex,*intergrouplinksIndex;
+                Int_t ss, startpoint;
+                Int_t *numgrouplinksIndex,**newIndex,**newintergroupIndex,**intergroupgidIndex;
 
                 Int_t ng=numgroups+(numgroupsbg-bgoffset),oldng=numgroups;
                 for (i=0;i<nsubset;i++) if (pfof[i]==bgoffset&&pfofbg[i]>0) pfof[i]=oldng+(pfofbg[i]-bgoffset);
@@ -1639,8 +1638,12 @@ private(i,tid)
             delete[] pfofbg;
         }
         //output results of search
-        if (numgroups>0) if (opt.iverbose>=2) cout<<numgroups<<" substructures found after large grid search"<<endl;
-        else {if (opt.iverbose>=2) cout<<ThisTask<<": "<<"NO SUBSTRUCTURES FOUND"<<endl;}
+        if (numgroups>0) {
+            if (opt.iverbose>=2) cout<<numgroups<<" substructures found after large grid search"<<endl;
+        }
+        else {
+            if (opt.iverbose>=2) cout<<ThisTask<<": "<<"NO SUBSTRUCTURES FOUND"<<endl;
+        }
     }
     numsubs=numgroups;
 
@@ -2285,7 +2288,7 @@ private(i,tid,Pval,x1,D2,dval,mval,pid,pidcore)
 void MergeSubstructuresCoresPhase(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_t *&pfof, Int_t &numsubs, Int_t &numcores)
 {
     //get the phase centres of objects and see if they overlap
-    Int_t pfofval, imerge, numlargesubs=0, newnumcores=numcores;
+    Int_t pfofval, imerge, newnumcores=numcores;
     Double_t disp, dist2, mindist2, fdist2=pow(opt.coresubmergemindist,2.0);
     Coordinate pos;
     vector<Int_t> numingroup, noffset, taggedsubs;
@@ -2440,7 +2443,7 @@ void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Parts
     else if (opt.icoresubmergewithbg == 0 && (numcores == 0 || numsubs == 0)) return;
 
     //get the phase centres of objects and see if they overlap
-    Int_t pfofval, newpfofval, imerge, newnumgroups, newnumcores, nummerged=0, index1, index2;
+    Int_t pfofval, imerge, newnumgroups, newnumcores, nummerged=0, index1, index2;
     Double_t disp, dist2, dist2sub1,dist2sub2, mindist2, fdist2=pow(opt.coresubmergemindist,2.0);
     Double_t xsub1, xsub2, vsub1, vsub2;
     Coordinate pos;
@@ -2873,15 +2876,15 @@ void UpdateGroupIDsFromSubstructure(Int_t activenumgroups, Int_t oldnumgroups,
 void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubset, Int_t *&pfof, Int_t &ngroup, Int_t &nhalos, PropData *pdata)
 {
     //now build a sublist of groups to search for substructure
-    Int_t nsubsearch, oldnsubsearch,sublevel,maxsublevel,ngroupidoffset,ngroupidoffsetold,ngrid;
-    bool iflag,iunbindflag;
+    Int_t nsubsearch, oldnsubsearch, sublevel, ngroupidoffset, ngroupidoffsetold;
+    bool iflag;
     Particle *subPart;
     Int_t firstgroup,firstgroupoffset;
     Int_t ng,*numingroup,**pglist;
     Int_t *subpfof,*subngroup;
     Int_t *subnumingroup,**subpglist;
     Int_t **subsubnumingroup, ***subsubpglist;
-    Int_t *numcores,*coreflag;
+    Int_t *numcores;
     Int_t *subpfofold;
     vector<Int_t> ngroupidoffset_old, ngroupidoffset_new;
     vector<Int_t> ompactivesubgroups;
@@ -3321,8 +3324,8 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
 int CheckSignificance(Options &opt, const Int_t nsubset, Particle *Partsubset, Int_t &numgroups, Int_t *numingroup, Int_t *pfof, Int_t **pglist)
 {
     Int_t i;
-    Double_t ellaveexp,ellvarexp, ellvallim;
-    Double_t *aveell,*varell,*maxell,*minell, *ptypefrac, *betaave;
+    Double_t ellaveexp, ellvallim;
+    Double_t *aveell, *maxell,*minell, *betaave;
     Int_t iflag=0,ng=numgroups;
     aveell=new Double_t[numgroups+1];
     maxell=new Double_t[numgroups+1];
@@ -3430,7 +3433,7 @@ Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, const I
     KDTree *tree;
     Double_t *period;
     Int_t *pfofbaryons, *pfofall, *pfofold;
-    Int_t i,pindex,npartingroups,ng,nghalos,nhalosold=nhalos, baryonfofold;
+    Int_t i,pindex,npartingroups,ng, baryonfofold;
     Int_t *ids, *storeval,*storeval2;
     Double_t D2,dval,rval;
     Coordinate x1;
@@ -3442,7 +3445,6 @@ Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, const I
     Int_t *nnID=NULL,*numingroup;
     Double_t *dist2=NULL, *localdist;
     int nthreads=1,maxnthreads,tid;
-    int minsize;
     Int_t nparts=ndark+nbaryons;
     Int_t nhierarchy=1,gidval;
     StrucLevelData *ppsldata,**papsldata;
@@ -4000,7 +4002,7 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
 Int_t GetHierarchy(Options &opt,Int_t ngroups, Int_t *nsub, Int_t *parentgid, Int_t *uparentgid, Int_t* stype)
 {
     if (opt.iverbose) cout<<"Getting Hierarchy "<<ngroups<<endl;
-    Int_t ng=0,nhierarchy=1,noffset=0;
+    Int_t nhierarchy=1;
     StrucLevelData *ppsldata,**papsldata;
     ppsldata=psldata;
     while (ppsldata->nextlevel!=NULL){nhierarchy++;ppsldata=ppsldata->nextlevel;}
@@ -4120,7 +4122,7 @@ private(i,mt,cmval,dispmatrix)
 ///Create array for each group listing all previously unlinked particles that should now be linked. Note that the triple pointer newIndex is a double pointer, extra pointer layer is to ensure that
 ///it is passed by reference so that the memory allocated in the function is associated with the newIndex pointer once the function as returned.
 inline void DetermineNewLinks(Int_t nsubset, Particle *Partsubset, Int_t *pfof, Int_t numgroups, Int_t &newlinks, Int_t *newlinksIndex, Int_t *numgrouplinksIndex, Int_t *nnID, Int_t ***newIndex) {
-    Int_t pid,ppid;
+    Int_t ppid;
     newlinks=0;
     for (Int_t j=1;j<=numgroups;j++) numgrouplinksIndex[j]=0;
     for (Int_t j=0;j<nsubset;j++) {
@@ -4141,7 +4143,7 @@ inline void DetermineNewLinks(Int_t nsubset, Particle *Partsubset, Int_t *pfof, 
 
 ///Create array for each group listing all possibly intergroup links
 inline void DetermineGroupLinks(Int_t nsubset, Particle *Partsubset, Int_t *pfof, Int_t numgroups, Int_t &newlinks, Int_t *newlinksIndex, Int_t *numgrouplinksIndex, Int_t *nnID, Int_t ***newIndex) {
-    Int_t i,pid,ppid;
+    Int_t i,ppid;
     //store number of links between groups in newIndex
     for (i=1;i<=numgroups;i++) numgrouplinksIndex[i]=0;
     //first determine number of links a group has with particles identified as belonging to another group
@@ -4162,7 +4164,7 @@ inline void DetermineGroupLinks(Int_t nsubset, Particle *Partsubset, Int_t *pfof
 ///once Group links are found, reduce the data so that one can determine for each group, number of other groups linked, their gids and the number of that group linked
 ///these are stored in numgrouplinksIndex, intergroupgidIndex, & newintergroupIndex
 inline void DetermineGroupMergerConnections(Particle *Partsubset, Int_t numgroups, Int_t *pfof, int *ilflag, Int_t *numgrouplinksIndex, Int_t *intergrouplinksIndex, Int_t *nnID, Int_t ***newIndex, Int_t ***newintergroupIndex, Int_t ***intergroupgidIndex) {
-    Int_t i,ii,pid,ppid, intergrouplinks;
+    Int_t i,ii,ppid, intergrouplinks;
     //ilflag ensures that group only assocaited once to current group being searched for intergroup links
     for (i=1;i<=numgroups;i++) ilflag[i]=0;
     for (i=1;i<=numgroups;i++) {
@@ -4193,7 +4195,7 @@ inline void DetermineGroupMergerConnections(Particle *Partsubset, Int_t numgroup
 ///Only the set of particles in newlinksIndex are searched for other particles meeting this criteria. Note that the tree search is set up such that if the marker value (here given by pfof) greater than the particle's
 ///current id marker or the particle's current marker is 0, the particle's nnID value is set to the marker value.
 inline void SearchForNewLinks(Int_t nsubset, KDTree *tree, Particle *Partsubset, Int_t *pfof, FOFcompfunc &fofcmp, Double_t *param, Int_t newlinks, Int_t *newlinksIndex, Int_t **nnID, Double_t **dist2, int nthreads) {
-    Int_t i,ii;
+    Int_t ii;
     int tid;
 #ifdef USEOPENMP
         if (newlinks>ompsearchnum) {
@@ -4231,7 +4233,7 @@ private(ii,tid)
         }
 }
 inline void SearchForNewLinks(Int_t nsubset, KDTree *tree, Particle *Partsubset, Int_t *pfof, FOFcompfunc &fofcmp, Double_t *param, Int_t newlinks, Int_t *newlinksIndex, Int_t **nnID, int nthreads) {
-    Int_t i,ii;
+    Int_t ii;
     int tid;
 #ifdef USEOPENMP
         if (newlinks>ompsearchnum) {
