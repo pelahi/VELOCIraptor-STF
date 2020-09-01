@@ -88,7 +88,6 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
     int alltotal   = 0;
     int ghoststars = 0;
     string stringbuf;
-    int ninputoffset = 0;
     sprintf(buf1,"%s/amr_%s.out00001",fname,opt.ramsessnapname);
     sprintf(buf2,"%s/amr_%s.out",fname,opt.ramsessnapname);
     if (FileExists(buf1)) sprintf(buf,"%s",buf1);
@@ -119,10 +118,7 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
 
     fstream Framses;
     RAMSES_Header ramses_header_info;
-    //buffers to load data
-    int intbuff[NRAMSESTYPE];
-    long long longbuff[NRAMSESTYPE];
-    int i,j,k,ireaderror=0;
+    int i,j,k;
     Int_t nbodies=0;
     //IntType inttype;
     int dummy;
@@ -436,14 +432,12 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
     fstream *Fhydro;
     fstream *Fpart, *Fpartvel,*Fpartid,*Fpartmass, *Fpartlevel, *Fpartage, *Fpartmet;
     RAMSES_Header *header;
-    int intbuff[NRAMSESTYPE];
-    long long longbuff[NRAMSESTYPE];
-    int i,j,k,n,idim,ivar,igrid,ireaderror=0;
+    int i,j,k,idim,ivar,igrid;
     Int_t count2,bcount2;
     //IntType inttype;
     int dummy,byteoffset;
     Double_t MP_DM=MAXVALUE,LN,N_DM,MP_B=0;
-    double z,aadjust,Hubble,Hubbleflow;
+    double aadjust,Hubble,Hubbleflow;
     Double_t mscale,lscale,lvscale,rhoscale;
     Double_t mtemp,utemp,rhotemp,Ztemp,Ttemp;
     Coordinate xpos,vpos;
@@ -487,15 +481,14 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
 
     Particle *Pbuf;
 #ifdef USEMPI
-    MPI_Status status;
     MPI_Comm mpi_comm_read;
 
     vector<Particle> *Preadbuf;
     //for parallel io
     Int_t BufSize=opt.mpiparticlebufsize;
-    Int_t Nlocalbuf,*Nbuf, *Nreadbuf,*nreadoffset;
-    Int_t *Nlocalthreadbuf,Nlocaltotalbuf;
-    int *irecv, sendTask,recvTask,irecvflag, *mpi_irecvflag;
+    Int_t *Nbuf, *Nreadbuf,*nreadoffset;
+    Int_t *Nlocalthreadbuf;
+    int *irecv, *mpi_irecvflag;
     MPI_Request *mpi_request;
     Int_t inreadsend,totreadsend;
     Int_t *mpi_nsend_baryon;

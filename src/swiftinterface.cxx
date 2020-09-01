@@ -194,6 +194,13 @@ int InitVelociraptor(char* configname, unitinfo u, siminfo s, const int numthrea
     //set if cosmological
     libvelociraptorOpt.icosmologicalin = s.icosmologicalsim;
 
+    //store a general mass unit, useful if running uniform box with single mass
+    //and saving memory by not storing mass per particle.
+#ifdef NOMASS
+    libvelociraptorOpt.MassValue = s.mass_uniform_box;
+    NOMASSCheck(libvelociraptorOpt);
+#endif
+
     //write velociraptor configuration info, appending .configuration to the input config file and writing every config option
     libvelociraptorOpt.outname = configname;
 
@@ -270,6 +277,13 @@ int InitVelociraptorExtra(const int iextra, char* configname, unitinfo u, siminf
 
     //set if cosmological
     libvelociraptorOptextra[iextra].icosmologicalin = s.icosmologicalsim;
+
+    //store a general mass unit, useful if running uniform box with single mass
+    //and saving memory by not storing mass per particle.
+#ifdef NOMASS
+    libvelociraptorOptextra[iextra].MassValue = s.mass_uniform_box;
+    NOMASSCheck(libvelociraptorOptextra[iextra]);
+#endif
 
     //write velociraptor configuration info, appending .configuration to the input config file and writing every config option
     libvelociraptorOptextra[iextra].outname = configname;
@@ -424,12 +438,6 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
     libvelociraptorOpt.memuse_ave = 0;
     libvelociraptorOpt.memuse_nsamples = 0;
 
-    //store a general mass unit, useful if running uniform box with single mass
-    //and saving memory by not storing mass per particle.
-#ifdef NOMASS
-    libvelociraptorOpt.MassValue = s.mass_uniform_box;
-#endif
-
     //write associated units and simulation details (which contains scale factor/time information)
     SetVelociraptorSimulationState(c, s);
     WriteSimulationInfo(libvelociraptorOpt);
@@ -455,7 +463,6 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
     //KDTree *tree;
     //to store information about the group
     PropData *pdata = NULL,*pdatahalos = NULL;
-    double time1;
 
     /// Set pointer to cell node IDs
     libvelociraptorOpt.cellnodeids = cell_node_ids;
@@ -471,7 +478,7 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
     parts.resize(Nmemlocal);
 
     cout<<"Copying particle data..."<< endl;
-    time1=MyGetTime();
+    auto time1=MyGetTime();
 
     ndark = num_gravity_parts - num_hydro_parts - num_star_parts - num_bh_parts;
     nbaryons = num_hydro_parts + num_star_parts + num_bh_parts;
@@ -485,7 +492,7 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
     /// If we are performing a baryon search, sort the particles so that the DM particles are at the start of the array followed by the gas particles.
     // note that we explicitly convert positions from comoving to physical as swift_vel_parts is in
     if (libvelociraptorOpt.iBaryonSearch>0 && libvelociraptorOpt.partsearchtype!=PSTALL) {
-        size_t dmOffset = 0, baryonOffset = 0, gasOffset = 0, starOffset = 0, bhOffset = 0, otherparttype = 0;
+        size_t dmOffset = 0, baryonOffset = 0, gasOffset = 0, starOffset = 0, bhOffset = 0;
         pbaryons=&(parts.data()[ndark]);
         cout<<"There are "<<nbaryons<<" gas particles and "<<ndark<<" DM particles."<<endl;
         for(auto i=0; i<Nlocal; i++)
@@ -584,12 +591,11 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
     //lets free the memory of swift_parts
     free(swift_parts);
 
-    time1=MyGetTime()-time1;
     cout<<ThisTask<<" Finished copying particle data."<< endl;
 #ifdef HIGHRES
     cout<<ThisTask<<" zoom simulation where there are "<<ninterloper<<" low resolution interloper particles "<<endl;
 #endif
-    cout<<ThisTask<<" took "<<time1<<" to copy "<<Nlocal<<" particles from SWIFT to a local format. Out of "<<Ntotal<<endl;
+    cout<<ThisTask<<" took "<<MyElapsedTime(time1)<<" to copy "<<Nlocal<<" particles from SWIFT to a local format. Out of "<<Ntotal<<endl;
     cout<<ThisTask<<" There are "<<Nlocal<<" particles and have allocated enough memory for "<<Nmemlocal<<" requiring "<<Nmemlocal*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
     if (libvelociraptorOpt.iBaryonSearch>0) cout<<ThisTask<<"There are "<<Nlocalbaryon[0]<<" baryon particles and have allocated enough memory for "<<Nmemlocalbaryon<<" requiring "<<Nmemlocalbaryon*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
     cout<<ThisTask<<" will also require additional memory for FOF algorithms and substructure search. Largest mem needed for preliminary FOF search. Rough estimate is "<<Nlocal*(sizeof(Int_tree_t)*8)/1024./1024./1024.<<"GB of memory"<<endl;
@@ -602,8 +608,7 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
     //
     time1=MyGetTime();
     pfof=SearchFullSet(libvelociraptorOpt,Nlocal,parts,ngroup);
-    time1=MyGetTime()-time1;
-    cout<<"TIME::"<<ThisTask<<" took "<<time1<<" to search "<<Nlocal<<" with "<<nthreads<<endl;
+    cout<<"TIME::"<<ThisTask<<" took "<<MyElapsedTime(time1)<<" to search "<<Nlocal<<" with "<<nthreads<<endl;
     nhalos=ngroup;
     //if caculating inclusive halo masses, then for simplicity, I assume halo id order NOT rearranged!
     //this is not necessarily true if baryons are searched for separately.
@@ -631,8 +636,7 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
         time1=MyGetTime();
         //if groups have been found (and localized to single MPI thread) then proceed to search for subsubstructures
         SearchSubSub(libvelociraptorOpt, Nlocal, parts, pfof,ngroup,nhalos,pdatahalos);
-        time1=MyGetTime()-time1;
-        cout<<"TIME::"<<ThisTask<<" took "<<time1<<" to search for substructures "<<Nlocal<<" with "<<nthreads<<endl;
+        cout<<"TIME::"<<ThisTask<<" took "<<MyElapsedTime(time1)<<" to search for substructures "<<Nlocal<<" with "<<nthreads<<endl;
     }
     pdata=new PropData[ngroup+1];
     //if inclusive halo mass required
@@ -664,8 +668,7 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
             pbaryons=NULL;
             SearchBaryons(libvelociraptorOpt, nbaryons, pbaryons, ndark, parts, pfof, ngroup,nhalos,libvelociraptorOpt.iseparatefiles,libvelociraptorOpt.iInclusiveHalo,pdata);
         }
-        time1=MyGetTime()-time1;
-        cout<<"TIME::"<<ThisTask<<" took "<<time1<<" to search baryons  with "<<nthreads<<endl;
+        cout<<"TIME::"<<ThisTask<<" took "<<MyElapsedTime(time1)<<" to search baryons  with "<<nthreads<<endl;
     }
 
     //get mpi local hierarchy
@@ -691,6 +694,26 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
     //if returning to swift as swift is writing a snapshot, then write for the groups where the particles are found in a file
     //assuming that the swift task and swift index can be used to determine where a particle will be written.
     if (ireturngroupinfoflag != 1 ) WriteSwiftExtendedOutput (libvelociraptorOpt, ngroup, numingroup, pglist, parts);
+
+    // Find offset to first group on each MPI rank
+    Int_t ngoffset=0,ngtot=0;
+    Int_t nig=0;
+    ngtot=ngroup;
+#ifdef USEMPI
+    if (NProcs > 1) {
+        ngtot = 0;
+        for (auto j=0;j<ThisTask;j++)ngoffset+=mpi_ngroups[j];
+        for (auto j=0;j<NProcs;j++)ngtot+=mpi_ngroups[j];
+    }
+#endif
+
+    // Compute group membership for each particle and store in PID
+    for (auto i=0; i<Nlocal; i++)parts[i].SetPID(0);
+    for (auto i=1; i<=ngroup; i++) {
+      for (auto j=0;j<numingroup[i];j++) {
+        parts[pglist[i][j]].SetPID(i+ngoffset+libvelociraptorOpt.snapshotvalue);
+      }
+    }
 
     for (Int_t i=1;i<=ngroup;i++) delete[] pglist[i];
     delete[] pglist;
@@ -720,17 +743,6 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
     }
 
     //first sort so all particles in groups first
-    Int_t ngoffset=0,ngtot=0;
-    Int_t nig=0;
-
-    ngtot=ngroup;
-#ifdef USEMPI
-    if (NProcs > 1) {
-        ngtot = 0;
-        for (auto j=0;j<ThisTask;j++)ngoffset+=mpi_ngroups[j];
-        for (auto j=0;j<NProcs;j++)ngtot+=mpi_ngroups[j];
-    }
-#endif
     cout<<"VELOCIraptor sorting info to return group ids to swift"<<endl;
     if (ngtot == 0) {
         cout<<"No groups found"<<endl;
@@ -744,21 +756,24 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
         *numpartingroups=nig;
         return NULL;
     }
-    //move particles back to original swift task
-    //store group id
-    for (auto i=0;i<Nlocal; i++) {
-        if (pfof[i]>0) parts[i].SetPID((pfof[i]+ngoffset)+libvelociraptorOpt.snapshotvalue);
-        else parts[i].SetPID(0);
-    }
+
     delete [] pfof;
 #ifdef USEMPI
     if (NProcs > 1) {
-        for (auto i=0;i<Nlocal; i++) parts[i].SetID((parts[i].GetSwiftTask()==ThisTask));
+        for (auto i=0;i<Nlocal; i++) parts[i].SetID((parts[i].GetSwiftTask()!=ThisTask));
         //now sort items according to whether local swift task
-        qsort(parts.data(), nig, sizeof(Particle), IDCompare);
+        qsort(parts.data(), Nlocal, sizeof(Particle), IDCompare);
         //communicate information
         MPISwiftExchange(parts);
         Nlocal = parts.size();
+
+        for (auto i=0;i<Nlocal; i++) {
+          if(parts[i].GetSwiftTask() != ThisTask) {
+            cout << "Particle on wrong task!";
+            MPI_Abort(MPI_COMM_WORLD, 1);
+          }
+        }
+
     }
 #endif
     qsort(parts.data(), Nlocal, sizeof(Particle), PIDCompare);

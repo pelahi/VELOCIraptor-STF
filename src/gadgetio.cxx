@@ -14,7 +14,7 @@
 void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle *&Pbaryons, Int_t nbaryons)
 {
     //counters
-    Int_t i,k,n,temp,count,countsph,count2,bcount,bcount2,pc,pc_new,Ntotfile;
+    Int_t i,k,n,count,countsph,count2,bcount,bcount2,pc,pc_new,Ntotfile;
     Int_t ntot_withmasses;
     //used to read gadget data
     unsigned int dummy;
@@ -22,9 +22,11 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
     FLOAT ctemp[3];
     REAL dtemp;
     char buf[2000];
+#ifdef GADGET2FORMAT
     char DATA[5];
+#endif
     //store cosmology
-    double z,aadjust,Hubble,Hubbleflow;
+    double z,aadjust=1.0,Hubble,Hubbleflow;
 
     fstream *Fgad;
     struct gadget_header *header;
@@ -34,7 +36,7 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
     Int_t ninputoffset = 0;
 #ifndef USEMPI
     Int_t Ntotal;
-    int ThisTask=0,NProcs=1;
+    int NProcs=1;
     ireadfile=new int[opt.num_files];
     for (i=0;i<opt.num_files;i++) ireadfile[i]=1;
     ireadtask=new int[NProcs];
@@ -208,6 +210,9 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
         opt.numpart[j]+=((long long)header[ifirstfile].npartTotalHW[j]<<32);
         Ntotal+=((long long)header[ifirstfile].npartTotalHW[j]<<32);
     }
+#ifdef NOMASS
+    if (header[ifirstfile].mass[GDMTYPE] > 0) opt.MassValue = header[ifirstfile].mass[GDMTYPE]*mscale;
+#endif
     cout<<"File contains "<<Ntotal<<" particles at is at time "<<opt.a<<endl;
     cout<<"Particle system contains "<<nbodies<<" particles at is at time "<<opt.a<<" in a box of size "<<opt.p<<endl;
     //for cosmological box
@@ -789,7 +794,7 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
     for(i=0; i<opt.num_files; i++)
     if (ireadfile[i])
     {
-        if(opt.num_files>1) sprintf(buf,"%s.%d",opt.fname,i);
+        if(opt.num_files>1) sprintf(buf,"%s.%lld",opt.fname,i);
         else sprintf(buf,"%s",opt.fname);
 
         count=0;for(k=0;k<NGTYPE;k++)count+=header[i].npart[k];
@@ -1066,7 +1071,7 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
 
     }
     //all fstreams now at appropriate points in the input file so data easily read
-    for(i=0,count=0,pc=0;i<opt.num_files; i++,pc=pc_new,count=count2)
+    for(i=0,count=0,bcount=0,pc=0;i<opt.num_files; i++,pc=pc_new,count=count2)
     if (ireadfile[i])
     {
         //determine number of particles with masses that need to be read

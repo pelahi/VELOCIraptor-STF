@@ -115,7 +115,7 @@ Int_t OpenMPLocalSearch(Options &opt,
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
 #endif
-    double time1=MyGetTime();
+    auto time1=MyGetTime();
     cout<<ThisTask<<": Starting local openmp searches "<<endl;
     #pragma omp parallel default(shared) \
     private(i,p3dfofomp,orgIndex, ng)
@@ -137,7 +137,7 @@ Int_t OpenMPLocalSearch(Options &opt,
         ngtot += ng;
     }
     }
-    cout<<ThisTask<<" finished local search "<<ngtot<<" in "<<MyGetTime()-time1<<endl;
+    cout<<ThisTask<<" finished local search "<<ngtot<<" in "<<MyElapsedTime(time1)<<endl;
     return ngtot;
 }
 
@@ -147,10 +147,9 @@ OMP_ImportInfo *OpenMPImportParticles(Options &opt, const Int_t nbodies, vector<
     const Int_t numompregions, OMP_Domain *&ompdomain, const Double_t rdist,
     Int_t *&omp_nrecv_total, Int_t *&omp_nrecv_offset, Int_t &importtotal)
 {
-    Int_t i,j,orgIndex,sum;
-    int omptask;
+    Int_t i,j,orgIndex;
     importtotal=0;
-    double time1=MyGetTime();
+    auto time1=MyGetTime();
     OMP_ImportInfo *ompimport;
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
@@ -189,7 +188,7 @@ OMP_ImportInfo *OpenMPImportParticles(Options &opt, const Int_t nbodies, vector<
             }
         }
     }
-    cout<<ThisTask<<" finished import "<<MyGetTime()-time1<<endl;
+    cout<<ThisTask<<" finished import "<<MyElapsedTime(time1)<<endl;
     return ompimport;
 }
 
@@ -206,7 +205,7 @@ void OpenMPLinkAcross(Options &opt,
     Int_t nt, orgIndex, curIndex, *nn=new Int_t[nbodies], pfofcomp;
     int curTask;
     Coordinate x;
-    double time1=MyGetTime();
+    auto time1=MyGetTime();
     Particle *Pval;
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
@@ -280,7 +279,7 @@ void OpenMPLinkAcross(Options &opt,
         if (opt.iverbose>1) cout<<ThisTask<<" linking across at loop "<<numloops<<" having found "<<omp_links_across_total<<" links"<<endl;
     }while(omp_links_across_total>0);
     delete[] nn;
-    cout<<ThisTask<<" finished linking "<<MyGetTime()-time1<<endl;
+    cout<<ThisTask<<" finished linking "<<MyElapsedTime(time1)<<endl;
 }
 
 Int_t OpenMPResortParticleandGroups(Int_t nbodies, vector<Particle> &Part, Int_t *&pfof, Int_t minsize)

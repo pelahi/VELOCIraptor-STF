@@ -52,9 +52,8 @@ void MPIInitialDomainDecomposition(Options &opt)
         MPIInitialDomainDecompositionWithMesh(opt);
         return;
     }
-    Int_t i,j,k,n,m,temp,count,count2,pc,pc_new, Ntot;
+    Int_t i,j,k;
     int Nsplit,isplit;
-    Int_t nbins1d,nbins3d, ibin[3];
     Double_t diffsplit;
     int b,a;
 
@@ -113,9 +112,7 @@ void MPIInitialDomainDecomposition(Options &opt)
             }
         }
         //here use the three different histograms to define the boundary
-        int start[3],end[3];
-        Double_t bndval[3],binsum[3],lastbin;
-        start[0]=start[1]=start[2]=0;
+        Double_t bndval[3];
         for (i=0;i<mpi_nxsplit[ix];i++) {
             bndval[0]=(mpi_xlim[ix][1]-mpi_xlim[ix][0])*(Double_t)(i+1)/(Double_t)mpi_nxsplit[ix];
             if(i<mpi_nxsplit[ix]-1) {
@@ -166,8 +163,10 @@ void MPIInitialDomainDecomposition(Options &opt)
 
 void MPIInitialDomainDecompositionWithMesh(Options &opt){
     if (ThisTask==0) {
+        //each processor takes subsection of volume where use simple 2^(ceil(log(NProcs)/log(2))) subdivision
+        opt.numcellsperdim = max((int)pow(2,(int)ceil(log((float)NProcs)/log(2.0))), opt.minnumcellperdim);
         //each processor takes subsection of volume where use simple NProcs^(1/3) subdivision
-        opt.numcellsperdim = max((int)ceil(pow((double)NProcs,(double)(1.0/3.0)))*2, opt.minnumcellperdim);
+        // opt.numcellsperdim = max((int)ceil(pow((double)NProcs,(double)(1.0/3.0)))*8, opt.minnumcellperdim);
         unsigned int n3 = opt.numcells = opt.numcellsperdim*opt.numcellsperdim*opt.numcellsperdim;
         double idelta = 1.0/(double)opt.numcellsperdim;
         for (auto i=0; i<3; i++) {
@@ -229,11 +228,13 @@ void MPIInitialDomainDecompositionWithMesh(Options &opt){
             numcellspertask[itask]++;
             count++;
         }
-        cout<<"Z-curve Mesh MPI decomposition: "<<endl;
-        cout<<"Mesh has resolution of "<<opt.numcellsperdim<<" per spatial dim "<<endl;
-        cout<<"with each mesh spanning ("<<opt.cellwidth[0]<<", "<<opt.cellwidth[1]<<", "<<opt.cellwidth[2]<<")"<<endl;
-        cout<<"MPI tasks :"<<endl;
-        for (auto i=0; i<NProcs; i++) cout<<"Task "<<i<<" has "<<numcellspertask[i]/double(n3)<<" of the volume"<<endl;
+        if (ThisTask == 0) {
+            cout<<"Z-curve Mesh MPI decomposition: "<<endl;
+            cout<<"Mesh has resolution of "<<opt.numcellsperdim<<" per spatial dim "<<endl;
+            cout<<"with each mesh spanning ("<<opt.cellwidth[0]<<", "<<opt.cellwidth[1]<<", "<<opt.cellwidth[2]<<")"<<endl;
+            cout<<"MPI tasks :"<<endl;
+            for (auto i=0; i<NProcs; i++) cout<<"Task "<<i<<" has "<<numcellspertask[i]/double(n3)<<" of the volume"<<endl;
+        }
     }
     //broadcast data
     MPI_Bcast(&opt.numcells, 1, MPI_INTEGER, 0, MPI_COMM_WORLD);
@@ -305,6 +306,17 @@ bool MPIRepartitionDomainDecompositionWithMesh(Options &opt){
         }
         mpinumparts[NProcs-1] = numparts;
         if (ThisTask == 0) {
+            for (auto x:mpinumparts) if (x == 0) {
+                cerr<<"ERROR: MPI Process has zero particles associated with it, likely due to too many mpi tasks requested or too coarse a mesh used."<<endl;
+                cerr<<"Current number of tasks: "<<NProcs<<endl;
+                cerr<<"Current mesh resolution "<<opt.numcellsperdim<<"^3"<<endl;
+                Int_t sum = 0; for(auto x:opt.cellnodenumparts) sum +=x;
+                cerr<<"Total number of particles loaded "<<sum<<endl;
+                cerr<<"Suggested number of particles per mpi processes is > 1e7"<<endl;
+                cerr<<"Suggested number of mpi processes using 1e7 is "<<(int)ceil(sum/1e7)<<endl;
+                cerr<<"Increase mesh resolution or reduce MPI Processes "<<endl;
+                MPI_Abort(MPI_COMM_WORLD,8);
+            }
             cout<<"Now have MPI imbalance of "<<MPILoadBalanceWithMesh(opt)<<endl;
             cout<<"MPI tasks :"<<endl;
             for (auto i=0; i<NProcs; i++) cout<<" Task "<<i<<" has "<<numcellspertask[i]/double(opt.numcells)<<" of the volume"<<endl;
@@ -336,6 +348,13 @@ void MPINumInDomain(Options &opt)
 #ifdef USEHDF
     else if (opt.inputtype==IOHDF) MPINumInDomainHDF(opt);
 #endif
+    if (ThisTask == 0) {
+        if (Ntotal/1e7 < NProcs) {
+            cout<<"WARNING: Suggested number of particles per mpi processes is roughly > 1e7"<<endl;
+            cout<<"Number of MPI tasks greater than this suggested number"<<endl;
+            cerr<<"May result in poor performance"<<endl;
+        }
+    }
     //if using mesh, check load imbalance and also repartition
     if (opt.impiusemesh) {
         if (MPIRepartitionDomainDecompositionWithMesh(opt)){
@@ -429,6 +448,7 @@ int MPIGetParticlesProcessor(Options &opt, Double_t x, Double_t y, Double_t z){
     }
     cerr<<ThisTask<<" has particle outside the mpi domains of every process ("<<x<<","<<y<<","<<z<<")"<<endl;
     MPI_Abort(MPI_COMM_WORLD,9);
+    return -1;
 }
 
 
@@ -806,7 +826,6 @@ void MPIFillFOFBuffWithExtraDMInfo(Options &opt, Int_t numexport, fofid_in *FoFG
 
 void MPISendParticleInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle *Part, int taskID)
 {
-    MPI_Status status;
     vector<Int_t> indices_gas, indices_star, indices_bh, indices_extradm;
     Int_t num = 0, numextrafields = 0, index, offset = 0;
     vector<float> propbuff_gas, propbuff_star, propbuff_bh, propbuff_extradm;
@@ -996,7 +1015,6 @@ void MPISendParticleInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle
 void MPISendHydroInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle *Part, int taskID)
 {
 #ifdef GASON
-    MPI_Status status;
     vector<Int_t> indices;
     Int_t num = 0, numextrafields = 0, index, offset = 0;
     vector<float> propbuff;
@@ -1123,7 +1141,6 @@ void MPISendBHInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle *Part
 void MPISendExtraDMInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle *Part, int taskID)
 {
 #ifdef EXTRADMON
-    MPI_Status status;
     vector<Int_t> indices;
     Int_t num = 0, numextrafields = 0, index, offset = 0;
     vector<float> propbuff;
@@ -1154,7 +1171,6 @@ void MPISendExtraDMInfoFromReadThreads(Options &opt, Int_t nlocalbuff, Particle 
 void MPIISendHydroInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int dst, int tag, MPI_Request &rqst)
 {
 #ifdef GASON
-    MPI_Status status;
     vector<Int_t> indices;
     Int_t num = 0, numextrafields = 0, index, offset = 0;
     vector<float> propbuff;
@@ -1197,7 +1213,6 @@ void MPIISendHydroInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int dst, 
 void MPIISendStarInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int dst, int tag, MPI_Request &rqst)
 {
 #ifdef STARON
-    MPI_Status status;
     vector<Int_t> indices;
     Int_t num = 0, numextrafields = 0, index, offset = 0;
     vector<float> propbuff;
@@ -1240,7 +1255,6 @@ void MPIISendStarInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int dst, i
 void MPIISendBHInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int dst, int tag, MPI_Request &rqst)
 {
 #ifdef BHON
-    MPI_Status status;
     vector<Int_t> indices;
     Int_t num = 0, numextrafields = 0, index, offset = 0;
     vector<float> propbuff;
@@ -1384,7 +1398,6 @@ int MPISearchForOverlap(Coordinate &x, Double_t &rdist){
 int MPISearchForOverlap(Double_t xsearch[3][2]){
     Double_t xsearchp[7][3][2];//used to store periodic reflections
     int numoverlap=0,numreflecs=0,ireflec[3],numreflecchoice=0;
-    int indomain;
     int j,k;
 
     for (j=0;j<NProcs;j++) {
@@ -2054,7 +2067,7 @@ void MPIReceiveExtraDMInfo(Options &opt, Int_t nlocalbuff, Particle *Part, int s
 void MPIReceiveParticlesFromReadThreads(Options &opt, Particle *&Pbuf, Particle *Part, int *&readtaskID, int *&irecv, int *&mpi_irecvflag, Int_t *&Nlocalthreadbuf, MPI_Request *&mpi_request, Particle *&Pbaryons)
 {
     int irecvflag;
-    Int_t i,j,k,Nlocaltotalbuf;
+    Int_t i,k,Nlocaltotalbuf;
     MPI_Status status;
 
     //for all threads not reading snapshots, simply receive particles as necessary from all threads involved with reading the data
@@ -3033,11 +3046,9 @@ void MPISendParticlesBetweenReadThreads(Options &opt, vector<Particle> *&Preadbu
 }
 
 void MPIGetExportNum(const Int_t nbodies, Particle *Part, Double_t rdist){
-    Int_t i, j,nthreads,nexport=0,nimport=0;
-    Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
+    Int_t i, j, nexport=0,nimport=0;
+    Int_t nsend_local[NProcs];
     Double_t xsearch[3][2];
-    Int_t sendTask,recvTask;
-    MPI_Status status;
 
     ///\todo would like to add openmp to this code. In particular, loop over nbodies but issue is nexport.
     ///This would either require making a FoFDataIn[nthreads][NExport] structure so that each omp thread
@@ -3060,16 +3071,14 @@ void MPIGetExportNum(const Int_t nbodies, Particle *Part, Double_t rdist){
     }
     NExport=nexport;//*(1.0+MPIExportFac);
     MPI_Allgather(nsend_local, NProcs, MPI_Int_t, mpi_nsend, NProcs, MPI_Int_t, MPI_COMM_WORLD);
-    NImport=0;
-    for (j=0;j<NProcs;j++)NImport+=mpi_nsend[ThisTask+j*NProcs];
+    for (j=0;j<NProcs;j++)nimport+=mpi_nsend[ThisTask+j*NProcs];
+    NImport = nimport;
 }
 
 void MPIGetExportNumUsingMesh(Options &opt, const Int_t nbodies, Particle *Part, Double_t rdist){
-    Int_t i, j,nthreads,nexport=0,nimport=0;
-    Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
+    Int_t i, j, nexport=0,nimport=0;
+    Int_t nsend_local[NProcs];
     Double_t xsearch[3][2];
-    Int_t sendTask,recvTask;
-    MPI_Status status;
     //siminfo *s = &opt.swiftsiminfo;
     //Options *s = &opt;
 
@@ -3082,14 +3091,6 @@ void MPIGetExportNumUsingMesh(Options &opt, const Int_t nbodies, Particle *Part,
 
     cout<<"Finding number of particles to export to other MPI domains..."<<endl;
 
-    /// Get some constants
-    const double dim_x = opt.spacedimension[0];
-    const double dim_y = opt.spacedimension[1];
-    const double dim_z = opt.spacedimension[2];
-    const int cdim[3] = {opt.numcellsperdim, opt.numcellsperdim, opt.numcellsperdim};
-    const double ih_x = opt.icellwidth[0];
-    const double ih_y = opt.icellwidth[1];
-    const double ih_z = opt.icellwidth[2];
     vector<int>sent_mpi_domain(NProcs);
 
     for (i=0;i<nbodies;i++) {
@@ -3107,18 +3108,18 @@ void MPIGetExportNumUsingMesh(Options &opt, const Int_t nbodies, Particle *Part,
     }
     NExport=nexport;//*(1.0+MPIExportFac);
     MPI_Allgather(nsend_local, NProcs, MPI_Int_t, mpi_nsend, NProcs, MPI_Int_t, MPI_COMM_WORLD);
-    NImport=0;
-    for (j=0;j<NProcs;j++)NImport+=mpi_nsend[ThisTask+j*NProcs];
+    for (j=0;j<NProcs;j++)nimport+=mpi_nsend[ThisTask+j*NProcs];
+    NImport = nimport;
 }
 
 /*! Determine which particles have a spatial linking length such that linking overlaps the domain of another processor store the necessary information to send that data
     and then send that information
 */
 void MPIBuildParticleExportList(Options &opt, const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_tree_t *&Len, Double_t rdist){
-    Int_t i, j,nthreads,nexport=0,nimport=0;
+    Int_t i, j,nexport=0,nimport=0;
     Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
     Double_t xsearch[3][2];
-    Int_t sendTask,recvTask;
+    Int_t sendTask, recvTask;
     int maxchunksize=LOCAL_MAX_MSGSIZE/NProcs/sizeof(Particle);
     int nsend,nrecv,nsendchunks,nrecvchunks,numsendrecv;
     int sendoffset,recvoffset;
@@ -3126,7 +3127,6 @@ void MPIBuildParticleExportList(Options &opt, const Int_t nbodies, Particle *Par
     int cursendchunksize,currecvchunksize;
     MPI_Status status;
     MPI_Comm mpi_comm = MPI_COMM_WORLD;
-    int mpi_tag, mpi_tag_offset;
 
     ///\todo would like to add openmp to this code. In particular, loop over nbodies but issue is nexport.
     ///This would either require making a FoFDataIn[nthreads][NExport] structure so that each omp thread
@@ -3239,7 +3239,7 @@ void MPIBuildParticleExportList(Options &opt, const Int_t nbodies, Particle *Par
 /*! Similar to \ref MPIBuildParticleExportList but uses mesh of swift to determine when mpi's to search
 */
 void MPIBuildParticleExportListUsingMesh(Options &opt, const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_tree_t *&Len, Double_t rdist){
-    Int_t i, j,nthreads,nexport=0,nimport=0;
+    Int_t i, j, nexport=0,nimport=0;
     Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
     Double_t xsearch[3][2];
     Int_t sendTask,recvTask;
@@ -3442,12 +3442,9 @@ void MPIBuildParticleExportListUsingMesh(Options &opt, const Int_t nbodies, Part
 /*! like \ref MPIGetExportNum but number based on NN search, useful for reducing memory costs at the expense of cpu cycles
 */
 void MPIGetNNExportNum(const Int_t nbodies, Particle *Part, Double_t *rdist){
-    Int_t i, j,nthreads,nexport=0,nimport=0;
-    Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
+    Int_t i, j, nexport=0,nimport=0;
+    Int_t nsend_local[NProcs];
     Double_t xsearch[3][2];
-    Int_t sendTask,recvTask;
-    MPI_Status status;
-    int indomain;
 
     ///\todo would like to add openmp to this code. In particular, loop over nbodies but issue is nexport.
     ///This would either require making a FoFDataIn[nthreads][NExport] structure so that each omp thread
@@ -3474,21 +3471,18 @@ void MPIGetNNExportNum(const Int_t nbodies, Particle *Part, Double_t *rdist){
         }
     }
     //and then gather the number of particles to be sent from mpi thread m to mpi thread n in the mpi_nsend[NProcs*NProcs] array via [n+m*NProcs]
-    MPI_Allgather(nsend_local, NProcs, MPI_Int_t, mpi_nsend, NProcs, MPI_Int_t, MPI_COMM_WORLD);
-    NImport=0;
-    for (j=0;j<NProcs;j++)NImport+=mpi_nsend[ThisTask+j*NProcs];
     NExport=nexport;
+    MPI_Allgather(nsend_local, NProcs, MPI_Int_t, mpi_nsend, NProcs, MPI_Int_t, MPI_COMM_WORLD);
+    for (j=0;j<NProcs;j++)nimport+=mpi_nsend[ThisTask+j*NProcs];
+    NImport=nimport;
 }
 
 /*! like \ref MPIGetExportNum but number based on NN search, useful for reducing memory costs at the expense of cpu cycles
 */
 void MPIGetNNExportNumUsingMesh(Options &opt, const Int_t nbodies, Particle *Part, Double_t *rdist){
-    Int_t i, j,nthreads,nexport=0,nimport=0;
-    Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
+    Int_t i, j, nexport=0,nimport=0;
+    Int_t nsend_local[NProcs];
     Double_t xsearch[3][2];
-    Int_t sendTask,recvTask;
-    MPI_Status status;
-    int indomain;
     vector<int>sent_mpi_domain(NProcs);
 
     ///\todo would like to add openmp to this code. In particular, loop over nbodies but issue is nexport.
@@ -3516,23 +3510,22 @@ void MPIGetNNExportNumUsingMesh(Options &opt, const Int_t nbodies, Particle *Par
         }
     }
     //and then gather the number of particles to be sent from mpi thread m to mpi thread n in the mpi_nsend[NProcs*NProcs] array via [n+m*NProcs]
-    MPI_Allgather(nsend_local, NProcs, MPI_Int_t, mpi_nsend, NProcs, MPI_Int_t, MPI_COMM_WORLD);
-    NImport=0;
-    for (j=0;j<NProcs;j++)NImport+=mpi_nsend[ThisTask+j*NProcs];
     NExport=nexport;
+    MPI_Allgather(nsend_local, NProcs, MPI_Int_t, mpi_nsend, NProcs, MPI_Int_t, MPI_COMM_WORLD);
+    for (j=0;j<NProcs;j++)nimport+=mpi_nsend[ThisTask+j*NProcs];
+    NImport=nimport;
 }
 
 /*! like \ref MPIBuildParticleExportList but each particle has a different distance stored in rdist used to find nearest neighbours
 */
 void MPIBuildParticleNNExportList(const Int_t nbodies, Particle *Part, Double_t *rdist){
-    Int_t i, j,nthreads,nexport=0,nimport=0;
+    Int_t i, j,nexport=0,nimport=0;
     Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
     Double_t xsearch[3][2];
     MPI_Status status;
-    int indomain;
     int sendTask,recvTask;
     int maxchunksize=2147483648/NProcs/sizeof(nndata_in);
-    int nsend,nrecv,nsendchunks,nrecvchunks,numsendrecv;
+    int nsendchunks,nrecvchunks,numsendrecv;
     int sendoffset,recvoffset;
     int cursendchunksize,currecvchunksize;
 
@@ -3634,12 +3627,11 @@ void MPIBuildParticleNNExportList(const Int_t nbodies, Particle *Part, Double_t 
 /*! like \ref MPIBuildParticleExportList but each particle has a different distance stored in rdist used to find nearest neighbours
 */
 void MPIBuildParticleNNExportListUsingMesh(Options &opt, const Int_t nbodies, Particle *Part, Double_t *rdist){
-    Int_t i, j,nthreads,nexport=0,nimport=0;
+    Int_t i, j, nexport=0,nimport=0;
     Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
     Double_t xsearch[3][2];
     Int_t sendTask,recvTask;
     MPI_Status status;
-    int indomain;
     vector<int>sent_mpi_domain(NProcs);
 
     ///\todo would like to add openmp to this code. In particular, loop over nbodies but issue is nexport.
@@ -3725,21 +3717,11 @@ void MPIBuildParticleNNExportListUsingMesh(Options &opt, const Int_t nbodies, Pa
     imported back to exported particle's thread so that a proper NN search can be made.
 */
 void MPIGetNNImportNum(const Int_t nbodies, KDTree *tree, Particle *Part, int iallflag){
-    Int_t i, j,nthreads,nexport=0,ncount;
-    Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
+    Int_t i, j, nexport=0;
+    Int_t nsend_local[NProcs],nbuffer[NProcs];
     Int_t oldnsend[NProcs*NProcs];
-    Double_t xsearch[3][2];
     bool *iflagged = new bool[nbodies];
     vector<Int_t> taggedindex;
-    nthreads=1;
-    Int_t sendTask,recvTask;
-    MPI_Status status;
-#ifdef USEOPENMP
-#pragma omp parallel
-    {
-            if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
-    }
-#endif
     for(j=0;j<NProcs;j++)
     {
         nbuffer[j]=0;
@@ -3780,25 +3762,17 @@ void MPIGetNNImportNum(const Int_t nbodies, KDTree *tree, Particle *Part, int ia
     Is also used for calculating spherical overdensity quantities, where iSOcalc = true
 */
 Int_t MPIBuildParticleNNImportList(Options &opt, const Int_t nbodies, KDTree *tree, Particle *Part, int iallflag, bool iSOcalc){
-    Int_t i, j,nthreads,nexport=0,ncount;
+    Int_t i, j, nexport=0,ncount;
     Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
-    Double_t xsearch[3][2];
     bool *iflagged = new bool[nbodies];
     vector<Int_t> taggedindex;
-    nthreads=1;
     int sendTask,recvTask;
     int maxchunksize=2147483648/NProcs/sizeof(Particle);
-    int nsend,nrecv,nsendchunks,nrecvchunks,numsendrecv;
+    int nsendchunks,nrecvchunks,numsendrecv;
     int sendoffset,recvoffset;
     int cursendchunksize,currecvchunksize;
     MPI_Status status;
     MPI_Comm mpi_comm = MPI_COMM_WORLD;
-#ifdef USEOPENMP
-#pragma omp parallel
-    {
-            if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
-    }
-#endif
     for(j=0;j<NProcs;j++)
     {
         nbuffer[j]=0;
@@ -3922,11 +3896,8 @@ Int_t MPIBuildParticleNNImportList(Options &opt, const Int_t nbodies, KDTree *tr
 vector<bool> MPIGetHaloSearchExportNum(const Int_t ngroup, PropData *&pdata, vector<Double_t> &rdist)
 {
     Int_t i,j,nexport=0,nimport=0;
-    Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
+    Int_t nsend_local[NProcs];
     Double_t xsearch[3][2];
-    Int_t sendTask,recvTask;
-    MPI_Status status;
-    int indomain;
     vector<bool> halooverlap(ngroup+1);
 
 
@@ -3954,8 +3925,8 @@ vector<bool> MPIGetHaloSearchExportNum(const Int_t ngroup, PropData *&pdata, vec
     }
     //and then gather the number of particles to be sent from mpi thread m to mpi thread n in the mpi_nsend[NProcs*NProcs] array via [n+m*NProcs]
     MPI_Allgather(nsend_local, NProcs, MPI_Int_t, mpi_nsend, NProcs, MPI_Int_t, MPI_COMM_WORLD);
-    NImport=0;
-    for (j=0;j<NProcs;j++)NImport+=mpi_nsend[ThisTask+j*NProcs];
+    for (j=0;j<NProcs;j++)nimport+=mpi_nsend[ThisTask+j*NProcs];
+    NImport = nimport;
     NExport=nexport;
     return halooverlap;
 }
@@ -3965,11 +3936,8 @@ vector<bool> MPIGetHaloSearchExportNum(const Int_t ngroup, PropData *&pdata, vec
 vector<bool> MPIGetHaloSearchExportNumUsingMesh(Options &opt, const Int_t ngroup, PropData *&pdata, vector<Double_t> &rdist)
 {
     Int_t nexport=0,nimport=0;
-    Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
+    Int_t nsend_local[NProcs];
     Double_t xsearch[3][2];
-    Int_t sendTask,recvTask;
-    MPI_Status status;
-    int indomain;
     vector<bool> halooverlap(ngroup+1);
     vector<int>sent_mpi_domain(NProcs);
 
@@ -3997,8 +3965,8 @@ vector<bool> MPIGetHaloSearchExportNumUsingMesh(Options &opt, const Int_t ngroup
 
     //and then gather the number of particles to be sent from mpi thread m to mpi thread n in the mpi_nsend[NProcs*NProcs] array via [n+m*NProcs]
     MPI_Allgather(nsend_local, NProcs, MPI_Int_t, mpi_nsend, NProcs, MPI_Int_t, MPI_COMM_WORLD);
-    NImport=0;
-    for (auto j=0;j<NProcs;j++)NImport+=mpi_nsend[ThisTask+j*NProcs];
+    for (auto j=0;j<NProcs;j++)nimport+=mpi_nsend[ThisTask+j*NProcs];
+    NImport = nimport;
     NExport=nexport;
     return halooverlap;
 }
@@ -4007,14 +3975,13 @@ vector<bool> MPIGetHaloSearchExportNumUsingMesh(Options &opt, const Int_t ngroup
 */
 void MPIBuildHaloSearchExportList(const Int_t ngroup, PropData *&pdata, vector<Double_t> &rdist, vector<bool> &halooverlap)
 {
-    Int_t i, j,nthreads,nexport=0,nimport=0;
+    Int_t i, j, nexport=0,nimport=0;
     Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
     Double_t xsearch[3][2];
     MPI_Status status;
-    int indomain;
     int sendTask,recvTask;
     int maxchunksize=2147483648/NProcs/sizeof(nndata_in);
-    int nsend,nrecv,nsendchunks,nrecvchunks,numsendrecv;
+    int nsendchunks,nrecvchunks,numsendrecv;
     int sendoffset,recvoffset;
     int cursendchunksize,currecvchunksize;
 
@@ -4107,14 +4074,13 @@ void MPIBuildHaloSearchExportList(const Int_t ngroup, PropData *&pdata, vector<D
 */
 void MPIBuildHaloSearchExportListUsingMesh(Options &opt, const Int_t ngroup, PropData *&pdata, vector<Double_t> &rdist, vector<bool> &halooverlap)
 {
-    Int_t nthreads,nexport=0,nimport=0;
+    Int_t nexport=0,nimport=0;
     Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
     Double_t xsearch[3][2];
     MPI_Status status;
-    int indomain;
     int sendTask,recvTask;
     int maxchunksize=2147483648/NProcs/sizeof(nndata_in);
-    int nsend,nrecv,nsendchunks,nrecvchunks,numsendrecv;
+    int nsendchunks,nrecvchunks,numsendrecv;
     int sendoffset,recvoffset;
     int cursendchunksize,currecvchunksize;
     vector<int>sent_mpi_domain(NProcs);
@@ -4210,21 +4176,11 @@ void MPIBuildHaloSearchExportListUsingMesh(Options &opt, const Int_t ngroup, Pro
 */
 void MPIGetHaloSearchImportNum(const Int_t nbodies, KDTree *tree, Particle *Part)
 {
-    Int_t i, j,nthreads,nexport=0,ncount;
-    Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
+    Int_t i, j, nexport=0;
+    Int_t nsend_local[NProcs],nbuffer[NProcs];
     Int_t oldnsend[NProcs*NProcs];
-    Double_t xsearch[3][2];
     Int_t *nn=new Int_t[nbodies];
     Double_t *nnr2=new Double_t[nbodies];
-    nthreads=1;
-    Int_t sendTask,recvTask;
-    MPI_Status status;
-#ifdef USEOPENMP
-#pragma omp parallel
-    {
-            if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
-    }
-#endif
     for(j=0;j<NProcs;j++)
     {
         nbuffer[j]=0;
@@ -4261,25 +4217,16 @@ void MPIGetHaloSearchImportNum(const Int_t nbodies, KDTree *tree, Particle *Part
     imported back to exported particle's thread so that a proper NN search can be made.
 */
 Int_t MPIBuildHaloSearchImportList(Options &opt, const Int_t nbodies, KDTree *tree, Particle *Part){
-    Int_t i, j,nthreads,nexport=0,ncount;
+    Int_t i, j, nexport=0,ncount;
     Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
-    Double_t xsearch[3][2];
     Int_t *nn=new Int_t[nbodies];
     Double_t *nnr2=new Double_t[nbodies];
-    nthreads=1;
     int sendTask,recvTask;
     int maxchunksize=2147483648/NProcs/sizeof(Particle);
-    int nsend,nrecv,nsendchunks,nrecvchunks,numsendrecv;
+    int nsendchunks,nrecvchunks,numsendrecv;
     int sendoffset,recvoffset;
     int cursendchunksize,currecvchunksize;
     MPI_Status status;
-    MPI_Comm mpi_comm = MPI_COMM_WORLD;
-#ifdef USEOPENMP
-#pragma omp parallel
-    {
-            if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
-    }
-#endif
     for(j=0;j<NProcs;j++)
     {
         nbuffer[j]=0;
@@ -4373,12 +4320,12 @@ Int_t MPIBuildHaloSearchImportList(Options &opt, const Int_t nbodies, KDTree *tr
     mpi domains and their group id accessed through the id array and their stored id and length in numingroup
 */
 void MPIBuildParticleExportBaryonSearchList(Options &opt, const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_t *ids, Int_t *numingroup, Double_t rdist){
-    Int_t i, j,nthreads,nexport=0,nimport=0;
+    Int_t i, j, nexport=0,nimport=0;
     Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
     Double_t xsearch[3][2];
     int sendTask,recvTask;
     int maxchunksize=2147483648/NProcs/sizeof(fofdata_in);
-    int nsend,nrecv,nsendchunks,nrecvchunks,numsendrecv;
+    int nsendchunks,nrecvchunks,numsendrecv;
     int sendoffset,recvoffset;
     int cursendchunksize,currecvchunksize;
     MPI_Status status;
@@ -4528,11 +4475,11 @@ void MPIAdjustLocalGroupIDs(const Int_t nbodies, Int_t *pfof){
 /*! Particles that have been marked for export may have had their fof information updated so need to update this info
 */
 void MPIUpdateExportList(const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_tree_t *&Len){
-    Int_t i, j,nthreads,nexport;
+    Int_t i, j, nexport;
     Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
     int sendTask,recvTask;
     int maxchunksize=2147483648/NProcs/sizeof(fofdata_in);
-    int nsend,nrecv,nsendchunks,nrecvchunks,numsendrecv;
+    int nsendchunks,nrecvchunks,numsendrecv;
     int sendoffset,recvoffset;
     int cursendchunksize,currecvchunksize;
     MPI_Status status;
@@ -4599,7 +4546,6 @@ void MPIUpdateExportList(const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_
 Int_t MPILinkAcross(const Int_t nbodies, KDTree *&tree, Particle *Part, Int_t *&pfof, Int_tree_t *&Len, Int_tree_t *&Head, Int_tree_t *&Next, Double_t rdist2){
     Int_t i,j,k;
     Int_t links=0;
-    Int_t nbuffer[NProcs];
     Int_t *nn=new Int_t[nbodies];
     Int_t nt,ss,oldlen;
     Coordinate x;
@@ -4664,9 +4610,8 @@ Int_t MPILinkAcross(const Int_t nbodies, KDTree *&tree, Particle *Part, Int_t *&
 }
 ///link particles belonging to the same group across mpi domains using comparison function
 Int_t MPILinkAcross(const Int_t nbodies, KDTree *&tree, Particle *Part, Int_t *&pfof, Int_tree_t *&Len, Int_tree_t *&Head, Int_tree_t *&Next, Double_t rdist2, FOFcompfunc &cmp, Double_t *params){
-    Int_t i,j,k;
+    Int_t i,k;
     Int_t links=0;
-    Int_t nbuffer[NProcs];
     Int_t *nn=new Int_t[nbodies];
     Int_t nt;
     for (i=0;i<NImport;i++) {
@@ -4713,10 +4658,8 @@ Int_t MPILinkAcross(const Int_t nbodies, KDTree *&tree, Particle *Part, Int_t *&
 Int_t MPILinkAcross(const Int_t nbodies, KDTree *&tree, Particle *Part, Int_t *&pfof, Int_tree_t *&Len, Int_tree_t *&Head, Int_tree_t *&Next, Double_t rdist2, FOFcheckfunc &check, Double_t *params){
     Int_t i,j,k;
     Int_t links=0;
-    Int_t nbuffer[NProcs];
     Int_t *nn=new Int_t[nbodies];
     Int_t nt;
-    bool iflag;
     Coordinate x;
     for (i=0;i<NImport;i++) {
         //if exported particle not in a group, do nothing
@@ -4761,11 +4704,11 @@ Int_t MPILinkAcross(const Int_t nbodies, KDTree *&tree, Particle *Part, Int_t *&
     return the new local number of particles
 */
 Int_t MPIGroupExchange(Options &opt, const Int_t nbodies, Particle *Part, Int_t *&pfof){
-    Int_t i, j,nthreads,nexport,nimport,nlocal,n;
+    Int_t i, j, nexport,nimport,nlocal;
     Int_t nsend_local[NProcs],noffset_import[NProcs],noffset_export[NProcs],nbuffer[NProcs];
     int sendTask,recvTask;
     int maxchunksize=2147483648/NProcs/sizeof(fofid_in);
-    int nsend,nrecv,nsendchunks,nrecvchunks,numsendrecv;
+    int nsendchunks,nrecvchunks,numsendrecv;
     int sendoffset,recvoffset;
     int cursendchunksize,currecvchunksize;
     MPI_Status status;
@@ -4905,11 +4848,11 @@ Int_t MPIGroupExchange(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
     The baryon equivalent of \ref MPIGroupExchange. Here assume baryons are searched afterwards
 */
 Int_t MPIBaryonGroupExchange(Options &opt, const Int_t nbodies, Particle *Part, Int_t *&pfof){
-    Int_t i, j,nthreads,nexport,nimport,nlocal,n;
+    Int_t i, j, nexport,nimport,nlocal;
     Int_t nsend_local[NProcs],noffset_import[NProcs],noffset_export[NProcs],nbuffer[NProcs];
     int sendTask,recvTask;
     int maxchunksize=2147483648/NProcs/sizeof(fofid_in);
-    int nsend,nrecv,nsendchunks,nrecvchunks,numsendrecv;
+    int nsendchunks,nrecvchunks,numsendrecv;
     int sendoffset,recvoffset;
     int cursendchunksize,currecvchunksize;
     MPI_Status status;
@@ -5048,8 +4991,8 @@ Int_t MPIBaryonGroupExchange(Options &opt, const Int_t nbodies, Particle *Part, 
 
 ///Determine the local number of groups and their sizes (groups must be local to an mpi thread)
 Int_t MPICompileGroups(Options &opt, const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_t minsize){
-    Int_t i,j,start,ngroups;
-    Int_t *numingroup,*groupid,**plist;
+    Int_t i,start,ngroups;
+    Int_t *numingroup,**plist;
     ngroups=0;
     for (i=Noldlocal;i<nbodies;i++) {
         Part[i]=FoFGroupDataLocal[i-Noldlocal].p;
@@ -5103,8 +5046,8 @@ Int_t MPICompileGroups(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
 ///Similar to \ref MPICompileGroups but optimised for separate baryon search
 ///\todo need to update to reflect vector implementation
 Int_t MPIBaryonCompileGroups(Options &opt, const Int_t nbodies, Particle *Part, Int_t *&pfof, Int_t minsize, int iorder){
-    Int_t i,j,start,ngroups;
-    Int_t *numingroup,*groupid,**plist;
+    Int_t i,start,ngroups;
+    Int_t *numingroup, **plist;
     ngroups=0;
 
     //if minimizing memory load when using mpi (by adding extra routines to determine memory required)
@@ -5210,7 +5153,7 @@ Int_t MPISearchBaryons(const Int_t nbaryons, Particle *&Pbaryons, Int_t *&pfofba
     Double_t *dist2;
     if (NImport>0) {
     //now dark matter particles associated with a group existing on another mpi domain are local and can be searched.
-    KDTree *mpitree=new KDTree(PartDataGet,NImport,nsearch/2,mpitree->TPHYS,mpitree->KEPAN,100,0,0,0,period);
+    KDTree *mpitree =  new KDTree(PartDataGet,NImport,nsearch/2,mpitree->TPHYS,mpitree->KEPAN,100,0,0,0,period);
     if (nsearch>NImport) nsearch=NImport;
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
@@ -5261,11 +5204,11 @@ private(i,j,k,tid,p1,pindex,x1,D2,dval,rval,nnID,dist2)
 }
 
 Int_t MPIBaryonExchange(Options &opt, const Int_t nbaryons, Particle *Pbaryons, Int_t *pfofbaryons){
-    Int_t i, j,nthreads,nexport,nimport,nlocal,n;
+    Int_t i, j, nexport,nimport,nlocal;
     Int_t nsend_local[NProcs],noffset_import[NProcs],noffset_export[NProcs],nbuffer[NProcs];
     int sendTask,recvTask;
     int maxchunksize=2147483648/NProcs/sizeof(fofid_in);
-    int nsend,nrecv,nsendchunks,nrecvchunks,numsendrecv;
+    int nsendchunks,nrecvchunks,numsendrecv;
     int sendoffset,recvoffset;
     int cursendchunksize,currecvchunksize;
     MPI_Status status;
@@ -5470,8 +5413,8 @@ void MPICollectFOF(const Int_t nbodies, Int_t *&pfof){
 /*! Collects all the grid data
 */
 void MPIBuildGridData(const Int_t ngrid, GridCell *grid, Coordinate *gvel, Matrix *gveldisp){
-    Int_t i, j,nthreads,nexport=0;
-    Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
+    Int_t i, j;
+    Int_t nsend_local[NProcs],noffset[NProcs];
     Int_t sendTask,recvTask;
     MPI_Status status;
 
@@ -5493,22 +5436,22 @@ void MPIBuildGridData(const Int_t ngrid, GridCell *grid, Coordinate *gvel, Matri
             recvTask = j;//ThisTask^j;//bitwise XOR ensures that recvTask cycles around sendTask
             //blocking point-to-point send and receive.
             MPI_Sendrecv(grid,
-                Ngridlocal* sizeof(struct GridCell), MPI_BYTE,
+                Ngridlocal* sizeof(GridCell), MPI_BYTE,
                 recvTask, TAG_GRID_A,
                 &mpi_grid[noffset[recvTask]],
-                mpi_nsend[ThisTask+recvTask * NProcs] * sizeof(struct GridCell),
+                mpi_nsend[ThisTask+recvTask * NProcs] * sizeof(GridCell),
                 MPI_BYTE, recvTask, TAG_GRID_A, MPI_COMM_WORLD, &status);
             MPI_Sendrecv(gvel,
-                Ngridlocal* sizeof(struct Coordinate), MPI_BYTE,
+                Ngridlocal* sizeof(Coordinate), MPI_BYTE,
                 recvTask, TAG_GRID_B,
                 &mpi_gvel[noffset[recvTask]],
-                mpi_nsend[ThisTask+recvTask * NProcs] * sizeof(struct Coordinate),
+                mpi_nsend[ThisTask+recvTask * NProcs] * sizeof(Coordinate),
                 MPI_BYTE, recvTask, TAG_GRID_B, MPI_COMM_WORLD, &status);
             MPI_Sendrecv(gveldisp,
-                Ngridlocal* sizeof(struct Matrix), MPI_BYTE,
+                Ngridlocal* sizeof(Matrix), MPI_BYTE,
                 recvTask, TAG_GRID_C,
                 &mpi_gveldisp[noffset[recvTask]],
-                mpi_nsend[ThisTask+recvTask * NProcs] * sizeof(struct Matrix),
+                mpi_nsend[ThisTask+recvTask * NProcs] * sizeof(Matrix),
                 MPI_BYTE, recvTask, TAG_GRID_C, MPI_COMM_WORLD, &status);
         }
     }
@@ -5622,7 +5565,7 @@ void MPISwiftExchange(vector<Particle> &Part){
     Int_t nsend_local[NProcs],noffset[NProcs],nbuffer[NProcs];
     int sendTask,recvTask;
     int maxchunksize=2147483648/NProcs/sizeof(Particle);
-    int nsend,nrecv,nsendchunks,nrecvchunks,numsendrecv;
+    int nsendchunks,nrecvchunks,numsendrecv;
     int sendoffset,recvoffset;
     int cursendchunksize,currecvchunksize;
     MPI_Status status;
@@ -5710,12 +5653,12 @@ void MPISwiftExchange(vector<Particle> &Part){
     }
     }
     MPI_Barrier(MPI_COMM_WORLD);
+    Part.resize(nbodies-nexport+nimport);
     if (nexport > 0) delete[] PartBufSend;
     if (nimport > 0) {
         for (i=0;i<nimport;i++) Part[i+nbodies-nexport]=PartBufRecv[i];
         delete[] PartBufRecv;
     }
-    Part.resize(nbodies-nexport+nimport);
 }
 
 #endif

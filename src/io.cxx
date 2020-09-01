@@ -40,7 +40,6 @@ inline void WriteHeaderUnitEntry(Options & opt, H5OutputFile & hfile, string dat
 ///If we need to do that level of checking, lookup return values of stat which will give you more details on why stat failed.
 bool FileExists(const char *fname) {
   struct stat stFileInfo;
-  bool blnReturn;
   int intStat;
   intStat = stat(fname,&stFileInfo);
   if(intStat == 0) return  true;
@@ -109,6 +108,9 @@ void ReadData(Options &opt, vector<Particle> &Part, const Int_t nbodies, Particl
 #endif
 #ifdef USEXDR
     else if (opt.inputtype==IONCHILADA) ReadNchilada(opt,Part,nbodies, Pbaryons, nbaryons);
+#endif
+#ifdef NOMASS
+    NOMASSCheck(opt);
 #endif
     AdjustHydroQuantities(opt,Part,nbodies);
     AdjustStarQuantities(opt,Part,nbodies);
@@ -403,7 +405,10 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
     fstream Fout,Fout2,Fout3;
     string fname, fname2, fname3;
     ostringstream os;
-    unsigned long long noffset=0,ngtot=0,nids=0,nidstot=0,nuids=0,nuidstot=0, ng=0, nwritecommtot=0, nuwritecommtot=0;
+    unsigned long long ngtot=0,nids=0,nidstot=0,nuids=0, nuidstot=0, ng=0;
+#ifdef USEPARALLELHDF
+    unsigned long long nwritecommtot=0, nuwritecommtot=0;
+#endif
     vector<unsigned long long> groupdata;
     vector<unsigned long long> offset;
     vector<long long> partdata;
@@ -413,7 +418,6 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
 #ifdef USEHDF
     H5OutputFile Fhdf, Fhdf3;
     int itemp=0;
-    int ival;
 #if defined(USEMPI) && defined(USEPARALLELHDF)
     vector<Int_t> mpi_ngoffset(NProcs);
     Int_t ngoffset;
@@ -981,8 +985,10 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
     fstream Fout,Fout2;
     string fname, fname2;
     ostringstream os, os2;
-    unsigned long long noffset=0,ngtot=0,nids=0,nidstot,nuids=0,nuidstot=0, nwritecommtot=0, nuwritecommtot=0;
-    Int_t *offset;
+    unsigned long long nids=0, nidstot=0, nuids=0, nuidstot=0;
+#ifdef USEPARALLELHDF
+    unsigned long long nwritecommtot=0, nuwritecommtot=0;
+#endif
     int *typeval;
 
 #ifdef USEMPI
@@ -991,7 +997,6 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
 #ifdef USEHDF
     H5OutputFile Fhdf,Fhdf2;
     int itemp;
-    int ival;
 #endif
 #if defined(USEHDF)||defined(USEADIOS)
     DataGroupNames datagroupnames;
@@ -1203,7 +1208,10 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids, ve
     fstream Fout;
     string fname;
     ostringstream os;
-    unsigned long ng,noffset=0,ngtot=0,nSOids=0,nSOidstot=0, nwritecommtot=0, nSOwritecommtot=0;
+    unsigned long ng=0,ngtot=0,nSOids=0,nSOidstot=0;
+#ifdef USEPARALLELHDF
+    unsigned long long nwritecommtot=0, nSOwritecommtot=0;
+#endif
     vector<unsigned long> offset;
     vector<long long> idval;
     vector<int> typeval;
@@ -1215,7 +1223,6 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids, ve
 #ifdef USEHDF
     H5OutputFile Fhdf;
     int itemp=0;
-    int ival;
 #if defined(USEMPI) && defined(USEPARALLELHDF)
     vector<Int_t> mpi_offset(NProcs);
     Int_t nSOidoffset;
@@ -1581,8 +1588,10 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
     string fname;
     ostringstream os;
     char buf[40];
-    long unsigned ngtot=0, noffset=0, ng=ngroups, nwritecommtot=0;
-
+    unsigned long long ngtot=0, noffset=0, ng=ngroups;
+#ifdef USEPARALLELHDF
+    unsigned long long nwritecommtot=0;
+#endif
     //if need to convert from physical back to comoving
     if (opt.icomoveunit) {
         opt.p*=opt.h/opt.a;
@@ -1595,7 +1604,6 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
 #ifdef USEHDF
     H5OutputFile Fhdf;
     int itemp=0;
-    int ival;
 #endif
 #if defined(USEHDF)||defined(USEADIOS)
     DataGroupNames datagroupnames;
@@ -1741,11 +1749,11 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         Fout<<setprecision(10);
     }
 
-    long long idbound;
+    // long long idbound;
     //for ensuring downgrade of precision as subfind uses floats when storing values save for Mvir (??why??)
-    float value,ctemp[3],mtemp[9];
-    double dvalue;
-    int ivalue;
+    // float value,ctemp[3],mtemp[9];
+    // double dvalue;
+    // int ivalue;
     for (Int_t i=1;i<=ngroups;i++) {
         if (opt.ibinaryout==OUTBINARY) {
             pdata[i].WriteBinary(Fout,opt);
@@ -1765,10 +1773,7 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
     if (opt.ibinaryout==OUTHDF) {
         //for hdf may be more useful to produce an array of the appropriate size and write each data set in one go
         //requires allocating memory
-        int *iarray,itemp;
-        unsigned int *uiarray;
-        long long *larray;
-        unsigned long *ularray;
+        int itemp;
         //void pointer to hold data
         void *data;
         //allocate enough memory to store largest data type
@@ -2828,13 +2833,15 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
     string fname;
     ostringstream os;
     char buf[40];
-    Int_t ngtot=0, noffset=0, ng=ngroups, nhalos=0, nhalostot=0, nwritecommtot=0, nhalowritecommtot=0;
+    unsigned long long  ngtot=0, noffset=0, ng=ngroups, nhalos=0, nhalostot=0;
+#ifdef USEPARALLELHDF
+    unsigned long long nwritecommtot=0, nhalowritecommtot=0;
+#endif
     vector<unsigned long long> indices(ngroups), haloindices;
 
     //void pointer to hold data
     void *data;
     int itemp=0, nbinsedges = opt.profilenbins+1;
-    int ival;
 
     //if need to convert from physical back to comoving
     if (opt.icomoveunit) {
@@ -3150,15 +3157,16 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
     fstream Fout2;
     string fname;
     ostringstream os;
-    unsigned long ng=ngroups,ngtot=0,noffset=0, nwritecommtot = 0;
+    unsigned long long ng=ngroups,ngtot=0,noffset=0;
+#ifdef USEPARALLELHDF
+     unsigned long long nwritecommtot = 0;
+#endif
 #ifdef USEMPI
     MPIBuildWriteComm(opt);
 #endif
 #ifdef USEHDF
     H5OutputFile Fhdf;
-    int rank;
     int itemp=0;
-    int ival;
 #endif
 #if defined(USEHDF)||defined(USEADIOS)
     DataGroupNames datagroupnames;
@@ -3430,8 +3438,8 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
 void WriteSUBFINDProperties(Options &opt, const Int_t ngroups, PropData *pdata){
     fstream Fout;
     char fname[1000];
-    char buf[40];
-    long unsigned ngtot=0, noffset=0, ng=ngroups;
+    // char buf[40];
+    unsigned long long ngtot=0, noffset=0, ng=ngroups;
 
     //if need to convert from physical back to comoving
     if (opt.icomoveunit) {
@@ -3514,7 +3522,7 @@ void WriteCellValues(Options &opt, const Int_t nbodies, const Int_t ngrid, GridC
 //@{
 Int_t ReadPFOF(Options &opt, Int_t nbodies, Int_t *pfof){
     fstream Fin;
-    Int_t temp;
+    // Int_t temp;
     char fname[400];
     Int_t ngroup=0;
     sprintf(fname,"%s.fof.grp",opt.outname);
@@ -3593,13 +3601,6 @@ void WriteVELOCIraptorConfig(Options &opt){
     int ThisTask=0;
 #endif
 
-#ifdef USEHDF
-    int itemp=0;
-#endif
-#if defined(USEHDF)||defined(USEADIOS)
-    DataGroupNames datagroupnames;
-#endif
-
     if (ThisTask==0) {
         ConfigInfo config(opt);
         sprintf(fname,"%s.configuration",opt.outname);
@@ -3638,12 +3639,6 @@ void WriteSimulationInfo(Options &opt){
     int ThisTask=0;
 #endif
 
-#ifdef USEHDF
-    int itemp=0;
-#endif
-#if defined(USEHDF)||defined(USEADIOS)
-    DataGroupNames datagroupnames;
-#endif
     if (ThisTask==0) {
         SimInfo siminfo(opt);
         sprintf(fname,"%s.siminfo",opt.outname);
@@ -3678,13 +3673,6 @@ void WriteUnitInfo(Options &opt){
     char fname[1000];
 #ifndef USEMPI
     int ThisTask=0;
-#endif
-
-#ifdef USEHDF
-    int itemp=0;
-#endif
-#if defined(USEHDF)||defined(USEADIOS)
-    DataGroupNames datagroupnames;
 #endif
 
     if (ThisTask==0) {

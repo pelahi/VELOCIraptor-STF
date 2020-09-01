@@ -18,8 +18,7 @@ void ReadTipsy(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particl
     struct tipsy_star_particle star;
     Int_t  count,oldcount,ngas,nstar,ndark, Ntot;
     double time,aadjust,z,Hubble,Hubbleflow,mtotold;
-    double MP_DM=MAXVALUE, MP_B=MAXVALUE;
-    int temp;
+    double MP_DM=MAXVALUE;
     Double_t mscale,lscale,lvscale,LN=1.0;
     Double_t posfirst[3];
     fstream Ftip;
