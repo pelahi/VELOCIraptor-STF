@@ -1145,7 +1145,7 @@ void PotentialTree(Options &opt, Int_t nbodies, Particle *&Part, KDTree* &tree)
     Int_t ntreecell, nleafcell;
     Double_t r2, eps2=opt.uinfo.eps*opt.uinfo.eps, mv2=opt.MassValue*opt.MassValue;
     int bsize = opt.uinfo.BucketSize;
-    int maxnthreads, nthreads;
+    int maxnthreads = 1, nthreads = 1;
     //for tree code potential calculation
     Int_t ncell;
     Int_t *start,*end;
