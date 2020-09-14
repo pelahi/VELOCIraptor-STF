@@ -229,7 +229,7 @@ using namespace NBody;
 #define CALCLOGSTDMASSWEIGHT 18
 #define CALCQUANTITYAPERTURETOTAL -1
 #define CALCQUANTITYAPERTUREAVERAGE -2
-typedef double (*ExtraPropFunc)(double, double, double&);
+typedef void (*ExtraPropFunc)(double, double, double&);
 
 //@}
 

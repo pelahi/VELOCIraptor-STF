@@ -5902,26 +5902,26 @@ inline double ExtraPropGetWeight(unsigned int calctype, double weight){
     if (calctype < CALCQUANTITYMASSWEIGHT) weight = 1.0;
     return weight;
 }
-inline double ExtraPropCalcAverage(double weight, double value, double &result){
+inline void ExtraPropCalcAverage(double weight, double value, double &result){
     result += value * weight;
 }
-inline double ExtraPropCalcTotal(double weight, double value, double &result){
+inline void ExtraPropCalcTotal(double weight, double value, double &result){
     result += value * weight;
 }
-inline double ExtraPropCalcSTD(double weight, double value, double &result){
+inline void ExtraPropCalcSTD(double weight, double value, double &result){
     result += value * value * weight;
 }
-inline double ExtraPropCalcLogAverage(double weight, double value, double &result){
+inline void ExtraPropCalcLogAverage(double weight, double value, double &result){
     result += log(value) * weight;
 }
-inline double ExtraPropCalcLogSTD(double weight, double value, double &result){
+inline void ExtraPropCalcLogSTD(double weight, double value, double &result){
     value = log(value);
     result += value * value * weight;
 }
-inline double ExtraPropCalcMin(double weight, double value, double &result){
+inline void ExtraPropCalcMin(double weight, double value, double &result){
     if (value*weight < result) result = value * weight;
 }
-inline double ExtraPropCalcMax(double weight, double value, double &result){
+inline void ExtraPropCalcMax(double weight, double value, double &result){
     if (value*weight > result) result = value * weight;
 }
 inline double ExtraPropNormalizeValue(unsigned int calctype, double value, double norm){
