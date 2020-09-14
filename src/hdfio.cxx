@@ -2347,9 +2347,6 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                     {
                         k=usetypes[j];
                         if (k!=HDFGASTYPE) {
-                            iextraoffset += opt.gas_internalprop_names.size() +
-                                opt.gas_chem_names.size() +
-                                opt.gas_chemproduction_names.size();
                             continue;
                         }
                         if (opt.gas_internalprop_names.size()>0)
@@ -2395,9 +2392,6 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                     {
                         k=usetypes[j];
                         if (k!=HDFSTARTYPE) {
-                            iextraoffset += opt.star_internalprop_names.size() +
-                                opt.star_chem_names.size() +
-                                opt.star_chemproduction_names.size();
                             continue;
                         }
                         if (opt.star_internalprop_names.size()>0)
@@ -2443,9 +2437,6 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                     {
                         k=usetypes[j];
                         if (k!=HDFBHTYPE) {
-                            iextraoffset += opt.bh_internalprop_names.size() +
-                                opt.bh_chem_names.size() +
-                                opt.bh_chemproduction_names.size();
                             continue;
                         }
                         if (opt.bh_internalprop_names.size()>0)
