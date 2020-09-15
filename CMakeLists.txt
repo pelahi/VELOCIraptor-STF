@@ -182,92 +182,10 @@ vr_option_defines(USE_LARGE_KDTREE          LARGETREE)
 
 vr_option_defines(USE_SWIFT_INTERFACE       SWIFTINTERFACE)
 
-#
-# How we find GSL and set it up
-#
-macro(find_gsl)
-	find_package(GSL REQUIRED)
-	list(APPEND VR_INCLUDE_DIRS ${GSL_INCLUDE_DIRS})
-	list(APPEND VR_LIBS ${GSL_LIBRARIES})
-endmacro()
-
-#
-# How we find HDF5 and set it up
-#
-
-macro(find_hdf5)
-	# FindHDF5 needs an environment variable, oddly, unlike
-	# most other packages that use normal cmake variables
-	if (HDF5_ROOT)
-		set(ENV{HDF5_ROOT} ${HDF5_ROOT})
-	endif()
-	find_package(HDF5 COMPONENTS C)
-	if (HDF5_FOUND)
-		#
-		list(APPEND VR_INCLUDE_DIRS ${HDF5_INCLUDE_DIRS})
-		list(APPEND VR_LIBS ${HDF5_LIBRARIES})
-		list(APPEND VR_DEFINES USEHDF)
-		set(VR_HAS_HDF5 Yes)
-		#check if parallel hdf present
-		if (HDF5_IS_PARALLEL AND VR_HAS_MPI AND VR_ALLOWPARALLELHDF5)
-			set (ENV{HDF5_PREFER_PARALLEL} true)
-			set(VR_HAS_PARALLEL_HDF5 Yes)
-			list(APPEND VR_DEFINES USEPARALLELHDF)
-			if (HDF5_VERSION VERSION_GREATER "1.10.0" AND VR_ALLOWCOMPRESSIONPARALLELHDF5)
-				set(VR_HAS_COMPRESSED_HDF5 Yes)
-				list(APPEND VR_DEFINES USEHDFCOMPRESSION)
-				list(APPEND VR_DEFINES PARALLELCOMPRESSIONACTIVE)
-			endif()
-		else()
-			if (VR_ALLOWCOMPRESSIONHDF5)
-				set(VR_HAS_COMPRESSED_HDF5 Yes)
-				list(APPEND VR_DEFINES USEHDFCOMPRESSION)
-			endif()
-		endif()
-    endif()
-endmacro()
-
-
-#
-# How we find MPI and set it up
-#
-macro(find_mpi)
-	find_package(MPI)
-	if (MPI_FOUND)
-		list(APPEND VR_INCLUDE_DIRS ${MPI_CXX_INCLUDE_PATH})
-		list(APPEND VR_LIBS ${MPI_CXX_LIBRARIES})
-		list(APPEND VR_CXX_FLAGS ${MPI_CXX_FLAGS})
-		list(APPEND VR_LINK_FLAGS ${MPI_CXX_FLAGS})
-		list(APPEND VR_DEFINES USEMPI)
-		set(VR_HAS_MPI Yes)
-	endif()
-endmacro()
 if (VR_USE_SWIFT_INTERFACE)
         list(APPEND VR_INCLUDE_DIRS ${SWIFT_INCLUDE_DIR})
 endif()
 
-
-#
-# Make sure we have the git submodules we need
-#
-macro(ensure_git_submodules)
-	if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/NBodylib/CMakeLists.txt" OR NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tools/velociraptor_python_tools.py")
-		find_package(Git QUIET)
-		if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
-			# Update submodules as needed
-			message(STATUS "Updating NBodylib and tools submodule")
-			execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init
-			                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-			                RESULT_VARIABLE GIT_SUBMOD_RESULT)
-			if(NOT GIT_SUBMOD_RESULT EQUAL "0")
-			    message(FATAL_ERROR "git submodule update --init failed with ${GIT_SUBMOD_RESULT}, please checkout submodules")
-			endif()
-		else()
-			message(FATAL_ERROR "Cannot get NBodylib submodule or tools submodule automatically.
-				  Make sure you get your submodules")
-		endif()
-	endif()
-endmacro()
 
 #
 # Add git revision information in a generated .cxx file, which we then include
@@ -284,38 +202,12 @@ configure_file("src/git_revision.cxx.in" "${git_revision_cxx}" @ONLY)
 # Go and find our dependencies, depending on whether
 # we actually need them or not
 #
-ensure_git_submodules()
+vr_ensure_git_submodules()
 find_gsl()
-
-set(VR_HAS_MPI No)
-if (VR_MPI)
-	find_mpi()
-endif()
-
-set(VR_HAS_HDF5 No)
-set(VR_HAS_COMPRESSED_HDF5 No)
-set(VR_HAS_PARALLEL_HDF5 No)
-if (VR_HDF5)
-	find_hdf5()
-endif()
-
+vr_mpi()
+vr_hdf5()
 vr_config_errors()
-
-# This provides us with the nbodylib library
-# We need to add it unless it was already added by somebody else
-if (NOT TARGET nbodylib)
-	add_subdirectory(NBodylib)
-	if (NBODYLIB_VERSION VERSION_LESS "1.28")
-		message(FATAL_ERROR "NBodyLib version ${NBODYLIB_VERSION} unsupported,
-		VELOCIraptor requires >= 1.28, try running git submodule update --recursive --remote")
-	endif()
-	list(INSERT VR_DOC_DIRS 0 ${NBODYLIB_DOC_DIRS})
-endif()
-list(APPEND VR_INCLUDE_DIRS ${NBODYLIB_INCLUDE_DIRS})
-list(APPEND VR_DEFINES "${NBODYLIB_DEFINES}")
-list(APPEND VR_CXX_FLAGS "${NBODYLIB_CXX_FLAGS}")
-list(APPEND VR_LINK_FLAGS "${NBODYLIB_LINK_FLAGS}")
-list(APPEND VR_LIBS "${NBODYLIB_LIBS}")
+vr_nbodylib()
 
 # compilation state
 vr_compilation_summary()
@@ -348,4 +240,3 @@ if (_export)
 else()
 	try_add_doc_target("${VR_DOC_DIRS}")
 endif()
-
