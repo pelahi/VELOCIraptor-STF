@@ -1,0 +1,127 @@
+#
+# Some useful utils
+#
+
+#
+# list values as bullet points
+#
+function(list_to_bulletpoints result)
+    list(REMOVE_AT ARGV 0)
+    set(temp "")
+    foreach(item ${ARGV})
+        set(temp "${temp}* ${item}")
+    endforeach()
+    set(${result} "${temp}" PARENT_SCOPE)
+endfunction(list_to_bulletpoints)
+
+#
+# valid the option choosen based on allowed values
+#
+function(validate_option name values)
+    string(TOLOWER ${${name}} needle_lower)
+    string(TOUPPER ${${name}} needle_upper)
+    list(FIND ${values} ${needle_lower} IDX_LOWER)
+    list(FIND ${values} ${needle_upper} IDX_UPPER)
+    if(${IDX_LOWER} LESS 0 AND ${IDX_UPPER} LESS 0)
+        list_to_bulletpoints(POSSIBLE_VALUE_LIST ${${values}})
+        message(FATAL_ERROR "\n########################################################################\n"
+                            "Invalid value '${${name}}' for option ${name}\n"
+                            "Possible values are : "
+                            "${POSSIBLE_VALUE_LIST}"
+                            "\n"
+                            "########################################################################")
+    endif()
+endfunction(validate_option)
+
+#
+# Function to add a "doc" target, which will doxygen out the given
+# list of directories
+#
+function(try_add_doc_target doc_dirs)
+	find_program(DOXYGEN_FOUND doxygen)
+	if (NOT DOXYGEN_FOUND)
+		return()
+	endif()
+
+	# Create a target for each individual doc directory, then a final one
+	# that depends on them all
+	message("-- Adding doc target for directories: ${doc_dirs}")
+	set(_dependencies "")
+	set(x 1)
+	foreach(_doc_dir IN ITEMS ${doc_dirs})
+		add_custom_command(OUTPUT ${_doc_dir}/xml/index.xml
+		                   COMMAND doxygen
+		                   WORKING_DIRECTORY ${_doc_dir})
+		add_custom_target(doc_${x}
+		                  COMMAND doxygen
+		                  WORKING_DIRECTORY ${_doc_dir})
+		list(APPEND _dependencies doc_${x})
+		math(EXPR x "${x} + 1")
+	endforeach()
+	add_custom_target(doc DEPENDS "${_dependencies}")
+endfunction()
+
+#
+# - Prevent in-source builds.
+# https://stackoverflow.com/questions/1208681/with-cmake-how-would-you-disable-in-source-builds/
+#
+macro(prevent_in_source_builds)
+    # make sure the user doesn't play dirty with symlinks
+    get_filename_component(srcdir "${CMAKE_SOURCE_DIR}" REALPATH)
+    get_filename_component(srcdir2 "${CMAKE_SOURCE_DIR}/.." REALPATH)
+    get_filename_component(srcdir3 "${CMAKE_SOURCE_DIR}/../src" REALPATH)
+    get_filename_component(bindir "${CMAKE_BINARY_DIR}" REALPATH)
+
+    # disallow in-source builds
+    if("${srcdir}" STREQUAL "${bindir}" OR "${srcdir2}" STREQUAL "${bindir}" OR "${srcdir3}" STREQUAL "${bindir}")
+        message(FATAL_ERROR "\
+            CMake must not to be run in the source directory. \
+            Rather create a dedicated build directory and run CMake there. \
+            To clean up after this aborted in-place compilation:
+            rm -r CMakeCache.txt CMakeFiles
+        ")
+    endif()
+endmacro()
+
+#
+# set the default build and also store the compilation flags
+# as a string based on the currently choosen flags
+#
+macro(my_set_build_type)
+	set(default_build_type "Release")
+	if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+		message(STATUS "Setting build type to '${default_build_type}' as none was specified.")
+		set(CMAKE_BUILD_TYPE "${default_build_type}" CACHE
+			STRING "Choose the type of build." FORCE)
+		# Set the possible values of build type for cmake-gui
+		set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS
+			"Debug" "Release" "MinSizeRel" "RelWithDebInfo")
+	endif()
+	#set(ACTIVE_COMPILE_OPTIONS )
+endmacro()
+
+macro(enable_santizer_option)
+    set(ENABLE_SANITIZER "none" CACHE STRING "Select a code sanitizer option (none (default), address, leak, thread, undefined)")
+    mark_as_advanced(ENABLE_SANITIZER)
+    set(ENABLE_SANITIZER_VALUES none address leak thread undefined)
+    set_property(CACHE ENABLE_SANITIZER PROPERTY STRINGS ${ENABLE_SANITIZER_VALUES})
+    validate_option(ENABLE_SANITIZER ENABLE_SANITIZER_VALUES)
+    string(TOLOWER ${ENABLE_SANITIZER} ENABLE_SANITIZER)
+endmacro()
+
+function(sanitizer_options mytarget)
+    if(NOT ENABLE_SANITIZER STREQUAL "none")
+        if((${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU") OR (${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang"))
+            target_compile_options(${mytarget} PUBLIC -fsanitize=${ENABLE_SANITIZER})
+            target_link_options(${mytarget} PUBLIC -fsanitize=${ENABLE_SANITIZER})
+        else()
+            message(WARNING "ENABLE_SANITIZER option not supported by ${CMAKE_CXX_COMPILER_ID} compilers. Ignoring.")
+            set(ENABLE_SANITIZER "none")
+        endif()
+    endif()
+endfunction()
+
+#run some macros automatically
+prevent_in_source_builds()
+my_set_build_type()
+enable_santizer_option()
