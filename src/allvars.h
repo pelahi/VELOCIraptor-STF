@@ -706,8 +706,12 @@ struct Options
     /*! Inverse of the top-level cell width. */
     double icellwidth[3];
 
-    /*! Holds the node ID of each top-level cell. */
+    // Holds the mpi ID of each top-level cell.
     int *cellnodeids;
+
+    //when particles are moved to other mpi domains
+    //may need to update the mpi ids associated with a cell
+    vector<vector<int>> newcellnodeids;
 
     /// holds the order of cells based on z-curve decomposition;
     vector<int> cellnodeorder;

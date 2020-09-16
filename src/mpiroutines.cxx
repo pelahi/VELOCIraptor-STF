@@ -4851,12 +4851,37 @@ Int_t MPIGroupExchange(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
             FoFGroupDataExport[noffset_export[task]+nbuffer[task]].Index = i;
             FoFGroupDataExport[noffset_export[task]+nbuffer[task]].Task = task;
             FoFGroupDataExport[noffset_export[task]+nbuffer[task]].iGroup = pfof[i];
-
             //now that have all the particles that need broacasting, if extra information stored
             //then must also fill up appropriate hydro/star/bh buffers for communication.
         }
         nbuffer[task]++;
     }
+
+    // if using mesh, mpi tasks of cells need to be updated
+    if (opt.impiusemesh) {
+        vector<int> newcellid(opt.numcells,-1);
+        for (i=0;i<nexport;i++) {
+            Coordinate x(FoFGroupDataExport[i].p.GetPosition());
+            vector<unsigned int> ix(3);
+            unsigned long long index;
+            for (j=0; j<3; j++) ix[j]=floor(x[j]*opt.icellwidth[j]);
+            index = ix[0]*opt.numcellsperdim*opt.numcellsperdim+ix[1]*opt.numcellsperdim+iz[2];
+            newcellid[index] = FoFGroupDataExport[i].Task;
+        }
+        //now collect all the cells
+        vector<int> mpi_newcellid(opt.numcells*NProcs);
+        MPI_Allgather(newcellid.data(), opt.numcells, MPI_INT, mpi_newcellid.data(), opt.numcells, MPI_INT, MPI_COMM_WORLD);
+        newcellnodeids.resize(NProcs);
+        for (i=0; i<opt.numcells; i++)
+        {
+            for (auto itask=0; itask<NProcs; itask++)
+            {
+                if (mpi_newcellid[itask*NProcs + i] == -1) continue;
+                newcellnodeids[i].push_back(itask);
+            }
+        }
+    }
+
     //now if there is extra information, strip off all the data from the FoFGroupDataExport
     //and store it explicitly into a buffer. Here are the buffers
     vector<Int_t> indices_gas_send;
@@ -5071,6 +5096,33 @@ Int_t MPICompileGroups(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
     Int_t i,j,start,ngroups;
     Int_t *numingroup,*groupid,**plist;
     ngroups=0;
+
+    //if not using mpi mesh, need to update mpi boundaries based on these exported particles
+    //note that must ensure that periodicity account for
+    if (!opt.impiusemesh)
+    {
+        mpi_domain[ThisTask]
+        MPI_Domain localdomain;
+        for (j=0; j<3; j++)
+        {
+            localdomain[j][0] = mpi_domain[Thistask].bnd[j][0];
+            localdomain[j][1] = mpi_domain[Thistask].bnd[j][1];
+        }
+        for (i=Noldlocal;i<nbodies;i++) {
+            Coordinate x(FoFGroupDataLocal[i-Noldlocal].p.GetPosition());
+            // adjust for period based on local mpi boundary
+            for (j=0; j<3; j++)
+            {
+                if (x[j] < mpi_domain[ThisTask].bnd[j][0])
+                    localdomain.bnd[j][0] = x[j];
+                else if (x[j] > mpi_domain[ThisTask].bnd[j][1])
+                    localdomain.bnd[j][1] = x[j];
+            }
+        }
+        //now update the mpi_domains again
+        MPI_Allgather(localdomain, sizeof(MPI_Domain), MPI_BYTE, mpi_domain, sizeof(MPI_Domain), MPI_BYTE, MPI_COMM_WORLD);
+    }
+
     for (i=Noldlocal;i<nbodies;i++) {
         Part[i]=FoFGroupDataLocal[i-Noldlocal].p;
         //note that before used type to sort particles
@@ -5623,8 +5675,21 @@ vector<int> MPIGetCellListInSearchUsingMesh(Options &opt, Double_t xsearch[3][2]
                 if (ix<0) index+=(opt.numcellsperdim+ix)*opt.numcellsperdim*opt.numcellsperdim;
                 else if (ix>=opt.numcellsperdim) index+=(ix-opt.numcellsperdim)*opt.numcellsperdim*opt.numcellsperdim;
                 else index+=ix*opt.numcellsperdim*opt.numcellsperdim;
-                if (ignorelocalcells && opt.cellnodeids[index]==ThisTask) continue;
-                celllist.push_back(index);
+                //if ignoring local cells and cell not local, add to cell list
+                //or add regardless if not ignoring local cells
+                if ((ignorelocalcells && opt.cellnodeids[index]!=ThisTask) || !ignorelocalcells) {
+                    celllist.push_back(index)
+                }
+                //and also check to see any cells that have been newly associated
+                // mpi mpi domains. if newcellnodeids has zero size, no cells
+                // have been newly associated to mpi domains
+                if (opt.newcellnodeids.size() == 0) continue;
+                if (opt.newcellnodeids[index].size() == 0) continue;
+                for (auto &c:newcellnodeids[index]) {
+                    if ((ignorelocalcells && c!=ThisTask) || !ignorelocalcells) {
+                        celllist.push_back(index)
+                    }
+                }
             }
         }
     }
