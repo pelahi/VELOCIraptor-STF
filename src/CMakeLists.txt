@@ -57,3 +57,5 @@ target_link_options(stf PRIVATE ${VR_LINK_FLAGS})
 target_compile_definitions(stf PRIVATE ${VR_DEFINES})
 target_compile_options(stf PRIVATE ${VR_CXX_FLAGS})
 set_target_properties(stf PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+sanitizer_options(velociraptor)
+

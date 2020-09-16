@@ -30,6 +30,13 @@ set(CMAKE_CXX_STANDARD 11)
 # Set the code to always produce position independent code by default
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+#include cmake stuff
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/cmake)
+# include some general cmake utility functions
+include (VRCMakeUtils)
+# complation summary
+include(VRCompilationMessages)
+
 #
 # Options users can give on the command line via -D
 #
@@ -152,166 +159,11 @@ macro(vr_option_defines varname define)
 	endif()
 endmacro()
 
-#
-# How we find GSL and set it up
-#
-macro(find_gsl)
-	find_package(GSL REQUIRED)
-	list(APPEND VR_INCLUDE_DIRS ${GSL_INCLUDE_DIRS})
-	list(APPEND VR_LIBS ${GSL_LIBRARIES})
-endmacro()
-
-#
-# How we find HDF5 and set it up
-#
-
-macro(find_hdf5)
-	# FindHDF5 needs an environment variable, oddly, unlike
-	# most other packages that use normal cmake variables
-	if (HDF5_ROOT)
-		set(ENV{HDF5_ROOT} ${HDF5_ROOT})
-	endif()
-	find_package(HDF5 COMPONENTS C)
-	if (HDF5_FOUND)
-		#
-		list(APPEND VR_INCLUDE_DIRS ${HDF5_INCLUDE_DIRS})
-		list(APPEND VR_LIBS ${HDF5_LIBRARIES})
-		list(APPEND VR_DEFINES USEHDF)
-		set(VR_HAS_HDF5 Yes)
-		#check if parallel hdf present
-		if (HDF5_IS_PARALLEL AND VR_HAS_MPI AND VR_ALLOWPARALLELHDF5)
-			set (ENV{HDF5_PREFER_PARALLEL} true)
-			set(VR_HAS_PARALLEL_HDF5 Yes)
-			list(APPEND VR_DEFINES USEPARALLELHDF)
-			if (HDF5_VERSION VERSION_GREATER "1.10.0" AND VR_ALLOWCOMPRESSIONPARALLELHDF5)
-				set(VR_HAS_COMPRESSED_HDF5 Yes)
-				list(APPEND VR_DEFINES USEHDFCOMPRESSION)
-				list(APPEND VR_DEFINES PARALLELCOMPRESSIONACTIVE)
-			endif()
-		else()
-			if (VR_ALLOWCOMPRESSIONHDF5)
-				set(VR_HAS_COMPRESSED_HDF5 Yes)
-				list(APPEND VR_DEFINES USEHDFCOMPRESSION)
-			endif()
-		endif()
-    endif()
-endmacro()
-
-
-#
-# How we find MPI and set it up
-#
-macro(find_mpi)
-	find_package(MPI)
-	if (MPI_FOUND)
-		list(APPEND VR_INCLUDE_DIRS ${MPI_CXX_INCLUDE_PATH})
-		list(APPEND VR_LIBS ${MPI_CXX_LIBRARIES})
-		list(APPEND VR_CXX_FLAGS ${MPI_CXX_FLAGS})
-		list(APPEND VR_LINK_FLAGS ${MPI_CXX_FLAGS})
-		list(APPEND VR_DEFINES USEMPI)
-		set(VR_HAS_MPI Yes)
-	endif()
-endmacro()
-if (VR_USE_SWIFT_INTERFACE)
-        list(APPEND VR_INCLUDE_DIRS ${SWIFT_INCLUDE_DIR})
-endif()
-
-#
-# Make sure we have the git submodules we need
-#
-macro(ensure_git_submodules)
-	if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/NBodylib/CMakeLists.txt" OR NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tools/velociraptor_python_tools.py")
-		find_package(Git QUIET)
-		if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
-			# Update submodules as needed
-			message(STATUS "Updating NBodylib and tools submodule")
-			execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init
-			                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-			                RESULT_VARIABLE GIT_SUBMOD_RESULT)
-			if(NOT GIT_SUBMOD_RESULT EQUAL "0")
-			    message(FATAL_ERROR "git submodule update --init failed with ${GIT_SUBMOD_RESULT}, please checkout submodules")
-			endif()
-		else()
-			message(FATAL_ERROR "Cannot get NBodylib submodule or tools submodule automatically.
-				  Make sure you get your submodules")
-		endif()
-	endif()
-endmacro()
-
-#
-# Add git revision information in a generated .cxx file, which we then include
-# as part of the library
-#
-include(cmake/GetGitRevisionDescription.cmake)
-get_git_head_revision(GIT_REFSPEC GIT_SHA1)
-git_local_changes(GIT_HAS_LOCAL_CHANGES)
-set(git_revision_cxx "${CMAKE_CURRENT_BINARY_DIR}/git_revision.cxx")
-configure_file("src/git_revision.cxx.in" "${git_revision_cxx}" @ONLY)
-
-
-#
-# Go and find our dependencies, depending on whether
-# we actually need them or not
-#
-ensure_git_submodules()
-find_gsl()
-set(VR_HAS_MPI No)
-if (VR_MPI)
-	find_mpi()
-endif()
-set(VR_HAS_HDF5 No)
-set(VR_HAS_COMPRESSED_HDF5 No)
-set(VR_HAS_PARALLEL_HDF5 No)
-if (VR_HDF5)
-	find_hdf5()
-endif()
-
-if (VR_ZOOM_SIM AND VR_NO_MASS)
-    message(FATAL_ERROR "VR compiled to not store mass and also compiled for zoom simulations.
-    These options are incompatible. Use one or the other.
-    Options are VR_ZOOM_SIM and VR_NO_MASS.")
-endif()
-
-# check that either OpenMP or OpenACC enabled but not both
-if (VR_OPENMP AND VR_OPENACC)
-    message(FATAL_ERROR "VR configured to use both OpenMP and OpenACC. Use one or the other.")
-endif()
-
-
-# This provides us with the nbodylib library
-# We need to add it unless it was already added by somebody else
-if (NOT TARGET nbodylib)
-	add_subdirectory(NBodylib)
-	if (NBODYLIB_VERSION VERSION_LESS "1.30")
-		message(FATAL_ERROR "NBodyLib version ${NBODYLIB_VERSION} unsupported,
-		VELOCIraptor requires >= 1.30, try running git submodule update --recursive --remote")
-	endif()
-	list(INSERT VR_DOC_DIRS 0 ${NBODYLIB_DOC_DIRS})
-	if (NOT "USEOPENMP" IN_LIST NBODYLIB_DEFINES)
-		message(" help it should not evaluate")
-		set(VR_OPENMP OFF)
-		set(VR_HAS_OPENMP No)
-	endif()
-	if (NOT "USEOPENMPGPU" IN_LIST NBODYLIB_DEFINES)
-		set(VR_OPENMPGPU OFF)
-		set(VR_HAS_OPENMPGPU No)
-	endif()
-	if (NOT "USEOPENACC" IN_LIST NBODYLIB_DEFINES)
-		set(VR_OPENACC OFF)
-		set(VR_HAS_OPENMPACC No)
-	endif()
-endif()
-
-#defines based on environment variables
-
 vr_option_defines(XDR                       USEXDR)
 
 vr_option_defines(LONG_INT                  LONGINT)
 
 vr_option_defines(OPENMP                    USEOPENMP)
-vr_option_defines(OPENMPGPU                 USEOPENMPGPU)
-
-vr_option_defines(OPENACC                   USEOPENACC)
 
 vr_option_defines(MPI_REDUCE                MPIREDUCEMEM)
 vr_option_defines(LARGE_MPI_DOMAIN          HUGEMPI)
@@ -339,93 +191,34 @@ vr_option_defines(USE_LARGE_KDTREE          LARGETREE)
 
 vr_option_defines(USE_SWIFT_INTERFACE       SWIFTINTERFACE)
 
-list(APPEND VR_INCLUDE_DIRS ${NBODYLIB_INCLUDE_DIRS})
-list(APPEND VR_DEFINES "${NBODYLIB_DEFINES}")
-list(APPEND VR_CXX_FLAGS "${NBODYLIB_CXX_FLAGS}")
-list(APPEND VR_LINK_FLAGS "${NBODYLIB_LINK_FLAGS}")
-list(APPEND VR_LIBS "${NBODYLIB_LIBS}")
-
-
-#
-# Tell the world what what we are doing
-#
-macro(vr_report feature)
-
-	# Output feature name and underscore it in the next line
-	message("\n${feature}")
-	string(REGEX REPLACE "." "-" _underscores ${feature})
-	message("${_underscores}\n")
-
-	set(_args "${ARGN}")
-	list(LENGTH _args _nargs)
-	math(EXPR _nargs "${_nargs} - 1")
-	foreach(_idx RANGE 0 ${_nargs} 2)
-
-		# Items in the list come with a message first, then the variable name
-		list(GET _args ${_idx} _msg)
-		math(EXPR _idx2 "${_idx} + 1")
-		list(GET _args ${_idx2} _varname)
-
-		# We try to keep things up to 80 cols
-		string(LENGTH ${_msg} _len)
-		math(EXPR _nspaces "75 - ${_len}")
-		string(RANDOM LENGTH ${_nspaces} _spaces)
-		string(REGEX REPLACE "." " " _spaces "${_spaces}")
-		string(CONCAT _msg "${_msg}" ${_spaces})
-		message(" ${_msg} ${VR_HAS_${_varname}}")
-	endforeach()
-endmacro()
-
-message("\nVELOCIraptor successfully configured with the following settings:")
-vr_report("File formats"
-          "HDF5" HDF5
-		  "Compressed HDF5" COMPRESSED_HDF5
-		  "Parallel HDF5" PARALLEL_HDF5
-          "nchilada" XDR)
-if (VR_HAS_COMPRESSED_HDF5  AND VR_HAS_PARALLEL_HDF5)
-	message("\n WARNING: Parallel Compression HDF5 active, use with caution as it is unstable!\n")
+if (VR_USE_SWIFT_INTERFACE)
+        list(APPEND VR_INCLUDE_DIRS ${SWIFT_INCLUDE_DIR})
 endif()
-vr_report("Precision-specifics"
-          "Long Integers" LONG_INT)
-vr_report("OpenMP-specifics"
-          "OpenMP support" OPENMP
-          "OpenMP GPU support" OPENMPGPU)
-vr_report("OpenACC-specifics"
-          "OpenACC support" OPENACC)
-vr_report("MPI-specifics"
-          "MPI support" MPI
-          "Reduce MPI memory overhead at the cost of extra CPU cycles" MPI_REDUCE
-          "Use huge MPI domains" LARGE_MPI_DOMAIN)
-vr_report("Gadget"
-          "Use longs IDs" GADGET_LONGID "Use double precision pos and vel" GADGET_DPOS
-          "Use single precision mass" GADGET_SMASS "Use header type 2" GADGET_HEAD2
-          "Use extra SPH information" GADGET_SPH_INFO "Use extra star information" GADGET_STAR_INFO
-          "Use extra black hole information" GADGET_BH_INFO)
-vr_report("Particle-specifics"
-          "Activate gas (& associated physics, properties calculated)" USE_GAS
-		  "Activate stars (& associated physics, properties calculated)" USE_STAR
-		  "Activate black holes (& associated physics, properties calculated)" USE_BH
-		  "Activate extra dark matter properties (& associated properties)" USE_EXTRA_DM_PROPERTIES
-		  "Mass not stored (for uniform N-Body sims, reduce mem footprint)" NO_MASS
-		  "Large memory KDTree to handle > max 32-bit integer entries per tree" USE_LARGE_KDTREE
-	  )
-vr_report("Simulation-specifics"
-          "Used to run against simulations with a high resolution region" ZOOM_SIM
-	      "Build library for integration into SWIFT Sim code " USE_SWIFT_INTERFACE)
-vr_report("Others"
-          "Calculate local density dist. only for particles in field objects" STRUCTURE_DEN
-	      "Like above, but use particles inside field objects only for calclation" HALO_DEN)
 
-message("")
-message("Compilation")
-message("-----------")
-message("")
-message(" Include dirs: ${VR_INCLUDE_DIRS}")
-message(" Macros defined: ${VR_DEFINES}")
-message(" Libs: ${VR_LIBS}")
-message(" C++ flags: ${VR_CXX_FLAGS} ${CMAKE_CXX_FLAGS}")
-message(" Link flags: ${VR_LINK_FLAGS}")
-message("")
+#
+# Add git revision information in a generated .cxx file, which we then include
+# as part of the library
+#
+include(cmake/GetGitRevisionDescription.cmake)
+get_git_head_revision(GIT_REFSPEC GIT_SHA1)
+git_local_changes(GIT_HAS_LOCAL_CHANGES)
+set(git_revision_cxx "${CMAKE_CURRENT_BINARY_DIR}/git_revision.cxx")
+configure_file("src/git_revision.cxx.in" "${git_revision_cxx}" @ONLY)
+
+
+#
+# Go and find our dependencies, depending on whether
+# we actually need them or not
+#
+vr_ensure_git_submodules()
+find_gsl()
+vr_mpi()
+vr_hdf5()
+vr_config_errors()
+vr_nbodylib()
+
+# compilation state
+vr_compilation_summary()
 
 # Are we part of an outside build (i.e., of a treefrog build)?
 # If so, we want to let the caller know what to include
