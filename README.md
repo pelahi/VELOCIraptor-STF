@@ -50,6 +50,11 @@ ___________.__            .___
 This is brief description of the package. For details please see online documentation at
 [readthedocs](https://velociraptor-stf.readthedocs.io/)
 
+This code is a C++ halo finder using MPI and OpenMP APIs. The repository also
+contains several associated analysis tools in python, example configuration files.
+The code can also be compiled as a library for on-the-fly halo finding within an
+N-body/hydrodynamnical code.
+
 The repo contains the following directories
 
     src/        contains main source code for the algorithm
@@ -103,6 +108,13 @@ which will produce html and latex documents using Doxygen. This will be located 
 doc/html/index.html and doc/latex/refman.tex
 
 Note that VELOCIraptor and all variants do not support non-Unix environments. (Mac OS X is fine; Windows is not).
+
+### CI State
+
+| Platform | Branch          | Status |
+| -------- | --------------  | ------ |
+| UNIX     | ``master``      | [![master](https://travis-ci.com/pelahi/VELOCIraptor-STF.png?branch=master)](https://travis-ci.com/pelahi/VELOCIraptor-STF/branches) |
+| UNIX     | ``development`` | [![development](https://travis-ci.com/pelahi/VELOCIraptor-STF.png?branch=development)](https://travis-ci.com/pelahi/VELOCIraptor-STF/branches) |
 
 ================================================================================================
 
