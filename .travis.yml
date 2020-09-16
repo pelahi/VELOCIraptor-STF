@@ -99,7 +99,7 @@ matrix:
     addons:
      apt:
       sources: ubuntu-toolchain-r-test
-      packages: [g++-10, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
+      packages: [g++-8, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
     env: COMPILER=g++-8 USESWIFT=1 NOMASS=1
   - compiler: g++-8
     dist: focal
@@ -137,6 +137,7 @@ matrix:
       packages: [g++-9, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
     env: COMPILER=g++-9
   - compiler: g++-10
+    dist: focal
     addons:
      apt:
       sources: ubuntu-toolchain-r-test
@@ -147,8 +148,15 @@ matrix:
     addons:
      apt:
       sources: ubuntu-toolchain-r-test
-      packages: [clang-9, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
+      packages: [clang-9, libomp-9-dev, llvm-9-dev, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
     env: COMPILER=clang-9
+  - compiler: clang-10
+    dist: focal
+    addons:
+     apt:
+      sources: ubuntu-toolchain-r-test
+      packages: [clang-10, libomp-10-dev, llvm-10-dev, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
+    env: COMPILER=clang-10
 
 # We "source" it because it exports variables
 before_install:
