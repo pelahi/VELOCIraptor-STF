@@ -224,7 +224,9 @@ void OpenMPLinkAcross(Options &opt,
             for (auto j=0;j<omp_nrecv_total[i];j++) {
                 Pval=&Part[ompimport[omp_nrecv_offset[i]+j].index];
                 pfofcomp = ompimport[omp_nrecv_offset[i]+j].pfof;
-                if (pfofcomp == 0) continue;
+                /// before ignored pfofcomp but since cannot guarantee openmp
+                /// will be complete if MPI is used.
+                if (pfofcomp == 0 && NProcs == 1) continue;
                 //for each imported particle, find all particles within search window
                 for (auto k=0;k<3;k++) x[k]=Pval->GetPosition(k);
                 nt=tree3dfofomp[i]->SearchBallPosTagged(x, param[1], &nn[ompdomain[i].noffset]);
@@ -255,8 +257,18 @@ void OpenMPLinkAcross(Options &opt,
                     else {
                         if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1)
                             if (fofcheck(*Pval,param)!=0) continue;
-                        pfof[orgIndex]=pfofcomp;
+                        //if local particle not in group and associated particle in group
+                        //set the local particle to the appropriate id
+                        if (pfofcomp == 0) pfof[orgIndex] = pfofcomp;
+                        ///otherwise, if at this point, omp domains are incomplete
+                        ///as volume also split in mpi, so increase number of local
+                        ///groups and assign particle to this new group 
+                        else {
+                            ompdomain[i].numgroups++;
+                            pfof[orgIndex] = ompdomain[i].numgroups + ompdomain[i].noffset;
+                        }
                         omp_links_across_total++;
+
                     }
                 }
             }
