@@ -221,6 +221,7 @@ void OpenMPLinkAcross(Options &opt,
         {
         #pragma omp for nowait reduction(+:omp_links_across_total)
         for (i=0;i<numompregions;i++) {
+            auto localpfofzerochange = 0, localpfofzerotopfofcomp = 0;
             for (auto j=0;j<omp_nrecv_total[i];j++) {
                 Pval=&Part[ompimport[omp_nrecv_offset[i]+j].index];
                 pfofcomp = ompimport[omp_nrecv_offset[i]+j].pfof;
@@ -259,19 +260,24 @@ void OpenMPLinkAcross(Options &opt,
                             if (fofcheck(*Pval,param)!=0) continue;
                         //if local particle not in group and associated particle in group
                         //set the local particle to the appropriate id
-                        if (pfofcomp == 0) pfof[orgIndex] = pfofcomp;
+                        if (pfofcomp == 0) {
+                            pfof[orgIndex] = pfofcomp;
+                            localpfofzerotopfofcomp++;
+                        }
                         ///otherwise, if at this point, omp domains are incomplete
                         ///as volume also split in mpi, so increase number of local
                         ///groups and assign particle to this new group 
                         else {
                             ompdomain[i].numgroups++;
                             pfof[orgIndex] = ompdomain[i].numgroups + ompdomain[i].noffset;
+                            localpfofzerochange++;
                         }
                         omp_links_across_total++;
-
                     }
                 }
             }
+string s = "numloop " + to_string(numloops) + " OpenMP region " + to_string(i) + " with " + to_string(ompdomain[i].ncount) + " has " + to_string(localpfofzerochange) + " " + to_string(localpfofzerotopfofcomp) + "\n";
+cout<<s;
         }
         }
 
@@ -290,6 +296,7 @@ void OpenMPLinkAcross(Options &opt,
         }
         numloops++;
         if (opt.iverbose>1) cout<<ThisTask<<" linking across at loop "<<numloops<<" having found "<<omp_links_across_total<<" links"<<endl;
+if (numloops > 2) {MPI_Finalize();exit(9);}
     }while(omp_links_across_total>0);
     delete[] nn;
     cout<<ThisTask<<" finished linking "<<MyGetTime()-time1<<endl;
