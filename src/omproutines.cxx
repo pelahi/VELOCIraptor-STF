@@ -204,6 +204,8 @@ void OpenMPLinkAcross(Options &opt,
     Int_t i;
     Int_t omp_links_across_total, numloops;
     Int_t nt, orgIndex, curIndex, *nn=new Int_t[nbodies], pfofcomp;
+    Int_t maxgroupnum;
+    vector<Int_t> localnewgroup(numompregions,0);
     int curTask;
     Coordinate x;
     double time1=MyGetTime();
@@ -211,6 +213,10 @@ void OpenMPLinkAcross(Options &opt,
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
 #endif
+
+    if (NProcs > 1) {
+        maxgroupnum = ompdomain[numompregions-1].numgroups + ompdomain[numompregions-1].noffset;
+    }
 
     cout<<ThisTask<<": Starting linking across OpenMP domains"<<endl;
     numloops = 0;
@@ -260,7 +266,7 @@ void OpenMPLinkAcross(Options &opt,
                             if (fofcheck(*Pval,param)!=0) continue;
                         //if local particle not in group and associated particle in group
                         //set the local particle to the appropriate id
-                        if (pfofcomp == 0) {
+                        if (pfofcomp > 0) {
                             pfof[orgIndex] = pfofcomp;
                             localpfofzerotopfofcomp++;
                         }
@@ -268,16 +274,15 @@ void OpenMPLinkAcross(Options &opt,
                         ///as volume also split in mpi, so increase number of local
                         ///groups and assign particle to this new group 
                         else {
-                            ompdomain[i].numgroups++;
-                            pfof[orgIndex] = ompdomain[i].numgroups + ompdomain[i].noffset;
-                            localpfofzerochange++;
+                            localnewgroup[i]++;
+                            pfof[orgIndex] = maxgroupnum + ompdomain[i].noffset + localnewgroup[i];
                         }
                         omp_links_across_total++;
                     }
                 }
             }
-string s = "numloop " + to_string(numloops) + " OpenMP region " + to_string(i) + " with " + to_string(ompdomain[i].ncount) + " has " + to_string(localpfofzerochange) + " " + to_string(localpfofzerotopfofcomp) + "\n";
-cout<<s;
+// string s = "numloop " + to_string(numloops) + " OpenMP region " + to_string(i) + " with " + to_string(ompdomain[i].ncount) + " has " + to_string(localpfofzerochange) + " " + to_string(localpfofzerotopfofcomp) + "\n";
+// cout<<s;
         }
         }
 
@@ -296,7 +301,6 @@ cout<<s;
         }
         numloops++;
         if (opt.iverbose>1) cout<<ThisTask<<" linking across at loop "<<numloops<<" having found "<<omp_links_across_total<<" links"<<endl;
-if (numloops > 2) {MPI_Finalize();exit(9);}
     }while(omp_links_across_total>0);
     delete[] nn;
     cout<<ThisTask<<" finished linking "<<MyGetTime()-time1<<endl;
