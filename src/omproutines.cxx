@@ -223,11 +223,10 @@ void OpenMPLinkAcross(Options &opt,
     do {
         omp_links_across_total = 0;
         #pragma omp parallel default(shared) \
-        private(i,orgIndex,curIndex, x, nt, Pval, pfofcomp)
+        private(i, orgIndex, curIndex, x, nt, Pval, pfofcomp)
         {
         #pragma omp for nowait reduction(+:omp_links_across_total)
         for (i=0;i<numompregions;i++) {
-            auto localpfofzerochange = 0, localpfofzerotopfofcomp = 0;
             for (auto j=0;j<omp_nrecv_total[i];j++) {
                 Pval=&Part[ompimport[omp_nrecv_offset[i]+j].index];
                 pfofcomp = ompimport[omp_nrecv_offset[i]+j].pfof;
@@ -246,7 +245,7 @@ void OpenMPLinkAcross(Options &opt,
                     orgIndex = storeorgIndex[Part[curIndex].GetID()+ompdomain[i].noffset];
                     //otherwise, change these particles to local group id if local group id smaller
                     //if local particle in a group
-                    if (pfof[orgIndex]>0)  {
+                    if (pfof[orgIndex]>0 && pfofcomp > 0)  {
                         //only change if both particles are appropriate type and group ids indicate local needs to be exported
                         if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1)
                             if (!(fofcheck(Part[curIndex],param)==0 && fofcheck(*Pval,param)==0)) continue;
@@ -281,13 +280,11 @@ void OpenMPLinkAcross(Options &opt,
                     }
                 }
             }
-// string s = "numloop " + to_string(numloops) + " OpenMP region " + to_string(i) + " with " + to_string(ompdomain[i].ncount) + " has " + to_string(localpfofzerochange) + " " + to_string(localpfofzerotopfofcomp) + "\n";
-// cout<<s;
         }
         }
 
         #pragma omp parallel default(shared) \
-        private(i,orgIndex,curIndex,curTask)
+        private(i, orgIndex, curIndex, curTask)
         {
         #pragma omp for nowait
         for (i=0;i<numompregions;i++) {
