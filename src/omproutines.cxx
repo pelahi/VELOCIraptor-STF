@@ -267,7 +267,6 @@ void OpenMPLinkAcross(Options &opt,
                         //set the local particle to the appropriate id
                         if (pfofcomp > 0) {
                             pfof[orgIndex] = pfofcomp;
-                            localpfofzerotopfofcomp++;
                         }
                         ///otherwise, if at this point, omp domains are incomplete
                         ///as volume also split in mpi, so increase number of local
