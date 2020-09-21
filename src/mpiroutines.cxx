@@ -4962,7 +4962,7 @@ Int_t MPIGroupExchange(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
         //now collect all the cells
         vector<int> mpi_newcellid(opt.numcells*NProcs);
         MPI_Allgather(newcellid.data(), opt.numcells, MPI_INT, mpi_newcellid.data(), opt.numcells, MPI_INT, MPI_COMM_WORLD);
-        opt.newcellnodeids.resize(NProcs);
+        opt.newcellnodeids.resize(opt.numcells);
         for (i=0; i<opt.numcells; i++)
         {
             for (auto itask=0; itask<NProcs; itask++)
