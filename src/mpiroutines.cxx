@@ -4809,12 +4809,13 @@ Int_t MPIGroupExchange(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
         nexport+=mpi_nsend[j+ThisTask*NProcs];
     }
     //declare array for local storage of the appropriate size
-    nlocal=nbodies-nexport+nimport;
+    nlocal=nbodies+nimport;
     NImport=nimport;
+    NExport=nexport;
     if (nexport >0) FoFGroupDataExport=new fofid_in[nexport];
 
     Int_t *storeval=new Int_t[nbodies];
-    Noldlocal=nbodies-nexport;
+    Noldlocal=nbodies;
     //store type in temporary array, then use type to store what task particle belongs to and sort values
     for (i=0;i<nbodies;i++) storeval[i]=Part[i].GetType();
     for (i=0;i<nbodies;i++) Part[i].SetType((mpi_foftask[i]!=ThisTask));
@@ -5071,6 +5072,14 @@ Int_t MPICompileGroups(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
     Int_t i,j,start,ngroups;
     Int_t *numingroup,*groupid,**plist;
     ngroups=0;
+    for (i=Noldlocal-NExport;i<Noldlocal;i++)
+    {
+      Part[i].SetID(1);
+      // This is meant to tag particles to avoid counting them twice when  NN is done.
+      // This will also be used to sort particles and 'trim' them from the Particle vector
+      // to save memory.
+      Part[i].SetPotential(1.0);
+    }
     for (i=Noldlocal;i<nbodies;i++) {
         Part[i]=FoFGroupDataLocal[i-Noldlocal].p;
         //note that before used type to sort particles
@@ -5087,10 +5096,11 @@ Int_t MPICompileGroups(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
             else ngroups++;
             start=i;
         }
-        if (Part[i].GetID()==0) break;
+        if (Part[i].GetID()>=0) break;
     }
     //again resort to move untagged particles to the end.
     qsort(Part,nbodies,sizeof(Particle),IDCompare);
+    for (i=nbodies-NExport; i< nbodies; i++) Part[i].SetID(0);
     //now adjust pfof and ids.
     for (i=0;i<nbodies;i++) {pfof[i]=-Part[i].GetID();Part[i].SetID(i);}
     numingroup=new Int_t[ngroups+1];

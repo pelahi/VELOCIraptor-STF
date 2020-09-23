@@ -1103,6 +1103,9 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
       opt.numpart[j]+=((long long)hdf_header_info[ifirstfile].npartTotalHW[j]<<32);
       Ntotal+=((long long)hdf_header_info[ifirstfile].npartTotalHW[j]<<32);
     }
+#ifdef NOMASS
+    if (hdf_header_info[ifirstfile].mass[HDFDMTYPE] > 0) opt.MassValue = hdf_header_info[ifirstfile].mass[HDFDMTYPE]*mscale;
+#endif
     if (ThisTask==0) {
       cout<<"File contains "<<Ntotal<<" particles and is at time "<<opt.a<<endl;
       cout<<"Particle system contains "<<nbodies<<" particles and is at time "<<opt.a<<" in a box of size "<<opt.p<<endl;
@@ -2351,7 +2354,6 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         }
                         if (opt.gas_internalprop_names.size()>0)
                         {
-                            // for (auto iextra=0;iextra<opt.gas_internalprop_names.size();iextra++)
                             for (auto &iextra:opt.gas_internalprop_unique_input_indexlist)
                             {
                                 extrafield = opt.gas_internalprop_names[iextra];
@@ -2363,7 +2365,6 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         iextraoffset += opt.gas_internalprop_names.size();
                         if (opt.gas_chem_names.size()>0)
                         {
-                            // for (auto iextra=0;iextra<opt.gas_chem_names.size();iextra++)
                             for (auto &iextra:opt.gas_chem_unique_input_indexlist)
                             {
                                 extrafield = opt.gas_chem_names[iextra];
@@ -2375,7 +2376,6 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         iextraoffset += opt.gas_chem_names.size();
                         if (opt.gas_chemproduction_names.size()>0)
                         {
-                            // for (auto iextra=0;iextra<opt.gas_chemproduction_names.size();iextra++)
                             for (auto &iextra:opt.gas_chemproduction_unique_input_indexlist)
                             {
                                 extrafield = opt.gas_chemproduction_names[iextra];
@@ -2396,7 +2396,6 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         }
                         if (opt.star_internalprop_names.size()>0)
                         {
-                            // for (auto iextra=0;iextra<opt.star_internalprop_names.size();iextra++)
                             for (auto &iextra:opt.star_internalprop_unique_input_indexlist)
                             {
                                 extrafield = opt.star_internalprop_names[iextra];
@@ -2408,7 +2407,6 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         iextraoffset += opt.star_internalprop_names.size();
                         if (opt.star_chem_names.size()>0)
                         {
-                            // for (auto iextra=0;iextra<opt.star_chem_names.size();iextra++)
                             for (auto &iextra:opt.star_chem_unique_input_indexlist)
                             {
                                 extrafield = opt.star_chem_names[iextra];
@@ -2420,7 +2418,6 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         iextraoffset += opt.star_chem_names.size();
                         if (opt.star_chemproduction_names.size()>0)
                         {
-                            // for (auto iextra=0;iextra<opt.star_chemproduction_names.size();iextra++)
                             for (auto &iextra:opt.star_chemproduction_unique_input_indexlist)
                             {
                                 extrafield = opt.star_chemproduction_names[iextra];
@@ -2441,7 +2438,6 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         }
                         if (opt.bh_internalprop_names.size()>0)
                         {
-                            // for (auto iextra=0;iextra<opt.bh_internalprop_names.size();iextra++)
                             for (auto &iextra:opt.bh_internalprop_unique_input_indexlist)
                             {
                                 extrafield = opt.bh_internalprop_names[iextra];
@@ -2453,7 +2449,6 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         iextraoffset += opt.bh_internalprop_names.size();
                         if (opt.bh_chem_names.size()>0)
                         {
-                            // for (auto iextra=0;iextra<opt.bh_chem_names.size();iextra++)
                             for (auto &iextra:opt.bh_chem_unique_input_indexlist)
                             {
                                 extrafield = opt.bh_chem_names[iextra];
@@ -2465,7 +2460,6 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         iextraoffset += opt.bh_chem_names.size();
                         if (opt.bh_chemproduction_names.size()>0)
                         {
-                            // for (auto iextra=0;iextra<opt.bh_chemproduction_names.size();iextra++)
                             for (auto &iextra:opt.bh_chemproduction_unique_input_indexlist)
                             {
                                 extrafield = opt.bh_chemproduction_names[iextra];
@@ -2484,7 +2478,6 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         if (k!=HDFDMTYPE) continue;
                         if (opt.extra_dm_internalprop_names.size()>0)
                         {
-                            // for (auto iextra=0;iextra<opt.extra_dm_internalprop_names.size();iextra++)
                             for (auto &iextra:opt.extra_dm_internalprop_unique_input_indexlist)
                             {
                                 extrafield = opt.extra_dm_internalprop_names[iextra];

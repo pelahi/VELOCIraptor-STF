@@ -563,7 +563,7 @@ private(i,j,k,tid,id,v2,nnids,nnr2,weight,pqv)
             bool ioverlap;
 
             if (opt.impiusemesh) ioverlap = (MPISearchForOverlapUsingMesh(opt,Part[i],maxrdist[i])!=0);
-            else (MPISearchForOverlap(Part[i],maxrdist[i])!=0);
+            else ioverlap = (MPISearchForOverlap(Part[i],maxrdist[i])!=0);
             if (ioverlap) {
                 Part[i].SetDensity(-1.0);
                 continue;
@@ -593,7 +593,6 @@ private(i,j,k,tid,id,v2,nnids,nnr2,weight,pqv)
 #ifdef USEOPENMP
 }
 #endif
-
 #ifdef USEMPI
     if (NProcs >1 && opt.iLocalVelDenApproxCalcFlag==0) {
     if (opt.iverbose) cout<<ThisTask<<" finished local calculation in "<<MyGetTime()-time2<<endl;
@@ -612,7 +611,7 @@ private(i,j,k,tid,id,v2,nnids,nnr2,weight,pqv)
     MPI_Barrier(MPI_COMM_WORLD);
     //run search on exported particles and determine which local particles need to be exported back (or imported)
     nimport=MPIBuildParticleNNImportList(opt, nbodies, tree, Part,(!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)));
-    int nimportsearch=opt.Nsearch;
+    int nimportsearch=opt.Nsearch+1;
     if (nimportsearch>nimport) nimportsearch=nimport;
     if (opt.iverbose) cout<<ThisTask<<" Searching particles in other domains "<<nimport<<endl;
     //now with imported particle list and local particle list can run proper NN search
@@ -670,8 +669,36 @@ private(i,j,k,tid,pid,pid2,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,p
             if (nimport>0) {
                 Coordinate x(Part[i].GetPosition());
                 treeneighbours->FindNearestPos(x,nnidsneighbours,nnr2neighbours,nimportsearch);
-                for (j=0;j<nimportsearch;j++) {
-                    if (nnr2neighbours[j] < pqx->TopPriority()){
+                int irepeat;
+                int offst;
+                for (j=0, offst = 0;j<nimportsearch;j++) 
+                {
+                    irepeat = 0;
+                    if (PartDataGet[nnidsneighbours[j]].GetPID() == Part[i].GetPID())
+                      continue;
+                    for (int k = offst; k < opt.Nsearch; k++)
+                    {
+                      if (nnr2[k] < nnr2neighbours[j]) continue;                     
+                      if (nnr2[k] == nnr2neighbours[j]) 
+                      {
+                        if (Part[nnids[k]].GetPID() == PartDataGet[nnidsneighbours[j]].GetPID())
+                        {
+                          irepeat = 1;
+                          offst = k;
+                          break;
+                        }
+                        else 
+                          continue;
+                      }
+
+                      if (nnr2[k] > nnr2neighbours[j])
+                      {
+                        offst = k;
+                        break;
+                      }
+                    }
+
+                    if (nnr2neighbours[j] < pqx->TopPriority() && irepeat == 0){
                         pqx->Pop();
                         pqx->Push(nnidsneighbours[j]+nbodies, nnr2neighbours[j]);
                     }
@@ -956,11 +983,6 @@ private(id,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,pqx,pqv,Pval,pid2
 
     nnids=new Int_t[opt.Nsearch];
     nnr2=new Double_t[opt.Nsearch];
-    nnidsneighbours=new Int_t[opt.Nsearch];
-    nnr2neighbours=new Double_t[opt.Nsearch];
-    weight=new Double_t[opt.Nvel];
-    pqx=new PriorityQueue(opt.Nsearch);
-    pqv=new PriorityQueue(opt.Nvel);
 #ifdef USEOPENMP
 #pragma omp for schedule(dynamic) \
 reduction(+:nprocessed)
