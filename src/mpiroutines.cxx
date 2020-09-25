@@ -4077,7 +4077,32 @@ vector<bool> MPIGetHaloSearchExportNumUsingMesh(Options &opt, const Int_t ngroup
             sent_mpi_domain[cellnodeID]++;
         }
         */
+        vector<int> cellnodeidlistold=MPIGetCellNodeIDListInSearchUsingMeshNoUpdate(opt,xsearch);
         vector<int> cellnodeidlist=MPIGetCellNodeIDListInSearchUsingMesh(opt,xsearch);
+if (cellnodeidlistold.size() < cellnodeidlist.size()) 
+{
+vector<int> indices(3);
+for (int k=0;k<3;k++) {
+indices[k]=(int)(floor(pdata[i].gcm[k]*opt.icellwidth[k]));
+if (indices[k] < 0) indices[k] += opt.numcellsperdim;
+else if (indices[k] > opt.numcellsperdim) indices[k] -= opt.numcellsperdim;
+}
+auto index = indices[0]*opt.numcellsperdim*opt.numcellsperdim;
+index += indices[1]*opt.numcellsperdim;
+index += indices[2];
+unordered_set<int> foo;
+vector<int> cellmpis;
+for (auto &c:cellnodeidlistold) foo.insert(c);
+for (auto &c:cellnodeidlist) 
+{
+if (foo.count(c) == 0) 
+{
+cellmpis.push_back(c);
+}
+}
+string s = " tasks "; for (auto &c:cellmpis) s+=to_string(c)+", ";
+cout<<ThisTask<<" halo "<<i<<" in "<<indices[0]<<" "<<indices[1]<<" "<<indices[2]<<" "<<index<<" "<<opt.cellnodeids[index]<<":"<<s<<endl;
+}
         for (auto cellnodeID:cellnodeidlist) {
             /// Only check if particles have overlap with neighbouring cells that are on another MPI domain and have not already been sent to
             if (sent_mpi_domain[cellnodeID] == 1) continue;
@@ -5811,6 +5836,41 @@ vector<int> MPIGetCellNodeIDListInSearchUsingMesh(Options &opt, Double_t xsearch
                 if (opt.newcellnodeids[index].size() == 0) continue;
                 for (auto &c:opt.newcellnodeids[index]) {
                     if (c!=ThisTask) cellnodeidlist.push_back(c);
+                }
+            }
+        }
+    }
+    return cellnodeidlist;
+}
+
+vector<int> MPIGetCellNodeIDListInSearchUsingMeshNoUpdate(Options &opt, Double_t xsearch[3][2])
+{
+    int ixstart,iystart,izstart,ixend,iyend,izend,index;
+    vector<int> cellnodeidlist;
+    ixstart=floor(xsearch[0][0]*opt.icellwidth[0]);
+    ixend=floor(xsearch[0][1]*opt.icellwidth[0]);
+    iystart=floor(xsearch[1][0]*opt.icellwidth[1]);
+    iyend=floor(xsearch[1][1]*opt.icellwidth[1]);
+    izstart=floor(xsearch[2][0]*opt.icellwidth[2]);
+    izend=floor(xsearch[2][1]*opt.icellwidth[2]);
+
+    for (auto ix=ixstart;ix<=ixend;ix++){
+        for (auto iy=iystart;iy<=iyend;iy++){
+            for (auto iz=izstart;iz<=izend;iz++){
+                index=0;
+                if (iz<0) index+=opt.numcellsperdim+iz;
+                else if (iz>=opt.numcellsperdim) index+=iz-opt.numcellsperdim;
+                else index+=iz;
+                if (iy<0) index+=(opt.numcellsperdim+iy)*opt.numcellsperdim;
+                else if (iy>=opt.numcellsperdim) index+=(iy-opt.numcellsperdim)*opt.numcellsperdim;
+                else index+=iy*opt.numcellsperdim;
+                if (ix<0) index+=(opt.numcellsperdim+ix)*opt.numcellsperdim*opt.numcellsperdim;
+                else if (ix>=opt.numcellsperdim) index+=(ix-opt.numcellsperdim)*opt.numcellsperdim*opt.numcellsperdim;
+                else index+=ix*opt.numcellsperdim*opt.numcellsperdim;
+                //if ignoring local cells and cell not local, add to cell list
+                //or add regardless if not ignoring local cells
+                if (opt.cellnodeids[index] != ThisTask) {
+                    cellnodeidlist.push_back(opt.cellnodeids[index]);
                 }
             }
         }
