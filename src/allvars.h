@@ -408,6 +408,8 @@ struct cell_loc {
 struct Options
 {
 
+//mesh stuff
+bool nomeshupdate;
     ///\name git related info
     //@{
     string git_sha1;
@@ -958,6 +960,7 @@ struct Options
 
     Options()
     {
+nomeshupdate=false;
         lengthinputconversion = 1.0;
         massinputconversion = 1.0;
         velocityinputconversion = 1.0;
@@ -1403,6 +1406,7 @@ struct GridCell
 */
 struct PropData
 {
+int nmpi;
     ///\name order in structure hierarchy and number of subhaloes
     //@{
     long long haloid,hostid,directhostid, hostfofid;
@@ -1796,6 +1800,7 @@ struct PropData
 
     PropData()
     {
+nmpi=0;
         num=gNFOF=gN6DFOF=0;
         gmass=gsize=gRmbp=gmaxvel=gRmaxvel=gRvir=gR200m=gR200c=gRhalfmass=gMassTwiceRhalfmass=Efrac=Pot=T=0.;
         gMFOF=gM6DFOF=0;

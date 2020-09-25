@@ -4677,8 +4677,22 @@ private(i,j)
 #endif
 
     GetMaximumSizes(opt, nbodies, Part, ngroup, numingroup, pdata, noffset);
+
+    //copy data as back up
+    PropData *nomeshpdata = new PropData[ngroup+1];
+    for (i=1;i<=ngroup;i++) nomeshpdata[i] = pdata[i];
+
     //calculate spherical masses after substructures identified if using InclusiveHalo = 3
     if (opt.iInclusiveHalo == 3) GetSOMasses(opt, nbodies, Part, ngroup,  numingroup, pdata);
+//adding test to see what the difference between updated mpi mesh and non updated mesh
+opt.nomeshupdate = true;
+if (opt.iInclusiveHalo == 3) GetSOMasses(opt, nbodies, Part, ngroup,  numingroup, nomeshpdata);
+for (i=1;i<=ngroup;i++) {
+    if (pdata[i].nmpi == nomeshpdata[i].nmpi) continue;
+    cout<<ThisTask<<" "<<i<<" "<<pdata[i].num<<" "<<pdata[i].nmpi<<" "<<nomeshpdata[i].nmpi<<" "<<(nomeshpdata[i].gM200c-pdata[i].gM200c)/nomeshpdata[i].gM200c<<endl;
+}
+delete[] nomeshpdata;
+
     //and finally calculate concentrations
     GetNFWConcentrations(opt, ngroup, numingroup, pdata);
     //AdjustHaloPositionRelativeToReferenceFrame(opt, ngroup, numingroup, pdata);
