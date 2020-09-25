@@ -4055,6 +4055,43 @@ vector<bool> MPIGetHaloSearchExportNumUsingMesh(Options &opt, const Int_t ngroup
     vector<bool> halooverlap(ngroup+1);
     vector<int>sent_mpi_domain(NProcs);
 
+    for (auto j=0;j<NProcs;j++) nsend_local[j]=0;
+    for (auto i=1;i<=ngroup;i++)
+    {
+        for (int k=0; k<NProcs; k++) sent_mpi_domain[k] = 0;
+        for (int k=0;k<3;k++) {xsearch[k][0]=pdata[i].gcm[k]-rdist[i];xsearch[k][1]=pdata[i].gcm[k]+rdist[i];}
+        // vector<int> cellnodeidlistold=MPIGetCellNodeIDListInSearchUsingMeshNoUpdate(opt,xsearch);
+        // vector<int> cellnodeidlist=MPIGetCellNodeIDListInSearchUsingMesh(opt,xsearch);
+        vector<int> cellnodeidlist=MPIGetCellNodeIDListInSearchUsingMesh(opt,xsearch);
+        for (auto cellnodeID:cellnodeidlist) {
+            /// Only check if particles have overlap with neighbouring cells that are on another MPI domain and have not already been sent to
+            if (sent_mpi_domain[cellnodeID] == 1) continue;
+            nsend_local[cellnodeID]++;
+            sent_mpi_domain[cellnodeID]++;
+        }
+    }
+    string s = to_string(ThisTask) +" sending ";
+    for (auto j=0;j<NProcs;j++) s+= to_string(j) + " : " +to_string(nsend_local[j])+", ";
+    cout<<s<<endl;
+
+    for (auto j=0;j<NProcs;j++) nsend_local[j]=0;
+    for (auto i=1;i<=ngroup;i++)
+    {
+        for (int k=0; k<NProcs; k++) sent_mpi_domain[k] = 0;
+        for (int k=0;k<3;k++) {xsearch[k][0]=pdata[i].gcm[k]-rdist[i];xsearch[k][1]=pdata[i].gcm[k]+rdist[i];}
+        vector<int> cellnodeidlist=MPIGetCellNodeIDListInSearchUsingMeshNoUpdate(opt,xsearch);
+        for (auto cellnodeID:cellnodeidlist) {
+            /// Only check if particles have overlap with neighbouring cells that are on another MPI domain and have not already been sent to
+            if (sent_mpi_domain[cellnodeID] == 1) continue;
+            nsend_local[cellnodeID]++;
+            sent_mpi_domain[cellnodeID]++;
+        }
+    }
+    s = to_string(ThisTask) + " no update sending ";
+    for (auto j=0;j<NProcs;j++) s+= to_string(j) + " : " +to_string(nsend_local[j])+", ";
+    cout<<s<<endl;
+
+
     ///\todo would like to add openmp to this code. In particular, loop over nbodies but issue is nexport.
     ///This would either require making a FoFDataIn[nthreads][NExport] structure so that each omp thread
     ///can only access the appropriate memory and adjust nsend_local.\n
