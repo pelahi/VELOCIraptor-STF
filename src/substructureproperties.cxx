@@ -3099,12 +3099,14 @@ void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup
         //build the exported halo group list using NNData structures
         if (opt.impiusemesh) MPIBuildHaloSearchExportListUsingMesh(opt, ngroup, pdata, maxrdist,halooverlap);
         else MPIBuildHaloSearchExportList(ngroup, pdata, maxrdist,halooverlap);
+cout<<ThisTask<<" halo import/export with "<<opt.nomeshupdate<<" "<<NImport<<" "<<NExport<<endl;
         MPIGetHaloSearchImportNum(nbodies, tree, Part);
         PartDataIn = new Particle[NExport+1];
         PartDataGet = new Particle[NImport+1];
         //run search on exported particles and determine which local particles need to be exported back (or imported)
-        nimport=MPIBuildParticleNNImportList(opt, nbodies, tree, Part, 1, opt.iSphericalOverdensityExtraFieldCalculations);
+        nimport = MPIBuildParticleNNImportList(opt, nbodies, tree, Part, 1, opt.iSphericalOverdensityExtraFieldCalculations);
         if (nimport>0) treeimport=new KDTree(PartDataGet,nimport,opt.HaloMinSize,tree->TPHYS,tree->KEPAN,100,0,0,0,period);
+cout<<ThisTask<<" particle import/export with "<<opt.nomeshupdate<<" "<<nimport<<" "<<NExport<<endl;
     }
 #endif
     time2=MyGetTime();

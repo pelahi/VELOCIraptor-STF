@@ -4434,23 +4434,22 @@ Int_t MPIBuildHaloSearchImportList(Options &opt, const Int_t nbodies, KDTree *tr
 
     for (j=0;j<NProcs;j++) nsend_local[j]=0;
     for (j=0;j<NProcs;j++) {
-            for (i=0;i<nbodies;i++) nn[i]=-1;
+        for (i=0;i<nbodies;i++) nn[i]=-1;
         if (j==ThisTask) continue;
         if (mpi_nsend[ThisTask+j*NProcs]==0) continue;
-            //search local list and tag all local particles that need to be exported back (or imported) to the exported particles thread
-            for (i=nbuffer[j];i<nbuffer[j]+mpi_nsend[ThisTask+j*NProcs];i++) {
-                tree->SearchBallPos(NNDataGet[i].Pos, NNDataGet[i].R2, j, nn, nnr2);
+        //search local list and tag all local particles that need to be exported back (or imported) to the exported particles thread
+        for (i=nbuffer[j];i<nbuffer[j]+mpi_nsend[ThisTask+j*NProcs];i++) {
+            tree->SearchBallPos(NNDataGet[i].Pos, NNDataGet[i].R2, j, nn, nnr2);
+        }
+        for (i=0;i<nbodies;i++) {
+            if (nn[i]==-1) continue;
+            for (int k=0;k<3;k++) {
+                PartDataIn[nexport].SetPosition(k,Part[i].GetPosition(k));
+                PartDataIn[nexport].SetVelocity(k,Part[i].GetVelocity(k));
             }
-            for (i=0;i<nbodies;i++) {
-                if (nn[i]!=-1) {
-                    for (int k=0;k<3;k++) {
-                        PartDataIn[nexport].SetPosition(k,Part[i].GetPosition(k));
-                        PartDataIn[nexport].SetVelocity(k,Part[i].GetVelocity(k));
-                    }
-                    nexport++;
-                    nsend_local[j]++;
-                }
-            }
+            nexport++;
+            nsend_local[j]++;
+        }
     }
     //sort the export data such that all particles to be passed to thread j are together in ascending thread number
     //qsort(NNDataReturn, nexport, sizeof(struct nndata_in), nn_export_cmp);
