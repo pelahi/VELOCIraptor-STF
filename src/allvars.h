@@ -407,9 +407,6 @@ struct cell_loc {
 /// Options structure stores useful variables that have user determined values which are altered by \ref GetArgs in \ref ui.cxx
 struct Options
 {
-
-//mesh stuff
-bool nomeshupdate;
     ///\name git related info
     //@{
     string git_sha1;
@@ -960,7 +957,6 @@ bool nomeshupdate;
 
     Options()
     {
-nomeshupdate=false;
         lengthinputconversion = 1.0;
         massinputconversion = 1.0;
         velocityinputconversion = 1.0;
@@ -1406,7 +1402,6 @@ struct GridCell
 */
 struct PropData
 {
-int nmpi;
     ///\name order in structure hierarchy and number of subhaloes
     //@{
     long long haloid,hostid,directhostid, hostfofid;
@@ -1800,7 +1795,6 @@ int nmpi;
 
     PropData()
     {
-nmpi=0;
         num=gNFOF=gN6DFOF=0;
         gmass=gsize=gRmbp=gmaxvel=gRmaxvel=gRvir=gR200m=gR200c=gRhalfmass=gMassTwiceRhalfmass=Efrac=Pot=T=0.;
         gMFOF=gM6DFOF=0;

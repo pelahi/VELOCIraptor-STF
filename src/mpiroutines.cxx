@@ -3296,22 +3296,6 @@ void MPIBuildParticleExportListUsingMesh(Options &opt, const Int_t nbodies, Part
     for (i=0;i<nbodies;i++) {
         for(int k=0; k<NProcs; k++) sent_mpi_domain[k] = 0;
         for(int k=0;k<3;k++) {xsearch[k][0]=Part[i].GetPosition(k)-rdist;xsearch[k][1]=Part[i].GetPosition(k)+rdist;}
-        /*
-        vector<int> celllist=MPIGetCellListInSearchUsingMesh(opt,xsearch);
-        for (auto j:celllist) {
-            const int cellnodeID = opt.cellnodeids[j];
-            /// Only check if particles have overlap with neighbouring cells that are on another MPI domain and have not already been sent to
-            if (sent_mpi_domain[cellnodeID] == 1) continue;
-            FoFDataIn[nexport].Index = i;
-            FoFDataIn[nexport].Task = cellnodeID;
-            FoFDataIn[nexport].iGroup = pfof[Part[i].GetID()];//set group id
-            FoFDataIn[nexport].iGroupTask = ThisTask;//and the task of the group
-            FoFDataIn[nexport].iLen = Len[i];
-            nexport++;
-            nsend_local[cellnodeID]++;
-            sent_mpi_domain[cellnodeID]++;
-        }
-        */
         vector<int> cellnodeidlist=MPIGetCellNodeIDListInSearchUsingMesh(opt,xsearch);
         for (auto cellnodeID:cellnodeidlist) {
             /// Only check if particles have overlap with neighbouring cells that are on another MPI domain and have not already been sent to
@@ -3558,17 +3542,6 @@ void MPIGetNNExportNumUsingMesh(Options &opt, const Int_t nbodies, Particle *Par
         if (rdist[i] == 0) continue;
         for(int k=0; k<NProcs; k++) sent_mpi_domain[k] = 0;
         for (int k=0;k<3;k++) {xsearch[k][0]=Part[i].GetPosition(k)-rdist[i];xsearch[k][1]=Part[i].GetPosition(k)+rdist[i];}
-        /*
-        vector<int> celllist=MPIGetCellListInSearchUsingMesh(opt,xsearch);
-        for (auto j:celllist) {
-            const int cellnodeID = opt.cellnodeids[j];
-            /// Only check if particles have overlap with neighbouring cells that are on another MPI domain and have not already been sent to
-            if (sent_mpi_domain[cellnodeID] == 1) continue;
-            nexport++;
-            nsend_local[cellnodeID]++;
-            sent_mpi_domain[cellnodeID]++;
-        }
-        */
         vector<int> cellnodeidlist=MPIGetCellNodeIDListInSearchUsingMesh(opt,xsearch);
         for (auto cellnodeID:cellnodeidlist) {
             /// Only check if particles have overlap with neighbouring cells that are on another MPI domain and have not already been sent to
@@ -3722,26 +3695,6 @@ void MPIBuildParticleNNExportListUsingMesh(Options &opt, const Int_t nbodies, Pa
         /// Store whether an MPI domain has already been sent to
         for(int k=0; k<NProcs; k++) sent_mpi_domain[k] = 0;
         for (int k=0;k<3;k++) {xsearch[k][0]=Part[i].GetPosition(k)-rdist[i];xsearch[k][1]=Part[i].GetPosition(k)+rdist[i];}
-        /*
-        vector<int> celllist=MPIGetCellListInSearchUsingMesh(opt,xsearch);
-        for (auto j:celllist) {
-            const int cellnodeID = opt.cellnodeids[j];
-            /// Only check if particles have overlap with neighbouring cells that are on another MPI domain and have not already been sent to
-            if (sent_mpi_domain[cellnodeID] == 1) continue;
-            //NNDataIn[nexport].Index=i;
-            NNDataIn[nexport].ToTask=cellnodeID;
-            NNDataIn[nexport].FromTask=ThisTask;
-            NNDataIn[nexport].R2=rdist[i]*rdist[i];
-            //NNDataIn[nexport].V2=vdist2[i];
-            for (int k=0;k<3;k++) {
-                NNDataIn[nexport].Pos[k]=Part[i].GetPosition(k);
-                NNDataIn[nexport].Vel[k]=Part[i].GetVelocity(k);
-            }
-            nexport++;
-            nsend_local[cellnodeID]++;
-            sent_mpi_domain[cellnodeID]++;
-        }
-        */
         vector<int> cellnodeidlist=MPIGetCellNodeIDListInSearchUsingMesh(opt,xsearch);
         for (auto cellnodeID:cellnodeidlist) {
             /// Only check if particles have overlap with neighbouring cells that are on another MPI domain and have not already been sent to
@@ -4055,43 +4008,6 @@ vector<bool> MPIGetHaloSearchExportNumUsingMesh(Options &opt, const Int_t ngroup
     vector<bool> halooverlap(ngroup+1);
     vector<int>sent_mpi_domain(NProcs);
 
-    for (auto j=0;j<NProcs;j++) nsend_local[j]=0;
-    for (auto i=1;i<=ngroup;i++)
-    {
-        for (int k=0; k<NProcs; k++) sent_mpi_domain[k] = 0;
-        for (int k=0;k<3;k++) {xsearch[k][0]=pdata[i].gcm[k]-rdist[i];xsearch[k][1]=pdata[i].gcm[k]+rdist[i];}
-        // vector<int> cellnodeidlistold=MPIGetCellNodeIDListInSearchUsingMeshNoUpdate(opt,xsearch);
-        // vector<int> cellnodeidlist=MPIGetCellNodeIDListInSearchUsingMesh(opt,xsearch);
-        vector<int> cellnodeidlist=MPIGetCellNodeIDListInSearchUsingMesh(opt,xsearch);
-        for (auto cellnodeID:cellnodeidlist) {
-            /// Only check if particles have overlap with neighbouring cells that are on another MPI domain and have not already been sent to
-            if (sent_mpi_domain[cellnodeID] == 1) continue;
-            nsend_local[cellnodeID]++;
-            sent_mpi_domain[cellnodeID]++;
-        }
-    }
-    string s = to_string(ThisTask) +" sending ";
-    for (auto j=0;j<NProcs;j++) s+= to_string(j) + " : " +to_string(nsend_local[j])+", ";
-    cout<<s<<endl;
-
-    for (auto j=0;j<NProcs;j++) nsend_local[j]=0;
-    for (auto i=1;i<=ngroup;i++)
-    {
-        for (int k=0; k<NProcs; k++) sent_mpi_domain[k] = 0;
-        for (int k=0;k<3;k++) {xsearch[k][0]=pdata[i].gcm[k]-rdist[i];xsearch[k][1]=pdata[i].gcm[k]+rdist[i];}
-        vector<int> cellnodeidlist=MPIGetCellNodeIDListInSearchUsingMeshNoUpdate(opt,xsearch);
-        for (auto cellnodeID:cellnodeidlist) {
-            /// Only check if particles have overlap with neighbouring cells that are on another MPI domain and have not already been sent to
-            if (sent_mpi_domain[cellnodeID] == 1) continue;
-            nsend_local[cellnodeID]++;
-            sent_mpi_domain[cellnodeID]++;
-        }
-    }
-    s = to_string(ThisTask) + " no update sending ";
-    for (auto j=0;j<NProcs;j++) s+= to_string(j) + " : " +to_string(nsend_local[j])+", ";
-    cout<<s<<endl;
-
-
     ///\todo would like to add openmp to this code. In particular, loop over nbodies but issue is nexport.
     ///This would either require making a FoFDataIn[nthreads][NExport] structure so that each omp thread
     ///can only access the appropriate memory and adjust nsend_local.\n
@@ -4102,34 +4018,7 @@ vector<bool> MPIGetHaloSearchExportNumUsingMesh(Options &opt, const Int_t ngroup
     {
         for (int k=0; k<NProcs; k++) sent_mpi_domain[k] = 0;
         for (int k=0;k<3;k++) {xsearch[k][0]=pdata[i].gcm[k]-rdist[i];xsearch[k][1]=pdata[i].gcm[k]+rdist[i];}
-        // vector<int> cellnodeidlistold=MPIGetCellNodeIDListInSearchUsingMeshNoUpdate(opt,xsearch);
-        // vector<int> cellnodeidlist=MPIGetCellNodeIDListInSearchUsingMesh(opt,xsearch);
-// if (cellnodeidlistold.size() < cellnodeidlist.size())
-// {
-// vector<int> indices(3);
-// for (int k=0;k<3;k++) {
-// indices[k]=(int)(floor(pdata[i].gcm[k]*opt.icellwidth[k]));
-// if (indices[k] < 0) indices[k] += opt.numcellsperdim;
-// else if (indices[k] > opt.numcellsperdim) indices[k] -= opt.numcellsperdim;
-// }
-// auto index = indices[0]*opt.numcellsperdim*opt.numcellsperdim;
-// index += indices[1]*opt.numcellsperdim;
-// index += indices[2];
-// unordered_set<int> foo;
-// vector<int> cellmpis;
-// for (auto &c:cellnodeidlistold) foo.insert(c);
-// for (auto &c:cellnodeidlist)
-// {
-// if (foo.count(c) == 0)
-// {
-// cellmpis.push_back(c);
-// }
-// }
-// string s = " tasks "; for (auto &c:cellmpis) s+=to_string(c)+", ";
-// cout<<ThisTask<<" halo "<<i<<" in "<<indices[0]<<" "<<indices[1]<<" "<<indices[2]<<" "<<index<<" "<<opt.cellnodeids[index]<<":"<<s<<endl;
-// }
         vector<int> cellnodeidlist=MPIGetCellNodeIDListInSearchUsingMesh(opt,xsearch);
-        if (opt.nomeshupdate) cellnodeidlist=MPIGetCellNodeIDListInSearchUsingMeshNoUpdate(opt,xsearch);
         for (auto cellnodeID:cellnodeidlist) {
             /// Only check if particles have overlap with neighbouring cells that are on another MPI domain and have not already been sent to
             if (sent_mpi_domain[cellnodeID] == 1) continue;
@@ -4137,7 +4026,6 @@ vector<bool> MPIGetHaloSearchExportNumUsingMesh(Options &opt, const Int_t ngroup
             nsend_local[cellnodeID]++;
             halooverlap[i]=true;
             sent_mpi_domain[cellnodeID]++;
-pdata[i].nmpi++;
         }
     }
 
@@ -4277,7 +4165,6 @@ void MPIBuildHaloSearchExportListUsingMesh(Options &opt, const Int_t ngroup, Pro
         for (int k=0; k<NProcs; k++) sent_mpi_domain[k] = 0;
         for (int k=0;k<3;k++) {xsearch[k][0]=pdata[i].gcm[k]-rdist[i];xsearch[k][1]=pdata[i].gcm[k]+rdist[i];}
         vector<int> cellnodeidlist=MPIGetCellNodeIDListInSearchUsingMesh(opt,xsearch);
-        if (opt.nomeshupdate) cellnodeidlist=MPIGetCellNodeIDListInSearchUsingMeshNoUpdate(opt,xsearch);
         for (auto cellnodeID:cellnodeidlist) {
             /// Only check if particles have overlap with neighbouring cells that are on another MPI domain and have not already been sent to
             if (sent_mpi_domain[cellnodeID] == 1) continue;
@@ -5851,42 +5738,6 @@ vector<int> MPIGetCellNodeIDListInSearchUsingMesh(Options &opt, Double_t xsearch
     }
     return cellnodeidlist;
 }
-
-vector<int> MPIGetCellNodeIDListInSearchUsingMeshNoUpdate(Options &opt, Double_t xsearch[3][2])
-{
-    int ixstart,iystart,izstart,ixend,iyend,izend,index;
-    vector<int> cellnodeidlist;
-    ixstart=floor(xsearch[0][0]*opt.icellwidth[0]);
-    ixend=floor(xsearch[0][1]*opt.icellwidth[0]);
-    iystart=floor(xsearch[1][0]*opt.icellwidth[1]);
-    iyend=floor(xsearch[1][1]*opt.icellwidth[1]);
-    izstart=floor(xsearch[2][0]*opt.icellwidth[2]);
-    izend=floor(xsearch[2][1]*opt.icellwidth[2]);
-
-    for (auto ix=ixstart;ix<=ixend;ix++){
-        for (auto iy=iystart;iy<=iyend;iy++){
-            for (auto iz=izstart;iz<=izend;iz++){
-                index=0;
-                if (iz<0) index+=opt.numcellsperdim+iz;
-                else if (iz>=opt.numcellsperdim) index+=iz-opt.numcellsperdim;
-                else index+=iz;
-                if (iy<0) index+=(opt.numcellsperdim+iy)*opt.numcellsperdim;
-                else if (iy>=opt.numcellsperdim) index+=(iy-opt.numcellsperdim)*opt.numcellsperdim;
-                else index+=iy*opt.numcellsperdim;
-                if (ix<0) index+=(opt.numcellsperdim+ix)*opt.numcellsperdim*opt.numcellsperdim;
-                else if (ix>=opt.numcellsperdim) index+=(ix-opt.numcellsperdim)*opt.numcellsperdim*opt.numcellsperdim;
-                else index+=ix*opt.numcellsperdim*opt.numcellsperdim;
-                //if ignoring local cells and cell not local, add to cell list
-                //or add regardless if not ignoring local cells
-                if (opt.cellnodeids[index] != ThisTask) {
-                    cellnodeidlist.push_back(opt.cellnodeids[index]);
-                }
-            }
-        }
-    }
-    return cellnodeidlist;
-}
-
 //@}
 
 //@{

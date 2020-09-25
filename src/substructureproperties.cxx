@@ -3099,14 +3099,12 @@ void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup
         //build the exported halo group list using NNData structures
         if (opt.impiusemesh) MPIBuildHaloSearchExportListUsingMesh(opt, ngroup, pdata, maxrdist,halooverlap);
         else MPIBuildHaloSearchExportList(ngroup, pdata, maxrdist,halooverlap);
-cout<<ThisTask<<" halo import/export with "<<opt.nomeshupdate<<" "<<NImport<<" "<<NExport<<endl;
         MPIGetHaloSearchImportNum(nbodies, tree, Part);
         PartDataIn = new Particle[NExport+1];
         PartDataGet = new Particle[NImport+1];
         //run search on exported particles and determine which local particles need to be exported back (or imported)
         nimport = MPIBuildParticleNNImportList(opt, nbodies, tree, Part, 1, opt.iSphericalOverdensityExtraFieldCalculations);
         if (nimport>0) treeimport=new KDTree(PartDataGet,nimport,opt.HaloMinSize,tree->TPHYS,tree->KEPAN,100,0,0,0,period);
-cout<<ThisTask<<" particle import/export with "<<opt.nomeshupdate<<" "<<nimport<<" "<<NExport<<endl;
     }
 #endif
     time2=MyGetTime();
@@ -4686,14 +4684,6 @@ private(i,j)
 
     //calculate spherical masses after substructures identified if using InclusiveHalo = 3
     if (opt.iInclusiveHalo == 3) GetSOMasses(opt, nbodies, Part, ngroup,  numingroup, pdata);
-//adding test to see what the difference between updated mpi mesh and non updated mesh
-opt.nomeshupdate = true;
-if (opt.iInclusiveHalo == 3) GetSOMasses(opt, nbodies, Part, ngroup,  numingroup, nomeshpdata);
-for (i=1;i<=ngroup;i++) {
-    if (pdata[i].nmpi == nomeshpdata[i].nmpi) continue;
-    cout<<ThisTask<<" "<<i<<" "<<pdata[i].num<<" "<<pdata[i].nmpi<<" "<<nomeshpdata[i].nmpi<<" "<<(nomeshpdata[i].gM200c-pdata[i].gM200c)/nomeshpdata[i].gM200c<<endl;
-}
-delete[] nomeshpdata;
 
     //and finally calculate concentrations
     GetNFWConcentrations(opt, ngroup, numingroup, pdata);
