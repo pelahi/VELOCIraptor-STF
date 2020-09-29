@@ -370,29 +370,26 @@ void SetVelociraptorSimulationState(cosmoinfo c, siminfo s)
 }
 
 ///\todo interface with swift is comoving positions, period, peculiar velocities and physical self-energy
-extern "C" Swift::groupinfo * InvokeVelociraptor(const int snapnum, char* outputname,
+extern "C" Swift::vr_return_data InvokeVelociraptor(const int snapnum, char* outputname,
     cosmoinfo c, siminfo s,
     const size_t num_gravity_parts, const size_t num_hydro_parts, const size_t num_star_parts,
     struct swift_vel_part *swift_parts, int *cell_node_ids,
-    const int numthreads, const int ireturngroupinfoflag, int *const numpartingroups
+    const int numthreads, const int ireturngroupinfoflag, const int ireturnmostbound
 )
 {
-    groupinfo *group_info = NULL;
     const size_t num_bh_parts = 0;
-    group_info = InvokeVelociraptorHydro(snapnum, outputname, c, s,
+    vr_return_data return_data = InvokeVelociraptorHydro(snapnum, outputname, c, s,
         num_gravity_parts, num_hydro_parts, num_star_parts, num_bh_parts,
         swift_parts, cell_node_ids,
-        numthreads, ireturngroupinfoflag,
-        numpartingroups);
-    return group_info;
+        numthreads, ireturngroupinfoflag, ireturnmostbound);
+    return return_data;
 }
-groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
+vr_return_data InvokeVelociraptorHydro(const int snapnum, char* outputname,
     cosmoinfo c, siminfo s,
     const size_t num_gravity_parts, const size_t num_hydro_parts, const size_t num_star_parts, const size_t num_bh_parts,
     struct swift_vel_part *swift_parts, int *cell_node_ids,
     const int numthreads,
-    const int ireturngroupinfoflag,
-    int * const numpartingroups,
+    const int ireturngroupinfoflag, const int ireturnmostbound,
     struct swift_vel_gas_part *swift_gas_parts,
     struct swift_vel_star_part *swift_star_parts,
     struct swift_vel_bh_part *swift_bh_parts
@@ -417,6 +414,13 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
 #else
     nthreads=1;
 #endif
+
+    // Construct default return value
+    vr_return_data return_data;
+    return_data.num_gparts_in_groups = 0;
+    return_data.group_info = NULL;
+    return_data.num_most_bound = 0;
+    return_data.most_bound_index = NULL;
 
     libvelociraptorOpt.outname = outputname;
     libvelociraptorOpt.snapshotvalue = HALOIDSNVAL* snapnum;
@@ -451,7 +455,6 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
     Int_t *nsub = NULL, *parentgid = NULL, *uparentgid =NULL, *stype = NULL;
     Int_t nbaryons, ndark, index;
     Int_t ngroup, nhalos;
-    groupinfo *group_info = NULL;
     //KDTree *tree;
     //to store information about the group
     PropData *pdata = NULL,*pdatahalos = NULL;
@@ -524,7 +527,7 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
                 }
                 else {
                     cout<<"Unknown particle type found: index="<<i<<" type="<<swift_parts[i].type<<" while treating baryons differently. Exiting..."<<endl;
-                    return NULL;
+                    return return_data;
                 }
             }
         }
@@ -533,7 +536,7 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
         for(auto i=0; i<Nlocal; i++) {
             if (CheckSwiftPartType(swift_parts[i].type)){
                 cout<<ThisTask<< "Unknown particle type found: index="<<i<<" type="<<swift_parts[i].type<<" when loading particles. Exiting..."<<endl;
-                return NULL;
+                return return_data;
             }
             for (auto j=0;j<3;j++) swift_parts[i].x[j]*=libvelociraptorOpt.a;
             parts[i] = Particle(swift_parts[i]);
@@ -688,13 +691,13 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
 #ifdef EXTENDEDHALOOUTPUT
     if (opt.iExtendedOutput) WriteExtendedOutput (libvelociraptorOpt, ngroup, nbodies, pdata, parts, pfof);
 #endif
+    delete[] pfof;
     //if returning to swift as swift is writing a snapshot, then write for the groups where the particles are found in a file
     //assuming that the swift task and swift index can be used to determine where a particle will be written.
     if (ireturngroupinfoflag != 1 ) WriteSwiftExtendedOutput (libvelociraptorOpt, ngroup, numingroup, pglist, parts);
 
     // Find offset to first group on each MPI rank
     Int_t ngoffset=0,ngtot=0;
-    Int_t nig=0;
     ngtot=ngroup;
 #ifdef USEMPI
     if (NProcs > 1) {
@@ -712,82 +715,88 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
       }
     }
 
-    for (Int_t i=1;i<=ngroup;i++) delete[] pglist[i];
-    delete[] pglist;
     delete[] pdata;
     delete[] nsub;
     delete[] uparentgid;
     delete[] parentgid;
     delete[] stype;
     delete psldata;
-    delete[] numingroup;
 
     //get memory usage
     GetMemUsage(libvelociraptorOpt, __func__+string("--line--")+to_string(__LINE__), true);
 
-    //store group information to return information to swift if required
-    //otherwise, return NULL as pointer
-    if (ireturngroupinfoflag != 1 ) {
-        cout<<"VELOCIraptor returning, no group info returned to swift as requested."<< endl;
-        //free mem associate with mpi cell node ides
-        libvelociraptorOpt.cellnodeids = NULL;
-        libvelociraptorOpt.cellloc = NULL;
-        free(s.cellloc);
-        free(cell_node_ids);
-        delete[] pfof;
-        *numpartingroups=0;
-        return NULL;
-    }
+    // Make array of most bound particle indexes if we have groups and it was requested
+    Int_t num_most_bound = 0;
+    int *most_bound_index = NULL;
+    if(ireturnmostbound && ngtot > 0) {
+      
+      // Make a vector containing just the most bound particle from each non-zero size group
+      vector<Particle> most_bound_parts;
+      most_bound_parts.reserve(ngroup);
+      for (auto i=1; i<=ngroup; i++) {
+        if(numingroup[i] > 0)most_bound_parts.push_back(parts[pglist[i][0]]);
+      }
+      num_most_bound = most_bound_parts.size();
 
-    //first sort so all particles in groups first
-    cout<<"VELOCIraptor sorting info to return group ids to swift"<<endl;
-    if (ngtot == 0) {
-        cout<<"No groups found"<<endl;
-        //free mem associate with mpi cell node ides
-        libvelociraptorOpt.cellnodeids = NULL;
-        libvelociraptorOpt.cellloc = NULL;
-        free(s.cellloc);
-        free(cell_node_ids);
-        delete[] pfof;
-        parts.clear();
-        *numpartingroups=nig;
-        return NULL;
-    }
-
-    delete [] pfof;
+      // Send each most bound particle to the MPI rank it was on in Swift
 #ifdef USEMPI
-    if (NProcs > 1) {
+      if (NProcs > 1) {
+        for (auto i=0;i<num_most_bound; i++) most_bound_parts[i].SetID((most_bound_parts[i].GetSwiftTask()!=ThisTask));
+        //now sort items according to whether local swift task
+        qsort(most_bound_parts.data(), num_most_bound, sizeof(Particle), IDCompare);
+        //communicate information
+        MPISwiftExchange(most_bound_parts);
+        num_most_bound = most_bound_parts.size();
+      }
+#endif
+      // Make an array with the Swift indexes of the most bound particles.
+      // This will be returned to Swift so it has to be allocated with malloc().
+      most_bound_index = (int *) malloc(sizeof(int)*num_most_bound);
+      for (auto i=0;i<num_most_bound; i++) {
+        most_bound_index[i] = most_bound_parts[i].GetSwiftIndex();
+      }
+      most_bound_parts.clear();
+    }
+    // Add most bound particles to struct to return
+    return_data.num_most_bound = num_most_bound;
+    return_data.most_bound_index = most_bound_index;
+
+    for (Int_t i=1;i<=ngroup;i++) delete[] pglist[i];
+    delete[] pglist;
+    delete[] numingroup;
+
+    // Compute group_info array if we have groups and it was requested
+    groupinfo *group_info = NULL;
+    Int_t nig=0;
+    if(ireturngroupinfoflag && ngtot > 0) {
+      //first sort so all particles in groups first
+      cout<<"VELOCIraptor sorting info to return group ids to swift"<<endl;
+#ifdef USEMPI
+      if (NProcs > 1) {
         for (auto i=0;i<Nlocal; i++) parts[i].SetID((parts[i].GetSwiftTask()!=ThisTask));
         //now sort items according to whether local swift task
         qsort(parts.data(), Nlocal, sizeof(Particle), IDCompare);
         //communicate information
         MPISwiftExchange(parts);
-        Nlocal = parts.size();
-
-        for (auto i=0;i<Nlocal; i++) {
-          if(parts[i].GetSwiftTask() != ThisTask) {
-            cout << "Particle on wrong task!";
-            MPI_Abort(MPI_COMM_WORLD, 1);
-          }
-        }
-
-    }
+        Nlocal = parts.size(); 
+      }
 #endif
-    qsort(parts.data(), Nlocal, sizeof(Particle), PIDCompare);
-    nig=0;
-    Int_t istart=0;
-    for (auto i=0;i<Nlocal;i++) if (parts[i].GetPID()>0) {nig=Nlocal-i;istart=i;break;}
-    *numpartingroups=nig;
-    group_info=NULL;
-    if (nig>0)
-    {
-        group_info = new groupinfo[nig];
-        for (auto i=istart;i<Nlocal;i++) {
+      qsort(parts.data(), Nlocal, sizeof(Particle), PIDCompare);
+      nig=0;
+      Int_t istart=0;
+      for (auto i=0;i<Nlocal;i++) if (parts[i].GetPID()>0) {nig=Nlocal-i;istart=i;break;}
+      if (nig>0)
+        {
+          group_info = (groupinfo *) malloc(nig*sizeof(struct groupinfo)); // Will be freed by Swift
+          for (auto i=istart;i<Nlocal;i++) {
             group_info[i-istart].index=parts[i].GetSwiftIndex();
             group_info[i-istart].groupid=parts[i].GetPID();
+          }
         }
     }
-    cout<<"VELOCIraptor returning."<< endl;
+    // Add groupinfo to struct to return
+    return_data.num_gparts_in_groups=nig;
+    return_data.group_info = group_info;
 
     //free mem associate with mpi cell node ides
     libvelociraptorOpt.cellnodeids = NULL;
@@ -796,56 +805,51 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
     free(cell_node_ids);
     parts.clear();
 
-    return group_info;
+    cout<<"VELOCIraptor returning."<< endl;
+    return return_data;
 }
 
 
 ///\todo interface with swift is comoving positions, period, peculiar velocities and physical self-energy
-groupinfo *InvokeVelociraptorExtra(const int iextra, const int snapnum, char* outputname,
+vr_return_data InvokeVelociraptorExtra(const int iextra, const int snapnum, char* outputname,
     cosmoinfo c, siminfo s,
     const size_t num_gravity_parts, const size_t num_hydro_parts, const size_t num_star_parts,
     struct swift_vel_part *swift_parts, int *cell_node_ids,
     const int numthreads,
-    const int ireturngroupinfoflag,
-    int * const numpartingroups)
+    const int ireturngroupinfoflag, const int ireturnmostbound)
 {
-    groupinfo *group_info = NULL;
     //store backup of the libvelociraptorOpt
     libvelociraptorOptbackup = libvelociraptorOpt;
     libvelociraptorOpt = libvelociraptorOptextra[iextra];
-    group_info = InvokeVelociraptor(snapnum, outputname, c, s,
+    vr_return_data return_data = InvokeVelociraptor(snapnum, outputname, c, s,
         num_gravity_parts, num_hydro_parts, num_star_parts,
         swift_parts, cell_node_ids,
         numthreads,
-        ireturngroupinfoflag,
-        numpartingroups);
+        ireturngroupinfoflag, ireturnmostbound);
     libvelociraptorOpt = libvelociraptorOptbackup;
-    return group_info;
+    return return_data;
 }
 
-groupinfo *InvokeVelociraptorHydroExtra(const int iextra, const int snapnum, char* outputname,
+vr_return_data InvokeVelociraptorHydroExtra(const int iextra, const int snapnum, char* outputname,
     cosmoinfo c, siminfo s,
     const size_t num_gravity_parts, const size_t num_hydro_parts, const size_t num_star_parts, const size_t num_bh_parts,
     struct swift_vel_part *swift_parts, int *cell_node_ids,
     const int numthreads,
-    const int ireturngroupinfoflag,
-    int * const numpartingroups,
+    const int ireturngroupinfoflag, const int ireturnmostbound,
     struct swift_vel_gas_part *swift_gas_parts,
     struct swift_vel_star_part *swift_star_parts,
     struct swift_vel_bh_part *swift_bh_parts
 )
 {
-    groupinfo *group_info = NULL;
     //store backup of the libvelociraptorOpt
     libvelociraptorOptbackup = libvelociraptorOpt;
     libvelociraptorOpt = libvelociraptorOptextra[iextra];
-    group_info = InvokeVelociraptorHydro(snapnum, outputname, c, s,
+    vr_return_data return_data = InvokeVelociraptorHydro(snapnum, outputname, c, s,
         num_gravity_parts, num_hydro_parts, num_star_parts, num_bh_parts,
-        swift_parts, cell_node_ids, numthreads, ireturngroupinfoflag,
-        numpartingroups,
+        swift_parts, cell_node_ids, numthreads, ireturngroupinfoflag, ireturnmostbound,
         swift_gas_parts, swift_star_parts, swift_bh_parts);
     libvelociraptorOpt = libvelociraptorOptbackup;
-    return group_info;
+    return return_data;
 }
 
 void CheckSwiftTasks(string message, const Int_t n, Particle *p){
