@@ -983,6 +983,11 @@ private(id,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,pqx,pqv,Pval,pid2
 
     nnids=new Int_t[opt.Nsearch];
     nnr2=new Double_t[opt.Nsearch];
+    nnidsneighbours=new Int_t[opt.Nsearch];
+    nnr2neighbours=new Double_t[opt.Nsearch];
+    weight=new Double_t[opt.Nvel];
+    pqx=new PriorityQueue(opt.Nsearch);
+    pqv=new PriorityQueue(opt.Nvel);
 #ifdef USEOPENMP
 #pragma omp for schedule(dynamic) \
 reduction(+:nprocessed)
