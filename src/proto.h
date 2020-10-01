@@ -22,6 +22,7 @@ void usage(void);
 void GetArgs(const int argc, char *argv[], Options &opt);
 void GetParamFile(Options &opt);
 void ConfigCheck(Options &opt);
+void NOMASSCheck(Options &opt);
 
 //@}
 

@@ -341,8 +341,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     MPI_Barrier(MPI_COMM_WORLD);
     //Now that have FoFDataGet (the exported particles) must search local volume using said particles
     //This is done by finding all particles in the search volume and then checking if those particles meet the FoF criterion
-    //One must keep iterating till there are no new links.
-    //Wonder if i don't need another loop and a final check
+
     Int_t links_across,links_across_total;
 
     //get memory usage
@@ -457,8 +456,23 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
             GetVelocityDensity(opt, Nlocal, Part.data(),tree);
             delete tree;
         }
-        for (i=0;i<Nlocal;i++) Part[i].SetType(storetype[i]);
+        // Delete exported particles
+        for (i = Nlocal-1; i >= 0; i--)
+          if (Part[i].GetPotential() ==1.0) Part.pop_back();
+          else break;
+        Nlocal = Part.size();
+
+        Int_t * tmppfof = new Int_t [Nlocal];
+        for (i=0;i<Nlocal;i++){
+          Part[i].SetType(storetype[i]);
+          tmppfof[i] = pfof[i];
+        }
         delete[] storetype;
+        delete[] pfof;
+
+        pfof = new Int_t [Nlocal];
+        for (i=0;i<Nlocal;i++) pfof[i] = tmppfof[i];
+        delete [] tmppfof;
     }
 #endif
 
@@ -1049,6 +1063,27 @@ Int_t* SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Part
     param[2]=(opt.ellvscale*opt.ellvscale)*(opt.ellvel*opt.ellvel);
     param[6]=(opt.ellxscale*opt.ellxscale)*(opt.ellphys*opt.ellphys);
     param[7]=(opt.Vratio);
+
+    // Need to sort particles as during MPI particle sendrecv the order
+    // might change and can produce sightly different results
+    vector<int> storetype(nsubset);
+
+    //First store the index of this particle in the type data
+    for(int i = 0; i < nsubset; i++) {
+      storetype[i] = Partsubset[i].GetType();
+      Partsubset[i].SetType(i);
+    }
+
+    //Sort the particle data based on the particle IDs
+    qsort(Partsubset, nsubset, sizeof(Particle), PIDCompare);
+
+    //Store the index in another array and reset the type data
+    vector<int> storeindx(nsubset);
+    for(int i = 0; i < nsubset; i++){
+        storeindx[i] = Partsubset[i].GetType();
+        Partsubset[i].SetType(storetype[storeindx[i]]);
+    }
+
     if (opt.foftype==FOF6DSUBSET) {
         param[2] = opt.HaloSigmaV*(opt.halocorevfac * opt.halocorevfac);
         param[7] = param[2];
@@ -1176,7 +1211,6 @@ private(i,tid)
         if (opt.iverbose>=2) cout<<"Done"<<endl;
     }
     //@}
-
     //iteration to search region around streams using lower thresholds
     //determine number of groups
     if (opt.iiterflag&&numgroups>0 && opt.foftype!=FOF6DCORE) {
@@ -1897,7 +1931,26 @@ private(i,tid)
 #ifdef USEMPI
     }
 #endif
+    // Return particles to original order, so that the uber-pfof array is not
+    // affected
+    vector<int> tmpfof(nsubset);
+    for (i = 0; i < nsubset; i++){
+        tmpfof[storeindx[i]] = pfof[i];
+        Partsubset[i].SetType(storeindx[i]);
+    }
+
+    // Sort base on the type
+    qsort(Partsubset, nsubset, sizeof(Particle), TypeCompare);
+
+    //Reset the typedata and set the ID
+    for (i = 0; i < nsubset; i++){
+      pfof[i] = tmpfof[i];
+      Partsubset[i].SetType(storetype[i]);
+      Partsubset[i].SetID(i);
+    }
+
     if (opt.iverbose>=2) cout<<"Done search for substructure in this subset"<<endl;
+
     return pfof;
 }
 
@@ -3337,7 +3390,8 @@ private(i)
                         if(Partsubset[pglist[i][j]].GetPotential()>vminell&&Partsubset[pglist[i][j]].GetPotential()<minell[i])minell[i]=Partsubset[pglist[i][j]].GetPotential();
                         else if (Partsubset[pglist[i][j]].GetPotential()==vminell) iminell=j;
                     pfof[Partsubset[pglist[i][iminell]].GetID()]=0;
-                    if (iminell!=numingroup[i]-1)pglist[i][iminell]=pglist[i][--numingroup[i]];
+                    if (iminell!=numingroup[i]-1)pglist[i][iminell]=pglist[i][numingroup[i]-1];
+                    numingroup[i]--;
                     betaave[i]=(aveell[i]/ellaveexp-1.0)*sqrt((Double_t)numingroup[i]);
                 } while(betaave[i]<opt.siglevel);
             }
