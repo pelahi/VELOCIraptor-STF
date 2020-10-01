@@ -20,10 +20,6 @@ using namespace velociraptor;
 
 int main(int argc,char **argv)
 {
-#ifdef SWIFTINTERFACE
-    cout<<"Built with SWIFT interface enabled when running standalone VELOCIraptor. Should only be enabled when running VELOCIraptor as a library from SWIFT. Exiting..."<<endl;
-    exit(0);
-#endif
 #ifdef USEMPI
     //start MPI
 #ifdef USEOPENMP
@@ -72,6 +68,11 @@ int main(int argc,char **argv)
 #ifdef USEOPENMP
     if (ThisTask==0) cout<<"VELOCIraptor/STF running with OpenMP. Number of openmp threads: "<<nthreads<<endl;
     if (ThisTask==0) cout<<"VELOCIraptor/STF running with OpenMP version "<< _OPENMP << endl;
+#endif
+
+#ifdef SWIFTINTERFACE
+    cout<<"Built with SWIFT interface enabled when running standalone VELOCIraptor. Should only be enabled when running VELOCIraptor as a library from SWIFT. Exiting..."<<endl;
+    exit(0);
 #endif
 
     gsl_set_error_handler_off();
