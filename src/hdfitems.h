@@ -753,8 +753,8 @@ class H5OutputFile
             for (auto i=0;i<rank;i++) {
                 dims_offset[i] = 0;
                 if (flag_first_dim_parallel && i > 0) continue;
-                for (auto j=1;j<=ThisWriteTask;j++) {
-                    dims_offset[i] += mpi_hdf_dims[i*NProcs+j-1];
+                for (auto j=0;j<ThisWriteTask;j++) {
+                    dims_offset[i] += mpi_hdf_dims[j*rank+i];
                 }
             }
             if (flag_first_dim_parallel && rank > 1) {
