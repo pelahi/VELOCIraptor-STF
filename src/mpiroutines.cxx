@@ -5038,7 +5038,7 @@ Int_t MPICompileGroups(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
     if (!opt.impiusemesh)
     {
         MPI_Domain localdomain;
-        for (j=0; j<3; j++)
+        for (auto j=0; j<3; j++)
         {
             localdomain.bnd[j][0] = mpi_domain[ThisTask].bnd[j][0];
             localdomain.bnd[j][1] = mpi_domain[ThisTask].bnd[j][1];
@@ -5046,7 +5046,7 @@ Int_t MPICompileGroups(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
         for (i=Noldlocal;i<nbodies;i++) {
             Coordinate x(FoFGroupDataLocal[i-Noldlocal].p.GetPosition());
             // adjust for period based on local mpi boundary
-            for (j=0; j<3; j++)
+            for (auto j=0; j<3; j++)
             {
                 if (x[j] < mpi_domain[ThisTask].bnd[j][0])
                     localdomain.bnd[j][0] = x[j];
