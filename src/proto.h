@@ -587,6 +587,7 @@ int MPIInDomain(Double_t xsearch[3][2], Double_t bnd[3][2]);
 
 ///determine list of cells of a mesh within a search domain
 vector<int> MPIGetCellListInSearchUsingMesh(Options &opt, Double_t xsearch[3][2], bool ignorelocalcells=true);
+vector<int> MPIGetCellNodeIDListInSearchUsingMesh(Options &opt, Double_t xsearch[3][2]);
 //@}
 
 /// \name MPI send/recv related routines when reading input data
@@ -839,10 +840,6 @@ void ReorderGroupIDsAndHaloDatabyValue(const Int_t numgroups, const Int_t newnum
 /// see \ref utilities.cxx for implementation
 //@{
 
-///Get current time in Milliseconds
-int GetMilliCount();
-///Get span in milliseconds
-int GetMillSpan(int );
 int CompareInt(const void *, const void *);
 ///Get memory use
 void GetMemUsage(Options &opt, string callingfunction, bool printreport);
@@ -851,7 +848,8 @@ void GetMemUsage(string callingfunction, bool printreport);
 ///Init memory log
 void InitMemUsageLog(Options &opt);
 ///get a time
-double MyGetTime();
+std::chrono::time_point<std::chrono::high_resolution_clock> MyGetTime();
+double MyElapsedTime(std::chrono::time_point<std::chrono::high_resolution_clock> before);
 //@}
 
 /// \name Compilation functions

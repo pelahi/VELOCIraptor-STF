@@ -20,7 +20,7 @@ void GetVelocityDensity(Options &opt, const Int_t nbodies, Particle *Part, KDTre
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
 #endif
-    double time1=MyGetTime();
+    auto time1 = MyGetTime();
     cout<<ThisTask<<": Get local velocity density"<<endl;
     if (opt.iverbose) {
         cout<<ThisTask<<" "<<"Using the following parameters to calculate velocity density using sph kernel: ";
@@ -34,7 +34,7 @@ void GetVelocityDensity(Options &opt, const Int_t nbodies, Particle *Part, KDTre
     if (opt.iLocalVelDenApproxCalcFlag>0) GetVelocityDensityApproximative(opt, nbodies, Part, tree);
     else GetVelocityDensityExact(opt, nbodies, Part, tree);
 #endif
-    cout<<ThisTask<<": finished calculation in "<<MyGetTime()-time1<<endl;
+    cout<<ThisTask<<": finished calculation in "<<MyElapsedTime(time1)<<endl;
 }
 
 void GetVelocityDensityOld(Options &opt, const Int_t nbodies, Particle *Part, KDTree *tree)
@@ -46,7 +46,6 @@ Int_t i,j,k;
     int nthreads;
     int tid,id,pid,pid2,itreeflag=0;
     Double_t v2;
-    Double_t time1,time2;
     Double_t *period=NULL;
     ///\todo alter period so arbitrary dimensions
     if (opt.p>0) {
@@ -72,7 +71,7 @@ Int_t i,j,k;
     }
 #endif
 
-    time2=MyGetTime();
+    auto time2 = MyGetTime();
     //In loop determine if particles NN search radius overlaps another mpi threads domain.
     //If not, then proceed as usually to determine velocity density.
     //If so, do not calculate local velocity density and set its velocity density to -1 as a flag
@@ -140,7 +139,7 @@ private(i,j,k,tid,id,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,pqx,pqv
 #ifdef USEOPENMP
 }
 #endif
-    if (opt.iverbose) cout<<ThisTask<<" finished local calculation in "<<MyGetTime()-time2<<endl;
+    if (opt.iverbose) cout<<ThisTask<<" finished local calculation in "<<MyElapsedTime(time2)<<endl;
     time2=MyGetTime();
 
     //determines export AND import numbers
@@ -262,7 +261,7 @@ private(i,j,k,tid,pid,pid2,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,p
     delete[] PartDataGet;
     delete[] NNDataIn;
     delete[] NNDataGet;
-    if(opt.iverbose) cout<<ThisTask<<" finished other domain search "<<MyGetTime()-time2<<endl;
+    if(opt.iverbose) cout<<ThisTask<<" finished other domain search "<<MyElapsedTime(time2)<<endl;
 #else
     //NO MPI invoked
 #ifndef USEOPENMP
@@ -423,10 +422,9 @@ private(i,tid)
 //start halo only density calculations, where particles are localized to single halo
 void GetVelocityDensityHaloOnlyDen(Options &opt, const Int_t nbodies, Particle *Part, KDTree *tree)
 {
-    Int_t i,j,k;
+    Int_t i,j;
     int nthreads;
-    int tid,id,pid,pid2;
-    Double_t v2;
+    int tid;
 #ifndef USEMPI
     int ThisTask=0, NProcs=1;
 #endif
@@ -494,7 +492,6 @@ void GetVelocityDensityExact(Options &opt, const Int_t nbodies, Particle *Part, 
     int nthreads;
     int tid,id,pid,pid2,itreeflag=0;
     Double_t v2;
-    Double_t time1,time2;
     Double_t *period=NULL;
     ///\todo alter period so arbitrary dimensions
     if (opt.p>0) {
@@ -526,7 +523,7 @@ void GetVelocityDensityExact(Options &opt, const Int_t nbodies, Particle *Part, 
     }
 #endif
 
-    time2=MyGetTime();
+    auto time2=MyGetTime();
     //get memory useage
     GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
 
@@ -595,7 +592,7 @@ private(i,j,k,tid,id,v2,nnids,nnr2,weight,pqv)
 #endif
 #ifdef USEMPI
     if (NProcs >1 && opt.iLocalVelDenApproxCalcFlag==0) {
-    if (opt.iverbose) cout<<ThisTask<<" finished local calculation in "<<MyGetTime()-time2<<endl;
+    if (opt.iverbose) cout<<ThisTask<<" finished local calculation in "<<MyElapsedTime(time2)<<endl;
     time2=MyGetTime();
     //determines export AND import numbers
     if (opt.impiusemesh) MPIGetNNExportNumUsingMesh(opt, nbodies, Part, maxrdist);
@@ -744,7 +741,7 @@ private(i,j,k,tid,pid,pid2,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,p
     delete[] PartDataGet;
     delete[] NNDataIn;
     delete[] NNDataGet;
-    if(opt.iverbose) cout<<ThisTask<<" finished other domain search "<<MyGetTime()-time2<<endl;
+    if(opt.iverbose) cout<<ThisTask<<" finished other domain search "<<MyElapsedTime(time2)<<endl;
     }
 #endif
     if (itreeflag) delete tree;
@@ -758,9 +755,8 @@ void GetVelocityDensityApproximative(Options &opt, const Int_t nbodies, Particle
 #endif
     if (opt.iverbose) cout<<ThisTask<<" Calculating the local velocity density by finding APPROXIMATIVE nearest physical neighbour search for each particle "<<endl;
     int nthreads;
-    int tid,id,pid,pid2,itreeflag=0;
+    int id,pid2,itreeflag=0;
     Double_t v2;
-    Double_t time1,time2;
     Int_t nprocessed=0, ntot=0;
     ///\todo alter period so arbitrary dimensions
     Double_t *period=NULL;
@@ -768,7 +764,6 @@ void GetVelocityDensityApproximative(Options &opt, const Int_t nbodies, Particle
         period=new Double_t[3];
         for (int j=0;j<3;j++) period[j]=opt.p;
     }
-    time1=MyGetTime();
     //if using mpi run NN search store largest distance for each particle so that export list can be built.
     //if calculating using only particles IN a structure,
     Int_t nimport;
@@ -787,7 +782,7 @@ void GetVelocityDensityApproximative(Options &opt, const Int_t nbodies, Particle
     }
 #endif
 
-    time2=MyGetTime();
+    auto time2=MyGetTime();
     //only build tree if necessary
     if (tree==NULL) {
         itreeflag=1;
@@ -930,7 +925,7 @@ reduction(+:nprocessed,ntot)
     //if search is fully approximative, then since particles have been localized to mpi domains in FOF groups, don't search neighbour mpi domains
     if (NProcs >1 && opt.iLocalVelDenApproxCalcFlag==1) {
     if (opt.iverbose) {
-        cout<<ThisTask<<" finished local calculation in "<<MyGetTime()-time2<<endl;
+        cout<<ThisTask<<" finished local calculation in "<<MyElapsedTime(time2)<<endl;
         cout<<" fraction that is local"<<nprocessed/(float)ntot<<endl;
     }
     time2=MyGetTime();
@@ -1067,7 +1062,7 @@ reduction(+:nprocessed)
     delete[] NNDataIn;
     delete[] NNDataGet;
     if(opt.iverbose) {
-        cout<<ThisTask<<" finished other domain search "<<MyGetTime()-time2<<endl;
+        cout<<ThisTask<<" finished other domain search "<<MyElapsedTime(time2)<<endl;
         cout<<ThisTask<<" mpi processed fraction "<<nprocessed/(float)ntot<<endl;
     }
     }

@@ -593,7 +593,7 @@ void GetParamFile(Options &opt)
 #endif
     string line,sep="=";
     string tag,val;
-    char buff[1024],*pbuff,tbuff[1024],vbuff[1024],fname[1024];
+    char buff[1024],*pbuff,tbuff[1024],vbuff[1024];
     fstream paramfile,cfgfile;
     size_t pos;
     string dataline, token, delimiter = ",";
@@ -609,7 +609,7 @@ void GetParamFile(Options &opt)
 #endif
     }
     paramfile.open(opt.pname, ios::in);
-    unsigned j,k;
+    unsigned j;
     //first find output name, determine the number of valid entries in
     if (paramfile.is_open())
     {
@@ -617,7 +617,7 @@ void GetParamFile(Options &opt)
             getline(paramfile,line);
             //if line is not commented out or empty
             if (line[0]!='#'&&line.length()!=0) {
-                if (j=line.find(sep)){
+                if ((j=line.find(sep))){
                     //clean up string
                     tag=line.substr(0,j);
                     strcpy(buff, tag.c_str());
@@ -657,7 +657,7 @@ void GetParamFile(Options &opt)
             getline(paramfile,line);
             //if line is not commented out or empty
             if (line[0]!='#'&&line.length()!=0) {
-                if (j=line.find(sep)){
+                if ((j=line.find(sep))){
                     //clean up string
                     tag=line.substr(0,j);
                     strcpy(buff, tag.c_str());
@@ -1817,7 +1817,25 @@ void ConfigCheck(Options &opt)
             errormessage("Value passed: "+to_string(opt.H));
         }
     }
-
+    if (opt.ParticleTypeForRefenceFrame!=-1)
+    {
+        // map<int, string> typetostring = {{GASTYPE, "Gas/SPH"}, {DARKTYPE, "DM"}, {STARTYPE, "Star"}, {BHTYPE, "Black holes"}};
+        map<int, string> typetostring;
+        typetostring[GASTYPE]="gas"; typetostring[DARKTYPE]="dm"; typetostring[STARTYPE]="star"; typetostring[BHTYPE]="bh";
+        if (
+           (opt.ParticleTypeForRefenceFrame == GASTYPE && opt.iusegasparticles == 0) ||
+           (opt.ParticleTypeForRefenceFrame == DARKTYPE && opt.iusedmparticles == 0) ||
+           (opt.ParticleTypeForRefenceFrame == STARTYPE && opt.iusestarparticles == 0) ||
+           (opt.ParticleTypeForRefenceFrame == BHTYPE && opt.iusesinkparticles == 0)
+        )
+        {
+           errormessage("Using particle type for reference frame that is not loaded.");
+           errormessage("Asking for "+to_string(opt.ParticleTypeForRefenceFrame)+"which corresponds to "+typetostring[opt.ParticleTypeForRefenceFrame]);
+           errormessage("Update config to either load the appropriate paricle with Input_includes_"+typetostring[opt.ParticleTypeForRefenceFrame]+"_particle");
+           errormessage("or change the reference particle type");
+           ConfigExit();
+        }
+    }
 #ifdef USEMPI
     if (opt.minnumcellperdim<8){
         errormessage("MPI mesh too coarse, minimum number of cells per dimension from which to produce z-curve decomposition is 8. Resetting to 8.");
@@ -2029,7 +2047,6 @@ void ConfigCheck(Options &opt)
     set<string> uniqueval;
     set<string> outputset;
     string configentryname, outputfieldname, mainname;
-    unsigned int entryindex, calctype, iduplicates;
 
     //clean up aperture list and spherical overdensity list to remove duplicates
     configentryname = "Overdensity_values_in_critical_density";

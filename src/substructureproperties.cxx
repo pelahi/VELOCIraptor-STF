@@ -9,8 +9,8 @@
 //@{
 
 inline bool CheckForSOSubCalc(Options &opt, PropData &pdata) {
-    return (opt.iInclusiveHalo==0 || opt.iInclusiveHalo!=0 && pdata.hostid!=-1 &&
-        pdata.stype > opt.SphericalOverdensitySeachMaxStructLevel);
+    return (opt.iInclusiveHalo==0 || (opt.iInclusiveHalo!=0 && pdata.hostid!=-1 &&
+        pdata.stype > opt.SphericalOverdensitySeachMaxStructLevel));
 }
 
 inline bool CheckForSOExclCalc(Options &opt, PropData &pdata) {
@@ -36,13 +36,12 @@ void GetCM(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_
 
     if (ngroup == 0) return;
     if (opt.iverbose) cout<<ThisTask<<" getting CM"<<endl;
-    double time1 = MyGetTime();
+    auto time1 = MyGetTime();
     Particle *Pval;
     Int_t i,j,k;
     Coordinate cmold;
     Double_t massval, ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside;
-    Double_t cmvx,cmvy,cmvz;
-    Double_t vc,rc,x,y,z,vx,vy,vz,mval;
+    Double_t vc,rc,x,y,z,vx,vy,vz;
     Double_t change=MAXVALUE,tol=1e-2;
     Int_t ii,icmv;
 
@@ -293,7 +292,7 @@ private(j,Pval,x,y,z,massval)
         pdata[i].gcmvel[0]=cmx;pdata[i].gcmvel[1]=cmy;pdata[i].gcmvel[2]=cmz;
         for (k=0;k<3;k++) pdata[i].gcmvel[k] /= EncMass;
     }
-    if (opt.iverbose) cout<<ThisTask<<" Done getting CM in "<<MyGetTime()-time1<<endl;
+    if (opt.iverbose) cout<<ThisTask<<" Done getting CM in "<<MyElapsedTime(time1)<<endl;
 }
 
 /*!
@@ -312,7 +311,7 @@ void GetProperties(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngro
 #endif
     if (ngroup == 0) return;
     if (opt.iverbose) cout<<ThisTask<<" getting bulk properties"<<endl;
-    double time1 = MyGetTime();
+    auto time1 = MyGetTime();
     Particle *Pval;
     Int_t i,j,k;
     Coordinate cmold(0.),cmref;
@@ -328,7 +327,6 @@ void GetProperties(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngro
     Double_t sigV_gas_sf,sigV_gas_nsf;
     Coordinate jval;
     Double_t change=MAXVALUE,tol=1e-2;
-    Int_t ii,icmv;
     Int_t RV_num;
     Double_t virval=log(opt.virlevel*opt.rhobg);
     Double_t m200val=log(opt.rhocrit*200.0);
@@ -339,7 +337,6 @@ void GetProperties(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngro
     //find the lowest rho value and set minim threshold to half that
     Double_t minlgrhoval = min({virval, m200val, mBN98val, m200mval})-(Double_t)log(2.0);
     vector<Double_t> SOlgrhovals;
-    int iSOfound;
     if (opt.SOnum >0) {
         SOlgrhovals.resize(opt.SOnum);
         for (auto i=0;i<opt.SOnum;i++) {
@@ -579,7 +576,7 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
                 #endif
             }
         }
-        Ekin=0;
+        Ekin=Ekin_sf=Ekin_nsf=0;
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
             if (Pval->GetType()==GASTYPE) {
@@ -637,7 +634,7 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
                     pdata[i].veldisp_gas(2,0)+=vx*vz*mval;
                     pdata[i].veldisp_gas(2,1)+=vy*vz*mval;
                 }
-                #ifdef STARON
+#ifdef STARON
                 if (SFR>opt.gas_sfr_threshold) {
                     pdata[i].L_gas_sf=pdata[i].L_gas_sf+J;
                     pdata[i].sigV_gas_sf+=(vx*vx+vy*vy+vz*vz)*mval;
@@ -646,7 +643,7 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
                     pdata[i].L_gas_nsf=pdata[i].L_gas_nsf+J;
                     pdata[i].sigV_gas_nsf+=(vx*vx+vy*vy+vz*vz)*mval;
                 }
-                #endif
+#endif
             }
         }
 
@@ -697,11 +694,11 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
                     z = (*Pval).Z() - cmold[2];
                     if ((x*x + y*y + z*z) <= ri)
                     {
-                        #ifndef NOMASS
+#ifndef NOMASS
                         mval = Pval->GetMass();
-                        #else
+#else
                         mval = opt.MassValue;
-                        #endif
+#endif
                         cmx += mval*(*Pval).X();
                         cmy += mval*(*Pval).Y();
                         cmz += mval*(*Pval).Z();
@@ -728,11 +725,11 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
                 z = (*Pval).Z() - pdata[i].cm_gas[2];
                 if ((x*x + y*y + z*z) <= rcmv)
                 {
-                    #ifndef NOMASS
+#ifndef NOMASS
                     mval = Pval->GetMass();
-                    #else
+#else
                     mval = opt.MassValue;
-                    #endif
+#endif
                     cmx += mval*(*Pval).Vx();
                     cmy += mval*(*Pval).Vy();
                     cmz += mval*(*Pval).Vz();
@@ -755,11 +752,11 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
                     vx = (*Pval).Vx()-pdata[i].gcmvel[0];
                     vy = (*Pval).Vy()-pdata[i].gcmvel[1];
                     vz = (*Pval).Vz()-pdata[i].gcmvel[2];
-                    #ifndef NOMASS
+#ifndef NOMASS
                     mval = Pval->GetMass();
-                    #else
+#else
                     mval = opt.MassValue;
-                    #endif
+#endif
                     EncMass+=mval;
                     r2=x*x+y*y+z*z;
                     rc=sqrt(r2);
@@ -793,7 +790,7 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
                             pdata[i].L_BN98_excl_gas+=jval;
                         }
                     }
-                    #ifdef STARON
+#ifdef STARON
                     SFR = Pval->GetSFR();
                     if (SFR>opt.gas_sfr_threshold){
                         EncMassSF+=mval;
@@ -837,7 +834,7 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
                             }
                         }
                     }
-                    #endif
+#endif
                 }
             }
             pdata[i].Krot_gas/=Ekin;
@@ -854,11 +851,11 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
             Pval=&Part[j+noffset[i]];
             if (Pval->GetType()==STARTYPE) {
                 pdata[i].n_star++;
-                #ifndef NOMASS
+#ifndef NOMASS
                 mval = Pval->GetMass();
-                #else
+#else
                 mval = opt.MassValue;
-                #endif
+#endif
                 pdata[i].M_star+=mval;
             }
         }
@@ -866,11 +863,11 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
             if (Pval->GetType()==STARTYPE) {
-                #ifndef NOMASS
+#ifndef NOMASS
                 mval = Pval->GetMass();
-                #else
+#else
                 mval = opt.MassValue;
-                #endif
+#endif
                 pdata[i].t_star+=Pval->GetTage();
                 pdata[i].t_mean_star+=mval*Pval->GetTage();
                 pdata[i].Z_star+=Pval->GetZmet();
@@ -1127,6 +1124,7 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
         Double_t JxBN98,JyBN98,JzBN98;
         Coordinate J;
         Ekin=Jx=Jy=Jz=sxx=sxy=sxz=syy=syz=szz=Krot=0.;
+        Jx200m=Jy200m=Jz200m=Jx200c=Jy200c=Jz200c=JxBN98=JyBN98=JzBN98=0;
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
 private(j,Pval,rc,x,y,z,vx,vy,vz,J,mval)
@@ -2033,7 +2031,7 @@ private(i,j,k,Pval,cmref)
 }
 #endif
 
-    if (opt.iverbose) cout<<ThisTask<<" Done getting properties in "<<MyGetTime()-time1<<endl;
+    if (opt.iverbose) cout<<ThisTask<<" Done getting properties in "<<MyElapsedTime(time1)<<endl;
 }
 
 ///Adjust positions of bulk properties to desired reference
@@ -2201,8 +2199,7 @@ void GetInclusiveMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t
     Double_t ri,ri2,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside;
     Double_t x,y,z,vx,vy,vz,massval,rc,rcold;
     Coordinate cmold(0.),J(0.);
-    Double_t change=MAXVALUE,tol=1e-2;
-    Int_t ii,icmv,numinvir,num200c,num200m;
+    Int_t icmv,numinvir,num200c,num200m;
     Double_t virval=log(opt.virlevel*opt.rhobg);
     Double_t mBN98val=log(opt.virBN98*opt.rhocrit);
     Double_t m200val=log(opt.rhocrit*200.0);
@@ -2220,7 +2217,7 @@ void GetInclusiveMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t
             minlgrhoval = min(minlgrhoval,SOlgrhovals[i]-(Double_t)log(2.0));
         }
     }
-    Double_t time1=MyGetTime(),time2;
+    auto time1=MyGetTime();
     int nthreads=1,tid;
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
@@ -2670,7 +2667,7 @@ private(i,j,k,x,y,z,Pval)
         //if using mpi then determine if halo's search radius overlaps another mpi domain
         vector<bool> halooverlap;
         KDTree *treeimport=NULL;
-        Int_t nimport,nexport;
+        Int_t nimport;
         if (NProcs>1) {
         if (opt.impiusemesh) halooverlap = MPIGetHaloSearchExportNumUsingMesh(opt, ngroup, pdata, maxrdist);
         else halooverlap= MPIGetHaloSearchExportNum(ngroup, pdata, maxrdist);
@@ -2687,7 +2684,6 @@ private(i,j,k,x,y,z,Pval)
         if (nimport>0) treeimport=new KDTree(PartDataGet,nimport,opt.HaloMinSize,tree->TPHYS,tree->KEPAN,100,0,0,0,period);
         }
 #endif
-        time2=MyGetTime();
         //now loop over groups and search for particles. This is probably fast if we build a tree
         fac=-log(4.0*M_PI/3.0);
 #ifdef USEOPENMP
@@ -2904,7 +2900,7 @@ private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,
         }
 #endif
     }
-    if (opt.iverbose) cout<<"Done inclusive masses for field objects in "<<MyGetTime()-time1<<endl;
+    if (opt.iverbose) cout<<"Done inclusive masses for field objects in "<<MyElapsedTime(time1)<<endl;
 }
 //@}
 
@@ -2915,8 +2911,8 @@ void GetFOFMass(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup,
     if (ngroup == 0) return;
     Particle *Pval;
     Int_t i,j,k;
-    Double_t time1=MyGetTime(), massval;
-    int nthreads=1,tid;
+    Double_t massval;
+    auto time1=MyGetTime();
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
 #endif
@@ -2944,15 +2940,14 @@ private(i,j,k,Pval,massval)
 #ifdef USEOPENMP
 }
 #endif
-    if (opt.iverbose) cout<<"Done FOF masses "<<MyGetTime()-time1<<endl;
+    if (opt.iverbose) cout<<"Done FOF masses "<<MyElapsedTime(time1)<<endl;
 }
 
 /// Calculate FOF mass looping over groups once substructure search and have calculated properties
 void GetFOFMass(Options &opt, Int_t ngroup, Int_t *&numingroup, PropData *&pdata)
 {
-    Int_t i,j,k,haloidoffset=0, hostindex;
-    Double_t time1=MyGetTime(), massval;
-    int nthreads=1,tid;
+    Int_t i,haloidoffset=0, hostindex;
+    auto time1=MyGetTime();
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
 #endif
@@ -2976,7 +2971,7 @@ void GetFOFMass(Options &opt, Int_t ngroup, Int_t *&numingroup, PropData *&pdata
 #ifdef NOMASS
     for (i=1;i<=ngroup;i++) pdata[i].gMFOF*=opt.MassValue;
 #endif
-    if (opt.iverbose) cout<<"Done FOF masses "<<MyGetTime()-time1<<endl;
+    if (opt.iverbose) cout<<"Done FOF masses "<<MyElapsedTime(time1)<<endl;
 }
 
 /// of all host halos using there centre of masses
@@ -2989,7 +2984,6 @@ void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup
 #else
     if (ngroup ==0 )return;
 #endif
-    Particle *Pval;
     KDTree *tree;
     Double_t period[3];
     Int_t i,j,k, nhalos = 0;
@@ -2997,8 +2991,8 @@ void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup
         cout<<"Get inclusive masses"<<endl;
         cout<<" with masses based on full SO search (slower) for halos only "<<endl;
     }
-    Double_t ri,ri2,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside;
-    Double_t x,y,z,vx,vy,vz,massval,rc,rcold;
+    Double_t EncMass;
+    Double_t massval,rc;
     Coordinate J(0.);
     Double_t virval=log(opt.virlevel*opt.rhobg);
     Double_t mBN98val=log(opt.virBN98*opt.rhocrit);
@@ -3018,7 +3012,7 @@ void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup
         }
     }
     Double_t fac,rhoval,rhoval2;
-    Double_t time1=MyGetTime(),time2;
+    auto time1=MyGetTime();
     int nthreads=1,tid;
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
@@ -3090,7 +3084,7 @@ void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup
     //if using mpi then determine if halo's search radius overlaps another mpi domain
     vector<bool> halooverlap;
     KDTree *treeimport=NULL;
-    Int_t nimport,nexport;
+    Int_t nimport;
     if (NProcs>1) {
         if (opt.impiusemesh) halooverlap = MPIGetHaloSearchExportNumUsingMesh(opt, ngroup, pdata, maxrdist);
         else halooverlap= MPIGetHaloSearchExportNum(ngroup, pdata, maxrdist);
@@ -3103,11 +3097,10 @@ void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup
         PartDataIn = new Particle[NExport+1];
         PartDataGet = new Particle[NImport+1];
         //run search on exported particles and determine which local particles need to be exported back (or imported)
-        nimport=MPIBuildParticleNNImportList(opt, nbodies, tree, Part, 1, opt.iSphericalOverdensityExtraFieldCalculations);
+        nimport = MPIBuildParticleNNImportList(opt, nbodies, tree, Part, 1, opt.iSphericalOverdensityExtraFieldCalculations);
         if (nimport>0) treeimport=new KDTree(PartDataGet,nimport,opt.HaloMinSize,tree->TPHYS,tree->KEPAN,100,0,0,0,period);
     }
 #endif
-    time2=MyGetTime();
     //now loop over groups and search for particles. This is probably fast if we build a tree
     fac=-log(4.0*M_PI/3.0);
 
@@ -3384,7 +3377,7 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
         delete[] NNDataIn;
     }
 #endif
-    if (opt.iverbose) cout<<"Done SO masses for field objects in "<<MyGetTime()-time1<<endl;
+    if (opt.iverbose) cout<<"Done SO masses for field objects in "<<MyElapsedTime(time1)<<endl;
 }
 
 ///\name Routines to calculate specific property of a set of particles
@@ -3434,7 +3427,7 @@ void GetGlobalSpatialMorphology(const Int_t nbodies, Particle *p, Double_t& q, D
 ///calculate the inertia tensor and return the dispersions (weight by 1/mtot)
 void CalcITensor(const Int_t n, Particle *p, Double_t &a, Double_t &b, Double_t &c, Matrix& eigenvec, Matrix &I, int itype)
 {
-    Double_t r2,det,Ixx,Iyy,Izz,Ixy,Ixz,Iyz, weight;
+    Double_t r2,Ixx,Iyy,Izz,Ixy,Ixz,Iyz, weight;
     Coordinate e;
     I=Matrix(0.);
     Int_t i;
@@ -3498,7 +3491,7 @@ private(i,r2,weight)
 ///calculate the position dispersion tensor
 void CalcPosSigmaTensor(const Int_t n, Particle *p, Double_t &a, Double_t &b, Double_t &c, Matrix& eigenvec, Matrix &I, int itype)
 {
-    Double_t r2,det,Ixx,Iyy,Izz,Ixy,Ixz,Iyz, weight;
+    Double_t Ixx,Iyy,Izz,Ixy,Ixz,Iyz, weight;
     Coordinate e;
     I=Matrix(0.);
     Int_t i;
@@ -3560,7 +3553,7 @@ private(i,weight)
 ///calculate the velocity dispersion tensor
 void CalcVelSigmaTensor(const Int_t n, Particle *p, Double_t &a, Double_t &b, Double_t &c, Matrix& eigenvec, Matrix &I, int itype)
 {
-    Double_t r2,det,Ixx,Iyy,Izz,Ixy,Ixz,Iyz, weight;
+    Double_t Ixx,Iyy,Izz,Ixy,Ixz,Iyz, weight;
     Coordinate e;
     I=Matrix(0.);
     Int_t i;
@@ -3628,7 +3621,7 @@ void CalcPhaseSigmaTensor(const Int_t n, Particle *p, GMatrix &eigenvalues, GMat
 }
 
 void CalcPhaseSigmaTensor(const Int_t n, Particle *p, GMatrix &I, int itype) {
-    Double_t det,weight;
+    Double_t weight;
     Double_t Ixx,Iyy,Izz,Ixy,Ixz,Iyz;
     Double_t Ivxvx,Ivyvy,Ivzvz,Ivxvy,Ivxvz,Ivyvz;
     Double_t Ixvx,Iyvx,Izvx,Ixvy,Iyvy,Izvy,Ixvz,Iyvz,Izvz;
@@ -3874,7 +3867,7 @@ private(i,j,temp)
 ///calculate the phase-space dispersion tensor
 GMatrix CalcPhaseCM(const Int_t n, Particle *p, int itype)
 {
-    Double_t det,weight;
+    Double_t weight;
     Double_t cmx,cmy,cmz,cmvx,cmvy,cmvz;
     GMatrix cm(6,1);
     Int_t i;
@@ -4168,7 +4161,8 @@ void ReorderInclusiveMasses(const Int_t &numgroups, const Int_t &newnumgroups, I
     PriorityQueue *pq=new PriorityQueue(newnumgroups);
     for (Int_t i = 1; i <=numgroups; i++) if (numingroup[i]>0) pq->Push(i, numingroup[i]);
     for (Int_t i = 1; i<=newnumgroups; i++) {
-        Int_t groupid=pq->TopQueue(),size=pq->TopPriority();pq->Pop();
+        Int_t groupid=pq->TopQueue();
+        pq->Pop();
         pnew[i]=pdata[groupid];
     }
     delete pq;
@@ -4196,24 +4190,18 @@ void GetBindingEnergy(Options &opt, const Int_t nbodies, Particle *Part, Int_t n
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
 #endif
-    double time1 = MyGetTime();
+    auto time1 = MyGetTime();
     if (ngroup == 0) return;
     if (opt.iverbose) cout<<ThisTask<<" getting energy"<<endl;
     if (opt.uinfo.cmvelreftype==POTREF && opt.iverbose==1) cout<<"Using minimum potential reference"<<endl;
 
     //used to access current particle
-    Particle *Pval;
     Int_t i,j,k;
-    //store eps2 for plummer softening to cut down number of floating point operations
-    //Note could use more complicated b-spline but at least here since not evolving dynamics, plummer potential not an issue.
-    Double_t eps2=opt.uinfo.eps*opt.uinfo.eps;
-
     //useful variables to store temporary results
     Double_t r2,v2,Ti,poti,pot,Ei,mval;
-    Double_t Tval,Potval,Efracval,Eval,Emostbound,Eunbound;
-    Int_t imostbound,iunbound;
+    Double_t Tval,Potval,Efracval,Eval,Emostbound;
+    Int_t imostbound;
     Double_t Efracval_gas,Efracval_star;
-    Double_t mw2=opt.MassValue*opt.MassValue;
     Double_t potmin,menc;
     Int_t npot,ipotmin;
     Coordinate cmpotmin;
@@ -4225,7 +4213,7 @@ void GetBindingEnergy(Options &opt, const Int_t nbodies, Particle *Part, Int_t n
     //also if wish to use the deepest potential as a reference, then used to store original order
     Int_t *storepid;
 
-    double time2 = MyGetTime();
+    auto time2 = MyGetTime();
 
     if (opt.uinfo.icalculatepotential) {
     //if approximative calculations, run all calculations in parallel
@@ -4310,7 +4298,7 @@ private(i,j,k,storepid)
         for (i=1;i<=ngroup;i++) for (j=0;j<numingroup[i];j++) Part[j+noffset[i]].SetPotential(Part[j+noffset[i]].GetGravityPotential());
     }
 #endif
-    if (opt.iverbose) cout<<ThisTask<<" Have calculated potentials "<<MyGetTime()-time2<<endl;
+    if (opt.iverbose) cout<<ThisTask<<" Have calculated potentials "<<MyElapsedTime(time2)<<endl;
     time2 = MyGetTime();
 
     //once potential is calculated, iff using velocity around deepest potential well NOT cm
@@ -4323,15 +4311,29 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin,cmpotmin)
 #endif
         for (i=1;i<=ngroup;i++) if (numingroup[i]<ompunbindnum) {
             //determine how many particles to use
-            npot=max(opt.uinfo.Npotref,Int_t(opt.uinfo.fracpotref*numingroup[i]));
+            npot = max(opt.uinfo.Npotref,Int_t(opt.uinfo.fracpotref*numingroup[i]));
             //determine position of minimum potential and by radius around this position
-            potmin=Part[noffset[i]].GetPotential()/Part[noffset[i]].GetMass();
-            ipotmin=0;
-            for (j=0;j<numingroup[i];j++) if (Part[j+noffset[i]].GetPotential()/Part[j+noffset[i]].GetMass()<potmin)
+            auto istart = 0;
+            if (opt.ParticleTypeForRefenceFrame !=-1)
+            {
+                for (j=istart;j<numingroup[i];j++)
+                {
+                    if (Part[noffset[i]+j].GetType() != opt.ParticleTypeForRefenceFrame) continue;
+                    istart = j;
+                    break;
+                }
+            }
+            potmin = Part[noffset[i] + istart].GetPotential()/Part[noffset[i] + istart].GetMass();
+            ipotmin = istart;
+            for (j=istart;j<numingroup[i];j++)
             {
                 if (opt.ParticleTypeForRefenceFrame !=-1 && Part[noffset[i]+j].GetType() != opt.ParticleTypeForRefenceFrame) continue;
-                potmin=Part[j+noffset[i]].GetPotential()/Part[j+noffset[i]].GetMass();
-                ipotmin=j;
+                auto potcur = Part[j+noffset[i]].GetPotential()/Part[j+noffset[i]].GetMass();
+                if (potcur<potmin)
+                {
+                    potmin=potcur;
+                    ipotmin=j;
+                }
             }
             pdata[i].iminpot=Part[ipotmin+noffset[i]].GetPID();
             for (k=0;k<3;k++)
@@ -4368,13 +4370,27 @@ private(i,j,k,potmin,ipotmin)
     #pragma omp for schedule(dynamic) nowait
 #endif
     for (i=1;i<=ngroup;i++) if (numingroup[i]<ompunbindnum) {
-        potmin=Part[noffset[i]].GetPotential()/Part[noffset[i]].GetMass();
-        ipotmin=0;
-        for (j=0;j<numingroup[i];j++) if (Part[j+noffset[i]].GetPotential()/Part[j+noffset[i]].GetMass()<potmin)
+        auto istart = 0;
+        if (opt.ParticleTypeForRefenceFrame !=-1)
+        {
+            for (j=istart;j<numingroup[i];j++)
+            {
+                if (Part[noffset[i]+j].GetType() != opt.ParticleTypeForRefenceFrame) continue;
+                istart = j;
+                break;
+            }
+        }
+        potmin = Part[noffset[i] + istart].GetPotential()/Part[noffset[i] + istart].GetMass();
+        ipotmin = istart;
+        for (j=istart;j<numingroup[i];j++)
         {
             if (opt.ParticleTypeForRefenceFrame !=-1 && Part[noffset[i]+j].GetType() != opt.ParticleTypeForRefenceFrame) continue;
-            potmin=Part[j+noffset[i]].GetPotential()/Part[j+noffset[i]].GetMass();
-            ipotmin=j;
+            auto potcur = Part[j+noffset[i]].GetPotential()/Part[j+noffset[i]].GetMass();
+            if (potcur<potmin)
+            {
+                potmin=potcur;
+                ipotmin=j;
+            }
         }
         pdata[i].iminpot=Part[ipotmin+noffset[i]].GetPID();
         for (k=0;k<3;k++)
@@ -4401,13 +4417,27 @@ private(i,j,k,r2,v2,poti,Ti,pot,Eval,npot,storepid,menc,potmin,ipotmin,cmpotmin)
             //determine how many particles to use
             npot=max(opt.uinfo.Npotref,Int_t(opt.uinfo.fracpotref*numingroup[i]));
             //determine position of minimum potential and by radius around this position
-            potmin=Part[noffset[i]].GetPotential()/Part[noffset[i]].GetMass();
-            ipotmin=0;
-            for (j=0;j<numingroup[i];j++) if (Part[j+noffset[i]].GetPotential()/Part[j+noffset[i]].GetMass()<potmin)
+            auto istart = 0;
+            if (opt.ParticleTypeForRefenceFrame !=-1)
+            {
+                for (j=istart;j<numingroup[i];j++)
+                {
+                    if (Part[noffset[i]+j].GetType() != opt.ParticleTypeForRefenceFrame) continue;
+                    istart = j;
+                    break;
+                }
+            }
+            potmin = Part[noffset[i] + istart].GetPotential()/Part[noffset[i] + istart].GetMass();
+            ipotmin = istart;
+            for (j=istart;j<numingroup[i];j++)
             {
                 if (opt.ParticleTypeForRefenceFrame !=-1 && Part[noffset[i]+j].GetType() != opt.ParticleTypeForRefenceFrame) continue;
-                potmin=Part[j+noffset[i]].GetPotential()/Part[j+noffset[i]].GetMass();
-                ipotmin=j;
+                auto potcur = Part[j+noffset[i]].GetPotential()/Part[j+noffset[i]].GetMass();
+                if (potcur < potmin)
+                {
+                    potmin=potcur;
+                    ipotmin=j;
+                }
             }
             pdata[i].iminpot=Part[ipotmin+noffset[i]].GetPID();
             for (k=0;k<3;k++)
@@ -4443,13 +4473,27 @@ private(i,j,k,potmin,ipotmin)
     #pragma omp for schedule(dynamic) nowait
 #endif
     for (i=1;i<=ngroup;i++) if (numingroup[i]>=ompunbindnum) {
-        potmin=Part[noffset[i]].GetPotential()/Part[noffset[i]].GetMass();
-        ipotmin=0;
-        for (j=0;j<numingroup[i];j++) if (Part[j+noffset[i]].GetPotential()/Part[j+noffset[i]].GetMass()<potmin)
+        auto istart = 0;
+        if (opt.ParticleTypeForRefenceFrame !=-1)
+        {
+            for (j=istart;j<numingroup[i];j++)
+            {
+                if (Part[noffset[i]+j].GetType() != opt.ParticleTypeForRefenceFrame) continue;
+                istart = j;
+                break;
+            }
+        }
+        potmin = Part[noffset[i] + istart].GetPotential()/Part[noffset[i] + istart].GetMass();
+        ipotmin = istart;
+        for (j=istart;j<numingroup[i];j++)
         {
             if (opt.ParticleTypeForRefenceFrame !=-1 && Part[noffset[i]+j].GetType() != opt.ParticleTypeForRefenceFrame) continue;
-            potmin=Part[j+noffset[i]].GetPotential()/Part[j+noffset[i]].GetMass();
-            ipotmin=j;
+            auto potcur = Part[j+noffset[i]].GetPotential()/Part[j+noffset[i]].GetMass();
+            if (potcur<potmin)
+            {
+                potmin=potcur;
+                ipotmin=j;
+            }
         }
         pdata[i].iminpot=Part[ipotmin+noffset[i]].GetPID();
         for (k=0;k<3;k++) {pdata[i].gposminpot[k]=Part[ipotmin+noffset[i]].GetPosition(k);pdata[i].gvelminpot[k]=Part[ipotmin+noffset[i]].GetVelocity(k);}
@@ -4596,7 +4640,7 @@ private(i,j,Emostbound,imostbound)
 }
 #endif
 
-    if (opt.iverbose) cout<<ThisTask<<"Done getting energy in "<<MyGetTime()-time1<<endl;
+    if (opt.iverbose) cout<<ThisTask<<"Done getting energy in "<<MyElapsedTime(time1)<<endl;
 }
 
 
@@ -4610,7 +4654,7 @@ Int_t **SortAccordingtoBindingEnergy(Options &opt, const Int_t nbodies, Particle
     int ThisTask=0,NProcs=1;
 #endif
     cout<<ThisTask<<" Sort particles and compute properties of "<<ngroup<<" objects "<<endl;
-    Int_t i,j,k;
+    Int_t i,j;
     Int_t **pglist = NULL;
     Int_t *noffset = new Int_t[ngroup+1];
 
@@ -4677,8 +4721,14 @@ private(i,j)
 #endif
 
     GetMaximumSizes(opt, nbodies, Part, ngroup, numingroup, pdata, noffset);
+
+    //copy data as back up
+    PropData *nomeshpdata = new PropData[ngroup+1];
+    for (i=1;i<=ngroup;i++) nomeshpdata[i] = pdata[i];
+
     //calculate spherical masses after substructures identified if using InclusiveHalo = 3
     if (opt.iInclusiveHalo == 3) GetSOMasses(opt, nbodies, Part, ngroup,  numingroup, pdata);
+
     //and finally calculate concentrations
     GetNFWConcentrations(opt, ngroup, numingroup, pdata);
     //AdjustHaloPositionRelativeToReferenceFrame(opt, ngroup, numingroup, pdata);
@@ -4721,7 +4771,7 @@ void CalculateHaloProperties(Options &opt, const Int_t nbodies, Particle *Part, 
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
 #endif
-    Int_t i,j,k;
+    Int_t i;
     Int_t *noffset=new Int_t[ngroup+1];
 
     //sort the particle data according to their group id so that one can then sort particle data
@@ -4822,8 +4872,6 @@ double mycNFW(double c, void *params)
 }
 double mycNFW_deriv(double c, void *params)
 {
-  double *p = (double*) params;
-  Double_t VvirVmax2=*p;
   return 0.216*c/pow((1.0+c),2.0);
 }
 double mycNFW_fdf(double c, void *params, double *y, double *dy)
@@ -5888,25 +5936,32 @@ inline double ExtraPropGetWeight(unsigned int calctype, double weight){
 }
 inline double ExtraPropCalcAverage(double weight, double value, double &result){
     result += value * weight;
+    return result;
 }
 inline double ExtraPropCalcTotal(double weight, double value, double &result){
     result += value * weight;
+    return result;
 }
 inline double ExtraPropCalcSTD(double weight, double value, double &result){
     result += value * value * weight;
+    return result;
 }
 inline double ExtraPropCalcLogAverage(double weight, double value, double &result){
     result += log(value) * weight;
+    return result;
 }
 inline double ExtraPropCalcLogSTD(double weight, double value, double &result){
     value = log(value);
     result += value * value * weight;
+    return result;
 }
 inline double ExtraPropCalcMin(double weight, double value, double &result){
     if (value*weight < result) result = value * weight;
+    return result;
 }
 inline double ExtraPropCalcMax(double weight, double value, double &result){
     if (value*weight > result) result = value * weight;
+    return result;
 }
 inline double ExtraPropNormalizeValue(unsigned int calctype, double value, double norm){
     calctype = calctype % CALCQUANTITYMASSWEIGHT;
@@ -6493,7 +6548,7 @@ Int_t CalculateSphericalOverdensity(Options &opt, PropData &pdata,
     //edge then extrapolate density based on average slope using 10% of radial bins
     double massval, EncMass, rc, oldrc, rhoval, MinMass;
     double rc2, EncMass2, rhoval2;
-    double delta, gamma1, gamma2, gamma1lin, gamma2lin;
+    double delta, gamma1, gamma2;//, gamma1lin, gamma2lin;
     double fac, MassEdge;
     int lindex=0.9*iindex, llindex=iindex;
     int iSOfound = 0;
@@ -6649,8 +6704,8 @@ Int_t CalculateSphericalOverdensity(Options &opt, PropData &pdata,
     //edge then extrapolate density based on average slope using 10% of radial bins
     double EncMass, rc, oldrc, rhoval, massval, MinMass;
     double rc2, EncMass2, rhoval2;
-    double delta, gamma1, gamma2, gamma1lin, gamma2lin;
-    double fac, MassEdge;
+    double delta, gamma1, gamma2;// gamma1lin, gamma2lin;
+    double fac;
     int lindex=0.9*iindex, llindex=iindex;
     int iSOfound = 0;
 
@@ -6665,6 +6720,7 @@ Int_t CalculateSphericalOverdensity(Options &opt, PropData &pdata,
 #endif
         EncMass+=massval;
     }
+    fac=-log(4.0*M_PI/3.0);
     MinMass=Part[0].GetMass();
     rc=Part[minnum-1].Radius();
     llindex= numingroup;
@@ -6862,7 +6918,7 @@ void CalculateSphericalOverdensityExclusive(Options &opt, PropData &pdata,
 {
     Double_t EncMass, rc, rhoval, fac;
     Particle *Pval;
-    int iSOfound=0;
+    // int iSOfound=0;
     fac=-log(4.0*M_PI/3.0);
     EncMass=pdata.gmass;
     for (auto j=numingroup-1;j>=0;j--) {
