@@ -136,7 +136,6 @@ static inline hid_t hdf5_type(std::string dummy)        {return H5T_C_S1;}
 static inline void get_attribute(vector<hid_t> &ids, const std::string attr_name)
 {
     //can use H5Aexists as it is the C interface but how to access it?
-    //auto exists = H5Aexists(l.getId(), attr_name.c_str());
     auto exists = H5Aexists(ids.back(), attr_name.c_str());
     if (exists == 0) {
         throw invalid_argument(std::string("attribute not found ") + attr_name);
@@ -158,12 +157,18 @@ static inline void get_attribute(vector<hid_t> &ids, const std::vector<std::stri
     else {
         H5O_info_t object_info;
         hid_t newid;
-        H5Oget_info_by_name(ids.back(), parts[0].c_str(), &object_info, H5P_DEFAULT);
+        hid_t lapl_id = H5P_DEFAULT;
+#if H5_VERSION_GE(1,12,0)
+        unsigned int fields = H5O_INFO_ALL;
+        H5Oget_info_by_name(ids.back(), parts[0].c_str(), &object_info, fields, lapl_id);
+#else
+        H5Oget_info_by_name(ids.back(), parts[0].c_str(), &object_info, lapl_id);
+#endif
         if (object_info.type == H5O_TYPE_GROUP) {
-            newid = H5Gopen2(ids.back(),parts[0].c_str(),H5P_DEFAULT);
+            newid = H5Gopen(ids.back(),parts[0].c_str(),H5P_DEFAULT);
         }
         else if (object_info.type == H5O_TYPE_DATASET) {
-            newid = H5Dopen2(ids.back(),parts[0].c_str(),H5P_DEFAULT);
+            newid = H5Dopen(ids.back(),parts[0].c_str(),H5P_DEFAULT);
         }
         ids.push_back(newid);
         //get the substring
@@ -200,7 +205,12 @@ static inline void close_hdf_ids(vector<hid_t> &ids)
     H5O_info_t object_info;
     for (auto &id:ids)
     {
+        hid_t lapl_id = H5P_DEFAULT;
+#if H5_VERSION_GE(1,12,0)
+        H5Oget_info(id, &object_info, lapl_id);
+#else
         H5Oget_info(id, &object_info);
+#endif
         if (object_info.type == H5O_TYPE_GROUP) {
             H5Gclose(id);
         }
@@ -302,10 +312,10 @@ static inline hid_t HDF5OpenFile(string name, unsigned int flags){
 }
 
 static inline hid_t HDF5OpenGroup(const hid_t &file, string name){
-    return H5Gopen2(file,name.c_str(),H5P_DEFAULT);
+    return H5Gopen(file,name.c_str(),H5P_DEFAULT);
 }
 static inline hid_t HDF5OpenDataSet(const hid_t &id, string name){
-    hid_t idval = H5Dopen2(id,name.c_str(),H5P_DEFAULT);
+    hid_t idval = H5Dopen(id,name.c_str(),H5P_DEFAULT);
     return idval;
 }
 static inline hid_t HDF5OpenDataSpace(const hid_t &id){
