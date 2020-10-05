@@ -223,9 +223,9 @@ macro(vr_nbodylib)
     # We need to add it unless it was already added by somebody else
     if (NOT TARGET nbodylib)
     	add_subdirectory(NBodylib)
-    	if (NBODYLIB_VERSION VERSION_LESS "1.28")
+    	if (NBODYLIB_VERSION VERSION_LESS "1.30")
     		message(FATAL_ERROR "NBodyLib version ${NBODYLIB_VERSION} unsupported,
-    		VELOCIraptor requires >= 1.28, try running git submodule update --recursive --remote")
+    		VELOCIraptor requires >= 1.30, try running git submodule update --recursive --remote")
     	endif()
     	list(INSERT VR_DOC_DIRS 0 ${NBODYLIB_DOC_DIRS})
     endif()
