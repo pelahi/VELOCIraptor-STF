@@ -48,9 +48,9 @@
 #define GADGETCHUNKSIZE 200000
 
 ///for waves data, u, rho, Ne, Nh, HSML contiguous block
-#define NUMGADGETSPHBLOCKS 5 
+#define NUMGADGETSPHBLOCKS 5
 ///for waves data, star only has stellar age
-#define NUMGADGETSTARBLOCKS 1 
+#define NUMGADGETSTARBLOCKS 1
 ///for waves data, bh not present
 #define NUMGADGETBHBLOCKS 1
 
@@ -96,7 +96,7 @@ struct gadget_header
     }
 };
 
-struct gadget_particle_data 
+struct gadget_particle_data
 {
   FLOAT  Pos[3];
   FLOAT  Vel[3];
@@ -172,7 +172,9 @@ inline Int_t get_nbodies(char *fname, int ptype=-1)
     Int_t nbodies=0;
     struct gadget_header header1;
     int ihwflag=0;
+#ifdef GADGET2FORMAT
     char DATA[5];
+#endif
 
     sprintf(buf, "%s.%d", fname, 0);
     sprintf(buf1, "%s", fname);
@@ -220,4 +222,4 @@ inline Int_t get_nbodies(char *fname, int ptype=-1)
     }
 }
 
-#endif 
+#endif

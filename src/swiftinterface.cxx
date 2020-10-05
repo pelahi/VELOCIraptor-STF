@@ -463,7 +463,6 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
     //KDTree *tree;
     //to store information about the group
     PropData *pdata = NULL,*pdatahalos = NULL;
-    double time1;
 
     /// Set pointer to cell node IDs
     libvelociraptorOpt.cellnodeids = cell_node_ids;
@@ -479,7 +478,7 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
     parts.resize(Nmemlocal);
 
     cout<<"Copying particle data..."<< endl;
-    time1=MyGetTime();
+    auto time1=MyGetTime();
 
     ndark = num_gravity_parts - num_hydro_parts - num_star_parts - num_bh_parts;
     nbaryons = num_hydro_parts + num_star_parts + num_bh_parts;
@@ -493,7 +492,7 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
     /// If we are performing a baryon search, sort the particles so that the DM particles are at the start of the array followed by the gas particles.
     // note that we explicitly convert positions from comoving to physical as swift_vel_parts is in
     if (libvelociraptorOpt.iBaryonSearch>0 && libvelociraptorOpt.partsearchtype!=PSTALL) {
-        size_t dmOffset = 0, baryonOffset = 0, gasOffset = 0, starOffset = 0, bhOffset = 0, otherparttype = 0;
+        size_t dmOffset = 0, baryonOffset = 0, gasOffset = 0, starOffset = 0, bhOffset = 0;
         pbaryons=&(parts.data()[ndark]);
         cout<<"There are "<<nbaryons<<" gas particles and "<<ndark<<" DM particles."<<endl;
         for(auto i=0; i<Nlocal; i++)
@@ -592,12 +591,11 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
     //lets free the memory of swift_parts
     free(swift_parts);
 
-    time1=MyGetTime()-time1;
     cout<<ThisTask<<" Finished copying particle data."<< endl;
 #ifdef HIGHRES
     cout<<ThisTask<<" zoom simulation where there are "<<ninterloper<<" low resolution interloper particles "<<endl;
 #endif
-    cout<<ThisTask<<" took "<<time1<<" to copy "<<Nlocal<<" particles from SWIFT to a local format. Out of "<<Ntotal<<endl;
+    cout<<ThisTask<<" took "<<MyElapsedTime(time1)<<" to copy "<<Nlocal<<" particles from SWIFT to a local format. Out of "<<Ntotal<<endl;
     cout<<ThisTask<<" There are "<<Nlocal<<" particles and have allocated enough memory for "<<Nmemlocal<<" requiring "<<Nmemlocal*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
     if (libvelociraptorOpt.iBaryonSearch>0) cout<<ThisTask<<"There are "<<Nlocalbaryon[0]<<" baryon particles and have allocated enough memory for "<<Nmemlocalbaryon<<" requiring "<<Nmemlocalbaryon*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
     cout<<ThisTask<<" will also require additional memory for FOF algorithms and substructure search. Largest mem needed for preliminary FOF search. Rough estimate is "<<Nlocal*(sizeof(Int_tree_t)*8)/1024./1024./1024.<<"GB of memory"<<endl;
@@ -610,8 +608,7 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
     //
     time1=MyGetTime();
     pfof=SearchFullSet(libvelociraptorOpt,Nlocal,parts,ngroup);
-    time1=MyGetTime()-time1;
-    cout<<"TIME::"<<ThisTask<<" took "<<time1<<" to search "<<Nlocal<<" with "<<nthreads<<endl;
+    cout<<"TIME::"<<ThisTask<<" took "<<MyElapsedTime(time1)<<" to search "<<Nlocal<<" with "<<nthreads<<endl;
     nhalos=ngroup;
     //if caculating inclusive halo masses, then for simplicity, I assume halo id order NOT rearranged!
     //this is not necessarily true if baryons are searched for separately.
@@ -639,8 +636,7 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
         time1=MyGetTime();
         //if groups have been found (and localized to single MPI thread) then proceed to search for subsubstructures
         SearchSubSub(libvelociraptorOpt, Nlocal, parts, pfof,ngroup,nhalos,pdatahalos);
-        time1=MyGetTime()-time1;
-        cout<<"TIME::"<<ThisTask<<" took "<<time1<<" to search for substructures "<<Nlocal<<" with "<<nthreads<<endl;
+        cout<<"TIME::"<<ThisTask<<" took "<<MyElapsedTime(time1)<<" to search for substructures "<<Nlocal<<" with "<<nthreads<<endl;
     }
     pdata=new PropData[ngroup+1];
     //if inclusive halo mass required
@@ -672,8 +668,7 @@ groupinfo *InvokeVelociraptorHydro(const int snapnum, char* outputname,
             pbaryons=NULL;
             SearchBaryons(libvelociraptorOpt, nbaryons, pbaryons, ndark, parts, pfof, ngroup,nhalos,libvelociraptorOpt.iseparatefiles,libvelociraptorOpt.iInclusiveHalo,pdata);
         }
-        time1=MyGetTime()-time1;
-        cout<<"TIME::"<<ThisTask<<" took "<<time1<<" to search baryons  with "<<nthreads<<endl;
+        cout<<"TIME::"<<ThisTask<<" took "<<MyElapsedTime(time1)<<" to search baryons  with "<<nthreads<<endl;
     }
 
     //get mpi local hierarchy

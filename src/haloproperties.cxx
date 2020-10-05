@@ -7,7 +7,7 @@
 #include "stf.h"
 
 /*! The FoF linking terms are adjusted by determining the physical extent of the halo and Rvir, Vcirc(Rvir), Mvir, Renc where Menclosed is [20%, 50%, 80%] of mass \n
-    Units should be V=100 km/s, L=kpc, M=2.32e9 Msun so that G=1 and rhoc=3*Ho^2/8piG which gives 1.19e-7. 
+    Units should be V=100 km/s, L=kpc, M=2.32e9 Msun so that G=1 and rhoc=3*Ho^2/8piG which gives 1.19e-7.
     These quantites, such as average spacing and ciricular velocity at virial radius, are stored in \ref Options.ellxscale and \ref Options.ellvscale.
 */
 void ScaleLinkingLengths(Options &opt,const Int_t nbodies, Particle *Part,Coordinate &cm,Coordinate &cmvel,Double_t Mtot) {
@@ -36,19 +36,17 @@ void ScaleLinkingLengths(Options &opt,const Int_t nbodies, Particle *Part,Coordi
 */
 void AdjusttoCM(const Int_t nbodies, Particle *Part, Coordinate &cm, Coordinate &cmvel, const Double_t Mtot, Double_t *rlim, Double_t &MaxVcirc, Double_t tol){
     Int_t i;
-    int nthreads;
+    int nthreads=1;
     Double_t *rmin,*rmax,*rave, *vcmax,r,vc;
     Double_t change = 1e32,ri,EncMass,cmx,cmy,cmz;
     Int_t Ninside;
     Coordinate cmold=cm;
-    
+
 #ifdef USEOPENMP
-#pragma omp parallel 
+#pragma omp parallel
 {
     if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
 }
-#else
-    nthreads=1;
 #endif
     rmin=new Double_t[nthreads];
     rmax=new Double_t[nthreads];
@@ -125,7 +123,7 @@ private(i,r)
         // keep making radius smaller until there's
         // less than 10% of the particles inside
         if (Ninside < 0.1 * nbodies)  break;
-                   
+
         // check for convergence
         change=fabs((cm[0]-cmold[0])/cmold[0]);
         for (int j=1;j<3;j++)if (fabs((cm[j]-cmold[j])/cmold[j]) > change) change=fabs((cm[j]-cmold[j])/cmold[j]);
@@ -200,17 +198,15 @@ private(i,r,vc)
 */
 void GetVirialQuantities(const Int_t nbodies, Particle *Part, const Double_t Mtot, Double_t *rlim, const Double_t rhoc, const Double_t virlevel, Double_t &Rvir, Double_t &Mvir, Int_t nenc, Double_t *Menc, Double_t *Renc){
     Int_t nbins=pow(nbodies,1./3.),i;
-    int nthreads;
+    int nthreads=1;
     Double_t deltalogr=log10(rlim[2]/rlim[0])/(Double_t)nbins,logrmin=log10(rlim[0]);
     Double_t *Mencbin,*Mbin, **mbin, *rhoavebin;
     Double_t rhovir=rhoc*virlevel;
 #ifdef USEOPENMP
-#pragma omp parallel 
+#pragma omp parallel
 {
     if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
 }
-#else
-    nthreads=1;
 #endif
     mbin=new Double_t*[nthreads];
     for (int j=0;j<nthreads;j++) mbin[j]=new Double_t[nbins];
@@ -265,7 +261,7 @@ private(i)
     //find virial radius
     Rvir=rlim[2];
     Mvir=Mtot;
-    for (int j=nbins-2;j>=0;j--) 
+    for (int j=nbins-2;j>=0;j--)
         if (rhoavebin[j]/rhovir>1.0&&rhoavebin[j+1]/rhovir<1.0) {
             Rvir=pow(10.0,(1.0-rhoavebin[j]/rhovir)/(rhoavebin[j+1]/rhovir-rhoavebin[j]/rhovir)*deltalogr+(logrmin+deltalogr*(j+1.0)));
             Mvir=Mencbin[j]+(Mencbin[j+1]-Mencbin[j])/deltalogr*(log10(Rvir)-(logrmin+deltalogr*(j+1.0)));
