@@ -1817,7 +1817,25 @@ void ConfigCheck(Options &opt)
             errormessage("Value passed: "+to_string(opt.H));
         }
     }
-
+    if (opt.ParticleTypeForRefenceFrame!=-1)
+    {
+        // map<int, string> typetostring = {{GASTYPE, "Gas/SPH"}, {DARKTYPE, "DM"}, {STARTYPE, "Star"}, {BHTYPE, "Black holes"}};
+        map<int, string> typetostring;
+        typetostring[GASTYPE]="gas"; typetostring[DARKTYPE]="dm"; typetostring[STARTYPE]="star"; typetostring[BHTYPE]="bh";
+        if (
+           (opt.ParticleTypeForRefenceFrame == GASTYPE && opt.iusegasparticles == 0) ||
+           (opt.ParticleTypeForRefenceFrame == DARKTYPE && opt.iusedmparticles == 0) ||
+           (opt.ParticleTypeForRefenceFrame == STARTYPE && opt.iusestarparticles == 0) ||
+           (opt.ParticleTypeForRefenceFrame == BHTYPE && opt.iusesinkparticles == 0)
+        )
+        {
+           errormessage("Using particle type for reference frame that is not loaded.");
+           errormessage("Asking for "+to_string(opt.ParticleTypeForRefenceFrame)+"which corresponds to "+typetostring[opt.ParticleTypeForRefenceFrame]);
+           errormessage("Update config to either load the appropriate paricle with Input_includes_"+typetostring[opt.ParticleTypeForRefenceFrame]+"_particle");
+           errormessage("or change the reference particle type");
+           ConfigExit();
+        }
+    }
 #ifdef USEMPI
     if (opt.minnumcellperdim<8){
         errormessage("MPI mesh too coarse, minimum number of cells per dimension from which to produce z-curve decomposition is 8. Resetting to 8.");
