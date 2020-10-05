@@ -1084,6 +1084,7 @@ Int_t* SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Part
         Partsubset[i].SetType(storetype[storeindx[i]]);
     }
 
+
     if (opt.foftype==FOF6DSUBSET) {
         param[2] = opt.HaloSigmaV*(opt.halocorevfac * opt.halocorevfac);
         param[7] = param[2];
@@ -1436,7 +1437,7 @@ private(i,tid)
     }
     if (numgroups>0) if (opt.iverbose>=2) cout<<ThisTask<<": "<<numgroups<<" substructures found"<<endl;
     else {if (opt.iverbose>=2) cout<<ThisTask<<": "<<"NO SUBSTRUCTURES FOUND"<<endl;}
-
+    
     //now search particle list for large compact substructures that are considered part of the background when using smaller grids
     if (nsubset>=MINSUBSIZE && opt.iLargerCellSearch && opt.foftype!=FOF6DCORE)
     {
@@ -1765,10 +1766,10 @@ private(i,tid)
                 delete[] pfofbg;
                 param[1]*=opt.halocorexfaciter*opt.halocorexfaciter;
                 param[6]=param[1];
-               	//adjust linking lengths in velocity space by the iterative factor, ~0.75
+                //adjust linking lengths in velocity space by the iterative factor, ~0.75
                 param[2]*=opt.halocorevfaciter*opt.halocorevfaciter;
                 param[7]=param[2];
-               	//and alter the minsize
+                //and alter the minsize
                 minsize*=opt.halocorenumfaciter;
                 if (minsize<opt.MinSize) minsize=opt.MinSize;
                 dispvaltot*=dispval;
@@ -2750,7 +2751,7 @@ inline void PreCalcSearchSubSet(Options &opt, Int_t subnumingroup,  Particle *&s
         FillTreeGrid(opt, subnumingroup, ngrid, tree, subPart, grid);
         gvel=GetCellVel(opt,subnumingroup,subPart,ngrid,grid);
         gveldisp=GetCellVelDisp(opt,subnumingroup,subPart,ngrid,grid,gvel);
-
+        
         opt.HaloLocalSigmaV=0;
         for (auto j=0;j<ngrid;j++) opt.HaloLocalSigmaV+=pow(gveldisp[j].Det(),1./3.);opt.HaloLocalSigmaV/=(double)ngrid;
 
@@ -4022,11 +4023,11 @@ Int_t GetHierarchy(Options &opt,Int_t ngroups, Int_t *nsub, Int_t *parentgid, In
     for (int i=nhierarchy-1;i>=1;i--){
         //store number of substructures
         for (int j=1;j<=papsldata[i]->nsinlevel;j++) {
-	           if (papsldata[i]->gidparenthead[j]!=NULL&&papsldata[i]->gidparenthead[j]!=papsldata[i]->gidhead[j]) nsub[*(papsldata[i]->gidparenthead[j])]++;
+               if (papsldata[i]->gidparenthead[j]!=NULL&&papsldata[i]->gidparenthead[j]!=papsldata[i]->gidhead[j]) nsub[*(papsldata[i]->gidparenthead[j])]++;
         }
         //then add these to parent substructure
         for (int j=1;j<=papsldata[i]->nsinlevel;j++) {
-    	    if (papsldata[i]->gidparenthead[j]!=NULL&&papsldata[i]->gidparenthead[j]!=papsldata[i]->gidhead[j]){
+            if (papsldata[i]->gidparenthead[j]!=NULL&&papsldata[i]->gidparenthead[j]!=papsldata[i]->gidhead[j]){
                 nsub[*(papsldata[i]->gidparenthead[j])]+=nsub[*(papsldata[i]->gidhead[j])];
                 parentgid[*(papsldata[i]->gidhead[j])]=*(papsldata[i]->gidparenthead[j]);
             }
