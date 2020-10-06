@@ -2944,13 +2944,13 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
     else if (opt.ibinaryout==OUTHDF) {
 #ifdef USEPARALLELHDF
         if(opt.mpinprocswritesize>1){
-            //if parallel then open file in serial so task 0 writes header
+            //if parallel then open file in serial so first task in each i/o communicator writes header
             Fhdf.create(string(fname),H5F_ACC_TRUNC, 0, false);
             MPI_Allreduce(&ng, &nwritecommtot, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, mpi_comm_write);
             MPI_Allreduce(&nhalos, &nhalowritecommtot, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, mpi_comm_write);
-            if (ThisTask == 0) {
+            if (ThisWriteTask == 0) {
                 itemp=0;
-                Fhdf.write_dataset(opt, datagroupnames.profile[itemp++], 1, &ThisWriteTask, -1, -1, false);
+                Fhdf.write_dataset(opt, datagroupnames.profile[itemp++], 1, &ThisWriteComm, -1, -1, false);
                 Fhdf.write_dataset(opt, datagroupnames.profile[itemp++], 1, &NWriteComms, -1, -1, false);
                 Fhdf.write_dataset(opt, datagroupnames.profile[itemp++], 1, &nwritecommtot, -1, -1, false);
                 Fhdf.write_dataset(opt, datagroupnames.profile[itemp++], 1, &ngtot, -1, -1, false);
