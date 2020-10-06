@@ -302,7 +302,8 @@ int CheckUnboundGroups(Options opt, const Int_t nbodies, Particle *Part, Int_t &
     Int_t *noffset=new Int_t[ngroup+1];
     Double_t *storeden=new Double_t[nbodies];
     for (Int_t i=0;i<nbodies;i++) {storeval1[i]=Part[i].GetPID();storeval2[i]=Part[i].GetID();storeden[i]=Part[i].GetDensity();Part[i].SetPID(i);Part[i].SetID(pfof[i]+nbodies*(pfof[i]==0));}
-    qsort(Part,nbodies,sizeof(Particle),IDCompare);
+    // qsort(Part,nbodies,sizeof(Particle),IDCompare);
+    std::sort(Part, Part + nbodies, IDCompareVec);
     noffset[0]=noffset[1]=0;
     for (Int_t i=2;i<=ngroup;i++) noffset[i]=noffset[i-1]+numingroup[i-1];
 #else
@@ -324,7 +325,8 @@ int CheckUnboundGroups(Options opt, const Int_t nbodies, Particle *Part, Int_t &
         if (ireorder) ReorderGroupIDsAndArraybyValue(const Int_t numgroups, const Int_t newnumgroups, Int_t *numingroup, Int_t *pfof, Int_t **pglist, Int_t *value, Int_t *gdata)
     }
     //reset order
-    qsort(Part,nbodies,sizeof(Particle),PIDCompare);
+    // qsort(Part,nbodies,sizeof(Particle),PIDCompare);
+    std::sort(Part, Part + nbodies, PIDCompareVec);
     for (Int_t i=0;i<nbodies;i++) {Part[i].SetPID(storeval1[i]);Part[i].SetID(storeval2[i]);Part[i].SetDensity(storeden[i]);}
     //and alter pglist
     for (Int_t i=0;i<=ng;i++) numingroup[i]=0;

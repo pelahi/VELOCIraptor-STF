@@ -516,8 +516,8 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
             numingroup[pfof[i]]++;
         }
         for (i=2;i<=numgroups;i++) noffset[i]=noffset[i-1]+numingroup[i-1];
-        qsort(Part.data(), Nlocal, sizeof(Particle), PIDCompare);
-        //sort(Part.begin(),Part.end(),PIDCompareVec);
+        // qsort(Part.data(), Nlocal, sizeof(Particle), PIDCompare);
+        std::sort(Part.data(), Part.data() + Nlocal, PIDCompareVec);
         for (i=0;i<Nlocal;i++) Part[i].SetPID(storetype[Part[i].GetID()]);
         delete[] storetype;
         //store index order
@@ -1070,7 +1070,8 @@ Int_t* SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Part
     }
 
     //Sort the particle data based on the particle IDs
-    qsort(Partsubset, nsubset, sizeof(Particle), PIDCompare);
+    // qsort(Partsubset, nsubset, sizeof(Particle), PIDCompare);
+    std::sort(Partsubset, Partsubset + nsubset, PIDCompareVec);
 
     //Store the index in another array and reset the type data
     vector<int> storeindx(nsubset);
@@ -1944,7 +1945,8 @@ private(i,tid)
     }
 
     // Sort base on the type
-    qsort(Partsubset, nsubset, sizeof(Particle), TypeCompare);
+    // qsort(Partsubset, nsubset, sizeof(Particle), TypeCompare);
+    std::sort(Partsubset, Partsubset + nsubset, TypeCompareVec);
 
     //Reset the typedata and set the ID
     for (i = 0; i < nsubset; i++){
@@ -2014,7 +2016,8 @@ void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *&Partsubset, In
                 Pcore[nincore].SetType(pfofbg[Partsubset[i].GetID()]);
                 nincore++;
             }
-            qsort(Pcore,nincore,sizeof(Particle),TypeCompare);
+            // qsort(Pcore,nincore,sizeof(Particle),TypeCompare);
+            std::sort(Pcore, Pcore + nincore, TypeCompareVec);
             noffset[0]=noffset[1]=0;
             for (i=2;i<=numgroupsbg;i++) noffset[i]=noffset[i-1]+ncore[i-1];
             //now get centre of masses and dispersions
@@ -2138,7 +2141,8 @@ private(i,tid,Pval,D2,dval,mval,pid,weight)
                     nincore++;
                     ncore[pfofbg[Partsubset[i].GetID()]]++;
                 }
-                qsort(Pcore,nincore,sizeof(Particle),TypeCompare);
+                // qsort(Pcore,nincore,sizeof(Particle),TypeCompare);
+                std::sort(Pcore, Pcore + nincore, TypeCompareVec);
                 noffset[0]=noffset[1]=0;
                 for (i=2;i<=numgroupsbg;i++) noffset[i]=noffset[i-1]+ncore[i-1];
                 //now get centre of masses and dispersions
@@ -3515,8 +3519,8 @@ Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, const I
             storeval2[i]=Part[i].GetPID();
             Part[i].SetPID(pfofdark[i]);
         }
-        qsort(Part.data(),nparts,sizeof(Particle),TypeCompare);
-        //sort(Part.begin(),Part.end(),TypeCompareVec);
+        // qsort(Part.data(),nparts,sizeof(Particle),TypeCompare);
+        std::sort(Part.data(), Part.data() + nparts, TypeCompareVec);
         Pbaryons=&Part[ndark];
         for (i=0;i<nparts;i++) {
             //store id order after type sort
@@ -3573,8 +3577,8 @@ Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, const I
 
     //search all dm particles in structures
     for (i=0;i<ndark;i++) Part[i].SetPotential(2*(pfofdark[i]==0)+(pfofdark[i]>1));
-    qsort(Part.data(), ndark, sizeof(Particle), PotCompare);
-    //sort(Part.begin(),Part.begin()+ndark,PotCompareVec);
+    // qsort(Part.data(), ndark, sizeof(Particle), PotCompare);
+    std::sort(Part.data(), Part.data() + ndark, PotCompareVec);
     ids=new Int_t[ndark+1];
     //store the original order of the dark matter particles
     for (i=0;i<ndark;i++) ids[i]=Part[i].GetID();
@@ -3711,8 +3715,8 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
         //reset order
         delete tree;
         for (i=0;i<ndark;i++) Part[i].SetID(ids[i]);
-        qsort(Part.data(), ndark, sizeof(Particle), IDCompare);
-        //sort(Part.begin(), Part.begin()+ndark, IDCompareVec);
+        // qsort(Part.data(), ndark, sizeof(Particle), IDCompare);
+        std::sort(Part.data(), Part.data() + ndark, IDCompareVec);
         delete[] ids;
 
         //reorder local particle array and delete memory associated with Head arrays, only need to keep Particles, pfof and some id and idexing information
@@ -3758,12 +3762,12 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
         //reset order
         if (npartingroups>0) delete tree;
         for (i=0;i<ndark;i++) Part[i].SetID(ids[i]);
-        qsort(Part.data(), ndark, sizeof(Particle), IDCompare);
-        //sort(Part.begin(), Part.end(), IDCompareVec);
+        // qsort(Part.data(), ndark, sizeof(Particle), IDCompare);
+        std::sort(Part.data(), Part.data()+ ndark, IDCompareVec);
         delete[] ids;
         for (i=0;i<nparts;i++) {Part[i].SetPID(pfofall[Part[i].GetID()]);Part[i].SetID(storeval[i]);}
-        qsort(Part.data(), nparts, sizeof(Particle), IDCompare);
-        //sort(Part.begin(), Part.end(), IDCompareVec);
+        // qsort(Part.data(), nparts, sizeof(Particle), IDCompare);
+        std::sort(Part.begin(), Part.end(), IDCompareVec);
         for (i=0;i<nparts;i++) {
             pfofall[i]=Part[i].GetPID();Part[i].SetPID(storeval2[i]);
             if (Part[i].GetType()==-1)Part[i].SetType(DARKTYPE);
@@ -3779,12 +3783,12 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
         //reset order
         if (npartingroups>0) delete tree;
         for (i=0;i<ndark;i++) Part[i].SetID(ids[i]);
-        qsort(Part.data(), ndark, sizeof(Particle), IDCompare);
-        //sort(Part.begin(), Part.begin()+ndark, IDCompareVec);
+        // qsort(Part.data(), ndark, sizeof(Particle), IDCompare);
+        std::sort(Part.data(), Part.data()+ndark, IDCompareVec);
         delete[] ids;
         for (i=0;i<nparts;i++) {Part[i].SetPID(pfofall[Part[i].GetID()]);Part[i].SetID(storeval[i]);}
-        qsort(Part.data(), nparts, sizeof(Particle), IDCompare);
-        //sort(Part.begin(), Part.end(), IDCompareVec);
+        // qsort(Part.data(), nparts, sizeof(Particle), IDCompare);
+        std::sort(Part.begin(), Part.end(), IDCompareVec);
         for (i=0;i<nparts;i++) {
             pfofall[i]=Part[i].GetPID();Part[i].SetPID(storeval2[i]);
             if (Part[i].GetType()==-1)Part[i].SetType(DARKTYPE);
@@ -3795,8 +3799,8 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
     else {
         delete tree;
         for (i=0;i<ndark;i++) Part[i].SetID(ids[i]);
-        qsort(Part.data(), ndark, sizeof(Particle), IDCompare);
-        //sort(Part.begin(), Part.begin()+ndark, IDCompareVec);
+        // qsort(Part.data(), ndark, sizeof(Particle), IDCompare);
+        std::sort(Part.data(), Part.data() + ndark, IDCompareVec);
         delete[] ids;
         for (i=0;i<nbaryons;i++) Pbaryons[i].SetID(i+ndark);
     }

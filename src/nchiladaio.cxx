@@ -728,7 +728,8 @@ void ReadNchilada(Options &opt, vector<Particle> &Part, const Int_t nbodies,Part
                         Nbuf[ibuf]++;
                     }
                 }
-                qsort(&Pbuf[nreadoffset[ibuf]],mpi_nsend[ThisTask*NProcs+ibuf], sizeof(Particle), IDCompare);
+                // qsort(&Pbuf[nreadoffset[ibuf]],mpi_nsend[ThisTask*NProcs+ibuf], sizeof(Particle), IDCompare);
+                std::sort(&Pbuf[nreadoffset[ibuf]],&Pbuf[nreadoffset[ibuf]] + mpi_nsend[ThisTask*NProcs+ibuf], IDCompareVec);
             }
             }
             MPI_Allgather(Nbuf, NProcs, MPI_Int_t, mpi_nsend_baryon, NProcs, MPI_Int_t, MPI_COMM_WORLD);

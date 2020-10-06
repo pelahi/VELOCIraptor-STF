@@ -2125,8 +2125,7 @@ void MPIReceiveParticlesFromReadThreads(Options &opt, Particle *&Pbuf, Particle 
             }
         }
         //sorted so that dark matter particles first, baryons after
-        qsort(Part,Nlocal, sizeof(Particle), IDCompare);
-        //sort(Part.begin(),Part.end(), IDCompareVec);
+        sort(Part, Part + Nlocal, IDCompareVec);
         Nlocal-=Nlocalbaryon[0];
         //index type separated
         for (i=0;i<Nlocal;i++) Part[i].SetID(i);
@@ -3172,7 +3171,8 @@ void MPIBuildParticleExportList(Options &opt, const Int_t nbodies, Particle *Par
     }
     if (nexport>0) {
         //sort the export data such that all particles to be passed to thread j are together in ascending thread number
-        qsort(FoFDataIn, nexport, sizeof(struct fofdata_in), fof_export_cmp);
+        //qsort(FoFDataIn, nexport, sizeof(struct fofdata_in), fof_export_cmp);
+        std::sort(FoFDataIn, FoFDataIn + nexport, fof_export_cmp_vec);
         for (i=0;i<nexport;i++) {
             PartDataIn[i] = Part[FoFDataIn[i].Index];
 #ifdef GASON
@@ -3293,7 +3293,8 @@ void MPIBuildParticleExportListUsingMesh(Options &opt, const Int_t nbodies, Part
 
     if (nexport>0) {
         //sort the export data such that all particles to be passed to thread j are together in ascending thread number
-        qsort(FoFDataIn, nexport, sizeof(struct fofdata_in), fof_export_cmp);
+        // qsort(FoFDataIn, nexport, sizeof(struct fofdata_in), fof_export_cmp);
+        std::sort(FoFDataIn, FoFDataIn + nexport, fof_export_cmp_vec);
         for (i=0;i<nexport;i++) {
             PartDataIn[i] = Part[FoFDataIn[i].Index];
 #ifdef GASON
@@ -4029,7 +4030,8 @@ void MPIBuildHaloSearchExportList(const Int_t ngroup, PropData *&pdata, vector<D
         }
     }
     //sort the export data such that all particles to be passed to thread j are together in ascending thread number
-    if (nexport>0) qsort(NNDataIn, nexport, sizeof(struct nndata_in), nn_export_cmp);
+    // if (nexport>0) qsort(NNDataIn, nexport, sizeof(struct nndata_in), nn_export_cmp);
+    if (nexport>0) std::sort(NNDataIn, NNDataIn + nexport, nn_export_cmp_vec);
 
     //then store the offset in the export data for the jth Task in order to send data.
     for(j = 1, noffset[0] = 0; j < NProcs; j++) noffset[j]=noffset[j-1] + nsend_local[j-1];
@@ -4129,7 +4131,8 @@ void MPIBuildHaloSearchExportListUsingMesh(Options &opt, const Int_t ngroup, Pro
     }
 
     //sort the export data such that all particles to be passed to thread j are together in ascending thread number
-    if (nexport>0) qsort(NNDataIn, nexport, sizeof(struct nndata_in), nn_export_cmp);
+    // if (nexport>0) qsort(NNDataIn, nexport, sizeof(struct nndata_in), nn_export_cmp);
+    if (nexport>0) std::sort(NNDataIn, NNDataIn + nexport, nn_export_cmp_vec);
 
     //then store the offset in the export data for the jth Task in order to send data.
     noffset[0] = 0; for(auto j = 1; j < NProcs; j++) noffset[j]=noffset[j-1] + nsend_local[j-1];
@@ -4369,9 +4372,10 @@ void MPIBuildParticleExportBaryonSearchList(Options &opt, const Int_t nbodies, P
         }
     }
     if (nexport>0) {
-    //sort the export data such that all particles to be passed to thread j are together in ascending thread number
-    qsort(FoFDataIn, nexport, sizeof(struct fofdata_in), fof_export_cmp);
-    for (i=0;i<nexport;i++) PartDataIn[i] = Part[FoFDataIn[i].Index];
+        //sort the export data such that all particles to be passed to thread j are together in ascending thread number
+        //qsort(FoFDataIn, nexport, sizeof(struct fofdata_in), fof_export_cmp);
+        std::sort(FoFDataIn, FoFDataIn + nexport, fof_export_cmp_vec);
+        for (i=0;i<nexport;i++) PartDataIn[i] = Part[FoFDataIn[i].Index];
     }
     //then store the offset in the export particle data for the jth Task in order to send data.
     for(j = 1, noffset[0] = 0; j < NProcs; j++) noffset[j]=noffset[j-1] + nsend_local[j-1];
@@ -4754,7 +4758,8 @@ Int_t MPIGroupExchange(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
     //store type in temporary array, then use type to store what task particle belongs to and sort values
     for (i=0;i<nbodies;i++) storeval[i]=Part[i].GetType();
     for (i=0;i<nbodies;i++) Part[i].SetType((mpi_foftask[i]!=ThisTask));
-    qsort(Part,nbodies,sizeof(Particle),TypeCompare);
+    // qsort(Part,nbodies,sizeof(Particle),TypeCompare);
+    std::sort(Part, Part + nbodies, TypeCompareVec);
     for (i=0;i<nbodies;i++) Part[i].SetType(storeval[Part[i].GetID()]);
     //now use array to rearrange data
     for (i=0;i<nbodies;i++) storeval[i]=mpi_foftask[Part[i].GetID()];
@@ -4927,7 +4932,8 @@ Int_t MPIBaryonGroupExchange(Options &opt, const Int_t nbodies, Particle *Part, 
         Noldlocal=nbodies-nexport;
         for (i=0;i<nbodies;i++) storeval[i]=Part[i].GetType();
         for (i=0;i<nbodies;i++) Part[i].SetType((mpi_foftask[i]!=ThisTask));
-        qsort(Part,nbodies,sizeof(Particle),TypeCompare);
+        //qsort(Part,nbodies,sizeof(Particle),TypeCompare);
+        std::sort(Part, Part + nbodies, TypeCompareVec);
         for (i=0;i<nbodies;i++) Part[i].SetType(storeval[Part[i].GetID()]);
         //now use array to rearrange data
         for (i=0;i<nbodies;i++) storeval[i]=mpi_foftask[Part[i].GetID()];
@@ -4945,7 +4951,8 @@ Int_t MPIBaryonGroupExchange(Options &opt, const Int_t nbodies, Particle *Part, 
         FoFGroupDataLocal=new fofid_in[nlocal];
         for (i=0;i<nbodies;i++) storeval[i]=Part[i].GetType();
         for (i=0;i<nbodies;i++) Part[i].SetType((mpi_foftask[i]!=ThisTask));
-        qsort(Part,nbodies,sizeof(Particle),TypeCompare);
+        //qsort(Part,nbodies,sizeof(Particle),TypeCompare);
+        std::sort(Part, Part + nbodies,  TypeCompareVec);
         for (i=0;i<nbodies;i++) Part[i].SetType(storeval[Part[i].GetID()]);
         Int_t nn=nbodies-nexport;
         for (i=0;i<nn;i++) {
@@ -5065,7 +5072,8 @@ Int_t MPICompileGroups(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
         Part[i].SetID(-FoFGroupDataLocal[i-Noldlocal].iGroup);
     }
     //used to use ID store store group id info
-    qsort(Part,nbodies,sizeof(Particle),IDCompare);
+    //qsort(Part,nbodies,sizeof(Particle),IDCompare);
+    std::sort(Part, Part + nbodies, IDCompareVec);
     //determine the # of groups, their size and the current group ID
     for (i=0,start=0;i<nbodies;i++) {
         if (Part[i].GetID()!=Part[start].GetID()) {
@@ -5077,7 +5085,8 @@ Int_t MPICompileGroups(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
         if (Part[i].GetID()>=0) break;
     }
     //again resort to move untagged particles to the end.
-    qsort(Part,nbodies,sizeof(Particle),IDCompare);
+    //qsort(Part,nbodies,sizeof(Particle),IDCompare);
+    std::sort(Part, Part + nbodies, IDCompareVec);
     for (i=nbodies-NExport; i< nbodies; i++) Part[i].SetID(0);
     //now adjust pfof and ids.
     for (i=0;i<nbodies;i++) {pfof[i]=-Part[i].GetID();Part[i].SetID(i);}
@@ -5124,7 +5133,8 @@ Int_t MPIBaryonCompileGroups(Options &opt, const Int_t nbodies, Particle *Part, 
             Part[i].SetID(-FoFGroupDataLocal[i-Noldlocal].iGroup);
         }
         //now use ID
-        qsort(Part,nbodies,sizeof(Particle),IDCompare);
+        //qsort(Part,nbodies,sizeof(Particle),IDCompare);
+        std::sort(Part, Part + nbodies, IDCompareVec);
         //determine the # of groups, their size and the current group ID
         for (i=0,start=0;i<nbodies;i++) {
             if (Part[i].GetID()!=Part[start].GetID()) {
@@ -5137,7 +5147,8 @@ Int_t MPIBaryonCompileGroups(Options &opt, const Int_t nbodies, Particle *Part, 
         }
 
         //again resort to move untagged particles to the end.
-        qsort(Part,nbodies,sizeof(Particle),IDCompare);
+        //qsort(Part,nbodies,sizeof(Particle),IDCompare);
+        std::sort(Part, Part + nbodies, IDCompareVec);
         //now adjust pfof and ids.
         for (i=0;i<nbodies;i++) {pfof[i]=-Part[i].GetID();Part[i].SetID(i);}
         numingroup=new Int_t[ngroups+1];
@@ -5157,7 +5168,8 @@ Int_t MPIBaryonCompileGroups(Options &opt, const Int_t nbodies, Particle *Part, 
     }
     else {
         //sort local list
-        qsort(FoFGroupDataLocal, nbodies, sizeof(struct fofid_in), fof_id_cmp);
+        //qsort(FoFGroupDataLocal, nbodies, sizeof(struct fofid_in), fof_id_cmp);
+        std::sort(FoFGroupDataLocal, FoFGroupDataLocal + nbodies, fof_id_cmp_vec);
         //determine the # of groups, their size and the current group ID
         for (i=0,start=0;i<nbodies;i++) {
             if (FoFGroupDataLocal[i].iGroup!=FoFGroupDataLocal[start].iGroup) {
@@ -5170,7 +5182,8 @@ Int_t MPIBaryonCompileGroups(Options &opt, const Int_t nbodies, Particle *Part, 
             if (FoFGroupDataLocal[i].iGroup==0) break;
         }
         //now sort again which will put particles group then id order, and determine size of groups and their current group id;
-        qsort(FoFGroupDataLocal, nbodies, sizeof(struct fofid_in), fof_id_cmp);
+        //qsort(FoFGroupDataLocal, nbodies, sizeof(struct fofid_in), fof_id_cmp);
+        std::sort(FoFGroupDataLocal, FoFGroupDataLocal + nbodies, fof_id_cmp_vec);
         numingroup=new Int_t[ngroups+1];
         plist=new Int_t*[ngroups+1];
         ngroups=1;//offset as group zero is untagged
@@ -5312,7 +5325,8 @@ Int_t MPIBaryonExchange(Options &opt, const Int_t nbaryons, Particle *Pbaryons, 
         Noldlocal=nbaryons-nexport;
         for (i=0;i<nbaryons;i++) storeval[i]=Pbaryons[i].GetType();
         for (i=0;i<nbaryons;i++) Pbaryons[i].SetType((mpi_foftask[i]!=ThisTask));
-        qsort(Pbaryons,nbaryons,sizeof(Particle),TypeCompare);
+        //qsort(Pbaryons,nbaryons,sizeof(Particle),TypeCompare);
+        std::sort(Pbaryons, Pbaryons + nbaryons, TypeCompareVec);
         for (i=0;i<nbaryons;i++) Pbaryons[i].SetType(storeval[Pbaryons[i].GetID()]);
         //now use array to rearrange data
         for (i=0;i<nbaryons;i++) storeval[i]=mpi_foftask[Pbaryons[i].GetID()];
@@ -5330,7 +5344,8 @@ Int_t MPIBaryonExchange(Options &opt, const Int_t nbaryons, Particle *Pbaryons, 
         FoFGroupDataLocal=new fofid_in[nlocal];
         for (i=0;i<nbaryons;i++) storeval[i]=Pbaryons[i].GetType();
         for (i=0;i<nbaryons;i++) Pbaryons[i].SetType((mpi_foftask[i]!=ThisTask));
-        qsort(Pbaryons,nbaryons,sizeof(Particle),TypeCompare);
+        // qsort(Pbaryons,nbaryons,sizeof(Particle),TypeCompare);
+        std::sort(Pbaryons, Pbaryons + nbaryons, TypeCompareVec);
         for (i=0;i<nbaryons;i++) Pbaryons[i].SetType(storeval[Pbaryons[i].GetID()]);
         Int_t nn=nbaryons-nexport;
         for (i=0;i<nn;i++) {
@@ -5583,6 +5598,33 @@ int fof_id_cmp(const void *a, const void *b)
 
   return 0;
 }
+
+bool fof_export_cmp_vec(const fofdata_in &a, const fofdata_in &b)
+{
+    if (a.Task < b.Task) return true;
+    else return false ;
+}
+
+bool nn_export_cmp_vec(const nndata_in &a, const nndata_in &b)
+{
+    if(a.ToTask < b.ToTask) return true;
+    else return false;
+}
+
+bool fof_id_cmp_vec(const fofid_in &a, const fofid_in &b)
+{
+    if (a.iGroup < b.iGroup) return true;
+    else if (a.iGroup > b.iGroup) return false ;
+    else {
+        if (a.p.GetType() < b.p.GetType()) return true;
+        else if (a.p.GetType() > b.p.GetType()) return false;
+        else {
+            if (a.p.GetID() < b.p.GetID()) return true;
+            else return false;
+        }
+    }
+}
+
 //@}
 
 ///\name mesh MPI decomposition related functions
@@ -5709,7 +5751,8 @@ void MPISwiftExchange(vector<Particle> &Part){
             PartBufSend[i]=Part[i+nbodies-nexport];
             PartBufSend[i].SetID(Part[i+nbodies-nexport].GetSwiftTask());
         }
-        qsort(PartBufSend,nexport,sizeof(Particle),IDCompare);
+        // qsort(PartBufSend,nexport,sizeof(Particle),IDCompare);
+        std::sort(PartBufSend, PartBufSend + nexport, IDCompareVec);
     }
     if (nimport > 0) PartBufRecv = new Particle[nimport];
 

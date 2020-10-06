@@ -316,8 +316,7 @@ int main(int argc,char **argv)
             ///here if inclusive halo flag is 3, then S0 masses are calculated after substructures are found for field objects
             ///and only calculate FOF masses. Otherwise calculate inclusive masses at this moment.
             GetInclusiveMasses(opt, nbodies, Part.data(), nhalos, pfof, numinhalos, pdatahalos, noffsethalos);
-            qsort(Part.data(),nbodies,sizeof(Particle),IDCompare);
-            //sort(Part.begin(), Part.end(), IDCompareVec);
+            sort(Part.begin(), Part.end(), IDCompareVec);
             delete[] numinhalos;
             delete[] sortvalhalos;
             delete[] noffsethalos;
