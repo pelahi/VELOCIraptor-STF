@@ -42,7 +42,7 @@ matrix:
      apt:
       sources: ubuntu-toolchain-r-test
       packages: [g++-5, libhdf5-dev, hdf5-tools, libgsl0-dev, libopenmpi-dev]
-    env: COMPILER=g++-5
+    env: COMPILER=g++-5 NOOMP=1
   - compiler: gcc
     addons:
      apt:

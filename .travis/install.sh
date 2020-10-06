@@ -35,6 +35,9 @@ mkdir build
 cd build
 
 VR_CMAKE_OPTIONS="-DCMAKE_CXX_COMPILER=$COMPILER -DCMAKE_BUILD_TYPE=Release"
+if [ "$NOOMP" = 1 ]; then
+	VR_CMAKE_OPTIONS+=" -DVR_OPENMP=OFF "
+fi
 if [ "$USEGAS" = 1 ]; then
 	VR_CMAKE_OPTIONS+=" -DVR_USE_GAS=ON "
 fi
