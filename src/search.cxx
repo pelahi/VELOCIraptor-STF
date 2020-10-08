@@ -452,23 +452,8 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
             GetVelocityDensity(opt, Nlocal, Part.data(),tree);
             delete tree;
         }
-        // Delete exported particles
-        for (i = Nlocal-1; i >= 0; i--)
-          if (Part[i].GetPotential() ==1.0) Part.pop_back();
-          else break;
-        Nlocal = Part.size();
-
-        Int_t * tmppfof = new Int_t [Nlocal];
-        for (i=0;i<Nlocal;i++){
-          Part[i].SetType(storetype[i]);
-          tmppfof[i] = pfof[i];
-        }
+        for (i=0;i<Nlocal;i++) Part[i].SetType(storetype[i]);
         delete[] storetype;
-        delete[] pfof;
-
-        pfof = new Int_t [Nlocal];
-        for (i=0;i<Nlocal;i++) pfof[i] = tmppfof[i];
-        delete [] tmppfof;
     }
 #endif
 
