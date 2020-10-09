@@ -560,7 +560,7 @@ private(i,j,k,tid,id,v2,nnids,nnr2,weight,pqv)
             bool ioverlap;
 
             if (opt.impiusemesh) ioverlap = (MPISearchForOverlapUsingMesh(opt,Part[i],maxrdist[i])!=0);
-            else (MPISearchForOverlap(Part[i],maxrdist[i])!=0);
+            else ioverlap = (MPISearchForOverlap(Part[i],maxrdist[i])!=0);
             if (ioverlap) {
                 Part[i].SetDensity(-1.0);
                 continue;
@@ -590,6 +590,7 @@ private(i,j,k,tid,id,v2,nnids,nnr2,weight,pqv)
 #ifdef USEOPENMP
 }
 #endif
+
 #ifdef USEMPI
     if (NProcs >1 && opt.iLocalVelDenApproxCalcFlag==0) {
     if (opt.iverbose) cout<<ThisTask<<" finished local calculation in "<<MyElapsedTime(time2)<<endl;
@@ -666,36 +667,8 @@ private(i,j,k,tid,pid,pid2,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,p
             if (nimport>0) {
                 Coordinate x(Part[i].GetPosition());
                 treeneighbours->FindNearestPos(x,nnidsneighbours,nnr2neighbours,nimportsearch);
-                int irepeat;
-                int offst;
-                for (j=0, offst = 0;j<nimportsearch;j++) 
-                {
-                    irepeat = 0;
-                    if (PartDataGet[nnidsneighbours[j]].GetPID() == Part[i].GetPID())
-                      continue;
-                    for (int k = offst; k < opt.Nsearch; k++)
-                    {
-                      if (nnr2[k] < nnr2neighbours[j]) continue;                     
-                      if (nnr2[k] == nnr2neighbours[j]) 
-                      {
-                        if (Part[nnids[k]].GetPID() == PartDataGet[nnidsneighbours[j]].GetPID())
-                        {
-                          irepeat = 1;
-                          offst = k;
-                          break;
-                        }
-                        else 
-                          continue;
-                      }
-
-                      if (nnr2[k] > nnr2neighbours[j])
-                      {
-                        offst = k;
-                        break;
-                      }
-                    }
-
-                    if (nnr2neighbours[j] < pqx->TopPriority() && irepeat == 0){
+                for (j=0;j<nimportsearch;j++) {
+                    if (nnr2neighbours[j] < pqx->TopPriority()){
                         pqx->Pop();
                         pqx->Push(nnidsneighbours[j]+nbodies, nnr2neighbours[j]);
                     }
@@ -978,6 +951,11 @@ private(id,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,pqx,pqv,Pval,pid2
 
     nnids=new Int_t[opt.Nsearch];
     nnr2=new Double_t[opt.Nsearch];
+    nnidsneighbours=new Int_t[opt.Nsearch];
+    nnr2neighbours=new Double_t[opt.Nsearch];
+    weight=new Double_t[opt.Nvel];
+    pqx=new PriorityQueue(opt.Nsearch);
+    pqv=new PriorityQueue(opt.Nvel);
 #ifdef USEOPENMP
 #pragma omp for schedule(dynamic) \
 reduction(+:nprocessed)

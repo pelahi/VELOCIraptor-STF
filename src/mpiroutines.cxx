@@ -4748,13 +4748,12 @@ Int_t MPIGroupExchange(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
         nexport+=mpi_nsend[j+ThisTask*NProcs];
     }
     //declare array for local storage of the appropriate size
-    nlocal=nbodies+nimport;
+    nlocal=nbodies-nexport+nimport;
     NImport=nimport;
-    NExport=nexport;
     if (nexport >0) FoFGroupDataExport=new fofid_in[nexport];
 
     Int_t *storeval=new Int_t[nbodies];
-    Noldlocal=nbodies;
+    Noldlocal=nbodies-nexport;
     //store type in temporary array, then use type to store what task particle belongs to and sort values
     for (i=0;i<nbodies;i++) storeval[i]=Part[i].GetType();
     for (i=0;i<nbodies;i++) Part[i].SetType((mpi_foftask[i]!=ThisTask));
