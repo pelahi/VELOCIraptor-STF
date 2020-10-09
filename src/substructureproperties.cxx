@@ -4725,14 +4725,8 @@ private(i,j)
 #endif
 
     GetMaximumSizes(opt, nbodies, Part, ngroup, numingroup, pdata, noffset);
-
-    //copy data as back up
-    PropData *nomeshpdata = new PropData[ngroup+1];
-    for (i=1;i<=ngroup;i++) nomeshpdata[i] = pdata[i];
-
     //calculate spherical masses after substructures identified if using InclusiveHalo = 3
     if (opt.iInclusiveHalo == 3) GetSOMasses(opt, nbodies, Part, ngroup,  numingroup, pdata);
-
     //and finally calculate concentrations
     GetNFWConcentrations(opt, ngroup, numingroup, pdata);
     //AdjustHaloPositionRelativeToReferenceFrame(opt, ngroup, numingroup, pdata);
