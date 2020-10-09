@@ -71,6 +71,7 @@ int main(int argc,char **argv)
 #endif
 #ifdef USEOPENMP
     if (ThisTask==0) cout<<"VELOCIraptor/STF running with OpenMP. Number of openmp threads: "<<nthreads<<endl;
+    if (ThisTask==0) cout<<"VELOCIraptor/STF running with OpenMP version "<< _OPENMP << endl;
 #endif
 
     gsl_set_error_handler_off();
