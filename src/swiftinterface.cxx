@@ -472,8 +472,8 @@ vr_return_data InvokeVelociraptorHydro(const int snapnum, char* outputname,
     libvelociraptorOpt.cellnodeids = cell_node_ids;
 
     Nlocal=Nmemlocal=num_gravity_parts;
-    Nmemlocal*=(1+libvelociraptorOpt.mpipartfac); /* JSW: Not set in parameter file. */
 #ifdef USEMPI
+    if(NProcs>1)Nmemlocal*=(1+libvelociraptorOpt.mpipartfac); /* JSW: Not set in parameter file. */
     MPI_Allreduce(&Nlocal, &Ntotal, 1, MPI_Int_t, MPI_SUM, MPI_COMM_WORLD);
     MPI_Allgather(&Nlocal, 1, MPI_Int_t, mpi_nlocal, 1, MPI_Int_t, MPI_COMM_WORLD);
 #else
