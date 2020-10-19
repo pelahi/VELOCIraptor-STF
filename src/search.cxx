@@ -2,6 +2,8 @@
  *  \brief this file contains routines that search particle list using FOF routines
  */
 
+#include <assert.h>
+
 //--  Suboutines that search particle list
 
 #include "stf.h"
@@ -457,6 +459,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
             delete tree;
         }
         // Delete exported particles
+        assert(Part.size()==Nlocal);
         for (i = Nlocal-1; i >= 0; i--)
           if (Part[i].GetPotential() ==1.0) Part.pop_back();
           else break;
