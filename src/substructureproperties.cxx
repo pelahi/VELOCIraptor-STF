@@ -3089,7 +3089,7 @@ void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup
     //if using mpi then determine if halo's search radius overlaps another mpi domain
     vector<bool> halooverlap;
     KDTree *treeimport=NULL;
-    Int_t nimport,nexport;
+    Int_t nimport = 0;
     if (NProcs>1) {
         if (opt.impiusemesh) halooverlap = MPIGetHaloSearchExportNumUsingMesh(opt, ngroup, pdata, maxrdist);
         else halooverlap= MPIGetHaloSearchExportNum(ngroup, pdata, maxrdist);
