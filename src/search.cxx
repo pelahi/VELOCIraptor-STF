@@ -1728,6 +1728,15 @@ private(i,tid)
         for (i=0;i<nsubset;i++) Partsubset[i].SetPotential(pfof[Partsubset[i].GetID()]);
         for (i=0;i<nsubset;i++) Partsubset[i].SetType(-1);
         param[9]=0.5;
+
+	//--JS--
+	// Build tree for FOF6DCORE
+	if(opt.foftype==FOF6DCORE){
+		delete tree;
+		tree= new KDTree(0.0, param, Partsubset,nsubset,opt.Bsize,tree->TPHS);
+		param[0]=tree->GetTreeType();
+	}
+
         pfofbg=tree->FOFCriterion(fofcmp,param,numgroupsbg,minsize,iorder,icheck,FOFcheckbg);
 
         for (i=0;i<nsubset;i++) if (pfofbg[Partsubset[i].GetID()]<=1 && pfof[Partsubset[i].GetID()]==0) Partsubset[i].SetType(numactiveloops);
@@ -1775,6 +1784,14 @@ private(i,tid)
                 //we adjust the particles potentials so as to ignore already tagged particles using FOFcheckbg
                 //here since loop just iterates to search the largest core, we just set all previously tagged particles not belonging to main core as 1
                 for (i=0;i<nsubset;i++) Partsubset[i].SetPotential((pfofbgnew[Partsubset[i].GetID()]!=1)+(pfof[Partsubset[i].GetID()]>0));
+
+		//-- JS --
+		// Update tree for 6dFOF CORE search case with using updated param
+		if(opt.foftype==FOF6DCORE){
+			delete tree;
+			tree=new KDTree(0.0, param, Partsubset,nsubset,opt.Bsize,tree->TPHS);
+			param[0]=tree->GetTreeType();
+		}
                 pfofbg=tree->FOFCriterion(fofcmp,param,numgroupsbg,minsize,iorder,icheck,FOFcheckbg);
                 //now if numgroupsbg is greater than one, need to update the pfofbgnew array
                 if (numgroupsbg>1) {
