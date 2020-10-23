@@ -660,7 +660,8 @@ private(i,tid,xscaling,vscaling,js_time)
                 Part[noffset[i]+j].ScalePhase(xscaling,vscaling);
             }
             xscaling=1.0/xscaling;vscaling=1.0/vscaling;
-            treeomp[tid]=new KDTree(&(Part.data()[noffset[i]]),numingroup[i],opt.Bsize,treeomp[tid]->TPHS,tree->KEPAN,100);
+            //treeomp[tid]=new KDTree(&(Part.data()[noffset[i]]),numingroup[i],opt.Bsize,treeomp[tid]->TPHS,tree->KEPAN,100);
+            treeomp[tid]=new KDTree(js_adt, &(Part.data()[noffset[i]]),numingroup[i],opt.Bsize,treeomp[tid]->TPHS,tree->KEPAN,100);
             pfofomp[i]=treeomp[tid]->FOF(1.0,ngomp[i],minsize,1,&Head[noffset[i]],&Next[noffset[i]],&Tail[noffset[i]],&Len[noffset[i]]);
 
 	    js_nstep++;
