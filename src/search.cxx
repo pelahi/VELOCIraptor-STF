@@ -313,7 +313,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         delete[] numingroup;
         numingroup=NULL;
     }
-    time2=MyGetTime();
+    //time2=MyGetTime();
 
     //Also must ensure that group ids do not overlap between mpi threads so adjust group ids
     MPI_Allgather(&numgroups, 1, MPI_Int_t, mpi_ngroups, 1, MPI_Int_t, MPI_COMM_WORLD);
