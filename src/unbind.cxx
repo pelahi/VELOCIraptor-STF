@@ -801,7 +801,7 @@ int Unbind(Options &opt, Particle **gPart, Int_t &numgroups, Int_t *numingroup, 
     //for large groups, paralleize over particle, for small groups parallelize over groups
     //here energy data is stored in density
 #ifdef USEOPENMP
-#pragma omp parallel default(shared)  \
+#pragma omp parallel default(shared) num_threads(1) \
 private(i,j,k,n,maxE,maxunbindsize,nEplus,nEplusid,Eplusflag,v2,Ti,unbindcheck,Efrac,nEfrac,nunbound,r2,poti,unbindloops,sortflag,oldnumingroup)
 {
     #pragma omp for schedule(dynamic) nowait reduction(+:iunbindflag)
