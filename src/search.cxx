@@ -91,7 +91,11 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         time3=MyGetTime();
         Double_t rdist = sqrt(param[1]);
         //determine the omp regions;
-        tree = new KDTree(Part.data(),nbodies,opt.openmpfofsize,tree->TPHYS,tree->KEPAN,100);
+        //tree = new KDTree(Part.data(),nbodies,opt.openmpfofsize,tree->TPHYS,tree->KEPAN,100);
+        tree = new KDTree(rdist, Part.data(),nbodies,opt.openmpfofsize,tree->TPHYS,tree->KEPAN,100);
+	if(opt.iverbose) cout<<ThisTask<<":	Building Root Tree Done"<<endl;
+	if(opt.iverbose) cout<<"			# of OMP Domains -> "<<tree->GetNumLeafNodes()<<endl;
+
         tree->OverWriteInputOrder();
         numompregions=tree->GetNumLeafNodes();
         ompdomain = OpenMPBuildDomains(opt, numompregions, tree, rdist);

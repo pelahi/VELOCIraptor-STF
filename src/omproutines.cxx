@@ -44,14 +44,15 @@ OMP_Domain *OpenMPBuildDomains(Options &opt, const Int_t numompregions, KDTree *
 KDTree **OpenMPBuildLocalTrees(Options &opt, const Int_t numompregions, vector<Particle> &Part, OMP_Domain *ompdomain, Double_t *period)
 {
     KDTree **tree3dfofomp = new KDTree*[numompregions];
-    Int_t i;
+    Int_t i, js_bsize;
     //get fof in each region
     #pragma omp parallel default(shared) \
     private(i)
     {
     #pragma omp for schedule(static) nowait
     for (i=0;i<numompregions;i++) {
-        tree3dfofomp[i] = new KDTree(&Part.data()[ompdomain[i].noffset],ompdomain[i].ncount,opt.Bsize,tree3dfofomp[i]->TPHYS,tree3dfofomp[i]->KEPAN,100,0,0,0,period,NULL);
+        //tree3dfofomp[i] = new KDTree(&Part.data()[ompdomain[i].noffset],ompdomain[i].ncount,opt.Bsize,tree3dfofomp[i]->TPHYS,tree3dfofomp[i]->KEPAN,100,0,0,0,period,NULL);
+        tree3dfofomp[i] = new KDTree(js_bsize, &Part.data()[ompdomain[i].noffset],ompdomain[i].ncount,opt.Bsize,tree3dfofomp[i]->TPHYS,tree3dfofomp[i]->KEPAN,100,0,0,0,period,NULL);
         tree3dfofomp[i]->OverWriteInputOrder();
     }
     }
