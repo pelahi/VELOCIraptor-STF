@@ -112,6 +112,8 @@ Int_t OpenMPLocalSearch(Options &opt,
     const Int_t numompregions, OMP_Domain *&ompdomain)
 {
     Int_t i, orgIndex, ng = 0, ngtot=0;
+    int js_count=0;
+    double js_time;
     Int_t *p3dfofomp;
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
@@ -119,10 +121,11 @@ Int_t OpenMPLocalSearch(Options &opt,
     double time1=MyGetTime();
     cout<<ThisTask<<": Starting local openmp searches "<<endl;
     #pragma omp parallel default(shared) \
-    private(i,p3dfofomp,orgIndex, ng)
+    private(i,p3dfofomp,orgIndex, ng, js_time)
     {
     #pragma omp for schedule(dynamic) nowait reduction(+:ngtot)
     for (i=0;i<numompregions;i++) {
+	js_time = MyGetTime();
         if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) p3dfofomp=tree3dfofomp[i]->FOFCriterionSetBasisForLinks(fofcmp,param,ng,ompminsize,0,0,FOFchecktype, &Head[ompdomain[i].noffset], &Next[ompdomain[i].noffset]);
         else p3dfofomp=tree3dfofomp[i]->FOF(rdist,ng,ompminsize,0, &Head[ompdomain[i].noffset], &Next[ompdomain[i].noffset]);
         if (ng > 0) {
@@ -136,6 +139,9 @@ Int_t OpenMPLocalSearch(Options &opt,
         delete[] p3dfofomp;
         ompdomain[i].numgroups = ng;
         ngtot += ng;
+
+	js_count++;
+	cout<<"		3DFOF Log - "<<i<<" th / "<<js_count<<" of "<<numompregions<<" / # ptcls : "<<ompdomain[i].ncount<<" / # groups : "<<ng<<" / Time [s] : "<<MyGetTime() - js_time<<endl;
     }
     }
     cout<<ThisTask<<" finished local search "<<ngtot<<" in "<<MyGetTime()-time1<<endl;
