@@ -3024,15 +3024,18 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
         }
 
 
+	double js_time[5];
+	int js_nstep=0;
 #ifdef USEOPENMP
         if (ompactivesubgroups.size()>0) {
             Int_t oldns = ns;
             ns = 0;
             Options opt2;
             #pragma omp parallel for \
-            default(shared) private(subPart, subpfof, opt2) schedule(dynamic) \
+            default(shared) private(subPart, subpfof, opt2, js_time) schedule(dynamic) \
             reduction(+:ns)
             for (auto iomp=0;iomp<ompactivesubgroups.size();iomp++) {
+		js_time[0] = MyGetTime();
                 Int_t i=ompactivesubgroups[iomp];
                 opt2 = opt;
                 subpfofold[i] = pfof[subpglist[i][0]];
@@ -3060,11 +3063,16 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
                     AdjustSubPartToPhaseCM(subnumingroup[i], subPart, cmphase);
                 }
                 PreCalcSearchSubSet(opt2, subnumingroup[i], subPart, sublevel);
+		js_time[1] = MyGetTime();
                 subpfof = SearchSubset(opt2, subnumingroup[i], subnumingroup[i], subPart,
                     subngroup[i], sublevel, &numcores[i]);
+		js_time[2] = MyGetTime();
                 CleanAndUpdateGroupsFromSubSearch(opt2, subnumingroup[i], subPart, subpfof,
                         subngroup[i], subsubnumingroup[i], subsubpglist[i], numcores[i],
                         subpglist[i], pfof, ngroup, ngroupidoffset_old[i]);
+		js_time[3] = MyGetTime();
+		js_nstep++;
+		if(js_time[3] - js_time[0] > 100. && opt.iverbose) cout<<"	SUBFOF Log - "<<i<<" th / "<<js_nstep<<" of "<<ompactivesubgroups.size()<<" / # of particles : "<<subnumingroup[i]<<" / # Groups : "<<subngroup[i]<<" / Time [s] : "<<js_time[3] - js_time[0]<<endl;
                 delete[] subpfof;
                 delete[] subPart;
                 ns += subngroup[i];
