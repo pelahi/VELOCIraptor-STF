@@ -780,6 +780,7 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
             mtemp=1.0;
 #endif
             ageval = agetempchunk[nn];
+	    typeval = 100;
             if (fabs((mtemp-dmp_mass)/dmp_mass) < 1e-5) typeval = DARKTYPE;
             else typeval = STARTYPE;
 /*
