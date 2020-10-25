@@ -166,8 +166,6 @@ extern float (*BigFloat) ( float f );
 extern float (*LittleFloat) ( float f );
 extern double (*BigDouble) ( double f );
 extern double (*LittleDouble) ( double f );
-extern Double_t (*BigDouble_t) ( Double_t f );
-extern Double_t (*LittleDouble_t) ( Double_t f );
 
 #ifdef GADGETDOUBLEPRECISION
 extern double (*BigFLOAT) ( double f );
@@ -223,8 +221,6 @@ inline void InitEndian( void )
     LittleFloat = FloatNoSwap;
     BigDouble = DoubleSwap;
     LittleDouble = DoubleNoSwap;
-    LittleDouble_t=DoubleNoSwap;
-    BigDouble_t=DoubleSwap;
 
 #ifdef GADGETDOUBLEPRECISION
     BigFLOAT= DoubleSwap;
@@ -265,8 +261,6 @@ inline void InitEndian( void )
     LittleFloat = FloatSwap;
     BigDouble = DoubleNoSwap;
     LittleDouble = DoubleSwap;
-    LittleDouble_t=DoubleSwap;
-    BigDouble_t=DoubleNoSwap;
 #ifdef GADGETDOUBLEPRECISION
     BigFLOAT= DoubleNoSwap;
     LittleFLOAT = DoubleSwap;

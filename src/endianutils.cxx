@@ -16,8 +16,6 @@ float (*BigFloat) ( float f );
 float (*LittleFloat) ( float f );
 double (*BigDouble) ( double f );
 double (*LittleDouble) ( double f );
-Double_t (*BigDouble_t) ( Double_t f );
-Double_t (*LittleDouble_t) ( Double_t f );
 
 #ifdef GADGETDOUBLEPRECISION
 double (*BigFLOAT) ( double f );
