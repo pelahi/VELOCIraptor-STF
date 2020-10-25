@@ -62,6 +62,9 @@ fi
 if [ "$NOMPI" = 1 ]; then
 	VR_CMAKE_OPTIONS+=" -DVR_MPI=OFF "
 fi
+if [ "$SINGLE_PRECISION" = 1 ]; then
+	VR_CMAKE_OPTIONS+=" -DNBODY_SINGLE_PRECISION=ON "
+fi
 
 # Go, go, go!
 cmake .. ${VR_CMAKE_OPTIONS} || fail "cmake failed"
