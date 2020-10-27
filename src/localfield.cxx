@@ -491,10 +491,9 @@ void GetVelocityDensityExact(Options &opt, const Int_t nbodies, Particle *Part, 
 #endif
     if (opt.iverbose) cout<<ThisTask<<" Calculating the local velocity density by finding EXACT nearest physical neighbours to particles"<<endl;
     Int_t i,j,k;
-    int nthreads;
-    int tid,id,pid,pid2,itreeflag=0;
+    int id,pid2,itreeflag=0;
     Double_t v2;
-    Double_t time1,time2;
+    Double_t time2;
     Double_t *period=NULL;
     ///\todo alter period so arbitrary dimensions
     if (opt.p>0) {
@@ -517,15 +516,6 @@ void GetVelocityDensityExact(Options &opt, const Int_t nbodies, Particle *Part, 
     for (i=0;i<nbodies;i++) maxrdist[i]=0;
 #endif
 
-#ifndef USEOPENMP
-    nthreads=1;
-#else
-#pragma omp parallel
-    {
-            if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
-    }
-#endif
-
     time2=MyGetTime();
     //get memory useage
     GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
@@ -535,7 +525,7 @@ void GetVelocityDensityExact(Options &opt, const Int_t nbodies, Particle *Part, 
     //If so, do not calculate local velocity density and set its velocity density to -1 as a flag
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
-private(i,j,k,tid,id,v2,nnids,nnr2,weight,pqv)
+private(i,j,k,id,v2,nnids,nnr2,weight,pqv)
 {
 #endif
     nnids=new Int_t[opt.Nsearch];
@@ -625,7 +615,7 @@ private(i,j,k,tid,id,v2,nnids,nnr2,weight,pqv)
     //then run search
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
-private(i,j,k,tid,pid,pid2,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,pqx,pqv)
+private(i,j,k,pid2,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,pqx,pqv)
 {
 #endif
     nnids=new Int_t[opt.Nsearch];
@@ -643,12 +633,6 @@ private(i,j,k,tid,pid,pid2,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,p
         if (Part[i].GetType()<=0) continue;
 #endif
 
-#ifdef USEOPENMP
-        tid=omp_get_thread_num();
-#else
-        tid=0;
-#endif
-        pid=Part[i].GetID();
         if (Part[i].GetDensity()==-1) {
             //search trees
 
@@ -757,10 +741,9 @@ void GetVelocityDensityApproximative(Options &opt, const Int_t nbodies, Particle
     int ThisTask=0, NProcs=1;
 #endif
     if (opt.iverbose) cout<<ThisTask<<" Calculating the local velocity density by finding APPROXIMATIVE nearest physical neighbour search for each particle "<<endl;
-    int nthreads;
-    int tid,id,pid,pid2,itreeflag=0;
+    int id,pid2,itreeflag=0;
     Double_t v2;
-    Double_t time1,time2;
+    Double_t time2;
     Int_t nprocessed=0, ntot=0;
     ///\todo alter period so arbitrary dimensions
     Double_t *period=NULL;
@@ -768,7 +751,7 @@ void GetVelocityDensityApproximative(Options &opt, const Int_t nbodies, Particle
         period=new Double_t[3];
         for (int j=0;j<3;j++) period[j]=opt.p;
     }
-    time1=MyGetTime();
+
     //if using mpi run NN search store largest distance for each particle so that export list can be built.
     //if calculating using only particles IN a structure,
     Int_t nimport;
@@ -778,14 +761,6 @@ void GetVelocityDensityApproximative(Options &opt, const Int_t nbodies, Particle
     Double_t *nnr2, *nnr2neighbours;
     PriorityQueue *pqx, *pqv;
     Particle *Pval;
-#ifndef USEOPENMP
-    nthreads=1;
-#else
-#pragma omp parallel
-    {
-            if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
-    }
-#endif
 
     time2=MyGetTime();
     //only build tree if necessary
