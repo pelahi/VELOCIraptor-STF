@@ -234,9 +234,9 @@ inline void GetBoundFractionAndMaxE(Options &opt,
 #ifdef USEOPENMP
     nthreads = max((int)(ning/(float)ompunbindnum),1);
     nthreads = min(nthreads,omp_get_max_threads());
-    #pragma omp parallel for \
-    default(shared) private(v2,Ti,mass) schedule(dynamic) \
-    reduction(+:totT,Efrac,nunbound) reduction(max:maxE) num_threads(nthreads)
+    //#pragma omp parallel for \
+    //default(shared) private(v2,Ti,mass) schedule(dynamic) \
+    //reduction(+:totT,Efrac,nunbound) reduction(max:maxE) num_threads(nthreads)
 #endif
     for (auto j=0;j<ning;j++) {
         mass = groupPart[j].GetMass();

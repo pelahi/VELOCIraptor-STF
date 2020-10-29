@@ -669,7 +669,7 @@ private(i,tid,xscaling,vscaling,js_time)
             pfofomp[i]=treeomp[tid]->FOF(1.0,ngomp[i],minsize,1,&Head[noffset[i]],&Next[noffset[i]],&Tail[noffset[i]],&Len[noffset[i]]);
 
 	    js_nstep++;
-	    if(opt.iverbose && MyGetTime() - js_time > 100.) cout<<"	6DFOF Log - "<<i<<" th / "<<js_nstep<<" of "<<iend<<" // # Ptcls : "<<numingroup[i]<<<<" // # Groups : "<<ngomp[i]<<" // Time : "<<MyGetTime() - js_time<<endl;
+	    if(opt.iverbose && MyGetTime() - js_time > 100.) cout<<"	6DFOF Log - "<<i<<" th / "<<js_nstep<<" of "<<iend<<" // # Ptcls : "<<numingroup[i]<<" // # Groups : "<<ngomp[i]<<" // Time : "<<MyGetTime() - js_time<<endl;
 
             delete treeomp[tid];
             for (Int_t j=0;j<numingroup[i];j++) {
