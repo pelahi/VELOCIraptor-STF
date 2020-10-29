@@ -19,7 +19,7 @@
 #ifdef RAMSESLONGIDS
 #define RAMSESIDTYPE int
 #else
-#define RAMSESIDTYPE  unsigned int
+#define RAMSESIDTYPE int
 #endif
 #define RAMSESINTTYPE int 
 
