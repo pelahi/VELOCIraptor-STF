@@ -753,7 +753,7 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
         RAMSES_fortran_read(Fpartage[i],   agetempchunk);
         RAMSES_fortran_read(Fpartmet[i],   mettempchunk);
 
-        RAMSES_fortran_read(Fpartid[i],idvalchunk);
+        //RAMSES_fortran_read(Fpartid[i],idvalchunk);
         for (int nn=0;nn<nchunk;nn++)
         {
             if (fabs((mtempchunk[nn]-dmp_mass)/dmp_mass) > 1e-5 && (agetempchunk[nn] == 0.0))
@@ -772,6 +772,7 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
 
                 idval = idvalchunk[nn];
 
+		cout<<"%123123	- "<<idval<<endl;
                 ///Need to check this for correct 'endianness'
 //             for (int kk=0;kk<3;kk++) {xtemp[kk]=LittleRAMSESFLOAT(xtemp[kk]);vtemp[kk]=LittleRAMSESFLOAT(vtemp[kk]);}
 #ifndef NOMASS
