@@ -57,7 +57,8 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     }
     OMP_Domain *ompdomain;
     int numompregions = ceil(nbodies/(float)opt.openmpfofsize);
-    bool runompfof = (numompregions>=2 && nthreads > 1 && opt.iopenmpfof == 1);
+    //bool runompfof = (numompregions>=2 && nthreads > 1 && opt.iopenmpfof == 1);
+    bool runompfof = (numompregions>=1 && nthreads > 1 && opt.iopenmpfof == 1);
 #endif
     if (opt.p>0) {
         period=new Double_t[3];
