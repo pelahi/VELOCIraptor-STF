@@ -53,7 +53,7 @@ void MPIDomainExtentGadget(Options &opt){
     header=new gadget_header[opt.num_files];
     for(i=0; i<opt.num_files; i++)
     {
-        if(opt.num_files>1) sprintf(buf,"%s.%d",opt.fname,i);
+        if(opt.num_files>1) sprintf(buf,"%s.%lld",opt.fname,i);
         else sprintf(buf,"%s",opt.fname);
         Fgad[i].open(buf,ios::in);
         if(!Fgad[i]) {
@@ -542,7 +542,7 @@ void MPINumInDomainGadget(Options &opt)
         MPISetFilesRead(opt,ireadfile,ireadtask);
         for(i=0; i<opt.num_files; i++) if(ireadfile[i])
         {
-            if(opt.num_files>1) sprintf(buf,"%s.%d",opt.fname,i);
+            if(opt.num_files>1) sprintf(buf,"%s.%lld",opt.fname,i);
             else sprintf(buf,"%s",opt.fname);
             Fgad[i].open(buf,ios::in);
         #ifdef GADGET2FORMAT
