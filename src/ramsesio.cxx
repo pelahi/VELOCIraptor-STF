@@ -772,7 +772,6 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
 
                 idval = idvalchunk[nn];
 
-		cout<<"%123123	- "<<idval<<endl;
                 ///Need to check this for correct 'endianness'
 //             for (int kk=0;kk<3;kk++) {xtemp[kk]=LittleRAMSESFLOAT(xtemp[kk]);vtemp[kk]=LittleRAMSESFLOAT(vtemp[kk]);}
 #ifndef NOMASS
