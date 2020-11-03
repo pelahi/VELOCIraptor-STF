@@ -158,7 +158,11 @@ static inline void get_attribute(vector<hid_t> &ids, const std::vector<std::stri
     else {
         H5O_info_t object_info;
         hid_t newid;
+#if H5_VERSION_GE(1,12,0)
+        H5Oget_info_by_name(ids.back(), parts[0].c_str(), &object_info, H5O_INFO_ALL, H5P_DEFAULT);
+#else
         H5Oget_info_by_name(ids.back(), parts[0].c_str(), &object_info, H5P_DEFAULT);
+#endif
         if (object_info.type == H5O_TYPE_GROUP) {
             newid = H5Gopen2(ids.back(),parts[0].c_str(),H5P_DEFAULT);
         }
@@ -200,7 +204,11 @@ static inline void close_hdf_ids(vector<hid_t> &ids)
     H5O_info_t object_info;
     for (auto &id:ids)
     {
+#if H5_VERSION_GE(1,12,0)
+        H5Oget_info(id, &object_info, H5O_INFO_ALL);
+#else
         H5Oget_info(id, &object_info);
+#endif
         if (object_info.type == H5O_TYPE_GROUP) {
             H5Gclose(id);
         }
