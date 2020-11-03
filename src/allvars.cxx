@@ -453,7 +453,11 @@ if (opt.iextragasoutput) {
         }
     }
 #endif
-
+#if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
+    /*writing M_gas_highT*/
+    val=M_gas_highT;
+    Fout.write((char*)&val,sizeof(val));
+#endif
 #ifdef GASON
     if (opt.gas_internalprop_names.size()+ opt.gas_chem_names.size()+opt.gas_chemproduction_names.size()>0) {
         for (auto &extrafield:opt.gas_internalprop_names)
@@ -1039,6 +1043,10 @@ if (opt.iextragasoutput) {
             for (int k=0;k<3;k++) Fout<<L_BN98_excl_gas_nsf[k]<<" ";
         }
     }
+
+#endif
+#if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
+    Fout<<M_gas_highT<<" ";
 #endif
 #ifdef GASON
     if (opt.gas_internalprop_names.size()+opt.gas_chem_names.size()+opt.gas_chemproduction_names.size()>0) {
@@ -1950,6 +1958,8 @@ if (opt.iextragasoutput) {
     sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1,0,2,0));
     headerdatainfo.push_back("Zmet_gas_nsf");
     sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo());
+
+
     if (opt.iextragasoutput) {
         headerdatainfo.push_back("Mass_200mean_gas_nsf");
         headerdatainfo.push_back("Mass_200crit_gas_nsf");
@@ -1992,7 +2002,11 @@ if (opt.iextragasoutput) {
     for (int i=sizeval;i<headerdatainfo.size();i++) adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
 #endif
 #endif
-
+#if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
+    /*allocating vector for M_gas_highT*/
+    headerdatainfo.push_back("M_gas_highT");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1));
+#endif
     //if extra hydro properties are calculated
 #ifdef GASON
     if (opt.gas_internalprop_names.size()+opt.gas_chem_names.size()+opt.gas_chemproduction_names.size() > 0)

@@ -2312,8 +2312,14 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
             }
         }
     }
-#endif
 
+
+#endif
+#if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
+    /*writing M_gas_highT*/
+    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_gas_highT;
+    Fhdf.write_dataset(opt, head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
+#endif
         //output extra hydro/star/bh props
 #ifdef GASON
         if (opt.gas_internalprop_names.size() + opt.gas_chem_names.size() + opt.gas_chemproduction_names.size()>0) {

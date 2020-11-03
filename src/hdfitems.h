@@ -1120,7 +1120,7 @@ struct HDF_Part_Info {
     //store where properties are located
     int propindex[100];
 
-    //the HDF naming convenction for the data blocks. By default assumes ILLUSTRIS nameing convention
+    //the HDF naming convention for the data blocks. By default assumes ILLUSTRIS naming convention
     //for simplicity, all particles have basic properties listed first, x,v,ids,mass in this order
     HDF_Part_Info(int PTYPE, int hdfnametype=HDFEAGLENAMES) {
         ptype=PTYPE;

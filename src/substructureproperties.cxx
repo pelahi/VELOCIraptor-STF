@@ -611,6 +611,11 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
                     pdata[i].Z_gas_nsf+=Pval->GetZmet();
                     pdata[i].Z_mean_gas_nsf+=mval*Pval->GetZmet();
                 }
+		#if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
+		/*select hot gas particles and add up their mass opt.temp_max_cut Pval->GetTemperature()*/
+		if(Pval->GetTemperature() > 0 && SFR <= 0) pdata[i].M_gas_highT+=mval;
+		#endif
+
 #endif
                 x = (*Pval).X();
                 y = (*Pval).Y();

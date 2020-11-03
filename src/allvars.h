@@ -747,6 +747,11 @@ struct Options
     vector<string> SOthresholds_names_crit;
     //@}
 
+    /// \name temperature threshold above which gas is considered hot in Kelvin.
+    //@{
+    float temp_max_cut;
+    //@}
+
     /// \name options related to calculating star forming gas quantities
     //@{
     Double_t gas_sfr_threshold;
@@ -1655,7 +1660,9 @@ struct PropData
     vector<Coordinate> SO_angularmomentum_gas_nsf;
 #endif
 #endif
-
+#if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
+    Double_t M_gas_highT;
+#endif
 #ifdef STARON
     ///\name star specific quantities
     //@{
@@ -1876,7 +1883,12 @@ struct PropData
         L_200crit_excl_gas_nsf[0]=L_200crit_excl_gas_nsf[1]=L_200crit_excl_gas_nsf[2]=0;
         L_200mean_excl_gas_nsf[0]=L_200mean_excl_gas_nsf[1]=L_200mean_excl_gas_nsf[2]=0;
         L_BN98_excl_gas_nsf[0]=L_BN98_excl_gas_nsf[1]=L_BN98_excl_gas_nsf[2]=0;
+
+
 #endif
+#endif
+#if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
+	M_gas_highT=0;
 #endif
 #ifdef STARON
         M_star_rvmax=M_star_30kpc=M_star_50kpc=0;
@@ -2460,6 +2472,7 @@ struct PropData
         MassTwiceRhalfmass_gas_nsf*=opt.h;
         Rhalfmass_gas_nsf*=opt.h/opt.a;
 
+
         if (opt.iextragasoutput) {
             M_200mean_gas_sf*=opt.h;
             M_200crit_gas_sf*=opt.h;
@@ -2489,6 +2502,9 @@ struct PropData
         }
         #endif
 
+#endif
+#if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
+	M_gas_highT*=opt.h;
 #endif
 #ifdef STARON
         M_star*=opt.h;

@@ -966,7 +966,8 @@ void GetParamFile(Options &opt)
                             dataline.erase(0, pos + delimiter.length());
                         }
                     }
-
+		    else if (strcmp(tbuff, "Tcut_halogas")==0)
+                         opt.temp_max_cut = atoi(vbuff);
                     //other options
                     else if (strcmp(tbuff, "Verbose")==0)
                         opt.iverbose = atoi(vbuff);
