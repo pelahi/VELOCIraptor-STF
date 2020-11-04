@@ -609,7 +609,7 @@ private(i,j,k,tid,id,v2,nnids,nnr2,weight,pqv)
     MPI_Barrier(MPI_COMM_WORLD);
     //run search on exported particles and determine which local particles need to be exported back (or imported)
     nimport=MPIBuildParticleNNImportList(opt, nbodies, tree, Part,(!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)));
-    int nimportsearch=opt.Nsearch;
+    int nimportsearch=opt.Nsearch+1;
     if (nimportsearch>nimport) nimportsearch=nimport;
     if (opt.iverbose) cout<<ThisTask<<" Searching particles in other domains "<<nimport<<endl;
     //now with imported particle list and local particle list can run proper NN search

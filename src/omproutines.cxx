@@ -203,6 +203,8 @@ void OpenMPLinkAcross(Options &opt,
     Int_t i;
     Int_t omp_links_across_total, numloops;
     Int_t nt, orgIndex, curIndex, *nn=new Int_t[nbodies], pfofcomp;
+    Int_t maxgroupnum;
+    vector<Int_t> localnewgroup(numompregions,0);
     int curTask;
     Coordinate x;
     auto time1=MyGetTime();
@@ -211,19 +213,25 @@ void OpenMPLinkAcross(Options &opt,
     int ThisTask=0,NProcs=1;
 #endif
 
+    if (NProcs > 1) {
+        maxgroupnum = ompdomain[numompregions-1].numgroups + ompdomain[numompregions-1].noffset;
+    }
+
     cout<<ThisTask<<": Starting linking across OpenMP domains"<<endl;
     numloops = 0;
     do {
         omp_links_across_total = 0;
         #pragma omp parallel default(shared) \
-        private(i,orgIndex,curIndex, x, nt, Pval, pfofcomp)
+        private(i, orgIndex, curIndex, x, nt, Pval, pfofcomp)
         {
         #pragma omp for nowait reduction(+:omp_links_across_total)
         for (i=0;i<numompregions;i++) {
             for (auto j=0;j<omp_nrecv_total[i];j++) {
                 Pval=&Part[ompimport[omp_nrecv_offset[i]+j].index];
                 pfofcomp = ompimport[omp_nrecv_offset[i]+j].pfof;
-                if (pfofcomp == 0) continue;
+                /// before ignored pfofcomp but since cannot guarantee openmp
+                /// will be complete if MPI is used.
+                if (pfofcomp == 0 && NProcs == 1) continue;
                 //for each imported particle, find all particles within search window
                 for (auto k=0;k<3;k++) x[k]=Pval->GetPosition(k);
                 nt=tree3dfofomp[i]->SearchBallPosTagged(x, param[1], &nn[ompdomain[i].noffset]);
@@ -236,7 +244,7 @@ void OpenMPLinkAcross(Options &opt,
                     orgIndex = storeorgIndex[Part[curIndex].GetID()+ompdomain[i].noffset];
                     //otherwise, change these particles to local group id if local group id smaller
                     //if local particle in a group
-                    if (pfof[orgIndex]>0)  {
+                    if (pfof[orgIndex]>0 && pfofcomp > 0)  {
                         //only change if both particles are appropriate type and group ids indicate local needs to be exported
                         if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1)
                             if (!(fofcheck(Part[curIndex],param)==0 && fofcheck(*Pval,param)==0)) continue;
@@ -254,7 +262,18 @@ void OpenMPLinkAcross(Options &opt,
                     else {
                         if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1)
                             if (fofcheck(*Pval,param)!=0) continue;
-                        pfof[orgIndex]=pfofcomp;
+                        //if local particle not in group and associated particle in group
+                        //set the local particle to the appropriate id
+                        if (pfofcomp > 0) {
+                            pfof[orgIndex] = pfofcomp;
+                        }
+                        ///otherwise, if at this point, omp domains are incomplete
+                        ///as volume also split in mpi, so increase number of local
+                        ///groups and assign particle to this new group 
+                        else {
+                            localnewgroup[i]++;
+                            pfof[orgIndex] = maxgroupnum + ompdomain[i].noffset + localnewgroup[i];
+                        }
                         omp_links_across_total++;
                     }
                 }
@@ -263,7 +282,7 @@ void OpenMPLinkAcross(Options &opt,
         }
 
         #pragma omp parallel default(shared) \
-        private(i,orgIndex,curIndex,curTask)
+        private(i, orgIndex, curIndex, curTask)
         {
         #pragma omp for nowait
         for (i=0;i<numompregions;i++) {

@@ -337,8 +337,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     MPI_Barrier(MPI_COMM_WORLD);
     //Now that have FoFDataGet (the exported particles) must search local volume using said particles
     //This is done by finding all particles in the search volume and then checking if those particles meet the FoF criterion
-    //One must keep iterating till there are no new links.
-    //Wonder if i don't need another loop and a final check
+
     Int_t links_across,links_across_total;
 
     //get memory usage
@@ -1194,7 +1193,6 @@ private(i,tid)
         if (opt.iverbose>=2) cout<<"Done"<<endl;
     }
     //@}
-
     //iteration to search region around streams using lower thresholds
     //determine number of groups
     if (opt.iiterflag&&numgroups>0 && opt.foftype!=FOF6DCORE) {

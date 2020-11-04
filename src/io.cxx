@@ -167,11 +167,12 @@ void AdjustStarQuantities(Options &opt, vector<Particle> &Part, const Int_t nbod
             if (p.GetType()!=STARTYPE) continue;
             //if stellar age is initially stored as scale factor of formation
             if (opt.istellaragescalefactor == 1) {
-                tage = CalcCosmicTime(opt,p.GetTage(),opt.a);
+		        //make sure units are consisten with those internal to the input tables as CalcCosmicTime returns time in yrs.
+                tage = CalcCosmicTime(opt,p.GetTage(),opt.a) / opt.stellaragetoyrs;
             }
             //if stellar age is initially stored as redshift of formation
             else if (opt.istellaragescalefactor == 2) {
-                tage = CalcCosmicTime(opt,1.0/(p.GetTage()+1),opt.a);
+                tage = CalcCosmicTime(opt,1.0/(p.GetTage()+1),opt.a) / opt.stellaragetoyrs;
             }
             //if stellar age is initially stored as time of formation
             else if (opt.istellaragescalefactor == 3) {
@@ -2957,7 +2958,7 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
             MPI_Allreduce(&nhalos, &nhalowritecommtot, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, mpi_comm_write);
             if (ThisTask == 0) {
                 itemp=0;
-                Fhdf.write_dataset(opt, datagroupnames.profile[itemp++], 1, &ThisWriteTask, -1, -1, false);
+                Fhdf.write_dataset(opt, datagroupnames.profile[itemp++], 1, &ThisWriteComm, -1, -1, false);
                 Fhdf.write_dataset(opt, datagroupnames.profile[itemp++], 1, &NWriteComms, -1, -1, false);
                 Fhdf.write_dataset(opt, datagroupnames.profile[itemp++], 1, &nwritecommtot, -1, -1, false);
                 Fhdf.write_dataset(opt, datagroupnames.profile[itemp++], 1, &ngtot, -1, -1, false);
