@@ -454,9 +454,14 @@ if (opt.iextragasoutput) {
     }
 #endif
 #if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
-    /*writing M_gas_highT*/
+    /*writing M_gas_highT and other related quantities*/
     val=M_gas_highT;
     Fout.write((char*)&val,sizeof(val));
+    val=T_mean_gas_highT;
+    Fout.write((char*)&val,sizeof(val));
+    val=Z_mean_gas_highT;
+    Fout.write((char*)&val,sizeof(val));
+
 #endif
 #ifdef GASON
     if (opt.gas_internalprop_names.size()+ opt.gas_chem_names.size()+opt.gas_chemproduction_names.size()>0) {
@@ -637,6 +642,17 @@ if (opt.iextragasoutput) {
         for (auto j=0;j<opt.aperturenum;j++) {
             Fout.write((char*)&aperture_Z_star[j],sizeof(val));
         }
+	#if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
+        for (auto j=0;j<opt.aperturenum;j++) {
+            Fout.write((char*)&aperture_M_gas_highT[j],sizeof(val));
+        }
+        for (auto j=0;j<opt.aperturenum;j++) {
+            Fout.write((char*)&aperture_T_mean_gas_highT[j],sizeof(val));
+        }
+        for (auto j=0;j<opt.aperturenum;j++) {
+            Fout.write((char*)&aperture_Z_mean_gas_highT[j],sizeof(val));
+        }
+	#endif
 #endif
 #ifdef GASON
         if (opt.gas_extraprop_aperture_calc) {
@@ -1047,6 +1063,8 @@ if (opt.iextragasoutput) {
 #endif
 #if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
     Fout<<M_gas_highT<<" ";
+    Fout<<T_mean_gas_highT<<" ";
+    Fout<<Z_mean_gas_highT<<" ";
 #endif
 #ifdef GASON
     if (opt.gas_internalprop_names.size()+opt.gas_chem_names.size()+opt.gas_chemproduction_names.size()>0) {
@@ -1206,6 +1224,17 @@ if (opt.iextragasoutput) {
         for (auto j=0;j<opt.aperturenum;j++) {
             Fout<<aperture_Z_star[j]<<" ";
         }
+        #if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
+        for (auto j=0;j<opt.aperturenum;j++) {
+            Fout<<aperture_M_gas_highT[j]<<" ";
+        }
+        for (auto j=0;j<opt.aperturenum;j++) {
+            Fout<<aperture_T_mean_gas_highT[j]<<" ";
+        }
+        for (auto j=0;j<opt.aperturenum;j++) {
+            Fout<<aperture_Z_mean_gas_highT[j]<<" ";
+        }
+        #endif
 #endif
 
 #ifdef GASON
@@ -1991,6 +2020,11 @@ if (opt.iextragasoutput) {
             headerdatainfo.push_back("Lz_BN98_excl_gas_nsf");
             sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1,1,1));
         }
+	#if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
+        headerdatainfo.push_back("Mass_gas_highT");
+        headerdatainfo.push_back("T_gas_highT");
+        headerdatainfo.push_back("Zmet_gas_highT");
+	#endif
     }
 #ifdef USEHDF
     sizeval=hdfpredtypeinfo.size();
@@ -2001,11 +2035,6 @@ if (opt.iextragasoutput) {
     sizeval=adiospredtypeinfo.size();
     for (int i=sizeval;i<headerdatainfo.size();i++) adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
 #endif
-#endif
-#if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
-    /*allocating vector for M_gas_highT*/
-    headerdatainfo.push_back("M_gas_highT");
-    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1));
 #endif
     //if extra hydro properties are calculated
 #ifdef GASON
@@ -2181,6 +2210,14 @@ if (opt.iextragasoutput) {
             headerdatainfo.push_back((string("Aperture_Zmet_gas_nsf_")+opt.aperture_names_kpc[i]+string("_kpc")));
         for (auto i=0; i<opt.aperturenum;i++)
             headerdatainfo.push_back((string("Aperture_Zmet_star_")+opt.aperture_names_kpc[i]+string("_kpc")));
+        #if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
+        for (auto i=0; i<opt.aperturenum;i++)
+            headerdatainfo.push_back((string("Aperture_mass_hotgas_")+opt.aperture_names_kpc[i]+string("_kpc")));
+        for (auto i=0; i<opt.aperturenum;i++)
+            headerdatainfo.push_back((string("Aperture_T_hotgas_")+opt.aperture_names_kpc[i]+string("_kpc")));
+        for (auto i=0; i<opt.aperturenum;i++)
+            headerdatainfo.push_back((string("Aperture_Zmet_hotgas_")+opt.aperture_names_kpc[i]+string("_kpc")));
+        #endif
         //add metallicity
         sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo());
 #endif

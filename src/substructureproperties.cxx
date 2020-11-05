@@ -316,7 +316,7 @@ void GetProperties(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngro
     Particle *Pval;
     Int_t i,j,k;
     Coordinate cmold(0.),cmref;
-    Double_t ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside, SFR;
+    Double_t ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside, SFR, temp;
     Double_t EncMassSF,EncMassNSF;
     Double_t cmvx,cmvy,cmvz;
     Double_t vc,rc,x,y,z,vx,vy,vz,jzval,Rdist,zdist,Ekin,Krot,mval;
@@ -386,7 +386,7 @@ private(i,j,k,Pval,cmref)
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
 private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol)\
-private(x,y,z,vx,vy,vz,vc,rc,jval,jzval,Rdist,zdist,Ekin,Krot,mval,RV_Ekin,RV_Krot,RV_num,SFR)\
+private(x,y,z,vx,vy,vz,vc,rc,jval,jzval,Rdist,zdist,Ekin,Krot,mval,RV_Ekin,RV_Krot,RV_num,SFR,temp)\
 private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
 {
     #pragma omp for schedule(dynamic) nowait
@@ -612,10 +612,18 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
                     pdata[i].Z_mean_gas_nsf+=mval*Pval->GetZmet();
                 }
 		#if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
-		/*select hot gas particles and add up their mass opt.temp_max_cut Pval->GetTemperature()*/
-		if(Pval->GetTemperature() > 0 && SFR <= 0) pdata[i].M_gas_highT+=mval;
+		/*select hot gas particles and add up their mass and compute mass-weighted quantities*/
+		temp = Pval->GetTemperature();
+		if(opt.iverbose>1){
+			cout<<" --------------- "<<endl;
+			cout<<"Gas temperature of particle 1 in this object "<<temp<<" for gas "<<endl;
+		}
+		if (temp > opt.temp_max_cut && SFR <= 0) {
+		    pdata[i].M_gas_highT+=mval;
+		    pdata[i].T_mean_gas_highT+=mval*temp;
+		    pdata[i].Z_mean_gas_highT+=mval*Pval->GetZmet();
+		}
 		#endif
-
 #endif
                 x = (*Pval).X();
                 y = (*Pval).Y();
@@ -674,8 +682,13 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
                 pdata[i].sigV_gas_nsf/=pdata[i].M_gas_nsf;
                 pdata[i].Temp_mean_gas_nsf/=pdata[i].M_gas_nsf;
                 pdata[i].Z_mean_gas_nsf/=pdata[i].M_gas_nsf;
-
             }
+	    #if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
+	    if(pdata[i].M_gas_highT>0){
+		pdata[i].T_mean_gas_highT/=pdata[i].M_gas_highT;
+		pdata[i].Z_mean_gas_highT/=pdata[i].M_gas_highT;
+	    }
+	    #endif
 #endif
         }
 
@@ -5050,8 +5063,9 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
     Double_t EncVelDisp=0, EncVelDispGas=0, EncVelDispGasSF=0, EncVelDispGasNSF=0, EncVelDispStar=0, EncVelDispBH=0, EncVelDispInterloper=0;
     Double_t EncVRDisp=0, EncVRDispGas=0, EncVRDispGasSF=0, EncVRDispGasNSF=0, EncVRDispStar=0, EncVRDispBH=0, EncVRDispInterloper=0;
     Double_t EncSFR=0, EncZmetGas=0, EncZmetGasSF=0, EncZmetGasNSF=0, EncZmetStar=0;
+    Double_t EncMassGasHot=0, EncTGasHot=0, EncZGasHot=0;
     int iaptindex=0, numapttotal, type;
-    Double_t mass, rc, oldrc, veldisp, vrdisp, SFR, Zmet;
+    Double_t mass, rc, oldrc, veldisp, vrdisp, SFR, Zmet, temp;
     Double_t oldrc_gas,oldrc_gas_sf,oldrc_gas_nsf,oldrc_star,oldrc_bh;
     Particle *Pval;
     Coordinate x2;
@@ -5100,6 +5114,9 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
         float mass, mass_sf, mass_nsf;
 #if defined(GASON) && defined(STARON)
         float SFR, Zmet;
+        #if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
+	float temp;
+	#endif
 #endif
         Coordinate rproj;
     };
@@ -5118,6 +5135,9 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
 #if defined(GASON) && defined(STARON)
         SFR = Pval->GetSFR();
         Zmet = Pval->GetZmet()*mass;
+	#if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
+	temp = Pval->GetTemperature()*mass;
+	#endif
 #endif
         veldisp = 0; for (auto k=0;k<3;k++) veldisp += pow(Pval->GetVelocity(k)-pdata.gcmvel[k],2.0); veldisp *= mass;
         vrdisp = 0; for (auto k=0;k<3;k++) vrdisp += pow((Pval->GetVelocity(k)-pdata.gcmvel[k])*Pval->GetPosition(k),2.0); vrdisp *= mass/(rc*rc);
@@ -5144,6 +5164,13 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
             if (EncMassGasNSF>0) pdata.aperture_veldisp_gas_nsf[iaptindex]=EncVelDispGasNSF/EncMassGasNSF;
             if (EncMassGasSF>0) pdata.aperture_vrdisp_gas_sf[iaptindex]=EncVRDispGasSF/EncMassGasSF;
             if (EncMassGasNSF>0) pdata.aperture_vrdisp_gas_nsf[iaptindex]=EncVRDispGasNSF/EncMassGasNSF;
+	    #if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
+	    pdata.aperture_M_gas_highT[iaptindex]=EncMassGasHot;
+	    if(EncMassGasHot>0){
+		   pdata.aperture_T_mean_gas_highT[iaptindex]=EncTGasHot/EncMassGasHot;
+		   pdata.aperture_Z_mean_gas_highT[iaptindex]=EncZGasHot/EncMassGasHot; 
+            }
+            #endif
 #endif
             SetApertureExtraProperties(opt.gas_extraprop_aperture_calc,
                 opt.gas_internalprop_names_aperture,
@@ -5232,6 +5259,14 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
                 EncVRDispGasNSF += vrdisp;
                 EncZmetGasNSF += Zmet;
             }
+            #if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
+	    // compute aperture quantities related to hot gas.
+	    if(temp > opt.temp_max_cut && SFR <= 0){
+               EncMassGasHot += mass;
+               EncTGasHot += temp;
+               EncZGasHot += Zmet;
+	    }
+	    #endif
 #endif
             if (opt.gas_extraprop_aperture_calc && Pval->HasHydroProperties()) {
                 gas = Pval->GetHydroProperties();
@@ -5318,6 +5353,13 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
         if (EncMassGasNSF>0) pdata.aperture_veldisp_gas_nsf[j]=EncVelDispGasNSF/EncMassGasNSF;
         if (EncMassGasNSF>0) pdata.aperture_vrdisp_gas_nsf[j]=EncVRDispGasNSF/EncMassGasNSF;
         if (EncMassGasNSF>0) pdata.aperture_Z_gas_nsf[j]=EncZmetGasNSF/EncMassGasNSF;
+        #if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
+        pdata.aperture_M_gas_highT[j]=EncMassGasHot;
+	if(EncMassGasHot>0){
+	   pdata.aperture_T_mean_gas_highT[j]=EncTGasHot/EncMassGasHot;
+	   pdata.aperture_Z_mean_gas_highT[j]=EncZGasHot/EncMassGasHot; 
+	}
+        #endif
 #endif
         SetApertureExtraProperties(opt.gas_extraprop_aperture_calc,
             opt.gas_internalprop_names_aperture,

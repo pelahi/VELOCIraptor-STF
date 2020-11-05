@@ -46,7 +46,7 @@
 ///\name to access where extra baryonic properties are located in the HDF_Part_Info structure that code will use to calcualte object properties
 //@{
 #define HDFGASIMETAL 0
-
+#define HDFGASTEMP 99
 #define HDFSTARIMETAL 40
 #define HDFSTARIAGE 41
 
@@ -1224,7 +1224,6 @@ struct HDF_Part_Info {
               propindex[HDFGASIMETAL]=itemp;
               names[itemp++]=string("Metallicity");
             }
-
         }
         //dark matter
         if (ptype==HDFDMTYPE) {
@@ -1426,6 +1425,13 @@ struct HDF_Part_Info {
                 names[itemp++]=string("TotalAccretedMasses");
             }
         }
+	if (ptype==HDFGASTYPE) {
+            // Temperature
+            propindex[HDFGASTEMP] = itemp;
+            if(hdfnametype==HDFSWIFTEAGLENAMES) names[itemp++]=string("Temperatures");
+            else names[itemp++]=string("Temperature");
+	}
+
         nentries=itemp;
     }
 };

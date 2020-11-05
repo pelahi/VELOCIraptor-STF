@@ -1654,6 +1654,12 @@ struct PropData
     vector<float> profile_mass_gas_nsf;
     vector<float> profile_mass_inclusive_gas_nsf;
     vector<Coordinate> profile_L_gas_nsf;
+    #if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
+    vector<float> aperture_M_gas_highT;
+    vector<float> aperture_T_mean_gas_highT;
+    vector<float> aperture_Z_mean_gas_highT;
+    #endif
+
     //@}
 
     vector<Double_t> SO_mass_gas_nsf;
@@ -1662,6 +1668,8 @@ struct PropData
 #endif
 #if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
     Double_t M_gas_highT;
+    Double_t T_mean_gas_highT;
+    Double_t Z_mean_gas_highT;
 #endif
 #ifdef STARON
     ///\name star specific quantities
@@ -1889,6 +1897,8 @@ struct PropData
 #endif
 #if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
 	M_gas_highT=0;
+	T_mean_gas_highT=0;
+	Z_mean_gas_highT=0;
 #endif
 #ifdef STARON
         M_star_rvmax=M_star_30kpc=M_star_50kpc=0;
@@ -2139,6 +2149,11 @@ struct PropData
             aperture_rhalfmass_gas_nsf.resize(opt.aperturenum);
             aperture_Z_gas_sf.resize(opt.aperturenum);
             aperture_Z_gas_nsf.resize(opt.aperturenum);
+            #if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
+	    aperture_M_gas_highT.resize(opt.aperturenum);
+	    aperture_T_mean_gas_highT.resize(opt.aperturenum);
+	    aperture_Z_mean_gas_highT.resize(opt.aperturenum);
+	    #endif
             // if (opt.gas_extraprop_aperture_calc) aperture_properties_gas_sf.resize(opt.aperturenum);
             // if (opt.gas_extraprop_aperture_calc) aperture_properties_gas_nsf.resize(opt.aperturenum);
 #endif
@@ -2196,6 +2211,11 @@ struct PropData
             for (auto &x:aperture_rhalfmass_gas_nsf) x=-1;
             for (auto &x:aperture_Z_gas_sf) x=0;
             for (auto &x:aperture_Z_gas_nsf) x=0;
+            #if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
+            for (auto &x:aperture_M_gas_highT) x=0;
+            for (auto &x:aperture_T_mean_gas_highT) x=0;
+            for (auto &x:aperture_Z_mean_gas_highT) x=0;
+            #endif
 #endif
 #endif
 #ifdef STARON
