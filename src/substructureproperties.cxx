@@ -589,9 +589,10 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
 #else
                 mval = opt.MassValue;
 #endif
-                //store temperature in units of internal energy
-                pdata[i].Temp_gas+=Pval->GetU();
-                pdata[i].Temp_mean_gas+=mval*Pval->GetU();
+                //store temperature
+                temp = Pval->GetTemperature();
+                pdata[i].Temp_gas+=temp;
+                pdata[i].Temp_mean_gas+=mval*temp;
                 //pdata[i].sphden_gas+=Pval->GetMass()*Pval->GetSPHDen();
 #ifdef STARON
                 pdata[i].Z_gas+=Pval->GetZmet();
@@ -600,27 +601,26 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
                 pdata[i].SFR_mean_gas+=mval*Pval->GetSFR();
                 SFR=Pval->GetSFR();
                 if (SFR>opt.gas_sfr_threshold) {
-                    pdata[i].Temp_gas_sf+=Pval->GetU();
-                    pdata[i].Temp_mean_gas_sf+=mval*Pval->GetU();
+                    pdata[i].Temp_gas_sf+=temp;
+                    pdata[i].Temp_mean_gas_sf+=mval*temp;
                     pdata[i].Z_gas_sf+=Pval->GetZmet();
                     pdata[i].Z_mean_gas_sf+=mval*Pval->GetZmet();
                 }
                 else {
-                    pdata[i].Temp_gas_nsf+=Pval->GetU();
-                    pdata[i].Temp_mean_gas_nsf+=mval*Pval->GetU();
+                    pdata[i].Temp_gas_nsf+=temp;
+                    pdata[i].Temp_mean_gas_nsf+=mval*temp;
                     pdata[i].Z_gas_nsf+=Pval->GetZmet();
                     pdata[i].Z_mean_gas_nsf+=mval*Pval->GetZmet();
                 }
 		#if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
-		/*select hot gas particles and add up their mass and compute mass-weighted quantities*/
-		temp = Pval->GetTemperature();
-		if(opt.iverbose>1){
+		if(j == 0 & opt.iverbose>1){
 			cout<<" --------------- "<<endl;
-			cout<<"Gas temperature of particle 1 in this object "<<temp<<" for gas "<<endl;
+			cout<<"Gas temperature of particle 1 in this object "<<temp<<" for gas and threshold "<<opt.temp_max_cut<<" "<<endl;
 		}
+		/*select hot gas particles and add up their mass and compute mass-weighted quantities*/
 		if (temp > opt.temp_max_cut && SFR <= 0) {
 		    pdata[i].M_gas_highT+=mval;
-		    pdata[i].T_mean_gas_highT+=mval*temp;
+		    pdata[i].Temp_mean_gas_highT+=mval*temp;
 		    pdata[i].Z_mean_gas_highT+=mval*Pval->GetZmet();
 		}
 		#endif
@@ -685,7 +685,7 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
             }
 	    #if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
 	    if(pdata[i].M_gas_highT>0){
-		pdata[i].T_mean_gas_highT/=pdata[i].M_gas_highT;
+		pdata[i].Temp_mean_gas_highT/=pdata[i].M_gas_highT;
 		pdata[i].Z_mean_gas_highT/=pdata[i].M_gas_highT;
 	    }
 	    #endif
@@ -1415,6 +1415,7 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval,SFR)
 #endif
 #ifdef STARON
                 SFR=Pval->GetSFR();
+		temp=Pval->GetTemperature();
 #endif
 
                 x = (*Pval).X();
@@ -1441,23 +1442,23 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval,SFR)
                 sxz+=vx*vz*mval;
                 syz+=vy*vz*mval;
 
-                Tsum+=Pval->GetU();
-                Tmeansum+=mval*Pval->GetU();
+                Tsum+=temp;
+                Tmeansum+=mval*temp;
 #ifdef STARON
                 Zsum+=Pval->GetZmet();
                 Zmeansum+=mval*Pval->GetZmet();
                 sfrsum+=Pval->GetSFR();
                 sfrmeansum+=mval*Pval->GetSFR();
                 if (SFR > opt.gas_sfr_threshold) {
-                    Tsum_sf+=Pval->GetU();
-                    Tmeansum_sf+=mval*Pval->GetU();
+                    Tsum_sf+=temp;
+                    Tmeansum_sf+=mval*temp;
                     Zsum_sf+=Pval->GetZmet();
                     Zmeansum_sf+=mval*Pval->GetZmet();
                     sigV_gas_sf+=(vx*vx+vy*vy*vz*vz)*mval;
                 }
                 else {
-                    Tsum_nsf+=Pval->GetU();
-                    Tmeansum_nsf+=mval*Pval->GetU();
+                    Tsum_nsf+=temp;
+                    Tmeansum_nsf+=mval*temp;
                     Zsum_nsf+=Pval->GetZmet();
                     Zmeansum_nsf+=mval*Pval->GetZmet();
                     sigV_gas_nsf+=(vx*vx+vy*vy*vz*vz)*mval;
@@ -5167,7 +5168,7 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
 	    #if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
 	    pdata.aperture_M_gas_highT[iaptindex]=EncMassGasHot;
 	    if(EncMassGasHot>0){
-		   pdata.aperture_T_mean_gas_highT[iaptindex]=EncTGasHot/EncMassGasHot;
+		   pdata.aperture_Temp_mean_gas_highT[iaptindex]=EncTGasHot/EncMassGasHot;
 		   pdata.aperture_Z_mean_gas_highT[iaptindex]=EncZGasHot/EncMassGasHot; 
             }
             #endif
@@ -5356,7 +5357,7 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
         #if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
         pdata.aperture_M_gas_highT[j]=EncMassGasHot;
 	if(EncMassGasHot>0){
-	   pdata.aperture_T_mean_gas_highT[j]=EncTGasHot/EncMassGasHot;
+	   pdata.aperture_Temp_mean_gas_highT[j]=EncTGasHot/EncMassGasHot;
 	   pdata.aperture_Z_mean_gas_highT[j]=EncZGasHot/EncMassGasHot; 
 	}
         #endif

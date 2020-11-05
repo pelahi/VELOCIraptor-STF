@@ -457,7 +457,7 @@ if (opt.iextragasoutput) {
     /*writing M_gas_highT and other related quantities*/
     val=M_gas_highT;
     Fout.write((char*)&val,sizeof(val));
-    val=T_mean_gas_highT;
+    val=Temp_mean_gas_highT;
     Fout.write((char*)&val,sizeof(val));
     val=Z_mean_gas_highT;
     Fout.write((char*)&val,sizeof(val));
@@ -647,7 +647,7 @@ if (opt.iextragasoutput) {
             Fout.write((char*)&aperture_M_gas_highT[j],sizeof(val));
         }
         for (auto j=0;j<opt.aperturenum;j++) {
-            Fout.write((char*)&aperture_T_mean_gas_highT[j],sizeof(val));
+            Fout.write((char*)&aperture_Temp_mean_gas_highT[j],sizeof(val));
         }
         for (auto j=0;j<opt.aperturenum;j++) {
             Fout.write((char*)&aperture_Z_mean_gas_highT[j],sizeof(val));
@@ -1063,7 +1063,7 @@ if (opt.iextragasoutput) {
 #endif
 #if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
     Fout<<M_gas_highT<<" ";
-    Fout<<T_mean_gas_highT<<" ";
+    Fout<<Temp_mean_gas_highT<<" ";
     Fout<<Z_mean_gas_highT<<" ";
 #endif
 #ifdef GASON
@@ -1229,7 +1229,7 @@ if (opt.iextragasoutput) {
             Fout<<aperture_M_gas_highT[j]<<" ";
         }
         for (auto j=0;j<opt.aperturenum;j++) {
-            Fout<<aperture_T_mean_gas_highT[j]<<" ";
+            Fout<<aperture_Temp_mean_gas_highT[j]<<" ";
         }
         for (auto j=0;j<opt.aperturenum;j++) {
             Fout<<aperture_Z_mean_gas_highT[j]<<" ";

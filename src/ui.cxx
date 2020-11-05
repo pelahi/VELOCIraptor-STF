@@ -966,8 +966,6 @@ void GetParamFile(Options &opt)
                             dataline.erase(0, pos + delimiter.length());
                         }
                     }
-		    else if (strcmp(tbuff, "Tcut_halogas")==0)
-                         opt.temp_max_cut = atoi(vbuff);
                     //other options
                     else if (strcmp(tbuff, "Verbose")==0)
                         opt.iverbose = atoi(vbuff);
@@ -1066,6 +1064,9 @@ void GetParamFile(Options &opt)
                         }
                         opt.gas_internalprop_input_output_unit_conversion_factors = tempvec;
                     }
+		    else if (strcmp(tbuff, "Tcut_halogas")==0) {
+                         opt.temp_max_cut = atof(vbuff);
+		    }
                     else if (strcmp(tbuff, "Star_internal_property_names")==0) {
                         pos=0;
                         dataline=string(vbuff);
@@ -2514,6 +2515,7 @@ ConfigInfo::ConfigInfo(Options &opt){
     AddEntry("Extra_DM_internal_property_index", opt.extra_dm_internalprop_index, opt.extra_dm_internalprop_index_aperture);
 
     AddEntry("Gas_internal_property_output_units", opt.gas_internalprop_output_units, opt.gas_internalprop_output_units_aperture);
+    AddEntry("Tcut_halogas", opt.temp_max_cut);
     AddEntry("Gas_chemsitry_output_units", opt.gas_chem_output_units, opt.gas_chem_output_units_aperture);
     AddEntry("Gas_chemsitry_production_output_units", opt.gas_chemproduction_output_units, opt.gas_chemproduction_output_units_aperture);
     AddEntry("Star_internal_property_output_units", opt.star_internalprop_output_units, opt.star_internalprop_output_units_aperture);

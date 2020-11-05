@@ -2319,7 +2319,7 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
     /*writing M_gas_highT and related quantities*/
     for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_gas_highT;
     Fhdf.write_dataset(opt, head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
-    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].T_mean_gas_highT;
+    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Temp_mean_gas_highT;
     Fhdf.write_dataset(opt, head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
     for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Z_mean_gas_highT;
     Fhdf.write_dataset(opt, head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
@@ -2572,7 +2572,7 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
                 Fhdf.write_dataset(opt, head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
             for (auto j=0;j<opt.aperturenum;j++) {
-                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_T_mean_gas_highT[j];
+                for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].aperture_Temp_mean_gas_highT[j];
                 Fhdf.write_dataset(opt, head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
             }
             for (auto j=0;j<opt.aperturenum;j++) {
