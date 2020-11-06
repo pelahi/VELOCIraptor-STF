@@ -317,7 +317,6 @@ typedef double (*ExtraPropFunc)(double, double, double&);
 #define Grav_in_kpc_kms_solarmasses 4.3022682e-6
 //@}
 
-
 /// Structure stores unbinding information
 struct UnbindInfo
 {

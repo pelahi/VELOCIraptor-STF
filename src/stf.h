@@ -7,6 +7,7 @@
 
 #include "allvars.h"
 #include "proto.h"
+#include "js_perform.h"
 
 #define STFVERSION 1.30
 

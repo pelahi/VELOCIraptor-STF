@@ -83,7 +83,6 @@ vr_option(HALO_DEN      "Like STRUCTURE_DEN, but se particles inside field objec
 vr_option(ZOOM_SIM      "Used to run against simulations with a high resolution region" OFF)
 vr_option(USE_SWIFT_INTERFACE "Used to compile the code with hooks for being called from the SWIFT Hydro nbody code" OFF)
 
-
 # Let's true to our word
 if (VR_USE_SWIFT_INTERFACE)
 	set(NBODY_USE_SWIFT_INTERFACE ON)
